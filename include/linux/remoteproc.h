@@ -449,9 +449,6 @@ struct rproc_vdev {
 	unsigned long gfeatures;
 };
 
-struct rproc *rproc_get_by_name(const char *name);
-void rproc_put(struct rproc *rproc);
-
 struct rproc *rproc_alloc(struct device *dev, const char *name,
 				const struct rproc_ops *ops,
 				const char *firmware, int len);

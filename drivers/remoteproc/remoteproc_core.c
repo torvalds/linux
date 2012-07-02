@@ -36,32 +36,12 @@
 #include <linux/remoteproc.h>
 #include <linux/iommu.h>
 #include <linux/idr.h>
-#include <linux/klist.h>
 #include <linux/elf.h>
 #include <linux/virtio_ids.h>
 #include <linux/virtio_ring.h>
 #include <asm/byteorder.h>
 
 #include "remoteproc_internal.h"
-
-static void klist_rproc_get(struct klist_node *n);
-static void klist_rproc_put(struct klist_node *n);
-
-/*
- * klist of the available remote processors.
- *
- * We need this in order to support name-based lookups (needed by the
- * rproc_get_by_name()).
- *
- * That said, we don't use rproc_get_by_name() at this point.
- * The use cases that do require its existence should be
- * scrutinized, and hopefully migrated to rproc_boot() using device-based
- * binding.
- *
- * If/when this materializes, we could drop the klist (and the by_name
- * API).
- */
-static DEFINE_KLIST(rprocs, klist_rproc_get, klist_rproc_put);
 
 typedef int (*rproc_handle_resources_t)(struct rproc *rproc,
 				struct resource_table *table, int len);
@@ -1217,10 +1197,6 @@ EXPORT_SYMBOL(rproc_boot);
  *   which means that the @rproc handle stays valid even after rproc_shutdown()
  *   returns, and users can still use it with a subsequent rproc_boot(), if
  *   needed.
- * - don't call rproc_shutdown() to unroll rproc_get_by_name(), exactly
- *   because rproc_shutdown() _does not_ decrement the refcount of @rproc.
- *   To decrement the refcount of @rproc, use rproc_put() (but _only_ if
- *   you acquired @rproc using rproc_get_by_name()).
  */
 void rproc_shutdown(struct rproc *rproc)
 {
@@ -1261,105 +1237,6 @@ out:
 }
 EXPORT_SYMBOL(rproc_shutdown);
 
-/* will be called when an rproc is added to the rprocs klist */
-static void klist_rproc_get(struct klist_node *n)
-{
-	struct rproc *rproc = container_of(n, struct rproc, node);
-
-	get_device(&rproc->dev);
-}
-
-/* will be called when an rproc is removed from the rprocs klist */
-static void klist_rproc_put(struct klist_node *n)
-{
-	struct rproc *rproc = container_of(n, struct rproc, node);
-
-	put_device(&rproc->dev);
-}
-
-static struct rproc *next_rproc(struct klist_iter *i)
-{
-	struct klist_node *n;
-
-	n = klist_next(i);
-	if (!n)
-		return NULL;
-
-	return container_of(n, struct rproc, node);
-}
-
-/**
- * rproc_get_by_name() - find a remote processor by name and boot it
- * @name: name of the remote processor
- *
- * Finds an rproc handle using the remote processor's name, and then
- * boot it. If it's already powered on, then just immediately return
- * (successfully).
- *
- * Returns the rproc handle on success, and NULL on failure.
- *
- * This function increments the remote processor's refcount, so always
- * use rproc_put() to decrement it back once rproc isn't needed anymore.
- *
- * Note: currently this function (and its counterpart rproc_put()) are not
- * being used. We need to scrutinize the use cases
- * that still need them, and see if we can migrate them to use the non
- * name-based boot/shutdown interface.
- */
-struct rproc *rproc_get_by_name(const char *name)
-{
-	struct rproc *rproc;
-	struct klist_iter i;
-	int ret;
-
-	/* find the remote processor, and upref its refcount */
-	klist_iter_init(&rprocs, &i);
-	while ((rproc = next_rproc(&i)) != NULL)
-		if (!strcmp(rproc->name, name)) {
-			get_device(&rproc->dev);
-			break;
-		}
-	klist_iter_exit(&i);
-
-	/* can't find this rproc ? */
-	if (!rproc) {
-		pr_err("can't find remote processor %s\n", name);
-		return NULL;
-	}
-
-	ret = rproc_boot(rproc);
-	if (ret < 0) {
-		put_device(&rproc->dev);
-		return NULL;
-	}
-
-	return rproc;
-}
-EXPORT_SYMBOL(rproc_get_by_name);
-
-/**
- * rproc_put() - decrement the refcount of a remote processor, and shut it down
- * @rproc: the remote processor
- *
- * This function tries to shutdown @rproc, and it then decrements its
- * refcount.
- *
- * After this function returns, @rproc may _not_ be used anymore, and its
- * handle should be considered invalid.
- *
- * This function should be called _iff_ the @rproc handle was grabbed by
- * calling rproc_get_by_name().
- */
-void rproc_put(struct rproc *rproc)
-{
-	/* try to power off the remote processor */
-	rproc_shutdown(rproc);
-
-	/* downref rproc's refcount */
-	put_device(&rproc->dev);
-}
-EXPORT_SYMBOL(rproc_put);
-
 /**
  * rproc_register() - register a remote processor
  * @rproc: the remote processor handle to register
@@ -1389,9 +1266,6 @@ int rproc_register(struct rproc *rproc)
 	if (ret < 0)
 		return ret;
 
-	/* expose to rproc_get_by_name users */
-	klist_add_tail(&rproc->node, &rprocs);
-
 	dev_info(dev, "%s is available\n", rproc->name);
 
 	dev_info(dev, "Note: remoteproc is still under development and considered experimental.\n");
@@ -1417,7 +1291,6 @@ int rproc_register(struct rproc *rproc)
 	if (ret < 0) {
 		dev_err(dev, "request_firmware_nowait failed: %d\n", ret);
 		complete_all(&rproc->firmware_loading_complete);
-		klist_remove(&rproc->node);
 	}
 
 	return ret;
@@ -1572,9 +1445,6 @@ int rproc_unregister(struct rproc *rproc)
 	/* clean up remote vdev entries */
 	list_for_each_entry_safe(rvdev, tmp, &rproc->rvdevs, node)
 		rproc_remove_virtio_dev(rvdev);
-
-	/* the rproc is downref'ed as soon as it's removed from the klist */
-	klist_del(&rproc->node);
 
 	device_del(&rproc->dev);
 

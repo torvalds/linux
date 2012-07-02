@@ -36,8 +36,7 @@ cost.
       Note: to use this function you should already have a valid rproc
       handle. There are several ways to achieve that cleanly (devres, pdata,
       the way remoteproc_rpmsg.c does this, or, if this becomes prevalent, we
-      might also consider using dev_archdata for this). See also
-      rproc_get_by_name() below.
+      might also consider using dev_archdata for this).
 
   void rproc_shutdown(struct rproc *rproc)
     - Power off a remote processor (previously booted with rproc_boot()).
@@ -51,30 +50,6 @@ cost.
         which means that the @rproc handle stays valid even after
         rproc_shutdown() returns, and users can still use it with a subsequent
         rproc_boot(), if needed.
-      - don't call rproc_shutdown() to unroll rproc_get_by_name(), exactly
-        because rproc_shutdown() _does not_ decrement the refcount of @rproc.
-        To decrement the refcount of @rproc, use rproc_put() (but _only_ if
-        you acquired @rproc using rproc_get_by_name()).
-
-  struct rproc *rproc_get_by_name(const char *name)
-    - Find an rproc handle using the remote processor's name, and then
-      boot it. If it's already powered on, then just immediately return
-      (successfully). Returns the rproc handle on success, and NULL on failure.
-      This function increments the remote processor's refcount, so always
-      use rproc_put() to decrement it back once rproc isn't needed anymore.
-      Note: currently rproc_get_by_name() and rproc_put() are not used anymore
-      by the rpmsg bus and its drivers. We need to scrutinize the use cases
-      that still need them, and see if we can migrate them to use the non
-      name-based boot/shutdown interface.
-
-  void rproc_put(struct rproc *rproc)
-    - Decrement @rproc's power refcount and shut it down if it reaches zero
-      (essentially by just calling rproc_shutdown), and then decrement @rproc's
-      validity refcount too.
-      After this function returns, @rproc may _not_ be used anymore, and its
-      handle should be considered invalid.
-      This function should be called _iff_ the @rproc handle was grabbed by
-      calling rproc_get_by_name().
 
 3. Typical usage
 
