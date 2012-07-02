@@ -2348,9 +2348,7 @@ static void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs intel_dp_helper_funcs = {
 	.mode_fixup = intel_dp_mode_fixup,
-	.prepare = intel_encoder_noop,
 	.mode_set = intel_dp_mode_set,
-	.commit = intel_encoder_noop,
 	.disable = intel_encoder_disable,
 };
 

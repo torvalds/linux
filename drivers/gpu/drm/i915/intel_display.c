@@ -3527,10 +3527,6 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	}
 }
 
-void intel_encoder_noop(struct drm_encoder *encoder)
-{
-}
-
 void intel_encoder_disable(struct drm_encoder *encoder)
 {
 	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
@@ -6701,16 +6697,6 @@ bool intel_set_mode(struct drm_crtc *crtc,
 	}
 	DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
 
-	/* Prepare the encoders and CRTCs before setting the mode. */
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-
-		if (encoder->crtc != crtc)
-			continue;
-		encoder_funcs = encoder->helper_private;
-		/* Disable the encoders as the first thing we do. */
-		encoder_funcs->prepare(encoder);
-	}
-
 	intel_crtc_prepare_encoders(dev);
 
 	crtc_funcs->prepare(crtc);
@@ -6736,16 +6722,6 @@ bool intel_set_mode(struct drm_crtc *crtc,
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	crtc_funcs->commit(crtc);
-
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-
-		if (encoder->crtc != crtc)
-			continue;
-
-		encoder_funcs = encoder->helper_private;
-		encoder_funcs->commit(encoder);
-
-	}
 
 	/* Store real post-adjustment hardware mode. */
 	crtc->hwmode = *adjusted_mode;

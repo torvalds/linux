@@ -617,8 +617,6 @@ static void intel_crt_reset(struct drm_connector *connector)
 
 static const struct drm_encoder_helper_funcs crt_encoder_funcs = {
 	.mode_fixup = intel_crt_mode_fixup,
-	.prepare = intel_encoder_noop,
-	.commit = intel_encoder_noop,
 	.mode_set = intel_crt_mode_set,
 	.disable = intel_encoder_disable,
 };

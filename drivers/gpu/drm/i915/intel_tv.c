@@ -1479,9 +1479,7 @@ out:
 
 static const struct drm_encoder_helper_funcs intel_tv_helper_funcs = {
 	.mode_fixup = intel_tv_mode_fixup,
-	.prepare = intel_encoder_noop,
 	.mode_set = intel_tv_mode_set,
-	.commit = intel_encoder_noop,
 	.disable = intel_encoder_disable,
 };
 
