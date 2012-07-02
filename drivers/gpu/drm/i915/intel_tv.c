@@ -836,6 +836,21 @@ static struct intel_tv *intel_attached_tv(struct drm_connector *connector)
 			    base);
 }
 
+static bool
+intel_tv_get_hw_state(struct intel_encoder *encoder, enum pipe *pipe)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 tmp = I915_READ(TV_CTL);
+
+	if (!(tmp & TV_ENC_ENABLE))
+		return false;
+
+	*pipe = PORT_TO_PIPE(tmp);
+
+	return true;
+}
+
 static void
 intel_enable_tv(struct intel_encoder *encoder)
 {
@@ -1616,6 +1631,8 @@ intel_tv_init(struct drm_device *dev)
 
 	intel_encoder->enable = intel_enable_tv;
 	intel_encoder->disable = intel_disable_tv;
+	intel_encoder->get_hw_state = intel_tv_get_hw_state;
+	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 	intel_encoder->type = INTEL_OUTPUT_TVOUT;
