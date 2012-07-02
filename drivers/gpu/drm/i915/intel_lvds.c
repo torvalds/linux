@@ -65,6 +65,32 @@ static struct intel_lvds *intel_attached_lvds(struct drm_connector *connector)
 			    struct intel_lvds, base);
 }
 
+static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
+				    enum pipe *pipe)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 lvds_reg, tmp;
+
+	if (HAS_PCH_SPLIT(dev)) {
+		lvds_reg = PCH_LVDS;
+	} else {
+		lvds_reg = LVDS;
+	}
+
+	tmp = I915_READ(lvds_reg);
+
+	if (!(tmp & LVDS_PORT_EN))
+		return false;
+
+	if (HAS_PCH_CPT(dev))
+		*pipe = PORT_TO_PIPE_CPT(tmp);
+	else
+		*pipe = PORT_TO_PIPE(tmp);
+
+	return true;
+}
+
 /**
  * Sets the power state for the panel.
  */
@@ -937,6 +963,8 @@ bool intel_lvds_init(struct drm_device *dev)
 
 	intel_encoder->enable = intel_enable_lvds;
 	intel_encoder->disable = intel_disable_lvds;
+	intel_encoder->get_hw_state = intel_lvds_get_hw_state;
+	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 	intel_encoder->type = INTEL_OUTPUT_LVDS;
