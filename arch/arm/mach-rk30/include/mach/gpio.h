@@ -4,34 +4,6 @@
 #include <mach/irqs.h>
 #include <linux/init.h>
 
-typedef enum eGPIOPinLevel
-{
-	GPIO_LOW=0,
-	GPIO_HIGH
-}eGPIOPinLevel_t;
-
-typedef enum eGPIOPinDirection
-{
-	GPIO_IN=0,
-	GPIO_OUT
-}eGPIOPinDirection_t;
-
-typedef enum GPIOPullType {
-	PullDisable = 0,
-	PullEnable,
-	GPIONormal,  //PullEnable, please do not use it
-	GPIOPullUp,	//PullEnable, please do not use it
-	GPIOPullDown,//PullEnable, please do not use it
-	GPIONOInit,//PullEnable, please do not use it
-}eGPIOPullType_t;
-
-typedef enum GPIOIntType {
-	GPIOLevelLow=0,
-	GPIOLevelHigh,	 
-	GPIOEdgelFalling,
-	GPIOEdgelRising
-}eGPIOIntType_t;
-
 //定义GPIO相关寄存器偏移地址
 #define 	GPIO_SWPORT_DR		0x00
 #define 	GPIO_SWPORT_DDR		0x04
@@ -428,21 +400,10 @@ typedef enum GPIOIntType {
 #define	WM831X_P12 (WM831X_GPIO_EXPANDER_BASE  + 1*NUM_GROUP + 3)
 #endif                                           
 
+#include <plat/gpio.h>
+
 #ifndef __ASSEMBLY__                                         
 extern void __init rk30_gpio_init(void);
-/*-------------------------------------------------------------------------*/
-
-/* wrappers for "new style" GPIO calls. the old RK2818-specfic ones should
- * eventually be removed (along with this errno.h inclusion), and the
- * gpio request/free calls should probably be implemented.
- */
-
-#include <asm/errno.h>
-#include <asm-generic/gpio.h>		/* cansleep wrappers */
-
-#define gpio_get_value	__gpio_get_value
-#define gpio_set_value	__gpio_set_value
-#define gpio_cansleep	__gpio_cansleep
 
 static inline int gpio_to_irq(unsigned gpio)
 {
