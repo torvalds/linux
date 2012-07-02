@@ -214,7 +214,10 @@ static int __devexit omap_rproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 
-	return rproc_unregister(rproc);
+	rproc_unregister(rproc);
+	rproc_free(rproc);
+
+	return 0;
 }
 
 static struct platform_driver omap_rproc_driver = {

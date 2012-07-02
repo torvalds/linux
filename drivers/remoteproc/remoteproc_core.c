@@ -1472,7 +1472,7 @@ static struct device_type rproc_type = {
  * On success the new rproc is returned, and on failure, NULL.
  *
  * Note: _never_ directly deallocate @rproc, even if it was not registered
- * yet. Instead, if you just need to unroll rproc_alloc(), use rproc_free().
+ * yet. Instead, when you need to unroll rproc_alloc(), use rproc_free().
  */
 struct rproc *rproc_alloc(struct device *dev, const char *name,
 				const struct rproc_ops *ops,
@@ -1526,14 +1526,13 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 EXPORT_SYMBOL(rproc_alloc);
 
 /**
- * rproc_free() - free an rproc handle that was allocated by rproc_alloc
+ * rproc_free() - unroll rproc_alloc()
  * @rproc: the remote processor handle
  *
- * This function should _only_ be used if @rproc was only allocated,
- * but not registered yet.
+ * This function decrements the rproc dev refcount.
  *
- * If @rproc was already successfully registered (by calling rproc_register()),
- * then use rproc_unregister() instead.
+ * If no one holds any reference to rproc anymore, then its refcount would
+ * now drop to zero, and it would be freed.
  */
 void rproc_free(struct rproc *rproc)
 {
@@ -1545,19 +1544,14 @@ EXPORT_SYMBOL(rproc_free);
  * rproc_unregister() - unregister a remote processor
  * @rproc: rproc handle to unregister
  *
- * Unregisters a remote processor, and decrements its refcount.
- * If its refcount drops to zero, then @rproc will be freed. If not,
- * it will be freed later once the last reference is dropped.
- *
  * This function should be called when the platform specific rproc
  * implementation decides to remove the rproc device. it should
  * _only_ be called if a previous invocation of rproc_register()
  * has completed successfully.
  *
- * After rproc_unregister() returns, @rproc is _not_ valid anymore and
- * it shouldn't be used. More specifically, don't call rproc_free()
- * or try to directly free @rproc after rproc_unregister() returns;
- * none of these are needed, and calling them is a bug.
+ * After rproc_unregister() returns, @rproc isn't freed yet, because
+ * of the outstanding reference created by rproc_alloc. To decrement that
+ * one last refcount, one still needs to call rproc_free().
  *
  * Returns 0 on success and -EINVAL if @rproc isn't valid.
  */
@@ -1579,9 +1573,6 @@ int rproc_unregister(struct rproc *rproc)
 	klist_del(&rproc->node);
 
 	device_del(&rproc->dev);
-
-	/* unroll rproc_alloc. TODO: we may want to let the users do that */
-	put_device(&rproc->dev);
 
 	return 0;
 }
