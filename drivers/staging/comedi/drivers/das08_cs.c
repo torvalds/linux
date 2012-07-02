@@ -239,11 +239,18 @@ static int __init das08_cs_init_module(void)
 {
 	int ret;
 
-	ret = pcmcia_register_driver(&das08_cs_driver);
+	ret = comedi_driver_register(&driver_das08_cs);
 	if (ret < 0)
 		return ret;
 
-	return comedi_driver_register(&driver_das08_cs);
+	ret = pcmcia_register_driver(&das08_cs_driver);
+	if (ret < 0) {
+		comedi_driver_unregister(&driver_das08_cs);
+		return ret;
+	}
+
+	return 0;
+
 }
 module_init(das08_cs_init_module);
 
