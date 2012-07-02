@@ -488,7 +488,7 @@ static int efx_end_loopback(struct efx_tx_queue *tx_queue,
 		skb = state->skbs[i];
 		if (skb && !skb_shared(skb))
 			++tx_done;
-		dev_kfree_skb_any(skb);
+		dev_kfree_skb(skb);
 	}
 
 	netif_tx_unlock_bh(efx->net_dev);
