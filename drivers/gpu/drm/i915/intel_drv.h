@@ -144,12 +144,19 @@ struct intel_encoder {
 	void (*hot_plug)(struct intel_encoder *);
 	void (*enable)(struct intel_encoder *);
 	void (*disable)(struct intel_encoder *);
+	/* Read out the current hw state of this connector, returning true if
+	 * the encoder is active. If the encoder is enabled it also set the pipe
+	 * it is connected to in the pipe parameter. */
+	bool (*get_hw_state)(struct intel_encoder *, enum pipe *pipe);
 	int crtc_mask;
 };
 
 struct intel_connector {
 	struct drm_connector base;
 	struct intel_encoder *encoder;
+	/* Reads out the current hw, returning true if the connector is enabled
+	 * and active (i.e. dpms ON state). */
+	bool (*get_hw_state)(struct intel_connector *);
 };
 
 struct intel_crtc {
@@ -426,6 +433,7 @@ extern void intel_encoder_disable(struct drm_encoder *encoder);
 extern void intel_encoder_destroy(struct drm_encoder *encoder);
 extern void intel_encoder_dpms(struct intel_encoder *encoder, int mode);
 extern void intel_connector_dpms(struct drm_connector *, int mode);
+extern bool intel_connector_get_hw_state(struct intel_connector *connector);
 
 static inline struct intel_encoder *intel_attached_encoder(struct drm_connector *connector)
 {

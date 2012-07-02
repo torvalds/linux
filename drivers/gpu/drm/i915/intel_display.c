@@ -3584,6 +3584,17 @@ void intel_connector_dpms(struct drm_connector *connector, int mode)
 		encoder->connectors_active = false;
 }
 
+/* Simple connector->get_hw_state implementation for encoders that support only
+ * one connector and no cloning and hence the encoder state determines the state
+ * of the connector. */
+bool intel_connector_get_hw_state(struct intel_connector *connector)
+{
+	enum pipe pipe;
+	struct intel_encoder *encoder = connector->encoder;
+
+	return encoder->get_hw_state(encoder, &pipe);
+}
+
 static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
 				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
