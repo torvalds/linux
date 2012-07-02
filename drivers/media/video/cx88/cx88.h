@@ -575,7 +575,7 @@ struct cx8802_dev {
 	unsigned char              mpeg_active; /* nonzero if mpeg encoder is active */
 
 	/* mpeg params */
-	struct cx2341x_mpeg_params params;
+	struct cx2341x_handler     cxhdl;
 #endif
 
 #if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
