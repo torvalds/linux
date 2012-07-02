@@ -1281,14 +1281,14 @@ static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
 			gfn_t gfn_offset = (hva - start) >> PAGE_SHIFT;
 			gfn_t gfn = memslot->base_gfn + gfn_offset;
 
-			ret = handler(kvm, &memslot->rmap[gfn_offset], data);
+			ret = 0;
 
-			for (j = 0; j < KVM_NR_PAGE_SIZES - 1; ++j) {
-				struct kvm_lpage_info *linfo;
+			for (j = PT_PAGE_TABLE_LEVEL;
+			     j < PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES; ++j) {
+				unsigned long *rmapp;
 
-				linfo = lpage_info_slot(gfn, memslot,
-							PT_DIRECTORY_LEVEL + j);
-				ret |= handler(kvm, &linfo->rmap_pde, data);
+				rmapp = __gfn_to_rmap(gfn, j, memslot);
+				ret |= handler(kvm, rmapp, data);
 			}
 			trace_kvm_age_page(hva, memslot, ret);
 			retval |= ret;
