@@ -52,6 +52,7 @@ config SOC_IMX25
 	select ARCH_MX25
 	select COMMON_CLK
 	select CPU_ARM926T
+	select HAVE_CAN_FLEXCAN if CAN
 	select ARCH_MXC_IOMUX_V3
 	select MXC_AVIC
 
@@ -79,6 +80,7 @@ config SOC_IMX35
 	select HAVE_EPIT
 	select MXC_AVIC
 	select SMP_ON_UP if SMP
+	select HAVE_CAN_FLEXCAN if CAN
 
 config SOC_IMX5
 	select CPU_V7
@@ -105,6 +107,7 @@ config	SOC_IMX53
 	select SOC_IMX5
 	select ARCH_MX5
 	select ARCH_MX53
+	select HAVE_CAN_FLEXCAN if CAN
 
 if ARCH_IMX_V4_V5
 
@@ -826,6 +829,7 @@ config SOC_IMX6Q
 	select COMMON_CLK
 	select CPU_V7
 	select HAVE_ARM_SCU
+	select HAVE_CAN_FLEXCAN if CAN
 	select HAVE_IMX_GPC
 	select HAVE_IMX_MMDC
 	select HAVE_IMX_SRC
