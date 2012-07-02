@@ -3948,3 +3948,194 @@ void intel_init_pm(struct drm_device *dev)
 	intel_init_power_wells(dev);
 }
 
+static void __gen6_gt_wait_for_thread_c0(struct drm_i915_private *dev_priv)
+{
+	u32 gt_thread_status_mask;
+
+	if (IS_HASWELL(dev_priv->dev))
+		gt_thread_status_mask = GEN6_GT_THREAD_STATUS_CORE_MASK_HSW;
+	else
+		gt_thread_status_mask = GEN6_GT_THREAD_STATUS_CORE_MASK;
+
+	/* w/a for a sporadic read returning 0 by waiting for the GT
+	 * thread to wake up.
+	 */
+	if (wait_for_atomic_us((I915_READ_NOTRACE(GEN6_GT_THREAD_STATUS_REG) & gt_thread_status_mask) == 0, 500))
+		DRM_ERROR("GT thread status wait timed out\n");
+}
+
+static void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
+{
+	u32 forcewake_ack;
+
+	if (IS_HASWELL(dev_priv->dev))
+		forcewake_ack = FORCEWAKE_ACK_HSW;
+	else
+		forcewake_ack = FORCEWAKE_ACK;
+
+	if (wait_for_atomic_us((I915_READ_NOTRACE(forcewake_ack) & 1) == 0, 500))
+		DRM_ERROR("Force wake wait timed out\n");
+
+	I915_WRITE_NOTRACE(FORCEWAKE, 1);
+
+	if (wait_for_atomic_us((I915_READ_NOTRACE(forcewake_ack) & 1), 500))
+		DRM_ERROR("Force wake wait timed out\n");
+
+	__gen6_gt_wait_for_thread_c0(dev_priv);
+}
+
+static void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
+{
+	u32 forcewake_ack;
+
+	if (IS_HASWELL(dev_priv->dev))
+		forcewake_ack = FORCEWAKE_ACK_HSW;
+	else
+		forcewake_ack = FORCEWAKE_MT_ACK;
+
+	if (wait_for_atomic_us((I915_READ_NOTRACE(forcewake_ack) & 1) == 0, 500))
+		DRM_ERROR("Force wake wait timed out\n");
+
+	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_ENABLE(1));
+
+	if (wait_for_atomic_us((I915_READ_NOTRACE(forcewake_ack) & 1), 500))
+		DRM_ERROR("Force wake wait timed out\n");
+
+	__gen6_gt_wait_for_thread_c0(dev_priv);
+}
+
+/*
+ * Generally this is called implicitly by the register read function. However,
+ * if some sequence requires the GT to not power down then this function should
+ * be called at the beginning of the sequence followed by a call to
+ * gen6_gt_force_wake_put() at the end of the sequence.
+ */
+void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
+{
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev_priv->gt_lock, irqflags);
+	if (dev_priv->forcewake_count++ == 0)
+		dev_priv->gt.force_wake_get(dev_priv);
+	spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags);
+}
+
+void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv)
+{
+	u32 gtfifodbg;
+	gtfifodbg = I915_READ_NOTRACE(GTFIFODBG);
+	if (WARN(gtfifodbg & GT_FIFO_CPU_ERROR_MASK,
+	     "MMIO read or write has been dropped %x\n", gtfifodbg))
+		I915_WRITE_NOTRACE(GTFIFODBG, GT_FIFO_CPU_ERROR_MASK);
+}
+
+static void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE_NOTRACE(FORCEWAKE, 0);
+	/* The below doubles as a POSTING_READ */
+	gen6_gt_check_fifodbg(dev_priv);
+}
+
+static void __gen6_gt_force_wake_mt_put(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_DISABLE(1));
+	/* The below doubles as a POSTING_READ */
+	gen6_gt_check_fifodbg(dev_priv);
+}
+
+/*
+ * see gen6_gt_force_wake_get()
+ */
+void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
+{
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev_priv->gt_lock, irqflags);
+	if (--dev_priv->forcewake_count == 0)
+		dev_priv->gt.force_wake_put(dev_priv);
+	spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags);
+}
+
+int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
+{
+	int ret = 0;
+
+	if (dev_priv->gt_fifo_count < GT_FIFO_NUM_RESERVED_ENTRIES) {
+		int loop = 500;
+		u32 fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
+		while (fifo <= GT_FIFO_NUM_RESERVED_ENTRIES && loop--) {
+			udelay(10);
+			fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
+		}
+		if (WARN_ON(loop < 0 && fifo <= GT_FIFO_NUM_RESERVED_ENTRIES))
+			++ret;
+		dev_priv->gt_fifo_count = fifo;
+	}
+	dev_priv->gt_fifo_count--;
+
+	return ret;
+}
+
+static void vlv_force_wake_get(struct drm_i915_private *dev_priv)
+{
+	/* Already awake? */
+	if ((I915_READ(0x130094) & 0xa1) == 0xa1)
+		return;
+
+	I915_WRITE_NOTRACE(FORCEWAKE_VLV, 0xffffffff);
+	POSTING_READ(FORCEWAKE_VLV);
+
+	if (wait_for_atomic_us((I915_READ_NOTRACE(FORCEWAKE_ACK_VLV) & 1), 500))
+		DRM_ERROR("Force wake wait timed out\n");
+
+	__gen6_gt_wait_for_thread_c0(dev_priv);
+}
+
+static void vlv_force_wake_put(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE_NOTRACE(FORCEWAKE_VLV, 0xffff0000);
+	/* FIXME: confirm VLV behavior with Punit folks */
+	POSTING_READ(FORCEWAKE_VLV);
+}
+
+void intel_gt_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	spin_lock_init(&dev_priv->gt_lock);
+
+	if (IS_VALLEYVIEW(dev)) {
+		dev_priv->gt.force_wake_get = vlv_force_wake_get;
+		dev_priv->gt.force_wake_put = vlv_force_wake_put;
+	} else if (INTEL_INFO(dev)->gen >= 6) {
+		dev_priv->gt.force_wake_get = __gen6_gt_force_wake_get;
+		dev_priv->gt.force_wake_put = __gen6_gt_force_wake_put;
+
+		/* IVB configs may use multi-threaded forcewake */
+		if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
+			u32 ecobus;
+
+			/* A small trick here - if the bios hasn't configured
+			 * MT forcewake, and if the device is in RC6, then
+			 * force_wake_mt_get will not wake the device and the
+			 * ECOBUS read will return zero. Which will be
+			 * (correctly) interpreted by the test below as MT
+			 * forcewake being disabled.
+			 */
+			mutex_lock(&dev->struct_mutex);
+			__gen6_gt_force_wake_mt_get(dev_priv);
+			ecobus = I915_READ_NOTRACE(ECOBUS);
+			__gen6_gt_force_wake_mt_put(dev_priv);
+			mutex_unlock(&dev->struct_mutex);
+
+			if (ecobus & FORCEWAKE_MT_ENABLE) {
+				DRM_DEBUG_KMS("Using MT version of forcewake\n");
+				dev_priv->gt.force_wake_get =
+					__gen6_gt_force_wake_mt_get;
+				dev_priv->gt.force_wake_put =
+					__gen6_gt_force_wake_mt_put;
+			}
+		}
+	}
+}
+
