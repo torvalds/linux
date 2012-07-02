@@ -6584,7 +6584,6 @@ static void intel_crtc_reset(struct drm_crtc *crtc)
 static struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.mode_fixup = intel_crtc_mode_fixup,
 	.mode_set = intel_crtc_mode_set,
-	.mode_set_base = intel_pipe_set_base,
 	.mode_set_base_atomic = intel_pipe_set_base_atomic,
 	.load_lut = intel_crtc_load_lut,
 	.disable = intel_crtc_disable,
@@ -6646,7 +6645,6 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	bool fb_changed = false; /* if true and !mode_changed just do a flip */
 	struct drm_connector *save_connectors, *connector;
 	int count = 0, ro, fail = 0;
-	struct drm_crtc_helper_funcs *crtc_funcs;
 	struct drm_mode_set save_set;
 	int ret;
 	int i;
@@ -6662,7 +6660,6 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	if (!set->crtc->helper_private)
 		return -EINVAL;
 
-	crtc_funcs = set->crtc->helper_private;
 
 	if (!set->mode)
 		set->fb = NULL;
@@ -6824,10 +6821,6 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 		}
 	}
 
-	/* mode_set_base is not a required function */
-	if (fb_changed && !crtc_funcs->mode_set_base)
-		mode_changed = true;
-
 	if (mode_changed) {
 		set->crtc->enabled = drm_helper_crtc_in_use(set->crtc);
 		if (set->crtc->enabled) {
@@ -6860,8 +6853,8 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 		old_fb = set->crtc->fb;
 		if (set->crtc->fb != set->fb)
 			set->crtc->fb = set->fb;
-		ret = crtc_funcs->mode_set_base(set->crtc,
-						set->x, set->y, old_fb);
+		ret = intel_pipe_set_base(set->crtc,
+					  set->x, set->y, old_fb);
 		if (ret != 0) {
 			set->crtc->fb = old_fb;
 			goto fail;
