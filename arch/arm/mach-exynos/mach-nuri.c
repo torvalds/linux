@@ -1067,11 +1067,7 @@ static struct platform_device nuri_max8903_device = {
 static void __init nuri_power_init(void)
 {
 	int gpio;
-	int irq_base = IRQ_GPIO_END + 1;
 	int ta_en = 0;
-
-	nuri_max8997_pdata.irq_base = irq_base;
-	irq_base += MAX8997_IRQ_NR;
 
 	gpio = EXYNOS4_GPX0(7);
 	gpio_request(gpio, "AP_PMIC_IRQ");

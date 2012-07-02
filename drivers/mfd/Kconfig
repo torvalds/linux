@@ -464,6 +464,7 @@ config MFD_MAX8997
 	bool "Maxim Semiconductor MAX8997/8966 PMIC Support"
 	depends on I2C=y && GENERIC_HARDIRQS
 	select MFD_CORE
+	select IRQ_DOMAIN
 	help
 	  Say yes here to support for Maxim Semiconductor MAX8997/8966.
 	  This is a Power Management IC with RTC, Flash, Fuel Gauge, Haptic,

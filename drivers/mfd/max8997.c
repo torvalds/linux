@@ -143,7 +143,6 @@ static int max8997_i2c_probe(struct i2c_client *i2c,
 	if (!pdata)
 		goto err;
 
-	max8997->irq_base = pdata->irq_base;
 	max8997->ono = pdata->ono;
 
 	mutex_init(&max8997->iolock);
