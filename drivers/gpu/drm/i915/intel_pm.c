@@ -3240,7 +3240,7 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 {
 	if (IS_IRONLAKE_M(dev))
 		ironlake_disable_drps(dev);
-	if (INTEL_INFO(dev)->gen >= 6 && !IS_VALLEYVIEW(dev))
+	else if (INTEL_INFO(dev)->gen >= 6 && !IS_VALLEYVIEW(dev))
 		gen6_disable_rps(dev);
 }
 
@@ -3250,9 +3250,7 @@ void intel_enable_gt_powersave(struct drm_device *dev)
 		ironlake_enable_drps(dev);
 		ironlake_enable_rc6(dev);
 		intel_init_emon(dev);
-	}
-
-	if ((IS_GEN6(dev) || IS_GEN7(dev)) && !IS_VALLEYVIEW(dev)) {
+	} else if ((IS_GEN6(dev) || IS_GEN7(dev)) && !IS_VALLEYVIEW(dev)) {
 		gen6_enable_rps(dev);
 		gen6_update_ring_freq(dev);
 	}
