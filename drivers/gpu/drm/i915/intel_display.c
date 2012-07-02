@@ -7013,9 +7013,6 @@ static void intel_init_display(struct drm_device *dev)
 			dev_priv->display.write_eld = ironlake_write_eld;
 		} else
 			dev_priv->display.update_wm = NULL;
-	} else if (IS_VALLEYVIEW(dev)) {
-		dev_priv->display.force_wake_get = vlv_force_wake_get;
-		dev_priv->display.force_wake_put = vlv_force_wake_put;
 	} else if (IS_G4X(dev)) {
 		dev_priv->display.write_eld = g4x_write_eld;
 	}

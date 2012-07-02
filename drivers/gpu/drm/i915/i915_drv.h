@@ -262,13 +262,16 @@ struct drm_i915_display_funcs {
 			  struct drm_i915_gem_object *obj);
 	int (*update_plane)(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			    int x, int y);
-	void (*force_wake_get)(struct drm_i915_private *dev_priv);
-	void (*force_wake_put)(struct drm_i915_private *dev_priv);
 	/* clock updates for mode set */
 	/* cursor updates */
 	/* render clock increase/decrease */
 	/* display clock increase/decrease */
 	/* pll clock increase/decrease */
+};
+
+struct drm_i915_gt_funcs {
+	void (*force_wake_get)(struct drm_i915_private *dev_priv);
+	void (*force_wake_put)(struct drm_i915_private *dev_priv);
 };
 
 struct intel_device_info {
@@ -362,6 +365,8 @@ typedef struct drm_i915_private {
 	int relative_constants_mode;
 
 	void __iomem *regs;
+
+	struct drm_i915_gt_funcs gt;
 	/** gt_fifo_count and the subsequent register write are synchronized
 	 * with dev->struct_mutex. */
 	unsigned gt_fifo_count;
@@ -1200,6 +1205,7 @@ void i915_hangcheck_elapsed(unsigned long data);
 void i915_handle_error(struct drm_device *dev, bool wedged);
 
 extern void intel_irq_init(struct drm_device *dev);
+extern void intel_gt_init(struct drm_device *dev);
 
 void i915_error_state_free(struct kref *error_ref);
 
@@ -1517,13 +1523,6 @@ extern int intel_trans_dp_port_sel(struct drm_crtc *crtc);
 extern int intel_enable_rc6(const struct drm_device *dev);
 
 extern bool i915_semaphore_is_enabled(struct drm_device *dev);
-extern void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv);
-extern void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv);
-extern void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv);
-extern void __gen6_gt_force_wake_mt_put(struct drm_i915_private *dev_priv);
-
-extern void vlv_force_wake_get(struct drm_i915_private *dev_priv);
-extern void vlv_force_wake_put(struct drm_i915_private *dev_priv);
 
 /* overlay */
 #ifdef CONFIG_DEBUG_FS
