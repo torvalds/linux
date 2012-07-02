@@ -158,7 +158,15 @@ struct intel_crtc {
 	enum plane plane;
 	u8 lut_r[256], lut_g[256], lut_b[256];
 	int dpms_mode;
-	bool active; /* is the crtc on? independent of the dpms mode */
+	/*
+	 * Whether the crtc and the connected output pipeline is active. Implies
+	 * that crtc->enabled is set, i.e. the current mode configuration has
+	 * some outputs connected to this crtc.
+	 *
+	 * Atm crtc->enabled is unconditionally updated _before_ the hw state is
+	 * changed, hence we can only check this when enabling the crtc.
+	 */
+	bool active;
 	bool primary_disabled; /* is the crtc obscured by a plane? */
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;

@@ -3215,6 +3215,8 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	u32 temp;
 	bool is_pch_port;
 
+	WARN_ON(!crtc->enabled);
+
 	/* XXX: For compatability with the crtc helper code, call the encoder's
 	 * enable function unconditionally for now. */
 	if (intel_crtc->active)
@@ -3390,6 +3392,8 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
+
+	WARN_ON(!crtc->enabled);
 
 	/* XXX: For compatability with the crtc helper code, call the encoder's
 	 * enable function unconditionally for now. */
