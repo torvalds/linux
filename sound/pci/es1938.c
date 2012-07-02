@@ -1474,9 +1474,10 @@ static unsigned char saved_regs[SAVED_REG_SIZE+1] = {
 };
 
 
-static int es1938_suspend(struct pci_dev *pci, pm_message_t state)
+static int es1938_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct es1938 *chip = card->private_data;
 	unsigned char *s, *d;
 
@@ -1494,13 +1495,14 @@ static int es1938_suspend(struct pci_dev *pci, pm_message_t state)
 	}
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int es1938_resume(struct pci_dev *pci)
+static int es1938_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct es1938 *chip = card->private_data;
 	unsigned char *s, *d;
 
@@ -1534,6 +1536,11 @@ static int es1938_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(es1938_pm, es1938_suspend, es1938_resume);
+#define ES1938_PM_OPS	&es1938_pm
+#else
+#define ES1938_PM_OPS	NULL
 #endif /* CONFIG_PM */
 
 #ifdef SUPPORT_JOYSTICK
@@ -1887,10 +1894,9 @@ static struct pci_driver es1938_driver = {
 	.id_table = snd_es1938_ids,
 	.probe = snd_es1938_probe,
 	.remove = __devexit_p(snd_es1938_remove),
-#ifdef CONFIG_PM
-	.suspend = es1938_suspend,
-	.resume = es1938_resume,
-#endif
+	.driver = {
+		.pm = ES1938_PM_OPS,
+	},
 };
 
 module_pci_driver(es1938_driver);

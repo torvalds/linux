@@ -341,7 +341,7 @@ int vx_change_frequency(struct vx_core *chip);
 /*
  * PM
  */
-int snd_vx_suspend(struct vx_core *card, pm_message_t state);
+int snd_vx_suspend(struct vx_core *card);
 int snd_vx_resume(struct vx_core *card);
 
 /*

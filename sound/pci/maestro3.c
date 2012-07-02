@@ -2459,9 +2459,10 @@ static int snd_m3_free(struct snd_m3 *chip)
  * APM support
  */
 #ifdef CONFIG_PM
-static int m3_suspend(struct pci_dev *pci, pm_message_t state)
+static int m3_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_m3 *chip = card->private_data;
 	int i, dsp_index;
 
@@ -2489,13 +2490,14 @@ static int m3_suspend(struct pci_dev *pci, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int m3_resume(struct pci_dev *pci)
+static int m3_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_m3 *chip = card->private_data;
 	int i, dsp_index;
 
@@ -2546,6 +2548,11 @@ static int m3_resume(struct pci_dev *pci)
 	chip->in_suspend = 0;
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(m3_pm, m3_suspend, m3_resume);
+#define M3_PM_OPS	&m3_pm
+#else
+#define M3_PM_OPS	NULL
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_SND_MAESTRO3_INPUT
@@ -2842,10 +2849,9 @@ static struct pci_driver m3_driver = {
 	.id_table = snd_m3_ids,
 	.probe = snd_m3_probe,
 	.remove = __devexit_p(snd_m3_remove),
-#ifdef CONFIG_PM
-	.suspend = m3_suspend,
-	.resume = m3_resume,
-#endif
+	.driver = {
+		.pm = M3_PM_OPS,
+	},
 };
 	
 module_pci_driver(m3_driver);

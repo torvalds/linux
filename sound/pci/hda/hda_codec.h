@@ -703,7 +703,7 @@ struct hda_codec_ops {
 	void (*set_power_state)(struct hda_codec *codec, hda_nid_t fg,
 				unsigned int power_state);
 #ifdef CONFIG_PM
-	int (*suspend)(struct hda_codec *codec, pm_message_t state);
+	int (*suspend)(struct hda_codec *codec);
 	int (*resume)(struct hda_codec *codec);
 #endif
 #ifdef CONFIG_SND_HDA_POWER_SAVE

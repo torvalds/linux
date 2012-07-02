@@ -2403,9 +2403,10 @@ static void azx_power_notify(struct hda_bus *bus)
  * power management
  */
 
-static int azx_suspend(struct pci_dev *pci, pm_message_t state)
+static int azx_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
 	struct azx_pcm *p;
 
@@ -2424,13 +2425,14 @@ static int azx_suspend(struct pci_dev *pci, pm_message_t state)
 		pci_disable_msi(chip->pci);
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int azx_resume(struct pci_dev *pci)
+static int azx_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
 
 	pci_set_power_state(pci, PCI_D0);
@@ -2455,6 +2457,12 @@ static int azx_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
+static SIMPLE_DEV_PM_OPS(azx_pm, azx_suspend, azx_resume);
+#define AZX_PM_OPS	&azx_pm
+#else
+#define azx_suspend(dev)
+#define azx_resume(dev)
+#define AZX_PM_OPS	NULL
 #endif /* CONFIG_PM */
 
 
@@ -2521,13 +2529,13 @@ static void azx_vs_set_state(struct pci_dev *pci,
 			   disabled ? "Disabling" : "Enabling",
 			   pci_name(chip->pci));
 		if (disabled) {
-			azx_suspend(pci, PMSG_FREEZE);
+			azx_suspend(&pci->dev);
 			chip->disabled = true;
 			snd_hda_lock_devices(chip->bus);
 		} else {
 			snd_hda_unlock_devices(chip->bus);
 			chip->disabled = false;
-			azx_resume(pci);
+			azx_resume(&pci->dev);
 		}
 	}
 }
@@ -3398,10 +3406,9 @@ static struct pci_driver azx_driver = {
 	.id_table = azx_ids,
 	.probe = azx_probe,
 	.remove = __devexit_p(azx_remove),
-#ifdef CONFIG_PM
-	.suspend = azx_suspend,
-	.resume = azx_resume,
-#endif
+	.driver = {
+		.pm = AZX_PM_OPS,
+	},
 };
 
 module_pci_driver(azx_driver);

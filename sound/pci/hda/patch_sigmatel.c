@@ -4997,7 +4997,7 @@ static int stac92xx_resume(struct hda_codec *codec)
 	return 0;
 }
 
-static int stac92xx_suspend(struct hda_codec *codec, pm_message_t state)
+static int stac92xx_suspend(struct hda_codec *codec)
 {
 	stac92xx_shutup(codec);
 	return 0;

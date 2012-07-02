@@ -356,8 +356,9 @@ static struct pci_driver ymfpci_driver = {
 	.probe = snd_card_ymfpci_probe,
 	.remove = __devexit_p(snd_card_ymfpci_remove),
 #ifdef CONFIG_PM
-	.suspend = snd_ymfpci_suspend,
-	.resume = snd_ymfpci_resume,
+	.driver = {
+		.pm = &snd_ymfpci_pm,
+	},
 #endif
 };
 

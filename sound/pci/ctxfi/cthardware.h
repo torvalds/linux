@@ -73,7 +73,7 @@ struct hw {
 	int (*card_stop)(struct hw *hw);
 	int (*pll_init)(struct hw *hw, unsigned int rsr);
 #ifdef CONFIG_PM
-	int (*suspend)(struct hw *hw, pm_message_t state);
+	int (*suspend)(struct hw *hw);
 	int (*resume)(struct hw *hw, struct card_conf *info);
 #endif
 	int (*is_adc_source_selected)(struct hw *hw, enum ADCSRC source);

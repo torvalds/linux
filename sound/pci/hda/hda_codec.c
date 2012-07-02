@@ -3545,7 +3545,7 @@ static inline void hda_exec_init_verbs(struct hda_codec *codec) {}
 static void hda_call_codec_suspend(struct hda_codec *codec)
 {
 	if (codec->patch_ops.suspend)
-		codec->patch_ops.suspend(codec, PMSG_SUSPEND);
+		codec->patch_ops.suspend(codec);
 	hda_cleanup_all_streams(codec);
 	hda_set_power_state(codec,
 			    codec->afg ? codec->afg : codec->mfg,

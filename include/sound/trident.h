@@ -430,8 +430,7 @@ void snd_trident_free_voice(struct snd_trident * trident, struct snd_trident_voi
 void snd_trident_start_voice(struct snd_trident * trident, unsigned int voice);
 void snd_trident_stop_voice(struct snd_trident * trident, unsigned int voice);
 void snd_trident_write_voice_regs(struct snd_trident * trident, struct snd_trident_voice *voice);
-int snd_trident_suspend(struct pci_dev *pci, pm_message_t state);
-int snd_trident_resume(struct pci_dev *pci);
+extern const struct dev_pm_ops snd_trident_pm;
 
 /* TLB memory allocation */
 struct snd_util_memblk *snd_trident_alloc_pages(struct snd_trident *trident,

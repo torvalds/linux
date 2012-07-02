@@ -1730,8 +1730,7 @@ int snd_cs46xx_create(struct snd_card *card,
 		      struct pci_dev *pci,
 		      int external_amp, int thinkpad,
 		      struct snd_cs46xx **rcodec);
-int snd_cs46xx_suspend(struct pci_dev *pci, pm_message_t state);
-int snd_cs46xx_resume(struct pci_dev *pci);
+extern const struct dev_pm_ops snd_cs46xx_pm;
 
 int snd_cs46xx_pcm(struct snd_cs46xx *chip, int device, struct snd_pcm **rpcm);
 int snd_cs46xx_pcm_rear(struct snd_cs46xx *chip, int device, struct snd_pcm **rpcm);

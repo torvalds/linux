@@ -94,10 +94,7 @@ struct cs5535audio {
 	struct cs5535audio_dma dmas[NUM_CS5535AUDIO_DMAS];
 };
 
-#ifdef CONFIG_PM
-int snd_cs5535audio_suspend(struct pci_dev *pci, pm_message_t state);
-int snd_cs5535audio_resume(struct pci_dev *pci);
-#endif
+extern const struct dev_pm_ops snd_cs5535audio_pm;
 
 #ifdef CONFIG_OLPC
 void __devinit olpc_prequirks(struct snd_card *card,

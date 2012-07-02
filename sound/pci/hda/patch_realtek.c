@@ -2300,7 +2300,7 @@ static void alc_power_eapd(struct hda_codec *codec)
 	alc_auto_setup_eapd(codec, false);
 }
 
-static int alc_suspend(struct hda_codec *codec, pm_message_t state)
+static int alc_suspend(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	alc_shutup(codec);

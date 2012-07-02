@@ -167,8 +167,9 @@ static struct pci_driver cs46xx_driver = {
 	.probe = snd_card_cs46xx_probe,
 	.remove = __devexit_p(snd_card_cs46xx_remove),
 #ifdef CONFIG_PM
-	.suspend = snd_cs46xx_suspend,
-	.resume = snd_cs46xx_resume,
+	.driver = {
+		.pm = &snd_cs46xx_pm,
+	},
 #endif
 };
 

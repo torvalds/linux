@@ -2202,7 +2202,7 @@ static int hw_card_init(struct hw *hw, struct card_conf *info)
 }
 
 #ifdef CONFIG_PM
-static int hw_suspend(struct hw *hw, pm_message_t state)
+static int hw_suspend(struct hw *hw)
 {
 	struct pci_dev *pci = hw->pci;
 
@@ -2210,7 +2210,7 @@ static int hw_suspend(struct hw *hw, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 
 	return 0;
 }

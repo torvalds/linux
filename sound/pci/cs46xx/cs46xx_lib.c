@@ -3599,9 +3599,10 @@ static unsigned int saved_regs[] = {
 	BA1_CVOL,
 };
 
-int snd_cs46xx_suspend(struct pci_dev *pci, pm_message_t state)
+static int snd_cs46xx_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_cs46xx *chip = card->private_data;
 	int i, amp_saved;
 
@@ -3628,13 +3629,14 @@ int snd_cs46xx_suspend(struct pci_dev *pci, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-int snd_cs46xx_resume(struct pci_dev *pci)
+static int snd_cs46xx_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_cs46xx *chip = card->private_data;
 	int amp_saved;
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
@@ -3707,6 +3709,8 @@ int snd_cs46xx_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
+
+SIMPLE_DEV_PM_OPS(snd_cs46xx_pm, snd_cs46xx_suspend, snd_cs46xx_resume);
 #endif /* CONFIG_PM */
 
 
