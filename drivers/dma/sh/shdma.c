@@ -31,7 +31,7 @@
 #include <linux/spinlock.h>
 #include <linux/rculist.h>
 
-#include "dmaengine.h"
+#include "../dmaengine.h"
 #include "shdma.h"
 
 /* DMA descriptor control */
