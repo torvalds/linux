@@ -628,6 +628,14 @@ static bool intel_sdvo_set_active_outputs(struct intel_sdvo *intel_sdvo,
 				    &outputs, sizeof(outputs));
 }
 
+static bool intel_sdvo_get_active_outputs(struct intel_sdvo *intel_sdvo,
+					  u16 *outputs)
+{
+	return intel_sdvo_get_value(intel_sdvo,
+				    SDVO_CMD_GET_ACTIVE_OUTPUTS,
+				    outputs, sizeof(*outputs));
+}
+
 static bool intel_sdvo_set_encoder_power_state(struct intel_sdvo *intel_sdvo,
 					       int mode)
 {
@@ -1140,6 +1148,42 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	    INTEL_INFO(dev)->gen < 5)
 		sdvox |= SDVO_STALL_SELECT;
 	intel_sdvo_write_sdvox(intel_sdvo, sdvox);
+}
+
+static bool intel_sdvo_connector_get_hw_state(struct intel_connector *connector)
+{
+	struct intel_sdvo_connector *intel_sdvo_connector =
+		to_intel_sdvo_connector(&connector->base);
+	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(&connector->base);
+	u16 active_outputs;
+
+	intel_sdvo_get_active_outputs(intel_sdvo, &active_outputs);
+
+	if (active_outputs & intel_sdvo_connector->output_flag)
+		return true;
+	else
+		return false;
+}
+
+static bool intel_sdvo_get_hw_state(struct intel_encoder *encoder,
+				    enum pipe *pipe)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_sdvo *intel_sdvo = to_intel_sdvo(&encoder->base);
+	u32 tmp;
+
+	tmp = I915_READ(intel_sdvo->sdvo_reg);
+
+	if (!(tmp & SDVO_ENABLE))
+		return false;
+
+	if (HAS_PCH_CPT(dev))
+		*pipe = PORT_TO_PIPE_CPT(tmp);
+	else
+		*pipe = PORT_TO_PIPE(tmp);
+
+	return true;
 }
 
 static void intel_disable_sdvo(struct intel_encoder *encoder)
@@ -2066,6 +2110,7 @@ intel_sdvo_connector_init(struct intel_sdvo_connector *connector,
 	connector->base.base.interlace_allowed = 1;
 	connector->base.base.doublescan_allowed = 0;
 	connector->base.base.display_info.subpixel_order = SubPixelHorizontalRGB;
+	connector->base.get_hw_state = intel_sdvo_connector_get_hw_state;
 
 	intel_connector_attach_encoder(&connector->base, &encoder->base);
 	drm_sysfs_connector_add(&connector->base.base);
@@ -2619,6 +2664,7 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 
 	intel_encoder->disable = intel_disable_sdvo;
 	intel_encoder->enable = intel_enable_sdvo;
+	intel_encoder->get_hw_state = intel_sdvo_get_hw_state;
 
 	/* In default case sdvo lvds is false */
 	if (!intel_sdvo_get_capabilities(intel_sdvo, &intel_sdvo->caps))
