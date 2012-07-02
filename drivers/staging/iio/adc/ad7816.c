@@ -402,7 +402,7 @@ static int __devinit ad7816_probe(struct spi_device *spi_dev)
 		ret = request_threaded_irq(spi_dev->irq,
 					   NULL,
 					   &ad7816_event_handler,
-					   IRQF_TRIGGER_LOW,
+					   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 					   indio_dev->name,
 					   indio_dev);
 		if (ret)

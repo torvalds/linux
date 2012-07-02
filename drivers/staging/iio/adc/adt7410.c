@@ -742,7 +742,7 @@ static int __devinit adt7410_probe(struct i2c_client *client,
 		ret = request_threaded_irq(client->irq,
 					   NULL,
 					   &adt7410_event_handler,
-					   IRQF_TRIGGER_LOW,
+					   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 					   id->name,
 					   indio_dev);
 		if (ret)
@@ -754,7 +754,8 @@ static int __devinit adt7410_probe(struct i2c_client *client,
 		ret = request_threaded_irq(adt7410_platform_data[0],
 					   NULL,
 					   &adt7410_event_handler,
-					   adt7410_platform_data[1],
+					   adt7410_platform_data[1] |
+					   IRQF_ONESHOT,
 					   id->name,
 					   indio_dev);
 		if (ret)

@@ -778,7 +778,7 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 		ret = request_threaded_irq(spi_dev->irq,
 					   NULL,
 					   &adt7310_event_handler,
-					   irq_flags,
+					   irq_flags | IRQF_ONESHOT,
 					   indio_dev->name,
 					   indio_dev);
 		if (ret)
@@ -790,7 +790,8 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 		ret = request_threaded_irq(adt7310_platform_data[0],
 					   NULL,
 					   &adt7310_event_handler,
-					   adt7310_platform_data[1],
+					   adt7310_platform_data[1] |
+					   IRQF_ONESHOT,
 					   indio_dev->name,
 					   indio_dev);
 		if (ret)
