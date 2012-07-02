@@ -7094,7 +7094,7 @@ static int ixj_selfprobe(IXJ *j)
 	for (cnt = 0; cnt < 35; cnt++)
 		j->ixj_signals[cnt] = SIGIO;
 
-	/* Set the excetion signal enable flags */
+	/* Set the exception signal enable flags */
 	j->ex_sig.bits.dtmf_ready = j->ex_sig.bits.hookstate = j->ex_sig.bits.flash = j->ex_sig.bits.pstn_ring =
 	j->ex_sig.bits.caller_id = j->ex_sig.bits.pstn_wink = j->ex_sig.bits.f0 = j->ex_sig.bits.f1 = j->ex_sig.bits.f2 =
 	j->ex_sig.bits.f3 = j->ex_sig.bits.fc0 = j->ex_sig.bits.fc1 = j->ex_sig.bits.fc2 = j->ex_sig.bits.fc3 = 1;
@@ -7132,7 +7132,7 @@ IXJ *ixj_pcmcia_probe(unsigned long dsp, unsigned long xilinx)
 	return j;
 }
 
-EXPORT_SYMBOL(ixj_pcmcia_probe);		/* Fpr PCMCIA */
+EXPORT_SYMBOL(ixj_pcmcia_probe);		/* For PCMCIA */
 
 static int ixj_get_status_proc(char *buf)
 {
