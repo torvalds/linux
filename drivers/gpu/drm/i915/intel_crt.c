@@ -61,6 +61,27 @@ static struct intel_crt *intel_encoder_to_crt(struct intel_encoder *encoder)
 	return container_of(encoder, struct intel_crt, base);
 }
 
+static bool intel_crt_get_hw_state(struct intel_encoder *encoder,
+				   enum pipe *pipe)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crt *crt = intel_encoder_to_crt(encoder);
+	u32 tmp;
+
+	tmp = I915_READ(crt->adpa_reg);
+
+	if (!(tmp & ADPA_DAC_ENABLE))
+		return false;
+
+	if (HAS_PCH_CPT(dev))
+		*pipe = PORT_TO_PIPE_CPT(tmp);
+	else
+		*pipe = PORT_TO_PIPE(tmp);
+
+	return true;
+}
+
 static void intel_disable_crt(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
@@ -710,6 +731,8 @@ void intel_crt_init(struct drm_device *dev)
 
 	crt->base.disable = intel_disable_crt;
 	crt->base.enable = intel_enable_crt;
+	crt->base.get_hw_state = intel_crt_get_hw_state;
+	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	drm_encoder_helper_add(&crt->base.base, &crt_encoder_funcs);
 	drm_connector_helper_add(connector, &intel_crt_connector_helper_funcs);
