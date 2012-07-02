@@ -39,6 +39,7 @@
 
 #include <mach/board.h>
 #include <mach/cpu.h>
+#include <mach/at91_aic.h>
 
 #include "generic.h"
 
@@ -170,6 +171,7 @@ MACHINE_START(ECBAT91, "emQbit's ECB_AT91")
 	/* Maintainer: emQbit.com */
 	.timer		= &at91rm9200_timer,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= ecb_at91init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= ecb_at91board_init,
