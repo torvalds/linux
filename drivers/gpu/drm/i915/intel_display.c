@@ -6636,31 +6636,14 @@ intel_crtc_helper_disable(struct drm_crtc *crtc)
 }
 
 static void
-intel_encoder_disable_helper(struct drm_encoder *encoder)
-{
-	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
-
-	if (encoder_funcs->disable)
-		(*encoder_funcs->disable)(encoder);
-	else
-		(*encoder_funcs->dpms)(encoder, DRM_MODE_DPMS_OFF);
-}
-
-static void
 intel_crtc_prepare_encoders(struct drm_device *dev)
 {
-	struct drm_encoder_helper_funcs *encoder_funcs;
-	struct drm_encoder *encoder;
+	struct intel_encoder *encoder;
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		encoder_funcs = encoder->helper_private;
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
 		/* Disable unused encoders */
-		if (encoder->crtc == NULL)
-			intel_encoder_disable_helper(encoder);
-		/* Disable encoders whose CRTC is about to change */
-		if (encoder_funcs->get_crtc &&
-		    encoder->crtc != (*encoder_funcs->get_crtc)(encoder))
-			intel_encoder_disable_helper(encoder);
+		if (encoder->base.crtc == NULL)
+			encoder->disable(encoder);
 	}
 }
 
