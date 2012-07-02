@@ -555,28 +555,39 @@ static inline void put_signature(struct smmu_as *as,
 /*
  * Caller must lock/unlock as
  */
-static int alloc_pdir(struct smmu_as *as)
+static int alloc_pdir(struct smmu_as *as, unsigned long *flags)
 {
 	unsigned long *pdir;
-	int pdn;
+	int pdn, err = 0;
 	u32 val;
 	struct smmu_device *smmu = as->smmu;
+	struct page *page;
+	unsigned int *cnt;
 
-	as->pte_count = devm_kzalloc(smmu->dev,
-		     sizeof(as->pte_count[0]) * SMMU_PDIR_COUNT, GFP_KERNEL);
-	if (!as->pte_count) {
-		dev_err(smmu->dev,
-			"failed to allocate smmu_device PTE cunters\n");
-		return -ENOMEM;
+	/*
+	 * do the allocation outside the as->lock
+	 */
+	spin_unlock_irqrestore(&as->lock, *flags);
+	cnt = devm_kzalloc(smmu->dev,
+			   sizeof(cnt[0]) * SMMU_PDIR_COUNT, GFP_KERNEL);
+	page = alloc_page(GFP_KERNEL | __GFP_DMA);
+	spin_lock_irqsave(&as->lock, *flags);
+
+	if (as->pdir_page) {
+		/* We raced, free the redundant */
+		err = -EAGAIN;
+		goto err_out;
 	}
-	as->pdir_page = alloc_page(GFP_KERNEL | __GFP_DMA);
-	if (!as->pdir_page) {
-		dev_err(smmu->dev,
-			"failed to allocate smmu_device page directory\n");
-		devm_kfree(smmu->dev, as->pte_count);
-		as->pte_count = NULL;
-		return -ENOMEM;
+
+	if (!page || !cnt) {
+		dev_err(smmu->dev, "failed to allocate at %s\n", __func__);
+		err = -ENOMEM;
+		goto err_out;
 	}
+
+	as->pdir_page = page;
+	as->pte_count = cnt;
+
 	SetPageReserved(as->pdir_page);
 	pdir = page_address(as->pdir_page);
 
@@ -593,6 +604,12 @@ static int alloc_pdir(struct smmu_as *as)
 	FLUSH_SMMU_REGS(as->smmu);
 
 	return 0;
+
+err_out:
+	devm_kfree(smmu->dev, cnt);
+	if (page)
+		__free_page(page);
+	return err;
 }
 
 static void __smmu_iommu_unmap(struct smmu_as *as, dma_addr_t iova)
@@ -784,29 +801,29 @@ out:
 
 static int smmu_iommu_domain_init(struct iommu_domain *domain)
 {
-	int i;
+	int i, err = -ENODEV;
 	unsigned long flags;
 	struct smmu_as *as;
 	struct smmu_device *smmu = smmu_handle;
 
 	/* Look for a free AS with lock held */
 	for  (i = 0; i < smmu->num_as; i++) {
-		struct smmu_as *tmp = &smmu->as[i];
-
-		spin_lock_irqsave(&tmp->lock, flags);
-		if (!tmp->pdir_page) {
-			as = tmp;
-			goto found;
+		as = &smmu->as[i];
+		spin_lock_irqsave(&as->lock, flags);
+		if (!as->pdir_page) {
+			err = alloc_pdir(as, &flags);
+			if (!err)
+				goto found;
 		}
-		spin_unlock_irqrestore(&tmp->lock, flags);
+		spin_unlock_irqrestore(&as->lock, flags);
+		if (err != -EAGAIN)
+			break;
 	}
-	dev_err(smmu->dev, "no free AS\n");
-	return -ENODEV;
+	if (i == smmu->num_as)
+		dev_err(smmu->dev,  "no free AS\n");
+	return err;
 
 found:
-	if (alloc_pdir(as) < 0)
-		goto err_alloc_pdir;
-
 	spin_lock(&smmu->lock);
 
 	/* Update PDIR register */
@@ -822,10 +839,6 @@ found:
 
 	dev_dbg(smmu->dev, "smmu_as@%p\n", as);
 	return 0;
-
-err_alloc_pdir:
-	spin_unlock_irqrestore(&as->lock, flags);
-	return -ENODEV;
 }
 
 static void smmu_iommu_domain_destroy(struct iommu_domain *domain)
