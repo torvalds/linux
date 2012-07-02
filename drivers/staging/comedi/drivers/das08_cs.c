@@ -149,7 +149,6 @@ failed:
 
 struct local_info_t {
 	struct pcmcia_device *link;
-	int stop;
 	struct bus_operations *bus;
 };
 
@@ -178,7 +177,6 @@ static void das08_pcmcia_detach(struct pcmcia_device *link)
 
 	dev_dbg(&link->dev, "das08_pcmcia_detach\n");
 
-	((struct local_info_t *)link->priv)->stop = 1;
 	das08_pcmcia_release(link);
 
 	/* This points to the parent struct local_info_t struct */
@@ -188,18 +186,11 @@ static void das08_pcmcia_detach(struct pcmcia_device *link)
 
 static int das08_pcmcia_suspend(struct pcmcia_device *link)
 {
-	struct local_info_t *local = link->priv;
-	/* Mark the device as stopped, to block IO until later */
-	local->stop = 1;
-
 	return 0;
 }
 
 static int das08_pcmcia_resume(struct pcmcia_device *link)
 {
-	struct local_info_t *local = link->priv;
-
-	local->stop = 0;
 	return 0;
 }
 
