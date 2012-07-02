@@ -542,6 +542,8 @@ extern void ironlake_teardown_rc6(struct drm_device *dev);
 
 extern void intel_enable_ddi(struct intel_encoder *encoder);
 extern void intel_disable_ddi(struct intel_encoder *encoder);
+extern bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
+				   enum pipe *pipe);
 extern void intel_ddi_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode);

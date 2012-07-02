@@ -601,6 +601,27 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	intel_hdmi->set_infoframes(encoder, adjusted_mode);
 }
 
+static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
+				    enum pipe *pipe)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
+	u32 tmp;
+
+	tmp = I915_READ(intel_hdmi->sdvox_reg);
+
+	if (!(tmp & SDVO_ENABLE))
+		return false;
+
+	if (HAS_PCH_CPT(dev))
+		*pipe = PORT_TO_PIPE_CPT(tmp);
+	else
+		*pipe = PORT_TO_PIPE(tmp);
+
+	return true;
+}
+
 static void intel_enable_hdmi(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
@@ -998,14 +1019,17 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg, enum port port)
 	if (IS_HASWELL(dev)) {
 		intel_encoder->enable = intel_enable_ddi;
 		intel_encoder->disable = intel_disable_ddi;
+		intel_encoder->get_hw_state = intel_ddi_get_hw_state;
 		drm_encoder_helper_add(&intel_encoder->base,
 				       &intel_hdmi_helper_funcs_hsw);
 	} else {
 		intel_encoder->enable = intel_enable_hdmi;
 		intel_encoder->disable = intel_disable_hdmi;
+		intel_encoder->get_hw_state = intel_hdmi_get_hw_state;
 		drm_encoder_helper_add(&intel_encoder->base,
 				       &intel_hdmi_helper_funcs);
 	}
+	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 
 	intel_hdmi_add_properties(intel_hdmi, connector);

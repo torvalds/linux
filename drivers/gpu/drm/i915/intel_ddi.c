@@ -757,6 +757,35 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 	intel_hdmi->set_infoframes(encoder, adjusted_mode);
 }
 
+bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
+			    enum pipe *pipe)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
+	u32 tmp;
+	int i;
+
+	tmp = I915_READ(DDI_BUF_CTL(intel_hdmi->ddi_port));
+
+	if (!(tmp & DDI_BUF_CTL_ENABLE))
+		return false;
+
+	for_each_pipe(i) {
+		tmp = I915_READ(DDI_FUNC_CTL(i));
+
+		if ((tmp & PIPE_DDI_PORT_MASK)
+		    == PIPE_DDI_SELECT_PORT(intel_hdmi->ddi_port)) {
+			*pipe = i;
+			return true;
+		}
+	}
+
+	DRM_DEBUG_KMS("No pipe for ddi port %i found\n", intel_hdmi->ddi_port);
+
+	return true;
+}
+
 void intel_enable_ddi(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
