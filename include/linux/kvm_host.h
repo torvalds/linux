@@ -740,6 +740,14 @@ static inline gfn_t gfn_to_index(gfn_t gfn, gfn_t base_gfn, int level)
 		(base_gfn >> KVM_HPAGE_GFN_SHIFT(level));
 }
 
+static inline gfn_t
+hva_to_gfn_memslot(unsigned long hva, struct kvm_memory_slot *slot)
+{
+	gfn_t gfn_offset = (hva - slot->userspace_addr) >> PAGE_SHIFT;
+
+	return slot->base_gfn + gfn_offset;
+}
+
 static inline unsigned long gfn_to_hva_memslot(struct kvm_memory_slot *slot,
 					       gfn_t gfn)
 {

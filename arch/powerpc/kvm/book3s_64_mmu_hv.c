@@ -772,10 +772,10 @@ static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
 
 		end = start + (memslot->npages << PAGE_SHIFT);
 		if (hva >= start && hva < end) {
-			gfn_t gfn_offset = (hva - start) >> PAGE_SHIFT;
+			gfn_t gfn = hva_to_gfn_memslot(hva, memslot);
+			gfn_t gfn_offset = gfn - memslot->base_gfn;
 
-			ret = handler(kvm, &memslot->rmap[gfn_offset],
-				      memslot->base_gfn + gfn_offset);
+			ret = handler(kvm, &memslot->rmap[gfn_offset], gfn);
 			retval |= ret;
 		}
 	}
