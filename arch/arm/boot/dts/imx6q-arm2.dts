@@ -22,6 +22,12 @@
 	};
 
 	soc {
+		gpmi-nand@00112000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_gpmi_nand_1>;
+			status = "disabled"; /* gpmi nand conflicts with SD */
+		};
+
 		aips-bus@02100000 { /* AIPS2 */
 			ethernet@02188000 {
 				phy-mode = "rgmii";

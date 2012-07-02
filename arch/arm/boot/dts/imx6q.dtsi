@@ -92,6 +92,18 @@
 			reg = <0x00110000 0x2000>;
 		};
 
+		gpmi-nand@00112000 {
+		       compatible = "fsl,imx6q-gpmi-nand";
+		       #address-cells = <1>;
+		       #size-cells = <1>;
+		       reg = <0x00112000 0x2000>, <0x00114000 0x2000>;
+		       reg-names = "gpmi-nand", "bch";
+		       interrupts = <0 13 0x04>, <0 15 0x04>;
+		       interrupt-names = "gpmi-dma", "bch";
+		       fsl,gpmi-dma-channel = <0>;
+		       status = "disabled";
+		};
+
 		timer@00a00600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0x00a00600 0x20>;
@@ -497,6 +509,30 @@
 							    1586 0x80000000	/* MX6Q_PAD_SD2_DAT3__AUDMUX_AUD4_TXC */
 							    11   0x80000000	/* MX6Q_PAD_SD2_DAT2__AUDMUX_AUD4_TXD */
 							    3    0x80000000>;	/* MX6Q_PAD_SD2_DAT1__AUDMUX_AUD4_TXFS */
+					};
+				};
+
+				gpmi-nand {
+					pinctrl_gpmi_nand_1: gpmi-nand-1 {
+						fsl,pins = <1328 0xb0b1		/* MX6Q_PAD_NANDF_CLE__RAWNAND_CLE */
+							    1336 0xb0b1		/* MX6Q_PAD_NANDF_ALE__RAWNAND_ALE */
+							    1344 0xb0b1		/* MX6Q_PAD_NANDF_WP_B__RAWNAND_RESETN */
+							    1352 0xb000		/* MX6Q_PAD_NANDF_RB0__RAWNAND_READY0 */
+							    1360 0xb0b1		/* MX6Q_PAD_NANDF_CS0__RAWNAND_CE0N */
+							    1365 0xb0b1		/* MX6Q_PAD_NANDF_CS1__RAWNAND_CE1N */
+							    1371 0xb0b1		/* MX6Q_PAD_NANDF_CS2__RAWNAND_CE2N */
+							    1378 0xb0b1		/* MX6Q_PAD_NANDF_CS3__RAWNAND_CE3N */
+							    1387 0xb0b1		/* MX6Q_PAD_SD4_CMD__RAWNAND_RDN */
+							    1393 0xb0b1		/* MX6Q_PAD_SD4_CLK__RAWNAND_WRN */
+							    1397 0xb0b1		/* MX6Q_PAD_NANDF_D0__RAWNAND_D0 */
+							    1405 0xb0b1		/* MX6Q_PAD_NANDF_D1__RAWNAND_D1 */
+							    1413 0xb0b1		/* MX6Q_PAD_NANDF_D2__RAWNAND_D2 */
+							    1421 0xb0b1		/* MX6Q_PAD_NANDF_D3__RAWNAND_D3 */
+							    1429 0xb0b1		/* MX6Q_PAD_NANDF_D4__RAWNAND_D4 */
+							    1437 0xb0b1		/* MX6Q_PAD_NANDF_D5__RAWNAND_D5 */
+							    1445 0xb0b1		/* MX6Q_PAD_NANDF_D6__RAWNAND_D6 */
+							    1453 0xb0b1		/* MX6Q_PAD_NANDF_D7__RAWNAND_D7 */
+							    1463 0x00b1>;	/* MX6Q_PAD_SD4_DAT0__RAWNAND_DQS */
 					};
 				};
 
