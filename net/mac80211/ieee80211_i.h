@@ -1480,6 +1480,8 @@ u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 			       struct ieee80211_channel *channel,
 			       enum nl80211_channel_type channel_type,
 			       u16 prot_mode);
+u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
+			       u32 cap);
 int ieee80211_add_srates_ie(struct ieee80211_sub_if_data *sdata,
 			    struct sk_buff *skb, bool need_basic);
 int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
