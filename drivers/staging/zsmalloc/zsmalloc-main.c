@@ -747,7 +747,12 @@ EXPORT_SYMBOL_GPL(zs_free);
  *
  * Before using an object allocated from zs_malloc, it must be mapped using
  * this function. When done with the object, it must be unmapped using
- * zs_unmap_object
+ * zs_unmap_object.
+ *
+ * Only one object can be mapped per cpu at a time. There is no protection
+ * against nested mappings.
+ *
+ * This function returns with preemption and page faults disabled.
 */
 void *zs_map_object(struct zs_pool *pool, unsigned long handle)
 {
