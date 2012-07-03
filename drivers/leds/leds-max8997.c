@@ -354,17 +354,7 @@ static struct platform_driver max8997_led_driver = {
 	.remove = __devexit_p(max8997_led_remove),
 };
 
-static int __init max8997_led_init(void)
-{
-	return platform_driver_register(&max8997_led_driver);
-}
-module_init(max8997_led_init);
-
-static void __exit max8997_led_exit(void)
-{
-	platform_driver_unregister(&max8997_led_driver);
-}
-module_exit(max8997_led_exit);
+module_platform_driver(max8997_led_driver);
 
 MODULE_AUTHOR("Donggeun Kim <dg77.kim@samsung.com>");
 MODULE_DESCRIPTION("MAX8997 LED driver");
