@@ -758,18 +758,7 @@ static struct i2c_driver tca6507_driver = {
 	.id_table = tca6507_id,
 };
 
-static int __init tca6507_leds_init(void)
-{
-	return i2c_add_driver(&tca6507_driver);
-}
-
-static void __exit tca6507_leds_exit(void)
-{
-	i2c_del_driver(&tca6507_driver);
-}
-
-module_init(tca6507_leds_init);
-module_exit(tca6507_leds_exit);
+module_i2c_driver(tca6507_driver);
 
 MODULE_AUTHOR("NeilBrown <neilb@suse.de>");
 MODULE_DESCRIPTION("TCA6507 LED/GPO driver");
