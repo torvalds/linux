@@ -66,7 +66,8 @@
 
 #define RBD_SNAP_HEAD_NAME	"-"
 
-#define	RBD_IMAGE_ID_LEN_MAX	64
+#define RBD_IMAGE_ID_LEN_MAX	64
+#define RBD_OBJ_PREFIX_LEN_MAX	64
 
 /*
  * An RBD device name will be "rbd#", where the "rbd" comes from
@@ -2168,6 +2169,43 @@ static int rbd_dev_v2_image_size(struct rbd_device *rbd_dev)
 					&rbd_dev->header.image_size);
 }
 
+static int rbd_dev_v2_object_prefix(struct rbd_device *rbd_dev)
+{
+	void *reply_buf;
+	int ret;
+	void *p;
+
+	reply_buf = kzalloc(RBD_OBJ_PREFIX_LEN_MAX, GFP_KERNEL);
+	if (!reply_buf)
+		return -ENOMEM;
+
+	ret = rbd_req_sync_exec(rbd_dev, rbd_dev->header_name,
+				"rbd", "get_object_prefix",
+				NULL, 0,
+				reply_buf, RBD_OBJ_PREFIX_LEN_MAX,
+				CEPH_OSD_FLAG_READ, NULL);
+	dout("%s: rbd_req_sync_exec returned %d\n", __func__, ret);
+	if (ret < 0)
+		goto out;
+
+	p = reply_buf;
+	rbd_dev->header.object_prefix = ceph_extract_encoded_string(&p,
+						p + RBD_OBJ_PREFIX_LEN_MAX,
+						NULL, GFP_NOIO);
+
+	if (IS_ERR(rbd_dev->header.object_prefix)) {
+		ret = PTR_ERR(rbd_dev->header.object_prefix);
+		rbd_dev->header.object_prefix = NULL;
+	} else {
+		dout("  object_prefix = %s\n", rbd_dev->header.object_prefix);
+	}
+
+out:
+	kfree(reply_buf);
+
+	return ret;
+}
+
 /*
  * Scan the rbd device's current snapshot list and compare it to the
  * newly-received snapshot context.  Remove any existing snapshots
@@ -2695,6 +2733,12 @@ static int rbd_dev_v2_probe(struct rbd_device *rbd_dev)
 	ret = rbd_dev_v2_image_size(rbd_dev);
 	if (ret < 0)
 		goto out_err;
+
+	/* Get the object prefix (a.k.a. block_name) for the image */
+
+	ret = rbd_dev_v2_object_prefix(rbd_dev);
+	if (ret < 0)
+		goto out_err;
 	rbd_dev->image_format = 2;
 
 	dout("discovered version 2 image, header name is %s\n",
@@ -2704,6 +2748,8 @@ static int rbd_dev_v2_probe(struct rbd_device *rbd_dev)
 out_err:
 	kfree(rbd_dev->header_name);
 	rbd_dev->header_name = NULL;
+	kfree(rbd_dev->header.object_prefix);
+	rbd_dev->header.object_prefix = NULL;
 
 	return ret;
 }
