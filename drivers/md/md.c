@@ -6751,7 +6751,7 @@ struct md_thread *md_register_thread(void (*run) (struct mddev *), struct mddev 
 	thread->tsk = kthread_run(md_thread, thread,
 				  "%s_%s",
 				  mdname(thread->mddev),
-				  name ?: mddev->pers->name);
+				  name);
 	if (IS_ERR(thread->tsk)) {
 		kfree(thread);
 		return NULL;
