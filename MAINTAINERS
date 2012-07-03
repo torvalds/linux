@@ -5909,7 +5909,7 @@ M:	Ingo Molnar <mingo@redhat.com>
 M:	Peter Zijlstra <peterz@infradead.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git sched/core
 S:	Maintained
-F:	kernel/sched*
+F:	kernel/sched/
 F:	include/linux/sched.h
 
 SCORE ARCHITECTURE
