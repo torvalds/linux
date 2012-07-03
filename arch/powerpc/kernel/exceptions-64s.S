@@ -239,6 +239,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	 * out of line to handle them
 	 */
 	. = 0xe00
+hv_exception_trampoline:
 	b	h_data_storage_hv
 	. = 0xe20
 	b	h_instr_storage_hv
