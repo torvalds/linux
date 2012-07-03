@@ -3470,17 +3470,9 @@ void intel_crtc_update_dpms(struct drm_crtc *crtc)
 	struct intel_encoder *intel_encoder;
 	int pipe = intel_crtc->pipe;
 	bool enabled, enable = false;
-	int mode;
 
 	for_each_encoder_on_crtc(dev, crtc, intel_encoder)
 		enable |= intel_encoder->connectors_active;
-
-	mode = enable ? DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF;
-
-	if (intel_crtc->dpms_mode == mode)
-		return;
-
-	intel_crtc->dpms_mode = mode;
 
 	if (enable)
 		dev_priv->display.crtc_enable(crtc);
@@ -5036,11 +5028,6 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	ret = dev_priv->display.crtc_mode_set(crtc, mode, adjusted_mode,
 					      x, y, old_fb);
 	drm_vblank_post_modeset(dev, pipe);
-
-	if (ret)
-		intel_crtc->dpms_mode = DRM_MODE_DPMS_OFF;
-	else
-		intel_crtc->dpms_mode = DRM_MODE_DPMS_ON;
 
 	return ret;
 }
@@ -7620,10 +7607,6 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg, val;
-
-	/* Clear the dpms state for compatibility with code still using that
-	 * deprecated state variable. */
-	crtc->dpms_mode = -1;
 
 	/* Clear any frame start delays used for debugging left by the BIOS */
 	reg = PIPECONF(crtc->pipe);
