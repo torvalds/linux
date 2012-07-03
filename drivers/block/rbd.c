@@ -271,9 +271,9 @@ static const struct block_device_operations rbd_bd_ops = {
 
 /*
  * Initialize an rbd client instance.
- * We own *opt.
+ * We own *ceph_opts.
  */
-static struct rbd_client *rbd_client_create(struct ceph_options *opt,
+static struct rbd_client *rbd_client_create(struct ceph_options *ceph_opts,
 					    struct rbd_options *rbd_opts)
 {
 	struct rbd_client *rbdc;
@@ -289,10 +289,10 @@ static struct rbd_client *rbd_client_create(struct ceph_options *opt,
 
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 
-	rbdc->client = ceph_create_client(opt, rbdc, 0, 0);
+	rbdc->client = ceph_create_client(ceph_opts, rbdc, 0, 0);
 	if (IS_ERR(rbdc->client))
 		goto out_mutex;
-	opt = NULL; /* Now rbdc->client is responsible for opt */
+	ceph_opts = NULL; /* Now rbdc->client is responsible for ceph_opts */
 
 	ret = ceph_open_session(rbdc->client);
 	if (ret < 0)
@@ -315,23 +315,23 @@ out_mutex:
 	mutex_unlock(&ctl_mutex);
 	kfree(rbdc);
 out_opt:
-	if (opt)
-		ceph_destroy_options(opt);
+	if (ceph_opts)
+		ceph_destroy_options(ceph_opts);
 	return ERR_PTR(ret);
 }
 
 /*
  * Find a ceph client with specific addr and configuration.
  */
-static struct rbd_client *__rbd_client_find(struct ceph_options *opt)
+static struct rbd_client *__rbd_client_find(struct ceph_options *ceph_opts)
 {
 	struct rbd_client *client_node;
 
-	if (opt->flags & CEPH_OPT_NOSHARE)
+	if (ceph_opts->flags & CEPH_OPT_NOSHARE)
 		return NULL;
 
 	list_for_each_entry(client_node, &rbd_client_list, node)
-		if (ceph_compare_options(opt, client_node->client) == 0)
+		if (!ceph_compare_options(ceph_opts, client_node->client))
 			return client_node;
 	return NULL;
 }
@@ -347,7 +347,7 @@ enum {
 	/* string args above */
 };
 
-static match_table_t rbdopt_tokens = {
+static match_table_t rbd_opts_tokens = {
 	{Opt_notify_timeout, "notify_timeout=%d"},
 	/* int args above */
 	/* string args above */
@@ -356,11 +356,11 @@ static match_table_t rbdopt_tokens = {
 
 static int parse_rbd_opts_token(char *c, void *private)
 {
-	struct rbd_options *rbdopt = private;
+	struct rbd_options *rbd_opts = private;
 	substring_t argstr[MAX_OPT_ARGS];
 	int token, intval, ret;
 
-	token = match_token(c, rbdopt_tokens, argstr);
+	token = match_token(c, rbd_opts_tokens, argstr);
 	if (token < 0)
 		return -EINVAL;
 
@@ -381,7 +381,7 @@ static int parse_rbd_opts_token(char *c, void *private)
 
 	switch (token) {
 	case Opt_notify_timeout:
-		rbdopt->notify_timeout = intval;
+		rbd_opts->notify_timeout = intval;
 		break;
 	default:
 		BUG_ON(token);
@@ -398,7 +398,7 @@ static struct rbd_client *rbd_get_client(const char *mon_addr,
 					 char *options)
 {
 	struct rbd_client *rbdc;
-	struct ceph_options *opt;
+	struct ceph_options *ceph_opts;
 	struct rbd_options *rbd_opts;
 
 	rbd_opts = kzalloc(sizeof(*rbd_opts), GFP_KERNEL);
@@ -407,29 +407,29 @@ static struct rbd_client *rbd_get_client(const char *mon_addr,
 
 	rbd_opts->notify_timeout = RBD_NOTIFY_TIMEOUT_DEFAULT;
 
-	opt = ceph_parse_options(options, mon_addr,
-				mon_addr + mon_addr_len,
-				parse_rbd_opts_token, rbd_opts);
-	if (IS_ERR(opt)) {
+	ceph_opts = ceph_parse_options(options, mon_addr,
+					mon_addr + mon_addr_len,
+					parse_rbd_opts_token, rbd_opts);
+	if (IS_ERR(ceph_opts)) {
 		kfree(rbd_opts);
-		return ERR_CAST(opt);
+		return ERR_CAST(ceph_opts);
 	}
 
 	spin_lock(&rbd_client_list_lock);
-	rbdc = __rbd_client_find(opt);
+	rbdc = __rbd_client_find(ceph_opts);
 	if (rbdc) {
 		/* using an existing client */
 		kref_get(&rbdc->kref);
 		spin_unlock(&rbd_client_list_lock);
 
-		ceph_destroy_options(opt);
+		ceph_destroy_options(ceph_opts);
 		kfree(rbd_opts);
 
 		return rbdc;
 	}
 	spin_unlock(&rbd_client_list_lock);
 
-	rbdc = rbd_client_create(opt, rbd_opts);
+	rbdc = rbd_client_create(ceph_opts, rbd_opts);
 
 	if (IS_ERR(rbdc))
 		kfree(rbd_opts);
