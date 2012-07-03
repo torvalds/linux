@@ -1806,7 +1806,17 @@ static int pn533_build_tx_frame(struct pn533 *dev, struct sk_buff *skb,
 
 	if (target == true) {
 		switch (dev->device_type) {
-		case PN533_DEVICE_STD:
+		case PN533_DEVICE_PASORI:
+			if (dev->tgt_active_prot == NFC_PROTO_FELICA) {
+				skb_push(skb, PN533_CMD_DATAEXCH_HEAD_LEN - 1);
+				out_frame = (struct pn533_frame *) skb->data;
+				pn533_tx_frame_init(out_frame,
+						    PN533_CMD_IN_COMM_THRU);
+
+				break;
+			}
+
+		default:
 			skb_push(skb, PN533_CMD_DATAEXCH_HEAD_LEN);
 			out_frame = (struct pn533_frame *) skb->data;
 			pn533_tx_frame_init(out_frame,
@@ -1815,19 +1825,8 @@ static int pn533_build_tx_frame(struct pn533 *dev, struct sk_buff *skb,
 			memcpy(PN533_FRAME_CMD_PARAMS_PTR(out_frame),
 			       &tg, sizeof(u8));
 			out_frame->datalen += sizeof(u8);
-			break;
-
-		case PN533_DEVICE_PASORI:
-			skb_push(skb, PN533_CMD_DATAEXCH_HEAD_LEN - 1);
-			out_frame = (struct pn533_frame *) skb->data;
-			pn533_tx_frame_init(out_frame, PN533_CMD_IN_COMM_THRU);
 
 			break;
-
-		default:
-			nfc_dev_err(&dev->interface->dev,
-				    "Unknown device type %d", dev->device_type);
-			return -EINVAL;
 		}
 
 	} else {
