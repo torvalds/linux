@@ -7298,6 +7298,7 @@ void md_do_sync(struct mddev *mddev)
 	int skipped = 0;
 	struct md_rdev *rdev;
 	char *desc;
+	struct blk_plug plug;
 
 	/* just incase thread restarts... */
 	if (test_bit(MD_RECOVERY_DONE, &mddev->recovery))
@@ -7447,6 +7448,7 @@ void md_do_sync(struct mddev *mddev)
 	}
 	mddev->curr_resync_completed = j;
 
+	blk_start_plug(&plug);
 	while (j < max_sectors) {
 		sector_t sectors;
 
@@ -7552,6 +7554,7 @@ void md_do_sync(struct mddev *mddev)
 	 * this also signals 'finished resyncing' to md_stop
 	 */
  out:
+	blk_finish_plug(&plug);
 	wait_event(mddev->recovery_wait, !atomic_read(&mddev->recovery_active));
 
 	/* tell personality that we are finished */
