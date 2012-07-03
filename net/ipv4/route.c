@@ -1111,16 +1111,6 @@ static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst,
 	return neigh_create(&arp_tbl, pkey, dev);
 }
 
-static int rt_bind_neighbour(struct rtable *rt)
-{
-	struct neighbour *n = ipv4_neigh_lookup(&rt->dst, NULL, &rt->rt_gateway);
-	if (IS_ERR(n))
-		return PTR_ERR(n);
-	dst_set_neighbour(&rt->dst, n);
-
-	return 0;
-}
-
 static struct rtable *rt_intern_hash(unsigned int hash, struct rtable *rt,
 				     struct sk_buff *skb, int ifindex)
 {
@@ -1129,7 +1119,6 @@ static struct rtable *rt_intern_hash(unsigned int hash, struct rtable *rt,
 	unsigned long	now;
 	u32 		min_score;
 	int		chain_length;
-	int attempts = !in_softirq();
 
 restart:
 	chain_length = 0;
@@ -1156,15 +1145,6 @@ restart:
 		 */
 
 		rt->dst.flags |= DST_NOCACHE;
-		if (rt->rt_type == RTN_UNICAST || rt_is_output_route(rt)) {
-			int err = rt_bind_neighbour(rt);
-			if (err) {
-				net_warn_ratelimited("Neighbour table failure & not caching routes\n");
-				ip_rt_put(rt);
-				return ERR_PTR(err);
-			}
-		}
-
 		goto skip_hashing;
 	}
 
@@ -1244,40 +1224,6 @@ restart:
 			hash = rt_hash(rt->rt_key_dst, rt->rt_key_src,
 					ifindex, rt_genid(net));
 			goto restart;
-		}
-	}
-
-	/* Try to bind route to arp only if it is output
-	   route or unicast forwarding path.
-	 */
-	if (rt->rt_type == RTN_UNICAST || rt_is_output_route(rt)) {
-		int err = rt_bind_neighbour(rt);
-		if (err) {
-			spin_unlock_bh(rt_hash_lock_addr(hash));
-
-			if (err != -ENOBUFS) {
-				rt_drop(rt);
-				return ERR_PTR(err);
-			}
-
-			/* Neighbour tables are full and nothing
-			   can be released. Try to shrink route cache,
-			   it is most likely it holds some neighbour records.
-			 */
-			if (attempts-- > 0) {
-				int saved_elasticity = ip_rt_gc_elasticity;
-				int saved_int = ip_rt_gc_min_interval;
-				ip_rt_gc_elasticity	= 1;
-				ip_rt_gc_min_interval	= 0;
-				rt_garbage_collect(&ipv4_dst_ops);
-				ip_rt_gc_min_interval	= saved_int;
-				ip_rt_gc_elasticity	= saved_elasticity;
-				goto restart;
-			}
-
-			net_warn_ratelimited("Neighbour table overflow\n");
-			rt_drop(rt);
-			return ERR_PTR(-ENOBUFS);
 		}
 	}
 
@@ -1388,26 +1334,24 @@ static void check_peer_redir(struct dst_entry *dst, struct inet_peer *peer)
 {
 	struct rtable *rt = (struct rtable *) dst;
 	__be32 orig_gw = rt->rt_gateway;
-	struct neighbour *n, *old_n;
+	struct neighbour *n;
 
 	dst_confirm(&rt->dst);
 
 	rt->rt_gateway = peer->redirect_learned.a4;
 
 	n = ipv4_neigh_lookup(&rt->dst, NULL, &rt->rt_gateway);
-	if (IS_ERR(n)) {
+	if (!n) {
 		rt->rt_gateway = orig_gw;
 		return;
 	}
-	old_n = xchg(&rt->dst._neighbour, n);
-	if (old_n)
-		neigh_release(old_n);
 	if (!(n->nud_state & NUD_VALID)) {
 		neigh_event_send(n, NULL);
 	} else {
 		rt->rt_flags |= RTCF_REDIRECTED;
 		call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, n);
 	}
+	neigh_release(n);
 }
 
 /* called in rcu_read_lock() section */
