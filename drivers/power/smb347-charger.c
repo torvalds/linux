@@ -87,6 +87,8 @@
 #define CMD_A_SUSPEND_ENABLED			BIT(2)
 #define CMD_A_ALLOW_WRITE			BIT(7)
 #define CMD_B					0x31
+#define CMD_B_USB59_MODE			BIT(1)
+#define CMD_B_HC_MODE				BIT(0)
 #define CMD_C					0x33
 
 /* Interrupt Status registers */
@@ -1017,8 +1019,46 @@ static int smb347_usb_get_property(struct power_supply *psy,
 	return -EINVAL;
 }
 
+static int smb347_usb_set_property(struct power_supply *psy,
+				   enum power_supply_property prop,
+				   const union power_supply_propval *val)
+{
+	int ret = -EINVAL;
+	struct smb347_charger *smb =
+		container_of(psy, struct smb347_charger, usb);
+
+	switch (prop) {
+	case POWER_SUPPLY_PROP_USB_HC:
+		if (smb->usb_online) {
+			smb347_set_writable(smb, true);
+			ret = smb347_write(smb, CMD_B, val->intval ?
+					   CMD_B_HC_MODE : CMD_B_USB59_MODE);
+			smb347_set_writable(smb, false);
+		}
+
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static int smb347_usb_property_is_writeable(struct power_supply *psy,
+					    enum power_supply_property prop)
+{
+	switch (prop) {
+	case POWER_SUPPLY_PROP_USB_HC:
+		return 1;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static enum power_supply_property smb347_usb_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_USB_HC,
 };
 
 static int smb347_battery_get_property(struct power_supply *psy,
@@ -1243,6 +1283,8 @@ static int smb347_probe(struct i2c_client *client,
 	smb->usb.name = "smb347-usb";
 	smb->usb.type = POWER_SUPPLY_TYPE_USB;
 	smb->usb.get_property = smb347_usb_get_property;
+	smb->usb.set_property = smb347_usb_set_property;
+	smb->usb.property_is_writeable = smb347_usb_property_is_writeable;
 	smb->usb.properties = smb347_usb_properties;
 	smb->usb.num_properties = ARRAY_SIZE(smb347_usb_properties);
 	smb->usb.supplied_to = battery;
