@@ -22,7 +22,7 @@
  * BBT on flash. If a BBT is found then the contents are read and the memory
  * based BBT is created. If a mirrored BBT is selected then the mirror is
  * searched too and the versions are compared. If the mirror has a greater
- * version number than the mirror BBT is used to build the memory based BBT.
+ * version number, then the mirror BBT is used to build the memory based BBT.
  * If the tables are not versioned, then we "or" the bad block information.
  * If one of the BBTs is out of date or does not exist it is (re)created.
  * If no BBT exists at all then the device is scanned for factory marked
