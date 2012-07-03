@@ -1039,6 +1039,24 @@ mode_in_range(const struct drm_display_mode *mode, struct edid *edid,
 	return true;
 }
 
+static bool valid_inferred_mode(const struct drm_connector *connector,
+				const struct drm_display_mode *mode)
+{
+	struct drm_display_mode *m;
+	bool ok = false;
+
+	list_for_each_entry(m, &connector->probed_modes, head) {
+		if (mode->hdisplay == m->hdisplay &&
+		    mode->vdisplay == m->vdisplay &&
+		    drm_mode_vrefresh(mode) == drm_mode_vrefresh(m))
+			return false; /* duplicated */
+		if (mode->hdisplay <= m->hdisplay &&
+		    mode->vdisplay <= m->vdisplay)
+			ok = true;
+	}
+	return ok;
+}
+
 static int
 drm_dmt_modes_for_range(struct drm_connector *connector, struct edid *edid,
 			struct detailed_timing *timing)
@@ -1048,7 +1066,8 @@ drm_dmt_modes_for_range(struct drm_connector *connector, struct edid *edid,
 	struct drm_device *dev = connector->dev;
 
 	for (i = 0; i < drm_num_dmt_modes; i++) {
-		if (mode_in_range(drm_dmt_modes + i, edid, timing)) {
+		if (mode_in_range(drm_dmt_modes + i, edid, timing) &&
+		    valid_inferred_mode(connector, drm_dmt_modes + i)) {
 			newmode = drm_mode_duplicate(dev, &drm_dmt_modes[i]);
 			if (newmode) {
 				drm_mode_probed_add(connector, newmode);
@@ -1088,7 +1107,8 @@ drm_gtf_modes_for_range(struct drm_connector *connector, struct edid *edid,
 			return modes;
 
 		fixup_mode_1366x768(newmode);
-		if (!mode_in_range(newmode, edid, timing)) {
+		if (!mode_in_range(newmode, edid, timing) ||
+		    !valid_inferred_mode(connector, newmode)) {
 			drm_mode_destroy(dev, newmode);
 			continue;
 		}
@@ -1116,7 +1136,8 @@ drm_cvt_modes_for_range(struct drm_connector *connector, struct edid *edid,
 			return modes;
 
 		fixup_mode_1366x768(newmode);
-		if (!mode_in_range(newmode, edid, timing)) {
+		if (!mode_in_range(newmode, edid, timing) ||
+		    !valid_inferred_mode(connector, newmode)) {
 			drm_mode_destroy(dev, newmode);
 			continue;
 		}
