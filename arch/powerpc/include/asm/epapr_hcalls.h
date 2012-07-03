@@ -50,10 +50,6 @@
 #ifndef _EPAPR_HCALLS_H
 #define _EPAPR_HCALLS_H
 
-#include <linux/types.h>
-#include <linux/errno.h>
-#include <asm/byteorder.h>
-
 #define EV_BYTE_CHANNEL_SEND		1
 #define EV_BYTE_CHANNEL_RECEIVE		2
 #define EV_BYTE_CHANNEL_POLL		3
@@ -108,6 +104,11 @@
 #define EV_INVALID_STATE	11	/* The object is in an invalid state */
 #define EV_UNIMPLEMENTED	12	/* Unimplemented hypercall */
 #define EV_BUFFER_OVERFLOW	13	/* Caller-supplied buffer too small */
+
+#ifndef __ASSEMBLY__
+#include <linux/types.h>
+#include <linux/errno.h>
+#include <asm/byteorder.h>
 
 /*
  * Hypercall register clobber list
@@ -506,5 +507,5 @@ static inline unsigned int ev_idle(void)
 
 	return r3;
 }
-
+#endif /* !__ASSEMBLY__ */
 #endif
