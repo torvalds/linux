@@ -2845,6 +2845,7 @@ void kvm_exit(void)
 	kvm_arch_hardware_unsetup();
 	kvm_arch_exit();
 	free_cpumask_var(cpus_hardware_enabled);
+	__free_page(fault_page);
 	__free_page(hwpoison_page);
 	__free_page(bad_page);
 }
