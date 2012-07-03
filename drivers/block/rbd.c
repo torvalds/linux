@@ -2102,6 +2102,25 @@ err:
 	return ERR_PTR(ret);
 }
 
+static char *rbd_dev_v1_snap_info(struct rbd_device *rbd_dev, u32 which,
+		u64 *snap_size, u64 *snap_features)
+{
+	char *snap_name;
+
+	rbd_assert(which < rbd_dev->header.snapc->num_snaps);
+
+	*snap_size = rbd_dev->header.snap_sizes[which];
+	*snap_features = 0;	/* No features for v1 */
+
+	/* Skip over names until we find the one we are looking for */
+
+	snap_name = rbd_dev->header.snap_names;
+	while (which--)
+		snap_name += strlen(snap_name) + 1;
+
+	return snap_name;
+}
+
 /*
  * Scan the rbd device's current snapshot list and compare it to the
  * newly-received snapshot context.  Remove any existing snapshots
@@ -2118,7 +2137,6 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 {
 	struct ceph_snap_context *snapc = rbd_dev->header.snapc;
 	const u32 snap_count = snapc->num_snaps;
-	char *snap_name = rbd_dev->header.snap_names;
 	struct list_head *head = &rbd_dev->snaps;
 	struct list_head *links = head->next;
 	u32 index = 0;
@@ -2127,6 +2145,9 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 	while (index < snap_count || links != head) {
 		u64 snap_id;
 		struct rbd_snap *snap;
+		char *snap_name;
+		u64 snap_size = 0;
+		u64 snap_features = 0;
 
 		snap_id = index < snap_count ? snapc->snaps[index]
 					     : CEPH_NOSNAP;
@@ -2153,16 +2174,20 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 			continue;
 		}
 
+		snap_name = rbd_dev_v1_snap_info(rbd_dev, index,
+						&snap_size, &snap_features);
+		if (IS_ERR(snap_name))
+			return PTR_ERR(snap_name);
+
 		dout("entry %u: snap_id = %llu\n", (unsigned int) snap_count,
 			(unsigned long long) snap_id);
 		if (!snap || (snap_id != CEPH_NOSNAP && snap->id < snap_id)) {
-			struct rbd_image_header	*header = &rbd_dev->header;
 			struct rbd_snap *new_snap;
 
 			/* We haven't seen this snapshot before */
 
 			new_snap = __rbd_add_snap_dev(rbd_dev, snap_name,
-					snap_id, header->snap_sizes[index], 0);
+					snap_id, snap_size, snap_features);
 			if (IS_ERR(new_snap)) {
 				int err = PTR_ERR(new_snap);
 
@@ -2183,9 +2208,9 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 
 			dout("  already present\n");
 
-			rbd_assert(snap->size ==
-					rbd_dev->header.snap_sizes[index]);
+			rbd_assert(snap->size == snap_size);
 			rbd_assert(!strcmp(snap->name, snap_name));
+			rbd_assert(snap->features == snap_features);
 
 			/* Done with this list entry; advance */
 
@@ -2195,7 +2220,6 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 		/* Advance to the next entry in the snapshot context */
 
 		index++;
-		snap_name += strlen(snap_name) + 1;
 	}
 	dout("%s: done\n", __func__);
 
