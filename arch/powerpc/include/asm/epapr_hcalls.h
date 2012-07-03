@@ -195,7 +195,7 @@ static inline unsigned int ev_int_set_config(unsigned int interrupt,
 	r5  = priority;
 	r6  = destination;
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3), "+r" (r4), "+r" (r5), "+r" (r6)
 		: : EV_HCALL_CLOBBERS4
 	);
@@ -224,7 +224,7 @@ static inline unsigned int ev_int_get_config(unsigned int interrupt,
 	r11 = EV_HCALL_TOKEN(EV_INT_GET_CONFIG);
 	r3 = interrupt;
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3), "=r" (r4), "=r" (r5), "=r" (r6)
 		: : EV_HCALL_CLOBBERS4
 	);
@@ -254,7 +254,7 @@ static inline unsigned int ev_int_set_mask(unsigned int interrupt,
 	r3 = interrupt;
 	r4 = mask;
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3), "+r" (r4)
 		: : EV_HCALL_CLOBBERS2
 	);
@@ -279,7 +279,7 @@ static inline unsigned int ev_int_get_mask(unsigned int interrupt,
 	r11 = EV_HCALL_TOKEN(EV_INT_GET_MASK);
 	r3 = interrupt;
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3), "=r" (r4)
 		: : EV_HCALL_CLOBBERS2
 	);
@@ -307,7 +307,7 @@ static inline unsigned int ev_int_eoi(unsigned int interrupt)
 	r11 = EV_HCALL_TOKEN(EV_INT_EOI);
 	r3 = interrupt;
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3)
 		: : EV_HCALL_CLOBBERS1
 	);
@@ -346,7 +346,7 @@ static inline unsigned int ev_byte_channel_send(unsigned int handle,
 	r7 = be32_to_cpu(p[2]);
 	r8 = be32_to_cpu(p[3]);
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3),
 		  "+r" (r4), "+r" (r5), "+r" (r6), "+r" (r7), "+r" (r8)
 		: : EV_HCALL_CLOBBERS6
@@ -385,7 +385,7 @@ static inline unsigned int ev_byte_channel_receive(unsigned int handle,
 	r3 = handle;
 	r4 = *count;
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3), "+r" (r4),
 		  "=r" (r5), "=r" (r6), "=r" (r7), "=r" (r8)
 		: : EV_HCALL_CLOBBERS6
@@ -423,7 +423,7 @@ static inline unsigned int ev_byte_channel_poll(unsigned int handle,
 	r11 = EV_HCALL_TOKEN(EV_BYTE_CHANNEL_POLL);
 	r3 = handle;
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3), "=r" (r4), "=r" (r5)
 		: : EV_HCALL_CLOBBERS3
 	);
@@ -456,7 +456,7 @@ static inline unsigned int ev_int_iack(unsigned int handle,
 	r11 = EV_HCALL_TOKEN(EV_INT_IACK);
 	r3 = handle;
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3), "=r" (r4)
 		: : EV_HCALL_CLOBBERS2
 	);
@@ -480,7 +480,7 @@ static inline unsigned int ev_doorbell_send(unsigned int handle)
 	r11 = EV_HCALL_TOKEN(EV_DOORBELL_SEND);
 	r3 = handle;
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3)
 		: : EV_HCALL_CLOBBERS1
 	);
@@ -500,7 +500,7 @@ static inline unsigned int ev_idle(void)
 
 	r11 = EV_HCALL_TOKEN(EV_IDLE);
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "=r" (r3)
 		: : EV_HCALL_CLOBBERS1
 	);
