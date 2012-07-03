@@ -618,6 +618,50 @@ static void ar9003_hw_prog_ini(struct ath_hw *ah,
 	}
 }
 
+static int ar9550_hw_get_modes_txgain_index(struct ath_hw *ah,
+					    struct ath9k_channel *chan)
+{
+	int ret;
+
+	switch (chan->chanmode) {
+	case CHANNEL_A:
+	case CHANNEL_A_HT20:
+		if (chan->channel <= 5350)
+			ret = 1;
+		else if ((chan->channel > 5350) && (chan->channel <= 5600))
+			ret = 3;
+		else
+			ret = 5;
+		break;
+
+	case CHANNEL_A_HT40PLUS:
+	case CHANNEL_A_HT40MINUS:
+		if (chan->channel <= 5350)
+			ret = 2;
+		else if ((chan->channel > 5350) && (chan->channel <= 5600))
+			ret = 4;
+		else
+			ret = 6;
+		break;
+
+	case CHANNEL_G:
+	case CHANNEL_G_HT20:
+	case CHANNEL_B:
+		ret = 8;
+		break;
+
+	case CHANNEL_G_HT40PLUS:
+	case CHANNEL_G_HT40MINUS:
+		ret = 7;
+		break;
+
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 static int ar9003_hw_process_ini(struct ath_hw *ah,
 				 struct ath9k_channel *chan)
 {
@@ -659,7 +703,22 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	}
 
 	REG_WRITE_ARRAY(&ah->iniModesRxGain, 1, regWrites);
-	REG_WRITE_ARRAY(&ah->iniModesTxGain, modesIndex, regWrites);
+	if (AR_SREV_9550(ah))
+		REG_WRITE_ARRAY(&ah->ini_modes_rx_gain_bounds, modesIndex,
+				regWrites);
+
+	if (AR_SREV_9550(ah)) {
+		int modes_txgain_index;
+
+		modes_txgain_index = ar9550_hw_get_modes_txgain_index(ah, chan);
+		if (modes_txgain_index < 0)
+			return -EINVAL;
+
+		REG_WRITE_ARRAY(&ah->iniModesTxGain, modes_txgain_index,
+				regWrites);
+	} else {
+		REG_WRITE_ARRAY(&ah->iniModesTxGain, modesIndex, regWrites);
+	}
 
 	/*
 	 * For 5GHz channels requiring Fast Clock, apply

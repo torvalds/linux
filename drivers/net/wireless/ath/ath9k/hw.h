@@ -819,6 +819,7 @@ struct ath_hw {
 	struct ar5416IniArray iniModesFastClock;
 	struct ar5416IniArray iniAdditional;
 	struct ar5416IniArray iniModesRxGain;
+	struct ar5416IniArray ini_modes_rx_gain_bounds;
 	struct ar5416IniArray iniModesTxGain;
 	struct ar5416IniArray iniCckfirNormal;
 	struct ar5416IniArray iniCckfirJapan2484;
