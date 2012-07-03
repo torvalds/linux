@@ -763,20 +763,17 @@ void brcms_c_regd_init(struct brcms_c_info *wlc)
 	int band_idx, i;
 
 	/* Disable any channels not supported by the phy */
-	for (band_idx = 0; band_idx < IEEE80211_NUM_BANDS; band_idx++) {
-		if (band_idx == IEEE80211_BAND_2GHZ)
-			band = wlc->bandstate[BAND_2G_INDEX];
-		else
-			band = wlc->bandstate[BAND_5G_INDEX];
-
-		/* skip if band not initialized */
-		if (band->pi == NULL)
-			continue;
+	for (band_idx = 0; band_idx < wlc->pub->_nbands; band_idx++) {
+		band = wlc->bandstate[band_idx];
 
 		wlc_phy_chanspec_band_validch(band->pi, band->bandtype,
 					      &sup_chan);
 
-		sband = wiphy->bands[band_idx];
+		if (band_idx == BAND_2G_INDEX)
+			sband = wiphy->bands[IEEE80211_BAND_2GHZ];
+		else
+			sband = wiphy->bands[IEEE80211_BAND_5GHZ];
+
 		for (i = 0; i < sband->n_channels; i++) {
 			ch = &sband->channels[i];
 			if (!isset(sup_chan.vec, ch->hw_value))
