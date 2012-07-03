@@ -179,13 +179,16 @@ static void macb_handle_link_change(struct net_device *dev)
 	spin_unlock_irqrestore(&bp->lock, flags);
 
 	if (status_change) {
-		if (phydev->link)
+		if (phydev->link) {
+			netif_carrier_on(dev);
 			netdev_info(dev, "link up (%d/%s)\n",
 				    phydev->speed,
 				    phydev->duplex == DUPLEX_FULL ?
 				    "Full" : "Half");
-		else
+		} else {
+			netif_carrier_off(dev);
 			netdev_info(dev, "link down\n");
+		}
 	}
 }
 
@@ -1033,6 +1036,9 @@ static int macb_open(struct net_device *dev)
 
 	netdev_dbg(bp->dev, "open\n");
 
+	/* carrier starts down */
+	netif_carrier_off(dev);
+
 	/* if the phy is not yet register, retry later*/
 	if (!bp->phy_dev)
 		return -EAGAIN;
@@ -1406,6 +1412,8 @@ static int __init macb_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dev);
 
+	netif_carrier_off(dev);
+
 	netdev_info(dev, "Cadence %s at 0x%08lx irq %d (%pM)\n",
 		    macb_is_gem(bp) ? "GEM" : "MACB", dev->base_addr,
 		    dev->irq, dev->dev_addr);
@@ -1469,6 +1477,7 @@ static int macb_suspend(struct platform_device *pdev, pm_message_t state)
 	struct net_device *netdev = platform_get_drvdata(pdev);
 	struct macb *bp = netdev_priv(netdev);
 
+	netif_carrier_off(netdev);
 	netif_device_detach(netdev);
 
 	clk_disable(bp->hclk);
