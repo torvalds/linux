@@ -2206,6 +2206,40 @@ out:
 	return ret;
 }
 
+static int _rbd_dev_v2_snap_features(struct rbd_device *rbd_dev, u64 snap_id,
+		u64 *snap_features)
+{
+	__le64 snapid = cpu_to_le64(snap_id);
+	struct {
+		__le64 features;
+		__le64 incompat;
+	} features_buf = { 0 };
+	int ret;
+
+	ret = rbd_req_sync_exec(rbd_dev, rbd_dev->header_name,
+				"rbd", "get_features",
+				(char *) &snapid, sizeof (snapid),
+				(char *) &features_buf, sizeof (features_buf),
+				CEPH_OSD_FLAG_READ, NULL);
+	dout("%s: rbd_req_sync_exec returned %d\n", __func__, ret);
+	if (ret < 0)
+		return ret;
+	*snap_features = le64_to_cpu(features_buf.features);
+
+	dout("  snap_id 0x%016llx features = 0x%016llx incompat = 0x%016llx\n",
+		(unsigned long long) snap_id,
+		(unsigned long long) *snap_features,
+		(unsigned long long) le64_to_cpu(features_buf.incompat));
+
+	return 0;
+}
+
+static int rbd_dev_v2_features(struct rbd_device *rbd_dev)
+{
+	return _rbd_dev_v2_snap_features(rbd_dev, CEPH_NOSNAP,
+						&rbd_dev->header.features);
+}
+
 /*
  * Scan the rbd device's current snapshot list and compare it to the
  * newly-received snapshot context.  Remove any existing snapshots
@@ -2737,6 +2771,12 @@ static int rbd_dev_v2_probe(struct rbd_device *rbd_dev)
 	/* Get the object prefix (a.k.a. block_name) for the image */
 
 	ret = rbd_dev_v2_object_prefix(rbd_dev);
+	if (ret < 0)
+		goto out_err;
+
+	/* Get the features for the image */
+
+	ret = rbd_dev_v2_features(rbd_dev);
 	if (ret < 0)
 		goto out_err;
 	rbd_dev->image_format = 2;
