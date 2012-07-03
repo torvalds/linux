@@ -336,6 +336,7 @@ enum no_fbc_reason {
 };
 
 enum intel_pch {
+	PCH_NONE = 0,	/* No PCH present */
 	PCH_IBX,	/* Ibexpeak PCH */
 	PCH_CPT,	/* Cougarpoint PCH */
 	PCH_LPT,	/* Lynxpoint PCH */
