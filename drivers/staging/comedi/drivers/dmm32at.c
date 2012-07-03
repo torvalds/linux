@@ -160,10 +160,6 @@ struct dmm32at_board {
 	const char *name;
 };
 
-/* this structure is for data unique to this hardware driver.  If
- * several hardware drivers keep similar information in this structure,
- * feel free to suggest moving the variable to the struct comedi_device struct.
- */
 struct dmm32at_private {
 
 	int data;
@@ -175,11 +171,6 @@ struct dmm32at_private {
 	unsigned char dio_config;
 
 };
-
-/*
- * "instructions" read/write data in "one-shot" or "software-triggered"
- * mode.
- */
 
 static int dmm32at_ai_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
@@ -253,20 +244,9 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev,
 	return n;
 }
 
-/* This function doesn't require a particular form, this is just
- * what happens to be used in some of the drivers.  It should
- * convert ns nanoseconds to a counter value suitable for programming
- * the device.  Also, it should adjust ns so that it cooresponds to
- * the actual time that the device will use. */
 static int dmm32at_ns_to_timer(unsigned int *ns, int round)
 {
 	/* trivial timer */
-	/* if your timing is done through two cascaded timers, the
-	 * i8253_cascade_ns_to_timer() function in 8253.h can be
-	 * very helpful.  There are also i8254_load() and i8254_mm_load()
-	 * which can be used to load values into the ubiquitous 8254 counters
-	 */
-
 	return *ns;
 }
 
@@ -277,15 +257,6 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 	int err = 0;
 	int tmp;
 	int start_chan, gain, i;
-
-	/* printk("dmmat32 in command test\n"); */
-
-	/* cmdtest tests a particular command to see if it is valid.
-	 * Using the cmdtest ioctl, a user can create a valid cmd
-	 * and then have it executes by the cmd ioctl.
-	 *
-	 * cmdtest returns 1,2,3,4 or 0, depending on which tests
-	 * the command passes. */
 
 	/* step 1: make sure trigger sources are trivially valid */
 
@@ -659,8 +630,6 @@ static int dmm32at_ao_winsn(struct comedi_device *dev,
 	return i;
 }
 
-/* AO subdevices should have a read insn as well as a write insn.
- * Usually this means copying a value stored in devpriv. */
 static int dmm32at_ao_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
@@ -675,11 +644,6 @@ static int dmm32at_ao_rinsn(struct comedi_device *dev,
 	return i;
 }
 
-/* DIO devices are slightly special.  Although it is possible to
- * implement the insn_read/insn_write interface, it is much more
- * useful to applications if you implement the insn_bits interface.
- * This allows packed reading/writing of the DIO channels.  The
- * comedi core can convert between insn_bits and insn_read/write */
 static int dmm32at_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
@@ -853,10 +817,6 @@ static int dmm32at_attach(struct comedi_device *dev,
 
 	dev->board_name = board->name;
 
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
 	if (alloc_private(dev, sizeof(*devpriv)) < 0)
 		return -ENOMEM;
 	devpriv = dev->private;
