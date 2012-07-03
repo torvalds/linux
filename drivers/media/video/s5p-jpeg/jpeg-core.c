@@ -1503,29 +1503,7 @@ static struct platform_driver s5p_jpeg_driver = {
 	},
 };
 
-static int __init
-s5p_jpeg_register(void)
-{
-	int ret;
-
-	pr_info("S5P JPEG V4L2 Driver, (c) 2011 Samsung Electronics\n");
-
-	ret = platform_driver_register(&s5p_jpeg_driver);
-
-	if (ret)
-		pr_err("%s: failed to register jpeg driver\n", __func__);
-
-	return ret;
-}
-
-static void __exit
-s5p_jpeg_unregister(void)
-{
-	platform_driver_unregister(&s5p_jpeg_driver);
-}
-
-module_init(s5p_jpeg_register);
-module_exit(s5p_jpeg_unregister);
+module_platform_driver(s5p_jpeg_driver);
 
 MODULE_AUTHOR("Andrzej Pietrasiewicz <andrzej.p@samsung.com>");
 MODULE_DESCRIPTION("Samsung JPEG codec driver");
