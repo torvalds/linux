@@ -85,14 +85,14 @@ static void sync_fs_one_sb(struct super_block *sb, void *arg)
 		sb->s_op->sync_fs(sb, *(int *)arg);
 }
 
-static void flush_one_bdev(struct block_device *bdev, void *arg)
+static void fdatawrite_one_bdev(struct block_device *bdev, void *arg)
 {
-	__sync_blockdev(bdev, 0);
+	filemap_fdatawrite(bdev->bd_inode->i_mapping);
 }
 
-static void sync_one_bdev(struct block_device *bdev, void *arg)
+static void fdatawait_one_bdev(struct block_device *bdev, void *arg)
 {
-	sync_blockdev(bdev);
+	filemap_fdatawait(bdev->bd_inode->i_mapping);
 }
 
 /*
@@ -106,10 +106,10 @@ SYSCALL_DEFINE0(sync)
 	wakeup_flusher_threads(0, WB_REASON_SYNC);
 	iterate_supers(writeback_inodes_one_sb, NULL);
 	iterate_supers(sync_fs_one_sb, &nowait);
-	iterate_bdevs(flush_one_bdev, NULL);
 	iterate_supers(sync_inodes_one_sb, NULL);
 	iterate_supers(sync_fs_one_sb, &wait);
-	iterate_bdevs(sync_one_bdev, NULL);
+	iterate_bdevs(fdatawrite_one_bdev, NULL);
+	iterate_bdevs(fdatawait_one_bdev, NULL);
 	if (unlikely(laptop_mode))
 		laptop_sync_completion();
 	return 0;
@@ -125,10 +125,10 @@ static void do_sync_work(struct work_struct *work)
 	 */
 	iterate_supers(sync_inodes_one_sb, &nowait);
 	iterate_supers(sync_fs_one_sb, &nowait);
-	iterate_bdevs(flush_one_bdev, NULL);
+	iterate_bdevs(fdatawrite_one_bdev, NULL);
 	iterate_supers(sync_inodes_one_sb, &nowait);
 	iterate_supers(sync_fs_one_sb, &nowait);
-	iterate_bdevs(flush_one_bdev, NULL);
+	iterate_bdevs(fdatawrite_one_bdev, NULL);
 	printk("Emergency Sync complete\n");
 	kfree(work);
 }
