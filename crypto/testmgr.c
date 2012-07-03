@@ -1721,6 +1721,42 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "authenc(hmac(sha1),cbc(aes))",
+		.test = alg_test_aead,
+		.fips_allowed = 1,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs = hmac_sha1_aes_cbc_enc_tv_template,
+					.count = HMAC_SHA1_AES_CBC_ENC_TEST_VECTORS
+				}
+			}
+		}
+	}, {
+		.alg = "authenc(hmac(sha256),cbc(aes))",
+		.test = alg_test_aead,
+		.fips_allowed = 1,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs = hmac_sha256_aes_cbc_enc_tv_template,
+					.count = HMAC_SHA256_AES_CBC_ENC_TEST_VECTORS
+				}
+			}
+		}
+	}, {
+		.alg = "authenc(hmac(sha512),cbc(aes))",
+		.test = alg_test_aead,
+		.fips_allowed = 1,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs = hmac_sha512_aes_cbc_enc_tv_template,
+					.count = HMAC_SHA512_AES_CBC_ENC_TEST_VECTORS
+				}
+			}
+		}
+	}, {
 		.alg = "cbc(aes)",
 		.test = alg_test_skcipher,
 		.fips_allowed = 1,
