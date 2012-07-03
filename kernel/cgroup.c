@@ -959,7 +959,7 @@ static int cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
 
 		dget(d);
 		d_delete(d);
-		simple_unlink(d->d_inode, d);
+		simple_unlink(cgrp->dentry->d_inode, d);
 		list_del_init(&cfe->node);
 		dput(d);
 
