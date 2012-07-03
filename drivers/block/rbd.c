@@ -2319,6 +2319,83 @@ out:
 	return 0;
 }
 
+static char *rbd_dev_v2_snap_name(struct rbd_device *rbd_dev, u32 which)
+{
+	size_t size;
+	void *reply_buf;
+	__le64 snap_id;
+	int ret;
+	void *p;
+	void *end;
+	size_t snap_name_len;
+	char *snap_name;
+
+	size = sizeof (__le32) + RBD_MAX_SNAP_NAME_LEN;
+	reply_buf = kmalloc(size, GFP_KERNEL);
+	if (!reply_buf)
+		return ERR_PTR(-ENOMEM);
+
+	snap_id = cpu_to_le64(rbd_dev->header.snapc->snaps[which]);
+	ret = rbd_req_sync_exec(rbd_dev, rbd_dev->header_name,
+				"rbd", "get_snapshot_name",
+				(char *) &snap_id, sizeof (snap_id),
+				reply_buf, size,
+				CEPH_OSD_FLAG_READ, NULL);
+	dout("%s: rbd_req_sync_exec returned %d\n", __func__, ret);
+	if (ret < 0)
+		goto out;
+
+	p = reply_buf;
+	end = (char *) reply_buf + size;
+	snap_name_len = 0;
+	snap_name = ceph_extract_encoded_string(&p, end, &snap_name_len,
+				GFP_KERNEL);
+	if (IS_ERR(snap_name)) {
+		ret = PTR_ERR(snap_name);
+		goto out;
+	} else {
+		dout("  snap_id 0x%016llx snap_name = %s\n",
+			(unsigned long long) le64_to_cpu(snap_id), snap_name);
+	}
+	kfree(reply_buf);
+
+	return snap_name;
+out:
+	kfree(reply_buf);
+
+	return ERR_PTR(ret);
+}
+
+static char *rbd_dev_v2_snap_info(struct rbd_device *rbd_dev, u32 which,
+		u64 *snap_size, u64 *snap_features)
+{
+	__le64 snap_id;
+	u8 order;
+	int ret;
+
+	snap_id = rbd_dev->header.snapc->snaps[which];
+	ret = _rbd_dev_v2_snap_size(rbd_dev, snap_id, &order, snap_size);
+	if (ret)
+		return ERR_PTR(ret);
+	ret = _rbd_dev_v2_snap_features(rbd_dev, snap_id, snap_features);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return rbd_dev_v2_snap_name(rbd_dev, which);
+}
+
+static char *rbd_dev_snap_info(struct rbd_device *rbd_dev, u32 which,
+		u64 *snap_size, u64 *snap_features)
+{
+	if (rbd_dev->image_format == 1)
+		return rbd_dev_v1_snap_info(rbd_dev, which,
+					snap_size, snap_features);
+	if (rbd_dev->image_format == 2)
+		return rbd_dev_v2_snap_info(rbd_dev, which,
+					snap_size, snap_features);
+	return ERR_PTR(-EINVAL);
+}
+
 /*
  * Scan the rbd device's current snapshot list and compare it to the
  * newly-received snapshot context.  Remove any existing snapshots
@@ -2372,8 +2449,8 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 			continue;
 		}
 
-		snap_name = rbd_dev_v1_snap_info(rbd_dev, index,
-						&snap_size, &snap_features);
+		snap_name = rbd_dev_snap_info(rbd_dev, index,
+					&snap_size, &snap_features);
 		if (IS_ERR(snap_name))
 			return PTR_ERR(snap_name);
 
