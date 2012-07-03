@@ -171,7 +171,8 @@ static void ath_restart_work(struct ath_softc *sc)
 
 	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 
-	if (AR_SREV_9485(sc->sc_ah) || AR_SREV_9340(sc->sc_ah))
+	if (AR_SREV_9340(sc->sc_ah) || AR_SREV_9485(sc->sc_ah) ||
+	    AR_SREV_9550(sc->sc_ah))
 		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work,
 				     msecs_to_jiffies(ATH_PLL_WORK_INTERVAL));
 
