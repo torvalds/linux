@@ -465,9 +465,78 @@ acquire_err:
 	return -EINVAL;
 }
 
+static void gpmi_put_clks(struct gpmi_nand_data *this)
+{
+	struct resources *r = &this->resources;
+	struct clk *clk;
+	int i;
+
+	for (i = 0; i < GPMI_CLK_MAX; i++) {
+		clk = r->clock[i];
+		if (clk) {
+			clk_put(clk);
+			r->clock[i] = NULL;
+		}
+	}
+}
+
+static char *extra_clks_for_mx6q[GPMI_CLK_MAX] = {
+	"gpmi_apb", "gpmi_bch", "gpmi_bch_apb", "per1_bch",
+};
+
+static int __devinit gpmi_get_clks(struct gpmi_nand_data *this)
+{
+	struct resources *r = &this->resources;
+	char **extra_clks = NULL;
+	struct clk *clk;
+	int i;
+
+	/* The main clock is stored in the first. */
+	r->clock[0] = clk_get(this->dev, "gpmi_io");
+	if (IS_ERR(r->clock[0]))
+		goto err_clock;
+
+	/* Get extra clocks */
+	if (GPMI_IS_MX6Q(this))
+		extra_clks = extra_clks_for_mx6q;
+	if (!extra_clks)
+		return 0;
+
+	for (i = 1; i < GPMI_CLK_MAX; i++) {
+		if (extra_clks[i - 1] == NULL)
+			break;
+
+		clk = clk_get(this->dev, extra_clks[i - 1]);
+		if (IS_ERR(clk))
+			goto err_clock;
+
+		r->clock[i] = clk;
+	}
+
+	if (GPMI_IS_MX6Q(this)) {
+		/*
+		 * Set the default values for the clocks in mx6q:
+		 *    The main clock(enfc) : 22MHz
+		 *    The others           : 44.5MHz
+		 *
+		 * These are just the default values. If you want to use
+		 * the ONFI nand which is in the Synchronous Mode, you should
+		 * change the clocks's frequencies as you need.
+		 */
+		clk_set_rate(r->clock[0], 22000000);
+		for (i = 1; i < GPMI_CLK_MAX && r->clock[i]; i++)
+			clk_set_rate(r->clock[i], 44500000);
+	}
+	return 0;
+
+err_clock:
+	dev_dbg(this->dev, "failed in finding the clocks.\n");
+	gpmi_put_clks(this);
+	return -ENOMEM;
+}
+
 static int __devinit acquire_resources(struct gpmi_nand_data *this)
 {
-	struct resources *res = &this->resources;
 	struct pinctrl *pinctrl;
 	int ret;
 
@@ -493,12 +562,9 @@ static int __devinit acquire_resources(struct gpmi_nand_data *this)
 		goto exit_pin;
 	}
 
-	res->clock = clk_get(&this->pdev->dev, NULL);
-	if (IS_ERR(res->clock)) {
-		pr_err("can not get the clock\n");
-		ret = -ENOENT;
+	ret = gpmi_get_clks(this);
+	if (ret)
 		goto exit_clock;
-	}
 	return 0;
 
 exit_clock:
@@ -513,9 +579,7 @@ exit_regs:
 
 static void release_resources(struct gpmi_nand_data *this)
 {
-	struct resources *r = &this->resources;
-
-	clk_put(r->clock);
+	gpmi_put_clks(this);
 	release_register_block(this);
 	release_bch_irq(this);
 	release_dma_channels(this);

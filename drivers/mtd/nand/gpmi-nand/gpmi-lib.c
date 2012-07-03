@@ -124,12 +124,42 @@ error:
 	return -ETIMEDOUT;
 }
 
+static int __gpmi_enable_clk(struct gpmi_nand_data *this, bool v)
+{
+	struct clk *clk;
+	int ret;
+	int i;
+
+	for (i = 0; i < GPMI_CLK_MAX; i++) {
+		clk = this->resources.clock[i];
+		if (!clk)
+			break;
+
+		if (v) {
+			ret = clk_prepare_enable(clk);
+			if (ret)
+				goto err_clk;
+		} else {
+			clk_disable_unprepare(clk);
+		}
+	}
+	return 0;
+
+err_clk:
+	for (; i > 0; i--)
+		clk_disable_unprepare(this->resources.clock[i - 1]);
+	return ret;
+}
+
+#define gpmi_enable_clk(x) __gpmi_enable_clk(x, true)
+#define gpmi_disable_clk(x) __gpmi_enable_clk(x, false)
+
 int gpmi_init(struct gpmi_nand_data *this)
 {
 	struct resources *r = &this->resources;
 	int ret;
 
-	ret = clk_prepare_enable(r->clock);
+	ret = gpmi_enable_clk(this);
 	if (ret)
 		goto err_out;
 	ret = gpmi_reset_block(r->gpmi_regs, false);
@@ -149,7 +179,7 @@ int gpmi_init(struct gpmi_nand_data *this)
 	/* Select BCH ECC. */
 	writel(BM_GPMI_CTRL1_BCH_MODE, r->gpmi_regs + HW_GPMI_CTRL1_SET);
 
-	clk_disable_unprepare(r->clock);
+	gpmi_disable_clk(this);
 	return 0;
 err_out:
 	return ret;
@@ -205,7 +235,7 @@ int bch_set_geometry(struct gpmi_nand_data *this)
 	ecc_strength  = bch_geo->ecc_strength >> 1;
 	page_size     = bch_geo->page_size;
 
-	ret = clk_prepare_enable(r->clock);
+	ret = gpmi_enable_clk(this);
 	if (ret)
 		goto err_out;
 
@@ -240,7 +270,7 @@ int bch_set_geometry(struct gpmi_nand_data *this)
 	writel(BM_BCH_CTRL_COMPLETE_IRQ_EN,
 				r->bch_regs + HW_BCH_CTRL_SET);
 
-	clk_disable_unprepare(r->clock);
+	gpmi_disable_clk(this);
 	return 0;
 err_out:
 	return ret;
@@ -716,7 +746,7 @@ void gpmi_begin(struct gpmi_nand_data *this)
 	int ret;
 
 	/* Enable the clock. */
-	ret = clk_prepare_enable(r->clock);
+	ret = gpmi_enable_clk(this);
 	if (ret) {
 		pr_err("We failed in enable the clk\n");
 		goto err_out;
@@ -727,7 +757,7 @@ void gpmi_begin(struct gpmi_nand_data *this)
 		gpmi_regs + HW_GPMI_TIMING1);
 
 	/* Get the timing information we need. */
-	nfc->clock_frequency_in_hz = clk_get_rate(r->clock);
+	nfc->clock_frequency_in_hz = clk_get_rate(r->clock[0]);
 	clock_period_in_ns = 1000000000 / nfc->clock_frequency_in_hz;
 
 	gpmi_nfc_compute_hardware_timing(this, &hw);
@@ -784,8 +814,7 @@ err_out:
 
 void gpmi_end(struct gpmi_nand_data *this)
 {
-	struct resources *r = &this->resources;
-	clk_disable_unprepare(r->clock);
+	gpmi_disable_clk(this);
 }
 
 /* Clears a BCH interrupt. */

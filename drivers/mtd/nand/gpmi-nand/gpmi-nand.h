@@ -22,6 +22,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/fsl/mxs-dma.h>
 
+#define GPMI_CLK_MAX 5 /* MX6Q needs five clocks */
 struct resources {
 	void          *gpmi_regs;
 	void          *bch_regs;
@@ -29,7 +30,7 @@ struct resources {
 	unsigned int  bch_high_interrupt;
 	unsigned int  dma_low_channel;
 	unsigned int  dma_high_channel;
-	struct clk    *clock;
+	struct clk    *clock[GPMI_CLK_MAX];
 };
 
 /**
