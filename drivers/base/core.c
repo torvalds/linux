@@ -85,14 +85,13 @@ const char *dev_driver_string(const struct device *dev)
 }
 EXPORT_SYMBOL(dev_driver_string);
 
-#define to_dev(obj) container_of(obj, struct device, kobj)
 #define to_dev_attr(_attr) container_of(_attr, struct device_attribute, attr)
 
 static ssize_t dev_attr_show(struct kobject *kobj, struct attribute *attr,
 			     char *buf)
 {
 	struct device_attribute *dev_attr = to_dev_attr(attr);
-	struct device *dev = to_dev(kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	ssize_t ret = -EIO;
 
 	if (dev_attr->show)
@@ -108,7 +107,7 @@ static ssize_t dev_attr_store(struct kobject *kobj, struct attribute *attr,
 			      const char *buf, size_t count)
 {
 	struct device_attribute *dev_attr = to_dev_attr(attr);
-	struct device *dev = to_dev(kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	ssize_t ret = -EIO;
 
 	if (dev_attr->store)
@@ -182,7 +181,7 @@ EXPORT_SYMBOL_GPL(device_show_int);
  */
 static void device_release(struct kobject *kobj)
 {
-	struct device *dev = to_dev(kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct device_private *p = dev->p;
 
 	if (dev->release)
@@ -200,7 +199,7 @@ static void device_release(struct kobject *kobj)
 
 static const void *device_namespace(struct kobject *kobj)
 {
-	struct device *dev = to_dev(kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	const void *ns = NULL;
 
 	if (dev->class && dev->class->ns_type)
@@ -221,7 +220,7 @@ static int dev_uevent_filter(struct kset *kset, struct kobject *kobj)
 	struct kobj_type *ktype = get_ktype(kobj);
 
 	if (ktype == &device_ktype) {
-		struct device *dev = to_dev(kobj);
+		struct device *dev = kobj_to_dev(kobj);
 		if (dev->bus)
 			return 1;
 		if (dev->class)
@@ -232,7 +231,7 @@ static int dev_uevent_filter(struct kset *kset, struct kobject *kobj)
 
 static const char *dev_uevent_name(struct kset *kset, struct kobject *kobj)
 {
-	struct device *dev = to_dev(kobj);
+	struct device *dev = kobj_to_dev(kobj);
 
 	if (dev->bus)
 		return dev->bus->name;
@@ -244,7 +243,7 @@ static const char *dev_uevent_name(struct kset *kset, struct kobject *kobj)
 static int dev_uevent(struct kset *kset, struct kobject *kobj,
 		      struct kobj_uevent_env *env)
 {
-	struct device *dev = to_dev(kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	int retval = 0;
 
 	/* add device node properties if present */
@@ -1132,7 +1131,7 @@ int device_register(struct device *dev)
  */
 struct device *get_device(struct device *dev)
 {
-	return dev ? to_dev(kobject_get(&dev->kobj)) : NULL;
+	return dev ? kobj_to_dev(kobject_get(&dev->kobj)) : NULL;
 }
 
 /**
