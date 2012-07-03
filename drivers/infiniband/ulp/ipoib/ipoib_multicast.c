@@ -720,16 +720,20 @@ out:
 
 		rcu_read_lock();
 		if (dst)
-			n = dst_get_neighbour_noref(dst);
-		if (n && !*to_ipoib_neigh(n)) {
-			struct ipoib_neigh *neigh = ipoib_neigh_alloc(n,
-								      skb->dev);
+			n = dst_neigh_lookup_skb(dst, skb);
+		if (n) {
+			if (!*to_ipoib_neigh(n)) {
+				struct ipoib_neigh *neigh;
 
-			if (neigh) {
-				kref_get(&mcast->ah->ref);
-				neigh->ah	= mcast->ah;
-				list_add_tail(&neigh->list, &mcast->neigh_list);
+				neigh = ipoib_neigh_alloc(n, skb->dev);
+				if (neigh) {
+					kref_get(&mcast->ah->ref);
+					neigh->ah	= mcast->ah;
+					list_add_tail(&neigh->list,
+						      &mcast->neigh_list);
+				}
 			}
+			neigh_release(n);
 		}
 		rcu_read_unlock();
 		spin_unlock_irqrestore(&priv->lock, flags);
