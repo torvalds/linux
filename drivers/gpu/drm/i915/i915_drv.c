@@ -216,7 +216,6 @@ static const struct intel_device_info intel_ironlake_d_info = {
 	.gen = 5,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_bsd_ring = 1,
-	.has_pch_split = 1,
 };
 
 static const struct intel_device_info intel_ironlake_m_info = {
@@ -224,7 +223,6 @@ static const struct intel_device_info intel_ironlake_m_info = {
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_fbc = 1,
 	.has_bsd_ring = 1,
-	.has_pch_split = 1,
 };
 
 static const struct intel_device_info intel_sandybridge_d_info = {
@@ -233,7 +231,6 @@ static const struct intel_device_info intel_sandybridge_d_info = {
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
 	.has_llc = 1,
-	.has_pch_split = 1,
 	.has_force_wake = 1,
 };
 
@@ -244,7 +241,6 @@ static const struct intel_device_info intel_sandybridge_m_info = {
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
 	.has_llc = 1,
-	.has_pch_split = 1,
 	.has_force_wake = 1,
 };
 
@@ -254,7 +250,6 @@ static const struct intel_device_info intel_ivybridge_d_info = {
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
 	.has_llc = 1,
-	.has_pch_split = 1,
 	.has_force_wake = 1,
 };
 
@@ -265,7 +260,6 @@ static const struct intel_device_info intel_ivybridge_m_info = {
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
 	.has_llc = 1,
-	.has_pch_split = 1,
 	.has_force_wake = 1,
 };
 
@@ -293,7 +287,6 @@ static const struct intel_device_info intel_haswell_d_info = {
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
 	.has_llc = 1,
-	.has_pch_split = 1,
 	.has_force_wake = 1,
 };
 
@@ -303,7 +296,6 @@ static const struct intel_device_info intel_haswell_m_info = {
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
 	.has_llc = 1,
-	.has_pch_split = 1,
 	.has_force_wake = 1,
 };
 

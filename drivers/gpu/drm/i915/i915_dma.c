@@ -1547,6 +1547,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_mtrrfree;
 	}
 
+	/* This must be called before any calls to HAS_PCH_* */
+	intel_detect_pch(dev);
+
 	intel_irq_init(dev);
 	intel_gt_init(dev);
 
@@ -1598,8 +1601,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	/* Start out suspended */
 	dev_priv->mm.suspended = 1;
-
-	intel_detect_pch(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		ret = i915_load_modeset_init(dev);
