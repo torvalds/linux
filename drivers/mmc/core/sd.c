@@ -290,8 +290,12 @@ static int mmc_read_switch(struct mmc_card *card)
 		return -ENOMEM;
 	}
 
-	/* Find out the supported Bus Speed Modes. */
-	err = mmc_sd_switch(card, 0, 0, 1, status);
+	/*
+	 * Find out the card's support bits with a mode 0 operation.
+	 * The argument does not matter, as the support bits do not
+	 * change with the arguments.
+	 */
+	err = mmc_sd_switch(card, 0, 0, 0, status);
 	if (err) {
 		/*
 		 * If the host or the card can't do the switch,
@@ -312,46 +316,8 @@ static int mmc_read_switch(struct mmc_card *card)
 
 	if (card->scr.sda_spec3) {
 		card->sw_caps.sd3_bus_mode = status[13];
-
-		/* Find out Driver Strengths supported by the card */
-		err = mmc_sd_switch(card, 0, 2, 1, status);
-		if (err) {
-			/*
-			 * If the host or the card can't do the switch,
-			 * fail more gracefully.
-			 */
-			if (err != -EINVAL && err != -ENOSYS && err != -EFAULT)
-				goto out;
-
-			pr_warning("%s: problem reading "
-				"Driver Strength.\n",
-				mmc_hostname(card->host));
-			err = 0;
-
-			goto out;
-		}
-
+		/* Driver Strengths supported by the card */
 		card->sw_caps.sd3_drv_type = status[9];
-
-		/* Find out Current Limits supported by the card */
-		err = mmc_sd_switch(card, 0, 3, 1, status);
-		if (err) {
-			/*
-			 * If the host or the card can't do the switch,
-			 * fail more gracefully.
-			 */
-			if (err != -EINVAL && err != -ENOSYS && err != -EFAULT)
-				goto out;
-
-			pr_warning("%s: problem reading "
-				"Current Limit.\n",
-				mmc_hostname(card->host));
-			err = 0;
-
-			goto out;
-		}
-
-		card->sw_caps.sd3_curr_limit = status[7];
 	}
 
 out:
@@ -560,41 +526,24 @@ static int sd_set_current_limit(struct mmc_card *card, u8 *status)
 	 * Current limit switch is only defined for SDR50, SDR104, and DDR50
 	 * bus speed modes. For other bus speed modes, we do not change the
 	 * current limit.
+	 * We only check host's capability here, if we set a limit that is
+	 * higher than the card's maximum current, the card will be using its
+	 * maximum current, e.g. if the card's maximum current is 300ma, and
+	 * when we set current limit to 200ma, the card will draw 200ma, and
+	 * when we set current limit to 400/600/800ma, the card will draw its
+	 * maximum 300ma from the host.
 	 */
 	if ((card->sd_bus_speed == UHS_SDR50_BUS_SPEED) ||
 	    (card->sd_bus_speed == UHS_SDR104_BUS_SPEED) ||
 	    (card->sd_bus_speed == UHS_DDR50_BUS_SPEED)) {
-		if (card->host->caps & MMC_CAP_MAX_CURRENT_800) {
-			if (card->sw_caps.sd3_curr_limit & SD_MAX_CURRENT_800)
-				current_limit = SD_SET_CURRENT_LIMIT_800;
-			else if (card->sw_caps.sd3_curr_limit &
-					SD_MAX_CURRENT_600)
-				current_limit = SD_SET_CURRENT_LIMIT_600;
-			else if (card->sw_caps.sd3_curr_limit &
-					SD_MAX_CURRENT_400)
-				current_limit = SD_SET_CURRENT_LIMIT_400;
-			else if (card->sw_caps.sd3_curr_limit &
-					SD_MAX_CURRENT_200)
-				current_limit = SD_SET_CURRENT_LIMIT_200;
-		} else if (card->host->caps & MMC_CAP_MAX_CURRENT_600) {
-			if (card->sw_caps.sd3_curr_limit & SD_MAX_CURRENT_600)
-				current_limit = SD_SET_CURRENT_LIMIT_600;
-			else if (card->sw_caps.sd3_curr_limit &
-					SD_MAX_CURRENT_400)
-				current_limit = SD_SET_CURRENT_LIMIT_400;
-			else if (card->sw_caps.sd3_curr_limit &
-					SD_MAX_CURRENT_200)
-				current_limit = SD_SET_CURRENT_LIMIT_200;
-		} else if (card->host->caps & MMC_CAP_MAX_CURRENT_400) {
-			if (card->sw_caps.sd3_curr_limit & SD_MAX_CURRENT_400)
-				current_limit = SD_SET_CURRENT_LIMIT_400;
-			else if (card->sw_caps.sd3_curr_limit &
-					SD_MAX_CURRENT_200)
-				current_limit = SD_SET_CURRENT_LIMIT_200;
-		} else if (card->host->caps & MMC_CAP_MAX_CURRENT_200) {
-			if (card->sw_caps.sd3_curr_limit & SD_MAX_CURRENT_200)
-				current_limit = SD_SET_CURRENT_LIMIT_200;
-		}
+		if (card->host->caps & MMC_CAP_MAX_CURRENT_800)
+			current_limit = SD_SET_CURRENT_LIMIT_800;
+		else if (card->host->caps & MMC_CAP_MAX_CURRENT_600)
+			current_limit = SD_SET_CURRENT_LIMIT_600;
+		else if (card->host->caps & MMC_CAP_MAX_CURRENT_400)
+			current_limit = SD_SET_CURRENT_LIMIT_400;
+		else if (card->host->caps & MMC_CAP_MAX_CURRENT_200)
+			current_limit = SD_SET_CURRENT_LIMIT_200;
 	}
 
 	if (current_limit != SD_SET_CURRENT_NO_CHANGE) {
@@ -607,6 +556,7 @@ static int sd_set_current_limit(struct mmc_card *card, u8 *status)
 				mmc_hostname(card->host));
 
 	}
+
 	return 0;
 }
 
