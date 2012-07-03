@@ -952,6 +952,8 @@ restart:
 static int gfs2_sync_fs(struct super_block *sb, int wait)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
+
+	gfs2_quota_sync(sb, -1);
 	if (wait && sdp)
 		gfs2_log_flush(sdp, NULL);
 	return 0;
