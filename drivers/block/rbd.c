@@ -1187,7 +1187,6 @@ static int rbd_req_sync_notify_ack(struct rbd_device *dev,
 				   const char *obj)
 {
 	struct ceph_osd_req_op *ops;
-	struct page **pages = NULL;
 	int ret;
 
 	ret = rbd_create_rw_ops(&ops, 1, CEPH_OSD_OP_NOTIFY_ACK, 0);
@@ -1200,7 +1199,7 @@ static int rbd_req_sync_notify_ack(struct rbd_device *dev,
 
 	ret = rbd_do_request(NULL, dev, NULL, CEPH_NOSNAP,
 			  obj, 0, 0, NULL,
-			  pages, 0,
+			  NULL, 0,
 			  CEPH_OSD_FLAG_READ,
 			  ops,
 			  1,
