@@ -88,6 +88,7 @@ static int ip6_finish_output2(struct sk_buff *skb)
 	struct dst_entry *dst = skb_dst(skb);
 	struct net_device *dev = dst->dev;
 	struct neighbour *neigh;
+	struct rt6_info *rt;
 
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->dev = dev;
@@ -123,7 +124,8 @@ static int ip6_finish_output2(struct sk_buff *skb)
 	}
 
 	rcu_read_lock();
-	neigh = dst_get_neighbour_noref(dst);
+	rt = (struct rt6_info *) dst;
+	neigh = rt->n;
 	if (neigh) {
 		int res = dst_neigh_output(dst, neigh, skb);
 
@@ -944,6 +946,7 @@ static int ip6_dst_lookup_tail(struct sock *sk,
 	struct net *net = sock_net(sk);
 #ifdef CONFIG_IPV6_OPTIMISTIC_DAD
 	struct neighbour *n;
+	struct rt6_info *rt;
 #endif
 	int err;
 
@@ -972,7 +975,8 @@ static int ip6_dst_lookup_tail(struct sock *sk,
 	 * dst entry of the nexthop router
 	 */
 	rcu_read_lock();
-	n = dst_get_neighbour_noref(*dst);
+	rt = (struct rt6_info *) dst;
+	n = rt->n;
 	if (n && !(n->nud_state & NUD_VALID)) {
 		struct inet6_ifaddr *ifp;
 		struct flowi6 fl_gw6;
