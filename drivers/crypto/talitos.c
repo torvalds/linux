@@ -623,7 +623,7 @@ static void talitos_unregister_rng(struct device *dev)
  * crypto alg
  */
 #define TALITOS_CRA_PRIORITY		3000
-#define TALITOS_MAX_KEY_SIZE		64
+#define TALITOS_MAX_KEY_SIZE		96
 #define TALITOS_MAX_IV_LENGTH		16 /* max of AES_BLOCK_SIZE, DES3_EDE_BLOCK_SIZE */
 
 #define MD5_BLOCK_SIZE    64
@@ -1956,6 +1956,59 @@ static struct talitos_alg_template driver_algs[] = {
 		                     DESC_HDR_MODE1_MDEU_PAD |
 		                     DESC_HDR_MODE1_MDEU_SHA1_HMAC,
 	},
+	{       .type = CRYPTO_ALG_TYPE_AEAD,
+		.alg.crypto = {
+			.cra_name = "authenc(hmac(sha224),cbc(aes))",
+			.cra_driver_name = "authenc-hmac-sha224-cbc-aes-talitos",
+			.cra_blocksize = AES_BLOCK_SIZE,
+			.cra_flags = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC,
+			.cra_type = &crypto_aead_type,
+			.cra_aead = {
+				.setkey = aead_setkey,
+				.setauthsize = aead_setauthsize,
+				.encrypt = aead_encrypt,
+				.decrypt = aead_decrypt,
+				.givencrypt = aead_givencrypt,
+				.geniv = "<built-in>",
+				.ivsize = AES_BLOCK_SIZE,
+				.maxauthsize = SHA224_DIGEST_SIZE,
+			}
+		},
+		.desc_hdr_template = DESC_HDR_TYPE_IPSEC_ESP |
+				     DESC_HDR_SEL0_AESU |
+				     DESC_HDR_MODE0_AESU_CBC |
+				     DESC_HDR_SEL1_MDEUA |
+				     DESC_HDR_MODE1_MDEU_INIT |
+				     DESC_HDR_MODE1_MDEU_PAD |
+				     DESC_HDR_MODE1_MDEU_SHA224_HMAC,
+	},
+	{	.type = CRYPTO_ALG_TYPE_AEAD,
+		.alg.crypto = {
+			.cra_name = "authenc(hmac(sha224),cbc(des3_ede))",
+			.cra_driver_name = "authenc-hmac-sha224-cbc-3des-talitos",
+			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
+			.cra_flags = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC,
+			.cra_type = &crypto_aead_type,
+			.cra_aead = {
+				.setkey = aead_setkey,
+				.setauthsize = aead_setauthsize,
+				.encrypt = aead_encrypt,
+				.decrypt = aead_decrypt,
+				.givencrypt = aead_givencrypt,
+				.geniv = "<built-in>",
+				.ivsize = DES3_EDE_BLOCK_SIZE,
+				.maxauthsize = SHA224_DIGEST_SIZE,
+			}
+		},
+		.desc_hdr_template = DESC_HDR_TYPE_IPSEC_ESP |
+			             DESC_HDR_SEL0_DEU |
+		                     DESC_HDR_MODE0_DEU_CBC |
+		                     DESC_HDR_MODE0_DEU_3DES |
+		                     DESC_HDR_SEL1_MDEUA |
+		                     DESC_HDR_MODE1_MDEU_INIT |
+		                     DESC_HDR_MODE1_MDEU_PAD |
+		                     DESC_HDR_MODE1_MDEU_SHA224_HMAC,
+	},
 	{	.type = CRYPTO_ALG_TYPE_AEAD,
 		.alg.crypto = {
 			.cra_name = "authenc(hmac(sha256),cbc(aes))",
@@ -2008,6 +2061,112 @@ static struct talitos_alg_template driver_algs[] = {
 		                     DESC_HDR_MODE1_MDEU_INIT |
 		                     DESC_HDR_MODE1_MDEU_PAD |
 		                     DESC_HDR_MODE1_MDEU_SHA256_HMAC,
+	},
+	{	.type = CRYPTO_ALG_TYPE_AEAD,
+		.alg.crypto = {
+			.cra_name = "authenc(hmac(sha384),cbc(aes))",
+			.cra_driver_name = "authenc-hmac-sha384-cbc-aes-talitos",
+			.cra_blocksize = AES_BLOCK_SIZE,
+			.cra_flags = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC,
+			.cra_type = &crypto_aead_type,
+			.cra_aead = {
+				.setkey = aead_setkey,
+				.setauthsize = aead_setauthsize,
+				.encrypt = aead_encrypt,
+				.decrypt = aead_decrypt,
+				.givencrypt = aead_givencrypt,
+				.geniv = "<built-in>",
+				.ivsize = AES_BLOCK_SIZE,
+				.maxauthsize = SHA384_DIGEST_SIZE,
+			}
+		},
+		.desc_hdr_template = DESC_HDR_TYPE_IPSEC_ESP |
+			             DESC_HDR_SEL0_AESU |
+		                     DESC_HDR_MODE0_AESU_CBC |
+		                     DESC_HDR_SEL1_MDEUB |
+		                     DESC_HDR_MODE1_MDEU_INIT |
+		                     DESC_HDR_MODE1_MDEU_PAD |
+		                     DESC_HDR_MODE1_MDEUB_SHA384_HMAC,
+	},
+	{	.type = CRYPTO_ALG_TYPE_AEAD,
+		.alg.crypto = {
+			.cra_name = "authenc(hmac(sha384),cbc(des3_ede))",
+			.cra_driver_name = "authenc-hmac-sha384-cbc-3des-talitos",
+			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
+			.cra_flags = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC,
+			.cra_type = &crypto_aead_type,
+			.cra_aead = {
+				.setkey = aead_setkey,
+				.setauthsize = aead_setauthsize,
+				.encrypt = aead_encrypt,
+				.decrypt = aead_decrypt,
+				.givencrypt = aead_givencrypt,
+				.geniv = "<built-in>",
+				.ivsize = DES3_EDE_BLOCK_SIZE,
+				.maxauthsize = SHA384_DIGEST_SIZE,
+			}
+		},
+		.desc_hdr_template = DESC_HDR_TYPE_IPSEC_ESP |
+			             DESC_HDR_SEL0_DEU |
+		                     DESC_HDR_MODE0_DEU_CBC |
+		                     DESC_HDR_MODE0_DEU_3DES |
+		                     DESC_HDR_SEL1_MDEUB |
+		                     DESC_HDR_MODE1_MDEU_INIT |
+		                     DESC_HDR_MODE1_MDEU_PAD |
+		                     DESC_HDR_MODE1_MDEUB_SHA384_HMAC,
+	},
+	{	.type = CRYPTO_ALG_TYPE_AEAD,
+		.alg.crypto = {
+			.cra_name = "authenc(hmac(sha512),cbc(aes))",
+			.cra_driver_name = "authenc-hmac-sha512-cbc-aes-talitos",
+			.cra_blocksize = AES_BLOCK_SIZE,
+			.cra_flags = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC,
+			.cra_type = &crypto_aead_type,
+			.cra_aead = {
+				.setkey = aead_setkey,
+				.setauthsize = aead_setauthsize,
+				.encrypt = aead_encrypt,
+				.decrypt = aead_decrypt,
+				.givencrypt = aead_givencrypt,
+				.geniv = "<built-in>",
+				.ivsize = AES_BLOCK_SIZE,
+				.maxauthsize = SHA512_DIGEST_SIZE,
+			}
+		},
+		.desc_hdr_template = DESC_HDR_TYPE_IPSEC_ESP |
+			             DESC_HDR_SEL0_AESU |
+		                     DESC_HDR_MODE0_AESU_CBC |
+		                     DESC_HDR_SEL1_MDEUB |
+		                     DESC_HDR_MODE1_MDEU_INIT |
+		                     DESC_HDR_MODE1_MDEU_PAD |
+		                     DESC_HDR_MODE1_MDEUB_SHA512_HMAC,
+	},
+	{	.type = CRYPTO_ALG_TYPE_AEAD,
+		.alg.crypto = {
+			.cra_name = "authenc(hmac(sha512),cbc(des3_ede))",
+			.cra_driver_name = "authenc-hmac-sha512-cbc-3des-talitos",
+			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
+			.cra_flags = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC,
+			.cra_type = &crypto_aead_type,
+			.cra_aead = {
+				.setkey = aead_setkey,
+				.setauthsize = aead_setauthsize,
+				.encrypt = aead_encrypt,
+				.decrypt = aead_decrypt,
+				.givencrypt = aead_givencrypt,
+				.geniv = "<built-in>",
+				.ivsize = DES3_EDE_BLOCK_SIZE,
+				.maxauthsize = SHA512_DIGEST_SIZE,
+			}
+		},
+		.desc_hdr_template = DESC_HDR_TYPE_IPSEC_ESP |
+			             DESC_HDR_SEL0_DEU |
+		                     DESC_HDR_MODE0_DEU_CBC |
+		                     DESC_HDR_MODE0_DEU_3DES |
+		                     DESC_HDR_SEL1_MDEUB |
+		                     DESC_HDR_MODE1_MDEU_INIT |
+		                     DESC_HDR_MODE1_MDEU_PAD |
+		                     DESC_HDR_MODE1_MDEUB_SHA512_HMAC,
 	},
 	{	.type = CRYPTO_ALG_TYPE_AEAD,
 		.alg.crypto = {
