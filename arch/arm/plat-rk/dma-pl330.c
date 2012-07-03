@@ -749,7 +749,7 @@ int rk29_dma_request(enum dma_ch id,
 
 	dmac = ch->dmac;
 
-	ch->pl330_chan_id = pl330_request_channel(dmac->pi);
+	ch->pl330_chan_id = pl330_request_channel(id, dmac->pi);
 	if (!ch->pl330_chan_id) {
 		chan_release(ch);
 		ret = -EBUSY;
