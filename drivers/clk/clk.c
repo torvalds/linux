@@ -1062,26 +1062,24 @@ static int __clk_set_parent(struct clk *clk, struct clk *parent)
 
 	old_parent = clk->parent;
 
-	/* find index of new parent clock using cached parent ptrs */
-	if (clk->parents)
-		for (i = 0; i < clk->num_parents; i++)
-			if (clk->parents[i] == parent)
-				break;
-	else
+	if (!clk->parents)
 		clk->parents = kzalloc((sizeof(struct clk*) * clk->num_parents),
 								GFP_KERNEL);
 
 	/*
-	 * find index of new parent clock using string name comparison
-	 * also try to cache the parent to avoid future calls to __clk_lookup
+	 * find index of new parent clock using cached parent ptrs,
+	 * or if not yet cached, use string name comparison and cache
+	 * them now to avoid future calls to __clk_lookup.
 	 */
-	if (i == clk->num_parents)
-		for (i = 0; i < clk->num_parents; i++)
-			if (!strcmp(clk->parent_names[i], parent->name)) {
-				if (clk->parents)
-					clk->parents[i] = __clk_lookup(parent->name);
-				break;
-			}
+	for (i = 0; i < clk->num_parents; i++) {
+		if (clk->parents && clk->parents[i] == parent)
+			break;
+		else if (!strcmp(clk->parent_names[i], parent->name)) {
+			if (clk->parents)
+				clk->parents[i] = __clk_lookup(parent->name);
+			break;
+		}
+	}
 
 	if (i == clk->num_parents) {
 		pr_debug("%s: clock %s is not a possible parent of clock %s\n",
