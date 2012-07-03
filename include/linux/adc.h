@@ -41,8 +41,19 @@ struct adc_client *adc_register(int chn,
 				void (*callback)(struct adc_client *, void *, int), 
 				void *callback_param);
 void adc_unregister(struct adc_client *client);
-
+/*
+ * function: adc_sync_read
+ * 1)return value:
+ *     if correct, return adc sample value;
+ *     if error, return negative;
+ */
 int adc_sync_read(struct adc_client *client);
+/*
+ * function: adc_async_read
+ * 1)return value: if error, return negative; else return 0;
+ * 2)adc sample value: the third parameter of callback.
+ *     if timeout, sample value is -1; else sample value is non-negative
+ */
 int adc_async_read(struct adc_client *client);
 #else
 static inline struct adc_client *adc_register(int chn,
