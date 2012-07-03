@@ -42,7 +42,7 @@ struct dst_entry {
 		struct dst_entry        *from;
 	};
 	struct dst_entry	*path;
-	struct neighbour __rcu	*_neighbour;
+	void			*__pad0;
 #ifdef CONFIG_XFRM
 	struct xfrm_state	*xfrm;
 #else
@@ -95,21 +95,6 @@ struct dst_entry {
 		struct dn_route __rcu	*dn_next;
 	};
 };
-
-static inline struct neighbour *dst_get_neighbour_noref(struct dst_entry *dst)
-{
-	return rcu_dereference(dst->_neighbour);
-}
-
-static inline struct neighbour *dst_get_neighbour_noref_raw(struct dst_entry *dst)
-{
-	return rcu_dereference_raw(dst->_neighbour);
-}
-
-static inline void dst_set_neighbour(struct dst_entry *dst, struct neighbour *neigh)
-{
-	rcu_assign_pointer(dst->_neighbour, neigh);
-}
 
 extern u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old);
 extern const u32 dst_default_metrics[RTAX_MAX];
