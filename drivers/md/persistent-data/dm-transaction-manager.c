@@ -347,8 +347,10 @@ static int dm_tm_create_internal(struct dm_block_manager *bm,
 		}
 
 		*sm = dm_sm_checker_create(inner);
-		if (!*sm)
+		if (IS_ERR(*sm)) {
+			r = PTR_ERR(*sm);
 			goto bad2;
+		}
 
 	} else {
 		r = dm_bm_write_lock(dm_tm_get_bm(*tm), sb_location,
@@ -367,8 +369,10 @@ static int dm_tm_create_internal(struct dm_block_manager *bm,
 		}
 
 		*sm = dm_sm_checker_create(inner);
-		if (!*sm)
+		if (IS_ERR(*sm)) {
+			r = PTR_ERR(*sm);
 			goto bad2;
+		}
 	}
 
 	return 0;
