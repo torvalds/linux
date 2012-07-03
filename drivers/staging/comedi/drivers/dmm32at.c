@@ -211,43 +211,6 @@ struct dmm32at_private {
  */
 #define devpriv ((struct dmm32at_private *)dev->private)
 
-/*
- * The struct comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
-static int dmm32at_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static void dmm32at_detach(struct comedi_device *dev);
-static struct comedi_driver driver_dmm32at = {
-	.driver_name = "dmm32at",
-	.module = THIS_MODULE,
-	.attach = dmm32at_attach,
-	.detach = dmm32at_detach,
-/* It is not necessary to implement the following members if you are
- * writing a driver for a ISA PnP or PCI card */
-/* Most drivers will support multiple types of boards by
- * having an array of board structures.  These were defined
- * in dmm32at_boards[] above.  Note that the element 'name'
- * was first in the structure -- Comedi uses this fact to
- * extract the name of the board without knowing any details
- * about the structure except for its length.
- * When a device is attached (by comedi_config), the name
- * of the device is given to Comedi, and Comedi tries to
- * match it by going through the list of board names.  If
- * there is a match, the address of the pointer is put
- * into dev->board_ptr and driver->attach() is called.
- *
- * Note that these are not necessary if you can determine
- * the type of board in software.  ISA PnP, PCI, and PCMCIA
- * devices are such boards.
- */
-	.board_name = &dmm32at_boards[0].name,
-	.offset = sizeof(struct dmm32at_board),
-	.num_names = ARRAY_SIZE(dmm32at_boards),
-};
-
 /* prototypes for driver functions below */
 static int dmm32at_ai_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
@@ -1027,22 +990,16 @@ void dmm32at_setaitimer(struct comedi_device *dev, unsigned int nansec)
 
 }
 
-/*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
- */
-static int __init driver_dmm32at_init_module(void)
-{
-	return comedi_driver_register(&driver_dmm32at);
-}
-
-static void __exit driver_dmm32at_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_dmm32at);
-}
-
-module_init(driver_dmm32at_init_module);
-module_exit(driver_dmm32at_cleanup_module);
+static struct comedi_driver dmm32at_driver = {
+	.driver_name	= "dmm32at",
+	.module		= THIS_MODULE,
+	.attach		= dmm32at_attach,
+	.detach		= dmm32at_detach,
+	.board_name	= &dmm32at_boards[0].name,
+	.offset		= sizeof(struct dmm32at_board),
+	.num_names	= ARRAY_SIZE(dmm32at_boards),
+};
+module_comedi_driver(dmm32at_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
