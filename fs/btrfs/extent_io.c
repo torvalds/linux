@@ -1918,7 +1918,7 @@ int repair_io_failure(struct btrfs_mapping_tree *map_tree, u64 start,
 		return -EIO;
 	}
 
-	printk_in_rcu(KERN_INFO "btrfs read error corrected: ino %lu off %llu "
+	printk_ratelimited_in_rcu(KERN_INFO "btrfs read error corrected: ino %lu off %llu "
 		      "(dev %s sector %llu)\n", page->mapping->host->i_ino,
 		      start, rcu_str_deref(dev->name), sector);
 
