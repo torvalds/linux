@@ -43,7 +43,6 @@ static int sysv_sync_fs(struct super_block *sb, int wait)
 	 * then attach current time stamp.
 	 * But if the filesystem was marked clean, keep it clean.
 	 */
-	sb->s_dirt = 0;
 	old_time = fs32_to_cpu(sbi, *sbi->s_sb_time);
 	if (sbi->s_type == FSTYPE_SYSV4) {
 		if (*sbi->s_sb_state == cpu_to_fs32(sbi, 0x7c269d38 - old_time))
@@ -55,14 +54,6 @@ static int sysv_sync_fs(struct super_block *sb, int wait)
 	unlock_super(sb);
 
 	return 0;
-}
-
-static void sysv_write_super(struct super_block *sb)
-{
-	if (!(sb->s_flags & MS_RDONLY))
-		sysv_sync_fs(sb, 1);
-	else
-		sb->s_dirt = 0;
 }
 
 static int sysv_remount(struct super_block *sb, int *flags, char *data)
@@ -351,7 +342,6 @@ const struct super_operations sysv_sops = {
 	.write_inode	= sysv_write_inode,
 	.evict_inode	= sysv_evict_inode,
 	.put_super	= sysv_put_super,
-	.write_super	= sysv_write_super,
 	.sync_fs	= sysv_sync_fs,
 	.remount_fs	= sysv_remount,
 	.statfs		= sysv_statfs,
