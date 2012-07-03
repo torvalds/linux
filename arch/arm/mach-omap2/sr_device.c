@@ -17,6 +17,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/power/smartreflex.h>
 
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -24,7 +25,6 @@
 
 #include <plat/omap_device.h>
 
-#include "smartreflex.h"
 #include "voltage.h"
 #include "control.h"
 #include "pm.h"
@@ -36,7 +36,10 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 				struct omap_sr_data *sr_data)
 {
 	struct omap_sr_nvalue_table *nvalue_table;
-	int i, count = 0;
+	int i, j, count = 0;
+
+	sr_data->nvalue_count = 0;
+	sr_data->nvalue_table = NULL;
 
 	while (volt_data[count].volt_nominal)
 		count++;
@@ -44,8 +47,14 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 	nvalue_table = kzalloc(sizeof(struct omap_sr_nvalue_table)*count,
 			GFP_KERNEL);
 
-	for (i = 0; i < count; i++) {
+	if (!nvalue_table) {
+		pr_err("OMAP: SmartReflex: cannot allocate memory for n-value table\n");
+		return;
+	}
+
+	for (i = 0, j = 0; i < count; i++) {
 		u32 v;
+
 		/*
 		 * In OMAP4 the efuse registers are 24 bit aligned.
 		 * A __raw_readl will fail for non-32 bit aligned address
@@ -58,15 +67,30 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 				omap_ctrl_readb(offset + 1) << 8 |
 				omap_ctrl_readb(offset + 2) << 16;
 		} else {
-			 v = omap_ctrl_readl(volt_data[i].sr_efuse_offs);
+			v = omap_ctrl_readl(volt_data[i].sr_efuse_offs);
 		}
 
-		nvalue_table[i].efuse_offs = volt_data[i].sr_efuse_offs;
-		nvalue_table[i].nvalue = v;
+		/*
+		 * Many OMAP SoCs don't have the eFuse values set.
+		 * For example, pretty much all OMAP3xxx before
+		 * ES3.something.
+		 *
+		 * XXX There needs to be some way for board files or
+		 * userspace to add these in.
+		 */
+		if (v == 0)
+			continue;
+
+		nvalue_table[j].nvalue = v;
+		nvalue_table[j].efuse_offs = volt_data[i].sr_efuse_offs;
+		nvalue_table[j].errminlimit = volt_data[i].sr_errminlimit;
+		nvalue_table[j].volt_nominal = volt_data[i].volt_nominal;
+
+		j++;
 	}
 
 	sr_data->nvalue_table = nvalue_table;
-	sr_data->nvalue_count = count;
+	sr_data->nvalue_count = j;
 }
 
 static int __init sr_dev_init(struct omap_hwmod *oh, void *user)
@@ -93,6 +117,7 @@ static int __init sr_dev_init(struct omap_hwmod *oh, void *user)
 		goto exit;
 	}
 
+	sr_data->name = oh->name;
 	sr_data->ip_type = oh->class->rev;
 	sr_data->senn_mod = 0x1;
 	sr_data->senp_mod = 0x1;

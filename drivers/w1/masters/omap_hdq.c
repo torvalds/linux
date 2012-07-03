@@ -1,7 +1,7 @@
 /*
  * drivers/w1/masters/omap_hdq.c
  *
- * Copyright (C) 2007 Texas Instruments, Inc.
+ * Copyright (C) 2007,2012 Texas Instruments, Inc.
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of any
@@ -14,9 +14,9 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/err.h>
-#include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/sched.h>
+#include <linux/pm_runtime.h>
 
 #include <asm/irq.h>
 #include <mach/hardware.h>
@@ -61,8 +61,6 @@ struct hdq_data {
 	/* lock status update */
 	struct  mutex		hdq_mutex;
 	int			hdq_usecount;
-	struct	clk		*hdq_ick;
-	struct	clk		*hdq_fck;
 	u8			hdq_irqstatus;
 	/* device lock */
 	spinlock_t		hdq_spinlock;
@@ -102,20 +100,20 @@ static struct w1_bus_master omap_w1_master = {
 /* HDQ register I/O routines */
 static inline u8 hdq_reg_in(struct hdq_data *hdq_data, u32 offset)
 {
-	return __raw_readb(hdq_data->hdq_base + offset);
+	return __raw_readl(hdq_data->hdq_base + offset);
 }
 
 static inline void hdq_reg_out(struct hdq_data *hdq_data, u32 offset, u8 val)
 {
-	__raw_writeb(val, hdq_data->hdq_base + offset);
+	__raw_writel(val, hdq_data->hdq_base + offset);
 }
 
 static inline u8 hdq_reg_merge(struct hdq_data *hdq_data, u32 offset,
 			u8 val, u8 mask)
 {
-	u8 new_val = (__raw_readb(hdq_data->hdq_base + offset) & ~mask)
+	u8 new_val = (__raw_readl(hdq_data->hdq_base + offset) & ~mask)
 			| (val & mask);
-	__raw_writeb(new_val, hdq_data->hdq_base + offset);
+	__raw_writel(new_val, hdq_data->hdq_base + offset);
 
 	return new_val;
 }
@@ -419,17 +417,8 @@ static int omap_hdq_get(struct hdq_data *hdq_data)
 		hdq_data->hdq_usecount++;
 		try_module_get(THIS_MODULE);
 		if (1 == hdq_data->hdq_usecount) {
-			if (clk_enable(hdq_data->hdq_ick)) {
-				dev_dbg(hdq_data->dev, "Can not enable ick\n");
-				ret = -ENODEV;
-				goto clk_err;
-			}
-			if (clk_enable(hdq_data->hdq_fck)) {
-				dev_dbg(hdq_data->dev, "Can not enable fck\n");
-				clk_disable(hdq_data->hdq_ick);
-				ret = -ENODEV;
-				goto clk_err;
-			}
+
+			pm_runtime_get_sync(hdq_data->dev);
 
 			/* make sure HDQ is out of reset */
 			if (!(hdq_reg_in(hdq_data, OMAP_HDQ_SYSSTATUS) &
@@ -450,9 +439,6 @@ static int omap_hdq_get(struct hdq_data *hdq_data)
 		}
 	}
 
-clk_err:
-	clk_put(hdq_data->hdq_ick);
-	clk_put(hdq_data->hdq_fck);
 out:
 	mutex_unlock(&hdq_data->hdq_mutex);
 rtn:
@@ -475,10 +461,8 @@ static int omap_hdq_put(struct hdq_data *hdq_data)
 	} else {
 		hdq_data->hdq_usecount--;
 		module_put(THIS_MODULE);
-		if (0 == hdq_data->hdq_usecount) {
-			clk_disable(hdq_data->hdq_ick);
-			clk_disable(hdq_data->hdq_fck);
-		}
+		if (0 == hdq_data->hdq_usecount)
+			pm_runtime_put_sync(hdq_data->dev);
 	}
 	mutex_unlock(&hdq_data->hdq_mutex);
 
@@ -591,35 +575,11 @@ static int __devinit omap_hdq_probe(struct platform_device *pdev)
 		goto err_ioremap;
 	}
 
-	/* get interface & functional clock objects */
-	hdq_data->hdq_ick = clk_get(&pdev->dev, "ick");
-	if (IS_ERR(hdq_data->hdq_ick)) {
-		dev_dbg(&pdev->dev, "Can't get HDQ ick clock object\n");
-		ret = PTR_ERR(hdq_data->hdq_ick);
-		goto err_ick;
-	}
-
-	hdq_data->hdq_fck = clk_get(&pdev->dev, "fck");
-	if (IS_ERR(hdq_data->hdq_fck)) {
-		dev_dbg(&pdev->dev, "Can't get HDQ fck clock object\n");
-		ret = PTR_ERR(hdq_data->hdq_fck);
-		goto err_fck;
-	}
-
 	hdq_data->hdq_usecount = 0;
 	mutex_init(&hdq_data->hdq_mutex);
 
-	if (clk_enable(hdq_data->hdq_ick)) {
-		dev_dbg(&pdev->dev, "Can not enable ick\n");
-		ret = -ENODEV;
-		goto err_intfclk;
-	}
-
-	if (clk_enable(hdq_data->hdq_fck)) {
-		dev_dbg(&pdev->dev, "Can not enable fck\n");
-		ret = -ENODEV;
-		goto err_fnclk;
-	}
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
 
 	rev = hdq_reg_in(hdq_data, OMAP_HDQ_REVISION);
 	dev_info(&pdev->dev, "OMAP HDQ Hardware Rev %c.%c. Driver in %s mode\n",
@@ -641,9 +601,7 @@ static int __devinit omap_hdq_probe(struct platform_device *pdev)
 
 	omap_hdq_break(hdq_data);
 
-	/* don't clock the HDQ until it is needed */
-	clk_disable(hdq_data->hdq_ick);
-	clk_disable(hdq_data->hdq_fck);
+	pm_runtime_put_sync(&pdev->dev);
 
 	omap_w1_master.data = hdq_data;
 
@@ -655,20 +613,11 @@ static int __devinit omap_hdq_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_w1:
 err_irq:
-	clk_disable(hdq_data->hdq_fck);
+	pm_runtime_put_sync(&pdev->dev);
+err_w1:
+	pm_runtime_disable(&pdev->dev);
 
-err_fnclk:
-	clk_disable(hdq_data->hdq_ick);
-
-err_intfclk:
-	clk_put(hdq_data->hdq_fck);
-
-err_fck:
-	clk_put(hdq_data->hdq_ick);
-
-err_ick:
 	iounmap(hdq_data->hdq_base);
 
 err_ioremap:
@@ -696,8 +645,7 @@ static int omap_hdq_remove(struct platform_device *pdev)
 	mutex_unlock(&hdq_data->hdq_mutex);
 
 	/* remove module dependency */
-	clk_put(hdq_data->hdq_ick);
-	clk_put(hdq_data->hdq_fck);
+	pm_runtime_disable(&pdev->dev);
 	free_irq(INT_24XX_HDQ_IRQ, hdq_data);
 	platform_set_drvdata(pdev, NULL);
 	iounmap(hdq_data->hdq_base);
