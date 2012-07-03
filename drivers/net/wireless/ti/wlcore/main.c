@@ -4569,7 +4569,7 @@ static int wl12xx_set_bitrate_mask(struct ieee80211_hw *hw,
 
 	mutex_lock(&wl->mutex);
 
-	for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+	for (i = 0; i < WLCORE_NUM_BANDS; i++)
 		wlvif->bitrate_masks[i] =
 			wl1271_tx_enabled_rates_get(wl,
 						    mask->control[i].legacy,

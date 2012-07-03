@@ -62,6 +62,9 @@
 #define WL12XX_INVALID_ROLE_ID     0xff
 #define WL12XX_INVALID_LINK_ID     0xff
 
+/* the driver supports the 2.4Ghz and 5Ghz bands */
+#define WLCORE_NUM_BANDS           2
+
 #define WL12XX_MAX_RATE_POLICIES 16
 
 /* Defined by FW as 0. Will not be freed or allocated. */
@@ -360,7 +363,7 @@ struct wl12xx_vif {
 	int channel;
 	enum nl80211_channel_type channel_type;
 
-	u32 bitrate_masks[IEEE80211_NUM_BANDS];
+	u32 bitrate_masks[WLCORE_NUM_BANDS];
 	u32 basic_rate_set;
 
 	/*

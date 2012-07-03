@@ -304,7 +304,7 @@ struct wl1271 {
 	s8 noise;
 
 	/* bands supported by this instance of wl12xx */
-	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
+	struct ieee80211_supported_band bands[WLCORE_NUM_BANDS];
 
 	/*
 	 * wowlan trigger was configured during suspend.
@@ -371,7 +371,7 @@ struct wl1271 {
 	u8 hw_min_ht_rate;
 
 	/* HW HT (11n) capabilities */
-	struct ieee80211_sta_ht_cap ht_cap[IEEE80211_NUM_BANDS];
+	struct ieee80211_sta_ht_cap ht_cap[WLCORE_NUM_BANDS];
 
 	/* size of the private FW status data */
 	size_t fw_status_priv_len;
