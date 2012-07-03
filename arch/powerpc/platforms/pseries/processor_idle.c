@@ -197,13 +197,25 @@ static int pseries_cpuidle_add_cpu_notifier(struct notifier_block *n,
 	struct cpuidle_device *dev =
 			per_cpu_ptr(pseries_cpuidle_devices, hotcpu);
 
-	switch (action & 0xf) {
-	case CPU_ONLINE:
-		if (dev && cpuidle_get_driver()) {
-			cpuidle_disable_device(dev);
+	if (dev && cpuidle_get_driver()) {
+		switch (action) {
+		case CPU_ONLINE:
+		case CPU_ONLINE_FROZEN:
+			cpuidle_pause_and_lock();
 			cpuidle_enable_device(dev);
+			cpuidle_resume_and_unlock();
+			break;
+
+		case CPU_DEAD:
+		case CPU_DEAD_FROZEN:
+			cpuidle_pause_and_lock();
+			cpuidle_disable_device(dev);
+			cpuidle_resume_and_unlock();
+			break;
+
+		default:
+			return NOTIFY_DONE;
 		}
-		break;
 	}
 	return NOTIFY_OK;
 }
@@ -345,6 +357,7 @@ static int __init pseries_processor_idle_init(void)
 static void __exit pseries_processor_idle_exit(void)
 {
 
+	unregister_cpu_notifier(&setup_hotplug_notifier);
 	pseries_idle_devices_uninit();
 	cpuidle_unregister_driver(&pseries_idle_driver);
 
