@@ -1194,7 +1194,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 	}
 
 	if (np) {
-		pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+		pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata)
 			return -ENOMEM;
 
@@ -1229,29 +1229,23 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 		goto out;
 	}
 
-	if (request_mem_region(res->start, resource_size(res),
-			       dev_name(&dev->dev)) == NULL) {
-		ret = -EBUSY;
+	base = devm_request_and_ioremap(&dev->dev, res);
+	if (!base) {
+		ret = -ENOMEM;
 		goto out;
 	}
 
-	base = ioremap(res->start, resource_size(res));
-	if (!base) {
-		ret = -ENOMEM;
-		goto out_release;
-	}
-
-	clk = clk_get(&dev->dev, NULL);
+	clk = devm_clk_get(&dev->dev, NULL);
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
-		goto out_unmap;
+		goto out;
 	}
 	clk_prepare(clk);
 
-	nmk_chip = kzalloc(sizeof(*nmk_chip), GFP_KERNEL);
+	nmk_chip = devm_kzalloc(&dev->dev, sizeof(*nmk_chip), GFP_KERNEL);
 	if (!nmk_chip) {
 		ret = -ENOMEM;
-		goto out_clk;
+		goto out;
 	}
 
 	/*
@@ -1286,7 +1280,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 
 	ret = gpiochip_add(&nmk_chip->chip);
 	if (ret)
-		goto out_free;
+		goto out;
 
 	BUG_ON(nmk_chip->bank >= ARRAY_SIZE(nmk_gpio_chips));
 
@@ -1300,7 +1294,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 	if (!nmk_chip->domain) {
 		pr_err("%s: Failed to create irqdomain\n", np->full_name);
 		ret = -ENOSYS;
-		goto out_free;
+		goto out;
 	}
 
 	nmk_gpio_init_irq(nmk_chip);
@@ -1309,20 +1303,9 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 
 	return 0;
 
-out_free:
-	kfree(nmk_chip);
-out_clk:
-	clk_disable(clk);
-	clk_put(clk);
-out_unmap:
-	iounmap(base);
-out_release:
-	release_mem_region(res->start, resource_size(res));
 out:
 	dev_err(&dev->dev, "Failure %i for GPIO %i-%i\n", ret,
 		  pdata->first_gpio, pdata->first_gpio+31);
-	if (np)
-		kfree(pdata);
 
 	return ret;
 }
