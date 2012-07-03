@@ -27,6 +27,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_mtd.h>
 #include "gpmi-nand.h"
 
 /* add our owner bbt descriptor */
@@ -1502,6 +1503,8 @@ static int __devinit gpmi_nfc_init(struct gpmi_nand_data *this)
 	chip->ecc.size		= 1;
 	chip->ecc.strength	= 8;
 	chip->ecc.layout	= &gpmi_hw_ecclayout;
+	if (of_get_nand_on_flash_bbt(this->dev->of_node))
+		chip->bbt_options |= NAND_BBT_USE_FLASH | NAND_BBT_NO_OOB;
 
 	/* Allocate a temporary DMA buffer for reading ID in the nand_scan() */
 	this->bch_geometry.payload_size = 1024;
