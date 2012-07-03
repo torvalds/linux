@@ -1687,6 +1687,7 @@ void rt6_redirect(const struct in6_addr *dest, const struct in6_addr *src,
 	struct rt6_info *rt, *nrt = NULL;
 	struct netevent_redirect netevent;
 	struct net *net = dev_net(neigh->dev);
+	struct neighbour *old_neigh;
 
 	rt = ip6_route_redirect(dest, src, saddr, neigh->dev);
 
@@ -1714,7 +1715,8 @@ void rt6_redirect(const struct in6_addr *dest, const struct in6_addr *src,
 	dst_confirm(&rt->dst);
 
 	/* Duplicate redirect: silently ignore. */
-	if (neigh == dst_get_neighbour_noref_raw(&rt->dst))
+	old_neigh = dst_get_neighbour_noref_raw(&rt->dst);
+	if (neigh == old_neigh)
 		goto out;
 
 	nrt = ip6_rt_copy(rt, dest);
@@ -1732,7 +1734,10 @@ void rt6_redirect(const struct in6_addr *dest, const struct in6_addr *src,
 		goto out;
 
 	netevent.old = &rt->dst;
+	netevent.old_neigh = old_neigh;
 	netevent.new = &nrt->dst;
+	netevent.new_neigh = neigh;
+	netevent.daddr = dest;
 	call_netevent_notifiers(NETEVENT_REDIRECT, &netevent);
 
 	if (rt->rt6i_flags & RTF_CACHE) {

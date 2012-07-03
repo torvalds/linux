@@ -62,7 +62,8 @@ static const unsigned int MAX_ATIDS = 64 * 1024;
 static const unsigned int ATID_BASE = 0x10000;
 
 static void cxgb_neigh_update(struct neighbour *neigh);
-static void cxgb_redirect(struct dst_entry *old, struct dst_entry *new);
+static void cxgb_redirect(struct dst_entry *old, struct neighbour *old_neigh,
+			  struct dst_entry *new, struct neighbour *new_neigh);
 
 static inline int offload_activated(struct t3cdev *tdev)
 {
@@ -968,8 +969,9 @@ static int nb_callback(struct notifier_block *self, unsigned long event,
 	}
 	case (NETEVENT_REDIRECT):{
 		struct netevent_redirect *nr = ctx;
-		cxgb_redirect(nr->old, nr->new);
-		cxgb_neigh_update(dst_get_neighbour_noref(nr->new));
+		cxgb_redirect(nr->old, nr->old_neigh,
+			      nr->new, nr->new_neigh);
+		cxgb_neigh_update(nr->new_neigh);
 		break;
 	}
 	default:
@@ -1107,10 +1109,10 @@ static void set_l2t_ix(struct t3cdev *tdev, u32 tid, struct l2t_entry *e)
 	tdev->send(tdev, skb);
 }
 
-static void cxgb_redirect(struct dst_entry *old, struct dst_entry *new)
+static void cxgb_redirect(struct dst_entry *old, struct neighbour *old_neigh,
+			  struct dst_entry *new, struct neighbour *new_neigh)
 {
 	struct net_device *olddev, *newdev;
-	struct neighbour *n;
 	struct tid_info *ti;
 	struct t3cdev *tdev;
 	u32 tid;
@@ -1118,15 +1120,8 @@ static void cxgb_redirect(struct dst_entry *old, struct dst_entry *new)
 	struct l2t_entry *e;
 	struct t3c_tid_entry *te;
 
-	n = dst_get_neighbour_noref(old);
-	if (!n)
-		return;
-	olddev = n->dev;
-
-	n = dst_get_neighbour_noref(new);
-	if (!n)
-		return;
-	newdev = n->dev;
+	olddev = old_neigh->dev;
+	newdev = new_neigh->dev;
 
 	if (!is_offloading(olddev))
 		return;
