@@ -6859,7 +6859,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	drm_helper_disable_unused_functions(dev);
 
-	if (HAS_PCH_SPLIT(dev))
+	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
 		ironlake_init_pch_refclk(dev);
 }
 
