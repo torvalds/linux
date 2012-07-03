@@ -634,8 +634,6 @@ static struct test__event_st test__events[] = {
 	},
 };
 
-#define TEST__EVENTS_CNT (sizeof(test__events) / sizeof(struct test__event_st))
-
 static struct test__event_st test__events_pmu[] = {
 	[0] = {
 		.name  = "cpu/config=10,config1,config2=3,period=1000/u",
@@ -646,9 +644,6 @@ static struct test__event_st test__events_pmu[] = {
 		.check = test__checkevent_pmu_name,
 	},
 };
-
-#define TEST__EVENTS_PMU_CNT (sizeof(test__events_pmu) / \
-			      sizeof(struct test__event_st))
 
 struct test__term {
 	const char *str;
@@ -765,21 +760,17 @@ int parse_events__test(void)
 {
 	int ret;
 
-	do {
-		ret = test_events(test__events, TEST__EVENTS_CNT);
-		if (ret)
-			break;
+#define TEST_EVENTS(tests)				\
+do {							\
+	ret = test_events(tests, ARRAY_SIZE(tests));	\
+	if (ret)					\
+		return ret;				\
+} while (0)
 
-		if (test_pmu()) {
-			ret = test_events(test__events_pmu,
-					  TEST__EVENTS_PMU_CNT);
-			if (ret)
-				break;
-		}
+	TEST_EVENTS(test__events);
 
-		ret = test_terms(test__terms, TEST__TERMS_CNT);
+	if (test_pmu())
+		TEST_EVENTS(test__events_pmu);
 
-	} while (0);
-
-	return ret;
+	return test_terms(test__terms, ARRAY_SIZE(test__terms));
 }
