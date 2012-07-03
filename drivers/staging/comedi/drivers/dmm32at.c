@@ -198,10 +198,6 @@ struct dmm32at_private {
  */
 #define devpriv ((struct dmm32at_private *)dev->private)
 
-/* prototypes for driver functions below */
-static int dmm32at_ns_to_timer(unsigned int *ns, int round);
-void dmm32at_setaitimer(struct comedi_device *dev, unsigned int nansec);
-
 /*
  * "instructions" read/write data in "one-shot" or "software-triggered"
  * mode.
@@ -277,6 +273,23 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev,
 
 	/* return the number of samples read/written */
 	return n;
+}
+
+/* This function doesn't require a particular form, this is just
+ * what happens to be used in some of the drivers.  It should
+ * convert ns nanoseconds to a counter value suitable for programming
+ * the device.  Also, it should adjust ns so that it cooresponds to
+ * the actual time that the device will use. */
+static int dmm32at_ns_to_timer(unsigned int *ns, int round)
+{
+	/* trivial timer */
+	/* if your timing is done through two cascaded timers, the
+	 * i8253_cascade_ns_to_timer() function in 8253.h can be
+	 * very helpful.  There are also i8254_load() and i8254_mm_load()
+	 * which can be used to load values into the ubiquitous 8254 counters
+	 */
+
+	return *ns;
 }
 
 static int dmm32at_ai_cmdtest(struct comedi_device *dev,
@@ -465,6 +478,37 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
+static void dmm32at_setaitimer(struct comedi_device *dev, unsigned int nansec)
+{
+	unsigned char lo1, lo2, hi2;
+	unsigned short both2;
+
+	/* based on 10mhz clock */
+	lo1 = 200;
+	both2 = nansec / 20000;
+	hi2 = (both2 & 0xff00) >> 8;
+	lo2 = both2 & 0x00ff;
+
+	/* set the counter frequency to 10mhz */
+	dmm_outb(dev, DMM32AT_CNTRDIO, 0);
+
+	/* get access to the clock regs */
+	dmm_outb(dev, DMM32AT_CNTRL, DMM32AT_CLKACC);
+
+	/* write the counter 1 control word and low byte to counter */
+	dmm_outb(dev, DMM32AT_CLKCT, DMM32AT_CLKCT1);
+	dmm_outb(dev, DMM32AT_CLK1, lo1);
+
+	/* write the counter 2 control word and low byte then to counter */
+	dmm_outb(dev, DMM32AT_CLKCT, DMM32AT_CLKCT2);
+	dmm_outb(dev, DMM32AT_CLK2, lo2);
+	dmm_outb(dev, DMM32AT_CLK2, hi2);
+
+	/* enable the ai conversion interrupt and the clock to start scans */
+	dmm_outb(dev, DMM32AT_INTCLOCK, DMM32AT_ADINT | DMM32AT_CLKSEL);
+
+}
+
 static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -589,23 +633,6 @@ static irqreturn_t dmm32at_isr(int irq, void *d)
 	/* reset the interrupt */
 	dmm_outb(dev, DMM32AT_CNTRL, DMM32AT_INTRESET);
 	return IRQ_HANDLED;
-}
-
-/* This function doesn't require a particular form, this is just
- * what happens to be used in some of the drivers.  It should
- * convert ns nanoseconds to a counter value suitable for programming
- * the device.  Also, it should adjust ns so that it cooresponds to
- * the actual time that the device will use. */
-static int dmm32at_ns_to_timer(unsigned int *ns, int round)
-{
-	/* trivial timer */
-	/* if your timing is done through two cascaded timers, the
-	 * i8253_cascade_ns_to_timer() function in 8253.h can be
-	 * very helpful.  There are also i8254_load() and i8254_mm_load()
-	 * which can be used to load values into the ubiquitous 8254 counters
-	 */
-
-	return *ns;
 }
 
 static int dmm32at_ao_winsn(struct comedi_device *dev,
@@ -756,37 +783,6 @@ static int dmm32at_dio_insn_config(struct comedi_device *dev,
 	dmm_outb(dev, DMM32AT_DIOCONF, devpriv->dio_config);
 
 	return 1;
-}
-
-void dmm32at_setaitimer(struct comedi_device *dev, unsigned int nansec)
-{
-	unsigned char lo1, lo2, hi2;
-	unsigned short both2;
-
-	/* based on 10mhz clock */
-	lo1 = 200;
-	both2 = nansec / 20000;
-	hi2 = (both2 & 0xff00) >> 8;
-	lo2 = both2 & 0x00ff;
-
-	/* set the counter frequency to 10mhz */
-	dmm_outb(dev, DMM32AT_CNTRDIO, 0);
-
-	/* get access to the clock regs */
-	dmm_outb(dev, DMM32AT_CNTRL, DMM32AT_CLKACC);
-
-	/* write the counter 1 control word and low byte to counter */
-	dmm_outb(dev, DMM32AT_CLKCT, DMM32AT_CLKCT1);
-	dmm_outb(dev, DMM32AT_CLK1, lo1);
-
-	/* write the counter 2 control word and low byte then to counter */
-	dmm_outb(dev, DMM32AT_CLKCT, DMM32AT_CLKCT2);
-	dmm_outb(dev, DMM32AT_CLK2, lo2);
-	dmm_outb(dev, DMM32AT_CLK2, hi2);
-
-	/* enable the ai conversion interrupt and the clock to start scans */
-	dmm_outb(dev, DMM32AT_INTCLOCK, DMM32AT_ADINT | DMM32AT_CLKSEL);
-
 }
 
 static int dmm32at_attach(struct comedi_device *dev,
