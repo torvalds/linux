@@ -135,6 +135,7 @@ struct smb347_charger {
 	bool			mains_online;
 	bool			usb_online;
 	bool			charging_enabled;
+	unsigned int		mains_current_limit;
 	struct dentry		*dentry;
 	const struct smb347_charger_platform_data *pdata;
 };
@@ -424,9 +425,9 @@ static int smb347_set_current_limits(struct smb347_charger *smb)
 	if (ret < 0)
 		return ret;
 
-	if (smb->pdata->mains_current_limit) {
+	if (smb->mains_current_limit) {
 		val = current_to_hw(icl_tbl, ARRAY_SIZE(icl_tbl),
-				    smb->pdata->mains_current_limit);
+				    smb->mains_current_limit);
 		if (val < 0)
 			return val;
 
@@ -949,15 +950,57 @@ static int smb347_mains_get_property(struct power_supply *psy,
 	struct smb347_charger *smb =
 		container_of(psy, struct smb347_charger, mains);
 
-	if (prop == POWER_SUPPLY_PROP_ONLINE) {
+	switch (prop) {
+	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = smb->mains_online;
 		return 0;
+
+	case POWER_SUPPLY_PROP_CURRENT_MAX:
+		val->intval = smb->mains_current_limit;
+		return 0;
+
+	default:
+		return -EINVAL;
 	}
 	return -EINVAL;
 }
 
+static int smb347_mains_set_property(struct power_supply *psy,
+				     enum power_supply_property prop,
+				     const union power_supply_propval *val)
+{
+	struct smb347_charger *smb =
+		container_of(psy, struct smb347_charger, mains);
+
+	switch (prop) {
+	case POWER_SUPPLY_PROP_CURRENT_MAX:
+		smb->mains_current_limit = val->intval;
+		smb347_hw_init(smb);
+		return 0;
+
+	default:
+		return -EINVAL;
+	}
+
+	return -EINVAL;
+}
+
+static int smb347_mains_property_is_writeable(struct power_supply *psy,
+					     enum power_supply_property prop)
+{
+	switch (prop) {
+	case POWER_SUPPLY_PROP_CURRENT_MAX:
+		return 1;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static enum power_supply_property smb347_mains_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_CURRENT_MAX,
 };
 
 static int smb347_usb_get_property(struct power_supply *psy,
@@ -1181,6 +1224,8 @@ static int smb347_probe(struct i2c_client *client,
 	smb->client = client;
 	smb->pdata = pdata;
 
+	smb->mains_current_limit = smb->pdata->mains_current_limit;
+
 	ret = smb347_hw_init(smb);
 	if (ret < 0)
 		return ret;
@@ -1188,6 +1233,8 @@ static int smb347_probe(struct i2c_client *client,
 	smb->mains.name = "smb347-mains";
 	smb->mains.type = POWER_SUPPLY_TYPE_MAINS;
 	smb->mains.get_property = smb347_mains_get_property;
+	smb->mains.set_property = smb347_mains_set_property;
+	smb->mains.property_is_writeable = smb347_mains_property_is_writeable;
 	smb->mains.properties = smb347_mains_properties;
 	smb->mains.num_properties = ARRAY_SIZE(smb347_mains_properties);
 	smb->mains.supplied_to = battery;
