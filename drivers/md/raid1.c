@@ -883,7 +883,6 @@ static void make_request(struct mddev *mddev, struct bio * bio)
 	const unsigned long do_sync = (bio->bi_rw & REQ_SYNC);
 	const unsigned long do_flush_fua = (bio->bi_rw & (REQ_FLUSH | REQ_FUA));
 	struct md_rdev *blocked_rdev;
-	int plugged;
 	int first_clone;
 	int sectors_handled;
 	int max_sectors;
@@ -1034,7 +1033,6 @@ read_again:
 	 * the bad blocks.  Each set of writes gets it's own r1bio
 	 * with a set of bios attached.
 	 */
-	plugged = mddev_check_plugged(mddev);
 
 	disks = conf->raid_disks * 2;
  retry_write:
@@ -1191,6 +1189,8 @@ read_again:
 		bio_list_add(&conf->pending_bio_list, mbio);
 		conf->pending_count++;
 		spin_unlock_irqrestore(&conf->device_lock, flags);
+		if (!mddev_check_plugged(mddev))
+			md_wakeup_thread(mddev->thread);
 	}
 	/* Mustn't call r1_bio_write_done before this next test,
 	 * as it could result in the bio being freed.
@@ -1213,9 +1213,6 @@ read_again:
 
 	/* In case raid1d snuck in to freeze_array */
 	wake_up(&conf->wait_barrier);
-
-	if (do_sync || !bitmap || !plugged)
-		md_wakeup_thread(mddev->thread);
 }
 
 static void status(struct seq_file *seq, struct mddev *mddev)
