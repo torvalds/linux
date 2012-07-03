@@ -720,6 +720,7 @@ static int __devinit adt7410_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int ret = 0;
 	unsigned long *adt7410_platform_data = client->dev.platform_data;
+	unsigned long local_pdata[] = {0, 0};
 
 	indio_dev = iio_device_alloc(sizeof(*chip));
 	if (indio_dev == NULL) {
@@ -736,6 +737,9 @@ static int __devinit adt7410_probe(struct i2c_client *client,
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &adt7410_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
+
+	if (!adt7410_platform_data)
+		adt7410_platform_data = local_pdata;
 
 	/* CT critcal temperature event. line 0 */
 	if (client->irq) {
