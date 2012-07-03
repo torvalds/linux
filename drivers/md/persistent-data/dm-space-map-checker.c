@@ -343,25 +343,25 @@ struct dm_space_map *dm_sm_checker_create(struct dm_space_map *sm)
 	int r;
 	struct sm_checker *smc;
 
-	if (!sm)
-		return NULL;
+	if (IS_ERR_OR_NULL(sm))
+		return ERR_PTR(-EINVAL);
 
 	smc = kmalloc(sizeof(*smc), GFP_KERNEL);
 	if (!smc)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	memcpy(&smc->sm, &ops_, sizeof(smc->sm));
 	r = ca_create(&smc->old_counts, sm);
 	if (r) {
 		kfree(smc);
-		return NULL;
+		return ERR_PTR(r);
 	}
 
 	r = ca_create(&smc->counts, sm);
 	if (r) {
 		ca_destroy(&smc->old_counts);
 		kfree(smc);
-		return NULL;
+		return ERR_PTR(r);
 	}
 
 	smc->real_sm = sm;
@@ -371,7 +371,7 @@ struct dm_space_map *dm_sm_checker_create(struct dm_space_map *sm)
 		ca_destroy(&smc->counts);
 		ca_destroy(&smc->old_counts);
 		kfree(smc);
-		return NULL;
+		return ERR_PTR(r);
 	}
 
 	r = ca_commit(&smc->old_counts, &smc->counts);
@@ -379,7 +379,7 @@ struct dm_space_map *dm_sm_checker_create(struct dm_space_map *sm)
 		ca_destroy(&smc->counts);
 		ca_destroy(&smc->old_counts);
 		kfree(smc);
-		return NULL;
+		return ERR_PTR(r);
 	}
 
 	return &smc->sm;
@@ -391,25 +391,25 @@ struct dm_space_map *dm_sm_checker_create_fresh(struct dm_space_map *sm)
 	int r;
 	struct sm_checker *smc;
 
-	if (!sm)
-		return NULL;
+	if (IS_ERR_OR_NULL(sm))
+		return ERR_PTR(-EINVAL);
 
 	smc = kmalloc(sizeof(*smc), GFP_KERNEL);
 	if (!smc)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	memcpy(&smc->sm, &ops_, sizeof(smc->sm));
 	r = ca_create(&smc->old_counts, sm);
 	if (r) {
 		kfree(smc);
-		return NULL;
+		return ERR_PTR(r);
 	}
 
 	r = ca_create(&smc->counts, sm);
 	if (r) {
 		ca_destroy(&smc->old_counts);
 		kfree(smc);
-		return NULL;
+		return ERR_PTR(r);
 	}
 
 	smc->real_sm = sm;
