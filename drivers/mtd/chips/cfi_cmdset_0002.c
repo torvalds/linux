@@ -431,6 +431,68 @@ static void cfi_fixup_major_minor(struct cfi_private *cfi,
 	}
 }
 
+static int is_m29ew(struct cfi_private *cfi)
+{
+	if (cfi->mfr == CFI_MFR_INTEL &&
+	    ((cfi->device_type == CFI_DEVICETYPE_X8 && (cfi->id & 0xff) == 0x7e) ||
+	     (cfi->device_type == CFI_DEVICETYPE_X16 && cfi->id == 0x227e)))
+		return 1;
+	return 0;
+}
+
+/*
+ * From TN-13-07: Patching the Linux Kernel and U-Boot for M29 Flash, page 20:
+ * Some revisions of the M29EW suffer from erase suspend hang ups. In
+ * particular, it can occur when the sequence
+ * Erase Confirm -> Suspend -> Program -> Resume
+ * causes a lockup due to internal timing issues. The consequence is that the
+ * erase cannot be resumed without inserting a dummy command after programming
+ * and prior to resuming. [...] The work-around is to issue a dummy write cycle
+ * that writes an F0 command code before the RESUME command.
+ */
+static void cfi_fixup_m29ew_erase_suspend(struct map_info *map,
+					  unsigned long adr)
+{
+	struct cfi_private *cfi = map->fldrv_priv;
+	/* before resume, insert a dummy 0xF0 cycle for Micron M29EW devices */
+	if (is_m29ew(cfi))
+		map_write(map, CMD(0xF0), adr);
+}
+
+/*
+ * From TN-13-07: Patching the Linux Kernel and U-Boot for M29 Flash, page 22:
+ *
+ * Some revisions of the M29EW (for example, A1 and A2 step revisions)
+ * are affected by a problem that could cause a hang up when an ERASE SUSPEND
+ * command is issued after an ERASE RESUME operation without waiting for a
+ * minimum delay.  The result is that once the ERASE seems to be completed
+ * (no bits are toggling), the contents of the Flash memory block on which
+ * the erase was ongoing could be inconsistent with the expected values
+ * (typically, the array value is stuck to the 0xC0, 0xC4, 0x80, or 0x84
+ * values), causing a consequent failure of the ERASE operation.
+ * The occurrence of this issue could be high, especially when file system
+ * operations on the Flash are intensive.  As a result, it is recommended
+ * that a patch be applied.  Intensive file system operations can cause many
+ * calls to the garbage routine to free Flash space (also by erasing physical
+ * Flash blocks) and as a result, many consecutive SUSPEND and RESUME
+ * commands can occur.  The problem disappears when a delay is inserted after
+ * the RESUME command by using the udelay() function available in Linux.
+ * The DELAY value must be tuned based on the customer's platform.
+ * The maximum value that fixes the problem in all cases is 500us.
+ * But, in our experience, a delay of 30 µs to 50 µs is sufficient
+ * in most cases.
+ * We have chosen 500µs because this latency is acceptable.
+ */
+static void cfi_fixup_m29ew_delay_after_resume(struct cfi_private *cfi)
+{
+	/*
+	 * Resolving the Delay After Resume Issue see Micron TN-13-07
+	 * Worst case delay must be 500µs but 30-50µs should be ok as well
+	 */
+	if (is_m29ew(cfi))
+		cfi_udelay(500);
+}
+
 struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
@@ -776,7 +838,10 @@ static void put_chip(struct map_info *map, struct flchip *chip, unsigned long ad
 
 	switch(chip->oldstate) {
 	case FL_ERASING:
+		cfi_fixup_m29ew_erase_suspend(map,
+			chip->in_progress_block_addr);
 		map_write(map, cfi->sector_erase_cmd, chip->in_progress_block_addr);
+		cfi_fixup_m29ew_delay_after_resume(cfi);
 		chip->oldstate = FL_READY;
 		chip->state = FL_ERASING;
 		break;
@@ -916,6 +981,8 @@ static void __xipram xip_udelay(struct map_info *map, struct flchip *chip,
 			/* Disallow XIP again */
 			local_irq_disable();
 
+			/* Correct Erase Suspend Hangups for M29EW */
+			cfi_fixup_m29ew_erase_suspend(map, adr);
 			/* Resume the write or erase operation */
 			map_write(map, cfi->sector_erase_cmd, adr);
 			chip->state = oldstate;
