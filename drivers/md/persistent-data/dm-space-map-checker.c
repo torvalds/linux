@@ -8,6 +8,7 @@
 
 #include <linux/device-mapper.h>
 #include <linux/export.h>
+#include <linux/vmalloc.h>
 
 #ifdef CONFIG_DM_DEBUG_SPACE_MAPS
 
@@ -89,11 +90,21 @@ static int ca_create(struct count_array *ca, struct dm_space_map *sm)
 
 	ca->nr = nr_blocks;
 	ca->nr_free = nr_blocks;
-	ca->counts = kzalloc(sizeof(*ca->counts) * nr_blocks, GFP_KERNEL);
-	if (!ca->counts)
-		return -ENOMEM;
+
+	if (!nr_blocks)
+		ca->counts = NULL;
+	else {
+		ca->counts = vzalloc(sizeof(*ca->counts) * nr_blocks);
+		if (!ca->counts)
+			return -ENOMEM;
+	}
 
 	return 0;
+}
+
+static void ca_destroy(struct count_array *ca)
+{
+	vfree(ca->counts);
 }
 
 static int ca_load(struct count_array *ca, struct dm_space_map *sm)
@@ -126,12 +137,14 @@ static int ca_load(struct count_array *ca, struct dm_space_map *sm)
 static int ca_extend(struct count_array *ca, dm_block_t extra_blocks)
 {
 	dm_block_t nr_blocks = ca->nr + extra_blocks;
-	uint32_t *counts = kzalloc(sizeof(*counts) * nr_blocks, GFP_KERNEL);
+	uint32_t *counts = vzalloc(sizeof(*counts) * nr_blocks);
 	if (!counts)
 		return -ENOMEM;
 
-	memcpy(counts, ca->counts, sizeof(*counts) * ca->nr);
-	kfree(ca->counts);
+	if (ca->counts) {
+		memcpy(counts, ca->counts, sizeof(*counts) * ca->nr);
+		ca_destroy(ca);
+	}
 	ca->nr = nr_blocks;
 	ca->nr_free += extra_blocks;
 	ca->counts = counts;
@@ -149,11 +162,6 @@ static int ca_commit(struct count_array *old, struct count_array *new)
 	old->nr_free = new->nr_free;
 	memcpy(old->counts, new->counts, sizeof(*old->counts) * old->nr);
 	return 0;
-}
-
-static void ca_destroy(struct count_array *ca)
-{
-	kfree(ca->counts);
 }
 
 /*----------------------------------------------------------------*/
