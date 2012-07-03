@@ -1207,6 +1207,12 @@ static int smb347_probe(struct i2c_client *client,
 	smb->battery.properties = smb347_battery_properties;
 	smb->battery.num_properties = ARRAY_SIZE(smb347_battery_properties);
 
+	if (smb->pdata->supplied_to) {
+		smb->battery.supplied_to = smb->pdata->supplied_to;
+		smb->battery.num_supplicants = smb->pdata->num_supplicants;
+		smb->battery.external_power_changed = power_supply_changed;
+	}
+
 	ret = power_supply_register(dev, &smb->mains);
 	if (ret < 0)
 		return ret;
