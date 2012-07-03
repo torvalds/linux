@@ -63,7 +63,8 @@ static const unsigned int ATID_BASE = 0x10000;
 
 static void cxgb_neigh_update(struct neighbour *neigh);
 static void cxgb_redirect(struct dst_entry *old, struct neighbour *old_neigh,
-			  struct dst_entry *new, struct neighbour *new_neigh);
+			  struct dst_entry *new, struct neighbour *new_neigh,
+			  const void *daddr);
 
 static inline int offload_activated(struct t3cdev *tdev)
 {
@@ -970,7 +971,8 @@ static int nb_callback(struct notifier_block *self, unsigned long event,
 	case (NETEVENT_REDIRECT):{
 		struct netevent_redirect *nr = ctx;
 		cxgb_redirect(nr->old, nr->old_neigh,
-			      nr->new, nr->new_neigh);
+			      nr->new, nr->new_neigh,
+			      nr->daddr);
 		cxgb_neigh_update(nr->new_neigh);
 		break;
 	}
@@ -1110,7 +1112,8 @@ static void set_l2t_ix(struct t3cdev *tdev, u32 tid, struct l2t_entry *e)
 }
 
 static void cxgb_redirect(struct dst_entry *old, struct neighbour *old_neigh,
-			  struct dst_entry *new, struct neighbour *new_neigh)
+			  struct dst_entry *new, struct neighbour *new_neigh,
+			  const void *daddr)
 {
 	struct net_device *olddev, *newdev;
 	struct tid_info *ti;
@@ -1139,7 +1142,7 @@ static void cxgb_redirect(struct dst_entry *old, struct neighbour *old_neigh,
 	}
 
 	/* Add new L2T entry */
-	e = t3_l2t_get(tdev, new, newdev);
+	e = t3_l2t_get(tdev, new, newdev, daddr);
 	if (!e) {
 		printk(KERN_ERR "%s: couldn't allocate new l2t entry!\n",
 		       __func__);
