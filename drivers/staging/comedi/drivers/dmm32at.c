@@ -78,7 +78,6 @@ Configuration Options:
 #define DMM32AT_DIOC 0x0e
 #define DMM32AT_DIOCONF 0x0f
 
-#define dmm_inb(cdev, reg) inb((cdev->iobase)+reg)
 #define dmm_outb(cdev, reg, valu) outb(valu, (cdev->iobase)+reg)
 
 /* Board register values. */
@@ -232,7 +231,7 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev,
 
 	/* wait for circuit to settle */
 	for (i = 0; i < 40000; i++) {
-		status = dmm_inb(dev, DMM32AT_AIRBACK);
+		status = inb(dev->iobase + DMM32AT_AIRBACK);
 		if ((status & DMM32AT_STATUS) == 0)
 			break;
 	}
@@ -247,7 +246,7 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev,
 		dmm_outb(dev, DMM32AT_CONV, 0xff);
 		/* wait for conversion to end */
 		for (i = 0; i < 40000; i++) {
-			status = dmm_inb(dev, DMM32AT_AISTAT);
+			status = inb(dev->iobase + DMM32AT_AISTAT);
 			if ((status & DMM32AT_STATUS) == 0)
 				break;
 		}
@@ -257,8 +256,8 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev,
 		}
 
 		/* read data */
-		lsb = dmm_inb(dev, DMM32AT_AILSB);
-		msb = dmm_inb(dev, DMM32AT_AIMSB);
+		lsb = inb(dev->iobase + DMM32AT_AILSB);
+		msb = inb(dev->iobase + DMM32AT_AIMSB);
 
 		/* invert sign bit to make range unsigned, this is an
 		   idiosyncrasy of the diamond board, it return
@@ -550,7 +549,7 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* wait for circuit to settle */
 	for (i = 0; i < 40000; i++) {
-		status = dmm_inb(dev, DMM32AT_AIRBACK);
+		status = inb(dev->iobase + DMM32AT_AIRBACK);
 		if ((status & DMM32AT_STATUS) == 0)
 			break;
 	}
@@ -600,7 +599,7 @@ static irqreturn_t dmm32at_isr(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	intstat = dmm_inb(dev, DMM32AT_INTCLOCK);
+	intstat = inb(dev->iobase + DMM32AT_INTCLOCK);
 
 	if (intstat & DMM32AT_ADINT) {
 		struct comedi_subdevice *s = dev->read_subdev;
@@ -608,8 +607,8 @@ static irqreturn_t dmm32at_isr(int irq, void *d)
 
 		for (i = 0; i < cmd->chanlist_len; i++) {
 			/* read data */
-			lsb = dmm_inb(dev, DMM32AT_AILSB);
-			msb = dmm_inb(dev, DMM32AT_AIMSB);
+			lsb = inb(dev->iobase + DMM32AT_AILSB);
+			msb = inb(dev->iobase + DMM32AT_AIMSB);
 
 			/* invert sign bit to make range unsigned */
 			samp = ((msb ^ 0x0080) << 8) + lsb;
@@ -660,7 +659,7 @@ static int dmm32at_ao_winsn(struct comedi_device *dev,
 
 		/* wait for circuit to settle */
 		for (i = 0; i < 40000; i++) {
-			status = dmm_inb(dev, DMM32AT_DACSTAT);
+			status = inb(dev->iobase + DMM32AT_DACSTAT);
 			if ((status & DMM32AT_DACBUSY) == 0)
 				break;
 		}
@@ -669,7 +668,7 @@ static int dmm32at_ao_winsn(struct comedi_device *dev,
 			return -ETIMEDOUT;
 		}
 		/* dummy read to update trigger the output */
-		status = dmm_inb(dev, DMM32AT_DACMSB);
+		status = inb(dev->iobase + DMM32AT_DACMSB);
 
 	}
 
@@ -731,11 +730,11 @@ static int dmm32at_dio_insn_bits(struct comedi_device *dev,
 	}
 
 	/* now read the state back in */
-	s->state = dmm_inb(dev, DMM32AT_DIOC);
+	s->state = inb(dev->iobase + DMM32AT_DIOC);
 	s->state <<= 8;
-	s->state |= dmm_inb(dev, DMM32AT_DIOB);
+	s->state |= inb(dev->iobase + DMM32AT_DIOB);
 	s->state <<= 8;
-	s->state |= dmm_inb(dev, DMM32AT_DIOA);
+	s->state |= inb(dev->iobase + DMM32AT_DIOA);
 	data[1] = s->state;
 
 	/* on return, data[1] contains the value of the digital
@@ -836,12 +835,12 @@ static int dmm32at_attach(struct comedi_device *dev,
 	udelay(100);
 
 	/* read back the values */
-	ailo = dmm_inb(dev, DMM32AT_AILOW);
-	aihi = dmm_inb(dev, DMM32AT_AIHIGH);
-	fifostat = dmm_inb(dev, DMM32AT_FIFOSTAT);
-	aistat = dmm_inb(dev, DMM32AT_AISTAT);
-	intstat = dmm_inb(dev, DMM32AT_INTCLOCK);
-	airback = dmm_inb(dev, DMM32AT_AIRBACK);
+	ailo = inb(dev->iobase + DMM32AT_AILOW);
+	aihi = inb(dev->iobase + DMM32AT_AIHIGH);
+	fifostat = inb(dev->iobase + DMM32AT_FIFOSTAT);
+	aistat = inb(dev->iobase + DMM32AT_AISTAT);
+	intstat = inb(dev->iobase + DMM32AT_INTCLOCK);
+	airback = inb(dev->iobase + DMM32AT_AIRBACK);
 
 	printk(KERN_DEBUG "dmm32at: lo=0x%02x hi=0x%02x fifostat=0x%02x\n",
 	       ailo, aihi, fifostat);
