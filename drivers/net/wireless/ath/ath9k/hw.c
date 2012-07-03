@@ -649,6 +649,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	case AR_SREV_VERSION_9485:
 	case AR_SREV_VERSION_9340:
 	case AR_SREV_VERSION_9462:
+	case AR_SREV_VERSION_9550:
 		break;
 	default:
 		ath_err(common,
@@ -730,6 +731,7 @@ int ath9k_hw_init(struct ath_hw *ah)
 	case AR9300_DEVID_AR9485_PCIE:
 	case AR9300_DEVID_AR9330:
 	case AR9300_DEVID_AR9340:
+	case AR9300_DEVID_QCA955X:
 	case AR9300_DEVID_AR9580:
 	case AR9300_DEVID_AR9462:
 		break;
