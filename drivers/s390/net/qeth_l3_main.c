@@ -2700,10 +2700,11 @@ int inline qeth_l3_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 	rcu_read_lock();
 	dst = skb_dst(skb);
 	if (dst)
-		n = dst_get_neighbour_noref(dst);
+		n = dst_neigh_lookup_skb(dst, skb);
 	if (n) {
 		cast_type = n->type;
 		rcu_read_unlock();
+		neigh_release(n);
 		if ((cast_type == RTN_BROADCAST) ||
 		    (cast_type == RTN_MULTICAST) ||
 		    (cast_type == RTN_ANYCAST))
