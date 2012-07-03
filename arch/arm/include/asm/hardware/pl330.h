@@ -209,7 +209,7 @@ extern int pl330_add(struct pl330_info *);
 extern void pl330_del(struct pl330_info *pi);
 extern int pl330_update(const struct pl330_info *pi);
 extern void pl330_release_channel(void *ch_id);
-extern void *pl330_request_channel(const struct pl330_info *pi);
+extern void *pl330_request_channel(int id, const struct pl330_info *pi);
 extern int pl330_chan_status(void *ch_id, struct pl330_chanstatus *pstatus);
 extern int pl330_chan_ctrl(void *ch_id, enum pl330_chan_op op);
 extern int pl330_submit_req(void *ch_id, struct pl330_req *r);

@@ -1639,7 +1639,7 @@ static __attribute__((aligned(4))) __sramdata char i2s_mcode_buff[2][MCODE_BUFF_
 /* Upon success, returns IdentityToken for the
  * allocated channel, NULL otherwise.
  */
-void *pl330_request_channel(const struct pl330_info *pi)
+void *pl330_request_channel(int id, const struct pl330_info *pi)
 {
 	struct pl330_thread *thrd = NULL;
 	struct pl330_dmac *pl330;
