@@ -120,7 +120,9 @@ static u32 *fake_cow_metrics(struct dst_entry *dst, unsigned long old)
 	return NULL;
 }
 
-static struct neighbour *fake_neigh_lookup(const struct dst_entry *dst, const void *daddr)
+static struct neighbour *fake_neigh_lookup(const struct dst_entry *dst,
+					   struct sk_buff *skb,
+					   const void *daddr)
 {
 	return NULL;
 }

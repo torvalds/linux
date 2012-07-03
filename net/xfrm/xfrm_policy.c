@@ -2404,9 +2404,11 @@ static unsigned int xfrm_mtu(const struct dst_entry *dst)
 	return mtu ? : dst_mtu(dst->path);
 }
 
-static struct neighbour *xfrm_neigh_lookup(const struct dst_entry *dst, const void *daddr)
+static struct neighbour *xfrm_neigh_lookup(const struct dst_entry *dst,
+					   struct sk_buff *skb,
+					   const void *daddr)
 {
-	return dst_neigh_lookup(dst->path, daddr);
+	return dst->path->ops->neigh_lookup(dst, skb, daddr);
 }
 
 int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)

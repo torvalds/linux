@@ -120,21 +120,27 @@ static u32 *ipv6_cow_metrics(struct dst_entry *dst, unsigned long old)
 	return p;
 }
 
-static inline const void *choose_neigh_daddr(struct rt6_info *rt, const void *daddr)
+static inline const void *choose_neigh_daddr(struct rt6_info *rt,
+					     struct sk_buff *skb,
+					     const void *daddr)
 {
 	struct in6_addr *p = &rt->rt6i_gateway;
 
 	if (!ipv6_addr_any(p))
 		return (const void *) p;
+	else if (skb)
+		return &ipv6_hdr(skb)->daddr;
 	return daddr;
 }
 
-static struct neighbour *ip6_neigh_lookup(const struct dst_entry *dst, const void *daddr)
+static struct neighbour *ip6_neigh_lookup(const struct dst_entry *dst,
+					  struct sk_buff *skb,
+					  const void *daddr)
 {
 	struct rt6_info *rt = (struct rt6_info *) dst;
 	struct neighbour *n;
 
-	daddr = choose_neigh_daddr(rt, daddr);
+	daddr = choose_neigh_daddr(rt, skb, daddr);
 	n = __ipv6_neigh_lookup(&nd_tbl, dst->dev, daddr);
 	if (n)
 		return n;
@@ -1162,7 +1168,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	if (neigh)
 		neigh_hold(neigh);
 	else {
-		neigh = ip6_neigh_lookup(&rt->dst, &fl6->daddr);
+		neigh = ip6_neigh_lookup(&rt->dst, NULL, &fl6->daddr);
 		if (IS_ERR(neigh)) {
 			in6_dev_put(idev);
 			dst_free(&rt->dst);
