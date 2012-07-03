@@ -1194,12 +1194,15 @@ struct kvm_ppc_pvinfo {
 This ioctl fetches PV specific information that need to be passed to the guest
 using the device tree or other means from vm context.
 
-For now the only implemented piece of information distributed here is an array
-of 4 instructions that make up a hypercall.
+The hcall array defines 4 instructions that make up a hypercall.
 
 If any additional field gets added to this structure later on, a bit for that
 additional piece of information will be set in the flags bitmap.
 
+The flags bitmap is defined as:
+
+   /* the host supports the ePAPR idle hcall
+   #define KVM_PPC_PVINFO_FLAGS_EV_IDLE   (1<<0)
 
 4.48 KVM_ASSIGN_PCI_DEVICE
 
