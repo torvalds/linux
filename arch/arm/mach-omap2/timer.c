@@ -69,11 +69,6 @@
 #define OMAP3_SECURE_TIMER	1
 #endif
 
-/* MAX_GPTIMER_ID: number of GPTIMERs on the chip */
-#define MAX_GPTIMER_ID		12
-
-static u32 sys_timer_reserved;
-
 /* Clockevent code */
 
 static struct omap_dm_timer clkev;
@@ -180,7 +175,8 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 
 	omap_hwmod_enable(oh);
 
-	sys_timer_reserved |= (1 << (gptimer_id - 1));
+	if (omap_dm_timer_reserve_systimer(gptimer_id))
+		return -ENODEV;
 
 	if (gptimer_id != 12) {
 		struct clk *src;
@@ -394,66 +390,6 @@ OMAP_SYS_TIMER(4)
 #endif
 
 /**
- * omap2_dm_timer_set_src - change the timer input clock source
- * @pdev:	timer platform device pointer
- * @source:	array index of parent clock source
- */
-static int omap2_dm_timer_set_src(struct platform_device *pdev, int source)
-{
-	int ret;
-	struct dmtimer_platform_data *pdata = pdev->dev.platform_data;
-	struct clk *fclk, *parent;
-	char *parent_name = NULL;
-
-	fclk = clk_get(&pdev->dev, "fck");
-	if (IS_ERR_OR_NULL(fclk)) {
-		dev_err(&pdev->dev, "%s: %d: clk_get() FAILED\n",
-				__func__, __LINE__);
-		return -EINVAL;
-	}
-
-	switch (source) {
-	case OMAP_TIMER_SRC_SYS_CLK:
-		parent_name = "sys_ck";
-		break;
-
-	case OMAP_TIMER_SRC_32_KHZ:
-		parent_name = "32k_ck";
-		break;
-
-	case OMAP_TIMER_SRC_EXT_CLK:
-		if (pdata->timer_ip_version == OMAP_TIMER_IP_VERSION_1) {
-			parent_name = "alt_ck";
-			break;
-		}
-		dev_err(&pdev->dev, "%s: %d: invalid clk src.\n",
-			__func__, __LINE__);
-		clk_put(fclk);
-		return -EINVAL;
-	}
-
-	parent = clk_get(&pdev->dev, parent_name);
-	if (IS_ERR_OR_NULL(parent)) {
-		dev_err(&pdev->dev, "%s: %d: clk_get() %s FAILED\n",
-			__func__, __LINE__, parent_name);
-		clk_put(fclk);
-		return -EINVAL;
-	}
-
-	ret = clk_set_parent(fclk, parent);
-	if (IS_ERR_VALUE(ret)) {
-		dev_err(&pdev->dev, "%s: clk_set_parent() to %s FAILED\n",
-			__func__, parent_name);
-		ret = -EINVAL;
-	}
-
-	clk_put(parent);
-	clk_put(fclk);
-
-	return ret;
-}
-
-/**
  * omap_timer_init - build and register timer device with an
  * associated timer hwmod
  * @oh:	timer hwmod pointer to be used to build timer device
@@ -473,7 +409,6 @@ static int __init omap_timer_init(struct omap_hwmod *oh, void *unused)
 	struct dmtimer_platform_data *pdata;
 	struct platform_device *pdev;
 	struct omap_timer_capability_dev_attr *timer_dev_attr;
-	struct powerdomain *pwrdm;
 
 	pr_debug("%s: %s\n", __func__, oh->name);
 
@@ -501,18 +436,9 @@ static int __init omap_timer_init(struct omap_hwmod *oh, void *unused)
 	 */
 	sscanf(oh->name, "timer%2d", &id);
 
-	pdata->set_timer_src = omap2_dm_timer_set_src;
-	pdata->timer_ip_version = oh->class->rev;
+	if (timer_dev_attr)
+		pdata->timer_capability = timer_dev_attr->timer_capability;
 
-	/* Mark clocksource and clockevent timers as reserved */
-	if ((sys_timer_reserved >> (id - 1)) & 0x1)
-		pdata->reserved = 1;
-
-	pwrdm = omap_hwmod_get_pwrdm(oh);
-	pdata->loses_context = pwrdm_can_ever_lose_context(pwrdm);
-#ifdef CONFIG_PM
-	pdata->get_context_loss_count = omap_pm_get_dev_context_loss_count;
-#endif
 	pdev = omap_device_build(name, id, oh, pdata, sizeof(*pdata),
 				 NULL, 0, 0);
 
