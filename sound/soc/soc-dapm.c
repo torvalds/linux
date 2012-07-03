@@ -2464,23 +2464,20 @@ int snd_soc_dapm_get_volsw(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	unsigned int reg = mc->reg;
 	unsigned int shift = mc->shift;
-	unsigned int rshift = mc->rshift;
 	int max = mc->max;
-	unsigned int invert = mc->invert;
 	unsigned int mask = (1 << fls(max)) - 1;
+	unsigned int invert = mc->invert;
+
+	if (snd_soc_volsw_is_stereo(mc))
+		dev_warn(widget->dapm->dev,
+			 "Control '%s' is stereo, which is not supported\n",
+			 kcontrol->id.name);
 
 	ucontrol->value.integer.value[0] =
 		(snd_soc_read(widget->codec, reg) >> shift) & mask;
-	if (shift != rshift)
-		ucontrol->value.integer.value[1] =
-			(snd_soc_read(widget->codec, reg) >> rshift) & mask;
-	if (invert) {
+	if (invert)
 		ucontrol->value.integer.value[0] =
 			max - ucontrol->value.integer.value[0];
-		if (shift != rshift)
-			ucontrol->value.integer.value[1] =
-				max - ucontrol->value.integer.value[1];
-	}
 
 	return 0;
 }
@@ -2513,6 +2510,11 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 	int connect, change;
 	struct snd_soc_dapm_update update;
 	int wi;
+
+	if (snd_soc_volsw_is_stereo(mc))
+		dev_warn(widget->dapm->dev,
+			 "Control '%s' is stereo, which is not supported\n",
+			 kcontrol->id.name);
 
 	val = (ucontrol->value.integer.value[0] & mask);
 	connect = !!val;
