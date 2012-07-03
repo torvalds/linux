@@ -293,26 +293,17 @@ static ssize_t adt7410_convert_temperature(struct adt7410_chip_info *chip,
 {
 	char sign = ' ';
 
-	if (chip->config & ADT7410_RESOLUTION) {
-		if (data & ADT7410_T16_VALUE_SIGN) {
-			/* convert supplement to positive value */
-			data = (u16)((ADT7410_T16_VALUE_SIGN << 1) - (u32)data);
-			sign = '-';
-		}
-		return sprintf(buf, "%c%d.%.7d\n", sign,
-				(data >> ADT7410_T16_VALUE_FLOAT_OFFSET),
-				(data & ADT7410_T16_VALUE_FLOAT_MASK) * 78125);
-	} else {
-		if (data & ADT7410_T13_VALUE_SIGN) {
-			/* convert supplement to positive value */
-			data >>= ADT7410_T13_VALUE_OFFSET;
-			data = (ADT7410_T13_VALUE_SIGN << 1) - data;
-			sign = '-';
-		}
-		return sprintf(buf, "%c%d.%.4d\n", sign,
-				(data >> ADT7410_T13_VALUE_FLOAT_OFFSET),
-				(data & ADT7410_T13_VALUE_FLOAT_MASK) * 625);
+	if (!(chip->config & ADT7410_RESOLUTION))
+		data &= ~0x7;
+
+	if (data & ADT7410_T16_VALUE_SIGN) {
+		/* convert supplement to positive value */
+		data = (u16)((ADT7410_T16_VALUE_SIGN << 1) - (u32)data);
+		sign = '-';
 	}
+	return sprintf(buf, "%c%d.%.7d\n", sign,
+			(data >> ADT7410_T16_VALUE_FLOAT_OFFSET),
+			(data & ADT7410_T16_VALUE_FLOAT_MASK) * 78125);
 }
 
 static ssize_t adt7410_show_value(struct device *dev,
