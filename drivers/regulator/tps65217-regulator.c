@@ -206,10 +206,10 @@ static int tps65217_pmic_map_voltage(struct regulator_dev *dev,
 	if (rid < TPS65217_DCDC_1 || rid > TPS65217_LDO_4)
 		return -EINVAL;
 
-	if (min_uV < tps->info[rid]->min_uV || min_uV > tps->info[rid]->max_uV)
-		return -EINVAL;
+	if (min_uV < tps->info[rid]->min_uV)
+		min_uV = tps->info[rid]->min_uV;
 
-	if (max_uV < tps->info[rid]->min_uV || max_uV > tps->info[rid]->max_uV)
+	if (max_uV < tps->info[rid]->min_uV || min_uV > tps->info[rid]->max_uV)
 		return -EINVAL;
 
 	ret = tps->info[rid]->uv_to_vsel(min_uV, &sel);
