@@ -868,7 +868,7 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 		/* program BB PLL phase_shift */
 		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL3,
 			      AR_CH0_BB_DPLL3_PHASE_SHIFT, 0x1);
-	} else if (AR_SREV_9340(ah)) {
+	} else if (AR_SREV_9340(ah) || AR_SREV_9550(ah)) {
 		u32 regval, pll2_divint, pll2_divfrac, refdiv;
 
 		REG_WRITE(ah, AR_RTC_PLL_CONTROL, 0x1142c);
@@ -882,9 +882,15 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 			pll2_divfrac = 0x1eb85;
 			refdiv = 3;
 		} else {
-			pll2_divint = 88;
-			pll2_divfrac = 0;
-			refdiv = 5;
+			if (AR_SREV_9340(ah)) {
+				pll2_divint = 88;
+				pll2_divfrac = 0;
+				refdiv = 5;
+			} else {
+				pll2_divint = 0x11;
+				pll2_divfrac = 0x26666;
+				refdiv = 1;
+			}
 		}
 
 		regval = REG_READ(ah, AR_PHY_PLL_MODE);
@@ -897,8 +903,12 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 		udelay(100);
 
 		regval = REG_READ(ah, AR_PHY_PLL_MODE);
-		regval = (regval & 0x80071fff) | (0x1 << 30) | (0x1 << 13) |
-			 (0x4 << 26) | (0x18 << 19);
+		if (AR_SREV_9340(ah))
+			regval = (regval & 0x80071fff) | (0x1 << 30) |
+				 (0x1 << 13) | (0x4 << 26) | (0x18 << 19);
+		else
+			regval = (regval & 0x80071fff) | (0x3 << 30) |
+				 (0x1 << 13) | (0x4 << 26) | (0x60 << 19);
 		REG_WRITE(ah, AR_PHY_PLL_MODE, regval);
 		REG_WRITE(ah, AR_PHY_PLL_MODE,
 			  REG_READ(ah, AR_PHY_PLL_MODE) & 0xfffeffff);
@@ -909,7 +919,8 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 
 	REG_WRITE(ah, AR_RTC_PLL_CONTROL, pll);
 
-	if (AR_SREV_9485(ah) || AR_SREV_9340(ah) || AR_SREV_9330(ah))
+	if (AR_SREV_9485(ah) || AR_SREV_9340(ah) || AR_SREV_9330(ah) ||
+	    AR_SREV_9550(ah))
 		udelay(1000);
 
 	/* Switch the core clock for ar9271 to 117Mhz */
@@ -922,7 +933,7 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 
 	REG_WRITE(ah, AR_RTC_SLEEP_CLK, AR_RTC_FORCE_DERIVED_CLK);
 
-	if (AR_SREV_9340(ah)) {
+	if (AR_SREV_9340(ah) || AR_SREV_9550(ah)) {
 		if (ah->is_clk_25mhz) {
 			REG_WRITE(ah, AR_RTC_DERIVED_CLK, 0x17c << 1);
 			REG_WRITE(ah, AR_SLP32_MODE, 0x0010f3d7);
