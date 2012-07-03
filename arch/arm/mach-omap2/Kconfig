@@ -64,19 +64,16 @@ config SOC_OMAP2420
 	depends on ARCH_OMAP2
 	default y
 	select OMAP_DM_TIMER
-	select ARCH_OMAP_OTG
 
 config SOC_OMAP2430
 	bool "OMAP2430 support"
 	depends on ARCH_OMAP2
 	default y
-	select ARCH_OMAP_OTG
 
 config SOC_OMAP3430
 	bool "OMAP3430 support"
 	depends on ARCH_OMAP3
 	default y
-	select ARCH_OMAP_OTG
 
 config SOC_TI81XX
 	bool "TI81XX support"

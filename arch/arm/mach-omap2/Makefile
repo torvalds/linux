@@ -116,7 +116,6 @@ obj-$(CONFIG_ARCH_OMAP4)		+= powerdomains44xx_data.o
 
 # PRCM clockdomain control
 clockdomain-common			+= clockdomain.o
-clockdomain-common			+= clockdomains_common_data.o
 obj-$(CONFIG_ARCH_OMAP2)		+= $(clockdomain-common)
 obj-$(CONFIG_ARCH_OMAP2)		+= clockdomain2xxx_3xxx.o
 obj-$(CONFIG_ARCH_OMAP2)		+= clockdomains2xxx_3xxx_data.o
@@ -244,9 +243,6 @@ obj-y					+= $(omap-flash-y) $(omap-flash-m)
 omap-hsmmc-$(CONFIG_MMC_OMAP_HS)	:= hsmmc.o
 obj-y					+= $(omap-hsmmc-m) $(omap-hsmmc-y)
 
-
-usbfs-$(CONFIG_ARCH_OMAP_OTG)		:= usb-fs.o
-obj-y					+= $(usbfs-m) $(usbfs-y)
 obj-y					+= usb-musb.o
 obj-y					+= omap_phy_internal.o
 
