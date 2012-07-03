@@ -156,21 +156,8 @@ static const struct comedi_lrange dmm32at_aoranges = {
 	 }
 };
 
-/*
- * Board descriptions for two imaginary boards.  Describing the
- * boards in this way is optional, and completely driver-dependent.
- * Some drivers use arrays such as this, other do not.
- */
 struct dmm32at_board {
 	const char *name;
-	int ai_chans;
-	int ai_bits;
-	const struct comedi_lrange *ai_ranges;
-	int ao_chans;
-	int ao_bits;
-	const struct comedi_lrange *ao_ranges;
-	int have_dio;
-	int dio_chans;
 };
 
 /* this structure is for data unique to this hardware driver.  If
@@ -880,9 +867,9 @@ static int dmm32at_attach(struct comedi_device *dev,
 	s->type = COMEDI_SUBD_AI;
 	/* we support single-ended (ground) and differential */
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
-	s->n_chan = board->ai_chans;
-	s->maxdata = (1 << board->ai_bits) - 1;
-	s->range_table = board->ai_ranges;
+	s->n_chan = 32;
+	s->maxdata = 0xffff;
+	s->range_table = &dmm32at_airanges;
 	s->len_chanlist = 32;	/* This is the maximum chanlist length that
 				   the board can handle */
 	s->insn_read = dmm32at_ai_rinsn;
@@ -894,35 +881,31 @@ static int dmm32at_attach(struct comedi_device *dev,
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = board->ao_chans;
-	s->maxdata = (1 << board->ao_bits) - 1;
-	s->range_table = board->ao_ranges;
+	s->n_chan = 4;
+	s->maxdata = 0x0fff;
+	s->range_table = &dmm32at_aoranges;
 	s->insn_write = dmm32at_ao_winsn;
 	s->insn_read = dmm32at_ao_rinsn;
 
 	s = dev->subdevices + 2;
 	/* digital i/o subdevice */
-	if (board->have_dio) {
 
-		/* get access to the DIO regs */
-		outb(DMM32AT_DIOACC, dev->iobase + DMM32AT_CNTRL);
-		/* set the DIO's to the defualt input setting */
-		devpriv->dio_config = DMM32AT_DIRA | DMM32AT_DIRB |
-		    DMM32AT_DIRCL | DMM32AT_DIRCH | DMM32AT_DIENABLE;
-		outb(devpriv->dio_config, dev->iobase + DMM32AT_DIOCONF);
+	/* get access to the DIO regs */
+	outb(DMM32AT_DIOACC, dev->iobase + DMM32AT_CNTRL);
+	/* set the DIO's to the defualt input setting */
+	devpriv->dio_config = DMM32AT_DIRA | DMM32AT_DIRB |
+		DMM32AT_DIRCL | DMM32AT_DIRCH | DMM32AT_DIENABLE;
+	outb(devpriv->dio_config, dev->iobase + DMM32AT_DIOCONF);
 
-		/* set up the subdevice */
-		s->type = COMEDI_SUBD_DIO;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan = board->dio_chans;
-		s->maxdata = 1;
-		s->state = 0;
-		s->range_table = &range_digital;
-		s->insn_bits = dmm32at_dio_insn_bits;
-		s->insn_config = dmm32at_dio_insn_config;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	/* set up the subdevice */
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = 24;
+	s->maxdata = 1;
+	s->state = 0;
+	s->range_table = &range_digital;
+	s->insn_bits = dmm32at_dio_insn_bits;
+	s->insn_config = dmm32at_dio_insn_config;
 
 	/* success */
 	printk(KERN_INFO "comedi%d: dmm32at: attached\n", dev->minor);
@@ -942,14 +925,6 @@ static void dmm32at_detach(struct comedi_device *dev)
 static const struct dmm32at_board dmm32at_boards[] = {
 	{
 		.name		= "dmm32at",
-		.ai_chans	= 32,
-		.ai_bits	= 16,
-		.ai_ranges	= &dmm32at_airanges,
-		.ao_chans	= 4,
-		.ao_bits	= 12,
-		.ao_ranges	= &dmm32at_aoranges,
-		.have_dio	= 1,
-		.dio_chans	= 24,
 	},
 };
 
