@@ -277,6 +277,11 @@ struct mwifiex_ds_11n_amsdu_aggr_ctrl {
 	u16 curr_buf_size;
 };
 
+struct mwifiex_ds_ant_cfg {
+	u32 tx_ant;
+	u32 rx_ant;
+};
+
 #define MWIFIEX_NUM_OF_CMD_BUFFER	20
 #define MWIFIEX_SIZE_OF_CMD_BUFFER	2048
 

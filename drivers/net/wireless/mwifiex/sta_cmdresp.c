@@ -475,6 +475,33 @@ static int mwifiex_ret_rf_tx_power(struct mwifiex_private *priv,
 }
 
 /*
+ * This function handles the command response of set rf antenna
+ */
+static int mwifiex_ret_rf_antenna(struct mwifiex_private *priv,
+				  struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_rf_ant_mimo *ant_mimo = &resp->params.ant_mimo;
+	struct host_cmd_ds_rf_ant_siso *ant_siso = &resp->params.ant_siso;
+	struct mwifiex_adapter *adapter = priv->adapter;
+
+	if (adapter->hw_dev_mcs_support == HT_STREAM_2X2)
+		dev_dbg(adapter->dev,
+			"RF_ANT_RESP: Tx action = 0x%x, Tx Mode = 0x%04x"
+			" Rx action = 0x%x, Rx Mode = 0x%04x\n",
+			le16_to_cpu(ant_mimo->action_tx),
+			le16_to_cpu(ant_mimo->tx_ant_mode),
+			le16_to_cpu(ant_mimo->action_rx),
+			le16_to_cpu(ant_mimo->rx_ant_mode));
+	else
+		dev_dbg(adapter->dev,
+			"RF_ANT_RESP: action = 0x%x, Mode = 0x%04x\n",
+			le16_to_cpu(ant_siso->action),
+			le16_to_cpu(ant_siso->ant_mode));
+
+	return 0;
+}
+
+/*
  * This function handles the command response of set/get MAC address.
  *
  * Handling includes saving the MAC address in driver.
@@ -873,6 +900,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_RF_TX_PWR:
 		ret = mwifiex_ret_rf_tx_power(priv, resp);
+		break;
+	case HostCmd_CMD_RF_ANTENNA:
+		ret = mwifiex_ret_rf_antenna(priv, resp);
 		break;
 	case HostCmd_CMD_802_11_PS_MODE_ENH:
 		ret = mwifiex_ret_enh_power_mode(priv, resp, data_buf);
