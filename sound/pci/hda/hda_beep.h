@@ -31,7 +31,6 @@
 struct hda_beep {
 	struct input_dev *dev;
 	struct hda_codec *codec;
-	unsigned int mode;
 	char phys[32];
 	int tone;
 	hda_nid_t nid;

@@ -184,6 +184,7 @@ EXPORT_SYMBOL_HDA(snd_hda_enable_beep_device);
 int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 {
 	struct hda_beep *beep;
+	int err;
 
 	if (!snd_hda_get_bool_hint(codec, "beep"))
 		return 0; /* disabled explicitly by hints */
@@ -201,19 +202,16 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 
 	beep->nid = nid;
 	beep->codec = codec;
-	beep->mode = codec->beep_mode;
 	codec->beep = beep;
 
 	INIT_WORK(&beep->beep_work, &snd_hda_generate_beep);
 	mutex_init(&beep->mutex);
 
-	if (beep->mode) {
-		int err = snd_hda_do_attach(beep);
-		if (err < 0) {
-			kfree(beep);
-			codec->beep = NULL;
-			return err;
-		}
+	err = snd_hda_do_attach(beep);
+	if (err < 0) {
+		kfree(beep);
+		codec->beep = NULL;
+		return err;
 	}
 
 	return 0;
