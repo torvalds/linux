@@ -177,12 +177,6 @@ struct dmm32at_private {
 };
 
 /*
- * most drivers define the following macro to make it easy to
- * access the private structure.
- */
-#define devpriv ((struct dmm32at_private *)dev->private)
-
-/*
  * "instructions" read/write data in "one-shot" or "software-triggered"
  * mode.
  */
@@ -494,6 +488,7 @@ static void dmm32at_setaitimer(struct comedi_device *dev, unsigned int nansec)
 
 static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct dmm32at_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int i, range;
 	unsigned char chanlo, chanhi, status;
@@ -566,17 +561,20 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static int dmm32at_ai_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
+	struct dmm32at_private *devpriv = dev->private;
+
 	devpriv->ai_scans_left = 1;
 	return 0;
 }
 
 static irqreturn_t dmm32at_isr(int irq, void *d)
 {
+	struct comedi_device *dev = d;
+	struct dmm32at_private *devpriv = dev->private;
 	unsigned char intstat;
 	unsigned int samp;
 	unsigned short msb, lsb;
 	int i;
-	struct comedi_device *dev = d;
 
 	if (!dev->attached) {
 		comedi_error(dev, "spurious interrupt");
@@ -622,6 +620,7 @@ static int dmm32at_ao_winsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	struct dmm32at_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned char hi, lo, status;
@@ -666,6 +665,7 @@ static int dmm32at_ao_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	struct dmm32at_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -684,6 +684,7 @@ static int dmm32at_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
+	struct dmm32at_private *devpriv = dev->private;
 	unsigned char diobits;
 
 	/* The insn data is a mask in data[0] and the new data
@@ -735,6 +736,7 @@ static int dmm32at_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data)
 {
+	struct dmm32at_private *devpriv = dev->private;
 	unsigned char chanbit;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -772,6 +774,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
 	const struct dmm32at_board *board = comedi_board(dev);
+	struct dmm32at_private *devpriv;
 	int ret;
 	struct comedi_subdevice *s;
 	unsigned char aihi, ailo, fifostat, aistat, intstat, airback;
@@ -854,8 +857,9 @@ static int dmm32at_attach(struct comedi_device *dev,
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
-	if (alloc_private(dev, sizeof(struct dmm32at_private)) < 0)
+	if (alloc_private(dev, sizeof(*devpriv)) < 0)
 		return -ENOMEM;
+	devpriv = dev->private;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
