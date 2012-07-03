@@ -479,9 +479,9 @@ static int __devinit dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 		ret = -ENODEV;
 		goto err0;
 	}
-	strcpy((u8 *)res->name, "mc");
 	res->parent = NULL;
 	resources[1] = *res;
+	resources[1].name = "mc";
 
 	/* allocate the child platform device */
 	musb = platform_device_alloc("musb-hdrc", -1);
