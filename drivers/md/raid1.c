@@ -517,8 +517,8 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 		int bad_sectors;
 
 		int disk = start_disk + i;
-		if (disk >= conf->raid_disks)
-			disk -= conf->raid_disks;
+		if (disk >= conf->raid_disks * 2)
+			disk -= conf->raid_disks * 2;
 
 		rdev = rcu_dereference(conf->mirrors[disk].rdev);
 		if (r1_bio->bios[disk] == IO_BLOCKED
