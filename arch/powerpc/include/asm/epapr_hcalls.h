@@ -88,7 +88,8 @@
 #define _EV_HCALL_TOKEN(id, num) (((id) << 16) | (num))
 #define EV_HCALL_TOKEN(hcall_num) _EV_HCALL_TOKEN(EV_EPAPR_VENDOR_ID, hcall_num)
 
-/* epapr error codes */
+/* epapr return codes */
+#define EV_SUCCESS		0
 #define EV_EPERM		1	/* Operation not permitted */
 #define EV_ENOENT		2	/*  Entry Not Found */
 #define EV_EIO			3	/* I/O error occured */
