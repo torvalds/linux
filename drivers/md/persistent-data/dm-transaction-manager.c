@@ -138,6 +138,9 @@ EXPORT_SYMBOL_GPL(dm_tm_create_non_blocking_clone);
 
 void dm_tm_destroy(struct dm_transaction_manager *tm)
 {
+	if (!tm->is_clone)
+		wipe_shadow_table(tm);
+
 	kfree(tm);
 }
 EXPORT_SYMBOL_GPL(dm_tm_destroy);
