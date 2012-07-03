@@ -257,7 +257,7 @@ static ssize_t adt7410_store_resolution(struct device *dev,
 
 	chip->config = config;
 
-	return ret;
+	return len;
 }
 
 static IIO_DEVICE_ATTR(resolution, S_IRUGO | S_IWUSR,
