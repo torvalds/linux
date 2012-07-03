@@ -61,7 +61,10 @@
 
 #define RBD_MINORS_PER_MAJOR	256		/* max minors per blkdev */
 
-#define RBD_MAX_SNAP_NAME_LEN	32
+#define RBD_SNAP_DEV_NAME_PREFIX	"snap_"
+#define RBD_MAX_SNAP_NAME_LEN	\
+			(NAME_MAX - (sizeof (RBD_SNAP_DEV_NAME_PREFIX) - 1))
+
 #define RBD_MAX_SNAP_COUNT	510	/* allows max snapc to fit in 4KB */
 #define RBD_MAX_OPT_LEN		1024
 
@@ -2063,7 +2066,7 @@ static int rbd_register_snap_dev(struct rbd_snap *snap,
 	dev->type = &rbd_snap_device_type;
 	dev->parent = parent;
 	dev->release = rbd_snap_dev_release;
-	dev_set_name(dev, "snap_%s", snap->name);
+	dev_set_name(dev, "%s%s", RBD_SNAP_DEV_NAME_PREFIX, snap->name);
 	dout("%s: registering device for snapshot %s\n", __func__, snap->name);
 
 	ret = device_register(dev);
@@ -2797,8 +2800,13 @@ static char *rbd_add_parse_args(struct rbd_device *rbd_dev,
 	if (!rbd_dev->image_name)
 		goto out_err;
 
-	/* Snapshot name is optional */
+	/* Snapshot name is optional; default is to use "head" */
+
 	len = next_token(&buf);
+	if (len > RBD_MAX_SNAP_NAME_LEN) {
+		err_ptr = ERR_PTR(-ENAMETOOLONG);
+		goto out_err;
+	}
 	if (!len) {
 		buf = RBD_SNAP_HEAD_NAME; /* No snapshot supplied */
 		len = sizeof (RBD_SNAP_HEAD_NAME) - 1;
@@ -2808,8 +2816,6 @@ static char *rbd_add_parse_args(struct rbd_device *rbd_dev,
 		goto out_err;
 	memcpy(snap_name, buf, len);
 	*(snap_name + len) = '\0';
-
-dout("    SNAP_NAME is <%s>, len is %zd\n", snap_name, len);
 
 	return snap_name;
 
