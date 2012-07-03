@@ -80,6 +80,8 @@ static inline void nfsd_destroy(struct net *net)
 	if (destroy)
 		svc_shutdown_net(nfsd_serv, net);
 	svc_destroy(nfsd_serv);
+	if (destroy)
+		nfsd_serv = NULL;
 }
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
