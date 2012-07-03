@@ -152,6 +152,7 @@ r{num_raw_hex}		{ return raw(yyscanner); }
 ,			{ return ','; }
 :			{ return ':'; }
 =			{ return '='; }
+\n			{ }
 
 <mem>{
 {modifier_bp}		{ return str(yyscanner, PE_MODIFIER_BP); }
