@@ -49,13 +49,15 @@
 #define PN533_DEVICE_STD    0x1
 #define PN533_DEVICE_PASORI 0x2
 
-#define PN533_ALL_PROTOCOLS (NFC_PROTO_JEWEL_MASK | NFC_PROTO_MIFARE_MASK \
-			     | NFC_PROTO_FELICA_MASK | NFC_PROTO_ISO14443_MASK \
-			     | NFC_PROTO_NFC_DEP_MASK)
+#define PN533_ALL_PROTOCOLS (NFC_PROTO_JEWEL_MASK | NFC_PROTO_MIFARE_MASK |\
+			     NFC_PROTO_FELICA_MASK | NFC_PROTO_ISO14443_MASK |\
+			     NFC_PROTO_NFC_DEP_MASK |\
+			     NFC_PROTO_ISO14443_B_MASK)
 
 #define PN533_NO_TYPE_B_PROTOCOLS (NFC_PROTO_JEWEL_MASK | \
 				   NFC_PROTO_MIFARE_MASK | \
 				   NFC_PROTO_FELICA_MASK | \
+				   NFC_PROTO_ISO14443_MASK | \
 				   NFC_PROTO_NFC_DEP_MASK)
 
 static const struct usb_device_id pn533_table[] = {
@@ -987,7 +989,7 @@ static int pn533_target_found_type_b(struct nfc_target *nfc_tgt, u8 *tgt_data,
 	if (!pn533_target_type_b_is_valid(tgt_type_b, tgt_data_len))
 		return -EPROTO;
 
-	nfc_tgt->supported_protocols = NFC_PROTO_ISO14443_MASK;
+	nfc_tgt->supported_protocols = NFC_PROTO_ISO14443_B_MASK;
 
 	return 0;
 }
@@ -1094,7 +1096,7 @@ static void pn533_poll_create_mod_list(struct pn533 *dev,
 	if (im_protocols & NFC_PROTO_JEWEL_MASK)
 		pn533_poll_add_mod(dev, PN533_POLL_MOD_106KBPS_JEWEL);
 
-	if (im_protocols & NFC_PROTO_ISO14443_MASK)
+	if (im_protocols & NFC_PROTO_ISO14443_B_MASK)
 		pn533_poll_add_mod(dev, PN533_POLL_MOD_847KBPS_B);
 
 	if (tm_protocols)

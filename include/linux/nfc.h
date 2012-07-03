@@ -136,8 +136,9 @@ enum nfc_attrs {
 #define NFC_PROTO_FELICA	3
 #define NFC_PROTO_ISO14443	4
 #define NFC_PROTO_NFC_DEP	5
+#define NFC_PROTO_ISO14443_B	6
 
-#define NFC_PROTO_MAX		6
+#define NFC_PROTO_MAX		7
 
 /* NFC communication modes */
 #define NFC_COMM_ACTIVE  0
@@ -149,11 +150,12 @@ enum nfc_attrs {
 #define NFC_RF_NONE      2
 
 /* NFC protocols masks used in bitsets */
-#define NFC_PROTO_JEWEL_MASK	(1 << NFC_PROTO_JEWEL)
-#define NFC_PROTO_MIFARE_MASK	(1 << NFC_PROTO_MIFARE)
-#define NFC_PROTO_FELICA_MASK	(1 << NFC_PROTO_FELICA)
-#define NFC_PROTO_ISO14443_MASK	(1 << NFC_PROTO_ISO14443)
-#define NFC_PROTO_NFC_DEP_MASK	(1 << NFC_PROTO_NFC_DEP)
+#define NFC_PROTO_JEWEL_MASK      (1 << NFC_PROTO_JEWEL)
+#define NFC_PROTO_MIFARE_MASK     (1 << NFC_PROTO_MIFARE)
+#define NFC_PROTO_FELICA_MASK	  (1 << NFC_PROTO_FELICA)
+#define NFC_PROTO_ISO14443_MASK	  (1 << NFC_PROTO_ISO14443)
+#define NFC_PROTO_NFC_DEP_MASK	  (1 << NFC_PROTO_NFC_DEP)
+#define NFC_PROTO_ISO14443_B_MASK (1 << NFC_PROTO_ISO14443_B)
 
 struct sockaddr_nfc {
 	sa_family_t sa_family;

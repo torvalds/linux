@@ -869,6 +869,7 @@ static int __devinit pn544_hci_probe(struct i2c_client *client,
 		    NFC_PROTO_MIFARE_MASK |
 		    NFC_PROTO_FELICA_MASK |
 		    NFC_PROTO_ISO14443_MASK |
+		    NFC_PROTO_ISO14443_B_MASK |
 		    NFC_PROTO_NFC_DEP_MASK;
 
 	info->shdlc = nfc_shdlc_allocate(&pn544_shdlc_ops,

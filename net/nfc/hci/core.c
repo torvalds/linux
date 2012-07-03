@@ -230,7 +230,7 @@ static int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 		}
 		break;
 	case NFC_HCI_RF_READER_B_GATE:
-		targets->supported_protocols = NFC_PROTO_ISO14443_MASK;
+		targets->supported_protocols = NFC_PROTO_ISO14443_B_MASK;
 		break;
 	default:
 		if (hdev->ops->target_from_gate)
