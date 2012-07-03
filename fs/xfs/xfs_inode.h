@@ -560,9 +560,9 @@ do { \
 int		xfs_inotobp(struct xfs_mount *, struct xfs_trans *,
 			    xfs_ino_t, struct xfs_dinode **,
 			    struct xfs_buf **, int *, uint);
-int		xfs_itobp(struct xfs_mount *, struct xfs_trans *,
-			  struct xfs_inode *, struct xfs_dinode **,
-			  struct xfs_buf **, uint);
+int		xfs_imap_to_bp(struct xfs_mount *, struct xfs_trans *,
+			       struct xfs_imap *, struct xfs_dinode **,
+			       struct xfs_buf **, uint, uint);
 int		xfs_iread(struct xfs_mount *, struct xfs_trans *,
 			  struct xfs_inode *, uint);
 void		xfs_dinode_to_disk(struct xfs_dinode *,

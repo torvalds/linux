@@ -712,8 +712,8 @@ restart:
 	 * Note that xfs_iflush will never block on the inode buffer lock, as
 	 * xfs_ifree_cluster() can lock the inode buffer before it locks the
 	 * ip->i_lock, and we are doing the exact opposite here.  As a result,
-	 * doing a blocking xfs_itobp() to get the cluster buffer would result
-	 * in an ABBA deadlock with xfs_ifree_cluster().
+	 * doing a blocking xfs_imap_to_bp() to get the cluster buffer would
+	 * result in an ABBA deadlock with xfs_ifree_cluster().
 	 *
 	 * As xfs_ifree_cluser() must gather all inodes that are active in the
 	 * cache to mark them stale, if we hit this case we don't actually want
