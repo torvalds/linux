@@ -1016,12 +1016,6 @@ static int ecryptfs_setattr(struct dentry *dentry, struct iattr *ia)
 			goto out;
 	}
 
-	if (S_ISREG(inode->i_mode)) {
-		rc = filemap_write_and_wait(inode->i_mapping);
-		if (rc)
-			goto out;
-		fsstack_copy_attr_all(inode, lower_inode);
-	}
 	memcpy(&lower_ia, ia, sizeof(lower_ia));
 	if (ia->ia_valid & ATTR_FILE)
 		lower_ia.ia_file = ecryptfs_file_to_lower(ia->ia_file);
