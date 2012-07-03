@@ -557,9 +557,6 @@ do { \
 #define XFS_IGET_UNTRUSTED	0x2
 #define XFS_IGET_DONTCACHE	0x4
 
-int		xfs_inotobp(struct xfs_mount *, struct xfs_trans *,
-			    xfs_ino_t, struct xfs_dinode **,
-			    struct xfs_buf **, int *, uint);
 int		xfs_imap_to_bp(struct xfs_mount *, struct xfs_trans *,
 			       struct xfs_imap *, struct xfs_dinode **,
 			       struct xfs_buf **, uint, uint);

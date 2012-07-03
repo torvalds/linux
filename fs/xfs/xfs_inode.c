@@ -216,47 +216,6 @@ xfs_imap_to_bp(
 }
 
 /*
- * This routine is called to map an inode number within a file
- * system to the buffer containing the on-disk version of the
- * inode.  It returns a pointer to the buffer containing the
- * on-disk inode in the bpp parameter, and in the dip parameter
- * it returns a pointer to the on-disk inode within that buffer.
- *
- * If a non-zero error is returned, then the contents of bpp and
- * dipp are undefined.
- *
- * Use xfs_imap() to determine the size and location of the
- * buffer to read from disk.
- */
-int
-xfs_inotobp(
-	xfs_mount_t	*mp,
-	xfs_trans_t	*tp,
-	xfs_ino_t	ino,
-	xfs_dinode_t	**dipp,
-	xfs_buf_t	**bpp,
-	int		*offset,
-	uint		imap_flags)
-{
-	struct xfs_imap	imap;
-	xfs_buf_t	*bp;
-	int		error;
-
-	imap.im_blkno = 0;
-	error = xfs_imap(mp, tp, ino, &imap, imap_flags);
-	if (error)
-		return error;
-
-	error = xfs_imap_to_bp(mp, tp, &imap, dipp, &bp, 0, imap_flags);
-	if (error)
-		return error;
-
-	*bpp = bp;
-	*offset = imap.im_boffset;
-	return 0;
-}
-
-/*
  * Move inode type and inode format specific information from the
  * on-disk inode to the in-core inode.  For fifos, devs, and sockets
  * this means set if_rdev to the proper value.  For files, directories,
@@ -1431,23 +1390,32 @@ xfs_iunlink_remove(
 		next_agino = be32_to_cpu(agi->agi_unlinked[bucket_index]);
 		last_ibp = NULL;
 		while (next_agino != agino) {
-			/*
-			 * If the last inode wasn't the one pointing to
-			 * us, then release its buffer since we're not
-			 * going to do anything with it.
-			 */
-			if (last_ibp != NULL) {
+			struct xfs_imap	imap;
+
+			if (last_ibp)
 				xfs_trans_brelse(tp, last_ibp);
-			}
+
+			imap.im_blkno = 0;
 			next_ino = XFS_AGINO_TO_INO(mp, agno, next_agino);
-			error = xfs_inotobp(mp, tp, next_ino, &last_dip,
-					    &last_ibp, &last_offset, 0);
+
+			error = xfs_imap(mp, tp, next_ino, &imap, 0);
 			if (error) {
 				xfs_warn(mp,
-					"%s: xfs_inotobp() returned error %d.",
+	"%s: xfs_imap returned error %d.",
+					 __func__, error);
+				return error;
+			}
+
+			error = xfs_imap_to_bp(mp, tp, &imap, &last_dip,
+					       &last_ibp, 0, 0);
+			if (error) {
+				xfs_warn(mp,
+	"%s: xfs_imap_to_bp returned error %d.",
 					__func__, error);
 				return error;
 			}
+
+			last_offset = imap.im_boffset;
 			next_agino = be32_to_cpu(last_dip->di_next_unlinked);
 			ASSERT(next_agino != NULLAGINO);
 			ASSERT(next_agino != 0);
