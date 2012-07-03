@@ -26,14 +26,15 @@ do { \
 %}
 
 %token PE_START_EVENTS PE_START_TERMS
-%token PE_VALUE PE_VALUE_SYM PE_RAW PE_TERM
+%token PE_VALUE PE_VALUE_SYM_HW PE_VALUE_SYM_SW PE_RAW PE_TERM
 %token PE_NAME
 %token PE_MODIFIER_EVENT PE_MODIFIER_BP
 %token PE_NAME_CACHE_TYPE PE_NAME_CACHE_OP_RESULT
 %token PE_PREFIX_MEM PE_PREFIX_RAW
 %token PE_ERROR
 %type <num> PE_VALUE
-%type <num> PE_VALUE_SYM
+%type <num> PE_VALUE_SYM_HW
+%type <num> PE_VALUE_SYM_SW
 %type <num> PE_RAW
 %type <num> PE_TERM
 %type <str> PE_NAME
@@ -41,6 +42,7 @@ do { \
 %type <str> PE_NAME_CACHE_OP_RESULT
 %type <str> PE_MODIFIER_EVENT
 %type <str> PE_MODIFIER_BP
+%type <num> value_sym
 %type <head> event_config
 %type <term> event_term
 %type <head> event_pmu
@@ -109,8 +111,13 @@ PE_NAME '/' event_config '/'
 	$$ = list;
 }
 
+value_sym:
+PE_VALUE_SYM_HW
+|
+PE_VALUE_SYM_SW
+
 event_legacy_symbol:
-PE_VALUE_SYM '/' event_config '/'
+value_sym '/' event_config '/'
 {
 	struct parse_events_data__events *data = _data;
 	struct list_head *list = NULL;
@@ -123,7 +130,7 @@ PE_VALUE_SYM '/' event_config '/'
 	$$ = list;
 }
 |
-PE_VALUE_SYM sep_slash_dc
+value_sym sep_slash_dc
 {
 	struct parse_events_data__events *data = _data;
 	struct list_head *list = NULL;

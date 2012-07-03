@@ -56,7 +56,7 @@ static int sym(yyscan_t scanner, int type, int config)
 	YYSTYPE *yylval = parse_events_get_lval(scanner);
 
 	yylval->num = (type << 16) + config;
-	return PE_VALUE_SYM;
+	return type == PERF_TYPE_HARDWARE ? PE_VALUE_SYM_HW : PE_VALUE_SYM_SW;
 }
 
 static int term(yyscan_t scanner, int type)
