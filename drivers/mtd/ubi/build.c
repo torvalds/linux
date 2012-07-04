@@ -607,8 +607,18 @@ static int io_init(struct ubi_device *ubi)
 	ubi->peb_count  = mtd_div_by_eb(ubi->mtd->size, ubi->mtd);
 	ubi->flash_size = ubi->mtd->size;
 
-	if (mtd_can_have_bb(ubi->mtd))
+	if (mtd_can_have_bb(ubi->mtd)) {
 		ubi->bad_allowed = 1;
+		if (CONFIG_MTD_UBI_BEB_LIMIT > 0) {
+			int percent = CONFIG_MTD_UBI_BEB_LIMIT;
+			int limit = mult_frac(ubi->peb_count, percent, 100);
+
+			/* Round it up */
+			if (mult_frac(limit, 100, percent) < ubi->peb_count)
+				limit += 1;
+			ubi->bad_peb_limit = limit;
+		}
+	}
 
 	if (ubi->mtd->type == MTD_NORFLASH) {
 		ubi_assert(ubi->mtd->writesize == 1);
