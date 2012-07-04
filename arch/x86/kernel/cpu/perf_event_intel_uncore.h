@@ -97,6 +97,10 @@
 				 SNBEP_PMON_CTL_INVERT | \
 				 SNBEP_U_MSR_PMON_CTL_TRESH_MASK)
 
+#define SNBEP_CBO_PMON_CTL_TID_EN		(1 << 19)
+#define SNBEP_CBO_MSR_PMON_RAW_EVENT_MASK	(SNBEP_PMON_RAW_EVENT_MASK | \
+						 SNBEP_CBO_PMON_CTL_TID_EN)
+
 /* SNB-EP PCU event control */
 #define SNBEP_PCU_MSR_PMON_CTL_OCC_SEL_MASK	0x0000c000
 #define SNBEP_PCU_MSR_PMON_CTL_TRESH_MASK	0x1f000000
@@ -140,15 +144,17 @@
 /* SNB-EP Cbo register */
 #define SNBEP_C0_MSR_PMON_CTR0			0xd16
 #define SNBEP_C0_MSR_PMON_CTL0			0xd10
-#define SNBEP_C0_MSR_PMON_BOX_FILTER		0xd14
 #define SNBEP_C0_MSR_PMON_BOX_CTL		0xd04
+#define SNBEP_C0_MSR_PMON_BOX_FILTER		0xd14
+#define SNBEP_CB0_MSR_PMON_BOX_FILTER_MASK	0xfffffc1f
 #define SNBEP_CBO_MSR_OFFSET			0x20
 
 /* SNB-EP PCU register */
 #define SNBEP_PCU_MSR_PMON_CTR0			0xc36
 #define SNBEP_PCU_MSR_PMON_CTL0			0xc30
-#define SNBEP_PCU_MSR_PMON_BOX_FILTER		0xc34
 #define SNBEP_PCU_MSR_PMON_BOX_CTL		0xc24
+#define SNBEP_PCU_MSR_PMON_BOX_FILTER		0xc34
+#define SNBEP_PCU_MSR_PMON_BOX_FILTER_MASK	0xffffffff
 #define SNBEP_PCU_MSR_CORE_C3_CTR		0x3fc
 #define SNBEP_PCU_MSR_CORE_C6_CTR		0x3fd
 
@@ -163,7 +169,6 @@ struct intel_uncore_type {
 	int num_boxes;
 	int perf_ctr_bits;
 	int fixed_ctr_bits;
-	int single_fixed;
 	unsigned perf_ctr;
 	unsigned event_ctl;
 	unsigned event_mask;
@@ -171,6 +176,8 @@ struct intel_uncore_type {
 	unsigned fixed_ctl;
 	unsigned box_ctl;
 	unsigned msr_offset;
+	unsigned num_shared_regs:8;
+	unsigned single_fixed:1;
 	struct event_constraint unconstrainted;
 	struct event_constraint *constraints;
 	struct intel_uncore_pmu *pmus;
@@ -188,6 +195,10 @@ struct intel_uncore_ops {
 	void (*disable_event)(struct intel_uncore_box *, struct perf_event *);
 	void (*enable_event)(struct intel_uncore_box *, struct perf_event *);
 	u64 (*read_counter)(struct intel_uncore_box *, struct perf_event *);
+	int (*hw_config)(struct intel_uncore_box *, struct perf_event *);
+	struct event_constraint *(*get_constraint)(struct intel_uncore_box *,
+						   struct perf_event *);
+	void (*put_constraint)(struct intel_uncore_box *, struct perf_event *);
 };
 
 struct intel_uncore_pmu {
@@ -198,6 +209,12 @@ struct intel_uncore_pmu {
 	struct intel_uncore_type *type;
 	struct intel_uncore_box ** __percpu box;
 	struct list_head box_list;
+};
+
+struct intel_uncore_extra_reg {
+	raw_spinlock_t lock;
+	u64 config1;
+	atomic_t ref;
 };
 
 struct intel_uncore_box {
@@ -215,6 +232,7 @@ struct intel_uncore_box {
 	struct intel_uncore_pmu *pmu;
 	struct hrtimer hrtimer;
 	struct list_head list;
+	struct intel_uncore_extra_reg shared_regs[0];
 };
 
 #define UNCORE_BOX_FLAG_INITIATED	0
