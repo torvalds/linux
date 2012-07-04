@@ -30,10 +30,19 @@
 	cpus {
 		cpu@0 {
 			compatible = "arm,cortex-a9";
+			next-level-cache = <&L2>;
 		};
 		cpu@1 {
 			compatible = "arm,cortex-a9";
+			next-level-cache = <&L2>;
 		};
+	};
+
+	L2: l2-cache-controller@48242000 {
+		compatible = "arm,pl310-cache";
+		reg = <0x48242000 0x1000>;
+		cache-unified;
+		cache-level = <2>;
 	};
 
 	/*
