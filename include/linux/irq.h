@@ -301,8 +301,6 @@ static inline irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
  * @irq_pm_shutdown:	function called from core code on shutdown once per chip
  * @irq_print_chip:	optional to print special chip info in show_interrupts
  * @flags:		chip specific flags
- *
- * @release:		release function solely used by UML
  */
 struct irq_chip {
 	const char	*name;
