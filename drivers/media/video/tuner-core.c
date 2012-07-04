@@ -228,6 +228,16 @@ static int fe_has_signal(struct dvb_frontend *fe)
 	return strength;
 }
 
+static int fe_get_afc(struct dvb_frontend *fe)
+{
+	s32 afc = 0;
+
+	if (fe->ops.tuner_ops.get_afc)
+		fe->ops.tuner_ops.get_afc(fe, &afc);
+
+	return 0;
+}
+
 static int fe_set_config(struct dvb_frontend *fe, void *priv_cfg)
 {
 	struct dvb_tuner_ops *fe_tuner_ops = &fe->ops.tuner_ops;
@@ -247,6 +257,7 @@ static struct analog_demod_ops tuner_analog_ops = {
 	.set_params     = fe_set_params,
 	.standby        = fe_standby,
 	.has_signal     = fe_has_signal,
+	.get_afc        = fe_get_afc,
 	.set_config     = fe_set_config,
 	.tuner_status   = tuner_status
 };
