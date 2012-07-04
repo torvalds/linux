@@ -687,7 +687,7 @@ static int __devinit tca6507_probe(struct i2c_client *client,
 			NUM_LEDS);
 		return -ENODEV;
 	}
-	tca = kzalloc(sizeof(*tca), GFP_KERNEL);
+	tca = devm_kzalloc(&client->dev, sizeof(*tca), GFP_KERNEL);
 	if (!tca)
 		return -ENOMEM;
 
@@ -727,7 +727,6 @@ exit:
 		if (tca->leds[i].led_cdev.name)
 			led_classdev_unregister(&tca->leds[i].led_cdev);
 	}
-	kfree(tca);
 	return err;
 }
 
@@ -743,7 +742,6 @@ static int __devexit tca6507_remove(struct i2c_client *client)
 	}
 	tca6507_remove_gpio(tca);
 	cancel_work_sync(&tca->work);
-	kfree(tca);
 
 	return 0;
 }
