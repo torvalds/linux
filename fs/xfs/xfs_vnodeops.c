@@ -146,11 +146,6 @@ xfs_readlink(
 }
 
 /*
- * Flags for xfs_free_eofblocks
- */
-#define XFS_FREE_EOF_TRYLOCK	(1<<0)
-
-/*
  * This is called by xfs_inactive to free any blocks beyond eof
  * when the link count isn't zero and by xfs_dm_punch_hole() when
  * punching a hole to EOF.
@@ -159,7 +154,7 @@ STATIC int
 xfs_free_eofblocks(
 	xfs_mount_t	*mp,
 	xfs_inode_t	*ip,
-	int		flags)
+	bool		need_iolock)
 {
 	xfs_trans_t	*tp;
 	int		error;
@@ -201,13 +196,11 @@ xfs_free_eofblocks(
 		 */
 		tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
 
-		if (flags & XFS_FREE_EOF_TRYLOCK) {
+		if (need_iolock) {
 			if (!xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL)) {
 				xfs_trans_cancel(tp, 0);
 				return 0;
 			}
-		} else {
-			xfs_ilock(ip, XFS_IOLOCK_EXCL);
 		}
 
 		error = xfs_trans_reserve(tp, 0,
@@ -217,7 +210,8 @@ xfs_free_eofblocks(
 		if (error) {
 			ASSERT(XFS_FORCED_SHUTDOWN(mp));
 			xfs_trans_cancel(tp, 0);
-			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+			if (need_iolock)
+				xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 			return error;
 		}
 
@@ -244,7 +238,10 @@ xfs_free_eofblocks(
 			error = xfs_trans_commit(tp,
 						XFS_TRANS_RELEASE_LOG_RES);
 		}
-		xfs_iunlock(ip, XFS_IOLOCK_EXCL|XFS_ILOCK_EXCL);
+
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		if (need_iolock)
+			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 	}
 	return error;
 }
@@ -466,8 +463,7 @@ xfs_release(
 		if (xfs_iflags_test(ip, XFS_IDIRTY_RELEASE))
 			return 0;
 
-		error = xfs_free_eofblocks(mp, ip,
-					   XFS_FREE_EOF_TRYLOCK);
+		error = xfs_free_eofblocks(mp, ip, true);
 		if (error)
 			return error;
 
@@ -524,7 +520,7 @@ xfs_inactive(
 		    (!(ip->i_d.di_flags &
 				(XFS_DIFLAG_PREALLOC | XFS_DIFLAG_APPEND)) ||
 		     ip->i_delayed_blks != 0))) {
-			error = xfs_free_eofblocks(mp, ip, 0);
+			error = xfs_free_eofblocks(mp, ip, false);
 			if (error)
 				return VN_INACTIVE_CACHE;
 		}
