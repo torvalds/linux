@@ -1199,8 +1199,7 @@ static int mei_irq_thread_write_handler(struct mei_io_list *cmpl_list,
 	dev_dbg(&dev->pdev->dev, "complete all waiting for write cb.\n");
 
 	list = &dev->write_waiting_list;
-	list_for_each_entry_safe(pos, next,
-			&list->mei_cb.cb_list, cb_list) {
+	list_for_each_entry_safe(pos, next, &list->mei_cb.cb_list, cb_list) {
 		cl = (struct mei_cl *)pos->file_private;
 		if (cl == NULL)
 			continue;
@@ -1210,17 +1209,15 @@ static int mei_irq_thread_write_handler(struct mei_io_list *cmpl_list,
 		if (MEI_WRITING == cl->writing_state &&
 		   (pos->major_file_operations == MEI_WRITE) &&
 		   (cl != &dev->iamthif_cl)) {
-			dev_dbg(&dev->pdev->dev,
-				"MEI WRITE COMPLETE\n");
+			dev_dbg(&dev->pdev->dev, "MEI WRITE COMPLETE\n");
 			cl->writing_state = MEI_WRITE_COMPLETE;
 			list_add_tail(&pos->cb_list,
-				&cmpl_list->mei_cb.cb_list);
+				      &cmpl_list->mei_cb.cb_list);
 		}
 		if (cl == &dev->iamthif_cl) {
 			dev_dbg(&dev->pdev->dev, "check iamthif flow control.\n");
 			if (dev->iamthif_flow_control_pending) {
-				ret = _mei_irq_thread_iamthif_read(
-						dev, slots);
+				ret = _mei_irq_thread_iamthif_read(dev, slots);
 				if (ret)
 					return ret;
 			}
@@ -1245,12 +1242,11 @@ static int mei_irq_thread_write_handler(struct mei_io_list *cmpl_list,
 	}
 	if (dev->mei_state == MEI_ENABLED) {
 		if (dev->wd_pending &&
-			mei_flow_ctrl_creds(dev, &dev->wd_cl) > 0) {
+		    mei_flow_ctrl_creds(dev, &dev->wd_cl) > 0) {
 			if (mei_wd_send(dev))
 				dev_dbg(&dev->pdev->dev, "wd send failed.\n");
-			else
-				if (mei_flow_ctrl_reduce(dev, &dev->wd_cl))
-					return -ENODEV;
+			else if (mei_flow_ctrl_reduce(dev, &dev->wd_cl))
+				return -ENODEV;
 
 			dev->wd_pending = false;
 
@@ -1305,7 +1301,7 @@ static int mei_irq_thread_write_handler(struct mei_io_list *cmpl_list,
 	/* complete  write list CB */
 	dev_dbg(&dev->pdev->dev, "complete write list cb.\n");
 	list_for_each_entry_safe(pos, next,
-			&dev->write_list.mei_cb.cb_list, cb_list) {
+				&dev->write_list.mei_cb.cb_list, cb_list) {
 		cl = (struct mei_cl *)pos->file_private;
 		if (cl == NULL)
 			continue;
@@ -1313,15 +1309,12 @@ static int mei_irq_thread_write_handler(struct mei_io_list *cmpl_list,
 		if (cl != &dev->iamthif_cl) {
 			if (mei_flow_ctrl_creds(dev, cl) <= 0) {
 				dev_dbg(&dev->pdev->dev,
-					"No flow control"
-				    " credentials for client"
-				    " %d, not sending.\n",
-				    cl->host_client_id);
+					"No flow control credentials for client %d, not sending.\n",
+					cl->host_client_id);
 				continue;
 			}
-			ret = _mei_irq_thread_cmpl(dev, slots,
-					    pos,
-					    cl, cmpl_list);
+			ret = _mei_irq_thread_cmpl(dev, slots, pos,
+						cl, cmpl_list);
 			if (ret)
 				return ret;
 
@@ -1330,17 +1323,12 @@ static int mei_irq_thread_write_handler(struct mei_io_list *cmpl_list,
 			dev_dbg(&dev->pdev->dev, "complete amthi write cb.\n");
 			if (mei_flow_ctrl_creds(dev, cl) <= 0) {
 				dev_dbg(&dev->pdev->dev,
-					"No flow control"
-				    " credentials for amthi"
-				    " client %d.\n",
-				    cl->host_client_id);
+					"No flow control credentials for amthi client %d.\n",
+					cl->host_client_id);
 				continue;
 			}
-			ret = _mei_irq_thread_cmpl_iamthif(dev,
-						slots,
-						pos,
-						cl,
-						cmpl_list);
+			ret = _mei_irq_thread_cmpl_iamthif(dev, slots, pos,
+						cl, cmpl_list);
 			if (ret)
 				return ret;
 
