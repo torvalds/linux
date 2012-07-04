@@ -144,6 +144,10 @@ static __devinit int arizona_micsupp_probe(struct platform_device *pdev)
 	else
 		config.init_data = &micsupp->init_data;
 
+	/* Default to regulated mode until the API supports bypass */
+	regmap_update_bits(arizona->regmap, ARIZONA_MIC_CHARGE_PUMP_1,
+			   ARIZONA_CPMIC_BYPASS, 0);
+
 	micsupp->regulator = regulator_register(&arizona_micsupp, &config);
 	if (IS_ERR(micsupp->regulator)) {
 		ret = PTR_ERR(micsupp->regulator);
