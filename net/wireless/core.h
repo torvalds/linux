@@ -13,6 +13,7 @@
 #include <linux/debugfs.h>
 #include <linux/rfkill.h>
 #include <linux/workqueue.h>
+#include <linux/rtnetlink.h>
 #include <net/genetlink.h>
 #include <net/cfg80211.h>
 #include "reg.h"
@@ -56,6 +57,7 @@ struct cfg80211_registered_device {
 
 	u32 ap_beacons_nlpid;
 
+	/* protected by RTNL only */
 	int num_running_ifaces;
 	int num_running_monitor_ifaces;
 
@@ -205,7 +207,7 @@ static inline void wdev_unlock(struct wireless_dev *wdev)
 
 static inline bool cfg80211_has_monitors_only(struct cfg80211_registered_device *rdev)
 {
-	ASSERT_RDEV_LOCK(rdev);
+	ASSERT_RTNL();
 
 	return rdev->num_running_ifaces == rdev->num_running_monitor_ifaces &&
 	       rdev->num_running_ifaces > 0;

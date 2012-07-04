@@ -766,7 +766,7 @@ void cfg80211_update_iface_num(struct cfg80211_registered_device *rdev,
 	bool has_monitors_only_old = cfg80211_has_monitors_only(rdev);
 	bool has_monitors_only_new;
 
-	ASSERT_RDEV_LOCK(rdev);
+	ASSERT_RTNL();
 
 	rdev->num_running_ifaces += num;
 	if (iftype == NL80211_IFTYPE_MONITOR)
@@ -888,10 +888,8 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		wdev->beacon_interval = 0;
 		break;
 	case NETDEV_DOWN:
-		dev_hold(dev);
-		cfg80211_lock_rdev(rdev);
 		cfg80211_update_iface_num(rdev, wdev->iftype, -1);
-		cfg80211_unlock_rdev(rdev);
+		dev_hold(dev);
 		queue_work(cfg80211_wq, &wdev->cleanup_work);
 		break;
 	case NETDEV_UP:
@@ -1001,9 +999,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		mutex_unlock(&rdev->devlist_mtx);
 		if (ret)
 			return notifier_from_errno(ret);
-		cfg80211_lock_rdev(rdev);
 		cfg80211_update_iface_num(rdev, wdev->iftype, 1);
-		cfg80211_unlock_rdev(rdev);
 		break;
 	}
 
