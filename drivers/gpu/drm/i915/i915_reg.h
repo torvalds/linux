@@ -3854,6 +3854,9 @@
 #define _FDI_RXA_TUSIZE2         0xf0038
 #define _FDI_RXB_TUSIZE1         0xf1030
 #define _FDI_RXB_TUSIZE2         0xf1038
+#define  FDI_RX_TP1_TO_TP2_48	(2<<20)
+#define  FDI_RX_TP1_TO_TP2_64	(3<<20)
+#define  FDI_RX_FDI_DELAY_90	(0x90<<0)
 #define FDI_RX_MISC(pipe) _PIPE(pipe, _FDI_RXA_MISC, _FDI_RXB_MISC)
 #define FDI_RX_TUSIZE1(pipe) _PIPE(pipe, _FDI_RXA_TUSIZE1, _FDI_RXB_TUSIZE1)
 #define FDI_RX_TUSIZE2(pipe) _PIPE(pipe, _FDI_RXA_TUSIZE2, _FDI_RXB_TUSIZE2)
