@@ -1883,7 +1883,6 @@ err_free_dev:
 static void acer_wmi_accel_destroy(void)
 {
 	input_unregister_device(acer_wmi_accel_dev);
-	input_free_device(acer_wmi_accel_dev);
 }
 
 static int __init acer_wmi_input_setup(void)
