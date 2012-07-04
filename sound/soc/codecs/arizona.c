@@ -507,6 +507,8 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona_dai_priv *dai_priv = &priv->dai[dai->id - 1];
 	int base = dai->driver->base;
 	const int *rates;
 	int i;
@@ -530,10 +532,6 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	/*
-	 * We will need to be more flexible than this in future,
-	 * currently we use a single sample rate for the chip.
-	 */
 	for (i = 0; i < ARRAY_SIZE(arizona_sr_vals); i++)
 		if (arizona_sr_vals[i] == params_rate(params))
 			break;
@@ -552,8 +550,28 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 	wl = snd_pcm_format_width(params_format(params));
 	frame = wl << ARIZONA_AIF1TX_WL_SHIFT | wl;
 
-	snd_soc_update_bits(codec, ARIZONA_SAMPLE_RATE_1,
-			    ARIZONA_SAMPLE_RATE_1_MASK, sr_val);
+	/*
+	 * We will need to be more flexible than this in future,
+	 * currently we use a single sample rate for SYSCLK.
+	 */
+	switch (dai_priv->clk) {
+	case ARIZONA_CLK_SYSCLK:
+		snd_soc_update_bits(codec, ARIZONA_SAMPLE_RATE_1,
+				    ARIZONA_SAMPLE_RATE_1_MASK, sr_val);
+		snd_soc_update_bits(codec, base + ARIZONA_AIF_RATE_CTRL,
+				    ARIZONA_AIF1_RATE_MASK, 0);
+		break;
+	case ARIZONA_CLK_ASYNCCLK:
+		snd_soc_update_bits(codec, ARIZONA_ASYNC_SAMPLE_RATE_1,
+				    ARIZONA_ASYNC_SAMPLE_RATE_MASK, sr_val);
+		snd_soc_update_bits(codec, base + ARIZONA_AIF_RATE_CTRL,
+				    ARIZONA_AIF1_RATE_MASK, 8);
+		break;
+	default:
+		arizona_aif_err(dai, "Invalid clock %d\n", dai_priv->clk);
+		return -EINVAL;
+	}
+
 	snd_soc_update_bits(codec, base + ARIZONA_AIF_BCLK_CTRL,
 			    ARIZONA_AIF1_BCLK_FREQ_MASK, bclk);
 	snd_soc_update_bits(codec, base + ARIZONA_AIF_TX_BCLK_RATE,
