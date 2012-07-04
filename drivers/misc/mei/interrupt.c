@@ -575,10 +575,9 @@ static void mei_client_disconnect_request(struct mei_device *dev,
 					disconnect_req->me_addr);
 			cl_pos->state = MEI_FILE_DISCONNECTED;
 			cl_pos->timer_count = 0;
-			if (cl_pos == &dev->wd_cl) {
-				dev->wd_due_counter = 0;
+			if (cl_pos == &dev->wd_cl)
 				dev->wd_pending = false;
-			} else if (cl_pos == &dev->iamthif_cl)
+			else if (cl_pos == &dev->iamthif_cl)
 				dev->iamthif_timer = 0;
 
 			/* prepare disconnect response */
@@ -1266,15 +1265,12 @@ static int mei_irq_thread_write_handler(struct mei_io_list *cmpl_list,
 
 			dev->wd_pending = false;
 
-			if (dev->wd_timeout) {
+			if (dev->wd_timeout)
 				*slots -= (sizeof(struct mei_msg_hdr) +
 					 MEI_START_WD_DATA_SIZE + 3) / 4;
-				dev->wd_due_counter = 2;
-			} else {
+			else
 				*slots -= (sizeof(struct mei_msg_hdr) +
 					 MEI_WD_PARAMS_SIZE + 3) / 4;
-				dev->wd_due_counter = 0;
-			}
 
 		}
 	}

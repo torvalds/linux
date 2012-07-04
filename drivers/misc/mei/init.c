@@ -306,7 +306,6 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 				dev->iamthif_cl.host_client_id);
 
 		mei_reset_iamthif_params(dev);
-		dev->wd_due_counter = 0;
 		dev->extra_write_index = 0;
 	}
 

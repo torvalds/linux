@@ -246,7 +246,6 @@ struct mei_device {
 	bool wd_stopped;
 	bool wd_bypass;	/* if false, don't refresh watchdog ME client */
 	u16 wd_timeout;	/* seconds ((wd_data[1] << 8) + wd_data[0]) */
-	u16 wd_due_counter;
 	unsigned char wd_data[MEI_START_WD_DATA_SIZE];
 
 
