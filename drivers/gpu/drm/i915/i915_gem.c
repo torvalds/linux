@@ -1141,6 +1141,11 @@ unlock:
 out:
 	switch (ret) {
 	case -EIO:
+		/* If this -EIO is due to a gpu hang, give the reset code a
+		 * chance to clean up the mess. Otherwise return the proper
+		 * SIGBUS. */
+		if (!atomic_read(&dev_priv->mm.wedged))
+			return VM_FAULT_SIGBUS;
 	case -EAGAIN:
 		/* Give the error handler a chance to run and move the
 		 * objects off the GPU active list. Next time we service the
