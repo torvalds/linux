@@ -442,14 +442,13 @@ xfs_ialloc_next_ag(
  * Select an allocation group to look for a free inode in, based on the parent
  * inode and then mode.  Return the allocation group buffer.
  */
-STATIC xfs_buf_t *			/* allocation group buffer */
+STATIC xfs_agnumber_t
 xfs_ialloc_ag_select(
 	xfs_trans_t	*tp,		/* transaction pointer */
 	xfs_ino_t	parent,		/* parent directory inode number */
 	umode_t		mode,		/* bits set to indicate file type */
 	int		okalloc)	/* ok to allocate more space */
 {
-	xfs_buf_t	*agbp;		/* allocation group header buffer */
 	xfs_agnumber_t	agcount;	/* number of ag's in the filesystem */
 	xfs_agnumber_t	agno;		/* current ag number */
 	int		flags;		/* alloc buffer locking flags */
@@ -459,6 +458,7 @@ xfs_ialloc_ag_select(
 	int		needspace;	/* file mode implies space allocated */
 	xfs_perag_t	*pag;		/* per allocation group data */
 	xfs_agnumber_t	pagno;		/* parent (starting) ag number */
+	int		error;
 
 	/*
 	 * Files of these types need at least one block if length > 0
@@ -474,7 +474,9 @@ xfs_ialloc_ag_select(
 		if (pagno >= agcount)
 			pagno = 0;
 	}
+
 	ASSERT(pagno < agcount);
+
 	/*
 	 * Loop through allocation groups, looking for one with a little
 	 * free space in it.  Note we don't look for free inodes, exactly.
@@ -486,51 +488,45 @@ xfs_ialloc_ag_select(
 	flags = XFS_ALLOC_FLAG_TRYLOCK;
 	for (;;) {
 		pag = xfs_perag_get(mp, agno);
-		if (!pag->pagi_init) {
-			if (xfs_ialloc_read_agi(mp, tp, agno, &agbp)) {
-				agbp = NULL;
-				goto nextag;
-			}
-		} else
-			agbp = NULL;
-
 		if (!pag->pagi_inodeok) {
 			xfs_ialloc_next_ag(mp);
-			goto unlock_nextag;
+			goto nextag;
+		}
+
+		if (!pag->pagi_init) {
+			error = xfs_ialloc_pagi_init(mp, tp, agno);
+			if (error)
+				goto nextag;
+		}
+
+		if (pag->pagi_freecount) {
+			xfs_perag_put(pag);
+			return agno;
+		}
+
+		if (!okalloc)
+			goto nextag;
+
+		if (!pag->pagf_init) {
+			error = xfs_alloc_pagf_init(mp, tp, agno, flags);
+			if (error)
+				goto nextag;
 		}
 
 		/*
-		 * Is there enough free space for the file plus a block
-		 * of inodes (if we need to allocate some)?
+		 * Is there enough free space for the file plus a block of
+		 * inodes? (if we need to allocate some)?
 		 */
-		ineed = pag->pagi_freecount ? 0 : XFS_IALLOC_BLOCKS(mp);
-		if (ineed && !pag->pagf_init) {
-			if (agbp == NULL &&
-			    xfs_ialloc_read_agi(mp, tp, agno, &agbp)) {
-				agbp = NULL;
-				goto nextag;
-			}
-			(void)xfs_alloc_pagf_init(mp, tp, agno, flags);
+		ineed = XFS_IALLOC_BLOCKS(mp);
+		longest = pag->pagf_longest;
+		if (!longest)
+			longest = pag->pagf_flcount > 0;
+
+		if (pag->pagf_freeblks >= needspace + ineed &&
+		    longest >= ineed) {
+			xfs_perag_put(pag);
+			return agno;
 		}
-		if (!ineed || pag->pagf_init) {
-			if (ineed && !(longest = pag->pagf_longest))
-				longest = pag->pagf_flcount > 0;
-			if (!ineed ||
-			    (pag->pagf_freeblks >= needspace + ineed &&
-			     longest >= ineed &&
-			     okalloc)) {
-				if (agbp == NULL &&
-				    xfs_ialloc_read_agi(mp, tp, agno, &agbp)) {
-					agbp = NULL;
-					goto nextag;
-				}
-				xfs_perag_put(pag);
-				return agbp;
-			}
-		}
-unlock_nextag:
-		if (agbp)
-			xfs_trans_brelse(tp, agbp);
 nextag:
 		xfs_perag_put(pag);
 		/*
@@ -538,13 +534,13 @@ nextag:
 		 * down.
 		 */
 		if (XFS_FORCED_SHUTDOWN(mp))
-			return NULL;
+			return NULLAGNUMBER;
 		agno++;
 		if (agno >= agcount)
 			agno = 0;
 		if (agno == pagno) {
 			if (flags == 0)
-				return NULL;
+				return NULLAGNUMBER;
 			flags = 0;
 		}
 	}
@@ -901,13 +897,13 @@ xfs_dialloc(
 	struct xfs_buf		**IO_agbp,
 	xfs_ino_t		*inop)
 {
+	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_buf		*agbp;
 	xfs_agnumber_t		agno;
 	struct xfs_agi		*agi;
 	int			error;
 	int			ialloced;
 	int			noroom = 0;
-	struct xfs_mount	*mp;
 	xfs_agnumber_t		tagno;
 	struct xfs_perag	*pag;
 
@@ -925,20 +921,17 @@ xfs_dialloc(
 	 * We do not have an agbp, so select an initial allocation
 	 * group for inode allocation.
 	 */
-	agbp = xfs_ialloc_ag_select(tp, parent, mode, okalloc);
-
-	/*
-	 * Couldn't find an allocation group satisfying the
-	 * criteria, give up.
-	 */
-	if (!agbp) {
+	agno = xfs_ialloc_ag_select(tp, parent, mode, okalloc);
+	if (agno == NULLAGNUMBER) {
 		*inop = NULLFSINO;
 		return 0;
 	}
+
+	error = xfs_ialloc_read_agi(mp, tp, agno, &agbp);
+	if (error)
+		return XFS_ERROR(error);
 	agi = XFS_BUF_TO_AGI(agbp);
 
-	mp = tp->t_mountp;
-	agno = be32_to_cpu(agi->agi_seqno);
 	tagno = agno;
 
 	/*
