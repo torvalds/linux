@@ -27,22 +27,6 @@ config MTD_UBI_WL_THRESHOLD
 	  life-cycle less than 10000, the threshold should be lessened (e.g.,
 	  to 128 or 256, although it does not have to be power of 2).
 
-config MTD_UBI_BEB_RESERVE
-	int "Percentage of reserved eraseblocks for bad eraseblocks handling"
-	default 2
-	range 0 25
-	help
-	  If the MTD device admits of bad eraseblocks (e.g. NAND flash), UBI
-	  reserves some amount of physical eraseblocks to handle new bad
-	  eraseblocks. When a physical eraseblock becomes bad, UBI uses these
-	  reserved physical eraseblocks to relocate the bad one. This
-	  configuration option specifies how many physical eraseblocks will be
-	  reserved for bad eraseblock handling (percents of total number of
-	  good physical eraseblocks on this MTD partition). If the underlying
-	  flash does not admit of bad eraseblocks (e.g. NOR flash), this value
-	  is ignored and nothing is reserved. Leave the default value if
-	  unsure.
-
 config MTD_UBI_BEB_LIMIT
 	int "Percentage of maximum expected bad eraseblocks"
 	default 2
