@@ -294,6 +294,24 @@ extern bool falcon_xmac_check_fault(struct efx_nic *efx);
 extern int falcon_reconfigure_xmac(struct efx_nic *efx);
 extern void falcon_update_stats_xmac(struct efx_nic *efx);
 
+/* Some statistics are computed as A - B where A and B each increase
+ * linearly with some hardware counter(s) and the counters are read
+ * asynchronously.  If the counters contributing to B are always read
+ * after those contributing to A, the computed value may be lower than
+ * the true value by some variable amount, and may decrease between
+ * subsequent computations.
+ *
+ * We should never allow statistics to decrease or to exceed the true
+ * value.  Since the computed value will never be greater than the
+ * true value, we can achieve this by only storing the computed value
+ * when it increases.
+ */
+static inline void efx_update_diff_stat(u64 *stat, u64 diff)
+{
+	if ((s64)(diff - *stat) > 0)
+		*stat = diff;
+}
+
 /* Interrupts and test events */
 extern int efx_nic_init_interrupt(struct efx_nic *efx);
 extern void efx_nic_enable_interrupts(struct efx_nic *efx);

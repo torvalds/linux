@@ -458,8 +458,8 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 
 	MAC_STAT(tx_bytes, TX_BYTES);
 	MAC_STAT(tx_bad_bytes, TX_BAD_BYTES);
-	mac_stats->tx_good_bytes = (mac_stats->tx_bytes -
-				    mac_stats->tx_bad_bytes);
+	efx_update_diff_stat(&mac_stats->tx_good_bytes,
+			     mac_stats->tx_bytes - mac_stats->tx_bad_bytes);
 	MAC_STAT(tx_packets, TX_PKTS);
 	MAC_STAT(tx_bad, TX_BAD_FCS_PKTS);
 	MAC_STAT(tx_pause, TX_PAUSE_PKTS);
@@ -492,8 +492,8 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 	MAC_STAT(tx_ip_src_error, TX_IP_SRC_ERR_PKTS);
 	MAC_STAT(rx_bytes, RX_BYTES);
 	MAC_STAT(rx_bad_bytes, RX_BAD_BYTES);
-	mac_stats->rx_good_bytes = (mac_stats->rx_bytes -
-				    mac_stats->rx_bad_bytes);
+	efx_update_diff_stat(&mac_stats->rx_good_bytes,
+			     mac_stats->rx_bytes - mac_stats->rx_bad_bytes);
 	MAC_STAT(rx_packets, RX_PKTS);
 	MAC_STAT(rx_good, RX_GOOD_PKTS);
 	MAC_STAT(rx_bad, RX_BAD_FCS_PKTS);
