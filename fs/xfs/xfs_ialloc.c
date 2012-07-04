@@ -634,6 +634,10 @@ xfs_dialloc_ag(
 
 	pag = xfs_perag_get(mp, agno);
 
+	ASSERT(pag->pagi_init);
+	ASSERT(pag->pagi_inodeok);
+	ASSERT(pag->pagi_freecount > 0);
+
  restart_pagno:
 	cur = xfs_inobt_init_cursor(mp, tp, agbp, agno);
 	/*
@@ -907,32 +911,32 @@ xfs_dialloc(
 	xfs_agnumber_t		tagno;
 	struct xfs_perag	*pag;
 
-	if (*IO_agbp == NULL) {
+	if (*IO_agbp) {
 		/*
-		 * We do not have an agbp, so select an initial allocation
-		 * group for inode allocation.
-		 */
-		agbp = xfs_ialloc_ag_select(tp, parent, mode, okalloc);
-		/*
-		 * Couldn't find an allocation group satisfying the
-		 * criteria, give up.
-		 */
-		if (!agbp) {
-			*inop = NULLFSINO;
-			return 0;
-		}
-		agi = XFS_BUF_TO_AGI(agbp);
-		ASSERT(agi->agi_magicnum == cpu_to_be32(XFS_AGI_MAGIC));
-	} else {
-		/*
-		 * Continue where we left off before.  In this case, we
+		 * If the caller passes in a pointer to the AGI buffer,
+		 * continue where we left off before.  In this case, we
 		 * know that the allocation group has free inodes.
 		 */
 		agbp = *IO_agbp;
-		agi = XFS_BUF_TO_AGI(agbp);
-		ASSERT(agi->agi_magicnum == cpu_to_be32(XFS_AGI_MAGIC));
-		ASSERT(be32_to_cpu(agi->agi_freecount) > 0);
+		goto out_alloc;
 	}
+
+	/*
+	 * We do not have an agbp, so select an initial allocation
+	 * group for inode allocation.
+	 */
+	agbp = xfs_ialloc_ag_select(tp, parent, mode, okalloc);
+
+	/*
+	 * Couldn't find an allocation group satisfying the
+	 * criteria, give up.
+	 */
+	if (!agbp) {
+		*inop = NULLFSINO;
+		return 0;
+	}
+	agi = XFS_BUF_TO_AGI(agbp);
+
 	mp = tp->t_mountp;
 	agno = be32_to_cpu(agi->agi_seqno);
 	tagno = agno;
@@ -1012,6 +1016,7 @@ nextag:
 		ASSERT(agi->agi_magicnum == cpu_to_be32(XFS_AGI_MAGIC));
 	}
 
+out_alloc:
 	*IO_agbp = NULL;
 	return xfs_dialloc_ag(tp, agbp, parent, inop);
 }
