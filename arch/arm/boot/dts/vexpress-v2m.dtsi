@@ -156,6 +156,7 @@
 			v2m_timer23: timer@12000 {
 				compatible = "arm,sp804", "arm,primecell";
 				reg = <0x12000 0x1000>;
+				interrupts = <3>;
 			};
 
 			/* DVI I2C bus */
