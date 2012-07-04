@@ -609,13 +609,6 @@ xfs_ialloc_get_rec(
 /*
  * Visible inode allocation functions.
  */
-/*
- * Find a free (set) bit in the inode bitmask.
- */
-static inline int xfs_ialloc_find_free(xfs_inofree_t *fp)
-{
-	return xfs_lowbit64(*fp);
-}
 
 /*
  * Allocate an inode on disk.
@@ -995,7 +988,7 @@ newino:
 	}
 
 alloc_inode:
-	offset = xfs_ialloc_find_free(&rec.ir_free);
+	offset = xfs_lowbit64(rec.ir_free);
 	ASSERT(offset >= 0);
 	ASSERT(offset < XFS_INODES_PER_CHUNK);
 	ASSERT((XFS_AGINO_TO_OFFSET(mp, rec.ir_startino) %
