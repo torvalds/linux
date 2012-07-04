@@ -31,7 +31,7 @@
 #include "nouveau_connector.h"
 #include "nouveau_fb.h"
 #include "nouveau_fbcon.h"
-#include "nouveau_ramht.h"
+#include <core/ramht.h>
 #include "nouveau_software.h"
 #include "drm_crtc_helper.h"
 

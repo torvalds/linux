@@ -61,12 +61,12 @@ nouveau_fpriv(struct drm_file *file_priv)
 
 #include "nouveau_drm.h"
 #include "nouveau_reg.h"
-#include "nouveau_bios.h"
+#include <nouveau_bios.h>
 #include "nouveau_util.h"
 
 struct nouveau_grctx;
 struct nouveau_mem;
-#include "nouveau_vm.h"
+#include <subdev/vm.h>
 
 #define MAX_NUM_DCB_ENTRIES 16
 
@@ -1606,6 +1606,18 @@ nv44_graph_class(struct drm_device *dev)
 
 	return !(0x0baf & (1 << (dev_priv->chipset & 0x0f)));
 }
+
+int  nv50_vram_init(struct drm_device *);
+void nv50_vram_fini(struct drm_device *);
+int  nv50_vram_new(struct drm_device *, u64 size, u32 align, u32 size_nc,
+		    u32 memtype, struct nouveau_mem **);
+void nv50_vram_del(struct drm_device *, struct nouveau_mem **);
+bool nv50_vram_flags_valid(struct drm_device *, u32 tile_flags);
+
+int  nvc0_vram_init(struct drm_device *);
+int  nvc0_vram_new(struct drm_device *, u64 size, u32 align, u32 ncmin,
+		    u32 memtype, struct nouveau_mem **);
+bool nvc0_vram_flags_valid(struct drm_device *, u32 tile_flags);
 
 /* memory type/access flags, do not match hardware values */
 #define NV_MEM_ACCESS_RO  1

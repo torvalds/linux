@@ -25,9 +25,9 @@
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
-#include "nouveau_ramht.h"
+#include <core/ramht.h>
 #include "nouveau_fbcon.h"
-#include "nouveau_mm.h"
+#include <core/mm.h>
 
 int
 nv50_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)

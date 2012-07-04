@@ -26,7 +26,7 @@
 
 #include "nouveau_drv.h"
 #include "nouveau_pm.h"
-#include "nouveau_gpio.h"
+#include <subdev/gpio.h>
 
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>

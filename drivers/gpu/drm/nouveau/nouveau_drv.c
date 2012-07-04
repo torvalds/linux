@@ -34,7 +34,7 @@
 #include "nouveau_fb.h"
 #include "nouveau_fbcon.h"
 #include "nouveau_pm.h"
-#include "nouveau_fifo.h"
+#include <engine/fifo.h>
 #include "nv50_display.h"
 
 #include "drm_pciids.h"

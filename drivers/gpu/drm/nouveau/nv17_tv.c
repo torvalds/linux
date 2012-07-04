@@ -30,7 +30,7 @@
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
 #include "nouveau_crtc.h"
-#include "nouveau_gpio.h"
+#include <subdev/gpio.h>
 #include "nouveau_hw.h"
 #include "nv17_tv.h"
 

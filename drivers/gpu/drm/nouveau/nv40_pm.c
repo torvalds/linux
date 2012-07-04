@@ -24,10 +24,10 @@
 
 #include "drmP.h"
 #include "nouveau_drv.h"
-#include "nouveau_bios.h"
+#include <nouveau_bios.h>
 #include "nouveau_pm.h"
 #include "nouveau_hw.h"
-#include "nouveau_fifo.h"
+#include <engine/fifo.h>
 
 #define min2(a,b) ((a) < (b) ? (a) : (b))
 

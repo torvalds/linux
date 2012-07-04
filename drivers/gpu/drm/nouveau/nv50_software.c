@@ -25,7 +25,7 @@
 #include "drmP.h"
 
 #include "nouveau_drv.h"
-#include "nouveau_ramht.h"
+#include <core/ramht.h>
 #include "nouveau_software.h"
 
 #include "nv50_display.h"

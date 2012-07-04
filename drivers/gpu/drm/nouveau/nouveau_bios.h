@@ -25,7 +25,7 @@
 #define __NOUVEAU_BIOS_H__
 
 #include "nvreg.h"
-#include "nouveau_i2c.h"
+#include <subdev/i2c.h>
 
 #define DCB_MAX_NUM_ENTRIES 16
 #define DCB_MAX_NUM_I2C_ENTRIES 16

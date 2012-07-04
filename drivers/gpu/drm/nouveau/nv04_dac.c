@@ -32,7 +32,7 @@
 #include "nouveau_connector.h"
 #include "nouveau_crtc.h"
 #include "nouveau_hw.h"
-#include "nouveau_gpio.h"
+#include <subdev/gpio.h>
 #include "nvreg.h"
 
 int nv04_dac_output_offset(struct drm_encoder *encoder)

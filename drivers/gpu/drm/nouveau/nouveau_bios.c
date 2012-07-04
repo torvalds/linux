@@ -27,7 +27,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_hw.h"
 #include "nouveau_encoder.h"
-#include "nouveau_gpio.h"
+#include <subdev/gpio.h>
 
 #include <linux/io-mapping.h>
 #include <linux/firmware.h>

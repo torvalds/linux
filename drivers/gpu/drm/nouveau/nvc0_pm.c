@@ -24,7 +24,7 @@
 
 #include "drmP.h"
 #include "nouveau_drv.h"
-#include "nouveau_bios.h"
+#include <nouveau_bios.h>
 #include "nouveau_pm.h"
 
 static u32 read_div(struct drm_device *, int, u32, u32);

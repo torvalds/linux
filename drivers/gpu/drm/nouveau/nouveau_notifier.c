@@ -28,7 +28,7 @@
 #include "drmP.h"
 #include "drm.h"
 #include "nouveau_drv.h"
-#include "nouveau_ramht.h"
+#include <core/ramht.h>
 
 int
 nouveau_notifier_init_channel(struct nouveau_channel *chan)

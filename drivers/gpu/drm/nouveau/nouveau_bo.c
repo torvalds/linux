@@ -33,10 +33,10 @@
 #include "nouveau_drm.h"
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
-#include "nouveau_mm.h"
-#include "nouveau_vm.h"
+#include <core/mm.h>
+#include <subdev/vm.h>
 #include "nouveau_fence.h"
-#include "nouveau_ramht.h"
+#include <core/ramht.h>
 
 #include <linux/log2.h>
 #include <linux/slab.h>

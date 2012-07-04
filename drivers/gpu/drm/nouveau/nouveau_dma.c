@@ -28,7 +28,7 @@
 #include "drm.h"
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
-#include "nouveau_ramht.h"
+#include <core/ramht.h>
 
 void
 nouveau_dma_init(struct nouveau_channel *chan)

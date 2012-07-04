@@ -25,11 +25,11 @@
 #include "drmP.h"
 
 #include "nouveau_drv.h"
-#include "nouveau_i2c.h"
+#include <subdev/i2c.h>
 #include "nouveau_connector.h"
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
-#include "nouveau_gpio.h"
+#include <subdev/gpio.h>
 
 /******************************************************************************
  * aux channel util functions

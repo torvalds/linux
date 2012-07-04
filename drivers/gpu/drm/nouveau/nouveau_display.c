@@ -34,7 +34,7 @@
 #include "nouveau_dma.h"
 #include "nouveau_connector.h"
 #include "nouveau_software.h"
-#include "nouveau_gpio.h"
+#include <subdev/gpio.h>
 #include "nouveau_fence.h"
 #include "nv50_display.h"
 

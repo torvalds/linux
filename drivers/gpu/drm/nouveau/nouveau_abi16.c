@@ -26,7 +26,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_abi16.h"
-#include "nouveau_ramht.h"
+#include <core/ramht.h>
 #include "nouveau_software.h"
 
 int

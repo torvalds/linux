@@ -26,7 +26,7 @@
 
 #include "nouveau_drv.h"
 #include "nouveau_pm.h"
-#include "nouveau_gpio.h"
+#include <subdev/gpio.h>
 
 static const enum dcb_gpio_tag vidtag[] = { 0x04, 0x05, 0x06, 0x1a, 0x73 };
 static int nr_vidtag = sizeof(vidtag) / sizeof(vidtag[0]);
