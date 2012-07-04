@@ -6734,11 +6734,82 @@ static void intel_set_config_free(struct intel_set_config *config)
 	kfree(config);
 }
 
+static int intel_set_config_save_state(struct drm_device *dev,
+				       struct intel_set_config *config)
+{
+	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
+	int count;
+
+	/* Allocate space for the backup of all (non-pointer) crtc, encoder and
+	 * connector data. */
+	config->save_crtcs = kzalloc(dev->mode_config.num_crtc *
+				     sizeof(struct drm_crtc), GFP_KERNEL);
+	if (!config->save_crtcs)
+		return -ENOMEM;
+
+	config->save_encoders = kzalloc(dev->mode_config.num_encoder *
+					sizeof(struct drm_encoder), GFP_KERNEL);
+	if (!config->save_encoders)
+		return -ENOMEM;
+
+	config->save_connectors = kzalloc(dev->mode_config.num_connector *
+					  sizeof(struct drm_connector), GFP_KERNEL);
+	if (!config->save_connectors)
+		return -ENOMEM;
+
+	/* Copy data. Note that driver private data is not affected.
+	 * Should anything bad happen only the expected state is
+	 * restored, not the drivers personal bookkeeping.
+	 */
+	count = 0;
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		config->save_crtcs[count++] = *crtc;
+	}
+
+	count = 0;
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		config->save_encoders[count++] = *encoder;
+	}
+
+	count = 0;
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		config->save_connectors[count++] = *connector;
+	}
+
+	return 0;
+}
+
+static void intel_set_config_restore_state(struct drm_device *dev,
+					   struct intel_set_config *config)
+{
+	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
+	int count;
+
+	count = 0;
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		*crtc = config->save_crtcs[count++];
+	}
+
+	count = 0;
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		*encoder = config->save_encoders[count++];
+	}
+
+	count = 0;
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		*connector = config->save_connectors[count++];
+	}
+}
+
 static int intel_crtc_set_config(struct drm_mode_set *set)
 {
 	struct drm_device *dev;
-	struct drm_crtc *new_crtc, *crtc;
-	struct drm_encoder *new_encoder, *encoder;
+	struct drm_crtc *new_crtc;
+	struct drm_encoder *new_encoder;
 	struct drm_framebuffer *old_fb = NULL;
 	bool mode_changed = false; /* if true do a full mode set */
 	bool fb_changed = false; /* if true and !mode_changed just do a flip */
@@ -6779,41 +6850,9 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	if (!config)
 		goto out_config;
 
-	/* Allocate space for the backup of all (non-pointer) crtc, encoder and
-	 * connector data. */
-	config->save_crtcs = kzalloc(dev->mode_config.num_crtc *
-				     sizeof(struct drm_crtc), GFP_KERNEL);
-	if (!config->save_crtcs)
+	ret = intel_set_config_save_state(dev, config);
+	if (ret)
 		goto out_config;
-
-	config->save_encoders = kzalloc(dev->mode_config.num_encoder *
-					sizeof(struct drm_encoder), GFP_KERNEL);
-	if (!config->save_encoders)
-		goto out_config;
-
-	config->save_connectors = kzalloc(dev->mode_config.num_connector *
-					  sizeof(struct drm_connector), GFP_KERNEL);
-	if (!config->save_connectors)
-		goto out_config;
-
-	/* Copy data. Note that driver private data is not affected.
-	 * Should anything bad happen only the expected state is
-	 * restored, not the drivers personal bookkeeping.
-	 */
-	count = 0;
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		config->save_crtcs[count++] = *crtc;
-	}
-
-	count = 0;
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		config->save_encoders[count++] = *encoder;
-	}
-
-	count = 0;
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		config->save_connectors[count++] = *connector;
-	}
 
 	save_set.crtc = set->crtc;
 	save_set.mode = &set->crtc->mode;
@@ -6953,21 +6992,7 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	return 0;
 
 fail:
-	/* Restore all previous data. */
-	count = 0;
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		*crtc = config->save_crtcs[count++];
-	}
-
-	count = 0;
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		*encoder = config->save_encoders[count++];
-	}
-
-	count = 0;
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		*connector = config->save_connectors[count++];
-	}
+	intel_set_config_restore_state(dev, config);
 
 	/* Try to restore the config */
 	if (mode_changed &&
