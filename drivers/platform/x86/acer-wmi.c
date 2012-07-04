@@ -1833,7 +1833,7 @@ static int __init acer_wmi_get_handle(const char *name, const char *prop,
 
 	BUG_ON(!name || !ah);
 
-	handle = 0;
+	handle = NULL;
 	status = acpi_get_devices(prop, acer_wmi_get_handle_cb,
 					(void *)name, &handle);
 
