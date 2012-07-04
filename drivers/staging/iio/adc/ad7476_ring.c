@@ -31,7 +31,7 @@ static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 
 	rxbuf = kzalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (rxbuf == NULL)
-		return -ENOMEM;
+		goto done;
 
 	b_sent = spi_read(st->spi, rxbuf,
 			  st->chip_info->channel[0].scan_type.storagebits / 8);
