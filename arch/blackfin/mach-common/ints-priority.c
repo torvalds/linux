@@ -26,6 +26,7 @@
 #include <asm/gpio.h>
 #include <asm/irq_handler.h>
 #include <asm/dpmc.h>
+#include <asm/traps.h>
 
 #ifndef SEC_GCTL
 # define SIC_SYSIRQ(irq)	(irq - (IRQ_CORETMR + 1))
@@ -413,6 +414,34 @@ void handle_sec_fault(unsigned int irq, struct irq_desc *desc)
 	raw_spin_unlock(&desc->lock);
 }
 
+void handle_core_fault(unsigned int irq, struct irq_desc *desc)
+{
+	struct pt_regs *fp = get_irq_regs();
+
+	raw_spin_lock(&desc->lock);
+
+	switch (irq) {
+	case IRQ_C0_DBL_FAULT:
+		double_fault_c(fp);
+		break;
+	case IRQ_C0_HW_ERR:
+		dump_bfin_process(fp);
+		dump_bfin_mem(fp);
+		show_regs(fp);
+		printk(KERN_NOTICE "Kernel Stack\n");
+		show_stack(current, NULL);
+		print_modules();
+		panic("Kernel core hardware error");
+		break;
+	case IRQ_C0_NMI_L1_PARITY_ERR:
+		panic("NMI %d occurs unexpectedly");
+		break;
+	default:
+		panic("Core 1 fault %d occurs unexpectedly");
+	}
+
+	raw_spin_unlock(&desc->lock);
+}
 #endif
 
 #ifdef CONFIG_SMP
@@ -1522,9 +1551,12 @@ int __init init_arch_irq(void)
 		} else if (irq < BFIN_IRQ(0)) {
 			irq_set_chip_and_handler(irq, &bfin_internal_irqchip,
 					handle_simple_irq);
-		} else if (irq < CORE_IRQS && irq != IRQ_CGU_EVT) {
+		} else if (irq == IRQ_SEC_ERR) {
 			irq_set_chip_and_handler(irq, &bfin_sec_irqchip,
 					handle_sec_fault);
+		} else if (irq < CORE_IRQS && irq >= IRQ_C0_DBL_FAULT) {
+			irq_set_chip_and_handler(irq, &bfin_sec_irqchip,
+					handle_core_fault);
 		} else if (irq >= BFIN_IRQ(21) && irq <= BFIN_IRQ(26)) {
 			irq_set_chip(irq, &bfin_sec_irqchip);
 			irq_set_chained_handler(irq, bfin_demux_gpio_irq);
