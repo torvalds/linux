@@ -21,6 +21,7 @@ enum {
 	SAVU_SIZE_BUTTONS = 0x2f,
 	SAVU_SIZE_MACRO = 0x0823,
 	SAVU_SIZE_INFO = 0x08,
+	SAVU_SIZE_SENSOR = 0x04,
 };
 
 enum savu_control_requests {
@@ -35,6 +36,7 @@ enum savu_commands {
 	SAVU_COMMAND_BUTTONS = 0x7,
 	SAVU_COMMAND_MACRO = 0x8,
 	SAVU_COMMAND_INFO = 0x9,
+	SAVU_COMMAND_SENSOR = 0xc,
 };
 
 struct savu_mouse_report_special {

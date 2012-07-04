@@ -121,6 +121,7 @@ SAVU_SYSFS_RW(general, GENERAL)
 SAVU_SYSFS_RW(buttons, BUTTONS)
 SAVU_SYSFS_RW(macro, MACRO)
 SAVU_SYSFS_R(info, INFO)
+SAVU_SYSFS_RW(sensor, SENSOR)
 
 static struct bin_attribute savu_bin_attributes[] = {
 	SAVU_BIN_ATTRIBUTE_W(control, CONTROL),
@@ -129,6 +130,7 @@ static struct bin_attribute savu_bin_attributes[] = {
 	SAVU_BIN_ATTRIBUTE_RW(buttons, BUTTONS),
 	SAVU_BIN_ATTRIBUTE_RW(macro, MACRO),
 	SAVU_BIN_ATTRIBUTE_R(info, INFO),
+	SAVU_BIN_ATTRIBUTE_RW(sensor, SENSOR),
 	__ATTR_NULL
 };
 

@@ -66,3 +66,12 @@ Description:	The mouse can store 5 profiles which can be switched by the
 		The data has to be 3 bytes long.
 		The mouse will reject invalid data.
 Users:		http://roccat.sourceforge.net
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/savu/roccatsavu<minor>/sensor
+Date:		July 2012
+Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
+Description:	The mouse has a Avago ADNS-3090 sensor.
+		This file allows reading and writing of the mouse sensors registers.
+		The data has to be 4 bytes long.
+Users:		http://roccat.sourceforge.net
+
