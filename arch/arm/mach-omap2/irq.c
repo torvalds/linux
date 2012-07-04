@@ -280,7 +280,7 @@ int __init omap_intc_of_init(struct device_node *node,
 	return 0;
 }
 
-#ifdef CONFIG_ARCH_OMAP3
+#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_SOC_AM33XX)
 static struct omap3_intc_regs intc_context[ARRAY_SIZE(irq_banks)];
 
 void omap_intc_save_context(void)

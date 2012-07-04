@@ -25,10 +25,11 @@
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/clkdev_omap.h>
+#include <plat/board.h>
 #include <plat/sram.h>	/* for omap_sram_reprogram_clock() */
-#include <plat/usb.h>   /* for OTG_BASE */
 
 #include <mach/hardware.h>
+#include <mach/usb.h>   /* for OTG_BASE */
 
 #include "iomap.h"
 #include "clock.h"
