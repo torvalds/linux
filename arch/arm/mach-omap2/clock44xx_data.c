@@ -3417,9 +3417,12 @@ int __init omap4xxx_clk_init(void)
 	if (cpu_is_omap443x()) {
 		cpu_mask = RATE_IN_4430;
 		cpu_clkflg = CK_443X;
-	} else if (cpu_is_omap446x()) {
+	} else if (cpu_is_omap446x() || cpu_is_omap447x()) {
 		cpu_mask = RATE_IN_4460 | RATE_IN_4430;
 		cpu_clkflg = CK_446X | CK_443X;
+
+		if (cpu_is_omap447x())
+			pr_warn("WARNING: OMAP4470 clock data incomplete!\n");
 	} else {
 		return 0;
 	}
