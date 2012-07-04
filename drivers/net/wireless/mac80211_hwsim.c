@@ -1082,6 +1082,8 @@ enum hwsim_testmode_attr {
 enum hwsim_testmode_cmd {
 	HWSIM_TM_CMD_SET_PS		= 0,
 	HWSIM_TM_CMD_GET_PS		= 1,
+	HWSIM_TM_CMD_STOP_QUEUES	= 2,
+	HWSIM_TM_CMD_WAKE_QUEUES	= 3,
 };
 
 static const struct nla_policy hwsim_testmode_policy[HWSIM_TM_ATTR_MAX + 1] = {
@@ -1121,6 +1123,12 @@ static int mac80211_hwsim_testmode_cmd(struct ieee80211_hw *hw,
 		if (nla_put_u32(skb, HWSIM_TM_ATTR_PS, hwsim->ps))
 			goto nla_put_failure;
 		return cfg80211_testmode_reply(skb);
+	case HWSIM_TM_CMD_STOP_QUEUES:
+		ieee80211_stop_queues(hw);
+		return 0;
+	case HWSIM_TM_CMD_WAKE_QUEUES:
+		ieee80211_wake_queues(hw);
+		return 0;
 	default:
 		return -EOPNOTSUPP;
 	}
