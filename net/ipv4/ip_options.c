@@ -242,6 +242,15 @@ void ip_options_fragment(struct sk_buff *skb)
 	opt->ts_needtime = 0;
 }
 
+/* helper used by ip_options_compile() to call fib_compute_spec_dst()
+ * at most one time.
+ */
+static void spec_dst_fill(__be32 *spec_dst, struct sk_buff *skb)
+{
+	if (*spec_dst == htonl(INADDR_ANY))
+		*spec_dst = fib_compute_spec_dst(skb);
+}
+
 /*
  * Verify options and fill pointers in struct options.
  * Caller should clear *opt, and set opt->data.
@@ -251,7 +260,7 @@ void ip_options_fragment(struct sk_buff *skb)
 int ip_options_compile(struct net *net,
 		       struct ip_options *opt, struct sk_buff *skb)
 {
-	__be32 spec_dst = (__force __be32) 0;
+	__be32 spec_dst = htonl(INADDR_ANY);
 	unsigned char *pp_ptr = NULL;
 	struct rtable *rt = NULL;
 	unsigned char *optptr;
@@ -260,8 +269,6 @@ int ip_options_compile(struct net *net,
 
 	if (skb != NULL) {
 		rt = skb_rtable(skb);
-		if (rt)
-			spec_dst = fib_compute_spec_dst(skb);
 		optptr = (unsigned char *)&(ip_hdr(skb)[1]);
 	} else
 		optptr = opt->__data;
@@ -334,6 +341,7 @@ int ip_options_compile(struct net *net,
 					goto error;
 				}
 				if (rt) {
+					spec_dst_fill(&spec_dst, skb);
 					memcpy(&optptr[optptr[2]-1], &spec_dst, 4);
 					opt->is_changed = 1;
 				}
@@ -376,6 +384,7 @@ int ip_options_compile(struct net *net,
 					}
 					opt->ts = optptr - iph;
 					if (rt)  {
+						spec_dst_fill(&spec_dst, skb);
 						memcpy(&optptr[optptr[2]-1], &spec_dst, 4);
 						timeptr = &optptr[optptr[2]+3];
 					}
