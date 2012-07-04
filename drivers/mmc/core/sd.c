@@ -517,15 +517,54 @@ static int sd_set_bus_speed_mode(struct mmc_card *card, u8 *status)
 	return 0;
 }
 
+/* Get host's max current setting at its current voltage */
+static u32 sd_get_host_max_current(struct mmc_host *host)
+{
+	u32 voltage, max_current;
+
+	voltage = 1 << host->ios.vdd;
+	switch (voltage) {
+	case MMC_VDD_165_195:
+		max_current = host->max_current_180;
+		break;
+	case MMC_VDD_29_30:
+	case MMC_VDD_30_31:
+		max_current = host->max_current_300;
+		break;
+	case MMC_VDD_32_33:
+	case MMC_VDD_33_34:
+		max_current = host->max_current_330;
+		break;
+	default:
+		max_current = 0;
+	}
+
+	return max_current;
+}
+
 static int sd_set_current_limit(struct mmc_card *card, u8 *status)
 {
 	int current_limit = SD_SET_CURRENT_NO_CHANGE;
 	int err;
+	u32 max_current;
 
 	/*
 	 * Current limit switch is only defined for SDR50, SDR104, and DDR50
 	 * bus speed modes. For other bus speed modes, we do not change the
 	 * current limit.
+	 */
+	if ((card->sd_bus_speed != UHS_SDR50_BUS_SPEED) &&
+	    (card->sd_bus_speed != UHS_SDR104_BUS_SPEED) &&
+	    (card->sd_bus_speed != UHS_DDR50_BUS_SPEED))
+		return 0;
+
+	/*
+	 * Host has different current capabilities when operating at
+	 * different voltages, so find out its max current first.
+	 */
+	max_current = sd_get_host_max_current(card->host);
+
+	/*
 	 * We only check host's capability here, if we set a limit that is
 	 * higher than the card's maximum current, the card will be using its
 	 * maximum current, e.g. if the card's maximum current is 300ma, and
@@ -533,18 +572,14 @@ static int sd_set_current_limit(struct mmc_card *card, u8 *status)
 	 * when we set current limit to 400/600/800ma, the card will draw its
 	 * maximum 300ma from the host.
 	 */
-	if ((card->sd_bus_speed == UHS_SDR50_BUS_SPEED) ||
-	    (card->sd_bus_speed == UHS_SDR104_BUS_SPEED) ||
-	    (card->sd_bus_speed == UHS_DDR50_BUS_SPEED)) {
-		if (card->host->caps & MMC_CAP_MAX_CURRENT_800)
-			current_limit = SD_SET_CURRENT_LIMIT_800;
-		else if (card->host->caps & MMC_CAP_MAX_CURRENT_600)
-			current_limit = SD_SET_CURRENT_LIMIT_600;
-		else if (card->host->caps & MMC_CAP_MAX_CURRENT_400)
-			current_limit = SD_SET_CURRENT_LIMIT_400;
-		else if (card->host->caps & MMC_CAP_MAX_CURRENT_200)
-			current_limit = SD_SET_CURRENT_LIMIT_200;
-	}
+	if (max_current >= 800)
+		current_limit = SD_SET_CURRENT_LIMIT_800;
+	else if (max_current >= 600)
+		current_limit = SD_SET_CURRENT_LIMIT_600;
+	else if (max_current >= 400)
+		current_limit = SD_SET_CURRENT_LIMIT_400;
+	else if (max_current >= 200)
+		current_limit = SD_SET_CURRENT_LIMIT_200;
 
 	if (current_limit != SD_SET_CURRENT_NO_CHANGE) {
 		err = mmc_sd_switch(card, 1, 3, current_limit, status);
@@ -677,6 +712,7 @@ struct device_type sd_type = {
 int mmc_sd_get_cid(struct mmc_host *host, u32 ocr, u32 *cid, u32 *rocr)
 {
 	int err;
+	u32 max_current;
 
 	/*
 	 * Since we're changing the OCR value, we seem to
@@ -704,9 +740,12 @@ int mmc_sd_get_cid(struct mmc_host *host, u32 ocr, u32 *cid, u32 *rocr)
 	    MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR104 | MMC_CAP_UHS_DDR50))
 		ocr |= SD_OCR_S18R;
 
-	/* If the host can supply more than 150mA, XPC should be set to 1. */
-	if (host->caps & (MMC_CAP_SET_XPC_330 | MMC_CAP_SET_XPC_300 |
-	    MMC_CAP_SET_XPC_180))
+	/*
+	 * If the host can supply more than 150mA at current voltage,
+	 * XPC should be set to 1.
+	 */
+	max_current = sd_get_host_max_current(host);
+	if (max_current > 150)
 		ocr |= SD_OCR_XPC;
 
 try_again:

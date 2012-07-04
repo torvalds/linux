@@ -2906,53 +2906,28 @@ int sdhci_add_host(struct sdhci_host *host)
 	}
 
 	if (caps[0] & SDHCI_CAN_VDD_330) {
-		int max_current_330;
-
 		ocr_avail |= MMC_VDD_32_33 | MMC_VDD_33_34;
 
-		max_current_330 = ((max_current_caps &
+		mmc->max_current_330 = ((max_current_caps &
 				   SDHCI_MAX_CURRENT_330_MASK) >>
 				   SDHCI_MAX_CURRENT_330_SHIFT) *
 				   SDHCI_MAX_CURRENT_MULTIPLIER;
-
-		if (max_current_330 > 150)
-			mmc->caps |= MMC_CAP_SET_XPC_330;
 	}
 	if (caps[0] & SDHCI_CAN_VDD_300) {
-		int max_current_300;
-
 		ocr_avail |= MMC_VDD_29_30 | MMC_VDD_30_31;
 
-		max_current_300 = ((max_current_caps &
+		mmc->max_current_300 = ((max_current_caps &
 				   SDHCI_MAX_CURRENT_300_MASK) >>
 				   SDHCI_MAX_CURRENT_300_SHIFT) *
 				   SDHCI_MAX_CURRENT_MULTIPLIER;
-
-		if (max_current_300 > 150)
-			mmc->caps |= MMC_CAP_SET_XPC_300;
 	}
 	if (caps[0] & SDHCI_CAN_VDD_180) {
-		int max_current_180;
-
 		ocr_avail |= MMC_VDD_165_195;
 
-		max_current_180 = ((max_current_caps &
+		mmc->max_current_180 = ((max_current_caps &
 				   SDHCI_MAX_CURRENT_180_MASK) >>
 				   SDHCI_MAX_CURRENT_180_SHIFT) *
 				   SDHCI_MAX_CURRENT_MULTIPLIER;
-
-		if (max_current_180 > 150)
-			mmc->caps |= MMC_CAP_SET_XPC_180;
-
-		/* Maximum current capabilities of the host at 1.8V */
-		if (max_current_180 >= 800)
-			mmc->caps |= MMC_CAP_MAX_CURRENT_800;
-		else if (max_current_180 >= 600)
-			mmc->caps |= MMC_CAP_MAX_CURRENT_600;
-		else if (max_current_180 >= 400)
-			mmc->caps |= MMC_CAP_MAX_CURRENT_400;
-		else if (max_current_180 >= 200)
-			mmc->caps |= MMC_CAP_MAX_CURRENT_200;
 	}
 
 	mmc->ocr_avail = ocr_avail;
