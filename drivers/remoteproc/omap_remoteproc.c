@@ -199,14 +199,14 @@ static int __devinit omap_rproc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rproc);
 
-	ret = rproc_register(rproc);
+	ret = rproc_add(rproc);
 	if (ret)
 		goto free_rproc;
 
 	return 0;
 
 free_rproc:
-	rproc_free(rproc);
+	rproc_put(rproc);
 	return ret;
 }
 
@@ -214,8 +214,8 @@ static int __devexit omap_rproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 
-	rproc_unregister(rproc);
-	rproc_free(rproc);
+	rproc_del(rproc);
+	rproc_put(rproc);
 
 	return 0;
 }

@@ -90,21 +90,21 @@ int dummy_rproc_example(struct rproc *my_rproc)
       This function should be used by rproc implementations during
       initialization of the remote processor.
       After creating an rproc handle using this function, and when ready,
-      implementations should then call rproc_register() to complete
+      implementations should then call rproc_add() to complete
       the registration of the remote processor.
       On success, the new rproc is returned, and on failure, NULL.
 
       Note: _never_ directly deallocate @rproc, even if it was not registered
-      yet. Instead, when you need to unroll rproc_alloc(), use rproc_free().
+      yet. Instead, when you need to unroll rproc_alloc(), use rproc_put().
 
-  void rproc_free(struct rproc *rproc)
+  void rproc_put(struct rproc *rproc)
     - Free an rproc handle that was allocated by rproc_alloc.
       This function essentially unrolls rproc_alloc(), by decrementing the
       rproc's refcount. It doesn't directly free rproc; that would happen
       only if there are no other references to rproc and its refcount now
       dropped to zero.
 
-  int rproc_register(struct rproc *rproc)
+  int rproc_add(struct rproc *rproc)
     - Register @rproc with the remoteproc framework, after it has been
       allocated with rproc_alloc().
       This is called by the platform-specific rproc implementation, whenever
@@ -117,15 +117,15 @@ int dummy_rproc_example(struct rproc *my_rproc)
       of registering this remote processor, additional virtio drivers might get
       probed.
 
-  int rproc_unregister(struct rproc *rproc)
-    - Unroll rproc_register().
+  int rproc_del(struct rproc *rproc)
+    - Unroll rproc_add().
       This function should be called when the platform specific rproc
       implementation decides to remove the rproc device. it should
-      _only_ be called if a previous invocation of rproc_register()
+      _only_ be called if a previous invocation of rproc_add()
       has completed successfully.
 
-      After rproc_unregister() returns, @rproc is still valid, and its
-      last refcount should be decremented by calling rproc_free().
+      After rproc_del() returns, @rproc is still valid, and its
+      last refcount should be decremented by calling rproc_put().
 
       Returns 0 on success and -EINVAL if @rproc isn't valid.
 

@@ -452,9 +452,9 @@ struct rproc_vdev {
 struct rproc *rproc_alloc(struct device *dev, const char *name,
 				const struct rproc_ops *ops,
 				const char *firmware, int len);
-void rproc_free(struct rproc *rproc);
-int rproc_register(struct rproc *rproc);
-int rproc_unregister(struct rproc *rproc);
+void rproc_put(struct rproc *rproc);
+int rproc_add(struct rproc *rproc);
+int rproc_del(struct rproc *rproc);
 
 int rproc_boot(struct rproc *rproc);
 void rproc_shutdown(struct rproc *rproc);

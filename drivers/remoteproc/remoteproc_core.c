@@ -1101,7 +1101,7 @@ static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 
 out:
 	release_firmware(fw);
-	/* allow rproc_unregister() contexts, if any, to proceed */
+	/* allow rproc_del() contexts, if any, to proceed */
 	complete_all(&rproc->firmware_loading_complete);
 }
 
@@ -1238,7 +1238,7 @@ out:
 EXPORT_SYMBOL(rproc_shutdown);
 
 /**
- * rproc_register() - register a remote processor
+ * rproc_add() - register a remote processor
  * @rproc: the remote processor handle to register
  *
  * Registers @rproc with the remoteproc framework, after it has been
@@ -1257,7 +1257,7 @@ EXPORT_SYMBOL(rproc_shutdown);
  * of registering this remote processor, additional virtio drivers might be
  * probed.
  */
-int rproc_register(struct rproc *rproc)
+int rproc_add(struct rproc *rproc)
 {
 	struct device *dev = &rproc->dev;
 	int ret = 0;
@@ -1274,7 +1274,7 @@ int rproc_register(struct rproc *rproc)
 	/* create debugfs entries */
 	rproc_create_debug_dir(rproc);
 
-	/* rproc_unregister() calls must wait until async loader completes */
+	/* rproc_del() calls must wait until async loader completes */
 	init_completion(&rproc->firmware_loading_complete);
 
 	/*
@@ -1295,7 +1295,7 @@ int rproc_register(struct rproc *rproc)
 
 	return ret;
 }
-EXPORT_SYMBOL(rproc_register);
+EXPORT_SYMBOL(rproc_add);
 
 /**
  * rproc_type_release() - release a remote processor instance
@@ -1343,13 +1343,13 @@ static struct device_type rproc_type = {
  * of the remote processor.
  *
  * After creating an rproc handle using this function, and when ready,
- * implementations should then call rproc_register() to complete
+ * implementations should then call rproc_add() to complete
  * the registration of the remote processor.
  *
  * On success the new rproc is returned, and on failure, NULL.
  *
  * Note: _never_ directly deallocate @rproc, even if it was not registered
- * yet. Instead, when you need to unroll rproc_alloc(), use rproc_free().
+ * yet. Instead, when you need to unroll rproc_alloc(), use rproc_put().
  */
 struct rproc *rproc_alloc(struct device *dev, const char *name,
 				const struct rproc_ops *ops,
@@ -1403,7 +1403,7 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 EXPORT_SYMBOL(rproc_alloc);
 
 /**
- * rproc_free() - unroll rproc_alloc()
+ * rproc_put() - unroll rproc_alloc()
  * @rproc: the remote processor handle
  *
  * This function decrements the rproc dev refcount.
@@ -1411,28 +1411,28 @@ EXPORT_SYMBOL(rproc_alloc);
  * If no one holds any reference to rproc anymore, then its refcount would
  * now drop to zero, and it would be freed.
  */
-void rproc_free(struct rproc *rproc)
+void rproc_put(struct rproc *rproc)
 {
 	put_device(&rproc->dev);
 }
-EXPORT_SYMBOL(rproc_free);
+EXPORT_SYMBOL(rproc_put);
 
 /**
- * rproc_unregister() - unregister a remote processor
+ * rproc_del() - unregister a remote processor
  * @rproc: rproc handle to unregister
  *
  * This function should be called when the platform specific rproc
  * implementation decides to remove the rproc device. it should
- * _only_ be called if a previous invocation of rproc_register()
+ * _only_ be called if a previous invocation of rproc_add()
  * has completed successfully.
  *
- * After rproc_unregister() returns, @rproc isn't freed yet, because
+ * After rproc_del() returns, @rproc isn't freed yet, because
  * of the outstanding reference created by rproc_alloc. To decrement that
- * one last refcount, one still needs to call rproc_free().
+ * one last refcount, one still needs to call rproc_put().
  *
  * Returns 0 on success and -EINVAL if @rproc isn't valid.
  */
-int rproc_unregister(struct rproc *rproc)
+int rproc_del(struct rproc *rproc)
 {
 	struct rproc_vdev *rvdev, *tmp;
 
@@ -1450,7 +1450,7 @@ int rproc_unregister(struct rproc *rproc)
 
 	return 0;
 }
-EXPORT_SYMBOL(rproc_unregister);
+EXPORT_SYMBOL(rproc_del);
 
 static int __init remoteproc_init(void)
 {
