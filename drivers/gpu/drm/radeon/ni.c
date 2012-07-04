@@ -987,10 +987,33 @@ static void cayman_cp_fini(struct radeon_device *rdev)
 
 int cayman_cp_resume(struct radeon_device *rdev)
 {
+	static const int ridx[] = {
+		RADEON_RING_TYPE_GFX_INDEX,
+		CAYMAN_RING_TYPE_CP1_INDEX,
+		CAYMAN_RING_TYPE_CP2_INDEX
+	};
+	static const unsigned cp_rb_cntl[] = {
+		CP_RB0_CNTL,
+		CP_RB1_CNTL,
+		CP_RB2_CNTL,
+	};
+	static const unsigned cp_rb_rptr_addr[] = {
+		CP_RB0_RPTR_ADDR,
+		CP_RB1_RPTR_ADDR,
+		CP_RB2_RPTR_ADDR
+	};
+	static const unsigned cp_rb_rptr_addr_hi[] = {
+		CP_RB0_RPTR_ADDR_HI,
+		CP_RB1_RPTR_ADDR_HI,
+		CP_RB2_RPTR_ADDR_HI
+	};
+	static const unsigned cp_rb_base[] = {
+		CP_RB0_BASE,
+		CP_RB1_BASE,
+		CP_RB2_BASE
+	};
 	struct radeon_ring *ring;
-	u32 tmp;
-	u32 rb_bufsz;
-	int r;
+	int i, r;
 
 	/* Reset cp; if cp is reset, then PA, SH, VGT also need to be reset */
 	WREG32(GRBM_SOFT_RESET, (SOFT_RESET_CP |
@@ -1012,91 +1035,47 @@ int cayman_cp_resume(struct radeon_device *rdev)
 
 	WREG32(CP_DEBUG, (1 << 27));
 
-	/* ring 0 - compute and gfx */
-	/* Set ring buffer size */
-	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
-	rb_bufsz = drm_order(ring->ring_size / 8);
-	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
-#ifdef __BIG_ENDIAN
-	tmp |= BUF_SWAP_32BIT;
-#endif
-	WREG32(CP_RB0_CNTL, tmp);
-
-	/* Initialize the ring buffer's read and write pointers */
-	WREG32(CP_RB0_CNTL, tmp | RB_RPTR_WR_ENA);
-	ring->wptr = 0;
-	WREG32(CP_RB0_WPTR, ring->wptr);
-
 	/* set the wb address wether it's enabled or not */
-	WREG32(CP_RB0_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFFFFFFFC);
-	WREG32(CP_RB0_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFF);
 	WREG32(SCRATCH_ADDR, ((rdev->wb.gpu_addr + RADEON_WB_SCRATCH_OFFSET) >> 8) & 0xFFFFFFFF);
+	WREG32(SCRATCH_UMSK, 0xff);
 
-	if (rdev->wb.enabled)
-		WREG32(SCRATCH_UMSK, 0xff);
-	else {
-		tmp |= RB_NO_UPDATE;
-		WREG32(SCRATCH_UMSK, 0);
+	for (i = 0; i < 3; ++i) {
+		uint32_t rb_cntl;
+		uint64_t addr;
+
+		/* Set ring buffer size */
+		ring = &rdev->ring[ridx[i]];
+		rb_cntl = drm_order(ring->ring_size / 8);
+		rb_cntl |= drm_order(RADEON_GPU_PAGE_SIZE/8) << 8;
+#ifdef __BIG_ENDIAN
+		rb_cntl |= BUF_SWAP_32BIT;
+#endif
+		WREG32(cp_rb_cntl[i], rb_cntl);
+
+		/* set the wb address wether it's enabled or not */
+		addr = rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET;
+		WREG32(cp_rb_rptr_addr[i], addr & 0xFFFFFFFC);
+		WREG32(cp_rb_rptr_addr_hi[i], upper_32_bits(addr) & 0xFF);
 	}
 
-	mdelay(1);
-	WREG32(CP_RB0_CNTL, tmp);
+	/* set the rb base addr, this causes an internal reset of ALL rings */
+	for (i = 0; i < 3; ++i) {
+		ring = &rdev->ring[ridx[i]];
+		WREG32(cp_rb_base[i], ring->gpu_addr >> 8);
+	}
 
-	WREG32(CP_RB0_BASE, ring->gpu_addr >> 8);
+	for (i = 0; i < 3; ++i) {
+		/* Initialize the ring buffer's read and write pointers */
+		ring = &rdev->ring[ridx[i]];
+		WREG32_P(cp_rb_cntl[i], RB_RPTR_WR_ENA, ~RB_RPTR_WR_ENA);
 
-	ring->rptr = RREG32(CP_RB0_RPTR);
+		ring->rptr = ring->wptr = 0;
+		WREG32(ring->rptr_reg, ring->rptr);
+		WREG32(ring->wptr_reg, ring->wptr);
 
-	/* ring1  - compute only */
-	/* Set ring buffer size */
-	ring = &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX];
-	rb_bufsz = drm_order(ring->ring_size / 8);
-	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
-#ifdef __BIG_ENDIAN
-	tmp |= BUF_SWAP_32BIT;
-#endif
-	WREG32(CP_RB1_CNTL, tmp);
-
-	/* Initialize the ring buffer's read and write pointers */
-	WREG32(CP_RB1_CNTL, tmp | RB_RPTR_WR_ENA);
-	ring->wptr = 0;
-	WREG32(CP_RB1_WPTR, ring->wptr);
-
-	/* set the wb address wether it's enabled or not */
-	WREG32(CP_RB1_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP1_RPTR_OFFSET) & 0xFFFFFFFC);
-	WREG32(CP_RB1_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP1_RPTR_OFFSET) & 0xFF);
-
-	mdelay(1);
-	WREG32(CP_RB1_CNTL, tmp);
-
-	WREG32(CP_RB1_BASE, ring->gpu_addr >> 8);
-
-	ring->rptr = RREG32(CP_RB1_RPTR);
-
-	/* ring2 - compute only */
-	/* Set ring buffer size */
-	ring = &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX];
-	rb_bufsz = drm_order(ring->ring_size / 8);
-	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
-#ifdef __BIG_ENDIAN
-	tmp |= BUF_SWAP_32BIT;
-#endif
-	WREG32(CP_RB2_CNTL, tmp);
-
-	/* Initialize the ring buffer's read and write pointers */
-	WREG32(CP_RB2_CNTL, tmp | RB_RPTR_WR_ENA);
-	ring->wptr = 0;
-	WREG32(CP_RB2_WPTR, ring->wptr);
-
-	/* set the wb address wether it's enabled or not */
-	WREG32(CP_RB2_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP2_RPTR_OFFSET) & 0xFFFFFFFC);
-	WREG32(CP_RB2_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP2_RPTR_OFFSET) & 0xFF);
-
-	mdelay(1);
-	WREG32(CP_RB2_CNTL, tmp);
-
-	WREG32(CP_RB2_BASE, ring->gpu_addr >> 8);
-
-	ring->rptr = RREG32(CP_RB2_RPTR);
+		mdelay(1);
+		WREG32_P(cp_rb_cntl[i], 0, ~RB_RPTR_WR_ENA);
+	}
 
 	/* start the rings */
 	cayman_cp_start(rdev);
