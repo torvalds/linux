@@ -2,7 +2,8 @@ menu "Versatile Express platform type"
 	depends on ARCH_VEXPRESS
 
 config ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
-	bool
+	bool "Enable A5 and A9 only errata work-arounds"
+	default y
 	select ARM_ERRATA_720789
 	select ARM_ERRATA_751472
 	select PL310_ERRATA_753970 if CACHE_PL310
@@ -14,7 +15,6 @@ config ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
 
 config ARCH_VEXPRESS_CA9X4
 	bool "Versatile Express Cortex-A9x4 tile"
-	select ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
 	select ARM_GIC
 	select CPU_V7
 	select HAVE_SMP
@@ -22,7 +22,6 @@ config ARCH_VEXPRESS_CA9X4
 
 config ARCH_VEXPRESS_DT
 	bool "Device Tree support for Versatile Express platforms"
-	select ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
 	select ARM_GIC
 	select ARM_PATCH_PHYS_VIRT
 	select AUTO_ZRELADDR
