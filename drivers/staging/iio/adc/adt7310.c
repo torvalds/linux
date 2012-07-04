@@ -397,7 +397,7 @@ static irqreturn_t adt7310_event_handler(int irq, void *private)
 
 	ret = adt7310_spi_read_byte(chip, ADT7310_STATUS, &status);
 	if (ret)
-		return ret;
+		goto done;
 
 	if (status & ADT7310_STAT_T_HIGH)
 		iio_push_event(indio_dev,
@@ -417,6 +417,8 @@ static irqreturn_t adt7310_event_handler(int irq, void *private)
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_RISING),
 			timestamp);
+
+done:
 	return IRQ_HANDLED;
 }
 
