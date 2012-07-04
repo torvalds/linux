@@ -26,6 +26,8 @@
 #include <linux/rtc.h>
 #include <linux/rtc/m48t59.h>
 #include <linux/timex.h>
+#include <linux/clocksource.h>
+#include <linux/clockchips.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/ioport.h>
@@ -40,12 +42,23 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/idprom.h>
-#include <asm/machines.h>
 #include <asm/page.h>
 #include <asm/pcic.h>
 #include <asm/irq_regs.h>
+#include <asm/setup.h>
 
 #include "irq.h"
+
+static __cacheline_aligned_in_smp DEFINE_SEQLOCK(timer_cs_lock);
+static __volatile__ u64 timer_cs_internal_counter = 0;
+static char timer_cs_enabled = 0;
+
+static struct clock_event_device timer_ce;
+static char timer_ce_enabled = 0;
+
+#ifdef CONFIG_SMP
+DEFINE_PER_CPU(struct clock_event_device, sparc32_clockevent);
+#endif
 
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
@@ -55,7 +68,6 @@ static int set_rtc_mmss(unsigned long);
 unsigned long profile_pc(struct pt_regs *regs)
 {
 	extern char __copy_user_begin[], __copy_user_end[];
-	extern char __atomic_begin[], __atomic_end[];
 	extern char __bzero_begin[], __bzero_end[];
 
 	unsigned long pc = regs->pc;
@@ -63,8 +75,6 @@ unsigned long profile_pc(struct pt_regs *regs)
 	if (in_lock_functions(pc) ||
 	    (pc >= (unsigned long) __copy_user_begin &&
 	     pc < (unsigned long) __copy_user_end) ||
-	    (pc >= (unsigned long) __atomic_begin &&
-	     pc < (unsigned long) __atomic_end) ||
 	    (pc >= (unsigned long) __bzero_begin &&
 	     pc < (unsigned long) __bzero_end))
 		pc = regs->u_regs[UREG_RETPC];
@@ -75,35 +85,167 @@ EXPORT_SYMBOL(profile_pc);
 
 __volatile__ unsigned int *master_l10_counter;
 
-u32 (*do_arch_gettimeoffset)(void);
-
 int update_persistent_clock(struct timespec now)
 {
 	return set_rtc_mmss(now.tv_sec);
 }
 
-/*
- * timer_interrupt() needs to keep up the real-time clock,
- * as well as call the "xtime_update()" routine every clocktick
- */
-
-#define TICK_SIZE (tick_nsec / 1000)
-
-static irqreturn_t timer_interrupt(int dummy, void *dev_id)
+irqreturn_t notrace timer_interrupt(int dummy, void *dev_id)
 {
-#ifndef CONFIG_SMP
-	profile_tick(CPU_PROFILING);
-#endif
+	if (timer_cs_enabled) {
+		write_seqlock(&timer_cs_lock);
+		timer_cs_internal_counter++;
+		sparc_config.clear_clock_irq();
+		write_sequnlock(&timer_cs_lock);
+	} else {
+		sparc_config.clear_clock_irq();
+	}
 
-	clear_clock_irq();
+	if (timer_ce_enabled)
+		timer_ce.event_handler(&timer_ce);
 
-	xtime_update(1);
-
-#ifndef CONFIG_SMP
-	update_process_times(user_mode(get_irq_regs()));
-#endif
 	return IRQ_HANDLED;
 }
+
+static void timer_ce_set_mode(enum clock_event_mode mode,
+			      struct clock_event_device *evt)
+{
+	switch (mode) {
+		case CLOCK_EVT_MODE_PERIODIC:
+		case CLOCK_EVT_MODE_RESUME:
+			timer_ce_enabled = 1;
+			break;
+		case CLOCK_EVT_MODE_SHUTDOWN:
+			timer_ce_enabled = 0;
+			break;
+		default:
+			break;
+	}
+	smp_mb();
+}
+
+static __init void setup_timer_ce(void)
+{
+	struct clock_event_device *ce = &timer_ce;
+
+	BUG_ON(smp_processor_id() != boot_cpu_id);
+
+	ce->name     = "timer_ce";
+	ce->rating   = 100;
+	ce->features = CLOCK_EVT_FEAT_PERIODIC;
+	ce->set_mode = timer_ce_set_mode;
+	ce->cpumask  = cpu_possible_mask;
+	ce->shift    = 32;
+	ce->mult     = div_sc(sparc_config.clock_rate, NSEC_PER_SEC,
+	                      ce->shift);
+	clockevents_register_device(ce);
+}
+
+static unsigned int sbus_cycles_offset(void)
+{
+	unsigned int val, offset;
+
+	val = *master_l10_counter;
+	offset = (val >> TIMER_VALUE_SHIFT) & TIMER_VALUE_MASK;
+
+	/* Limit hit? */
+	if (val & TIMER_LIMIT_BIT)
+		offset += sparc_config.cs_period;
+
+	return offset;
+}
+
+static cycle_t timer_cs_read(struct clocksource *cs)
+{
+	unsigned int seq, offset;
+	u64 cycles;
+
+	do {
+		seq = read_seqbegin(&timer_cs_lock);
+
+		cycles = timer_cs_internal_counter;
+		offset = sparc_config.get_cycles_offset();
+	} while (read_seqretry(&timer_cs_lock, seq));
+
+	/* Count absolute cycles */
+	cycles *= sparc_config.cs_period;
+	cycles += offset;
+
+	return cycles;
+}
+
+static struct clocksource timer_cs = {
+	.name	= "timer_cs",
+	.rating	= 100,
+	.read	= timer_cs_read,
+	.mask	= CLOCKSOURCE_MASK(64),
+	.shift	= 2,
+	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+static __init int setup_timer_cs(void)
+{
+	timer_cs_enabled = 1;
+	timer_cs.mult = clocksource_hz2mult(sparc_config.clock_rate,
+	                                    timer_cs.shift);
+
+	return clocksource_register(&timer_cs);
+}
+
+#ifdef CONFIG_SMP
+static void percpu_ce_setup(enum clock_event_mode mode,
+			struct clock_event_device *evt)
+{
+	int cpu = __first_cpu(evt->cpumask);
+
+	switch (mode) {
+		case CLOCK_EVT_MODE_PERIODIC:
+			sparc_config.load_profile_irq(cpu,
+						      SBUS_CLOCK_RATE / HZ);
+			break;
+		case CLOCK_EVT_MODE_ONESHOT:
+		case CLOCK_EVT_MODE_SHUTDOWN:
+		case CLOCK_EVT_MODE_UNUSED:
+			sparc_config.load_profile_irq(cpu, 0);
+			break;
+		default:
+			break;
+	}
+}
+
+static int percpu_ce_set_next_event(unsigned long delta,
+				    struct clock_event_device *evt)
+{
+	int cpu = __first_cpu(evt->cpumask);
+	unsigned int next = (unsigned int)delta;
+
+	sparc_config.load_profile_irq(cpu, next);
+	return 0;
+}
+
+void register_percpu_ce(int cpu)
+{
+	struct clock_event_device *ce = &per_cpu(sparc32_clockevent, cpu);
+	unsigned int features = CLOCK_EVT_FEAT_PERIODIC;
+
+	if (sparc_config.features & FEAT_L14_ONESHOT)
+		features |= CLOCK_EVT_FEAT_ONESHOT;
+
+	ce->name           = "percpu_ce";
+	ce->rating         = 200;
+	ce->features       = features;
+	ce->set_mode       = percpu_ce_setup;
+	ce->set_next_event = percpu_ce_set_next_event;
+	ce->cpumask        = cpumask_of(cpu);
+	ce->shift          = 32;
+	ce->mult           = div_sc(sparc_config.clock_rate, NSEC_PER_SEC,
+	                            ce->shift);
+	ce->max_delta_ns   = clockevent_delta2ns(sparc_config.clock_rate, ce);
+	ce->min_delta_ns   = clockevent_delta2ns(100, ce);
+
+	clockevents_register_device(ce);
+}
+#endif
 
 static unsigned char mostek_read_byte(struct device *dev, u32 ofs)
 {
@@ -195,38 +337,28 @@ static int __init clock_init(void)
  */
 fs_initcall(clock_init);
 
-
-u32 sbus_do_gettimeoffset(void)
+static void __init sparc32_late_time_init(void)
 {
-	unsigned long val = *master_l10_counter;
-	unsigned long usec = (val >> 10) & 0x1fffff;
-
-	/* Limit hit?  */
-	if (val & 0x80000000)
-		usec += 1000000 / HZ;
-
-	return usec * 1000;
-}
-
-
-u32 arch_gettimeoffset(void)
-{
-	if (unlikely(!do_arch_gettimeoffset))
-		return 0;
-	return do_arch_gettimeoffset();
+	if (sparc_config.features & FEAT_L10_CLOCKEVENT)
+		setup_timer_ce();
+	if (sparc_config.features & FEAT_L10_CLOCKSOURCE)
+		setup_timer_cs();
+#ifdef CONFIG_SMP
+	register_percpu_ce(smp_processor_id());
+#endif
 }
 
 static void __init sbus_time_init(void)
 {
-	do_arch_gettimeoffset = sbus_do_gettimeoffset;
-
-	btfixup();
-
-	sparc_irq_config.init_timers(timer_interrupt);
+	sparc_config.get_cycles_offset = sbus_cycles_offset;
+	sparc_config.init_timers();
 }
 
 void __init time_init(void)
 {
+	sparc_config.features = 0;
+	late_time_init = sparc32_late_time_init;
+
 	if (pcic_present())
 		pci_time_init();
 	else

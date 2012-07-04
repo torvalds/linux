@@ -14,6 +14,11 @@
  * rows for each respective channel are laid out one after another,
  * the first half belonging to channel 0, the second half belonging
  * to channel 1.
+ *
+ * This driver is for DDR2 DIMMs, and it uses chip select to select among the
+ * several ranks. However, instead of showing memories as ranks, it outputs
+ * them as DIMM's. An internal table creates the association between ranks
+ * and DIMM's.
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -410,14 +415,6 @@ static int i5100_csrow_to_chan(const struct mem_ctl_info *mci, int csrow)
 	return csrow / priv->ranksperchan;
 }
 
-static unsigned i5100_rank_to_csrow(const struct mem_ctl_info *mci,
-				    int chan, int rank)
-{
-	const struct i5100_priv *priv = mci->pvt_info;
-
-	return chan * priv->ranksperchan + rank;
-}
-
 static void i5100_handle_ce(struct mem_ctl_info *mci,
 			    int chan,
 			    unsigned bank,
@@ -427,17 +424,17 @@ static void i5100_handle_ce(struct mem_ctl_info *mci,
 			    unsigned ras,
 			    const char *msg)
 {
-	const int csrow = i5100_rank_to_csrow(mci, chan, rank);
+	char detail[80];
 
-	printk(KERN_ERR
-		"CE chan %d, bank %u, rank %u, syndrome 0x%lx, "
-		"cas %u, ras %u, csrow %u, label \"%s\": %s\n",
-		chan, bank, rank, syndrome, cas, ras,
-		csrow, mci->csrows[csrow].channels[0].label, msg);
+	/* Form out message */
+	snprintf(detail, sizeof(detail),
+		 "bank %u, cas %u, ras %u\n",
+		 bank, cas, ras);
 
-	mci->ce_count++;
-	mci->csrows[csrow].ce_count++;
-	mci->csrows[csrow].channels[0].ce_count++;
+	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+			     0, 0, syndrome,
+			     chan, rank, -1,
+			     msg, detail, NULL);
 }
 
 static void i5100_handle_ue(struct mem_ctl_info *mci,
@@ -449,16 +446,17 @@ static void i5100_handle_ue(struct mem_ctl_info *mci,
 			    unsigned ras,
 			    const char *msg)
 {
-	const int csrow = i5100_rank_to_csrow(mci, chan, rank);
+	char detail[80];
 
-	printk(KERN_ERR
-		"UE chan %d, bank %u, rank %u, syndrome 0x%lx, "
-		"cas %u, ras %u, csrow %u, label \"%s\": %s\n",
-		chan, bank, rank, syndrome, cas, ras,
-		csrow, mci->csrows[csrow].channels[0].label, msg);
+	/* Form out message */
+	snprintf(detail, sizeof(detail),
+		 "bank %u, cas %u, ras %u\n",
+		 bank, cas, ras);
 
-	mci->ue_count++;
-	mci->csrows[csrow].ue_count++;
+	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+			     0, 0, syndrome,
+			     chan, rank, -1,
+			     msg, detail, NULL);
 }
 
 static void i5100_read_log(struct mem_ctl_info *mci, int chan,
@@ -835,10 +833,10 @@ static void __devinit i5100_init_interleaving(struct pci_dev *pdev,
 static void __devinit i5100_init_csrows(struct mem_ctl_info *mci)
 {
 	int i;
-	unsigned long total_pages = 0UL;
 	struct i5100_priv *priv = mci->pvt_info;
 
-	for (i = 0; i < mci->nr_csrows; i++) {
+	for (i = 0; i < mci->tot_dimms; i++) {
+		struct dimm_info *dimm;
 		const unsigned long npages = i5100_npages(mci, i);
 		const unsigned chan = i5100_csrow_to_chan(mci, i);
 		const unsigned rank = i5100_csrow_to_rank(mci, i);
@@ -846,33 +844,23 @@ static void __devinit i5100_init_csrows(struct mem_ctl_info *mci)
 		if (!npages)
 			continue;
 
-		/*
-		 * FIXME: these two are totally bogus -- I don't see how to
-		 * map them correctly to this structure...
-		 */
-		mci->csrows[i].first_page = total_pages;
-		mci->csrows[i].last_page = total_pages + npages - 1;
-		mci->csrows[i].page_mask = 0UL;
+		dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms, mci->n_layers,
+			       chan, rank, 0);
 
-		mci->csrows[i].nr_pages = npages;
-		mci->csrows[i].grain = 32;
-		mci->csrows[i].csrow_idx = i;
-		mci->csrows[i].dtype =
-			(priv->mtr[chan][rank].width == 4) ? DEV_X4 : DEV_X8;
-		mci->csrows[i].ue_count = 0;
-		mci->csrows[i].ce_count = 0;
-		mci->csrows[i].mtype = MEM_RDDR2;
-		mci->csrows[i].edac_mode = EDAC_SECDED;
-		mci->csrows[i].mci = mci;
-		mci->csrows[i].nr_channels = 1;
-		mci->csrows[i].channels[0].chan_idx = 0;
-		mci->csrows[i].channels[0].ce_count = 0;
-		mci->csrows[i].channels[0].csrow = mci->csrows + i;
-		snprintf(mci->csrows[i].channels[0].label,
-			 sizeof(mci->csrows[i].channels[0].label),
-			 "DIMM%u", i5100_rank_to_slot(mci, chan, rank));
+		dimm->nr_pages = npages;
+		if (npages) {
+			dimm->grain = 32;
+			dimm->dtype = (priv->mtr[chan][rank].width == 4) ?
+					DEV_X4 : DEV_X8;
+			dimm->mtype = MEM_RDDR2;
+			dimm->edac_mode = EDAC_SECDED;
+			snprintf(dimm->label, sizeof(dimm->label),
+				"DIMM%u",
+				i5100_rank_to_slot(mci, chan, rank));
+		}
 
-		total_pages += npages;
+		debugf2("dimm channel %d, rank %d, size %ld\n",
+			chan, rank, (long)PAGES_TO_MiB(npages));
 	}
 }
 
@@ -881,6 +869,7 @@ static int __devinit i5100_init_one(struct pci_dev *pdev,
 {
 	int rc;
 	struct mem_ctl_info *mci;
+	struct edac_mc_layer layers[2];
 	struct i5100_priv *priv;
 	struct pci_dev *ch0mm, *ch1mm;
 	int ret = 0;
@@ -941,7 +930,14 @@ static int __devinit i5100_init_one(struct pci_dev *pdev,
 		goto bail_ch1;
 	}
 
-	mci = edac_mc_alloc(sizeof(*priv), ranksperch * 2, 1, 0);
+	layers[0].type = EDAC_MC_LAYER_CHANNEL;
+	layers[0].size = 2;
+	layers[0].is_virt_csrow = false;
+	layers[1].type = EDAC_MC_LAYER_SLOT;
+	layers[1].size = ranksperch;
+	layers[1].is_virt_csrow = true;
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers,
+			    sizeof(*priv));
 	if (!mci) {
 		ret = -ENOMEM;
 		goto bail_disable_ch1;

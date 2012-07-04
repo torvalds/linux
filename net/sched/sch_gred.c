@@ -255,10 +255,8 @@ static struct sk_buff *gred_dequeue(struct Qdisc *sch)
 		u16 dp = tc_index_to_dp(skb);
 
 		if (dp >= t->DPs || (q = t->tab[dp]) == NULL) {
-			if (net_ratelimit())
-				pr_warning("GRED: Unable to relocate VQ 0x%x "
-					   "after dequeue, screwing up "
-					   "backlog.\n", tc_index_to_dp(skb));
+			net_warn_ratelimited("GRED: Unable to relocate VQ 0x%x after dequeue, screwing up backlog\n",
+					     tc_index_to_dp(skb));
 		} else {
 			q->backlog -= qdisc_pkt_len(skb);
 
@@ -287,10 +285,8 @@ static unsigned int gred_drop(struct Qdisc *sch)
 		u16 dp = tc_index_to_dp(skb);
 
 		if (dp >= t->DPs || (q = t->tab[dp]) == NULL) {
-			if (net_ratelimit())
-				pr_warning("GRED: Unable to relocate VQ 0x%x "
-					   "while dropping, screwing up "
-					   "backlog.\n", tc_index_to_dp(skb));
+			net_warn_ratelimited("GRED: Unable to relocate VQ 0x%x while dropping, screwing up backlog\n",
+					     tc_index_to_dp(skb));
 		} else {
 			q->backlog -= len;
 			q->stats.other++;
@@ -521,14 +517,16 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 	opts = nla_nest_start(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
-	NLA_PUT(skb, TCA_GRED_DPS, sizeof(sopt), &sopt);
+	if (nla_put(skb, TCA_GRED_DPS, sizeof(sopt), &sopt))
+		goto nla_put_failure;
 
 	for (i = 0; i < MAX_DPs; i++) {
 		struct gred_sched_data *q = table->tab[i];
 
 		max_p[i] = q ? q->parms.max_P : 0;
 	}
-	NLA_PUT(skb, TCA_GRED_MAX_P, sizeof(max_p), max_p);
+	if (nla_put(skb, TCA_GRED_MAX_P, sizeof(max_p), max_p))
+		goto nla_put_failure;
 
 	parms = nla_nest_start(skb, TCA_GRED_PARMS);
 	if (parms == NULL)
@@ -565,11 +563,8 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 		opt.packets	= q->packetsin;
 		opt.bytesin	= q->bytesin;
 
-		if (gred_wred_mode(table)) {
-			q->vars.qidlestart =
-				table->tab[table->def]->vars.qidlestart;
-			q->vars.qavg = table->tab[table->def]->vars.qavg;
-		}
+		if (gred_wred_mode(table))
+			gred_load_wred_set(table, q);
 
 		opt.qave = red_calc_qavg(&q->parms, &q->vars, q->vars.qavg);
 

@@ -146,10 +146,6 @@ from http://www.comedi.org
 #define ME_COUNTER_STARTDATA_B		0x0022	/* - | W */
 #define ME_COUNTER_VALUE_B		0x0022	/* R | - */
 
-/* Function prototypes */
-static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static int me_detach(struct comedi_device *dev);
-
 static const struct comedi_lrange me2000_ai_range = {
 	8,
 	{
@@ -186,14 +182,6 @@ static const struct comedi_lrange me2600_ao_range = {
 	 UNI_RANGE(10)
 	 }
 };
-
-static DEFINE_PCI_DEVICE_TABLE(me_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, ME2600_DEVICE_ID) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, ME2000_DEVICE_ID) },
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, me_pci_table);
 
 /* Board specification structure */
 struct me_board {
@@ -246,51 +234,6 @@ static const struct me_board me_boards[] = {
 };
 
 #define me_board_nbr (sizeof(me_boards)/sizeof(struct me_board))
-
-static struct comedi_driver me_driver = {
-	.driver_name = ME_DRIVER_NAME,
-	.module = THIS_MODULE,
-	.attach = me_attach,
-	.detach = me_detach,
-};
-
-static int __devinit me_driver_pci_probe(struct pci_dev *dev,
-					 const struct pci_device_id *ent)
-{
-	return comedi_pci_auto_config(dev, me_driver.driver_name);
-}
-
-static void __devexit me_driver_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static struct pci_driver me_driver_pci_driver = {
-	.id_table = me_pci_table,
-	.probe = &me_driver_pci_probe,
-	.remove = __devexit_p(&me_driver_pci_remove)
-};
-
-static int __init me_driver_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&me_driver);
-	if (retval < 0)
-		return retval;
-
-	me_driver_pci_driver.name = (char *)me_driver.driver_name;
-	return pci_register_driver(&me_driver_pci_driver);
-}
-
-static void __exit me_driver_cleanup_module(void)
-{
-	pci_unregister_driver(&me_driver_pci_driver);
-	comedi_driver_unregister(&me_driver);
-}
-
-module_init(me_driver_init_module);
-module_exit(me_driver_cleanup_module);
 
 /* Private data structure */
 struct me_private_data {
@@ -669,12 +612,6 @@ static int me_reset(struct comedi_device *dev)
 	return 0;
 }
 
-/*
- * Attach
- *
- * - Register PCI device
- * - Declare device driver capability
- */
 static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pci_dev *pci_device = NULL;
@@ -869,8 +806,7 @@ found:
 	return 0;
 }
 
-/* Detach */
-static int me_detach(struct comedi_device *dev)
+static void me_detach(struct comedi_device *dev)
 {
 	if (dev_private) {
 		if (dev_private->me_regbase) {
@@ -882,12 +818,43 @@ static int me_detach(struct comedi_device *dev)
 		if (dev_private->pci_device) {
 			if (dev_private->plx_regbase_size)
 				comedi_pci_disable(dev_private->pci_device);
-
 			pci_dev_put(dev_private->pci_device);
 		}
 	}
-	return 0;
 }
+
+static struct comedi_driver me_daq_driver = {
+	.driver_name	= "me_daq",
+	.module		= THIS_MODULE,
+	.attach		= me_attach,
+	.detach		= me_detach,
+};
+
+static int __devinit me_daq_pci_probe(struct pci_dev *dev,
+				      const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, &me_daq_driver);
+}
+
+static void __devexit me_daq_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static DEFINE_PCI_DEVICE_TABLE(me_daq_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, ME2600_DEVICE_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, ME2000_DEVICE_ID) },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, me_daq_pci_table);
+
+static struct pci_driver me_daq_pci_driver = {
+	.name		= "me_daq",
+	.id_table	= me_daq_pci_table,
+	.probe		= me_daq_pci_probe,
+	.remove		= __devexit_p(me_daq_pci_remove),
+};
+module_comedi_pci_driver(me_daq_driver, me_daq_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

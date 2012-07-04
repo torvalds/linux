@@ -81,7 +81,7 @@ static int it913x_bulk_write(struct usb_device *dev,
 	for (i = 0; i < IT913X_RETRY; i++) {
 		ret = usb_bulk_msg(dev, usb_sndbulkpipe(dev, pipe),
 				snd, len , &actual_l, IT913X_SND_TIMEOUT);
-		if (ret == 0 || ret != -EBUSY || ret != -ETIMEDOUT)
+		if (ret != -EBUSY && ret != -ETIMEDOUT)
 			break;
 	}
 
@@ -99,7 +99,7 @@ static int it913x_bulk_read(struct usb_device *dev,
 	for (i = 0; i < IT913X_RETRY; i++) {
 		ret = usb_bulk_msg(dev, usb_rcvbulkpipe(dev, pipe),
 				 rev, len , &actual_l, IT913X_RCV_TIMEOUT);
-		if (ret == 0 || ret != -EBUSY || ret != -ETIMEDOUT)
+		if (ret != -EBUSY && ret != -ETIMEDOUT)
 			break;
 	}
 

@@ -799,7 +799,7 @@ static void kill_prom_timer(void)
 	prom_limit0 = prom_timers->limit0;
 	prom_limit1 = prom_timers->limit1;
 
-	/* Just as in sun4c/sun4m PROM uses timer which ticks at IRQ 14.
+	/* Just as in sun4c PROM uses timer which ticks at IRQ 14.
 	 * We turn both off here just to be paranoid.
 	 */
 	prom_timers->limit0 = 0;

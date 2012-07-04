@@ -180,16 +180,8 @@ static struct s3c2410fb_mach_info qt2410_fb_info __initdata = {
 /* CS8900 */
 
 static struct resource qt2410_cs89x0_resources[] = {
-	[0] = {
-		.start	= 0x19000000,
-		.end	= 0x19000000 + 16,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_EINT9,
-		.end	= IRQ_EINT9,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(0x19000000, 17),
+	[1] = DEFINE_RES_IRQ(IRQ_EINT9),
 };
 
 static struct platform_device qt2410_cs89x0 = {

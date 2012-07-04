@@ -72,7 +72,6 @@ void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type,
  *
  * Returns message data size or errno
  */
-
 int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
 		   u32 num_sect, unsigned int total_len,
 			    int max_size, int usrmem, struct sk_buff **buf)
@@ -112,7 +111,6 @@ int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
 }
 
 #ifdef CONFIG_TIPC_DEBUG
-
 void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 {
 	u32 usr = msg_user(msg);
@@ -352,5 +350,4 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 	if ((usr == MSG_FRAGMENTER) && (msg_type(msg) == FIRST_FRAGMENT))
 		tipc_msg_dbg(buf, msg_get_wrapped(msg), "      /");
 }
-
 #endif

@@ -45,10 +45,10 @@ struct sas_phy_data {
 	struct mutex event_lock;
 	int hard_reset;
 	int reset_result;
-	struct work_struct reset_work;
+	struct sas_work reset_work;
 	int enable;
 	int enable_result;
-	struct work_struct enable_work;
+	struct sas_work enable_work;
 };
 
 void sas_scsi_recover_host(struct Scsi_Host *shost);
@@ -80,7 +80,7 @@ void sas_porte_broadcast_rcvd(struct work_struct *work);
 void sas_porte_link_reset_err(struct work_struct *work);
 void sas_porte_timer_event(struct work_struct *work);
 void sas_porte_hard_reset(struct work_struct *work);
-void sas_queue_work(struct sas_ha_struct *ha, struct work_struct *work);
+void sas_queue_work(struct sas_ha_struct *ha, struct sas_work *sw);
 
 int sas_notify_lldd_dev_found(struct domain_device *);
 void sas_notify_lldd_dev_gone(struct domain_device *);

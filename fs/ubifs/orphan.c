@@ -52,11 +52,7 @@
  * than the maximum number of orphans allowed.
  */
 
-#ifdef CONFIG_UBIFS_FS_DEBUG
 static int dbg_check_orphans(struct ubifs_info *c);
-#else
-#define dbg_check_orphans(c) 0
-#endif
 
 /**
  * ubifs_add_orphan - add an orphan.
@@ -92,7 +88,7 @@ int ubifs_add_orphan(struct ubifs_info *c, ino_t inum)
 		else if (inum > o->inum)
 			p = &(*p)->rb_right;
 		else {
-			dbg_err("orphaned twice");
+			ubifs_err("orphaned twice");
 			spin_unlock(&c->orphan_lock);
 			kfree(orphan);
 			return 0;
@@ -158,8 +154,8 @@ void ubifs_delete_orphan(struct ubifs_info *c, ino_t inum)
 		}
 	}
 	spin_unlock(&c->orphan_lock);
-	dbg_err("missing orphan ino %lu", (unsigned long)inum);
-	dbg_dump_stack();
+	ubifs_err("missing orphan ino %lu", (unsigned long)inum);
+	dump_stack();
 }
 
 /**
@@ -248,8 +244,7 @@ static int do_write_orph_node(struct ubifs_info *c, int len, int atomic)
 		ubifs_assert(c->ohead_offs == 0);
 		ubifs_prepare_node(c, c->orph_buf, len, 1);
 		len = ALIGN(len, c->min_io_size);
-		err = ubifs_leb_change(c, c->ohead_lnum, c->orph_buf, len,
-				       UBI_SHORTTERM);
+		err = ubifs_leb_change(c, c->ohead_lnum, c->orph_buf, len);
 	} else {
 		if (c->ohead_offs == 0) {
 			/* Ensure LEB has been unmapped */
@@ -258,7 +253,7 @@ static int do_write_orph_node(struct ubifs_info *c, int len, int atomic)
 				return err;
 		}
 		err = ubifs_write_node(c, c->orph_buf, len, c->ohead_lnum,
-				       c->ohead_offs, UBI_SHORTTERM);
+				       c->ohead_offs);
 	}
 	return err;
 }
@@ -569,7 +564,7 @@ static int do_kill_orphans(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 		if (snod->type != UBIFS_ORPH_NODE) {
 			ubifs_err("invalid node type %d in orphan area at "
 				  "%d:%d", snod->type, sleb->lnum, snod->offs);
-			dbg_dump_node(c, snod->node);
+			ubifs_dump_node(c, snod->node);
 			return -EINVAL;
 		}
 
@@ -597,7 +592,7 @@ static int do_kill_orphans(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 				ubifs_err("out of order commit number %llu in "
 					  "orphan node at %d:%d",
 					  cmt_no, sleb->lnum, snod->offs);
-				dbg_dump_node(c, snod->node);
+				ubifs_dump_node(c, snod->node);
 				return -EINVAL;
 			}
 			dbg_rcvry("out of date LEB %d", sleb->lnum);
@@ -725,7 +720,9 @@ int ubifs_mount_orphans(struct ubifs_info *c, int unclean, int read_only)
 	return err;
 }
 
-#ifdef CONFIG_UBIFS_FS_DEBUG
+/*
+ * Everything below is related to debugging.
+ */
 
 struct check_orphan {
 	struct rb_node rb;
@@ -968,5 +965,3 @@ out:
 	kfree(ci.node);
 	return err;
 }
-
-#endif /* CONFIG_UBIFS_FS_DEBUG */

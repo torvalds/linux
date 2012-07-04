@@ -15,47 +15,18 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/wm8350/core.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 
-static int wm8350_i2c_read_device(struct wm8350 *wm8350, char reg,
-				  int bytes, void *dest)
-{
-	int ret;
-
-	ret = i2c_master_send(wm8350->i2c_client, &reg, 1);
-	if (ret < 0)
-		return ret;
-	ret = i2c_master_recv(wm8350->i2c_client, dest, bytes);
-	if (ret < 0)
-		return ret;
-	if (ret != bytes)
-		return -EIO;
-	return 0;
-}
-
-static int wm8350_i2c_write_device(struct wm8350 *wm8350, char reg,
-				   int bytes, void *src)
-{
-	/* we add 1 byte for device register */
-	u8 msg[(WM8350_MAX_REGISTER << 1) + 1];
-	int ret;
-
-	if (bytes > ((WM8350_MAX_REGISTER << 1) + 1))
-		return -EINVAL;
-
-	msg[0] = reg;
-	memcpy(&msg[1], src, bytes);
-	ret = i2c_master_send(wm8350->i2c_client, msg, bytes + 1);
-	if (ret < 0)
-		return ret;
-	if (ret != bytes + 1)
-		return -EIO;
-	return 0;
-}
+static const struct regmap_config wm8350_regmap = {
+	.reg_bits = 8,
+	.val_bits = 16,
+};
 
 static int wm8350_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
@@ -67,20 +38,18 @@ static int wm8350_i2c_probe(struct i2c_client *i2c,
 	if (wm8350 == NULL)
 		return -ENOMEM;
 
+	wm8350->regmap = devm_regmap_init_i2c(i2c, &wm8350_regmap);
+	if (IS_ERR(wm8350->regmap)) {
+		ret = PTR_ERR(wm8350->regmap);
+		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
+			ret);
+		return ret;
+	}
+
 	i2c_set_clientdata(i2c, wm8350);
 	wm8350->dev = &i2c->dev;
-	wm8350->i2c_client = i2c;
-	wm8350->read_dev = wm8350_i2c_read_device;
-	wm8350->write_dev = wm8350_i2c_write_device;
 
-	ret = wm8350_device_init(wm8350, i2c->irq, i2c->dev.platform_data);
-	if (ret < 0)
-		goto err;
-
-	return ret;
-
-err:
-	return ret;
+	return wm8350_device_init(wm8350, i2c->irq, i2c->dev.platform_data);
 }
 
 static int wm8350_i2c_remove(struct i2c_client *i2c)

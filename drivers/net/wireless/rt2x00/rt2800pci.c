@@ -361,7 +361,6 @@ static void rt2800pci_clear_entry(struct queue_entry *entry)
 static int rt2800pci_init_queues(struct rt2x00_dev *rt2x00dev)
 {
 	struct queue_entry_priv_pci *entry_priv;
-	u32 reg;
 
 	/*
 	 * Initialize registers.
@@ -394,6 +393,16 @@ static int rt2800pci_init_queues(struct rt2x00_dev *rt2x00dev)
 	rt2x00pci_register_write(rt2x00dev, TX_CTX_IDX3, 0);
 	rt2x00pci_register_write(rt2x00dev, TX_DTX_IDX3, 0);
 
+	rt2x00pci_register_write(rt2x00dev, TX_BASE_PTR4, 0);
+	rt2x00pci_register_write(rt2x00dev, TX_MAX_CNT4, 0);
+	rt2x00pci_register_write(rt2x00dev, TX_CTX_IDX4, 0);
+	rt2x00pci_register_write(rt2x00dev, TX_DTX_IDX4, 0);
+
+	rt2x00pci_register_write(rt2x00dev, TX_BASE_PTR5, 0);
+	rt2x00pci_register_write(rt2x00dev, TX_MAX_CNT5, 0);
+	rt2x00pci_register_write(rt2x00dev, TX_CTX_IDX5, 0);
+	rt2x00pci_register_write(rt2x00dev, TX_DTX_IDX5, 0);
+
 	entry_priv = rt2x00dev->rx->entries[0].priv_data;
 	rt2x00pci_register_write(rt2x00dev, RX_BASE_PTR, entry_priv->desc_dma);
 	rt2x00pci_register_write(rt2x00dev, RX_MAX_CNT,
@@ -402,14 +411,7 @@ static int rt2800pci_init_queues(struct rt2x00_dev *rt2x00dev)
 				 rt2x00dev->rx[0].limit - 1);
 	rt2x00pci_register_write(rt2x00dev, RX_DRX_IDX, 0);
 
-	/*
-	 * Enable global DMA configuration
-	 */
-	rt2x00pci_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_WRITEBACK_DONE, 1);
-	rt2x00pci_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
+	rt2800_disable_wpdma(rt2x00dev);
 
 	rt2x00pci_register_write(rt2x00dev, DELAY_INT_CFG, 0);
 
@@ -504,8 +506,10 @@ static int rt2800pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
 
-	if (unlikely(rt2800_wait_wpdma_ready(rt2x00dev) ||
-		     rt2800pci_init_queues(rt2x00dev)))
+	/* Wait for DMA, ignore error until we initialize queues. */
+	rt2800_wait_wpdma_ready(rt2x00dev);
+
+	if (unlikely(rt2800pci_init_queues(rt2x00dev)))
 		return -EIO;
 
 	retval = rt2800_enable_radio(rt2x00dev);
@@ -1184,8 +1188,11 @@ static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
 	{ PCI_DEVICE(0x1814, 0x3593) },
 #endif
 #ifdef CONFIG_RT2800PCI_RT53XX
+	{ PCI_DEVICE(0x1814, 0x5362) },
 	{ PCI_DEVICE(0x1814, 0x5390) },
+	{ PCI_DEVICE(0x1814, 0x5392) },
 	{ PCI_DEVICE(0x1814, 0x539a) },
+	{ PCI_DEVICE(0x1814, 0x539b) },
 	{ PCI_DEVICE(0x1814, 0x539f) },
 #endif
 	{ 0, }

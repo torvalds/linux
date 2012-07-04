@@ -218,6 +218,9 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 
 	if (!shost->shost_gendev.parent)
 		shost->shost_gendev.parent = dev ? dev : &platform_bus;
+	if (!dma_dev)
+		dma_dev = shost->shost_gendev.parent;
+
 	shost->dma_dev = dma_dev;
 
 	error = device_add(&shost->shost_gendev);

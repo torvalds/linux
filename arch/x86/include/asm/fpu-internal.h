@@ -290,14 +290,14 @@ static inline int __thread_has_fpu(struct task_struct *tsk)
 static inline void __thread_clear_has_fpu(struct task_struct *tsk)
 {
 	tsk->thread.fpu.has_fpu = 0;
-	percpu_write(fpu_owner_task, NULL);
+	this_cpu_write(fpu_owner_task, NULL);
 }
 
 /* Must be paired with a 'clts' before! */
 static inline void __thread_set_has_fpu(struct task_struct *tsk)
 {
 	tsk->thread.fpu.has_fpu = 1;
-	percpu_write(fpu_owner_task, tsk);
+	this_cpu_write(fpu_owner_task, tsk);
 }
 
 /*
@@ -344,7 +344,7 @@ typedef struct { int preload; } fpu_switch_t;
  */
 static inline int fpu_lazy_restore(struct task_struct *new, unsigned int cpu)
 {
-	return new == percpu_read_stable(fpu_owner_task) &&
+	return new == this_cpu_read_stable(fpu_owner_task) &&
 		cpu == new->thread.fpu.last_cpu;
 }
 

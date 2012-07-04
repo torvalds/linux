@@ -53,6 +53,16 @@ timer@41100 {
 		      3 0 3 0>;
 };
 
+message@41400 {
+	compatible = "fsl,mpic-v3.1-msgr";
+	reg = <0x41400 0x200>;
+	interrupts = <
+		0xb0 2 0 0
+		0xb1 2 0 0
+		0xb2 2 0 0
+		0xb3 2 0 0>;
+};
+
 msi@41600 {
 	compatible = "fsl,mpic-msi";
 	reg = <0x41600 0x80>;

@@ -63,15 +63,9 @@ system_call_common:
 	std	r0,GPR0(r1)
 	std	r10,GPR1(r1)
 	ACCOUNT_CPU_USER_ENTRY(r10, r11)
-	/*
-	 * This "crclr so" clears CR0.SO, which is the error indication on
-	 * return from this system call.  There must be no cmp instruction
-	 * between it and the "mfcr r9" below, otherwise if XER.SO is set,
-	 * CR0.SO will get set, causing all system calls to appear to fail.
-	 */
-	crclr	so
 	std	r2,GPR2(r1)
 	std	r3,GPR3(r1)
+	mfcr	r2
 	std	r4,GPR4(r1)
 	std	r5,GPR5(r1)
 	std	r6,GPR6(r1)
@@ -82,18 +76,20 @@ system_call_common:
 	std	r11,GPR10(r1)
 	std	r11,GPR11(r1)
 	std	r11,GPR12(r1)
+	std	r11,_XER(r1)
+	std	r11,_CTR(r1)
 	std	r9,GPR13(r1)
-	mfcr	r9
 	mflr	r10
+	/*
+	 * This clears CR0.SO (bit 28), which is the error indication on
+	 * return from this system call.
+	 */
+	rldimi	r2,r11,28,(63-28)
 	li	r11,0xc01
-	std	r9,_CCR(r1)
 	std	r10,_LINK(r1)
 	std	r11,_TRAP(r1)
-	mfxer	r9
-	mfctr	r10
-	std	r9,_XER(r1)
-	std	r10,_CTR(r1)
 	std	r3,ORIG_GPR3(r1)
+	std	r2,_CCR(r1)
 	ld	r2,PACATOC(r13)
 	addi	r9,r1,STACK_FRAME_OVERHEAD
 	ld	r11,exception_marker@toc(r2)
@@ -154,7 +150,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 	ld	r10,TI_FLAGS(r11)
 	andi.	r11,r10,_TIF_SYSCALL_T_OR_A
 	bne-	syscall_dotrace
-syscall_dotrace_cont:
+.Lsyscall_dotrace_cont:
 	cmpldi	0,r0,NR_syscalls
 	bge-	syscall_enosys
 
@@ -211,7 +207,7 @@ syscall_exit:
 	cmpld	r3,r11
 	ld	r5,_CCR(r1)
 	bge-	syscall_error
-syscall_error_cont:
+.Lsyscall_error_cont:
 	ld	r7,_NIP(r1)
 BEGIN_FTR_SECTION
 	stdcx.	r0,0,r1			/* to clear the reservation */
@@ -246,7 +242,7 @@ syscall_error:
 	oris	r5,r5,0x1000	/* Set SO bit in CR */
 	neg	r3,r3
 	std	r5,_CCR(r1)
-	b	syscall_error_cont
+	b	.Lsyscall_error_cont
 	
 /* Traced system call support */
 syscall_dotrace:
@@ -268,7 +264,7 @@ syscall_dotrace:
 	addi	r9,r1,STACK_FRAME_OVERHEAD
 	clrrdi	r10,r1,THREAD_SHIFT
 	ld	r10,TI_FLAGS(r10)
-	b	syscall_dotrace_cont
+	b	.Lsyscall_dotrace_cont
 
 syscall_enosys:
 	li	r3,-ENOSYS
@@ -562,49 +558,72 @@ _GLOBAL(ret_from_except_lite)
 	mtmsrd	r10,1		  /* Update machine state */
 #endif /* CONFIG_PPC_BOOK3E */
 
-#ifdef CONFIG_PREEMPT
 	clrrdi	r9,r1,THREAD_SHIFT	/* current_thread_info() */
-	li	r0,_TIF_NEED_RESCHED	/* bits to check */
 	ld	r3,_MSR(r1)
 	ld	r4,TI_FLAGS(r9)
-	/* Move MSR_PR bit in r3 to _TIF_SIGPENDING position in r0 */
-	rlwimi	r0,r3,32+TIF_SIGPENDING-MSR_PR_LG,_TIF_SIGPENDING
-	and.	r0,r4,r0	/* check NEED_RESCHED and maybe SIGPENDING */
-	bne	do_work
-
-#else /* !CONFIG_PREEMPT */
-	ld	r3,_MSR(r1)	/* Returning to user mode? */
 	andi.	r3,r3,MSR_PR
-	beq	restore		/* if not, just restore regs and return */
+	beq	resume_kernel
 
 	/* Check current_thread_info()->flags */
+	andi.	r0,r4,_TIF_USER_WORK_MASK
+	beq	restore
+
+	andi.	r0,r4,_TIF_NEED_RESCHED
+	beq	1f
+	bl	.restore_interrupts
+	bl	.schedule
+	b	.ret_from_except_lite
+
+1:	bl	.save_nvgprs
+	bl	.restore_interrupts
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.do_notify_resume
+	b	.ret_from_except
+
+resume_kernel:
+#ifdef CONFIG_PREEMPT
+	/* Check if we need to preempt */
+	andi.	r0,r4,_TIF_NEED_RESCHED
+	beq+	restore
+	/* Check that preempt_count() == 0 and interrupts are enabled */
+	lwz	r8,TI_PREEMPT(r9)
+	cmpwi	cr1,r8,0
+	ld	r0,SOFTE(r1)
+	cmpdi	r0,0
+	crandc	eq,cr1*4+eq,eq
+	bne	restore
+
+	/*
+	 * Here we are preempting the current task. We want to make
+	 * sure we are soft-disabled first
+	 */
+	SOFT_DISABLE_INTS(r3,r4)
+1:	bl	.preempt_schedule_irq
+
+	/* Re-test flags and eventually loop */
 	clrrdi	r9,r1,THREAD_SHIFT
 	ld	r4,TI_FLAGS(r9)
-	andi.	r0,r4,_TIF_USER_WORK_MASK
-	bne	do_work
-#endif /* !CONFIG_PREEMPT */
+	andi.	r0,r4,_TIF_NEED_RESCHED
+	bne	1b
+#endif /* CONFIG_PREEMPT */
 
 	.globl	fast_exc_return_irq
 fast_exc_return_irq:
 restore:
 	/*
-	 * This is the main kernel exit path, we first check if we
-	 * have to change our interrupt state.
+	 * This is the main kernel exit path. First we check if we
+	 * are about to re-enable interrupts
 	 */
 	ld	r5,SOFTE(r1)
 	lbz	r6,PACASOFTIRQEN(r13)
-	cmpwi	cr1,r5,0
-	cmpw	cr0,r5,r6
-	beq	cr0,4f
+	cmpwi	cr0,r5,0
+	beq	restore_irq_off
 
-	/* We do, handle disable first, which is easy */
-	bne	cr1,3f;
- 	li	r0,0
-	stb	r0,PACASOFTIRQEN(r13);
-	TRACE_DISABLE_INTS
-	b	4f
+	/* We are enabling, were we already enabled ? Yes, just return */
+	cmpwi	cr0,r6,1
+	beq	cr0,do_restore
 
-3:	/*
+	/*
 	 * We are about to soft-enable interrupts (we are hard disabled
 	 * at this point). We check if there's anything that needs to
 	 * be replayed first.
@@ -626,7 +645,7 @@ restore_no_replay:
 	/*
 	 * Final return path. BookE is handled in a different file
 	 */
-4:
+do_restore:
 #ifdef CONFIG_PPC_BOOK3E
 	b	.exception_return_book3e
 #else
@@ -700,6 +719,25 @@ fast_exception_return:
 #endif /* CONFIG_PPC_BOOK3E */
 
 	/*
+	 * We are returning to a context with interrupts soft disabled.
+	 *
+	 * However, we may also about to hard enable, so we need to
+	 * make sure that in this case, we also clear PACA_IRQ_HARD_DIS
+	 * or that bit can get out of sync and bad things will happen
+	 */
+restore_irq_off:
+	ld	r3,_MSR(r1)
+	lbz	r7,PACAIRQHAPPENED(r13)
+	andi.	r0,r3,MSR_EE
+	beq	1f
+	rlwinm	r7,r7,0,~PACA_IRQ_HARD_DIS
+	stb	r7,PACAIRQHAPPENED(r13)
+1:	li	r0,0
+	stb	r0,PACASOFTIRQEN(r13);
+	TRACE_DISABLE_INTS
+	b	do_restore
+
+	/*
 	 * Something did happen, check if a re-emit is needed
 	 * (this also clears paca->irq_happened)
 	 */
@@ -748,65 +786,6 @@ restore_check_irq_replay:
 #endif /* CONFIG_PPC_BOOK3E */
 1:	b	.ret_from_except /* What else to do here ? */
  
-do_work:
-#ifdef CONFIG_PREEMPT
-	andi.	r0,r3,MSR_PR	/* Returning to user mode? */
-	bne	user_work
-	/* Check that preempt_count() == 0 and interrupts are enabled */
-	lwz	r8,TI_PREEMPT(r9)
-	cmpwi	cr1,r8,0
-	ld	r0,SOFTE(r1)
-	cmpdi	r0,0
-	crandc	eq,cr1*4+eq,eq
-	bne	restore
-
-	/*
-	 * Here we are preempting the current task. We want to make
-	 * sure we are soft-disabled first
-	 */
-	SOFT_DISABLE_INTS(r3,r4)
-1:	bl	.preempt_schedule_irq
-
-	/* Hard-disable interrupts again (and update PACA) */
-#ifdef CONFIG_PPC_BOOK3E
-	wrteei	0
-#else
-	ld	r10,PACAKMSR(r13) /* Get kernel MSR without EE */
-	mtmsrd	r10,1
-#endif /* CONFIG_PPC_BOOK3E */
-	li	r0,PACA_IRQ_HARD_DIS
-	stb	r0,PACAIRQHAPPENED(r13)
-
-	/* Re-test flags and eventually loop */
-	clrrdi	r9,r1,THREAD_SHIFT
-	ld	r4,TI_FLAGS(r9)
-	andi.	r0,r4,_TIF_NEED_RESCHED
-	bne	1b
-	b	restore
-
-user_work:
-#endif /* CONFIG_PREEMPT */
-
-	/* Enable interrupts */
-#ifdef CONFIG_PPC_BOOK3E
-	wrteei	1
-#else
-	ori	r10,r10,MSR_EE
-	mtmsrd	r10,1
-#endif /* CONFIG_PPC_BOOK3E */
-
-	andi.	r0,r4,_TIF_NEED_RESCHED
-	beq	1f
-	bl	.restore_interrupts
-	bl	.schedule
-	b	.ret_from_except_lite
-
-1:	bl	.save_nvgprs
-	bl	.restore_interrupts
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.do_notify_resume
-	b	.ret_from_except
-
 unrecov_restore:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.unrecoverable_exception

@@ -1,0 +1,220 @@
+/*
+ * at91sam9263.dtsi - Device Tree Include file for AT91SAM9263 family SoC
+ *
+ *  Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+ *
+ * Licensed under GPLv2 only.
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	model = "Atmel AT91SAM9263 family SoC";
+	compatible = "atmel,at91sam9263";
+	interrupt-parent = <&aic>;
+
+	aliases {
+		serial0 = &dbgu;
+		serial1 = &usart0;
+		serial2 = &usart1;
+		serial3 = &usart2;
+		gpio0 = &pioA;
+		gpio1 = &pioB;
+		gpio2 = &pioC;
+		gpio3 = &pioD;
+		gpio4 = &pioE;
+		tcb0 = &tcb0;
+	};
+	cpus {
+		cpu@0 {
+			compatible = "arm,arm926ejs";
+		};
+	};
+
+	memory {
+		reg = <0x20000000 0x08000000>;
+	};
+
+	ahb {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		apb {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			aic: interrupt-controller@fffff000 {
+				#interrupt-cells = <2>;
+				compatible = "atmel,at91rm9200-aic";
+				interrupt-controller;
+				reg = <0xfffff000 0x200>;
+			};
+
+			pmc: pmc@fffffc00 {
+				compatible = "atmel,at91rm9200-pmc";
+				reg = <0xfffffc00 0x100>;
+			};
+
+			ramc: ramc@ffffe200 {
+				compatible = "atmel,at91sam9260-sdramc";
+				reg = <0xffffe200 0x200
+				       0xffffe800 0x200>;
+			};
+
+			pit: timer@fffffd30 {
+				compatible = "atmel,at91sam9260-pit";
+				reg = <0xfffffd30 0xf>;
+				interrupts = <1 4>;
+			};
+
+			tcb0: timer@fff7c000 {
+				compatible = "atmel,at91rm9200-tcb";
+				reg = <0xfff7c000 0x100>;
+				interrupts = <19 4>;
+			};
+
+			rstc@fffffd00 {
+				compatible = "atmel,at91sam9260-rstc";
+				reg = <0xfffffd00 0x10>;
+			};
+
+			shdwc@fffffd10 {
+				compatible = "atmel,at91sam9260-shdwc";
+				reg = <0xfffffd10 0x10>;
+			};
+
+			pioA: gpio@fffff200 {
+				compatible = "atmel,at91rm9200-gpio";
+				reg = <0xfffff200 0x100>;
+				interrupts = <2 4>;
+				#gpio-cells = <2>;
+				gpio-controller;
+				interrupt-controller;
+			};
+
+			pioB: gpio@fffff400 {
+				compatible = "atmel,at91rm9200-gpio";
+				reg = <0xfffff400 0x100>;
+				interrupts = <3 4>;
+				#gpio-cells = <2>;
+				gpio-controller;
+				interrupt-controller;
+			};
+
+			pioC: gpio@fffff600 {
+				compatible = "atmel,at91rm9200-gpio";
+				reg = <0xfffff600 0x100>;
+				interrupts = <4 4>;
+				#gpio-cells = <2>;
+				gpio-controller;
+				interrupt-controller;
+			};
+
+			pioD: gpio@fffff800 {
+				compatible = "atmel,at91rm9200-gpio";
+				reg = <0xfffff800 0x100>;
+				interrupts = <4 4>;
+				#gpio-cells = <2>;
+				gpio-controller;
+				interrupt-controller;
+			};
+
+			pioE: gpio@fffffa00 {
+				compatible = "atmel,at91rm9200-gpio";
+				reg = <0xfffffa00 0x100>;
+				interrupts = <4 4>;
+				#gpio-cells = <2>;
+				gpio-controller;
+				interrupt-controller;
+			};
+
+			dbgu: serial@ffffee00 {
+				compatible = "atmel,at91sam9260-usart";
+				reg = <0xffffee00 0x200>;
+				interrupts = <1 4>;
+				status = "disabled";
+			};
+
+			usart0: serial@fff8c000 {
+				compatible = "atmel,at91sam9260-usart";
+				reg = <0xfff8c000 0x200>;
+				interrupts = <7 4>;
+				atmel,use-dma-rx;
+				atmel,use-dma-tx;
+				status = "disabled";
+			};
+
+			usart1: serial@fff90000 {
+				compatible = "atmel,at91sam9260-usart";
+				reg = <0xfff90000 0x200>;
+				interrupts = <8 4>;
+				atmel,use-dma-rx;
+				atmel,use-dma-tx;
+				status = "disabled";
+			};
+
+			usart2: serial@fff94000 {
+				compatible = "atmel,at91sam9260-usart";
+				reg = <0xfff94000 0x200>;
+				interrupts = <9 4>;
+				atmel,use-dma-rx;
+				atmel,use-dma-tx;
+				status = "disabled";
+			};
+
+			macb0: ethernet@fffbc000 {
+				compatible = "cdns,at32ap7000-macb", "cdns,macb";
+				reg = <0xfffbc000 0x100>;
+				interrupts = <21 4>;
+				status = "disabled";
+			};
+
+			usb1: gadget@fff78000 {
+				compatible = "atmel,at91rm9200-udc";
+				reg = <0xfff78000 0x4000>;
+				interrupts = <24 4>;
+				status = "disabled";
+			};
+		};
+
+		nand0: nand@40000000 {
+			compatible = "atmel,at91rm9200-nand";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x40000000 0x10000000
+			       0xffffe000 0x200
+			      >;
+			atmel,nand-addr-offset = <21>;
+			atmel,nand-cmd-offset = <22>;
+			gpios = <&pioA 22 0
+				 &pioD 15 0
+				 0
+				>;
+			status = "disabled";
+		};
+
+		usb0: ohci@00a00000 {
+			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
+			reg = <0x00a00000 0x100000>;
+			interrupts = <29 4>;
+			status = "disabled";
+		};
+	};
+
+	i2c@0 {
+		compatible = "i2c-gpio";
+		gpios = <&pioB 4 0 /* sda */
+			 &pioB 5 0 /* scl */
+			>;
+		i2c-gpio,sda-open-drain;
+		i2c-gpio,scl-open-drain;
+		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+};

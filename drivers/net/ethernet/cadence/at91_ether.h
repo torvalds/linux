@@ -88,6 +88,7 @@ struct at91_private
 	struct macb_platform_data board_data;	/* board-specific
 						 * configuration (shared with
 						 * macb for common data */
+	void __iomem *emac_base;		/* base register address */
 	struct clk *ether_clk;			/* clock */
 
 	/* PHY */

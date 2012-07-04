@@ -74,9 +74,7 @@ restore_registers:
 ENTRY(do_suspend_lowlevel)
 	call	save_processor_state
 	call	save_registers
-	pushl	$3
-	call	acpi_enter_sleep_state
-	addl	$4, %esp
+	call	acpi_enter_s3
 
 #	In case of S3 failure, we'll emerge here.  Jump
 # 	to ret_point to recover

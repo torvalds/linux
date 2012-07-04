@@ -727,7 +727,10 @@ ppc4xx_edac_handle_ce(struct mem_ctl_info *mci,
 
 	for (row = 0; row < mci->nr_csrows; row++)
 		if (ppc4xx_edac_check_bank_error(status, row))
-			edac_mc_handle_ce_no_info(mci, message);
+			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+					     0, 0, 0,
+					     row, 0, -1,
+					     message, "", NULL);
 }
 
 /**
@@ -755,7 +758,10 @@ ppc4xx_edac_handle_ue(struct mem_ctl_info *mci,
 
 	for (row = 0; row < mci->nr_csrows; row++)
 		if (ppc4xx_edac_check_bank_error(status, row))
-			edac_mc_handle_ue(mci, page, offset, row, message);
+			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+					     page, offset, 0,
+					     row, 0, -1,
+					     message, "", NULL);
 }
 
 /**
@@ -895,9 +901,8 @@ ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
 	enum mem_type mtype;
 	enum dev_type dtype;
 	enum edac_type edac_mode;
-	int row;
-	u32 mbxcf, size;
-	static u32 ppc4xx_last_page;
+	int row, j;
+	u32 mbxcf, size, nr_pages;
 
 	/* Establish the memory type and width */
 
@@ -948,7 +953,7 @@ ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
 		case SDRAM_MBCF_SZ_2GB:
 		case SDRAM_MBCF_SZ_4GB:
 		case SDRAM_MBCF_SZ_8GB:
-			csi->nr_pages = SDRAM_MBCF_SZ_TO_PAGES(size);
+			nr_pages = SDRAM_MBCF_SZ_TO_PAGES(size);
 			break;
 		default:
 			ppc4xx_edac_mc_printk(KERN_ERR, mci,
@@ -958,10 +963,6 @@ ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
 			status = -EINVAL;
 			goto done;
 		}
-
-		csi->first_page = ppc4xx_last_page;
-		csi->last_page	= csi->first_page + csi->nr_pages - 1;
-		csi->page_mask	= 0;
 
 		/*
 		 * It's unclear exactly what grain should be set to
@@ -975,15 +976,17 @@ ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
 		 * possible values would be the PLB width (16), the
 		 * page size (PAGE_SIZE) or the memory width (2 or 4).
 		 */
+		for (j = 0; j < csi->nr_channels; j++) {
+			struct dimm_info *dimm = csi->channels[j].dimm;
 
-		csi->grain	= 1;
+			dimm->nr_pages  = nr_pages / csi->nr_channels;
+			dimm->grain	= 1;
 
-		csi->mtype	= mtype;
-		csi->dtype	= dtype;
+			dimm->mtype	= mtype;
+			dimm->dtype	= dtype;
 
-		csi->edac_mode	= edac_mode;
-
-		ppc4xx_last_page += csi->nr_pages;
+			dimm->edac_mode	= edac_mode;
+		}
 	}
 
  done:
@@ -1236,6 +1239,7 @@ static int __devinit ppc4xx_edac_probe(struct platform_device *op)
 	dcr_host_t dcr_host;
 	const struct device_node *np = op->dev.of_node;
 	struct mem_ctl_info *mci = NULL;
+	struct edac_mc_layer layers[2];
 	static int ppc4xx_edac_instance;
 
 	/*
@@ -1281,12 +1285,14 @@ static int __devinit ppc4xx_edac_probe(struct platform_device *op)
 	 * controller instance and perform the appropriate
 	 * initialization.
 	 */
-
-	mci = edac_mc_alloc(sizeof(struct ppc4xx_edac_pdata),
-			    ppc4xx_edac_nr_csrows,
-			    ppc4xx_edac_nr_chans,
-			    ppc4xx_edac_instance);
-
+	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
+	layers[0].size = ppc4xx_edac_nr_csrows;
+	layers[0].is_virt_csrow = true;
+	layers[1].type = EDAC_MC_LAYER_CHANNEL;
+	layers[1].size = ppc4xx_edac_nr_chans;
+	layers[1].is_virt_csrow = false;
+	mci = edac_mc_alloc(ppc4xx_edac_instance, ARRAY_SIZE(layers), layers,
+			    sizeof(struct ppc4xx_edac_pdata));
 	if (mci == NULL) {
 		ppc4xx_edac_printk(KERN_ERR, "%s: "
 				   "Failed to allocate EDAC MC instance!\n",

@@ -90,6 +90,7 @@ static int bcm47xx_get_sprom_ssb(struct ssb_bus *bus, struct ssb_sprom *out)
 	char prefix[10];
 
 	if (bus->bustype == SSB_BUSTYPE_PCI) {
+		memset(out, 0, sizeof(struct ssb_sprom));
 		snprintf(prefix, sizeof(prefix), "pci/%u/%u/",
 			 bus->host_pci->bus->number + 1,
 			 PCI_SLOT(bus->host_pci->devfn));
@@ -109,15 +110,9 @@ static int bcm47xx_get_invariants(struct ssb_bus *bus,
 	/* Fill boardinfo structure */
 	memset(&(iv->boardinfo), 0 , sizeof(struct ssb_boardinfo));
 
-	if (nvram_getenv("boardvendor", buf, sizeof(buf)) >= 0)
-		iv->boardinfo.vendor = (u16)simple_strtoul(buf, NULL, 0);
-	else
-		iv->boardinfo.vendor = SSB_BOARDVENDOR_BCM;
-	if (nvram_getenv("boardtype", buf, sizeof(buf)) >= 0)
-		iv->boardinfo.type = (u16)simple_strtoul(buf, NULL, 0);
-	if (nvram_getenv("boardrev", buf, sizeof(buf)) >= 0)
-		iv->boardinfo.rev = (u16)simple_strtoul(buf, NULL, 0);
+	bcm47xx_fill_ssb_boardinfo(&iv->boardinfo, NULL);
 
+	memset(&iv->sprom, 0, sizeof(struct ssb_sprom));
 	bcm47xx_fill_sprom(&iv->sprom, NULL);
 
 	if (nvram_getenv("cardbus", buf, sizeof(buf)) >= 0)
@@ -166,12 +161,14 @@ static int bcm47xx_get_sprom_bcma(struct bcma_bus *bus, struct ssb_sprom *out)
 
 	switch (bus->hosttype) {
 	case BCMA_HOSTTYPE_PCI:
+		memset(out, 0, sizeof(struct ssb_sprom));
 		snprintf(prefix, sizeof(prefix), "pci/%u/%u/",
 			 bus->host_pci->bus->number + 1,
 			 PCI_SLOT(bus->host_pci->devfn));
 		bcm47xx_fill_sprom(out, prefix);
 		return 0;
 	case BCMA_HOSTTYPE_SOC:
+		memset(out, 0, sizeof(struct ssb_sprom));
 		bcm47xx_fill_sprom_ethernet(out, NULL);
 		core = bcma_find_core(bus, BCMA_CORE_80211);
 		if (core) {
@@ -197,6 +194,8 @@ static void __init bcm47xx_register_bcma(void)
 	err = bcma_host_soc_register(&bcm47xx_bus.bcma);
 	if (err)
 		panic("Failed to initialize BCMA bus (err %d)", err);
+
+	bcm47xx_fill_bcma_boardinfo(&bcm47xx_bus.bcma.bus.boardinfo, NULL);
 }
 #endif
 

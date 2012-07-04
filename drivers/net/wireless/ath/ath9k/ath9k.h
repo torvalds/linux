@@ -26,6 +26,7 @@
 #include "debug.h"
 #include "common.h"
 #include "mci.h"
+#include "dfs.h"
 
 /*
  * Header for the ath9k.ko driver core *only* -- hw code nor any other driver
@@ -213,6 +214,7 @@ struct ath_frame_info {
 	enum ath9k_key_type keytype;
 	u8 keyix;
 	u8 retries;
+	u8 rtscts_rate;
 };
 
 struct ath_buf_state {
@@ -369,7 +371,7 @@ struct ath_vif {
  * number of beacon intervals, the game's up.
  */
 #define BSTUCK_THRESH           	9
-#define	ATH_BCBUF               	4
+#define	ATH_BCBUF               	8
 #define ATH_DEFAULT_BINTVAL     	100 /* TU */
 #define ATH_DEFAULT_BMISS_LIMIT 	10
 #define IEEE80211_MS_TO_TU(x)           (((x) * 1000) / 1024)
@@ -430,6 +432,8 @@ void ath9k_set_beaconing_status(struct ath_softc *sc, bool status);
 void ath_reset_work(struct work_struct *work);
 void ath_hw_check(struct work_struct *work);
 void ath_hw_pll_work(struct work_struct *work);
+void ath_rx_poll(unsigned long data);
+void ath_start_rx_poll(struct ath_softc *sc, u8 nbeacon);
 void ath_paprd_calibrate(struct work_struct *work);
 void ath_ani_calibrate(unsigned long data);
 void ath_start_ani(struct ath_common *common);
@@ -670,6 +674,7 @@ struct ath_softc {
 	struct ath_beacon_config cur_beacon_conf;
 	struct delayed_work tx_complete_work;
 	struct delayed_work hw_pll_work;
+	struct timer_list rx_poll_timer;
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	struct ath_btcoex btcoex;
@@ -680,6 +685,7 @@ struct ath_softc {
 
 	struct ath_ant_comb ant_comb;
 	u8 ant_tx, ant_rx;
+	struct dfs_pattern_detector *dfs_detector;
 };
 
 void ath9k_tasklet(unsigned long data);

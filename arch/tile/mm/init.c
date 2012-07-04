@@ -82,7 +82,7 @@ static int num_l2_ptes[MAX_NUMNODES];
 
 static void init_prealloc_ptes(int node, int pages)
 {
-	BUG_ON(pages & (HV_L2_ENTRIES-1));
+	BUG_ON(pages & (PTRS_PER_PTE - 1));
 	if (pages) {
 		num_l2_ptes[node] = pages;
 		l2_ptes[node] = __alloc_bootmem(pages * sizeof(pte_t),
@@ -131,14 +131,9 @@ static void __init assign_pte(pmd_t *pmd, pte_t *page_table)
 
 #ifdef __tilegx__
 
-#if HV_L1_SIZE != HV_L2_SIZE
-# error Rework assumption that L1 and L2 page tables are same size.
-#endif
-
-/* Since pmd_t arrays and pte_t arrays are the same size, just use casts. */
 static inline pmd_t *alloc_pmd(void)
 {
-	return (pmd_t *)alloc_pte();
+	return __alloc_bootmem(L1_KERNEL_PGTABLE_SIZE, HV_PAGE_TABLE_ALIGN, 0);
 }
 
 static inline void assign_pmd(pud_t *pud, pmd_t *pmd)
@@ -444,6 +439,7 @@ static pgd_t pgtables[PTRS_PER_PGD]
  */
 static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 {
+	unsigned long long irqmask;
 	unsigned long address, pfn;
 	pmd_t *pmd;
 	pte_t *pte;
@@ -633,10 +629,13 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 	 *  - install pgtables[] as the real page table
 	 *  - flush the TLB so the new page table takes effect
 	 */
+	irqmask = interrupt_mask_save_mask();
+	interrupt_mask_set_mask(-1ULL);
 	rc = flush_and_install_context(__pa(pgtables),
 				       init_pgprot((unsigned long)pgtables),
 				       __get_cpu_var(current_asid),
 				       cpumask_bits(my_cpu_mask));
+	interrupt_mask_restore_mask(irqmask);
 	BUG_ON(rc != 0);
 
 	/* Copy the page table back to the normal swapper_pg_dir. */
@@ -699,6 +698,7 @@ static void __init permanent_kmaps_init(pgd_t *pgd_base)
 #endif /* CONFIG_HIGHMEM */
 
 
+#ifndef CONFIG_64BIT
 static void __init init_free_pfn_range(unsigned long start, unsigned long end)
 {
 	unsigned long pfn;
@@ -771,6 +771,7 @@ static void __init set_non_bootmem_pages_init(void)
 		init_free_pfn_range(start, end);
 	}
 }
+#endif
 
 /*
  * paging_init() sets up the page tables - note that all of lowmem is
@@ -807,7 +808,7 @@ void __init paging_init(void)
 	 * changing init_mm once we get up and running, and there's no
 	 * need for e.g. vmalloc_sync_all().
 	 */
-	BUILD_BUG_ON(pgd_index(VMALLOC_START) != pgd_index(VMALLOC_END));
+	BUILD_BUG_ON(pgd_index(VMALLOC_START) != pgd_index(VMALLOC_END - 1));
 	pud = pud_offset(pgd_base + pgd_index(VMALLOC_START), VMALLOC_START);
 	assign_pmd(pud, alloc_pmd());
 #endif
@@ -859,8 +860,10 @@ void __init mem_init(void)
 	/* this will put all bootmem onto the freelists */
 	totalram_pages += free_all_bootmem();
 
+#ifndef CONFIG_64BIT
 	/* count all remaining LOWMEM and give all HIGHMEM to page allocator */
 	set_non_bootmem_pages_init();
+#endif
 
 	codesize =  (unsigned long)&_etext - (unsigned long)&_text;
 	datasize =  (unsigned long)&_end - (unsigned long)&_sdata;

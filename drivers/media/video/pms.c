@@ -29,16 +29,21 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/isa.h>
 #include <asm/io.h>
 
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-fh.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-device.h>
 
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0.0.4");
+MODULE_VERSION("0.0.5");
 
 #define MOTOROLA	1
 #define PHILIPS2	2               /* SAA7191 */
@@ -55,11 +60,11 @@ struct i2c_info {
 struct pms {
 	struct v4l2_device v4l2_dev;
 	struct video_device vdev;
+	struct v4l2_ctrl_handler hdl;
 	int height;
 	int width;
 	int depth;
 	int input;
-	s32 brightness, saturation, hue, contrast;
 	struct mutex lock;
 	int i2c_count;
 	struct i2c_info i2cinfo[64];
@@ -71,8 +76,6 @@ struct pms {
 	int data;
 	void __iomem *mem;
 };
-
-static struct pms pms_card;
 
 /*
  *	I/O ports and Shared Memory
@@ -676,8 +679,10 @@ static int pms_querycap(struct file *file, void  *priv,
 
 	strlcpy(vcap->driver, dev->v4l2_dev.name, sizeof(vcap->driver));
 	strlcpy(vcap->card, "Mediavision PMS", sizeof(vcap->card));
-	strlcpy(vcap->bus_info, "ISA", sizeof(vcap->bus_info));
-	vcap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE;
+	snprintf(vcap->bus_info, sizeof(vcap->bus_info),
+			"ISA:%s", dev->v4l2_dev.name);
+	vcap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE;
+	vcap->capabilities = vcap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -716,11 +721,9 @@ static int pms_s_input(struct file *file, void *fh, unsigned int inp)
 	if (inp > 3)
 		return -EINVAL;
 
-	mutex_lock(&dev->lock);
 	dev->input = inp;
 	pms_videosource(dev, inp & 1);
 	pms_vcrinput(dev, inp >> 1);
-	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -738,7 +741,6 @@ static int pms_s_std(struct file *file, void *fh, v4l2_std_id *std)
 	int ret = 0;
 
 	dev->std = *std;
-	mutex_lock(&dev->lock);
 	if (dev->std & V4L2_STD_NTSC) {
 		pms_framerate(dev, 30);
 		pms_secamcross(dev, 0);
@@ -762,81 +764,31 @@ static int pms_s_std(struct file *file, void *fh, v4l2_std_id *std)
 		pms_format(dev, 0);
 		break;
 	}*/
-	mutex_unlock(&dev->lock);
-	return 0;
-}
-
-static int pms_queryctrl(struct file *file, void *priv,
-					struct v4l2_queryctrl *qc)
-{
-	switch (qc->id) {
-	case V4L2_CID_BRIGHTNESS:
-		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 139);
-	case V4L2_CID_CONTRAST:
-		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 70);
-	case V4L2_CID_SATURATION:
-		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 64);
-	case V4L2_CID_HUE:
-		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 0);
-	}
-	return -EINVAL;
-}
-
-static int pms_g_ctrl(struct file *file, void *priv,
-					struct v4l2_control *ctrl)
-{
-	struct pms *dev = video_drvdata(file);
-	int ret = 0;
-
-	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		ctrl->value = dev->brightness;
-		break;
-	case V4L2_CID_CONTRAST:
-		ctrl->value = dev->contrast;
-		break;
-	case V4L2_CID_SATURATION:
-		ctrl->value = dev->saturation;
-		break;
-	case V4L2_CID_HUE:
-		ctrl->value = dev->hue;
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
 	return ret;
 }
 
-static int pms_s_ctrl(struct file *file, void *priv,
-					struct v4l2_control *ctrl)
+static int pms_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct pms *dev = video_drvdata(file);
+	struct pms *dev = container_of(ctrl->handler, struct pms, hdl);
 	int ret = 0;
 
-	mutex_lock(&dev->lock);
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
-		dev->brightness = ctrl->value;
-		pms_brightness(dev, dev->brightness);
+		pms_brightness(dev, ctrl->val);
 		break;
 	case V4L2_CID_CONTRAST:
-		dev->contrast = ctrl->value;
-		pms_contrast(dev, dev->contrast);
+		pms_contrast(dev, ctrl->val);
 		break;
 	case V4L2_CID_SATURATION:
-		dev->saturation = ctrl->value;
-		pms_saturation(dev, dev->saturation);
+		pms_saturation(dev, ctrl->val);
 		break;
 	case V4L2_CID_HUE:
-		dev->hue = ctrl->value;
-		pms_hue(dev, dev->hue);
+		pms_hue(dev, ctrl->val);
 		break;
 	default:
 		ret = -EINVAL;
 		break;
 	}
-	mutex_unlock(&dev->lock);
 	return ret;
 }
 
@@ -884,13 +836,11 @@ static int pms_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *fm
 
 	if (ret)
 		return ret;
-	mutex_lock(&dev->lock);
 	dev->width = pix->width;
 	dev->height = pix->height;
 	dev->depth = (pix->pixelformat == V4L2_PIX_FMT_RGB555) ? 15 : 16;
 	pms_resolution(dev, dev->width, dev->height);
 	/* Ok we figured out what to use from our wide choice */
-	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -901,7 +851,7 @@ static int pms_enum_fmt_vid_cap(struct file *file, void *fh, struct v4l2_fmtdesc
 		  "RGB 5:5:5", V4L2_PIX_FMT_RGB555,
 		  { 0, 0, 0, 0 }
 		},
-		{ 0, 0, 0,
+		{ 1, 0, 0,
 		  "RGB 5:6:5", V4L2_PIX_FMT_RGB565,
 		  { 0, 0, 0, 0 }
 		},
@@ -922,32 +872,43 @@ static ssize_t pms_read(struct file *file, char __user *buf,
 	struct pms *dev = video_drvdata(file);
 	int len;
 
-	mutex_lock(&dev->lock);
 	len = pms_capture(dev, buf, (dev->depth == 15), count);
-	mutex_unlock(&dev->lock);
 	return len;
+}
+
+static unsigned int pms_poll(struct file *file, struct poll_table_struct *wait)
+{
+	struct v4l2_fh *fh = file->private_data;
+	unsigned int res = POLLIN | POLLRDNORM;
+
+	if (v4l2_event_pending(fh))
+		res |= POLLPRI;
+	poll_wait(file, &fh->wait, wait);
+	return res;
 }
 
 static const struct v4l2_file_operations pms_fops = {
 	.owner		= THIS_MODULE,
+	.open           = v4l2_fh_open,
+	.release        = v4l2_fh_release,
+	.poll           = pms_poll,
 	.unlocked_ioctl	= video_ioctl2,
 	.read           = pms_read,
 };
 
 static const struct v4l2_ioctl_ops pms_ioctl_ops = {
-	.vidioc_querycap    		    = pms_querycap,
-	.vidioc_g_input      		    = pms_g_input,
-	.vidioc_s_input      		    = pms_s_input,
-	.vidioc_enum_input   		    = pms_enum_input,
-	.vidioc_g_std 			    = pms_g_std,
-	.vidioc_s_std 			    = pms_s_std,
-	.vidioc_queryctrl 		    = pms_queryctrl,
-	.vidioc_g_ctrl  		    = pms_g_ctrl,
-	.vidioc_s_ctrl 			    = pms_s_ctrl,
-	.vidioc_enum_fmt_vid_cap 	    = pms_enum_fmt_vid_cap,
-	.vidioc_g_fmt_vid_cap 		    = pms_g_fmt_vid_cap,
-	.vidioc_s_fmt_vid_cap  		    = pms_s_fmt_vid_cap,
-	.vidioc_try_fmt_vid_cap  	    = pms_try_fmt_vid_cap,
+	.vidioc_querycap	    = pms_querycap,
+	.vidioc_g_input		    = pms_g_input,
+	.vidioc_s_input		    = pms_s_input,
+	.vidioc_enum_input	    = pms_enum_input,
+	.vidioc_g_std		    = pms_g_std,
+	.vidioc_s_std		    = pms_s_std,
+	.vidioc_enum_fmt_vid_cap    = pms_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap	    = pms_g_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap	    = pms_s_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap     = pms_try_fmt_vid_cap,
+	.vidioc_subscribe_event     = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event   = v4l2_event_unsubscribe,
 };
 
 /*
@@ -956,7 +917,6 @@ static const struct v4l2_ioctl_ops pms_ioctl_ops = {
 
 static int init_mediavision(struct pms *dev)
 {
-	int id;
 	int idec, decst;
 	int i;
 	static const unsigned char i2c_defs[] = {
@@ -988,7 +948,6 @@ static int init_mediavision(struct pms *dev)
 	outb(dev->io >> 4, 0x9a01);	/* Set IO port */
 
 
-	id = mvv_read(dev, 3);
 	decst = pms_i2c_stat(dev, 0x43);
 
 	if (decst != -1)
@@ -1068,76 +1027,125 @@ static int enable;
 module_param(enable, int, 0);
 #endif
 
-static int __init pms_init(void)
+static const struct v4l2_ctrl_ops pms_ctrl_ops = {
+	.s_ctrl = pms_s_ctrl,
+};
+
+static int pms_probe(struct device *pdev, unsigned int card)
 {
-	struct pms *dev = &pms_card;
-	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
+	struct pms *dev;
+	struct v4l2_device *v4l2_dev;
+	struct v4l2_ctrl_handler *hdl;
 	int res;
-
-	strlcpy(v4l2_dev->name, "pms", sizeof(v4l2_dev->name));
-
-	v4l2_info(v4l2_dev, "Mediavision Pro Movie Studio driver 0.03\n");
 
 #ifndef MODULE
 	if (!enable) {
-		v4l2_err(v4l2_dev,
-			"PMS: not enabled, use pms.enable=1 to probe\n");
+		pr_err("PMS: not enabled, use pms.enable=1 to probe\n");
 		return -ENODEV;
 	}
 #endif
 
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (dev == NULL)
+		return -ENOMEM;
+
 	dev->decoder = PHILIPS2;
 	dev->io = io_port;
 	dev->data = io_port + 1;
+	v4l2_dev = &dev->v4l2_dev;
+	hdl = &dev->hdl;
 
-	if (init_mediavision(dev)) {
-		v4l2_err(v4l2_dev, "Board not found.\n");
-		return -ENODEV;
-	}
-
-	res = v4l2_device_register(NULL, v4l2_dev);
+	res = v4l2_device_register(pdev, v4l2_dev);
 	if (res < 0) {
 		v4l2_err(v4l2_dev, "Could not register v4l2_device\n");
-		return res;
+		goto free_dev;
+	}
+	v4l2_info(v4l2_dev, "Mediavision Pro Movie Studio driver 0.05\n");
+
+	res = init_mediavision(dev);
+	if (res) {
+		v4l2_err(v4l2_dev, "Board not found.\n");
+		goto free_io;
 	}
 
+	v4l2_ctrl_handler_init(hdl, 4);
+	v4l2_ctrl_new_std(hdl, &pms_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, 0, 255, 1, 139);
+	v4l2_ctrl_new_std(hdl, &pms_ctrl_ops,
+			V4L2_CID_CONTRAST, 0, 255, 1, 70);
+	v4l2_ctrl_new_std(hdl, &pms_ctrl_ops,
+			V4L2_CID_SATURATION, 0, 255, 1, 64);
+	v4l2_ctrl_new_std(hdl, &pms_ctrl_ops,
+			V4L2_CID_HUE, 0, 255, 1, 0);
+	if (hdl->error) {
+		res = hdl->error;
+		goto free_hdl;
+	}
+
+	mutex_init(&dev->lock);
 	strlcpy(dev->vdev.name, v4l2_dev->name, sizeof(dev->vdev.name));
 	dev->vdev.v4l2_dev = v4l2_dev;
+	dev->vdev.ctrl_handler = hdl;
 	dev->vdev.fops = &pms_fops;
 	dev->vdev.ioctl_ops = &pms_ioctl_ops;
 	dev->vdev.release = video_device_release_empty;
+	dev->vdev.lock = &dev->lock;
+	dev->vdev.tvnorms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM;
+	set_bit(V4L2_FL_USE_FH_PRIO, &dev->vdev.flags);
 	video_set_drvdata(&dev->vdev, dev);
-	mutex_init(&dev->lock);
 	dev->std = V4L2_STD_NTSC_M;
 	dev->height = 240;
 	dev->width = 320;
-	dev->depth = 15;
-	dev->brightness = 139;
-	dev->contrast = 70;
-	dev->hue = 0;
-	dev->saturation = 64;
+	dev->depth = 16;
 	pms_swsense(dev, 75);
 	pms_resolution(dev, 320, 240);
 	pms_videosource(dev, 0);
 	pms_vcrinput(dev, 0);
-	if (video_register_device(&dev->vdev, VFL_TYPE_GRABBER, video_nr) < 0) {
-		v4l2_device_unregister(&dev->v4l2_dev);
-		release_region(dev->io, 3);
-		release_region(0x9a01, 1);
-		iounmap(dev->mem);
-		return -EINVAL;
-	}
+	v4l2_ctrl_handler_setup(hdl);
+	res = video_register_device(&dev->vdev, VFL_TYPE_GRABBER, video_nr);
+	if (res >= 0)
+		return 0;
+
+free_hdl:
+	v4l2_ctrl_handler_free(hdl);
+	v4l2_device_unregister(&dev->v4l2_dev);
+free_io:
+	release_region(dev->io, 3);
+	release_region(0x9a01, 1);
+	iounmap(dev->mem);
+free_dev:
+	kfree(dev);
+	return res;
+}
+
+static int pms_remove(struct device *pdev, unsigned int card)
+{
+	struct pms *dev = dev_get_drvdata(pdev);
+
+	video_unregister_device(&dev->vdev);
+	v4l2_ctrl_handler_free(&dev->hdl);
+	release_region(dev->io, 3);
+	release_region(0x9a01, 1);
+	iounmap(dev->mem);
 	return 0;
+}
+
+static struct isa_driver pms_driver = {
+	.probe		= pms_probe,
+	.remove		= pms_remove,
+	.driver		= {
+		.name	= "pms",
+	},
+};
+
+static int __init pms_init(void)
+{
+	return isa_register_driver(&pms_driver, 1);
 }
 
 static void __exit pms_exit(void)
 {
-	struct pms *dev = &pms_card;
-
-	video_unregister_device(&dev->vdev);
-	release_region(dev->io, 3);
-	release_region(0x9a01, 1);
-	iounmap(dev->mem);
+	isa_unregister_driver(&pms_driver);
 }
 
 module_init(pms_init);

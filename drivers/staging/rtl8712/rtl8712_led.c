@@ -60,7 +60,7 @@ enum _LED_STATE_871x {
 			     * the # of times to blink is depend on time
 			     * for scanning. */
 	LED_NO_LINK_BLINK = 7, /* LED is blinking during no link state. */
-	LED_BLINK_StartToBlink = 8,/* Customzied for Sercomm Printer
+	LED_BLINK_StartToBlink = 8,/* Customized for Sercomm Printer
 				    * Server case */
 	LED_BLINK_WPS = 9,	/* LED is blinkg during WPS communication */
 	LED_TXRX_BLINK = 10,
@@ -826,7 +826,7 @@ static void BlinkTimerCallback(unsigned long data)
 {
 	struct LED_871x  *pLed = (struct LED_871x *)data;
 
-	/* This fixed the crash problem on Fedora 12 when trying to do thei
+	/* This fixed the crash problem on Fedora 12 when trying to do the
 	 * insmod;ifconfig up;rmmod commands. */
 	if ((pLed->padapter->bSurpriseRemoved == true) ||
 	    (pLed->padapter->bDriverStopped == true))
@@ -836,7 +836,7 @@ static void BlinkTimerCallback(unsigned long data)
 
 /*	Description:
  *		Callback function of LED BlinkWorkItem.
- *		We dispatch acture LED blink action according to LedStrategy.
+ *		We dispatch actual LED blink action according to LedStrategy.
  */
 static void BlinkWorkItemCallback(struct work_struct *work)
 {

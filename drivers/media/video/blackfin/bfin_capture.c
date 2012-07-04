@@ -942,6 +942,10 @@ static int __devinit bcap_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&bcap_dev->dma_queue);
 
 	vfd->lock = &bcap_dev->mutex;
+	/* Locking in file operations other than ioctl should be done
+	   by the driver, not the V4L2 core.
+	   This driver needs auditing so that this flag can be removed. */
+	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 
 	/* register video device */
 	ret = video_register_device(bcap_dev->video_dev, VFL_TYPE_GRABBER, -1);

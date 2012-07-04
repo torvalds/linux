@@ -93,6 +93,10 @@ HV_CONF_ATTR(mezz_part,		HV_CONFSTR_MEZZ_PART_NUM)
 HV_CONF_ATTR(mezz_serial,	HV_CONFSTR_MEZZ_SERIAL_NUM)
 HV_CONF_ATTR(mezz_revision,	HV_CONFSTR_MEZZ_REV)
 HV_CONF_ATTR(mezz_description,	HV_CONFSTR_MEZZ_DESC)
+HV_CONF_ATTR(cpumod_part,	HV_CONFSTR_CPUMOD_PART_NUM)
+HV_CONF_ATTR(cpumod_serial,	HV_CONFSTR_CPUMOD_SERIAL_NUM)
+HV_CONF_ATTR(cpumod_revision,	HV_CONFSTR_CPUMOD_REV)
+HV_CONF_ATTR(cpumod_description,HV_CONFSTR_CPUMOD_DESC)
 HV_CONF_ATTR(switch_control,	HV_CONFSTR_SWITCH_CONTROL)
 
 static struct attribute *board_attrs[] = {
@@ -104,6 +108,10 @@ static struct attribute *board_attrs[] = {
 	&dev_attr_mezz_serial.attr,
 	&dev_attr_mezz_revision.attr,
 	&dev_attr_mezz_description.attr,
+	&dev_attr_cpumod_part.attr,
+	&dev_attr_cpumod_serial.attr,
+	&dev_attr_cpumod_revision.attr,
+	&dev_attr_cpumod_description.attr,
 	&dev_attr_switch_control.attr,
 	NULL
 };

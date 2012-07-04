@@ -4,7 +4,7 @@ config USB_DWC3
 	select USB_OTG_UTILS
 	select USB_GADGET_DUALSPEED
 	select USB_GADGET_SUPERSPEED
-	select USB_XHCI_PLATFORM
+	select USB_XHCI_PLATFORM if USB_SUPPORT && USB_XHCI_HCD
 	help
 	  Say Y or M here if your system has a Dual Role SuperSpeed
 	  USB controller based on the DesignWare USB3 IP Core.

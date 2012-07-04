@@ -13,7 +13,9 @@
 #ifndef __ASSEMBLY__
 
 struct blackfin_pda {			/* Per-processor Data Area */
+#ifdef CONFIG_SMP
 	struct blackfin_pda *next;
+#endif
 
 	unsigned long syscfg;
 #ifdef CONFIG_SMP

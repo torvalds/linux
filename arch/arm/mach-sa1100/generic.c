@@ -306,7 +306,7 @@ void sa11x0_register_irda(struct irda_platform_data *irda)
 }
 
 static struct resource sa1100_rtc_resources[] = {
-	DEFINE_RES_MEM(0x90010000, 0x9001003f),
+	DEFINE_RES_MEM(0x90010000, 0x40),
 	DEFINE_RES_IRQ_NAMED(IRQ_RTC1Hz, "rtc 1Hz"),
 	DEFINE_RES_IRQ_NAMED(IRQ_RTCAlrm, "rtc alarm"),
 };
@@ -359,6 +359,10 @@ static int __init sa1100_init(void)
 
 arch_initcall(sa1100_init);
 
+void __init sa11x0_init_late(void)
+{
+	sa11x0_pm_init();
+}
 
 /*
  * Common I/O mapping:

@@ -53,17 +53,13 @@ extern void ctrl_alt_del(void);
 
 #define KBD_DEFMODE ((1 << VC_REPEAT) | (1 << VC_META))
 
-/*
- * Some laptops take the 789uiojklm,. keys as number pad when NumLock is on.
- * This seems a good reason to start with NumLock off. On HIL keyboards
- * of PARISC machines however there is no NumLock key and everyone expects the
- * keypad to be used for numbers.
- */
-
-#if defined(CONFIG_PARISC) && (defined(CONFIG_KEYBOARD_HIL) || defined(CONFIG_KEYBOARD_HIL_OLD))
-#define KBD_DEFLEDS (1 << VC_NUMLOCK)
+#if defined(CONFIG_X86) || defined(CONFIG_PARISC)
+#include <asm/kbdleds.h>
 #else
-#define KBD_DEFLEDS 0
+static inline int kbd_defleds(void)
+{
+	return 0;
+}
 #endif
 
 #define KBD_DEFLOCK 0
@@ -1085,15 +1081,21 @@ void vt_set_led_state(int console, int leds)
  *
  *	Handle console start. This is a wrapper for the VT layer
  *	so that we can keep kbd knowledge internal
+ *
+ *	FIXME: We eventually need to hold the kbd lock here to protect
+ *	the LED updating. We can't do it yet because fn_hold calls stop_tty
+ *	and start_tty under the kbd_event_lock, while normal tty paths
+ *	don't hold the lock. We probably need to split out an LED lock
+ *	but not during an -rc release!
  */
 void vt_kbd_con_start(int console)
 {
 	struct kbd_struct * kbd = kbd_table + console;
-	unsigned long flags;
-	spin_lock_irqsave(&kbd_event_lock, flags);
+/*	unsigned long flags; */
+/*	spin_lock_irqsave(&kbd_event_lock, flags); */
 	clr_vc_kbd_led(kbd, VC_SCROLLOCK);
 	set_leds();
-	spin_unlock_irqrestore(&kbd_event_lock, flags);
+/*	spin_unlock_irqrestore(&kbd_event_lock, flags); */
 }
 
 /**
@@ -1102,22 +1104,28 @@ void vt_kbd_con_start(int console)
  *
  *	Handle console stop. This is a wrapper for the VT layer
  *	so that we can keep kbd knowledge internal
+ *
+ *	FIXME: We eventually need to hold the kbd lock here to protect
+ *	the LED updating. We can't do it yet because fn_hold calls stop_tty
+ *	and start_tty under the kbd_event_lock, while normal tty paths
+ *	don't hold the lock. We probably need to split out an LED lock
+ *	but not during an -rc release!
  */
 void vt_kbd_con_stop(int console)
 {
 	struct kbd_struct * kbd = kbd_table + console;
-	unsigned long flags;
-	spin_lock_irqsave(&kbd_event_lock, flags);
+/*	unsigned long flags; */
+/*	spin_lock_irqsave(&kbd_event_lock, flags); */
 	set_vc_kbd_led(kbd, VC_SCROLLOCK);
 	set_leds();
-	spin_unlock_irqrestore(&kbd_event_lock, flags);
+/*	spin_unlock_irqrestore(&kbd_event_lock, flags); */
 }
 
 /*
  * This is the tasklet that updates LED state on all keyboards
  * attached to the box. The reason we use tasklet is that we
  * need to handle the scenario when keyboard handler is not
- * registered yet but we already getting updates form VT to
+ * registered yet but we already getting updates from the VT to
  * update led state.
  */
 static void kbd_bh(unsigned long dummy)
@@ -1512,8 +1520,8 @@ int __init kbd_init(void)
 	int error;
 
 	for (i = 0; i < MAX_NR_CONSOLES; i++) {
-		kbd_table[i].ledflagstate = KBD_DEFLEDS;
-		kbd_table[i].default_ledflagstate = KBD_DEFLEDS;
+		kbd_table[i].ledflagstate = kbd_defleds();
+		kbd_table[i].default_ledflagstate = kbd_defleds();
 		kbd_table[i].ledmode = LED_SHOW_FLAGS;
 		kbd_table[i].lockstate = KBD_DEFLOCK;
 		kbd_table[i].slockstate = 0;
@@ -2032,7 +2040,7 @@ int vt_do_kdskled(int console, int cmd, unsigned long arg, int perm)
 		kbd->default_ledflagstate = ((arg >> 4) & 7);
 		set_leds();
                 spin_unlock_irqrestore(&kbd_event_lock, flags);
-		break;
+		return 0;
 
 	/* the ioctls below only set the lights, not the functions */
 	/* for those, see KDGKBLED and KDSKBLED above */

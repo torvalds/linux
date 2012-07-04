@@ -39,15 +39,6 @@
 
 #include "core.h"
 
-static struct resource generic_resources[] = {
-	{
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.flags = IORESOURCE_MEM,
-	},
-};
-
 int dwc3_host_init(struct dwc3 *dwc)
 {
 	struct platform_device	*xhci;
@@ -68,14 +59,8 @@ int dwc3_host_init(struct dwc3 *dwc)
 
 	dwc->xhci = xhci;
 
-	/* setup resources */
-	generic_resources[0].start = dwc->irq;
-
-	generic_resources[1].start = dwc->res->start;
-	generic_resources[1].end = dwc->res->start + 0x7fff;
-
-	ret = platform_device_add_resources(xhci, generic_resources,
-			ARRAY_SIZE(generic_resources));
+	ret = platform_device_add_resources(xhci, dwc->xhci_resources,
+						DWC3_XHCI_RESOURCES_NUM);
 	if (ret) {
 		dev_err(dwc->dev, "couldn't add resources to xHCI device\n");
 		goto err1;

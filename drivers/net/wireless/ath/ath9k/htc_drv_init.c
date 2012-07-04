@@ -14,6 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "htc.h"
 
 MODULE_AUTHOR("Atheros Communications");
@@ -711,7 +713,8 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
-	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN |
+			    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
 	hw->queues = 4;
 	hw->channel_change_time = 5000;
@@ -966,9 +969,7 @@ int ath9k_htc_resume(struct htc_target *htc_handle)
 static int __init ath9k_htc_init(void)
 {
 	if (ath9k_hif_usb_init() < 0) {
-		printk(KERN_ERR
-			"ath9k_htc: No USB devices found,"
-			" driver not installed.\n");
+		pr_err("No USB devices found, driver not installed\n");
 		return -ENODEV;
 	}
 
@@ -979,6 +980,6 @@ module_init(ath9k_htc_init);
 static void __exit ath9k_htc_exit(void)
 {
 	ath9k_hif_usb_exit();
-	printk(KERN_INFO "ath9k_htc: Driver unloaded\n");
+	pr_info("Driver unloaded\n");
 }
 module_exit(ath9k_htc_exit);

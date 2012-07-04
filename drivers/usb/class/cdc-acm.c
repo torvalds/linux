@@ -567,6 +567,14 @@ static int acm_port_activate(struct tty_port *port, struct tty_struct *tty)
 
 	usb_autopm_put_interface(acm->control);
 
+	/*
+	 * Unthrottle device in case the TTY was closed while throttled.
+	 */
+	spin_lock_irq(&acm->read_lock);
+	acm->throttled = 0;
+	acm->throttle_req = 0;
+	spin_unlock_irq(&acm->read_lock);
+
 	if (acm_submit_read_urbs(acm, GFP_KERNEL))
 		goto error_submit_read_urbs;
 
@@ -1664,6 +1672,7 @@ static struct usb_driver acm_driver = {
 #ifdef CONFIG_PM
 	.supports_autosuspend = 1,
 #endif
+	.disable_hub_initiated_lpm = 1,
 };
 
 /*

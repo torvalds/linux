@@ -9,6 +9,8 @@
  *	2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/socket.h>
@@ -122,6 +124,14 @@ static void l2tp_dfs_seq_tunnel_show(struct seq_file *m, void *v)
 	seq_printf(m, "\nTUNNEL %u peer %u", tunnel->tunnel_id, tunnel->peer_tunnel_id);
 	if (tunnel->sock) {
 		struct inet_sock *inet = inet_sk(tunnel->sock);
+
+#if IS_ENABLED(CONFIG_IPV6)
+		if (tunnel->sock->sk_family == AF_INET6) {
+			struct ipv6_pinfo *np = inet6_sk(tunnel->sock);
+			seq_printf(m, " from %pI6c to %pI6c\n",
+				&np->saddr, &np->daddr);
+		} else
+#endif
 		seq_printf(m, " from %pI4 to %pI4\n",
 			   &inet->inet_saddr, &inet->inet_daddr);
 		if (tunnel->encap == L2TP_ENCAPTYPE_UDP)
@@ -317,11 +327,11 @@ static int __init l2tp_debugfs_init(void)
 	if (tunnels == NULL)
 		rc = -EIO;
 
-	printk(KERN_INFO "L2TP debugfs support\n");
+	pr_info("L2TP debugfs support\n");
 
 out:
 	if (rc)
-		printk(KERN_WARNING "l2tp debugfs: unable to init\n");
+		pr_warn("unable to init\n");
 
 	return rc;
 }

@@ -1062,17 +1062,4 @@ static struct pci_driver ad1889_pci_driver = {
 	.remove = __devexit_p(snd_ad1889_remove),
 };
 
-static int __init
-alsa_ad1889_init(void)
-{
-	return pci_register_driver(&ad1889_pci_driver);
-}
-
-static void __exit
-alsa_ad1889_fini(void)
-{
-	pci_unregister_driver(&ad1889_pci_driver);
-}
-
-module_init(alsa_ad1889_init);
-module_exit(alsa_ad1889_fini);
+module_pci_driver(ad1889_pci_driver);

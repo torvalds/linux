@@ -80,7 +80,7 @@ static ssize_t regmap_map_read_file(struct file *file, char __user *user_buf,
 	val_len = 2 * map->format.val_bytes;
 	tot_len = reg_len + val_len + 3;      /* : \n */
 
-	for (i = 0; i < map->max_register + 1; i++) {
+	for (i = 0; i <= map->max_register; i += map->reg_stride) {
 		if (!regmap_readable(map, i))
 			continue;
 
@@ -197,7 +197,7 @@ static ssize_t regmap_access_read_file(struct file *file,
 	reg_len = regmap_calc_reg_len(map->max_register, buf, count);
 	tot_len = reg_len + 10; /* ': R W V P\n' */
 
-	for (i = 0; i < map->max_register + 1; i++) {
+	for (i = 0; i <= map->max_register; i += map->reg_stride) {
 		/* Ignore registers which are neither readable nor writable */
 		if (!regmap_readable(map, i) && !regmap_writeable(map, i))
 			continue;
@@ -242,10 +242,17 @@ static const struct file_operations regmap_access_fops = {
 	.llseek = default_llseek,
 };
 
-void regmap_debugfs_init(struct regmap *map)
+void regmap_debugfs_init(struct regmap *map, const char *name)
 {
-	map->debugfs = debugfs_create_dir(dev_name(map->dev),
-					  regmap_debugfs_root);
+	if (name) {
+		map->debugfs_name = kasprintf(GFP_KERNEL, "%s-%s",
+					      dev_name(map->dev), name);
+		name = map->debugfs_name;
+	} else {
+		name = dev_name(map->dev);
+	}
+
+	map->debugfs = debugfs_create_dir(name, regmap_debugfs_root);
 	if (!map->debugfs) {
 		dev_warn(map->dev, "Failed to create debugfs directory\n");
 		return;
@@ -274,6 +281,7 @@ void regmap_debugfs_init(struct regmap *map)
 void regmap_debugfs_exit(struct regmap *map)
 {
 	debugfs_remove_recursive(map->debugfs);
+	kfree(map->debugfs_name);
 }
 
 void regmap_debugfs_initcall(void)

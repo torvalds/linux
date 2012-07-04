@@ -39,8 +39,6 @@
 
 /* srmmu.c */
 extern int viking_mxcc_present;
-BTFIXUPDEF_CALL(void, flush_page_for_dma, unsigned long)
-#define flush_page_for_dma(page) BTFIXUP_CALL(flush_page_for_dma)(page)
 extern int flush_page_for_dma_global;
 static int viking_flush;
 /* viking.S */
@@ -143,7 +141,6 @@ static int __init iommu_init(void)
 
 subsys_initcall(iommu_init);
 
-/* This begs to be btfixup-ed by srmmu. */
 /* Flush the iotlb entries to ram. */
 /* This could be better if we didn't have to flush whole pages. */
 static void iommu_flush_iotlb(iopte_t *iopte, unsigned int niopte)
@@ -216,11 +213,6 @@ static u32 iommu_get_scsi_one(struct device *dev, char *vaddr, unsigned int len)
 	return busa + off;
 }
 
-static __u32 iommu_get_scsi_one_noflush(struct device *dev, char *vaddr, unsigned long len)
-{
-	return iommu_get_scsi_one(dev, vaddr, len);
-}
-
 static __u32 iommu_get_scsi_one_gflush(struct device *dev, char *vaddr, unsigned long len)
 {
 	flush_page_for_dma(0);
@@ -236,19 +228,6 @@ static __u32 iommu_get_scsi_one_pflush(struct device *dev, char *vaddr, unsigned
 		page += PAGE_SIZE;
 	}
 	return iommu_get_scsi_one(dev, vaddr, len);
-}
-
-static void iommu_get_scsi_sgl_noflush(struct device *dev, struct scatterlist *sg, int sz)
-{
-	int n;
-
-	while (sz != 0) {
-		--sz;
-		n = (sg->length + sg->offset + PAGE_SIZE-1) >> PAGE_SHIFT;
-		sg->dma_address = iommu_get_one(dev, sg_page(sg), n) + sg->offset;
-		sg->dma_length = sg->length;
-		sg = sg_next(sg);
-	}
 }
 
 static void iommu_get_scsi_sgl_gflush(struct device *dev, struct scatterlist *sg, int sz)
@@ -426,40 +405,36 @@ static void iommu_unmap_dma_area(struct device *dev, unsigned long busa, int len
 }
 #endif
 
-static char *iommu_lockarea(char *vaddr, unsigned long len)
-{
-	return vaddr;
-}
+static const struct sparc32_dma_ops iommu_dma_gflush_ops = {
+	.get_scsi_one		= iommu_get_scsi_one_gflush,
+	.get_scsi_sgl		= iommu_get_scsi_sgl_gflush,
+	.release_scsi_one	= iommu_release_scsi_one,
+	.release_scsi_sgl	= iommu_release_scsi_sgl,
+#ifdef CONFIG_SBUS
+	.map_dma_area		= iommu_map_dma_area,
+	.unmap_dma_area		= iommu_unmap_dma_area,
+#endif
+};
 
-static void iommu_unlockarea(char *vaddr, unsigned long len)
-{
-}
+static const struct sparc32_dma_ops iommu_dma_pflush_ops = {
+	.get_scsi_one		= iommu_get_scsi_one_pflush,
+	.get_scsi_sgl		= iommu_get_scsi_sgl_pflush,
+	.release_scsi_one	= iommu_release_scsi_one,
+	.release_scsi_sgl	= iommu_release_scsi_sgl,
+#ifdef CONFIG_SBUS
+	.map_dma_area		= iommu_map_dma_area,
+	.unmap_dma_area		= iommu_unmap_dma_area,
+#endif
+};
 
 void __init ld_mmu_iommu(void)
 {
-	viking_flush = (BTFIXUPVAL_CALL(flush_page_for_dma) == (unsigned long)viking_flush_page);
-	BTFIXUPSET_CALL(mmu_lockarea, iommu_lockarea, BTFIXUPCALL_RETO0);
-	BTFIXUPSET_CALL(mmu_unlockarea, iommu_unlockarea, BTFIXUPCALL_NOP);
-
-	if (!BTFIXUPVAL_CALL(flush_page_for_dma)) {
-		/* IO coherent chip */
-		BTFIXUPSET_CALL(mmu_get_scsi_one, iommu_get_scsi_one_noflush, BTFIXUPCALL_RETO0);
-		BTFIXUPSET_CALL(mmu_get_scsi_sgl, iommu_get_scsi_sgl_noflush, BTFIXUPCALL_NORM);
-	} else if (flush_page_for_dma_global) {
+	if (flush_page_for_dma_global) {
 		/* flush_page_for_dma flushes everything, no matter of what page is it */
-		BTFIXUPSET_CALL(mmu_get_scsi_one, iommu_get_scsi_one_gflush, BTFIXUPCALL_NORM);
-		BTFIXUPSET_CALL(mmu_get_scsi_sgl, iommu_get_scsi_sgl_gflush, BTFIXUPCALL_NORM);
+		sparc32_dma_ops = &iommu_dma_gflush_ops;
 	} else {
-		BTFIXUPSET_CALL(mmu_get_scsi_one, iommu_get_scsi_one_pflush, BTFIXUPCALL_NORM);
-		BTFIXUPSET_CALL(mmu_get_scsi_sgl, iommu_get_scsi_sgl_pflush, BTFIXUPCALL_NORM);
+		sparc32_dma_ops = &iommu_dma_pflush_ops;
 	}
-	BTFIXUPSET_CALL(mmu_release_scsi_one, iommu_release_scsi_one, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(mmu_release_scsi_sgl, iommu_release_scsi_sgl, BTFIXUPCALL_NORM);
-
-#ifdef CONFIG_SBUS
-	BTFIXUPSET_CALL(mmu_map_dma_area, iommu_map_dma_area, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(mmu_unmap_dma_area, iommu_unmap_dma_area, BTFIXUPCALL_NORM);
-#endif
 
 	if (viking_mxcc_present || srmmu_modtype == HyperSparc) {
 		dvma_prot = __pgprot(SRMMU_CACHE | SRMMU_ET_PTE | SRMMU_PRIV);

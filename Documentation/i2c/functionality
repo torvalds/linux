@@ -18,9 +18,9 @@ For the most up-to-date list of functionality constants, please check
                                   adapters typically can not do these)
   I2C_FUNC_10BIT_ADDR             Handles the 10-bit address extensions
   I2C_FUNC_PROTOCOL_MANGLING      Knows about the I2C_M_IGNORE_NAK,
-                                  I2C_M_REV_DIR_ADDR, I2C_M_NOSTART and
-                                  I2C_M_NO_RD_ACK flags (which modify the
-                                  I2C protocol!)
+                                  I2C_M_REV_DIR_ADDR and I2C_M_NO_RD_ACK
+                                  flags (which modify the I2C protocol!)
+  I2C_FUNC_NOSTART                Can skip repeated start sequence
   I2C_FUNC_SMBUS_QUICK            Handles the SMBus write_quick command
   I2C_FUNC_SMBUS_READ_BYTE        Handles the SMBus read_byte command
   I2C_FUNC_SMBUS_WRITE_BYTE       Handles the SMBus write_byte command
@@ -49,6 +49,9 @@ A few combinations of the above flags are also defined for your convenience:
   I2C_FUNC_SMBUS_EMUL             Handles all SMBus commands than can be
                                   emulated by a real I2C adapter (using
                                   the transparent emulation layer)
+
+In kernel versions prior to 3.5 I2C_FUNC_NOSTART was implemented as
+part of I2C_FUNC_PROTOCOL_MANGLING.
 
 
 ADAPTER IMPLEMENTATION

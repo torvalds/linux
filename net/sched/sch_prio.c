@@ -247,7 +247,8 @@ static int prio_dump(struct Qdisc *sch, struct sk_buff *skb)
 	opt.bands = q->bands;
 	memcpy(&opt.priomap, q->prio2band, TC_PRIO_MAX + 1);
 
-	NLA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
+	if (nla_put(skb, TCA_OPTIONS, sizeof(opt), &opt))
+		goto nla_put_failure;
 
 	return skb->len;
 

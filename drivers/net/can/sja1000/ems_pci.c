@@ -371,16 +371,4 @@ static struct pci_driver ems_pci_driver = {
 	.remove = ems_pci_del_card,
 };
 
-static int __init ems_pci_init(void)
-{
-	return pci_register_driver(&ems_pci_driver);
-}
-
-static void __exit ems_pci_exit(void)
-{
-	pci_unregister_driver(&ems_pci_driver);
-}
-
-module_init(ems_pci_init);
-module_exit(ems_pci_exit);
-
+module_pci_driver(ems_pci_driver);

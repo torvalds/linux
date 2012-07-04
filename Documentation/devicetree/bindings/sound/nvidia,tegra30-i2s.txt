@@ -1,0 +1,15 @@
+NVIDIA Tegra30 I2S controller
+
+Required properties:
+- compatible : "nvidia,tegra30-i2s"
+- reg : Should contain I2S registers location and length
+- nvidia,ahub-cif-ids : The list of AHUB CIF IDs for this port, rx (playback)
+  first, tx (capture) second. See nvidia,tegra30-ahub.txt for values.
+
+Example:
+
+i2s@70002800 {
+	compatible = "nvidia,tegra30-i2s";
+	reg = <0x70080300 0x100>;
+	nvidia,ahub-cif-ids = <4 4>;
+};

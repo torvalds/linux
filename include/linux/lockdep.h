@@ -157,6 +157,24 @@ struct lockdep_map {
 #endif
 };
 
+static inline void lockdep_copy_map(struct lockdep_map *to,
+				    struct lockdep_map *from)
+{
+	int i;
+
+	*to = *from;
+	/*
+	 * Since the class cache can be modified concurrently we could observe
+	 * half pointers (64bit arch using 32bit copy insns). Therefore clear
+	 * the caches and take the performance hit.
+	 *
+	 * XXX it doesn't work well with lockdep_set_class_and_subclass(), since
+	 *     that relies on cache abuse.
+	 */
+	for (i = 0; i < NR_LOCKDEP_CACHING_CLASSES; i++)
+		to->class_cache[i] = NULL;
+}
+
 /*
  * Every lock has a list of other locks that were taken after it.
  * We only grow the list, never remove from it:

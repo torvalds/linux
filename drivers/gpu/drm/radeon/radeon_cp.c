@@ -1827,14 +1827,10 @@ void radeon_do_release(struct drm_device * dev)
 			r600_do_cleanup_cp(dev);
 		else
 			radeon_do_cleanup_cp(dev);
-		if (dev_priv->me_fw) {
-			release_firmware(dev_priv->me_fw);
-			dev_priv->me_fw = NULL;
-		}
-		if (dev_priv->pfp_fw) {
-			release_firmware(dev_priv->pfp_fw);
-			dev_priv->pfp_fw = NULL;
-		}
+		release_firmware(dev_priv->me_fw);
+		dev_priv->me_fw = NULL;
+		release_firmware(dev_priv->pfp_fw);
+		dev_priv->pfp_fw = NULL;
 	}
 }
 

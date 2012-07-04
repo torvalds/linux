@@ -232,8 +232,7 @@ static unsigned int ipv6_conntrack_local(unsigned int hooknum,
 {
 	/* root is playing with raw sockets. */
 	if (skb->len < sizeof(struct ipv6hdr)) {
-		if (net_ratelimit())
-			pr_notice("ipv6_conntrack_local: packet too short\n");
+		net_notice_ratelimited("ipv6_conntrack_local: packet too short\n");
 		return NF_ACCEPT;
 	}
 	return __ipv6_conntrack_in(dev_net(out), hooknum, skb, okfn);
@@ -278,10 +277,11 @@ static struct nf_hook_ops ipv6_conntrack_ops[] __read_mostly = {
 static int ipv6_tuple_to_nlattr(struct sk_buff *skb,
 				const struct nf_conntrack_tuple *tuple)
 {
-	NLA_PUT(skb, CTA_IP_V6_SRC, sizeof(u_int32_t) * 4,
-		&tuple->src.u3.ip6);
-	NLA_PUT(skb, CTA_IP_V6_DST, sizeof(u_int32_t) * 4,
-		&tuple->dst.u3.ip6);
+	if (nla_put(skb, CTA_IP_V6_SRC, sizeof(u_int32_t) * 4,
+		    &tuple->src.u3.ip6) ||
+	    nla_put(skb, CTA_IP_V6_DST, sizeof(u_int32_t) * 4,
+		    &tuple->dst.u3.ip6))
+		goto nla_put_failure;
 	return 0;
 
 nla_put_failure:

@@ -386,6 +386,114 @@ static void sh_eth_reset_hw_crc(struct net_device *ndev)
 		sh_eth_write(ndev, 0x0, CSMR);
 }
 
+#elif defined(CONFIG_ARCH_R8A7740)
+#define SH_ETH_HAS_TSU	1
+static void sh_eth_chip_reset(struct net_device *ndev)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	unsigned long mii;
+
+	/* reset device */
+	sh_eth_tsu_write(mdp, ARSTR_ARSTR, ARSTR);
+	mdelay(1);
+
+	switch (mdp->phy_interface) {
+	case PHY_INTERFACE_MODE_GMII:
+		mii = 2;
+		break;
+	case PHY_INTERFACE_MODE_MII:
+		mii = 1;
+		break;
+	case PHY_INTERFACE_MODE_RMII:
+	default:
+		mii = 0;
+		break;
+	}
+	sh_eth_write(ndev, mii, RMII_MII);
+}
+
+static void sh_eth_reset(struct net_device *ndev)
+{
+	int cnt = 100;
+
+	sh_eth_write(ndev, EDSR_ENALL, EDSR);
+	sh_eth_write(ndev, sh_eth_read(ndev, EDMR) | EDMR_SRST_GETHER, EDMR);
+	while (cnt > 0) {
+		if (!(sh_eth_read(ndev, EDMR) & 0x3))
+			break;
+		mdelay(1);
+		cnt--;
+	}
+	if (cnt == 0)
+		printk(KERN_ERR "Device reset fail\n");
+
+	/* Table Init */
+	sh_eth_write(ndev, 0x0, TDLAR);
+	sh_eth_write(ndev, 0x0, TDFAR);
+	sh_eth_write(ndev, 0x0, TDFXR);
+	sh_eth_write(ndev, 0x0, TDFFR);
+	sh_eth_write(ndev, 0x0, RDLAR);
+	sh_eth_write(ndev, 0x0, RDFAR);
+	sh_eth_write(ndev, 0x0, RDFXR);
+	sh_eth_write(ndev, 0x0, RDFFR);
+}
+
+static void sh_eth_set_duplex(struct net_device *ndev)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+
+	if (mdp->duplex) /* Full */
+		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) | ECMR_DM, ECMR);
+	else		/* Half */
+		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) & ~ECMR_DM, ECMR);
+}
+
+static void sh_eth_set_rate(struct net_device *ndev)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+
+	switch (mdp->speed) {
+	case 10: /* 10BASE */
+		sh_eth_write(ndev, GECMR_10, GECMR);
+		break;
+	case 100:/* 100BASE */
+		sh_eth_write(ndev, GECMR_100, GECMR);
+		break;
+	case 1000: /* 1000BASE */
+		sh_eth_write(ndev, GECMR_1000, GECMR);
+		break;
+	default:
+		break;
+	}
+}
+
+/* R8A7740 */
+static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
+	.chip_reset	= sh_eth_chip_reset,
+	.set_duplex	= sh_eth_set_duplex,
+	.set_rate	= sh_eth_set_rate,
+
+	.ecsr_value	= ECSR_ICD | ECSR_MPD,
+	.ecsipr_value	= ECSIPR_LCHNGIP | ECSIPR_ICDIP | ECSIPR_MPDIP,
+	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
+
+	.tx_check	= EESR_TC1 | EESR_FTC,
+	.eesr_err_check	= EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_RABT | \
+			  EESR_RDE | EESR_RFRMER | EESR_TFE | EESR_TDE | \
+			  EESR_ECI,
+	.tx_error_check	= EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_TDE | \
+			  EESR_TFE,
+
+	.apr		= 1,
+	.mpr		= 1,
+	.tpauser	= 1,
+	.bculr		= 1,
+	.hw_swap	= 1,
+	.no_trimd	= 1,
+	.no_ade		= 1,
+	.tsu		= 1,
+};
+
 #elif defined(CONFIG_CPU_SUBTYPE_SH7619)
 #define SH_ETH_RESET_DEFAULT	1
 static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
@@ -443,7 +551,7 @@ static void sh_eth_reset(struct net_device *ndev)
 }
 #endif
 
-#if defined(CONFIG_CPU_SH4)
+#if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
 static void sh_eth_set_receive_align(struct sk_buff *skb)
 {
 	int reserve;
@@ -903,7 +1011,7 @@ static int sh_eth_txfree(struct net_device *ndev)
 }
 
 /* Packet receive function */
-static int sh_eth_rx(struct net_device *ndev)
+static int sh_eth_rx(struct net_device *ndev, u32 intr_status)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	struct sh_eth_rxdesc *rxdesc;
@@ -918,6 +1026,10 @@ static int sh_eth_rx(struct net_device *ndev)
 	while (!(rxdesc->status & cpu_to_edmac(mdp, RD_RACT))) {
 		desc_status = edmac_to_cpu(mdp, rxdesc->status);
 		pkt_len = rxdesc->frame_length;
+
+#if defined(CONFIG_ARCH_R8A7740)
+		desc_status >>= 16;
+#endif
 
 		if (--boguscnt < 0)
 			break;
@@ -989,8 +1101,14 @@ static int sh_eth_rx(struct net_device *ndev)
 
 	/* Restart Rx engine if stopped. */
 	/* If we don't need to check status, don't. -KDU */
-	if (!(sh_eth_read(ndev, EDRRR) & EDRRR_R))
+	if (!(sh_eth_read(ndev, EDRRR) & EDRRR_R)) {
+		/* fix the values for the next receiving if RDE is set */
+		if (intr_status & EESR_RDE)
+			mdp->cur_rx = mdp->dirty_rx =
+				(sh_eth_read(ndev, RDFAR) -
+				 sh_eth_read(ndev, RDLAR)) >> 4;
 		sh_eth_write(ndev, EDRRR_R, EDRRR);
+	}
 
 	return 0;
 }
@@ -1087,8 +1205,6 @@ static void sh_eth_error(struct net_device *ndev, int intr_status)
 		/* Receive Descriptor Empty int */
 		ndev->stats.rx_over_errors++;
 
-		if (sh_eth_read(ndev, EDRRR) ^ EDRRR_R)
-			sh_eth_write(ndev, EDRRR_R, EDRRR);
 		if (netif_msg_rx_err(mdp))
 			dev_err(&ndev->dev, "Receive Descriptor Empty\n");
 	}
@@ -1159,7 +1275,7 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 			EESR_RTSF | /* short frame recv */
 			EESR_PRE  | /* PHY-LSI recv error */
 			EESR_CERF)){ /* recv frame CRC error */
-		sh_eth_rx(ndev);
+		sh_eth_rx(ndev, intr_status);
 	}
 
 	/* Tx Check */

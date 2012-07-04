@@ -43,28 +43,6 @@ config EL16
 	  To compile this driver as a module, choose M here. The module
 	  will be called 3c507.
 
-config ELMC
-	tristate "3c523 \"EtherLink/MC\" support"
-	depends on MCA_LEGACY
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called 3c523.
-
-config ELMC_II
-	tristate "3c527 \"EtherLink/MC 32\" support (EXPERIMENTAL)"
-	depends on MCA && MCA_LEGACY
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called 3c527.
-
 config ARM_ETHER1
 	tristate "Acorn Ether1 support"
 	depends on ARM && ARCH_ACORN

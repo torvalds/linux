@@ -64,16 +64,6 @@ ENTRY(_ret_from_fork)
 	jump (p0);
 ENDPROC(_ret_from_fork)
 
-ENTRY(_sys_fork)
-	r0 = -EINVAL;
-#if (ANOMALY_05000371)
-	nop;
-	nop;
-	nop;
-#endif
-	rts;
-ENDPROC(_sys_fork)
-
 ENTRY(_sys_vfork)
 	r0 = sp;
 	r0 += 24;

@@ -987,7 +987,7 @@ done:
 	return 0;
 }
 
-static u32
+u32
 bfad_im_supported_speeds(struct bfa_s *bfa)
 {
 	struct bfa_ioc_attr_s *ioc_attr;

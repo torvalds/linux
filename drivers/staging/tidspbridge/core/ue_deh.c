@@ -215,7 +215,7 @@ static inline const char *event_to_string(int event)
 	case DSP_MMUFAULT: return "DSP_MMUFAULT"; break;
 	case DSP_PWRERROR: return "DSP_PWRERROR"; break;
 	case DSP_WDTOVERFLOW: return "DSP_WDTOVERFLOW"; break;
-	default: return "unkown event"; break;
+	default: return "unknown event"; break;
 	}
 }
 

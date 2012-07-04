@@ -89,9 +89,6 @@ struct sd {
 	/* A pointer to the currently connected sensor */
 	const struct stv06xx_sensor *sensor;
 
-	/* A pointer to the sd_desc struct */
-	struct sd_desc desc;
-
 	/* Sensor private data */
 	void *sensor_priv;
 

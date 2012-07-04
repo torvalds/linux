@@ -17,6 +17,7 @@
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/memory.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <asm/chpid.h>
 #include <asm/sclp.h>
@@ -38,7 +39,8 @@ struct read_info_sccb {
 	u64	facilities;		/* 48-55 */
 	u8	_reserved2[84 - 56];	/* 56-83 */
 	u8	fac84;			/* 84 */
-	u8	_reserved3[91 - 85];	/* 85-90 */
+	u8	fac85;			/* 85 */
+	u8	_reserved3[91 - 86];	/* 86-90 */
 	u8	flags;			/* 91 */
 	u8	_reserved4[100 - 92];	/* 92-99 */
 	u32	rnsize2;		/* 100-103 */
@@ -51,6 +53,7 @@ static int __initdata early_read_info_sccb_valid;
 
 u64 sclp_facilities;
 static u8 sclp_fac84;
+static u8 sclp_fac85;
 static unsigned long long rzm;
 static unsigned long long rnmax;
 
@@ -112,6 +115,7 @@ void __init sclp_facilities_detect(void)
 	sccb = &early_read_info_sccb;
 	sclp_facilities = sccb->facilities;
 	sclp_fac84 = sccb->fac84;
+	sclp_fac85 = sccb->fac85;
 	rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
 	rzm = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
 	rzm <<= 20;
@@ -126,6 +130,12 @@ unsigned long long sclp_get_rzm(void)
 {
 	return rzm;
 }
+
+u8 sclp_get_fac85(void)
+{
+	return sclp_fac85;
+}
+EXPORT_SYMBOL_GPL(sclp_get_fac85);
 
 /*
  * This function will be called after sclp_facilities_detect(), which gets
@@ -352,7 +362,17 @@ out:
 
 static int sclp_assign_storage(u16 rn)
 {
-	return do_assign_storage(0x000d0001, rn);
+	unsigned long long start, address;
+	int rc;
+
+	rc = do_assign_storage(0x000d0001, rn);
+	if (rc)
+		goto out;
+	start = address = rn2addr(rn);
+	for (; address < start + rzm; address += PAGE_SIZE)
+		page_set_storage_key(address, PAGE_DEFAULT_KEY, 0);
+out:
+	return rc;
 }
 
 static int sclp_unassign_storage(u16 rn)

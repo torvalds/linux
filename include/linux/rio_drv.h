@@ -377,6 +377,15 @@ void rio_unregister_driver(struct rio_driver *);
 struct rio_dev *rio_dev_get(struct rio_dev *);
 void rio_dev_put(struct rio_dev *);
 
+#ifdef CONFIG_RAPIDIO_DMA_ENGINE
+extern struct dma_chan *rio_request_dma(struct rio_dev *rdev);
+extern void rio_release_dma(struct dma_chan *dchan);
+extern struct dma_async_tx_descriptor *rio_dma_prep_slave_sg(
+		struct rio_dev *rdev, struct dma_chan *dchan,
+		struct rio_dma_data *data,
+		enum dma_transfer_direction direction, unsigned long flags);
+#endif
+
 /**
  * rio_name - Get the unique RIO device identifier
  * @rdev: RIO device

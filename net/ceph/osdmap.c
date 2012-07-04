@@ -38,7 +38,7 @@ done:
 
 /* maps */
 
-static int calc_bits_of(unsigned t)
+static int calc_bits_of(unsigned int t)
 {
 	int b = 0;
 	while (t) {
@@ -154,19 +154,12 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 	magic = ceph_decode_32(p);
 	if (magic != CRUSH_MAGIC) {
 		pr_err("crush_decode magic %x != current %x\n",
-		       (unsigned)magic, (unsigned)CRUSH_MAGIC);
+		       (unsigned int)magic, (unsigned int)CRUSH_MAGIC);
 		goto bad;
 	}
 	c->max_buckets = ceph_decode_32(p);
 	c->max_rules = ceph_decode_32(p);
 	c->max_devices = ceph_decode_32(p);
-
-	c->device_parents = kcalloc(c->max_devices, sizeof(u32), GFP_NOFS);
-	if (c->device_parents == NULL)
-		goto badmem;
-	c->bucket_parents = kcalloc(c->max_buckets, sizeof(u32), GFP_NOFS);
-	if (c->bucket_parents == NULL)
-		goto badmem;
 
 	c->buckets = kcalloc(c->max_buckets, sizeof(*c->buckets), GFP_NOFS);
 	if (c->buckets == NULL)
@@ -460,7 +453,7 @@ static void __remove_pg_pool(struct rb_root *root, struct ceph_pg_pool_info *pi)
 
 static int __decode_pool(void **p, void *end, struct ceph_pg_pool_info *pi)
 {
-	unsigned n, m;
+	unsigned int n, m;
 
 	ceph_decode_copy(p, &pi->v, sizeof(pi->v));
 	calc_pg_masks(pi);
@@ -890,8 +883,12 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		pglen = ceph_decode_32(p);
 
 		if (pglen) {
-			/* insert */
 			ceph_decode_need(p, end, pglen*sizeof(u32), bad);
+
+			/* removing existing (if any) */
+			(void) __remove_pg_mapping(&map->pg_temp, pgid);
+
+			/* insert */
 			pg = kmalloc(sizeof(*pg) + sizeof(u32)*pglen, GFP_NOFS);
 			if (!pg) {
 				err = -ENOMEM;
@@ -970,7 +967,7 @@ void ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 	objsetno = stripeno / su_per_object;
 
 	*ono = objsetno * sc + stripepos;
-	dout("objset %u * sc %u = ono %u\n", objsetno, sc, (unsigned)*ono);
+	dout("objset %u * sc %u = ono %u\n", objsetno, sc, (unsigned int)*ono);
 
 	/* *oxoff = *off % layout->fl_stripe_unit;  # offset in su */
 	t = off;
@@ -998,12 +995,11 @@ int ceph_calc_object_layout(struct ceph_object_layout *ol,
 			    struct ceph_file_layout *fl,
 			    struct ceph_osdmap *osdmap)
 {
-	unsigned num, num_mask;
+	unsigned int num, num_mask;
 	struct ceph_pg pgid;
-	s32 preferred = (s32)le32_to_cpu(fl->fl_pg_preferred);
 	int poolid = le32_to_cpu(fl->fl_pg_pool);
 	struct ceph_pg_pool_info *pool;
-	unsigned ps;
+	unsigned int ps;
 
 	BUG_ON(!osdmap);
 
@@ -1011,23 +1007,13 @@ int ceph_calc_object_layout(struct ceph_object_layout *ol,
 	if (!pool)
 		return -EIO;
 	ps = ceph_str_hash(pool->v.object_hash, oid, strlen(oid));
-	if (preferred >= 0) {
-		ps += preferred;
-		num = le32_to_cpu(pool->v.lpg_num);
-		num_mask = pool->lpg_num_mask;
-	} else {
-		num = le32_to_cpu(pool->v.pg_num);
-		num_mask = pool->pg_num_mask;
-	}
+	num = le32_to_cpu(pool->v.pg_num);
+	num_mask = pool->pg_num_mask;
 
 	pgid.ps = cpu_to_le16(ps);
-	pgid.preferred = cpu_to_le16(preferred);
+	pgid.preferred = cpu_to_le16(-1);
 	pgid.pool = fl->fl_pg_pool;
-	if (preferred >= 0)
-		dout("calc_object_layout '%s' pgid %d.%xp%d\n", oid, poolid, ps,
-		     (int)preferred);
-	else
-		dout("calc_object_layout '%s' pgid %d.%x\n", oid, poolid, ps);
+	dout("calc_object_layout '%s' pgid %d.%x\n", oid, poolid, ps);
 
 	ol->ol_pgid = pgid;
 	ol->ol_stripe_unit = fl->fl_object_stripe_unit;
@@ -1045,24 +1031,18 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 	struct ceph_pg_mapping *pg;
 	struct ceph_pg_pool_info *pool;
 	int ruleno;
-	unsigned poolid, ps, pps, t;
-	int preferred;
+	unsigned int poolid, ps, pps, t, r;
 
 	poolid = le32_to_cpu(pgid.pool);
 	ps = le16_to_cpu(pgid.ps);
-	preferred = (s16)le16_to_cpu(pgid.preferred);
 
 	pool = __lookup_pg_pool(&osdmap->pg_pools, poolid);
 	if (!pool)
 		return NULL;
 
 	/* pg_temp? */
-	if (preferred >= 0)
-		t = ceph_stable_mod(ps, le32_to_cpu(pool->v.lpg_num),
-				    pool->lpgp_num_mask);
-	else
-		t = ceph_stable_mod(ps, le32_to_cpu(pool->v.pg_num),
-				    pool->pgp_num_mask);
+	t = ceph_stable_mod(ps, le32_to_cpu(pool->v.pg_num),
+			    pool->pgp_num_mask);
 	pgid.ps = cpu_to_le16(t);
 	pg = __lookup_pg_mapping(&osdmap->pg_temp, pgid);
 	if (pg) {
@@ -1080,23 +1060,20 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 		return NULL;
 	}
 
-	/* don't forcefeed bad device ids to crush */
-	if (preferred >= osdmap->max_osd ||
-	    preferred >= osdmap->crush->max_devices)
-		preferred = -1;
-
-	if (preferred >= 0)
-		pps = ceph_stable_mod(ps,
-				      le32_to_cpu(pool->v.lpgp_num),
-				      pool->lpgp_num_mask);
-	else
-		pps = ceph_stable_mod(ps,
-				      le32_to_cpu(pool->v.pgp_num),
-				      pool->pgp_num_mask);
+	pps = ceph_stable_mod(ps,
+			      le32_to_cpu(pool->v.pgp_num),
+			      pool->pgp_num_mask);
 	pps += poolid;
-	*num = crush_do_rule(osdmap->crush, ruleno, pps, osds,
-			     min_t(int, pool->v.size, *num),
-			     preferred, osdmap->osd_weight);
+	r = crush_do_rule(osdmap->crush, ruleno, pps, osds,
+			  min_t(int, pool->v.size, *num),
+			  osdmap->osd_weight);
+	if (r < 0) {
+		pr_err("error %d from crush rule: pool %d ruleset %d type %d"
+		       " size %d\n", r, poolid, pool->v.crush_ruleset,
+		       pool->v.type, pool->v.size);
+		return NULL;
+	}
+	*num = r;
 	return osds;
 }
 

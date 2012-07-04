@@ -3398,7 +3398,7 @@ static int snd_cmipci_resume(struct pci_dev *pci)
 }
 #endif /* CONFIG_PM */
 
-static struct pci_driver driver = {
+static struct pci_driver cmipci_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_cmipci_ids,
 	.probe = snd_cmipci_probe,
@@ -3409,15 +3409,4 @@ static struct pci_driver driver = {
 #endif
 };
 	
-static int __init alsa_card_cmipci_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_cmipci_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_cmipci_init)
-module_exit(alsa_card_cmipci_exit)
+module_pci_driver(cmipci_driver);

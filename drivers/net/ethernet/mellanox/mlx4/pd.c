@@ -63,7 +63,7 @@ void mlx4_pd_free(struct mlx4_dev *dev, u32 pdn)
 }
 EXPORT_SYMBOL_GPL(mlx4_pd_free);
 
-int mlx4_xrcd_alloc(struct mlx4_dev *dev, u32 *xrcdn)
+int __mlx4_xrcd_alloc(struct mlx4_dev *dev, u32 *xrcdn)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
@@ -73,11 +73,46 @@ int mlx4_xrcd_alloc(struct mlx4_dev *dev, u32 *xrcdn)
 
 	return 0;
 }
+
+int mlx4_xrcd_alloc(struct mlx4_dev *dev, u32 *xrcdn)
+{
+	u64 out_param;
+	int err;
+
+	if (mlx4_is_mfunc(dev)) {
+		err = mlx4_cmd_imm(dev, 0, &out_param,
+				   RES_XRCD, RES_OP_RESERVE,
+				   MLX4_CMD_ALLOC_RES,
+				   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
+		if (err)
+			return err;
+
+		*xrcdn = get_param_l(&out_param);
+		return 0;
+	}
+	return __mlx4_xrcd_alloc(dev, xrcdn);
+}
 EXPORT_SYMBOL_GPL(mlx4_xrcd_alloc);
+
+void __mlx4_xrcd_free(struct mlx4_dev *dev, u32 xrcdn)
+{
+	mlx4_bitmap_free(&mlx4_priv(dev)->xrcd_bitmap, xrcdn);
+}
 
 void mlx4_xrcd_free(struct mlx4_dev *dev, u32 xrcdn)
 {
-	mlx4_bitmap_free(&mlx4_priv(dev)->xrcd_bitmap, xrcdn);
+	u64 in_param;
+	int err;
+
+	if (mlx4_is_mfunc(dev)) {
+		set_param_l(&in_param, xrcdn);
+		err = mlx4_cmd(dev, in_param, RES_XRCD,
+			       RES_OP_RESERVE, MLX4_CMD_FREE_RES,
+			       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
+		if (err)
+			mlx4_warn(dev, "Failed to release xrcdn %d\n", xrcdn);
+	} else
+		__mlx4_xrcd_free(dev, xrcdn);
 }
 EXPORT_SYMBOL_GPL(mlx4_xrcd_free);
 

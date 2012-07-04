@@ -5,12 +5,15 @@
 #include <asm/machvec.h>
 
 /*
- * A sane default based on a reasonable vector table size, platforms are
- * advised to cap this at the hard limit that they're interested in
- * through the machvec.
+ * Only legacy non-sparseirq platforms have to set a reasonably sane
+ * value here. sparseirq platforms allocate their irq_descs on the fly,
+ * so will expand automatically based on the number of registered IRQs.
  */
-#define NR_IRQS			512
-#define NR_IRQS_LEGACY		8	/* Legacy external IRQ0-7 */
+#ifdef CONFIG_SPARSE_IRQ
+# define NR_IRQS		8
+#else
+# define NR_IRQS		512
+#endif
 
 /*
  * This is a special IRQ number for indicating that no IRQ has been

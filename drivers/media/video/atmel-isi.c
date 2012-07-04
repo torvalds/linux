@@ -260,7 +260,7 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
 	unsigned long size;
-	int ret, bytes_per_line;
+	int ret;
 
 	/* Reset ISI */
 	ret = atmel_isi_wait_status(isi, WAIT_ISI_RESET);
@@ -271,13 +271,7 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 	/* Disable all interrupts */
 	isi_writel(isi, ISI_INTDIS, ~0UL);
 
-	bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
-						icd->current_fmt->host_fmt);
-
-	if (bytes_per_line < 0)
-		return bytes_per_line;
-
-	size = bytes_per_line * icd->user_height;
+	size = icd->sizeimage;
 
 	if (!*nbuffers || *nbuffers > MAX_BUFFER_NUM)
 		*nbuffers = MAX_BUFFER_NUM;
@@ -316,13 +310,8 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	struct atmel_isi *isi = ici->priv;
 	unsigned long size;
 	struct isi_dma_desc *desc;
-	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
-						icd->current_fmt->host_fmt);
 
-	if (bytes_per_line < 0)
-		return bytes_per_line;
-
-	size = bytes_per_line * icd->user_height;
+	size = icd->sizeimage;
 
 	if (vb2_plane_size(vb, 0) < size) {
 		dev_err(icd->parent, "%s data will not fit into plane (%lu < %lu)\n",
@@ -638,6 +627,7 @@ static const struct soc_mbus_pixelfmt isi_camera_formats[] = {
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_LE,
+		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 };
 

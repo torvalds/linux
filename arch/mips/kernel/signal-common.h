@@ -19,8 +19,6 @@
 #  define DEBUGP(fmt, args...)
 #endif
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 /*
  * Determine which stack to use..
  */

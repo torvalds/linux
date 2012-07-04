@@ -578,6 +578,7 @@ static void write_one_revoke_record(journal_t *journal,
 				    struct jbd2_revoke_record_s *record,
 				    int write_op)
 {
+	int csum_size = 0;
 	struct journal_head *descriptor;
 	int offset;
 	journal_header_t *header;
@@ -592,9 +593,13 @@ static void write_one_revoke_record(journal_t *journal,
 	descriptor = *descriptorp;
 	offset = *offsetp;
 
+	/* Do we need to leave space at the end for a checksum? */
+	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2))
+		csum_size = sizeof(struct jbd2_journal_revoke_tail);
+
 	/* Make sure we have a descriptor with space left for the record */
 	if (descriptor) {
-		if (offset == journal->j_blocksize) {
+		if (offset >= journal->j_blocksize - csum_size) {
 			flush_descriptor(journal, descriptor, offset, write_op);
 			descriptor = NULL;
 		}
@@ -631,6 +636,24 @@ static void write_one_revoke_record(journal_t *journal,
 	*offsetp = offset;
 }
 
+static void jbd2_revoke_csum_set(journal_t *j,
+				 struct journal_head *descriptor)
+{
+	struct jbd2_journal_revoke_tail *tail;
+	__u32 csum;
+
+	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
+		return;
+
+	tail = (struct jbd2_journal_revoke_tail *)
+			(jh2bh(descriptor)->b_data + j->j_blocksize -
+			sizeof(struct jbd2_journal_revoke_tail));
+	tail->r_checksum = 0;
+	csum = jbd2_chksum(j, j->j_csum_seed, jh2bh(descriptor)->b_data,
+			   j->j_blocksize);
+	tail->r_checksum = cpu_to_be32(csum);
+}
+
 /*
  * Flush a revoke descriptor out to the journal.  If we are aborting,
  * this is a noop; otherwise we are generating a buffer which needs to
@@ -652,6 +675,8 @@ static void flush_descriptor(journal_t *journal,
 
 	header = (jbd2_journal_revoke_header_t *) jh2bh(descriptor)->b_data;
 	header->r_count = cpu_to_be32(offset);
+	jbd2_revoke_csum_set(journal, descriptor);
+
 	set_buffer_jwrite(bh);
 	BUFFER_TRACE(bh, "write");
 	set_buffer_dirty(bh);

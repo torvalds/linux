@@ -49,6 +49,14 @@ struct cred init_cred = {
 	.subscribers		= ATOMIC_INIT(2),
 	.magic			= CRED_MAGIC,
 #endif
+	.uid			= GLOBAL_ROOT_UID,
+	.gid			= GLOBAL_ROOT_GID,
+	.suid			= GLOBAL_ROOT_UID,
+	.sgid			= GLOBAL_ROOT_GID,
+	.euid			= GLOBAL_ROOT_UID,
+	.egid			= GLOBAL_ROOT_GID,
+	.fsuid			= GLOBAL_ROOT_UID,
+	.fsgid			= GLOBAL_ROOT_GID,
 	.securebits		= SECUREBITS_DEFAULT,
 	.cap_inheritable	= CAP_EMPTY_SET,
 	.cap_permitted		= CAP_FULL_SET,
@@ -148,6 +156,7 @@ static void put_cred_rcu(struct rcu_head *rcu)
 	if (cred->group_info)
 		put_group_info(cred->group_info);
 	free_uid(cred->user);
+	put_user_ns(cred->user_ns);
 	kmem_cache_free(cred_jar, cred);
 }
 
@@ -198,13 +207,6 @@ void exit_creds(struct task_struct *tsk)
 	validate_creds(cred);
 	alter_cred_subscribers(cred, -1);
 	put_cred(cred);
-
-	cred = (struct cred *) tsk->replacement_session_keyring;
-	if (cred) {
-		tsk->replacement_session_keyring = NULL;
-		validate_creds(cred);
-		put_cred(cred);
-	}
 }
 
 /**
@@ -303,6 +305,7 @@ struct cred *prepare_creds(void)
 	set_cred_subscribers(new, 0);
 	get_group_info(new->group_info);
 	get_uid(new->user);
+	get_user_ns(new->user_ns);
 
 #ifdef CONFIG_KEYS
 	key_get(new->thread_keyring);
@@ -386,8 +389,6 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
 	struct cred *new;
 	int ret;
 
-	p->replacement_session_keyring = NULL;
-
 	if (
 #ifdef CONFIG_KEYS
 		!p->cred->thread_keyring &&
@@ -413,11 +414,6 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
 		if (ret < 0)
 			goto error_put;
 	}
-
-	/* cache user_ns in cred.  Doesn't need a refcount because it will
-	 * stay pinned by cred->user
-	 */
-	new->user_ns = new->user->user_ns;
 
 #ifdef CONFIG_KEYS
 	/* new threads get their own thread keyrings if their parent already
@@ -493,10 +489,10 @@ int commit_creds(struct cred *new)
 	get_cred(new); /* we will require a ref for the subj creds too */
 
 	/* dumpability changes */
-	if (old->euid != new->euid ||
-	    old->egid != new->egid ||
-	    old->fsuid != new->fsuid ||
-	    old->fsgid != new->fsgid ||
+	if (!uid_eq(old->euid, new->euid) ||
+	    !gid_eq(old->egid, new->egid) ||
+	    !uid_eq(old->fsuid, new->fsuid) ||
+	    !gid_eq(old->fsgid, new->fsgid) ||
 	    !cap_issubset(new->cap_permitted, old->cap_permitted)) {
 		if (task->mm)
 			set_dumpable(task->mm, suid_dumpable);
@@ -505,9 +501,9 @@ int commit_creds(struct cred *new)
 	}
 
 	/* alter the thread keyring */
-	if (new->fsuid != old->fsuid)
+	if (!uid_eq(new->fsuid, old->fsuid))
 		key_fsuid_changed(task);
-	if (new->fsgid != old->fsgid)
+	if (!gid_eq(new->fsgid, old->fsgid))
 		key_fsgid_changed(task);
 
 	/* do it
@@ -524,16 +520,16 @@ int commit_creds(struct cred *new)
 	alter_cred_subscribers(old, -2);
 
 	/* send notifications */
-	if (new->uid   != old->uid  ||
-	    new->euid  != old->euid ||
-	    new->suid  != old->suid ||
-	    new->fsuid != old->fsuid)
+	if (!uid_eq(new->uid,   old->uid)  ||
+	    !uid_eq(new->euid,  old->euid) ||
+	    !uid_eq(new->suid,  old->suid) ||
+	    !uid_eq(new->fsuid, old->fsuid))
 		proc_id_connector(task, PROC_EVENT_UID);
 
-	if (new->gid   != old->gid  ||
-	    new->egid  != old->egid ||
-	    new->sgid  != old->sgid ||
-	    new->fsgid != old->fsgid)
+	if (!gid_eq(new->gid,   old->gid)  ||
+	    !gid_eq(new->egid,  old->egid) ||
+	    !gid_eq(new->sgid,  old->sgid) ||
+	    !gid_eq(new->fsgid, old->fsgid))
 		proc_id_connector(task, PROC_EVENT_GID);
 
 	/* release the old obj and subj refs both */
@@ -678,6 +674,7 @@ struct cred *prepare_kernel_cred(struct task_struct *daemon)
 	atomic_set(&new->usage, 1);
 	set_cred_subscribers(new, 0);
 	get_uid(new->user);
+	get_user_ns(new->user_ns);
 	get_group_info(new->group_info);
 
 #ifdef CONFIG_KEYS

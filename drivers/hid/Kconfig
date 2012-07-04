@@ -1,20 +1,11 @@
 #
 # HID driver configuration
 #
-menuconfig HID_SUPPORT
-	bool "HID Devices"
-	depends on INPUT
-	default y
-	---help---
-	  Say Y here to get to see options for various computer-human interface
-	  device drivers. This option alone does not add any kernel code.
-
-	  If you say N, all options in this submenu will be skipped and disabled.
-
-if HID_SUPPORT
+menu "HID support"
+     depends on INPUT
 
 config HID
-	tristate "Generic HID support"
+	tristate "HID bus support"
 	depends on INPUT
 	default y
 	---help---
@@ -23,18 +14,25 @@ config HID
 	  most commonly used to refer to the USB-HID specification, but other
 	  devices (such as, but not strictly limited to, Bluetooth) are
 	  designed using HID specification (this involves certain keyboards,
-	  mice, tablets, etc). This option compiles into kernel the generic
-	  HID layer code (parser, usages, etc.), which can then be used by
-	  transport-specific HID implementation (like USB or Bluetooth).
+	  mice, tablets, etc). This option adds the HID bus to the kernel,
+	  together with generic HID layer code. The HID devices are added and
+	  removed from the HID bus by the transport-layer drivers, such as
+	  usbhid (USB_HID) and hidp (BT_HIDP).
 
 	  For docs and specs, see http://www.usb.org/developers/hidpage/
 
 	  If unsure, say Y.
 
+if HID
+
 config HID_BATTERY_STRENGTH
-	bool
+	bool "Battery level reporting for HID devices"
 	depends on HID && POWER_SUPPLY && HID = POWER_SUPPLY
 	default n
+	---help---
+	This option adds support of reporting battery strength (for HID devices
+	that support this feature) through power_supply class so that userspace
+	tools, such as upower, can display it.
 
 config HIDRAW
 	bool "/dev/hidraw raw HID device support"
@@ -55,7 +53,18 @@ config HIDRAW
 
 	If unsure, say Y.
 
-source "drivers/hid/usbhid/Kconfig"
+config HID_GENERIC
+	tristate "Generic HID driver"
+	depends on HID
+	default HID
+	---help---
+	Support for generic devices on the HID bus. This includes most
+	keyboards and mice, joysticks, tablets and digitizers.
+
+	To compile this driver as a module, choose M here: the module
+	will be called hid-generic.
+
+	If unsure, say Y.
 
 menu "Special HID drivers"
 	depends on HID
@@ -91,6 +100,12 @@ config HID_APPLE
 
 	Say Y here if you want support for keyboards of	Apple iBooks, PowerBooks,
 	MacBooks, MacBook Pros and Apple Aluminum.
+
+config HID_AUREAL
+	tristate "Aureal"
+	depends on USB_HID
+	---help---
+	Support for Aureal Cy se W-01RN Remote Controller and other Aureal derived remotes.
 
 config HID_BELKIN
 	tristate "Belkin Flip KVM and Wireless keyboard" if EXPERT
@@ -448,7 +463,7 @@ config HID_PICOLCD_FB
 	select FB_SYS_FOPS
 	---help---
 	  Provide access to PicoLCD's 256x64 monochrome display via a
-	  frambuffer device.
+	  framebuffer device.
 
 config HID_PICOLCD_BACKLIGHT
 	bool "Backlight control" if EXPERT
@@ -595,16 +610,10 @@ config THRUSTMASTER_FF
 config HID_WACOM
 	tristate "Wacom Bluetooth devices support"
 	depends on BT_HIDP
-	---help---
-	Support for Wacom Graphire Bluetooth tablet.
-
-config HID_WACOM_POWER_SUPPLY
-	bool "Wacom Bluetooth devices power supply status support"
-	depends on HID_WACOM
+	depends on LEDS_CLASS
 	select POWER_SUPPLY
 	---help---
-	  Say Y here if you want to enable power supply status monitoring for
-	  Wacom Bluetooth devices.
+	Support for Wacom Graphire Bluetooth and Intuos4 WL tablets.
 
 config HID_WIIMOTE
 	tristate "Nintendo Wii Remote support"
@@ -646,4 +655,8 @@ config HID_ZYDACRON
 
 endmenu
 
-endif # HID_SUPPORT
+endif # HID
+
+source "drivers/hid/usbhid/Kconfig"
+
+endmenu

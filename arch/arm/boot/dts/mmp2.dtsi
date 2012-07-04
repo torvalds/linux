@@ -1,0 +1,220 @@
+/*
+ *  Copyright (C) 2012 Marvell Technology Group Ltd.
+ *  Author: Haojian Zhuang <haojian.zhuang@marvell.com>
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License version 2 as
+ *  publishhed by the Free Software Foundation.
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	aliases {
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		serial3 = &uart4;
+		i2c0 = &twsi1;
+		i2c1 = &twsi2;
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		interrupt-parent = <&intc>;
+		ranges;
+
+		axi@d4200000 {	/* AXI */
+			compatible = "mrvl,axi-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0xd4200000 0x00200000>;
+			ranges;
+
+			intc: interrupt-controller@d4282000 {
+				compatible = "mrvl,mmp2-intc";
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0xd4282000 0x1000>;
+				mrvl,intc-nr-irqs = <64>;
+			};
+
+			intcmux4@d4282150 {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <4>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x150 0x4>, <0x168 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <2>;
+			};
+
+			intcmux5: interrupt-controller@d4282154 {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <5>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x154 0x4>, <0x16c 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <2>;
+				mrvl,clr-mfp-irq = <1>;
+			};
+
+			intcmux9: interrupt-controller@d4282180 {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <9>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x180 0x4>, <0x17c 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <3>;
+			};
+
+			intcmux17: interrupt-controller@d4282158 {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <17>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x158 0x4>, <0x170 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <5>;
+			};
+
+			intcmux35: interrupt-controller@d428215c {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <35>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x15c 0x4>, <0x174 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <15>;
+			};
+
+			intcmux51: interrupt-controller@d4282160 {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <51>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x160 0x4>, <0x178 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <2>;
+			};
+
+			intcmux55: interrupt-controller@d4282188 {
+				compatible = "mrvl,mmp2-mux-intc";
+				interrupts = <55>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x188 0x4>, <0x184 0x4>;
+				reg-names = "mux status", "mux mask";
+				mrvl,intc-nr-irqs = <2>;
+			};
+		};
+
+		apb@d4000000 {	/* APB */
+			compatible = "mrvl,apb-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0xd4000000 0x00200000>;
+			ranges;
+
+			timer0: timer@d4014000 {
+				compatible = "mrvl,mmp-timer";
+				reg = <0xd4014000 0x100>;
+				interrupts = <13>;
+			};
+
+			uart1: uart@d4030000 {
+				compatible = "mrvl,mmp-uart";
+				reg = <0xd4030000 0x1000>;
+				interrupts = <27>;
+				status = "disabled";
+			};
+
+			uart2: uart@d4017000 {
+				compatible = "mrvl,mmp-uart";
+				reg = <0xd4017000 0x1000>;
+				interrupts = <28>;
+				status = "disabled";
+			};
+
+			uart3: uart@d4018000 {
+				compatible = "mrvl,mmp-uart";
+				reg = <0xd4018000 0x1000>;
+				interrupts = <24>;
+				status = "disabled";
+			};
+
+			uart4: uart@d4016000 {
+				compatible = "mrvl,mmp-uart";
+				reg = <0xd4016000 0x1000>;
+				interrupts = <46>;
+				status = "disabled";
+			};
+
+			gpio@d4019000 {
+				compatible = "mrvl,mmp-gpio";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0xd4019000 0x1000>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupts = <49>;
+				interrupt-names = "gpio_mux";
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				ranges;
+
+				gcb0: gpio@d4019000 {
+					reg = <0xd4019000 0x4>;
+				};
+
+				gcb1: gpio@d4019004 {
+					reg = <0xd4019004 0x4>;
+				};
+
+				gcb2: gpio@d4019008 {
+					reg = <0xd4019008 0x4>;
+				};
+
+				gcb3: gpio@d4019100 {
+					reg = <0xd4019100 0x4>;
+				};
+
+				gcb4: gpio@d4019104 {
+					reg = <0xd4019104 0x4>;
+				};
+
+				gcb5: gpio@d4019108 {
+					reg = <0xd4019108 0x4>;
+				};
+			};
+
+			twsi1: i2c@d4011000 {
+				compatible = "mrvl,mmp-twsi";
+				reg = <0xd4011000 0x1000>;
+				interrupts = <7>;
+				mrvl,i2c-fast-mode;
+				status = "disabled";
+			};
+
+			twsi2: i2c@d4025000 {
+				compatible = "mrvl,mmp-twsi";
+				reg = <0xd4025000 0x1000>;
+				interrupts = <58>;
+				status = "disabled";
+			};
+
+			rtc: rtc@d4010000 {
+				compatible = "mrvl,mmp-rtc";
+				reg = <0xd4010000 0x1000>;
+				interrupts = <1 0>;
+				interrupt-names = "rtc 1Hz", "rtc alarm";
+				interrupt-parent = <&intcmux5>;
+				status = "disabled";
+			};
+		};
+	};
+};

@@ -27,7 +27,9 @@ struct ext4_xattr_header {
 	__le32	h_refcount;	/* reference count */
 	__le32	h_blocks;	/* number of disk blocks used */
 	__le32	h_hash;		/* hash value of all attributes */
-	__u32	h_reserved[4];	/* zero right now */
+	__le32	h_checksum;	/* crc32c(uuid+id+xattrblock) */
+				/* id = inum if refcount=1, blknum otherwise */
+	__u32	h_reserved[3];	/* zero right now */
 };
 
 struct ext4_xattr_ibody_header {

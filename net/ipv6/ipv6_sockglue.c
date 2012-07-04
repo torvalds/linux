@@ -678,7 +678,6 @@ done:
 	}
 	case MCAST_MSFILTER:
 	{
-		extern int sysctl_mld_max_msf;
 		struct group_filter *gsf;
 
 		if (optlen < GROUP_FILTER_SIZE(0))
@@ -943,7 +942,7 @@ static int ipv6_getsockopt_sticky(struct sock *sk, struct ipv6_txoptions *opt,
 }
 
 static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, int __user *optlen, unsigned flags)
+		    char __user *optval, int __user *optlen, unsigned int flags)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	int len;

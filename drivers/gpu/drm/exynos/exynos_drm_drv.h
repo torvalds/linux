@@ -77,6 +77,8 @@ struct exynos_drm_overlay_ops {
  *	- the unit is screen coordinates.
  * @fb_width: width of a framebuffer.
  * @fb_height: height of a framebuffer.
+ * @src_width: width of a partial image to be displayed from framebuffer.
+ * @src_height: height of a partial image to be displayed from framebuffer.
  * @crtc_x: offset x on hardware screen.
  * @crtc_y: offset y on hardware screen.
  * @crtc_width: window width to be displayed (hardware screen).
@@ -108,6 +110,8 @@ struct exynos_drm_overlay {
 	unsigned int fb_y;
 	unsigned int fb_width;
 	unsigned int fb_height;
+	unsigned int src_width;
+	unsigned int src_height;
 	unsigned int crtc_x;
 	unsigned int crtc_y;
 	unsigned int crtc_width;
@@ -205,6 +209,18 @@ struct exynos_drm_manager {
 	struct exynos_drm_display_ops *display_ops;
 };
 
+struct exynos_drm_g2d_private {
+	struct device		*dev;
+	struct list_head	inuse_cmdlist;
+	struct list_head	event_list;
+	struct list_head	gem_list;
+	unsigned int		gem_nr;
+};
+
+struct drm_exynos_file_private {
+	struct exynos_drm_g2d_private	*g2d_priv;
+};
+
 /*
  * Exynos drm private structure.
  */
@@ -287,4 +303,5 @@ extern struct platform_driver hdmi_driver;
 extern struct platform_driver mixer_driver;
 extern struct platform_driver exynos_drm_common_hdmi_driver;
 extern struct platform_driver vidi_driver;
+extern struct platform_driver g2d_driver;
 #endif

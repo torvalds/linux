@@ -57,50 +57,14 @@ struct pcmad_board_struct {
 	const char *name;
 	int n_ai_bits;
 };
-static const struct pcmad_board_struct pcmad_boards[] = {
-	{
-	 .name = "pcmad12",
-	 .n_ai_bits = 12,
-	 },
-	{
-	 .name = "pcmad16",
-	 .n_ai_bits = 16,
-	 },
-};
 
 #define this_board ((const struct pcmad_board_struct *)(dev->board_ptr))
-#define n_pcmad_boards ARRAY_SIZE(pcmad_boards)
 
 struct pcmad_priv_struct {
 	int differential;
 	int twos_comp;
 };
 #define devpriv ((struct pcmad_priv_struct *)dev->private)
-
-static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static int pcmad_detach(struct comedi_device *dev);
-static struct comedi_driver driver_pcmad = {
-	.driver_name = "pcmad",
-	.module = THIS_MODULE,
-	.attach = pcmad_attach,
-	.detach = pcmad_detach,
-	.board_name = &pcmad_boards[0].name,
-	.num_names = n_pcmad_boards,
-	.offset = sizeof(pcmad_boards[0]),
-};
-
-static int __init driver_pcmad_init_module(void)
-{
-	return comedi_driver_register(&driver_pcmad);
-}
-
-static void __exit driver_pcmad_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcmad);
-}
-
-module_init(driver_pcmad_init_module);
-module_exit(driver_pcmad_cleanup_module);
 
 #define TIMEOUT	100
 
@@ -175,18 +139,33 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int pcmad_detach(struct comedi_device *dev)
+static void pcmad_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: pcmad: remove\n", dev->minor);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (dev->iobase)
 		release_region(dev->iobase, PCMAD_SIZE);
-
-	return 0;
 }
+
+static const struct pcmad_board_struct pcmad_boards[] = {
+	{
+		.name		= "pcmad12",
+		.n_ai_bits	= 12,
+	}, {
+		.name		= "pcmad16",
+		.n_ai_bits	= 16,
+	},
+};
+static struct comedi_driver pcmad_driver = {
+	.driver_name	= "pcmad",
+	.module		= THIS_MODULE,
+	.attach		= pcmad_attach,
+	.detach		= pcmad_detach,
+	.board_name	= &pcmad_boards[0].name,
+	.num_names	= ARRAY_SIZE(pcmad_boards),
+	.offset		= sizeof(pcmad_boards[0]),
+};
+module_comedi_driver(pcmad_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

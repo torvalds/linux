@@ -1,5 +1,5 @@
 /*
- * card driver for the Xonar DG
+ * card driver for the Xonar DG/DGX
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
  *
@@ -17,8 +17,8 @@
  */
 
 /*
- * Xonar DG
- * --------
+ * Xonar DG/DGX
+ * ------------
  *
  * CMI8788:
  *
@@ -581,7 +581,6 @@ static void dump_cs4245_registers(struct oxygen *chip,
 }
 
 struct oxygen_model model_xonar_dg = {
-	.shortname = "Xonar DG",
 	.longname = "C-Media Oxygen HD Audio",
 	.chip = "CMI8786",
 	.init = dg_init,

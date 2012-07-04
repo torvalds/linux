@@ -450,7 +450,7 @@ u64 ehea_h_modify_ehea_port(const u64 adapter_handle, const u16 port_num,
 			    void *cb_addr);
 
 #define H_REGBCMC_PN            EHEA_BMASK_IBM(48, 63)
-#define H_REGBCMC_REGTYPE       EHEA_BMASK_IBM(61, 63)
+#define H_REGBCMC_REGTYPE       EHEA_BMASK_IBM(60, 63)
 #define H_REGBCMC_MACADDR       EHEA_BMASK_IBM(16, 63)
 #define H_REGBCMC_VLANID        EHEA_BMASK_IBM(52, 63)
 

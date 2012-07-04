@@ -424,11 +424,6 @@ static struct clk init_clocks_off[] = {
 		.enable		= s3c2443_clkcon_enable_p,
 		.ctrlbit	= S3C2443_PCLKCON_IIS,
 	}, {
-		.name		= "hsspi",
-		.parent		= &clk_p,
-		.enable		= s3c2443_clkcon_enable_p,
-		.ctrlbit	= S3C2443_PCLKCON_HSSPI,
-	}, {
 		.name		= "adc",
 		.parent		= &clk_p,
 		.enable		= s3c2443_clkcon_enable_p,
@@ -562,6 +557,14 @@ static struct clk hsmmc1_clk = {
 	.ctrlbit	= S3C2443_HCLKCON_HSMMC,
 };
 
+static struct clk hsspi_clk = {
+	.name		= "spi",
+	.devname	= "s3c64xx-spi.0",
+	.parent		= &clk_p,
+	.enable		= s3c2443_clkcon_enable_p,
+	.ctrlbit	= S3C2443_PCLKCON_HSSPI,
+};
+
 /* EPLLCON compatible enough to get on/off information */
 
 void __init_or_cpufreq s3c2443_common_setup_clocks(pll_fn get_mpll)
@@ -612,6 +615,7 @@ static struct clk *clks[] __initdata = {
 	&clk_usb_bus,
 	&clk_armdiv,
 	&hsmmc1_clk,
+	&hsspi_clk,
 };
 
 static struct clksrc_clk *clksrcs[] __initdata = {
@@ -629,6 +633,7 @@ static struct clk_lookup s3c2443_clk_lookup[] = {
 	CLKDEV_INIT(NULL, "clk_uart_baud2", &clk_p),
 	CLKDEV_INIT(NULL, "clk_uart_baud3", &clk_esys_uart.clk),
 	CLKDEV_INIT("s3c-sdhci.1", "mmc_busclk.0", &hsmmc1_clk),
+	CLKDEV_INIT("s3c64xx-spi.0", "spi_busclk0", &hsspi_clk),
 };
 
 void __init s3c2443_common_init_clocks(int xtal, pll_fn get_mpll,

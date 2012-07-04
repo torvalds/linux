@@ -19,15 +19,6 @@
 #include "ieee80211_i.h"
 #include "rate.h"
 
-bool ieee80111_cfg_override_disables_ht40(struct ieee80211_sub_if_data *sdata)
-{
-	const __le16 flg = cpu_to_le16(IEEE80211_HT_CAP_SUP_WIDTH_20_40);
-	if ((sdata->u.mgd.ht_capa_mask.cap_info & flg) &&
-	    !(sdata->u.mgd.ht_capa.cap_info & flg))
-		return true;
-	return false;
-}
-
 static void __check_htcap_disable(struct ieee80211_sub_if_data *sdata,
 				  struct ieee80211_sta_ht_cap *ht_cap,
 				  u16 flag)
@@ -315,10 +306,10 @@ void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 	initiator = (params & IEEE80211_DELBA_PARAM_INITIATOR_MASK) >> 11;
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
-	if (net_ratelimit())
-		printk(KERN_DEBUG "delba from %pM (%s) tid %d reason code %d\n",
-			mgmt->sa, initiator ? "initiator" : "recipient", tid,
-			le16_to_cpu(mgmt->u.action.u.delba.reason_code));
+	net_dbg_ratelimited("delba from %pM (%s) tid %d reason code %d\n",
+			    mgmt->sa, initiator ? "initiator" : "recipient",
+			    tid,
+			    le16_to_cpu(mgmt->u.action.u.delba.reason_code));
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	if (initiator == WLAN_BACK_INITIATOR)

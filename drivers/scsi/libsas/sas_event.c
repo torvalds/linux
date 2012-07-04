@@ -27,19 +27,21 @@
 #include "sas_internal.h"
 #include "sas_dump.h"
 
-void sas_queue_work(struct sas_ha_struct *ha, struct work_struct *work)
+void sas_queue_work(struct sas_ha_struct *ha, struct sas_work *sw)
 {
 	if (!test_bit(SAS_HA_REGISTERED, &ha->state))
 		return;
 
-	if (test_bit(SAS_HA_DRAINING, &ha->state))
-		list_add(&work->entry, &ha->defer_q);
-	else
-		scsi_queue_work(ha->core.shost, work);
+	if (test_bit(SAS_HA_DRAINING, &ha->state)) {
+		/* add it to the defer list, if not already pending */
+		if (list_empty(&sw->drain_node))
+			list_add(&sw->drain_node, &ha->defer_q);
+	} else
+		scsi_queue_work(ha->core.shost, &sw->work);
 }
 
 static void sas_queue_event(int event, unsigned long *pending,
-			    struct work_struct *work,
+			    struct sas_work *work,
 			    struct sas_ha_struct *ha)
 {
 	if (!test_and_set_bit(event, pending)) {
@@ -55,7 +57,7 @@ static void sas_queue_event(int event, unsigned long *pending,
 void __sas_drain_work(struct sas_ha_struct *ha)
 {
 	struct workqueue_struct *wq = ha->core.shost->work_q;
-	struct work_struct *w, *_w;
+	struct sas_work *sw, *_sw;
 
 	set_bit(SAS_HA_DRAINING, &ha->state);
 	/* flush submitters */
@@ -66,9 +68,9 @@ void __sas_drain_work(struct sas_ha_struct *ha)
 
 	spin_lock_irq(&ha->state_lock);
 	clear_bit(SAS_HA_DRAINING, &ha->state);
-	list_for_each_entry_safe(w, _w, &ha->defer_q, entry) {
-		list_del_init(&w->entry);
-		sas_queue_work(ha, w);
+	list_for_each_entry_safe(sw, _sw, &ha->defer_q, drain_node) {
+		list_del_init(&sw->drain_node);
+		sas_queue_work(ha, sw);
 	}
 	spin_unlock_irq(&ha->state_lock);
 }
@@ -151,7 +153,7 @@ int sas_init_events(struct sas_ha_struct *sas_ha)
 	int i;
 
 	for (i = 0; i < HA_NUM_EVENTS; i++) {
-		INIT_WORK(&sas_ha->ha_events[i].work, sas_ha_event_fns[i]);
+		INIT_SAS_WORK(&sas_ha->ha_events[i].work, sas_ha_event_fns[i]);
 		sas_ha->ha_events[i].ha = sas_ha;
 	}
 

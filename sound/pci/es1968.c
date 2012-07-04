@@ -2769,7 +2769,7 @@ static int __devinit snd_es1968_create(struct snd_card *card,
 	chip->tea.ops = &snd_es1968_tea_ops;
 	strlcpy(chip->tea.card, "SF64-PCE2", sizeof(chip->tea.card));
 	sprintf(chip->tea.bus_info, "PCI:%s", pci_name(pci));
-	if (!snd_tea575x_init(&chip->tea))
+	if (!snd_tea575x_init(&chip->tea, THIS_MODULE))
 		printk(KERN_INFO "es1968: detected TEA575x radio\n");
 #endif
 
@@ -2898,7 +2898,7 @@ static void __devexit snd_es1968_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_driver driver = {
+static struct pci_driver es1968_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_es1968_ids,
 	.probe = snd_es1968_probe,
@@ -2909,15 +2909,4 @@ static struct pci_driver driver = {
 #endif
 };
 
-static int __init alsa_card_es1968_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_es1968_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_es1968_init)
-module_exit(alsa_card_es1968_exit)
+module_pci_driver(es1968_driver);

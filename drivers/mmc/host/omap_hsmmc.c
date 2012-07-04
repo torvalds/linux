@@ -91,6 +91,7 @@
 #define MSBS			(1 << 5)
 #define BCE			(1 << 1)
 #define FOUR_BIT		(1 << 1)
+#define DDR			(1 << 19)
 #define DW8			(1 << 5)
 #define CC			0x1
 #define TC			0x02
@@ -167,7 +168,6 @@ struct omap_hsmmc_host {
 	int			use_dma, dma_ch;
 	int			dma_line_tx, dma_line_rx;
 	int			slot_id;
-	int			got_dbclk;
 	int			response_busy;
 	int			context_loss;
 	int			vdd;
@@ -520,6 +520,10 @@ static void omap_hsmmc_set_bus_width(struct omap_hsmmc_host *host)
 	u32 con;
 
 	con = OMAP_HSMMC_READ(host->base, CON);
+	if (ios->timing == MMC_TIMING_UHS_DDR50)
+		con |= DDR;	/* configure in DDR mode */
+	else
+		con &= ~DDR;
 	switch (ios->bus_width) {
 	case MMC_BUS_WIDTH_8:
 		OMAP_HSMMC_WRITE(host->base, CON, con | DW8);
@@ -796,11 +800,12 @@ omap_hsmmc_get_dma_dir(struct omap_hsmmc_host *host, struct mmc_data *data)
 static void omap_hsmmc_request_done(struct omap_hsmmc_host *host, struct mmc_request *mrq)
 {
 	int dma_ch;
+	unsigned long flags;
 
-	spin_lock(&host->irq_lock);
+	spin_lock_irqsave(&host->irq_lock, flags);
 	host->req_in_progress = 0;
 	dma_ch = host->dma_ch;
-	spin_unlock(&host->irq_lock);
+	spin_unlock_irqrestore(&host->irq_lock, flags);
 
 	omap_hsmmc_disable_irq(host);
 	/* Do not complete the request if DMA is still in progress */
@@ -874,13 +879,14 @@ omap_hsmmc_cmd_done(struct omap_hsmmc_host *host, struct mmc_command *cmd)
 static void omap_hsmmc_dma_cleanup(struct omap_hsmmc_host *host, int errno)
 {
 	int dma_ch;
+	unsigned long flags;
 
 	host->data->error = errno;
 
-	spin_lock(&host->irq_lock);
+	spin_lock_irqsave(&host->irq_lock, flags);
 	dma_ch = host->dma_ch;
 	host->dma_ch = -1;
-	spin_unlock(&host->irq_lock);
+	spin_unlock_irqrestore(&host->irq_lock, flags);
 
 	if (host->use_dma && dma_ch != -1) {
 		dma_unmap_sg(mmc_dev(host->mmc), host->data->sg,
@@ -1082,7 +1088,7 @@ static int omap_hsmmc_switch_opcond(struct omap_hsmmc_host *host, int vdd)
 
 	/* Disable the clocks */
 	pm_runtime_put_sync(host->dev);
-	if (host->got_dbclk)
+	if (host->dbclk)
 		clk_disable(host->dbclk);
 
 	/* Turn the power off */
@@ -1093,7 +1099,7 @@ static int omap_hsmmc_switch_opcond(struct omap_hsmmc_host *host, int vdd)
 		ret = mmc_slot(host).set_power(host->dev, host->slot_id, 1,
 					       vdd);
 	pm_runtime_get_sync(host->dev);
-	if (host->got_dbclk)
+	if (host->dbclk)
 		clk_enable(host->dbclk);
 
 	if (ret != 0)
@@ -1234,6 +1240,7 @@ static void omap_hsmmc_dma_cb(int lch, u16 ch_status, void *cb_data)
 	struct omap_hsmmc_host *host = cb_data;
 	struct mmc_data *data;
 	int dma_ch, req_in_progress;
+	unsigned long flags;
 
 	if (!(ch_status & OMAP_DMA_BLOCK_IRQ)) {
 		dev_warn(mmc_dev(host->mmc), "unexpected dma status %x\n",
@@ -1241,9 +1248,9 @@ static void omap_hsmmc_dma_cb(int lch, u16 ch_status, void *cb_data)
 		return;
 	}
 
-	spin_lock(&host->irq_lock);
+	spin_lock_irqsave(&host->irq_lock, flags);
 	if (host->dma_ch < 0) {
-		spin_unlock(&host->irq_lock);
+		spin_unlock_irqrestore(&host->irq_lock, flags);
 		return;
 	}
 
@@ -1253,7 +1260,7 @@ static void omap_hsmmc_dma_cb(int lch, u16 ch_status, void *cb_data)
 		/* Fire up the next transfer. */
 		omap_hsmmc_config_dma_params(host, data,
 					   data->sg + host->dma_sg_idx);
-		spin_unlock(&host->irq_lock);
+		spin_unlock_irqrestore(&host->irq_lock, flags);
 		return;
 	}
 
@@ -1264,7 +1271,7 @@ static void omap_hsmmc_dma_cb(int lch, u16 ch_status, void *cb_data)
 	req_in_progress = host->req_in_progress;
 	dma_ch = host->dma_ch;
 	host->dma_ch = -1;
-	spin_unlock(&host->irq_lock);
+	spin_unlock_irqrestore(&host->irq_lock, flags);
 
 	omap_free_dma(dma_ch);
 
@@ -1766,7 +1773,7 @@ static struct omap_mmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
 		pdata->slots[0].nonremovable = true;
 		pdata->slots[0].no_regulator_off_init = true;
 	}
-	of_property_read_u32(np, "ti,bus-width", &bus_width);
+	of_property_read_u32(np, "bus-width", &bus_width);
 	if (bus_width == 4)
 		pdata->slots[0].caps |= MMC_CAP_4_BIT_DATA;
 	else if (bus_width == 8)
@@ -1885,21 +1892,17 @@ static int __devinit omap_hsmmc_probe(struct platform_device *pdev)
 
 	omap_hsmmc_context_save(host);
 
-	if (cpu_is_omap2430()) {
-		host->dbclk = clk_get(&pdev->dev, "mmchsdb_fck");
-		/*
-		 * MMC can still work without debounce clock.
-		 */
-		if (IS_ERR(host->dbclk))
-			dev_warn(mmc_dev(host->mmc),
-				"Failed to get debounce clock\n");
-		else
-			host->got_dbclk = 1;
-
-		if (host->got_dbclk)
-			if (clk_enable(host->dbclk) != 0)
-				dev_dbg(mmc_dev(host->mmc), "Enabling debounce"
-							" clk failed\n");
+	host->dbclk = clk_get(&pdev->dev, "mmchsdb_fck");
+	/*
+	 * MMC can still work without debounce clock.
+	 */
+	if (IS_ERR(host->dbclk)) {
+		dev_warn(mmc_dev(host->mmc), "Failed to get debounce clk\n");
+		host->dbclk = NULL;
+	} else if (clk_enable(host->dbclk) != 0) {
+		dev_warn(mmc_dev(host->mmc), "Failed to enable debounce clk\n");
+		clk_put(host->dbclk);
+		host->dbclk = NULL;
 	}
 
 	/* Since we do only SG emulation, we can have as many segs
@@ -1969,7 +1972,7 @@ static int __devinit omap_hsmmc_probe(struct platform_device *pdev)
 		ret = request_threaded_irq(mmc_slot(host).card_detect_irq,
 					   NULL,
 					   omap_hsmmc_detect,
-					   IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+					   IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 					   mmc_hostname(mmc), host);
 		if (ret) {
 			dev_dbg(mmc_dev(host->mmc),
@@ -2019,7 +2022,7 @@ err_irq:
 	pm_runtime_put_sync(host->dev);
 	pm_runtime_disable(host->dev);
 	clk_put(host->fclk);
-	if (host->got_dbclk) {
+	if (host->dbclk) {
 		clk_disable(host->dbclk);
 		clk_put(host->dbclk);
 	}
@@ -2030,7 +2033,9 @@ err1:
 err_alloc:
 	omap_hsmmc_gpio_free(pdata);
 err:
-	release_mem_region(res->start, resource_size(res));
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res)
+		release_mem_region(res->start, resource_size(res));
 	return ret;
 }
 
@@ -2052,7 +2057,7 @@ static int __devexit omap_hsmmc_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(host->dev);
 	pm_runtime_disable(host->dev);
 	clk_put(host->fclk);
-	if (host->got_dbclk) {
+	if (host->dbclk) {
 		clk_disable(host->dbclk);
 		clk_put(host->dbclk);
 	}
@@ -2110,7 +2115,7 @@ static int omap_hsmmc_suspend(struct device *dev)
 				OMAP_HSMMC_READ(host->base, HCTL) & ~SDBP);
 	}
 
-	if (host->got_dbclk)
+	if (host->dbclk)
 		clk_disable(host->dbclk);
 err:
 	pm_runtime_put_sync(host->dev);
@@ -2131,7 +2136,7 @@ static int omap_hsmmc_resume(struct device *dev)
 
 	pm_runtime_get_sync(host->dev);
 
-	if (host->got_dbclk)
+	if (host->dbclk)
 		clk_enable(host->dbclk);
 
 	if (!(host->mmc->pm_flags & MMC_PM_KEEP_POWER))

@@ -73,7 +73,10 @@
 		#address-cells = <0>;
 		interrupt-controller;
 		reg = <0x2c001000 0x1000>,
-		      <0x2c002000 0x100>;
+		      <0x2c002000 0x1000>,
+		      <0x2c004000 0x2000>,
+		      <0x2c006000 0x2000>;
+		interrupts = <1 9 0xf04>;
 	};
 
 	memory-controller@7ffd0000 {
@@ -91,6 +94,14 @@
 			     <0 89 4>,
 			     <0 90 4>,
 			     <0 91 4>;
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupts = <1 13 0xf08>,
+			     <1 14 0xf08>,
+			     <1 11 0xf08>,
+			     <1 10 0xf08>;
 	};
 
 	pmu {

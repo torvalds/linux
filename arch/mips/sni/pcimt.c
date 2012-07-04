@@ -29,7 +29,7 @@ static void __init sni_pcimt_sc_init(void)
 
 	scsiz = cacheconf & 7;
 	if (scsiz == 0) {
-		printk("Second level cache is deactived.\n");
+		printk("Second level cache is deactivated.\n");
 		return;
 	}
 	if (scsiz >= 6) {

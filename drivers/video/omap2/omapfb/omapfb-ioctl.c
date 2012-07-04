@@ -70,7 +70,7 @@ static int omapfb_setup_plane(struct fb_info *fbi, struct omapfb_plane_info *pi)
 
 	DBG("omapfb_setup_plane\n");
 
-	if (ofbi->num_overlays != 1) {
+	if (ofbi->num_overlays == 0) {
 		r = -EINVAL;
 		goto out;
 	}
@@ -185,7 +185,7 @@ static int omapfb_query_plane(struct fb_info *fbi, struct omapfb_plane_info *pi)
 {
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 
-	if (ofbi->num_overlays != 1) {
+	if (ofbi->num_overlays == 0) {
 		memset(pi, 0, sizeof(*pi));
 	} else {
 		struct omap_overlay *ovl;
@@ -225,6 +225,9 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 	down_write_nested(&rg->lock, rg->id);
 	atomic_inc(&rg->lock_count);
 
+	if (rg->size == size && rg->type == mi->type)
+		goto out;
+
 	if (atomic_read(&rg->map_count)) {
 		r = -EBUSY;
 		goto out;
@@ -247,12 +250,10 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 		}
 	}
 
-	if (rg->size != size || rg->type != mi->type) {
-		r = omapfb_realloc_fbmem(fbi, size, mi->type);
-		if (r) {
-			dev_err(fbdev->dev, "realloc fbmem failed\n");
-			goto out;
-		}
+	r = omapfb_realloc_fbmem(fbi, size, mi->type);
+	if (r) {
+		dev_err(fbdev->dev, "realloc fbmem failed\n");
+		goto out;
 	}
 
  out:

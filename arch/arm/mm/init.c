@@ -20,6 +20,7 @@
 #include <linux/highmem.h>
 #include <linux/gfp.h>
 #include <linux/memblock.h>
+#include <linux/dma-contiguous.h>
 
 #include <asm/mach-types.h>
 #include <asm/memblock.h>
@@ -211,7 +212,7 @@ EXPORT_SYMBOL(arm_dma_zone_size);
  * allocations.  This must be the smallest DMA mask in the system,
  * so a successful GFP_DMA allocation will always satisfy this.
  */
-u32 arm_dma_limit;
+phys_addr_t arm_dma_limit;
 
 static void __init arm_adjust_dma_zone(unsigned long *size, unsigned long *hole,
 	unsigned long dma_size)
@@ -225,6 +226,17 @@ static void __init arm_adjust_dma_zone(unsigned long *size, unsigned long *hole,
 	hole[ZONE_DMA] = 0;
 }
 #endif
+
+void __init setup_dma_zone(struct machine_desc *mdesc)
+{
+#ifdef CONFIG_ZONE_DMA
+	if (mdesc->dma_zone_size) {
+		arm_dma_zone_size = mdesc->dma_zone_size;
+		arm_dma_limit = PHYS_OFFSET + arm_dma_zone_size - 1;
+	} else
+		arm_dma_limit = 0xffffffff;
+#endif
+}
 
 static void __init arm_bootmem_free(unsigned long min, unsigned long max_low,
 	unsigned long max_high)
@@ -273,12 +285,9 @@ static void __init arm_bootmem_free(unsigned long min, unsigned long max_low,
 	 * Adjust the sizes according to any special requirements for
 	 * this machine type.
 	 */
-	if (arm_dma_zone_size) {
+	if (arm_dma_zone_size)
 		arm_adjust_dma_zone(zone_size, zhole_size,
 			arm_dma_zone_size >> PAGE_SHIFT);
-		arm_dma_limit = PHYS_OFFSET + arm_dma_zone_size - 1;
-	} else
-		arm_dma_limit = 0xffffffff;
 #endif
 
 	free_area_init_node(0, zone_size, min, zhole_size);
@@ -293,11 +302,11 @@ EXPORT_SYMBOL(pfn_valid);
 #endif
 
 #ifndef CONFIG_SPARSEMEM
-static void arm_memory_present(void)
+static void __init arm_memory_present(void)
 {
 }
 #else
-static void arm_memory_present(void)
+static void __init arm_memory_present(void)
 {
 	struct memblock_region *reg;
 
@@ -363,6 +372,12 @@ void __init arm_memblock_init(struct meminfo *mi, struct machine_desc *mdesc)
 	/* reserve any platform specific memblock areas */
 	if (mdesc->reserve)
 		mdesc->reserve();
+
+	/*
+	 * reserve memory for DMA contigouos allocations,
+	 * must come from DMA area inside low memory
+	 */
+	dma_contiguous_reserve(min(arm_dma_limit, arm_lowmem_limit));
 
 	arm_memblock_steal_permitted = false;
 	memblock_allow_resize();

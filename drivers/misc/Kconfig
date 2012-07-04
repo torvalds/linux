@@ -452,14 +452,32 @@ config ARM_CHARLCD
 	  still useful.
 
 config BMP085
-	tristate "BMP085 digital pressure sensor"
+	bool
+	depends on SYSFS
+
+config BMP085_I2C
+	tristate "BMP085 digital pressure sensor on I2C"
+	select BMP085
+	select REGMAP_I2C
 	depends on I2C && SYSFS
 	help
-	  If you say yes here you get support for the Bosch Sensortec
-	  BMP085 digital pressure sensor.
+	  Say Y here if you want to support Bosch Sensortec's digital pressure
+	  sensor hooked to an I2C bus.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called bmp085.
+	  module will be called bmp085-i2c.
+
+config BMP085_SPI
+	tristate "BMP085 digital pressure sensor on SPI"
+	select BMP085
+	select REGMAP_SPI
+	depends on SPI_MASTER && SYSFS
+	help
+	  Say Y here if you want to support Bosch Sensortec's digital pressure
+	  sensor hooked to an SPI bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bmp085-spi.
 
 config PCH_PHUB
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) PHUB"
@@ -490,14 +508,6 @@ config USB_SWITCH_FSA9480
 	  stereo and mono audio, video, microphone and UART data to use
 	  a common connector port.
 
-config MAX8997_MUIC
-	tristate "MAX8997 MUIC Support"
-	depends on MFD_MAX8997
-	help
-	  If you say yes here you get support for the MUIC device of
-	  Maxim MAX8997 PMIC.
-	  The MAX8997 MUIC is a USB port accessory detector and switch.
-
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
@@ -506,4 +516,5 @@ source "drivers/misc/ti-st/Kconfig"
 source "drivers/misc/lis3lv02d/Kconfig"
 source "drivers/misc/carma/Kconfig"
 source "drivers/misc/altera-stapl/Kconfig"
+source "drivers/misc/mei/Kconfig"
 endmenu

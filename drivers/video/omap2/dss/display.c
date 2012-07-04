@@ -304,9 +304,17 @@ int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev)
 		return 24;
 	default:
 		BUG();
+		return 0;
 	}
 }
 EXPORT_SYMBOL(omapdss_default_get_recommended_bpp);
+
+void omapdss_default_get_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings)
+{
+	*timings = dssdev->panel.timings;
+}
+EXPORT_SYMBOL(omapdss_default_get_timings);
 
 /* Checks if replication logic should be used. Only use for active matrix,
  * when overlay is in RGB12U or RGB16 mode, and LCD interface is
@@ -340,6 +348,7 @@ bool dss_use_replication(struct omap_dss_device *dssdev,
 		break;
 	default:
 		BUG();
+		return false;
 	}
 
 	return bpp > 16;
@@ -351,46 +360,6 @@ void dss_init_device(struct platform_device *pdev,
 	struct device_attribute *attr;
 	int i;
 	int r;
-
-	switch (dssdev->type) {
-#ifdef CONFIG_OMAP2_DSS_DPI
-	case OMAP_DISPLAY_TYPE_DPI:
-		r = dpi_init_display(dssdev);
-		break;
-#endif
-#ifdef CONFIG_OMAP2_DSS_RFBI
-	case OMAP_DISPLAY_TYPE_DBI:
-		r = rfbi_init_display(dssdev);
-		break;
-#endif
-#ifdef CONFIG_OMAP2_DSS_VENC
-	case OMAP_DISPLAY_TYPE_VENC:
-		r = venc_init_display(dssdev);
-		break;
-#endif
-#ifdef CONFIG_OMAP2_DSS_SDI
-	case OMAP_DISPLAY_TYPE_SDI:
-		r = sdi_init_display(dssdev);
-		break;
-#endif
-#ifdef CONFIG_OMAP2_DSS_DSI
-	case OMAP_DISPLAY_TYPE_DSI:
-		r = dsi_init_display(dssdev);
-		break;
-#endif
-	case OMAP_DISPLAY_TYPE_HDMI:
-		r = hdmi_init_display(dssdev);
-		break;
-	default:
-		DSSERR("Support for display '%s' not compiled in.\n",
-				dssdev->name);
-		return;
-	}
-
-	if (r) {
-		DSSERR("failed to init display %s\n", dssdev->name);
-		return;
-	}
 
 	/* create device sysfs files */
 	i = 0;

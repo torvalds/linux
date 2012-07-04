@@ -1122,12 +1122,12 @@ exit:
 static void at76_dump_mib_local(struct at76_priv *priv)
 {
 	int ret;
-	struct mib_local *m = kmalloc(sizeof(struct mib_phy), GFP_KERNEL);
+	struct mib_local *m = kmalloc(sizeof(*m), GFP_KERNEL);
 
 	if (!m)
 		return;
 
-	ret = at76_get_mib(priv->udev, MIB_LOCAL, m, sizeof(struct mib_local));
+	ret = at76_get_mib(priv->udev, MIB_LOCAL, m, sizeof(*m));
 	if (ret < 0) {
 		wiphy_err(priv->hw->wiphy,
 			  "at76_get_mib (LOCAL) failed: %d\n", ret);
@@ -1751,7 +1751,7 @@ static void at76_mac80211_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * following workaround is necessary. If the TX frame is an
 	 * authentication frame extract the bssid and send the CMD_JOIN. */
 	if (mgmt->frame_control & cpu_to_le16(IEEE80211_STYPE_AUTH)) {
-		if (compare_ether_addr(priv->bssid, mgmt->bssid)) {
+		if (!ether_addr_equal(priv->bssid, mgmt->bssid)) {
 			memcpy(priv->bssid, mgmt->bssid, ETH_ALEN);
 			ieee80211_queue_work(hw, &priv->work_join_bssid);
 			dev_kfree_skb_any(skb);
@@ -1955,7 +1955,7 @@ static int at76_hw_scan(struct ieee80211_hw *hw,
 	ret = at76_set_card_command(priv->udev, CMD_SCAN, &scan, sizeof(scan));
 
 	if (ret < 0) {
-		err("CMD_SCAN failed: %d", ret);
+		wiphy_err(priv->hw->wiphy, "CMD_SCAN failed: %d\n", ret);
 		goto exit;
 	}
 
@@ -2486,6 +2486,7 @@ static struct usb_driver at76_driver = {
 	.probe = at76_probe,
 	.disconnect = at76_disconnect,
 	.id_table = dev_table,
+	.disable_hub_initiated_lpm = 1,
 };
 
 static int __init at76_mod_init(void)
@@ -2512,10 +2513,8 @@ static void __exit at76_mod_exit(void)
 
 	printk(KERN_INFO DRIVER_DESC " " DRIVER_VERSION " unloading\n");
 	usb_deregister(&at76_driver);
-	for (i = 0; i < ARRAY_SIZE(firmwares); i++) {
-		if (firmwares[i].fw)
-			release_firmware(firmwares[i].fw);
-	}
+	for (i = 0; i < ARRAY_SIZE(firmwares); i++)
+		release_firmware(firmwares[i].fw);
 	led_trigger_unregister_simple(ledtrig_tx);
 }
 

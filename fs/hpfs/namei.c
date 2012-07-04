@@ -70,7 +70,7 @@ static int hpfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	fnode->len = len;
 	memcpy(fnode->name, name, len > 15 ? 15 : len);
 	fnode->up = cpu_to_le32(dir->i_ino);
-	fnode->dirflag = 1;
+	fnode->flags |= FNODE_dir;
 	fnode->btree.n_free_nodes = 7;
 	fnode->btree.n_used_nodes = 1;
 	fnode->btree.first_free = cpu_to_le16(0x14);

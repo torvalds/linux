@@ -1,0 +1,158 @@
+What:		/sys/class/ccg_usb
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		The ccg_usb/ class subdirectory belongs to ccg
+		USB gadget.
+
+What:		/sys/class/ccg_usb/ccgX
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		The /sys/class/ccg_usb/ccg{0,1,2,3...} class
+		subdirectories correspond to each ccg gadget device;
+		at the time of this writing there is only ccg0 and it
+		represents the ccg gadget.
+
+What:		/sys/class/ccg_usb/ccgX/functions
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		A comma-separated list of USB function names to be activated
+		in this ccg gadget. It includes both the functions provided
+		in-kernel by the ccg gadget and the functions provided from
+		userspace through FunctionFS.
+
+What:		/sys/class/ccg_usb/ccgX/enable
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		A flag activating/deactivating the ccg usb gadget.
+
+What:		/sys/class/ccg_usb/ccgX/state
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		Configurable usb gadget state:
+
+		DISCONNECTED
+		CONNECTED
+		CONFIGURED
+
+What:		/sys/class/ccg_usb/ccgX/f_acm/
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		The /sys/class/ccg_usb/ccgX/f_acm subdirectory
+		corresponds to the gadget's USB CDC serial (ACM) function
+		driver.
+
+What:		/sys/class/ccg_usb/ccgX/f_acm/instances
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		Maximum number of the /dev/ttyGS<X> interface the driver uses.
+
+What:		/sys/class/ccg_usb/ccgX/f_fs
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		The /sys/class/ccg_usb/ccgX/f_fs subdirectory
+		corresponds to the gadget's FunctionFS driver.
+
+What:		/sys/class/ccg_usb/ccgX/f_fs/user_functions
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		A comma-separeted list of USB function names to be supported
+		from userspace. No other userspace FunctionFS functions can
+		be supported than listed here. However, the actual activation
+		of these functions is still done through
+		/sys/class/ccg_usb/ccgX/functions, where it is possible
+		to specify any subset (including maximum and empty) of
+		/sys/class/ccg_usb/ccgX/f_fs/user_functions.
+
+What:		/sys/class/ccg_usb/ccgX/f_fs/max_user_functions
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		Maximum number of USB functions to be supported from userspace.
+
+What:		/sys/class/ccg_usb/ccgX/f_rndis
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		The /sys/class/ccg_usb/ccgX/f_rndis subdirectory
+		corresponds to the gadget's RNDIS driver.
+
+What:		/sys/class/ccg_usb/ccgX/f_rndis/manufacturer
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		RNDIS Ethernet port manufacturer string.
+
+What:		/sys/class/ccg_usb/ccgX/f_rndis/wceis
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		RNDIS Ethernet port wireless flag.
+
+What:		/sys/class/ccg_usb/ccgX/f_rndis/ethaddr
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		RNDIS Ethernet port Ethernet address.
+
+What:		/sys/class/ccg_usb/ccgX/f_rndis/vendorID
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		RNDIS Ethernet port vendor ID.
+
+What:		/sys/class/ccg_usb/ccgX/f_mass_storage
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		The /sys/class/ccg_usb/ccgX/f_mass_storage subdirectory
+		corresponds to the gadget's USB mass storage driver.
+
+What:		/sys/class/ccg_usb/ccgX/f_mass_storage/lun
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		The /sys/class/ccg_usb/ccgX/f_mass_storage/lun
+		subdirectory corresponds to the gadget's USB mass storage
+		driver and its underlying storage.
+
+What:		/sys/class/ccg_usb/ccgX/f_mass_storage/lun
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		The /sys/class/ccg_usb/ccgX/f_mass_storage/lun
+		subdirectory corresponds to the gadget's USB mass storage
+		driver and its underlying storage.
+
+What:		/sys/class/ccg_usb/ccgX/f_mass_storage/lun/file
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		Gadget's USB mass storage underlying file.

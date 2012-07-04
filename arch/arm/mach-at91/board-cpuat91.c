@@ -59,28 +59,6 @@ static void __init cpuat91_init_early(void)
 
 	/* Initialize processor: 18.432 MHz crystal */
 	at91_initialize(18432000);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS) */
-	at91_register_uart(AT91RM9200_ID_US0, 1, ATMEL_UART_CTS |
-		ATMEL_UART_RTS);
-
-	/* USART1 on ttyS2. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
-	at91_register_uart(AT91RM9200_ID_US1, 2, ATMEL_UART_CTS |
-		ATMEL_UART_RTS | ATMEL_UART_DTR | ATMEL_UART_DSR |
-		ATMEL_UART_DCD | ATMEL_UART_RI);
-
-	/* USART2 on ttyS3 (Rx, Tx) */
-	at91_register_uart(AT91RM9200_ID_US2, 3, 0);
-
-	/* USART3 on ttyS4 (Rx, Tx, CTS, RTS) */
-	at91_register_uart(AT91RM9200_ID_US3, 4, ATMEL_UART_CTS |
-		ATMEL_UART_RTS);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 static struct macb_platform_data __initdata cpuat91_eth_data = {
@@ -161,6 +139,24 @@ static struct platform_device *platform_devices[] __initdata = {
 static void __init cpuat91_board_init(void)
 {
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS) */
+	at91_register_uart(AT91RM9200_ID_US0, 1, ATMEL_UART_CTS |
+		ATMEL_UART_RTS);
+
+	/* USART1 on ttyS2. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
+	at91_register_uart(AT91RM9200_ID_US1, 2, ATMEL_UART_CTS |
+		ATMEL_UART_RTS | ATMEL_UART_DTR | ATMEL_UART_DSR |
+		ATMEL_UART_DCD | ATMEL_UART_RI);
+
+	/* USART2 on ttyS3 (Rx, Tx) */
+	at91_register_uart(AT91RM9200_ID_US2, 3, 0);
+
+	/* USART3 on ttyS4 (Rx, Tx, CTS, RTS) */
+	at91_register_uart(AT91RM9200_ID_US3, 4, ATMEL_UART_CTS |
+		ATMEL_UART_RTS);
 	at91_add_device_serial();
 	/* LEDs. */
 	at91_gpio_leds(cpuat91_leds, ARRAY_SIZE(cpuat91_leds));

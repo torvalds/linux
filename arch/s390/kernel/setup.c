@@ -428,10 +428,12 @@ static void __init setup_lowcore(void)
 	lc->restart_fn = (unsigned long) do_restart;
 	lc->restart_data = 0;
 	lc->restart_source = -1UL;
-	memcpy(&S390_lowcore.restart_stack, &lc->restart_stack,
-	       4*sizeof(unsigned long));
-	copy_to_absolute_zero(&S390_lowcore.restart_psw,
-			      &lc->restart_psw, sizeof(psw_t));
+
+	/* Setup absolute zero lowcore */
+	memcpy_absolute(&S390_lowcore.restart_stack, &lc->restart_stack,
+			4 * sizeof(unsigned long));
+	memcpy_absolute(&S390_lowcore.restart_psw, &lc->restart_psw,
+			sizeof(lc->restart_psw));
 
 	set_prefix((u32)(unsigned long) lc);
 	lowcore_ptr[0] = lc;
@@ -598,7 +600,7 @@ static void __init setup_vmcoreinfo(void)
 #ifdef CONFIG_KEXEC
 	unsigned long ptr = paddr_vmcoreinfo_note();
 
-	copy_to_absolute_zero(&S390_lowcore.vmcore_info, &ptr, sizeof(ptr));
+	memcpy_absolute(&S390_lowcore.vmcore_info, &ptr, sizeof(ptr));
 #endif
 }
 

@@ -1,7 +1,7 @@
 /*
  * Process creation support for Hexagon
  *
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -88,7 +88,7 @@ void (*idle_sleep)(void) = default_idle;
 void cpu_idle(void)
 {
 	while (1) {
-		tick_nohz_stop_sched_tick(1);
+		tick_nohz_idle_enter();
 		local_irq_disable();
 		while (!need_resched()) {
 			idle_sleep();
@@ -97,7 +97,7 @@ void cpu_idle(void)
 			local_irq_disable();
 		}
 		local_irq_enable();
-		tick_nohz_restart_sched_tick();
+		tick_nohz_idle_exit();
 		schedule();
 	}
 }
@@ -232,43 +232,6 @@ unsigned long get_wchan(struct task_struct *p)
 
 	return 0;
 }
-
-/*
- * Borrowed from PowerPC -- basically allow smaller kernel stacks if we
- * go crazy with the page sizes.
- */
-#if THREAD_SHIFT < PAGE_SHIFT
-
-static struct kmem_cache *thread_info_cache;
-
-struct thread_info *alloc_thread_info_node(struct task_struct *tsk, int node)
-{
-	struct thread_info *ti;
-
-	ti = kmem_cache_alloc_node(thread_info_cache, GFP_KERNEL, node);
-	if (unlikely(ti == NULL))
-		return NULL;
-#ifdef CONFIG_DEBUG_STACK_USAGE
-	memset(ti, 0, THREAD_SIZE);
-#endif
-	return ti;
-}
-
-void free_thread_info(struct thread_info *ti)
-{
-	kmem_cache_free(thread_info_cache, ti);
-}
-
-/*  Weak symbol; called by init/main.c  */
-
-void thread_info_cache_init(void)
-{
-	thread_info_cache = kmem_cache_create("thread_info", THREAD_SIZE,
-					      THREAD_SIZE, 0, NULL);
-	BUG_ON(thread_info_cache == NULL);
-}
-
-#endif /* THREAD_SHIFT < PAGE_SHIFT */
 
 /*
  * Required placeholder.

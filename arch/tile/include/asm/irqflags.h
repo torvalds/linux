@@ -28,10 +28,10 @@
  */
 #if CHIP_HAS_AUX_PERF_COUNTERS()
 #define LINUX_MASKABLE_INTERRUPTS_HI \
-       (~(INT_MASK_HI(INT_PERF_COUNT) | INT_MASK_HI(INT_AUX_PERF_COUNT)))
+	(~(INT_MASK_HI(INT_PERF_COUNT) | INT_MASK_HI(INT_AUX_PERF_COUNT)))
 #else
 #define LINUX_MASKABLE_INTERRUPTS_HI \
-       (~(INT_MASK_HI(INT_PERF_COUNT)))
+	(~(INT_MASK_HI(INT_PERF_COUNT)))
 #endif
 
 #else
@@ -90,6 +90,14 @@
 	__insn_mtspr(SPR_INTERRUPT_MASK_RESET_K_0, (unsigned long)(__m)); \
 	__insn_mtspr(SPR_INTERRUPT_MASK_RESET_K_1, (unsigned long)(__m>>32)); \
 } while (0)
+#define interrupt_mask_save_mask() \
+	(__insn_mfspr(SPR_INTERRUPT_MASK_SET_K_0) | \
+	 (((unsigned long long)__insn_mfspr(SPR_INTERRUPT_MASK_SET_K_1))<<32))
+#define interrupt_mask_restore_mask(mask) do { \
+	unsigned long long __m = (mask); \
+	__insn_mtspr(SPR_INTERRUPT_MASK_K_0, (unsigned long)(__m)); \
+	__insn_mtspr(SPR_INTERRUPT_MASK_K_1, (unsigned long)(__m>>32)); \
+} while (0)
 #else
 #define interrupt_mask_set(n) \
 	__insn_mtspr(SPR_INTERRUPT_MASK_SET_K, (1UL << (n)))
@@ -101,6 +109,10 @@
 	__insn_mtspr(SPR_INTERRUPT_MASK_SET_K, (mask))
 #define interrupt_mask_reset_mask(mask) \
 	__insn_mtspr(SPR_INTERRUPT_MASK_RESET_K, (mask))
+#define interrupt_mask_save_mask() \
+	__insn_mfspr(SPR_INTERRUPT_MASK_K)
+#define interrupt_mask_restore_mask(mask) \
+	__insn_mtspr(SPR_INTERRUPT_MASK_K, (mask))
 #endif
 
 /*
@@ -122,7 +134,7 @@ DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
 
 /* Disable all interrupts, including NMIs. */
 #define arch_local_irq_disable_all() \
-	interrupt_mask_set_mask(-1UL)
+	interrupt_mask_set_mask(-1ULL)
 
 /* Re-enable all maskable interrupts. */
 #define arch_local_irq_enable() \
@@ -179,7 +191,7 @@ DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
 #ifdef __tilegx__
 
 #if INT_MEM_ERROR != 0
-# error Fix IRQ_DISABLED() macro
+# error Fix IRQS_DISABLED() macro
 #endif
 
 /* Return 0 or 1 to indicate whether interrupts are currently disabled. */
@@ -207,9 +219,10 @@ DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
 	mtspr   SPR_INTERRUPT_MASK_SET_K, tmp
 
 /* Enable interrupts. */
-#define IRQ_ENABLE(tmp0, tmp1)					\
+#define IRQ_ENABLE_LOAD(tmp0, tmp1)				\
 	GET_INTERRUPTS_ENABLED_MASK_PTR(tmp0);			\
-	ld      tmp0, tmp0;					\
+	ld      tmp0, tmp0
+#define IRQ_ENABLE_APPLY(tmp0, tmp1)				\
 	mtspr   SPR_INTERRUPT_MASK_RESET_K, tmp0
 
 #else /* !__tilegx__ */
@@ -253,16 +266,21 @@ DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
 	mtspr   SPR_INTERRUPT_MASK_SET_K_1, tmp
 
 /* Enable interrupts. */
-#define IRQ_ENABLE(tmp0, tmp1)					\
+#define IRQ_ENABLE_LOAD(tmp0, tmp1)				\
 	GET_INTERRUPTS_ENABLED_MASK_PTR(tmp0);			\
 	{							\
 	 lw     tmp0, tmp0;					\
 	 addi   tmp1, tmp0, 4					\
 	};							\
-	lw      tmp1, tmp1;					\
+	lw      tmp1, tmp1
+#define IRQ_ENABLE_APPLY(tmp0, tmp1)				\
 	mtspr   SPR_INTERRUPT_MASK_RESET_K_0, tmp0;		\
 	mtspr   SPR_INTERRUPT_MASK_RESET_K_1, tmp1
 #endif
+
+#define IRQ_ENABLE(tmp0, tmp1)					\
+	IRQ_ENABLE_LOAD(tmp0, tmp1);				\
+	IRQ_ENABLE_APPLY(tmp0, tmp1)
 
 /*
  * Do the CPU's IRQ-state tracing from assembly code. We call a

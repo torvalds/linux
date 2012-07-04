@@ -51,6 +51,10 @@ void hold_module_trace_bprintk_format(const char **start, const char **end)
 	const char **iter;
 	char *fmt;
 
+	/* allocate the trace_printk per cpu buffers */
+	if (start != end)
+		trace_printk_init_buffers();
+
 	mutex_lock(&btrace_mutex);
 	for (iter = start; iter < end; iter++) {
 		struct trace_bprintk_fmt *tb_fmt = lookup_format(*iter);

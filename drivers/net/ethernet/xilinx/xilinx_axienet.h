@@ -2,9 +2,7 @@
  * Definitions for Xilinx Axi Ethernet device driver.
  *
  * Copyright (c) 2009 Secret Lab Technologies, Ltd.
- * Copyright (c) 2010 Xilinx, Inc. All rights reserved.
- * Copyright (c) 2012 Daniel Borkmann, <daniel.borkmann@tik.ee.ethz.ch>
- * Copyright (c) 2012 Ariane Keller, <ariane.keller@tik.ee.ethz.ch>
+ * Copyright (c) 2010 - 2012 Xilinx, Inc. All rights reserved.
  */
 
 #ifndef XILINX_AXIENET_H

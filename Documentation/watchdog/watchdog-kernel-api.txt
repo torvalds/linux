@@ -1,6 +1,6 @@
 The Linux WatchDog Timer Driver Core kernel API.
 ===============================================
-Last reviewed: 16-Mar-2012
+Last reviewed: 22-May-2012
 
 Wim Van Sebroeck <wim@iguana.be>
 
@@ -39,6 +39,10 @@ watchdog_device structure.
 The watchdog device structure looks like this:
 
 struct watchdog_device {
+	int id;
+	struct cdev cdev;
+	struct device *dev;
+	struct device *parent;
 	const struct watchdog_info *info;
 	const struct watchdog_ops *ops;
 	unsigned int bootstatus;
@@ -46,10 +50,20 @@ struct watchdog_device {
 	unsigned int min_timeout;
 	unsigned int max_timeout;
 	void *driver_data;
+	struct mutex lock;
 	unsigned long status;
 };
 
 It contains following fields:
+* id: set by watchdog_register_device, id 0 is special. It has both a
+  /dev/watchdog0 cdev (dynamic major, minor 0) as well as the old
+  /dev/watchdog miscdev. The id is set automatically when calling
+  watchdog_register_device.
+* cdev: cdev for the dynamic /dev/watchdog<id> device nodes. This
+  field is also populated by watchdog_register_device.
+* dev: device under the watchdog class (created by watchdog_register_device).
+* parent: set this to the parent device (or NULL) before calling
+  watchdog_register_device.
 * info: a pointer to a watchdog_info structure. This structure gives some
   additional information about the watchdog timer itself. (Like it's unique name)
 * ops: a pointer to the list of watchdog operations that the watchdog supports.
@@ -59,8 +73,9 @@ It contains following fields:
 * bootstatus: status of the device after booting (reported with watchdog
   WDIOF_* status bits).
 * driver_data: a pointer to the drivers private data of a watchdog device.
-  This data should only be accessed via the watchdog_set_drvadata and
+  This data should only be accessed via the watchdog_set_drvdata and
   watchdog_get_drvdata routines.
+* lock: Mutex for WatchDog Timer Driver Core internal use only.
 * status: this field contains a number of status bits that give extra
   information about the status of the device (Like: is the watchdog timer
   running/active, is the nowayout bit set, is the device opened via
@@ -78,6 +93,8 @@ struct watchdog_ops {
 	unsigned int (*status)(struct watchdog_device *);
 	int (*set_timeout)(struct watchdog_device *, unsigned int);
 	unsigned int (*get_timeleft)(struct watchdog_device *);
+	void (*ref)(struct watchdog_device *);
+	void (*unref)(struct watchdog_device *);
 	long (*ioctl)(struct watchdog_device *, unsigned int, unsigned long);
 };
 
@@ -85,6 +102,21 @@ It is important that you first define the module owner of the watchdog timer
 driver's operations. This module owner will be used to lock the module when
 the watchdog is active. (This to avoid a system crash when you unload the
 module and /dev/watchdog is still open).
+
+If the watchdog_device struct is dynamically allocated, just locking the module
+is not enough and a driver also needs to define the ref and unref operations to
+ensure the structure holding the watchdog_device does not go away.
+
+The simplest (and usually sufficient) implementation of this is to:
+1) Add a kref struct to the same structure which is holding the watchdog_device
+2) Define a release callback for the kref which frees the struct holding both
+3) Call kref_init on this kref *before* calling watchdog_register_device()
+4) Define a ref operation calling kref_get on this kref
+5) Define a unref operation calling kref_put on this kref
+6) When it is time to cleanup:
+ * Do not kfree() the struct holding both, the last kref_put will do this!
+ * *After* calling watchdog_unregister_device() call kref_put on the kref
+
 Some operations are mandatory and some are optional. The mandatory operations
 are:
 * start: this is a pointer to the routine that starts the watchdog timer
@@ -125,6 +157,10 @@ they are supported. These optional routines/operations are:
   (Note: the WDIOF_SETTIMEOUT needs to be set in the options field of the
   watchdog's info structure).
 * get_timeleft: this routines returns the time that's left before a reset.
+* ref: the operation that calls kref_get on the kref of a dynamically
+  allocated watchdog_device struct.
+* unref: the operation that calls kref_put on the kref of a dynamically
+  allocated watchdog_device struct.
 * ioctl: if this routine is present then it will be called first before we do
   our own internal ioctl call handling. This routine should return -ENOIOCTLCMD
   if a command is not supported. The parameters that are passed to the ioctl
@@ -144,6 +180,11 @@ bit-operations. The status bits that are defined are:
   (This bit should only be used by the WatchDog Timer Driver Core).
 * WDOG_NO_WAY_OUT: this bit stores the nowayout setting for the watchdog.
   If this bit is set then the watchdog timer will not be able to stop.
+* WDOG_UNREGISTERED: this bit gets set by the WatchDog Timer Driver Core
+  after calling watchdog_unregister_device, and then checked before calling
+  any watchdog_ops, so that you can be sure that no operations (other then
+  unref) will get called after unregister, even if userspace still holds a
+  reference to /dev/watchdog
 
   To set the WDOG_NO_WAY_OUT status bit (before registering your watchdog
   timer device) you can either:

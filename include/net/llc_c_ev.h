@@ -264,6 +264,6 @@ extern int llc_conn_ev_qlfy_set_status_rst_done(struct sock *sk,
 static __inline__ int llc_conn_space(struct sock *sk, struct sk_buff *skb)
 {
 	return atomic_read(&sk->sk_rmem_alloc) + skb->truesize <
-	       (unsigned)sk->sk_rcvbuf;
+	       (unsigned int)sk->sk_rcvbuf;
 }
 #endif /* LLC_C_EV_H */

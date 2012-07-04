@@ -877,7 +877,7 @@ struct ucc_geth_hardware_statistics {
 
 /* Driver definitions */
 #define TX_BD_RING_LEN                          0x10
-#define RX_BD_RING_LEN                          0x10
+#define RX_BD_RING_LEN                          0x20
 
 #define TX_RING_MOD_MASK(size)                  (size-1)
 #define RX_RING_MOD_MASK(size)                  (size-1)

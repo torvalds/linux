@@ -82,7 +82,7 @@ struct kvm_vcpu;
 
 struct lppaca;
 struct slb_shadow;
-struct dtl;
+struct dtl_entry;
 
 struct kvm_vm_stat {
 	u32 remote_tlb_flush;
@@ -106,6 +106,8 @@ struct kvm_vcpu_stat {
 	u32 dec_exits;
 	u32 ext_intr_exits;
 	u32 halt_wakeup;
+	u32 dbell_exits;
+	u32 gdbell_exits;
 #ifdef CONFIG_PPC_BOOK3S
 	u32 pf_storage;
 	u32 pf_instruc;
@@ -140,6 +142,7 @@ enum kvm_exit_types {
 	EMULATED_TLBSX_EXITS,
 	EMULATED_TLBWE_EXITS,
 	EMULATED_RFI_EXITS,
+	EMULATED_RFCI_EXITS,
 	DEC_EXITS,
 	EXT_INTR_EXITS,
 	HALT_WAKEUP,
@@ -147,6 +150,8 @@ enum kvm_exit_types {
 	FP_UNAVAIL,
 	DEBUG_EXITS,
 	TIMEINGUEST,
+	DBELL_EXITS,
+	GDBELL_EXITS,
 	__NUMBER_OF_KVM_EXIT_TYPES
 };
 
@@ -217,10 +222,10 @@ struct kvm_arch_memory_slot {
 };
 
 struct kvm_arch {
+	unsigned int lpid;
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	unsigned long hpt_virt;
 	struct revmap_entry *revmap;
-	unsigned int lpid;
 	unsigned int host_lpid;
 	unsigned long host_lpcr;
 	unsigned long sdr1;
@@ -232,7 +237,6 @@ struct kvm_arch {
 	unsigned long vrma_slb_v;
 	int rma_setup_done;
 	int using_mmu_notifiers;
-	struct list_head spapr_tce_tables;
 	spinlock_t slot_phys_lock;
 	unsigned long *slot_phys[KVM_MEM_SLOTS_NUM];
 	int slot_npages[KVM_MEM_SLOTS_NUM];
@@ -240,6 +244,9 @@ struct kvm_arch {
 	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];
 	struct kvmppc_linear_info *hpt_li;
 #endif /* CONFIG_KVM_BOOK3S_64_HV */
+#ifdef CONFIG_PPC_BOOK3S_64
+	struct list_head spapr_tce_tables;
+#endif
 };
 
 /*
@@ -263,6 +270,9 @@ struct kvmppc_vcore {
 	struct list_head runnable_threads;
 	spinlock_t lock;
 	wait_queue_head_t wq;
+	u64 stolen_tb;
+	u64 preempt_tb;
+	struct kvm_vcpu *runner;
 };
 
 #define VCORE_ENTRY_COUNT(vc)	((vc)->entry_exit_count & 0xff)
@@ -273,6 +283,19 @@ struct kvmppc_vcore {
 #define VCORE_RUNNING	1
 #define VCORE_EXITING	2
 #define VCORE_SLEEPING	3
+
+/*
+ * Struct used to manage memory for a virtual processor area
+ * registered by a PAPR guest.  There are three types of area
+ * that a guest can register.
+ */
+struct kvmppc_vpa {
+	void *pinned_addr;	/* Address in kernel linear mapping */
+	void *pinned_end;	/* End of region */
+	unsigned long next_gpa;	/* Guest phys addr for update */
+	unsigned long len;	/* Number of bytes required */
+	u8 update_pending;	/* 1 => update pinned_addr from next_gpa */
+};
 
 struct kvmppc_pte {
 	ulong eaddr;
@@ -345,6 +368,17 @@ struct kvm_vcpu_arch {
 	u64 vsr[64];
 #endif
 
+#ifdef CONFIG_KVM_BOOKE_HV
+	u32 host_mas4;
+	u32 host_mas6;
+	u32 shadow_epcr;
+	u32 epcr;
+	u32 shadow_msrp;
+	u32 eplc;
+	u32 epsc;
+	u32 oldpir;
+#endif
+
 #ifdef CONFIG_PPC_BOOK3S
 	/* For Gekko paired singles */
 	u32 qpr[32];
@@ -370,6 +404,7 @@ struct kvm_vcpu_arch {
 #endif
 	u32 vrsave; /* also USPRG0 */
 	u32 mmucr;
+	/* shadow_msr is unused for BookE HV */
 	ulong shadow_msr;
 	ulong csrr0;
 	ulong csrr1;
@@ -426,8 +461,12 @@ struct kvm_vcpu_arch {
 	ulong fault_esr;
 	ulong queued_dear;
 	ulong queued_esr;
+	u32 tlbcfg[4];
+	u32 mmucfg;
+	u32 epr;
 #endif
 	gpa_t paddr_accessed;
+	gva_t vaddr_accessed;
 
 	u8 io_gpr; /* GPR used as IO source/target */
 	u8 mmio_is_bigendian;
@@ -453,11 +492,6 @@ struct kvm_vcpu_arch {
 	u8 prodded;
 	u32 last_inst;
 
-	struct lppaca *vpa;
-	struct slb_shadow *slb_shadow;
-	struct dtl *dtl;
-	struct dtl *dtl_end;
-
 	wait_queue_head_t *wqp;
 	struct kvmppc_vcore *vcore;
 	int ret;
@@ -482,6 +516,14 @@ struct kvm_vcpu_arch {
 	struct task_struct *run_task;
 	struct kvm_run *kvm_run;
 	pgd_t *pgdir;
+
+	spinlock_t vpa_update_lock;
+	struct kvmppc_vpa vpa;
+	struct kvmppc_vpa dtl;
+	struct dtl_entry *dtl_ptr;
+	unsigned long dtl_index;
+	u64 stolen_logged;
+	struct kvmppc_vpa slb_shadow;
 #endif
 };
 
@@ -497,5 +539,7 @@ struct kvm_vcpu_arch {
 #define KVM_MMIO_REG_FPR	0x0020
 #define KVM_MMIO_REG_QPR	0x0040
 #define KVM_MMIO_REG_FQPR	0x0060
+
+#define __KVM_HAVE_ARCH_WQP
 
 #endif /* __POWERPC_KVM_HOST_H__ */

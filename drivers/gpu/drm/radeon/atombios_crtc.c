@@ -575,6 +575,9 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 
 		if (rdev->family < CHIP_RV770)
 			pll->flags |= RADEON_PLL_PREFER_MINM_OVER_MAXP;
+		/* use frac fb div on APUs */
+		if (ASIC_IS_DCE41(rdev) || ASIC_IS_DCE61(rdev))
+			pll->flags |= RADEON_PLL_USE_FRAC_FB_DIV;
 	} else {
 		pll->flags |= RADEON_PLL_LEGACY;
 
@@ -588,8 +591,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 		if (encoder->crtc == crtc) {
 			radeon_encoder = to_radeon_encoder(encoder);
 			connector = radeon_get_connector_for_encoder(encoder);
-			/* if (connector && connector->display_info.bpc)
-				bpc = connector->display_info.bpc; */
+			bpc = radeon_get_monitor_bpc(connector);
 			encoder_mode = atombios_get_encoder_mode(encoder);
 			is_duallink = radeon_dig_monitor_is_duallink(encoder, mode->clock);
 			if ((radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT)) ||
@@ -955,8 +957,8 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 		break;
 	}
 
-	if (radeon_encoder->active_device &
-	    (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT)) {
+	if ((radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT)) ||
+	    (radeon_encoder_get_dp_bridge_encoder_id(encoder) != ENCODER_OBJECT_ID_NONE)) {
 		struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 		struct drm_connector *connector =
 			radeon_get_connector_for_encoder(encoder);
@@ -965,9 +967,7 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 		struct radeon_connector_atom_dig *dig_connector =
 			radeon_connector->con_priv;
 		int dp_clock;
-
-		/* if (connector->display_info.bpc)
-			bpc = connector->display_info.bpc; */
+		bpc = radeon_get_monitor_bpc(connector);
 
 		switch (encoder_mode) {
 		case ATOM_ENCODER_MODE_DP_MST:
@@ -1149,7 +1149,9 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	}
 
 	if (tiling_flags & RADEON_TILING_MACRO) {
-		if (rdev->family >= CHIP_CAYMAN)
+		if (rdev->family >= CHIP_TAHITI)
+			tmp = rdev->config.si.tile_config;
+		else if (rdev->family >= CHIP_CAYMAN)
 			tmp = rdev->config.cayman.tile_config;
 		else
 			tmp = rdev->config.evergreen.tile_config;
@@ -1176,6 +1178,12 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		fb_format |= EVERGREEN_GRPH_MACRO_TILE_ASPECT(mtaspect);
 	} else if (tiling_flags & RADEON_TILING_MICRO)
 		fb_format |= EVERGREEN_GRPH_ARRAY_MODE(EVERGREEN_GRPH_ARRAY_1D_TILED_THIN1);
+
+	if ((rdev->family == CHIP_TAHITI) ||
+	    (rdev->family == CHIP_PITCAIRN))
+		fb_format |= SI_GRPH_PIPE_CONFIG(SI_ADDR_SURF_P8_32x32_8x16);
+	else if (rdev->family == CHIP_VERDE)
+		fb_format |= SI_GRPH_PIPE_CONFIG(SI_ADDR_SURF_P4_8x16);
 
 	switch (radeon_crtc->crtc_id) {
 	case 0:

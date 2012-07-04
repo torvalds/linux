@@ -27,11 +27,6 @@ static inline struct platform_device *mxs_add_platform_device(
 			name, id, res, num_resources, data, size_data, 0);
 }
 
-int __init mxs_add_amba_device(const struct amba_device *dev);
-
-/* duart */
-int __init mxs_add_duart(const struct amba_device *dev);
-
 /* auart */
 struct mxs_auart_data {
 	int id;
@@ -87,8 +82,9 @@ struct platform_device * __init mxs_add_mxs_i2c(
 		const struct mxs_mxs_i2c_data *data);
 
 /* mmc */
-#include <mach/mmc.h>
+#include <linux/mmc/mxs-mmc.h>
 struct mxs_mxs_mmc_data {
+	const char *devid;
 	int id;
 	resource_size_t iobase;
 	resource_size_t dma;

@@ -17,10 +17,6 @@
 	model = "Freescale i.MX53 Smart Mobile Reference Design Board";
 	compatible = "fsl,imx53-smd", "fsl,imx53";
 
-	chosen {
-		bootargs = "console=ttymxc0,115200 root=/dev/mmcblk0p3 rootwait";
-	};
-
 	memory {
 		reg = <0x70000000 0x40000000>;
 	};
@@ -35,11 +31,11 @@
 				};
 
 				esdhc@50008000 { /* ESDHC2 */
-					fsl,card-wired;
+					non-removable;
 					status = "okay";
 				};
 
-				uart3: uart@5000c000 {
+				uart3: serial@5000c000 {
 					fsl,uart-has-rtscts;
 					status = "okay";
 				};
@@ -76,7 +72,7 @@
 				};
 
 				esdhc@50020000 { /* ESDHC3 */
-					fsl,card-wired;
+					non-removable;
 					status = "okay";
 				};
 			};
@@ -90,11 +86,11 @@
 				reg = <0x53fa8000 0x4000>;
 			};
 
-			uart1: uart@53fbc000 {
+			uart1: serial@53fbc000 {
 				status = "okay";
 			};
 
-			uart2: uart@53fc0000 {
+			uart2: serial@53fc0000 {
 				status = "okay";
 			};
 		};
@@ -142,7 +138,7 @@
 				};
 			};
 
-			fec@63fec000 {
+			ethernet@63fec000 {
 				phy-mode = "rmii";
 				phy-reset-gpios = <&gpio7 6 0>;
 				status = "okay";

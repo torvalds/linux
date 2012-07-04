@@ -25,6 +25,7 @@
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
+#include <plat/cpu.h>
 #include <plat/usb.h>
 #include <linux/pm_runtime.h>
 

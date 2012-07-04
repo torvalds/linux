@@ -70,7 +70,7 @@ struct sockaddr_pppox {
 		struct pppoe_addr  pppoe;
 		struct pptp_addr   pptp;
 	} sa_addr;
-} __attribute__((packed));
+} __packed;
 
 /* The use of the above union isn't viable because the size of this
  * struct must stay fixed over time -- applications use sizeof(struct
@@ -81,7 +81,13 @@ struct sockaddr_pppol2tp {
 	__kernel_sa_family_t sa_family; /* address family, AF_PPPOX */
 	unsigned int    sa_protocol;    /* protocol identifier */
 	struct pppol2tp_addr pppol2tp;
-} __attribute__((packed));
+} __packed;
+
+struct sockaddr_pppol2tpin6 {
+	__kernel_sa_family_t sa_family; /* address family, AF_PPPOX */
+	unsigned int    sa_protocol;    /* protocol identifier */
+	struct pppol2tpin6_addr pppol2tp;
+} __packed;
 
 /* The L2TPv3 protocol changes tunnel and session ids from 16 to 32
  * bits. So we need a different sockaddr structure.
@@ -90,7 +96,13 @@ struct sockaddr_pppol2tpv3 {
 	__kernel_sa_family_t sa_family; /* address family, AF_PPPOX */
 	unsigned int    sa_protocol;    /* protocol identifier */
 	struct pppol2tpv3_addr pppol2tp;
-} __attribute__((packed));
+} __packed;
+
+struct sockaddr_pppol2tpv3in6 {
+	__kernel_sa_family_t sa_family; /* address family, AF_PPPOX */
+	unsigned int    sa_protocol;    /* protocol identifier */
+	struct pppol2tpv3in6_addr pppol2tp;
+} __packed;
 
 /*********************************************************************
  *
@@ -140,7 +152,7 @@ struct pppoe_hdr {
 	__be16 sid;
 	__be16 length;
 	struct pppoe_tag tag[0];
-} __attribute__((packed));
+} __packed;
 
 /* Length of entire PPPoE + PPP header */
 #define PPPOE_SES_HLEN	8

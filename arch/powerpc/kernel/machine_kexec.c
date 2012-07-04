@@ -23,13 +23,10 @@
 
 void machine_kexec_mask_interrupts(void) {
 	unsigned int i;
+	struct irq_desc *desc;
 
-	for_each_irq(i) {
-		struct irq_desc *desc = irq_to_desc(i);
+	for_each_irq_desc(i, desc) {
 		struct irq_chip *chip;
-
-		if (!desc)
-			continue;
 
 		chip = irq_desc_get_chip(desc);
 		if (!chip)

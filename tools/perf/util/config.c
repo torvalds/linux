@@ -120,7 +120,7 @@ static char *parse_value(void)
 
 static inline int iskeychar(int c)
 {
-	return isalnum(c) || c == '-';
+	return isalnum(c) || c == '-' || c == '_';
 }
 
 static int get_value(config_fn_t fn, void *data, char *name, unsigned int len)

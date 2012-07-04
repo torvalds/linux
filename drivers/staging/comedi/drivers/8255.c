@@ -107,31 +107,6 @@ struct subdev_8255_struct {
 #define CALLBACK_FUNC	(((struct subdev_8255_struct *)s->private)->cb_func)
 #define subdevpriv	((struct subdev_8255_struct *)s->private)
 
-static int dev_8255_attach(struct comedi_device *dev,
-			   struct comedi_devconfig *it);
-static int dev_8255_detach(struct comedi_device *dev);
-static struct comedi_driver driver_8255 = {
-	.driver_name = "8255",
-	.module = THIS_MODULE,
-	.attach = dev_8255_attach,
-	.detach = dev_8255_detach,
-};
-
-static int __init driver_8255_init_module(void)
-{
-	return comedi_driver_register(&driver_8255);
-}
-
-static void __exit driver_8255_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_8255);
-}
-
-module_init(driver_8255_init_module);
-module_exit(driver_8255_cleanup_module);
-
-static void do_config(struct comedi_device *dev, struct comedi_subdevice *s);
-
 void subdev_8255_interrupt(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
@@ -185,6 +160,23 @@ static int subdev_8255_insn(struct comedi_device *dev,
 	return 2;
 }
 
+static void do_config(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	int config;
+
+	config = CR_CW;
+	/* 1 in io_bits indicates output, 1 in config indicates input */
+	if (!(s->io_bits & 0x0000ff))
+		config |= CR_A_IO;
+	if (!(s->io_bits & 0x00ff00))
+		config |= CR_B_IO;
+	if (!(s->io_bits & 0x0f0000))
+		config |= CR_C_LO_IO;
+	if (!(s->io_bits & 0xf00000))
+		config |= CR_C_HI_IO;
+	CALLBACK_FUNC(1, _8255_CR, config, CALLBACK_ARG);
+}
+
 static int subdev_8255_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data)
@@ -220,23 +212,6 @@ static int subdev_8255_insn_config(struct comedi_device *dev,
 	do_config(dev, s);
 
 	return 1;
-}
-
-static void do_config(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	int config;
-
-	config = CR_CW;
-	/* 1 in io_bits indicates output, 1 in config indicates input */
-	if (!(s->io_bits & 0x0000ff))
-		config |= CR_A_IO;
-	if (!(s->io_bits & 0x00ff00))
-		config |= CR_B_IO;
-	if (!(s->io_bits & 0x0f0000))
-		config |= CR_C_LO_IO;
-	if (!(s->io_bits & 0xf00000))
-		config |= CR_C_HI_IO;
-	CALLBACK_FUNC(1, _8255_CR, config, CALLBACK_ARG);
 }
 
 static int subdev_8255_cmdtest(struct comedi_device *dev,
@@ -442,13 +417,11 @@ static int dev_8255_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int dev_8255_detach(struct comedi_device *dev)
+static void dev_8255_detach(struct comedi_device *dev)
 {
 	int i;
 	unsigned long iobase;
 	struct comedi_subdevice *s;
-
-	printk(KERN_INFO "comedi%d: 8255: remove\n", dev->minor);
 
 	for (i = 0; i < dev->n_subdevices; i++) {
 		s = dev->subdevices + i;
@@ -458,9 +431,15 @@ static int dev_8255_detach(struct comedi_device *dev)
 		}
 		subdev_8255_cleanup(dev, s);
 	}
-
-	return 0;
 }
+
+static struct comedi_driver dev_8255_driver = {
+	.driver_name	= "8255",
+	.module		= THIS_MODULE,
+	.attach		= dev_8255_attach,
+	.detach		= dev_8255_detach,
+};
+module_comedi_driver(dev_8255_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

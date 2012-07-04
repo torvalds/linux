@@ -203,6 +203,7 @@ void *virtqueue_get_buf(struct virtqueue *vq, unsigned int *len);
 void virtqueue_disable_cb(struct virtqueue *vq);
 
 bool virtqueue_enable_cb(struct virtqueue *vq);
+bool virtqueue_enable_cb_delayed(struct virtqueue *vq);
 
 void *virtqueue_detach_unused_buf(struct virtqueue *vq);
 struct virtqueue *vring_new_virtqueue(unsigned int num,

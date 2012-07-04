@@ -275,9 +275,6 @@ struct mpic
 	unsigned int		isu_mask;
 	/* Number of sources */
 	unsigned int		num_sources;
-	/* default senses array */
-	unsigned char		*senses;
-	unsigned int		senses_count;
 
 	/* vector numbers used for internal sources (ipi/timers) */
 	unsigned int		ipi_vecs[4];
@@ -414,21 +411,6 @@ extern struct mpic *mpic_alloc(struct device_node *node,
  */
 extern void mpic_assign_isu(struct mpic *mpic, unsigned int isu_num,
 			    phys_addr_t phys_addr);
-
-/* Set default sense codes
- *
- * @mpic:	controller
- * @senses:	array of sense codes
- * @count:	size of above array
- *
- * Optionally provide an array (indexed on hardware interrupt numbers
- * for this MPIC) of default sense codes for the chip. Those are linux
- * sense codes IRQ_TYPE_*
- *
- * The driver gets ownership of the pointer, don't dispose of it or
- * anything like that. __init only.
- */
-extern void mpic_set_default_senses(struct mpic *mpic, u8 *senses, int count);
 
 
 /* Initialize the controller. After this has been called, none of the above

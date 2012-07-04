@@ -836,8 +836,8 @@ struct dn_fib_table *dn_fib_get_table(u32 n, int create)
 	if (!create)
 		return NULL;
 
-	if (in_interrupt() && net_ratelimit()) {
-		printk(KERN_DEBUG "DECnet: BUG! Attempt to create routing table from interrupt\n");
+	if (in_interrupt()) {
+		net_dbg_ratelimited("DECnet: BUG! Attempt to create routing table from interrupt\n");
 		return NULL;
 	}
 

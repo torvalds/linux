@@ -27,21 +27,29 @@ static int num_scan_areas;
 
 static __init int set_corruption_check(char *arg)
 {
-	char *end;
+	ssize_t ret;
+	unsigned long val;
 
-	memory_corruption_check = simple_strtol(arg, &end, 10);
+	ret = kstrtoul(arg, 10, &val);
+	if (ret)
+		return ret;
 
-	return (*end == 0) ? 0 : -EINVAL;
+	memory_corruption_check = val;
+	return 0;
 }
 early_param("memory_corruption_check", set_corruption_check);
 
 static __init int set_corruption_check_period(char *arg)
 {
-	char *end;
+	ssize_t ret;
+	unsigned long val;
 
-	corruption_check_period = simple_strtoul(arg, &end, 10);
+	ret = kstrtoul(arg, 10, &val);
+	if (ret)
+		return ret;
 
-	return (*end == 0) ? 0 : -EINVAL;
+	corruption_check_period = val;
+	return 0;
 }
 early_param("memory_corruption_check_period", set_corruption_check_period);
 

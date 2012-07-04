@@ -38,6 +38,7 @@
 
 #define MESH_MAX_PREQ_RETRIES	4
 
+#define MESH_SYNC_NEIGHBOR_OFFSET_MAX 50
 
 const struct mesh_config default_mesh_config = {
 	.dot11MeshRetryTimeout = MESH_RET_T,
@@ -48,6 +49,7 @@ const struct mesh_config default_mesh_config = {
 	.element_ttl = MESH_DEFAULT_ELEMENT_TTL,
 	.auto_open_plinks = true,
 	.dot11MeshMaxPeerLinks = MESH_MAX_ESTAB_PLINKS,
+	.dot11MeshNbrOffsetMaxNeighbor = MESH_SYNC_NEIGHBOR_OFFSET_MAX,
 	.dot11MeshHWMPactivePathTimeout = MESH_PATH_TIMEOUT,
 	.dot11MeshHWMPpreqMinInterval = MESH_PREQ_MIN_INT,
 	.dot11MeshHWMPperrMinInterval = MESH_PERR_MIN_INT,
@@ -59,9 +61,11 @@ const struct mesh_config default_mesh_config = {
 	.dot11MeshGateAnnouncementProtocol = false,
 	.dot11MeshForwarding = true,
 	.rssi_threshold = MESH_RSSI_THRESHOLD,
+	.ht_opmode = IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED,
 };
 
 const struct mesh_setup default_mesh_setup = {
+	.sync_method = IEEE80211_SYNC_METHOD_NEIGHBOR_OFFSET,
 	.path_sel_proto = IEEE80211_PATH_PROTOCOL_HWMP,
 	.path_metric = IEEE80211_PATH_METRIC_AIRTIME,
 	.ie = NULL,

@@ -29,25 +29,34 @@
 
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
+#include <linux/workqueue.h>
 
 struct srcu_struct_array {
-	int c[2];
+	unsigned long c[2];
+	unsigned long seq[2];
+};
+
+struct rcu_batch {
+	struct rcu_head *head, **tail;
 };
 
 struct srcu_struct {
-	int completed;
+	unsigned completed;
 	struct srcu_struct_array __percpu *per_cpu_ref;
-	struct mutex mutex;
+	spinlock_t queue_lock; /* protect ->batch_queue, ->running */
+	bool running;
+	/* callbacks just queued */
+	struct rcu_batch batch_queue;
+	/* callbacks try to do the first check_zero */
+	struct rcu_batch batch_check0;
+	/* callbacks done with the first check_zero and the flip */
+	struct rcu_batch batch_check1;
+	struct rcu_batch batch_done;
+	struct delayed_work work;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map dep_map;
 #endif /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 };
-
-#ifndef CONFIG_PREEMPT
-#define srcu_barrier() barrier()
-#else /* #ifndef CONFIG_PREEMPT */
-#define srcu_barrier()
-#endif /* #else #ifndef CONFIG_PREEMPT */
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 
@@ -67,12 +76,33 @@ int init_srcu_struct(struct srcu_struct *sp);
 
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
+/**
+ * call_srcu() - Queue a callback for invocation after an SRCU grace period
+ * @sp: srcu_struct in queue the callback
+ * @head: structure to be used for queueing the SRCU callback.
+ * @func: function to be invoked after the SRCU grace period
+ *
+ * The callback function will be invoked some time after a full SRCU
+ * grace period elapses, in other words after all pre-existing SRCU
+ * read-side critical sections have completed.  However, the callback
+ * function might well execute concurrently with other SRCU read-side
+ * critical sections that started after call_srcu() was invoked.  SRCU
+ * read-side critical sections are delimited by srcu_read_lock() and
+ * srcu_read_unlock(), and may be nested.
+ *
+ * The callback will be invoked from process context, but must nevertheless
+ * be fast and must not block.
+ */
+void call_srcu(struct srcu_struct *sp, struct rcu_head *head,
+		void (*func)(struct rcu_head *head));
+
 void cleanup_srcu_struct(struct srcu_struct *sp);
 int __srcu_read_lock(struct srcu_struct *sp) __acquires(sp);
 void __srcu_read_unlock(struct srcu_struct *sp, int idx) __releases(sp);
 void synchronize_srcu(struct srcu_struct *sp);
 void synchronize_srcu_expedited(struct srcu_struct *sp);
 long srcu_batches_completed(struct srcu_struct *sp);
+void srcu_barrier(struct srcu_struct *sp);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 

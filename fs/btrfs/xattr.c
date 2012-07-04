@@ -196,6 +196,7 @@ int __btrfs_setxattr(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto out;
 
+	inode_inc_iversion(inode);
 	inode->i_ctime = CURRENT_TIME;
 	ret = btrfs_update_inode(trans, root, inode);
 	BUG_ON(ret);

@@ -221,9 +221,17 @@ struct pwc_device
 	struct video_device vdev;
 	struct v4l2_device v4l2_dev;
 
-	/* Pointer to our usb_device, may be NULL after unplug */
-	struct usb_device *udev;
-	struct mutex udevlock;
+	/* videobuf2 queue and queued buffers list */
+	struct vb2_queue vb_queue;
+	struct list_head queued_bufs;
+	spinlock_t queued_bufs_lock; /* Protects queued_bufs */
+
+	/* Note if taking both locks v4l2_lock must always be locked first! */
+	struct mutex v4l2_lock;      /* Protects everything else */
+	struct mutex vb_queue_lock;  /* Protects vb_queue and capt_file */
+
+	/* Pointer to our usb_device, will be NULL after unplug */
+	struct usb_device *udev; /* Both mutexes most be hold when setting! */
 
 	/* type of cam (645, 646, 675, 680, 690, 720, 730, 740, 750) */
 	int type;
@@ -232,7 +240,6 @@ struct pwc_device
 
 	/*** Video data ***/
 	struct file *capt_file;	/* file doing video capture */
-	struct mutex capt_file_lock;
 	int vendpoint;		/* video isoc endpoint */
 	int vcinterface;	/* video control interface */
 	int valternate;		/* alternate interface needed */
@@ -251,12 +258,6 @@ struct pwc_device
 	unsigned char *ctrl_buf;
 
 	struct urb *urbs[MAX_ISO_BUFS];
-	char iso_init;
-
-	/* videobuf2 queue and queued buffers list */
-	struct vb2_queue vb_queue;
-	struct list_head queued_bufs;
-	spinlock_t queued_bufs_lock;
 
 	/*
 	 * Frame currently being filled, this only gets touched by the

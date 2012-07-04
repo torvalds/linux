@@ -495,7 +495,7 @@ extern int hv_init(void);
 
 extern void hv_cleanup(void);
 
-extern u16 hv_post_message(union hv_connection_id connection_id,
+extern int hv_post_message(union hv_connection_id connection_id,
 			 enum hv_message_type message_type,
 			 void *payload, size_t payload_size);
 

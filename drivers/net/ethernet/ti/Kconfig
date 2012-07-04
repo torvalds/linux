@@ -51,7 +51,7 @@ config TI_DAVINCI_CPDMA
 
 config TI_CPSW
 	tristate "TI CPSW Switch Support"
-	depends on ARM && (ARCH_DAVINCI || SOC_OMAPAM33XX)
+	depends on ARM && (ARCH_DAVINCI || SOC_AM33XX)
 	select TI_DAVINCI_CPDMA
 	select TI_DAVINCI_MDIO
 	---help---

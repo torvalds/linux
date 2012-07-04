@@ -42,6 +42,7 @@ void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid)
 	cfg80211_hold_bss(bss_from_pub(bss));
 	wdev->current_bss = bss_from_pub(bss);
 
+	wdev->sme_state = CFG80211_SME_CONNECTED;
 	cfg80211_upload_connect_keys(wdev);
 
 	nl80211_send_ibss_bssid(wiphy_to_dev(wdev->wiphy), dev, bssid,
@@ -60,7 +61,7 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid, gfp_t gfp)
 	struct cfg80211_event *ev;
 	unsigned long flags;
 
-	CFG80211_DEV_WARN_ON(!wdev->ssid_len);
+	CFG80211_DEV_WARN_ON(wdev->sme_state != CFG80211_SME_CONNECTING);
 
 	ev = kzalloc(sizeof(*ev), gfp);
 	if (!ev)
@@ -115,9 +116,11 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 #ifdef CONFIG_CFG80211_WEXT
 	wdev->wext.ibss.channel = params->channel;
 #endif
+	wdev->sme_state = CFG80211_SME_CONNECTING;
 	err = rdev->ops->join_ibss(&rdev->wiphy, dev, params);
 	if (err) {
 		wdev->connect_keys = NULL;
+		wdev->sme_state = CFG80211_SME_IDLE;
 		return err;
 	}
 
@@ -169,6 +172,7 @@ static void __cfg80211_clear_ibss(struct net_device *dev, bool nowext)
 	}
 
 	wdev->current_bss = NULL;
+	wdev->sme_state = CFG80211_SME_IDLE;
 	wdev->ssid_len = 0;
 #ifdef CONFIG_CFG80211_WEXT
 	if (!nowext)
@@ -473,7 +477,7 @@ int cfg80211_ibss_wext_siwap(struct net_device *dev,
 
 	/* fixed already - and no change */
 	if (wdev->wext.ibss.bssid && bssid &&
-	    compare_ether_addr(bssid, wdev->wext.ibss.bssid) == 0)
+	    ether_addr_equal(bssid, wdev->wext.ibss.bssid))
 		return 0;
 
 	wdev_lock(wdev);

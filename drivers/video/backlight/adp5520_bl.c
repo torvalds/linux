@@ -160,7 +160,7 @@ static ssize_t adp5520_store(struct device *dev, const char *buf,
 	unsigned long val;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &val);
+	ret = kstrtoul(buf, 10, &val);
 	if (ret)
 		return ret;
 
@@ -214,7 +214,7 @@ static ssize_t adp5520_bl_daylight_max_store(struct device *dev,
 	struct adp5520_bl *data = dev_get_drvdata(dev);
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &data->cached_daylight_max);
+	ret = kstrtoul(buf, 10, &data->cached_daylight_max);
 	if (ret < 0)
 		return ret;
 

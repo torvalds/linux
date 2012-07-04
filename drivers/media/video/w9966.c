@@ -62,6 +62,9 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fh.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <linux/parport.h>
 
 /*#define DEBUG*/				/* Undef me for production */
@@ -104,6 +107,7 @@
 
 struct w9966 {
 	struct v4l2_device v4l2_dev;
+	struct v4l2_ctrl_handler hdl;
 	unsigned char dev_state;
 	unsigned char i2c_state;
 	unsigned short ppmode;
@@ -567,7 +571,8 @@ static int cam_querycap(struct file *file, void  *priv,
 	strlcpy(vcap->driver, cam->v4l2_dev.name, sizeof(vcap->driver));
 	strlcpy(vcap->card, W9966_DRIVERNAME, sizeof(vcap->card));
 	strlcpy(vcap->bus_info, "parport", sizeof(vcap->bus_info));
-	vcap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE;
+	vcap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE;
+	vcap->capabilities = vcap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -595,67 +600,25 @@ static int cam_s_input(struct file *file, void *fh, unsigned int inp)
 	return (inp > 0) ? -EINVAL : 0;
 }
 
-static int cam_queryctrl(struct file *file, void *priv,
-					struct v4l2_queryctrl *qc)
+static int cam_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	switch (qc->id) {
-	case V4L2_CID_BRIGHTNESS:
-		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 128);
-	case V4L2_CID_CONTRAST:
-		return v4l2_ctrl_query_fill(qc, -64, 64, 1, 64);
-	case V4L2_CID_SATURATION:
-		return v4l2_ctrl_query_fill(qc, -64, 64, 1, 64);
-	case V4L2_CID_HUE:
-		return v4l2_ctrl_query_fill(qc, -128, 127, 1, 0);
-	}
-	return -EINVAL;
-}
-
-static int cam_g_ctrl(struct file *file, void *priv,
-					struct v4l2_control *ctrl)
-{
-	struct w9966 *cam = video_drvdata(file);
-	int ret = 0;
-
-	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		ctrl->value = cam->brightness;
-		break;
-	case V4L2_CID_CONTRAST:
-		ctrl->value = cam->contrast;
-		break;
-	case V4L2_CID_SATURATION:
-		ctrl->value = cam->color;
-		break;
-	case V4L2_CID_HUE:
-		ctrl->value = cam->hue;
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
-}
-
-static int cam_s_ctrl(struct file *file, void *priv,
-					struct v4l2_control *ctrl)
-{
-	struct w9966 *cam = video_drvdata(file);
+	struct w9966 *cam =
+		container_of(ctrl->handler, struct w9966, hdl);
 	int ret = 0;
 
 	mutex_lock(&cam->lock);
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
-		cam->brightness = ctrl->value;
+		cam->brightness = ctrl->val;
 		break;
 	case V4L2_CID_CONTRAST:
-		cam->contrast = ctrl->value;
+		cam->contrast = ctrl->val;
 		break;
 	case V4L2_CID_SATURATION:
-		cam->color = ctrl->value;
+		cam->color = ctrl->val;
 		break;
 	case V4L2_CID_HUE:
-		cam->hue = ctrl->value;
+		cam->hue = ctrl->val;
 		break;
 	default:
 		ret = -EINVAL;
@@ -813,6 +776,9 @@ out:
 
 static const struct v4l2_file_operations w9966_fops = {
 	.owner		= THIS_MODULE,
+	.open		= v4l2_fh_open,
+	.release	= v4l2_fh_release,
+	.poll		= v4l2_ctrl_poll,
 	.unlocked_ioctl = video_ioctl2,
 	.read           = w9966_v4l_read,
 };
@@ -822,13 +788,17 @@ static const struct v4l2_ioctl_ops w9966_ioctl_ops = {
 	.vidioc_g_input      		    = cam_g_input,
 	.vidioc_s_input      		    = cam_s_input,
 	.vidioc_enum_input   		    = cam_enum_input,
-	.vidioc_queryctrl 		    = cam_queryctrl,
-	.vidioc_g_ctrl  		    = cam_g_ctrl,
-	.vidioc_s_ctrl 			    = cam_s_ctrl,
 	.vidioc_enum_fmt_vid_cap 	    = cam_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap 		    = cam_g_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap  		    = cam_s_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap  	    = cam_try_fmt_vid_cap,
+	.vidioc_log_status		    = v4l2_ctrl_log_status,
+	.vidioc_subscribe_event		    = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event	    = v4l2_event_unsubscribe,
+};
+
+static const struct v4l2_ctrl_ops cam_ctrl_ops = {
+	.s_ctrl = cam_s_ctrl,
 };
 
 
@@ -847,6 +817,20 @@ static int w9966_init(struct w9966 *cam, struct parport *port)
 
 	if (v4l2_device_register(NULL, v4l2_dev) < 0) {
 		v4l2_err(v4l2_dev, "Could not register v4l2_device\n");
+		return -1;
+	}
+
+	v4l2_ctrl_handler_init(&cam->hdl, 4);
+	v4l2_ctrl_new_std(&cam->hdl, &cam_ctrl_ops,
+			  V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
+	v4l2_ctrl_new_std(&cam->hdl, &cam_ctrl_ops,
+			  V4L2_CID_CONTRAST, -64, 64, 1, 64);
+	v4l2_ctrl_new_std(&cam->hdl, &cam_ctrl_ops,
+			  V4L2_CID_SATURATION, -64, 64, 1, 64);
+	v4l2_ctrl_new_std(&cam->hdl, &cam_ctrl_ops,
+			  V4L2_CID_HUE, -128, 127, 1, 0);
+	if (cam->hdl.error) {
+		v4l2_err(v4l2_dev, "couldn't register controls\n");
 		return -1;
 	}
 	cam->pport = port;
@@ -898,6 +882,8 @@ static int w9966_init(struct w9966 *cam, struct parport *port)
 	cam->vdev.fops = &w9966_fops;
 	cam->vdev.ioctl_ops = &w9966_ioctl_ops;
 	cam->vdev.release = video_device_release_empty;
+	cam->vdev.ctrl_handler = &cam->hdl;
+	set_bit(V4L2_FL_USE_FH_PRIO, &cam->vdev.flags);
 	video_set_drvdata(&cam->vdev, cam);
 
 	mutex_init(&cam->lock);
@@ -922,6 +908,8 @@ static void w9966_term(struct w9966 *cam)
 		video_unregister_device(&cam->vdev);
 		w9966_set_state(cam, W9966_STATE_VDEV, 0);
 	}
+
+	v4l2_ctrl_handler_free(&cam->hdl);
 
 	/* Terminate from IEEE1284 mode and release pdev block */
 	if (w9966_get_state(cam, W9966_STATE_PDEV, W9966_STATE_PDEV)) {

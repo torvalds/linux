@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 - 2011 Samsung Electronics Co., Ltd.
+ * Copyright (C) 2010 - 2012 Samsung Electronics Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -17,6 +17,7 @@
 #include <linux/types.h>
 #include <linux/videodev2.h>
 #include <linux/io.h>
+#include <asm/sizes.h>
 
 #include <media/media-entity.h>
 #include <media/videobuf2-core.h>
@@ -25,8 +26,6 @@
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-mediabus.h>
 #include <media/s5p_fimc.h>
-
-#include "regs-fimc.h"
 
 #define err(fmt, args...) \
 	printk(KERN_ERR "%s:%d: " fmt "\n", __func__, __LINE__, ##args)
@@ -78,26 +77,31 @@ enum fimc_dev_flags {
 #define fimc_capture_busy(dev) test_bit(ST_CAPT_BUSY, &(dev)->state)
 
 enum fimc_datapath {
-	FIMC_CAMERA,
-	FIMC_DMA,
-	FIMC_LCDFIFO,
-	FIMC_WRITEBACK
+	FIMC_IO_NONE,
+	FIMC_IO_CAMERA,
+	FIMC_IO_DMA,
+	FIMC_IO_LCDFIFO,
+	FIMC_IO_WRITEBACK,
+	FIMC_IO_ISP,
 };
 
 enum fimc_color_fmt {
-	S5P_FIMC_RGB444 = 0x10,
-	S5P_FIMC_RGB555,
-	S5P_FIMC_RGB565,
-	S5P_FIMC_RGB666,
-	S5P_FIMC_RGB888,
-	S5P_FIMC_RGB30_LOCAL,
-	S5P_FIMC_YCBCR420 = 0x20,
-	S5P_FIMC_YCBYCR422,
-	S5P_FIMC_YCRYCB422,
-	S5P_FIMC_CBYCRY422,
-	S5P_FIMC_CRYCBY422,
-	S5P_FIMC_YCBCR444_LOCAL,
-	S5P_FIMC_JPEG = 0x40,
+	FIMC_FMT_RGB444 = 0x10,
+	FIMC_FMT_RGB555,
+	FIMC_FMT_RGB565,
+	FIMC_FMT_RGB666,
+	FIMC_FMT_RGB888,
+	FIMC_FMT_RGB30_LOCAL,
+	FIMC_FMT_YCBCR420 = 0x20,
+	FIMC_FMT_YCBYCR422,
+	FIMC_FMT_YCRYCB422,
+	FIMC_FMT_CBYCRY422,
+	FIMC_FMT_CRYCBY422,
+	FIMC_FMT_YCBCR444_LOCAL,
+	FIMC_FMT_JPEG = 0x40,
+	FIMC_FMT_RAW8 = 0x80,
+	FIMC_FMT_RAW10,
+	FIMC_FMT_RAW12,
 };
 
 #define fimc_fmt_is_rgb(x) (!!((x) & 0x10))
@@ -106,24 +110,11 @@ enum fimc_color_fmt {
 #define IS_M2M(__strt) ((__strt) == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE || \
 			__strt == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 
-/* Cb/Cr chrominance components order for 2 plane Y/CbCr 4:2:2 formats. */
-#define	S5P_FIMC_LSB_CRCB	S5P_CIOCTRL_ORDER422_2P_LSB_CRCB
-
-/* The embedded image effect selection */
-#define	S5P_FIMC_EFFECT_ORIGINAL	S5P_CIIMGEFF_FIN_BYPASS
-#define	S5P_FIMC_EFFECT_ARBITRARY	S5P_CIIMGEFF_FIN_ARBITRARY
-#define	S5P_FIMC_EFFECT_NEGATIVE	S5P_CIIMGEFF_FIN_NEGATIVE
-#define	S5P_FIMC_EFFECT_ARTFREEZE	S5P_CIIMGEFF_FIN_ARTFREEZE
-#define	S5P_FIMC_EFFECT_EMBOSSING	S5P_CIIMGEFF_FIN_EMBOSSING
-#define	S5P_FIMC_EFFECT_SIKHOUETTE	S5P_CIIMGEFF_FIN_SILHOUETTE
-
 /* The hardware context state. */
 #define	FIMC_PARAMS		(1 << 0)
-#define	FIMC_SRC_ADDR		(1 << 1)
-#define	FIMC_DST_ADDR		(1 << 2)
 #define	FIMC_SRC_FMT		(1 << 3)
 #define	FIMC_DST_FMT		(1 << 4)
-#define	FIMC_DST_CROP		(1 << 5)
+#define	FIMC_COMPOSE		(1 << 5)
 #define	FIMC_CTX_M2M		(1 << 16)
 #define	FIMC_CTX_CAP		(1 << 17)
 #define	FIMC_CTX_SHUT		(1 << 18)
@@ -333,7 +324,7 @@ struct fimc_vid_cap {
 	struct fimc_ctx			*ctx;
 	struct vb2_alloc_ctx		*alloc_ctx;
 	struct video_device		*vfd;
-	struct v4l2_subdev		*subdev;
+	struct v4l2_subdev		subdev;
 	struct media_pad		vd_pad;
 	struct v4l2_mbus_framefmt	mf;
 	struct media_pad		sd_pads[FIMC_SD_PADS_NUM];
@@ -370,8 +361,7 @@ struct fimc_pix_limit {
 };
 
 /**
- * struct samsung_fimc_variant - camera interface variant information
- *
+ * struct fimc_variant - FIMC device variant information
  * @pix_hoff: indicate whether horizontal offset is in pixels or in bytes
  * @has_inp_rot: set if has input rotator
  * @has_out_rot: set if has output rotator
@@ -386,7 +376,7 @@ struct fimc_pix_limit {
  * @min_vsize_align: minimum vertical pixel size alignment
  * @out_buf_count: the number of buffers in output DMA sequence
  */
-struct samsung_fimc_variant {
+struct fimc_variant {
 	unsigned int	pix_hoff:1;
 	unsigned int	has_inp_rot:1;
 	unsigned int	has_out_rot:1;
@@ -403,23 +393,19 @@ struct samsung_fimc_variant {
 };
 
 /**
- * struct samsung_fimc_driverdata - per device type driver data for init time.
- *
- * @variant: the variant information for this driver.
- * @dev_cnt: number of fimc sub-devices available in SoC
- * @lclk_frequency: fimc bus clock frequency
+ * struct fimc_drvdata - per device type driver data
+ * @variant: variant information for this device
+ * @num_entities: number of fimc instances available in a SoC
+ * @lclk_frequency: local bus clock frequency
  */
-struct samsung_fimc_driverdata {
-	struct samsung_fimc_variant *variant[FIMC_MAX_DEVS];
-	unsigned long	lclk_frequency;
-	int		num_entities;
+struct fimc_drvdata {
+	struct fimc_variant *variant[FIMC_MAX_DEVS];
+	int num_entities;
+	unsigned long lclk_frequency;
 };
 
-struct fimc_pipeline {
-	struct media_pipeline *pipe;
-	struct v4l2_subdev *sensor;
-	struct v4l2_subdev *csis;
-};
+#define fimc_get_drvdata(_pdev) \
+	((struct fimc_drvdata *) platform_get_device_id(_pdev)->driver_data)
 
 struct fimc_ctx;
 
@@ -431,10 +417,8 @@ struct fimc_ctx;
  * @pdata:	pointer to the device platform data
  * @variant:	the IP variant information
  * @id:		FIMC device index (0..FIMC_MAX_DEVS)
- * @num_clocks: the number of clocks managed by this device instance
  * @clock:	clocks required for FIMC operation
  * @regs:	the mapped hardware registers
- * @irq:	FIMC interrupt number
  * @irq_queue:	interrupt handler waitqueue
  * @v4l2_dev:	root v4l2_device
  * @m2m:	memory-to-memory V4L2 device information
@@ -448,12 +432,10 @@ struct fimc_dev {
 	struct mutex			lock;
 	struct platform_device		*pdev;
 	struct s5p_platform_fimc	*pdata;
-	struct samsung_fimc_variant	*variant;
+	struct fimc_variant		*variant;
 	u16				id;
-	u16				num_clocks;
 	struct clk			*clock[MAX_FIMC_CLOCKS];
 	void __iomem			*regs;
-	int				irq;
 	wait_queue_head_t		irq_queue;
 	struct v4l2_device		*v4l2_dev;
 	struct fimc_m2m_device		m2m;
@@ -464,8 +446,31 @@ struct fimc_dev {
 };
 
 /**
+ * struct fimc_ctrls - v4l2 controls structure
+ * @handler: the control handler
+ * @colorfx: image effect control
+ * @colorfx_cbcr: Cb/Cr coefficients control
+ * @rotate: image rotation control
+ * @hflip: horizontal flip control
+ * @vflip: vertical flip control
+ * @alpha: RGB alpha control
+ * @ready: true if @handler is initialized
+ */
+struct fimc_ctrls {
+	struct v4l2_ctrl_handler handler;
+	struct {
+		struct v4l2_ctrl *colorfx;
+		struct v4l2_ctrl *colorfx_cbcr;
+	};
+	struct v4l2_ctrl *rotate;
+	struct v4l2_ctrl *hflip;
+	struct v4l2_ctrl *vflip;
+	struct v4l2_ctrl *alpha;
+	bool ready;
+};
+
+/**
  * fimc_ctx - the device context data
- * @slock:		spinlock protecting this data structure
  * @s_frame:		source frame properties
  * @d_frame:		destination frame properties
  * @out_order_1p:	output 1-plane YCBCR order
@@ -484,15 +489,9 @@ struct fimc_dev {
  * @fimc_dev:		the FIMC device this context applies to
  * @m2m_ctx:		memory-to-memory device context
  * @fh:			v4l2 file handle
- * @ctrl_handler:	v4l2 controls handler
- * @ctrl_rotate		image rotation control
- * @ctrl_hflip		horizontal flip control
- * @ctrl_vflip		vertical flip control
- * @ctrl_alpha		RGB alpha control
- * @ctrls_rdy:		true if the control handler is initialized
+ * @ctrls:		v4l2 controls structure
  */
 struct fimc_ctx {
-	spinlock_t		slock;
 	struct fimc_frame	s_frame;
 	struct fimc_frame	d_frame;
 	u32			out_order_1p;
@@ -511,12 +510,7 @@ struct fimc_ctx {
 	struct fimc_dev		*fimc_dev;
 	struct v4l2_m2m_ctx	*m2m_ctx;
 	struct v4l2_fh		fh;
-	struct v4l2_ctrl_handler ctrl_handler;
-	struct v4l2_ctrl	*ctrl_rotate;
-	struct v4l2_ctrl	*ctrl_hflip;
-	struct v4l2_ctrl	*ctrl_vflip;
-	struct v4l2_ctrl	*ctrl_alpha;
-	bool			ctrls_rdy;
+	struct fimc_ctrls	ctrls;
 };
 
 #define fh_to_ctx(__fh) container_of(__fh, struct fimc_ctx, fh)
@@ -560,13 +554,13 @@ static inline bool fimc_capture_active(struct fimc_dev *fimc)
 	return ret;
 }
 
-static inline void fimc_ctx_state_lock_set(u32 state, struct fimc_ctx *ctx)
+static inline void fimc_ctx_state_set(u32 state, struct fimc_ctx *ctx)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&ctx->slock, flags);
+	spin_lock_irqsave(&ctx->fimc_dev->slock, flags);
 	ctx->state |= state;
-	spin_unlock_irqrestore(&ctx->slock, flags);
+	spin_unlock_irqrestore(&ctx->fimc_dev->slock, flags);
 }
 
 static inline bool fimc_ctx_state_is_set(u32 mask, struct fimc_ctx *ctx)
@@ -574,9 +568,9 @@ static inline bool fimc_ctx_state_is_set(u32 mask, struct fimc_ctx *ctx)
 	unsigned long flags;
 	bool ret;
 
-	spin_lock_irqsave(&ctx->slock, flags);
+	spin_lock_irqsave(&ctx->fimc_dev->slock, flags);
 	ret = (ctx->state & mask) == mask;
-	spin_unlock_irqrestore(&ctx->slock, flags);
+	spin_unlock_irqrestore(&ctx->fimc_dev->slock, flags);
 	return ret;
 }
 
@@ -589,59 +583,11 @@ static inline int tiled_fmt(struct fimc_fmt *fmt)
 static inline int fimc_get_alpha_mask(struct fimc_fmt *fmt)
 {
 	switch (fmt->color) {
-	case S5P_FIMC_RGB444:	return 0x0f;
-	case S5P_FIMC_RGB555:	return 0x01;
-	case S5P_FIMC_RGB888:	return 0xff;
+	case FIMC_FMT_RGB444:	return 0x0f;
+	case FIMC_FMT_RGB555:	return 0x01;
+	case FIMC_FMT_RGB888:	return 0xff;
 	default:		return 0;
 	};
-}
-
-static inline void fimc_hw_clear_irq(struct fimc_dev *dev)
-{
-	u32 cfg = readl(dev->regs + S5P_CIGCTRL);
-	cfg |= S5P_CIGCTRL_IRQ_CLR;
-	writel(cfg, dev->regs + S5P_CIGCTRL);
-}
-
-static inline void fimc_hw_enable_scaler(struct fimc_dev *dev, bool on)
-{
-	u32 cfg = readl(dev->regs + S5P_CISCCTRL);
-	if (on)
-		cfg |= S5P_CISCCTRL_SCALERSTART;
-	else
-		cfg &= ~S5P_CISCCTRL_SCALERSTART;
-	writel(cfg, dev->regs + S5P_CISCCTRL);
-}
-
-static inline void fimc_hw_activate_input_dma(struct fimc_dev *dev, bool on)
-{
-	u32 cfg = readl(dev->regs + S5P_MSCTRL);
-	if (on)
-		cfg |= S5P_MSCTRL_ENVID;
-	else
-		cfg &= ~S5P_MSCTRL_ENVID;
-	writel(cfg, dev->regs + S5P_MSCTRL);
-}
-
-static inline void fimc_hw_dis_capture(struct fimc_dev *dev)
-{
-	u32 cfg = readl(dev->regs + S5P_CIIMGCPT);
-	cfg &= ~(S5P_CIIMGCPT_IMGCPTEN | S5P_CIIMGCPT_IMGCPTEN_SC);
-	writel(cfg, dev->regs + S5P_CIIMGCPT);
-}
-
-/**
- * fimc_hw_set_dma_seq - configure output DMA buffer sequence
- * @mask: each bit corresponds to one of 32 output buffer registers set
- *	  1 to include buffer in the sequence, 0 to disable
- *
- * This function mask output DMA ring buffers, i.e. it allows to configure
- * which of the output buffer address registers will be used by the DMA
- * engine.
- */
-static inline void fimc_hw_set_dma_seq(struct fimc_dev *dev, u32 mask)
-{
-	writel(mask, dev->regs + S5P_CIFCNTSEQ);
 }
 
 static inline struct fimc_frame *ctx_get_frame(struct fimc_ctx *ctx,
@@ -665,48 +611,6 @@ static inline struct fimc_frame *ctx_get_frame(struct fimc_ctx *ctx,
 	return frame;
 }
 
-/* Return an index to the buffer actually being written. */
-static inline u32 fimc_hw_get_frame_index(struct fimc_dev *dev)
-{
-	u32 reg;
-
-	if (dev->variant->has_cistatus2) {
-		reg = readl(dev->regs + S5P_CISTATUS2) & 0x3F;
-		return reg > 0 ? --reg : reg;
-	} else {
-		reg = readl(dev->regs + S5P_CISTATUS);
-		return (reg & S5P_CISTATUS_FRAMECNT_MASK) >>
-			S5P_CISTATUS_FRAMECNT_SHIFT;
-	}
-}
-
-/* -----------------------------------------------------*/
-/* fimc-reg.c						*/
-void fimc_hw_reset(struct fimc_dev *fimc);
-void fimc_hw_set_rotation(struct fimc_ctx *ctx);
-void fimc_hw_set_target_format(struct fimc_ctx *ctx);
-void fimc_hw_set_out_dma(struct fimc_ctx *ctx);
-void fimc_hw_en_lastirq(struct fimc_dev *fimc, int enable);
-void fimc_hw_en_irq(struct fimc_dev *fimc, int enable);
-void fimc_hw_set_prescaler(struct fimc_ctx *ctx);
-void fimc_hw_set_mainscaler(struct fimc_ctx *ctx);
-void fimc_hw_en_capture(struct fimc_ctx *ctx);
-void fimc_hw_set_effect(struct fimc_ctx *ctx, bool active);
-void fimc_hw_set_rgb_alpha(struct fimc_ctx *ctx);
-void fimc_hw_set_in_dma(struct fimc_ctx *ctx);
-void fimc_hw_set_input_path(struct fimc_ctx *ctx);
-void fimc_hw_set_output_path(struct fimc_ctx *ctx);
-void fimc_hw_set_input_addr(struct fimc_dev *fimc, struct fimc_addr *paddr);
-void fimc_hw_set_output_addr(struct fimc_dev *fimc, struct fimc_addr *paddr,
-			     int index);
-int fimc_hw_set_camera_source(struct fimc_dev *fimc,
-			      struct s5p_fimc_isp_info *cam);
-int fimc_hw_set_camera_offset(struct fimc_dev *fimc, struct fimc_frame *f);
-int fimc_hw_set_camera_polarity(struct fimc_dev *fimc,
-				struct s5p_fimc_isp_info *cam);
-int fimc_hw_set_camera_type(struct fimc_dev *fimc,
-			    struct s5p_fimc_isp_info *cam);
-
 /* -----------------------------------------------------*/
 /* fimc-core.c */
 int fimc_vidioc_enum_fmt_mplane(struct file *file, void *priv,
@@ -718,8 +622,9 @@ void fimc_alpha_ctrl_update(struct fimc_ctx *ctx);
 int fimc_fill_format(struct fimc_frame *frame, struct v4l2_format *f);
 void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
 			       struct v4l2_pix_format_mplane *pix);
-struct fimc_fmt *fimc_find_format(u32 *pixelformat, u32 *mbus_code,
+struct fimc_fmt *fimc_find_format(const u32 *pixelformat, const u32 *mbus_code,
 				  unsigned int mask, int index);
+struct fimc_fmt *fimc_get_format(unsigned int index);
 
 int fimc_check_scaler_ratio(struct fimc_ctx *ctx, int sw, int sh,
 			    int dw, int dh, int rotation);
@@ -730,7 +635,7 @@ int fimc_prepare_addr(struct fimc_ctx *ctx, struct vb2_buffer *vb,
 void fimc_prepare_dma_offset(struct fimc_ctx *ctx, struct fimc_frame *f);
 void fimc_set_yuv_order(struct fimc_ctx *ctx);
 void fimc_fill_frame(struct fimc_frame *frame, struct v4l2_format *f);
-void fimc_capture_irq_handler(struct fimc_dev *fimc, bool done);
+void fimc_capture_irq_handler(struct fimc_dev *fimc, int deq_buf);
 
 int fimc_register_m2m_device(struct fimc_dev *fimc,
 			     struct v4l2_device *v4l2_dev);
@@ -739,33 +644,18 @@ int fimc_register_driver(void);
 void fimc_unregister_driver(void);
 
 /* -----------------------------------------------------*/
+/* fimc-m2m.c */
+void fimc_m2m_job_finish(struct fimc_ctx *ctx, int vb_state);
+
+/* -----------------------------------------------------*/
 /* fimc-capture.c					*/
-int fimc_register_capture_device(struct fimc_dev *fimc,
-				 struct v4l2_device *v4l2_dev);
-void fimc_unregister_capture_device(struct fimc_dev *fimc);
+int fimc_initialize_capture_subdev(struct fimc_dev *fimc);
+void fimc_unregister_capture_subdev(struct fimc_dev *fimc);
 int fimc_capture_ctrls_create(struct fimc_dev *fimc);
-int fimc_vid_cap_buf_queue(struct fimc_dev *fimc,
-			     struct fimc_vid_buffer *fimc_vb);
 void fimc_sensor_notify(struct v4l2_subdev *sd, unsigned int notification,
 			void *arg);
 int fimc_capture_suspend(struct fimc_dev *fimc);
 int fimc_capture_resume(struct fimc_dev *fimc);
-int fimc_capture_config_update(struct fimc_ctx *ctx);
-
-/* Locking: the caller holds fimc->slock */
-static inline void fimc_activate_capture(struct fimc_ctx *ctx)
-{
-	fimc_hw_enable_scaler(ctx->fimc_dev, ctx->scaler.enabled);
-	fimc_hw_en_capture(ctx);
-}
-
-static inline void fimc_deactivate_capture(struct fimc_dev *fimc)
-{
-	fimc_hw_en_lastirq(fimc, true);
-	fimc_hw_dis_capture(fimc);
-	fimc_hw_enable_scaler(fimc, false);
-	fimc_hw_en_lastirq(fimc, false);
-}
 
 /*
  * Buffer list manipulation functions. Must be called with fimc.slock held.

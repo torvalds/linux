@@ -136,4 +136,12 @@ struct ptp_clock_event {
 extern void ptp_clock_event(struct ptp_clock *ptp,
 			    struct ptp_clock_event *event);
 
+/**
+ * ptp_clock_index() - obtain the device index of a PTP clock
+ *
+ * @ptp:    The clock obtained from ptp_clock_register().
+ */
+
+extern int ptp_clock_index(struct ptp_clock *ptp);
+
 #endif

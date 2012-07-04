@@ -142,7 +142,7 @@ struct in6_flowlabel_req {
 /*
  *	IPv6 TLV options.
  */
-#define IPV6_TLV_PAD0		0
+#define IPV6_TLV_PAD1		0
 #define IPV6_TLV_PADN		1
 #define IPV6_TLV_ROUTERALERT	5
 #define IPV6_TLV_JUMBO		194

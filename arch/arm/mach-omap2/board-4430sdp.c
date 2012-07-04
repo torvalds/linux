@@ -384,6 +384,11 @@ static struct platform_device sdp4430_dmic_codec = {
 	.id	= -1,
 };
 
+static struct platform_device sdp4430_hdmi_audio_codec = {
+	.name	= "hdmi-audio-codec",
+	.id	= -1,
+};
+
 static struct omap_abe_twl6040_data sdp4430_abe_audio_data = {
 	.card_name = "SDP4430",
 	.has_hs		= ABE_TWL6040_LEFT | ABE_TWL6040_RIGHT,
@@ -418,6 +423,7 @@ static struct platform_device *sdp4430_devices[] __initdata = {
 	&sdp4430_vbat,
 	&sdp4430_dmic_codec,
 	&sdp4430_abe_audio,
+	&sdp4430_hdmi_audio_codec,
 };
 
 static struct omap_musb_board_data musb_board_data = {
@@ -488,50 +494,6 @@ static struct platform_device omap_vwlan_device = {
 		.platform_data = &sdp4430_vwlan,
 	},
 };
-
-static int omap4_twl6030_hsmmc_late_init(struct device *dev)
-{
-	int irq = 0;
-	struct platform_device *pdev = container_of(dev,
-				struct platform_device, dev);
-	struct omap_mmc_platform_data *pdata = dev->platform_data;
-
-	/* Setting MMC1 Card detect Irq */
-	if (pdev->id == 0) {
-		irq = twl6030_mmc_card_detect_config();
-		if (irq < 0) {
-			pr_err("Failed configuring MMC1 card detect\n");
-			return irq;
-		}
-		pdata->slots[0].card_detect_irq = irq;
-		pdata->slots[0].card_detect = twl6030_mmc_card_detect;
-	}
-	return 0;
-}
-
-static __init void omap4_twl6030_hsmmc_set_late_init(struct device *dev)
-{
-	struct omap_mmc_platform_data *pdata;
-
-	/* dev can be null if CONFIG_MMC_OMAP_HS is not set */
-	if (!dev) {
-		pr_err("Failed %s\n", __func__);
-		return;
-	}
-	pdata = dev->platform_data;
-	pdata->init =	omap4_twl6030_hsmmc_late_init;
-}
-
-static int __init omap4_twl6030_hsmmc_init(struct omap2_hsmmc_info *controllers)
-{
-	struct omap2_hsmmc_info *c;
-
-	omap_hsmmc_init(controllers);
-	for (c = controllers; c->mmc; c++)
-		omap4_twl6030_hsmmc_set_late_init(&c->pdev->dev);
-
-	return 0;
-}
 
 static struct regulator_init_data sdp4430_vaux1 = {
 	.constraints = {
@@ -615,7 +577,9 @@ static int __init omap4_i2c_init(void)
 			TWL_COMMON_REGULATOR_VANA |
 			TWL_COMMON_REGULATOR_VCXIO |
 			TWL_COMMON_REGULATOR_VUSB |
-			TWL_COMMON_REGULATOR_CLK32KG);
+			TWL_COMMON_REGULATOR_CLK32KG |
+			TWL_COMMON_REGULATOR_V1V8 |
+			TWL_COMMON_REGULATOR_V2V1);
 	omap4_pmic_init("twl6030", &sdp4430_twldata,
 			&twl6040_data, OMAP44XX_IRQ_SYS_2N);
 	omap_register_i2c_bus(2, 400, NULL, 0);
@@ -666,6 +630,10 @@ static struct nokia_dsi_panel_data dsi1_panel = {
 		.use_ext_te	= false,
 		.ext_te_gpio	= 101,
 		.esd_interval	= 0,
+		.pin_config = {
+			.num_pins	= 6,
+			.pins		= { 0, 1, 2, 3, 4, 5 },
+		},
 };
 
 static struct omap_dss_device sdp4430_lcd_device = {
@@ -674,13 +642,6 @@ static struct omap_dss_device sdp4430_lcd_device = {
 	.type			= OMAP_DISPLAY_TYPE_DSI,
 	.data			= &dsi1_panel,
 	.phy.dsi		= {
-		.clk_lane	= 1,
-		.clk_pol	= 0,
-		.data1_lane	= 2,
-		.data1_pol	= 0,
-		.data2_lane	= 3,
-		.data2_pol	= 0,
-
 		.module		= 0,
 	},
 
@@ -715,6 +676,10 @@ static struct nokia_dsi_panel_data dsi2_panel = {
 		.use_ext_te	= false,
 		.ext_te_gpio	= 103,
 		.esd_interval	= 0,
+		.pin_config = {
+			.num_pins	= 6,
+			.pins		= { 0, 1, 2, 3, 4, 5 },
+		},
 };
 
 static struct omap_dss_device sdp4430_lcd2_device = {
@@ -723,12 +688,6 @@ static struct omap_dss_device sdp4430_lcd2_device = {
 	.type			= OMAP_DISPLAY_TYPE_DSI,
 	.data			= &dsi2_panel,
 	.phy.dsi		= {
-		.clk_lane	= 1,
-		.clk_pol	= 0,
-		.data1_lane	= 2,
-		.data1_pol	= 0,
-		.data2_lane	= 3,
-		.data2_pol	= 0,
 
 		.module		= 1,
 	},
@@ -757,21 +716,6 @@ static struct omap_dss_device sdp4430_lcd2_device = {
 	},
 	.channel		= OMAP_DSS_CHANNEL_LCD2,
 };
-
-static void sdp4430_lcd_init(void)
-{
-	int r;
-
-	r = gpio_request_one(dsi1_panel.reset_gpio, GPIOF_DIR_OUT,
-		"lcd1_reset_gpio");
-	if (r)
-		pr_err("%s: Could not get lcd1_reset_gpio\n", __func__);
-
-	r = gpio_request_one(dsi2_panel.reset_gpio, GPIOF_DIR_OUT,
-		"lcd2_reset_gpio");
-	if (r)
-		pr_err("%s: Could not get lcd2_reset_gpio\n", __func__);
-}
 
 static struct omap_dss_hdmi_data sdp4430_hdmi_data = {
 	.hpd_gpio = HDMI_GPIO_HPD,
@@ -858,7 +802,6 @@ static void __init omap_4430sdp_display_init(void)
 	if (r)
 		pr_err("%s: Could not get display_sel GPIO\n", __func__);
 
-	sdp4430_lcd_init();
 	sdp4430_picodlp_init();
 	omap_display_init(&sdp4430_dss_data);
 	/*
@@ -969,6 +912,7 @@ MACHINE_START(OMAP_4430SDP, "OMAP4430 4430SDP board")
 	.init_irq	= gic_init_irq,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= omap_4430sdp_init,
+	.init_late	= omap4430_init_late,
 	.timer		= &omap4_timer,
 	.restart	= omap_prcm_restart,
 MACHINE_END

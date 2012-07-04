@@ -90,8 +90,6 @@ slb_exit_skip_ ## num:
 	or      r10, r10, r12
 	slbie	r10
 
-	isync
-
 	/* Fill SLB with our shadow */
 
 	lbz	r12, SVCPU_SLB_MAX(r3)

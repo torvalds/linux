@@ -55,12 +55,20 @@ static struct s3c24xx_dma_map __initdata s3c2443_dma_mappings[] = {
 		.name		= "sdi",
 		.channels	= MAP(S3C2443_DMAREQSEL_SDI),
 	},
-	[DMACH_SPI0] = {
-		.name		= "spi0",
+	[DMACH_SPI0_RX] = {
+		.name		= "spi0-rx",
+		.channels	= MAP(S3C2443_DMAREQSEL_SPI0RX),
+	},
+	[DMACH_SPI0_TX] = {
+		.name		= "spi0-tx",
 		.channels	= MAP(S3C2443_DMAREQSEL_SPI0TX),
 	},
-	[DMACH_SPI1] = { /* only on S3C2443/S3C2450 */
-		.name		= "spi1",
+	[DMACH_SPI1_RX] = { /* only on S3C2443/S3C2450 */
+		.name		= "spi1-rx",
+		.channels	= MAP(S3C2443_DMAREQSEL_SPI1RX),
+	},
+	[DMACH_SPI1_TX] = { /* only on S3C2443/S3C2450 */
+		.name		= "spi1-tx",
 		.channels	= MAP(S3C2443_DMAREQSEL_SPI1TX),
 	},
 	[DMACH_UART0] = {

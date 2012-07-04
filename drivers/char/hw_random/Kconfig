@@ -62,8 +62,8 @@ config HW_RANDOM_AMD
 
 config HW_RANDOM_ATMEL
 	tristate "Atmel Random Number Generator support"
-	depends on HW_RANDOM && ARCH_AT91SAM9G45
-	default HW_RANDOM
+	depends on HW_RANDOM && HAVE_CLK
+	default (HW_RANDOM && ARCH_AT91)
 	---help---
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on Atmel AT91 devices.
@@ -250,3 +250,16 @@ config UML_RANDOM
 	  (check your distro, or download from
 	  http://sourceforge.net/projects/gkernel/).  rngd periodically reads
 	  /dev/hwrng and injects the entropy into /dev/random.
+
+config HW_RANDOM_PSERIES
+	tristate "pSeries HW Random Number Generator support"
+	depends on HW_RANDOM && PPC64 && IBMVIO
+	default HW_RANDOM
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on POWER7+ machines and above
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pseries-rng.
+
+	  If unsure, say Y.

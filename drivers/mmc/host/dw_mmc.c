@@ -100,8 +100,6 @@ struct dw_mci_slot {
 	int			last_detect_state;
 };
 
-static struct workqueue_struct *dw_mci_card_workqueue;
-
 #if defined(CONFIG_DEBUG_FS)
 static int dw_mci_req_show(struct seq_file *s, void *v)
 {
@@ -420,6 +418,8 @@ static int dw_mci_idmac_init(struct dw_mci *host)
 	p->des3 = host->sg_dma;
 	p->des0 = IDMAC_DES0_ER;
 
+	mci_writel(host, BMOD, SDMMC_IDMAC_SWRESET);
+
 	/* Mask out interrupts - get Tx & Rx complete only */
 	mci_writel(host, IDINTEN, SDMMC_IDMAC_INT_NI | SDMMC_IDMAC_INT_RI |
 		   SDMMC_IDMAC_INT_TI);
@@ -617,14 +617,15 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot)
 	u32 div;
 
 	if (slot->clock != host->current_speed) {
-		if (host->bus_hz % slot->clock)
+		div = host->bus_hz / slot->clock;
+		if (host->bus_hz % slot->clock && host->bus_hz > slot->clock)
 			/*
 			 * move the + 1 after the divide to prevent
 			 * over-clocking the card.
 			 */
-			div = ((host->bus_hz / slot->clock) >> 1) + 1;
-		else
-			div = (host->bus_hz  / slot->clock) >> 1;
+			div += 1;
+
+		div = (host->bus_hz != slot->clock) ? DIV_ROUND_UP(div, 2) : 0;
 
 		dev_info(&slot->mmc->class_dev,
 			 "Bus speed (slot %d) = %dHz (slot req %dHz, actual %dHZ"
@@ -859,10 +860,10 @@ static void dw_mci_enable_sdio_irq(struct mmc_host *mmc, int enb)
 	int_mask = mci_readl(host, INTMASK);
 	if (enb) {
 		mci_writel(host, INTMASK,
-			   (int_mask | (1 << SDMMC_INT_SDIO(slot->id))));
+			   (int_mask | SDMMC_INT_SDIO(slot->id)));
 	} else {
 		mci_writel(host, INTMASK,
-			   (int_mask & ~(1 << SDMMC_INT_SDIO(slot->id))));
+			   (int_mask & ~SDMMC_INT_SDIO(slot->id)));
 	}
 }
 
@@ -941,8 +942,8 @@ static void dw_mci_command_complete(struct dw_mci *host, struct mmc_command *cmd
 			mdelay(20);
 
 		if (cmd->data) {
-			host->data = NULL;
 			dw_mci_stop_dma(host);
+			host->data = NULL;
 		}
 	}
 }
@@ -1605,7 +1606,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 
 		if (pending & SDMMC_INT_CD) {
 			mci_writel(host, RINTSTS, SDMMC_INT_CD);
-			queue_work(dw_mci_card_workqueue, &host->card_work);
+			queue_work(host->card_workqueue, &host->card_work);
 		}
 
 		/* Handle SDIO Interrupts */
@@ -1625,7 +1626,6 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 	if (pending & (SDMMC_IDMAC_INT_TI | SDMMC_IDMAC_INT_RI)) {
 		mci_writel(host, IDSTS, SDMMC_IDMAC_INT_TI | SDMMC_IDMAC_INT_RI);
 		mci_writel(host, IDSTS, SDMMC_IDMAC_INT_NI);
-		set_bit(EVENT_DATA_COMPLETE, &host->pending_events);
 		host->dma_ops->complete(host);
 	}
 #endif
@@ -1727,7 +1727,8 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 
 #ifdef CONFIG_MMC_DW_IDMAC
 				ctrl = mci_readl(host, BMOD);
-				ctrl |= 0x01; /* Software reset of DMA */
+				/* Software reset of DMA */
+				ctrl |= SDMMC_IDMAC_SWRESET;
 				mci_writel(host, BMOD, ctrl);
 #endif
 
@@ -1844,7 +1845,7 @@ static int __init dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	 * Card may have been plugged in prior to boot so we
 	 * need to run the detect tasklet
 	 */
-	queue_work(dw_mci_card_workqueue, &host->card_work);
+	queue_work(host->card_workqueue, &host->card_work);
 
 	return 0;
 }
@@ -1952,10 +1953,6 @@ int dw_mci_probe(struct dw_mci *host)
 	spin_lock_init(&host->lock);
 	INIT_LIST_HEAD(&host->queue);
 
-
-	host->dma_ops = host->pdata->dma_ops;
-	dw_mci_init_dma(host);
-
 	/*
 	 * Get the host data width - this assumes that HCON has been set with
 	 * the correct values.
@@ -1983,10 +1980,11 @@ int dw_mci_probe(struct dw_mci *host)
 	}
 
 	/* Reset all blocks */
-	if (!mci_wait_reset(&host->dev, host)) {
-		ret = -ENODEV;
-		goto err_dmaunmap;
-	}
+	if (!mci_wait_reset(&host->dev, host))
+		return -ENODEV;
+
+	host->dma_ops = host->pdata->dma_ops;
+	dw_mci_init_dma(host);
 
 	/* Clear the interrupts for the host controller */
 	mci_writel(host, RINTSTS, 0xFFFFFFFF);
@@ -2021,9 +2019,9 @@ int dw_mci_probe(struct dw_mci *host)
 	mci_writel(host, CLKSRC, 0);
 
 	tasklet_init(&host->tasklet, dw_mci_tasklet_func, (unsigned long)host);
-	dw_mci_card_workqueue = alloc_workqueue("dw-mci-card",
+	host->card_workqueue = alloc_workqueue("dw-mci-card",
 			WQ_MEM_RECLAIM | WQ_NON_REENTRANT, 1);
-	if (!dw_mci_card_workqueue)
+	if (!host->card_workqueue)
 		goto err_dmaunmap;
 	INIT_WORK(&host->card_work, dw_mci_work_routine_card);
 	ret = request_irq(host->irq, dw_mci_interrupt, host->irq_flags, "dw-mci", host);
@@ -2085,7 +2083,7 @@ err_init_slot:
 	free_irq(host->irq, host);
 
 err_workqueue:
-	destroy_workqueue(dw_mci_card_workqueue);
+	destroy_workqueue(host->card_workqueue);
 
 err_dmaunmap:
 	if (host->use_dma && host->dma_ops->exit)
@@ -2119,7 +2117,7 @@ void dw_mci_remove(struct dw_mci *host)
 	mci_writel(host, CLKSRC, 0);
 
 	free_irq(host->irq, host);
-	destroy_workqueue(dw_mci_card_workqueue);
+	destroy_workqueue(host->card_workqueue);
 	dma_free_coherent(&host->dev, PAGE_SIZE, host->sg_cpu, host->sg_dma);
 
 	if (host->use_dma && host->dma_ops->exit)
@@ -2172,13 +2170,13 @@ int dw_mci_resume(struct dw_mci *host)
 	if (host->vmmc)
 		regulator_enable(host->vmmc);
 
-	if (host->dma_ops->init)
-		host->dma_ops->init(host);
-
 	if (!mci_wait_reset(&host->dev, host)) {
 		ret = -ENODEV;
 		return ret;
 	}
+
+	if (host->dma_ops->init)
+		host->dma_ops->init(host);
 
 	/* Restore the old value at FIFOTH register */
 	mci_writel(host, FIFOTH, host->fifoth_val);

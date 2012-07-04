@@ -370,9 +370,11 @@ void brcms_c_stf_phy_txant_upd(struct brcms_c_info *wlc)
 
 void brcms_c_stf_phy_chain_calc(struct brcms_c_info *wlc)
 {
+	struct ssb_sprom *sprom = &wlc->hw->d11core->bus->sprom;
+
 	/* get available rx/tx chains */
-	wlc->stf->hw_txchain = (u8) getintvar(wlc->hw->sih, BRCMS_SROM_TXCHAIN);
-	wlc->stf->hw_rxchain = (u8) getintvar(wlc->hw->sih, BRCMS_SROM_RXCHAIN);
+	wlc->stf->hw_txchain = sprom->txchain;
+	wlc->stf->hw_rxchain = sprom->rxchain;
 
 	/* these parameter are intended to be used for all PHY types */
 	if (wlc->stf->hw_txchain == 0 || wlc->stf->hw_txchain == 0xf) {

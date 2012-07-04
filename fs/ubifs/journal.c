@@ -214,7 +214,7 @@ out:
 	err = ubifs_add_bud_to_log(c, jhead, lnum, offs);
 	if (err)
 		goto out_return;
-	err = ubifs_wbuf_seek_nolock(wbuf, lnum, offs, wbuf->dtype);
+	err = ubifs_wbuf_seek_nolock(wbuf, lnum, offs);
 	if (err)
 		goto out_unlock;
 
@@ -385,9 +385,9 @@ out:
 	if (err == -ENOSPC) {
 		/* This are some budgeting problems, print useful information */
 		down_write(&c->commit_sem);
-		dbg_dump_stack();
-		dbg_dump_budg(c, &c->bi);
-		dbg_dump_lprops(c);
+		dump_stack();
+		ubifs_dump_budg(c, &c->bi);
+		ubifs_dump_lprops(c);
 		cmt_retries = dbg_check_lprops(c);
 		up_write(&c->commit_sem);
 	}
@@ -1267,7 +1267,6 @@ out_free:
 	return err;
 }
 
-#ifdef CONFIG_UBIFS_FS_XATTR
 
 /**
  * ubifs_jnl_delete_xattr - delete an extended attribute.
@@ -1462,4 +1461,3 @@ out_free:
 	return err;
 }
 
-#endif /* CONFIG_UBIFS_FS_XATTR */

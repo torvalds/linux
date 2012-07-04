@@ -138,7 +138,7 @@ static const u8 usb3_rh_dev_descriptor[18] = {
 	0x03,       /*  __u8  bDeviceProtocol; USB 3.0 hub */
 	0x09,       /*  __u8  bMaxPacketSize0; 2^9 = 512 Bytes */
 
-	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation */
+	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation 0x1d6b */
 	0x03, 0x00, /*  __le16 idProduct; device 0x0003 */
 	KERNEL_VER, KERNEL_REL, /*  __le16 bcdDevice */
 
@@ -159,7 +159,7 @@ static const u8 usb2_rh_dev_descriptor [18] = {
 	0x00,       /*  __u8  bDeviceProtocol; [ usb 2.0 no TT ] */
 	0x40,       /*  __u8  bMaxPacketSize0; 64 Bytes */
 
-	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation */
+	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation 0x1d6b */
 	0x02, 0x00, /*  __le16 idProduct; device 0x0002 */
 	KERNEL_VER, KERNEL_REL, /*  __le16 bcdDevice */
 
@@ -182,7 +182,7 @@ static const u8 usb11_rh_dev_descriptor [18] = {
 	0x00,       /*  __u8  bDeviceProtocol; [ low/full speeds only ] */
 	0x40,       /*  __u8  bMaxPacketSize0; 64 Bytes */
 
-	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation */
+	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation 0x1d6b */
 	0x01, 0x00, /*  __le16 idProduct; device 0x0001 */
 	KERNEL_VER, KERNEL_REL, /*  __le16 bcdDevice */
 
@@ -996,6 +996,15 @@ static int register_root_hub(struct usb_hcd *hcd)
 		dev_dbg (parent_dev, "can't read %s device descriptor %d\n",
 				dev_name(&usb_dev->dev), retval);
 		return (retval < 0) ? retval : -EMSGSIZE;
+	}
+	if (usb_dev->speed == USB_SPEED_SUPER) {
+		retval = usb_get_bos_descriptor(usb_dev);
+		if (retval < 0) {
+			mutex_unlock(&usb_bus_list_lock);
+			dev_dbg(parent_dev, "can't read %s bos descriptor %d\n",
+					dev_name(&usb_dev->dev), retval);
+			return retval;
+		}
 	}
 
 	retval = usb_new_device (usb_dev);

@@ -1,4 +1,3 @@
-
 /*
  * DECnet       An implementation of the DECnet protocol suite for the LINUX
  *              operating system.  DECnet is implemented using the  BSD Socket
@@ -209,7 +208,7 @@ static void dn_nsp_rtt(struct sock *sk, long rtt)
  *
  * Returns: The number of times the packet has been sent previously
  */
-static inline unsigned dn_nsp_clone_and_send(struct sk_buff *skb,
+static inline unsigned int dn_nsp_clone_and_send(struct sk_buff *skb,
 					     gfp_t gfp)
 {
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
@@ -240,7 +239,7 @@ void dn_nsp_output(struct sock *sk)
 {
 	struct dn_scp *scp = DN_SK(sk);
 	struct sk_buff *skb;
-	unsigned reduce_win = 0;
+	unsigned int reduce_win = 0;
 
 	/*
 	 * First we check for otherdata/linkservice messages
@@ -554,8 +553,8 @@ static __inline__ void dn_nsp_do_disc(struct sock *sk, unsigned char msgflg,
 	unsigned char *msg;
 
 	if ((dst == NULL) || (rem == 0)) {
-		if (net_ratelimit())
-			printk(KERN_DEBUG "DECnet: dn_nsp_do_disc: BUG! Please report this to SteveW@ACM.org rem=%u dst=%p\n", le16_to_cpu(rem), dst);
+		net_dbg_ratelimited("DECnet: dn_nsp_do_disc: BUG! Please report this to SteveW@ACM.org rem=%u dst=%p\n",
+				    le16_to_cpu(rem), dst);
 		return;
 	}
 

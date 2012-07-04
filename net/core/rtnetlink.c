@@ -35,7 +35,9 @@
 #include <linux/security.h>
 #include <linux/mutex.h>
 #include <linux/if_addr.h>
+#include <linux/if_bridge.h>
 #include <linux/pci.h>
+#include <linux/etherdevice.h>
 
 #include <asm/uaccess.h>
 
@@ -552,7 +554,7 @@ void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const void *data
 }
 EXPORT_SYMBOL(__rta_fill);
 
-int rtnetlink_send(struct sk_buff *skb, struct net *net, u32 pid, unsigned group, int echo)
+int rtnetlink_send(struct sk_buff *skb, struct net *net, u32 pid, unsigned int group, int echo)
 {
 	struct sock *rtnl = net->rtnl;
 	int err = 0;
@@ -607,7 +609,8 @@ int rtnetlink_put_metrics(struct sk_buff *skb, u32 *metrics)
 	for (i = 0; i < RTAX_MAX; i++) {
 		if (metrics[i]) {
 			valid++;
-			NLA_PUT_U32(skb, i+1, metrics[i]);
+			if (nla_put_u32(skb, i+1, metrics[i]))
+				goto nla_put_failure;
 		}
 	}
 
@@ -782,6 +785,7 @@ static noinline size_t if_nlmsg_size(const struct net_device *dev,
 	       + nla_total_size(4) /* IFLA_MTU */
 	       + nla_total_size(4) /* IFLA_LINK */
 	       + nla_total_size(4) /* IFLA_MASTER */
+	       + nla_total_size(4) /* IFLA_PROMISCUITY */
 	       + nla_total_size(1) /* IFLA_OPERSTATE */
 	       + nla_total_size(1) /* IFLA_LINKMODE */
 	       + nla_total_size(ext_filter_mask
@@ -807,7 +811,8 @@ static int rtnl_vf_ports_fill(struct sk_buff *skb, struct net_device *dev)
 		vf_port = nla_nest_start(skb, IFLA_VF_PORT);
 		if (!vf_port)
 			goto nla_put_failure;
-		NLA_PUT_U32(skb, IFLA_PORT_VF, vf);
+		if (nla_put_u32(skb, IFLA_PORT_VF, vf))
+			goto nla_put_failure;
 		err = dev->netdev_ops->ndo_get_vf_port(dev, vf, skb);
 		if (err == -EMSGSIZE)
 			goto nla_put_failure;
@@ -891,25 +896,23 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 	ifm->ifi_flags = dev_get_flags(dev);
 	ifm->ifi_change = change;
 
-	NLA_PUT_STRING(skb, IFLA_IFNAME, dev->name);
-	NLA_PUT_U32(skb, IFLA_TXQLEN, dev->tx_queue_len);
-	NLA_PUT_U8(skb, IFLA_OPERSTATE,
-		   netif_running(dev) ? dev->operstate : IF_OPER_DOWN);
-	NLA_PUT_U8(skb, IFLA_LINKMODE, dev->link_mode);
-	NLA_PUT_U32(skb, IFLA_MTU, dev->mtu);
-	NLA_PUT_U32(skb, IFLA_GROUP, dev->group);
-
-	if (dev->ifindex != dev->iflink)
-		NLA_PUT_U32(skb, IFLA_LINK, dev->iflink);
-
-	if (dev->master)
-		NLA_PUT_U32(skb, IFLA_MASTER, dev->master->ifindex);
-
-	if (dev->qdisc)
-		NLA_PUT_STRING(skb, IFLA_QDISC, dev->qdisc->ops->id);
-
-	if (dev->ifalias)
-		NLA_PUT_STRING(skb, IFLA_IFALIAS, dev->ifalias);
+	if (nla_put_string(skb, IFLA_IFNAME, dev->name) ||
+	    nla_put_u32(skb, IFLA_TXQLEN, dev->tx_queue_len) ||
+	    nla_put_u8(skb, IFLA_OPERSTATE,
+		       netif_running(dev) ? dev->operstate : IF_OPER_DOWN) ||
+	    nla_put_u8(skb, IFLA_LINKMODE, dev->link_mode) ||
+	    nla_put_u32(skb, IFLA_MTU, dev->mtu) ||
+	    nla_put_u32(skb, IFLA_GROUP, dev->group) ||
+	    nla_put_u32(skb, IFLA_PROMISCUITY, dev->promiscuity) ||
+	    (dev->ifindex != dev->iflink &&
+	     nla_put_u32(skb, IFLA_LINK, dev->iflink)) ||
+	    (dev->master &&
+	     nla_put_u32(skb, IFLA_MASTER, dev->master->ifindex)) ||
+	    (dev->qdisc &&
+	     nla_put_string(skb, IFLA_QDISC, dev->qdisc->ops->id)) ||
+	    (dev->ifalias &&
+	     nla_put_string(skb, IFLA_IFALIAS, dev->ifalias)))
+		goto nla_put_failure;
 
 	if (1) {
 		struct rtnl_link_ifmap map = {
@@ -920,12 +923,14 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 			.dma         = dev->dma,
 			.port        = dev->if_port,
 		};
-		NLA_PUT(skb, IFLA_MAP, sizeof(map), &map);
+		if (nla_put(skb, IFLA_MAP, sizeof(map), &map))
+			goto nla_put_failure;
 	}
 
 	if (dev->addr_len) {
-		NLA_PUT(skb, IFLA_ADDRESS, dev->addr_len, dev->dev_addr);
-		NLA_PUT(skb, IFLA_BROADCAST, dev->addr_len, dev->broadcast);
+		if (nla_put(skb, IFLA_ADDRESS, dev->addr_len, dev->dev_addr) ||
+		    nla_put(skb, IFLA_BROADCAST, dev->addr_len, dev->broadcast))
+			goto nla_put_failure;
 	}
 
 	attr = nla_reserve(skb, IFLA_STATS,
@@ -942,8 +947,9 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 		goto nla_put_failure;
 	copy_rtnl_link_stats64(nla_data(attr), stats);
 
-	if (dev->dev.parent && (ext_filter_mask & RTEXT_FILTER_VF))
-		NLA_PUT_U32(skb, IFLA_NUM_VF, dev_num_vf(dev->dev.parent));
+	if (dev->dev.parent && (ext_filter_mask & RTEXT_FILTER_VF) &&
+	    nla_put_u32(skb, IFLA_NUM_VF, dev_num_vf(dev->dev.parent)))
+		goto nla_put_failure;
 
 	if (dev->netdev_ops->ndo_get_vf_config && dev->dev.parent
 	    && (ext_filter_mask & RTEXT_FILTER_VF)) {
@@ -986,12 +992,13 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 				nla_nest_cancel(skb, vfinfo);
 				goto nla_put_failure;
 			}
-			NLA_PUT(skb, IFLA_VF_MAC, sizeof(vf_mac), &vf_mac);
-			NLA_PUT(skb, IFLA_VF_VLAN, sizeof(vf_vlan), &vf_vlan);
-			NLA_PUT(skb, IFLA_VF_TX_RATE, sizeof(vf_tx_rate),
-				&vf_tx_rate);
-			NLA_PUT(skb, IFLA_VF_SPOOFCHK, sizeof(vf_spoofchk),
-				&vf_spoofchk);
+			if (nla_put(skb, IFLA_VF_MAC, sizeof(vf_mac), &vf_mac) ||
+			    nla_put(skb, IFLA_VF_VLAN, sizeof(vf_vlan), &vf_vlan) ||
+			    nla_put(skb, IFLA_VF_TX_RATE, sizeof(vf_tx_rate),
+				    &vf_tx_rate) ||
+			    nla_put(skb, IFLA_VF_SPOOFCHK, sizeof(vf_spoofchk),
+				    &vf_spoofchk))
+				goto nla_put_failure;
 			nla_nest_end(skb, vf);
 		}
 		nla_nest_end(skb, vfinfo);
@@ -1113,6 +1120,7 @@ const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_PORT_SELF]	= { .type = NLA_NESTED },
 	[IFLA_AF_SPEC]		= { .type = NLA_NESTED },
 	[IFLA_EXT_MASK]		= { .type = NLA_U32 },
+	[IFLA_PROMISCUITY]	= { .type = NLA_U32 },
 };
 EXPORT_SYMBOL(ifla_policy);
 
@@ -1516,11 +1524,9 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 	err = 0;
 
 errout:
-	if (err < 0 && modified && net_ratelimit())
-		printk(KERN_WARNING "A link change request failed with "
-		       "some changes committed already. Interface %s may "
-		       "have been left with an inconsistent configuration, "
-		       "please check.\n", dev->name);
+	if (err < 0 && modified)
+		net_warn_ratelimited("A link change request failed with some changes committed already. Interface %s may have been left with an inconsistent configuration, please check.\n",
+				     dev->name);
 
 	if (send_addr_notify)
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
@@ -1634,14 +1640,14 @@ struct net_device *rtnl_create_link(struct net *src_net, struct net *net,
 	int err;
 	struct net_device *dev;
 	unsigned int num_queues = 1;
-	unsigned int real_num_queues = 1;
 
 	if (ops->get_tx_queues) {
-		err = ops->get_tx_queues(src_net, tb, &num_queues,
-					 &real_num_queues);
-		if (err)
+		err = ops->get_tx_queues(src_net, tb);
+		if (err < 0)
 			goto err;
+		num_queues = err;
 	}
+
 	err = -ENOMEM;
 	dev = alloc_netdev_mq(ops->priv_size, ifname, ops->setup, num_queues);
 	if (!dev)
@@ -1947,7 +1953,7 @@ static int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
-void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change)
+void rtmsg_ifinfo(int type, struct net_device *dev, unsigned int change)
 {
 	struct net *net = dev_net(dev);
 	struct sk_buff *skb;
@@ -1970,6 +1976,267 @@ void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change)
 errout:
 	if (err < 0)
 		rtnl_set_sk_err(net, RTNLGRP_LINK, err);
+}
+
+static int nlmsg_populate_fdb_fill(struct sk_buff *skb,
+				   struct net_device *dev,
+				   u8 *addr, u32 pid, u32 seq,
+				   int type, unsigned int flags)
+{
+	struct nlmsghdr *nlh;
+	struct ndmsg *ndm;
+
+	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*ndm), NLM_F_MULTI);
+	if (!nlh)
+		return -EMSGSIZE;
+
+	ndm = nlmsg_data(nlh);
+	ndm->ndm_family  = AF_BRIDGE;
+	ndm->ndm_pad1	 = 0;
+	ndm->ndm_pad2    = 0;
+	ndm->ndm_flags	 = flags;
+	ndm->ndm_type	 = 0;
+	ndm->ndm_ifindex = dev->ifindex;
+	ndm->ndm_state   = NUD_PERMANENT;
+
+	if (nla_put(skb, NDA_LLADDR, ETH_ALEN, addr))
+		goto nla_put_failure;
+
+	return nlmsg_end(skb, nlh);
+
+nla_put_failure:
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
+}
+
+static inline size_t rtnl_fdb_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct ndmsg)) + nla_total_size(ETH_ALEN);
+}
+
+static void rtnl_fdb_notify(struct net_device *dev, u8 *addr, int type)
+{
+	struct net *net = dev_net(dev);
+	struct sk_buff *skb;
+	int err = -ENOBUFS;
+
+	skb = nlmsg_new(rtnl_fdb_nlmsg_size(), GFP_ATOMIC);
+	if (!skb)
+		goto errout;
+
+	err = nlmsg_populate_fdb_fill(skb, dev, addr, 0, 0, type, NTF_SELF);
+	if (err < 0) {
+		kfree_skb(skb);
+		goto errout;
+	}
+
+	rtnl_notify(skb, net, 0, RTNLGRP_NEIGH, NULL, GFP_ATOMIC);
+	return;
+errout:
+	rtnl_set_sk_err(net, RTNLGRP_NEIGH, err);
+}
+
+static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+{
+	struct net *net = sock_net(skb->sk);
+	struct net_device *master = NULL;
+	struct ndmsg *ndm;
+	struct nlattr *tb[NDA_MAX+1];
+	struct net_device *dev;
+	u8 *addr;
+	int err;
+
+	err = nlmsg_parse(nlh, sizeof(*ndm), tb, NDA_MAX, NULL);
+	if (err < 0)
+		return err;
+
+	ndm = nlmsg_data(nlh);
+	if (ndm->ndm_ifindex == 0) {
+		pr_info("PF_BRIDGE: RTM_NEWNEIGH with invalid ifindex\n");
+		return -EINVAL;
+	}
+
+	dev = __dev_get_by_index(net, ndm->ndm_ifindex);
+	if (dev == NULL) {
+		pr_info("PF_BRIDGE: RTM_NEWNEIGH with unknown ifindex\n");
+		return -ENODEV;
+	}
+
+	if (!tb[NDA_LLADDR] || nla_len(tb[NDA_LLADDR]) != ETH_ALEN) {
+		pr_info("PF_BRIDGE: RTM_NEWNEIGH with invalid address\n");
+		return -EINVAL;
+	}
+
+	addr = nla_data(tb[NDA_LLADDR]);
+	if (!is_valid_ether_addr(addr)) {
+		pr_info("PF_BRIDGE: RTM_NEWNEIGH with invalid ether address\n");
+		return -EINVAL;
+	}
+
+	err = -EOPNOTSUPP;
+
+	/* Support fdb on master device the net/bridge default case */
+	if ((!ndm->ndm_flags || ndm->ndm_flags & NTF_MASTER) &&
+	    (dev->priv_flags & IFF_BRIDGE_PORT)) {
+		master = dev->master;
+		err = master->netdev_ops->ndo_fdb_add(ndm, dev, addr,
+						      nlh->nlmsg_flags);
+		if (err)
+			goto out;
+		else
+			ndm->ndm_flags &= ~NTF_MASTER;
+	}
+
+	/* Embedded bridge, macvlan, and any other device support */
+	if ((ndm->ndm_flags & NTF_SELF) && dev->netdev_ops->ndo_fdb_add) {
+		err = dev->netdev_ops->ndo_fdb_add(ndm, dev, addr,
+						   nlh->nlmsg_flags);
+
+		if (!err) {
+			rtnl_fdb_notify(dev, addr, RTM_NEWNEIGH);
+			ndm->ndm_flags &= ~NTF_SELF;
+		}
+	}
+out:
+	return err;
+}
+
+static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+{
+	struct net *net = sock_net(skb->sk);
+	struct ndmsg *ndm;
+	struct nlattr *llattr;
+	struct net_device *dev;
+	int err = -EINVAL;
+	__u8 *addr;
+
+	if (nlmsg_len(nlh) < sizeof(*ndm))
+		return -EINVAL;
+
+	ndm = nlmsg_data(nlh);
+	if (ndm->ndm_ifindex == 0) {
+		pr_info("PF_BRIDGE: RTM_DELNEIGH with invalid ifindex\n");
+		return -EINVAL;
+	}
+
+	dev = __dev_get_by_index(net, ndm->ndm_ifindex);
+	if (dev == NULL) {
+		pr_info("PF_BRIDGE: RTM_DELNEIGH with unknown ifindex\n");
+		return -ENODEV;
+	}
+
+	llattr = nlmsg_find_attr(nlh, sizeof(*ndm), NDA_LLADDR);
+	if (llattr == NULL || nla_len(llattr) != ETH_ALEN) {
+		pr_info("PF_BRIGDE: RTM_DELNEIGH with invalid address\n");
+		return -EINVAL;
+	}
+
+	addr = nla_data(llattr);
+	err = -EOPNOTSUPP;
+
+	/* Support fdb on master device the net/bridge default case */
+	if ((!ndm->ndm_flags || ndm->ndm_flags & NTF_MASTER) &&
+	    (dev->priv_flags & IFF_BRIDGE_PORT)) {
+		struct net_device *master = dev->master;
+
+		if (master->netdev_ops->ndo_fdb_del)
+			err = master->netdev_ops->ndo_fdb_del(ndm, dev, addr);
+
+		if (err)
+			goto out;
+		else
+			ndm->ndm_flags &= ~NTF_MASTER;
+	}
+
+	/* Embedded bridge, macvlan, and any other device support */
+	if ((ndm->ndm_flags & NTF_SELF) && dev->netdev_ops->ndo_fdb_del) {
+		err = dev->netdev_ops->ndo_fdb_del(ndm, dev, addr);
+
+		if (!err) {
+			rtnl_fdb_notify(dev, addr, RTM_DELNEIGH);
+			ndm->ndm_flags &= ~NTF_SELF;
+		}
+	}
+out:
+	return err;
+}
+
+static int nlmsg_populate_fdb(struct sk_buff *skb,
+			      struct netlink_callback *cb,
+			      struct net_device *dev,
+			      int *idx,
+			      struct netdev_hw_addr_list *list)
+{
+	struct netdev_hw_addr *ha;
+	int err;
+	u32 pid, seq;
+
+	pid = NETLINK_CB(cb->skb).pid;
+	seq = cb->nlh->nlmsg_seq;
+
+	list_for_each_entry(ha, &list->list, list) {
+		if (*idx < cb->args[0])
+			goto skip;
+
+		err = nlmsg_populate_fdb_fill(skb, dev, ha->addr,
+					      pid, seq, 0, NTF_SELF);
+		if (err < 0)
+			return err;
+skip:
+		*idx += 1;
+	}
+	return 0;
+}
+
+/**
+ * ndo_dflt_fdb_dump: default netdevice operation to dump an FDB table.
+ * @nlh: netlink message header
+ * @dev: netdevice
+ *
+ * Default netdevice operation to dump the existing unicast address list.
+ * Returns zero on success.
+ */
+int ndo_dflt_fdb_dump(struct sk_buff *skb,
+		      struct netlink_callback *cb,
+		      struct net_device *dev,
+		      int idx)
+{
+	int err;
+
+	netif_addr_lock_bh(dev);
+	err = nlmsg_populate_fdb(skb, cb, dev, &idx, &dev->uc);
+	if (err)
+		goto out;
+	nlmsg_populate_fdb(skb, cb, dev, &idx, &dev->mc);
+out:
+	netif_addr_unlock_bh(dev);
+	return idx;
+}
+EXPORT_SYMBOL(ndo_dflt_fdb_dump);
+
+static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	int idx = 0;
+	struct net *net = sock_net(skb->sk);
+	struct net_device *dev;
+
+	rcu_read_lock();
+	for_each_netdev_rcu(net, dev) {
+		if (dev->priv_flags & IFF_BRIDGE_PORT) {
+			struct net_device *master = dev->master;
+			const struct net_device_ops *ops = master->netdev_ops;
+
+			if (ops->ndo_fdb_dump)
+				idx = ops->ndo_fdb_dump(skb, cb, dev, idx);
+		}
+
+		if (dev->netdev_ops->ndo_fdb_dump)
+			idx = dev->netdev_ops->ndo_fdb_dump(skb, cb, dev, idx);
+	}
+	rcu_read_unlock();
+
+	cb->args[0] = idx;
+	return skb->len;
 }
 
 /* Protected by RTNL sempahore.  */
@@ -2042,7 +2309,7 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		struct rtattr *attr = (void *)nlh + NLMSG_ALIGN(min_len);
 
 		while (RTA_OK(attr, attrlen)) {
-			unsigned flavor = attr->rta_type;
+			unsigned int flavor = attr->rta_type;
 			if (flavor) {
 				if (flavor > rta_max[sz_idx])
 					return -EINVAL;
@@ -2144,5 +2411,9 @@ void __init rtnetlink_init(void)
 
 	rtnl_register(PF_UNSPEC, RTM_GETADDR, NULL, rtnl_dump_all, NULL);
 	rtnl_register(PF_UNSPEC, RTM_GETROUTE, NULL, rtnl_dump_all, NULL);
+
+	rtnl_register(PF_BRIDGE, RTM_NEWNEIGH, rtnl_fdb_add, NULL, NULL);
+	rtnl_register(PF_BRIDGE, RTM_DELNEIGH, rtnl_fdb_del, NULL, NULL);
+	rtnl_register(PF_BRIDGE, RTM_GETNEIGH, NULL, rtnl_fdb_dump, NULL);
 }
 

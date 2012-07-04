@@ -1488,15 +1488,4 @@ static struct pci_driver sis7019_driver = {
 #endif
 };
 
-static int __init sis7019_init(void)
-{
-	return pci_register_driver(&sis7019_driver);
-}
-
-static void __exit sis7019_exit(void)
-{
-	pci_unregister_driver(&sis7019_driver);
-}
-
-module_init(sis7019_init);
-module_exit(sis7019_exit);
+module_pci_driver(sis7019_driver);

@@ -158,7 +158,6 @@ static int stb6100_read_regs(struct stb6100_state *state, u8 regs[])
 static int stb6100_read_reg(struct stb6100_state *state, u8 reg)
 {
 	u8 regs[STB6100_NUMREGS];
-	int rc;
 
 	struct i2c_msg msg = {
 		.addr	= state->config->tuner_address + reg,
@@ -167,7 +166,7 @@ static int stb6100_read_reg(struct stb6100_state *state, u8 reg)
 		.len	= 1
 	};
 
-	rc = i2c_transfer(state->i2c, &msg, 1);
+	i2c_transfer(state->i2c, &msg, 1);
 
 	if (unlikely(reg >= STB6100_NUMREGS)) {
 		dprintk(verbose, FE_ERROR, 1, "Invalid register offset 0x%x", reg);

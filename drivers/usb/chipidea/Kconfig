@@ -1,0 +1,32 @@
+config USB_CHIPIDEA
+	tristate "ChipIdea Highspeed Dual Role Controller"
+	depends on USB
+	help
+          Say Y here if your system has a dual role high speed USB
+          controller based on ChipIdea silicon IP. Currently, only the
+	  peripheral mode is supported.
+
+	  When compiled dynamically, the module will be called ci-hdrc.ko.
+
+if USB_CHIPIDEA
+
+config USB_CHIPIDEA_UDC
+	bool "ChipIdea device controller"
+	depends on USB_GADGET
+	select USB_GADGET_DUALSPEED
+	help
+	  Say Y here to enable device controller functionality of the
+	  ChipIdea driver.
+
+config USB_CHIPIDEA_HOST
+	bool "ChipIdea host controller"
+	help
+	  Say Y here to enable host controller functionality of the
+	  ChipIdea driver.
+
+config USB_CHIPIDEA_DEBUG
+	bool "ChipIdea driver debug"
+	help
+	  Say Y here to enable debugging output of the ChipIdea driver.
+
+endif

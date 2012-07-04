@@ -323,6 +323,7 @@ struct dso *dso__new(const char *name)
 		dso->sorted_by_name = 0;
 		dso->has_build_id = 0;
 		dso->kernel = DSO_TYPE_USER;
+		dso->needs_swap = DSO_SWAP__UNSET;
 		INIT_LIST_HEAD(&dso->node);
 	}
 
@@ -977,8 +978,9 @@ static Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
  * And always look at the original dso, not at debuginfo packages, that
  * have the PLT data stripped out (shdr_rel_plt.sh_type == SHT_NOBITS).
  */
-static int dso__synthesize_plt_symbols(struct  dso *dso, struct map *map,
-				       symbol_filter_t filter)
+static int
+dso__synthesize_plt_symbols(struct dso *dso, char *name, struct map *map,
+			    symbol_filter_t filter)
 {
 	uint32_t nr_rel_entries, idx;
 	GElf_Sym sym;
@@ -993,10 +995,7 @@ static int dso__synthesize_plt_symbols(struct  dso *dso, struct map *map,
 	char sympltname[1024];
 	Elf *elf;
 	int nr = 0, symidx, fd, err = 0;
-	char name[PATH_MAX];
 
-	snprintf(name, sizeof(name), "%s%s",
-		 symbol_conf.symfs, dso->long_name);
 	fd = open(name, O_RDONLY);
 	if (fd < 0)
 		goto out;
@@ -1158,6 +1157,33 @@ static size_t elf_addr_to_index(Elf *elf, GElf_Addr addr)
 	return -1;
 }
 
+static int dso__swap_init(struct dso *dso, unsigned char eidata)
+{
+	static unsigned int const endian = 1;
+
+	dso->needs_swap = DSO_SWAP__NO;
+
+	switch (eidata) {
+	case ELFDATA2LSB:
+		/* We are big endian, DSO is little endian. */
+		if (*(unsigned char const *)&endian != 1)
+			dso->needs_swap = DSO_SWAP__YES;
+		break;
+
+	case ELFDATA2MSB:
+		/* We are little endian, DSO is big endian. */
+		if (*(unsigned char const *)&endian != 0)
+			dso->needs_swap = DSO_SWAP__YES;
+		break;
+
+	default:
+		pr_err("unrecognized DSO data encoding %d\n", eidata);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int dso__load_sym(struct dso *dso, struct map *map, const char *name,
 			 int fd, symbol_filter_t filter, int kmodule,
 			 int want_symtab)
@@ -1188,6 +1214,9 @@ static int dso__load_sym(struct dso *dso, struct map *map, const char *name,
 		pr_debug("%s: cannot get elf header.\n", __func__);
 		goto out_elf_end;
 	}
+
+	if (dso__swap_init(dso, ehdr.e_ident[EI_DATA]))
+		goto out_elf_end;
 
 	/* Always reject images with a mismatched build-id: */
 	if (dso->has_build_id) {
@@ -1274,7 +1303,7 @@ static int dso__load_sym(struct dso *dso, struct map *map, const char *name,
 		if (opdsec && sym.st_shndx == opdidx) {
 			u32 offset = sym.st_value - opdshdr.sh_addr;
 			u64 *opd = opddata->d_buf + offset;
-			sym.st_value = *opd;
+			sym.st_value = DSO__SWAP(dso, u64, *opd);
 			sym.st_shndx = elf_addr_to_index(elf, sym.st_value);
 		}
 
@@ -1703,8 +1732,9 @@ restart:
 			continue;
 
 		if (ret > 0) {
-			int nr_plt = dso__synthesize_plt_symbols(dso, map,
-								 filter);
+			int nr_plt;
+
+			nr_plt = dso__synthesize_plt_symbols(dso, name, map, filter);
 			if (nr_plt > 0)
 				ret += nr_plt;
 			break;
@@ -2783,4 +2813,15 @@ int machine__load_vmlinux_path(struct machine *machine, enum map_type type,
 	}
 
 	return ret;
+}
+
+struct map *dso__new_map(const char *name)
+{
+	struct map *map = NULL;
+	struct dso *dso = dso__new(name);
+
+	if (dso)
+		map = map__new2(0, dso, MAP__FUNCTION);
+
+	return map;
 }

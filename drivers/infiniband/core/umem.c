@@ -269,7 +269,7 @@ void ib_umem_release(struct ib_umem *umem)
 	} else
 		down_write(&mm->mmap_sem);
 
-	current->mm->locked_vm -= diff;
+	current->mm->pinned_vm -= diff;
 	up_write(&mm->mmap_sem);
 	mmput(mm);
 	kfree(umem);

@@ -338,6 +338,10 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 #endif
 };
 
+static const struct net_device_ops qlcnic_netdev_failed_ops = {
+	.ndo_open	   = qlcnic_open,
+};
+
 static struct qlcnic_nic_template qlcnic_ops = {
 	.config_bridged_mode = qlcnic_config_bridged_mode,
 	.config_led = qlcnic_config_led,
@@ -475,7 +479,7 @@ qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 
 	for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++) {
 		pfn = pci_info[i].id;
-		if (pfn > QLCNIC_MAX_PCI_FUNC) {
+		if (pfn >= QLCNIC_MAX_PCI_FUNC) {
 			ret = QL_STATUS_INVALID_PARAM;
 			goto err_eswitch;
 		}
@@ -1623,8 +1627,9 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = adapter->nic_ops->start_firmware(adapter);
 	if (err) {
-		dev_err(&pdev->dev, "Loading fw failed.Please Reboot\n");
-		goto err_out_decr_ref;
+		dev_err(&pdev->dev, "Loading fw failed. Please Reboot\n"
+			"\t\tIf reboot doesn't help, try flashing the card\n");
+		goto err_out_maintenance_mode;
 	}
 
 	if (qlcnic_read_mac_addr(adapter))
@@ -1695,6 +1700,18 @@ err_out_disable_pdev:
 	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 	return err;
+
+err_out_maintenance_mode:
+	netdev->netdev_ops = &qlcnic_netdev_failed_ops;
+	SET_ETHTOOL_OPS(netdev, &qlcnic_ethtool_failed_ops);
+	err = register_netdev(netdev);
+	if (err) {
+		dev_err(&pdev->dev, "failed to register net device\n");
+		goto err_out_decr_ref;
+	}
+	pci_set_drvdata(pdev, adapter);
+	qlcnic_create_diag_entries(adapter);
+	return 0;
 }
 
 static void __devexit qlcnic_remove(struct pci_dev *pdev)
@@ -1831,7 +1848,13 @@ done:
 static int qlcnic_open(struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	u32 state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
 	int err;
+
+	if (state == QLCNIC_DEV_FAILED || (state == QLCNIC_DEV_BADBAD)) {
+		netdev_err(netdev, "Device in FAILED state\n");
+		return -EIO;
+	}
 
 	netif_carrier_off(netdev);
 
@@ -1942,7 +1965,7 @@ qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	__le16 vlan_id = 0;
 	u8 hindex;
 
-	if (!compare_ether_addr(phdr->h_source, adapter->mac_addr))
+	if (ether_addr_equal(phdr->h_source, adapter->mac_addr))
 		return;
 
 	if (adapter->fhash.fnum >= adapter->fhash.fmax)
@@ -2212,8 +2235,7 @@ qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	if (adapter->flags & QLCNIC_MACSPOOF) {
 		phdr = (struct ethhdr *)skb->data;
-		if (compare_ether_addr(phdr->h_source,
-					adapter->mac_addr))
+		if (!ether_addr_equal(phdr->h_source, adapter->mac_addr))
 			goto drop_packet;
 	}
 
@@ -3018,6 +3040,12 @@ qlcnic_dev_request_reset(struct qlcnic_adapter *adapter)
 		return;
 
 	state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
+	if (state  == QLCNIC_DEV_FAILED || (state == QLCNIC_DEV_BADBAD)) {
+		netdev_err(adapter->netdev,
+				"Device is in FAILED state, Please Reboot\n");
+		qlcnic_api_unlock(adapter);
+		return;
+	}
 
 	if (state == QLCNIC_DEV_READY) {
 		QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_NEED_RESET);
@@ -3060,6 +3088,9 @@ qlcnic_cancel_fw_work(struct qlcnic_adapter *adapter)
 {
 	while (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
 		msleep(10);
+
+	if (!adapter->fw_work.work.func)
+		return;
 
 	cancel_delayed_work_sync(&adapter->fw_work);
 }
@@ -4280,6 +4311,7 @@ static void
 qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
+	u32 state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
 
 	if (device_create_bin_file(dev, &bin_attr_port_stats))
 		dev_info(dev, "failed to create port stats sysfs entry");
@@ -4288,14 +4320,19 @@ qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 		return;
 	if (device_create_file(dev, &dev_attr_diag_mode))
 		dev_info(dev, "failed to create diag_mode sysfs entry\n");
-	if (device_create_file(dev, &dev_attr_beacon))
-		dev_info(dev, "failed to create beacon sysfs entry");
 	if (device_create_bin_file(dev, &bin_attr_crb))
 		dev_info(dev, "failed to create crb sysfs entry\n");
 	if (device_create_bin_file(dev, &bin_attr_mem))
 		dev_info(dev, "failed to create mem sysfs entry\n");
+
+	if (state == QLCNIC_DEV_FAILED || (state == QLCNIC_DEV_BADBAD))
+		return;
+
 	if (device_create_bin_file(dev, &bin_attr_pci_config))
 		dev_info(dev, "failed to create pci config sysfs entry");
+	if (device_create_file(dev, &dev_attr_beacon))
+		dev_info(dev, "failed to create beacon sysfs entry");
+
 	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED))
 		return;
 	if (device_create_bin_file(dev, &bin_attr_esw_config))
@@ -4314,16 +4351,19 @@ static void
 qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
+	u32 state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
 
 	device_remove_bin_file(dev, &bin_attr_port_stats);
 
 	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC)
 		return;
 	device_remove_file(dev, &dev_attr_diag_mode);
-	device_remove_file(dev, &dev_attr_beacon);
 	device_remove_bin_file(dev, &bin_attr_crb);
 	device_remove_bin_file(dev, &bin_attr_mem);
+	if (state == QLCNIC_DEV_FAILED || (state == QLCNIC_DEV_BADBAD))
+		return;
 	device_remove_bin_file(dev, &bin_attr_pci_config);
+	device_remove_file(dev, &dev_attr_beacon);
 	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED))
 		return;
 	device_remove_bin_file(dev, &bin_attr_esw_config);

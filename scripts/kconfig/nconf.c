@@ -223,7 +223,7 @@ search_help[] = N_(
 "Defined at drivers/pci/Kconfig:47\n"
 "Depends on: X86_LOCAL_APIC && X86_IO_APIC || IA64\n"
 "Location:\n"
-"  -> Bus options (PCI, PCMCIA, EISA, MCA, ISA)\n"
+"  -> Bus options (PCI, PCMCIA, EISA, ISA)\n"
 "    -> PCI support (PCI [ = y])\n"
 "      -> PCI access mode (<choice> [ = y])\n"
 "Selects: LIBCRC32\n"

@@ -18,9 +18,9 @@
 #include <linux/list.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../buffer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/buffer.h>
 #include "meter.h"
 #include "ade7758.h"
 
@@ -29,7 +29,7 @@ int ade7758_spi_write_reg_8(struct device *dev,
 		u8 val)
 {
 	int ret;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7758_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->buf_lock);
@@ -48,7 +48,7 @@ static int ade7758_spi_write_reg_16(struct device *dev,
 {
 	int ret;
 	struct spi_message msg;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7758_state *st = iio_priv(indio_dev);
 	struct spi_transfer xfers[] = {
 		{
@@ -77,7 +77,7 @@ static int ade7758_spi_write_reg_24(struct device *dev,
 {
 	int ret;
 	struct spi_message msg;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7758_state *st = iio_priv(indio_dev);
 	struct spi_transfer xfers[] = {
 		{
@@ -106,7 +106,7 @@ int ade7758_spi_read_reg_8(struct device *dev,
 		u8 *val)
 {
 	struct spi_message msg;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7758_state *st = iio_priv(indio_dev);
 	int ret;
 	struct spi_transfer xfers[] = {
@@ -149,7 +149,7 @@ static int ade7758_spi_read_reg_16(struct device *dev,
 		u16 *val)
 {
 	struct spi_message msg;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7758_state *st = iio_priv(indio_dev);
 	int ret;
 	struct spi_transfer xfers[] = {
@@ -195,7 +195,7 @@ static int ade7758_spi_read_reg_24(struct device *dev,
 		u32 *val)
 {
 	struct spi_message msg;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7758_state *st = iio_priv(indio_dev);
 	int ret;
 	struct spi_transfer xfers[] = {
@@ -534,7 +534,7 @@ static ssize_t ade7758_write_frequency(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	unsigned long val;
 	int ret;
 	u8 reg, t;
@@ -662,66 +662,217 @@ static const struct attribute_group ade7758_attribute_group = {
 };
 
 static struct iio_chan_spec ade7758_channels[] = {
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "raw", 0, 0,
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		AD7758_WT(AD7758_PHASE_A, AD7758_VOLTAGE),
-		0, IIO_ST('s', 24, 32, 0), 0),
-	IIO_CHAN(IIO_CURRENT, 0, 1, 0, "raw", 0, 0,
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		AD7758_WT(AD7758_PHASE_A, AD7758_CURRENT),
-		1, IIO_ST('s', 24, 32, 0), 0),
-	IIO_CHAN(IIO_POWER, 0, 1, 0, "apparent_raw", 0, 0,
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		AD7758_WT(AD7758_PHASE_A, AD7758_APP_PWR),
-		2, IIO_ST('s', 24, 32, 0), 0),
-	IIO_CHAN(IIO_POWER, 0, 1, 0, "active_raw", 0, 0,
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		AD7758_WT(AD7758_PHASE_A, AD7758_ACT_PWR),
-		3, IIO_ST('s', 24, 32, 0), 0),
-	IIO_CHAN(IIO_POWER, 0, 1, 0, "reactive_raw", 0, 0,
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		AD7758_WT(AD7758_PHASE_A, AD7758_REACT_PWR),
-		4, IIO_ST('s', 24, 32, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "raw", 1, 0,
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		AD7758_WT(AD7758_PHASE_B, AD7758_VOLTAGE),
-		5, IIO_ST('s', 24, 32, 0), 0),
-	IIO_CHAN(IIO_CURRENT, 0, 1, 0, "raw", 1, 0,
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		AD7758_WT(AD7758_PHASE_B, AD7758_CURRENT),
-		6, IIO_ST('s', 24, 32, 0), 0),
-	IIO_CHAN(IIO_POWER, 0, 1, 0, "apparent_raw", 1, 0,
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		AD7758_WT(AD7758_PHASE_B, AD7758_APP_PWR),
-		7, IIO_ST('s', 24, 32, 0), 0),
-	IIO_CHAN(IIO_POWER, 0, 1, 0, "active_raw", 1, 0,
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		AD7758_WT(AD7758_PHASE_B, AD7758_ACT_PWR),
-		8, IIO_ST('s', 24, 32, 0), 0),
-	IIO_CHAN(IIO_POWER, 0, 1, 0, "reactive_raw", 1, 0,
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		AD7758_WT(AD7758_PHASE_B, AD7758_REACT_PWR),
-		9, IIO_ST('s', 24, 32, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "raw", 2, 0,
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		AD7758_WT(AD7758_PHASE_C, AD7758_VOLTAGE),
-		10, IIO_ST('s', 24, 32, 0), 0),
-	IIO_CHAN(IIO_CURRENT, 0, 1, 0, "raw", 2, 0,
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		AD7758_WT(AD7758_PHASE_C, AD7758_CURRENT),
-		11, IIO_ST('s', 24, 32, 0), 0),
-	IIO_CHAN(IIO_POWER, 0, 1, 0, "apparent_raw", 2, 0,
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		AD7758_WT(AD7758_PHASE_C, AD7758_APP_PWR),
-		12, IIO_ST('s', 24, 32, 0), 0),
-	IIO_CHAN(IIO_POWER, 0, 1, 0, "active_raw", 2, 0,
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		AD7758_WT(AD7758_PHASE_C, AD7758_ACT_PWR),
-		13, IIO_ST('s', 24, 32, 0), 0),
-	IIO_CHAN(IIO_POWER, 0, 1, 0, "reactive_raw", 2, 0,
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		AD7758_WT(AD7758_PHASE_C, AD7758_REACT_PWR),
-		14, IIO_ST('s', 24, 32, 0), 0),
+	{
+		.type = IIO_VOLTAGE,
+		.indexed = 1,
+		.channel = 0,
+		.extend_name = "raw",
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SHARED_BIT,
+		.address = AD7758_WT(AD7758_PHASE_A, AD7758_VOLTAGE),
+		.scan_index = 0,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 24,
+			.storagebits = 32,
+		},
+	}, {
+		.type = IIO_CURRENT,
+		.indexed = 1,
+		.channel = 0,
+		.extend_name = "raw",
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SHARED_BIT,
+		.address = AD7758_WT(AD7758_PHASE_A, AD7758_CURRENT),
+		.scan_index = 1,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 24,
+			.storagebits = 32,
+		},
+	}, {
+		.type = IIO_POWER,
+		.indexed = 1,
+		.channel = 0,
+		.extend_name = "apparent_raw",
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SHARED_BIT,
+		.address = AD7758_WT(AD7758_PHASE_A, AD7758_APP_PWR),
+		.scan_index = 2,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 24,
+			.storagebits = 32,
+		},
+	}, {
+		.type = IIO_POWER,
+		.indexed = 1,
+		.channel = 0,
+		.extend_name = "active_raw",
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SHARED_BIT,
+		.address = AD7758_WT(AD7758_PHASE_A, AD7758_ACT_PWR),
+		.scan_index = 3,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 24,
+			.storagebits = 32,
+		},
+	}, {
+		.type = IIO_POWER,
+		.indexed = 1,
+		.channel = 0,
+		.extend_name = "reactive_raw",
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SHARED_BIT,
+		.address = AD7758_WT(AD7758_PHASE_A, AD7758_REACT_PWR),
+		.scan_index = 4,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 24,
+			.storagebits = 32,
+		},
+	}, {
+		.type = IIO_VOLTAGE,
+		.indexed = 1,
+		.channel = 1,
+		.extend_name = "raw",
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SHARED_BIT,
+		.address = AD7758_WT(AD7758_PHASE_B, AD7758_VOLTAGE),
+		.scan_index = 5,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 24,
+			.storagebits = 32,
+		},
+	}, {
+		.type = IIO_CURRENT,
+		.indexed = 1,
+		.channel = 1,
+		.extend_name = "raw",
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SHARED_BIT,
+		.address = AD7758_WT(AD7758_PHASE_B, AD7758_CURRENT),
+		.scan_index = 6,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 24,
+			.storagebits = 32,
+		},
+	}, {
+		.type = IIO_POWER,
+		.indexed = 1,
+		.channel = 1,
+		.extend_name = "apparent_raw",
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SHARED_BIT,
+		.address = AD7758_WT(AD7758_PHASE_B, AD7758_APP_PWR),
+		.scan_index = 7,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 24,
+			.storagebits = 32,
+		},
+	}, {
+		.type = IIO_POWER,
+		.indexed = 1,
+		.channel = 1,
+		.extend_name = "active_raw",
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SHARED_BIT,
+		.address = AD7758_WT(AD7758_PHASE_B, AD7758_ACT_PWR),
+		.scan_index = 8,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 24,
+			.storagebits = 32,
+		},
+	}, {
+		.type = IIO_POWER,
+		.indexed = 1,
+		.channel = 1,
+		.extend_name = "reactive_raw",
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SHARED_BIT,
+		.address = AD7758_WT(AD7758_PHASE_B, AD7758_REACT_PWR),
+		.scan_index = 9,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 24,
+			.storagebits = 32,
+		},
+	}, {
+		.type = IIO_VOLTAGE,
+		.indexed = 1,
+		.channel = 2,
+		.extend_name = "raw",
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SHARED_BIT,
+		.address = AD7758_WT(AD7758_PHASE_C, AD7758_VOLTAGE),
+		.scan_index = 10,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 24,
+			.storagebits = 32,
+		},
+	}, {
+		.type = IIO_CURRENT,
+		.indexed = 1,
+		.channel = 2,
+		.extend_name = "raw",
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SHARED_BIT,
+		.address = AD7758_WT(AD7758_PHASE_C, AD7758_CURRENT),
+		.scan_index = 11,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 24,
+			.storagebits = 32,
+		},
+	}, {
+		.type = IIO_POWER,
+		.indexed = 1,
+		.channel = 2,
+		.extend_name = "apparent_raw",
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SHARED_BIT,
+		.address = AD7758_WT(AD7758_PHASE_C, AD7758_APP_PWR),
+		.scan_index = 12,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 24,
+			.storagebits = 32,
+		},
+	}, {
+		.type = IIO_POWER,
+		.indexed = 1,
+		.channel = 2,
+		.extend_name = "active_raw",
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SHARED_BIT,
+		.address = AD7758_WT(AD7758_PHASE_C, AD7758_ACT_PWR),
+		.scan_index = 13,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 24,
+			.storagebits = 32,
+		},
+	}, {
+		.type = IIO_POWER,
+		.indexed = 1,
+		.channel = 2,
+		.extend_name = "reactive_raw",
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SHARED_BIT,
+		.address = AD7758_WT(AD7758_PHASE_C, AD7758_REACT_PWR),
+		.scan_index = 14,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 24,
+			.storagebits = 32,
+		},
+	},
 	IIO_CHAN_SOFT_TIMESTAMP(15),
 };
 
@@ -734,7 +885,7 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 {
 	int i, ret;
 	struct ade7758_state *st;
-	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
+	struct iio_dev *indio_dev = iio_device_alloc(sizeof(*st));
 
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
@@ -800,7 +951,7 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	return 0;
 
 error_remove_trigger:
-	if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
+	if (spi->irq)
 		ade7758_remove_trigger(indio_dev);
 error_uninitialize_ring:
 	ade7758_uninitialize_ring(indio_dev);
@@ -811,7 +962,7 @@ error_free_tx:
 error_free_rx:
 	kfree(st->rx);
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -833,7 +984,7 @@ static int ade7758_remove(struct spi_device *spi)
 	kfree(st->tx);
 	kfree(st->rx);
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 err_ret:
 	return ret;

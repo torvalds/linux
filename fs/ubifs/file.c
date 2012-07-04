@@ -97,7 +97,7 @@ static int read_block(struct inode *inode, void *addr, unsigned int block,
 dump:
 	ubifs_err("bad data node (block %u, inode %lu)",
 		  block, inode->i_ino);
-	dbg_dump_node(c, dn);
+	ubifs_dump_node(c, dn);
 	return -EINVAL;
 }
 
@@ -1562,12 +1562,10 @@ const struct address_space_operations ubifs_file_address_operations = {
 const struct inode_operations ubifs_file_inode_operations = {
 	.setattr     = ubifs_setattr,
 	.getattr     = ubifs_getattr,
-#ifdef CONFIG_UBIFS_FS_XATTR
 	.setxattr    = ubifs_setxattr,
 	.getxattr    = ubifs_getxattr,
 	.listxattr   = ubifs_listxattr,
 	.removexattr = ubifs_removexattr,
-#endif
 };
 
 const struct inode_operations ubifs_symlink_inode_operations = {

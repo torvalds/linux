@@ -1316,7 +1316,7 @@ static void bnx2x_port_stats_base_init(struct bnx2x *bp)
  *
  * @param bp
  */
-static inline void bnx2x_prep_fw_stats_req(struct bnx2x *bp)
+static void bnx2x_prep_fw_stats_req(struct bnx2x *bp)
 {
 	int i;
 	int first_queue_query_index;
@@ -1559,5 +1559,276 @@ void bnx2x_save_statistics(struct bnx2x *bp)
 		UPDATE_FW_STAT_OLD(mf_tag_discard);
 		UPDATE_FW_STAT_OLD(brb_truncate_discard);
 		UPDATE_FW_STAT_OLD(mac_discard);
+	}
+}
+
+void bnx2x_afex_collect_stats(struct bnx2x *bp, void *void_afex_stats,
+			      u32 stats_type)
+{
+	int i;
+	struct afex_stats *afex_stats = (struct afex_stats *)void_afex_stats;
+	struct bnx2x_eth_stats *estats = &bp->eth_stats;
+	struct per_queue_stats *fcoe_q_stats =
+		&bp->fw_stats_data->queue_stats[FCOE_IDX];
+
+	struct tstorm_per_queue_stats *fcoe_q_tstorm_stats =
+		&fcoe_q_stats->tstorm_queue_statistics;
+
+	struct ustorm_per_queue_stats *fcoe_q_ustorm_stats =
+		&fcoe_q_stats->ustorm_queue_statistics;
+
+	struct xstorm_per_queue_stats *fcoe_q_xstorm_stats =
+		&fcoe_q_stats->xstorm_queue_statistics;
+
+	struct fcoe_statistics_params *fw_fcoe_stat =
+		&bp->fw_stats_data->fcoe;
+
+	memset(afex_stats, 0, sizeof(struct afex_stats));
+
+	for_each_eth_queue(bp, i) {
+		struct bnx2x_fastpath *fp = &bp->fp[i];
+		struct bnx2x_eth_q_stats *qstats = &fp->eth_q_stats;
+
+		ADD_64(afex_stats->rx_unicast_bytes_hi,
+		       qstats->total_unicast_bytes_received_hi,
+		       afex_stats->rx_unicast_bytes_lo,
+		       qstats->total_unicast_bytes_received_lo);
+
+		ADD_64(afex_stats->rx_broadcast_bytes_hi,
+		       qstats->total_broadcast_bytes_received_hi,
+		       afex_stats->rx_broadcast_bytes_lo,
+		       qstats->total_broadcast_bytes_received_lo);
+
+		ADD_64(afex_stats->rx_multicast_bytes_hi,
+		       qstats->total_multicast_bytes_received_hi,
+		       afex_stats->rx_multicast_bytes_lo,
+		       qstats->total_multicast_bytes_received_lo);
+
+		ADD_64(afex_stats->rx_unicast_frames_hi,
+		       qstats->total_unicast_packets_received_hi,
+		       afex_stats->rx_unicast_frames_lo,
+		       qstats->total_unicast_packets_received_lo);
+
+		ADD_64(afex_stats->rx_broadcast_frames_hi,
+		       qstats->total_broadcast_packets_received_hi,
+		       afex_stats->rx_broadcast_frames_lo,
+		       qstats->total_broadcast_packets_received_lo);
+
+		ADD_64(afex_stats->rx_multicast_frames_hi,
+		       qstats->total_multicast_packets_received_hi,
+		       afex_stats->rx_multicast_frames_lo,
+		       qstats->total_multicast_packets_received_lo);
+
+		/* sum to rx_frames_discarded all discraded
+		 * packets due to size, ttl0 and checksum
+		 */
+		ADD_64(afex_stats->rx_frames_discarded_hi,
+		       qstats->total_packets_received_checksum_discarded_hi,
+		       afex_stats->rx_frames_discarded_lo,
+		       qstats->total_packets_received_checksum_discarded_lo);
+
+		ADD_64(afex_stats->rx_frames_discarded_hi,
+		       qstats->total_packets_received_ttl0_discarded_hi,
+		       afex_stats->rx_frames_discarded_lo,
+		       qstats->total_packets_received_ttl0_discarded_lo);
+
+		ADD_64(afex_stats->rx_frames_discarded_hi,
+		       qstats->etherstatsoverrsizepkts_hi,
+		       afex_stats->rx_frames_discarded_lo,
+		       qstats->etherstatsoverrsizepkts_lo);
+
+		ADD_64(afex_stats->rx_frames_dropped_hi,
+		       qstats->no_buff_discard_hi,
+		       afex_stats->rx_frames_dropped_lo,
+		       qstats->no_buff_discard_lo);
+
+		ADD_64(afex_stats->tx_unicast_bytes_hi,
+		       qstats->total_unicast_bytes_transmitted_hi,
+		       afex_stats->tx_unicast_bytes_lo,
+		       qstats->total_unicast_bytes_transmitted_lo);
+
+		ADD_64(afex_stats->tx_broadcast_bytes_hi,
+		       qstats->total_broadcast_bytes_transmitted_hi,
+		       afex_stats->tx_broadcast_bytes_lo,
+		       qstats->total_broadcast_bytes_transmitted_lo);
+
+		ADD_64(afex_stats->tx_multicast_bytes_hi,
+		       qstats->total_multicast_bytes_transmitted_hi,
+		       afex_stats->tx_multicast_bytes_lo,
+		       qstats->total_multicast_bytes_transmitted_lo);
+
+		ADD_64(afex_stats->tx_unicast_frames_hi,
+		       qstats->total_unicast_packets_transmitted_hi,
+		       afex_stats->tx_unicast_frames_lo,
+		       qstats->total_unicast_packets_transmitted_lo);
+
+		ADD_64(afex_stats->tx_broadcast_frames_hi,
+		       qstats->total_broadcast_packets_transmitted_hi,
+		       afex_stats->tx_broadcast_frames_lo,
+		       qstats->total_broadcast_packets_transmitted_lo);
+
+		ADD_64(afex_stats->tx_multicast_frames_hi,
+		       qstats->total_multicast_packets_transmitted_hi,
+		       afex_stats->tx_multicast_frames_lo,
+		       qstats->total_multicast_packets_transmitted_lo);
+
+		ADD_64(afex_stats->tx_frames_dropped_hi,
+		       qstats->total_transmitted_dropped_packets_error_hi,
+		       afex_stats->tx_frames_dropped_lo,
+		       qstats->total_transmitted_dropped_packets_error_lo);
+	}
+
+	/* now add FCoE statistics which are collected separately
+	 * (both offloaded and non offloaded)
+	 */
+	if (!NO_FCOE(bp)) {
+		ADD_64_LE(afex_stats->rx_unicast_bytes_hi,
+			  LE32_0,
+			  afex_stats->rx_unicast_bytes_lo,
+			  fw_fcoe_stat->rx_stat0.fcoe_rx_byte_cnt);
+
+		ADD_64_LE(afex_stats->rx_unicast_bytes_hi,
+			  fcoe_q_tstorm_stats->rcv_ucast_bytes.hi,
+			  afex_stats->rx_unicast_bytes_lo,
+			  fcoe_q_tstorm_stats->rcv_ucast_bytes.lo);
+
+		ADD_64_LE(afex_stats->rx_broadcast_bytes_hi,
+			  fcoe_q_tstorm_stats->rcv_bcast_bytes.hi,
+			  afex_stats->rx_broadcast_bytes_lo,
+			  fcoe_q_tstorm_stats->rcv_bcast_bytes.lo);
+
+		ADD_64_LE(afex_stats->rx_multicast_bytes_hi,
+			  fcoe_q_tstorm_stats->rcv_mcast_bytes.hi,
+			  afex_stats->rx_multicast_bytes_lo,
+			  fcoe_q_tstorm_stats->rcv_mcast_bytes.lo);
+
+		ADD_64_LE(afex_stats->rx_unicast_frames_hi,
+			  LE32_0,
+			  afex_stats->rx_unicast_frames_lo,
+			  fw_fcoe_stat->rx_stat0.fcoe_rx_pkt_cnt);
+
+		ADD_64_LE(afex_stats->rx_unicast_frames_hi,
+			  LE32_0,
+			  afex_stats->rx_unicast_frames_lo,
+			  fcoe_q_tstorm_stats->rcv_ucast_pkts);
+
+		ADD_64_LE(afex_stats->rx_broadcast_frames_hi,
+			  LE32_0,
+			  afex_stats->rx_broadcast_frames_lo,
+			  fcoe_q_tstorm_stats->rcv_bcast_pkts);
+
+		ADD_64_LE(afex_stats->rx_multicast_frames_hi,
+			  LE32_0,
+			  afex_stats->rx_multicast_frames_lo,
+			  fcoe_q_tstorm_stats->rcv_ucast_pkts);
+
+		ADD_64_LE(afex_stats->rx_frames_discarded_hi,
+			  LE32_0,
+			  afex_stats->rx_frames_discarded_lo,
+			  fcoe_q_tstorm_stats->checksum_discard);
+
+		ADD_64_LE(afex_stats->rx_frames_discarded_hi,
+			  LE32_0,
+			  afex_stats->rx_frames_discarded_lo,
+			  fcoe_q_tstorm_stats->pkts_too_big_discard);
+
+		ADD_64_LE(afex_stats->rx_frames_discarded_hi,
+			  LE32_0,
+			  afex_stats->rx_frames_discarded_lo,
+			  fcoe_q_tstorm_stats->ttl0_discard);
+
+		ADD_64_LE16(afex_stats->rx_frames_dropped_hi,
+			    LE16_0,
+			    afex_stats->rx_frames_dropped_lo,
+			    fcoe_q_tstorm_stats->no_buff_discard);
+
+		ADD_64_LE(afex_stats->rx_frames_dropped_hi,
+			  LE32_0,
+			  afex_stats->rx_frames_dropped_lo,
+			  fcoe_q_ustorm_stats->ucast_no_buff_pkts);
+
+		ADD_64_LE(afex_stats->rx_frames_dropped_hi,
+			  LE32_0,
+			  afex_stats->rx_frames_dropped_lo,
+			  fcoe_q_ustorm_stats->mcast_no_buff_pkts);
+
+		ADD_64_LE(afex_stats->rx_frames_dropped_hi,
+			  LE32_0,
+			  afex_stats->rx_frames_dropped_lo,
+			  fcoe_q_ustorm_stats->bcast_no_buff_pkts);
+
+		ADD_64_LE(afex_stats->rx_frames_dropped_hi,
+			  LE32_0,
+			  afex_stats->rx_frames_dropped_lo,
+			  fw_fcoe_stat->rx_stat1.fcoe_rx_drop_pkt_cnt);
+
+		ADD_64_LE(afex_stats->rx_frames_dropped_hi,
+			  LE32_0,
+			  afex_stats->rx_frames_dropped_lo,
+			  fw_fcoe_stat->rx_stat2.fcoe_rx_drop_pkt_cnt);
+
+		ADD_64_LE(afex_stats->tx_unicast_bytes_hi,
+			  LE32_0,
+			  afex_stats->tx_unicast_bytes_lo,
+			  fw_fcoe_stat->tx_stat.fcoe_tx_byte_cnt);
+
+		ADD_64_LE(afex_stats->tx_unicast_bytes_hi,
+			  fcoe_q_xstorm_stats->ucast_bytes_sent.hi,
+			  afex_stats->tx_unicast_bytes_lo,
+			  fcoe_q_xstorm_stats->ucast_bytes_sent.lo);
+
+		ADD_64_LE(afex_stats->tx_broadcast_bytes_hi,
+			  fcoe_q_xstorm_stats->bcast_bytes_sent.hi,
+			  afex_stats->tx_broadcast_bytes_lo,
+			  fcoe_q_xstorm_stats->bcast_bytes_sent.lo);
+
+		ADD_64_LE(afex_stats->tx_multicast_bytes_hi,
+			  fcoe_q_xstorm_stats->mcast_bytes_sent.hi,
+			  afex_stats->tx_multicast_bytes_lo,
+			  fcoe_q_xstorm_stats->mcast_bytes_sent.lo);
+
+		ADD_64_LE(afex_stats->tx_unicast_frames_hi,
+			  LE32_0,
+			  afex_stats->tx_unicast_frames_lo,
+			  fw_fcoe_stat->tx_stat.fcoe_tx_pkt_cnt);
+
+		ADD_64_LE(afex_stats->tx_unicast_frames_hi,
+			  LE32_0,
+			  afex_stats->tx_unicast_frames_lo,
+			  fcoe_q_xstorm_stats->ucast_pkts_sent);
+
+		ADD_64_LE(afex_stats->tx_broadcast_frames_hi,
+			  LE32_0,
+			  afex_stats->tx_broadcast_frames_lo,
+			  fcoe_q_xstorm_stats->bcast_pkts_sent);
+
+		ADD_64_LE(afex_stats->tx_multicast_frames_hi,
+			  LE32_0,
+			  afex_stats->tx_multicast_frames_lo,
+			  fcoe_q_xstorm_stats->mcast_pkts_sent);
+
+		ADD_64_LE(afex_stats->tx_frames_dropped_hi,
+			  LE32_0,
+			  afex_stats->tx_frames_dropped_lo,
+			  fcoe_q_xstorm_stats->error_drop_pkts);
+	}
+
+	/* if port stats are requested, add them to the PMF
+	 * stats, as anyway they will be accumulated by the
+	 * MCP before sent to the switch
+	 */
+	if ((bp->port.pmf) && (stats_type == VICSTATST_UIF_INDEX)) {
+		ADD_64(afex_stats->rx_frames_dropped_hi,
+		       0,
+		       afex_stats->rx_frames_dropped_lo,
+		       estats->mac_filter_discard);
+		ADD_64(afex_stats->rx_frames_dropped_hi,
+		       0,
+		       afex_stats->rx_frames_dropped_lo,
+		       estats->brb_truncate_discard);
+		ADD_64(afex_stats->rx_frames_discarded_hi,
+		       0,
+		       afex_stats->rx_frames_discarded_lo,
+		       estats->mac_discard);
 	}
 }

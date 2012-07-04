@@ -11,7 +11,7 @@ Optional properties:
 
 Example:
 
-uart@73fbc000 {
+serial@73fbc000 {
 	compatible = "fsl,imx51-uart", "fsl,imx21-uart";
 	reg = <0x73fbc000 0x4000>;
 	interrupts = <31>;

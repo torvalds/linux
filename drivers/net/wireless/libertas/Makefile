@@ -6,6 +6,7 @@ libertas-y += ethtool.o
 libertas-y += main.o
 libertas-y += rx.o
 libertas-y += tx.o
+libertas-y += firmware.o
 libertas-$(CONFIG_LIBERTAS_MESH) += mesh.o
 
 usb8xxx-objs += if_usb.o

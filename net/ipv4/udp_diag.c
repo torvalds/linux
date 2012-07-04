@@ -146,9 +146,17 @@ static int udp_diag_dump_one(struct sk_buff *in_skb, const struct nlmsghdr *nlh,
 	return udp_dump_one(&udp_table, in_skb, nlh, req);
 }
 
+static void udp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
+		void *info)
+{
+	r->idiag_rqueue = sk_rmem_alloc_get(sk);
+	r->idiag_wqueue = sk_wmem_alloc_get(sk);
+}
+
 static const struct inet_diag_handler udp_diag_handler = {
 	.dump		 = udp_diag_dump,
 	.dump_one	 = udp_diag_dump_one,
+	.idiag_get_info  = udp_diag_get_info,
 	.idiag_type	 = IPPROTO_UDP,
 };
 
@@ -167,6 +175,7 @@ static int udplite_diag_dump_one(struct sk_buff *in_skb, const struct nlmsghdr *
 static const struct inet_diag_handler udplite_diag_handler = {
 	.dump		 = udplite_diag_dump,
 	.dump_one	 = udplite_diag_dump_one,
+	.idiag_get_info  = udp_diag_get_info,
 	.idiag_type	 = IPPROTO_UDPLITE,
 };
 

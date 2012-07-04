@@ -103,6 +103,7 @@ static int chnl_recv_cb(struct cflayer *layr, struct cfpkt *pkt)
 		skb->protocol = htons(ETH_P_IPV6);
 		break;
 	default:
+		kfree_skb(skb);
 		priv->netdev->stats.rx_errors++;
 		return -EINVAL;
 	}
@@ -220,14 +221,16 @@ static int chnl_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (skb->len > priv->netdev->mtu) {
 		pr_warn("Size of skb exceeded MTU\n");
+		kfree_skb(skb);
 		dev->stats.tx_errors++;
-		return -ENOSPC;
+		return NETDEV_TX_OK;
 	}
 
 	if (!priv->flowenabled) {
 		pr_debug("dropping packets flow off\n");
+		kfree_skb(skb);
 		dev->stats.tx_dropped++;
-		return NETDEV_TX_BUSY;
+		return NETDEV_TX_OK;
 	}
 
 	if (priv->conn_req.protocol == CAIFPROTO_DATAGRAM_LOOP)
@@ -242,7 +245,7 @@ static int chnl_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	result = priv->chnl.dn->transmit(priv->chnl.dn, pkt);
 	if (result) {
 		dev->stats.tx_dropped++;
-		return result;
+		return NETDEV_TX_OK;
 	}
 
 	/* Update statistics. */
@@ -421,14 +424,14 @@ static int ipcaif_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	struct chnl_net *priv;
 	u8 loop;
 	priv = netdev_priv(dev);
-	NLA_PUT_U32(skb, IFLA_CAIF_IPV4_CONNID,
-		    priv->conn_req.sockaddr.u.dgm.connection_id);
-	NLA_PUT_U32(skb, IFLA_CAIF_IPV6_CONNID,
-		    priv->conn_req.sockaddr.u.dgm.connection_id);
+	if (nla_put_u32(skb, IFLA_CAIF_IPV4_CONNID,
+			priv->conn_req.sockaddr.u.dgm.connection_id) ||
+	    nla_put_u32(skb, IFLA_CAIF_IPV6_CONNID,
+			priv->conn_req.sockaddr.u.dgm.connection_id))
+		goto nla_put_failure;
 	loop = priv->conn_req.protocol == CAIFPROTO_DATAGRAM_LOOP;
-	NLA_PUT_U8(skb, IFLA_CAIF_LOOPBACK, loop);
-
-
+	if (nla_put_u8(skb, IFLA_CAIF_LOOPBACK, loop))
+		goto nla_put_failure;
 	return 0;
 nla_put_failure:
 	return -EMSGSIZE;

@@ -130,7 +130,6 @@ struct serial_uart_config {
 #define ASYNCB_CHECK_CD		25 /* i.e., CLOCAL */
 #define ASYNCB_SHARE_IRQ	24 /* for multifunction cards, no longer used */
 #define ASYNCB_CONS_FLOW	23 /* flow control for console  */
-#define ASYNCB_BOOT_ONLYMCA	22 /* Probe only if MCA bus */
 #define ASYNCB_FIRST_KERNEL	22
 
 #define ASYNC_HUP_NOTIFY	(1U << ASYNCB_HUP_NOTIFY)
@@ -166,7 +165,6 @@ struct serial_uart_config {
 #define ASYNC_CHECK_CD		(1U << ASYNCB_CHECK_CD)
 #define ASYNC_SHARE_IRQ		(1U << ASYNCB_SHARE_IRQ)
 #define ASYNC_CONS_FLOW		(1U << ASYNCB_CONS_FLOW)
-#define ASYNC_BOOT_ONLYMCA	(1U << ASYNCB_BOOT_ONLYMCA)
 #define ASYNC_INTERNAL_FLAGS	(~((1U << ASYNCB_FIRST_KERNEL) - 1))
 
 /*

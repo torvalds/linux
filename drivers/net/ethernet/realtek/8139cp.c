@@ -635,9 +635,12 @@ static irqreturn_t cp_interrupt (int irq, void *dev_instance)
  */
 static void cp_poll_controller(struct net_device *dev)
 {
-	disable_irq(dev->irq);
-	cp_interrupt(dev->irq, dev);
-	enable_irq(dev->irq);
+	struct cp_private *cp = netdev_priv(dev);
+	const int irq = cp->pdev->irq;
+
+	disable_irq(irq);
+	cp_interrupt(irq, dev);
+	enable_irq(irq);
 }
 #endif
 
@@ -958,6 +961,11 @@ static inline void cp_start_hw (struct cp_private *cp)
 	cpw8(Cmd, RxOn | TxOn);
 }
 
+static void cp_enable_irq(struct cp_private *cp)
+{
+	cpw16_f(IntrMask, cp_intr_mask);
+}
+
 static void cp_init_hw (struct cp_private *cp)
 {
 	struct net_device *dev = cp->dev;
@@ -970,6 +978,17 @@ static void cp_init_hw (struct cp_private *cp)
 	/* Restore our idea of the MAC address. */
 	cpw32_f (MAC0 + 0, le32_to_cpu (*(__le32 *) (dev->dev_addr + 0)));
 	cpw32_f (MAC0 + 4, le32_to_cpu (*(__le32 *) (dev->dev_addr + 4)));
+
+	cpw32_f(HiTxRingAddr, 0);
+	cpw32_f(HiTxRingAddr + 4, 0);
+
+	ring_dma = cp->ring_dma;
+	cpw32_f(RxRingAddr, ring_dma & 0xffffffff);
+	cpw32_f(RxRingAddr + 4, (ring_dma >> 16) >> 16);
+
+	ring_dma += sizeof(struct cp_desc) * CP_RX_RING_SIZE;
+	cpw32_f(TxRingAddr, ring_dma & 0xffffffff);
+	cpw32_f(TxRingAddr + 4, (ring_dma >> 16) >> 16);
 
 	cp_start_hw(cp);
 	cpw8(TxThresh, 0x06); /* XXX convert magic num to a constant */
@@ -984,20 +1003,7 @@ static void cp_init_hw (struct cp_private *cp)
 
 	cpw8(Config5, cpr8(Config5) & PMEStatus);
 
-	cpw32_f(HiTxRingAddr, 0);
-	cpw32_f(HiTxRingAddr + 4, 0);
-
-	ring_dma = cp->ring_dma;
-	cpw32_f(RxRingAddr, ring_dma & 0xffffffff);
-	cpw32_f(RxRingAddr + 4, (ring_dma >> 16) >> 16);
-
-	ring_dma += sizeof(struct cp_desc) * CP_RX_RING_SIZE;
-	cpw32_f(TxRingAddr, ring_dma & 0xffffffff);
-	cpw32_f(TxRingAddr + 4, (ring_dma >> 16) >> 16);
-
 	cpw16(MultiIntr, 0);
-
-	cpw16_f(IntrMask, cp_intr_mask);
 
 	cpw8_f(Cfg9346, Cfg9346_Lock);
 }
@@ -1114,6 +1120,7 @@ static void cp_free_rings (struct cp_private *cp)
 static int cp_open (struct net_device *dev)
 {
 	struct cp_private *cp = netdev_priv(dev);
+	const int irq = cp->pdev->irq;
 	int rc;
 
 	netif_dbg(cp, ifup, dev, "enabling interface\n");
@@ -1126,9 +1133,11 @@ static int cp_open (struct net_device *dev)
 
 	cp_init_hw(cp);
 
-	rc = request_irq(dev->irq, cp_interrupt, IRQF_SHARED, dev->name, dev);
+	rc = request_irq(irq, cp_interrupt, IRQF_SHARED, dev->name, dev);
 	if (rc)
 		goto err_out_hw;
+
+	cp_enable_irq(cp);
 
 	netif_carrier_off(dev);
 	mii_check_media(&cp->mii_if, netif_msg_link(cp), true);
@@ -1161,7 +1170,7 @@ static int cp_close (struct net_device *dev)
 
 	spin_unlock_irqrestore(&cp->lock, flags);
 
-	free_irq(dev->irq, dev);
+	free_irq(cp->pdev->irq, dev);
 
 	cp_free_rings(cp);
 	return 0;
@@ -1627,7 +1636,7 @@ static void eeprom_cmd(void __iomem *ee_addr, int cmd, int cmd_len)
 
 static void eeprom_cmd_end(void __iomem *ee_addr)
 {
-	writeb (~EE_CS, ee_addr);
+	writeb(0, ee_addr);
 	eeprom_delay ();
 }
 
@@ -1909,7 +1918,6 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		       (unsigned long long)pciaddr);
 		goto err_out_res;
 	}
-	dev->base_addr = (unsigned long) regs;
 	cp->regs = regs;
 
 	cp_stop_hw(cp);
@@ -1937,14 +1945,12 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
 		NETIF_F_HIGHDMA;
 
-	dev->irq = pdev->irq;
-
 	rc = register_netdev(dev);
 	if (rc)
 		goto err_out_iomap;
 
-	netdev_info(dev, "RTL-8139C+ at 0x%lx, %pM, IRQ %d\n",
-		    dev->base_addr, dev->dev_addr, dev->irq);
+	netdev_info(dev, "RTL-8139C+ at 0x%p, %pM, IRQ %d\n",
+		    regs, dev->dev_addr, pdev->irq);
 
 	pci_set_drvdata(pdev, dev);
 
@@ -2031,6 +2037,7 @@ static int cp_resume (struct pci_dev *pdev)
 	/* FIXME: sh*t may happen if the Rx ring buffer is depleted */
 	cp_init_rings_index (cp);
 	cp_init_hw (cp);
+	cp_enable_irq(cp);
 	netif_start_queue (dev);
 
 	spin_lock_irqsave (&cp->lock, flags);

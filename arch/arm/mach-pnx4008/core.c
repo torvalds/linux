@@ -265,6 +265,17 @@ static void pnx4008_restart(char mode, const char *cmd)
 	soft_restart(0);
 }
 
+#ifdef CONFIG_PM
+extern int pnx4008_pm_init(void);
+#else
+static inline int pnx4008_pm_init(void) { return 0; }
+#endif
+
+void __init pnx4008_init_late(void)
+{
+	pnx4008_pm_init();
+}
+
 extern struct sys_timer pnx4008_timer;
 
 MACHINE_START(PNX4008, "Philips PNX4008")
@@ -273,6 +284,7 @@ MACHINE_START(PNX4008, "Philips PNX4008")
 	.map_io 		= pnx4008_map_io,
 	.init_irq 		= pnx4008_init_irq,
 	.init_machine 		= pnx4008_init,
+	.init_late		= pnx4008_init_late,
 	.timer 			= &pnx4008_timer,
 	.restart		= pnx4008_restart,
 MACHINE_END

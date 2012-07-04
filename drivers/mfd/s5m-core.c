@@ -114,12 +114,12 @@ static int s5m87xx_i2c_probe(struct i2c_client *i2c,
 		s5m87xx->wakeup = pdata->wakeup;
 	}
 
-	s5m87xx->regmap = regmap_init_i2c(i2c, &s5m_regmap_config);
+	s5m87xx->regmap = devm_regmap_init_i2c(i2c, &s5m_regmap_config);
 	if (IS_ERR(s5m87xx->regmap)) {
 		ret = PTR_ERR(s5m87xx->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
 			ret);
-		goto err;
+		return ret;
 	}
 
 	s5m87xx->rtc = i2c_new_dummy(i2c->adapter, RTC_I2C_ADDR);
@@ -159,7 +159,6 @@ err:
 	mfd_remove_devices(s5m87xx->dev);
 	s5m_irq_exit(s5m87xx);
 	i2c_unregister_device(s5m87xx->rtc);
-	regmap_exit(s5m87xx->regmap);
 	return ret;
 }
 
@@ -170,7 +169,6 @@ static int s5m87xx_i2c_remove(struct i2c_client *i2c)
 	mfd_remove_devices(s5m87xx->dev);
 	s5m_irq_exit(s5m87xx);
 	i2c_unregister_device(s5m87xx->rtc);
-	regmap_exit(s5m87xx->regmap);
 	return 0;
 }
 

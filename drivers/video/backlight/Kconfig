@@ -88,7 +88,7 @@ config LCD_PLATFORM
 
 config LCD_TOSA
 	tristate "Sharp SL-6000 LCD Driver"
-	depends on SPI && MACH_TOSA
+	depends on I2C && SPI && MACH_TOSA
 	help
 	  If you have an Sharp SL-6000 Zaurus say Y to enable a driver
 	  for its LCD.
@@ -183,6 +183,18 @@ config BACKLIGHT_GENERIC
 	  Say y to enable the generic platform backlight driver previously
 	  known as the Corgi backlight driver. If you have a Sharp Zaurus
 	  SL-C7xx, SL-Cxx00 or SL-6000x say y.
+
+config BACKLIGHT_LM3533
+	tristate "Backlight Driver for LM3533"
+	depends on BACKLIGHT_CLASS_DEVICE
+	depends on MFD_LM3533
+	help
+	  Say Y to enable the backlight driver for National Semiconductor / TI
+	  LM3533 Lighting Power chips.
+
+	  The backlights can be controlled directly, through PWM input, or by
+	  the ambient-light-sensor interface. The chip supports 256 brightness
+	  levels.
 
 config BACKLIGHT_LOCOMO
 	tristate "Sharp LOCOMO LCD/Backlight Driver"

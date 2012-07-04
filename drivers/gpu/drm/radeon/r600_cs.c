@@ -345,7 +345,7 @@ static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 	u32 height, height_align, pitch, pitch_align, depth_align;
 	u64 base_offset, base_align;
 	struct array_mode_checker array_check;
-	volatile u32 *ib = p->ib->ptr;
+	volatile u32 *ib = p->ib.ptr;
 	unsigned array_mode;
 	u32 format;
 
@@ -471,7 +471,7 @@ static int r600_cs_track_validate_db(struct radeon_cs_parser *p)
 	u64 base_offset, base_align;
 	struct array_mode_checker array_check;
 	int array_mode;
-	volatile u32 *ib = p->ib->ptr;
+	volatile u32 *ib = p->ib.ptr;
 
 
 	if (track->db_bo == NULL) {
@@ -961,7 +961,7 @@ static int r600_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	uint32_t header, h_idx, reg, wait_reg_mem_info;
 	volatile uint32_t *ib;
 
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 
 	/* parse the WAIT_REG_MEM */
 	r = r600_cs_packet_parse(p, &wait_reg_mem, p->idx);
@@ -1110,7 +1110,7 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	m = 1 << ((reg >> 2) & 31);
 	if (!(r600_reg_safe_bm[i] & m))
 		return 0;
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 	switch (reg) {
 	/* force following reg to 0 in an attempt to disable out buffer
 	 * which will need us to better understand how it works to perform
@@ -1714,7 +1714,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 	u32 idx_value;
 
 	track = (struct r600_cs_track *)p->track;
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 	idx = pkt->idx + 1;
 	idx_value = radeon_get_ib_value(p, idx);
 
@@ -2079,6 +2079,48 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			return -EINVAL;
 		}
 		break;
+	case PACKET3_STRMOUT_BASE_UPDATE:
+		if (p->family < CHIP_RV770) {
+			DRM_ERROR("STRMOUT_BASE_UPDATE only supported on 7xx\n");
+			return -EINVAL;
+		}
+		if (pkt->count != 1) {
+			DRM_ERROR("bad STRMOUT_BASE_UPDATE packet count\n");
+			return -EINVAL;
+		}
+		if (idx_value > 3) {
+			DRM_ERROR("bad STRMOUT_BASE_UPDATE index\n");
+			return -EINVAL;
+		}
+		{
+			u64 offset;
+
+			r = r600_cs_packet_next_reloc(p, &reloc);
+			if (r) {
+				DRM_ERROR("bad STRMOUT_BASE_UPDATE reloc\n");
+				return -EINVAL;
+			}
+
+			if (reloc->robj != track->vgt_strmout_bo[idx_value]) {
+				DRM_ERROR("bad STRMOUT_BASE_UPDATE, bo does not match\n");
+				return -EINVAL;
+			}
+
+			offset = radeon_get_ib_value(p, idx+1) << 8;
+			if (offset != track->vgt_strmout_bo_offset[idx_value]) {
+				DRM_ERROR("bad STRMOUT_BASE_UPDATE, bo offset does not match: 0x%llx, 0x%x\n",
+					  offset, track->vgt_strmout_bo_offset[idx_value]);
+				return -EINVAL;
+			}
+
+			if ((offset + 4) > radeon_bo_size(reloc->robj)) {
+				DRM_ERROR("bad STRMOUT_BASE_UPDATE bo too small: 0x%llx, 0x%lx\n",
+					  offset + 4, radeon_bo_size(reloc->robj));
+				return -EINVAL;
+			}
+			ib[idx+1] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+		}
+		break;
 	case PACKET3_SURFACE_BASE_UPDATE:
 		if (p->family >= CHIP_RV770 || p->family == CHIP_R600) {
 			DRM_ERROR("bad SURFACE_BASE_UPDATE\n");
@@ -2249,8 +2291,8 @@ int r600_cs_parse(struct radeon_cs_parser *p)
 		}
 	} while (p->idx < p->chunks[p->chunk_ib_idx].length_dw);
 #if 0
-	for (r = 0; r < p->ib->length_dw; r++) {
-		printk(KERN_INFO "%05d  0x%08X\n", r, p->ib->ptr[r]);
+	for (r = 0; r < p->ib.length_dw; r++) {
+		printk(KERN_INFO "%05d  0x%08X\n", r, p->ib.ptr[r]);
 		mdelay(1);
 	}
 #endif
@@ -2298,7 +2340,6 @@ int r600_cs_legacy(struct drm_device *dev, void *data, struct drm_file *filp,
 {
 	struct radeon_cs_parser parser;
 	struct radeon_cs_chunk *ib_chunk;
-	struct radeon_ib fake_ib;
 	struct r600_cs_track *track;
 	int r;
 
@@ -2314,9 +2355,8 @@ int r600_cs_legacy(struct drm_device *dev, void *data, struct drm_file *filp,
 	parser.dev = &dev->pdev->dev;
 	parser.rdev = NULL;
 	parser.family = family;
-	parser.ib = &fake_ib;
 	parser.track = track;
-	fake_ib.ptr = ib;
+	parser.ib.ptr = ib;
 	r = radeon_cs_parser_init(&parser, data);
 	if (r) {
 		DRM_ERROR("Failed to initialize parser !\n");
@@ -2333,8 +2373,8 @@ int r600_cs_legacy(struct drm_device *dev, void *data, struct drm_file *filp,
 	 * input memory (cached) and write to the IB (which can be
 	 * uncached). */
 	ib_chunk = &parser.chunks[parser.chunk_ib_idx];
-	parser.ib->length_dw = ib_chunk->length_dw;
-	*l = parser.ib->length_dw;
+	parser.ib.length_dw = ib_chunk->length_dw;
+	*l = parser.ib.length_dw;
 	r = r600_cs_parse(&parser);
 	if (r) {
 		DRM_ERROR("Invalid command stream !\n");

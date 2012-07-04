@@ -12,7 +12,6 @@
 */
 
 #include <mach/hardware.h>
-#include <asm/hardware/clps7111.h>
 
 		.macro	addruart, rp, rv, tmp
 #ifndef CONFIG_DEBUG_CLPS711X_UART2
@@ -20,8 +19,8 @@
 #else
 		mov	\rp, #0x1000	@ UART2
 #endif
-		orr	\rv, \rp, #CLPS7111_VIRT_BASE
-		orr	\rp, \rp, #CLPS7111_PHYS_BASE
+		orr	\rv, \rp, #CLPS711X_VIRT_BASE
+		orr	\rp, \rp, #CLPS711X_PHYS_BASE
 		.endm
 
 		.macro	senduart,rd,rx

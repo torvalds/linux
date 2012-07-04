@@ -508,14 +508,14 @@ static void _rtl92ce_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 
 	packet_matchbssid =
 	    ((IEEE80211_FTYPE_CTL != type) &&
-	     (!compare_ether_addr(mac->bssid,
-				  (c_fc & IEEE80211_FCTL_TODS) ?
-				  hdr->addr1 : (c_fc & IEEE80211_FCTL_FROMDS) ?
-				  hdr->addr2 : hdr->addr3)) &&
+	     ether_addr_equal(mac->bssid,
+			      (c_fc & IEEE80211_FCTL_TODS) ? hdr->addr1 :
+			      (c_fc & IEEE80211_FCTL_FROMDS) ? hdr->addr2 :
+			      hdr->addr3) &&
 	     (!pstats->hwerror) && (!pstats->crc) && (!pstats->icv));
 
 	packet_toself = packet_matchbssid &&
-	    (!compare_ether_addr(praddr, rtlefuse->dev_addr));
+	     ether_addr_equal(praddr, rtlefuse->dev_addr);
 
 	if (ieee80211_is_beacon(fc))
 		packet_beacon = true;

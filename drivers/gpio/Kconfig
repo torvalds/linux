@@ -2,6 +2,14 @@
 # GPIO infrastructure and drivers
 #
 
+config ARCH_HAVE_CUSTOM_GPIO_H
+	bool
+	help
+	  Selecting this config option from the architecture Kconfig allows
+	  the architecture to provide a custom asm/gpio.h implementation
+	  overriding the default implementations.  New uses of this are
+	  strongly discouraged.
+
 config ARCH_WANT_OPTIONAL_GPIOLIB
 	bool
 	help
@@ -36,6 +44,10 @@ menuconfig GPIOLIB
 	  If unsure, say N.
 
 if GPIOLIB
+
+config OF_GPIO
+	def_bool y
+	depends on OF && !SPARC
 
 config DEBUG_GPIO
 	bool "Debug GPIO calls"
@@ -91,10 +103,24 @@ config GPIO_IT8761E
 	help
 	  Say yes here to support GPIO functionality of IT8761E super I/O chip.
 
+config GPIO_EM
+	tristate "Emma Mobile GPIO"
+	depends on ARM
+	help
+	  Say yes here to support GPIO on Renesas Emma Mobile SoCs.
+
 config GPIO_EP93XX
 	def_bool y
 	depends on ARCH_EP93XX
 	select GPIO_GENERIC
+
+config GPIO_MM_LANTIQ
+	bool "Lantiq Memory mapped GPIOs"
+	depends on LANTIQ && SOC_XWAY
+	help
+	  This enables support for memory mapped GPIOs on the External Bus Unit
+	  (EBU) found on Lantiq SoCs. The gpios are output only as they are
+	  created by attaching a 16bit latch to the bus.
 
 config GPIO_MPC5200
 	def_bool y
@@ -149,6 +175,14 @@ config GPIO_PXA
 	help
 	  Say yes here to support the PXA GPIO device
 
+config GPIO_STA2X11
+	bool "STA2x11/ConneXt GPIO support"
+	depends on MFD_STA2X11
+	select GENERIC_IRQ_CHIP
+	help
+	  Say yes here to support the STA2x11/ConneXt GPIO device.
+	  The GPIO module has 128 GPIO pins with alternate functions.
+
 config GPIO_XILINX
 	bool "Xilinx GPIO support"
 	depends on PPC_OF || MICROBLAZE
@@ -162,13 +196,13 @@ config GPIO_VR41XX
 	  Say yes here to support the NEC VR4100 series General-purpose I/O Uint
 
 config GPIO_SCH
-	tristate "Intel SCH/TunnelCreek GPIO"
+	tristate "Intel SCH/TunnelCreek/Centerton GPIO"
 	depends on PCI && X86
 	select MFD_CORE
 	select LPC_SCH
 	help
-	  Say yes here to support GPIO interface on Intel Poulsbo SCH
-	  or Intel Tunnel Creek processor.
+	  Say yes here to support GPIO interface on Intel Poulsbo SCH,
+	  Intel Tunnel Creek processor or Intel Centerton processor.
 	  The Intel SCH contains a total of 14 GPIO pins. Ten GPIOs are
 	  powered by the core power rail and are turned off during sleep
 	  modes (S3 and higher). The remaining four GPIOs are powered by
@@ -177,6 +211,22 @@ config GPIO_SCH
 	  system from the Suspend-to-RAM state.
 	  The Intel Tunnel Creek processor has 5 GPIOs powered by the
 	  core power rail and 9 from suspend power supply.
+	  The Intel Centerton processor has a total of 30 GPIO pins.
+	  Twenty-one are powered by the core power rail and 9 from the
+	  suspend power supply.
+
+config GPIO_ICH
+	tristate "Intel ICH GPIO"
+	depends on PCI && X86
+	select MFD_CORE
+	select LPC_ICH
+	help
+	  Say yes here to support the GPIO functionality of a number of Intel
+	  ICH-based chipsets.  Currently supported devices: ICH6, ICH7, ICH8
+	  ICH9, ICH10, Series 5/3400 (eg Ibex Peak), Series 6/C200 (eg
+	  Cougar Point), NM10 (Tiger Point), and 3100 (Whitmore Lake).
+
+	  If unsure, say N.
 
 config GPIO_VX855
 	tristate "VIA VX855/VX875 GPIO"
@@ -243,7 +293,7 @@ config GPIO_MC9S08DZ60
 	  Select this to enable the MC9S08DZ60 GPIO driver
 
 config GPIO_PCA953X
-	tristate "PCA953x, PCA955x, TCA64xx, and MAX7310 I/O ports"
+	tristate "PCA953x, PCA955x, PCA957x, TCA64xx, and MAX7310 I/O ports"
 	depends on I2C
 	help
 	  Say yes here to provide access to several register-oriented
@@ -252,10 +302,11 @@ config GPIO_PCA953X
 
 	  4 bits:	pca9536, pca9537
 
-	  8 bits:	max7310, pca9534, pca9538, pca9554, pca9557,
-	  		tca6408
+	  8 bits:	max7310, max7315, pca6107, pca9534, pca9538, pca9554,
+			pca9556, pca9557, pca9574, tca6408
 
-	  16 bits:	pca9535, pca9539, pca9555, tca6416
+	  16 bits:	max7312, max7313, pca9535, pca9539, pca9555, pca9575,
+			tca6416
 
 config GPIO_PCA953X_IRQ
 	bool "Interrupt controller support for PCA953x"
@@ -288,6 +339,15 @@ config GPIO_PCF857X
 	  This driver provides an in-kernel interface to those GPIOs using
 	  platform-neutral GPIO calls.
 
+config GPIO_RC5T583
+	bool "RICOH RC5T583 GPIO"
+	depends on MFD_RC5T583
+	help
+	  Select this option to enable GPIO driver for the Ricoh RC5T583
+	  chip family.
+	  This driver provides the support for driving/reading the gpio pins
+	  of RC5T583 device through standard gpio library.
+
 config GPIO_SX150X
 	bool "Semtech SX150x I2C GPIO expander"
 	depends on I2C=y
@@ -305,6 +365,16 @@ config GPIO_STMPE
 	help
 	  This enables support for the GPIOs found on the STMPE I/O
 	  Expanders.
+
+config GPIO_STP_XWAY
+	bool "XWAY STP GPIOs"
+	depends on SOC_XWAY
+	help
+	  This enables support for the Serial To Parallel (STP) unit found on
+	  XWAY SoC. The STP allows the SoC to drive a shift registers cascade,
+	  that can be up to 24 bit. This peripheral is aimed at driving leds.
+	  Some of the gpios/leds can be auto updated by the soc with dsl and
+	  phy status.
 
 config GPIO_TC3589X
 	bool "TC3589X GPIOs"
@@ -399,6 +469,7 @@ config GPIO_BT8XX
 config GPIO_LANGWELL
 	bool "Intel Langwell/Penwell GPIO support"
 	depends on PCI && X86
+	select IRQ_DOMAIN
 	help
 	  Say Y here to support Intel Langwell/Penwell GPIO.
 
@@ -514,4 +585,12 @@ config GPIO_TPS65910
 	help
 	  Select this option to enable GPIO driver for the TPS65910
 	  chip family.
+
+config GPIO_MSIC
+	bool "Intel MSIC mixed signal gpio support"
+	depends on MFD_INTEL_MSIC
+	help
+	  Enable support for GPIO on intel MSIC controllers found in
+	  intel MID devices
+
 endif

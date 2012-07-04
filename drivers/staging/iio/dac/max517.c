@@ -25,8 +25,8 @@
 #include <linux/i2c.h>
 #include <linux/err.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 #include "dac.h"
 
 #include "max517.h"
@@ -59,7 +59,7 @@ static ssize_t max517_set_value(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count, int channel)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct max517_data *data = iio_priv(indio_dev);
 	struct i2c_client *client = data->client;
 	u8 outbuf[4]; /* 1x or 2x command + value */
@@ -128,7 +128,7 @@ static ssize_t max517_show_scale(struct device *dev,
 				struct device_attribute *attr,
 				char *buf, int channel)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct max517_data *data = iio_priv(indio_dev);
 	/* Corresponds to Vref / 2^(bits) */
 	unsigned int scale_uv = (data->vref_mv[channel - 1] * 1000) >> 8;
@@ -218,7 +218,7 @@ static int max517_probe(struct i2c_client *client,
 	struct max517_platform_data *platform_data = client->dev.platform_data;
 	int err;
 
-	indio_dev = iio_allocate_device(sizeof(*data));
+	indio_dev = iio_device_alloc(sizeof(*data));
 	if (indio_dev == NULL) {
 		err = -ENOMEM;
 		goto exit;
@@ -257,14 +257,15 @@ static int max517_probe(struct i2c_client *client,
 	return 0;
 
 exit_free_device:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 exit:
 	return err;
 }
 
 static int max517_remove(struct i2c_client *client)
 {
-	iio_free_device(i2c_get_clientdata(client));
+	iio_device_unregister(i2c_get_clientdata(client));
+	iio_device_free(i2c_get_clientdata(client));
 
 	return 0;
 }

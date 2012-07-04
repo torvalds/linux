@@ -695,7 +695,7 @@ int i2400mu_resume(struct usb_interface *iface)
 	d_fnstart(3, dev, "(iface %p)\n", iface);
 	rmb();		/* see i2400m->updown's documentation  */
 	if (i2400m->updown == 0) {
-		d_printf(1, dev, "fw was down, no resume neeed\n");
+		d_printf(1, dev, "fw was down, no resume needed\n");
 		goto out;
 	}
 	d_printf(1, dev, "fw was up, resuming\n");

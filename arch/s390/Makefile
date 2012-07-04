@@ -91,7 +91,6 @@ OBJCOPYFLAGS	:= -O binary
 
 head-y		:= arch/s390/kernel/head.o
 head-y		+= arch/s390/kernel/$(if $(CONFIG_64BIT),head64.o,head31.o)
-head-y		+= arch/s390/kernel/init_task.o
 
 # See arch/s390/Kbuild for content of core part of the kernel
 core-y		+= arch/s390/

@@ -6,6 +6,7 @@
  * for more details.
  */
 
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/zorro.h>
@@ -46,18 +47,25 @@ static const struct resource zorro_resources[] __initconst = {
 
 static int __init amiga_init_bus(void)
 {
+	struct platform_device *pdev;
+	unsigned int n;
+
 	if (!MACH_IS_AMIGA || !AMIGAHW_PRESENT(ZORRO))
 		return -ENODEV;
 
-	platform_device_register_simple("amiga-zorro", -1, zorro_resources,
-					AMIGAHW_PRESENT(ZORRO3) ? 4 : 2);
+	n = AMIGAHW_PRESENT(ZORRO3) ? 4 : 2;
+	pdev = platform_device_register_simple("amiga-zorro", -1,
+					       zorro_resources, n);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
 	return 0;
 }
 
 subsys_initcall(amiga_init_bus);
 
 
-static int z_dev_present(zorro_id id)
+static int __init z_dev_present(zorro_id id)
 {
 	unsigned int i;
 
@@ -126,72 +134,122 @@ static const struct resource amiga_rtc_resource __initconst = {
 static int __init amiga_init_devices(void)
 {
 	struct platform_device *pdev;
+	int error;
 
 	if (!MACH_IS_AMIGA)
 		return -ENODEV;
 
 	/* video hardware */
-	if (AMIGAHW_PRESENT(AMI_VIDEO))
-		platform_device_register_simple("amiga-video", -1, NULL, 0);
+	if (AMIGAHW_PRESENT(AMI_VIDEO)) {
+		pdev = platform_device_register_simple("amiga-video", -1, NULL,
+						       0);
+		if (IS_ERR(pdev))
+			return PTR_ERR(pdev);
+	}
 
 
 	/* sound hardware */
-	if (AMIGAHW_PRESENT(AMI_AUDIO))
-		platform_device_register_simple("amiga-audio", -1, NULL, 0);
+	if (AMIGAHW_PRESENT(AMI_AUDIO)) {
+		pdev = platform_device_register_simple("amiga-audio", -1, NULL,
+						       0);
+		if (IS_ERR(pdev))
+			return PTR_ERR(pdev);
+	}
 
 
 	/* storage interfaces */
-	if (AMIGAHW_PRESENT(AMI_FLOPPY))
-		platform_device_register_simple("amiga-floppy", -1, NULL, 0);
+	if (AMIGAHW_PRESENT(AMI_FLOPPY)) {
+		pdev = platform_device_register_simple("amiga-floppy", -1,
+						       NULL, 0);
+		if (IS_ERR(pdev))
+			return PTR_ERR(pdev);
+	}
 
-	if (AMIGAHW_PRESENT(A3000_SCSI))
-		platform_device_register_simple("amiga-a3000-scsi", -1,
-						&a3000_scsi_resource, 1);
+	if (AMIGAHW_PRESENT(A3000_SCSI)) {
+		pdev = platform_device_register_simple("amiga-a3000-scsi", -1,
+						       &a3000_scsi_resource, 1);
+		if (IS_ERR(pdev))
+			return PTR_ERR(pdev);
+	}
 
-	if (AMIGAHW_PRESENT(A4000_SCSI))
-		platform_device_register_simple("amiga-a4000t-scsi", -1,
-						&a4000t_scsi_resource, 1);
+	if (AMIGAHW_PRESENT(A4000_SCSI)) {
+		pdev = platform_device_register_simple("amiga-a4000t-scsi", -1,
+						       &a4000t_scsi_resource,
+						       1);
+		if (IS_ERR(pdev))
+			return PTR_ERR(pdev);
+	}
 
 	if (AMIGAHW_PRESENT(A1200_IDE) ||
 	    z_dev_present(ZORRO_PROD_MTEC_VIPER_MK_V_E_MATRIX_530_SCSI_IDE)) {
 		pdev = platform_device_register_simple("amiga-gayle-ide", -1,
 						       &a1200_ide_resource, 1);
-		platform_device_add_data(pdev, &a1200_ide_pdata,
-					 sizeof(a1200_ide_pdata));
+		if (IS_ERR(pdev))
+			return PTR_ERR(pdev);
+		error = platform_device_add_data(pdev, &a1200_ide_pdata,
+						 sizeof(a1200_ide_pdata));
+		if (error)
+			return error;
 	}
 
 	if (AMIGAHW_PRESENT(A4000_IDE)) {
 		pdev = platform_device_register_simple("amiga-gayle-ide", -1,
 						       &a4000_ide_resource, 1);
-		platform_device_add_data(pdev, &a4000_ide_pdata,
-					 sizeof(a4000_ide_pdata));
+		if (IS_ERR(pdev))
+			return PTR_ERR(pdev);
+		error = platform_device_add_data(pdev, &a4000_ide_pdata,
+						 sizeof(a4000_ide_pdata));
+		if (error)
+			return error;
 	}
 
 
 	/* other I/O hardware */
-	if (AMIGAHW_PRESENT(AMI_KEYBOARD))
-		platform_device_register_simple("amiga-keyboard", -1, NULL, 0);
+	if (AMIGAHW_PRESENT(AMI_KEYBOARD)) {
+		pdev = platform_device_register_simple("amiga-keyboard", -1,
+						       NULL, 0);
+		if (IS_ERR(pdev))
+			return PTR_ERR(pdev);
+	}
 
-	if (AMIGAHW_PRESENT(AMI_MOUSE))
-		platform_device_register_simple("amiga-mouse", -1, NULL, 0);
+	if (AMIGAHW_PRESENT(AMI_MOUSE)) {
+		pdev = platform_device_register_simple("amiga-mouse", -1, NULL,
+						       0);
+		if (IS_ERR(pdev))
+			return PTR_ERR(pdev);
+	}
 
-	if (AMIGAHW_PRESENT(AMI_SERIAL))
-		platform_device_register_simple("amiga-serial", -1, NULL, 0);
+	if (AMIGAHW_PRESENT(AMI_SERIAL)) {
+		pdev = platform_device_register_simple("amiga-serial", -1,
+						       NULL, 0);
+		if (IS_ERR(pdev))
+			return PTR_ERR(pdev);
+	}
 
-	if (AMIGAHW_PRESENT(AMI_PARALLEL))
-		platform_device_register_simple("amiga-parallel", -1, NULL, 0);
+	if (AMIGAHW_PRESENT(AMI_PARALLEL)) {
+		pdev = platform_device_register_simple("amiga-parallel", -1,
+						       NULL, 0);
+		if (IS_ERR(pdev))
+			return PTR_ERR(pdev);
+	}
 
 
 	/* real time clocks */
-	if (AMIGAHW_PRESENT(A2000_CLK))
-		platform_device_register_simple("rtc-msm6242", -1,
-						&amiga_rtc_resource, 1);
+	if (AMIGAHW_PRESENT(A2000_CLK)) {
+		pdev = platform_device_register_simple("rtc-msm6242", -1,
+						       &amiga_rtc_resource, 1);
+		if (IS_ERR(pdev))
+			return PTR_ERR(pdev);
+	}
 
-	if (AMIGAHW_PRESENT(A3000_CLK))
-		platform_device_register_simple("rtc-rp5c01", -1,
-						&amiga_rtc_resource, 1);
+	if (AMIGAHW_PRESENT(A3000_CLK)) {
+		pdev = platform_device_register_simple("rtc-rp5c01", -1,
+						       &amiga_rtc_resource, 1);
+		if (IS_ERR(pdev))
+			return PTR_ERR(pdev);
+	}
 
 	return 0;
 }
 
-device_initcall(amiga_init_devices);
+arch_initcall(amiga_init_devices);

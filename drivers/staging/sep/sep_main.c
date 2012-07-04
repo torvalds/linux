@@ -786,7 +786,7 @@ static unsigned int sep_poll(struct file *filp, poll_table *wait)
 		"[PID%d] poll: send_ct is %lx reply ct is %lx\n",
 			current->pid, sep->send_ct, sep->reply_ct);
 
-	/* Check if error occured during poll */
+	/* Check if error occurred during poll */
 	retval2 = sep_read_reg(sep, HW_HOST_SEP_HOST_GPR3_REG_ADDR);
 	if ((retval2 != 0x0) && (retval2 != 0x8)) {
 		dev_dbg(&sep->pdev->dev, "[PID%d] poll; poll error %x\n",
@@ -1160,7 +1160,7 @@ static int sep_lock_kernel_pages(struct sep_device *sep,
 
 	/* Put mapped kernel sg into kernel resource array */
 
-	/* Set output params acording to the in_out flag */
+	/* Set output params according to the in_out flag */
 	if (in_out_flag == SEP_DRIVER_IN_FLAG) {
 		*lli_array_ptr = lli_array;
 		dma_ctx->dma_res_arr[dma_ctx->nr_dcb_creat].in_num_pages =
@@ -1358,7 +1358,7 @@ static int sep_lock_user_pages(struct sep_device *sep,
 			lli_array[num_pages - 1].block_size);
 	}
 
-	/* Set output params acording to the in_out flag */
+	/* Set output params according to the in_out flag */
 	if (in_out_flag == SEP_DRIVER_IN_FLAG) {
 		*lli_array_ptr = lli_array;
 		dma_ctx->dma_res_arr[dma_ctx->nr_dcb_creat].in_num_pages =
@@ -2038,7 +2038,7 @@ static int sep_prepare_input_dma_table(struct sep_device *sep,
 
 		/*
 		 * If this is not the last table -
-		 * then allign it to the block size
+		 * then align it to the block size
 		 */
 		if (!last_table_flag)
 			table_data_size =
@@ -3033,7 +3033,7 @@ static int sep_free_dcb_handler(struct sep_device *sep,
  * @cmd: command
  * @arg: pointer to argument structure
  *
- * Implement the ioctl methods availble on the SEP device.
+ * Implement the ioctl methods available on the SEP device.
  */
 static long sep_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
@@ -4460,7 +4460,7 @@ static int sep_pm_runtime_suspend(struct device *dev)
  * @sep_pm_runtime_resume:	resume- no communication with cpu & main memory
  * @sep_pm_runtime_suspend:	suspend- no communication with cpu & main memory
  * @sep_pci_suspend:		suspend - main memory is still ON
- * @sep_pci_resume:		resume - main meory is still ON
+ * @sep_pci_resume:		resume - main memory is still ON
  */
 static const struct dev_pm_ops sep_pm = {
 	.runtime_resume = sep_pm_runtime_resume,

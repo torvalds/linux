@@ -212,18 +212,17 @@ static int __devinit ams_delta_init(struct platform_device *pdev)
 	/* Link the private data with the MTD structure */
 	ams_delta_mtd->priv = this;
 
-	if (!request_mem_region(res->start, resource_size(res),
-			dev_name(&pdev->dev))) {
-		dev_err(&pdev->dev, "request_mem_region failed\n");
-		err = -EBUSY;
-		goto out_free;
-	}
+	/*
+	 * Don't try to request the memory region from here,
+	 * it should have been already requested from the
+	 * gpio-omap driver and requesting it again would fail.
+	 */
 
 	io_base = ioremap(res->start, resource_size(res));
 	if (io_base == NULL) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		err = -EIO;
-		goto out_release_io;
+		goto out_free;
 	}
 
 	this->priv = io_base;
@@ -271,8 +270,6 @@ out_gpio:
 	platform_set_drvdata(pdev, NULL);
 	gpio_free(AMS_DELTA_GPIO_PIN_NAND_RB);
 	iounmap(io_base);
-out_release_io:
-	release_mem_region(res->start, resource_size(res));
 out_free:
 	kfree(ams_delta_mtd);
  out:
@@ -285,7 +282,6 @@ out_free:
 static int __devexit ams_delta_cleanup(struct platform_device *pdev)
 {
 	void __iomem *io_base = platform_get_drvdata(pdev);
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	/* Release resources, unregister device */
 	nand_release(ams_delta_mtd);
@@ -293,7 +289,6 @@ static int __devexit ams_delta_cleanup(struct platform_device *pdev)
 	gpio_free_array(_mandatory_gpio, ARRAY_SIZE(_mandatory_gpio));
 	gpio_free(AMS_DELTA_GPIO_PIN_NAND_RB);
 	iounmap(io_base);
-	release_mem_region(res->start, resource_size(res));
 
 	/* Free the MTD device structure */
 	kfree(ams_delta_mtd);

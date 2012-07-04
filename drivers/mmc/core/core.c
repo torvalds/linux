@@ -42,6 +42,7 @@
 #include "sdio_ops.h"
 
 static struct workqueue_struct *workqueue;
+static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
 
 /*
  * Enabling software CRCs on the data blocks can be a significant (30%)
@@ -1157,6 +1158,9 @@ static void mmc_power_up(struct mmc_host *host)
 {
 	int bit;
 
+	if (host->ios.power_mode == MMC_POWER_ON)
+		return;
+
 	mmc_host_clk_hold(host);
 
 	/* If ocr is set, we use it */
@@ -1199,6 +1203,10 @@ static void mmc_power_up(struct mmc_host *host)
 void mmc_power_off(struct mmc_host *host)
 {
 	int err = 0;
+
+	if (host->ios.power_mode == MMC_POWER_OFF)
+		return;
+
 	mmc_host_clk_hold(host);
 
 	host->ios.clock = 0;
@@ -2005,7 +2013,6 @@ EXPORT_SYMBOL(mmc_detect_card_removed);
 
 void mmc_rescan(struct work_struct *work)
 {
-	static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
 	struct mmc_host *host =
 		container_of(work, struct mmc_host, detect.work);
 	int i;
@@ -2044,8 +2051,12 @@ void mmc_rescan(struct work_struct *work)
 	 */
 	mmc_bus_put(host);
 
-	if (host->ops->get_cd && host->ops->get_cd(host) == 0)
+	if (host->ops->get_cd && host->ops->get_cd(host) == 0) {
+		mmc_claim_host(host);
+		mmc_power_off(host);
+		mmc_release_host(host);
 		goto out;
+	}
 
 	mmc_claim_host(host);
 	for (i = 0; i < ARRAY_SIZE(freqs); i++) {
@@ -2063,7 +2074,8 @@ void mmc_rescan(struct work_struct *work)
 
 void mmc_start_host(struct mmc_host *host)
 {
-	mmc_power_off(host);
+	host->f_init = max(freqs[0], host->f_min);
+	mmc_power_up(host);
 	mmc_detect_change(host, 0);
 }
 

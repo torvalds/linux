@@ -222,16 +222,25 @@ coefficients:
 		goto storedigit;
 	}
 
-	if (dsp_debug & DEBUG_DSP_DTMFCOEFF)
+	if (dsp_debug & DEBUG_DSP_DTMFCOEFF) {
+		s32 tresh_100 = tresh/100;
+
+		if (tresh_100 == 0) {
+			tresh_100 = 1;
+			printk(KERN_DEBUG
+				"tresh(%d) too small set tresh/100 to 1\n",
+				tresh);
+		}
 		printk(KERN_DEBUG "a %3d %3d %3d %3d %3d %3d %3d %3d"
 		       " tr:%3d r %3d %3d %3d %3d %3d %3d %3d %3d\n",
 		       result[0] / 10000, result[1] / 10000, result[2] / 10000,
 		       result[3] / 10000, result[4] / 10000, result[5] / 10000,
 		       result[6] / 10000, result[7] / 10000, tresh / 10000,
-		       result[0] / (tresh / 100), result[1] / (tresh / 100),
-		       result[2] / (tresh / 100), result[3] / (tresh / 100),
-		       result[4] / (tresh / 100), result[5] / (tresh / 100),
-		       result[6] / (tresh / 100), result[7] / (tresh / 100));
+		       result[0] / (tresh_100), result[1] / (tresh_100),
+		       result[2] / (tresh_100), result[3] / (tresh_100),
+		       result[4] / (tresh_100), result[5] / (tresh_100),
+		       result[6] / (tresh_100), result[7] / (tresh_100));
+	}
 
 	/* calc digit (lowgroup/highgroup) */
 	lowgroup = -1;

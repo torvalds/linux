@@ -7,6 +7,7 @@
 #include <linux/pm.h>
 
 #include <asm/leon_amba.h>
+#include <asm/cpu_type.h>
 #include <asm/leon.h>
 
 /* List of Systems that need fixup instructions around power-down instruction */
@@ -65,13 +66,15 @@ void pmc_leon_idle(void)
 /* Install LEON Power Down function */
 static int __init leon_pmc_install(void)
 {
-	/* Assign power management IDLE handler */
-	if (pmc_leon_need_fixup())
-		pm_idle = pmc_leon_idle_fixup;
-	else
-		pm_idle = pmc_leon_idle;
+	if (sparc_cpu_model == sparc_leon) {
+		/* Assign power management IDLE handler */
+		if (pmc_leon_need_fixup())
+			pm_idle = pmc_leon_idle_fixup;
+		else
+			pm_idle = pmc_leon_idle;
 
-	printk(KERN_INFO "leon: power management initialized\n");
+		printk(KERN_INFO "leon: power management initialized\n");
+	}
 
 	return 0;
 }

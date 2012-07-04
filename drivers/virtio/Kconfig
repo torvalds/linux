@@ -46,4 +46,15 @@ config VIRTIO_BALLOON
 
  	 If unsure, say N.
 
+config VIRTIO_MMIO_CMDLINE_DEVICES
+	bool "Memory mapped virtio devices parameter parsing"
+	depends on VIRTIO_MMIO
+	---help---
+	 Allow virtio-mmio devices instantiation via the kernel command line
+	 or module parameters. Be aware that using incorrect parameters (base
+	 address in particular) can crash your system - you have been warned.
+	 See Documentation/kernel-parameters.txt for details.
+
+	 If unsure, say 'N'.
+
 endmenu

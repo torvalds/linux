@@ -320,7 +320,7 @@ config RADIO_MIROPCM20
 	  module will be called radio-miropcm20.
 
 config RADIO_SF16FMI
-	tristate "SF16-FMI/SF16-FMP Radio"
+	tristate "SF16-FMI/SF16-FMP/SF16-FMD Radio"
 	depends on ISA && VIDEO_V4L2
 	---help---
 	  Choose Y here if you have one of these FM radio cards.
@@ -329,7 +329,7 @@ config RADIO_SF16FMI
 	  module will be called radio-sf16fmi.
 
 config RADIO_SF16FMR2
-	tristate "SF16FMR2 Radio"
+	tristate "SF16-FMR2/SF16-FMD2 Radio"
 	depends on ISA && VIDEO_V4L2 && SND
 	---help---
 	  Choose Y here if you have one of these FM radio cards.

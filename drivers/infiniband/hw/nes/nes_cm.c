@@ -2884,7 +2884,8 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 			ibevent.device = nesqp->ibqp.device;
 			ibevent.event = nesqp->terminate_eventtype;
 			ibevent.element.qp = &nesqp->ibqp;
-			nesqp->ibqp.event_handler(&ibevent, nesqp->ibqp.qp_context);
+			if (nesqp->ibqp.event_handler)
+				nesqp->ibqp.event_handler(&ibevent, nesqp->ibqp.qp_context);
 		}
 	}
 
@@ -3320,6 +3321,10 @@ int nes_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	nesqp->private_data_len = conn_param->private_data_len;
 	nesqp->nesqp_context->ird_ord_sizes |= cpu_to_le32((u32)conn_param->ord);
+	/* space for rdma0 read msg */
+	if (conn_param->ord == 0)
+		nesqp->nesqp_context->ird_ord_sizes |= cpu_to_le32(1);
+
 	nes_debug(NES_DBG_CM, "requested ord = 0x%08X.\n", (u32)conn_param->ord);
 	nes_debug(NES_DBG_CM, "mpa private data len =%u\n",
 		  conn_param->private_data_len);

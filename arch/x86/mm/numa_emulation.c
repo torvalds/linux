@@ -68,8 +68,8 @@ static int __init emu_setup_memblk(struct numa_meminfo *ei,
 		numa_remove_memblk_from(phys_blk, pi);
 	}
 
-	printk(KERN_INFO "Faking node %d at %016Lx-%016Lx (%LuMB)\n", nid,
-	       eb->start, eb->end, (eb->end - eb->start) >> 20);
+	printk(KERN_INFO "Faking node %d at [mem %#018Lx-%#018Lx] (%LuMB)\n",
+	       nid, eb->start, eb->end - 1, (eb->end - eb->start) >> 20);
 	return 0;
 }
 
@@ -339,9 +339,11 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 	} else {
 		unsigned long n;
 
-		n = simple_strtoul(emu_cmdline, NULL, 0);
+		n = simple_strtoul(emu_cmdline, &emu_cmdline, 0);
 		ret = split_nodes_interleave(&ei, &pi, 0, max_addr, n);
 	}
+	if (*emu_cmdline == ':')
+		emu_cmdline++;
 
 	if (ret < 0)
 		goto no_emu;
@@ -418,7 +420,9 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 			int physj = emu_nid_to_phys[j];
 			int dist;
 
-			if (physi >= numa_dist_cnt || physj >= numa_dist_cnt)
+			if (get_option(&emu_cmdline, &dist) == 2)
+				;
+			else if (physi >= numa_dist_cnt || physj >= numa_dist_cnt)
 				dist = physi == physj ?
 					LOCAL_DISTANCE : REMOTE_DISTANCE;
 			else

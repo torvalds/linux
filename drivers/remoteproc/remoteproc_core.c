@@ -78,7 +78,7 @@ typedef int (*rproc_handle_resource_t)(struct rproc *rproc, void *, int avail);
  * the recovery of the remote processor.
  */
 static int rproc_iommu_fault(struct iommu_domain *domain, struct device *dev,
-		unsigned long iova, int flags)
+		unsigned long iova, int flags, void *token)
 {
 	dev_err(dev, "iommu fault: da 0x%lx flags 0x%x\n", iova, flags);
 
@@ -117,7 +117,7 @@ static int rproc_enable_iommu(struct rproc *rproc)
 		return -ENOMEM;
 	}
 
-	iommu_set_fault_handler(domain, rproc_iommu_fault);
+	iommu_set_fault_handler(domain, rproc_iommu_fault, rproc);
 
 	ret = iommu_attach_device(domain, dev);
 	if (ret) {
@@ -247,7 +247,7 @@ rproc_load_segments(struct rproc *rproc, const u8 *elf_data, size_t len)
 		}
 
 		if (offset + filesz > len) {
-			dev_err(dev, "truncated fw: need 0x%x avail 0x%x\n",
+			dev_err(dev, "truncated fw: need 0x%x avail 0x%zx\n",
 					offset + filesz, len);
 			ret = -EINVAL;
 			break;
@@ -354,7 +354,7 @@ static void __rproc_free_vrings(struct rproc_vdev *rvdev, int i)
 {
 	struct rproc *rproc = rvdev->rproc;
 
-	for (i--; i > 0; i--) {
+	for (i--; i >= 0; i--) {
 		struct rproc_vring *rvring = &rvdev->vring[i];
 		int size = PAGE_ALIGN(vring_size(rvring->len, rvring->align));
 
@@ -934,7 +934,7 @@ static void rproc_resource_cleanup(struct rproc *rproc)
 		unmapped = iommu_unmap(rproc->domain, entry->da, entry->len);
 		if (unmapped != entry->len) {
 			/* nothing much to do besides complaining */
-			dev_err(dev, "failed to unmap %u/%u\n", entry->len,
+			dev_err(dev, "failed to unmap %u/%zu\n", entry->len,
 								unmapped);
 		}
 
@@ -1020,7 +1020,7 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 
 	ehdr = (struct elf32_hdr *)fw->data;
 
-	dev_info(dev, "Booting fw image %s, size %d\n", name, fw->size);
+	dev_info(dev, "Booting fw image %s, size %zd\n", name, fw->size);
 
 	/*
 	 * if enabling an IOMMU isn't relevant for this rproc, this is
@@ -1041,8 +1041,10 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 
 	/* look for the resource table */
 	table = rproc_find_rsc_table(rproc, fw->data, fw->size, &tablesz);
-	if (!table)
+	if (!table) {
+		ret = -EINVAL;
 		goto clean_up;
+	}
 
 	/* handle fw resources which are required to boot rproc */
 	ret = rproc_handle_boot_rsc(rproc, table, tablesz);
@@ -1105,8 +1107,7 @@ static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 		goto out;
 
 out:
-	if (fw)
-		release_firmware(fw);
+	release_firmware(fw);
 	/* allow rproc_unregister() contexts, if any, to proceed */
 	complete_all(&rproc->firmware_loading_complete);
 }

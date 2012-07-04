@@ -54,6 +54,11 @@ nvc0_mfb_isr(struct drm_device *dev)
 			nvc0_mfb_subp_isr(dev, unit, subp);
 		units &= ~(1 << unit);
 	}
+
+	/* we do something horribly wrong and upset PMFB a lot, so mask off
+	 * interrupts from it after the first one until it's fixed
+	 */
+	nv_mask(dev, 0x000640, 0x02000000, 0x00000000);
 }
 
 static void

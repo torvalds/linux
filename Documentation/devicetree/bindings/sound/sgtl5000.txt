@@ -3,6 +3,8 @@
 Required properties:
 - compatible : "fsl,sgtl5000".
 
+- reg : the I2C address of the device
+
 Example:
 
 codec: sgtl5000@0a {

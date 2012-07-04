@@ -12,7 +12,7 @@ gqcam application to view this stream.
 	The driver is implemented as two kernel modules. The cpia2 module
 contains the camera functions and the V4L interface.  The cpia2_usb module
 contains usb specific functions.  The main reason for this was the size of the
-module was getting out of hand, so I separted them.  It is not likely that
+module was getting out of hand, so I separated them.  It is not likely that
 there will be a parallel port version.
 
 FEATURES:

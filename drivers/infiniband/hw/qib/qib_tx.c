@@ -295,6 +295,7 @@ u32 __iomem *qib_getsendbuf_range(struct qib_devdata *dd, u32 *pbufnum,
 
 	nbufs = last - first + 1; /* number in range to check */
 	if (dd->upd_pio_shadow) {
+update_shadow:
 		/*
 		 * Minor optimization.  If we had no buffers on last call,
 		 * start out by doing the update; continue and do scan even
@@ -304,37 +305,39 @@ u32 __iomem *qib_getsendbuf_range(struct qib_devdata *dd, u32 *pbufnum,
 		updated++;
 	}
 	i = first;
-rescan:
 	/*
 	 * While test_and_set_bit() is atomic, we do that and then the
 	 * change_bit(), and the pair is not.  See if this is the cause
 	 * of the remaining armlaunch errors.
 	 */
 	spin_lock_irqsave(&dd->pioavail_lock, flags);
+	if (dd->last_pio >= first && dd->last_pio <= last)
+		i = dd->last_pio + 1;
+	if (!first)
+		/* adjust to min possible  */
+		nbufs = last - dd->min_kernel_pio + 1;
 	for (j = 0; j < nbufs; j++, i++) {
 		if (i > last)
-			i = first;
+			i = !first ? dd->min_kernel_pio : first;
 		if (__test_and_set_bit((2 * i) + 1, shadow))
 			continue;
 		/* flip generation bit */
 		__change_bit(2 * i, shadow);
 		/* remember that the buffer can be written to now */
 		__set_bit(i, dd->pio_writing);
+		if (!first && first != last) /* first == last on VL15, avoid */
+			dd->last_pio = i;
 		break;
 	}
 	spin_unlock_irqrestore(&dd->pioavail_lock, flags);
 
 	if (j == nbufs) {
-		if (!updated) {
+		if (!updated)
 			/*
 			 * First time through; shadow exhausted, but may be
 			 * buffers available, try an update and then rescan.
 			 */
-			update_send_bufs(dd);
-			updated++;
-			i = first;
-			goto rescan;
-		}
+			goto update_shadow;
 		no_send_bufs(dd);
 		buf = NULL;
 	} else {
@@ -422,14 +425,20 @@ void qib_chg_pioavailkernel(struct qib_devdata *dd, unsigned start,
 				__clear_bit(QLOGIC_IB_SENDPIOAVAIL_CHECK_SHIFT
 					    + start, dd->pioavailshadow);
 			__set_bit(start, dd->pioavailkernel);
+			if ((start >> 1) < dd->min_kernel_pio)
+				dd->min_kernel_pio = start >> 1;
 		} else {
 			__set_bit(start + QLOGIC_IB_SENDPIOAVAIL_BUSY_SHIFT,
 				  dd->pioavailshadow);
 			__clear_bit(start, dd->pioavailkernel);
+			if ((start >> 1) > dd->min_kernel_pio)
+				dd->min_kernel_pio = start >> 1;
 		}
 		start += 2;
 	}
 
+	if (dd->min_kernel_pio > 0 && dd->last_pio < dd->min_kernel_pio - 1)
+		dd->last_pio = dd->min_kernel_pio - 1;
 	spin_unlock_irqrestore(&dd->pioavail_lock, flags);
 
 	dd->f_txchk_change(dd, ostart, len, avail, rcd);

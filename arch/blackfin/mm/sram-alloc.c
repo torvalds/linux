@@ -186,9 +186,45 @@ static void __init l1_inst_sram_init(void)
 #endif
 }
 
+#ifdef __ADSPBF60x__
+static irqreturn_t l2_ecc_err(int irq, void *dev_id)
+{
+	int status;
+
+	printk(KERN_ERR "L2 ecc error happend\n");
+	status = bfin_read32(L2CTL0_STAT);
+	if (status & 0x1)
+		printk(KERN_ERR "Core channel error type:0x%x, addr:0x%x\n",
+			bfin_read32(L2CTL0_ET0), bfin_read32(L2CTL0_EADDR0));
+	if (status & 0x2)
+		printk(KERN_ERR "System channel error type:0x%x, addr:0x%x\n",
+			bfin_read32(L2CTL0_ET1), bfin_read32(L2CTL0_EADDR1));
+
+	status = status >> 8;
+	if (status)
+		printk(KERN_ERR "L2 Bank%d error, addr:0x%x\n",
+			status, bfin_read32(L2CTL0_ERRADDR0 + status));
+
+	panic("L2 Ecc error");
+	return IRQ_HANDLED;
+}
+#endif
+
 static void __init l2_sram_init(void)
 {
 #if L2_LENGTH != 0
+
+#ifdef __ADSPBF60x__
+	int ret;
+
+	ret = request_irq(IRQ_L2CTL0_ECC_ERR, l2_ecc_err, 0, "l2-ecc-err",
+			NULL);
+	if (unlikely(ret < 0)) {
+		printk(KERN_INFO "Fail to request l2 ecc error interrupt");
+		return;
+	}
+#endif
+
 	free_l2_sram_head.next =
 		kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
 	if (!free_l2_sram_head.next) {

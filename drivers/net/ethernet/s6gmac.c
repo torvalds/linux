@@ -1,7 +1,7 @@
 /*
  * Ethernet driver for S6105 on chip network device
  * (c)2008 emlix GmbH http://www.emlix.com
- * Authors:	Oskar Schirmer <os@emlix.com>
+ * Authors:	Oskar Schirmer <oskar@scara.com>
  *		Daniel Gloeckner <dg@emlix.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -937,7 +937,7 @@ static struct net_device_stats *s6gmac_stats(struct net_device *dev)
 	do {
 		unsigned long flags;
 		spin_lock_irqsave(&pd->lock, flags);
-		for (i = 0; i < sizeof(pd->stats) / sizeof(unsigned long); i++)
+		for (i = 0; i < ARRAY_SIZE(pd->stats); i++)
 			pd->stats[i] =
 				pd->carry[i] << (S6_GMAC_STAT_SIZE_MIN - 1);
 		s6gmac_stats_collect(pd, &statinf[0][0]);
@@ -1070,4 +1070,4 @@ module_exit(s6gmac_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("S6105 on chip Ethernet driver");
-MODULE_AUTHOR("Oskar Schirmer <os@emlix.com>");
+MODULE_AUTHOR("Oskar Schirmer <oskar@scara.com>");

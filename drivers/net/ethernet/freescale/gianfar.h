@@ -1210,4 +1210,7 @@ struct filer_table {
 	struct gfar_filer_entry fe[MAX_FILER_CACHE_IDX + 20];
 };
 
+/* The gianfar_ptp module will set this variable */
+extern int gfar_phc_index;
+
 #endif /* __GIANFAR_H */

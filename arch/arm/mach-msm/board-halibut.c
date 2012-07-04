@@ -94,6 +94,11 @@ static void __init halibut_map_io(void)
 	msm_clock_init(msm_clocks_7x01a, msm_num_clocks_7x01a);
 }
 
+static void __init halibut_init_late(void)
+{
+	smd_debugfs_init();
+}
+
 MACHINE_START(HALIBUT, "Halibut Board (QCT SURF7200A)")
 	.atag_offset	= 0x100,
 	.fixup		= halibut_fixup,
@@ -101,5 +106,6 @@ MACHINE_START(HALIBUT, "Halibut Board (QCT SURF7200A)")
 	.init_early	= halibut_init_early,
 	.init_irq	= halibut_init_irq,
 	.init_machine	= halibut_init,
+	.init_late	= halibut_init_late,
 	.timer		= &msm_timer,
 MACHINE_END

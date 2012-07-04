@@ -1064,9 +1064,8 @@ static int if_spi_init_card(struct if_spi_card *card)
 			goto out;
 		}
 
-		err = lbs_get_firmware(&card->spi->dev, NULL, NULL,
-					card->card_id, &fw_table[0], &helper,
-					&mainfw);
+		err = lbs_get_firmware(&card->spi->dev, card->card_id,
+					&fw_table[0], &helper, &mainfw);
 		if (err) {
 			netdev_err(priv->dev, "failed to find firmware (%d)\n",
 				   err);
@@ -1095,10 +1094,8 @@ static int if_spi_init_card(struct if_spi_card *card)
 		goto out;
 
 out:
-	if (helper)
-		release_firmware(helper);
-	if (mainfw)
-		release_firmware(mainfw);
+	release_firmware(helper);
+	release_firmware(mainfw);
 
 	lbs_deb_leave_args(LBS_DEB_SPI, "err %d\n", err);
 

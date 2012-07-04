@@ -3,141 +3,84 @@
  *
  * SPEAr310 machine source file
  *
- * Copyright (C) 2009 ST Microelectronics
- * Viresh Kumar<viresh.kumar@st.com>
+ * Copyright (C) 2009-2012 ST Microelectronics
+ * Viresh Kumar <viresh.linux@gmail.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/ptrace.h>
-#include <asm/irq.h>
+#define pr_fmt(fmt) "SPEAr310: " fmt
+
+#include <linux/amba/pl08x.h>
+#include <linux/amba/serial.h>
+#include <linux/of_platform.h>
+#include <asm/hardware/vic.h>
+#include <asm/mach/arch.h>
 #include <plat/shirq.h>
 #include <mach/generic.h>
-#include <mach/hardware.h>
+#include <mach/spear.h>
 
-/* pad multiplexing support */
-/* muxing registers */
-#define PAD_MUX_CONFIG_REG	0x08
+#define SPEAR310_UART1_BASE		UL(0xB2000000)
+#define SPEAR310_UART2_BASE		UL(0xB2080000)
+#define SPEAR310_UART3_BASE		UL(0xB2100000)
+#define SPEAR310_UART4_BASE		UL(0xB2180000)
+#define SPEAR310_UART5_BASE		UL(0xB2200000)
+#define SPEAR310_SOC_CONFIG_BASE	UL(0xB4000000)
 
-/* devices */
-static struct pmx_dev_mode pmx_emi_cs_0_1_4_5_modes[] = {
-	{
-		.ids = 0x00,
-		.mask = PMX_TIMER_3_4_MASK,
-	},
-};
+/* Interrupt registers offsets and masks */
+#define SPEAR310_INT_STS_MASK_REG	0x04
+#define SPEAR310_SMII0_IRQ_MASK		(1 << 0)
+#define SPEAR310_SMII1_IRQ_MASK		(1 << 1)
+#define SPEAR310_SMII2_IRQ_MASK		(1 << 2)
+#define SPEAR310_SMII3_IRQ_MASK		(1 << 3)
+#define SPEAR310_WAKEUP_SMII0_IRQ_MASK	(1 << 4)
+#define SPEAR310_WAKEUP_SMII1_IRQ_MASK	(1 << 5)
+#define SPEAR310_WAKEUP_SMII2_IRQ_MASK	(1 << 6)
+#define SPEAR310_WAKEUP_SMII3_IRQ_MASK	(1 << 7)
+#define SPEAR310_UART1_IRQ_MASK		(1 << 8)
+#define SPEAR310_UART2_IRQ_MASK		(1 << 9)
+#define SPEAR310_UART3_IRQ_MASK		(1 << 10)
+#define SPEAR310_UART4_IRQ_MASK		(1 << 11)
+#define SPEAR310_UART5_IRQ_MASK		(1 << 12)
+#define SPEAR310_EMI_IRQ_MASK		(1 << 13)
+#define SPEAR310_TDM_HDLC_IRQ_MASK	(1 << 14)
+#define SPEAR310_RS485_0_IRQ_MASK	(1 << 15)
+#define SPEAR310_RS485_1_IRQ_MASK	(1 << 16)
 
-struct pmx_dev spear310_pmx_emi_cs_0_1_4_5 = {
-	.name = "emi_cs_0_1_4_5",
-	.modes = pmx_emi_cs_0_1_4_5_modes,
-	.mode_count = ARRAY_SIZE(pmx_emi_cs_0_1_4_5_modes),
-	.enb_on_reset = 1,
-};
+#define SPEAR310_SHIRQ_RAS1_MASK	0x000FF
+#define SPEAR310_SHIRQ_RAS2_MASK	0x01F00
+#define SPEAR310_SHIRQ_RAS3_MASK	0x02000
+#define SPEAR310_SHIRQ_INTRCOMM_RAS_MASK	0x1C000
 
-static struct pmx_dev_mode pmx_emi_cs_2_3_modes[] = {
-	{
-		.ids = 0x00,
-		.mask = PMX_TIMER_1_2_MASK,
-	},
-};
+/* SPEAr310 Virtual irq definitions */
+/* IRQs sharing IRQ_GEN_RAS_1 */
+#define SPEAR310_VIRQ_SMII0			(SPEAR3XX_VIRQ_START + 0)
+#define SPEAR310_VIRQ_SMII1			(SPEAR3XX_VIRQ_START + 1)
+#define SPEAR310_VIRQ_SMII2			(SPEAR3XX_VIRQ_START + 2)
+#define SPEAR310_VIRQ_SMII3			(SPEAR3XX_VIRQ_START + 3)
+#define SPEAR310_VIRQ_WAKEUP_SMII0		(SPEAR3XX_VIRQ_START + 4)
+#define SPEAR310_VIRQ_WAKEUP_SMII1		(SPEAR3XX_VIRQ_START + 5)
+#define SPEAR310_VIRQ_WAKEUP_SMII2		(SPEAR3XX_VIRQ_START + 6)
+#define SPEAR310_VIRQ_WAKEUP_SMII3		(SPEAR3XX_VIRQ_START + 7)
 
-struct pmx_dev spear310_pmx_emi_cs_2_3 = {
-	.name = "emi_cs_2_3",
-	.modes = pmx_emi_cs_2_3_modes,
-	.mode_count = ARRAY_SIZE(pmx_emi_cs_2_3_modes),
-	.enb_on_reset = 1,
-};
+/* IRQs sharing IRQ_GEN_RAS_2 */
+#define SPEAR310_VIRQ_UART1			(SPEAR3XX_VIRQ_START + 8)
+#define SPEAR310_VIRQ_UART2			(SPEAR3XX_VIRQ_START + 9)
+#define SPEAR310_VIRQ_UART3			(SPEAR3XX_VIRQ_START + 10)
+#define SPEAR310_VIRQ_UART4			(SPEAR3XX_VIRQ_START + 11)
+#define SPEAR310_VIRQ_UART5			(SPEAR3XX_VIRQ_START + 12)
 
-static struct pmx_dev_mode pmx_uart1_modes[] = {
-	{
-		.ids = 0x00,
-		.mask = PMX_FIRDA_MASK,
-	},
-};
+/* IRQs sharing IRQ_GEN_RAS_3 */
+#define SPEAR310_VIRQ_EMI			(SPEAR3XX_VIRQ_START + 13)
+#define SPEAR310_VIRQ_PLGPIO			(SPEAR3XX_VIRQ_START + 14)
 
-struct pmx_dev spear310_pmx_uart1 = {
-	.name = "uart1",
-	.modes = pmx_uart1_modes,
-	.mode_count = ARRAY_SIZE(pmx_uart1_modes),
-	.enb_on_reset = 1,
-};
+/* IRQs sharing IRQ_INTRCOMM_RAS_ARM */
+#define SPEAR310_VIRQ_TDM_HDLC			(SPEAR3XX_VIRQ_START + 15)
+#define SPEAR310_VIRQ_RS485_0			(SPEAR3XX_VIRQ_START + 16)
+#define SPEAR310_VIRQ_RS485_1			(SPEAR3XX_VIRQ_START + 17)
 
-static struct pmx_dev_mode pmx_uart2_modes[] = {
-	{
-		.ids = 0x00,
-		.mask = PMX_TIMER_1_2_MASK,
-	},
-};
-
-struct pmx_dev spear310_pmx_uart2 = {
-	.name = "uart2",
-	.modes = pmx_uart2_modes,
-	.mode_count = ARRAY_SIZE(pmx_uart2_modes),
-	.enb_on_reset = 1,
-};
-
-static struct pmx_dev_mode pmx_uart3_4_5_modes[] = {
-	{
-		.ids = 0x00,
-		.mask = PMX_UART0_MODEM_MASK,
-	},
-};
-
-struct pmx_dev spear310_pmx_uart3_4_5 = {
-	.name = "uart3_4_5",
-	.modes = pmx_uart3_4_5_modes,
-	.mode_count = ARRAY_SIZE(pmx_uart3_4_5_modes),
-	.enb_on_reset = 1,
-};
-
-static struct pmx_dev_mode pmx_fsmc_modes[] = {
-	{
-		.ids = 0x00,
-		.mask = PMX_SSP_CS_MASK,
-	},
-};
-
-struct pmx_dev spear310_pmx_fsmc = {
-	.name = "fsmc",
-	.modes = pmx_fsmc_modes,
-	.mode_count = ARRAY_SIZE(pmx_fsmc_modes),
-	.enb_on_reset = 1,
-};
-
-static struct pmx_dev_mode pmx_rs485_0_1_modes[] = {
-	{
-		.ids = 0x00,
-		.mask = PMX_MII_MASK,
-	},
-};
-
-struct pmx_dev spear310_pmx_rs485_0_1 = {
-	.name = "rs485_0_1",
-	.modes = pmx_rs485_0_1_modes,
-	.mode_count = ARRAY_SIZE(pmx_rs485_0_1_modes),
-	.enb_on_reset = 1,
-};
-
-static struct pmx_dev_mode pmx_tdm0_modes[] = {
-	{
-		.ids = 0x00,
-		.mask = PMX_MII_MASK,
-	},
-};
-
-struct pmx_dev spear310_pmx_tdm0 = {
-	.name = "tdm0",
-	.modes = pmx_tdm0_modes,
-	.mode_count = ARRAY_SIZE(pmx_tdm0_modes),
-	.enb_on_reset = 1,
-};
-
-/* pmx driver structure */
-static struct pmx_driver pmx_driver = {
-	.mux_reg = {.offset = PAD_MUX_CONFIG_REG, .mask = 0x00007fff},
-};
 
 /* spear3xx shared irq */
 static struct shirq_dev_config shirq_ras1_config[] = {
@@ -255,17 +198,247 @@ static struct spear_shirq shirq_intrcomm_ras = {
 	},
 };
 
-/* Add spear310 specific devices here */
+/* DMAC platform data's slave info */
+struct pl08x_channel_data spear310_dma_info[] = {
+	{
+		.bus_id = "uart0_rx",
+		.min_signal = 2,
+		.max_signal = 2,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "uart0_tx",
+		.min_signal = 3,
+		.max_signal = 3,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ssp0_rx",
+		.min_signal = 8,
+		.max_signal = 8,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ssp0_tx",
+		.min_signal = 9,
+		.max_signal = 9,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "i2c_rx",
+		.min_signal = 10,
+		.max_signal = 10,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "i2c_tx",
+		.min_signal = 11,
+		.max_signal = 11,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "irda",
+		.min_signal = 12,
+		.max_signal = 12,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "adc",
+		.min_signal = 13,
+		.max_signal = 13,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "to_jpeg",
+		.min_signal = 14,
+		.max_signal = 14,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "from_jpeg",
+		.min_signal = 15,
+		.max_signal = 15,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "uart1_rx",
+		.min_signal = 0,
+		.max_signal = 0,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "uart1_tx",
+		.min_signal = 1,
+		.max_signal = 1,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "uart2_rx",
+		.min_signal = 2,
+		.max_signal = 2,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "uart2_tx",
+		.min_signal = 3,
+		.max_signal = 3,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "uart3_rx",
+		.min_signal = 4,
+		.max_signal = 4,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "uart3_tx",
+		.min_signal = 5,
+		.max_signal = 5,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "uart4_rx",
+		.min_signal = 6,
+		.max_signal = 6,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "uart4_tx",
+		.min_signal = 7,
+		.max_signal = 7,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "uart5_rx",
+		.min_signal = 8,
+		.max_signal = 8,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "uart5_tx",
+		.min_signal = 9,
+		.max_signal = 9,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras5_rx",
+		.min_signal = 10,
+		.max_signal = 10,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras5_tx",
+		.min_signal = 11,
+		.max_signal = 11,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras6_rx",
+		.min_signal = 12,
+		.max_signal = 12,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras6_tx",
+		.min_signal = 13,
+		.max_signal = 13,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras7_rx",
+		.min_signal = 14,
+		.max_signal = 14,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras7_tx",
+		.min_signal = 15,
+		.max_signal = 15,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	},
+};
 
-/* spear310 routines */
-void __init spear310_init(struct pmx_mode *pmx_mode, struct pmx_dev **pmx_devs,
-		u8 pmx_dev_count)
+/* uart devices plat data */
+static struct amba_pl011_data spear310_uart_data[] = {
+	{
+		.dma_filter = pl08x_filter_id,
+		.dma_tx_param = "uart1_tx",
+		.dma_rx_param = "uart1_rx",
+	}, {
+		.dma_filter = pl08x_filter_id,
+		.dma_tx_param = "uart2_tx",
+		.dma_rx_param = "uart2_rx",
+	}, {
+		.dma_filter = pl08x_filter_id,
+		.dma_tx_param = "uart3_tx",
+		.dma_rx_param = "uart3_rx",
+	}, {
+		.dma_filter = pl08x_filter_id,
+		.dma_tx_param = "uart4_tx",
+		.dma_rx_param = "uart4_rx",
+	}, {
+		.dma_filter = pl08x_filter_id,
+		.dma_tx_param = "uart5_tx",
+		.dma_rx_param = "uart5_rx",
+	},
+};
+
+/* Add SPEAr310 auxdata to pass platform data */
+static struct of_dev_auxdata spear310_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("arm,pl022", SPEAR3XX_ICM1_SSP_BASE, NULL,
+			&pl022_plat_data),
+	OF_DEV_AUXDATA("arm,pl080", SPEAR3XX_ICM3_DMA_BASE, NULL,
+			&pl080_plat_data),
+	OF_DEV_AUXDATA("arm,pl011", SPEAR310_UART1_BASE, NULL,
+			&spear310_uart_data[0]),
+	OF_DEV_AUXDATA("arm,pl011", SPEAR310_UART2_BASE, NULL,
+			&spear310_uart_data[1]),
+	OF_DEV_AUXDATA("arm,pl011", SPEAR310_UART3_BASE, NULL,
+			&spear310_uart_data[2]),
+	OF_DEV_AUXDATA("arm,pl011", SPEAR310_UART4_BASE, NULL,
+			&spear310_uart_data[3]),
+	OF_DEV_AUXDATA("arm,pl011", SPEAR310_UART5_BASE, NULL,
+			&spear310_uart_data[4]),
+	{}
+};
+
+static void __init spear310_dt_init(void)
 {
 	void __iomem *base;
-	int ret = 0;
+	int ret;
 
-	/* call spear3xx family common init function */
-	spear3xx_init();
+	pl080_plat_data.slave_channels = spear310_dma_info;
+	pl080_plat_data.num_slave_channels = ARRAY_SIZE(spear310_dma_info);
+
+	of_platform_populate(NULL, of_default_bus_match_table,
+			spear310_auxdata_lookup, NULL);
 
 	/* shared irq registration */
 	base = ioremap(SPEAR310_SOC_CONFIG_BASE, SZ_4K);
@@ -274,35 +447,45 @@ void __init spear310_init(struct pmx_mode *pmx_mode, struct pmx_dev **pmx_devs,
 		shirq_ras1.regs.base = base;
 		ret = spear_shirq_register(&shirq_ras1);
 		if (ret)
-			printk(KERN_ERR "Error registering Shared IRQ 1\n");
+			pr_err("Error registering Shared IRQ 1\n");
 
 		/* shirq 2 */
 		shirq_ras2.regs.base = base;
 		ret = spear_shirq_register(&shirq_ras2);
 		if (ret)
-			printk(KERN_ERR "Error registering Shared IRQ 2\n");
+			pr_err("Error registering Shared IRQ 2\n");
 
 		/* shirq 3 */
 		shirq_ras3.regs.base = base;
 		ret = spear_shirq_register(&shirq_ras3);
 		if (ret)
-			printk(KERN_ERR "Error registering Shared IRQ 3\n");
+			pr_err("Error registering Shared IRQ 3\n");
 
 		/* shirq 4 */
 		shirq_intrcomm_ras.regs.base = base;
 		ret = spear_shirq_register(&shirq_intrcomm_ras);
 		if (ret)
-			printk(KERN_ERR "Error registering Shared IRQ 4\n");
+			pr_err("Error registering Shared IRQ 4\n");
 	}
-
-	/* pmx initialization */
-	pmx_driver.base = base;
-	pmx_driver.mode = pmx_mode;
-	pmx_driver.devs = pmx_devs;
-	pmx_driver.devs_count = pmx_dev_count;
-
-	ret = pmx_register(&pmx_driver);
-	if (ret)
-		printk(KERN_ERR "padmux: registration failed. err no: %d\n",
-				ret);
 }
+
+static const char * const spear310_dt_board_compat[] = {
+	"st,spear310",
+	"st,spear310-evb",
+	NULL,
+};
+
+static void __init spear310_map_io(void)
+{
+	spear3xx_map_io();
+}
+
+DT_MACHINE_START(SPEAR310_DT, "ST SPEAr310 SoC with Flattened Device Tree")
+	.map_io		=	spear310_map_io,
+	.init_irq	=	spear3xx_dt_init_irq,
+	.handle_irq	=	vic_handle_irq,
+	.timer		=	&spear3xx_timer,
+	.init_machine	=	spear310_dt_init,
+	.restart	=	spear_restart,
+	.dt_compat	=	spear310_dt_board_compat,
+MACHINE_END

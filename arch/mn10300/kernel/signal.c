@@ -31,24 +31,14 @@
 
 #define DEBUG_SIG 0
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 /*
  * atomically swap in the new signal mask, and wait for a signal.
  */
 asmlinkage long sys_sigsuspend(int history0, int history1, old_sigset_t mask)
 {
-	mask &= _BLOCKABLE;
-	spin_lock_irq(&current->sighand->siglock);
-	current->saved_sigmask = current->blocked;
-	siginitset(&current->blocked, mask);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	set_thread_flag(TIF_RESTORE_SIGMASK);
-	return -ERESTARTNOHAND;
+	sigset_t blocked;
+	siginitset(&blocked, mask);
+	return sigsuspend(&blocked);
 }
 
 /*
@@ -171,11 +161,7 @@ asmlinkage long sys_sigreturn(void)
 			     sizeof(frame->extramask)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	set_current_blocked(&set);
 
 	if (restore_sigcontext(current_frame(), &frame->sc, &d0))
 		goto badframe;
@@ -202,11 +188,7 @@ asmlinkage long sys_rt_sigreturn(void)
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	set_current_blocked(&set);
 
 	if (restore_sigcontext(current_frame(), &frame->uc.uc_mcontext, &d0))
 		goto badframe;
@@ -444,8 +426,9 @@ static inline void stepback(struct pt_regs *regs)
  */
 static int handle_signal(int sig,
 			 siginfo_t *info, struct k_sigaction *ka,
-			 sigset_t *oldset, struct pt_regs *regs)
+			 struct pt_regs *regs)
 {
+	sigset_t *oldset = sigmask_to_save();
 	int ret;
 
 	/* Are we from a system call? */
@@ -475,18 +458,11 @@ static int handle_signal(int sig,
 		ret = setup_rt_frame(sig, ka, info, oldset, regs);
 	else
 		ret = setup_frame(sig, ka, oldset, regs);
+	if (ret)
+		return;
 
-	if (ret == 0) {
-		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked, &current->blocked,
-			  &ka->sa.sa_mask);
-		if (!(ka->sa.sa_flags & SA_NODEFER))
-			sigaddset(&current->blocked, sig);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-	}
-
-	return ret;
+	signal_delivered(sig, info, ka, regs,
+				 test_thread_flag(TIF_SINGLESTEP));
 }
 
 /*
@@ -496,7 +472,6 @@ static void do_signal(struct pt_regs *regs)
 {
 	struct k_sigaction ka;
 	siginfo_t info;
-	sigset_t *oldset;
 	int signr;
 
 	/* we want the common case to go fast, which is why we may in certain
@@ -504,23 +479,9 @@ static void do_signal(struct pt_regs *regs)
 	if (!user_mode(regs))
 		return;
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
-		if (handle_signal(signr, &info, &ka, oldset, regs) == 0) {
-			/* a signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-
-			tracehook_signal_handler(signr, &info, &ka, regs,
-						 test_thread_flag(TIF_SINGLESTEP));
+		if (handle_signal(signr, &info, &ka, regs) == 0) {
 		}
 
 		return;
@@ -546,10 +507,7 @@ static void do_signal(struct pt_regs *regs)
 
 	/* if there's no signal to deliver, we just put the saved sigmask
 	 * back */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
+	restore_saved_sigmask();
 }
 
 /*
@@ -569,13 +527,11 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, u32 thread_info_flags)
 	}
 
 	/* deal with pending signal delivery */
-	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
+	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(regs);
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(current_frame());
-		if (current->replacement_session_keyring)
-			key_replace_session_keyring();
 	}
 }

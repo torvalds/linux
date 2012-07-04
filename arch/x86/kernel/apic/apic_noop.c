@@ -181,6 +181,7 @@ struct apic apic_noop = {
 
 	.read				= noop_apic_read,
 	.write				= noop_apic_write,
+	.eoi_write			= noop_apic_write,
 	.icr_read			= noop_apic_icr_read,
 	.icr_write			= noop_apic_icr_write,
 	.wait_icr_idle			= noop_apic_wait_icr_idle,

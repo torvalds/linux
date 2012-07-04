@@ -82,6 +82,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10C4, 0x8066) }, /* Argussoft In-System Programmer */
 	{ USB_DEVICE(0x10C4, 0x806F) }, /* IMS USB to RS422 Converter Cable */
 	{ USB_DEVICE(0x10C4, 0x807A) }, /* Crumb128 board */
+	{ USB_DEVICE(0x10C4, 0x80C4) }, /* Cygnal Integrated Products, Inc., Optris infrared thermometer */
 	{ USB_DEVICE(0x10C4, 0x80CA) }, /* Degree Controls Inc */
 	{ USB_DEVICE(0x10C4, 0x80DD) }, /* Tracient RFID */
 	{ USB_DEVICE(0x10C4, 0x80F6) }, /* Suunto sports instrument */
@@ -92,6 +93,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10C4, 0x814B) }, /* West Mountain Radio RIGtalk */
 	{ USB_DEVICE(0x10C4, 0x8156) }, /* B&G H3000 link cable */
 	{ USB_DEVICE(0x10C4, 0x815E) }, /* Helicomm IP-Link 1220-DVM */
+	{ USB_DEVICE(0x10C4, 0x815F) }, /* Timewave HamLinkUSB */
 	{ USB_DEVICE(0x10C4, 0x818B) }, /* AVIT Research USB to TTL */
 	{ USB_DEVICE(0x10C4, 0x819F) }, /* MJS USB Toslink Switcher */
 	{ USB_DEVICE(0x10C4, 0x81A6) }, /* ThinkOptics WavIt */
@@ -133,7 +135,13 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10CE, 0xEA6A) }, /* Silicon Labs MobiData GPRS USB Modem 100EU */
 	{ USB_DEVICE(0x13AD, 0x9999) }, /* Baltech card reader */
 	{ USB_DEVICE(0x1555, 0x0004) }, /* Owen AC4 USB-RS485 Converter */
+	{ USB_DEVICE(0x166A, 0x0201) }, /* Clipsal 5500PACA C-Bus Pascal Automation Controller */
+	{ USB_DEVICE(0x166A, 0x0301) }, /* Clipsal 5800PC C-Bus Wireless PC Interface */
 	{ USB_DEVICE(0x166A, 0x0303) }, /* Clipsal 5500PCU C-Bus USB interface */
+	{ USB_DEVICE(0x166A, 0x0304) }, /* Clipsal 5000CT2 C-Bus Black and White Touchscreen */
+	{ USB_DEVICE(0x166A, 0x0305) }, /* Clipsal C-5000CT2 C-Bus Spectrum Colour Touchscreen */
+	{ USB_DEVICE(0x166A, 0x0401) }, /* Clipsal L51xx C-Bus Architectural Dimmer */
+	{ USB_DEVICE(0x166A, 0x0101) }, /* Clipsal 5560884 C-Bus Multi-room Audio Matrix Switcher */
 	{ USB_DEVICE(0x16D6, 0x0001) }, /* Jablotron serial interface */
 	{ USB_DEVICE(0x16DC, 0x0010) }, /* W-IE-NE-R Plein & Baus GmbH PL512 Power Supply */
 	{ USB_DEVICE(0x16DC, 0x0011) }, /* W-IE-NE-R Plein & Baus GmbH RCM Remote Control for MARATON Power Supply */
@@ -145,7 +153,11 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x1843, 0x0200) }, /* Vaisala USB Instrument Cable */
 	{ USB_DEVICE(0x18EF, 0xE00F) }, /* ELV USB-I2C-Interface */
 	{ USB_DEVICE(0x1BE3, 0x07A6) }, /* WAGO 750-923 USB Service Cable */
+	{ USB_DEVICE(0x1E29, 0x0102) }, /* Festo CPX-USB */
+	{ USB_DEVICE(0x1E29, 0x0501) }, /* Festo CMSP */
 	{ USB_DEVICE(0x3195, 0xF190) }, /* Link Instruments MSO-19 */
+	{ USB_DEVICE(0x3195, 0xF280) }, /* Link Instruments MSO-28 */
+	{ USB_DEVICE(0x3195, 0xF281) }, /* Link Instruments MSO-28 */
 	{ USB_DEVICE(0x413C, 0x9500) }, /* DW700 GPS USB interface */
 	{ } /* Terminating Entry */
 };
@@ -154,13 +166,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 struct cp210x_port_private {
 	__u8			bInterfaceNumber;
-};
-
-static struct usb_driver cp210x_driver = {
-	.name		= "cp210x",
-	.probe		= usb_serial_probe,
-	.disconnect	= usb_serial_disconnect,
-	.id_table	= id_table,
 };
 
 static struct usb_serial_driver cp210x_device = {
@@ -188,8 +193,10 @@ static struct usb_serial_driver * const serial_drivers[] = {
 };
 
 /* Config request types */
-#define REQTYPE_HOST_TO_DEVICE	0x41
-#define REQTYPE_DEVICE_TO_HOST	0xc1
+#define REQTYPE_HOST_TO_INTERFACE	0x41
+#define REQTYPE_INTERFACE_TO_HOST	0xc1
+#define REQTYPE_HOST_TO_DEVICE	0x40
+#define REQTYPE_DEVICE_TO_HOST	0xc0
 
 /* Config request codes */
 #define CP210X_IFC_ENABLE	0x00
@@ -286,7 +293,7 @@ static int cp210x_get_config(struct usb_serial_port *port, u8 request,
 
 	/* Issue the request, attempting to read 'size' bytes */
 	result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
-				request, REQTYPE_DEVICE_TO_HOST, 0x0000,
+				request, REQTYPE_INTERFACE_TO_HOST, 0x0000,
 				port_priv->bInterfaceNumber, buf, size,
 				USB_CTRL_GET_TIMEOUT);
 
@@ -340,13 +347,13 @@ static int cp210x_set_config(struct usb_serial_port *port, u8 request,
 	if (size > 2) {
 		result = usb_control_msg(serial->dev,
 				usb_sndctrlpipe(serial->dev, 0),
-				request, REQTYPE_HOST_TO_DEVICE, 0x0000,
+				request, REQTYPE_HOST_TO_INTERFACE, 0x0000,
 				port_priv->bInterfaceNumber, buf, size,
 				USB_CTRL_SET_TIMEOUT);
 	} else {
 		result = usb_control_msg(serial->dev,
 				usb_sndctrlpipe(serial->dev, 0),
-				request, REQTYPE_HOST_TO_DEVICE, data[0],
+				request, REQTYPE_HOST_TO_INTERFACE, data[0],
 				port_priv->bInterfaceNumber, NULL, 0,
 				USB_CTRL_SET_TIMEOUT);
 	}
@@ -422,8 +429,6 @@ static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	int result;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	result = cp210x_set_config_single(port, CP210X_IFC_ENABLE,
 								UART_ENABLE);
 	if (result) {
@@ -443,8 +448,6 @@ static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 static void cp210x_close(struct usb_serial_port *port)
 {
-	dbg("%s - port %d", __func__, port->number);
-
 	usb_serial_generic_close(port);
 
 	mutex_lock(&port->serial->disc_mutex);
@@ -487,8 +490,6 @@ static void cp210x_get_termios_port(struct usb_serial_port *port,
 	unsigned int cflag, modem_ctl[4];
 	unsigned int baud;
 	unsigned int bits;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	cp210x_get_config(port, CP210X_GET_BAUDRATE, &baud, 4);
 
@@ -787,8 +788,6 @@ static int cp210x_tiocmset_port(struct usb_serial_port *port,
 {
 	unsigned int control = 0;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	if (set & TIOCM_RTS) {
 		control |= CONTROL_RTS;
 		control |= CONTROL_WRITE_RTS;
@@ -825,8 +824,6 @@ static int cp210x_tiocmget (struct tty_struct *tty)
 	unsigned int control;
 	int result;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	cp210x_get_config(port, CP210X_GET_MDMSTS, &control, 1);
 
 	result = ((control & CONTROL_DTR) ? TIOCM_DTR : 0)
@@ -846,7 +843,6 @@ static void cp210x_break_ctl (struct tty_struct *tty, int break_state)
 	struct usb_serial_port *port = tty->driver_data;
 	unsigned int state;
 
-	dbg("%s - port %d", __func__, port->number);
 	if (break_state == 0)
 		state = BREAK_OFF;
 	else
@@ -891,7 +887,7 @@ static void cp210x_release(struct usb_serial *serial)
 	}
 }
 
-module_usb_serial_driver(cp210x_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);

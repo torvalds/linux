@@ -9,6 +9,8 @@ endif
 
 obj-$(CONFIG_HID)		+= hid.o
 
+obj-$(CONFIG_HID_GENERIC)	+= hid-generic.o
+
 hid-$(CONFIG_HIDRAW)		+= hidraw.o
 
 hid-logitech-y		:= hid-lg.o
@@ -36,6 +38,7 @@ endif
 obj-$(CONFIG_HID_A4TECH)	+= hid-a4tech.o
 obj-$(CONFIG_HID_ACRUX)		+= hid-axff.o
 obj-$(CONFIG_HID_APPLE)		+= hid-apple.o
+obj-$(CONFIG_HID_AUREAL)        += hid-aureal.o
 obj-$(CONFIG_HID_BELKIN)	+= hid-belkin.o
 obj-$(CONFIG_HID_CHERRY)	+= hid-cherry.o
 obj-$(CONFIG_HID_CHICONY)	+= hid-chicony.o

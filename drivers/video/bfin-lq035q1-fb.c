@@ -13,6 +13,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/fb.h>
+#include <linux/gpio.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/types.h>

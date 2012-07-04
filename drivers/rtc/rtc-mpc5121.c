@@ -360,12 +360,11 @@ static int __devinit mpc5121_rtc_probe(struct platform_device *op)
 						&mpc5200_rtc_ops, THIS_MODULE);
 	}
 
-	rtc->rtc->uie_unsupported = 1;
-
 	if (IS_ERR(rtc->rtc)) {
 		err = PTR_ERR(rtc->rtc);
 		goto out_free_irq;
 	}
+	rtc->rtc->uie_unsupported = 1;
 
 	return 0;
 

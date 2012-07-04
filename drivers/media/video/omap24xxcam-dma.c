@@ -38,7 +38,7 @@
  */
 
 /* Ack all interrupt on CSR and IRQSTATUS_L0 */
-static void omap24xxcam_dmahw_ack_all(unsigned long base)
+static void omap24xxcam_dmahw_ack_all(void __iomem *base)
 {
 	u32 csr;
 	int i;
@@ -52,7 +52,7 @@ static void omap24xxcam_dmahw_ack_all(unsigned long base)
 }
 
 /* Ack dmach on CSR and IRQSTATUS_L0 */
-static u32 omap24xxcam_dmahw_ack_ch(unsigned long base, int dmach)
+static u32 omap24xxcam_dmahw_ack_ch(void __iomem *base, int dmach)
 {
 	u32 csr;
 
@@ -65,12 +65,12 @@ static u32 omap24xxcam_dmahw_ack_ch(unsigned long base, int dmach)
 	return csr;
 }
 
-static int omap24xxcam_dmahw_running(unsigned long base, int dmach)
+static int omap24xxcam_dmahw_running(void __iomem *base, int dmach)
 {
 	return omap24xxcam_reg_in(base, CAMDMA_CCR(dmach)) & CAMDMA_CCR_ENABLE;
 }
 
-static void omap24xxcam_dmahw_transfer_setup(unsigned long base, int dmach,
+static void omap24xxcam_dmahw_transfer_setup(void __iomem *base, int dmach,
 					     dma_addr_t start, u32 len)
 {
 	omap24xxcam_reg_out(base, CAMDMA_CCR(dmach),
@@ -112,7 +112,7 @@ static void omap24xxcam_dmahw_transfer_setup(unsigned long base, int dmach,
 			    | CAMDMA_CICR_DROP_IE);
 }
 
-static void omap24xxcam_dmahw_transfer_start(unsigned long base, int dmach)
+static void omap24xxcam_dmahw_transfer_start(void __iomem *base, int dmach)
 {
 	omap24xxcam_reg_out(base, CAMDMA_CCR(dmach),
 			    CAMDMA_CCR_SEL_SRC_DST_SYNC
@@ -124,7 +124,7 @@ static void omap24xxcam_dmahw_transfer_start(unsigned long base, int dmach)
 			    | CAMDMA_CCR_SYNCHRO_CAMERA);
 }
 
-static void omap24xxcam_dmahw_transfer_chain(unsigned long base, int dmach,
+static void omap24xxcam_dmahw_transfer_chain(void __iomem *base, int dmach,
 					     int free_dmach)
 {
 	int prev_dmach, ch;
@@ -160,7 +160,7 @@ static void omap24xxcam_dmahw_transfer_chain(unsigned long base, int dmach,
  * controller may not be idle after this routine completes, because
  * the completion routines might start new transfers.
  */
-static void omap24xxcam_dmahw_abort_ch(unsigned long base, int dmach)
+static void omap24xxcam_dmahw_abort_ch(void __iomem *base, int dmach)
 {
 	/* mask all interrupts from this channel */
 	omap24xxcam_reg_out(base, CAMDMA_CICR(dmach), 0);
@@ -171,7 +171,7 @@ static void omap24xxcam_dmahw_abort_ch(unsigned long base, int dmach)
 	omap24xxcam_reg_merge(base, CAMDMA_CCR(dmach), 0, CAMDMA_CCR_ENABLE);
 }
 
-static void omap24xxcam_dmahw_init(unsigned long base)
+static void omap24xxcam_dmahw_init(void __iomem *base)
 {
 	omap24xxcam_reg_out(base, CAMDMA_OCP_SYSCONFIG,
 			    CAMDMA_OCP_SYSCONFIG_MIDLEMODE_FSTANDBY
@@ -362,7 +362,7 @@ void omap24xxcam_dma_hwinit(struct omap24xxcam_dma *dma)
 }
 
 static void omap24xxcam_dma_init(struct omap24xxcam_dma *dma,
-				 unsigned long base)
+				 void __iomem *base)
 {
 	int ch;
 
@@ -577,7 +577,7 @@ void omap24xxcam_sgdma_sync(struct omap24xxcam_sgdma *sgdma)
 }
 
 void omap24xxcam_sgdma_init(struct omap24xxcam_sgdma *sgdma,
-			    unsigned long base,
+			    void __iomem *base,
 			    void (*reset_callback)(unsigned long data),
 			    unsigned long reset_callback_data)
 {

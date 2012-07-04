@@ -178,6 +178,7 @@ static const struct nla_policy dcbnl_ieee_policy[DCB_ATTR_IEEE_MAX + 1] = {
 	[DCB_ATTR_IEEE_ETS]	    = {.len = sizeof(struct ieee_ets)},
 	[DCB_ATTR_IEEE_PFC]	    = {.len = sizeof(struct ieee_pfc)},
 	[DCB_ATTR_IEEE_APP_TABLE]   = {.type = NLA_NESTED},
+	[DCB_ATTR_IEEE_MAXRATE]   = {.len = sizeof(struct ieee_maxrate)},
 };
 
 static const struct nla_policy dcbnl_ieee_app[DCB_ATTR_IEEE_APP_MAX + 1] = {
@@ -703,6 +704,7 @@ static int dcbnl_setapp(struct net_device *netdev, struct nlattr **tb,
 
 	ret = dcbnl_reply(err, RTM_SETDCB, DCB_CMD_SAPP, DCB_ATTR_APP,
 			  pid, seq, flags);
+	dcbnl_cee_notify(netdev, RTM_SETDCB, DCB_CMD_SAPP, seq, 0);
 out:
 	return ret;
 }
@@ -935,6 +937,7 @@ static int dcbnl_setall(struct net_device *netdev, struct nlattr **tb,
 
 	ret = dcbnl_reply(netdev->dcbnl_ops->setall(netdev), RTM_SETDCB,
 	                  DCB_CMD_SET_ALL, DCB_ATTR_SET_ALL, pid, seq, flags);
+	dcbnl_cee_notify(netdev, RTM_SETDCB, DCB_CMD_SET_ALL, seq, 0);
 
 	return ret;
 }
@@ -1205,13 +1208,15 @@ static int dcbnl_build_peer_app(struct net_device *netdev, struct sk_buff* skb,
 		if (!app)
 			goto nla_put_failure;
 
-		if (app_info_type)
-			NLA_PUT(skb, app_info_type, sizeof(info), &info);
+		if (app_info_type &&
+		    nla_put(skb, app_info_type, sizeof(info), &info))
+			goto nla_put_failure;
 
-		for (i = 0; i < app_count; i++)
-			NLA_PUT(skb, app_entry_type, sizeof(struct dcb_app),
-				&table[i]);
-
+		for (i = 0; i < app_count; i++) {
+			if (nla_put(skb, app_entry_type, sizeof(struct dcb_app),
+				    &table[i]))
+				goto nla_put_failure;
+		}
 		nla_nest_end(skb, app);
 	}
 	err = 0;
@@ -1230,8 +1235,8 @@ static int dcbnl_ieee_fill(struct sk_buff *skb, struct net_device *netdev)
 	int dcbx;
 	int err = -EMSGSIZE;
 
-	NLA_PUT_STRING(skb, DCB_ATTR_IFNAME, netdev->name);
-
+	if (nla_put_string(skb, DCB_ATTR_IFNAME, netdev->name))
+		goto nla_put_failure;
 	ieee = nla_nest_start(skb, DCB_ATTR_IEEE);
 	if (!ieee)
 		goto nla_put_failure;
@@ -1239,15 +1244,28 @@ static int dcbnl_ieee_fill(struct sk_buff *skb, struct net_device *netdev)
 	if (ops->ieee_getets) {
 		struct ieee_ets ets;
 		err = ops->ieee_getets(netdev, &ets);
-		if (!err)
-			NLA_PUT(skb, DCB_ATTR_IEEE_ETS, sizeof(ets), &ets);
+		if (!err &&
+		    nla_put(skb, DCB_ATTR_IEEE_ETS, sizeof(ets), &ets))
+			goto nla_put_failure;
+	}
+
+	if (ops->ieee_getmaxrate) {
+		struct ieee_maxrate maxrate;
+		err = ops->ieee_getmaxrate(netdev, &maxrate);
+		if (!err) {
+			err = nla_put(skb, DCB_ATTR_IEEE_MAXRATE,
+				      sizeof(maxrate), &maxrate);
+			if (err)
+				goto nla_put_failure;
+		}
 	}
 
 	if (ops->ieee_getpfc) {
 		struct ieee_pfc pfc;
 		err = ops->ieee_getpfc(netdev, &pfc);
-		if (!err)
-			NLA_PUT(skb, DCB_ATTR_IEEE_PFC, sizeof(pfc), &pfc);
+		if (!err &&
+		    nla_put(skb, DCB_ATTR_IEEE_PFC, sizeof(pfc), &pfc))
+			goto nla_put_failure;
 	}
 
 	app = nla_nest_start(skb, DCB_ATTR_IEEE_APP_TABLE);
@@ -1278,15 +1296,17 @@ static int dcbnl_ieee_fill(struct sk_buff *skb, struct net_device *netdev)
 	if (ops->ieee_peer_getets) {
 		struct ieee_ets ets;
 		err = ops->ieee_peer_getets(netdev, &ets);
-		if (!err)
-			NLA_PUT(skb, DCB_ATTR_IEEE_PEER_ETS, sizeof(ets), &ets);
+		if (!err &&
+		    nla_put(skb, DCB_ATTR_IEEE_PEER_ETS, sizeof(ets), &ets))
+			goto nla_put_failure;
 	}
 
 	if (ops->ieee_peer_getpfc) {
 		struct ieee_pfc pfc;
 		err = ops->ieee_peer_getpfc(netdev, &pfc);
-		if (!err)
-			NLA_PUT(skb, DCB_ATTR_IEEE_PEER_PFC, sizeof(pfc), &pfc);
+		if (!err &&
+		    nla_put(skb, DCB_ATTR_IEEE_PEER_PFC, sizeof(pfc), &pfc))
+			goto nla_put_failure;
 	}
 
 	if (ops->peer_getappinfo && ops->peer_getapptable) {
@@ -1340,10 +1360,11 @@ static int dcbnl_cee_pg_fill(struct sk_buff *skb, struct net_device *dev,
 			ops->getpgtccfgtx(dev, i - DCB_PG_ATTR_TC_0,
 					  &prio, &pgid, &tc_pct, &up_map);
 
-		NLA_PUT_U8(skb, DCB_TC_ATTR_PARAM_PGID, pgid);
-		NLA_PUT_U8(skb, DCB_TC_ATTR_PARAM_UP_MAPPING, up_map);
-		NLA_PUT_U8(skb, DCB_TC_ATTR_PARAM_STRICT_PRIO, prio);
-		NLA_PUT_U8(skb, DCB_TC_ATTR_PARAM_BW_PCT, tc_pct);
+		if (nla_put_u8(skb, DCB_TC_ATTR_PARAM_PGID, pgid) ||
+		    nla_put_u8(skb, DCB_TC_ATTR_PARAM_UP_MAPPING, up_map) ||
+		    nla_put_u8(skb, DCB_TC_ATTR_PARAM_STRICT_PRIO, prio) ||
+		    nla_put_u8(skb, DCB_TC_ATTR_PARAM_BW_PCT, tc_pct))
+			goto nla_put_failure;
 		nla_nest_end(skb, tc_nest);
 	}
 
@@ -1356,7 +1377,8 @@ static int dcbnl_cee_pg_fill(struct sk_buff *skb, struct net_device *dev,
 		else
 			ops->getpgbwgcfgtx(dev, i - DCB_PG_ATTR_BW_ID_0,
 					   &tc_pct);
-		NLA_PUT_U8(skb, i, tc_pct);
+		if (nla_put_u8(skb, i, tc_pct))
+			goto nla_put_failure;
 	}
 	nla_nest_end(skb, pg);
 	return 0;
@@ -1373,8 +1395,8 @@ static int dcbnl_cee_fill(struct sk_buff *skb, struct net_device *netdev)
 	int dcbx, i, err = -EMSGSIZE;
 	u8 value;
 
-	NLA_PUT_STRING(skb, DCB_ATTR_IFNAME, netdev->name);
-
+	if (nla_put_string(skb, DCB_ATTR_IFNAME, netdev->name))
+		goto nla_put_failure;
 	cee = nla_nest_start(skb, DCB_ATTR_CEE);
 	if (!cee)
 		goto nla_put_failure;
@@ -1401,7 +1423,8 @@ static int dcbnl_cee_fill(struct sk_buff *skb, struct net_device *netdev)
 
 		for (i = DCB_PFC_UP_ATTR_0; i <= DCB_PFC_UP_ATTR_7; i++) {
 			ops->getpfccfg(netdev, i - DCB_PFC_UP_ATTR_0, &value);
-			NLA_PUT_U8(skb, i, value);
+			if (nla_put_u8(skb, i, value))
+				goto nla_put_failure;
 		}
 		nla_nest_end(skb, pfc_nest);
 	}
@@ -1454,8 +1477,9 @@ static int dcbnl_cee_fill(struct sk_buff *skb, struct net_device *netdev)
 
 		for (i = DCB_FEATCFG_ATTR_ALL + 1; i <= DCB_FEATCFG_ATTR_MAX;
 		     i++)
-			if (!ops->getfeatcfg(netdev, i, &value))
-				NLA_PUT_U8(skb, i, value);
+			if (!ops->getfeatcfg(netdev, i, &value) &&
+			    nla_put_u8(skb, i, value))
+				goto nla_put_failure;
 
 		nla_nest_end(skb, feat);
 	}
@@ -1464,15 +1488,17 @@ static int dcbnl_cee_fill(struct sk_buff *skb, struct net_device *netdev)
 	if (ops->cee_peer_getpg) {
 		struct cee_pg pg;
 		err = ops->cee_peer_getpg(netdev, &pg);
-		if (!err)
-			NLA_PUT(skb, DCB_ATTR_CEE_PEER_PG, sizeof(pg), &pg);
+		if (!err &&
+		    nla_put(skb, DCB_ATTR_CEE_PEER_PG, sizeof(pg), &pg))
+			goto nla_put_failure;
 	}
 
 	if (ops->cee_peer_getpfc) {
 		struct cee_pfc pfc;
 		err = ops->cee_peer_getpfc(netdev, &pfc);
-		if (!err)
-			NLA_PUT(skb, DCB_ATTR_CEE_PEER_PFC, sizeof(pfc), &pfc);
+		if (!err &&
+		    nla_put(skb, DCB_ATTR_CEE_PEER_PFC, sizeof(pfc), &pfc))
+			goto nla_put_failure;
 	}
 
 	if (ops->peer_getappinfo && ops->peer_getapptable) {
@@ -1585,6 +1611,14 @@ static int dcbnl_ieee_set(struct net_device *netdev, struct nlattr **tb,
 	if (ieee[DCB_ATTR_IEEE_ETS] && ops->ieee_setets) {
 		struct ieee_ets *ets = nla_data(ieee[DCB_ATTR_IEEE_ETS]);
 		err = ops->ieee_setets(netdev, ets);
+		if (err)
+			goto err;
+	}
+
+	if (ieee[DCB_ATTR_IEEE_MAXRATE] && ops->ieee_setmaxrate) {
+		struct ieee_maxrate *maxrate =
+			nla_data(ieee[DCB_ATTR_IEEE_MAXRATE]);
+		err = ops->ieee_setmaxrate(netdev, maxrate);
 		if (err)
 			goto err;
 	}

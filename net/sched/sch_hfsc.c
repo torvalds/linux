@@ -1305,7 +1305,8 @@ hfsc_dump_sc(struct sk_buff *skb, int attr, struct internal_sc *sc)
 	tsc.m1 = sm2m(sc->sm1);
 	tsc.d  = dx2d(sc->dx);
 	tsc.m2 = sm2m(sc->sm2);
-	NLA_PUT(skb, attr, sizeof(tsc), &tsc);
+	if (nla_put(skb, attr, sizeof(tsc), &tsc))
+		goto nla_put_failure;
 
 	return skb->len;
 
@@ -1573,7 +1574,8 @@ hfsc_dump_qdisc(struct Qdisc *sch, struct sk_buff *skb)
 	}
 
 	qopt.defcls = q->defcls;
-	NLA_PUT(skb, TCA_OPTIONS, sizeof(qopt), &qopt);
+	if (nla_put(skb, TCA_OPTIONS, sizeof(qopt), &qopt))
+		goto nla_put_failure;
 	return skb->len;
 
  nla_put_failure:
@@ -1607,7 +1609,6 @@ hfsc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	if (cl->qdisc->q.qlen == 1)
 		set_active(cl, qdisc_pkt_len(skb));
 
-	bstats_update(&cl->bstats, skb);
 	sch->q.qlen++;
 
 	return NET_XMIT_SUCCESS;
@@ -1655,6 +1656,7 @@ hfsc_dequeue(struct Qdisc *sch)
 		return NULL;
 	}
 
+	bstats_update(&cl->bstats, skb);
 	update_vf(cl, qdisc_pkt_len(skb), cur_time);
 	if (realtime)
 		cl->cl_cumul += qdisc_pkt_len(skb);

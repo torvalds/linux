@@ -141,7 +141,7 @@ struct rbd_request {
 struct rbd_snap {
 	struct	device		dev;
 	const char		*name;
-	size_t			size;
+	u64			size;
 	struct list_head	node;
 	u64			id;
 };
@@ -175,8 +175,7 @@ struct rbd_device {
 	/* protects updating the header */
 	struct rw_semaphore     header_rwsem;
 	char                    snap_name[RBD_MAX_SNAP_NAME_LEN];
-	u32 cur_snap;	/* index+1 of current snapshot within snap context
-			   0 - for the head */
+	u64                     snap_id;	/* current snapshot id */
 	int read_only;
 
 	struct list_head	node;
@@ -241,7 +240,7 @@ static void rbd_put_dev(struct rbd_device *rbd_dev)
 	put_device(&rbd_dev->dev);
 }
 
-static int __rbd_update_snaps(struct rbd_device *rbd_dev);
+static int __rbd_refresh_header(struct rbd_device *rbd_dev);
 
 static int rbd_open(struct block_device *bdev, fmode_t mode)
 {
@@ -450,7 +449,9 @@ static void rbd_client_release(struct kref *kref)
 	struct rbd_client *rbdc = container_of(kref, struct rbd_client, kref);
 
 	dout("rbd_release_client %p\n", rbdc);
+	spin_lock(&rbd_client_list_lock);
 	list_del(&rbdc->node);
+	spin_unlock(&rbd_client_list_lock);
 
 	ceph_destroy_client(rbdc->client);
 	kfree(rbdc->rbd_opts);
@@ -463,9 +464,7 @@ static void rbd_client_release(struct kref *kref)
  */
 static void rbd_put_client(struct rbd_device *rbd_dev)
 {
-	spin_lock(&rbd_client_list_lock);
 	kref_put(&rbd_dev->rbd_client->kref, rbd_client_release);
-	spin_unlock(&rbd_client_list_lock);
 	rbd_dev->rbd_client = NULL;
 }
 
@@ -487,16 +486,18 @@ static void rbd_coll_release(struct kref *kref)
  */
 static int rbd_header_from_disk(struct rbd_image_header *header,
 				 struct rbd_image_header_ondisk *ondisk,
-				 int allocated_snaps,
+				 u32 allocated_snaps,
 				 gfp_t gfp_flags)
 {
-	int i;
-	u32 snap_count;
+	u32 i, snap_count;
 
 	if (memcmp(ondisk, RBD_HEADER_TEXT, sizeof(RBD_HEADER_TEXT)))
 		return -ENXIO;
 
 	snap_count = le32_to_cpu(ondisk->snap_count);
+	if (snap_count > (UINT_MAX - sizeof(struct ceph_snap_context))
+			 / sizeof (*ondisk))
+		return -EINVAL;
 	header->snapc = kmalloc(sizeof(struct ceph_snap_context) +
 				snap_count * sizeof (*ondisk),
 				gfp_flags);
@@ -506,11 +507,11 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	header->snap_names_len = le64_to_cpu(ondisk->snap_names_len);
 	if (snap_count) {
 		header->snap_names = kmalloc(header->snap_names_len,
-					     GFP_KERNEL);
+					     gfp_flags);
 		if (!header->snap_names)
 			goto err_snapc;
 		header->snap_sizes = kmalloc(snap_count * sizeof(u64),
-					     GFP_KERNEL);
+					     gfp_flags);
 		if (!header->snap_sizes)
 			goto err_names;
 	} else {
@@ -552,21 +553,6 @@ err_snapc:
 	return -ENOMEM;
 }
 
-static int snap_index(struct rbd_image_header *header, int snap_num)
-{
-	return header->total_snaps - snap_num;
-}
-
-static u64 cur_snap_id(struct rbd_device *rbd_dev)
-{
-	struct rbd_image_header *header = &rbd_dev->header;
-
-	if (!rbd_dev->cur_snap)
-		return 0;
-
-	return header->snapc->snaps[snap_index(header, rbd_dev->cur_snap)];
-}
-
 static int snap_by_name(struct rbd_image_header *header, const char *snap_name,
 			u64 *seq, u64 *size)
 {
@@ -605,7 +591,7 @@ static int rbd_header_set_snap(struct rbd_device *dev, u64 *size)
 			snapc->seq = header->snap_seq;
 		else
 			snapc->seq = 0;
-		dev->cur_snap = 0;
+		dev->snap_id = CEPH_NOSNAP;
 		dev->read_only = 0;
 		if (size)
 			*size = header->image_size;
@@ -613,8 +599,7 @@ static int rbd_header_set_snap(struct rbd_device *dev, u64 *size)
 		ret = snap_by_name(header, dev->snap_name, &snapc->seq, size);
 		if (ret < 0)
 			goto done;
-
-		dev->cur_snap = header->total_snaps - ret;
+		dev->snap_id = snapc->seq;
 		dev->read_only = 1;
 	}
 
@@ -935,7 +920,6 @@ static int rbd_do_request(struct request *rq,
 	layout->fl_stripe_unit = cpu_to_le32(1 << RBD_MAX_OBJ_ORDER);
 	layout->fl_stripe_count = cpu_to_le32(1);
 	layout->fl_object_size = cpu_to_le32(1 << RBD_MAX_OBJ_ORDER);
-	layout->fl_pg_preferred = cpu_to_le32(-1);
 	layout->fl_pg_pool = cpu_to_le32(dev->poolid);
 	ceph_calc_raw_layout(osdc, layout, snapid, ofs, &len, &bno,
 				req, ops);
@@ -1168,7 +1152,7 @@ static int rbd_req_read(struct request *rq,
 			 int coll_index)
 {
 	return rbd_do_op(rq, rbd_dev, NULL,
-			 (snapid ? snapid : CEPH_NOSNAP),
+			 snapid,
 			 CEPH_OSD_OP_READ,
 			 CEPH_OSD_FLAG_READ,
 			 2,
@@ -1187,7 +1171,7 @@ static int rbd_req_sync_read(struct rbd_device *dev,
 			  u64 *ver)
 {
 	return rbd_req_sync_op(dev, NULL,
-			       (snapid ? snapid : CEPH_NOSNAP),
+			       snapid,
 			       CEPH_OSD_OP_READ,
 			       CEPH_OSD_FLAG_READ,
 			       NULL,
@@ -1238,7 +1222,7 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 	dout("rbd_watch_cb %s notify_id=%lld opcode=%d\n", dev->obj_md_name,
 		notify_id, (int)opcode);
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-	rc = __rbd_update_snaps(dev);
+	rc = __rbd_refresh_header(dev);
 	mutex_unlock(&ctl_mutex);
 	if (rc)
 		pr_warning(RBD_DRV_NAME "%d got notification but failed to "
@@ -1521,7 +1505,7 @@ static void rbd_rq_fn(struct request_queue *q)
 					      coll, cur_seg);
 			else
 				rbd_req_read(rq, rbd_dev,
-					     cur_snap_id(rbd_dev),
+					     rbd_dev->snap_id,
 					     ofs,
 					     op_size, bio,
 					     coll, cur_seg);
@@ -1592,7 +1576,7 @@ static int rbd_read_header(struct rbd_device *rbd_dev,
 {
 	ssize_t rc;
 	struct rbd_image_header_ondisk *dh;
-	int snap_count = 0;
+	u32 snap_count = 0;
 	u64 ver;
 	size_t len;
 
@@ -1656,7 +1640,7 @@ static int rbd_header_add_snap(struct rbd_device *dev,
 	struct ceph_mon_client *monc;
 
 	/* we should create a snapshot only if we're pointing at the head */
-	if (dev->cur_snap)
+	if (dev->snap_id != CEPH_NOSNAP)
 		return -EINVAL;
 
 	monc = &dev->rbd_client->client->monc;
@@ -1683,7 +1667,9 @@ static int rbd_header_add_snap(struct rbd_device *dev,
 	if (ret < 0)
 		return ret;
 
-	dev->header.snapc->seq =  new_snapid;
+	down_write(&dev->header_rwsem);
+	dev->header.snapc->seq = new_snapid;
+	up_write(&dev->header_rwsem);
 
 	return 0;
 bad:
@@ -1703,7 +1689,7 @@ static void __rbd_remove_all_snaps(struct rbd_device *rbd_dev)
 /*
  * only read the first part of the ondisk header, without the snaps info
  */
-static int __rbd_update_snaps(struct rbd_device *rbd_dev)
+static int __rbd_refresh_header(struct rbd_device *rbd_dev)
 {
 	int ret;
 	struct rbd_image_header h;
@@ -1890,7 +1876,7 @@ static ssize_t rbd_image_refresh(struct device *dev,
 
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 
-	rc = __rbd_update_snaps(rbd_dev);
+	rc = __rbd_refresh_header(rbd_dev);
 	if (rc < 0)
 		ret = rc;
 
@@ -1949,7 +1935,7 @@ static ssize_t rbd_snap_size_show(struct device *dev,
 {
 	struct rbd_snap *snap = container_of(dev, struct rbd_snap, dev);
 
-	return sprintf(buf, "%zd\n", snap->size);
+	return sprintf(buf, "%llu\n", (unsigned long long)snap->size);
 }
 
 static ssize_t rbd_snap_id_show(struct device *dev,
@@ -1958,7 +1944,7 @@ static ssize_t rbd_snap_id_show(struct device *dev,
 {
 	struct rbd_snap *snap = container_of(dev, struct rbd_snap, dev);
 
-	return sprintf(buf, "%llu\n", (unsigned long long) snap->id);
+	return sprintf(buf, "%llu\n", (unsigned long long)snap->id);
 }
 
 static DEVICE_ATTR(snap_size, S_IRUGO, rbd_snap_size_show, NULL);
@@ -2173,7 +2159,7 @@ static int rbd_init_watch_dev(struct rbd_device *rbd_dev)
 					 rbd_dev->header.obj_version);
 		if (ret == -ERANGE) {
 			mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-			rc = __rbd_update_snaps(rbd_dev);
+			rc = __rbd_refresh_header(rbd_dev);
 			mutex_unlock(&ctl_mutex);
 			if (rc < 0)
 				return rc;
@@ -2558,7 +2544,7 @@ static ssize_t rbd_snap_add(struct device *dev,
 	if (ret < 0)
 		goto err_unlock;
 
-	ret = __rbd_update_snaps(rbd_dev);
+	ret = __rbd_refresh_header(rbd_dev);
 	if (ret < 0)
 		goto err_unlock;
 

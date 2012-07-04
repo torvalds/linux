@@ -23,6 +23,8 @@
   Reset function and helpers
 \****************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <asm/unaligned.h>
 
 #include <linux/pci.h>		/* To determine if a card is pci-e */

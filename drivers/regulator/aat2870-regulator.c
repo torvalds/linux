@@ -24,7 +24,6 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
@@ -178,6 +177,7 @@ static struct aat2870_regulator *aat2870_get_regulator(int id)
 static int aat2870_regulator_probe(struct platform_device *pdev)
 {
 	struct aat2870_regulator *ri;
+	struct regulator_config config = { 0 };
 	struct regulator_dev *rdev;
 
 	ri = aat2870_get_regulator(pdev->id);
@@ -187,8 +187,11 @@ static int aat2870_regulator_probe(struct platform_device *pdev)
 	}
 	ri->aat2870 = dev_get_drvdata(pdev->dev.parent);
 
-	rdev = regulator_register(&ri->desc, &pdev->dev,
-				  pdev->dev.platform_data, ri, NULL);
+	config.dev = &pdev->dev;
+	config.driver_data = ri;
+	config.init_data = pdev->dev.platform_data;
+
+	rdev = regulator_register(&ri->desc, &config);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "Failed to register regulator %s\n",
 			ri->desc.name);
@@ -231,3 +234,4 @@ module_exit(aat2870_regulator_exit);
 MODULE_DESCRIPTION("AnalogicTech AAT2870 Regulator");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jin Park <jinyoungp@nvidia.com>");
+MODULE_ALIAS("platform:aat2870-regulator");

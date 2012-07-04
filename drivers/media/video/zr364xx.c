@@ -507,14 +507,12 @@ static void zr364xx_fillbuff(struct zr364xx_camera *cam,
 	const char *tmpbuf;
 	char *vbuf = videobuf_to_vmalloc(&buf->vb);
 	unsigned long last_frame;
-	struct zr364xx_framei *frm;
 
 	if (!vbuf)
 		return;
 
 	last_frame = cam->last_frame;
 	if (last_frame != -1) {
-		frm = &cam->buffer.frame[last_frame];
 		tmpbuf = (const char *)cam->buffer.frame[last_frame].lpvbits;
 		switch (buf->fmt->fourcc) {
 		case V4L2_PIX_FMT_JPEG:

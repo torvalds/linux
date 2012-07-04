@@ -352,21 +352,26 @@ EXPORT_SYMBOL_GPL(dev_pm_qos_remove_request);
  *
  * Will register the notifier into a notification chain that gets called
  * upon changes to the target value for the device.
+ *
+ * If the device's constraints object doesn't exist when this routine is called,
+ * it will be created (or error code will be returned if that fails).
  */
 int dev_pm_qos_add_notifier(struct device *dev, struct notifier_block *notifier)
 {
-	int retval = 0;
+	int ret = 0;
 
 	mutex_lock(&dev_pm_qos_mtx);
 
-	/* Silently return if the constraints object is not present. */
-	if (dev->power.constraints)
-		retval = blocking_notifier_chain_register(
-				dev->power.constraints->notifiers,
-				notifier);
+	if (!dev->power.constraints)
+		ret = dev->power.power_state.event != PM_EVENT_INVALID ?
+			dev_pm_qos_constraints_allocate(dev) : -ENODEV;
+
+	if (!ret)
+		ret = blocking_notifier_chain_register(
+				dev->power.constraints->notifiers, notifier);
 
 	mutex_unlock(&dev_pm_qos_mtx);
-	return retval;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_qos_add_notifier);
 

@@ -226,23 +226,9 @@ struct em28xx_usb_isoc_ctl {
 		/* isoc transfer buffers for digital mode */
 	struct em28xx_usb_isoc_bufs	digital_bufs;
 
-		/* Last buffer command and region */
-	u8				cmd;
-	int				pos, size, pktsize;
-
-		/* Last field: ODD or EVEN? */
-	int				field;
-
-		/* Stores incomplete commands */
-	u32				tmp_buf;
-	int				tmp_buf_len;
-
 		/* Stores already requested buffers */
 	struct em28xx_buffer    	*vid_buf;
 	struct em28xx_buffer    	*vbi_buf;
-
-		/* Stores the number of received fields */
-	int				nfields;
 
 		/* isoc urb callback */
 	int (*isoc_copy) (struct em28xx *dev, struct urb *urb);
@@ -264,24 +250,15 @@ struct em28xx_buffer {
 
 	struct list_head frame;
 	int top_field;
-	int receiving;
 };
 
 struct em28xx_dmaqueue {
 	struct list_head       active;
-	struct list_head       queued;
 
 	wait_queue_head_t          wq;
 
 	/* Counters to control buffer fill */
 	int                        pos;
-};
-
-/* io methods */
-enum em28xx_io_method {
-	IO_NONE,
-	IO_READ,
-	IO_MMAP,
 };
 
 /* inputs */
@@ -467,6 +444,7 @@ enum em28xx_dev_state {
 /* em28xx extensions */
 #define EM28XX_AUDIO   0x10
 #define EM28XX_DVB     0x20
+#define EM28XX_RC      0x30
 
 /* em28xx resource types (used for res_get/res_lock etc */
 #define EM28XX_RESOURCE_VIDEO 0x01
@@ -577,7 +555,6 @@ struct em28xx {
 
 	/* states */
 	enum em28xx_dev_state state;
-	enum em28xx_io_method io;
 
 	/* vbi related state tracking */
 	int capture_type;
@@ -593,7 +570,6 @@ struct em28xx {
 	struct mutex ctrl_urb_lock;	/* protects urb_buf */
 	/* spinlock_t queue_lock; */
 	struct list_head inqueue, outqueue;
-	wait_queue_head_t open, wait_frame, wait_stream;
 	struct video_device *vbi_dev;
 	struct video_device *radio_dev;
 
@@ -695,6 +671,7 @@ int em28xx_init_isoc(struct em28xx *dev, enum em28xx_mode mode,
 		     int max_packets, int num_bufs, int max_pkt_size,
 		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb));
 void em28xx_uninit_isoc(struct em28xx *dev, enum em28xx_mode mode);
+void em28xx_stop_urbs(struct em28xx *dev);
 int em28xx_isoc_dvb_max_packetsize(struct em28xx *dev);
 int em28xx_set_mode(struct em28xx *dev, enum em28xx_mode set_mode);
 int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio);
@@ -710,44 +687,11 @@ void em28xx_release_analog_resources(struct em28xx *dev);
 
 /* Provided by em28xx-cards.c */
 extern int em2800_variant_detect(struct usb_device *udev, int model);
-extern void em28xx_pre_card_setup(struct em28xx *dev);
-extern void em28xx_card_setup(struct em28xx *dev);
 extern struct em28xx_board em28xx_boards[];
 extern struct usb_device_id em28xx_id_table[];
 extern const unsigned int em28xx_bcount;
-void em28xx_register_i2c_ir(struct em28xx *dev);
 int em28xx_tuner_callback(void *ptr, int component, int command, int arg);
 void em28xx_release_resources(struct em28xx *dev);
-
-/* Provided by em28xx-input.c */
-
-#ifdef CONFIG_VIDEO_EM28XX_RC
-
-int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
-int em28xx_get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
-int em28xx_get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key,
-				     u32 *ir_raw);
-int em28xx_get_key_winfast_usbii_deluxe(struct IR_i2c *ir, u32 *ir_key,
-				     u32 *ir_raw);
-void em28xx_register_snapshot_button(struct em28xx *dev);
-void em28xx_deregister_snapshot_button(struct em28xx *dev);
-
-int em28xx_ir_init(struct em28xx *dev);
-int em28xx_ir_fini(struct em28xx *dev);
-
-#else
-
-#define em28xx_get_key_terratec			NULL
-#define em28xx_get_key_em_haup			NULL
-#define em28xx_get_key_pinnacle_usb_grey	NULL
-#define em28xx_get_key_winfast_usbii_deluxe	NULL
-
-static inline void em28xx_register_snapshot_button(struct em28xx *dev) {}
-static inline void em28xx_deregister_snapshot_button(struct em28xx *dev) {}
-static inline int em28xx_ir_init(struct em28xx *dev) { return 0; }
-static inline int em28xx_ir_fini(struct em28xx *dev) { return 0; }
-
-#endif
 
 /* Provided by em28xx-vbi.c */
 extern struct videobuf_queue_ops em28xx_vbi_qops;

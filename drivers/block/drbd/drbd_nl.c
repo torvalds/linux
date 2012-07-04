@@ -289,7 +289,7 @@ static int _try_outdate_peer_async(void *data)
 	*/
 	spin_lock_irq(&mdev->req_lock);
 	ns = mdev->state;
-	if (ns.conn < C_WF_REPORT_PARAMS) {
+	if (ns.conn < C_WF_REPORT_PARAMS && !test_bit(STATE_SENT, &mdev->flags)) {
 		ns.pdsk = nps;
 		_drbd_set_state(mdev, ns, CS_VERBOSE, NULL);
 	}
@@ -432,7 +432,7 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 		/* if this was forced, we should consider sync */
 		if (forced)
 			drbd_send_uuids(mdev);
-		drbd_send_state(mdev);
+		drbd_send_current_state(mdev);
 	}
 
 	drbd_md_sync(mdev);
@@ -845,9 +845,10 @@ void drbd_reconsider_max_bio_size(struct drbd_conf *mdev)
 	   Because new from 8.3.8 onwards the peer can use multiple
 	   BIOs for a single peer_request */
 	if (mdev->state.conn >= C_CONNECTED) {
-		if (mdev->agreed_pro_version < 94)
-			peer = mdev->peer_max_bio_size;
-		else if (mdev->agreed_pro_version == 94)
+		if (mdev->agreed_pro_version < 94) {
+			peer = min_t(int, mdev->peer_max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
+			/* Correct old drbd (up to 8.3.7) if it believes it can do more than 32KiB */
+		} else if (mdev->agreed_pro_version == 94)
 			peer = DRBD_MAX_SIZE_H80_PACKET;
 		else /* drbd 8.3.8 onwards */
 			peer = DRBD_MAX_BIO_SIZE;
@@ -1032,7 +1033,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 		dev_err(DEV, "max capacity %llu smaller than disk size %llu\n",
 			(unsigned long long) drbd_get_max_capacity(nbc),
 			(unsigned long long) nbc->dc.disk_size);
-		retcode = ERR_DISK_TO_SMALL;
+		retcode = ERR_DISK_TOO_SMALL;
 		goto fail;
 	}
 
@@ -1046,7 +1047,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	}
 
 	if (drbd_get_capacity(nbc->md_bdev) < min_md_device_sectors) {
-		retcode = ERR_MD_DISK_TO_SMALL;
+		retcode = ERR_MD_DISK_TOO_SMALL;
 		dev_warn(DEV, "refusing attach: md-device too small, "
 		     "at least %llu sectors needed for this meta-disk type\n",
 		     (unsigned long long) min_md_device_sectors);
@@ -1057,7 +1058,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	 * (we may currently be R_PRIMARY with no local disk...) */
 	if (drbd_get_max_capacity(nbc) <
 	    drbd_get_capacity(mdev->this_bdev)) {
-		retcode = ERR_DISK_TO_SMALL;
+		retcode = ERR_DISK_TOO_SMALL;
 		goto fail;
 	}
 
@@ -1138,7 +1139,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	if (drbd_md_test_flag(nbc, MDF_CONSISTENT) &&
 	    drbd_new_dev_size(mdev, nbc, 0) < nbc->md.la_size_sect) {
 		dev_warn(DEV, "refusing to truncate a consistent device\n");
-		retcode = ERR_DISK_TO_SMALL;
+		retcode = ERR_DISK_TOO_SMALL;
 		goto force_diskless_dec;
 	}
 
@@ -1336,17 +1337,34 @@ static int drbd_nl_detach(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 {
 	enum drbd_ret_code retcode;
 	int ret;
+	struct detach dt = {};
+
+	if (!detach_from_tags(mdev, nlp->tag_list, &dt)) {
+		reply->ret_code = ERR_MANDATORY_TAG;
+		goto out;
+	}
+
+	if (dt.detach_force) {
+		drbd_force_state(mdev, NS(disk, D_FAILED));
+		reply->ret_code = SS_SUCCESS;
+		goto out;
+	}
+
 	drbd_suspend_io(mdev); /* so no-one is stuck in drbd_al_begin_io */
+	drbd_md_get_buffer(mdev); /* make sure there is no in-flight meta-data IO */
 	retcode = drbd_request_state(mdev, NS(disk, D_FAILED));
+	drbd_md_put_buffer(mdev);
 	/* D_FAILED will transition to DISKLESS. */
 	ret = wait_event_interruptible(mdev->misc_wait,
 			mdev->state.disk != D_FAILED);
 	drbd_resume_io(mdev);
+
 	if ((int)retcode == (int)SS_IS_DISKLESS)
 		retcode = SS_NOTHING_TO_DO;
 	if (ret)
 		retcode = ERR_INTR;
 	reply->ret_code = retcode;
+out:
 	return 0;
 }
 
@@ -1711,7 +1729,7 @@ static int drbd_nl_resize(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 
 	if (rs.no_resync && mdev->agreed_pro_version < 93) {
 		retcode = ERR_NEED_APV_93;
-		goto fail;
+		goto fail_ldev;
 	}
 
 	if (mdev->ldev->known_size != drbd_get_capacity(mdev->ldev->backing_bdev))
@@ -1738,6 +1756,10 @@ static int drbd_nl_resize(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
  fail:
 	reply->ret_code = retcode;
 	return 0;
+
+ fail_ldev:
+	put_ldev(mdev);
+	goto fail;
 }
 
 static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
@@ -1941,6 +1963,7 @@ static int drbd_nl_invalidate(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 
 	/* If there is still bitmap IO pending, probably because of a previous
 	 * resync just being finished, wait for it before requesting a new resync. */
+	drbd_suspend_io(mdev);
 	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
 
 	retcode = _drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_T), CS_ORDERED);
@@ -1959,6 +1982,7 @@ static int drbd_nl_invalidate(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 
 		retcode = drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_T));
 	}
+	drbd_resume_io(mdev);
 
 	reply->ret_code = retcode;
 	return 0;
@@ -1980,6 +2004,7 @@ static int drbd_nl_invalidate_peer(struct drbd_conf *mdev, struct drbd_nl_cfg_re
 
 	/* If there is still bitmap IO pending, probably because of a previous
 	 * resync just being finished, wait for it before requesting a new resync. */
+	drbd_suspend_io(mdev);
 	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
 
 	retcode = _drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S), CS_ORDERED);
@@ -1998,6 +2023,7 @@ static int drbd_nl_invalidate_peer(struct drbd_conf *mdev, struct drbd_nl_cfg_re
 		} else
 			retcode = drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S));
 	}
+	drbd_resume_io(mdev);
 
 	reply->ret_code = retcode;
 	return 0;
@@ -2170,11 +2196,13 @@ static int drbd_nl_start_ov(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 
 	/* If there is still bitmap IO pending, e.g. previous resync or verify
 	 * just being finished, wait for it before requesting a new resync. */
+	drbd_suspend_io(mdev);
 	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
 
 	/* w_make_ov_request expects position to be aligned */
 	mdev->ov_start_sector = args.start_sector & ~BM_SECT_PER_BIT;
 	reply->ret_code = drbd_request_state(mdev,NS(conn,C_VERIFY_S));
+	drbd_resume_io(mdev);
 	return 0;
 }
 
@@ -2297,7 +2325,7 @@ static void drbd_connector_callback(struct cn_msg *req, struct netlink_skb_parms
 		return;
 	}
 
-	if (!cap_raised(current_cap(), CAP_SYS_ADMIN)) {
+	if (!capable(CAP_SYS_ADMIN)) {
 		retcode = ERR_PERM;
 		goto fail;
 	}

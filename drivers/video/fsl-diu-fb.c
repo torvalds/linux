@@ -834,7 +834,6 @@ static void update_lcdc(struct fb_info *info)
 	diu_ops.set_pixel_clock(var->pixclock);
 
 	out_be32(&hw->syn_pol, 0);	/* SYNC SIGNALS POLARITY */
-	out_be32(&hw->thresholds, 0x00037800); /* The Thresholds */
 	out_be32(&hw->int_status, 0);	/* INTERRUPT STATUS */
 	out_be32(&hw->plut, 0x01F5F666);
 

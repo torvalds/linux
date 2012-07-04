@@ -570,14 +570,14 @@ static ssize_t
 cld_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 {
 	struct cld_upcall *tmp, *cup;
-	struct cld_msg *cmsg = (struct cld_msg *)src;
+	struct cld_msg __user *cmsg = (struct cld_msg __user *)src;
 	uint32_t xid;
 	struct nfsd_net *nn = net_generic(filp->f_dentry->d_sb->s_fs_info,
 						nfsd_net_id);
 	struct cld_net *cn = nn->cld_net;
 
 	if (mlen != sizeof(*cmsg)) {
-		dprintk("%s: got %lu bytes, expected %lu\n", __func__, mlen,
+		dprintk("%s: got %zu bytes, expected %zu\n", __func__, mlen,
 			sizeof(*cmsg));
 		return -EINVAL;
 	}
@@ -1029,7 +1029,7 @@ rpc_pipefs_event(struct notifier_block *nb, unsigned long event, void *ptr)
 	return ret;
 }
 
-struct notifier_block nfsd4_cld_block = {
+static struct notifier_block nfsd4_cld_block = {
 	.notifier_call = rpc_pipefs_event,
 };
 

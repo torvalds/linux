@@ -56,10 +56,6 @@ See the source for configuration details.
 
 /* #define PCL724_IRQ   1  no IRQ support now */
 
-static int pcl724_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int pcl724_detach(struct comedi_device *dev);
-
 struct pcl724_board {
 
 	const char *name;	/*  board name */
@@ -71,40 +67,7 @@ struct pcl724_board {
 	char is_pet48;
 };
 
-static const struct pcl724_board boardtypes[] = {
-	{"pcl724", 24, 1, 0x00fc, PCL724_SIZE, 0, 0,},
-	{"pcl722", 144, 6, 0x00fc, PCL722_SIZE, 1, 0,},
-	{"pcl731", 48, 2, 0x9cfc, PCL731_SIZE, 0, 0,},
-	{"acl7122", 144, 6, 0x9ee8, PCL722_SIZE, 1, 0,},
-	{"acl7124", 24, 1, 0x00fc, PCL724_SIZE, 0, 0,},
-	{"pet48dio", 48, 2, 0x9eb8, PET48_SIZE, 0, 1,},
-};
-
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl724_board))
 #define this_board ((const struct pcl724_board *)dev->board_ptr)
-
-static struct comedi_driver driver_pcl724 = {
-	.driver_name = "pcl724",
-	.module = THIS_MODULE,
-	.attach = pcl724_attach,
-	.detach = pcl724_detach,
-	.board_name = &boardtypes[0].name,
-	.num_names = n_boardtypes,
-	.offset = sizeof(struct pcl724_board),
-};
-
-static int __init driver_pcl724_init_module(void)
-{
-	return comedi_driver_register(&driver_pcl724);
-}
-
-static void __exit driver_pcl724_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcl724);
-}
-
-module_init(driver_pcl724_init_module);
-module_exit(driver_pcl724_cleanup_module);
 
 static int subdev_8255_cb(int dir, int port, int data, unsigned long arg)
 {
@@ -214,24 +177,38 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int pcl724_detach(struct comedi_device *dev)
+static void pcl724_detach(struct comedi_device *dev)
 {
 	int i;
 
-	/* printk("comedi%d: pcl724: remove\n",dev->minor); */
-
 	for (i = 0; i < dev->n_subdevices; i++)
 		subdev_8255_cleanup(dev, dev->subdevices + i);
-
 #ifdef PCL724_IRQ
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 #endif
-
 	release_region(dev->iobase, this_board->io_range);
-
-	return 0;
 }
+
+static const struct pcl724_board boardtypes[] = {
+	{ "pcl724", 24, 1, 0x00fc, PCL724_SIZE, 0, 0, },
+	{ "pcl722", 144, 6, 0x00fc, PCL722_SIZE, 1, 0, },
+	{ "pcl731", 48, 2, 0x9cfc, PCL731_SIZE, 0, 0, },
+	{ "acl7122", 144, 6, 0x9ee8, PCL722_SIZE, 1, 0, },
+	{ "acl7124", 24, 1, 0x00fc, PCL724_SIZE, 0, 0, },
+	{ "pet48dio", 48, 2, 0x9eb8, PET48_SIZE, 0, 1, },
+};
+
+static struct comedi_driver pcl724_driver = {
+	.driver_name	= "pcl724",
+	.module		= THIS_MODULE,
+	.attach		= pcl724_attach,
+	.detach		= pcl724_detach,
+	.board_name	= &boardtypes[0].name,
+	.num_names	= ARRAY_SIZE(boardtypes),
+	.offset		= sizeof(struct pcl724_board),
+};
+module_comedi_driver(pcl724_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

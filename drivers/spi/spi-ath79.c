@@ -216,9 +216,6 @@ static __devinit int ath79_spi_probe(struct platform_device *pdev)
 	if (pdata) {
 		master->bus_num = pdata->bus_num;
 		master->num_chipselect = pdata->num_chipselect;
-	} else {
-		master->bus_num = -1;
-		master->num_chipselect = 1;
 	}
 
 	sp->bitbang.master = spi_master_get(master);

@@ -618,6 +618,7 @@ MACHINE_START(DAVINCI_DM365_EVM, "DaVinci DM365 EVM")
 	.init_irq	= davinci_irq_init,
 	.timer		= &davinci_timer,
 	.init_machine	= dm365_evm_init,
+	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,
 	.restart	= davinci_restart,
 MACHINE_END

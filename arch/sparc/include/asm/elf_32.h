@@ -118,16 +118,9 @@ typedef struct {
    instruction set this cpu supports.  This can NOT be done in userspace
    on Sparc.  */
 
-/* Sun4c has none of the capabilities, most sun4m's have them all.
- * XXX This is gross, set some global variable at boot time. -DaveM
- */
-#define ELF_HWCAP	((ARCH_SUN4C) ? 0 : \
-			 (HWCAP_SPARC_FLUSH | HWCAP_SPARC_STBAR | \
-			  HWCAP_SPARC_SWAP | \
-			  ((srmmu_modtype != Cypress && \
-			    srmmu_modtype != Cypress_vE && \
-			    srmmu_modtype != Cypress_vD) ? \
-			   HWCAP_SPARC_MULDIV : 0)))
+/* Most sun4m's have them all.  */
+#define ELF_HWCAP	(HWCAP_SPARC_FLUSH | HWCAP_SPARC_STBAR | \
+			 HWCAP_SPARC_SWAP | HWCAP_SPARC_MULDIV)
 
 /* This yields a string that ld.so will use to load implementation
    specific libraries for optimization.  This is more specific in

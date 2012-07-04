@@ -45,7 +45,6 @@
  * @count: # of nodes in set
  * @map: bitmap of node identifiers that are in the set
  */
-
 struct tipc_node_map {
 	u32 count;
 	u32 map[MAX_NODES / WSIZE];
@@ -59,7 +58,6 @@ struct tipc_node_map {
  * @next: pointer to next entry in list
  * @ports: array of port references
  */
-
 struct tipc_port_list {
 	int count;
 	struct tipc_port_list *next;
@@ -77,7 +75,6 @@ void tipc_nmap_remove(struct tipc_node_map *nm_ptr, u32 node);
 /**
  * tipc_nmap_equal - test for equality of node maps
  */
-
 static inline int tipc_nmap_equal(struct tipc_node_map *nm_a, struct tipc_node_map *nm_b)
 {
 	return !memcmp(nm_a, nm_b, sizeof(*nm_a));

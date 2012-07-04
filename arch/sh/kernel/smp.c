@@ -123,7 +123,6 @@ void native_play_dead(void)
 int __cpu_disable(void)
 {
 	unsigned int cpu = smp_processor_id();
-	struct task_struct *p;
 	int ret;
 
 	ret = mp_ops->cpu_disable(cpu);
@@ -153,11 +152,7 @@ int __cpu_disable(void)
 	flush_cache_all();
 	local_flush_tlb_all();
 
-	read_lock(&tasklist_lock);
-	for_each_process(p)
-		if (p->mm)
-			cpumask_clear_cpu(cpu, mm_cpumask(p->mm));
-	read_unlock(&tasklist_lock);
+	clear_tasks_mm_cpumask(cpu);
 
 	return 0;
 }
@@ -220,21 +215,9 @@ extern struct {
 	void *thread_info;
 } stack_start;
 
-int __cpuinit __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tsk)
 {
-	struct task_struct *tsk;
 	unsigned long timeout;
-
-	tsk = cpu_data[cpu].idle;
-	if (!tsk) {
-		tsk = fork_idle(cpu);
-		if (IS_ERR(tsk)) {
-			pr_err("Failed forking idle task for cpu %d\n", cpu);
-			return PTR_ERR(tsk);
-		}
-
-		cpu_data[cpu].idle = tsk;
-	}
 
 	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
 

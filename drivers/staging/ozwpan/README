@@ -9,7 +9,7 @@ technology.
 
 To operate the driver must be bound to a suitable network interface. This can
 be done when the module is loaded (specifying the name of the network interface
-as a paramter - e.g. 'insmod ozwpan g_net_dev=go0') or can be bound after
+as a parameter - e.g. 'insmod ozwpan g_net_dev=go0') or can be bound after
 loading using an ioctl call. See the ozappif.h file and the ioctls
 OZ_IOCTL_ADD_BINDING and OZ_IOCTL_REMOVE_BINDING.
 

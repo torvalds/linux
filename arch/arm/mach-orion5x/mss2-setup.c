@@ -89,7 +89,6 @@ static int __init mss2_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 
 static struct hw_pci mss2_pci __initdata = {
 	.nr_controllers = 2,
-	.swizzle	= pci_std_swizzle,
 	.setup		= orion5x_pci_sys_setup,
 	.scan		= orion5x_pci_sys_scan_bus,
 	.map_irq	= mss2_pci_map_irq,

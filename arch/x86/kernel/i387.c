@@ -88,7 +88,7 @@ void kernel_fpu_begin(void)
 		__thread_clear_has_fpu(me);
 		/* We do 'stts()' in kernel_fpu_end() */
 	} else {
-		percpu_write(fpu_owner_task, NULL);
+		this_cpu_write(fpu_owner_task, NULL);
 		clts();
 	}
 }
@@ -235,6 +235,7 @@ int init_fpu(struct task_struct *tsk)
 	if (tsk_used_math(tsk)) {
 		if (HAVE_HWFP && tsk == current)
 			unlazy_fpu(tsk);
+		tsk->thread.fpu.last_cpu = ~0;
 		return 0;
 	}
 

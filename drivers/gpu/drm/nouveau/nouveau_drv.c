@@ -33,6 +33,7 @@
 #include "nouveau_fb.h"
 #include "nouveau_fbcon.h"
 #include "nouveau_pm.h"
+#include "nouveau_fifo.h"
 #include "nv50_display.h"
 
 #include "drm_pciids.h"
@@ -175,7 +176,7 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_instmem_engine *pinstmem = &dev_priv->engine.instmem;
-	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
+	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
 	struct nouveau_channel *chan;
 	struct drm_crtc *crtc;
 	int ret, i, e;
@@ -214,16 +215,12 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 	ttm_bo_evict_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
 
 	NV_INFO(dev, "Idling channels...\n");
-	for (i = 0; i < pfifo->channels; i++) {
+	for (i = 0; i < (pfifo ? pfifo->channels : 0); i++) {
 		chan = dev_priv->channels.ptr[i];
 
 		if (chan && chan->pushbuf_bo)
 			nouveau_channel_idle(chan);
 	}
-
-	pfifo->reassign(dev, false);
-	pfifo->disable(dev);
-	pfifo->unload_context(dev);
 
 	for (e = NVOBJ_ENGINE_NR - 1; e >= 0; e--) {
 		if (!dev_priv->eng[e])
@@ -265,8 +262,6 @@ out_abort:
 		if (dev_priv->eng[e])
 			dev_priv->eng[e]->init(dev, e);
 	}
-	pfifo->enable(dev);
-	pfifo->reassign(dev, true);
 	return ret;
 }
 
@@ -274,6 +269,7 @@ int
 nouveau_pci_resume(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_engine *engine = &dev_priv->engine;
 	struct drm_crtc *crtc;
@@ -321,7 +317,6 @@ nouveau_pci_resume(struct pci_dev *pdev)
 		if (dev_priv->eng[i])
 			dev_priv->eng[i]->init(dev, i);
 	}
-	engine->fifo.init(dev);
 
 	nouveau_irq_postinstall(dev);
 
@@ -330,7 +325,7 @@ nouveau_pci_resume(struct pci_dev *pdev)
 		struct nouveau_channel *chan;
 		int j;
 
-		for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
+		for (i = 0; i < (pfifo ? pfifo->channels : 0); i++) {
 			chan = dev_priv->channels.ptr[i];
 			if (!chan || !chan->pushbuf_bo)
 				continue;
@@ -408,7 +403,7 @@ static struct drm_driver driver = {
 	.driver_features =
 		DRIVER_USE_AGP | DRIVER_PCI_DMA | DRIVER_SG |
 		DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM |
-		DRIVER_MODESET,
+		DRIVER_MODESET | DRIVER_PRIME,
 	.load = nouveau_load,
 	.firstopen = nouveau_firstopen,
 	.lastclose = nouveau_lastclose,
@@ -430,6 +425,12 @@ static struct drm_driver driver = {
 	.reclaim_buffers = drm_core_reclaim_buffers,
 	.ioctls = nouveau_ioctls,
 	.fops = &nouveau_driver_fops,
+
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_export = nouveau_gem_prime_export,
+	.gem_prime_import = nouveau_gem_prime_import,
+
 	.gem_init_object = nouveau_gem_object_new,
 	.gem_free_object = nouveau_gem_object_del,
 	.gem_open_object = nouveau_gem_object_open,

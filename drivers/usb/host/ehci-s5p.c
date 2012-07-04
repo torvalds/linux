@@ -232,6 +232,8 @@ static int s5p_ehci_suspend(struct device *dev)
 	if (pdata && pdata->phy_exit)
 		pdata->phy_exit(pdev, S5P_USB_PHY_HOST);
 
+	clk_disable(s5p_ehci->clk);
+
 	return rc;
 }
 
@@ -242,6 +244,8 @@ static int s5p_ehci_resume(struct device *dev)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	struct platform_device *pdev = to_platform_device(dev);
 	struct s5p_ehci_platdata *pdata = pdev->dev.platform_data;
+
+	clk_enable(s5p_ehci->clk);
 
 	if (pdata && pdata->phy_init)
 		pdata->phy_init(pdev, S5P_USB_PHY_HOST);

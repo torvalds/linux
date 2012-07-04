@@ -138,6 +138,8 @@ enum {
 	IFLA_GROUP,		/* Group the device belongs to */
 	IFLA_NET_NS_FD,
 	IFLA_EXT_MASK,		/* Extended info mask, VFs, etc */
+	IFLA_PROMISCUITY,	/* Promiscuity count: > 0 means acts PROMISC */
+#define IFLA_PROMISCUITY IFLA_PROMISCUITY
 	__IFLA_MAX
 };
 
@@ -253,6 +255,7 @@ struct ifla_vlan_qos_mapping {
 enum {
 	IFLA_MACVLAN_UNSPEC,
 	IFLA_MACVLAN_MODE,
+	IFLA_MACVLAN_FLAGS,
 	__IFLA_MACVLAN_MAX,
 };
 
@@ -264,6 +267,8 @@ enum macvlan_mode {
 	MACVLAN_MODE_BRIDGE  = 4, /* talk to bridge ports directly */
 	MACVLAN_MODE_PASSTHRU = 8,/* take over the underlying device */
 };
+
+#define MACVLAN_FLAG_NOPROMISC	1
 
 /* SR-IOV virtual function management section */
 

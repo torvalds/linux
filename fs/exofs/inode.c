@@ -1473,7 +1473,7 @@ void exofs_evict_inode(struct inode *inode)
 		goto no_delete;
 
 	inode->i_size = 0;
-	end_writeback(inode);
+	clear_inode(inode);
 
 	/* if we are deleting an obj that hasn't been created yet, wait.
 	 * This also makes sure that create_done cannot be called with an
@@ -1503,5 +1503,5 @@ void exofs_evict_inode(struct inode *inode)
 	return;
 
 no_delete:
-	end_writeback(inode);
+	clear_inode(inode);
 }

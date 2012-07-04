@@ -47,6 +47,51 @@ flexible way to enable non-common multi-display configuration. In addition to
 modelling the hardware overlays, omapdss supports virtual overlays and overlay
 managers. These can be used when updating a display with CPU or system DMA.
 
+omapdss driver support for audio
+--------------------------------
+There exist several display technologies and standards that support audio as
+well. Hence, it is relevant to update the DSS device driver to provide an audio
+interface that may be used by an audio driver or any other driver interested in
+the functionality.
+
+The audio_enable function is intended to prepare the relevant
+IP for playback (e.g., enabling an audio FIFO, taking in/out of reset
+some IP, enabling companion chips, etc). It is intended to be called before
+audio_start. The audio_disable function performs the reverse operation and is
+intended to be called after audio_stop.
+
+While a given DSS device driver may support audio, it is possible that for
+certain configurations audio is not supported (e.g., an HDMI display using a
+VESA video timing). The audio_supported function is intended to query whether
+the current configuration of the display supports audio.
+
+The audio_config function is intended to configure all the relevant audio
+parameters of the display. In order to make the function independent of any
+specific DSS device driver, a struct omap_dss_audio is defined. Its purpose
+is to contain all the required parameters for audio configuration. At the
+moment, such structure contains pointers to IEC-60958 channel status word
+and CEA-861 audio infoframe structures. This should be enough to support
+HDMI and DisplayPort, as both are based on CEA-861 and IEC-60958.
+
+The audio_enable/disable, audio_config and audio_supported functions could be
+implemented as functions that may sleep. Hence, they should not be called
+while holding a spinlock or a readlock.
+
+The audio_start/audio_stop function is intended to effectively start/stop audio
+playback after the configuration has taken place. These functions are designed
+to be used in an atomic context. Hence, audio_start should return quickly and be
+called only after all the needed resources for audio playback (audio FIFOs,
+DMA channels, companion chips, etc) have been enabled to begin data transfers.
+audio_stop is designed to only stop the audio transfers. The resources used
+for playback are released using audio_disable.
+
+The enum omap_dss_audio_state may be used to help the implementations of
+the interface to keep track of the audio state. The initial state is _DISABLED;
+then, the state transitions to _CONFIGURED, and then, when it is ready to
+play audio, to _ENABLED. The state _PLAYING is used when the audio is being
+rendered.
+
+
 Panel and controller drivers
 ----------------------------
 
@@ -156,6 +201,7 @@ timings		Display timings (pixclock,xres/hfp/hbp/hsw,yres/vfp/vbp/vsw)
 		"pal" and "ntsc"
 panel_name
 tear_elim	Tearing elimination 0=off, 1=on
+output_type	Output type (video encoder only): "composite" or "svideo"
 
 There are also some debugfs files at <debugfs>/omapdss/ which show information
 about clocks and registers.

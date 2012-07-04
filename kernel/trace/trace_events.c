@@ -294,6 +294,9 @@ static int __ftrace_set_clr_event(const char *match, const char *sub,
 		if (!call->name || !call->class || !call->class->reg)
 			continue;
 
+		if (call->flags & TRACE_EVENT_FL_IGNORE_ENABLE)
+			continue;
+
 		if (match &&
 		    strcmp(match, call->name) != 0 &&
 		    strcmp(match, call->class->system) != 0)
@@ -1164,7 +1167,7 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 		return -1;
 	}
 
-	if (call->class->reg)
+	if (call->class->reg && !(call->flags & TRACE_EVENT_FL_IGNORE_ENABLE))
 		trace_create_file("enable", 0644, call->dir, call,
 				  enable);
 

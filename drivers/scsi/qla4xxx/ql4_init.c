@@ -277,6 +277,94 @@ qla4xxx_wait_for_ip_config(struct scsi_qla_host *ha)
 	return ipv4_wait|ipv6_wait;
 }
 
+/**
+ * qla4xxx_alloc_fw_dump - Allocate memory for minidump data.
+ * @ha: pointer to host adapter structure.
+ **/
+void qla4xxx_alloc_fw_dump(struct scsi_qla_host *ha)
+{
+	int status;
+	uint32_t capture_debug_level;
+	int hdr_entry_bit, k;
+	void *md_tmp;
+	dma_addr_t md_tmp_dma;
+	struct qla4_8xxx_minidump_template_hdr *md_hdr;
+
+	if (ha->fw_dump) {
+		ql4_printk(KERN_WARNING, ha,
+			   "Firmware dump previously allocated.\n");
+		return;
+	}
+
+	status = qla4xxx_req_template_size(ha);
+	if (status != QLA_SUCCESS) {
+		ql4_printk(KERN_INFO, ha,
+			   "scsi%ld: Failed to get template size\n",
+			   ha->host_no);
+		return;
+	}
+
+	clear_bit(AF_82XX_FW_DUMPED, &ha->flags);
+
+	/* Allocate memory for saving the template */
+	md_tmp = dma_alloc_coherent(&ha->pdev->dev, ha->fw_dump_tmplt_size,
+				    &md_tmp_dma, GFP_KERNEL);
+
+	/* Request template */
+	status =  qla4xxx_get_minidump_template(ha, md_tmp_dma);
+	if (status != QLA_SUCCESS) {
+		ql4_printk(KERN_INFO, ha,
+			   "scsi%ld: Failed to get minidump template\n",
+			   ha->host_no);
+		goto alloc_cleanup;
+	}
+
+	md_hdr = (struct qla4_8xxx_minidump_template_hdr *)md_tmp;
+
+	capture_debug_level = md_hdr->capture_debug_level;
+
+	/* Get capture mask based on module loadtime setting. */
+	if (ql4xmdcapmask >= 0x3 && ql4xmdcapmask <= 0x7F)
+		ha->fw_dump_capture_mask = ql4xmdcapmask;
+	else
+		ha->fw_dump_capture_mask = capture_debug_level;
+
+	md_hdr->driver_capture_mask = ha->fw_dump_capture_mask;
+
+	DEBUG2(ql4_printk(KERN_INFO, ha, "Minimum num of entries = %d\n",
+			  md_hdr->num_of_entries));
+	DEBUG2(ql4_printk(KERN_INFO, ha, "Dump template size  = %d\n",
+			  ha->fw_dump_tmplt_size));
+	DEBUG2(ql4_printk(KERN_INFO, ha, "Selected Capture mask =0x%x\n",
+			  ha->fw_dump_capture_mask));
+
+	/* Calculate fw_dump_size */
+	for (hdr_entry_bit = 0x2, k = 1; (hdr_entry_bit & 0xFF);
+	     hdr_entry_bit <<= 1, k++) {
+		if (hdr_entry_bit & ha->fw_dump_capture_mask)
+			ha->fw_dump_size += md_hdr->capture_size_array[k];
+	}
+
+	/* Total firmware dump size including command header */
+	ha->fw_dump_size += ha->fw_dump_tmplt_size;
+	ha->fw_dump = vmalloc(ha->fw_dump_size);
+	if (!ha->fw_dump)
+		goto alloc_cleanup;
+
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+			  "Minidump Tempalate Size = 0x%x KB\n",
+			  ha->fw_dump_tmplt_size));
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+			  "Total Minidump size = 0x%x KB\n", ha->fw_dump_size));
+
+	memcpy(ha->fw_dump, md_tmp, ha->fw_dump_tmplt_size);
+	ha->fw_dump_tmplt_hdr = ha->fw_dump;
+
+alloc_cleanup:
+	dma_free_coherent(&ha->pdev->dev, ha->fw_dump_tmplt_size,
+			  md_tmp, md_tmp_dma);
+}
+
 static int qla4xxx_fw_ready(struct scsi_qla_host *ha)
 {
 	uint32_t timeout_count;
@@ -445,8 +533,12 @@ static int qla4xxx_init_firmware(struct scsi_qla_host *ha)
 			      "control block\n", ha->host_no, __func__));
 		return status;
 	}
+
 	if (!qla4xxx_fw_ready(ha))
 		return status;
+
+	if (is_qla8022(ha) && !test_bit(AF_INIT_DONE, &ha->flags))
+		qla4xxx_alloc_fw_dump(ha);
 
 	return qla4xxx_get_firmware_status(ha);
 }
@@ -884,8 +976,8 @@ int qla4xxx_ddb_change(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 		switch (state) {
 		case DDB_DS_SESSION_ACTIVE:
 		case DDB_DS_DISCOVERY:
-			ddb_entry->unblock_sess(ddb_entry->sess);
 			qla4xxx_update_session_conn_param(ha, ddb_entry);
+			ddb_entry->unblock_sess(ddb_entry->sess);
 			status = QLA_SUCCESS;
 			break;
 		case DDB_DS_SESSION_FAILED:
@@ -897,6 +989,7 @@ int qla4xxx_ddb_change(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 		}
 		break;
 	case DDB_DS_SESSION_ACTIVE:
+	case DDB_DS_DISCOVERY:
 		switch (state) {
 		case DDB_DS_SESSION_FAILED:
 			/*

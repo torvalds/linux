@@ -2,7 +2,7 @@
 # arch/blackfin/kernel/Makefile
 #
 
-extra-y := init_task.o vmlinux.lds
+extra-y := vmlinux.lds
 
 obj-y := \
 	entry.o process.o bfin_ksyms.o ptrace.o setup.o signal.o \

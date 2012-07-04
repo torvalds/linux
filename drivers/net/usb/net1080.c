@@ -587,6 +587,7 @@ static struct usb_driver net1080_driver = {
 	.disconnect =	usbnet_disconnect,
 	.suspend =	usbnet_suspend,
 	.resume =	usbnet_resume,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(net1080_driver);

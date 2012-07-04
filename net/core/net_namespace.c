@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/workqueue.h>
 #include <linux/rtnetlink.h>
 #include <linux/cache.h>
@@ -83,21 +85,29 @@ assign:
 
 static int ops_init(const struct pernet_operations *ops, struct net *net)
 {
-	int err;
+	int err = -ENOMEM;
+	void *data = NULL;
+
 	if (ops->id && ops->size) {
-		void *data = kzalloc(ops->size, GFP_KERNEL);
+		data = kzalloc(ops->size, GFP_KERNEL);
 		if (!data)
-			return -ENOMEM;
+			goto out;
 
 		err = net_assign_generic(net, *ops->id, data);
-		if (err) {
-			kfree(data);
-			return err;
-		}
+		if (err)
+			goto cleanup;
 	}
+	err = 0;
 	if (ops->init)
-		return ops->init(net);
-	return 0;
+		err = ops->init(net);
+	if (!err)
+		return 0;
+
+cleanup:
+	kfree(data);
+
+out:
+	return err;
 }
 
 static void ops_free(const struct pernet_operations *ops, struct net *net)
@@ -204,8 +214,8 @@ static void net_free(struct net *net)
 {
 #ifdef NETNS_REFCNT_DEBUG
 	if (unlikely(atomic_read(&net->use_count) != 0)) {
-		printk(KERN_EMERG "network namespace not free! Usage: %d\n",
-			atomic_read(&net->use_count));
+		pr_emerg("network namespace not free! Usage: %d\n",
+			 atomic_read(&net->use_count));
 		return;
 	}
 #endif
@@ -448,12 +458,7 @@ static void __unregister_pernet_operations(struct pernet_operations *ops)
 static int __register_pernet_operations(struct list_head *list,
 					struct pernet_operations *ops)
 {
-	int err = 0;
-	err = ops_init(ops, &init_net);
-	if (err)
-		ops_free(ops, &init_net);
-	return err;
-	
+	return ops_init(ops, &init_net);
 }
 
 static void __unregister_pernet_operations(struct pernet_operations *ops)

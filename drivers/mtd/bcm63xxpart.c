@@ -4,7 +4,7 @@
  * Copyright © 2006-2008  Florian Fainelli <florian@openwrt.org>
  *			  Mike Albon <malbon@openwrt.org>
  * Copyright © 2009-2010  Daniel Dickinson <openwrt@cshore.neomailbox.net>
- * Copyright © 2011 Jonas Gorski <jonas.gorski@gmail.com>
+ * Copyright © 2011-2012  Jonas Gorski <jonas.gorski@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -82,6 +82,7 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	int namelen = 0;
 	int i;
 	u32 computed_crc;
+	bool rootfs_first = false;
 
 	if (bcm63xx_detect_cfe(master))
 		return -EINVAL;
@@ -109,6 +110,7 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 		char *boardid = &(buf->board_id[0]);
 		char *tagversion = &(buf->tag_version[0]);
 
+		sscanf(buf->flash_image_start, "%u", &rootfsaddr);
 		sscanf(buf->kernel_address, "%u", &kerneladdr);
 		sscanf(buf->kernel_length, "%u", &kernellen);
 		sscanf(buf->total_length, "%u", &totallen);
@@ -117,10 +119,19 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 			tagversion, boardid);
 
 		kerneladdr = kerneladdr - BCM63XX_EXTENDED_SIZE;
-		rootfsaddr = kerneladdr + kernellen;
+		rootfsaddr = rootfsaddr - BCM63XX_EXTENDED_SIZE;
 		spareaddr = roundup(totallen, master->erasesize) + cfelen;
 		sparelen = master->size - spareaddr - nvramlen;
-		rootfslen = spareaddr - rootfsaddr;
+
+		if (rootfsaddr < kerneladdr) {
+			/* default Broadcom layout */
+			rootfslen = kerneladdr - rootfsaddr;
+			rootfs_first = true;
+		} else {
+			/* OpenWrt layout */
+			rootfsaddr = kerneladdr + kernellen;
+			rootfslen = spareaddr - rootfsaddr;
+		}
 	} else {
 		pr_warn("CFE boot tag CRC invalid (expected %08x, actual %08x)\n",
 			buf->header_crc, computed_crc);
@@ -156,18 +167,26 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	curpart++;
 
 	if (kernellen > 0) {
-		parts[curpart].name = "kernel";
-		parts[curpart].offset = kerneladdr;
-		parts[curpart].size = kernellen;
+		int kernelpart = curpart;
+
+		if (rootfslen > 0 && rootfs_first)
+			kernelpart++;
+		parts[kernelpart].name = "kernel";
+		parts[kernelpart].offset = kerneladdr;
+		parts[kernelpart].size = kernellen;
 		curpart++;
 	}
 
 	if (rootfslen > 0) {
-		parts[curpart].name = "rootfs";
-		parts[curpart].offset = rootfsaddr;
-		parts[curpart].size = rootfslen;
-		if (sparelen > 0)
-			parts[curpart].size += sparelen;
+		int rootfspart = curpart;
+
+		if (kernellen > 0 && rootfs_first)
+			rootfspart--;
+		parts[rootfspart].name = "rootfs";
+		parts[rootfspart].offset = rootfsaddr;
+		parts[rootfspart].size = rootfslen;
+		if (sparelen > 0  && !rootfs_first)
+			parts[rootfspart].size += sparelen;
 		curpart++;
 	}
 

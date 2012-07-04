@@ -57,9 +57,11 @@
  *   2.13.0 - virtual memory support, streamout
  *   2.14.0 - add evergreen tiling informations
  *   2.15.0 - add max_pipes query
+ *   2.16.0 - fix evergreen 2D tiled surface calculation
+ *   2.17.0 - add STRMOUT_BASE_UPDATE for r7xx
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	15
+#define KMS_DRIVER_MINOR	17
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
@@ -105,6 +107,11 @@ int radeon_mode_dumb_create(struct drm_file *file_priv,
 int radeon_mode_dumb_destroy(struct drm_file *file_priv,
 			     struct drm_device *dev,
 			     uint32_t handle);
+struct dma_buf *radeon_gem_prime_export(struct drm_device *dev,
+					struct drm_gem_object *obj,
+					int flags);
+struct drm_gem_object *radeon_gem_prime_import(struct drm_device *dev,
+					       struct dma_buf *dma_buf);
 
 #if defined(CONFIG_DEBUG_FS)
 int radeon_debugfs_init(struct drm_minor *minor);
@@ -128,6 +135,7 @@ int radeon_disp_priority = 0;
 int radeon_hw_i2c = 0;
 int radeon_pcie_gen2 = 0;
 int radeon_msi = -1;
+int radeon_lockup_timeout = 10000;
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
@@ -176,6 +184,9 @@ module_param_named(pcie_gen2, radeon_pcie_gen2, int, 0444);
 
 MODULE_PARM_DESC(msi, "MSI support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(msi, radeon_msi, int, 0444);
+
+MODULE_PARM_DESC(lockup_timeout, "GPU lockup timeout in ms (defaul 10000 = 10 seconds, 0 = disable)");
+module_param_named(lockup_timeout, radeon_lockup_timeout, int, 0444);
 
 static int radeon_suspend(struct drm_device *dev, pm_message_t state)
 {
@@ -329,7 +340,8 @@ static const struct file_operations radeon_driver_kms_fops = {
 static struct drm_driver kms_driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_PCI_DMA | DRIVER_SG |
-	    DRIVER_HAVE_IRQ | DRIVER_HAVE_DMA | DRIVER_IRQ_SHARED | DRIVER_GEM,
+	    DRIVER_HAVE_IRQ | DRIVER_HAVE_DMA | DRIVER_IRQ_SHARED | DRIVER_GEM |
+	    DRIVER_PRIME,
 	.dev_priv_size = 0,
 	.load = radeon_driver_load_kms,
 	.firstopen = radeon_driver_firstopen_kms,
@@ -364,6 +376,12 @@ static struct drm_driver kms_driver = {
 	.dumb_map_offset = radeon_mode_dumb_mmap,
 	.dumb_destroy = radeon_mode_dumb_destroy,
 	.fops = &radeon_driver_kms_fops,
+
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_export = radeon_gem_prime_export,
+	.gem_prime_import = radeon_gem_prime_import,
+
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,

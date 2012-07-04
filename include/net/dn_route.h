@@ -76,8 +76,8 @@ struct dn_route {
 	__le16 rt_src_map;
 	__le16 rt_dst_map;
 
-	unsigned rt_flags;
-	unsigned rt_type;
+	unsigned int rt_flags;
+	unsigned int rt_type;
 };
 
 static inline bool dn_is_input_route(struct dn_route *rt)

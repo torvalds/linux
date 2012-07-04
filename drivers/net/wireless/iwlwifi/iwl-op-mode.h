@@ -69,6 +69,7 @@ struct sk_buff;
 struct iwl_device_cmd;
 struct iwl_rx_cmd_buffer;
 struct iwl_fw;
+struct iwl_cfg;
 
 /**
  * DOC: Operational mode - what is it ?
@@ -111,10 +112,10 @@ struct iwl_fw;
  * @rx: Rx notification to the op_mode. rxb is the Rx buffer itself. Cmd is the
  *	HCMD the this Rx responds to.
  *	Must be atomic.
- * @queue_full: notifies that a HW queue is full. Ac is the ac of the queue
+ * @queue_full: notifies that a HW queue is full.
  *	Must be atomic
  * @queue_not_full: notifies that a HW queue is not full any more.
- *	Ac is the ac of the queue. Must be atomic
+ *	Must be atomic
  * @hw_rf_kill:notifies of a change in the HW rf kill switch. True means that
  *	the radio is killed. Must be atomic.
  * @free_skb: allows the transport layer to free skbs that haven't been
@@ -125,20 +126,23 @@ struct iwl_fw;
  * @cmd_queue_full: Called when the command queue gets full. Must be atomic.
  * @nic_config: configure NIC, called before firmware is started.
  *	May sleep
+ * @wimax_active: invoked when WiMax becomes active.  Must be atomic.
  */
 struct iwl_op_mode_ops {
 	struct iwl_op_mode *(*start)(struct iwl_trans *trans,
+				     const struct iwl_cfg *cfg,
 				     const struct iwl_fw *fw);
 	void (*stop)(struct iwl_op_mode *op_mode);
 	int (*rx)(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb,
 		  struct iwl_device_cmd *cmd);
-	void (*queue_full)(struct iwl_op_mode *op_mode, u8 ac);
-	void (*queue_not_full)(struct iwl_op_mode *op_mode, u8 ac);
+	void (*queue_full)(struct iwl_op_mode *op_mode, int queue);
+	void (*queue_not_full)(struct iwl_op_mode *op_mode, int queue);
 	void (*hw_rf_kill)(struct iwl_op_mode *op_mode, bool state);
 	void (*free_skb)(struct iwl_op_mode *op_mode, struct sk_buff *skb);
 	void (*nic_error)(struct iwl_op_mode *op_mode);
 	void (*cmd_queue_full)(struct iwl_op_mode *op_mode);
 	void (*nic_config)(struct iwl_op_mode *op_mode);
+	void (*wimax_active)(struct iwl_op_mode *op_mode);
 };
 
 /**
@@ -169,15 +173,16 @@ static inline int iwl_op_mode_rx(struct iwl_op_mode *op_mode,
 	return op_mode->ops->rx(op_mode, rxb, cmd);
 }
 
-static inline void iwl_op_mode_queue_full(struct iwl_op_mode *op_mode, u8 ac)
+static inline void iwl_op_mode_queue_full(struct iwl_op_mode *op_mode,
+					  int queue)
 {
-	op_mode->ops->queue_full(op_mode, ac);
+	op_mode->ops->queue_full(op_mode, queue);
 }
 
 static inline void iwl_op_mode_queue_not_full(struct iwl_op_mode *op_mode,
-					      u8 ac)
+					      int queue)
 {
-	op_mode->ops->queue_not_full(op_mode, ac);
+	op_mode->ops->queue_not_full(op_mode, queue);
 }
 
 static inline void iwl_op_mode_hw_rf_kill(struct iwl_op_mode *op_mode,
@@ -206,6 +211,11 @@ static inline void iwl_op_mode_nic_config(struct iwl_op_mode *op_mode)
 {
 	might_sleep();
 	op_mode->ops->nic_config(op_mode);
+}
+
+static inline void iwl_op_mode_wimax_active(struct iwl_op_mode *op_mode)
+{
+	op_mode->ops->wimax_active(op_mode);
 }
 
 /*****************************************************

@@ -15,6 +15,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -68,13 +70,13 @@ static int progearbl_probe(struct platform_device *pdev)
 
 	pmu_dev = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101, NULL);
 	if (!pmu_dev) {
-		printk("ALI M7101 PMU not found.\n");
+		pr_err("ALI M7101 PMU not found.\n");
 		return -ENODEV;
 	}
 
 	sb_dev = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, NULL);
 	if (!sb_dev) {
-		printk("ALI 1533 SB not found.\n");
+		pr_err("ALI 1533 SB not found.\n");
 		ret = -ENODEV;
 		goto put_pmu;
 	}

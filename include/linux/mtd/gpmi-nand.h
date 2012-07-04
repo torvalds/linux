@@ -23,12 +23,12 @@
 #define GPMI_NAND_RES_SIZE	6
 
 /* Resource names for the GPMI NAND driver. */
-#define GPMI_NAND_GPMI_REGS_ADDR_RES_NAME  "GPMI NAND GPMI Registers"
+#define GPMI_NAND_GPMI_REGS_ADDR_RES_NAME  "gpmi-nand"
 #define GPMI_NAND_GPMI_INTERRUPT_RES_NAME  "GPMI NAND GPMI Interrupt"
-#define GPMI_NAND_BCH_REGS_ADDR_RES_NAME   "GPMI NAND BCH Registers"
-#define GPMI_NAND_BCH_INTERRUPT_RES_NAME   "GPMI NAND BCH Interrupt"
+#define GPMI_NAND_BCH_REGS_ADDR_RES_NAME   "bch"
+#define GPMI_NAND_BCH_INTERRUPT_RES_NAME   "bch"
 #define GPMI_NAND_DMA_CHANNELS_RES_NAME    "GPMI NAND DMA Channels"
-#define GPMI_NAND_DMA_INTERRUPT_RES_NAME   "GPMI NAND DMA Interrupt"
+#define GPMI_NAND_DMA_INTERRUPT_RES_NAME   "gpmi-dma"
 
 /**
  * struct gpmi_nand_platform_data - GPMI NAND driver platform data.

@@ -437,7 +437,7 @@ static irqreturn_t mpc52xx_fec_rx_interrupt(int irq, void *dev_id)
 		length = status & BCOM_FEC_RX_BD_LEN_MASK;
 		skb_put(rskb, length - 4);	/* length without CRC32 */
 		rskb->protocol = eth_type_trans(rskb, dev);
-		if (!skb_defer_rx_timestamp(skb))
+		if (!skb_defer_rx_timestamp(rskb))
 			netif_rx(rskb);
 
 		spin_lock(&priv->lock);
@@ -811,6 +811,7 @@ static const struct ethtool_ops mpc52xx_fec_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_msglevel = mpc52xx_fec_get_msglevel,
 	.set_msglevel = mpc52xx_fec_set_msglevel,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 

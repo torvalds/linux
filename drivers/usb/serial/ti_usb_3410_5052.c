@@ -165,7 +165,7 @@ static unsigned int product_5052_count;
 /* the array dimension is the number of default entries plus */
 /* TI_EXTRA_VID_PID_COUNT user defined entries plus 1 terminating */
 /* null entry */
-static struct usb_device_id ti_id_table_3410[14+TI_EXTRA_VID_PID_COUNT+1] = {
+static struct usb_device_id ti_id_table_3410[15+TI_EXTRA_VID_PID_COUNT+1] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_EZ430_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_NO_FW_PRODUCT_ID) },
@@ -180,6 +180,7 @@ static struct usb_device_id ti_id_table_3410[14+TI_EXTRA_VID_PID_COUNT+1] = {
 	{ USB_DEVICE(IBM_VENDOR_ID, IBM_454B_PRODUCT_ID) },
 	{ USB_DEVICE(IBM_VENDOR_ID, IBM_454C_PRODUCT_ID) },
 	{ USB_DEVICE(ABBOTT_VENDOR_ID, ABBOTT_PRODUCT_ID) },
+	{ USB_DEVICE(TI_VENDOR_ID, FRI2_PRODUCT_ID) },
 };
 
 static struct usb_device_id ti_id_table_5052[5+TI_EXTRA_VID_PID_COUNT+1] = {
@@ -189,7 +190,7 @@ static struct usb_device_id ti_id_table_5052[5+TI_EXTRA_VID_PID_COUNT+1] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5052_FIRMWARE_PRODUCT_ID) },
 };
 
-static struct usb_device_id ti_id_table_combined[18+2*TI_EXTRA_VID_PID_COUNT+1] = {
+static struct usb_device_id ti_id_table_combined[19+2*TI_EXTRA_VID_PID_COUNT+1] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_EZ430_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_NO_FW_PRODUCT_ID) },
@@ -208,14 +209,8 @@ static struct usb_device_id ti_id_table_combined[18+2*TI_EXTRA_VID_PID_COUNT+1] 
 	{ USB_DEVICE(IBM_VENDOR_ID, IBM_454B_PRODUCT_ID) },
 	{ USB_DEVICE(IBM_VENDOR_ID, IBM_454C_PRODUCT_ID) },
 	{ USB_DEVICE(ABBOTT_VENDOR_ID, ABBOTT_PRODUCT_ID) },
+	{ USB_DEVICE(TI_VENDOR_ID, FRI2_PRODUCT_ID) },
 	{ }
-};
-
-static struct usb_driver ti_usb_driver = {
-	.name			= "ti_usb_3410_5052",
-	.probe			= usb_serial_probe,
-	.disconnect		= usb_serial_disconnect,
-	.id_table		= ti_id_table_combined,
 };
 
 static struct usb_serial_driver ti_1port_device = {
@@ -344,19 +339,17 @@ static int __init ti_init(void)
 		ti_id_table_combined[c].match_flags = USB_DEVICE_ID_MATCH_DEVICE;
 	}
 
-	ret = usb_serial_register_drivers(&ti_usb_driver, serial_drivers);
+	ret = usb_serial_register_drivers(serial_drivers, KBUILD_MODNAME, ti_id_table_combined);
 	if (ret == 0)
 		printk(KERN_INFO KBUILD_MODNAME ": " TI_DRIVER_VERSION ":"
 			       TI_DRIVER_DESC "\n");
 	return ret;
 }
 
-
 static void __exit ti_exit(void)
 {
-	usb_serial_deregister_drivers(&ti_usb_driver, serial_drivers);
+	usb_serial_deregister_drivers(serial_drivers);
 }
-
 
 module_init(ti_init);
 module_exit(ti_exit);
@@ -394,7 +387,9 @@ static int ti_startup(struct usb_serial *serial)
 
 	/* if we have only 1 configuration, download firmware */
 	if (dev->descriptor.bNumConfigurations == 1) {
-		if ((status = ti_download_firmware(tdev)) != 0)
+		status = ti_download_firmware(tdev);
+
+		if (status != 0)
 			goto free_tdev;
 
 		/* 3410 must be reset, 5052 resets itself */
@@ -463,8 +458,6 @@ static void ti_release(struct usb_serial *serial)
 	struct ti_device *tdev = usb_get_serial_data(serial);
 	struct ti_port *tport;
 
-	dbg("%s", __func__);
-
 	for (i = 0; i < serial->num_ports; ++i) {
 		tport = usb_get_serial_port_data(serial->port[i]);
 		if (tport) {
@@ -488,8 +481,6 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 	__u16 open_settings = (__u8)(TI_PIPE_MODE_CONTINOUS |
 			     TI_PIPE_TIMEOUT_ENABLE |
 			     (TI_TRANSFER_TIMEOUT << 2));
-
-	dbg("%s - port %d", __func__, port->number);
 
 	if (tport == NULL)
 		return -ENODEV;
@@ -631,8 +622,6 @@ static void ti_close(struct usb_serial_port *port)
 	int status;
 	int do_unlock;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	tdev = usb_get_serial_data(port->serial);
 	tport = usb_get_serial_port_data(port);
 	if (tdev == NULL || tport == NULL)
@@ -666,8 +655,6 @@ static void ti_close(struct usb_serial_port *port)
 	}
 	if (do_unlock)
 		mutex_unlock(&tdev->td_open_close_lock);
-
-	dbg("%s - exit", __func__);
 }
 
 
@@ -675,8 +662,6 @@ static int ti_write(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *data, int count)
 {
 	struct ti_port *tport = usb_get_serial_port_data(port);
-
-	dbg("%s - port %d", __func__, port->number);
 
 	if (count == 0) {
 		dbg("%s - write request of 0 bytes", __func__);
@@ -701,8 +686,6 @@ static int ti_write_room(struct tty_struct *tty)
 	int room = 0;
 	unsigned long flags;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	if (tport == NULL)
 		return 0;
 
@@ -722,8 +705,6 @@ static int ti_chars_in_buffer(struct tty_struct *tty)
 	int chars = 0;
 	unsigned long flags;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	if (tport == NULL)
 		return 0;
 
@@ -741,8 +722,6 @@ static void ti_throttle(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	struct ti_port *tport = usb_get_serial_port_data(port);
 
-	dbg("%s - port %d", __func__, port->number);
-
 	if (tport == NULL)
 		return;
 
@@ -757,8 +736,6 @@ static void ti_unthrottle(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	struct ti_port *tport = usb_get_serial_port_data(port);
 	int status;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	if (tport == NULL)
 		return;
@@ -853,8 +830,6 @@ static void ti_set_termios(struct tty_struct *tty,
 	int status;
 	int port_number = port->number - port->serial->minor;
 	unsigned int mcr;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	cflag = tty->termios->c_cflag;
 	iflag = tty->termios->c_iflag;
@@ -988,8 +963,6 @@ static int ti_tiocmget(struct tty_struct *tty)
 	unsigned int mcr;
 	unsigned long flags;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	if (tport == NULL)
 		return -ENODEV;
 
@@ -1019,8 +992,6 @@ static int ti_tiocmset(struct tty_struct *tty,
 	struct ti_port *tport = usb_get_serial_port_data(port);
 	unsigned int mcr;
 	unsigned long flags;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	if (tport == NULL)
 		return -ENODEV;
@@ -1083,8 +1054,6 @@ static void ti_interrupt_callback(struct urb *urb)
 	int status = urb->status;
 	int retval;
 	__u8 msr;
-
-	dbg("%s", __func__);
 
 	switch (status) {
 	case 0:
@@ -1165,8 +1134,6 @@ static void ti_bulk_in_callback(struct urb *urb)
 	int retval = 0;
 	struct tty_struct *tty;
 
-	dbg("%s", __func__);
-
 	switch (status) {
 	case 0:
 		break;
@@ -1233,8 +1200,6 @@ static void ti_bulk_out_callback(struct urb *urb)
 	struct usb_serial_port *port = tport->tp_port;
 	int status = urb->status;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	tport->tp_write_urb_in_use = 0;
 
 	switch (status) {
@@ -1286,9 +1251,6 @@ static void ti_send(struct ti_port *tport)
 	struct usb_serial_port *port = tport->tp_port;
 	struct tty_struct *tty = tty_port_tty_get(&port->port);	/* FIXME */
 	unsigned long flags;
-
-
-	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave(&tport->tp_lock, flags);
 
@@ -1365,8 +1327,6 @@ static int ti_get_lsr(struct ti_port *tport)
 	struct usb_serial_port *port = tport->tp_port;
 	int port_number = port->number - port->serial->minor;
 	struct ti_port_status *data;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	size = sizeof(struct ti_port_status);
 	data = kmalloc(size, GFP_KERNEL);
@@ -1479,8 +1439,6 @@ static void ti_drain(struct ti_port *tport, unsigned long timeout, int flush)
 	struct ti_device *tdev = tport->tp_tdev;
 	struct usb_serial_port *port = tport->tp_port;
 	wait_queue_t wait;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irq(&tport->tp_lock);
 
@@ -1679,11 +1637,12 @@ static int ti_download_firmware(struct ti_device *tdev)
 	const struct firmware *fw_p;
 	char buf[32];
 
-	dbg("%s\n", __func__);
 	/* try ID specific firmware first, then try generic firmware */
 	sprintf(buf, "ti_usb-v%04x-p%04x.fw", dev->descriptor.idVendor,
 	    dev->descriptor.idProduct);
-	if ((status = request_firmware(&fw_p, buf, &dev->dev)) != 0) {
+	status = request_firmware(&fw_p, buf, &dev->dev);
+
+	if (status != 0) {
 		buf[0] = '\0';
 		if (dev->descriptor.idVendor == MTS_VENDOR_ID) {
 			switch (dev->descriptor.idProduct) {

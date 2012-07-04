@@ -7,9 +7,9 @@
  * devtmpfs, a tmpfs-based filesystem is created. Every driver-core
  * device which requests a device node, will add a node in this
  * filesystem.
- * By default, all devices are named after the the name of the
- * device, owned by root and have a default mode of 0600. Subsystems
- * can overwrite the default setting if needed.
+ * By default, all devices are named after the name of the device,
+ * owned by root and have a default mode of 0600. Subsystems can
+ * overwrite the default setting if needed.
  */
 
 #include <linux/kernel.h>

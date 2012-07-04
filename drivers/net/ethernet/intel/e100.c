@@ -1759,6 +1759,7 @@ static void e100_xmit_prepare(struct nic *nic, struct cb *cb,
 		skb->data, skb->len, PCI_DMA_TODEVICE));
 	/* check for mapping failure? */
 	cb->u.tcb.tbd.size = cpu_to_le16(skb->len);
+	skb_tx_timestamp(skb);
 }
 
 static netdev_tx_t e100_xmit_frame(struct sk_buff *skb,
@@ -2733,6 +2734,7 @@ static const struct ethtool_ops e100_ethtool_ops = {
 	.set_phys_id		= e100_set_phys_id,
 	.get_ethtool_stats	= e100_get_ethtool_stats,
 	.get_sset_count		= e100_get_sset_count,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 static int e100_do_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)

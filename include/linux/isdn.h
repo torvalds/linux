@@ -15,6 +15,7 @@
 #define __ISDN_H__
 
 #include <linux/ioctl.h>
+#include <linux/tty.h>
 
 #define ISDN_MAX_DRIVERS    32
 #define ISDN_MAX_CHANNELS   64
@@ -392,21 +393,8 @@ typedef struct isdn_net_dev_s {
 /*======================= Start of ISDN-tty stuff ===========================*/
 
 #define ISDN_ASYNC_MAGIC          0x49344C01 /* for paranoia-checking        */
-#define ISDN_ASYNC_INITIALIZED	  0x80000000 /* port was initialized         */
-#define ISDN_ASYNC_CALLOUT_ACTIVE 0x40000000 /* Call out device active       */
-#define ISDN_ASYNC_NORMAL_ACTIVE  0x20000000 /* Normal device active         */
-#define ISDN_ASYNC_CLOSING	  0x08000000 /* Serial port is closing       */
-#define ISDN_ASYNC_CTS_FLOW	  0x04000000 /* Do CTS flow control          */
-#define ISDN_ASYNC_CHECK_CD	  0x02000000 /* i.e., CLOCAL                 */
-#define ISDN_ASYNC_HUP_NOTIFY         0x0001 /* Notify tty on hangups/closes */
-#define ISDN_ASYNC_SESSION_LOCKOUT    0x0100 /* Lock cua opens on session    */
-#define ISDN_ASYNC_PGRP_LOCKOUT       0x0200 /* Lock cua opens on pgrp       */
-#define ISDN_ASYNC_CALLOUT_NOHUP      0x0400 /* No hangup for cui            */
-#define ISDN_ASYNC_SPLIT_TERMIOS      0x0008 /* Sep. termios for dialin/out  */
 #define ISDN_SERIAL_XMIT_SIZE           1024 /* Default bufsize for write    */
 #define ISDN_SERIAL_XMIT_MAX            4000 /* Maximum bufsize for write    */
-#define ISDN_SERIAL_TYPE_NORMAL            1
-#define ISDN_SERIAL_TYPE_CALLOUT           2
 
 #ifdef CONFIG_ISDN_AUDIO
 /* For using sk_buffs with audio we need some private variables
@@ -448,17 +436,12 @@ typedef struct atemu {
 /* Private data (similar to async_struct in <linux/serial.h>) */
 typedef struct modem_info {
   int			magic;
-  struct module		*owner;
-  int			flags;		 /* defined in tty.h               */
+  struct tty_port	port;
   int			x_char;		 /* xon/xoff character             */
   int			mcr;		 /* Modem control register         */
   int                   msr;             /* Modem status register          */
   int                   lsr;             /* Line status register           */
   int			line;
-  int			count;		 /* # of fd on device              */
-  int			blocked_open;	 /* # of blocked opens             */
-  long			session;	 /* Session of opening process     */
-  long			pgrp;		 /* pgrp of opening process        */
   int                   online;          /* 1 = B-Channel is up, drop data */
 					 /* 2 = B-Channel is up, deliver d.*/
   int                   dialing;         /* Dial in progress or ATA        */
@@ -478,7 +461,6 @@ typedef struct modem_info {
   int                   send_outstanding;/* # of outstanding send-requests */
   int                   xmit_size;       /* max. # of chars in xmit_buf    */
   int                   xmit_count;      /* # of chars in xmit_buf         */
-  unsigned char         *xmit_buf;       /* transmit buffer                */
   struct sk_buff_head   xmit_queue;      /* transmit queue                 */
   atomic_t              xmit_lock;       /* Semaphore for isdn_tty_write   */
 #ifdef CONFIG_ISDN_AUDIO
@@ -496,11 +478,7 @@ typedef struct modem_info {
   struct T30_s		*fax;		 /* T30 Fax Group 3 data/interface */
   int			faxonline;	 /* Fax-channel status             */
 #endif
-  struct tty_struct 	*tty;            /* Pointer to corresponding tty   */
   atemu                 emu;             /* AT-emulator data               */
-  struct ktermios	normal_termios;  /* For saving termios structs     */
-  struct ktermios	callout_termios;
-  wait_queue_head_t	open_wait, close_wait;
   spinlock_t	        readlock;
 } modem_info;
 

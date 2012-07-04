@@ -31,6 +31,8 @@
 #define INTERRUPT_INTERVAL	16
 #define QUEUE_LENGTH		48
 
+static void pcm_period_tasklet(unsigned long data);
+
 /**
  * amdtp_out_stream_init - initialize an AMDTP output stream structure
  * @s: the AMDTP output stream to initialize
@@ -47,6 +49,7 @@ int amdtp_out_stream_init(struct amdtp_out_stream *s, struct fw_unit *unit,
 	s->flags = flags;
 	s->context = ERR_PTR(-1);
 	mutex_init(&s->mutex);
+	tasklet_init(&s->period_tasklet, pcm_period_tasklet, (unsigned long)s);
 	s->packet_index = 0;
 
 	return 0;
@@ -163,6 +166,21 @@ void amdtp_out_stream_set_pcm_format(struct amdtp_out_stream *s,
 	}
 }
 EXPORT_SYMBOL(amdtp_out_stream_set_pcm_format);
+
+/**
+ * amdtp_out_stream_pcm_prepare - prepare PCM device for running
+ * @s: the AMDTP output stream
+ *
+ * This function should be called from the PCM device's .prepare callback.
+ */
+void amdtp_out_stream_pcm_prepare(struct amdtp_out_stream *s)
+{
+	tasklet_kill(&s->period_tasklet);
+	s->pcm_buffer_pointer = 0;
+	s->pcm_period_pointer = 0;
+	s->pointer_flush = true;
+}
+EXPORT_SYMBOL(amdtp_out_stream_pcm_prepare);
 
 static unsigned int calculate_data_blocks(struct amdtp_out_stream *s)
 {
@@ -376,9 +394,19 @@ static void queue_out_packet(struct amdtp_out_stream *s, unsigned int cycle)
 		s->pcm_period_pointer += data_blocks;
 		if (s->pcm_period_pointer >= pcm->runtime->period_size) {
 			s->pcm_period_pointer -= pcm->runtime->period_size;
-			snd_pcm_period_elapsed(pcm);
+			s->pointer_flush = false;
+			tasklet_hi_schedule(&s->period_tasklet);
 		}
 	}
+}
+
+static void pcm_period_tasklet(unsigned long data)
+{
+	struct amdtp_out_stream *s = (void *)data;
+	struct snd_pcm_substream *pcm = ACCESS_ONCE(s->pcm);
+
+	if (pcm)
+		snd_pcm_period_elapsed(pcm);
 }
 
 static void out_packet_callback(struct fw_iso_context *context, u32 cycle,
@@ -506,6 +534,24 @@ err_unlock:
 EXPORT_SYMBOL(amdtp_out_stream_start);
 
 /**
+ * amdtp_out_stream_pcm_pointer - get the PCM buffer position
+ * @s: the AMDTP output stream that transports the PCM data
+ *
+ * Returns the current buffer position, in frames.
+ */
+unsigned long amdtp_out_stream_pcm_pointer(struct amdtp_out_stream *s)
+{
+	/* this optimization is allowed to be racy */
+	if (s->pointer_flush)
+		fw_iso_context_flush_completions(s->context);
+	else
+		s->pointer_flush = true;
+
+	return ACCESS_ONCE(s->pcm_buffer_pointer);
+}
+EXPORT_SYMBOL(amdtp_out_stream_pcm_pointer);
+
+/**
  * amdtp_out_stream_update - update the stream after a bus reset
  * @s: the AMDTP output stream
  */
@@ -532,6 +578,7 @@ void amdtp_out_stream_stop(struct amdtp_out_stream *s)
 		return;
 	}
 
+	tasklet_kill(&s->period_tasklet);
 	fw_iso_context_stop(s->context);
 	fw_iso_context_destroy(s->context);
 	s->context = ERR_PTR(-1);

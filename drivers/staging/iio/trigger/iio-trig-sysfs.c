@@ -11,8 +11,8 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 
-#include "../iio.h"
-#include "../trigger.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/trigger.h>
 
 struct iio_sysfs_trig {
 	struct iio_trigger *trig;
@@ -139,7 +139,7 @@ static int iio_sysfs_trigger_probe(int id)
 		goto out1;
 	}
 	t->id = id;
-	t->trig = iio_allocate_trigger("sysfstrig%d", id);
+	t->trig = iio_trigger_alloc("sysfstrig%d", id);
 	if (!t->trig) {
 		ret = -ENOMEM;
 		goto free_t;
@@ -158,7 +158,7 @@ static int iio_sysfs_trigger_probe(int id)
 	return 0;
 
 out2:
-	iio_put_trigger(t->trig);
+	iio_trigger_put(t->trig);
 free_t:
 	kfree(t);
 out1:
@@ -182,7 +182,7 @@ static int iio_sysfs_trigger_remove(int id)
 	}
 
 	iio_trigger_unregister(t->trig);
-	iio_free_trigger(t->trig);
+	iio_trigger_free(t->trig);
 
 	list_del(&t->l);
 	kfree(t);

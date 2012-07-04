@@ -6,7 +6,7 @@
 
 struct thread_map {
 	int nr;
-	int map[];
+	pid_t map[];
 };
 
 struct thread_map *thread_map__new_by_pid(pid_t pid);

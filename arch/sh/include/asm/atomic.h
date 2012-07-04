@@ -11,7 +11,7 @@
 #include <linux/types.h>
 #include <asm/cmpxchg.h>
 
-#define ATOMIC_INIT(i)	( (atomic_t) { (i) } )
+#define ATOMIC_INIT(i)	{ (i) }
 
 #define atomic_read(v)		(*(volatile int *)&(v)->counter)
 #define atomic_set(v,i)		((v)->counter = (i))

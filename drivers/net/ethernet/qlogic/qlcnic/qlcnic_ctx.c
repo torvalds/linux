@@ -905,6 +905,65 @@ int qlcnic_get_port_stats(struct qlcnic_adapter *adapter, const u8 func,
 	return err;
 }
 
+/* This routine will retrieve the MAC statistics from firmware */
+int qlcnic_get_mac_stats(struct qlcnic_adapter *adapter,
+		struct qlcnic_mac_statistics *mac_stats)
+{
+	struct qlcnic_mac_statistics *stats;
+	struct qlcnic_cmd_args cmd;
+	size_t stats_size = sizeof(struct qlcnic_mac_statistics);
+	dma_addr_t stats_dma_t;
+	void *stats_addr;
+	int err;
+
+	stats_addr = dma_alloc_coherent(&adapter->pdev->dev, stats_size,
+			&stats_dma_t, GFP_KERNEL);
+	if (!stats_addr) {
+		dev_err(&adapter->pdev->dev,
+			"%s: Unable to allocate memory.\n", __func__);
+		return -ENOMEM;
+	}
+	memset(stats_addr, 0, stats_size);
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.req.cmd = QLCNIC_CDRP_CMD_GET_MAC_STATS;
+	cmd.req.arg1 = stats_size << 16;
+	cmd.req.arg2 = MSD(stats_dma_t);
+	cmd.req.arg3 = LSD(stats_dma_t);
+
+	qlcnic_issue_cmd(adapter, &cmd);
+	err = cmd.rsp.cmd;
+
+	if (!err) {
+		stats = stats_addr;
+		mac_stats->mac_tx_frames = le64_to_cpu(stats->mac_tx_frames);
+		mac_stats->mac_tx_bytes = le64_to_cpu(stats->mac_tx_bytes);
+		mac_stats->mac_tx_mcast_pkts =
+					le64_to_cpu(stats->mac_tx_mcast_pkts);
+		mac_stats->mac_tx_bcast_pkts =
+					le64_to_cpu(stats->mac_tx_bcast_pkts);
+		mac_stats->mac_rx_frames = le64_to_cpu(stats->mac_rx_frames);
+		mac_stats->mac_rx_bytes = le64_to_cpu(stats->mac_rx_bytes);
+		mac_stats->mac_rx_mcast_pkts =
+					le64_to_cpu(stats->mac_rx_mcast_pkts);
+		mac_stats->mac_rx_length_error =
+				le64_to_cpu(stats->mac_rx_length_error);
+		mac_stats->mac_rx_length_small =
+				le64_to_cpu(stats->mac_rx_length_small);
+		mac_stats->mac_rx_length_large =
+				le64_to_cpu(stats->mac_rx_length_large);
+		mac_stats->mac_rx_jabber = le64_to_cpu(stats->mac_rx_jabber);
+		mac_stats->mac_rx_dropped = le64_to_cpu(stats->mac_rx_dropped);
+		mac_stats->mac_rx_crc_error = le64_to_cpu(stats->mac_rx_crc_error);
+	} else {
+		dev_info(&adapter->pdev->dev,
+			"%s: Get mac stats failed =%d.\n", __func__, err);
+	}
+
+	dma_free_coherent(&adapter->pdev->dev, stats_size, stats_addr,
+		stats_dma_t);
+	return err;
+}
+
 int qlcnic_get_eswitch_stats(struct qlcnic_adapter *adapter, const u8 eswitch,
 		const u8 rx_tx, struct __qlcnic_esw_statistics *esw_stats) {
 
@@ -920,13 +979,13 @@ int qlcnic_get_eswitch_stats(struct qlcnic_adapter *adapter, const u8 eswitch,
 		return -EIO;
 
 	memset(esw_stats, 0, sizeof(u64));
-	esw_stats->unicast_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
-	esw_stats->multicast_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
-	esw_stats->broadcast_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
-	esw_stats->dropped_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
-	esw_stats->errors = QLCNIC_ESW_STATS_NOT_AVAIL;
-	esw_stats->local_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
-	esw_stats->numbytes = QLCNIC_ESW_STATS_NOT_AVAIL;
+	esw_stats->unicast_frames = QLCNIC_STATS_NOT_AVAIL;
+	esw_stats->multicast_frames = QLCNIC_STATS_NOT_AVAIL;
+	esw_stats->broadcast_frames = QLCNIC_STATS_NOT_AVAIL;
+	esw_stats->dropped_frames = QLCNIC_STATS_NOT_AVAIL;
+	esw_stats->errors = QLCNIC_STATS_NOT_AVAIL;
+	esw_stats->local_frames = QLCNIC_STATS_NOT_AVAIL;
+	esw_stats->numbytes = QLCNIC_STATS_NOT_AVAIL;
 	esw_stats->context_id = eswitch;
 
 	for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++) {

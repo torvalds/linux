@@ -310,7 +310,7 @@ static void __init vpr200_timer_init(void)
 	mx35_clocks_init();
 }
 
-struct sys_timer vpr200_timer = {
+static struct sys_timer vpr200_timer = {
 	.init	= vpr200_timer_init,
 };
 

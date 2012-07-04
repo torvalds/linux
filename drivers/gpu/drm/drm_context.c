@@ -85,11 +85,12 @@ again:
 	mutex_lock(&dev->struct_mutex);
 	ret = idr_get_new_above(&dev->ctx_idr, NULL,
 				DRM_RESERVED_CONTEXTS, &new_id);
-	if (ret == -EAGAIN) {
-		mutex_unlock(&dev->struct_mutex);
-		goto again;
-	}
 	mutex_unlock(&dev->struct_mutex);
+	if (ret == -EAGAIN)
+		goto again;
+	else if (ret)
+		return ret;
+
 	return new_id;
 }
 

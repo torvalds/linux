@@ -358,7 +358,7 @@ static void rt2x00usb_work_rxdone(struct work_struct *work)
 		/*
 		 * Send the frame to rt2x00lib for further processing.
 		 */
-		rt2x00lib_rxdone(entry);
+		rt2x00lib_rxdone(entry, GFP_KERNEL);
 	}
 }
 

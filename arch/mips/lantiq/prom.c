@@ -8,6 +8,7 @@
 
 #include <linux/export.h>
 #include <linux/clk.h>
+#include <linux/of_platform.h>
 #include <asm/bootinfo.h>
 #include <asm/time.h>
 
@@ -16,19 +17,15 @@
 #include "prom.h"
 #include "clk.h"
 
+/* access to the ebu needs to be locked between different drivers */
+DEFINE_SPINLOCK(ebu_lock);
+EXPORT_SYMBOL_GPL(ebu_lock);
+
+/*
+ * this struct is filled by the soc specific detection code and holds
+ * information about the specific soc type, revision and name
+ */
 static struct ltq_soc_info soc_info;
-
-unsigned int ltq_get_cpu_ver(void)
-{
-	return soc_info.rev;
-}
-EXPORT_SYMBOL(ltq_get_cpu_ver);
-
-unsigned int ltq_get_soc_type(void)
-{
-	return soc_info.type;
-}
-EXPORT_SYMBOL(ltq_get_soc_type);
 
 const char *get_system_type(void)
 {
@@ -45,27 +42,62 @@ static void __init prom_init_cmdline(void)
 	char **argv = (char **) KSEG1ADDR(fw_arg1);
 	int i;
 
-	for (i = 0; i < argc; i++) {
-		char *p = (char *)  KSEG1ADDR(argv[i]);
+	arcs_cmdline[0] = '\0';
 
-		if (p && *p) {
+	for (i = 0; i < argc; i++) {
+		char *p = (char *) KSEG1ADDR(argv[i]);
+
+		if (CPHYSADDR(p) && *p) {
 			strlcat(arcs_cmdline, p, sizeof(arcs_cmdline));
 			strlcat(arcs_cmdline, " ", sizeof(arcs_cmdline));
 		}
 	}
 }
 
+void __init plat_mem_setup(void)
+{
+	ioport_resource.start = IOPORT_RESOURCE_START;
+	ioport_resource.end = IOPORT_RESOURCE_END;
+	iomem_resource.start = IOMEM_RESOURCE_START;
+	iomem_resource.end = IOMEM_RESOURCE_END;
+
+	set_io_port_base((unsigned long) KSEG1);
+
+	/*
+	 * Load the builtin devicetree. This causes the chosen node to be
+	 * parsed resulting in our memory appearing
+	 */
+	__dt_setup_arch(&__dtb_start);
+}
+
 void __init prom_init(void)
 {
-	struct clk *clk;
-
+	/* call the soc specific detetcion code and get it to fill soc_info */
 	ltq_soc_detect(&soc_info);
-	clk_init();
-	clk = clk_get(0, "cpu");
-	snprintf(soc_info.sys_type, LTQ_SYS_TYPE_LEN - 1, "%s rev1.%d",
-		soc_info.name, soc_info.rev);
-	clk_put(clk);
+	snprintf(soc_info.sys_type, LTQ_SYS_TYPE_LEN - 1, "%s rev %s",
+		soc_info.name, soc_info.rev_type);
 	soc_info.sys_type[LTQ_SYS_TYPE_LEN - 1] = '\0';
 	pr_info("SoC: %s\n", soc_info.sys_type);
 	prom_init_cmdline();
+
+#if defined(CONFIG_MIPS_MT_SMP)
+	if (register_vsmp_smp_ops())
+		panic("failed to register_vsmp_smp_ops()");
+#endif
 }
+
+int __init plat_of_setup(void)
+{
+	static struct of_device_id of_ids[3];
+
+	if (!of_have_populated_dt())
+		panic("device tree not present");
+
+	strncpy(of_ids[0].compatible, soc_info.compatible,
+		sizeof(of_ids[0].compatible));
+	strncpy(of_ids[1].compatible, "simple-bus",
+		sizeof(of_ids[1].compatible));
+	return of_platform_bus_probe(NULL, of_ids, NULL);
+}
+
+arch_initcall(plat_of_setup);

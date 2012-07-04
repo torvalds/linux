@@ -23,7 +23,7 @@ RANLIB	 = ranlib
 all:	raid6.a raid6test
 
 raid6.a: int1.o int2.o int4.o int8.o int16.o int32.o mmx.o sse1.o sse2.o \
-	 altivec1.o altivec2.o altivec4.o altivec8.o recov.o algos.o \
+	 altivec1.o altivec2.o altivec4.o altivec8.o recov.o recov_ssse3.o algos.o \
 	 tables.o
 	 rm -f $@
 	 $(AR) cq $@ $^

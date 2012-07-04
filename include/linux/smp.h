@@ -61,7 +61,7 @@ extern void smp_prepare_cpus(unsigned int max_cpus);
 /*
  * Bring a CPU up
  */
-extern int __cpu_up(unsigned int cpunum);
+extern int __cpu_up(unsigned int cpunum, struct task_struct *tidle);
 
 /*
  * Final polishing of CPUs
@@ -80,6 +80,8 @@ void __smp_call_function_single(int cpuid, struct call_single_data *data,
 
 int smp_call_function_any(const struct cpumask *mask,
 			  smp_call_func_t func, void *info, int wait);
+
+void kick_all_cpus_sync(void);
 
 /*
  * Generic and arch helpers
@@ -191,6 +193,8 @@ smp_call_function_any(const struct cpumask *mask, smp_call_func_t func,
 {
 	return smp_call_function_single(0, func, info, wait);
 }
+
+static inline void kick_all_cpus_sync(void) {  }
 
 #endif /* !SMP */
 

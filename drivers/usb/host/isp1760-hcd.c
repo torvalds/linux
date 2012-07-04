@@ -1562,11 +1562,14 @@ static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 
 	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
 		retval = -ESHUTDOWN;
+		qtd_list_free(&new_qtds);
 		goto out;
 	}
 	retval = usb_hcd_link_urb_to_ep(hcd, urb);
-	if (retval)
+	if (retval) {
+		qtd_list_free(&new_qtds);
 		goto out;
+	}
 
 	qh = urb->ep->hcpriv;
 	if (qh) {
@@ -1584,6 +1587,7 @@ static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 		if (!qh) {
 			retval = -ENOMEM;
 			usb_hcd_unlink_urb_from_ep(hcd, urb);
+			qtd_list_free(&new_qtds);
 			goto out;
 		}
 		list_add_tail(&qh->qh_list, ep_queue);
@@ -1683,6 +1687,7 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 	list_for_each_entry(qtd, &qh->qtd_list, qtd_list)
 		if (qtd->urb == urb) {
 			dequeue_urb_from_qtd(hcd, qh, qtd);
+			list_move(&qtd->qtd_list, &qh->qtd_list);
 			break;
 		}
 
@@ -2176,7 +2181,7 @@ static const struct hc_driver isp1760_hc_driver = {
 
 int __init init_kmem_once(void)
 {
-	urb_listitem_cachep = kmem_cache_create("isp1760 urb_listitem",
+	urb_listitem_cachep = kmem_cache_create("isp1760_urb_listitem",
 			sizeof(struct urb_listitem), 0, SLAB_TEMPORARY |
 			SLAB_MEM_SPREAD, NULL);
 

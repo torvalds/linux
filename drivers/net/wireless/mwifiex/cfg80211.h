@@ -24,6 +24,6 @@
 
 #include "main.h"
 
-int mwifiex_register_cfg80211(struct mwifiex_private *);
+int mwifiex_register_cfg80211(struct mwifiex_adapter *);
 
 #endif

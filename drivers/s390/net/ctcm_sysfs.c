@@ -13,6 +13,7 @@
 #define KMSG_COMPONENT "ctcm"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/device.h>
 #include <linux/sysfs.h>
 #include <linux/slab.h>
 #include "ctcm_main.h"
@@ -108,10 +109,12 @@ static void ctcm_print_statistics(struct ctcm_priv *priv)
 }
 
 static ssize_t stats_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+			  struct device_attribute *attr, char *buf)
 {
+	struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
 	struct ctcm_priv *priv = dev_get_drvdata(dev);
-	if (!priv)
+
+	if (!priv || gdev->state != CCWGROUP_ONLINE)
 		return -ENODEV;
 	ctcm_print_statistics(priv);
 	return sprintf(buf, "0\n");
@@ -190,34 +193,14 @@ static struct attribute *ctcm_attr[] = {
 	&dev_attr_protocol.attr,
 	&dev_attr_type.attr,
 	&dev_attr_buffer.attr,
+	&dev_attr_stats.attr,
 	NULL,
 };
 
 static struct attribute_group ctcm_attr_group = {
 	.attrs = ctcm_attr,
 };
-
-int ctcm_add_attributes(struct device *dev)
-{
-	int rc;
-
-	rc = device_create_file(dev, &dev_attr_stats);
-
-	return rc;
-}
-
-void ctcm_remove_attributes(struct device *dev)
-{
-	device_remove_file(dev, &dev_attr_stats);
-}
-
-int ctcm_add_files(struct device *dev)
-{
-	return sysfs_create_group(&dev->kobj, &ctcm_attr_group);
-}
-
-void ctcm_remove_files(struct device *dev)
-{
-	sysfs_remove_group(&dev->kobj, &ctcm_attr_group);
-}
-
+const struct attribute_group *ctcm_attr_groups[] = {
+	&ctcm_attr_group,
+	NULL,
+};

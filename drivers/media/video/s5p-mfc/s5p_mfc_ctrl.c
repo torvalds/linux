@@ -52,7 +52,7 @@ int s5p_mfc_alloc_and_load_firmware(struct s5p_mfc_dev *dev)
 	s5p_mfc_bitproc_buf = vb2_dma_contig_memops.alloc(
 		dev->alloc_ctx[MFC_BANK1_ALLOC_CTX], dev->fw_size);
 	if (IS_ERR(s5p_mfc_bitproc_buf)) {
-		s5p_mfc_bitproc_buf = 0;
+		s5p_mfc_bitproc_buf = NULL;
 		mfc_err("Allocating bitprocessor buffer failed\n");
 		release_firmware(fw_blob);
 		return -ENOMEM;
@@ -63,7 +63,7 @@ int s5p_mfc_alloc_and_load_firmware(struct s5p_mfc_dev *dev)
 		mfc_err("The base memory for bank 1 is not aligned to 128KB\n");
 		vb2_dma_contig_memops.put(s5p_mfc_bitproc_buf);
 		s5p_mfc_bitproc_phys = 0;
-		s5p_mfc_bitproc_buf = 0;
+		s5p_mfc_bitproc_buf = NULL;
 		release_firmware(fw_blob);
 		return -EIO;
 	}
@@ -72,7 +72,7 @@ int s5p_mfc_alloc_and_load_firmware(struct s5p_mfc_dev *dev)
 		mfc_err("Bitprocessor memory remap failed\n");
 		vb2_dma_contig_memops.put(s5p_mfc_bitproc_buf);
 		s5p_mfc_bitproc_phys = 0;
-		s5p_mfc_bitproc_buf = 0;
+		s5p_mfc_bitproc_buf = NULL;
 		release_firmware(fw_blob);
 		return -EIO;
 	}
@@ -82,7 +82,7 @@ int s5p_mfc_alloc_and_load_firmware(struct s5p_mfc_dev *dev)
 	if (IS_ERR(b_base)) {
 		vb2_dma_contig_memops.put(s5p_mfc_bitproc_buf);
 		s5p_mfc_bitproc_phys = 0;
-		s5p_mfc_bitproc_buf = 0;
+		s5p_mfc_bitproc_buf = NULL;
 		mfc_err("Allocating bank2 base failed\n");
 	release_firmware(fw_blob);
 		return -ENOMEM;
@@ -94,7 +94,7 @@ int s5p_mfc_alloc_and_load_firmware(struct s5p_mfc_dev *dev)
 		mfc_err("The base memory for bank 2 is not aligned to 128KB\n");
 		vb2_dma_contig_memops.put(s5p_mfc_bitproc_buf);
 		s5p_mfc_bitproc_phys = 0;
-		s5p_mfc_bitproc_buf = 0;
+		s5p_mfc_bitproc_buf = NULL;
 		release_firmware(fw_blob);
 		return -EIO;
 	}
@@ -126,7 +126,7 @@ int s5p_mfc_reload_firmware(struct s5p_mfc_dev *dev)
 		release_firmware(fw_blob);
 		return -ENOMEM;
 	}
-	if (s5p_mfc_bitproc_buf == 0 || s5p_mfc_bitproc_phys == 0) {
+	if (s5p_mfc_bitproc_buf == NULL || s5p_mfc_bitproc_phys == 0) {
 		mfc_err("MFC firmware is not allocated or was not mapped correctly\n");
 		release_firmware(fw_blob);
 		return -EINVAL;
@@ -146,9 +146,9 @@ int s5p_mfc_release_firmware(struct s5p_mfc_dev *dev)
 	if (!s5p_mfc_bitproc_buf)
 		return -EINVAL;
 	vb2_dma_contig_memops.put(s5p_mfc_bitproc_buf);
-	s5p_mfc_bitproc_virt =  0;
+	s5p_mfc_bitproc_virt = NULL;
 	s5p_mfc_bitproc_phys = 0;
-	s5p_mfc_bitproc_buf = 0;
+	s5p_mfc_bitproc_buf = NULL;
 	return 0;
 }
 

@@ -185,7 +185,6 @@ struct s5p_mfc_pm {
  * @mem_dev_r:		child device of the right memory bank (1)
  * @regs_base:		base address of the MFC hw registers
  * @irq:		irq resource
- * @mfc_mem:		MFC registers memory resource
  * @dec_ctrl_handler:	control framework handler for decoding
  * @enc_ctrl_handler:	control framework handler for encoding
  * @pm:			power management control
@@ -221,7 +220,6 @@ struct s5p_mfc_dev {
 	struct device		*mem_dev_r;
 	void __iomem		*regs_base;
 	int			irq;
-	struct resource		*mfc_mem;
 	struct v4l2_ctrl_handler dec_ctrl_handler;
 	struct v4l2_ctrl_handler enc_ctrl_handler;
 	struct s5p_mfc_pm	pm;

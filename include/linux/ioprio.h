@@ -42,26 +42,14 @@ enum {
 };
 
 /*
+ * Fallback BE priority
+ */
+#define IOPRIO_NORM	(4)
+
+/*
  * if process has set io priority explicitly, use that. if not, convert
  * the cpu scheduler nice value to an io priority
  */
-#define IOPRIO_NORM	(4)
-static inline int task_ioprio(struct io_context *ioc)
-{
-	if (ioprio_valid(ioc->ioprio))
-		return IOPRIO_PRIO_DATA(ioc->ioprio);
-
-	return IOPRIO_NORM;
-}
-
-static inline int task_ioprio_class(struct io_context *ioc)
-{
-	if (ioprio_valid(ioc->ioprio))
-		return IOPRIO_PRIO_CLASS(ioc->ioprio);
-
-	return IOPRIO_CLASS_BE;
-}
-
 static inline int task_nice_ioprio(struct task_struct *task)
 {
 	return (task_nice(task) + 20) / 5;

@@ -95,7 +95,7 @@ static int audit_iface(struct aa_profile *new, const char *name,
 	struct aa_profile *profile = __aa_current_profile();
 	struct common_audit_data sa;
 	struct apparmor_audit_data aad = {0,};
-	COMMON_AUDIT_DATA_INIT(&sa, NONE);
+	sa.type = LSM_AUDIT_DATA_NONE;
 	sa.aad = &aad;
 	if (e)
 		aad.iface.pos = e->pos - e->start;

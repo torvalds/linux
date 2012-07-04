@@ -54,6 +54,7 @@ static struct {
 	bool show_ext_vars;
 	bool show_funcs;
 	bool mod_events;
+	bool uprobes;
 	int nevents;
 	struct perf_probe_event events[MAX_PROBES];
 	struct strlist *dellist;
@@ -75,6 +76,8 @@ static int parse_probe_event(const char *str)
 		return -1;
 	}
 
+	pev->uprobes = params.uprobes;
+
 	/* Parse a perf-probe command into event */
 	ret = parse_perf_probe_command(str, pev);
 	pr_debug("%d arguments\n", pev->nargs);
@@ -82,21 +85,58 @@ static int parse_probe_event(const char *str)
 	return ret;
 }
 
+static int set_target(const char *ptr)
+{
+	int found = 0;
+	const char *buf;
+
+	/*
+	 * The first argument after options can be an absolute path
+	 * to an executable / library or kernel module.
+	 *
+	 * TODO: Support relative path, and $PATH, $LD_LIBRARY_PATH,
+	 * short module name.
+	 */
+	if (!params.target && ptr && *ptr == '/') {
+		params.target = ptr;
+		found = 1;
+		buf = ptr + (strlen(ptr) - 3);
+
+		if (strcmp(buf, ".ko"))
+			params.uprobes = true;
+
+	}
+
+	return found;
+}
+
 static int parse_probe_event_argv(int argc, const char **argv)
 {
-	int i, len, ret;
+	int i, len, ret, found_target;
 	char *buf;
+
+	found_target = set_target(argv[0]);
+	if (found_target && argc == 1)
+		return 0;
 
 	/* Bind up rest arguments */
 	len = 0;
-	for (i = 0; i < argc; i++)
+	for (i = 0; i < argc; i++) {
+		if (i == 0 && found_target)
+			continue;
+
 		len += strlen(argv[i]) + 1;
+	}
 	buf = zalloc(len + 1);
 	if (buf == NULL)
 		return -ENOMEM;
 	len = 0;
-	for (i = 0; i < argc; i++)
+	for (i = 0; i < argc; i++) {
+		if (i == 0 && found_target)
+			continue;
+
 		len += sprintf(&buf[len], "%s ", argv[i]);
+	}
 	params.mod_events = true;
 	ret = parse_probe_event(buf);
 	free(buf);
@@ -123,6 +163,28 @@ static int opt_del_probe_event(const struct option *opt __used,
 		strlist__add(params.dellist, str);
 	}
 	return 0;
+}
+
+static int opt_set_target(const struct option *opt, const char *str,
+			int unset __used)
+{
+	int ret = -ENOENT;
+
+	if  (str && !params.target) {
+		if (!strcmp(opt->long_name, "exec"))
+			params.uprobes = true;
+#ifdef DWARF_SUPPORT
+		else if (!strcmp(opt->long_name, "module"))
+			params.uprobes = false;
+#endif
+		else
+			return ret;
+
+		params.target = str;
+		ret = 0;
+	}
+
+	return ret;
 }
 
 #ifdef DWARF_SUPPORT
@@ -246,9 +308,9 @@ static const struct option options[] = {
 		   "file", "vmlinux pathname"),
 	OPT_STRING('s', "source", &symbol_conf.source_prefix,
 		   "directory", "path to kernel source"),
-	OPT_STRING('m', "module", &params.target,
-		   "modname|path",
-		   "target module name (for online) or path (for offline)"),
+	OPT_CALLBACK('m', "module", NULL, "modname|path",
+		"target module name (for online) or path (for offline)",
+		opt_set_target),
 #endif
 	OPT__DRY_RUN(&probe_event_dry_run),
 	OPT_INTEGER('\0', "max-probes", &params.max_probe_points,
@@ -260,6 +322,8 @@ static const struct option options[] = {
 		     "\t\t\t(default: \"" DEFAULT_VAR_FILTER "\" for --vars,\n"
 		     "\t\t\t \"" DEFAULT_FUNC_FILTER "\" for --funcs)",
 		     opt_set_filter),
+	OPT_CALLBACK('x', "exec", NULL, "executable|path",
+			"target executable name or path", opt_set_target),
 	OPT_END()
 };
 
@@ -310,6 +374,10 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 			pr_err("  Error: Don't use --list with --funcs.\n");
 			usage_with_options(probe_usage, options);
 		}
+		if (params.uprobes) {
+			pr_warning("  Error: Don't use --list with --exec.\n");
+			usage_with_options(probe_usage, options);
+		}
 		ret = show_perf_probe_events();
 		if (ret < 0)
 			pr_err("  Error: Failed to show event list. (%d)\n",
@@ -333,8 +401,8 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 		if (!params.filter)
 			params.filter = strfilter__new(DEFAULT_FUNC_FILTER,
 						       NULL);
-		ret = show_available_funcs(params.target,
-					   params.filter);
+		ret = show_available_funcs(params.target, params.filter,
+					params.uprobes);
 		strfilter__delete(params.filter);
 		if (ret < 0)
 			pr_err("  Error: Failed to show functions."
@@ -343,7 +411,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	}
 
 #ifdef DWARF_SUPPORT
-	if (params.show_lines) {
+	if (params.show_lines && !params.uprobes) {
 		if (params.mod_events) {
 			pr_err("  Error: Don't use --line with"
 			       " --add/--del.\n");

@@ -188,6 +188,7 @@ void xics_migrate_irqs_away(void)
 {
 	int cpu = smp_processor_id(), hw_cpu = hard_smp_processor_id();
 	unsigned int irq, virq;
+	struct irq_desc *desc;
 
 	/* If we used to be the default server, move to the new "boot_cpuid" */
 	if (hw_cpu == xics_default_server)
@@ -202,8 +203,7 @@ void xics_migrate_irqs_away(void)
 	/* Allow IPIs again... */
 	icp_ops->set_priority(DEFAULT_PRIORITY);
 
-	for_each_irq(virq) {
-		struct irq_desc *desc;
+	for_each_irq_desc(virq, desc) {
 		struct irq_chip *chip;
 		long server;
 		unsigned long flags;
@@ -212,9 +212,8 @@ void xics_migrate_irqs_away(void)
 		/* We can't set affinity on ISA interrupts */
 		if (virq < NUM_ISA_INTERRUPTS)
 			continue;
-		desc = irq_to_desc(virq);
 		/* We only need to migrate enabled IRQS */
-		if (!desc || !desc->action)
+		if (!desc->action)
 			continue;
 		if (desc->irq_data.domain != xics_host)
 			continue;

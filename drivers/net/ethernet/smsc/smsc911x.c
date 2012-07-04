@@ -1166,10 +1166,8 @@ smsc911x_rx_counterrors(struct net_device *dev, unsigned int rxstat)
 
 /* Quickly dumps bad packets */
 static void
-smsc911x_rx_fastforward(struct smsc911x_data *pdata, unsigned int pktbytes)
+smsc911x_rx_fastforward(struct smsc911x_data *pdata, unsigned int pktwords)
 {
-	unsigned int pktwords = (pktbytes + NET_IP_ALIGN + 3) >> 2;
-
 	if (likely(pktwords >= 4)) {
 		unsigned int timeout = 500;
 		unsigned int val;
@@ -1233,7 +1231,7 @@ static int smsc911x_poll(struct napi_struct *napi, int budget)
 			continue;
 		}
 
-		skb = netdev_alloc_skb(dev, pktlength + NET_IP_ALIGN);
+		skb = netdev_alloc_skb(dev, pktwords << 2);
 		if (unlikely(!skb)) {
 			SMSC_WARN(pdata, rx_err,
 				  "Unable to allocate skb for rx packet");
@@ -1243,14 +1241,12 @@ static int smsc911x_poll(struct napi_struct *napi, int budget)
 			break;
 		}
 
-		skb->data = skb->head;
-		skb_reset_tail_pointer(skb);
+		pdata->ops->rx_readfifo(pdata,
+				 (unsigned int *)skb->data, pktwords);
 
 		/* Align IP on 16B boundary */
 		skb_reserve(skb, NET_IP_ALIGN);
 		skb_put(skb, pktlength - 4);
-		pdata->ops->rx_readfifo(pdata,
-				 (unsigned int *)skb->head, pktwords);
 		skb->protocol = eth_type_trans(skb, dev);
 		skb_checksum_none_assert(skb);
 		netif_receive_skb(skb);
@@ -1565,7 +1561,7 @@ static int smsc911x_open(struct net_device *dev)
 	smsc911x_reg_write(pdata, FIFO_INT, temp);
 
 	/* set RX Data offset to 2 bytes for alignment */
-	smsc911x_reg_write(pdata, RX_CFG, (2 << 8));
+	smsc911x_reg_write(pdata, RX_CFG, (NET_IP_ALIGN << 8));
 
 	/* enable NAPI polling before enabling RX interrupts */
 	napi_enable(&pdata->napi);
@@ -2070,6 +2066,7 @@ static const struct ethtool_ops smsc911x_ethtool_ops = {
 	.get_eeprom_len = smsc911x_ethtool_get_eeprom_len,
 	.get_eeprom = smsc911x_ethtool_get_eeprom,
 	.set_eeprom = smsc911x_ethtool_set_eeprom,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 static const struct net_device_ops smsc911x_netdev_ops = {
@@ -2382,7 +2379,6 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	pdata = netdev_priv(dev);
-
 	dev->irq = irq_res->start;
 	irq_flags = irq_res->flags & IRQF_TRIGGER_MASK;
 	pdata->ioaddr = ioremap_nocache(res->start, res_size);
@@ -2394,11 +2390,11 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 
 	retval = smsc911x_request_resources(pdev);
 	if (retval)
-		goto out_return_resources;
+		goto out_request_resources_fail;
 
 	retval = smsc911x_enable_resources(pdev);
 	if (retval)
-		goto out_disable_resources;
+		goto out_enable_resources_fail;
 
 	if (pdata->ioaddr == NULL) {
 		SMSC_WARN(pdata, probe, "Error smsc911x base address invalid");
@@ -2446,7 +2442,7 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	if (retval) {
 		SMSC_WARN(pdata, probe,
 			  "Unable to claim requested irq: %d", dev->irq);
-		goto out_free_irq;
+		goto out_disable_resources;
 	}
 
 	retval = register_netdev(dev);
@@ -2505,8 +2501,9 @@ out_free_irq:
 	free_irq(dev->irq, dev);
 out_disable_resources:
 	(void)smsc911x_disable_resources(pdev);
-out_return_resources:
+out_enable_resources_fail:
 	smsc911x_free_resources(pdev);
+out_request_resources_fail:
 	platform_set_drvdata(pdev, NULL);
 	iounmap(pdata->ioaddr);
 	free_netdev(dev);

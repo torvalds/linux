@@ -339,19 +339,8 @@ static struct pci_driver k8temp_driver = {
 	.remove = __devexit_p(k8temp_remove),
 };
 
-static int __init k8temp_init(void)
-{
-	return pci_register_driver(&k8temp_driver);
-}
-
-static void __exit k8temp_exit(void)
-{
-	pci_unregister_driver(&k8temp_driver);
-}
+module_pci_driver(k8temp_driver);
 
 MODULE_AUTHOR("Rudolf Marek <r.marek@assembler.cz>");
 MODULE_DESCRIPTION("AMD K8 core temperature monitor");
 MODULE_LICENSE("GPL");
-
-module_init(k8temp_init)
-module_exit(k8temp_exit)

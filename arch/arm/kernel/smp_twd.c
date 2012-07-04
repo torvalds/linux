@@ -118,14 +118,10 @@ static int twd_cpufreq_transition(struct notifier_block *nb,
 	 * The twd clock events must be reprogrammed to account for the new
 	 * frequency.  The timer is local to a cpu, so cross-call to the
 	 * changing cpu.
-	 *
-	 * Only wait for it to finish, if the cpu is active to avoid
-	 * deadlock when cpu1 is spinning on while(!cpu_active(cpu1)) during
-	 * booting of that cpu.
 	 */
 	if (state == CPUFREQ_POSTCHANGE || state == CPUFREQ_RESUMECHANGE)
 		smp_call_function_single(freqs->cpu, twd_update_frequency,
-					 NULL, cpu_active(freqs->cpu));
+			NULL, 1);
 
 	return NOTIFY_OK;
 }

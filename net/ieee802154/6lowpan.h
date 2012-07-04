@@ -53,9 +53,6 @@
 #ifndef __6LOWPAN_H__
 #define __6LOWPAN_H__
 
-/* need to know address length to manipulate with it */
-#define IEEE802154_ALEN		8
-
 #define UIP_802154_SHORTADDR_LEN	2  /* compressed ipv6 address length */
 #define UIP_IPH_LEN			40 /* ipv6 fixed header size */
 #define UIP_PROTO_UDP			17 /* ipv6 next header value for UDP */

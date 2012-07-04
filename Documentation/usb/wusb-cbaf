@@ -36,7 +36,7 @@ COMMAND/ARGS are
 
  get-cdid DEVICE
 
-   Get the device ID associated to the HOST-CHDI we sent with
+   Get the device ID associated to the HOST-CHID we sent with
    'set-chid'. We might not know about it.
 
  set-cc DEVICE

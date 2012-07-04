@@ -2,8 +2,8 @@
  * s6000 gpio driver
  *
  * Copyright (c) 2009 emlix GmbH
- * Authors:	Oskar Schirmer <os@emlix.com>
- *		Johannes Weiner <jw@emlix.com>
+ * Authors:	Oskar Schirmer <oskar@scara.com>
+ *		Johannes Weiner <hannes@cmpxchg.org>
  *		Daniel Gloeckner <dg@emlix.com>
  */
 #include <linux/bitops.h>

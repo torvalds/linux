@@ -194,14 +194,14 @@ static struct kvmppc_sid_map *create_sid_map(struct kvm_vcpu *vcpu, u64 gvsid)
 	backwards_map = !backwards_map;
 
 	/* Uh-oh ... out of mappings. Let's flush! */
-	if (vcpu_book3s->vsid_next == vcpu_book3s->vsid_max) {
-		vcpu_book3s->vsid_next = vcpu_book3s->vsid_first;
+	if (vcpu_book3s->proto_vsid_next == vcpu_book3s->proto_vsid_max) {
+		vcpu_book3s->proto_vsid_next = vcpu_book3s->proto_vsid_first;
 		memset(vcpu_book3s->sid_map, 0,
 		       sizeof(struct kvmppc_sid_map) * SID_MAP_NUM);
 		kvmppc_mmu_pte_flush(vcpu, 0, 0);
 		kvmppc_mmu_flush_segments(vcpu);
 	}
-	map->host_vsid = vcpu_book3s->vsid_next++;
+	map->host_vsid = vsid_scramble(vcpu_book3s->proto_vsid_next++, 256M);
 
 	map->guest_vsid = gvsid;
 	map->valid = true;
@@ -319,9 +319,10 @@ int kvmppc_mmu_init(struct kvm_vcpu *vcpu)
 		return -1;
 	vcpu3s->context_id[0] = err;
 
-	vcpu3s->vsid_max = ((vcpu3s->context_id[0] + 1) << USER_ESID_BITS) - 1;
-	vcpu3s->vsid_first = vcpu3s->context_id[0] << USER_ESID_BITS;
-	vcpu3s->vsid_next = vcpu3s->vsid_first;
+	vcpu3s->proto_vsid_max = ((vcpu3s->context_id[0] + 1)
+				  << USER_ESID_BITS) - 1;
+	vcpu3s->proto_vsid_first = vcpu3s->context_id[0] << USER_ESID_BITS;
+	vcpu3s->proto_vsid_next = vcpu3s->proto_vsid_first;
 
 	kvmppc_mmu_hpte_init(vcpu);
 

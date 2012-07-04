@@ -42,7 +42,7 @@
 #include <plat/board.h>
 #include "common.h"
 #include <video/omapdss.h>
-#include <video/omap-panel-dvi.h>
+#include <video/omap-panel-tfp410.h>
 #include <plat/gpmc.h>
 #include <plat/nand.h>
 #include <plat/usb.h>
@@ -81,13 +81,15 @@ static u8 omap3_beagle_version;
 static struct {
 	int mmc1_gpio_wp;
 	int usb_pwr_level;
-	int reset_gpio;
+	int dvi_pd_gpio;
 	int usr_button_gpio;
+	int mmc_caps;
 } beagle_config = {
 	.mmc1_gpio_wp = -EINVAL,
 	.usb_pwr_level = GPIOF_OUT_INIT_LOW,
-	.reset_gpio = 129,
+	.dvi_pd_gpio = -EINVAL,
 	.usr_button_gpio = 4,
+	.mmc_caps = MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
 };
 
 static struct gpio omap3_beagle_rev_gpios[] __initdata = {
@@ -124,31 +126,33 @@ static void __init omap3_beagle_init_rev(void)
 		printk(KERN_INFO "OMAP3 Beagle Rev: Ax/Bx\n");
 		omap3_beagle_version = OMAP3BEAGLE_BOARD_AXBX;
 		beagle_config.mmc1_gpio_wp = 29;
-		beagle_config.reset_gpio = 170;
+		beagle_config.dvi_pd_gpio = 170;
 		beagle_config.usr_button_gpio = 7;
 		break;
 	case 6:
 		printk(KERN_INFO "OMAP3 Beagle Rev: C1/C2/C3\n");
 		omap3_beagle_version = OMAP3BEAGLE_BOARD_C1_3;
 		beagle_config.mmc1_gpio_wp = 23;
-		beagle_config.reset_gpio = 170;
+		beagle_config.dvi_pd_gpio = 170;
 		beagle_config.usr_button_gpio = 7;
 		break;
 	case 5:
 		printk(KERN_INFO "OMAP3 Beagle Rev: C4\n");
 		omap3_beagle_version = OMAP3BEAGLE_BOARD_C4;
 		beagle_config.mmc1_gpio_wp = 23;
-		beagle_config.reset_gpio = 170;
+		beagle_config.dvi_pd_gpio = 170;
 		beagle_config.usr_button_gpio = 7;
 		break;
 	case 0:
 		printk(KERN_INFO "OMAP3 Beagle Rev: xM Ax/Bx\n");
 		omap3_beagle_version = OMAP3BEAGLE_BOARD_XM;
 		beagle_config.usb_pwr_level = GPIOF_OUT_INIT_HIGH;
+		beagle_config.mmc_caps &= ~MMC_CAP_8_BIT_DATA;
 		break;
 	case 2:
 		printk(KERN_INFO "OMAP3 Beagle Rev: xM C\n");
 		omap3_beagle_version = OMAP3BEAGLE_BOARD_XMC;
+		beagle_config.mmc_caps &= ~MMC_CAP_8_BIT_DATA;
 		break;
 	default:
 		printk(KERN_INFO "OMAP3 Beagle Rev: unknown %hd\n", beagle_rev);
@@ -189,33 +193,17 @@ static struct mtd_partition omap3beagle_nand_partitions[] = {
 
 /* DSS */
 
-static int beagle_enable_dvi(struct omap_dss_device *dssdev)
-{
-	if (gpio_is_valid(dssdev->reset_gpio))
-		gpio_set_value(dssdev->reset_gpio, 1);
-
-	return 0;
-}
-
-static void beagle_disable_dvi(struct omap_dss_device *dssdev)
-{
-	if (gpio_is_valid(dssdev->reset_gpio))
-		gpio_set_value(dssdev->reset_gpio, 0);
-}
-
-static struct panel_dvi_platform_data dvi_panel = {
-	.platform_enable = beagle_enable_dvi,
-	.platform_disable = beagle_disable_dvi,
+static struct tfp410_platform_data dvi_panel = {
 	.i2c_bus_num = 3,
+	.power_down_gpio = -1,
 };
 
 static struct omap_dss_device beagle_dvi_device = {
 	.type = OMAP_DISPLAY_TYPE_DPI,
 	.name = "dvi",
-	.driver_name = "dvi",
+	.driver_name = "tfp410",
 	.data = &dvi_panel,
 	.phy.dpi.data_lines = 24,
-	.reset_gpio = -EINVAL,
 };
 
 static struct omap_dss_device beagle_tv_device = {
@@ -236,22 +224,12 @@ static struct omap_dss_board_info beagle_dss_data = {
 	.default_device = &beagle_dvi_device,
 };
 
-static void __init beagle_display_init(void)
-{
-	int r;
-
-	r = gpio_request_one(beagle_dvi_device.reset_gpio, GPIOF_OUT_INIT_LOW,
-			     "DVI reset");
-	if (r < 0)
-		printk(KERN_ERR "Unable to get DVI reset GPIO\n");
-}
-
 #include "sdram-micron-mt46h32m32lf-6.h"
 
 static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
-		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
+		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_wp	= -EINVAL,
 		.deferred	= true,
 	},
@@ -296,11 +274,9 @@ static int beagle_twl_gpio_setup(struct device *dev,
 		if (r)
 			pr_err("%s: unable to configure nDVI_PWR_EN\n",
 				__func__);
-		r = gpio_request_one(gpio + 2, GPIOF_OUT_INIT_HIGH,
-				     "DVI_LDO_EN");
-		if (r)
-			pr_err("%s: unable to configure DVI_LDO_EN\n",
-				__func__);
+
+		beagle_config.dvi_pd_gpio = gpio + 2;
+
 	} else {
 		/*
 		 * REVISIT: need ehci-omap hooks for external VBUS
@@ -309,7 +285,7 @@ static int beagle_twl_gpio_setup(struct device *dev,
 		if (gpio_request_one(gpio + 1, GPIOF_IN, "EHCI_nOC"))
 			pr_err("%s: unable to configure EHCI_nOC\n", __func__);
 	}
-	beagle_dvi_device.reset_gpio = beagle_config.reset_gpio;
+	dvi_panel.power_down_gpio = beagle_config.dvi_pd_gpio;
 
 	gpio_request_one(gpio + TWL4030_GPIO_MAX, beagle_config.usb_pwr_level,
 			"nEN_USB_PWR");
@@ -521,8 +497,9 @@ static void __init omap3_beagle_init(void)
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap3_beagle_init_rev();
 
-	if (beagle_config.mmc1_gpio_wp != -EINVAL)
+	if (gpio_is_valid(beagle_config.mmc1_gpio_wp))
 		omap_mux_init_gpio(beagle_config.mmc1_gpio_wp, OMAP_PIN_INPUT);
+	mmc[0].caps = beagle_config.mmc_caps;
 	omap_hsmmc_init(mmc);
 
 	omap3_beagle_i2c_init();
@@ -531,14 +508,12 @@ static void __init omap3_beagle_init(void)
 
 	platform_add_devices(omap3_beagle_devices,
 			ARRAY_SIZE(omap3_beagle_devices));
+	if (gpio_is_valid(beagle_config.dvi_pd_gpio))
+		omap_mux_init_gpio(beagle_config.dvi_pd_gpio, OMAP_PIN_OUTPUT);
 	omap_display_init(&beagle_dss_data);
 	omap_serial_init();
 	omap_sdrc_init(mt46h32m32lf6_sdrc_params,
 				  mt46h32m32lf6_sdrc_params);
-
-	omap_mux_init_gpio(170, OMAP_PIN_INPUT);
-	/* REVISIT leave DVI powered down until it's needed ... */
-	gpio_request_one(170, GPIOF_OUT_INIT_HIGH, "DVI_nPD");
 
 	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);
@@ -552,7 +527,6 @@ static void __init omap3_beagle_init(void)
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
 	omap_mux_init_signal("sdrc_cke1", OMAP_PIN_OUTPUT);
 
-	beagle_display_init();
 	beagle_opp_init();
 }
 
@@ -565,6 +539,7 @@ MACHINE_START(OMAP3_BEAGLE, "OMAP3 Beagle Board")
 	.init_irq	= omap3_init_irq,
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap3_beagle_init,
+	.init_late	= omap3_init_late,
 	.timer		= &omap3_secure_timer,
 	.restart	= omap_prcm_restart,
 MACHINE_END

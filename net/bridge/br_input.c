@@ -216,7 +216,7 @@ forward:
 		}
 		/* fall through */
 	case BR_STATE_LEARNING:
-		if (!compare_ether_addr(p->br->dev->dev_addr, dest))
+		if (ether_addr_equal(p->br->dev->dev_addr, dest))
 			skb->pkt_type = PACKET_HOST;
 
 		NF_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, skb, skb->dev, NULL,

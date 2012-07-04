@@ -905,18 +905,19 @@ __syscall_call:
 __syscall_exit:
 	LEDS		0x6300
 
-	sti		gr8,@(gr28,#REG_GR(8))	; save return value
+	# keep current PSR in GR23
+	movsg		psr,gr23
+
+	ldi		@(gr28,#REG_PSR),gr22
+
+	sti.p		gr8,@(gr28,#REG_GR(8))	; save return value
 
 	# rebuild saved psr - execve will change it for init/main.c
-	ldi		@(gr28,#REG_PSR),gr22
 	srli		gr22,#1,gr5
 	andi.p		gr22,#~PSR_PS,gr22
 	andi		gr5,#PSR_PS,gr5
 	or		gr5,gr22,gr22
-	ori		gr22,#PSR_S,gr22
-
-	# keep current PSR in GR23
-	movsg		psr,gr23
+	ori.p		gr22,#PSR_S,gr22
 
 	# make sure we don't miss an interrupt setting need_resched or sigpending between
 	# sampling and the RETT
@@ -924,9 +925,7 @@ __syscall_exit:
 	movgs		gr23,psr
 
 	ldi		@(gr15,#TI_FLAGS),gr4
-	sethi.p		%hi(_TIF_ALLWORK_MASK),gr5
-	setlo		%lo(_TIF_ALLWORK_MASK),gr5
-	andcc		gr4,gr5,gr0,icc0
+	andicc		gr4,#_TIF_ALLWORK_MASK,gr0,icc0
 	bne		icc0,#0,__syscall_exit_work
 
 	# restore all registers and return
@@ -1111,9 +1110,7 @@ __entry_resume_userspace:
 __entry_return_from_user_interrupt:
 	LEDS		0x6402
 	ldi		@(gr15,#TI_FLAGS),gr4
-	sethi.p		%hi(_TIF_WORK_MASK),gr5
-	setlo		%lo(_TIF_WORK_MASK),gr5
-	andcc		gr4,gr5,gr0,icc0
+	andicc		gr4,#_TIF_WORK_MASK,gr0,icc0
 	beq		icc0,#1,__entry_return_direct
 
 __entry_work_pending:
@@ -1133,9 +1130,7 @@ __entry_work_resched:
 
 	LEDS		0x6401
 	ldi		@(gr15,#TI_FLAGS),gr4
-	sethi.p		%hi(_TIF_WORK_MASK),gr5
-	setlo		%lo(_TIF_WORK_MASK),gr5
-	andcc		gr4,gr5,gr0,icc0
+	andicc		gr4,#_TIF_WORK_MASK,gr0,icc0
 	beq		icc0,#1,__entry_return_direct
 	andicc		gr4,#_TIF_NEED_RESCHED,gr0,icc0
 	bne		icc0,#1,__entry_work_resched
@@ -1163,7 +1158,9 @@ __syscall_trace_entry:
 	# perform syscall exit tracing
 __syscall_exit_work:
 	LEDS		0x6340
-	andicc		gr4,#_TIF_SYSCALL_TRACE,gr0,icc0
+	andicc		gr22,#PSR_PS,gr0,icc1	; don't handle on return to kernel mode
+	andicc.p	gr4,#_TIF_SYSCALL_TRACE,gr0,icc0
+	bne		icc1,#0,__entry_return_direct
 	beq		icc0,#1,__entry_work_pending
 
 	movsg		psr,gr23

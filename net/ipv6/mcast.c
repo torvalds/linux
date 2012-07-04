@@ -606,13 +606,13 @@ done:
 	return err;
 }
 
-int inet6_mc_check(struct sock *sk, const struct in6_addr *mc_addr,
-		   const struct in6_addr *src_addr)
+bool inet6_mc_check(struct sock *sk, const struct in6_addr *mc_addr,
+		    const struct in6_addr *src_addr)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct ipv6_mc_socklist *mc;
 	struct ip6_sf_socklist *psl;
-	int rv = 1;
+	bool rv = true;
 
 	rcu_read_lock();
 	for_each_pmc_rcu(np, mc) {
@@ -621,7 +621,7 @@ int inet6_mc_check(struct sock *sk, const struct in6_addr *mc_addr,
 	}
 	if (!mc) {
 		rcu_read_unlock();
-		return 1;
+		return true;
 	}
 	read_lock(&mc->sflock);
 	psl = mc->sflist;
@@ -635,9 +635,9 @@ int inet6_mc_check(struct sock *sk, const struct in6_addr *mc_addr,
 				break;
 		}
 		if (mc->sfmode == MCAST_INCLUDE && i >= psl->sl_count)
-			rv = 0;
+			rv = false;
 		if (mc->sfmode == MCAST_EXCLUDE && i < psl->sl_count)
-			rv = 0;
+			rv = false;
 	}
 	read_unlock(&mc->sflock);
 	rcu_read_unlock();
@@ -931,15 +931,15 @@ int ipv6_dev_mc_dec(struct net_device *dev, const struct in6_addr *addr)
 /*
  * identify MLD packets for MLD filter exceptions
  */
-int ipv6_is_mld(struct sk_buff *skb, int nexthdr)
+bool ipv6_is_mld(struct sk_buff *skb, int nexthdr)
 {
 	struct icmp6hdr *pic;
 
 	if (nexthdr != IPPROTO_ICMPV6)
-		return 0;
+		return false;
 
 	if (!pskb_may_pull(skb, sizeof(struct icmp6hdr)))
-		return 0;
+		return false;
 
 	pic = icmp6_hdr(skb);
 
@@ -948,22 +948,22 @@ int ipv6_is_mld(struct sk_buff *skb, int nexthdr)
 	case ICMPV6_MGM_REPORT:
 	case ICMPV6_MGM_REDUCTION:
 	case ICMPV6_MLD2_REPORT:
-		return 1;
+		return true;
 	default:
 		break;
 	}
-	return 0;
+	return false;
 }
 
 /*
  *	check if the interface/address pair is valid
  */
-int ipv6_chk_mcast_addr(struct net_device *dev, const struct in6_addr *group,
-			const struct in6_addr *src_addr)
+bool ipv6_chk_mcast_addr(struct net_device *dev, const struct in6_addr *group,
+			 const struct in6_addr *src_addr)
 {
 	struct inet6_dev *idev;
 	struct ifmcaddr6 *mc;
-	int rv = 0;
+	bool rv = false;
 
 	rcu_read_lock();
 	idev = __in6_dev_get(dev);
@@ -990,7 +990,7 @@ int ipv6_chk_mcast_addr(struct net_device *dev, const struct in6_addr *group,
 					rv = mc->mca_sfcount[MCAST_EXCLUDE] !=0;
 				spin_unlock_bh(&mc->mca_lock);
 			} else
-				rv = 1; /* don't filter unspecified source */
+				rv = true; /* don't filter unspecified source */
 		}
 		read_unlock_bh(&idev->lock);
 	}
@@ -1046,8 +1046,8 @@ static void igmp6_group_queried(struct ifmcaddr6 *ma, unsigned long resptime)
 }
 
 /* mark EXCLUDE-mode sources */
-static int mld_xmarksources(struct ifmcaddr6 *pmc, int nsrcs,
-	const struct in6_addr *srcs)
+static bool mld_xmarksources(struct ifmcaddr6 *pmc, int nsrcs,
+			     const struct in6_addr *srcs)
 {
 	struct ip6_sf_list *psf;
 	int i, scount;
@@ -1061,7 +1061,7 @@ static int mld_xmarksources(struct ifmcaddr6 *pmc, int nsrcs,
 			if (psf->sf_count[MCAST_INCLUDE] ||
 			    pmc->mca_sfcount[MCAST_EXCLUDE] !=
 			    psf->sf_count[MCAST_EXCLUDE])
-				continue;
+				break;
 			if (ipv6_addr_equal(&srcs[i], &psf->sf_addr)) {
 				scount++;
 				break;
@@ -1070,12 +1070,12 @@ static int mld_xmarksources(struct ifmcaddr6 *pmc, int nsrcs,
 	}
 	pmc->mca_flags &= ~MAF_GSQUERY;
 	if (scount == nsrcs)	/* all sources excluded */
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
-static int mld_marksources(struct ifmcaddr6 *pmc, int nsrcs,
-	const struct in6_addr *srcs)
+static bool mld_marksources(struct ifmcaddr6 *pmc, int nsrcs,
+			    const struct in6_addr *srcs)
 {
 	struct ip6_sf_list *psf;
 	int i, scount;
@@ -1099,10 +1099,10 @@ static int mld_marksources(struct ifmcaddr6 *pmc, int nsrcs,
 	}
 	if (!scount) {
 		pmc->mca_flags &= ~MAF_GSQUERY;
-		return 0;
+		return false;
 	}
 	pmc->mca_flags |= MAF_GSQUERY;
-	return 1;
+	return true;
 }
 
 /* called with rcu_read_lock() */
@@ -1276,17 +1276,17 @@ int igmp6_event_report(struct sk_buff *skb)
 	return 0;
 }
 
-static int is_in(struct ifmcaddr6 *pmc, struct ip6_sf_list *psf, int type,
-	int gdeleted, int sdeleted)
+static bool is_in(struct ifmcaddr6 *pmc, struct ip6_sf_list *psf, int type,
+		  int gdeleted, int sdeleted)
 {
 	switch (type) {
 	case MLD2_MODE_IS_INCLUDE:
 	case MLD2_MODE_IS_EXCLUDE:
 		if (gdeleted || sdeleted)
-			return 0;
+			return false;
 		if (!((pmc->mca_flags & MAF_GSQUERY) && !psf->sf_gsresp)) {
 			if (pmc->mca_sfmode == MCAST_INCLUDE)
-				return 1;
+				return true;
 			/* don't include if this source is excluded
 			 * in all filters
 			 */
@@ -1295,29 +1295,29 @@ static int is_in(struct ifmcaddr6 *pmc, struct ip6_sf_list *psf, int type,
 			return pmc->mca_sfcount[MCAST_EXCLUDE] ==
 				psf->sf_count[MCAST_EXCLUDE];
 		}
-		return 0;
+		return false;
 	case MLD2_CHANGE_TO_INCLUDE:
 		if (gdeleted || sdeleted)
-			return 0;
+			return false;
 		return psf->sf_count[MCAST_INCLUDE] != 0;
 	case MLD2_CHANGE_TO_EXCLUDE:
 		if (gdeleted || sdeleted)
-			return 0;
+			return false;
 		if (pmc->mca_sfcount[MCAST_EXCLUDE] == 0 ||
 		    psf->sf_count[MCAST_INCLUDE])
-			return 0;
+			return false;
 		return pmc->mca_sfcount[MCAST_EXCLUDE] ==
 			psf->sf_count[MCAST_EXCLUDE];
 	case MLD2_ALLOW_NEW_SOURCES:
 		if (gdeleted || !psf->sf_crcount)
-			return 0;
+			return false;
 		return (pmc->mca_sfmode == MCAST_INCLUDE) ^ sdeleted;
 	case MLD2_BLOCK_OLD_SOURCES:
 		if (pmc->mca_sfmode == MCAST_INCLUDE)
 			return gdeleted || (psf->sf_crcount && sdeleted);
 		return psf->sf_crcount && !gdeleted && !sdeleted;
 	}
-	return 0;
+	return false;
 }
 
 static int
@@ -2627,8 +2627,7 @@ static int __net_init igmp6_net_init(struct net *net)
 	err = inet_ctl_sock_create(&net->ipv6.igmp_sk, PF_INET6,
 				   SOCK_RAW, IPPROTO_ICMPV6, net);
 	if (err < 0) {
-		printk(KERN_ERR
-		       "Failed to initialize the IGMP6 control socket (err %d).\n",
+		pr_err("Failed to initialize the IGMP6 control socket (err %d)\n",
 		       err);
 		goto out;
 	}

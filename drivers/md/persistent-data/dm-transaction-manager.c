@@ -249,6 +249,7 @@ int dm_tm_shadow_block(struct dm_transaction_manager *tm, dm_block_t orig,
 
 	return r;
 }
+EXPORT_SYMBOL_GPL(dm_tm_shadow_block);
 
 int dm_tm_read_lock(struct dm_transaction_manager *tm, dm_block_t b,
 		    struct dm_block_validator *v,
@@ -259,6 +260,7 @@ int dm_tm_read_lock(struct dm_transaction_manager *tm, dm_block_t b,
 
 	return dm_bm_read_lock(tm->bm, b, v, blk);
 }
+EXPORT_SYMBOL_GPL(dm_tm_read_lock);
 
 int dm_tm_unlock(struct dm_transaction_manager *tm, struct dm_block *b)
 {

@@ -1,0 +1,16 @@
+#
+# ADC drivers
+#
+menu "Analog to digital converters"
+
+config AT91_ADC
+	tristate "Atmel AT91 ADC"
+	depends on ARCH_AT91
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	select IIO_TRIGGER
+	select SYSFS
+	help
+	  Say yes here to build support for Atmel AT91 ADC.
+
+endmenu

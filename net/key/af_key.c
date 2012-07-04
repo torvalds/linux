@@ -1714,7 +1714,7 @@ static int key_notify_sa_flush(const struct km_event *c)
 static int pfkey_flush(struct sock *sk, struct sk_buff *skb, const struct sadb_msg *hdr, void * const *ext_hdrs)
 {
 	struct net *net = sock_net(sk);
-	unsigned proto;
+	unsigned int proto;
 	struct km_event c;
 	struct xfrm_audit audit_info;
 	int err, err2;
@@ -3480,7 +3480,7 @@ static int pfkey_send_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 
 	/* Addresses to be used by KM for negotiation, if ext is available */
 	if (k != NULL && (set_sadb_kmaddress(skb, k) < 0))
-		return -EINVAL;
+		goto err;
 
 	/* selector src */
 	set_sadb_address(skb, sasize_sel, SADB_EXT_ADDRESS_SRC, sel);
@@ -3547,7 +3547,7 @@ static int pfkey_sendmsg(struct kiocb *kiocb,
 		goto out;
 
 	err = -EMSGSIZE;
-	if ((unsigned)len > sk->sk_sndbuf - 32)
+	if ((unsigned int)len > sk->sk_sndbuf - 32)
 		goto out;
 
 	err = -ENOBUFS;

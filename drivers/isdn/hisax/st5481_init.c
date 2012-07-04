@@ -182,6 +182,7 @@ static struct usb_driver st5481_usb_driver = {
 	.probe =	probe_st5481,
 	.disconnect =	disconnect_st5481,
 	.id_table =	st5481_ids,
+	.disable_hub_initiated_lpm = 1,
 };
 
 static int __init st5481_usb_init(void)

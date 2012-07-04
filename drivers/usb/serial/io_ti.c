@@ -197,14 +197,6 @@ static const struct usb_device_id id_table_combined[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table_combined);
 
-static struct usb_driver io_driver = {
-	.name =		"io_ti",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table_combined,
-};
-
-
 static unsigned char OperationalMajorVersion;
 static unsigned char OperationalMinorVersion;
 static unsigned short OperationalBuildNumber;
@@ -547,6 +539,7 @@ static void chase_port(struct edgeport_port *port, unsigned long timeout,
 {
 	int baud_rate;
 	struct tty_struct *tty = tty_port_tty_get(&port->port->port);
+	struct usb_serial *serial = port->port->serial;
 	wait_queue_t wait;
 	unsigned long flags;
 
@@ -561,7 +554,7 @@ static void chase_port(struct edgeport_port *port, unsigned long timeout,
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (kfifo_len(&port->write_fifo) == 0
 		|| timeout == 0 || signal_pending(current)
-		|| !usb_get_intfdata(port->port->serial->interface))
+		|| serial->disconnected)
 			/* disconnect */
 			break;
 		spin_unlock_irqrestore(&port->ep_lock, flags);
@@ -578,7 +571,7 @@ static void chase_port(struct edgeport_port *port, unsigned long timeout,
 	/* wait for data to drain from the device */
 	timeout += jiffies;
 	while ((long)(jiffies - timeout) < 0 && !signal_pending(current)
-	&& usb_get_intfdata(port->port->serial->interface)) {
+						&& !serial->disconnected) {
 		/* not disconnected */
 		if (!tx_active(port))
 			break;
@@ -586,7 +579,7 @@ static void chase_port(struct edgeport_port *port, unsigned long timeout,
 	}
 
 	/* disconnected */
-	if (!usb_get_intfdata(port->port->serial->interface))
+	if (serial->disconnected)
 		return;
 
 	/* wait one more character time, based on baud rate */
@@ -2003,8 +1996,8 @@ static void edge_close(struct usb_serial_port *port)
 {
 	struct edgeport_serial *edge_serial;
 	struct edgeport_port *edge_port;
+	struct usb_serial *serial = port->serial;
 	int port_number;
-	int status;
 
 	dbg("%s - port %d", __func__, port->number);
 
@@ -2028,12 +2021,18 @@ static void edge_close(struct usb_serial_port *port)
 	 * send a close port command to it */
 	dbg("%s - send umpc_close_port", __func__);
 	port_number = port->number - port->serial->minor;
-	status = send_cmd(port->serial->dev,
+
+	mutex_lock(&serial->disc_mutex);
+	if (!serial->disconnected) {
+		send_cmd(serial->dev,
 				     UMPC_CLOSE_PORT,
 				     (__u8)(UMPM_UART1_PORT + port_number),
 				     0,
 				     NULL,
 				     0);
+	}
+	mutex_unlock(&serial->disc_mutex);
+
 	mutex_lock(&edge_serial->es_lock);
 	--edge_port->edge_serial->num_ports_open;
 	if (edge_port->edge_serial->num_ports_open <= 0) {
@@ -2783,7 +2782,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&edgeport_1port_device, &edgeport_2port_device, NULL
 };
 
-module_usb_serial_driver(io_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table_combined);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

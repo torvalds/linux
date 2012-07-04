@@ -154,7 +154,7 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 	u32 tile_flags = 0;
 	u32 idx_value;
 
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 	track = (struct r100_cs_track *)p->track;
 	idx_value = radeon_get_ib_value(p, idx);
 	switch (reg) {

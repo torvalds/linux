@@ -84,6 +84,12 @@ struct pn544_fw_packet {
 };
 
 #ifdef __KERNEL__
+enum {
+	NFC_GPIO_ENABLE,
+	NFC_GPIO_FW_RESET,
+	NFC_GPIO_IRQ
+};
+
 /* board config */
 struct pn544_nfc_platform_data {
 	int (*request_resources) (struct i2c_client *client);
@@ -91,6 +97,7 @@ struct pn544_nfc_platform_data {
 	void (*enable) (int fw);
 	int (*test) (void);
 	void (*disable) (void);
+	int (*get_gpio)(int type);
 };
 #endif /* __KERNEL__ */
 

@@ -595,8 +595,8 @@ nv40_graph_construct_shader(struct nouveau_grctx *ctx)
 	}
 }
 
-void
-nv40_grctx_init(struct nouveau_grctx *ctx)
+static void
+nv40_grctx_generate(struct nouveau_grctx *ctx)
 {
 	/* decide whether we're loading/unloading the context */
 	cp_bra (ctx, AUTO_SAVE, PENDING, cp_setup_save);
@@ -660,3 +660,31 @@ nv40_grctx_init(struct nouveau_grctx *ctx)
 	cp_out (ctx, CP_END);
 }
 
+void
+nv40_grctx_fill(struct drm_device *dev, struct nouveau_gpuobj *mem)
+{
+	nv40_grctx_generate(&(struct nouveau_grctx) {
+			     .dev = dev,
+			     .mode = NOUVEAU_GRCTX_VALS,
+			     .data = mem,
+			   });
+}
+
+void
+nv40_grctx_init(struct drm_device *dev, u32 *size)
+{
+	u32 ctxprog[256], i;
+	struct nouveau_grctx ctx = {
+		.dev = dev,
+		.mode = NOUVEAU_GRCTX_PROG,
+		.data = ctxprog,
+		.ctxprog_max = ARRAY_SIZE(ctxprog)
+	};
+
+	nv40_grctx_generate(&ctx);
+
+	nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_INDEX, 0);
+	for (i = 0; i < ctx.ctxprog_len; i++)
+		nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_DATA, ctxprog[i]);
+	*size = ctx.ctxvals_pos * 4;
+}

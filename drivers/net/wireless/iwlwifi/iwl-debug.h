@@ -29,10 +29,13 @@
 #ifndef __iwl_debug_h__
 #define __iwl_debug_h__
 
-#include "iwl-shared.h"
-#include "iwl-devtrace.h"
+#include "iwl-modparams.h"
 
-struct iwl_priv;
+
+static inline bool iwl_have_debug_level(u32 level)
+{
+	return iwlwifi_mod_params.debug_level & level;
+}
 
 void __iwl_err(struct device *dev, bool rfkill_prefix, bool only_trace,
 		const char *fmt, ...);
@@ -41,10 +44,10 @@ void __iwl_info(struct device *dev, const char *fmt, ...);
 void __iwl_crit(struct device *dev, const char *fmt, ...);
 
 /* No matter what is m (priv, bus, trans), this will work */
-#define IWL_ERR(m, f, a...) __iwl_err(trans(m)->dev, false, false, f, ## a)
-#define IWL_WARN(m, f, a...) __iwl_warn(trans(m)->dev, f, ## a)
-#define IWL_INFO(m, f, a...) __iwl_info(trans(m)->dev, f, ## a)
-#define IWL_CRIT(m, f, a...) __iwl_crit(trans(m)->dev, f, ## a)
+#define IWL_ERR(m, f, a...) __iwl_err((m)->dev, false, false, f, ## a)
+#define IWL_WARN(m, f, a...) __iwl_warn((m)->dev, f, ## a)
+#define IWL_INFO(m, f, a...) __iwl_info((m)->dev, f, ## a)
+#define IWL_CRIT(m, f, a...) __iwl_crit((m)->dev, f, ## a)
 
 #if defined(CONFIG_IWLWIFI_DEBUG) || defined(CONFIG_IWLWIFI_DEVICE_TRACING)
 void __iwl_dbg(struct device *dev,
@@ -65,9 +68,9 @@ do {									\
 } while (0)
 
 #define IWL_DEBUG(m, level, fmt, args...)				\
-	__iwl_dbg(trans(m)->dev, level, false, __func__, fmt, ##args)
+	__iwl_dbg((m)->dev, level, false, __func__, fmt, ##args)
 #define IWL_DEBUG_LIMIT(m, level, fmt, args...)				\
-	__iwl_dbg(trans(m)->dev, level, true, __func__, fmt, ##args)
+	__iwl_dbg((m)->dev, level, true, __func__, fmt, ##args)
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 #define iwl_print_hex_dump(m, level, p, len)				\
@@ -79,19 +82,6 @@ do {                                            			\
 #else
 #define iwl_print_hex_dump(m, level, p, len)
 #endif				/* CONFIG_IWLWIFI_DEBUG */
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-int iwl_dbgfs_register(struct iwl_priv *priv, const char *name);
-void iwl_dbgfs_unregister(struct iwl_priv *priv);
-#else
-static inline int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
-{
-	return 0;
-}
-static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
-{
-}
-#endif				/* CONFIG_IWLWIFI_DEBUGFS */
 
 /*
  * To use the debug system:

@@ -316,9 +316,7 @@ static u64 ns_to_pulse_clocks(u32 ns)
 
 static u16 pulse_clocks_to_clock_divider(u64 count)
 {
-	u32 rem;
-
-	rem = do_div(count, (FIFO_RXTX << 2) | 0x3);
+	do_div(count, (FIFO_RXTX << 2) | 0x3);
 
 	/* net result needs to be rounded down and decremented by 1 */
 	if (count > RXCLK_RCD + 1)
@@ -860,12 +858,10 @@ static int cx25840_ir_tx_write(struct v4l2_subdev *sd, u8 *buf, size_t count,
 			       ssize_t *num)
 {
 	struct cx25840_ir_state *ir_state = to_ir_state(sd);
-	struct i2c_client *c;
 
 	if (ir_state == NULL)
 		return -ENODEV;
 
-	c = ir_state->c;
 #if 0
 	/*
 	 * FIXME - the code below is an incomplete and untested sketch of what

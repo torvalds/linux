@@ -963,6 +963,7 @@ static const struct ethtool_ops fs_ethtool_ops = {
 	.get_msglevel = fs_get_msglevel,
 	.set_msglevel = fs_set_msglevel,
 	.get_regs = fs_get_regs,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 static int fs_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)

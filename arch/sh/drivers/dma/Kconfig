@@ -40,23 +40,6 @@ config NR_ONCHIP_DMA_CHANNELS
 	  DMAC supports. This will be 4 for SH7750/SH7751/Sh7750S/SH7091 and 8 for the
 	  SH7750R/SH7751R/SH7760, 12 for the SH7723/SH7780/SH7785/SH7724, default is 6.
 
-config NR_DMA_CHANNELS_BOOL
-	depends on SH_DMA
-	bool "Override default number of maximum DMA channels"
-	help
-	  This allows you to forcibly update the maximum number of supported
-	  DMA channels for a given board. If this is unset, this will default
-	  to the number of channels that the on-chip DMAC has.
-
-config NR_DMA_CHANNELS
-	int "Maximum number of DMA channels"
-	depends on SH_DMA && NR_DMA_CHANNELS_BOOL
-	default NR_ONCHIP_DMA_CHANNELS
-	help
-	  This allows you to specify the maximum number of DMA channels to
-	  support. Setting this to a higher value allows for cascading DMACs
-	  with additional channels.
-
 config SH_DMABRG
 	bool "SH7760 DMABRG support"
 	depends on CPU_SUBTYPE_SH7760

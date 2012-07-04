@@ -147,7 +147,7 @@ tcp_adv_win_scale - INTEGER
 	(if tcp_adv_win_scale > 0) or bytes-bytes/2^(-tcp_adv_win_scale),
 	if it is <= 0.
 	Possible values are [-31, 31], inclusive.
-	Default: 2
+	Default: 1
 
 tcp_allowed_congestion_control - STRING
 	Show/set the congestion control choices available to non-privileged
@@ -189,6 +189,20 @@ tcp_cookie_size - INTEGER
 
 tcp_dsack - BOOLEAN
 	Allows TCP to send "duplicate" SACKs.
+
+tcp_early_retrans - INTEGER
+	Enable Early Retransmit (ER), per RFC 5827. ER lowers the threshold
+	for triggering fast retransmit when the amount of outstanding data is
+	small and when no previously unsent data can be transmitted (such
+	that limited transmit could be used).
+	Possible values:
+		0 disables ER
+		1 enables ER
+		2 enables ER but delays fast recovery and fast retransmit
+		  by a fourth of RTT. This mitigates connection falsely
+		  recovers when network has a small degree of reordering
+		  (less than 3 packets).
+	Default: 2
 
 tcp_ecn - INTEGER
 	Enable Explicit Congestion Notification (ECN) in TCP. ECN is only
@@ -410,7 +424,7 @@ tcp_rmem - vector of 3 INTEGERs: min, default, max
 	net.core.rmem_max.  Calling setsockopt() with SO_RCVBUF disables
 	automatic tuning of that socket's receive buffer size, in which
 	case this value is ignored.
-	Default: between 87380B and 4MB, depending on RAM size.
+	Default: between 87380B and 6MB, depending on RAM size.
 
 tcp_sack - BOOLEAN
 	Enable select acknowledgments (SACKS).
@@ -1287,13 +1301,22 @@ bridge-nf-call-ip6tables - BOOLEAN
 bridge-nf-filter-vlan-tagged - BOOLEAN
 	1 : pass bridged vlan-tagged ARP/IP/IPv6 traffic to {arp,ip,ip6}tables.
 	0 : disable this.
-	Default: 1
+	Default: 0
 
 bridge-nf-filter-pppoe-tagged - BOOLEAN
 	1 : pass bridged pppoe-tagged IP/IPv6 traffic to {ip,ip6}tables.
 	0 : disable this.
-	Default: 1
+	Default: 0
 
+bridge-nf-pass-vlan-input-dev - BOOLEAN
+	1: if bridge-nf-filter-vlan-tagged is enabled, try to find a vlan
+	interface on the bridge and set the netfilter input device to the vlan.
+	This allows use of e.g. "iptables -i br0.1" and makes the REDIRECT
+	target work with vlan-on-top-of-bridge interfaces.  When no matching
+	vlan interface is found, or this switch is off, the input device is
+	set to the bridge interface.
+	0: disable bridge netfilter vlan interface lookup.
+	Default: 0
 
 proc/sys/net/sctp/* Variables:
 
@@ -1484,11 +1507,8 @@ addr_scope_policy - INTEGER
 
 
 /proc/sys/net/core/*
-dev_weight - INTEGER
-	The maximum number of packets that kernel can handle on a NAPI
-	interrupt, it's a Per-CPU variable.
+	Please see: Documentation/sysctl/net.txt for descriptions of these entries.
 
-	Default: 64
 
 /proc/sys/net/unix/*
 max_dgram_qlen - INTEGER

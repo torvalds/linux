@@ -257,7 +257,7 @@ static void oaktrail_lvds_get_configuration_mode(struct drm_device *dev,
 	mode_dev->panel_fixed_mode = NULL;
 
 	/* Use the firmware provided data on Moorestown */
-	if (dev_priv->vbt_data.size != 0x00) { /*if non-zero, then use vbt*/
+	if (dev_priv->has_gct) {
 		mode = kzalloc(sizeof(*mode), GFP_KERNEL);
 		if (!mode)
 			return;
@@ -371,7 +371,7 @@ void oaktrail_lvds_init(struct drm_device *dev,
 					BRIGHTNESS_MAX_LEVEL);
 
 	mode_dev->panel_wants_dither = false;
-	if (dev_priv->vbt_data.size != 0x00)
+	if (dev_priv->has_gct)
 		mode_dev->panel_wants_dither = (dev_priv->gct_data.
 			Panel_Port_Control & MRST_PANEL_8TO6_DITHER_ENABLE);
         if (dev_priv->lvds_dither)

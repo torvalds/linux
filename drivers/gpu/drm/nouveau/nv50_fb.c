@@ -2,6 +2,7 @@
 #include "drm.h"
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
+#include "nouveau_fifo.h"
 
 struct nv50_fb_priv {
 	struct page *r100c08_page;
@@ -212,6 +213,7 @@ static struct nouveau_enum vm_fault[] = {
 void
 nv50_fb_vm_trap(struct drm_device *dev, int display)
 {
+	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	const struct nouveau_enum *en, *cl;
 	unsigned long flags;
@@ -236,7 +238,7 @@ nv50_fb_vm_trap(struct drm_device *dev, int display)
 	/* lookup channel id */
 	chinst = (trap[2] << 16) | trap[1];
 	spin_lock_irqsave(&dev_priv->channels.lock, flags);
-	for (ch = 0; ch < dev_priv->engine.fifo.channels; ch++) {
+	for (ch = 0; ch < pfifo->channels; ch++) {
 		struct nouveau_channel *chan = dev_priv->channels.ptr[ch];
 
 		if (!chan || !chan->ramin)

@@ -52,12 +52,12 @@
 #define  PCIE_DEBUG_SOFT_RESET		(1<<20)
 
 
-u32 __init orion_pcie_dev_id(void __iomem *base)
+u32 orion_pcie_dev_id(void __iomem *base)
 {
 	return readl(base + PCIE_DEV_ID_OFF) >> 16;
 }
 
-u32 __init orion_pcie_rev(void __iomem *base)
+u32 orion_pcie_rev(void __iomem *base)
 {
 	return readl(base + PCIE_DEV_REV_OFF) & 0xff;
 }

@@ -211,23 +211,41 @@ s32 ixgbe_dcb_config_tx_data_arbiter_82599(struct ixgbe_hw *hw,
  */
 s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw, u8 pfc_en, u8 *prio_tc)
 {
-	u32 i, j, reg;
+	u32 i, j, fcrtl, reg;
 	u8 max_tc = 0;
 
-	for (i = 0; i < MAX_USER_PRIORITY; i++)
+	/* Enable Transmit Priority Flow Control */
+	IXGBE_WRITE_REG(hw, IXGBE_FCCFG, IXGBE_FCCFG_TFCE_PRIORITY);
+
+	/* Enable Receive Priority Flow Control */
+	reg = IXGBE_READ_REG(hw, IXGBE_MFLCN);
+	reg |= IXGBE_MFLCN_DPF;
+
+	/*
+	 * X540 supports per TC Rx priority flow control.  So
+	 * clear all TCs and only enable those that should be
+	 * enabled.
+	 */
+	reg &= ~(IXGBE_MFLCN_RPFCE_MASK | IXGBE_MFLCN_RFCE);
+
+	if (hw->mac.type == ixgbe_mac_X540)
+		reg |= pfc_en << IXGBE_MFLCN_RPFCE_SHIFT;
+
+	if (pfc_en)
+		reg |= IXGBE_MFLCN_RPFCE;
+
+	IXGBE_WRITE_REG(hw, IXGBE_MFLCN, reg);
+
+	for (i = 0; i < MAX_USER_PRIORITY; i++) {
 		if (prio_tc[i] > max_tc)
 			max_tc = prio_tc[i];
+	}
+
+	fcrtl = (hw->fc.low_water << 10) | IXGBE_FCRTL_XONE;
 
 	/* Configure PFC Tx thresholds per TC */
-	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+	for (i = 0; i <= max_tc; i++) {
 		int enabled = 0;
-
-		if (i > max_tc) {
-			reg = 0;
-			IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(i), reg);
-			IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(i), reg);
-			continue;
-		}
 
 		for (j = 0; j < MAX_USER_PRIORITY; j++) {
 			if ((prio_tc[j] == i) && (pfc_en & (1 << j))) {
@@ -236,61 +254,29 @@ s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw, u8 pfc_en, u8 *prio_tc)
 			}
 		}
 
-		reg = hw->fc.low_water << 10;
+		if (enabled) {
+			reg = (hw->fc.high_water[i] << 10) | IXGBE_FCRTH_FCEN;
+			IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(i), fcrtl);
+		} else {
+			reg = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(i)) - 32;
+			IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(i), 0);
+		}
 
-		if (enabled)
-			reg |= IXGBE_FCRTL_XONE;
-		IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(i), reg);
-
-		reg = hw->fc.high_water[i] << 10;
-		if (enabled)
-			reg |= IXGBE_FCRTH_FCEN;
 		IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(i), reg);
 	}
 
-	if (pfc_en) {
-		/* Configure pause time (2 TCs per register) */
-		reg = hw->fc.pause_time | (hw->fc.pause_time << 16);
-		for (i = 0; i < (MAX_TRAFFIC_CLASS / 2); i++)
-			IXGBE_WRITE_REG(hw, IXGBE_FCTTV(i), reg);
-
-		/* Configure flow control refresh threshold value */
-		IXGBE_WRITE_REG(hw, IXGBE_FCRTV, hw->fc.pause_time / 2);
-
-
-		reg = IXGBE_FCCFG_TFCE_PRIORITY;
-		IXGBE_WRITE_REG(hw, IXGBE_FCCFG, reg);
-		/*
-		 * Enable Receive PFC
-		 * 82599 will always honor XOFF frames we receive when
-		 * we are in PFC mode however X540 only honors enabled
-		 * traffic classes.
-		 */
-		reg = IXGBE_READ_REG(hw, IXGBE_MFLCN);
-		reg &= ~IXGBE_MFLCN_RFCE;
-		reg |= IXGBE_MFLCN_RPFCE | IXGBE_MFLCN_DPF;
-
-		if (hw->mac.type == ixgbe_mac_X540) {
-			reg &= ~IXGBE_MFLCN_RPFCE_MASK;
-			reg |= pfc_en << IXGBE_MFLCN_RPFCE_SHIFT;
-		}
-
-		IXGBE_WRITE_REG(hw, IXGBE_MFLCN, reg);
-
-	} else {
-		/* X540 devices have a RX bit that should be cleared
-		 * if PFC is disabled on all TCs but PFC features is
-		 * enabled.
-		 */
-		if (hw->mac.type == ixgbe_mac_X540) {
-			reg = IXGBE_READ_REG(hw, IXGBE_MFLCN);
-			reg &= ~IXGBE_MFLCN_RPFCE_MASK;
-			IXGBE_WRITE_REG(hw, IXGBE_MFLCN, reg);
-		}
-
-		for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
-			hw->mac.ops.fc_enable(hw, i);
+	for (; i < MAX_TRAFFIC_CLASS; i++) {
+		IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(i), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(i), 0);
 	}
+
+	/* Configure pause time (2 TCs per register) */
+	reg = hw->fc.pause_time * 0x00010001;
+	for (i = 0; i < (MAX_TRAFFIC_CLASS / 2); i++)
+		IXGBE_WRITE_REG(hw, IXGBE_FCTTV(i), reg);
+
+	/* Configure flow control refresh threshold value */
+	IXGBE_WRITE_REG(hw, IXGBE_FCRTV, hw->fc.pause_time / 2);
 
 	return 0;
 }

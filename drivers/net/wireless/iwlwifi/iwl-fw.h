@@ -63,6 +63,7 @@
 #ifndef __iwl_fw_h__
 #define __iwl_fw_h__
 #include <linux/types.h>
+#include <net/mac80211.h>
 
 /**
  * enum iwl_ucode_tlv_flag - ucode API flags

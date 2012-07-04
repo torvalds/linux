@@ -689,9 +689,12 @@ static void __devinit rhine_reload_eeprom(long pioaddr, struct net_device *dev)
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void rhine_poll(struct net_device *dev)
 {
-	disable_irq(dev->irq);
-	rhine_interrupt(dev->irq, (void *)dev);
-	enable_irq(dev->irq);
+	struct rhine_private *rp = netdev_priv(dev);
+	const int irq = rp->pdev->irq;
+
+	disable_irq(irq);
+	rhine_interrupt(irq, dev);
+	enable_irq(irq);
 }
 #endif
 
@@ -972,7 +975,6 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 	}
 #endif /* USE_MMIO */
 
-	dev->base_addr = (unsigned long)ioaddr;
 	rp->base = ioaddr;
 
 	/* Get chip registers into a sane state */
@@ -994,8 +996,6 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 	/* For Rhine-I/II, phy_id is loaded from EEPROM */
 	if (!phy_id)
 		phy_id = ioread8(ioaddr + 0x6C);
-
-	dev->irq = pdev->irq;
 
 	spin_lock_init(&rp->lock);
 	mutex_init(&rp->task_lock);

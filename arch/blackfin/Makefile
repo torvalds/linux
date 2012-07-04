@@ -54,6 +54,7 @@ machine-$(CONFIG_BF548M) := bf548
 machine-$(CONFIG_BF549)  := bf548
 machine-$(CONFIG_BF549M) := bf548
 machine-$(CONFIG_BF561)  := bf561
+machine-$(CONFIG_BF609)  := bf609
 MACHINE := $(machine-y)
 export MACHINE
 
@@ -86,6 +87,7 @@ cpu-$(CONFIG_BF548M) := bf548m
 cpu-$(CONFIG_BF549)  := bf549
 cpu-$(CONFIG_BF549M) := bf549m
 cpu-$(CONFIG_BF561)  := bf561
+cpu-$(CONFIG_BF609)  := bf609
 
 rev-$(CONFIG_BF_REV_0_0)  := 0.0
 rev-$(CONFIG_BF_REV_0_1)  := 0.1
@@ -106,8 +108,6 @@ KBUILD_AFLAGS += -mcpu=$(CPU_REV)
 # - we utilize the silicon rev from the toolchain, so move it over to the checkflags
 CHECKFLAGS_SILICON = $(shell echo "" | $(CPP) $(KBUILD_CFLAGS) -dD - 2>/dev/null | awk '$$2 == "__SILICON_REVISION__" { print $$3 }')
 CHECKFLAGS += -D__SILICON_REVISION__=$(CHECKFLAGS_SILICON) -D__bfin__
-
-head-y   := arch/$(ARCH)/kernel/init_task.o
 
 core-y   += arch/$(ARCH)/kernel/ arch/$(ARCH)/mm/ arch/$(ARCH)/mach-common/
 

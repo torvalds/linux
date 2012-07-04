@@ -17,6 +17,7 @@
 
 #include <linux/delay.h>
 #include <linux/i2c.h>
+#include <linux/spi/spi.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -27,6 +28,7 @@
 #include <sound/tlv.h>
 
 /* DA7210 register space */
+#define DA7210_PAGE_CONTROL		0x00
 #define DA7210_CONTROL			0x01
 #define DA7210_STATUS			0x02
 #define DA7210_STARTUP1			0x03
@@ -146,6 +148,7 @@
 #define DA7210_DAI_EN			(1 << 7)
 
 /*PLL_DIV3 bit fields */
+#define DA7210_PLL_DIV_L_MASK		(0xF << 0)
 #define DA7210_MCLK_RANGE_10_20_MHZ	(1 << 4)
 #define DA7210_PLL_BYP			(1 << 6)
 
@@ -162,12 +165,16 @@
 #define DA7210_PLL_FS_48000		(0xB << 0)
 #define DA7210_PLL_FS_88200		(0xE << 0)
 #define DA7210_PLL_FS_96000		(0xF << 0)
+#define DA7210_MCLK_DET_EN		(0x1 << 5)
+#define DA7210_MCLK_SRM_EN		(0x1 << 6)
 #define DA7210_PLL_EN			(0x1 << 7)
 
 /* SOFTMUTE bit fields */
 #define DA7210_RAMP_EN			(1 << 6)
 
 /* CONTROL bit fields */
+#define DA7210_REG_EN			(1 << 0)
+#define DA7210_BIAS_EN			(1 << 2)
 #define DA7210_NOISE_SUP_EN		(1 << 3)
 
 /* IN_GAIN bit fields */
@@ -205,6 +212,47 @@
 #define DA7210_OUT2_OUTMIX_R		(1 << 5)
 #define DA7210_OUT2_OUTMIX_L		(1 << 6)
 #define DA7210_OUT2_EN			(1 << 7)
+
+struct pll_div {
+	int fref;
+	int fout;
+	u8 div1;
+	u8 div2;
+	u8 div3;
+	u8 mode;	/* 0 = slave, 1 = master */
+};
+
+/* PLL dividers table */
+static const struct pll_div da7210_pll_div[] = {
+	/* for MASTER mode, fs = 44.1Khz */
+	{ 12000000, 2822400, 0xE8, 0x6C, 0x2, 1},	/* MCLK=12Mhz */
+	{ 13000000, 2822400, 0xDF, 0x28, 0xC, 1},	/* MCLK=13Mhz */
+	{ 13500000, 2822400, 0xDB, 0x0A, 0xD, 1},	/* MCLK=13.5Mhz */
+	{ 14400000, 2822400, 0xD4, 0x5A, 0x2, 1},	/* MCLK=14.4Mhz */
+	{ 19200000, 2822400, 0xBB, 0x43, 0x9, 1},	/* MCLK=19.2Mhz */
+	{ 19680000, 2822400, 0xB9, 0x6D, 0xA, 1},	/* MCLK=19.68Mhz */
+	{ 19800000, 2822400, 0xB8, 0xFB, 0xB, 1},	/* MCLK=19.8Mhz */
+	/* for MASTER mode, fs = 48Khz */
+	{ 12000000, 3072000, 0xF3, 0x12, 0x7, 1},	/* MCLK=12Mhz */
+	{ 13000000, 3072000, 0xE8, 0xFD, 0x5, 1},	/* MCLK=13Mhz */
+	{ 13500000, 3072000, 0xE4, 0x82, 0x3, 1},	/* MCLK=13.5Mhz */
+	{ 14400000, 3072000, 0xDD, 0x3A, 0x0, 1},	/* MCLK=14.4Mhz */
+	{ 19200000, 3072000, 0xC1, 0xEB, 0x8, 1},	/* MCLK=19.2Mhz */
+	{ 19680000, 3072000, 0xBF, 0xEC, 0x0, 1},	/* MCLK=19.68Mhz */
+	{ 19800000, 3072000, 0xBF, 0x70, 0x0, 1},	/* MCLK=19.8Mhz */
+	/* for SLAVE mode with SRM */
+	{ 12000000, 2822400, 0xED, 0xBF, 0x5, 0},	/* MCLK=12Mhz */
+	{ 13000000, 2822400, 0xE4, 0x13, 0x0, 0},	/* MCLK=13Mhz */
+	{ 13500000, 2822400, 0xDF, 0xC6, 0x8, 0},	/* MCLK=13.5Mhz */
+	{ 14400000, 2822400, 0xD8, 0xCA, 0x1, 0},	/* MCLK=14.4Mhz */
+	{ 19200000, 2822400, 0xBE, 0x97, 0x9, 0},	/* MCLK=19.2Mhz */
+	{ 19680000, 2822400, 0xBC, 0xAC, 0xD, 0},	/* MCLK=19.68Mhz */
+	{ 19800000, 2822400, 0xBC, 0x35, 0xE, 0},	/* MCLK=19.8Mhz  */
+};
+
+enum clk_src {
+	DA7210_CLKSRC_MCLK
+};
 
 #define DA7210_VERSION "0.0.1"
 
@@ -628,9 +676,12 @@ static const struct snd_soc_dapm_route da7210_audio_map[] = {
 /* Codec private data */
 struct da7210_priv {
 	struct regmap *regmap;
+	unsigned int mclk_rate;
+	int master;
 };
 
 static struct reg_default da7210_reg_defaults[] = {
+	{ 0x00, 0x00 },
 	{ 0x01, 0x11 },
 	{ 0x03, 0x00 },
 	{ 0x04, 0x00 },
@@ -713,10 +764,10 @@ static int da7210_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
+	struct da7210_priv *da7210 = snd_soc_codec_get_drvdata(codec);
 	u32 dai_cfg1;
-	u32 fs, bypass;
+	u32 fs, sysclk;
 
 	/* set DAI source to Left and Right ADC */
 	snd_soc_write(codec, DA7210_DAI_SRC_SEL,
@@ -749,43 +800,43 @@ static int da7210_hw_params(struct snd_pcm_substream *substream,
 	switch (params_rate(params)) {
 	case 8000:
 		fs		= DA7210_PLL_FS_8000;
-		bypass		= DA7210_PLL_BYP;
+		sysclk		= 3072000;
 		break;
 	case 11025:
 		fs		= DA7210_PLL_FS_11025;
-		bypass		= 0;
+		sysclk		= 2822400;
 		break;
 	case 12000:
 		fs		= DA7210_PLL_FS_12000;
-		bypass		= DA7210_PLL_BYP;
+		sysclk		= 3072000;
 		break;
 	case 16000:
 		fs		= DA7210_PLL_FS_16000;
-		bypass		= DA7210_PLL_BYP;
+		sysclk		= 3072000;
 		break;
 	case 22050:
 		fs		= DA7210_PLL_FS_22050;
-		bypass		= 0;
+		sysclk		= 2822400;
 		break;
 	case 32000:
 		fs		= DA7210_PLL_FS_32000;
-		bypass		= DA7210_PLL_BYP;
+		sysclk		= 3072000;
 		break;
 	case 44100:
 		fs		= DA7210_PLL_FS_44100;
-		bypass		= 0;
+		sysclk		= 2822400;
 		break;
 	case 48000:
 		fs		= DA7210_PLL_FS_48000;
-		bypass		= DA7210_PLL_BYP;
+		sysclk		= 3072000;
 		break;
 	case 88200:
 		fs		= DA7210_PLL_FS_88200;
-		bypass		= 0;
+		sysclk		= 2822400;
 		break;
 	case 96000:
 		fs		= DA7210_PLL_FS_96000;
-		bypass		= DA7210_PLL_BYP;
+		sysclk		= 3072000;
 		break;
 	default:
 		return -EINVAL;
@@ -795,8 +846,26 @@ static int da7210_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_update_bits(codec, DA7210_STARTUP1, DA7210_SC_MST_EN, 0);
 
 	snd_soc_update_bits(codec, DA7210_PLL, DA7210_PLL_FS_MASK, fs);
-	snd_soc_update_bits(codec, DA7210_PLL_DIV3, DA7210_PLL_BYP, bypass);
 
+	if (da7210->mclk_rate && (da7210->mclk_rate != sysclk)) {
+		/* PLL mode, disable PLL bypass */
+		snd_soc_update_bits(codec, DA7210_PLL_DIV3, DA7210_PLL_BYP, 0);
+
+		if (!da7210->master) {
+			/* PLL slave mode, also enable SRM */
+			snd_soc_update_bits(codec, DA7210_PLL,
+						   (DA7210_MCLK_SRM_EN |
+						    DA7210_MCLK_DET_EN),
+						   (DA7210_MCLK_SRM_EN |
+						    DA7210_MCLK_DET_EN));
+		}
+	} else {
+		/* PLL bypass mode, enable PLL bypass and Auto Detection */
+		snd_soc_update_bits(codec, DA7210_PLL, DA7210_MCLK_DET_EN,
+						       DA7210_MCLK_DET_EN);
+		snd_soc_update_bits(codec, DA7210_PLL_DIV3, DA7210_PLL_BYP,
+							    DA7210_PLL_BYP);
+	}
 	/* Enable active mode */
 	snd_soc_update_bits(codec, DA7210_STARTUP1,
 			    DA7210_SC_MST_EN, DA7210_SC_MST_EN);
@@ -810,17 +879,24 @@ static int da7210_hw_params(struct snd_pcm_substream *substream,
 static int da7210_set_dai_fmt(struct snd_soc_dai *codec_dai, u32 fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
+	struct da7210_priv *da7210 = snd_soc_codec_get_drvdata(codec);
 	u32 dai_cfg1;
 	u32 dai_cfg3;
 
 	dai_cfg1 = 0x7f & snd_soc_read(codec, DA7210_DAI_CFG1);
 	dai_cfg3 = 0xfc & snd_soc_read(codec, DA7210_DAI_CFG3);
 
+	if ((snd_soc_read(codec, DA7210_PLL) & DA7210_PLL_EN) &&
+		(!(snd_soc_read(codec, DA7210_PLL_DIV3) & DA7210_PLL_BYP)))
+		return -EINVAL;
+
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
+		da7210->master = 1;
 		dai_cfg1 |= DA7210_DAI_MODE_MASTER;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
+		da7210->master = 0;
 		dai_cfg1 |= DA7210_DAI_MODE_SLAVE;
 		break;
 	default:
@@ -872,10 +948,101 @@ static int da7210_mute(struct snd_soc_dai *dai, int mute)
 #define DA7210_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
+static int da7210_set_dai_sysclk(struct snd_soc_dai *codec_dai,
+				 int clk_id, unsigned int freq, int dir)
+{
+	struct snd_soc_codec *codec = codec_dai->codec;
+	struct da7210_priv *da7210 = snd_soc_codec_get_drvdata(codec);
+
+	switch (clk_id) {
+	case DA7210_CLKSRC_MCLK:
+		switch (freq) {
+		case 12000000:
+		case 13000000:
+		case 13500000:
+		case 14400000:
+		case 19200000:
+		case 19680000:
+		case 19800000:
+			da7210->mclk_rate = freq;
+			return 0;
+		default:
+			dev_err(codec_dai->dev, "Unsupported MCLK value %d\n",
+				freq);
+			return -EINVAL;
+		}
+		break;
+	default:
+		dev_err(codec_dai->dev, "Unknown clock source %d\n", clk_id);
+		return -EINVAL;
+	}
+}
+
+/**
+ * da7210_set_dai_pll	:Configure the codec PLL
+ * @param codec_dai	: pointer to codec DAI
+ * @param pll_id	: da7210 has only one pll, so pll_id is always zero
+ * @param fref		: MCLK frequency, should be < 20MHz
+ * @param fout		: FsDM value, Refer page 44 & 45 of datasheet
+ * @return int		: Zero for success, negative error code for error
+ *
+ * Note: Supported PLL input frequencies are 12MHz, 13MHz, 13.5MHz, 14.4MHz,
+ *       19.2MHz, 19.6MHz and 19.8MHz
+ */
+static int da7210_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
+			      int source, unsigned int fref, unsigned int fout)
+{
+	struct snd_soc_codec *codec = codec_dai->codec;
+	struct da7210_priv *da7210 = snd_soc_codec_get_drvdata(codec);
+
+	u8 pll_div1, pll_div2, pll_div3, cnt;
+
+	/* In slave mode, there is only one set of divisors */
+	if (!da7210->master)
+		fout = 2822400;
+
+	/* Search pll div array for correct divisors */
+	for (cnt = 0; cnt < ARRAY_SIZE(da7210_pll_div); cnt++) {
+		/* check fref, mode  and fout */
+		if ((fref == da7210_pll_div[cnt].fref) &&
+		    (da7210->master ==  da7210_pll_div[cnt].mode) &&
+		    (fout == da7210_pll_div[cnt].fout)) {
+			/* all match, pick up divisors */
+			pll_div1 = da7210_pll_div[cnt].div1;
+			pll_div2 = da7210_pll_div[cnt].div2;
+			pll_div3 = da7210_pll_div[cnt].div3;
+			break;
+		}
+	}
+	if (cnt >= ARRAY_SIZE(da7210_pll_div))
+		goto err;
+
+	/* Disable active mode */
+	snd_soc_update_bits(codec, DA7210_STARTUP1, DA7210_SC_MST_EN, 0);
+	/* Write PLL dividers */
+	snd_soc_write(codec, DA7210_PLL_DIV1, pll_div1);
+	snd_soc_write(codec, DA7210_PLL_DIV2, pll_div2);
+	snd_soc_update_bits(codec, DA7210_PLL_DIV3,
+				   DA7210_PLL_DIV_L_MASK, pll_div3);
+
+	/* Enable PLL */
+	snd_soc_update_bits(codec, DA7210_PLL, DA7210_PLL_EN, DA7210_PLL_EN);
+
+	/* Enable active mode */
+	snd_soc_update_bits(codec, DA7210_STARTUP1, DA7210_SC_MST_EN,
+						    DA7210_SC_MST_EN);
+	return 0;
+err:
+	dev_err(codec_dai->dev, "Unsupported PLL input frequency %d\n", fref);
+	return -EINVAL;
+}
+
 /* DAI operations */
 static const struct snd_soc_dai_ops da7210_dai_ops = {
 	.hw_params	= da7210_hw_params,
 	.set_fmt	= da7210_set_dai_fmt,
+	.set_sysclk	= da7210_set_dai_sysclk,
+	.set_pll	= da7210_set_dai_pll,
 	.digital_mute	= da7210_mute,
 };
 
@@ -915,24 +1082,11 @@ static int da7210_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	/* FIXME
-	 *
-	 * This driver use fixed value here
-	 * And below settings expects MCLK = 12.288MHz
-	 *
-	 * When you select different MCLK, please check...
-	 *      DA7210_PLL_DIV1 val
-	 *      DA7210_PLL_DIV2 val
-	 *      DA7210_PLL_DIV3 val
-	 *      DA7210_PLL_DIV3 :: DA7210_MCLK_RANGExxx
-	 */
+	da7210->mclk_rate       = 0;    /* This will be set from set_sysclk() */
+	da7210->master          = 0;    /* This will be set from set_fmt() */
 
-	/*
-	 * make sure that DA7210 use bypass mode before start up
-	 */
-	snd_soc_write(codec, DA7210_STARTUP1, 0);
-	snd_soc_write(codec, DA7210_PLL_DIV3,
-		     DA7210_MCLK_RANGE_10_20_MHZ | DA7210_PLL_BYP);
+	/* Enable internal regulator & bias current */
+	snd_soc_write(codec, DA7210_CONTROL, DA7210_REG_EN | DA7210_BIAS_EN);
 
 	/*
 	 * ADC settings
@@ -1007,33 +1161,12 @@ static int da7210_probe(struct snd_soc_codec *codec)
 	/* Enable Aux2 */
 	snd_soc_write(codec, DA7210_AUX2, DA7210_AUX2_EN);
 
+	/* Set PLL Master clock range 10-20 MHz, enable PLL bypass */
+	snd_soc_write(codec, DA7210_PLL_DIV3, DA7210_MCLK_RANGE_10_20_MHZ |
+					      DA7210_PLL_BYP);
+
 	/* Diable PLL and bypass it */
 	snd_soc_write(codec, DA7210_PLL, DA7210_PLL_FS_48000);
-
-	/*
-	 * If 48kHz sound came, it use bypass mode,
-	 * and when it is 44.1kHz, it use PLL.
-	 *
-	 * This time, this driver sets PLL always ON
-	 * and controls bypass/PLL mode by switching
-	 * DA7210_PLL_DIV3 :: DA7210_PLL_BYP bit.
-	 *   see da7210_hw_params
-	 */
-	snd_soc_write(codec, DA7210_PLL_DIV1, 0xE5); /* MCLK = 12.288MHz */
-	snd_soc_write(codec, DA7210_PLL_DIV2, 0x99);
-	snd_soc_write(codec, DA7210_PLL_DIV3, 0x0A |
-		     DA7210_MCLK_RANGE_10_20_MHZ | DA7210_PLL_BYP);
-	snd_soc_update_bits(codec, DA7210_PLL, DA7210_PLL_EN, DA7210_PLL_EN);
-
-	/* As suggested by Dialog */
-	/* unlock */
-	regmap_write(da7210->regmap, DA7210_A_HID_UNLOCK,	0x8B);
-	regmap_write(da7210->regmap, DA7210_A_TEST_UNLOCK,	0xB4);
-	regmap_write(da7210->regmap, DA7210_A_PLL1,		0x01);
-	regmap_write(da7210->regmap, DA7210_A_CP_MODE,		0x7C);
-	/* re-lock */
-	regmap_write(da7210->regmap, DA7210_A_HID_UNLOCK,	0x00);
-	regmap_write(da7210->regmap, DA7210_A_TEST_UNLOCK,	0x00);
 
 	/* Activate all enabled subsystem */
 	snd_soc_write(codec, DA7210_STARTUP1, DA7210_SC_MST_EN);
@@ -1055,7 +1188,26 @@ static struct snd_soc_codec_driver soc_codec_dev_da7210 = {
 	.num_dapm_routes	= ARRAY_SIZE(da7210_audio_map),
 };
 
-static struct regmap_config da7210_regmap = {
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+
+static struct reg_default da7210_regmap_i2c_patch[] = {
+
+	/* System controller master disable */
+	{ DA7210_STARTUP1, 0x00 },
+	/* Set PLL Master clock range 10-20 MHz */
+	{ DA7210_PLL_DIV3, DA7210_MCLK_RANGE_10_20_MHZ },
+
+	/* to unlock */
+	{ DA7210_A_HID_UNLOCK, 0x8B},
+	{ DA7210_A_TEST_UNLOCK, 0xB4},
+	{ DA7210_A_PLL1, 0x01},
+	{ DA7210_A_CP_MODE, 0x7C},
+	/* to re-lock */
+	{ DA7210_A_HID_UNLOCK, 0x00},
+	{ DA7210_A_TEST_UNLOCK, 0x00},
+};
+
+static const struct regmap_config da7210_regmap_config_i2c = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
@@ -1066,7 +1218,6 @@ static struct regmap_config da7210_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static int __devinit da7210_i2c_probe(struct i2c_client *i2c,
 			   	      const struct i2c_device_id *id)
 {
@@ -1080,12 +1231,17 @@ static int __devinit da7210_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, da7210);
 
-	da7210->regmap = regmap_init_i2c(i2c, &da7210_regmap);
+	da7210->regmap = regmap_init_i2c(i2c, &da7210_regmap_config_i2c);
 	if (IS_ERR(da7210->regmap)) {
 		ret = PTR_ERR(da7210->regmap);
 		dev_err(&i2c->dev, "regmap_init() failed: %d\n", ret);
 		return ret;
 	}
+
+	ret = regmap_register_patch(da7210->regmap, da7210_regmap_i2c_patch,
+				    ARRAY_SIZE(da7210_regmap_i2c_patch));
+	if (ret != 0)
+		dev_warn(&i2c->dev, "Failed to apply regmap patch: %d\n", ret);
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_da7210, &da7210_dai, 1);
@@ -1119,12 +1275,105 @@ MODULE_DEVICE_TABLE(i2c, da7210_i2c_id);
 /* I2C codec control layer */
 static struct i2c_driver da7210_i2c_driver = {
 	.driver = {
-		.name = "da7210-codec",
+		.name = "da7210",
 		.owner = THIS_MODULE,
 	},
 	.probe		= da7210_i2c_probe,
 	.remove		= __devexit_p(da7210_i2c_remove),
 	.id_table	= da7210_i2c_id,
+};
+#endif
+
+#if defined(CONFIG_SPI_MASTER)
+
+static struct reg_default da7210_regmap_spi_patch[] = {
+	/* Dummy read to give two pulses over nCS for SPI */
+	{ DA7210_AUX2, 0x00 },
+	{ DA7210_AUX2, 0x00 },
+
+	/* System controller master disable */
+	{ DA7210_STARTUP1, 0x00 },
+	/* Set PLL Master clock range 10-20 MHz */
+	{ DA7210_PLL_DIV3, DA7210_MCLK_RANGE_10_20_MHZ },
+
+	/* to set PAGE1 of SPI register space */
+	{ DA7210_PAGE_CONTROL, 0x80 },
+	/* to unlock */
+	{ DA7210_A_HID_UNLOCK, 0x8B},
+	{ DA7210_A_TEST_UNLOCK, 0xB4},
+	{ DA7210_A_PLL1, 0x01},
+	{ DA7210_A_CP_MODE, 0x7C},
+	/* to re-lock */
+	{ DA7210_A_HID_UNLOCK, 0x00},
+	{ DA7210_A_TEST_UNLOCK, 0x00},
+	/* to set back PAGE0 of SPI register space */
+	{ DA7210_PAGE_CONTROL, 0x00 },
+};
+
+static const struct regmap_config da7210_regmap_config_spi = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.read_flag_mask = 0x01,
+	.write_flag_mask = 0x00,
+
+	.reg_defaults = da7210_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(da7210_reg_defaults),
+	.volatile_reg = da7210_volatile_register,
+	.readable_reg = da7210_readable_register,
+	.cache_type = REGCACHE_RBTREE,
+};
+
+static int __devinit da7210_spi_probe(struct spi_device *spi)
+{
+	struct da7210_priv *da7210;
+	int ret;
+
+	da7210 = devm_kzalloc(&spi->dev, sizeof(struct da7210_priv),
+			      GFP_KERNEL);
+	if (!da7210)
+		return -ENOMEM;
+
+	spi_set_drvdata(spi, da7210);
+	da7210->regmap = devm_regmap_init_spi(spi, &da7210_regmap_config_spi);
+	if (IS_ERR(da7210->regmap)) {
+		ret = PTR_ERR(da7210->regmap);
+		dev_err(&spi->dev, "Failed to register regmap: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_register_patch(da7210->regmap, da7210_regmap_spi_patch,
+				    ARRAY_SIZE(da7210_regmap_spi_patch));
+	if (ret != 0)
+		dev_warn(&spi->dev, "Failed to apply regmap patch: %d\n", ret);
+
+	ret =  snd_soc_register_codec(&spi->dev,
+			&soc_codec_dev_da7210, &da7210_dai, 1);
+	if (ret < 0)
+		goto err_regmap;
+
+	return ret;
+
+err_regmap:
+	regmap_exit(da7210->regmap);
+
+	return ret;
+}
+
+static int __devexit da7210_spi_remove(struct spi_device *spi)
+{
+	struct da7210_priv *da7210 = spi_get_drvdata(spi);
+	snd_soc_unregister_codec(&spi->dev);
+	regmap_exit(da7210->regmap);
+	return 0;
+}
+
+static struct spi_driver da7210_spi_driver = {
+	.driver = {
+		.name = "da7210",
+		.owner = THIS_MODULE,
+	},
+	.probe = da7210_spi_probe,
+	.remove = __devexit_p(da7210_spi_remove)
 };
 #endif
 
@@ -1134,6 +1383,13 @@ static int __init da7210_modinit(void)
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	ret = i2c_add_driver(&da7210_i2c_driver);
 #endif
+#if defined(CONFIG_SPI_MASTER)
+	ret = spi_register_driver(&da7210_spi_driver);
+	if (ret) {
+		printk(KERN_ERR "Failed to register da7210 SPI driver: %d\n",
+		       ret);
+	}
+#endif
 	return ret;
 }
 module_init(da7210_modinit);
@@ -1142,6 +1398,9 @@ static void __exit da7210_exit(void)
 {
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_del_driver(&da7210_i2c_driver);
+#endif
+#if defined(CONFIG_SPI_MASTER)
+	spi_unregister_driver(&da7210_spi_driver);
 #endif
 }
 module_exit(da7210_exit);

@@ -546,11 +546,12 @@ static struct ata_port_info sata_port_info = {
 	.port_ops = &sas_sata_ops
 };
 
-int sas_ata_init_host_and_port(struct domain_device *found_dev)
+int sas_ata_init(struct domain_device *found_dev)
 {
 	struct sas_ha_struct *ha = found_dev->port->ha;
 	struct Scsi_Host *shost = ha->core.shost;
 	struct ata_port *ap;
+	int rc;
 
 	ata_host_init(&found_dev->sata_dev.ata_host,
 		      ha->dev,
@@ -567,8 +568,11 @@ int sas_ata_init_host_and_port(struct domain_device *found_dev)
 	ap->private_data = found_dev;
 	ap->cbl = ATA_CBL_SATA;
 	ap->scsi_host = shost;
-	/* publish initialized ata port */
-	smp_wmb();
+	rc = ata_sas_port_init(ap);
+	if (rc) {
+		ata_sas_port_destroy(ap);
+		return rc;
+	}
 	found_dev->sata_dev.ap = ap;
 
 	return 0;
@@ -648,18 +652,13 @@ static void sas_get_ata_command_set(struct domain_device *dev)
 void sas_probe_sata(struct asd_sas_port *port)
 {
 	struct domain_device *dev, *n;
-	int err;
 
 	mutex_lock(&port->ha->disco_mutex);
-	list_for_each_entry_safe(dev, n, &port->disco_list, disco_list_node) {
+	list_for_each_entry(dev, &port->disco_list, disco_list_node) {
 		if (!dev_is_sata(dev))
 			continue;
 
-		err = sas_ata_init_host_and_port(dev);
-		if (err)
-			sas_fail_probe(dev, __func__, err);
-		else
-			ata_sas_async_port_init(dev->sata_dev.ap);
+		ata_sas_async_probe(dev->sata_dev.ap);
 	}
 	mutex_unlock(&port->ha->disco_mutex);
 
@@ -718,18 +717,6 @@ static void async_sas_ata_eh(void *data, async_cookie_t cookie)
 	sas_put_device(dev);
 }
 
-static bool sas_ata_dev_eh_valid(struct domain_device *dev)
-{
-	struct ata_port *ap;
-
-	if (!dev_is_sata(dev))
-		return false;
-	ap = dev->sata_dev.ap;
-	/* consume fully initialized ata ports */
-	smp_rmb();
-	return !!ap;
-}
-
 void sas_ata_strategy_handler(struct Scsi_Host *shost)
 {
 	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
@@ -753,7 +740,7 @@ void sas_ata_strategy_handler(struct Scsi_Host *shost)
 
 		spin_lock(&port->dev_list_lock);
 		list_for_each_entry(dev, &port->dev_list, dev_list_node) {
-			if (!sas_ata_dev_eh_valid(dev))
+			if (!dev_is_sata(dev))
 				continue;
 			async_schedule_domain(async_sas_ata_eh, dev, &async);
 		}

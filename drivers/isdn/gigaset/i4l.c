@@ -229,7 +229,7 @@ static int command_from_LL(isdn_ctrl *cntrl)
 			return -EINVAL;
 		}
 		bcs = cs->bcs + ch;
-		if (!gigaset_get_channel(bcs)) {
+		if (gigaset_get_channel(bcs) < 0) {
 			dev_err(cs->dev, "ISDN_CMD_DIAL: channel not free\n");
 			return -EBUSY;
 		}
@@ -618,7 +618,7 @@ void gigaset_isdn_stop(struct cardstate *cs)
  * @cs:		device descriptor structure.
  * @isdnid:	device name.
  *
- * Return value: 1 for success, 0 for failure
+ * Return value: 0 on success, error code < 0 on failure
  */
 int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 {
@@ -627,14 +627,14 @@ int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 	iif = kmalloc(sizeof *iif, GFP_KERNEL);
 	if (!iif) {
 		pr_err("out of memory\n");
-		return 0;
+		return -ENOMEM;
 	}
 
 	if (snprintf(iif->id, sizeof iif->id, "%s_%u", isdnid, cs->minor_index)
 	    >= sizeof iif->id) {
 		pr_err("ID too long: %s\n", isdnid);
 		kfree(iif);
-		return 0;
+		return -EINVAL;
 	}
 
 	iif->owner = THIS_MODULE;
@@ -656,13 +656,13 @@ int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 	if (!register_isdn(iif)) {
 		pr_err("register_isdn failed\n");
 		kfree(iif);
-		return 0;
+		return -EINVAL;
 	}
 
 	cs->iif = iif;
 	cs->myid = iif->channels;		/* Set my device id */
 	cs->hw_hdr_len = HW_HDR_LEN;
-	return 1;
+	return 0;
 }
 
 /**

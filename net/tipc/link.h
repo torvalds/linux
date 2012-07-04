@@ -47,13 +47,11 @@
 /*
  * Out-of-range value for link sequence numbers
  */
-
 #define INVALID_LINK_SEQ 0x10000
 
 /*
  * Link states
  */
-
 #define WORKING_WORKING 560810u
 #define WORKING_UNKNOWN 560811u
 #define RESET_UNKNOWN   560812u
@@ -63,7 +61,6 @@
  * Starting value for maximum packet size negotiation on unicast links
  * (unless bearer MTU is less)
  */
-
 #define MAX_PKT_DEFAULT 1500
 
 /**
@@ -114,7 +111,6 @@
  * @defragm_buf: list of partially reassembled inbound message fragments
  * @stats: collects statistics regarding link activity
  */
-
 struct tipc_link {
 	u32 addr;
 	char name[TIPC_MAX_LINK_NAME];
@@ -255,7 +251,6 @@ void tipc_link_retransmit(struct tipc_link *l_ptr,
 /*
  * Link sequence number manipulation routines (uses modulo 2**16 arithmetic)
  */
-
 static inline u32 buf_seqno(struct sk_buff *buf)
 {
 	return msg_seqno(buf_msg(buf));
@@ -294,7 +289,6 @@ static inline u32 lesser(u32 left, u32 right)
 /*
  * Link status checking routines
  */
-
 static inline int link_working_working(struct tipc_link *l_ptr)
 {
 	return l_ptr->state == WORKING_WORKING;

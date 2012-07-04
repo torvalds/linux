@@ -110,7 +110,7 @@ void hpfs_read_inode(struct inode *i)
 			}
 		}
 	}
-	if (fnode->dirflag) {
+	if (fnode_is_dir(fnode)) {
 		int n_dnodes, n_subdirs;
 		i->i_mode |= S_IFDIR;
 		i->i_op = &hpfs_dir_iops;
@@ -299,7 +299,7 @@ void hpfs_write_if_changed(struct inode *inode)
 void hpfs_evict_inode(struct inode *inode)
 {
 	truncate_inode_pages(&inode->i_data, 0);
-	end_writeback(inode);
+	clear_inode(inode);
 	if (!inode->i_nlink) {
 		hpfs_lock(inode->i_sb);
 		hpfs_remove_fnode(inode->i_sb, inode->i_ino);

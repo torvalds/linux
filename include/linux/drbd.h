@@ -53,7 +53,7 @@
 
 
 extern const char *drbd_buildtag(void);
-#define REL_VERSION "8.3.11"
+#define REL_VERSION "8.3.13"
 #define API_VERSION 88
 #define PRO_VERSION_MIN 86
 #define PRO_VERSION_MAX 96
@@ -112,8 +112,8 @@ enum drbd_ret_code {
 	ERR_OPEN_MD_DISK	= 105,
 	ERR_DISK_NOT_BDEV	= 107,
 	ERR_MD_NOT_BDEV		= 108,
-	ERR_DISK_TO_SMALL	= 111,
-	ERR_MD_DISK_TO_SMALL	= 112,
+	ERR_DISK_TOO_SMALL	= 111,
+	ERR_MD_DISK_TOO_SMALL	= 112,
 	ERR_BDCLAIM_DISK	= 114,
 	ERR_BDCLAIM_MD_DISK	= 115,
 	ERR_MD_IDX_INVALID	= 116,

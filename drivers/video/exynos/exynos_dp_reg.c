@@ -16,8 +16,6 @@
 
 #include <video/exynos_dp.h>
 
-#include <plat/cpu.h>
-
 #include "exynos_dp_core.h"
 #include "exynos_dp_reg.h"
 
@@ -65,6 +63,28 @@ void exynos_dp_lane_swap(struct exynos_dp_device *dp, bool enable)
 	writel(reg, dp->reg_base + EXYNOS_DP_LANE_MAP);
 }
 
+void exynos_dp_init_analog_param(struct exynos_dp_device *dp)
+{
+	u32 reg;
+
+	reg = TX_TERMINAL_CTRL_50_OHM;
+	writel(reg, dp->reg_base + EXYNOS_DP_ANALOG_CTL_1);
+
+	reg = SEL_24M | TX_DVDD_BIT_1_0625V;
+	writel(reg, dp->reg_base + EXYNOS_DP_ANALOG_CTL_2);
+
+	reg = DRIVE_DVDD_BIT_1_0625V | VCO_BIT_600_MICRO;
+	writel(reg, dp->reg_base + EXYNOS_DP_ANALOG_CTL_3);
+
+	reg = PD_RING_OSC | AUX_TERMINAL_CTRL_50_OHM |
+		TX_CUR1_2X | TX_CUR_8_MA;
+	writel(reg, dp->reg_base + EXYNOS_DP_PLL_FILTER_CTL_1);
+
+	reg = CH3_AMP_400_MV | CH2_AMP_400_MV |
+		CH1_AMP_400_MV | CH0_AMP_400_MV;
+	writel(reg, dp->reg_base + EXYNOS_DP_TX_AMP_TUNING_CTL);
+}
+
 void exynos_dp_init_interrupt(struct exynos_dp_device *dp)
 {
 	/* Set interrupt pin assertion polarity as high */
@@ -88,8 +108,6 @@ void exynos_dp_init_interrupt(struct exynos_dp_device *dp)
 void exynos_dp_reset(struct exynos_dp_device *dp)
 {
 	u32 reg;
-
-	writel(RESET_DP_TX, dp->reg_base + EXYNOS_DP_TX_SW_RESET);
 
 	exynos_dp_stop_video(dp);
 	exynos_dp_enable_video_mute(dp, 0);
@@ -131,7 +149,13 @@ void exynos_dp_reset(struct exynos_dp_device *dp)
 
 	writel(0x00000101, dp->reg_base + EXYNOS_DP_SOC_GENERAL_CTL);
 
+	exynos_dp_init_analog_param(dp);
 	exynos_dp_init_interrupt(dp);
+}
+
+void exynos_dp_swreset(struct exynos_dp_device *dp)
+{
+	writel(RESET_DP_TX, dp->reg_base + EXYNOS_DP_TX_SW_RESET);
 }
 
 void exynos_dp_config_interrupt(struct exynos_dp_device *dp)
@@ -271,6 +295,7 @@ void exynos_dp_set_analog_power_down(struct exynos_dp_device *dp,
 void exynos_dp_init_analog_func(struct exynos_dp_device *dp)
 {
 	u32 reg;
+	int timeout_loop = 0;
 
 	exynos_dp_set_analog_power_down(dp, POWER_ALL, 0);
 
@@ -282,8 +307,18 @@ void exynos_dp_init_analog_func(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_DEBUG_CTL);
 
 	/* Power up PLL */
-	if (exynos_dp_get_pll_lock_status(dp) == PLL_UNLOCKED)
+	if (exynos_dp_get_pll_lock_status(dp) == PLL_UNLOCKED) {
 		exynos_dp_set_pll_power_down(dp, 0);
+
+		while (exynos_dp_get_pll_lock_status(dp) == PLL_UNLOCKED) {
+			timeout_loop++;
+			if (DP_TIMEOUT_LOOP_COUNT < timeout_loop) {
+				dev_err(dp->dev, "failed to get pll lock status\n");
+				return;
+			}
+			usleep_range(10, 20);
+		}
+	}
 
 	/* Enable Serdes FIFO function and Link symbol clock domain module */
 	reg = readl(dp->reg_base + EXYNOS_DP_FUNC_EN_2);

@@ -71,18 +71,17 @@ static void omap_mcbsp_set_threshold(struct snd_pcm_substream *substream)
 
 	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
-	/* TODO: Currently, MODE_ELEMENT == MODE_FRAME */
-	if (mcbsp->dma_op_mode == MCBSP_DMA_MODE_THRESHOLD)
-		/*
-		 * Configure McBSP threshold based on either:
-		 * packet_size, when the sDMA is in packet mode, or
-		 * based on the period size.
-		 */
-		if (dma_data->packet_size)
-			words = dma_data->packet_size;
-		else
-			words = snd_pcm_lib_period_bytes(substream) /
-							(mcbsp->wlen / 8);
+	/*
+	 * Configure McBSP threshold based on either:
+	 * packet_size, when the sDMA is in packet mode, or based on the
+	 * period size in THRESHOLD mode, otherwise use McBSP threshold = 1
+	 * for mono streams.
+	 */
+	if (dma_data->packet_size)
+		words = dma_data->packet_size;
+	else if (mcbsp->dma_op_mode == MCBSP_DMA_MODE_THRESHOLD)
+		words = snd_pcm_lib_period_bytes(substream) /
+						(mcbsp->wlen / 8);
 	else
 		words = 1;
 
@@ -139,13 +138,15 @@ static int omap_mcbsp_dai_startup(struct snd_pcm_substream *substream,
 	if (mcbsp->pdata->buffer_size) {
 		/*
 		* Rule for the buffer size. We should not allow
-		* smaller buffer than the FIFO size to avoid underruns
+		* smaller buffer than the FIFO size to avoid underruns.
+		* This applies only for the playback stream.
 		*/
-		snd_pcm_hw_rule_add(substream->runtime, 0,
-				    SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
-				    omap_mcbsp_hwrule_min_buffersize,
-				    mcbsp,
-				    SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			snd_pcm_hw_rule_add(substream->runtime, 0,
+					    SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+					    omap_mcbsp_hwrule_min_buffersize,
+					    mcbsp,
+					    SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 
 		/* Make sure, that the period size is always even */
 		snd_pcm_hw_constraint_step(substream->runtime, 0,
@@ -230,6 +231,7 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	unsigned int format, div, framesize, master;
 
 	dma_data = &mcbsp->dma_data[substream->stream];
+	channels = params_channels(params);
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -245,7 +247,6 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	}
 	if (mcbsp->pdata->buffer_size) {
 		dma_data->set_threshold = omap_mcbsp_set_threshold;
-		/* TODO: Currently, MODE_ELEMENT == MODE_FRAME */
 		if (mcbsp->dma_op_mode == MCBSP_DMA_MODE_THRESHOLD) {
 			int period_words, max_thrsh;
 
@@ -283,6 +284,10 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 			} else {
 				sync_mode = OMAP_DMA_SYNC_FRAME;
 			}
+		} else if (channels > 1) {
+			/* Use packet mode for non mono streams */
+			pkt_size = channels;
+			sync_mode = OMAP_DMA_SYNC_PACKET;
 		}
 	}
 
@@ -301,7 +306,7 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	regs->rcr1	&= ~(RFRLEN1(0x7f) | RWDLEN1(7));
 	regs->xcr1	&= ~(XFRLEN1(0x7f) | XWDLEN1(7));
 	format = mcbsp->fmt & SND_SOC_DAIFMT_FORMAT_MASK;
-	wpf = channels = params_channels(params);
+	wpf = channels;
 	if (channels == 2 && (format == SND_SOC_DAIFMT_I2S ||
 			      format == SND_SOC_DAIFMT_LEFT_J)) {
 		/* Use dual-phase frames */

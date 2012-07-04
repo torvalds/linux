@@ -167,7 +167,7 @@ void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 	if (p->state == BR_STATE_DISABLED)
 		goto out;
 
-	if (compare_ether_addr(dest, br->group_addr) != 0)
+	if (!ether_addr_equal(dest, br->group_addr))
 		goto out;
 
 	buf = skb_pull(skb, 3);

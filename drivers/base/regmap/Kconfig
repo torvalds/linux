@@ -6,12 +6,16 @@ config REGMAP
 	default y if (REGMAP_I2C || REGMAP_SPI)
 	select LZO_COMPRESS
 	select LZO_DECOMPRESS
+	select IRQ_DOMAIN if REGMAP_IRQ
 	bool
 
 config REGMAP_I2C
 	tristate
 
 config REGMAP_SPI
+	tristate
+
+config REGMAP_MMIO
 	tristate
 
 config REGMAP_IRQ

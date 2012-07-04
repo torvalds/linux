@@ -331,9 +331,7 @@ static u64 ns_to_pulse_clocks(u32 ns)
 
 static u16 pulse_clocks_to_clock_divider(u64 count)
 {
-	u32 rem;
-
-	rem = do_div(count, (FIFO_RXTX << 2) | 0x3);
+	do_div(count, (FIFO_RXTX << 2) | 0x3);
 
 	/* net result needs to be rounded down and decremented by 1 */
 	if (count > RXCLK_RCD + 1)

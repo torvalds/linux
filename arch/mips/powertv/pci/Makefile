@@ -17,5 +17,3 @@
 #
 
 obj-$(CONFIG_PCI)	+= fixup-powertv.o
-
-ccflags-y := -Wall -Werror

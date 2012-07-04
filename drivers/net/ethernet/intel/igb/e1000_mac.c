@@ -658,6 +658,7 @@ s32 igb_setup_link(struct e1000_hw *hw)
 	ret_val = igb_set_fc_watermarks(hw);
 
 out:
+
 	return ret_val;
 }
 

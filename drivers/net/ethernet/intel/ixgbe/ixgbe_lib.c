@@ -523,11 +523,17 @@ static void ixgbe_add_ring(struct ixgbe_ring *ring,
 /**
  * ixgbe_alloc_q_vector - Allocate memory for a single interrupt vector
  * @adapter: board private structure to initialize
+ * @v_count: q_vectors allocated on adapter, used for ring interleaving
  * @v_idx: index of vector in adapter struct
+ * @txr_count: total number of Tx rings to allocate
+ * @txr_idx: index of first Tx ring to allocate
+ * @rxr_count: total number of Rx rings to allocate
+ * @rxr_idx: index of first Rx ring to allocate
  *
  * We allocate one q_vector.  If allocation fails we return -ENOMEM.
  **/
-static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter, int v_idx,
+static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
+				int v_count, int v_idx,
 				int txr_count, int txr_idx,
 				int rxr_count, int rxr_idx)
 {
@@ -598,7 +604,7 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter, int v_idx,
 
 		/* update count and index */
 		txr_count--;
-		txr_idx++;
+		txr_idx += v_count;
 
 		/* push pointer to next ring */
 		ring++;
@@ -622,6 +628,16 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter, int v_idx,
 		if (adapter->hw.mac.type == ixgbe_mac_82599EB)
 			set_bit(__IXGBE_RX_CSUM_UDP_ZERO_ERR, &ring->state);
 
+#ifdef IXGBE_FCOE
+		if (adapter->netdev->features & NETIF_F_FCOE_MTU) {
+			struct ixgbe_ring_feature *f;
+			f = &adapter->ring_feature[RING_F_FCOE];
+			if ((rxr_idx >= f->mask) &&
+			    (rxr_idx < f->mask + f->indices))
+				set_bit(__IXGBE_RX_FCOE, &ring->state);
+		}
+
+#endif /* IXGBE_FCOE */
 		/* apply Rx specific ring traits */
 		ring->count = adapter->rx_ring_count;
 		ring->queue_index = rxr_idx;
@@ -631,7 +647,7 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter, int v_idx,
 
 		/* update count and index */
 		rxr_count--;
-		rxr_idx++;
+		rxr_idx += v_count;
 
 		/* push pointer to next ring */
 		ring++;
@@ -690,24 +706,23 @@ static int ixgbe_alloc_q_vectors(struct ixgbe_adapter *adapter)
 		q_vectors = 1;
 
 	if (q_vectors >= (rxr_remaining + txr_remaining)) {
-		for (; rxr_remaining; v_idx++, q_vectors--) {
-			int rqpv = DIV_ROUND_UP(rxr_remaining, q_vectors);
-			err = ixgbe_alloc_q_vector(adapter, v_idx,
-						   0, 0, rqpv, rxr_idx);
+		for (; rxr_remaining; v_idx++) {
+			err = ixgbe_alloc_q_vector(adapter, q_vectors, v_idx,
+						   0, 0, 1, rxr_idx);
 
 			if (err)
 				goto err_out;
 
 			/* update counts and index */
-			rxr_remaining -= rqpv;
-			rxr_idx += rqpv;
+			rxr_remaining--;
+			rxr_idx++;
 		}
 	}
 
-	for (; q_vectors; v_idx++, q_vectors--) {
-		int rqpv = DIV_ROUND_UP(rxr_remaining, q_vectors);
-		int tqpv = DIV_ROUND_UP(txr_remaining, q_vectors);
-		err = ixgbe_alloc_q_vector(adapter, v_idx,
+	for (; v_idx < q_vectors; v_idx++) {
+		int rqpv = DIV_ROUND_UP(rxr_remaining, q_vectors - v_idx);
+		int tqpv = DIV_ROUND_UP(txr_remaining, q_vectors - v_idx);
+		err = ixgbe_alloc_q_vector(adapter, q_vectors, v_idx,
 					   tqpv, txr_idx,
 					   rqpv, rxr_idx);
 
@@ -716,9 +731,9 @@ static int ixgbe_alloc_q_vectors(struct ixgbe_adapter *adapter)
 
 		/* update counts and index */
 		rxr_remaining -= rqpv;
-		rxr_idx += rqpv;
 		txr_remaining -= tqpv;
-		txr_idx += tqpv;
+		rxr_idx++;
+		txr_idx++;
 	}
 
 	return 0;

@@ -257,7 +257,7 @@ struct sigcontext {
 	__u64 oldmask;
 	__u64 cr2;
 	struct _fpstate __user *fpstate;	/* zero when no FPU context */
-#ifndef __LP64__
+#ifdef __ILP32__
 	__u32 __fpstate_pad;
 #endif
 	__u64 reserved1[8];
