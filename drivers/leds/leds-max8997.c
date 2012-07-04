@@ -276,11 +276,9 @@ static int __devinit max8997_led_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	led = kzalloc(sizeof(*led), GFP_KERNEL);
-	if (led == NULL) {
-		ret = -ENOMEM;
-		goto err_mem;
-	}
+	led = devm_kzalloc(&pdev->dev, sizeof(*led), GFP_KERNEL);
+	if (led == NULL)
+		return -ENOMEM;
 
 	led->id = pdev->id;
 	snprintf(name, sizeof(name), "max8997-led%d", pdev->id);
@@ -315,23 +313,17 @@ static int __devinit max8997_led_probe(struct platform_device *pdev)
 
 	ret = led_classdev_register(&pdev->dev, &led->cdev);
 	if (ret < 0)
-		goto err_led;
+		return ret;
 
 	ret = device_create_file(led->cdev.dev, &dev_attr_mode);
 	if (ret != 0) {
 		dev_err(&pdev->dev,
 			"failed to create file: %d\n", ret);
-		goto err_file;
+		led_classdev_unregister(&led->cdev);
+		return ret;
 	}
 
 	return 0;
-
-err_file:
-	led_classdev_unregister(&led->cdev);
-err_led:
-	kfree(led);
-err_mem:
-	return ret;
 }
 
 static int __devexit max8997_led_remove(struct platform_device *pdev)
@@ -340,7 +332,6 @@ static int __devexit max8997_led_remove(struct platform_device *pdev)
 
 	device_remove_file(led->cdev.dev, &dev_attr_mode);
 	led_classdev_unregister(&led->cdev);
-	kfree(led);
 
 	return 0;
 }
