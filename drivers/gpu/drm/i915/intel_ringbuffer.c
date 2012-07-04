@@ -1117,20 +1117,9 @@ static int intel_wrap_ring_buffer(struct intel_ring_buffer *ring)
 
 static int intel_ring_wait_seqno(struct intel_ring_buffer *ring, u32 seqno)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-	bool was_interruptible;
 	int ret;
 
-	/* XXX As we have not yet audited all the paths to check that
-	 * they are ready for ERESTARTSYS from intel_ring_begin, do not
-	 * allow us to be interruptible by a signal.
-	 */
-	was_interruptible = dev_priv->mm.interruptible;
-	dev_priv->mm.interruptible = false;
-
 	ret = i915_wait_seqno(ring, seqno);
-
-	dev_priv->mm.interruptible = was_interruptible;
 	if (!ret)
 		i915_gem_retire_requests_ring(ring);
 
@@ -1240,12 +1229,13 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 int intel_ring_begin(struct intel_ring_buffer *ring,
 		     int num_dwords)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	int n = 4*num_dwords;
 	int ret;
 
-	if (unlikely(atomic_read(&dev_priv->mm.wedged)))
-		return -EIO;
+	ret = i915_gem_check_wedge(dev_priv, dev_priv->mm.interruptible);
+	if (ret)
+		return ret;
 
 	if (unlikely(ring->tail + n > ring->effective_size)) {
 		ret = intel_wrap_ring_buffer(ring);
