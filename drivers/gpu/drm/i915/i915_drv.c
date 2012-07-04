@@ -730,8 +730,7 @@ int i915_reset(struct drm_device *dev)
 	if (!i915_try_reset)
 		return 0;
 
-	if (!mutex_trylock(&dev->struct_mutex))
-		return -EBUSY;
+	mutex_lock(&dev->struct_mutex);
 
 	i915_gem_reset(dev);
 
