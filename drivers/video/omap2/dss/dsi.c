@@ -345,8 +345,6 @@ struct dsi_packet_sent_handler_data {
 	struct completion *completion;
 };
 
-static struct platform_device *dsi_pdev_map[MAX_NUM_DSI];
-
 #ifdef DEBUG
 static bool dsi_perf;
 module_param(dsi_perf, bool, 0644);
@@ -359,12 +357,19 @@ static inline struct dsi_data *dsi_get_dsidrv_data(struct platform_device *dside
 
 static inline struct platform_device *dsi_get_dsidev_from_dssdev(struct omap_dss_device *dssdev)
 {
-	return dsi_pdev_map[dssdev->phy.dsi.module];
+	return dssdev->output->pdev;
 }
 
 struct platform_device *dsi_get_dsidev_from_id(int module)
 {
-	return dsi_pdev_map[module];
+	struct omap_dss_output *out;
+	enum omap_dss_output_id	id;
+
+	id = module == 0 ? OMAP_DSS_OUTPUT_DSI1 : OMAP_DSS_OUTPUT_DSI2;
+
+	out = omap_dss_get_output(id);
+
+	return out->pdev;
 }
 
 static inline void dsi_write_reg(struct platform_device *dsidev,
@@ -5194,7 +5199,6 @@ static int __init omap_dsihw_probe(struct platform_device *dsidev)
 
 	dsi->module_id = dsidev->id;
 	dsi->pdev = dsidev;
-	dsi_pdev_map[dsi->module_id] = dsidev;
 	dev_set_drvdata(&dsidev->dev, dsi);
 
 	spin_lock_init(&dsi->irq_lock);
