@@ -388,54 +388,6 @@ xfs_inactive_symlink_rmt(
 	return error;
 }
 
-STATIC int
-xfs_inactive_attrs(
-	xfs_inode_t	*ip,
-	xfs_trans_t	**tpp)
-{
-	xfs_trans_t	*tp;
-	int		error;
-	xfs_mount_t	*mp;
-
-	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
-	tp = *tpp;
-	mp = ip->i_mount;
-	ASSERT(ip->i_d.di_forkoff != 0);
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
-	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	if (error)
-		goto error_unlock;
-
-	error = xfs_attr_inactive(ip);
-	if (error)
-		goto error_unlock;
-
-	tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
-	error = xfs_trans_reserve(tp, 0,
-				  XFS_IFREE_LOG_RES(mp),
-				  0, XFS_TRANS_PERM_LOG_RES,
-				  XFS_INACTIVE_LOG_COUNT);
-	if (error)
-		goto error_cancel;
-
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(tp, ip, 0);
-	xfs_idestroy_fork(ip, XFS_ATTR_FORK);
-
-	ASSERT(ip->i_d.di_anextents == 0);
-
-	*tpp = tp;
-	return 0;
-
-error_cancel:
-	ASSERT(XFS_FORCED_SHUTDOWN(mp));
-	xfs_trans_cancel(tp, 0);
-error_unlock:
-	*tpp = NULL;
-	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-	return error;
-}
-
 int
 xfs_release(
 	xfs_inode_t	*ip)
@@ -630,23 +582,39 @@ xfs_inactive(
 	}
 
 	/*
-	 * If there are attributes associated with the file
-	 * then blow them away now.  The code calls a routine
-	 * that recursively deconstructs the attribute fork.
-	 * We need to just commit the current transaction
+	 * If there are attributes associated with the file then blow them away
+	 * now.  The code calls a routine that recursively deconstructs the
+	 * attribute fork.  We need to just commit the current transaction
 	 * because we can't use it for xfs_attr_inactive().
 	 */
 	if (ip->i_d.di_anextents > 0) {
-		error = xfs_inactive_attrs(ip, &tp);
-		/*
-		 * If we got an error, the transaction is already
-		 * cancelled, and the inode is unlocked. Just get out.
-		 */
-		 if (error)
-			 return VN_INACTIVE_CACHE;
-	} else if (ip->i_afp) {
-		xfs_idestroy_fork(ip, XFS_ATTR_FORK);
+		ASSERT(ip->i_d.di_forkoff != 0);
+
+		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		if (error)
+			goto error_unlock;
+
+		error = xfs_attr_inactive(ip);
+		if (error)
+			goto error_unlock;
+
+		tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
+		error = xfs_trans_reserve(tp, 0,
+					  XFS_IFREE_LOG_RES(mp),
+					  0, XFS_TRANS_PERM_LOG_RES,
+					  XFS_INACTIVE_LOG_COUNT);
+		if (error)
+			goto error_cancel;
+
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		xfs_trans_ijoin(tp, ip, 0);
 	}
+
+	if (ip->i_afp)
+		xfs_idestroy_fork(ip, XFS_ATTR_FORK);
+
+	ASSERT(ip->i_d.di_anextents == 0);
 
 	/*
 	 * Free the inode.
@@ -697,6 +665,13 @@ out:
 out_cancel:
 	xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
+	return VN_INACTIVE_CACHE;
+
+error_cancel:
+	ASSERT(XFS_FORCED_SHUTDOWN(mp));
+	xfs_trans_cancel(tp, 0);
+error_unlock:
+	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 	return VN_INACTIVE_CACHE;
 }
 
