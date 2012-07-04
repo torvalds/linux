@@ -3400,6 +3400,10 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	ret = i915_gem_object_flush_active(obj);
 
 	args->busy = obj->active;
+	if (obj->ring) {
+		BUILD_BUG_ON(I915_NUM_RINGS > 16);
+		args->busy |= intel_ring_flag(obj->ring) << 16;
+	}
 
 	drm_gem_object_unreference(&obj->base);
 unlock:

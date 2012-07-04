@@ -704,7 +704,11 @@ struct drm_i915_gem_busy {
 	/** Handle of the buffer to check for busy */
 	__u32 handle;
 
-	/** Return busy status (1 if busy, 0 if idle) */
+	/** Return busy status (1 if busy, 0 if idle).
+	 * The high word is used to indicate on which rings the object
+	 * currently resides:
+	 *  16:31 - busy (r or r/w) rings (16 render, 17 bsd, 18 blt, etc)
+	 */
 	__u32 busy;
 };
 
