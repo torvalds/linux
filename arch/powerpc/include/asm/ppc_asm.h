@@ -475,6 +475,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #ifdef CONFIG_PPC_BOOK3S_64
 #define RFI		rfid
 #define MTMSRD(r)	mtmsrd	r
+#define MTMSR_EERI(reg)	mtmsrd	reg,1
 #else
 #define FIX_SRR1(ra, rb)
 #ifndef CONFIG_40x
@@ -483,6 +484,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #define RFI		rfi; b .	/* Prevent prefetch past rfi */
 #endif
 #define MTMSRD(r)	mtmsr	r
+#define MTMSR_EERI(reg)	mtmsr	reg
 #define CLR_TOP32(r)
 #endif
 
