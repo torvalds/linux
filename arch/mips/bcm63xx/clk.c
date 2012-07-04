@@ -181,9 +181,11 @@ static void spi_set(struct clk *clk, int enable)
 		mask = CKCTL_6338_SPI_EN;
 	else if (BCMCPU_IS_6348())
 		mask = CKCTL_6348_SPI_EN;
-	else
-		/* BCMCPU_IS_6358 */
+	else if (BCMCPU_IS_6358())
 		mask = CKCTL_6358_SPI_EN;
+	else
+		/* BCMCPU_IS_6368 */
+		mask = CKCTL_6368_SPI_EN;
 	bcm_hwclock_set(mask, enable);
 }
 
