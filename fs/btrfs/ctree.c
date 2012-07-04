@@ -5127,6 +5127,7 @@ again:
 				 * locked. To solve this situation, we give up
 				 * on our lock and cycle.
 				 */
+				free_extent_buffer(next);
 				btrfs_release_path(path);
 				cond_resched();
 				goto again;
