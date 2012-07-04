@@ -107,7 +107,8 @@ static inline void i2s_clear_irqs(struct dw_i2s_dev *dev, u32 stream)
 	}
 }
 
-void i2s_start(struct dw_i2s_dev *dev, struct snd_pcm_substream *substream)
+static void i2s_start(struct dw_i2s_dev *dev,
+		      struct snd_pcm_substream *substream)
 {
 
 	i2s_write_reg(dev->i2s_base, IER, 1);
