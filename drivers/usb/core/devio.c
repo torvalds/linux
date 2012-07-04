@@ -1824,6 +1824,20 @@ static int proc_release_port(struct dev_state *ps, void __user *arg)
 	return usb_hub_release_port(ps->dev, portnum, ps);
 }
 
+static int proc_get_capabilities(struct dev_state *ps, void __user *arg)
+{
+	__u32 caps;
+
+	caps = USBDEVFS_CAP_ZERO_PACKET | USBDEVFS_CAP_NO_PACKET_SIZE_LIM;
+	if (!ps->dev->bus->no_stop_on_short)
+		caps |= USBDEVFS_CAP_BULK_CONTINUATION;
+
+	if (put_user(caps, (__u32 __user *)arg))
+		return -EFAULT;
+
+	return 0;
+}
+
 /*
  * NOTE:  All requests here that have interface numbers as parameters
  * are assuming that somehow the configuration has been prevented from
@@ -1993,6 +2007,9 @@ static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
 	case USBDEVFS_RELEASE_PORT:
 		snoop(&dev->dev, "%s: RELEASE_PORT\n", __func__);
 		ret = proc_release_port(ps, p);
+		break;
+	case USBDEVFS_GET_CAPABILITIES:
+		ret = proc_get_capabilities(ps, p);
 		break;
 	}
 	usb_unlock_device(dev);
