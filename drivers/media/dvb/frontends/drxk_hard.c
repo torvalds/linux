@@ -959,7 +959,7 @@ static int GetDeviceCapabilities(struct drxk_state *state)
 	if (status < 0)
 		goto error;
 
-printk(KERN_ERR "drxk: status = 0x%08x\n", sioTopJtagidLo);
+	printk(KERN_INFO "drxk: status = 0x%08x\n", sioTopJtagidLo);
 
 	/* driver 0.9.0 */
 	switch ((sioTopJtagidLo >> 29) & 0xF) {
@@ -5388,7 +5388,7 @@ static int GetQAMLockStatus(struct drxk_state *state, u32 *pLockStatus)
 			SCU_RAM_COMMAND_CMD_DEMOD_GET_LOCK, 0, NULL, 2,
 			Result);
 	if (status < 0)
-		printk(KERN_ERR "drxk: %s status = %08x\n", __func__, status);
+		printk(KERN_ERR "drxk: Error %d on %s\n", status, __func__);
 
 	if (Result[1] < SCU_RAM_QAM_LOCKED_LOCKED_DEMOD_LOCKED) {
 		/* 0x0000 NOT LOCKED */
@@ -6329,7 +6329,7 @@ static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct drxk_state *state = fe->demodulator_priv;
 
-	dprintk(1, "%s\n", enable ? "enable" : "disable");
+	dprintk(1, ": %s\n", enable ? "enable" : "disable");
 
 	if (state->m_DrxkState == DRXK_NO_DEV)
 		return -ENODEV;
