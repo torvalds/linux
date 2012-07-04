@@ -77,13 +77,7 @@ static struct phy_driver am79c_driver = {
 
 static int __init am79c_init(void)
 {
-	int ret;
-
-	ret = phy_driver_register(&am79c_driver);
-	if (ret)
-		return ret;
-
-	return 0;
+	return phy_driver_register(&am79c_driver);
 }
 
 static void __exit am79c_exit(void)

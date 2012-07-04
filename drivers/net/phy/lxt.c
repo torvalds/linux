@@ -149,7 +149,8 @@ static int lxt973_config_aneg(struct phy_device *phydev)
 	return phydev->priv ? 0 : genphy_config_aneg(phydev);
 }
 
-static struct phy_driver lxt970_driver = {
+static struct phy_driver lxt97x_driver[] = {
+{
 	.phy_id		= 0x78100000,
 	.name		= "LXT970",
 	.phy_id_mask	= 0xfffffff0,
@@ -160,10 +161,8 @@ static struct phy_driver lxt970_driver = {
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= lxt970_ack_interrupt,
 	.config_intr	= lxt970_config_intr,
-	.driver 	= { .owner = THIS_MODULE,},
-};
-
-static struct phy_driver lxt971_driver = {
+	.driver		= { .owner = THIS_MODULE,},
+}, {
 	.phy_id		= 0x001378e0,
 	.name		= "LXT971",
 	.phy_id_mask	= 0xfffffff0,
@@ -173,10 +172,8 @@ static struct phy_driver lxt971_driver = {
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= lxt971_ack_interrupt,
 	.config_intr	= lxt971_config_intr,
-	.driver 	= { .owner = THIS_MODULE,},
-};
-
-static struct phy_driver lxt973_driver = {
+	.driver		= { .owner = THIS_MODULE,},
+}, {
 	.phy_id		= 0x00137a10,
 	.name		= "LXT973",
 	.phy_id_mask	= 0xfffffff0,
@@ -185,39 +182,19 @@ static struct phy_driver lxt973_driver = {
 	.probe		= lxt973_probe,
 	.config_aneg	= lxt973_config_aneg,
 	.read_status	= genphy_read_status,
-	.driver 	= { .owner = THIS_MODULE,},
-};
+	.driver		= { .owner = THIS_MODULE,},
+} };
 
 static int __init lxt_init(void)
 {
-	int ret;
-
-	ret = phy_driver_register(&lxt970_driver);
-	if (ret)
-		goto err1;
-
-	ret = phy_driver_register(&lxt971_driver);
-	if (ret)
-		goto err2;
-
-	ret = phy_driver_register(&lxt973_driver);
-	if (ret)
-		goto err3;
-	return 0;
-
- err3:
-	phy_driver_unregister(&lxt971_driver);
- err2:
-	phy_driver_unregister(&lxt970_driver);
- err1:
-	return ret;
+	return phy_drivers_register(lxt97x_driver,
+		ARRAY_SIZE(lxt97x_driver));
 }
 
 static void __exit lxt_exit(void)
 {
-	phy_driver_unregister(&lxt970_driver);
-	phy_driver_unregister(&lxt971_driver);
-	phy_driver_unregister(&lxt973_driver);
+	phy_drivers_unregister(lxt97x_driver,
+		ARRAY_SIZE(lxt97x_driver));
 }
 
 module_init(lxt_init);

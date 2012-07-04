@@ -1079,11 +1079,36 @@ int phy_driver_register(struct phy_driver *new_driver)
 }
 EXPORT_SYMBOL(phy_driver_register);
 
+int phy_drivers_register(struct phy_driver *new_driver, int n)
+{
+	int i, ret = 0;
+
+	for (i = 0; i < n; i++) {
+		ret = phy_driver_register(new_driver + i);
+		if (ret) {
+			while (i-- > 0)
+				phy_driver_unregister(new_driver + i);
+			break;
+		}
+	}
+	return ret;
+}
+EXPORT_SYMBOL(phy_drivers_register);
+
 void phy_driver_unregister(struct phy_driver *drv)
 {
 	driver_unregister(&drv->driver);
 }
 EXPORT_SYMBOL(phy_driver_unregister);
+
+void phy_drivers_unregister(struct phy_driver *drv, int n)
+{
+	int i;
+	for (i = 0; i < n; i++) {
+		phy_driver_unregister(drv + i);
+	}
+}
+EXPORT_SYMBOL(phy_drivers_unregister);
 
 static struct phy_driver genphy_driver = {
 	.phy_id		= 0xffffffff,
