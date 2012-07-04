@@ -47,6 +47,7 @@ struct omap_hwmod_sysc_fields omap_hwmod_sysc_type2 = {
 	.midle_shift	= SYSC_TYPE2_MIDLEMODE_SHIFT,
 	.sidle_shift	= SYSC_TYPE2_SIDLEMODE_SHIFT,
 	.srst_shift	= SYSC_TYPE2_SOFTRESET_SHIFT,
+	.dmadisable_shift = SYSC_TYPE2_DMADISABLE_SHIFT,
 };
 
 /**

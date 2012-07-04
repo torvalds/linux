@@ -388,6 +388,49 @@ static int _set_softreset(struct omap_hwmod *oh, u32 *v)
 }
 
 /**
+ * _set_dmadisable: set OCP_SYSCONFIG.DMADISABLE bit in @v
+ * @oh: struct omap_hwmod *
+ *
+ * The DMADISABLE bit is a semi-automatic bit present in sysconfig register
+ * of some modules. When the DMA must perform read/write accesses, the
+ * DMADISABLE bit is cleared by the hardware. But when the DMA must stop
+ * for power management, software must set the DMADISABLE bit back to 1.
+ *
+ * Set the DMADISABLE bit in @v for hwmod @oh.  Returns -EINVAL upon
+ * error or 0 upon success.
+ */
+static int _set_dmadisable(struct omap_hwmod *oh)
+{
+	u32 v;
+	u32 dmadisable_mask;
+
+	if (!oh->class->sysc ||
+	    !(oh->class->sysc->sysc_flags & SYSC_HAS_DMADISABLE))
+		return -EINVAL;
+
+	if (!oh->class->sysc->sysc_fields) {
+		WARN(1, "omap_hwmod: %s: offset struct for sysconfig not provided in class\n", oh->name);
+		return -EINVAL;
+	}
+
+	/* clocks must be on for this operation */
+	if (oh->_state != _HWMOD_STATE_ENABLED) {
+		pr_warn("omap_hwmod: %s: dma can be disabled only from enabled state\n", oh->name);
+		return -EINVAL;
+	}
+
+	pr_debug("omap_hwmod: %s: setting DMADISABLE\n", oh->name);
+
+	v = oh->_sysc_cache;
+	dmadisable_mask =
+		(0x1 << oh->class->sysc->sysc_fields->dmadisable_shift);
+	v |= dmadisable_mask;
+	_write_sysconfig(v, oh);
+
+	return 0;
+}
+
+/**
  * _set_module_autoidle: set the OCP_SYSCONFIG AUTOIDLE field in @v
  * @oh: struct omap_hwmod *
  * @autoidle: desired AUTOIDLE bitfield value (0 or 1)
@@ -1698,11 +1741,17 @@ dis_opt_clks:
  * therefore have no OCP header registers to access.  Others (like the
  * IVA) have idiosyncratic reset sequences.  So for these relatively
  * rare cases, custom reset code can be supplied in the struct
- * omap_hwmod_class .reset function pointer.  Passes along the return
- * value from either _ocp_softreset() or the custom reset function -
- * these must return -EINVAL if the hwmod cannot be reset this way or
- * if the hwmod is in the wrong state, -ETIMEDOUT if the module did
- * not reset in time, or 0 upon success.
+ * omap_hwmod_class .reset function pointer.
+ *
+ * _set_dmadisable() is called to set the DMADISABLE bit so that it
+ * does not prevent idling of the system. This is necessary for cases
+ * where ROMCODE/BOOTLOADER uses dma and transfers control to the
+ * kernel without disabling dma.
+ *
+ * Passes along the return value from either _ocp_softreset() or the
+ * custom reset function - these must return -EINVAL if the hwmod
+ * cannot be reset this way or if the hwmod is in the wrong state,
+ * -ETIMEDOUT if the module did not reset in time, or 0 upon success.
  */
 static int _reset(struct omap_hwmod *oh)
 {
@@ -1723,6 +1772,8 @@ static int _reset(struct omap_hwmod *oh)
 				r = 0;
 		}
 	}
+
+	_set_dmadisable(oh);
 
 	/*
 	 * OCP_SYSCONFIG bits need to be reprogrammed after a
@@ -3400,4 +3451,19 @@ int omap_hwmod_pad_route_irq(struct omap_hwmod *oh, int pad_idx, int irq_idx)
 	oh->mux->irqs[pad_idx] = irq_idx;
 
 	return 0;
+}
+
+/**
+ * omap_hwmod_get_main_clk - get pointer to main clock name
+ * @oh: struct omap_hwmod *
+ *
+ * Returns the main clock name assocated with @oh upon success,
+ * or NULL if @oh is NULL.
+ */
+const char *omap_hwmod_get_main_clk(struct omap_hwmod *oh)
+{
+	if (!oh)
+		return NULL;
+
+	return oh->main_clk;
 }
