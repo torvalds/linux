@@ -6839,64 +6839,15 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 	}
 }
 
-static int intel_crtc_set_config(struct drm_mode_set *set)
+static int
+intel_set_config_update_output_state(struct drm_device *dev,
+				     struct drm_mode_set *set,
+				     struct intel_set_config *config)
 {
-	struct drm_device *dev;
 	struct drm_crtc *new_crtc;
 	struct drm_encoder *new_encoder;
-	struct drm_framebuffer *old_fb = NULL;
 	struct drm_connector *connector;
-	int count = 0, ro;
-	struct drm_mode_set save_set;
-	struct intel_set_config *config;
-	int ret;
-	int i;
-
-	DRM_DEBUG_KMS("\n");
-
-	if (!set)
-		return -EINVAL;
-
-	if (!set->crtc)
-		return -EINVAL;
-
-	if (!set->crtc->helper_private)
-		return -EINVAL;
-
-	if (!set->mode)
-		set->fb = NULL;
-
-	if (set->fb) {
-		DRM_DEBUG_KMS("[CRTC:%d] [FB:%d] #connectors=%d (x y) (%i %i)\n",
-				set->crtc->base.id, set->fb->base.id,
-				(int)set->num_connectors, set->x, set->y);
-	} else {
-		DRM_DEBUG_KMS("[CRTC:%d] [NOFB]\n", set->crtc->base.id);
-		return intel_crtc_helper_disable(set->crtc);
-	}
-
-	dev = set->crtc->dev;
-
-	ret = -ENOMEM;
-	config = kzalloc(sizeof(*config), GFP_KERNEL);
-	if (!config)
-		goto out_config;
-
-	ret = intel_set_config_save_state(dev, config);
-	if (ret)
-		goto out_config;
-
-	save_set.crtc = set->crtc;
-	save_set.mode = &set->crtc->mode;
-	save_set.x = set->crtc->x;
-	save_set.y = set->crtc->y;
-	save_set.fb = set->crtc->fb;
-
-	/* Compute whether we need a full modeset, only an fb base update or no
-	 * change at all. In the future we might also check whether only the
-	 * mode changed, e.g. for LVDS where we only change the panel fitter in
-	 * such cases. */
-	intel_set_config_compute_mode_changes(set, config);
+	int count, ro;
 
 	/* a) traverse passed in connector list and get encoders for them */
 	count = 0;
@@ -6956,6 +6907,68 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 				connector->base.id, drm_get_connector_name(connector));
 		}
 	}
+
+	return 0;
+}
+
+static int intel_crtc_set_config(struct drm_mode_set *set)
+{
+	struct drm_device *dev;
+	struct drm_framebuffer *old_fb = NULL;
+	struct drm_mode_set save_set;
+	struct intel_set_config *config;
+	int ret;
+	int i;
+
+	DRM_DEBUG_KMS("\n");
+
+	if (!set)
+		return -EINVAL;
+
+	if (!set->crtc)
+		return -EINVAL;
+
+	if (!set->crtc->helper_private)
+		return -EINVAL;
+
+	if (!set->mode)
+		set->fb = NULL;
+
+	if (set->fb) {
+		DRM_DEBUG_KMS("[CRTC:%d] [FB:%d] #connectors=%d (x y) (%i %i)\n",
+				set->crtc->base.id, set->fb->base.id,
+				(int)set->num_connectors, set->x, set->y);
+	} else {
+		DRM_DEBUG_KMS("[CRTC:%d] [NOFB]\n", set->crtc->base.id);
+		return intel_crtc_helper_disable(set->crtc);
+	}
+
+	dev = set->crtc->dev;
+
+	ret = -ENOMEM;
+	config = kzalloc(sizeof(*config), GFP_KERNEL);
+	if (!config)
+		goto out_config;
+
+	ret = intel_set_config_save_state(dev, config);
+	if (ret)
+		goto out_config;
+
+	save_set.crtc = set->crtc;
+	save_set.mode = &set->crtc->mode;
+	save_set.x = set->crtc->x;
+	save_set.y = set->crtc->y;
+	save_set.fb = set->crtc->fb;
+
+	/* Compute whether we need a full modeset, only an fb base update or no
+	 * change at all. In the future we might also check whether only the
+	 * mode changed, e.g. for LVDS where we only change the panel fitter in
+	 * such cases. */
+	intel_set_config_compute_mode_changes(set, config);
+
+	ret = intel_set_config_update_output_state(dev, set, config);
+	if (ret)
+		goto fail;
 
 	if (config->mode_changed) {
 		set->crtc->enabled = drm_helper_crtc_in_use(set->crtc);
