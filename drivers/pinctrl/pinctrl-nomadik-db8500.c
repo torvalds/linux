@@ -601,6 +601,8 @@ static const unsigned kp_oc1_1_pins[] = { DB8500_PIN_C6, DB8500_PIN_B3,
 	DB8500_PIN_D6, DB8500_PIN_B7 };
 static const unsigned spi2_oc1_1_pins[] = { DB8500_PIN_AH13, DB8500_PIN_AG12,
 	DB8500_PIN_AH12, DB8500_PIN_AH11 };
+static const unsigned spi2_oc1_2_pins[] = { DB8500_PIN_AH13, DB8500_PIN_AH12,
+	DB8500_PIN_AH11 };
 
 #define DB8500_PIN_GROUP(a,b) { .name = #a, .pins = a##_pins,		\
 			.npins = ARRAY_SIZE(a##_pins), .altsetting = b }
@@ -720,6 +722,7 @@ static const struct nmk_pingroup nmk_db8500_groups[] = {
 	/* Other alt C1 column, these are still configured as alt C */
 	DB8500_PIN_GROUP(kp_oc1_1, NMK_GPIO_ALT_C),
 	DB8500_PIN_GROUP(spi2_oc1_1, NMK_GPIO_ALT_C),
+	DB8500_PIN_GROUP(spi2_oc1_2, NMK_GPIO_ALT_C),
 };
 
 /* We use this macro to define the groups applicable to a function */
@@ -795,7 +798,7 @@ DB8500_FUNC_GROUPS(mc5, "mc5_c_1");
 DB8500_FUNC_GROUPS(usbsim, "usbsim_c_1", "usbsim_c_2");
 DB8500_FUNC_GROUPS(i2c3, "i2c3_c_1", "i2c3_c_2");
 DB8500_FUNC_GROUPS(spi0, "spi0_c_1");
-DB8500_FUNC_GROUPS(spi2, "spi2_oc1_1");
+DB8500_FUNC_GROUPS(spi2, "spi2_oc1_1", "spi2_oc1_2");
 
 #define FUNCTION(fname)					\
 	{						\
