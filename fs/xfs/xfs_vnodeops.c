@@ -554,7 +554,7 @@ xfs_inactive(
 		return VN_INACTIVE_CACHE;
 	}
 
-	xfs_ilock(ip, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
 	if (S_ISLNK(ip->i_d.di_mode)) {
@@ -591,21 +591,24 @@ xfs_inactive(
 		ASSERT(ip->i_d.di_forkoff != 0);
 
 		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		if (error)
-			goto error_unlock;
+			goto out_unlock;
+
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
 		error = xfs_attr_inactive(ip);
 		if (error)
-			goto error_unlock;
+			goto out;
 
 		tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
 		error = xfs_trans_reserve(tp, 0,
 					  XFS_IFREE_LOG_RES(mp),
 					  0, XFS_TRANS_PERM_LOG_RES,
 					  XFS_INACTIVE_LOG_COUNT);
-		if (error)
-			goto error_cancel;
+		if (error) {
+			xfs_trans_cancel(tp, 0);
+			goto out;
+		}
 
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip, 0);
@@ -658,21 +661,13 @@ xfs_inactive(
 	 * Release the dquots held by inode, if any.
 	 */
 	xfs_qm_dqdetach(ip);
-	xfs_iunlock(ip, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
-
+out_unlock:
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 out:
 	return VN_INACTIVE_CACHE;
 out_cancel:
 	xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);
-	xfs_iunlock(ip, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
-	return VN_INACTIVE_CACHE;
-
-error_cancel:
-	ASSERT(XFS_FORCED_SHUTDOWN(mp));
-	xfs_trans_cancel(tp, 0);
-error_unlock:
-	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-	return VN_INACTIVE_CACHE;
+	goto out_unlock;
 }
 
 /*
