@@ -39,6 +39,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 
 #include "i2c-iop3xx.h"
 
@@ -78,11 +79,11 @@ iop3xx_i2c_enable(struct i2c_algo_iop3xx_data *iop3xx_adap)
 	 */
 #if defined(CONFIG_ARCH_IOP32X) || defined(CONFIG_ARCH_IOP33X)
 	if (iop3xx_adap->id == 0) {
-		gpio_line_set(IOP3XX_GPIO_LINE(7), GPIO_LOW);
-		gpio_line_set(IOP3XX_GPIO_LINE(6), GPIO_LOW);
+		gpio_set_value(7, 0);
+		gpio_set_value(6, 0);
 	} else {
-		gpio_line_set(IOP3XX_GPIO_LINE(5), GPIO_LOW);
-		gpio_line_set(IOP3XX_GPIO_LINE(4), GPIO_LOW);
+		gpio_set_value(5, 0);
+		gpio_set_value(4, 0);
 	}
 #endif
 	/* NB SR bits not same position as CR IE bits :-( */
