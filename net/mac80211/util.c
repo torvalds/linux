@@ -268,6 +268,10 @@ EXPORT_SYMBOL(ieee80211_ctstoself_duration);
 void ieee80211_propagate_queue_wake(struct ieee80211_local *local, int queue)
 {
 	struct ieee80211_sub_if_data *sdata;
+	int n_acs = IEEE80211_NUM_ACS;
+
+	if (local->hw.queues < IEEE80211_NUM_ACS)
+		n_acs = 1;
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		int ac;
@@ -279,7 +283,7 @@ void ieee80211_propagate_queue_wake(struct ieee80211_local *local, int queue)
 		    local->queue_stop_reasons[sdata->vif.cab_queue] != 0)
 			continue;
 
-		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		for (ac = 0; ac < n_acs; ac++) {
 			int ac_queue = sdata->vif.hw_queue[ac];
 
 			if (ac_queue == queue ||
@@ -341,6 +345,7 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
+	int n_acs = IEEE80211_NUM_ACS;
 
 	trace_stop_queue(local, queue, reason);
 
@@ -352,11 +357,14 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 
 	__set_bit(reason, &local->queue_stop_reasons[queue]);
 
+	if (local->hw.queues < IEEE80211_NUM_ACS)
+		n_acs = 1;
+
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		int ac;
 
-		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		for (ac = 0; ac < n_acs; ac++) {
 			if (sdata->vif.hw_queue[ac] == queue ||
 			    sdata->vif.cab_queue == queue)
 				netif_stop_subqueue(sdata->dev, ac);
