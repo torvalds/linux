@@ -978,9 +978,10 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 			int cancel)
 {
 	struct ubi_wl_entry *e = wl_wrk->e;
-	int pnum = e->pnum, err, need;
+	int pnum = e->pnum;
 	int vol_id = wl_wrk->vol_id;
 	int lnum = wl_wrk->lnum;
+	int err, available_consumed = 0;
 
 	if (cancel) {
 		dbg_wl("cancel erasure of PEB %d EC %d", pnum, e->ec);
@@ -1045,20 +1046,14 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 	}
 
 	spin_lock(&ubi->volumes_lock);
-	need = ubi->beb_rsvd_level - ubi->beb_rsvd_pebs + 1;
-	if (need > 0) {
-		need = ubi->avail_pebs >= need ? need : ubi->avail_pebs;
-		ubi->avail_pebs -= need;
-		ubi->rsvd_pebs += need;
-		ubi->beb_rsvd_pebs += need;
-		if (need > 0)
-			ubi_msg("reserve more %d PEBs", need);
-	}
-
 	if (ubi->beb_rsvd_pebs == 0) {
-		spin_unlock(&ubi->volumes_lock);
-		ubi_err("no reserved physical eraseblocks");
-		goto out_ro;
+		if (ubi->avail_pebs == 0) {
+			spin_unlock(&ubi->volumes_lock);
+			ubi_err("no reserved/available physical eraseblocks");
+			goto out_ro;
+		}
+		ubi->avail_pebs -= 1;
+		available_consumed = 1;
 	}
 	spin_unlock(&ubi->volumes_lock);
 
@@ -1068,19 +1063,36 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 		goto out_ro;
 
 	spin_lock(&ubi->volumes_lock);
-	ubi->beb_rsvd_pebs -= 1;
+	if (ubi->beb_rsvd_pebs > 0) {
+		if (available_consumed) {
+			/*
+			 * The amount of reserved PEBs increased since we last
+			 * checked.
+			 */
+			ubi->avail_pebs += 1;
+			available_consumed = 0;
+		}
+		ubi->beb_rsvd_pebs -= 1;
+	}
 	ubi->bad_peb_count += 1;
 	ubi->good_peb_count -= 1;
 	ubi_calculate_reserved(ubi);
-	if (ubi->beb_rsvd_pebs)
+	if (available_consumed)
+		ubi_warn("no PEBs in the reserved pool, used an available PEB");
+	else if (ubi->beb_rsvd_pebs)
 		ubi_msg("%d PEBs left in the reserve", ubi->beb_rsvd_pebs);
 	else
-		ubi_warn("last PEB from the reserved pool was used");
+		ubi_warn("last PEB from the reserve was used");
 	spin_unlock(&ubi->volumes_lock);
 
 	return err;
 
 out_ro:
+	if (available_consumed) {
+		spin_lock(&ubi->volumes_lock);
+		ubi->avail_pebs += 1;
+		spin_unlock(&ubi->volumes_lock);
+	}
 	ubi_ro_mode(ubi);
 	return err;
 }
