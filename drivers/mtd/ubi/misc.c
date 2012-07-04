@@ -92,7 +92,7 @@ int ubi_check_volume(struct ubi_device *ubi, int vol_id)
 }
 
 /**
- * ubi_calculate_rsvd_pool - calculate how many PEBs must be reserved for bad
+ * ubi_calculate_reserved - calculate how many PEBs must be reserved for bad
  * eraseblock handling.
  * @ubi: UBI device description object
  */
