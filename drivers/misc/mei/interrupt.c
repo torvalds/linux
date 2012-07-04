@@ -299,27 +299,25 @@ static int _mei_irq_thread_close(struct mei_device *dev, s32 *slots,
 				struct mei_cl *cl,
 				struct mei_io_list *cmpl_list)
 {
-	if ((*slots * sizeof(u32)) >= (sizeof(struct mei_msg_hdr) +
-			sizeof(struct hbm_client_disconnect_request))) {
-		*slots -= mei_data2slots(sizeof(struct hbm_client_disconnect_request));
-
-		if (mei_disconnect(dev, cl)) {
-			cl->status = 0;
-			cb_pos->information = 0;
-			list_move_tail(&cb_pos->cb_list,
-					&cmpl_list->mei_cb.cb_list);
-			return -EMSGSIZE;
-		} else {
-			cl->state = MEI_FILE_DISCONNECTING;
-			cl->status = 0;
-			cb_pos->information = 0;
-			list_move_tail(&cb_pos->cb_list,
-					&dev->ctrl_rd_list.mei_cb.cb_list);
-			cl->timer_count = MEI_CONNECT_TIMEOUT;
-		}
-	} else {
-		/* return the cancel routine */
+	if ((*slots * sizeof(u32)) < (sizeof(struct mei_msg_hdr) +
+			sizeof(struct hbm_client_disconnect_request)))
 		return -EBADMSG;
+
+	*slots -= mei_data2slots(sizeof(struct hbm_client_disconnect_request));
+
+	if (mei_disconnect(dev, cl)) {
+		cl->status = 0;
+		cb_pos->information = 0;
+		list_move_tail(&cb_pos->cb_list,
+				&cmpl_list->mei_cb.cb_list);
+		return -EMSGSIZE;
+	} else {
+		cl->state = MEI_FILE_DISCONNECTING;
+		cl->status = 0;
+		cb_pos->information = 0;
+		list_move_tail(&cb_pos->cb_list,
+				&dev->ctrl_rd_list.mei_cb.cb_list);
+		cl->timer_count = MEI_CONNECT_TIMEOUT;
 	}
 
 	return 0;
@@ -869,26 +867,25 @@ static int _mei_irq_thread_ioctl(struct mei_device *dev, s32 *slots,
 			struct mei_cl *cl,
 			struct mei_io_list *cmpl_list)
 {
-	if ((*slots * sizeof(u32)) >= (sizeof(struct mei_msg_hdr) +
+	if ((*slots * sizeof(u32)) < (sizeof(struct mei_msg_hdr) +
 			sizeof(struct hbm_client_connect_request))) {
-		cl->state = MEI_FILE_CONNECTING;
-		 *slots -= mei_data2slots(sizeof(struct hbm_client_connect_request));
-		if (mei_connect(dev, cl)) {
-			cl->status = -ENODEV;
-			cb_pos->information = 0;
-			list_del(&cb_pos->cb_list);
-			return -ENODEV;
-		} else {
-			list_move_tail(&cb_pos->cb_list,
-				&dev->ctrl_rd_list.mei_cb.cb_list);
-			cl->timer_count = MEI_CONNECT_TIMEOUT;
-		}
-	} else {
 		/* return the cancel routine */
 		list_del(&cb_pos->cb_list);
 		return -EBADMSG;
 	}
 
+	cl->state = MEI_FILE_CONNECTING;
+	 *slots -= mei_data2slots(sizeof(struct hbm_client_connect_request));
+	if (mei_connect(dev, cl)) {
+		cl->status = -ENODEV;
+		cb_pos->information = 0;
+		list_del(&cb_pos->cb_list);
+		return -ENODEV;
+	} else {
+		list_move_tail(&cb_pos->cb_list,
+			&dev->ctrl_rd_list.mei_cb.cb_list);
+		cl->timer_count = MEI_CONNECT_TIMEOUT;
+	}
 	return 0;
 }
 
