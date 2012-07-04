@@ -37,6 +37,8 @@ config SOC_AT91SAM9
 config SOC_AT91RM9200
 	bool "AT91RM9200"
 	select CPU_ARM920T
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
 	select GENERIC_CLOCKEVENTS
 	select HAVE_AT91_DBGU0
 
@@ -142,6 +144,8 @@ config ARCH_AT91SAM9G45
 config ARCH_AT91X40
 	bool "AT91x40"
 	depends on !MMU
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
 	select ARCH_USES_GETTIMEOFFSET
 
 endchoice

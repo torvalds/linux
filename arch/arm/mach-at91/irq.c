@@ -49,7 +49,6 @@ static struct irq_domain *at91_aic_domain;
 static struct device_node *at91_aic_np;
 static unsigned int n_irqs = NR_AIC_IRQS;
 static unsigned long at91_aic_caps = 0;
-static unsigned int *at91_aic_irq_priorities;
 
 /* AIC5 introduces a Source Select Register */
 #define AT91_AIC_CAP_AIC5	(1 << 0)
@@ -359,6 +358,8 @@ static void __init __maybe_unused at91_aic5_hw_init(unsigned int spu_vector)
 }
 
 #if defined(CONFIG_OF)
+static unsigned int *at91_aic_irq_priorities;
+
 static int at91_aic_irq_map(struct irq_domain *h, unsigned int virq,
 							irq_hw_number_t hw)
 {
