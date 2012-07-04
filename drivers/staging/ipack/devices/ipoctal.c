@@ -435,7 +435,8 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	 */
 	ipoctal->dev->bus->ops->request_irq(ipoctal->dev, vector,
 				       ipoctal_irq_handler, ipoctal);
-	ipoctal->dev->bus->ops->write8(ipoctal->dev, IPACK_ID_SPACE, 0, vector);
+	ipoctal->dev->bus->ops->write8(ipoctal->dev, IPACK_MEM_SPACE, 0,
+				       vector);
 
 	/* Register the TTY device */
 
