@@ -1,7 +1,7 @@
 /****************************************************************************/
 
 /*
- *	mcfne.h -- NE2000 in ColdFire eval boards.
+ *	mcf8390.h -- NS8390 support for ColdFire eval boards.
  *
  *	(C) Copyright 1999-2000, Greg Ungerer (gerg@snapgear.com)
  *	(C) Copyright 2000,      Lineo (www.lineo.com)
@@ -14,8 +14,8 @@
  */
 
 /****************************************************************************/
-#ifndef	mcfne_h
-#define	mcfne_h
+#ifndef	mcf8390_h
+#define	mcf8390_h
 /****************************************************************************/
 
 
@@ -239,4 +239,4 @@ void ne2000_outsw(unsigned int addr, const void *vbuf, unsigned long len)
 #endif /* NE2000_OFFOFFSET */
 
 /****************************************************************************/
-#endif	/* mcfne_h */
+#endif	/* mcf8390_h */
