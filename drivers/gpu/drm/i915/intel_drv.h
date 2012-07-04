@@ -427,6 +427,9 @@ struct intel_set_config {
 	struct drm_connector *save_connectors;
 	struct drm_encoder *save_encoders;
 	struct drm_crtc *save_crtcs;
+
+	bool fb_changed;
+	bool mode_changed;
 };
 
 extern bool intel_set_mode(struct drm_crtc *crtc, struct drm_display_mode *mode,

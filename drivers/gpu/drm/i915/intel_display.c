@@ -6805,14 +6805,46 @@ static void intel_set_config_restore_state(struct drm_device *dev,
 	}
 }
 
+static void
+intel_set_config_compute_mode_changes(struct drm_mode_set *set,
+				      struct intel_set_config *config)
+{
+
+	/* We should be able to check here if the fb has the same properties
+	 * and then just flip_or_move it */
+	if (set->crtc->fb != set->fb) {
+		/* If we have no fb then treat it as a full mode set */
+		if (set->crtc->fb == NULL) {
+			DRM_DEBUG_KMS("crtc has no fb, full mode set\n");
+			config->mode_changed = true;
+		} else if (set->fb == NULL) {
+			config->mode_changed = true;
+		} else if (set->fb->depth != set->crtc->fb->depth) {
+			config->mode_changed = true;
+		} else if (set->fb->bits_per_pixel !=
+			   set->crtc->fb->bits_per_pixel) {
+			config->mode_changed = true;
+		} else
+			config->fb_changed = true;
+	}
+
+	if (set->x != set->crtc->x || set->y != set->crtc->y)
+		config->fb_changed = true;
+
+	if (set->mode && !drm_mode_equal(set->mode, &set->crtc->mode)) {
+		DRM_DEBUG_KMS("modes are different, full mode set\n");
+		drm_mode_debug_printmodeline(&set->crtc->mode);
+		drm_mode_debug_printmodeline(set->mode);
+		config->mode_changed = true;
+	}
+}
+
 static int intel_crtc_set_config(struct drm_mode_set *set)
 {
 	struct drm_device *dev;
 	struct drm_crtc *new_crtc;
 	struct drm_encoder *new_encoder;
 	struct drm_framebuffer *old_fb = NULL;
-	bool mode_changed = false; /* if true do a full mode set */
-	bool fb_changed = false; /* if true and !mode_changed just do a flip */
 	struct drm_connector *connector;
 	int count = 0, ro;
 	struct drm_mode_set save_set;
@@ -6860,33 +6892,11 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	save_set.y = set->crtc->y;
 	save_set.fb = set->crtc->fb;
 
-	/* We should be able to check here if the fb has the same properties
-	 * and then just flip_or_move it */
-	if (set->crtc->fb != set->fb) {
-		/* If we have no fb then treat it as a full mode set */
-		if (set->crtc->fb == NULL) {
-			DRM_DEBUG_KMS("crtc has no fb, full mode set\n");
-			mode_changed = true;
-		} else if (set->fb == NULL) {
-			mode_changed = true;
-		} else if (set->fb->depth != set->crtc->fb->depth) {
-			mode_changed = true;
-		} else if (set->fb->bits_per_pixel !=
-			   set->crtc->fb->bits_per_pixel) {
-			mode_changed = true;
-		} else
-			fb_changed = true;
-	}
-
-	if (set->x != set->crtc->x || set->y != set->crtc->y)
-		fb_changed = true;
-
-	if (set->mode && !drm_mode_equal(set->mode, &set->crtc->mode)) {
-		DRM_DEBUG_KMS("modes are different, full mode set\n");
-		drm_mode_debug_printmodeline(&set->crtc->mode);
-		drm_mode_debug_printmodeline(set->mode);
-		mode_changed = true;
-	}
+	/* Compute whether we need a full modeset, only an fb base update or no
+	 * change at all. In the future we might also check whether only the
+	 * mode changed, e.g. for LVDS where we only change the panel fitter in
+	 * such cases. */
+	intel_set_config_compute_mode_changes(set, config);
 
 	/* a) traverse passed in connector list and get encoders for them */
 	count = 0;
@@ -6902,7 +6912,7 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 
 		if (new_encoder != connector->encoder) {
 			DRM_DEBUG_KMS("encoder changed, full mode switch\n");
-			mode_changed = true;
+			config->mode_changed = true;
 			/* If the encoder is reused for another connector, then
 			 * the appropriate crtc will be set later.
 			 */
@@ -6930,12 +6940,11 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 		/* Make sure the new CRTC will work with the encoder */
 		if (new_crtc &&
 		    !intel_encoder_crtc_ok(connector->encoder, new_crtc)) {
-			ret = -EINVAL;
-			goto fail;
+			return -EINVAL;
 		}
 		if (new_crtc != connector->encoder->crtc) {
 			DRM_DEBUG_KMS("crtc changed, full mode switch\n");
-			mode_changed = true;
+			config->mode_changed = true;
 			connector->encoder->crtc = new_crtc;
 		}
 		if (new_crtc) {
@@ -6948,7 +6957,7 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 		}
 	}
 
-	if (mode_changed) {
+	if (config->mode_changed) {
 		set->crtc->enabled = drm_helper_crtc_in_use(set->crtc);
 		if (set->crtc->enabled) {
 			DRM_DEBUG_KMS("attempting to set mode from"
@@ -6972,7 +6981,7 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 			}
 		}
 		drm_helper_disable_unused_functions(dev);
-	} else if (fb_changed) {
+	} else if (config->fb_changed) {
 		set->crtc->x = set->x;
 		set->crtc->y = set->y;
 
@@ -6995,7 +7004,7 @@ fail:
 	intel_set_config_restore_state(dev, config);
 
 	/* Try to restore the config */
-	if (mode_changed &&
+	if (config->mode_changed &&
 	    !intel_set_mode(save_set.crtc, save_set.mode,
 			    save_set.x, save_set.y, save_set.fb))
 		DRM_ERROR("failed to restore config after modeset failure\n");
