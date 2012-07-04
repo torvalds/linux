@@ -53,11 +53,12 @@ static void mei_wd_set_start_timeout(struct mei_device *dev, u16 timeout)
 }
 
 /**
- * host_init_wd - mei initialization wd.
+ * mei_wd_host_init - connect to the watchdog client
  *
  * @dev: the device structure
  * returns -ENENT if wd client cannot be found
  *         -EIO if write has failed
+ *         0 on success
  */
 int mei_wd_host_init(struct mei_device *dev)
 {
