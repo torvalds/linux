@@ -7602,6 +7602,33 @@ intel_connector_break_all_links(struct intel_connector *connector)
 	connector->encoder->base.crtc = NULL;
 }
 
+static void intel_enable_pipe_a(struct drm_device *dev)
+{
+	struct intel_connector *connector;
+	struct drm_connector *crt = NULL;
+	struct intel_load_detect_pipe load_detect_temp;
+
+	/* We can't just switch on the pipe A, we need to set things up with a
+	 * proper mode and output configuration. As a gross hack, enable pipe A
+	 * by enabling the load detect pipe once. */
+	list_for_each_entry(connector,
+			    &dev->mode_config.connector_list,
+			    base.head) {
+		if (connector->encoder->type == INTEL_OUTPUT_ANALOG) {
+			crt = &connector->base;
+			break;
+		}
+	}
+
+	if (!crt)
+		return;
+
+	if (intel_get_load_detect_pipe(crt, NULL, &load_detect_temp))
+		intel_release_load_detect_pipe(crt, &load_detect_temp);
+
+
+}
+
 static void intel_sanitize_crtc(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
@@ -7649,6 +7676,15 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		crtc->base.enabled = false;
 	}
 ok:
+
+	if (dev_priv->quirks & QUIRK_PIPEA_FORCE &&
+	    crtc->pipe == PIPE_A && !crtc->active) {
+		/* BIOS forgot to enable pipe A, this mostly happens after
+		 * resume. Force-enable the pipe to fix this, the update_dpms
+		 * call below we restore the pipe to the right state, but leave
+		 * the required bits on. */
+		intel_enable_pipe_a(dev);
+	}
 
 	/* Adjust the state of the output pipe according to whether we
 	 * have active connectors/encoders. */
