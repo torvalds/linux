@@ -1605,8 +1605,9 @@ static void __init uncore_cpu_setup(void *dummy)
 
 static int __init uncore_cpu_init(void)
 {
-	int ret, cpu;
+	int ret, cpu, max_cores;
 
+	max_cores = boot_cpu_data.x86_max_cores;
 	switch (boot_cpu_data.x86_model) {
 	case 26: /* Nehalem */
 	case 30:
@@ -1615,9 +1616,13 @@ static int __init uncore_cpu_init(void)
 		msr_uncores = nhm_msr_uncores;
 		break;
 	case 42: /* Sandy Bridge */
+		if (snb_uncore_cbox.num_boxes > max_cores)
+			snb_uncore_cbox.num_boxes = max_cores;
 		msr_uncores = snb_msr_uncores;
 		break;
 	case 45: /* Sandy Birdge-EP */
+		if (snbep_uncore_cbox.num_boxes > max_cores)
+			snbep_uncore_cbox.num_boxes = max_cores;
 		msr_uncores = snbep_msr_uncores;
 		break;
 	default:
