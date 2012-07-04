@@ -120,7 +120,7 @@ static void enetsw_set(struct clk *clk, int enable)
 {
 	if (!BCMCPU_IS_6368())
 		return;
-	bcm_hwclock_set(CKCTL_6368_ROBOSW_CLK_EN |
+	bcm_hwclock_set(CKCTL_6368_ROBOSW_EN |
 			CKCTL_6368_SWPKT_USB_EN |
 			CKCTL_6368_SWPKT_SAR_EN, enable);
 	if (enable) {
@@ -163,7 +163,7 @@ static void usbh_set(struct clk *clk, int enable)
 	if (BCMCPU_IS_6348())
 		bcm_hwclock_set(CKCTL_6348_USBH_EN, enable);
 	else if (BCMCPU_IS_6368())
-		bcm_hwclock_set(CKCTL_6368_USBH_CLK_EN, enable);
+		bcm_hwclock_set(CKCTL_6368_USBH_EN, enable);
 }
 
 static struct clk clk_usbh = {
@@ -199,7 +199,7 @@ static void xtm_set(struct clk *clk, int enable)
 	if (!BCMCPU_IS_6368())
 		return;
 
-	bcm_hwclock_set(CKCTL_6368_SAR_CLK_EN |
+	bcm_hwclock_set(CKCTL_6368_SAR_EN |
 			CKCTL_6368_SWPKT_SAR_EN, enable);
 
 	if (enable) {
