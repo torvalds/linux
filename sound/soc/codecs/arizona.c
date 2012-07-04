@@ -518,7 +518,8 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 		rates = &arizona_48k_bclk_rates[0];
 
 	for (i = 0; i < ARRAY_SIZE(arizona_44k1_bclk_rates); i++) {
-		if (rates[i] == snd_soc_params_to_bclk(params)) {
+		if (rates[i] >= snd_soc_params_to_bclk(params) &&
+		    rates[i] % params_rate(params) == 0) {
 			bclk = i;
 			break;
 		}
