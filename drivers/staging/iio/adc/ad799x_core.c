@@ -350,10 +350,10 @@ static irqreturn_t ad799x_event_handler(int irq, void *private)
 
 	ret = ad799x_i2c_read8(st, AD7998_ALERT_STAT_REG, &status);
 	if (ret)
-		return ret;
+		goto done;
 
 	if (!status)
-		return -EIO;
+		goto done;
 
 	ad799x_i2c_write8(st, AD7998_ALERT_STAT_REG, AD7998_ALERT_STAT_CLEAR);
 
@@ -372,6 +372,7 @@ static irqreturn_t ad799x_event_handler(int irq, void *private)
 				       iio_get_time_ns());
 	}
 
+done:
 	return IRQ_HANDLED;
 }
 

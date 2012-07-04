@@ -81,8 +81,6 @@ static irqreturn_t ad799x_trigger_handler(int irq, void *p)
 	ring->access->store_to(indio_dev->buffer, rxbuf, time_ns);
 done:
 	kfree(rxbuf);
-	if (b_sent < 0)
-		return b_sent;
 out:
 	iio_trigger_notify_done(indio_dev->trig);
 
