@@ -895,7 +895,6 @@ xfs_dialloc(
 	umode_t			mode,
 	int			okalloc,
 	struct xfs_buf		**IO_agbp,
-	boolean_t		*alloc_done,
 	xfs_ino_t		*inop)
 {
 	struct xfs_buf		*agbp;
@@ -955,7 +954,6 @@ xfs_dialloc(
 	 * or in which we can allocate some inodes.  Iterate through the
 	 * allocation groups upward, wrapping at the end.
 	 */
-	*alloc_done = B_FALSE;
 	while (!agi->agi_freecount) {
 		/*
 		 * Don't do anything if we're not supposed to allocate
@@ -982,7 +980,6 @@ xfs_dialloc(
 				 * us again where we left off.
 				 */
 				ASSERT(be32_to_cpu(agi->agi_freecount) > 0);
-				*alloc_done = B_TRUE;
 				*IO_agbp = agbp;
 				*inop = NULLFSINO;
 				return 0;
