@@ -385,6 +385,29 @@ static const int arizona_48k_bclk_rates[] = {
 	24576000,
 };
 
+static const unsigned int arizona_48k_rates[] = {
+	12000,
+	24000,
+	48000,
+	96000,
+	192000,
+	384000,
+	768000,
+	4000,
+	8000,
+	16000,
+	32000,
+	64000,
+	128000,
+	256000,
+	512000,
+};
+
+static const struct snd_pcm_hw_constraint_list arizona_48k_constraint = {
+	.count	= ARRAY_SIZE(arizona_48k_rates),
+	.list	= arizona_48k_rates,
+};
+
 static const int arizona_44k1_bclk_rates[] = {
 	-1,
 	44100,
@@ -405,6 +428,21 @@ static const int arizona_44k1_bclk_rates[] = {
 	7526400,
 	11289600,
 	22579200,
+};
+
+static const unsigned int arizona_44k1_rates[] = {
+	11025,
+	22050,
+	44100,
+	88200,
+	176400,
+	352800,
+	705600,
+};
+
+static const struct snd_pcm_hw_constraint_list arizona_44k1_constraint = {
+	.count	= ARRAY_SIZE(arizona_44k1_rates),
+	.list	= arizona_44k1_rates,
 };
 
 static int arizona_sr_vals[] = {
@@ -433,6 +471,36 @@ static int arizona_sr_vals[] = {
 	256000,
 	512000,
 };
+
+static int arizona_startup(struct snd_pcm_substream *substream,
+			   struct snd_soc_dai *dai)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona_dai_priv *dai_priv = &priv->dai[dai->id - 1];
+	const struct snd_pcm_hw_constraint_list *constraint;
+	unsigned int base_rate;
+
+	switch (dai_priv->clk) {
+	case ARIZONA_CLK_SYSCLK:
+		base_rate = priv->sysclk;
+		break;
+	case ARIZONA_CLK_ASYNCCLK:
+		base_rate = priv->asyncclk;
+		break;
+	default:
+		return 0;
+	}
+
+	if (base_rate % 8000)
+		constraint = &arizona_44k1_constraint;
+	else
+		constraint = &arizona_48k_constraint;
+
+	return snd_pcm_hw_constraint_list(substream->runtime, 0,
+					  SNDRV_PCM_HW_PARAM_RATE,
+					  constraint);
+}
 
 static int arizona_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
@@ -501,10 +569,48 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int arizona_dai_set_sysclk(struct snd_soc_dai *dai,
+				  int clk_id, unsigned int freq, int dir)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona_dai_priv *dai_priv = &priv->dai[dai->id - 1];
+
+	switch (clk_id) {
+	case ARIZONA_CLK_SYSCLK:
+	case ARIZONA_CLK_ASYNCCLK:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (clk_id != dai_priv->clk && dai->active) {
+		dev_err(codec->dev, "Can't change clock on active DAI %d\n",
+			dai->id);
+		return -EBUSY;
+	}
+
+	dai_priv->clk = clk_id;
+
+	return 0;
+}
+
 const struct snd_soc_dai_ops arizona_dai_ops = {
+	.startup = arizona_startup,
 	.set_fmt = arizona_set_fmt,
 	.hw_params = arizona_hw_params,
+	.set_sysclk = arizona_dai_set_sysclk,
 };
+
+int arizona_init_dai(struct arizona_priv *priv, int id)
+{
+	struct arizona_dai_priv *dai_priv = &priv->dai[id];
+
+	dai_priv->clk = ARIZONA_CLK_SYSCLK;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_init_dai);
 
 static irqreturn_t arizona_fll_lock(int irq, void *data)
 {

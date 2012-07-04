@@ -832,6 +832,9 @@ static int __devinit wm5102_probe(struct platform_device *pdev)
 			 ARIZONA_IRQ_FLL2_LOCK, ARIZONA_IRQ_FLL2_CLOCK_OK,
 			 &wm5102->fll[1]);
 
+	for (i = 0; i < ARRAY_SIZE(wm5102_dai); i++)
+		arizona_init_dai(&wm5102->core, i);
+
 	/* Latch volume update bits */
 	for (i = 0; i < ARRAY_SIZE(wm5102_digital_vu); i++)
 		regmap_update_bits(arizona->regmap, wm5102_digital_vu[i],

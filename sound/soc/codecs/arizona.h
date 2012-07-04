@@ -44,12 +44,19 @@
 #define ARIZONA_MIXER_VOL_SHIFT                 1
 #define ARIZONA_MIXER_VOL_WIDTH                 7
 
+#define ARIZONA_MAX_DAI 3
+
 struct arizona;
+
+struct arizona_dai_priv {
+	int clk;
+};
 
 struct arizona_priv {
 	struct arizona *arizona;
 	int sysclk;
 	int asyncclk;
+	struct arizona_dai_priv dai[ARIZONA_MAX_DAI];
 };
 
 #define ARIZONA_NUM_MIXER_INPUTS 55
@@ -145,5 +152,7 @@ extern int arizona_init_fll(struct arizona *arizona, int id, int base,
 			    int lock_irq, int ok_irq, struct arizona_fll *fll);
 extern int arizona_set_fll(struct arizona_fll *fll, int source,
 			   unsigned int Fref, unsigned int Fout);
+
+extern int arizona_init_dai(struct arizona_priv *priv, int dai);
 
 #endif
