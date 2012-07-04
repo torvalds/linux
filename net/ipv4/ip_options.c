@@ -253,12 +253,15 @@ int ip_options_compile(struct net *net,
 {
 	__be32 spec_dst = (__force __be32) 0;
 	unsigned char *pp_ptr = NULL;
+	struct rtable *rt = NULL;
 	unsigned char *optptr;
 	unsigned char *iph;
 	int optlen, l;
 
 	if (skb != NULL) {
-		spec_dst = fib_compute_spec_dst(skb);
+		rt = skb_rtable(skb);
+		if (rt)
+			spec_dst = fib_compute_spec_dst(skb);
 		optptr = (unsigned char *)&(ip_hdr(skb)[1]);
 	} else
 		optptr = opt->__data;
@@ -330,7 +333,7 @@ int ip_options_compile(struct net *net,
 					pp_ptr = optptr + 2;
 					goto error;
 				}
-				if (skb) {
+				if (rt) {
 					memcpy(&optptr[optptr[2]-1], &spec_dst, 4);
 					opt->is_changed = 1;
 				}
@@ -372,7 +375,7 @@ int ip_options_compile(struct net *net,
 						goto error;
 					}
 					opt->ts = optptr - iph;
-					if (skb)  {
+					if (rt)  {
 						memcpy(&optptr[optptr[2]-1], &spec_dst, 4);
 						timeptr = &optptr[optptr[2]+3];
 					}
