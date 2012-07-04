@@ -89,6 +89,7 @@ static int bcm87xx_config_init(struct phy_device *phydev)
 	phydev->supported = SUPPORTED_10000baseR_FEC;
 	phydev->advertising = ADVERTISED_10000baseR_FEC;
 	phydev->state = PHY_NOLINK;
+	phydev->autoneg = AUTONEG_DISABLE;
 
 	bcm87xx_of_reg_init(phydev);
 
