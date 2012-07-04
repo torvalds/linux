@@ -168,7 +168,7 @@ static void __init eukrea_cpuimx35_init(void)
 			ARRAY_SIZE(eukrea_cpuimx35_pads));
 
 	imx35_add_fec(NULL);
-	imx35_add_imx2_wdt(NULL);
+	imx35_add_imx2_wdt();
 
 	imx35_add_imx_uart0(&uart_pdata);
 	imx35_add_mxc_nand(&eukrea_cpuimx35_nand_board_info);

@@ -408,8 +408,8 @@ static void __init pca100_init(void)
 	imx27_add_imx_fb(&pca100_fb_data);
 
 	imx27_add_fec(NULL);
-	imx27_add_imx2_wdt(NULL);
-	imx27_add_mxc_w1(NULL);
+	imx27_add_imx2_wdt();
+	imx27_add_mxc_w1();
 }
 
 static void __init pca100_timer_init(void)

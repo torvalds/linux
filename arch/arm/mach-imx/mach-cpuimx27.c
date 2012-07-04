@@ -266,8 +266,8 @@ static void __init eukrea_cpuimx27_init(void)
 
 	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
-	imx27_add_imx2_wdt(NULL);
-	imx27_add_mxc_w1(NULL);
+	imx27_add_imx2_wdt();
+	imx27_add_mxc_w1();
 
 #if defined(CONFIG_MACH_EUKREA_CPUIMX27_USESDHC2)
 	/* SDHC2 can be used for Wifi */

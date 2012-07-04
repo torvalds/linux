@@ -310,7 +310,7 @@ static void __init mx27ads_board_init(void)
 
 	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
-	imx27_add_mxc_w1(NULL);
+	imx27_add_mxc_w1();
 }
 
 static void __init mx27ads_timer_init(void)

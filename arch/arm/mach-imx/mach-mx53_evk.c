@@ -154,7 +154,7 @@ static void __init mx53_evk_board_init(void)
 	spi_register_board_info(mx53_evk_spi_board_info,
 		ARRAY_SIZE(mx53_evk_spi_board_info));
 	imx53_add_ecspi(0, &mx53_evk_spi_data);
-	imx53_add_imx2_wdt(0, NULL);
+	imx53_add_imx2_wdt(0);
 	gpio_led_register_device(-1, &mx53evk_leds_data);
 }
 

@@ -363,7 +363,7 @@ static void __init pcm043_init(void)
 
 	imx35_add_fec(NULL);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
-	imx35_add_imx2_wdt(NULL);
+	imx35_add_imx2_wdt();
 
 	imx35_add_imx_uart0(&uart_pdata);
 	imx35_add_mxc_nand(&pcm037_nand_board_info);
