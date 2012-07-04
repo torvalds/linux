@@ -434,7 +434,7 @@ static int __nmk_config_pins(pin_cfg_t *cfgs, int num, bool sleep)
 /**
  * nmk_config_pin - configure a pin's mux attributes
  * @cfg: pin confguration
- *
+ * @sleep: Non-zero to apply the sleep mode configuration
  * Configures a pin's mode (alternate function or GPIO), its pull up status,
  * and its sleep mode based on the specified configuration.  The @cfg is
  * usually one of the SoC specific macros defined in mach/<soc>-pins.h.  These
