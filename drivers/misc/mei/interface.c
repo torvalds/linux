@@ -135,7 +135,7 @@ int mei_write_message(struct mei_device *dev, struct mei_msg_hdr *header,
 	empty_slots = mei_hbuf_empty_slots(dev);
 	dev_dbg(&dev->pdev->dev, "empty slots = %hu.\n", empty_slots);
 
-	dw_cnt = (length + sizeof(*header) + 3) / 4;
+	dw_cnt = mei_data2slots(length);
 	if (empty_slots < 0 || dw_cnt > empty_slots)
 		return -EIO;
 

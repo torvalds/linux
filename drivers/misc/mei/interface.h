@@ -50,6 +50,12 @@ static inline size_t mei_hbuf_max_data(const struct mei_device *dev)
 	return dev->hbuf_depth * sizeof(u32) - sizeof(struct mei_msg_hdr);
 }
 
+/* get slots (dwords) from a message length + header (bytes) */
+static inline unsigned char mei_data2slots(size_t length)
+{
+	return DIV_ROUND_UP(sizeof(struct mei_msg_hdr) + length, 4);
+}
+
 int mei_count_full_read_slots(struct mei_device *dev);
 
 
