@@ -6723,17 +6723,29 @@ done:
 	return ret;
 }
 
+static void intel_set_config_free(struct intel_set_config *config)
+{
+	if (!config)
+		return;
+
+	kfree(config->save_connectors);
+	kfree(config->save_encoders);
+	kfree(config->save_crtcs);
+	kfree(config);
+}
+
 static int intel_crtc_set_config(struct drm_mode_set *set)
 {
 	struct drm_device *dev;
-	struct drm_crtc *save_crtcs, *new_crtc, *crtc;
-	struct drm_encoder *save_encoders, *new_encoder, *encoder;
+	struct drm_crtc *new_crtc, *crtc;
+	struct drm_encoder *new_encoder, *encoder;
 	struct drm_framebuffer *old_fb = NULL;
 	bool mode_changed = false; /* if true do a full mode set */
 	bool fb_changed = false; /* if true and !mode_changed just do a flip */
-	struct drm_connector *save_connectors, *connector;
+	struct drm_connector *connector;
 	int count = 0, ro;
 	struct drm_mode_set save_set;
+	struct intel_set_config *config;
 	int ret;
 	int i;
 
@@ -6762,27 +6774,27 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 
 	dev = set->crtc->dev;
 
+	ret = -ENOMEM;
+	config = kzalloc(sizeof(*config), GFP_KERNEL);
+	if (!config)
+		goto out_config;
+
 	/* Allocate space for the backup of all (non-pointer) crtc, encoder and
 	 * connector data. */
-	save_crtcs = kzalloc(dev->mode_config.num_crtc *
-			     sizeof(struct drm_crtc), GFP_KERNEL);
-	if (!save_crtcs)
-		return -ENOMEM;
+	config->save_crtcs = kzalloc(dev->mode_config.num_crtc *
+				     sizeof(struct drm_crtc), GFP_KERNEL);
+	if (!config->save_crtcs)
+		goto out_config;
 
-	save_encoders = kzalloc(dev->mode_config.num_encoder *
-				sizeof(struct drm_encoder), GFP_KERNEL);
-	if (!save_encoders) {
-		kfree(save_crtcs);
-		return -ENOMEM;
-	}
+	config->save_encoders = kzalloc(dev->mode_config.num_encoder *
+					sizeof(struct drm_encoder), GFP_KERNEL);
+	if (!config->save_encoders)
+		goto out_config;
 
-	save_connectors = kzalloc(dev->mode_config.num_connector *
-				sizeof(struct drm_connector), GFP_KERNEL);
-	if (!save_connectors) {
-		kfree(save_crtcs);
-		kfree(save_encoders);
-		return -ENOMEM;
-	}
+	config->save_connectors = kzalloc(dev->mode_config.num_connector *
+					  sizeof(struct drm_connector), GFP_KERNEL);
+	if (!config->save_connectors)
+		goto out_config;
 
 	/* Copy data. Note that driver private data is not affected.
 	 * Should anything bad happen only the expected state is
@@ -6790,17 +6802,17 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	 */
 	count = 0;
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		save_crtcs[count++] = *crtc;
+		config->save_crtcs[count++] = *crtc;
 	}
 
 	count = 0;
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		save_encoders[count++] = *encoder;
+		config->save_encoders[count++] = *encoder;
 	}
 
 	count = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		save_connectors[count++] = *connector;
+		config->save_connectors[count++] = *connector;
 	}
 
 	save_set.crtc = set->crtc;
@@ -6936,26 +6948,25 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 		}
 	}
 
-	kfree(save_connectors);
-	kfree(save_encoders);
-	kfree(save_crtcs);
+	intel_set_config_free(config);
+
 	return 0;
 
 fail:
 	/* Restore all previous data. */
 	count = 0;
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		*crtc = save_crtcs[count++];
+		*crtc = config->save_crtcs[count++];
 	}
 
 	count = 0;
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		*encoder = save_encoders[count++];
+		*encoder = config->save_encoders[count++];
 	}
 
 	count = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		*connector = save_connectors[count++];
+		*connector = config->save_connectors[count++];
 	}
 
 	/* Try to restore the config */
@@ -6964,9 +6975,8 @@ fail:
 			    save_set.x, save_set.y, save_set.fb))
 		DRM_ERROR("failed to restore config after modeset failure\n");
 
-	kfree(save_connectors);
-	kfree(save_encoders);
-	kfree(save_crtcs);
+out_config:
+	intel_set_config_free(config);
 	return ret;
 }
 

@@ -423,6 +423,12 @@ extern void intel_panel_disable_backlight(struct drm_device *dev);
 extern void intel_panel_destroy_backlight(struct drm_device *dev);
 extern enum drm_connector_status intel_panel_detect(struct drm_device *dev);
 
+struct intel_set_config {
+	struct drm_connector *save_connectors;
+	struct drm_encoder *save_encoders;
+	struct drm_crtc *save_crtcs;
+};
+
 extern bool intel_set_mode(struct drm_crtc *crtc, struct drm_display_mode *mode,
 			   int x, int y, struct drm_framebuffer *old_fb);
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
