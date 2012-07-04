@@ -250,23 +250,24 @@ static void notrace persistent_ram_update(struct persistent_ram_zone *prz,
 	persistent_ram_update_ecc(prz, start, count);
 }
 
-static void __init
-persistent_ram_save_old(struct persistent_ram_zone *prz)
+void persistent_ram_save_old(struct persistent_ram_zone *prz)
 {
 	struct persistent_ram_buffer *buffer = prz->buffer;
 	size_t size = buffer_size(prz);
 	size_t start = buffer_start(prz);
-	char *dest;
 
-	persistent_ram_ecc_old(prz);
+	if (!size)
+		return;
 
-	dest = kmalloc(size, GFP_KERNEL);
-	if (dest == NULL) {
+	if (!prz->old_log) {
+		persistent_ram_ecc_old(prz);
+		prz->old_log = kmalloc(size, GFP_KERNEL);
+	}
+	if (!prz->old_log) {
 		pr_err("persistent_ram: failed to allocate buffer\n");
 		return;
 	}
 
-	prz->old_log = dest;
 	prz->old_log_size = size;
 	memcpy(prz->old_log, &buffer->data[start], size - start);
 	memcpy(prz->old_log + size - start, &buffer->data[0], start);
@@ -317,6 +318,13 @@ void persistent_ram_free_old(struct persistent_ram_zone *prz)
 	kfree(prz->old_log);
 	prz->old_log = NULL;
 	prz->old_log_size = 0;
+}
+
+void persistent_ram_zap(struct persistent_ram_zone *prz)
+{
+	atomic_set(&prz->buffer->start, 0);
+	atomic_set(&prz->buffer->size, 0);
+	persistent_ram_update_header_ecc(prz);
 }
 
 static void *persistent_ram_vmap(phys_addr_t start, size_t size)
@@ -405,6 +413,7 @@ static int __init persistent_ram_post_init(struct persistent_ram_zone *prz, bool
 				" size %zu, start %zu\n",
 			       buffer_size(prz), buffer_start(prz));
 			persistent_ram_save_old(prz);
+			return 0;
 		}
 	} else {
 		pr_info("persistent_ram: no valid data in buffer"
@@ -412,8 +421,7 @@ static int __init persistent_ram_post_init(struct persistent_ram_zone *prz, bool
 	}
 
 	prz->buffer->sig = PERSISTENT_RAM_SIG;
-	atomic_set(&prz->buffer->start, 0);
-	atomic_set(&prz->buffer->size, 0);
+	persistent_ram_zap(prz);
 
 	return 0;
 }
@@ -448,7 +456,6 @@ struct persistent_ram_zone * __init persistent_ram_new(phys_addr_t start,
 		goto err;
 
 	persistent_ram_post_init(prz, ecc);
-	persistent_ram_update_header_ecc(prz);
 
 	return prz;
 err:

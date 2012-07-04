@@ -1218,6 +1218,11 @@ audio_mux(struct bttv *btv, int input, int mute)
 		   For now this is sufficient. */
 		switch (input) {
 		case TVAUDIO_INPUT_RADIO:
+			/* Some boards need the msp do to the radio demod */
+			if (btv->radio_uses_msp_demodulator) {
+				in = MSP_INPUT_DEFAULT;
+				break;
+			}
 			in = MSP_INPUT(MSP_IN_SCART2, MSP_IN_TUNER1,
 				    MSP_DSP_IN_SCART, MSP_DSP_IN_SCART);
 			break;

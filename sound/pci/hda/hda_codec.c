@@ -2676,25 +2676,6 @@ int snd_hda_mixer_amp_switch_put(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_HDA(snd_hda_mixer_amp_switch_put);
 
-#ifdef CONFIG_SND_HDA_INPUT_BEEP
-/**
- * snd_hda_mixer_amp_switch_put_beep - Put callback for a beep AMP switch
- *
- * This function calls snd_hda_enable_beep_device(), which behaves differently
- * depending on beep_mode option.
- */
-int snd_hda_mixer_amp_switch_put_beep(struct snd_kcontrol *kcontrol,
-				      struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	long *valp = ucontrol->value.integer.value;
-
-	snd_hda_enable_beep_device(codec, *valp);
-	return snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
-}
-EXPORT_SYMBOL_HDA(snd_hda_mixer_amp_switch_put_beep);
-#endif /* CONFIG_SND_HDA_INPUT_BEEP */
-
 /*
  * bound volume controls
  *

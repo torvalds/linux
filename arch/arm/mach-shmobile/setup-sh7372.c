@@ -484,7 +484,7 @@ static const struct sh_dmae_slave_config sh7372_dmae_slaves[] = {
 	},
 };
 
-#define SH7372_CHCLR 0x220
+#define SH7372_CHCLR (0x220 - 0x20)
 
 static const struct sh_dmae_channel sh7372_dmae_channels[] = {
 	{

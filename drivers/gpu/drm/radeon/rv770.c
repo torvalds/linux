@@ -616,6 +616,9 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 				       ACK_FLUSH_CTL(3) |
 				       SYNC_FLUSH_CTL));
 
+	if (rdev->family != CHIP_RV770)
+		WREG32(SMX_SAR_CTL0, 0x00003f3f);
+
 	db_debug3 = RREG32(DB_DEBUG3);
 	db_debug3 &= ~DB_CLK_OFF_DELAY(0x1f);
 	switch (rdev->family) {
@@ -792,7 +795,7 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 
 	WREG32(PA_CL_ENHANCE, (CLIP_VTX_REORDER_ENA |
 					  NUM_CLIP_SEQ(3)));
-
+	WREG32(VC_ENHANCE, 0);
 }
 
 void r700_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
@@ -956,6 +959,12 @@ static int rv770_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	r = r600_audio_init(rdev);
+	if (r) {
+		DRM_ERROR("radeon: audio init failed\n");
+		return r;
+	}
+
 	return 0;
 }
 
@@ -975,12 +984,6 @@ int rv770_resume(struct radeon_device *rdev)
 	if (r) {
 		DRM_ERROR("r600 startup failed on resume\n");
 		rdev->accel_working = false;
-		return r;
-	}
-
-	r = r600_audio_init(rdev);
-	if (r) {
-		dev_err(rdev->dev, "radeon: audio init failed\n");
 		return r;
 	}
 
@@ -1090,12 +1093,6 @@ int rv770_init(struct radeon_device *rdev)
 		radeon_irq_kms_fini(rdev);
 		rv770_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
-	}
-
-	r = r600_audio_init(rdev);
-	if (r) {
-		dev_err(rdev->dev, "radeon: audio init failed\n");
-		return r;
 	}
 
 	return 0;

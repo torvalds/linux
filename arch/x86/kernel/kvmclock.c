@@ -120,11 +120,6 @@ bool kvm_check_and_clear_guest_paused(void)
 	bool ret = false;
 	struct pvclock_vcpu_time_info *src;
 
-	/*
-	 * per_cpu() is safe here because this function is only called from
-	 * timer functions where preemption is already disabled.
-	 */
-	WARN_ON(!in_atomic());
 	src = &__get_cpu_var(hv_clock);
 	if ((src->flags & PVCLOCK_GUEST_STOPPED) != 0) {
 		__this_cpu_and(hv_clock.flags, ~PVCLOCK_GUEST_STOPPED);

@@ -224,5 +224,19 @@ config FONT_10x18
 	  big letters. It fits between the sun 12x22 and the normal 8x16 font.
 	  If other fonts are too big or too small for you, say Y, otherwise say N.
 
+config FONT_AUTOSELECT
+	def_bool y
+	depends on FRAMEBUFFER_CONSOLE || SGI_NEWPORT_CONSOLE || STI_CONSOLE || USB_SISUSBVGA_CON
+	depends on !FONT_8x8
+	depends on !FONT_6x11
+	depends on !FONT_7x14
+	depends on !FONT_PEARL_8x8
+	depends on !FONT_ACORN_8x8
+	depends on !FONT_MINI_4x6
+	depends on !FONT_SUN8x16
+	depends on !FONT_SUN12x22
+	depends on !FONT_10x18
+	select FONT_8x16
+
 endmenu
 
