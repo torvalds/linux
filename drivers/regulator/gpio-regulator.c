@@ -39,7 +39,6 @@ struct gpio_regulator_data {
 	int enable_gpio;
 	bool enable_high;
 	bool is_enabled;
-	unsigned startup_delay;
 
 	struct gpio *gpios;
 	int nr_gpios;
@@ -79,13 +78,6 @@ static int gpio_regulator_disable(struct regulator_dev *dev)
 	}
 
 	return 0;
-}
-
-static int gpio_regulator_enable_time(struct regulator_dev *dev)
-{
-	struct gpio_regulator_data *data = rdev_get_drvdata(dev);
-
-	return data->startup_delay;
 }
 
 static int gpio_regulator_get_value(struct regulator_dev *dev)
@@ -156,7 +148,6 @@ static struct regulator_ops gpio_regulator_voltage_ops = {
 	.is_enabled = gpio_regulator_is_enabled,
 	.enable = gpio_regulator_enable,
 	.disable = gpio_regulator_disable,
-	.enable_time = gpio_regulator_enable_time,
 	.get_voltage = gpio_regulator_get_value,
 	.set_voltage = gpio_regulator_set_voltage,
 	.list_voltage = gpio_regulator_list_voltage,
@@ -166,7 +157,6 @@ static struct regulator_ops gpio_regulator_current_ops = {
 	.is_enabled = gpio_regulator_is_enabled,
 	.enable = gpio_regulator_enable,
 	.disable = gpio_regulator_disable,
-	.enable_time = gpio_regulator_enable_time,
 	.get_current_limit = gpio_regulator_get_value,
 	.set_current_limit = gpio_regulator_set_current_limit,
 };
@@ -213,6 +203,7 @@ static int __devinit gpio_regulator_probe(struct platform_device *pdev)
 	drvdata->nr_states = config->nr_states;
 
 	drvdata->desc.owner = THIS_MODULE;
+	drvdata->desc.enable_time = config->startup_delay;
 
 	/* handle regulator type*/
 	switch (config->type) {
@@ -233,7 +224,6 @@ static int __devinit gpio_regulator_probe(struct platform_device *pdev)
 	}
 
 	drvdata->enable_gpio = config->enable_gpio;
-	drvdata->startup_delay = config->startup_delay;
 
 	if (gpio_is_valid(config->enable_gpio)) {
 		drvdata->enable_high = config->enable_high;
