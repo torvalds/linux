@@ -96,9 +96,18 @@ i915_gem_wait_for_error(struct drm_device *dev)
 	if (!atomic_read(&dev_priv->mm.wedged))
 		return 0;
 
-	ret = wait_for_completion_interruptible(x);
-	if (ret)
+	/*
+	 * Only wait 10 seconds for the gpu reset to complete to avoid hanging
+	 * userspace. If it takes that long something really bad is going on and
+	 * we should simply try to bail out and fail as gracefully as possible.
+	 */
+	ret = wait_for_completion_interruptible_timeout(x, 10*HZ);
+	if (ret == 0) {
+		DRM_ERROR("Timed out waiting for the gpu reset to complete\n");
+		return -EIO;
+	} else if (ret < 0) {
 		return ret;
+	}
 
 	if (atomic_read(&dev_priv->mm.wedged)) {
 		/* GPU is hung, bump the completion count to account for
