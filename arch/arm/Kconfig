@@ -495,7 +495,6 @@ config ARCH_IOP32X
 	bool "IOP32x-based"
 	depends on MMU
 	select CPU_XSCALE
-	select NEED_MACH_IO_H
 	select NEED_RET_TO_USER
 	select PLAT_IOP
 	select PCI
@@ -508,7 +507,6 @@ config ARCH_IOP33X
 	bool "IOP33x-based"
 	depends on MMU
 	select CPU_XSCALE
-	select NEED_MACH_IO_H
 	select NEED_RET_TO_USER
 	select PLAT_IOP
 	select PCI
