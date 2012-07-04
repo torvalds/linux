@@ -363,7 +363,7 @@ static int arizona_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
-static const int arizona_48k_rates[] = {
+static const int arizona_48k_bclk_rates[] = {
 	-1,
 	48000,
 	64000,
@@ -385,7 +385,7 @@ static const int arizona_48k_rates[] = {
 	24576000,
 };
 
-static const int arizona_44k1_rates[] = {
+static const int arizona_44k1_bclk_rates[] = {
 	-1,
 	44100,
 	58800,
@@ -445,17 +445,17 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 	int bclk, lrclk, wl, frame, sr_val;
 
 	if (params_rate(params) % 8000)
-		rates = &arizona_44k1_rates[0];
+		rates = &arizona_44k1_bclk_rates[0];
 	else
-		rates = &arizona_48k_rates[0];
+		rates = &arizona_48k_bclk_rates[0];
 
-	for (i = 0; i < ARRAY_SIZE(arizona_44k1_rates); i++) {
+	for (i = 0; i < ARRAY_SIZE(arizona_44k1_bclk_rates); i++) {
 		if (rates[i] == snd_soc_params_to_bclk(params)) {
 			bclk = i;
 			break;
 		}
 	}
-	if (i == ARRAY_SIZE(arizona_44k1_rates)) {
+	if (i == ARRAY_SIZE(arizona_44k1_bclk_rates)) {
 		arizona_aif_err(dai, "Unsupported sample rate %dHz\n",
 				params_rate(params));
 		return -EINVAL;
