@@ -146,6 +146,7 @@ VERSION
 		__kernel_sync_dicache;
 		__kernel_sync_dicache_p5;
 		__kernel_sigtramp_rt64;
+		__kernel_getcpu;
 
 	local: *;
 	};
