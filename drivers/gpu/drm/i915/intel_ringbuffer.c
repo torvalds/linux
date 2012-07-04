@@ -1228,8 +1228,10 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 		}
 
 		msleep(1);
-		if (atomic_read(&dev_priv->mm.wedged))
-			return -EAGAIN;
+
+		ret = i915_gem_check_wedge(dev_priv, dev_priv->mm.interruptible);
+		if (ret)
+			return ret;
 	} while (!time_after(jiffies, end));
 	trace_i915_ring_wait_end(ring);
 	return -EBUSY;
