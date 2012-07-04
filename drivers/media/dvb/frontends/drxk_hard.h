@@ -353,6 +353,7 @@ struct drxk_state {
 	const char *microcode_name;
 	struct completion fw_wait_load;
 	const struct firmware *fw;
+	int qam_demod_parameter_count;
 };
 
 #define NEVER_LOCK 0

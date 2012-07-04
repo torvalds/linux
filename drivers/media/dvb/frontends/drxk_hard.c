@@ -5415,12 +5415,67 @@ static int GetQAMLockStatus(struct drxk_state *state, u32 *pLockStatus)
 #define QAM_LOCKRANGE__M      0x10
 #define QAM_LOCKRANGE_NORMAL  0x10
 
+static int QAMDemodulatorCommand(struct drxk_state *state,
+				 int numberOfParameters)
+{
+	int status;
+	u16 cmdResult;
+	u16 setParamParameters[4] = { 0, 0, 0, 0 };
+
+	setParamParameters[0] = state->m_Constellation;	/* modulation     */
+	setParamParameters[1] = DRXK_QAM_I12_J17;	/* interleave mode   */
+
+	if (numberOfParameters == 2) {
+		u16 setEnvParameters[1] = { 0 };
+
+		if (state->m_OperationMode == OM_QAM_ITU_C)
+			setEnvParameters[0] = QAM_TOP_ANNEX_C;
+		else
+			setEnvParameters[0] = QAM_TOP_ANNEX_A;
+
+		status = scu_command(state,
+				     SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_ENV,
+				     1, setEnvParameters, 1, &cmdResult);
+		if (status < 0)
+			goto error;
+
+		status = scu_command(state,
+				     SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_PARAM,
+				     numberOfParameters, setParamParameters,
+				     1, &cmdResult);
+	} else if (numberOfParameters == 4) {
+		if (state->m_OperationMode == OM_QAM_ITU_C)
+			setParamParameters[2] = QAM_TOP_ANNEX_C;
+		else
+			setParamParameters[2] = QAM_TOP_ANNEX_A;
+
+		setParamParameters[3] |= (QAM_MIRROR_AUTO_ON);
+		/* Env parameters */
+		/* check for LOCKRANGE Extented */
+		/* setParamParameters[3] |= QAM_LOCKRANGE_NORMAL; */
+
+		status = scu_command(state,
+				     SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_PARAM,
+				     numberOfParameters, setParamParameters,
+				     1, &cmdResult);
+	} else {
+		printk(KERN_WARNING "drxk: Unknown QAM demodulator parameter "
+			"count %d\n", numberOfParameters);
+	}
+
+error:
+	if (status < 0)
+		printk(KERN_WARNING "drxk: Warning %d on %s\n",
+		       status, __func__);
+	return status;
+}
+
 static int SetQAM(struct drxk_state *state, u16 IntermediateFreqkHz,
 		  s32 tunerFreqOffset)
 {
 	int status;
-	u16 setParamParameters[4] = { 0, 0, 0, 0 };
 	u16 cmdResult;
+	int qamDemodParamCount = state->qam_demod_parameter_count;
 
 	dprintk(1, "\n");
 	/*
@@ -5472,34 +5527,40 @@ static int SetQAM(struct drxk_state *state, u16 IntermediateFreqkHz,
 	}
 	if (status < 0)
 		goto error;
-	setParamParameters[0] = state->m_Constellation;	/* modulation     */
-	setParamParameters[1] = DRXK_QAM_I12_J17;	/* interleave mode   */
-	if (state->m_OperationMode == OM_QAM_ITU_C)
-		setParamParameters[2] = QAM_TOP_ANNEX_C;
-	else
-		setParamParameters[2] = QAM_TOP_ANNEX_A;
-	setParamParameters[3] |= (QAM_MIRROR_AUTO_ON);
-	/* Env parameters */
-	/* check for LOCKRANGE Extented */
-	/* setParamParameters[3] |= QAM_LOCKRANGE_NORMAL; */
 
-	status = scu_command(state, SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_PARAM, 4, setParamParameters, 1, &cmdResult);
-	if (status < 0) {
-		/* Fall-back to the simpler call */
-		if (state->m_OperationMode == OM_QAM_ITU_C)
-			setParamParameters[0] = QAM_TOP_ANNEX_C;
-		else
-			setParamParameters[0] = QAM_TOP_ANNEX_A;
-		status = scu_command(state, SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_ENV, 1, setParamParameters, 1, &cmdResult);
-		if (status < 0)
-			goto error;
-
-		setParamParameters[0] = state->m_Constellation; /* modulation     */
-		setParamParameters[1] = DRXK_QAM_I12_J17;       /* interleave mode   */
-		status = scu_command(state, SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_PARAM, 2, setParamParameters, 1, &cmdResult);
+	/* Use the 4-parameter if it's requested or we're probing for
+	 * the correct command. */
+	if (state->qam_demod_parameter_count == 4
+		|| !state->qam_demod_parameter_count) {
+		qamDemodParamCount = 4;
+		status = QAMDemodulatorCommand(state, qamDemodParamCount);
 	}
-	if (status < 0)
+
+	/* Use the 2-parameter command if it was requested or if we're
+	 * probing for the correct command and the 4-parameter command
+	 * failed. */
+	if (state->qam_demod_parameter_count == 2
+		|| (!state->qam_demod_parameter_count && status < 0)) {
+		qamDemodParamCount = 2;
+		status = QAMDemodulatorCommand(state, qamDemodParamCount);
+	}
+
+	if (status < 0) {
+		dprintk(1, "Could not set demodulator parameters. Make "
+			"sure qam_demod_parameter_count (%d) is correct for "
+			"your firmware (%s).\n",
+			state->qam_demod_parameter_count,
+			state->microcode_name);
 		goto error;
+	} else if (!state->qam_demod_parameter_count) {
+		dprintk(1, "Auto-probing the correct QAM demodulator command "
+			"parameters was successful - using %d parameters.\n",
+			qamDemodParamCount);
+
+		/* One of our commands was successful. We don't need to
+		/* auto-probe anymore, now that we got the correct command. */
+		state->qam_demod_parameter_count = qamDemodParamCount;
+	}
 
 	/*
 	 * STEP 3: enable the system in a mode where the ADC provides valid
@@ -6502,6 +6563,7 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 	state->demod_address = adr;
 	state->single_master = config->single_master;
 	state->microcode_name = config->microcode_name;
+	state->qam_demod_parameter_count = config->qam_demod_parameter_count;
 	state->no_i2c_bridge = config->no_i2c_bridge;
 	state->antenna_gpio = config->antenna_gpio;
 	state->antenna_dvbt = config->antenna_dvbt;

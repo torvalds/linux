@@ -315,6 +315,7 @@ static struct drxk_config terratec_h5_drxk = {
 	.single_master = 1,
 	.no_i2c_bridge = 1,
 	.microcode_name = "dvb-usb-terratec-h5-drxk.fw",
+	.qam_demod_parameter_count = 2,
 };
 
 static struct drxk_config hauppauge_930c_drxk = {
@@ -323,6 +324,7 @@ static struct drxk_config hauppauge_930c_drxk = {
 	.no_i2c_bridge = 1,
 	.microcode_name = "dvb-usb-hauppauge-hvr930c-drxk.fw",
 	.chunk_size = 56,
+	.qam_demod_parameter_count = 2,
 };
 
 struct drxk_config terratec_htc_stick_drxk = {
@@ -331,6 +333,7 @@ struct drxk_config terratec_htc_stick_drxk = {
 	.no_i2c_bridge = 1,
 	.microcode_name = "dvb-usb-terratec-htc-stick-drxk.fw",
 	.chunk_size = 54,
+	.qam_demod_parameter_count = 2,
 	/* Required for the antenna_gpio to disable LNA. */
 	.antenna_dvbt = true,
 	/* The windows driver uses the same. This will disable LNA. */
@@ -347,6 +350,7 @@ static struct drxk_config pctv_520e_drxk = {
 	.adr = 0x29,
 	.single_master = 1,
 	.microcode_name = "dvb-demod-drxk-pctv.fw",
+	.qam_demod_parameter_count = 2,
 	.chunk_size = 58,
 	.antenna_dvbt = true, /* disable LNA */
 	.antenna_gpio = (1 << 2), /* disable LNA */
