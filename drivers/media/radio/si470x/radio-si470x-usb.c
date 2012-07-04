@@ -51,6 +51,8 @@ static struct usb_device_id si470x_usb_driver_id_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1b80, 0xd700, USB_CLASS_HID, 0, 0) },
 	/* Sanei Electric, Inc. FM USB Radio (sold as DealExtreme.com PCear) */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x10c5, 0x819a, USB_CLASS_HID, 0, 0) },
+	/* Axentia ALERT FM USB Receiver */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x12cf, 0x7111, USB_CLASS_HID, 0, 0) },
 	/* Terminating entry */
 	{ }
 };
