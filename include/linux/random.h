@@ -50,6 +50,7 @@ struct rnd_state {
 
 extern void rand_initialize_irq(int irq);
 
+extern void add_device_randomness(const void *, unsigned int);
 extern void add_input_randomness(unsigned int type, unsigned int code,
 				 unsigned int value);
 extern void add_interrupt_randomness(int irq, int irq_flags);
