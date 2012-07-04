@@ -22,7 +22,7 @@
 
 #if IS_ENABLED(CONFIG_OF_MDIO)
 /* Set and/or override some configuration registers based on the
- * marvell,reg-init property stored in the of_node for the phydev.
+ * broadcom,c45-reg-init property stored in the of_node for the phydev.
  *
  * broadcom,c45-reg-init = <devid reg mask value>,...;
  *
