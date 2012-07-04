@@ -64,11 +64,11 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 	 * no harm.
 	 */
 	if (numvals == 0)
-		return IRQ_HANDLED;
+		goto done;
 
 	rxbuf = kmalloc(d_size,	GFP_KERNEL);
 	if (rxbuf == NULL)
-		return -ENOMEM;
+		goto done;
 	if (st->chip_info->bits != 8)
 		b_sent = i2c_master_recv(st->client, rxbuf, numvals*2);
 	else
