@@ -98,12 +98,11 @@ static int pca953x_write_reg(struct pca953x_chip *chip, int reg, u32 val)
 	if (chip->gpio_chip.ngpio <= 8)
 		ret = i2c_smbus_write_byte_data(chip->client, reg, val);
 	else if (chip->gpio_chip.ngpio == 24) {
-		ret = i2c_smbus_write_word_data(chip->client,
+		cpu_to_le32s(&val);
+		ret = i2c_smbus_write_i2c_block_data(chip->client,
 						(reg << 2) | REG_ADDR_AI,
-						val & 0xffff);
-		ret = i2c_smbus_write_byte_data(chip->client,
-						(reg << 2) + 2,
-						(val & 0xff0000) >> 16);
+						3,
+						(u8 *) &val);
 	}
 	else {
 		switch (chip->chip_type) {
@@ -135,22 +134,27 @@ static int pca953x_read_reg(struct pca953x_chip *chip, int reg, u32 *val)
 {
 	int ret;
 
-	if (chip->gpio_chip.ngpio <= 8)
+	if (chip->gpio_chip.ngpio <= 8) {
 		ret = i2c_smbus_read_byte_data(chip->client, reg);
-	else if (chip->gpio_chip.ngpio == 24) {
-		ret =  i2c_smbus_read_word_data(chip->client, reg << 2);
-		ret |= (i2c_smbus_read_byte_data(chip->client,
-						 (reg << 2) + 2)<<16);
+		*val = ret;
 	}
-	else
+	else if (chip->gpio_chip.ngpio == 24) {
+		*val = 0;
+		ret = i2c_smbus_read_i2c_block_data(chip->client,
+						(reg << 2) | REG_ADDR_AI,
+						3,
+						(u8 *) val);
+		le32_to_cpus(val);
+	} else {
 		ret = i2c_smbus_read_word_data(chip->client, reg << 1);
+		*val = ret;
+	}
 
 	if (ret < 0) {
 		dev_err(&chip->client->dev, "failed reading register\n");
 		return ret;
 	}
 
-	*val = (u32)ret;
 	return 0;
 }
 
