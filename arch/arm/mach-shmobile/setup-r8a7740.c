@@ -675,6 +675,7 @@ void __init r8a7740_add_standard_devices(void)
 	/* PM domain */
 	rmobile_init_pm_domain(&r8a7740_pd_a4s);
 	rmobile_init_pm_domain(&r8a7740_pd_a3sp);
+	rmobile_init_pm_domain(&r8a7740_pd_a4lc);
 
 	rmobile_pm_add_subdomain(&r8a7740_pd_a4s, &r8a7740_pd_a3sp);
 

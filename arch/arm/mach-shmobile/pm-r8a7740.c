@@ -46,4 +46,9 @@ struct rmobile_pm_domain r8a7740_pd_a3sp = {
 	.suspend	= r8a7740_pd_a3sp_suspend,
 };
 
+struct rmobile_pm_domain r8a7740_pd_a4lc = {
+	.genpd.name	= "A4LC",
+	.bit_shift	= 1,
+};
+
 #endif /* CONFIG_PM */
