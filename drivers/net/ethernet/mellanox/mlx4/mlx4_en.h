@@ -75,6 +75,7 @@
 #define STAMP_SHIFT		31
 #define STAMP_VAL		0x7fffffff
 #define STATS_DELAY		(HZ / 4)
+#define MAX_NUM_OF_FS_RULES	256
 
 /* Typical TSO descriptor with 16 gather entries is 352 bytes... */
 #define MAX_DESC_SIZE		512
@@ -435,6 +436,11 @@ struct mlx4_en_frag_info {
 
 #endif
 
+struct ethtool_flow_id {
+	struct ethtool_rx_flow_spec flow_spec;
+	u64 id;
+};
+
 struct mlx4_en_priv {
 	struct mlx4_en_dev *mdev;
 	struct mlx4_en_port_profile *prof;
@@ -444,6 +450,7 @@ struct mlx4_en_priv {
 	struct net_device_stats ret_stats;
 	struct mlx4_en_port_state port_state;
 	spinlock_t stats_lock;
+	struct ethtool_flow_id ethtool_rules[MAX_NUM_OF_FS_RULES];
 
 	unsigned long last_moder_packets[MAX_RX_RINGS];
 	unsigned long last_moder_tx_packets;
