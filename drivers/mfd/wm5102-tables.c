@@ -813,7 +813,6 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x0000021A, 0x01A6 },   /* R538   - Mic Bias Ctrl 3 */ 
 	{ 0x00000293, 0x0000 },   /* R659   - Accessory Detect Mode 1 */ 
 	{ 0x0000029B, 0x0020 },   /* R667   - Headphone Detect 1 */ 
-	{ 0x0000029C, 0x0000 },   /* R668   - Headphone Detect 2 */ 
 	{ 0x000002A3, 0x1102 },   /* R675   - Mic Detect 1 */ 
 	{ 0x000002A4, 0x009F },   /* R676   - Mic Detect 2 */ 
 	{ 0x000002A5, 0x0000 },   /* R677   - Mic Detect 3 */ 
@@ -2362,6 +2361,7 @@ static bool wm5102_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_AOD_IRQ_RAW_STATUS:
 	case ARIZONA_DSP1_STATUS_1:
 	case ARIZONA_DSP1_STATUS_2:
+	case ARIZONA_HEADPHONE_DETECT_2:
 	case ARIZONA_MIC_DETECT_3:
 		return true;
 	default:
