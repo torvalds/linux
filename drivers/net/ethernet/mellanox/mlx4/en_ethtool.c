@@ -821,7 +821,7 @@ static int mlx4_en_flow_replace(struct net_device *dev,
 
 	/* Allow direct QP attaches if the EN_ETHTOOL_QP_ATTACH flag is set */
 	if (cmd->fs.ring_cookie == RX_CLS_FLOW_DISC)
-		return -EINVAL;
+		qpn = priv->drop_qp.qpn;
 	else if (cmd->fs.ring_cookie & EN_ETHTOOL_QP_ATTACH) {
 		qpn = cmd->fs.ring_cookie & (EN_ETHTOOL_QP_ATTACH - 1);
 	} else {

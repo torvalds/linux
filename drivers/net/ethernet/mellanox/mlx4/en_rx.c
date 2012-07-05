@@ -844,6 +844,36 @@ out:
 	return err;
 }
 
+int mlx4_en_create_drop_qp(struct mlx4_en_priv *priv)
+{
+	int err;
+	u32 qpn;
+
+	err = mlx4_qp_reserve_range(priv->mdev->dev, 1, 1, &qpn);
+	if (err) {
+		en_err(priv, "Failed reserving drop qpn\n");
+		return err;
+	}
+	err = mlx4_qp_alloc(priv->mdev->dev, qpn, &priv->drop_qp);
+	if (err) {
+		en_err(priv, "Failed allocating drop qp\n");
+		mlx4_qp_release_range(priv->mdev->dev, qpn, 1);
+		return err;
+	}
+
+	return 0;
+}
+
+void mlx4_en_destroy_drop_qp(struct mlx4_en_priv *priv)
+{
+	u32 qpn;
+
+	qpn = priv->drop_qp.qpn;
+	mlx4_qp_remove(priv->mdev->dev, &priv->drop_qp);
+	mlx4_qp_free(priv->mdev->dev, &priv->drop_qp);
+	mlx4_qp_release_range(priv->mdev->dev, qpn, 1);
+}
+
 /* Allocate rx qp's and configure them according to rss map */
 int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 {
