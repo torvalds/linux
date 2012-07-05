@@ -273,7 +273,7 @@ static inline struct rt6_info *ip6_dst_alloc(struct net *net,
 					0, 0, flags);
 
 	if (rt) {
-		memset(&rt->rt6i_table, 0,
+		memset(&rt->n, 0,
 		       sizeof(*rt) - sizeof(struct dst_entry));
 		rt6_init_peer(rt, table ? &table->tb6_peers : net->ipv6.peers);
 	}
