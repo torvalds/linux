@@ -124,6 +124,69 @@
 				      >;
 
 				/* shared pinctrl settings */
+				dbgu {
+					pinctrl_dbgu: dbgu-0 {
+						atmel,pins =
+							<1 12 0x1 0x0	/* PB12 periph A */
+							 1 13 0x1 0x0>;	/* PB13 periph A */
+					};
+				};
+
+				uart0 {
+					pinctrl_uart0: uart0-0 {
+						atmel,pins =
+							<1 19 0x1 0x1	/* PB19 periph A with pullup */
+							 1 18 0x1 0x0>;	/* PB18 periph A */
+					};
+
+					pinctrl_uart0_rts_cts: uart0_rts_cts-0 {
+						atmel,pins =
+							<1 17 0x2 0x0	/* PB17 periph B */
+							 1 15 0x2 0x0>;	/* PB15 periph B */
+					};
+				};
+
+				uart1 {
+					pinctrl_uart1: uart1-0 {
+						atmel,pins =
+							<1 4 0x1 0x1	/* PB4 periph A with pullup */
+							 1 5 0x1 0x0>;	/* PB5 periph A */
+					};
+
+					pinctrl_uart1_rts_cts: uart1_rts_cts-0 {
+						atmel,pins =
+							<3 16 0x1 0x0	/* PD16 periph A */
+							 3 17 0x1 0x0>;	/* PD17 periph A */
+					};
+				};
+
+				uart2 {
+					pinctrl_uart2: uart2-0 {
+						atmel,pins =
+							<1 6 0x1 0x1	/* PB6 periph A with pullup */
+							 1 7 0x1 0x0>;	/* PB7 periph A */
+					};
+
+					pinctrl_uart2_rts_cts: uart2_rts_cts-0 {
+						atmel,pins =
+							<2 9 0x2 0x0	/* PC9 periph B */
+							 2 11 0x2 0x0>;	/* PC11 periph B */
+					};
+				};
+
+				uart3 {
+					pinctrl_uart3: uart3-0 {
+						atmel,pins =
+							<1 8 0x1 0x1	/* PB9 periph A with pullup */
+							 1 9 0x1 0x0>;	/* PB8 periph A */
+					};
+
+					pinctrl_uart3_rts_cts: uart3_rts_cts-0 {
+						atmel,pins =
+							<0 23 0x2 0x0	/* PA23 periph B */
+							 0 24 0x2 0x0>;	/* PA24 periph B */
+					};
+				};
 
 				pioA: gpio@fffff200 {
 					compatible = "atmel,at91rm9200-gpio";
@@ -180,6 +243,8 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xffffee00 0x200>;
 				interrupts = <1 4 7>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_dbgu>;
 				status = "disabled";
 			};
 
@@ -189,6 +254,8 @@
 				interrupts = <7 4 5>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart0>;
 				status = "disabled";
 			};
 
@@ -198,6 +265,8 @@
 				interrupts = <8 4 5>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart1>;
 				status = "disabled";
 			};
 
@@ -207,6 +276,8 @@
 				interrupts = <9 4 5>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart2>;
 				status = "disabled";
 			};
 
@@ -216,6 +287,8 @@
 				interrupts = <10 4 5>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart3>;
 				status = "disabled";
 			};
 

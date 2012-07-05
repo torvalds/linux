@@ -105,6 +105,55 @@
 				      >;
 
 				/* shared pinctrl settings */
+				dbgu {
+					pinctrl_dbgu: dbgu-0 {
+						atmel,pins =
+							<2 30 0x1 0x0	/* PC30 periph A */
+							 2 31 0x1 0x1>;	/* PC31 periph with pullup */
+					};
+				};
+
+				uart0 {
+					pinctrl_uart0: uart0-0 {
+						atmel,pins =
+							<0 26 0x1 0x1	/* PA26 periph A with pullup */
+							 0 27 0x1 0x0>;	/* PA27 periph A */
+					};
+
+					pinctrl_uart0_rts_cts: uart0_rts_cts-0 {
+						atmel,pins =
+							<0 28 0x1 0x0	/* PA28 periph A */
+							 0 29 0x1 0x0>;	/* PA29 periph A */
+					};
+				};
+
+				uart1 {
+					pinctrl_uart1: uart1-0 {
+						atmel,pins =
+							<3 0 0x1 0x1	/* PD0 periph A with pullup */
+							 3 1 0x1 0x0>;	/* PD1 periph A */
+					};
+
+					pinctrl_uart1_rts_cts: uart1_rts_cts-0 {
+						atmel,pins =
+							<3 7 0x2 0x0	/* PD7 periph B */
+							 3 8 0x2 0x0>;	/* PD8 periph B */
+					};
+				};
+
+				uart2 {
+					pinctrl_uart2: uart2-0 {
+						atmel,pins =
+							<3 2 0x1 0x1	/* PD2 periph A with pullup */
+							 3 3 0x1 0x0>;	/* PD3 periph A */
+					};
+
+					pinctrl_uart2_rts_cts: uart2_rts_cts-0 {
+						atmel,pins =
+							<3 5 0x2 0x0	/* PD5 periph B */
+							 4 6 0x2 0x0>;	/* PD6 periph B */
+					};
+				};
 
 				pioA: gpio@fffff200 {
 					compatible = "atmel,at91rm9200-gpio";
@@ -161,6 +210,8 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xffffee00 0x200>;
 				interrupts = <1 4 7>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_dbgu>;
 				status = "disabled";
 			};
 
@@ -170,6 +221,8 @@
 				interrupts = <7 4 5>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart0>;
 				status = "disabled";
 			};
 
@@ -179,6 +232,8 @@
 				interrupts = <8 4 5>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart1>;
 				status = "disabled";
 			};
 
@@ -188,6 +243,8 @@
 				interrupts = <9 4 5>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart2>;
 				status = "disabled";
 			};
 
