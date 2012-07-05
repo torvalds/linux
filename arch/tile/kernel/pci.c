@@ -404,16 +404,6 @@ void pcibios_set_master(struct pci_dev *dev)
 }
 
 /*
- * This can be called from the generic PCI layer, but doesn't need to
- * do anything.
- */
-char __devinit *pcibios_setup(char *str)
-{
-	/* Nothing needs to be done. */
-	return str;
-}
-
-/*
  * This is called from the generic Linux layer.
  */
 void __devinit pcibios_update_irq(struct pci_dev *dev, int irq)

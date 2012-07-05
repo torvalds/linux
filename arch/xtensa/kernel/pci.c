@@ -46,7 +46,6 @@
  * pcibios_fixups
  * pcibios_align_resource
  * pcibios_fixup_bus
- * pcibios_setup
  * pci_bus_add_device
  * pci_mmap_page_range
  */
@@ -204,11 +203,6 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 		/* This is a subordinate bridge */
 		pci_read_bridge_bases(bus);
 	}
-}
-
-char __init *pcibios_setup(char *str)
-{
-	return str;
 }
 
 void pcibios_set_master(struct pci_dev *dev)

@@ -195,12 +195,6 @@ pcibios_init(void)
 
 subsys_initcall(pcibios_init);
 
-char * __devinit
-pcibios_setup(char *str)
-{
-	return str;
-}
-
 #ifdef ALPHA_RESTORE_SRM_SETUP
 static struct pdev_srm_saved_conf *srm_saved_configs;
 

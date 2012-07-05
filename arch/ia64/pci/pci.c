@@ -498,15 +498,6 @@ pcibios_align_resource (void *data, const struct resource *res,
 	return res->start;
 }
 
-/*
- * PCI BIOS setup, always defaults to SAL interface
- */
-char * __init
-pcibios_setup (char *str)
-{
-	return str;
-}
-
 int
 pci_mmap_page_range (struct pci_dev *dev, struct vm_area_struct *vma,
 		     enum pci_mmap_state mmap_state, int write_combine)
