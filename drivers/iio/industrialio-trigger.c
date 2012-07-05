@@ -51,25 +51,19 @@ static ssize_t iio_trigger_read_name(struct device *dev,
 
 static DEVICE_ATTR(name, S_IRUGO, iio_trigger_read_name, NULL);
 
-/**
- * iio_trigger_register_sysfs() - create a device for this trigger
- * @trig_info:	the trigger
- *
- * Also adds any control attribute registered by the trigger driver
- **/
-static int iio_trigger_register_sysfs(struct iio_trigger *trig_info)
-{
-	return sysfs_add_file_to_group(&trig_info->dev.kobj,
-				       &dev_attr_name.attr,
-				       NULL);
-}
+static struct attribute *iio_trig_dev_attrs[] = {
+	&dev_attr_name.attr,
+	NULL,
+};
 
-static void iio_trigger_unregister_sysfs(struct iio_trigger *trig_info)
-{
-	sysfs_remove_file_from_group(&trig_info->dev.kobj,
-					   &dev_attr_name.attr,
-					   NULL);
-}
+static struct attribute_group iio_trig_attr_group = {
+	.attrs	= iio_trig_dev_attrs,
+};
+
+static const struct attribute_group *iio_trig_attr_groups[] = {
+	&iio_trig_attr_group,
+	NULL
+};
 
 int iio_trigger_register(struct iio_trigger *trig_info)
 {
@@ -88,10 +82,6 @@ int iio_trigger_register(struct iio_trigger *trig_info)
 	if (ret)
 		goto error_unregister_id;
 
-	ret = iio_trigger_register_sysfs(trig_info);
-	if (ret)
-		goto error_device_del;
-
 	/* Add to list of available triggers held by the IIO core */
 	mutex_lock(&iio_trigger_list_lock);
 	list_add_tail(&trig_info->list, &iio_trigger_list);
@@ -99,8 +89,6 @@ int iio_trigger_register(struct iio_trigger *trig_info)
 
 	return 0;
 
-error_device_del:
-	device_del(&trig_info->dev);
 error_unregister_id:
 	ida_simple_remove(&iio_trigger_ida, trig_info->id);
 error_ret:
@@ -114,7 +102,6 @@ void iio_trigger_unregister(struct iio_trigger *trig_info)
 	list_del(&trig_info->list);
 	mutex_unlock(&iio_trigger_list_lock);
 
-	iio_trigger_unregister_sysfs(trig_info);
 	ida_simple_remove(&iio_trigger_ida, trig_info->id);
 	/* Possible issue in here */
 	device_unregister(&trig_info->dev);
@@ -406,6 +393,7 @@ static void iio_trig_release(struct device *device)
 
 static struct device_type iio_trig_type = {
 	.release = iio_trig_release,
+	.groups = iio_trig_attr_groups,
 };
 
 static void iio_trig_subirqmask(struct irq_data *d)
