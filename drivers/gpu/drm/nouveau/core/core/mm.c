@@ -22,8 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include "drmP.h"
-#include "nouveau_drv.h"
+#include <core/os.h>
 #include <core/mm.h>
 
 static inline void

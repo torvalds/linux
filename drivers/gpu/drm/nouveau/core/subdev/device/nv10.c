@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat Inc.
+ * Copyright 2012 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,34 +22,32 @@
  * Authors: Ben Skeggs
  */
 
-#ifndef __NOUVEAU_MM_H__
-#define __NOUVEAU_MM_H__
+#include <subdev/device.h>
 
-struct nouveau_mm_node {
-	struct list_head nl_entry;
-	struct list_head fl_entry;
-	struct list_head rl_entry;
+int
+nv10_identify(struct nouveau_device *device)
+{
+	switch (device->chipset) {
+	case 0x10:
+		break;
+	case 0x15:
+		break;
+	case 0x16:
+		break;
+	case 0x1a:
+		break;
+	case 0x11:
+		break;
+	case 0x17:
+		break;
+	case 0x1f:
+		break;
+	case 0x18:
+		break;
+	default:
+		nv_fatal(device, "unknown Celsius chipset\n");
+		return -EINVAL;
+	}
 
-	u8  type;
-	u32 offset;
-	u32 length;
-};
-
-struct nouveau_mm {
-	struct list_head nodes;
-	struct list_head free;
-
-	struct mutex mutex;
-
-	u32 block_size;
-	int heap_nodes;
-};
-
-int  nouveau_mm_init(struct nouveau_mm *, u32 offset, u32 length, u32 block);
-int  nouveau_mm_fini(struct nouveau_mm *);
-int  nouveau_mm_pre(struct nouveau_mm *);
-int  nouveau_mm_get(struct nouveau_mm *, int type, u32 size, u32 size_nc,
-		    u32 align, struct nouveau_mm_node **);
-void nouveau_mm_put(struct nouveau_mm *, struct nouveau_mm_node *);
-
-#endif
+	return 0;
+}

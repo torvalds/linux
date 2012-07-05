@@ -2,13 +2,31 @@
 # Makefile for the drm device driver.  This driver provides support for the
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
-ccflags-y := -Iinclude/drm
+ccflags-y := -Iinclude/drm -DCONFIG_NOUVEAU_DEBUG=7 -DCONFIG_NOUVEAU_DEBUG_DEFAULT=3
 ccflags-y += -I$(src)/core/include
 ccflags-y += -I$(src)
 
-nouveau-y := core/core/mm.o
+nouveau-y := core/core/client.o
+nouveau-y += core/core/engine.o
+nouveau-y += core/core/handle.o
+nouveau-y += core/core/mm.o
+nouveau-y += core/core/namedb.o
+nouveau-y += core/core/object.o
+nouveau-y += core/core/option.o
+nouveau-y += core/core/parent.o
+nouveau-y += core/core/printk.o
 nouveau-y += core/core/ramht.o
+nouveau-y += core/core/subdev.o
 
+nouveau-y += core/subdev/device/base.o
+nouveau-y += core/subdev/device/nv04.o
+nouveau-y += core/subdev/device/nv10.o
+nouveau-y += core/subdev/device/nv20.o
+nouveau-y += core/subdev/device/nv30.o
+nouveau-y += core/subdev/device/nv40.o
+nouveau-y += core/subdev/device/nv50.o
+nouveau-y += core/subdev/device/nvc0.o
+nouveau-y += core/subdev/device/nve0.o
 nouveau-y += core/subdev/fb/nv04.o
 nouveau-y += core/subdev/fb/nv10.o
 nouveau-y += core/subdev/fb/nv20.o

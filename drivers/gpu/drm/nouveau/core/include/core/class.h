@@ -1,0 +1,77 @@
+#ifndef __NOUVEAU_CLASS_H__
+#define __NOUVEAU_CLASS_H__
+
+/* 0080: NV_DEVICE
+ */
+
+#define NV_DEVICE_DISABLE_IDENTIFY                        0x0000000000000001ULL
+#define NV_DEVICE_DISABLE_MMIO                            0x0000000000000002ULL
+#define NV_DEVICE_DISABLE_VBIOS                           0x0000000000000004ULL
+#define NV_DEVICE_DISABLE_CORE                            0x0000000000000008ULL
+#define NV_DEVICE_DISABLE_DISP                            0x0000000000010000ULL
+#define NV_DEVICE_DISABLE_FIFO                            0x0000000000020000ULL
+#define NV_DEVICE_DISABLE_GRAPH                           0x0000000100000000ULL
+#define NV_DEVICE_DISABLE_MPEG                            0x0000000200000000ULL
+#define NV_DEVICE_DISABLE_ME                              0x0000000400000000ULL
+#define NV_DEVICE_DISABLE_VP                              0x0000000800000000ULL
+#define NV_DEVICE_DISABLE_CRYPT                           0x0000001000000000ULL
+#define NV_DEVICE_DISABLE_BSP                             0x0000002000000000ULL
+#define NV_DEVICE_DISABLE_PPP                             0x0000004000000000ULL
+#define NV_DEVICE_DISABLE_COPY0                           0x0000008000000000ULL
+#define NV_DEVICE_DISABLE_COPY1                           0x0000010000000000ULL
+#define NV_DEVICE_DISABLE_UNK1C1                          0x0000020000000000ULL
+
+struct nv_device_class {
+	u64 device;	/* device identifier, ~0 for client default */
+	u64 disable;	/* disable particular subsystems */
+	u64 debug0;	/* as above, but *internal* ids, and *NOT* ABI */
+};
+
+/* 0002: NV_DMA_FROM_MEMORY
+ * 0003: NV_DMA_TO_MEMORY
+ * 003d: NV_DMA_IN_MEMORY
+ */
+
+#define NV_DMA_TARGET_MASK                                           0x000000ff
+#define NV_DMA_TARGET_VM                                             0x00000000
+#define NV_DMA_TARGET_VRAM                                           0x00000001
+#define NV_DMA_TARGET_PCI                                            0x00000002
+#define NV_DMA_TARGET_PCI_US                                         0x00000003
+#define NV_DMA_TARGET_AGP                                            0x00000004
+#define NV_DMA_ACCESS_MASK                                           0x00000f00
+#define NV_DMA_ACCESS_VM                                             0x00000000
+#define NV_DMA_ACCESS_RD                                             0x00000100
+#define NV_DMA_ACCESS_WR                                             0x00000200
+#define NV_DMA_ACCESS_RDWR                                           0x00000300
+
+struct nv_dma_class {
+	u32 flags;
+	u32 pad0;
+	u64 start;
+	u64 limit;
+};
+
+/* 006b: NV03_CHANNEL_DMA
+ * 006e: NV10_CHANNEL_DMA
+ * 406e: NV40_CHANNEL_DMA
+ */
+
+struct nv_channel_dma_class {
+	u32 pushbuf;
+	u32 pad0;
+	u64 offset;
+};
+
+/* 506f: NV50_CHANNEL_IND
+ * 826f: NV84_CHANNEL_IND
+ * 906f: NVC0_CHANNEL_IND
+ * a06f: NVE0_CHANNEL_IND
+ */
+
+struct nv_channel_ind_class {
+	u32 pushbuf;
+	u32 ilength;
+	u64 ioffset;
+};
+
+#endif
