@@ -62,6 +62,35 @@ int mlx4_get_qp_per_mgm(struct mlx4_dev *dev)
 	return 4 * (mlx4_get_mgm_entry_size(dev) / 16 - 2);
 }
 
+static int mlx4_QP_FLOW_STEERING_ATTACH(struct mlx4_dev *dev,
+					struct mlx4_cmd_mailbox *mailbox,
+					u32 size,
+					u64 *reg_id)
+{
+	u64 imm;
+	int err = 0;
+
+	err = mlx4_cmd_imm(dev, mailbox->dma, &imm, size, 0,
+			   MLX4_QP_FLOW_STEERING_ATTACH, MLX4_CMD_TIME_CLASS_A,
+			   MLX4_CMD_NATIVE);
+	if (err)
+		return err;
+	*reg_id = imm;
+
+	return err;
+}
+
+static int mlx4_QP_FLOW_STEERING_DETACH(struct mlx4_dev *dev, u64 regid)
+{
+	int err = 0;
+
+	err = mlx4_cmd(dev, regid, 0, 0,
+		       MLX4_QP_FLOW_STEERING_DETACH, MLX4_CMD_TIME_CLASS_A,
+		       MLX4_CMD_NATIVE);
+
+	return err;
+}
+
 static int mlx4_READ_ENTRY(struct mlx4_dev *dev, int index,
 			   struct mlx4_cmd_mailbox *mailbox)
 {

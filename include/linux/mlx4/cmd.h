@@ -154,6 +154,10 @@ enum {
 	/* set port opcode modifiers */
 	MLX4_SET_PORT_PRIO2TC = 0x8,
 	MLX4_SET_PORT_SCHEDULER  = 0x9,
+
+	/* register/delete flow steering network rules */
+	MLX4_QP_FLOW_STEERING_ATTACH = 0x65,
+	MLX4_QP_FLOW_STEERING_DETACH = 0x66,
 };
 
 enum {

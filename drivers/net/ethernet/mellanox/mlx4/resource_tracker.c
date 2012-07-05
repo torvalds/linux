@@ -2738,6 +2738,30 @@ ex_put:
 	return err;
 }
 
+int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
+					 struct mlx4_vhcr *vhcr,
+					 struct mlx4_cmd_mailbox *inbox,
+					 struct mlx4_cmd_mailbox *outbox,
+					 struct mlx4_cmd_info *cmd)
+{
+	return mlx4_cmd_imm(dev, inbox->dma, &vhcr->out_param,
+			    vhcr->in_modifier, 0,
+			    MLX4_QP_FLOW_STEERING_ATTACH,
+			    MLX4_CMD_TIME_CLASS_A,
+			    MLX4_CMD_NATIVE);
+}
+
+int mlx4_QP_FLOW_STEERING_DETACH_wrapper(struct mlx4_dev *dev, int slave,
+					 struct mlx4_vhcr *vhcr,
+					 struct mlx4_cmd_mailbox *inbox,
+					 struct mlx4_cmd_mailbox *outbox,
+					 struct mlx4_cmd_info *cmd)
+{
+	return mlx4_cmd(dev, vhcr->in_param, 0, 0,
+			MLX4_QP_FLOW_STEERING_DETACH, MLX4_CMD_TIME_CLASS_A,
+			MLX4_CMD_NATIVE);
+}
+
 enum {
 	BUSY_MAX_RETRIES = 10
 };
