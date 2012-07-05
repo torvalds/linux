@@ -190,6 +190,15 @@ struct res_xrcdn {
 	int			port;
 };
 
+enum res_fs_rule_states {
+	RES_FS_RULE_BUSY = RES_ANY_BUSY,
+	RES_FS_RULE_ALLOCATED,
+};
+
+struct res_fs_rule {
+	struct res_common	com;
+};
+
 static void *res_tracker_lookup(struct rb_root *root, u64 res_id)
 {
 	struct rb_node *node = root->rb_node;
@@ -245,6 +254,7 @@ static const char *ResourceType(enum mlx4_resource rt)
 	case RES_MAC: return  "RES_MAC";
 	case RES_EQ: return "RES_EQ";
 	case RES_COUNTER: return "RES_COUNTER";
+	case RES_FS_RULE: return "RES_FS_RULE";
 	case RES_XRCD: return "RES_XRCD";
 	default: return "Unknown resource type !!!";
 	};
@@ -516,6 +526,20 @@ static struct res_common *alloc_xrcdn_tr(int id)
 	return &ret->com;
 }
 
+static struct res_common *alloc_fs_rule_tr(u64 id)
+{
+	struct res_fs_rule *ret;
+
+	ret = kzalloc(sizeof *ret, GFP_KERNEL);
+	if (!ret)
+		return NULL;
+
+	ret->com.res_id = id;
+	ret->com.state = RES_FS_RULE_ALLOCATED;
+
+	return &ret->com;
+}
+
 static struct res_common *alloc_tr(u64 id, enum mlx4_resource type, int slave,
 				   int extra)
 {
@@ -548,6 +572,9 @@ static struct res_common *alloc_tr(u64 id, enum mlx4_resource type, int slave,
 		break;
 	case RES_XRCD:
 		ret = alloc_xrcdn_tr(id);
+		break;
+	case RES_FS_RULE:
+		ret = alloc_fs_rule_tr(id);
 		break;
 	default:
 		return NULL;
@@ -681,6 +708,16 @@ static int remove_xrcdn_ok(struct res_xrcdn *res)
 	return 0;
 }
 
+static int remove_fs_rule_ok(struct res_fs_rule *res)
+{
+	if (res->com.state == RES_FS_RULE_BUSY)
+		return -EBUSY;
+	else if (res->com.state != RES_FS_RULE_ALLOCATED)
+		return -EPERM;
+
+	return 0;
+}
+
 static int remove_cq_ok(struct res_cq *res)
 {
 	if (res->com.state == RES_CQ_BUSY)
@@ -722,6 +759,8 @@ static int remove_ok(struct res_common *res, enum mlx4_resource type, int extra)
 		return remove_counter_ok((struct res_counter *)res);
 	case RES_XRCD:
 		return remove_xrcdn_ok((struct res_xrcdn *)res);
+	case RES_FS_RULE:
+		return remove_fs_rule_ok((struct res_fs_rule *)res);
 	default:
 		return -EINVAL;
 	}
@@ -2744,14 +2783,28 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 					 struct mlx4_cmd_mailbox *outbox,
 					 struct mlx4_cmd_info *cmd)
 {
+	int err;
+
 	if (dev->caps.steering_mode !=
 	    MLX4_STEERING_MODE_DEVICE_MANAGED)
 		return -EOPNOTSUPP;
-	return mlx4_cmd_imm(dev, inbox->dma, &vhcr->out_param,
-			    vhcr->in_modifier, 0,
-			    MLX4_QP_FLOW_STEERING_ATTACH,
-			    MLX4_CMD_TIME_CLASS_A,
-			    MLX4_CMD_NATIVE);
+
+	err = mlx4_cmd_imm(dev, inbox->dma, &vhcr->out_param,
+			   vhcr->in_modifier, 0,
+			   MLX4_QP_FLOW_STEERING_ATTACH, MLX4_CMD_TIME_CLASS_A,
+			   MLX4_CMD_NATIVE);
+	if (err)
+		return err;
+
+	err = add_res_range(dev, slave, vhcr->out_param, 1, RES_FS_RULE, 0);
+	if (err) {
+		mlx4_err(dev, "Fail to add flow steering resources.\n ");
+		/* detach rule*/
+		mlx4_cmd(dev, vhcr->out_param, 0, 0,
+			 MLX4_QP_FLOW_STEERING_ATTACH, MLX4_CMD_TIME_CLASS_A,
+			 MLX4_CMD_NATIVE);
+	}
+	return err;
 }
 
 int mlx4_QP_FLOW_STEERING_DETACH_wrapper(struct mlx4_dev *dev, int slave,
@@ -2760,12 +2813,22 @@ int mlx4_QP_FLOW_STEERING_DETACH_wrapper(struct mlx4_dev *dev, int slave,
 					 struct mlx4_cmd_mailbox *outbox,
 					 struct mlx4_cmd_info *cmd)
 {
+	int err;
+
 	if (dev->caps.steering_mode !=
 	    MLX4_STEERING_MODE_DEVICE_MANAGED)
 		return -EOPNOTSUPP;
-	return mlx4_cmd(dev, vhcr->in_param, 0, 0,
-			MLX4_QP_FLOW_STEERING_DETACH, MLX4_CMD_TIME_CLASS_A,
-			MLX4_CMD_NATIVE);
+
+	err = rem_res_range(dev, slave, vhcr->in_param, 1, RES_FS_RULE, 0);
+	if (err) {
+		mlx4_err(dev, "Fail to remove flow steering resources.\n ");
+		return err;
+	}
+
+	err = mlx4_cmd(dev, vhcr->in_param, 0, 0,
+		       MLX4_QP_FLOW_STEERING_DETACH, MLX4_CMD_TIME_CLASS_A,
+		       MLX4_CMD_NATIVE);
+	return err;
 }
 
 enum {
@@ -3177,6 +3240,58 @@ static void rem_slave_mtts(struct mlx4_dev *dev, int slave)
 	spin_unlock_irq(mlx4_tlock(dev));
 }
 
+static void rem_slave_fs_rule(struct mlx4_dev *dev, int slave)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_resource_tracker *tracker =
+		&priv->mfunc.master.res_tracker;
+	struct list_head *fs_rule_list =
+		&tracker->slave_list[slave].res_list[RES_FS_RULE];
+	struct res_fs_rule *fs_rule;
+	struct res_fs_rule *tmp;
+	int state;
+	u64 base;
+	int err;
+
+	err = move_all_busy(dev, slave, RES_FS_RULE);
+	if (err)
+		mlx4_warn(dev, "rem_slave_fs_rule: Could not move all mtts to busy for slave %d\n",
+			  slave);
+
+	spin_lock_irq(mlx4_tlock(dev));
+	list_for_each_entry_safe(fs_rule, tmp, fs_rule_list, com.list) {
+		spin_unlock_irq(mlx4_tlock(dev));
+		if (fs_rule->com.owner == slave) {
+			base = fs_rule->com.res_id;
+			state = fs_rule->com.from_state;
+			while (state != 0) {
+				switch (state) {
+				case RES_FS_RULE_ALLOCATED:
+					/* detach rule */
+					err = mlx4_cmd(dev, base, 0, 0,
+						       MLX4_QP_FLOW_STEERING_DETACH,
+						       MLX4_CMD_TIME_CLASS_A,
+						       MLX4_CMD_NATIVE);
+
+					spin_lock_irq(mlx4_tlock(dev));
+					rb_erase(&fs_rule->com.node,
+						 &tracker->res_tree[RES_FS_RULE]);
+					list_del(&fs_rule->com.list);
+					spin_unlock_irq(mlx4_tlock(dev));
+					kfree(fs_rule);
+					state = 0;
+					break;
+
+				default:
+					state = 0;
+				}
+			}
+		}
+		spin_lock_irq(mlx4_tlock(dev));
+	}
+	spin_unlock_irq(mlx4_tlock(dev));
+}
+
 static void rem_slave_eqs(struct mlx4_dev *dev, int slave)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -3318,5 +3433,6 @@ void mlx4_delete_all_resources_for_slave(struct mlx4_dev *dev, int slave)
 	rem_slave_mtts(dev, slave);
 	rem_slave_counters(dev, slave);
 	rem_slave_xrcdns(dev, slave);
+	rem_slave_fs_rule(dev, slave);
 	mutex_unlock(&priv->mfunc.master.res_tracker.slave_list[slave].mutex);
 }
