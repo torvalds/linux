@@ -280,8 +280,9 @@ static inline struct rt6_info *ip6_dst_alloc(struct net *net,
 					0, 0, flags);
 
 	if (rt) {
-		memset(&rt->n, 0,
-		       sizeof(*rt) - sizeof(struct dst_entry));
+		struct dst_entry *dst = &rt->dst;
+
+		memset(dst + 1, 0, sizeof(*rt) - sizeof(*dst));
 		rt6_init_peer(rt, table ? &table->tb6_peers : net->ipv6.peers);
 	}
 	return rt;
@@ -982,10 +983,10 @@ struct dst_entry *ip6_blackhole_route(struct net *net, struct dst_entry *dst_ori
 
 	rt = dst_alloc(&ip6_dst_blackhole_ops, ort->dst.dev, 1, 0, 0);
 	if (rt) {
-		memset(&rt->rt6i_table, 0, sizeof(*rt) - sizeof(struct dst_entry));
-		rt6_init_peer(rt, net->ipv6.peers);
-
 		new = &rt->dst;
+
+		memset(new + 1, 0, sizeof(*rt) - sizeof(*new));
+		rt6_init_peer(rt, net->ipv6.peers);
 
 		new->__use = 1;
 		new->input = dst_discard;
