@@ -459,15 +459,16 @@ static int pci_restore_standard_config(struct pci_dev *pci_dev)
 	return 0;
 }
 
-static void pci_pm_default_resume_early(struct pci_dev *pci_dev)
-{
-	pci_restore_standard_config(pci_dev);
-	pci_fixup_device(pci_fixup_resume_early, pci_dev);
-}
-
 #endif
 
 #ifdef CONFIG_PM_SLEEP
+
+static void pci_pm_default_resume_early(struct pci_dev *pci_dev)
+{
+	pci_power_up(pci_dev);
+	pci_restore_state(pci_dev);
+	pci_fixup_device(pci_fixup_resume_early, pci_dev);
+}
 
 /*
  * Default "suspend" method for devices that have no driver provided suspend,
@@ -1054,7 +1055,8 @@ static int pci_pm_runtime_resume(struct device *dev)
 	if (!pm || !pm->runtime_resume)
 		return -ENOSYS;
 
-	pci_pm_default_resume_early(pci_dev);
+	pci_restore_standard_config(pci_dev);
+	pci_fixup_device(pci_fixup_resume_early, pci_dev);
 	__pci_enable_wake(pci_dev, PCI_D0, true, false);
 	pci_fixup_device(pci_fixup_resume, pci_dev);
 
