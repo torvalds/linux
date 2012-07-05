@@ -3726,6 +3726,22 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 	}
 }
 
+static bool
+intel_enable_blt(struct drm_device *dev)
+{
+	if (!HAS_BLT(dev))
+		return false;
+
+	/* The blitter was dysfunctional on early prototypes */
+	if (IS_GEN6(dev) && dev->pdev->revision < 8) {
+		DRM_INFO("BLT not supported on this pre-production hardware;"
+			 " graphics performance will be degraded.\n");
+		return false;
+	}
+
+	return true;
+}
+
 int
 i915_gem_init_hw(struct drm_device *dev)
 {
@@ -3749,7 +3765,7 @@ i915_gem_init_hw(struct drm_device *dev)
 			goto cleanup_render_ring;
 	}
 
-	if (HAS_BLT(dev)) {
+	if (intel_enable_blt(dev)) {
 		ret = intel_init_blt_ring_buffer(dev);
 		if (ret)
 			goto cleanup_bsd_ring;
