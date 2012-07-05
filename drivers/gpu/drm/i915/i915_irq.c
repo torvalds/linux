@@ -1067,6 +1067,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (INTEL_INFO(dev)->gen >= 6) {
+		error->rc_psmi[ring->id] = I915_READ(ring->mmio_base + 0x50);
 		error->fault_reg[ring->id] = I915_READ(RING_FAULT_REG(ring));
 		error->semaphore_mboxes[ring->id][0]
 			= I915_READ(RING_SYNC_0(ring->mmio_base));
