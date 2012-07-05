@@ -953,6 +953,8 @@ clock_error:
 #define GPIO_PORT8CR	0xe6050008
 static void __init eva_init(void)
 {
+	struct platform_device *usb = NULL;
+
 	regulator_register_always_on(0, "fixed-3.3V", fixed3v3_power_consumers,
 				     ARRAY_SIZE(fixed3v3_power_consumers), 3300000);
 
@@ -1050,6 +1052,7 @@ static void __init eva_init(void)
 		gpio_direction_input(GPIO_PORT209);
 
 		platform_device_register(&usbhsf_device);
+		usb = &usbhsf_device;
 	}
 
 	/* SDHI0 */
@@ -1180,6 +1183,8 @@ static void __init eva_init(void)
 
 	rmobile_add_device_to_domain(&r8a7740_pd_a4lc, &lcdc0_device);
 	rmobile_add_device_to_domain(&r8a7740_pd_a4lc, &hdmi_lcdc_device);
+	if (usb)
+		rmobile_add_device_to_domain(&r8a7740_pd_a3sp, usb);
 }
 
 static void __init eva_earlytimer_init(void)
