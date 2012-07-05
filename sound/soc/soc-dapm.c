@@ -2264,6 +2264,59 @@ err:
 	return ret;
 }
 
+static int snd_soc_dapm_del_route(struct snd_soc_dapm_context *dapm,
+				  const struct snd_soc_dapm_route *route)
+{
+	struct snd_soc_dapm_path *path, *p;
+	const char *sink;
+	const char *source;
+	char prefixed_sink[80];
+	char prefixed_source[80];
+
+	if (route->control) {
+		dev_err(dapm->dev,
+			"Removal of routes with controls not supported\n");
+		return -EINVAL;
+	}
+
+	if (dapm->codec && dapm->codec->name_prefix) {
+		snprintf(prefixed_sink, sizeof(prefixed_sink), "%s %s",
+			 dapm->codec->name_prefix, route->sink);
+		sink = prefixed_sink;
+		snprintf(prefixed_source, sizeof(prefixed_source), "%s %s",
+			 dapm->codec->name_prefix, route->source);
+		source = prefixed_source;
+	} else {
+		sink = route->sink;
+		source = route->source;
+	}
+
+	path = NULL;
+	list_for_each_entry(p, &dapm->card->paths, list) {
+		if (strcmp(p->source->name, source) != 0)
+			continue;
+		if (strcmp(p->sink->name, sink) != 0)
+			continue;
+		path = p;
+		break;
+	}
+
+	if (path) {
+		dapm_mark_dirty(path->source, "Route removed");
+		dapm_mark_dirty(path->sink, "Route removed");
+
+		list_del(&path->list);
+		list_del(&path->list_sink);
+		list_del(&path->list_source);
+		kfree(path);
+	} else {
+		dev_warn(dapm->dev, "Route %s->%s does not exist\n",
+			 source, sink);
+	}
+
+	return 0;
+}
+
 /**
  * snd_soc_dapm_add_routes - Add routes between DAPM widgets
  * @dapm: DAPM context
@@ -2297,6 +2350,30 @@ int snd_soc_dapm_add_routes(struct snd_soc_dapm_context *dapm,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_add_routes);
+
+/**
+ * snd_soc_dapm_del_routes - Remove routes between DAPM widgets
+ * @dapm: DAPM context
+ * @route: audio routes
+ * @num: number of routes
+ *
+ * Removes routes from the DAPM context.
+ */
+int snd_soc_dapm_del_routes(struct snd_soc_dapm_context *dapm,
+			    const struct snd_soc_dapm_route *route, int num)
+{
+	int i, ret = 0;
+
+	mutex_lock_nested(&dapm->card->dapm_mutex, SND_SOC_DAPM_CLASS_INIT);
+	for (i = 0; i < num; i++) {
+		snd_soc_dapm_del_route(dapm, route);
+		route++;
+	}
+	mutex_unlock(&dapm->card->dapm_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_del_routes);
 
 static int snd_soc_dapm_weak_route(struct snd_soc_dapm_context *dapm,
 				   const struct snd_soc_dapm_route *route)
