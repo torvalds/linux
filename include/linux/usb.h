@@ -561,7 +561,6 @@ struct usb_device {
 	struct usb3_lpm_parameters u1_params;
 	struct usb3_lpm_parameters u2_params;
 	unsigned lpm_disable_count;
-	unsigned hub_initiated_lpm_disable_count;
 };
 #define	to_usb_device(d) container_of(d, struct usb_device, dev)
 
