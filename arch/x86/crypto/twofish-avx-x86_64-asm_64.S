@@ -243,7 +243,6 @@ __twofish_enc_blk_8way:
 	popq %rbx;
 
 	leaq (4*4*4)(%rsi), %rax;
-	leaq (4*4*4)(%rax), %rdx;
 
 	testb %cl, %cl;
 	jnz __enc_xor8;
