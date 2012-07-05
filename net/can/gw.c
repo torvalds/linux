@@ -462,15 +462,11 @@ static int cgw_put_job(struct sk_buff *skb, struct cgw_job *gwj)
 	if (gwj->handled_frames) {
 		if (nla_put_u32(skb, CGW_HANDLED, gwj->handled_frames) < 0)
 			goto cancel;
-		else
-			nlh->nlmsg_len += NLA_HDRLEN + NLA_ALIGN(sizeof(u32));
 	}
 
 	if (gwj->dropped_frames) {
 		if (nla_put_u32(skb, CGW_DROPPED, gwj->dropped_frames) < 0)
 			goto cancel;
-		else
-			nlh->nlmsg_len += NLA_HDRLEN + NLA_ALIGN(sizeof(u32));
 	}
 
 	/* check non default settings of attributes */
@@ -480,8 +476,6 @@ static int cgw_put_job(struct sk_buff *skb, struct cgw_job *gwj)
 		mb.modtype = gwj->mod.modtype.and;
 		if (nla_put(skb, CGW_MOD_AND, sizeof(mb), &mb) < 0)
 			goto cancel;
-		else
-			nlh->nlmsg_len += NLA_HDRLEN + NLA_ALIGN(sizeof(mb));
 	}
 
 	if (gwj->mod.modtype.or) {
@@ -489,8 +483,6 @@ static int cgw_put_job(struct sk_buff *skb, struct cgw_job *gwj)
 		mb.modtype = gwj->mod.modtype.or;
 		if (nla_put(skb, CGW_MOD_OR, sizeof(mb), &mb) < 0)
 			goto cancel;
-		else
-			nlh->nlmsg_len += NLA_HDRLEN + NLA_ALIGN(sizeof(mb));
 	}
 
 	if (gwj->mod.modtype.xor) {
@@ -498,8 +490,6 @@ static int cgw_put_job(struct sk_buff *skb, struct cgw_job *gwj)
 		mb.modtype = gwj->mod.modtype.xor;
 		if (nla_put(skb, CGW_MOD_XOR, sizeof(mb), &mb) < 0)
 			goto cancel;
-		else
-			nlh->nlmsg_len += NLA_HDRLEN + NLA_ALIGN(sizeof(mb));
 	}
 
 	if (gwj->mod.modtype.set) {
@@ -507,26 +497,18 @@ static int cgw_put_job(struct sk_buff *skb, struct cgw_job *gwj)
 		mb.modtype = gwj->mod.modtype.set;
 		if (nla_put(skb, CGW_MOD_SET, sizeof(mb), &mb) < 0)
 			goto cancel;
-		else
-			nlh->nlmsg_len += NLA_HDRLEN + NLA_ALIGN(sizeof(mb));
 	}
 
 	if (gwj->mod.csumfunc.crc8) {
 		if (nla_put(skb, CGW_CS_CRC8, CGW_CS_CRC8_LEN,
 			    &gwj->mod.csum.crc8) < 0)
 			goto cancel;
-		else
-			nlh->nlmsg_len += NLA_HDRLEN + \
-				NLA_ALIGN(CGW_CS_CRC8_LEN);
 	}
 
 	if (gwj->mod.csumfunc.xor) {
 		if (nla_put(skb, CGW_CS_XOR, CGW_CS_XOR_LEN,
 			    &gwj->mod.csum.xor) < 0)
 			goto cancel;
-		else
-			nlh->nlmsg_len += NLA_HDRLEN + \
-				NLA_ALIGN(CGW_CS_XOR_LEN);
 	}
 
 	if (gwj->gwtype == CGW_TYPE_CAN_CAN) {
@@ -535,23 +517,16 @@ static int cgw_put_job(struct sk_buff *skb, struct cgw_job *gwj)
 			if (nla_put(skb, CGW_FILTER, sizeof(struct can_filter),
 				    &gwj->ccgw.filter) < 0)
 				goto cancel;
-			else
-				nlh->nlmsg_len += NLA_HDRLEN +
-					NLA_ALIGN(sizeof(struct can_filter));
 		}
 
 		if (nla_put_u32(skb, CGW_SRC_IF, gwj->ccgw.src_idx) < 0)
 			goto cancel;
-		else
-			nlh->nlmsg_len += NLA_HDRLEN + NLA_ALIGN(sizeof(u32));
 
 		if (nla_put_u32(skb, CGW_DST_IF, gwj->ccgw.dst_idx) < 0)
 			goto cancel;
-		else
-			nlh->nlmsg_len += NLA_HDRLEN + NLA_ALIGN(sizeof(u32));
 	}
 
-	return skb->len;
+	return nlmsg_end(skb, nlh);
 
 cancel:
 	nlmsg_cancel(skb, nlh);
