@@ -1585,6 +1585,12 @@ static int wl1271_configure_suspend_sta(struct wl1271 *wl,
 	if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
 		goto out;
 
+	if ((wl->conf.conn.suspend_wake_up_event ==
+	     wl->conf.conn.wake_up_event) &&
+	    (wl->conf.conn.suspend_listen_interval ==
+	     wl->conf.conn.listen_interval))
+		goto out;
+
 	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
@@ -1646,6 +1652,13 @@ static void wl1271_configure_resume(struct wl1271 *wl,
 	bool is_sta = wlvif->bss_type == BSS_TYPE_STA_BSS;
 
 	if ((!is_ap) && (!is_sta))
+		return;
+
+	if (is_sta &&
+	    ((wl->conf.conn.suspend_wake_up_event ==
+	      wl->conf.conn.wake_up_event) &&
+	     (wl->conf.conn.suspend_listen_interval ==
+	      wl->conf.conn.listen_interval)))
 		return;
 
 	ret = wl1271_ps_elp_wakeup(wl);
