@@ -208,6 +208,9 @@ static irqreturn_t max77686_irq_thread(int irq, void *data)
 
 	}
 
+	for (i = 0; i < MAX77686_IRQ_GROUP_NR; i++)
+		irq_reg[i] &= ~max77686->irq_masks_cur[i];
+
 	for (i = 0; i < MAX77686_IRQ_NR; i++) {
 		if (irq_reg[max77686_irqs[i].group] & max77686_irqs[i].mask) {
 			cur_irq = irq_find_mapping(max77686->irq_domain, i);
