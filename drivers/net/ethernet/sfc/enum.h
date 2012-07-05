@@ -136,10 +136,10 @@ enum efx_loopback_mode {
  *
  * Reset methods are numbered in order of increasing scope.
  *
- * @RESET_TYPE_INVISIBLE: don't reset the PHYs or interrupts
- * @RESET_TYPE_ALL: reset everything but PCI core blocks
- * @RESET_TYPE_WORLD: reset everything, save & restore PCI config
- * @RESET_TYPE_DISABLE: disable NIC
+ * @RESET_TYPE_INVISIBLE: Reset datapath and MAC (Falcon only)
+ * @RESET_TYPE_ALL: Reset datapath, MAC and PHY
+ * @RESET_TYPE_WORLD: Reset as much as possible
+ * @RESET_TYPE_DISABLE: Reset datapath, MAC and PHY; leave NIC disabled
  * @RESET_TYPE_TX_WATCHDOG: reset due to TX watchdog
  * @RESET_TYPE_INT_ERROR: reset due to internal error
  * @RESET_TYPE_RX_RECOVERY: reset to recover from RX datapath errors
