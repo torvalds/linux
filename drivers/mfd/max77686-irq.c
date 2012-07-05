@@ -180,7 +180,7 @@ static irqreturn_t max77686_irq_thread(int irq, void *data)
 		pr_info("%s: irq_src=0x%x\n", __func__, irq_src);
 
 	if (irq_src == MAX77686_IRQSRC_PMIC) {
-		ret = regmap_bulk_read(max77686->rtc_regmap,
+		ret = regmap_bulk_read(max77686->regmap,
 					 MAX77686_REG_INT1, irq_reg, 2);
 		if (ret < 0) {
 			dev_err(max77686->dev, "Failed to read interrupt source: %d\n",
