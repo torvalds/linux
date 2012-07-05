@@ -2201,16 +2201,17 @@ intel_finish_fb(struct drm_framebuffer *old_fb)
 
 static int
 intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
-		    struct drm_framebuffer *old_fb)
+		    struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_framebuffer *old_fb;
 	int ret;
 
 	/* no fb bound */
-	if (!crtc->fb) {
+	if (!fb) {
 		DRM_ERROR("No FB bound\n");
 		return 0;
 	}
@@ -2224,7 +2225,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 
 	mutex_lock(&dev->struct_mutex);
 	ret = intel_pin_and_fence_fb_obj(dev,
-					 to_intel_framebuffer(crtc->fb)->obj,
+					 to_intel_framebuffer(fb)->obj,
 					 NULL);
 	if (ret != 0) {
 		mutex_unlock(&dev->struct_mutex);
@@ -2232,16 +2233,19 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return ret;
 	}
 
-	if (old_fb)
-		intel_finish_fb(old_fb);
+	if (crtc->fb)
+		intel_finish_fb(crtc->fb);
 
-	ret = dev_priv->display.update_plane(crtc, crtc->fb, x, y);
+	ret = dev_priv->display.update_plane(crtc, fb, x, y);
 	if (ret) {
-		intel_unpin_fb_obj(to_intel_framebuffer(crtc->fb)->obj);
+		intel_unpin_fb_obj(to_intel_framebuffer(fb)->obj);
 		mutex_unlock(&dev->struct_mutex);
 		DRM_ERROR("failed to update base address\n");
 		return ret;
 	}
+
+	old_fb = crtc->fb;
+	crtc->fb = fb;
 
 	if (old_fb) {
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
@@ -3777,6 +3781,7 @@ static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
  * true if they don't match).
  */
 static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
+					 struct drm_framebuffer *fb,
 					 unsigned int *pipe_bpp,
 					 struct drm_display_mode *mode)
 {
@@ -3846,7 +3851,7 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 	 * also stays within the max display bpc discovered above.
 	 */
 
-	switch (crtc->fb->depth) {
+	switch (fb->depth) {
 	case 8:
 		bpc = 8; /* since we go through a colormap */
 		break;
@@ -4265,7 +4270,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			      struct drm_display_mode *mode,
 			      struct drm_display_mode *adjusted_mode,
 			      int x, int y,
-			      struct drm_framebuffer *old_fb)
+			      struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4455,7 +4460,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	I915_WRITE(DSPCNTR(plane), dspcntr);
 	POSTING_READ(DSPCNTR(plane));
 
-	ret = intel_pipe_set_base(crtc, x, y, old_fb);
+	ret = intel_pipe_set_base(crtc, x, y, fb);
 
 	intel_update_watermarks(dev);
 
@@ -4613,7 +4618,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode,
 				  int x, int y,
-				  struct drm_framebuffer *old_fb)
+				  struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4733,7 +4738,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	/* determine panel color depth */
 	temp = I915_READ(PIPECONF(pipe));
 	temp &= ~PIPE_BPC_MASK;
-	dither = intel_choose_pipe_bpp_dither(crtc, &pipe_bpp, mode);
+	dither = intel_choose_pipe_bpp_dither(crtc, fb, &pipe_bpp, mode);
 	switch (pipe_bpp) {
 	case 18:
 		temp |= PIPE_6BPC;
@@ -5002,7 +5007,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	I915_WRITE(DSPCNTR(plane), dspcntr);
 	POSTING_READ(DSPCNTR(plane));
 
-	ret = intel_pipe_set_base(crtc, x, y, old_fb);
+	ret = intel_pipe_set_base(crtc, x, y, fb);
 
 	intel_update_watermarks(dev);
 
@@ -5015,7 +5020,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			       struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode,
 			       int x, int y,
-			       struct drm_framebuffer *old_fb)
+			       struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -5026,7 +5031,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	drm_vblank_pre_modeset(dev, pipe);
 
 	ret = dev_priv->display.crtc_mode_set(crtc, mode, adjusted_mode,
-					      x, y, old_fb);
+					      x, y, fb);
 	drm_vblank_post_modeset(dev, pipe);
 
 	return ret;
@@ -5718,7 +5723,7 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_crtc *crtc = NULL;
 	struct drm_device *dev = encoder->dev;
-	struct drm_framebuffer *old_fb;
+	struct drm_framebuffer *fb;
 	int i = -1;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
@@ -5779,8 +5784,6 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 	if (!mode)
 		mode = &load_detect_mode;
 
-	old_fb = crtc->fb;
-
 	/* We need a framebuffer large enough to accommodate all accesses
 	 * that the plane may generate whilst we perform load detection.
 	 * We can not rely on the fbcon either being present (we get called
@@ -5788,19 +5791,19 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 	 * not even exist) or that it is large enough to satisfy the
 	 * requested mode.
 	 */
-	crtc->fb = mode_fits_in_fbdev(dev, mode);
-	if (crtc->fb == NULL) {
+	fb = mode_fits_in_fbdev(dev, mode);
+	if (fb == NULL) {
 		DRM_DEBUG_KMS("creating tmp fb for load-detection\n");
-		crtc->fb = intel_framebuffer_create_for_mode(dev, mode, 24, 32);
-		old->release_fb = crtc->fb;
+		fb = intel_framebuffer_create_for_mode(dev, mode, 24, 32);
+		old->release_fb = fb;
 	} else
 		DRM_DEBUG_KMS("reusing fbdev for load-detection framebuffer\n");
-	if (IS_ERR(crtc->fb)) {
+	if (IS_ERR(fb)) {
 		DRM_DEBUG_KMS("failed to allocate framebuffer for load-detection\n");
 		goto fail;
 	}
 
-	if (!intel_set_mode(crtc, mode, 0, 0, old_fb)) {
+	if (!intel_set_mode(crtc, mode, 0, 0, fb)) {
 		DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
 		if (old->release_fb)
 			old->release_fb->funcs->destroy(old->release_fb);
@@ -5814,7 +5817,6 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 fail:
 	connector->encoder = NULL;
 	encoder->crtc = NULL;
-	crtc->fb = old_fb;
 	return false;
 }
 
@@ -6666,13 +6668,12 @@ static void intel_modeset_commit_output_state(struct drm_device *dev)
 
 bool intel_set_mode(struct drm_crtc *crtc,
 		    struct drm_display_mode *mode,
-		    int x, int y, struct drm_framebuffer *old_fb)
+		    int x, int y, struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = crtc->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_display_mode *adjusted_mode, saved_mode, saved_hwmode;
 	struct drm_encoder_helper_funcs *encoder_funcs;
-	int saved_x, saved_y;
 	struct drm_encoder *encoder;
 	bool ret = true;
 
@@ -6686,15 +6687,11 @@ bool intel_set_mode(struct drm_crtc *crtc,
 
 	saved_hwmode = crtc->hwmode;
 	saved_mode = crtc->mode;
-	saved_x = crtc->x;
-	saved_y = crtc->y;
 
 	/* Update crtc values up front so the driver can rely on them for mode
 	 * setting.
 	 */
 	crtc->mode = *mode;
-	crtc->x = x;
-	crtc->y = y;
 
 	/* Pass our mode to the connectors and the CRTC to give them a chance to
 	 * adjust it according to limitations or connector properties, and also
@@ -6725,7 +6722,7 @@ bool intel_set_mode(struct drm_crtc *crtc,
 	/* Set up the DPLL and any encoders state that needs to adjust or depend
 	 * on the DPLL.
 	 */
-	ret = !intel_crtc_mode_set(crtc, mode, adjusted_mode, x, y, old_fb);
+	ret = !intel_crtc_mode_set(crtc, mode, adjusted_mode, x, y, fb);
 	if (!ret)
 	    goto done;
 
@@ -6740,6 +6737,9 @@ bool intel_set_mode(struct drm_crtc *crtc,
 		encoder_funcs = encoder->helper_private;
 		encoder_funcs->mode_set(encoder, mode, adjusted_mode);
 	}
+
+	crtc->x = x;
+	crtc->y = y;
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	dev_priv->display.crtc_enable(crtc);
@@ -6759,8 +6759,6 @@ done:
 	if (!ret) {
 		crtc->hwmode = saved_hwmode;
 		crtc->mode = saved_mode;
-		crtc->x = saved_x;
-		crtc->y = saved_y;
 	}
 
 	return ret;
@@ -6773,24 +6771,15 @@ static void intel_set_config_free(struct intel_set_config *config)
 
 	kfree(config->save_connector_encoders);
 	kfree(config->save_encoder_crtcs);
-	kfree(config->save_crtcs);
 	kfree(config);
 }
 
 static int intel_set_config_save_state(struct drm_device *dev,
 				       struct intel_set_config *config)
 {
-	struct drm_crtc *crtc;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	int count;
-
-	/* Allocate space for the backup of all (non-pointer) crtc, encoder and
-	 * connector data. */
-	config->save_crtcs = kcalloc(dev->mode_config.num_crtc,
-				     sizeof(struct drm_crtc), GFP_KERNEL);
-	if (!config->save_crtcs)
-		return -ENOMEM;
 
 	config->save_encoder_crtcs =
 		kcalloc(dev->mode_config.num_encoder,
@@ -6809,11 +6798,6 @@ static int intel_set_config_save_state(struct drm_device *dev,
 	 * restored, not the drivers personal bookkeeping.
 	 */
 	count = 0;
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		config->save_crtcs[count++] = *crtc;
-	}
-
-	count = 0;
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		config->save_encoder_crtcs[count++] = encoder->crtc;
 	}
@@ -6829,15 +6813,9 @@ static int intel_set_config_save_state(struct drm_device *dev,
 static void intel_set_config_restore_state(struct drm_device *dev,
 					   struct intel_set_config *config)
 {
-	struct drm_crtc *crtc;
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
 	int count;
-
-	count = 0;
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		*crtc = config->save_crtcs[count++];
-	}
 
 	count = 0;
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
@@ -6994,7 +6972,6 @@ next_encoder:
 static int intel_crtc_set_config(struct drm_mode_set *set)
 {
 	struct drm_device *dev;
-	struct drm_framebuffer *old_fb = NULL;
 	struct drm_mode_set save_set;
 	struct intel_set_config *config;
 	int ret;
@@ -7057,13 +7034,10 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 			DRM_DEBUG_KMS("attempting to set mode from"
 					" userspace\n");
 			drm_mode_debug_printmodeline(set->mode);
-			old_fb = set->crtc->fb;
-			set->crtc->fb = set->fb;
 			if (!intel_set_mode(set->crtc, set->mode,
-					    set->x, set->y, old_fb)) {
+					    set->x, set->y, set->fb)) {
 				DRM_ERROR("failed to set mode on [CRTC:%d]\n",
 					  set->crtc->base.id);
-				set->crtc->fb = old_fb;
 				ret = -EINVAL;
 				goto fail;
 			}
@@ -7076,18 +7050,8 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 		}
 		drm_helper_disable_unused_functions(dev);
 	} else if (config->fb_changed) {
-		set->crtc->x = set->x;
-		set->crtc->y = set->y;
-
-		old_fb = set->crtc->fb;
-		if (set->crtc->fb != set->fb)
-			set->crtc->fb = set->fb;
 		ret = intel_pipe_set_base(set->crtc,
-					  set->x, set->y, old_fb);
-		if (ret != 0) {
-			set->crtc->fb = old_fb;
-			goto fail;
-		}
+					  set->x, set->y, set->fb);
 	}
 
 	intel_set_config_free(config);

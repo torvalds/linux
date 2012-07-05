@@ -442,7 +442,6 @@ extern enum drm_connector_status intel_panel_detect(struct drm_device *dev);
 struct intel_set_config {
 	struct drm_encoder **save_connector_encoders;
 	struct drm_crtc **save_encoder_crtcs;
-	struct drm_crtc *save_crtcs;
 
 	bool fb_changed;
 	bool mode_changed;
