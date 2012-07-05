@@ -201,14 +201,7 @@ xfs_buf_alloc(
 	bp->b_length = numblks;
 	bp->b_io_length = numblks;
 	bp->b_flags = flags;
-
-	/*
-	 * We do not set the block number here in the buffer because we have not
-	 * finished initialising the buffer. We insert the buffer into the cache
-	 * in this state, so this ensures that we are unable to do IO on a
-	 * buffer that hasn't been fully initialised.
-	 */
-	bp->b_bn = XFS_BUF_DADDR_NULL;
+	bp->b_bn = blkno;
 	atomic_set(&bp->b_pin_count, 0);
 	init_waitqueue_head(&bp->b_waiters);
 
@@ -567,11 +560,6 @@ xfs_buf_get(
 	if (bp != new_bp)
 		xfs_buf_free(new_bp);
 
-	/*
-	 * Now we have a workable buffer, fill in the block number so
-	 * that we can do IO on it.
-	 */
-	bp->b_bn = blkno;
 	bp->b_io_length = bp->b_length;
 
 found:
@@ -772,7 +760,7 @@ xfs_buf_get_uncached(
 	int			error, i;
 	xfs_buf_t		*bp;
 
-	bp = xfs_buf_alloc(target, 0, numblks, 0);
+	bp = xfs_buf_alloc(target, XFS_BUF_DADDR_NULL, numblks, 0);
 	if (unlikely(bp == NULL))
 		goto fail;
 

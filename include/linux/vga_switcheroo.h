@@ -7,11 +7,19 @@
  * vga_switcheroo.h - Support for laptop with dual GPU using one set of outputs
  */
 
+#ifndef _LINUX_VGA_SWITCHEROO_H_
+#define _LINUX_VGA_SWITCHEROO_H_
+
 #include <linux/fb.h>
+
+struct pci_dev;
 
 enum vga_switcheroo_state {
 	VGA_SWITCHEROO_OFF,
 	VGA_SWITCHEROO_ON,
+	/* below are referred only from vga_switcheroo_get_client_state() */
+	VGA_SWITCHEROO_INIT,
+	VGA_SWITCHEROO_NOT_FOUND,
 };
 
 enum vga_switcheroo_client_id {
@@ -50,6 +58,8 @@ void vga_switcheroo_unregister_handler(void);
 
 int vga_switcheroo_process_delayed_switch(void);
 
+int vga_switcheroo_get_client_state(struct pci_dev *dev);
+
 #else
 
 static inline void vga_switcheroo_unregister_client(struct pci_dev *dev) {}
@@ -62,5 +72,8 @@ static inline int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
 	int id, bool active) { return 0; }
 static inline void vga_switcheroo_unregister_handler(void) {}
 static inline int vga_switcheroo_process_delayed_switch(void) { return 0; }
+static inline int vga_switcheroo_get_client_state(struct pci_dev *dev) { return VGA_SWITCHEROO_ON; }
+
 
 #endif
+#endif /* _LINUX_VGA_SWITCHEROO_H_ */

@@ -27,6 +27,17 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 			      struct cfg80211_ap_settings *params) {
 	int i;
 
+	if (!params->privacy) {
+		bss_config->protocol = PROTOCOL_NO_SECURITY;
+		bss_config->key_mgmt = KEY_MGMT_NONE;
+		bss_config->wpa_cfg.length = 0;
+		priv->sec_info.wep_enabled = 0;
+		priv->sec_info.wpa_enabled = 0;
+		priv->sec_info.wpa2_enabled = 0;
+
+		return 0;
+	}
+
 	switch (params->auth_type) {
 	case NL80211_AUTHTYPE_OPEN_SYSTEM:
 		bss_config->auth_mode = WLAN_AUTH_OPEN;
@@ -132,6 +143,7 @@ mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 	struct host_cmd_tlv_dtim_period *dtim_period;
 	struct host_cmd_tlv_beacon_period *beacon_period;
 	struct host_cmd_tlv_ssid *ssid;
+	struct host_cmd_tlv_bcast_ssid *bcast_ssid;
 	struct host_cmd_tlv_channel_band *chan_band;
 	struct host_cmd_tlv_frag_threshold *frag_threshold;
 	struct host_cmd_tlv_rts_threshold *rts_threshold;
@@ -153,6 +165,14 @@ mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 		cmd_size += sizeof(struct host_cmd_tlv) +
 			    bss_cfg->ssid.ssid_len;
 		tlv += sizeof(struct host_cmd_tlv) + bss_cfg->ssid.ssid_len;
+
+		bcast_ssid = (struct host_cmd_tlv_bcast_ssid *)tlv;
+		bcast_ssid->tlv.type = cpu_to_le16(TLV_TYPE_UAP_BCAST_SSID);
+		bcast_ssid->tlv.len =
+				cpu_to_le16(sizeof(bcast_ssid->bcast_ctl));
+		bcast_ssid->bcast_ctl = bss_cfg->bcast_ssid_ctl;
+		cmd_size += sizeof(struct host_cmd_tlv_bcast_ssid);
+		tlv += sizeof(struct host_cmd_tlv_bcast_ssid);
 	}
 	if (bss_cfg->channel && bss_cfg->channel <= MAX_CHANNEL_BAND_BG) {
 		chan_band = (struct host_cmd_tlv_channel_band *)tlv;
@@ -416,6 +436,7 @@ int mwifiex_uap_set_channel(struct mwifiex_private *priv, int channel)
 	if (!bss_cfg)
 		return -ENOMEM;
 
+	mwifiex_set_sys_config_invalid_data(bss_cfg);
 	bss_cfg->band_cfg = BAND_CONFIG_MANUAL;
 	bss_cfg->channel = channel;
 

@@ -1566,7 +1566,7 @@ struct be_hw_stats_v1 {
 	u32 rsvd0[BE_TXP_SW_SZ];
 	struct be_erx_stats_v1 erx;
 	struct be_pmem_stats pmem;
-	u32 rsvd1[3];
+	u32 rsvd1[18];
 };
 
 struct be_cmd_req_get_stats_v1 {

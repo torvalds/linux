@@ -478,6 +478,7 @@ struct netvsc_device {
 	u32 nvsp_version;
 
 	atomic_t num_outstanding_sends;
+	wait_queue_head_t wait_drain;
 	bool start_remove;
 	bool destroy;
 	/*

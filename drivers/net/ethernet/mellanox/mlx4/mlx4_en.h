@@ -495,6 +495,7 @@ struct mlx4_en_priv {
 	int vids[128];
 	bool wol;
 	struct device *ddev;
+	int base_tx_qpn;
 
 #ifdef CONFIG_MLX4_EN_DCB
 	struct ieee_ets ets;
