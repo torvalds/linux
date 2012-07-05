@@ -1218,8 +1218,8 @@ int rk30_dvfs_init(void)
  * AVS_BASE can use 172
  */
 
-int avs_scale_volt = 0;
-int avs_get_scal_val(int vol);
+static int avs_scale_volt = 0;
+static int avs_get_scal_val(int vol);
 
 int dvfs_avs_scale_table(struct clk *clk, char *depend_vd_name)
 {
@@ -1265,11 +1265,11 @@ int dvfs_avs_scale_table(struct clk *clk, char *depend_vd_name)
 	return 0;
 }
 
-void __iomem *rk30_nandc_base;
+static void __iomem *rk30_nandc_base;
 
 #define nandc_readl(offset)	readl_relaxed(rk30_nandc_base + offset)
 #define nandc_writel(v, offset) do { writel_relaxed(v, rk30_nandc_base + offset); dsb(); } while (0)
-u8 rk30_get_avs_val(void)
+static u8 rk30_get_avs_val(void)
 {
 	u32 nanc_save_reg[4];
 	unsigned long flags;
@@ -1316,7 +1316,7 @@ struct init_avs_st {
 	char *s;
 };
 
-struct init_avs_st init_avs_paramet[init_avs_st_num];
+static struct init_avs_st init_avs_paramet[init_avs_st_num];
 
 void avs_init_val_get(int index, int vol, char *s)
 {
@@ -1342,7 +1342,7 @@ void avs_init(void)
 #define VOL_DYN_STEP (12500)  //mv
 #define AVS_VAL_PER_STEP (4)  //mv
 
-u8 avs_init_get_min_val(void)
+static u8 avs_init_get_min_val(void)
 {
 	int i, j;
 	u8 min_avs = 0xff;
@@ -1356,7 +1356,7 @@ u8 avs_init_get_min_val(void)
 	return min_avs;
 }
 
-int avs_get_scal_val(int vol)
+static int avs_get_scal_val(int vol)
 {
 	vol += avs_scale_volt;
 	if(vol < 1000 * 1000)
@@ -1389,7 +1389,26 @@ int avs_set_scal_val(u8 avs_base)
 	return 0;
 }
 
-u32 print_avs_init(char *buf)
+/*************************interface to get avs value and dvfs tree*************************/
+#define USE_NORMAL_TIME
+#ifdef USE_NORMAL_TIME
+static struct timer_list avs_timer;
+#else
+static struct hrtimer dvfs_hrtimer;
+#endif
+
+static u32 avs_dyn_start = 0;
+static u32 avs_dyn_data_cnt;
+static u8 *avs_dyn_data = NULL;
+static u32 show_line_cnt = 0;
+static u8 dly_min;
+static u8 dly_max;
+
+#define val_per_line (30)
+#define line_pre_show (30)
+#define avs_dyn_data_num (3*1000*1000)
+
+static u32 print_avs_init(char *buf)
 {
 	char *s = buf;
 	int i, j;
@@ -1431,16 +1450,6 @@ static ssize_t avs_now_store(struct kobject *kobj, struct kobj_attribute *attr,
 {
 	return n;
 }
-extern struct timer_list avs_timer;
-u32 avs_dyn_start = 0;
-extern u32 avs_dyn_data_cnt;
-u8 *avs_dyn_data = NULL;
-u32 show_line_cnt = 0;
-#define val_per_line (30)
-#define line_pre_show (30)
-u8 dly_min;
-u8 dly_max;
-#define USE_NORMAL_TIME
 static ssize_t avs_dyn_show(struct kobject *kobj, struct kobj_attribute *attr,
 		char *buf)
 {
@@ -1511,7 +1520,6 @@ static ssize_t avs_dyn_show(struct kobject *kobj, struct kobj_attribute *attr,
 	}
 	return (s - buf);
 }
-extern struct hrtimer dvfs_hrtimer;
 
 static ssize_t avs_dyn_store(struct kobject *kobj, struct kobj_attribute *attr,
 		const char *buf, size_t n)
@@ -1558,13 +1566,6 @@ static ssize_t dvfs_tree_show(struct kobject *kobj, struct kobj_attribute *attr,
 
 }
 
-struct timer_list avs_timer;
-
-#define avs_dyn_data_num (3*1000*1000)
-//char *avs_dyn_data;
-u32 avs_dyn_data_cnt = 0;
-
-
 static void avs_timer_fn(unsigned long data)
 {
 	int i;
@@ -1594,7 +1595,7 @@ static enum hrtimer_restart dvfs_hrtimer_timer_func(struct hrtimer *timer)
 }
 #endif
 /*********************************************************************************/
-struct kobject *dvfs_kobj;
+static struct kobject *dvfs_kobj;
 struct dvfs_attribute {
 	struct attribute	attr;
 	ssize_t (*show)(struct kobject *kobj, struct kobj_attribute *attr,
