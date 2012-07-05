@@ -30,9 +30,11 @@ static __devinit int arizona_i2c_probe(struct i2c_client *i2c,
 	int ret;
 
 	switch (id->driver_data) {
+#ifdef CONFIG_MFD_WM5102
 	case WM5102:
 		regmap_config = &wm5102_i2c_regmap;
 		break;
+#endif
 	default:
 		dev_err(&i2c->dev, "Unknown device type %ld\n",
 			id->driver_data);

@@ -158,10 +158,12 @@ int arizona_irq_init(struct arizona *arizona)
 	const struct regmap_irq_chip *aod, *irq;
 
 	switch (arizona->type) {
+#ifdef CONFIG_MFD_WM5102
 	case WM5102:
 		aod = &wm5102_aod;
 		irq = &wm5102_irq;
 		break;
+#endif
 	default:
 		BUG_ON("Unknown Arizona class device" == NULL);
 		return -EINVAL;

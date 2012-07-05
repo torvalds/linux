@@ -368,6 +368,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 	arizona->rev &= ARIZONA_DEVICE_REVISION_MASK;
 
 	switch (reg) {
+#ifdef CONFIG_MFD_WM5102
 	case 0x5102:
 		type_name = "WM5102";
 		if (arizona->type != WM5102) {
@@ -377,7 +378,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 		}
 		ret = wm5102_patch(arizona);
 		break;
-
+#endif
 	default:
 		dev_err(arizona->dev, "Unknown device ID %x\n", reg);
 		goto err_reset;
