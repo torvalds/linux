@@ -73,7 +73,7 @@ module_param_named(dbg_level, rk30_battery_dbg_level, int, 0644);
 
 #define BAT_2V5_VALUE	                                     2500
 
-#define BATT_NUM                                                   52
+
 #define BATT_FILENAME "/data/bat_last_capacity.dat"
 
 static struct wake_lock batt_wake_lock;
@@ -94,7 +94,7 @@ struct batt_vol_cal{
 #define BAT_PULL_UP_R                                         200
 #define BAT_PULL_DOWN_R                                    200
 
-static struct batt_vol_cal  batt_table[BATT_NUM] = {
+static struct batt_vol_cal  batt_table[] = {
 	{0,3400,3520},{1,3420,3525},{2,3420,3575},{3,3475,3600},{5,3505,3620},{7,3525,3644},
 	{9,3540,3662},{11,3557,3670},{13,3570,3684},{15,3580,3700},{17,3610,3715},
 	{19,3630,3720},{21,3640,3748},{23,3652,3756},{25,3662,3775},{27,3672,3790},
@@ -116,7 +116,7 @@ static struct batt_vol_cal  batt_table[BATT_NUM] = {
 #define BAT_PULL_UP_R                                         300 
 #define BAT_PULL_DOWN_R                                    100
 
-static struct batt_vol_cal  batt_table[BATT_NUM] = {
+static struct batt_vol_cal  batt_table[] = {
 	{0,6800,7400},    {1,6840,7440},     {2,6880,7480},     {3,6950,7450},       {5,7010,7510},    {7,7050,7550},
 	{9,7080,7580},    {11,7104,7604},   {13,7140,7640},   {15,7160,7660},      {17,7220,7720},
 	{19,7260,7760},  {21,7280,7780},   {23,7304,7802},   {25,7324,7824},      {27,7344,7844},
@@ -130,6 +130,9 @@ static struct batt_vol_cal  batt_table[BATT_NUM] = {
 
 };
 #endif
+
+
+#define BATT_NUM  ARRAY_SIZE(batt_table)
 
 #define adc_to_voltage(adc_val)                           ((adc_val * BAT_2V5_VALUE * (BAT_PULL_UP_R + BAT_PULL_DOWN_R)) / (1024 * BAT_PULL_DOWN_R))
 
@@ -874,15 +877,31 @@ static void rk30_adc_battery_resume_check(void)
 
 static int rk30_adc_battery_suspend(struct platform_device *dev, pm_message_t state)
 {
+	int irq;
 	gBatteryData->suspend_capacity = gBatteryData->bat_capacity;
 	cancel_delayed_work(&gBatteryData->delay_work);
+	
+	if( gBatteryData->pdata->batt_low_pin != INVALID_GPIO){
+		
+		irq = gpio_to_irq(gBatteryData->pdata->batt_low_pin);
+		enable_irq(irq);
+	    	enable_irq_wake(irq);
+    	}
+
 	return 0;
 }
 
 static int rk30_adc_battery_resume(struct platform_device *dev)
 {
+	int irq;
 	gBatteryData->resume = true;
-	queue_delayed_work(gBatteryData->wq, &gBatteryData->delay_work, msecs_to_jiffies(TIMER_MS_COUNTS));
+	queue_delayed_work(gBatteryData->wq, &gBatteryData->delay_work, msecs_to_jiffies(100));
+	if( gBatteryData->pdata->batt_low_pin != INVALID_GPIO){
+		
+		irq = gpio_to_irq(gBatteryData->pdata->batt_low_pin);
+	    	disable_irq_wake(irq);
+		disable_irq(irq);
+    	}
 	return 0;
 }
 #else
@@ -927,7 +946,6 @@ static void rk30_adc_battery_timer_work(struct work_struct *work)
 	}
 	
 	
-
 	/*update battery parameter after adc and capacity has been changed*/
 	if(gBatteryData->bat_change){
 		gBatteryData->bat_change = 0;
@@ -1120,11 +1138,15 @@ static void rk30_adc_battery_callback(struct adc_client *client, void *param, in
 	return;
 }
 
-#if 0
+#if 1
 static void rk30_adc_battery_lowerpower_delaywork(struct work_struct *work)
 {
-	struct rk30_adc_battery_platform_data *pdata;
 	int irq;
+	if( gBatteryData->pdata->batt_low_pin != INVALID_GPIO){
+		irq = gpio_to_irq(gBatteryData->pdata->batt_low_pin);
+		disable_irq(irq);
+	}
+
 	printk("lowerpower\n");
  	rk28_send_wakeup_key(); // wake up the system	
 	return;
@@ -1133,8 +1155,7 @@ static void rk30_adc_battery_lowerpower_delaywork(struct work_struct *work)
 
 static irqreturn_t rk30_adc_battery_low_wakeup(int irq,void *dev_id)
 {
-
-	schedule_work(&gBatteryData->lowerpower_work);	
+	queue_work(gBatteryData->wq, &gBatteryData->lowerpower_work);
 	return IRQ_HANDLED;
 }
 
@@ -1148,7 +1169,7 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 	struct adc_client                   *client;
 	struct rk30_adc_battery_data          *data;
 	struct rk30_adc_battery_platform_data *pdata = pdev->dev.platform_data;
-	
+
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL) {
 		ret = -ENOMEM;
@@ -1220,7 +1241,7 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 	}
 #endif
 
-#if 0
+#if 1
 	// batt low irq lowerpower_work
 	if( pdata->batt_low_pin != INVALID_GPIO){
 		INIT_WORK(&data->lowerpower_work, rk30_adc_battery_lowerpower_delaywork);
@@ -1232,7 +1253,8 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 	    		printk("failed to request batt_low_irq irq\n");
 	    		goto err_lowpowerirq_failed;
 	    	}
-	    	enable_irq_wake(irq);
+		disable_irq(irq);
+    	
     	}
 #endif
 
@@ -1255,7 +1277,7 @@ err_battery_failed:
     
 err_dcirq_failed:
 	free_irq(gpio_to_irq(pdata->dc_det_pin), data);
-#if 0
+#if 1
  err_lowpowerirq_failed:
 	free_irq(gpio_to_irq(pdata->batt_low_pin), data);
 #endif
