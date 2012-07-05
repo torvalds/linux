@@ -178,8 +178,10 @@ replay:
 
 		err = nla_parse(cda, ss->cb[cb_id].attr_count,
 				attr, attrlen, ss->cb[cb_id].policy);
-		if (err < 0)
+		if (err < 0) {
+			rcu_read_unlock();
 			return err;
+		}
 
 		if (nc->call_rcu) {
 			err = nc->call_rcu(net->nfnl, skb, nlh,
