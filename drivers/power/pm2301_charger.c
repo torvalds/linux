@@ -1067,6 +1067,8 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 		pm2xxx_reg_read(pm2, PM2XXX_REG_INT2, &val);
 		pm2xxx_reg_read(pm2, PM2XXX_REG_INT4, &val);
 		pm2->ac.charger_connected = 1;
+		ab8500_override_turn_on_stat(~AB8500_POW_KEY_1_ON,
+					     AB8500_MAIN_CH_DET);
 		pm2->ac_conn = true;
 		power_supply_changed(&pm2->ac_chg.psy);
 		sysfs_notify(&pm2->ac_chg.psy.dev->kobj, NULL, "present");
