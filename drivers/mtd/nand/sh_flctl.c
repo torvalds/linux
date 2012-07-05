@@ -29,6 +29,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -746,10 +747,9 @@ static void flctl_select_chip(struct mtd_info *mtd, int chipnr)
 static void flctl_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 {
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
-	int i, index = flctl->index;
+	int index = flctl->index;
 
-	for (i = 0; i < len; i++)
-		flctl->done_buff[index + i] = buf[i];
+	memcpy(&flctl->done_buff[index], buf, len);
 	flctl->index += len;
 }
 
@@ -778,10 +778,11 @@ static uint16_t flctl_read_word(struct mtd_info *mtd)
 
 static void flctl_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
-	int i;
+	struct sh_flctl *flctl = mtd_to_flctl(mtd);
+	int index = flctl->index;
 
-	for (i = 0; i < len; i++)
-		buf[i] = flctl_read_byte(mtd);
+	memcpy(buf, &flctl->done_buff[index], len);
+	flctl->index += len;
 }
 
 static int flctl_verify_buf(struct mtd_info *mtd, const u_char *buf, int len)
