@@ -13,6 +13,7 @@
 
 #include <linux/sh_clk.h>
 #include <linux/pm_domain.h>
+#include <mach/pm-rmobile.h>
 
 /*
  * Pin Function Controller:
@@ -494,6 +495,16 @@ static inline struct sh7372_pm_domain *to_sh7372_pd(struct generic_pm_domain *d)
 }
 
 #ifdef CONFIG_PM
+extern struct rmobile_pm_domain sh7372_pd_a4lc;
+extern struct rmobile_pm_domain sh7372_pd_a4mp;
+extern struct rmobile_pm_domain sh7372_pd_d4;
+extern struct rmobile_pm_domain sh7372_pd_a4r;
+extern struct rmobile_pm_domain sh7372_pd_a3rv;
+extern struct rmobile_pm_domain sh7372_pd_a3ri;
+extern struct rmobile_pm_domain sh7372_pd_a4s;
+extern struct rmobile_pm_domain sh7372_pd_a3sp;
+extern struct rmobile_pm_domain sh7372_pd_a3sg;
+
 extern struct sh7372_pm_domain sh7372_a4lc;
 extern struct sh7372_pm_domain sh7372_a4mp;
 extern struct sh7372_pm_domain sh7372_d4;

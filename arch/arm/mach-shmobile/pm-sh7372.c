@@ -26,6 +26,7 @@
 #include <asm/suspend.h>
 #include <mach/common.h>
 #include <mach/sh7372.h>
+#include <mach/pm-rmobile.h>
 
 /* DBG */
 #define DBGREG1 0xe6100020
@@ -290,6 +291,85 @@ struct sh7372_pm_domain sh7372_a3sg = {
 	.genpd.name = "A3SG",
 	.bit_shift = 13,
 };
+
+struct rmobile_pm_domain sh7372_pd_a4lc = {
+	.genpd.name = "A4LC",
+	.bit_shift = 1,
+};
+
+struct rmobile_pm_domain sh7372_pd_a4mp = {
+	.genpd.name = "A4MP",
+	.bit_shift = 2,
+};
+
+struct rmobile_pm_domain sh7372_pd_d4 = {
+	.genpd.name = "D4",
+	.bit_shift = 3,
+};
+
+static int sh7372_a4r_pd_suspend(void)
+{
+	sh7372_intcs_suspend();
+	__raw_writel(0x300fffff, WUPRMSK); /* avoid wakeup */
+	return 0;
+}
+
+struct rmobile_pm_domain sh7372_pd_a4r = {
+	.genpd.name = "A4R",
+	.bit_shift = 5,
+	.suspend = sh7372_a4r_pd_suspend,
+	.resume = sh7372_intcs_resume,
+};
+
+struct rmobile_pm_domain sh7372_pd_a3rv = {
+	.genpd.name = "A3RV",
+	.bit_shift = 6,
+};
+
+struct rmobile_pm_domain sh7372_pd_a3ri = {
+	.genpd.name = "A3RI",
+	.bit_shift = 8,
+};
+
+static int sh7372_pd_a4s_suspend(void)
+{
+	/*
+	 * The A4S domain contains the CPU core and therefore it should
+	 * only be turned off if the CPU is in use.
+	 */
+	return -EBUSY;
+}
+
+struct rmobile_pm_domain sh7372_pd_a4s = {
+	.genpd.name = "A4S",
+	.bit_shift = 10,
+	.gov = &pm_domain_always_on_gov,
+	.no_debug = true,
+	.suspend = sh7372_pd_a4s_suspend,
+};
+
+static int sh7372_a3sp_pd_suspend(void)
+{
+	/*
+	 * Serial consoles make use of SCIF hardware located in A3SP,
+	 * keep such power domain on if "no_console_suspend" is set.
+	 */
+	return console_suspend_enabled ? 0 : -EBUSY;
+}
+
+struct rmobile_pm_domain sh7372_pd_a3sp = {
+	.genpd.name = "A3SP",
+	.bit_shift = 11,
+	.gov = &pm_domain_always_on_gov,
+	.no_debug = true,
+	.suspend = sh7372_a3sp_pd_suspend,
+};
+
+struct rmobile_pm_domain sh7372_pd_a3sg = {
+	.genpd.name = "A3SG",
+	.bit_shift = 13,
+};
+
 #endif /* CONFIG_PM */
 
 #if defined(CONFIG_SUSPEND) || defined(CONFIG_CPU_IDLE)
@@ -531,7 +611,7 @@ static int sh7372_enter_suspend(suspend_state_t suspend_state)
 	/* check active clocks to determine potential wakeup sources */
 	if (sh7372_sysc_valid(&msk, &msk2)) {
 		if (!console_suspend_enabled &&
-		    sh7372_a4s.genpd.status == GPD_STATE_POWER_OFF) {
+		    sh7372_pd_a4s.genpd.status == GPD_STATE_POWER_OFF) {
 			/* convert INTC mask/sense to SYSC mask/sense */
 			sh7372_setup_sysc(msk, msk2);
 
@@ -565,7 +645,7 @@ static int sh7372_pm_notifier_fn(struct notifier_block *notifier,
 		 * executed during system suspend and resume, respectively, so
 		 * that those functions don't crash while accessing the INTCS.
 		 */
-		pm_genpd_poweron(&sh7372_a4r.genpd);
+		pm_genpd_poweron(&sh7372_pd_a4r.genpd);
 		break;
 	case PM_POST_SUSPEND:
 		pm_genpd_poweroff_unused();
