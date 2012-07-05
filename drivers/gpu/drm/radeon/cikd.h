@@ -188,6 +188,21 @@
 
 #define HDP_REG_COHERENCY_FLUSH_CNTL			0x54A0
 
+#define GPU_HDP_FLUSH_REQ				0x54DC
+#define GPU_HDP_FLUSH_DONE				0x54E0
+#define		CP0					(1 << 0)
+#define		CP1					(1 << 1)
+#define		CP2					(1 << 2)
+#define		CP3					(1 << 3)
+#define		CP4					(1 << 4)
+#define		CP5					(1 << 5)
+#define		CP6					(1 << 6)
+#define		CP7					(1 << 7)
+#define		CP8					(1 << 8)
+#define		CP9					(1 << 9)
+#define		SDMA0					(1 << 10)
+#define		SDMA1					(1 << 11)
+
 #define	GRBM_CNTL					0x8000
 #define		GRBM_READ_TIMEOUT(x)				((x) << 0)
 
@@ -492,6 +507,49 @@
 #       define RASTER_CONFIG_RB_MAP_2                   2
 #       define RASTER_CONFIG_RB_MAP_3                   3
 
+#define VGT_EVENT_INITIATOR                             0x28a90
+#       define SAMPLE_STREAMOUTSTATS1                   (1 << 0)
+#       define SAMPLE_STREAMOUTSTATS2                   (2 << 0)
+#       define SAMPLE_STREAMOUTSTATS3                   (3 << 0)
+#       define CACHE_FLUSH_TS                           (4 << 0)
+#       define CACHE_FLUSH                              (6 << 0)
+#       define CS_PARTIAL_FLUSH                         (7 << 0)
+#       define VGT_STREAMOUT_RESET                      (10 << 0)
+#       define END_OF_PIPE_INCR_DE                      (11 << 0)
+#       define END_OF_PIPE_IB_END                       (12 << 0)
+#       define RST_PIX_CNT                              (13 << 0)
+#       define VS_PARTIAL_FLUSH                         (15 << 0)
+#       define PS_PARTIAL_FLUSH                         (16 << 0)
+#       define CACHE_FLUSH_AND_INV_TS_EVENT             (20 << 0)
+#       define ZPASS_DONE                               (21 << 0)
+#       define CACHE_FLUSH_AND_INV_EVENT                (22 << 0)
+#       define PERFCOUNTER_START                        (23 << 0)
+#       define PERFCOUNTER_STOP                         (24 << 0)
+#       define PIPELINESTAT_START                       (25 << 0)
+#       define PIPELINESTAT_STOP                        (26 << 0)
+#       define PERFCOUNTER_SAMPLE                       (27 << 0)
+#       define SAMPLE_PIPELINESTAT                      (30 << 0)
+#       define SO_VGT_STREAMOUT_FLUSH                   (31 << 0)
+#       define SAMPLE_STREAMOUTSTATS                    (32 << 0)
+#       define RESET_VTX_CNT                            (33 << 0)
+#       define VGT_FLUSH                                (36 << 0)
+#       define BOTTOM_OF_PIPE_TS                        (40 << 0)
+#       define DB_CACHE_FLUSH_AND_INV                   (42 << 0)
+#       define FLUSH_AND_INV_DB_DATA_TS                 (43 << 0)
+#       define FLUSH_AND_INV_DB_META                    (44 << 0)
+#       define FLUSH_AND_INV_CB_DATA_TS                 (45 << 0)
+#       define FLUSH_AND_INV_CB_META                    (46 << 0)
+#       define CS_DONE                                  (47 << 0)
+#       define PS_DONE                                  (48 << 0)
+#       define FLUSH_AND_INV_CB_PIXEL_DATA              (49 << 0)
+#       define THREAD_TRACE_START                       (51 << 0)
+#       define THREAD_TRACE_STOP                        (52 << 0)
+#       define THREAD_TRACE_FLUSH                       (54 << 0)
+#       define THREAD_TRACE_FINISH                      (55 << 0)
+#       define PIXEL_PIPE_STAT_CONTROL                  (56 << 0)
+#       define PIXEL_PIPE_STAT_DUMP                     (57 << 0)
+#       define PIXEL_PIPE_STAT_RESET                    (58 << 0)
+
 #define	SCRATCH_REG0					0x30100
 #define	SCRATCH_REG1					0x30104
 #define	SCRATCH_REG2					0x30108
@@ -507,6 +565,8 @@
 #define	CP_SEM_WAIT_TIMER				0x301BC
 
 #define	CP_SEM_INCOMPLETE_TIMER_CNTL			0x301C8
+
+#define	CP_WAIT_REG_MEM_TIMEOUT				0x301D0
 
 #define GRBM_GFX_INDEX          			0x30800
 #define		INSTANCE_INDEX(x)			((x) << 0)
@@ -597,11 +657,63 @@
 #define	PACKET3_DRAW_INDEX_OFFSET_2			0x35
 #define	PACKET3_DRAW_PREAMBLE				0x36
 #define	PACKET3_WRITE_DATA				0x37
+#define		WRITE_DATA_DST_SEL(x)                   ((x) << 8)
+                /* 0 - register
+		 * 1 - memory (sync - via GRBM)
+		 * 2 - gl2
+		 * 3 - gds
+		 * 4 - reserved
+		 * 5 - memory (async - direct)
+		 */
+#define		WR_ONE_ADDR                             (1 << 16)
+#define		WR_CONFIRM                              (1 << 20)
+#define		WRITE_DATA_CACHE_POLICY(x)              ((x) << 25)
+                /* 0 - LRU
+		 * 1 - Stream
+		 */
+#define		WRITE_DATA_ENGINE_SEL(x)                ((x) << 30)
+                /* 0 - me
+		 * 1 - pfp
+		 * 2 - ce
+		 */
 #define	PACKET3_DRAW_INDEX_INDIRECT_MULTI		0x38
 #define	PACKET3_MEM_SEMAPHORE				0x39
+#              define PACKET3_SEM_USE_MAILBOX       (0x1 << 16)
+#              define PACKET3_SEM_SEL_SIGNAL_TYPE   (0x1 << 20) /* 0 = increment, 1 = write 1 */
+#              define PACKET3_SEM_CLIENT_CODE	    ((x) << 24) /* 0 = CP, 1 = CB, 2 = DB */
+#              define PACKET3_SEM_SEL_SIGNAL	    (0x6 << 29)
+#              define PACKET3_SEM_SEL_WAIT	    (0x7 << 29)
 #define	PACKET3_COPY_DW					0x3B
 #define	PACKET3_WAIT_REG_MEM				0x3C
+#define		WAIT_REG_MEM_FUNCTION(x)                ((x) << 0)
+                /* 0 - always
+		 * 1 - <
+		 * 2 - <=
+		 * 3 - ==
+		 * 4 - !=
+		 * 5 - >=
+		 * 6 - >
+		 */
+#define		WAIT_REG_MEM_MEM_SPACE(x)               ((x) << 4)
+                /* 0 - reg
+		 * 1 - mem
+		 */
+#define		WAIT_REG_MEM_OPERATION(x)               ((x) << 6)
+                /* 0 - wait_reg_mem
+		 * 1 - wr_wait_wr_reg
+		 */
+#define		WAIT_REG_MEM_ENGINE(x)                  ((x) << 8)
+                /* 0 - me
+		 * 1 - pfp
+		 */
 #define	PACKET3_INDIRECT_BUFFER				0x3F
+#define		INDIRECT_BUFFER_TCL2_VOLATILE           (1 << 22)
+#define		INDIRECT_BUFFER_VALID                   (1 << 23)
+#define		INDIRECT_BUFFER_CACHE_POLICY(x)         ((x) << 28)
+                /* 0 - LRU
+		 * 1 - Stream
+		 * 2 - Bypass
+		 */
 #define	PACKET3_COPY_DATA				0x40
 #define	PACKET3_PFP_SYNC_ME				0x42
 #define	PACKET3_SURFACE_SYNC				0x43
@@ -646,12 +758,12 @@
 #define		EOP_TC_WB_ACTION_EN                     (1 << 15) /* L2 */
 #define		EOP_TCL1_ACTION_EN                      (1 << 16)
 #define		EOP_TC_ACTION_EN                        (1 << 17) /* L2 */
-#define		CACHE_POLICY(x)                         ((x) << 25)
+#define		EOP_CACHE_POLICY(x)                     ((x) << 25)
                 /* 0 - LRU
 		 * 1 - Stream
 		 * 2 - Bypass
 		 */
-#define		TCL2_VOLATILE                           (1 << 27)
+#define		EOP_TCL2_VOLATILE                       (1 << 27)
 #define		DATA_SEL(x)                             ((x) << 29)
                 /* 0 - discard
 		 * 1 - send low 32bit data
@@ -693,6 +805,8 @@
 #define	PACKET3_SET_SH_REG_OFFSET			0x77
 #define	PACKET3_SET_QUEUE_REG				0x78
 #define	PACKET3_SET_UCONFIG_REG				0x79
+#define		PACKET3_SET_UCONFIG_REG_START			0x00030000
+#define		PACKET3_SET_UCONFIG_REG_END			0x00031000
 #define	PACKET3_SCRATCH_RAM_WRITE			0x7D
 #define	PACKET3_SCRATCH_RAM_READ			0x7E
 #define	PACKET3_LOAD_CONST_RAM				0x80
@@ -702,6 +816,6 @@
 #define	PACKET3_INCREMENT_DE_COUNTER			0x85
 #define	PACKET3_WAIT_ON_CE_COUNTER			0x86
 #define	PACKET3_WAIT_ON_DE_COUNTER_DIFF			0x88
-
+#define	PACKET3_SWITCH_BUFFER				0x8B
 
 #endif
