@@ -135,9 +135,14 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 	if (dvb_usbv2_disable_rc_polling || !d->props->get_rc_config)
 		return 0;
 
+	d->rc.map_name = d->rc_map;
 	ret = d->props->get_rc_config(d, &d->rc);
 	if (ret < 0)
 		goto err;
+
+	/* disable rc when there is no keymap defined */
+	if (!d->rc.map_name)
+		return 0;
 
 	dev = rc_allocate_device();
 	if (!dev) {
@@ -153,14 +158,11 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 	usb_to_input_id(d->udev, &dev->input_id);
 	/* TODO: likely RC-core should took const char * */
 	dev->driver_name = (char *) d->props->driver_name;
+	dev->map_name = d->rc.map_name;
 	dev->driver_type = d->rc.driver_type;
 	dev->allowed_protos = d->rc.allowed_protos;
 	dev->change_protocol = d->rc.change_protocol;
 	dev->priv = d;
-	if (d->rc.map_name)
-		dev->map_name = d->rc.map_name;
-	else
-		dev->map_name = d->rc_map;
 
 	ret = rc_register_device(dev);
 	if (ret < 0) {

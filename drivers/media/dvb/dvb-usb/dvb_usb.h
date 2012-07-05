@@ -124,7 +124,7 @@ struct dvb_usb_driver_info {
  * @bulk_mode: device supports bulk mode for rc (disable polling mode)
  */
 struct dvb_usb_rc {
-	char *map_name;
+	const char *map_name;
 	u64 allowed_protos;
 	int (*change_protocol)(struct rc_dev *dev, u64 rc_type);
 	int (*query) (struct dvb_usb_device *d);

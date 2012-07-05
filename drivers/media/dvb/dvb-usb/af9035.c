@@ -966,6 +966,10 @@ static int af9035_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 
 		rc->query = af9035_rc_query;
 		rc->interval = 500;
+
+		/* load empty to enable rc */
+		if (!rc->map_name)
+			rc->map_name = RC_MAP_EMPTY;
 	}
 
 	return 0;
