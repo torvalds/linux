@@ -2032,6 +2032,7 @@ struct v4l2_modulator {
 #define V4L2_TUNER_CAP_RDS		0x0080
 #define V4L2_TUNER_CAP_RDS_BLOCK_IO	0x0100
 #define V4L2_TUNER_CAP_RDS_CONTROLS	0x0200
+#define V4L2_TUNER_CAP_FREQ_BANDS	0x0400
 
 /*  Flags for the 'rxsubchans' field */
 #define V4L2_TUNER_SUB_MONO		0x0001
@@ -2050,19 +2051,34 @@ struct v4l2_modulator {
 #define V4L2_TUNER_MODE_LANG1_LANG2	0x0004
 
 struct v4l2_frequency {
-	__u32		      tuner;
-	__u32		      type;	/* enum v4l2_tuner_type */
-	__u32		      frequency;
-	__u32		      reserved[8];
+	__u32	tuner;
+	__u32	type;	/* enum v4l2_tuner_type */
+	__u32	frequency;
+	__u32	reserved[8];
+};
+
+#define V4L2_BAND_MODULATION_VSB	(1 << 1)
+#define V4L2_BAND_MODULATION_FM		(1 << 2)
+#define V4L2_BAND_MODULATION_AM		(1 << 3)
+
+struct v4l2_frequency_band {
+	__u32	tuner;
+	__u32	type;	/* enum v4l2_tuner_type */
+	__u32	index;
+	__u32	capability;
+	__u32	rangelow;
+	__u32	rangehigh;
+	__u32	modulation;
+	__u32	reserved[9];
 };
 
 struct v4l2_hw_freq_seek {
-	__u32		      tuner;
-	__u32		      type;	/* enum v4l2_tuner_type */
-	__u32		      seek_upward;
-	__u32		      wrap_around;
-	__u32		      spacing;
-	__u32		      reserved[7];
+	__u32	tuner;
+	__u32	type;	/* enum v4l2_tuner_type */
+	__u32	seek_upward;
+	__u32	wrap_around;
+	__u32	spacing;
+	__u32	reserved[7];
 };
 
 /*
@@ -2629,6 +2645,10 @@ struct v4l2_create_buffers {
 #define VIDIOC_ENUM_DV_TIMINGS  _IOWR('V', 98, struct v4l2_enum_dv_timings)
 #define VIDIOC_QUERY_DV_TIMINGS  _IOR('V', 99, struct v4l2_dv_timings)
 #define VIDIOC_DV_TIMINGS_CAP   _IOWR('V', 100, struct v4l2_dv_timings_cap)
+
+/* Experimental, this ioctl may change over the next couple of kernel
+   versions. */
+#define VIDIOC_ENUM_FREQ_BANDS	_IOWR('V', 101, struct v4l2_frequency_band)
 
 /* Reminder: when adding new ioctls please add support for them to
    drivers/media/video/v4l2-compat-ioctl32.c as well! */
