@@ -2491,14 +2491,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 	gen6_set_rps(dev_priv->dev, (gt_perf_status & 0xff00) >> 8);
 
 	/* requires MSI enabled */
-	I915_WRITE(GEN6_PMIER,
-		   GEN6_PM_MBOX_EVENT |
-		   GEN6_PM_THERMAL_EVENT |
-		   GEN6_PM_RP_DOWN_TIMEOUT |
-		   GEN6_PM_RP_UP_THRESHOLD |
-		   GEN6_PM_RP_DOWN_THRESHOLD |
-		   GEN6_PM_RP_UP_EI_EXPIRED |
-		   GEN6_PM_RP_DOWN_EI_EXPIRED);
+	I915_WRITE(GEN6_PMIER, GEN6_PM_DEFERRED_EVENTS);
 	spin_lock_irq(&dev_priv->rps_lock);
 	WARN_ON(dev_priv->pm_iir != 0);
 	I915_WRITE(GEN6_PMIMR, 0);
