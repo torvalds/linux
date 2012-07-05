@@ -228,4 +228,7 @@
 #define DEBUG_UART_BASE         RK30_UART3_BASE
 #endif
 
+#define GIC_DIST_BASE           RK30_GICD_BASE
+#define GIC_CPU_BASE            RK30_GICC_BASE
+
 #endif

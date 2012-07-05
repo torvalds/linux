@@ -119,7 +119,7 @@ void __init rk30_init_irq(void)
 {
 	gic_init(0, IRQ_LOCALTIMER, RK30_GICD_BASE, RK30_GICC_BASE);
 #ifdef CONFIG_FIQ
-	rk30_fiq_init();
+	rk_fiq_init();
 #endif
 	rk30_gpio_init();
 }

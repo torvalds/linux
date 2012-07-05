@@ -34,10 +34,10 @@
 
 #define FIRST_SGI_PPI_IRQ	32
 
-static void rk30_fiq_mask(struct irq_data *d)
+static void rk_fiq_mask(struct irq_data *d)
 {
 	u32 i = 0;
-	void __iomem *base = RK30_GICD_BASE;
+	void __iomem *base = GIC_DIST_BASE;
 
 	if (d->irq < FIRST_SGI_PPI_IRQ)
 		return;
@@ -50,10 +50,10 @@ static void rk30_fiq_mask(struct irq_data *d)
 	dsb();
 }
 
-static void rk30_fiq_unmask(struct irq_data *d)
+static void rk_fiq_unmask(struct irq_data *d)
 {
 	u32 i = 0;
-	void __iomem *base = RK30_GICD_BASE;
+	void __iomem *base = GIC_DIST_BASE;
 
 	if (d->irq < FIRST_SGI_PPI_IRQ)
 		return;
@@ -68,42 +68,44 @@ static void rk30_fiq_unmask(struct irq_data *d)
 
 void rk_fiq_enable(int irq)
 {
-	rk30_fiq_unmask(irq_get_irq_data(irq));
+	rk_fiq_unmask(irq_get_irq_data(irq));
 	enable_fiq(irq);
 }
 
 void rk_fiq_disable(int irq)
 {
-	rk30_fiq_mask(irq_get_irq_data(irq));
+	rk_fiq_mask(irq_get_irq_data(irq));
 	disable_fiq(irq);
 }
 
 void rk_irq_setpending(int irq)
 {
-	writel_relaxed(1<<(irq%32), RK30_GICD_BASE + GIC_DIST_PENDING_SET + (irq/32)*4);
+	writel_relaxed(1<<(irq%32), GIC_DIST_BASE + GIC_DIST_PENDING_SET + (irq/32)*4);
 	dsb();
 }
 
 void rk_irq_clearpending(int irq)
 {
-	writel_relaxed(1<<(irq%32), RK30_GICD_BASE + GIC_DIST_PENDING_CLEAR + (irq/32)*4);
+	writel_relaxed(1<<(irq%32), GIC_DIST_BASE + GIC_DIST_PENDING_CLEAR + (irq/32)*4);
 	dsb();
 }
 
-void rk30_fiq_init(void)
+void rk_fiq_init(void)
 {
 	unsigned int gic_irqs, i;
 
 	// read gic info to know how many irqs in our chip
-	gic_irqs = readl_relaxed(RK30_GICD_BASE + GIC_DIST_CTR) & 0x1f;
+	gic_irqs = readl_relaxed(GIC_DIST_BASE + GIC_DIST_CTR) & 0x1f;
 	// set all the interrupt to non-secure state
 	for (i = 0; i < (gic_irqs + 1); i++) {
-		writel_relaxed(0xffffffff, RK30_GICD_BASE + GIC_DIST_SECURITY + (i<<2));
+		writel_relaxed(0xffffffff, GIC_DIST_BASE + GIC_DIST_SECURITY + (i<<2));
 	}
 	dsb();
-	writel_relaxed(0x3, RK30_GICD_BASE + GIC_DIST_CTRL);
-	writel_relaxed(0x0f, RK30_GICC_BASE + GIC_CPU_CTRL);
-	//set the uart 2(the debug port) priority a little higher than other interrupts
-	writel_relaxed(0xa0a0a090, RK30_GICD_BASE + GIC_DIST_PRI + (IRQ_UART2/4)*4);
+	writel_relaxed(0x3, GIC_DIST_BASE + GIC_DIST_CTRL);
+	writel_relaxed(0x0f, GIC_CPU_BASE + GIC_CPU_CTRL);
+#ifdef IRQ_DEBUG_UART
+	// set the debug uart priority a little higher than other interrupts (normal is 0xa0)
+	writeb_relaxed(0x90, GIC_DIST_BASE + GIC_DIST_PRI + IRQ_DEBUG_UART);
+#endif
 	dsb();
 }

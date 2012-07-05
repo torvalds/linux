@@ -10,7 +10,6 @@ obj-y += pmu.o
 obj-y += reset.o
 obj-y += timer.o
 obj-y += tsadc.o
-obj-$(CONFIG_FIQ) += fiq.o
 obj-$(CONFIG_SMP) += platsmp.o headsmp.o
 obj-$(CONFIG_HOTPLUG_CPU) += hotplug.o
 obj-$(CONFIG_LOCAL_TIMERS) += localtimer.o
