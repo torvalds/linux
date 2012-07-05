@@ -449,7 +449,8 @@ void __init at91_dt_initialize(void)
 	/* Register the processor-specific clocks */
 	at91_boot_soc.register_clocks();
 
-	at91_boot_soc.init();
+	if (at91_boot_soc.init)
+		at91_boot_soc.init();
 }
 #endif
 

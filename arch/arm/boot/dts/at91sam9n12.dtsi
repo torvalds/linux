@@ -105,8 +105,18 @@
 			pinctrl@fffff400 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "atmel,at91rm9200-pinctrl", "simple-bus";
+				compatible = "atmel,at91sam9x5-pinctrl", "atmel,at91rm9200-pinctrl", "simple-bus";
 				ranges = <0xfffff400 0xfffff400 0x800>;
+
+				atmel,mux-mask = <
+				      /*    A         B          C     */
+				       0xffffffff 0xffe07983 0x00000000  /* pioA */
+				       0x00040000 0x00047e0f 0x00000000  /* pioB */
+				       0xfdffffff 0x07c00000 0xb83fffff  /* pioC */
+				       0x003fffff 0x003f8000 0x00000000  /* pioD */
+				      >;
+
+				/* shared pinctrl settings */
 
 				pioA: gpio@fffff400 {
 					compatible = "atmel,at91sam9x5-gpio", "atmel,at91rm9200-gpio";

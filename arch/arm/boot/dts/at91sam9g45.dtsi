@@ -114,6 +114,17 @@
 				compatible = "atmel,at91rm9200-pinctrl", "simple-bus";
 				ranges = <0xfffff200 0xfffff200 0xa00>;
 
+				atmel,mux-mask = <
+				      /*    A         B     */
+				       0xffffffff 0xffc003ff  /* pioA */
+				       0xffffffff 0x800f8f00  /* pioB */
+				       0xffffffff 0x00000e00  /* pioC */
+				       0xffffffff 0xff0c1381  /* pioD */
+				       0xffffffff 0x81ffff81  /* pioE */
+				      >;
+
+				/* shared pinctrl settings */
+
 				pioA: gpio@fffff200 {
 					compatible = "atmel,at91rm9200-gpio";
 					reg = <0xfffff200 0x200>;

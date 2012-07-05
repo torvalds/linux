@@ -171,10 +171,10 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("dma_clk", "ffffec00.dma-controller", &dma_clk),
 	CLKDEV_CON_DEV_ID(NULL, "f8010000.i2c", &twi0_clk),
 	CLKDEV_CON_DEV_ID(NULL, "f8014000.i2c", &twi1_clk),
-	CLKDEV_CON_ID("pioA", &pioAB_clk),
-	CLKDEV_CON_ID("pioB", &pioAB_clk),
-	CLKDEV_CON_ID("pioC", &pioCD_clk),
-	CLKDEV_CON_ID("pioD", &pioCD_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffff400.gpio", &pioAB_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffff600.gpio", &pioAB_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffff800.gpio", &pioCD_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffffa00.gpio", &pioCD_clk),
 	/* additional fake clock for macb_hclk */
 	CLKDEV_CON_DEV_ID("hclk", "500000.ohci", &uhp_clk),
 	CLKDEV_CON_DEV_ID("ohci_clk", "500000.ohci", &uhp_clk),
@@ -223,9 +223,6 @@ static void __init at91sam9n12_map_io(void)
 void __init at91sam9n12_initialize(void)
 {
 	at91_extern_irq = (1 << AT91SAM9N12_ID_IRQ0);
-
-	/* Register GPIO subsystem (using DT) */
-	at91_gpio_init(NULL, 0);
 }
 
 AT91_SOC_START(sam9n12)

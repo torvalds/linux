@@ -95,6 +95,17 @@
 				compatible = "atmel,at91rm9200-pinctrl", "simple-bus";
 				ranges = <0xfffff200 0xfffff200 0xa00>;
 
+				atmel,mux-mask = <
+				      /*    A         B     */
+				       0xfffffffb 0xffffe07f  /* pioA */
+				       0x0007ffff 0x39072fff  /* pioB */
+				       0xffffffff 0x3ffffff8  /* pioC */
+				       0xfffffbff 0xffffffff  /* pioD */
+				       0xffe00fff 0xfbfcff00  /* pioE */
+				      >;
+
+				/* shared pinctrl settings */
+
 				pioA: gpio@fffff200 {
 					compatible = "atmel,at91rm9200-gpio";
 					reg = <0xfffff200 0x200>;
@@ -143,6 +154,7 @@
 					gpio-controller;
 					interrupt-controller;
 					#interrupt-cells = <2>;
+				};
 			};
 
 			dbgu: serial@ffffee00 {
