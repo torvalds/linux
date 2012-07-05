@@ -1232,7 +1232,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	struct iwl_trans_config trans_cfg;
 	static const u8 no_reclaim_cmds[] = {
 		REPLY_RX_PHY_CMD,
-		REPLY_RX,
 		REPLY_RX_MPDU_CMD,
 		REPLY_COMPRESSED_BA,
 		STATISTICS_NOTIFICATION,

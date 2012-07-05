@@ -88,7 +88,6 @@ const char *iwl_dvm_cmd_strings[REPLY_MAX] = {
 	IWL_CMD_ENTRY(REPLY_PHY_CALIBRATION_CMD),
 	IWL_CMD_ENTRY(REPLY_RX_PHY_CMD),
 	IWL_CMD_ENTRY(REPLY_RX_MPDU_CMD),
-	IWL_CMD_ENTRY(REPLY_RX),
 	IWL_CMD_ENTRY(REPLY_COMPRESSED_BA),
 	IWL_CMD_ENTRY(CALIBRATION_CFG_CMD),
 	IWL_CMD_ENTRY(CALIBRATION_RES_NOTIFICATION),
@@ -895,8 +894,7 @@ static int iwlagn_calc_rssi(struct iwl_priv *priv,
 	return max_rssi - agc - IWLAGN_RSSI_OFFSET;
 }
 
-/* Called for REPLY_RX (legacy ABG frames), or
- * REPLY_RX_MPDU_CMD (HT high-throughput N frames). */
+/* Called for REPLY_RX_MPDU_CMD */
 static int iwlagn_rx_reply_rx(struct iwl_priv *priv,
 			    struct iwl_rx_cmd_buffer *rxb,
 			    struct iwl_device_cmd *cmd)
@@ -911,37 +909,17 @@ static int iwlagn_rx_reply_rx(struct iwl_priv *priv,
 	u32 ampdu_status;
 	u32 rate_n_flags;
 
-	/**
-	 * REPLY_RX and REPLY_RX_MPDU_CMD are handled differently.
-	 *	REPLY_RX: physical layer info is in this buffer
-	 *	REPLY_RX_MPDU_CMD: physical layer info was sent in separate
-	 *		command and cached in priv->last_phy_res
-	 *
-	 * Here we set up local variables depending on which command is
-	 * received.
-	 */
-	if (pkt->hdr.cmd == REPLY_RX) {
-		phy_res = (struct iwl_rx_phy_res *)pkt->data;
-		header = (struct ieee80211_hdr *)(pkt->data + sizeof(*phy_res)
-				+ phy_res->cfg_phy_cnt);
-
-		len = le16_to_cpu(phy_res->byte_count);
-		rx_pkt_status = *(__le32 *)(pkt->data + sizeof(*phy_res) +
-				phy_res->cfg_phy_cnt + len);
-		ampdu_status = le32_to_cpu(rx_pkt_status);
-	} else {
-		if (!priv->last_phy_res_valid) {
-			IWL_ERR(priv, "MPDU frame without cached PHY data\n");
-			return 0;
-		}
-		phy_res = &priv->last_phy_res;
-		amsdu = (struct iwl_rx_mpdu_res_start *)pkt->data;
-		header = (struct ieee80211_hdr *)(pkt->data + sizeof(*amsdu));
-		len = le16_to_cpu(amsdu->byte_count);
-		rx_pkt_status = *(__le32 *)(pkt->data + sizeof(*amsdu) + len);
-		ampdu_status = iwlagn_translate_rx_status(priv,
-						le32_to_cpu(rx_pkt_status));
+	if (!priv->last_phy_res_valid) {
+		IWL_ERR(priv, "MPDU frame without cached PHY data\n");
+		return 0;
 	}
+	phy_res = &priv->last_phy_res;
+	amsdu = (struct iwl_rx_mpdu_res_start *)pkt->data;
+	header = (struct ieee80211_hdr *)(pkt->data + sizeof(*amsdu));
+	len = le16_to_cpu(amsdu->byte_count);
+	rx_pkt_status = *(__le32 *)(pkt->data + sizeof(*amsdu) + len);
+	ampdu_status = iwlagn_translate_rx_status(priv,
+						  le32_to_cpu(rx_pkt_status));
 
 	if ((unlikely(phy_res->cfg_phy_cnt > 20))) {
 		IWL_DEBUG_DROP(priv, "dsp size out of range [0,20]: %d\n",
