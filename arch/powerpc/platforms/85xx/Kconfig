@@ -216,18 +216,6 @@ config P3041_DS
 	help
 	  This option enables support for the P3041 DS board
 
-config P3060_QDS
-	bool "Freescale P3060 QDS"
-	select DEFAULT_UIMAGE
-	select PPC_E500MC
-	select PHYS_64BIT
-	select SWIOTLB
-	select GPIO_MPC8XXX
-	select HAS_RAPIDIO
-	select PPC_EPAPR_HV_PIC
-	help
-	  This option enables support for the P3060 QDS board
-
 config P4080_DS
 	bool "Freescale P4080 DS"
 	select DEFAULT_UIMAGE
