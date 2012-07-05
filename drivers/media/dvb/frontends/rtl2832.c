@@ -19,47 +19,13 @@
  */
 
 #include "rtl2832_priv.h"
-
+#include <linux/bitops.h>
 
 int rtl2832_debug;
 module_param_named(debug, rtl2832_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 
-
-static const int reg_mask[32] = {
-	0x00000001,
-	0x00000003,
-	0x00000007,
-	0x0000000f,
-	0x0000001f,
-	0x0000003f,
-	0x0000007f,
-	0x000000ff,
-	0x000001ff,
-	0x000003ff,
-	0x000007ff,
-	0x00000fff,
-	0x00001fff,
-	0x00003fff,
-	0x00007fff,
-	0x0000ffff,
-	0x0001ffff,
-	0x0003ffff,
-	0x0007ffff,
-	0x000fffff,
-	0x001fffff,
-	0x003fffff,
-	0x007fffff,
-	0x00ffffff,
-	0x01ffffff,
-	0x03ffffff,
-	0x07ffffff,
-	0x0fffffff,
-	0x1fffffff,
-	0x3fffffff,
-	0x7fffffff,
-	0xffffffff
-};
+#define REG_MASK(b) (BIT(b + 1) - 1)
 
 static const struct rtl2832_reg_entry registers[] = {
 	[DVBT_SOFT_RST]		= {0x1, 0x1,   2, 2},
@@ -317,7 +283,7 @@ int rtl2832_rd_demod_reg(struct rtl2832_priv *priv, int reg, u32 *val)
 	page = registers[reg].page;
 
 	len = (msb >> 3) + 1;
-	mask = reg_mask[msb - lsb];
+	mask = REG_MASK(msb - lsb);
 
 	ret = rtl2832_rd_regs(priv, reg_start_addr, page, &reading[0], len);
 	if (ret)
@@ -359,7 +325,7 @@ int rtl2832_wr_demod_reg(struct rtl2832_priv *priv, int reg, u32 val)
 	page = registers[reg].page;
 
 	len = (msb >> 3) + 1;
-	mask = reg_mask[msb - lsb];
+	mask = REG_MASK(msb - lsb);
 
 
 	ret = rtl2832_rd_regs(priv, reg_start_addr, page, &reading[0], len);
