@@ -627,11 +627,10 @@ static void intel_clock(struct drm_device *dev, int refclk, intel_clock_t *clock
 bool intel_pipe_has_type(struct drm_crtc *crtc, int type)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct intel_encoder *encoder;
 
-	list_for_each_entry(encoder, &mode_config->encoder_list, base.head)
-		if (encoder->base.crtc == crtc && encoder->type == type)
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		if (encoder->type == type)
 			return true;
 
 	return false;
@@ -2836,16 +2835,13 @@ static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 static bool intel_crtc_driving_pch(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct intel_encoder *encoder;
 
 	/*
 	 * If there's a non-PCH eDP on this crtc, it must be DP_A, and that
 	 * must be driven by its own crtc; no sharing is possible.
 	 */
-	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
-		if (encoder->base.crtc != crtc)
-			continue;
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
 
 		/* On Haswell, LPT PCH handles the VGA connection via FDI, and Haswell
 		 * CPU handles all others */
@@ -3734,16 +3730,12 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_encoder *encoder;
 	struct drm_connector *connector;
+	struct intel_encoder *intel_encoder;
 	unsigned int display_bpc = UINT_MAX, bpc;
 
 	/* Walk the encoders & connectors on this crtc, get min bpc */
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
-
-		if (encoder->crtc != crtc)
-			continue;
+	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
 
 		if (intel_encoder->type == INTEL_OUTPUT_LVDS) {
 			unsigned int lvds_bpc;
@@ -3775,7 +3767,7 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 		/* Not one of the known troublemakers, check the EDID */
 		list_for_each_entry(connector, &dev->mode_config.connector_list,
 				    head) {
-			if (connector->encoder != encoder)
+			if (connector->encoder != &intel_encoder->base)
 				continue;
 
 			/* Don't use an invalid EDID bpc value */
@@ -4244,15 +4236,11 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	u32 dspcntr, pipeconf, vsyncshift;
 	bool ok, has_reduced_clock = false, is_sdvo = false;
 	bool is_lvds = false, is_tv = false, is_dp = false;
-	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct intel_encoder *encoder;
 	const intel_limit_t *limit;
 	int ret;
 
-	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
-		if (encoder->base.crtc != crtc)
-			continue;
-
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		switch (encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
@@ -4555,15 +4543,11 @@ static int ironlake_get_refclk(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *encoder;
-	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct intel_encoder *edp_encoder = NULL;
 	int num_connectors = 0;
 	bool is_lvds = false;
 
-	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
-		if (encoder->base.crtc != crtc)
-			continue;
-
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		switch (encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
@@ -4600,7 +4584,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	u32 dpll, fp = 0, fp2 = 0, dspcntr, pipeconf;
 	bool ok, has_reduced_clock = false, is_sdvo = false;
 	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
-	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct intel_encoder *encoder, *edp_encoder = NULL;
 	const intel_limit_t *limit;
 	int ret;
@@ -4611,10 +4594,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	bool dither;
 	bool is_cpu_edp = false, is_pch_edp = false;
 
-	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
-		if (encoder->base.crtc != crtc)
-			continue;
-
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		switch (encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;

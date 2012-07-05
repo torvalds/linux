@@ -79,6 +79,10 @@ enum port {
 
 #define for_each_pipe(p) for ((p) = 0; (p) < dev_priv->num_pipe; (p)++)
 
+#define for_each_encoder_on_crtc(dev, __crtc, intel_encoder) \
+	list_for_each_entry((intel_encoder), &(dev)->mode_config.encoder_list, base.head) \
+		if ((intel_encoder)->base.crtc == (__crtc))
+
 struct intel_pch_pll {
 	int refcount; /* count of number of CRTCs sharing this PLL */
 	int active; /* count of number of active CRTCs (i.e. DPMS on) */

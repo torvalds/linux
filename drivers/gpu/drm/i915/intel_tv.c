@@ -895,20 +895,16 @@ intel_tv_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		    struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct drm_mode_config *drm_config = &dev->mode_config;
 	struct intel_tv *intel_tv = enc_to_intel_tv(encoder);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_tv);
-	struct drm_encoder *other_encoder;
+	struct intel_encoder *other_encoder;
 
 	if (!tv_mode)
 		return false;
 
-	/* FIXME: lock encoder list */
-	list_for_each_entry(other_encoder, &drm_config->encoder_list, head) {
-		if (other_encoder != encoder &&
-		    other_encoder->crtc == encoder->crtc)
+	for_each_encoder_on_crtc(dev, encoder->crtc, other_encoder)
+		if (&other_encoder->base != encoder)
 			return false;
-	}
 
 	adjusted_mode->clock = tv_mode->clock;
 	return true;

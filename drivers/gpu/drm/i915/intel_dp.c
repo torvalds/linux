@@ -793,8 +793,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		 struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct drm_encoder *encoder;
+	struct intel_encoder *encoder;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int lane_count = 4;
@@ -804,13 +803,9 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	/*
 	 * Find the lane count in the intel_encoder private
 	 */
-	list_for_each_entry(encoder, &mode_config->encoder_list, head) {
-		struct intel_dp *intel_dp;
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
-		if (encoder->crtc != crtc)
-			continue;
-
-		intel_dp = enc_to_intel_dp(encoder);
 		if (intel_dp->base.type == INTEL_OUTPUT_DISPLAYPORT ||
 		    intel_dp->base.type == INTEL_OUTPUT_EDP)
 		{
@@ -2404,16 +2399,11 @@ int
 intel_trans_dp_port_sel(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct drm_encoder *encoder;
+	struct intel_encoder *encoder;
 
-	list_for_each_entry(encoder, &mode_config->encoder_list, head) {
-		struct intel_dp *intel_dp;
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
-		if (encoder->crtc != crtc)
-			continue;
-
-		intel_dp = enc_to_intel_dp(encoder);
 		if (intel_dp->base.type == INTEL_OUTPUT_DISPLAYPORT ||
 		    intel_dp->base.type == INTEL_OUTPUT_EDP)
 			return intel_dp->output_reg;
