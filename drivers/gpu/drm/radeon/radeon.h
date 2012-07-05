@@ -735,8 +735,6 @@ struct r600_blit {
 	u32 state_len;
 };
 
-void r600_blit_suspend(struct radeon_device *rdev);
-
 /*
  * SI RLC stuff
  */

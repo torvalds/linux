@@ -1316,7 +1316,6 @@ int cayman_suspend(struct radeon_device *rdev)
 {
 	r600_audio_fini(rdev);
 	radeon_vm_manager_suspend(rdev);
-	r600_blit_suspend(rdev);
 	cayman_cp_enable(rdev, false);
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
 	evergreen_irq_suspend(rdev);
