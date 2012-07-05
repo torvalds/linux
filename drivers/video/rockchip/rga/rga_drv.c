@@ -68,6 +68,8 @@
 #define DRIVER_DESC		"RGA Device Driver"
 #define DRIVER_NAME		"rga"
 
+#define RGA_VERSION   "1.000"
+
 ktime_t rga_start;
 ktime_t rga_end;
 
@@ -954,6 +956,11 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 			break;
         case RGA_GET_RESULT:
             ret = rga_get_result(session, arg);
+            break;
+        case RGA_GET_VERSION:
+            ret = copy_to_user((void *)arg, RGA_VERSION, sizeof(RGA_VERSION));
+            //ret = 0;
+            break;
 		default:
 			ERR("unknown ioctl cmd!\n");
 			ret = -EINVAL;

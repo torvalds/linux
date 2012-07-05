@@ -7,6 +7,7 @@
 #define RGA_BLIT_ASYNC  0x5018
 #define RGA_FLUSH       0x5019
 #define RGA_GET_RESULT  0x501a
+#define RGA_GET_VERSION 0x501b
 
 
 #define RGA_REG_CTRL_LEN    0x8    /* 8  */

@@ -7,7 +7,7 @@
         .endm
 
 	.macro	get_irqnr_preamble, base, tmp
-	ldr	\base, =GICC_BASE
+	ldr	\base, =GIC_CPU_BASE
 	.endm
 
 	.macro	arch_ret_to_user, tmp1, tmp2
