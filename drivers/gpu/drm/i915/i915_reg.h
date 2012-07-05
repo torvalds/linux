@@ -2979,6 +2979,7 @@
 #define DSPSIZE(plane) _PIPE(plane, _DSPASIZE, _DSPBSIZE)
 #define DSPSURF(plane) _PIPE(plane, _DSPASURF, _DSPBSURF)
 #define DSPTILEOFF(plane) _PIPE(plane, _DSPATILEOFF, _DSPBTILEOFF)
+#define DSPLINOFF(plane) DSPADDR(plane)
 
 /* Display/Sprite base address macros */
 #define DISP_BASEADDR_MASK	(0xfffff000)

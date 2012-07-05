@@ -177,6 +177,11 @@ struct intel_crtc {
 	struct intel_unpin_work *unpin_work;
 	int fdi_lanes;
 
+	/* Display surface base address adjustement for pageflips. Note that on
+	 * gen4+ this only adjusts up to a tile, offsets within a tile are
+	 * handled in the hw itself (with the TILEOFF register). */
+	unsigned long dspaddr_offset;
+
 	struct drm_i915_gem_object *cursor_bo;
 	uint32_t cursor_addr;
 	int16_t cursor_x, cursor_y;

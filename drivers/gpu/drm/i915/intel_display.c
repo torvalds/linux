@@ -1982,7 +1982,7 @@ static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct intel_framebuffer *intel_fb;
 	struct drm_i915_gem_object *obj;
 	int plane = intel_crtc->plane;
-	unsigned long Start, Offset;
+	unsigned long linear_offset;
 	u32 dspcntr;
 	u32 reg;
 
@@ -2029,18 +2029,22 @@ static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	I915_WRITE(reg, dspcntr);
 
-	Start = obj->gtt_offset;
-	Offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
+	linear_offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
 
-	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d %d\n",
-		      Start, Offset, x, y, fb->pitches[0]);
+	if (INTEL_INFO(dev)->gen >= 4)
+		intel_crtc->dspaddr_offset = 0;
+	else
+		intel_crtc->dspaddr_offset = linear_offset;
+
+	DRM_DEBUG_KMS("Writing base %08X %08lX %d %d %d\n",
+		      obj->gtt_offset, linear_offset, x, y, fb->pitches[0]);
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
 	if (INTEL_INFO(dev)->gen >= 4) {
-		I915_MODIFY_DISPBASE(DSPSURF(plane), Start);
+		I915_MODIFY_DISPBASE(DSPSURF(plane), obj->gtt_offset);
 		I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
-		I915_WRITE(DSPADDR(plane), Offset);
+		I915_WRITE(DSPLINOFF(plane), linear_offset);
 	} else
-		I915_WRITE(DSPADDR(plane), Start + Offset);
+		I915_WRITE(DSPADDR(plane), obj->gtt_offset + linear_offset);
 	POSTING_READ(reg);
 
 	return 0;
@@ -2055,7 +2059,7 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 	struct intel_framebuffer *intel_fb;
 	struct drm_i915_gem_object *obj;
 	int plane = intel_crtc->plane;
-	unsigned long Start, Offset;
+	unsigned long linear_offset;
 	u32 dspcntr;
 	u32 reg;
 
@@ -2110,15 +2114,15 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 
 	I915_WRITE(reg, dspcntr);
 
-	Start = obj->gtt_offset;
-	Offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
+	linear_offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
+	intel_crtc->dspaddr_offset = 0;
 
-	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d %d\n",
-		      Start, Offset, x, y, fb->pitches[0]);
+	DRM_DEBUG_KMS("Writing base %08X %08lX %d %d %d\n",
+		      obj->gtt_offset, linear_offset, x, y, fb->pitches[0]);
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
-	I915_MODIFY_DISPBASE(DSPSURF(plane), Start);
+	I915_MODIFY_DISPBASE(DSPSURF(plane), obj->gtt_offset);
 	I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
-	I915_WRITE(DSPADDR(plane), Offset);
+	I915_WRITE(DSPLINOFF(plane), linear_offset);
 	POSTING_READ(reg);
 
 	return 0;
@@ -6194,7 +6198,6 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	unsigned long offset;
 	u32 flip_mask;
 	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
 	int ret;
@@ -6202,9 +6205,6 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 	ret = intel_pin_and_fence_fb_obj(dev, obj, ring);
 	if (ret)
 		goto err;
-
-	/* Offset into the new buffer for cases of shared fbs between CRTCs */
-	offset = crtc->y * fb->pitches[0] + crtc->x * fb->bits_per_pixel/8;
 
 	ret = intel_ring_begin(ring, 6);
 	if (ret)
@@ -6222,7 +6222,7 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, MI_DISPLAY_FLIP |
 			MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
 	intel_ring_emit(ring, fb->pitches[0]);
-	intel_ring_emit(ring, obj->gtt_offset + offset);
+	intel_ring_emit(ring, obj->gtt_offset + intel_crtc->dspaddr_offset);
 	intel_ring_emit(ring, 0); /* aux display base address, unused */
 	intel_ring_advance(ring);
 	return 0;
@@ -6240,7 +6240,6 @@ static int intel_gen3_queue_flip(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	unsigned long offset;
 	u32 flip_mask;
 	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
 	int ret;
@@ -6248,9 +6247,6 @@ static int intel_gen3_queue_flip(struct drm_device *dev,
 	ret = intel_pin_and_fence_fb_obj(dev, obj, ring);
 	if (ret)
 		goto err;
-
-	/* Offset into the new buffer for cases of shared fbs between CRTCs */
-	offset = crtc->y * fb->pitches[0] + crtc->x * fb->bits_per_pixel/8;
 
 	ret = intel_ring_begin(ring, 6);
 	if (ret)
@@ -6265,7 +6261,7 @@ static int intel_gen3_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 |
 			MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
 	intel_ring_emit(ring, fb->pitches[0]);
-	intel_ring_emit(ring, obj->gtt_offset + offset);
+	intel_ring_emit(ring, obj->gtt_offset + intel_crtc->dspaddr_offset);
 	intel_ring_emit(ring, MI_NOOP);
 
 	intel_ring_advance(ring);
