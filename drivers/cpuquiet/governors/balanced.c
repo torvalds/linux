@@ -282,7 +282,7 @@ static int balanced_cpufreq_transition(struct notifier_block *nb,
 
 		switch (balanced_state) {
 		case IDLE:
-			if (cpu_freq > idle_top_freq) {
+			if (cpu_freq >= idle_top_freq) {
 				balanced_state = UP;
 				queue_delayed_work(
 					balanced_wq, &balanced_work, up_delay);
@@ -296,7 +296,7 @@ static int balanced_cpufreq_transition(struct notifier_block *nb,
 			}
 			break;
 		case DOWN:
-			if (cpu_freq > idle_top_freq) {
+			if (cpu_freq >= idle_top_freq) {
 				balanced_state = UP;
 				queue_delayed_work(
 					balanced_wq, &balanced_work, up_delay);
@@ -347,6 +347,7 @@ static struct attribute *balanced_attributes[] = {
 	&idle_top_freq_attr.attr,
 	&up_delay_attr.attr,
 	&down_delay_attr.attr,
+	&load_sample_rate_attr.attr,
 	NULL,
 };
 
