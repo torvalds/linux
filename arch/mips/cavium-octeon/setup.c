@@ -21,6 +21,8 @@
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/serial_8250.h>
+#include <linux/of_fdt.h>
+#include <linux/libfdt.h>
 
 #include <asm/processor.h>
 #include <asm/reboot.h>
@@ -774,4 +776,47 @@ void prom_free_prom_memory(void)
 		panic("Unable to request_irq(OCTEON_IRQ_RML)");
 	}
 #endif
+}
+
+int octeon_prune_device_tree(void);
+
+extern const char __dtb_octeon_3xxx_begin;
+extern const char __dtb_octeon_3xxx_end;
+extern const char __dtb_octeon_68xx_begin;
+extern const char __dtb_octeon_68xx_end;
+void __init device_tree_init(void)
+{
+	int dt_size;
+	struct boot_param_header *fdt;
+	bool do_prune;
+
+	if (octeon_bootinfo->minor_version >= 3 && octeon_bootinfo->fdt_addr) {
+		fdt = phys_to_virt(octeon_bootinfo->fdt_addr);
+		if (fdt_check_header(fdt))
+			panic("Corrupt Device Tree passed to kernel.");
+		dt_size = be32_to_cpu(fdt->totalsize);
+		do_prune = false;
+	} else if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
+		fdt = (struct boot_param_header *)&__dtb_octeon_68xx_begin;
+		dt_size = &__dtb_octeon_68xx_end - &__dtb_octeon_68xx_begin;
+		do_prune = true;
+	} else {
+		fdt = (struct boot_param_header *)&__dtb_octeon_3xxx_begin;
+		dt_size = &__dtb_octeon_3xxx_end - &__dtb_octeon_3xxx_begin;
+		do_prune = true;
+	}
+
+	/* Copy the default tree from init memory. */
+	initial_boot_params = early_init_dt_alloc_memory_arch(dt_size, 8);
+	if (initial_boot_params == NULL)
+		panic("Could not allocate initial_boot_params\n");
+	memcpy(initial_boot_params, fdt, dt_size);
+
+	if (do_prune) {
+		octeon_prune_device_tree();
+		pr_info("Using internal Device Tree.\n");
+	} else {
+		pr_info("Using passed Device Tree.\n");
+	}
+	unflatten_device_tree();
 }

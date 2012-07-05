@@ -9,6 +9,9 @@
 # Copyright (C) 2005-2009 Cavium Networks
 #
 
+CFLAGS_octeon-platform.o = -I$(src)/../../../scripts/dtc/libfdt
+CFLAGS_setup.o = -I$(src)/../../../scripts/dtc/libfdt
+
 obj-y := cpu.o setup.o serial.o octeon-platform.o octeon-irq.o csrc-octeon.o
 obj-y += dma-octeon.o flash_setup.o
 obj-y += octeon-memcpy.o
