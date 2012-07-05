@@ -609,27 +609,15 @@ int batadv_recv_tt_query(struct sk_buff *skb, struct batadv_hard_iface *recv_if)
 	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct batadv_tt_query_packet *tt_query;
 	uint16_t tt_size;
-	struct ethhdr *ethhdr;
+	int hdr_size = sizeof(*tt_query);
 	char tt_flag;
 	size_t packet_size;
 
-	/* drop packet if it has not necessary minimum size */
-	if (unlikely(!pskb_may_pull(skb,
-				    sizeof(struct batadv_tt_query_packet))))
-		goto out;
+	if (batadv_check_unicast_packet(skb, hdr_size) < 0)
+		return NET_RX_DROP;
 
 	/* I could need to modify it */
 	if (skb_cow(skb, sizeof(struct batadv_tt_query_packet)) < 0)
-		goto out;
-
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
-
-	/* packet with unicast indication but broadcast recipient */
-	if (is_broadcast_ether_addr(ethhdr->h_dest))
-		goto out;
-
-	/* packet with broadcast sender address */
-	if (is_broadcast_ether_addr(ethhdr->h_source))
 		goto out;
 
 	tt_query = (struct batadv_tt_query_packet *)skb->data;
