@@ -1369,7 +1369,7 @@ static void b43_nphy_rev3_rssi_cal(struct b43_wldev *dev)
 					i << 2);
 			b43_nphy_poll_rssi(dev, 2, results[i], 8);
 		}
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < 4; i += 2) {
 			s32 curr;
 			s32 mind = 40;
 			s32 minpoll = 249;
@@ -1415,14 +1415,15 @@ static void b43_nphy_rev3_rssi_cal(struct b43_wldev *dev)
 			b43_nphy_scale_offset_rssi(dev, 0, 0, core + 1, 1, i);
 			b43_nphy_poll_rssi(dev, i, poll_results, 8);
 			for (j = 0; j < 4; j++) {
-				if (j / 2 == core)
+				if (j / 2 == core) {
 					offset[j] = 232 - poll_results[j];
-				if (offset[j] < 0)
-					offset[j] = -(abs(offset[j] + 4) / 8);
-				else
-					offset[j] = (offset[j] + 4) / 8;
-				b43_nphy_scale_offset_rssi(dev, 0,
-					offset[2 * core], core + 1, j % 2, i);
+					if (offset[j] < 0)
+						offset[j] = -(abs(offset[j] + 4) / 8);
+					else
+						offset[j] = (offset[j] + 4) / 8;
+					b43_nphy_scale_offset_rssi(dev, 0,
+						offset[2 * core], core + 1, j % 2, i);
+				}
 			}
 		}
 	}
