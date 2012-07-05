@@ -85,8 +85,20 @@ static void deferred_probe_work_func(struct work_struct *work)
 		 * manipulate the deferred list
 		 */
 		mutex_unlock(&deferred_probe_mutex);
+
+		/*
+		 * Force the device to the end of the dpm_list since
+		 * the PM code assumes that the order we add things to
+		 * the list is a good order for suspend but deferred
+		 * probe makes that very unsafe.
+		 */
+		device_pm_lock();
+		device_pm_move_last(dev);
+		device_pm_unlock();
+
 		dev_dbg(dev, "Retrying from deferred list\n");
 		bus_probe_device(dev);
+
 		mutex_lock(&deferred_probe_mutex);
 
 		put_device(dev);
