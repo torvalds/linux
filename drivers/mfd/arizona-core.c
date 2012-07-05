@@ -197,7 +197,7 @@ static int arizona_wait_for_boot(struct arizona *arizona)
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to read boot state: %d\n",
 				ret);
-			return ret;
+			continue;
 		}
 
 		if (reg & ARIZONA_BOOT_DONE_STS)
