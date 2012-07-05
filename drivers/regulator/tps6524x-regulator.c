@@ -482,7 +482,7 @@ static int get_voltage_sel(struct regulator_dev *rdev)
 	info	= &supply_info[rdev_get_id(rdev)];
 
 	if (info->flags & FIXED_VOLTAGE)
-		return info->fixed_voltage;
+		return 0;
 
 	ret = read_field(hw, &info->voltage);
 	if (ret < 0)
