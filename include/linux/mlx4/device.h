@@ -542,6 +542,8 @@ struct mlx4_dev {
 	u8			rev_id;
 	char			board_id[MLX4_BOARD_ID_LEN];
 	int			num_vfs;
+	u64			regid_promisc_array[MLX4_MAX_PORTS + 1];
+	u64			regid_allmulti_array[MLX4_MAX_PORTS + 1];
 };
 
 struct mlx4_init_port_param {
@@ -681,6 +683,7 @@ enum mlx4_net_trans_rule_id {
 enum mlx4_net_trans_promisc_mode {
 	MLX4_FS_PROMISC_NONE = 0,
 	MLX4_FS_PROMISC_UPLINK,
+	/* For future use. Not implemented yet */
 	MLX4_FS_PROMISC_FUNCTION_PORT,
 	MLX4_FS_PROMISC_ALL_MULTI,
 };
@@ -744,6 +747,10 @@ struct mlx4_net_trans_rule {
 	u32	qpn;
 };
 
+int mlx4_flow_steer_promisc_add(struct mlx4_dev *dev, u8 port, u32 qpn,
+				enum mlx4_net_trans_promisc_mode mode);
+int mlx4_flow_steer_promisc_remove(struct mlx4_dev *dev, u8 port,
+				   enum mlx4_net_trans_promisc_mode mode);
 int mlx4_multicast_promisc_add(struct mlx4_dev *dev, u32 qpn, u8 port);
 int mlx4_multicast_promisc_remove(struct mlx4_dev *dev, u32 qpn, u8 port);
 int mlx4_unicast_promisc_add(struct mlx4_dev *dev, u32 qpn, u8 port);

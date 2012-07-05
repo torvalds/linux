@@ -1295,6 +1295,66 @@ int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 }
 EXPORT_SYMBOL_GPL(mlx4_multicast_detach);
 
+int mlx4_flow_steer_promisc_add(struct mlx4_dev *dev, u8 port,
+				u32 qpn, enum mlx4_net_trans_promisc_mode mode)
+{
+	struct mlx4_net_trans_rule rule;
+	u64 *regid_p;
+
+	switch (mode) {
+	case MLX4_FS_PROMISC_UPLINK:
+	case MLX4_FS_PROMISC_FUNCTION_PORT:
+		regid_p = &dev->regid_promisc_array[port];
+		break;
+	case MLX4_FS_PROMISC_ALL_MULTI:
+		regid_p = &dev->regid_allmulti_array[port];
+		break;
+	default:
+		return -1;
+	}
+
+	if (*regid_p != 0)
+		return -1;
+
+	rule.promisc_mode = mode;
+	rule.port = port;
+	rule.qpn = qpn;
+	INIT_LIST_HEAD(&rule.list);
+	mlx4_err(dev, "going promisc on %x\n", port);
+
+	return  mlx4_flow_attach(dev, &rule, regid_p);
+}
+EXPORT_SYMBOL_GPL(mlx4_flow_steer_promisc_add);
+
+int mlx4_flow_steer_promisc_remove(struct mlx4_dev *dev, u8 port,
+				   enum mlx4_net_trans_promisc_mode mode)
+{
+	int ret;
+	u64 *regid_p;
+
+	switch (mode) {
+	case MLX4_FS_PROMISC_UPLINK:
+	case MLX4_FS_PROMISC_FUNCTION_PORT:
+		regid_p = &dev->regid_promisc_array[port];
+		break;
+	case MLX4_FS_PROMISC_ALL_MULTI:
+		regid_p = &dev->regid_allmulti_array[port];
+		break;
+	default:
+		return -1;
+	}
+
+	if (*regid_p == 0)
+		return -1;
+
+	ret =  mlx4_flow_detach(dev, *regid_p);
+	if (ret == 0)
+		*regid_p = 0;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mlx4_flow_steer_promisc_remove);
+
 int mlx4_unicast_attach(struct mlx4_dev *dev,
 			struct mlx4_qp *qp, u8 gid[16],
 			int block_mcast_loopback, enum mlx4_protocol prot)
