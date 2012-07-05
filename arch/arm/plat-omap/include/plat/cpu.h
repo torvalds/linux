@@ -344,8 +344,6 @@ IS_OMAP_TYPE(3430, 0x3430)
 # undef cpu_is_ti816x
 # undef cpu_is_ti814x
 # undef soc_is_am35xx
-# undef cpu_is_am33xx
-# undef cpu_is_am335x
 # define cpu_is_omap3430()		is_omap3430()
 # undef cpu_is_omap3630
 # define cpu_is_omap3630()		is_omap363x()
@@ -353,6 +351,11 @@ IS_OMAP_TYPE(3430, 0x3430)
 # define cpu_is_ti816x()		is_ti816x()
 # define cpu_is_ti814x()		is_ti814x()
 # define soc_is_am35xx()		is_am35xx()
+#endif
+
+# if defined(CONFIG_SOC_AM33XX)
+# undef cpu_is_am33xx
+# undef cpu_is_am335x
 # define cpu_is_am33xx()		is_am33xx()
 # define cpu_is_am335x()		is_am335x()
 #endif
@@ -408,7 +411,7 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define AM35XX_REV_ES1_0	AM35XX_CLASS
 #define AM35XX_REV_ES1_1	(AM35XX_CLASS | (0x1 << 8))
 
-#define AM335X_CLASS		0x33500034
+#define AM335X_CLASS		0x33500033
 #define AM335X_REV_ES1_0	AM335X_CLASS
 
 #define OMAP443X_CLASS		0x44300044

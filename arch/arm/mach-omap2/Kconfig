@@ -82,8 +82,10 @@ config SOC_TI81XX
 
 config SOC_AM33XX
 	bool "AM33XX support"
-	depends on ARCH_OMAP3
 	default y
+	select CPU_V7
+	select ARM_CPU_SUSPEND if PM
+	select MULTI_IRQ_HANDLER
 
 config OMAP_PACKAGE_ZAF
        bool
