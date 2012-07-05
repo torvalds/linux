@@ -6619,6 +6619,51 @@ intel_crtc_prepare_encoders(struct drm_device *dev)
 	}
 }
 
+/**
+ * intel_modeset_update_staged_output_state
+ *
+ * Updates the staged output configuration state, e.g. after we've read out the
+ * current hw state.
+ */
+static void intel_modeset_update_staged_output_state(struct drm_device *dev)
+{
+	struct intel_encoder *encoder;
+	struct intel_connector *connector;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list,
+			    base.head) {
+		connector->new_encoder =
+			to_intel_encoder(connector->base.encoder);
+	}
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
+			    base.head) {
+		encoder->new_crtc =
+			to_intel_crtc(encoder->base.crtc);
+	}
+}
+
+/**
+ * intel_modeset_commit_output_state
+ *
+ * This function copies the stage display pipe configuration to the real one.
+ */
+static void intel_modeset_commit_output_state(struct drm_device *dev)
+{
+	struct intel_encoder *encoder;
+	struct intel_connector *connector;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list,
+			    base.head) {
+		connector->base.encoder = &connector->new_encoder->base;
+	}
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
+			    base.head) {
+		encoder->base.crtc = &encoder->new_crtc->base;
+	}
+}
+
 bool intel_set_mode(struct drm_crtc *crtc,
 		    struct drm_display_mode *mode,
 		    int x, int y, struct drm_framebuffer *old_fb)
@@ -6785,8 +6830,8 @@ static void intel_set_config_restore_state(struct drm_device *dev,
 					   struct intel_set_config *config)
 {
 	struct drm_crtc *crtc;
-	struct drm_encoder *encoder;
-	struct drm_connector *connector;
+	struct intel_encoder *encoder;
+	struct intel_connector *connector;
 	int count;
 
 	count = 0;
@@ -6795,13 +6840,15 @@ static void intel_set_config_restore_state(struct drm_device *dev,
 	}
 
 	count = 0;
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		encoder->crtc = config->save_encoder_crtcs[count++];
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
+		encoder->new_crtc =
+			to_intel_crtc(config->save_encoder_crtcs[count++]);
 	}
 
 	count = 0;
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		connector->encoder = config->save_connector_encoders[count++];
+	list_for_each_entry(connector, &dev->mode_config.connector_list, base.head) {
+		connector->new_encoder =
+			to_intel_encoder(config->save_connector_encoders[count++]);
 	}
 }
 
@@ -6840,73 +6887,106 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 }
 
 static int
-intel_set_config_update_output_state(struct drm_device *dev,
-				     struct drm_mode_set *set,
-				     struct intel_set_config *config)
+intel_modeset_stage_output_state(struct drm_device *dev,
+				 struct drm_mode_set *set,
+				 struct intel_set_config *config)
 {
 	struct drm_crtc *new_crtc;
-	struct drm_encoder *new_encoder;
-	struct drm_connector *connector;
+	struct intel_connector *connector;
+	struct intel_encoder *encoder;
 	int count, ro;
 
-	/* a) traverse passed in connector list and get encoders for them */
+	/* The upper layers ensure that we either disabl a crtc or have a list
+	 * of connectors. For paranoia, double-check this. */
+	WARN_ON(!set->fb && (set->num_connectors != 0));
+	WARN_ON(set->fb && (set->num_connectors == 0));
+
 	count = 0;
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		new_encoder = connector->encoder;
+	list_for_each_entry(connector, &dev->mode_config.connector_list,
+			    base.head) {
+		/* Otherwise traverse passed in connector list and get encoders
+		 * for them. */
 		for (ro = 0; ro < set->num_connectors; ro++) {
-			if (set->connectors[ro] == connector) {
-				new_encoder =
-					&intel_attached_encoder(connector)->base;
+			if (set->connectors[ro] == &connector->base) {
+				connector->new_encoder = connector->encoder;
 				break;
 			}
 		}
 
-		if (new_encoder != connector->encoder) {
+		/* If we disable the crtc, disable all its connectors. Also, if
+		 * the connector is on the changing crtc but not on the new
+		 * connector list, disable it. */
+		if ((!set->fb || ro == set->num_connectors) &&
+		    connector->base.encoder &&
+		    connector->base.encoder->crtc == set->crtc) {
+			connector->new_encoder = NULL;
+
+			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [NOCRTC]\n",
+				connector->base.base.id,
+				drm_get_connector_name(&connector->base));
+		}
+
+
+		if (&connector->new_encoder->base != connector->base.encoder) {
 			DRM_DEBUG_KMS("encoder changed, full mode switch\n");
 			config->mode_changed = true;
-			/* If the encoder is reused for another connector, then
-			 * the appropriate crtc will be set later.
-			 */
-			if (connector->encoder)
-				connector->encoder->crtc = NULL;
-			connector->encoder = new_encoder;
 		}
-	}
 
+		/* Disable all disconnected encoders. */
+		if (connector->base.status == connector_status_disconnected)
+			connector->new_encoder = NULL;
+	}
+	/* connector->new_encoder is now updated for all connectors. */
+
+	/* Update crtc of enabled connectors. */
 	count = 0;
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (!connector->encoder)
+	list_for_each_entry(connector, &dev->mode_config.connector_list,
+			    base.head) {
+		if (!connector->new_encoder)
 			continue;
 
-		if (connector->encoder->crtc == set->crtc)
-			new_crtc = NULL;
-		else
-			new_crtc = connector->encoder->crtc;
+		new_crtc = connector->new_encoder->base.crtc;
 
 		for (ro = 0; ro < set->num_connectors; ro++) {
-			if (set->connectors[ro] == connector)
+			if (set->connectors[ro] == &connector->base)
 				new_crtc = set->crtc;
 		}
 
 		/* Make sure the new CRTC will work with the encoder */
-		if (new_crtc &&
-		    !intel_encoder_crtc_ok(connector->encoder, new_crtc)) {
+		if (!intel_encoder_crtc_ok(&connector->new_encoder->base,
+					   new_crtc)) {
 			return -EINVAL;
 		}
-		if (new_crtc != connector->encoder->crtc) {
+		connector->encoder->new_crtc = to_intel_crtc(new_crtc);
+
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [CRTC:%d]\n",
+			connector->base.base.id,
+			drm_get_connector_name(&connector->base),
+			new_crtc->base.id);
+	}
+
+	/* Check for any encoders that needs to be disabled. */
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
+			    base.head) {
+		list_for_each_entry(connector,
+				    &dev->mode_config.connector_list,
+				    base.head) {
+			if (connector->new_encoder == encoder) {
+				WARN_ON(!connector->new_encoder->new_crtc);
+
+				goto next_encoder;
+			}
+		}
+		encoder->new_crtc = NULL;
+next_encoder:
+		/* Only now check for crtc changes so we don't miss encoders
+		 * that will be disabled. */
+		if (&encoder->new_crtc->base != encoder->base.crtc) {
 			DRM_DEBUG_KMS("crtc changed, full mode switch\n");
 			config->mode_changed = true;
-			connector->encoder->crtc = new_crtc;
-		}
-		if (new_crtc) {
-			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [CRTC:%d]\n",
-				connector->base.id, drm_get_connector_name(connector),
-				new_crtc->base.id);
-		} else {
-			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [NOCRTC]\n",
-				connector->base.id, drm_get_connector_name(connector));
 		}
 	}
+	/* Now we've also updated encoder->new_crtc for all encoders. */
 
 	return 0;
 }
@@ -6965,11 +7045,13 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	 * such cases. */
 	intel_set_config_compute_mode_changes(set, config);
 
-	ret = intel_set_config_update_output_state(dev, set, config);
+	ret = intel_modeset_stage_output_state(dev, set, config);
 	if (ret)
 		goto fail;
 
 	if (config->mode_changed) {
+		intel_modeset_commit_output_state(dev);
+
 		set->crtc->enabled = drm_helper_crtc_in_use(set->crtc);
 		if (set->crtc->enabled) {
 			DRM_DEBUG_KMS("attempting to set mode from"
@@ -7014,6 +7096,8 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 
 fail:
 	intel_set_config_restore_state(dev, config);
+
+	intel_modeset_commit_output_state(dev);
 
 	/* Try to restore the config */
 	if (config->mode_changed &&
@@ -7888,6 +7972,8 @@ void intel_modeset_setup_hw_state(struct drm_device *dev)
 		crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 		intel_sanitize_crtc(crtc);
 	}
+
+	intel_modeset_update_staged_output_state(dev);
 }
 
 void intel_modeset_gem_init(struct drm_device *dev)
