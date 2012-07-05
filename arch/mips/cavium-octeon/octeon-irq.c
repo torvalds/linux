@@ -729,18 +729,6 @@ static struct irq_chip octeon_irq_chip_ciu_v2 = {
 	.name = "CIU",
 	.irq_enable = octeon_irq_ciu_enable_v2,
 	.irq_disable = octeon_irq_ciu_disable_all_v2,
-	.irq_mask = octeon_irq_ciu_disable_local_v2,
-	.irq_unmask = octeon_irq_ciu_enable_v2,
-#ifdef CONFIG_SMP
-	.irq_set_affinity = octeon_irq_ciu_set_affinity_v2,
-	.irq_cpu_offline = octeon_irq_cpu_offline_ciu,
-#endif
-};
-
-static struct irq_chip octeon_irq_chip_ciu_edge_v2 = {
-	.name = "CIU-E",
-	.irq_enable = octeon_irq_ciu_enable_v2,
-	.irq_disable = octeon_irq_ciu_disable_all_v2,
 	.irq_ack = octeon_irq_ciu_ack,
 	.irq_mask = octeon_irq_ciu_disable_local_v2,
 	.irq_unmask = octeon_irq_ciu_enable_v2,
@@ -754,19 +742,8 @@ static struct irq_chip octeon_irq_chip_ciu = {
 	.name = "CIU",
 	.irq_enable = octeon_irq_ciu_enable,
 	.irq_disable = octeon_irq_ciu_disable_all,
-	.irq_mask = octeon_irq_dummy_mask,
-#ifdef CONFIG_SMP
-	.irq_set_affinity = octeon_irq_ciu_set_affinity,
-	.irq_cpu_offline = octeon_irq_cpu_offline_ciu,
-#endif
-};
-
-static struct irq_chip octeon_irq_chip_ciu_edge = {
-	.name = "CIU-E",
-	.irq_enable = octeon_irq_ciu_enable,
-	.irq_disable = octeon_irq_ciu_disable_all,
-	.irq_mask = octeon_irq_dummy_mask,
 	.irq_ack = octeon_irq_ciu_ack,
+	.irq_mask = octeon_irq_dummy_mask,
 #ifdef CONFIG_SMP
 	.irq_set_affinity = octeon_irq_ciu_set_affinity,
 	.irq_cpu_offline = octeon_irq_cpu_offline_ciu,
@@ -993,7 +970,6 @@ static void __init octeon_irq_init_ciu(void)
 {
 	unsigned int i;
 	struct irq_chip *chip;
-	struct irq_chip *chip_edge;
 	struct irq_chip *chip_mbox;
 	struct irq_chip *chip_wd;
 	struct irq_chip *chip_gpio;
@@ -1008,7 +984,6 @@ static void __init octeon_irq_init_ciu(void)
 		octeon_irq_ip2 = octeon_irq_ip2_v2;
 		octeon_irq_ip3 = octeon_irq_ip3_v2;
 		chip = &octeon_irq_chip_ciu_v2;
-		chip_edge = &octeon_irq_chip_ciu_edge_v2;
 		chip_mbox = &octeon_irq_chip_ciu_mbox_v2;
 		chip_wd = &octeon_irq_chip_ciu_wd_v2;
 		chip_gpio = &octeon_irq_chip_ciu_gpio_v2;
@@ -1016,7 +991,6 @@ static void __init octeon_irq_init_ciu(void)
 		octeon_irq_ip2 = octeon_irq_ip2_v1;
 		octeon_irq_ip3 = octeon_irq_ip3_v1;
 		chip = &octeon_irq_chip_ciu;
-		chip_edge = &octeon_irq_chip_ciu_edge;
 		chip_mbox = &octeon_irq_chip_ciu_mbox;
 		chip_wd = &octeon_irq_chip_ciu_wd;
 		chip_gpio = &octeon_irq_chip_ciu_gpio;
@@ -1046,7 +1020,7 @@ static void __init octeon_irq_init_ciu(void)
 	octeon_irq_set_ciu_mapping(OCTEON_IRQ_TWSI, 0, 45, chip, handle_level_irq);
 	octeon_irq_set_ciu_mapping(OCTEON_IRQ_RML, 0, 46, chip, handle_level_irq);
 	for (i = 0; i < 4; i++)
-		octeon_irq_set_ciu_mapping(i + OCTEON_IRQ_TIMER0, 0, i + 52, chip_edge, handle_edge_irq);
+		octeon_irq_set_ciu_mapping(i + OCTEON_IRQ_TIMER0, 0, i + 52, chip, handle_edge_irq);
 
 	octeon_irq_set_ciu_mapping(OCTEON_IRQ_USB0, 0, 56, chip, handle_level_irq);
 	octeon_irq_set_ciu_mapping(OCTEON_IRQ_TWSI2, 0, 59, chip, handle_level_irq);
