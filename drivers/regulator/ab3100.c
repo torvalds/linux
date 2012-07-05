@@ -155,7 +155,7 @@ ab3100_regulators[AB3100_NUM_REGULATORS] = {
  */
 static int ab3100_enable_regulator(struct regulator_dev *reg)
 {
-	struct ab3100_regulator *abreg = reg->reg_data;
+	struct ab3100_regulator *abreg = rdev_get_drvdata(reg);
 	int err;
 	u8 regval;
 
@@ -186,7 +186,7 @@ static int ab3100_enable_regulator(struct regulator_dev *reg)
 
 static int ab3100_disable_regulator(struct regulator_dev *reg)
 {
-	struct ab3100_regulator *abreg = reg->reg_data;
+	struct ab3100_regulator *abreg = rdev_get_drvdata(reg);
 	int err;
 	u8 regval;
 
@@ -219,7 +219,7 @@ static int ab3100_disable_regulator(struct regulator_dev *reg)
 
 static int ab3100_is_enabled_regulator(struct regulator_dev *reg)
 {
-	struct ab3100_regulator *abreg = reg->reg_data;
+	struct ab3100_regulator *abreg = rdev_get_drvdata(reg);
 	u8 regval;
 	int err;
 
@@ -236,7 +236,7 @@ static int ab3100_is_enabled_regulator(struct regulator_dev *reg)
 
 static int ab3100_get_voltage_regulator(struct regulator_dev *reg)
 {
-	struct ab3100_regulator *abreg = reg->reg_data;
+	struct ab3100_regulator *abreg = rdev_get_drvdata(reg);
 	u8 regval;
 	int err;
 
@@ -270,7 +270,7 @@ static int ab3100_get_voltage_regulator(struct regulator_dev *reg)
 static int ab3100_set_voltage_regulator_sel(struct regulator_dev *reg,
 					    unsigned selector)
 {
-	struct ab3100_regulator *abreg = reg->reg_data;
+	struct ab3100_regulator *abreg = rdev_get_drvdata(reg);
 	u8 regval;
 	int err;
 
@@ -299,7 +299,7 @@ static int ab3100_set_voltage_regulator_sel(struct regulator_dev *reg,
 static int ab3100_set_suspend_voltage_regulator(struct regulator_dev *reg,
 						int uV)
 {
-	struct ab3100_regulator *abreg = reg->reg_data;
+	struct ab3100_regulator *abreg = rdev_get_drvdata(reg);
 	u8 regval;
 	int err;
 	int bestindex;
@@ -342,7 +342,7 @@ static int ab3100_set_suspend_voltage_regulator(struct regulator_dev *reg,
  */
 static int ab3100_get_voltage_regulator_external(struct regulator_dev *reg)
 {
-	struct ab3100_regulator *abreg = reg->reg_data;
+	struct ab3100_regulator *abreg = rdev_get_drvdata(reg);
 
 	return abreg->plfdata->external_voltage;
 }
