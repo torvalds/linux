@@ -21,12 +21,16 @@ config ARCH_OMAP2PLUS_TYPICAL
 	help
 	  Compile a kernel suitable for booting most boards
 
+config SOC_HAS_OMAP2_SDRC
+	bool "OMAP2 SDRAM Controller support"
+
 config ARCH_OMAP2
 	bool "TI OMAP2"
 	depends on ARCH_OMAP2PLUS
 	default y
 	select CPU_V6
 	select MULTI_IRQ_HANDLER
+	select SOC_HAS_OMAP2_SDRC
 
 config ARCH_OMAP3
 	bool "TI OMAP3"
@@ -38,6 +42,7 @@ config ARCH_OMAP3
 	select PM_OPP if PM
 	select ARM_CPU_SUSPEND if PM
 	select MULTI_IRQ_HANDLER
+	select SOC_HAS_OMAP2_SDRC
 
 config ARCH_OMAP4
 	bool "TI OMAP4"
@@ -64,16 +69,19 @@ config SOC_OMAP2420
 	depends on ARCH_OMAP2
 	default y
 	select OMAP_DM_TIMER
+	select SOC_HAS_OMAP2_SDRC
 
 config SOC_OMAP2430
 	bool "OMAP2430 support"
 	depends on ARCH_OMAP2
 	default y
+	select SOC_HAS_OMAP2_SDRC
 
 config SOC_OMAP3430
 	bool "OMAP3430 support"
 	depends on ARCH_OMAP3
 	default y
+	select SOC_HAS_OMAP2_SDRC
 
 config SOC_TI81XX
 	bool "TI81XX support"

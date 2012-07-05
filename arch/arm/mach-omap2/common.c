@@ -29,8 +29,6 @@
 
 /* Global address base setup code */
 
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-
 static void __init __omap2_set_globals(struct omap_globals *omap2_globals)
 {
 	omap2_set_globals_tap(omap2_globals);
@@ -38,8 +36,6 @@ static void __init __omap2_set_globals(struct omap_globals *omap2_globals)
 	omap2_set_globals_control(omap2_globals);
 	omap2_set_globals_prcm(omap2_globals);
 }
-
-#endif
 
 #if defined(CONFIG_SOC_OMAP2420)
 
@@ -173,9 +169,7 @@ static struct omap_globals omap4_globals = {
 
 void __init omap2_set_globals_443x(void)
 {
-	omap2_set_globals_tap(&omap4_globals);
-	omap2_set_globals_control(&omap4_globals);
-	omap2_set_globals_prcm(&omap4_globals);
+	__omap2_set_globals(&omap4_globals);
 }
 
 void __init omap4_map_io(void)
