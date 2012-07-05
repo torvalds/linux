@@ -900,12 +900,61 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 	return err;
 }
 
+static u32 cfg80211_calculate_bitrate_60g(struct rate_info *rate)
+{
+	static const u32 __mcs2bitrate[] = {
+		/* control PHY */
+		[0] =   275,
+		/* SC PHY */
+		[1] =  3850,
+		[2] =  7700,
+		[3] =  9625,
+		[4] = 11550,
+		[5] = 12512, /* 1251.25 mbps */
+		[6] = 15400,
+		[7] = 19250,
+		[8] = 23100,
+		[9] = 25025,
+		[10] = 30800,
+		[11] = 38500,
+		[12] = 46200,
+		/* OFDM PHY */
+		[13] =  6930,
+		[14] =  8662, /* 866.25 mbps */
+		[15] = 13860,
+		[16] = 17325,
+		[17] = 20790,
+		[18] = 27720,
+		[19] = 34650,
+		[20] = 41580,
+		[21] = 45045,
+		[22] = 51975,
+		[23] = 62370,
+		[24] = 67568, /* 6756.75 mbps */
+		/* LP-SC PHY */
+		[25] =  6260,
+		[26] =  8340,
+		[27] = 11120,
+		[28] = 12510,
+		[29] = 16680,
+		[30] = 22240,
+		[31] = 25030,
+	};
+
+	if (WARN_ON_ONCE(rate->mcs >= ARRAY_SIZE(__mcs2bitrate)))
+		return 0;
+
+	return __mcs2bitrate[rate->mcs];
+}
+
 u32 cfg80211_calculate_bitrate(struct rate_info *rate)
 {
 	int modulation, streams, bitrate;
 
 	if (!(rate->flags & RATE_INFO_FLAGS_MCS))
 		return rate->legacy;
+	if (rate->flags & RATE_INFO_FLAGS_60G)
+		return cfg80211_calculate_bitrate_60g(rate);
 
 	/* the formula below does only work for MCS values smaller than 32 */
 	if (WARN_ON_ONCE(rate->mcs >= 32))

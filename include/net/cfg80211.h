@@ -580,11 +580,13 @@ enum station_info_flags {
  * @RATE_INFO_FLAGS_MCS: @tx_bitrate_mcs filled
  * @RATE_INFO_FLAGS_40_MHZ_WIDTH: 40 Mhz width transmission
  * @RATE_INFO_FLAGS_SHORT_GI: 400ns guard interval
+ * @RATE_INFO_FLAGS_60G: 60gHz MCS
  */
 enum rate_info_flags {
 	RATE_INFO_FLAGS_MCS		= 1<<0,
 	RATE_INFO_FLAGS_40_MHZ_WIDTH	= 1<<1,
 	RATE_INFO_FLAGS_SHORT_GI	= 1<<2,
+	RATE_INFO_FLAGS_60G		= 1<<3,
 };
 
 /**
