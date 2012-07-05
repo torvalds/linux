@@ -39,6 +39,7 @@
 
 #include <linux/mutex.h>
 #include <linux/radix-tree.h>
+#include <linux/rbtree.h>
 #include <linux/timer.h>
 #include <linux/semaphore.h>
 #include <linux/workqueue.h>
@@ -509,7 +510,7 @@ struct slave_list {
 struct mlx4_resource_tracker {
 	spinlock_t lock;
 	/* tree for each resources */
-	struct radix_tree_root res_tree[MLX4_NUM_OF_RESOURCE_TYPE];
+	struct rb_root res_tree[MLX4_NUM_OF_RESOURCE_TYPE];
 	/* num_of_slave's lists, one per slave */
 	struct slave_list *slave_list;
 };
