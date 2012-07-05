@@ -29,6 +29,7 @@
 #include <linux/dma-mapping.h>
 #include <mach/dma-register.h>
 #include <mach/r8a7740.h>
+#include <mach/pm-rmobile.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <asm/mach-types.h>
@@ -671,6 +672,10 @@ void __init r8a7740_add_standard_devices(void)
 	r8a7740_i2c_workaround(&i2c0_device);
 	r8a7740_i2c_workaround(&i2c1_device);
 
+	/* PM domain */
+	rmobile_init_pm_domain(&r8a7740_pd_a4s);
+
+	/* add devices */
 	platform_add_devices(r8a7740_early_devices,
 			    ARRAY_SIZE(r8a7740_early_devices));
 	platform_add_devices(r8a7740_late_devices,
