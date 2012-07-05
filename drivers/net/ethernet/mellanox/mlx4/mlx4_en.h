@@ -404,6 +404,18 @@ struct mlx4_en_perf_stats {
 #define NUM_PERF_COUNTERS		6
 };
 
+enum mlx4_en_mclist_act {
+	MCLIST_NONE,
+	MCLIST_REM,
+	MCLIST_ADD,
+};
+
+struct mlx4_en_mc_list {
+	struct list_head	list;
+	enum mlx4_en_mclist_act	action;
+	u8			addr[ETH_ALEN];
+};
+
 struct mlx4_en_frag_info {
 	u16 frag_size;
 	u16 frag_prefix_size;
@@ -489,8 +501,8 @@ struct mlx4_en_priv {
 	struct mlx4_en_pkt_stats pkstats;
 	struct mlx4_en_port_stats port_stats;
 	u64 stats_bitmap;
-	char *mc_addrs;
-	int mc_addrs_cnt;
+	struct list_head mc_list;
+	struct list_head curr_list;
 	struct mlx4_en_stat_out_mbox hw_stats;
 	int vids[128];
 	bool wol;

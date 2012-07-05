@@ -170,33 +170,81 @@ static void mlx4_en_do_set_mac(struct work_struct *work)
 static void mlx4_en_clear_list(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_mc_list *tmp, *mc_to_del;
 
-	kfree(priv->mc_addrs);
-	priv->mc_addrs = NULL;
-	priv->mc_addrs_cnt = 0;
+	list_for_each_entry_safe(mc_to_del, tmp, &priv->mc_list, list) {
+		list_del(&mc_to_del->list);
+		kfree(mc_to_del);
+	}
 }
 
 static void mlx4_en_cache_mclist(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct netdev_hw_addr *ha;
-	char *mc_addrs;
-	int mc_addrs_cnt = netdev_mc_count(dev);
-	int i;
+	struct mlx4_en_mc_list *tmp;
 
-	mc_addrs = kmalloc(mc_addrs_cnt * ETH_ALEN, GFP_ATOMIC);
-	if (!mc_addrs) {
-		en_err(priv, "failed to allocate multicast list\n");
-		return;
-	}
-	i = 0;
-	netdev_for_each_mc_addr(ha, dev)
-		memcpy(mc_addrs + i++ * ETH_ALEN, ha->addr, ETH_ALEN);
 	mlx4_en_clear_list(dev);
-	priv->mc_addrs = mc_addrs;
-	priv->mc_addrs_cnt = mc_addrs_cnt;
+	netdev_for_each_mc_addr(ha, dev) {
+		tmp = kzalloc(sizeof(struct mlx4_en_mc_list), GFP_ATOMIC);
+		if (!tmp) {
+			en_err(priv, "failed to allocate multicast list\n");
+			mlx4_en_clear_list(dev);
+			return;
+		}
+		memcpy(tmp->addr, ha->addr, ETH_ALEN);
+		list_add_tail(&tmp->list, &priv->mc_list);
+	}
 }
 
+static void update_mclist_flags(struct mlx4_en_priv *priv,
+				struct list_head *dst,
+				struct list_head *src)
+{
+	struct mlx4_en_mc_list *dst_tmp, *src_tmp, *new_mc;
+	bool found;
+
+	/* Find all the entries that should be removed from dst,
+	 * These are the entries that are not found in src
+	 */
+	list_for_each_entry(dst_tmp, dst, list) {
+		found = false;
+		list_for_each_entry(src_tmp, src, list) {
+			if (!memcmp(dst_tmp->addr, src_tmp->addr, ETH_ALEN)) {
+				found = true;
+				break;
+			}
+		}
+		if (!found)
+			dst_tmp->action = MCLIST_REM;
+	}
+
+	/* Add entries that exist in src but not in dst
+	 * mark them as need to add
+	 */
+	list_for_each_entry(src_tmp, src, list) {
+		found = false;
+		list_for_each_entry(dst_tmp, dst, list) {
+			if (!memcmp(dst_tmp->addr, src_tmp->addr, ETH_ALEN)) {
+				dst_tmp->action = MCLIST_NONE;
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			new_mc = kmalloc(sizeof(struct mlx4_en_mc_list),
+					 GFP_KERNEL);
+			if (!new_mc) {
+				en_err(priv, "Failed to allocate current multicast list\n");
+				return;
+			}
+			memcpy(new_mc, src_tmp,
+			       sizeof(struct mlx4_en_mc_list));
+			new_mc->action = MCLIST_ADD;
+			list_add_tail(&new_mc->list, dst);
+		}
+	}
+}
 
 static void mlx4_en_set_multicast(struct net_device *dev)
 {
@@ -214,6 +262,7 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 						 mcast_task);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct net_device *dev = priv->dev;
+	struct mlx4_en_mc_list *mclist, *tmp;
 	u64 mcast_addr = 0;
 	u8 mc_list[16] = {0};
 	int err;
@@ -336,7 +385,6 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 			priv->flags |= MLX4_EN_FLAG_MC_PROMISC;
 		}
 	} else {
-		int i;
 		/* Disable Multicast promisc */
 		if (priv->flags & MLX4_EN_FLAG_MC_PROMISC) {
 			err = mlx4_multicast_promisc_remove(mdev->dev, priv->base_qpn,
@@ -351,13 +399,6 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 		if (err)
 			en_err(priv, "Failed disabling multicast filter\n");
 
-		/* Detach our qp from all the multicast addresses */
-		for (i = 0; i < priv->mc_addrs_cnt; i++) {
-			memcpy(&mc_list[10], priv->mc_addrs + i * ETH_ALEN, ETH_ALEN);
-			mc_list[5] = priv->port;
-			mlx4_multicast_detach(mdev->dev, &priv->rss_map.indir_qp,
-					      mc_list, MLX4_PROT_ETH);
-		}
 		/* Flush mcast filter and init it with broadcast address */
 		mlx4_SET_MCAST_FLTR(mdev->dev, priv->port, ETH_BCAST,
 				    1, MLX4_MCAST_CONFIG);
@@ -367,13 +408,8 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 		netif_tx_lock_bh(dev);
 		mlx4_en_cache_mclist(dev);
 		netif_tx_unlock_bh(dev);
-		for (i = 0; i < priv->mc_addrs_cnt; i++) {
-			mcast_addr =
-			      mlx4_en_mac_to_u64(priv->mc_addrs + i * ETH_ALEN);
-			memcpy(&mc_list[10], priv->mc_addrs + i * ETH_ALEN, ETH_ALEN);
-			mc_list[5] = priv->port;
-			mlx4_multicast_attach(mdev->dev, &priv->rss_map.indir_qp,
-					      mc_list, 0, MLX4_PROT_ETH);
+		list_for_each_entry(mclist, &priv->mc_list, list) {
+			mcast_addr = mlx4_en_mac_to_u64(mclist->addr);
 			mlx4_SET_MCAST_FLTR(mdev->dev, priv->port,
 					    mcast_addr, 0, MLX4_MCAST_CONFIG);
 		}
@@ -381,6 +417,38 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 					  0, MLX4_MCAST_ENABLE);
 		if (err)
 			en_err(priv, "Failed enabling multicast filter\n");
+
+		update_mclist_flags(priv, &priv->curr_list, &priv->mc_list);
+		list_for_each_entry_safe(mclist, tmp, &priv->curr_list, list) {
+			if (mclist->action == MCLIST_REM) {
+				/* detach this address and delete from list */
+				memcpy(&mc_list[10], mclist->addr, ETH_ALEN);
+				mc_list[5] = priv->port;
+				err = mlx4_multicast_detach(mdev->dev,
+							    &priv->rss_map.indir_qp,
+							    mc_list,
+							    MLX4_PROT_ETH);
+				if (err)
+					en_err(priv, "Fail to detach multicast address\n");
+
+				/* remove from list */
+				list_del(&mclist->list);
+				kfree(mclist);
+			}
+
+			if (mclist->action == MCLIST_ADD) {
+				/* attach the address */
+				memcpy(&mc_list[10], mclist->addr, ETH_ALEN);
+				mc_list[5] = priv->port;
+				err = mlx4_multicast_attach(mdev->dev,
+							    &priv->rss_map.indir_qp,
+							    mc_list, 0,
+							    MLX4_PROT_ETH);
+				if (err)
+					en_err(priv, "Fail to attach multicast address\n");
+
+			}
+		}
 	}
 out:
 	mutex_unlock(&mdev->state_lock);
@@ -605,6 +673,9 @@ int mlx4_en_start_port(struct net_device *dev)
 		return 0;
 	}
 
+	INIT_LIST_HEAD(&priv->mc_list);
+	INIT_LIST_HEAD(&priv->curr_list);
+
 	/* Calculate Rx buf size */
 	dev->mtu = min(dev->mtu, priv->max_mtu);
 	mlx4_en_calc_rx_buf(dev);
@@ -760,6 +831,7 @@ void mlx4_en_stop_port(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
+	struct mlx4_en_mc_list *mclist, *tmp;
 	int i;
 	u8 mc_list[16] = {0};
 
@@ -781,13 +853,18 @@ void mlx4_en_stop_port(struct net_device *dev)
 	mc_list[5] = priv->port;
 	mlx4_multicast_detach(mdev->dev, &priv->rss_map.indir_qp, mc_list,
 			      MLX4_PROT_ETH);
-	for (i = 0; i < priv->mc_addrs_cnt; i++) {
-		memcpy(&mc_list[10], priv->mc_addrs + i * ETH_ALEN, ETH_ALEN);
+	list_for_each_entry(mclist, &priv->curr_list, list) {
+		memcpy(&mc_list[10], mclist->addr, ETH_ALEN);
 		mc_list[5] = priv->port;
 		mlx4_multicast_detach(mdev->dev, &priv->rss_map.indir_qp,
 				      mc_list, MLX4_PROT_ETH);
 	}
 	mlx4_en_clear_list(dev);
+	list_for_each_entry_safe(mclist, tmp, &priv->curr_list, list) {
+		list_del(&mclist->list);
+		kfree(mclist);
+	}
+
 	/* Flush multicast filter */
 	mlx4_SET_MCAST_FLTR(mdev->dev, priv->port, 0, 1, MLX4_MCAST_CONFIG);
 
