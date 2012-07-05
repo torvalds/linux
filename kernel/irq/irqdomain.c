@@ -140,6 +140,36 @@ static unsigned int irq_domain_legacy_revmap(struct irq_domain *domain,
 }
 
 /**
+ * irq_domain_add_simple() - Allocate and register a simple irq_domain.
+ * @of_node: pointer to interrupt controller's device tree node.
+ * @size: total number of irqs in mapping
+ * @first_irq: first number of irq block assigned to the domain
+ * @ops: map/unmap domain callbacks
+ * @host_data: Controller private data pointer
+ *
+ * Allocates a legacy irq_domain if irq_base is positive or a linear
+ * domain otherwise.
+ *
+ * This is intended to implement the expected behaviour for most
+ * interrupt controllers which is that a linear mapping should
+ * normally be used unless the system requires a legacy mapping in
+ * order to support supplying interrupt numbers during non-DT
+ * registration of devices.
+ */
+struct irq_domain *irq_domain_add_simple(struct device_node *of_node,
+					 unsigned int size,
+					 unsigned int first_irq,
+					 const struct irq_domain_ops *ops,
+					 void *host_data)
+{
+	if (first_irq > 0)
+		return irq_domain_add_legacy(of_node, size, first_irq, 0,
+					     ops, host_data);
+	else
+		return irq_domain_add_linear(of_node, size, ops, host_data);
+}
+
+/**
  * irq_domain_add_legacy() - Allocate and register a legacy revmap irq_domain.
  * @of_node: pointer to interrupt controller's device tree node.
  * @size: total number of irqs in legacy mapping
