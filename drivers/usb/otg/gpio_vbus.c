@@ -320,7 +320,7 @@ static int __init gpio_vbus_probe(struct platform_device *pdev)
 	}
 
 	/* only active when a gadget is registered */
-	err = usb_set_transceiver(&gpio_vbus->phy);
+	err = usb_add_phy(&gpio_vbus->phy, USB_PHY_TYPE_USB2);
 	if (err) {
 		dev_err(&pdev->dev, "can't register transceiver, err: %d\n",
 			err);
@@ -354,7 +354,7 @@ static int __exit gpio_vbus_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&gpio_vbus->work);
 	regulator_put(gpio_vbus->vbus_draw);
 
-	usb_set_transceiver(NULL);
+	usb_remove_phy(&gpio_vbus->phy);
 
 	free_irq(gpio_vbus->irq, pdev);
 	if (gpio_is_valid(pdata->gpio_pullup))
