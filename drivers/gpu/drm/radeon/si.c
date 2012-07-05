@@ -3777,9 +3777,11 @@ static int si_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = radeon_vm_manager_start(rdev);
-	if (r)
+	r = radeon_vm_manager_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "vm manager initialization failed (%d).\n", r);
 		return r;
+	}
 
 	return 0;
 }
@@ -3809,7 +3811,6 @@ int si_resume(struct radeon_device *rdev)
 
 int si_suspend(struct radeon_device *rdev)
 {
-	radeon_vm_manager_suspend(rdev);
 	si_cp_enable(rdev, false);
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
 	rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX].ready = false;
@@ -3899,11 +3900,6 @@ int si_init(struct radeon_device *rdev)
 		return r;
 
 	rdev->accel_working = true;
-	r = radeon_vm_manager_init(rdev);
-	if (r) {
-		dev_err(rdev->dev, "vm manager initialization failed (%d).\n", r);
-	}
-
 	r = si_startup(rdev);
 	if (r) {
 		dev_err(rdev->dev, "disabling GPU acceleration\n");

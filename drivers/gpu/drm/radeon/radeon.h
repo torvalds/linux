@@ -1759,8 +1759,6 @@ extern void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size
  */
 int radeon_vm_manager_init(struct radeon_device *rdev);
 void radeon_vm_manager_fini(struct radeon_device *rdev);
-int radeon_vm_manager_start(struct radeon_device *rdev);
-int radeon_vm_manager_suspend(struct radeon_device *rdev);
 int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm);
 void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm);
 int radeon_vm_bind(struct radeon_device *rdev, struct radeon_vm *vm);

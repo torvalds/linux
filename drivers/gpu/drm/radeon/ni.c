@@ -1280,9 +1280,11 @@ static int cayman_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = radeon_vm_manager_start(rdev);
-	if (r)
+	r = radeon_vm_manager_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "vm manager initialization failed (%d).\n", r);
 		return r;
+	}
 
 	r = r600_audio_init(rdev);
 	if (r)
@@ -1315,7 +1317,6 @@ int cayman_resume(struct radeon_device *rdev)
 int cayman_suspend(struct radeon_device *rdev)
 {
 	r600_audio_fini(rdev);
-	radeon_vm_manager_suspend(rdev);
 	cayman_cp_enable(rdev, false);
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
 	evergreen_irq_suspend(rdev);
@@ -1392,11 +1393,6 @@ int cayman_init(struct radeon_device *rdev)
 		return r;
 
 	rdev->accel_working = true;
-	r = radeon_vm_manager_init(rdev);
-	if (r) {
-		dev_err(rdev->dev, "vm manager initialization failed (%d).\n", r);
-	}
-
 	r = cayman_startup(rdev);
 	if (r) {
 		dev_err(rdev->dev, "disabling GPU acceleration\n");
