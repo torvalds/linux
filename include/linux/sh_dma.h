@@ -99,4 +99,6 @@ struct sh_dmae_pdata {
 #define CHCR_TE	0x00000002
 #define CHCR_IE	0x00000004
 
+bool shdma_chan_filter(struct dma_chan *chan, void *arg);
+
 #endif

@@ -320,7 +320,7 @@ static const struct sh_dmae_slave_config *dmae_find_slave(
 }
 
 static int sh_dmae_set_slave(struct shdma_chan *schan,
-			     int slave_id)
+			     int slave_id, bool try)
 {
 	struct sh_dmae_chan *sh_chan = container_of(schan, struct sh_dmae_chan,
 						    shdma_chan);
@@ -328,7 +328,8 @@ static int sh_dmae_set_slave(struct shdma_chan *schan,
 	if (!cfg)
 		return -ENODEV;
 
-	sh_chan->config = cfg;
+	if (!try)
+		sh_chan->config = cfg;
 
 	return 0;
 }

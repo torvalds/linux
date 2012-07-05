@@ -171,6 +171,65 @@ static struct shdma_desc *shdma_get_desc(struct shdma_chan *schan)
 	return NULL;
 }
 
+static int shdma_setup_slave(struct shdma_chan *schan, int slave_id)
+{
+	struct shdma_dev *sdev = to_shdma_dev(schan->dma_chan.device);
+	const struct shdma_ops *ops = sdev->ops;
+	int ret;
+
+	if (slave_id < 0 || slave_id >= slave_num)
+		return -EINVAL;
+
+	if (test_and_set_bit(slave_id, shdma_slave_used))
+		return -EBUSY;
+
+	ret = ops->set_slave(schan, slave_id, false);
+	if (ret < 0) {
+		clear_bit(slave_id, shdma_slave_used);
+		return ret;
+	}
+
+	schan->slave_id = slave_id;
+
+	return 0;
+}
+
+/*
+ * This is the standard shdma filter function to be used as a replacement to the
+ * "old" method, using the .private pointer. If for some reason you allocate a
+ * channel without slave data, use something like ERR_PTR(-EINVAL) as a filter
+ * parameter. If this filter is used, the slave driver, after calling
+ * dma_request_channel(), will also have to call dmaengine_slave_config() with
+ * .slave_id, .direction, and either .src_addr or .dst_addr set.
+ * NOTE: this filter doesn't support multiple DMAC drivers with the DMA_SLAVE
+ * capability! If this becomes a requirement, hardware glue drivers, using this
+ * services would have to provide their own filters, which first would check
+ * the device driver, similar to how other DMAC drivers, e.g., sa11x0-dma.c, do
+ * this, and only then, in case of a match, call this common filter.
+ */
+bool shdma_chan_filter(struct dma_chan *chan, void *arg)
+{
+	struct shdma_chan *schan = to_shdma_chan(chan);
+	struct shdma_dev *sdev = to_shdma_dev(schan->dma_chan.device);
+	const struct shdma_ops *ops = sdev->ops;
+	int slave_id = (int)arg;
+	int ret;
+
+	if (slave_id < 0)
+		/* No slave requested - arbitrary channel */
+		return true;
+
+	if (slave_id >= slave_num)
+		return false;
+
+	ret = ops->set_slave(schan, slave_id, true);
+	if (ret < 0)
+		return false;
+
+	return true;
+}
+EXPORT_SYMBOL(shdma_chan_filter);
+
 static int shdma_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct shdma_chan *schan = to_shdma_chan(chan);
@@ -185,21 +244,10 @@ static int shdma_alloc_chan_resources(struct dma_chan *chan)
 	 * never runs concurrently with itself or free_chan_resources.
 	 */
 	if (slave) {
-		if (slave->slave_id < 0 || slave->slave_id >= slave_num) {
-			ret = -EINVAL;
-			goto evalid;
-		}
-
-		if (test_and_set_bit(slave->slave_id, shdma_slave_used)) {
-			ret = -EBUSY;
-			goto etestused;
-		}
-
-		ret = ops->set_slave(schan, slave->slave_id);
+		/* Legacy mode: .private is set in filter */
+		ret = shdma_setup_slave(schan, slave->slave_id);
 		if (ret < 0)
 			goto esetslave;
-
-		schan->slave_id = slave->slave_id;
 	} else {
 		schan->slave_id = -EINVAL;
 	}
@@ -228,8 +276,6 @@ edescalloc:
 	if (slave)
 esetslave:
 		clear_bit(slave->slave_id, shdma_slave_used);
-etestused:
-evalid:
 	chan->private = NULL;
 	return ret;
 }
@@ -587,22 +633,40 @@ static int shdma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	struct shdma_chan *schan = to_shdma_chan(chan);
 	struct shdma_dev *sdev = to_shdma_dev(chan->device);
 	const struct shdma_ops *ops = sdev->ops;
+	struct dma_slave_config *config;
 	unsigned long flags;
-
-	/* Only supports DMA_TERMINATE_ALL */
-	if (cmd != DMA_TERMINATE_ALL)
-		return -ENXIO;
+	int ret;
 
 	if (!chan)
 		return -EINVAL;
 
-	spin_lock_irqsave(&schan->chan_lock, flags);
+	switch (cmd) {
+	case DMA_TERMINATE_ALL:
+		spin_lock_irqsave(&schan->chan_lock, flags);
+		ops->halt_channel(schan);
+		spin_unlock_irqrestore(&schan->chan_lock, flags);
 
-	ops->halt_channel(schan);
-
-	spin_unlock_irqrestore(&schan->chan_lock, flags);
-
-	shdma_chan_ld_cleanup(schan, true);
+		shdma_chan_ld_cleanup(schan, true);
+		break;
+	case DMA_SLAVE_CONFIG:
+		/*
+		 * So far only .slave_id is used, but the slave drivers are
+		 * encouraged to also set a transfer direction and an address.
+		 */
+		if (!arg)
+			return -EINVAL;
+		/*
+		 * We could lock this, but you shouldn't be configuring the
+		 * channel, while using it...
+		 */
+		config = (struct dma_slave_config *)arg;
+		ret = shdma_setup_slave(schan, config->slave_id);
+		if (ret < 0)
+			return ret;
+		break;
+	default:
+		return -ENXIO;
+	}
 
 	return 0;
 }
