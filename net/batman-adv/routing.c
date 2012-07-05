@@ -579,6 +579,31 @@ batadv_find_ifalter_router(struct batadv_orig_node *primary_orig,
 	return router;
 }
 
+static int batadv_check_unicast_packet(struct sk_buff *skb, int hdr_size)
+{
+	struct ethhdr *ethhdr;
+
+	/* drop packet if it has not necessary minimum size */
+	if (unlikely(!pskb_may_pull(skb, hdr_size)))
+		return -1;
+
+	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+
+	/* packet with unicast indication but broadcast recipient */
+	if (is_broadcast_ether_addr(ethhdr->h_dest))
+		return -1;
+
+	/* packet with broadcast sender address */
+	if (is_broadcast_ether_addr(ethhdr->h_source))
+		return -1;
+
+	/* not for me */
+	if (!batadv_is_my_mac(ethhdr->h_dest))
+		return -1;
+
+	return 0;
+}
+
 int batadv_recv_tt_query(struct sk_buff *skb, struct batadv_hard_iface *recv_if)
 {
 	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
@@ -817,31 +842,6 @@ err:
 	if (router)
 		batadv_neigh_node_free_ref(router);
 	return NULL;
-}
-
-static int batadv_check_unicast_packet(struct sk_buff *skb, int hdr_size)
-{
-	struct ethhdr *ethhdr;
-
-	/* drop packet if it has not necessary minimum size */
-	if (unlikely(!pskb_may_pull(skb, hdr_size)))
-		return -1;
-
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
-
-	/* packet with unicast indication but broadcast recipient */
-	if (is_broadcast_ether_addr(ethhdr->h_dest))
-		return -1;
-
-	/* packet with broadcast sender address */
-	if (is_broadcast_ether_addr(ethhdr->h_source))
-		return -1;
-
-	/* not for me */
-	if (!batadv_is_my_mac(ethhdr->h_dest))
-		return -1;
-
-	return 0;
 }
 
 static int batadv_route_unicast_packet(struct sk_buff *skb,
