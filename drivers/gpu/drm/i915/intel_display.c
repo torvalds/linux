@@ -6653,9 +6653,13 @@ bool intel_set_mode(struct drm_crtc *crtc,
 	struct drm_encoder *encoder;
 	bool ret = true;
 
+	intel_modeset_commit_output_state(dev);
+
 	crtc->enabled = drm_helper_crtc_in_use(crtc);
-	if (!crtc->enabled)
+	if (!crtc->enabled) {
+		drm_helper_disable_unused_functions(dev);
 		return true;
+	}
 
 	adjusted_mode = drm_mode_duplicate(dev, mode);
 	if (!adjusted_mode)
@@ -7002,20 +7006,21 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 		goto fail;
 
 	if (config->mode_changed) {
-		intel_modeset_commit_output_state(dev);
-
-		set->crtc->enabled = drm_helper_crtc_in_use(set->crtc);
-		if (set->crtc->enabled) {
+		if (set->mode) {
 			DRM_DEBUG_KMS("attempting to set mode from"
 					" userspace\n");
 			drm_mode_debug_printmodeline(set->mode);
-			if (!intel_set_mode(set->crtc, set->mode,
-					    set->x, set->y, set->fb)) {
-				DRM_ERROR("failed to set mode on [CRTC:%d]\n",
-					  set->crtc->base.id);
-				ret = -EINVAL;
-				goto fail;
-			}
+		}
+
+		if (!intel_set_mode(set->crtc, set->mode,
+				    set->x, set->y, set->fb)) {
+			DRM_ERROR("failed to set mode on [CRTC:%d]\n",
+				  set->crtc->base.id);
+			ret = -EINVAL;
+			goto fail;
+		}
+
+		if (set->crtc->enabled) {
 			DRM_DEBUG_KMS("Setting connector DPMS state to on\n");
 			for (i = 0; i < set->num_connectors; i++) {
 				DRM_DEBUG_KMS("\t[CONNECTOR:%d:%s] set DPMS on\n", set->connectors[i]->base.id,
@@ -7023,7 +7028,6 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 				set->connectors[i]->funcs->dpms(set->connectors[i], DRM_MODE_DPMS_ON);
 			}
 		}
-		drm_helper_disable_unused_functions(dev);
 	} else if (config->fb_changed) {
 		ret = intel_pipe_set_base(set->crtc,
 					  set->x, set->y, set->fb);
@@ -7035,8 +7039,6 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 
 fail:
 	intel_set_config_restore_state(dev, config);
-
-	intel_modeset_commit_output_state(dev);
 
 	/* Try to restore the config */
 	if (config->mode_changed &&
