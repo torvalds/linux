@@ -86,6 +86,9 @@ enum octeon_irq {
 	OCTEON_IRQ_LMC0,
 	OCTEON_IRQ_DFM = OCTEON_IRQ_LMC0 + 4,		/* Summary of DFM */
 	OCTEON_IRQ_RST,
+#ifndef CONFIG_PCI_MSI
+	OCTEON_IRQ_LAST = 127
+#endif
 };
 
 #ifdef CONFIG_PCI_MSI
@@ -94,8 +97,6 @@ enum octeon_irq {
 
 #define OCTEON_IRQ_MSI_LAST      (OCTEON_IRQ_MSI_BIT0 + 255)
 #define OCTEON_IRQ_LAST          (OCTEON_IRQ_MSI_LAST + 1)
-#else
-#define OCTEON_IRQ_LAST         (OCTEON_IRQ_RST + 1)
 #endif
 
 #endif
