@@ -270,7 +270,7 @@ end:
 
 void batadv_interface_rx(struct net_device *soft_iface,
 			 struct sk_buff *skb, struct batadv_hard_iface *recv_if,
-			 int hdr_size)
+			 int hdr_size, struct batadv_orig_node *orig_node)
 {
 	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
 	struct ethhdr *ethhdr;
@@ -321,6 +321,10 @@ void batadv_interface_rx(struct net_device *soft_iface,
 			   skb->len + ETH_HLEN);
 
 	soft_iface->last_rx = jiffies;
+
+	if (orig_node)
+		batadv_tt_add_temporary_global_entry(bat_priv, orig_node,
+						     ethhdr->h_source);
 
 	if (batadv_is_ap_isolated(bat_priv, ethhdr->h_source, ethhdr->h_dest))
 		goto dropped;
