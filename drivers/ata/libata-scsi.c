@@ -2205,9 +2205,33 @@ static unsigned int ata_scsiop_noop(struct ata_scsi_args *args, u8 *rbuf)
 }
 
 /**
+ *	modecpy - Prepare response for MODE SENSE
+ *	@dest: output buffer
+ *	@src: data being copied
+ *	@n: length of mode page
+ *	@changeable: whether changeable parameters are requested
+ *
+ *	Generate a generic MODE SENSE page for either current or changeable
+ *	parameters.
+ *
+ *	LOCKING:
+ *	None.
+ */
+static void modecpy(u8 *dest, const u8 *src, int n, bool changeable)
+{
+	if (changeable) {
+		memcpy(dest, src, 2);
+		memset(dest + 2, 0, n - 2);
+	} else {
+		memcpy(dest, src, n);
+	}
+}
+
+/**
  *	ata_msense_caching - Simulate MODE SENSE caching info page
  *	@id: device IDENTIFY data
  *	@buf: output buffer
+ *	@changeable: whether changeable parameters are requested
  *
  *	Generate a caching info page, which conditionally indicates
  *	write caching to the SCSI layer, depending on device
@@ -2216,12 +2240,12 @@ static unsigned int ata_scsiop_noop(struct ata_scsi_args *args, u8 *rbuf)
  *	LOCKING:
  *	None.
  */
-static unsigned int ata_msense_caching(u16 *id, u8 *buf)
+static unsigned int ata_msense_caching(u16 *id, u8 *buf, bool changeable)
 {
-	memcpy(buf, def_cache_mpage, sizeof(def_cache_mpage));
-	if (ata_id_wcache_enabled(id))
+	modecpy(buf, def_cache_mpage, sizeof(def_cache_mpage), changeable);
+	if (!changeable && ata_id_wcache_enabled(id))
 		buf[2] |= (1 << 2);	/* write cache enable */
-	if (!ata_id_rahead_enabled(id))
+	if (!changeable && !ata_id_rahead_enabled(id))
 		buf[12] |= (1 << 5);	/* disable read ahead */
 	return sizeof(def_cache_mpage);
 }
@@ -2229,30 +2253,33 @@ static unsigned int ata_msense_caching(u16 *id, u8 *buf)
 /**
  *	ata_msense_ctl_mode - Simulate MODE SENSE control mode page
  *	@buf: output buffer
+ *	@changeable: whether changeable parameters are requested
  *
  *	Generate a generic MODE SENSE control mode page.
  *
  *	LOCKING:
  *	None.
  */
-static unsigned int ata_msense_ctl_mode(u8 *buf)
+static unsigned int ata_msense_ctl_mode(u8 *buf, bool changeable)
 {
-	memcpy(buf, def_control_mpage, sizeof(def_control_mpage));
+	modecpy(buf, def_control_mpage, sizeof(def_control_mpage), changeable);
 	return sizeof(def_control_mpage);
 }
 
 /**
  *	ata_msense_rw_recovery - Simulate MODE SENSE r/w error recovery page
  *	@buf: output buffer
+ *	@changeable: whether changeable parameters are requested
  *
  *	Generate a generic MODE SENSE r/w error recovery page.
  *
  *	LOCKING:
  *	None.
  */
-static unsigned int ata_msense_rw_recovery(u8 *buf)
+static unsigned int ata_msense_rw_recovery(u8 *buf, bool changeable)
 {
-	memcpy(buf, def_rw_recovery_mpage, sizeof(def_rw_recovery_mpage));
+	modecpy(buf, def_rw_recovery_mpage, sizeof(def_rw_recovery_mpage),
+		changeable);
 	return sizeof(def_rw_recovery_mpage);
 }
 
@@ -2316,11 +2343,11 @@ static unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf)
 	page_control = scsicmd[2] >> 6;
 	switch (page_control) {
 	case 0: /* current */
+	case 1: /* changeable */
+	case 2: /* defaults */
 		break;  /* supported */
 	case 3: /* saved */
 		goto saving_not_supp;
-	case 1: /* changeable */
-	case 2: /* defaults */
 	default:
 		goto invalid_fld;
 	}
@@ -2341,21 +2368,21 @@ static unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf)
 
 	switch(pg) {
 	case RW_RECOVERY_MPAGE:
-		p += ata_msense_rw_recovery(p);
+		p += ata_msense_rw_recovery(p, page_control == 1);
 		break;
 
 	case CACHE_MPAGE:
-		p += ata_msense_caching(args->id, p);
+		p += ata_msense_caching(args->id, p, page_control == 1);
 		break;
 
 	case CONTROL_MPAGE:
-		p += ata_msense_ctl_mode(p);
+		p += ata_msense_ctl_mode(p, page_control == 1);
 		break;
 
 	case ALL_MPAGES:
-		p += ata_msense_rw_recovery(p);
-		p += ata_msense_caching(args->id, p);
-		p += ata_msense_ctl_mode(p);
+		p += ata_msense_rw_recovery(p, page_control == 1);
+		p += ata_msense_caching(args->id, p, page_control == 1);
+		p += ata_msense_ctl_mode(p, page_control == 1);
 		break;
 
 	default:		/* invalid page code */
