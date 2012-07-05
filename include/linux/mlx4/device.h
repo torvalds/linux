@@ -70,14 +70,17 @@ enum {
 	MLX4_MFUNC_EQE_MASK     = (MLX4_MFUNC_MAX_EQES - 1)
 };
 
-/* Driver supports 2 diffrent device methods to manage traffic steering:
+/* Driver supports 3 diffrent device methods to manage traffic steering:
+ *	-device managed - High level API for ib and eth flow steering. FW is
+ *			  managing flow steering tables.
  *	- B0 steering mode - Common low level API for ib and (if supported) eth.
  *	- A0 steering mode - Limited low level API for eth. In case of IB,
  *			     B0 mode is in use.
  */
 enum {
 	MLX4_STEERING_MODE_A0,
-	MLX4_STEERING_MODE_B0
+	MLX4_STEERING_MODE_B0,
+	MLX4_STEERING_MODE_DEVICE_MANAGED
 };
 
 static inline const char *mlx4_steering_mode_str(int steering_mode)
@@ -88,6 +91,10 @@ static inline const char *mlx4_steering_mode_str(int steering_mode)
 
 	case MLX4_STEERING_MODE_B0:
 		return "B0 steering";
+
+	case MLX4_STEERING_MODE_DEVICE_MANAGED:
+		return "Device managed flow steering";
+
 	default:
 		return "Unrecognize steering mode";
 	}
@@ -125,7 +132,8 @@ enum {
 enum {
 	MLX4_DEV_CAP_FLAG2_RSS			= 1LL <<  0,
 	MLX4_DEV_CAP_FLAG2_RSS_TOP		= 1LL <<  1,
-	MLX4_DEV_CAP_FLAG2_RSS_XOR		= 1LL <<  2
+	MLX4_DEV_CAP_FLAG2_RSS_XOR		= 1LL <<  2,
+	MLX4_DEV_CAP_FLAG2_FS_EN		= 1LL <<  3
 };
 
 #define MLX4_ATTR_EXTENDED_PORT_INFO	cpu_to_be16(0xff90)
@@ -319,6 +327,7 @@ struct mlx4_caps {
 	int			reserved_mcgs;
 	int			num_qp_per_mgm;
 	int			steering_mode;
+	int			fs_log_max_ucast_qp_range_size;
 	int			num_pds;
 	int			reserved_pds;
 	int			max_xrcds;
@@ -647,9 +656,94 @@ int mlx4_unicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 int mlx4_unicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 			enum mlx4_protocol prot);
 int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
-			  int block_mcast_loopback, enum mlx4_protocol protocol);
+			  u8 port, int block_mcast_loopback,
+			  enum mlx4_protocol protocol, u64 *reg_id);
 int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
-			  enum mlx4_protocol protocol);
+			  enum mlx4_protocol protocol, u64 reg_id);
+
+enum {
+	MLX4_DOMAIN_UVERBS	= 0x1000,
+	MLX4_DOMAIN_ETHTOOL     = 0x2000,
+	MLX4_DOMAIN_RFS         = 0x3000,
+	MLX4_DOMAIN_NIC    = 0x5000,
+};
+
+enum mlx4_net_trans_rule_id {
+	MLX4_NET_TRANS_RULE_ID_ETH = 0,
+	MLX4_NET_TRANS_RULE_ID_IB,
+	MLX4_NET_TRANS_RULE_ID_IPV6,
+	MLX4_NET_TRANS_RULE_ID_IPV4,
+	MLX4_NET_TRANS_RULE_ID_TCP,
+	MLX4_NET_TRANS_RULE_ID_UDP,
+	MLX4_NET_TRANS_RULE_NUM, /* should be last */
+};
+
+enum mlx4_net_trans_promisc_mode {
+	MLX4_FS_PROMISC_NONE = 0,
+	MLX4_FS_PROMISC_UPLINK,
+	MLX4_FS_PROMISC_FUNCTION_PORT,
+	MLX4_FS_PROMISC_ALL_MULTI,
+};
+
+struct mlx4_spec_eth {
+	u8	dst_mac[6];
+	u8	dst_mac_msk[6];
+	u8	src_mac[6];
+	u8	src_mac_msk[6];
+	u8	ether_type_enable;
+	__be16	ether_type;
+	__be16	vlan_id_msk;
+	__be16	vlan_id;
+};
+
+struct mlx4_spec_tcp_udp {
+	__be16 dst_port;
+	__be16 dst_port_msk;
+	__be16 src_port;
+	__be16 src_port_msk;
+};
+
+struct mlx4_spec_ipv4 {
+	__be32 dst_ip;
+	__be32 dst_ip_msk;
+	__be32 src_ip;
+	__be32 src_ip_msk;
+};
+
+struct mlx4_spec_ib {
+	__be32	r_qpn;
+	__be32	qpn_msk;
+	u8	dst_gid[16];
+	u8	dst_gid_msk[16];
+};
+
+struct mlx4_spec_list {
+	struct	list_head list;
+	enum	mlx4_net_trans_rule_id id;
+	union {
+		struct mlx4_spec_eth eth;
+		struct mlx4_spec_ib ib;
+		struct mlx4_spec_ipv4 ipv4;
+		struct mlx4_spec_tcp_udp tcp_udp;
+	};
+};
+
+enum mlx4_net_trans_hw_rule_queue {
+	MLX4_NET_TRANS_Q_FIFO,
+	MLX4_NET_TRANS_Q_LIFO,
+};
+
+struct mlx4_net_trans_rule {
+	struct	list_head list;
+	enum	mlx4_net_trans_hw_rule_queue queue_mode;
+	bool	exclusive;
+	bool	allow_loopback;
+	enum	mlx4_net_trans_promisc_mode promisc_mode;
+	u8	port;
+	u16	priority;
+	u32	qpn;
+};
+
 int mlx4_multicast_promisc_add(struct mlx4_dev *dev, u32 qpn, u8 port);
 int mlx4_multicast_promisc_remove(struct mlx4_dev *dev, u32 qpn, u8 port);
 int mlx4_unicast_promisc_add(struct mlx4_dev *dev, u32 qpn, u8 port);
@@ -691,5 +785,9 @@ int mlx4_wol_write(struct mlx4_dev *dev, u64 config, int port);
 
 int mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx);
 void mlx4_counter_free(struct mlx4_dev *dev, u32 idx);
+
+int mlx4_flow_attach(struct mlx4_dev *dev,
+		     struct mlx4_net_trans_rule *rule, u64 *reg_id);
+int mlx4_flow_detach(struct mlx4_dev *dev, u64 reg_id);
 
 #endif /* MLX4_DEVICE_H */

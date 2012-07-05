@@ -2744,6 +2744,9 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 					 struct mlx4_cmd_mailbox *outbox,
 					 struct mlx4_cmd_info *cmd)
 {
+	if (dev->caps.steering_mode !=
+	    MLX4_STEERING_MODE_DEVICE_MANAGED)
+		return -EOPNOTSUPP;
 	return mlx4_cmd_imm(dev, inbox->dma, &vhcr->out_param,
 			    vhcr->in_modifier, 0,
 			    MLX4_QP_FLOW_STEERING_ATTACH,
@@ -2757,6 +2760,9 @@ int mlx4_QP_FLOW_STEERING_DETACH_wrapper(struct mlx4_dev *dev, int slave,
 					 struct mlx4_cmd_mailbox *outbox,
 					 struct mlx4_cmd_info *cmd)
 {
+	if (dev->caps.steering_mode !=
+	    MLX4_STEERING_MODE_DEVICE_MANAGED)
+		return -EOPNOTSUPP;
 	return mlx4_cmd(dev, vhcr->in_param, 0, 0,
 			MLX4_QP_FLOW_STEERING_DETACH, MLX4_CMD_TIME_CLASS_A,
 			MLX4_CMD_NATIVE);

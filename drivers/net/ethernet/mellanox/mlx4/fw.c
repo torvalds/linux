@@ -123,7 +123,8 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 	static const char * const fname[] = {
 		[0] = "RSS support",
 		[1] = "RSS Toeplitz Hash Function support",
-		[2] = "RSS XOR Hash Function support"
+		[2] = "RSS XOR Hash Function support",
+		[3] = "Device manage flow steering support"
 	};
 	int i;
 
@@ -391,6 +392,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_RSVD_XRC_OFFSET		0x66
 #define QUERY_DEV_CAP_MAX_XRC_OFFSET		0x67
 #define QUERY_DEV_CAP_MAX_COUNTERS_OFFSET	0x68
+#define QUERY_DEV_CAP_FLOW_STEERING_RANGE_EN_OFFSET	0x76
+#define QUERY_DEV_CAP_FLOW_STEERING_MAX_QP_OFFSET	0x77
 #define QUERY_DEV_CAP_RDMARC_ENTRY_SZ_OFFSET	0x80
 #define QUERY_DEV_CAP_QPC_ENTRY_SZ_OFFSET	0x82
 #define QUERY_DEV_CAP_AUX_ENTRY_SZ_OFFSET	0x84
@@ -474,6 +477,12 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev_cap->num_ports = field & 0xf;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_MSG_SZ_OFFSET);
 	dev_cap->max_msg_sz = 1 << (field & 0x1f);
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_FLOW_STEERING_RANGE_EN_OFFSET);
+	if (field & 0x80)
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_FS_EN;
+	dev_cap->fs_log_max_ucast_qp_range_size = field & 0x1f;
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_FLOW_STEERING_MAX_QP_OFFSET);
+	dev_cap->fs_max_num_qp_per_entry = field;
 	MLX4_GET(stat_rate, outbox, QUERY_DEV_CAP_RATE_SUPPORT_OFFSET);
 	dev_cap->stat_rate_support = stat_rate;
 	MLX4_GET(ext_flags, outbox, QUERY_DEV_CAP_EXT_FLAGS_OFFSET);
@@ -1061,6 +1070,15 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 #define	 INIT_HCA_LOG_MC_HASH_SZ_OFFSET	 (INIT_HCA_MCAST_OFFSET + 0x16)
 #define  INIT_HCA_UC_STEERING_OFFSET	 (INIT_HCA_MCAST_OFFSET + 0x18)
 #define	 INIT_HCA_LOG_MC_TABLE_SZ_OFFSET (INIT_HCA_MCAST_OFFSET + 0x1b)
+#define  INIT_HCA_DEVICE_MANAGED_FLOW_STEERING_EN	0x6
+#define  INIT_HCA_FS_PARAM_OFFSET         0x1d0
+#define  INIT_HCA_FS_BASE_OFFSET          (INIT_HCA_FS_PARAM_OFFSET + 0x00)
+#define  INIT_HCA_FS_LOG_ENTRY_SZ_OFFSET  (INIT_HCA_FS_PARAM_OFFSET + 0x12)
+#define  INIT_HCA_FS_LOG_TABLE_SZ_OFFSET  (INIT_HCA_FS_PARAM_OFFSET + 0x1b)
+#define  INIT_HCA_FS_ETH_BITS_OFFSET      (INIT_HCA_FS_PARAM_OFFSET + 0x21)
+#define  INIT_HCA_FS_ETH_NUM_ADDRS_OFFSET (INIT_HCA_FS_PARAM_OFFSET + 0x22)
+#define  INIT_HCA_FS_IB_BITS_OFFSET       (INIT_HCA_FS_PARAM_OFFSET + 0x25)
+#define  INIT_HCA_FS_IB_NUM_ADDRS_OFFSET  (INIT_HCA_FS_PARAM_OFFSET + 0x26)
 #define INIT_HCA_TPT_OFFSET		 0x0f0
 #define	 INIT_HCA_DMPT_BASE_OFFSET	 (INIT_HCA_TPT_OFFSET + 0x00)
 #define	 INIT_HCA_LOG_MPT_SZ_OFFSET	 (INIT_HCA_TPT_OFFSET + 0x0b)
@@ -1119,14 +1137,44 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 	MLX4_PUT(inbox, param->rdmarc_base,   INIT_HCA_RDMARC_BASE_OFFSET);
 	MLX4_PUT(inbox, param->log_rd_per_qp, INIT_HCA_LOG_RD_OFFSET);
 
-	/* multicast attributes */
+	/* steering attributes */
+	if (dev->caps.steering_mode ==
+	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
+		*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |=
+			cpu_to_be32(1 <<
+				    INIT_HCA_DEVICE_MANAGED_FLOW_STEERING_EN);
 
-	MLX4_PUT(inbox, param->mc_base,		INIT_HCA_MC_BASE_OFFSET);
-	MLX4_PUT(inbox, param->log_mc_entry_sz, INIT_HCA_LOG_MC_ENTRY_SZ_OFFSET);
-	MLX4_PUT(inbox, param->log_mc_hash_sz,  INIT_HCA_LOG_MC_HASH_SZ_OFFSET);
-	if (dev->caps.steering_mode == MLX4_STEERING_MODE_B0)
-		MLX4_PUT(inbox, (u8) (1 << 3),	INIT_HCA_UC_STEERING_OFFSET);
-	MLX4_PUT(inbox, param->log_mc_table_sz, INIT_HCA_LOG_MC_TABLE_SZ_OFFSET);
+		MLX4_PUT(inbox, param->mc_base, INIT_HCA_FS_BASE_OFFSET);
+		MLX4_PUT(inbox, param->log_mc_entry_sz,
+			 INIT_HCA_FS_LOG_ENTRY_SZ_OFFSET);
+		MLX4_PUT(inbox, param->log_mc_table_sz,
+			 INIT_HCA_FS_LOG_TABLE_SZ_OFFSET);
+		/* Enable Ethernet flow steering
+		 * with udp unicast and tcp unicast
+		 */
+		MLX4_PUT(inbox, param->fs_hash_enable_bits,
+			 INIT_HCA_FS_ETH_BITS_OFFSET);
+		MLX4_PUT(inbox, (u16) MLX4_FS_NUM_OF_L2_ADDR,
+			 INIT_HCA_FS_ETH_NUM_ADDRS_OFFSET);
+		/* Enable IPoIB flow steering
+		 * with udp unicast and tcp unicast
+		 */
+		MLX4_PUT(inbox, param->fs_hash_enable_bits,
+			 INIT_HCA_FS_IB_BITS_OFFSET);
+		MLX4_PUT(inbox, (u16) MLX4_FS_NUM_OF_L2_ADDR,
+			 INIT_HCA_FS_IB_NUM_ADDRS_OFFSET);
+	} else {
+		MLX4_PUT(inbox, param->mc_base,	INIT_HCA_MC_BASE_OFFSET);
+		MLX4_PUT(inbox, param->log_mc_entry_sz,
+			 INIT_HCA_LOG_MC_ENTRY_SZ_OFFSET);
+		MLX4_PUT(inbox, param->log_mc_hash_sz,
+			 INIT_HCA_LOG_MC_HASH_SZ_OFFSET);
+		MLX4_PUT(inbox, param->log_mc_table_sz,
+			 INIT_HCA_LOG_MC_TABLE_SZ_OFFSET);
+		if (dev->caps.steering_mode == MLX4_STEERING_MODE_B0)
+			MLX4_PUT(inbox, (u8) (1 << 3),
+				 INIT_HCA_UC_STEERING_OFFSET);
+	}
 
 	/* TPT attributes */
 
@@ -1188,15 +1236,24 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 	MLX4_GET(param->rdmarc_base,   outbox, INIT_HCA_RDMARC_BASE_OFFSET);
 	MLX4_GET(param->log_rd_per_qp, outbox, INIT_HCA_LOG_RD_OFFSET);
 
-	/* multicast attributes */
+	/* steering attributes */
+	if (dev->caps.steering_mode ==
+	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
 
-	MLX4_GET(param->mc_base,         outbox, INIT_HCA_MC_BASE_OFFSET);
-	MLX4_GET(param->log_mc_entry_sz, outbox,
-		 INIT_HCA_LOG_MC_ENTRY_SZ_OFFSET);
-	MLX4_GET(param->log_mc_hash_sz,  outbox,
-		 INIT_HCA_LOG_MC_HASH_SZ_OFFSET);
-	MLX4_GET(param->log_mc_table_sz, outbox,
-		 INIT_HCA_LOG_MC_TABLE_SZ_OFFSET);
+		MLX4_GET(param->mc_base, outbox, INIT_HCA_FS_BASE_OFFSET);
+		MLX4_GET(param->log_mc_entry_sz, outbox,
+			 INIT_HCA_FS_LOG_ENTRY_SZ_OFFSET);
+		MLX4_GET(param->log_mc_table_sz, outbox,
+			 INIT_HCA_FS_LOG_TABLE_SZ_OFFSET);
+	} else {
+		MLX4_GET(param->mc_base, outbox, INIT_HCA_MC_BASE_OFFSET);
+		MLX4_GET(param->log_mc_entry_sz, outbox,
+			 INIT_HCA_LOG_MC_ENTRY_SZ_OFFSET);
+		MLX4_GET(param->log_mc_hash_sz,  outbox,
+			 INIT_HCA_LOG_MC_HASH_SZ_OFFSET);
+		MLX4_GET(param->log_mc_table_sz, outbox,
+			 INIT_HCA_LOG_MC_TABLE_SZ_OFFSET);
+	}
 
 	/* TPT attributes */
 

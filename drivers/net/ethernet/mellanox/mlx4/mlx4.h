@@ -54,6 +54,17 @@
 #define DRV_VERSION	"1.1"
 #define DRV_RELDATE	"Dec, 2011"
 
+#define MLX4_FS_UDP_UC_EN		(1 << 1)
+#define MLX4_FS_TCP_UC_EN		(1 << 2)
+#define MLX4_FS_NUM_OF_L2_ADDR		8
+#define MLX4_FS_MGM_LOG_ENTRY_SIZE	7
+#define MLX4_FS_NUM_MCG			(1 << 17)
+
+enum {
+	MLX4_FS_L2_HASH = 0,
+	MLX4_FS_L2_L3_L4_HASH,
+};
+
 #define MLX4_NUM_UP		8
 #define MLX4_NUM_TC		8
 #define MLX4_RATELIMIT_UNITS 3 /* 100 Mbps */
@@ -704,6 +715,7 @@ struct mlx4_set_port_rqp_calc_context {
 
 struct mlx4_mac_entry {
 	u64 mac;
+	u64 reg_id;
 };
 
 struct mlx4_port_info {
@@ -777,6 +789,7 @@ struct mlx4_priv {
 	struct mutex		bf_mutex;
 	struct io_mapping	*bf_mapping;
 	int			reserved_mtts;
+	int			fs_hash_mode;
 };
 
 static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)

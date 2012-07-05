@@ -495,6 +495,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	spin_lock_init(&qp->sq.lock);
 	spin_lock_init(&qp->rq.lock);
 	INIT_LIST_HEAD(&qp->gid_list);
+	INIT_LIST_HEAD(&qp->steering_rules);
 
 	qp->state	 = IB_QPS_RESET;
 	if (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR)

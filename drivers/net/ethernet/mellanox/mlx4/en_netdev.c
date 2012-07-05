@@ -463,7 +463,8 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 				err = mlx4_multicast_detach(mdev->dev,
 							    &priv->rss_map.indir_qp,
 							    mc_list,
-							    MLX4_PROT_ETH);
+							    MLX4_PROT_ETH,
+							    mclist->reg_id);
 				if (err)
 					en_err(priv, "Fail to detach multicast address\n");
 
@@ -475,11 +476,14 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 			if (mclist->action == MCLIST_ADD) {
 				/* attach the address */
 				memcpy(&mc_list[10], mclist->addr, ETH_ALEN);
+				/* needed for B0 steering support */
 				mc_list[5] = priv->port;
 				err = mlx4_multicast_attach(mdev->dev,
 							    &priv->rss_map.indir_qp,
-							    mc_list, 0,
-							    MLX4_PROT_ETH);
+							    mc_list,
+							    priv->port, 0,
+							    MLX4_PROT_ETH,
+							    &mclist->reg_id);
 				if (err)
 					en_err(priv, "Fail to attach multicast address\n");
 
@@ -827,9 +831,10 @@ int mlx4_en_start_port(struct net_device *dev)
 
 	/* Attach rx QP to bradcast address */
 	memset(&mc_list[10], 0xff, ETH_ALEN);
-	mc_list[5] = priv->port;
+	mc_list[5] = priv->port; /* needed for B0 steering support */
 	if (mlx4_multicast_attach(mdev->dev, &priv->rss_map.indir_qp, mc_list,
-				  0, MLX4_PROT_ETH))
+				  priv->port, 0, MLX4_PROT_ETH,
+				  &priv->broadcast_id))
 		mlx4_warn(mdev, "Failed Attaching Broadcast\n");
 
 	/* Must redo promiscuous mode setup. */
@@ -886,14 +891,14 @@ void mlx4_en_stop_port(struct net_device *dev)
 
 	/* Detach All multicasts */
 	memset(&mc_list[10], 0xff, ETH_ALEN);
-	mc_list[5] = priv->port;
+	mc_list[5] = priv->port; /* needed for B0 steering support */
 	mlx4_multicast_detach(mdev->dev, &priv->rss_map.indir_qp, mc_list,
-			      MLX4_PROT_ETH);
+			      MLX4_PROT_ETH, priv->broadcast_id);
 	list_for_each_entry(mclist, &priv->curr_list, list) {
 		memcpy(&mc_list[10], mclist->addr, ETH_ALEN);
 		mc_list[5] = priv->port;
 		mlx4_multicast_detach(mdev->dev, &priv->rss_map.indir_qp,
-				      mc_list, MLX4_PROT_ETH);
+				      mc_list, MLX4_PROT_ETH, mclist->reg_id);
 	}
 	mlx4_en_clear_list(dev);
 	list_for_each_entry_safe(mclist, tmp, &priv->curr_list, list) {

@@ -718,26 +718,53 @@ int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 	return ret;
 }
 
+struct mlx4_ib_steering {
+	struct list_head list;
+	u64 reg_id;
+	union ib_gid gid;
+};
+
 static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 {
 	int err;
 	struct mlx4_ib_dev *mdev = to_mdev(ibqp->device);
 	struct mlx4_ib_qp *mqp = to_mqp(ibqp);
+	u64 reg_id;
+	struct mlx4_ib_steering *ib_steering = NULL;
 
-	err = mlx4_multicast_attach(mdev->dev, &mqp->mqp, gid->raw,
-				    !!(mqp->flags & MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK),
-				    MLX4_PROT_IB_IPV6);
+	if (mdev->dev->caps.steering_mode ==
+	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
+		ib_steering = kmalloc(sizeof(*ib_steering), GFP_KERNEL);
+		if (!ib_steering)
+			return -ENOMEM;
+	}
+
+	err = mlx4_multicast_attach(mdev->dev, &mqp->mqp, gid->raw, mqp->port,
+				    !!(mqp->flags &
+				       MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK),
+				    MLX4_PROT_IB_IPV6, &reg_id);
 	if (err)
-		return err;
+		goto err_malloc;
 
 	err = add_gid_entry(ibqp, gid);
 	if (err)
 		goto err_add;
 
+	if (ib_steering) {
+		memcpy(ib_steering->gid.raw, gid->raw, 16);
+		ib_steering->reg_id = reg_id;
+		mutex_lock(&mqp->mutex);
+		list_add(&ib_steering->list, &mqp->steering_rules);
+		mutex_unlock(&mqp->mutex);
+	}
 	return 0;
 
 err_add:
-	mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw, MLX4_PROT_IB_IPV6);
+	mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw,
+			      MLX4_PROT_IB_IPV6, reg_id);
+err_malloc:
+	kfree(ib_steering);
+
 	return err;
 }
 
@@ -765,9 +792,30 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	u8 mac[6];
 	struct net_device *ndev;
 	struct mlx4_ib_gid_entry *ge;
+	u64 reg_id = 0;
 
-	err = mlx4_multicast_detach(mdev->dev,
-				    &mqp->mqp, gid->raw, MLX4_PROT_IB_IPV6);
+	if (mdev->dev->caps.steering_mode ==
+	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
+		struct mlx4_ib_steering *ib_steering;
+
+		mutex_lock(&mqp->mutex);
+		list_for_each_entry(ib_steering, &mqp->steering_rules, list) {
+			if (!memcmp(ib_steering->gid.raw, gid->raw, 16)) {
+				list_del(&ib_steering->list);
+				break;
+			}
+		}
+		mutex_unlock(&mqp->mutex);
+		if (&ib_steering->list == &mqp->steering_rules) {
+			pr_err("Couldn't find reg_id for mgid. Steering rule is left attached\n");
+			return -EINVAL;
+		}
+		reg_id = ib_steering->reg_id;
+		kfree(ib_steering);
+	}
+
+	err = mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw,
+				    MLX4_PROT_IB_IPV6, reg_id);
 	if (err)
 		return err;
 

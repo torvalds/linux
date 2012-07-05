@@ -41,6 +41,7 @@
 
 #define MGM_QPN_MASK       0x00FFFFFF
 #define MGM_BLCK_LB_BIT    30
+#define MLX4_MAC_MASK	   0xffffffffffffULL
 
 static const u8 zero_gid[16];	/* automatically initialized to 0 */
 
@@ -54,7 +55,12 @@ struct mlx4_mgm {
 
 int mlx4_get_mgm_entry_size(struct mlx4_dev *dev)
 {
-	return min((1 << mlx4_log_num_mgm_entry_size), MLX4_MAX_MGM_ENTRY_SIZE);
+	if (dev->caps.steering_mode ==
+	    MLX4_STEERING_MODE_DEVICE_MANAGED)
+		return 1 << MLX4_FS_MGM_LOG_ENTRY_SIZE;
+	else
+		return min((1 << mlx4_log_num_mgm_entry_size),
+			   MLX4_MAX_MGM_ENTRY_SIZE);
 }
 
 int mlx4_get_qp_per_mgm(struct mlx4_dev *dev)
@@ -643,6 +649,311 @@ static int find_entry(struct mlx4_dev *dev, u8 port,
 	return err;
 }
 
+struct mlx4_net_trans_rule_hw_ctrl {
+	__be32 ctrl;
+	__be32 vf_vep_port;
+	__be32 qpn;
+	__be32 reserved;
+};
+
+static void trans_rule_ctrl_to_hw(struct mlx4_net_trans_rule *ctrl,
+				  struct mlx4_net_trans_rule_hw_ctrl *hw)
+{
+	static const u8 __promisc_mode[] = {
+		[MLX4_FS_PROMISC_NONE]   = 0x0,
+		[MLX4_FS_PROMISC_UPLINK] = 0x1,
+		[MLX4_FS_PROMISC_FUNCTION_PORT] = 0x2,
+		[MLX4_FS_PROMISC_ALL_MULTI] = 0x3,
+	};
+
+	u32 dw = 0;
+
+	dw = ctrl->queue_mode == MLX4_NET_TRANS_Q_LIFO ? 1 : 0;
+	dw |= ctrl->exclusive ? (1 << 2) : 0;
+	dw |= ctrl->allow_loopback ? (1 << 3) : 0;
+	dw |= __promisc_mode[ctrl->promisc_mode] << 8;
+	dw |= ctrl->priority << 16;
+
+	hw->ctrl = cpu_to_be32(dw);
+	hw->vf_vep_port = cpu_to_be32(ctrl->port);
+	hw->qpn = cpu_to_be32(ctrl->qpn);
+}
+
+struct mlx4_net_trans_rule_hw_ib {
+	u8	size;
+	u8	rsvd1;
+	__be16	id;
+	u32	rsvd2;
+	__be32	qpn;
+	__be32	qpn_mask;
+	u8	dst_gid[16];
+	u8	dst_gid_msk[16];
+} __packed;
+
+struct mlx4_net_trans_rule_hw_eth {
+	u8	size;
+	u8	rsvd;
+	__be16	id;
+	u8	rsvd1[6];
+	u8	dst_mac[6];
+	u16	rsvd2;
+	u8	dst_mac_msk[6];
+	u16	rsvd3;
+	u8	src_mac[6];
+	u16	rsvd4;
+	u8	src_mac_msk[6];
+	u8      rsvd5;
+	u8      ether_type_enable;
+	__be16  ether_type;
+	__be16  vlan_id_msk;
+	__be16  vlan_id;
+} __packed;
+
+struct mlx4_net_trans_rule_hw_tcp_udp {
+	u8	size;
+	u8	rsvd;
+	__be16	id;
+	__be16	rsvd1[3];
+	__be16	dst_port;
+	__be16	rsvd2;
+	__be16	dst_port_msk;
+	__be16	rsvd3;
+	__be16	src_port;
+	__be16	rsvd4;
+	__be16	src_port_msk;
+} __packed;
+
+struct mlx4_net_trans_rule_hw_ipv4 {
+	u8	size;
+	u8	rsvd;
+	__be16	id;
+	__be32	rsvd1;
+	__be32	dst_ip;
+	__be32	dst_ip_msk;
+	__be32	src_ip;
+	__be32	src_ip_msk;
+} __packed;
+
+struct _rule_hw {
+	union {
+		struct {
+			u8 size;
+			u8 rsvd;
+			__be16 id;
+		};
+		struct mlx4_net_trans_rule_hw_eth eth;
+		struct mlx4_net_trans_rule_hw_ib ib;
+		struct mlx4_net_trans_rule_hw_ipv4 ipv4;
+		struct mlx4_net_trans_rule_hw_tcp_udp tcp_udp;
+	};
+};
+
+static int parse_trans_rule(struct mlx4_dev *dev, struct mlx4_spec_list *spec,
+			    struct _rule_hw *rule_hw)
+{
+	static const u16 __sw_id_hw[] = {
+		[MLX4_NET_TRANS_RULE_ID_ETH]     = 0xE001,
+		[MLX4_NET_TRANS_RULE_ID_IB]      = 0xE005,
+		[MLX4_NET_TRANS_RULE_ID_IPV6]    = 0xE003,
+		[MLX4_NET_TRANS_RULE_ID_IPV4]    = 0xE002,
+		[MLX4_NET_TRANS_RULE_ID_TCP]     = 0xE004,
+		[MLX4_NET_TRANS_RULE_ID_UDP]     = 0xE006
+	};
+
+	static const size_t __rule_hw_sz[] = {
+		[MLX4_NET_TRANS_RULE_ID_ETH] =
+			sizeof(struct mlx4_net_trans_rule_hw_eth),
+		[MLX4_NET_TRANS_RULE_ID_IB] =
+			sizeof(struct mlx4_net_trans_rule_hw_ib),
+		[MLX4_NET_TRANS_RULE_ID_IPV6] = 0,
+		[MLX4_NET_TRANS_RULE_ID_IPV4] =
+			sizeof(struct mlx4_net_trans_rule_hw_ipv4),
+		[MLX4_NET_TRANS_RULE_ID_TCP] =
+			sizeof(struct mlx4_net_trans_rule_hw_tcp_udp),
+		[MLX4_NET_TRANS_RULE_ID_UDP] =
+			sizeof(struct mlx4_net_trans_rule_hw_tcp_udp)
+	};
+	if (spec->id > MLX4_NET_TRANS_RULE_NUM) {
+		mlx4_err(dev, "Invalid network rule id. id = %d\n", spec->id);
+		return -EINVAL;
+	}
+	memset(rule_hw, 0, __rule_hw_sz[spec->id]);
+	rule_hw->id = cpu_to_be16(__sw_id_hw[spec->id]);
+	rule_hw->size = __rule_hw_sz[spec->id] >> 2;
+
+	switch (spec->id) {
+	case MLX4_NET_TRANS_RULE_ID_ETH:
+		memcpy(rule_hw->eth.dst_mac, spec->eth.dst_mac, ETH_ALEN);
+		memcpy(rule_hw->eth.dst_mac_msk, spec->eth.dst_mac_msk,
+		       ETH_ALEN);
+		memcpy(rule_hw->eth.src_mac, spec->eth.src_mac, ETH_ALEN);
+		memcpy(rule_hw->eth.src_mac_msk, spec->eth.src_mac_msk,
+		       ETH_ALEN);
+		if (spec->eth.ether_type_enable) {
+			rule_hw->eth.ether_type_enable = 1;
+			rule_hw->eth.ether_type = spec->eth.ether_type;
+		}
+		rule_hw->eth.vlan_id = spec->eth.vlan_id;
+		rule_hw->eth.vlan_id_msk = spec->eth.vlan_id_msk;
+		break;
+
+	case MLX4_NET_TRANS_RULE_ID_IB:
+		rule_hw->ib.qpn = spec->ib.r_qpn;
+		rule_hw->ib.qpn_mask = spec->ib.qpn_msk;
+		memcpy(&rule_hw->ib.dst_gid, &spec->ib.dst_gid, 16);
+		memcpy(&rule_hw->ib.dst_gid_msk, &spec->ib.dst_gid_msk, 16);
+		break;
+
+	case MLX4_NET_TRANS_RULE_ID_IPV6:
+		return -EOPNOTSUPP;
+
+	case MLX4_NET_TRANS_RULE_ID_IPV4:
+		rule_hw->ipv4.src_ip = spec->ipv4.src_ip;
+		rule_hw->ipv4.src_ip_msk = spec->ipv4.src_ip_msk;
+		rule_hw->ipv4.dst_ip = spec->ipv4.dst_ip;
+		rule_hw->ipv4.dst_ip_msk = spec->ipv4.dst_ip_msk;
+		break;
+
+	case MLX4_NET_TRANS_RULE_ID_TCP:
+	case MLX4_NET_TRANS_RULE_ID_UDP:
+		rule_hw->tcp_udp.dst_port = spec->tcp_udp.dst_port;
+		rule_hw->tcp_udp.dst_port_msk = spec->tcp_udp.dst_port_msk;
+		rule_hw->tcp_udp.src_port = spec->tcp_udp.src_port;
+		rule_hw->tcp_udp.src_port_msk = spec->tcp_udp.src_port_msk;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return __rule_hw_sz[spec->id];
+}
+
+static void mlx4_err_rule(struct mlx4_dev *dev, char *str,
+			  struct mlx4_net_trans_rule *rule)
+{
+#define BUF_SIZE 256
+	struct mlx4_spec_list *cur;
+	char buf[BUF_SIZE];
+	int len = 0;
+
+	mlx4_err(dev, "%s", str);
+	len += snprintf(buf + len, BUF_SIZE - len,
+			"port = %d prio = 0x%x qp = 0x%x ",
+			rule->port, rule->priority, rule->qpn);
+
+	list_for_each_entry(cur, &rule->list, list) {
+		switch (cur->id) {
+		case MLX4_NET_TRANS_RULE_ID_ETH:
+			len += snprintf(buf + len, BUF_SIZE - len,
+					"dmac = %pM ", &cur->eth.dst_mac);
+			if (cur->eth.ether_type)
+				len += snprintf(buf + len, BUF_SIZE - len,
+						"ethertype = 0x%x ",
+						be16_to_cpu(cur->eth.ether_type));
+			if (cur->eth.vlan_id)
+				len += snprintf(buf + len, BUF_SIZE - len,
+						"vlan-id = %d ",
+						be16_to_cpu(cur->eth.vlan_id));
+			break;
+
+		case MLX4_NET_TRANS_RULE_ID_IPV4:
+			if (cur->ipv4.src_ip)
+				len += snprintf(buf + len, BUF_SIZE - len,
+						"src-ip = %pI4 ",
+						&cur->ipv4.src_ip);
+			if (cur->ipv4.dst_ip)
+				len += snprintf(buf + len, BUF_SIZE - len,
+						"dst-ip = %pI4 ",
+						&cur->ipv4.dst_ip);
+			break;
+
+		case MLX4_NET_TRANS_RULE_ID_TCP:
+		case MLX4_NET_TRANS_RULE_ID_UDP:
+			if (cur->tcp_udp.src_port)
+				len += snprintf(buf + len, BUF_SIZE - len,
+						"src-port = %d ",
+						be16_to_cpu(cur->tcp_udp.src_port));
+			if (cur->tcp_udp.dst_port)
+				len += snprintf(buf + len, BUF_SIZE - len,
+						"dst-port = %d ",
+						be16_to_cpu(cur->tcp_udp.dst_port));
+			break;
+
+		case MLX4_NET_TRANS_RULE_ID_IB:
+			len += snprintf(buf + len, BUF_SIZE - len,
+					"dst-gid = %pI6\n", cur->ib.dst_gid);
+			len += snprintf(buf + len, BUF_SIZE - len,
+					"dst-gid-mask = %pI6\n",
+					cur->ib.dst_gid_msk);
+			break;
+
+		case MLX4_NET_TRANS_RULE_ID_IPV6:
+			break;
+
+		default:
+			break;
+		}
+	}
+	len += snprintf(buf + len, BUF_SIZE - len, "\n");
+	mlx4_err(dev, "%s", buf);
+
+	if (len >= BUF_SIZE)
+		mlx4_err(dev, "Network rule error message was truncated, print buffer is too small.\n");
+}
+
+int mlx4_flow_attach(struct mlx4_dev *dev,
+		     struct mlx4_net_trans_rule *rule, u64 *reg_id)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	struct mlx4_spec_list *cur;
+	u32 size = 0;
+	int ret;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	memset(mailbox->buf, 0, sizeof(struct mlx4_net_trans_rule_hw_ctrl));
+	trans_rule_ctrl_to_hw(rule, mailbox->buf);
+
+	size += sizeof(struct mlx4_net_trans_rule_hw_ctrl);
+
+	list_for_each_entry(cur, &rule->list, list) {
+		ret = parse_trans_rule(dev, cur, mailbox->buf + size);
+		if (ret < 0) {
+			mlx4_free_cmd_mailbox(dev, mailbox);
+			return -EINVAL;
+		}
+		size += ret;
+	}
+
+	ret = mlx4_QP_FLOW_STEERING_ATTACH(dev, mailbox, size >> 2, reg_id);
+	if (ret == -ENOMEM)
+		mlx4_err_rule(dev,
+			      "mcg table is full. Fail to register network rule.\n",
+			      rule);
+	else if (ret)
+		mlx4_err_rule(dev, "Fail to register network rule.\n", rule);
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mlx4_flow_attach);
+
+int mlx4_flow_detach(struct mlx4_dev *dev, u64 reg_id)
+{
+	int err;
+
+	err = mlx4_QP_FLOW_STEERING_DETACH(dev, reg_id);
+	if (err)
+		mlx4_err(dev, "Fail to detach network rule. registration id = 0x%llx\n",
+			 reg_id);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx4_flow_detach);
+
 int mlx4_qp_attach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 			  int block_mcast_loopback, enum mlx4_protocol prot,
 			  enum mlx4_steer_type steer)
@@ -895,7 +1206,8 @@ static int mlx4_QP_ATTACH(struct mlx4_dev *dev, struct mlx4_qp *qp,
 }
 
 int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
-			  int block_mcast_loopback, enum mlx4_protocol prot)
+			  u8 port, int block_mcast_loopback,
+			  enum mlx4_protocol prot, u64 *reg_id)
 {
 
 	switch (dev->caps.steering_mode) {
@@ -914,6 +1226,42 @@ int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 					     block_mcast_loopback, prot,
 					     MLX4_MC_STEER);
 
+	case MLX4_STEERING_MODE_DEVICE_MANAGED: {
+		struct mlx4_spec_list spec = { {NULL} };
+		__be64 mac_mask = cpu_to_be64(MLX4_MAC_MASK << 16);
+
+		struct mlx4_net_trans_rule rule = {
+			.queue_mode = MLX4_NET_TRANS_Q_FIFO,
+			.exclusive = 0,
+			.promisc_mode = MLX4_FS_PROMISC_NONE,
+			.priority = MLX4_DOMAIN_NIC,
+		};
+
+		rule.allow_loopback = ~block_mcast_loopback;
+		rule.port = port;
+		rule.qpn = qp->qpn;
+		INIT_LIST_HEAD(&rule.list);
+
+		switch (prot) {
+		case MLX4_PROT_ETH:
+			spec.id = MLX4_NET_TRANS_RULE_ID_ETH;
+			memcpy(spec.eth.dst_mac, &gid[10], ETH_ALEN);
+			memcpy(spec.eth.dst_mac_msk, &mac_mask, ETH_ALEN);
+			break;
+
+		case MLX4_PROT_IB_IPV6:
+			spec.id = MLX4_NET_TRANS_RULE_ID_IB;
+			memcpy(spec.ib.dst_gid, gid, 16);
+			memset(&spec.ib.dst_gid_msk, 0xff, 16);
+			break;
+		default:
+			return -EINVAL;
+		}
+		list_add_tail(&spec.list, &rule.list);
+
+		return mlx4_flow_attach(dev, &rule, reg_id);
+	}
+
 	default:
 		return -EINVAL;
 	}
@@ -921,7 +1269,7 @@ int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 EXPORT_SYMBOL_GPL(mlx4_multicast_attach);
 
 int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
-			  enum mlx4_protocol prot)
+			  enum mlx4_protocol prot, u64 reg_id)
 {
 	switch (dev->caps.steering_mode) {
 	case MLX4_STEERING_MODE_A0:
@@ -937,6 +1285,9 @@ int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 
 		return mlx4_qp_detach_common(dev, qp, gid, prot,
 					     MLX4_MC_STEER);
+
+	case MLX4_STEERING_MODE_DEVICE_MANAGED:
+		return mlx4_flow_detach(dev, reg_id);
 
 	default:
 		return -EINVAL;
@@ -1042,6 +1393,10 @@ int mlx4_init_mcg_table(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int err;
 
+	/* No need for mcg_table when fw managed the mcg table*/
+	if (dev->caps.steering_mode ==
+	    MLX4_STEERING_MODE_DEVICE_MANAGED)
+		return 0;
 	err = mlx4_bitmap_init(&priv->mcg_table.bitmap, dev->caps.num_amgms,
 			       dev->caps.num_amgms - 1, 0, 0);
 	if (err)
@@ -1054,5 +1409,7 @@ int mlx4_init_mcg_table(struct mlx4_dev *dev)
 
 void mlx4_cleanup_mcg_table(struct mlx4_dev *dev)
 {
-	mlx4_bitmap_cleanup(&mlx4_priv(dev)->mcg_table.bitmap);
+	if (dev->caps.steering_mode !=
+	    MLX4_STEERING_MODE_DEVICE_MANAGED)
+		mlx4_bitmap_cleanup(&mlx4_priv(dev)->mcg_table.bitmap);
 }

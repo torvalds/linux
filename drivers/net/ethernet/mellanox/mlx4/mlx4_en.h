@@ -414,6 +414,7 @@ struct mlx4_en_mc_list {
 	struct list_head	list;
 	enum mlx4_en_mclist_act	action;
 	u8			addr[ETH_ALEN];
+	u64			reg_id;
 };
 
 struct mlx4_en_frag_info {
@@ -503,6 +504,7 @@ struct mlx4_en_priv {
 	u64 stats_bitmap;
 	struct list_head mc_list;
 	struct list_head curr_list;
+	u64 broadcast_id;
 	struct mlx4_en_stat_out_mbox hw_stats;
 	int vids[128];
 	bool wol;
