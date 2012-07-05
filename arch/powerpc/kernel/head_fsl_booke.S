@@ -192,7 +192,7 @@ _ENTRY(__early_start)
 	li	r0,0
 	stwu	r0,THREAD_SIZE-STACK_FRAME_OVERHEAD(r1)
 
-	rlwinm  r22,r1,0,0,31-THREAD_SHIFT      /* current thread_info */
+	CURRENT_THREAD_INFO(r22, r1)
 	stw	r24, TI_CPU(r22)
 
 	bl	early_init

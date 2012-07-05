@@ -160,11 +160,7 @@
 	mtspr	SPRN_EPLC, r8
 
 	/* disable preemption, so we are sure we hit the fixup handler */
-#ifdef CONFIG_PPC64
-	clrrdi	r8,r1,THREAD_SHIFT
-#else
-	rlwinm	r8,r1,0,0,31-THREAD_SHIFT       /* current thread_info */
-#endif
+	CURRENT_THREAD_INFO(r8, r1)
 	li	r7, 1
 	stw	r7, TI_PREEMPT(r8)
 
