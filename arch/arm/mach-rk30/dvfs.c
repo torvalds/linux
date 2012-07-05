@@ -25,11 +25,12 @@
 #include <mach/clock.h>
 #include <linux/regulator/consumer.h>
 #include <linux/delay.h>
+#include <linux/io.h>
+#include <linux/hrtimer.h>
 
 #define DVFS_DBG(fmt, args...) {while(0);}
-#define DVFS_ERR(fmt, args...) pr_err("DVFS ERR:\t"fmt, ##args)
-#define DVFS_LOG(fmt, args...) pr_debug(fmt, ##args)
-//#define DVFS_LOG(fmt, args...) pr_err(fmt, ##args)
+#define DVFS_ERR(fmt, args...) printk("DVFS ERR:\t"fmt, ##args)
+#define DVFS_LOG(fmt, args...) printk("DVFS LOG:\t"fmt, ##args)
 
 #define dvfs_regulator_get(dev,id) regulator_get((dev),(id))
 #define dvfs_regulator_put(regu) regulator_put((regu))
@@ -56,10 +57,7 @@ static DEFINE_MUTEX(rk_dvfs_mutex);
 extern int rk30_clk_notifier_register(struct clk *clk, struct notifier_block *nb);
 extern int rk30_clk_notifier_unregister(struct clk *clk, struct notifier_block *nb);
 
-// #define DVFS_DUMP_TREE
-#ifdef DVFS_DUMP_TREE
-static void dump_dbg_map(void);
-#endif
+static int dump_dbg_map(char* buf);
 
 #define PD_ON	1
 #define PD_OFF	0
@@ -294,6 +292,7 @@ int dvfs_set_depend_table(struct clk *clk, char *vd_name, struct cpufreq_frequen
 	struct vd_node		*vd;
 	struct depend_list	*depend;
 	struct clk_node		*info;
+
 	info = clk_get_dvfs_info(clk);
 	if (!table || !info || !vd_name) {
 		DVFS_ERR("%s :DVFS SET DEPEND TABLE ERROR! table or info or name empty\n", __func__);
@@ -302,7 +301,7 @@ int dvfs_set_depend_table(struct clk *clk, char *vd_name, struct cpufreq_frequen
 
 	list_for_each_entry(vd, &rk_dvfs_tree, node) {
 		if (0 == strcmp(vd->name, vd_name)) {
-			DVFS_LOG("FOUND A MATCH\n");
+			DVFS_DBG("FOUND A MATCH\n");
 			mutex_lock(&mutex);
 			list_for_each_entry(depend, &info->depend_list, node2clk) {
 				if (vd == depend->dep_vd && info == depend->dvfs_clk) {
@@ -311,9 +310,6 @@ int dvfs_set_depend_table(struct clk *clk, char *vd_name, struct cpufreq_frequen
 				}
 			}
 			mutex_unlock(&mutex);
-#ifdef DVFS_DUMP_TREE
-			dump_dbg_map();
-#endif
 			return 0;
 		}
 	}
@@ -615,7 +611,7 @@ static int dvfs_set_depend_pre(struct clk_node *dvfs_clk, unsigned long rate_old
 		}
 
 		if (!depend->dep_vd->regulator) {
-			DVFS_LOG("%s regulator empty\n", __func__);
+			DVFS_DBG("%s regulator empty\n", __func__);
 			regulator = dvfs_regulator_get(NULL, depend->dep_vd->regulator_name);
 			if (!regulator) {
 				DVFS_ERR("%s get regulator err\n", __func__);
@@ -631,20 +627,20 @@ static int dvfs_set_depend_pre(struct clk_node *dvfs_clk, unsigned long rate_old
 
 		if (clk_fv.index == dvfs_regulator_get_voltage(depend->dep_vd->regulator)) {
 			depend->req_volt = clk_fv.index;
-			DVFS_LOG("%s same voltage\n", __func__);
+			DVFS_DBG("%s same voltage\n", __func__);
 			return 0;
 		}
 
 		depend->req_volt = clk_fv.index;
 		volt = dvfs_vd_get_newvolt_bypd(depend->dep_vd);
-		DVFS_LOG("%s setting voltage = %d\n", __func__, volt);
+		DVFS_DBG("%s setting voltage = %d\n", __func__, volt);
 		ret = dvfs_regulator_set_voltage_readback(depend->dep_vd->regulator, volt, volt);
 		if (0 != ret) {
 			DVFS_ERR("%s set voltage = %d ERROR, ret = %d\n", __func__, volt, ret);
 			return -1;
 		}
 		udelay(200);
-		DVFS_LOG("%s set voltage = %d OK, ret = %d\n", __func__, volt, ret);
+		DVFS_DBG("%s set voltage = %d OK, ret = %d\n", __func__, volt, ret);
 		if (ret != 0) {
 			DVFS_ERR("%s err, ret = %d\n", __func__, ret);
 			return -1;
@@ -672,7 +668,7 @@ static int dvfs_set_depend_post(struct clk_node *dvfs_clk, unsigned long rate_ol
 		}
 
 		if (!depend->dep_vd->regulator) {
-			DVFS_LOG("%s regulator empty\n", __func__);
+			DVFS_DBG("%s regulator empty\n", __func__);
 			regulator = dvfs_regulator_get(NULL, depend->dep_vd->regulator_name);
 			if (!regulator) {
 				DVFS_ERR("%s get regulator err\n", __func__);
@@ -688,20 +684,20 @@ static int dvfs_set_depend_post(struct clk_node *dvfs_clk, unsigned long rate_ol
 
 		if (clk_fv.index == dvfs_regulator_get_voltage(depend->dep_vd->regulator)) {
 			depend->req_volt = clk_fv.index;
-			DVFS_LOG("%s same voltage\n", __func__);
+			DVFS_DBG("%s same voltage\n", __func__);
 			return 0;
 		}
 
 		depend->req_volt = clk_fv.index;
 		volt = dvfs_vd_get_newvolt_bypd(depend->dep_vd);
-		DVFS_LOG("%s setting voltage = %d\n", __func__, volt);
+		DVFS_DBG("%s setting voltage = %d\n", __func__, volt);
 		ret = dvfs_regulator_set_voltage_readback(depend->dep_vd->regulator, volt, volt);
 		if (0 != ret) {
 			DVFS_ERR("%s set voltage = %d ERROR, ret = %d\n", __func__, volt, ret);
 			return -1;
 		}
 		udelay(200);
-		DVFS_LOG("%s set voltage = %d OK, ret = %d\n", __func__, volt, ret);
+		DVFS_DBG("%s set voltage = %d OK, ret = %d\n", __func__, volt, ret);
 		if (ret != 0) {
 			DVFS_ERR("%s err, ret = %d\n", __func__, ret);
 			return -1;
@@ -1207,17 +1203,448 @@ int rk30_dvfs_init(void)
 	for (i = 0; i < ARRAY_SIZE(rk30_depends); i++) {
 		rk_regist_depends(&rk30_depends[i]);
 	}
-#ifdef DVFS_DUMP_TREE
-	dump_dbg_map();
-#endif
 	return 0;
 }
 
-#ifdef DVFS_DUMP_TREE
+/*******************************AVS AREA****************************************/
+/*
+ * To use AVS function, you must call avs_init in machine_rk30_board_init(void)(board-rk30-sdk.c)
+ * And then call(vdd_log):
+ *	regulator_set_voltage(dcdc, 1100000, 1100000);
+ *	avs_init_val_get(1,1100000,"wm8326 init");
+ *	udelay(600);
+ *	avs_set_scal_val(AVS_BASE);
+ * in wm831x_post_init(board-rk30-sdk-wm8326.c)
+ * AVS_BASE can use 172
+ */
+
+int avs_scale_volt = 0;
+int avs_get_scal_val(int vol);
+
+int dvfs_avs_scale_table(struct clk *clk, char *depend_vd_name)
+{
+	/* if depend_vd_name == NULL scale clk table
+	 * else scale clk's depend table, named depend_vd_name
+	 * */
+	struct vd_node		*vd;
+	struct depend_list	*depend;
+	struct clk_node *info = clk_get_dvfs_info(clk);
+	struct cpufreq_frequency_table	*table = NULL;
+	int i;
+
+	if (NULL == depend_vd_name) {
+		table = info->dvfs_table;
+	} else {
+		list_for_each_entry(vd, &rk_dvfs_tree, node) {
+			if (0 == strcmp(vd->name, depend_vd_name)) {
+				DVFS_DBG("%S FOUND A MATCH vd\n", __func__);
+				mutex_lock(&mutex);
+				list_for_each_entry(depend, &info->depend_list, node2clk) {
+					if (vd == depend->dep_vd && info == depend->dvfs_clk) {
+						DVFS_DBG("%S FOUND A MATCH table\n", __func__);
+						table = depend->dep_table;
+						break;
+					}
+				}
+				mutex_unlock(&mutex);
+			}
+		}
+	}
+
+	if (table == NULL) {
+		DVFS_ERR("%s can not find match table\n", __func__);
+		return -1;
+	}
+	if (avs_scale_volt != 0) {
+		DVFS_LOG("AVS scale %s, depend name = %s, voltage = %d\n",
+				info->name, depend_vd_name, avs_scale_volt);
+		for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
+			table[i].index = avs_get_scal_val(table[i].index);
+		}
+	}
+	return 0;
+}
+
+void __iomem *rk30_nandc_base;
+
+#define nandc_readl(offset)	readl_relaxed(rk30_nandc_base + offset)
+#define nandc_writel(v, offset) do { writel_relaxed(v, rk30_nandc_base + offset); dsb(); } while (0)
+u8 rk30_get_avs_val(void)
+{
+	u32 nanc_save_reg[4];
+	unsigned long flags;
+	u32 paramet = 0;
+	u32 count = 100;
+	preempt_disable();
+	local_irq_save(flags);
+
+	nanc_save_reg[0] = nandc_readl(0);
+	nanc_save_reg[1] = nandc_readl(0x130);
+	nanc_save_reg[2] = nandc_readl(0x134);
+	nanc_save_reg[3] = nandc_readl(0x158);
+
+	nandc_writel(nanc_save_reg[0] | 0x1 << 14, 0);
+	nandc_writel(0x5, 0x130);
+
+	nandc_writel(7, 0x158);
+	nandc_writel(1, 0x134);
+
+	while(count--) {
+		paramet = nandc_readl(0x138);
+		if((paramet & 0x1))
+			break;
+		udelay(1);
+	};
+	paramet = (paramet >> 1) & 0xff;
+	nandc_writel(nanc_save_reg[0], 0);
+	nandc_writel(nanc_save_reg[1], 0x130);
+	nandc_writel(nanc_save_reg[2], 0x134);
+	nandc_writel(nanc_save_reg[3], 0x158);
+
+	local_irq_restore(flags);
+	preempt_enable();
+	return (u8)paramet;
+
+}
+#define init_avs_times 10
+#define init_avs_st_num 5
+
+struct init_avs_st {
+	int is_set;
+	u8 paramet[init_avs_times];
+	int vol;
+	char *s;
+};
+
+struct init_avs_st init_avs_paramet[init_avs_st_num];
+
+void avs_init_val_get(int index, int vol, char *s)
+{
+	int i;
+	if(index >= init_avs_times)
+		return;
+	init_avs_paramet[index].vol = vol;
+	init_avs_paramet[index].s = s;
+	init_avs_paramet[index].is_set++;
+	for(i = 0; i < init_avs_times; i++) {
+		init_avs_paramet[index].paramet[i] = rk30_get_avs_val();
+		mdelay(1);
+	}
+}
+
+void avs_init(void)
+{
+	memset(&init_avs_paramet[0].is_set, 0, sizeof(init_avs_paramet));
+	rk30_nandc_base = ioremap(RK30_NANDC_PHYS, RK30_NANDC_SIZE);
+	//avs_init_val_get(0,1150000,"board_init");
+}
+
+#define VOL_DYN_STEP (12500)  //mv
+#define AVS_VAL_PER_STEP (4)  //mv
+
+u8 avs_init_get_min_val(void)
+{
+	int i, j;
+	u8 min_avs = 0xff;
+	for(i = 0; i < init_avs_st_num; i++) {
+		if(init_avs_paramet[i].is_set && init_avs_paramet[i].vol == (1100 * 1000)) {
+			for(j = 0; j < init_avs_times; j++)
+				min_avs = (u8)min(min_avs, init_avs_paramet[i].paramet[j]);
+		}
+
+	}
+	return min_avs;
+}
+
+int avs_get_scal_val(int vol)
+{
+	vol += avs_scale_volt;
+	if(vol < 1000 * 1000)
+		vol = 1000 * 1000;
+	if(vol > 1400 * 1000)
+		vol = 1400 * 1000;
+	return vol;
+}
+#if 0
+u8 avs_test_date[] = {172, 175, 176, 179, 171, 168, 165, 162, 199, 0};
+u8 avs_test_date_cunt = 0;
+#endif
+int avs_set_scal_val(u8 avs_base)
+{
+	u8 avs_test = avs_init_get_min_val();
+	s8 step = 0;
+
+	if (avs_base < avs_test) {
+		DVFS_LOG("AVS down voltage, ignore\n");
+		return 0;
+	}
+	step = (avs_base - avs_test) / AVS_VAL_PER_STEP;
+	step = (avs_base > avs_test) ? (step + 1) : step;
+	if (step > 2)
+		step += 1;
+	avs_scale_volt = (step) * (VOL_DYN_STEP);
+
+	DVFS_LOG("avs_set_scal_val test=%d,base=%d,step=%d,scale_vol=%d\n",
+			avs_test, avs_base, step, avs_scale_volt);
+	return 0;
+}
+
+u32 print_avs_init(char *buf)
+{
+	char *s = buf;
+	int i, j;
+
+	for(j = 0; j < init_avs_st_num; j++) {
+		if(init_avs_paramet[j].vol <= 0)
+			continue;
+		s += sprintf(s, "%s ,vol=%d,paramet following\n", 
+				init_avs_paramet[j].s, init_avs_paramet[j].vol);
+		for(i = 0; i < init_avs_times; i++) {
+			s += sprintf(s, "%d ", init_avs_paramet[j].paramet[i]);
+		}
+
+		s += sprintf(s, "\n");
+	}
+	return (s - buf);
+}
+
+static ssize_t avs_init_show(struct kobject *kobj, struct kobj_attribute *attr,
+		char *buf)
+{
+	return print_avs_init(buf);
+}
+
+static ssize_t avs_init_store(struct kobject *kobj, struct kobj_attribute *attr,
+		const char *buf, size_t n)
+{
+
+	return n;
+}
+static ssize_t avs_now_show(struct kobject *kobj, struct kobj_attribute *attr,
+		char *buf)
+{
+	return sprintf(buf, "%d\n", rk30_get_avs_val());
+}
+
+static ssize_t avs_now_store(struct kobject *kobj, struct kobj_attribute *attr,
+		const char *buf, size_t n)
+{
+	return n;
+}
+extern struct timer_list avs_timer;
+u32 avs_dyn_start = 0;
+extern u32 avs_dyn_data_cnt;
+u8 *avs_dyn_data = NULL;
+u32 show_line_cnt = 0;
+#define val_per_line (30)
+#define line_pre_show (30)
+u8 dly_min;
+u8 dly_max;
+#define USE_NORMAL_TIME
+static ssize_t avs_dyn_show(struct kobject *kobj, struct kobj_attribute *attr,
+		char *buf)
+{
+	char *s = buf;
+	u32 i;
+
+	if(avs_dyn_start) {
+		int start_cnt;
+		int end_cnt;
+		end_cnt = (avs_dyn_data_cnt ? (avs_dyn_data_cnt - 1) : 0);
+		if(end_cnt > (line_pre_show * val_per_line))
+			start_cnt = end_cnt - (line_pre_show * val_per_line);
+		else
+			start_cnt = 0;
+
+		dly_min = avs_dyn_data[start_cnt];
+		dly_max = avs_dyn_data[start_cnt];
+
+		//s += sprintf(s,"data start=%d\n",i);
+		for(i = start_cnt; i <= end_cnt;) {
+			s += sprintf(s, "%d", avs_dyn_data[i]);
+			dly_min = min(dly_min, avs_dyn_data[i]);
+			dly_max = max(dly_max, avs_dyn_data[i]);
+			i++;
+			if(!(i % val_per_line)) {
+				s += sprintf(s, "\n");
+			} else
+				s += sprintf(s, " ");
+		}
+
+		s += sprintf(s, "\n");
+
+		s += sprintf(s, "new data is from=%d to %d\n", start_cnt, end_cnt);
+		//s += sprintf(s,"\n max=%d,min=%d,totolcnt=%d,line=%d\n",dly_max,dly_min,avs_dyn_data_cnt,show_line_cnt);
+
+
+	} else {
+		if(show_line_cnt == 0) {
+			dly_min = avs_dyn_data[0];
+			dly_max = avs_dyn_data[0];
+		}
+
+
+		for(i = show_line_cnt * (line_pre_show * val_per_line); i < avs_dyn_data_cnt;) {
+			s += sprintf(s, "%d", avs_dyn_data[i]);
+			dly_min = min(dly_min, avs_dyn_data[i]);
+			dly_max = max(dly_max, avs_dyn_data[i]);
+			i++;
+			if(!(i % val_per_line)) {
+				s += sprintf(s, "\n");
+			} else
+				s += sprintf(s, " ");
+			if(i >= ((show_line_cnt + 1)*line_pre_show * val_per_line))
+				break;
+		}
+
+		s += sprintf(s, "\n");
+
+		s += sprintf(s, "max=%d,min=%d,totolcnt=%d,line=%d\n", 
+				dly_max, dly_min, avs_dyn_data_cnt, show_line_cnt);
+		show_line_cnt++;
+		if(((show_line_cnt * line_pre_show)*val_per_line) >= avs_dyn_data_cnt) {
+
+			show_line_cnt = 0;
+
+			s += sprintf(s, "data is over\n");
+		}
+	}
+	return (s - buf);
+}
+extern struct hrtimer dvfs_hrtimer;
+
+static ssize_t avs_dyn_store(struct kobject *kobj, struct kobj_attribute *attr,
+		const char *buf, size_t n)
+{
+	const char *pbuf;
+
+	if((strncmp(buf, "start", strlen("start")) == 0)) {
+		pbuf = &buf[strlen("start")];
+		avs_dyn_data_cnt = 0;
+		show_line_cnt = 0;
+		if(avs_dyn_data) {
+#ifdef USE_NORMAL_TIME
+			mod_timer(&avs_timer, jiffies + msecs_to_jiffies(5));
+#else
+			hrtimer_start(&dvfs_hrtimer, ktime_set(0, 5 * 1000 * 1000), HRTIMER_MODE_REL);
+#endif
+			avs_dyn_start = 1;
+		}
+		//sscanf(pbuf, "%d %d", &number, &voltage);
+		//DVFS_LOG("---------ldo %d %d\n", number, voltage);
+
+	} else if((strncmp(buf, "stop", strlen("stop")) == 0)) {
+		pbuf = &buf[strlen("stop")];
+		avs_dyn_start = 0;
+		show_line_cnt = 0;
+		//sscanf(pbuf, "%d %d", &number, &voltage);
+		//DVFS_LOG("---------dcdc %d %d\n", number, voltage);
+	}
+
+
+
+	return n;
+}
+
+static ssize_t dvfs_tree_store(struct kobject *kobj, struct kobj_attribute *attr,
+		const char *buf, size_t n)
+{
+	return n;
+}
+static ssize_t dvfs_tree_show(struct kobject *kobj, struct kobj_attribute *attr,
+		char *buf)
+{
+	return dump_dbg_map(buf);
+
+}
+
+struct timer_list avs_timer;
+
+#define avs_dyn_data_num (3*1000*1000)
+//char *avs_dyn_data;
+u32 avs_dyn_data_cnt = 0;
+
+
+static void avs_timer_fn(unsigned long data)
+{
+	int i;
+	for(i = 0; i < 1; i++) {
+		if(avs_dyn_data_cnt >= avs_dyn_data_num)
+			return;
+		avs_dyn_data[avs_dyn_data_cnt] = rk30_get_avs_val();
+		avs_dyn_data_cnt++;
+	}
+	if(avs_dyn_start)
+		mod_timer(&avs_timer, jiffies + msecs_to_jiffies(10));
+}
+#if 0
+struct hrtimer dvfs_hrtimer;
+static enum hrtimer_restart dvfs_hrtimer_timer_func(struct hrtimer *timer)
+{
+	int i;
+	for(i = 0; i < 1; i++) {
+		if(avs_dyn_data_cnt >= avs_dyn_data_num)
+			return HRTIMER_NORESTART;
+		avs_dyn_data[avs_dyn_data_cnt] = rk30_get_avs_val();
+		avs_dyn_data_cnt++;
+	}
+	if(avs_dyn_start)
+		hrtimer_start(timer, ktime_set(0, 1 * 1000 * 1000), HRTIMER_MODE_REL);
+
+}
+#endif
+/*********************************************************************************/
+struct kobject *dvfs_kobj;
+struct dvfs_attribute {
+	struct attribute	attr;
+	ssize_t (*show)(struct kobject *kobj, struct kobj_attribute *attr,
+			char *buf);
+	ssize_t (*store)(struct kobject *kobj, struct kobj_attribute *attr,
+			const char *buf, size_t n);
+};
+
+static struct dvfs_attribute dvfs_attrs[] = {
+	/*     node_name	permision		show_func	store_func */
+	__ATTR(dvfs_tree,	S_IRUGO | S_IWUSR,	dvfs_tree_show,	dvfs_tree_store),
+	__ATTR(avs_init,	S_IRUGO | S_IWUSR,	avs_init_show,	avs_init_store),
+	//__ATTR(avs_dyn,		S_IRUGO | S_IWUSR,	avs_dyn_show,	avs_dyn_store),
+	__ATTR(avs_now,		S_IRUGO | S_IWUSR,	avs_now_show,	avs_now_store),
+};
+
+static int __init dvfs_init(void)
+{
+	int i, ret = 0;
+#ifdef USE_NORMAL_TIME
+	init_timer(&avs_timer);
+	//avs_timer.expires = jiffies+msecs_to_jiffies(1);
+	avs_timer.function = avs_timer_fn;
+	//mod_timer(&avs_timer,jiffies+msecs_to_jiffies(1));
+#else
+	hrtimer_init(&dvfs_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	dvfs_hrtimer.function = dvfs_hrtimer_timer_func;
+	//hrtimer_start(&dvfs_hrtimer,ktime_set(0, 5*1000*1000),HRTIMER_MODE_REL);
+#endif
+	avs_dyn_data = kmalloc(avs_dyn_data_num, GFP_KERNEL);
+
+	dvfs_kobj = kobject_create_and_add("dvfs", NULL);
+	if (!dvfs_kobj)
+		return -ENOMEM;
+	for (i = 0; i < ARRAY_SIZE(dvfs_attrs); i++) {
+		ret = sysfs_create_file(dvfs_kobj, &dvfs_attrs[i].attr);
+		if (ret != 0) {
+			DVFS_ERR("create index %d error\n", i);
+			return ret;
+		}
+	}
+
+	return ret;
+}
+subsys_initcall(dvfs_init);
+
 /**
  * dump_dbg_map() : Draw all informations of dvfs while debug
  */
-static void dump_dbg_map(void)
+static int dump_dbg_map(char *buf)
 {
 	int i;
 	struct vd_node	*vd;
@@ -1225,42 +1652,43 @@ static void dump_dbg_map(void)
 	struct clk_list	*child;
 	struct clk_node	*dvfs_clk;
 	struct depend_list *depend;
-
-	DVFS_LOG("-------------DVFS DEBUG-----------\n\n\n");
-	DVFS_LOG("RK30 DVFS TREE:\n");
+	char* s = buf;
+	
+	s += sprintf(s, "-------------DVFS TREE-----------\n\n\n");
+	s += sprintf(s, "RK30 DVFS TREE:\n");
 	list_for_each_entry(vd, &rk_dvfs_tree, node) {
-		DVFS_LOG("|\n|- voltage domain:%s\n", vd->name);
-		DVFS_LOG("|- current voltage:%d\n", vd->cur_volt);
+		s += sprintf(s, "|\n|- voltage domain:%s\n", vd->name);
+		s += sprintf(s, "|- current voltage:%d\n", vd->cur_volt);
 		list_for_each_entry(depend, &vd->req_volt_list, node2vd) {
-			DVFS_LOG("|- request voltage:%d, clk:%s\n", depend->req_volt, depend->dvfs_clk->name);
+			s += sprintf(s, "|- request voltage:%d, clk:%s\n", depend->req_volt, depend->dvfs_clk->name);
 		}
 
 		list_for_each_entry(pd, &vd->pd_list, node) {
-			DVFS_LOG("|  |\n|  |- power domain:%s, status = %s, current volt = %d\n",
+			s += sprintf(s, "|  |\n|  |- power domain:%s, status = %s, current volt = %d\n",
 					pd->name, (pd->pd_status == PD_ON) ? "ON" : "OFF", pd->cur_volt);
 
 			list_for_each_entry(child, &pd->clk_list, node) {
 				dvfs_clk = child->dvfs_clk;
-				DVFS_LOG("|  |  |\n|  |  |- clock: %s current: rate %d, volt = %d, enable_dvfs = %s\n",
+				s += sprintf(s, "|  |  |\n|  |  |- clock: %s current: rate %d, volt = %d, enable_dvfs = %s\n",
 						dvfs_clk->name, dvfs_clk->set_freq, dvfs_clk->set_volt, 
 						dvfs_clk->enable_dvfs == 0 ? "DISABLE" : "ENABLE");
 				for (i = 0; dvfs_clk->pds[i].pd != NULL; i++) {
 					clkparent = dvfs_clk->pds[i].pd;
-					DVFS_LOG("|  |  |  |- clock parents: %s, vd_parent = %s\n", 
+					s += sprintf(s, "|  |  |  |- clock parents: %s, vd_parent = %s\n", 
 							clkparent->name, clkparent->vd->name);
 				}
 
 				for (i = 0; (dvfs_clk->dvfs_table[i].frequency != CPUFREQ_TABLE_END); i++) {
-					DVFS_LOG("|  |  |  |- freq = %d, volt = %d\n", 
+					s += sprintf(s, "|  |  |  |- freq = %d, volt = %d\n", 
 							dvfs_clk->dvfs_table[i].frequency, 
 							dvfs_clk->dvfs_table[i].index);
 
 				}
 
 				list_for_each_entry(depend, &dvfs_clk->depend_list, node2clk) {
-					DVFS_LOG("|  |  |  |  |- DEPEND VD: %s\n", depend->dep_vd->name); 
+					s += sprintf(s, "|  |  |  |  |- DEPEND VD: %s\n", depend->dep_vd->name); 
 					for (i = 0; (depend->dep_table[i].frequency != CPUFREQ_TABLE_END); i++) {
-						DVFS_LOG("|  |  |  |  |- freq = %d, req_volt = %d\n", 
+						s += sprintf(s, "|  |  |  |  |- freq = %d, req_volt = %d\n", 
 								depend->dep_table[i].frequency, 
 								depend->dep_table[i].index);
 
@@ -1269,9 +1697,8 @@ static void dump_dbg_map(void)
 			}
 		}
 	}
-	DVFS_LOG("-------------DVFS DEBUG END------------\n");
+	s += sprintf(s, "-------------DVFS TREE END------------\n");
+	return s - buf;
 }
-#endif
-
 
 

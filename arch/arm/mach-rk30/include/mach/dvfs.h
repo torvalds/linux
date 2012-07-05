@@ -154,6 +154,10 @@ struct regulator* dvfs_get_regulator(char *regulator_name);
 int dvfs_clk_enable_limit(struct clk *clk, unsigned int min_rate, unsigned max_rate);
 int dvfs_clk_disable_limit(struct clk *clk);
 
+void avs_init(void);
+void avs_init_val_get(int index,int vol,char *s);
+int avs_set_scal_val(u8 avs_base);
+int dvfs_avs_scale_table(struct clk* clk, char* depend_vd_name);
 #else
 static inline int rk30_dvfs_init(void) { return 0; }
 static inline int is_support_dvfs(struct clk_node *dvfs_info) { return 0; }
@@ -168,6 +172,11 @@ static inline int dvfs_set_arm_logic_volt(struct dvfs_arm_table *dvfs_cpu_logic_
 static inline struct regulator* dvfs_get_regulator(char *regulator_name){ return NULL; }
 static inline int dvfs_clk_enable_limit(struct clk *clk, unsigned int min_rate, unsigned max_rate){ return 0; }
 static inline int dvfs_clk_disable_limit(struct clk *clk){ return 0; };
+
+static inline void avs_init(void){};
+static inline void avs_init_val_get(int index, int vol, char *s){};
+static inline int avs_set_scal_val(u8 avs_base){ return 0; };
+static inline int dvfs_avs_scale_table(struct clk* clk, char* depend_vd_name){ return 0; };
 #endif
 
 #endif
