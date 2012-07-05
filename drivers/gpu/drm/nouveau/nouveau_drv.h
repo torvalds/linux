@@ -836,7 +836,6 @@ nouveau_bo_ref(struct nouveau_bo *ref, struct nouveau_bo **pnvbo)
 
 /* nouveau_drv.c */
 extern int nouveau_modeset;
-extern int nouveau_agpmode;
 extern int nouveau_duallink;
 extern int nouveau_uscript_lvds;
 extern int nouveau_uscript_tmds;
@@ -884,8 +883,6 @@ extern int  nouveau_mem_vram_init(struct drm_device *);
 extern void nouveau_mem_vram_fini(struct drm_device *);
 extern int  nouveau_mem_gart_init(struct drm_device *);
 extern void nouveau_mem_gart_fini(struct drm_device *);
-extern int  nouveau_mem_init_agp(struct drm_device *);
-extern int  nouveau_mem_reset_agp(struct drm_device *);
 extern void nouveau_mem_close(struct drm_device *);
 extern bool nouveau_mem_flags_valid(struct drm_device *, u32 tile_flags);
 extern int  nouveau_mem_timing_calc(struct drm_device *, u32 freq,

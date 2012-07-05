@@ -70,7 +70,7 @@ nouveau-y += nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
              nouveau_display.o nouveau_connector.o nouveau_fbcon.o \
              nouveau_hdmi.o nouveau_dp.o \
 	     nouveau_pm.o nouveau_volt.o nouveau_perf.o nouveau_temp.o \
-	     nouveau_mxm.o \
+	     nouveau_mxm.o nouveau_agp.o \
 	     nouveau_abi16.o \
 	     nouveau_bios.o \
              nv04_fence.o nv10_fence.o nv84_fence.o nvc0_fence.o \

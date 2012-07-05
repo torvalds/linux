@@ -29,6 +29,7 @@
 #include "drm.h"
 #include "drm_crtc_helper.h"
 #include "nouveau_drv.h"
+#include "nouveau_agp.h"
 #include "nouveau_abi16.h"
 #include "nouveau_hw.h"
 #include "nouveau_fb.h"
@@ -38,10 +39,6 @@
 #include "nv50_display.h"
 
 #include "drm_pciids.h"
-
-MODULE_PARM_DESC(agpmode, "AGP mode (0 to disable AGP)");
-int nouveau_agpmode = -1;
-module_param_named(agpmode, nouveau_agpmode, int, 0400);
 
 MODULE_PARM_DESC(modeset, "Enable kernel modesetting");
 int nouveau_modeset = -1;
@@ -248,6 +245,8 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 		goto out_abort;
 	}
 
+	nouveau_agp_fini(dev);
+
 	NV_INFO(dev, "And we're gone!\n");
 	pci_save_state(pdev);
 	if (pm_state.event == PM_EVENT_SUSPEND) {
@@ -287,8 +286,7 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	pci_set_master(dev->pdev);
 
 	/* Make sure the AGP controller is in a consistent state */
-	if (dev_priv->gart_info.type == NOUVEAU_GART_AGP)
-		nouveau_mem_reset_agp(dev);
+	nouveau_agp_reset(dev);
 
 	/* Make the CRTCs accessible */
 	engine->display.early_init(dev);
@@ -298,13 +296,7 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	if (ret)
 		return ret;
 
-	if (dev_priv->gart_info.type == NOUVEAU_GART_AGP) {
-		ret = nouveau_mem_init_agp(dev);
-		if (ret) {
-			NV_ERROR(dev, "error reinitialising AGP: %d\n", ret);
-			return ret;
-		}
-	}
+	nouveau_agp_init(dev);
 
 	NV_INFO(dev, "Restoring GPU objects...\n");
 	nouveau_gpuobj_resume(dev);
