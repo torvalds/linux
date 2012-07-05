@@ -293,12 +293,6 @@ struct sh7372_pm_domain sh7372_a3sg = {
 #endif /* CONFIG_PM */
 
 #if defined(CONFIG_SUSPEND) || defined(CONFIG_CPU_IDLE)
-static int sh7372_do_idle_core_standby(unsigned long unused)
-{
-	cpu_do_idle(); /* WFI when SYSTBCR == 0x10 -> Core Standby */
-	return 0;
-}
-
 static void sh7372_set_reset_vector(unsigned long address)
 {
 	/* set reset vector, translate 4k */
@@ -306,18 +300,6 @@ static void sh7372_set_reset_vector(unsigned long address)
 	__raw_writel(0, APARMBAREA);
 }
 
-static void sh7372_enter_core_standby(void)
-{
-	sh7372_set_reset_vector(__pa(sh7372_resume_core_standby_sysc));
-
-	/* enter sleep mode with SYSTBCR to 0x10 */
-	__raw_writel(0x10, SYSTBCR);
-	cpu_suspend(0, sh7372_do_idle_core_standby);
-	__raw_writel(0, SYSTBCR);
-
-	 /* disable reset vector translation */
-	__raw_writel(0, SBAR);
-}
 #endif
 
 #ifdef CONFIG_SUSPEND
@@ -460,6 +442,8 @@ static void sh7372_setup_sysc(unsigned long msk, unsigned long msk2)
 
 static void sh7372_enter_a3sm_common(int pllc0_on)
 {
+	/* use INTCA together with SYSC for wakeup */
+	sh7372_setup_sysc(1 << 0, 0);
 	sh7372_set_reset_vector(__pa(sh7372_resume_core_standby_sysc));
 	sh7372_enter_sysc(pllc0_on, 1 << 12);
 }
@@ -476,6 +460,24 @@ static void sh7372_enter_a4s_common(int pllc0_on)
 #endif
 
 #ifdef CONFIG_CPU_IDLE
+static int sh7372_do_idle_core_standby(unsigned long unused)
+{
+	cpu_do_idle(); /* WFI when SYSTBCR == 0x10 -> Core Standby */
+	return 0;
+}
+
+static void sh7372_enter_core_standby(void)
+{
+	sh7372_set_reset_vector(__pa(sh7372_resume_core_standby_sysc));
+
+	/* enter sleep mode with SYSTBCR to 0x10 */
+	__raw_writel(0x10, SYSTBCR);
+	cpu_suspend(0, sh7372_do_idle_core_standby);
+	__raw_writel(0, SYSTBCR);
+
+	 /* disable reset vector translation */
+	__raw_writel(0, SBAR);
+}
 
 static void sh7372_cpuidle_setup(struct cpuidle_driver *drv)
 {
@@ -507,24 +509,21 @@ static int sh7372_enter_suspend(suspend_state_t suspend_state)
 
 	/* check active clocks to determine potential wakeup sources */
 	if (sh7372_sysc_valid(&msk, &msk2)) {
-		/* convert INTC mask and sense to SYSC mask and sense */
-		sh7372_setup_sysc(msk, msk2);
-
 		if (!console_suspend_enabled &&
 		    sh7372_a4s.genpd.status == GPD_STATE_POWER_OFF) {
+			/* convert INTC mask/sense to SYSC mask/sense */
+			sh7372_setup_sysc(msk, msk2);
+
 			/* enter A4S sleep with PLLC0 off */
 			pr_debug("entering A4S\n");
 			sh7372_enter_a4s_common(0);
-		} else {
-			/* enter A3SM sleep with PLLC0 off */
-			pr_debug("entering A3SM\n");
-			sh7372_enter_a3sm_common(0);
+			return 0;
 		}
-	} else {
-		/* default to Core Standby that supports all wakeup sources */
-		pr_debug("entering Core Standby\n");
-		sh7372_enter_core_standby();
 	}
+
+	/* default to enter A3SM sleep with PLLC0 off */
+	pr_debug("entering A3SM\n");
+	sh7372_enter_a3sm_common(0);
 	return 0;
 }
 
