@@ -1025,7 +1025,6 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 	 */
 	if (pdata->buck1_gpiodvs || pdata->buck2_gpiodvs ||
 			pdata->buck5_gpiodvs) {
-		bool gpio1set = false, gpio2set = false;
 
 		if (!gpio_is_valid(pdata->buck125_gpios[0]) ||
 				!gpio_is_valid(pdata->buck125_gpios[1]) ||
@@ -1035,40 +1034,20 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 			goto err_out;
 		}
 
-		ret = gpio_request(pdata->buck125_gpios[0],
-				"MAX8997 SET1");
-		if (ret == -EBUSY)
-			dev_warn(&pdev->dev, "Duplicated gpio request"
-					" on SET1\n");
-		else if (ret)
+		ret = devm_gpio_request(&pdev->dev, pdata->buck125_gpios[0],
+					"MAX8997 SET1");
+		if (ret)
 			goto err_out;
-		else
-			gpio1set = true;
 
-		ret = gpio_request(pdata->buck125_gpios[1],
-				"MAX8997 SET2");
-		if (ret == -EBUSY)
-			dev_warn(&pdev->dev, "Duplicated gpio request"
-					" on SET2\n");
-		else if (ret) {
-			if (gpio1set)
-				gpio_free(pdata->buck125_gpios[0]);
+		ret = devm_gpio_request(&pdev->dev, pdata->buck125_gpios[1],
+					"MAX8997 SET2");
+		if (ret)
 			goto err_out;
-		} else
-			gpio2set = true;
 
-		ret = gpio_request(pdata->buck125_gpios[2],
+		ret = devm_gpio_request(&pdev->dev, pdata->buck125_gpios[2],
 				"MAX8997 SET3");
-		if (ret == -EBUSY)
-			dev_warn(&pdev->dev, "Duplicated gpio request"
-					" on SET3\n");
-		else if (ret) {
-			if (gpio1set)
-				gpio_free(pdata->buck125_gpios[0]);
-			if (gpio2set)
-				gpio_free(pdata->buck125_gpios[1]);
+		if (ret)
 			goto err_out;
-		}
 
 		gpio_direction_output(pdata->buck125_gpios[0],
 				(max8997->buck125_gpioindex >> 2)
@@ -1079,7 +1058,6 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 		gpio_direction_output(pdata->buck125_gpios[2],
 				(max8997->buck125_gpioindex >> 0)
 				& 0x1); /* SET3 */
-		ret = 0;
 	}
 
 	/* DVS-GPIO disabled */
