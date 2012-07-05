@@ -211,7 +211,7 @@ static bool check_hw_exists(void)
 	 * that don't trap on the MSR access and always return 0s.
 	 */
 	val = 0xabcdUL;
-	ret = checking_wrmsrl(x86_pmu_event_addr(0), val);
+	ret = wrmsrl_safe(x86_pmu_event_addr(0), val);
 	ret |= rdmsrl_safe(x86_pmu_event_addr(0), &val_new);
 	if (ret || val != val_new)
 		goto msr_fail;
