@@ -620,20 +620,21 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 	if (gpio_is_valid(pdata->buck_gpios[0]) &&
 		gpio_is_valid(pdata->buck_gpios[1]) &&
 		gpio_is_valid(pdata->buck_gpios[2])) {
-		ret = gpio_request(pdata->buck_gpios[0], "S5M8767 SET1");
-		if (ret == -EBUSY)
-			dev_warn(&pdev->dev, "Duplicated gpio request"
-				" for SET1\n");
+		ret = devm_gpio_request(&pdev->dev, pdata->buck_gpios[0],
+					"S5M8767 SET1");
+		if (ret)
+			return ret;
 
-		ret = gpio_request(pdata->buck_gpios[1], "S5M8767 SET2");
-		if (ret == -EBUSY)
-			dev_warn(&pdev->dev, "Duplicated gpio request"
-				" for SET2\n");
+		ret = devm_gpio_request(&pdev->dev, pdata->buck_gpios[1],
+					"S5M8767 SET2");
+		if (ret)
+			return ret;
 
-		ret = gpio_request(pdata->buck_gpios[2], "S5M8767 SET3");
-		if (ret == -EBUSY)
-			dev_warn(&pdev->dev, "Duplicated gpio request"
-					" for SET3\n");
+		ret = devm_gpio_request(&pdev->dev, pdata->buck_gpios[2],
+					"S5M8767 SET3");
+		if (ret)
+			return ret;
+
 		/* SET1 GPIO */
 		gpio_direction_output(pdata->buck_gpios[0],
 				(s5m8767->buck_gpioindex >> 2) & 0x1);
@@ -643,25 +644,23 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 		/* SET3 GPIO */
 		gpio_direction_output(pdata->buck_gpios[2],
 				(s5m8767->buck_gpioindex >> 0) & 0x1);
-		ret = 0;
-
 	} else {
 		dev_err(&pdev->dev, "GPIO NOT VALID\n");
 		ret = -EINVAL;
 		return ret;
 	}
 
-	ret = gpio_request(pdata->buck_ds[0], "S5M8767 DS2");
-	if (ret == -EBUSY)
-		dev_warn(&pdev->dev, "Duplicated gpio request for DS2\n");
+	ret = devm_gpio_request(&pdev->dev, pdata->buck_ds[0], "S5M8767 DS2");
+	if (ret)
+		return ret;
 
-	ret = gpio_request(pdata->buck_ds[1], "S5M8767 DS3");
-	if (ret == -EBUSY)
-		dev_warn(&pdev->dev, "Duplicated gpio request for DS3\n");
+	ret = devm_gpio_request(&pdev->dev, pdata->buck_ds[1], "S5M8767 DS3");
+	if (ret)
+		return ret;
 
-	ret = gpio_request(pdata->buck_ds[2], "S5M8767 DS4");
-	if (ret == -EBUSY)
-		dev_warn(&pdev->dev, "Duplicated gpio request for DS4\n");
+	ret = devm_gpio_request(&pdev->dev, pdata->buck_ds[2], "S5M8767 DS4");
+	if (ret)
+		return ret;
 
 	/* DS2 GPIO */
 	gpio_direction_output(pdata->buck_ds[0], 0x0);
