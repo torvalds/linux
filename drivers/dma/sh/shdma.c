@@ -285,12 +285,12 @@ static bool sh_dmae_channel_busy(struct shdma_chan *schan)
 }
 
 static void sh_dmae_setup_xfer(struct shdma_chan *schan,
-			       struct shdma_slave *sslave)
+			       int slave_id)
 {
 	struct sh_dmae_chan *sh_chan = container_of(schan, struct sh_dmae_chan,
 						    shdma_chan);
 
-	if (sslave) {
+	if (slave_id >= 0) {
 		const struct sh_dmae_slave_config *cfg =
 			sh_chan->config;
 
@@ -302,7 +302,7 @@ static void sh_dmae_setup_xfer(struct shdma_chan *schan,
 }
 
 static const struct sh_dmae_slave_config *dmae_find_slave(
-	struct sh_dmae_chan *sh_chan, unsigned int slave_id)
+	struct sh_dmae_chan *sh_chan, int slave_id)
 {
 	struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
 	struct sh_dmae_pdata *pdata = shdev->pdata;
@@ -320,11 +320,11 @@ static const struct sh_dmae_slave_config *dmae_find_slave(
 }
 
 static int sh_dmae_set_slave(struct shdma_chan *schan,
-			     struct shdma_slave *sslave)
+			     int slave_id)
 {
 	struct sh_dmae_chan *sh_chan = container_of(schan, struct sh_dmae_chan,
 						    shdma_chan);
-	const struct sh_dmae_slave_config *cfg = dmae_find_slave(sh_chan, sslave->slave_id);
+	const struct sh_dmae_slave_config *cfg = dmae_find_slave(sh_chan, slave_id);
 	if (!cfg)
 		return -ENODEV;
 
@@ -579,7 +579,7 @@ static int sh_dmae_resume(struct device *dev)
 		if (!sh_chan->shdma_chan.desc_num)
 			continue;
 
-		if (sh_chan->shdma_chan.slave) {
+		if (sh_chan->shdma_chan.slave_id >= 0) {
 			const struct sh_dmae_slave_config *cfg = sh_chan->config;
 			dmae_set_dmars(sh_chan, cfg->mid_rid);
 			dmae_set_chcr(sh_chan, cfg->chcr);

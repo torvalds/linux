@@ -43,7 +43,7 @@ struct device;
  */
 
 struct shdma_slave {
-	unsigned int slave_id;
+	int slave_id;
 };
 
 struct shdma_desc {
@@ -66,7 +66,7 @@ struct shdma_chan {
 	size_t max_xfer_len;		/* max transfer length */
 	int id;				/* Raw id of this channel */
 	int irq;			/* Channel IRQ */
-	struct shdma_slave *slave;	/* Client data for slave DMA */
+	int slave_id;			/* Client ID for slave DMA */
 	enum shdma_pm_state pm_state;
 };
 
@@ -93,8 +93,8 @@ struct shdma_ops {
 	dma_addr_t (*slave_addr)(struct shdma_chan *);
 	int (*desc_setup)(struct shdma_chan *, struct shdma_desc *,
 			  dma_addr_t, dma_addr_t, size_t *);
-	int (*set_slave)(struct shdma_chan *, struct shdma_slave *);
-	void (*setup_xfer)(struct shdma_chan *, struct shdma_slave *);
+	int (*set_slave)(struct shdma_chan *, int);
+	void (*setup_xfer)(struct shdma_chan *, int);
 	void (*start_xfer)(struct shdma_chan *, struct shdma_desc *);
 	struct shdma_desc *(*embedded_desc)(void *, int);
 	bool (*chan_irq)(struct shdma_chan *, int);

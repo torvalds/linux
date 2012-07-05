@@ -76,7 +76,6 @@ static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
 		container_of(tx, struct shdma_desc, async_tx),
 		*last = desc;
 	struct shdma_chan *schan = to_shdma_chan(tx->chan);
-	struct shdma_slave *slave = schan->slave;
 	dma_async_tx_callback callback = tx->callback;
 	dma_cookie_t cookie;
 	bool power_up;
@@ -138,7 +137,7 @@ static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
 			 * Make it int then, on error remove chunks from the
 			 * queue again
 			 */
-			ops->setup_xfer(schan, slave);
+			ops->setup_xfer(schan, schan->slave_id);
 
 			if (schan->pm_state == SHDMA_PM_PENDING)
 				shdma_chan_xfer_ld_queue(schan);
@@ -186,7 +185,7 @@ static int shdma_alloc_chan_resources(struct dma_chan *chan)
 	 * never runs concurrently with itself or free_chan_resources.
 	 */
 	if (slave) {
-		if (slave->slave_id >= slave_num) {
+		if (slave->slave_id < 0 || slave->slave_id >= slave_num) {
 			ret = -EINVAL;
 			goto evalid;
 		}
@@ -196,9 +195,13 @@ static int shdma_alloc_chan_resources(struct dma_chan *chan)
 			goto etestused;
 		}
 
-		ret = ops->set_slave(schan, slave);
+		ret = ops->set_slave(schan, slave->slave_id);
 		if (ret < 0)
 			goto esetslave;
+
+		schan->slave_id = slave->slave_id;
+	} else {
+		schan->slave_id = -EINVAL;
 	}
 
 	schan->desc = kcalloc(NR_DESCS_PER_CHANNEL,
@@ -208,7 +211,6 @@ static int shdma_alloc_chan_resources(struct dma_chan *chan)
 		goto edescalloc;
 	}
 	schan->desc_num = NR_DESCS_PER_CHANNEL;
-	schan->slave = slave;
 
 	for (i = 0; i < NR_DESCS_PER_CHANNEL; i++) {
 		desc = ops->embedded_desc(schan->desc, i);
@@ -366,10 +368,9 @@ static void shdma_free_chan_resources(struct dma_chan *chan)
 	if (!list_empty(&schan->ld_queue))
 		shdma_chan_ld_cleanup(schan, true);
 
-	if (schan->slave) {
+	if (schan->slave_id >= 0) {
 		/* The caller is holding dma_list_mutex */
-		struct shdma_slave *slave = schan->slave;
-		clear_bit(slave->slave_id, shdma_slave_used);
+		clear_bit(schan->slave_id, shdma_slave_used);
 		chan->private = NULL;
 	}
 
@@ -559,7 +560,7 @@ static struct dma_async_tx_descriptor *shdma_prep_slave_sg(
 	struct shdma_chan *schan = to_shdma_chan(chan);
 	struct shdma_dev *sdev = to_shdma_dev(schan->dma_chan.device);
 	const struct shdma_ops *ops = sdev->ops;
-	struct shdma_slave *slave = schan->slave;
+	int slave_id = schan->slave_id;
 	dma_addr_t slave_addr;
 
 	if (!chan)
@@ -568,9 +569,9 @@ static struct dma_async_tx_descriptor *shdma_prep_slave_sg(
 	BUG_ON(!schan->desc_num);
 
 	/* Someone calling slave DMA on a generic channel? */
-	if (!slave || !sg_len) {
-		dev_warn(schan->dev, "%s: bad parameter: %p, %d, %d\n",
-			 __func__, slave, sg_len, slave ? slave->slave_id : -1);
+	if (slave_id < 0 || !sg_len) {
+		dev_warn(schan->dev, "%s: bad parameter: len=%d, id=%d\n",
+			 __func__, sg_len, slave_id);
 		return NULL;
 	}
 

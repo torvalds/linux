@@ -27,10 +27,10 @@ struct sh_dmae_slave {
  * a certain peripheral
  */
 struct sh_dmae_slave_config {
-	unsigned int			slave_id;
-	dma_addr_t			addr;
-	u32				chcr;
-	char				mid_rid;
+	int		slave_id;
+	dma_addr_t	addr;
+	u32		chcr;
+	char		mid_rid;
 };
 
 struct sh_dmae_channel {
