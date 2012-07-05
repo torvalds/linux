@@ -175,6 +175,8 @@ static int wm831x_low_power_detection(struct wm831x *wm831x)
 	return 0;	
 }
 #endif
+
+#define AVS_BASE 172
 int wm831x_post_init(struct wm831x *Wm831x)
 {
 	struct regulator *dcdc;
@@ -226,6 +228,13 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	udelay(100);
 
 	dcdc = regulator_get(NULL, "vdd_core");	// vdd_log
+	
+	/* Read avs value under logic 1.1V*/
+	regulator_set_voltage(dcdc, 1100000, 1100000);
+	avs_init_val_get(1,1100000,"wm8326 init");
+	udelay(600);
+	avs_set_scal_val(AVS_BASE);
+
 	regulator_set_voltage(dcdc, 1150000, 1150000);
 	regulator_set_suspend_voltage(dcdc, 1000000);
 	regulator_enable(dcdc);
