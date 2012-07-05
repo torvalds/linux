@@ -28,7 +28,7 @@
 		};
 
 		clcd@90000000 {
-			compatible = "arm,clcd-pl110", "arm,primecell";
+			compatible = "arm,pl110", "arm,primecell";
 			reg = <0x90000000 0x1000>;
 			interrupts = <33>;
 			status = "disabled";
@@ -69,7 +69,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "simple-bus";
-			ranges = <0xa0000000 0xa0000000 0x10000000
+			ranges = <0xa0000000 0xa0000000 0x20000000
 				  0xd0000000 0xd0000000 0x30000000>;
 
 			i2c1: i2c@a7000000 {

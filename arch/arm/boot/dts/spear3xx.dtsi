@@ -120,7 +120,7 @@
 			};
 
 			rtc@fc900000 {
-				compatible = "st,spear-rtc";
+				compatible = "st,spear600-rtc";
 				reg = <0xfc900000 0x1000>;
 				interrupts = <10>;
 				status = "disabled";

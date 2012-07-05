@@ -88,13 +88,6 @@
 			#gpio-range-cells = <2>;
 		};
 
-		spi1: spi@5d400000 {
-			compatible = "arm,pl022", "arm,primecell";
-			reg = <0x5d400000 0x1000>;
-			interrupts = <0 99 0x4>;
-			status = "disabled";
-		};
-
 		apb {
 			i2c1: i2c@5cd00000 {
 				#address-cells = <1>;
@@ -156,6 +149,13 @@
 				compatible = "snps,designware-i2c";
 				reg = <0x5d300000 0x1000>;
 				interrupts = <0 93 0x4>;
+				status = "disabled";
+			};
+
+			spi1: spi@5d400000 {
+				compatible = "arm,pl022", "arm,primecell";
+				reg = <0x5d400000 0x1000>;
+				interrupts = <0 99 0x4>;
 				status = "disabled";
 			};
 

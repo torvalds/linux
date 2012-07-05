@@ -192,10 +192,6 @@
 			};
 		};
 
-		spi0: spi@e0100000 {
-			status = "okay";
-		};
-
 		ehci@e4800000 {
 			status = "okay";
 		};
@@ -230,10 +226,6 @@
 			};
 
 			i2c0: i2c@e0280000 {
-			       status = "okay";
-			};
-
-			i2c1: i2c@5cd00000 {
 			       status = "okay";
 			};
 
@@ -321,6 +313,7 @@
 						 0x08080052 >;
 			       autorepeat;
 			       st,mode = <0>;
+			       suspended_rate = <2000000>;
 			       status = "okay";
 			};
 
@@ -330,6 +323,10 @@
 
 			serial@e0000000 {
 			       status = "okay";
+			};
+
+			spi0: spi@e0100000 {
+				status = "okay";
 			};
 
 			wdt@ec800620 {

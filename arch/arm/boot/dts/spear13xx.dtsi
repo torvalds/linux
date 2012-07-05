@@ -70,6 +70,8 @@
 		compatible = "simple-bus";
 		ranges = <0x50000000 0x50000000 0x10000000
 			  0xb0000000 0xb0000000 0x10000000
+			  0xd0000000 0xd0000000 0x02000000
+			  0xd8000000 0xd8000000 0x01000000
 			  0xe0000000 0xe0000000 0x10000000>;
 
 		sdhci@b3000000 {
@@ -81,7 +83,7 @@
 
 		cf@b2800000 {
 			compatible = "arasan,cf-spear1340";
-			reg = <0xb2800000 0x100>;
+			reg = <0xb2800000 0x1000>;
 			interrupts = <0 29 0x4>;
 			status = "disabled";
 		};
@@ -113,6 +115,7 @@
 				      0 23 0x4>;
 			st,ale-off = <0x20000>;
 			st,cle-off = <0x10000>;
+			st,mode = <2>;
 			status = "disabled";
 		};
 
@@ -134,17 +137,11 @@
 			status = "disabled";
 		};
 
-		spi0: spi@e0100000 {
-			compatible = "arm,pl022", "arm,primecell";
-			reg = <0xe0100000 0x1000>;
-			interrupts = <0 31 0x4>;
-			status = "disabled";
-		};
-
 		ehci@e4800000 {
 			compatible = "st,spear600-ehci", "usb-ehci";
 			reg = <0xe4800000 0x1000>;
 			interrupts = <0 64 0x4>;
+			usbh0_id = <0>;
 			status = "disabled";
 		};
 
@@ -152,6 +149,7 @@
 			compatible = "st,spear600-ehci", "usb-ehci";
 			reg = <0xe5800000 0x1000>;
 			interrupts = <0 66 0x4>;
+			usbh1_id = <1>;
 			status = "disabled";
 		};
 
@@ -159,6 +157,7 @@
 			compatible = "st,spear600-ohci", "usb-ohci";
 			reg = <0xe4000000 0x1000>;
 			interrupts = <0 65 0x4>;
+			usbh0_id = <0>;
 			status = "disabled";
 		};
 
@@ -166,6 +165,7 @@
 			compatible = "st,spear600-ohci", "usb-ohci";
 			reg = <0xe5000000 0x1000>;
 			interrupts = <0 67 0x4>;
+			usbh1_id = <1>;
 			status = "disabled";
 		};
 
@@ -175,6 +175,8 @@
 			compatible = "simple-bus";
 			ranges = <0x50000000 0x50000000 0x10000000
 				  0xb0000000 0xb0000000 0x10000000
+				  0xd0000000 0xd0000000 0x02000000
+				  0xd8000000 0xd8000000 0x01000000
 				  0xe0000000 0xe0000000 0x10000000>;
 
 			gpio0: gpio@e0600000 {
@@ -215,8 +217,15 @@
 				status = "disabled";
 			};
 
+			spi0: spi@e0100000 {
+				compatible = "arm,pl022", "arm,primecell";
+				reg = <0xe0100000 0x1000>;
+				interrupts = <0 31 0x4>;
+				status = "disabled";
+			};
+
 			rtc@e0580000 {
-				compatible = "st,spear-rtc";
+				compatible = "st,spear600-rtc";
 				reg = <0xe0580000 0x1000>;
 				interrupts = <0 36 0x4>;
 				status = "disabled";
@@ -232,7 +241,7 @@
 			adc@e0080000 {
 				compatible = "st,spear600-adc";
 				reg = <0xe0080000 0x1000>;
-				interrupts = <0 44 0x4>;
+				interrupts = <0 12 0x4>;
 				status = "disabled";
 			};
 
@@ -245,7 +254,8 @@
 			timer@ec800600 {
 				compatible = "arm,cortex-a9-twd-timer";
 				reg = <0xec800600 0x20>;
-				interrupts = <1 13 0x301>;
+				interrupts = <1 13 0x4>;
+				status = "disabled";
 			};
 
 			wdt@ec800620 {
@@ -257,6 +267,7 @@
 			thermal@e07008c4 {
 				compatible = "st,thermal-spear1340";
 				reg = <0xe07008c4 0x4>;
+				thermal_flags = <0x7000>;
 			};
 		};
 	};

@@ -27,7 +27,7 @@
 		};
 
 		clcd@60000000 {
-			compatible = "arm,clcd-pl110", "arm,primecell";
+			compatible = "arm,pl110", "arm,primecell";
 			reg = <0x60000000 0x1000>;
 			interrupts = <30>;
 			status = "disabled";

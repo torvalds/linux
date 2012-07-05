@@ -82,10 +82,6 @@
 			};
 		};
 
-		clcd@90000000 {
-			status = "okay";
-		};
-
 		dma@fc400000 {
 			status = "okay";
 		};
@@ -99,6 +95,7 @@
 		};
 
 		sdhci@70000000 {
+			power-gpio = <&gpiopinctrl 61 1>;
 			status = "okay";
 		};
 

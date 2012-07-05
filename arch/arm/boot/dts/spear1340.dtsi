@@ -58,6 +58,7 @@
 				compatible = "snps,designware-i2c";
 				reg = <0xb4000000 0x1000>;
 				interrupts = <0 104 0x4>;
+				write-16bit;
 				status = "disabled";
 			};
 
