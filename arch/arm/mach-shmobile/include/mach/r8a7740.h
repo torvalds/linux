@@ -608,6 +608,7 @@ enum {
 
 #ifdef CONFIG_PM
 extern struct rmobile_pm_domain r8a7740_pd_a4s;
+extern struct rmobile_pm_domain r8a7740_pd_a3sp;
 #endif /* CONFIG_PM */
 
 #endif /* __ASM_R8A7740_H__ */
