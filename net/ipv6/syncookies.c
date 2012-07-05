@@ -21,9 +21,6 @@
 #include <net/ipv6.h>
 #include <net/tcp.h>
 
-extern int sysctl_tcp_syncookies;
-extern __u32 syncookie_secret[2][16-4+SHA_DIGEST_WORDS];
-
 #define COOKIEBITS 24	/* Upper bits store count */
 #define COOKIEMASK (((__u32)1 << COOKIEBITS) - 1)
 
