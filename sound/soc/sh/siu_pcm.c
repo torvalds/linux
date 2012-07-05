@@ -332,9 +332,6 @@ static bool filter(struct dma_chan *chan, void *slave)
 
 	pr_debug("%s: slave ID %d\n", __func__, param->shdma_slave.slave_id);
 
-	if (unlikely(param->dma_dev != chan->device->dev))
-		return false;
-
 	chan->private = &param->shdma_slave;
 	return true;
 }
@@ -369,7 +366,6 @@ static int siu_pcm_open(struct snd_pcm_substream *ss)
 			pdata->dma_slave_rx_a;
 	}
 
-	param->dma_dev = pdata->dma_dev;
 	/* Get DMA channel */
 	siu_stream->chan = dma_request_channel(mask, filter, param);
 	if (!siu_stream->chan) {
