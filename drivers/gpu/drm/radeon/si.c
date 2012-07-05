@@ -3807,7 +3807,6 @@ int si_resume(struct radeon_device *rdev)
 
 int si_suspend(struct radeon_device *rdev)
 {
-	/* FIXME: we should wait for ring to be empty */
 	radeon_ib_pool_suspend(rdev);
 	radeon_vm_manager_suspend(rdev);
 #if 0

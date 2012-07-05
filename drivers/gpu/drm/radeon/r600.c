@@ -2461,7 +2461,6 @@ int r600_suspend(struct radeon_device *rdev)
 	r600_audio_fini(rdev);
 	radeon_ib_pool_suspend(rdev);
 	r600_blit_suspend(rdev);
-	/* FIXME: we should wait for ring to be empty */
 	r600_cp_stop(rdev);
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
 	r600_irq_suspend(rdev);

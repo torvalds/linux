@@ -1334,7 +1334,6 @@ int cayman_resume(struct radeon_device *rdev)
 int cayman_suspend(struct radeon_device *rdev)
 {
 	r600_audio_fini(rdev);
-	/* FIXME: we should wait for ring to be empty */
 	radeon_ib_pool_suspend(rdev);
 	radeon_vm_manager_suspend(rdev);
 	r600_blit_suspend(rdev);

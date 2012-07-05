@@ -3137,7 +3137,6 @@ int evergreen_suspend(struct radeon_device *rdev)
 	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 
 	r600_audio_fini(rdev);
-	/* FIXME: we should wait for ring to be empty */
 	radeon_ib_pool_suspend(rdev);
 	r600_blit_suspend(rdev);
 	r700_cp_stop(rdev);
