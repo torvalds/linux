@@ -265,7 +265,7 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 	struct mlx4_en_mc_list *mclist, *tmp;
 	u64 mcast_addr = 0;
 	u8 mc_list[16] = {0};
-	int err;
+	int err = 0;
 
 	mutex_lock(&mdev->state_lock);
 	if (!mdev->device_up) {
@@ -300,16 +300,36 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 			priv->flags |= MLX4_EN_FLAG_PROMISC;
 
 			/* Enable promiscouos mode */
-			if (!(mdev->dev->caps.flags &
-						MLX4_DEV_CAP_FLAG_VEP_UC_STEER))
-				err = mlx4_SET_PORT_qpn_calc(mdev->dev, priv->port,
-							     priv->base_qpn, 1);
-			else
-				err = mlx4_unicast_promisc_add(mdev->dev, priv->base_qpn,
+			switch (mdev->dev->caps.steering_mode) {
+			case MLX4_STEERING_MODE_B0:
+				err = mlx4_unicast_promisc_add(mdev->dev,
+							       priv->base_qpn,
 							       priv->port);
-			if (err)
-				en_err(priv, "Failed enabling "
-					     "promiscuous mode\n");
+				if (err)
+					en_err(priv, "Failed enabling unicast promiscuous mode\n");
+
+				/* Add the default qp number as multicast
+				 * promisc
+				 */
+				if (!(priv->flags & MLX4_EN_FLAG_MC_PROMISC)) {
+					err = mlx4_multicast_promisc_add(mdev->dev,
+									 priv->base_qpn,
+									 priv->port);
+					if (err)
+						en_err(priv, "Failed enabling multicast promiscuous mode\n");
+					priv->flags |= MLX4_EN_FLAG_MC_PROMISC;
+				}
+				break;
+
+			case MLX4_STEERING_MODE_A0:
+				err = mlx4_SET_PORT_qpn_calc(mdev->dev,
+							     priv->port,
+							     priv->base_qpn,
+							     1);
+				if (err)
+					en_err(priv, "Failed enabling promiscuous mode\n");
+				break;
+			}
 
 			/* Disable port multicast filter (unconditionally) */
 			err = mlx4_SET_MCAST_FLTR(mdev->dev, priv->port, 0,
@@ -317,15 +337,6 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 			if (err)
 				en_err(priv, "Failed disabling "
 					     "multicast filter\n");
-
-			/* Add the default qp number as multicast promisc */
-			if (!(priv->flags & MLX4_EN_FLAG_MC_PROMISC)) {
-				err = mlx4_multicast_promisc_add(mdev->dev, priv->base_qpn,
-								 priv->port);
-				if (err)
-					en_err(priv, "Failed entering multicast promisc mode\n");
-				priv->flags |= MLX4_EN_FLAG_MC_PROMISC;
-			}
 
 			/* Disable port VLAN filter */
 			err = mlx4_SET_VLAN_FLTR(mdev->dev, priv);
@@ -345,22 +356,31 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 		priv->flags &= ~MLX4_EN_FLAG_PROMISC;
 
 		/* Disable promiscouos mode */
-		if (!(mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER))
-			err = mlx4_SET_PORT_qpn_calc(mdev->dev, priv->port,
-						     priv->base_qpn, 0);
-		else
-			err = mlx4_unicast_promisc_remove(mdev->dev, priv->base_qpn,
+		switch (mdev->dev->caps.steering_mode) {
+		case MLX4_STEERING_MODE_B0:
+			err = mlx4_unicast_promisc_remove(mdev->dev,
+							  priv->base_qpn,
 							  priv->port);
-		if (err)
-			en_err(priv, "Failed disabling promiscuous mode\n");
-
-		/* Disable Multicast promisc */
-		if (priv->flags & MLX4_EN_FLAG_MC_PROMISC) {
-			err = mlx4_multicast_promisc_remove(mdev->dev, priv->base_qpn,
-							    priv->port);
 			if (err)
-				en_err(priv, "Failed disabling multicast promiscuous mode\n");
-			priv->flags &= ~MLX4_EN_FLAG_MC_PROMISC;
+				en_err(priv, "Failed disabling unicast promiscuous mode\n");
+			/* Disable Multicast promisc */
+			if (priv->flags & MLX4_EN_FLAG_MC_PROMISC) {
+				err = mlx4_multicast_promisc_remove(mdev->dev,
+								    priv->base_qpn,
+								    priv->port);
+				if (err)
+					en_err(priv, "Failed disabling multicast promiscuous mode\n");
+				priv->flags &= ~MLX4_EN_FLAG_MC_PROMISC;
+			}
+			break;
+
+		case MLX4_STEERING_MODE_A0:
+			err = mlx4_SET_PORT_qpn_calc(mdev->dev,
+						     priv->port,
+						     priv->base_qpn, 0);
+			if (err)
+				en_err(priv, "Failed disabling promiscuous mode\n");
+			break;
 		}
 
 		/* Enable port VLAN filter */
@@ -378,8 +398,16 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 
 		/* Add the default qp number as multicast promisc */
 		if (!(priv->flags & MLX4_EN_FLAG_MC_PROMISC)) {
-			err = mlx4_multicast_promisc_add(mdev->dev, priv->base_qpn,
-							 priv->port);
+			switch (mdev->dev->caps.steering_mode) {
+			case MLX4_STEERING_MODE_B0:
+				err = mlx4_multicast_promisc_add(mdev->dev,
+								 priv->base_qpn,
+								 priv->port);
+				break;
+
+			case MLX4_STEERING_MODE_A0:
+				break;
+			}
 			if (err)
 				en_err(priv, "Failed entering multicast promisc mode\n");
 			priv->flags |= MLX4_EN_FLAG_MC_PROMISC;
@@ -387,8 +415,16 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 	} else {
 		/* Disable Multicast promisc */
 		if (priv->flags & MLX4_EN_FLAG_MC_PROMISC) {
-			err = mlx4_multicast_promisc_remove(mdev->dev, priv->base_qpn,
-							    priv->port);
+			switch (mdev->dev->caps.steering_mode) {
+			case MLX4_STEERING_MODE_B0:
+				err = mlx4_multicast_promisc_remove(mdev->dev,
+								    priv->base_qpn,
+								    priv->port);
+				break;
+
+			case MLX4_STEERING_MODE_A0:
+				break;
+			}
 			if (err)
 				en_err(priv, "Failed disabling multicast promiscuous mode\n");
 			priv->flags &= ~MLX4_EN_FLAG_MC_PROMISC;

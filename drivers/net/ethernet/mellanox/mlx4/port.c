@@ -155,7 +155,7 @@ int mlx4_get_eth_qp(struct mlx4_dev *dev, u8 port, u64 mac, int *qpn)
 		return err;
 	}
 
-	if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER)) {
+	if (dev->caps.steering_mode == MLX4_STEERING_MODE_A0) {
 		*qpn = info->base_qpn + index;
 		return 0;
 	}
@@ -206,7 +206,7 @@ void mlx4_put_eth_qp(struct mlx4_dev *dev, u8 port, u64 mac, int qpn)
 		 (unsigned long long) mac);
 	mlx4_unregister_mac(dev, port, mac);
 
-	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER) {
+	if (dev->caps.steering_mode != MLX4_STEERING_MODE_A0) {
 		entry = radix_tree_lookup(&info->mac_tree, qpn);
 		if (entry) {
 			mlx4_dbg(dev, "Releasing qp: port %d, mac 0x%llx,"
@@ -359,7 +359,7 @@ int mlx4_replace_mac(struct mlx4_dev *dev, u8 port, int qpn, u64 new_mac)
 	int index = qpn - info->base_qpn;
 	int err = 0;
 
-	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER) {
+	if (dev->caps.steering_mode != MLX4_STEERING_MODE_A0) {
 		entry = radix_tree_lookup(&info->mac_tree, qpn);
 		if (!entry)
 			return -EINVAL;
@@ -803,8 +803,7 @@ int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 	u32 m_promisc = (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER) ?
 		MCAST_DIRECT : MCAST_DEFAULT;
 
-	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER  &&
-	    dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER)
+	if (dev->caps.steering_mode != MLX4_STEERING_MODE_A0)
 		return 0;
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);

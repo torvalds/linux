@@ -70,6 +70,29 @@ enum {
 	MLX4_MFUNC_EQE_MASK     = (MLX4_MFUNC_MAX_EQES - 1)
 };
 
+/* Driver supports 2 diffrent device methods to manage traffic steering:
+ *	- B0 steering mode - Common low level API for ib and (if supported) eth.
+ *	- A0 steering mode - Limited low level API for eth. In case of IB,
+ *			     B0 mode is in use.
+ */
+enum {
+	MLX4_STEERING_MODE_A0,
+	MLX4_STEERING_MODE_B0
+};
+
+static inline const char *mlx4_steering_mode_str(int steering_mode)
+{
+	switch (steering_mode) {
+	case MLX4_STEERING_MODE_A0:
+		return "A0 steering";
+
+	case MLX4_STEERING_MODE_B0:
+		return "B0 steering";
+	default:
+		return "Unrecognize steering mode";
+	}
+}
+
 enum {
 	MLX4_DEV_CAP_FLAG_RC		= 1LL <<  0,
 	MLX4_DEV_CAP_FLAG_UC		= 1LL <<  1,
@@ -295,6 +318,7 @@ struct mlx4_caps {
 	int			num_amgms;
 	int			reserved_mcgs;
 	int			num_qp_per_mgm;
+	int			steering_mode;
 	int			num_pds;
 	int			reserved_pds;
 	int			max_xrcds;

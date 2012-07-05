@@ -244,7 +244,6 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.reserved_srqs	     = dev_cap->reserved_srqs;
 	dev->caps.max_sq_desc_sz     = dev_cap->max_sq_desc_sz;
 	dev->caps.max_rq_desc_sz     = dev_cap->max_rq_desc_sz;
-	dev->caps.num_qp_per_mgm     = mlx4_get_qp_per_mgm(dev);
 	/*
 	 * Subtract 1 from the limit because we need to allocate a
 	 * spare CQE so the HCA HW can tell the difference between an
@@ -274,6 +273,21 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.stat_rate_support  = dev_cap->stat_rate_support;
 	dev->caps.max_gso_sz	     = dev_cap->max_gso_sz;
 	dev->caps.max_rss_tbl_sz     = dev_cap->max_rss_tbl_sz;
+
+	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER &&
+	    dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER) {
+		dev->caps.steering_mode = MLX4_STEERING_MODE_B0;
+	} else {
+		dev->caps.steering_mode = MLX4_STEERING_MODE_A0;
+
+		if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER ||
+		    dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER)
+			mlx4_warn(dev, "Must have UC_STEER and MC_STEER flags "
+				       "set to use B0 steering. Falling back to A0 steering mode.\n");
+	}
+	mlx4_dbg(dev, "Steering mode is: %s\n",
+		 mlx4_steering_mode_str(dev->caps.steering_mode));
+	dev->caps.num_qp_per_mgm = mlx4_get_qp_per_mgm(dev);
 
 	/* Sense port always allowed on supported devices for ConnectX1 and 2 */
 	if (dev->pdev->device != 0x1003)
