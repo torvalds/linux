@@ -755,8 +755,6 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib);
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib);
 int radeon_ib_pool_init(struct radeon_device *rdev);
 void radeon_ib_pool_fini(struct radeon_device *rdev);
-int radeon_ib_pool_start(struct radeon_device *rdev);
-int radeon_ib_pool_suspend(struct radeon_device *rdev);
 int radeon_ib_ring_tests(struct radeon_device *rdev);
 /* Ring access between begin & end cannot sleep */
 int radeon_ring_index(struct radeon_device *rdev, struct radeon_ring *cp);

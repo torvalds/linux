@@ -3722,12 +3722,6 @@ int r100_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	return r;
 }
 
-void r100_ib_fini(struct radeon_device *rdev)
-{
-	radeon_ib_pool_suspend(rdev);
-	radeon_ib_pool_fini(rdev);
-}
-
 void r100_mc_stop(struct radeon_device *rdev, struct r100_mc_save *save)
 {
 	/* Shutdown CP we shouldn't need to do that but better be safe than
@@ -3887,9 +3881,11 @@ static int r100_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = radeon_ib_pool_start(rdev);
-	if (r)
+	r = radeon_ib_pool_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
 		return r;
+	}
 
 	r = radeon_ib_ring_tests(rdev);
 	if (r)
@@ -3930,7 +3926,6 @@ int r100_resume(struct radeon_device *rdev)
 
 int r100_suspend(struct radeon_device *rdev)
 {
-	radeon_ib_pool_suspend(rdev);
 	r100_cp_disable(rdev);
 	radeon_wb_disable(rdev);
 	r100_irq_disable(rdev);
@@ -3943,7 +3938,7 @@ void r100_fini(struct radeon_device *rdev)
 {
 	r100_cp_fini(rdev);
 	radeon_wb_fini(rdev);
-	r100_ib_fini(rdev);
+	radeon_ib_pool_fini(rdev);
 	radeon_gem_fini(rdev);
 	if (rdev->flags & RADEON_IS_PCI)
 		r100_pci_gart_fini(rdev);
@@ -4050,20 +4045,14 @@ int r100_init(struct radeon_device *rdev)
 	}
 	r100_set_safe_registers(rdev);
 
-	r = radeon_ib_pool_init(rdev);
 	rdev->accel_working = true;
-	if (r) {
-		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
-		rdev->accel_working = false;
-	}
-
 	r = r100_startup(rdev);
 	if (r) {
 		/* Somethings want wront with the accel init stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
 		r100_cp_fini(rdev);
 		radeon_wb_fini(rdev);
-		r100_ib_fini(rdev);
+		radeon_ib_pool_fini(rdev);
 		radeon_irq_kms_fini(rdev);
 		if (rdev->flags & RADEON_IS_PCI)
 			r100_pci_gart_fini(rdev);

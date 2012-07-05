@@ -3750,9 +3750,11 @@ static int si_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = radeon_ib_pool_start(rdev);
-	if (r)
+	r = radeon_ib_pool_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
 		return r;
+	}
 
 	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
 	if (r) {
@@ -3807,7 +3809,6 @@ int si_resume(struct radeon_device *rdev)
 
 int si_suspend(struct radeon_device *rdev)
 {
-	radeon_ib_pool_suspend(rdev);
 	radeon_vm_manager_suspend(rdev);
 #if 0
 	r600_blit_suspend(rdev);
@@ -3900,12 +3901,7 @@ int si_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = radeon_ib_pool_init(rdev);
 	rdev->accel_working = true;
-	if (r) {
-		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
-		rdev->accel_working = false;
-	}
 	r = radeon_vm_manager_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "vm manager initialization failed (%d).\n", r);
@@ -3918,7 +3914,7 @@ int si_init(struct radeon_device *rdev)
 		si_irq_fini(rdev);
 		si_rlc_fini(rdev);
 		radeon_wb_fini(rdev);
-		r100_ib_fini(rdev);
+		radeon_ib_pool_fini(rdev);
 		radeon_vm_manager_fini(rdev);
 		radeon_irq_kms_fini(rdev);
 		si_pcie_gart_fini(rdev);
@@ -3947,7 +3943,7 @@ void si_fini(struct radeon_device *rdev)
 	si_rlc_fini(rdev);
 	radeon_wb_fini(rdev);
 	radeon_vm_manager_fini(rdev);
-	r100_ib_fini(rdev);
+	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	si_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);

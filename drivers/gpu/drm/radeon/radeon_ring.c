@@ -129,6 +129,12 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 	if (r) {
 		return r;
 	}
+
+	r = radeon_sa_bo_manager_start(rdev, &rdev->ring_tmp_bo);
+	if (r) {
+		return r;
+	}
+
 	rdev->ib_pool_ready = true;
 	if (radeon_debugfs_sa_init(rdev)) {
 		dev_err(rdev->dev, "failed to register debugfs file for SA\n");
@@ -139,19 +145,10 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 void radeon_ib_pool_fini(struct radeon_device *rdev)
 {
 	if (rdev->ib_pool_ready) {
+		radeon_sa_bo_manager_suspend(rdev, &rdev->ring_tmp_bo);
 		radeon_sa_bo_manager_fini(rdev, &rdev->ring_tmp_bo);
 		rdev->ib_pool_ready = false;
 	}
-}
-
-int radeon_ib_pool_start(struct radeon_device *rdev)
-{
-	return radeon_sa_bo_manager_start(rdev, &rdev->ring_tmp_bo);
-}
-
-int radeon_ib_pool_suspend(struct radeon_device *rdev)
-{
-	return radeon_sa_bo_manager_suspend(rdev, &rdev->ring_tmp_bo);
 }
 
 int radeon_ib_ring_tests(struct radeon_device *rdev)
