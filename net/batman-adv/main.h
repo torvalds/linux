@@ -43,6 +43,7 @@
 #define BATADV_PURGE_TIMEOUT 200000 /* 200 seconds */
 #define BATADV_TT_LOCAL_TIMEOUT 3600000 /* in milliseconds */
 #define BATADV_TT_CLIENT_ROAM_TIMEOUT 600000 /* in milliseconds */
+#define BATADV_TT_CLIENT_TEMP_TIMEOUT 600000 /* in milliseconds */
 /* sliding packet range of received originator messages in sequence numbers
  * (should be a multiple of our word size)
  */
