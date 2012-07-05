@@ -661,8 +661,7 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 	if (modidx) {
 
 		if (tb[CGW_CS_CRC8]) {
-			struct cgw_csum_crc8 *c = (struct cgw_csum_crc8 *)\
-				nla_data(tb[CGW_CS_CRC8]);
+			struct cgw_csum_crc8 *c = nla_data(tb[CGW_CS_CRC8]);
 
 			err = cgw_chk_csum_parms(c->from_idx, c->to_idx,
 						 c->result_idx);
@@ -686,8 +685,7 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 		}
 
 		if (tb[CGW_CS_XOR]) {
-			struct cgw_csum_xor *c = (struct cgw_csum_xor *)\
-				nla_data(tb[CGW_CS_XOR]);
+			struct cgw_csum_xor *c = nla_data(tb[CGW_CS_XOR]);
 
 			err = cgw_chk_csum_parms(c->from_idx, c->to_idx,
 						 c->result_idx);
