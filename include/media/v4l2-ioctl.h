@@ -230,6 +230,8 @@ struct v4l2_ioctl_ops {
 					struct v4l2_frequency *a);
 	int (*vidioc_s_frequency)      (struct file *file, void *fh,
 					struct v4l2_frequency *a);
+	int (*vidioc_enum_freq_bands) (struct file *file, void *fh,
+				    struct v4l2_frequency_band *band);
 
 	/* Sliced VBI cap */
 	int (*vidioc_g_sliced_vbi_cap) (struct file *file, void *fh,

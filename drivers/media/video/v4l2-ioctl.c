@@ -825,6 +825,17 @@ static void v4l_print_sliced_vbi_cap(const void *arg, bool write_only)
 				p->service_lines[1][i]);
 }
 
+static void v4l_print_freq_band(const void *arg, bool write_only)
+{
+	const struct v4l2_frequency_band *p = arg;
+
+	pr_cont("tuner=%u, type=%u, index=%u, capability=0x%x, "
+			"rangelow=%u, rangehigh=%u, modulation=0x%x\n",
+			p->tuner, p->type, p->index,
+			p->capability, p->rangelow,
+			p->rangehigh, p->modulation);
+}
+
 static void v4l_print_u32(const void *arg, bool write_only)
 {
 	pr_cont("value=%u\n", *(const u32 *)arg);
@@ -1245,10 +1256,14 @@ static int v4l_g_tuner(const struct v4l2_ioctl_ops *ops,
 {
 	struct video_device *vfd = video_devdata(file);
 	struct v4l2_tuner *p = arg;
+	int err;
 
 	p->type = (vfd->vfl_type == VFL_TYPE_RADIO) ?
 			V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
-	return ops->vidioc_g_tuner(file, fh, p);
+	err = ops->vidioc_g_tuner(file, fh, p);
+	if (!err)
+		p->capability |= V4L2_TUNER_CAP_FREQ_BANDS;
+	return err;
 }
 
 static int v4l_s_tuner(const struct v4l2_ioctl_ops *ops,
@@ -1260,6 +1275,18 @@ static int v4l_s_tuner(const struct v4l2_ioctl_ops *ops,
 	p->type = (vfd->vfl_type == VFL_TYPE_RADIO) ?
 			V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 	return ops->vidioc_s_tuner(file, fh, p);
+}
+
+static int v4l_g_modulator(const struct v4l2_ioctl_ops *ops,
+				struct file *file, void *fh, void *arg)
+{
+	struct v4l2_modulator *p = arg;
+	int err;
+
+	err = ops->vidioc_g_modulator(file, fh, p);
+	if (!err)
+		p->capability |= V4L2_TUNER_CAP_FREQ_BANDS;
+	return err;
 }
 
 static int v4l_g_frequency(const struct v4l2_ioctl_ops *ops,
@@ -1805,6 +1832,57 @@ static int v4l_g_sliced_vbi_cap(const struct v4l2_ioctl_ops *ops,
 	return ops->vidioc_g_sliced_vbi_cap(file, fh, p);
 }
 
+static int v4l_enum_freq_bands(const struct v4l2_ioctl_ops *ops,
+				struct file *file, void *fh, void *arg)
+{
+	struct video_device *vfd = video_devdata(file);
+	struct v4l2_frequency_band *p = arg;
+	enum v4l2_tuner_type type;
+	int err;
+
+	type = (vfd->vfl_type == VFL_TYPE_RADIO) ?
+			V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
+
+	if (type != p->type)
+		return -EINVAL;
+	if (ops->vidioc_enum_freq_bands)
+		return ops->vidioc_enum_freq_bands(file, fh, p);
+	if (ops->vidioc_g_tuner) {
+		struct v4l2_tuner t = {
+			.index = p->tuner,
+			.type = type,
+		};
+
+		err = ops->vidioc_g_tuner(file, fh, &t);
+		if (err)
+			return err;
+		p->capability = t.capability | V4L2_TUNER_CAP_FREQ_BANDS;
+		p->rangelow = t.rangelow;
+		p->rangehigh = t.rangehigh;
+		p->modulation = (type == V4L2_TUNER_RADIO) ?
+			V4L2_BAND_MODULATION_FM : V4L2_BAND_MODULATION_VSB;
+		return 0;
+	}
+	if (ops->vidioc_g_modulator) {
+		struct v4l2_modulator m = {
+			.index = p->tuner,
+		};
+
+		if (type != V4L2_TUNER_RADIO)
+			return -EINVAL;
+		err = ops->vidioc_g_modulator(file, fh, &m);
+		if (err)
+			return err;
+		p->capability = m.capability | V4L2_TUNER_CAP_FREQ_BANDS;
+		p->rangelow = m.rangelow;
+		p->rangehigh = m.rangehigh;
+		p->modulation = (type == V4L2_TUNER_RADIO) ?
+			V4L2_BAND_MODULATION_FM : V4L2_BAND_MODULATION_VSB;
+		return 0;
+	}
+	return -ENOTTY;
+}
+
 struct v4l2_ioctl_info {
 	unsigned int ioctl;
 	u32 flags;
@@ -1886,7 +1964,7 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO_FNC(VIDIOC_ENUMOUTPUT, v4l_enumoutput, v4l_print_enumoutput, INFO_FL_CLEAR(v4l2_output, index)),
 	IOCTL_INFO_STD(VIDIOC_G_AUDOUT, vidioc_g_audout, v4l_print_audioout, 0),
 	IOCTL_INFO_STD(VIDIOC_S_AUDOUT, vidioc_s_audout, v4l_print_audioout, INFO_FL_PRIO),
-	IOCTL_INFO_STD(VIDIOC_G_MODULATOR, vidioc_g_modulator, v4l_print_modulator, INFO_FL_CLEAR(v4l2_modulator, index)),
+	IOCTL_INFO_FNC(VIDIOC_G_MODULATOR, v4l_g_modulator, v4l_print_modulator, INFO_FL_CLEAR(v4l2_modulator, index)),
 	IOCTL_INFO_STD(VIDIOC_S_MODULATOR, vidioc_s_modulator, v4l_print_modulator, INFO_FL_PRIO),
 	IOCTL_INFO_FNC(VIDIOC_G_FREQUENCY, v4l_g_frequency, v4l_print_frequency, INFO_FL_CLEAR(v4l2_frequency, tuner)),
 	IOCTL_INFO_FNC(VIDIOC_S_FREQUENCY, v4l_s_frequency, v4l_print_frequency, INFO_FL_PRIO),
@@ -1933,6 +2011,7 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO_STD(VIDIOC_ENUM_DV_TIMINGS, vidioc_enum_dv_timings, v4l_print_enum_dv_timings, 0),
 	IOCTL_INFO_STD(VIDIOC_QUERY_DV_TIMINGS, vidioc_query_dv_timings, v4l_print_dv_timings, 0),
 	IOCTL_INFO_STD(VIDIOC_DV_TIMINGS_CAP, vidioc_dv_timings_cap, v4l_print_dv_timings_cap, INFO_FL_CLEAR(v4l2_dv_timings_cap, type)),
+	IOCTL_INFO_FNC(VIDIOC_ENUM_FREQ_BANDS, v4l_enum_freq_bands, v4l_print_freq_band, 0),
 };
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
 
