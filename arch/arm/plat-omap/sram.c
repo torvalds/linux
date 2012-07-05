@@ -123,7 +123,7 @@ static void __init omap_detect_sram(void)
 				omap_sram_size = 0x800; /* 2K */
 			}
 		} else {
-			if (cpu_is_am33xx()) {
+			if (soc_is_am33xx()) {
 				omap_sram_start = AM33XX_SRAM_PA;
 				omap_sram_size = 0x10000; /* 64K */
 			} else if (cpu_is_omap34xx()) {
@@ -386,7 +386,7 @@ int __init omap_sram_init(void)
 		omap242x_sram_init();
 	else if (cpu_is_omap2430())
 		omap243x_sram_init();
-	else if (cpu_is_am33xx())
+	else if (soc_is_am33xx())
 		am33xx_sram_init();
 	else if (cpu_is_omap34xx())
 		omap34xx_sram_init();

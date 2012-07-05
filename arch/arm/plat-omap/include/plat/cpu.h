@@ -150,8 +150,8 @@ IS_AM_SUBCLASS(335x, 0x335)
 #define cpu_is_ti816x()			0
 #define cpu_is_ti814x()			0
 #define soc_is_am35xx()			0
-#define cpu_is_am33xx()			0
-#define cpu_is_am335x()			0
+#define soc_is_am33xx()			0
+#define soc_is_am335x()			0
 #define cpu_is_omap44xx()		0
 #define cpu_is_omap443x()		0
 #define cpu_is_omap446x()		0
@@ -354,10 +354,10 @@ IS_OMAP_TYPE(3430, 0x3430)
 #endif
 
 # if defined(CONFIG_SOC_AM33XX)
-# undef cpu_is_am33xx
-# undef cpu_is_am335x
-# define cpu_is_am33xx()		is_am33xx()
-# define cpu_is_am335x()		is_am335x()
+# undef soc_is_am33xx
+# undef soc_is_am335x
+# define soc_is_am33xx()		is_am33xx()
+# define soc_is_am335x()		is_am335x()
 #endif
 
 # if defined(CONFIG_ARCH_OMAP4)
