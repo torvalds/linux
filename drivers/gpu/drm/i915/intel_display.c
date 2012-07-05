@@ -1973,6 +1973,22 @@ void intel_unpin_fb_obj(struct drm_i915_gem_object *obj)
 	i915_gem_object_unpin(obj);
 }
 
+/* Computes the linear offset to the base tile and adjusts x, y. bytes per pixel
+ * is assumed to be a power-of-two. */
+static unsigned long gen4_compute_dspaddr_offset_xtiled(int *x, int *y,
+							unsigned int bpp,
+							unsigned int pitch)
+{
+	int tile_rows, tiles;
+
+	tile_rows = *y / 8;
+	*y %= 8;
+	tiles = *x / (512/bpp);
+	*x %= 512/bpp;
+
+	return tile_rows * pitch * 8 + tiles * 4096;
+}
+
 static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			     int x, int y)
 {
@@ -2031,16 +2047,22 @@ static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	linear_offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
 
-	if (INTEL_INFO(dev)->gen >= 4)
-		intel_crtc->dspaddr_offset = 0;
-	else
+	if (INTEL_INFO(dev)->gen >= 4) {
+		intel_crtc->dspaddr_offset =
+			gen4_compute_dspaddr_offset_xtiled(&x, &y,
+							   fb->bits_per_pixel / 8,
+							   fb->pitches[0]);
+		linear_offset -= intel_crtc->dspaddr_offset;
+	} else {
 		intel_crtc->dspaddr_offset = linear_offset;
+	}
 
 	DRM_DEBUG_KMS("Writing base %08X %08lX %d %d %d\n",
 		      obj->gtt_offset, linear_offset, x, y, fb->pitches[0]);
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
 	if (INTEL_INFO(dev)->gen >= 4) {
-		I915_MODIFY_DISPBASE(DSPSURF(plane), obj->gtt_offset);
+		I915_MODIFY_DISPBASE(DSPSURF(plane),
+				     obj->gtt_offset + intel_crtc->dspaddr_offset);
 		I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
 		I915_WRITE(DSPLINOFF(plane), linear_offset);
 	} else
@@ -2115,12 +2137,17 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 	I915_WRITE(reg, dspcntr);
 
 	linear_offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
-	intel_crtc->dspaddr_offset = 0;
+	intel_crtc->dspaddr_offset =
+		gen4_compute_dspaddr_offset_xtiled(&x, &y,
+						   fb->bits_per_pixel / 8,
+						   fb->pitches[0]);
+	linear_offset -= intel_crtc->dspaddr_offset;
 
 	DRM_DEBUG_KMS("Writing base %08X %08lX %d %d %d\n",
 		      obj->gtt_offset, linear_offset, x, y, fb->pitches[0]);
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
-	I915_MODIFY_DISPBASE(DSPSURF(plane), obj->gtt_offset);
+	I915_MODIFY_DISPBASE(DSPSURF(plane),
+			     obj->gtt_offset + intel_crtc->dspaddr_offset);
 	I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
 	I915_WRITE(DSPLINOFF(plane), linear_offset);
 	POSTING_READ(reg);
@@ -6299,7 +6326,9 @@ static int intel_gen4_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, MI_DISPLAY_FLIP |
 			MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
 	intel_ring_emit(ring, fb->pitches[0]);
-	intel_ring_emit(ring, obj->gtt_offset | obj->tiling_mode);
+	intel_ring_emit(ring,
+			(obj->gtt_offset + intel_crtc->dspaddr_offset) |
+			obj->tiling_mode);
 
 	/* XXX Enabling the panel-fitter across page-flip is so far
 	 * untested on non-native modes, so ignore it for now.
@@ -6339,7 +6368,7 @@ static int intel_gen6_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, MI_DISPLAY_FLIP |
 			MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
 	intel_ring_emit(ring, fb->pitches[0] | obj->tiling_mode);
-	intel_ring_emit(ring, obj->gtt_offset);
+	intel_ring_emit(ring, obj->gtt_offset + intel_crtc->dspaddr_offset);
 
 	/* Contrary to the suggestions in the documentation,
 	 * "Enable Panel Fitter" does not seem to be required when page
@@ -6402,7 +6431,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 
 	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 | plane_bit);
 	intel_ring_emit(ring, (fb->pitches[0] | obj->tiling_mode));
-	intel_ring_emit(ring, (obj->gtt_offset));
+	intel_ring_emit(ring, obj->gtt_offset + intel_crtc->dspaddr_offset);
 	intel_ring_emit(ring, (MI_NOOP));
 	intel_ring_advance(ring);
 	return 0;
