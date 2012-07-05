@@ -22,6 +22,7 @@ struct regulator_init_data;
 /**
  * struct fixed_voltage_config - fixed_voltage_config structure
  * @supply_name:	Name of the regulator supply
+ * @input_supply:	Name of the input regulator supply
  * @microvolts:		Output voltage of regulator
  * @gpio:		GPIO to use for enable control
  * 			set to -EINVAL if not used
@@ -46,6 +47,7 @@ struct regulator_init_data;
  */
 struct fixed_voltage_config {
 	const char *supply_name;
+	const char *input_supply;
 	int microvolts;
 	int gpio;
 	unsigned startup_delay;

@@ -102,6 +102,9 @@ of_get_fixed_voltage_config(struct device *dev)
 	if (of_find_property(np, "gpio-open-drain", NULL))
 		config->gpio_is_open_drain = true;
 
+	if (of_find_property(np, "vin-supply", NULL))
+		config->input_supply = "vin";
+
 	return config;
 }
 
@@ -169,6 +172,17 @@ static int __devinit reg_fixed_voltage_probe(struct platform_device *pdev)
 
 	drvdata->desc.enable_time = config->startup_delay;
 
+	if (config->input_supply) {
+		drvdata->desc.supply_name = kstrdup(config->input_supply,
+							GFP_KERNEL);
+		if (!drvdata->desc.supply_name) {
+			dev_err(&pdev->dev,
+				"Failed to allocate input supply\n");
+			ret = -ENOMEM;
+			goto err_name;
+		}
+	}
+
 	if (config->microvolts)
 		drvdata->desc.n_voltages = 1;
 
@@ -202,7 +216,7 @@ static int __devinit reg_fixed_voltage_probe(struct platform_device *pdev)
 	if (IS_ERR(drvdata->dev)) {
 		ret = PTR_ERR(drvdata->dev);
 		dev_err(&pdev->dev, "Failed to register regulator: %d\n", ret);
-		goto err_name;
+		goto err_input;
 	}
 
 	platform_set_drvdata(pdev, drvdata);
@@ -212,6 +226,8 @@ static int __devinit reg_fixed_voltage_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_input:
+	kfree(drvdata->desc.supply_name);
 err_name:
 	kfree(drvdata->desc.name);
 err:
@@ -223,6 +239,7 @@ static int __devexit reg_fixed_voltage_remove(struct platform_device *pdev)
 	struct fixed_voltage_data *drvdata = platform_get_drvdata(pdev);
 
 	regulator_unregister(drvdata->dev);
+	kfree(drvdata->desc.supply_name);
 	kfree(drvdata->desc.name);
 
 	return 0;
