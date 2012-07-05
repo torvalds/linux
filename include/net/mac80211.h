@@ -676,21 +676,41 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_HT_GF: This frame was received in a HT-greenfield transmission, if
  *	the driver fills this value it should add %IEEE80211_RADIOTAP_MCS_HAVE_FMT
  *	to hw.radiotap_mcs_details to advertise that fact
+ * @RX_FLAG_AMPDU_DETAILS: A-MPDU details are known, in particular the reference
+ *	number (@ampdu_reference) must be populated and be a distinct number for
+ *	each A-MPDU
+ * @RX_FLAG_AMPDU_REPORT_ZEROLEN: driver reports 0-length subframes
+ * @RX_FLAG_AMPDU_IS_ZEROLEN: This is a zero-length subframe, for
+ *	monitoring purposes only
+ * @RX_FLAG_AMPDU_LAST_KNOWN: last subframe is known, should be set on all
+ *	subframes of a single A-MPDU
+ * @RX_FLAG_AMPDU_IS_LAST: this subframe is the last subframe of the A-MPDU
+ * @RX_FLAG_AMPDU_DELIM_CRC_ERROR: A delimiter CRC error has been detected
+ *	on this subframe
+ * @RX_FLAG_AMPDU_DELIM_CRC_KNOWN: The delimiter CRC field is known (the CRC
+ *	is stored in the @ampdu_delimiter_crc field)
  */
 enum mac80211_rx_flags {
-	RX_FLAG_MMIC_ERROR	= 1<<0,
-	RX_FLAG_DECRYPTED	= 1<<1,
-	RX_FLAG_MMIC_STRIPPED	= 1<<3,
-	RX_FLAG_IV_STRIPPED	= 1<<4,
-	RX_FLAG_FAILED_FCS_CRC	= 1<<5,
-	RX_FLAG_FAILED_PLCP_CRC = 1<<6,
-	RX_FLAG_MACTIME_MPDU	= 1<<7,
-	RX_FLAG_SHORTPRE	= 1<<8,
-	RX_FLAG_HT		= 1<<9,
-	RX_FLAG_40MHZ		= 1<<10,
-	RX_FLAG_SHORT_GI	= 1<<11,
-	RX_FLAG_NO_SIGNAL_VAL	= 1<<12,
-	RX_FLAG_HT_GF		= 1<<13,
+	RX_FLAG_MMIC_ERROR		= BIT(0),
+	RX_FLAG_DECRYPTED		= BIT(1),
+	RX_FLAG_MMIC_STRIPPED		= BIT(3),
+	RX_FLAG_IV_STRIPPED		= BIT(4),
+	RX_FLAG_FAILED_FCS_CRC		= BIT(5),
+	RX_FLAG_FAILED_PLCP_CRC 	= BIT(6),
+	RX_FLAG_MACTIME_MPDU		= BIT(7),
+	RX_FLAG_SHORTPRE		= BIT(8),
+	RX_FLAG_HT			= BIT(9),
+	RX_FLAG_40MHZ			= BIT(10),
+	RX_FLAG_SHORT_GI		= BIT(11),
+	RX_FLAG_NO_SIGNAL_VAL		= BIT(12),
+	RX_FLAG_HT_GF			= BIT(13),
+	RX_FLAG_AMPDU_DETAILS		= BIT(14),
+	RX_FLAG_AMPDU_REPORT_ZEROLEN	= BIT(15),
+	RX_FLAG_AMPDU_IS_ZEROLEN	= BIT(16),
+	RX_FLAG_AMPDU_LAST_KNOWN	= BIT(17),
+	RX_FLAG_AMPDU_IS_LAST		= BIT(18),
+	RX_FLAG_AMPDU_DELIM_CRC_ERROR	= BIT(19),
+	RX_FLAG_AMPDU_DELIM_CRC_KNOWN	= BIT(20),
 };
 
 /**
@@ -714,17 +734,22 @@ enum mac80211_rx_flags {
  *	HT rates are use (RX_FLAG_HT)
  * @flag: %RX_FLAG_*
  * @rx_flags: internal RX flags for mac80211
+ * @ampdu_reference: A-MPDU reference number, must be a different value for
+ *	each A-MPDU but the same for each subframe within one A-MPDU
+ * @ampdu_delimiter_crc: A-MPDU delimiter CRC
  */
 struct ieee80211_rx_status {
 	u64 mactime;
 	u32 device_timestamp;
-	u16 flag;
+	u32 ampdu_reference;
+	u32 flag;
 	u16 freq;
 	u8 rate_idx;
 	u8 rx_flags;
 	u8 band;
 	u8 antenna;
 	s8 signal;
+	u8 ampdu_delimiter_crc;
 };
 
 /**
