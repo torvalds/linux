@@ -232,8 +232,10 @@ static int arizona_runtime_resume(struct device *dev)
 	regcache_cache_only(arizona->regmap, false);
 
 	ret = arizona_wait_for_boot(arizona);
-	if (ret != 0)
+	if (ret != 0) {
+		regulator_disable(arizona->dcvdd);
 		return ret;
+	}
 
 	regcache_sync(arizona->regmap);
 
