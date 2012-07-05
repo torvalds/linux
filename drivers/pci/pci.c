@@ -673,6 +673,19 @@ void pci_update_current_state(struct pci_dev *dev, pci_power_t state)
 }
 
 /**
+ * pci_power_up - Put the given device into D0 forcibly
+ * @dev: PCI device to power up
+ */
+void pci_power_up(struct pci_dev *dev)
+{
+	if (platform_pci_power_manageable(dev))
+		platform_pci_set_power_state(dev, PCI_D0);
+
+	pci_raw_set_power_state(dev, PCI_D0);
+	pci_update_current_state(dev, PCI_D0);
+}
+
+/**
  * pci_platform_power_transition - Use platform to change device power state
  * @dev: PCI device to handle.
  * @state: State to put the device into.
@@ -762,7 +775,7 @@ int __pci_complete_power_transition(struct pci_dev *dev, pci_power_t state)
 {
 	int ret;
 
-	if (state < PCI_D0)
+	if (state <= PCI_D0)
 		return -EINVAL;
 	ret = pci_platform_power_transition(dev, state);
 	/* Power off the bridge may power off the whole hierarchy */
@@ -802,6 +815,10 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		 * ignore the request if we're doing anything other than putting
 		 * it into D0 (which would only happen on boot).
 		 */
+		return 0;
+
+	/* Check if we're already there */
+	if (dev->current_state == state)
 		return 0;
 
 	__pci_start_power_transition(dev, state);
