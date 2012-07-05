@@ -76,7 +76,7 @@ static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
 		container_of(tx, struct shdma_desc, async_tx),
 		*last = desc;
 	struct shdma_chan *schan = to_shdma_chan(tx->chan);
-	struct shdma_slave *slave = tx->chan->private;
+	struct shdma_slave *slave = schan->slave;
 	dma_async_tx_callback callback = tx->callback;
 	dma_cookie_t cookie;
 	bool power_up;
@@ -208,6 +208,7 @@ static int shdma_alloc_chan_resources(struct dma_chan *chan)
 		goto edescalloc;
 	}
 	schan->desc_num = NR_DESCS_PER_CHANNEL;
+	schan->slave = slave;
 
 	for (i = 0; i < NR_DESCS_PER_CHANNEL; i++) {
 		desc = ops->embedded_desc(schan->desc, i);
@@ -365,9 +366,9 @@ static void shdma_free_chan_resources(struct dma_chan *chan)
 	if (!list_empty(&schan->ld_queue))
 		shdma_chan_ld_cleanup(schan, true);
 
-	if (chan->private) {
+	if (schan->slave) {
 		/* The caller is holding dma_list_mutex */
-		struct shdma_slave *slave = chan->private;
+		struct shdma_slave *slave = schan->slave;
 		clear_bit(slave->slave_id, shdma_slave_used);
 		chan->private = NULL;
 	}
@@ -558,7 +559,7 @@ static struct dma_async_tx_descriptor *shdma_prep_slave_sg(
 	struct shdma_chan *schan = to_shdma_chan(chan);
 	struct shdma_dev *sdev = to_shdma_dev(schan->dma_chan.device);
 	const struct shdma_ops *ops = sdev->ops;
-	struct shdma_slave *slave = chan->private;
+	struct shdma_slave *slave = schan->slave;
 	dma_addr_t slave_addr;
 
 	if (!chan)

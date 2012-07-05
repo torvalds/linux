@@ -291,10 +291,8 @@ static void sh_dmae_setup_xfer(struct shdma_chan *schan,
 						    shdma_chan);
 
 	if (sslave) {
-		struct sh_dmae_slave *slave = container_of(sslave,
-					struct sh_dmae_slave, shdma_slave);
 		const struct sh_dmae_slave_config *cfg =
-			slave->config;
+			sh_chan->config;
 
 		dmae_set_dmars(sh_chan, cfg->mid_rid);
 		dmae_set_chcr(sh_chan, cfg->chcr);
@@ -326,13 +324,11 @@ static int sh_dmae_set_slave(struct shdma_chan *schan,
 {
 	struct sh_dmae_chan *sh_chan = container_of(schan, struct sh_dmae_chan,
 						    shdma_chan);
-	struct sh_dmae_slave *slave = container_of(sslave, struct sh_dmae_slave,
-						   shdma_slave);
 	const struct sh_dmae_slave_config *cfg = dmae_find_slave(sh_chan, sslave->slave_id);
 	if (!cfg)
 		return -ENODEV;
 
-	slave->config = cfg;
+	sh_chan->config = cfg;
 
 	return 0;
 }
@@ -579,13 +575,12 @@ static int sh_dmae_resume(struct device *dev)
 
 	for (i = 0; i < shdev->pdata->channel_num; i++) {
 		struct sh_dmae_chan *sh_chan = shdev->chan[i];
-		struct sh_dmae_slave *param = sh_chan->shdma_chan.dma_chan.private;
 
 		if (!sh_chan->shdma_chan.desc_num)
 			continue;
 
-		if (param) {
-			const struct sh_dmae_slave_config *cfg = param->config;
+		if (sh_chan->shdma_chan.slave) {
+			const struct sh_dmae_slave_config *cfg = sh_chan->config;
 			dmae_set_dmars(sh_chan, cfg->mid_rid);
 			dmae_set_chcr(sh_chan, cfg->chcr);
 		} else {
@@ -609,14 +604,15 @@ const struct dev_pm_ops sh_dmae_pm = {
 
 static dma_addr_t sh_dmae_slave_addr(struct shdma_chan *schan)
 {
-	struct sh_dmae_slave *param = schan->dma_chan.private;
+	struct sh_dmae_chan *sh_chan = container_of(schan,
+					struct sh_dmae_chan, shdma_chan);
 
 	/*
-	 * Implicit BUG_ON(!param)
-	 * if (param != NULL), this is a successfully requested slave channel,
-	 * therefore param->config != NULL too.
+	 * Implicit BUG_ON(!sh_chan->config)
+	 * This is an exclusive slave DMA operation, may only be called after a
+	 * successful slave configuration.
 	 */
-	return param->config->addr;
+	return sh_chan->config->addr;
 }
 
 static struct shdma_desc *sh_dmae_embedded_desc(void *buf, int i)

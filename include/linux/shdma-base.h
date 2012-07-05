@@ -66,6 +66,7 @@ struct shdma_chan {
 	size_t max_xfer_len;		/* max transfer length */
 	int id;				/* Raw id of this channel */
 	int irq;			/* Channel IRQ */
+	struct shdma_slave *slave;	/* Client data for slave DMA */
 	enum shdma_pm_state pm_state;
 };
 

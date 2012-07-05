@@ -20,8 +20,6 @@ struct device;
 /* Used by slave DMA clients to request DMA to/from a specific peripheral */
 struct sh_dmae_slave {
 	struct shdma_slave		shdma_slave;	/* Set by the platform */
-	struct device			*dma_dev;	/* Set by the platform */
-	const struct sh_dmae_slave_config *config;	/* Set by the driver */
 };
 
 /*

@@ -13,6 +13,7 @@
 #ifndef __DMA_SHDMA_H
 #define __DMA_SHDMA_H
 
+#include <linux/sh_dma.h>
 #include <linux/shdma-base.h>
 #include <linux/dmaengine.h>
 #include <linux/interrupt.h>
@@ -25,6 +26,7 @@ struct device;
 
 struct sh_dmae_chan {
 	struct shdma_chan shdma_chan;
+	const struct sh_dmae_slave_config *config; /* Slave DMA configuration */
 	int xmit_shift;			/* log_2(bytes_per_xfer) */
 	u32 __iomem *base;
 	char dev_id[16];		/* unique name per DMAC of channel */
