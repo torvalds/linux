@@ -179,7 +179,7 @@ static DEFINE_PCI_DEVICE_TABLE(stmmac_id_table) = {
 
 MODULE_DEVICE_TABLE(pci, stmmac_id_table);
 
-static struct pci_driver stmmac_driver = {
+struct pci_driver stmmac_pci_driver = {
 	.name = STMMAC_RESOURCE_NAME,
 	.id_table = stmmac_id_table,
 	.probe = stmmac_pci_probe,
@@ -189,33 +189,6 @@ static struct pci_driver stmmac_driver = {
 	.resume = stmmac_pci_resume,
 #endif
 };
-
-/**
- * stmmac_init_module - Entry point for the driver
- * Description: This function is the entry point for the driver.
- */
-static int __init stmmac_init_module(void)
-{
-	int ret;
-
-	ret = pci_register_driver(&stmmac_driver);
-	if (ret < 0)
-		pr_err("%s: ERROR: driver registration failed\n", __func__);
-
-	return ret;
-}
-
-/**
- * stmmac_cleanup_module - Cleanup routine for the driver
- * Description: This function is the cleanup routine for the driver.
- */
-static void __exit stmmac_cleanup_module(void)
-{
-	pci_unregister_driver(&stmmac_driver);
-}
-
-module_init(stmmac_init_module);
-module_exit(stmmac_cleanup_module);
 
 MODULE_DESCRIPTION("STMMAC 10/100/1000 Ethernet PCI driver");
 MODULE_AUTHOR("Rayagond Kokatanur <rayagond.kokatanur@vayavyalabs.com>");
