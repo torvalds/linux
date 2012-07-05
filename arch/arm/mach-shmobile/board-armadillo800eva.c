@@ -1177,6 +1177,9 @@ static void __init eva_init(void)
 			     ARRAY_SIZE(eva_devices));
 
 	eva_clock_init();
+
+	rmobile_add_device_to_domain(&r8a7740_pd_a4lc, &lcdc0_device);
+	rmobile_add_device_to_domain(&r8a7740_pd_a4lc, &hdmi_lcdc_device);
 }
 
 static void __init eva_earlytimer_init(void)
