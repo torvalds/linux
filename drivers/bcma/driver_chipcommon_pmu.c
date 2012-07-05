@@ -66,8 +66,8 @@ static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
 		max_msk = 0xFFFF;
 		break;
 	default:
-		pr_debug("PMU resource config unknown or not needed for device 0x%04X\n",
-			 bus->chipinfo.id);
+		bcma_debug(bus, "PMU resource config unknown or not needed for device 0x%04X\n",
+			   bus->chipinfo.id);
 	}
 
 	/* Set the resource masks. */
@@ -136,8 +136,8 @@ void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 		}
 		break;
 	default:
-		pr_debug("Workarounds unknown or not needed for device 0x%04X\n",
-			 bus->chipinfo.id);
+		bcma_debug(bus, "Workarounds unknown or not needed for device 0x%04X\n",
+			   bus->chipinfo.id);
 	}
 }
 
@@ -148,8 +148,8 @@ void bcma_pmu_init(struct bcma_drv_cc *cc)
 	pmucap = bcma_cc_read32(cc, BCMA_CC_PMU_CAP);
 	cc->pmu.rev = (pmucap & BCMA_CC_PMU_CAP_REVISION);
 
-	pr_debug("Found rev %u PMU (capabilities 0x%08X)\n", cc->pmu.rev,
-		 pmucap);
+	bcma_debug(cc->core->bus, "Found rev %u PMU (capabilities 0x%08X)\n",
+		   cc->pmu.rev, pmucap);
 
 	if (cc->pmu.rev == 1)
 		bcma_cc_mask32(cc, BCMA_CC_PMU_CTL,
@@ -181,9 +181,8 @@ u32 bcma_pmu_alp_clock(struct bcma_drv_cc *cc)
 		/* always 25Mhz */
 		return 25000 * 1000;
 	default:
-		pr_warn("No ALP clock specified for %04X device, "
-			"pmu rev. %d, using default %d Hz\n",
-			bus->chipinfo.id, cc->pmu.rev, BCMA_CC_PMU_ALP_CLOCK);
+		bcma_warn(bus, "No ALP clock specified for %04X device, pmu rev. %d, using default %d Hz\n",
+			  bus->chipinfo.id, cc->pmu.rev, BCMA_CC_PMU_ALP_CLOCK);
 	}
 	return BCMA_CC_PMU_ALP_CLOCK;
 }
@@ -251,9 +250,8 @@ u32 bcma_pmu_get_clockcontrol(struct bcma_drv_cc *cc)
 	case BCMA_CHIP_ID_BCM53572:
 		return 75000000;
 	default:
-		pr_warn("No backplane clock specified for %04X device, "
-			"pmu rev. %d, using default %d Hz\n",
-			bus->chipinfo.id, cc->pmu.rev, BCMA_CC_PMU_HT_CLOCK);
+		bcma_warn(bus, "No backplane clock specified for %04X device, pmu rev. %d, using default %d Hz\n",
+			  bus->chipinfo.id, cc->pmu.rev, BCMA_CC_PMU_HT_CLOCK);
 	}
 	return BCMA_CC_PMU_HT_CLOCK;
 }
@@ -459,8 +457,8 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 		tmp = 1 << 10;
 		break;
 	default:
-		pr_err("unknown spuravoidance settings for chip 0x%04X, not changing PLL\n",
-		       bus->chipinfo.id);
+		bcma_err(bus, "Unknown spuravoidance settings for chip 0x%04X, not changing PLL\n",
+			 bus->chipinfo.id);
 		break;
 	}
 

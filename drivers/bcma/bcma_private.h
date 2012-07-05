@@ -10,6 +10,15 @@
 
 #define BCMA_CORE_SIZE		0x1000
 
+#define bcma_err(bus, fmt, ...) \
+	pr_err("bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
+#define bcma_warn(bus, fmt, ...) \
+	pr_warn("bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
+#define bcma_info(bus, fmt, ...) \
+	pr_info("bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
+#define bcma_debug(bus, fmt, ...) \
+	pr_debug("bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
+
 struct bcma_bus;
 
 /* main.c */

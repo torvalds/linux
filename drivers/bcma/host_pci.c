@@ -18,7 +18,7 @@ static void bcma_host_pci_switch_core(struct bcma_device *core)
 	pci_write_config_dword(core->bus->host_pci, BCMA_PCI_BAR0_WIN2,
 			       core->wrap);
 	core->bus->mapped_core = core;
-	pr_debug("Switched to core: 0x%X\n", core->id.id);
+	bcma_debug(core->bus, "Switched to core: 0x%X\n", core->id.id);
 }
 
 /* Provides access to the requested core. Returns base offset that has to be
@@ -188,7 +188,7 @@ static int __devinit bcma_host_pci_probe(struct pci_dev *dev,
 
 	/* SSB needed additional powering up, do we have any AMBA PCI cards? */
 	if (!pci_is_pcie(dev))
-		pr_err("PCI card detected, report problems.\n");
+		bcma_err(bus, "PCI card detected, report problems.\n");
 
 	/* Map MMIO */
 	err = -ENOMEM;

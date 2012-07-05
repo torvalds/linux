@@ -143,8 +143,8 @@ static void bcma_core_mips_set_irq(struct bcma_device *dev, unsigned int irq)
 			     1 << irqflag);
 	}
 
-	pr_info("set_irq: core 0x%04x, irq %d => %d\n",
-		dev->id.id, oldirq + 2, irq + 2);
+	bcma_info(bus, "set_irq: core 0x%04x, irq %d => %d\n",
+		  dev->id.id, oldirq + 2, irq + 2);
 }
 
 static void bcma_core_mips_print_irq(struct bcma_device *dev, unsigned int irq)
@@ -173,7 +173,7 @@ u32 bcma_cpu_clock(struct bcma_drv_mips *mcore)
 	if (bus->drv_cc.capabilities & BCMA_CC_CAP_PMU)
 		return bcma_pmu_get_clockcpu(&bus->drv_cc);
 
-	pr_err("No PMU available, need this to get the cpu clock\n");
+	bcma_err(bus, "No PMU available, need this to get the cpu clock\n");
 	return 0;
 }
 EXPORT_SYMBOL(bcma_cpu_clock);
@@ -185,10 +185,10 @@ static void bcma_core_mips_flash_detect(struct bcma_drv_mips *mcore)
 	switch (bus->drv_cc.capabilities & BCMA_CC_CAP_FLASHT) {
 	case BCMA_CC_FLASHT_STSER:
 	case BCMA_CC_FLASHT_ATSER:
-		pr_err("Serial flash not supported.\n");
+		bcma_err(bus, "Serial flash not supported.\n");
 		break;
 	case BCMA_CC_FLASHT_PARA:
-		pr_info("found parallel flash.\n");
+		bcma_info(bus, "found parallel flash.\n");
 		bus->drv_cc.pflash.window = 0x1c000000;
 		bus->drv_cc.pflash.window_size = 0x02000000;
 
@@ -199,7 +199,7 @@ static void bcma_core_mips_flash_detect(struct bcma_drv_mips *mcore)
 			bus->drv_cc.pflash.buswidth = 2;
 		break;
 	default:
-		pr_err("flash not supported.\n");
+		bcma_err(bus, "flash not supported.\n");
 	}
 }
 
@@ -209,7 +209,7 @@ void bcma_core_mips_init(struct bcma_drv_mips *mcore)
 	struct bcma_device *core;
 	bus = mcore->core->bus;
 
-	pr_info("Initializing MIPS core...\n");
+	bcma_info(bus, "Initializing MIPS core...\n");
 
 	if (!mcore->setup_done)
 		mcore->assigned_irqs = 1;
@@ -244,7 +244,7 @@ void bcma_core_mips_init(struct bcma_drv_mips *mcore)
 			break;
 		}
 	}
-	pr_info("IRQ reconfiguration done\n");
+	bcma_info(bus, "IRQ reconfiguration done\n");
 	bcma_core_mips_dump_irq(bus);
 
 	if (mcore->setup_done)

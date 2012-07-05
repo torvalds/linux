@@ -60,11 +60,11 @@ static int bcma_fill_sprom_with_fallback(struct bcma_bus *bus,
 	if (err)
 		goto fail;
 
-	pr_debug("Using SPROM revision %d provided by"
-		 " platform.\n", bus->sprom.revision);
+	bcma_debug(bus, "Using SPROM revision %d provided by platform.\n",
+		   bus->sprom.revision);
 	return 0;
 fail:
-	pr_warn("Using fallback SPROM failed (err %d)\n", err);
+	bcma_warn(bus, "Using fallback SPROM failed (err %d)\n", err);
 	return err;
 }
 
@@ -583,7 +583,7 @@ int bcma_sprom_get(struct bcma_bus *bus)
 	    bus->chipinfo.id == BCMA_CHIP_ID_BCM43431)
 		bcma_chipco_bcm4331_ext_pa_lines_ctl(&bus->drv_cc, false);
 
-	pr_debug("SPROM offset 0x%x\n", offset);
+	bcma_debug(bus, "SPROM offset 0x%x\n", offset);
 	bcma_sprom_read(bus, offset, sprom);
 
 	if (bus->chipinfo.id == BCMA_CHIP_ID_BCM4331 ||

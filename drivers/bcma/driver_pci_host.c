@@ -36,7 +36,7 @@ bool __devinit bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc)
 		return false;
 
 	if (bus->sprom.boardflags_lo & BCMA_CORE_PCI_BFL_NOPCI) {
-		pr_info("This PCI core is disabled and not working\n");
+		bcma_info(bus, "This PCI core is disabled and not working\n");
 		return false;
 	}
 
@@ -341,6 +341,7 @@ static u8 __devinit bcma_find_pci_capability(struct bcma_drv_pci *pc,
  */
 static void __devinit bcma_core_pci_enable_crs(struct bcma_drv_pci *pc)
 {
+	struct bcma_bus *bus = pc->core->bus;
 	u8 cap_ptr, root_ctrl, root_cap, dev;
 	u16 val16;
 	int i;
@@ -379,7 +380,8 @@ static void __devinit bcma_core_pci_enable_crs(struct bcma_drv_pci *pc)
 				udelay(10);
 			}
 			if (val16 == 0x1)
-				pr_err("PCI: Broken device in slot %d\n", dev);
+				bcma_err(bus, "PCI: Broken device in slot %d\n",
+					 dev);
 		}
 	}
 }
@@ -392,11 +394,11 @@ void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 	u32 pci_membase_1G;
 	unsigned long io_map_base;
 
-	pr_info("PCIEcore in host mode found\n");
+	bcma_info(bus, "PCIEcore in host mode found\n");
 
 	pc_host = kzalloc(sizeof(*pc_host), GFP_KERNEL);
 	if (!pc_host)  {
-		pr_err("can not allocate memory");
+		bcma_err(bus, "can not allocate memory");
 		return;
 	}
 
