@@ -2618,7 +2618,8 @@ static bool nl80211_put_sta_rate(struct sk_buff *msg, struct rate_info *info,
 				 int attr)
 {
 	struct nlattr *rate;
-	u16 bitrate;
+	u32 bitrate;
+	u16 bitrate_compat;
 
 	rate = nla_nest_start(msg, attr);
 	if (!rate)
@@ -2626,8 +2627,12 @@ static bool nl80211_put_sta_rate(struct sk_buff *msg, struct rate_info *info,
 
 	/* cfg80211_calculate_bitrate will return 0 for mcs >= 32 */
 	bitrate = cfg80211_calculate_bitrate(info);
+	/* report 16-bit bitrate only if we can */
+	bitrate_compat = bitrate < (1UL << 16) ? bitrate : 0;
 	if ((bitrate > 0 &&
-	     nla_put_u16(msg, NL80211_RATE_INFO_BITRATE, bitrate)) ||
+	     nla_put_u32(msg, NL80211_RATE_INFO_BITRATE32, bitrate)) ||
+	    (bitrate_compat > 0 &&
+	     nla_put_u16(msg, NL80211_RATE_INFO_BITRATE, bitrate_compat)) ||
 	    ((info->flags & RATE_INFO_FLAGS_MCS) &&
 	     nla_put_u8(msg, NL80211_RATE_INFO_MCS, info->mcs)) ||
 	    ((info->flags & RATE_INFO_FLAGS_40_MHZ_WIDTH) &&
