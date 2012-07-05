@@ -6726,8 +6726,8 @@ static void intel_set_config_free(struct intel_set_config *config)
 	if (!config)
 		return;
 
-	kfree(config->save_connectors);
-	kfree(config->save_encoders);
+	kfree(config->save_connector_encoders);
+	kfree(config->save_encoder_crtcs);
 	kfree(config->save_crtcs);
 	kfree(config);
 }
@@ -6742,19 +6742,21 @@ static int intel_set_config_save_state(struct drm_device *dev,
 
 	/* Allocate space for the backup of all (non-pointer) crtc, encoder and
 	 * connector data. */
-	config->save_crtcs = kzalloc(dev->mode_config.num_crtc *
+	config->save_crtcs = kcalloc(dev->mode_config.num_crtc,
 				     sizeof(struct drm_crtc), GFP_KERNEL);
 	if (!config->save_crtcs)
 		return -ENOMEM;
 
-	config->save_encoders = kzalloc(dev->mode_config.num_encoder *
-					sizeof(struct drm_encoder), GFP_KERNEL);
-	if (!config->save_encoders)
+	config->save_encoder_crtcs =
+		kcalloc(dev->mode_config.num_encoder,
+			sizeof(struct drm_crtc *), GFP_KERNEL);
+	if (!config->save_encoder_crtcs)
 		return -ENOMEM;
 
-	config->save_connectors = kzalloc(dev->mode_config.num_connector *
-					  sizeof(struct drm_connector), GFP_KERNEL);
-	if (!config->save_connectors)
+	config->save_connector_encoders =
+		kcalloc(dev->mode_config.num_connector,
+			sizeof(struct drm_encoder *), GFP_KERNEL);
+	if (!config->save_connector_encoders)
 		return -ENOMEM;
 
 	/* Copy data. Note that driver private data is not affected.
@@ -6768,12 +6770,12 @@ static int intel_set_config_save_state(struct drm_device *dev,
 
 	count = 0;
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		config->save_encoders[count++] = *encoder;
+		config->save_encoder_crtcs[count++] = encoder->crtc;
 	}
 
 	count = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		config->save_connectors[count++] = *connector;
+		config->save_connector_encoders[count++] = connector->encoder;
 	}
 
 	return 0;
@@ -6794,12 +6796,12 @@ static void intel_set_config_restore_state(struct drm_device *dev,
 
 	count = 0;
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		*encoder = config->save_encoders[count++];
+		encoder->crtc = config->save_encoder_crtcs[count++];
 	}
 
 	count = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		*connector = config->save_connectors[count++];
+		connector->encoder = config->save_connector_encoders[count++];
 	}
 }
 
