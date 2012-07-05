@@ -956,6 +956,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 			break;
         case RGA_GET_RESULT:
             ret = rga_get_result(session, arg);
+            break;
         case RGA_GET_VERSION:
             ret = copy_to_user((void *)arg, RGA_VERSION, sizeof(RGA_VERSION));
             //ret = 0;
