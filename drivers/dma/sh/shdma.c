@@ -304,18 +304,18 @@ static void sh_dmae_setup_xfer(struct shdma_chan *schan,
 }
 
 static const struct sh_dmae_slave_config *dmae_find_slave(
-	struct sh_dmae_chan *sh_chan, struct sh_dmae_slave *slave)
+	struct sh_dmae_chan *sh_chan, unsigned int slave_id)
 {
 	struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
 	struct sh_dmae_pdata *pdata = shdev->pdata;
 	const struct sh_dmae_slave_config *cfg;
 	int i;
 
-	if (slave->shdma_slave.slave_id >= SH_DMA_SLAVE_NUMBER)
+	if (slave_id >= SH_DMA_SLAVE_NUMBER)
 		return NULL;
 
 	for (i = 0, cfg = pdata->slave; i < pdata->slave_num; i++, cfg++)
-		if (cfg->slave_id == slave->shdma_slave.slave_id)
+		if (cfg->slave_id == slave_id)
 			return cfg;
 
 	return NULL;
@@ -328,7 +328,7 @@ static int sh_dmae_set_slave(struct shdma_chan *schan,
 						    shdma_chan);
 	struct sh_dmae_slave *slave = container_of(sslave, struct sh_dmae_slave,
 						   shdma_slave);
-	const struct sh_dmae_slave_config *cfg = dmae_find_slave(sh_chan, slave);
+	const struct sh_dmae_slave_config *cfg = dmae_find_slave(sh_chan, sslave->slave_id);
 	if (!cfg)
 		return -ENODEV;
 
