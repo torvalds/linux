@@ -588,12 +588,25 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static const char *arizona_dai_clk_str(int clk_id)
+{
+	switch (clk_id) {
+	case ARIZONA_CLK_SYSCLK:
+		return "SYSCLK";
+	case ARIZONA_CLK_ASYNCCLK:
+		return "ASYNCCLK";
+	default:
+		return "Unknown clock";
+	}
+}
+
 static int arizona_dai_set_sysclk(struct snd_soc_dai *dai,
 				  int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona_dai_priv *dai_priv = &priv->dai[dai->id - 1];
+	struct snd_soc_dapm_route routes[2];
 
 	switch (clk_id) {
 	case ARIZONA_CLK_SYSCLK:
@@ -603,15 +616,28 @@ static int arizona_dai_set_sysclk(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
-	if (clk_id != dai_priv->clk && dai->active) {
+	if (clk_id == dai_priv->clk)
+		return 0;
+
+	if (dai->active) {
 		dev_err(codec->dev, "Can't change clock on active DAI %d\n",
 			dai->id);
 		return -EBUSY;
 	}
 
-	dai_priv->clk = clk_id;
+	memset(&routes, 0, sizeof(routes));
+	routes[0].sink = dai->driver->capture.stream_name;
+	routes[1].sink = dai->driver->playback.stream_name;
 
-	return 0;
+	routes[0].source = arizona_dai_clk_str(dai_priv->clk);
+	routes[1].source = arizona_dai_clk_str(dai_priv->clk);
+	snd_soc_dapm_del_routes(&codec->dapm, routes, ARRAY_SIZE(routes));
+
+	routes[0].source = arizona_dai_clk_str(clk_id);
+	routes[1].source = arizona_dai_clk_str(clk_id);
+	snd_soc_dapm_add_routes(&codec->dapm, routes, ARRAY_SIZE(routes));
+
+	return snd_soc_dapm_sync(&codec->dapm);
 }
 
 const struct snd_soc_dai_ops arizona_dai_ops = {
