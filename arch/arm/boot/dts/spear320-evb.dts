@@ -76,12 +76,8 @@
 					st,function = "mii2";
 				};
 				pwm0_1 {
-					st,pins = "pwm0_1_pin_14_15_grp";
+					st,pins = "pwm0_1_pin_37_38_grp";
 					st,function = "pwm0_1";
-				};
-				pwm2 {
-					st,pins = "pwm2_pin_13_grp";
-					st,function = "pwm2";
 				};
 			};
 		};

@@ -30,9 +30,13 @@
 			pinctrl-0 = <&state_default>;
 
 			state_default: pinmux {
-				i2c0-pmx {
+				i2c0 {
 					st,pins = "i2c0_grp";
 					st,function = "i2c0";
+				};
+				i2s0 {
+					st,pins = "i2s0_grp";
+					st,function = "i2s0";
 				};
 				i2s1 {
 					st,pins = "i2s1_grp";
@@ -41,6 +45,10 @@
 				gpio {
 					st,pins = "arm_gpio_grp";
 					st,function = "arm_gpio";
+				};
+				clcd {
+					st,pins = "clcd_grp" , "clcd_high_res";
+					st,function = "clcd";
 				};
 				eth {
 					st,pins = "gmii_grp";
@@ -74,11 +82,6 @@
 					st,pins = "i2c_1_2_grp";
 					st,function = "i2c_1_2";
 				};
-				pci {
-					st,pins = "pcie0_grp","pcie1_grp",
-						"pcie2_grp";
-					st,function = "pci";
-				};
 				smii {
 					st,pins = "smii_0_1_2_grp";
 					st,function = "smii_0_1_2";
@@ -87,6 +90,14 @@
 					st,pins = "nand_8bit_grp",
 						"nand_16bit_grp";
 					st,function = "nand";
+				};
+				sata {
+					st,pins = "sata0_grp";
+					st,function = "sata";
+				};
+				pcie {
+					st,pins = "pcie1_grp", "pcie2_grp";
+					st,function = "pci_express";
 				};
 			};
 		};

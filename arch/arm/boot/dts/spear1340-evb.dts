@@ -38,20 +38,15 @@
 					st,pins = "fsmc_8bit_grp";
 					st,function = "fsmc";
 				};
-				kbd {
-					st,pins = "keyboard_row_col_grp",
-						"keyboard_col5_grp";
-					st,function = "keyboard";
-				};
 				uart0 {
-					st,pins = "uart0_grp", "uart0_enh_grp";
+					st,pins = "uart0_grp";
 					st,function = "uart0";
 				};
-				i2c0-pmx {
+				i2c0 {
 					st,pins = "i2c0_grp";
 					st,function = "i2c0";
 				};
-				i2c1-pmx {
+				i2c1 {
 					st,pins = "i2c1_grp";
 					st,function = "i2c1";
 				};
@@ -64,13 +59,8 @@
 					st,function = "spdif_out";
 				};
 				ssp0 {
-					st,pins = "ssp0_grp", "ssp0_cs1_grp",
-						"ssp0_cs3_grp";
+					st,pins = "ssp0_grp", "ssp0_cs1_grp", "ssp0_cs2_grp", "ssp0_cs3_grp";
 					st,function = "ssp0";
-				};
-				pwm {
-					st,pins = "pwm2_grp", "pwm3_grp";
-					st,function = "pwm";
 				};
 				smi-pmx {
 					st,pins = "smi_grp";
@@ -83,6 +73,18 @@
 				gmac {
 					st,pins = "gmii_grp", "rgmii_grp";
 					st,function = "gmac";
+				};
+				cam0 {
+					st,pins = "cam0_grp";
+					st,function = "cam0";
+				};
+				cam1 {
+					st,pins = "cam1_grp";
+					st,function = "cam1";
+				};
+				cam2 {
+					st,pins = "cam2_grp";
+					st,function = "cam2";
 				};
 				cam3 {
 					st,pins = "cam3_grp";
@@ -108,6 +110,11 @@
 					st,pins = "sata_grp";
 					st,function = "sata";
 				};
+				pcie {
+					st,pins = "pcie_grp";
+					st,function = "pcie";
+				};
+
 			};
 		};
 
