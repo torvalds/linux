@@ -211,8 +211,6 @@ struct sh_mmcif_host {
 	struct mmc_host *mmc;
 	struct mmc_request *mrq;
 	struct platform_device *pd;
-	struct sh_dmae_slave dma_slave_tx;
-	struct sh_dmae_slave dma_slave_rx;
 	struct clk *hclk;
 	unsigned int clk;
 	int bus_width;
@@ -371,52 +369,66 @@ static void sh_mmcif_start_dma_tx(struct sh_mmcif_host *host)
 		desc, cookie);
 }
 
-static bool sh_mmcif_filter(struct dma_chan *chan, void *arg)
-{
-	dev_dbg(chan->device->dev, "%s: slave data %p\n", __func__, arg);
-	chan->private = arg;
-	return true;
-}
-
 static void sh_mmcif_request_dma(struct sh_mmcif_host *host,
 				 struct sh_mmcif_plat_data *pdata)
 {
-	struct sh_dmae_slave *tx, *rx;
+	struct resource *res = platform_get_resource(host->pd, IORESOURCE_MEM, 0);
+	struct dma_slave_config cfg;
+	dma_cap_mask_t mask;
+	int ret;
+
 	host->dma_active = false;
 
+	if (pdata->slave_id_tx <= 0 || pdata->slave_id_rx <= 0)
+		return;
+
 	/* We can only either use DMA for both Tx and Rx or not use it at all */
-	tx = &host->dma_slave_tx;
-	tx->shdma_slave.slave_id = pdata->slave_id_tx;
-	rx = &host->dma_slave_rx;
-	rx->shdma_slave.slave_id = pdata->slave_id_rx;
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
 
-	if (tx->shdma_slave.slave_id > 0 && rx->shdma_slave.slave_id > 0) {
-		dma_cap_mask_t mask;
+	host->chan_tx = dma_request_channel(mask, shdma_chan_filter,
+					    (void *)pdata->slave_id_tx);
+	dev_dbg(&host->pd->dev, "%s: TX: got channel %p\n", __func__,
+		host->chan_tx);
 
-		dma_cap_zero(mask);
-		dma_cap_set(DMA_SLAVE, mask);
+	if (!host->chan_tx)
+		return;
 
-		host->chan_tx = dma_request_channel(mask, sh_mmcif_filter,
-						    &tx->shdma_slave);
-		dev_dbg(&host->pd->dev, "%s: TX: got channel %p\n", __func__,
-			host->chan_tx);
+	cfg.slave_id = pdata->slave_id_tx;
+	cfg.direction = DMA_MEM_TO_DEV;
+	cfg.dst_addr = res->start + MMCIF_CE_DATA;
+	cfg.src_addr = 0;
+	ret = dmaengine_slave_config(host->chan_tx, &cfg);
+	if (ret < 0)
+		goto ecfgtx;
 
-		if (!host->chan_tx)
-			return;
+	host->chan_rx = dma_request_channel(mask, shdma_chan_filter,
+					    (void *)pdata->slave_id_rx);
+	dev_dbg(&host->pd->dev, "%s: RX: got channel %p\n", __func__,
+		host->chan_rx);
 
-		host->chan_rx = dma_request_channel(mask, sh_mmcif_filter,
-						    &rx->shdma_slave);
-		dev_dbg(&host->pd->dev, "%s: RX: got channel %p\n", __func__,
-			host->chan_rx);
+	if (!host->chan_rx)
+		goto erqrx;
 
-		if (!host->chan_rx) {
-			dma_release_channel(host->chan_tx);
-			host->chan_tx = NULL;
-			return;
-		}
+	cfg.slave_id = pdata->slave_id_rx;
+	cfg.direction = DMA_DEV_TO_MEM;
+	cfg.dst_addr = 0;
+	cfg.src_addr = res->start + MMCIF_CE_DATA;
+	ret = dmaengine_slave_config(host->chan_rx, &cfg);
+	if (ret < 0)
+		goto ecfgrx;
 
-		init_completion(&host->dma_complete);
-	}
+	init_completion(&host->dma_complete);
+
+	return;
+
+ecfgrx:
+	dma_release_channel(host->chan_rx);
+	host->chan_rx = NULL;
+erqrx:
+ecfgtx:
+	dma_release_channel(host->chan_tx);
+	host->chan_tx = NULL;
 }
 
 static void sh_mmcif_release_dma(struct sh_mmcif_host *host)
