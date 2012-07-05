@@ -444,11 +444,14 @@ static int cgw_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static int cgw_put_job(struct sk_buff *skb, struct cgw_job *gwj)
+static int cgw_put_job(struct sk_buff *skb, struct cgw_job *gwj, int type,
+		       u32 pid, u32 seq, int flags)
 {
 	struct cgw_frame_mod mb;
 	struct rtcanmsg *rtcan;
-	struct nlmsghdr *nlh = nlmsg_put(skb, 0, 0, 0, sizeof(*rtcan), 0);
+	struct nlmsghdr *nlh;
+
+	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*rtcan), flags);
 	if (!nlh)
 		return -EMSGSIZE;
 
@@ -546,7 +549,8 @@ static int cgw_dump_jobs(struct sk_buff *skb, struct netlink_callback *cb)
 		if (idx < s_idx)
 			goto cont;
 
-		if (cgw_put_job(skb, gwj) < 0)
+		if (cgw_put_job(skb, gwj, RTM_NEWROUTE, NETLINK_CB(cb->skb).pid,
+		    cb->nlh->nlmsg_seq, NLM_F_MULTI) < 0)
 			break;
 cont:
 		idx++;
