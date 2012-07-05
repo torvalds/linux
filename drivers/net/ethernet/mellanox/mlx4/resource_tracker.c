@@ -58,7 +58,7 @@ struct mac_res {
 struct res_common {
 	struct list_head	list;
 	struct rb_node		node;
-	u32		        res_id;
+	u64		        res_id;
 	int			owner;
 	int			state;
 	int			from_state;
@@ -324,7 +324,7 @@ static void *find_res(struct mlx4_dev *dev, int res_id,
 				  res_id);
 }
 
-static int get_res(struct mlx4_dev *dev, int slave, int res_id,
+static int get_res(struct mlx4_dev *dev, int slave, u64 res_id,
 		   enum mlx4_resource type,
 		   void *res)
 {
@@ -350,7 +350,7 @@ static int get_res(struct mlx4_dev *dev, int slave, int res_id,
 
 	r->from_state = r->state;
 	r->state = RES_ANY_BUSY;
-	mlx4_dbg(dev, "res %s id 0x%x to busy\n",
+	mlx4_dbg(dev, "res %s id 0x%llx to busy\n",
 		 ResourceType(type), r->res_id);
 
 	if (res)
@@ -363,7 +363,7 @@ exit:
 
 int mlx4_get_slave_from_resource_id(struct mlx4_dev *dev,
 				    enum mlx4_resource type,
-				    int res_id, int *slave)
+				    u64 res_id, int *slave)
 {
 
 	struct res_common *r;
@@ -384,7 +384,7 @@ int mlx4_get_slave_from_resource_id(struct mlx4_dev *dev,
 	return err;
 }
 
-static void put_res(struct mlx4_dev *dev, int slave, int res_id,
+static void put_res(struct mlx4_dev *dev, int slave, u64 res_id,
 		    enum mlx4_resource type)
 {
 	struct res_common *r;
@@ -516,7 +516,7 @@ static struct res_common *alloc_xrcdn_tr(int id)
 	return &ret->com;
 }
 
-static struct res_common *alloc_tr(int id, enum mlx4_resource type, int slave,
+static struct res_common *alloc_tr(u64 id, enum mlx4_resource type, int slave,
 				   int extra)
 {
 	struct res_common *ret;
@@ -558,7 +558,7 @@ static struct res_common *alloc_tr(int id, enum mlx4_resource type, int slave,
 	return ret;
 }
 
-static int add_res_range(struct mlx4_dev *dev, int slave, int base, int count,
+static int add_res_range(struct mlx4_dev *dev, int slave, u64 base, int count,
 			 enum mlx4_resource type, int extra)
 {
 	int i;
@@ -727,10 +727,10 @@ static int remove_ok(struct res_common *res, enum mlx4_resource type, int extra)
 	}
 }
 
-static int rem_res_range(struct mlx4_dev *dev, int slave, int base, int count,
+static int rem_res_range(struct mlx4_dev *dev, int slave, u64 base, int count,
 			 enum mlx4_resource type, int extra)
 {
-	int i;
+	u64 i;
 	int err;
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_resource_tracker *tracker = &priv->mfunc.master.res_tracker;
@@ -784,7 +784,7 @@ static int qp_res_start_move_to(struct mlx4_dev *dev, int slave, int qpn,
 	else {
 		switch (state) {
 		case RES_QP_BUSY:
-			mlx4_dbg(dev, "%s: failed RES_QP, 0x%x\n",
+			mlx4_dbg(dev, "%s: failed RES_QP, 0x%llx\n",
 				 __func__, r->com.res_id);
 			err = -EBUSY;
 			break;
@@ -793,7 +793,7 @@ static int qp_res_start_move_to(struct mlx4_dev *dev, int slave, int qpn,
 			if (r->com.state == RES_QP_MAPPED && !alloc)
 				break;
 
-			mlx4_dbg(dev, "failed RES_QP, 0x%x\n", r->com.res_id);
+			mlx4_dbg(dev, "failed RES_QP, 0x%llx\n", r->com.res_id);
 			err = -EINVAL;
 			break;
 
@@ -802,7 +802,7 @@ static int qp_res_start_move_to(struct mlx4_dev *dev, int slave, int qpn,
 			    r->com.state == RES_QP_HW)
 				break;
 			else {
-				mlx4_dbg(dev, "failed RES_QP, 0x%x\n",
+				mlx4_dbg(dev, "failed RES_QP, 0x%llx\n",
 					  r->com.res_id);
 				err = -EINVAL;
 			}
@@ -2794,7 +2794,7 @@ static int _move_all_busy(struct mlx4_dev *dev, int slave,
 				if (r->state == RES_ANY_BUSY) {
 					if (print)
 						mlx4_dbg(dev,
-							 "%s id 0x%x is busy\n",
+							 "%s id 0x%llx is busy\n",
 							  ResourceType(type),
 							  r->res_id);
 					++busy;

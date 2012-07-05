@@ -1033,7 +1033,7 @@ int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port);
 /* resource tracker functions*/
 int mlx4_get_slave_from_resource_id(struct mlx4_dev *dev,
 				    enum mlx4_resource resource_type,
-				    int resource_id, int *slave);
+				    u64 resource_id, int *slave);
 void mlx4_delete_all_resources_for_slave(struct mlx4_dev *dev, int slave_id);
 int mlx4_init_resource_tracker(struct mlx4_dev *dev);
 
