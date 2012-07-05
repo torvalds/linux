@@ -709,13 +709,13 @@ enum mac80211_rx_flags {
  */
 struct ieee80211_rx_status {
 	u64 mactime;
-	enum ieee80211_band band;
-	int freq;
-	int signal;
-	int antenna;
-	int rate_idx;
-	int flag;
-	unsigned int rx_flags;
+	u16 flag;
+	u16 freq;
+	u8 rate_idx;
+	u8 rx_flags;
+	u8 band;
+	u8 antenna;
+	s8 signal;
 };
 
 /**
