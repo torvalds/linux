@@ -27,6 +27,7 @@
 #include <sysdev/fsl_pci.h>
 #include <asm/udbg.h>
 #include <asm/fsl_guts.h>
+#include <asm/fsl_lbc.h>
 #include "smp.h"
 
 #include "mpc85xx.h"
@@ -142,17 +143,73 @@ static void p1022ds_set_gamma_table(enum fsl_diu_monitor_port port,
 {
 }
 
+struct fsl_law {
+	u32	lawbar;
+	u32	reserved1;
+	u32	lawar;
+	u32	reserved[5];
+};
+
+#define LAWBAR_MASK	0x00F00000
+#define LAWBAR_SHIFT	12
+
+#define LAWAR_EN	0x80000000
+#define LAWAR_TGT_MASK	0x01F00000
+#define LAW_TRGT_IF_LBC	(0x04 << 20)
+
+#define LAWAR_MASK	(LAWAR_EN | LAWAR_TGT_MASK)
+#define LAWAR_MATCH	(LAWAR_EN | LAW_TRGT_IF_LBC)
+
+#define BR_BA		0xFFFF8000
+
+/*
+ * Map a BRx value to a physical address
+ *
+ * The localbus BRx registers only store the lower 32 bits of the address.  To
+ * obtain the upper four bits, we need to scan the LAW table.  The entry which
+ * maps to the localbus will contain the upper four bits.
+ */
+static phys_addr_t lbc_br_to_phys(const void *ecm, unsigned int count, u32 br)
+{
+#ifndef CONFIG_PHYS_64BIT
+	/*
+	 * If we only have 32-bit addressing, then the BRx address *is* the
+	 * physical address.
+	 */
+	return br & BR_BA;
+#else
+	const struct fsl_law *law = ecm + 0xc08;
+	unsigned int i;
+
+	for (i = 0; i < count; i++) {
+		u64 lawbar = in_be32(&law[i].lawbar);
+		u32 lawar = in_be32(&law[i].lawar);
+
+		if ((lawar & LAWAR_MASK) == LAWAR_MATCH)
+			/* Extract the upper four bits */
+			return (br & BR_BA) | ((lawbar & LAWBAR_MASK) << 12);
+	}
+
+	return 0;
+#endif
+}
+
 /**
  * p1022ds_set_monitor_port: switch the output to a different monitor port
- *
  */
 static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 {
 	struct device_node *guts_node;
-	struct device_node *indirect_node = NULL;
+	struct device_node *lbc_node = NULL;
+	struct device_node *law_node = NULL;
 	struct ccsr_guts __iomem *guts;
+	struct fsl_lbc_regs *lbc = NULL;
+	void *ecm = NULL;
 	u8 __iomem *lbc_lcs0_ba = NULL;
 	u8 __iomem *lbc_lcs1_ba = NULL;
+	phys_addr_t cs0_addr, cs1_addr;
+	const __be32 *iprop;
+	unsigned int num_laws;
 	u8 b;
 
 	/* Map the global utilities registers. */
@@ -168,24 +225,42 @@ static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 		goto exit;
 	}
 
-	indirect_node = of_find_compatible_node(NULL, NULL,
-					     "fsl,p1022ds-indirect-pixis");
-	if (!indirect_node) {
-		pr_err("p1022ds: missing pixis indirect mode node\n");
+	lbc_node = of_find_compatible_node(NULL, NULL, "fsl,p1022-elbc");
+	if (!lbc_node) {
+		pr_err("p1022ds: missing localbus node\n");
 		goto exit;
 	}
 
-	lbc_lcs0_ba = of_iomap(indirect_node, 0);
-	if (!lbc_lcs0_ba) {
-		pr_err("p1022ds: could not map localbus chip select 0\n");
+	lbc = of_iomap(lbc_node, 0);
+	if (!lbc) {
+		pr_err("p1022ds: could not map localbus node\n");
 		goto exit;
 	}
 
-	lbc_lcs1_ba = of_iomap(indirect_node, 1);
-	if (!lbc_lcs1_ba) {
-		pr_err("p1022ds: could not map localbus chip select 1\n");
+	law_node = of_find_compatible_node(NULL, NULL, "fsl,ecm-law");
+	if (!law_node) {
+		pr_err("p1022ds: missing local access window node\n");
 		goto exit;
 	}
+
+	ecm = of_iomap(law_node, 0);
+	if (!ecm) {
+		pr_err("p1022ds: could not map local access window node\n");
+		goto exit;
+	}
+
+	iprop = of_get_property(law_node, "fsl,num-laws", 0);
+	if (!iprop) {
+		pr_err("p1022ds: LAW node is missing fsl,num-laws property\n");
+		goto exit;
+	}
+	num_laws = be32_to_cpup(iprop);
+
+	cs0_addr = lbc_br_to_phys(ecm, num_laws, in_be32(&lbc->bank[0].br));
+	cs1_addr = lbc_br_to_phys(ecm, num_laws, in_be32(&lbc->bank[1].br));
+
+	lbc_lcs0_ba = ioremap(cs0_addr, 1);
+	lbc_lcs1_ba = ioremap(cs1_addr, 1);
 
 	/* Make sure we're in indirect mode first. */
 	if ((in_be32(&guts->pmuxcr) & PMUXCR_ELBCDIU_MASK) !=
@@ -254,10 +329,15 @@ exit:
 		iounmap(lbc_lcs1_ba);
 	if (lbc_lcs0_ba)
 		iounmap(lbc_lcs0_ba);
+	if (lbc)
+		iounmap(lbc);
+	if (ecm)
+		iounmap(ecm);
 	if (guts)
 		iounmap(guts);
 
-	of_node_put(indirect_node);
+	of_node_put(law_node);
+	of_node_put(lbc_node);
 	of_node_put(guts_node);
 }
 
