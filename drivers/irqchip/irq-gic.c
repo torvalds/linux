@@ -668,6 +668,27 @@ void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 
 #ifdef CONFIG_BL_SWITCHER
 /*
+ * gic_get_cpu_id - get the CPU interface ID for the specified CPU
+ *
+ * @cpu: the logical CPU number to get the GIC ID for.
+ *
+ * Return the CPU interface ID for the given logical CPU number,
+ * or -1 if the CPU number is too large or the interface ID is
+ * unknown (more than one bit set).
+ */
+int gic_get_cpu_id(unsigned int cpu)
+{
+	unsigned int cpu_bit;
+
+	if (cpu >= NR_GIC_CPU_IF)
+		return -1;
+	cpu_bit = gic_cpu_map[cpu];
+	if (cpu_bit & (cpu_bit - 1))
+	       return -1;
+	return __ffs(cpu_bit);
+}
+
+/*
  * gic_migrate_target - migrate IRQs to another PU interface
  *
  * @new_cpu_id: the CPU target ID to migrate IRQs to

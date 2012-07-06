@@ -111,6 +111,8 @@ static int bL_switchpoint(unsigned long _arg)
  * Generic switcher interface
  */
 
+static unsigned int bL_gic_id[MAX_CPUS_PER_CLUSTER][MAX_NR_CLUSTERS];
+
 /*
  * bL_switch_to - Switch to a specific cluster for the current CPU
  * @new_cluster_id: the ID of the cluster to switch to.
@@ -160,7 +162,7 @@ static int bL_switch_to(unsigned int new_cluster_id)
 	this_cpu = smp_processor_id();
 
 	/* redirect GIC's SGIs to our counterpart */
-	gic_migrate_target(cpuid + ib_cluster*4);
+	gic_migrate_target(bL_gic_id[cpuid][ib_cluster]);
 
 	/*
 	 * Raise a SGI on the inbound CPU to make sure it doesn't stall
@@ -340,6 +342,16 @@ static int __init bL_switcher_halve_cpus(void)
 		cluster = (cpu_logical_map(i) >> 8) & 0xff;
 
 		if (cpumask_test_cpu(cpu, &common_mask)) {
+			/* Let's take note of the GIC ID for this CPU */
+			int gic_id = gic_get_cpu_id(i);
+			if (gic_id < 0) {
+				pr_err("%s: bad GIC ID for CPU %d\n", __func__, i);
+				return -EINVAL;
+			}
+			bL_gic_id[cpu][cluster] = gic_id;
+			pr_info("GIC ID for CPU %u cluster %u is %u\n",
+				cpu, cluster, gic_id);
+
 			/*
 			 * We keep only those logical CPUs which number
 			 * is equal to their physical CPU number. This is
