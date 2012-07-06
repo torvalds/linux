@@ -980,7 +980,8 @@ drop:
 	rcu_read_unlock();
 	FC_LPORT_DBG(lport, "dropping unexpected frame type %x\n", fh->fh_type);
 	fc_frame_free(fp);
-	lport->tt.exch_done(sp);
+	if (sp)
+		lport->tt.exch_done(sp);
 }
 
 /**
