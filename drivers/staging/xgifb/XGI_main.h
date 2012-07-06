@@ -227,16 +227,6 @@ static const struct _XGI_vrate {
 	{0, 0, 0, 0}
 };
 
-static const struct _chswtable {
-	int subsysVendor;
-	int subsysCard;
-	char *vendorName;
-	char *cardName;
-} mychswtable[] = {
-	{ 0x1631, 0x1002, "Mitachi", "0x1002" },
-	{ 0,      0,      ""       , ""       }
-};
-
 static const struct _XGI_TV_filter {
 	u8 filter[9][4];
 } XGI_TV_filter[] = {
