@@ -3,8 +3,8 @@
 /include/ "tegra20.dtsi"
 
 / {
-	model = "NVIDIA Tegra2 Ventana evaluation board";
-	compatible = "nvidia,ventana", "nvidia,tegra20";
+	model = "NVIDIA Seaboard";
+	compatible = "nvidia,seaboard", "nvidia,tegra20";
 
 	memory {
 		reg = <0x00000000 0x40000000>;
@@ -98,7 +98,8 @@
 				nvidia,function = "pcie";
 			};
 			hdint {
-				nvidia,pins = "hdint", "pta";
+				nvidia,pins = "hdint", "lpw0", "lpw2", "lsc1",
+					"lsck", "lsda";
 				nvidia,function = "hdmi";
 			};
 			i2cp {
@@ -124,8 +125,7 @@
 					"ld5", "ld6", "ld7", "ld8", "ld9",
 					"ld10", "ld11", "ld12", "ld13", "ld14",
 					"ld15", "ld16", "ld17", "ldi", "lhp0",
-					"lhp1", "lhp2", "lhs", "lpp", "lpw0",
-					"lpw2", "lsc0", "lsc1", "lsck", "lsda",
+					"lhp1", "lhp2", "lhs", "lpp", "lsc0",
 					"lspi", "lvp1", "lvs";
 				nvidia,function = "displaya";
 			};
@@ -133,20 +133,24 @@
 				nvidia,pins = "pmc";
 				nvidia,function = "pwr_on";
 			};
+			pta {
+				nvidia,pins = "pta";
+				nvidia,function = "i2c2";
+			};
 			rm {
 				nvidia,pins = "rm";
 				nvidia,function = "i2c1";
 			};
 			sdb {
-				nvidia,pins = "sdb", "sdc", "sdd", "slxc";
+				nvidia,pins = "sdb", "sdc", "sdd";
 				nvidia,function = "sdio3";
 			};
 			sdio1 {
 				nvidia,pins = "sdio1";
 				nvidia,function = "sdio1";
 			};
-			slxd {
-				nvidia,pins = "slxd";
+			slxc {
+				nvidia,pins = "slxc", "slxd";
 				nvidia,function = "spdif";
 			};
 			spid {
@@ -172,18 +176,18 @@
 			conf_ata {
 				nvidia,pins = "ata", "atb", "atc", "atd",
 					"cdev1", "cdev2", "dap1", "dap2",
-					"dap4", "ddc", "dtf", "gma", "gmc",
+					"dap4", "dtf", "gma", "gmc", "gmd",
 					"gme", "gpu", "gpu7", "i2cp", "irrx",
 					"irtx", "pta", "rm", "sdc", "sdd",
-					"slxc", "slxd", "slxk", "spdi", "spdo",
-					"uac", "uad", "uca", "ucb", "uda";
+					"slxd", "slxk", "spdi", "spdo", "uac",
+					"uad", "uca", "ucb", "uda";
 				nvidia,pull = <0>;
 				nvidia,tristate = <0>;
 			};
 			conf_ate {
-				nvidia,pins = "ate", "csus", "dap3", "gmd",
-					"gpv", "owc", "spia", "spib", "spic",
-					"spid", "spie", "spig";
+				nvidia,pins = "ate", "csus", "dap3", "ddc",
+					"gpv", "owc", "slxc", "spib", "spid",
+					"spie";
 				nvidia,pull = <0>;
 				nvidia,tristate = <1>;
 			};
@@ -193,7 +197,8 @@
 				nvidia,pull = <0>;
 			};
 			conf_crtp {
-				nvidia,pins = "crtp", "gmb", "slxa", "spih";
+				nvidia,pins = "crtp", "gmb", "slxa", "spia",
+					"spig", "spih";
 				nvidia,pull = <2>;
 				nvidia,tristate = <1>;
 			};
@@ -209,12 +214,14 @@
 			};
 			conf_hdint {
 				nvidia,pins = "hdint", "lcsn", "ldc", "lm1",
-					"lpw1", "lsck", "lsda", "lsdi", "lvp0";
+					"lpw1", "lsc1", "lsck", "lsda", "lsdi",
+					"lvp0";
 				nvidia,tristate = <1>;
 			};
 			conf_kbca {
 				nvidia,pins = "kbca", "kbcb", "kbcc", "kbcd",
-					"kbce", "kbcf", "sdio1", "uaa", "uab";
+					"kbce", "kbcf", "sdio1", "spic", "uaa",
+					"uab";
 				nvidia,pull = <2>;
 				nvidia,tristate = <0>;
 			};
@@ -228,14 +235,24 @@
 					"ld10", "ld11", "ld12", "ld13", "ld14",
 					"ld15", "ld16", "ld17", "ldi", "lhp0",
 					"lhp1", "lhp2", "lhs", "lm0", "lpp",
-					"lpw0", "lpw2", "lsc0", "lsc1", "lspi",
-					"lvp1", "lvs", "pmc", "sdb";
+					"lpw0", "lpw2", "lsc0", "lspi", "lvp1",
+					"lvs", "pmc", "sdb";
 				nvidia,tristate = <0>;
 			};
 			conf_ld17_0 {
 				nvidia,pins = "ld17_0", "ld19_18", "ld21_20",
 					"ld23_22";
 				nvidia,pull = <1>;
+			};
+			drive_sdio1 {
+				nvidia,pins = "drive_sdio1";
+				nvidia,high-speed-mode = <0>;
+				nvidia,schmitt = <0>;
+				nvidia,low-power-mode = <3>;
+				nvidia,pull-down-strength = <31>;
+				nvidia,pull-up-strength = <31>;
+				nvidia,slew-rate-rising = <3>;
+				nvidia,slew-rate-falling = <3>;
 			};
 		};
 	};
@@ -272,13 +289,27 @@
 			compatible = "isil,isl29018";
 			reg = <0x44>;
 			interrupt-parent = <&gpio>;
-			interrupts = <202 0x04>; /*gpio PZ2 */
+			interrupts = <202 0x04>; /* GPIO PZ2 */
+		};
+
+		gyrometer@68 {
+			compatible = "invn,mpu3050";
+			reg = <0x68>;
+			interrupt-parent = <&gpio>;
+			interrupts = <204 0x04>; /* gpio PZ4 */
 		};
 	};
 
 	i2c@7000c400 {
 		status = "okay";
-		clock-frequency = <400000>;
+		clock-frequency = <100000>;
+
+		smart-battery@b {
+			compatible = "ti,bq20z75", "smart-battery-1.1";
+			reg = <0xb>;
+			ti,i2c-retry-count = <2>;
+			ti,poll-retry-count = <10>;
+		};
 	};
 
 	i2c@7000c500 {
@@ -289,10 +320,62 @@
 	i2c@7000d000 {
 		status = "okay";
 		clock-frequency = <400000>;
+
+		temperature-sensor@4c {
+			compatible = "nct1008";
+			reg = <0x4c>;
+		};
+
+		magnetometer@c {
+			compatible = "ak8975";
+			reg = <0xc>;
+			interrupt-parent = <&gpio>;
+			interrupts = <109 0x04>; /* gpio PN5 */
+		};
+	};
+
+	memory-controller@0x7000f400 {
+		emc-table@190000 {
+			reg = <190000>;
+			compatible = "nvidia,tegra20-emc-table";
+			clock-frequency = <190000>;
+			nvidia,emc-registers = <0x0000000c 0x00000026
+				0x00000009 0x00000003 0x00000004 0x00000004
+				0x00000002 0x0000000c 0x00000003 0x00000003
+				0x00000002 0x00000001 0x00000004 0x00000005
+				0x00000004 0x00000009 0x0000000d 0x0000059f
+				0x00000000 0x00000003 0x00000003 0x00000003
+				0x00000003 0x00000001 0x0000000b 0x000000c8
+				0x00000003 0x00000007 0x00000004 0x0000000f
+				0x00000002 0x00000000 0x00000000 0x00000002
+				0x00000000 0x00000000 0x00000083 0xa06204ae
+				0x007dc010 0x00000000 0x00000000 0x00000000
+				0x00000000 0x00000000 0x00000000 0x00000000>;
+		};
+
+		emc-table@380000 {
+			reg = <380000>;
+			compatible = "nvidia,tegra20-emc-table";
+			clock-frequency = <380000>;
+			nvidia,emc-registers = <0x00000017 0x0000004b
+				0x00000012 0x00000006 0x00000004 0x00000005
+				0x00000003 0x0000000c 0x00000006 0x00000006
+				0x00000003 0x00000001 0x00000004 0x00000005
+				0x00000004 0x00000009 0x0000000d 0x00000b5f
+				0x00000000 0x00000003 0x00000003 0x00000006
+				0x00000006 0x00000001 0x00000011 0x000000c8
+				0x00000003 0x0000000e 0x00000007 0x0000000f
+				0x00000002 0x00000000 0x00000000 0x00000002
+				0x00000000 0x00000000 0x00000083 0xe044048b
+				0x007d8010 0x00000000 0x00000000 0x00000000
+				0x00000000 0x00000000 0x00000000 0x00000000>;
+		};
 	};
 
 	usb@c5000000 {
 		status = "okay";
+		nvidia,vbus-gpio = <&gpio 24 0>; /* PD0 */
+		dr_mode = "otg";
 	};
 
 	usb@c5004000 {
@@ -314,14 +397,33 @@
 
 	sdhci@c8000600 {
 		status = "okay";
-		support-8bit;
 		bus-width = <8>;
 	};
 
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "Power";
+			gpios = <&gpio 170 1>; /* gpio PV2, active low */
+			linux,code = <116>; /* KEY_POWER */
+			gpio-key,wakeup;
+		};
+
+		lid {
+			label = "Lid";
+			gpios = <&gpio 23 0>; /* gpio PC7 */
+			linux,input-type = <5>; /* EV_SW */
+			linux,code = <0>; /* SW_LID */
+			debounce-interval = <1>;
+			gpio-key,wakeup;
+		};
+	};
+
 	sound {
-		compatible = "nvidia,tegra-audio-wm8903-ventana",
+		compatible = "nvidia,tegra-audio-wm8903-seaboard",
 			     "nvidia,tegra-audio-wm8903";
-		nvidia,model = "NVIDIA Tegra Ventana";
+		nvidia,model = "NVIDIA Tegra Seaboard";
 
 		nvidia,audio-routing =
 			"Headphone Jack", "HPOUTR",
@@ -331,14 +433,12 @@
 			"Int Spk", "LOP",
 			"Int Spk", "LON",
 			"Mic Jack", "MICBIAS",
-			"IN1L", "Mic Jack";
+			"IN1R", "Mic Jack";
 
 		nvidia,i2s-controller = <&tegra_i2s1>;
 		nvidia,audio-codec = <&wm8903>;
 
 		nvidia,spkr-en-gpios = <&wm8903 2 0>;
-		nvidia,hp-det-gpios = <&gpio 178 0>; /* gpio PW2 */
-		nvidia,int-mic-en-gpios = <&gpio 184 0>; /* gpio PX0 */
-		nvidia,ext-mic-en-gpios = <&gpio 185 0>; /* gpio PX1 */
+		nvidia,hp-det-gpios = <&gpio 185 0>; /* gpio PX1 */
 	};
 };
