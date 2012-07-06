@@ -200,6 +200,7 @@ int mxs_dma_is_apbh(struct dma_chan *chan)
 
 	return dma_is_apbh(mxs_dma);
 }
+EXPORT_SYMBOL_GPL(mxs_dma_is_apbh);
 
 int mxs_dma_is_apbx(struct dma_chan *chan)
 {
@@ -208,6 +209,7 @@ int mxs_dma_is_apbx(struct dma_chan *chan)
 
 	return !dma_is_apbh(mxs_dma);
 }
+EXPORT_SYMBOL_GPL(mxs_dma_is_apbx);
 
 static void mxs_dma_reset_chan(struct mxs_dma_chan *mxs_chan)
 {
