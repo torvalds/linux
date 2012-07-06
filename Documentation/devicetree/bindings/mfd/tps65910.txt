@@ -32,6 +32,28 @@ Optional properties:
   comparator. (see VMBCH_VSEL in TPS65910 datasheet)
 - ti,en-gpio-sleep: enable sleep control for gpios
   There should be 9 entries here, one for each gpio.
+- xxx-supply: Input voltage supply regulator.
+  Missing of these properties will be assume as there is no supply regulator
+  for that input pins and always powered on.
+  The valid input supply properties are:
+  tps65910:
+	vcc1-supply: VDD1 input.
+	vcc2-supply: VDD2 input.
+	vcc3-supply: VAUX33 and VMMC input.
+	vcc4-supply: VAUX1 and VAUX2 input.
+	vcc5-supply: VPLL and VDAC input.
+	vcc6-supply: VDIG1 and VDIG2 input.
+	vcc7-supply: VRTC input.
+	vccio-supply: VIO input.
+  tps65911:
+	vcc1-supply: VDD1 input.
+	vcc2-supply: VDD2 input.
+	vcc3-supply: LDO6, LDO7 and LDO8 input.
+	vcc4-supply: LDO5 input.
+	vcc5-supply: LDO3 and LDO4 input.
+	vcc6-supply: LDO1 and LDO2 input.
+	vcc7-supply: VRTC input.
+	vccio-supply: VIO input.
 
 Regulator Optional properties:
 - ti,regulator-ext-sleep-control: enable external sleep
@@ -56,6 +78,9 @@ Example:
 		ti,vmbch2-threshold = 0;
 
 		ti,en-gpio-sleep = <0 0 1 0 0 0 0 0 0>;
+
+		vcc7-supply = <&reg_parent>;
+		vcc1-supply = <&reg_parent>;
 
 		regulators {
 			#address-cells = <1>;

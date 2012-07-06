@@ -85,6 +85,7 @@ static const unsigned int VMMC_VSEL_table[] = {
 
 struct tps_info {
 	const char *name;
+	const char *vin_name;
 	u8 n_voltages;
 	const unsigned int *voltage_table;
 	int enable_time_us;
@@ -93,20 +94,24 @@ struct tps_info {
 static struct tps_info tps65910_regs[] = {
 	{
 		.name = "vrtc",
+		.vin_name = "vcc7",
 		.enable_time_us = 2200,
 	},
 	{
 		.name = "vio",
+		.vin_name = "vccio",
 		.n_voltages = ARRAY_SIZE(VIO_VSEL_table),
 		.voltage_table = VIO_VSEL_table,
 		.enable_time_us = 350,
 	},
 	{
 		.name = "vdd1",
+		.vin_name = "vcc1",
 		.enable_time_us = 350,
 	},
 	{
 		.name = "vdd2",
+		.vin_name = "vcc2",
 		.enable_time_us = 350,
 	},
 	{
@@ -117,48 +122,56 @@ static struct tps_info tps65910_regs[] = {
 	},
 	{
 		.name = "vdig1",
+		.vin_name = "vcc6",
 		.n_voltages = ARRAY_SIZE(VDIG1_VSEL_table),
 		.voltage_table = VDIG1_VSEL_table,
 		.enable_time_us = 100,
 	},
 	{
 		.name = "vdig2",
+		.vin_name = "vcc6",
 		.n_voltages = ARRAY_SIZE(VDIG2_VSEL_table),
 		.voltage_table = VDIG2_VSEL_table,
 		.enable_time_us = 100,
 	},
 	{
 		.name = "vpll",
+		.vin_name = "vcc5",
 		.n_voltages = ARRAY_SIZE(VPLL_VSEL_table),
 		.voltage_table = VPLL_VSEL_table,
 		.enable_time_us = 100,
 	},
 	{
 		.name = "vdac",
+		.vin_name = "vcc5",
 		.n_voltages = ARRAY_SIZE(VDAC_VSEL_table),
 		.voltage_table = VDAC_VSEL_table,
 		.enable_time_us = 100,
 	},
 	{
 		.name = "vaux1",
+		.vin_name = "vcc4",
 		.n_voltages = ARRAY_SIZE(VAUX1_VSEL_table),
 		.voltage_table = VAUX1_VSEL_table,
 		.enable_time_us = 100,
 	},
 	{
 		.name = "vaux2",
+		.vin_name = "vcc4",
 		.n_voltages = ARRAY_SIZE(VAUX2_VSEL_table),
 		.voltage_table = VAUX2_VSEL_table,
 		.enable_time_us = 100,
 	},
 	{
 		.name = "vaux33",
+		.vin_name = "vcc3",
 		.n_voltages = ARRAY_SIZE(VAUX33_VSEL_table),
 		.voltage_table = VAUX33_VSEL_table,
 		.enable_time_us = 100,
 	},
 	{
 		.name = "vmmc",
+		.vin_name = "vcc3",
 		.n_voltages = ARRAY_SIZE(VMMC_VSEL_table),
 		.voltage_table = VMMC_VSEL_table,
 		.enable_time_us = 100,
@@ -168,21 +181,25 @@ static struct tps_info tps65910_regs[] = {
 static struct tps_info tps65911_regs[] = {
 	{
 		.name = "vrtc",
+		.vin_name = "vcc7",
 		.enable_time_us = 2200,
 	},
 	{
 		.name = "vio",
+		.vin_name = "vccio",
 		.n_voltages = ARRAY_SIZE(VIO_VSEL_table),
 		.voltage_table = VIO_VSEL_table,
 		.enable_time_us = 350,
 	},
 	{
 		.name = "vdd1",
+		.vin_name = "vcc1",
 		.n_voltages = 73,
 		.enable_time_us = 350,
 	},
 	{
 		.name = "vdd2",
+		.vin_name = "vcc2",
 		.n_voltages = 73,
 		.enable_time_us = 350,
 	},
@@ -193,41 +210,49 @@ static struct tps_info tps65911_regs[] = {
 	},
 	{
 		.name = "ldo1",
+		.vin_name = "vcc6",
 		.n_voltages = 47,
 		.enable_time_us = 420,
 	},
 	{
 		.name = "ldo2",
+		.vin_name = "vcc6",
 		.n_voltages = 47,
 		.enable_time_us = 420,
 	},
 	{
 		.name = "ldo3",
+		.vin_name = "vcc5",
 		.n_voltages = 24,
 		.enable_time_us = 230,
 	},
 	{
 		.name = "ldo4",
+		.vin_name = "vcc5",
 		.n_voltages = 47,
 		.enable_time_us = 230,
 	},
 	{
 		.name = "ldo5",
+		.vin_name = "vcc4",
 		.n_voltages = 24,
 		.enable_time_us = 230,
 	},
 	{
 		.name = "ldo6",
+		.vin_name = "vcc3",
 		.n_voltages = 24,
 		.enable_time_us = 230,
 	},
 	{
 		.name = "ldo7",
+		.vin_name = "vcc3",
 		.n_voltages = 24,
 		.enable_time_us = 230,
 	},
 	{
 		.name = "ldo8",
+		.vin_name = "vcc3",
 		.n_voltages = 24,
 		.enable_time_us = 230,
 	},
@@ -1013,6 +1038,9 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 	*tps65910_reg_matches = matches;
 
 	for (idx = 0; idx < count; idx++) {
+		struct tps_info *info = matches[idx].driver_data;
+		char in_supply[32]; /* 32 is max size of property name */
+
 		if (!matches[idx].init_data || !matches[idx].of_node)
 			continue;
 
@@ -1023,6 +1051,13 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 				"ti,regulator-ext-sleep-control", &prop);
 		if (!ret)
 			pmic_plat_data->regulator_ext_sleep_control[idx] = prop;
+
+		if (info->vin_name) {
+			snprintf(in_supply, 32, "%s-supply", info->vin_name);
+			if (of_find_property(np, in_supply, 0))
+				pmic_plat_data->input_supply[idx] =
+								info->vin_name;
+		}
 	}
 
 	return pmic_plat_data;
@@ -1126,6 +1161,7 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 		pmic->info[i] = info;
 
 		pmic->desc[i].name = info->name;
+		pmic->desc[i].supply_name = pmic_plat_data->input_supply[i];
 		pmic->desc[i].id = i;
 		pmic->desc[i].n_voltages = info->n_voltages;
 		pmic->desc[i].enable_time = info->enable_time_us;
