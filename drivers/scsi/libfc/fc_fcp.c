@@ -1380,10 +1380,10 @@ static void fc_fcp_timeout(unsigned long data)
 
 	fsp->state |= FC_SRB_FCP_PROCESSING_TMO;
 
-	if (rpriv->flags & FC_RP_FLAGS_REC_SUPPORTED)
-		fc_fcp_rec(fsp);
-	else if (fsp->state & FC_SRB_RCV_STATUS)
+	if (fsp->state & FC_SRB_RCV_STATUS)
 		fc_fcp_complete_locked(fsp);
+	else if (rpriv->flags & FC_RP_FLAGS_REC_SUPPORTED)
+		fc_fcp_rec(fsp);
 	else
 		fc_fcp_recovery(fsp, FC_TIMED_OUT);
 	fsp->state &= ~FC_SRB_FCP_PROCESSING_TMO;
