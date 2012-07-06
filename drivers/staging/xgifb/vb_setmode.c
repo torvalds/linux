@@ -5990,59 +5990,48 @@ static void XGI_SetCRT2ModeRegs(unsigned short ModeNo,
 	tempah = 0x08;
 	tempbl = 0xf0;
 
-	if (pVBInfo->VBInfo & DisableCRT2Display) {
-		xgifb_reg_and_or(pVBInfo->Part1Port, 0x2e, tempbl, tempah);
-	} else {
-		tempah = 0x00;
-		tempbl = 0xff;
+	if (pVBInfo->VBInfo & DisableCRT2Display)
+		goto reg_and_or;
 
-		if (pVBInfo->VBInfo & (SetCRT2ToRAMDAC | SetCRT2ToTV
-				| SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) {
-			if ((pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) &&
-			    (!(pVBInfo->VBInfo & SetSimuScanMode))) {
-				tempbl &= 0xf7;
-				tempah |= 0x01;
-				xgifb_reg_and_or(pVBInfo->Part1Port, 0x2e,
-						tempbl, tempah);
-			} else {
-				if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
-					tempbl &= 0xf7;
-					tempah |= 0x01;
-				}
+	tempah = 0x00;
+	tempbl = 0xff;
 
-				if (pVBInfo->VBInfo &
-				    (SetCRT2ToRAMDAC |
-				     SetCRT2ToTV |
-				     SetCRT2ToLCD)) {
-					tempbl &= 0xf8;
-					tempah = 0x01;
+	if (!(pVBInfo->VBInfo & (SetCRT2ToRAMDAC | SetCRT2ToTV |
+				 SetCRT2ToLCD | XGI_SetCRT2ToLCDA)))
+		goto reg_and_or;
 
-					if (!(pVBInfo->VBInfo & SetInSlaveMode))
-						tempah |= 0x02;
-
-					if (!(pVBInfo->VBInfo &
-					      SetCRT2ToRAMDAC)) {
-						tempah = tempah ^ 0x05;
-						if (!(pVBInfo->VBInfo &
-						      SetCRT2ToLCD))
-							tempah = tempah ^ 0x01;
-					}
-
-					if (!(pVBInfo->VBInfo &
-					      SetCRT2ToDualEdge))
-						tempah |= 0x08;
-					xgifb_reg_and_or(pVBInfo->Part1Port,
-							0x2e, tempbl, tempah);
-				} else {
-					xgifb_reg_and_or(pVBInfo->Part1Port,
-							0x2e, tempbl, tempah);
-				}
-			}
-		} else {
-			xgifb_reg_and_or(pVBInfo->Part1Port, 0x2e, tempbl,
-					tempah);
-		}
+	if ((pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) &&
+	    (!(pVBInfo->VBInfo & SetSimuScanMode))) {
+		tempbl &= 0xf7;
+		tempah |= 0x01;
+		goto reg_and_or;
 	}
+
+	if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
+		tempbl &= 0xf7;
+		tempah |= 0x01;
+	}
+
+	if (!(pVBInfo->VBInfo & (SetCRT2ToRAMDAC | SetCRT2ToTV | SetCRT2ToLCD)))
+		goto reg_and_or;
+
+	tempbl &= 0xf8;
+	tempah = 0x01;
+
+	if (!(pVBInfo->VBInfo & SetInSlaveMode))
+		tempah |= 0x02;
+
+	if (!(pVBInfo->VBInfo & SetCRT2ToRAMDAC)) {
+		tempah = tempah ^ 0x05;
+		if (!(pVBInfo->VBInfo & SetCRT2ToLCD))
+			tempah = tempah ^ 0x01;
+	}
+
+	if (!(pVBInfo->VBInfo & SetCRT2ToDualEdge))
+		tempah |= 0x08;
+
+reg_and_or:
+	xgifb_reg_and_or(pVBInfo->Part1Port, 0x2e, tempbl, tempah);
 
 	if (pVBInfo->VBInfo & (SetCRT2ToRAMDAC | SetCRT2ToTV | SetCRT2ToLCD
 			| XGI_SetCRT2ToLCDA)) {
