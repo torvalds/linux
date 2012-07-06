@@ -36,6 +36,7 @@
 #include <linux/fb.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/i8042.h>
 
 #define IDEAPAD_RFKILL_DEV_NUM	(3)
 
@@ -526,6 +527,8 @@ static const struct key_entry ideapad_keymap[] = {
 	{ KE_KEY, 17, { KEY_PROG2 } },
 	{ KE_KEY, 64, { KEY_PROG3 } },
 	{ KE_KEY, 65, { KEY_PROG4 } },
+	{ KE_KEY, 66, { KEY_TOUCHPAD_OFF } },
+	{ KE_KEY, 67, { KEY_TOUCHPAD_ON } },
 	{ KE_END, 0 },
 };
 
@@ -718,6 +721,24 @@ static const struct acpi_device_id ideapad_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, ideapad_device_ids);
 
+static void ideapad_sync_touchpad_state(struct acpi_device *adevice)
+{
+	struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
+	unsigned long value;
+
+	/* Without reading from EC touchpad LED doesn't switch state */
+	if (!read_ec_data(adevice->handle, VPCCMD_R_TOUCHPAD, &value)) {
+		/* Some IdeaPads don't really turn off touchpad - they only
+		 * switch the LED state. We (de)activate KBC AUX port to turn
+		 * touchpad off and on. We send KEY_TOUCHPAD_OFF and
+		 * KEY_TOUCHPAD_ON to not to get out of sync with LED */
+		unsigned char param;
+		i8042_command(&param, value ? I8042_CMD_AUX_ENABLE :
+			      I8042_CMD_AUX_DISABLE);
+		ideapad_input_report(priv, value ? 67 : 66);
+	}
+}
+
 static int __devinit ideapad_acpi_add(struct acpi_device *adevice)
 {
 	int ret, i;
@@ -754,6 +775,7 @@ static int __devinit ideapad_acpi_add(struct acpi_device *adevice)
 			priv->rfk[i] = NULL;
 	}
 	ideapad_sync_rfk_state(priv);
+	ideapad_sync_touchpad_state(adevice);
 
 	if (!acpi_video_backlight_support()) {
 		ret = ideapad_backlight_init(priv);
@@ -817,6 +839,9 @@ static void ideapad_acpi_notify(struct acpi_device *adevice, u32 event)
 			case 6:
 				ideapad_input_report(priv, vpc_bit);
 				break;
+			case 5:
+				ideapad_sync_touchpad_state(adevice);
+				break;
 			case 4:
 				ideapad_backlight_notify_brightness(priv);
 				break;
@@ -836,6 +861,15 @@ static void ideapad_acpi_notify(struct acpi_device *adevice, u32 event)
 	}
 }
 
+static int ideapad_acpi_resume(struct device *device)
+{
+	ideapad_sync_rfk_state(ideapad_priv);
+	ideapad_sync_touchpad_state(to_acpi_device(device));
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(ideapad_pm, NULL, ideapad_acpi_resume);
+
 static struct acpi_driver ideapad_acpi_driver = {
 	.name = "ideapad_acpi",
 	.class = "IdeaPad",
@@ -843,6 +877,7 @@ static struct acpi_driver ideapad_acpi_driver = {
 	.ops.add = ideapad_acpi_add,
 	.ops.remove = ideapad_acpi_remove,
 	.ops.notify = ideapad_acpi_notify,
+	.drv.pm = &ideapad_pm,
 	.owner = THIS_MODULE,
 };
 
