@@ -469,6 +469,16 @@ static inline unsigned long venc_get_pixel_clock(void)
 	return 0;
 }
 #endif
+int omapdss_venc_display_enable(struct omap_dss_device *dssdev);
+void omapdss_venc_display_disable(struct omap_dss_device *dssdev);
+void omapdss_venc_set_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings);
+int omapdss_venc_check_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings);
+u32 omapdss_venc_get_wss(struct omap_dss_device *dssdev);
+int omapdss_venc_set_wss(struct omap_dss_device *dssdev, u32 wss);
+int venc_panel_init(void);
+void venc_panel_exit(void);
 
 /* HDMI */
 #ifdef CONFIG_OMAP4_DSS_HDMI
