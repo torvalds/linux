@@ -3537,9 +3537,12 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_free);
 
 static void soc_dapm_shutdown_codec(struct snd_soc_dapm_context *dapm)
 {
+	struct snd_soc_card *card = dapm->card;
 	struct snd_soc_dapm_widget *w;
 	LIST_HEAD(down_list);
 	int powerdown = 0;
+
+	mutex_lock(&card->dapm_mutex);
 
 	list_for_each_entry(w, &dapm->card->widgets, list) {
 		if (w->dapm != dapm)
@@ -3563,6 +3566,8 @@ static void soc_dapm_shutdown_codec(struct snd_soc_dapm_context *dapm)
 			snd_soc_dapm_set_bias_level(dapm,
 						    SND_SOC_BIAS_STANDBY);
 	}
+
+	mutex_unlock(&card->dapm_mutex);
 }
 
 /*
