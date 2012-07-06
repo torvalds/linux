@@ -2611,185 +2611,182 @@ static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 	pVBInfo->ModeType = modeflag & ModeTypeMask;
 	tempbx = 0;
 
-	if (pVBInfo->VBType & 0xFFFF) {
-		/* Check Display Device */
-		temp = xgifb_reg_get(pVBInfo->P3d4, 0x30);
-		tempbx = tempbx | temp;
-		temp = xgifb_reg_get(pVBInfo->P3d4, 0x31);
-		push = temp;
-		push = push << 8;
-		tempax = temp << 8;
-		tempbx = tempbx | tempax;
-		temp = (SetCRT2ToDualEdge | SetCRT2ToYPbPr525750 | XGI_SetCRT2ToLCDA
-				| SetInSlaveMode | DisableCRT2Display);
-		temp = 0xFFFF ^ temp;
-		tempbx &= temp;
+	if (!(pVBInfo->VBType & 0xFFFF))
+		return;
 
-		temp = xgifb_reg_get(pVBInfo->P3d4, 0x38);
+	/* Check Display Device */
+	temp = xgifb_reg_get(pVBInfo->P3d4, 0x30);
+	tempbx = tempbx | temp;
+	temp = xgifb_reg_get(pVBInfo->P3d4, 0x31);
+	push = temp;
+	push = push << 8;
+	tempax = temp << 8;
+	tempbx = tempbx | tempax;
+	temp = (SetCRT2ToDualEdge | SetCRT2ToYPbPr525750 | XGI_SetCRT2ToLCDA
+		| SetInSlaveMode | DisableCRT2Display);
+	temp = 0xFFFF ^ temp;
+	tempbx &= temp;
 
-		if (pVBInfo->IF_DEF_LCDA == 1) {
+	temp = xgifb_reg_get(pVBInfo->P3d4, 0x38);
 
-			if ((HwDeviceExtension->jChipType >= XG20) ||
-			    (HwDeviceExtension->jChipType >= XG40)) {
-				if (pVBInfo->IF_DEF_LVDS == 0) {
-					if (pVBInfo->VBType &
-					    (VB_SIS302B |
-					     VB_SIS301LV |
-					     VB_SIS302LV |
-					     VB_XGI301C)) {
-						if (temp & EnableDualEdge) {
-							tempbx |=
-							    SetCRT2ToDualEdge;
+	if (pVBInfo->IF_DEF_LCDA == 1) {
 
-							if (temp & SetToLCDA)
-								tempbx |=
-								  XGI_SetCRT2ToLCDA;
-						}
+		if (((HwDeviceExtension->jChipType >= XG20) ||
+		     (HwDeviceExtension->jChipType >= XG40)) &&
+		    (pVBInfo->IF_DEF_LVDS == 0)) {
+			if (pVBInfo->VBType &
+			    (VB_SIS302B |
+			     VB_SIS301LV |
+			     VB_SIS302LV |
+			     VB_XGI301C)) {
+				if (temp & EnableDualEdge) {
+					tempbx |= SetCRT2ToDualEdge;
+					if (temp & SetToLCDA)
+						tempbx |= XGI_SetCRT2ToLCDA;
+				}
+			}
+		}
+	}
+
+	if (pVBInfo->IF_DEF_YPbPr == 1) {
+		if (((pVBInfo->IF_DEF_LVDS == 0) &&
+		     ((pVBInfo->VBType & VB_SIS301LV) ||
+		      (pVBInfo->VBType & VB_SIS302LV) ||
+		      (pVBInfo->VBType & VB_XGI301C)))) {
+			if (temp & SetYPbPr) {
+				if (pVBInfo->IF_DEF_HiVision == 1) {
+					/* shampoo add for new
+					 * scratch */
+					temp = xgifb_reg_get(
+						pVBInfo->P3d4,
+						0x35);
+					temp &= YPbPrMode;
+					tempbx |= SetCRT2ToHiVision;
+
+					if (temp != YPbPrMode1080i) {
+						tempbx &=
+							(~SetCRT2ToHiVision);
+						tempbx |=
+							SetCRT2ToYPbPr525750;
 					}
 				}
 			}
 		}
+	}
 
+	tempax = push; /* restore CR31 */
+
+	if (pVBInfo->IF_DEF_LVDS == 0) {
 		if (pVBInfo->IF_DEF_YPbPr == 1) {
-			if (((pVBInfo->IF_DEF_LVDS == 0) &&
-			    ((pVBInfo->VBType & VB_SIS301LV) ||
-			    (pVBInfo->VBType & VB_SIS302LV) ||
-			    (pVBInfo->VBType & VB_XGI301C)))) {
-				if (temp & SetYPbPr) {
-					if (pVBInfo->IF_DEF_HiVision == 1) {
-						/* shampoo add for new
-						 * scratch */
-						temp = xgifb_reg_get(
-								pVBInfo->P3d4,
-								0x35);
-						temp &= YPbPrMode;
-						tempbx |= SetCRT2ToHiVision;
-
-						if (temp != YPbPrMode1080i) {
-							tempbx &=
-							 (~SetCRT2ToHiVision);
-							tempbx |=
-							 SetCRT2ToYPbPr525750;
-						}
-					}
-				}
-			}
+			if (pVBInfo->IF_DEF_HiVision == 1)
+				temp = 0x09FC;
+			else
+				temp = 0x097C;
+		} else {
+			if (pVBInfo->IF_DEF_HiVision == 1)
+				temp = 0x01FC;
+			else
+				temp = 0x017C;
 		}
+	} else { /* 3nd party chip */
+		temp = SetCRT2ToLCD;
+	}
 
-		tempax = push; /* restore CR31 */
+	if (!(tempbx & temp)) {
+		tempax |= DisableCRT2Display;
+		tempbx = 0;
+	}
 
-		if (pVBInfo->IF_DEF_LVDS == 0) {
-			if (pVBInfo->IF_DEF_YPbPr == 1) {
-				if (pVBInfo->IF_DEF_HiVision == 1)
-					temp = 0x09FC;
-				else
-					temp = 0x097C;
-			} else {
-				if (pVBInfo->IF_DEF_HiVision == 1)
-					temp = 0x01FC;
-				else
-					temp = 0x017C;
-			}
-		} else { /* 3nd party chip */
-			temp = SetCRT2ToLCD;
-		}
-
-		if (!(tempbx & temp)) {
-			tempax |= DisableCRT2Display;
-			tempbx = 0;
-		}
-
-		if (pVBInfo->IF_DEF_LCDA == 1) { /* Select Display Device */
-			if (!(pVBInfo->VBType & VB_NoLCD)) {
-				if (tempbx & XGI_SetCRT2ToLCDA) {
-					if (tempbx & SetSimuScanMode)
-						tempbx &= (~(SetCRT2ToLCD |
-							   SetCRT2ToRAMDAC |
-							   SwitchCRT2));
-					else
-						tempbx &= (~(SetCRT2ToLCD |
-							     SetCRT2ToRAMDAC |
-							     SetCRT2ToTV |
-							     SwitchCRT2));
-				}
-			}
-		}
-
-		/* shampoo add */
-		/* for driver abnormal */
-		if (!(tempbx & (SwitchCRT2 | SetSimuScanMode))) {
-			if (pVBInfo->IF_DEF_CRT2Monitor == 1) {
-				if (tempbx & SetCRT2ToRAMDAC) {
-					tempbx &= (0xFF00 |
-						   SetCRT2ToRAMDAC |
-						   SwitchCRT2 |
-						   SetSimuScanMode);
-					tempbx &= (0x00FF | (~SetCRT2ToYPbPr525750));
-				}
-			} else {
-				tempbx &= (~(SetCRT2ToRAMDAC |
-					   SetCRT2ToLCD |
-					   SetCRT2ToTV));
-			}
-		}
-
+	if (pVBInfo->IF_DEF_LCDA == 1) { /* Select Display Device */
 		if (!(pVBInfo->VBType & VB_NoLCD)) {
-			if (tempbx & SetCRT2ToLCD) {
+			if (tempbx & XGI_SetCRT2ToLCDA) {
+				if (tempbx & SetSimuScanMode)
+					tempbx &= (~(SetCRT2ToLCD |
+						     SetCRT2ToRAMDAC |
+						     SwitchCRT2));
+				else
+					tempbx &= (~(SetCRT2ToLCD |
+						     SetCRT2ToRAMDAC |
+						     SetCRT2ToTV |
+						     SwitchCRT2));
+			}
+		}
+	}
+
+	/* shampoo add */
+	/* for driver abnormal */
+	if (!(tempbx & (SwitchCRT2 | SetSimuScanMode))) {
+		if (pVBInfo->IF_DEF_CRT2Monitor == 1) {
+			if (tempbx & SetCRT2ToRAMDAC) {
 				tempbx &= (0xFF00 |
-					   SetCRT2ToLCD |
+					   SetCRT2ToRAMDAC |
 					   SwitchCRT2 |
 					   SetSimuScanMode);
 				tempbx &= (0x00FF | (~SetCRT2ToYPbPr525750));
 			}
+		} else {
+			tempbx &= (~(SetCRT2ToRAMDAC |
+				     SetCRT2ToLCD |
+				     SetCRT2ToTV));
 		}
+	}
 
-		if (tempbx & SetCRT2ToSCART) {
+	if (!(pVBInfo->VBType & VB_NoLCD)) {
+		if (tempbx & SetCRT2ToLCD) {
 			tempbx &= (0xFF00 |
-				   SetCRT2ToSCART |
+				   SetCRT2ToLCD |
 				   SwitchCRT2 |
 				   SetSimuScanMode);
 			tempbx &= (0x00FF | (~SetCRT2ToYPbPr525750));
 		}
+	}
 
-		if (pVBInfo->IF_DEF_YPbPr == 1) {
-			if (tempbx & SetCRT2ToYPbPr525750)
-				tempbx &= (0xFF00 |
-					   SwitchCRT2 |
-					   SetSimuScanMode);
-		}
+	if (tempbx & SetCRT2ToSCART) {
+		tempbx &= (0xFF00 |
+			   SetCRT2ToSCART |
+			   SwitchCRT2 |
+			   SetSimuScanMode);
+		tempbx &= (0x00FF | (~SetCRT2ToYPbPr525750));
+	}
 
-		if (pVBInfo->IF_DEF_HiVision == 1) {
-			if (tempbx & SetCRT2ToHiVision)
-				tempbx &= (0xFF00 |
-					   SetCRT2ToHiVision |
-					   SwitchCRT2 |
-					   SetSimuScanMode);
-		}
+	if (pVBInfo->IF_DEF_YPbPr == 1) {
+		if (tempbx & SetCRT2ToYPbPr525750)
+			tempbx &= (0xFF00 |
+				   SwitchCRT2 |
+				   SetSimuScanMode);
+	}
 
-		if (tempax & DisableCRT2Display) { /* Set Display Device Info */
-			if (!(tempbx & (SwitchCRT2 | SetSimuScanMode)))
-				tempbx = DisableCRT2Display;
-		}
+	if (pVBInfo->IF_DEF_HiVision == 1) {
+		if (tempbx & SetCRT2ToHiVision)
+			tempbx &= (0xFF00 |
+				   SetCRT2ToHiVision |
+				   SwitchCRT2 |
+				   SetSimuScanMode);
+	}
 
-		if (!(tempbx & DisableCRT2Display)) {
-			if ((!(tempbx & DriverMode)) ||
-			    (!(modeflag & CRT2Mode))) {
-				if (pVBInfo->IF_DEF_LCDA == 1) {
-					if (!(tempbx & XGI_SetCRT2ToLCDA))
-						tempbx |= (SetInSlaveMode |
-							   SetSimuScanMode);
-				}
+	if (tempax & DisableCRT2Display) { /* Set Display Device Info */
+		if (!(tempbx & (SwitchCRT2 | SetSimuScanMode)))
+			tempbx = DisableCRT2Display;
+	}
+
+	if (!(tempbx & DisableCRT2Display)) {
+		if ((!(tempbx & DriverMode)) ||
+		    (!(modeflag & CRT2Mode))) {
+			if (pVBInfo->IF_DEF_LCDA == 1) {
+				if (!(tempbx & XGI_SetCRT2ToLCDA))
+					tempbx |= (SetInSlaveMode |
+						   SetSimuScanMode);
 			}
+		}
 
-			/* LCD+TV can't support in slave mode
-			 * (Force LCDA+TV->LCDB) */
-			if ((tempbx & SetInSlaveMode) &&
-			    (tempbx & XGI_SetCRT2ToLCDA)) {
-				tempbx ^= (SetCRT2ToLCD |
-					  XGI_SetCRT2ToLCDA |
-					  SetCRT2ToDualEdge);
-				pVBInfo->SetFlag |= ReserveTVOption;
-			}
+		/* LCD+TV can't support in slave mode
+		 * (Force LCDA+TV->LCDB) */
+		if ((tempbx & SetInSlaveMode) &&
+		    (tempbx & XGI_SetCRT2ToLCDA)) {
+			tempbx ^= (SetCRT2ToLCD |
+				   XGI_SetCRT2ToLCDA |
+				   SetCRT2ToDualEdge);
+			pVBInfo->SetFlag |= ReserveTVOption;
 		}
 	}
 
