@@ -5748,7 +5748,11 @@ loop:
 				ret = do_chunk_alloc(trans, root, num_bytes +
 						     2 * 1024 * 1024, data,
 						     CHUNK_ALLOC_LIMITED);
-				if (ret < 0) {
+				/*
+				 * Do not bail out on ENOSPC since we
+				 * can do more things.
+				 */
+				if (ret < 0 && ret != -ENOSPC) {
 					btrfs_abort_transaction(trans,
 								root, ret);
 					goto out;
