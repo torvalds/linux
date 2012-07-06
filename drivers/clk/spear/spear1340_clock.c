@@ -369,8 +369,8 @@ static struct frac_rate_tbl gen_rtbl[] = {
 
 /* clock parents */
 static const char *vco_parents[] = { "osc_24m_clk", "osc_25m_clk", };
-static const char *sys_parents[] = { "none", "pll1_clk", "none", "none",
-	"sys_syn_clk", "none", "pll2_clk", "pll3_clk", };
+static const char *sys_parents[] = { "pll1_clk", "pll1_clk", "pll1_clk",
+	"pll1_clk", "sys_synth_clk", "sys_synth_clk", "pll2_clk", "pll3_clk", };
 static const char *ahb_parents[] = { "cpu_div3_clk", "amba_syn_clk", };
 static const char *gpt_parents[] = { "osc_24m_clk", "apb_clk", };
 static const char *uart0_parents[] = { "pll5_clk", "osc_24m_clk",
