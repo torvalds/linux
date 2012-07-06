@@ -162,22 +162,24 @@ static int __exit omap_rng_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_PM
 
-static int omap_rng_suspend(struct platform_device *pdev, pm_message_t message)
+static int omap_rng_suspend(struct device *dev)
 {
 	omap_rng_write_reg(RNG_MASK_REG, 0x0);
 	return 0;
 }
 
-static int omap_rng_resume(struct platform_device *pdev)
+static int omap_rng_resume(struct device *dev)
 {
 	omap_rng_write_reg(RNG_MASK_REG, 0x1);
 	return 0;
 }
 
+static SIMPLE_DEV_PM_OPS(omap_rng_pm, omap_rng_suspend, omap_rng_resume);
+#define	OMAP_RNG_PM	(&omap_rng_pm)
+
 #else
 
-#define	omap_rng_suspend	NULL
-#define	omap_rng_resume		NULL
+#define	OMAP_RNG_PM	NULL
 
 #endif
 
@@ -188,11 +190,10 @@ static struct platform_driver omap_rng_driver = {
 	.driver = {
 		.name		= "omap_rng",
 		.owner		= THIS_MODULE,
+		.pm		= OMAP_RNG_PM,
 	},
 	.probe		= omap_rng_probe,
 	.remove		= __exit_p(omap_rng_remove),
-	.suspend	= omap_rng_suspend,
-	.resume		= omap_rng_resume
 };
 
 static int __init omap_rng_init(void)
