@@ -888,12 +888,12 @@ static const struct preview_update update_attrs[] = {
 		preview_config_contrast,
 		NULL,
 		offsetof(struct prev_params, contrast),
-		0, true,
+		0, 0, true,
 	}, /* OMAP3ISP_PREV_BRIGHTNESS */ {
 		preview_config_brightness,
 		NULL,
 		offsetof(struct prev_params, brightness),
-		0, true,
+		0, 0, true,
 	},
 };
 
