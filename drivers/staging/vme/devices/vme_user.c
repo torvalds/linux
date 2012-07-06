@@ -474,7 +474,7 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 	case CONTROL_MINOR:
 		switch (cmd) {
 		case VME_IRQ_GEN:
-			copied = copy_from_user(&irq_req, (char *)arg,
+			copied = copy_from_user(&irq_req, argp,
 						sizeof(struct vme_irq_id));
 			if (copied != 0) {
 				printk(KERN_WARNING "Partial copy from userspace\n");
