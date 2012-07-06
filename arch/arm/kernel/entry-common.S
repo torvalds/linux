@@ -442,10 +442,9 @@ ENDPROC(vector_swi)
 	 * context switches, and waiting for our parent to respond.
 	 */
 __sys_trace:
-	mov	r2, scno
-	add	r1, sp, #S_OFF
-	mov	r0, #0				@ trace entry [IP = 0]
-	bl	syscall_trace
+	mov	r1, scno
+	add	r0, sp, #S_OFF
+	bl	syscall_trace_enter
 
 	adr	lr, BSYM(__sys_trace_return)	@ return address
 	mov	scno, r0			@ syscall number (possibly new)
@@ -457,10 +456,9 @@ __sys_trace:
 
 __sys_trace_return:
 	str	r0, [sp, #S_R0 + S_OFF]!	@ save returned r0
-	mov	r2, scno
-	mov	r1, sp
-	mov	r0, #1				@ trace exit [IP = 1]
-	bl	syscall_trace
+	mov	r1, scno
+	mov	r0, sp
+	bl	syscall_trace_exit
 	b	ret_slow_syscall
 
 	.align	5
