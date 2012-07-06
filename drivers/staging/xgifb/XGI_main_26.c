@@ -262,28 +262,19 @@ static void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 
 static int XGIfb_GetXG21DefaultLVDSModeIdx(struct xgifb_video_info *xgifb_info)
 {
+	int i = 0;
 
-	int found_mode = 0;
-	int XGIfb_mode_idx = 0;
-
-	found_mode = 0;
-	while ((XGIbios_mode[XGIfb_mode_idx].mode_no != 0)
-			&& (XGIbios_mode[XGIfb_mode_idx].xres
-					<= xgifb_info->lvds_data.LVDSHDE)) {
-		if ((XGIbios_mode[XGIfb_mode_idx].xres
-				== xgifb_info->lvds_data.LVDSHDE)
-				&& (XGIbios_mode[XGIfb_mode_idx].yres
-					== xgifb_info->lvds_data.LVDSVDE)
-				&& (XGIbios_mode[XGIfb_mode_idx].bpp == 8)) {
-			found_mode = 1;
-			break;
+	while ((XGIbios_mode[i].mode_no != 0)
+	       && (XGIbios_mode[i].xres <= xgifb_info->lvds_data.LVDSHDE)) {
+		if ((XGIbios_mode[i].xres == xgifb_info->lvds_data.LVDSHDE)
+		    && (XGIbios_mode[i].yres == xgifb_info->lvds_data.LVDSVDE)
+		    && (XGIbios_mode[i].bpp == 8)) {
+			return i;
 		}
-		XGIfb_mode_idx++;
+		i++;
 	}
-	if (!found_mode)
-		XGIfb_mode_idx = -1;
 
-	return XGIfb_mode_idx;
+	return -1;
 }
 
 static void XGIfb_search_mode(struct xgifb_video_info *xgifb_info,
