@@ -973,8 +973,6 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 		vtotal <<= 1;
 	else if ((var->vmode & FB_VMODE_MASK) == FB_VMODE_DOUBLE)
 		vtotal <<= 2;
-	else if ((var->vmode & FB_VMODE_MASK) == FB_VMODE_INTERLACED) {
-	}
 
 	if (!htotal || !vtotal) {
 		pr_debug("Invalid 'var' information\n");
