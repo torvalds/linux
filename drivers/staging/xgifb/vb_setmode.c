@@ -161,18 +161,15 @@ static void XGI_SetATTRegs(unsigned short ModeNo,
 
 	for (i = 0; i <= 0x13; i++) {
 		ARdata = pVBInfo->StandTable->ATTR[i];
-		if (modeflag & Charx8Dot) { /* ifndef Dot9 */
-			if (i == 0x13) {
-				if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
+
+		if ((modeflag & Charx8Dot) && i == 0x13) { /* ifndef Dot9 */
+			if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
+				ARdata = 0;
+			} else {
+				if ((pVBInfo->VBInfo &
+				     (SetCRT2ToTV | SetCRT2ToLCD)) &&
+				    (pVBInfo->VBInfo & SetInSlaveMode))
 					ARdata = 0;
-				} else {
-					if (pVBInfo->VBInfo & (SetCRT2ToTV
-							| SetCRT2ToLCD)) {
-						if (pVBInfo->VBInfo &
-						    SetInSlaveMode)
-							ARdata = 0;
-					}
-				}
 			}
 		}
 
