@@ -215,22 +215,6 @@ preview_enable_drkframe(struct isp_prev_device *prev, u8 enable)
 }
 
 /*
- * preview_config_drkf_shadcomp - Configures shift value in shading comp.
- * @scomp_shtval: 3bit value of shift used in shading compensation.
- */
-static void
-preview_config_drkf_shadcomp(struct isp_prev_device *prev,
-			     const void *scomp_shtval)
-{
-	struct isp_device *isp = to_isp_device(prev);
-	const u32 *shtval = scomp_shtval;
-
-	isp_reg_clr_set(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
-			ISPPRV_PCR_SCOMP_SFT_MASK,
-			*shtval << ISPPRV_PCR_SCOMP_SFT_SHIFT);
-}
-
-/*
  * preview_enable_hmed - Enables/Disables of the Horizontal Median Filter.
  * @enable: 1 - Enables Horizontal Median Filter.
  */
@@ -870,7 +854,7 @@ static const struct preview_update update_attrs[] = {
 		NULL,
 		preview_enable_drkframe,
 	}, /* OMAP3ISP_PREV_LENS_SHADING */ {
-		preview_config_drkf_shadcomp,
+		NULL,
 		preview_enable_drkframe,
 	}, /* OMAP3ISP_PREV_NF */ {
 		preview_config_noisefilter,
