@@ -818,15 +818,18 @@ static size_t print_time(u64 ts, char *buf)
 static size_t print_prefix(const struct log *msg, bool syslog, char *buf)
 {
 	size_t len = 0;
+	unsigned int prefix = (msg->facility << 3) | msg->level;
 
 	if (syslog) {
 		if (buf) {
-			len += sprintf(buf, "<%u>", msg->level);
+			len += sprintf(buf, "<%u>", prefix);
 		} else {
 			len += 3;
-			if (msg->level > 9)
-				len++;
-			if (msg->level > 99)
+			if (prefix > 999)
+				len += 3;
+			else if (prefix > 99)
+				len += 2;
+			else if (prefix > 9)
 				len++;
 		}
 	}
