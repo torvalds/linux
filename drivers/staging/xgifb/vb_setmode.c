@@ -6472,32 +6472,24 @@ static void XGI_EnableBridge(struct xgifb_video_info *xgifb_info,
 		if (!(pVBInfo->VBInfo & DisableCRT2Display)) {
 			tempah = 0xc0;
 
-			if (!(pVBInfo->VBInfo & SetSimuScanMode)) {
-				if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
-					if (pVBInfo->VBInfo &
-					    SetCRT2ToDualEdge) {
-						tempah = tempah & 0x40;
-						if (pVBInfo->VBInfo &
-						    XGI_SetCRT2ToLCDA)
-							tempah = tempah ^ 0xC0;
+			if (!(pVBInfo->VBInfo & SetSimuScanMode) &&
+			    (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) &&
+			    (pVBInfo->VBInfo & SetCRT2ToDualEdge)) {
+				tempah = tempah & 0x40;
+				if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA)
+					tempah = tempah ^ 0xC0;
 
-						if (pVBInfo->SetFlag &
-						    DisableChB)
-							tempah &= 0xBF;
+				if (pVBInfo->SetFlag & DisableChB)
+					tempah &= 0xBF;
 
-						if (pVBInfo->SetFlag &
-						    DisableChA)
-							tempah &= 0x7F;
+				if (pVBInfo->SetFlag &  DisableChA)
+					tempah &= 0x7F;
 
-						if (pVBInfo->SetFlag &
-						    EnableChB)
-							tempah |= 0x40;
+				if (pVBInfo->SetFlag &  EnableChB)
+					tempah |= 0x40;
 
-						if (pVBInfo->SetFlag &
-						    EnableChA)
-							tempah |= 0x80;
-					}
-				}
+				if (pVBInfo->SetFlag &  EnableChA)
+					tempah |= 0x80;
 			}
 		}
 
