@@ -3,6 +3,16 @@
 #
 menu "Analog to digital converters"
 
+config AD7266
+	tristate "Analog Devices AD7265/AD7266 ADC driver"
+	depends on SPI_MASTER
+	select IIO_BUFFER
+	select IIO_TRIGGER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Analog Devices AD7265 and AD7266
+	  ADCs.
+
 config AT91_ADC
 	tristate "Atmel AT91 ADC"
 	depends on ARCH_AT91
