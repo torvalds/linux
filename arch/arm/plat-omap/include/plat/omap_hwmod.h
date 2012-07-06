@@ -648,6 +648,8 @@ int omap_hwmod_pad_route_irq(struct omap_hwmod *oh, int pad_idx, int irq_idx);
 
 extern void __init omap_hwmod_init(void);
 
+const char *omap_hwmod_get_main_clk(struct omap_hwmod *oh);
+
 /*
  * Chip variant-specific hwmod init routines - XXX should be converted
  * to use initcalls once the initial boot ordering is straightened out

@@ -3633,3 +3633,18 @@ void __init omap_hwmod_init(void)
 
 	inited = true;
 }
+
+/**
+ * omap_hwmod_get_main_clk - get pointer to main clock name
+ * @oh: struct omap_hwmod *
+ *
+ * Returns the main clock name assocated with @oh upon success,
+ * or NULL if @oh is NULL.
+ */
+const char *omap_hwmod_get_main_clk(struct omap_hwmod *oh)
+{
+	if (!oh)
+		return NULL;
+
+	return oh->main_clk;
+}
