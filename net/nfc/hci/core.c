@@ -682,13 +682,12 @@ EXPORT_SYMBOL(nfc_hci_register_device);
 
 void nfc_hci_unregister_device(struct nfc_hci_dev *hdev)
 {
-	struct hci_msg *msg;
+	struct hci_msg *msg, *n;
 
 	skb_queue_purge(&hdev->rx_hcp_frags);
 	skb_queue_purge(&hdev->msg_rx_queue);
 
-	while ((msg = list_first_entry(&hdev->msg_tx_queue, struct hci_msg,
-				       msg_l)) != NULL) {
+	list_for_each_entry_safe(msg, n, &hdev->msg_tx_queue, msg_l) {
 		list_del(&msg->msg_l);
 		skb_queue_purge(&msg->msg_frags);
 		kfree(msg);
