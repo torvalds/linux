@@ -1108,7 +1108,7 @@ void ieee80211_dynamic_ps_timer(unsigned long data)
 }
 
 /* MLME */
-static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
+static bool ieee80211_sta_wmm_params(struct ieee80211_local *local,
 				     struct ieee80211_sub_if_data *sdata,
 				     u8 *wmm_param, size_t wmm_param_len)
 {
@@ -1119,23 +1119,23 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 	u8 *pos, uapsd_queues = 0;
 
 	if (!local->ops->conf_tx)
-		return;
+		return false;
 
 	if (local->hw.queues < IEEE80211_NUM_ACS)
-		return;
+		return false;
 
 	if (!wmm_param)
-		return;
+		return false;
 
 	if (wmm_param_len < 8 || wmm_param[5] /* version */ != 1)
-		return;
+		return false;
 
 	if (ifmgd->flags & IEEE80211_STA_UAPSD_ENABLED)
 		uapsd_queues = ifmgd->uapsd_queues;
 
 	count = wmm_param[6] & 0x0f;
 	if (count == ifmgd->wmm_last_param_set)
-		return;
+		return false;
 	ifmgd->wmm_last_param_set = count;
 
 	pos = wmm_param + 8;
@@ -1202,6 +1202,7 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 
 	/* enable WMM or activate new settings */
 	sdata->vif.bss_conf.qos = true;
+	return true;
 }
 
 static void __ieee80211_stop_poll(struct ieee80211_sub_if_data *sdata)
@@ -2438,14 +2439,6 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		directed_tim = ieee80211_check_tim(elems.tim, elems.tim_len,
 						   ifmgd->aid);
 
-	if (ncrc != ifmgd->beacon_crc || !ifmgd->beacon_crc_valid) {
-		ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems,
-				      true);
-
-		ieee80211_sta_wmm_params(local, sdata, elems.wmm_param,
-					 elems.wmm_param_len);
-	}
-
 	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) {
 		if (directed_tim) {
 			if (local->hw.conf.dynamic_ps_timeout > 0) {
@@ -2475,6 +2468,13 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		return;
 	ifmgd->beacon_crc = ncrc;
 	ifmgd->beacon_crc_valid = true;
+
+	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems,
+			      true);
+
+	if (ieee80211_sta_wmm_params(local, sdata, elems.wmm_param,
+				     elems.wmm_param_len))
+		changed |= BSS_CHANGED_QOS;
 
 	if (elems.erp_info && elems.erp_info_len >= 1) {
 		erp_valid = true;

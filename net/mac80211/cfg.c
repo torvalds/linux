@@ -1741,6 +1741,8 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_QOS);
+
 	return 0;
 }
 
