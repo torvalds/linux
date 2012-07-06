@@ -430,20 +430,20 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 	ret = mutex_lock_interruptible(&user->lock);
 	if (ret)
 		return ret;
-	raw_spin_lock(&logbuf_lock);
+	raw_spin_lock_irq(&logbuf_lock);
 	while (user->seq == log_next_seq) {
 		if (file->f_flags & O_NONBLOCK) {
 			ret = -EAGAIN;
-			raw_spin_unlock(&logbuf_lock);
+			raw_spin_unlock_irq(&logbuf_lock);
 			goto out;
 		}
 
-		raw_spin_unlock(&logbuf_lock);
+		raw_spin_unlock_irq(&logbuf_lock);
 		ret = wait_event_interruptible(log_wait,
 					       user->seq != log_next_seq);
 		if (ret)
 			goto out;
-		raw_spin_lock(&logbuf_lock);
+		raw_spin_lock_irq(&logbuf_lock);
 	}
 
 	if (user->seq < log_first_seq) {
@@ -451,7 +451,7 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 		user->idx = log_first_idx;
 		user->seq = log_first_seq;
 		ret = -EPIPE;
-		raw_spin_unlock(&logbuf_lock);
+		raw_spin_unlock_irq(&logbuf_lock);
 		goto out;
 	}
 
@@ -501,7 +501,7 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 
 	user->idx = log_next(user->idx);
 	user->seq++;
-	raw_spin_unlock(&logbuf_lock);
+	raw_spin_unlock_irq(&logbuf_lock);
 
 	if (len > count) {
 		ret = -EINVAL;
@@ -528,7 +528,7 @@ static loff_t devkmsg_llseek(struct file *file, loff_t offset, int whence)
 	if (offset)
 		return -ESPIPE;
 
-	raw_spin_lock(&logbuf_lock);
+	raw_spin_lock_irq(&logbuf_lock);
 	switch (whence) {
 	case SEEK_SET:
 		/* the first record */
@@ -552,7 +552,7 @@ static loff_t devkmsg_llseek(struct file *file, loff_t offset, int whence)
 	default:
 		ret = -EINVAL;
 	}
-	raw_spin_unlock(&logbuf_lock);
+	raw_spin_unlock_irq(&logbuf_lock);
 	return ret;
 }
 
@@ -566,14 +566,14 @@ static unsigned int devkmsg_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &log_wait, wait);
 
-	raw_spin_lock(&logbuf_lock);
+	raw_spin_lock_irq(&logbuf_lock);
 	if (user->seq < log_next_seq) {
 		/* return error when data has vanished underneath us */
 		if (user->seq < log_first_seq)
 			ret = POLLIN|POLLRDNORM|POLLERR|POLLPRI;
 		ret = POLLIN|POLLRDNORM;
 	}
-	raw_spin_unlock(&logbuf_lock);
+	raw_spin_unlock_irq(&logbuf_lock);
 
 	return ret;
 }
@@ -597,10 +597,10 @@ static int devkmsg_open(struct inode *inode, struct file *file)
 
 	mutex_init(&user->lock);
 
-	raw_spin_lock(&logbuf_lock);
+	raw_spin_lock_irq(&logbuf_lock);
 	user->idx = log_first_idx;
 	user->seq = log_first_seq;
-	raw_spin_unlock(&logbuf_lock);
+	raw_spin_unlock_irq(&logbuf_lock);
 
 	file->private_data = user;
 	return 0;
