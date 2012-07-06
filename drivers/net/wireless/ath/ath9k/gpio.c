@@ -403,11 +403,13 @@ void ath9k_stop_btcoex(struct ath_softc *sc)
 
 void ath9k_deinit_btcoex(struct ath_softc *sc)
 {
+	struct ath_hw *ah = sc->sc_ah;
+
         if ((sc->btcoex.no_stomp_timer) &&
 	    ath9k_hw_get_btcoex_scheme(sc->sc_ah) == ATH_BTCOEX_CFG_3WIRE)
 		ath_gen_timer_free(sc->sc_ah, sc->btcoex.no_stomp_timer);
 
-	if (AR_SREV_9462(sc->sc_ah))
+	if (ath9k_hw_mci_is_enabled(ah))
 		ath_mci_cleanup(sc);
 }
 
