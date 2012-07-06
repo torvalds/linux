@@ -3920,14 +3920,11 @@ static struct kmem_cache *find_mergeable(size_t size,
 	return NULL;
 }
 
-struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
 		size_t align, unsigned long flags, void (*ctor)(void *))
 {
 	struct kmem_cache *s;
 	char *n;
-
-	if (WARN_ON(!name))
-		return NULL;
 
 	down_write(&slub_lock);
 	s = find_mergeable(size, align, flags, name, ctor);
@@ -3972,14 +3969,8 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 	kfree(n);
 err:
 	up_write(&slub_lock);
-
-	if (flags & SLAB_PANIC)
-		panic("Cannot create slabcache %s\n", name);
-	else
-		s = NULL;
 	return s;
 }
-EXPORT_SYMBOL(kmem_cache_create);
 
 #ifdef CONFIG_SMP
 /*

@@ -16,7 +16,8 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
 			   readahead.o swap.o truncate.o vmscan.o shmem.o \
 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
 			   page_isolation.o mm_init.o mmu_context.o percpu.o \
-			   compaction.o $(mmu-y)
+			   compaction.o slab_common.o $(mmu-y)
+
 obj-y += init-mm.o
 
 ifdef CONFIG_NO_BOOTMEM

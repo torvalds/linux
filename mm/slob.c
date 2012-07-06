@@ -506,7 +506,7 @@ size_t ksize(const void *block)
 }
 EXPORT_SYMBOL(ksize);
 
-struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
 	size_t align, unsigned long flags, void (*ctor)(void *))
 {
 	struct kmem_cache *c;
@@ -529,13 +529,11 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 			c->align = ARCH_SLAB_MINALIGN;
 		if (c->align < align)
 			c->align = align;
-	} else if (flags & SLAB_PANIC)
-		panic("Cannot create slab cache %s\n", name);
 
-	kmemleak_alloc(c, sizeof(struct kmem_cache), 1, GFP_KERNEL);
+		kmemleak_alloc(c, sizeof(struct kmem_cache), 1, GFP_KERNEL);
+	}
 	return c;
 }
-EXPORT_SYMBOL(kmem_cache_create);
 
 void kmem_cache_destroy(struct kmem_cache *c)
 {
