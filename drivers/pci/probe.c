@@ -152,9 +152,6 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 	pci_read_config_dword(dev, pos, &sz);
 	pci_write_config_dword(dev, pos, l);
 
-	if (!dev->mmio_always_on)
-		pci_write_config_word(dev, PCI_COMMAND, orig_cmd);
-
 	/*
 	 * All bits set in sz means the device isn't working properly.
 	 * If the BAR isn't implemented, all bits must be 0.  If it's a
@@ -239,6 +236,9 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 	}
 
  out:
+	if (!dev->mmio_always_on)
+		pci_write_config_word(dev, PCI_COMMAND, orig_cmd);
+
 	return (res->flags & IORESOURCE_MEM_64) ? 1 : 0;
  fail:
 	res->flags = 0;
