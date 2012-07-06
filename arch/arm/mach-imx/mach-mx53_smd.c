@@ -138,7 +138,7 @@ static void __init mx53_smd_board_init(void)
 	mx53_smd_init_uart();
 	mx53_smd_fec_reset();
 	imx53_add_fec(&mx53_smd_fec_data);
-	imx53_add_imx2_wdt(0, NULL);
+	imx53_add_imx2_wdt(0);
 	imx53_add_imx_i2c(0, &mx53_smd_i2c_data);
 	imx53_add_sdhci_esdhc_imx(0, NULL);
 	imx53_add_sdhci_esdhc_imx(1, NULL);

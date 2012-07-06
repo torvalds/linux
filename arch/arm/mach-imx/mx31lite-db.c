@@ -191,6 +191,6 @@ void __init mx31lite_db_init(void)
 	imx31_add_mxc_mmc(0, &mmc_pdata);
 	imx31_add_spi_imx0(&spi0_pdata);
 	gpio_led_register_device(-1, &litekit_led_platform_data);
-	imx31_add_imx2_wdt(NULL);
-	imx31_add_mxc_rtc(NULL);
+	imx31_add_imx2_wdt();
+	imx31_add_mxc_rtc();
 }

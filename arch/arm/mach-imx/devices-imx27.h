@@ -18,7 +18,7 @@ extern const struct imx_fsl_usb2_udc_data imx27_fsl_usb2_udc_data;
 	imx_add_fsl_usb2_udc(&imx27_fsl_usb2_udc_data, pdata)
 
 extern const struct imx_imx2_wdt_data imx27_imx2_wdt_data;
-#define imx27_add_imx2_wdt(pdata)	\
+#define imx27_add_imx2_wdt()	\
 	imx_add_imx2_wdt(&imx27_imx2_wdt_data)
 
 extern const struct imx_imx_fb_data imx27_imx_fb_data;
@@ -50,7 +50,7 @@ extern const struct imx_imx_uart_1irq_data imx27_imx_uart_data[];
 extern const struct imx_mx2_camera_data imx27_mx2_camera_data;
 #define imx27_add_mx2_camera(pdata)	\
 	imx_add_mx2_camera(&imx27_mx2_camera_data, pdata)
-#define imx27_add_mx2_emmaprp(pdata)	\
+#define imx27_add_mx2_emmaprp()	\
 	imx_add_mx2_emmaprp(&imx27_mx2_camera_data)
 
 extern const struct imx_mxc_ehci_data imx27_mxc_ehci_otg_data;
@@ -69,7 +69,7 @@ extern const struct imx_mxc_nand_data imx27_mxc_nand_data;
 	imx_add_mxc_nand(&imx27_mxc_nand_data, pdata)
 
 extern const struct imx_mxc_w1_data imx27_mxc_w1_data;
-#define imx27_add_mxc_w1(pdata)	\
+#define imx27_add_mxc_w1()	\
 	imx_add_mxc_w1(&imx27_mxc_w1_data)
 
 extern const struct imx_spi_imx_data imx27_cspi_data[];

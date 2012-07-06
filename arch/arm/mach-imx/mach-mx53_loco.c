@@ -283,7 +283,7 @@ static void __init mx53_loco_board_init(void)
 	imx53_add_imx_uart(0, NULL);
 	mx53_loco_fec_reset();
 	imx53_add_fec(&mx53_loco_fec_data);
-	imx53_add_imx2_wdt(0, NULL);
+	imx53_add_imx2_wdt(0);
 
 	ret = gpio_request_one(LOCO_ACCEL_EN, GPIOF_OUT_INIT_HIGH, "accel_en");
 	if (ret)

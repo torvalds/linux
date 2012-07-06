@@ -252,7 +252,7 @@ static void __init qong_init(void)
 	mxc_init_imx_uart();
 	qong_init_nor_mtd();
 	qong_init_fpga();
-	imx31_add_imx2_wdt(NULL);
+	imx31_add_imx2_wdt();
 }
 
 static void __init qong_timer_init(void)

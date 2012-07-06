@@ -557,18 +557,18 @@ static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.phy_mode       = FSL_USB2_PHY_ULPI,
 };
 
-static int otg_mode_host;
+static bool otg_mode_host __initdata;
 
 static int __init pcm037_otg_mode(char *options)
 {
 	if (!strcmp(options, "host"))
-		otg_mode_host = 1;
+		otg_mode_host = true;
 	else if (!strcmp(options, "device"))
-		otg_mode_host = 0;
+		otg_mode_host = false;
 	else
 		pr_info("otg_mode neither \"host\" nor \"device\". "
 			"Defaulting to device\n");
-	return 0;
+	return 1;
 }
 __setup("otg_mode=", pcm037_otg_mode);
 
@@ -619,13 +619,13 @@ static void __init pcm037_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	imx31_add_imx2_wdt(NULL);
+	imx31_add_imx2_wdt();
 	imx31_add_imx_uart0(&uart_pdata);
 	/* XXX: should't this have .flags = 0 (i.e. no RTSCTS) on PCM037_EET? */
 	imx31_add_imx_uart1(&uart_pdata);
 	imx31_add_imx_uart2(&uart_pdata);
 
-	imx31_add_mxc_w1(NULL);
+	imx31_add_mxc_w1();
 
 	/* LAN9217 IRQ pin */
 	ret = gpio_request(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1), "lan9217-irq");

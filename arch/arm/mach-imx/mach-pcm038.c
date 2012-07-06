@@ -332,8 +332,8 @@ static void __init pcm038_init(void)
 
 	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
-	imx27_add_imx2_wdt(NULL);
-	imx27_add_mxc_w1(NULL);
+	imx27_add_imx2_wdt();
+	imx27_add_mxc_w1();
 
 #ifdef CONFIG_MACH_PCM970_BASEBOARD
 	pcm970_baseboard_init();
