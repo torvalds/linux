@@ -229,7 +229,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		*value = rdev->accel_working;
 		break;
 	case RADEON_INFO_TILING_CONFIG:
-		if (rdev->family >= CHIP_TAHITI)
+		if (rdev->family >= CHIP_BONAIRE)
+			*value = rdev->config.cik.tile_config;
+		else if (rdev->family >= CHIP_TAHITI)
 			*value = rdev->config.si.tile_config;
 		else if (rdev->family >= CHIP_CAYMAN)
 			*value = rdev->config.cayman.tile_config;
@@ -281,7 +283,10 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			*value = rdev->clock.spll.reference_freq * 10;
 		break;
 	case RADEON_INFO_NUM_BACKENDS:
-		if (rdev->family >= CHIP_TAHITI)
+		if (rdev->family >= CHIP_BONAIRE)
+			*value = rdev->config.cik.max_backends_per_se *
+				rdev->config.cik.max_shader_engines;
+		else if (rdev->family >= CHIP_TAHITI)
 			*value = rdev->config.si.max_backends_per_se *
 				rdev->config.si.max_shader_engines;
 		else if (rdev->family >= CHIP_CAYMAN)
@@ -298,7 +303,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		}
 		break;
 	case RADEON_INFO_NUM_TILE_PIPES:
-		if (rdev->family >= CHIP_TAHITI)
+		if (rdev->family >= CHIP_BONAIRE)
+			*value = rdev->config.cik.max_tile_pipes;
+		else if (rdev->family >= CHIP_TAHITI)
 			*value = rdev->config.si.max_tile_pipes;
 		else if (rdev->family >= CHIP_CAYMAN)
 			*value = rdev->config.cayman.max_tile_pipes;
@@ -316,7 +323,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		*value = 1;
 		break;
 	case RADEON_INFO_BACKEND_MAP:
-		if (rdev->family >= CHIP_TAHITI)
+		if (rdev->family >= CHIP_BONAIRE)
+			return -EINVAL;
+		else if (rdev->family >= CHIP_TAHITI)
 			*value = rdev->config.si.backend_map;
 		else if (rdev->family >= CHIP_CAYMAN)
 			*value = rdev->config.cayman.backend_map;
@@ -343,7 +352,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		*value = RADEON_IB_VM_MAX_SIZE;
 		break;
 	case RADEON_INFO_MAX_PIPES:
-		if (rdev->family >= CHIP_TAHITI)
+		if (rdev->family >= CHIP_BONAIRE)
+			*value = rdev->config.cik.max_cu_per_sh;
+		else if (rdev->family >= CHIP_TAHITI)
 			*value = rdev->config.si.max_cu_per_sh;
 		else if (rdev->family >= CHIP_CAYMAN)
 			*value = rdev->config.cayman.max_pipes_per_simd;
@@ -367,7 +378,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		value64 = radeon_get_gpu_clock_counter(rdev);
 		break;
 	case RADEON_INFO_MAX_SE:
-		if (rdev->family >= CHIP_TAHITI)
+		if (rdev->family >= CHIP_BONAIRE)
+			*value = rdev->config.cik.max_shader_engines;
+		else if (rdev->family >= CHIP_TAHITI)
 			*value = rdev->config.si.max_shader_engines;
 		else if (rdev->family >= CHIP_CAYMAN)
 			*value = rdev->config.cayman.max_shader_engines;
@@ -377,7 +390,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			*value = 1;
 		break;
 	case RADEON_INFO_MAX_SH_PER_SE:
-		if (rdev->family >= CHIP_TAHITI)
+		if (rdev->family >= CHIP_BONAIRE)
+			*value = rdev->config.cik.max_sh_per_se;
+		else if (rdev->family >= CHIP_TAHITI)
 			*value = rdev->config.si.max_sh_per_se;
 		else
 			return -EINVAL;
@@ -407,6 +422,10 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		}
 		break;
 	case RADEON_INFO_SI_TILE_MODE_ARRAY:
+		if (rdev->family >= CHIP_BONAIRE) {
+			DRM_DEBUG_KMS("tile mode array is not implemented yet\n");
+			return -EINVAL;
+		}
 		if (rdev->family < CHIP_TAHITI) {
 			DRM_DEBUG_KMS("tile mode array is si only!\n");
 			return -EINVAL;
