@@ -967,24 +967,18 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthernetDestMacAddressLength: 0x%02X ",
 				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddressLength);
 
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthernetDestMacAddress[6]: 0x %02X %02X %02X %02X %02X %02X",
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddress[0],
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddress[1],
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddress[2],
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddress[3],
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddress[4],
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddress[5]);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL,
+				DBG_LVL_ALL, "u8EthernetDestMacAddress[6]: %pM",
+				psfCSType->cCPacketClassificationRule.
+						u8EthernetDestMacAddress);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthernetSourceMACAddressLength: 0x%02X ",
 				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddressLength);
 
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthernetSourceMACAddress[6]: 0x %02X %02X %02X %02X %02X %02X",
-				psfCSType->cCPacketClassificationRule.u8EthernetSourceMACAddress[0],
-				psfCSType->cCPacketClassificationRule.u8EthernetSourceMACAddress[1],
-				psfCSType->cCPacketClassificationRule.u8EthernetSourceMACAddress[2],
-				psfCSType->cCPacketClassificationRule.u8EthernetSourceMACAddress[3],
-				psfCSType->cCPacketClassificationRule.u8EthernetSourceMACAddress[4],
-				psfCSType->cCPacketClassificationRule.u8EthernetSourceMACAddress[5]);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL,
+				DBG_LVL_ALL, "u8EthernetSourceMACAddress[6]: "
+				"%pM", psfCSType->cCPacketClassificationRule.
+						u8EthernetSourceMACAddress);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthertypeLength: 0x%02X ",
 				psfCSType->cCPacketClassificationRule.u8EthertypeLength);
@@ -1123,24 +1117,18 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthernetDestMacAddressLength: 0x%02X ",
 				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddressLength);
 
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthernetDestMacAddress[6]: 0x %02X %02X %02X %02X %02X %02X",
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddress[0],
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddress[1],
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddress[2],
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddress[3],
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddress[4],
-				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddress[5]);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL,
+				DBG_LVL_ALL, "u8EthernetDestMacAddress[6]: %pM",
+				psfCSType->cCPacketClassificationRule.
+						u8EthernetDestMacAddress);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthernetSourceMACAddressLength: 0x%02X ",
 				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddressLength);
 
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthernetSourceMACAddress[6]: 0x %02X %02X %02X %02X %02X %02X",
-				psfCSType->cCPacketClassificationRule.u8EthernetSourceMACAddress[0],
-				psfCSType->cCPacketClassificationRule.u8EthernetSourceMACAddress[1],
-				psfCSType->cCPacketClassificationRule.u8EthernetSourceMACAddress[2],
-				psfCSType->cCPacketClassificationRule.u8EthernetSourceMACAddress[3],
-				psfCSType->cCPacketClassificationRule.u8EthernetSourceMACAddress[4],
-				psfCSType->cCPacketClassificationRule.u8EthernetSourceMACAddress[5]);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL,
+				DBG_LVL_ALL, "u8EthernetSourceMACAddress[6]: "
+				"%pM", psfCSType->cCPacketClassificationRule.
+						u8EthernetSourceMACAddress);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthertypeLength: 0x%02X ", psfCSType->cCPacketClassificationRule.u8EthertypeLength);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8Ethertype[3]: 0x%02X %02X %02X",
