@@ -19,6 +19,8 @@
 #ifndef __ASM_R8A7740_H__
 #define __ASM_R8A7740_H__
 
+#include <mach/pm-rmobile.h>
+
 /*
  * MD_CKx pin
  */
@@ -603,5 +605,11 @@ enum {
 	SHDMA_SLAVE_USBHS_TX,
 	SHDMA_SLAVE_USBHS_RX,
 };
+
+#ifdef CONFIG_PM
+extern struct rmobile_pm_domain r8a7740_pd_a4s;
+extern struct rmobile_pm_domain r8a7740_pd_a3sp;
+extern struct rmobile_pm_domain r8a7740_pd_a4lc;
+#endif /* CONFIG_PM */
 
 #endif /* __ASM_R8A7740_H__ */

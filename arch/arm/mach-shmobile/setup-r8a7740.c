@@ -29,6 +29,7 @@
 #include <linux/dma-mapping.h>
 #include <mach/dma-register.h>
 #include <mach/r8a7740.h>
+#include <mach/pm-rmobile.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <asm/mach-types.h>
@@ -671,10 +672,31 @@ void __init r8a7740_add_standard_devices(void)
 	r8a7740_i2c_workaround(&i2c0_device);
 	r8a7740_i2c_workaround(&i2c1_device);
 
+	/* PM domain */
+	rmobile_init_pm_domain(&r8a7740_pd_a4s);
+	rmobile_init_pm_domain(&r8a7740_pd_a3sp);
+	rmobile_init_pm_domain(&r8a7740_pd_a4lc);
+
+	rmobile_pm_add_subdomain(&r8a7740_pd_a4s, &r8a7740_pd_a3sp);
+
+	/* add devices */
 	platform_add_devices(r8a7740_early_devices,
 			    ARRAY_SIZE(r8a7740_early_devices));
 	platform_add_devices(r8a7740_late_devices,
 			     ARRAY_SIZE(r8a7740_late_devices));
+
+	/* add devices to PM domain  */
+
+	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&scif0_device);
+	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&scif1_device);
+	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&scif2_device);
+	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&scif3_device);
+	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&scif4_device);
+	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&scif5_device);
+	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&scif6_device);
+	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&scif7_device);
+	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&scifb_device);
+	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&i2c1_device);
 }
 
 static void __init r8a7740_earlytimer_init(void)
