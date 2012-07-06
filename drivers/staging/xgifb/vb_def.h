@@ -1,5 +1,3 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/xgi/initdef.h
- * ,v 1.4 2000/12/02 01:16:17 dawes Exp $*/
 #ifndef _VB_DEF_
 #define _VB_DEF_
 #include "../../video/sis/initdef.h"
@@ -12,7 +10,6 @@
 #define SetCHTVOverScan         0x8000
 
 #define Panel_320x480            0x07 /*fstn*/
-/* [ycchen] 02/12/03 Modify for Multi-Sync. LCD Support */
 #define PanelResInfo            0x1F /* CR36 Panel Type/LCDResInfo */
 #define Panel_1024x768x75        0x22
 #define Panel_1280x1024x75       0x23

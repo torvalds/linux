@@ -68,9 +68,6 @@ static int XGIfb_crt2type = -1;
 /* PR: Tv plug type (for overriding autodetection) */
 static int XGIfb_tvplug = -1;
 
-/* TW: For ioctl XGIFB_GET_INFO */
-/* XGIfb_info XGIfbinfo; */
-
 #define MD_XGI315 1
 
 /* mode table */
@@ -240,7 +237,6 @@ static const struct _chswtable {
 	{ 0,      0,      ""       , ""       }
 };
 
-/* Eden Chen */
 static const struct _XGI_TV_filter {
 	u8 filter[9][4];
 } XGI_TV_filter[] = {

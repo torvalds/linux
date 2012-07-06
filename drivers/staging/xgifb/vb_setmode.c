@@ -1859,7 +1859,6 @@ static void *XGI_GetTVPtr(unsigned short BX, unsigned short ModeNo,
 		i++;
 	}
 
-	/* 07/05/22 */
 	if (table == 0x04) {
 		switch (tempdi[i].DATAPTR) {
 		case 0:
@@ -2519,7 +2518,7 @@ static void XGI_UpdateModeInfo(struct xgi_hw_device_info *HwDeviceExtension,
 		temp &= 0x0f;
 
 		if (!(temp == 0x08)) {
-			/* Check ChannelA by Part1_13 [2003/10/03] */
+			/* Check ChannelA */
 			tempax = xgifb_reg_get(pVBInfo->Part1Port, 0x13);
 			if (tempax & 0x04)
 				tempcl = tempcl | ActiveLCD;
@@ -2675,7 +2674,6 @@ static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 		}
 
 		if (pVBInfo->IF_DEF_YPbPr == 1) {
-			/* [Billy] 07/05/04 */
 			if (((pVBInfo->IF_DEF_LVDS == 0) &&
 			    ((pVBInfo->VBType & VB_SIS301LV) ||
 			    (pVBInfo->VBType & VB_SIS302LV) ||
@@ -2927,7 +2925,7 @@ static unsigned char XGI_GetLCDInfo(unsigned short ModeNo,
 	if (tempbx == 0)
 		tempbx = Panel_1024x768; /* default */
 
-	/* LCD75 [2003/8/22] Vicent */
+	/* LCD75 */
 	if ((tempbx == Panel_1024x768) || (tempbx == Panel_1280x1024)) {
 		if (pVBInfo->VBInfo & DriverMode) {
 			tempax = xgifb_reg_get(pVBInfo->P3d4, 0x33);
@@ -4591,7 +4589,7 @@ static void XGI_SetGroup2(unsigned short ModeNo, unsigned short ModeIdIndex,
 		}
 	}
 
-	/* [ycchen] 01/14/03 Modify for 301C PALM Support */
+	/* Modify for 301C PALM Support */
 	if (pVBInfo->VBType & VB_XGI301C) {
 		if (pVBInfo->TVInfo & TVSetPALM)
 			xgifb_reg_and_or(pVBInfo->Part2Port, 0x4E, ~0x08,
@@ -6245,8 +6243,7 @@ unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
 		    (pVBInfo->RefIndex[RefreshRateTableIndex].YRes == 600)) {
 			index++;
 		}
-		/* Alan 10/19/2007;
-		 * do the similar adjustment like XGISearchCRT1Rate() */
+		/* do the similar adjustment like XGISearchCRT1Rate() */
 		if ((pVBInfo->RefIndex[RefreshRateTableIndex].XRes == 1024) &&
 		    (pVBInfo->RefIndex[RefreshRateTableIndex].YRes == 768)) {
 			index++;
@@ -6354,7 +6351,7 @@ void XGI_SenseCRT1(struct vb_device_info *pVBInfo)
 	int i;
 	xgifb_reg_set(pVBInfo->P3c4, 0x05, 0x86);
 
-	/* [2004/05/06] Vicent to fix XG42 single LCD sense to CRT+LCD */
+	/* to fix XG42 single LCD sense to CRT+LCD */
 	xgifb_reg_set(pVBInfo->P3d4, 0x57, 0x4A);
 	xgifb_reg_set(pVBInfo->P3d4, 0x53, (unsigned char) (xgifb_reg_get(
 			pVBInfo->P3d4, 0x53) | 0x02));
@@ -6419,7 +6416,7 @@ void XGI_SenseCRT1(struct vb_device_info *pVBInfo)
 	else
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x32, 0xDF, 0x00);
 
-	/* alan, avoid display something, set BLACK DAC if not restore DAC */
+	/* avoid display something, set BLACK DAC if not restore DAC */
 	outb(0x00, pVBInfo->P3c8);
 
 	for (i = 0; i < 256; i++) {
@@ -6432,7 +6429,6 @@ void XGI_SenseCRT1(struct vb_device_info *pVBInfo)
 	xgifb_reg_set(pVBInfo->P3d4, 0x63, CR63);
 	xgifb_reg_set(pVBInfo->P3c4, 0x31, SR31);
 
-	/* [2004/05/11] Vicent */
 	xgifb_reg_set(pVBInfo->P3d4, 0x53, (unsigned char) (xgifb_reg_get(
 			pVBInfo->P3d4, 0x53) & 0xFD));
 	xgifb_reg_set(pVBInfo->P3c4, 0x1F, (unsigned char) SR1F);
@@ -6653,7 +6649,7 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 	pVBInfo->IF_DEF_LVDS = 0;
 	pVBInfo->IF_DEF_LCDA = 1;
 
-	if (HwDeviceExtension->jChipType >= XG20) { /* kuku 2004/06/25 */
+	if (HwDeviceExtension->jChipType >= XG20) {
 		pVBInfo->IF_DEF_YPbPr = 0;
 		pVBInfo->IF_DEF_HiVision = 0;
 		pVBInfo->IF_DEF_CRT2Monitor = 0;
@@ -6695,7 +6691,7 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 		}
 	}
 
-	if (HwDeviceExtension->jChipType < XG20) /* kuku 2004/06/25 */
+	if (HwDeviceExtension->jChipType < XG20)
 		XGI_GetVBType(pVBInfo);
 
 	InitTo330Pointer(HwDeviceExtension->jChipType, pVBInfo);
@@ -6703,12 +6699,12 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 		ModeNo = ModeNo & 0x7F;
 	xgifb_reg_set(pVBInfo->P3c4, 0x05, 0x86);
 
-	if (HwDeviceExtension->jChipType < XG20) /* kuku 2004/06/25 1.Openkey */
+	if (HwDeviceExtension->jChipType < XG20)
 		XGI_UnLockCRT2(HwDeviceExtension, pVBInfo);
 
 	XGI_SearchModeID(ModeNo, &ModeIdIndex, pVBInfo);
 
-	if (HwDeviceExtension->jChipType < XG20) { /* kuku 2004/06/25 */
+	if (HwDeviceExtension->jChipType < XG20) {
 		XGI_GetVBInfo(ModeNo, ModeIdIndex, HwDeviceExtension, pVBInfo);
 		XGI_GetTVInfo(ModeNo, ModeIdIndex, pVBInfo);
 		XGI_GetLCDInfo(ModeNo, ModeIdIndex, pVBInfo);
@@ -6779,7 +6775,7 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 
 	XGI_UpdateModeInfo(HwDeviceExtension, pVBInfo);
 
-	if (HwDeviceExtension->jChipType < XG20) { /* kuku 2004/06/25 */
+	if (HwDeviceExtension->jChipType < XG20) {
 		XGI_LockCRT2(HwDeviceExtension, pVBInfo);
 	}
 

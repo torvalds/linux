@@ -30,13 +30,13 @@ enum xgi_tvtype {
 	TVMODE_NTSC = 0,
 	TVMODE_PAL,
 	TVMODE_HIVISION,
-	TVTYPE_PALM,	/* vicki@030226 */
-	TVTYPE_PALN,	/* vicki@030226 */
-	TVTYPE_NTSCJ,	/* vicki@030226 */
+	TVTYPE_PALM,
+	TVTYPE_PALN,
+	TVTYPE_NTSCJ,
 	TVMODE_TOTAL
 };
 
-enum xgi_tv_plug { /* vicki@030226 */
+enum xgi_tv_plug {
 	TVPLUG_UNKNOWN = 0,
 	TVPLUG_COMPOSITE = 1,
 	TVPLUG_SVIDEO = 2,

@@ -28,7 +28,6 @@ struct XGI_Ext2Struct {
 	unsigned char  ModeID;
 	unsigned short XRes;
 	unsigned short YRes;
-	/* unsigned short ROM_OFFSET; */
 };
 
 struct XGI_ECLKDataStruct {
@@ -167,7 +166,6 @@ struct vb_device_info {
 	unsigned short   LCDHRS, LCDVRS, LCDHDES, LCDVDES;
 
 	unsigned short   ModeType;
-	/* ,IF_DEF_FSTN; add for dstn */
 	unsigned short   IF_DEF_LVDS, IF_DEF_TRUMPION, IF_DEF_DSTN;
 	unsigned short   IF_DEF_CRT2Monitor;
 	unsigned short   IF_DEF_LCDA, IF_DEF_YPbPr;
@@ -225,7 +223,6 @@ struct vb_device_info {
 	struct SiS_StandTable_S  *StandTable;
 	struct XGI_ExtStruct         *EModeIDTable;
 	struct XGI_Ext2Struct        *RefIndex;
-	/* XGINew_CRT1TableStruct *CRT1Table; */
 	struct XGI_CRT1TableStruct    *XGINEWUB_CRT1Table;
 	struct SiS_VCLKData    *VCLKData;
 	struct SiS_VBVCLKData  *VBVCLKData;
