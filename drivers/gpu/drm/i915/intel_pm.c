@@ -3932,11 +3932,6 @@ void intel_init_pm(struct drm_device *dev)
 		else
 			dev_priv->display.get_fifo_size = i830_get_fifo_size;
 	}
-
-	/* We attempt to init the necessary power wells early in the initialization
-	 * time, so the subsystems that expect power to be enabled can work.
-	 */
-	intel_init_power_wells(dev);
 }
 
 static void __gen6_gt_wait_for_thread_c0(struct drm_i915_private *dev_priv)

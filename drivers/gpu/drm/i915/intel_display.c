@@ -7187,6 +7187,11 @@ static void ivb_pch_pwm_override(struct drm_device *dev)
 
 void intel_modeset_init_hw(struct drm_device *dev)
 {
+	/* We attempt to init the necessary power wells early in the initialization
+	 * time, so the subsystems that expect power to be enabled can work.
+	 */
+	intel_init_power_wells(dev);
+
 	intel_prepare_ddi(dev);
 
 	intel_init_clock_gating(dev);
