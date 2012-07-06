@@ -1051,6 +1051,7 @@ static void __cpuinit probe_pcache(void)
 	case CPU_R14000:
 		break;
 
+	case CPU_M14KC:
 	case CPU_24K:
 	case CPU_34K:
 	case CPU_74K:
