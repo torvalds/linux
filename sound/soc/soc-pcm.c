@@ -2003,7 +2003,6 @@ static int dpcm_fe_dai_close(struct snd_pcm_substream *fe_substream)
 /* create a new pcm */
 int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 {
-	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
@@ -2042,7 +2041,8 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 			capture, &pcm);
 	}
 	if (ret < 0) {
-		printk(KERN_ERR "asoc: can't create pcm for codec %s\n", codec->name);
+		dev_err(rtd->card->dev, "can't create pcm for %s\n",
+			rtd->dai_link->name);
 		return ret;
 	}
 	dev_dbg(rtd->card->dev, "registered pcm #%d %s\n",num, new_name);
@@ -2099,14 +2099,14 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	if (platform->driver->pcm_new) {
 		ret = platform->driver->pcm_new(rtd);
 		if (ret < 0) {
-			pr_err("asoc: platform pcm constructor failed\n");
+			dev_err(platform->dev, "pcm constructor failed\n");
 			return ret;
 		}
 	}
 
 	pcm->private_free = platform->driver->pcm_free;
 out:
-	printk(KERN_INFO "asoc: %s <-> %s mapping ok\n", codec_dai->name,
+	dev_info(rtd->card->dev, " %s <-> %s mapping ok\n", codec_dai->name,
 		cpu_dai->name);
 	return ret;
 }
