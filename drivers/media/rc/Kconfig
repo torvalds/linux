@@ -23,6 +23,17 @@ config LIRC
 	   LIRC daemon handles protocol decoding for IR reception and
 	   encoding for IR transmitting (aka "blasting").
 
+config IR_LIRC_CODEC
+	tristate "Enable IR to LIRC bridge"
+	depends on RC_CORE
+	depends on LIRC
+	default y
+
+	---help---
+	   Enable this option to pass raw IR to and from userspace via
+	   the LIRC interface.
+
+
 config IR_NEC_DECODER
 	tristate "Enable IR raw decoder for the NEC protocol"
 	depends on RC_CORE
@@ -112,16 +123,6 @@ menuconfig RC_DEVICES
 	depends on RC_CORE
 
 if RC_DEVICES
-
-config IR_LIRC_CODEC
-	tristate "Enable IR to LIRC bridge"
-	depends on RC_CORE
-	depends on LIRC
-	default y
-
-	---help---
-	   Enable this option to pass raw IR to and from userspace via
-	   the LIRC interface.
 
 config RC_ATI_REMOTE
 	tristate "ATI / X10 based USB RF remote controls"
