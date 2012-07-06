@@ -274,22 +274,13 @@ static void tpm_nsc_remove(struct device *dev)
 	}
 }
 
-static int tpm_nsc_suspend(struct platform_device *dev, pm_message_t msg)
-{
-	return tpm_pm_suspend(&dev->dev);
-}
-
-static int tpm_nsc_resume(struct platform_device *dev)
-{
-	return tpm_pm_resume(&dev->dev);
-}
+static SIMPLE_DEV_PM_OPS(tpm_nsc_pm, tpm_pm_suspend, tpm_pm_resume);
 
 static struct platform_driver nsc_drv = {
-	.suspend         = tpm_nsc_suspend,
-	.resume          = tpm_nsc_resume,
 	.driver          = {
 		.name    = "tpm_nsc",
 		.owner   = THIS_MODULE,
+		.pm      = &tpm_nsc_pm,
 	},
 };
 
