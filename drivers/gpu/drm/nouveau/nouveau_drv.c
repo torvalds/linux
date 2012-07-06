@@ -136,31 +136,15 @@ int nouveau_fbpercrtc;
 module_param_named(fbpercrtc, nouveau_fbpercrtc, int, 0400);
 #endif
 
-static struct pci_device_id pciidlist[] = {
-	{
-		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID),
-		.class = PCI_BASE_CLASS_DISPLAY << 16,
-		.class_mask  = 0xff << 16,
-	},
-	{
-		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA_SGS, PCI_ANY_ID),
-		.class = PCI_BASE_CLASS_DISPLAY << 16,
-		.class_mask  = 0xff << 16,
-	},
-	{}
-};
-
-MODULE_DEVICE_TABLE(pci, pciidlist);
-
 static struct drm_driver driver;
 
-static int __devinit
+int __devinit
 nouveau_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
 
-static void
+void
 nouveau_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
@@ -178,12 +162,6 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 	struct nouveau_channel *chan;
 	struct drm_crtc *crtc;
 	int ret, i, e;
-
-	if (pm_state.event == PM_EVENT_PRETHAW)
-		return 0;
-
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
-		return 0;
 
 	NV_INFO(dev, "Disabling display...\n");
 	nouveau_display_fini(dev);
@@ -246,14 +224,6 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 	}
 
 	nouveau_agp_fini(dev);
-
-	NV_INFO(dev, "And we're gone!\n");
-	pci_save_state(pdev);
-	if (pm_state.event == PM_EVENT_SUSPEND) {
-		pci_disable_device(pdev);
-		pci_set_power_state(pdev, PCI_D3hot);
-	}
-
 	return 0;
 
 out_abort:
@@ -274,16 +244,6 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	struct nouveau_engine *engine = &dev_priv->engine;
 	struct drm_crtc *crtc;
 	int ret, i;
-
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
-		return 0;
-
-	NV_INFO(dev, "We're back, enabling device...\n");
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	if (pci_enable_device(pdev))
-		return -1;
-	pci_set_master(dev->pdev);
 
 	/* Make sure the AGP controller is in a consistent state */
 	nouveau_agp_reset(dev);
@@ -407,15 +367,18 @@ static const struct file_operations nouveau_driver_fops = {
 	.llseek = noop_llseek,
 };
 
+int nouveau_drm_load(struct drm_device *, unsigned long);
+int nouveau_drm_unload(struct drm_device *);
+
 static struct drm_driver driver = {
 	.driver_features =
 		DRIVER_USE_AGP | DRIVER_PCI_DMA | DRIVER_SG |
 		DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM |
 		DRIVER_MODESET | DRIVER_PRIME,
-	.load = nouveau_load,
+	.load = nouveau_drm_load,
 	.firstopen = nouveau_firstopen,
 	.lastclose = nouveau_lastclose,
-	.unload = nouveau_unload,
+	.unload = nouveau_drm_unload,
 	.open = nouveau_open,
 	.preclose = nouveau_preclose,
 	.postclose = nouveau_postclose,
@@ -459,16 +422,7 @@ static struct drm_driver driver = {
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
-static struct pci_driver nouveau_pci_driver = {
-		.name = DRIVER_NAME,
-		.id_table = pciidlist,
-		.probe = nouveau_pci_probe,
-		.remove = nouveau_pci_remove,
-		.suspend = nouveau_pci_suspend,
-		.resume = nouveau_pci_resume
-};
-
-static int __init nouveau_init(void)
+int __init nouveau_init(struct pci_driver *pdrv)
 {
 	driver.num_ioctls = ARRAY_SIZE(nouveau_ioctls);
 
@@ -485,21 +439,14 @@ static int __init nouveau_init(void)
 		return 0;
 
 	nouveau_register_dsm_handler();
-	return drm_pci_init(&driver, &nouveau_pci_driver);
+	return drm_pci_init(&driver, pdrv);
 }
 
-static void __exit nouveau_exit(void)
+void __exit nouveau_exit(struct pci_driver *pdrv)
 {
 	if (!nouveau_modeset)
 		return;
 
-	drm_pci_exit(&driver, &nouveau_pci_driver);
+	drm_pci_exit(&driver, pdrv);
 	nouveau_unregister_dsm_handler();
 }
-
-module_init(nouveau_init);
-module_exit(nouveau_exit);
-
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL and additional rights");

@@ -28,7 +28,7 @@
 #include "drm.h"
 
 #include "nouveau_drv.h"
-#include "nouveau_drm.h"
+#include <nouveau_drm.h>
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
 

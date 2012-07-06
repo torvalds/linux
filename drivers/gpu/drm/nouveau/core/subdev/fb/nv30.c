@@ -27,7 +27,7 @@
 #include "drmP.h"
 #include "drm.h"
 #include "nouveau_drv.h"
-#include "nouveau_drm.h"
+#include <nouveau_drm.h>
 
 void
 nv30_fb_init_tile_region(struct drm_device *dev, int i, uint32_t addr,

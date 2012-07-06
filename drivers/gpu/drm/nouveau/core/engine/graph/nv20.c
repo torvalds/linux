@@ -1,7 +1,7 @@
 #include "drmP.h"
 #include "drm.h"
 #include "nouveau_drv.h"
-#include "nouveau_drm.h"
+#include <nouveau_drm.h>
 
 /*
  * NV20

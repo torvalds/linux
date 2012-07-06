@@ -59,7 +59,7 @@ nouveau_fpriv(struct drm_file *file_priv)
 
 #define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 
-#include "nouveau_drm.h"
+#include <nouveau_drm.h>
 #include "nouveau_reg.h"
 #include <nouveau_bios.h>
 #include "nouveau_util.h"
@@ -663,6 +663,8 @@ enum nouveau_card_type {
 struct drm_nouveau_private {
 	struct drm_device *dev;
 	bool noaccel;
+
+	void *newpriv;
 
 	/* the card type, takes NV_* as values */
 	enum nouveau_card_type card_type;

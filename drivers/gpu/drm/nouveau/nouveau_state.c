@@ -33,7 +33,7 @@
 #include <linux/vga_switcheroo.h>
 
 #include "nouveau_drv.h"
-#include "nouveau_drm.h"
+#include <nouveau_drm.h>
 #include "nouveau_agp.h"
 #include "nouveau_fbcon.h"
 #include <core/ramht.h>
@@ -1027,6 +1027,13 @@ static int nouveau_remove_conflicting_drivers(struct drm_device *dev)
 	return 0;
 }
 
+void *
+nouveau_newpriv(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	return dev_priv->newpriv;
+}
+
 int nouveau_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_nouveau_private *dev_priv;
@@ -1039,6 +1046,7 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 		ret = -ENOMEM;
 		goto err_out;
 	}
+	dev_priv->newpriv = dev->dev_private;
 	dev->dev_private = dev_priv;
 	dev_priv->dev = dev;
 
@@ -1214,8 +1222,8 @@ err_ramin:
 err_mmio:
 	iounmap(dev_priv->mmio);
 err_priv:
+	dev->dev_private = dev_priv->newpriv;
 	kfree(dev_priv);
-	dev->dev_private = NULL;
 err_out:
 	return ret;
 }
@@ -1234,8 +1242,8 @@ int nouveau_unload(struct drm_device *dev)
 	iounmap(dev_priv->mmio);
 	iounmap(dev_priv->ramin);
 
+	dev->dev_private = dev_priv->newpriv;
 	kfree(dev_priv);
-	dev->dev_private = NULL;
 	return 0;
 }
 

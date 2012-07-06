@@ -44,7 +44,7 @@
 #include "drm_crtc_helper.h"
 #include "drm_fb_helper.h"
 #include "nouveau_drv.h"
-#include "nouveau_drm.h"
+#include <nouveau_drm.h>
 #include "nouveau_crtc.h"
 #include "nouveau_fb.h"
 #include "nouveau_fbcon.h"
