@@ -448,6 +448,7 @@ config ARCH_MXC
 	select GENERIC_IRQ_CHIP
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
+	select USE_OF
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
