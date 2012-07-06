@@ -545,4 +545,24 @@ source "drivers/misc/carma/Kconfig"
 source "drivers/misc/c2c/Kconfig"
 # Invensense Library version 4.4.1 for mpu6050
 source "drivers/misc/inv_mpu/Kconfig"
+
+config SLP_LOWMEM_NOTIFY
+	bool "Driver for SLP Low Memory Notification"
+	depends on SLP
+	help
+	  Provide interface to register for low memory notifications.
+
+config SLP_PROCESS_MON
+	bool "Driver for SLP process monitoring"
+	depends on SLP
+	help
+	  Providing monitoring important processes. Users can register the process
+	  with sysfs.
+
+config FSYNC_CONTROL
+        bool "Support for FSync Control"
+        default y
+        help
+          Say Y here to enable FSync Control
+
 endif # MISC_DEVICES

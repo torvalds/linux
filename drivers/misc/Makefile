@@ -54,3 +54,36 @@ obj-$(CONFIG_SENSORS_AK8975)	+= akm8975.o
 obj-$(CONFIG_SAMSUNG_C2C)	+= c2c/
 # Invensense Library version 4.4.1 for mpu6050
 obj-$(CONFIG_MPU_SENSORS_MPU6050B1)	+= inv_mpu/
+obj-$(CONFIG_USBHUB_USB3503)	+= usb3503.o
+obj-$(CONFIG_USBHUB_USB3503_OTG_CONN)	+= usb3503_otg_conn.o
+obj-$(CONFIG_USBHUB_USB3803)	+= usb3803.o
+ifeq ($(CONFIG_SEC_MODEM_P8LTE),y)
+obj-$(CONFIG_SEC_MODEM)         += modem_if_na/
+else ifeq ($(CONFIG_SEC_MODEM_U1_SPR),y)
+obj-$(CONFIG_SEC_MODEM)		+= modem_if_na_spr/
+else
+obj-$(CONFIG_SEC_MODEM)		+= modem_if/
+endif
+obj-$(CONFIG_MFD_MAX77693)	+= max77693-muic.o
+obj-$(CONFIG_STMPE811_ADC)	+= stmpe811-adc.o
+obj-$(CONFIG_JACK_MON)		+= jack.o
+obj-$(CONFIG_UART_SELECT)	+= uart_select.o
+obj-$(CONFIG_WIMAX_CMC)         += max8893.o
+ifeq ($(CONFIG_MUIC_DET_JACK),y)
+obj-$(CONFIG_SEC_DEV_JACK)	+= sec_jack_muic.o
+else
+obj-$(CONFIG_SEC_DEV_JACK)	+= sec_jack.o
+endif
+obj-$(CONFIG_MUIC_MAX8997)	+= max8997-muic.o
+obj-$(CONFIG_PN544)		+= pn544.o
+obj-$(CONFIG_FM34_WE395)	+= fm34_we395.o
+obj-$(CONFIG_AUDIENCE_ES305)	+= es305.o
+
+obj-$(CONFIG_SLP_PROCESS_MON)	+= slp_process_monitor.o
+obj-$(CONFIG_SLP_LOWMEM_NOTIFY)	+= slp_lowmem_notify.o
+obj-$(CONFIG_FSYNC_CONTROL)	+= fsync_control.o
+
+obj-$(CONFIG_MACH_M0_CTC)   += cw_tty.o
+
+# Secure OS Mobicore Interface
+obj-$(CONFIG_MOBICORE_SUPPORT)  += tzic.o
