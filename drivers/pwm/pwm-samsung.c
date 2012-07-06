@@ -11,6 +11,8 @@
  * the Free Software Foundation; either version 2 of the License.
 */
 
+#define pr_fmt(fmt) "pwm-samsung: " fmt
+
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -340,13 +342,13 @@ static int __init pwm_init(void)
 	clk_scaler[1] = clk_get(NULL, "pwm-scaler1");
 
 	if (IS_ERR(clk_scaler[0]) || IS_ERR(clk_scaler[1])) {
-		printk(KERN_ERR "%s: failed to get scaler clocks\n", __func__);
+		pr_err("failed to get scaler clocks\n");
 		return -EINVAL;
 	}
 
 	ret = platform_driver_register(&s3c_pwm_driver);
 	if (ret)
-		printk(KERN_ERR "%s: failed to add pwm driver\n", __func__);
+		pr_err("failed to add pwm driver\n");
 
 	return ret;
 }
