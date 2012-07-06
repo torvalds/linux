@@ -72,7 +72,7 @@
 		reg = <0x70002800 0x200>;
 		interrupts = <0 13 0x04>;
 		nvidia,dma-request-selector = <&apbdma 2>;
-		status = "disable";
+		status = "disabled";
 	};
 
 	tegra_i2s2: i2s@70002a00 {
@@ -80,7 +80,7 @@
 		reg = <0x70002a00 0x200>;
 		interrupts = <0 3 0x04>;
 		nvidia,dma-request-selector = <&apbdma 1>;
-		status = "disable";
+		status = "disabled";
 	};
 
 	serial@70006000 {
@@ -88,7 +88,7 @@
 		reg = <0x70006000 0x40>;
 		reg-shift = <2>;
 		interrupts = <0 36 0x04>;
-		status = "disable";
+		status = "disabled";
 	};
 
 	serial@70006040 {
@@ -96,7 +96,7 @@
 		reg = <0x70006040 0x40>;
 		reg-shift = <2>;
 		interrupts = <0 37 0x04>;
-		status = "disable";
+		status = "disabled";
 	};
 
 	serial@70006200 {
@@ -104,7 +104,7 @@
 		reg = <0x70006200 0x100>;
 		reg-shift = <2>;
 		interrupts = <0 46 0x04>;
-		status = "disable";
+		status = "disabled";
 	};
 
 	serial@70006300 {
@@ -112,7 +112,7 @@
 		reg = <0x70006300 0x100>;
 		reg-shift = <2>;
 		interrupts = <0 90 0x04>;
-		status = "disable";
+		status = "disabled";
 	};
 
 	serial@70006400 {
@@ -120,7 +120,7 @@
 		reg = <0x70006400 0x100>;
 		reg-shift = <2>;
 		interrupts = <0 91 0x04>;
-		status = "disable";
+		status = "disabled";
 	};
 
 	i2c@7000c000 {
@@ -129,7 +129,7 @@
 		interrupts = <0 38 0x04>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "disable";
+		status = "disabled";
 	};
 
 	i2c@7000c400 {
@@ -138,7 +138,7 @@
 		interrupts = <0 84 0x04>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "disable";
+		status = "disabled";
 	};
 
 	i2c@7000c500 {
@@ -147,7 +147,7 @@
 		interrupts = <0 92 0x04>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "disable";
+		status = "disabled";
 	};
 
 	i2c@7000d000 {
@@ -156,7 +156,7 @@
 		interrupts = <0 53 0x04>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "disable";
+		status = "disabled";
 	};
 
 	pmc {
@@ -190,7 +190,7 @@
 		interrupts = <0 20 0x04>;
 		phy_type = "utmi";
 		nvidia,has-legacy-mode;
-		status = "disable";
+		status = "disabled";
 	};
 
 	usb@c5004000 {
@@ -198,7 +198,7 @@
 		reg = <0xc5004000 0x4000>;
 		interrupts = <0 21 0x04>;
 		phy_type = "ulpi";
-		status = "disable";
+		status = "disabled";
 	};
 
 	usb@c5008000 {
@@ -206,35 +206,35 @@
 		reg = <0xc5008000 0x4000>;
 		interrupts = <0 97 0x04>;
 		phy_type = "utmi";
-		status = "disable";
+		status = "disabled";
 	};
 
 	sdhci@c8000000 {
 		compatible = "nvidia,tegra20-sdhci";
 		reg = <0xc8000000 0x200>;
 		interrupts = <0 14 0x04>;
-		status = "disable";
+		status = "disabled";
 	};
 
 	sdhci@c8000200 {
 		compatible = "nvidia,tegra20-sdhci";
 		reg = <0xc8000200 0x200>;
 		interrupts = <0 15 0x04>;
-		status = "disable";
+		status = "disabled";
 	};
 
 	sdhci@c8000400 {
 		compatible = "nvidia,tegra20-sdhci";
 		reg = <0xc8000400 0x200>;
 		interrupts = <0 19 0x04>;
-		status = "disable";
+		status = "disabled";
 	};
 
 	sdhci@c8000600 {
 		compatible = "nvidia,tegra20-sdhci";
 		reg = <0xc8000600 0x200>;
 		interrupts = <0 31 0x04>;
-		status = "disable";
+		status = "disabled";
 	};
 
 	pmu {
