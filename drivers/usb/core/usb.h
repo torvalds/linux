@@ -1,5 +1,7 @@
 #include <linux/pm.h>
 
+struct dev_state;
+
 /* Functions local to drivers/usb/core/ */
 
 extern int usb_create_sysfs_dev_files(struct usb_device *dev);
@@ -41,10 +43,11 @@ extern void usb_forced_unbind_intf(struct usb_interface *intf);
 extern void usb_rebind_intf(struct usb_interface *intf);
 
 extern int usb_hub_claim_port(struct usb_device *hdev, unsigned port,
-		void *owner);
+		struct dev_state *owner);
 extern int usb_hub_release_port(struct usb_device *hdev, unsigned port,
-		void *owner);
-extern void usb_hub_release_all_ports(struct usb_device *hdev, void *owner);
+		struct dev_state *owner);
+extern void usb_hub_release_all_ports(struct usb_device *hdev,
+		struct dev_state *owner);
 extern bool usb_device_is_owned(struct usb_device *udev);
 
 extern int  usb_hub_init(void);
