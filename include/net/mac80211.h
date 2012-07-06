@@ -3592,22 +3592,6 @@ void ieee80211_request_smps(struct ieee80211_vif *vif,
 			    enum ieee80211_smps_mode smps_mode);
 
 /**
- * ieee80211_key_removed - disable hw acceleration for key
- * @key_conf: The key hw acceleration should be disabled for
- *
- * This allows drivers to indicate that the given key has been
- * removed from hardware acceleration, due to a new key that
- * was added. Don't use this if the key can continue to be used
- * for TX, if the key restriction is on RX only it is permitted
- * to keep the key for TX only and not call this function.
- *
- * Due to locking constraints, it may only be called during
- * @set_key. This function must be allowed to sleep, and the
- * key it tries to disable may still be used until it returns.
- */
-void ieee80211_key_removed(struct ieee80211_key_conf *key_conf);
-
-/**
  * ieee80211_ready_on_channel - notification of remain-on-channel start
  * @hw: pointer as obtained from ieee80211_alloc_hw()
  */

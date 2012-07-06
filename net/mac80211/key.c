@@ -194,26 +194,6 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 	key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;
 }
 
-void ieee80211_key_removed(struct ieee80211_key_conf *key_conf)
-{
-	struct ieee80211_key *key;
-
-	key = container_of(key_conf, struct ieee80211_key, conf);
-
-	might_sleep();
-	assert_key_lock(key->local);
-
-	key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;
-
-	/*
-	 * Flush TX path to avoid attempts to use this key
-	 * after this function returns. Until then, drivers
-	 * must be prepared to handle the key.
-	 */
-	synchronize_rcu();
-}
-EXPORT_SYMBOL_GPL(ieee80211_key_removed);
-
 static void __ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata,
 					int idx, bool uni, bool multi)
 {
