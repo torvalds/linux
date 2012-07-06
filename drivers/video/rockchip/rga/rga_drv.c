@@ -148,13 +148,13 @@ static void rga_soft_reset(void)
 static void rga_dump(void)
 {
 	int running;
-    int num_done;
     struct rga_reg *reg, *reg_tmp;
     rga_session *session, *session_tmp;
-    struct list_head *next;
 
 	running = atomic_read(&rga_service.total_running);
 	printk("rga total_running %d\n", running);
+
+    #if 0
 
     /* Dump waiting list info */
     if (!list_empty(&rga_service.waiting))
@@ -190,6 +190,7 @@ static void rga_dump(void)
         }
         while(!list_empty(next));
     }
+    #endif
 
 	list_for_each_entry_safe(session, session_tmp, &rga_service.session, list_session)
     {
@@ -1245,13 +1246,6 @@ static void __exit rga_exit(void)
 
 
 #if 0
-
-#include "320x240_swap0_Y4200.h"
-#include "320x240_swap0_U4200.h"
-#include "320x240_swap0_V4200.h"
-#include "320x240_swap0_UV4200.h"
-#include "320x240_swap0_ABGR8888.h"
-
 
 extern struct fb_info * rk_get_fb(int fb_id);
 EXPORT_SYMBOL(rk_get_fb);
