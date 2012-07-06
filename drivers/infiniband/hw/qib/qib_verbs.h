@@ -650,7 +650,7 @@ struct qib_lkey_table {
 	u32 next;               /* next unused index (speeds search) */
 	u32 gen;                /* generation count */
 	u32 max;                /* size of the table */
-	struct qib_mregion **table;
+	struct qib_mregion __rcu **table;
 };
 
 struct qib_opcode_stats {
@@ -732,7 +732,7 @@ struct qib_ibdev {
 	struct list_head pending_mmaps;
 	spinlock_t mmap_offset_lock; /* protect mmap_offset */
 	u32 mmap_offset;
-	struct qib_mregion *dma_mr;
+	struct qib_mregion __rcu *dma_mr;
 
 	/* QP numbers are shared by all IB ports */
 	struct qib_qpn_table qpn_table;

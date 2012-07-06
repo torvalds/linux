@@ -349,7 +349,9 @@ int qib_fast_reg_mr(struct qib_qp *qp, struct ib_send_wr *wr)
 	if (pd->user || rkey == 0)
 		goto bail;
 
-	mr = rkt->table[(rkey >> (32 - ib_qib_lkey_table_size))];
+	mr = rcu_dereference_protected(
+		rkt->table[(rkey >> (32 - ib_qib_lkey_table_size))],
+		lockdep_is_held(&rkt->lock));
 	if (unlikely(mr == NULL || qp->ibqp.pd != mr->pd))
 		goto bail;
 
