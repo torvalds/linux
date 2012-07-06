@@ -647,6 +647,7 @@ config ARCH_TEGRA
 	select MIGHT_HAVE_CACHE_L2X0
 	select NEED_MACH_IO_H if PCI
 	select ARCH_HAS_CPUFREQ
+	select USE_OF
 	help
 	  This enables support for NVIDIA Tegra based systems (Tegra APX,
 	  Tegra 6xx and Tegra 2 series).

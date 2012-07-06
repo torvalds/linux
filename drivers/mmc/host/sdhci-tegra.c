@@ -223,6 +223,7 @@ static struct tegra_sdhci_platform_data * __devinit sdhci_tegra_dt_parse_pdata(
 {
 	struct tegra_sdhci_platform_data *plat;
 	struct device_node *np = pdev->dev.of_node;
+	u32 bus_width;
 
 	if (!np)
 		return NULL;
@@ -236,7 +237,9 @@ static struct tegra_sdhci_platform_data * __devinit sdhci_tegra_dt_parse_pdata(
 	plat->cd_gpio = of_get_named_gpio(np, "cd-gpios", 0);
 	plat->wp_gpio = of_get_named_gpio(np, "wp-gpios", 0);
 	plat->power_gpio = of_get_named_gpio(np, "power-gpios", 0);
-	if (of_find_property(np, "support-8bit", NULL))
+
+	if (of_property_read_u32(np, "bus-width", &bus_width) == 0 &&
+	    bus_width == 8)
 		plat->is_8bit = 1;
 
 	return plat;
