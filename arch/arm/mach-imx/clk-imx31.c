@@ -165,7 +165,7 @@ int __init mx31_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[firi_gate], "firi", NULL);
 	clk_register_clkdev(clk[ata_gate], NULL, "pata_imx");
 	clk_register_clkdev(clk[rtic_gate], "rtic", NULL);
-	clk_register_clkdev(clk[rng_gate], "rng", NULL);
+	clk_register_clkdev(clk[rng_gate], NULL, "mxc_rnga");
 	clk_register_clkdev(clk[sdma_gate], NULL, "imx31-sdma");
 	clk_register_clkdev(clk[iim_gate], "iim", NULL);
 
