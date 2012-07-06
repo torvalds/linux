@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/of_platform.h>
 #include <linux/serial_sci.h>
 #include <linux/sh_dma.h>
 #include <linux/sh_timer.h>
@@ -716,3 +717,49 @@ void __init r8a7740_add_early_devices(void)
 	/* override timer setup with soc-specific code */
 	shmobile_timer.init = r8a7740_earlytimer_init;
 }
+
+#ifdef CONFIG_USE_OF
+
+void __init r8a7740_add_early_devices_dt(void)
+{
+	shmobile_setup_delay(800, 1, 3); /* Cortex-A9 @ 800MHz */
+
+	early_platform_add_devices(r8a7740_early_devices,
+				   ARRAY_SIZE(r8a7740_early_devices));
+
+	/* setup early console here as well */
+	shmobile_setup_console();
+}
+
+static const struct of_dev_auxdata r8a7740_auxdata_lookup[] __initconst = {
+	{ }
+};
+
+void __init r8a7740_add_standard_devices_dt(void)
+{
+	/* clocks are setup late during boot in the case of DT */
+	r8a7740_clock_init(0);
+
+	platform_add_devices(r8a7740_early_devices,
+			    ARRAY_SIZE(r8a7740_early_devices));
+
+	of_platform_populate(NULL, of_default_bus_match_table,
+			     r8a7740_auxdata_lookup, NULL);
+}
+
+static const char *r8a7740_boards_compat_dt[] __initdata = {
+	"renesas,r8a7740",
+	NULL,
+};
+
+DT_MACHINE_START(SH7372_DT, "Generic R8A7740 (Flattened Device Tree)")
+	.map_io		= r8a7740_map_io,
+	.init_early	= r8a7740_add_early_devices_dt,
+	.init_irq	= r8a7740_init_irq,
+	.handle_irq	= shmobile_handle_irq_intc,
+	.init_machine	= r8a7740_add_standard_devices_dt,
+	.timer		= &shmobile_timer,
+	.dt_compat	= r8a7740_boards_compat_dt,
+MACHINE_END
+
+#endif /* CONFIG_USE_OF */
