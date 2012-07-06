@@ -1851,23 +1851,25 @@ static int fcoe_percpu_receive_thread(void *arg)
 
 	set_user_nice(current, -20);
 
+retry:
 	while (!kthread_should_stop()) {
 
 		spin_lock_bh(&p->fcoe_rx_list.lock);
 		skb_queue_splice_init(&p->fcoe_rx_list, &tmp);
+
+		if (!skb_queue_len(&tmp)) {
+			set_current_state(TASK_INTERRUPTIBLE);
+			spin_unlock_bh(&p->fcoe_rx_list.lock);
+			schedule();
+			set_current_state(TASK_RUNNING);
+			goto retry;
+		}
+
 		spin_unlock_bh(&p->fcoe_rx_list.lock);
 
 		while ((skb = __skb_dequeue(&tmp)) != NULL)
 			fcoe_recv_frame(skb);
 
-		spin_lock_bh(&p->fcoe_rx_list.lock);
-		if (!skb_queue_len(&p->fcoe_rx_list)) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			spin_unlock_bh(&p->fcoe_rx_list.lock);
-			schedule();
-			set_current_state(TASK_RUNNING);
-		} else
-			spin_unlock_bh(&p->fcoe_rx_list.lock);
 	}
 	return 0;
 }
