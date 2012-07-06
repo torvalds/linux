@@ -5825,13 +5825,13 @@ static void dump_space_info(struct btrfs_space_info *info, u64 bytes,
 again:
 	list_for_each_entry(cache, &info->block_groups[index], list) {
 		spin_lock(&cache->lock);
-		printk(KERN_INFO "block group %llu has %llu bytes, %llu used "
-		       "%llu pinned %llu reserved\n",
+		printk(KERN_INFO "block group %llu has %llu bytes, %llu used %llu pinned %llu reserved %s\n",
 		       (unsigned long long)cache->key.objectid,
 		       (unsigned long long)cache->key.offset,
 		       (unsigned long long)btrfs_block_group_used(&cache->item),
 		       (unsigned long long)cache->pinned,
-		       (unsigned long long)cache->reserved);
+		       (unsigned long long)cache->reserved,
+		       cache->ro ? "[readonly]" : "");
 		btrfs_dump_free_space(cache, bytes);
 		spin_unlock(&cache->lock);
 	}
