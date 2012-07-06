@@ -14,8 +14,8 @@
  * MA 02110-1301, USA.
  */
 
-#ifndef __MACH_FB_H
-#define __MACH_FB_H
+#ifndef __LINUX_MXSFB_H
+#define __LINUX_MXSFB_H
 
 #include <linux/fb.h>
 
@@ -46,4 +46,4 @@ struct mxsfb_platform_data {
 				 */
 };
 
-#endif /* __MACH_FB_H */
+#endif /* __LINUX_MXSFB_H */

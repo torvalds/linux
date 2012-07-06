@@ -22,6 +22,12 @@
 
 	apb@80000000 {
 		apbh@80000000 {
+			gpmi-nand@8000c000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&gpmi_pins_a &gpmi_status_cfg>;
+				status = "okay";
+			};
+
 			ssp0: ssp@80010000 {
 				compatible = "fsl,imx28-mmc";
 				pinctrl-names = "default";
@@ -29,6 +35,7 @@
 					&mmc0_cd_cfg &mmc0_sck_cfg>;
 				bus-width = <8>;
 				wp-gpios = <&gpio2 12 0>;
+				vmmc-supply = <&reg_vddio_sd0>;
 				status = "okay";
 			};
 
@@ -36,6 +43,45 @@
 				compatible = "fsl,imx28-mmc";
 				bus-width = <8>;
 				wp-gpios = <&gpio0 28 0>;
+			};
+
+			pinctrl@80018000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&hog_pins_a>;
+
+				hog_pins_a: hog-gpios@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x20d3 /* MX28_PAD_SSP1_CMD__GPIO_2_13 */
+						0x20f3 /* MX28_PAD_SSP1_DATA3__GPIO_2_15 */
+						0x40d3 /* MX28_PAD_ENET0_RX_CLK__GPIO_4_13 */
+						0x20c3 /* MX28_PAD_SSP1_SCK__GPIO_2_12 */
+						0x31c3 /* MX28_PAD_PWM3__GPIO_3_28 */
+						0x31e3 /* MX28_PAD_LCD_RESET__GPIO_3_30 */
+						0x3053 /* MX28_PAD_AUART1_TX__GPIO_3_5 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+			};
+
+			lcdif@80030000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&lcdif_24bit_pins_a>;
+				panel-enable-gpios = <&gpio3 30 0>;
+				status = "okay";
+			};
+
+			can0: can@80032000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&can0_pins_a>;
+				status = "okay";
+			};
+
+			can1: can@80034000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&can1_pins_a>;
 				status = "okay";
 			};
 		};
@@ -68,9 +114,27 @@
 				};
 			};
 
+			pwm: pwm@80064000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pwm2_pins_a>;
+				status = "okay";
+			};
+
 			duart: serial@80074000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&duart_pins_a>;
+				status = "okay";
+			};
+
+			auart0: serial@8006a000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&auart0_pins_a>;
+				status = "okay";
+			};
+
+			auart3: serial@80070000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&auart3_pins_a>;
 				status = "okay";
 			};
 		};
@@ -81,6 +145,9 @@
 			phy-mode = "rmii";
 			pinctrl-names = "default";
 			pinctrl-0 = <&mac0_pins_a>;
+			phy-supply = <&reg_fec_3v3>;
+			phy-reset-gpios = <&gpio4 13 0>;
+			phy-reset-duration = <100>;
 			status = "okay";
 		};
 
@@ -102,6 +169,22 @@
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 		};
+
+		reg_vddio_sd0: vddio-sd0 {
+			compatible = "regulator-fixed";
+			regulator-name = "vddio-sd0";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio3 28 0>;
+		};
+
+		reg_fec_3v3: fec-3v3 {
+			compatible = "regulator-fixed";
+			regulator-name = "fec-3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio2 15 0>;
+		};
 	};
 
 	sound {
@@ -110,5 +193,22 @@
 		model = "imx28-evk-sgtl5000";
 		saif-controllers = <&saif0 &saif1>;
 		audio-codec = <&sgtl5000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		user {
+			label = "Heartbeat";
+			gpios = <&gpio3 5 0>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm 2 5000000>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
 	};
 };

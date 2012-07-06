@@ -10,7 +10,7 @@
 #include <mach/mx23.h>
 #include <mach/mx28.h>
 #include <mach/devices-common.h>
-#include <mach/mxsfb.h>
+#include <linux/mxsfb.h>
 
 #ifdef CONFIG_SOC_IMX23
 struct platform_device *__init mx23_add_mxsfb(

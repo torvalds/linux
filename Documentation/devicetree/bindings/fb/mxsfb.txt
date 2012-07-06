@@ -1,0 +1,19 @@
+* Freescale MXS LCD Interface (LCDIF)
+
+Required properties:
+- compatible: Should be "fsl,<chip>-lcdif".  Supported chips include
+  imx23 and imx28.
+- reg: Address and length of the register set for lcdif
+- interrupts: Should contain lcdif interrupts
+
+Optional properties:
+- panel-enable-gpios : Should specify the gpio for panel enable
+
+Examples:
+
+lcdif@80030000 {
+	compatible = "fsl,imx28-lcdif";
+	reg = <0x80030000 2000>;
+	interrupts = <38 86>;
+	panel-enable-gpios = <&gpio3 30 0>;
+};
