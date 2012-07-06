@@ -262,6 +262,7 @@ static int max77686_pmic_dt_parse_pdata(struct max77686_dev *iodev,
 	for (i = 0; i < pdata->num_regulators; i++) {
 		rmatch.name = regulators[i].name;
 		rmatch.init_data = NULL;
+		rmatch.of_node = NULL;
 		of_regulator_match(iodev->dev, regulators_np, &rmatch, 1);
 		rdata[i].initdata = rmatch.init_data;
 	}
