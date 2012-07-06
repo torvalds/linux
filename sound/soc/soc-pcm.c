@@ -1955,10 +1955,8 @@ static int dpcm_fe_dai_open(struct snd_pcm_substream *fe_substream)
 	fe->dpcm[stream].runtime = fe_substream->runtime;
 
 	if (dpcm_path_get(fe, stream, &list) <= 0) {
-		dev_warn(fe->dev, "asoc: %s no valid %s route\n",
+		dev_dbg(fe->dev, "asoc: %s no valid %s route\n",
 			fe->dai_link->name, stream ? "capture" : "playback");
-			mutex_unlock(&fe->card->mutex);
-			return -EINVAL;
 	}
 
 	/* calculate valid and active FE <-> BE dpcms */
