@@ -1210,13 +1210,8 @@ unifi_siwap(struct net_device *dev, struct iw_request_info *info,
         return -EINVAL;
     }
 
-    unifi_trace(priv, UDBG1, "unifi_siwap: asked for %02X:%02X:%02X:%02X:%02X:%02X\n",
-                (u8)wrqu->ap_addr.sa_data[0],
-                (u8)wrqu->ap_addr.sa_data[1],
-                (u8)wrqu->ap_addr.sa_data[2],
-                (u8)wrqu->ap_addr.sa_data[3],
-                (u8)wrqu->ap_addr.sa_data[4],
-                (u8)wrqu->ap_addr.sa_data[5]);
+	unifi_trace(priv, UDBG1, "unifi_siwap: asked for %pM\n",
+		wrqu->ap_addr.sa_data);
 
     if (!memcmp(wrqu->ap_addr.sa_data, zero_bssid, ETH_ALEN)) {
         priv->ignore_bssid_join = FALSE;
@@ -1281,10 +1276,7 @@ unifi_giwap(struct net_device *dev, struct iw_request_info *info,
     if (r == 0) {
         bssid = connectionInfo.bssid.a;
         wrqu->ap_addr.sa_family = ARPHRD_ETHER;
-        unifi_trace(priv, UDBG4,
-                    "unifi_giwap: BSSID = %02X:%02X:%02X:%02X:%02X:%02X\n",
-                    bssid[0], bssid[1], bssid[2],
-                    bssid[3], bssid[4], bssid[5]);
+		unifi_trace(priv, UDBG4, "unifi_giwap: BSSID = %pM\n", bssid);
 
         memcpy(wrqu->ap_addr.sa_data, bssid, ETH_ALEN);
     } else {
@@ -2936,8 +2928,7 @@ _unifi_siwencodeext(struct net_device *dev, struct iw_request_info *info,
     unifi_trace(priv, UDBG1, "siwencodeext: flags=0x%X, alg=%d, ext_flags=0x%X, len=%d, index=%d,\n",
                 wrqu->encoding.flags, ext->alg, ext->ext_flags,
                 ext->key_len, (wrqu->encoding.flags & IW_ENCODE_INDEX));
-    unifi_trace(priv, UDBG3, "              addr=%02X:%02X:%02X:%02X:%02X:%02X\n",
-                a[0], a[1], a[2], a[3], a[4], a[5]);
+	unifi_trace(priv, UDBG3, "              addr=%pM\n", a);
 
     if ((ext->key_len == 0) && (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY)) {
         /* This means use a different key (given by key_idx) for Tx. */
@@ -3140,14 +3131,8 @@ unifi_siwpmksa(struct net_device *dev, struct iw_request_info *info,
     }
 
 
-    unifi_trace(priv, UDBG1, "SIWPMKSA: cmd %d, %02x:%02x:%02x:%02x:%02x:%02x\n",
-                pmksa->cmd,
-                pmksa->bssid.sa_data[0],
-                pmksa->bssid.sa_data[1],
-                pmksa->bssid.sa_data[2],
-                pmksa->bssid.sa_data[3],
-                pmksa->bssid.sa_data[4],
-                pmksa->bssid.sa_data[5]);
+	unifi_trace(priv, UDBG1, "SIWPMKSA: cmd %d, %pM\n", pmksa->cmd,
+		pmksa->bssid.sa_data);
 
     pmkid_list.pmkids = NULL;
     switch (pmksa->cmd) {

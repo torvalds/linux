@@ -1174,17 +1174,4 @@ int unifi_putest_gp_write16(unifi_priv_t *priv, unsigned char *arg);
 int unifi_putest_dl_fw(unifi_priv_t *priv, unsigned char *arg);
 int unifi_putest_dl_fw_buff(unifi_priv_t *priv, unsigned char *arg);
 
-
-/* Macro for formatting a MAC address with a prefix string */
-#define UF_TRACE_MAC(priv, lvl, msg, addr) \
-        unifi_trace(priv, lvl, \
-                                "%s %02x-%02x-%02x-%02x-%02x-%02x\n", \
-                                msg,    \
-                                *(((CsrUint8 *)addr)+0),  \
-                                *(((CsrUint8 *)addr)+1),  \
-                                *(((CsrUint8 *)addr)+2),  \
-                                *(((CsrUint8 *)addr)+3),  \
-                                *(((CsrUint8 *)addr)+4),  \
-                                *(((CsrUint8 *)addr)+5))
-
 #endif /* __LINUX_UNIFI_PRIV_H__ */

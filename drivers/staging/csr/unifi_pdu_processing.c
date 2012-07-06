@@ -68,7 +68,9 @@ unifi_frame_ma_packet_req(unifi_priv_t *priv, CSR_PRIORITY priority,
 
     interfacePriv = priv->interfacePriv[interfaceTag];
 
-    UF_TRACE_MAC(priv, UDBG5, "In unifi_frame_ma_packet_req, Frame for Peer:", peerMacAddress);
+	unifi_trace(priv, UDBG5,
+		"In unifi_frame_ma_packet_req, Frame for Peer: %pMF\n",
+		peerMacAddress);
     signal->SignalPrimitiveHeader.SignalId = CSR_MA_PACKET_REQUEST_ID;
     signal->SignalPrimitiveHeader.ReceiverProcessId = 0;
     signal->SignalPrimitiveHeader.SenderProcessId = leSenderProcessId;
@@ -1668,7 +1670,9 @@ CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,
     CsrUint32 handle = 0xFFFFFFFF;
     unsigned long lock_flags;
 
-    UF_TRACE_MAC(priv, UDBG5, "entering uf_process_ma_packet_req, peer: ", peerMacAddress);
+	unifi_trace(priv, UDBG5,
+		"entering uf_process_ma_packet_req, peer: %pMF\n",
+		peerMacAddress);
 
     if (interfaceTag >= CSR_WIFI_NUM_INTERFACES) {
         unifi_error(priv, "interfaceTag >= CSR_WIFI_NUM_INTERFACES, interfacetag = %d\n", interfaceTag);

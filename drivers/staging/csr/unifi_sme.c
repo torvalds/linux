@@ -1174,7 +1174,8 @@ uf_send_m4_ready_wq(struct work_struct *work)
     /* Send a signal to SME */
     CsrWifiRouterCtrlM4ReadyToSendIndSend(priv->CSR_WIFI_SME_IFACEQUEUE, 0, iface, peer);
 
-    UF_TRACE_MAC(priv, UDBG1, "M4ReadyToSendInd sent for peer", peer.a);
+	unifi_trace(priv, UDBG1, "M4ReadyToSendInd sent for peer %pMF\n",
+		peer.a);
 
     func_exit();
 

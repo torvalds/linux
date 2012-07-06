@@ -838,14 +838,8 @@ void CsrWifiSmeMediaStatusIndHandler(void* drvpriv, CsrWifiFsmEvent* msg)
                               (unsigned char *)ind->connectionInfo.assocScanInfoElements,
                               ind->connectionInfo.assocScanInfoElementsLength);
 
-        unifi_trace(priv, UDBG2,
-                    "CsrWifiSmeMediaStatusIndSend: IBSS=%02X:%02X:%02X:%02X:%02X:%02X\n",
-                    ind->connectionInfo.bssid.a[0],
-                    ind->connectionInfo.bssid.a[1],
-                    ind->connectionInfo.bssid.a[2],
-                    ind->connectionInfo.bssid.a[3],
-                    ind->connectionInfo.bssid.a[4],
-                    ind->connectionInfo.bssid.a[5]);
+	unifi_trace(priv, UDBG2, "CsrWifiSmeMediaStatusIndSend: IBSS=%pM\n",
+				 ind->connectionInfo.bssid.a);
 
         sme_mgt_packet_filter_set(priv);
 

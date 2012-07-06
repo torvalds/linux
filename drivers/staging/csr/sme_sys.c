@@ -527,11 +527,9 @@ configure_data_port(unifi_priv_t *priv,
         controlled_string = "uncontrolled";
     }
 
-    unifi_trace(priv, UDBG2, "port config request %02x:%02x:%02x:%02x:%02x:%02x %s with port_action %d.\n",
-                macAddress->a[0], macAddress->a[1], macAddress->a[2],
-                macAddress->a[3], macAddress->a[4], macAddress->a[5],
-                controlled_string, port_action);
-
+	unifi_trace(priv, UDBG2,
+		"port config request %pM %s with port_action %d.\n",
+		macAddress->a, controlled_string, port_action);
 
     /* If the new configuration has the broadcast MAC address or if we are in infrastructure mode then clear the list first and set port overide mode */
     if ((CSR_WIFI_ROUTER_CTRL_MODE_STA == interfacePriv->interfaceMode ||
@@ -653,10 +651,9 @@ configure_data_port(unifi_priv_t *priv,
             uf_free_pending_rx_packets(priv, queue, *macAddress,interfaceTag);
         }
 
-        unifi_trace(priv, UDBG2, "port config %02x:%02x:%02x:%02x:%02x:%02x with port_action %d.\n",
-                    *(macAddress->a+0), *(macAddress->a+1), *(macAddress->a+2),
-                    *(macAddress->a+3), *(macAddress->a+4), *(macAddress->a+5),
-                    port_action);
+	unifi_trace(priv, UDBG2,
+		"port config %pM with port_action %d.\n",
+		macAddress->a, port_action);
     }
     return 0;
 } /* configure_data_port() */
@@ -2649,11 +2646,9 @@ CsrBool blockack_session_stop(unifi_priv_t *priv,
         return FALSE;
         }
 
-    unifi_warning(priv, "%s: stopping ba_session for peer = %02x:%02x:%02x:%02x:%02x:%02x role = %d tID = %d\n", __FUNCTION__,
-                  macAddress.a[0], macAddress.a[1], macAddress.a[2],
-                  macAddress.a[3], macAddress.a[4], macAddress.a[5],
-                  role,
-                  tID);
+	unifi_warning(priv,
+		"%s: stopping ba_session for peer = %pM role = %d tID = %d\n",
+		__func__, macAddress.a, role, tID);
 
     /* find out the appropriate ba session (/station /tid /role) for which stop is requested */
     if (role == CSR_WIFI_ROUTER_CTRL_BLOCK_ACK_RECIPIENT){
@@ -2781,9 +2776,9 @@ CsrBool blockack_session_start(unifi_priv_t *priv,
         return FALSE;
     }
 
-    unifi_warning(priv, "%s: ba session with peer= (%02x:%02x:%02x:%02x:%02x:%02x)\n", __FUNCTION__,
-                  macAddress.a[0], macAddress.a[1], macAddress.a[2],
-                  macAddress.a[3], macAddress.a[4], macAddress.a[5]);
+	unifi_warning(priv,
+		"%s: ba session with peer= (%pM)\n", __func__,
+		macAddress.a);
 
     unifi_warning(priv, "%s: ba session for tID=%d timeout=%d role=%d wind_size=%d start_sn=%d\n", __FUNCTION__,
                   tID,
