@@ -1,0 +1,301 @@
+/dts-v1/;
+
+/include/ "tegra20.dtsi"
+
+/ {
+	model = "NVIDIA Tegra2 Whistler evaluation board";
+	compatible = "nvidia,whistler", "nvidia,tegra20";
+
+	memory {
+		reg = <0x00000000 0x20000000>;
+	};
+
+	pinmux {
+		pinctrl-names = "default";
+		pinctrl-0 = <&state_default>;
+
+		state_default: pinmux {
+			ata {
+				nvidia,pins = "ata", "atb", "ate", "gma", "gmb",
+					"gmc", "gmd", "gpu";
+				nvidia,function = "gmi";
+			};
+			atc {
+				nvidia,pins = "atc", "atd";
+				nvidia,function = "sdio4";
+			};
+			cdev1 {
+				nvidia,pins = "cdev1";
+				nvidia,function = "plla_out";
+			};
+			cdev2 {
+				nvidia,pins = "cdev2";
+				nvidia,function = "osc";
+			};
+			crtp {
+				nvidia,pins = "crtp";
+				nvidia,function = "crt";
+			};
+			csus {
+				nvidia,pins = "csus";
+				nvidia,function = "vi_sensor_clk";
+			};
+			dap1 {
+				nvidia,pins = "dap1";
+				nvidia,function = "dap1";
+			};
+			dap2 {
+				nvidia,pins = "dap2";
+				nvidia,function = "dap2";
+			};
+			dap3 {
+				nvidia,pins = "dap3";
+				nvidia,function = "dap3";
+			};
+			dap4 {
+				nvidia,pins = "dap4";
+				nvidia,function = "dap4";
+			};
+			ddc {
+				nvidia,pins = "ddc";
+				nvidia,function = "i2c2";
+			};
+			dta {
+				nvidia,pins = "dta", "dtb", "dtc", "dtd";
+				nvidia,function = "vi";
+			};
+			dte {
+				nvidia,pins = "dte";
+				nvidia,function = "rsvd1";
+			};
+			dtf {
+				nvidia,pins = "dtf";
+				nvidia,function = "i2c3";
+			};
+			gme {
+				nvidia,pins = "gme";
+				nvidia,function = "dap5";
+			};
+			gpu7 {
+				nvidia,pins = "gpu7";
+				nvidia,function = "rtck";
+			};
+			gpv {
+				nvidia,pins = "gpv";
+				nvidia,function = "pcie";
+			};
+			hdint {
+				nvidia,pins = "hdint", "pta";
+				nvidia,function = "hdmi";
+			};
+			i2cp {
+				nvidia,pins = "i2cp";
+				nvidia,function = "i2cp";
+			};
+			irrx {
+				nvidia,pins = "irrx", "irtx";
+				nvidia,function = "uartb";
+			};
+			kbca {
+				nvidia,pins = "kbca", "kbcc", "kbce", "kbcf";
+				nvidia,function = "kbc";
+			};
+			kbcb {
+				nvidia,pins = "kbcb", "kbcd";
+				nvidia,function = "sdio2";
+			};
+			lcsn {
+				nvidia,pins = "lcsn", "lsck", "lsda", "lsdi",
+					"spia", "spib", "spic";
+				nvidia,function = "spi3";
+			};
+			ld0 {
+				nvidia,pins = "ld0", "ld1", "ld2", "ld3", "ld4",
+					"ld5", "ld6", "ld7", "ld8", "ld9",
+					"ld10", "ld11", "ld12", "ld13", "ld14",
+					"ld15", "ld16", "ld17", "ldc", "ldi",
+					"lhp0", "lhp1", "lhp2", "lhs", "lm0",
+					"lm1", "lpp", "lpw0", "lpw1", "lpw2",
+					"lsc0", "lsc1", "lspi", "lvp0", "lvp1",
+					"lvs";
+				nvidia,function = "displaya";
+			};
+			owc {
+				nvidia,pins = "owc", "uac";
+				nvidia,function = "owr";
+			};
+			pmc {
+				nvidia,pins = "pmc";
+				nvidia,function = "pwr_on";
+			};
+			rm {
+				nvidia,pins = "rm";
+				nvidia,function = "i2c1";
+			};
+			sdb {
+				nvidia,pins = "sdb", "sdc", "sdd", "slxa",
+					"slxc", "slxd", "slxk";
+				nvidia,function = "sdio3";
+			};
+			sdio1 {
+				nvidia,pins = "sdio1";
+				nvidia,function = "sdio1";
+			};
+			spdi {
+				nvidia,pins = "spdi", "spdo";
+				nvidia,function = "rsvd2";
+			};
+			spid {
+				nvidia,pins = "spid", "spie", "spig", "spih";
+				nvidia,function = "spi2_alt";
+			};
+			spif {
+				nvidia,pins = "spif";
+				nvidia,function = "spi2";
+			};
+			uaa {
+				nvidia,pins = "uaa", "uab";
+				nvidia,function = "uarta";
+			};
+			uad {
+				nvidia,pins = "uad";
+				nvidia,function = "irda";
+			};
+			uca {
+				nvidia,pins = "uca", "ucb";
+				nvidia,function = "uartc";
+			};
+			uda {
+				nvidia,pins = "uda";
+				nvidia,function = "spi1";
+			};
+			conf_ata {
+				nvidia,pins = "ata", "atb", "atc", "ddc", "gma",
+					"gmb", "gmc", "gmd", "irrx", "irtx",
+					"kbca", "kbcb", "kbcc", "kbcd", "kbce",
+					"kbcf", "sdc", "sdd", "spie", "spig",
+					"spih", "uaa", "uab", "uad", "uca",
+					"ucb";
+				nvidia,pull = <2>;
+				nvidia,tristate = <0>;
+			};
+			conf_atd {
+				nvidia,pins = "atd", "ate", "cdev1", "csus",
+					"dap1", "dap2", "dap3", "dap4", "dte",
+					"dtf", "gpu", "gpu7", "gpv", "i2cp",
+					"rm", "sdio1", "slxa", "slxc", "slxd",
+					"slxk", "spdi", "spdo", "uac", "uda";
+				nvidia,pull = <0>;
+				nvidia,tristate = <0>;
+			};
+			conf_cdev2 {
+				nvidia,pins = "cdev2", "spia", "spib";
+				nvidia,pull = <1>;
+				nvidia,tristate = <1>;
+			};
+			conf_ck32 {
+				nvidia,pins = "ck32", "ddrc", "lc", "pmca",
+					"pmcb", "pmcc", "pmcd", "xm2c",
+					"xm2d";
+				nvidia,pull = <0>;
+			};
+			conf_crtp {
+				nvidia,pins = "crtp";
+				nvidia,pull = <0>;
+				nvidia,tristate = <1>;
+			};
+			conf_dta {
+				nvidia,pins = "dta", "dtb", "dtc", "dtd",
+					"spid", "spif";
+				nvidia,pull = <1>;
+				nvidia,tristate = <0>;
+			};
+			conf_gme {
+				nvidia,pins = "gme", "owc", "pta", "spic";
+				nvidia,pull = <2>;
+				nvidia,tristate = <1>;
+			};
+			conf_ld17_0 {
+				nvidia,pins = "ld17_0", "ld19_18", "ld21_20",
+					"ld23_22";
+				nvidia,pull = <1>;
+			};
+			conf_ls {
+				nvidia,pins = "ls", "pmce";
+				nvidia,pull = <2>;
+			};
+			drive_dap1 {
+				nvidia,pins = "drive_dap1";
+				nvidia,high-speed-mode = <0>;
+				nvidia,schmitt = <1>;
+				nvidia,low-power-mode = <0>;
+				nvidia,pull-down-strength = <0>;
+				nvidia,pull-up-strength = <0>;
+				nvidia,slew-rate-rising = <0>;
+				nvidia,slew-rate-falling = <0>;
+			};
+		};
+	};
+
+	i2s@70002800 {
+		status = "okay";
+	};
+
+	serial@70006000 {
+		status = "okay";
+		clock-frequency = <216000000>;
+	};
+
+	i2c@7000d000 {
+		status = "okay";
+		clock-frequency = <100000>;
+
+		codec: codec@1a {
+			compatible = "wlf,wm8753";
+			reg = <0x1a>;
+		};
+
+		tca6416: gpio@20 {
+			compatible = "ti,tca6416";
+			reg = <0x20>;
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+	};
+
+	usb@c5000000 {
+		status = "okay";
+		nvidia,vbus-gpio = <&tca6416 0 0>; /* GPIO_PMU0 */
+	};
+
+	usb@c5008000 {
+		status = "okay";
+		nvidia,vbus-gpio = <&tca6416 1 0>; /* GPIO_PMU1 */
+	};
+
+	sdhci@c8000400 {
+		status = "okay";
+		wp-gpios = <&gpio 173 0>; /* gpio PV5 */
+		bus-width = <8>;
+	};
+
+	sdhci@c8000600 {
+		status = "okay";
+		bus-width = <8>;
+	};
+
+	sound {
+		compatible = "nvidia,tegra-audio-wm8753-whistler",
+			     "nvidia,tegra-audio-wm8753";
+		nvidia,model = "NVIDIA Tegra Whistler";
+
+		nvidia,audio-routing =
+			"Headphone Jack", "LOUT1",
+			"Headphone Jack", "ROUT1",
+			"MIC2", "Mic Jack",
+			"MIC2N", "Mic Jack";
+
+		nvidia,i2s-controller = <&tegra_i2s1>;
+		nvidia,audio-codec = <&codec>;
+	};
+};
