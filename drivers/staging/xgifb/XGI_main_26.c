@@ -1952,36 +1952,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		}
 	}
 
-	if ((hw_info->ujVBChipID == VB_CHIP_302B) ||
-			(hw_info->ujVBChipID == VB_CHIP_301LV) ||
-			(hw_info->ujVBChipID == VB_CHIP_302LV)) {
-		int tmp;
-		tmp = xgifb_reg_get(XGICR, 0x34);
-		if (tmp <= 0x13) {
-			/* Currently on LCDA?
-			 *(Some BIOSes leave CR38) */
-			tmp = xgifb_reg_get(XGICR, 0x38);
-			if ((tmp & 0x03) == 0x03) {
-				/* XGI_Pr.XGI_UseLCDA = 1; */
-			} else {
-				/* Currently on LCDA?
-				 *(Some newer BIOSes set D0 in CR35) */
-				tmp = xgifb_reg_get(XGICR, 0x35);
-				if (tmp & 0x01) {
-					/* XGI_Pr.XGI_UseLCDA = 1; */
-				} else {
-					tmp = xgifb_reg_get(XGICR,
-							    0x30);
-					if (tmp & 0x20) {
-						tmp = xgifb_reg_get(
-							XGIPART1, 0x13);
-					}
-				}
-			}
-		}
-
-	}
-
 	xgifb_info->mode_idx = -1;
 
 	if (mode)
