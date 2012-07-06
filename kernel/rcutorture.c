@@ -206,6 +206,7 @@ static unsigned long boost_starttime;	/* jiffies of next boost test start. */
 DEFINE_MUTEX(boost_mutex);		/* protect setting boost_starttime */
 					/*  and boost task create/destroy. */
 static atomic_t barrier_cbs_count;	/* Barrier callbacks registered. */
+static bool barrier_phase;		/* Test phase. */
 static atomic_t barrier_cbs_invoked;	/* Barrier callbacks invoked. */
 static wait_queue_head_t *barrier_cbs_wq; /* Coordinate barrier testing. */
 static DECLARE_WAIT_QUEUE_HEAD(barrier_wq);
@@ -635,6 +636,17 @@ static void srcu_torture_synchronize(void)
 	synchronize_srcu(&srcu_ctl);
 }
 
+static void srcu_torture_call(struct rcu_head *head,
+			      void (*func)(struct rcu_head *head))
+{
+	call_srcu(&srcu_ctl, head, func);
+}
+
+static void srcu_torture_barrier(void)
+{
+	srcu_barrier(&srcu_ctl);
+}
+
 static int srcu_torture_stats(char *page)
 {
 	int cnt = 0;
@@ -661,8 +673,8 @@ static struct rcu_torture_ops srcu_ops = {
 	.completed	= srcu_torture_completed,
 	.deferred_free	= srcu_torture_deferred_free,
 	.sync		= srcu_torture_synchronize,
-	.call		= NULL,
-	.cb_barrier	= NULL,
+	.call		= srcu_torture_call,
+	.cb_barrier	= srcu_torture_barrier,
 	.stats		= srcu_torture_stats,
 	.name		= "srcu"
 };
@@ -1013,7 +1025,11 @@ rcu_torture_fakewriter(void *arg)
 	do {
 		schedule_timeout_uninterruptible(1 + rcu_random(&rand)%10);
 		udelay(rcu_random(&rand) & 0x3ff);
-		cur_ops->sync();
+		if (cur_ops->cb_barrier != NULL &&
+		    rcu_random(&rand) % (nfakewriters * 8) == 0)
+			cur_ops->cb_barrier();
+		else
+			cur_ops->sync();
 		rcu_stutter_wait("rcu_torture_fakewriter");
 	} while (!kthread_should_stop() && fullstop == FULLSTOP_DONTSTOP);
 
@@ -1631,6 +1647,7 @@ void rcu_torture_barrier_cbf(struct rcu_head *rcu)
 static int rcu_torture_barrier_cbs(void *arg)
 {
 	long myid = (long)arg;
+	bool lastphase = 0;
 	struct rcu_head rcu;
 
 	init_rcu_head_on_stack(&rcu);
@@ -1638,9 +1655,11 @@ static int rcu_torture_barrier_cbs(void *arg)
 	set_user_nice(current, 19);
 	do {
 		wait_event(barrier_cbs_wq[myid],
-			   atomic_read(&barrier_cbs_count) == n_barrier_cbs ||
+			   barrier_phase != lastphase ||
 			   kthread_should_stop() ||
 			   fullstop != FULLSTOP_DONTSTOP);
+		lastphase = barrier_phase;
+		smp_mb(); /* ensure barrier_phase load before ->call(). */
 		if (kthread_should_stop() || fullstop != FULLSTOP_DONTSTOP)
 			break;
 		cur_ops->call(&rcu, rcu_torture_barrier_cbf);
@@ -1665,7 +1684,8 @@ static int rcu_torture_barrier(void *arg)
 	do {
 		atomic_set(&barrier_cbs_invoked, 0);
 		atomic_set(&barrier_cbs_count, n_barrier_cbs);
-		/* wake_up() path contains the required barriers. */
+		smp_mb(); /* Ensure barrier_phase after prior assignments. */
+		barrier_phase = !barrier_phase;
 		for (i = 0; i < n_barrier_cbs; i++)
 			wake_up(&barrier_cbs_wq[i]);
 		wait_event(barrier_wq,
@@ -1684,7 +1704,7 @@ static int rcu_torture_barrier(void *arg)
 		schedule_timeout_interruptible(HZ / 10);
 	} while (!kthread_should_stop() && fullstop == FULLSTOP_DONTSTOP);
 	VERBOSE_PRINTK_STRING("rcu_torture_barrier task stopping");
-	rcutorture_shutdown_absorb("rcu_torture_barrier_cbs");
+	rcutorture_shutdown_absorb("rcu_torture_barrier");
 	while (!kthread_should_stop())
 		schedule_timeout_interruptible(1);
 	return 0;
@@ -1908,8 +1928,8 @@ rcu_torture_init(void)
 	static struct rcu_torture_ops *torture_ops[] =
 		{ &rcu_ops, &rcu_sync_ops, &rcu_expedited_ops,
 		  &rcu_bh_ops, &rcu_bh_sync_ops, &rcu_bh_expedited_ops,
-		  &srcu_ops, &srcu_sync_ops, &srcu_raw_ops,
-		  &srcu_raw_sync_ops, &srcu_expedited_ops,
+		  &srcu_ops, &srcu_sync_ops, &srcu_expedited_ops,
+		  &srcu_raw_ops, &srcu_raw_sync_ops,
 		  &sched_ops, &sched_sync_ops, &sched_expedited_ops, };
 
 	mutex_lock(&fullstop_mutex);

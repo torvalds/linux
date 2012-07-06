@@ -833,9 +833,9 @@ sched:	Critical sections	Grace period		Barrier
 
 SRCU:	Critical sections	Grace period		Barrier
 
-	srcu_read_lock		synchronize_srcu	N/A
-	srcu_read_unlock	synchronize_srcu_expedited
-	srcu_read_lock_raw
+	srcu_read_lock		synchronize_srcu	srcu_barrier
+	srcu_read_unlock	call_srcu
+	srcu_read_lock_raw	synchronize_srcu_expedited
 	srcu_read_unlock_raw
 	srcu_dereference
 
