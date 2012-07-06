@@ -1556,16 +1556,6 @@ static void XGIfb_detect_VB(struct xgifb_video_info *xgifb_info)
 
 	xgifb_info->TV_plug = xgifb_info->TV_type = 0;
 
-	switch (xgifb_info->hasVB) {
-	case HASVB_LVDS_CHRONTEL:
-	case HASVB_CHRONTEL:
-		break;
-	case HASVB_301:
-	case HASVB_302:
-		/* XGI_Sense30x(); */ /* Yi-Lin TV Sense? */
-		break;
-	}
-
 	cr32 = xgifb_reg_get(XGICR, IND_XGI_SCRATCH_REG_CR32);
 
 	if ((cr32 & SIS_CRT1) && !XGIfb_crt1off)
