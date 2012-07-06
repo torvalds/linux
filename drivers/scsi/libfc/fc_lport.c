@@ -1598,8 +1598,9 @@ static void fc_lport_timeout(struct work_struct *work)
 	case LPORT_ST_RPA:
 	case LPORT_ST_DHBA:
 	case LPORT_ST_DPRT:
-		fc_lport_enter_ms(lport, lport->state);
-		break;
+		FC_LPORT_DBG(lport, "Skipping lport state %s to SCR\n",
+			     fc_lport_state(lport));
+		/* fall thru */
 	case LPORT_ST_SCR:
 		fc_lport_enter_scr(lport);
 		break;
