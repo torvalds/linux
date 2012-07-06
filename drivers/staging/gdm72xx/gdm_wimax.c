@@ -744,13 +744,8 @@ static int gdm_wimax_get_prepared_info(struct net_device *dev, char *buf,
 					"[%x/%d]\n", __func__, T, L);
 				return -1;
 			}
-			printk(KERN_INFO
-				"MAC change [%02x:%02x:%02x:%02x:%02x:%02x]"
-				"->[%02x:%02x:%02x:%02x:%02x:%02x]\n",
-				dev->dev_addr[0], dev->dev_addr[1],
-				dev->dev_addr[2], dev->dev_addr[3],
-				dev->dev_addr[4], dev->dev_addr[5],
-				V[0], V[1], V[2], V[3], V[4], V[5]);
+			printk(KERN_INFO "MAC change [%pM]->[%pM]\n",
+				dev->dev_addr, V);
 			memcpy(dev->dev_addr, V, dev->addr_len);
 			return 1;
 		}
