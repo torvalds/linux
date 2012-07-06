@@ -1953,6 +1953,12 @@ skip:
 			 */
 			console_idx = log_next(console_idx);
 			console_seq++;
+			/*
+			 * We will get here again when we register a new
+			 * CON_PRINTBUFFER console. Clear the flag so we
+			 * will properly dump everything later.
+			 */
+			msg->flags &= ~LOG_NOCONS;
 			goto skip;
 		}
 
