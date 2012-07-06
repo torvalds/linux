@@ -965,9 +965,9 @@ struct ieee80211_local {
 	int scan_channel_idx;
 	int scan_ies_len;
 
-	bool sched_scanning;
 	struct ieee80211_sched_scan_ies sched_scan_ies;
 	struct work_struct sched_scan_stopped_work;
+	struct ieee80211_sub_if_data __rcu *sched_scan_sdata;
 
 	unsigned long leave_oper_channel_time;
 	enum mac80211_scan_state next_scan_state;

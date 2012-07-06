@@ -930,9 +930,9 @@ int ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	int ret, i;
 
-	mutex_lock(&sdata->local->mtx);
+	mutex_lock(&local->mtx);
 
-	if (local->sched_scanning) {
+	if (rcu_access_pointer(local->sched_scan_sdata)) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -966,7 +966,7 @@ int ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 	ret = drv_sched_scan_start(local, sdata, req,
 				   &local->sched_scan_ies);
 	if (ret == 0) {
-		local->sched_scanning = true;
+		rcu_assign_pointer(local->sched_scan_sdata, sdata);
 		goto out;
 	}
 
@@ -974,7 +974,7 @@ out_free:
 	while (i > 0)
 		kfree(local->sched_scan_ies.ie[--i]);
 out:
-	mutex_unlock(&sdata->local->mtx);
+	mutex_unlock(&local->mtx);
 	return ret;
 }
 
@@ -983,22 +983,22 @@ int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_local *local = sdata->local;
 	int ret = 0, i;
 
-	mutex_lock(&sdata->local->mtx);
+	mutex_lock(&local->mtx);
 
 	if (!local->ops->sched_scan_stop) {
 		ret = -ENOTSUPP;
 		goto out;
 	}
 
-	if (local->sched_scanning) {
+	if (rcu_access_pointer(local->sched_scan_sdata)) {
 		for (i = 0; i < IEEE80211_NUM_BANDS; i++)
 			kfree(local->sched_scan_ies.ie[i]);
 
 		drv_sched_scan_stop(local, sdata);
-		local->sched_scanning = false;
+		rcu_assign_pointer(local->sched_scan_sdata, NULL);
 	}
 out:
-	mutex_unlock(&sdata->local->mtx);
+	mutex_unlock(&local->mtx);
 
 	return ret;
 }
@@ -1022,7 +1022,7 @@ void ieee80211_sched_scan_stopped_work(struct work_struct *work)
 
 	mutex_lock(&local->mtx);
 
-	if (!local->sched_scanning) {
+	if (!rcu_access_pointer(local->sched_scan_sdata)) {
 		mutex_unlock(&local->mtx);
 		return;
 	}
@@ -1030,7 +1030,7 @@ void ieee80211_sched_scan_stopped_work(struct work_struct *work)
 	for (i = 0; i < IEEE80211_NUM_BANDS; i++)
 		kfree(local->sched_scan_ies.ie[i]);
 
-	local->sched_scanning = false;
+	rcu_assign_pointer(local->sched_scan_sdata, NULL);
 
 	mutex_unlock(&local->mtx);
 

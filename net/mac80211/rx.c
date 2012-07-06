@@ -421,13 +421,13 @@ ieee80211_rx_h_passive_scan(struct ieee80211_rx_data *rx)
 	struct sk_buff *skb = rx->skb;
 
 	if (likely(!(status->rx_flags & IEEE80211_RX_IN_SCAN) &&
-		   !local->sched_scanning))
+		   !rcu_access_pointer(local->sched_scan_sdata)))
 		return RX_CONTINUE;
 
 	if (test_bit(SCAN_HW_SCANNING, &local->scanning) ||
 	    test_bit(SCAN_SW_SCANNING, &local->scanning) ||
 	    test_bit(SCAN_ONCHANNEL_SCANNING, &local->scanning) ||
-	    local->sched_scanning)
+	    rcu_access_pointer(local->sched_scan_sdata))
 		return ieee80211_scan_rx(rx->sdata, skb);
 
 	/* scanning finished during invoking of handlers */
