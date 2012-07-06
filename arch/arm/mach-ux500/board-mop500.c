@@ -197,24 +197,6 @@ static struct ab8500_platform_data ab8500_platdata = {
 	.gpio		= &ab8500_gpio_pdata,
 };
 
-static struct resource ab8500_resources[] = {
-	[0] = {
-		.start	= IRQ_DB8500_AB8500,
-		.end	= IRQ_DB8500_AB8500,
-		.flags	= IORESOURCE_IRQ
-	}
-};
-
-struct platform_device ab8500_device = {
-	.name = "ab8500-core",
-	.id = 0,
-	.dev = {
-		.platform_data = &ab8500_platdata,
-	},
-	.num_resources = 1,
-	.resource = ab8500_resources,
-};
-
 /*
  * TPS61052
  */
@@ -460,7 +442,6 @@ static struct hash_platform_data u8500_hash1_platform_data = {
 /* add any platform devices here - TODO */
 static struct platform_device *mop500_platform_devs[] __initdata = {
 	&mop500_gpio_keys_device,
-	&ab8500_device,
 };
 
 #ifdef CONFIG_STE_DMA40
@@ -622,7 +603,6 @@ static struct platform_device *snowball_platform_devs[] __initdata = {
 	&snowball_led_dev,
 	&snowball_key_dev,
 	&snowball_sbnet_dev,
-	&ab8500_device,
 };
 
 static struct platform_device *snowball_of_platform_devs[] __initdata = {
@@ -639,9 +619,8 @@ static void __init mop500_init_machine(void)
 	mop500_gpio_keys[0].gpio = GPIO_PROX_SENSOR;
 
 	mop500_pinmaps_init();
-	parent = u8500_init_devices();
+	parent = u8500_init_devices(&ab8500_platdata);
 
-	/* FIXME: parent of ab8500 should be prcmu */
 	for (i = 0; i < ARRAY_SIZE(mop500_platform_devs); i++)
 		mop500_platform_devs[i]->dev.parent = parent;
 
@@ -674,7 +653,7 @@ static void __init snowball_init_machine(void)
 	int i;
 
 	snowball_pinmaps_init();
-	parent = u8500_init_devices();
+	parent = u8500_init_devices(&ab8500_platdata);
 
 	for (i = 0; i < ARRAY_SIZE(snowball_platform_devs); i++)
 		snowball_platform_devs[i]->dev.parent = parent;
@@ -706,7 +685,7 @@ static void __init hrefv60_init_machine(void)
 	mop500_gpio_keys[0].gpio = HREFV60_PROX_SENSE_GPIO;
 
 	hrefv60_pinmaps_init();
-	parent = u8500_init_devices();
+	parent = u8500_init_devices(&ab8500_platdata);
 
 	for (i = 0; i < ARRAY_SIZE(mop500_platform_devs); i++)
 		mop500_platform_devs[i]->dev.parent = parent;

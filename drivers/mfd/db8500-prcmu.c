@@ -28,6 +28,7 @@
 #include <linux/uaccess.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/dbx500-prcmu.h>
+#include <linux/mfd/abx500/ab8500.h>
 #include <linux/regulator/db8500-prcmu.h>
 #include <linux/regulator/machine.h>
 #include <asm/hardware/gic.h>
@@ -2972,8 +2973,9 @@ static struct mfd_cell db8500_prcmu_devs[] = {
  */
 static int __devinit db8500_prcmu_probe(struct platform_device *pdev)
 {
+	struct ab8500_platform_data *ab8500_platdata = pdev->dev.platform_data;
 	struct device_node *np = pdev->dev.of_node;
-	int irq = 0, err = 0;
+	int irq = 0, err = 0, i;
 
 	if (ux500_is_svp())
 		return -ENODEV;
@@ -2995,6 +2997,12 @@ static int __devinit db8500_prcmu_probe(struct platform_device *pdev)
 		pr_err("prcmu: Failed to allocate IRQ_DB8500_PRCMU1.\n");
 		err = -EBUSY;
 		goto no_irq_return;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(db8500_prcmu_devs); i++) {
+		if (!strcmp(db8500_prcmu_devs[i].name, "ab8500-core")) {
+			db8500_prcmu_devs[i].platform_data = ab8500_platdata;
+		}
 	}
 
 	if (cpu_is_u8500v20_or_later())
