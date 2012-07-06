@@ -1368,7 +1368,15 @@ void evergreen_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 	/* set to DX10/11 mode */
 	radeon_ring_write(ring, PACKET3(PACKET3_MODE_CONTROL, 0));
 	radeon_ring_write(ring, 1);
-	/* FIXME: implement */
+
+	if (ring->rptr_save_reg) {
+		uint32_t next_rptr = ring->wptr + 3 + 4;
+		radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+		radeon_ring_write(ring, ((ring->rptr_save_reg - 
+					  PACKET3_SET_CONFIG_REG_START) >> 2));
+		radeon_ring_write(ring, next_rptr);
+	}
+
 	radeon_ring_write(ring, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
 	radeon_ring_write(ring,
 #ifdef __BIG_ENDIAN

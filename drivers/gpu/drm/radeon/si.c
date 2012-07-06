@@ -1765,6 +1765,14 @@ void si_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 	struct radeon_ring *ring = &rdev->ring[ib->ring];
 	u32 header;
 
+	if (ring->rptr_save_reg) {
+		uint32_t next_rptr = ring->wptr + 3 + 4 + 8;
+		radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+		radeon_ring_write(ring, ((ring->rptr_save_reg - 
+					  PACKET3_SET_CONFIG_REG_START) >> 2));
+		radeon_ring_write(ring, next_rptr);
+	}
+
 	if (ib->is_const_ib)
 		header = PACKET3(PACKET3_INDIRECT_BUFFER_CONST, 2);
 	else
@@ -1917,10 +1925,20 @@ static int si_cp_start(struct radeon_device *rdev)
 
 static void si_cp_fini(struct radeon_device *rdev)
 {
+	struct radeon_ring *ring;
 	si_cp_enable(rdev, false);
-	radeon_ring_fini(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
-	radeon_ring_fini(rdev, &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX]);
-	radeon_ring_fini(rdev, &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX]);
+
+	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
+	radeon_ring_fini(rdev, ring);
+	radeon_scratch_free(rdev, ring->rptr_save_reg);
+
+	ring = &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX];
+	radeon_ring_fini(rdev, ring);
+	radeon_scratch_free(rdev, ring->rptr_save_reg);
+
+	ring = &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX];
+	radeon_ring_fini(rdev, ring);
+	radeon_scratch_free(rdev, ring->rptr_save_reg);
 }
 
 static int si_cp_resume(struct radeon_device *rdev)

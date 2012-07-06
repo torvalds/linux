@@ -358,8 +358,10 @@ static int rv770_cp_load_microcode(struct radeon_device *rdev)
 
 void r700_cp_fini(struct radeon_device *rdev)
 {
+	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	r700_cp_stop(rdev);
-	radeon_ring_fini(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
+	radeon_ring_fini(rdev, ring);
+	radeon_scratch_free(rdev, ring->rptr_save_reg);
 }
 
 /*

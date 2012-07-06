@@ -855,6 +855,15 @@ void cayman_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 	/* set to DX10/11 mode */
 	radeon_ring_write(ring, PACKET3(PACKET3_MODE_CONTROL, 0));
 	radeon_ring_write(ring, 1);
+
+	if (ring->rptr_save_reg) {
+		uint32_t next_rptr = ring->wptr + 3 + 4 + 8;
+		radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+		radeon_ring_write(ring, ((ring->rptr_save_reg - 
+					  PACKET3_SET_CONFIG_REG_START) >> 2));
+		radeon_ring_write(ring, next_rptr);
+	}
+
 	radeon_ring_write(ring, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
 	radeon_ring_write(ring,
 #ifdef __BIG_ENDIAN
@@ -981,8 +990,10 @@ static int cayman_cp_start(struct radeon_device *rdev)
 
 static void cayman_cp_fini(struct radeon_device *rdev)
 {
+	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	cayman_cp_enable(rdev, false);
-	radeon_ring_fini(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
+	radeon_ring_fini(rdev, ring);
+	radeon_scratch_free(rdev, ring->rptr_save_reg);
 }
 
 int cayman_cp_resume(struct radeon_device *rdev)

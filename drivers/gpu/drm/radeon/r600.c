@@ -2155,18 +2155,27 @@ int r600_cp_resume(struct radeon_device *rdev)
 void r600_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsigned ring_size)
 {
 	u32 rb_bufsz;
+	int r;
 
 	/* Align ring size */
 	rb_bufsz = drm_order(ring_size / 8);
 	ring_size = (1 << (rb_bufsz + 1)) * 4;
 	ring->ring_size = ring_size;
 	ring->align_mask = 16 - 1;
+
+	r = radeon_scratch_get(rdev, &ring->rptr_save_reg);
+	if (r) {
+		DRM_ERROR("failed to get scratch reg for rptr save (%d).\n", r);
+		ring->rptr_save_reg = 0;
+	}
 }
 
 void r600_cp_fini(struct radeon_device *rdev)
 {
+	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	r600_cp_stop(rdev);
-	radeon_ring_fini(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
+	radeon_ring_fini(rdev, ring);
+	radeon_scratch_free(rdev, ring->rptr_save_reg);
 }
 
 
@@ -2568,7 +2577,14 @@ void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	struct radeon_ring *ring = &rdev->ring[ib->ring];
 
-	/* FIXME: implement */
+	if (ring->rptr_save_reg) {
+		uint32_t next_rptr = ring->wptr + 3 + 4;
+		radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+		radeon_ring_write(ring, ((ring->rptr_save_reg -
+					 PACKET3_SET_CONFIG_REG_OFFSET) >> 2));
+		radeon_ring_write(ring, next_rptr);
+	}
+
 	radeon_ring_write(ring, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
 	radeon_ring_write(ring,
 #ifdef __BIG_ENDIAN

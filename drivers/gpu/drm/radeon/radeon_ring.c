@@ -451,6 +451,10 @@ static int radeon_debugfs_ring_info(struct seq_file *m, void *data)
 	count = (ring->ring_size / 4) - ring->ring_free_dw;
 	seq_printf(m, "wptr(0x%04x): 0x%08x\n", ring->wptr_reg, RREG32(ring->wptr_reg));
 	seq_printf(m, "rptr(0x%04x): 0x%08x\n", ring->rptr_reg, RREG32(ring->rptr_reg));
+	if (ring->rptr_save_reg) {
+		seq_printf(m, "rptr next(0x%04x): 0x%08x\n", ring->rptr_save_reg,
+			   RREG32(ring->rptr_save_reg));
+	}
 	seq_printf(m, "driver's copy of the wptr: 0x%08x\n", ring->wptr);
 	seq_printf(m, "driver's copy of the rptr: 0x%08x\n", ring->rptr);
 	seq_printf(m, "%u free dwords in ring\n", ring->ring_free_dw);

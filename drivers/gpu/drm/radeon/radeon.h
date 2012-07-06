@@ -622,6 +622,7 @@ struct radeon_ring {
 	unsigned		rptr;
 	unsigned		rptr_offs;
 	unsigned		rptr_reg;
+	unsigned		rptr_save_reg;
 	unsigned		wptr;
 	unsigned		wptr_old;
 	unsigned		wptr_reg;
