@@ -380,7 +380,6 @@ config MACH_IMX27IPCAM
 config MACH_IMX27_DT
 	bool "Support i.MX27 platforms from device tree"
 	select SOC_IMX27
-	select USE_OF
 	help
 	  Include support for Freescale i.MX27 based platforms
 	  using the device tree for discovery
@@ -662,7 +661,6 @@ comment "i.MX51 machines:"
 config MACH_IMX51_DT
 	bool "Support i.MX51 platforms from device tree"
 	select SOC_IMX51
-	select USE_OF
 	select MACH_MX51_BABBAGE
 	help
 	  Include support for Freescale i.MX51 based platforms
@@ -758,7 +756,6 @@ comment "i.MX53 machines:"
 config MACH_IMX53_DT
 	bool "Support i.MX53 platforms from device tree"
 	select SOC_IMX53
-	select USE_OF
 	select MACH_MX53_ARD
 	select MACH_MX53_EVK
 	select MACH_MX53_LOCO
@@ -831,7 +828,6 @@ config SOC_IMX6Q
 	select HAVE_SMP
 	select PINCTRL
 	select PINCTRL_IMX6Q
-	select USE_OF
 
 	help
 	  This enables support for Freescale i.MX6 Quad processor.
