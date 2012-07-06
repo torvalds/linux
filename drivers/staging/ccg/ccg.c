@@ -564,9 +564,7 @@ static int rndis_function_bind_config(struct ccg_usb_function *f,
 		return -1;
 	}
 
-	pr_info("%s MAC: %02X:%02X:%02X:%02X:%02X:%02X\n", __func__,
-		rndis->ethaddr[0], rndis->ethaddr[1], rndis->ethaddr[2],
-		rndis->ethaddr[3], rndis->ethaddr[4], rndis->ethaddr[5]);
+	pr_info("%s MAC: %pM\n", __func__, rndis->ethaddr);
 
 	ret = gether_setup_name(c->cdev->gadget, rndis->ethaddr, "rndis");
 	if (ret) {
@@ -654,9 +652,7 @@ static ssize_t rndis_ethaddr_show(struct device *dev,
 {
 	struct ccg_usb_function *f = dev_get_drvdata(dev);
 	struct rndis_function_config *rndis = f->config;
-	return sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x\n",
-		rndis->ethaddr[0], rndis->ethaddr[1], rndis->ethaddr[2],
-		rndis->ethaddr[3], rndis->ethaddr[4], rndis->ethaddr[5]);
+	return sprintf(buf, "%pM\n", rndis->ethaddr);
 }
 
 static ssize_t rndis_ethaddr_store(struct device *dev,
