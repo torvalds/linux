@@ -43,6 +43,7 @@ static struct {
 
 	struct omap_video_timings timings;
 	struct dss_lcd_mgr_config mgr_config;
+	int data_lines;
 } dpi;
 
 static struct platform_device *dpi_get_dsidev(enum omap_dss_clk_source clk)
@@ -161,7 +162,7 @@ static void dpi_config_lcd_manager(struct omap_dss_device *dssdev)
 	dpi.mgr_config.stallmode = false;
 	dpi.mgr_config.fifohandcheck = false;
 
-	dpi.mgr_config.video_port_width = dssdev->phy.dpi.data_lines;
+	dpi.mgr_config.video_port_width = dpi.data_lines;
 
 	dpi.mgr_config.lcden_sig_polarity = 0;
 
@@ -346,6 +347,16 @@ int dpi_check_timings(struct omap_dss_device *dssdev,
 	return 0;
 }
 EXPORT_SYMBOL(dpi_check_timings);
+
+void omapdss_dpi_set_data_lines(struct omap_dss_device *dssdev, int data_lines)
+{
+	mutex_lock(&dpi.lock);
+
+	dpi.data_lines = data_lines;
+
+	mutex_unlock(&dpi.lock);
+}
+EXPORT_SYMBOL(omapdss_dpi_set_data_lines);
 
 static int __init dpi_init_display(struct omap_dss_device *dssdev)
 {
