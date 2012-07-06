@@ -267,6 +267,8 @@ int __init mx27_clocks_init(unsigned long fref)
 
 	clk_prepare_enable(clk[emi_ahb_gate]);
 
+	imx_print_silicon_rev("i.MX27", mx27_revision());
+
 	return 0;
 }
 
