@@ -2610,13 +2610,6 @@ static int check_port_resume_type(struct usb_device *udev,
 	return status;
 }
 
-static bool usb_device_supports_ltm(struct usb_device *udev)
-{
-	if (udev->speed != USB_SPEED_SUPER || !udev->bos || !udev->bos->ss_cap)
-		return false;
-	return udev->bos->ss_cap->bmAttributes & USB_LTM_SUPPORT;
-}
-
 int usb_disable_ltm(struct usb_device *udev)
 {
 	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
