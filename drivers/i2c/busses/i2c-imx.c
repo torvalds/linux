@@ -514,7 +514,7 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	}
 
 	/* Get I2C clock */
-	i2c_imx->clk = devm_clk_get(&pdev->dev, "i2c_clk");
+	i2c_imx->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(i2c_imx->clk)) {
 		dev_err(&pdev->dev, "can't get I2C clock\n");
 		return PTR_ERR(i2c_imx->clk);
