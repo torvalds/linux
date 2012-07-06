@@ -1185,13 +1185,11 @@ static void XGINew_GetXG21Sense(struct xgi_hw_device_info *HwDeviceExtension,
 {
 	unsigned char Temp;
 
-#if 1
 	if (pVBInfo->IF_DEF_LVDS) { /* For XG21 LVDS */
 		xgifb_reg_or(pVBInfo->P3d4, 0x32, LCDSense);
 		/* LVDS on chip */
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x38, ~0xE0, 0xC0);
 	} else {
-#endif
 		/* Enable GPIOA/B read  */
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x4A, ~0x03, 0x03);
 		Temp = xgifb_reg_get(pVBInfo->P3d4, 0x48) & 0xC0;
@@ -1214,9 +1212,7 @@ static void XGINew_GetXG21Sense(struct xgi_hw_device_info *HwDeviceExtension,
 			/* Disable read GPIOF */
 			xgifb_reg_and(pVBInfo->P3d4, 0x4A, ~0x20);
 		}
-#if 1
 	}
-#endif
 }
 
 static void XGINew_GetXG27Sense(struct xgi_hw_device_info *HwDeviceExtension,
