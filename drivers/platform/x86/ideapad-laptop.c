@@ -64,8 +64,10 @@ enum {
 	VPCCMD_R_3G,
 	VPCCMD_W_3G,
 	VPCCMD_R_ODD, /* 0x21 */
-	VPCCMD_R_RF = 0x23,
+	VPCCMD_W_FAN,
+	VPCCMD_R_RF,
 	VPCCMD_W_RF,
+	VPCCMD_R_FAN = 0x2B,
 	VPCCMD_R_SPECIAL_BUTTONS = 0x31,
 	VPCCMD_W_BL_POWER = 0x33,
 };
@@ -358,14 +360,46 @@ static ssize_t store_ideapad_cam(struct device *dev,
 		return -EINVAL;
 	ret = write_ec_cmd(ideapad_handle, VPCCMD_W_CAMERA, state);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 	return count;
 }
 
 static DEVICE_ATTR(camera_power, 0644, show_ideapad_cam, store_ideapad_cam);
 
+static ssize_t show_ideapad_fan(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	unsigned long result;
+
+	if (read_ec_data(ideapad_handle, VPCCMD_R_FAN, &result))
+		return sprintf(buf, "-1\n");
+	return sprintf(buf, "%lu\n", result);
+}
+
+static ssize_t store_ideapad_fan(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int ret, state;
+
+	if (!count)
+		return 0;
+	if (sscanf(buf, "%i", &state) != 1)
+		return -EINVAL;
+	if (state < 0 || state > 4 || state == 3)
+		return -EINVAL;
+	ret = write_ec_cmd(ideapad_handle, VPCCMD_W_FAN, state);
+	if (ret < 0)
+		return -EIO;
+	return count;
+}
+
+static DEVICE_ATTR(fan_mode, 0644, show_ideapad_fan, store_ideapad_fan);
+
 static struct attribute *ideapad_attributes[] = {
 	&dev_attr_camera_power.attr,
+	&dev_attr_fan_mode.attr,
 	NULL
 };
 
@@ -379,7 +413,10 @@ static umode_t ideapad_is_visible(struct kobject *kobj,
 
 	if (attr == &dev_attr_camera_power.attr)
 		supported = test_bit(CFG_CAMERA_BIT, &(priv->cfg));
-	else
+	else if (attr == &dev_attr_fan_mode.attr) {
+		unsigned long value;
+		supported = !read_ec_data(ideapad_handle, VPCCMD_R_FAN, &value);
+	} else
 		supported = true;
 
 	return supported ? attr->mode : 0;
