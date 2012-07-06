@@ -387,7 +387,7 @@ add_sync_ep:
 		subs->data_endpoint->sync_master = subs->sync_endpoint;
 	}
 
-	if ((err = snd_usb_init_pitch(subs->stream->chip, subs->interface, alts, fmt)) < 0)
+	if ((err = snd_usb_init_pitch(subs->stream->chip, fmt->iface, alts, fmt)) < 0)
 		return err;
 
 	subs->cur_audiofmt = fmt;
@@ -450,7 +450,7 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 		struct usb_interface *iface;
 		iface = usb_ifnum_to_if(subs->dev, fmt->iface);
 		alts = &iface->altsetting[fmt->altset_idx];
-		ret = snd_usb_init_sample_rate(subs->stream->chip, subs->interface, alts, fmt, rate);
+		ret = snd_usb_init_sample_rate(subs->stream->chip, fmt->iface, alts, fmt, rate);
 		if (ret < 0)
 			return ret;
 		subs->cur_rate = rate;
