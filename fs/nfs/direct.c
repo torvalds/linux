@@ -490,6 +490,7 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 			dreq->error = -EIO;
 			spin_unlock(cinfo.lock);
 		}
+		nfs_release_request(req);
 	}
 	nfs_pageio_complete(&desc);
 
