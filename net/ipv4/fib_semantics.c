@@ -166,7 +166,7 @@ void free_fib_info(struct fib_info *fi)
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	change_nexthops(fi) {
 		if (nexthop_nh->nh_tclassid)
-			fib_num_tclassid_users--;
+			fi->fib_net->ipv4.fib_num_tclassid_users--;
 	} endfor_nexthops(fi);
 #endif
 	call_rcu(&fi->rcu, free_fib_info_rcu);
@@ -428,7 +428,7 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 			nla = nla_find(attrs, attrlen, RTA_FLOW);
 			nexthop_nh->nh_tclassid = nla ? nla_get_u32(nla) : 0;
 			if (nexthop_nh->nh_tclassid)
-				fib_num_tclassid_users++;
+				fi->fib_net->ipv4.fib_num_tclassid_users++;
 #endif
 		}
 
@@ -824,7 +824,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 #ifdef CONFIG_IP_ROUTE_CLASSID
 		nh->nh_tclassid = cfg->fc_flow;
 		if (nh->nh_tclassid)
-			fib_num_tclassid_users++;
+			fi->fib_net->ipv4.fib_num_tclassid_users++;
 #endif
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 		nh->nh_weight = 1;

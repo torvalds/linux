@@ -86,6 +86,24 @@ struct fib_table *fib_new_table(struct net *net, u32 id)
 	tb = fib_trie_table(id);
 	if (!tb)
 		return NULL;
+
+	switch (id) {
+	case RT_TABLE_LOCAL:
+		net->ipv4.fib_local = tb;
+		break;
+
+	case RT_TABLE_MAIN:
+		net->ipv4.fib_main = tb;
+		break;
+
+	case RT_TABLE_DEFAULT:
+		net->ipv4.fib_default = tb;
+		break;
+
+	default:
+		break;
+	}
+
 	h = id & (FIB_TABLE_HASHSZ - 1);
 	hlist_add_head_rcu(&tb->tb_hlist, &net->ipv4.fib_table_hash[h]);
 	return tb;
@@ -218,10 +236,6 @@ __be32 fib_compute_spec_dst(struct sk_buff *skb)
 	return inet_select_addr(dev, ip_hdr(skb)->saddr, scope);
 }
 
-#ifdef CONFIG_IP_ROUTE_CLASSID
-int fib_num_tclassid_users __read_mostly;
-#endif
-
 /* Given (packet source, input interface) and optional (dst, oif, tos):
  * - (main) check, that source is valid i.e. not broadcast or our local
  *   address.
@@ -312,7 +326,7 @@ int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 {
 	int r = secpath_exists(skb) ? 0 : IN_DEV_RPFILTER(idev);
 
-	if (!r && !fib_num_tclassid_users) {
+	if (!r && !fib_num_tclassid_users(dev_net(dev))) {
 		*itag = 0;
 		return 0;
 	}
@@ -1134,6 +1148,9 @@ static int __net_init fib_net_init(struct net *net)
 {
 	int error;
 
+#ifdef CONFIG_IP_ROUTE_CLASSID
+	net->ipv4.fib_num_tclassid_users = 0;
+#endif
 	error = ip_fib_net_init(net);
 	if (error < 0)
 		goto out;

@@ -11,6 +11,7 @@ struct ctl_table_header;
 struct ipv4_devconf;
 struct fib_rules_ops;
 struct hlist_head;
+struct fib_table;
 struct sock;
 
 struct netns_ipv4 {
@@ -24,6 +25,13 @@ struct netns_ipv4 {
 	struct ipv4_devconf	*devconf_dflt;
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	struct fib_rules_ops	*rules_ops;
+	bool			fib_has_custom_rules;
+	struct fib_table	*fib_local;
+	struct fib_table	*fib_main;
+	struct fib_table	*fib_default;
+#endif
+#ifdef CONFIG_IP_ROUTE_CLASSID
+	int			fib_num_tclassid_users;
 #endif
 	struct hlist_head	*fib_table_hash;
 	struct sock		*fibnl;

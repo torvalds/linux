@@ -220,10 +220,32 @@ extern void __net_exit fib4_rules_exit(struct net *net);
 extern u32 fib_rules_tclass(const struct fib_result *res);
 #endif
 
-extern int fib_lookup(struct net *n, struct flowi4 *flp, struct fib_result *res);
-
 extern struct fib_table *fib_new_table(struct net *net, u32 id);
 extern struct fib_table *fib_get_table(struct net *net, u32 id);
+
+extern int __fib_lookup(struct net *net, struct flowi4 *flp,
+			struct fib_result *res);
+
+static inline int fib_lookup(struct net *net, struct flowi4 *flp,
+			     struct fib_result *res)
+{
+	if (!net->ipv4.fib_has_custom_rules) {
+		if (net->ipv4.fib_local &&
+		    !fib_table_lookup(net->ipv4.fib_local, flp, res,
+				      FIB_LOOKUP_NOREF))
+			return 0;
+		if (net->ipv4.fib_main &&
+		    !fib_table_lookup(net->ipv4.fib_main, flp, res,
+				      FIB_LOOKUP_NOREF))
+			return 0;
+		if (net->ipv4.fib_default &&
+		    !fib_table_lookup(net->ipv4.fib_default, flp, res,
+				      FIB_LOOKUP_NOREF))
+			return 0;
+		return -ENETUNREACH;
+	}
+	return __fib_lookup(net, flp, res);
+}
 
 #endif /* CONFIG_IP_MULTIPLE_TABLES */
 
@@ -236,9 +258,15 @@ extern int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 			       struct in_device *idev, u32 *itag);
 extern void fib_select_default(struct fib_result *res);
 #ifdef CONFIG_IP_ROUTE_CLASSID
-extern int fib_num_tclassid_users;
+static inline int fib_num_tclassid_users(struct net *net)
+{
+	return net->ipv4.fib_num_tclassid_users;
+}
 #else
-#define fib_num_tclassid_users 0
+static inline int fib_num_tclassid_users(struct net *net)
+{
+	return 0;
+}
 #endif
 
 /* Exported by fib_semantics.c */
