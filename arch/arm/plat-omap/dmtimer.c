@@ -121,21 +121,16 @@ static void omap_dm_timer_wait_for_reset(struct omap_dm_timer *timer)
 
 static void omap_dm_timer_reset(struct omap_dm_timer *timer)
 {
-	omap_dm_timer_enable(timer);
 	if (timer->pdev->id != 1) {
 		omap_dm_timer_write_reg(timer, OMAP_TIMER_IF_CTRL_REG, 0x06);
 		omap_dm_timer_wait_for_reset(timer);
 	}
 
 	__omap_dm_timer_reset(timer, 0, 0);
-	__omap_dm_timer_enable_posted(timer);
-	omap_dm_timer_disable(timer);
 }
 
 int omap_dm_timer_prepare(struct omap_dm_timer *timer)
 {
-	int ret;
-
 	/*
 	 * FIXME: OMAP1 devices do not use the clock framework for dmtimers so
 	 * do not call clk_get() for these devices.
@@ -149,13 +144,15 @@ int omap_dm_timer_prepare(struct omap_dm_timer *timer)
 		}
 	}
 
+	omap_dm_timer_enable(timer);
+
 	if (timer->capability & OMAP_TIMER_NEEDS_RESET)
 		omap_dm_timer_reset(timer);
 
-	ret = omap_dm_timer_set_source(timer, OMAP_TIMER_SRC_32_KHZ);
+	__omap_dm_timer_enable_posted(timer);
+	omap_dm_timer_disable(timer);
 
-	timer->posted = 1;
-	return ret;
+	return omap_dm_timer_set_source(timer, OMAP_TIMER_SRC_32_KHZ);
 }
 
 static inline u32 omap_dm_timer_reserved_systimer(int id)
