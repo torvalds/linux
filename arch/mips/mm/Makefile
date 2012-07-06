@@ -3,8 +3,8 @@
 #
 
 obj-y				+= cache.o dma-default.o extable.o fault.o \
-				   gup.o init.o mmap.o page.o tlbex.o \
-				   tlbex-fault.o uasm.o
+				   gup.o init.o mmap.o page.o page-funcs.o \
+				   tlbex.o tlbex-fault.o uasm.o
 
 obj-$(CONFIG_32BIT)		+= ioremap.o pgtable-32.o
 obj-$(CONFIG_64BIT)		+= pgtable-64.o
