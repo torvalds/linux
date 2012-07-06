@@ -2903,8 +2903,13 @@ again:
 	}
 
 	spin_lock(&block_group->lock);
-	if (block_group->cached != BTRFS_CACHE_FINISHED) {
-		/* We're not cached, don't bother trying to write stuff out */
+	if (block_group->cached != BTRFS_CACHE_FINISHED ||
+	    !btrfs_test_opt(root, SPACE_CACHE)) {
+		/*
+		 * don't bother trying to write stuff out _if_
+		 * a) we're not cached,
+		 * b) we're with nospace_cache mount option.
+		 */
 		dcs = BTRFS_DC_WRITTEN;
 		spin_unlock(&block_group->lock);
 		goto out_put;
@@ -7614,8 +7619,21 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		INIT_LIST_HEAD(&cache->list);
 		INIT_LIST_HEAD(&cache->cluster_list);
 
-		if (need_clear)
+		if (need_clear) {
+			/*
+			 * When we mount with old space cache, we need to
+			 * set BTRFS_DC_CLEAR and set dirty flag.
+			 *
+			 * a) Setting 'BTRFS_DC_CLEAR' makes sure that we
+			 *    truncate the old free space cache inode and
+			 *    setup a new one.
+			 * b) Setting 'dirty flag' makes sure that we flush
+			 *    the new space cache info onto disk.
+			 */
 			cache->disk_cache_state = BTRFS_DC_CLEAR;
+			if (btrfs_test_opt(root, SPACE_CACHE))
+				cache->dirty = 1;
+		}
 
 		read_extent_buffer(leaf, &cache->item,
 				   btrfs_item_ptr_offset(leaf, path->slots[0]),
