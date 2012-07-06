@@ -658,8 +658,14 @@ static int ipoib_mcast_leave(struct net_device *dev, struct ipoib_mcast *mcast)
 void ipoib_mcast_send(struct net_device *dev, void *mgid, struct sk_buff *skb)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct dst_entry *dst = skb_dst(skb);
 	struct ipoib_mcast *mcast;
+	struct neighbour *n;
 	unsigned long flags;
+
+	n = NULL;
+	if (dst)
+		n = dst_neigh_lookup_skb(dst, skb);
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -715,12 +721,6 @@ void ipoib_mcast_send(struct net_device *dev, void *mgid, struct sk_buff *skb)
 
 out:
 	if (mcast && mcast->ah) {
-		struct dst_entry *dst = skb_dst(skb);
-		struct neighbour *n = NULL;
-
-		rcu_read_lock();
-		if (dst)
-			n = dst_neigh_lookup_skb(dst, skb);
 		if (n) {
 			if (!*to_ipoib_neigh(n)) {
 				struct ipoib_neigh *neigh;
@@ -735,13 +735,14 @@ out:
 			}
 			neigh_release(n);
 		}
-		rcu_read_unlock();
 		spin_unlock_irqrestore(&priv->lock, flags);
 		ipoib_send(dev, skb, mcast->ah, IB_MULTICAST_QPN);
 		return;
 	}
 
 unlock:
+	if (n)
+		neigh_release(n);
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
