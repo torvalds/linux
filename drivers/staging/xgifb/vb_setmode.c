@@ -250,48 +250,30 @@ static unsigned char XGI_AjustCRT2Rate(unsigned short ModeNo,
 		if (pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) {
 			tempax |= SupportLCD;
 
-			if (pVBInfo->LCDResInfo != Panel_1280x1024) {
-				if (pVBInfo->LCDResInfo != Panel_1280x960) {
-					if (pVBInfo->LCDInfo &
-					    LCDNonExpanding) {
-						if (resinfo >= 9) {
-							tempax = 0;
-							return 0;
-						}
-					}
-				}
-			}
+			if (pVBInfo->LCDResInfo != Panel_1280x1024 &&
+			    pVBInfo->LCDResInfo != Panel_1280x960 &&
+			    (pVBInfo->LCDInfo & LCDNonExpanding) &&
+			    resinfo >= 9)
+				return 0;
 		}
 
 		if (pVBInfo->VBInfo & SetCRT2ToHiVision) { /* for HiTV */
 			if ((pVBInfo->VBType & VB_SIS301LV) &&
 			    (pVBInfo->VBExtInfo == VB_YPbPr1080i)) {
 				tempax |= SupportYPbPr750p;
-				if (pVBInfo->VBInfo & SetInSlaveMode) {
-					if (resinfo == 4)
-						return 0;
-
-					if (resinfo == 3)
-						return 0;
-
-					if (resinfo > 7)
-						return 0;
-				}
+				if ((pVBInfo->VBInfo & SetInSlaveMode) &&
+				    ((resinfo == 3) ||
+				     (resinfo == 4) ||
+				     (resinfo > 7)))
+					return 0;
 			} else {
 				tempax |= SupportHiVision;
-				if (pVBInfo->VBInfo & SetInSlaveMode) {
-					if (resinfo == 4)
+				if ((pVBInfo->VBInfo & SetInSlaveMode) &&
+				    ((resinfo == 4) ||
+				     (resinfo == 3 &&
+				      (pVBInfo->SetFlag & TVSimuMode)) ||
+				     (resinfo > 7)))
 						return 0;
-
-					if (resinfo == 3) {
-						if (pVBInfo->SetFlag
-								& TVSimuMode)
-							return 0;
-					}
-
-					if (resinfo > 7)
-						return 0;
-				}
 			}
 		} else {
 			if (pVBInfo->VBInfo & (SetCRT2ToAVIDEO |
@@ -301,23 +283,18 @@ static unsigned char XGI_AjustCRT2Rate(unsigned short ModeNo,
 					       SetCRT2ToHiVision)) {
 				tempax |= SupportTV;
 
-				if (pVBInfo->VBType & (VB_SIS301B | VB_SIS302B
-						| VB_SIS301LV | VB_SIS302LV
-						| VB_XGI301C)) {
+				if (pVBInfo->VBType & (VB_SIS301B |
+						       VB_SIS302B |
+						       VB_SIS301LV |
+						       VB_SIS302LV |
+						       VB_XGI301C))
 					tempax |= SupportTV1024;
-				}
 
-				if (!(pVBInfo->VBInfo & TVSetPAL)) {
-					if (modeflag & NoSupportSimuTV) {
-						if (pVBInfo->VBInfo &
-						    SetInSlaveMode) {
-							if (!(pVBInfo->VBInfo &
-							      SetNotSimuMode)) {
-								return 0;
-							}
-						}
-					}
-				}
+				if (!(pVBInfo->VBInfo & TVSetPAL) &&
+				    (modeflag & NoSupportSimuTV) &&
+				    (pVBInfo->VBInfo & SetInSlaveMode) &&
+				    (!(pVBInfo->VBInfo & SetNotSimuMode)))
+					return 0;
 			}
 		}
 	} else { /* for LVDS */
