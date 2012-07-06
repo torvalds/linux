@@ -56,7 +56,7 @@ static int sym(yyscan_t scanner, int type, int config)
 	YYSTYPE *yylval = parse_events_get_lval(scanner);
 
 	yylval->num = (type << 16) + config;
-	return PE_VALUE_SYM;
+	return type == PERF_TYPE_HARDWARE ? PE_VALUE_SYM_HW : PE_VALUE_SYM_SW;
 }
 
 static int term(yyscan_t scanner, int type)
@@ -76,7 +76,7 @@ num_hex		0x[a-fA-F0-9]+
 num_raw_hex	[a-fA-F0-9]+
 name		[a-zA-Z_*?][a-zA-Z0-9_*?]*
 modifier_event	[ukhpGH]{1,8}
-modifier_bp	[rwx]
+modifier_bp	[rwx]{1,3}
 
 %%
 
@@ -152,6 +152,7 @@ r{num_raw_hex}		{ return raw(yyscanner); }
 ,			{ return ','; }
 :			{ return ':'; }
 =			{ return '='; }
+\n			{ }
 
 <mem>{
 {modifier_bp}		{ return str(yyscanner, PE_MODIFIER_BP); }
