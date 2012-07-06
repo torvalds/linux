@@ -182,7 +182,7 @@ static inline int arch_write_trylock(arch_rwlock_t *rw)
 	unsigned long tmp;
 
 	__asm__ __volatile__(
-"1:	ldrex	%0, [%1]\n"
+"	ldrex	%0, [%1]\n"
 "	teq	%0, #0\n"
 "	strexeq	%0, %2, [%1]"
 	: "=&r" (tmp)
@@ -268,7 +268,7 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 	unsigned long tmp, tmp2 = 1;
 
 	__asm__ __volatile__(
-"1:	ldrex	%0, [%2]\n"
+"	ldrex	%0, [%2]\n"
 "	adds	%0, %0, #1\n"
 "	strexpl	%1, %0, [%2]\n"
 	: "=&r" (tmp), "+r" (tmp2)
