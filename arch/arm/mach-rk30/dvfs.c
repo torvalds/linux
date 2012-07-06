@@ -102,24 +102,51 @@ struct regulator* dvfs_get_regulator(char *regulator_name)
 	return NULL;
 }
 
-int dvfs_clk_enable_limit(struct clk *clk, unsigned int min_rate, unsigned max_rate)
+int dvfs_clk_enable_limit(struct clk *clk, unsigned int min_rate, unsigned int max_rate)
 {
 	struct clk_node* dvfs_clk;
+	if (!clk->dvfs_info) {
+		DVFS_ERR("%s bad dvfs clock\n", __func__);
+		return -1;
+	}
 	dvfs_clk = clk->dvfs_info;
 
 	dvfs_clk->freq_limit_en = 1;
 	dvfs_clk->min_rate = min_rate;
 	dvfs_clk->max_rate = max_rate;
 	
+	if (!dvfs_clk->enable_dvfs) {
+		DVFS_ERR("%s dvfs not enable yet\n", __func__);
+		return -1;
+	}
+
+	if (dvfs_clk->req_freq != 0)
+		dvfs_set_rate(clk, dvfs_clk->req_freq);
+	else
+		dvfs_set_rate(clk, dvfs_clk->set_freq);
 	return 0;
 }
 
 int dvfs_clk_disable_limit(struct clk *clk)
 {
 	struct clk_node* dvfs_clk;
+	if (!clk->dvfs_info) {
+		DVFS_ERR("%s bad dvfs clock\n", __func__);
+		return -1;
+	}
 	dvfs_clk = clk->dvfs_info;
 	
 	dvfs_clk->freq_limit_en = 0;
+	
+	if (!dvfs_clk->enable_dvfs) {
+		DVFS_ERR("%s dvfs not enable yet\n", __func__);
+		return -1;
+	}
+	
+	if (dvfs_clk->req_freq != 0)
+		dvfs_set_rate(clk, dvfs_clk->req_freq);
+	else
+		dvfs_set_rate(clk, dvfs_clk->set_freq);
 	
 	return 0;
 }
@@ -543,6 +570,7 @@ static int rk_regist_clk(struct clk_node *dvfs_clk)
 		return -1;
 	mutex_lock(&mutex);
 	dvfs_clk->enable_dvfs = 0;
+	dvfs_clk->req_freq = 0;
 	dvfs_clk->vd = dvfs_clk->pds[0].pd->vd;
 	for (i = 0; dvfs_clk->pds[i].pd != NULL; i++) {
 		child = &(dvfs_clk->pds[i].clk_list);
@@ -728,6 +756,7 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 		return -1;
 	}
 	
+	dvfs_clk->req_freq = rate_hz;
 	/* Check limit rate */
 	if (dvfs_clk->freq_limit_en) {
 		if (rate_hz < dvfs_clk->min_rate) {
@@ -874,6 +903,7 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 		return -1;
 	}
 
+	dvfs_clk->req_freq = rate_hz;
 	/* Check limit rate */
 	if (dvfs_clk->freq_limit_en) {
 		if (rate_hz < dvfs_clk->min_rate) {
