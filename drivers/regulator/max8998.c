@@ -460,8 +460,6 @@ static struct regulator_ops max8998_ldo_ops = {
 	.disable		= max8998_ldo_disable,
 	.get_voltage_sel	= max8998_get_voltage_sel,
 	.set_voltage_sel	= max8998_set_voltage_ldo_sel,
-	.set_suspend_enable	= max8998_ldo_enable,
-	.set_suspend_disable	= max8998_ldo_disable,
 };
 
 static struct regulator_ops max8998_buck_ops = {
@@ -473,16 +471,12 @@ static struct regulator_ops max8998_buck_ops = {
 	.get_voltage_sel	= max8998_get_voltage_sel,
 	.set_voltage_sel	= max8998_set_voltage_buck_sel,
 	.set_voltage_time_sel	= max8998_set_voltage_buck_time_sel,
-	.set_suspend_enable	= max8998_ldo_enable,
-	.set_suspend_disable	= max8998_ldo_disable,
 };
 
 static struct regulator_ops max8998_others_ops = {
 	.is_enabled		= max8998_ldo_is_enabled,
 	.enable			= max8998_ldo_enable,
 	.disable		= max8998_ldo_disable,
-	.set_suspend_enable	= max8998_ldo_enable,
-	.set_suspend_disable	= max8998_ldo_disable,
 };
 
 static struct regulator_desc regulators[] = {
