@@ -223,6 +223,14 @@ static cycle_t arch_counter_read(struct clocksource *cs)
 	return arch_counter_get_cntpct();
 }
 
+int read_current_timer(unsigned long *timer_val)
+{
+	if (!arch_timer_rate)
+		return -ENXIO;
+	*timer_val = arch_counter_get_cntpct();
+	return 0;
+}
+
 static struct clocksource clocksource_counter = {
 	.name	= "arch_sys_counter",
 	.rating	= 400,
