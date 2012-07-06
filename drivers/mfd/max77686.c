@@ -27,7 +27,6 @@
 #include <linux/i2c.h>
 #include <linux/pm_runtime.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/max77686.h>
 #include <linux/mfd/max77686-private.h>
@@ -78,8 +77,6 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 
 	max77686->wakeup = pdata->wakeup;
 	max77686->irq_gpio = pdata->irq_gpio;
-
-	mutex_init(&max77686->iolock);
 
 	if (regmap_read(max77686->regmap,
 			 MAX77686_REG_DEVICE_ID, &data) < 0) {

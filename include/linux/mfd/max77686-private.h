@@ -219,7 +219,6 @@ struct max77686_dev {
 	struct device *dev;
 	struct i2c_client *i2c; /* 0xcc / PMIC, Battery Control, and FLASH */
 	struct i2c_client *rtc; /* slave addr 0x0c */
-	struct mutex iolock;
 
 	int type;
 
