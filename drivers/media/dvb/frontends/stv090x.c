@@ -3411,9 +3411,10 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 			/* Reset the packet Error counter2 */
 			if (STV090x_WRITE_DEMOD(state, ERRCTRL2, 0xc1) < 0)
 				goto err;
-		} else
+		} else {
 			signal_state = STV090x_NODATA;
-
+			stv090x_chk_signal(state);
+		}
 	}
 	return signal_state;
 
