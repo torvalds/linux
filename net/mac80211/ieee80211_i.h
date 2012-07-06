@@ -972,7 +972,7 @@ struct ieee80211_local {
 	unsigned long leave_oper_channel_time;
 	enum mac80211_scan_state next_scan_state;
 	struct delayed_work scan_work;
-	struct ieee80211_sub_if_data *scan_sdata;
+	struct ieee80211_sub_if_data __rcu *scan_sdata;
 	enum nl80211_channel_type _oper_channel_type;
 	struct ieee80211_channel *oper_channel, *csa_channel;
 

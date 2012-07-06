@@ -112,10 +112,11 @@ static u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 		}
 	}
 
-	if (local->scan_sdata &&
-	    !(local->hw.flags & IEEE80211_HW_SCAN_WHILE_IDLE)) {
+	sdata = rcu_dereference_protected(local->scan_sdata,
+					  lockdep_is_held(&local->mtx));
+	if (sdata && !(local->hw.flags & IEEE80211_HW_SCAN_WHILE_IDLE)) {
 		scanning = true;
-		local->scan_sdata->vif.bss_conf.idle = false;
+		sdata->vif.bss_conf.idle = false;
 	}
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
@@ -628,7 +629,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
-	if (local->scan_sdata == sdata)
+	if (rcu_access_pointer(local->scan_sdata) == sdata)
 		ieee80211_scan_cancel(local);
 
 	/*
