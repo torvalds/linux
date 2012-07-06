@@ -750,7 +750,7 @@ static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 
 static int tpm_tis_pnp_suspend(struct pnp_dev *dev, pm_message_t msg)
 {
-	return tpm_pm_suspend(&dev->dev, msg);
+	return tpm_pm_suspend(&dev->dev);
 }
 
 static int tpm_tis_pnp_resume(struct pnp_dev *dev)
@@ -808,7 +808,7 @@ MODULE_PARM_DESC(hid, "Set additional specific HID for this driver to probe");
 #endif
 static int tpm_tis_suspend(struct platform_device *dev, pm_message_t msg)
 {
-	return tpm_pm_suspend(&dev->dev, msg);
+	return tpm_pm_suspend(&dev->dev);
 }
 
 static int tpm_tis_resume(struct platform_device *dev)

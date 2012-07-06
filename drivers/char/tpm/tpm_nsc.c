@@ -276,7 +276,7 @@ static void tpm_nsc_remove(struct device *dev)
 
 static int tpm_nsc_suspend(struct platform_device *dev, pm_message_t msg)
 {
-	return tpm_pm_suspend(&dev->dev, msg);
+	return tpm_pm_suspend(&dev->dev);
 }
 
 static int tpm_nsc_resume(struct platform_device *dev)

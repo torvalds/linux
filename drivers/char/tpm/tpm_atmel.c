@@ -170,7 +170,7 @@ static void atml_plat_remove(void)
 
 static int tpm_atml_suspend(struct platform_device *dev, pm_message_t msg)
 {
-	return tpm_pm_suspend(&dev->dev, msg);
+	return tpm_pm_suspend(&dev->dev);
 }
 
 static int tpm_atml_resume(struct platform_device *dev)
