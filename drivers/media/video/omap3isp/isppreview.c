@@ -481,25 +481,6 @@ static void preview_enable_dcor(struct isp_prev_device *prev, bool enable)
 }
 
 /*
- * preview_enable_gammabypass - Enable/disable Gamma Bypass
- *
- * When gamma bypass is enabled, the output of the gamma correction is the 8 MSB
- * of the 10-bit input .
- */
-static void
-preview_enable_gammabypass(struct isp_prev_device *prev, bool enable)
-{
-	struct isp_device *isp = to_isp_device(prev);
-
-	if (enable)
-		isp_reg_set(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
-			    ISPPRV_PCR_GAMMA_BYPASS);
-	else
-		isp_reg_clr(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
-			    ISPPRV_PCR_GAMMA_BYPASS);
-}
-
-/*
  * preview_enable_drkframe_capture - Enable/disable Dark Frame Capture
  */
 static void
@@ -594,6 +575,25 @@ preview_config_gammacorrn(struct isp_prev_device *prev,
 	for (i = 0; i < OMAP3ISP_PREV_GAMMA_TBL_SIZE; i++)
 		isp_reg_writel(isp, gt->blue[i], OMAP3_ISP_IOMEM_PREV,
 			       ISPPRV_SET_TBL_DATA);
+}
+
+/*
+ * preview_enable_gammacorrn - Enable/disable Gamma Correction
+ *
+ * When gamma correction is disabled, the module is bypassed and its output is
+ * the 8 MSB of the 10-bit input .
+ */
+static void
+preview_enable_gammacorrn(struct isp_prev_device *prev, bool enable)
+{
+	struct isp_device *isp = to_isp_device(prev);
+
+	if (enable)
+		isp_reg_clr(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
+			    ISPPRV_PCR_GAMMA_BYPASS);
+	else
+		isp_reg_set(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
+			    ISPPRV_PCR_GAMMA_BYPASS);
 }
 
 /*
@@ -815,9 +815,9 @@ static const struct preview_update update_attrs[] = {
 		offsetof(struct prev_params, dcor),
 		FIELD_SIZEOF(struct prev_params, dcor),
 		offsetof(struct omap3isp_prev_update_config, dcor),
-	}, /* OMAP3ISP_PREV_GAMMABYPASS */ {
+	}, /* Previously OMAP3ISP_PREV_GAMMABYPASS, not used anymore */ {
 		NULL,
-		preview_enable_gammabypass,
+		NULL,
 	}, /* OMAP3ISP_PREV_DRK_FRM_CAPTURE */ {
 		NULL,
 		preview_enable_drkframe_capture,
@@ -835,7 +835,7 @@ static const struct preview_update update_attrs[] = {
 		offsetof(struct omap3isp_prev_update_config, nf),
 	}, /* OMAP3ISP_PREV_GAMMA */ {
 		preview_config_gammacorrn,
-		NULL,
+		preview_enable_gammacorrn,
 		offsetof(struct prev_params, gamma),
 		FIELD_SIZEOF(struct prev_params, gamma),
 		offsetof(struct omap3isp_prev_update_config, gamma),
