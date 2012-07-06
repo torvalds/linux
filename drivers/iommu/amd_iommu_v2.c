@@ -81,7 +81,7 @@ struct fault {
 	u16 flags;
 };
 
-struct device_state **state_table;
+static struct device_state **state_table;
 static spinlock_t state_lock;
 
 /* List and lock for all pasid_states */

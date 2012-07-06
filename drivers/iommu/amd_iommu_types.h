@@ -487,7 +487,7 @@ struct amd_iommu {
 	/* physical address of MMIO space */
 	u64 mmio_phys;
 	/* virtual address of MMIO space */
-	u8 *mmio_base;
+	u8 __iomem *mmio_base;
 
 	/* capabilities of that IOMMU read from ACPI */
 	u32 cap;
@@ -663,6 +663,12 @@ extern bool amd_iommu_force_isolation;
 
 /* Max levels of glxval supported */
 extern int amd_iommu_max_glx_val;
+
+/*
+ * This function flushes all internal caches of
+ * the IOMMU used by this driver.
+ */
+extern void iommu_flush_all_caches(struct amd_iommu *iommu);
 
 /* takes bus and device/function and returns the device id
  * FIXME: should that be in generic PCI code? */

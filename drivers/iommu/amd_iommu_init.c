@@ -190,12 +190,6 @@ static u32 dev_table_size;	/* size of the device table */
 static u32 alias_table_size;	/* size of the alias table */
 static u32 rlookup_table_size;	/* size if the rlookup table */
 
-/*
- * This function flushes all internal caches of
- * the IOMMU used by this driver.
- */
-extern void iommu_flush_all_caches(struct amd_iommu *iommu);
-
 static int amd_iommu_enable_interrupts(void);
 
 static inline void update_last_devid(u16 devid)
@@ -358,7 +352,7 @@ static void iommu_disable(struct amd_iommu *iommu)
  * mapping and unmapping functions for the IOMMU MMIO space. Each AMD IOMMU in
  * the system has one.
  */
-static u8 * __init iommu_map_mmio_space(u64 address)
+static u8 __iomem * __init iommu_map_mmio_space(u64 address)
 {
 	if (!request_mem_region(address, MMIO_REGION_LENGTH, "amd_iommu")) {
 		pr_err("AMD-Vi: Can not reserve memory region %llx for mmio\n",
@@ -367,7 +361,7 @@ static u8 * __init iommu_map_mmio_space(u64 address)
 		return NULL;
 	}
 
-	return ioremap_nocache(address, MMIO_REGION_LENGTH);
+	return (u8 __iomem *)ioremap_nocache(address, MMIO_REGION_LENGTH);
 }
 
 static void __init iommu_unmap_mmio_space(struct amd_iommu *iommu)
@@ -1217,7 +1211,7 @@ static int __init init_exclusion_range(struct ivmd_header *m)
 /* called for unity map ACPI definition */
 static int __init init_unity_map_range(struct ivmd_header *m)
 {
-	struct unity_map_entry *e = 0;
+	struct unity_map_entry *e = NULL;
 	char *s;
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
@@ -1727,8 +1721,8 @@ __setup("amd_iommu=", parse_amd_iommu_options);
 
 IOMMU_INIT_FINISH(amd_iommu_detect,
 		  gart_iommu_hole_init,
-		  0,
-		  0);
+		  NULL,
+		  NULL);
 
 bool amd_iommu_v2_supported(void)
 {

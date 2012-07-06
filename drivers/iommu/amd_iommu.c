@@ -2073,7 +2073,7 @@ out_err:
 /* FIXME: Move this to PCI code */
 #define PCI_PRI_TLP_OFF		(1 << 15)
 
-bool pci_pri_tlp_required(struct pci_dev *pdev)
+static bool pci_pri_tlp_required(struct pci_dev *pdev)
 {
 	u16 status;
 	int pos;
