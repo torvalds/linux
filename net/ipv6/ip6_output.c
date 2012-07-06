@@ -975,7 +975,7 @@ static int ip6_dst_lookup_tail(struct sock *sk,
 	 * dst entry of the nexthop router
 	 */
 	rcu_read_lock();
-	rt = (struct rt6_info *) dst;
+	rt = (struct rt6_info *) *dst;
 	n = rt->n;
 	if (n && !(n->nud_state & NUD_VALID)) {
 		struct inet6_ifaddr *ifp;
