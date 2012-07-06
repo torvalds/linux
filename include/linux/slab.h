@@ -130,10 +130,6 @@ int kmem_cache_shrink(struct kmem_cache *);
 void kmem_cache_free(struct kmem_cache *, void *);
 unsigned int kmem_cache_size(struct kmem_cache *);
 
-/* Slab internal function */
-struct kmem_cache *__kmem_cache_create(const char *, size_t, size_t,
-			unsigned long,
-			void (*)(void *));
 /*
  * Please use this macro to create slab caches. Simply specify the
  * name of the structure and maybe some flags that are listed above.

@@ -16,6 +16,10 @@
 #include <asm/tlbflush.h>
 #include <asm/page.h>
 
+#include "slab.h"
+
+enum slab_state slab_state;
+
 /*
  * kmem_cache_create - Create a cache.
  * @name: A string which is used in /proc/slabinfo to identify this cache.
@@ -66,3 +70,8 @@ out:
 	return s;
 }
 EXPORT_SYMBOL(kmem_cache_create);
+
+int slab_is_available(void)
+{
+	return slab_state >= UP;
+}
