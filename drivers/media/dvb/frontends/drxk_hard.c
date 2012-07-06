@@ -5557,8 +5557,10 @@ static int SetQAM(struct drxk_state *state, u16 IntermediateFreqkHz,
 			"parameters was successful - using %d parameters.\n",
 			qamDemodParamCount);
 
-		/* One of our commands was successful. We don't need to
-		/* auto-probe anymore, now that we got the correct command. */
+		/*
+		 * One of our commands was successful. We don't need to
+		 * auto-probe anymore, now that we got the correct command.
+		 */
 		state->qam_demod_parameter_count = qamDemodParamCount;
 	}
 
