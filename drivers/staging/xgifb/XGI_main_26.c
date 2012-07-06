@@ -590,7 +590,8 @@ static u8 XGIfb_search_refresh_rate(struct xgifb_video_info *xgifb_info,
 						<= 2) && (XGIfb_vrate[i].idx
 						!= 1)) {
 					pr_debug("Adjusting rate from %d down to %d\n",
-						 rate, XGIfb_vrate[i-1].refresh);
+						 rate,
+						 XGIfb_vrate[i-1].refresh);
 					xgifb_info->rate_idx =
 						XGIfb_vrate[i - 1].idx;
 					xgifb_info->refresh_rate =

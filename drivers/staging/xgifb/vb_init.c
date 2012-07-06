@@ -1042,9 +1042,8 @@ static void XGINew_ChkSenseStatus(struct xgi_hw_device_info *HwDeviceExtension,
 
 	if (tempbx & tempcx) {
 		CR3CData = xgifb_reg_get(pVBInfo->P3d4, 0x3c);
-		if (!(CR3CData & DisplayDeviceFromCMOS)) {
+		if (!(CR3CData & DisplayDeviceFromCMOS))
 			tempcx = 0x1FF0;
-		}
 	} else {
 		tempcx = 0x1FF0;
 	}

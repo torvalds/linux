@@ -1838,9 +1838,12 @@ static struct XGI330_LCDDataTablStruct XGI_LCDDataTable[] = {
 	{Panel_1024x768x75, 0x0019, 0x0001, 12}, /* XGI_ExtLCD1024x768x75Data */
 	{Panel_1024x768x75, 0x0019, 0x0000, 13}, /* XGI_StLCD1024x768x75Data */
 	{Panel_1024x768x75, 0x0018, 0x0010, 14}, /* XGI_CetLCD1024x768x75Data */
-	{Panel_1280x1024x75, 0x0019, 0x0001, 15}, /* XGI_ExtLCD1280x1024x75Data*/
-	{Panel_1280x1024x75, 0x0019, 0x0000, 16}, /* XGI_StLCD1280x1024x75Data */
-	{Panel_1280x1024x75, 0x0018, 0x0010, 17}, /* XGI_CetLCD1280x1024x75Data*/
+	/* XGI_ExtLCD1280x1024x75Data */
+	{Panel_1280x1024x75, 0x0019, 0x0001, 15},
+	/* XGI_StLCD1280x1024x75Data */
+	{Panel_1280x1024x75, 0x0019, 0x0000, 16},
+	/* XGI_CetLCD1280x1024x75Data */
+	{Panel_1280x1024x75, 0x0018, 0x0010, 17},
 	{PanelRef75Hz, 0x0008, 0x0008, 18}, /* XGI_NoScalingDatax75 */
 	{0xFF, 0x0000, 0x0000, 0} /* End of table */
 };
@@ -1859,9 +1862,12 @@ static struct XGI330_LCDDataTablStruct XGI_LCDDesDataTable[] = {
 	{Panel_1600x1200, 0x0019, 0x0001, 10}, /* XGI_ExtLCDDes1600x1200Data */
 	{Panel_1600x1200, 0x0019, 0x0000, 11}, /* XGI_StLCDDes1600x1200Data */
 	{PanelRef60Hz, 0x0008, 0x0008, 12}, /* XGI_NoScalingDesData */
-	{Panel_1024x768x75, 0x0019, 0x0001, 13}, /*XGI_ExtLCDDes1024x768x75Data*/
-	{Panel_1024x768x75, 0x0019, 0x0000, 14}, /* XGI_StLCDDes1024x768x75Data*/
-	{Panel_1024x768x75, 0x0018, 0x0010, 15}, /*XGI_CetLCDDes1024x768x75Data*/
+	/* XGI_ExtLCDDes1024x768x75Data */
+	{Panel_1024x768x75, 0x0019, 0x0001, 13},
+	/* XGI_StLCDDes1024x768x75Data */
+	{Panel_1024x768x75, 0x0019, 0x0000, 14},
+	/* XGI_CetLCDDes1024x768x75Data */
+	{Panel_1024x768x75, 0x0018, 0x0010, 15},
 	/* XGI_ExtLCDDes1280x1024x75Data */
 	{Panel_1280x1024x75, 0x0019, 0x0001, 16},
 	/* XGI_StLCDDes1280x1024x75Data */
@@ -1898,8 +1904,10 @@ static struct XGI330_LCDDataTablStruct XGI_EPLLCDDataPtr[] = {
 	{PanelRef60Hz, 0x0008, 0x0008, 7}, /* XGI_LVDSNoScalingData */
 	{Panel_1024x768x75, 0x0018, 0x0000, 8}, /* XGI_LVDS1024x768Data_1x75 */
 	{Panel_1024x768x75, 0x0018, 0x0010, 9}, /* XGI_LVDS1024x768Data_2x75 */
-	{Panel_1280x1024x75, 0x0018, 0x0000, 10}, /* XGI_LVDS1280x1024Data_1x75*/
-	{Panel_1280x1024x75, 0x0018, 0x0010, 11},  /*XGI_LVDS1280x1024Data_2x75*/
+	/* XGI_LVDS1280x1024Data_1x75 */
+	{Panel_1280x1024x75, 0x0018, 0x0000, 10},
+	/* XGI_LVDS1280x1024Data_2x75 */
+	{Panel_1280x1024x75, 0x0018, 0x0010, 11},
 	{PanelRef75Hz, 0x0008, 0x0008, 12}, /* XGI_LVDSNoScalingDatax75 */
 	{0xFF, 0x0000, 0x0000, 0}
 };
@@ -1917,8 +1925,10 @@ static struct XGI330_LCDDataTablStruct XGI_EPLLCDDesDataPtr[] = {
 	{Panel_1024x768x75, 0x0018, 0x0000, 9}, /* XGI_LVDS1024x768Des_1x75 */
 	{Panel_1024x768x75, 0x0618, 0x0410, 10}, /* XGI_LVDS1024x768Des_3x75 */
 	{Panel_1024x768x75, 0x0018, 0x0010, 11}, /* XGI_LVDS1024x768Des_2x75 */
-	{Panel_1280x1024x75, 0x0018, 0x0000, 12}, /* XGI_LVDS1280x1024Des_1x75 */
-	{Panel_1280x1024x75, 0x0018, 0x0010, 13}, /* XGI_LVDS1280x1024Des_2x75 */
+	/* XGI_LVDS1280x1024Des_1x75 */
+	{Panel_1280x1024x75, 0x0018, 0x0000, 12},
+	/* XGI_LVDS1280x1024Des_2x75 */
+	{Panel_1280x1024x75, 0x0018, 0x0010, 13},
 	{PanelRef75Hz, 0x0008, 0x0008, 14}, /* XGI_LVDSNoScalingDesDatax75 */
 	{0xFF, 0x0000, 0x0000, 0}
 };
