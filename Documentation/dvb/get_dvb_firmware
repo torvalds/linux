@@ -29,7 +29,7 @@ use IO::Handle;
 		"af9015", "ngene", "az6027", "lme2510_lg", "lme2510c_s7395",
 		"lme2510c_s7395_old", "drxk", "drxk_terratec_h5",
 		"drxk_hauppauge_hvr930c", "tda10071", "it9135", "it9137",
-		"drxk_pctv", "drxk_terratec_htc_stick");
+		"drxk_pctv", "drxk_terratec_htc_stick", "sms1xxx_hcw");
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
@@ -764,6 +764,28 @@ sub drxk_pctv {
     extract("$tmpdir/PCTV\ 70e\ 80e\ 100e\ 320e\ 330e\ 800e/32\ bit/emOEM.sys", 0x72b80, 42692, $fwfile);
 
     "$fwfile";
+}
+
+sub sms1xxx_hcw {
+    my $url = "http://steventoth.net/linux/sms1xxx/";
+    my %files = (
+	'sms1xxx-hcw-55xxx-dvbt-01.fw'  => "afb6f9fb9a71d64392e8564ef9577e5a",
+	'sms1xxx-hcw-55xxx-dvbt-02.fw'  => "b44807098ba26e52cbedeadc052ba58f",
+	'sms1xxx-hcw-55xxx-isdbt-02.fw' => "dae934eeea85225acbd63ce6cfe1c9e4",
+    );
+
+    checkstandard();
+
+    my $allfiles;
+    foreach my $fwfile (keys %files) {
+	wgetfile($fwfile, "$url/$fwfile");
+	verify($fwfile, $files{$fwfile});
+	$allfiles .= " $fwfile";
+    }
+
+    $allfiles =~ s/^\s//;
+
+    $allfiles;
 }
 
 # ---------------------------------------------------------------
