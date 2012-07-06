@@ -117,7 +117,7 @@ static struct batt_vol_cal  batt_table[] = {
 #define BAT_PULL_DOWN_R                                    100
 
 static struct batt_vol_cal  batt_table[] = {
-	{0,6800,7400},    {1,6840,7440},     {2,6880,7480},     {3,6950,7450},       {5,7010,7510},    {7,7050,7550},
+	{0,6800,7400},    {1,6840,7440},    {2,6880,7480},     {3,6950,7450},       {5,7010,7510},    {7,7050,7550},
 	{9,7080,7580},    {11,7104,7604},   {13,7140,7640},   {15,7160,7660},      {17,7220,7720},
 	{19,7260,7760},  {21,7280,7780},   {23,7304,7802},   {25,7324,7824},      {27,7344,7844},
 	{29,7360,7860},  {31,7374,7874},   {33,7386,7886},   {35,7398,7898},      {37,7410,7910},//500
@@ -431,7 +431,7 @@ static int rk30_adc_battery_voltage_to_capacity(struct rk30_adc_battery_data *ba
 				for(i = 0; i < BATT_NUM - 1; i++){
 
 					if(((p[i].charge_vol) <= BatVoltage) && (BatVoltage < (p[i+1].charge_vol))){
-						capacity = p[i].disp_cal ;
+						capacity = p[i].disp_cal + ((BatVoltage - p[i].charge_vol) *  (p[i+1].disp_cal -p[i].disp_cal ))/ (p[i+1].charge_vol- p[i].charge_vol);
 						break;
 					}
 				}
@@ -450,7 +450,7 @@ static int rk30_adc_battery_voltage_to_capacity(struct rk30_adc_battery_data *ba
 			else{
 				for(i = 0; i < BATT_NUM - 1; i++){
 					if(((p[i].dis_charge_vol) <= BatVoltage) && (BatVoltage < (p[i+1].dis_charge_vol))){
-						capacity = p[i].disp_cal ;
+						capacity =  p[i].disp_cal+ ((BatVoltage - p[i].dis_charge_vol) * (p[i+1].disp_cal -p[i].disp_cal ) )/ (p[i+1].dis_charge_vol- p[i].dis_charge_vol) ;
 						break;
 					}
 				}
