@@ -758,7 +758,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.address = AD7793_CH_AIN1M_AIN1M,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 			IIO_CHAN_INFO_SCALE_SHARED_BIT,
-			.scan_index = 2,
+			.scan_index = 3,
 			.scan_type = IIO_ST('s', 24, 32, 0)
 		},
 		.channel[4] = {
@@ -831,7 +831,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.address = AD7793_CH_AIN1M_AIN1M,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 			IIO_CHAN_INFO_SCALE_SHARED_BIT,
-			.scan_index = 2,
+			.scan_index = 3,
 			.scan_type = IIO_ST('s', 16, 32, 0)
 		},
 		.channel[4] = {

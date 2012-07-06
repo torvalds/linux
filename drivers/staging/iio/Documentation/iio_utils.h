@@ -158,7 +158,8 @@ inline int iioutils_get_type(unsigned *is_signed,
 				     &padint, shift);
 			if (ret < 0) {
 				printf("failed to pass scan type description\n");
-				return ret;
+				ret = -errno;
+				goto error_close_sysfsfp;
 			}
 			*be = (endianchar == 'b');
 			*bytes = padint / 8;
@@ -174,7 +175,11 @@ inline int iioutils_get_type(unsigned *is_signed,
 			free(filename);
 
 			filename = 0;
+			sysfsfp = 0;
 		}
+error_close_sysfsfp:
+	if (sysfsfp)
+		fclose(sysfsfp);
 error_free_filename:
 	if (filename)
 		free(filename);
@@ -468,23 +473,30 @@ inline int find_type_by_name(const char *name, const char *type)
 						+ strlen(type)
 						+ numstrlen
 						+ 6);
-				if (filename == NULL)
+				if (filename == NULL) {
+					closedir(dp);
 					return -ENOMEM;
+				}
 				sprintf(filename, "%s%s%d/name",
 					iio_dir,
 					type,
 					number);
 				nameFile = fopen(filename, "r");
-				if (!nameFile)
+				if (!nameFile) {
+					free(filename);
 					continue;
+				}
 				free(filename);
 				fscanf(nameFile, "%s", thisname);
-				if (strcmp(name, thisname) == 0)
-					return number;
 				fclose(nameFile);
+				if (strcmp(name, thisname) == 0) {
+					closedir(dp);
+					return number;
+				}
 			}
 		}
 	}
+	closedir(dp);
 	return -ENODEV;
 }
 
@@ -513,6 +525,7 @@ inline int _write_sysfs_int(char *filename, char *basedir, int val, int verify)
 			goto error_free;
 		}
 		fscanf(sysfsfp, "%d", &test);
+		fclose(sysfsfp);
 		if (test != val) {
 			printf("Possible failure in int write %d to %s%s\n",
 				val,
@@ -562,6 +575,7 @@ int _write_sysfs_string(char *filename, char *basedir, char *val, int verify)
 			goto error_free;
 		}
 		fscanf(sysfsfp, "%s", temp);
+		fclose(sysfsfp);
 		if (strcmp(temp, val) != 0) {
 			printf("Possible failure in string write of %s "
 				"Should be %s "
