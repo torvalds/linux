@@ -436,10 +436,7 @@ int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 		return -ENOMEM;
 
 	/* export host's Ethernet address in CDC format */
-	snprintf(geth->ethaddr, sizeof geth->ethaddr,
-		"%02X%02X%02X%02X%02X%02X",
-		ethaddr[0], ethaddr[1], ethaddr[2],
-		ethaddr[3], ethaddr[4], ethaddr[5]);
+	snprintf(geth->ethaddr, sizeof geth->ethaddr, "%pm", ethaddr);
 	geth_string_defs[1].s = geth->ethaddr;
 
 	geth->port.cdc_filter = DEFAULT_FILTER;
