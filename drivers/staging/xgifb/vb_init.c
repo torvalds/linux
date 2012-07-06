@@ -951,7 +951,7 @@ static void xgifb_read_vbios(struct pci_dev *pdev,
 	pVBInfo->IF_DEF_LVDS = 0;
 	vbios = xgifb_copy_rom(pdev, &vbios_size);
 	if (vbios == NULL) {
-		dev_err(&pdev->dev, "video BIOS not available\n");
+		dev_err(&pdev->dev, "Video BIOS not available\n");
 		return;
 	}
 	if (vbios_size <= 0x65)
@@ -1006,7 +1006,7 @@ static void xgifb_read_vbios(struct pci_dev *pdev,
 	pVBInfo->IF_DEF_LVDS = 1;
 	return;
 error:
-	dev_err(&pdev->dev, "video BIOS corrupted\n");
+	dev_err(&pdev->dev, "Video BIOS corrupted\n");
 	vfree(vbios);
 }
 
