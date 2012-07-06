@@ -568,7 +568,6 @@ add_numbered_child(unsigned chip, const char *name, int num,
 		goto err;
 	}
 
-	device_init_wakeup(&pdev->dev, can_wakeup);
 	pdev->dev.parent = &twl->client->dev;
 
 	if (pdata) {
@@ -593,6 +592,8 @@ add_numbered_child(unsigned chip, const char *name, int num,
 	}
 
 	status = platform_device_add(pdev);
+	if (status == 0)
+		device_init_wakeup(&pdev->dev, can_wakeup);
 
 err:
 	if (status < 0) {
