@@ -54,7 +54,7 @@ static int tegra20_spdif_runtime_suspend(struct device *dev)
 {
 	struct tegra20_spdif *spdif = dev_get_drvdata(dev);
 
-	clk_disable(spdif->clk_spdif_out);
+	clk_disable_unprepare(spdif->clk_spdif_out);
 
 	return 0;
 }
@@ -64,7 +64,7 @@ static int tegra20_spdif_runtime_resume(struct device *dev)
 	struct tegra20_spdif *spdif = dev_get_drvdata(dev);
 	int ret;
 
-	ret = clk_enable(spdif->clk_spdif_out);
+	ret = clk_prepare_enable(spdif->clk_spdif_out);
 	if (ret) {
 		dev_err(dev, "clk_enable failed: %d\n", ret);
 		return ret;

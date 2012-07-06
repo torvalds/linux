@@ -146,7 +146,7 @@ int tegra_powergate_sequence_power_up(int id, struct clk *clk)
 	if (ret)
 		goto err_power;
 
-	ret = clk_enable(clk);
+	ret = clk_prepare_enable(clk);
 	if (ret)
 		goto err_clk;
 
@@ -162,7 +162,7 @@ int tegra_powergate_sequence_power_up(int id, struct clk *clk)
 	return 0;
 
 err_clamp:
-	clk_disable(clk);
+	clk_disable_unprepare(clk);
 err_clk:
 	tegra_powergate_power_off(id);
 err_power:

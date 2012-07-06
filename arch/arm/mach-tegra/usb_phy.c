@@ -247,7 +247,7 @@ static void utmip_pad_power_on(struct tegra_usb_phy *phy)
 	unsigned long val, flags;
 	void __iomem *base = phy->pad_regs;
 
-	clk_enable(phy->pad_clk);
+	clk_prepare_enable(phy->pad_clk);
 
 	spin_lock_irqsave(&utmip_pad_lock, flags);
 
@@ -259,7 +259,7 @@ static void utmip_pad_power_on(struct tegra_usb_phy *phy)
 
 	spin_unlock_irqrestore(&utmip_pad_lock, flags);
 
-	clk_disable(phy->pad_clk);
+	clk_disable_unprepare(phy->pad_clk);
 }
 
 static int utmip_pad_power_off(struct tegra_usb_phy *phy)
@@ -272,7 +272,7 @@ static int utmip_pad_power_off(struct tegra_usb_phy *phy)
 		return -EINVAL;
 	}
 
-	clk_enable(phy->pad_clk);
+	clk_prepare_enable(phy->pad_clk);
 
 	spin_lock_irqsave(&utmip_pad_lock, flags);
 
@@ -284,7 +284,7 @@ static int utmip_pad_power_off(struct tegra_usb_phy *phy)
 
 	spin_unlock_irqrestore(&utmip_pad_lock, flags);
 
-	clk_disable(phy->pad_clk);
+	clk_disable_unprepare(phy->pad_clk);
 
 	return 0;
 }
@@ -580,7 +580,7 @@ static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 	msleep(5);
 	gpio_direction_output(config->reset_gpio, 1);
 
-	clk_enable(phy->clk);
+	clk_prepare_enable(phy->clk);
 	msleep(1);
 
 	val = readl(base + USB_SUSP_CTRL);
@@ -689,7 +689,7 @@ struct tegra_usb_phy *tegra_usb_phy_open(struct device *dev, int instance,
 		err = PTR_ERR(phy->pll_u);
 		goto err0;
 	}
-	clk_enable(phy->pll_u);
+	clk_prepare_enable(phy->pll_u);
 
 	parent_rate = clk_get_rate(clk_get_parent(phy->pll_u));
 	for (i = 0; i < ARRAY_SIZE(tegra_freq_table); i++) {
@@ -735,7 +735,7 @@ struct tegra_usb_phy *tegra_usb_phy_open(struct device *dev, int instance,
 	return phy;
 
 err1:
-	clk_disable(phy->pll_u);
+	clk_disable_unprepare(phy->pll_u);
 	clk_put(phy->pll_u);
 err0:
 	kfree(phy);
@@ -810,7 +810,7 @@ void tegra_usb_phy_close(struct tegra_usb_phy *phy)
 		clk_put(phy->clk);
 	else
 		utmip_pad_close(phy);
-	clk_disable(phy->pll_u);
+	clk_disable_unprepare(phy->pll_u);
 	clk_put(phy->pll_u);
 	kfree(phy);
 }
