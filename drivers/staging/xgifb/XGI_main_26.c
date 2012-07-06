@@ -305,7 +305,7 @@ invalid_mode:
 static void XGIfb_search_vesamode(struct xgifb_video_info *xgifb_info,
 				  unsigned int vesamode)
 {
-	int i = 0, j = 0;
+	int i = 0;
 
 	if (vesamode == 0)
 		goto invalid;
@@ -316,15 +316,13 @@ static void XGIfb_search_vesamode(struct xgifb_video_info *xgifb_info,
 		if ((XGIbios_mode[i].vesa_mode_no_1 == vesamode) ||
 		    (XGIbios_mode[i].vesa_mode_no_2 == vesamode)) {
 			xgifb_info->mode_idx = i;
-			j = 1;
-			break;
+			return;
 		}
 		i++;
 	}
 
 invalid:
-	if (!j)
-		pr_info("Invalid VESA mode 0x%x'\n", vesamode);
+	pr_info("Invalid VESA mode 0x%x'\n", vesamode);
 }
 
 static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
