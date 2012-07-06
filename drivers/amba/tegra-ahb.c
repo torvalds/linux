@@ -264,11 +264,6 @@ static int __devinit tegra_ahb_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit tegra_ahb_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static const struct of_device_id tegra_ahb_of_match[] __devinitconst = {
 	{ .compatible = "nvidia,tegra30-ahb", },
 	{ .compatible = "nvidia,tegra20-ahb", },
@@ -277,7 +272,6 @@ static const struct of_device_id tegra_ahb_of_match[] __devinitconst = {
 
 static struct platform_driver tegra_ahb_driver = {
 	.probe = tegra_ahb_probe,
-	.remove = __devexit_p(tegra_ahb_remove),
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
