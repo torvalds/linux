@@ -4,6 +4,14 @@ config RC_CORE
 	depends on INPUT
 	default y
 
+source "drivers/media/rc/keymaps/Kconfig"
+
+menuconfig RC_DECODERS
+        bool "Remote controller decoders"
+	depends on RC_CORE
+	default y
+
+if RC_DECODERS
 config LIRC
 	tristate "LIRC interface driver"
 	depends on RC_CORE
@@ -14,8 +22,6 @@ config LIRC
 	   interface passes raw IR to and from userspace, where the
 	   LIRC daemon handles protocol decoding for IR reception and
 	   encoding for IR transmitting (aka "blasting").
-
-source "drivers/media/rc/keymaps/Kconfig"
 
 config IR_NEC_DECODER
 	tristate "Enable IR raw decoder for the NEC protocol"
@@ -99,6 +105,7 @@ config IR_MCE_KBD_DECODER
 	   Enable this option if you have a Microsoft Remote Keyboard for
 	   Windows Media Center Edition, which you would like to use with
 	   a raw IR receiver in your system.
+endif #RC_DECODERS
 
 menuconfig RC_DEVICES
 	bool "Remote Controller devices"

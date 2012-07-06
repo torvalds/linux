@@ -59,7 +59,7 @@ config MEDIA_RADIO_SUPPORT
 		support radio reception. Disabling this option will
 		disable support for them.
 
-menuconfig MEDIA_RC_SUPPORT
+config MEDIA_RC_SUPPORT
 	bool "Remote Controller support"
 	depends on INPUT
 	---help---
@@ -138,6 +138,7 @@ config DVB_NET
 	  You may want to disable the network support on embedded devices. If
 	  unsure say Y.
 
+comment "Media drivers"
 source "drivers/media/common/Kconfig"
 source "drivers/media/rc/Kconfig"
 
