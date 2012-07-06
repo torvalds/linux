@@ -4039,24 +4039,16 @@ static void XGI_SetLockRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	}
 
 	if (pVBInfo->VBInfo & SetCRT2ToHiVision) {
-		if (pVBInfo->VBType & VB_SIS301LV) {
-			if (pVBInfo->TVInfo & TVSetHiVision) {
-				tempbx -= 10;
-			} else {
-				if (pVBInfo->TVInfo & TVSimuMode) {
-					if (pVBInfo->TVInfo & TVSetPAL) {
-						if (pVBInfo->VBType &
-						    VB_SIS301LV) {
-							if (!(pVBInfo->TVInfo &
-							    (TVSetYPbPr525p |
-							    TVSetYPbPr750p |
-							    TVSetHiVision)))
-								tempbx += 40;
-						} else {
-							tempbx += 40;
-						}
-					}
-				}
+		if ((pVBInfo->VBType & VB_SIS301LV) &&
+		    !(pVBInfo->TVInfo & TVSetHiVision)) {
+			if ((pVBInfo->TVInfo & TVSimuMode) &&
+			    (pVBInfo->TVInfo & TVSetPAL)) {
+				if (!(pVBInfo->VBType & VB_SIS301LV) ||
+				    !(pVBInfo->TVInfo &
+				      (TVSetYPbPr525p |
+				       TVSetYPbPr750p |
+				       TVSetHiVision)))
+					tempbx += 40;
 			}
 		} else {
 			tempbx -= 10;
