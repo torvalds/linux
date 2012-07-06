@@ -33,9 +33,6 @@ struct aat2870_regulator {
 	struct aat2870_data *aat2870;
 	struct regulator_desc desc;
 
-	int min_uV;
-	int max_uV;
-
 	u8 enable_addr;
 	u8 enable_shift;
 	u8 enable_mask;
@@ -127,8 +124,6 @@ static const unsigned int aat2870_ldo_voltages[] = {
 			.type = REGULATOR_VOLTAGE,	\
 			.owner = THIS_MODULE,		\
 		},					\
-		.min_uV = 1200000,			\
-		.max_uV = 3300000,			\
 	}
 
 static struct aat2870_regulator aat2870_regulators[] = {
