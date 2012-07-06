@@ -325,8 +325,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 		local->rx_handlers_drop_defrag);
 	DEBUGFS_STATS_ADD(rx_handlers_drop_short,
 		local->rx_handlers_drop_short);
-	DEBUGFS_STATS_ADD(rx_handlers_drop_passive_scan,
-		local->rx_handlers_drop_passive_scan);
 	DEBUGFS_STATS_ADD(tx_expand_skb_head,
 		local->tx_expand_skb_head);
 	DEBUGFS_STATS_ADD(tx_expand_skb_head_cloned,

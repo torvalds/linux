@@ -165,52 +165,47 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	return bss;
 }
 
-ieee80211_rx_result
-ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
+void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 {
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
-	struct ieee80211_mgmt *mgmt;
+	struct ieee80211_sub_if_data *sdata1, *sdata2;
+	struct ieee80211_mgmt *mgmt = (void *)skb->data;
 	struct ieee80211_bss *bss;
 	u8 *elements;
 	struct ieee80211_channel *channel;
 	size_t baselen;
 	int freq;
-	__le16 fc;
-	bool presp, beacon = false;
+	bool beacon;
 	struct ieee802_11_elems elems;
 
-	if (skb->len < 2)
-		return RX_DROP_UNUSABLE;
+	if (skb->len < 24 ||
+	    (!ieee80211_is_probe_resp(mgmt->frame_control) &&
+	     !ieee80211_is_beacon(mgmt->frame_control)))
+		return;
 
-	mgmt = (struct ieee80211_mgmt *) skb->data;
-	fc = mgmt->frame_control;
+	sdata1 = rcu_dereference(local->scan_sdata);
+	sdata2 = rcu_dereference(local->sched_scan_sdata);
 
-	if (ieee80211_is_ctl(fc))
-		return RX_CONTINUE;
+	if (likely(!sdata1 && !sdata2))
+		return;
 
-	if (skb->len < 24)
-		return RX_CONTINUE;
-
-	presp = ieee80211_is_probe_resp(fc);
-	if (presp) {
+	if (ieee80211_is_probe_resp(mgmt->frame_control)) {
 		/* ignore ProbeResp to foreign address */
-		if (!ether_addr_equal(mgmt->da, sdata->vif.addr))
-			return RX_DROP_MONITOR;
+		if ((!sdata1 || !ether_addr_equal(mgmt->da, sdata1->vif.addr)) &&
+		    (!sdata2 || !ether_addr_equal(mgmt->da, sdata2->vif.addr)))
+			return;
 
-		presp = true;
 		elements = mgmt->u.probe_resp.variable;
 		baselen = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
+		beacon = false;
 	} else {
-		beacon = ieee80211_is_beacon(fc);
 		baselen = offsetof(struct ieee80211_mgmt, u.beacon.variable);
 		elements = mgmt->u.beacon.variable;
+		beacon = true;
 	}
 
-	if (!presp && !beacon)
-		return RX_CONTINUE;
-
 	if (baselen > skb->len)
-		return RX_DROP_MONITOR;
+		return;
 
 	ieee802_11_parse_elems(elements, skb->len - baselen, &elems);
 
@@ -220,22 +215,16 @@ ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 	else
 		freq = rx_status->freq;
 
-	channel = ieee80211_get_channel(sdata->local->hw.wiphy, freq);
+	channel = ieee80211_get_channel(local->hw.wiphy, freq);
 
 	if (!channel || channel->flags & IEEE80211_CHAN_DISABLED)
-		return RX_DROP_MONITOR;
+		return;
 
-	bss = ieee80211_bss_info_update(sdata->local, rx_status,
+	bss = ieee80211_bss_info_update(local, rx_status,
 					mgmt, skb->len, &elems,
 					channel, beacon);
 	if (bss)
-		ieee80211_rx_bss_put(sdata->local, bss);
-
-	if (channel == sdata->local->oper_channel)
-		return RX_CONTINUE;
-
-	dev_kfree_skb(skb);
-	return RX_QUEUED;
+		ieee80211_rx_bss_put(local, bss);
 }
 
 /* return false if no more work */
