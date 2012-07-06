@@ -11,7 +11,8 @@
 #include <linux/memory.h>
 #include <linux/compiler.h>
 #include <linux/module.h>
-
+#include <linux/cpu.h>
+#include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/page.h>
@@ -61,7 +62,45 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
 	}
 #endif
 
+	get_online_cpus();
+	mutex_lock(&slab_mutex);
+
+#ifdef CONFIG_DEBUG_VM
+	list_for_each_entry(s, &slab_caches, list) {
+		char tmp;
+		int res;
+
+		/*
+		 * This happens when the module gets unloaded and doesn't
+		 * destroy its slab cache and no-one else reuses the vmalloc
+		 * area of the module.  Print a warning.
+		 */
+		res = probe_kernel_address(s->name, tmp);
+		if (res) {
+			printk(KERN_ERR
+			       "Slab cache with size %d has lost its name\n",
+			       s->object_size);
+			continue;
+		}
+
+		if (!strcmp(s->name, name)) {
+			printk(KERN_ERR "kmem_cache_create(%s): Cache name"
+				" already exists.\n",
+				name);
+			dump_stack();
+			s = NULL;
+			goto oops;
+		}
+	}
+
+	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
+#endif
+
 	s = __kmem_cache_create(name, size, align, flags, ctor);
+
+oops:
+	mutex_unlock(&slab_mutex);
+	put_online_cpus();
 
 #ifdef CONFIG_DEBUG_VM
 out:
