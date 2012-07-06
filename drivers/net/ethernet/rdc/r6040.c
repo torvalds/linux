@@ -1256,7 +1256,6 @@ static void __devexit r6040_remove_one(struct pci_dev *pdev)
 	kfree(lp->mii_bus->irq);
 	mdiobus_free(lp->mii_bus);
 	netif_napi_del(&lp->napi);
-	pci_set_drvdata(pdev, NULL);
 	pci_iounmap(pdev, lp->base);
 	pci_release_regions(pdev);
 	free_netdev(dev);
