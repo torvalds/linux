@@ -1182,13 +1182,6 @@ static int su3000_frontend_attach(struct dvb_usb_adapter *d)
 		err("command 0x0e transfer failed.");
 
 	obuf[0] = 0xe;
-	obuf[1] = 0x02;
-	obuf[2] = 1;
-
-	if (dvb_usb_generic_rw(d->dev, obuf, 3, ibuf, 1, 0) < 0)
-		err("command 0x0e transfer failed.");
-
-	obuf[0] = 0xe;
 	obuf[1] = 0x83;
 	obuf[2] = 0;
 
@@ -1454,9 +1447,6 @@ enum dw2102_table_entry {
 	TEVII_S480_1,
 	TEVII_S480_2,
 	X3M_SPC1400HD,
-	TEVII_S421,
-	TEVII_S632,
-	TERRATEC_CINERGY_S2_R2,
 };
 
 static struct usb_device_id dw2102_table[] = {
@@ -1475,9 +1465,6 @@ static struct usb_device_id dw2102_table[] = {
 	[TEVII_S480_1] = {USB_DEVICE(0x9022, USB_PID_TEVII_S480_1)},
 	[TEVII_S480_2] = {USB_DEVICE(0x9022, USB_PID_TEVII_S480_2)},
 	[X3M_SPC1400HD] = {USB_DEVICE(0x1f4d, 0x3100)},
-	[TEVII_S421] = {USB_DEVICE(0x9022, USB_PID_TEVII_S421)},
-	[TEVII_S632] = {USB_DEVICE(0x9022, USB_PID_TEVII_S632)},
-	[TERRATEC_CINERGY_S2_R2] = {USB_DEVICE(USB_VID_TERRATEC, 0x00b0)},
 	{ }
 };
 
@@ -1866,7 +1853,7 @@ static struct dvb_usb_device_properties su3000_properties = {
 		}},
 		}
 	},
-	.num_device_descs = 4,
+	.num_device_descs = 3,
 	.devices = {
 		{ "SU3000HD DVB-S USB2.0",
 			{ &dw2102_table[GENIATECH_SU3000], NULL },
@@ -1878,10 +1865,6 @@ static struct dvb_usb_device_properties su3000_properties = {
 		},
 		{ "X3M TV SPC1400HD PCI",
 			{ &dw2102_table[X3M_SPC1400HD], NULL },
-			{ NULL },
-		},
-		{ "Terratec Cinergy S2 USB HD Rev.2",
-			{ &dw2102_table[TERRATEC_CINERGY_S2_R2], NULL },
 			{ NULL },
 		},
 	}
