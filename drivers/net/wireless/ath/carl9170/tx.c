@@ -436,6 +436,45 @@ out_rcu:
 	rcu_read_unlock();
 }
 
+static void carl9170_tx_bar_status(struct ar9170 *ar, struct sk_buff *skb,
+	struct ieee80211_tx_info *tx_info)
+{
+	struct _carl9170_tx_superframe *super = (void *) skb->data;
+	struct ieee80211_bar *bar = (void *) super->frame_data;
+
+	/*
+	 * Unlike all other frames, the status report for BARs does
+	 * not directly come from the hardware as it is incapable of
+	 * matching a BA to a previously send BAR.
+	 * Instead the RX-path will scan for incoming BAs and set the
+	 * IEEE80211_TX_STAT_ACK if it sees one that was likely
+	 * caused by a BAR from us.
+	 */
+
+	if (unlikely(ieee80211_is_back_req(bar->frame_control)) &&
+	   !(tx_info->flags & IEEE80211_TX_STAT_ACK)) {
+		struct carl9170_bar_list_entry *entry;
+		int queue = skb_get_queue_mapping(skb);
+
+		rcu_read_lock();
+		list_for_each_entry_rcu(entry, &ar->bar_list[queue], list) {
+			if (entry->skb == skb) {
+				spin_lock_bh(&ar->bar_list_lock[queue]);
+				list_del_rcu(&entry->list);
+				spin_unlock_bh(&ar->bar_list_lock[queue]);
+				kfree_rcu(entry, head);
+				goto out;
+			}
+		}
+
+		WARN(1, "bar not found in %d - ra:%pM ta:%pM c:%x ssn:%x\n",
+		       queue, bar->ra, bar->ta, bar->control,
+			bar->start_seq_num);
+out:
+		rcu_read_unlock();
+	}
+}
+
 void carl9170_tx_status(struct ar9170 *ar, struct sk_buff *skb,
 			const bool success)
 {
@@ -444,6 +483,8 @@ void carl9170_tx_status(struct ar9170 *ar, struct sk_buff *skb,
 	carl9170_tx_accounting_free(ar, skb);
 
 	txinfo = IEEE80211_SKB_CB(skb);
+
+	carl9170_tx_bar_status(ar, skb, txinfo);
 
 	if (success)
 		txinfo->flags |= IEEE80211_TX_STAT_ACK;
@@ -1265,6 +1306,26 @@ out_rcu:
 	return false;
 }
 
+static void carl9170_bar_check(struct ar9170 *ar, struct sk_buff *skb)
+{
+	struct _carl9170_tx_superframe *super = (void *) skb->data;
+	struct ieee80211_bar *bar = (void *) super->frame_data;
+
+	if (unlikely(ieee80211_is_back_req(bar->frame_control)) &&
+	    skb->len >= sizeof(struct ieee80211_bar)) {
+		struct carl9170_bar_list_entry *entry;
+		unsigned int queue = skb_get_queue_mapping(skb);
+
+		entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+		if (!WARN_ON_ONCE(!entry)) {
+			entry->skb = skb;
+			spin_lock_bh(&ar->bar_list_lock[queue]);
+			list_add_tail_rcu(&entry->list, &ar->bar_list[queue]);
+			spin_unlock_bh(&ar->bar_list_lock[queue]);
+		}
+	}
+}
+
 static void carl9170_tx(struct ar9170 *ar)
 {
 	struct sk_buff *skb;
@@ -1286,6 +1347,8 @@ static void carl9170_tx(struct ar9170 *ar)
 
 			if (unlikely(carl9170_tx_ps_drop(ar, skb)))
 				continue;
+
+			carl9170_bar_check(ar, skb);
 
 			atomic_inc(&ar->tx_total_pending);
 

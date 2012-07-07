@@ -307,6 +307,9 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 	if (SUPP(CARL9170FW_WOL))
 		device_set_wakeup_enable(&ar->udev->dev, true);
 
+	if (SUPP(CARL9170FW_RX_BA_FILTER))
+		ar->fw.ba_filter = true;
+
 	if_comb_types = BIT(NL80211_IFTYPE_STATION) |
 			BIT(NL80211_IFTYPE_P2P_CLIENT);
 
