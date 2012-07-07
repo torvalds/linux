@@ -137,11 +137,10 @@ static int sd_check_data0_status(struct rtsx_chip *chip)
 {
 	u8 stat;
 
-	if (CHECK_PID(chip, 0x5209)) {
+	if (CHECK_PID(chip, 0x5209))
 		RTSX_READ_REG(chip, REG_SD_BUS_STAT, &stat);
-	} else {
+	else
 		RTSX_READ_REG(chip, REG_SD_STAT1, &stat);
-	}
 
 	if (!(stat & SD_DAT0_STATUS)) {
 		sd_set_err_code(chip, SD_BUSY);
