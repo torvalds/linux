@@ -41,7 +41,7 @@ struct gpio_fan_data {
 	int			num_speed;
 	struct gpio_fan_speed	*speed;
 	int			speed_index;
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	int			resume_speed;
 #endif
 	bool			pwm_enable;
@@ -476,10 +476,10 @@ static int __devexit gpio_fan_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int gpio_fan_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int gpio_fan_suspend(struct device *dev)
 {
-	struct gpio_fan_data *fan_data = platform_get_drvdata(pdev);
+	struct gpio_fan_data *fan_data = dev_get_drvdata(dev);
 
 	if (fan_data->ctrl) {
 		fan_data->resume_speed = fan_data->speed_index;
@@ -489,27 +489,28 @@ static int gpio_fan_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int gpio_fan_resume(struct platform_device *pdev)
+static int gpio_fan_resume(struct device *dev)
 {
-	struct gpio_fan_data *fan_data = platform_get_drvdata(pdev);
+	struct gpio_fan_data *fan_data = dev_get_drvdata(dev);
 
 	if (fan_data->ctrl)
 		set_fan_speed(fan_data, fan_data->resume_speed);
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(gpio_fan_pm, gpio_fan_suspend, gpio_fan_resume);
+#define GPIO_FAN_PM	&gpio_fan_pm
 #else
-#define gpio_fan_suspend NULL
-#define gpio_fan_resume NULL
+#define GPIO_FAN_PM	NULL
 #endif
 
 static struct platform_driver gpio_fan_driver = {
 	.probe		= gpio_fan_probe,
 	.remove		= __devexit_p(gpio_fan_remove),
-	.suspend	= gpio_fan_suspend,
-	.resume		= gpio_fan_resume,
 	.driver	= {
 		.name	= "gpio-fan",
+		.pm	= GPIO_FAN_PM,
 	},
 };
 
