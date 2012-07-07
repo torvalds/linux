@@ -64,21 +64,25 @@ static const struct v4l2_pix_format vga_mode_t16[] = {
 		.sizeimage = 160 * 120 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 4},
+#if 0 /* HDG: broken with my test cam, so lets disable it */
 	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 3},
+#endif
 	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 2},
+#if 0 /* HDG: broken with my test cam, so lets disable it */
 	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
+#endif
 	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 8 + 590,
