@@ -1998,9 +1998,8 @@ static irqreturn_t ft1000_interrupt(int irq, void *dev_id)
 
     // Make sure we process all interrupt before leaving the ISR due to the edge trigger interrupt type
     while (inttype) {
-	if (inttype & ISR_DOORBELL_PEND) {
-		ft1000_parse_dpram_msg(dev);
-	}
+		if (inttype & ISR_DOORBELL_PEND)
+			ft1000_parse_dpram_msg(dev);
 
 	if (inttype & ISR_RCV) {
 		DEBUG(1, "Data in FIFO\n");
