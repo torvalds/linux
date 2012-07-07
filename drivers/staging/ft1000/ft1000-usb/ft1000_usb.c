@@ -39,7 +39,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 static bool gPollingfailed = FALSE;
 static int ft1000_poll_thread(void *arg)
 {
-	int ret = STATUS_SUCCESS;
+	int ret;
 
 	while (!kthread_should_stop()) {
 		msleep(10);
