@@ -37,7 +37,7 @@ static struct usb_device_id id_table[] = {
 MODULE_DEVICE_TABLE(usb, id_table);
 
 static bool gPollingfailed = FALSE;
-int ft1000_poll_thread(void *arg)
+static int ft1000_poll_thread(void *arg)
 {
 	int ret = STATUS_SUCCESS;
 
