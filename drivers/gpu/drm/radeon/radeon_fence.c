@@ -578,7 +578,7 @@ int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring)
 	}
 	rdev->fence_drv[ring].cpu_addr = &rdev->wb.wb[index/4];
 	rdev->fence_drv[ring].gpu_addr = rdev->wb.gpu_addr + index;
-	radeon_fence_write(rdev, rdev->fence_drv[ring].sync_seq[ring], ring);
+	radeon_fence_write(rdev, atomic64_read(&rdev->fence_drv[ring].last_seq), ring);
 	rdev->fence_drv[ring].initialized = true;
 	dev_info(rdev->dev, "fence driver on ring %d use gpu addr 0x%016llx and cpu addr 0x%p\n",
 		 ring, rdev->fence_drv[ring].gpu_addr, rdev->fence_drv[ring].cpu_addr);
