@@ -400,10 +400,6 @@
 						0x1150 /* MX28_PAD_LCD_D21__LCD_D21 */
 						0x1160 /* MX28_PAD_LCD_D22__LCD_D22 */
 						0x1170 /* MX28_PAD_LCD_D23__LCD_D23 */
-						0x1181 /* MX28_PAD_LCD_RD_E__LCD_VSYNC */
-						0x1191 /* MX28_PAD_LCD_WR_RWN__LCD_HSYNC */
-						0x11a1 /* MX28_PAD_LCD_RS__LCD_DOTCLK */
-						0x11b1 /* MX28_PAD_LCD_CS__LCD_ENABLE */
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
