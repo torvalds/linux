@@ -2733,7 +2733,7 @@ EXPORT_SYMBOL(ieee80211_get_buffered_bc);
 void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
 			  struct sk_buff *skb, int tid)
 {
-	int ac = ieee802_1d_to_ac[tid];
+	int ac = ieee802_1d_to_ac[tid & 7];
 
 	skb_set_mac_header(skb, 0);
 	skb_set_network_header(skb, 0);
