@@ -243,6 +243,28 @@
 					fsl,pull-up = <0>;
 				};
 
+				auart1_2pins_a: auart1-2pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3040 /* MX28_PAD_AUART1_RX__AUART1_RX */
+						0x3050 /* MX28_PAD_AUART1_TX__AUART1_TX */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				auart2_2pins_a: auart2-2pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x2101 /* MX28_PAD_SSP2_SCK__AUART2_RX */
+						0x2111 /* MX28_PAD_SSP2_MOSI__AUART2_TX */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
 				auart3_pins_a: auart3@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
@@ -250,6 +272,17 @@
 						0x30d0 /* MX28_PAD_AUART3_TX__AUART3_TX */
 						0x30e0 /* MX28_PAD_AUART3_CTS__AUART3_CTS */
 						0x30f0 /* MX28_PAD_AUART3_RTS__AUART3_RTS */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				auart3_2pins_a: auart3-2pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x2121 /* MX28_PAD_SSP2_MISO__AUART3_RX */
+						0x2131 /* MX28_PAD_SSP2_SS0__AUART3_TX */
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;

@@ -16,9 +16,11 @@
 #include <linux/init.h>
 #include <linux/init.h>
 #include <linux/irqdomain.h>
+#include <linux/micrel_phy.h>
 #include <linux/mxsfb.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/phy.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <mach/common.h>
@@ -233,6 +235,21 @@ static void __init m28evk_init(void)
 	mxsfb_pdata.ld_intf_width = STMLCDIF_18BIT;
 }
 
+static int apx4devkit_phy_fixup(struct phy_device *phy)
+{
+	phy->dev_flags |= MICREL_PHY_50MHZ_CLK;
+	return 0;
+}
+
+static void __init apx4devkit_init(void)
+{
+	enable_clk_enet_out();
+
+	if (IS_BUILTIN(CONFIG_PHYLIB))
+		phy_register_fixup_for_uid(PHY_ID_KS8051, MICREL_PHY_ID_MASK,
+					   apx4devkit_phy_fixup);
+}
+
 static void __init mxs_machine_init(void)
 {
 	if (of_machine_is_compatible("fsl,imx28-evk"))
@@ -241,6 +258,8 @@ static void __init mxs_machine_init(void)
 		imx23_evk_init();
 	else if (of_machine_is_compatible("denx,m28evk"))
 		m28evk_init();
+	else if (of_machine_is_compatible("bluegiga,apx4devkit"))
+		apx4devkit_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     mxs_auxdata_lookup, NULL);
@@ -254,6 +273,7 @@ static const char *imx23_dt_compat[] __initdata = {
 };
 
 static const char *imx28_dt_compat[] __initdata = {
+	"bluegiga,apx4devkit",
 	"crystalfontz,cfa10036",
 	"denx,m28evk",
 	"fsl,imx28-evk",
