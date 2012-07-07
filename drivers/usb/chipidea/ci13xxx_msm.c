@@ -58,31 +58,16 @@ static struct ci13xxx_platform_data ci13xxx_msm_platdata = {
 static int __devinit ci13xxx_msm_probe(struct platform_device *pdev)
 {
 	struct platform_device *plat_ci;
-	int ret;
 
 	dev_dbg(&pdev->dev, "ci13xxx_msm_probe\n");
 
-	plat_ci = platform_device_alloc("ci_hdrc", -1);
-	if (!plat_ci) {
-		dev_err(&pdev->dev, "can't allocate ci_hdrc platform device\n");
-		return -ENOMEM;
+	plat_ci = ci13xxx_add_device(&pdev->dev,
+				pdev->resource, pdev->num_resources,
+				&ci13xxx_msm_platdata);
+	if (IS_ERR(plat_ci)) {
+		dev_err(&pdev->dev, "ci13xxx_add_device failed!\n");
+		return PTR_ERR(plat_ci);
 	}
-
-	ret = platform_device_add_resources(plat_ci, pdev->resource,
-					    pdev->num_resources);
-	if (ret) {
-		dev_err(&pdev->dev, "can't add resources to platform device\n");
-		goto put_platform;
-	}
-
-	ret = platform_device_add_data(plat_ci, &ci13xxx_msm_platdata,
-				       sizeof(ci13xxx_msm_platdata));
-	if (ret)
-		goto put_platform;
-
-	ret = platform_device_add(plat_ci);
-	if (ret)
-		goto put_platform;
 
 	platform_set_drvdata(pdev, plat_ci);
 
@@ -90,11 +75,6 @@ static int __devinit ci13xxx_msm_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
-
-put_platform:
-	platform_device_put(plat_ci);
-
-	return ret;
 }
 
 static int __devexit ci13xxx_msm_remove(struct platform_device *pdev)
@@ -102,7 +82,7 @@ static int __devexit ci13xxx_msm_remove(struct platform_device *pdev)
 	struct platform_device *plat_ci = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
-	platform_device_unregister(plat_ci);
+	ci13xxx_remove_device(plat_ci);
 
 	return 0;
 }

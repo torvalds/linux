@@ -25,4 +25,11 @@ struct ci13xxx_platform_data {
 /* Default offset of capability registers */
 #define DEF_CAPOFFSET		0x100
 
+/* Add ci13xxx device */
+struct platform_device *ci13xxx_add_device(struct device *dev,
+			struct resource *res, int nres,
+			struct ci13xxx_platform_data *platdata);
+/* Remove ci13xxx device */
+void ci13xxx_remove_device(struct platform_device *pdev);
+
 #endif

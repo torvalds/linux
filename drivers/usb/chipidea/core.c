@@ -332,6 +332,49 @@ static irqreturn_t ci_irq(int irq, void *data)
 	return ci->role == CI_ROLE_END ? ret : ci_role(ci)->irq(ci);
 }
 
+struct platform_device *ci13xxx_add_device(struct device *dev,
+			struct resource *res, int nres,
+			struct ci13xxx_platform_data *platdata)
+{
+	struct platform_device *pdev;
+	int ret;
+
+	/* FIXME: find a way to choose id */
+	pdev = platform_device_alloc("ci_hdrc", -1);
+	if (!pdev)
+		return ERR_PTR(-ENOMEM);
+
+	pdev->dev.parent = dev;
+	pdev->dev.dma_mask = dev->dma_mask;
+	pdev->dev.dma_parms = dev->dma_parms;
+	dma_set_coherent_mask(&pdev->dev, dev->coherent_dma_mask);
+
+	ret = platform_device_add_resources(pdev, res, nres);
+	if (ret)
+		goto err;
+
+	ret = platform_device_add_data(pdev, platdata, sizeof(*platdata));
+	if (ret)
+		goto err;
+
+	ret = platform_device_add(pdev);
+	if (ret)
+		goto err;
+
+	return pdev;
+
+err:
+	platform_device_put(pdev);
+	return ERR_PTR(ret);
+}
+EXPORT_SYMBOL_GPL(ci13xxx_add_device);
+
+void ci13xxx_remove_device(struct platform_device *pdev)
+{
+	platform_device_unregister(pdev);
+}
+EXPORT_SYMBOL_GPL(ci13xxx_remove_device);
+
 static int __devinit ci_hdrc_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
