@@ -39,16 +39,13 @@ static int
 nf_ct_register_sysctl(struct net *net,
 		      struct ctl_table_header **header,
 		      const char *path,
-		      struct ctl_table *table,
-		      unsigned int *users)
+		      struct ctl_table *table)
 {
 	if (*header == NULL) {
 		*header = register_net_sysctl(net, path, table);
 		if (*header == NULL)
 			return -ENOMEM;
 	}
-	if (users != NULL)
-		(*users)++;
 
 	return 0;
 }
@@ -56,9 +53,9 @@ nf_ct_register_sysctl(struct net *net,
 static void
 nf_ct_unregister_sysctl(struct ctl_table_header **header,
 			struct ctl_table **table,
-			unsigned int *users)
+			unsigned int users)
 {
-	if (users != NULL && --*users > 0)
+	if (users > 0)
 		return;
 
 	unregister_net_sysctl_table(*header);
@@ -191,8 +188,7 @@ static int nf_ct_l3proto_register_sysctl(struct net *net,
 		err = nf_ct_register_sysctl(net,
 					    &in->ctl_table_header,
 					    l3proto->ctl_table_path,
-					    in->ctl_table,
-					    NULL);
+					    in->ctl_table);
 		if (err < 0) {
 			kfree(in->ctl_table);
 			in->ctl_table = NULL;
@@ -213,7 +209,7 @@ static void nf_ct_l3proto_unregister_sysctl(struct net *net,
 	if (in->ctl_table_header != NULL)
 		nf_ct_unregister_sysctl(&in->ctl_table_header,
 					&in->ctl_table,
-					NULL);
+					0);
 #endif
 }
 
@@ -253,18 +249,23 @@ int nf_conntrack_l3proto_register(struct net *net,
 {
 	int ret = 0;
 
-	if (net == &init_net)
-		ret = nf_conntrack_l3proto_register_net(proto);
-
-	if (ret < 0)
-		return ret;
-
 	if (proto->init_net) {
 		ret = proto->init_net(net);
 		if (ret < 0)
 			return ret;
 	}
-	return nf_ct_l3proto_register_sysctl(net, proto);
+
+	ret = nf_ct_l3proto_register_sysctl(net, proto);
+	if (ret < 0)
+		return ret;
+
+	if (net == &init_net) {
+		ret = nf_conntrack_l3proto_register_net(proto);
+		if (ret < 0)
+			nf_ct_l3proto_unregister_sysctl(net, proto);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_register);
 
@@ -302,93 +303,77 @@ EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_unregister);
 static struct nf_proto_net *nf_ct_l4proto_net(struct net *net,
 					      struct nf_conntrack_l4proto *l4proto)
 {
-	switch (l4proto->l4proto) {
-	case IPPROTO_TCP:
-		return (struct nf_proto_net *)&net->ct.nf_ct_proto.tcp;
-	case IPPROTO_UDP:
-		return (struct nf_proto_net *)&net->ct.nf_ct_proto.udp;
-	case IPPROTO_ICMP:
-		return (struct nf_proto_net *)&net->ct.nf_ct_proto.icmp;
-	case IPPROTO_ICMPV6:
-		return (struct nf_proto_net *)&net->ct.nf_ct_proto.icmpv6;
-	case 255: /* l4proto_generic */
-		return (struct nf_proto_net *)&net->ct.nf_ct_proto.generic;
-	default:
-		if (l4proto->net_id)
-			return net_generic(net, *l4proto->net_id);
-		else
-			return NULL;
+	if (l4proto->get_net_proto) {
+		/* statically built-in protocols use static per-net */
+		return l4proto->get_net_proto(net);
+	} else if (l4proto->net_id) {
+		/* ... and loadable protocols use dynamic per-net */
+		return net_generic(net, *l4proto->net_id);
 	}
 	return NULL;
 }
 
 static
 int nf_ct_l4proto_register_sysctl(struct net *net,
+				  struct nf_proto_net *pn,
 				  struct nf_conntrack_l4proto *l4proto)
 {
 	int err = 0;
-	struct nf_proto_net *pn = nf_ct_l4proto_net(net, l4proto);
-	if (pn == NULL)
-		return 0;
 
 #ifdef CONFIG_SYSCTL
 	if (pn->ctl_table != NULL) {
 		err = nf_ct_register_sysctl(net,
 					    &pn->ctl_table_header,
 					    "net/netfilter",
-					    pn->ctl_table,
-					    &pn->users);
+					    pn->ctl_table);
 		if (err < 0) {
 			if (!pn->users) {
 				kfree(pn->ctl_table);
 				pn->ctl_table = NULL;
 			}
-			goto out;
 		}
 	}
 #ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
 	if (l4proto->l3proto != AF_INET6 && pn->ctl_compat_table != NULL) {
+		if (err < 0) {
+			nf_ct_kfree_compat_sysctl_table(pn);
+			goto out;
+		}
 		err = nf_ct_register_sysctl(net,
 					    &pn->ctl_compat_header,
 					    "net/ipv4/netfilter",
-					    pn->ctl_compat_table,
-					    NULL);
+					    pn->ctl_compat_table);
 		if (err == 0)
 			goto out;
 
-		kfree(pn->ctl_compat_table);
-		pn->ctl_compat_table = NULL;
+		nf_ct_kfree_compat_sysctl_table(pn);
 		nf_ct_unregister_sysctl(&pn->ctl_table_header,
 					&pn->ctl_table,
-					&pn->users);
+					pn->users);
 	}
-#endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 out:
+#endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */
 	return err;
 }
 
 static
 void nf_ct_l4proto_unregister_sysctl(struct net *net,
+				     struct nf_proto_net *pn,
 				     struct nf_conntrack_l4proto *l4proto)
 {
-	struct nf_proto_net *pn = nf_ct_l4proto_net(net, l4proto);
-	if (pn == NULL)
-		return;
 #ifdef CONFIG_SYSCTL
 	if (pn->ctl_table_header != NULL)
 		nf_ct_unregister_sysctl(&pn->ctl_table_header,
 					&pn->ctl_table,
-					&pn->users);
+					pn->users);
 
 #ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
 	if (l4proto->l3proto != AF_INET6 && pn->ctl_compat_header != NULL)
 		nf_ct_unregister_sysctl(&pn->ctl_compat_header,
 					&pn->ctl_compat_table,
-					NULL);
+					0);
 #endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
-#else
-	pn->users--;
 #endif /* CONFIG_SYSCTL */
 }
 
@@ -454,19 +439,33 @@ int nf_conntrack_l4proto_register(struct net *net,
 				  struct nf_conntrack_l4proto *l4proto)
 {
 	int ret = 0;
-	if (net == &init_net)
+	struct nf_proto_net *pn = NULL;
+
+	if (l4proto->init_net) {
+		ret = l4proto->init_net(net, l4proto->l3proto);
+		if (ret < 0)
+			goto out;
+	}
+
+	pn = nf_ct_l4proto_net(net, l4proto);
+	if (pn == NULL)
+		goto out;
+
+	ret = nf_ct_l4proto_register_sysctl(net, pn, l4proto);
+	if (ret < 0)
+		goto out;
+
+	if (net == &init_net) {
 		ret = nf_conntrack_l4proto_register_net(l4proto);
+		if (ret < 0) {
+			nf_ct_l4proto_unregister_sysctl(net, pn, l4proto);
+			goto out;
+		}
+	}
 
-	if (ret < 0)
-		return ret;
-
-	if (l4proto->init_net)
-		ret = l4proto->init_net(net);
-
-	if (ret < 0)
-		return ret;
-
-	return nf_ct_l4proto_register_sysctl(net, l4proto);
+	pn->users++;
+out:
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_register);
 
@@ -490,10 +489,18 @@ nf_conntrack_l4proto_unregister_net(struct nf_conntrack_l4proto *l4proto)
 void nf_conntrack_l4proto_unregister(struct net *net,
 				     struct nf_conntrack_l4proto *l4proto)
 {
+	struct nf_proto_net *pn = NULL;
+
 	if (net == &init_net)
 		nf_conntrack_l4proto_unregister_net(l4proto);
 
-	nf_ct_l4proto_unregister_sysctl(net, l4proto);
+	pn = nf_ct_l4proto_net(net, l4proto);
+	if (pn == NULL)
+		return;
+
+	pn->users--;
+	nf_ct_l4proto_unregister_sysctl(net, pn, l4proto);
+
 	/* Remove all contrack entries for this protocol */
 	rtnl_lock();
 	nf_ct_iterate_cleanup(net, kill_l4proto, l4proto);
@@ -505,10 +512,15 @@ int nf_conntrack_proto_init(struct net *net)
 {
 	unsigned int i;
 	int err;
-	err = nf_conntrack_l4proto_generic.init_net(net);
+	struct nf_proto_net *pn = nf_ct_l4proto_net(net,
+					&nf_conntrack_l4proto_generic);
+
+	err = nf_conntrack_l4proto_generic.init_net(net,
+					nf_conntrack_l4proto_generic.l3proto);
 	if (err < 0)
 		return err;
 	err = nf_ct_l4proto_register_sysctl(net,
+					    pn,
 					    &nf_conntrack_l4proto_generic);
 	if (err < 0)
 		return err;
@@ -518,13 +530,20 @@ int nf_conntrack_proto_init(struct net *net)
 			rcu_assign_pointer(nf_ct_l3protos[i],
 					   &nf_conntrack_l3proto_generic);
 	}
+
+	pn->users++;
 	return 0;
 }
 
 void nf_conntrack_proto_fini(struct net *net)
 {
 	unsigned int i;
+	struct nf_proto_net *pn = nf_ct_l4proto_net(net,
+					&nf_conntrack_l4proto_generic);
+
+	pn->users--;
 	nf_ct_l4proto_unregister_sysctl(net,
+					pn,
 					&nf_conntrack_l4proto_generic);
 	if (net == &init_net) {
 		/* free l3proto protocol tables */

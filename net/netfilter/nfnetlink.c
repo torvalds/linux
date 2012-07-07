@@ -195,9 +195,11 @@ replay:
 					lockdep_is_held(&nfnl_mutex)) != ss ||
 			    nfnetlink_find_client(type, ss) != nc)
 				err = -EAGAIN;
-			else
+			else if (nc->call)
 				err = nc->call(net->nfnl, skb, nlh,
 						   (const struct nlattr **)cda);
+			else
+				err = -EINVAL;
 			nfnl_unlock();
 		}
 		if (err == -EAGAIN)

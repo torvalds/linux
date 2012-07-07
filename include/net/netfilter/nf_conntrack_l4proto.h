@@ -97,7 +97,10 @@ struct nf_conntrack_l4proto {
 #endif
 	int	*net_id;
 	/* Init l4proto pernet data */
-	int (*init_net)(struct net *net);
+	int (*init_net)(struct net *net, u_int16_t proto);
+
+	/* Return the per-net protocol part. */
+	struct nf_proto_net *(*get_net_proto)(struct net *net);
 
 	/* Protocol name */
 	const char *name;
@@ -123,6 +126,14 @@ extern int nf_conntrack_l4proto_register(struct net *net,
 					 struct nf_conntrack_l4proto *proto);
 extern void nf_conntrack_l4proto_unregister(struct net *net,
 					    struct nf_conntrack_l4proto *proto);
+
+static inline void nf_ct_kfree_compat_sysctl_table(struct nf_proto_net *pn)
+{
+#if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
+	kfree(pn->ctl_compat_table);
+	pn->ctl_compat_table = NULL;
+#endif
+}
 
 /* Generic netlink helpers */
 extern int nf_ct_port_tuple_to_nlattr(struct sk_buff *skb,

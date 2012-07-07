@@ -387,7 +387,7 @@ dccp_state_table[CT_DCCP_ROLE_MAX + 1][DCCP_PKT_SYNCACK + 1][CT_DCCP_MAX + 1] = 
 /* this module per-net specifics */
 static int dccp_net_id __read_mostly;
 struct dccp_net {
-	struct nf_proto_net np;
+	struct nf_proto_net pn;
 	int dccp_loose;
 	unsigned int dccp_timeout[CT_DCCP_MAX + 1];
 };
@@ -815,16 +815,37 @@ static struct ctl_table dccp_sysctl_table[] = {
 };
 #endif /* CONFIG_SYSCTL */
 
-static int dccp_init_net(struct net *net)
+static int dccp_kmemdup_sysctl_table(struct nf_proto_net *pn,
+				     struct dccp_net *dn)
+{
+#ifdef CONFIG_SYSCTL
+	if (pn->ctl_table)
+		return 0;
+
+	pn->ctl_table = kmemdup(dccp_sysctl_table,
+				sizeof(dccp_sysctl_table),
+				GFP_KERNEL);
+	if (!pn->ctl_table)
+		return -ENOMEM;
+
+	pn->ctl_table[0].data = &dn->dccp_timeout[CT_DCCP_REQUEST];
+	pn->ctl_table[1].data = &dn->dccp_timeout[CT_DCCP_RESPOND];
+	pn->ctl_table[2].data = &dn->dccp_timeout[CT_DCCP_PARTOPEN];
+	pn->ctl_table[3].data = &dn->dccp_timeout[CT_DCCP_OPEN];
+	pn->ctl_table[4].data = &dn->dccp_timeout[CT_DCCP_CLOSEREQ];
+	pn->ctl_table[5].data = &dn->dccp_timeout[CT_DCCP_CLOSING];
+	pn->ctl_table[6].data = &dn->dccp_timeout[CT_DCCP_TIMEWAIT];
+	pn->ctl_table[7].data = &dn->dccp_loose;
+#endif
+	return 0;
+}
+
+static int dccp_init_net(struct net *net, u_int16_t proto)
 {
 	struct dccp_net *dn = dccp_pernet(net);
-	struct nf_proto_net *pn = (struct nf_proto_net *)dn;
+	struct nf_proto_net *pn = &dn->pn;
 
-#ifdef CONFIG_SYSCTL
-	if (!pn->ctl_table) {
-#else
-	if (!pn->users++) {
-#endif
+	if (!pn->users) {
 		/* default values */
 		dn->dccp_loose = 1;
 		dn->dccp_timeout[CT_DCCP_REQUEST]	= 2 * DCCP_MSL;
@@ -834,24 +855,9 @@ static int dccp_init_net(struct net *net)
 		dn->dccp_timeout[CT_DCCP_CLOSEREQ]	= 64 * HZ;
 		dn->dccp_timeout[CT_DCCP_CLOSING]	= 64 * HZ;
 		dn->dccp_timeout[CT_DCCP_TIMEWAIT]	= 2 * DCCP_MSL;
-#ifdef CONFIG_SYSCTL
-		pn->ctl_table = kmemdup(dccp_sysctl_table,
-					sizeof(dccp_sysctl_table),
-					GFP_KERNEL);
-		if (!pn->ctl_table)
-			return -ENOMEM;
-
-		pn->ctl_table[0].data = &dn->dccp_timeout[CT_DCCP_REQUEST];
-		pn->ctl_table[1].data = &dn->dccp_timeout[CT_DCCP_RESPOND];
-		pn->ctl_table[2].data = &dn->dccp_timeout[CT_DCCP_PARTOPEN];
-		pn->ctl_table[3].data = &dn->dccp_timeout[CT_DCCP_OPEN];
-		pn->ctl_table[4].data = &dn->dccp_timeout[CT_DCCP_CLOSEREQ];
-		pn->ctl_table[5].data = &dn->dccp_timeout[CT_DCCP_CLOSING];
-		pn->ctl_table[6].data = &dn->dccp_timeout[CT_DCCP_TIMEWAIT];
-		pn->ctl_table[7].data = &dn->dccp_loose;
-#endif
 	}
-	return 0;
+
+	return dccp_kmemdup_sysctl_table(pn, dn);
 }
 
 static struct nf_conntrack_l4proto dccp_proto4 __read_mostly = {

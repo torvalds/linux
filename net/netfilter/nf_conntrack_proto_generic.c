@@ -135,32 +135,60 @@ static struct ctl_table generic_compat_sysctl_table[] = {
 #endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */
 
-static int generic_init_net(struct net *net)
+static int generic_kmemdup_sysctl_table(struct nf_proto_net *pn,
+					struct nf_generic_net *gn)
 {
-	struct nf_generic_net *gn = generic_pernet(net);
-	struct nf_proto_net *pn = (struct nf_proto_net *)gn;
-	gn->timeout = nf_ct_generic_timeout;
 #ifdef CONFIG_SYSCTL
 	pn->ctl_table = kmemdup(generic_sysctl_table,
 				sizeof(generic_sysctl_table),
 				GFP_KERNEL);
 	if (!pn->ctl_table)
 		return -ENOMEM;
-	pn->ctl_table[0].data = &gn->timeout;
 
+	pn->ctl_table[0].data = &gn->timeout;
+#endif
+	return 0;
+}
+
+static int generic_kmemdup_compat_sysctl_table(struct nf_proto_net *pn,
+					       struct nf_generic_net *gn)
+{
+#ifdef CONFIG_SYSCTL
 #ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
 	pn->ctl_compat_table = kmemdup(generic_compat_sysctl_table,
 				       sizeof(generic_compat_sysctl_table),
 				       GFP_KERNEL);
-	if (!pn->ctl_compat_table) {
-		kfree(pn->ctl_table);
-		pn->ctl_table = NULL;
+	if (!pn->ctl_compat_table)
 		return -ENOMEM;
-	}
+
 	pn->ctl_compat_table[0].data = &gn->timeout;
 #endif
 #endif
 	return 0;
+}
+
+static int generic_init_net(struct net *net, u_int16_t proto)
+{
+	int ret;
+	struct nf_generic_net *gn = generic_pernet(net);
+	struct nf_proto_net *pn = &gn->pn;
+
+	gn->timeout = nf_ct_generic_timeout;
+
+	ret = generic_kmemdup_compat_sysctl_table(pn, gn);
+	if (ret < 0)
+		return ret;
+
+	ret = generic_kmemdup_sysctl_table(pn, gn);
+	if (ret < 0)
+		nf_ct_kfree_compat_sysctl_table(pn);
+
+	return ret;
+}
+
+static struct nf_proto_net *generic_get_net_proto(struct net *net)
+{
+	return &net->ct.nf_ct_proto.generic.pn;
 }
 
 struct nf_conntrack_l4proto nf_conntrack_l4proto_generic __read_mostly =
@@ -184,4 +212,5 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_generic __read_mostly =
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 	.init_net		= generic_init_net,
+	.get_net_proto		= generic_get_net_proto,
 };

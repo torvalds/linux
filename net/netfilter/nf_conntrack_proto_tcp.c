@@ -821,7 +821,7 @@ static int tcp_error(struct net *net, struct nf_conn *tmpl,
 
 static unsigned int *tcp_get_timeouts(struct net *net)
 {
-	return tcp_timeouts;
+	return tcp_pernet(net)->timeouts;
 }
 
 /* Returns verdict for packet, or -1 for invalid. */
@@ -1533,11 +1533,10 @@ static struct ctl_table tcp_compat_sysctl_table[] = {
 #endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */
 
-static int tcp_kmemdup_sysctl_table(struct nf_proto_net *pn)
+static int tcp_kmemdup_sysctl_table(struct nf_proto_net *pn,
+				    struct nf_tcp_net *tn)
 {
 #ifdef CONFIG_SYSCTL
-	struct nf_tcp_net *tn = (struct nf_tcp_net *)pn;
-
 	if (pn->ctl_table)
 		return 0;
 
@@ -1564,11 +1563,11 @@ static int tcp_kmemdup_sysctl_table(struct nf_proto_net *pn)
 	return 0;
 }
 
-static int tcp_kmemdup_compat_sysctl_table(struct nf_proto_net *pn)
+static int tcp_kmemdup_compat_sysctl_table(struct nf_proto_net *pn,
+					   struct nf_tcp_net *tn)
 {
 #ifdef CONFIG_SYSCTL
 #ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-	struct nf_tcp_net *tn = (struct nf_tcp_net *)pn;
 	pn->ctl_compat_table = kmemdup(tcp_compat_sysctl_table,
 				       sizeof(tcp_compat_sysctl_table),
 				       GFP_KERNEL);
@@ -1593,18 +1592,15 @@ static int tcp_kmemdup_compat_sysctl_table(struct nf_proto_net *pn)
 	return 0;
 }
 
-static int tcpv4_init_net(struct net *net)
+static int tcp_init_net(struct net *net, u_int16_t proto)
 {
-	int i;
-	int ret = 0;
+	int ret;
 	struct nf_tcp_net *tn = tcp_pernet(net);
-	struct nf_proto_net *pn = (struct nf_proto_net *)tn;
+	struct nf_proto_net *pn = &tn->pn;
 
-#ifdef CONFIG_SYSCTL
-	if (!pn->ctl_table) {
-#else
-	if (!pn->users++) {
-#endif
+	if (!pn->users) {
+		int i;
+
 		for (i = 0; i < TCP_CONNTRACK_TIMEOUT_MAX; i++)
 			tn->timeouts[i] = tcp_timeouts[i];
 
@@ -1613,43 +1609,23 @@ static int tcpv4_init_net(struct net *net)
 		tn->tcp_max_retrans = nf_ct_tcp_max_retrans;
 	}
 
-	ret = tcp_kmemdup_compat_sysctl_table(pn);
+	if (proto == AF_INET) {
+		ret = tcp_kmemdup_compat_sysctl_table(pn, tn);
+		if (ret < 0)
+			return ret;
 
-	if (ret < 0)
-		return ret;
+		ret = tcp_kmemdup_sysctl_table(pn, tn);
+		if (ret < 0)
+			nf_ct_kfree_compat_sysctl_table(pn);
+	} else
+		ret = tcp_kmemdup_sysctl_table(pn, tn);
 
-	ret = tcp_kmemdup_sysctl_table(pn);
-
-#ifdef CONFIG_SYSCTL
-#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-	if (ret < 0) {
-		kfree(pn->ctl_compat_table);
-		pn->ctl_compat_table = NULL;
-	}
-#endif
-#endif
 	return ret;
 }
 
-static int tcpv6_init_net(struct net *net)
+static struct nf_proto_net *tcp_get_net_proto(struct net *net)
 {
-	int i;
-	struct nf_tcp_net *tn = tcp_pernet(net);
-	struct nf_proto_net *pn = (struct nf_proto_net *)tn;
-
-#ifdef CONFIG_SYSCTL
-	if (!pn->ctl_table) {
-#else
-	if (!pn->users++) {
-#endif
-		for (i = 0; i < TCP_CONNTRACK_TIMEOUT_MAX; i++)
-			tn->timeouts[i] = tcp_timeouts[i];
-		tn->tcp_loose = nf_ct_tcp_loose;
-		tn->tcp_be_liberal = nf_ct_tcp_be_liberal;
-		tn->tcp_max_retrans = nf_ct_tcp_max_retrans;
-	}
-
-	return tcp_kmemdup_sysctl_table(pn);
+	return &net->ct.nf_ct_proto.tcp.pn;
 }
 
 struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 __read_mostly =
@@ -1684,7 +1660,8 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 __read_mostly =
 		.nla_policy	= tcp_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
-	.init_net		= tcpv4_init_net,
+	.init_net		= tcp_init_net,
+	.get_net_proto		= tcp_get_net_proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_tcp4);
 
@@ -1720,6 +1697,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6 __read_mostly =
 		.nla_policy	= tcp_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
-	.init_net		= tcpv6_init_net,
+	.init_net		= tcp_init_net,
+	.get_net_proto		= tcp_get_net_proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_tcp6);
