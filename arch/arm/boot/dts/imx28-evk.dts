@@ -24,7 +24,8 @@
 		apbh@80000000 {
 			gpmi-nand@8000c000 {
 				pinctrl-names = "default";
-				pinctrl-0 = <&gpmi_pins_a &gpmi_status_cfg>;
+				pinctrl-0 = <&gpmi_pins_a &gpmi_status_cfg
+					     &gpmi_pins_evk>;
 				status = "okay";
 			};
 
@@ -59,6 +60,17 @@
 						0x31c3 /* MX28_PAD_PWM3__GPIO_3_28 */
 						0x31e3 /* MX28_PAD_LCD_RESET__GPIO_3_30 */
 						0x3053 /* MX28_PAD_AUART1_TX__GPIO_3_5 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				gpmi_pins_evk: gpmi-nand-evk@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x0110 /* MX28_PAD_GPMI_CE1N__GPMI_CE1N */
+						0x0150 /* MX28_PAD_GPMI_RDY1__GPMI_READY1 */
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
