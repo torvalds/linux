@@ -232,6 +232,17 @@
 					fsl,pull-up = <0>;
 				};
 
+				auart0_2pins_a: auart0-2pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3000 /* MX28_PAD_AUART0_RX__AUART0_RX */
+						0x3010 /* MX28_PAD_AUART0_TX__AUART0_TX */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
 				auart3_pins_a: auart3@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <

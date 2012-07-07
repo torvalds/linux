@@ -59,6 +59,23 @@ static struct fb_videomode mx28evk_video_modes[] = {
 	},
 };
 
+static struct fb_videomode m28evk_video_modes[] = {
+	{
+		.name		= "Ampire AM-800480R2TMQW-T01H",
+		.refresh	= 60,
+		.xres		= 800,
+		.yres		= 480,
+		.pixclock	= 30066, /* picosecond (33.26 MHz) */
+		.left_margin	= 0,
+		.right_margin	= 256,
+		.upper_margin	= 0,
+		.lower_margin	= 45,
+		.hsync_len	= 1,
+		.vsync_len	= 1,
+		.sync		= FB_SYNC_DATA_ENABLE_HIGH_ACT,
+	},
+};
+
 static struct mxsfb_platform_data mxsfb_pdata __initdata;
 
 static struct of_dev_auxdata mxs_auxdata_lookup[] __initdata = {
@@ -186,15 +203,17 @@ static void __init imx23_evk_init(void)
 	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
 }
 
-static void __init imx28_evk_init(void)
+static inline void enable_clk_enet_out(void)
 {
-	struct clk *clk;
+	struct clk *clk = clk_get_sys("enet_out", NULL);
 
-	/* Enable fec phy clock */
-	clk = clk_get_sys("enet_out", NULL);
 	if (!IS_ERR(clk))
 		clk_prepare_enable(clk);
+}
 
+static void __init imx28_evk_init(void)
+{
+	enable_clk_enet_out();
 	update_fec_mac_prop(OUI_FSL);
 
 	mxsfb_pdata.mode_list = mx28evk_video_modes;
@@ -203,12 +222,25 @@ static void __init imx28_evk_init(void)
 	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
 }
 
+static void __init m28evk_init(void)
+{
+	enable_clk_enet_out();
+	update_fec_mac_prop(OUI_DENX);
+
+	mxsfb_pdata.mode_list = m28evk_video_modes;
+	mxsfb_pdata.mode_count = ARRAY_SIZE(m28evk_video_modes);
+	mxsfb_pdata.default_bpp = 16;
+	mxsfb_pdata.ld_intf_width = STMLCDIF_18BIT;
+}
+
 static void __init mxs_machine_init(void)
 {
 	if (of_machine_is_compatible("fsl,imx28-evk"))
 		imx28_evk_init();
 	else if (of_machine_is_compatible("fsl,imx23-evk"))
 		imx23_evk_init();
+	else if (of_machine_is_compatible("denx,m28evk"))
+		m28evk_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     mxs_auxdata_lookup, NULL);
@@ -223,6 +255,7 @@ static const char *imx23_dt_compat[] __initdata = {
 
 static const char *imx28_dt_compat[] __initdata = {
 	"crystalfontz,cfa10036",
+	"denx,m28evk",
 	"fsl,imx28-evk",
 	"fsl,imx28",
 	NULL,
