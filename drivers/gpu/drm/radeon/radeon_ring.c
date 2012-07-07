@@ -272,13 +272,8 @@ int radeon_ring_lock(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 
 void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-	unsigned count_dw_pad;
-	unsigned i;
-
 	/* We pad to match fetch size */
-	count_dw_pad = (ring->align_mask + 1) -
-		       (ring->wptr & ring->align_mask);
-	for (i = 0; i < count_dw_pad; i++) {
+	while (ring->wptr & ring->align_mask) {
 		radeon_ring_write(ring, ring->nop);
 	}
 	DRM_MEMORYBARRIER();
