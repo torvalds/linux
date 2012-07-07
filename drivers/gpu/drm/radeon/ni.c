@@ -1276,10 +1276,6 @@ static int cayman_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = radeon_ib_ring_tests(rdev);
-	if (r)
-		return r;
-
 	r = radeon_vm_manager_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "vm manager initialization failed (%d).\n", r);

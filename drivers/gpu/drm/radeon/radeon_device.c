@@ -822,6 +822,10 @@ int radeon_device_init(struct radeon_device *rdev,
 	if (r)
 		return r;
 
+	r = radeon_ib_ring_tests(rdev);
+	if (r)
+		DRM_ERROR("ib ring test failed (%d).\n", r);
+
 	if (rdev->flags & RADEON_IS_AGP && !rdev->accel_working) {
 		/* Acceleration not working on AGP card try again
 		 * with fallback to PCI or PCIE GART
@@ -946,6 +950,7 @@ int radeon_resume_kms(struct drm_device *dev)
 {
 	struct drm_connector *connector;
 	struct radeon_device *rdev = dev->dev_private;
+	int r;
 
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
@@ -960,6 +965,11 @@ int radeon_resume_kms(struct drm_device *dev)
 	/* resume AGP if in use */
 	radeon_agp_resume(rdev);
 	radeon_resume(rdev);
+
+	r = radeon_ib_ring_tests(rdev);
+	if (r)
+		DRM_ERROR("ib ring test failed (%d).\n", r);
+
 	radeon_pm_resume(rdev);
 	radeon_restore_bios_scratch_regs(rdev);
 
@@ -999,6 +1009,11 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 	if (!r) {
 		dev_info(rdev->dev, "GPU reset succeed\n");
 		radeon_resume(rdev);
+
+		r = radeon_ib_ring_tests(rdev);
+		if (r)
+			DRM_ERROR("ib ring test failed (%d).\n", r);
+
 		radeon_restore_bios_scratch_regs(rdev);
 		drm_helper_resume_force_mode(rdev->ddev);
 		ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);

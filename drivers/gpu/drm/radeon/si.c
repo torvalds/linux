@@ -3756,27 +3756,6 @@ static int si_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
-	if (r) {
-		DRM_ERROR("radeon: failed testing IB (%d) on CP ring 0\n", r);
-		rdev->accel_working = false;
-		return r;
-	}
-
-	r = radeon_ib_test(rdev, CAYMAN_RING_TYPE_CP1_INDEX, &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX]);
-	if (r) {
-		DRM_ERROR("radeon: failed testing IB (%d) on CP ring 1\n", r);
-		rdev->accel_working = false;
-		return r;
-	}
-
-	r = radeon_ib_test(rdev, CAYMAN_RING_TYPE_CP2_INDEX, &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX]);
-	if (r) {
-		DRM_ERROR("radeon: failed testing IB (%d) on CP ring 2\n", r);
-		rdev->accel_working = false;
-		return r;
-	}
-
 	r = radeon_vm_manager_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "vm manager initialization failed (%d).\n", r);

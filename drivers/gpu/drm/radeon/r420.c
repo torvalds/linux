@@ -281,10 +281,6 @@ static int r420_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = radeon_ib_ring_tests(rdev);
-	if (r)
-		return r;
-
 	return 0;
 }
 

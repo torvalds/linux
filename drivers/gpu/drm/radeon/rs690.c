@@ -643,10 +643,6 @@ static int rs690_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = radeon_ib_ring_tests(rdev);
-	if (r)
-		return r;
-
 	r = r600_audio_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "failed initializing audio\n");
