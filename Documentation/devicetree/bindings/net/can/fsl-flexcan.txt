@@ -11,6 +11,9 @@ Required properties:
 
 - reg : Offset and length of the register set for this device
 - interrupts : Interrupt tuple for this device
+
+Optional properties:
+
 - clock-frequency : The oscillator frequency driving the flexcan device
 
 Example:

@@ -34,6 +34,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/consumer.h>
 
@@ -165,8 +166,19 @@ struct flexcan_regs {
 	u32 imask1;		/* 0x28 */
 	u32 iflag2;		/* 0x2c */
 	u32 iflag1;		/* 0x30 */
-	u32 _reserved2[19];
+	u32 crl2;		/* 0x34 */
+	u32 esr2;		/* 0x38 */
+	u32 imeur;		/* 0x3c */
+	u32 lrfr;		/* 0x40 */
+	u32 crcr;		/* 0x44 */
+	u32 rxfgmask;		/* 0x48 */
+	u32 rxfir;		/* 0x4c */
+	u32 _reserved3[12];
 	struct flexcan_mb cantxfg[64];
+};
+
+struct flexcan_devtype_data {
+	u32 hw_ver;	/* hardware controller version */
 };
 
 struct flexcan_priv {
@@ -180,6 +192,15 @@ struct flexcan_priv {
 
 	struct clk *clk;
 	struct flexcan_platform_data *pdata;
+	struct flexcan_devtype_data *devtype_data;
+};
+
+static struct flexcan_devtype_data fsl_p1010_devtype_data = {
+	.hw_ver = 3,
+};
+
+static struct flexcan_devtype_data fsl_imx6q_devtype_data = {
+	.hw_ver = 10,
 };
 
 static struct can_bittiming_const flexcan_bittiming_const = {
@@ -750,6 +771,9 @@ static int flexcan_chip_start(struct net_device *dev)
 	flexcan_write(0x0, &regs->rx14mask);
 	flexcan_write(0x0, &regs->rx15mask);
 
+	if (priv->devtype_data->hw_ver >= 10)
+		flexcan_write(0x0, &regs->rxfgmask);
+
 	flexcan_transceiver_switch(priv, 1);
 
 	/* synchronize with the can bus */
@@ -922,8 +946,21 @@ static void __devexit unregister_flexcandev(struct net_device *dev)
 	unregister_candev(dev);
 }
 
+static const struct of_device_id flexcan_of_match[] = {
+	{ .compatible = "fsl,p1010-flexcan", .data = &fsl_p1010_devtype_data, },
+	{ .compatible = "fsl,imx6q-flexcan", .data = &fsl_imx6q_devtype_data, },
+	{ /* sentinel */ },
+};
+
+static const struct platform_device_id flexcan_id_table[] = {
+	{ .name = "flexcan", .driver_data = (kernel_ulong_t)&fsl_p1010_devtype_data, },
+	{ /* sentinel */ },
+};
+
 static int __devinit flexcan_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id;
+	struct flexcan_devtype_data *devtype_data;
 	struct net_device *dev;
 	struct flexcan_priv *priv;
 	struct resource *mem;
@@ -938,14 +975,9 @@ static int __devinit flexcan_probe(struct platform_device *pdev)
 	if (IS_ERR(pinctrl))
 		return PTR_ERR(pinctrl);
 
-	if (pdev->dev.of_node) {
-		const __be32 *clock_freq_p;
-
-		clock_freq_p = of_get_property(pdev->dev.of_node,
-						"clock-frequency", NULL);
-		if (clock_freq_p)
-			clock_freq = be32_to_cpup(clock_freq_p);
-	}
+	if (pdev->dev.of_node)
+		of_property_read_u32(pdev->dev.of_node,
+						"clock-frequency", &clock_freq);
 
 	if (!clock_freq) {
 		clk = clk_get(&pdev->dev, NULL);
@@ -982,6 +1014,17 @@ static int __devinit flexcan_probe(struct platform_device *pdev)
 		goto failed_alloc;
 	}
 
+	of_id = of_match_device(flexcan_of_match, &pdev->dev);
+	if (of_id) {
+		devtype_data = of_id->data;
+	} else if (pdev->id_entry->driver_data) {
+		devtype_data = (struct flexcan_devtype_data *)
+			pdev->id_entry->driver_data;
+	} else {
+		err = -ENODEV;
+		goto failed_devtype;
+	}
+
 	dev->netdev_ops = &flexcan_netdev_ops;
 	dev->irq = irq;
 	dev->flags |= IFF_ECHO;
@@ -998,6 +1041,7 @@ static int __devinit flexcan_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	priv->clk = clk;
 	priv->pdata = pdev->dev.platform_data;
+	priv->devtype_data = devtype_data;
 
 	netif_napi_add(dev, &priv->napi, flexcan_poll, FLEXCAN_NAPI_WEIGHT);
 
@@ -1016,6 +1060,7 @@ static int __devinit flexcan_probe(struct platform_device *pdev)
 	return 0;
 
  failed_register:
+ failed_devtype:
 	free_candev(dev);
  failed_alloc:
 	iounmap(base);
@@ -1048,13 +1093,6 @@ static int __devexit flexcan_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static struct of_device_id flexcan_of_match[] = {
-	{
-		.compatible = "fsl,p1010-flexcan",
-	},
-	{},
-};
 
 #ifdef CONFIG_PM
 static int flexcan_suspend(struct platform_device *pdev, pm_message_t state)
@@ -1102,6 +1140,7 @@ static struct platform_driver flexcan_driver = {
 	.remove = __devexit_p(flexcan_remove),
 	.suspend = flexcan_suspend,
 	.resume = flexcan_resume,
+	.id_table = flexcan_id_table,
 };
 
 module_platform_driver(flexcan_driver);
