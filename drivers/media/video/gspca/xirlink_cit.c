@@ -1914,9 +1914,10 @@ static int cit_start_model2(struct gspca_dev *gspca_dev)
 		break;
 	}
 
-	/* FIXME this cannot be changed while streaming, so we
-	   should report a grabbed flag for this control. */
 	cit_model2_Packet1(gspca_dev, 0x0028, v4l2_ctrl_g_ctrl(sd->lighting));
+	/* model2 cannot change the backlight compensation while streaming */
+	v4l2_ctrl_grab(sd->lighting, true);
+
 	/* color balance rg2 */
 	cit_model2_Packet1(gspca_dev, 0x001e, 0x002f);
 	/* saturation */
@@ -2715,6 +2716,8 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 		cit_write_reg(gspca_dev, 0x81, 0x0100);	/* LED Off */
 		break;
 	case CIT_MODEL2:
+		v4l2_ctrl_grab(sd->lighting, false);
+		/* Fall through! */
 	case CIT_MODEL4:
 		cit_model2_Packet1(gspca_dev, 0x0030, 0x0004);
 
