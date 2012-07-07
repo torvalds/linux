@@ -1513,10 +1513,10 @@ LEAVE_UPDATE:
 		return NULL;
 }
 
-#ifdef CONFIG_PM
-static int abituguru_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int abituguru_suspend(struct device *dev)
 {
-	struct abituguru_data *data = platform_get_drvdata(pdev);
+	struct abituguru_data *data = dev_get_drvdata(dev);
 	/*
 	 * make sure all communications with the uguru are done and no new
 	 * ones are started
@@ -1525,29 +1525,30 @@ static int abituguru_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int abituguru_resume(struct platform_device *pdev)
+static int abituguru_resume(struct device *dev)
 {
-	struct abituguru_data *data = platform_get_drvdata(pdev);
+	struct abituguru_data *data = dev_get_drvdata(dev);
 	/* See if the uGuru is still ready */
 	if (inb_p(data->addr + ABIT_UGURU_DATA) != ABIT_UGURU_STATUS_INPUT)
 		data->uguru_ready = 0;
 	mutex_unlock(&data->update_lock);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(abituguru_pm, abituguru_suspend, abituguru_resume);
+#define ABIT_UGURU_PM	&abituguru_pm
 #else
-#define abituguru_suspend	NULL
-#define abituguru_resume	NULL
+#define ABIT_UGURU_PM	NULL
 #endif /* CONFIG_PM */
 
 static struct platform_driver abituguru_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= ABIT_UGURU_NAME,
+		.pm	= ABIT_UGURU_PM,
 	},
 	.probe		= abituguru_probe,
 	.remove		= __devexit_p(abituguru_remove),
-	.suspend	= abituguru_suspend,
-	.resume		= abituguru_resume,
 };
 
 static int __init abituguru_detect(void)
