@@ -19,7 +19,7 @@ struct ci13xxx_platform_data {
 
 #define CI13XXX_CONTROLLER_RESET_EVENT		0
 #define CI13XXX_CONTROLLER_STOPPED_EVENT	1
-	void	(*notify_event) (struct ci13xxx *udc, unsigned event);
+	void	(*notify_event) (struct ci13xxx *ci, unsigned event);
 };
 
 /* Default offset of capability registers */
