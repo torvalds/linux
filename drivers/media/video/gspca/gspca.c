@@ -1274,9 +1274,6 @@ static void gspca_release(struct v4l2_device *v4l2_device)
 	struct gspca_dev *gspca_dev =
 		container_of(v4l2_device, struct gspca_dev, v4l2_dev);
 
-	PDEBUG(D_PROBE, "%s released",
-		video_device_node_name(&gspca_dev->vdev));
-
 	v4l2_ctrl_handler_free(gspca_dev->vdev.ctrl_handler);
 	v4l2_device_unregister(&gspca_dev->v4l2_dev);
 	kfree(gspca_dev->usb_buf);
