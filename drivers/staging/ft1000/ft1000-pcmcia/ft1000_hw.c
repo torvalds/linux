@@ -97,11 +97,10 @@ static inline u16 ft1000_read_fifo_len(struct net_device *dev)
 {
 	struct ft1000_info *info = netdev_priv(dev);
 
-	if (info->AsicID == ELECTRABUZZ_ID) {
+	if (info->AsicID == ELECTRABUZZ_ID)
 		return (ft1000_read_reg(dev, FT1000_REG_UFIFO_STAT) - 16);
-	} else {
+	else
 		return (ft1000_read_reg(dev, FT1000_REG_MAG_UFSR) - 16);
-	}
 }
 
 //---------------------------------------------------------------------------
