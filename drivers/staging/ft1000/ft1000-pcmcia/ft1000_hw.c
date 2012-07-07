@@ -115,7 +115,7 @@ static inline u16 ft1000_read_fifo_len(struct net_device *dev)
 //     value  - value of dpram
 //
 //---------------------------------------------------------------------------
-u16 ft1000_read_dpram(struct net_device * dev, int offset)
+u16 ft1000_read_dpram(struct net_device *dev, int offset)
 {
 	struct ft1000_info *info = netdev_priv(dev);
 	unsigned long flags;
