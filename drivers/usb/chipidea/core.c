@@ -56,6 +56,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
+#include <linux/idr.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -332,17 +333,24 @@ static irqreturn_t ci_irq(int irq, void *data)
 	return ci->role == CI_ROLE_END ? ret : ci_role(ci)->irq(ci);
 }
 
+static DEFINE_IDA(ci_ida);
+
 struct platform_device *ci13xxx_add_device(struct device *dev,
 			struct resource *res, int nres,
 			struct ci13xxx_platform_data *platdata)
 {
 	struct platform_device *pdev;
-	int ret;
+	int id, ret;
 
-	/* FIXME: find a way to choose id */
-	pdev = platform_device_alloc("ci_hdrc", -1);
-	if (!pdev)
-		return ERR_PTR(-ENOMEM);
+	id = ida_simple_get(&ci_ida, 0, 0, GFP_KERNEL);
+	if (id < 0)
+		return ERR_PTR(id);
+
+	pdev = platform_device_alloc("ci_hdrc", id);
+	if (!pdev) {
+		ret = -ENOMEM;
+		goto put_id;
+	}
 
 	pdev->dev.parent = dev;
 	pdev->dev.dma_mask = dev->dma_mask;
@@ -365,6 +373,8 @@ struct platform_device *ci13xxx_add_device(struct device *dev,
 
 err:
 	platform_device_put(pdev);
+put_id:
+	ida_simple_remove(&ci_ida, id);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(ci13xxx_add_device);
@@ -372,6 +382,7 @@ EXPORT_SYMBOL_GPL(ci13xxx_add_device);
 void ci13xxx_remove_device(struct platform_device *pdev)
 {
 	platform_device_unregister(pdev);
+	ida_simple_remove(&ci_ida, pdev->id);
 }
 EXPORT_SYMBOL_GPL(ci13xxx_remove_device);
 
