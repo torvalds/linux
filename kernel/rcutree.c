@@ -1141,37 +1141,31 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 	 * they can do to advance the grace period.  It is therefore
 	 * safe for us to drop the lock in order to mark the grace
 	 * period as completed in all of the rcu_node structures.
-	 *
-	 * But if this CPU needs another grace period, it will take
-	 * care of this while initializing the next grace period.
-	 * We use RCU_WAIT_TAIL instead of the usual RCU_DONE_TAIL
-	 * because the callbacks have not yet been advanced: Those
-	 * callbacks are waiting on the grace period that just now
-	 * completed.
 	 */
-	rdp = this_cpu_ptr(rsp->rda);
-	if (*rdp->nxttail[RCU_WAIT_TAIL] == NULL) {
-		raw_spin_unlock_irq(&rnp->lock);
+	raw_spin_unlock_irq(&rnp->lock);
 
-		/*
-		 * Propagate new ->completed value to rcu_node
-		 * structures so that other CPUs don't have to
-		 * wait until the start of the next grace period
-		 * to process their callbacks.
-		 */
-		rcu_for_each_node_breadth_first(rsp, rnp) {
-			raw_spin_lock_irq(&rnp->lock);
-			rnp->completed = rsp->gpnum;
-			raw_spin_unlock_irq(&rnp->lock);
-			cond_resched();
-		}
-		rnp = rcu_get_root(rsp);
+	/*
+	 * Propagate new ->completed value to rcu_node structures so
+	 * that other CPUs don't have to wait until the start of the next
+	 * grace period to process their callbacks.  This also avoids
+	 * some nasty RCU grace-period initialization races by forcing
+	 * the end of the current grace period to be completely recorded in
+	 * all of the rcu_node structures before the beginning of the next
+	 * grace period is recorded in any of the rcu_node structures.
+	 */
+	rcu_for_each_node_breadth_first(rsp, rnp) {
 		raw_spin_lock_irq(&rnp->lock);
+		rnp->completed = rsp->gpnum;
+		raw_spin_unlock_irq(&rnp->lock);
+		cond_resched();
 	}
+	rnp = rcu_get_root(rsp);
+	raw_spin_lock_irq(&rnp->lock);
 
 	rsp->completed = rsp->gpnum; /* Declare grace period done. */
 	trace_rcu_grace_period(rsp->name, rsp->completed, "end");
 	rsp->fqs_state = RCU_GP_IDLE;
+	rdp = this_cpu_ptr(rsp->rda);
 	if (cpu_needs_another_gp(rsp, rdp))
 		rsp->gp_flags = 1;
 	raw_spin_unlock_irq(&rnp->lock);
