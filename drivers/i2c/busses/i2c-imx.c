@@ -471,8 +471,8 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	struct imxi2c_platform_data *pdata = pdev->dev.platform_data;
 	struct pinctrl *pinctrl;
 	void __iomem *base;
-	int irq, bitrate;
-	int ret;
+	int irq, ret;
+	u32 bitrate;
 
 	dev_dbg(&pdev->dev, "<%s>\n", __func__);
 
