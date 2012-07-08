@@ -11,6 +11,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
@@ -28,7 +29,6 @@
 static const char *wm5102_core_supplies[] = {
 	"AVDD",
 	"DBVDD1",
-	"DCVDD",
 };
 
 int arizona_clk32k_enable(struct arizona *arizona)
@@ -223,8 +223,11 @@ static int arizona_runtime_resume(struct device *dev)
 	struct arizona *arizona = dev_get_drvdata(dev);
 	int ret;
 
-	if (arizona->pdata.ldoena)
-		gpio_set_value_cansleep(arizona->pdata.ldoena, 1);
+	ret = regulator_enable(arizona->dcvdd);
+	if (ret != 0) {
+		dev_err(arizona->dev, "Failed to enable DCVDD: %d\n", ret);
+		return ret;
+	}
 
 	regcache_cache_only(arizona->regmap, false);
 
@@ -241,11 +244,9 @@ static int arizona_runtime_suspend(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
 
-	if (arizona->pdata.ldoena) {
-		gpio_set_value_cansleep(arizona->pdata.ldoena, 0);
-		regcache_cache_only(arizona->regmap, true);
-		regcache_mark_dirty(arizona->regmap);
-	}
+	regulator_disable(arizona->dcvdd);
+	regcache_cache_only(arizona->regmap, true);
+	regcache_mark_dirty(arizona->regmap);
 
 	return 0;
 }
@@ -314,12 +315,25 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 		goto err_early;
 	}
 
+	arizona->dcvdd = devm_regulator_get(arizona->dev, "DCVDD");
+	if (IS_ERR(arizona->dcvdd)) {
+		ret = PTR_ERR(arizona->dcvdd);
+		dev_err(dev, "Failed to request DCVDD: %d\n", ret);
+		goto err_early;
+	}
+
 	ret = regulator_bulk_enable(arizona->num_core_supplies,
 				    arizona->core_supplies);
 	if (ret != 0) {
 		dev_err(dev, "Failed to enable core supplies: %d\n",
 			ret);
 		goto err_early;
+	}
+
+	ret = regulator_enable(arizona->dcvdd);
+	if (ret != 0) {
+		dev_err(dev, "Failed to enable DCVDD: %d\n", ret);
+		goto err_enable;
 	}
 
 	if (arizona->pdata.reset) {
@@ -329,20 +343,10 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 				       "arizona /RESET");
 		if (ret != 0) {
 			dev_err(dev, "Failed to request /RESET: %d\n", ret);
-			goto err_enable;
+			goto err_dcvdd;
 		}
 
 		gpio_set_value_cansleep(arizona->pdata.reset, 1);
-	}
-
-	if (arizona->pdata.ldoena) {
-		ret = gpio_request_one(arizona->pdata.ldoena,
-				       GPIOF_DIR_OUT | GPIOF_INIT_HIGH,
-				       "arizona LDOENA");
-		if (ret != 0) {
-			dev_err(dev, "Failed to request LDOENA: %d\n", ret);
-			goto err_reset;
-		}
 	}
 
 	regcache_cache_only(arizona->regmap, false);
@@ -350,14 +354,14 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 	ret = regmap_read(arizona->regmap, ARIZONA_SOFTWARE_RESET, &reg);
 	if (ret != 0) {
 		dev_err(dev, "Failed to read ID register: %d\n", ret);
-		goto err_ldoena;
+		goto err_reset;
 	}
 
 	ret = regmap_read(arizona->regmap, ARIZONA_DEVICE_REVISION,
 			  &arizona->rev);
 	if (ret != 0) {
 		dev_err(dev, "Failed to read revision register: %d\n", ret);
-		goto err_ldoena;
+		goto err_reset;
 	}
 	arizona->rev &= ARIZONA_DEVICE_REVISION_MASK;
 
@@ -374,7 +378,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 
 	default:
 		dev_err(arizona->dev, "Unknown device ID %x\n", reg);
-		goto err_ldoena;
+		goto err_reset;
 	}
 
 	dev_info(dev, "%s revision %c\n", type_name, arizona->rev + 'A');
@@ -387,7 +391,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 		ret = regmap_write(arizona->regmap, ARIZONA_SOFTWARE_RESET, 0);
 		if (ret != 0) {
 			dev_err(dev, "Failed to reset device: %d\n", ret);
-			goto err_ldoena;
+			goto err_reset;
 		}
 	}
 
@@ -424,7 +428,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 		dev_err(arizona->dev, "Invalid 32kHz clock source: %d\n",
 			arizona->pdata.clk32k_src);
 		ret = -EINVAL;
-		goto err_ldoena;
+		goto err_reset;
 	}
 
 	for (i = 0; i < ARIZONA_MAX_INPUT; i++) {
@@ -470,7 +474,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 	/* Set up for interrupts */
 	ret = arizona_irq_init(arizona);
 	if (ret != 0)
-		goto err_ldoena;
+		goto err_reset;
 
 	arizona_request_irq(arizona, ARIZONA_IRQ_CLKGEN_ERR, "CLKGEN error",
 			    arizona_clkgen_err, arizona);
@@ -491,20 +495,21 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 		goto err_irq;
 	}
 
+#ifdef CONFIG_PM_RUNTIME
+	regulator_disable(arizona->dcvdd);
+#endif
+
 	return 0;
 
 err_irq:
 	arizona_irq_exit(arizona);
-err_ldoena:
-	if (arizona->pdata.ldoena) {
-		gpio_set_value_cansleep(arizona->pdata.ldoena, 0);
-		gpio_free(arizona->pdata.ldoena);
-	}
 err_reset:
 	if (arizona->pdata.reset) {
 		gpio_set_value_cansleep(arizona->pdata.reset, 1);
 		gpio_free(arizona->pdata.reset);
 	}
+err_dcvdd:
+	regulator_disable(arizona->dcvdd);
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(arizona->core_supplies),
 			       arizona->core_supplies);
