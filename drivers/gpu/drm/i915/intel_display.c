@@ -3462,26 +3462,13 @@ static void i9xx_crtc_off(struct drm_crtc *crtc)
 {
 }
 
-/**
- * Sets the power management mode of the pipe and plane.
- */
-void intel_crtc_update_dpms(struct drm_crtc *crtc)
+static void intel_crtc_update_sarea(struct drm_crtc *crtc,
+				    bool enabled)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_encoder *intel_encoder;
 	int pipe = intel_crtc->pipe;
-	bool enabled, enable = false;
-
-	for_each_encoder_on_crtc(dev, crtc, intel_encoder)
-		enable |= intel_encoder->connectors_active;
-
-	if (enable)
-		dev_priv->display.crtc_enable(crtc);
-	else
-		dev_priv->display.crtc_disable(crtc);
 
 	if (!dev->primary->master)
 		return;
@@ -3489,8 +3476,6 @@ void intel_crtc_update_dpms(struct drm_crtc *crtc)
 	master_priv = dev->primary->master->driver_priv;
 	if (!master_priv->sarea_priv)
 		return;
-
-	enabled = crtc->enabled && enable;
 
 	switch (pipe) {
 	case 0:
@@ -3507,14 +3492,42 @@ void intel_crtc_update_dpms(struct drm_crtc *crtc)
 	}
 }
 
-static void intel_crtc_disable(struct drm_crtc *crtc)
+/**
+ * Sets the power management mode of the pipe and plane.
+ */
+void intel_crtc_update_dpms(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_encoder *intel_encoder;
+	bool enable = false;
 
-	/* crtc->disable is only called when we have no encoders, hence this
-	 * will disable the pipe. */
-	intel_crtc_update_dpms(crtc);
+	for_each_encoder_on_crtc(dev, crtc, intel_encoder)
+		enable |= intel_encoder->connectors_active;
+
+	if (enable)
+		dev_priv->display.crtc_enable(crtc);
+	else
+		dev_priv->display.crtc_disable(crtc);
+
+	intel_crtc_update_sarea(crtc, enable);
+}
+
+static void intel_crtc_noop(struct drm_crtc *crtc)
+{
+}
+
+static void intel_crtc_disable(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_connector *connector;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* crtc should still be enabled when we disable it. */
+	WARN_ON(!crtc->enabled);
+
+	dev_priv->display.crtc_disable(crtc);
+	intel_crtc_update_sarea(crtc, false);
 	dev_priv->display.off(crtc);
 
 	assert_plane_disabled(dev->dev_private, to_intel_crtc(crtc)->plane);
@@ -3524,14 +3537,24 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 		mutex_lock(&dev->struct_mutex);
 		intel_unpin_fb_obj(to_intel_framebuffer(crtc->fb)->obj);
 		mutex_unlock(&dev->struct_mutex);
+		crtc->fb = NULL;
+	}
+
+	/* Update computed state. */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (!connector->encoder || !connector->encoder->crtc)
+			continue;
+
+		if (connector->encoder->crtc != crtc)
+			continue;
+
+		connector->dpms = DRM_MODE_DPMS_OFF;
+		to_intel_encoder(connector->encoder)->connectors_active = false;
 	}
 }
 
 void intel_encoder_disable(struct drm_encoder *encoder)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
-
-	intel_encoder->disable(intel_encoder);
 }
 
 void intel_encoder_destroy(struct drm_encoder *encoder)
@@ -6560,7 +6583,7 @@ free_work:
 static struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.mode_set_base_atomic = intel_pipe_set_base_atomic,
 	.load_lut = intel_crtc_load_lut,
-	.disable = intel_crtc_disable,
+	.disable = intel_crtc_noop,
 };
 
 bool intel_encoder_check_is_cloned(struct intel_encoder *encoder)
@@ -6823,12 +6846,14 @@ bool intel_set_mode(struct drm_crtc *crtc,
 	DRM_DEBUG_KMS("set mode pipe masks: modeset: %x, prepare: %x, disable: %x\n",
 		      modeset_pipes, prepare_pipes, disable_pipes);
 
+	for_each_intel_crtc_masked(dev, disable_pipes, intel_crtc)
+		intel_crtc_disable(&intel_crtc->base);
+
 	intel_modeset_commit_output_state(dev);
 
-	crtc->enabled = drm_helper_crtc_in_use(crtc);
-
-	for_each_intel_crtc_masked(dev, disable_pipes, intel_crtc)
-		drm_helper_disable_unused_functions(dev);
+	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list,
+			    base.head)
+		intel_crtc->base.enabled = drm_helper_crtc_in_use(crtc);
 
 	saved_hwmode = crtc->hwmode;
 	saved_mode = crtc->mode;
