@@ -6706,6 +6706,98 @@ fail:
 	return ERR_PTR(-EINVAL);
 }
 
+/* Computes which crtcs are affected and sets the relevant bits in the mask. For
+ * simplicity we use the crtc's pipe number (because it's easier to obtain). */
+static void
+intel_modeset_affected_pipes(struct drm_crtc *crtc, unsigned *modeset_pipes,
+			     unsigned *prepare_pipes, unsigned *disable_pipes)
+{
+	struct intel_crtc *intel_crtc;
+	struct drm_device *dev = crtc->dev;
+	struct intel_encoder *encoder;
+	struct intel_connector *connector;
+	struct drm_crtc *tmp_crtc;
+
+	*disable_pipes = *modeset_pipes = *prepare_pipes = 0;
+
+	/* Check which crtcs have changed outputs connected to them, these need
+	 * to be part of the prepare_pipes mask. We don't (yet) support global
+	 * modeset across multiple crtcs, so modeset_pipes will only have one
+	 * bit set at most. */
+	list_for_each_entry(connector, &dev->mode_config.connector_list,
+			    base.head) {
+		if (connector->base.encoder == &connector->new_encoder->base)
+			continue;
+
+		if (connector->base.encoder) {
+			tmp_crtc = connector->base.encoder->crtc;
+
+			*prepare_pipes |= 1 << to_intel_crtc(tmp_crtc)->pipe;
+		}
+
+		if (connector->new_encoder)
+			*prepare_pipes |=
+				1 << connector->new_encoder->new_crtc->pipe;
+	}
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
+			    base.head) {
+		if (encoder->base.crtc == &encoder->new_crtc->base)
+			continue;
+
+		if (encoder->base.crtc) {
+			tmp_crtc = encoder->base.crtc;
+
+			*prepare_pipes |= 1 << to_intel_crtc(tmp_crtc)->pipe;
+		}
+
+		if (encoder->new_crtc)
+			*prepare_pipes |= 1 << encoder->new_crtc->pipe;
+	}
+
+	/* Check for any pipes that will be fully disabled ... */
+	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list,
+			    base.head) {
+		bool used = false;
+
+		/* Don't try to disable disabled crtcs. */
+		if (!intel_crtc->base.enabled)
+			continue;
+
+		list_for_each_entry(encoder, &dev->mode_config.encoder_list,
+				    base.head) {
+			if (encoder->new_crtc == intel_crtc)
+				used = true;
+		}
+
+		if (!used)
+			*disable_pipes |= 1 << intel_crtc->pipe;
+	}
+
+
+	/* set_mode is also used to update properties on life display pipes. */
+	intel_crtc = to_intel_crtc(crtc);
+	if (crtc->enabled)
+		*prepare_pipes |= 1 << intel_crtc->pipe;
+
+	/* We only support modeset on one single crtc, hence we need to do that
+	 * only for the passed in crtc iff we change anything else than just
+	 * disable crtcs.
+	 *
+	 * This is actually not true, to be fully compatible with the old crtc
+	 * helper we automatically disable _any_ output (i.e. doesn't need to be
+	 * connected to the crtc we're modesetting on) if it's disconnected.
+	 * Which is a rather nutty api (since changed the output configuration
+	 * without userspace's explicit request can lead to confusion), but
+	 * alas. Hence we currently need to modeset on all pipes we prepare. */
+	if (*prepare_pipes)
+		*modeset_pipes = *prepare_pipes;
+
+	/* ... and mask these out. */
+	*modeset_pipes &= ~(*disable_pipes);
+	*prepare_pipes &= ~(*disable_pipes);
+}
+
 bool intel_set_mode(struct drm_crtc *crtc,
 		    struct drm_display_mode *mode,
 		    int x, int y, struct drm_framebuffer *fb)
@@ -6715,7 +6807,11 @@ bool intel_set_mode(struct drm_crtc *crtc,
 	struct drm_display_mode *adjusted_mode, saved_mode, saved_hwmode;
 	struct drm_encoder_helper_funcs *encoder_funcs;
 	struct drm_encoder *encoder;
+	unsigned disable_pipe, prepare_pipes, modeset_pipes;
 	bool ret = true;
+
+	intel_modeset_affected_pipes(crtc, &modeset_pipes,
+				     &prepare_pipes, &disable_pipe);
 
 	intel_modeset_commit_output_state(dev);
 
