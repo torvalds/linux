@@ -1860,7 +1860,7 @@ static void __target_execute_cmd(struct se_cmd *cmd)
 	}
 }
 
-static void target_execute_cmd(struct se_cmd *cmd)
+void target_execute_cmd(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 
@@ -1950,6 +1950,7 @@ execute:
 	 */
 	__target_execute_cmd(cmd);
 }
+EXPORT_SYMBOL(target_execute_cmd);
 
 /*
  * Used to obtain Sense Data from underlying Linux/SCSI struct scsi_cmnd
@@ -2499,16 +2500,6 @@ out_fail:
 	return -EINVAL;
 }
 EXPORT_SYMBOL(transport_generic_new_cmd);
-
-/*	transport_generic_process_write():
- *
- *
- */
-void transport_generic_process_write(struct se_cmd *cmd)
-{
-	target_execute_cmd(cmd);
-}
-EXPORT_SYMBOL(transport_generic_process_write);
 
 static void transport_write_pending_qf(struct se_cmd *cmd)
 {
@@ -3321,7 +3312,7 @@ get_cmd:
 			}
 			break;
 		case TRANSPORT_PROCESS_WRITE:
-			transport_generic_process_write(cmd);
+			target_execute_cmd(cmd);
 			break;
 		case TRANSPORT_PROCESS_TMR:
 			transport_generic_do_tmr(cmd);

@@ -121,7 +121,7 @@ int	transport_generic_map_mem_to_cmd(struct se_cmd *cmd,
 		struct scatterlist *, u32, struct scatterlist *, u32);
 int	transport_generic_new_cmd(struct se_cmd *);
 
-void	transport_generic_process_write(struct se_cmd *);
+void	target_execute_cmd(struct se_cmd *cmd);
 
 void	transport_generic_free_cmd(struct se_cmd *, int);
 

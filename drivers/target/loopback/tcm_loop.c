@@ -778,7 +778,7 @@ static int tcm_loop_write_pending(struct se_cmd *se_cmd)
 	 * We now tell TCM to add this WRITE CDB directly into the TCM storage
 	 * object execution queue.
 	 */
-	transport_generic_process_write(se_cmd);
+	target_execute_cmd(se_cmd);
 	return 0;
 }
 

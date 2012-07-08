@@ -294,7 +294,7 @@ static int bot_send_write_request(struct usbg_cmd *cmd)
 		pr_err("%s(%d)\n", __func__, __LINE__);
 
 	wait_for_completion(&cmd->write_complete);
-	transport_generic_process_write(se_cmd);
+	target_execute_cmd(se_cmd);
 cleanup:
 	return ret;
 }
@@ -725,7 +725,7 @@ static int uasp_send_write_request(struct usbg_cmd *cmd)
 	}
 
 	wait_for_completion(&cmd->write_complete);
-	transport_generic_process_write(se_cmd);
+	target_execute_cmd(se_cmd);
 cleanup:
 	return ret;
 }

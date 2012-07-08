@@ -1784,8 +1784,7 @@ static int sbp_write_pending(struct se_cmd *se_cmd)
 		return ret;
 	}
 
-	transport_generic_process_write(se_cmd);
-
+	target_execute_cmd(se_cmd);
 	return 0;
 }
 
