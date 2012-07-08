@@ -104,7 +104,7 @@ int iwctl_siwscan(struct net_device *dev, struct iw_request_info *info,
 	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
 	struct iw_scan_req *req = (struct iw_scan_req *)extra;
 	BYTE abyScanSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
-	PWLAN_IE_SSID pItemSSID=NULL;
+	PWLAN_IE_SSID pItemSSID = NULL;
 
 	if (!(pDevice->flags & DEVICE_FLAGS_OPENED))
 		return -EINVAL;
@@ -203,7 +203,7 @@ int iwctl_giwscan(struct net_device *dev, struct iw_request_info *info,
 			iwe.cmd = SIOCGIWAP;
 			iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 			memcpy(iwe.u.ap_addr.sa_data, pBSS->abyBSSID, WLAN_BSSID_LEN);
-			current_ev = iwe_stream_add_event(info,current_ev,end_buf, &iwe, IW_EV_ADDR_LEN);
+			current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe, IW_EV_ADDR_LEN);
 			// ADD ssid
 			memset(&iwe, 0, sizeof(iwe));
 			iwe.cmd = SIOCGIWESSID;
@@ -244,7 +244,7 @@ int iwctl_giwscan(struct net_device *dev, struct iw_request_info *info,
 			iwe.u.qual.level = ldBm;
 			iwe.u.qual.noise = 0;
 
-			if (-ldBm<50)
+			if (-ldBm < 50)
 				iwe.u.qual.qual = 100;
 			else  if (-ldBm > 90)
 				iwe.u.qual.qual = 0;
@@ -1099,9 +1099,9 @@ int iwctl_siwencode(struct net_device *dev, struct iw_request_info *info,
 	// Send the key to the card
 	if (wrq->length > 0) {
 
-		if (wrq->length ==  WLAN_WEP232_KEYLEN) {
+		if (wrq->length == WLAN_WEP232_KEYLEN) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Set 232 bit wep key\n");
-		} else if (wrq->length ==  WLAN_WEP104_KEYLEN) {
+		} else if (wrq->length == WLAN_WEP104_KEYLEN) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Set 104 bit wep key\n");
 		} else if (wrq->length == WLAN_WEP40_KEYLEN) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Set 40 bit wep key, index= %d\n", (int)dwKeyIndex);
@@ -1624,8 +1624,7 @@ int iwctl_siwmlme(struct net_device *dev, struct iw_request_info *info,
 	case IW_MLME_DISASSOC:
 		if (pDevice->bLinkPass == TRUE) {
 			PRINT_K("iwctl_siwmlme--->send DISASSOCIATE\n");
-			bScheduleCommand((void *)pDevice,
-					WLAN_CMD_DISASSOCIATE,
+			bScheduleCommand((void *)pDevice, WLAN_CMD_DISASSOCIATE,
 					NULL);
 		}
 		break;
