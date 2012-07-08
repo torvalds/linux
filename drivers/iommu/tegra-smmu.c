@@ -799,7 +799,7 @@ static void smmu_iommu_detach_dev(struct iommu_domain *domain,
 			goto out;
 		}
 	}
-	dev_err(smmu->dev, "Couldn't find %s\n", dev_name(c->dev));
+	dev_err(smmu->dev, "Couldn't find %s\n", dev_name(dev));
 out:
 	spin_unlock(&as->client_lock);
 }
