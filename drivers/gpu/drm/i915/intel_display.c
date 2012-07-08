@@ -6798,6 +6798,12 @@ intel_modeset_affected_pipes(struct drm_crtc *crtc, unsigned *modeset_pipes,
 	*prepare_pipes &= ~(*disable_pipes);
 }
 
+#define for_each_intel_crtc_masked(dev, mask, intel_crtc) \
+	list_for_each_entry((intel_crtc), \
+			    &(dev)->mode_config.crtc_list, \
+			    base.head) \
+		if (mask & (1 <<(intel_crtc)->pipe)) \
+
 bool intel_set_mode(struct drm_crtc *crtc,
 		    struct drm_display_mode *mode,
 		    int x, int y, struct drm_framebuffer *fb)
@@ -6807,79 +6813,100 @@ bool intel_set_mode(struct drm_crtc *crtc,
 	struct drm_display_mode *adjusted_mode, saved_mode, saved_hwmode;
 	struct drm_encoder_helper_funcs *encoder_funcs;
 	struct drm_encoder *encoder;
-	unsigned disable_pipe, prepare_pipes, modeset_pipes;
+	struct intel_crtc *intel_crtc;
+	unsigned disable_pipes, prepare_pipes, modeset_pipes;
 	bool ret = true;
 
 	intel_modeset_affected_pipes(crtc, &modeset_pipes,
-				     &prepare_pipes, &disable_pipe);
+				     &prepare_pipes, &disable_pipes);
+
+	DRM_DEBUG_KMS("set mode pipe masks: modeset: %x, prepare: %x, disable: %x\n",
+		      modeset_pipes, prepare_pipes, disable_pipes);
 
 	intel_modeset_commit_output_state(dev);
 
 	crtc->enabled = drm_helper_crtc_in_use(crtc);
-	if (!crtc->enabled) {
-		drm_helper_disable_unused_functions(dev);
-		return true;
-	}
 
+	for_each_intel_crtc_masked(dev, disable_pipes, intel_crtc)
+		drm_helper_disable_unused_functions(dev);
 
 	saved_hwmode = crtc->hwmode;
 	saved_mode = crtc->mode;
 
-	adjusted_mode = intel_modeset_adjusted_mode(crtc, mode);
-	if (IS_ERR(adjusted_mode)) {
-		return false;
+	/* Hack: Because we don't (yet) support global modeset on multiple
+	 * crtcs, we don't keep track of the new mode for more than one crtc.
+	 * Hence simply check whether any bit is set in modeset_pipes in all the
+	 * pieces of code that are not yet converted to deal with mutliple crtcs
+	 * changing their mode at the same time. */
+	adjusted_mode = NULL;
+	if (modeset_pipes) {
+		adjusted_mode = intel_modeset_adjusted_mode(crtc, mode);
+		if (IS_ERR(adjusted_mode)) {
+			return false;
+		}
+
+		intel_crtc_prepare_encoders(dev);
 	}
 
-	intel_crtc_prepare_encoders(dev);
+	for_each_intel_crtc_masked(dev, prepare_pipes, intel_crtc)
+		dev_priv->display.crtc_disable(&intel_crtc->base);
 
-	dev_priv->display.crtc_disable(crtc);
-
-	crtc->mode = *mode;
+	if (modeset_pipes) {
+		crtc->mode = *mode;
+		crtc->x = x;
+		crtc->y = y;
+	}
 
 	/* Set up the DPLL and any encoders state that needs to adjust or depend
 	 * on the DPLL.
 	 */
-	ret = !intel_crtc_mode_set(crtc, mode, adjusted_mode, x, y, fb);
-	if (!ret)
-	    goto done;
+	for_each_intel_crtc_masked(dev, modeset_pipes, intel_crtc) {
+		ret = !intel_crtc_mode_set(&intel_crtc->base,
+					   mode, adjusted_mode,
+					   x, y, fb);
+		if (!ret)
+		    goto done;
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 
-		if (encoder->crtc != crtc)
-			continue;
+			if (encoder->crtc != &intel_crtc->base)
+				continue;
 
-		DRM_DEBUG_KMS("[ENCODER:%d:%s] set [MODE:%d:%s]\n",
-			encoder->base.id, drm_get_encoder_name(encoder),
-			mode->base.id, mode->name);
-		encoder_funcs = encoder->helper_private;
-		encoder_funcs->mode_set(encoder, mode, adjusted_mode);
+			DRM_DEBUG_KMS("[ENCODER:%d:%s] set [MODE:%d:%s]\n",
+				encoder->base.id, drm_get_encoder_name(encoder),
+				mode->base.id, mode->name);
+			encoder_funcs = encoder->helper_private;
+			encoder_funcs->mode_set(encoder, mode, adjusted_mode);
+		}
 	}
 
-	crtc->x = x;
-	crtc->y = y;
-
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
-	dev_priv->display.crtc_enable(crtc);
+	for_each_intel_crtc_masked(dev, prepare_pipes, intel_crtc)
+		dev_priv->display.crtc_enable(&intel_crtc->base);
 
-	/* Store real post-adjustment hardware mode. */
-	crtc->hwmode = *adjusted_mode;
+	if (modeset_pipes) {
+		/* Store real post-adjustment hardware mode. */
+		crtc->hwmode = *adjusted_mode;
 
-	/* Calculate and store various constants which
-	 * are later needed by vblank and swap-completion
-	 * timestamping. They are derived from true hwmode.
-	 */
-	drm_calc_timestamping_constants(crtc);
+		/* Calculate and store various constants which
+		 * are later needed by vblank and swap-completion
+		 * timestamping. They are derived from true hwmode.
+		 */
+		drm_calc_timestamping_constants(crtc);
+	}
 
 	/* FIXME: add subpixel order */
 done:
 	drm_mode_destroy(dev, adjusted_mode);
-	if (!ret) {
+	if (!ret && crtc->enabled) {
 		crtc->hwmode = saved_hwmode;
 		crtc->mode = saved_mode;
 	}
 
 	return ret;
 }
+
+#undef for_each_intel_crtc_masked
 
 static void intel_set_config_free(struct intel_set_config *config)
 {
