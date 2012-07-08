@@ -720,6 +720,8 @@ static void target_add_to_state_list(struct se_cmd *cmd)
 /*
  * Handle QUEUE_FULL / -EAGAIN and -ENOMEM status
  */
+static void transport_write_pending_qf(struct se_cmd *cmd);
+static void transport_complete_qf(struct se_cmd *cmd);
 
 static void target_qf_do_work(struct work_struct *work)
 {
@@ -743,7 +745,10 @@ static void target_qf_do_work(struct work_struct *work)
 			(cmd->t_state == TRANSPORT_COMPLETE_QF_WP) ? "WRITE_PENDING"
 			: "UNKNOWN");
 
-		transport_add_cmd_to_queue(cmd, cmd->t_state, true);
+		if (cmd->t_state == TRANSPORT_COMPLETE_QF_WP)
+			transport_write_pending_qf(cmd);
+		else if (cmd->t_state == TRANSPORT_COMPLETE_QF_OK)
+			transport_complete_qf(cmd);
 	}
 }
 
@@ -3261,12 +3266,6 @@ get_cmd:
 			break;
 		case TRANSPORT_PROCESS_TMR:
 			transport_generic_do_tmr(cmd);
-			break;
-		case TRANSPORT_COMPLETE_QF_WP:
-			transport_write_pending_qf(cmd);
-			break;
-		case TRANSPORT_COMPLETE_QF_OK:
-			transport_complete_qf(cmd);
 			break;
 		default:
 			pr_err("Unknown t_state: %d  for ITT: 0x%08x "
