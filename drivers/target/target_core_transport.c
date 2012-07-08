@@ -66,13 +66,11 @@ struct kmem_cache *t10_alua_lu_gp_mem_cache;
 struct kmem_cache *t10_alua_tg_pt_gp_cache;
 struct kmem_cache *t10_alua_tg_pt_gp_mem_cache;
 
-static int transport_processing_thread(void *param);
 static void transport_complete_task_attr(struct se_cmd *cmd);
 static void transport_handle_queue_full(struct se_cmd *cmd,
 		struct se_device *dev);
 static int transport_generic_get_mem(struct se_cmd *cmd);
 static void transport_put_cmd(struct se_cmd *cmd);
-static void transport_remove_cmd_from_queue(struct se_cmd *cmd);
 static int transport_set_sense_codes(struct se_cmd *cmd, u8 asc, u8 ascq);
 static void target_complete_ok_work(struct work_struct *work);
 
@@ -191,14 +189,6 @@ u32 scsi_get_new_index(scsi_index_t type)
 	spin_unlock(&scsi_mib_index_lock);
 
 	return new_index;
-}
-
-static void transport_init_queue_obj(struct se_queue_obj *qobj)
-{
-	atomic_set(&qobj->queue_cnt, 0);
-	INIT_LIST_HEAD(&qobj->qobj_list);
-	init_waitqueue_head(&qobj->thread_wq);
-	spin_lock_init(&qobj->cmd_queue_lock);
 }
 
 void transport_subsystem_check_init(void)
@@ -566,79 +556,8 @@ void transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
 
 	if (transport_cmd_check_stop_to_fabric(cmd))
 		return;
-	if (remove) {
-		transport_remove_cmd_from_queue(cmd);
+	if (remove)
 		transport_put_cmd(cmd);
-	}
-}
-
-static void transport_add_cmd_to_queue(struct se_cmd *cmd, int t_state,
-		bool at_head)
-{
-	struct se_device *dev = cmd->se_dev;
-	struct se_queue_obj *qobj = &dev->dev_queue_obj;
-	unsigned long flags;
-
-	if (t_state) {
-		spin_lock_irqsave(&cmd->t_state_lock, flags);
-		cmd->t_state = t_state;
-		cmd->transport_state |= CMD_T_ACTIVE;
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-	}
-
-	spin_lock_irqsave(&qobj->cmd_queue_lock, flags);
-
-	/* If the cmd is already on the list, remove it before we add it */
-	if (!list_empty(&cmd->se_queue_node))
-		list_del(&cmd->se_queue_node);
-	else
-		atomic_inc(&qobj->queue_cnt);
-
-	if (at_head)
-		list_add(&cmd->se_queue_node, &qobj->qobj_list);
-	else
-		list_add_tail(&cmd->se_queue_node, &qobj->qobj_list);
-	cmd->transport_state |= CMD_T_QUEUED;
-	spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
-
-	wake_up_interruptible(&qobj->thread_wq);
-}
-
-static struct se_cmd *
-transport_get_cmd_from_queue(struct se_queue_obj *qobj)
-{
-	struct se_cmd *cmd;
-	unsigned long flags;
-
-	spin_lock_irqsave(&qobj->cmd_queue_lock, flags);
-	if (list_empty(&qobj->qobj_list)) {
-		spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
-		return NULL;
-	}
-	cmd = list_first_entry(&qobj->qobj_list, struct se_cmd, se_queue_node);
-
-	cmd->transport_state &= ~CMD_T_QUEUED;
-	list_del_init(&cmd->se_queue_node);
-	atomic_dec(&qobj->queue_cnt);
-	spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
-
-	return cmd;
-}
-
-static void transport_remove_cmd_from_queue(struct se_cmd *cmd)
-{
-	struct se_queue_obj *qobj = &cmd->se_dev->dev_queue_obj;
-	unsigned long flags;
-
-	spin_lock_irqsave(&qobj->cmd_queue_lock, flags);
-	if (!(cmd->transport_state & CMD_T_QUEUED)) {
-		spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
-		return;
-	}
-	cmd->transport_state &= ~CMD_T_QUEUED;
-	atomic_dec(&qobj->queue_cnt);
-	list_del_init(&cmd->se_queue_node);
-	spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
 }
 
 static void target_complete_failure_work(struct work_struct *work)
@@ -1132,7 +1051,6 @@ struct se_device *transport_add_device_to_core_hba(
 		return NULL;
 	}
 
-	transport_init_queue_obj(&dev->dev_queue_obj);
 	dev->dev_flags		= device_flags;
 	dev->dev_status		|= TRANSPORT_DEVICE_DEACTIVATED;
 	dev->dev_ptr		= transport_dev;
@@ -1185,10 +1103,10 @@ struct se_device *transport_add_device_to_core_hba(
 	/*
 	 * Startup the struct se_device processing thread
 	 */
-	dev->process_thread = kthread_run(transport_processing_thread, dev,
-					  "LIO_%s", dev->transport->name);
-	if (IS_ERR(dev->process_thread)) {
-		pr_err("Unable to create kthread: LIO_%s\n",
+	dev->tmr_wq = alloc_workqueue("tmr-%s", WQ_MEM_RECLAIM | WQ_UNBOUND, 1,
+				      dev->transport->name);
+	if (!dev->tmr_wq) {
+		pr_err("Unable to create tmr workqueue for %s\n",
 			dev->transport->name);
 		goto out;
 	}
@@ -1219,7 +1137,7 @@ struct se_device *transport_add_device_to_core_hba(
 
 	return dev;
 out:
-	kthread_stop(dev->process_thread);
+	destroy_workqueue(dev->tmr_wq);
 
 	spin_lock(&hba->device_lock);
 	list_del(&dev->dev_list);
@@ -1299,7 +1217,6 @@ void transport_init_se_cmd(
 	INIT_LIST_HEAD(&cmd->se_lun_node);
 	INIT_LIST_HEAD(&cmd->se_delayed_node);
 	INIT_LIST_HEAD(&cmd->se_qf_node);
-	INIT_LIST_HEAD(&cmd->se_queue_node);
 	INIT_LIST_HEAD(&cmd->se_cmd_list);
 	INIT_LIST_HEAD(&cmd->state_list);
 	init_completion(&cmd->transport_lun_fe_stop_comp);
@@ -1494,10 +1411,9 @@ int transport_handle_cdb_direct(
 		return -EINVAL;
 	}
 	/*
-	 * Set TRANSPORT_NEW_CMD state and CMD_T_ACTIVE following
-	 * transport_generic_handle_cdb*() -> transport_add_cmd_to_queue()
-	 * in existing usage to ensure that outstanding descriptors are handled
-	 * correctly during shutdown via transport_wait_for_tasks()
+	 * Set TRANSPORT_NEW_CMD state and CMD_T_ACTIVE to ensure that
+	 * outstanding descriptors are handled correctly during shutdown via
+	 * transport_wait_for_tasks()
 	 *
 	 * Also, we don't take cmd->t_state_lock here as we only expect
 	 * this to be called for initial descriptor submission.
@@ -1660,18 +1576,6 @@ int target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
 	return 0;
 }
 EXPORT_SYMBOL(target_submit_tmr);
-
-/*	transport_generic_handle_tmr():
- *
- *
- */
-int transport_generic_handle_tmr(
-	struct se_cmd *cmd)
-{
-	transport_add_cmd_to_queue(cmd, TRANSPORT_PROCESS_TMR, false);
-	return 0;
-}
-EXPORT_SYMBOL(transport_generic_handle_tmr);
 
 /*
  * If the cmd is active, request it to be stopped and sleep until it
@@ -2653,8 +2557,6 @@ static int transport_lun_wait_for_tasks(struct se_cmd *cmd, struct se_lun *lun)
 	cmd->transport_state |= CMD_T_LUN_FE_STOP;
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
-	wake_up_interruptible(&cmd->se_dev->dev_queue_obj.thread_wq);
-
 	// XXX: audit task_flags checks.
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	if ((cmd->transport_state & CMD_T_BUSY) &&
@@ -2673,7 +2575,6 @@ static int transport_lun_wait_for_tasks(struct se_cmd *cmd, struct se_lun *lun)
 		pr_debug("ConfigFS: ITT[0x%08x] - stopped cmd....\n",
 				cmd->se_tfo->get_task_tag(cmd));
 	}
-	transport_remove_cmd_from_queue(cmd);
 
 	return 0;
 }
@@ -2871,8 +2772,6 @@ bool transport_wait_for_tasks(struct se_cmd *cmd)
 		cmd->se_tfo->get_cmd_state(cmd), cmd->t_state);
 
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
-	wake_up_interruptible(&cmd->se_dev->dev_queue_obj.thread_wq);
 
 	wait_for_completion(&cmd->t_transport_stop_comp);
 
@@ -3156,8 +3055,9 @@ void transport_send_task_abort(struct se_cmd *cmd)
 	cmd->se_tfo->queue_status(cmd);
 }
 
-static int transport_generic_do_tmr(struct se_cmd *cmd)
+static void target_tmr_work(struct work_struct *work)
 {
+	struct se_cmd *cmd = container_of(work, struct se_cmd, work);
 	struct se_device *dev = cmd->se_dev;
 	struct se_tmr_req *tmr = cmd->se_tmr_req;
 	int ret;
@@ -3193,54 +3093,13 @@ static int transport_generic_do_tmr(struct se_cmd *cmd)
 	cmd->se_tfo->queue_tm_rsp(cmd);
 
 	transport_cmd_check_stop_to_fabric(cmd);
-	return 0;
 }
 
-/*	transport_processing_thread():
- *
- *
- */
-static int transport_processing_thread(void *param)
+int transport_generic_handle_tmr(
+	struct se_cmd *cmd)
 {
-	int ret;
-	struct se_cmd *cmd;
-	struct se_device *dev = param;
-
-	while (!kthread_should_stop()) {
-		ret = wait_event_interruptible(dev->dev_queue_obj.thread_wq,
-				atomic_read(&dev->dev_queue_obj.queue_cnt) ||
-				kthread_should_stop());
-		if (ret < 0)
-			goto out;
-
-get_cmd:
-		cmd = transport_get_cmd_from_queue(&dev->dev_queue_obj);
-		if (!cmd)
-			continue;
-
-		switch (cmd->t_state) {
-		case TRANSPORT_NEW_CMD:
-			BUG();
-			break;
-		case TRANSPORT_PROCESS_TMR:
-			transport_generic_do_tmr(cmd);
-			break;
-		default:
-			pr_err("Unknown t_state: %d  for ITT: 0x%08x "
-				"i_state: %d on SE LUN: %u\n",
-				cmd->t_state,
-				cmd->se_tfo->get_task_tag(cmd),
-				cmd->se_tfo->get_cmd_state(cmd),
-				cmd->se_lun->unpacked_lun);
-			BUG();
-		}
-
-		goto get_cmd;
-	}
-
-out:
-	WARN_ON(!list_empty(&dev->state_list));
-	WARN_ON(!list_empty(&dev->dev_queue_obj.qobj_list));
-	dev->process_thread = NULL;
+	INIT_WORK(&cmd->work, target_tmr_work);
+	queue_work(cmd->se_dev->tmr_wq, &cmd->work);
 	return 0;
 }
+EXPORT_SYMBOL(transport_generic_handle_tmr);

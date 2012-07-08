@@ -715,7 +715,7 @@ void se_release_device_for_hba(struct se_device *dev)
 		se_dev_stop(dev);
 
 	if (dev->dev_ptr) {
-		kthread_stop(dev->process_thread);
+		destroy_workqueue(dev->tmr_wq);
 		if (dev->transport->free_device)
 			dev->transport->free_device(dev->dev_ptr);
 	}

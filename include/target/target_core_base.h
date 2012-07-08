@@ -147,7 +147,6 @@ enum transport_state_table {
 	TRANSPORT_WRITE_PENDING	= 3,
 	TRANSPORT_PROCESSING	= 5,
 	TRANSPORT_COMPLETE	= 6,
-	TRANSPORT_PROCESS_TMR	= 9,
 	TRANSPORT_ISTATE_PROCESSING = 11,
 	TRANSPORT_COMPLETE_QF_WP = 18,
 	TRANSPORT_COMPLETE_QF_OK = 19,
@@ -464,13 +463,6 @@ struct t10_reservation {
 	struct t10_reservation_ops pr_ops;
 };
 
-struct se_queue_obj {
-	atomic_t		queue_cnt;
-	spinlock_t		cmd_queue_lock;
-	struct list_head	qobj_list;
-	wait_queue_head_t	thread_wq;
-};
-
 struct se_tmr_req {
 	/* Task Management function to be performed */
 	u8			function;
@@ -527,7 +519,6 @@ struct se_cmd {
 	/* Only used for internal passthrough and legacy TCM fabric modules */
 	struct se_session	*se_sess;
 	struct se_tmr_req	*se_tmr_req;
-	struct list_head	se_queue_node;
 	struct list_head	se_cmd_list;
 	struct completion	cmd_wait_comp;
 	struct kref		cmd_kref;
@@ -774,7 +765,6 @@ struct se_device {
 	struct se_obj		dev_obj;
 	struct se_obj		dev_access_obj;
 	struct se_obj		dev_export_obj;
-	struct se_queue_obj	dev_queue_obj;
 	spinlock_t		delayed_cmd_lock;
 	spinlock_t		execute_task_lock;
 	spinlock_t		dev_reservation_lock;
@@ -790,8 +780,7 @@ struct se_device {
 	struct t10_pr_registration *dev_pr_res_holder;
 	struct list_head	dev_sep_list;
 	struct list_head	dev_tmr_list;
-	/* Pointer to descriptor for processing thread */
-	struct task_struct	*process_thread;
+	struct workqueue_struct *tmr_wq;
 	struct work_struct	qf_work_queue;
 	struct list_head	delayed_cmd_list;
 	struct list_head	state_list;
