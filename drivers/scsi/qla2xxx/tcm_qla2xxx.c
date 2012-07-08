@@ -604,22 +604,10 @@ static int tcm_qla2xxx_handle_cmd(scsi_qla_host_t *vha, struct qla_tgt_cmd *cmd,
 	return 0;
 }
 
-static void tcm_qla2xxx_do_rsp(struct work_struct *work)
+static void tcm_qla2xxx_handle_data_work(struct work_struct *work)
 {
 	struct qla_tgt_cmd *cmd = container_of(work, struct qla_tgt_cmd, work);
-	/*
-	 * Dispatch ->queue_status from workqueue process context
-	 */
-	transport_generic_request_failure(&cmd->se_cmd);
-}
 
-/*
- * Called from qla_target.c:qlt_do_ctio_completion()
- */
-static int tcm_qla2xxx_handle_data(struct qla_tgt_cmd *cmd)
-{
-	struct se_cmd *se_cmd = &cmd->se_cmd;
-	unsigned long flags;
 	/*
 	 * Ensure that the complete FCP WRITE payload has been received.
 	 * Otherwise return an exception via CHECK_CONDITION status.
@@ -629,24 +617,26 @@ static int tcm_qla2xxx_handle_data(struct qla_tgt_cmd *cmd)
 		 * Check if se_cmd has already been aborted via LUN_RESET, and
 		 * waiting upon completion in tcm_qla2xxx_write_pending_status()
 		 */
-		spin_lock_irqsave(&se_cmd->t_state_lock, flags);
-		if (se_cmd->transport_state & CMD_T_ABORTED) {
-			spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
-			complete(&se_cmd->t_transport_stop_comp);
-			return 0;
+		if (cmd->se_cmd.transport_state & CMD_T_ABORTED) {
+			complete(&cmd->se_cmd.t_transport_stop_comp);
+			return;
 		}
-		spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
 
-		se_cmd->scsi_sense_reason = TCM_CHECK_CONDITION_ABORT_CMD;
-		INIT_WORK(&cmd->work, tcm_qla2xxx_do_rsp);
-		queue_work(tcm_qla2xxx_free_wq, &cmd->work);
-		return 0;
+		cmd->se_cmd.scsi_sense_reason = TCM_CHECK_CONDITION_ABORT_CMD;
+		transport_generic_request_failure(&cmd->se_cmd);
+		return;
 	}
-	/*
-	 * We now tell TCM to queue this WRITE CDB with TRANSPORT_PROCESS_WRITE
-	 * status to the backstore processing thread.
-	 */
-	return transport_generic_handle_data(&cmd->se_cmd);
+
+	return target_execute_cmd(&cmd->se_cmd);
+}
+
+/*
+ * Called from qla_target.c:qlt_do_ctio_completion()
+ */
+static void tcm_qla2xxx_handle_data(struct qla_tgt_cmd *cmd)
+{
+	INIT_WORK(&cmd->work, tcm_qla2xxx_handle_data_work);
+	queue_work(tcm_qla2xxx_free_wq, &cmd->work);
 }
 
 /*
