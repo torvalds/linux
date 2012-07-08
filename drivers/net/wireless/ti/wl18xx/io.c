@@ -54,7 +54,7 @@ out:
 
 int wl18xx_top_reg_read(struct wl1271 *wl, int addr, u16 *out)
 {
-	u32 val;
+	u32 val = 0;
 	int ret;
 
 	if (WARN_ON(addr % 2))
