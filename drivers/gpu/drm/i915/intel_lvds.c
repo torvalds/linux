@@ -250,9 +250,8 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
-	struct intel_encoder *tmp_encoder;
+	struct intel_crtc *intel_crtc = intel_lvds->base.new_crtc;
 	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
 	int pipe;
 
@@ -262,14 +261,8 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 		return false;
 	}
 
-	/* Should never happen!! */
-	for_each_encoder_on_crtc(dev, encoder->crtc, tmp_encoder) {
-		if (&tmp_encoder->base != encoder) {
-			DRM_ERROR("Can't enable LVDS and another "
-			       "encoder on the same pipe\n");
-			return false;
-		}
-	}
+	if (intel_encoder_check_is_cloned(&intel_lvds->base))
+		return false;
 
 	/*
 	 * We have timings from the BIOS for the panel, put them in
