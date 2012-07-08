@@ -140,9 +140,9 @@ int iwctl_siwscan(struct net_device *dev, struct iw_request_info *info,
 			if (pItemSSID->abySSID[req->essid_len - 1] == '\0') {
 				if (req->essid_len > 0)
 					pItemSSID->len = req->essid_len - 1;
-			}
-			else
+			} else {
 				pItemSSID->len = req->essid_len;
+			}
 			pMgmt->eScanType = WMAC_SCAN_PASSIVE;
 			PRINT_K("SIOCSIWSCAN:[desired_ssid=%s,len=%d]\n", ((PWLAN_IE_SSID)abyScanSSID)->abySSID,
 				((PWLAN_IE_SSID)abyScanSSID)->len);
@@ -577,9 +577,9 @@ int iwctl_siwap(struct net_device *dev, struct iw_request_info *info,
 
 	PRINT_K(" SIOCSIWAP \n");
 
-	if (wrq->sa_family != ARPHRD_ETHER)
+	if (wrq->sa_family != ARPHRD_ETHER) {
 		rc = -EINVAL;
-	else {
+	} else {
 		memcpy(pMgmt->abyDesireBSSID, wrq->sa_data, 6);
 		// mike: add
 		if ((is_broadcast_ether_addr(pMgmt->abyDesireBSSID)) ||
@@ -882,8 +882,7 @@ int iwctl_siwrate(struct net_device *dev, struct iw_request_info *info,
 			pDevice->uConnectionRate = brate;
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Fixed to Rate %d \n", pDevice->uConnectionRate);
 		}
-	}
-	else {
+	} else {
 		pDevice->bFixRate = FALSE;
 		pDevice->uConnectionRate = 13;
 	}
@@ -1205,7 +1204,7 @@ int iwctl_giwencode(struct net_device *dev, struct iw_request_info *info,
 	wrq->length = 0;
 
 	if ((index == 0) && (pDevice->eEncryptionStatus == Ndis802_11Encryption2Enabled ||
-				pDevice->eEncryptionStatus == Ndis802_11Encryption3Enabled)){ // get wpa pairwise  key
+				pDevice->eEncryptionStatus == Ndis802_11Encryption3Enabled)) { // get wpa pairwise  key
 		if (KeybGetKey(&(pDevice->sKey), pMgmt->abyCurrBSSID, 0xffffffff, &pKey)) {
 			wrq->length = pKey->uKeyLength;
 			memcpy(abyKey, pKey->abyKey,	pKey->uKeyLength);
@@ -1360,11 +1359,10 @@ int iwctl_siwauth(struct net_device *dev, struct iw_request_info *info,
 		if (wpa_version == IW_AUTH_WPA_VERSION_DISABLED)
 			break;
 		if (pairwise == IW_AUTH_CIPHER_NONE) {
-			if (wrq->value == IW_AUTH_CIPHER_CCMP) {
+			if (wrq->value == IW_AUTH_CIPHER_CCMP)
 				pDevice->eEncryptionStatus = Ndis802_11Encryption3Enabled;
-			}else {
+			else
 				pDevice->eEncryptionStatus = Ndis802_11Encryption2Enabled;
-			}
 		}
 		break;
 	case IW_AUTH_KEY_MGMT:
@@ -1446,7 +1444,7 @@ int iwctl_siwgenie(struct net_device *dev, struct iw_request_info *info,
 			goto out;
 		}
 		pMgmt->wWPAIELen = wrq->length;
-	}else {
+	} else {
 		memset(pMgmt->abyWPAIE, 0, MAX_WPA_IE_LEN);
 		pMgmt->wWPAIELen = 0;
 	}
@@ -1470,8 +1468,9 @@ int iwctl_giwgenie(struct net_device *dev, struct iw_request_info *info,
 			if (copy_to_user(extra, pMgmt->abyWPAIE, pMgmt->wWPAIELen)) {
 				ret = -EFAULT;
 			}
-		} else
+		} else {
 			ret = -E2BIG;
+		}
 	}
 	return ret;
 }
