@@ -27,9 +27,9 @@
 #include <plat/keyboard.h>
 
 /* Keyboard Registers */
-#define MODE_REG	0x00	/* 16 bit reg */
-#define STATUS_REG	0x0C	/* 2 bit reg */
-#define DATA_REG	0x10	/* 8 bit reg */
+#define MODE_REG	0x00
+#define STATUS_REG	0x0C
+#define DATA_REG	0x10
 #define INTR_MASK	0x54
 
 /* Register Values */
@@ -72,9 +72,9 @@ static irqreturn_t spear_kbd_interrupt(int irq, void *dev_id)
 	struct spear_kbd *kbd = dev_id;
 	struct input_dev *input = kbd->input;
 	unsigned int key;
-	u8 sts, val;
+	u32 sts, val;
 
-	sts = readb(kbd->io_base + STATUS_REG);
+	sts = readl_relaxed(kbd->io_base + STATUS_REG);
 	if (!(sts & DATA_AVAIL))
 		return IRQ_NONE;
 
@@ -84,7 +84,7 @@ static irqreturn_t spear_kbd_interrupt(int irq, void *dev_id)
 	}
 
 	/* following reads active (row, col) pair */
-	val = readb(kbd->io_base + DATA_REG);
+	val = readl_relaxed(kbd->io_base + DATA_REG);
 	key = kbd->keycodes[val];
 
 	input_event(input, EV_MSC, MSC_SCAN, val);
@@ -94,7 +94,7 @@ static irqreturn_t spear_kbd_interrupt(int irq, void *dev_id)
 	kbd->last_key = key;
 
 	/* clear interrupt */
-	writeb(0, kbd->io_base + STATUS_REG);
+	writel_relaxed(0, kbd->io_base + STATUS_REG);
 
 	return IRQ_HANDLED;
 }
@@ -103,7 +103,7 @@ static int spear_kbd_open(struct input_dev *dev)
 {
 	struct spear_kbd *kbd = input_get_drvdata(dev);
 	int error;
-	u16 val;
+	u32 val;
 
 	kbd->last_key = KEY_RESERVED;
 
@@ -114,13 +114,13 @@ static int spear_kbd_open(struct input_dev *dev)
 	/* program keyboard */
 	val = SCAN_RATE_80 | MODE_KEYBOARD | PCLK_FREQ_MSK |
 		(kbd->mode << KEY_MATRIX_SHIFT);
-	writew(val, kbd->io_base + MODE_REG);
-	writeb(1, kbd->io_base + STATUS_REG);
+	writel_relaxed(val, kbd->io_base + MODE_REG);
+	writel_relaxed(1, kbd->io_base + STATUS_REG);
 
 	/* start key scan */
-	val = readw(kbd->io_base + MODE_REG);
+	val = readl_relaxed(kbd->io_base + MODE_REG);
 	val |= START_SCAN;
-	writew(val, kbd->io_base + MODE_REG);
+	writel_relaxed(val, kbd->io_base + MODE_REG);
 
 	return 0;
 }
@@ -128,12 +128,12 @@ static int spear_kbd_open(struct input_dev *dev)
 static void spear_kbd_close(struct input_dev *dev)
 {
 	struct spear_kbd *kbd = input_get_drvdata(dev);
-	u16 val;
+	u32 val;
 
 	/* stop key scan */
-	val = readw(kbd->io_base + MODE_REG);
+	val = readl_relaxed(kbd->io_base + MODE_REG);
 	val &= ~START_SCAN;
-	writew(val, kbd->io_base + MODE_REG);
+	writel_relaxed(val, kbd->io_base + MODE_REG);
 
 	clk_disable(kbd->clk);
 
