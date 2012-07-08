@@ -66,7 +66,6 @@ struct kmem_cache *t10_alua_lu_gp_mem_cache;
 struct kmem_cache *t10_alua_tg_pt_gp_cache;
 struct kmem_cache *t10_alua_tg_pt_gp_mem_cache;
 
-static int transport_generic_write_pending(struct se_cmd *);
 static int transport_processing_thread(void *param);
 static void transport_complete_task_attr(struct se_cmd *cmd);
 static void transport_handle_queue_full(struct se_cmd *cmd,
@@ -2487,23 +2486,39 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	atomic_inc(&cmd->t_fe_count);
 
 	/*
-	 * For WRITEs, let the fabric know its buffer is ready.
-	 *
-	 * The command will be added to the execution queue after its write
-	 * data has arrived.
-	 *
-	 * Everything else but a WRITE, add the command to the execution queue.
+	 * If this command is not a write we can execute it right here,
+	 * for write buffers we need to notify the fabric driver first
+	 * and let it call back once the write buffers are ready.
 	 */
 	target_add_to_state_list(cmd);
-	if (cmd->data_direction == DMA_TO_DEVICE)
-		return transport_generic_write_pending(cmd);
-	target_execute_cmd(cmd);
-	return 0;
+	if (cmd->data_direction != DMA_TO_DEVICE) {
+		target_execute_cmd(cmd);
+		return 0;
+	}
+
+	spin_lock_irq(&cmd->t_state_lock);
+	cmd->t_state = TRANSPORT_WRITE_PENDING;
+	spin_unlock_irq(&cmd->t_state_lock);
+
+	transport_cmd_check_stop(cmd, false);
+
+	ret = cmd->se_tfo->write_pending(cmd);
+	if (ret == -EAGAIN || ret == -ENOMEM)
+		goto queue_full;
+
+	if (ret < 0)
+		return ret;
+	return 1;
 
 out_fail:
 	cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 	cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	return -EINVAL;
+queue_full:
+	pr_debug("Handling write_pending QUEUE__FULL: se_cmd: %p\n", cmd);
+	cmd->t_state = TRANSPORT_COMPLETE_QF_WP;
+	transport_handle_queue_full(cmd, cmd->se_dev);
+	return 0;
 }
 EXPORT_SYMBOL(transport_generic_new_cmd);
 
@@ -2517,43 +2532,6 @@ static void transport_write_pending_qf(struct se_cmd *cmd)
 			 cmd);
 		transport_handle_queue_full(cmd, cmd->se_dev);
 	}
-}
-
-static int transport_generic_write_pending(struct se_cmd *cmd)
-{
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	cmd->t_state = TRANSPORT_WRITE_PENDING;
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
-	/*
-	 * Clear the se_cmd for WRITE_PENDING status in order to set
-	 * CMD_T_ACTIVE so that transport_generic_handle_data can be called
-	 * from HW target mode interrupt code.  This is safe to be called
-	 * with remove_from_lists false before the cmd->se_tfo->write_pending
-	 * because the se_cmd->se_lun pointer is not being cleared.
-	 */
-	transport_cmd_check_stop(cmd, false);
-
-	/*
-	 * Call the fabric write_pending function here to let the
-	 * frontend know that WRITE buffers are ready.
-	 */
-	ret = cmd->se_tfo->write_pending(cmd);
-	if (ret == -EAGAIN || ret == -ENOMEM)
-		goto queue_full;
-	else if (ret < 0)
-		return ret;
-
-	return 1;
-
-queue_full:
-	pr_debug("Handling write_pending QUEUE__FULL: se_cmd: %p\n", cmd);
-	cmd->t_state = TRANSPORT_COMPLETE_QF_WP;
-	transport_handle_queue_full(cmd, cmd->se_dev);
-	return 0;
 }
 
 void transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
