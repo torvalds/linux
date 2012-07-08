@@ -1277,17 +1277,4 @@ static struct pci_driver r6040_driver = {
 	.remove		= __devexit_p(r6040_remove_one),
 };
 
-
-static int __init r6040_init(void)
-{
-	return pci_register_driver(&r6040_driver);
-}
-
-
-static void __exit r6040_cleanup(void)
-{
-	pci_unregister_driver(&r6040_driver);
-}
-
-module_init(r6040_init);
-module_exit(r6040_cleanup);
+module_pci_driver(r6040_driver);
