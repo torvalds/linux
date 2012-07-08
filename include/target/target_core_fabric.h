@@ -116,7 +116,6 @@ int	target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
 		gfp_t, unsigned int, int);
 int	transport_handle_cdb_direct(struct se_cmd *);
 int	transport_generic_handle_cdb_map(struct se_cmd *);
-int	transport_generic_handle_data(struct se_cmd *);
 int	transport_generic_map_mem_to_cmd(struct se_cmd *cmd,
 		struct scatterlist *, u32, struct scatterlist *, u32);
 int	transport_generic_new_cmd(struct se_cmd *);

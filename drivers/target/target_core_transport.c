@@ -1583,12 +1583,6 @@ void target_submit_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
 	 */
 	core_alua_check_nonop_delay(se_cmd);
 
-	/*
-	 * Dispatch se_cmd descriptor to se_lun->lun_se_dev backend
-	 * for immediate execution of READs, otherwise wait for
-	 * transport_generic_handle_data() to be called for WRITEs
-	 * when fabric has filled the incoming buffer.
-	 */
 	transport_handle_cdb_direct(se_cmd);
 	return;
 }
@@ -1680,36 +1674,6 @@ int transport_generic_handle_cdb_map(
 	return 0;
 }
 EXPORT_SYMBOL(transport_generic_handle_cdb_map);
-
-/*	transport_generic_handle_data():
- *
- *
- */
-int transport_generic_handle_data(
-	struct se_cmd *cmd)
-{
-	/*
-	 * For the software fabric case, then we assume the nexus is being
-	 * failed/shutdown when signals are pending from the kthread context
-	 * caller, so we return a failure.  For the HW target mode case running
-	 * in interrupt code, the signal_pending() check is skipped.
-	 */
-	if (!in_interrupt() && signal_pending(current))
-		return -EPERM;
-	/*
-	 * If the received CDB has aleady been ABORTED by the generic
-	 * target engine, we now call transport_check_aborted_status()
-	 * to queue any delated TASK_ABORTED status for the received CDB to the
-	 * fabric module as we are expecting no further incoming DATA OUT
-	 * sequences at this point.
-	 */
-	if (transport_check_aborted_status(cmd, 1) != 0)
-		return 0;
-
-	transport_add_cmd_to_queue(cmd, TRANSPORT_PROCESS_WRITE, false);
-	return 0;
-}
-EXPORT_SYMBOL(transport_generic_handle_data);
 
 /*	transport_generic_handle_tmr():
  *
@@ -3294,9 +3258,6 @@ get_cmd:
 				transport_generic_request_failure(cmd);
 				break;
 			}
-			break;
-		case TRANSPORT_PROCESS_WRITE:
-			target_execute_cmd(cmd);
 			break;
 		case TRANSPORT_PROCESS_TMR:
 			transport_generic_do_tmr(cmd);
