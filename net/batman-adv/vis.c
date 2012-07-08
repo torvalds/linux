@@ -814,12 +814,12 @@ out:
 /* called from timer; send (and maybe generate) vis packet. */
 static void batadv_send_vis_packets(struct work_struct *work)
 {
-	struct delayed_work *delayed_work =
-		container_of(work, struct delayed_work, work);
+	struct delayed_work *delayed_work;
 	struct batadv_priv *bat_priv;
 	struct batadv_priv_vis *priv_vis;
 	struct batadv_vis_info *info;
 
+	delayed_work = container_of(work, struct delayed_work, work);
 	priv_vis = container_of(delayed_work, struct batadv_priv_vis, work);
 	bat_priv = container_of(priv_vis, struct batadv_priv, vis);
 	spin_lock_bh(&bat_priv->vis.hash_lock);

@@ -149,6 +149,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 	int data_len = skb->len, ret;
 	short vid __maybe_unused = -1;
 	bool do_bcast = false;
+	uint32_t seqno;
 
 	if (atomic_read(&bat_priv->mesh_state) != BATADV_MESH_ACTIVE)
 		goto dropped;
@@ -230,8 +231,8 @@ static int batadv_interface_tx(struct sk_buff *skb,
 		       primary_if->net_dev->dev_addr, ETH_ALEN);
 
 		/* set broadcast sequence number */
-		bcast_packet->seqno =
-			htonl(atomic_inc_return(&bat_priv->bcast_seqno));
+		seqno = atomic_inc_return(&bat_priv->bcast_seqno);
+		bcast_packet->seqno = htonl(seqno);
 
 		batadv_add_bcast_packet_to_list(bat_priv, skb, 1);
 

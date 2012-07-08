@@ -579,8 +579,7 @@ static void batadv_bla_add_claim(struct batadv_priv *bat_priv,
 			   "bla_add_claim(): changing ownership for %pM, vid %d\n",
 			   mac, vid);
 
-		claim->backbone_gw->crc ^=
-			crc16(0, claim->addr, ETH_ALEN);
+		claim->backbone_gw->crc ^= crc16(0, claim->addr, ETH_ALEN);
 		batadv_backbone_gw_free_ref(claim->backbone_gw);
 
 	}
@@ -1102,8 +1101,7 @@ static void batadv_bla_start_timer(struct batadv_priv *bat_priv)
  */
 static void batadv_bla_periodic_work(struct work_struct *work)
 {
-	struct delayed_work *delayed_work =
-		container_of(work, struct delayed_work, work);
+	struct delayed_work *delayed_work;
 	struct batadv_priv *bat_priv;
 	struct batadv_priv_bla *priv_bla;
 	struct hlist_node *node;
@@ -1113,6 +1111,7 @@ static void batadv_bla_periodic_work(struct work_struct *work)
 	struct batadv_hard_iface *primary_if;
 	int i;
 
+	delayed_work = container_of(work, struct delayed_work, work);
 	priv_bla = container_of(delayed_work, struct batadv_priv_bla, work);
 	bat_priv = container_of(priv_bla, struct batadv_priv, bla);
 	primary_if = batadv_primary_if_get_selected(bat_priv);
