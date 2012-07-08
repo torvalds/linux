@@ -181,8 +181,8 @@ static void batadv_iv_ogm_send_to_if(struct batadv_forw_packet *forw_packet,
 		/* we might have aggregated direct link packets with an
 		 * ordinary base packet
 		 */
-		if ((forw_packet->direct_link_flags & (1 << packet_num)) &&
-		    (forw_packet->if_incoming == hard_iface))
+		if (forw_packet->direct_link_flags & BIT(packet_num) &&
+		    forw_packet->if_incoming == hard_iface)
 			batadv_ogm_packet->flags |= BATADV_DIRECTLINK;
 		else
 			batadv_ogm_packet->flags &= ~BATADV_DIRECTLINK;
@@ -454,6 +454,7 @@ static void batadv_iv_ogm_aggregate(struct batadv_forw_packet *forw_packet_aggr,
 				    int packet_len, bool direct_link)
 {
 	unsigned char *skb_buff;
+	unsigned long new_direct_link_flag;
 
 	skb_buff = skb_put(forw_packet_aggr->skb, packet_len);
 	memcpy(skb_buff, packet_buff, packet_len);
@@ -461,9 +462,10 @@ static void batadv_iv_ogm_aggregate(struct batadv_forw_packet *forw_packet_aggr,
 	forw_packet_aggr->num_packets++;
 
 	/* save packet direct link flag status */
-	if (direct_link)
-		forw_packet_aggr->direct_link_flags |=
-			(1 << forw_packet_aggr->num_packets);
+	if (direct_link) {
+		new_direct_link_flag = BIT(forw_packet_aggr->num_packets);
+		forw_packet_aggr->direct_link_flags |= new_direct_link_flag;
+	}
 }
 
 static void batadv_iv_ogm_queue_add(struct batadv_priv *bat_priv,

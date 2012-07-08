@@ -37,10 +37,10 @@ enum batadv_packettype {
 #define BATADV_COMPAT_VERSION 14
 
 enum batadv_iv_flags {
-	BATADV_NOT_BEST_NEXT_HOP   = 1 << 3,
-	BATADV_PRIMARIES_FIRST_HOP = 1 << 4,
-	BATADV_VIS_SERVER	   = 1 << 5,
-	BATADV_DIRECTLINK	   = 1 << 6,
+	BATADV_NOT_BEST_NEXT_HOP   = BIT(3),
+	BATADV_PRIMARIES_FIRST_HOP = BIT(4),
+	BATADV_VIS_SERVER	   = BIT(5),
+	BATADV_DIRECTLINK	   = BIT(6),
 };
 
 /* ICMP message types */
@@ -60,8 +60,8 @@ enum batadv_vis_packettype {
 
 /* fragmentation defines */
 enum batadv_unicast_frag_flags {
-	BATADV_UNI_FRAG_HEAD	  = 1 << 0,
-	BATADV_UNI_FRAG_LARGETAIL = 1 << 1,
+	BATADV_UNI_FRAG_HEAD	  = BIT(0),
+	BATADV_UNI_FRAG_LARGETAIL = BIT(1),
 };
 
 /* TT_QUERY subtypes */
@@ -74,20 +74,20 @@ enum batadv_tt_query_packettype {
 
 /* TT_QUERY flags */
 enum batadv_tt_query_flags {
-	BATADV_TT_FULL_TABLE = 1 << 2,
+	BATADV_TT_FULL_TABLE = BIT(2),
 };
 
 /* BATADV_TT_CLIENT flags.
- * Flags from 1 to 1 << 7 are sent on the wire, while flags from 1 << 8 to
- * 1 << 15 are used for local computation only
+ * Flags from BIT(0) to BIT(7) are sent on the wire, while flags from BIT(8) to
+ * BIT(15) are used for local computation only
  */
 enum batadv_tt_client_flags {
-	BATADV_TT_CLIENT_DEL     = 1 << 0,
-	BATADV_TT_CLIENT_ROAM    = 1 << 1,
-	BATADV_TT_CLIENT_WIFI    = 1 << 2,
-	BATADV_TT_CLIENT_NOPURGE = 1 << 8,
-	BATADV_TT_CLIENT_NEW     = 1 << 9,
-	BATADV_TT_CLIENT_PENDING = 1 << 10,
+	BATADV_TT_CLIENT_DEL     = BIT(0),
+	BATADV_TT_CLIENT_ROAM    = BIT(1),
+	BATADV_TT_CLIENT_WIFI    = BIT(2),
+	BATADV_TT_CLIENT_NOPURGE = BIT(8),
+	BATADV_TT_CLIENT_NEW     = BIT(9),
+	BATADV_TT_CLIENT_PENDING = BIT(10),
 };
 
 /* claim frame types for the bridge loop avoidance */

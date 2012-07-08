@@ -123,15 +123,6 @@ enum batadv_uev_type {
 /* Append 'batman-adv: ' before kernel messages */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-/* all messages related to routing / flooding / broadcasting / etc */
-enum batadv_dbg_level {
-	BATADV_DBG_BATMAN = 1 << 0,
-	BATADV_DBG_ROUTES = 1 << 1, /* route added / changed / deleted */
-	BATADV_DBG_TT	  = 1 << 2, /* translation table operations */
-	BATADV_DBG_BLA    = 1 << 3, /* bridge loop avoidance */
-	BATADV_DBG_ALL    = 15,
-};
-
 /* Kernel headers */
 
 #include <linux/mutex.h>	/* mutex */
@@ -172,6 +163,15 @@ void batadv_recv_handler_unregister(uint8_t packet_type);
 int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops);
 int batadv_algo_select(struct batadv_priv *bat_priv, char *name);
 int batadv_algo_seq_print_text(struct seq_file *seq, void *offset);
+
+/* all messages related to routing / flooding / broadcasting / etc */
+enum batadv_dbg_level {
+	BATADV_DBG_BATMAN = BIT(0),
+	BATADV_DBG_ROUTES = BIT(1), /* route added / changed / deleted */
+	BATADV_DBG_TT	  = BIT(2), /* translation table operations */
+	BATADV_DBG_BLA    = BIT(3), /* bridge loop avoidance */
+	BATADV_DBG_ALL    = 15,
+};
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
 int batadv_debug_log(struct batadv_priv *bat_priv, const char *fmt, ...)
