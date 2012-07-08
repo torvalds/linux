@@ -33,13 +33,10 @@
 #define INTR_MASK	0x54
 
 /* Register Values */
-/*
- * pclk freq mask = (APB FEQ -1)= 82 MHZ.Programme bit 15-9 in mode
- * control register as 1010010(82MHZ)
- */
-#define PCLK_FREQ_MSK	0xA400	/* 82 MHz */
 #define NUM_ROWS	16
 #define NUM_COLS	16
+#define MODE_CTL_PCLK_FREQ_SHIFT	9
+#define MODE_CTL_PCLK_FREQ_MSK		0x7F
 
 #define MODE_CTL_KEYBOARD	(0x2 << 0)
 #define MODE_CTL_SCAN_RATE_10	(0x0 << 2)
@@ -113,8 +110,12 @@ static int spear_kbd_open(struct input_dev *dev)
 	if (error)
 		return error;
 
+	/* keyboard rate to be programmed is input clock (in MHz) - 1 */
+	val = clk_get_rate(kbd->clk) / 1000000 - 1;
+	val = (val & MODE_CTL_PCLK_FREQ_MSK) << MODE_CTL_PCLK_FREQ_SHIFT;
+
 	/* program keyboard */
-	val = MODE_CTL_SCAN_RATE_80 | MODE_CTL_KEYBOARD | PCLK_FREQ_MSK |
+	val = MODE_CTL_SCAN_RATE_80 | MODE_CTL_KEYBOARD | val |
 		(kbd->mode << MODE_CTL_KEYNUM_SHIFT);
 	writel_relaxed(val, kbd->io_base + MODE_CTL_REG);
 	writel_relaxed(1, kbd->io_base + STATUS_REG);
