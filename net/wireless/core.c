@@ -774,8 +774,9 @@ void cfg80211_update_iface_num(struct cfg80211_registered_device *rdev,
 
 	has_monitors_only_new = cfg80211_has_monitors_only(rdev);
 	if (has_monitors_only_new != has_monitors_only_old) {
-		rdev->ops->set_monitor_enabled(&rdev->wiphy,
-					       has_monitors_only_new);
+		if (rdev->ops->set_monitor_enabled)
+			rdev->ops->set_monitor_enabled(&rdev->wiphy,
+						       has_monitors_only_new);
 
 		if (!has_monitors_only_new) {
 			rdev->monitor_channel = NULL;
