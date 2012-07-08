@@ -578,6 +578,7 @@ static int batadv_generate_vis_packet(struct batadv_priv *bat_priv)
 	struct batadv_vis_packet *packet;
 	struct batadv_vis_info_entry *entry;
 	struct batadv_tt_common_entry *tt_common_entry;
+	uint8_t *packet_pos;
 	int best_tq = -1;
 	uint32_t i;
 
@@ -618,8 +619,8 @@ static int batadv_generate_vis_packet(struct batadv_priv *bat_priv)
 				goto next;
 
 			/* fill one entry into buffer. */
-			entry = (struct batadv_vis_info_entry *)
-				      skb_put(info->skb_packet, sizeof(*entry));
+			packet_pos = skb_put(info->skb_packet, sizeof(*entry));
+			entry = (struct batadv_vis_info_entry *)packet_pos;
 			memcpy(entry->src,
 			       router->if_incoming->net_dev->dev_addr,
 			       ETH_ALEN);
@@ -644,9 +645,8 @@ next:
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(tt_common_entry, node, head,
 					 hash_entry) {
-			entry = (struct batadv_vis_info_entry *)
-					skb_put(info->skb_packet,
-						sizeof(*entry));
+			packet_pos = skb_put(info->skb_packet, sizeof(*entry));
+			entry = (struct batadv_vis_info_entry *)packet_pos;
 			memset(entry->src, 0, ETH_ALEN);
 			memcpy(entry->dest, tt_common_entry->addr, ETH_ALEN);
 			entry->quality = 0; /* 0 means TT */

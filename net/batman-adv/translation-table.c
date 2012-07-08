@@ -1559,6 +1559,7 @@ batadv_send_other_tt_response(struct batadv_priv *bat_priv,
 	uint16_t tt_len, tt_tot;
 	struct sk_buff *skb = NULL;
 	struct batadv_tt_query_packet *tt_response;
+	uint8_t *packet_pos;
 	size_t len;
 
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
@@ -1612,8 +1613,8 @@ batadv_send_other_tt_response(struct batadv_priv *bat_priv,
 			goto unlock;
 
 		skb_reserve(skb, ETH_HLEN);
-		tt_response = (struct batadv_tt_query_packet *)skb_put(skb,
-								       len);
+		packet_pos = skb_put(skb, len);
+		tt_response = (struct batadv_tt_query_packet *)packet_pos;
 		tt_response->ttvn = req_ttvn;
 		tt_response->tt_data = htons(tt_tot);
 
@@ -1692,6 +1693,7 @@ batadv_send_my_tt_response(struct batadv_priv *bat_priv,
 	uint16_t tt_len, tt_tot;
 	struct sk_buff *skb = NULL;
 	struct batadv_tt_query_packet *tt_response;
+	uint8_t *packet_pos;
 	size_t len;
 
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
@@ -1738,8 +1740,8 @@ batadv_send_my_tt_response(struct batadv_priv *bat_priv,
 			goto unlock;
 
 		skb_reserve(skb, ETH_HLEN);
-		tt_response = (struct batadv_tt_query_packet *)skb_put(skb,
-								       len);
+		packet_pos = skb_put(skb, len);
+		tt_response = (struct batadv_tt_query_packet *)packet_pos;
 		tt_response->ttvn = req_ttvn;
 		tt_response->tt_data = htons(tt_tot);
 

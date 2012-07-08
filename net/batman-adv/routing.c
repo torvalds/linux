@@ -981,8 +981,7 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 		} else {
 			memcpy(unicast_packet->dest, orig_node->orig,
 			       ETH_ALEN);
-			curr_ttvn = (uint8_t)
-				atomic_read(&orig_node->last_ttvn);
+			curr_ttvn = (uint8_t)atomic_read(&orig_node->last_ttvn);
 			batadv_orig_node_free_ref(orig_node);
 		}
 

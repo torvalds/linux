@@ -1345,8 +1345,7 @@ int batadv_bla_is_backbone_gw(struct sk_buff *skb,
 		if (!pskb_may_pull(skb, hdr_size + sizeof(struct vlan_ethhdr)))
 			return 0;
 
-		vhdr = (struct vlan_ethhdr *)(((uint8_t *)skb->data) +
-					      hdr_size);
+		vhdr = (struct vlan_ethhdr *)(skb->data + hdr_size);
 		vid = ntohs(vhdr->h_vlan_TCI) & VLAN_VID_MASK;
 	}
 

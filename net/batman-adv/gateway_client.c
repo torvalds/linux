@@ -117,9 +117,14 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 	struct hlist_node *node;
 	struct batadv_gw_node *gw_node, *curr_gw = NULL;
 	uint32_t max_gw_factor = 0, tmp_gw_factor = 0;
+	uint32_t gw_divisor;
 	uint8_t max_tq = 0;
 	int down, up;
+	uint8_t tq_avg;
 	struct batadv_orig_node *orig_node;
+
+	gw_divisor = BATADV_TQ_LOCAL_WINDOW_SIZE * BATADV_TQ_LOCAL_WINDOW_SIZE;
+	gw_divisor *= 64;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw.list, list) {
@@ -134,19 +139,19 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 		if (!atomic_inc_not_zero(&gw_node->refcount))
 			goto next;
 
+		tq_avg = router->tq_avg;
+
 		switch (atomic_read(&bat_priv->gw_sel_class)) {
 		case 1: /* fast connection */
 			batadv_gw_bandwidth_to_kbit(orig_node->gw_flags,
 						    &down, &up);
 
-			tmp_gw_factor = (router->tq_avg * router->tq_avg *
-					 down * 100 * 100) /
-					 (BATADV_TQ_LOCAL_WINDOW_SIZE *
-					  BATADV_TQ_LOCAL_WINDOW_SIZE * 64);
+			tmp_gw_factor = tq_avg * tq_avg * down * 100 * 100;
+			tmp_gw_factor /= gw_divisor;
 
 			if ((tmp_gw_factor > max_gw_factor) ||
 			    ((tmp_gw_factor == max_gw_factor) &&
-			     (router->tq_avg > max_tq))) {
+			     (tq_avg > max_tq))) {
 				if (curr_gw)
 					batadv_gw_node_free_ref(curr_gw);
 				curr_gw = gw_node;
@@ -161,7 +166,7 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 			  *     soon as a better gateway appears which has
 			  *     $routing_class more tq points)
 			  */
-			if (router->tq_avg > max_tq) {
+			if (tq_avg > max_tq) {
 				if (curr_gw)
 					batadv_gw_node_free_ref(curr_gw);
 				curr_gw = gw_node;
@@ -170,8 +175,8 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 			break;
 		}
 
-		if (router->tq_avg > max_tq)
-			max_tq = router->tq_avg;
+		if (tq_avg > max_tq)
+			max_tq = tq_avg;
 
 		if (tmp_gw_factor > max_gw_factor)
 			max_gw_factor = tmp_gw_factor;

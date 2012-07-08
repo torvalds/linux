@@ -39,6 +39,7 @@ batadv_frag_merge_packet(struct list_head *head,
 	struct batadv_unicast_packet *unicast_packet;
 	int hdr_len = sizeof(*unicast_packet);
 	int uni_diff = sizeof(*up) - hdr_len;
+	uint8_t *packet_pos;
 
 	up = (struct batadv_unicast_frag_packet *)skb->data;
 	/* set skb to the first part and tmp_skb to the second part */
@@ -65,8 +66,8 @@ batadv_frag_merge_packet(struct list_head *head,
 	kfree_skb(tmp_skb);
 
 	memmove(skb->data + uni_diff, skb->data, hdr_len);
-	unicast_packet = (struct batadv_unicast_packet *)skb_pull(skb,
-								  uni_diff);
+	packet_pos = skb_pull(skb, uni_diff);
+	unicast_packet = (struct batadv_unicast_packet *)packet_pos;
 	unicast_packet->header.packet_type = BATADV_UNICAST;
 
 	return skb;
