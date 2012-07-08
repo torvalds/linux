@@ -188,6 +188,7 @@ static u64 __read_mostly shadow_dirty_mask;
 static u64 __read_mostly shadow_mmio_mask;
 
 static void mmu_spte_set(u64 *sptep, u64 spte);
+static void mmu_free_roots(struct kvm_vcpu *vcpu);
 
 void kvm_mmu_set_mmio_spte_mask(u64 mmio_mask)
 {
@@ -2401,6 +2402,7 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 
 static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)
 {
+	mmu_free_roots(vcpu);
 }
 
 static pfn_t pte_prefetch_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn,
