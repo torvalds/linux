@@ -6563,6 +6563,28 @@ static struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.disable = intel_crtc_disable,
 };
 
+bool intel_encoder_check_is_cloned(struct intel_encoder *encoder)
+{
+	struct intel_encoder *other_encoder;
+	struct drm_crtc *crtc = &encoder->new_crtc->base;
+
+	if (WARN_ON(!crtc))
+		return false;
+
+	list_for_each_entry(other_encoder,
+			    &crtc->dev->mode_config.encoder_list,
+			    base.head) {
+
+		if (&other_encoder->new_crtc->base != crtc ||
+		    encoder == other_encoder)
+			continue;
+		else
+			return true;
+	}
+
+	return false;
+}
+
 static bool intel_encoder_crtc_ok(struct drm_encoder *encoder,
 				  struct drm_crtc *crtc)
 {

@@ -910,17 +910,14 @@ intel_tv_mode_fixup(struct drm_encoder *encoder,
 		    const struct drm_display_mode *mode,
 		    struct drm_display_mode *adjusted_mode)
 {
-	struct drm_device *dev = encoder->dev;
 	struct intel_tv *intel_tv = enc_to_intel_tv(encoder);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_tv);
-	struct intel_encoder *other_encoder;
 
 	if (!tv_mode)
 		return false;
 
-	for_each_encoder_on_crtc(dev, encoder->crtc, other_encoder)
-		if (&other_encoder->base != encoder)
-			return false;
+	if (intel_encoder_check_is_cloned(&intel_tv->base))
+		return false;
 
 	adjusted_mode->clock = tv_mode->clock;
 	return true;
