@@ -964,7 +964,6 @@ int iwctl_giwrts(struct net_device *dev, struct iw_request_info *info,
 	wrq->value = pDevice->wRTSThreshold;
 	wrq->disabled = (wrq->value >= 2312);
 	wrq->fixed = 1;
-
 	return 0;
 }
 
@@ -1003,7 +1002,6 @@ int iwctl_giwfrag(struct net_device *dev, struct iw_request_info *info,
 	wrq->value = pDevice->wFragmentationThreshold;
 	wrq->disabled = (wrq->value >= 2312);
 	wrq->fixed = 1;
-
 	return 0;
 }
 
@@ -1097,7 +1095,6 @@ int iwctl_siwencode(struct net_device *dev, struct iw_request_info *info,
 
 	// Send the key to the card
 	if (wrq->length > 0) {
-
 		if (wrq->length == WLAN_WEP232_KEYLEN) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Set 232 bit wep key\n");
 		} else if (wrq->length == WLAN_WEP104_KEYLEN) {
@@ -1119,8 +1116,7 @@ int iwctl_siwencode(struct net_device *dev, struct iw_request_info *info,
 					dwKeyIndex | (1 << 31),
 					wrq->length, NULL,
 					pDevice->abyKey,
-					KEY_CTL_WEP
-				);
+					KEY_CTL_WEP);
 			spin_unlock_irq(&pDevice->lock);
 		}
 		pDevice->byKeyIndex = (BYTE)dwKeyIndex;
