@@ -514,7 +514,7 @@ err_reset:
 err_dcvdd:
 	regulator_disable(arizona->dcvdd);
 err_enable:
-	regulator_bulk_disable(ARRAY_SIZE(arizona->core_supplies),
+	regulator_bulk_disable(arizona->num_core_supplies,
 			       arizona->core_supplies);
 err_early:
 	mfd_remove_devices(dev);
