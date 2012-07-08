@@ -467,18 +467,7 @@ static void target_remove_from_state_list(struct se_cmd *cmd)
 	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
 }
 
-/*	transport_cmd_check_stop():
- *
- *	'transport_off = 1' determines if CMD_T_ACTIVE should be cleared.
- *	'transport_off = 2' determines if task_dev_state should be removed.
- *
- *	A non-zero u8 t_state sets cmd->t_state.
- *	Returns 1 when command is stopped, else 0.
- */
-static int transport_cmd_check_stop(
-	struct se_cmd *cmd,
-	int transport_off,
-	u8 t_state)
+static int transport_cmd_check_stop(struct se_cmd *cmd, bool remove_from_lists)
 {
 	unsigned long flags;
 
@@ -492,13 +481,23 @@ static int transport_cmd_check_stop(
 			__func__, __LINE__, cmd->se_tfo->get_task_tag(cmd));
 
 		cmd->transport_state &= ~CMD_T_ACTIVE;
-		if (transport_off == 2)
+		if (remove_from_lists)
 			target_remove_from_state_list(cmd);
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 		complete(&cmd->transport_lun_stop_comp);
 		return 1;
 	}
+
+	if (remove_from_lists) {
+		target_remove_from_state_list(cmd);
+
+		/*
+		 * Clear struct se_cmd->se_lun before the handoff to FE.
+		 */
+		cmd->se_lun = NULL;
+	}
+
 	/*
 	 * Determine if frontend context caller is requesting the stopping of
 	 * this command for frontend exceptions.
@@ -508,58 +507,36 @@ static int transport_cmd_check_stop(
 			__func__, __LINE__,
 			cmd->se_tfo->get_task_tag(cmd));
 
-		if (transport_off == 2)
-			target_remove_from_state_list(cmd);
-
-		/*
-		 * Clear struct se_cmd->se_lun before the transport_off == 2 handoff
-		 * to FE.
-		 */
-		if (transport_off == 2)
-			cmd->se_lun = NULL;
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 		complete(&cmd->t_transport_stop_comp);
 		return 1;
 	}
-	if (transport_off) {
-		cmd->transport_state &= ~CMD_T_ACTIVE;
-		if (transport_off == 2) {
-			target_remove_from_state_list(cmd);
-			/*
-			 * Clear struct se_cmd->se_lun before the transport_off == 2
-			 * handoff to fabric module.
-			 */
-			cmd->se_lun = NULL;
-			/*
-			 * Some fabric modules like tcm_loop can release
-			 * their internally allocated I/O reference now and
-			 * struct se_cmd now.
-			 *
-			 * Fabric modules are expected to return '1' here if the
-			 * se_cmd being passed is released at this point,
-			 * or zero if not being released.
-			 */
-			if (cmd->se_tfo->check_stop_free != NULL) {
-				spin_unlock_irqrestore(
-					&cmd->t_state_lock, flags);
 
-				return cmd->se_tfo->check_stop_free(cmd);
-			}
+	cmd->transport_state &= ~CMD_T_ACTIVE;
+	if (remove_from_lists) {
+		/*
+		 * Some fabric modules like tcm_loop can release
+		 * their internally allocated I/O reference now and
+		 * struct se_cmd now.
+		 *
+		 * Fabric modules are expected to return '1' here if the
+		 * se_cmd being passed is released at this point,
+		 * or zero if not being released.
+		 */
+		if (cmd->se_tfo->check_stop_free != NULL) {
+			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+			return cmd->se_tfo->check_stop_free(cmd);
 		}
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+	}
 
-		return 0;
-	} else if (t_state)
-		cmd->t_state = t_state;
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
 	return 0;
 }
 
 static int transport_cmd_check_stop_to_fabric(struct se_cmd *cmd)
 {
-	return transport_cmd_check_stop(cmd, 2, 0);
+	return transport_cmd_check_stop(cmd, true);
 }
 
 static void transport_lun_remove_cmd(struct se_cmd *cmd)
@@ -1887,8 +1864,36 @@ static void target_execute_cmd(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 
-	if (transport_cmd_check_stop(cmd, 0, TRANSPORT_PROCESSING))
+	/*
+	 * Determine if IOCTL context caller in requesting the stopping of this
+	 * command for LUN shutdown purposes.
+	 */
+	spin_lock_irq(&cmd->t_state_lock);
+	if (cmd->transport_state & CMD_T_LUN_STOP) {
+		pr_debug("%s:%d CMD_T_LUN_STOP for ITT: 0x%08x\n",
+			__func__, __LINE__, cmd->se_tfo->get_task_tag(cmd));
+
+		cmd->transport_state &= ~CMD_T_ACTIVE;
+		spin_unlock_irq(&cmd->t_state_lock);
+		complete(&cmd->transport_lun_stop_comp);
 		return;
+	}
+	/*
+	 * Determine if frontend context caller is requesting the stopping of
+	 * this command for frontend exceptions.
+	 */
+	if (cmd->transport_state & CMD_T_STOP) {
+		pr_debug("%s:%d CMD_T_STOP for ITT: 0x%08x\n",
+			__func__, __LINE__,
+			cmd->se_tfo->get_task_tag(cmd));
+
+		spin_unlock_irq(&cmd->t_state_lock);
+		complete(&cmd->t_transport_stop_comp);
+		return;
+	}
+
+	cmd->t_state = TRANSPORT_PROCESSING;
+	spin_unlock_irq(&cmd->t_state_lock);
 
 	if (dev->dev_task_attr_type != SAM_TASK_ATTR_EMULATED)
 		goto execute;
@@ -2530,10 +2535,10 @@ static int transport_generic_write_pending(struct se_cmd *cmd)
 	 * Clear the se_cmd for WRITE_PENDING status in order to set
 	 * CMD_T_ACTIVE so that transport_generic_handle_data can be called
 	 * from HW target mode interrupt code.  This is safe to be called
-	 * with transport_off=1 before the cmd->se_tfo->write_pending
+	 * with remove_from_lists false before the cmd->se_tfo->write_pending
 	 * because the se_cmd->se_lun pointer is not being cleared.
 	 */
-	transport_cmd_check_stop(cmd, 1, 0);
+	transport_cmd_check_stop(cmd, false);
 
 	/*
 	 * Call the fabric write_pending function here to let the
@@ -2723,7 +2728,7 @@ static int transport_lun_wait_for_tasks(struct se_cmd *cmd, struct se_lun *lun)
 		pr_debug("ConfigFS ITT[0x%08x] - CMD_T_STOP, skipping\n",
 			 cmd->se_tfo->get_task_tag(cmd));
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		transport_cmd_check_stop(cmd, 1, 0);
+		transport_cmd_check_stop(cmd, false);
 		return -EPERM;
 	}
 	cmd->transport_state |= CMD_T_LUN_FE_STOP;
@@ -2768,11 +2773,6 @@ static void __transport_clear_lun_from_sessions(struct se_lun *lun)
 		       struct se_cmd, se_lun_node);
 		list_del_init(&cmd->se_lun_node);
 
-		/*
-		 * This will notify iscsi_target_transport.c:
-		 * transport_cmd_check_stop() that a LUN shutdown is in
-		 * progress for the iscsi_cmd_t.
-		 */
 		spin_lock(&cmd->t_state_lock);
 		pr_debug("SE_LUN[%d] - Setting cmd->transport"
 			"_lun_stop for  ITT: 0x%08x\n",
@@ -2839,7 +2839,7 @@ check_cond:
 
 			spin_unlock_irqrestore(&cmd->t_state_lock,
 					cmd_flags);
-			transport_cmd_check_stop(cmd, 1, 0);
+			transport_cmd_check_stop(cmd, false);
 			complete(&cmd->transport_lun_fe_stop_comp);
 			spin_lock_irqsave(&lun->lun_cmd_lock, lun_flags);
 			continue;
