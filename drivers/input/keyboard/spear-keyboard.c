@@ -302,7 +302,7 @@ static int __devexit spear_kbd_remove(struct platform_device *pdev)
 	release_mem_region(kbd->res->start, resource_size(kbd->res));
 	kfree(kbd);
 
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, 0);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
