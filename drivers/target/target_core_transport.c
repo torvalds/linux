@@ -1661,25 +1661,6 @@ int target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
 }
 EXPORT_SYMBOL(target_submit_tmr);
 
-/*
- * Used by fabric module frontends defining a TFO->new_cmd_map() caller
- * to  queue up a newly setup se_cmd w/ TRANSPORT_NEW_CMD_MAP in order to
- * complete setup in TCM process context w/ TFO->new_cmd_map().
- */
-int transport_generic_handle_cdb_map(
-	struct se_cmd *cmd)
-{
-	if (!cmd->se_lun) {
-		dump_stack();
-		pr_err("cmd->se_lun is NULL\n");
-		return -EINVAL;
-	}
-
-	transport_add_cmd_to_queue(cmd, TRANSPORT_NEW_CMD_MAP, false);
-	return 0;
-}
-EXPORT_SYMBOL(transport_generic_handle_cdb_map);
-
 /*	transport_generic_handle_tmr():
  *
  *
@@ -1784,13 +1765,7 @@ void transport_generic_request_failure(struct se_cmd *cmd)
 		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
 		break;
 	}
-	/*
-	 * If a fabric does not define a cmd->se_tfo->new_cmd_map caller,
-	 * make the call to transport_send_check_condition_and_sense()
-	 * directly.  Otherwise expect the fabric to make the call to
-	 * transport_send_check_condition_and_sense() after handling
-	 * possible unsoliticied write data payloads.
-	 */
+
 	ret = transport_send_check_condition_and_sense(cmd,
 			cmd->scsi_sense_reason, 0);
 	if (ret == -EAGAIN || ret == -ENOMEM)
@@ -3246,23 +3221,6 @@ get_cmd:
 		switch (cmd->t_state) {
 		case TRANSPORT_NEW_CMD:
 			BUG();
-			break;
-		case TRANSPORT_NEW_CMD_MAP:
-			if (!cmd->se_tfo->new_cmd_map) {
-				pr_err("cmd->se_tfo->new_cmd_map is"
-					" NULL for TRANSPORT_NEW_CMD_MAP\n");
-				BUG();
-			}
-			ret = cmd->se_tfo->new_cmd_map(cmd);
-			if (ret < 0) {
-				transport_generic_request_failure(cmd);
-				break;
-			}
-			ret = transport_generic_new_cmd(cmd);
-			if (ret < 0) {
-				transport_generic_request_failure(cmd);
-				break;
-			}
 			break;
 		case TRANSPORT_PROCESS_TMR:
 			transport_generic_do_tmr(cmd);

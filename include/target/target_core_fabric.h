@@ -33,12 +33,6 @@ struct target_core_fabric_ops {
 					struct se_node_acl *);
 	u32 (*tpg_get_inst_index)(struct se_portal_group *);
 	/*
-	 * Optional function pointer for TCM to perform command map
-	 * from TCM processing thread context, for those struct se_cmd
-	 * initially allocated in interrupt context.
-	 */
-	int (*new_cmd_map)(struct se_cmd *);
-	/*
 	 * Optional to release struct se_cmd and fabric dependent allocated
 	 * I/O descriptor in transport_cmd_check_stop().
 	 *
@@ -115,7 +109,6 @@ int	target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
 		void *fabric_tmr_ptr, unsigned char tm_type,
 		gfp_t, unsigned int, int);
 int	transport_handle_cdb_direct(struct se_cmd *);
-int	transport_generic_handle_cdb_map(struct se_cmd *);
 int	transport_generic_map_mem_to_cmd(struct se_cmd *cmd,
 		struct scatterlist *, u32, struct scatterlist *, u32);
 int	transport_generic_new_cmd(struct se_cmd *);
