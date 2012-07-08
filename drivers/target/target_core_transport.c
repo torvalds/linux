@@ -1865,6 +1865,12 @@ void target_execute_cmd(struct se_cmd *cmd)
 	struct se_device *dev = cmd->se_dev;
 
 	/*
+	 * If the received CDB has aleady been aborted stop processing it here.
+	 */
+	if (transport_check_aborted_status(cmd, 1))
+		return;
+
+	/*
 	 * Determine if IOCTL context caller in requesting the stopping of this
 	 * command for LUN shutdown purposes.
 	 */
