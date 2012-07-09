@@ -77,6 +77,7 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 
 	max77686->wakeup = pdata->wakeup;
 	max77686->irq_gpio = pdata->irq_gpio;
+	max77686->irq = i2c->irq;
 
 	if (regmap_read(max77686->regmap,
 			 MAX77686_REG_DEVICE_ID, &data) < 0) {

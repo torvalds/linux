@@ -252,21 +252,28 @@ int max77686_irq_init(struct max77686_dev *max77686)
 
 	mutex_init(&max77686->irqlock);
 
-	max77686->irq = gpio_to_irq(max77686->irq_gpio);
+	if (max77686->irq_gpio && !max77686->irq) {
+		max77686->irq = gpio_to_irq(max77686->irq_gpio);
 
-	if (debug_mask & MAX77686_DEBUG_IRQ_INT) {
-		ret = gpio_request(max77686->irq_gpio, "pmic_irq");
-		if (ret < 0) {
-			dev_err(max77686->dev,
-				"Failed to request gpio %d with ret: %d\n",
-				max77686->irq_gpio, ret);
-			return IRQ_NONE;
+		if (debug_mask & MAX77686_DEBUG_IRQ_INT) {
+			ret = gpio_request(max77686->irq_gpio, "pmic_irq");
+			if (ret < 0) {
+				dev_err(max77686->dev,
+					"Failed to request gpio %d with ret:"
+					"%d\n",	max77686->irq_gpio, ret);
+				return IRQ_NONE;
+			}
+
+			gpio_direction_input(max77686->irq_gpio);
+			val = gpio_get_value(max77686->irq_gpio);
+			gpio_free(max77686->irq_gpio);
+			pr_info("%s: gpio_irq=%x\n", __func__, val);
 		}
+	}
 
-		gpio_direction_input(max77686->irq_gpio);
-		val = gpio_get_value(max77686->irq_gpio);
-		gpio_free(max77686->irq_gpio);
-		pr_info("%s: gpio_irq=%x\n", __func__, val);
+	if (!max77686->irq) {
+		dev_err(max77686->dev, "irq is not specified\n");
+		return -ENODEV;
 	}
 
 	/* Mask individual interrupt sources */
