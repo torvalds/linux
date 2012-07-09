@@ -141,6 +141,7 @@ struct coda_dev {
 };
 
 struct coda_params {
+	u8			rot_mode;
 	u8			h264_intra_qp;
 	u8			h264_inter_qp;
 	u8			mpeg4_intra_qp;
@@ -700,7 +701,7 @@ static void coda_device_run(void *m2m_priv)
 	}
 
 	/* submit */
-	coda_write(dev, 0, CODA_CMD_ENC_PIC_ROT_MODE);
+	coda_write(dev, CODA_ROT_MIR_ENABLE | ctx->params.rot_mode, CODA_CMD_ENC_PIC_ROT_MODE);
 	coda_write(dev, quant_param, CODA_CMD_ENC_PIC_QS);
 
 
@@ -1276,6 +1277,18 @@ static int coda_s_ctrl(struct v4l2_ctrl *ctrl)
 		 "s_ctrl: id = %d, val = %d\n", ctrl->id, ctrl->val);
 
 	switch (ctrl->id) {
+	case V4L2_CID_HFLIP:
+		if (ctrl->val)
+			ctx->params.rot_mode |= CODA_MIR_HOR;
+		else
+			ctx->params.rot_mode &= ~CODA_MIR_HOR;
+		break;
+	case V4L2_CID_VFLIP:
+		if (ctrl->val)
+			ctx->params.rot_mode |= CODA_MIR_VER;
+		else
+			ctx->params.rot_mode &= ~CODA_MIR_VER;
+		break;
 	case V4L2_CID_MPEG_VIDEO_BITRATE:
 		ctx->params.bitrate = ctrl->val / 1000;
 		break;
@@ -1320,6 +1333,10 @@ static int coda_ctrls_setup(struct coda_ctx *ctx)
 {
 	v4l2_ctrl_handler_init(&ctx->ctrls, 9);
 
+	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
+		V4L2_CID_HFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
+		V4L2_CID_VFLIP, 0, 1, 1, 0);
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_BITRATE, 0, 32767000, 1, 0);
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,

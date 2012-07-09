@@ -188,6 +188,15 @@
 #define CODA_CMD_ENC_PIC_SRC_ADDR_CR	0x188
 #define CODA_CMD_ENC_PIC_QS		0x18c
 #define CODA_CMD_ENC_PIC_ROT_MODE	0x190
+#define		CODA_ROT_MIR_ENABLE				(1 << 4)
+#define		CODA_ROT_0					(0x0 << 0)
+#define		CODA_ROT_90					(0x1 << 0)
+#define		CODA_ROT_180					(0x2 << 0)
+#define		CODA_ROT_270					(0x3 << 0)
+#define		CODA_MIR_NONE					(0x0 << 2)
+#define		CODA_MIR_VER					(0x1 << 2)
+#define		CODA_MIR_HOR					(0x2 << 2)
+#define		CODA_MIR_VER_HOR				(0x3 << 2)
 #define CODA_CMD_ENC_PIC_OPTION	0x194
 #define CODA_CMD_ENC_PIC_BB_START	0x198
 #define CODA_CMD_ENC_PIC_BB_SIZE	0x19c
