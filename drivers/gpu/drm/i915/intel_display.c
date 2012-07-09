@@ -5796,8 +5796,8 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 		return false;
 	}
 
-	encoder->crtc = crtc;
-	connector->encoder = encoder;
+	intel_encoder->new_crtc = to_intel_crtc(crtc);
+	to_intel_connector(connector)->new_encoder = intel_encoder;
 
 	intel_crtc = to_intel_crtc(crtc);
 	old->dpms_mode = connector->dpms;
@@ -5849,16 +5849,17 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 	struct intel_encoder *intel_encoder =
 		intel_attached_encoder(connector);
 	struct drm_encoder *encoder = &intel_encoder->base;
-	struct drm_device *dev = encoder->dev;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 		      connector->base.id, drm_get_connector_name(connector),
 		      encoder->base.id, drm_get_encoder_name(encoder));
 
 	if (old->load_detect_temp) {
-		connector->encoder = NULL;
-		encoder->crtc = NULL;
-		drm_helper_disable_unused_functions(dev);
+		struct drm_crtc *crtc = encoder->crtc;
+
+		to_intel_connector(connector)->new_encoder = NULL;
+		intel_encoder->new_crtc = NULL;
+		intel_set_mode(crtc, NULL, 0, 0, NULL);
 
 		if (old->release_fb)
 			old->release_fb->funcs->destroy(old->release_fb);
