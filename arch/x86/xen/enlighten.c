@@ -125,6 +125,19 @@ struct shared_info *HYPERVISOR_shared_info = (void *)&xen_dummy_shared_info;
  */
 static int have_vcpu_info_placement = 1;
 
+struct tls_descs {
+	struct desc_struct desc[3];
+};
+
+/*
+ * Updating the 3 TLS descriptors in the GDT on every task switch is
+ * surprisingly expensive so we avoid updating them if they haven't
+ * changed.  Since Xen writes different descriptors than the one
+ * passed in the update_descriptor hypercall we keep shadow copies to
+ * compare against.
+ */
+static DEFINE_PER_CPU(struct tls_descs, shadow_tls_desc);
+
 static void clamp_max_cpus(void)
 {
 #ifdef CONFIG_SMP
@@ -548,9 +561,19 @@ static inline bool desc_equal(const struct desc_struct *d1,
 static void load_TLS_descriptor(struct thread_struct *t,
 				unsigned int cpu, unsigned int i)
 {
-	struct desc_struct *gdt = get_cpu_gdt_table(cpu);
-	xmaddr_t maddr = arbitrary_virt_to_machine(&gdt[GDT_ENTRY_TLS_MIN+i]);
-	struct multicall_space mc = __xen_mc_entry(0);
+	struct desc_struct *shadow = &per_cpu(shadow_tls_desc, cpu).desc[i];
+	struct desc_struct *gdt;
+	xmaddr_t maddr;
+	struct multicall_space mc;
+
+	if (desc_equal(shadow, &t->tls_array[i]))
+		return;
+
+	*shadow = t->tls_array[i];
+
+	gdt = get_cpu_gdt_table(cpu);
+	maddr = arbitrary_virt_to_machine(&gdt[GDT_ENTRY_TLS_MIN+i]);
+	mc = __xen_mc_entry(0);
 
 	MULTI_update_descriptor(mc.mc, maddr.maddr, t->tls_array[i]);
 }
