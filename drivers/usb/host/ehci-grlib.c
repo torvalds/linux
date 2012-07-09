@@ -40,18 +40,13 @@ static int ehci_grlib_setup(struct usb_hcd *hcd)
 	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
 	int		retval;
 
-	retval = ehci_halt(ehci);
+	retval = ehci_setup(hcd);
 	if (retval)
 		return retval;
 
-	retval = ehci_init(hcd);
-	if (retval)
-		return retval;
-
-	ehci->sbrn = 0x20;
 	ehci_port_power(ehci, 1);
 
-	return ehci_reset(ehci);
+	return retval;
 }
 
 
@@ -163,12 +158,6 @@ static int __devinit ehci_hcd_grlib_probe(struct platform_device *op)
 		ehci->big_endian_desc = 1;
 		ehci->big_endian_capbase = 1;
 	}
-
-	ehci->regs = hcd->regs +
-		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
-
-	/* cache this readonly data; minimize chip reads */
-	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
 	rv = usb_add_hcd(hcd, irq, 0);
 	if (rv)

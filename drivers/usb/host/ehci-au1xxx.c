@@ -20,10 +20,12 @@ extern int usb_disabled(void);
 static int au1xxx_ehci_setup(struct usb_hcd *hcd)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	int ret = ehci_init(hcd);
+	int ret;
+
+	ehci->caps = hcd->regs;
+	ret = ehci_setup(hcd);
 
 	ehci->need_io_watchdog = 0;
-	ehci_reset(ehci);
 	return ret;
 }
 
@@ -78,7 +80,6 @@ static const struct hc_driver ehci_au1xxx_hc_driver = {
 static int ehci_hcd_au1xxx_drv_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
-	struct ehci_hcd *ehci;
 	struct resource *res;
 	int ret;
 
@@ -115,13 +116,6 @@ static int ehci_hcd_au1xxx_drv_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto err3;
 	}
-
-	ehci = hcd_to_ehci(hcd);
-	ehci->caps = hcd->regs;
-	ehci->regs = hcd->regs +
-		HC_LENGTH(ehci, readl(&ehci->caps->hc_capbase));
-	/* cache this readonly data; minimize chip reads */
-	ehci->hcs_params = readl(&ehci->caps->hcs_params);
 
 	ret = usb_add_hcd(hcd, pdev->resource[1].start,
 			  IRQF_SHARED);

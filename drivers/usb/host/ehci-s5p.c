@@ -40,7 +40,7 @@ static const struct hc_driver s5p_ehci_hc_driver = {
 	.irq			= ehci_irq,
 	.flags			= HCD_MEMORY | HCD_USB2,
 
-	.reset			= ehci_init,
+	.reset			= ehci_setup,
 	.start			= ehci_run,
 	.stop			= ehci_stop,
 	.shutdown		= ehci_shutdown,
@@ -134,19 +134,9 @@ static int __devinit s5p_ehci_probe(struct platform_device *pdev)
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = hcd->regs;
-	ehci->regs = hcd->regs +
-		HC_LENGTH(ehci, readl(&ehci->caps->hc_capbase));
 
 	/* DMA burst Enable */
 	writel(EHCI_INSNREG00_ENABLE_DMA_BURST, EHCI_INSNREG00(hcd->regs));
-
-	dbg_hcs_params(ehci, "reset");
-	dbg_hcc_params(ehci, "reset");
-
-	/* cache this readonly data; minimize chip reads */
-	ehci->hcs_params = readl(&ehci->caps->hcs_params);
-
-	ehci_reset(ehci);
 
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err) {

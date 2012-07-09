@@ -77,7 +77,6 @@ static void mv_ehci_disable(struct ehci_hcd_mv *ehci_mv)
 
 static int mv_ehci_reset(struct usb_hcd *hcd)
 {
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	struct device *dev = hcd->self.controller;
 	struct ehci_hcd_mv *ehci_mv = dev_get_drvdata(dev);
 	int retval;
@@ -87,25 +86,13 @@ static int mv_ehci_reset(struct usb_hcd *hcd)
 		return -ENODEV;
 	}
 
-	/*
-	 * data structure init
-	 */
-	retval = ehci_init(hcd);
-	if (retval) {
-		dev_err(dev, "ehci_init failed %d\n", retval);
-		return retval;
-	}
-
 	hcd->has_tt = 1;
-	ehci->sbrn = 0x20;
 
-	retval = ehci_reset(ehci);
-	if (retval) {
-		dev_err(dev, "ehci_reset failed %d\n", retval);
-		return retval;
-	}
+	retval = ehci_setup(hcd);
+	if (retval)
+		dev_err(dev, "ehci_setup failed %d\n", retval);
 
-	return 0;
+	return retval;
 }
 
 static const struct hc_driver mv_ehci_hc_driver = {
@@ -248,8 +235,6 @@ static int mv_ehci_probe(struct platform_device *pdev)
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = (struct ehci_caps *) ehci_mv->cap_regs;
-	ehci->regs = (struct ehci_regs *) ehci_mv->op_regs;
-	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
 	ehci_mv->mode = pdata->mode;
 	if (ehci_mv->mode == MV_USB_MODE_OTG) {

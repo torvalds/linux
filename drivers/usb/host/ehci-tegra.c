@@ -281,29 +281,13 @@ static int tegra_ehci_setup(struct usb_hcd *hcd)
 
 	/* EHCI registers start at offset 0x100 */
 	ehci->caps = hcd->regs + 0x100;
-	ehci->regs = hcd->regs + 0x100 +
-		HC_LENGTH(ehci, readl(&ehci->caps->hc_capbase));
-
-	dbg_hcs_params(ehci, "reset");
-	dbg_hcc_params(ehci, "reset");
-
-	/* cache this readonly data; minimize chip reads */
-	ehci->hcs_params = readl(&ehci->caps->hcs_params);
 
 	/* switch to host mode */
 	hcd->has_tt = 1;
-	ehci_reset(ehci);
 
-	retval = ehci_halt(ehci);
+	retval = ehci_setup(ehci);
 	if (retval)
 		return retval;
-
-	/* data structure init */
-	retval = ehci_init(hcd);
-	if (retval)
-		return retval;
-
-	ehci->sbrn = 0x20;
 
 	ehci_port_power(ehci, 1);
 	return retval;
