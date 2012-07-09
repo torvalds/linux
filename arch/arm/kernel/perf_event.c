@@ -503,7 +503,7 @@ __hw_perf_event_init(struct perf_event *event)
 	     event_requires_mode_exclusion(&event->attr)) {
 		pr_debug("ARM performance counters do not support "
 			 "mode exclusion\n");
-		return -EPERM;
+		return -EOPNOTSUPP;
 	}
 
 	/*
