@@ -768,7 +768,6 @@ static void ll_temac_recv(struct net_device *ndev)
 				 DMA_FROM_DEVICE);
 
 		skb_put(skb, length);
-		skb->dev = ndev;
 		skb->protocol = eth_type_trans(skb, ndev);
 		skb_checksum_none_assert(skb);
 
