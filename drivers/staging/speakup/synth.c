@@ -64,7 +64,7 @@ EXPORT_SYMBOL_GPL(serial_synth_probe);
 /* Main loop of the progression thread: keep eating from the buffer
  * and push to the serial port, waiting as needed
  *
- * For devices that have a "full" notification mecanism, the driver can
+ * For devices that have a "full" notification mechanism, the driver can
  * adapt the loop the way they prefer.
  */
 void spk_do_catch_up(struct spk_synth *synth)
