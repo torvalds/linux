@@ -1,7 +1,9 @@
+#include <linux/module.h>
 #include <linux/cache.h>
 #include <linux/tcp.h>
 
 #include <net/inet_connection_sock.h>
+#include <net/request_sock.h>
 #include <net/sock.h>
 #include <net/dst.h>
 #include <net/tcp.h>
@@ -190,3 +192,11 @@ reset:
 		tp->snd_cwnd = tcp_init_cwnd(tp, dst);
 	tp->snd_cwnd_stamp = tcp_time_stamp;
 }
+
+bool tcp_peer_is_proven(struct request_sock *req, struct dst_entry *dst)
+{
+	if (!dst)
+		return false;
+	return dst_metric(dst, RTAX_RTT) ? true : false;
+}
+EXPORT_SYMBOL_GPL(tcp_peer_is_proven);
