@@ -62,7 +62,7 @@
 
 #define ARIZONA_MAX_OUTPUT 5
 
-#define ARIZONA_MAX_PDM_SPK 1
+#define ARIZONA_MAX_PDM_SPK 2
 
 struct regulator_init_data;
 

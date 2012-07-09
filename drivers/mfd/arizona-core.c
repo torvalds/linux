@@ -462,18 +462,17 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 				   ARIZONA_OUT1_MONO, val);
 	}
 
-	BUILD_BUG_ON(ARIZONA_MAX_PDM_SPK > 1);
 	for (i = 0; i < ARIZONA_MAX_PDM_SPK; i++) {
 		if (arizona->pdata.spk_mute[i])
 			regmap_update_bits(arizona->regmap,
-					   ARIZONA_PDM_SPK1_CTRL_1,
+					   ARIZONA_PDM_SPK1_CTRL_1 + (i * 2),
 					   ARIZONA_SPK1_MUTE_ENDIAN_MASK |
 					   ARIZONA_SPK1_MUTE_SEQ1_MASK,
 					   arizona->pdata.spk_mute[i]);
 
 		if (arizona->pdata.spk_fmt[i])
 			regmap_update_bits(arizona->regmap,
-					   ARIZONA_PDM_SPK1_CTRL_2,
+					   ARIZONA_PDM_SPK1_CTRL_2 + (i * 2),
 					   ARIZONA_SPK1_FMT_MASK,
 					   arizona->pdata.spk_fmt[i]);
 	}
