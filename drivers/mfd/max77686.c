@@ -34,11 +34,6 @@
 
 #define I2C_ADDR_RTC	(0x0C >> 1)
 
-static struct of_device_id __devinitdata max77686_pmic_dt_match[] = {
-	{.compatible = "maxim,max77686",        .data = 0},
-	{},
-};
-
 static struct mfd_cell max77686_devs[] = {
 	{ .name = "max77686-pmic", },
 	{ .name = "max77686-rtc", },
@@ -50,6 +45,11 @@ static struct regmap_config max77686_regmap_config = {
 };
 
 #ifdef CONFIG_OF
+static struct of_device_id __devinitdata max77686_pmic_dt_match[] = {
+	{.compatible = "maxim,max77686",        .data = 0},
+	{},
+};
+
 static struct max77686_platform_data *max77686_i2c_parse_dt_pdata(struct device
 								  *dev)
 {
