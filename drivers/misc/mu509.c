@@ -36,7 +36,12 @@ MODULE_LICENSE("GPL");
 static struct wake_lock modem_wakelock;
 #define IRQ_BB_WAKEUP_AP_TRIGGER    IRQF_TRIGGER_FALLING
 //#define IRQ_BB_WAKEUP_AP_TRIGGER    IRQF_TRIGGER_RISING
+#if defined(CONFIG_ARCH_RK29)
 #define airplane_mode RK29_PIN6_PC1
+#endif
+#if defined(CONFIG_ARCH_RK30)
+#define airplane_mode  RK30_PIN2_PC0
+#endif
 #define MU509_RESET 0x01
 #define AIRPLANE_MODE_OFF 0x03
 #define AIRPLANE_MODE_ON 0x00
@@ -307,8 +312,13 @@ int mu509_suspend(struct platform_device *pdev, pm_message_t state)
 	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	if(!online)
 	ap_wakeup_bp(pdev, 1);
+#if defined(CONFIG_ARCH_RK29)
 	rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_GPIO1C1);
 	//gpio_direction_output(RK29_PIN1_PC1, 1);
+#endif
+#if defined(CONFIG_ARCH_RK30)
+	rk30_mux_api_set(GPIO1A7_UART1RTSN_SPI0TXD_NAME, GPIO1A_GPIO1A7);
+#endif	
 	return 0;
 }
 
@@ -316,7 +326,12 @@ int mu509_resume(struct platform_device *pdev)
 {
 	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	//ap_wakeup_bp(pdev, 0);
+#if defined(CONFIG_ARCH_RK29)
 	rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_UART0_RTS_N);
+#endif
+#if defined(CONFIG_ARCH_RK30)
+	rk30_mux_api_set(GPIO1A7_UART1RTSN_SPI0TXD_NAME, GPIO1A_UART1_RTS_N);
+#endif
 	if(gpio_get_value(gpdata->bp_wakeup_ap))
 	{
 		schedule_delayed_work(&wakeup_work, 2*HZ);

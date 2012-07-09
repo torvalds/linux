@@ -51,6 +51,9 @@
 #if defined(CONFIG_SPIM_RK29)
 #include "../../../drivers/spi/rk29_spim.h"
 #endif
+#if defined(CONFIG_MU509)
+#include <linux/mu509.h>
+#endif
 #if defined(CONFIG_ANDROID_TIMED_GPIO)
 #include "../../../drivers/staging/android/timed_gpio.h"
 #endif
@@ -680,6 +683,40 @@ static struct platform_device rk30_device_modem = {
 	}
 };
 #endif
+#if defined(CONFIG_MU509)
+static int mu509_io_init(void)
+{
+
+	rk30_mux_api_set(GPIO2B6_LCDC1DATA14_SMCADDR18_TSSYNC_NAME, GPIO2B_GPIO2B6);
+        rk30_mux_api_set(GPIO4D2_SMCDATA10_TRACEDATA10_NAME, GPIO4D_GPIO4D2);
+	rk30_mux_api_set(GPIO2B7_LCDC1DATA15_SMCADDR19_HSADCDATA7_NAME, GPIO2B_GPIO2B7);
+	rk30_mux_api_set(GPIO2C0_LCDCDATA16_GPSCLK_HSADCCLKOUT_NAME, GPIO2C_GPIO2C0);
+	return 0;
+}
+
+static int mu509_io_deinit(void)
+{
+	
+	return 0;
+}
+ 
+struct rk29_mu509_data rk29_mu509_info = {
+	.io_init = mu509_io_init,
+  	.io_deinit = mu509_io_deinit,
+	.modem_power_en = RK30_PIN6_PB2,//RK30_PIN4_PD1,
+	.bp_power = RK30_PIN2_PB6,//RK30_PIN4_PD1,
+	.bp_reset = RK30_PIN4_PD2,
+	.ap_wakeup_bp = RK30_PIN2_PB7,
+	.bp_wakeup_ap = RK30_PIN6_PA0, 
+};
+struct platform_device rk29_device_mu509 = {	
+        .name = "mu509",	
+    	.id = -1,	
+	.dev		= {
+		.platform_data = &rk29_mu509_info,
+	}    	
+    };
+#endif
 
 /*MMA8452 gsensor*/
 #if defined (CONFIG_GS_MMA8452)
@@ -1278,6 +1315,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_RK29_SUPPORT_MODEM
 	&rk30_device_modem,
+#endif
+#if defined(CONFIG_MU509)
+	&rk29_device_mu509,
 #endif
 #ifdef CONFIG_BATTERY_RK30_ADC
  	&rk30_device_adc_battery,
