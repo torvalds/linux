@@ -205,11 +205,6 @@ static const long frequency_list[] = {
 	};
 
 
-#ifndef IW_ENCODE_NOKEY
-#define IW_ENCODE_NOKEY         0x0800
-#define IW_ENCODE_MODE  (IW_ENCODE_DISABLED | IW_ENCODE_RESTRICTED | IW_ENCODE_OPEN)
-#endif
-
 static const struct iw_handler_def	iwctl_handler_def;
 */
 
