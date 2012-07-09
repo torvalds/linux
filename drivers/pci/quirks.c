@@ -2541,15 +2541,18 @@ static void __devinit __nv_msi_ht_cap_quirk(struct pci_dev *dev, int all)
 			else
 				nv_ht_enable_msi_mapping(dev);
 		}
-		return;
+		goto out;
 	}
 
 	/* HT MSI is not enabled */
 	if (found == 1)
-		return;
+		goto out;
 
 	/* Host bridge is not to HT, disable HT MSI mapping on this device */
 	ht_disable_msi_mapping(dev);
+
+out:
+	pci_dev_put(host_bridge);
 }
 
 static void __devinit nv_msi_ht_cap_quirk_all(struct pci_dev *dev)
