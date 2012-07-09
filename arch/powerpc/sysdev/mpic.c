@@ -1211,7 +1211,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	if (of_get_property(node, "single-cpu-affinity", NULL))
 		flags |= MPIC_SINGLE_DEST_CPU;
 	if (of_device_is_compatible(node, "fsl,mpic"))
-		flags |= MPIC_FSL;
+		flags |= MPIC_FSL | MPIC_LARGE_VECTORS;
 
 	mpic = kzalloc(sizeof(struct mpic), GFP_KERNEL);
 	if (mpic == NULL)
