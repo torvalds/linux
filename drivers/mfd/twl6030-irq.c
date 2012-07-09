@@ -42,6 +42,7 @@
 
 #include "twl-core.h"
 
+#include <mach/board.h>
 /*
  * TWL6030 (unlike its predecessors, which had two level interrupt handling)
  * three interrupt registers INT_STS_A, INT_STS_B and INT_STS_C.
@@ -265,9 +266,11 @@ static irqreturn_t handle_twl6030_pih(int irq, void *devid)
  */
 static irqreturn_t handle_twl6030_vlow(int irq, void *unused)
 {
+#ifdef CONFIG_TWL60xx_VBAT_LOW_DETECTION
+	rk28_send_wakeup_key();
+#else
 	pr_err("twl6030: BAT_VLOW interrupt; threshold=%dmV\n",
 	       2300 + (vbatmin_hi_threshold - 0b110) * 50);
-
 #if 1 /* temporary */
 	pr_err("%s: disabling BAT_VLOW interrupt\n", __func__);
 	disable_irq_nosync(twl6030_irq_base + TWL_VLOW_INTR_OFFSET);
@@ -275,6 +278,7 @@ static irqreturn_t handle_twl6030_vlow(int irq, void *unused)
 #else
 	pr_emerg("handle_twl6030_vlow: kernel_power_off()\n");
 	kernel_power_off();
+#endif
 #endif
 	return IRQ_HANDLED;
 }
