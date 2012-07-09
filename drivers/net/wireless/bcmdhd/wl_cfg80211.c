@@ -7138,7 +7138,7 @@ static int wl_construct_reginfo(struct wl_priv *wl, s32 bw_cap)
 	return err;
 }
 
-s32 wl_update_wiphybands(struct wl_priv *wl)
+s32 wl_update_wiphybands(struct wl_priv *wl, char *country_code)
 {
 	struct wiphy *wiphy;
 	struct net_device *dev;
@@ -7149,6 +7149,7 @@ s32 wl_update_wiphybands(struct wl_priv *wl)
 	int nmode = 0;
 	int bw_cap = 0;
 	int index = 0;
+	struct regulatory_request *new_request;
 	bool rollback_lock = false;
 
 	WL_DBG(("Entry"));
@@ -7216,6 +7217,24 @@ s32 wl_update_wiphybands(struct wl_priv *wl)
 	}
 
 	wiphy_apply_custom_regulatory(wiphy, &brcm_regdom);
+
+	if (country_code != NULL) {
+		WL_DBG(("country_code[0]=%c, country_code[1]=%c\n", country_code[0], country_code[1]));
+		/* Allocate a requlatory request to update cfg80211 for the supported channels */
+		new_request = kzalloc(sizeof(struct regulatory_request),
+					GFP_KERNEL);
+		if (!new_request) {
+			WL_ERR(("error Memory alloc for requlatory request failed\n"));
+			err = -ENOMEM;
+		} else {
+			new_request->alpha2[0] = country_code[0];
+			new_request->alpha2[1] = country_code[1];
+			WL_DBG(("Send an event to cfg80211 to update supplicant to take the new channel list"));
+			nl80211_send_reg_change_event(new_request);
+			kfree(new_request);
+		}
+	}
+
 end_bands:
 	if (rollback_lock)
 		mutex_unlock(&wl->usr_sync);
@@ -7238,7 +7257,7 @@ static s32 __wl_cfg80211_up(struct wl_priv *wl)
 	if (unlikely(err && err != -EINPROGRESS)) {
 		WL_ERR(("wl_config_ifmode failed\n"));
 	}
-	err = wl_update_wiphybands(wl);
+	err = wl_update_wiphybands(wl, NULL);
 	if (unlikely(err)) {
 		WL_ERR(("wl_update_wiphybands failed\n"));
 	}

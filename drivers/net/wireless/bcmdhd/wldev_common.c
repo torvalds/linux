@@ -320,6 +320,8 @@ int wldev_set_band(
 
 	if ((band == WLC_BAND_AUTO) || (band == WLC_BAND_5G) || (band == WLC_BAND_2G)) {
 		error = wldev_ioctl(dev, WLC_SET_BAND, &band, sizeof(band), 1);
+		if (!error)
+			dhd_bus_band_set(dev, band);
 	}
 	return error;
 }
