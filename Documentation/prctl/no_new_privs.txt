@@ -25,6 +25,13 @@ bits will no longer change the uid or gid; file capabilities will not
 add to the permitted set, and LSMs will not relax constraints after
 execve.
 
+To set no_new_privs, use prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0).
+
+Be careful, though: LSMs might also not tighten constraints on exec
+in no_new_privs mode.  (This means that setting up a general-purpose
+service launcher to set no_new_privs before execing daemons may
+interfere with LSM-based sandboxing.)
+
 Note that no_new_privs does not prevent privilege changes that do not
 involve execve.  An appropriately privileged task can still call
 setuid(2) and receive SCM_RIGHTS datagrams.
