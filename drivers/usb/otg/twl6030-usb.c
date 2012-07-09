@@ -302,8 +302,6 @@ static irqreturn_t twl6030_usbotg_irq(int irq, void *_twl)
 		twl6030_writeb(twl, TWL_MODULE_USB, 0x1, USB_ID_INT_EN_HI_CLR);
 		twl6030_writeb(twl, TWL_MODULE_USB, 0x10, USB_ID_INT_EN_HI_SET);
 		status = OMAP_MUSB_ID_GROUND;
-		otg->default_a = true;
-		twl->phy.state = OTG_STATE_A_IDLE;
 		twl->linkstat = status;
 		omap_musb_mailbox(status);
 	} else  {
