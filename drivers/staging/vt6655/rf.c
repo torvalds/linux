@@ -1067,48 +1067,6 @@ unsigned char byPwrdBm = 0;
 		break;
     }
 
-#if 0
-
-    // 802.11h TPC
-    if (pDevice->bLinkPass == true) {
-        // do not over local constraint
-        if (byPwrdBm > pDevice->abyLocalPwr[uCH]) {
-            pDevice->byCurPwrdBm = pDevice->abyLocalPwr[uCH];
-            byDec = byPwrdBm - pDevice->abyLocalPwr[uCH];
-            if (pDevice->byRFType == RF_UW2452) {
-                byDec *= 3;
-            } else {
-                byDec <<= 1;
-            }
-            if (byPwr > byDec) {
-                byPwr -= byDec;
-            } else {
-                byPwr = 0;
-            }
-        } else {
-            pDevice->byCurPwrdBm = byPwrdBm;
-        }
-    } else {
-        // do not over regulatory constraint
-        if (byPwrdBm > pDevice->abyRegPwr[uCH]) {
-            pDevice->byCurPwrdBm = pDevice->abyRegPwr[uCH];
-            byDec = byPwrdBm - pDevice->abyRegPwr[uCH];
-            if (pDevice->byRFType == RF_UW2452) {
-                byDec *= 3;
-            } else {
-                byDec <<= 1;
-            }
-            if (byPwr > byDec) {
-                byPwr -= byDec;
-            } else {
-                byPwr = 0;
-            }
-        } else {
-            pDevice->byCurPwrdBm = byPwrdBm;
-        }
-    }
-#endif
-
 //    if (pDevice->byLocalID <= REV_ID_VT3253_B1) {
     if (pDevice->byCurPwr == byPwr) {
         return true;

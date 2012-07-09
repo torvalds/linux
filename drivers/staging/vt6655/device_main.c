@@ -1086,15 +1086,6 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
         device_free_info(pDevice);
         return -ENODEV;
     }
-//2008-07-21-01<Add>by MikeLiu
-//register wpadev
-#if 0
-   if(wpa_set_wpadev(pDevice, 1)!=0) {
-     printk("Fail to Register WPADEV?\n");
-        unregister_netdev(pDevice->dev);
-        free_netdev(dev);
-   }
-#endif
     device_print_info(pDevice);
     pci_set_drvdata(pcid, pDevice);
     return 0;
@@ -1948,15 +1939,6 @@ device_init_rd0_ring(pDevice);
 
 
 
-#if 0
-	pDevice->MLMEThr_pid = kernel_thread(MlmeThread, pDevice, CLONE_VM);
-	if (pDevice->MLMEThr_pid <0 )
-	{
-		printk("unable start thread MlmeThread\n");
-		return -1;
-	}
-#endif
-
 	//printk("thread id is %d\n",pDevice->MLMEThr_pid);
 	//printk("Create thread time is %x\n",jiffies);
 	//wait_for_completion(&pDevice->notify);
@@ -2492,21 +2474,6 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
                                 &(pDevice->byACKRate),
                                 &(pDevice->byTopCCKBasicRate),
                                 &(pDevice->byTopOFDMBasicRate));
-
-#if 0
-printk("auto rate:Rate : %d,AckRate:%d,TopCCKRate:%d,TopOFDMRate:%d\n",
-pDevice->wCurrentRate,pDevice->byACKRate,
-pDevice->byTopCCKBasicRate,pDevice->byTopOFDMBasicRate);
-
-#endif
-
-#if 0
-
-	pDevice->wCurrentRate = 11;
-	pDevice->byACKRate = 8;
-	pDevice->byTopCCKBasicRate = 3;
-	pDevice->byTopOFDMBasicRate = 8;
-#endif
 
 
 		}
