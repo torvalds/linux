@@ -568,8 +568,9 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 		if (type == HCI_EVENT_PKT) {
 			if (btmrvl_check_evtpkt(priv, skb))
 				hci_recv_frame(skb);
-		} else
+		} else {
 			hci_recv_frame(skb);
+		}
 
 		hdev->stat.byte_rx += buf_len;
 		break;
