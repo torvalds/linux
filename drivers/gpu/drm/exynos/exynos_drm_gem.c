@@ -118,7 +118,7 @@ struct page **exynos_gem_get_pages(struct drm_gem_object *obj,
 	return pages;
 
 fail:
-	while (i--)
+	while (--i)
 		__free_page(pages[i]);
 
 	drm_free_large(pages);
