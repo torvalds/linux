@@ -2918,8 +2918,15 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 		PARENT_INO(dir_bh->b_data, new_dir->i_sb->s_blocksize) =
 						cpu_to_le32(new_dir->i_ino);
 		BUFFER_TRACE(dir_bh, "call ext4_handle_dirty_metadata");
-		retval = ext4_handle_dirty_dirent_node(handle, old_inode,
-						       dir_bh);
+		if (is_dx(old_inode)) {
+			retval = ext4_handle_dirty_dx_node(handle,
+							   old_inode,
+							   dir_bh);
+		} else {
+			retval = ext4_handle_dirty_dirent_node(handle,
+							       old_inode,
+							       dir_bh);
+		}
 		if (retval) {
 			ext4_std_error(old_dir->i_sb, retval);
 			goto end_rename;
