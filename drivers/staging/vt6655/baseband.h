@@ -46,36 +46,6 @@
 // Baseband RF pair definition in eeprom (Bits 6..0)
 //
 
-/*
-#define RATE_1M         0
-#define RATE_2M         1
-#define RATE_5M         2
-#define RATE_11M        3
-#define RATE_6M         4
-#define RATE_9M         5
-#define RATE_12M        6
-#define RATE_18M        7
-#define RATE_24M        8
-#define RATE_36M        9
-#define RATE_48M       10
-#define RATE_54M       11
-#define RATE_AUTO      12
-#define MAX_RATE       12
-
-
-//0:11A 1:11B 2:11G
-#define BB_TYPE_11A    0
-#define BB_TYPE_11B    1
-#define BB_TYPE_11G    2
-
-//0:11a,1:11b,2:11gb(only CCK in BasicRate),3:11ga(OFDM in Basic Rate)
-#define PK_TYPE_11A     0
-#define PK_TYPE_11B     1
-#define PK_TYPE_11GB    2
-#define PK_TYPE_11GA    3
-*/
-
-
 #define PREAMBLE_LONG   0
 #define PREAMBLE_SHORT  1
 
