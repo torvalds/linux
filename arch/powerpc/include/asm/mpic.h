@@ -63,6 +63,7 @@
  */
 #define MPIC_TIMER_BASE			0x01100
 #define MPIC_TIMER_STRIDE		0x40
+#define MPIC_TIMER_GROUP_STRIDE		0x1000
 
 #define MPIC_TIMER_CURRENT_CNT		0x00000
 #define MPIC_TIMER_BASE_CNT		0x00010
@@ -109,6 +110,9 @@
 #define 	MPIC_VECPRI_SENSE_EDGE			0x00000000
 #define 	MPIC_VECPRI_SENSE_MASK			0x00400000
 #define MPIC_IRQ_DESTINATION		0x00010
+
+#define MPIC_FSL_BRR1			0x00000
+#define 	MPIC_FSL_BRR1_VER			0x0000ffff
 
 #define MPIC_MAX_IRQ_SOURCES	2048
 #define MPIC_MAX_CPUS		32
@@ -296,6 +300,7 @@ struct mpic
 	phys_addr_t paddr;
 
 	/* The various ioremap'ed bases */
+	struct mpic_reg_bank	thiscpuregs;
 	struct mpic_reg_bank	gregs;
 	struct mpic_reg_bank	tmregs;
 	struct mpic_reg_bank	cpuregs[MPIC_MAX_CPUS];

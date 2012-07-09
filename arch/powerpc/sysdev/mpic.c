@@ -6,7 +6,7 @@
  *  with various broken implementations of this HW.
  *
  *  Copyright (C) 2004 Benjamin Herrenschmidt, IBM Corp.
- *  Copyright 2010-2011 Freescale Semiconductor, Inc.
+ *  Copyright 2010-2012 Freescale Semiconductor, Inc.
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License.  See the file COPYING in the main directory of this archive
@@ -221,24 +221,24 @@ static inline void _mpic_ipi_write(struct mpic *mpic, unsigned int ipi, u32 valu
 	_mpic_write(mpic->reg_type, &mpic->gregs, offset, value);
 }
 
+static inline unsigned int mpic_tm_offset(struct mpic *mpic, unsigned int tm)
+{
+	return (tm >> 2) * MPIC_TIMER_GROUP_STRIDE +
+	       (tm & 3) * MPIC_INFO(TIMER_STRIDE);
+}
+
 static inline u32 _mpic_tm_read(struct mpic *mpic, unsigned int tm)
 {
-	unsigned int offset = MPIC_INFO(TIMER_VECTOR_PRI) +
-			      ((tm & 3) * MPIC_INFO(TIMER_STRIDE));
-
-	if (tm >= 4)
-		offset += 0x1000 / 4;
+	unsigned int offset = mpic_tm_offset(mpic, tm) +
+			      MPIC_INFO(TIMER_VECTOR_PRI);
 
 	return _mpic_read(mpic->reg_type, &mpic->tmregs, offset);
 }
 
 static inline void _mpic_tm_write(struct mpic *mpic, unsigned int tm, u32 value)
 {
-	unsigned int offset = MPIC_INFO(TIMER_VECTOR_PRI) +
-			      ((tm & 3) * MPIC_INFO(TIMER_STRIDE));
-
-	if (tm >= 4)
-		offset += 0x1000 / 4;
+	unsigned int offset = mpic_tm_offset(mpic, tm) +
+			      MPIC_INFO(TIMER_VECTOR_PRI);
 
 	_mpic_write(mpic->reg_type, &mpic->tmregs, offset, value);
 }
@@ -1301,6 +1301,16 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	mpic_map(mpic, mpic->paddr, &mpic->gregs, MPIC_INFO(GREG_BASE), 0x1000);
 	mpic_map(mpic, mpic->paddr, &mpic->tmregs, MPIC_INFO(TIMER_BASE), 0x1000);
 
+	if (mpic->flags & MPIC_FSL) {
+		/*
+		 * Yes, Freescale really did put global registers in the
+		 * magic per-cpu area -- and they don't even show up in the
+		 * non-magic per-cpu copies that this driver normally uses.
+		 */
+		mpic_map(mpic, mpic->paddr, &mpic->thiscpuregs,
+			 MPIC_CPU_THISBASE, 0x1000);
+	}
+
 	/* Reset */
 
 	/* When using a device-node, reset requests are only honored if the MPIC
@@ -1440,6 +1450,7 @@ void __init mpic_assign_isu(struct mpic *mpic, unsigned int isu_num,
 void __init mpic_init(struct mpic *mpic)
 {
 	int i, cpu;
+	int num_timers = 4;
 
 	BUG_ON(mpic->num_sources == 0);
 
@@ -1448,15 +1459,30 @@ void __init mpic_init(struct mpic *mpic)
 	/* Set current processor priority to max */
 	mpic_cpu_write(MPIC_INFO(CPU_CURRENT_TASK_PRI), 0xf);
 
+	if (mpic->flags & MPIC_FSL) {
+		u32 brr1 = _mpic_read(mpic->reg_type, &mpic->thiscpuregs,
+				      MPIC_FSL_BRR1);
+		u32 version = brr1 & MPIC_FSL_BRR1_VER;
+
+		/*
+		 * Timer group B is present at the latest in MPIC 3.1 (e.g.
+		 * mpc8536).  It is not present in MPIC 2.0 (e.g. mpc8544).
+		 * I don't know about the status of intermediate versions (or
+		 * whether they even exist).
+		 */
+		if (version >= 0x0301)
+			num_timers = 8;
+	}
+
 	/* Initialize timers to our reserved vectors and mask them for now */
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < num_timers; i++) {
+		unsigned int offset = mpic_tm_offset(mpic, i);
+
 		mpic_write(mpic->tmregs,
-			   i * MPIC_INFO(TIMER_STRIDE) +
-			   MPIC_INFO(TIMER_DESTINATION),
+			   offset + MPIC_INFO(TIMER_DESTINATION),
 			   1 << hard_smp_processor_id());
 		mpic_write(mpic->tmregs,
-			   i * MPIC_INFO(TIMER_STRIDE) +
-			   MPIC_INFO(TIMER_VECTOR_PRI),
+			   offset + MPIC_INFO(TIMER_VECTOR_PRI),
 			   MPIC_VECPRI_MASK |
 			   (9 << MPIC_VECPRI_PRIORITY_SHIFT) |
 			   (mpic->timer_vecs[0] + i));
