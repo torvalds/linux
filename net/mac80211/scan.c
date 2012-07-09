@@ -928,6 +928,9 @@ int ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 	}
 
 	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
+		if (!local->hw.wiphy->bands[i])
+			continue;
+
 		local->sched_scan_ies.ie[i] = kzalloc(2 +
 						      IEEE80211_MAX_SSID_LEN +
 						      local->scan_ies_len +
