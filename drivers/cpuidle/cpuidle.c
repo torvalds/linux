@@ -201,6 +201,22 @@ void cpuidle_resume_and_unlock(void)
 
 EXPORT_SYMBOL_GPL(cpuidle_resume_and_unlock);
 
+/* Currently used in suspend/resume path to suspend cpuidle */
+void cpuidle_pause(void)
+{
+	mutex_lock(&cpuidle_lock);
+	cpuidle_uninstall_idle_handler();
+	mutex_unlock(&cpuidle_lock);
+}
+
+/* Currently used in suspend/resume path to resume cpuidle */
+void cpuidle_resume(void)
+{
+	mutex_lock(&cpuidle_lock);
+	cpuidle_install_idle_handler();
+	mutex_unlock(&cpuidle_lock);
+}
+
 /**
  * cpuidle_wrap_enter - performs timekeeping and irqen around enter function
  * @dev: pointer to a valid cpuidle_device object
