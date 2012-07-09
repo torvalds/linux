@@ -125,20 +125,20 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (data == NULL) {
 		dev_err(&st->us->dev, "memory alloc failed in ring bh");
-		return -ENOMEM;
+		goto done;
 	}
 
 	if (scan_count) {
 		if (st->variant->flags & ADIS16400_NO_BURST) {
 			ret = adis16350_spi_read_all(indio_dev, st->rx);
 			if (ret < 0)
-				goto err;
+				goto done;
 			for (; i < scan_count; i++)
 				data[i]	= *(s16 *)(st->rx + i*2);
 		} else {
 			ret = adis16400_spi_read_burst(indio_dev, st->rx);
 			if (ret < 0)
-				goto err;
+				goto done;
 			for (; i < scan_count; i++) {
 				j = __ffs(mask);
 				mask &= ~(1 << j);
@@ -152,14 +152,11 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 		*((s64 *)(data + ((i + 3)/4)*4)) = pf->timestamp;
 	ring->access->store_to(indio_dev->buffer, (u8 *) data, pf->timestamp);
 
+done:
+	kfree(data);
 	iio_trigger_notify_done(indio_dev->trig);
 
-	kfree(data);
 	return IRQ_HANDLED;
-
-err:
-	kfree(data);
-	return ret;
 }
 
 void adis16400_unconfigure_ring(struct iio_dev *indio_dev)

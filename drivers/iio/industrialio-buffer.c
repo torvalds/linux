@@ -292,7 +292,7 @@ int iio_buffer_register(struct iio_dev *indio_dev,
 			if (channels[i].scan_index >
 			    (int)indio_dev->masklength - 1)
 				indio_dev->masklength
-					= indio_dev->channels[i].scan_index + 1;
+					= channels[i].scan_index + 1;
 
 			ret = iio_buffer_add_channel_sysfs(indio_dev,
 							 &channels[i]);

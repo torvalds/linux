@@ -82,7 +82,7 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 
 	buf = kzalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		goto done;
 
 	b_sent = spi_sync(st->spi, st->ring_msg);
 	if (b_sent)

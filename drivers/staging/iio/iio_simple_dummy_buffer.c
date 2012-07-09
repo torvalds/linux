@@ -52,7 +52,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 
 	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		goto done;
 
 	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength)) {
 		/*
@@ -91,6 +91,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 
 	kfree(data);
 
+done:
 	/*
 	 * Tell the core we are done with this trigger and ready for the
 	 * next one.

@@ -82,7 +82,7 @@ static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 
 	b_sent = spi_sync(st->spi, &st->ring_msg);
 	if (b_sent)
-		return b_sent;
+		goto done;
 
 	if (indio_dev->scan_timestamp) {
 		time_ns = iio_get_time_ns();
@@ -95,6 +95,8 @@ static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 		buf[i] = be16_to_cpu(st->rx_buf[i]);
 
 	indio_dev->buffer->access->store_to(ring, (u8 *)buf, time_ns);
+
+done:
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
