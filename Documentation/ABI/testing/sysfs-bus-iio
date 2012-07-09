@@ -275,7 +275,7 @@ What:		/sys/.../iio:deviceX/in_voltage-voltage_scale_available
 What:		/sys/.../iio:deviceX/out_voltageX_scale_available
 What:		/sys/.../iio:deviceX/out_altvoltageX_scale_available
 What:		/sys/.../iio:deviceX/in_capacitance_scale_available
-KernelVersion:	2.635
+KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
 		If a discrete set of scale values is available, they
