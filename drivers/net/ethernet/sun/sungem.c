@@ -752,7 +752,6 @@ static __inline__ struct sk_buff *gem_alloc_skb(struct net_device *dev, int size
 	if (likely(skb)) {
 		unsigned long offset = ALIGNED_RX_SKB_ADDR(skb->data);
 		skb_reserve(skb, offset);
-		skb->dev = dev;
 	}
 	return skb;
 }
