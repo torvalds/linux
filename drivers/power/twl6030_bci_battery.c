@@ -2066,7 +2066,7 @@ static int twl6030_bk_bci_battery_get_property(struct power_supply *psy,
 					union power_supply_propval *val)
 {
 	struct twl6030_bci_device_info *di = to_twl6030_bk_bci_device_info(psy);
-
+	val->intval = 0;	
 	switch (psp) {
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		val->intval = di->bk_voltage_mV * 1000;
