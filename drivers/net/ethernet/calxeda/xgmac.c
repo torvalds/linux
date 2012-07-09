@@ -264,7 +264,7 @@
 #define XGMAC_OMR_FEF		0x00000080	/* Forward Error Frames */
 #define XGMAC_OMR_DT		0x00000040	/* Drop TCP/IP csum Errors */
 #define XGMAC_OMR_RSF		0x00000020	/* RX FIFO Store and Forward */
-#define XGMAC_OMR_RTC		0x00000010	/* RX Threshhold Ctrl */
+#define XGMAC_OMR_RTC_256	0x00000018	/* RX Threshhold Ctrl */
 #define XGMAC_OMR_RTC_MASK	0x00000018	/* RX Threshhold Ctrl MASK */
 
 /* XGMAC HW Features Register */
@@ -982,7 +982,8 @@ static int xgmac_hw_init(struct net_device *dev)
 	writel(value, ioaddr + XGMAC_DMA_CONTROL);
 
 	/* Set the HW DMA mode and the COE */
-	writel(XGMAC_OMR_TSF | XGMAC_OMR_RSF | XGMAC_OMR_RFD | XGMAC_OMR_RFA,
+	writel(XGMAC_OMR_TSF | XGMAC_OMR_RFD | XGMAC_OMR_RFA |
+		XGMAC_OMR_RTC_256,
 		ioaddr + XGMAC_OMR);
 
 	/* Reset the MMC counters */
