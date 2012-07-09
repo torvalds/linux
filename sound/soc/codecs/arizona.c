@@ -646,6 +646,7 @@ const struct snd_soc_dai_ops arizona_dai_ops = {
 	.hw_params = arizona_hw_params,
 	.set_sysclk = arizona_dai_set_sysclk,
 };
+EXPORT_SYMBOL_GPL(arizona_dai_ops);
 
 int arizona_init_dai(struct arizona_priv *priv, int id)
 {
