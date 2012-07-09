@@ -3745,8 +3745,7 @@ static u32 slic_card_locate(struct adapter *adapter)
 		rdhostid_offset = SLIC_RDHOSTID_1GB;
 		break;
 	default:
-		ASSERT(0);
-		break;
+		return -ENODEV;
 	}
 
 	hostid_reg =
