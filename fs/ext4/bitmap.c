@@ -11,8 +11,6 @@
 #include <linux/jbd2.h>
 #include "ext4.h"
 
-#ifdef EXT4FS_DEBUG
-
 static const int nibblemap[] = {4, 3, 3, 2, 3, 2, 2, 1, 3, 2, 2, 1, 2, 1, 1, 0};
 
 unsigned int ext4_count_free(char *bitmap, unsigned int numchars)
@@ -24,8 +22,6 @@ unsigned int ext4_count_free(char *bitmap, unsigned int numchars)
 			nibblemap[(bitmap[i] >> 4) & 0xf];
 	return sum;
 }
-
-#endif  /*  EXT4FS_DEBUG  */
 
 int ext4_inode_bitmap_csum_verify(struct super_block *sb, ext4_group_t group,
 				  struct ext4_group_desc *gdp,

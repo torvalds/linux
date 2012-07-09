@@ -1197,7 +1197,7 @@ static void ext4_update_super(struct super_block *sb,
 	struct ext4_new_group_data *group_data = flex_gd->groups;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_super_block *es = sbi->s_es;
-	int i;
+	int i, ret;
 
 	BUG_ON(flex_gd->count == 0 || group_data == NULL);
 	/*
@@ -1271,6 +1271,11 @@ static void ext4_update_super(struct super_block *sb,
 		atomic_add(EXT4_INODES_PER_GROUP(sb) * flex_gd->count,
 			   &sbi->s_flex_groups[flex_group].free_inodes);
 	}
+
+	/*
+	 * Update the fs overhead information
+	 */
+	ext4_calculate_overhead(sb);
 
 	if (test_opt(sb, DEBUG))
 		printk(KERN_DEBUG "EXT4-fs: added group %u:"
