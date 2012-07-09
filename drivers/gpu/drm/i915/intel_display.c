@@ -1006,7 +1006,7 @@ void intel_wait_for_pipe_off(struct drm_device *dev, int pipe)
 		/* Wait for the Pipe State to go off */
 		if (wait_for((I915_READ(reg) & I965_PIPECONF_ACTIVE) == 0,
 			     100))
-			DRM_DEBUG_KMS("pipe_off wait timed out\n");
+			WARN(1, "pipe_off wait timed out\n");
 	} else {
 		u32 last_line, line_mask;
 		int reg = PIPEDSL(pipe);
@@ -1024,7 +1024,7 @@ void intel_wait_for_pipe_off(struct drm_device *dev, int pipe)
 		} while (((I915_READ(reg) & line_mask) != last_line) &&
 			 time_after(timeout, jiffies));
 		if (time_after(jiffies, timeout))
-			DRM_DEBUG_KMS("pipe_off wait timed out\n");
+			WARN(1, "pipe_off wait timed out\n");
 	}
 }
 
