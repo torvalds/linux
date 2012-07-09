@@ -80,7 +80,6 @@
 #define WLAN_HDR_ADDR4_LEN          30
 #define WLAN_IEHDR_LEN              2
 #define WLAN_SSID_MAXLEN            32
-/*#define WLAN_RATES_MAXLEN           255*/
 #define WLAN_RATES_MAXLEN           16
 #define WLAN_RATES_MAXLEN_11B       4
 #define WLAN_RSN_MAXLEN             32
@@ -106,7 +105,6 @@
 #define WLAN_WEP40_KEYLEN           5
 #define WLAN_WEP104_KEYLEN          13
 #define WLAN_WEP232_KEYLEN          29
-/*#define WLAN_WEPMAX_KEYLEN          29*/
 #define WLAN_WEPMAX_KEYLEN          32
 #define WLAN_CHALLENGE_IE_MAXLEN    255
 #define WLAN_CHALLENGE_IE_LEN       130

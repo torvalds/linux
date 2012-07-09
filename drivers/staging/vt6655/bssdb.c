@@ -58,7 +58,6 @@
 #include "wpa2.h"
 #include "iowpa.h"
 
-//#define	PLICE_DEBUG
 /*---------------------  Static Definitions -------------------------*/
 
 

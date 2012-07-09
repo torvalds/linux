@@ -87,12 +87,10 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 
-//#define	DEBUG
 /*---------------------  Static Definitions -------------------------*/
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 static int          msglevel                =   MSG_LEVEL_INFO;
 
-//#define	PLICE_DEBUG
 //
 // Define module options
 //
@@ -100,10 +98,8 @@ MODULE_AUTHOR("VIA Networking Technologies, Inc., <lyndonchen@vntek.com.tw>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("VIA Networking Solomon-A/B/G Wireless LAN Adapter Driver");
 
-//PLICE_DEBUG ->
 	static int mlme_kill;
 	//static  struct task_struct * mlme_task;
-//PLICE_DEBUG <-
 
 #define DEVICE_PARAM(N,D)
 /*
