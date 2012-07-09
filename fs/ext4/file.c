@@ -90,34 +90,16 @@ ext4_unaligned_aio(struct inode *inode, const struct iovec *iov,
 }
 
 static ssize_t
-ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
-		unsigned long nr_segs, loff_t pos)
+ext4_file_dio_write(struct kiocb *iocb, const struct iovec *iov,
+		    unsigned long nr_segs, loff_t pos)
 {
 	struct inode *inode = iocb->ki_filp->f_path.dentry->d_inode;
 	int unaligned_aio = 0;
 	ssize_t ret;
 
-	/*
-	 * If we have encountered a bitmap-format file, the size limit
-	 * is smaller than s_maxbytes, which is for extent-mapped files.
-	 */
-
-	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))) {
-		struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
-		size_t length = iov_length(iov, nr_segs);
-
-		if ((pos > sbi->s_bitmap_maxbytes ||
-		    (pos == sbi->s_bitmap_maxbytes && length > 0)))
-			return -EFBIG;
-
-		if (pos + length > sbi->s_bitmap_maxbytes) {
-			nr_segs = iov_shorten((struct iovec *)iov, nr_segs,
-					      sbi->s_bitmap_maxbytes - pos);
-		}
-	} else if (unlikely((iocb->ki_filp->f_flags & O_DIRECT) &&
-		   !is_sync_kiocb(iocb))) {
+	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS) &&
+	    !is_sync_kiocb(iocb))
 		unaligned_aio = ext4_unaligned_aio(inode, iov, nr_segs, pos);
-	}
 
 	/* Unaligned direct AIO must be serialized; see comment above */
 	if (unaligned_aio) {
@@ -137,6 +119,40 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 
 	if (unaligned_aio)
 		mutex_unlock(ext4_aio_mutex(inode));
+
+	return ret;
+}
+
+static ssize_t
+ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
+		unsigned long nr_segs, loff_t pos)
+{
+	struct inode *inode = iocb->ki_filp->f_path.dentry->d_inode;
+	ssize_t ret;
+
+	/*
+	 * If we have encountered a bitmap-format file, the size limit
+	 * is smaller than s_maxbytes, which is for extent-mapped files.
+	 */
+
+	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))) {
+		struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+		size_t length = iov_length(iov, nr_segs);
+
+		if ((pos > sbi->s_bitmap_maxbytes ||
+		    (pos == sbi->s_bitmap_maxbytes && length > 0)))
+			return -EFBIG;
+
+		if (pos + length > sbi->s_bitmap_maxbytes) {
+			nr_segs = iov_shorten((struct iovec *)iov, nr_segs,
+					      sbi->s_bitmap_maxbytes - pos);
+		}
+	}
+
+	if (unlikely(iocb->ki_filp->f_flags & O_DIRECT))
+		ret = ext4_file_dio_write(iocb, iov, nr_segs, pos);
+	else
+		ret = generic_file_aio_write(iocb, iov, nr_segs, pos);
 
 	return ret;
 }
