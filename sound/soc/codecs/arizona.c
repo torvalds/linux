@@ -79,6 +79,8 @@ const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 	"IN2R",
 	"IN3L",
 	"IN3R",
+	"IN4L",
+	"IN4R",
 	"AIF1RX1",
 	"AIF1RX2",
 	"AIF1RX3",
@@ -138,6 +140,8 @@ int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS] = {
 	0x13,
 	0x14,
 	0x15,
+	0x16,
+	0x17,
 	0x20,  /* AIF1RX1 */
 	0x21,
 	0x22,
