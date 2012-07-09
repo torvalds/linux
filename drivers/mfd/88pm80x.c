@@ -29,6 +29,7 @@ const struct regmap_config pm80x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };
+EXPORT_SYMBOL_GPL(pm80x_regmap_config);
 
 int __devinit pm80x_init(struct i2c_client *client,
 				 const struct i2c_device_id *id)
