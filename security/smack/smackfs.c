@@ -518,6 +518,9 @@ static void smk_rule_show(struct seq_file *s, struct smack_rule *srp, int max)
 	if (strlen(srp->smk_subject) >= max || strlen(srp->smk_object) >= max)
 		return;
 
+	if (srp->smk_access == 0)
+		return;
+
 	seq_printf(s, "%s %s", srp->smk_subject, srp->smk_object);
 
 	seq_putc(s, ' ');
@@ -532,8 +535,6 @@ static void smk_rule_show(struct seq_file *s, struct smack_rule *srp, int max)
 		seq_putc(s, 'a');
 	if (srp->smk_access & MAY_TRANSMUTE)
 		seq_putc(s, 't');
-	if (srp->smk_access == 0)
-		seq_putc(s, '-');
 
 	seq_putc(s, '\n');
 }
