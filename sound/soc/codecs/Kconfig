@@ -75,6 +75,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM2200 if I2C
 	select SND_SOC_WM5100 if I2C
 	select SND_SOC_WM5102 if MFD_WM5102
+	select SND_SOC_WM5110 if MFD_WM5110
 	select SND_SOC_WM8350 if MFD_WM8350
 	select SND_SOC_WM8400 if MFD_WM8400
 	select SND_SOC_WM8510 if SND_SOC_I2C_AND_SPI
@@ -134,7 +135,9 @@ config SND_SOC_88PM860X
 config SND_SOC_ARIZONA
 	tristate
 	default y if SND_SOC_WM5102=y
+	default y if SND_SOC_WM5110=y
 	default m if SND_SOC_WM5102=m
+	default m if SND_SOC_WM5110=m
 
 config SND_SOC_WM_HUBS
 	tristate
@@ -336,6 +339,9 @@ config SND_SOC_WM5100
 	tristate
 
 config SND_SOC_WM5102
+	tristate
+
+config SND_SOC_WM5110
 	tristate
 
 config SND_SOC_WM8350
