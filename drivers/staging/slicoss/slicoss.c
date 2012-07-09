@@ -3196,7 +3196,6 @@ static void __devexit slic_entry_remove(struct pci_dev *pcidev)
 	struct sliccard *card;
 	struct mcast_address *mcaddr, *mlist;
 
-	ASSERT(adapter);
 	slic_adapter_freeresources(adapter);
 	slic_unmap_mmio_space(adapter);
 	unregister_netdev(dev);
