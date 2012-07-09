@@ -75,6 +75,7 @@ _GLOBAL(__setup_cpu_e500v2)
 	mtlr	r4
 	blr
 _GLOBAL(__setup_cpu_e500mc)
+_GLOBAL(__setup_cpu_e5500)
 	mflr	r5
 	bl	__e500_icache_setup
 	bl	__e500_dcache_setup
@@ -104,19 +105,17 @@ _GLOBAL(__setup_cpu_e500mc)
 	mtlr	r5
 	blr
 #endif
+#ifdef CONFIG_PPC_BOOK3E_64
 /* Right now, restore and setup are the same thing */
 _GLOBAL(__restore_cpu_e5500)
 _GLOBAL(__setup_cpu_e5500)
 	mflr	r4
 	bl	__e500_icache_setup
 	bl	__e500_dcache_setup
-#ifdef CONFIG_PPC_BOOK3E_64
 	bl	.__setup_base_ivors
 	bl	.setup_perfmon_ivor
 	bl	.setup_doorbell_ivors
 	bl	.setup_ehv_ivors
-#else
-	bl	__setup_e500mc_ivors
-#endif
 	mtlr	r4
 	blr
+#endif
