@@ -329,10 +329,12 @@ static int sysfs_dentry_revalidate(struct dentry *dentry, struct nameidata *nd)
 
 	/* The sysfs dirent has been moved to a different namespace */
 	type = KOBJ_NS_TYPE_NONE;
-	if (sd->s_parent)
+	if (sd->s_parent) {
 		type = sysfs_ns_type(sd->s_parent);
-	if (type && (sysfs_info(dentry->d_sb)->ns[type] != sd->s_ns))
-		goto out_bad;
+		if (type != KOBJ_NS_TYPE_NONE &&
+				sysfs_info(dentry->d_sb)->ns[type] != sd->s_ns)
+			goto out_bad;
+	}
 
 	mutex_unlock(&sysfs_mutex);
 out_valid:
