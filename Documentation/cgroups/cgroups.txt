@@ -637,16 +637,6 @@ void exit(struct task_struct *task)
 
 Called during task exit.
 
-int populate(struct cgroup *cgrp)
-(cgroup_mutex held by caller)
-
-Called after creation of a cgroup to allow a subsystem to populate
-the cgroup directory with file entries.  The subsystem should make
-calls to cgroup_add_file() with objects of type cftype (see
-include/linux/cgroup.h for details).  Note that although this
-method can return an error code, the error code is currently not
-always handled well.
-
 void post_clone(struct cgroup *cgrp)
 (cgroup_mutex held by caller)
 
