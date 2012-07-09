@@ -13,6 +13,8 @@
  * Implementation of the Linux Power Management for Mali GPU kernel driver
  */
 
+#include <linux/module.h>
+
 #if USING_MALI_PMM
 #include <linux/sched.h>
 
