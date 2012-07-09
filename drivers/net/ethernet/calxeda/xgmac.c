@@ -970,7 +970,7 @@ static int xgmac_hw_init(struct net_device *dev)
 	writel(DMA_INTR_DEFAULT_MASK, ioaddr + XGMAC_DMA_INTR_ENA);
 
 	/* XGMAC requires AXI bus init. This is a 'magic number' for now */
-	writel(0x000100E, ioaddr + XGMAC_DMA_AXI_BUS);
+	writel(0x0077000E, ioaddr + XGMAC_DMA_AXI_BUS);
 
 	ctrl |= XGMAC_CONTROL_DDIC | XGMAC_CONTROL_JE | XGMAC_CONTROL_ACS |
 		XGMAC_CONTROL_CAR;
