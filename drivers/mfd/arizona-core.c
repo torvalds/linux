@@ -398,7 +398,11 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 		}
 	}
 
-	arizona_wait_for_boot(arizona);
+	ret = arizona_wait_for_boot(arizona);
+	if (ret != 0) {
+		dev_err(arizona->dev, "Device failed initial boot: %d\n", ret);
+		goto err_reset;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(arizona->pdata.gpio_defaults); i++) {
 		if (!arizona->pdata.gpio_defaults[i])
