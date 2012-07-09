@@ -30,7 +30,7 @@
 #include "dvb_demux.h"
 #include "dvb_net.h"
 #include "dmxdev.h"
-#include "dvb-usb-ids.h"
+#include "../dvb-usb/dvb-usb-ids.h"
 
 /*
  * device file: /dev/dvb/adapter[0-1]/frontend[0-2]

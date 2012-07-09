@@ -1,11 +1,6 @@
 dvb-usb-objs = dvb-usb-firmware.o dvb-usb-init.o dvb-usb-urb.o dvb-usb-i2c.o dvb-usb-dvb.o dvb-usb-remote.o usb-urb.o
 obj-$(CONFIG_DVB_USB) += dvb-usb.o
 
-dvb_usbv2-objs = dvb_usb_core.o dvb_usb_urb.o usb_urb.o
-obj-$(CONFIG_DVB_USB_V2) += dvb_usbv2.o
-
-obj-$(CONFIG_DVB_USB_FIRMWARE) += dvb_usb_firmware.o
-
 dvb-usb-vp7045-objs = vp7045.o vp7045-fe.o
 obj-$(CONFIG_DVB_USB_VP7045) += dvb-usb-vp7045.o
 
@@ -38,12 +33,6 @@ obj-$(CONFIG_DVB_USB_UMT_010) += dvb-usb-dibusb-common.o dvb-usb-umt-010.o
 dvb-usb-m920x-objs = m920x.o
 obj-$(CONFIG_DVB_USB_M920X) += dvb-usb-m920x.o
 
-dvb-usb-gl861-objs = gl861.o
-obj-$(CONFIG_DVB_USB_GL861) += dvb-usb-gl861.o
-
-dvb-usb-au6610-objs = au6610.o
-obj-$(CONFIG_DVB_USB_AU6610) += dvb-usb-au6610.o
-
 dvb-usb-digitv-objs = digitv.o
 obj-$(CONFIG_DVB_USB_DIGITV) += dvb-usb-digitv.o
 
@@ -65,9 +54,6 @@ obj-$(CONFIG_DVB_USB_AF9005) += dvb-usb-af9005.o
 dvb-usb-af9005-remote-objs = af9005-remote.o
 obj-$(CONFIG_DVB_USB_AF9005_REMOTE) += dvb-usb-af9005-remote.o
 
-dvb-usb-anysee-objs = anysee.o
-obj-$(CONFIG_DVB_USB_ANYSEE) += dvb-usb-anysee.o
-
 dvb-usb-pctv452e-objs = pctv452e.o
 obj-$(CONFIG_DVB_USB_PCTV452E) += dvb-usb-pctv452e.o
 
@@ -77,20 +63,11 @@ obj-$(CONFIG_DVB_USB_DW2102) += dvb-usb-dw2102.o
 dvb-usb-dtv5100-objs = dtv5100.o
 obj-$(CONFIG_DVB_USB_DTV5100) += dvb-usb-dtv5100.o
 
-dvb-usb-af9015-objs = af9015.o
-obj-$(CONFIG_DVB_USB_AF9015) += dvb-usb-af9015.o
-
 dvb-usb-cinergyT2-objs = cinergyT2-core.o cinergyT2-fe.o
 obj-$(CONFIG_DVB_USB_CINERGY_T2) += dvb-usb-cinergyT2.o
 
-dvb-usb-ce6230-objs = ce6230.o
-obj-$(CONFIG_DVB_USB_CE6230) += dvb-usb-ce6230.o
-
 dvb-usb-friio-objs = friio.o friio-fe.o
 obj-$(CONFIG_DVB_USB_FRIIO) += dvb-usb-friio.o
-
-dvb-usb-ec168-objs = ec168.o
-obj-$(CONFIG_DVB_USB_EC168) += dvb-usb-ec168.o
 
 dvb-usb-az6007-objs = az6007.o
 obj-$(CONFIG_DVB_USB_AZ6007) += dvb-usb-az6007.o
@@ -107,16 +84,8 @@ obj-$(CONFIG_DVB_USB_TECHNISAT_USB2) += dvb-usb-technisat-usb2.o
 dvb-usb-it913x-objs := it913x.o
 obj-$(CONFIG_DVB_USB_IT913X) += dvb-usb-it913x.o
 
-dvb-usb-mxl111sf-objs = mxl111sf.o mxl111sf-phy.o mxl111sf-i2c.o mxl111sf-gpio.o
-obj-$(CONFIG_DVB_USB_MXL111SF) += dvb-usb-mxl111sf.o
-obj-$(CONFIG_DVB_USB_MXL111SF) += mxl111sf-demod.o
-obj-$(CONFIG_DVB_USB_MXL111SF) += mxl111sf-tuner.o
-
 dvb-usb-rtl28xxu-objs = rtl28xxu.o
 obj-$(CONFIG_DVB_USB_RTL28XXU) += dvb-usb-rtl28xxu.o
-
-dvb-usb-af9035-objs = af9035.o
-obj-$(CONFIG_DVB_USB_AF9035) += dvb-usb-af9035.o
 
 ccflags-y += -I$(srctree)/drivers/media/dvb/dvb-core
 ccflags-y += -I$(srctree)/drivers/media/dvb/frontends/

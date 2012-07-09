@@ -10,6 +10,7 @@ obj-y        := dvb-core/	\
 		b2c2/		\
 		bt8xx/		\
 		dvb-usb/	\
+		dvb-usb-v2/	\
 		pluto2/		\
 		siano/		\
 		dm1105/		\
