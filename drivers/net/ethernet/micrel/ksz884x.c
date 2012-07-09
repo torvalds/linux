@@ -4480,14 +4480,12 @@ static void ksz_init_rx_buffers(struct dev_info *adapter)
 		dma_buf->len = adapter->mtu;
 		if (!dma_buf->skb)
 			dma_buf->skb = alloc_skb(dma_buf->len, GFP_ATOMIC);
-		if (dma_buf->skb && !dma_buf->dma) {
-			dma_buf->skb->dev = adapter->dev;
+		if (dma_buf->skb && !dma_buf->dma)
 			dma_buf->dma = pci_map_single(
 				adapter->pdev,
 				skb_tail_pointer(dma_buf->skb),
 				dma_buf->len,
 				PCI_DMA_FROMDEVICE);
-		}
 
 		/* Set descriptor. */
 		set_rx_buf(desc, dma_buf->dma);
