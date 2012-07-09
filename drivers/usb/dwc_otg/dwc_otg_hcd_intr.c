@@ -359,7 +359,7 @@ int32_t dwc_otg_hcd_handle_port_intr (dwc_otg_hcd_t *_dwc_otg_hcd)
 		hprt0_modify.b.prtconndet = 1;
 
                 /* B-Device has connected, Delete the connection timer.  */
-                del_timer( &_dwc_otg_hcd->conn_timer );
+//                del_timer( &_dwc_otg_hcd->conn_timer );
 
 		/* The Hub driver asserts a reset when it sees port connect
 		 * status change flag */
@@ -813,7 +813,8 @@ update_isoc_urb_state(dwc_otg_hcd_t *_hcd,
  * @param _halt_status Reason the channel is being released. This status
  * determines the actions taken by this function.
  */
-static void release_channel(dwc_otg_hcd_t *_hcd,
+/*static */
+void release_channel(dwc_otg_hcd_t *_hcd,
 			    dwc_hc_t *_hc,
 			    dwc_otg_qtd_t *_qtd,
 			    dwc_otg_halt_status_e _halt_status)
@@ -863,6 +864,7 @@ static void release_channel(dwc_otg_hcd_t *_hcd,
 		 * deactivated. Don't want to do anything except release the
 		 * host channel and try to queue more transfers.
 		 */
+		continue_trans = 0;
 		goto cleanup;
 	case DWC_OTG_HC_XFER_NO_HALT_STATUS:
 		DWC_ERROR("%s: No halt_status, channel %d\n", __func__, _hc->hc_num);
