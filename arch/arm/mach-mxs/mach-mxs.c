@@ -267,6 +267,7 @@ static void __init mxs_machine_init(void)
 
 static const char *imx23_dt_compat[] __initdata = {
 	"fsl,imx23-evk",
+	"fsl,stmp378x_devb"
 	"olimex,imx23-olinuxino",
 	"fsl,imx23",
 	NULL,
