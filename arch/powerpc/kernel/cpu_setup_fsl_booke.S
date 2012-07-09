@@ -143,7 +143,13 @@ _GLOBAL(__setup_cpu_e5500)
 	rlwinm.	r10,r10,0,MMUCFG_LPIDSIZE
 	beq	1f
 	bl	.setup_ehv_ivors
+	b	2f
 1:
+	ld	r10,CPU_SPEC_FEATURES(r4)
+	LOAD_REG_IMMEDIATE(r9,CPU_FTR_EMB_HV)
+	andc	r10,r10,r9
+	std	r10,CPU_SPEC_FEATURES(r4)
+2:
 	mtlr	r5
 	blr
 #endif
