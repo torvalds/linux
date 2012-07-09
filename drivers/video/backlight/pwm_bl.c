@@ -54,14 +54,18 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 		pwm_config(pb->pwm, 0, pb->period);
 		pwm_disable(pb->pwm);
 	} else {
+		int duty_cycle;
+
 		if (pb->levels) {
-			brightness = pb->levels[brightness];
+			duty_cycle = pb->levels[brightness];
 			max = pb->levels[max];
+		} else {
+			duty_cycle = brightness;
 		}
 
-		brightness = pb->lth_brightness +
-			(brightness * (pb->period - pb->lth_brightness) / max);
-		pwm_config(pb->pwm, brightness, pb->period);
+		duty_cycle = pb->lth_brightness +
+		     (duty_cycle * (pb->period - pb->lth_brightness) / max);
+		pwm_config(pb->pwm, duty_cycle, pb->period);
 		pwm_enable(pb->pwm);
 	}
 
