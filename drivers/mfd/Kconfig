@@ -497,7 +497,7 @@ config MFD_S5M_CORE
 
 config MFD_ARIZONA
 	select REGMAP
-	tristate
+	bool
 
 config MFD_ARIZONA_I2C
 	tristate "Support Wolfson Microelectronics Arizona platform with I2C"
