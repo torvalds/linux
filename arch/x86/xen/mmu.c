@@ -1432,6 +1432,10 @@ static pte_t __init mask_rw_pte(pte_t *ptep, pte_t pte)
  * Init-time set_pte while constructing initial pagetables, which
  * doesn't allow RO page table pages to be remapped RW.
  *
+ * If there is no MFN for this PFN then this page is initially
+ * ballooned out so clear the PTE (as in decrease_reservation() in
+ * drivers/xen/balloon.c).
+ *
  * Many of these PTE updates are done on unpinned and writable pages
  * and doing a hypercall for these is unnecessary and expensive.  At
  * this point it is not possible to tell if a page is pinned or not,
@@ -1440,7 +1444,10 @@ static pte_t __init mask_rw_pte(pte_t *ptep, pte_t pte)
  */
 static void __init xen_set_pte_init(pte_t *ptep, pte_t pte)
 {
-	pte = mask_rw_pte(ptep, pte);
+	if (pte_mfn(pte) != INVALID_P2M_ENTRY)
+		pte = mask_rw_pte(ptep, pte);
+	else
+		pte = __pte_ma(0);
 
 	native_set_pte(ptep, pte);
 }
