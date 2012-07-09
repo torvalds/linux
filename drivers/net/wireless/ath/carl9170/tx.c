@@ -277,11 +277,11 @@ static void carl9170_tx_release(struct kref *ref)
 		return;
 
 	BUILD_BUG_ON(
-	    offsetof(struct ieee80211_tx_info, status.ampdu_ack_len) != 23);
+	    offsetof(struct ieee80211_tx_info, status.ack_signal) != 20);
 
-	memset(&txinfo->status.ampdu_ack_len, 0,
+	memset(&txinfo->status.ack_signal, 0,
 	       sizeof(struct ieee80211_tx_info) -
-	       offsetof(struct ieee80211_tx_info, status.ampdu_ack_len));
+	       offsetof(struct ieee80211_tx_info, status.ack_signal));
 
 	if (atomic_read(&ar->tx_total_queued))
 		ar->tx_schedule = true;

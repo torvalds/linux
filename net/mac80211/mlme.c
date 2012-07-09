@@ -541,6 +541,8 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		memcpy(pos, assoc_data->ie + offset, noffset - offset);
 	}
 
+	drv_mgd_prepare_tx(local, sdata);
+
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 	ieee80211_tx_skb(sdata, skb);
 }
@@ -580,6 +582,9 @@ static void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 		if (!(ifmgd->flags & IEEE80211_STA_MFP_ENABLED))
 			IEEE80211_SKB_CB(skb)->flags |=
 				IEEE80211_TX_INTFL_DONT_ENCRYPT;
+
+		drv_mgd_prepare_tx(local, sdata);
+
 		ieee80211_tx_skb(sdata, skb);
 	}
 }
@@ -900,9 +905,6 @@ static bool ieee80211_powersave_allowed(struct ieee80211_sub_if_data *sdata)
 		return false;
 
 	if (!mgd->associated)
-		return false;
-
-	if (!mgd->associated->beacon_ies)
 		return false;
 
 	if (mgd->flags & (IEEE80211_STA_BEACON_POLL |
@@ -1362,6 +1364,10 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	}
 	mutex_unlock(&local->sta_mtx);
 
+	/* flush out any pending frame (e.g. DELBA) before deauth/disassoc */
+	if (tx)
+		drv_flush(local, false);
+
 	/* deauthenticate/disassociate now */
 	if (tx || frame_buf)
 		ieee80211_send_deauth_disassoc(sdata, ifmgd->bssid, stype,
@@ -1610,6 +1616,7 @@ struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct cfg80211_bss *cbss;
 	struct sk_buff *skb;
 	const u8 *ssid;
 	int ssid_len;
@@ -1619,16 +1626,22 @@ struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
 
 	ASSERT_MGD_MTX(ifmgd);
 
-	if (!ifmgd->associated)
+	if (ifmgd->associated)
+		cbss = ifmgd->associated;
+	else if (ifmgd->auth_data)
+		cbss = ifmgd->auth_data->bss;
+	else if (ifmgd->assoc_data)
+		cbss = ifmgd->assoc_data->bss;
+	else
 		return NULL;
 
-	ssid = ieee80211_bss_get_ie(ifmgd->associated, WLAN_EID_SSID);
+	ssid = ieee80211_bss_get_ie(cbss, WLAN_EID_SSID);
 	if (WARN_ON_ONCE(ssid == NULL))
 		ssid_len = 0;
 	else
 		ssid_len = ssid[1];
 
-	skb = ieee80211_build_probe_req(sdata, ifmgd->associated->bssid,
+	skb = ieee80211_build_probe_req(sdata, cbss->bssid,
 					(u32) -1, ssid + 2, ssid_len,
 					NULL, 0, true);
 
@@ -1747,6 +1760,7 @@ static void ieee80211_auth_challenge(struct ieee80211_sub_if_data *sdata,
 	if (!elems.challenge)
 		return;
 	auth_data->expected_transaction = 4;
+	drv_mgd_prepare_tx(sdata->local, sdata);
 	ieee80211_send_auth(sdata, 3, auth_data->algorithm,
 			    elems.challenge - 2, elems.challenge_len + 2,
 			    auth_data->bss->bssid, auth_data->bss->bssid,
@@ -2629,6 +2643,8 @@ static int ieee80211_probe_auth(struct ieee80211_sub_if_data *sdata)
 
 		return -ETIMEDOUT;
 	}
+
+	drv_mgd_prepare_tx(local, sdata);
 
 	if (auth_data->bss->proberesp_ies) {
 		sdata_info(sdata, "send auth to %pM (try %d/%d)\n",
