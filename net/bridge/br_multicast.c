@@ -1160,7 +1160,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 			goto out;
 		}
 		mld = (struct mld_msg *) icmp6_hdr(skb);
-		max_delay = msecs_to_jiffies(htons(mld->mld_maxdelay));
+		max_delay = msecs_to_jiffies(ntohs(mld->mld_maxdelay));
 		if (max_delay)
 			group = &mld->mld_mca;
 	} else if (skb->len >= sizeof(*mld2q)) {
