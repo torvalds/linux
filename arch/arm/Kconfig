@@ -318,6 +318,7 @@ config ARCH_VEXPRESS
 	select NO_IOPORT
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_CLCD
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	help
 	  This enables support for the ARM Ltd Versatile Express boards.
 

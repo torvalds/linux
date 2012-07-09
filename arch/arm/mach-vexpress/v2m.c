@@ -18,6 +18,8 @@
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/mtd/physmap.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 
 #include <asm/arch_timer.h>
 #include <asm/mach-types.h>
@@ -197,6 +199,11 @@ static struct platform_device v2m_eth_device = {
 	.resource	= v2m_eth_resources,
 	.num_resources	= ARRAY_SIZE(v2m_eth_resources),
 	.dev.platform_data = &v2m_eth_config,
+};
+
+static struct regulator_consumer_supply v2m_eth_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
 };
 
 static struct resource v2m_usb_resources[] = {
@@ -502,6 +509,9 @@ static void __init v2m_init_irq(void)
 static void __init v2m_init(void)
 {
 	int i;
+
+	regulator_register_fixed(0, v2m_eth_supplies,
+			ARRAY_SIZE(v2m_eth_supplies));
 
 	platform_device_register(&v2m_pcie_i2c_device);
 	platform_device_register(&v2m_ddc_i2c_device);
