@@ -10,6 +10,7 @@
 #include <bcm63xx_regs.h>
 #include <bcm63xx_irq.h>
 #include <bcm63xx_io.h>
+#include <bcm63xx_iudma.h>
 
 /* default number of descriptor */
 #define BCMENET_DEF_RX_DESC	64
@@ -29,35 +30,6 @@
  * get overflow information if packet size is 2048 or above
  */
 #define BCMENET_MAX_MTU		2046
-
-/*
- * rx/tx dma descriptor
- */
-struct bcm_enet_desc {
-	u32 len_stat;
-	u32 address;
-};
-
-#define DMADESC_LENGTH_SHIFT	16
-#define DMADESC_LENGTH_MASK	(0xfff << DMADESC_LENGTH_SHIFT)
-#define DMADESC_OWNER_MASK	(1 << 15)
-#define DMADESC_EOP_MASK	(1 << 14)
-#define DMADESC_SOP_MASK	(1 << 13)
-#define DMADESC_ESOP_MASK	(DMADESC_EOP_MASK | DMADESC_SOP_MASK)
-#define DMADESC_WRAP_MASK	(1 << 12)
-
-#define DMADESC_UNDER_MASK	(1 << 9)
-#define DMADESC_APPEND_CRC	(1 << 8)
-#define DMADESC_OVSIZE_MASK	(1 << 4)
-#define DMADESC_RXER_MASK	(1 << 2)
-#define DMADESC_CRC_MASK	(1 << 1)
-#define DMADESC_OV_MASK		(1 << 0)
-#define DMADESC_ERR_MASK	(DMADESC_UNDER_MASK | \
-				DMADESC_OVSIZE_MASK | \
-				DMADESC_RXER_MASK | \
-				DMADESC_CRC_MASK | \
-				DMADESC_OV_MASK)
-
 
 /*
  * MIB Counters register definitions
