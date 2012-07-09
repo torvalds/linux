@@ -454,6 +454,7 @@ struct bnx2x_agg_info {
 	u16			vlan_tag;
 	u16			len_on_bd;
 	u32			rxhash;
+	bool			l4_rxhash;
 	u16			gro_size;
 	u16			full_page;
 };

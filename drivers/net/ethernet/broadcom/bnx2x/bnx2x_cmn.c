@@ -295,12 +295,20 @@ static inline void bnx2x_update_sge_prod(struct bnx2x_fastpath *fp,
  * CQE (calculated by HW).
  */
 static u32 bnx2x_get_rxhash(const struct bnx2x *bp,
-			    const struct eth_fast_path_rx_cqe *cqe)
+			    const struct eth_fast_path_rx_cqe *cqe,
+			    bool *l4_rxhash)
 {
 	/* Set Toeplitz hash from CQE */
 	if ((bp->dev->features & NETIF_F_RXHASH) &&
-	    (cqe->status_flags & ETH_FAST_PATH_RX_CQE_RSS_HASH_FLG))
+	    (cqe->status_flags & ETH_FAST_PATH_RX_CQE_RSS_HASH_FLG)) {
+		enum eth_rss_hash_type htype;
+
+		htype = cqe->status_flags & ETH_FAST_PATH_RX_CQE_RSS_HASH_TYPE;
+		*l4_rxhash = (htype == TCP_IPV4_HASH_TYPE) ||
+			     (htype == TCP_IPV6_HASH_TYPE);
 		return le32_to_cpu(cqe->rss_hash_result);
+	}
+	*l4_rxhash = false;
 	return 0;
 }
 
@@ -354,7 +362,7 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
 	tpa_info->tpa_state = BNX2X_TPA_START;
 	tpa_info->len_on_bd = le16_to_cpu(cqe->len_on_bd);
 	tpa_info->placement_offset = cqe->placement_offset;
-	tpa_info->rxhash = bnx2x_get_rxhash(bp, cqe);
+	tpa_info->rxhash = bnx2x_get_rxhash(bp, cqe, &tpa_info->l4_rxhash);
 	if (fp->mode == TPA_MODE_GRO) {
 		u16 gro_size = le16_to_cpu(cqe->pkt_len_or_gro_seg_len);
 		tpa_info->full_page =
@@ -589,6 +597,7 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		skb_reserve(skb, pad + NET_SKB_PAD);
 		skb_put(skb, len);
 		skb->rxhash = tpa_info->rxhash;
+		skb->l4_rxhash = tpa_info->l4_rxhash;
 
 		skb->protocol = eth_type_trans(skb, bp->dev);
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -712,6 +721,7 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 		enum eth_rx_cqe_type cqe_fp_type;
 		u16 len, pad, queue;
 		u8 *data;
+		bool l4_rxhash;
 
 #ifdef BNX2X_STOP_ON_ERROR
 		if (unlikely(bp->panic))
@@ -855,7 +865,8 @@ reuse_rx:
 		skb->protocol = eth_type_trans(skb, bp->dev);
 
 		/* Set Toeplitz hash for a none-LRO skb */
-		skb->rxhash = bnx2x_get_rxhash(bp, cqe_fp);
+		skb->rxhash = bnx2x_get_rxhash(bp, cqe_fp, &l4_rxhash);
+		skb->l4_rxhash = l4_rxhash;
 
 		skb_checksum_none_assert(skb);
 
