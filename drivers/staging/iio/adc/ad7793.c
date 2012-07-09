@@ -52,8 +52,7 @@ struct ad7793_state {
 	u16				mode;
 	u16				conf;
 	u32				scale_avail[8][2];
-	/* Note this uses fact that 8 the mask always fits in a long */
-	unsigned long			available_scan_masks[7];
+
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
@@ -403,6 +402,7 @@ static const struct iio_buffer_setup_ops ad7793_ring_setup_ops = {
 	.postenable = &iio_triggered_buffer_postenable,
 	.predisable = &iio_triggered_buffer_predisable,
 	.postdisable = &ad7793_ring_postdisable,
+	.validate_scan_mask = &iio_validate_scan_mask_onehot,
 };
 
 static int ad7793_register_ring_funcs_and_init(struct iio_dev *indio_dev)
@@ -864,7 +864,7 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 	struct ad7793_platform_data *pdata = spi->dev.platform_data;
 	struct ad7793_state *st;
 	struct iio_dev *indio_dev;
-	int ret, i, voltage_uv = 0;
+	int ret, voltage_uv = 0;
 
 	if (!pdata) {
 		dev_err(&spi->dev, "no platform data?\n");
@@ -910,16 +910,8 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->chip_info->channel;
-	indio_dev->available_scan_masks = st->available_scan_masks;
 	indio_dev->num_channels = 7;
 	indio_dev->info = &ad7793_info;
-
-	for (i = 0; i < indio_dev->num_channels; i++) {
-		set_bit(i, &st->available_scan_masks[i]);
-		set_bit(indio_dev->
-			channels[indio_dev->num_channels - 1].scan_index,
-			&st->available_scan_masks[i]);
-	}
 
 	init_waitqueue_head(&st->wq_data_avail);
 
