@@ -11,6 +11,7 @@ struct bcm_enet_desc {
 	u32 address;
 };
 
+/* control */
 #define DMADESC_LENGTH_SHIFT	16
 #define DMADESC_LENGTH_MASK	(0xfff << DMADESC_LENGTH_SHIFT)
 #define DMADESC_OWNER_MASK	(1 << 15)
@@ -18,7 +19,10 @@ struct bcm_enet_desc {
 #define DMADESC_SOP_MASK	(1 << 13)
 #define DMADESC_ESOP_MASK	(DMADESC_EOP_MASK | DMADESC_SOP_MASK)
 #define DMADESC_WRAP_MASK	(1 << 12)
+#define DMADESC_USB_NOZERO_MASK	(1 << 1)
+#define DMADESC_USB_ZERO_MASK	(1 << 0)
 
+/* status */
 #define DMADESC_UNDER_MASK	(1 << 9)
 #define DMADESC_APPEND_CRC	(1 << 8)
 #define DMADESC_OVSIZE_MASK	(1 << 4)
