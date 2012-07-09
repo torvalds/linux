@@ -105,17 +105,45 @@ _GLOBAL(__setup_cpu_e5500)
 	mtlr	r5
 	blr
 #endif
+
 #ifdef CONFIG_PPC_BOOK3E_64
-/* Right now, restore and setup are the same thing */
 _GLOBAL(__restore_cpu_e5500)
-_GLOBAL(__setup_cpu_e5500)
 	mflr	r4
 	bl	__e500_icache_setup
 	bl	__e500_dcache_setup
 	bl	.__setup_base_ivors
 	bl	.setup_perfmon_ivor
 	bl	.setup_doorbell_ivors
+	/*
+	 * We only want to touch IVOR38-41 if we're running on hardware
+	 * that supports category E.HV.  The architectural way to determine
+	 * this is MMUCFG[LPIDSIZE].
+	 */
+	mfspr	r10,SPRN_MMUCFG
+	rlwinm.	r10,r10,0,MMUCFG_LPIDSIZE
+	beq	1f
 	bl	.setup_ehv_ivors
+1:
 	mtlr	r4
+	blr
+
+_GLOBAL(__setup_cpu_e5500)
+	mflr	r5
+	bl	__e500_icache_setup
+	bl	__e500_dcache_setup
+	bl	.__setup_base_ivors
+	bl	.setup_perfmon_ivor
+	bl	.setup_doorbell_ivors
+	/*
+	 * We only want to touch IVOR38-41 if we're running on hardware
+	 * that supports category E.HV.  The architectural way to determine
+	 * this is MMUCFG[LPIDSIZE].
+	 */
+	mfspr	r10,SPRN_MMUCFG
+	rlwinm.	r10,r10,0,MMUCFG_LPIDSIZE
+	beq	1f
+	bl	.setup_ehv_ivors
+1:
+	mtlr	r5
 	blr
 #endif
