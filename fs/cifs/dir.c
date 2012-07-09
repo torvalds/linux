@@ -387,7 +387,6 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	struct cifs_tcon *tcon;
 	__u16 fileHandle;
 	__u32 oplock;
-	struct file *filp;
 	struct cifsFileInfo *pfile_info;
 
 	/* Posix open is only called (at lookup time) for file create now.  For
@@ -418,7 +417,6 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	     inode, direntry->d_name.name, direntry);
 
 	tlink = cifs_sb_tlink(CIFS_SB(inode->i_sb));
-	filp = ERR_CAST(tlink);
 	if (IS_ERR(tlink))
 		goto out_free_xid;
 
@@ -436,10 +434,9 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 		goto out;
 	}
 
-	pfile_info = cifs_new_fileinfo(fileHandle, filp, tlink, oplock);
+	pfile_info = cifs_new_fileinfo(fileHandle, file, tlink, oplock);
 	if (pfile_info == NULL) {
 		CIFSSMBClose(xid, tcon, fileHandle);
-		fput(filp);
 		rc = -ENOMEM;
 	}
 
