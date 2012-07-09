@@ -217,6 +217,7 @@ static DEFINE_RAW_SPINLOCK(logbuf_lock);
 /* the next printk record to read by syslog(READ) or /proc/kmsg */
 static u64 syslog_seq;
 static u32 syslog_idx;
+static size_t syslog_partial;
 
 /* index and sequence number of the first record stored in the buffer */
 static u64 log_first_seq;
@@ -890,22 +891,33 @@ static int syslog_print(char __user *buf, int size)
 
 	while (size > 0) {
 		size_t n;
+		size_t skip;
 
 		raw_spin_lock_irq(&logbuf_lock);
 		if (syslog_seq < log_first_seq) {
 			/* messages are gone, move to first one */
 			syslog_seq = log_first_seq;
 			syslog_idx = log_first_idx;
+			syslog_partial = 0;
 		}
 		if (syslog_seq == log_next_seq) {
 			raw_spin_unlock_irq(&logbuf_lock);
 			break;
 		}
+
+		skip = syslog_partial;
 		msg = log_from_idx(syslog_idx);
 		n = msg_print_text(msg, true, text, LOG_LINE_MAX);
-		if (n <= size) {
+		if (n - syslog_partial <= size) {
+			/* message fits into buffer, move forward */
 			syslog_idx = log_next(syslog_idx);
 			syslog_seq++;
+			n -= syslog_partial;
+			syslog_partial = 0;
+		} else if (!len){
+			/* partial read(), remember position */
+			n = size;
+			syslog_partial += n;
 		} else
 			n = 0;
 		raw_spin_unlock_irq(&logbuf_lock);
@@ -913,17 +925,15 @@ static int syslog_print(char __user *buf, int size)
 		if (!n)
 			break;
 
-		len += n;
-		size -= n;
-		buf += n;
-		n = copy_to_user(buf - n, text, n);
-
-		if (n) {
-			len -= n;
+		if (copy_to_user(buf, text + skip, n)) {
 			if (!len)
 				len = -EFAULT;
 			break;
 		}
+
+		len += n;
+		size -= n;
+		buf += n;
 	}
 
 	kfree(text);
@@ -1107,6 +1117,7 @@ int do_syslog(int type, char __user *buf, int len, bool from_file)
 			/* messages are gone, move to first one */
 			syslog_seq = log_first_seq;
 			syslog_idx = log_first_idx;
+			syslog_partial = 0;
 		}
 		if (from_file) {
 			/*
@@ -1129,6 +1140,7 @@ int do_syslog(int type, char __user *buf, int len, bool from_file)
 				idx = log_next(idx);
 				seq++;
 			}
+			error -= syslog_partial;
 		}
 		raw_spin_unlock_irq(&logbuf_lock);
 		break;
