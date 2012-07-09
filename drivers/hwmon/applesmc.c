@@ -54,7 +54,7 @@
 #define APPLESMC_MAX_DATA_LENGTH 32
 
 /* wait up to 32 ms for a status change. */
-#define APPLESMC_MIN_WAIT	0x0040
+#define APPLESMC_MIN_WAIT	0x0010
 #define APPLESMC_MAX_WAIT	0x8000
 
 #define APPLESMC_STATUS_MASK	0x0f
