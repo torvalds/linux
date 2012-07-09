@@ -42,21 +42,23 @@
 
 static void radeon_fence_write(struct radeon_device *rdev, u32 seq, int ring)
 {
-	if (rdev->wb.enabled) {
-		*rdev->fence_drv[ring].cpu_addr = cpu_to_le32(seq);
+	struct radeon_fence_driver *drv = &rdev->fence_drv[ring];
+	if (likely(rdev->wb.enabled || !drv->scratch_reg)) {
+		*drv->cpu_addr = cpu_to_le32(seq);
 	} else {
-		WREG32(rdev->fence_drv[ring].scratch_reg, seq);
+		WREG32(drv->scratch_reg, seq);
 	}
 }
 
 static u32 radeon_fence_read(struct radeon_device *rdev, int ring)
 {
+	struct radeon_fence_driver *drv = &rdev->fence_drv[ring];
 	u32 seq = 0;
 
-	if (rdev->wb.enabled) {
-		seq = le32_to_cpu(*rdev->fence_drv[ring].cpu_addr);
+	if (likely(rdev->wb.enabled || !drv->scratch_reg)) {
+		seq = le32_to_cpu(*drv->cpu_addr);
 	} else {
-		seq = RREG32(rdev->fence_drv[ring].scratch_reg);
+		seq = RREG32(drv->scratch_reg);
 	}
 	return seq;
 }
