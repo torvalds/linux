@@ -768,6 +768,10 @@ int radeon_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
 void radeon_ring_force_activity(struct radeon_device *rdev, struct radeon_ring *ring);
 void radeon_ring_lockup_update(struct radeon_ring *ring);
 bool radeon_ring_test_lockup(struct radeon_device *rdev, struct radeon_ring *ring);
+unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring,
+			    uint32_t **data);
+int radeon_ring_restore(struct radeon_device *rdev, struct radeon_ring *ring,
+			unsigned size, uint32_t *data);
 int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *cp, unsigned ring_size,
 		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg,
 		     u32 ptr_reg_shift, u32 ptr_reg_mask, u32 nop);

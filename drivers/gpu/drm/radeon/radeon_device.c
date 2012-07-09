@@ -996,7 +996,12 @@ int radeon_resume_kms(struct drm_device *dev)
 
 int radeon_gpu_reset(struct radeon_device *rdev)
 {
-	int r;
+	unsigned ring_sizes[RADEON_NUM_RINGS];
+	uint32_t *ring_data[RADEON_NUM_RINGS];
+
+	bool saved = false;
+
+	int i, r;
 	int resched;
 
 	down_write(&rdev->exclusive_lock);
@@ -1005,20 +1010,47 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 	resched = ttm_bo_lock_delayed_workqueue(&rdev->mman.bdev);
 	radeon_suspend(rdev);
 
-	r = radeon_asic_reset(rdev);
-	if (!r) {
-		dev_info(rdev->dev, "GPU reset succeed\n");
-		radeon_resume(rdev);
-
-		r = radeon_ib_ring_tests(rdev);
-		if (r)
-			DRM_ERROR("ib ring test failed (%d).\n", r);
-
-		radeon_restore_bios_scratch_regs(rdev);
-		drm_helper_resume_force_mode(rdev->ddev);
-		ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
+	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+		ring_sizes[i] = radeon_ring_backup(rdev, &rdev->ring[i],
+						   &ring_data[i]);
+		if (ring_sizes[i]) {
+			saved = true;
+			dev_info(rdev->dev, "Saved %d dwords of commands "
+				 "on ring %d.\n", ring_sizes[i], i);
+		}
 	}
 
+retry:
+	r = radeon_asic_reset(rdev);
+	if (!r) {
+		dev_info(rdev->dev, "GPU reset succeeded, trying to resume\n");
+		radeon_resume(rdev);
+	}
+
+	radeon_restore_bios_scratch_regs(rdev);
+	drm_helper_resume_force_mode(rdev->ddev);
+
+	if (!r) {
+		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+			radeon_ring_restore(rdev, &rdev->ring[i],
+					    ring_sizes[i], ring_data[i]);
+		}
+
+		r = radeon_ib_ring_tests(rdev);
+		if (r) {
+			dev_err(rdev->dev, "ib ring test failed (%d).\n", r);
+			if (saved) {
+				radeon_suspend(rdev);
+				goto retry;
+			}
+		}
+	} else {
+		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+			kfree(ring_data[i]);
+		}
+	}
+
+	ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
 	if (r) {
 		/* bad news, how to tell it to userspace ? */
 		dev_info(rdev->dev, "GPU reset failed\n");

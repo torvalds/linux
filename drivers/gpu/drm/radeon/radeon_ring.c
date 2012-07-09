@@ -362,6 +362,88 @@ bool radeon_ring_test_lockup(struct radeon_device *rdev, struct radeon_ring *rin
 	return false;
 }
 
+/**
+ * radeon_ring_backup - Back up the content of a ring
+ *
+ * @rdev: radeon_device pointer
+ * @ring: the ring we want to back up
+ *
+ * Saves all unprocessed commits from a ring, returns the number of dwords saved.
+ */
+unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring,
+			    uint32_t **data)
+{
+	unsigned size, ptr, i;
+	int ridx = radeon_ring_index(rdev, ring);
+
+	/* just in case lock the ring */
+	mutex_lock(&rdev->ring_lock);
+	*data = NULL;
+
+	if (ring->ring_obj == NULL || !ring->rptr_save_reg) {
+		mutex_unlock(&rdev->ring_lock);
+		return 0;
+	}
+
+	/* it doesn't make sense to save anything if all fences are signaled */
+	if (!radeon_fence_count_emitted(rdev, ridx)) {
+		mutex_unlock(&rdev->ring_lock);
+		return 0;
+	}
+
+	/* calculate the number of dw on the ring */
+	ptr = RREG32(ring->rptr_save_reg);
+	size = ring->wptr + (ring->ring_size / 4);
+	size -= ptr;
+	size &= ring->ptr_mask;
+	if (size == 0) {
+		mutex_unlock(&rdev->ring_lock);
+		return 0;
+	}
+
+	/* and then save the content of the ring */
+	*data = kmalloc(size * 4, GFP_KERNEL);
+	for (i = 0; i < size; ++i) {
+		(*data)[i] = ring->ring[ptr++];
+		ptr &= ring->ptr_mask;
+	}
+
+	mutex_unlock(&rdev->ring_lock);
+	return size;
+}
+
+/**
+ * radeon_ring_restore - append saved commands to the ring again
+ *
+ * @rdev: radeon_device pointer
+ * @ring: ring to append commands to
+ * @size: number of dwords we want to write
+ * @data: saved commands
+ *
+ * Allocates space on the ring and restore the previously saved commands.
+ */
+int radeon_ring_restore(struct radeon_device *rdev, struct radeon_ring *ring,
+			unsigned size, uint32_t *data)
+{
+	int i, r;
+
+	if (!size || !data)
+		return 0;
+
+	/* restore the saved ring content */
+	r = radeon_ring_lock(rdev, ring, size);
+	if (r)
+		return r;
+
+	for (i = 0; i < size; ++i) {
+		radeon_ring_write(ring, data[i]);
+	}
+
+	radeon_ring_unlock_commit(rdev, ring);
+	kfree(data);
+	return 0;
+}
+
 int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsigned ring_size,
 		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg,
 		     u32 ptr_reg_shift, u32 ptr_reg_mask, u32 nop)
