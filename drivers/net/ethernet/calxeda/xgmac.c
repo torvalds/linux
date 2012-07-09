@@ -933,6 +933,7 @@ static void xgmac_tx_err(struct xgmac_priv *priv)
 	desc_init_tx_desc(priv->dma_tx, DMA_TX_RING_SZ);
 	priv->tx_tail = 0;
 	priv->tx_head = 0;
+	writel(priv->dma_tx_phy, priv->base + XGMAC_DMA_TX_BASE_ADDR);
 	writel(reg | DMA_CONTROL_ST, priv->base + XGMAC_DMA_CONTROL);
 
 	writel(DMA_STATUS_TU | DMA_STATUS_TPS | DMA_STATUS_NIS | DMA_STATUS_AIS,
