@@ -4261,9 +4261,7 @@ static int vxge_probe_fw_update(struct vxgedev *vdev)
 	if (VXGE_FW_VER(VXGE_CERT_FW_VER_MAJOR, VXGE_CERT_FW_VER_MINOR, 0) >
 	    VXGE_FW_VER(maj, min, 0)) {
 		vxge_debug_init(VXGE_ERR, "%s: Firmware %d.%d.%d is too old to"
-				" be used with this driver.\n"
-				"Please get the latest version from "
-				"ftp://ftp.s2io.com/pub/X3100-Drivers/FIRMWARE",
+				" be used with this driver.",
 				VXGE_DRIVER_NAME, maj, min, bld);
 		return -EINVAL;
 	}
