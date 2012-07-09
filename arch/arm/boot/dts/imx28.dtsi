@@ -186,6 +186,19 @@
 					fsl,pull-up = <0>;
 				};
 
+				duart_4pins_a: duart-4pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3022 /* MX28_PAD_AUART0_CTS__DUART_RX */
+						0x3032 /* MX28_PAD_AUART0_RTS__DUART_TX */
+						0x3002 /* MX28_PAD_AUART0_RX__DUART_CTS */
+						0x3012 /* MX28_PAD_AUART0_TX__DUART_RTS */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
 				gpmi_pins_a: gpmi-nand@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
@@ -237,6 +250,19 @@
 					fsl,pinmux-ids = <
 						0x3000 /* MX28_PAD_AUART0_RX__AUART0_RX */
 						0x3010 /* MX28_PAD_AUART0_TX__AUART0_TX */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				auart1_pins_a: auart1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3040 /* MX28_PAD_AUART1_RX__AUART1_RX */
+						0x3050 /* MX28_PAD_AUART1_TX__AUART1_TX */
+						0x3060 /* MX28_PAD_AUART1_CTS__AUART1_CTS */
+						0x3070 /* MX28_PAD_AUART1_RTS__AUART1_RTS */
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
@@ -405,6 +431,16 @@
 					fsl,drive-strength = <2>;
 					fsl,voltage = <1>;
 					fsl,pull-up = <1>;
+				};
+
+				pwm0_pins_a: pwm0@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3100 /* MX28_PAD_PWM0__PWM_0 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
 				};
 
 				pwm2_pins_a: pwm2@0 {

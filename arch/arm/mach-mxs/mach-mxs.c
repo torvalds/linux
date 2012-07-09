@@ -277,6 +277,7 @@ static const char *imx28_dt_compat[] __initdata = {
 	"crystalfontz,cfa10036",
 	"denx,m28evk",
 	"fsl,imx28-evk",
+	"karo,tx28",
 	"fsl,imx28",
 	NULL,
 };
