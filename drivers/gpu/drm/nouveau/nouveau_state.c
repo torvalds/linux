@@ -1037,7 +1037,6 @@ nouveau_newpriv(struct drm_device *dev)
 int nouveau_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_nouveau_private *dev_priv;
-	unsigned long long offset, length;
 	uint32_t reg0 = ~0, strap;
 	int ret;
 
@@ -1050,65 +1049,50 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = dev_priv;
 	dev_priv->dev = dev;
 
-	pci_set_master(dev->pdev);
-
 	dev_priv->flags = flags & NOUVEAU_FLAGS;
 
 	NV_DEBUG(dev, "vendor: 0x%X device: 0x%X class: 0x%X\n",
 		 dev->pci_vendor, dev->pci_device, dev->pdev->class);
 
-	/* first up, map the start of mmio and determine the chipset */
-	dev_priv->mmio = ioremap(pci_resource_start(dev->pdev, 0), PAGE_SIZE);
-	if (dev_priv->mmio) {
-#ifdef __BIG_ENDIAN
-		/* put the card into big-endian mode if it's not */
-		if (nv_rd32(dev, NV03_PMC_BOOT_1) != 0x01000001)
-			nv_wr32(dev, NV03_PMC_BOOT_1, 0x01000001);
-		DRM_MEMORYBARRIER();
-#endif
-
-		/* determine chipset and derive architecture from it */
-		reg0 = nv_rd32(dev, NV03_PMC_BOOT_0);
-		if ((reg0 & 0x0f000000) > 0) {
-			dev_priv->chipset = (reg0 & 0xff00000) >> 20;
-			switch (dev_priv->chipset & 0xf0) {
-			case 0x10:
-			case 0x20:
-			case 0x30:
-				dev_priv->card_type = dev_priv->chipset & 0xf0;
-				break;
-			case 0x40:
-			case 0x60:
-				dev_priv->card_type = NV_40;
-				break;
-			case 0x50:
-			case 0x80:
-			case 0x90:
-			case 0xa0:
-				dev_priv->card_type = NV_50;
-				break;
-			case 0xc0:
-				dev_priv->card_type = NV_C0;
-				break;
-			case 0xd0:
-				dev_priv->card_type = NV_D0;
-				break;
-			case 0xe0:
-				dev_priv->card_type = NV_E0;
-				break;
-			default:
-				break;
-			}
-		} else
-		if ((reg0 & 0xff00fff0) == 0x20004000) {
-			if (reg0 & 0x00f00000)
-				dev_priv->chipset = 0x05;
-			else
-				dev_priv->chipset = 0x04;
-			dev_priv->card_type = NV_04;
+	/* determine chipset and derive architecture from it */
+	reg0 = nv_rd32(dev, NV03_PMC_BOOT_0);
+	if ((reg0 & 0x0f000000) > 0) {
+		dev_priv->chipset = (reg0 & 0xff00000) >> 20;
+		switch (dev_priv->chipset & 0xf0) {
+		case 0x10:
+		case 0x20:
+		case 0x30:
+			dev_priv->card_type = dev_priv->chipset & 0xf0;
+			break;
+		case 0x40:
+		case 0x60:
+			dev_priv->card_type = NV_40;
+			break;
+		case 0x50:
+		case 0x80:
+		case 0x90:
+		case 0xa0:
+			dev_priv->card_type = NV_50;
+			break;
+		case 0xc0:
+			dev_priv->card_type = NV_C0;
+			break;
+		case 0xd0:
+			dev_priv->card_type = NV_D0;
+			break;
+		case 0xe0:
+			dev_priv->card_type = NV_E0;
+			break;
+		default:
+			break;
 		}
-
-		iounmap(dev_priv->mmio);
+	} else
+	if ((reg0 & 0xff00fff0) == 0x20004000) {
+		if (reg0 & 0x00f00000)
+			dev_priv->chipset = 0x05;
+		else
+			dev_priv->chipset = 0x04;
+		dev_priv->card_type = NV_04;
 	}
 
 	if (!dev_priv->card_type) {
@@ -1119,21 +1103,6 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 
 	NV_INFO(dev, "Detected an NV%02x generation card (0x%08x)\n",
 		     dev_priv->card_type, reg0);
-
-	/* map the mmio regs, limiting the amount to preserve vmap space */
-	offset = pci_resource_start(dev->pdev, 0);
-	length = pci_resource_len(dev->pdev, 0);
-	if (dev_priv->card_type < NV_E0)
-		length = min(length, (unsigned long long)0x00800000);
-
-	dev_priv->mmio = ioremap(offset, length);
-	if (!dev_priv->mmio) {
-		NV_ERROR(dev, "Unable to initialize the mmio mapping. "
-			 "Please report your setup to " DRIVER_EMAIL "\n");
-		ret = -EINVAL;
-		goto err_priv;
-	}
-	NV_DEBUG(dev, "regs mapped ok at 0x%llx\n", offset);
 
 	/* determine frequency of timing crystal */
 	strap = nv_rd32(dev, 0x101000);
@@ -1174,7 +1143,7 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 
 	ret = nouveau_remove_conflicting_drivers(dev);
 	if (ret)
-		goto err_mmio;
+		goto err_priv;
 
 	/* Map PRAMIN BAR, or on older cards, the aperture within BAR0 */
 	if (dev_priv->card_type >= NV_40) {
@@ -1189,16 +1158,16 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 		if (!dev_priv->ramin) {
 			NV_ERROR(dev, "Failed to map PRAMIN BAR\n");
 			ret = -ENOMEM;
-			goto err_mmio;
+			goto err_priv;
 		}
 	} else {
 		dev_priv->ramin_size = 1 * 1024 * 1024;
-		dev_priv->ramin = ioremap(offset + NV_RAMIN,
+		dev_priv->ramin = ioremap(pci_resource_start(dev->pdev, 0),
 					  dev_priv->ramin_size);
 		if (!dev_priv->ramin) {
 			NV_ERROR(dev, "Failed to map BAR0 PRAMIN.\n");
 			ret = -ENOMEM;
-			goto err_mmio;
+			goto err_priv;
 		}
 	}
 
@@ -1219,8 +1188,6 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 
 err_ramin:
 	iounmap(dev_priv->ramin);
-err_mmio:
-	iounmap(dev_priv->mmio);
 err_priv:
 	dev->dev_private = dev_priv->newpriv;
 	kfree(dev_priv);
@@ -1239,7 +1206,6 @@ int nouveau_unload(struct drm_device *dev)
 
 	nouveau_card_takedown(dev);
 
-	iounmap(dev_priv->mmio);
 	iounmap(dev_priv->ramin);
 
 	dev->dev_private = dev_priv->newpriv;

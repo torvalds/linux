@@ -80,7 +80,7 @@ nouveau-y += core/engine/mpeg/nv50.o
 nouveau-y += core/engine/ppp/nv98.o
 nouveau-y += core/engine/vp/nv84.o
 
-nouveau-y += nouveau_drm.o \
+nouveau-y += nouveau_drm.o nouveau_compat.o \
 	     nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
              nouveau_gpuobj.o nouveau_irq.o nouveau_notifier.o \
              nouveau_sgdma.o nouveau_dma.o nouveau_util.o \

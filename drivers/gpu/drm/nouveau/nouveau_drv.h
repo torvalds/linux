@@ -673,8 +673,6 @@ struct drm_nouveau_private {
 	int flags;
 	u32 crystal;
 
-	void __iomem *mmio;
-
 	spinlock_t ramin_lock;
 	void __iomem *ramin;
 	u32 ramin_size;
@@ -1428,36 +1426,12 @@ static inline void nvchan_wr32(struct nouveau_channel *chan,
 }
 
 /* register access */
-static inline u32 nv_rd32(struct drm_device *dev, unsigned reg)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	return ioread32_native(dev_priv->mmio + reg);
-}
-
-static inline void nv_wr32(struct drm_device *dev, unsigned reg, u32 val)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	iowrite32_native(val, dev_priv->mmio + reg);
-}
-
-static inline u32 nv_mask(struct drm_device *dev, u32 reg, u32 mask, u32 val)
-{
-	u32 tmp = nv_rd32(dev, reg);
-	nv_wr32(dev, reg, (tmp & ~mask) | val);
-	return tmp;
-}
-
-static inline u8 nv_rd08(struct drm_device *dev, unsigned reg)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	return ioread8(dev_priv->mmio + reg);
-}
-
-static inline void nv_wr08(struct drm_device *dev, unsigned reg, u8 val)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	iowrite8(val, dev_priv->mmio + reg);
-}
+#include "nouveau_compat.h"
+#define nv_rd08 _nv_rd08
+#define nv_wr08 _nv_wr08
+#define nv_rd32 _nv_rd32
+#define nv_wr32 _nv_wr32
+#define nv_mask _nv_mask
 
 #define nv_wait(dev, reg, mask, val) \
 	nouveau_wait_eq(dev, 2000000000ULL, (reg), (mask), (val))
