@@ -570,6 +570,22 @@ int iio_sw_buffer_preenable(struct iio_dev *indio_dev)
 }
 EXPORT_SYMBOL(iio_sw_buffer_preenable);
 
+/**
+ * iio_validate_scan_mask_onehot() - Validates that exactly one channel is selected
+ * @indio_dev: the iio device
+ * @mask: scan mask to be checked
+ *
+ * Return true if exactly one bit is set in the scan mask, false otherwise. It
+ * can be used for devices where only one channel can be active for sampling at
+ * a time.
+ */
+bool iio_validate_scan_mask_onehot(struct iio_dev *indio_dev,
+	const unsigned long *mask)
+{
+	return bitmap_weight(mask, indio_dev->masklength) == 1;
+}
+EXPORT_SYMBOL_GPL(iio_validate_scan_mask_onehot);
+
 static bool iio_validate_scan_mask(struct iio_dev *indio_dev,
 	const unsigned long *mask)
 {
