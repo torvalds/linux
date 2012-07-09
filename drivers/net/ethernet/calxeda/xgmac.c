@@ -671,26 +671,23 @@ static void xgmac_rx_refill(struct xgmac_priv *priv)
 
 		p = priv->dma_rx + entry;
 
-		if (priv->rx_skbuff[entry] != NULL)
-			continue;
+		if (priv->rx_skbuff[entry] == NULL) {
+			skb = __skb_dequeue(&priv->rx_recycle);
+			if (skb == NULL)
+				skb = netdev_alloc_skb(priv->dev, priv->dma_buf_sz);
+			if (unlikely(skb == NULL))
+				break;
 
-		skb = __skb_dequeue(&priv->rx_recycle);
-		if (skb == NULL)
-			skb = netdev_alloc_skb(priv->dev, priv->dma_buf_sz);
-		if (unlikely(skb == NULL))
-			break;
-
-		priv->rx_skbuff[entry] = skb;
-		paddr = dma_map_single(priv->device, skb->data,
-					 priv->dma_buf_sz, DMA_FROM_DEVICE);
-		desc_set_buf_addr(p, paddr, priv->dma_buf_sz);
+			priv->rx_skbuff[entry] = skb;
+			paddr = dma_map_single(priv->device, skb->data,
+					       priv->dma_buf_sz, DMA_FROM_DEVICE);
+			desc_set_buf_addr(p, paddr, priv->dma_buf_sz);
+		}
 
 		netdev_dbg(priv->dev, "rx ring: head %d, tail %d\n",
 			priv->rx_head, priv->rx_tail);
 
 		priv->rx_head = dma_ring_incr(priv->rx_head, DMA_RX_RING_SZ);
-		/* Ensure descriptor is in memory before handing to h/w */
-		wmb();
 		desc_set_rx_owner(p);
 	}
 }
