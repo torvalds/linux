@@ -233,7 +233,6 @@ static void bigmac_init_rings(struct bigmac *bp, int from_irq)
 			continue;
 
 		bp->rx_skbs[i] = skb;
-		skb->dev = dev;
 
 		/* Because we reserve afterwards. */
 		skb_put(skb, ETH_FRAME_LEN);
@@ -838,7 +837,6 @@ static void bigmac_rx(struct bigmac *bp)
 					 RX_BUF_ALLOC_SIZE - 34,
 					 DMA_FROM_DEVICE);
 			bp->rx_skbs[elem] = new_skb;
-			new_skb->dev = bp->dev;
 			skb_put(new_skb, ETH_FRAME_LEN);
 			skb_reserve(new_skb, 34);
 			this->rx_addr =
