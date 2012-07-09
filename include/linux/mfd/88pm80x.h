@@ -295,6 +295,7 @@ struct pm80x_chip {
 	struct pm80x_subchip *subchip;
 	struct device *dev;
 	struct i2c_client *client;
+	struct i2c_client *companion;
 	struct regmap *regmap;
 	struct regmap_irq_chip *regmap_irq_chip;
 	struct regmap_irq_chip_data *irq_data;
