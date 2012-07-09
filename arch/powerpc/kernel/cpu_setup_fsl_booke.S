@@ -16,6 +16,8 @@
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/ppc_asm.h>
+#include <asm/mmu-book3e.h>
+#include <asm/asm-offsets.h>
 
 _GLOBAL(__e500_icache_setup)
 	mfspr	r0, SPRN_L1CSR1
@@ -73,12 +75,33 @@ _GLOBAL(__setup_cpu_e500v2)
 	mtlr	r4
 	blr
 _GLOBAL(__setup_cpu_e500mc)
-	mr	r5, r4
-	mflr	r4
+	mflr	r5
 	bl	__e500_icache_setup
 	bl	__e500_dcache_setup
 	bl	__setup_e500mc_ivors
-	mtlr	r4
+	/*
+	 * We only want to touch IVOR38-41 if we're running on hardware
+	 * that supports category E.HV.  The architectural way to determine
+	 * this is MMUCFG[LPIDSIZE].
+	 */
+	mfspr	r3, SPRN_MMUCFG
+	rlwinm.	r3, r3, 0, MMUCFG_LPIDSIZE
+	beq	1f
+	bl	__setup_ehv_ivors
+	b	2f
+1:
+	lwz	r3, CPU_SPEC_FEATURES(r4)
+	/* We need this check as cpu_setup is also called for
+	 * the secondary cores. So, if we have already cleared
+	 * the feature on the primary core, avoid doing it on the
+	 * secondary core.
+	 */
+	andis.	r6, r3, CPU_FTR_EMB_HV@h
+	beq	2f
+	rlwinm	r3, r3, 0, ~CPU_FTR_EMB_HV
+	stw	r3, CPU_SPEC_FEATURES(r4)
+2:
+	mtlr	r5
 	blr
 #endif
 /* Right now, restore and setup are the same thing */
