@@ -83,7 +83,7 @@ static ssize_t iwl_dbgfs_##name##_write(struct file *file,              \
 #define DEBUGFS_READ_FILE_OPS(name)                                     \
 	DEBUGFS_READ_FUNC(name);                                        \
 static const struct file_operations iwl_dbgfs_##name##_ops = {          \
-	.read = iwl_dbgfs_##name##_read,                       		\
+	.read = iwl_dbgfs_##name##_read,				\
 	.open = simple_open,						\
 	.llseek = generic_file_llseek,					\
 };
@@ -2254,6 +2254,10 @@ static ssize_t iwl_dbgfs_log_event_write(struct file *file,
 	u32 event_log_flag;
 	char buf[8];
 	int buf_size;
+
+	/* check that the interface is up */
+	if (!iwl_is_ready(priv))
+		return -EAGAIN;
 
 	memset(buf, 0, sizeof(buf));
 	buf_size = min(count, sizeof(buf) -  1);

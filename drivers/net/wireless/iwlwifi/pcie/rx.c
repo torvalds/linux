@@ -879,9 +879,6 @@ static irqreturn_t iwl_isr(int irq, void *data)
 
 	lockdep_assert_held(&trans_pcie->irq_lock);
 
-	if (!trans)
-		return IRQ_NONE;
-
 	trace_iwlwifi_dev_irq(trans->dev);
 
 	/* Disable (but don't clear!) interrupts here to avoid
