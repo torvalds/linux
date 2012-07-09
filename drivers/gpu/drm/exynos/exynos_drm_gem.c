@@ -126,23 +126,14 @@ fail:
 }
 
 static void exynos_gem_put_pages(struct drm_gem_object *obj,
-					struct page **pages,
-					bool dirty, bool accessed)
+					struct page **pages)
 {
-	int i, npages;
+	int npages;
 
 	npages = obj->size >> PAGE_SHIFT;
 
-	for (i = 0; i < npages; i++) {
-		if (dirty)
-			set_page_dirty(pages[i]);
-
-		if (accessed)
-			mark_page_accessed(pages[i]);
-
-		/* Undo the reference we took when populating the table */
-		page_cache_release(pages[i]);
-	}
+	while (--npages >= 0)
+		__free_page(pages[npages]);
 
 	drm_free_large(pages);
 }
@@ -222,7 +213,7 @@ err1:
 	kfree(buf->sgt);
 	buf->sgt = NULL;
 err:
-	exynos_gem_put_pages(obj, pages, true, false);
+	exynos_gem_put_pages(obj, pages);
 	return ret;
 
 }
@@ -240,7 +231,7 @@ static void exynos_drm_gem_put_pages(struct drm_gem_object *obj)
 	kfree(buf->sgt);
 	buf->sgt = NULL;
 
-	exynos_gem_put_pages(obj, buf->pages, true, false);
+	exynos_gem_put_pages(obj, buf->pages);
 	buf->pages = NULL;
 
 	/* add some codes for UNCACHED type here. TODO */
