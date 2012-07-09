@@ -254,6 +254,9 @@ static void con_sock_state_closed(struct ceph_connection *con)
 static void ceph_sock_data_ready(struct sock *sk, int count_unused)
 {
 	struct ceph_connection *con = sk->sk_user_data;
+	if (atomic_read(&con->msgr->stopping)) {
+		return;
+	}
 
 	if (sk->sk_state != TCP_CLOSE_WAIT) {
 		dout("%s on %p state = %lu, queueing work\n", __func__,
@@ -2412,6 +2415,8 @@ void ceph_messenger_init(struct ceph_messenger *msgr,
 	get_random_bytes(&msgr->inst.addr.nonce, sizeof(msgr->inst.addr.nonce));
 	encode_my_addr(msgr);
 	msgr->nocrc = nocrc;
+
+	atomic_set(&msgr->stopping, 0);
 
 	dout("%s %p\n", __func__, msgr);
 }
