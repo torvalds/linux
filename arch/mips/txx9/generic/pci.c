@@ -256,7 +256,7 @@ static irqreturn_t i8259_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init
+static int __devinit
 txx9_i8259_irq_setup(int irq)
 {
 	int err;
@@ -269,7 +269,7 @@ txx9_i8259_irq_setup(int irq)
 	return err;
 }
 
-static void __init quirk_slc90e66_bridge(struct pci_dev *dev)
+static void __devinit quirk_slc90e66_bridge(struct pci_dev *dev)
 {
 	int irq;	/* PCI/ISA Bridge interrupt */
 	u8 reg_64;
