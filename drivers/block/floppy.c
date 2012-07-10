@@ -671,6 +671,7 @@ static void __reschedule_timeout(int drive, const char *message)
 
 	if (drive == current_reqD)
 		drive = current_drive;
+	__cancel_delayed_work(&fd_timeout);
 
 	if (drive < 0 || drive >= N_DRIVE) {
 		delay = 20UL * HZ;
