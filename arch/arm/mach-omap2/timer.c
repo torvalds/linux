@@ -168,8 +168,7 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 		return -ENXIO;
 
 	/* After the dmtimer is using hwmod these clocks won't be needed */
-	sprintf(name, "gpt%d_fck", gptimer_id);
-	timer->fclk = clk_get(NULL, name);
+	timer->fclk = clk_get(NULL, omap_hwmod_get_main_clk(oh));
 	if (IS_ERR(timer->fclk))
 		return -ENODEV;
 

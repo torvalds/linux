@@ -44,7 +44,7 @@ int omap_type(void)
 
 	if (cpu_is_omap24xx()) {
 		val = omap_ctrl_readl(OMAP24XX_CONTROL_STATUS);
-	} else if (cpu_is_am33xx()) {
+	} else if (soc_is_am33xx()) {
 		val = omap_ctrl_readl(AM33XX_CONTROL_STATUS);
 	} else if (cpu_is_omap34xx()) {
 		val = omap_ctrl_readl(OMAP343X_CONTROL_STATUS);
@@ -189,7 +189,7 @@ static void __init omap3_cpuinfo(void)
 		cpu_name = (omap3_has_sgx()) ? "AM3517" : "AM3505";
 	} else if (cpu_is_ti816x()) {
 		cpu_name = "TI816X";
-	} else if (cpu_is_am335x()) {
+	} else if (soc_is_am335x()) {
 		cpu_name =  "AM335X";
 	} else if (cpu_is_ti814x()) {
 		cpu_name = "TI814X";

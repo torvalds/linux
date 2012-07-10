@@ -398,24 +398,6 @@ int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 	return omap2_clksel_set_parent(clk, new_parent);
 }
 
-/* OMAP3/4 non-CORE DPLL clkops */
-
-#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
-
-const struct clkops clkops_omap3_noncore_dpll_ops = {
-	.enable		= omap3_noncore_dpll_enable,
-	.disable	= omap3_noncore_dpll_disable,
-	.allow_idle	= omap3_dpll_allow_idle,
-	.deny_idle	= omap3_dpll_deny_idle,
-};
-
-const struct clkops clkops_omap3_core_dpll_ops = {
-	.allow_idle	= omap3_dpll_allow_idle,
-	.deny_idle	= omap3_dpll_deny_idle,
-};
-
-#endif
-
 /*
  * OMAP2+ clock reset and init functions
  */
