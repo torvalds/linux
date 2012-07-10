@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set external trigger polarity (write only) 0=positive edge, 1=negative */
-#define RtdTriggerPolarity(dev, v) \
-	writel((v > 0) ? 1 : 0, devpriv->las0+LAS0_ETRG_POLARITY)
-
 /* Start single ADC conversion */
 #define RtdAdcStart(dev) \
 	writew(0, devpriv->las0+LAS0_ADC)
