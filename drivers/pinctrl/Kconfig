@@ -102,6 +102,14 @@ config PINCTRL_PXA910
 	select PINCTRL_PXA3xx
 	select PINCONF
 
+config PINCTRL_SINGLE
+	tristate "One-register-per-pin type device tree based pinctrl driver"
+	depends on OF
+	select PINMUX
+	select PINCONF
+	help
+	  This selects the device tree based generic pinctrl driver.
+
 config PINCTRL_SIRF
 	bool "CSR SiRFprimaII pin controller driver"
 	depends on ARCH_PRIMA2
