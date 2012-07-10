@@ -48,7 +48,7 @@ struct persistent_ram_zone {
 
 struct persistent_ram_zone * __devinit persistent_ram_new(phys_addr_t start,
 							  size_t size,
-							  bool ecc);
+							  int ecc_size);
 void persistent_ram_free(struct persistent_ram_zone *prz);
 void persistent_ram_zap(struct persistent_ram_zone *prz);
 
@@ -74,7 +74,7 @@ struct ramoops_platform_data {
 	unsigned long	record_size;
 	unsigned long	console_size;
 	int		dump_oops;
-	bool		ecc;
+	int		ecc_size;
 };
 
 #endif

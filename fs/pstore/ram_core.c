@@ -171,7 +171,8 @@ static void persistent_ram_ecc_old(struct persistent_ram_zone *prz)
 	}
 }
 
-static int persistent_ram_init_ecc(struct persistent_ram_zone *prz)
+static int persistent_ram_init_ecc(struct persistent_ram_zone *prz,
+				   int ecc_size)
 {
 	int numerr;
 	struct persistent_ram_buffer *buffer = prz->buffer;
@@ -184,7 +185,7 @@ static int persistent_ram_init_ecc(struct persistent_ram_zone *prz)
 		return 0;
 
 	prz->ecc_block_size = 128;
-	prz->ecc_size = 16;
+	prz->ecc_size = ecc_size;
 
 	ecc_blocks = DIV_ROUND_UP(prz->buffer_size, prz->ecc_block_size);
 	ecc_total = (ecc_blocks + 1) * prz->ecc_size;
@@ -390,13 +391,13 @@ static int persistent_ram_buffer_map(phys_addr_t start, phys_addr_t size,
 }
 
 static int __devinit persistent_ram_post_init(struct persistent_ram_zone *prz,
-					      bool ecc)
+					      int ecc_size)
 {
 	int ret;
 
-	prz->ecc = ecc;
+	prz->ecc = ecc_size;
 
-	ret = persistent_ram_init_ecc(prz);
+	ret = persistent_ram_init_ecc(prz, ecc_size);
 	if (ret)
 		return ret;
 
@@ -444,7 +445,7 @@ void persistent_ram_free(struct persistent_ram_zone *prz)
 
 struct persistent_ram_zone * __devinit persistent_ram_new(phys_addr_t start,
 							  size_t size,
-							  bool ecc)
+							  int ecc_size)
 {
 	struct persistent_ram_zone *prz;
 	int ret = -ENOMEM;
@@ -459,7 +460,7 @@ struct persistent_ram_zone * __devinit persistent_ram_new(phys_addr_t start,
 	if (ret)
 		goto err;
 
-	ret = persistent_ram_post_init(prz, ecc);
+	ret = persistent_ram_post_init(prz, ecc_size);
 	if (ret)
 		goto err;
 
