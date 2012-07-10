@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Reset board */
-#define RtdResetBoard(dev) \
-	writel(0, devpriv->las0+LAS0_BOARD_RESET)
-
 /* Reset channel gain table read pointer */
 #define RtdResetCGT(dev) \
 	writel(0, devpriv->las0+LAS0_CGT_RESET)
@@ -2050,7 +2046,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* initialize board, per RTD spec */
 	/* also, initialize shadow registers */
-	RtdResetBoard(dev);
+	writel(0, devpriv->las0 + LAS0_BOARD_RESET);
 	udelay(100);		/* needed? */
 	RtdPlxInterruptWrite(dev, 0);
 	RtdInterruptMask(dev, 0);	/* and sets shadow */
@@ -2231,7 +2227,7 @@ static void rtd_detach(struct comedi_device *dev)
 		}
 #endif /* USE_DMA */
 		if (devpriv->las0) {
-			RtdResetBoard(dev);
+			writel(0, devpriv->las0 + LAS0_BOARD_RESET);
 			RtdInterruptMask(dev, 0);
 			RtdInterruptClearMask(dev, ~0);
 			RtdInterruptClear(dev);	/* clears bits set by mask */
