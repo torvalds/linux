@@ -79,6 +79,7 @@ typedef void (*tipc_continue_event) (void *usr_handle, u32 portref);
  * struct user_port - TIPC user port (used with native API)
  * @usr_handle: user-specified field
  * @ref: object reference to associated TIPC port
+ *
  * <various callback routines>
  */
 struct user_port {

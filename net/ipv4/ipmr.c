@@ -524,8 +524,8 @@ failure:
 }
 #endif
 
-/*
- *	Delete a VIF entry
+/**
+ *	vif_delete - Delete a VIF entry
  *	@notify: Set to 1, if the caller is a notifier_call
  */
 

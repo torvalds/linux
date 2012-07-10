@@ -162,12 +162,13 @@ static struct batadv_claim *batadv_claim_hash_find(struct batadv_priv *bat_priv,
 	return claim_tmp;
 }
 
-/* @bat_priv: the bat priv with all the soft interface information
+/**
+ * batadv_backbone_hash_find - looks for a claim in the hash
+ * @bat_priv: the bat priv with all the soft interface information
  * @addr: the address of the originator
  * @vid: the VLAN ID
  *
- * looks for a claim in the hash, and returns it if found
- * or NULL otherwise.
+ * Returns claim if found or NULL otherwise.
  */
 static struct batadv_backbone_gw *
 batadv_backbone_hash_find(struct batadv_priv *bat_priv,
@@ -242,12 +243,12 @@ batadv_bla_del_backbone_claims(struct batadv_backbone_gw *backbone_gw)
 	backbone_gw->crc = BATADV_BLA_CRC_INIT;
 }
 
-/* @bat_priv: the bat priv with all the soft interface information
+/**
+ * batadv_bla_send_claim - sends a claim frame according to the provided info
+ * @bat_priv: the bat priv with all the soft interface information
  * @orig: the mac address to be announced within the claim
  * @vid: the VLAN ID
  * @claimtype: the type of the claim (CLAIM, UNCLAIM, ANNOUNCE, ...)
- *
- * sends a claim frame according to the provided info.
  */
 static void batadv_bla_send_claim(struct batadv_priv *bat_priv, uint8_t *mac,
 				  short vid, int claimtype)
@@ -348,7 +349,9 @@ out:
 		batadv_hardif_free_ref(primary_if);
 }
 
-/* @bat_priv: the bat priv with all the soft interface information
+/**
+ * batadv_bla_get_backbone_gw
+ * @bat_priv: the bat priv with all the soft interface information
  * @orig: the mac address of the originator
  * @vid: the VLAN ID
  *
@@ -520,12 +523,12 @@ static void batadv_bla_send_announce(struct batadv_priv *bat_priv,
 
 }
 
-/* @bat_priv: the bat priv with all the soft interface information
+/**
+ * batadv_bla_add_claim - Adds a claim in the claim hash
+ * @bat_priv: the bat priv with all the soft interface information
  * @mac: the mac address of the claim
  * @vid: the VLAN ID of the frame
  * @backbone_gw: the backbone gateway which claims it
- *
- * Adds a claim in the claim hash.
  */
 static void batadv_bla_add_claim(struct batadv_priv *bat_priv,
 				 const uint8_t *mac, const short vid,
@@ -743,7 +746,9 @@ static int batadv_handle_claim(struct batadv_priv *bat_priv,
 	return 1;
 }
 
-/* @bat_priv: the bat priv with all the soft interface information
+/**
+ * batadv_check_claim_group
+ * @bat_priv: the bat priv with all the soft interface information
  * @hw_src: the Hardware source in the ARP Header
  * @hw_dst: the Hardware destination in the ARP Header
  * @ethhdr: pointer to the Ethernet header of the claim frame
@@ -975,7 +980,9 @@ purge_now:
 	}
 }
 
-/* @bat_priv: the bat priv with all the soft interface information
+/**
+ * batadv_bla_purge_claims
+ * @bat_priv: the bat priv with all the soft interface information
  * @primary_if: the selected primary interface, may be NULL if now is set
  * @now: whether the whole hash shall be wiped now
  *
@@ -1023,7 +1030,9 @@ purge_now:
 	}
 }
 
-/* @bat_priv: the bat priv with all the soft interface information
+/**
+ * batadv_bla_update_orig_address
+ * @bat_priv: the bat priv with all the soft interface information
  * @primary_if: the new selected primary_if
  * @oldif: the old primary interface, may be NULL
  *
@@ -1193,7 +1202,9 @@ int batadv_bla_init(struct batadv_priv *bat_priv)
 	return 0;
 }
 
-/* @bat_priv: the bat priv with all the soft interface information
+/**
+ * batadv_bla_check_bcast_duplist
+ * @bat_priv: the bat priv with all the soft interface information
  * @bcast_packet: originator mac address
  * @hdr_size: maximum length of the frame
  *
@@ -1297,7 +1308,9 @@ int batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, uint8_t *orig)
 }
 
 
-/* @skb: the frame to be checked
+/**
+ * batadv_bla_is_backbone_gw
+ * @skb: the frame to be checked
  * @orig_node: the orig_node of the frame
  * @hdr_size: maximum length of the frame
  *
@@ -1363,7 +1376,9 @@ void batadv_bla_free(struct batadv_priv *bat_priv)
 		batadv_hardif_free_ref(primary_if);
 }
 
-/* @bat_priv: the bat priv with all the soft interface information
+/**
+ * batadv_bla_rx
+ * @bat_priv: the bat priv with all the soft interface information
  * @skb: the frame to be checked
  * @vid: the VLAN ID of the frame
  *
@@ -1450,7 +1465,9 @@ out:
 	return ret;
 }
 
-/* @bat_priv: the bat priv with all the soft interface information
+/**
+ * batadv_bla_tx
+ * @bat_priv: the bat priv with all the soft interface information
  * @skb: the frame to be checked
  * @vid: the VLAN ID of the frame
  *

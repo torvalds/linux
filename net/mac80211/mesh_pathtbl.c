@@ -778,7 +778,7 @@ static void __mesh_path_del(struct mesh_table *tbl, struct mpath_node *node)
 /**
  * mesh_path_flush_by_nexthop - Deletes mesh paths if their next hop matches
  *
- * @sta - mesh peer to match
+ * @sta: mesh peer to match
  *
  * RCU notes: this function is called when a mesh plink transitions from
  * PLINK_ESTAB to any other state, since PLINK_ESTAB state is the only one that
@@ -833,7 +833,7 @@ static void table_flush_by_iface(struct mesh_table *tbl,
  *
  * This function deletes both mesh paths as well as mesh portal paths.
  *
- * @sdata - interface data to match
+ * @sdata: interface data to match
  *
  */
 void mesh_path_flush_by_iface(struct ieee80211_sub_if_data *sdata)

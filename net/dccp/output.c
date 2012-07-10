@@ -214,6 +214,7 @@ void dccp_write_space(struct sock *sk)
  * dccp_wait_for_ccid  -  Await CCID send permission
  * @sk:    socket to wait for
  * @delay: timeout in jiffies
+ *
  * This is used by CCIDs which need to delay the send time in process context.
  */
 static int dccp_wait_for_ccid(struct sock *sk, unsigned long delay)

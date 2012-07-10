@@ -57,7 +57,7 @@
  */
 #define TIPC_MEDIA_TYPE_ETH	1
 
-/*
+/**
  * struct tipc_media_addr - destination address used by TIPC bearers
  * @value: address info (format defined by media)
  * @media_id: TIPC media type identifier

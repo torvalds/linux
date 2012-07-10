@@ -99,7 +99,7 @@ static struct sta_info *mesh_plink_alloc(struct ieee80211_sub_if_data *sdata,
 	return sta;
 }
 
-/*
+/**
  * mesh_set_ht_prot_mode - set correct HT protection mode
  *
  * Section 9.23.3.5 of IEEE 80211-2012 describes the protection rules for HT
@@ -320,7 +320,8 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
-/* mesh_peer_init - initialize new mesh peer and return resulting sta_info
+/**
+ * mesh_peer_init - initialize new mesh peer and return resulting sta_info
  *
  * @sdata: local meshif
  * @addr: peer's address

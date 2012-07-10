@@ -252,7 +252,7 @@ static void ip6_dev_free(struct net_device *dev)
 }
 
 /**
- * ip6_tnl_create() - create a new tunnel
+ * ip6_tnl_create - create a new tunnel
  *   @p: tunnel parameters
  *   @pt: pointer to new tunnel
  *

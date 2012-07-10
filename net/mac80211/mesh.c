@@ -133,7 +133,7 @@ bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie)
 }
 
 /**
- * mesh_accept_plinks_update: update accepting_plink in local mesh beacons
+ * mesh_accept_plinks_update - update accepting_plink in local mesh beacons
  *
  * @sdata: mesh interface in which mesh beacons are going to be updated
  */

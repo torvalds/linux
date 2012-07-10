@@ -162,7 +162,7 @@ static void bclink_update_last_sent(struct tipc_node *node, u32 seqno)
 }
 
 
-/*
+/**
  * tipc_bclink_retransmit_to - get most recent node to request retransmission
  *
  * Called with bc_lock locked
@@ -270,7 +270,7 @@ exit:
 	spin_unlock_bh(&bc_lock);
 }
 
-/*
+/**
  * tipc_bclink_update_link_state - update broadcast link state
  *
  * tipc_net_lock and node lock set
@@ -330,7 +330,7 @@ void tipc_bclink_update_link_state(struct tipc_node *n_ptr, u32 last_sent)
 	}
 }
 
-/*
+/**
  * bclink_peek_nack - monitor retransmission requests sent by other nodes
  *
  * Delay any upcoming NACK by this node if another node has already
@@ -381,7 +381,7 @@ exit:
 	return res;
 }
 
-/*
+/**
  * bclink_accept_pkt - accept an incoming, in-sequence broadcast packet
  *
  * Called with both sending node's lock and bc_lock taken.
@@ -406,7 +406,7 @@ static void bclink_accept_pkt(struct tipc_node *node, u32 seqno)
 	}
 }
 
-/*
+/**
  * tipc_bclink_recv_pkt - receive a broadcast packet, and deliver upwards
  *
  * tipc_net_lock is read_locked, no other locks set

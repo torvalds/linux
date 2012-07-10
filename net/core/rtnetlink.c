@@ -2174,7 +2174,7 @@ skip:
 }
 
 /**
- * ndo_dflt_fdb_dump: default netdevice operation to dump an FDB table.
+ * ndo_dflt_fdb_dump - default netdevice operation to dump an FDB table.
  * @nlh: netlink message header
  * @dev: netdevice
  *

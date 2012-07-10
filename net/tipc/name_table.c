@@ -191,7 +191,7 @@ static void nameseq_delete_empty(struct name_seq *seq)
 	}
 }
 
-/*
+/**
  * nameseq_find_subseq - find sub-sequence (if any) matching a name instance
  *
  * Very time-critical, so binary searches through sub-sequence array.
@@ -435,7 +435,7 @@ found:
 }
 
 /**
- * tipc_nameseq_subscribe: attach a subscription, and issue
+ * tipc_nameseq_subscribe - attach a subscription, and issue
  * the prescribed number of events if there is any sub-
  * sequence overlapping with the requested sequence
  */
@@ -520,7 +520,7 @@ struct publication *tipc_nametbl_remove_publ(u32 type, u32 lower,
 	return publ;
 }
 
-/*
+/**
  * tipc_nametbl_translate - perform name translation
  *
  * On entry, 'destnode' is the search domain used during translation.
@@ -751,7 +751,7 @@ void tipc_nametbl_unsubscribe(struct tipc_subscription *s)
 
 
 /**
- * subseq_list: print specified sub-sequence contents into the given buffer
+ * subseq_list - print specified sub-sequence contents into the given buffer
  */
 static void subseq_list(struct sub_seq *sseq, struct print_buf *buf, u32 depth,
 			u32 index)
@@ -787,7 +787,7 @@ static void subseq_list(struct sub_seq *sseq, struct print_buf *buf, u32 depth,
 }
 
 /**
- * nameseq_list: print specified name sequence contents into the given buffer
+ * nameseq_list - print specified name sequence contents into the given buffer
  */
 static void nameseq_list(struct name_seq *seq, struct print_buf *buf, u32 depth,
 			 u32 type, u32 lowbound, u32 upbound, u32 index)

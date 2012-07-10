@@ -153,8 +153,8 @@ int tipc_link_is_active(struct tipc_link *l_ptr)
 
 /**
  * link_name_validate - validate & (optionally) deconstruct tipc_link name
- * @name - ptr to link name string
- * @name_parts - ptr to area for link name components (or NULL if not needed)
+ * @name: ptr to link name string
+ * @name_parts: ptr to area for link name components (or NULL if not needed)
  *
  * Returns 1 if link name is valid, otherwise 0.
  */
@@ -944,7 +944,7 @@ int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector)
 	return res;
 }
 
-/*
+/**
  * tipc_link_send_names - send name table entries to new neighbor
  *
  * Send routine for bulk delivery of name table messages when contact
@@ -1787,7 +1787,7 @@ cont:
 	read_unlock_bh(&tipc_net_lock);
 }
 
-/*
+/**
  * tipc_link_defer_pkt - Add out-of-sequence message to deferred reception queue
  *
  * Returns increase in queue length (i.e. 0 or 1)
@@ -2635,8 +2635,8 @@ void tipc_link_set_queue_limits(struct tipc_link *l_ptr, u32 window)
 
 /**
  * link_find_link - locate link by name
- * @name - ptr to link name string
- * @node - ptr to area to be filled with ptr to associated node
+ * @name: ptr to link name string
+ * @node: ptr to area to be filled with ptr to associated node
  *
  * Caller must hold 'tipc_net_lock' to ensure node and bearer are not deleted;
  * this also prevents link deletion.
@@ -2671,8 +2671,8 @@ static struct tipc_link *link_find_link(const char *name,
 /**
  * link_value_is_valid -- validate proposed link tolerance/priority/window
  *
- * @cmd - value type (TIPC_CMD_SET_LINK_*)
- * @new_value - the new value
+ * @cmd: value type (TIPC_CMD_SET_LINK_*)
+ * @new_value: the new value
  *
  * Returns 1 if value is within range, 0 if not.
  */
@@ -2693,9 +2693,9 @@ static int link_value_is_valid(u16 cmd, u32 new_value)
 
 /**
  * link_cmd_set_value - change priority/tolerance/window for link/bearer/media
- * @name - ptr to link, bearer, or media name
- * @new_value - new value of link, bearer, or media setting
- * @cmd - which link, bearer, or media attribute to set (TIPC_CMD_SET_LINK_*)
+ * @name: ptr to link, bearer, or media name
+ * @new_value: new value of link, bearer, or media setting
+ * @cmd: which link, bearer, or media attribute to set (TIPC_CMD_SET_LINK_*)
  *
  * Caller must hold 'tipc_net_lock' to ensure link/bearer/media is not deleted.
  *

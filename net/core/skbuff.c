@@ -713,7 +713,8 @@ struct sk_buff *skb_morph(struct sk_buff *dst, struct sk_buff *src)
 }
 EXPORT_SYMBOL_GPL(skb_morph);
 
-/*	skb_copy_ubufs	-	copy userspace skb frags buffers to kernel
+/**
+ *	skb_copy_ubufs	-	copy userspace skb frags buffers to kernel
  *	@skb: the skb to modify
  *	@gfp_mask: allocation priority
  *
@@ -2614,7 +2615,7 @@ unsigned int skb_find_text(struct sk_buff *skb, unsigned int from,
 EXPORT_SYMBOL(skb_find_text);
 
 /**
- * skb_append_datato_frags: - append the user data to a skb
+ * skb_append_datato_frags - append the user data to a skb
  * @sk: sock  structure
  * @skb: skb structure to be appened with user data.
  * @getfrag: call back function to be used for getting the user data

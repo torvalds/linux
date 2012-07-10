@@ -216,7 +216,8 @@ static inline int batadv_compare_eth(const void *data1, const void *data2)
 	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
 }
 
-/* has_timed_out - compares current time (jiffies) and timestamp + timeout
+/**
+ * has_timed_out - compares current time (jiffies) and timestamp + timeout
  * @timestamp:		base value to compare with (in jiffies)
  * @timeout:		added to base value before comparing (in milliseconds)
  *

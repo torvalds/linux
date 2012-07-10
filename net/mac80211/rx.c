@@ -94,7 +94,7 @@ ieee80211_rx_radiotap_len(struct ieee80211_local *local,
 	return len;
 }
 
-/*
+/**
  * ieee80211_add_rx_radiotap_header - add radiotap header
  *
  * add a radiotap header containing all the fields which the hardware provided.

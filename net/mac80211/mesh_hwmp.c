@@ -1054,11 +1054,14 @@ enddiscovery:
 	kfree(preq_node);
 }
 
-/* mesh_nexthop_resolve - lookup next hop for given skb and start path
- * discovery if no forwarding information is found.
+/**
+ * mesh_nexthop_resolve - lookup next hop; conditionally start path discovery
  *
  * @skb: 802.11 frame to be sent
  * @sdata: network subif the frame will be sent through
+ *
+ * Lookup next hop for given skb and start path discovery if no
+ * forwarding information is found.
  *
  * Returns: 0 if the next hop was found and -ENOENT if the frame was queued.
  * skb is freeed here if no mpath could be allocated.

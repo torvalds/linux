@@ -504,7 +504,7 @@ EXPORT_SYMBOL(genl_unregister_family);
  * @pid: netlink pid the message is addressed to
  * @seq: sequence number (usually the one of the sender)
  * @family: generic netlink family
- * @flags netlink message flags
+ * @flags: netlink message flags
  * @cmd: generic netlink command
  *
  * Returns pointer to user specific header

@@ -44,7 +44,8 @@ struct batadv_hard_iface {
 	struct rcu_head rcu;
 };
 
-/*	batadv_orig_node - structure for orig_list maintaining nodes of mesh
+/**
+ *	struct batadv_orig_node - structure for orig_list maintaining nodes of mesh
  *	@primary_addr: hosts primary interface address
  *	@last_seen: when last packet from this node was received
  *	@bcast_seqno_reset: time when the broadcast seqno window was reset

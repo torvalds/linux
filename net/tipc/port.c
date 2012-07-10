@@ -69,7 +69,7 @@ static u32 port_peerport(struct tipc_port *p_ptr)
 	return msg_destport(&p_ptr->phdr);
 }
 
-/*
+/**
  * tipc_port_peer_msg - verify message was sent by connected port's peer
  *
  * Handles cases where the node's network address has changed from

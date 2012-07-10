@@ -352,6 +352,7 @@ static inline int dccp_bad_service_code(const struct sock *sk,
  * @dccpd_opt_len: total length of all options (5.8) in the packet
  * @dccpd_seq: sequence number
  * @dccpd_ack_seq: acknowledgment number subheader field value
+ *
  * This is used for transmission as well as for reception.
  */
 struct dccp_skb_cb {
