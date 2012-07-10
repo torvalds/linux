@@ -716,10 +716,16 @@ struct drm_i915_gem_busy {
 #define I915_CACHEING_CACHED		1
 
 struct drm_i915_gem_cacheing {
-	/** Handle of the buffer to set/get the cacheing level of */
+	/**
+	 * Handle of the buffer to set/get the cacheing level of. */
 	__u32 handle;
 
-	/** Cacheing level to apply or return value */
+	/**
+	 * Cacheing level to apply or return value
+	 *
+	 * bits0-15 are for generic cacheing control (i.e. the above defined
+	 * values). bits16-31 are reserved for platform-specific variations
+	 * (e.g. l3$ caching on gen7). */
 	__u32 cacheing;
 };
 

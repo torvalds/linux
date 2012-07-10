@@ -3015,6 +3015,68 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 	return 0;
 }
 
+int i915_gem_get_cacheing_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file)
+{
+	struct drm_i915_gem_cacheing *args = data;
+	struct drm_i915_gem_object *obj;
+	int ret;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
+	if (&obj->base == NULL) {
+		ret = -ENOENT;
+		goto unlock;
+	}
+
+	args->cacheing = obj->cache_level != I915_CACHE_NONE;
+
+	drm_gem_object_unreference(&obj->base);
+unlock:
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
+}
+
+int i915_gem_set_cacheing_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file)
+{
+	struct drm_i915_gem_cacheing *args = data;
+	struct drm_i915_gem_object *obj;
+	enum i915_cache_level level;
+	int ret;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	switch (args->cacheing) {
+	case I915_CACHEING_NONE:
+		level = I915_CACHE_NONE;
+		break;
+	case I915_CACHEING_CACHED:
+		level = I915_CACHE_LLC;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
+	if (&obj->base == NULL) {
+		ret = -ENOENT;
+		goto unlock;
+	}
+
+	ret = i915_gem_object_set_cache_level(obj, level);
+
+	drm_gem_object_unreference(&obj->base);
+unlock:
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
+}
+
 /*
  * Prepare buffer for display plane (scanout, cursors, etc).
  * Can be called from an uninterruptible phase (modesetting) and allows

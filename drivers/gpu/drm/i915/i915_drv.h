@@ -848,9 +848,9 @@ enum hdmi_force_audio {
 };
 
 enum i915_cache_level {
-	I915_CACHE_NONE,
+	I915_CACHE_NONE = 0,
 	I915_CACHE_LLC,
-	I915_CACHE_LLC_MLC, /* gen6+ */
+	I915_CACHE_LLC_MLC, /* gen6+, in docs at least! */
 };
 
 struct drm_i915_gem_object {
@@ -1238,6 +1238,10 @@ int i915_gem_unpin_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 int i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
+int i915_gem_get_cacheing_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file);
+int i915_gem_set_cacheing_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file);
 int i915_gem_throttle_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
 int i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
