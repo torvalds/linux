@@ -16,7 +16,48 @@
 #define DCACHE_MAX_ADDR	0
 #define DCACHE_SETMASK	0
 #endif
+#ifndef CACHE_MODE
+#define	CACHE_MODE	0
+#define	CACR_ICINVA	0
+#define	CACR_DCINVA	0
+#define	CACR_BCINVA	0
+#endif
 
+/*
+ * ColdFire architecture has no way to clear individual cache lines, so we
+ * are stuck invalidating all the cache entries when we want a clear operation.
+ */
+static inline void clear_cf_icache(unsigned long start, unsigned long end)
+{
+	__asm__ __volatile__ (
+		"movec	%0,%%cacr\n\t"
+		"nop"
+		:
+		: "r" (CACHE_MODE | CACR_ICINVA | CACR_BCINVA));
+}
+
+static inline void clear_cf_dcache(unsigned long start, unsigned long end)
+{
+	__asm__ __volatile__ (
+		"movec	%0,%%cacr\n\t"
+		"nop"
+		:
+		: "r" (CACHE_MODE | CACR_DCINVA));
+}
+
+static inline void clear_cf_bcache(unsigned long start, unsigned long end)
+{
+	__asm__ __volatile__ (
+		"movec	%0,%%cacr\n\t"
+		"nop"
+		:
+		: "r" (CACHE_MODE | CACR_ICINVA | CACR_BCINVA | CACR_DCINVA));
+}
+
+/*
+ * Use the ColdFire cpushl instruction to push (and invalidate) cache lines.
+ * The start and end addresses are cache line numbers not memory addresses.
+ */
 static inline void flush_cf_icache(unsigned long start, unsigned long end)
 {
 	unsigned long set;
