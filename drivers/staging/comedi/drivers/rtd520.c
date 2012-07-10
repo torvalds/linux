@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set sample counter source select (write only) */
-#define RtdAdcSampleCounterSource(dev, v) \
-	writel(v, devpriv->las0+LAS0_ADC_SCNT_SRC)
-
 /* Set Pacer trigger mode select (write only) 0=single cycle, 1=repeat */
 #define RtdPacerTriggerMode(dev, v) \
 	writel((v > 0) ? 1 : 0, devpriv->las0+LAS0_PACER_REPEAT)
