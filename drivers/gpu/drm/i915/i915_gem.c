@@ -2748,8 +2748,8 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 	if (map_and_fenceable)
 		free_space =
 			drm_mm_search_free_in_range(&dev_priv->mm.gtt_space,
-						    size, alignment, 0,
-						    dev_priv->mm.gtt_mappable_end,
+						    size, alignment,
+						    0, dev_priv->mm.gtt_mappable_end,
 						    0);
 	else
 		free_space = drm_mm_search_free(&dev_priv->mm.gtt_space,
@@ -2760,7 +2760,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 			obj->gtt_space =
 				drm_mm_get_block_range_generic(free_space,
 							       size, alignment, 0,
-							       dev_priv->mm.gtt_mappable_end,
+							       0, dev_priv->mm.gtt_mappable_end,
 							       0);
 		else
 			obj->gtt_space =

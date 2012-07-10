@@ -50,6 +50,7 @@ struct drm_mm_node {
 	unsigned scanned_next_free : 1;
 	unsigned scanned_preceeds_hole : 1;
 	unsigned allocated : 1;
+	unsigned long color;
 	unsigned long start;
 	unsigned long size;
 	struct drm_mm *mm;
@@ -66,6 +67,7 @@ struct drm_mm {
 	spinlock_t unused_lock;
 	unsigned int scan_check_range : 1;
 	unsigned scan_alignment;
+	unsigned long scan_color;
 	unsigned long scan_size;
 	unsigned long scan_hit_start;
 	unsigned scan_hit_size;
@@ -73,6 +75,9 @@ struct drm_mm {
 	unsigned long scan_start;
 	unsigned long scan_end;
 	struct drm_mm_node *prev_scanned_node;
+
+	void (*color_adjust)(struct drm_mm_node *node, unsigned long color,
+			     unsigned long *start, unsigned long *end);
 };
 
 static inline bool drm_mm_node_allocated(struct drm_mm_node *node)
@@ -100,11 +105,13 @@ static inline bool drm_mm_initialized(struct drm_mm *mm)
 extern struct drm_mm_node *drm_mm_get_block_generic(struct drm_mm_node *node,
 						    unsigned long size,
 						    unsigned alignment,
+						    unsigned long color,
 						    int atomic);
 extern struct drm_mm_node *drm_mm_get_block_range_generic(
 						struct drm_mm_node *node,
 						unsigned long size,
 						unsigned alignment,
+						unsigned long color,
 						unsigned long start,
 						unsigned long end,
 						int atomic);
@@ -112,13 +119,13 @@ static inline struct drm_mm_node *drm_mm_get_block(struct drm_mm_node *parent,
 						   unsigned long size,
 						   unsigned alignment)
 {
-	return drm_mm_get_block_generic(parent, size, alignment, 0);
+	return drm_mm_get_block_generic(parent, size, alignment, 0, 0);
 }
 static inline struct drm_mm_node *drm_mm_get_block_atomic(struct drm_mm_node *parent,
 							  unsigned long size,
 							  unsigned alignment)
 {
-	return drm_mm_get_block_generic(parent, size, alignment, 1);
+	return drm_mm_get_block_generic(parent, size, alignment, 0, 1);
 }
 static inline struct drm_mm_node *drm_mm_get_block_range(
 						struct drm_mm_node *parent,
@@ -127,8 +134,19 @@ static inline struct drm_mm_node *drm_mm_get_block_range(
 						unsigned long start,
 						unsigned long end)
 {
-	return drm_mm_get_block_range_generic(parent, size, alignment,
-						start, end, 0);
+	return drm_mm_get_block_range_generic(parent, size, alignment, 0,
+					      start, end, 0);
+}
+static inline struct drm_mm_node *drm_mm_get_color_block_range(
+						struct drm_mm_node *parent,
+						unsigned long size,
+						unsigned alignment,
+						unsigned long color,
+						unsigned long start,
+						unsigned long end)
+{
+	return drm_mm_get_block_range_generic(parent, size, alignment, color,
+					      start, end, 0);
 }
 static inline struct drm_mm_node *drm_mm_get_block_atomic_range(
 						struct drm_mm_node *parent,
@@ -137,7 +155,7 @@ static inline struct drm_mm_node *drm_mm_get_block_atomic_range(
 						unsigned long start,
 						unsigned long end)
 {
-	return drm_mm_get_block_range_generic(parent, size, alignment,
+	return drm_mm_get_block_range_generic(parent, size, alignment, 0,
 						start, end, 1);
 }
 extern int drm_mm_insert_node(struct drm_mm *mm, struct drm_mm_node *node,
@@ -149,18 +167,59 @@ extern int drm_mm_insert_node_in_range(struct drm_mm *mm,
 extern void drm_mm_put_block(struct drm_mm_node *cur);
 extern void drm_mm_remove_node(struct drm_mm_node *node);
 extern void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new);
-extern struct drm_mm_node *drm_mm_search_free(const struct drm_mm *mm,
-					      unsigned long size,
-					      unsigned alignment,
-					      int best_match);
-extern struct drm_mm_node *drm_mm_search_free_in_range(
+extern struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
+						      unsigned long size,
+						      unsigned alignment,
+						      unsigned long color,
+						      bool best_match);
+extern struct drm_mm_node *drm_mm_search_free_in_range_generic(
+						const struct drm_mm *mm,
+						unsigned long size,
+						unsigned alignment,
+						unsigned long color,
+						unsigned long start,
+						unsigned long end,
+						bool best_match);
+static inline struct drm_mm_node *drm_mm_search_free(const struct drm_mm *mm,
+						     unsigned long size,
+						     unsigned alignment,
+						     bool best_match)
+{
+	return drm_mm_search_free_generic(mm,size, alignment, 0, best_match);
+}
+static inline  struct drm_mm_node *drm_mm_search_free_in_range(
 						const struct drm_mm *mm,
 						unsigned long size,
 						unsigned alignment,
 						unsigned long start,
 						unsigned long end,
-						int best_match);
-extern int drm_mm_init(struct drm_mm *mm, unsigned long start,
+						bool best_match)
+{
+	return drm_mm_search_free_in_range_generic(mm, size, alignment, 0,
+						   start, end, best_match);
+}
+static inline struct drm_mm_node *drm_mm_search_free_color(const struct drm_mm *mm,
+							   unsigned long size,
+							   unsigned alignment,
+							   unsigned long color,
+							   bool best_match)
+{
+	return drm_mm_search_free_generic(mm,size, alignment, color, best_match);
+}
+static inline  struct drm_mm_node *drm_mm_search_free_in_range_color(
+						const struct drm_mm *mm,
+						unsigned long size,
+						unsigned alignment,
+						unsigned long color,
+						unsigned long start,
+						unsigned long end,
+						bool best_match)
+{
+	return drm_mm_search_free_in_range_generic(mm, size, alignment, color,
+						   start, end, best_match);
+}
+extern int drm_mm_init(struct drm_mm *mm,
+		       unsigned long start,
 		       unsigned long size);
 extern void drm_mm_takedown(struct drm_mm *mm);
 extern int drm_mm_clean(struct drm_mm *mm);
@@ -171,10 +230,14 @@ static inline struct drm_mm *drm_get_mm(struct drm_mm_node *block)
 	return block->mm;
 }
 
-void drm_mm_init_scan(struct drm_mm *mm, unsigned long size,
-		      unsigned alignment);
-void drm_mm_init_scan_with_range(struct drm_mm *mm, unsigned long size,
+void drm_mm_init_scan(struct drm_mm *mm,
+		      unsigned long size,
+		      unsigned alignment,
+		      unsigned long color);
+void drm_mm_init_scan_with_range(struct drm_mm *mm,
+				 unsigned long size,
 				 unsigned alignment,
+				 unsigned long color,
 				 unsigned long start,
 				 unsigned long end);
 int drm_mm_scan_add_block(struct drm_mm_node *node);
