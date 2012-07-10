@@ -177,14 +177,14 @@ static int persistent_ram_init_ecc(struct persistent_ram_zone *prz)
 	struct persistent_ram_buffer *buffer = prz->buffer;
 	int ecc_blocks;
 	size_t ecc_total;
+	int ecc_symsize = 8;
+	int ecc_poly = 0x11d;
 
 	if (!prz->ecc)
 		return 0;
 
 	prz->ecc_block_size = 128;
 	prz->ecc_size = 16;
-	prz->ecc_symsize = 8;
-	prz->ecc_poly = 0x11d;
 
 	ecc_blocks = DIV_ROUND_UP(prz->buffer_size, prz->ecc_block_size);
 	ecc_total = (ecc_blocks + 1) * prz->ecc_size;
@@ -202,8 +202,7 @@ static int persistent_ram_init_ecc(struct persistent_ram_zone *prz)
 	 * first consecutive root is 0
 	 * primitive element to generate roots = 1
 	 */
-	prz->rs_decoder = init_rs(prz->ecc_symsize, prz->ecc_poly, 0, 1,
-				  prz->ecc_size);
+	prz->rs_decoder = init_rs(ecc_symsize, ecc_poly, 0, 1, prz->ecc_size);
 	if (prz->rs_decoder == NULL) {
 		pr_info("persistent_ram: init_rs failed\n");
 		return -EINVAL;

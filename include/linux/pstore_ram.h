@@ -41,8 +41,6 @@ struct persistent_ram_zone {
 	int bad_blocks;
 	int ecc_block_size;
 	int ecc_size;
-	int ecc_symsize;
-	int ecc_poly;
 
 	char *old_log;
 	size_t old_log_size;
