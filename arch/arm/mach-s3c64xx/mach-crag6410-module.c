@@ -39,6 +39,7 @@ static struct spi_board_info wm1253_devs[] = {
 		.bus_num	= 0,
 		.chip_select	= 0,
 		.mode		= SPI_MODE_0,
+		.irq		= S3C_EINT(5),
 		.controller_data = &wm0010_spi_csinfo,
 	},
 };
@@ -168,7 +169,6 @@ static struct wm8994_pdata wm8994_pdata = {
 	.gpio_defaults = {
 		0x3,          /* IRQ out, active high, CMOS */
 	},
-	.irq_base = CODEC_IRQ_BASE,
 	.ldo = {
 		 { .init_data = &wm8994_ldo1, },
 		 { .init_data = &wm8994_ldo2, },
@@ -180,6 +180,11 @@ static const struct i2c_board_info wm1277_devs[] = {
 	  .platform_data = &wm8994_pdata,
 	  .irq = GLENFARCLAS_PMIC_IRQ_BASE + WM831X_IRQ_GPIO_2,
 	},
+};
+
+static const struct i2c_board_info wm5102_devs[] = {
+	{ I2C_BOARD_INFO("wm5102", 0x1a),
+	  .irq = GLENFARCLAS_PMIC_IRQ_BASE + WM831X_IRQ_GPIO_2, },
 };
 
 static const struct i2c_board_info wm6230_i2c_devs[] = {
@@ -209,6 +214,7 @@ static __devinitdata const struct {
 	  .spi_devs = wm1253_devs, .num_spi_devs = ARRAY_SIZE(wm1253_devs) },
 	{ .id = 0x32, .name = "XXXX-EV1 Caol Illa" },
 	{ .id = 0x33, .name = "XXXX-EV1 Oban" },
+	{ .id = 0x34, .name = "WM0010-6320-CS42 Balblair" },
 	{ .id = 0x39, .name = "1254-EV1 Dallas Dhu",
 	  .i2c_devs = wm1254_devs, .num_i2c_devs = ARRAY_SIZE(wm1254_devs) },
 	{ .id = 0x3a, .name = "1259-EV1 Tobermory",
@@ -218,6 +224,8 @@ static __devinitdata const struct {
 	{ .id = 0x3c, .name = "1273-EV1 Longmorn" },
 	{ .id = 0x3d, .name = "1277-EV1 Littlemill",
 	  .i2c_devs = wm1277_devs, .num_i2c_devs = ARRAY_SIZE(wm1277_devs) },
+	{ .id = 0x3e, .name = "WM5102-6271-EV1-CS127",
+	  .i2c_devs = wm5102_devs, .num_i2c_devs = ARRAY_SIZE(wm5102_devs) },
 };
 
 static __devinit int wlf_gf_module_probe(struct i2c_client *i2c,

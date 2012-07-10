@@ -219,8 +219,10 @@ static struct platform_pwm_backlight_data smdk4x12_bl_data = {
 
 static uint32_t smdk4x12_keymap[] __initdata = {
 	/* KEY(row, col, keycode) */
-	KEY(1, 0, KEY_D), KEY(1, 1, KEY_A), KEY(1, 2, KEY_B),
-	KEY(1, 3, KEY_E), KEY(1, 4, KEY_C)
+	KEY(1, 3, KEY_1), KEY(1, 4, KEY_2), KEY(1, 5, KEY_3),
+	KEY(1, 6, KEY_4), KEY(1, 7, KEY_5),
+	KEY(2, 5, KEY_D), KEY(2, 6, KEY_A), KEY(2, 7, KEY_B),
+	KEY(0, 7, KEY_E), KEY(0, 5, KEY_C)
 };
 
 static struct matrix_keymap_data smdk4x12_keymap_data __initdata = {
@@ -230,8 +232,8 @@ static struct matrix_keymap_data smdk4x12_keymap_data __initdata = {
 
 static struct samsung_keypad_platdata smdk4x12_keypad_data __initdata = {
 	.keymap_data	= &smdk4x12_keymap_data,
-	.rows		= 2,
-	.cols		= 5,
+	.rows		= 3,
+	.cols		= 8,
 };
 
 static struct platform_device *smdk4x12_devices[] __initdata = {
