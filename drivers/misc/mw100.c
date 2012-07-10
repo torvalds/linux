@@ -139,6 +139,8 @@ static int mw100_probe(struct platform_device *pdev)
 	gpio_request(pdata->bp_reset,"bp_reset");
 	gpio_request(pdata->bp_wakeup_ap,"bp_wakeup_ap");
 	gpio_request(pdata->ap_wakeup_bp,"ap_wakeup_bp");
+	gpio_set_value(pdata->modem_power_en, GPIO_HIGH);
+	msleep(1000);
 #if defined(CONFIG_ARCH_RK29)	
 	rk29_mux_api_set(GPIO6C76_CPUTRACEDATA76_NAME, GPIO4H_GPIO6C76);
 #endif
@@ -245,7 +247,7 @@ void mw100_shutdown(struct platform_device *pdev)
 	MODEMDBG("%s::%d--bruins--\n",__func__,__LINE__);
 	gpio_set_value(pdata->bp_power, GPIO_HIGH);
 	mdelay(2010);
-
+	gpio_free(pdata->modem_power_en);
 	gpio_free(pdata->bp_power);
 	gpio_free(pdata->bp_reset);
 	gpio_free(pdata->ap_wakeup_bp);

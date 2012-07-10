@@ -544,6 +544,9 @@ config MU509
 config MW100
 	bool "MW100 modem control driver"
 
+config MT6229
+	bool "MT6229 modem control driver"
+
 config RK29_NEWTON
 	bool "RK29_NEWTON misc driver"
 
