@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Delay counter, 16bit */
-#define RtdDelayCounter(dev, v) \
-	writel((v) & 0xffff, devpriv->las0+LAS0_DCLK)
-
 /* About counter, 16bit */
 #define RtdAboutCount(dev) \
 	readl(devpriv->las0+LAS0_ACNT)
