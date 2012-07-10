@@ -217,10 +217,11 @@ static void tracing_stop_function_trace(void)
 
 static int func_set_flag(u32 old_flags, u32 bit, int set)
 {
-	if (bit == TRACE_FUNC_OPT_STACK) {
+	switch (bit) {
+	case TRACE_FUNC_OPT_STACK:
 		/* do nothing if already set */
 		if (!!set == !!(func_flags.val & TRACE_FUNC_OPT_STACK))
-			return 0;
+			break;
 
 		if (set) {
 			unregister_ftrace_function(&trace_ops);
@@ -230,12 +231,14 @@ static int func_set_flag(u32 old_flags, u32 bit, int set)
 			register_ftrace_function(&trace_ops);
 		}
 
-		return 0;
-	} else if (bit == TRACE_FUNC_OPT_PSTORE) {
-		return 0;
+		break;
+	case TRACE_FUNC_OPT_PSTORE:
+		break;
+	default:
+		return -EINVAL;
 	}
 
-	return -EINVAL;
+	return 0;
 }
 
 static struct tracer function_trace __read_mostly =
