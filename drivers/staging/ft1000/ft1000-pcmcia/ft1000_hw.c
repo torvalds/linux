@@ -1996,41 +1996,43 @@ static irqreturn_t ft1000_interrupt(int irq, void *dev_id)
 	inttype = ft1000_read_reg(dev, FT1000_REG_SUP_ISR);
 
     // Make sure we process all interrupt before leaving the ISR due to the edge trigger interrupt type
-    while (inttype) {
+	while (inttype) {
 		if (inttype & ISR_DOORBELL_PEND)
 			ft1000_parse_dpram_msg(dev);
 
-	if (inttype & ISR_RCV) {
-		DEBUG(1, "Data in FIFO\n");
+		if (inttype & ISR_RCV) {
+			DEBUG(1, "Data in FIFO\n");
 
-		cnt = 0;
-		do {
-			// Check if we have packets in the Downlink FIFO
-			if (info->AsicID == ELECTRABUZZ_ID) {
-				tempword =
-					ft1000_read_reg(dev, FT1000_REG_DFIFO_STAT);
-			} else {
-				tempword =
-					ft1000_read_reg(dev, FT1000_REG_MAG_DFSR);
-			}
-			if (tempword & 0x1f) {
-				ft1000_copy_up_pkt(dev);
-			} else {
-				break;
-			}
-			cnt++;
-		} while (cnt < MAX_RCV_LOOP);
+			cnt = 0;
+			do {
+				// Check if we have packets in the Downlink FIFO
+				if (info->AsicID == ELECTRABUZZ_ID) {
+					tempword =
+					ft1000_read_reg(dev,
+							FT1000_REG_DFIFO_STAT);
+				} else {
+					tempword =
+					ft1000_read_reg(dev,
+							FT1000_REG_MAG_DFSR);
+				}
+				if (tempword & 0x1f) {
+					ft1000_copy_up_pkt(dev);
+				} else {
+					break;
+				}
+				cnt++;
+			} while (cnt < MAX_RCV_LOOP);
 
+		}
+		// clear interrupts
+		tempword = ft1000_read_reg(dev, FT1000_REG_SUP_ISR);
+		DEBUG(1, "ft1000_hw: interrupt status register = 0x%x\n", tempword);
+		ft1000_write_reg(dev, FT1000_REG_SUP_ISR, tempword);
+
+		// Read interrupt type
+		inttype = ft1000_read_reg (dev, FT1000_REG_SUP_ISR);
+		DEBUG(1,"ft1000_hw: interrupt status register after clear = 0x%x\n",inttype);
 	}
-	// clear interrupts
-	tempword = ft1000_read_reg(dev, FT1000_REG_SUP_ISR);
-	DEBUG(1, "ft1000_hw: interrupt status register = 0x%x\n", tempword);
-	ft1000_write_reg(dev, FT1000_REG_SUP_ISR, tempword);
-
-        // Read interrupt type
-        inttype = ft1000_read_reg (dev, FT1000_REG_SUP_ISR);
-        DEBUG(1,"ft1000_hw: interrupt status register after clear = 0x%x\n",inttype);
-    }
 	ft1000_enable_interrupts(dev);
 	return IRQ_HANDLED;
 }
