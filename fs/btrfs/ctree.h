@@ -1623,13 +1623,54 @@ static inline void btrfs_init_map_token (struct btrfs_map_token *token)
 			    offsetof(type, member),			\
 			   sizeof(((type *)0)->member)))
 
-#ifndef BTRFS_SETGET_FUNCS
+#define DECLARE_BTRFS_SETGET_BITS(bits)					\
+u##bits btrfs_get_token_##bits(struct extent_buffer *eb, void *ptr,	\
+			       unsigned long off,			\
+                              struct btrfs_map_token *token);		\
+void btrfs_set_token_##bits(struct extent_buffer *eb, void *ptr,	\
+			    unsigned long off, u##bits val,		\
+			    struct btrfs_map_token *token);		\
+static inline u##bits btrfs_get_##bits(struct extent_buffer *eb, void *ptr, \
+				       unsigned long off)		\
+{									\
+	return btrfs_get_token_##bits(eb, ptr, off, NULL);		\
+}									\
+static inline void btrfs_set_##bits(struct extent_buffer *eb, void *ptr, \
+				    unsigned long off, u##bits val)	\
+{									\
+       btrfs_set_token_##bits(eb, ptr, off, val, NULL);			\
+}
+
+DECLARE_BTRFS_SETGET_BITS(8)
+DECLARE_BTRFS_SETGET_BITS(16)
+DECLARE_BTRFS_SETGET_BITS(32)
+DECLARE_BTRFS_SETGET_BITS(64)
+
 #define BTRFS_SETGET_FUNCS(name, type, member, bits)			\
-u##bits btrfs_##name(struct extent_buffer *eb, type *s);		\
-u##bits btrfs_token_##name(struct extent_buffer *eb, type *s, struct btrfs_map_token *token);		\
-void btrfs_set_token_##name(struct extent_buffer *eb, type *s, u##bits val, struct btrfs_map_token *token);\
-void btrfs_set_##name(struct extent_buffer *eb, type *s, u##bits val);
-#endif
+static inline u##bits btrfs_##name(struct extent_buffer *eb, type *s)	\
+{									\
+	BUILD_BUG_ON(sizeof(u##bits) != sizeof(((type *)0))->member);	\
+	return btrfs_get_##bits(eb, s, offsetof(type, member));		\
+}									\
+static inline void btrfs_set_##name(struct extent_buffer *eb, type *s,	\
+				    u##bits val)			\
+{									\
+	BUILD_BUG_ON(sizeof(u##bits) != sizeof(((type *)0))->member);	\
+	btrfs_set_##bits(eb, s, offsetof(type, member), val);		\
+}									\
+static inline u##bits btrfs_token_##name(struct extent_buffer *eb, type *s, \
+					 struct btrfs_map_token *token)	\
+{									\
+	BUILD_BUG_ON(sizeof(u##bits) != sizeof(((type *)0))->member);	\
+	return btrfs_get_token_##bits(eb, s, offsetof(type, member), token); \
+}									\
+static inline void btrfs_set_token_##name(struct extent_buffer *eb,	\
+					  type *s, u##bits val,		\
+                                         struct btrfs_map_token *token)	\
+{									\
+	BUILD_BUG_ON(sizeof(u##bits) != sizeof(((type *)0))->member);	\
+	btrfs_set_token_##bits(eb, s, offsetof(type, member), val, token); \
+}
 
 #define BTRFS_SETGET_HEADER_FUNCS(name, type, member, bits)		\
 static inline u##bits btrfs_##name(struct extent_buffer *eb)		\
