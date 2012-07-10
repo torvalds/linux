@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Burst counter, 10bit */
-#define RtdBurstCounter(dev, v) \
-	writel((v) & 0x3ff, devpriv->las0+LAS0_BCLK)
-
 /* Delay counter, 16bit */
 #define RtdDelayCount(dev) \
 	readl(devpriv->las0+LAS0_DCLK)
@@ -1527,7 +1523,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 						TRIG_ROUND_NEAREST);
 			/* setup BURST clock */
 			/*DPRINTK ("rtd520: loading %d into burst\n", timer); */
-			RtdBurstCounter(dev, timer);
+			writel(timer & 0x3ff, devpriv->las0 + LAS0_BCLK);
 		}
 
 		break;
