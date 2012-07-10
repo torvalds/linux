@@ -67,9 +67,6 @@
 		ethernet@24000 {
 			status = "disabled";
 		};
-		mdio@24520 {
-			status = "disabled";
-		};
 		ptp_clock@24e00 {
 			status = "disabled";
 		};
