@@ -1,0 +1,14 @@
+comment "Pin function controller options"
+
+config SH_PFC
+	# XXX move off the gpio dependency
+	depends on GENERIC_GPIO
+	select GPIO_SH_PFC if ARCH_REQUIRE_GPIOLIB
+	def_bool y
+
+config GPIO_SH_PFC
+	tristate "SuperH PFC GPIO support"
+	depends on SH_PFC && GPIOLIB
+	help
+	  This enables support for GPIOs within the SoC's pin function
+	  controller.

@@ -127,10 +127,10 @@ struct sh_pfc {
 /* XXX compat for now */
 #define pinmux_info sh_pfc
 
-/* drivers/sh/pfc-gpio.c */
+/* drivers/sh/pfc/gpio.c */
 int sh_pfc_register_gpiochip(struct sh_pfc *pfc);
 
-/* drivers/sh/pfc.c */
+/* drivers/sh/pfc/core.c */
 int register_sh_pfc(struct sh_pfc *pfc);
 
 int sh_pfc_read_bit(struct pinmux_data_reg *dr, unsigned long in_pos);
