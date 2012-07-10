@@ -253,6 +253,9 @@ struct smb_version_operations {
 	void (*mkdir_setinfo)(struct inode *, const char *,
 			      struct cifs_sb_info *, struct cifs_tcon *,
 			      const unsigned int);
+	/* remove directory */
+	int (*rmdir)(const unsigned int, struct cifs_tcon *, const char *,
+		     struct cifs_sb_info *);
 };
 
 struct smb_version_values {

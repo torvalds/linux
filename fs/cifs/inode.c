@@ -1426,7 +1426,8 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 	unsigned int xid;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
-	struct cifs_tcon *pTcon;
+	struct cifs_tcon *tcon;
+	struct TCP_Server_Info *server;
 	char *full_path = NULL;
 	struct cifsInodeInfo *cifsInode;
 
@@ -1446,10 +1447,16 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 		rc = PTR_ERR(tlink);
 		goto rmdir_exit;
 	}
-	pTcon = tlink_tcon(tlink);
+	tcon = tlink_tcon(tlink);
+	server = tcon->ses->server;
 
-	rc = CIFSSMBRmDir(xid, pTcon, full_path, cifs_sb->local_nls,
-			  cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (!server->ops->rmdir) {
+		rc = -ENOSYS;
+		cifs_put_tlink(tlink);
+		goto rmdir_exit;
+	}
+
+	rc = server->ops->rmdir(xid, tcon, full_path, cifs_sb);
 	cifs_put_tlink(tlink);
 
 	if (!rc) {

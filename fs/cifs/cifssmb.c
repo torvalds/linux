@@ -948,15 +948,15 @@ DelFileRetry:
 }
 
 int
-CIFSSMBRmDir(const unsigned int xid, struct cifs_tcon *tcon,
-	     const char *dirName, const struct nls_table *nls_codepage,
-	     int remap)
+CIFSSMBRmDir(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
+	     struct cifs_sb_info *cifs_sb)
 {
 	DELETE_DIRECTORY_REQ *pSMB = NULL;
 	DELETE_DIRECTORY_RSP *pSMBr = NULL;
 	int rc = 0;
 	int bytes_returned;
 	int name_len;
+	int remap = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR;
 
 	cFYI(1, "In CIFSSMBRmDir");
 RmDirRetry:
@@ -966,14 +966,15 @@ RmDirRetry:
 		return rc;
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
-		name_len = cifsConvertToUTF16((__le16 *) pSMB->DirName, dirName,
-					      PATH_MAX, nls_codepage, remap);
+		name_len = cifsConvertToUTF16((__le16 *) pSMB->DirName, name,
+					      PATH_MAX, cifs_sb->local_nls,
+					      remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {		/* BB improve check for buffer overruns BB */
-		name_len = strnlen(dirName, PATH_MAX);
+		name_len = strnlen(name, PATH_MAX);
 		name_len++;	/* trailing null */
-		strncpy(pSMB->DirName, dirName, name_len);
+		strncpy(pSMB->DirName, name, name_len);
 	}
 
 	pSMB->BufferFormat = 0x04;

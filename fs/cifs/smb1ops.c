@@ -643,6 +643,7 @@ struct smb_version_operations smb1_operations = {
 	.echo = CIFSSMBEcho,
 	.mkdir = CIFSSMBMkDir,
 	.mkdir_setinfo = cifs_mkdir_setinfo,
+	.rmdir = CIFSSMBRmDir,
 };
 
 struct smb_version_values smb1_values = {
