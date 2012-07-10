@@ -197,7 +197,7 @@ static int temac_dcr_setup(struct temac_local *lp, struct platform_device *op,
 #endif
 
 /**
- *  * temac_dma_bd_release - Release buffer descriptor rings
+ * temac_dma_bd_release - Release buffer descriptor rings
  */
 static void temac_dma_bd_release(struct net_device *ndev)
 {

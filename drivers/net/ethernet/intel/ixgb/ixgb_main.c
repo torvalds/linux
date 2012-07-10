@@ -2276,9 +2276,9 @@ static void ixgb_netpoll(struct net_device *dev)
 #endif
 
 /**
- * ixgb_io_error_detected() - called when PCI error is detected
- * @pdev    pointer to pci device with error
- * @state   pci channel state after error
+ * ixgb_io_error_detected - called when PCI error is detected
+ * @pdev:    pointer to pci device with error
+ * @state:   pci channel state after error
  *
  * This callback is called by the PCI subsystem whenever
  * a PCI bus error is detected.

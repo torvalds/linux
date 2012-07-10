@@ -2159,7 +2159,7 @@ void e1000e_release_hw_control(struct e1000_adapter *adapter)
 }
 
 /**
- * @e1000_alloc_ring - allocate memory for a ring structure
+ * e1000_alloc_ring_dma - allocate memory for a ring structure
  **/
 static int e1000_alloc_ring_dma(struct e1000_adapter *adapter,
 				struct e1000_ring *ring)

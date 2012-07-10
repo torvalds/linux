@@ -283,7 +283,8 @@ static s32 e1000_set_vfta_vf(struct e1000_hw *hw, u16 vid, bool set)
 	return err;
 }
 
-/** e1000_rlpml_set_vf - Set the maximum receive packet length
+/**
+ *  e1000_rlpml_set_vf - Set the maximum receive packet length
  *  @hw: pointer to the HW structure
  *  @max_size: value to assign to max frame size
  **/
@@ -302,7 +303,7 @@ void e1000_rlpml_set_vf(struct e1000_hw *hw, u16 max_size)
  *  e1000_rar_set_vf - set device MAC address
  *  @hw: pointer to the HW structure
  *  @addr: pointer to the receive address
- *  @index receive address array register
+ *  @index: receive address array register
  **/
 static void e1000_rar_set_vf(struct e1000_hw *hw, u8 * addr, u32 index)
 {

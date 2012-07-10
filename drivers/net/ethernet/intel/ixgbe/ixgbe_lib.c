@@ -252,7 +252,7 @@ static void ixgbe_cache_ring_register(struct ixgbe_adapter *adapter)
 }
 
 /**
- * ixgbe_set_sriov_queues: Allocate queues for IOV use
+ * ixgbe_set_sriov_queues - Allocate queues for IOV use
  * @adapter: board private structure to initialize
  *
  * IOV doesn't actually use anything, so just NAK the
@@ -265,7 +265,7 @@ static inline bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
 }
 
 /**
- * ixgbe_set_rss_queues: Allocate queues for RSS
+ * ixgbe_set_rss_queues - Allocate queues for RSS
  * @adapter: board private structure to initialize
  *
  * This is our "base" multiqueue mode.  RSS (Receive Side Scaling) will try
@@ -288,7 +288,7 @@ static inline bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
 }
 
 /**
- * ixgbe_set_fdir_queues: Allocate queues for Flow Director
+ * ixgbe_set_fdir_queues - Allocate queues for Flow Director
  * @adapter: board private structure to initialize
  *
  * Flow Director is an advanced Rx filter, attempting to get Rx flows back
@@ -323,7 +323,7 @@ static inline bool ixgbe_set_fdir_queues(struct ixgbe_adapter *adapter)
 
 #ifdef IXGBE_FCOE
 /**
- * ixgbe_set_fcoe_queues: Allocate queues for Fiber Channel over Ethernet (FCoE)
+ * ixgbe_set_fcoe_queues - Allocate queues for Fiber Channel over Ethernet (FCoE)
  * @adapter: board private structure to initialize
  *
  * FCoE RX FCRETA can use up to 8 rx queues for up to 8 different exchanges.
@@ -410,7 +410,7 @@ static inline bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 #endif
 
 /**
- * ixgbe_set_num_queues: Allocate queues for device, feature dependent
+ * ixgbe_set_num_queues - Allocate queues for device, feature dependent
  * @adapter: board private structure to initialize
  *
  * This is the top level queue allocation routine.  The order here is very

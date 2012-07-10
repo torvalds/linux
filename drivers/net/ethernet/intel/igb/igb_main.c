@@ -5777,6 +5777,7 @@ static void igb_tx_hwtstamp(struct igb_q_vector *q_vector,
 /**
  * igb_clean_tx_irq - Reclaim resources after transmit completes
  * @q_vector: pointer to q_vector containing needed info
+ *
  * returns true if ring is completely cleaned
  **/
 static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)

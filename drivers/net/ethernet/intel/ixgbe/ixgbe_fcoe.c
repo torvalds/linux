@@ -38,7 +38,7 @@
 
 /**
  * ixgbe_fcoe_clear_ddp - clear the given ddp context
- * @ddp - ptr to the ixgbe_fcoe_ddp
+ * @ddp: ptr to the ixgbe_fcoe_ddp
  *
  * Returns : none
  *

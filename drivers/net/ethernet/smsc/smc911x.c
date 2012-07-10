@@ -773,7 +773,7 @@ static int smc911x_phy_fixed(struct net_device *dev)
 	return 1;
 }
 
-/*
+/**
  * smc911x_phy_reset - reset the phy
  * @dev: net device
  * @phy: phy address
@@ -819,7 +819,7 @@ static int smc911x_phy_reset(struct net_device *dev, int phy)
 	return reg & PMT_CTRL_PHY_RST_;
 }
 
-/*
+/**
  * smc911x_phy_powerdown - powerdown phy
  * @dev: net device
  * @phy: phy address
@@ -837,7 +837,7 @@ static void smc911x_phy_powerdown(struct net_device *dev, int phy)
 	SMC_SET_PHY_BMCR(lp, phy, bmcr);
 }
 
-/*
+/**
  * smc911x_phy_check_media - check the media status and adjust BMCR
  * @dev: net device
  * @init: set true for initialisation

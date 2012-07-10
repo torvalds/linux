@@ -336,6 +336,7 @@ static void efx_recycle_rx_buffer(struct efx_channel *channel,
 /**
  * efx_fast_push_rx_descriptors - push new RX descriptors quickly
  * @rx_queue:		RX descriptor queue
+ *
  * This will aim to fill the RX descriptor queue up to
  * @rx_queue->@max_fill. If there is insufficient atomic
  * memory to do so, a slow fill will be scheduled.

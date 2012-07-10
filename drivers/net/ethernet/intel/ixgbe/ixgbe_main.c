@@ -516,7 +516,7 @@ static void ixgbe_get_hw_control(struct ixgbe_adapter *adapter)
 			ctrl_ext | IXGBE_CTRL_EXT_DRV_LOAD);
 }
 
-/*
+/**
  * ixgbe_set_ivar - set the IVAR registers, mapping interrupt causes to vectors
  * @adapter: pointer to adapter struct
  * @direction: 0 for Rx, 1 for Tx, -1 for other causes
@@ -3591,7 +3591,7 @@ static void ixgbe_napi_disable_all(struct ixgbe_adapter *adapter)
 }
 
 #ifdef CONFIG_IXGBE_DCB
-/*
+/**
  * ixgbe_configure_dcb - Configure DCB hardware
  * @adapter: ixgbe adapter struct
  *
@@ -3658,11 +3658,11 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 /* Additional bittime to account for IXGBE framing */
 #define IXGBE_ETH_FRAMING 20
 
-/*
+/**
  * ixgbe_hpbthresh - calculate high water mark for flow control
  *
  * @adapter: board private structure to calculate for
- * @pb - packet buffer to calculate
+ * @pb: packet buffer to calculate
  */
 static int ixgbe_hpbthresh(struct ixgbe_adapter *adapter, int pb)
 {
@@ -3722,11 +3722,11 @@ static int ixgbe_hpbthresh(struct ixgbe_adapter *adapter, int pb)
 	return marker;
 }
 
-/*
+/**
  * ixgbe_lpbthresh - calculate low water mark for for flow control
  *
  * @adapter: board private structure to calculate for
- * @pb - packet buffer to calculate
+ * @pb: packet buffer to calculate
  */
 static int ixgbe_lpbthresh(struct ixgbe_adapter *adapter)
 {
@@ -5243,7 +5243,7 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_fdir_reinit_subtask - worker thread to reinit FDIR filter table
- * @adapter - pointer to the device adapter structure
+ * @adapter: pointer to the device adapter structure
  **/
 static void ixgbe_fdir_reinit_subtask(struct ixgbe_adapter *adapter)
 {
@@ -5279,7 +5279,7 @@ static void ixgbe_fdir_reinit_subtask(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_check_hang_subtask - check for hung queues and dropped interrupts
- * @adapter - pointer to the device adapter structure
+ * @adapter: pointer to the device adapter structure
  *
  * This function serves two purposes.  First it strobes the interrupt lines
  * in order to make certain interrupts are occurring.  Secondly it sets the
@@ -5327,8 +5327,8 @@ static void ixgbe_check_hang_subtask(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_watchdog_update_link - update the link status
- * @adapter - pointer to the device adapter structure
- * @link_speed - pointer to a u32 to store the link_speed
+ * @adapter: pointer to the device adapter structure
+ * @link_speed: pointer to a u32 to store the link_speed
  **/
 static void ixgbe_watchdog_update_link(struct ixgbe_adapter *adapter)
 {
@@ -5371,7 +5371,7 @@ static void ixgbe_watchdog_update_link(struct ixgbe_adapter *adapter)
 /**
  * ixgbe_watchdog_link_is_up - update netif_carrier status and
  *                             print link up message
- * @adapter - pointer to the device adapter structure
+ * @adapter: pointer to the device adapter structure
  **/
 static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 {
@@ -5431,7 +5431,7 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 /**
  * ixgbe_watchdog_link_is_down - update netif_carrier status and
  *                               print link down message
- * @adapter - pointer to the adapter structure
+ * @adapter: pointer to the adapter structure
  **/
 static void ixgbe_watchdog_link_is_down(struct ixgbe_adapter *adapter)
 {
@@ -5459,7 +5459,7 @@ static void ixgbe_watchdog_link_is_down(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_watchdog_flush_tx - flush queues on link down
- * @adapter - pointer to the device adapter structure
+ * @adapter: pointer to the device adapter structure
  **/
 static void ixgbe_watchdog_flush_tx(struct ixgbe_adapter *adapter)
 {
@@ -5508,7 +5508,7 @@ static void ixgbe_spoof_check(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_watchdog_subtask - check and bring link up
- * @adapter - pointer to the device adapter structure
+ * @adapter: pointer to the device adapter structure
  **/
 static void ixgbe_watchdog_subtask(struct ixgbe_adapter *adapter)
 {
@@ -5532,7 +5532,7 @@ static void ixgbe_watchdog_subtask(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_sfp_detection_subtask - poll for SFP+ cable
- * @adapter - the ixgbe adapter structure
+ * @adapter: the ixgbe adapter structure
  **/
 static void ixgbe_sfp_detection_subtask(struct ixgbe_adapter *adapter)
 {
@@ -5599,7 +5599,7 @@ sfp_out:
 
 /**
  * ixgbe_sfp_link_config_subtask - set up link SFP after module install
- * @adapter - the ixgbe adapter structure
+ * @adapter: the ixgbe adapter structure
  **/
 static void ixgbe_sfp_link_config_subtask(struct ixgbe_adapter *adapter)
 {
@@ -6586,8 +6586,9 @@ static struct rtnl_link_stats64 *ixgbe_get_stats64(struct net_device *netdev,
 }
 
 #ifdef CONFIG_IXGBE_DCB
-/* ixgbe_validate_rtr - verify 802.1Qp to Rx packet buffer mapping is valid.
- * #adapter: pointer to ixgbe_adapter
+/**
+ * ixgbe_validate_rtr - verify 802.1Qp to Rx packet buffer mapping is valid.
+ * @adapter: pointer to ixgbe_adapter
  * @tc: number of traffic classes currently enabled
  *
  * Configure a valid 802.1Qp to Rx packet buffer mapping ie confirm
@@ -6622,8 +6623,8 @@ static void ixgbe_validate_rtr(struct ixgbe_adapter *adapter, u8 tc)
 	return;
 }
 
-/* ixgbe_setup_tc - routine to configure net_device for multiple traffic
- * classes.
+/**
+ * ixgbe_setup_tc - configure net_device for multiple traffic classes
  *
  * @netdev: net device to configure
  * @tc: number of traffic classes to enable

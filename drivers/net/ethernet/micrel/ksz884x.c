@@ -3913,7 +3913,7 @@ static void hw_start_rx(struct ksz_hw *hw)
 		hw->rx_stop = 2;
 }
 
-/*
+/**
  * hw_stop_rx - stop receiving
  * @hw: 	The hardware instance.
  *

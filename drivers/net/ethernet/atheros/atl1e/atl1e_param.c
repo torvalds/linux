@@ -168,7 +168,7 @@ static int __devinit atl1e_validate_option(int *value, struct atl1e_option *opt,
 	return -1;
 }
 
-/*
+/**
  * atl1e_check_options - Range Checking for Command Line Parameters
  * @adapter: board private structure
  *

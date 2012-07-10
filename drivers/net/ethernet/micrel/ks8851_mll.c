@@ -1103,7 +1103,7 @@ static void ks_set_grpaddr(struct ks_net *ks)
 	}
 }  /* ks_set_grpaddr */
 
-/*
+/**
 * ks_clear_mcast - clear multicast information
 *
 * @ks : The chip information

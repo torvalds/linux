@@ -527,7 +527,7 @@ struct efx_phy_operations {
 };
 
 /**
- * @enum efx_phy_mode - PHY operating mode flags
+ * enum efx_phy_mode - PHY operating mode flags
  * @PHY_MODE_NORMAL: on and should pass traffic
  * @PHY_MODE_TX_DISABLED: on with TX disabled
  * @PHY_MODE_LOW_POWER: set to low power through MDIO

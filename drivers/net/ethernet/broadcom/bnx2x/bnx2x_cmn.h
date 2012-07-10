@@ -90,7 +90,7 @@ void bnx2x_send_unload_done(struct bnx2x *bp);
  * bnx2x_config_rss_pf - configure RSS parameters in a PF.
  *
  * @bp:			driver handle
- * @rss_obj		RSS object to use
+ * @rss_obj:		RSS object to use
  * @ind_table:		indirection table to configure
  * @config_hash:	re-configure RSS hash keys configuration
  */

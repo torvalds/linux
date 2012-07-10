@@ -95,11 +95,11 @@ static ssize_t ixgbe_hwmon_show_maxopthresh(struct device *dev,
 	return sprintf(buf, "%u\n", value);
 }
 
-/*
+/**
  * ixgbe_add_hwmon_attr - Create hwmon attr table for a hwmon sysfs file.
- * @ adapter: pointer to the adapter structure
- * @ offset: offset in the eeprom sensor data table
- * @ type: type of sensor data to display
+ * @adapter: pointer to the adapter structure
+ * @offset: offset in the eeprom sensor data table
+ * @type: type of sensor data to display
  *
  * For each file we want in hwmon's sysfs interface we need a device_attribute
  * This is included in our hwmon_attr struct that contains the references to

@@ -1076,7 +1076,7 @@ static int t3_flash_erase_sectors(struct adapter *adapter, int start, int end)
 	return 0;
 }
 
-/*
+/**
  *	t3_load_fw - download firmware
  *	@adapter: the adapter
  *	@fw_data: the firmware image to write

@@ -3132,7 +3132,7 @@ s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 }
 
 /**
- *  ixgbe_get_wwn_prefix_generic Get alternative WWNN/WWPN prefix from
+ *  ixgbe_get_wwn_prefix_generic - Get alternative WWNN/WWPN prefix from
  *  the EEPROM
  *  @hw: pointer to hardware structure
  *  @wwnn_prefix: the alternative WWNN prefix
@@ -3325,6 +3325,7 @@ void ixgbe_set_rxpba_generic(struct ixgbe_hw *hw,
  *  ixgbe_calculate_checksum - Calculate checksum for buffer
  *  @buffer: pointer to EEPROM
  *  @length: size of EEPROM to calculate a checksum for
+ *
  *  Calculates the checksum for some buffer on a specified length.  The
  *  checksum calculated is returned.
  **/

@@ -2877,7 +2877,7 @@ static void sge_timer_tx(unsigned long data)
 	mod_timer(&qs->tx_reclaim_timer, jiffies + next_period);
 }
 
-/*
+/**
  *	sge_timer_rx - perform periodic maintenance of an SGE qset
  *	@data: the SGE queue set to maintain
  *

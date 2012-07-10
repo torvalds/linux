@@ -115,7 +115,7 @@ static inline void ixgbevf_release_rx_desc(struct ixgbe_hw *hw,
 	IXGBE_WRITE_REG(hw, IXGBE_VFRDT(rx_ring->reg_idx), val);
 }
 
-/*
+/**
  * ixgbevf_set_ivar - set IVAR registers - maps interrupt causes to vectors
  * @adapter: pointer to adapter struct
  * @direction: 0 for Rx, 1 for Tx, -1 for other causes
@@ -1942,8 +1942,8 @@ static void ixgbevf_acquire_msix_vectors(struct ixgbevf_adapter *adapter,
 	}
 }
 
-/*
- * ixgbevf_set_num_queues: Allocate queues for device, feature dependent
+/**
+ * ixgbevf_set_num_queues - Allocate queues for device, feature dependent
  * @adapter: board private structure to initialize
  *
  * This is the top level queue allocation routine.  The order here is very

@@ -3377,7 +3377,7 @@ static int wait_for_cmd_complete(void __iomem *addr, u64 busy_bit,
 	} while (cnt < 20);
 	return ret;
 }
-/*
+/**
  * check_pci_device_id - Checks if the device id is supported
  * @id : device id
  * Description: Function to check if the pci device id is supported by driver.
@@ -5238,7 +5238,7 @@ static u64 do_s2io_read_unicast_mc(struct s2io_nic *sp, int offset)
 }
 
 /**
- * s2io_set_mac_addr driver entry point
+ * s2io_set_mac_addr - driver entry point
  */
 
 static int s2io_set_mac_addr(struct net_device *dev, void *p)
@@ -6088,7 +6088,7 @@ static int s2io_bist_test(struct s2io_nic *sp, uint64_t *data)
 }
 
 /**
- * s2io-link_test - verifies the link state of the nic
+ * s2io_link_test - verifies the link state of the nic
  * @sp ; private member of the device structure, which is a pointer to the
  * s2io_nic structure.
  * @data: variable that returns the result of each of the test conducted by
@@ -6116,9 +6116,9 @@ static int s2io_link_test(struct s2io_nic *sp, uint64_t *data)
 
 /**
  * s2io_rldram_test - offline test for access to the RldRam chip on the NIC
- * @sp - private member of the device structure, which is a pointer to the
+ * @sp: private member of the device structure, which is a pointer to the
  * s2io_nic structure.
- * @data - variable that returns the result of each of the test
+ * @data: variable that returns the result of each of the test
  * conducted by the driver.
  * Description:
  *  This is one of the offline test that tests the read and write

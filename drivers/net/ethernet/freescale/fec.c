@@ -1389,8 +1389,8 @@ fec_set_mac_address(struct net_device *ndev, void *p)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-/*
- * fec_poll_controller: FEC Poll controller function
+/**
+ * fec_poll_controller - FEC Poll controller function
  * @dev: The FEC network adapter
  *
  * Polled functionality used by netconsole and others in non interrupt mode

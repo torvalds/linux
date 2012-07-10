@@ -60,7 +60,7 @@ static void pch_gbe_plat_get_bus_info(struct pch_gbe_hw *hw)
 /**
  * pch_gbe_plat_init_hw - Initialize hardware
  * @hw:	Pointer to the HW structure
- * Returns
+ * Returns:
  *	0:		Successfully
  *	Negative value:	Failed-EBUSY
  */
@@ -108,7 +108,7 @@ static void pch_gbe_plat_init_function_pointers(struct pch_gbe_hw *hw)
 /**
  * pch_gbe_hal_setup_init_funcs - Initializes function pointers
  * @hw:	Pointer to the HW structure
- * Returns
+ * Returns:
  *	0:	Successfully
  *	ENOSYS:	Function is not registered
  */
@@ -137,7 +137,7 @@ inline void pch_gbe_hal_get_bus_info(struct pch_gbe_hw *hw)
 /**
  * pch_gbe_hal_init_hw - Initialize hardware
  * @hw:	Pointer to the HW structure
- * Returns
+ * Returns:
  *	0:	Successfully
  *	ENOSYS:	Function is not registered
  */
@@ -155,7 +155,7 @@ inline s32 pch_gbe_hal_init_hw(struct pch_gbe_hw *hw)
  * @hw:	    Pointer to the HW structure
  * @offset: The register to read
  * @data:   The buffer to store the 16-bit read.
- * Returns
+ * Returns:
  *	0:	Successfully
  *	Negative value:	Failed
  */
@@ -172,7 +172,7 @@ inline s32 pch_gbe_hal_read_phy_reg(struct pch_gbe_hw *hw, u32 offset,
  * @hw:	    Pointer to the HW structure
  * @offset: The register to read
  * @data:   The value to write.
- * Returns
+ * Returns:
  *	0:	Successfully
  *	Negative value:	Failed
  */
@@ -211,7 +211,7 @@ inline void pch_gbe_hal_phy_sw_reset(struct pch_gbe_hw *hw)
 /**
  * pch_gbe_hal_read_mac_addr - Reads MAC address
  * @hw:	Pointer to the HW structure
- * Returns
+ * Returns:
  *	0:	Successfully
  *	ENOSYS:	Function is not registered
  */

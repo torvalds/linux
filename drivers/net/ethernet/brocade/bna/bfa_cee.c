@@ -52,13 +52,7 @@ bfa_cee_format_lldp_cfg(struct bfa_cee_lldp_cfg *lldp_cfg)
 }
 
 /**
- * bfa_cee_attr_meminfo()
- *
- * @brief Returns the size of the DMA memory needed by CEE attributes
- *
- * @param[in] void
- *
- * @return Size of DMA region
+ * bfa_cee_attr_meminfo - Returns the size of the DMA memory needed by CEE attributes
  */
 static u32
 bfa_cee_attr_meminfo(void)
@@ -66,13 +60,7 @@ bfa_cee_attr_meminfo(void)
 	return roundup(sizeof(struct bfa_cee_attr), BFA_DMA_ALIGN_SZ);
 }
 /**
- * bfa_cee_stats_meminfo()
- *
- * @brief Returns the size of the DMA memory needed by CEE stats
- *
- * @param[in] void
- *
- * @return Size of DMA region
+ * bfa_cee_stats_meminfo - Returns the size of the DMA memory needed by CEE stats
  */
 static u32
 bfa_cee_stats_meminfo(void)
@@ -81,14 +69,10 @@ bfa_cee_stats_meminfo(void)
 }
 
 /**
- * bfa_cee_get_attr_isr()
+ * bfa_cee_get_attr_isr - CEE ISR for get-attributes responses from f/w
  *
- * @brief CEE ISR for get-attributes responses from f/w
- *
- * @param[in] cee - Pointer to the CEE module
- *            status - Return status from the f/w
- *
- * @return void
+ * @cee: Pointer to the CEE module
+ * @status: Return status from the f/w
  */
 static void
 bfa_cee_get_attr_isr(struct bfa_cee *cee, enum bfa_status status)
@@ -105,14 +89,10 @@ bfa_cee_get_attr_isr(struct bfa_cee *cee, enum bfa_status status)
 }
 
 /**
- * bfa_cee_get_attr_isr()
+ * bfa_cee_get_attr_isr - CEE ISR for get-stats responses from f/w
  *
- * @brief CEE ISR for get-stats responses from f/w
- *
- * @param[in] cee - Pointer to the CEE module
- *            status - Return status from the f/w
- *
- * @return void
+ * @cee: Pointer to the CEE module
+ * @status: Return status from the f/w
  */
 static void
 bfa_cee_get_stats_isr(struct bfa_cee *cee, enum bfa_status status)
