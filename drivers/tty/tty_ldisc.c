@@ -659,7 +659,7 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 		goto enable;
 	}
 
-	if (test_bit(TTY_HUPPED, &tty->flags)) {
+	if (test_bit(TTY_HUPPING, &tty->flags)) {
 		/* We were raced by the hangup method. It will have stomped
 		   the ldisc data and closed the ldisc down */
 		clear_bit(TTY_LDISC_CHANGING, &tty->flags);
