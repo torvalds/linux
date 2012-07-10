@@ -1699,9 +1699,8 @@ static int getsockopt(struct socket *sock,
 	return put_user(sizeof(value), ol);
 }
 
-/**
- * Protocol switches for the various types of TIPC sockets
- */
+/* Protocol switches for the various types of TIPC sockets */
+
 static const struct proto_ops msg_ops = {
 	.owner		= THIS_MODULE,
 	.family		= AF_TIPC,

@@ -28,8 +28,7 @@
 #include <linux/module.h>
 #include <net/sock.h>
 
-/**
- * Data Center Bridging (DCB) is a collection of Ethernet enhancements
+/* Data Center Bridging (DCB) is a collection of Ethernet enhancements
  * intended to allow network traffic with differing requirements
  * (highly reliable, no drops vs. best effort vs. low latency) to operate
  * and co-exist on Ethernet.  Current DCB features are:
