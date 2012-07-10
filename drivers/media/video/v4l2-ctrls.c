@@ -2121,7 +2121,7 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 
 	/* First zero the helper field in the master control references */
 	for (i = 0; i < cs->count; i++)
-		helpers[i].mref->helper = 0;
+		helpers[i].mref->helper = NULL;
 	for (i = 0, h = helpers; i < cs->count; i++, h++) {
 		struct v4l2_ctrl_ref *mref = h->mref;
 
