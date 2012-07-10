@@ -242,25 +242,6 @@ void uf_native_process_udi_signal(ul_client_t *pcli,
                                   const u8 *packed_signal,
                                   int packed_signal_len,
                                   const bulk_data_param_t *bulkdata, int dir);
-#if 0
-/*
- * Choose one of these if available in linux/if_arp.h:
- *  #define UNIFI_SNIFF_ARPHRD ARPHRD_IEEE80211_RADIOTAP
- *  #define UNIFI_SNIFF_ARPHRD ARPHRD_IEEE80211_PRISM
- *
- * Radiotap is the newer standard for softmac WLAN devices, it works with
- * Wireshark but not Ethereal (due to a bug in the Ethereal dissector).
- * Prism is an older (less desirable) format but it does work with Ethereal.
- */
-#ifdef ARPHRD_IEEE80211_RADIOTAP
-#define UNIFI_SNIFF_ARPHRD ARPHRD_IEEE80211_RADIOTAP
-#else
-#ifdef ARPHRD_IEEE80211_PRISM
-#define UNIFI_SNIFF_ARPHRD ARPHRD_IEEE80211_PRISM
-#endif
-#endif
-#endif
-
 #ifdef UNIFI_SNIFF_ARPHRD
 /*
  * monitor.c

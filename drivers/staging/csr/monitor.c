@@ -51,13 +51,6 @@ uf_start_sniff(unifi_priv_t *priv)
     req->Channel = priv->wext_conf.channel;
     req->ChannelStartingFactor = 0;
 
-#if 0
-    printk("SniffJoin: Ifindex=%d, Channel=%d, ChannelStartingFactor=%d\n",
-           req->Ifindex,
-           req->Channel,
-           req->ChannelStartingFactor);
-#endif
-
     signal.SignalPrimitiveHeader.SignalId = CSR_MLME_SNIFFJOIN_REQUEST_ID;
 
     r = unifi_mlme_blocking_request(priv, pcli, &signal, NULL, timeout);
@@ -198,11 +191,6 @@ netrx_radiotap(unifi_priv_t *priv,
     unifi_rt->rt_antenna = ind->AntennaId;
 
 
-#if 0
-    printk("skb datalen=%d\n", skb->len);
-    dump(skb->data, 48);
-#endif
-
     skb->dev = dev;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
     skb->mac_header = skb->data;
@@ -282,24 +270,6 @@ netrx_prism(unifi_priv_t *priv,
         return;
     }
 
-#if 0
-    printk("MA-SINFFDATA.ind: DataLen=%d bytes, TSF %02X %02X %02X %02X %02X %02X %02X %02X, Rate=%d, Antenna=%d\n",
-           ind->Data.DataLength,
-           ind->Timestamp.x[0],
-           ind->Timestamp.x[1],
-           ind->Timestamp.x[2],
-           ind->Timestamp.x[3],
-           ind->Timestamp.x[4],
-           ind->Timestamp.x[5],
-           ind->Timestamp.x[6],
-           ind->Timestamp.x[7],
-           ind->Rate,
-           ind->Antenna);
-
-    printk("payload, len %d\n", length);
-    dump((unsigned char *)payload, 32);
-#endif
-
     /*
      * Allocate a SKB for the received data packet, including radiotap
      * header.
@@ -340,11 +310,6 @@ netrx_prism(unifi_priv_t *priv,
     avs->preamble       = htonl(0); /* unknown */
     avs->encoding       = htonl(0); /* unknown */
 
-
-#if 0
-    printk("skb datalen=%d\n", skb->len);
-    dump(skb->data, 48);
-#endif
 
     skb->dev = dev;
     skb->mac.raw = skb->data;
@@ -402,33 +367,11 @@ ma_sniffdata_ind(void *ospriv,
     }
 
     skb->len = bulkdata->d[0].data_length;
-#if 0
-    printk("MA-SNIFFDATA.ind: DataLen=%d bytes, TSF %02X %02X %02X %02X %02X %02X %02X %02X, Rate=%d, Antenna=%d\n",
-           ind->Data.DataLength,
-           ind->Timestamp.x[0],
-           ind->Timestamp.x[1],
-           ind->Timestamp.x[2],
-           ind->Timestamp.x[3],
-           ind->Timestamp.x[4],
-           ind->Timestamp.x[5],
-           ind->Timestamp.x[6],
-           ind->Timestamp.x[7],
-           ind->Rate,
-           ind->AntennaId);
-
-    printk("payload, len %lu\n", bulkdata->d[0].data_length);
-    if (bulkdata->d[0].os_data_ptr && (bulkdata->d[0].data_length >= 32)) {
-        dump((unsigned char *)bulkdata->d[0].os_data_ptr, 32);
-    }
-#endif
 
     /* We only process data packets if the interface is open */
     if (unlikely(!netif_running(dev))) {
         priv->stats.rx_dropped++;
         priv->wext_conf.wireless_stats.discard.misc++;
-#if 0
-        printk("Dropping packet while interface is not up.\n");
-#endif
         dev_kfree_skb(skb);
         return;
     }
