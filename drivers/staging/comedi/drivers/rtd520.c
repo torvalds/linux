@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Interrupt overrun clear */
-#define RtdInterruptOverrunClear(dev) \
-	writel(0, devpriv->las0+LAS0_OVERRUN)
-
 /* Pacer counter, 24bit */
 #define RtdPacerCount(dev) \
 	readl(devpriv->las0+LAS0_PCLK)
@@ -1419,7 +1415,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	RtdDma0Reset(dev);	/* reset onboard state */
 #endif /* USE_DMA */
 	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
-	RtdInterruptOverrunClear(dev);
+	writel(0, devpriv->las0 + LAS0_OVERRUN);
 	devpriv->intCount = 0;
 
 	if (!dev->irq) {	/* we need interrupts for this */
@@ -1964,7 +1960,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->intClearMask = ~0;
 	writew(devpriv->intClearMask, devpriv->las0 + LAS0_CLEAR);
 	readw(devpriv->las0 + LAS0_CLEAR);
-	RtdInterruptOverrunClear(dev);
+	writel(0, devpriv->las0 + LAS0_OVERRUN);
 	writel(0, devpriv->las0 + LAS0_CGT_CLEAR);
 	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
 	RtdDacClearFifo(dev, 0);
