@@ -1082,7 +1082,7 @@ static int udc_reset(struct mv_udc *udc)
 	tmp |= USBMODE_CTRL_MODE_DEVICE;
 
 	/* turn setup lockout off, require setup tripwire in usbcmd */
-	tmp |= USBMODE_SETUP_LOCK_OFF | USBMODE_STREAM_DISABLE;
+	tmp |= USBMODE_SETUP_LOCK_OFF;
 
 	writel(tmp, &udc->op_regs->usbmode);
 
