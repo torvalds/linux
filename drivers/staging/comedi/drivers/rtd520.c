@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Interrupt clear mask */
-#define RtdInterruptClearMask(dev, v) \
-	writew((devpriv->intClearMask = (v)), devpriv->las0+LAS0_CLEAR)
-
 /* Interrupt overrun status */
 #define RtdInterruptOverrunStatus(dev) \
 	readl(devpriv->las0+LAS0_OVERRUN)
@@ -1124,7 +1120,8 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 	}
 
 	/* clear the interrupt */
-	RtdInterruptClearMask(dev, status);
+	devpriv->intClearMask = status;
+	writew(devpriv->intClearMask, devpriv->las0 + LAS0_CLEAR);
 	readw(devpriv->las0 + LAS0_CLEAR);
 	return IRQ_HANDLED;
 
@@ -1165,7 +1162,8 @@ transferDone:
 
 	/* clear the interrupt */
 	status = readw(devpriv->las0 + LAS0_IT);
-	RtdInterruptClearMask(dev, status);
+	devpriv->intClearMask = status;
+	writew(devpriv->intClearMask, devpriv->las0 + LAS0_CLEAR);
 	readw(devpriv->las0 + LAS0_CLEAR);
 
 	fifoStatus = readl(devpriv->las0 + LAS0_ADC);
@@ -1560,7 +1558,8 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* This doesn't seem to work.  There is no way to clear an interrupt
 	   that the priority controller has queued! */
-	RtdInterruptClearMask(dev, ~0);	/* clear any existing flags */
+	devpriv->intClearMask = ~0;
+	writew(devpriv->intClearMask, devpriv->las0 + LAS0_CLEAR);
 	readw(devpriv->las0 + LAS0_CLEAR);
 
 	/* TODO: allow multiple interrupt sources */
@@ -1963,7 +1962,8 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	RtdPlxInterruptWrite(dev, 0);
 	devpriv->intMask = 0;
 	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
-	RtdInterruptClearMask(dev, ~0);	/* and sets shadow */
+	devpriv->intClearMask = ~0;
+	writew(devpriv->intClearMask, devpriv->las0 + LAS0_CLEAR);
 	readw(devpriv->las0 + LAS0_CLEAR);
 	RtdInterruptOverrunClear(dev);
 	writel(0, devpriv->las0 + LAS0_CGT_CLEAR);
@@ -2143,7 +2143,9 @@ static void rtd_detach(struct comedi_device *dev)
 			writel(0, devpriv->las0 + LAS0_BOARD_RESET);
 			devpriv->intMask = 0;
 			writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
-			RtdInterruptClearMask(dev, ~0);
+			devpriv->intClearMask = ~0;
+			writew(devpriv->intClearMask,
+				devpriv->las0 + LAS0_CLEAR);
 			readw(devpriv->las0 + LAS0_CLEAR);
 		}
 #ifdef USE_DMA
