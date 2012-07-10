@@ -152,3 +152,12 @@ smb2_mkdir_setinfo(struct inode *inode, const char *name,
 	if (tmprc == 0)
 		cifs_i->cifsAttrs = dosattrs;
 }
+
+int
+smb2_rmdir(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
+	   struct cifs_sb_info *cifs_sb)
+{
+	return smb2_open_op_close(xid, tcon, cifs_sb, name, DELETE, FILE_OPEN,
+				  0, CREATE_NOT_FILE | CREATE_DELETE_ON_CLOSE,
+				  NULL, SMB2_OP_DELETE);
+}

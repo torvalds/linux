@@ -320,6 +320,7 @@ struct smb_version_operations smb21_operations = {
 	.build_path_to_root = smb2_build_path_to_root,
 	.mkdir = smb2_mkdir,
 	.mkdir_setinfo = smb2_mkdir_setinfo,
+	.rmdir = smb2_rmdir,
 };
 
 struct smb_version_values smb21_values = {

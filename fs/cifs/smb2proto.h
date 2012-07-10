@@ -57,6 +57,8 @@ extern int smb2_mkdir(const unsigned int xid, struct cifs_tcon *tcon,
 extern void smb2_mkdir_setinfo(struct inode *inode, const char *full_path,
 			       struct cifs_sb_info *cifs_sb,
 			       struct cifs_tcon *tcon, const unsigned int xid);
+extern int smb2_rmdir(const unsigned int xid, struct cifs_tcon *tcon,
+		      const char *name, struct cifs_sb_info *cifs_sb);
 
 /*
  * SMB2 Worker functions - most of protocol specific implementation details
