@@ -16,6 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pinctrl/consumer.h>
 
 struct sh_pfc_chip {
 	struct sh_pfc		*pfc;
@@ -34,80 +35,12 @@ static struct sh_pfc *gpio_to_pfc(struct gpio_chip *gc)
 
 static int sh_gpio_request(struct gpio_chip *gc, unsigned offset)
 {
-	struct sh_pfc *pfc = gpio_to_pfc(gc);
-	struct pinmux_data_reg *dummy;
-	unsigned long flags;
-	int i, ret, pinmux_type;
-
-	ret = -EINVAL;
-
-	if (!pfc)
-		goto err_out;
-
-	spin_lock_irqsave(&pfc->lock, flags);
-
-	if ((pfc->gpios[offset].flags & PINMUX_FLAG_TYPE) != PINMUX_TYPE_NONE)
-		goto err_unlock;
-
-	/* setup pin function here if no data is associated with pin */
-
-	if (sh_pfc_get_data_reg(pfc, offset, &dummy, &i) != 0)
-		pinmux_type = PINMUX_TYPE_FUNCTION;
-	else
-		pinmux_type = PINMUX_TYPE_GPIO;
-
-	if (pinmux_type == PINMUX_TYPE_FUNCTION) {
-		if (sh_pfc_config_gpio(pfc, offset,
-				       pinmux_type,
-				       GPIO_CFG_DRYRUN) != 0)
-			goto err_unlock;
-
-		if (sh_pfc_config_gpio(pfc, offset,
-				       pinmux_type,
-				       GPIO_CFG_REQ) != 0)
-			BUG();
-	}
-
-	pfc->gpios[offset].flags &= ~PINMUX_FLAG_TYPE;
-	pfc->gpios[offset].flags |= pinmux_type;
-
-	ret = 0;
- err_unlock:
-	spin_unlock_irqrestore(&pfc->lock, flags);
- err_out:
-	return ret;
+	return pinctrl_request_gpio(offset);
 }
 
 static void sh_gpio_free(struct gpio_chip *gc, unsigned offset)
 {
-	struct sh_pfc *pfc = gpio_to_pfc(gc);
-	unsigned long flags;
-	int pinmux_type;
-
-	if (!pfc)
-		return;
-
-	spin_lock_irqsave(&pfc->lock, flags);
-
-	pinmux_type = pfc->gpios[offset].flags & PINMUX_FLAG_TYPE;
-	sh_pfc_config_gpio(pfc, offset, pinmux_type, GPIO_CFG_FREE);
-	pfc->gpios[offset].flags &= ~PINMUX_FLAG_TYPE;
-	pfc->gpios[offset].flags |= PINMUX_TYPE_NONE;
-
-	spin_unlock_irqrestore(&pfc->lock, flags);
-}
-
-static int sh_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
-{
-	struct sh_pfc *pfc = gpio_to_pfc(gc);
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&pfc->lock, flags);
-	ret = sh_pfc_set_direction(pfc, offset, PINMUX_TYPE_INPUT);
-	spin_unlock_irqrestore(&pfc->lock, flags);
-
-	return ret;
+	pinctrl_free_gpio(offset);
 }
 
 static void sh_gpio_set_value(struct sh_pfc *pfc, unsigned gpio, int value)
@@ -121,22 +54,6 @@ static void sh_gpio_set_value(struct sh_pfc *pfc, unsigned gpio, int value)
 		sh_pfc_write_bit(dr, bit, value);
 }
 
-static int sh_gpio_direction_output(struct gpio_chip *gc, unsigned offset,
-				    int value)
-{
-	struct sh_pfc *pfc = gpio_to_pfc(gc);
-	unsigned long flags;
-	int ret;
-
-	sh_gpio_set_value(pfc, offset, value);
-
-	spin_lock_irqsave(&pfc->lock, flags);
-	ret = sh_pfc_set_direction(pfc, offset, PINMUX_TYPE_OUTPUT);
-	spin_unlock_irqrestore(&pfc->lock, flags);
-
-	return ret;
-}
-
 static int sh_gpio_get_value(struct sh_pfc *pfc, unsigned gpio)
 {
 	struct pinmux_data_reg *dr = NULL;
@@ -146,6 +63,19 @@ static int sh_gpio_get_value(struct sh_pfc *pfc, unsigned gpio)
 		return -EINVAL;
 
 	return sh_pfc_read_bit(dr, bit);
+}
+
+static int sh_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
+{
+	return pinctrl_gpio_direction_input(offset);
+}
+
+static int sh_gpio_direction_output(struct gpio_chip *gc, unsigned offset,
+				    int value)
+{
+	sh_gpio_set_value(gpio_to_pfc(gc), offset, value);
+
+	return pinctrl_gpio_direction_output(offset);
 }
 
 static int sh_gpio_get(struct gpio_chip *gc, unsigned offset)

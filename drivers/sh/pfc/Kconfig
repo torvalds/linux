@@ -4,7 +4,20 @@ config SH_PFC
 	# XXX move off the gpio dependency
 	depends on GENERIC_GPIO
 	select GPIO_SH_PFC if ARCH_REQUIRE_GPIOLIB
+	select PINCTRL_SH_PFC
 	def_bool y
+
+#
+# Placeholder for now, rehome to drivers/pinctrl once the PFC APIs
+# have settled.
+#
+config PINCTRL_SH_PFC
+	tristate "SuperH PFC pin controller driver"
+	depends on SH_PFC
+	select PINCTRL
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
 
 config GPIO_SH_PFC
 	tristate "SuperH PFC GPIO support"

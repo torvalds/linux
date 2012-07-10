@@ -19,6 +19,7 @@
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
+#include <linux/pinctrl/machine.h>
 
 static struct sh_pfc *sh_pfc __read_mostly;
 
@@ -501,49 +502,6 @@ int sh_pfc_config_gpio(struct sh_pfc *pfc, unsigned gpio, int pinmux_type,
 }
 EXPORT_SYMBOL_GPL(sh_pfc_config_gpio);
 
-int sh_pfc_set_direction(struct sh_pfc *pfc, unsigned gpio,
-			 int new_pinmux_type)
-{
-	int pinmux_type;
-	int ret = -EINVAL;
-
-	if (!pfc)
-		goto err_out;
-
-	pinmux_type = pfc->gpios[gpio].flags & PINMUX_FLAG_TYPE;
-
-	switch (pinmux_type) {
-	case PINMUX_TYPE_GPIO:
-		break;
-	case PINMUX_TYPE_OUTPUT:
-	case PINMUX_TYPE_INPUT:
-	case PINMUX_TYPE_INPUT_PULLUP:
-	case PINMUX_TYPE_INPUT_PULLDOWN:
-		sh_pfc_config_gpio(pfc, gpio, pinmux_type, GPIO_CFG_FREE);
-		break;
-	default:
-		goto err_out;
-	}
-
-	if (sh_pfc_config_gpio(pfc, gpio,
-			       new_pinmux_type,
-			       GPIO_CFG_DRYRUN) != 0)
-		goto err_out;
-
-	if (sh_pfc_config_gpio(pfc, gpio,
-			       new_pinmux_type,
-			       GPIO_CFG_REQ) != 0)
-		BUG();
-
-	pfc->gpios[gpio].flags &= ~PINMUX_FLAG_TYPE;
-	pfc->gpios[gpio].flags |= new_pinmux_type;
-
-	ret = 0;
- err_out:
-	return ret;
-}
-EXPORT_SYMBOL_GPL(sh_pfc_set_direction);
-
 int register_sh_pfc(struct sh_pfc *pfc)
 {
 	int (*initroutine)(struct sh_pfc *) = NULL;
@@ -563,16 +521,49 @@ int register_sh_pfc(struct sh_pfc *pfc)
 
 	spin_lock_init(&pfc->lock);
 
+	pinctrl_provide_dummies();
 	setup_data_regs(pfc);
 
 	sh_pfc = pfc;
-	pr_info("%s support registered\n", pfc->name);
 
-	initroutine = symbol_request(sh_pfc_register_gpiochip);
+	/*
+	 * Initialize pinctrl bindings first
+	 */
+	initroutine = symbol_request(sh_pfc_register_pinctrl);
 	if (initroutine) {
-		(*initroutine)(pfc);
+		ret = (*initroutine)(pfc);
 		symbol_put_addr(initroutine);
+
+		if (unlikely(ret != 0))
+			goto err;
 	}
 
+	/*
+	 * Then the GPIO chip
+	 */
+	initroutine = symbol_request(sh_pfc_register_gpiochip);
+	if (initroutine) {
+		ret = (*initroutine)(pfc);
+		symbol_put_addr(initroutine);
+
+		/*
+		 * If the GPIO chip fails to come up we still leave the
+		 * PFC state as it is, given that there are already
+		 * extant users of it that have succeeded by this point.
+		 */
+		if (unlikely(ret != 0)) {
+			pr_notice("failed to init GPIO chip, ignoring...\n");
+			ret = 0;
+		}
+	}
+
+	pr_info("%s support registered\n", pfc->name);
+
 	return 0;
+
+err:
+	pfc_iounmap(pfc);
+	sh_pfc = NULL;
+
+	return ret;
 }
