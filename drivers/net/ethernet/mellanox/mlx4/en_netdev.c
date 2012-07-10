@@ -503,9 +503,7 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 				/* remove from list */
 				list_del(&mclist->list);
 				kfree(mclist);
-			}
-
-			if (mclist->action == MCLIST_ADD) {
+			} else if (mclist->action == MCLIST_ADD) {
 				/* attach the address */
 				memcpy(&mc_list[10], mclist->addr, ETH_ALEN);
 				/* needed for B0 steering support */
