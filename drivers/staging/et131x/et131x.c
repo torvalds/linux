@@ -5445,24 +5445,4 @@ static struct pci_driver et131x_driver = {
 	.driver.pm	= ET131X_PM_OPS,
 };
 
-/**
- * et131x_init_module - The "main" entry point called on driver initialization
- *
- * Returns 0 on success, errno on failure (as defined in errno.h)
- */
-static int __init et131x_init_module(void)
-{
-	return pci_register_driver(&et131x_driver);
-}
-
-/**
- * et131x_cleanup_module - The entry point called on driver cleanup
- */
-static void __exit et131x_cleanup_module(void)
-{
-	pci_unregister_driver(&et131x_driver);
-}
-
-module_init(et131x_init_module);
-module_exit(et131x_cleanup_module);
-
+module_pci_driver(et131x_driver);
