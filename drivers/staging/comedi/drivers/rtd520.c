@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Interrupt overrun status */
-#define RtdInterruptOverrunStatus(dev) \
-	readl(devpriv->las0+LAS0_OVERRUN)
-
 /* Interrupt overrun clear */
 #define RtdInterruptOverrunClear(dev) \
 	writel(0, devpriv->las0+LAS0_OVERRUN)
@@ -1013,9 +1009,10 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 				 void *d)
 {				/* our data *//* cpu context (ignored) */
 	struct comedi_device *dev = d;	/* must be called "dev" for devpriv */
+	struct comedi_subdevice *s = dev->subdevices + 0;	/* analog in subdevice */
+	u32 overrun;
 	u16 status;
 	u16 fifoStatus;
-	struct comedi_subdevice *s = dev->subdevices + 0;	/* analog in subdevice */
 
 	if (!dev->attached)
 		return IRQ_NONE;
@@ -1112,10 +1109,11 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 		DPRINTK("rtd520: unknown interrupt source!\n");
 	}
 
-	if (0xffff & RtdInterruptOverrunStatus(dev)) {	/* interrupt overrun */
+	overrun = readl(devpriv->las0 + LAS0_OVERRUN) & 0xffff;
+	if (overrun) {
 		DPRINTK
 		    ("rtd520: Interrupt overrun with %ld to go! over_status=0x%x\n",
-		     devpriv->aiCount, 0xffff & RtdInterruptOverrunStatus(dev));
+		     devpriv->aiCount, overrun);
 		goto abortTransfer;
 	}
 
@@ -1167,10 +1165,10 @@ transferDone:
 	readw(devpriv->las0 + LAS0_CLEAR);
 
 	fifoStatus = readl(devpriv->las0 + LAS0_ADC);
+	overrun = readl(devpriv->las0 + LAS0_OVERRUN) & 0xffff;
 	DPRINTK
 	    ("rtd520: Acquisition complete. %ld ints, intStat=%x, overStat=%x\n",
-	     devpriv->intCount, status,
-	     0xffff & RtdInterruptOverrunStatus(dev));
+	     devpriv->intCount, status, overrun);
 
 	return IRQ_HANDLED;
 }
@@ -1603,6 +1601,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 */
 static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	u32 overrun;
 	u16 status;
 
 	writel(0, devpriv->las0 + LAS0_PACER_STOP);
@@ -1620,10 +1619,10 @@ static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 #endif /* USE_DMA */
 	status = readw(devpriv->las0 + LAS0_IT);
+	overrun = readl(devpriv->las0 + LAS0_OVERRUN) & 0xffff;
 	DPRINTK
 	    ("rtd520: Acquisition canceled. %ld ints, intStat=%x, overStat=%x\n",
-	     devpriv->intCount, status,
-	     0xffff & RtdInterruptOverrunStatus(dev));
+	     devpriv->intCount, status, overrun);
 	return 0;
 }
 
