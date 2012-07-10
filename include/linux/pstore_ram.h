@@ -33,7 +33,6 @@ struct persistent_ram_zone {
 	size_t buffer_size;
 
 	/* ECC correction */
-	bool ecc;
 	char *par_buffer;
 	char *par_header;
 	struct rs_control *rs_decoder;
