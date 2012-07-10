@@ -706,7 +706,7 @@ static resource_size_t calculate_memsize(resource_size_t size,
  * @realloc_head : track the additional io window on this list
  *
  * Sizing the IO windows of the PCI-PCI bridge is trivial,
- * since these windows have 4K granularity and the IO ranges
+ * since these windows have 1K or 4K granularity and the IO ranges
  * of non-bridge PCI devices are limited to 256 bytes.
  * We must be careful with the ISA aliasing though.
  */
@@ -717,10 +717,17 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 	struct resource *b_res = find_free_bus_resource(bus, IORESOURCE_IO);
 	unsigned long size = 0, size0 = 0, size1 = 0;
 	resource_size_t children_add_size = 0;
+	resource_size_t min_align = 4096, align;
 
 	if (!b_res)
  		return;
 
+	/*
+	 * Per spec, I/O windows are 4K-aligned, but some bridges have an
+	 * extension to support 1K alignment.
+	 */
+	if (bus->self->io_window_1k)
+		min_align = 1024;
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		int i;
 
@@ -738,17 +745,25 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 			else
 				size1 += r_size;
 
+			align = pci_resource_alignment(dev, r);
+			if (align > min_align)
+				min_align = align;
+
 			if (realloc_head)
 				children_add_size += get_res_add_size(realloc_head, r);
 		}
 	}
+
+	if (min_align > 4096)
+		min_align = 4096;
+
 	size0 = calculate_iosize(size, min_size, size1,
-			resource_size(b_res), 4096);
+			resource_size(b_res), min_align);
 	if (children_add_size > add_size)
 		add_size = children_add_size;
 	size1 = (!realloc_head || (realloc_head && !add_size)) ? size0 :
 		calculate_iosize(size, min_size, add_size + size1,
-			resource_size(b_res), 4096);
+			resource_size(b_res), min_align);
 	if (!size0 && !size1) {
 		if (b_res->start || b_res->end)
 			dev_info(&bus->self->dev, "disabling bridge window "
@@ -757,12 +772,13 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 		b_res->flags = 0;
 		return;
 	}
-	/* Alignment of the IO window is always 4K */
-	b_res->start = 4096;
+
+	b_res->start = min_align;
 	b_res->end = b_res->start + size0 - 1;
 	b_res->flags |= IORESOURCE_STARTALIGN;
 	if (size1 > size0 && realloc_head) {
-		add_to_list(realloc_head, bus->self, b_res, size1-size0, 4096);
+		add_to_list(realloc_head, bus->self, b_res, size1-size0,
+			    min_align);
 		dev_printk(KERN_DEBUG, &bus->self->dev, "bridge window "
 				 "%pR to [bus %02x-%02x] add_size %lx\n", b_res,
 				 bus->secondary, bus->subordinate, size1-size0);
