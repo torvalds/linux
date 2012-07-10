@@ -15,6 +15,7 @@
 #include <linux/io-mapping.h>
 #include <linux/vmalloc.h>
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 
 #include <asm/unaligned.h>
 

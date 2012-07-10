@@ -30,9 +30,10 @@
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
 #include "nouveau_crtc.h"
-#include <subdev/gpio.h>
 #include "nouveau_hw.h"
 #include "nv17_tv.h"
+
+#include <subdev/bios/gpio.h>
 
 static uint32_t nv42_tv_sample_load(struct drm_encoder *encoder)
 {

@@ -27,7 +27,6 @@
 #include "nouveau_drv.h"
 #include "nouveau_hw.h"
 #include "nouveau_encoder.h"
-#include <subdev/gpio.h>
 
 #include <linux/io-mapping.h>
 #include <linux/firmware.h>
@@ -5384,7 +5383,7 @@ static uint16_t findstr(uint8_t *data, int n, const uint8_t *str, int len)
 }
 
 void *
-dcb_table(struct drm_device *dev)
+olddcb_table(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	u8 *dcb = NULL;
@@ -5438,9 +5437,9 @@ dcb_table(struct drm_device *dev)
 }
 
 void *
-dcb_outp(struct drm_device *dev, u8 idx)
+olddcb_outp(struct drm_device *dev, u8 idx)
 {
-	u8 *dcb = dcb_table(dev);
+	u8 *dcb = olddcb_table(dev);
 	if (dcb && dcb[0] >= 0x30) {
 		if (idx < dcb[2])
 			return dcb + dcb[1] + (idx * dcb[3]);
@@ -5462,12 +5461,12 @@ dcb_outp(struct drm_device *dev, u8 idx)
 }
 
 int
-dcb_outp_foreach(struct drm_device *dev, void *data,
+olddcb_outp_foreach(struct drm_device *dev, void *data,
 		 int (*exec)(struct drm_device *, void *, int idx, u8 *outp))
 {
 	int ret, idx = -1;
 	u8 *outp = NULL;
-	while ((outp = dcb_outp(dev, ++idx))) {
+	while ((outp = olddcb_outp(dev, ++idx))) {
 		if (ROM32(outp[0]) == 0x00000000)
 			break; /* seen on an NV11 with DCB v1.5 */
 		if (ROM32(outp[0]) == 0xffffffff)
@@ -5489,7 +5488,7 @@ dcb_outp_foreach(struct drm_device *dev, void *data,
 u8 *
 dcb_conntab(struct drm_device *dev)
 {
-	u8 *dcb = dcb_table(dev);
+	u8 *dcb = olddcb_table(dev);
 	if (dcb && dcb[0] >= 0x30 && dcb[1] >= 0x16) {
 		u8 *conntab = ROMPTR(dev, dcb[0x14]);
 		if (conntab && conntab[0] >= 0x30 && conntab[0] <= 0x40)
@@ -5982,7 +5981,7 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 	u8 *dcbt, *conn;
 	int idx;
 
-	dcbt = dcb_table(dev);
+	dcbt = olddcb_table(dev);
 	if (!dcbt) {
 		/* handle pre-DCB boards */
 		if (bios->type == NVBIOS_BMP) {
@@ -5996,7 +5995,7 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 	NV_TRACE(dev, "DCB version %d.%d\n", dcbt[0] >> 4, dcbt[0] & 0xf);
 
 	dcb->version = dcbt[0];
-	dcb_outp_foreach(dev, NULL, parse_dcb_entry);
+	olddcb_outp_foreach(dev, NULL, parse_dcb_entry);
 
 	/*
 	 * apart for v2.1+ not being known for requiring merging, this

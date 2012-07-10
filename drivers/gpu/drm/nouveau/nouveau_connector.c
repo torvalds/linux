@@ -35,8 +35,9 @@
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
 #include "nouveau_connector.h"
-#include <subdev/gpio.h>
 #include "nouveau_hw.h"
+
+#include <subdev/bios/gpio.h>
 
 static void nouveau_connector_hotplug(void *, int);
 

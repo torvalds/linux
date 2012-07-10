@@ -34,9 +34,10 @@
 #include "nouveau_dma.h"
 #include "nouveau_connector.h"
 #include "nouveau_software.h"
-#include <subdev/gpio.h>
 #include "nouveau_fence.h"
 #include "nv50_display.h"
+
+#include <subdev/bios/gpio.h>
 
 static void
 nouveau_user_framebuffer_destroy(struct drm_framebuffer *drm_fb)

@@ -26,7 +26,7 @@
 
 #include "nouveau_drv.h"
 #include "nouveau_pm.h"
-#include <subdev/gpio.h>
+#include <subdev/bios/gpio.h>
 
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>
@@ -40,7 +40,7 @@ nouveau_pwmfan_get(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
-	struct gpio_func gpio;
+	struct dcb_gpio_func gpio;
 	u32 divs, duty;
 	int ret;
 
@@ -68,7 +68,7 @@ nouveau_pwmfan_set(struct drm_device *dev, int percent)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
-	struct gpio_func gpio;
+	struct dcb_gpio_func gpio;
 	u32 divs, duty;
 	int ret;
 
@@ -555,24 +555,21 @@ nouveau_hwmon_show_fan0_input(struct device *d, struct device_attribute *attr,
 	struct drm_device *dev = dev_get_drvdata(d);
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
-	struct gpio_func gpio;
 	u32 cycles, cur, prev;
 	u64 start;
-	int ret;
 
-	ret = nouveau_gpio_find(dev, 0, DCB_GPIO_FAN_SENSE, 0xff, &gpio);
-	if (ret)
-		return ret;
+	if (!nouveau_gpio_func_valid(dev, DCB_GPIO_FAN_SENSE))
+		return -ENODEV;
 
 	/* Monitor the GPIO input 0x3b for 250ms.
 	 * When the fan spins, it changes the value of GPIO FAN_SENSE.
 	 * We get 4 changes (0 -> 1 -> 0 -> 1 -> [...]) per complete rotation.
 	 */
 	start = ptimer->read(dev);
-	prev = nouveau_gpio_sense(dev, 0, gpio.line);
+	prev = nouveau_gpio_func_get(dev, DCB_GPIO_FAN_SENSE);
 	cycles = 0;
 	do {
-		cur = nouveau_gpio_sense(dev, 0, gpio.line);
+		cur = nouveau_gpio_func_get(dev, DCB_GPIO_FAN_SENSE);
 		if (prev != cur) {
 			cycles++;
 			prev = cur;

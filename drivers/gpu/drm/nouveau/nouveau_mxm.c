@@ -460,13 +460,13 @@ mxm_show_unmatched(struct drm_device *dev, u8 *data, void *info)
 static void
 mxm_dcb_sanitise(struct drm_device *dev)
 {
-	u8 *dcb = dcb_table(dev);
+	u8 *dcb = olddcb_table(dev);
 	if (!dcb || dcb[0] != 0x40) {
 		MXM_DBG(dev, "unsupported DCB version\n");
 		return;
 	}
 
-	dcb_outp_foreach(dev, NULL, mxm_dcb_sanitise_entry);
+	olddcb_outp_foreach(dev, NULL, mxm_dcb_sanitise_entry);
 	mxms_foreach(dev, 0x01, mxm_show_unmatched, NULL);
 }
 

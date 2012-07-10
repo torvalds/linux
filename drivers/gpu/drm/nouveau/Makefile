@@ -20,6 +20,8 @@ nouveau-y += core/core/subdev.o
 
 nouveau-y += core/subdev/bios/base.o
 nouveau-y += core/subdev/bios/bit.o
+nouveau-y += core/subdev/bios/dcb.o
+nouveau-y += core/subdev/bios/gpio.o
 nouveau-y += core/subdev/device/base.o
 nouveau-y += core/subdev/device/nv04.o
 nouveau-y += core/subdev/device/nv10.o
@@ -41,6 +43,7 @@ nouveau-y += core/subdev/fb/nvc0_vram.o
 nouveau-y += core/subdev/gpio/base.o
 nouveau-y += core/subdev/gpio/nv10.o
 nouveau-y += core/subdev/gpio/nv50.o
+nouveau-y += core/subdev/gpio/nvd0.o
 nouveau-y += core/subdev/i2c/base.o
 nouveau-y += core/subdev/instmem/nv04.o
 nouveau-y += core/subdev/instmem/nv50.o

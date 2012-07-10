@@ -24,6 +24,7 @@
 
 #include <subdev/device.h>
 #include <subdev/bios.h>
+#include <subdev/gpio.h>
 
 int
 nv50_identify(struct nouveau_device *device)
@@ -31,45 +32,59 @@ nv50_identify(struct nouveau_device *device)
 	switch (device->chipset) {
 	case 0x50:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0x84:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0x86:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0x92:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0x94:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0x96:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0x98:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0xa0:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0xaa:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0xac:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0xa3:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0xa5:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0xa8:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0xaf:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Tesla chipset\n");

@@ -366,16 +366,6 @@ struct nouveau_display_engine {
 	struct drm_property *color_vibrance_property;
 };
 
-struct nouveau_gpio_engine {
-	spinlock_t lock;
-	struct list_head isr;
-	int (*init)(struct drm_device *);
-	void (*fini)(struct drm_device *);
-	int (*drive)(struct drm_device *, int line, int dir, int out);
-	int (*sense)(struct drm_device *, int line);
-	void (*irq_enable)(struct drm_device *, int line, bool);
-};
-
 struct nouveau_pm_voltage_level {
 	u32 voltage; /* microvolts */
 	u8  vid;
@@ -555,7 +545,6 @@ struct nouveau_engine {
 	struct nouveau_timer_engine   timer;
 	struct nouveau_fb_engine      fb;
 	struct nouveau_display_engine display;
-	struct nouveau_gpio_engine    gpio;
 	struct nouveau_pm_engine      pm;
 	struct nouveau_vram_engine    vram;
 };
@@ -1375,22 +1364,6 @@ int nouveau_display_dumb_map_offset(struct drm_file *, struct drm_device *,
 				    uint32_t handle, uint64_t *offset);
 int nouveau_display_dumb_destroy(struct drm_file *, struct drm_device *,
 				 uint32_t handle);
-
-/* nv10_gpio.c */
-int nv10_gpio_init(struct drm_device *dev);
-void nv10_gpio_fini(struct drm_device *dev);
-int nv10_gpio_drive(struct drm_device *dev, int line, int dir, int out);
-int nv10_gpio_sense(struct drm_device *dev, int line);
-void nv10_gpio_irq_enable(struct drm_device *, int line, bool on);
-
-/* nv50_gpio.c */
-int nv50_gpio_init(struct drm_device *dev);
-void nv50_gpio_fini(struct drm_device *dev);
-int nv50_gpio_drive(struct drm_device *dev, int line, int dir, int out);
-int nv50_gpio_sense(struct drm_device *dev, int line);
-void nv50_gpio_irq_enable(struct drm_device *, int line, bool on);
-int nvd0_gpio_drive(struct drm_device *dev, int line, int dir, int out);
-int nvd0_gpio_sense(struct drm_device *dev, int line);
 
 /* nv50_calc.c */
 int nv50_calc_pll(struct drm_device *, struct pll_lims *, int clk,

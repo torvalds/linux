@@ -24,6 +24,7 @@
 
 #include <subdev/device.h>
 #include <subdev/bios.h>
+#include <subdev/gpio.h>
 
 int
 nvc0_identify(struct nouveau_device *device)
@@ -31,27 +32,35 @@ nvc0_identify(struct nouveau_device *device)
 	switch (device->chipset) {
 	case 0xc0:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0xc4:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0xc3:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0xce:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0xcf:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0xc1:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0xc8:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		break;
 	case 0xd9:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nvd0_gpio_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Fermi chipset\n");

@@ -53,15 +53,6 @@ struct bit_entry {
 
 int bit_table(struct drm_device *, u8 id, struct bit_entry *);
 
-enum dcb_gpio_tag {
-	DCB_GPIO_PANEL_POWER = 0x01,
-	DCB_GPIO_TVDAC0 = 0x0c,
-	DCB_GPIO_TVDAC1 = 0x2d,
-	DCB_GPIO_PWM_FAN = 0x09,
-	DCB_GPIO_FAN_SENSE = 0x3d,
-	DCB_GPIO_UNUSED = 0xff
-};
-
 enum dcb_connector_type {
 	DCB_CONNECTOR_VGA = 0x00,
 	DCB_CONNECTOR_TV_0 = 0x10,
@@ -302,9 +293,9 @@ struct nvbios {
 	} legacy;
 };
 
-void *dcb_table(struct drm_device *);
-void *dcb_outp(struct drm_device *, u8 idx);
-int dcb_outp_foreach(struct drm_device *, void *data,
+void *olddcb_table(struct drm_device *);
+void *olddcb_outp(struct drm_device *, u8 idx);
+int olddcb_outp_foreach(struct drm_device *, void *data,
 		     int (*)(struct drm_device *, void *, int idx, u8 *outp));
 u8 *dcb_conntab(struct drm_device *);
 u8 *dcb_conn(struct drm_device *, u8 idx);

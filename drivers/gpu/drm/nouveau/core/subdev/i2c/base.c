@@ -118,7 +118,7 @@ static const uint32_t nv50_i2c_port[] = {
 static u8 *
 i2c_table(struct drm_device *dev, u8 *version)
 {
-	u8 *dcb = dcb_table(dev), *i2c = NULL;
+	u8 *dcb = olddcb_table(dev), *i2c = NULL;
 	if (dcb) {
 		if (dcb[0] >= 0x15)
 			i2c = ROMPTR(dev, dcb[2]);

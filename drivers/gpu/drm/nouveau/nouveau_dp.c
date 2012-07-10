@@ -29,7 +29,6 @@
 #include "nouveau_connector.h"
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
-#include <subdev/gpio.h>
 
 /******************************************************************************
  * aux channel util functions
