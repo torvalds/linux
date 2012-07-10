@@ -35,6 +35,16 @@ static struct omap2_mcspi_device_config ads7846_mcspi_config = {
 	.turbo_mode	= 0,
 };
 
+/*
+ * ADS7846 driver maybe request a gpio according to the value
+ * of pdata->get_pendown_state, but we have done this. So set
+ * get_pendown_state to avoid twice gpio requesting.
+ */
+static int omap3_get_pendown_state(void)
+{
+	return !gpio_get_value(OMAP3_EVM_TS_GPIO);
+}
+
 static struct ads7846_platform_data ads7846_config = {
 	.x_max			= 0x0fff,
 	.y_max			= 0x0fff,
@@ -45,6 +55,7 @@ static struct ads7846_platform_data ads7846_config = {
 	.debounce_rep		= 1,
 	.gpio_pendown		= -EINVAL,
 	.keep_vref_on		= 1,
+	.get_pendown_state	= &omap3_get_pendown_state,
 };
 
 static struct spi_board_info ads7846_spi_board_info __initdata = {
@@ -63,14 +74,17 @@ void __init omap_ads7846_init(int bus_num, int gpio_pendown, int gpio_debounce,
 	struct spi_board_info *spi_bi = &ads7846_spi_board_info;
 	int err;
 
-	if (board_pdata && board_pdata->get_pendown_state) {
+	if (gpio_pendown) {
 		err = gpio_request_one(gpio_pendown, GPIOF_IN, "TSPenDown");
 		if (err) {
 			pr_err("Couldn't obtain gpio for TSPenDown: %d\n", err);
 			return;
 		}
-		gpio_export(gpio_pendown, 0);
 
+		/* TS GPIOPendown doesn't allow user to change the direction */
+		gpio_export(gpio_pendown, false);
+
+		/* Set proper debouce time for ads7846. */
 		if (gpio_debounce)
 			gpio_set_debounce(gpio_pendown, gpio_debounce);
 	}
