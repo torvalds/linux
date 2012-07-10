@@ -385,17 +385,21 @@ static int _omap_device_notifier_call(struct notifier_block *nb,
 				      unsigned long event, void *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	struct omap_device *od;
 
 	switch (event) {
-	case BUS_NOTIFY_ADD_DEVICE:
-		if (pdev->dev.of_node)
-			omap_device_build_from_dt(pdev);
-		break;
-
 	case BUS_NOTIFY_DEL_DEVICE:
 		if (pdev->archdata.od)
 			omap_device_delete(pdev->archdata.od);
 		break;
+	case BUS_NOTIFY_ADD_DEVICE:
+		if (pdev->dev.of_node)
+			omap_device_build_from_dt(pdev);
+		/* fall through */
+	default:
+		od = to_omap_device(pdev);
+		if (od)
+			od->_driver_status = event;
 	}
 
 	return NOTIFY_DONE;
