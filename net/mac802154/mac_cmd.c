@@ -71,4 +71,6 @@ struct ieee802154_reduced_mlme_ops mac802154_mlme_reduced = {
 struct ieee802154_mlme_ops mac802154_mlme_wpan = {
 	.get_phy = mac802154_get_phy,
 	.start_req = mac802154_mlme_start_req,
+	.get_pan_id = mac802154_dev_get_pan_id,
+	.get_short_addr = mac802154_dev_get_short_addr,
 };
