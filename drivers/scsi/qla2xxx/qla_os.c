@@ -482,12 +482,12 @@ qla24xx_pci_info_str(struct scsi_qla_host *vha, char *str)
 	uint32_t pci_bus;
 	int pcie_reg;
 
-	pcie_reg = pci_find_capability(ha->pdev, PCI_CAP_ID_EXP);
+	pcie_reg = pci_pcie_cap(ha->pdev);
 	if (pcie_reg) {
 		char lwstr[6];
 		uint16_t pcie_lstat, lspeed, lwidth;
 
-		pcie_reg += 0x12;
+		pcie_reg += PCI_EXP_LNKCAP;
 		pci_read_config_word(ha->pdev, pcie_reg, &pcie_lstat);
 		lspeed = pcie_lstat & (BIT_0 | BIT_1 | BIT_2 | BIT_3);
 		lwidth = (pcie_lstat &
