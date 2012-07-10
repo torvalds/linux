@@ -518,7 +518,7 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
 
 	if (c) {
 		c->name = name;
-		c->size = c->object_size;
+		c->size = size;
 		if (flags & SLAB_DESTROY_BY_RCU) {
 			/* leave room for rcu footer at the end of object */
 			c->size += sizeof(struct slob_rcu);
