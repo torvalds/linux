@@ -717,6 +717,7 @@ struct ath_softc {
 	struct ath_ant_comb ant_comb;
 	u8 ant_tx, ant_rx;
 	struct dfs_pattern_detector *dfs_detector;
+	u32 wow_enabled;
 
 #ifdef CONFIG_PM_SLEEP
 	atomic_t wow_got_bmiss_intr;
