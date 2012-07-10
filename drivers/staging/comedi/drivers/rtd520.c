@@ -407,8 +407,6 @@ struct rtdPrivate {
 /* Macros to access registers */
 
 /* Burst counter, 10bit */
-#define RtdBurstCount(dev) \
-	readl(devpriv->las0+LAS0_BCLK)
 #define RtdBurstCounter(dev, v) \
 	writel((v) & 0x3ff, devpriv->las0+LAS0_BCLK)
 
