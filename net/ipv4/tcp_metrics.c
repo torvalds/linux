@@ -34,6 +34,8 @@ struct tcp_metrics_block {
 	struct tcp_metrics_block __rcu	*tcpm_next;
 	struct inetpeer_addr		tcpm_addr;
 	unsigned long			tcpm_stamp;
+	u32				tcpm_ts;
+	u32				tcpm_ts_stamp;
 	u32				tcpm_lock;
 	u32				tcpm_vals[TCP_METRIC_MAX];
 };
@@ -114,6 +116,8 @@ static void tcpm_suck_dst(struct tcp_metrics_block *tm, struct dst_entry *dst)
 	tm->tcpm_vals[TCP_METRIC_SSTHRESH] = dst_metric_raw(dst, RTAX_SSTHRESH);
 	tm->tcpm_vals[TCP_METRIC_CWND] = dst_metric_raw(dst, RTAX_CWND);
 	tm->tcpm_vals[TCP_METRIC_REORDERING] = dst_metric_raw(dst, RTAX_REORDERING);
+	tm->tcpm_ts = 0;
+	tm->tcpm_ts_stamp = 0;
 }
 
 static struct tcp_metrics_block *tcpm_new(struct dst_entry *dst,
@@ -227,6 +231,45 @@ static struct tcp_metrics_block *__tcp_get_metrics_req(struct request_sock *req,
 			break;
 	}
 	tcpm_check_stamp(tm, dst);
+	return tm;
+}
+
+static struct tcp_metrics_block *__tcp_get_metrics_tw(struct inet_timewait_sock *tw)
+{
+	struct inet6_timewait_sock *tw6;
+	struct tcp_metrics_block *tm;
+	struct inetpeer_addr addr;
+	unsigned int hash;
+	struct net *net;
+
+	addr.family = tw->tw_family;
+	switch (addr.family) {
+	case AF_INET:
+		addr.addr.a4 = tw->tw_daddr;
+		hash = (__force unsigned int) addr.addr.a4;
+		break;
+	case AF_INET6:
+		tw6 = inet6_twsk((struct sock *)tw);
+		*(struct in6_addr *)addr.addr.a6 = tw6->tw_v6_daddr;
+		hash = ((__force unsigned int) addr.addr.a6[0] ^
+			(__force unsigned int) addr.addr.a6[1] ^
+			(__force unsigned int) addr.addr.a6[2] ^
+			(__force unsigned int) addr.addr.a6[3]);
+		break;
+	default:
+		return NULL;
+	}
+
+	hash ^= (hash >> 24) ^ (hash >> 16) ^ (hash >> 8);
+
+	net = twsk_net(tw);
+	hash &= net->ipv4.tcp_metrics_hash_mask;
+
+	for (tm = rcu_dereference(net->ipv4.tcp_metrics_hash[hash].chain); tm;
+	     tm = rcu_dereference(tm->tcpm_next)) {
+		if (addr_same(&tm->tcpm_addr, &addr))
+			break;
+	}
 	return tm;
 }
 
@@ -496,7 +539,7 @@ reset:
 	tp->snd_cwnd_stamp = tcp_time_stamp;
 }
 
-bool tcp_peer_is_proven(struct request_sock *req, struct dst_entry *dst)
+bool tcp_peer_is_proven(struct request_sock *req, struct dst_entry *dst, bool paws_check)
 {
 	struct tcp_metrics_block *tm;
 	bool ret;
@@ -506,15 +549,98 @@ bool tcp_peer_is_proven(struct request_sock *req, struct dst_entry *dst)
 
 	rcu_read_lock();
 	tm = __tcp_get_metrics_req(req, dst);
-	if (tm && tcp_metric_get(tm, TCP_METRIC_RTT))
-		ret = true;
-	else
-		ret = false;
+	if (paws_check) {
+		if (tm &&
+		    (u32)get_seconds() - tm->tcpm_ts_stamp < TCP_PAWS_MSL &&
+		    (s32)(tm->tcpm_ts - req->ts_recent) > TCP_PAWS_WINDOW)
+			ret = false;
+		else
+			ret = true;
+	} else {
+		if (tm && tcp_metric_get(tm, TCP_METRIC_RTT) && tm->tcpm_ts_stamp)
+			ret = true;
+		else
+			ret = false;
+	}
 	rcu_read_unlock();
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(tcp_peer_is_proven);
+
+void tcp_fetch_timewait_stamp(struct sock *sk, struct dst_entry *dst)
+{
+	struct tcp_metrics_block *tm;
+
+	rcu_read_lock();
+	tm = tcp_get_metrics(sk, dst, true);
+	if (tm) {
+		struct tcp_sock *tp = tcp_sk(sk);
+
+		if ((u32)get_seconds() - tm->tcpm_ts_stamp <= TCP_PAWS_MSL) {
+			tp->rx_opt.ts_recent_stamp = tm->tcpm_ts_stamp;
+			tp->rx_opt.ts_recent = tm->tcpm_ts;
+		}
+	}
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(tcp_fetch_timewait_stamp);
+
+/* VJ's idea. Save last timestamp seen from this destination and hold
+ * it at least for normal timewait interval to use for duplicate
+ * segment detection in subsequent connections, before they enter
+ * synchronized state.
+ */
+bool tcp_remember_stamp(struct sock *sk)
+{
+	struct dst_entry *dst = __sk_dst_get(sk);
+	bool ret = false;
+
+	if (dst) {
+		struct tcp_metrics_block *tm;
+
+		rcu_read_lock();
+		tm = tcp_get_metrics(sk, dst, true);
+		if (tm) {
+			struct tcp_sock *tp = tcp_sk(sk);
+
+			if ((s32)(tm->tcpm_ts - tp->rx_opt.ts_recent) <= 0 ||
+			    ((u32)get_seconds() - tm->tcpm_ts_stamp > TCP_PAWS_MSL &&
+			     tm->tcpm_ts_stamp <= (u32)tp->rx_opt.ts_recent_stamp)) {
+				tm->tcpm_ts_stamp = (u32)tp->rx_opt.ts_recent_stamp;
+				tm->tcpm_ts = tp->rx_opt.ts_recent;
+			}
+			ret = true;
+		}
+		rcu_read_unlock();
+	}
+	return ret;
+}
+
+bool tcp_tw_remember_stamp(struct inet_timewait_sock *tw)
+{
+	struct tcp_metrics_block *tm;
+	bool ret = false;
+
+	rcu_read_lock();
+	tm = __tcp_get_metrics_tw(tw);
+	if (tw) {
+		const struct tcp_timewait_sock *tcptw;
+		struct sock *sk = (struct sock *) tw;
+
+		tcptw = tcp_twsk(sk);
+		if ((s32)(tm->tcpm_ts - tcptw->tw_ts_recent) <= 0 ||
+		    ((u32)get_seconds() - tm->tcpm_ts_stamp > TCP_PAWS_MSL &&
+		     tm->tcpm_ts_stamp <= (u32)tcptw->tw_ts_recent_stamp)) {
+			tm->tcpm_ts_stamp = (u32)tcptw->tw_ts_recent_stamp;
+			tm->tcpm_ts	   = tcptw->tw_ts_recent;
+		}
+		ret = true;
+	}
+	rcu_read_unlock();
+
+	return ret;
+}
 
 static unsigned long tcpmhash_entries;
 static int __init set_tcpmhash_entries(char *str)

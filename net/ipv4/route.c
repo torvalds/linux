@@ -2846,7 +2846,7 @@ static int rt_fill_info(struct net *net,
 	struct rtmsg *r;
 	struct nlmsghdr *nlh;
 	unsigned long expires = 0;
-	u32 id = 0, ts = 0, tsage = 0, error;
+	u32 id = 0, error;
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*r), flags);
 	if (nlh == NULL)
@@ -2903,10 +2903,6 @@ static int rt_fill_info(struct net *net,
 		const struct inet_peer *peer = rt_peer_ptr(rt);
 		inet_peer_refcheck(peer);
 		id = atomic_read(&peer->ip_id_count) & 0xffff;
-		if (peer->tcp_ts_stamp) {
-			ts = peer->tcp_ts;
-			tsage = get_seconds() - peer->tcp_ts_stamp;
-		}
 		expires = ACCESS_ONCE(peer->pmtu_expires);
 		if (expires) {
 			if (time_before(jiffies, expires))
@@ -2942,7 +2938,7 @@ static int rt_fill_info(struct net *net,
 				goto nla_put_failure;
 	}
 
-	if (rtnl_put_cacheinfo(skb, &rt->dst, id, ts, tsage,
+	if (rtnl_put_cacheinfo(skb, &rt->dst, id, 0, 0,
 			       expires, error) < 0)
 		goto nla_put_failure;
 

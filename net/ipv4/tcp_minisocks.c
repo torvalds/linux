@@ -49,52 +49,6 @@ struct inet_timewait_death_row tcp_death_row = {
 };
 EXPORT_SYMBOL_GPL(tcp_death_row);
 
-/* VJ's idea. Save last timestamp seen from this destination
- * and hold it at least for normal timewait interval to use for duplicate
- * segment detection in subsequent connections, before they enter synchronized
- * state.
- */
-
-static bool tcp_remember_stamp(struct sock *sk)
-{
-	const struct inet_connection_sock *icsk = inet_csk(sk);
-	struct tcp_sock *tp = tcp_sk(sk);
-	struct inet_peer *peer;
-
-	peer = icsk->icsk_af_ops->get_peer(sk);
-	if (peer) {
-		if ((s32)(peer->tcp_ts - tp->rx_opt.ts_recent) <= 0 ||
-		    ((u32)get_seconds() - peer->tcp_ts_stamp > TCP_PAWS_MSL &&
-		     peer->tcp_ts_stamp <= (u32)tp->rx_opt.ts_recent_stamp)) {
-			peer->tcp_ts_stamp = (u32)tp->rx_opt.ts_recent_stamp;
-			peer->tcp_ts = tp->rx_opt.ts_recent;
-		}
-		return true;
-	}
-
-	return false;
-}
-
-static bool tcp_tw_remember_stamp(struct inet_timewait_sock *tw)
-{
-	const struct tcp_timewait_sock *tcptw;
-	struct sock *sk = (struct sock *) tw;
-	struct inet_peer *peer;
-
-	tcptw = tcp_twsk(sk);
-	peer = tcptw->tw_peer;
-	if (peer) {
-		if ((s32)(peer->tcp_ts - tcptw->tw_ts_recent) <= 0 ||
-		    ((u32)get_seconds() - peer->tcp_ts_stamp > TCP_PAWS_MSL &&
-		     peer->tcp_ts_stamp <= (u32)tcptw->tw_ts_recent_stamp)) {
-			peer->tcp_ts_stamp = (u32)tcptw->tw_ts_recent_stamp;
-			peer->tcp_ts	   = tcptw->tw_ts_recent;
-		}
-		return true;
-	}
-	return false;
-}
-
 static bool tcp_in_window(u32 seq, u32 end_seq, u32 s_win, u32 e_win)
 {
 	if (seq == s_win)
