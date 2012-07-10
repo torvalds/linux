@@ -248,6 +248,9 @@ static char ql_stats_str_arr[][ETH_GSTRING_LEN] = {
 static void ql_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 {
 	switch (stringset) {
+	case ETH_SS_TEST:
+		memcpy(buf, *ql_gstrings_test, QLGE_TEST_LEN * ETH_GSTRING_LEN);
+		break;
 	case ETH_SS_STATS:
 		memcpy(buf, ql_stats_str_arr, sizeof(ql_stats_str_arr));
 		break;
@@ -530,6 +533,8 @@ static void ql_self_test(struct net_device *ndev,
 				struct ethtool_test *eth_test, u64 *data)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
+
+	memset(data, 0, sizeof(u64) * QLGE_TEST_LEN);
 
 	if (netif_running(ndev)) {
 		set_bit(QL_SELFTEST, &qdev->flags);
