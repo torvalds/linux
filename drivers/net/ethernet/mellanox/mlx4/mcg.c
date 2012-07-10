@@ -773,7 +773,7 @@ static int parse_trans_rule(struct mlx4_dev *dev, struct mlx4_spec_list *spec,
 		[MLX4_NET_TRANS_RULE_ID_UDP] =
 			sizeof(struct mlx4_net_trans_rule_hw_tcp_udp)
 	};
-	if (spec->id > MLX4_NET_TRANS_RULE_NUM) {
+	if (spec->id >= MLX4_NET_TRANS_RULE_NUM) {
 		mlx4_err(dev, "Invalid network rule id. id = %d\n", spec->id);
 		return -EINVAL;
 	}
