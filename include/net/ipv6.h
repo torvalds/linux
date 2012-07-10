@@ -298,14 +298,23 @@ static inline int ipv6_addr_cmp(const struct in6_addr *a1, const struct in6_addr
 	return memcmp(a1, a2, sizeof(struct in6_addr));
 }
 
-static inline int
+static inline bool
 ipv6_masked_addr_cmp(const struct in6_addr *a1, const struct in6_addr *m,
 		     const struct in6_addr *a2)
 {
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+	const unsigned long *ul1 = (const unsigned long *)a1;
+	const unsigned long *ulm = (const unsigned long *)m;
+	const unsigned long *ul2 = (const unsigned long *)a2;
+
+	return !!(((ul1[0] ^ ul2[0]) & ulm[0]) |
+		  ((ul1[1] ^ ul2[1]) & ulm[1]));
+#else
 	return !!(((a1->s6_addr32[0] ^ a2->s6_addr32[0]) & m->s6_addr32[0]) |
 		  ((a1->s6_addr32[1] ^ a2->s6_addr32[1]) & m->s6_addr32[1]) |
 		  ((a1->s6_addr32[2] ^ a2->s6_addr32[2]) & m->s6_addr32[2]) |
 		  ((a1->s6_addr32[3] ^ a2->s6_addr32[3]) & m->s6_addr32[3]));
+#endif
 }
 
 static inline void ipv6_addr_prefix(struct in6_addr *pfx, 
@@ -335,10 +344,17 @@ static inline void ipv6_addr_set(struct in6_addr *addr,
 static inline bool ipv6_addr_equal(const struct in6_addr *a1,
 				   const struct in6_addr *a2)
 {
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+	const unsigned long *ul1 = (const unsigned long *)a1;
+	const unsigned long *ul2 = (const unsigned long *)a2;
+
+	return ((ul1[0] ^ ul2[0]) | (ul1[1] ^ ul2[1])) == 0UL;
+#else
 	return ((a1->s6_addr32[0] ^ a2->s6_addr32[0]) |
 		(a1->s6_addr32[1] ^ a2->s6_addr32[1]) |
 		(a1->s6_addr32[2] ^ a2->s6_addr32[2]) |
 		(a1->s6_addr32[3] ^ a2->s6_addr32[3])) == 0;
+#endif
 }
 
 static inline bool __ipv6_prefix_equal(const __be32 *a1, const __be32 *a2,
@@ -391,8 +407,14 @@ bool ip6_frag_match(struct inet_frag_queue *q, void *a);
 
 static inline bool ipv6_addr_any(const struct in6_addr *a)
 {
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+	const unsigned long *ul = (const unsigned long *)a;
+
+	return (ul[0] | ul[1]) == 0UL;
+#else
 	return (a->s6_addr32[0] | a->s6_addr32[1] |
 		a->s6_addr32[2] | a->s6_addr32[3]) == 0;
+#endif
 }
 
 static inline bool ipv6_addr_loopback(const struct in6_addr *a)
