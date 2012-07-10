@@ -3221,10 +3221,8 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 
 	WARN_ON(!crtc->enabled);
 
-	/* XXX: For compatability with the crtc helper code, call the encoder's
-	 * enable function unconditionally for now. */
 	if (intel_crtc->active)
-		goto encoders;
+		return;
 
 	intel_crtc->active = true;
 	intel_update_watermarks(dev);
@@ -3272,7 +3270,6 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 
 	intel_crtc_update_cursor(crtc, true);
 
-encoders:
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->enable(encoder);
 
@@ -3290,13 +3287,12 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	int plane = intel_crtc->plane;
 	u32 reg, temp;
 
-	/* XXX: For compatability with the crtc helper code, call the encoder's
-	 * disable function unconditionally for now. */
-	for_each_encoder_on_crtc(dev, crtc, encoder)
-		encoder->disable(encoder);
 
 	if (!intel_crtc->active)
 		return;
+
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		encoder->disable(encoder);
 
 	intel_crtc_wait_for_pending_flips(crtc);
 	drm_vblank_off(dev, pipe);
@@ -3399,10 +3395,8 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 
 	WARN_ON(!crtc->enabled);
 
-	/* XXX: For compatability with the crtc helper code, call the encoder's
-	 * enable function unconditionally for now. */
 	if (intel_crtc->active)
-		goto encoders;
+		return;
 
 	intel_crtc->active = true;
 	intel_update_watermarks(dev);
@@ -3418,7 +3412,6 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc_dpms_overlay(intel_crtc, true);
 	intel_crtc_update_cursor(crtc, true);
 
-encoders:
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->enable(encoder);
 }
@@ -3432,13 +3425,12 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
 
-	/* XXX: For compatability with the crtc helper code, call the encoder's
-	 * disable function unconditionally for now. */
-	for_each_encoder_on_crtc(dev, crtc, encoder)
-		encoder->disable(encoder);
 
 	if (!intel_crtc->active)
 		return;
+
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		encoder->disable(encoder);
 
 	/* Give the overlay scaler a chance to disable if it's on this pipe */
 	intel_crtc_wait_for_pending_flips(crtc);
@@ -6631,18 +6623,6 @@ static bool intel_encoder_crtc_ok(struct drm_encoder *encoder,
 	return false;
 }
 
-static void
-intel_crtc_prepare_encoders(struct drm_device *dev)
-{
-	struct intel_encoder *encoder;
-
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
-		/* Disable unused encoders */
-		if (encoder->base.crtc == NULL)
-			encoder->disable(encoder);
-	}
-}
-
 /**
  * intel_modeset_update_staged_output_state
  *
@@ -6822,6 +6802,60 @@ intel_modeset_affected_pipes(struct drm_crtc *crtc, unsigned *modeset_pipes,
 	*prepare_pipes &= ~(*disable_pipes);
 }
 
+static bool intel_crtc_in_use(struct drm_crtc *crtc)
+{
+	struct drm_encoder *encoder;
+	struct drm_device *dev = crtc->dev;
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
+		if (encoder->crtc == crtc)
+			return true;
+
+	return false;
+}
+
+static void
+intel_modeset_update_state(struct drm_device *dev, unsigned prepare_pipes)
+{
+	struct intel_encoder *intel_encoder;
+	struct intel_crtc *intel_crtc;
+	struct drm_connector *connector;
+
+	list_for_each_entry(intel_encoder, &dev->mode_config.encoder_list,
+			    base.head) {
+		if (!intel_encoder->base.crtc)
+			continue;
+
+		intel_crtc = to_intel_crtc(intel_encoder->base.crtc);
+
+		if (prepare_pipes & (1 << intel_crtc->pipe))
+			intel_encoder->connectors_active = false;
+	}
+
+	intel_modeset_commit_output_state(dev);
+
+	/* Update computed state. */
+	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list,
+			    base.head) {
+		intel_crtc->base.enabled = intel_crtc_in_use(&intel_crtc->base);
+	}
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (!connector->encoder || !connector->encoder->crtc)
+			continue;
+
+		intel_crtc = to_intel_crtc(connector->encoder->crtc);
+
+		if (prepare_pipes & (1 << intel_crtc->pipe)) {
+			connector->dpms = DRM_MODE_DPMS_ON;
+
+			intel_encoder = to_intel_encoder(connector->encoder);
+			intel_encoder->connectors_active = true;
+		}
+	}
+
+}
+
 #define for_each_intel_crtc_masked(dev, mask, intel_crtc) \
 	list_for_each_entry((intel_crtc), \
 			    &(dev)->mode_config.crtc_list, \
@@ -6850,12 +6884,6 @@ bool intel_set_mode(struct drm_crtc *crtc,
 	for_each_intel_crtc_masked(dev, disable_pipes, intel_crtc)
 		intel_crtc_disable(&intel_crtc->base);
 
-	intel_modeset_commit_output_state(dev);
-
-	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list,
-			    base.head)
-		intel_crtc->base.enabled = drm_helper_crtc_in_use(crtc);
-
 	saved_hwmode = crtc->hwmode;
 	saved_mode = crtc->mode;
 
@@ -6870,18 +6898,22 @@ bool intel_set_mode(struct drm_crtc *crtc,
 		if (IS_ERR(adjusted_mode)) {
 			return false;
 		}
-
-		intel_crtc_prepare_encoders(dev);
 	}
 
-	for_each_intel_crtc_masked(dev, prepare_pipes, intel_crtc)
-		dev_priv->display.crtc_disable(&intel_crtc->base);
+	for_each_intel_crtc_masked(dev, prepare_pipes, intel_crtc) {
+		if (intel_crtc->base.enabled)
+			dev_priv->display.crtc_disable(&intel_crtc->base);
+	}
 
 	if (modeset_pipes) {
 		crtc->mode = *mode;
 		crtc->x = x;
 		crtc->y = y;
 	}
+
+	/* Only after disabling all output pipelines that will be changed can we
+	 * update the the output configuration. */
+	intel_modeset_update_state(dev, prepare_pipes);
 
 	/* Set up the DPLL and any encoders state that needs to adjust or depend
 	 * on the DPLL.

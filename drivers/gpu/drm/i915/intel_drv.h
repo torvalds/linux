@@ -184,9 +184,6 @@ struct intel_crtc {
 	 * Whether the crtc and the connected output pipeline is active. Implies
 	 * that crtc->enabled is set, i.e. the current mode configuration has
 	 * some outputs connected to this crtc.
-	 *
-	 * Atm crtc->enabled is unconditionally updated _before_ the hw state is
-	 * changed, hence we can only check this when enabling the crtc.
 	 */
 	bool active;
 	bool primary_disabled; /* is the crtc obscured by a plane? */
