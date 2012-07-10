@@ -105,6 +105,7 @@ void dma_sync_single_for_device(struct device *dev, dma_addr_t handle,
 				size_t size, enum dma_data_direction dir)
 {
 	switch (dir) {
+	case DMA_BIDIRECTIONAL:
 	case DMA_TO_DEVICE:
 		cache_push(handle, size);
 		break;
