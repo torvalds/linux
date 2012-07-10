@@ -28,6 +28,16 @@ config PWM_IMX
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-imx.
 
+config PWM_LPC32XX
+	tristate "LPC32XX PWM support"
+	depends on ARCH_LPC32XX
+	help
+	  Generic PWM framework driver for LPC32XX. The LPC32XX SOC has two
+	  PWM controllers.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-lpc32xx.
+
 config PWM_MXS
 	tristate "Freescale MXS PWM support"
 	depends on ARCH_MXS && OF
