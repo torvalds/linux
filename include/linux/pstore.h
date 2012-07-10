@@ -30,6 +30,7 @@ enum pstore_type_id {
 	PSTORE_TYPE_DMESG	= 0,
 	PSTORE_TYPE_MCE		= 1,
 	PSTORE_TYPE_CONSOLE	= 2,
+	PSTORE_TYPE_FTRACE	= 3,
 	PSTORE_TYPE_UNKNOWN	= 255
 };
 
@@ -56,6 +57,14 @@ struct pstore_info {
 			struct pstore_info *psi);
 	void		*data;
 };
+
+
+#ifdef CONFIG_PSTORE_FTRACE
+extern void pstore_ftrace_call(unsigned long ip, unsigned long parent_ip);
+#else
+static inline void pstore_ftrace_call(unsigned long ip, unsigned long parent_ip)
+{ }
+#endif
 
 #ifdef CONFIG_PSTORE
 extern int pstore_register(struct pstore_info *);

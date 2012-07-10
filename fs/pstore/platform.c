@@ -61,7 +61,7 @@ static DECLARE_WORK(pstore_work, pstore_dowork);
  * calls to pstore_register()
  */
 static DEFINE_SPINLOCK(pstore_lock);
-static struct pstore_info *psinfo;
+struct pstore_info *psinfo;
 
 static char *backend;
 
