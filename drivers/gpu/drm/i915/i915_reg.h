@@ -1900,7 +1900,7 @@
 /* PCH CTL1 is totally different, all but the below bits are reserved. CTL2 is
  * like the normal CTL from gen4 and earlier. Hooray for confusing naming. */
 #define BLC_PWM_PCH_CTL1	0xc8250
-#define   BLM_PCH_PWM_ENABLE			(1 << 30)
+#define   BLM_PCH_PWM_ENABLE			(1 << 31)
 #define   BLM_PCH_OVERRIDE_ENABLE		(1 << 30)
 #define   BLM_PCH_POLARITY			(1 << 29)
 #define BLC_PWM_PCH_CTL2	0xc8254
