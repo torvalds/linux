@@ -2501,9 +2501,11 @@ static void mv_udc_shutdown(struct platform_device *dev)
 	u32 mode;
 
 	/* reset controller mode to IDLE */
+	mv_udc_enable(udc);
 	mode = readl(&udc->op_regs->usbmode);
 	mode &= ~3;
 	writel(mode, &udc->op_regs->usbmode);
+	mv_udc_disable(udc);
 }
 
 static struct platform_driver udc_driver = {
