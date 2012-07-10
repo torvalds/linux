@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Pacer counter, 24bit */
-#define RtdPacerCounter(dev, v) \
-	writel((v) & 0xffffff, devpriv->las0+LAS0_PCLK)
-
 /* Burst counter, 10bit */
 #define RtdBurstCount(dev) \
 	readl(devpriv->las0+LAS0_BCLK)
@@ -1512,7 +1508,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 					TRIG_ROUND_NEAREST);
 		/* set PACER clock */
 		/*DPRINTK ("rtd520: loading %d into pacer\n", timer); */
-		RtdPacerCounter(dev, timer);
+		writel(timer & 0xffffff, devpriv->las0 + LAS0_PCLK);
 
 		break;
 
