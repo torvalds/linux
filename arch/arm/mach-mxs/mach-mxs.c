@@ -78,6 +78,25 @@ static struct fb_videomode m28evk_video_modes[] = {
 	},
 };
 
+static struct fb_videomode apx4devkit_video_modes[] = {
+	{
+		.name		= "HannStar PJ70112A",
+		.refresh	= 60,
+		.xres		= 800,
+		.yres		= 480,
+		.pixclock	= 33333, /* picosecond (30.00 MHz) */
+		.left_margin	= 88,
+		.right_margin	= 40,
+		.upper_margin	= 32,
+		.lower_margin	= 13,
+		.hsync_len	= 48,
+		.vsync_len	= 3,
+		.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT |
+				  FB_SYNC_DATA_ENABLE_HIGH_ACT |
+				  FB_SYNC_DOTCLK_FAILING_ACT,
+	},
+};
+
 static struct mxsfb_platform_data mxsfb_pdata __initdata;
 
 static struct of_dev_auxdata mxs_auxdata_lookup[] __initdata = {
@@ -248,6 +267,11 @@ static void __init apx4devkit_init(void)
 	if (IS_BUILTIN(CONFIG_PHYLIB))
 		phy_register_fixup_for_uid(PHY_ID_KS8051, MICREL_PHY_ID_MASK,
 					   apx4devkit_phy_fixup);
+
+	mxsfb_pdata.mode_list = apx4devkit_video_modes;
+	mxsfb_pdata.mode_count = ARRAY_SIZE(apx4devkit_video_modes);
+	mxsfb_pdata.default_bpp = 32;
+	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
 }
 
 static void __init mxs_machine_init(void)
