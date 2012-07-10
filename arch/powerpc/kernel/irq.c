@@ -229,7 +229,7 @@ notrace void arch_local_irq_restore(unsigned long en)
 	 */
 	if (unlikely(irq_happened != PACA_IRQ_HARD_DIS))
 		__hard_irq_disable();
-#ifdef CONFIG_TRACE_IRQFLAG
+#ifdef CONFIG_TRACE_IRQFLAGS
 	else {
 		/*
 		 * We should already be hard disabled here. We had bugs
