@@ -3949,7 +3949,7 @@ static inline int l2cap_create_channel_req(struct l2cap_conn *conn,
 	psm = le16_to_cpu(req->psm);
 	scid = le16_to_cpu(req->scid);
 
-	BT_DBG("psm %d, scid %d, amp_id %d", psm, scid, req->amp_id);
+	BT_DBG("psm 0x%2.2x, scid 0x%4.4x, amp_id %d", psm, scid, req->amp_id);
 
 	/* Placeholder: Always reject */
 	rsp.dcid = 0;
@@ -3972,11 +3972,11 @@ static inline int l2cap_create_channel_rsp(struct l2cap_conn *conn,
 }
 
 static void l2cap_send_move_chan_rsp(struct l2cap_conn *conn, u8 ident,
-							u16 icid, u16 result)
+				     u16 icid, u16 result)
 {
 	struct l2cap_move_chan_rsp rsp;
 
-	BT_DBG("icid %d, result %d", icid, result);
+	BT_DBG("icid 0x%4.4x, result 0x%4.4x", icid, result);
 
 	rsp.icid = cpu_to_le16(icid);
 	rsp.result = cpu_to_le16(result);
@@ -3985,12 +3985,13 @@ static void l2cap_send_move_chan_rsp(struct l2cap_conn *conn, u8 ident,
 }
 
 static void l2cap_send_move_chan_cfm(struct l2cap_conn *conn,
-				struct l2cap_chan *chan, u16 icid, u16 result)
+				     struct l2cap_chan *chan,
+				     u16 icid, u16 result)
 {
 	struct l2cap_move_chan_cfm cfm;
 	u8 ident;
 
-	BT_DBG("icid %d, result %d", icid, result);
+	BT_DBG("icid 0x%4.4x, result 0x%4.4x", icid, result);
 
 	ident = l2cap_get_ident(conn);
 	if (chan)
@@ -4003,18 +4004,19 @@ static void l2cap_send_move_chan_cfm(struct l2cap_conn *conn,
 }
 
 static void l2cap_send_move_chan_cfm_rsp(struct l2cap_conn *conn, u8 ident,
-								u16 icid)
+					 u16 icid)
 {
 	struct l2cap_move_chan_cfm_rsp rsp;
 
-	BT_DBG("icid %d", icid);
+	BT_DBG("icid 0x%4.4x", icid);
 
 	rsp.icid = cpu_to_le16(icid);
 	l2cap_send_cmd(conn, ident, L2CAP_MOVE_CHAN_CFM_RSP, sizeof(rsp), &rsp);
 }
 
 static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
-			struct l2cap_cmd_hdr *cmd, u16 cmd_len, void *data)
+					 struct l2cap_cmd_hdr *cmd,
+					 u16 cmd_len, void *data)
 {
 	struct l2cap_move_chan_req *req = data;
 	u16 icid = 0;
@@ -4025,7 +4027,7 @@ static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
 
 	icid = le16_to_cpu(req->icid);
 
-	BT_DBG("icid %d, dest_amp_id %d", icid, req->dest_amp_id);
+	BT_DBG("icid 0x%4.4x, dest_amp_id %d", icid, req->dest_amp_id);
 
 	if (!enable_hs)
 		return -EINVAL;
@@ -4037,7 +4039,8 @@ static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
 }
 
 static inline int l2cap_move_channel_rsp(struct l2cap_conn *conn,
-			struct l2cap_cmd_hdr *cmd, u16 cmd_len, void *data)
+					 struct l2cap_cmd_hdr *cmd,
+					 u16 cmd_len, void *data)
 {
 	struct l2cap_move_chan_rsp *rsp = data;
 	u16 icid, result;
@@ -4048,7 +4051,7 @@ static inline int l2cap_move_channel_rsp(struct l2cap_conn *conn,
 	icid = le16_to_cpu(rsp->icid);
 	result = le16_to_cpu(rsp->result);
 
-	BT_DBG("icid %d, result %d", icid, result);
+	BT_DBG("icid 0x%4.4x, result 0x%4.4x", icid, result);
 
 	/* Placeholder: Always unconfirmed */
 	l2cap_send_move_chan_cfm(conn, NULL, icid, L2CAP_MC_UNCONFIRMED);
@@ -4057,7 +4060,8 @@ static inline int l2cap_move_channel_rsp(struct l2cap_conn *conn,
 }
 
 static inline int l2cap_move_channel_confirm(struct l2cap_conn *conn,
-			struct l2cap_cmd_hdr *cmd, u16 cmd_len, void *data)
+					     struct l2cap_cmd_hdr *cmd,
+					     u16 cmd_len, void *data)
 {
 	struct l2cap_move_chan_cfm *cfm = data;
 	u16 icid, result;
@@ -4068,7 +4072,7 @@ static inline int l2cap_move_channel_confirm(struct l2cap_conn *conn,
 	icid = le16_to_cpu(cfm->icid);
 	result = le16_to_cpu(cfm->result);
 
-	BT_DBG("icid %d, result %d", icid, result);
+	BT_DBG("icid 0x%4.4x, result 0x%4.4x", icid, result);
 
 	l2cap_send_move_chan_cfm_rsp(conn, cmd->ident, icid);
 
@@ -4076,7 +4080,8 @@ static inline int l2cap_move_channel_confirm(struct l2cap_conn *conn,
 }
 
 static inline int l2cap_move_channel_confirm_rsp(struct l2cap_conn *conn,
-			struct l2cap_cmd_hdr *cmd, u16 cmd_len, void *data)
+						 struct l2cap_cmd_hdr *cmd,
+						 u16 cmd_len, void *data)
 {
 	struct l2cap_move_chan_cfm_rsp *rsp = data;
 	u16 icid;
@@ -4086,7 +4091,7 @@ static inline int l2cap_move_channel_confirm_rsp(struct l2cap_conn *conn,
 
 	icid = le16_to_cpu(rsp->icid);
 
-	BT_DBG("icid %d", icid);
+	BT_DBG("icid 0x%4.4x", icid);
 
 	return 0;
 }
