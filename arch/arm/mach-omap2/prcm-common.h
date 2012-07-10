@@ -416,7 +416,7 @@ extern void __iomem *cm_base;
 extern void __iomem *cm2_base;
 extern void __iomem *prcm_mpu_base;
 
-#if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_ARCH_OMAP5)
+#if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5)
 extern void omap_prm_base_init(void);
 extern void omap_cm_base_init(void);
 #else

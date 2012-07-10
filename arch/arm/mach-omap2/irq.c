@@ -21,6 +21,7 @@
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <mach/hardware.h>
 
@@ -258,7 +259,7 @@ asmlinkage void __exception_irq_entry omap2_intc_handle_irq(struct pt_regs *regs
 	omap_intc_handle_irq(base_addr, regs);
 }
 
-int __init omap_intc_of_init(struct device_node *node,
+int __init intc_of_init(struct device_node *node,
 			     struct device_node *parent)
 {
 	struct resource res;
@@ -278,6 +279,16 @@ int __init omap_intc_of_init(struct device_node *node,
 	omap_init_irq(res.start, nr_irqs, of_node_get(node));
 
 	return 0;
+}
+
+static struct of_device_id irq_match[] __initdata = {
+	{ .compatible = "ti,omap2-intc", .data = intc_of_init, },
+	{ }
+};
+
+void __init omap_intc_of_init(void)
+{
+	of_irq_init(irq_match);
 }
 
 #if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_SOC_AM33XX)

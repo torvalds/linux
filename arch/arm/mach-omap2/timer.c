@@ -393,6 +393,11 @@ static void __init omap4_timer_init(void)
 OMAP_SYS_TIMER(4)
 #endif
 
+#ifdef CONFIG_SOC_OMAP5
+OMAP_SYS_TIMER_INIT(5, 1, OMAP4_CLKEV_SOURCE, 2, OMAP4_MPU_SOURCE)
+OMAP_SYS_TIMER(5)
+#endif
+
 /**
  * omap_timer_init - build and register timer device with an
  * associated timer hwmod
