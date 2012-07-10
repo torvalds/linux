@@ -51,8 +51,7 @@
  * firmware. Normal hardware takes only signed firmware.
  *
  * On boot mode, in USB, we write to the device using the bulk out
- * endpoint and read from it in the notification endpoint. In SDIO we
- * talk to it via the write address and read from the read address.
+ * endpoint and read from it in the notification endpoint.
  *
  * Upon entrance to boot mode, the device sends (preceded with a few
  * zero length packets (ZLPs) on the notification endpoint in USB) a
