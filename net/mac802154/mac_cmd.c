@@ -55,7 +55,7 @@ static int mac802154_mlme_start_req(struct net_device *dev,
 	return 0;
 }
 
-struct wpan_phy *mac802154_get_phy(const struct net_device *dev)
+static struct wpan_phy *mac802154_get_phy(const struct net_device *dev)
 {
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
 
