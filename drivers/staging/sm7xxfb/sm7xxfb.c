@@ -1058,18 +1058,7 @@ static struct pci_driver smtcfb_driver = {
 	.driver.pm  = SM7XX_PM_OPS,
 };
 
-static int __init smtcfb_init(void)
-{
-	return pci_register_driver(&smtcfb_driver);
-}
-
-static void __exit smtcfb_exit(void)
-{
-	pci_unregister_driver(&smtcfb_driver);
-}
-
-module_init(smtcfb_init);
-module_exit(smtcfb_exit);
+module_pci_driver(smtcfb_driver);
 
 MODULE_AUTHOR("Siliconmotion ");
 MODULE_DESCRIPTION("Framebuffer driver for SMI Graphic Cards");
