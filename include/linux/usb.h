@@ -77,14 +77,15 @@ struct usb_host_endpoint {
 struct usb_host_interface {
 	struct usb_interface_descriptor	desc;
 
+	int extralen;
+	unsigned char *extra;   /* Extra descriptors */
+
 	/* array of desc.bNumEndpoint endpoints associated with this
 	 * interface setting.  these will be in no particular order.
 	 */
 	struct usb_host_endpoint *endpoint;
 
 	char *string;		/* iInterface string, if present */
-	unsigned char *extra;   /* Extra descriptors */
-	int extralen;
 };
 
 enum usb_interface_condition {
