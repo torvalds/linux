@@ -1590,7 +1590,7 @@ static int dn_rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 		goto errout;
 
 	expires = rt->dst.expires ? rt->dst.expires - jiffies : 0;
-	if (rtnl_put_cacheinfo(skb, &rt->dst, 0, 0, 0, expires,
+	if (rtnl_put_cacheinfo(skb, &rt->dst, 0, expires,
 			       rt->dst.error) < 0)
 		goto errout;
 

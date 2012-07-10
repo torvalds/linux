@@ -2931,8 +2931,7 @@ static int rt_fill_info(struct net *net,
 				goto nla_put_failure;
 	}
 
-	if (rtnl_put_cacheinfo(skb, &rt->dst, id, 0, 0,
-			       expires, error) < 0)
+	if (rtnl_put_cacheinfo(skb, &rt->dst, id, expires, error) < 0)
 		goto nla_put_failure;
 
 	return nlmsg_end(skb, nlh);

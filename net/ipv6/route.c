@@ -2471,8 +2471,7 @@ static int rt6_fill_node(struct net *net,
 	else
 		expires = INT_MAX;
 
-	if (rtnl_put_cacheinfo(skb, &rt->dst, 0, 0, 0,
-			       expires, rt->dst.error) < 0)
+	if (rtnl_put_cacheinfo(skb, &rt->dst, 0, expires, rt->dst.error) < 0)
 		goto nla_put_failure;
 
 	return nlmsg_end(skb, nlh);
