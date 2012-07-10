@@ -24,7 +24,6 @@
 #include <linux/wait.h>
 #include <linux/async.h>
 #include <linux/pm_runtime.h>
-#include <scsi/scsi_scan.h>
 
 #include "base.h"
 #include "power/power.h"
@@ -333,7 +332,6 @@ void wait_for_device_probe(void)
 	/* wait for the known devices to complete their probing */
 	wait_event(probe_waitqueue, atomic_read(&probe_count) == 0);
 	async_synchronize_full();
-	scsi_complete_async_scans();
 }
 EXPORT_SYMBOL_GPL(wait_for_device_probe);
 
