@@ -907,6 +907,7 @@ if I2C_RK30
 		endif
 	config I2C4_RK30
 		bool "I2C4 Channel Support"
+	        depends on !ARCH_RK2928
 		default y
 		help
 			This supports the use of the I2C4 channel on RK Soc.
