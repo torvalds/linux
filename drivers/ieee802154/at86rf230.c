@@ -543,6 +543,13 @@ at86rf230_xmit(struct ieee802154_dev *dev, struct sk_buff *skb)
 	int rc;
 	unsigned long flags;
 
+	spin_lock(&lp->lock);
+	if  (lp->irq_disabled) {
+		spin_unlock(&lp->lock);
+		return -EBUSY;
+	}
+	spin_unlock(&lp->lock);
+
 	might_sleep();
 
 	rc = at86rf230_state(dev, STATE_FORCE_TX_ON);
@@ -592,12 +599,8 @@ static int at86rf230_rx(struct at86rf230_local *lp)
 	if (!skb)
 		return -ENOMEM;
 
-	if (at86rf230_write_subreg(lp, SR_RX_PDT_DIS, 1) ||
-	    at86rf230_read_fbuf(lp, skb_put(skb, len), &len, &lqi) ||
-	    at86rf230_write_subreg(lp, SR_RX_SAFE_MODE, 1) ||
-	    at86rf230_write_subreg(lp, SR_RX_PDT_DIS, 0)) {
+	if (at86rf230_read_fbuf(lp, skb_put(skb, len), &len, &lqi))
 		goto err;
-	}
 
 	if (len < 2)
 		goto err;
@@ -633,7 +636,6 @@ static void at86rf230_irqwork(struct work_struct *work)
 	int rc;
 	unsigned long flags;
 
-	spin_lock_irqsave(&lp->lock, flags);
 	rc = at86rf230_read_subreg(lp, RG_IRQ_STATUS, 0xff, 0, &val);
 	status |= val;
 
@@ -643,31 +645,33 @@ static void at86rf230_irqwork(struct work_struct *work)
 	status &= ~IRQ_TRX_UR; /* FIXME: possibly handle ???*/
 
 	if (status & IRQ_TRX_END) {
+		spin_lock_irqsave(&lp->lock, flags);
 		status &= ~IRQ_TRX_END;
 		if (lp->is_tx) {
 			lp->is_tx = 0;
+			spin_unlock_irqrestore(&lp->lock, flags);
 			complete(&lp->tx_complete);
 		} else {
+			spin_unlock_irqrestore(&lp->lock, flags);
 			at86rf230_rx(lp);
 		}
 	}
 
-	if (lp->irq_disabled) {
-		lp->irq_disabled = 0;
-		enable_irq(lp->spi->irq);
-	}
+	spin_lock_irqsave(&lp->lock, flags);
+	lp->irq_disabled = 0;
 	spin_unlock_irqrestore(&lp->lock, flags);
+
+	enable_irq(lp->spi->irq);
 }
 
 static irqreturn_t at86rf230_isr(int irq, void *data)
 {
 	struct at86rf230_local *lp = data;
 
+	disable_irq_nosync(irq);
+
 	spin_lock(&lp->lock);
-	if (!lp->irq_disabled) {
-		disable_irq_nosync(irq);
-		lp->irq_disabled = 1;
-	}
+	lp->irq_disabled = 1;
 	spin_unlock(&lp->lock);
 
 	schedule_work(&lp->irqwork);
