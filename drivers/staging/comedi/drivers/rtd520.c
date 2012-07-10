@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Interrupt mask */
-#define RtdInterruptMask(dev, v) \
-	writew((devpriv->intMask = (v)), devpriv->las0+LAS0_IT)
-
 /* Interrupt status clear (only bits set in mask) */
 #define RtdInterruptClear(dev) \
 	readw(devpriv->las0+LAS0_CLEAR)
@@ -1146,7 +1142,8 @@ transferDone:
 	writel(0, devpriv->las0 + LAS0_PACER_STOP);
 	writel(0, devpriv->las0 + LAS0_PACER);
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
-	RtdInterruptMask(dev, 0);	/* mask out SAMPLE */
+	devpriv->intMask = 0;
+	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 #ifdef USE_DMA
 	if (devpriv->flags & DMA0_ACTIVE) {
 		RtdPlxInterruptWrite(dev,	/* disable any more interrupts */
@@ -1415,7 +1412,8 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	writel(0, devpriv->las0 + LAS0_PACER_STOP);
 	writel(0, devpriv->las0 + LAS0_PACER);
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
-	RtdInterruptMask(dev, 0);
+	devpriv->intMask = 0;
+	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 #ifdef USE_DMA
 	if (devpriv->flags & DMA0_ACTIVE) {	/* cancel anything running */
 		RtdPlxInterruptWrite(dev,	/* disable any more interrupts */
@@ -1571,7 +1569,8 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* TODO: allow multiple interrupt sources */
 	if (devpriv->transCount > 0) {	/* transfer every N samples */
-		RtdInterruptMask(dev, IRQM_ADC_ABOUT_CNT);
+		devpriv->intMask = IRQM_ADC_ABOUT_CNT;
+		writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 		DPRINTK("rtd520: Transferring every %d\n", devpriv->transCount);
 	} else {		/* 1/2 FIFO transfers */
 #ifdef USE_DMA
@@ -1592,7 +1591,8 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		DPRINTK("rtd520: Using DMA0 transfers. plxInt %x RtdInt %x\n",
 			RtdPlxInterruptRead(dev), devpriv->intMask);
 #else /* USE_DMA */
-		RtdInterruptMask(dev, IRQM_ADC_ABOUT_CNT);
+		devpriv->intMask = IRQM_ADC_ABOUT_CNT;
+		writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 		DPRINTK("rtd520: Transferring every 1/2 FIFO\n");
 #endif /* USE_DMA */
 	}
@@ -1613,7 +1613,8 @@ static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	writel(0, devpriv->las0 + LAS0_PACER_STOP);
 	writel(0, devpriv->las0 + LAS0_PACER);
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
-	RtdInterruptMask(dev, 0);
+	devpriv->intMask = 0;
+	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 	devpriv->aiCount = 0;	/* stop and don't transfer any more */
 #ifdef USE_DMA
 	if (devpriv->flags & DMA0_ACTIVE) {
@@ -1964,7 +1965,8 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	writel(0, devpriv->las0 + LAS0_BOARD_RESET);
 	udelay(100);		/* needed? */
 	RtdPlxInterruptWrite(dev, 0);
-	RtdInterruptMask(dev, 0);	/* and sets shadow */
+	devpriv->intMask = 0;
+	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 	RtdInterruptClearMask(dev, ~0);	/* and sets shadow */
 	RtdInterruptClear(dev);	/* clears bits set by mask */
 	RtdInterruptOverrunClear(dev);
@@ -2143,7 +2145,8 @@ static void rtd_detach(struct comedi_device *dev)
 #endif /* USE_DMA */
 		if (devpriv->las0) {
 			writel(0, devpriv->las0 + LAS0_BOARD_RESET);
-			RtdInterruptMask(dev, 0);
+			devpriv->intMask = 0;
+			writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 			RtdInterruptClearMask(dev, ~0);
 			RtdInterruptClear(dev);	/* clears bits set by mask */
 		}
