@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* pacer start/stop read=start, write=stop*/
-#define RtdPacerStop(dev) \
-	writel(0, devpriv->las0+LAS0_PACER)
-
 /* Interrupt status */
 #define RtdInterruptStatus(dev) \
 	readw(devpriv->las0+LAS0_IT)
@@ -1152,7 +1148,7 @@ abortTransfer:
 
 transferDone:
 	writel(0, devpriv->las0 + LAS0_PACER_STOP);
-	RtdPacerStop(dev);	/* Stop PACER */
+	writel(0, devpriv->las0 + LAS0_PACER);
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 	RtdInterruptMask(dev, 0);	/* mask out SAMPLE */
 #ifdef USE_DMA
@@ -1421,7 +1417,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* stop anything currently running */
 	writel(0, devpriv->las0 + LAS0_PACER_STOP);
-	RtdPacerStop(dev);	/* make sure PACER is stopped */
+	writel(0, devpriv->las0 + LAS0_PACER);
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 	RtdInterruptMask(dev, 0);
 #ifdef USE_DMA
@@ -1619,7 +1615,7 @@ static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	u16 status;
 
 	writel(0, devpriv->las0 + LAS0_PACER_STOP);
-	RtdPacerStop(dev);	/* Stop PACER */
+	writel(0, devpriv->las0 + LAS0_PACER);
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 	RtdInterruptMask(dev, 0);
 	devpriv->aiCount = 0;	/* stop and don't transfer any more */
