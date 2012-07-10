@@ -506,7 +506,6 @@ struct tcp_timewait_sock {
 	u32			  tw_rcv_wnd;
 	u32			  tw_ts_recent;
 	long			  tw_ts_recent_stamp;
-	struct inet_peer	  *tw_peer;
 #ifdef CONFIG_TCP_MD5SIG
 	struct tcp_md5sig_key	  *tw_md5_key;
 #endif
