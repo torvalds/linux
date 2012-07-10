@@ -696,7 +696,7 @@ static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 	ret = i2c_add_numbered_adapter(&i2c_dev->adapter);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to add I2C adapter\n");
-		clk_disable(i2c_dev->i2c_clk);
+		clk_disable_unprepare(i2c_dev->i2c_clk);
 		return ret;
 	}
 
