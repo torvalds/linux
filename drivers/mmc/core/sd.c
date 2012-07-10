@@ -901,9 +901,6 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
 
-	/* The initialization should be done at 3.3 V I/O voltage. */
-	mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330, 0);
-
 	err = mmc_sd_get_cid(host, ocr, cid, &rocr);
 	if (err)
 		return err;
