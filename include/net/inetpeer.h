@@ -36,10 +36,6 @@ struct inet_peer {
 	u32			metrics[RTAX_MAX];
 	u32			rate_tokens;	/* rate limiting for ICMP */
 	unsigned long		rate_last;
-	unsigned long		pmtu_expires;
-	u32			pmtu_orig;
-	u32			pmtu_learned;
-	struct inetpeer_addr_base redirect_learned;
 	union {
 		struct list_head	gc_list;
 		struct rcu_head     gc_rcu;

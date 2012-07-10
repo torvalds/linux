@@ -100,6 +100,7 @@ static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	xdst->u.rt.rt_src = rt->rt_src;
 	xdst->u.rt.rt_dst = rt->rt_dst;
 	xdst->u.rt.rt_gateway = rt->rt_gateway;
+	xdst->u.rt.rt_pmtu = rt->rt_pmtu;
 
 	return 0;
 }
