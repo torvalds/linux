@@ -172,7 +172,7 @@ struct rbd_device {
 
 	/* protects updating the header */
 	struct rw_semaphore     header_rwsem;
-	char                    snap_name[RBD_MAX_SNAP_NAME_LEN];
+	char                    *snap_name;
 	u64                     snap_id;	/* current snapshot id */
 	int read_only;
 
@@ -587,8 +587,6 @@ static int rbd_header_set_snap(struct rbd_device *dev, u64 *size)
 	struct rbd_image_header *header = &dev->header;
 	struct ceph_snap_context *snapc = header->snapc;
 	int ret = -ENOENT;
-
-	BUILD_BUG_ON(sizeof (dev->snap_name) < sizeof (RBD_SNAP_HEAD_NAME));
 
 	down_write(&dev->header_rwsem);
 
@@ -2390,16 +2388,22 @@ static int rbd_add_parse_args(struct rbd_device *rbd_dev,
 	sprintf(rbd_dev->obj_md_name, "%s%s", rbd_dev->obj, RBD_SUFFIX);
 
 	/*
-	 * The snapshot name is optional, but it's an error if it's
-	 * too long.  If no snapshot is supplied, fill in the default.
+	 * The snapshot name is optional.  If none is is supplied,
+	 * we use the default value.
 	 */
-	len = copy_token(&buf, rbd_dev->snap_name, sizeof (rbd_dev->snap_name));
-	if (!len)
+	rbd_dev->snap_name = dup_token(&buf, &len);
+	if (!rbd_dev->snap_name)
+		goto out_err;
+	if (!len) {
+		/* Replace the empty name with the default */
+		kfree(rbd_dev->snap_name);
+		rbd_dev->snap_name
+			= kmalloc(sizeof (RBD_SNAP_HEAD_NAME), GFP_KERNEL);
+		if (!rbd_dev->snap_name)
+			goto out_err;
+
 		memcpy(rbd_dev->snap_name, RBD_SNAP_HEAD_NAME,
 			sizeof (RBD_SNAP_HEAD_NAME));
-	else if (len >= sizeof (rbd_dev->snap_name)) {
-		ret = -EINVAL;
-		goto out_err;
 	}
 
 	return 0;
@@ -2509,6 +2513,7 @@ err_out_client:
 	rbd_put_client(rbd_dev);
 err_put_id:
 	if (rbd_dev->pool_name) {
+		kfree(rbd_dev->snap_name);
 		kfree(rbd_dev->obj_md_name);
 		kfree(rbd_dev->obj);
 		kfree(rbd_dev->pool_name);
@@ -2561,6 +2566,7 @@ static void rbd_dev_release(struct device *dev)
 	unregister_blkdev(rbd_dev->major, rbd_dev->name);
 
 	/* done with the id, and with the rbd_dev */
+	kfree(rbd_dev->snap_name);
 	kfree(rbd_dev->obj_md_name);
 	kfree(rbd_dev->pool_name);
 	kfree(rbd_dev->obj);
