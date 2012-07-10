@@ -149,12 +149,6 @@
 				pinctrl-0 = <&auart2_2pins_a>;
 				status = "okay";
 			};
-
-			auart3: serial@80070000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&auart3_2pins_a>;
-				status = "okay";
-			};
 		};
 	};
 
