@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* About counter, 16bit */
-#define RtdAboutCounter(dev, v) \
-	writel((v) & 0xffff, devpriv->las0+LAS0_ACNT)
-
 /* ADC sample counter, 10bit */
 #define RtdAdcSampleCount(dev) \
 	readl(devpriv->las0+LAS0_ADC_SCNT)
@@ -1418,7 +1414,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		writel(0, devpriv->las0 + LAS0_PACER_START);
 		writel(1, devpriv->las0 + LAS0_ADC_CONVERSION);
 	}
-	RtdAboutCounter(dev, devpriv->fifoLen / 2 - 1);	/* 1/2 FIFO */
+	writel((devpriv->fifoLen / 2 - 1) & 0xffff, devpriv->las0 + LAS0_ACNT);
 
 	if (TRIG_TIMER == cmd->scan_begin_src) {
 		/* scan_begin_arg is in nanoseconds */
@@ -1452,7 +1448,8 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			devpriv->flags &= ~SEND_EOS;
 		} else {
 			/* interrupt for each transfer */
-			RtdAboutCounter(dev, devpriv->transCount - 1);
+			writel((devpriv->transCount - 1) & 0xffff,
+				devpriv->las0 + LAS0_ACNT);
 		}
 
 		DPRINTK
