@@ -70,11 +70,6 @@
  */
 #define ALLOW_Q_PAUSE
 
-#define ieee2host16(n)  __le16_to_cpu(n)
-#define ieee2host32(n)  __le32_to_cpu(n)
-#define host2ieee16(n)  __cpu_to_le16(n)
-#define host2ieee32(n)  __cpu_to_le32(n)
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
 #ifdef UNIFI_NET_NAME
 #define UF_ALLOC_NETDEV(_dev, _size, _name, _setup, _num_of_queues)     \
