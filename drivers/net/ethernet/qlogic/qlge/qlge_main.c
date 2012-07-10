@@ -2556,7 +2556,7 @@ static netdev_tx_t qlge_send(struct sk_buff *skb, struct net_device *ndev)
 
 	if (unlikely(atomic_read(&tx_ring->tx_count) < 2)) {
 		netif_info(qdev, tx_queued, qdev->ndev,
-			   "%s: shutting down tx queue %d du to lack of resources.\n",
+			   "%s: BUG! shutting down tx queue %d due to lack of resources.\n",
 			   __func__, tx_ring_idx);
 		netif_stop_subqueue(ndev, tx_ring->wq_id);
 		atomic_inc(&tx_ring->queue_stopped);
@@ -2610,6 +2610,16 @@ static netdev_tx_t qlge_send(struct sk_buff *skb, struct net_device *ndev)
 		     tx_ring->prod_idx, skb->len);
 
 	atomic_dec(&tx_ring->tx_count);
+
+	if (unlikely(atomic_read(&tx_ring->tx_count) < 2)) {
+		netif_stop_subqueue(ndev, tx_ring->wq_id);
+		if ((atomic_read(&tx_ring->tx_count) > (tx_ring->wq_len / 4)))
+			/*
+			 * The queue got stopped because the tx_ring was full.
+			 * Wake it up, because it's now at least 25% empty.
+			 */
+			netif_wake_subqueue(qdev->ndev, tx_ring->wq_id);
+	}
 	return NETDEV_TX_OK;
 }
 
