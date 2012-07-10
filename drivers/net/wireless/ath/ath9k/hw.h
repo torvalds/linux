@@ -180,6 +180,37 @@
 #define PAPRD_TABLE_SZ			24
 #define PAPRD_IDEAL_AGC2_PWR_RANGE	0xe0
 
+/*
+ * Wake on Wireless
+ */
+
+/* Keep Alive Frame */
+#define KAL_FRAME_LEN		28
+#define KAL_FRAME_TYPE		0x2	/* data frame */
+#define KAL_FRAME_SUB_TYPE	0x4	/* null data frame */
+#define KAL_DURATION_ID		0x3d
+#define KAL_NUM_DATA_WORDS	6
+#define KAL_NUM_DESC_WORDS	12
+#define KAL_ANTENNA_MODE	1
+#define KAL_TO_DS		1
+#define KAL_DELAY		4	/*delay of 4ms between 2 KAL frames */
+#define KAL_TIMEOUT		900
+
+#define MAX_PATTERN_SIZE		256
+#define MAX_PATTERN_MASK_SIZE		32
+#define MAX_NUM_PATTERN			8
+#define MAX_NUM_USER_PATTERN		6 /*  deducting the disassociate and
+					      deauthenticate packets */
+
+/*
+ * WoW trigger mapping to hardware code
+ */
+
+#define AH_WOW_USER_PATTERN_EN		BIT(0)
+#define AH_WOW_MAGIC_PATTERN_EN		BIT(1)
+#define AH_WOW_LINK_CHANGE		BIT(2)
+#define AH_WOW_BEACON_MISS		BIT(3)
+
 enum ath_hw_txq_subtype {
 	ATH_TXQ_AC_BE = 0,
 	ATH_TXQ_AC_BK = 1,
@@ -863,6 +894,9 @@ struct ath_hw {
 	/* Enterprise mode cap */
 	u32 ent_mode;
 
+#ifdef CONFIG_PM_SLEEP
+	u32 wow_event_mask;
+#endif
 	bool is_clk_25mhz;
 	int (*get_mac_revision)(void);
 	int (*external_reset)(void);
