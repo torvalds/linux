@@ -808,8 +808,10 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 
 	sfb = smtc_alloc_fb_info(pdev, name);
 
-	if (!sfb)
+	if (!sfb) {
+		err = -ENOMEM;
 		goto failed_free;
+	}
 
 	sfb->chip_id = ent->device;
 	sprintf(name, "sm%Xfb", sfb->chip_id);
