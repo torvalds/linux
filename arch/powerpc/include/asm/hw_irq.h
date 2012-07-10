@@ -124,6 +124,8 @@ static inline bool arch_irq_disabled_regs(struct pt_regs *regs)
 	return !regs->softe;
 }
 
+extern bool prep_irq_for_idle(void);
+
 #else /* CONFIG_PPC64 */
 
 #define SET_MSR_EE(x)	mtmsr(x)
