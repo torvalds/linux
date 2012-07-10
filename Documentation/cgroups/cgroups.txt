@@ -370,15 +370,12 @@ To mount a cgroup hierarchy with just the cpuset and memory
 subsystems, type:
 # mount -t cgroup -o cpuset,memory hier1 /sys/fs/cgroup/rg1
 
-To change the set of subsystems bound to a mounted hierarchy, just
-remount with different options:
-# mount -o remount,cpuset,blkio hier1 /sys/fs/cgroup/rg1
-
-Now memory is removed from the hierarchy and blkio is added.
-
-Note this will add blkio to the hierarchy but won't remove memory or
-cpuset, because the new options are appended to the old ones:
-# mount -o remount,blkio /sys/fs/cgroup/rg1
+While remounting cgroups is currently supported, it is not recommend
+to use it. Remounting allows changing bound subsystems and
+release_agent. Rebinding is hardly useful as it only works when the
+hierarchy is empty and release_agent itself should be replaced with
+conventional fsnotify. The support for remounting will be removed in
+the future.
 
 To Specify a hierarchy's release_agent:
 # mount -t cgroup -o cpuset,release_agent="/sbin/cpuset_release_agent" \
