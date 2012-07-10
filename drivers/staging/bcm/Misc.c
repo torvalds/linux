@@ -1206,9 +1206,6 @@ static void convertEndian(B_UINT8 rwFlag, PUINT puiBuffer, UINT uiByteCount)
 	}
 }
 
-#define CACHE_ADDRESS_MASK 0x80000000
-#define UNCACHE_ADDRESS_MASK 0xa0000000
-
 int rdm(struct bcm_mini_adapter *Adapter, UINT uiAddress, PCHAR pucBuff, size_t sSize)
 {
 	return Adapter->interface_rdm(Adapter->pvInterfaceAdapter,
