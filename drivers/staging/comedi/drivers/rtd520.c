@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set Pacer stop source select (write only) */
-#define RtdPacerStopSource(dev, v) \
-	writel(v, devpriv->las0+LAS0_PACER_STOP)
-
 /* Set Pacer clock source select (write only) 0=external 1=internal */
 #define RtdPacerClockSource(dev, v) \
 	writel((v > 0) ? 1 : 0, devpriv->las0+LAS0_PACER_SELECT)
@@ -1194,7 +1190,7 @@ abortTransfer:
 	/* fall into transferDone */
 
 transferDone:
-	RtdPacerStopSource(dev, 0);	/* stop on SOFTWARE stop */
+	writel(0, devpriv->las0 + LAS0_PACER_STOP);
 	RtdPacerStop(dev);	/* Stop PACER */
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 	RtdInterruptMask(dev, 0);	/* mask out SAMPLE */
@@ -1463,7 +1459,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int timer;
 
 	/* stop anything currently running */
-	RtdPacerStopSource(dev, 0);	/* stop on SOFTWARE stop */
+	writel(0, devpriv->las0 + LAS0_PACER_STOP);
 	RtdPacerStop(dev);	/* make sure PACER is stopped */
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 	RtdInterruptMask(dev, 0);
@@ -1661,7 +1657,7 @@ static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	u16 status;
 
-	RtdPacerStopSource(dev, 0);	/* stop on SOFTWARE stop */
+	writel(0, devpriv->las0 + LAS0_PACER_STOP);
 	RtdPacerStop(dev);	/* Stop PACER */
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 	RtdInterruptMask(dev, 0);
