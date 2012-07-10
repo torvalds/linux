@@ -55,7 +55,6 @@
 
 #define RBD_MINORS_PER_MAJOR	256		/* max minors per blkdev */
 
-#define RBD_MAX_MD_NAME_LEN	(RBD_MAX_OBJ_NAME_LEN + sizeof(RBD_SUFFIX))
 #define RBD_MAX_SNAP_NAME_LEN	32
 #define RBD_MAX_OPT_LEN		1024
 
@@ -164,7 +163,7 @@ struct rbd_device {
 	struct rbd_image_header	header;
 	char			obj[RBD_MAX_OBJ_NAME_LEN]; /* rbd image name */
 	int			obj_len;
-	char			obj_md_name[RBD_MAX_MD_NAME_LEN]; /* hdr nm. */
+	char			*obj_md_name; /* hdr nm. */
 	char			*pool_name;
 	int			pool_id;
 
@@ -2386,8 +2385,13 @@ static int rbd_add_parse_args(struct rbd_device *rbd_dev,
 
 	rbd_dev->obj_len = len;
 
-	BUILD_BUG_ON(RBD_MAX_MD_NAME_LEN
-				< RBD_MAX_OBJ_NAME_LEN + sizeof (RBD_SUFFIX));
+	/* Create the name of the header object */
+
+	rbd_dev->obj_md_name = kmalloc(len + sizeof (RBD_SUFFIX), GFP_KERNEL);
+	if (!rbd_dev->obj_md_name) {
+		ret = -ENOMEM;
+		goto out_err;
+	}
 	sprintf(rbd_dev->obj_md_name, "%s%s", rbd_dev->obj, RBD_SUFFIX);
 
 	/*
@@ -2406,6 +2410,7 @@ static int rbd_add_parse_args(struct rbd_device *rbd_dev,
 	return 0;
 
 out_err:
+	kfree(rbd_dev->obj_md_name);
 	kfree(rbd_dev->pool_name);
 	rbd_dev->pool_name = NULL;
 
@@ -2416,21 +2421,21 @@ static ssize_t rbd_add(struct bus_type *bus,
 		       const char *buf,
 		       size_t count)
 {
-	struct rbd_device *rbd_dev;
+	char *options;
+	struct rbd_device *rbd_dev = NULL;
 	const char *mon_addrs = NULL;
 	size_t mon_addrs_size = 0;
-	char *options = NULL;
 	struct ceph_osd_client *osdc;
 	int rc = -ENOMEM;
 
 	if (!try_module_get(THIS_MODULE))
 		return -ENODEV;
 
-	rbd_dev = kzalloc(sizeof(*rbd_dev), GFP_KERNEL);
-	if (!rbd_dev)
-		goto err_nomem;
 	options = kmalloc(count, GFP_KERNEL);
 	if (!options)
+		goto err_nomem;
+	rbd_dev = kzalloc(sizeof(*rbd_dev), GFP_KERNEL);
+	if (!rbd_dev)
 		goto err_nomem;
 
 	/* static rbd_device initialization */
@@ -2507,11 +2512,14 @@ err_out_blkdev:
 err_out_client:
 	rbd_put_client(rbd_dev);
 err_put_id:
-	kfree(rbd_dev->pool_name);
+	if (rbd_dev->pool_name) {
+		kfree(rbd_dev->obj_md_name);
+		kfree(rbd_dev->pool_name);
+	}
 	rbd_id_put(rbd_dev);
 err_nomem:
-	kfree(options);
 	kfree(rbd_dev);
+	kfree(options);
 
 	dout("Error adding device %s\n", buf);
 	module_put(THIS_MODULE);
@@ -2556,6 +2564,7 @@ static void rbd_dev_release(struct device *dev)
 	unregister_blkdev(rbd_dev->major, rbd_dev->name);
 
 	/* done with the id, and with the rbd_dev */
+	kfree(rbd_dev->obj_md_name);
 	kfree(rbd_dev->pool_name);
 	rbd_id_put(rbd_dev);
 	kfree(rbd_dev);
