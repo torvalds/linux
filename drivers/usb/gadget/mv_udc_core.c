@@ -355,17 +355,24 @@ done:
 	return retval;
 }
 
-
 static struct mv_dtd *build_dtd(struct mv_req *req, unsigned *length,
 		dma_addr_t *dma, int *is_last)
 {
-	u32 temp;
 	struct mv_dtd *dtd;
 	struct mv_udc *udc;
+	struct mv_dqh *dqh;
+	u32 temp, mult = 0;
 
 	/* how big will this transfer be? */
-	*length = min(req->req.length - req->req.actual,
-			(unsigned)EP_MAX_LENGTH_TRANSFER);
+	if (usb_endpoint_xfer_isoc(req->ep->ep.desc)) {
+		dqh = req->ep->dqh;
+		mult = (dqh->max_packet_length >> EP_QUEUE_HEAD_MULT_POS)
+				& 0x3;
+		*length = min(req->req.length - req->req.actual,
+				(unsigned)(mult * req->ep->ep.maxpacket));
+	} else
+		*length = min(req->req.length - req->req.actual,
+				(unsigned)EP_MAX_LENGTH_TRANSFER);
 
 	udc = req->ep->udc;
 
@@ -406,6 +413,8 @@ static struct mv_dtd *build_dtd(struct mv_req *req, unsigned *length,
 	/* Enable interrupt for the last dtd of a request */
 	if (*is_last && !req->req.no_interrupt)
 		temp |= DTD_IOC;
+
+	temp |= mult << 10;
 
 	dtd->size_ioc_sts = temp;
 
@@ -717,10 +726,6 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	if (unlikely(!_ep || !ep->ep.desc)) {
 		dev_err(&udc->dev->dev, "%s, bad ep", __func__);
 		return -EINVAL;
-	}
-	if (ep->ep.desc->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
-		if (req->req.length > ep->ep.maxpacket)
-			return -EMSGSIZE;
 	}
 
 	udc = ep->udc;
