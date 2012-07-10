@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Interrupt status */
-#define RtdInterruptStatus(dev) \
-	readw(devpriv->las0+LAS0_IT)
-
 /* Interrupt mask */
 #define RtdInterruptMask(dev, v) \
 	writew((devpriv->intMask = (v)), devpriv->las0+LAS0_IT)
@@ -1078,7 +1074,7 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 	/* Fall through and check for other interrupt sources */
 #endif /* USE_DMA */
 
-	status = RtdInterruptStatus(dev);
+	status = readw(devpriv->las0 + LAS0_IT);
 	/* if interrupt was not caused by our board, or handled above */
 	if (0 == status)
 		return IRQ_HANDLED;
@@ -1175,7 +1171,7 @@ transferDone:
 	comedi_event(dev, s);
 
 	/* clear the interrupt */
-	status = RtdInterruptStatus(dev);
+	status = readw(devpriv->las0 + LAS0_IT);
 	RtdInterruptClearMask(dev, status);
 	RtdInterruptClear(dev);
 
@@ -1627,7 +1623,7 @@ static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->flags &= ~DMA0_ACTIVE;
 	}
 #endif /* USE_DMA */
-	status = RtdInterruptStatus(dev);
+	status = readw(devpriv->las0 + LAS0_IT);
 	DPRINTK
 	    ("rtd520: Acquisition canceled. %ld ints, intStat=%x, overStat=%x\n",
 	     devpriv->intCount, status,
