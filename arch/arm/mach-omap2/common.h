@@ -120,6 +120,7 @@ extern void omap2_init_common_infrastructure(void);
 extern struct sys_timer omap2_timer;
 extern struct sys_timer omap3_timer;
 extern struct sys_timer omap3_secure_timer;
+extern struct sys_timer omap3_am33xx_timer;
 extern struct sys_timer omap4_timer;
 
 void omap2420_init_early(void);
@@ -128,8 +129,10 @@ void omap3430_init_early(void);
 void omap35xx_init_early(void);
 void omap3630_init_early(void);
 void omap3_init_early(void);	/* Do not use this one */
+void am33xx_init_early(void);
 void am35xx_init_early(void);
 void ti81xx_init_early(void);
+void am33xx_init_early(void);
 void omap4430_init_early(void);
 void omap3_init_late(void);	/* Do not use this one */
 void omap4430_init_late(void);
@@ -171,7 +174,12 @@ void omap2_set_globals_am33xx(void);
 
 /* These get called from omap2_set_globals_xxxx(), do not call these */
 void omap2_set_globals_tap(struct omap_globals *);
+#if defined(CONFIG_SOC_HAS_OMAP2_SDRC)
 void omap2_set_globals_sdrc(struct omap_globals *);
+#else
+static inline void omap2_set_globals_sdrc(struct omap_globals *omap2_globals)
+{ }
+#endif
 void omap2_set_globals_control(struct omap_globals *);
 void omap2_set_globals_prcm(struct omap_globals *);
 
