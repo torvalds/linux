@@ -853,6 +853,9 @@ static int __devinit wm5102_probe(struct platform_device *pdev)
 
 	wm5102->core.arizona = arizona;
 
+	for (i = 0; i < ARRAY_SIZE(wm5102->fll); i++)
+		wm5102->fll[i].vco_mult = 1;
+
 	arizona_init_fll(arizona, 1, ARIZONA_FLL1_CONTROL_1 - 1,
 			 ARIZONA_IRQ_FLL1_LOCK, ARIZONA_IRQ_FLL1_CLOCK_OK,
 			 &wm5102->fll[0]);

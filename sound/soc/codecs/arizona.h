@@ -141,6 +141,7 @@ struct arizona_fll {
 	struct arizona *arizona;
 	int id;
 	unsigned int base;
+	unsigned int vco_mult;
 	struct completion lock;
 	struct completion ok;
 
