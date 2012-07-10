@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux/arm 3.0.31 Kernel Configuration
+# Linux/arm 3.0.36 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_CHIP_ID=1125
@@ -1492,8 +1492,9 @@ CONFIG_ANDROID_LOW_MEMORY_KILLER=y
 # CONFIG_LINE6_USB is not set
 # CONFIG_VT6656 is not set
 # CONFIG_IIO is not set
-# CONFIG_XVMALLOC is not set
-# CONFIG_ZRAM is not set
+CONFIG_XVMALLOC=y
+CONFIG_ZRAM=m
+# CONFIG_ZRAM_DEBUG is not set
 # CONFIG_FB_SM7XX is not set
 # CONFIG_LIRC_STAGING is not set
 CONFIG_MACH_NO_WESTBRIDGE=y
