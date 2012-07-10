@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Reset ADC FIFO */
-#define RtdAdcClearFifo(dev) \
-	writel(0, devpriv->las0+LAS0_ADC_FIFO_CLEAR)
-
 /* Set ADC start conversion source select (write only) */
 #define RtdAdcConversionSource(dev, v) \
 	writel(v, devpriv->las0+LAS0_ADC_CONVERSION)
@@ -804,7 +800,7 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 	static const unsigned limit = 0x2000;
 	unsigned fifo_size = 0;
 
-	RtdAdcClearFifo(dev);
+	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
 	rtd_load_channelgain_list(dev, 1, &chanspec);
 	RtdAdcConversionSource(dev, 0);	/* software */
 	/* convert  samples */
@@ -824,7 +820,7 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 		       DRV_NAME);
 		return -EIO;
 	}
-	RtdAdcClearFifo(dev);
+	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
 	if (fifo_size != 0x400 && fifo_size != 0x2000) {
 		printk
 		    (KERN_INFO "\ncomedi: %s: unexpected fifo size of %i, expected 1024 or 8192.\n",
@@ -850,7 +846,7 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 	int stat;
 
 	/* clear any old fifo data */
-	RtdAdcClearFifo(dev);
+	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
 
 	/* write channel to multiplexer and clear channel gain table */
 	rtd_load_channelgain_list(dev, 1, &insn->chanspec);
@@ -1204,7 +1200,7 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 	return IRQ_HANDLED;
 
 abortTransfer:
-	RtdAdcClearFifo(dev);	/* clears full flag */
+	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
 	s->async->events |= COMEDI_CB_ERROR;
 	devpriv->aiCount = 0;	/* stop and don't transfer any more */
 	/* fall into transferDone */
@@ -1495,7 +1491,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	RtdDma0Reset(dev);	/* reset onboard state */
 #endif /* USE_DMA */
-	RtdAdcClearFifo(dev);	/* clear any old data */
+	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
 	RtdInterruptOverrunClear(dev);
 	devpriv->intCount = 0;
 
@@ -2036,7 +2032,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	RtdInterruptClear(dev);	/* clears bits set by mask */
 	RtdInterruptOverrunClear(dev);
 	writel(0, devpriv->las0 + LAS0_CGT_CLEAR);
-	RtdAdcClearFifo(dev);
+	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
 	RtdDacClearFifo(dev, 0);
 	RtdDacClearFifo(dev, 1);
 	/* clear digital IO fifo */
