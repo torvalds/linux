@@ -53,7 +53,7 @@
 #define READSAFE_TIMEOUT	1000
 #define DTD_TIMEOUT		1000
 
-#define LOOPS_USEC_SHIFT	4
+#define LOOPS_USEC_SHIFT	1
 #define LOOPS_USEC		(1 << LOOPS_USEC_SHIFT)
 #define LOOPS(timeout)		((timeout) >> LOOPS_USEC_SHIFT)
 
