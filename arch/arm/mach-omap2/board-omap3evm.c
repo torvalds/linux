@@ -362,6 +362,7 @@ static int omap3evm_twl_gpio_setup(struct device *dev,
 	/* Enable VBUS switch by setting TWL4030.GPIO2DIR as output
 	 * for starting USB tranceiver
 	 */
+#ifdef CONFIG_TWL4030_CORE
 	if (get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2) {
 		u8 val;
 
@@ -369,6 +370,7 @@ static int omap3evm_twl_gpio_setup(struct device *dev,
 		val |= 0x04; /* TWL4030.GPIO2DIR BIT at GPIODATADIR1(0x9B) */
 		twl_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIODATADIR1);
 	}
+#endif
 
 	return 0;
 }
