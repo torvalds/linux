@@ -231,6 +231,25 @@ static const struct soc_enum aic3x_enum[] = {
 	SOC_ENUM_DOUBLE(AIC3X_CODEC_DFILT_CTRL, 6, 4, 4, aic3x_adc_hpf),
 };
 
+static const char *aic3x_agc_level[] =
+	{ "-5.5dB", "-8dB", "-10dB", "-12dB", "-14dB", "-17dB", "-20dB", "-24dB" };
+static const struct soc_enum aic3x_agc_level_enum[] = {
+	SOC_ENUM_SINGLE(LAGC_CTRL_A, 4, 8, aic3x_agc_level),
+	SOC_ENUM_SINGLE(RAGC_CTRL_A, 4, 8, aic3x_agc_level),
+};
+
+static const char *aic3x_agc_attack[] = { "8ms", "11ms", "16ms", "20ms" };
+static const struct soc_enum aic3x_agc_attack_enum[] = {
+	SOC_ENUM_SINGLE(LAGC_CTRL_A, 2, 4, aic3x_agc_attack),
+	SOC_ENUM_SINGLE(RAGC_CTRL_A, 2, 4, aic3x_agc_attack),
+};
+
+static const char *aic3x_agc_decay[] = { "100ms", "200ms", "400ms", "500ms" };
+static const struct soc_enum aic3x_agc_decay_enum[] = {
+	SOC_ENUM_SINGLE(LAGC_CTRL_A, 0, 4, aic3x_agc_decay),
+	SOC_ENUM_SINGLE(RAGC_CTRL_A, 0, 4, aic3x_agc_decay),
+};
+
 /*
  * DAC digital volumes. From -63.5 to 0 dB in 0.5 dB steps
  */
@@ -355,6 +374,12 @@ static const struct snd_kcontrol_new aic3x_snd_controls[] = {
 	 * adjust PGA to max value when ADC is on and will never go back.
 	*/
 	SOC_DOUBLE_R("AGC Switch", LAGC_CTRL_A, RAGC_CTRL_A, 7, 0x01, 0),
+	SOC_ENUM("Left AGC Target level", aic3x_agc_level_enum[0]),
+	SOC_ENUM("Right AGC Target level", aic3x_agc_level_enum[1]),
+	SOC_ENUM("Left AGC Attack time", aic3x_agc_attack_enum[0]),
+	SOC_ENUM("Right AGC Attack time", aic3x_agc_attack_enum[1]),
+	SOC_ENUM("Left AGC Decay time", aic3x_agc_decay_enum[0]),
+	SOC_ENUM("Right AGC Decay time", aic3x_agc_decay_enum[1]),
 
 	/* De-emphasis */
 	SOC_DOUBLE("De-emphasis Switch", AIC3X_CODEC_DFILT_CTRL, 2, 0, 0x01, 0),
