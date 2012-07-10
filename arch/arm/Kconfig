@@ -571,7 +571,6 @@ config ARCH_MV78XX0
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
-	select NEED_MACH_IO_H
 	select PLAT_ORION
 	help
 	  Support for the following Marvell MV78xx0 series SoCs:
