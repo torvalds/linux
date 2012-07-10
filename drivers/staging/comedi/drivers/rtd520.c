@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set ADC start conversion source select (write only) */
-#define RtdAdcConversionSource(dev, v) \
-	writel(v, devpriv->las0+LAS0_ADC_CONVERSION)
-
 /* Set burst start source select (write only) */
 #define RtdBurstStartSource(dev, v) \
 	writel(v, devpriv->las0+LAS0_BURST_START)
@@ -802,7 +798,7 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 
 	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
 	rtd_load_channelgain_list(dev, 1, &chanspec);
-	RtdAdcConversionSource(dev, 0);	/* software */
+	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 	/* convert  samples */
 	for (i = 0; i < limit; ++i) {
 		unsigned fifo_status;
@@ -852,7 +848,7 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 	rtd_load_channelgain_list(dev, 1, &insn->chanspec);
 
 	/* set conversion source */
-	RtdAdcConversionSource(dev, 0);	/* software */
+	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
@@ -1208,7 +1204,7 @@ abortTransfer:
 transferDone:
 	RtdPacerStopSource(dev, 0);	/* stop on SOFTWARE stop */
 	RtdPacerStop(dev);	/* Stop PACER */
-	RtdAdcConversionSource(dev, 0);	/* software trigger only */
+	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 	RtdInterruptMask(dev, 0);	/* mask out SAMPLE */
 #ifdef USE_DMA
 	if (devpriv->flags & DMA0_ACTIVE) {
@@ -1477,7 +1473,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* stop anything currently running */
 	RtdPacerStopSource(dev, 0);	/* stop on SOFTWARE stop */
 	RtdPacerStop(dev);	/* make sure PACER is stopped */
-	RtdAdcConversionSource(dev, 0);	/* software trigger only */
+	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 	RtdInterruptMask(dev, 0);
 #ifdef USE_DMA
 	if (devpriv->flags & DMA0_ACTIVE) {	/* cancel anything running */
@@ -1509,11 +1505,11 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/*DPRINTK ("rtd520: Multi channel setup\n"); */
 		RtdPacerStartSource(dev, 0);	/* software triggers pacer */
 		RtdBurstStartSource(dev, 1);	/* PACER triggers burst */
-		RtdAdcConversionSource(dev, 2);	/* BURST triggers ADC */
+		writel(2, devpriv->las0 + LAS0_ADC_CONVERSION);
 	} else {		/* single channel */
 		/*DPRINTK ("rtd520: single channel setup\n"); */
 		RtdPacerStartSource(dev, 0);	/* software triggers pacer */
-		RtdAdcConversionSource(dev, 1);	/* PACER triggers ADC */
+		writel(1, devpriv->las0 + LAS0_ADC_CONVERSION);
 	}
 	RtdAboutCounter(dev, devpriv->fifoLen / 2 - 1);	/* 1/2 FIFO */
 
@@ -1675,7 +1671,7 @@ static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	RtdPacerStopSource(dev, 0);	/* stop on SOFTWARE stop */
 	RtdPacerStop(dev);	/* Stop PACER */
-	RtdAdcConversionSource(dev, 0);	/* software trigger only */
+	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 	RtdInterruptMask(dev, 0);
 	devpriv->aiCount = 0;	/* stop and don't transfer any more */
 #ifdef USE_DMA
