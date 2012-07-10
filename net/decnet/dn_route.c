@@ -1812,12 +1812,11 @@ static int dn_rt_cache_seq_show(struct seq_file *seq, void *v)
 	char buf1[DN_ASCBUF_LEN], buf2[DN_ASCBUF_LEN];
 
 	seq_printf(seq, "%-8s %-7s %-7s %04d %04d %04d\n",
-			rt->dst.dev ? rt->dst.dev->name : "*",
-			dn_addr2asc(le16_to_cpu(rt->rt_daddr), buf1),
-			dn_addr2asc(le16_to_cpu(rt->rt_saddr), buf2),
-			atomic_read(&rt->dst.__refcnt),
-			rt->dst.__use,
-			(int) dst_metric(&rt->dst, RTAX_RTT));
+		   rt->dst.dev ? rt->dst.dev->name : "*",
+		   dn_addr2asc(le16_to_cpu(rt->rt_daddr), buf1),
+		   dn_addr2asc(le16_to_cpu(rt->rt_saddr), buf2),
+		   atomic_read(&rt->dst.__refcnt),
+		   rt->dst.__use, 0);
 	return 0;
 }
 
