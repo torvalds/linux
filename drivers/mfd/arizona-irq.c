@@ -164,6 +164,12 @@ int arizona_irq_init(struct arizona *arizona)
 		irq = &wm5102_irq;
 		break;
 #endif
+#ifdef CONFIG_MFD_WM5110
+	case WM5110:
+		aod = &wm5110_aod;
+		irq = &wm5110_irq;
+		break;
+#endif
 	default:
 		BUG_ON("Unknown Arizona class device" == NULL);
 		return -EINVAL;

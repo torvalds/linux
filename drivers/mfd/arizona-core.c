@@ -273,6 +273,14 @@ static struct mfd_cell wm5102_devs[] = {
 	{ .name = "wm5102-codec" },
 };
 
+static struct mfd_cell wm5110_devs[] = {
+	{ .name = "arizona-extcon" },
+	{ .name = "arizona-gpio" },
+	{ .name = "arizona-micsupp" },
+	{ .name = "arizona-pwm" },
+	{ .name = "wm5110-codec" },
+};
+
 int __devinit arizona_dev_init(struct arizona *arizona)
 {
 	struct device *dev = arizona->dev;
@@ -291,6 +299,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 
 	switch (arizona->type) {
 	case WM5102:
+	case WM5110:
 		for (i = 0; i < ARRAY_SIZE(wm5102_core_supplies); i++)
 			arizona->core_supplies[i].supply
 				= wm5102_core_supplies[i];
@@ -377,6 +386,17 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 			arizona->type = WM5102;
 		}
 		ret = wm5102_patch(arizona);
+		break;
+#endif
+#ifdef CONFIG_MFD_WM5110
+	case 0x5110:
+		type_name = "WM5110";
+		if (arizona->type != WM5110) {
+			dev_err(arizona->dev, "WM5110 registered as %d\n",
+				arizona->type);
+			arizona->type = WM5110;
+		}
+		ret = wm5110_patch(arizona);
 		break;
 #endif
 	default:
@@ -492,6 +512,10 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 	switch (arizona->type) {
 	case WM5102:
 		ret = mfd_add_devices(arizona->dev, -1, wm5102_devs,
+				      ARRAY_SIZE(wm5102_devs), NULL, 0);
+		break;
+	case WM5110:
+		ret = mfd_add_devices(arizona->dev, -1, wm5110_devs,
 				      ARRAY_SIZE(wm5102_devs), NULL, 0);
 		break;
 	}

@@ -35,6 +35,11 @@ static int __devinit arizona_spi_probe(struct spi_device *spi)
 		regmap_config = &wm5102_spi_regmap;
 		break;
 #endif
+#ifdef CONFIG_MFD_WM5110
+	case WM5110:
+		regmap_config = &wm5110_spi_regmap;
+		break;
+#endif
 	default:
 		dev_err(&spi->dev, "Unknown device type %ld\n",
 			id->driver_data);
@@ -69,6 +74,7 @@ static int __devexit arizona_spi_remove(struct spi_device *spi)
 
 static const struct spi_device_id arizona_spi_ids[] = {
 	{ "wm5102", WM5102 },
+	{ "wm5110", WM5110 },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, arizona_spi_ids);
