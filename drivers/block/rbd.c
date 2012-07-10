@@ -161,8 +161,8 @@ struct rbd_device {
 	spinlock_t		lock;		/* queue lock */
 
 	struct rbd_image_header	header;
-	char			obj[RBD_MAX_OBJ_NAME_LEN]; /* rbd image name */
-	int			obj_len;
+	char			*obj; /* rbd image name */
+	size_t			obj_len;
 	char			*obj_md_name; /* hdr nm. */
 	char			*pool_name;
 	int			pool_id;
@@ -2371,27 +2371,22 @@ static int rbd_add_parse_args(struct rbd_device *rbd_dev,
 	if (!len || len >= options_size)
 		return -EINVAL;
 
+	ret = -ENOMEM;
 	rbd_dev->pool_name = dup_token(&buf, NULL);
 	if (!rbd_dev->pool_name)
-		return -ENOMEM;
-
-	len = copy_token(&buf, rbd_dev->obj, sizeof (rbd_dev->obj));
-	if (!len || len >= sizeof (rbd_dev->obj)) {
-		ret = -EINVAL;
 		goto out_err;
-	}
 
-	/* We have the object length in hand, save it. */
-
-	rbd_dev->obj_len = len;
+	rbd_dev->obj = dup_token(&buf, &rbd_dev->obj_len);
+	if (!rbd_dev->obj)
+		goto out_err;
 
 	/* Create the name of the header object */
 
-	rbd_dev->obj_md_name = kmalloc(len + sizeof (RBD_SUFFIX), GFP_KERNEL);
-	if (!rbd_dev->obj_md_name) {
-		ret = -ENOMEM;
+	rbd_dev->obj_md_name = kmalloc(rbd_dev->obj_len
+						+ sizeof (RBD_SUFFIX),
+					GFP_KERNEL);
+	if (!rbd_dev->obj_md_name)
 		goto out_err;
-	}
 	sprintf(rbd_dev->obj_md_name, "%s%s", rbd_dev->obj, RBD_SUFFIX);
 
 	/*
@@ -2411,6 +2406,7 @@ static int rbd_add_parse_args(struct rbd_device *rbd_dev,
 
 out_err:
 	kfree(rbd_dev->obj_md_name);
+	kfree(rbd_dev->obj);
 	kfree(rbd_dev->pool_name);
 	rbd_dev->pool_name = NULL;
 
@@ -2514,6 +2510,7 @@ err_out_client:
 err_put_id:
 	if (rbd_dev->pool_name) {
 		kfree(rbd_dev->obj_md_name);
+		kfree(rbd_dev->obj);
 		kfree(rbd_dev->pool_name);
 	}
 	rbd_id_put(rbd_dev);
@@ -2566,6 +2563,7 @@ static void rbd_dev_release(struct device *dev)
 	/* done with the id, and with the rbd_dev */
 	kfree(rbd_dev->obj_md_name);
 	kfree(rbd_dev->pool_name);
+	kfree(rbd_dev->obj);
 	rbd_id_put(rbd_dev);
 	kfree(rbd_dev);
 
