@@ -1,7 +1,7 @@
 obj-$(CONFIG_RK29_LAST_LOG) += last_log.o
 obj-$(CONFIG_USB_GADGET) += usb_detect.o
 obj-$(CONFIG_RK29_VPU) += vpu_service.o
-obj-$(CONFIG_ARCH_RK30) += dma-pl330.o
+obj-$(CONFIG_RK_PL330_DMA) += dma-pl330.o
 obj-$(CONFIG_FIQ) += fiq.o
 obj-$(CONFIG_FIQ_DEBUGGER) += rk_fiq_debugger.o
 obj-$(CONFIG_RK_EARLY_PRINTK) += early_printk.o ../kernel/debug.o
