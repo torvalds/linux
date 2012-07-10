@@ -2281,6 +2281,42 @@ static inline size_t copy_token(const char **buf,
 }
 
 /*
+ * Finds the next token in *buf, dynamically allocates a buffer big
+ * enough to hold a copy of it, and copies the token into the new
+ * buffer.  The copy is guaranteed to be terminated with '\0'.  Note
+ * that a duplicate buffer is created even for a zero-length token.
+ *
+ * Returns a pointer to the newly-allocated duplicate, or a null
+ * pointer if memory for the duplicate was not available.  If
+ * the lenp argument is a non-null pointer, the length of the token
+ * (not including the '\0') is returned in *lenp.
+ *
+ * If successful, the *buf pointer will be updated to point beyond
+ * the end of the found token.
+ *
+ * Note: uses GFP_KERNEL for allocation.
+ */
+static inline char *dup_token(const char **buf, size_t *lenp)
+{
+	char *dup;
+	size_t len;
+
+	len = next_token(buf);
+	dup = kmalloc(len + 1, GFP_KERNEL);
+	if (!dup)
+		return NULL;
+
+	memcpy(dup, *buf, len);
+	*(dup + len) = '\0';
+	*buf += len;
+
+	if (lenp)
+		*lenp = len;
+
+	return dup;
+}
+
+/*
  * This fills in the pool_name, obj, obj_len, snap_name, obj_len,
  * rbd_dev, rbd_md_name, and name fields of the given rbd_dev, based
  * on the list of monitor addresses and other options provided via
