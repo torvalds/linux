@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set About counter stop enable (write only) */
-#define RtdAboutStopEnable(dev, v) \
-	writel((v > 0) ? 1 : 0, devpriv->las0+LAS0_ACNT_STOP_ENABLE)
-
 /* Set external trigger polarity (write only) 0=positive edge, 1=negative */
 #define RtdTriggerPolarity(dev, v) \
 	writel((v > 0) ? 1 : 0, devpriv->las0+LAS0_ETRG_POLARITY)
@@ -1533,7 +1529,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->flags &= ~SEND_EOS;
 	}
 	writel(1, devpriv->las0 + LAS0_PACER_SELECT);
-	RtdAboutStopEnable(dev, 1);	/* just interrupt, dont stop */
+	writel(1, devpriv->las0 + LAS0_ACNT_STOP_ENABLE);
 
 	/* BUG??? these look like enumerated values, but they are bit fields */
 
