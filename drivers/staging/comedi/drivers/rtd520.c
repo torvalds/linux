@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set burst start source select (write only) */
-#define RtdBurstStartSource(dev, v) \
-	writel(v, devpriv->las0+LAS0_BURST_START)
-
 /* Set Pacer start source select (write only) */
 #define RtdPacerStartSource(dev, v) \
 	writel(v, devpriv->las0+LAS0_PACER_START)
@@ -1504,7 +1500,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (cmd->chanlist_len > 1) {
 		/*DPRINTK ("rtd520: Multi channel setup\n"); */
 		RtdPacerStartSource(dev, 0);	/* software triggers pacer */
-		RtdBurstStartSource(dev, 1);	/* PACER triggers burst */
+		writel(1, devpriv->las0 + LAS0_BURST_START);
 		writel(2, devpriv->las0 + LAS0_ADC_CONVERSION);
 	} else {		/* single channel */
 		/*DPRINTK ("rtd520: single channel setup\n"); */
@@ -1614,7 +1610,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		break;
 
 	case TRIG_EXT:		/* external */
-		RtdBurstStartSource(dev, 2);	/* EXTERNALy trigger burst */
+		writel(2, devpriv->las0 + LAS0_BURST_START);
 		break;
 
 	default:
