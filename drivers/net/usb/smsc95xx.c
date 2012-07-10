@@ -589,7 +589,8 @@ smsc95xx_ethtool_getregs(struct net_device *netdev, struct ethtool_regs *regs,
 			 void *buf)
 {
 	struct usbnet *dev = netdev_priv(netdev);
-	unsigned int i, j, retval;
+	unsigned int i, j;
+	int retval;
 	u32 *data = buf;
 
 	retval = smsc95xx_read_reg(dev, ID_REV, &regs->version);
