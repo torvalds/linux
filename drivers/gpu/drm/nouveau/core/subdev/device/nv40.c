@@ -23,42 +23,59 @@
  */
 
 #include <subdev/device.h>
+#include <subdev/bios.h>
 
 int
 nv40_identify(struct nouveau_device *device)
 {
 	switch (device->chipset) {
 	case 0x40:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x41:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x42:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x43:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x45:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x47:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x49:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x4b:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x44:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x46:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x4a:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x4c:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x4e:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x63:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x67:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x68:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Curie chipset\n");

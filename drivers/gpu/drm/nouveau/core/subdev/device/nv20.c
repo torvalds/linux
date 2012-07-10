@@ -23,18 +23,23 @@
  */
 
 #include <subdev/device.h>
+#include <subdev/bios.h>
 
 int
 nv20_identify(struct nouveau_device *device)
 {
 	switch (device->chipset) {
 	case 0x20:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x25:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x28:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x2a:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Kelvin chipset\n");

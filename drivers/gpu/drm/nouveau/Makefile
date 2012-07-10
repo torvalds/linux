@@ -18,6 +18,8 @@ nouveau-y += core/core/printk.o
 nouveau-y += core/core/ramht.o
 nouveau-y += core/core/subdev.o
 
+nouveau-y += core/subdev/bios/base.o
+nouveau-y += core/subdev/bios/bit.o
 nouveau-y += core/subdev/device/base.o
 nouveau-y += core/subdev/device/nv04.o
 nouveau-y += core/subdev/device/nv10.o

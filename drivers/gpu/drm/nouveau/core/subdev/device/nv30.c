@@ -23,20 +23,26 @@
  */
 
 #include <subdev/device.h>
+#include <subdev/bios.h>
 
 int
 nv30_identify(struct nouveau_device *device)
 {
 	switch (device->chipset) {
 	case 0x30:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x35:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x31:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x36:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x34:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Rankine chipset\n");

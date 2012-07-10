@@ -23,26 +23,35 @@
  */
 
 #include <subdev/device.h>
+#include <subdev/bios.h>
 
 int
 nv10_identify(struct nouveau_device *device)
 {
 	switch (device->chipset) {
 	case 0x10:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x15:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x16:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x1a:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x11:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x17:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x1f:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0x18:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Celsius chipset\n");

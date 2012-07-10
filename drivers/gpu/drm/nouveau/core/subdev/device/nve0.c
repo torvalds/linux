@@ -23,14 +23,17 @@
  */
 
 #include <subdev/device.h>
+#include <subdev/bios.h>
 
 int
 nve0_identify(struct nouveau_device *device)
 {
 	switch (device->chipset) {
 	case 0xe4:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	case 0xe7:
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Kepler chipset\n");

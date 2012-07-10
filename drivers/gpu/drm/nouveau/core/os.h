@@ -18,6 +18,8 @@
 
 #include <asm/unaligned.h>
 
+#include <asm/unaligned.h>
+
 static inline int
 ffsll(u64 mask)
 {
