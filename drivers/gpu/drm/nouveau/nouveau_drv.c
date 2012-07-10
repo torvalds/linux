@@ -44,10 +44,6 @@ MODULE_PARM_DESC(modeset, "Enable kernel modesetting");
 int nouveau_modeset = -1;
 module_param_named(modeset, nouveau_modeset, int, 0400);
 
-MODULE_PARM_DESC(vbios, "Override default VBIOS location");
-char *nouveau_vbios;
-module_param_named(vbios, nouveau_vbios, charp, 0400);
-
 MODULE_PARM_DESC(vram_pushbuf, "Force DMA push buffers to be in VRAM");
 int nouveau_vram_pushbuf;
 module_param_named(vram_pushbuf, nouveau_vram_pushbuf, int, 0400);

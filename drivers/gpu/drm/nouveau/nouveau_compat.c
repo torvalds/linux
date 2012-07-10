@@ -1,6 +1,8 @@
 #include "nouveau_drm.h"
 #include "nouveau_compat.h"
 
+#include <subdev/bios.h>
+
 void *nouveau_newpriv(struct drm_device *);
 
 u8
@@ -37,4 +39,14 @@ _nv_mask(struct drm_device *dev, u32 reg, u32 mask, u32 val)
 	u32 tmp = _nv_rd32(dev, reg);
 	_nv_wr32(dev, reg, (tmp & ~mask) | val);
 	return tmp;
+}
+
+bool
+_nv_bios(struct drm_device *dev, u8 **data, u32 *size)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_bios *bios = nouveau_bios(drm->device);
+	*data = bios->data;
+	*size = bios->size;
+	return true;
 }
