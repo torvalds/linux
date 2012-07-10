@@ -407,8 +407,6 @@ struct rtdPrivate {
 /* Macros to access registers */
 
 /* About counter, 16bit */
-#define RtdAboutCount(dev) \
-	readl(devpriv->las0+LAS0_ACNT)
 #define RtdAboutCounter(dev, v) \
 	writel((v) & 0xffff, devpriv->las0+LAS0_ACNT)
 
