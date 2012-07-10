@@ -94,3 +94,28 @@ timestamp and a new line. The dump then continues with the actual data.
 The dump data can be read from the pstore filesystem. The format for these
 files is "dmesg-ramoops-N", where N is the record number in memory. To delete
 a stored record from RAM, simply unlink the respective pstore file.
+
+5. Persistent function tracing
+
+Persistent function tracing might be useful for debugging software or hardware
+related hangs. The functions call chain log is stored in a "ftrace-ramoops"
+file. Here is an example of usage:
+
+ # mount -t debugfs debugfs /sys/kernel/debug/
+ # cd /sys/kernel/debug/tracing
+ # echo function > current_tracer
+ # echo 1 > options/func_pstore
+ # reboot -f
+ [...]
+ # mount -t pstore pstore /mnt/
+ # tail /mnt/ftrace-ramoops
+ 0 ffffffff8101ea64  ffffffff8101bcda  native_apic_mem_read <- disconnect_bsp_APIC+0x6a/0xc0
+ 0 ffffffff8101ea44  ffffffff8101bcf6  native_apic_mem_write <- disconnect_bsp_APIC+0x86/0xc0
+ 0 ffffffff81020084  ffffffff8101a4b5  hpet_disable <- native_machine_shutdown+0x75/0x90
+ 0 ffffffff81005f94  ffffffff8101a4bb  iommu_shutdown_noop <- native_machine_shutdown+0x7b/0x90
+ 0 ffffffff8101a6a1  ffffffff8101a437  native_machine_emergency_restart <- native_machine_restart+0x37/0x40
+ 0 ffffffff811f9876  ffffffff8101a73a  acpi_reboot <- native_machine_emergency_restart+0xaa/0x1e0
+ 0 ffffffff8101a514  ffffffff8101a772  mach_reboot_fixups <- native_machine_emergency_restart+0xe2/0x1e0
+ 0 ffffffff811d9c54  ffffffff8101a7a0  __const_udelay <- native_machine_emergency_restart+0x110/0x1e0
+ 0 ffffffff811d9c34  ffffffff811d9c80  __delay <- __const_udelay+0x30/0x40
+ 0 ffffffff811d9d14  ffffffff811d9c3f  delay_tsc <- __delay+0xf/0x20

@@ -45,6 +45,10 @@ static ulong ramoops_console_size = MIN_MEM_SIZE;
 module_param_named(console_size, ramoops_console_size, ulong, 0400);
 MODULE_PARM_DESC(console_size, "size of kernel console log");
 
+static ulong ramoops_ftrace_size = MIN_MEM_SIZE;
+module_param_named(ftrace_size, ramoops_ftrace_size, ulong, 0400);
+MODULE_PARM_DESC(ftrace_size, "size of ftrace log");
+
 static ulong mem_address;
 module_param(mem_address, ulong, 0400);
 MODULE_PARM_DESC(mem_address,
@@ -70,16 +74,19 @@ MODULE_PARM_DESC(ramoops_ecc,
 struct ramoops_context {
 	struct persistent_ram_zone **przs;
 	struct persistent_ram_zone *cprz;
+	struct persistent_ram_zone *fprz;
 	phys_addr_t phys_addr;
 	unsigned long size;
 	size_t record_size;
 	size_t console_size;
+	size_t ftrace_size;
 	int dump_oops;
 	int ecc_size;
 	unsigned int max_dump_cnt;
 	unsigned int dump_write_cnt;
 	unsigned int dump_read_cnt;
 	unsigned int console_read_cnt;
+	unsigned int ftrace_read_cnt;
 	struct pstore_info pstore;
 };
 
@@ -138,6 +145,9 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 		prz = ramoops_get_next_prz(&cxt->cprz, &cxt->console_read_cnt,
 					   1, id, type, PSTORE_TYPE_CONSOLE, 0);
 	if (!prz)
+		prz = ramoops_get_next_prz(&cxt->fprz, &cxt->ftrace_read_cnt,
+					   1, id, type, PSTORE_TYPE_FTRACE, 0);
+	if (!prz)
 		return 0;
 
 	/* TODO(kees): Bogus time for the moment. */
@@ -185,6 +195,11 @@ static int ramoops_pstore_write_buf(enum pstore_type_id type,
 		if (!cxt->cprz)
 			return -ENOMEM;
 		persistent_ram_write(cxt->cprz, buf, size);
+		return 0;
+	} else if (type == PSTORE_TYPE_FTRACE) {
+		if (!cxt->fprz)
+			return -ENOMEM;
+		persistent_ram_write(cxt->fprz, buf, size);
 		return 0;
 	}
 
@@ -234,6 +249,9 @@ static int ramoops_pstore_erase(enum pstore_type_id type, u64 id,
 		break;
 	case PSTORE_TYPE_CONSOLE:
 		prz = cxt->cprz;
+		break;
+	case PSTORE_TYPE_FTRACE:
+		prz = cxt->fprz;
 		break;
 	default:
 		return -EINVAL;
@@ -348,7 +366,8 @@ static int __devinit ramoops_probe(struct platform_device *pdev)
 	if (cxt->max_dump_cnt)
 		goto fail_out;
 
-	if (!pdata->mem_size || (!pdata->record_size && !pdata->console_size)) {
+	if (!pdata->mem_size || (!pdata->record_size && !pdata->console_size &&
+			!pdata->ftrace_size)) {
 		pr_err("The memory size and the record/console size must be "
 			"non-zero\n");
 		goto fail_out;
@@ -357,18 +376,20 @@ static int __devinit ramoops_probe(struct platform_device *pdev)
 	pdata->mem_size = rounddown_pow_of_two(pdata->mem_size);
 	pdata->record_size = rounddown_pow_of_two(pdata->record_size);
 	pdata->console_size = rounddown_pow_of_two(pdata->console_size);
+	pdata->ftrace_size = rounddown_pow_of_two(pdata->ftrace_size);
 
 	cxt->dump_read_cnt = 0;
 	cxt->size = pdata->mem_size;
 	cxt->phys_addr = pdata->mem_address;
 	cxt->record_size = pdata->record_size;
 	cxt->console_size = pdata->console_size;
+	cxt->ftrace_size = pdata->ftrace_size;
 	cxt->dump_oops = pdata->dump_oops;
 	cxt->ecc_size = pdata->ecc_size;
 
 	paddr = cxt->phys_addr;
 
-	dump_mem_sz = cxt->size - cxt->console_size;
+	dump_mem_sz = cxt->size - cxt->console_size - cxt->ftrace_size;
 	err = ramoops_init_przs(dev, cxt, &paddr, dump_mem_sz);
 	if (err)
 		goto fail_out;
@@ -377,9 +398,14 @@ static int __devinit ramoops_probe(struct platform_device *pdev)
 	if (err)
 		goto fail_init_cprz;
 
-	if (!cxt->przs && !cxt->cprz) {
+	err = ramoops_init_prz(dev, cxt, &cxt->fprz, &paddr, cxt->ftrace_size);
+	if (err)
+		goto fail_init_fprz;
+
+	if (!cxt->przs && !cxt->cprz && !cxt->fprz) {
 		pr_err("memory size too small, minimum is %lu\n",
-			cxt->console_size + cxt->record_size);
+			cxt->console_size + cxt->record_size +
+			cxt->ftrace_size);
 		goto fail_cnt;
 	}
 
@@ -426,6 +452,8 @@ fail_clear:
 	cxt->pstore.bufsize = 0;
 	cxt->max_dump_cnt = 0;
 fail_cnt:
+	kfree(cxt->fprz);
+fail_init_fprz:
 	kfree(cxt->cprz);
 fail_init_cprz:
 	ramoops_free_przs(cxt);
@@ -480,6 +508,7 @@ static void ramoops_register_dummy(void)
 	dummy_data->mem_address = mem_address;
 	dummy_data->record_size = record_size;
 	dummy_data->console_size = ramoops_console_size;
+	dummy_data->ftrace_size = ramoops_ftrace_size;
 	dummy_data->dump_oops = dump_oops;
 	/*
 	 * For backwards compatibility ramoops.ecc=1 means 16 bytes ECC
