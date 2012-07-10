@@ -278,8 +278,6 @@ static inline void ip_route_connect_init(struct flowi4 *fl4, __be32 dst, __be32 
 
 	if (inet_sk(sk)->transparent)
 		flow_flags |= FLOWI_FLAG_ANYSRC;
-	if (protocol == IPPROTO_TCP)
-		flow_flags |= FLOWI_FLAG_PRECOW_METRICS;
 	if (can_sleep)
 		flow_flags |= FLOWI_FLAG_CAN_SLEEP;
 

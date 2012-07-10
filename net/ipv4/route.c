@@ -1658,7 +1658,7 @@ void ipv4_update_pmtu(struct sk_buff *skb, struct net *net, u32 mtu,
 	struct rtable *rt;
 
 	flowi4_init_output(&fl4, oif, mark, RT_TOS(iph->tos), RT_SCOPE_UNIVERSE,
-			   protocol, flow_flags | FLOWI_FLAG_PRECOW_METRICS,
+			   protocol, flow_flags,
 			   iph->daddr, iph->saddr, 0, 0);
 	rt = __ip_route_output_key(net, &fl4);
 	if (!IS_ERR(rt)) {
@@ -1836,18 +1836,11 @@ static void rt_init_metrics(struct rtable *rt, const struct flowi4 *fl4,
 {
 	struct inet_peer_base *base;
 	struct inet_peer *peer;
-	int create = 0;
-
-	/* If a peer entry exists for this destination, we must hook
-	 * it up in order to get at cached metrics.
-	 */
-	if (fl4 && (fl4->flowi4_flags & FLOWI_FLAG_PRECOW_METRICS))
-		create = 1;
 
 	base = inetpeer_base_ptr(rt->_peer);
 	BUG_ON(!base);
 
-	peer = inet_getpeer_v4(base, rt->rt_dst, create);
+	peer = inet_getpeer_v4(base, rt->rt_dst, 0);
 	if (peer) {
 		__rt_set_peer(rt, peer);
 		rt->rt_peer_genid = rt_peer_genid();
