@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Start single ADC conversion */
-#define RtdAdcStart(dev) \
-	writew(0, devpriv->las0+LAS0_ADC)
-
 /* Read one ADC data value (12bit (with sign extend) as 16bit) */
 /* Note: matches what DMA would get.  Actual value >> 3 */
 #define RtdAdcFifoGet(dev) \
@@ -771,7 +767,7 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 	for (i = 0; i < limit; ++i) {
 		unsigned fifo_status;
 		/* trigger conversion */
-		RtdAdcStart(dev);
+		writew(0, devpriv->las0 + LAS0_ADC);
 		udelay(1);
 		fifo_status = RtdFifoStatus(dev);
 		if ((fifo_status & FS_ADC_HEMPTY) == 0) {
@@ -822,7 +818,7 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 	for (n = 0; n < insn->n; n++) {
 		s16 d;
 		/* trigger conversion */
-		RtdAdcStart(dev);
+		writew(0, devpriv->las0 + LAS0_ADC);
 
 		for (ii = 0; ii < RTD_ADC_TIMEOUT; ++ii) {
 			stat = RtdFifoStatus(dev);
