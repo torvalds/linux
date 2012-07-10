@@ -407,8 +407,6 @@ struct rtdPrivate {
 /* Macros to access registers */
 
 /* pacer start/stop read=start, write=stop*/
-#define RtdPacerStart(dev) \
-	readl(devpriv->las0+LAS0_PACER)
 #define RtdPacerStop(dev) \
 	writel(0, devpriv->las0+LAS0_PACER)
 
@@ -1609,7 +1607,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* BUG: start_src is ASSUMED to be TRIG_NOW */
 	/* BUG? it seems like things are running before the "start" */
-	RtdPacerStart(dev);	/* Start PACER */
+	readl(devpriv->las0 + LAS0_PACER);
 	return 0;
 }
 
