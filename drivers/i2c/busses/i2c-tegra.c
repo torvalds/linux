@@ -754,8 +754,6 @@ static const struct of_device_id tegra_i2c_of_match[] __devinitconst = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, tegra_i2c_of_match);
-#else
-#define tegra_i2c_of_match NULL
 #endif
 
 static struct platform_driver tegra_i2c_driver = {
@@ -768,7 +766,7 @@ static struct platform_driver tegra_i2c_driver = {
 	.driver  = {
 		.name  = "tegra-i2c",
 		.owner = THIS_MODULE,
-		.of_match_table = tegra_i2c_of_match,
+		.of_match_table = of_match_ptr(tegra_i2c_of_match),
 	},
 };
 
