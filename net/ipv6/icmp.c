@@ -194,8 +194,10 @@ static inline bool icmpv6_xrlim_allow(struct sock *sk, u8 type,
 		if (rt->rt6i_dst.plen < 128)
 			tmo >>= ((128 - rt->rt6i_dst.plen)>>5);
 
-		peer = rt6_get_peer_create(rt);
+		peer = inet_getpeer_v6(net->ipv6.peers, &rt->rt6i_dst.addr, 1);
 		res = inet_peer_xrlim_allow(peer, tmo);
+		if (peer)
+			inet_putpeer(peer);
 	}
 	dst_release(dst);
 	return res;

@@ -1289,20 +1289,15 @@ static void ip_select_fb_ident(struct iphdr *iph)
 
 void __ip_select_ident(struct iphdr *iph, struct dst_entry *dst, int more)
 {
-	struct rtable *rt = (struct rtable *) dst;
+	struct net *net = dev_net(dst->dev);
+	struct inet_peer *peer;
 
-	if (rt && !(rt->dst.flags & DST_NOPEER)) {
-		struct inet_peer *peer = rt_get_peer_create(rt, rt->rt_dst);
-
-		/* If peer is attached to destination, it is never detached,
-		   so that we need not to grab a lock to dereference it.
-		 */
-		if (peer) {
-			iph->id = htons(inet_getid(peer, more));
-			return;
-		}
-	} else if (!rt)
-		pr_debug("rt_bind_peer(0) @%p\n", __builtin_return_address(0));
+	peer = inet_getpeer_v4(net->ipv4.peers, iph->daddr, 1);
+	if (peer) {
+		iph->id = htons(inet_getid(peer, more));
+		inet_putpeer(peer);
+		return;
+	}
 
 	ip_select_fb_ident(iph);
 }
@@ -1492,6 +1487,7 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 	struct rtable *rt = skb_rtable(skb);
 	struct in_device *in_dev;
 	struct inet_peer *peer;
+	struct net *net;
 	int log_martians;
 
 	rcu_read_lock();
@@ -1503,7 +1499,8 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 	log_martians = IN_DEV_LOG_MARTIANS(in_dev);
 	rcu_read_unlock();
 
-	peer = rt_get_peer_create(rt, rt->rt_dst);
+	net = dev_net(rt->dst.dev);
+	peer = inet_getpeer_v4(net->ipv4.peers, ip_hdr(skb)->saddr, 1);
 	if (!peer) {
 		icmp_send(skb, ICMP_REDIRECT, ICMP_REDIR_HOST, rt->rt_gateway);
 		return;
@@ -1520,7 +1517,7 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 	 */
 	if (peer->rate_tokens >= ip_rt_redirect_number) {
 		peer->rate_last = jiffies;
-		return;
+		goto out_put_peer;
 	}
 
 	/* Check for load limit; set rate_last to the latest sent
@@ -1541,6 +1538,8 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 					     &rt->rt_dst, &rt->rt_gateway);
 #endif
 	}
+out_put_peer:
+	inet_putpeer(peer);
 }
 
 static int ip_error(struct sk_buff *skb)
@@ -1583,7 +1582,7 @@ static int ip_error(struct sk_buff *skb)
 		break;
 	}
 
-	peer = rt_get_peer_create(rt, rt->rt_dst);
+	peer = inet_getpeer_v4(net->ipv4.peers, ip_hdr(skb)->saddr, 1);
 
 	send = true;
 	if (peer) {
@@ -1596,6 +1595,7 @@ static int ip_error(struct sk_buff *skb)
 			peer->rate_tokens -= ip_rt_error_cost;
 		else
 			send = false;
+		inet_putpeer(peer);
 	}
 	if (send)
 		icmp_send(skb, ICMP_DEST_UNREACH, code, 0);
