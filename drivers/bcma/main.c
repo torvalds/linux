@@ -61,6 +61,13 @@ static struct bus_type bcma_bus_type = {
 	.dev_attrs	= bcma_device_attrs,
 };
 
+static u16 bcma_cc_core_id(struct bcma_bus *bus)
+{
+	if (bus->chipinfo.id == BCMA_CHIP_ID_BCM4706)
+		return BCMA_CORE_4706_CHIPCOMMON;
+	return BCMA_CORE_CHIPCOMMON;
+}
+
 struct bcma_device *bcma_find_core(struct bcma_bus *bus, u16 coreid)
 {
 	struct bcma_device *core;
@@ -91,6 +98,7 @@ static int bcma_register_cores(struct bcma_bus *bus)
 	list_for_each_entry(core, &bus->cores, list) {
 		/* We support that cores ourself */
 		switch (core->id.id) {
+		case BCMA_CORE_4706_CHIPCOMMON:
 		case BCMA_CORE_CHIPCOMMON:
 		case BCMA_CORE_PCI:
 		case BCMA_CORE_PCIE:
@@ -157,7 +165,7 @@ int __devinit bcma_bus_register(struct bcma_bus *bus)
 	}
 
 	/* Init CC core */
-	core = bcma_find_core(bus, BCMA_CORE_CHIPCOMMON);
+	core = bcma_find_core(bus, bcma_cc_core_id(bus));
 	if (core) {
 		bus->drv_cc.core = core;
 		bcma_core_chipcommon_init(&bus->drv_cc);
@@ -208,7 +216,7 @@ int __init bcma_bus_early_register(struct bcma_bus *bus,
 	bcma_init_bus(bus);
 
 	match.manuf = BCMA_MANUF_BCM;
-	match.id = BCMA_CORE_CHIPCOMMON;
+	match.id = bcma_cc_core_id(bus);
 	match.class = BCMA_CL_SIM;
 	match.rev = BCMA_ANY_REV;
 
@@ -232,7 +240,7 @@ int __init bcma_bus_early_register(struct bcma_bus *bus,
 	}
 
 	/* Init CC core */
-	core = bcma_find_core(bus, BCMA_CORE_CHIPCOMMON);
+	core = bcma_find_core(bus, bcma_cc_core_id(bus));
 	if (core) {
 		bus->drv_cc.core = core;
 		bcma_core_chipcommon_init(&bus->drv_cc);
@@ -271,8 +279,7 @@ int bcma_bus_resume(struct bcma_bus *bus)
 	struct bcma_device *core;
 
 	/* Init CC core */
-	core = bcma_find_core(bus, BCMA_CORE_CHIPCOMMON);
-	if (core) {
+	if (bus->drv_cc.core) {
 		bus->drv_cc.setup_done = false;
 		bcma_core_chipcommon_init(&bus->drv_cc);
 	}
