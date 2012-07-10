@@ -810,7 +810,7 @@ static void vpif_config_addr(struct channel_obj *ch, int muxmode)
 }
 
 /**
- * vpfe_mmap : It is used to map kernel space buffers into user spaces
+ * vpif_mmap : It is used to map kernel space buffers into user spaces
  * @filep: file pointer
  * @vma: ptr to vm_area_struct
  */
@@ -919,7 +919,7 @@ static int vpif_open(struct file *filep)
  * vpif_release : function to clean up file close
  * @filep: file pointer
  *
- * This function deletes buffer queue, frees the buffers and the vpfe file
+ * This function deletes buffer queue, frees the buffers and the vpif file
  * handle
  */
 static int vpif_release(struct file *filep)
