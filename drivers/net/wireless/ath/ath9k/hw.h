@@ -860,6 +860,9 @@ struct ath_hw {
 	struct ar5416IniArray iniBank7;
 	struct ar5416IniArray iniAddac;
 	struct ar5416IniArray iniPcieSerdes;
+#ifdef CONFIG_PM_SLEEP
+	struct ar5416IniArray iniPcieSerdesWow;
+#endif
 	struct ar5416IniArray iniPcieSerdesLowPower;
 	struct ar5416IniArray iniModesFastClock;
 	struct ar5416IniArray iniAdditional;

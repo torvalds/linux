@@ -43,6 +43,11 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 		INIT_INI_ARRAY(&ah->iniPcieSerdes,
 			   ar9280PciePhy_clkreq_always_on_L1_9280,
 			   ARRAY_SIZE(ar9280PciePhy_clkreq_always_on_L1_9280), 2);
+#ifdef CONFIG_PM_SLEEP
+		INIT_INI_ARRAY(&ah->iniPcieSerdesWow,
+			       ar9280PciePhy_awow,
+			       ARRAY_SIZE(ar9280PciePhy_awow), 2);
+#endif
 
 	if (AR_SREV_9287_11_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniModes, ar9287Modes_9287_1_1,
