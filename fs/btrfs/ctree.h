@@ -1240,6 +1240,8 @@ struct btrfs_fs_info {
 	 */
 	struct list_head space_info;
 
+	struct btrfs_space_info *data_sinfo;
+
 	struct reloc_control *reloc_ctl;
 
 	spinlock_t delalloc_lock;
@@ -2607,7 +2609,6 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root, u64 group_start);
 u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags);
 u64 btrfs_get_alloc_profile(struct btrfs_root *root, int data);
-void btrfs_set_inode_space_info(struct btrfs_root *root, struct inode *ionde);
 void btrfs_clear_space_info_full(struct btrfs_fs_info *info);
 int btrfs_check_data_free_space(struct inode *inode, u64 bytes);
 void btrfs_free_reserved_data_space(struct inode *inode, u64 bytes);
