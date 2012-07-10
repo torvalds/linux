@@ -11560,8 +11560,7 @@ static void bnx2x_prep_ops(const u8 *_source, u8 *_target, u32 n)
 	}
 }
 
-/**
- * IRO array is stored in the following format:
+/* IRO array is stored in the following format:
  * {base(24bit), m1(16bit), m2(16bit), m3(16bit), size(16bit) }
  */
 static void bnx2x_prep_iro(const u8 *_source, u8 *_target, u32 n)

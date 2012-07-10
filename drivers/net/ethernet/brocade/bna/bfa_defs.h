@@ -26,13 +26,9 @@
 #define BFA_STRING_32	32
 #define BFA_VERSION_LEN 64
 
-/**
- * ---------------------- adapter definitions ------------
- */
+/* ---------------------- adapter definitions ------------ */
 
-/**
- * BFA adapter level attributes.
- */
+/* BFA adapter level attributes. */
 enum {
 	BFA_ADAPTER_SERIAL_NUM_LEN = STRSZ(BFA_MFG_SERIALNUM_SIZE),
 					/*
@@ -74,18 +70,14 @@ struct bfa_adapter_attr {
 	u8		trunk_capable;
 };
 
-/**
- * ---------------------- IOC definitions ------------
- */
+/* ---------------------- IOC definitions ------------ */
 
 enum {
 	BFA_IOC_DRIVER_LEN	= 16,
 	BFA_IOC_CHIP_REV_LEN	= 8,
 };
 
-/**
- * Driver and firmware versions.
- */
+/* Driver and firmware versions. */
 struct bfa_ioc_driver_attr {
 	char		driver[BFA_IOC_DRIVER_LEN];	/*!< driver name */
 	char		driver_ver[BFA_VERSION_LEN];	/*!< driver version */
@@ -95,9 +87,7 @@ struct bfa_ioc_driver_attr {
 	char		ob_ver[BFA_VERSION_LEN];	/*!< openboot version */
 };
 
-/**
- * IOC PCI device attributes
- */
+/* IOC PCI device attributes */
 struct bfa_ioc_pci_attr {
 	u16	vendor_id;	/*!< PCI vendor ID */
 	u16	device_id;	/*!< PCI device ID */
@@ -108,9 +98,7 @@ struct bfa_ioc_pci_attr {
 	char		chip_rev[BFA_IOC_CHIP_REV_LEN];	 /*!< chip revision */
 };
 
-/**
- * IOC states
- */
+/* IOC states */
 enum bfa_ioc_state {
 	BFA_IOC_UNINIT		= 1,	/*!< IOC is in uninit state */
 	BFA_IOC_RESET		= 2,	/*!< IOC is in reset state */
@@ -127,9 +115,7 @@ enum bfa_ioc_state {
 	BFA_IOC_HWFAIL		= 13,	/*!< PCI mapping doesn't exist */
 };
 
-/**
- * IOC firmware stats
- */
+/* IOC firmware stats */
 struct bfa_fw_ioc_stats {
 	u32	enable_reqs;
 	u32	disable_reqs;
@@ -139,9 +125,7 @@ struct bfa_fw_ioc_stats {
 	u32	unknown_reqs;
 };
 
-/**
- * IOC driver stats
- */
+/* IOC driver stats */
 struct bfa_ioc_drv_stats {
 	u32	ioc_isrs;
 	u32	ioc_enables;
@@ -157,9 +141,7 @@ struct bfa_ioc_drv_stats {
 	u32	rsvd;
 };
 
-/**
- * IOC statistics
- */
+/* IOC statistics */
 struct bfa_ioc_stats {
 	struct bfa_ioc_drv_stats drv_stats; /*!< driver IOC stats */
 	struct bfa_fw_ioc_stats fw_stats;  /*!< firmware IOC stats */
@@ -171,9 +153,7 @@ enum bfa_ioc_type {
 	BFA_IOC_TYPE_LL		= 3,
 };
 
-/**
- * IOC attributes returned in queries
- */
+/* IOC attributes returned in queries */
 struct bfa_ioc_attr {
 	enum bfa_ioc_type ioc_type;
 	enum bfa_ioc_state		state;		/*!< IOC state      */
@@ -187,22 +167,16 @@ struct bfa_ioc_attr {
 	u8				rsvd[4];	/*!< 64bit align */
 };
 
-/**
- * Adapter capability mask definition
- */
+/* Adapter capability mask definition */
 enum {
 	BFA_CM_HBA	=	0x01,
 	BFA_CM_CNA	=	0x02,
 	BFA_CM_NIC	=	0x04,
 };
 
-/**
- * ---------------------- mfg definitions ------------
- */
+/* ---------------------- mfg definitions ------------ */
 
-/**
- * Checksum size
- */
+/* Checksum size */
 #define BFA_MFG_CHKSUM_SIZE			16
 
 #define BFA_MFG_PARTNUM_SIZE			14
@@ -213,8 +187,7 @@ enum {
 
 #pragma pack(1)
 
-/**
- * @brief BFA adapter manufacturing block definition.
+/* BFA adapter manufacturing block definition.
  *
  * All numerical fields are in big-endian format.
  */
@@ -256,9 +229,7 @@ struct bfa_mfg_block {
 
 #pragma pack()
 
-/**
- * ---------------------- pci definitions ------------
- */
+/* ---------------------- pci definitions ------------ */
 
 /*
  * PCI device ID information
@@ -275,9 +246,7 @@ enum {
 #define bfa_asic_id_ctc(device)			\
 	(bfa_asic_id_ct(device) || bfa_asic_id_ct2(device))
 
-/**
- * PCI sub-system device and vendor ID information
- */
+/* PCI sub-system device and vendor ID information */
 enum {
 	BFA_PCI_FCOE_SSDEVICE_ID	= 0x14,
 	BFA_PCI_CT2_SSID_FCoE		= 0x22,

@@ -378,9 +378,8 @@ bna_msgq_rsp_handler(void *arg, struct bfi_msgq_mhdr *msghdr)
 	}
 }
 
-/**
- * ETHPORT
- */
+/* ETHPORT */
+
 #define call_ethport_stop_cbfn(_ethport)				\
 do {									\
 	if ((_ethport)->stop_cbfn) {					\
@@ -804,9 +803,8 @@ bna_ethport_cb_rx_stopped(struct bna_ethport *ethport)
 	}
 }
 
-/**
- * ENET
- */
+/* ENET */
+
 #define bna_enet_chld_start(enet)					\
 do {									\
 	enum bna_tx_type tx_type =					\
@@ -1328,9 +1326,8 @@ bna_enet_perm_mac_get(struct bna_enet *enet, mac_t *mac)
 	*mac = bfa_nw_ioc_get_mac(&enet->bna->ioceth.ioc);
 }
 
-/**
- * IOCETH
- */
+/* IOCETH */
+
 #define enable_mbox_intr(_ioceth)					\
 do {									\
 	u32 intr_status;						\

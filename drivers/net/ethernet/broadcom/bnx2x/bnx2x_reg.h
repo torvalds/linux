@@ -7275,8 +7275,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define CDU_REGION_NUMBER_UCM_AG 4
 
 
-/**
- * String-to-compress [31:8] = CID (all 24 bits)
+/* String-to-compress [31:8] = CID (all 24 bits)
  * String-to-compress [7:4] = Region
  * String-to-compress [3:0] = Type
  */

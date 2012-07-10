@@ -20,33 +20,23 @@
 
 #include "bfa_defs.h"
 
-/**
- * Manufacturing block version
- */
+/* Manufacturing block version */
 #define BFA_MFG_VERSION				3
 #define BFA_MFG_VERSION_UNINIT			0xFF
 
-/**
- * Manufacturing block encrypted version
- */
+/* Manufacturing block encrypted version */
 #define BFA_MFG_ENC_VER				2
 
-/**
- * Manufacturing block version 1 length
- */
+/* Manufacturing block version 1 length */
 #define BFA_MFG_VER1_LEN			128
 
-/**
- * Manufacturing block header length
- */
+/* Manufacturing block header length */
 #define BFA_MFG_HDR_LEN				4
 
 #define BFA_MFG_SERIALNUM_SIZE			11
 #define STRSZ(_n)				(((_n) + 4) & ~3)
 
-/**
- * Manufacturing card type
- */
+/* Manufacturing card type */
 enum {
 	BFA_MFG_TYPE_CB_MAX  = 825,      /*!< Crossbow card type max	*/
 	BFA_MFG_TYPE_FC8P2   = 825,      /*!< 8G 2port FC card		*/
@@ -70,9 +60,7 @@ enum {
 
 #pragma pack(1)
 
-/**
- * Check if Mezz card
- */
+/* Check if Mezz card */
 #define bfa_mfg_is_mezz(type) (( \
 	(type) == BFA_MFG_TYPE_JAYHAWK || \
 	(type) == BFA_MFG_TYPE_WANCHESE || \
@@ -127,9 +115,7 @@ do {								\
 	}							\
 } while (0)
 
-/**
- * VPD data length
- */
+/* VPD data length */
 #define BFA_MFG_VPD_LEN			512
 #define BFA_MFG_VPD_LEN_INVALID		0
 
@@ -137,9 +123,7 @@ do {								\
 #define BFA_MFG_VPD_PCI_VER_MASK	0x07	/*!< version mask 3 bits */
 #define BFA_MFG_VPD_PCI_VDR_MASK	0xf8	/*!< vendor mask 5 bits */
 
-/**
- * VPD vendor tag
- */
+/* VPD vendor tag */
 enum {
 	BFA_MFG_VPD_UNKNOWN	= 0,     /*!< vendor unknown		*/
 	BFA_MFG_VPD_IBM		= 1,     /*!< vendor IBM		*/
@@ -151,8 +135,7 @@ enum {
 	BFA_MFG_VPD_PCI_BRCD	= 0xf8,  /*!< PCI VPD Brocade		*/
 };
 
-/**
- * @brief BFA adapter flash vpd data definition.
+/* BFA adapter flash vpd data definition.
  *
  * All numerical fields are in big-endian format.
  */

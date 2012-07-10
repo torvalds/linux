@@ -1741,15 +1741,6 @@ int bnx2x_set_mac_one(struct bnx2x *bp, u8 *mac,
 		      struct bnx2x_vlan_mac_obj *obj, bool set,
 		      int mac_type, unsigned long *ramrod_flags);
 /**
- * Deletes all MACs configured for the specific MAC object.
- *
- * @param bp Function driver instance
- * @param mac_obj MAC object to cleanup
- *
- * @return zero if all MACs were cleaned
- */
-
-/**
  * bnx2x_del_all_macs - delete all MACs configured for the specific MAC object
  *
  * @bp:			driver handle

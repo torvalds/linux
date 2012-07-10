@@ -493,8 +493,7 @@ struct bnx2x_ets_params {
 	struct bnx2x_ets_cos_params cos[DCBX_MAX_NUM_COS];
 };
 
-/**
- * Used to update the PFC attributes in EMAC, BMAC, NIG and BRB
+/* Used to update the PFC attributes in EMAC, BMAC, NIG and BRB
  * when link is already up
  */
 int bnx2x_update_pfc(struct link_params *params,

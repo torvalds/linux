@@ -614,11 +614,9 @@ static int emac_set_coalesce(struct net_device *ndev,
 }
 
 
-/**
- * ethtool_ops: DaVinci EMAC Ethtool structure
+/* ethtool_ops: DaVinci EMAC Ethtool structure
  *
  * Ethtool support for EMAC adapter
- *
  */
 static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo = emac_get_drvinfo,
@@ -2015,9 +2013,7 @@ static const struct dev_pm_ops davinci_emac_pm_ops = {
 	.resume		= davinci_emac_resume,
 };
 
-/**
- * davinci_emac_driver: EMAC platform driver structure
- */
+/* davinci_emac_driver: EMAC platform driver structure */
 static struct platform_driver davinci_emac_driver = {
 	.driver = {
 		.name	 = "davinci_emac",

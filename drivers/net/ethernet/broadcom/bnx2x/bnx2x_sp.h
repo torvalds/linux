@@ -167,9 +167,8 @@ typedef int (*exe_q_remove)(struct bnx2x *bp,
 			    union bnx2x_qable_obj *o,
 			    struct bnx2x_exeq_elem *elem);
 
-/**
- * @return positive is entry was optimized, 0 - if not, negative
- *         in case of an error.
+/* Return positive if entry was optimized, 0 - if not, negative
+ * in case of an error.
  */
 typedef int (*exe_q_optimize)(struct bnx2x *bp,
 			      union bnx2x_qable_obj *o,
@@ -1286,12 +1285,11 @@ void bnx2x_init_rx_mode_obj(struct bnx2x *bp,
 			    struct bnx2x_rx_mode_obj *o);
 
 /**
- * Send and RX_MODE ramrod according to the provided parameters.
+ * bnx2x_config_rx_mode - Send and RX_MODE ramrod according to the provided parameters.
  *
- * @param bp
- * @param p Command parameters
+ * @p: Command parameters
  *
- * @return 0 - if operation was successfull and there is no pending completions,
+ * Return: 0 - if operation was successfull and there is no pending completions,
  *         positive number - if there are pending completions,
  *         negative - if there were errors
  */
@@ -1308,7 +1306,11 @@ void bnx2x_init_mcast_obj(struct bnx2x *bp,
 			  bnx2x_obj_type type);
 
 /**
- * Configure multicast MACs list. May configure a new list
+ * bnx2x_config_mcast - Configure multicast MACs list.
+ *
+ * @cmd: command to execute: BNX2X_MCAST_CMD_X
+ *
+ * May configure a new list
  * provided in p->mcast_list (BNX2X_MCAST_CMD_ADD), clean up
  * (BNX2X_MCAST_CMD_DEL) or restore (BNX2X_MCAST_CMD_RESTORE) a current
  * configuration, continue to execute the pending commands
@@ -1319,11 +1321,7 @@ void bnx2x_init_mcast_obj(struct bnx2x *bp,
  * the current command will be enqueued to the tail of the
  * pending commands list.
  *
- * @param bp
- * @param p
- * @param command to execute: BNX2X_MCAST_CMD_X
- *
- * @return 0 is operation was sucessfull and there are no pending completions,
+ * Return: 0 is operation was sucessfull and there are no pending completions,
  *         negative if there were errors, positive if there are pending
  *         completions.
  */
@@ -1348,21 +1346,17 @@ void bnx2x_init_rss_config_obj(struct bnx2x *bp,
 			       bnx2x_obj_type type);
 
 /**
- * Updates RSS configuration according to provided parameters.
+ * bnx2x_config_rss - Updates RSS configuration according to provided parameters
  *
- * @param bp
- * @param p
- *
- * @return 0 in case of success
+ * Return: 0 in case of success
  */
 int bnx2x_config_rss(struct bnx2x *bp,
 		     struct bnx2x_config_rss_params *p);
 
 /**
- * Return the current ind_table configuration.
+ * bnx2x_get_rss_ind_table - Return the current ind_table configuration.
  *
- * @param bp
- * @param ind_table buffer to fill with the current indirection
+ * @ind_table: buffer to fill with the current indirection
  *                  table content. Should be at least
  *                  T_ETH_INDIRECTION_TABLE_SIZE bytes long.
  */

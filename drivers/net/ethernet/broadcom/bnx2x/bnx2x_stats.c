@@ -1321,12 +1321,9 @@ static void bnx2x_port_stats_base_init(struct bnx2x *bp)
 	bnx2x_stats_comp(bp);
 }
 
-/**
- * This function will prepare the statistics ramrod data the way
+/* This function will prepare the statistics ramrod data the way
  * we will only have to increment the statistics counter and
  * send the ramrod each time we have to.
- *
- * @param bp
  */
 static void bnx2x_prep_fw_stats_req(struct bnx2x *bp)
 {

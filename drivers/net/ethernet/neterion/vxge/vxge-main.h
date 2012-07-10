@@ -430,8 +430,7 @@ void vxge_initialize_ethtool_ops(struct net_device *ndev);
 enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev);
 int vxge_fw_upgrade(struct vxgedev *vdev, char *fw_name, int override);
 
-/**
- * #define VXGE_DEBUG_INIT: debug for initialization functions
+/* #define VXGE_DEBUG_INIT: debug for initialization functions
  * #define VXGE_DEBUG_TX	 : debug transmit related functions
  * #define VXGE_DEBUG_RX  : debug recevice related functions
  * #define VXGE_DEBUG_MEM : debug memory module
