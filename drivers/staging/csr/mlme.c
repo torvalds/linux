@@ -15,11 +15,6 @@
 #include "csr_wifi_hip_unifi.h"
 #include "unifi_priv.h"
 
-
-/* The additional time taken by the UniFi to do a scan per channel */
-#define SCAN_STARTUP_TIME       300 /* in millisecs */
-
-
 /*
  * ---------------------------------------------------------------------------
  * unifi_mlme_wait_for_reply

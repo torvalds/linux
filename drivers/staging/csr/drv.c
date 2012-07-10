@@ -63,7 +63,6 @@ int coredump_max = CSR_WIFI_HIP_NUM_COREDUMP_BUFFERS;
 int run_bh_once = -1;          /* Set for scheduled interrupt mode, -1 = default */
 int bh_priority = -1;
 #ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
-#define UNIFI_LOG_HIP_SIGNALS_FILTER_SIGNAL     (1 << 0)
 #define UNIFI_LOG_HIP_SIGNALS_FILTER_BULKDATA   (1 << 1)
 #define UNIFI_LOG_HIP_SIGNALS_FILTER_TIMESTAMP  (1 << 2)
 int log_hip_signals = 0;

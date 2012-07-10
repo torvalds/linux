@@ -220,7 +220,6 @@ unifi_fw_read(void *ospriv, void *arg, CsrUint32 offset, void *buf, CsrUint32 le
 
 
 
-#define UNIFIHELPER_INIT_MODE_SMEEMB    0
 #define UNIFIHELPER_INIT_MODE_SMEUSER   2
 #define UNIFIHELPER_INIT_MODE_NATIVE    1
 

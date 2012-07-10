@@ -36,9 +36,6 @@
 #define MAILBOX2_TIMEOUT                5   /* in millisecs */
 #define MAILBOX2_ATTEMPTS               10  /* 50ms */
 
-#define MAILBOX2_RESET_ATTEMPTS         10
-#define MAILBOX2_RESET_TIMEOUT          5   /* in millisecs */
-
 #define RESET_SETTLE_DELAY              25  /* in millisecs */
 
 static CsrResult card_init_slots(card_t *card);

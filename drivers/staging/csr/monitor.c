@@ -242,9 +242,7 @@ netrx_prism(unifi_priv_t *priv,
     unsigned char *ptr;
     unsigned char *base;
     int ind_data_len = skb_orig->len - 2 - ETH_HLEN;
-#define WLANCAP_MAGIC_COOKIE_BASE 0x80211000
 #define WLANCAP_MAGIC_COOKIE_V1 0x80211001
-#define WLANCAP_MAGIC_COOKIE_V2 0x80211002
     struct avs_header_v1 {
         uint32  version;
         uint32  length;
