@@ -2377,7 +2377,14 @@ deinit:
 	else
 		wl->sta_count--;
 
-	/* Last AP, have more stations. Configure according to STA. */
+	/*
+	 * Last AP, have more stations. Configure sleep auth according to STA.
+	 * Don't do thin on unintended recovery.
+	 */
+	if (test_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags) &&
+	    !test_bit(WL1271_FLAG_INTENDED_FW_RECOVERY, &wl->flags))
+		goto unlock;
+
 	if (wl->ap_count == 0 && is_ap && wl->sta_count) {
 		u8 sta_auth = wl->conf.conn.sta_sleep_auth;
 		/* Configure for power according to debugfs */
@@ -2391,6 +2398,7 @@ deinit:
 			wl1271_acx_sleep_auth(wl, WL1271_PSM_ELP);
 	}
 
+unlock:
 	mutex_unlock(&wl->mutex);
 
 	del_timer_sync(&wlvif->rx_streaming_timer);
