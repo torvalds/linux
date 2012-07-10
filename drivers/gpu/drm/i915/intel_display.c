@@ -3637,7 +3637,7 @@ void intel_connector_dpms(struct drm_connector *connector, int mode)
 	if (encoder->base.crtc)
 		intel_encoder_dpms(encoder, mode);
 	else
-		encoder->connectors_active = false;
+		WARN_ON(encoder->connectors_active != false);
 
 	intel_connector_check_state(to_intel_connector(connector));
 }
@@ -6872,6 +6872,104 @@ intel_modeset_update_state(struct drm_device *dev, unsigned prepare_pipes)
 			    base.head) \
 		if (mask & (1 <<(intel_crtc)->pipe)) \
 
+static void
+intel_modeset_check_state(struct drm_device *dev)
+{
+	struct intel_crtc *crtc;
+	struct intel_encoder *encoder;
+	struct intel_connector *connector;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list,
+			    base.head) {
+		/* This also checks the encoder/connector hw state with the
+		 * ->get_hw_state callbacks. */
+		intel_connector_check_state(connector);
+
+		WARN(&connector->new_encoder->base != connector->base.encoder,
+		     "connector's staged encoder doesn't match current encoder\n");
+	}
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
+			    base.head) {
+		bool enabled = false;
+		bool active = false;
+		enum pipe pipe, tracked_pipe;
+
+		DRM_DEBUG_KMS("[ENCODER:%d:%s]\n",
+			      encoder->base.base.id,
+			      drm_get_encoder_name(&encoder->base));
+
+		WARN(&encoder->new_crtc->base != encoder->base.crtc,
+		     "encoder's stage crtc doesn't match current crtc\n");
+		WARN(encoder->connectors_active && !encoder->base.crtc,
+		     "encoder's active_connectors set, but no crtc\n");
+
+		list_for_each_entry(connector, &dev->mode_config.connector_list,
+				    base.head) {
+			if (connector->base.encoder != &encoder->base)
+				continue;
+			enabled = true;
+			if (connector->base.dpms != DRM_MODE_DPMS_OFF)
+				active = true;
+		}
+		WARN(!!encoder->base.crtc != enabled,
+		     "encoder's enabled state mismatch "
+		     "(expected %i, found %i)\n",
+		     !!encoder->base.crtc, enabled);
+		WARN(active && !encoder->base.crtc,
+		     "active encoder with no crtc\n");
+
+		WARN(encoder->connectors_active != active,
+		     "encoder's computed active state doesn't match tracked active state "
+		     "(expected %i, found %i)\n", active, encoder->connectors_active);
+
+		active = encoder->get_hw_state(encoder, &pipe);
+		WARN(active != encoder->connectors_active,
+		     "encoder's hw state doesn't match sw tracking "
+		     "(expected %i, found %i)\n",
+		     encoder->connectors_active, active);
+
+		if (!encoder->base.crtc)
+			continue;
+
+		tracked_pipe = to_intel_crtc(encoder->base.crtc)->pipe;
+		WARN(active && pipe != tracked_pipe,
+		     "active encoder's pipe doesn't match"
+		     "(expected %i, found %i)\n",
+		     tracked_pipe, pipe);
+
+	}
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
+			    base.head) {
+		bool enabled = false;
+		bool active = false;
+
+		DRM_DEBUG_KMS("[CRTC:%d]\n",
+			      crtc->base.base.id);
+
+		WARN(crtc->active && !crtc->base.enabled,
+		     "active crtc, but not enabled in sw tracking\n");
+
+		list_for_each_entry(encoder, &dev->mode_config.encoder_list,
+				    base.head) {
+			if (encoder->base.crtc != &crtc->base)
+				continue;
+			enabled = true;
+			if (encoder->connectors_active)
+				active = true;
+		}
+		WARN(active != crtc->active,
+		     "crtc's computed active state doesn't match tracked active state "
+		     "(expected %i, found %i)\n", active, crtc->active);
+		WARN(enabled != crtc->base.enabled,
+		     "crtc's computed enabled state doesn't match tracked enabled state "
+		     "(expected %i, found %i)\n", enabled, crtc->base.enabled);
+
+		assert_pipe(dev->dev_private, crtc->pipe, crtc->active);
+	}
+}
+
 bool intel_set_mode(struct drm_crtc *crtc,
 		    struct drm_display_mode *mode,
 		    int x, int y, struct drm_framebuffer *fb)
@@ -6969,6 +7067,8 @@ done:
 	if (!ret && crtc->enabled) {
 		crtc->hwmode = saved_hwmode;
 		crtc->mode = saved_mode;
+	} else {
+		intel_modeset_check_state(dev);
 	}
 
 	return ret;
@@ -8147,6 +8247,8 @@ void intel_modeset_setup_hw_state(struct drm_device *dev)
 	}
 
 	intel_modeset_update_staged_output_state(dev);
+
+	intel_modeset_check_state(dev);
 }
 
 void intel_modeset_gem_init(struct drm_device *dev)
