@@ -1039,7 +1039,7 @@ static void quirk_disable_pxb(struct pci_dev *pdev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82454NX,	quirk_disable_pxb);
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82454NX,	quirk_disable_pxb);
 
-static void __devinit quirk_amd_ide_mode(struct pci_dev *pdev)
+static void quirk_amd_ide_mode(struct pci_dev *pdev)
 {
 	/* set SBX00/Hudson-2 SATA in IDE mode to AHCI mode */
 	u8 tmp;
@@ -2104,7 +2104,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
 			PCI_DEVICE_ID_NX2_5709S,
 			quirk_brcm_570x_limit_vpd);
 
-static void __devinit quirk_brcm_5719_limit_mrrs(struct pci_dev *dev)
+static void quirk_brcm_5719_limit_mrrs(struct pci_dev *dev)
 {
 	u32 rev;
 
@@ -2217,7 +2217,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x9601, quirk_amd_780_apc_msi);
 
 /* Go through the list of Hypertransport capabilities and
  * return 1 if a HT MSI capability is found and enabled */
-static int __devinit msi_ht_cap_enabled(struct pci_dev *dev)
+static int msi_ht_cap_enabled(struct pci_dev *dev)
 {
 	int pos, ttl = 48;
 
@@ -2241,7 +2241,7 @@ static int __devinit msi_ht_cap_enabled(struct pci_dev *dev)
 }
 
 /* Check the hypertransport MSI mapping to know whether MSI is enabled or not */
-static void __devinit quirk_msi_ht_cap(struct pci_dev *dev)
+static void quirk_msi_ht_cap(struct pci_dev *dev)
 {
 	if (dev->subordinate && !msi_ht_cap_enabled(dev)) {
 		dev_warn(&dev->dev, "MSI quirk detected; "
@@ -2255,7 +2255,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_HT2
 /* The nVidia CK804 chipset may have 2 HT MSI mappings.
  * MSI are supported if the MSI capability set in any of these mappings.
  */
-static void __devinit quirk_nvidia_ck804_msi_ht_cap(struct pci_dev *dev)
+static void quirk_nvidia_ck804_msi_ht_cap(struct pci_dev *dev)
 {
 	struct pci_dev *pdev;
 
@@ -2279,7 +2279,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_CK804_PCIE,
 			quirk_nvidia_ck804_msi_ht_cap);
 
 /* Force enable MSI mapping capability on HT bridges */
-static void __devinit ht_enable_msi_mapping(struct pci_dev *dev)
+static void ht_enable_msi_mapping(struct pci_dev *dev)
 {
 	int pos, ttl = 48;
 
@@ -2359,7 +2359,7 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA,
 			PCI_DEVICE_ID_NVIDIA_MCP55_BRIDGE_V4,
 			nvbridge_check_legacy_irq_routing);
 
-static int __devinit ht_check_msi_mapping(struct pci_dev *dev)
+static int ht_check_msi_mapping(struct pci_dev *dev)
 {
 	int pos, ttl = 48;
 	int found = 0;
@@ -2387,7 +2387,7 @@ static int __devinit ht_check_msi_mapping(struct pci_dev *dev)
 	return found;
 }
 
-static int __devinit host_bridge_with_leaf(struct pci_dev *host_bridge)
+static int host_bridge_with_leaf(struct pci_dev *host_bridge)
 {
 	struct pci_dev *dev;
 	int pos;
@@ -2421,7 +2421,7 @@ static int __devinit host_bridge_with_leaf(struct pci_dev *host_bridge)
 #define PCI_HT_CAP_SLAVE_CTRL0     4    /* link control */
 #define PCI_HT_CAP_SLAVE_CTRL1     8    /* link control to */
 
-static int __devinit is_end_of_ht_chain(struct pci_dev *dev)
+static int is_end_of_ht_chain(struct pci_dev *dev)
 {
 	int pos, ctrl_off;
 	int end = 0;
@@ -2445,7 +2445,7 @@ out:
 	return end;
 }
 
-static void __devinit nv_ht_enable_msi_mapping(struct pci_dev *dev)
+static void nv_ht_enable_msi_mapping(struct pci_dev *dev)
 {
 	struct pci_dev *host_bridge;
 	int pos;
@@ -2484,7 +2484,7 @@ out:
 	pci_dev_put(host_bridge);
 }
 
-static void __devinit ht_disable_msi_mapping(struct pci_dev *dev)
+static void ht_disable_msi_mapping(struct pci_dev *dev)
 {
 	int pos, ttl = 48;
 
@@ -2504,7 +2504,7 @@ static void __devinit ht_disable_msi_mapping(struct pci_dev *dev)
 	}
 }
 
-static void __devinit __nv_msi_ht_cap_quirk(struct pci_dev *dev, int all)
+static void __nv_msi_ht_cap_quirk(struct pci_dev *dev, int all)
 {
 	struct pci_dev *host_bridge;
 	int pos;
@@ -2541,23 +2541,26 @@ static void __devinit __nv_msi_ht_cap_quirk(struct pci_dev *dev, int all)
 			else
 				nv_ht_enable_msi_mapping(dev);
 		}
-		return;
+		goto out;
 	}
 
 	/* HT MSI is not enabled */
 	if (found == 1)
-		return;
+		goto out;
 
 	/* Host bridge is not to HT, disable HT MSI mapping on this device */
 	ht_disable_msi_mapping(dev);
+
+out:
+	pci_dev_put(host_bridge);
 }
 
-static void __devinit nv_msi_ht_cap_quirk_all(struct pci_dev *dev)
+static void nv_msi_ht_cap_quirk_all(struct pci_dev *dev)
 {
 	return __nv_msi_ht_cap_quirk(dev, 1);
 }
 
-static void __devinit nv_msi_ht_cap_quirk_leaf(struct pci_dev *dev)
+static void nv_msi_ht_cap_quirk_leaf(struct pci_dev *dev)
 {
 	return __nv_msi_ht_cap_quirk(dev, 0);
 }
@@ -2879,20 +2882,34 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x65f9, quirk_intel_mc_errata);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x65fa, quirk_intel_mc_errata);
 
 
-static void do_one_fixup_debug(void (*fn)(struct pci_dev *dev), struct pci_dev *dev)
+static ktime_t fixup_debug_start(struct pci_dev *dev,
+				 void (*fn)(struct pci_dev *dev))
 {
-	ktime_t calltime, delta, rettime;
+	ktime_t calltime = ktime_set(0, 0);
+
+	dev_dbg(&dev->dev, "calling %pF\n", fn);
+	if (initcall_debug) {
+		pr_debug("calling  %pF @ %i for %s\n",
+			 fn, task_pid_nr(current), dev_name(&dev->dev));
+		calltime = ktime_get();
+	}
+
+	return calltime;
+}
+
+static void fixup_debug_report(struct pci_dev *dev, ktime_t calltime,
+			       void (*fn)(struct pci_dev *dev))
+{
+	ktime_t delta, rettime;
 	unsigned long long duration;
 
-	printk(KERN_DEBUG "calling  %pF @ %i for %s\n",
-			fn, task_pid_nr(current), dev_name(&dev->dev));
-	calltime = ktime_get();
-	fn(dev);
-	rettime = ktime_get();
-	delta = ktime_sub(rettime, calltime);
-	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
-	printk(KERN_DEBUG "pci fixup %pF returned after %lld usecs for %s\n",
-			fn, duration, dev_name(&dev->dev));
+	if (initcall_debug) {
+		rettime = ktime_get();
+		delta = ktime_sub(rettime, calltime);
+		duration = (unsigned long long) ktime_to_ns(delta) >> 10;
+		pr_debug("pci fixup %pF returned after %lld usecs for %s\n",
+			 fn, duration, dev_name(&dev->dev));
+	}
 }
 
 /*
@@ -2946,6 +2963,8 @@ DECLARE_PCI_FIXUP_HEADER(0x1814, 0x0601, /* Ralink RT2800 802.11n PCI */
 static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f,
 			  struct pci_fixup *end)
 {
+	ktime_t calltime;
+
 	for (; f < end; f++)
 		if ((f->class == (u32) (dev->class >> f->class_shift) ||
 		     f->class == (u32) PCI_ANY_ID) &&
@@ -2953,11 +2972,9 @@ static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f,
 		     f->vendor == (u16) PCI_ANY_ID) &&
 		    (f->device == dev->device ||
 		     f->device == (u16) PCI_ANY_ID)) {
-			dev_dbg(&dev->dev, "calling %pF\n", f->hook);
-			if (initcall_debug)
-				do_one_fixup_debug(f->hook, dev);
-			else
-				f->hook(dev);
+			calltime = fixup_debug_start(dev, f->hook);
+			f->hook(dev);
+			fixup_debug_report(dev, calltime, f->hook);
 		}
 }
 
@@ -3025,6 +3042,22 @@ void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pci_fixup_device);
 
+
+/*
+ * The global variable 'pci_fixup_final_inited' is being used as a interim
+ * solution for calling the final quirks only during hot-plug events (not
+ * during boot processing).
+ *
+ * When the boot path's PCI device setup sequencing is addressed, we can
+ * remove the instance, and usages of, 'pci_fixup_final_inited' along with
+ * removing 'fs_initcall_sync(pci_apply_final_quirks);' and end up with a
+ * single, uniform, solution that satisfies both the boot path and the
+ * various hot-plug event paths.
+ *
+ * ToDo: Remove 'pci_fixup_final_inited'
+ */
+bool pci_fixup_final_inited;
+
 static int __init pci_apply_final_quirks(void)
 {
 	struct pci_dev *dev = NULL;
@@ -3055,6 +3088,8 @@ static int __init pci_apply_final_quirks(void)
 			pci_cache_line_size = pci_dfl_cache_line_size;
 		}
 	}
+	pci_fixup_final_inited = 1;
+
 	if (!pci_cache_line_size) {
 		printk(KERN_DEBUG "PCI: CLS %u bytes, default %u\n",
 		       cls << 2, pci_dfl_cache_line_size << 2);

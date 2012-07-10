@@ -253,7 +253,7 @@ void __init mips_pcibios_init(void)
 }
 
 /* Enable PCI 2.1 compatibility in PIIX4 */
-static void __init quirk_dlcsetup(struct pci_dev *dev)
+static void __devinit quirk_dlcsetup(struct pci_dev *dev)
 {
 	u8 odlc, ndlc;
 	(void) pci_read_config_byte(dev, 0x82, &odlc);
