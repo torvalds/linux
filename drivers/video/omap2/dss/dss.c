@@ -431,31 +431,6 @@ enum omap_dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel)
 	}
 }
 
-/* calculate clock rates using dividers in cinfo */
-int dss_calc_clock_rates(struct dss_clock_info *cinfo)
-{
-	if (dss.dpll4_m4_ck) {
-		unsigned long prate;
-		u16 fck_div_max = 16;
-
-		if (cpu_is_omap3630() || cpu_is_omap44xx())
-			fck_div_max = 32;
-
-		if (cinfo->fck_div > fck_div_max || cinfo->fck_div == 0)
-			return -EINVAL;
-
-		prate = clk_get_rate(clk_get_parent(dss.dpll4_m4_ck));
-
-		cinfo->fck = prate / cinfo->fck_div;
-	} else {
-		if (cinfo->fck_div != 0)
-			return -EINVAL;
-		cinfo->fck = clk_get_rate(dss.dss_clk);
-	}
-
-	return 0;
-}
-
 int dss_set_clock_div(struct dss_clock_info *cinfo)
 {
 	if (dss.dpll4_m4_ck) {
@@ -474,26 +449,6 @@ int dss_set_clock_div(struct dss_clock_info *cinfo)
 	}
 
 	DSSDBG("fck = %ld (%d)\n", cinfo->fck, cinfo->fck_div);
-
-	return 0;
-}
-
-int dss_get_clock_div(struct dss_clock_info *cinfo)
-{
-	cinfo->fck = clk_get_rate(dss.dss_clk);
-
-	if (dss.dpll4_m4_ck) {
-		unsigned long prate;
-
-		prate = clk_get_rate(clk_get_parent(dss.dpll4_m4_ck));
-
-		if (cpu_is_omap3630() || cpu_is_omap44xx())
-			cinfo->fck_div = prate / (cinfo->fck);
-		else
-			cinfo->fck_div = prate / (cinfo->fck / 2);
-	} else {
-		cinfo->fck_div = 0;
-	}
 
 	return 0;
 }
