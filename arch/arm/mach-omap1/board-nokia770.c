@@ -26,7 +26,6 @@
 #include <asm/mach/map.h>
 
 #include <plat/mux.h>
-#include <plat/usb.h>
 #include <plat/board.h>
 #include <plat/keypad.h>
 #include <plat/lcd_mipid.h>
@@ -34,6 +33,7 @@
 #include <plat/clock.h>
 
 #include <mach/hardware.h>
+#include <mach/usb.h>
 
 #include "common.h"
 

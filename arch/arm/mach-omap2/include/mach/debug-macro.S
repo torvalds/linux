@@ -72,6 +72,8 @@ omap_uart_lsr:	.word	0
 		beq	82f			@ configure UART2
 		cmp	\rp, #TI81XXUART3	@ ti81Xx UART offsets different
 		beq	83f			@ configure UART3
+		cmp	\rp, #AM33XXUART1	@ AM33XX UART offsets different
+		beq	84f			@ configure UART1
 		cmp	\rp, #ZOOM_UART		@ only on zoom2/3
 		beq	95f			@ configure ZOOM_UART
 
@@ -100,13 +102,26 @@ omap_uart_lsr:	.word	0
 		b	98f
 83:		mov	\rp, #UART_OFFSET(TI81XX_UART3_BASE)
 		b	98f
-
+84:		ldr	\rp, =AM33XX_UART1_BASE
+		and	\rp, \rp, #0x00ffffff
+		b	97f
 95:		ldr	\rp, =ZOOM_UART_BASE
 		str	\rp, [\tmp, #0]		@ omap_uart_phys
 		ldr	\rp, =ZOOM_UART_VIRT
 		str	\rp, [\tmp, #4]		@ omap_uart_virt
 		mov	\rp, #(UART_LSR << ZOOM_PORT_SHIFT)
 		str	\rp, [\tmp, #8]		@ omap_uart_lsr
+		b	10b
+
+		/* AM33XX: Store both phys and virt address for the uart */
+97:		add	\rp, \rp, #0x44000000	@ phys base
+		str	\rp, [\tmp, #0]		@ omap_uart_phys
+		sub	\rp, \rp, #0x44000000	@ phys base
+		add	\rp, \rp, #0xf9000000	@ virt base
+		str	\rp, [\tmp, #4]		@ omap_uart_virt
+		mov	\rp, #(UART_LSR << OMAP_PORT_SHIFT)
+		str	\rp, [\tmp, #8]		@ omap_uart_lsr
+
 		b	10b
 
 		/* Store both phys and virt address for the uart */
