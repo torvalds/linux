@@ -6828,7 +6828,7 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 			config->fb_changed = true;
 	}
 
-	if (set->x != set->crtc->x || set->y != set->crtc->y)
+	if (set->fb && (set->x != set->crtc->x || set->y != set->crtc->y))
 		config->fb_changed = true;
 
 	if (set->mode && !drm_mode_equal(set->mode, &set->crtc->mode)) {
