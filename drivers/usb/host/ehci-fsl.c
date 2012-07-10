@@ -313,7 +313,7 @@ static void ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 	}
 
 	if (pdata->have_sysif_regs) {
-#ifdef CONFIG_PPC_85xx
+#ifdef CONFIG_FSL_SOC_BOOKE
 		out_be32(non_ehci + FSL_SOC_USB_PRICTRL, 0x00000008);
 		out_be32(non_ehci + FSL_SOC_USB_AGECNTTHRSH, 0x00000080);
 #else
