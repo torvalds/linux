@@ -126,7 +126,8 @@
 #define  PCI_IO_RANGE_TYPE_MASK	0x0fUL	/* I/O bridging type */
 #define  PCI_IO_RANGE_TYPE_16	0x00
 #define  PCI_IO_RANGE_TYPE_32	0x01
-#define  PCI_IO_RANGE_MASK	(~0x0fUL)
+#define  PCI_IO_RANGE_MASK	(~0x0fUL) /* Standard 4K I/O windows */
+#define  PCI_IO_1K_RANGE_MASK	(~0x03UL) /* Intel 1K I/O windows */
 #define PCI_SEC_STATUS		0x1e	/* Secondary status register, only bit 14 used */
 #define PCI_MEMORY_BASE		0x20	/* Memory range behind */
 #define PCI_MEMORY_LIMIT	0x22

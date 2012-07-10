@@ -1938,52 +1938,15 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NCR, PCI_DEVICE_ID_NCR_53C810, fixup_rev1
 static void __devinit quirk_p64h2_1k_io(struct pci_dev *dev)
 {
 	u16 en1k;
-	u8 io_base_lo, io_limit_lo;
-	unsigned long base, limit;
-	struct resource *res = dev->resource + PCI_BRIDGE_RESOURCES;
 
 	pci_read_config_word(dev, 0x40, &en1k);
 
 	if (en1k & 0x200) {
 		dev_info(&dev->dev, "Enable I/O Space to 1KB granularity\n");
-
-		pci_read_config_byte(dev, PCI_IO_BASE, &io_base_lo);
-		pci_read_config_byte(dev, PCI_IO_LIMIT, &io_limit_lo);
-		base = (io_base_lo & (PCI_IO_RANGE_MASK | 0x0c)) << 8;
-		limit = (io_limit_lo & (PCI_IO_RANGE_MASK | 0x0c)) << 8;
-
-		if (base <= limit) {
-			res->start = base;
-			res->end = limit + 0x3ff;
-		}
+		dev->io_window_1k = 1;
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	0x1460,		quirk_p64h2_1k_io);
-
-/* Fix the IOBL_ADR for 1k I/O space granularity on the Intel P64H2
- * The IOBL_ADR gets re-written to 4k boundaries in pci_setup_bridge()
- * in drivers/pci/setup-bus.c
- */
-static void __devinit quirk_p64h2_1k_io_fix_iobl(struct pci_dev *dev)
-{
-	u16 en1k, iobl_adr, iobl_adr_1k;
-	struct resource *res = dev->resource + PCI_BRIDGE_RESOURCES;
-
-	pci_read_config_word(dev, 0x40, &en1k);
-
-	if (en1k & 0x200) {
-		pci_read_config_word(dev, PCI_IO_BASE, &iobl_adr);
-
-		iobl_adr_1k = iobl_adr | (res->start >> 8) | (res->end & 0xfc00);
-
-		if (iobl_adr != iobl_adr_1k) {
-			dev_info(&dev->dev, "Fixing P64H2 IOBL_ADR from 0x%x to 0x%x for 1KB granularity\n",
-				iobl_adr,iobl_adr_1k);
-			pci_write_config_word(dev, PCI_IO_BASE, iobl_adr_1k);
-		}
-	}
-}
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x1460,		quirk_p64h2_1k_io_fix_iobl);
 
 /* Under some circumstances, AER is not linked with extended capabilities.
  * Force it to be linked by setting the corresponding control bit in the
