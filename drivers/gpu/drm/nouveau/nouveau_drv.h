@@ -68,6 +68,9 @@ struct nouveau_grctx;
 struct nouveau_mem;
 #include <subdev/vm.h>
 
+#include <subdev/bios/pll.h>
+#include "nouveau_compat.h"
+
 #define MAX_NUM_DCB_ENTRIES 16
 
 #define NOUVEAU_MAX_CHANNEL_NR 4096
@@ -547,24 +550,6 @@ struct nouveau_engine {
 	struct nouveau_display_engine display;
 	struct nouveau_pm_engine      pm;
 	struct nouveau_vram_engine    vram;
-};
-
-struct nouveau_pll_vals {
-	union {
-		struct {
-#ifdef __BIG_ENDIAN
-			uint8_t N1, M1, N2, M2;
-#else
-			uint8_t M1, N1, M2, N2;
-#endif
-		};
-		struct {
-			uint16_t NM1, NM2;
-		} __attribute__((packed));
-	};
-	int log2P;
-
-	int refclk;
 };
 
 enum nv04_fp_display_regs {
@@ -1060,9 +1045,6 @@ extern void nouveau_bios_run_init_table(struct drm_device *, uint16_t table,
 extern void nouveau_bios_init_exec(struct drm_device *, uint16_t table);
 extern struct dcb_connector_table_entry *
 nouveau_bios_connector_entry(struct drm_device *, int index);
-extern u32 get_pll_register(struct drm_device *, enum pll_types);
-extern int get_pll_limits(struct drm_device *, uint32_t limit_match,
-			  struct pll_lims *);
 extern int nouveau_bios_run_display_table(struct drm_device *, u16 id, int clk,
 					  struct dcb_entry *, int crtc);
 extern bool nouveau_bios_fp_mode(struct drm_device *, struct drm_display_mode *);
@@ -1365,12 +1347,6 @@ int nouveau_display_dumb_map_offset(struct drm_file *, struct drm_device *,
 int nouveau_display_dumb_destroy(struct drm_file *, struct drm_device *,
 				 uint32_t handle);
 
-/* nv50_calc.c */
-int nv50_calc_pll(struct drm_device *, struct pll_lims *, int clk,
-		  int *N1, int *M1, int *N2, int *M2, int *P);
-int nva3_calc_pll(struct drm_device *, struct pll_lims *,
-		  int clk, int *N, int *fN, int *M, int *P);
-
 #ifndef ioread32_native
 #ifdef __BIG_ENDIAN
 #define ioread16_native ioread16be
@@ -1398,7 +1374,6 @@ static inline void nvchan_wr32(struct nouveau_channel *chan,
 }
 
 /* register access */
-#include "nouveau_compat.h"
 #define nv_rd08 _nv_rd08
 #define nv_wr08 _nv_wr08
 #define nv_rd32 _nv_rd32

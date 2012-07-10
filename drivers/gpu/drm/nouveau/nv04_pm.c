@@ -46,7 +46,7 @@ nv04_pm_clocks_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 }
 
 struct nv04_pm_clock {
-	struct pll_lims pll;
+	struct nvbios_pll pll;
 	struct nouveau_pll_vals calc;
 };
 

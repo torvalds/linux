@@ -26,6 +26,8 @@
 #include "drmP.h"
 #include "nouveau_drv.h"
 
+#include <subdev/bios/pll.h>
+
 #define MASK(field) ( \
 	(0xffffffff >> (31 - ((1 ? field) - (0 ? field)))) << (0 ? field))
 
@@ -38,12 +40,10 @@ void NVWriteVgaGr(struct drm_device *, int head, uint8_t index, uint8_t value);
 uint8_t NVReadVgaGr(struct drm_device *, int head, uint8_t index);
 void NVSetOwner(struct drm_device *, int owner);
 void NVBlankScreen(struct drm_device *, int head, bool blank);
-void nouveau_hw_setpll(struct drm_device *, uint32_t reg1,
-		       struct nouveau_pll_vals *pv);
-int nouveau_hw_get_pllvals(struct drm_device *, enum pll_types plltype,
+int nouveau_hw_get_pllvals(struct drm_device *, enum nvbios_pll_type plltype,
 			   struct nouveau_pll_vals *pllvals);
 int nouveau_hw_pllvals_to_clk(struct nouveau_pll_vals *pllvals);
-int nouveau_hw_get_clock(struct drm_device *, enum pll_types plltype);
+int nouveau_hw_get_clock(struct drm_device *, enum nvbios_pll_type plltype);
 void nouveau_hw_save_vga_fonts(struct drm_device *, bool save);
 void nouveau_hw_save_state(struct drm_device *, int head,
 			   struct nv04_mode_state *state);
@@ -55,8 +55,6 @@ void nouveau_hw_load_state_palette(struct drm_device *, int head,
 /* nouveau_calc.c */
 extern void nouveau_calc_arb(struct drm_device *, int vclk, int bpp,
 			     int *burst, int *lwm);
-extern int nouveau_calc_pll_mnp(struct drm_device *, struct pll_lims *pll_lim,
-				int clk, struct nouveau_pll_vals *pv);
 
 static inline uint32_t
 nvReadMC(struct drm_device *dev, uint32_t reg)

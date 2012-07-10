@@ -28,14 +28,6 @@ struct nv40_clock_priv {
 	struct nouveau_clock base;
 };
 
-static void
-nv40_clock_pll_set(struct nouveau_clock *clk, u32 type, u32 freq)
-{
-	struct nv40_clock_priv *priv = (void *)clk;
-
-	nv_warn(priv, "0x%08x/%dKhz unimplemented\n", type, freq);
-}
-
 static int
 nv40_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
@@ -49,7 +41,9 @@ nv40_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	priv->base.pll_set = nv40_clock_pll_set;
+	priv->base.pll_set = nv04_clock_pll_set;
+	priv->base.pll_calc = nv04_clock_pll_calc;
+	priv->base.pll_prog = nv04_clock_pll_prog;
 	return 0;
 }
 

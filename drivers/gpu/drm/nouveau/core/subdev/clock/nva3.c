@@ -23,17 +23,47 @@
  */
 
 #include <subdev/clock.h>
+#include <subdev/bios.h>
+#include <subdev/bios/pll.h>
+
+#include "pll.h"
 
 struct nva3_clock_priv {
 	struct nouveau_clock base;
 };
 
-static void
+static int
 nva3_clock_pll_set(struct nouveau_clock *clk, u32 type, u32 freq)
 {
 	struct nva3_clock_priv *priv = (void *)clk;
+	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvbios_pll info;
+	int N, fN, M, P;
+	int ret;
 
-	nv_warn(priv, "0x%08x/%dKhz unimplemented\n", type, freq);
+	ret = nvbios_pll_parse(bios, type, &info);
+	if (ret)
+		return ret;
+
+	ret = nva3_pll_calc(clk, &info, freq, &N, &fN, &M, &P);
+	if (ret < 0)
+		return ret;
+
+	switch (info.type) {
+	case PLL_VPLL0:
+	case PLL_VPLL1:
+		nv_wr32(priv, info.reg + 0, 0x50000610);
+		nv_mask(priv, info.reg + 4, 0x003fffff,
+					    (P << 16) | (M << 8) | N);
+		nv_wr32(priv, info.reg + 8, fN);
+		break;
+	default:
+		nv_warn(priv, "0x%08x/%dKhz unimplemented\n", type, freq);
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
 }
 
 static int

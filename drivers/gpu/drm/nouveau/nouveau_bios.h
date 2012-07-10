@@ -144,58 +144,6 @@ enum LVDS_script {
 	LVDS_PANEL_OFF
 };
 
-/* these match types in pll limits table version 0x40,
- * nouveau uses them on all chipsets internally where a
- * specific pll needs to be referenced, but the exact
- * register isn't known.
- */
-enum pll_types {
-	PLL_CORE   = 0x01,
-	PLL_SHADER = 0x02,
-	PLL_UNK03  = 0x03,
-	PLL_MEMORY = 0x04,
-	PLL_VDEC   = 0x05,
-	PLL_UNK40  = 0x40,
-	PLL_UNK41  = 0x41,
-	PLL_UNK42  = 0x42,
-	PLL_VPLL0  = 0x80,
-	PLL_VPLL1  = 0x81,
-	PLL_MAX    = 0xff
-};
-
-struct pll_lims {
-	u32 reg;
-
-	struct {
-		int minfreq;
-		int maxfreq;
-		int min_inputfreq;
-		int max_inputfreq;
-
-		uint8_t min_m;
-		uint8_t max_m;
-		uint8_t min_n;
-		uint8_t max_n;
-	} vco1, vco2;
-
-	uint8_t max_log2p;
-	/*
-	 * for most pre nv50 cards setting a log2P of 7 (the common max_log2p
-	 * value) is no different to 6 (at least for vplls) so allowing the MNP
-	 * calc to use 7 causes the generated clock to be out by a factor of 2.
-	 * however, max_log2p cannot be fixed-up during parsing as the
-	 * unmodified max_log2p value is still needed for setting mplls, hence
-	 * an additional max_usable_log2p member
-	 */
-	uint8_t max_usable_log2p;
-	uint8_t log2p_bias;
-
-	uint8_t min_p;
-	uint8_t max_p;
-
-	int refclk;
-};
-
 struct nvbios {
 	struct drm_device *dev;
 	enum {

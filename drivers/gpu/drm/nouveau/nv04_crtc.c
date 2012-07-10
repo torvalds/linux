@@ -108,7 +108,7 @@ static void nv_crtc_calc_state_ext(struct drm_crtc *crtc, struct drm_display_mod
 	struct nv04_mode_state *state = &dev_priv->mode_reg;
 	struct nv04_crtc_reg *regp = &state->crtc_reg[nv_crtc->index];
 	struct nouveau_pll_vals *pv = &regp->pllvals;
-	struct pll_lims pll_lim;
+	struct nvbios_pll pll_lim;
 
 	if (get_pll_limits(dev, nv_crtc->index ? PLL_VPLL1 : PLL_VPLL0, &pll_lim))
 		return;
@@ -126,7 +126,7 @@ static void nv_crtc_calc_state_ext(struct drm_crtc *crtc, struct drm_display_mod
 	 * has yet been observed in allowing the use a single stage pll on all
 	 * nv43 however.  the behaviour of single stage use is untested on nv40
 	 */
-	if (dev_priv->chipset > 0x40 && dot_clock <= (pll_lim.vco1.maxfreq / 2))
+	if (dev_priv->chipset > 0x40 && dot_clock <= (pll_lim.vco1.max_freq / 2))
 		memset(&pll_lim.vco2, 0, sizeof(pll_lim.vco2));
 
 	if (!nouveau_calc_pll_mnp(dev, &pll_lim, dot_clock, pv))

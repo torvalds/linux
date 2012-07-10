@@ -4,9 +4,21 @@
 #include <core/device.h>
 #include <core/subdev.h>
 
+struct nouveau_pll_vals;
+struct nvbios_pll;
+
 struct nouveau_clock {
 	struct nouveau_subdev base;
-	void (*pll_set)(struct nouveau_clock *, u32 type, u32 freq);
+
+	int (*pll_set)(struct nouveau_clock *, u32 type, u32 freq);
+
+	/*XXX: die, these are here *only* to support the completely
+	 *     bat-shit insane what-was-nouveau_hw.c code
+	 */
+	int (*pll_calc)(struct nouveau_clock *, struct nvbios_pll *,
+			int clk, struct nouveau_pll_vals *pv);
+	int (*pll_prog)(struct nouveau_clock *, u32 reg1,
+			struct nouveau_pll_vals *pv);
 };
 
 static inline struct nouveau_clock *
@@ -36,5 +48,12 @@ extern struct nouveau_oclass nv40_clock_oclass;
 extern struct nouveau_oclass nv50_clock_oclass;
 extern struct nouveau_oclass nva3_clock_oclass;
 extern struct nouveau_oclass nvc0_clock_oclass;
+
+int nv04_clock_pll_set(struct nouveau_clock *, u32 type, u32 freq);
+int nv04_clock_pll_calc(struct nouveau_clock *, struct nvbios_pll *,
+			int clk, struct nouveau_pll_vals *);
+int nv04_clock_pll_prog(struct nouveau_clock *, u32 reg1,
+			struct nouveau_pll_vals *);
+
 
 #endif

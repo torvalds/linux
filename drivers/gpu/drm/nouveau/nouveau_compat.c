@@ -2,8 +2,10 @@
 #include "nouveau_compat.h"
 
 #include <subdev/bios.h>
+#include <subdev/bios/pll.h>
 #include <subdev/gpio.h>
 #include <subdev/i2c.h>
+#include <subdev/clock.h>
 
 void *nouveau_newpriv(struct drm_device *);
 
@@ -179,4 +181,77 @@ auxch_wr(struct drm_device *dev, struct nouveau_i2c_port *port,
 	 u32 addr, u8 *data, u8 size)
 {
 	return nv_wraux(port, addr, data, size);
+}
+
+u32
+get_pll_register(struct drm_device *dev, u32 type)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_bios *bios = nouveau_bios(drm->device);
+	struct nvbios_pll info;
+
+	if (nvbios_pll_parse(bios, type, &info))
+		return 0;
+	return info.reg;
+}
+
+int
+get_pll_limits(struct drm_device *dev, u32 type, struct nvbios_pll *info)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_bios *bios = nouveau_bios(drm->device);
+
+	return nvbios_pll_parse(bios, type, info);
+}
+
+int
+setPLL(struct drm_device *dev, u32 reg, u32 freq)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_clock *clk = nouveau_clock(drm->device);
+	int ret = -ENODEV;
+
+	if (clk->pll_set)
+		ret = clk->pll_set(clk, reg, freq);
+	return ret;
+}
+
+
+int
+nouveau_calc_pll_mnp(struct drm_device *dev, struct nvbios_pll *info,
+		     int freq, struct nouveau_pll_vals *pv)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_clock *clk = nouveau_clock(drm->device);
+	int ret = 0;
+
+	if (clk->pll_calc)
+		ret = clk->pll_calc(clk, info, freq, pv);
+	return ret;
+}
+
+int
+nouveau_hw_setpll(struct drm_device *dev, u32 reg1,
+		  struct nouveau_pll_vals *pv)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_clock *clk = nouveau_clock(drm->device);
+	int ret = -ENODEV;
+
+	if (clk->pll_prog)
+		ret = clk->pll_prog(clk, reg1, pv);
+	return ret;
+}
+
+int nva3_pll_calc(struct nouveau_clock *, struct nvbios_pll *, u32 freq,
+		  int *N, int *fN, int *M, int *P);
+
+int
+nva3_calc_pll(struct drm_device *dev, struct nvbios_pll *info, u32 freq,
+	      int *N, int *fN, int *M, int *P)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_clock *clk = nouveau_clock(drm->device);
+
+	return nva3_pll_calc(clk, info, freq, N, fN, M, P);
 }

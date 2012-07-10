@@ -107,7 +107,7 @@ struct nv40_pm_state {
 };
 
 static int
-nv40_calc_pll(struct drm_device *dev, u32 reg, struct pll_lims *pll,
+nv40_calc_pll(struct drm_device *dev, u32 reg, struct nvbios_pll *pll,
 	      u32 clk, int *N1, int *M1, int *N2, int *M2, int *log2P)
 {
 	struct nouveau_pll_vals coef;
@@ -117,8 +117,8 @@ nv40_calc_pll(struct drm_device *dev, u32 reg, struct pll_lims *pll,
 	if (ret)
 		return ret;
 
-	if (clk < pll->vco1.maxfreq)
-		pll->vco2.maxfreq = 0;
+	if (clk < pll->vco1.max_freq)
+		pll->vco2.max_freq = 0;
 
 	ret = nouveau_calc_pll_mnp(dev, pll, clk, &coef);
 	if (ret == 0)
@@ -127,7 +127,7 @@ nv40_calc_pll(struct drm_device *dev, u32 reg, struct pll_lims *pll,
 	*N1 = coef.N1;
 	*M1 = coef.M1;
 	if (N2 && M2) {
-		if (pll->vco2.maxfreq) {
+		if (pll->vco2.max_freq) {
 			*N2 = coef.N2;
 			*M2 = coef.M2;
 		} else {
@@ -143,7 +143,7 @@ void *
 nv40_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 {
 	struct nv40_pm_state *info;
-	struct pll_lims pll;
+	struct nvbios_pll pll;
 	int N1, N2, M1, M2, log2P;
 	int ret;
 
@@ -191,7 +191,7 @@ nv40_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 		goto out;
 
 	info->mpll_ctrl  = 0x80000000 | (log2P << 16);
-	info->mpll_ctrl |= min2(pll.log2p_bias + log2P, pll.max_log2p) << 20;
+	info->mpll_ctrl |= min2(pll.bias_p + log2P, pll.max_p) << 20;
 	if (N2 == M2) {
 		info->mpll_ctrl |= 0x00000100;
 		info->mpll_coef  = (N1 << 8) | M1;

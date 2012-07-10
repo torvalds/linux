@@ -329,55 +329,7 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 int
 nv50_crtc_set_clock(struct drm_device *dev, int head, int pclk)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct pll_lims pll;
-	uint32_t reg1, reg2;
-	int ret, N1, M1, N2, M2, P;
-
-	ret = get_pll_limits(dev, PLL_VPLL0 + head, &pll);
-	if (ret)
-		return ret;
-
-	if (pll.vco2.maxfreq) {
-		ret = nv50_calc_pll(dev, &pll, pclk, &N1, &M1, &N2, &M2, &P);
-		if (ret <= 0)
-			return 0;
-
-		NV_DEBUG(dev, "pclk %d out %d NM1 %d %d NM2 %d %d P %d\n",
-			 pclk, ret, N1, M1, N2, M2, P);
-
-		reg1 = nv_rd32(dev, pll.reg + 4) & 0xff00ff00;
-		reg2 = nv_rd32(dev, pll.reg + 8) & 0x8000ff00;
-		nv_wr32(dev, pll.reg + 0, 0x10000611);
-		nv_wr32(dev, pll.reg + 4, reg1 | (M1 << 16) | N1);
-		nv_wr32(dev, pll.reg + 8, reg2 | (P << 28) | (M2 << 16) | N2);
-	} else
-	if (dev_priv->chipset < NV_C0) {
-		ret = nva3_calc_pll(dev, &pll, pclk, &N1, &N2, &M1, &P);
-		if (ret <= 0)
-			return 0;
-
-		NV_DEBUG(dev, "pclk %d out %d N %d fN 0x%04x M %d P %d\n",
-			 pclk, ret, N1, N2, M1, P);
-
-		reg1 = nv_rd32(dev, pll.reg + 4) & 0xffc00000;
-		nv_wr32(dev, pll.reg + 0, 0x50000610);
-		nv_wr32(dev, pll.reg + 4, reg1 | (P << 16) | (M1 << 8) | N1);
-		nv_wr32(dev, pll.reg + 8, N2);
-	} else {
-		ret = nva3_calc_pll(dev, &pll, pclk, &N1, &N2, &M1, &P);
-		if (ret <= 0)
-			return 0;
-
-		NV_DEBUG(dev, "pclk %d out %d N %d fN 0x%04x M %d P %d\n",
-			 pclk, ret, N1, N2, M1, P);
-
-		nv_mask(dev, pll.reg + 0x0c, 0x00000000, 0x00000100);
-		nv_wr32(dev, pll.reg + 0x04, (P << 16) | (N1 << 8) | M1);
-		nv_wr32(dev, pll.reg + 0x10, N2 << 16);
-	}
-
-	return 0;
+	return setPLL(dev, PLL_VPLL0 + head, pclk);
 }
 
 static void

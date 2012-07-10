@@ -111,7 +111,7 @@ struct creg {
 static int
 calc_clk(struct drm_device *dev, int clk, u32 pll, u32 khz, struct creg *reg)
 {
-	struct pll_lims limits;
+	struct nvbios_pll limits;
 	u32 oclk, sclk, sdiv;
 	int P, N, M, diff;
 	int ret;

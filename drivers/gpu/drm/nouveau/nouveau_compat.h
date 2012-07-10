@@ -32,5 +32,17 @@ int nouveau_i2c_identify(struct drm_device *dev, const char *what,
 int auxch_rd(struct drm_device *, struct nouveau_i2c_port *, u32, u8 *, u8);
 int auxch_wr(struct drm_device *, struct nouveau_i2c_port *, u32, u8 *, u8);
 
+struct nvbios_pll;
+struct nouveau_pll_vals;
+
+u32 get_pll_register(struct drm_device *dev, u32 type);
+int get_pll_limits(struct drm_device *, u32, struct nvbios_pll *);
+int setPLL(struct drm_device *, u32 reg, u32 clk);
+
+int nouveau_calc_pll_mnp(struct drm_device *, struct nvbios_pll *,
+			 int, struct nouveau_pll_vals *);
+int nva3_calc_pll(struct drm_device *dev, struct nvbios_pll *info, u32 freq,
+	      int *N, int *fN, int *M, int *P);
+int nouveau_hw_setpll(struct drm_device *, u32, struct nouveau_pll_vals *);
 
 #endif

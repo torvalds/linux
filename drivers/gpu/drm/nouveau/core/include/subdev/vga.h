@@ -1,6 +1,8 @@
 #ifndef __NOUVEAU_VGA_H__
 #define __NOUVEAU_VGA_H__
 
+#include <core/os.h>
+
 /* access to various legacy io ports */
 u8   nv_rdport(void *obj, int head, u16 port);
 void nv_wrport(void *obj, int head, u16 port, u8 value);

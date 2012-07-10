@@ -23,17 +23,57 @@
  */
 
 #include <subdev/clock.h>
+#include <subdev/bios.h>
+#include <subdev/bios/pll.h>
+
+#include "pll.h"
 
 struct nv50_clock_priv {
 	struct nouveau_clock base;
 };
 
-static void
+static int
 nv50_clock_pll_set(struct nouveau_clock *clk, u32 type, u32 freq)
 {
 	struct nv50_clock_priv *priv = (void *)clk;
+	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvbios_pll info;
+	int N1, M1, N2, M2, P;
+	int ret;
 
-	nv_warn(priv, "0x%08x/%dKhz unimplemented\n", type, freq);
+	ret = nvbios_pll_parse(bios, type, &info);
+	if (ret) {
+		nv_error(clk, "failed to retrieve pll data, %d\n", ret);
+		return ret;
+	}
+
+	ret = nv04_pll_calc(clk, &info, freq, &N1, &M1, &N2, &M2, &P);
+	if (!ret) {
+		nv_error(clk, "failed pll calculation\n");
+		return ret;
+	}
+
+	switch (info.type) {
+	case PLL_VPLL0:
+	case PLL_VPLL1:
+		nv_wr32(priv, info.reg + 0, 0x10000611);
+		nv_mask(priv, info.reg + 4, 0x00ff00ff, (M1 << 16) | N1);
+		nv_mask(priv, info.reg + 8, 0x7fff00ff, (P  << 28) |
+							(M2 << 16) | N2);
+		break;
+	case PLL_MEMORY:
+		nv_mask(priv, info.reg + 0, 0x01ff0000, (P << 22) |
+						        (info.bias_p << 19) |
+							(P << 16));
+		nv_wr32(priv, info.reg + 4, (N1 << 8) | M1);
+		break;
+	default:
+		nv_mask(priv, info.reg + 0, 0x00070000, (P << 16));
+		nv_wr32(priv, info.reg + 4, (N1 << 8) | M1);
+		break;
+	}
+
+	return 0;
 }
 
 static int

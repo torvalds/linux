@@ -363,7 +363,7 @@ struct nv50_pm_state {
 };
 
 static u32
-calc_pll(struct drm_device *dev, u32 reg, struct pll_lims *pll,
+calc_pll(struct drm_device *dev, u32 reg, struct nvbios_pll *pll,
 	 u32 clk, int *N1, int *M1, int *log2P)
 {
 	struct nouveau_pll_vals coef;
@@ -373,7 +373,7 @@ calc_pll(struct drm_device *dev, u32 reg, struct pll_lims *pll,
 	if (ret)
 		return 0;
 
-	pll->vco2.maxfreq = 0;
+	pll->vco2.max_freq = 0;
 	pll->refclk = read_pll_ref(dev, reg);
 	if (!pll->refclk)
 		return 0;
@@ -542,7 +542,7 @@ calc_mclk(struct drm_device *dev, struct nouveau_pm_level *perflvl,
 		.priv = info
 	};
 	struct hwsq_ucode *hwsq = &info->mclk_hwsq;
-	struct pll_lims pll;
+	struct nvbios_pll pll;
 	int N, M, P;
 	int ret;
 
@@ -550,14 +550,14 @@ calc_mclk(struct drm_device *dev, struct nouveau_pm_level *perflvl,
 	info->mctrl  = nv_rd32(dev, 0x004008);
 	info->mctrl &= ~0x81ff0200;
 	if (clk_same(perflvl->memory, read_clk(dev, clk_src_href))) {
-		info->mctrl |= 0x00000200 | (pll.log2p_bias << 19);
+		info->mctrl |= 0x00000200 | (pll.bias_p << 19);
 	} else {
 		ret = calc_pll(dev, 0x4008, &pll, perflvl->memory, &N, &M, &P);
 		if (ret == 0)
 			return -EINVAL;
 
 		info->mctrl |= 0x80000000 | (P << 22) | (P << 16);
-		info->mctrl |= pll.log2p_bias << 19;
+		info->mctrl |= pll.bias_p << 19;
 		info->mcoef  = (N << 8) | M;
 	}
 
@@ -590,7 +590,7 @@ nv50_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv50_pm_state *info;
 	struct hwsq_ucode *hwsq;
-	struct pll_lims pll;
+	struct nvbios_pll pll;
 	u32 out, mast, divs, ctrl;
 	int clk, ret = -EINVAL;
 	int N, M, P1, P2;

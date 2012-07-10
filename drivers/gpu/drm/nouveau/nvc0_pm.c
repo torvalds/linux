@@ -212,7 +212,7 @@ calc_src(struct drm_device *dev, int clk, u32 freq, u32 *dsrc, u32 *ddiv)
 static u32
 calc_pll(struct drm_device *dev, int clk, u32 freq, u32 *coef)
 {
-	struct pll_lims limits;
+	struct nvbios_pll limits;
 	int N, M, P, ret;
 
 	ret = get_pll_limits(dev, 0x137000 + (clk * 0x20), &limits);
@@ -308,7 +308,7 @@ calc_clk(struct drm_device *dev, int clk, struct nvc0_pm_clock *info, u32 freq)
 static int
 calc_mem(struct drm_device *dev, struct nvc0_pm_clock *info, u32 freq)
 {
-	struct pll_lims pll;
+	struct nvbios_pll pll;
 	int N, M, P, ret;
 	u32 ctrl;
 

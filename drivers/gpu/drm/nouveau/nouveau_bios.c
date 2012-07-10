@@ -441,70 +441,6 @@ io_condition_met(struct nvbios *bios, uint16_t offset, uint8_t cond)
 	return (data == cmpval);
 }
 
-static int
-nv50_pll_set(struct drm_device *dev, uint32_t reg, uint32_t clk)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pll_vals pll;
-	struct pll_lims pll_limits;
-	u32 ctrl, mask, coef;
-	int ret;
-
-	ret = get_pll_limits(dev, reg, &pll_limits);
-	if (ret)
-		return ret;
-
-	clk = nouveau_calc_pll_mnp(dev, &pll_limits, clk, &pll);
-	if (!clk)
-		return -ERANGE;
-
-	coef = pll.N1 << 8 | pll.M1;
-	ctrl = pll.log2P << 16;
-	mask = 0x00070000;
-	if (reg == 0x004008) {
-		mask |= 0x01f80000;
-		ctrl |= (pll_limits.log2p_bias << 19);
-		ctrl |= (pll.log2P << 22);
-	}
-
-	if (!dev_priv->vbios.execute)
-		return 0;
-
-	nv_mask(dev, reg + 0, mask, ctrl);
-	nv_wr32(dev, reg + 4, coef);
-	return 0;
-}
-
-static int
-setPLL(struct nvbios *bios, uint32_t reg, uint32_t clk)
-{
-	struct drm_device *dev = bios->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	/* clk in kHz */
-	struct pll_lims pll_lim;
-	struct nouveau_pll_vals pllvals;
-	int ret;
-
-	if (dev_priv->card_type >= NV_50)
-		return nv50_pll_set(dev, reg, clk);
-
-	/* high regs (such as in the mac g5 table) are not -= 4 */
-	ret = get_pll_limits(dev, reg > 0x405c ? reg : reg - 4, &pll_lim);
-	if (ret)
-		return ret;
-
-	clk = nouveau_calc_pll_mnp(dev, &pll_lim, clk, &pllvals);
-	if (!clk)
-		return -ERANGE;
-
-	if (bios->execute) {
-		still_alive();
-		nouveau_hw_setpll(dev, reg, &pllvals);
-	}
-
-	return 0;
-}
-
 static int dcb_entry_idx_from_crtchead(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -752,7 +688,7 @@ init_io_restrict_pll(struct nvbios *bios, uint16_t offset,
 	BIOSLOG(bios, "0x%04X: Reg: 0x%08X, Config: 0x%02X, Freq: %d0kHz\n",
 		offset, reg, config, freq);
 
-	setPLL(bios, reg, freq * 10);
+	setPLL(bios->dev, reg, freq * 10);
 
 	return len;
 }
@@ -1110,7 +1046,7 @@ init_io_restrict_pll2(struct nvbios *bios, uint16_t offset,
 	BIOSLOG(bios, "0x%04X: Reg: 0x%08X, Config: 0x%02X, Freq: %dkHz\n",
 		offset, reg, config, freq);
 
-	setPLL(bios, reg, freq);
+	setPLL(bios->dev, reg, freq);
 
 	return len;
 }
@@ -1137,7 +1073,7 @@ init_pll2(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	BIOSLOG(bios, "0x%04X: Reg: 0x%04X, Freq: %dkHz\n",
 		offset, reg, freq);
 
-	setPLL(bios, reg, freq);
+	setPLL(bios->dev, reg, freq);
 	return 9;
 }
 
@@ -2376,12 +2312,12 @@ init_configure_clk(struct nvbios *bios, uint16_t offset,
 		return 0;
 
 	clock = ROM16(bios->data[meminitoffs + 4]) * 10;
-	setPLL(bios, NV_PRAMDAC_NVPLL_COEFF, clock);
+	setPLL(bios->dev, NV_PRAMDAC_NVPLL_COEFF, clock);
 
 	clock = ROM16(bios->data[meminitoffs + 2]) * 10;
 	if (bios->data[meminitoffs] & 1) /* DDR */
 		clock *= 2;
-	setPLL(bios, NV_PRAMDAC_MPLL_COEFF, clock);
+	setPLL(bios->dev, NV_PRAMDAC_MPLL_COEFF, clock);
 
 	return 1;
 }
@@ -2820,7 +2756,7 @@ init_pll(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 
 	BIOSLOG(bios, "0x%04X: Reg: 0x%08X, Freq: %d0kHz\n", offset, reg, freq);
 
-	setPLL(bios, reg, freq * 10);
+	setPLL(bios->dev, reg, freq * 10);
 
 	return 7;
 }
@@ -2898,7 +2834,7 @@ init_ram_restrict_pll(struct nvbios *bios, uint16_t offset,
 				      "Type %02x Reg 0x%08x Freq %dKHz\n",
 				offset, type, reg, freq);
 
-			setPLL(bios, reg, freq);
+			setPLL(bios->dev, reg, freq);
 			return len;
 		}
 	}
@@ -4301,447 +4237,6 @@ int run_tmds_table(struct drm_device *dev, struct dcb_entry *dcbent, int head, i
 	run_digital_op_script(dev, scriptptr, dcbent, head, pxclk >= 165000);
 	sel_clk = NVReadRAMDAC(dev, 0, NV_PRAMDAC_SEL_CLK) & ~0x50000;
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_SEL_CLK, sel_clk | sel_clk_binding);
-
-	return 0;
-}
-
-struct pll_mapping {
-	u8  type;
-	u32 reg;
-};
-
-static struct pll_mapping nv04_pll_mapping[] = {
-	{ PLL_CORE  , NV_PRAMDAC_NVPLL_COEFF },
-	{ PLL_MEMORY, NV_PRAMDAC_MPLL_COEFF },
-	{ PLL_VPLL0 , NV_PRAMDAC_VPLL_COEFF },
-	{ PLL_VPLL1 , NV_RAMDAC_VPLL2 },
-	{}
-};
-
-static struct pll_mapping nv40_pll_mapping[] = {
-	{ PLL_CORE  , 0x004000 },
-	{ PLL_MEMORY, 0x004020 },
-	{ PLL_VPLL0 , NV_PRAMDAC_VPLL_COEFF },
-	{ PLL_VPLL1 , NV_RAMDAC_VPLL2 },
-	{}
-};
-
-static struct pll_mapping nv50_pll_mapping[] = {
-	{ PLL_CORE  , 0x004028 },
-	{ PLL_SHADER, 0x004020 },
-	{ PLL_UNK03 , 0x004000 },
-	{ PLL_MEMORY, 0x004008 },
-	{ PLL_UNK40 , 0x00e810 },
-	{ PLL_UNK41 , 0x00e818 },
-	{ PLL_UNK42 , 0x00e824 },
-	{ PLL_VPLL0 , 0x614100 },
-	{ PLL_VPLL1 , 0x614900 },
-	{}
-};
-
-static struct pll_mapping nv84_pll_mapping[] = {
-	{ PLL_CORE  , 0x004028 },
-	{ PLL_SHADER, 0x004020 },
-	{ PLL_MEMORY, 0x004008 },
-	{ PLL_VDEC  , 0x004030 },
-	{ PLL_UNK41 , 0x00e818 },
-	{ PLL_VPLL0 , 0x614100 },
-	{ PLL_VPLL1 , 0x614900 },
-	{}
-};
-
-u32
-get_pll_register(struct drm_device *dev, enum pll_types type)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
-	struct pll_mapping *map;
-	int i;
-
-	if (dev_priv->card_type < NV_40)
-		map = nv04_pll_mapping;
-	else
-	if (dev_priv->card_type < NV_50)
-		map = nv40_pll_mapping;
-	else {
-		u8 *plim = &bios->data[bios->pll_limit_tbl_ptr];
-
-		if (plim[0] >= 0x30) {
-			u8 *entry = plim + plim[1];
-			for (i = 0; i < plim[3]; i++, entry += plim[2]) {
-				if (entry[0] == type)
-					return ROM32(entry[3]);
-			}
-
-			return 0;
-		}
-
-		if (dev_priv->chipset == 0x50)
-			map = nv50_pll_mapping;
-		else
-			map = nv84_pll_mapping;
-	}
-
-	while (map->reg) {
-		if (map->type == type)
-			return map->reg;
-		map++;
-	}
-
-	return 0;
-}
-
-int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims *pll_lim)
-{
-	/*
-	 * PLL limits table
-	 *
-	 * Version 0x10: NV30, NV31
-	 * One byte header (version), one record of 24 bytes
-	 * Version 0x11: NV36 - Not implemented
-	 * Seems to have same record style as 0x10, but 3 records rather than 1
-	 * Version 0x20: Found on Geforce 6 cards
-	 * Trivial 4 byte BIT header. 31 (0x1f) byte record length
-	 * Version 0x21: Found on Geforce 7, 8 and some Geforce 6 cards
-	 * 5 byte header, fifth byte of unknown purpose. 35 (0x23) byte record
-	 * length in general, some (integrated) have an extra configuration byte
-	 * Version 0x30: Found on Geforce 8, separates the register mapping
-	 * from the limits tables.
-	 */
-
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
-	int cv = bios->chip_version, pllindex = 0;
-	uint8_t pll_lim_ver = 0, headerlen = 0, recordlen = 0, entries = 0;
-	uint32_t crystal_strap_mask, crystal_straps;
-
-	if (!bios->pll_limit_tbl_ptr) {
-		if (cv == 0x30 || cv == 0x31 || cv == 0x35 || cv == 0x36 ||
-		    cv >= 0x40) {
-			NV_ERROR(dev, "Pointer to PLL limits table invalid\n");
-			return -EINVAL;
-		}
-	} else
-		pll_lim_ver = bios->data[bios->pll_limit_tbl_ptr];
-
-	crystal_strap_mask = 1 << 6;
-	/* open coded dev->twoHeads test */
-	if (cv > 0x10 && cv != 0x15 && cv != 0x1a && cv != 0x20)
-		crystal_strap_mask |= 1 << 22;
-	crystal_straps = nvReadEXTDEV(dev, NV_PEXTDEV_BOOT_0) &
-							crystal_strap_mask;
-
-	switch (pll_lim_ver) {
-	/*
-	 * We use version 0 to indicate a pre limit table bios (single stage
-	 * pll) and load the hard coded limits instead.
-	 */
-	case 0:
-		break;
-	case 0x10:
-	case 0x11:
-		/*
-		 * Strictly v0x11 has 3 entries, but the last two don't seem
-		 * to get used.
-		 */
-		headerlen = 1;
-		recordlen = 0x18;
-		entries = 1;
-		pllindex = 0;
-		break;
-	case 0x20:
-	case 0x21:
-	case 0x30:
-	case 0x40:
-		headerlen = bios->data[bios->pll_limit_tbl_ptr + 1];
-		recordlen = bios->data[bios->pll_limit_tbl_ptr + 2];
-		entries = bios->data[bios->pll_limit_tbl_ptr + 3];
-		break;
-	default:
-		NV_ERROR(dev, "PLL limits table revision 0x%X not currently "
-				"supported\n", pll_lim_ver);
-		return -ENOSYS;
-	}
-
-	/* initialize all members to zero */
-	memset(pll_lim, 0, sizeof(struct pll_lims));
-
-	/* if we were passed a type rather than a register, figure
-	 * out the register and store it
-	 */
-	if (limit_match > PLL_MAX)
-		pll_lim->reg = limit_match;
-	else {
-		pll_lim->reg = get_pll_register(dev, limit_match);
-		if (!pll_lim->reg)
-			return -ENOENT;
-	}
-
-	if (pll_lim_ver == 0x10 || pll_lim_ver == 0x11) {
-		uint8_t *pll_rec = &bios->data[bios->pll_limit_tbl_ptr + headerlen + recordlen * pllindex];
-
-		pll_lim->vco1.minfreq = ROM32(pll_rec[0]);
-		pll_lim->vco1.maxfreq = ROM32(pll_rec[4]);
-		pll_lim->vco2.minfreq = ROM32(pll_rec[8]);
-		pll_lim->vco2.maxfreq = ROM32(pll_rec[12]);
-		pll_lim->vco1.min_inputfreq = ROM32(pll_rec[16]);
-		pll_lim->vco2.min_inputfreq = ROM32(pll_rec[20]);
-		pll_lim->vco1.max_inputfreq = pll_lim->vco2.max_inputfreq = INT_MAX;
-
-		/* these values taken from nv30/31/36 */
-		pll_lim->vco1.min_n = 0x1;
-		if (cv == 0x36)
-			pll_lim->vco1.min_n = 0x5;
-		pll_lim->vco1.max_n = 0xff;
-		pll_lim->vco1.min_m = 0x1;
-		pll_lim->vco1.max_m = 0xd;
-		pll_lim->vco2.min_n = 0x4;
-		/*
-		 * On nv30, 31, 36 (i.e. all cards with two stage PLLs with this
-		 * table version (apart from nv35)), N2 is compared to
-		 * maxN2 (0x46) and 10 * maxM2 (0x4), so set maxN2 to 0x28 and
-		 * save a comparison
-		 */
-		pll_lim->vco2.max_n = 0x28;
-		if (cv == 0x30 || cv == 0x35)
-			/* only 5 bits available for N2 on nv30/35 */
-			pll_lim->vco2.max_n = 0x1f;
-		pll_lim->vco2.min_m = 0x1;
-		pll_lim->vco2.max_m = 0x4;
-		pll_lim->max_log2p = 0x7;
-		pll_lim->max_usable_log2p = 0x6;
-	} else if (pll_lim_ver == 0x20 || pll_lim_ver == 0x21) {
-		uint16_t plloffs = bios->pll_limit_tbl_ptr + headerlen;
-		uint8_t *pll_rec;
-		int i;
-
-		/*
-		 * First entry is default match, if nothing better. warn if
-		 * reg field nonzero
-		 */
-		if (ROM32(bios->data[plloffs]))
-			NV_WARN(dev, "Default PLL limit entry has non-zero "
-				       "register field\n");
-
-		for (i = 1; i < entries; i++)
-			if (ROM32(bios->data[plloffs + recordlen * i]) == pll_lim->reg) {
-				pllindex = i;
-				break;
-			}
-
-		if ((dev_priv->card_type >= NV_50) && (pllindex == 0)) {
-			NV_ERROR(dev, "Register 0x%08x not found in PLL "
-				 "limits table", pll_lim->reg);
-			return -ENOENT;
-		}
-
-		pll_rec = &bios->data[plloffs + recordlen * pllindex];
-
-		BIOSLOG(bios, "Loading PLL limits for reg 0x%08x\n",
-			pllindex ? pll_lim->reg : 0);
-
-		/*
-		 * Frequencies are stored in tables in MHz, kHz are more
-		 * useful, so we convert.
-		 */
-
-		/* What output frequencies can each VCO generate? */
-		pll_lim->vco1.minfreq = ROM16(pll_rec[4]) * 1000;
-		pll_lim->vco1.maxfreq = ROM16(pll_rec[6]) * 1000;
-		pll_lim->vco2.minfreq = ROM16(pll_rec[8]) * 1000;
-		pll_lim->vco2.maxfreq = ROM16(pll_rec[10]) * 1000;
-
-		/* What input frequencies they accept (past the m-divider)? */
-		pll_lim->vco1.min_inputfreq = ROM16(pll_rec[12]) * 1000;
-		pll_lim->vco2.min_inputfreq = ROM16(pll_rec[14]) * 1000;
-		pll_lim->vco1.max_inputfreq = ROM16(pll_rec[16]) * 1000;
-		pll_lim->vco2.max_inputfreq = ROM16(pll_rec[18]) * 1000;
-
-		/* What values are accepted as multiplier and divider? */
-		pll_lim->vco1.min_n = pll_rec[20];
-		pll_lim->vco1.max_n = pll_rec[21];
-		pll_lim->vco1.min_m = pll_rec[22];
-		pll_lim->vco1.max_m = pll_rec[23];
-		pll_lim->vco2.min_n = pll_rec[24];
-		pll_lim->vco2.max_n = pll_rec[25];
-		pll_lim->vco2.min_m = pll_rec[26];
-		pll_lim->vco2.max_m = pll_rec[27];
-
-		pll_lim->max_usable_log2p = pll_lim->max_log2p = pll_rec[29];
-		if (pll_lim->max_log2p > 0x7)
-			/* pll decoding in nv_hw.c assumes never > 7 */
-			NV_WARN(dev, "Max log2 P value greater than 7 (%d)\n",
-				pll_lim->max_log2p);
-		if (cv < 0x60)
-			pll_lim->max_usable_log2p = 0x6;
-		pll_lim->log2p_bias = pll_rec[30];
-
-		if (recordlen > 0x22)
-			pll_lim->refclk = ROM32(pll_rec[31]);
-
-		if (recordlen > 0x23 && pll_rec[35])
-			NV_WARN(dev,
-				"Bits set in PLL configuration byte (%x)\n",
-				pll_rec[35]);
-
-		/* C51 special not seen elsewhere */
-		if (cv == 0x51 && !pll_lim->refclk) {
-			uint32_t sel_clk = bios_rd32(bios, NV_PRAMDAC_SEL_CLK);
-
-			if ((pll_lim->reg == NV_PRAMDAC_VPLL_COEFF && sel_clk & 0x20) ||
-			    (pll_lim->reg == NV_RAMDAC_VPLL2 && sel_clk & 0x80)) {
-				if (bios_idxprt_rd(bios, NV_CIO_CRX__COLOR, NV_CIO_CRE_CHIP_ID_INDEX) < 0xa3)
-					pll_lim->refclk = 200000;
-				else
-					pll_lim->refclk = 25000;
-			}
-		}
-	} else if (pll_lim_ver == 0x30) { /* ver 0x30 */
-		uint8_t *entry = &bios->data[bios->pll_limit_tbl_ptr + headerlen];
-		uint8_t *record = NULL;
-		int i;
-
-		BIOSLOG(bios, "Loading PLL limits for register 0x%08x\n",
-			pll_lim->reg);
-
-		for (i = 0; i < entries; i++, entry += recordlen) {
-			if (ROM32(entry[3]) == pll_lim->reg) {
-				record = &bios->data[ROM16(entry[1])];
-				break;
-			}
-		}
-
-		if (!record) {
-			NV_ERROR(dev, "Register 0x%08x not found in PLL "
-				 "limits table", pll_lim->reg);
-			return -ENOENT;
-		}
-
-		pll_lim->vco1.minfreq = ROM16(record[0]) * 1000;
-		pll_lim->vco1.maxfreq = ROM16(record[2]) * 1000;
-		pll_lim->vco2.minfreq = ROM16(record[4]) * 1000;
-		pll_lim->vco2.maxfreq = ROM16(record[6]) * 1000;
-		pll_lim->vco1.min_inputfreq = ROM16(record[8]) * 1000;
-		pll_lim->vco2.min_inputfreq = ROM16(record[10]) * 1000;
-		pll_lim->vco1.max_inputfreq = ROM16(record[12]) * 1000;
-		pll_lim->vco2.max_inputfreq = ROM16(record[14]) * 1000;
-		pll_lim->vco1.min_n = record[16];
-		pll_lim->vco1.max_n = record[17];
-		pll_lim->vco1.min_m = record[18];
-		pll_lim->vco1.max_m = record[19];
-		pll_lim->vco2.min_n = record[20];
-		pll_lim->vco2.max_n = record[21];
-		pll_lim->vco2.min_m = record[22];
-		pll_lim->vco2.max_m = record[23];
-		pll_lim->max_usable_log2p = pll_lim->max_log2p = record[25];
-		pll_lim->log2p_bias = record[27];
-		pll_lim->refclk = ROM32(record[28]);
-	} else if (pll_lim_ver) { /* ver 0x40 */
-		uint8_t *entry = &bios->data[bios->pll_limit_tbl_ptr + headerlen];
-		uint8_t *record = NULL;
-		int i;
-
-		BIOSLOG(bios, "Loading PLL limits for register 0x%08x\n",
-			pll_lim->reg);
-
-		for (i = 0; i < entries; i++, entry += recordlen) {
-			if (ROM32(entry[3]) == pll_lim->reg) {
-				record = &bios->data[ROM16(entry[1])];
-				break;
-			}
-		}
-
-		if (!record) {
-			NV_ERROR(dev, "Register 0x%08x not found in PLL "
-				 "limits table", pll_lim->reg);
-			return -ENOENT;
-		}
-
-		pll_lim->vco1.minfreq = ROM16(record[0]) * 1000;
-		pll_lim->vco1.maxfreq = ROM16(record[2]) * 1000;
-		pll_lim->vco1.min_inputfreq = ROM16(record[4]) * 1000;
-		pll_lim->vco1.max_inputfreq = ROM16(record[6]) * 1000;
-		pll_lim->vco1.min_m = record[8];
-		pll_lim->vco1.max_m = record[9];
-		pll_lim->vco1.min_n = record[10];
-		pll_lim->vco1.max_n = record[11];
-		pll_lim->min_p = record[12];
-		pll_lim->max_p = record[13];
-		pll_lim->refclk = ROM16(entry[9]) * 1000;
-	}
-
-	/*
-	 * By now any valid limit table ought to have set a max frequency for
-	 * vco1, so if it's zero it's either a pre limit table bios, or one
-	 * with an empty limit table (seen on nv18)
-	 */
-	if (!pll_lim->vco1.maxfreq) {
-		pll_lim->vco1.minfreq = bios->fminvco;
-		pll_lim->vco1.maxfreq = bios->fmaxvco;
-		pll_lim->vco1.min_inputfreq = 0;
-		pll_lim->vco1.max_inputfreq = INT_MAX;
-		pll_lim->vco1.min_n = 0x1;
-		pll_lim->vco1.max_n = 0xff;
-		pll_lim->vco1.min_m = 0x1;
-		if (crystal_straps == 0) {
-			/* nv05 does this, nv11 doesn't, nv10 unknown */
-			if (cv < 0x11)
-				pll_lim->vco1.min_m = 0x7;
-			pll_lim->vco1.max_m = 0xd;
-		} else {
-			if (cv < 0x11)
-				pll_lim->vco1.min_m = 0x8;
-			pll_lim->vco1.max_m = 0xe;
-		}
-		if (cv < 0x17 || cv == 0x1a || cv == 0x20)
-			pll_lim->max_log2p = 4;
-		else
-			pll_lim->max_log2p = 5;
-		pll_lim->max_usable_log2p = pll_lim->max_log2p;
-	}
-
-	if (!pll_lim->refclk)
-		switch (crystal_straps) {
-		case 0:
-			pll_lim->refclk = 13500;
-			break;
-		case (1 << 6):
-			pll_lim->refclk = 14318;
-			break;
-		case (1 << 22):
-			pll_lim->refclk = 27000;
-			break;
-		case (1 << 22 | 1 << 6):
-			pll_lim->refclk = 25000;
-			break;
-		}
-
-	NV_DEBUG(dev, "pll.vco1.minfreq: %d\n", pll_lim->vco1.minfreq);
-	NV_DEBUG(dev, "pll.vco1.maxfreq: %d\n", pll_lim->vco1.maxfreq);
-	NV_DEBUG(dev, "pll.vco1.min_inputfreq: %d\n", pll_lim->vco1.min_inputfreq);
-	NV_DEBUG(dev, "pll.vco1.max_inputfreq: %d\n", pll_lim->vco1.max_inputfreq);
-	NV_DEBUG(dev, "pll.vco1.min_n: %d\n", pll_lim->vco1.min_n);
-	NV_DEBUG(dev, "pll.vco1.max_n: %d\n", pll_lim->vco1.max_n);
-	NV_DEBUG(dev, "pll.vco1.min_m: %d\n", pll_lim->vco1.min_m);
-	NV_DEBUG(dev, "pll.vco1.max_m: %d\n", pll_lim->vco1.max_m);
-	if (pll_lim->vco2.maxfreq) {
-		NV_DEBUG(dev, "pll.vco2.minfreq: %d\n", pll_lim->vco2.minfreq);
-		NV_DEBUG(dev, "pll.vco2.maxfreq: %d\n", pll_lim->vco2.maxfreq);
-		NV_DEBUG(dev, "pll.vco2.min_inputfreq: %d\n", pll_lim->vco2.min_inputfreq);
-		NV_DEBUG(dev, "pll.vco2.max_inputfreq: %d\n", pll_lim->vco2.max_inputfreq);
-		NV_DEBUG(dev, "pll.vco2.min_n: %d\n", pll_lim->vco2.min_n);
-		NV_DEBUG(dev, "pll.vco2.max_n: %d\n", pll_lim->vco2.max_n);
-		NV_DEBUG(dev, "pll.vco2.min_m: %d\n", pll_lim->vco2.min_m);
-		NV_DEBUG(dev, "pll.vco2.max_m: %d\n", pll_lim->vco2.max_m);
-	}
-	if (!pll_lim->max_p) {
-		NV_DEBUG(dev, "pll.max_log2p: %d\n", pll_lim->max_log2p);
-		NV_DEBUG(dev, "pll.log2p_bias: %d\n", pll_lim->log2p_bias);
-	} else {
-		NV_DEBUG(dev, "pll.min_p: %d\n", pll_lim->min_p);
-		NV_DEBUG(dev, "pll.max_p: %d\n", pll_lim->max_p);
-	}
-	NV_DEBUG(dev, "pll.refclk: %d\n", pll_lim->refclk);
 
 	return 0;
 }
