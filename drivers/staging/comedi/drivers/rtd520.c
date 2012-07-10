@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set Pacer clock source select (write only) 0=external 1=internal */
-#define RtdPacerClockSource(dev, v) \
-	writel((v > 0) ? 1 : 0, devpriv->las0+LAS0_PACER_SELECT)
-
 /* Set sample counter source select (write only) */
 #define RtdAdcSampleCounterSource(dev, v) \
 	writel(v, devpriv->las0+LAS0_ADC_SCNT_SRC)
@@ -1544,7 +1540,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->transCount = 0;
 		devpriv->flags &= ~SEND_EOS;
 	}
-	RtdPacerClockSource(dev, 1);	/* use INTERNAL 8Mhz clock source */
+	writel(1, devpriv->las0 + LAS0_PACER_SELECT);
 	RtdAboutStopEnable(dev, 1);	/* just interrupt, dont stop */
 
 	/* BUG??? these look like enumerated values, but they are bit fields */
