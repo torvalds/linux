@@ -170,11 +170,12 @@ static size_t ramoops_write_kmsg_hdr(struct persistent_ram_zone *prz)
 	return len;
 }
 
-static int ramoops_pstore_write(enum pstore_type_id type,
-				enum kmsg_dump_reason reason,
-				u64 *id,
-				unsigned int part,
-				size_t size, struct pstore_info *psi)
+
+static int ramoops_pstore_write_buf(enum pstore_type_id type,
+				    enum kmsg_dump_reason reason,
+				    u64 *id, unsigned int part,
+				    const char *buf, size_t size,
+				    struct pstore_info *psi)
 {
 	struct ramoops_context *cxt = psi->data;
 	struct persistent_ram_zone *prz = cxt->przs[cxt->dump_write_cnt];
@@ -183,7 +184,7 @@ static int ramoops_pstore_write(enum pstore_type_id type,
 	if (type == PSTORE_TYPE_CONSOLE) {
 		if (!cxt->cprz)
 			return -ENOMEM;
-		persistent_ram_write(cxt->cprz, cxt->pstore.buf, size);
+		persistent_ram_write(cxt->cprz, buf, size);
 		return 0;
 	}
 
@@ -212,7 +213,7 @@ static int ramoops_pstore_write(enum pstore_type_id type,
 	hlen = ramoops_write_kmsg_hdr(prz);
 	if (size + hlen > prz->buffer_size)
 		size = prz->buffer_size - hlen;
-	persistent_ram_write(prz, cxt->pstore.buf, size);
+	persistent_ram_write(prz, buf, size);
 
 	cxt->dump_write_cnt = (cxt->dump_write_cnt + 1) % cxt->max_dump_cnt;
 
@@ -250,7 +251,7 @@ static struct ramoops_context oops_cxt = {
 		.name	= "ramoops",
 		.open	= ramoops_pstore_open,
 		.read	= ramoops_pstore_read,
-		.write	= ramoops_pstore_write,
+		.write_buf	= ramoops_pstore_write_buf,
 		.erase	= ramoops_pstore_erase,
 	},
 };
