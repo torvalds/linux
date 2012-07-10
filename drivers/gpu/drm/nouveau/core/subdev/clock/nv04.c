@@ -22,32 +22,44 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/device.h>
-#include <subdev/bios.h>
-#include <subdev/gpio.h>
-#include <subdev/i2c.h>
 #include <subdev/clock.h>
 
-int
-nve0_identify(struct nouveau_device *device)
-{
-	switch (device->chipset) {
-	case 0xe4:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nvd0_gpio_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nvc0_clock_oclass;
-		break;
-	case 0xe7:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nvd0_gpio_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nvc0_clock_oclass;
-		break;
-	default:
-		nv_fatal(device, "unknown Kepler chipset\n");
-		return -EINVAL;
-	}
+struct nv04_clock_priv {
+	struct nouveau_clock base;
+};
 
+static void
+nv04_clock_pll_set(struct nouveau_clock *clk, u32 type, u32 freq)
+{
+	struct nv04_clock_priv *priv = (void *)clk;
+
+	nv_warn(priv, "0x%08x/%dKhz unimplemented\n", type, freq);
+}
+
+static int
+nv04_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+		struct nouveau_oclass *oclass, void *data, u32 size,
+		struct nouveau_object **pobject)
+{
+	struct nv04_clock_priv *priv;
+	int ret;
+
+	ret = nouveau_clock_create(parent, engine, oclass, &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
+
+	priv->base.pll_set = nv04_clock_pll_set;
 	return 0;
 }
+
+struct nouveau_oclass
+nv04_clock_oclass = {
+	.handle = NV_SUBDEV(CLOCK, 0x04),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv04_clock_ctor,
+		.dtor = _nouveau_clock_dtor,
+		.init = _nouveau_clock_init,
+		.fini = _nouveau_clock_fini,
+	},
+};
