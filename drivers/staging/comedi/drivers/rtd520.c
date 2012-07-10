@@ -406,11 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Read one ADC data value (12bit (with sign extend) as 16bit) */
-/* Note: matches what DMA would get.  Actual value >> 3 */
-#define RtdAdcFifoGet(dev) \
-	readw(devpriv->las1+LAS1_ADC_FIFO)
-
 /* Read two ADC data values (DOESN'T WORK) */
 #define RtdAdcFifoGet2(dev) \
 	readl(devpriv->las1+LAS1_ADC_FIFO)
@@ -834,7 +829,7 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 		}
 
 		/* read data */
-		d = RtdAdcFifoGet(dev);	/* get 2s comp value */
+		d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 		/*printk ("rtd520: Got 0x%x after %d usec\n", d, ii+1); */
 		d = d >> 3;	/* low 3 bits are marker lines */
 		if (CHAN_ARRAY_TEST(devpriv->chanBipolar, 0))
@@ -864,7 +859,7 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 		s16 d;
 
 		if (0 == devpriv->aiCount) {	/* done */
-			d = RtdAdcFifoGet(dev);	/* Read N and discard */
+			d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 			continue;
 		}
 #if 0
@@ -874,7 +869,7 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 			break;
 		}
 #endif
-		d = RtdAdcFifoGet(dev);	/* get 2s comp value */
+		d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 
 		d = d >> 3;	/* low 3 bits are marker lines */
 		if (CHAN_ARRAY_TEST(devpriv->chanBipolar, s->async->cur_chan)) {
@@ -899,7 +894,7 @@ static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	while (RtdFifoStatus(dev) & FS_ADC_NOT_EMPTY) {	/* 1 -> not empty */
 		short sample;
-		s16 d = RtdAdcFifoGet(dev);	/* get 2s comp value */
+		s16 d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 
 		if (0 == devpriv->aiCount) {	/* done */
 			continue;	/* read rest */
