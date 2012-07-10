@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set Pacer start source select (write only) */
-#define RtdPacerStartSource(dev, v) \
-	writel(v, devpriv->las0+LAS0_PACER_START)
-
 /* Set Pacer stop source select (write only) */
 #define RtdPacerStopSource(dev, v) \
 	writel(v, devpriv->las0+LAS0_PACER_STOP)
@@ -1499,12 +1495,12 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* setup the common case and override if needed */
 	if (cmd->chanlist_len > 1) {
 		/*DPRINTK ("rtd520: Multi channel setup\n"); */
-		RtdPacerStartSource(dev, 0);	/* software triggers pacer */
+		writel(0, devpriv->las0 + LAS0_PACER_START);
 		writel(1, devpriv->las0 + LAS0_BURST_START);
 		writel(2, devpriv->las0 + LAS0_ADC_CONVERSION);
 	} else {		/* single channel */
 		/*DPRINTK ("rtd520: single channel setup\n"); */
-		RtdPacerStartSource(dev, 0);	/* software triggers pacer */
+		writel(0, devpriv->las0 + LAS0_PACER_START);
 		writel(1, devpriv->las0 + LAS0_ADC_CONVERSION);
 	}
 	RtdAboutCounter(dev, devpriv->fifoLen / 2 - 1);	/* 1/2 FIFO */
@@ -1588,7 +1584,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		break;
 
 	case TRIG_EXT:
-		RtdPacerStartSource(dev, 1);	/* EXTERNALy trigger pacer */
+		writel(1, devpriv->las0 + LAS0_PACER_START);
 		break;
 
 	default:
