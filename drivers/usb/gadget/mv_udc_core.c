@@ -373,7 +373,7 @@ static struct mv_dtd *build_dtd(struct mv_req *req, unsigned *length,
 	 * Be careful that no _GFP_HIGHMEM is set,
 	 * or we can not use dma_to_virt
 	 */
-	dtd = dma_pool_alloc(udc->dtd_pool, GFP_KERNEL, dma);
+	dtd = dma_pool_alloc(udc->dtd_pool, GFP_ATOMIC, dma);
 	if (dtd == NULL)
 		return dtd;
 
@@ -706,6 +706,7 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	struct mv_req *req = container_of(_req, struct mv_req, req);
 	struct mv_udc *udc = ep->udc;
 	unsigned long flags;
+	int retval;
 
 	/* catch various bogus parameters */
 	if (!_req || !req->req.complete || !req->req.buf
@@ -753,15 +754,17 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 
 	/* build dtds and push them to device queue */
 	if (!req_to_dtd(req)) {
-		int retval;
 		retval = queue_dtd(ep, req);
 		if (retval) {
 			spin_unlock_irqrestore(&udc->lock, flags);
-			return retval;
+			dev_err(&udc->dev->dev, "Failed to queue dtd\n");
+			goto err_unmap_dma;
 		}
 	} else {
 		spin_unlock_irqrestore(&udc->lock, flags);
-		return -ENOMEM;
+		dev_err(&udc->dev->dev, "Failed to dma_pool_alloc\n");
+		retval = -ENOMEM;
+		goto err_unmap_dma;
 	}
 
 	/* Update ep0 state */
@@ -773,6 +776,22 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	spin_unlock_irqrestore(&udc->lock, flags);
 
 	return 0;
+
+err_unmap_dma:
+	if (req->mapped) {
+		dma_unmap_single(ep->udc->gadget.dev.parent,
+				req->req.dma, req->req.length,
+				((ep_dir(ep) == EP_DIR_IN) ?
+				DMA_TO_DEVICE : DMA_FROM_DEVICE));
+		req->req.dma = DMA_ADDR_INVALID;
+		req->mapped = 0;
+	} else
+		dma_sync_single_for_cpu(ep->udc->gadget.dev.parent,
+				req->req.dma, req->req.length,
+				((ep_dir(ep) == EP_DIR_IN) ?
+				DMA_TO_DEVICE : DMA_FROM_DEVICE));
+
+	return retval;
 }
 
 static void mv_prime_ep(struct mv_ep *ep, struct mv_req *req)
@@ -1497,15 +1516,17 @@ udc_prime_status(struct mv_udc *udc, u8 direction, u16 status, bool empty)
 	}
 
 	/* prime the data phase */
-	if (!req_to_dtd(req))
+	if (!req_to_dtd(req)) {
 		retval = queue_dtd(ep, req);
-	else{	/* no mem */
+		if (retval) {
+			dev_err(&udc->dev->dev,
+				"Failed to queue dtd when prime status\n");
+			goto out;
+		}
+	} else{	/* no mem */
 		retval = -ENOMEM;
-		goto out;
-	}
-
-	if (retval) {
-		dev_err(&udc->dev->dev, "response error on GET_STATUS request\n");
+		dev_err(&udc->dev->dev,
+			"Failed to dma_pool_alloc when prime status\n");
 		goto out;
 	}
 
@@ -1513,6 +1534,15 @@ udc_prime_status(struct mv_udc *udc, u8 direction, u16 status, bool empty)
 
 	return 0;
 out:
+	if (req->mapped) {
+		dma_unmap_single(ep->udc->gadget.dev.parent,
+				req->req.dma, req->req.length,
+				((ep_dir(ep) == EP_DIR_IN) ?
+				DMA_TO_DEVICE : DMA_FROM_DEVICE));
+		req->req.dma = DMA_ADDR_INVALID;
+		req->mapped = 0;
+	}
+
 	return retval;
 }
 
