@@ -123,7 +123,7 @@ struct lowpan_fragment {
 
 static unsigned short fragment_tag;
 static LIST_HEAD(lowpan_fragments);
-spinlock_t flist_lock;
+static DEFINE_SPINLOCK(flist_lock);
 
 static inline struct
 lowpan_dev_info *lowpan_dev_info(const struct net_device *dev)
@@ -1185,8 +1185,6 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 	INIT_LIST_HEAD(&entry->list);
 	list_add_tail(&entry->list, &lowpan_devices);
 	mutex_unlock(&lowpan_dev_info(dev)->dev_list_mtx);
-
-	spin_lock_init(&flist_lock);
 
 	register_netdevice(dev);
 
