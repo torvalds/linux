@@ -3,6 +3,7 @@
 
 #include <subdev/bios.h>
 #include <subdev/gpio.h>
+#include <subdev/i2c.h>
 
 void *nouveau_newpriv(struct drm_device *);
 
@@ -129,4 +130,53 @@ nouveau_gpio_isr_del(struct drm_device *dev, int idx, u8 tag, u8 line,
 	struct nouveau_gpio *gpio = nouveau_gpio(drm->device);
 	if (gpio && gpio->isr_del)
 		gpio->isr_del(gpio, idx, tag, line, exec, data);
+}
+
+struct nouveau_i2c_port *
+nouveau_i2c_find(struct drm_device *dev, u8 index)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
+
+	return i2c->find(i2c, index);
+}
+
+bool
+nouveau_probe_i2c_addr(struct nouveau_i2c_port *port, int addr)
+{
+	return nv_probe_i2c(port, addr);
+}
+
+struct i2c_adapter *
+nouveau_i2c_adapter(struct nouveau_i2c_port *port)
+{
+	return &port->adapter;
+}
+
+
+int
+nouveau_i2c_identify(struct drm_device *dev, const char *what,
+		     struct i2c_board_info *info,
+		     bool (*match)(struct nouveau_i2c_port *,
+			           struct i2c_board_info *),
+		     int index)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
+
+	return i2c->identify(i2c, index, what, info, match);
+}
+
+int
+auxch_rd(struct drm_device *dev, struct nouveau_i2c_port *port,
+	 u32 addr, u8 *data, u8 size)
+{
+	return nv_rdaux(port, addr, data, size);
+}
+
+int
+auxch_wr(struct drm_device *dev, struct nouveau_i2c_port *port,
+	 u32 addr, u8 *data, u8 size)
+{
+	return nv_wraux(port, addr, data, size);
 }

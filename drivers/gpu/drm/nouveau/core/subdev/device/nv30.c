@@ -25,6 +25,7 @@
 #include <subdev/device.h>
 #include <subdev/bios.h>
 #include <subdev/gpio.h>
+#include <subdev/i2c.h>
 
 int
 nv30_identify(struct nouveau_device *device)
@@ -33,22 +34,27 @@ nv30_identify(struct nouveau_device *device)
 	case 0x30:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		break;
 	case 0x35:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		break;
 	case 0x31:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		break;
 	case 0x36:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		break;
 	case 0x34:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Rankine chipset\n");

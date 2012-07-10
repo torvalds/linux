@@ -264,14 +264,14 @@ nouveau_temp_safety_checks(struct drm_device *dev)
 }
 
 static bool
-probe_monitoring_device(struct nouveau_i2c_chan *i2c,
+probe_monitoring_device(struct nouveau_i2c_port *i2c,
 			struct i2c_board_info *info)
 {
 	struct i2c_client *client;
 
 	request_module("%s%s", I2C_MODULE_PREFIX, info->type);
 
-	client = i2c_new_device(&i2c->adapter, info);
+	client = i2c_new_device(nouveau_i2c_adapter(i2c), info);
 	if (!client)
 		return false;
 
@@ -296,7 +296,7 @@ nouveau_temp_probe_i2c(struct drm_device *dev)
 	};
 
 	nouveau_i2c_identify(dev, "monitoring device", info,
-			     probe_monitoring_device, NV_I2C_DEFAULT(0));
+			     probe_monitoring_device, 0x80); //NV_I2C_DEFAULT(0));
 }
 
 void

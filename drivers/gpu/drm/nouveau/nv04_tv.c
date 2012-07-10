@@ -188,7 +188,7 @@ nv04_tv_create(struct drm_connector *connector, struct dcb_entry *entry)
 	struct drm_device *dev = connector->dev;
 	struct drm_encoder_helper_funcs *hfuncs;
 	struct drm_encoder_slave_funcs *sfuncs;
-	struct nouveau_i2c_chan *i2c =
+	struct nouveau_i2c_port *i2c =
 		nouveau_i2c_find(dev, entry->i2c_index);
 	int type, ret;
 
@@ -221,7 +221,7 @@ nv04_tv_create(struct drm_connector *connector, struct dcb_entry *entry)
 
 	/* Run the slave-specific initialization */
 	ret = drm_i2c_encoder_init(dev, to_encoder_slave(encoder),
-				   &i2c->adapter, &nv04_tv_encoder_info[type]);
+				   nouveau_i2c_adapter(i2c), &nv04_tv_encoder_info[type]);
 	if (ret < 0)
 		goto fail_cleanup;
 

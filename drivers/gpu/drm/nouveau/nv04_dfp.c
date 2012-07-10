@@ -624,7 +624,7 @@ static void nv04_tmds_slave_init(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
-	struct nouveau_i2c_chan *i2c = nouveau_i2c_find(dev, 2);
+	struct nouveau_i2c_port *i2c = nouveau_i2c_find(dev, 2);
 	struct i2c_board_info info[] = {
 		{
 			.type = "sil164",
@@ -646,7 +646,7 @@ static void nv04_tmds_slave_init(struct drm_encoder *encoder)
 		return;
 
 	drm_i2c_encoder_init(dev, to_encoder_slave(encoder),
-			     &i2c->adapter, &info[type]);
+			     nouveau_i2c_adapter(i2c), &info[type]);
 }
 
 static const struct drm_encoder_helper_funcs nv04_lvds_helper_funcs = {

@@ -32,6 +32,8 @@
 
 #define NV_DPMS_CLEARED 0x80
 
+struct nouveau_i2c_port;
+
 struct dp_train_func {
 	void (*link_set)(struct drm_device *, struct dcb_entry *, int crtc,
 			 int nr, u32 bw, bool enhframe);
@@ -87,8 +89,6 @@ get_slave_funcs(struct drm_encoder *enc)
 }
 
 /* nouveau_dp.c */
-int nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
-		     uint8_t *data, int data_nr);
 bool nouveau_dp_detect(struct drm_encoder *);
 void nouveau_dp_dpms(struct drm_encoder *, int mode, u32 datarate,
 		     struct dp_train_func *);

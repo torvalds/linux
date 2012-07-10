@@ -528,7 +528,7 @@ static int dcb_entry_idx_from_crtchead(struct drm_device *dev)
 	return dcb_entry;
 }
 
-static struct nouveau_i2c_chan *
+static struct nouveau_i2c_port *
 init_i2c_device_find(struct drm_device *dev, int i2c_index)
 {
 	if (i2c_index == 0xff) {
@@ -537,9 +537,9 @@ init_i2c_device_find(struct drm_device *dev, int i2c_index)
 		/* note: dcb_entry_idx_from_crtchead needs pre-script set-up */
 		int idx = dcb_entry_idx_from_crtchead(dev);
 
-		i2c_index = NV_I2C_DEFAULT(0);
+		i2c_index = 0x80; //NV_I2C_DEFAULT(0);
 		if (idx != 0x7f && dcb->entry[idx].i2c_upper_default)
-			i2c_index = NV_I2C_DEFAULT(1);
+			i2c_index = 0x81; //NV_I2C_DEFAULT(1);
 	}
 
 	return nouveau_i2c_find(dev, i2c_index);
@@ -920,7 +920,7 @@ init_dp_condition(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		break;
 	case 5:
 	{
-		struct nouveau_i2c_chan *auxch;
+		struct nouveau_i2c_port *auxch;
 		int ret;
 
 		auxch = nouveau_i2c_find(dev, bios->display.output->i2c_index);
@@ -929,7 +929,7 @@ init_dp_condition(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 			return 3;
 		}
 
-		ret = nouveau_dp_auxch(auxch, 9, 0xd, &cond, 1);
+		ret = auxch_rd(dev, auxch, 0xd, &cond, 1);
 		if (ret) {
 			NV_ERROR(dev, "0x%04X: auxch rd fail: %d\n", offset, ret);
 			return 3;
@@ -1166,7 +1166,7 @@ init_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	uint8_t i2c_index = bios->data[offset + 1];
 	uint8_t i2c_address = bios->data[offset + 2] >> 1;
 	uint8_t count = bios->data[offset + 3];
-	struct nouveau_i2c_chan *chan;
+	struct nouveau_i2c_port *chan;
 	int len = 4 + count * 3;
 	int ret, i;
 
@@ -1189,7 +1189,7 @@ init_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		uint8_t data = bios->data[offset + 6 + i * 3];
 		union i2c_smbus_data val;
 
-		ret = i2c_smbus_xfer(&chan->adapter, i2c_address, 0,
+		ret = i2c_smbus_xfer(nouveau_i2c_adapter(chan), i2c_address, 0,
 				     I2C_SMBUS_READ, reg,
 				     I2C_SMBUS_BYTE_DATA, &val);
 		if (ret < 0) {
@@ -1206,7 +1206,7 @@ init_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 
 		val.byte &= mask;
 		val.byte |= data;
-		ret = i2c_smbus_xfer(&chan->adapter, i2c_address, 0,
+		ret = i2c_smbus_xfer(nouveau_i2c_adapter(chan), i2c_address, 0,
 				     I2C_SMBUS_WRITE, reg,
 				     I2C_SMBUS_BYTE_DATA, &val);
 		if (ret < 0) {
@@ -1241,7 +1241,7 @@ init_zm_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	uint8_t i2c_index = bios->data[offset + 1];
 	uint8_t i2c_address = bios->data[offset + 2] >> 1;
 	uint8_t count = bios->data[offset + 3];
-	struct nouveau_i2c_chan *chan;
+	struct nouveau_i2c_port *chan;
 	int len = 4 + count * 2;
 	int ret, i;
 
@@ -1270,7 +1270,7 @@ init_zm_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		if (!bios->execute)
 			continue;
 
-		ret = i2c_smbus_xfer(&chan->adapter, i2c_address, 0,
+		ret = i2c_smbus_xfer(nouveau_i2c_adapter(chan), i2c_address, 0,
 				     I2C_SMBUS_WRITE, reg,
 				     I2C_SMBUS_BYTE_DATA, &val);
 		if (ret < 0) {
@@ -1304,7 +1304,7 @@ init_zm_i2c(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	uint8_t i2c_address = bios->data[offset + 2] >> 1;
 	uint8_t count = bios->data[offset + 3];
 	int len = 4 + count;
-	struct nouveau_i2c_chan *chan;
+	struct nouveau_i2c_port *chan;
 	struct i2c_msg msg;
 	uint8_t data[256];
 	int ret, i;
@@ -1333,7 +1333,7 @@ init_zm_i2c(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		msg.flags = 0;
 		msg.len = count;
 		msg.buf = data;
-		ret = i2c_transfer(&chan->adapter, &msg, 1);
+		ret = i2c_transfer(nouveau_i2c_adapter(chan), &msg, 1);
 		if (ret != 1) {
 			NV_ERROR(dev, "0x%04X: i2c wr fail: %d\n", offset, ret);
 			return len;
@@ -1769,7 +1769,7 @@ init_i2c_if(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	uint8_t reg = bios->data[offset + 3];
 	uint8_t mask = bios->data[offset + 4];
 	uint8_t data = bios->data[offset + 5];
-	struct nouveau_i2c_chan *chan;
+	struct nouveau_i2c_port *chan;
 	union i2c_smbus_data val;
 	int ret;
 
@@ -1782,7 +1782,7 @@ init_i2c_if(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	if (!chan)
 		return -ENODEV;
 
-	ret = i2c_smbus_xfer(&chan->adapter, i2c_address, 0,
+	ret = i2c_smbus_xfer(nouveau_i2c_adapter(chan), i2c_address, 0,
 			     I2C_SMBUS_READ, reg,
 			     I2C_SMBUS_BYTE_DATA, &val);
 	if (ret < 0) {
@@ -3167,7 +3167,7 @@ init_auxch(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	 */
 
 	struct drm_device *dev = bios->dev;
-	struct nouveau_i2c_chan *auxch;
+	struct nouveau_i2c_port *auxch;
 	uint32_t addr = ROM32(bios->data[offset + 1]);
 	uint8_t count = bios->data[offset + 5];
 	int len = 6 + count * 2;
@@ -3192,7 +3192,7 @@ init_auxch(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	for (i = 0; i < count; i++, offset += 2) {
 		uint8_t data;
 
-		ret = nouveau_dp_auxch(auxch, 9, addr, &data, 1);
+		ret = auxch_rd(dev, auxch, addr, &data, 1);
 		if (ret) {
 			NV_ERROR(dev, "INIT_AUXCH: rd auxch fail %d\n", ret);
 			return len;
@@ -3201,7 +3201,7 @@ init_auxch(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		data &= bios->data[offset + 0];
 		data |= bios->data[offset + 1];
 
-		ret = nouveau_dp_auxch(auxch, 8, addr, &data, 1);
+		ret = auxch_wr(dev, auxch, addr, &data, 1);
 		if (ret) {
 			NV_ERROR(dev, "INIT_AUXCH: wr auxch fail %d\n", ret);
 			return len;
@@ -3226,7 +3226,7 @@ init_zm_auxch(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	 */
 
 	struct drm_device *dev = bios->dev;
-	struct nouveau_i2c_chan *auxch;
+	struct nouveau_i2c_port *auxch;
 	uint32_t addr = ROM32(bios->data[offset + 1]);
 	uint8_t count = bios->data[offset + 5];
 	int len = 6 + count;
@@ -3249,7 +3249,7 @@ init_zm_auxch(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 
 	offset += 6;
 	for (i = 0; i < count; i++, offset++) {
-		ret = nouveau_dp_auxch(auxch, 8, addr, &bios->data[offset], 1);
+		ret = auxch_wr(dev, auxch, addr, &bios->data[offset], 1);
 		if (ret) {
 			NV_ERROR(dev, "INIT_ZM_AUXCH: wr auxch fail %d\n", ret);
 			return len;
@@ -3285,7 +3285,7 @@ init_i2c_long_if(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	uint8_t reghi = bios->data[offset + 4];
 	uint8_t mask = bios->data[offset + 5];
 	uint8_t data = bios->data[offset + 6];
-	struct nouveau_i2c_chan *chan;
+	struct nouveau_i2c_port *chan;
 	uint8_t buf0[2] = { reghi, reglo };
 	uint8_t buf1[1];
 	struct i2c_msg msg[2] = {
@@ -3304,7 +3304,7 @@ init_i2c_long_if(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		return -ENODEV;
 
 
-	ret = i2c_transfer(&chan->adapter, msg, 2);
+	ret = i2c_transfer(nouveau_i2c_adapter(chan), msg, 2);
 	if (ret < 0) {
 		BIOSLOG(bios, "0x%04X: I2CReg: 0x%02X:0x%02X, Value: [no device], "
 			      "Mask: 0x%02X, Data: 0x%02X\n",
@@ -6270,10 +6270,6 @@ nouveau_bios_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	ret = nouveau_i2c_init(dev);
-	if (ret)
-		return ret;
-
 	ret = nouveau_mxm_init(dev);
 	if (ret)
 		return ret;
@@ -6318,8 +6314,5 @@ nouveau_bios_init(struct drm_device *dev)
 void
 nouveau_bios_takedown(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-
 	nouveau_mxm_fini(dev);
-	nouveau_i2c_fini(dev);
 }

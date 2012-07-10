@@ -471,7 +471,7 @@ mxm_dcb_sanitise(struct drm_device *dev)
 }
 
 static bool
-mxm_shadow_rom_fetch(struct nouveau_i2c_chan *i2c, u8 addr,
+mxm_shadow_rom_fetch(struct nouveau_i2c_port *i2c, u8 addr,
 		     u8 offset, u8 size, u8 *data)
 {
 	struct i2c_msg msgs[] = {
@@ -479,14 +479,14 @@ mxm_shadow_rom_fetch(struct nouveau_i2c_chan *i2c, u8 addr,
 		{ .addr = addr, .flags = I2C_M_RD, .len = size, .buf = data, },
 	};
 
-	return i2c_transfer(&i2c->adapter, msgs, 2) == 2;
+	return i2c_transfer(nouveau_i2c_adapter(i2c), msgs, 2) == 2;
 }
 
 static bool
 mxm_shadow_rom(struct drm_device *dev, u8 version)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_i2c_chan *i2c = NULL;
+	struct nouveau_i2c_port *i2c = NULL;
 	u8 i2cidx, mxms[6], addr, size;
 
 	i2cidx = mxm_ddc_map(dev, 1 /* LVDS_DDC */) & 0x0f;

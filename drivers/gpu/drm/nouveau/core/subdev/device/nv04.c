@@ -24,6 +24,7 @@
 
 #include <subdev/device.h>
 #include <subdev/bios.h>
+#include <subdev/i2c.h>
 
 int
 nv04_identify(struct nouveau_device *device)
@@ -31,9 +32,11 @@ nv04_identify(struct nouveau_device *device)
 	switch (device->chipset) {
 	case 0x04:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		break;
 	case 0x05:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown RIVA chipset\n");

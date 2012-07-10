@@ -105,7 +105,7 @@ nouveau_connector_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
-static struct nouveau_i2c_chan *
+static struct nouveau_i2c_port *
 nouveau_connector_ddc_detect(struct drm_connector *connector,
 			     struct nouveau_encoder **pnv_encoder)
 {
@@ -113,7 +113,7 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 	int i;
 
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-		struct nouveau_i2c_chan *i2c = NULL;
+		struct nouveau_i2c_port *i2c = NULL;
 		struct nouveau_encoder *nv_encoder;
 		struct drm_mode_object *obj;
 		int id;
@@ -217,7 +217,7 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = NULL;
 	struct nouveau_encoder *nv_partner;
-	struct nouveau_i2c_chan *i2c;
+	struct nouveau_i2c_port *i2c;
 	int type;
 
 	/* Cleanup the previous EDID block. */
@@ -229,7 +229,7 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 
 	i2c = nouveau_connector_ddc_detect(connector, &nv_encoder);
 	if (i2c) {
-		nv_connector->edid = drm_get_edid(connector, &i2c->adapter);
+		nv_connector->edid = drm_get_edid(connector, nouveau_i2c_adapter(i2c));
 		drm_mode_connector_update_edid_property(connector,
 							nv_connector->edid);
 		if (!nv_connector->edid) {

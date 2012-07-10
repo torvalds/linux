@@ -20,4 +20,17 @@ int  nouveau_gpio_isr_add(struct drm_device *, int idx, u8 tag, u8 line,
 			  void (*)(void *, int state), void *data);
 void nouveau_gpio_isr_del(struct drm_device *, int idx, u8 tag, u8 line,
 			  void (*)(void *, int state), void *data);
+
+struct nouveau_i2c_port *nouveau_i2c_find(struct drm_device *, u8);
+bool nouveau_probe_i2c_addr(struct nouveau_i2c_port *, int addr);
+struct i2c_adapter *nouveau_i2c_adapter(struct nouveau_i2c_port *);
+int nouveau_i2c_identify(struct drm_device *dev, const char *what,
+			 struct i2c_board_info *info,
+			 bool (*match)(struct nouveau_i2c_port *,
+				       struct i2c_board_info *), int index);
+
+int auxch_rd(struct drm_device *, struct nouveau_i2c_port *, u32, u8 *, u8);
+int auxch_wr(struct drm_device *, struct nouveau_i2c_port *, u32, u8 *, u8);
+
+
 #endif
