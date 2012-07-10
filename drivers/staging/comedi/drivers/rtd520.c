@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set Pacer trigger mode select (write only) 0=single cycle, 1=repeat */
-#define RtdPacerTriggerMode(dev, v) \
-	writel((v > 0) ? 1 : 0, devpriv->las0+LAS0_PACER_REPEAT)
-
 /* Set About counter stop enable (write only) */
 #define RtdAboutStopEnable(dev, v) \
 	writel((v > 0) ? 1 : 0, devpriv->las0+LAS0_ACNT_STOP_ENABLE)
