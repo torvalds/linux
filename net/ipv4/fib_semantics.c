@@ -794,6 +794,8 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 				val = nla_get_u32(nla);
 				if (type == RTAX_ADVMSS && val > 65535 - 40)
 					val = 65535 - 40;
+				if (type == RTAX_MTU && val > 65535 - 15)
+					val = 65535 - 15;
 				fi->fib_metrics[type - 1] = val;
 			}
 		}
