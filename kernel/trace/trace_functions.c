@@ -13,6 +13,7 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
+#include <linux/pstore.h>
 #include <linux/fs.h>
 
 #include "trace.h"
@@ -74,6 +75,14 @@ function_trace_call_preempt_only(unsigned long ip, unsigned long parent_ip)
 	preempt_enable_notrace();
 }
 
+/* Our two options */
+enum {
+	TRACE_FUNC_OPT_STACK	= 0x1,
+	TRACE_FUNC_OPT_PSTORE	= 0x2,
+};
+
+static struct tracer_flags func_flags;
+
 static void
 function_trace_call(unsigned long ip, unsigned long parent_ip)
 {
@@ -97,6 +106,12 @@ function_trace_call(unsigned long ip, unsigned long parent_ip)
 	disabled = atomic_inc_return(&data->disabled);
 
 	if (likely(disabled == 1)) {
+		/*
+		 * So far tracing doesn't support multiple buffers, so
+		 * we make an explicit call for now.
+		 */
+		if (unlikely(func_flags.val & TRACE_FUNC_OPT_PSTORE))
+			pstore_ftrace_call(ip, parent_ip);
 		pc = preempt_count();
 		trace_function(tr, ip, parent_ip, flags, pc);
 	}
@@ -158,14 +173,12 @@ static struct ftrace_ops trace_stack_ops __read_mostly =
 	.flags = FTRACE_OPS_FL_GLOBAL,
 };
 
-/* Our two options */
-enum {
-	TRACE_FUNC_OPT_STACK = 0x1,
-};
-
 static struct tracer_opt func_opts[] = {
 #ifdef CONFIG_STACKTRACE
 	{ TRACER_OPT(func_stack_trace, TRACE_FUNC_OPT_STACK) },
+#endif
+#ifdef CONFIG_PSTORE_FTRACE
+	{ TRACER_OPT(func_pstore, TRACE_FUNC_OPT_PSTORE) },
 #endif
 	{ } /* Always set a last empty entry */
 };
@@ -217,6 +230,8 @@ static int func_set_flag(u32 old_flags, u32 bit, int set)
 			register_ftrace_function(&trace_ops);
 		}
 
+		return 0;
+	} else if (bit == TRACE_FUNC_OPT_PSTORE) {
 		return 0;
 	}
 
