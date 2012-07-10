@@ -77,7 +77,7 @@
  */
 struct rbd_image_header {
 	u64 image_size;
-	char object_prefix[32];
+	char *object_prefix;
 	__u8 obj_order;
 	__u8 crypt_type;
 	__u8 comp_type;
@@ -517,8 +517,15 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 		header->snap_names = NULL;
 		header->snap_sizes = NULL;
 	}
+
+	header->object_prefix = kmalloc(sizeof (ondisk->block_name) + 1,
+					gfp_flags);
+	if (!header->object_prefix)
+		goto err_sizes;
+
 	memcpy(header->object_prefix, ondisk->block_name,
 	       sizeof(ondisk->block_name));
+	header->object_prefix[sizeof (ondisk->block_name)] = '\0';
 
 	header->image_size = le64_to_cpu(ondisk->image_size);
 	header->obj_order = ondisk->options.order;
@@ -545,6 +552,8 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 
 	return 0;
 
+err_sizes:
+	kfree(header->snap_sizes);
 err_names:
 	kfree(header->snap_names);
 err_snapc:
@@ -610,9 +619,10 @@ done:
 
 static void rbd_header_free(struct rbd_image_header *header)
 {
-	kfree(header->snapc);
-	kfree(header->snap_names);
+	kfree(header->object_prefix);
 	kfree(header->snap_sizes);
+	kfree(header->snap_names);
+	kfree(header->snapc);
 }
 
 /*
@@ -1710,15 +1720,20 @@ static int __rbd_refresh_header(struct rbd_device *rbd_dev)
 		   if head moves */
 		follow_seq = 1;
 
-	kfree(rbd_dev->header.snapc);
-	kfree(rbd_dev->header.snap_names);
+	/* rbd_dev->header.object_prefix shouldn't change */
 	kfree(rbd_dev->header.snap_sizes);
+	kfree(rbd_dev->header.snap_names);
+	kfree(rbd_dev->header.snapc);
 
 	rbd_dev->header.total_snaps = h.total_snaps;
 	rbd_dev->header.snapc = h.snapc;
 	rbd_dev->header.snap_names = h.snap_names;
 	rbd_dev->header.snap_names_len = h.snap_names_len;
 	rbd_dev->header.snap_sizes = h.snap_sizes;
+	/* Free the extra copy of the object prefix */
+	WARN_ON(strcmp(rbd_dev->header.object_prefix, h.object_prefix));
+	kfree(h.object_prefix);
+
 	if (follow_seq)
 		rbd_dev->header.snapc->seq = rbd_dev->header.snapc->snaps[0];
 	else
@@ -2361,10 +2376,11 @@ static int rbd_add_parse_args(struct rbd_device *rbd_dev,
 	if (!rbd_dev->pool_name)
 		return -ENOMEM;
 
-	ret = -EINVAL;
 	len = copy_token(&buf, rbd_dev->obj, sizeof (rbd_dev->obj));
-	if (!len || len >= sizeof (rbd_dev->obj))
+	if (!len || len >= sizeof (rbd_dev->obj)) {
+		ret = -EINVAL;
 		goto out_err;
+	}
 
 	/* We have the object length in hand, save it. */
 
@@ -2382,8 +2398,10 @@ static int rbd_add_parse_args(struct rbd_device *rbd_dev,
 	if (!len)
 		memcpy(rbd_dev->snap_name, RBD_SNAP_HEAD_NAME,
 			sizeof (RBD_SNAP_HEAD_NAME));
-	else if (len >= sizeof (rbd_dev->snap_name))
+	else if (len >= sizeof (rbd_dev->snap_name)) {
+		ret = -EINVAL;
 		goto out_err;
+	}
 
 	return 0;
 
