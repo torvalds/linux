@@ -744,7 +744,7 @@ int parse_mtd_partitions(struct mtd_info *master, const char **types,
 	return ret;
 }
 
-int mtd_is_partition(struct mtd_info *mtd)
+int mtd_is_partition(const struct mtd_info *mtd)
 {
 	struct mtd_part *part;
 	int ispart = 0;
