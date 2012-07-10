@@ -9,19 +9,46 @@
  * as published by the Free Software Foundation; version 2
  * of the License.
  */
+#ifndef __ASYNC_H__
+#define __ASYNC_H__
 
 #include <linux/types.h>
 #include <linux/list.h>
 
 typedef u64 async_cookie_t;
 typedef void (async_func_ptr) (void *data, async_cookie_t cookie);
+struct async_domain {
+	struct list_head node;
+	struct list_head domain;
+	int count;
+	unsigned registered:1;
+};
+
+/*
+ * domain participates in global async_synchronize_full
+ */
+#define ASYNC_DOMAIN(_name) \
+	struct async_domain _name = { .node = LIST_HEAD_INIT(_name.node), \
+				      .domain = LIST_HEAD_INIT(_name.domain), \
+				      .count = 0, \
+				      .registered = 1 }
+
+/*
+ * domain is free to go out of scope as soon as all pending work is
+ * complete, this domain does not participate in async_synchronize_full
+ */
+#define ASYNC_DOMAIN_EXCLUSIVE(_name) \
+	struct async_domain _name = { .node = LIST_HEAD_INIT(_name.node), \
+				      .domain = LIST_HEAD_INIT(_name.domain), \
+				      .count = 0, \
+				      .registered = 0 }
 
 extern async_cookie_t async_schedule(async_func_ptr *ptr, void *data);
 extern async_cookie_t async_schedule_domain(async_func_ptr *ptr, void *data,
-					    struct list_head *list);
+					    struct async_domain *domain);
 extern void async_synchronize_full(void);
-extern void async_synchronize_full_domain(struct list_head *list);
+extern void async_synchronize_full_domain(struct async_domain *domain);
 extern void async_synchronize_cookie(async_cookie_t cookie);
 extern void async_synchronize_cookie_domain(async_cookie_t cookie,
-					    struct list_head *list);
-
+					    struct async_domain *domain);
+#endif
