@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Reset channel gain table read pointer */
-#define RtdResetCGT(dev) \
-	writel(0, devpriv->las0+LAS0_CGT_RESET)
-
 /* Reset channel gain table read and write pointers */
 #define RtdClearCGT(dev) \
 	writel(0, devpriv->las0+LAS0_CGT_CLEAR)
