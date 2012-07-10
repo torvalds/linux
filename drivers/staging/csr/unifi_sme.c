@@ -78,12 +78,6 @@ sme_log_event(ul_client_t *pcli,
     CsrResult result = CSR_RESULT_SUCCESS;
     int r;
 
-    /* Following bits are encoded in hostTag These are there to ensure that hostTags are unique*/
-#define CSR_SME_DATA     0x00000000  /* Frames Sent by SME */
-#define CSR_PAL_DATA     0X10000000  /* Frames Sent by PAL-D*/
-#define CSR_NME_DATA     0x20000000  /* Frames Sent by NME*/
-#define APPLICATION_DATA 0x30000000  /* Frames Sent by Application*/
-
     func_enter();
     /* Just a sanity check */
     if ((signal == NULL) || (signal_len <= 0)) {
