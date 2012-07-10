@@ -2708,10 +2708,9 @@ static int ql_alloc_tx_resources(struct ql_adapter *qdev,
 				 &tx_ring->wq_base_dma);
 
 	if ((tx_ring->wq_base == NULL) ||
-	    tx_ring->wq_base_dma & WQ_ADDR_ALIGN) {
-		netif_err(qdev, ifup, qdev->ndev, "tx_ring alloc failed.\n");
-		return -ENOMEM;
-	}
+	    tx_ring->wq_base_dma & WQ_ADDR_ALIGN)
+		goto pci_alloc_err;
+
 	tx_ring->q =
 	    kmalloc(tx_ring->wq_len * sizeof(struct tx_ring_desc), GFP_KERNEL);
 	if (tx_ring->q == NULL)
@@ -2721,6 +2720,9 @@ static int ql_alloc_tx_resources(struct ql_adapter *qdev,
 err:
 	pci_free_consistent(qdev->pdev, tx_ring->wq_size,
 			    tx_ring->wq_base, tx_ring->wq_base_dma);
+	tx_ring->wq_base = NULL;
+pci_alloc_err:
+	netif_err(qdev, ifup, qdev->ndev, "tx_ring alloc failed.\n");
 	return -ENOMEM;
 }
 
