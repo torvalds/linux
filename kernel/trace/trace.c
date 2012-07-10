@@ -3172,10 +3172,10 @@ static int tracing_set_tracer(const char *buf)
 	}
 	destroy_trace_option_files(topts);
 
-	current_trace = t;
+	current_trace = &nop_trace;
 
-	topts = create_trace_option_files(current_trace);
-	if (current_trace->use_max_tr) {
+	topts = create_trace_option_files(t);
+	if (t->use_max_tr) {
 		int cpu;
 		/* we need to make per cpu buffer sizes equivalent */
 		for_each_tracing_cpu(cpu) {
@@ -3195,6 +3195,7 @@ static int tracing_set_tracer(const char *buf)
 			goto out;
 	}
 
+	current_trace = t;
 	trace_branch_enable(tr);
  out:
 	mutex_unlock(&trace_types_lock);
