@@ -661,8 +661,8 @@ lowpan_alloc_new_frame(struct sk_buff *skb, u8 iphc0, u8 len, u8 tag)
 	frame->tag = tag;
 
 	/* allocate buffer for frame assembling */
-	frame->skb = alloc_skb(frame->length +
-			       sizeof(struct ipv6hdr), GFP_ATOMIC);
+	frame->skb = netdev_alloc_skb_ip_align(skb->dev, frame->length +
+					       sizeof(struct ipv6hdr));
 
 	if (!frame->skb)
 		goto skb_err;
