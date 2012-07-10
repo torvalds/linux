@@ -402,30 +402,6 @@ INT CopyBufferToControlPacket(struct bcm_mini_adapter *Adapter, PVOID ioBuffer)
 	return Status;
 }
 
-#if 0
-/*****************************************************************
-* Function    - SendStatisticsPointerRequest()
-*
-* Description - This function builds and forwards the Statistics
-* Pointer Request control Packet.
-*
-* Parameters  - Adapter					: Pointer to Adapter structure.
-* - pstStatisticsPtrRequest : Pointer to link request.
-*
-* Returns     - None.
-*****************************************************************/
-static VOID SendStatisticsPointerRequest(struct bcm_mini_adapter *Adapter, struct bcm_link_request *pstStatisticsPtrRequest)
-{
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "======>");
-	pstStatisticsPtrRequest->Leader.Status = STATS_POINTER_REQ_STATUS;
-	pstStatisticsPtrRequest->Leader.PLength = sizeof(ULONG); /* minimum 4 bytes */
-	pstStatisticsPtrRequest->szData[0] = STATISTICS_POINTER_REQ;
-	CopyBufferToControlPacket(Adapter, pstStatisticsPtrRequest);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "<=====");
-	return;
-}
-#endif
-
 /******************************************************************
 * Function    - LinkMessage()
 *
@@ -1216,45 +1192,6 @@ static VOID doPowerAutoCorrection(struct bcm_mini_adapter *psAdapter)
 		BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Using Forced User Choice: %lx\n", psAdapter->ulPowerSaveMode);
 	}
 }
-
-#if 0
-static unsigned char *ReadMacAddrEEPROM(struct bcm_mini_adapter *Adapter, ulong dwAddress)
-{
-	int status = 0, i = 0;
-	unsigned int temp = 0;
-	unsigned char *pucmacaddr = kmalloc(MAC_ADDRESS_SIZE, GFP_KERNEL);
-	int bytes;
-
-	if (!pucmacaddr) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "No Buffers to Read the EEPROM Address\n");
-		return NULL;
-	}
-
-	dwAddress |= 0x5b000000;
-	status = wrmalt(Adapter, EEPROM_COMMAND_Q_REG, (PUINT)&dwAddress, sizeof(UINT));
-	if (status != STATUS_SUCCESS) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "wrm Failed..\n");
-		kfree(pucmacaddr);
-		pucmacaddr = NULL;
-		goto OUT;
-	}
-
-	for (i = 0; i < MAC_ADDRESS_SIZE; i++) {
-		bytes = rdmalt(Adapter, EEPROM_READ_DATA_Q_REG, &temp, sizeof(temp));
-		if (bytes < 0) {
-			status = bytes;
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "rdm Failed..\n");
-			kfree(pucmacaddr);
-			pucmacaddr = NULL;
-			goto OUT;
-		}
-		pucmacaddr[i] = temp & 0xff;
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "%x\n", pucmacaddr[i]);
-	}
-OUT:
-	return pucmacaddr;
-}
-#endif
 
 static void convertEndian(B_UINT8 rwFlag, PUINT puiBuffer, UINT uiByteCount)
 {
