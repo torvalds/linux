@@ -138,6 +138,17 @@ static inline void random_ether_addr(u8 *addr)
 }
 
 /**
+ * eth_broadcast_addr - Assign broadcast address
+ * @addr: Pointer to a six-byte array containing the Ethernet address
+ *
+ * Assign the broadcast address to the given address array.
+ */
+static inline void eth_broadcast_addr(u8 *addr)
+{
+	memset(addr, 0xff, ETH_ALEN);
+}
+
+/**
  * eth_hw_addr_random - Generate software assigned random Ethernet and
  * set device flag
  * @dev: pointer to net_device structure
