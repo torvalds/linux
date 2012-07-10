@@ -40,8 +40,13 @@
 				hog_pins_a: hog-gpios@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
+						0x0113 /* MX28_PAD_GPMI_CE1N__GPIO_0_17 */
+						0x0153 /* MX28_PAD_GPMI_RDY1__GPIO_0_21 */
+						0x2123 /* MX28_PAD_SSP2_MISO__GPIO_2_18 */
+						0x2131 /* MX28_PAD_SSP2_SS0__GPIO_2_19 */
 						0x31c3 /* MX28_PAD_PWM3__GPIO_3_28 */
 						0x31e3 /* MX28_PAD_LCD_RESET__GPIO_3_30 */
+						0x4143 /* MX28_PAD_JTAG_RTCK__GPIO_4_20 */
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
