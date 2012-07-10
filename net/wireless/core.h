@@ -463,8 +463,7 @@ cfg80211_can_use_chan(struct cfg80211_registered_device *rdev,
 }
 
 void
-cfg80211_get_chan_state(struct cfg80211_registered_device *rdev,
-		        struct wireless_dev *wdev,
+cfg80211_get_chan_state(struct wireless_dev *wdev,
 		        struct ieee80211_channel **chan,
 		        enum cfg80211_chan_mode *chanmode);
 

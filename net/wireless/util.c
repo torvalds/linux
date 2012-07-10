@@ -1059,7 +1059,16 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 		if (rdev->wiphy.software_iftypes & BIT(wdev_iter->iftype))
 			continue;
 
-		cfg80211_get_chan_state(rdev, wdev_iter, &ch, &chmode);
+		/*
+		 * We may be holding the "wdev" mutex, but now need to lock
+		 * wdev_iter. This is OK because once we get here wdev_iter
+		 * is not wdev (tested above), but we need to use the nested
+		 * locking for lockdep.
+		 */
+		mutex_lock_nested(&wdev_iter->mtx, 1);
+		__acquire(wdev_iter->mtx);
+		cfg80211_get_chan_state(wdev_iter, &ch, &chmode);
+		wdev_unlock(wdev_iter);
 
 		switch (chmode) {
 		case CHAN_MODE_UNDEFINED:
