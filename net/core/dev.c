@@ -1798,7 +1798,7 @@ EXPORT_SYMBOL(netif_set_real_num_rx_queues);
  * This routine should set an upper limit on the number of RSS queues
  * used by default by multiqueue devices.
  */
-int netif_get_num_default_rss_queues()
+int netif_get_num_default_rss_queues(void)
 {
 	return min_t(int, DEFAULT_MAX_NUM_RSS_QUEUES, num_online_cpus());
 }
