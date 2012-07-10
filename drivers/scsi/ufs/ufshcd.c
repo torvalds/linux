@@ -1163,6 +1163,8 @@ static int ufshcd_task_req_compl(struct ufs_hba *hba, u32 index)
 		if (task_result != UPIU_TASK_MANAGEMENT_FUNC_COMPL &&
 		    task_result != UPIU_TASK_MANAGEMENT_FUNC_SUCCEEDED)
 			task_result = FAILED;
+		else
+			task_result = SUCCESS;
 	} else {
 		task_result = FAILED;
 		dev_err(&hba->pdev->dev,
@@ -1556,7 +1558,7 @@ ufshcd_issue_tm_cmd(struct ufs_hba *hba,
 		goto out;
 	}
 	clear_bit(free_slot, &hba->tm_condition);
-	return ufshcd_task_req_compl(hba, free_slot);
+	err = ufshcd_task_req_compl(hba, free_slot);
 out:
 	return err;
 }
@@ -1580,7 +1582,7 @@ static int ufshcd_device_reset(struct scsi_cmnd *cmd)
 	tag = cmd->request->tag;
 
 	err = ufshcd_issue_tm_cmd(hba, &hba->lrb[tag], UFS_LOGICAL_RESET);
-	if (err)
+	if (err == FAILED)
 		goto out;
 
 	for (pos = 0; pos < hba->nutrs; pos++) {
@@ -1620,7 +1622,7 @@ static int ufshcd_host_reset(struct scsi_cmnd *cmd)
 	if (hba->ufshcd_state == UFSHCD_STATE_RESET)
 		return SUCCESS;
 
-	return (ufshcd_do_reset(hba) == SUCCESS) ? SUCCESS : FAILED;
+	return ufshcd_do_reset(hba);
 }
 
 /**
@@ -1652,7 +1654,7 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	spin_unlock_irqrestore(host->host_lock, flags);
 
 	err = ufshcd_issue_tm_cmd(hba, &hba->lrb[tag], UFS_ABORT_TASK);
-	if (err)
+	if (err == FAILED)
 		goto out;
 
 	scsi_dma_unmap(cmd);
