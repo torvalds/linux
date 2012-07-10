@@ -19,8 +19,6 @@
  *	Sascha Hauer <s.hauer@pengutronix.de>
  */
 
-#define DEBUG
-
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
@@ -53,10 +51,10 @@
 
 #define WEMAC_PHY 	0x100	/* PHY address 0x01 */
 #define CARDNAME	"wemac"
-#define DRV_VERSION	"1.00"
+#define DRV_VERSION	"1.01"
 #define DMA_CPU_TRRESHOLD 2000
 #define TOLOWER(x) ((x) | 0x20)
-#define PHY_POWER 1
+#define PHY_POWER 0
 /*
  * Transmit timeout, default 5 seconds.
  */
@@ -288,7 +286,6 @@ int wemac_dma_config_start(__u8 rw, void * buff_addr, __u32 len)
 __s32 emacrx_WaitDmaFinish(void)
 {
 	unsigned long flags;
-	int i;
 
 	while(1){
 		local_irq_save(flags);
@@ -296,7 +293,6 @@ __s32 emacrx_WaitDmaFinish(void)
 			local_irq_restore(flags);
 			break;
 		}
-		/*for(i=0;i<1000;i++);*/
 		local_irq_restore(flags);
 	}
 
@@ -339,6 +335,7 @@ static int wemac_inblk_dma(void __iomem * reg,void * data,int count)
 	return wemac_dma_config_start(0, data, count);
 }
 #endif
+
 static void wemac_outblk_32bit(void __iomem *reg, void *data, int count)
 {
 	writesl(reg, data, (count+3) >> 2);
@@ -435,8 +432,6 @@ static u32 wemac_get_link(struct net_device *dev)
 	return ret;
 }
 
-#define DM_EEPROM_MAGIC		(0x444D394B)
-
 static int wemac_get_eeprom_len(struct net_device *dev)
 {
 	return 128;
@@ -458,7 +453,7 @@ static int wemac_get_eeprom(struct net_device *dev,
 	//	if (dm->flags & WEMAC_PLATF_NO_EEPROM)
 	//		return -ENOENT;
 	//
-	//	ee->magic = DM_EEPROM_MAGIC;
+	//	ee->magic = EMAC_EEPROM_MAGIC;
 	//
 	//	for (i = 0; i < len; i += 2)
 	//		wemac_read_eeprom(dm, (offset + i) / 2, data + i);
@@ -482,7 +477,7 @@ static int wemac_set_eeprom(struct net_device *dev,
 	//	if (dm->flags & WEMAC_PLATF_NO_EEPROM)
 	//		return -ENOENT;
 	//
-	//	if (ee->magic != DM_EEPROM_MAGIC)
+	//	if (ee->magic != EMAC_EEPROM_MAGIC)
 	//		return -EINVAL;
 	//
 	//	for (i = 0; i < len; i += 2)
@@ -504,13 +499,15 @@ static const struct ethtool_ops wemac_ethtool_ops = {
 	.set_eeprom		= wemac_set_eeprom,
 };
 
-//*****************************************************************************
-//	void phy_link_check()
-//  Description:
-//
-//
-//	Return Value:	1: Link valid		0: Link not valid
-//*****************************************************************************
+/*
+ * ****************************************************************************
+ *	void phy_link_check()
+ *  Description:
+ *
+ *
+ *	Return Value:	1: Link valid		0: Link not valid
+ * ****************************************************************************
+ */
 unsigned int phy_link_check(struct net_device * dev)
 {
 	unsigned int reg_val;
@@ -949,13 +946,10 @@ wemac_poll_work(struct work_struct *w)
  *
  * release a board, and any mapped resources
  */
-
 	static void
 wemac_release_board(struct platform_device *pdev, struct wemac_board_info *db)
 {
 	/* unmap our resources */
-
-	printk("release temp resource 1\n");
 
 	iounmap(db->emac_vbase);
 	iounmap(db->sram_vbase);
@@ -1264,14 +1258,11 @@ wemac_rx(struct net_device *dev)
 
 	/* Check packet ready or not */
 	do {
+
+		/* dummy read: lundman */
 		Rxcount = readl(db->emac_vbase + EMAC_RX_FBC_REG);
 
-		//add by penggang 20110621
-		if(!Rxcount)
-		{
-			udelay(150); /* 100 */
 			Rxcount = readl(db->emac_vbase + EMAC_RX_FBC_REG);
-		}
 
 		if (netif_msg_rx_status(db))
 			dev_dbg(db->dev, "RXCount: %x\n", Rxcount);
@@ -1540,7 +1531,6 @@ static int wemac_open(struct net_device *dev)
  * Sleep, either by using msleep() or if we are suspending, then
  * use mdelay() to sleep.
  */
-#if 0
 static void wemac_msleep(wemac_board_info_t *db, unsigned int ms)
 {
 	if (db->in_suspend)
@@ -1548,7 +1538,7 @@ static void wemac_msleep(wemac_board_info_t *db, unsigned int ms)
 	else
 		msleep(ms);
 }
-#endif
+
 /*
  *   Read a word from phyxcer
  */
@@ -1567,8 +1557,7 @@ static int wemac_phy_read(struct net_device *dev, int phyaddr_unused, int reg)
 	writel(0x1, db->emac_vbase + EMAC_MAC_MCMD_REG);
 	spin_unlock_irqrestore(&db->lock,flags);
 
-	//    wemac_msleep(db, 1);		/* Wait read complete */
-	udelay(150); /* 100 */
+	wemac_msleep(db, 1);		/* Wait read complete */
 
 	/* push down the phy io line and read data */
 	spin_lock_irqsave(&db->lock,flags);
@@ -1601,8 +1590,7 @@ static void wemac_phy_write(struct net_device *dev,
 	writel(0x1, db->emac_vbase + EMAC_MAC_MCMD_REG);
 	spin_unlock_irqrestore(&db->lock, flags);
 
-	//wemac_msleep(db, 1);		/* Wait write complete */
-	udelay(150); /* 100 */
+	wemac_msleep(db, 1);		/* Wait write complete */
 
 	spin_lock_irqsave(&db->lock,flags);
 	/* push down the phy io line */
@@ -1918,7 +1906,6 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 				db->emac_vbase, ndev->irq,
 				ndev->dev_addr);
 
-	printk("release temp resource\n");
 	/* only for debug */
 	iounmap(db->sram_vbase);
 	iounmap(db->gpio_vbase);

@@ -231,6 +231,8 @@
 #define WEMAC_PLATF_NO_EEPROM   (0x0010)
 #define WEMAC_PLATF_SIMPLE_PHY (0x0020)  /* Use NSR to find LinkStatus */
 
+#define EMAC_EEPROM_MAGIC		(0x444D394B)
+
 /* platfrom data for platfrom device structure's platfrom_data field */
 
 struct wemac_plat_data {
