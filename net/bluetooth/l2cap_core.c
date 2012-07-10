@@ -431,6 +431,7 @@ void l2cap_chan_set_defaults(struct l2cap_chan *chan)
 	chan->max_tx = L2CAP_DEFAULT_MAX_TX;
 	chan->tx_win = L2CAP_DEFAULT_TX_WINDOW;
 	chan->tx_win_max = L2CAP_DEFAULT_TX_WINDOW;
+	chan->ack_win = L2CAP_DEFAULT_TX_WINDOW;
 	chan->sec_level = BT_SECURITY_LOW;
 
 	set_bit(FLAG_FORCE_ACTIVE, &chan->flags);
@@ -1877,10 +1878,10 @@ static void l2cap_send_ack(struct l2cap_chan *chan)
 				frames_to_ack = 0;
 		}
 
-		/* Ack now if the tx window is 3/4ths full.
+		/* Ack now if the window is 3/4ths full.
 		 * Calculate without mul or div
 		 */
-		threshold = chan->tx_win;
+		threshold = chan->ack_win;
 		threshold += threshold << 1;
 		threshold >>= 2;
 
@@ -2786,6 +2787,7 @@ static inline void l2cap_txwin_setup(struct l2cap_chan *chan)
 						L2CAP_DEFAULT_TX_WINDOW);
 		chan->tx_win_max = L2CAP_DEFAULT_TX_WINDOW;
 	}
+	chan->ack_win = chan->tx_win;
 }
 
 static int l2cap_build_conf_req(struct l2cap_chan *chan, void *data)
@@ -3175,10 +3177,9 @@ static int l2cap_parse_conf_rsp(struct l2cap_chan *chan, void *rsp, int len, voi
 			break;
 
 		case L2CAP_CONF_EWS:
-			chan->tx_win = min_t(u16, val,
-						L2CAP_DEFAULT_EXT_WINDOW);
+			chan->ack_win = min_t(u16, val, chan->ack_win);
 			l2cap_add_conf_opt(&ptr, L2CAP_CONF_EWS, 2,
-							chan->tx_win);
+					   chan->tx_win);
 			break;
 
 		case L2CAP_CONF_EFS:
@@ -3207,6 +3208,9 @@ static int l2cap_parse_conf_rsp(struct l2cap_chan *chan, void *rsp, int len, voi
 			chan->retrans_timeout = le16_to_cpu(rfc.retrans_timeout);
 			chan->monitor_timeout = le16_to_cpu(rfc.monitor_timeout);
 			chan->mps    = le16_to_cpu(rfc.max_pdu_size);
+			if (!test_bit(FLAG_EXT_CTRL, &chan->flags))
+				chan->ack_win = min_t(u16, chan->ack_win,
+						      rfc.txwin_size);
 
 			if (test_bit(FLAG_EFS_ENABLE, &chan->flags)) {
 				chan->local_msdu = le16_to_cpu(efs.msdu);
@@ -3268,7 +3272,17 @@ static void l2cap_conf_rfc_get(struct l2cap_chan *chan, void *rsp, int len)
 {
 	int type, olen;
 	unsigned long val;
-	struct l2cap_conf_rfc rfc;
+	/* Use sane default values in case a misbehaving remote device
+	 * did not send an RFC or extended window size option.
+	 */
+	u16 txwin_ext = chan->ack_win;
+	struct l2cap_conf_rfc rfc = {
+		.mode = chan->mode,
+		.retrans_timeout = __constant_cpu_to_le16(L2CAP_DEFAULT_RETRANS_TO),
+		.monitor_timeout = __constant_cpu_to_le16(L2CAP_DEFAULT_MONITOR_TO),
+		.max_pdu_size = cpu_to_le16(chan->imtu),
+		.txwin_size = min_t(u16, chan->ack_win, L2CAP_DEFAULT_TX_WINDOW),
+	};
 
 	BT_DBG("chan %p, rsp %p, len %d", chan, rsp, len);
 
@@ -3278,32 +3292,27 @@ static void l2cap_conf_rfc_get(struct l2cap_chan *chan, void *rsp, int len)
 	while (len >= L2CAP_CONF_OPT_SIZE) {
 		len -= l2cap_get_conf_opt(&rsp, &type, &olen, &val);
 
-		if (type != L2CAP_CONF_RFC)
-			continue;
-
-		if (olen != sizeof(rfc))
+		switch (type) {
+		case L2CAP_CONF_RFC:
+			if (olen == sizeof(rfc))
+				memcpy(&rfc, (void *)val, olen);
 			break;
-
-		memcpy(&rfc, (void *)val, olen);
-		goto done;
+		case L2CAP_CONF_EWS:
+			txwin_ext = val;
+			break;
+		}
 	}
 
-	/* Use sane default values in case a misbehaving remote device
-	 * did not send an RFC option.
-	 */
-	rfc.mode = chan->mode;
-	rfc.retrans_timeout = __constant_cpu_to_le16(L2CAP_DEFAULT_RETRANS_TO);
-	rfc.monitor_timeout = __constant_cpu_to_le16(L2CAP_DEFAULT_MONITOR_TO);
-	rfc.max_pdu_size = cpu_to_le16(chan->imtu);
-
-	BT_ERR("Expected RFC option was not found, using defaults");
-
-done:
 	switch (rfc.mode) {
 	case L2CAP_MODE_ERTM:
 		chan->retrans_timeout = le16_to_cpu(rfc.retrans_timeout);
 		chan->monitor_timeout = le16_to_cpu(rfc.monitor_timeout);
-		chan->mps    = le16_to_cpu(rfc.max_pdu_size);
+		chan->mps = le16_to_cpu(rfc.max_pdu_size);
+		if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+			chan->ack_win = min_t(u16, chan->ack_win, txwin_ext);
+		else
+			chan->ack_win = min_t(u16, chan->ack_win,
+					      rfc.txwin_size);
 		break;
 	case L2CAP_MODE_STREAMING:
 		chan->mps    = le16_to_cpu(rfc.max_pdu_size);

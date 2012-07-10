@@ -464,6 +464,7 @@ struct l2cap_chan {
 
 	__u16		tx_win;
 	__u16		tx_win_max;
+	__u16		ack_win;
 	__u8		max_tx;
 	__u16		retrans_timeout;
 	__u16		monitor_timeout;
