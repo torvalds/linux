@@ -159,7 +159,7 @@ static void genpd_recalc_cpu_exit_latency(struct generic_pm_domain *genpd)
  * Restore power to @genpd and all of its masters so that it is possible to
  * resume a device belonging to it.
  */
-int __pm_genpd_poweron(struct generic_pm_domain *genpd)
+static int __pm_genpd_poweron(struct generic_pm_domain *genpd)
 	__releases(&genpd->lock) __acquires(&genpd->lock)
 {
 	struct gpd_link *link;
