@@ -1536,6 +1536,14 @@ struct nic_stats {
 	u64 rx_1024_to_1518_pkts;
 	u64 rx_1519_to_max_pkts;
 	u64 rx_len_err_pkts;
+	/* Receive Mac Err stats */
+	u64 rx_code_err;
+	u64 rx_oversize_err;
+	u64 rx_undersize_err;
+	u64 rx_preamble_err;
+	u64 rx_frame_len_err;
+	u64 rx_crc_err;
+	u64 rx_err_count;
 	/*
 	 * These stats come from offset 500h to 5C8h
 	 * in the XGMAC register.

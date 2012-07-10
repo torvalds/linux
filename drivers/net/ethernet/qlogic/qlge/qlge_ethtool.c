@@ -226,6 +226,13 @@ static char ql_stats_str_arr[][ETH_GSTRING_LEN] = {
 	{"rx_1024_to_1518_pkts"},
 	{"rx_1519_to_max_pkts"},
 	{"rx_len_err_pkts"},
+	{"rx_code_err"},
+	{"rx_oversize_err"},
+	{"rx_undersize_err"},
+	{"rx_preamble_err"},
+	{"rx_frame_len_err"},
+	{"rx_crc_err"},
+	{"rx_err_count"},
 	{"tx_cbfc_pause_frames0"},
 	{"tx_cbfc_pause_frames1"},
 	{"tx_cbfc_pause_frames2"},
@@ -320,6 +327,13 @@ ql_get_ethtool_stats(struct net_device *ndev,
 	*data++ = s->rx_1024_to_1518_pkts;
 	*data++ = s->rx_1519_to_max_pkts;
 	*data++ = s->rx_len_err_pkts;
+	*data++ = s->rx_code_err;
+	*data++ = s->rx_oversize_err;
+	*data++ = s->rx_undersize_err;
+	*data++ = s->rx_preamble_err;
+	*data++ = s->rx_frame_len_err;
+	*data++ = s->rx_crc_err;
+	*data++ = s->rx_err_count;
 	*data++ = s->tx_cbfc_pause_frames0;
 	*data++ = s->tx_cbfc_pause_frames1;
 	*data++ = s->tx_cbfc_pause_frames2;

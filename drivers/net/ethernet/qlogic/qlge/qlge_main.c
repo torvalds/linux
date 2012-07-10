@@ -1433,6 +1433,36 @@ map_error:
 	return NETDEV_TX_BUSY;
 }
 
+/* Categorizing receive firmware frame errors */
+static void ql_categorize_rx_err(struct ql_adapter *qdev, u8 rx_err)
+{
+	struct nic_stats *stats = &qdev->nic_stats;
+
+	stats->rx_err_count++;
+
+	switch (rx_err & IB_MAC_IOCB_RSP_ERR_MASK) {
+	case IB_MAC_IOCB_RSP_ERR_CODE_ERR:
+		stats->rx_code_err++;
+		break;
+	case IB_MAC_IOCB_RSP_ERR_OVERSIZE:
+		stats->rx_oversize_err++;
+		break;
+	case IB_MAC_IOCB_RSP_ERR_UNDERSIZE:
+		stats->rx_undersize_err++;
+		break;
+	case IB_MAC_IOCB_RSP_ERR_PREAMBLE:
+		stats->rx_preamble_err++;
+		break;
+	case IB_MAC_IOCB_RSP_ERR_FRAME_LEN:
+		stats->rx_frame_len_err++;
+		break;
+	case IB_MAC_IOCB_RSP_ERR_CRC:
+		stats->rx_crc_err++;
+	default:
+		break;
+	}
+}
+
 /* Process an inbound completion from an rx ring. */
 static void ql_process_mac_rx_gro_page(struct ql_adapter *qdev,
 					struct rx_ring *rx_ring,
@@ -1498,15 +1528,6 @@ static void ql_process_mac_rx_page(struct ql_adapter *qdev,
 
 	addr = lbq_desc->p.pg_chunk.va;
 	prefetch(addr);
-
-
-	/* Frame error, so drop the packet. */
-	if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_ERR_MASK) {
-		netif_info(qdev, drv, qdev->ndev,
-			  "Receive error, flags2 = 0x%x\n", ib_mac_rsp->flags2);
-		rx_ring->rx_errors++;
-		goto err_out;
-	}
 
 	/* The max framesize filter on this chip is set higher than
 	 * MTU since FCoE uses 2k frames.
@@ -1592,15 +1613,6 @@ static void ql_process_mac_rx_skb(struct ql_adapter *qdev,
 	skb_reserve(new_skb, NET_IP_ALIGN);
 	memcpy(skb_put(new_skb, length), skb->data, length);
 	skb = new_skb;
-
-	/* Frame error, so drop the packet. */
-	if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_ERR_MASK) {
-		netif_info(qdev, drv, qdev->ndev,
-			  "Receive error, flags2 = 0x%x\n", ib_mac_rsp->flags2);
-		dev_kfree_skb_any(skb);
-		rx_ring->rx_errors++;
-		return;
-	}
 
 	/* loopback self test for ethtool */
 	if (test_bit(QL_SELFTEST, &qdev->flags)) {
@@ -1907,15 +1919,6 @@ static void ql_process_mac_split_rx_intr(struct ql_adapter *qdev,
 		return;
 	}
 
-	/* Frame error, so drop the packet. */
-	if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_ERR_MASK) {
-		netif_info(qdev, drv, qdev->ndev,
-			  "Receive error, flags2 = 0x%x\n", ib_mac_rsp->flags2);
-		dev_kfree_skb_any(skb);
-		rx_ring->rx_errors++;
-		return;
-	}
-
 	/* The max framesize filter on this chip is set higher than
 	 * MTU since FCoE uses 2k frames.
 	 */
@@ -1996,6 +1999,12 @@ static unsigned long ql_process_mac_rx_intr(struct ql_adapter *qdev,
 			IB_MAC_IOCB_RSP_VLAN_MASK)) : 0xffff;
 
 	QL_DUMP_IB_MAC_RSP(ib_mac_rsp);
+
+	/* Frame error, so drop the packet. */
+	if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_ERR_MASK) {
+		ql_categorize_rx_err(qdev, ib_mac_rsp->flags2);
+		return (unsigned long)length;
+	}
 
 	if (ib_mac_rsp->flags4 & IB_MAC_IOCB_RSP_HV) {
 		/* The data and headers are split into
