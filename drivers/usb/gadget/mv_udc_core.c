@@ -1221,12 +1221,16 @@ static int mv_udc_vbus_session(struct usb_gadget *gadget, int is_active)
 			udc_start(udc);
 		}
 	} else if (udc->driver && udc->softconnect) {
+		if (!udc->active)
+			goto out;
+
 		/* stop all the transfer in queue*/
 		stop_activity(udc, udc->driver);
 		udc_stop(udc);
 		mv_udc_disable(udc);
 	}
 
+out:
 	spin_unlock_irqrestore(&udc->lock, flags);
 	return retval;
 }
