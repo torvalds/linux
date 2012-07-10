@@ -118,6 +118,9 @@ enum ath6kl_fw_capability {
 	/* Firmware supports filtering BSS results by RSSI */
 	ATH6KL_FW_CAPABILITY_RSSI_SCAN_THOLD,
 
+	/* FW sets mac_addr[4] ^= 0x80 for newly created interfaces */
+	ATH6KL_FW_CAPABILITY_CUSTOM_MAC_ADDR,
+
 	/* this needs to be last */
 	ATH6KL_FW_CAPABILITY_MAX,
 };

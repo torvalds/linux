@@ -3523,9 +3523,13 @@ struct wireless_dev *ath6kl_interface_add(struct ath6kl *ar, const char *name,
 	vif->htcap[IEEE80211_BAND_5GHZ].ht_enable = true;
 
 	memcpy(ndev->dev_addr, ar->mac_addr, ETH_ALEN);
-	if (fw_vif_idx != 0)
+	if (fw_vif_idx != 0) {
 		ndev->dev_addr[0] = (ndev->dev_addr[0] ^ (1 << fw_vif_idx)) |
 				     0x2;
+		if (test_bit(ATH6KL_FW_CAPABILITY_CUSTOM_MAC_ADDR,
+			     ar->fw_capabilities))
+			ndev->dev_addr[4] ^= 0x80;
+	}
 
 	init_netdev(ndev);
 
