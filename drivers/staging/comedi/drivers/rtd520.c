@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Interrupt status clear (only bits set in mask) */
-#define RtdInterruptClear(dev) \
-	readw(devpriv->las0+LAS0_CLEAR)
-
 /* Interrupt clear mask */
 #define RtdInterruptClearMask(dev, v) \
 	writew((devpriv->intClearMask = (v)), devpriv->las0+LAS0_CLEAR)
@@ -1129,7 +1125,7 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 
 	/* clear the interrupt */
 	RtdInterruptClearMask(dev, status);
-	RtdInterruptClear(dev);
+	readw(devpriv->las0 + LAS0_CLEAR);
 	return IRQ_HANDLED;
 
 abortTransfer:
@@ -1170,7 +1166,7 @@ transferDone:
 	/* clear the interrupt */
 	status = readw(devpriv->las0 + LAS0_IT);
 	RtdInterruptClearMask(dev, status);
-	RtdInterruptClear(dev);
+	readw(devpriv->las0 + LAS0_CLEAR);
 
 	fifoStatus = readl(devpriv->las0 + LAS0_ADC);
 	DPRINTK
@@ -1565,7 +1561,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* This doesn't seem to work.  There is no way to clear an interrupt
 	   that the priority controller has queued! */
 	RtdInterruptClearMask(dev, ~0);	/* clear any existing flags */
-	RtdInterruptClear(dev);
+	readw(devpriv->las0 + LAS0_CLEAR);
 
 	/* TODO: allow multiple interrupt sources */
 	if (devpriv->transCount > 0) {	/* transfer every N samples */
@@ -1968,7 +1964,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->intMask = 0;
 	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 	RtdInterruptClearMask(dev, ~0);	/* and sets shadow */
-	RtdInterruptClear(dev);	/* clears bits set by mask */
+	readw(devpriv->las0 + LAS0_CLEAR);
 	RtdInterruptOverrunClear(dev);
 	writel(0, devpriv->las0 + LAS0_CGT_CLEAR);
 	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
@@ -2148,7 +2144,7 @@ static void rtd_detach(struct comedi_device *dev)
 			devpriv->intMask = 0;
 			writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 			RtdInterruptClearMask(dev, ~0);
-			RtdInterruptClear(dev);	/* clears bits set by mask */
+			readw(devpriv->las0 + LAS0_CLEAR);
 		}
 #ifdef USE_DMA
 		/* release DMA */
