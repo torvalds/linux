@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Write Channel Gain Latch */
-#define RtdWriteCGLatch(dev, v) \
-	writel(v, devpriv->las0+LAS0_CGL_WRITE)
-
 /* Reset ADC FIFO */
 #define RtdAdcClearFifo(dev) \
 	writel(0, devpriv->las0+LAS0_ADC_FIFO_CLEAR)
@@ -794,7 +790,8 @@ static void rtd_load_channelgain_list(struct comedi_device *dev,
 		}
 	} else {		/* just use the channel gain latch */
 		writel(0, devpriv->las0 + LAS0_CGT_ENABLE);
-		RtdWriteCGLatch(dev, rtdConvertChanGain(dev, list[0], 0));
+		writel(rtdConvertChanGain(dev, list[0], 0),
+			devpriv->las0 + LAS0_CGL_WRITE);
 	}
 }
 
