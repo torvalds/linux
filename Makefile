@@ -200,6 +200,9 @@ endif
 ifneq ($(wildcard ../prebuilt/linux-x86/toolchain/arm-eabi-4.4.0),)
 CROSS_COMPILE	?= ../prebuilt/linux-x86/toolchain/arm-eabi-4.4.0/bin/arm-eabi-
 endif
+ifneq ($(wildcard ../prebuilt/linux-x86/toolchain/arm-eabi-4.4.3),)
+CROSS_COMPILE	?= ../prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi-
+endif
 CROSS_COMPILE	?= $(CONFIG_CROSS_COMPILE:"%"=%)
 
 # Architecture as present in compile.h
