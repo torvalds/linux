@@ -4492,30 +4492,5 @@ static struct pci_driver sep_pci_driver = {
 	.remove = sep_remove
 };
 
-/**
- * sep_init - init function
- *
- * Module load time. Register the PCI device driver.
- */
-
-static int __init sep_init(void)
-{
-	return pci_register_driver(&sep_pci_driver);
-}
-
-
-/**
- * sep_exit - called to unload driver
- *
- * Unregister the driver The device will perform all the cleanup required.
- */
-static void __exit sep_exit(void)
-{
-	pci_unregister_driver(&sep_pci_driver);
-}
-
-
-module_init(sep_init);
-module_exit(sep_exit);
-
+module_pci_driver(sep_pci_driver);
 MODULE_LICENSE("GPL");
