@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Reset channel gain table read and write pointers */
-#define RtdEnableCGT(dev, v) \
-	writel((v > 0) ? 1 : 0, devpriv->las0+LAS0_CGT_ENABLE)
-
 /* Write channel gain table entry */
 #define RtdWriteCGTable(dev, v) \
 	writel(v, devpriv->las0+LAS0_CGT_WRITE)
@@ -795,13 +791,13 @@ static void rtd_load_channelgain_list(struct comedi_device *dev,
 		int ii;
 
 		writel(0, devpriv->las0 + LAS0_CGT_CLEAR);
-		RtdEnableCGT(dev, 1);	/* enable table */
+		writel(1, devpriv->las0 + LAS0_CGT_ENABLE);
 		for (ii = 0; ii < n_chan; ii++) {
 			RtdWriteCGTable(dev, rtdConvertChanGain(dev, list[ii],
 								ii));
 		}
 	} else {		/* just use the channel gain latch */
-		RtdEnableCGT(dev, 0);	/* disable table, enable latch */
+		writel(0, devpriv->las0 + LAS0_CGT_ENABLE);
 		RtdWriteCGLatch(dev, rtdConvertChanGain(dev, list[0], 0));
 	}
 }
