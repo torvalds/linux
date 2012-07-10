@@ -568,7 +568,7 @@ static void pca953x_irq_teardown(struct pca953x_chip *chip)
  * WARNING: This is DEPRECATED and will be removed eventually!
  */
 static void
-pca953x_get_alt_pdata(struct i2c_client *client, int *gpio_base, int *invert)
+pca953x_get_alt_pdata(struct i2c_client *client, int *gpio_base, u32 *invert)
 {
 	struct device_node *node;
 	const __be32 *val;
@@ -596,13 +596,13 @@ pca953x_get_alt_pdata(struct i2c_client *client, int *gpio_base, int *invert)
 }
 #else
 static void
-pca953x_get_alt_pdata(struct i2c_client *client, int *gpio_base, int *invert)
+pca953x_get_alt_pdata(struct i2c_client *client, int *gpio_base, u32 *invert)
 {
 	*gpio_base = -1;
 }
 #endif
 
-static int __devinit device_pca953x_init(struct pca953x_chip *chip, int invert)
+static int __devinit device_pca953x_init(struct pca953x_chip *chip, u32 invert)
 {
 	int ret;
 
@@ -621,7 +621,7 @@ out:
 	return ret;
 }
 
-static int __devinit device_pca957x_init(struct pca953x_chip *chip, int invert)
+static int __devinit device_pca957x_init(struct pca953x_chip *chip, u32 invert)
 {
 	int ret;
 	u32 val = 0;
@@ -657,8 +657,9 @@ static int __devinit pca953x_probe(struct i2c_client *client,
 {
 	struct pca953x_platform_data *pdata;
 	struct pca953x_chip *chip;
-	int irq_base=0, invert=0;
+	int irq_base = 0;
 	int ret;
+	u32 invert = 0;
 
 	chip = kzalloc(sizeof(struct pca953x_chip), GFP_KERNEL);
 	if (chip == NULL)
