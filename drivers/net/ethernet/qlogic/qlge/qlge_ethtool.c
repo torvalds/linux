@@ -401,7 +401,6 @@ static void ql_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 static int ql_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
-	int status;
 	unsigned short ssys_dev = qdev->pdev->subsystem_device;
 
 	/* WOL is only supported for mezz card. */
@@ -416,14 +415,6 @@ static int ql_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 	qdev->wol = wol->wolopts;
 
 	netif_info(qdev, drv, qdev->ndev, "Set wol option 0x%x\n", qdev->wol);
-	if (!qdev->wol) {
-		u32 wol = 0;
-		status = ql_mb_wol_mode(qdev, wol);
-		netif_err(qdev, drv, qdev->ndev, "WOL %s (wol code 0x%x)\n",
-			  status == 0 ? "cleared successfully" : "clear failed",
-			  wol);
-	}
-
 	return 0;
 }
 
