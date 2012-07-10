@@ -407,8 +407,6 @@ struct rtdPrivate {
 /* Macros to access registers */
 
 /* Pacer counter, 24bit */
-#define RtdPacerCount(dev) \
-	readl(devpriv->las0+LAS0_PCLK)
 #define RtdPacerCounter(dev, v) \
 	writel((v) & 0xffffff, devpriv->las0+LAS0_PCLK)
 
