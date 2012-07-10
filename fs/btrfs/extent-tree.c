@@ -4444,7 +4444,7 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	int ret;
 
 	/* Need to be holding the i_mutex here if we aren't free space cache */
-	if (btrfs_is_free_space_inode(root, inode))
+	if (btrfs_is_free_space_inode(inode))
 		flush = 0;
 
 	if (flush && btrfs_transaction_in_commit(root->fs_info))

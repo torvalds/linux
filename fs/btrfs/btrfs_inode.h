@@ -191,9 +191,10 @@ static inline void btrfs_i_size_write(struct inode *inode, u64 size)
 	BTRFS_I(inode)->disk_i_size = size;
 }
 
-static inline bool btrfs_is_free_space_inode(struct btrfs_root *root,
-				       struct inode *inode)
+static inline bool btrfs_is_free_space_inode(struct inode *inode)
 {
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+
 	if (root == root->fs_info->tree_root &&
 	    btrfs_ino(inode) != BTRFS_BTREE_INODE_OBJECTID)
 		return true;
