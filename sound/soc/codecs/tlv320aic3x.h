@@ -195,6 +195,14 @@
 #define PLL_CLKIN_SHIFT		4
 #define MCLK_SOURCE		0x0
 #define PLL_CLKDIV_SHIFT	0
+#define PLLCLK_IN_MASK		0x30
+#define PLLCLK_IN_SHIFT		4
+#define CLKDIV_IN_MASK		0xc0
+#define CLKDIV_IN_SHIFT		6
+/* clock in source */
+#define CLKIN_MCLK		0
+#define CLKIN_GPIO2		1
+#define CLKIN_BCLK		2
 
 /* Software reset register bits */
 #define SOFT_RESET		0x80

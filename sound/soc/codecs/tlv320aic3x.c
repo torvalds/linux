@@ -1002,6 +1002,12 @@ static int aic3x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
 
+	/* set clock on MCLK or GPIO2 or BCLK */
+	snd_soc_update_bits(codec, AIC3X_CLKGEN_CTRL_REG, PLLCLK_IN_MASK,
+				clk_id << PLLCLK_IN_SHIFT);
+	snd_soc_update_bits(codec, AIC3X_CLKGEN_CTRL_REG, CLKDIV_IN_MASK,
+				clk_id << CLKDIV_IN_SHIFT);
+
 	aic3x->sysclk = freq;
 	return 0;
 }
