@@ -11,6 +11,7 @@
 #ifndef __SH_PFC_H
 #define __SH_PFC_H
 
+#include <linux/stringify.h>
 #include <asm-generic/gpio.h>
 
 typedef unsigned short pinmux_enum_t;
@@ -37,10 +38,11 @@ enum {
 struct pinmux_gpio {
 	pinmux_enum_t enum_id;
 	pinmux_flag_t flags;
+	const char *name;
 };
 
 #define PINMUX_GPIO(gpio, data_or_mark) \
-	[gpio] = { .enum_id = data_or_mark, .flags = PINMUX_TYPE_NONE }
+	[gpio] = { .name = __stringify(gpio), .enum_id = data_or_mark, .flags = PINMUX_TYPE_NONE }
 
 #define PINMUX_DATA(data_or_mark, ids...) data_or_mark, ids, 0
 
