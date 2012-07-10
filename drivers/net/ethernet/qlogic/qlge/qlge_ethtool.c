@@ -388,17 +388,29 @@ static void ql_get_drvinfo(struct net_device *ndev,
 static void ql_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
-	/* What we support. */
-	wol->supported = WAKE_MAGIC;
-	/* What we've currently got set. */
-	wol->wolopts = qdev->wol;
+	unsigned short ssys_dev = qdev->pdev->subsystem_device;
+
+	/* WOL is only supported for mezz card. */
+	if (ssys_dev == QLGE_MEZZ_SSYS_ID_068 ||
+			ssys_dev == QLGE_MEZZ_SSYS_ID_180) {
+		wol->supported = WAKE_MAGIC;
+		wol->wolopts = qdev->wol;
+	}
 }
 
 static int ql_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
 	int status;
+	unsigned short ssys_dev = qdev->pdev->subsystem_device;
 
+	/* WOL is only supported for mezz card. */
+	if (ssys_dev != QLGE_MEZZ_SSYS_ID_068 ||
+			ssys_dev != QLGE_MEZZ_SSYS_ID_180) {
+		netif_info(qdev, drv, qdev->ndev,
+				"WOL is only supported for mezz card\n");
+		return -EOPNOTSUPP;
+	}
 	if (wol->wolopts & ~WAKE_MAGIC)
 		return -EINVAL;
 	qdev->wol = wol->wolopts;
