@@ -407,10 +407,6 @@ struct rtdPrivate {
 /* Macros to access registers */
 
 /* Reset channel gain table read and write pointers */
-#define RtdClearCGT(dev) \
-	writel(0, devpriv->las0+LAS0_CGT_CLEAR)
-
-/* Reset channel gain table read and write pointers */
 #define RtdEnableCGT(dev, v) \
 	writel((v > 0) ? 1 : 0, devpriv->las0+LAS0_CGT_ENABLE)
 
@@ -797,7 +793,8 @@ static void rtd_load_channelgain_list(struct comedi_device *dev,
 {
 	if (n_chan > 1) {	/* setup channel gain table */
 		int ii;
-		RtdClearCGT(dev);
+
+		writel(0, devpriv->las0 + LAS0_CGT_CLEAR);
 		RtdEnableCGT(dev, 1);	/* enable table */
 		for (ii = 0; ii < n_chan; ii++) {
 			RtdWriteCGTable(dev, rtdConvertChanGain(dev, list[ii],
@@ -2049,7 +2046,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	RtdInterruptClearMask(dev, ~0);	/* and sets shadow */
 	RtdInterruptClear(dev);	/* clears bits set by mask */
 	RtdInterruptOverrunClear(dev);
-	RtdClearCGT(dev);
+	writel(0, devpriv->las0 + LAS0_CGT_CLEAR);
 	RtdAdcClearFifo(dev);
 	RtdDacClearFifo(dev, 0);
 	RtdDacClearFifo(dev, 1);
