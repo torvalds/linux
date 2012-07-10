@@ -2171,8 +2171,7 @@ static int ql_clean_outbound_rx_ring(struct rx_ring *rx_ring)
 	ql_write_cq_idx(rx_ring);
 	tx_ring = &qdev->tx_ring[net_rsp->txq_idx];
 	if (__netif_subqueue_stopped(qdev->ndev, tx_ring->wq_id)) {
-		if (atomic_read(&tx_ring->queue_stopped) &&
-		    (atomic_read(&tx_ring->tx_count) > (tx_ring->wq_len / 4)))
+		if ((atomic_read(&tx_ring->tx_count) > (tx_ring->wq_len / 4)))
 			/*
 			 * The queue got stopped because the tx_ring was full.
 			 * Wake it up, because it's now at least 25% empty.
@@ -2559,7 +2558,6 @@ static netdev_tx_t qlge_send(struct sk_buff *skb, struct net_device *ndev)
 			   "%s: BUG! shutting down tx queue %d due to lack of resources.\n",
 			   __func__, tx_ring_idx);
 		netif_stop_subqueue(ndev, tx_ring->wq_id);
-		atomic_inc(&tx_ring->queue_stopped);
 		tx_ring->tx_errors++;
 		return NETDEV_TX_BUSY;
 	}
@@ -2688,7 +2686,6 @@ static void ql_init_tx_ring(struct ql_adapter *qdev, struct tx_ring *tx_ring)
 		tx_ring_desc++;
 	}
 	atomic_set(&tx_ring->tx_count, tx_ring->wq_len);
-	atomic_set(&tx_ring->queue_stopped, 0);
 }
 
 static void ql_free_tx_resources(struct ql_adapter *qdev,

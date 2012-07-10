@@ -1397,7 +1397,6 @@ struct tx_ring {
 	struct tx_ring_desc *q;	/* descriptor list for the queue */
 	spinlock_t lock;
 	atomic_t tx_count;	/* counts down for every outstanding IO */
-	atomic_t queue_stopped;	/* Turns queue off when full. */
 	struct delayed_work tx_work;
 	struct ql_adapter *qdev;
 	u64 tx_packets;
