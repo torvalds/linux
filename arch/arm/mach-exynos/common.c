@@ -712,31 +712,6 @@ static int __init exynos4_l2x0_cache_init(void)
 early_initcall(exynos4_l2x0_cache_init);
 #endif
 
-static int __init exynos5_l2_cache_init(void)
-{
-	unsigned int val;
-
-	if (!soc_is_exynos5250())
-		return 0;
-
-	asm volatile("mrc p15, 0, %0, c1, c0, 0\n"
-		     "bic %0, %0, #(1 << 2)\n"	/* cache disable */
-		     "mcr p15, 0, %0, c1, c0, 0\n"
-		     "mrc p15, 1, %0, c9, c0, 2\n"
-		     : "=r"(val));
-
-	val |= (1 << 9) | (1 << 5) | (2 << 6) | (2 << 0);
-
-	asm volatile("mcr p15, 1, %0, c9, c0, 2\n" : : "r"(val));
-	asm volatile("mrc p15, 0, %0, c1, c0, 0\n"
-		     "orr %0, %0, #(1 << 2)\n"	/* cache enable */
-		     "mcr p15, 0, %0, c1, c0, 0\n"
-		     : : "r"(val));
-
-	return 0;
-}
-early_initcall(exynos5_l2_cache_init);
-
 static int __init exynos_init(void)
 {
 	printk(KERN_INFO "EXYNOS: Initializing architecture\n");

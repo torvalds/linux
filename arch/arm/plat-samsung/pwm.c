@@ -36,7 +36,6 @@ struct pwm_device {
 	unsigned int		 duty_ns;
 
 	unsigned char		 tcon_base;
-	unsigned char		 running;
 	unsigned char		 use_count;
 	unsigned char		 pwm_id;
 };
@@ -116,7 +115,6 @@ int pwm_enable(struct pwm_device *pwm)
 
 	local_irq_restore(flags);
 
-	pwm->running = 1;
 	return 0;
 }
 
@@ -134,8 +132,6 @@ void pwm_disable(struct pwm_device *pwm)
 	__raw_writel(tcon, S3C2410_TCON);
 
 	local_irq_restore(flags);
-
-	pwm->running = 0;
 }
 
 EXPORT_SYMBOL(pwm_disable);
