@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Read two ADC data values (DOESN'T WORK) */
-#define RtdAdcFifoGet2(dev) \
-	readl(devpriv->las1+LAS1_ADC_FIFO)
-
 /* FIFO status */
 #define RtdFifoStatus(dev) \
 	readl(devpriv->las0+LAS0_ADC)
