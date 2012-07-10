@@ -51,7 +51,6 @@
 #define EPSTATUS_TIMEOUT	10000
 #define PRIME_TIMEOUT		10000
 #define READSAFE_TIMEOUT	1000
-#define DTD_TIMEOUT		1000
 
 #define LOOPS_USEC_SHIFT	1
 #define LOOPS_USEC		(1 << LOOPS_USEC_SHIFT)
@@ -64,7 +63,6 @@ static const char driver_desc[] = DRIVER_DESC;
 
 /* controller device global variable */
 static struct mv_udc	*the_controller;
-int mv_usb_otgsc;
 
 static void nuke(struct mv_ep *ep, int status);
 static void stop_activity(struct mv_udc *udc, struct usb_gadget_driver *driver);
