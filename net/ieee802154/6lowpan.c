@@ -646,7 +646,7 @@ static void lowpan_fragment_timer_expired(unsigned long entry_addr)
 }
 
 static struct lowpan_fragment *
-lowpan_alloc_new_frame(struct sk_buff *skb, u8 iphc0, u8 len, u8 tag)
+lowpan_alloc_new_frame(struct sk_buff *skb, u8 iphc0, u8 len, u16 tag)
 {
 	struct lowpan_fragment *frame;
 
