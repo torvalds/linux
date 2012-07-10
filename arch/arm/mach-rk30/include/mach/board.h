@@ -12,18 +12,6 @@
 #include <mach/sram.h>
 #include <linux/i2c-gpio.h>
 
-struct rk30_i2c_platform_data {
-	char *name;
-	int bus_num;
-#define I2C_RK29_ADAP   0
-#define I2C_RK30_ADAP   1
-	int adap_type;
-	int is_div_from_arm;
-	u32 flags;
-	int (*io_init)(void);
-	int (*io_deinit)(void);
-};
-
 /* adc battery */
 struct rk30_adc_battery_platform_data {
         int (*io_init)(void);

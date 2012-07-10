@@ -6,6 +6,18 @@
 #include <linux/device.h>
 #include <linux/rk_screen.h>
 
+struct rk30_i2c_platform_data {
+	char *name;
+	int bus_num;
+#define I2C_RK29_ADAP   0
+#define I2C_RK30_ADAP   1
+	int adap_type;
+	int is_div_from_arm;
+	u32 flags;
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+};
+
 struct spi_cs_gpio {
 	const char *name;
 	unsigned int cs_gpio;
