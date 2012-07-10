@@ -484,9 +484,7 @@ static int rk30_pm_enter(suspend_state_t state)
 			  , clkgt_regs[5], CRU_CLKGATES_CON(5), 0xffff);
 	gate_save_soc_clk(0, clkgt_regs[6], CRU_CLKGATES_CON(6), 0xffff);
 	gate_save_soc_clk(0, clkgt_regs[7], CRU_CLKGATES_CON(7), 0xffff);
-	gate_save_soc_clk(0
-			  | (1 << CLK_GATE_PCLK_GPIO6 % 16)
-			  , clkgt_regs[8], CRU_CLKGATES_CON(8), 0xffff);
+	gate_save_soc_clk(0 , clkgt_regs[8], CRU_CLKGATES_CON(8), 0x01ff);
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_CLK_L2C % 16)
 			  | (1 << CLK_GATE_PCLK_PUBL % 16)

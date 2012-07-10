@@ -737,6 +737,27 @@ static struct twl4030_power_data tps80032_scripts_data __initdata = {
 	.resource_config = twl4030_rconfig,
 };
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+void twl60xx_pmu_early_suspend(struct regulator_dev *rdev)
+{
+	printk("%s\n", __func__);
+	
+	twl_reg_write(0x06,TWL_MODULE_PIH, 0x00);
+}
+void twl60xx_pmu_early_resume(struct regulator_dev *rdev)
+{
+	printk("%s\n", __func__);
+
+	twl_reg_write(0x06,TWL_MODULE_PIH, 0x04);
+}
+#else
+void twl60xx_pmu_early_suspend(struct regulator_dev *rdev)
+{
+}
+void twl60xx_pmu_early_resume(struct regulator_dev *rdev)
+{
+}
+#endif
 
 void __sramfunc board_pmu_suspend(void)
 {	

@@ -41,6 +41,11 @@
 #include <linux/i2c/twl.h>
 #include "twl-core.h"
 
+#include <linux/earlysuspend.h>
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static struct early_suspend twl60xx_early_suspend;
+#endif
+
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 #include <plat/cpu.h>
 #endif
@@ -1381,6 +1386,9 @@ static int __devexit twl_remove(struct i2c_client *client)
 }
 
 /* NOTE:  this driver only handles a single twl4030/tps659x0 chip */
+__weak void  twl60xx_pmu_early_suspend(struct regulator_dev *rdev) {}
+__weak void  twl60xx_pmu_early_resume(struct regulator_dev *rdev) {}
+
 static int __devinit
 twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
@@ -1508,6 +1516,13 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			printk(" tps80032 set_init() failed\n");
 		}
 	}
+	#ifdef CONFIG_HAS_EARLYSUSPEND
+	twl60xx_early_suspend.level = 0xffff;
+    twl60xx_early_suspend.suspend = twl60xx_pmu_early_suspend;
+    twl60xx_early_suspend.resume = twl60xx_pmu_early_resume;
+    register_early_suspend(&twl60xx_early_suspend);
+	#endif
+
 	
 fail:
 	if (status < 0)

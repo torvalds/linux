@@ -342,4 +342,8 @@ config WM8326_VBAT_LOW_DETECTION
 	tristate "Support for WM8326 battery voltage detection."
 	default n
 
+config TWL60xx_VBAT_LOW_DETECTION
+	tristate "Support for twl60xx low battery detection."
+	default n
+
 endif # POWER_SUPPLY

@@ -57,6 +57,14 @@ static struct usb_driver usb_serial_driver = {
 static int MU509_USB = 0;
 #define MU509_USB_PORT     (SERIAL_TTY_MINORS - 10)
 #endif
+#ifdef CONFIG_MW100
+static int MW100_USB = 0;
+#define MW100_USB_PORT     (SERIAL_TTY_MINORS - 10)
+#endif
+#ifdef CONFIG_MT6229
+static int MT6229_USB = 0;
+#define MT6229_USB_PORT     (SERIAL_TTY_MINORS - 10)
+#endif
 
 /* There is no MODULE_DEVICE_TABLE for usbserial.c.  Instead
    the MODULE_DEVICE_TABLE declarations in each serial driver
@@ -110,6 +118,14 @@ static struct usb_serial *get_free_serial(struct usb_serial *serial,
 #ifdef CONFIG_MU509
 	if (MU509_USB)
 		a= MU509_USB_PORT;
+#endif
+#ifdef CONFIG_MW100	
+	if (MW100_USB)		
+		a= MW100_USB_PORT;
+#endif
+#ifdef CONFIG_MT6229	
+	if (MT6229_USB)		
+		a= MT6229_USB_PORT;
 #endif
 	for (i = a; i < SERIAL_TTY_MINORS; ++i) {
 		if (serial_table[i])
@@ -1072,6 +1088,18 @@ int usb_serial_probe(struct usb_interface *interface,
 			MU509_USB =1;
 		else
 			MU509_USB = 0;
+#endif
+#ifdef CONFIG_MW100		
+	if ((le16_to_cpu(dev->descriptor.idVendor) == 0x19f5) && (le16_to_cpu(dev->descriptor.idProduct) == 0x9013))			
+		MW100_USB =1;		
+	else			
+		MW100_USB = 0;
+#endif
+#ifdef CONFIG_MT6229		
+	if ((le16_to_cpu(dev->descriptor.idVendor) == 0x0E8D) && (le16_to_cpu(dev->descriptor.idProduct) == 0x00A2))			
+		MT6229_USB =1;		
+	else			
+		MT6229_USB = 0;
 #endif
 
 	if (get_free_serial(serial, num_ports, &minor) == NULL) {

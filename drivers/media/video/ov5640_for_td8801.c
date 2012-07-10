@@ -3939,6 +3939,9 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	{
 		case RK29_CAM_SUBDEV_DEACTIVATE:
 		{
+			#if CONFIG_SENSOR_Flash  //hhb
+			sensor_ioctrl(icd, Sensor_Flash, Flash_Off);
+			#endif
 			sensor_deactivate(client);
 			break;
 		}

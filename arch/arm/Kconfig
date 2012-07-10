@@ -887,7 +887,7 @@ config ARCH_RK30
 	select PLAT_RK
 	select CPU_V7
 	select ARM_GIC
-	select PL330
+	select RK_PL330_DMA
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
 	select ARM_ERRATA_764369

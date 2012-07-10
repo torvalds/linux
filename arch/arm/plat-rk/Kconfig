@@ -137,4 +137,10 @@ config RK_SRAM_DMA
 	bool "Sound DMA buffer in internal SRAM"
 	depends on ARCH_RK30
 
+config RK_PL330_DMA
+	bool
+	select PL330
+	help
+	  DMA API Driver for PL330 DMAC
+
 endif
