@@ -4,7 +4,6 @@
  * Management.
  ************************************************************/
 
-/* #define CONN_MSG */
 #include "headers.h"
 
 enum E_CLASSIFIER_ACTION {

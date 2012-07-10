@@ -6,7 +6,6 @@
 
 #define TX_TIMER_PERIOD 10 /*10 msec*/
 #define MAX_CLASSIFIERS 100
-/* #define MAX_CLASSIFIERS_PER_SF  20 */
 #define MAX_TARGET_DSX_BUFFERS 24
 
 #define MAX_CNTRL_PKTS    100
