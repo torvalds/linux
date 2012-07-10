@@ -28,14 +28,29 @@ config MTD_UBI_WL_THRESHOLD
 	  to 128 or 256, although it does not have to be power of 2).
 
 config MTD_UBI_BEB_LIMIT
-	int "Percentage of maximum expected bad eraseblocks"
-	default 2
-	range 0 25
+	int "Maximum expected bad eraseblock count per 1024 eraseblocks"
+	default 20
+	range 0 768
 	help
 	  This option specifies the maximum bad physical eraseblocks UBI
-	  expects on the UBI device (percents of total number of physical
-	  eraseblocks on this MTD partition). If the underlying flash does not
-	  admit of bad eraseblocks (e.g. NOR flash), this value is ignored.
+	  expects on the MTD device (per 1024 eraseblocks). If the underlying
+	  flash does not admit of bad eraseblocks (e.g. NOR flash), this value
+	  is ignored.
+
+	  NAND datasheets often specify the minimum and maximum NVM (Number of
+	  Valid Blocks) for the flashes' endurance lifetime. The maximum
+	  expected bad eraseblocks per 1024 eraseblocks then can be calculated
+	  as "1024 * (1 - MinNVB / MaxNVB)", which gives 20 for most NANDs
+	  (MaxNVB is basically the total count of eraseblocks on the chip).
+
+	  To put it differently, if this value is 20, UBI will try to reserve
+	  about 1.9% of physical eraseblocks for bad blocks handling. And that
+	  will be 1.9% of eraseblocks on the entire NAND chip, not just the MTD
+	  partition UBI attaches. This means that if you have, say, a NAND
+	  flash chip admits maximum 40 bad eraseblocks, and it is split on two
+	  MTD partitions of the same size, UBI will reserve 40 eraseblocks when
+	  attaching a partition.
+
 	  Leave the default value if unsure.
 
 config MTD_UBI_GLUEBI
