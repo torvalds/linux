@@ -43,7 +43,6 @@ struct inet_connection_sock_af_ops {
 	struct sock *(*syn_recv_sock)(struct sock *sk, struct sk_buff *skb,
 				      struct request_sock *req,
 				      struct dst_entry *dst);
-	struct inet_peer *(*get_peer)(struct sock *sk);
 	u16	    net_header_len;
 	u16	    net_frag_header_len;
 	u16	    sockaddr_len;

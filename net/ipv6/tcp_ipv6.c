@@ -1689,20 +1689,6 @@ do_time_wait:
 	goto discard_it;
 }
 
-static struct inet_peer *tcp_v6_get_peer(struct sock *sk)
-{
-	struct rt6_info *rt = (struct rt6_info *) __sk_dst_get(sk);
-	struct ipv6_pinfo *np = inet6_sk(sk);
-
-	/* If we don't have a valid cached route, or we're doing IP
-	 * options which make the IPv6 header destination address
-	 * different from our peer's, do not bother with this.
-	 */
-	if (!rt || !ipv6_addr_equal(&np->daddr, &rt->rt6i_dst.addr))
-		return NULL;
-	return rt6_get_peer_create(rt);
-}
-
 static struct timewait_sock_ops tcp6_timewait_sock_ops = {
 	.twsk_obj_size	= sizeof(struct tcp6_timewait_sock),
 	.twsk_unique	= tcp_twsk_unique,
@@ -1715,7 +1701,6 @@ static const struct inet_connection_sock_af_ops ipv6_specific = {
 	.rebuild_header	   = inet6_sk_rebuild_header,
 	.conn_request	   = tcp_v6_conn_request,
 	.syn_recv_sock	   = tcp_v6_syn_recv_sock,
-	.get_peer	   = tcp_v6_get_peer,
 	.net_header_len	   = sizeof(struct ipv6hdr),
 	.net_frag_header_len = sizeof(struct frag_hdr),
 	.setsockopt	   = ipv6_setsockopt,
@@ -1747,7 +1732,6 @@ static const struct inet_connection_sock_af_ops ipv6_mapped = {
 	.rebuild_header	   = inet_sk_rebuild_header,
 	.conn_request	   = tcp_v6_conn_request,
 	.syn_recv_sock	   = tcp_v6_syn_recv_sock,
-	.get_peer	   = tcp_v4_get_peer,
 	.net_header_len	   = sizeof(struct iphdr),
 	.setsockopt	   = ipv6_setsockopt,
 	.getsockopt	   = ipv6_getsockopt,

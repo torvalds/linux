@@ -1847,21 +1847,6 @@ do_time_wait:
 	goto discard_it;
 }
 
-struct inet_peer *tcp_v4_get_peer(struct sock *sk)
-{
-	struct rtable *rt = (struct rtable *) __sk_dst_get(sk);
-	struct inet_sock *inet = inet_sk(sk);
-
-	/* If we don't have a valid cached route, or we're doing IP
-	 * options which make the IPv4 header destination address
-	 * different from our peer's, do not bother with this.
-	 */
-	if (!rt || inet->cork.fl.u.ip4.daddr != inet->inet_daddr)
-		return NULL;
-	return rt_get_peer_create(rt, inet->inet_daddr);
-}
-EXPORT_SYMBOL(tcp_v4_get_peer);
-
 static struct timewait_sock_ops tcp_timewait_sock_ops = {
 	.twsk_obj_size	= sizeof(struct tcp_timewait_sock),
 	.twsk_unique	= tcp_twsk_unique,
@@ -1874,7 +1859,6 @@ const struct inet_connection_sock_af_ops ipv4_specific = {
 	.rebuild_header	   = inet_sk_rebuild_header,
 	.conn_request	   = tcp_v4_conn_request,
 	.syn_recv_sock	   = tcp_v4_syn_recv_sock,
-	.get_peer	   = tcp_v4_get_peer,
 	.net_header_len	   = sizeof(struct iphdr),
 	.setsockopt	   = ip_setsockopt,
 	.getsockopt	   = ip_getsockopt,
