@@ -188,6 +188,14 @@ static void pstore_register_console(void)
 static void pstore_register_console(void) {}
 #endif
 
+static int pstore_write_compat(enum pstore_type_id type,
+			       enum kmsg_dump_reason reason,
+			       u64 *id, unsigned int part,
+			       size_t size, struct pstore_info *psi)
+{
+	return psi->write_buf(type, reason, id, part, psinfo->buf, size, psi);
+}
+
 /*
  * platform specific persistent storage driver registers with
  * us here. If pstore is already mounted, call the platform
@@ -212,6 +220,8 @@ int pstore_register(struct pstore_info *psi)
 		return -EINVAL;
 	}
 
+	if (!psi->write)
+		psi->write = pstore_write_compat;
 	psinfo = psi;
 	mutex_init(&psinfo->read_mutex);
 	spin_unlock(&pstore_lock);
