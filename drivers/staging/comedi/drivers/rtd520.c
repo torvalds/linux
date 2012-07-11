@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* ADC sample counter, 10bit */
-#define RtdAdcSampleCounter(dev, v) \
-	writel((v) & 0x3ff, devpriv->las0+LAS0_ADC_SCNT)
-
 /* User Timer/Counter (8254) */
 #define RtdUtcCounterGet(dev, n) \
 	readb(devpriv->las0 \
