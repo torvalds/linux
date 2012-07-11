@@ -87,12 +87,12 @@ nouveau_irq_handler(DRM_IRQ_ARGS)
 		stat &= ~(1 << i);
 	}
 
+	nv_intr(dev);
+
 	if (dev_priv->msi_enabled)
 		nv_wr08(dev, 0x00088068, 0xff);
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
-	if (stat && nouveau_ratelimit())
-		NV_ERROR(dev, "PMC - unhandled INTR 0x%08x\n", stat);
 	return IRQ_HANDLED;
 }
 

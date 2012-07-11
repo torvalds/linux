@@ -324,11 +324,6 @@ struct nouveau_instmem_engine {
 	void	(*flush)(struct drm_device *);
 };
 
-struct nouveau_mc_engine {
-	int  (*init)(struct drm_device *dev);
-	void (*takedown)(struct drm_device *dev);
-};
-
 struct nouveau_timer_engine {
 	int      (*init)(struct drm_device *dev);
 	void     (*takedown)(struct drm_device *dev);
@@ -544,7 +539,6 @@ struct nouveau_vram_engine {
 
 struct nouveau_engine {
 	struct nouveau_instmem_engine instmem;
-	struct nouveau_mc_engine      mc;
 	struct nouveau_timer_engine   timer;
 	struct nouveau_fb_engine      fb;
 	struct nouveau_display_engine display;
@@ -1209,18 +1203,6 @@ extern int  nvc0_instmem_init(struct drm_device *);
 extern void nvc0_instmem_takedown(struct drm_device *);
 extern int  nvc0_instmem_suspend(struct drm_device *);
 extern void nvc0_instmem_resume(struct drm_device *);
-
-/* nv04_mc.c */
-extern int  nv04_mc_init(struct drm_device *);
-extern void nv04_mc_takedown(struct drm_device *);
-
-/* nv40_mc.c */
-extern int  nv40_mc_init(struct drm_device *);
-extern void nv40_mc_takedown(struct drm_device *);
-
-/* nv50_mc.c */
-extern int  nv50_mc_init(struct drm_device *);
-extern void nv50_mc_takedown(struct drm_device *);
 
 /* nv04_timer.c */
 extern int  nv04_timer_init(struct drm_device *);

@@ -61,8 +61,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.map		= nv04_instmem_map;
 		engine->instmem.unmap		= nv04_instmem_unmap;
 		engine->instmem.flush		= nv04_instmem_flush;
-		engine->mc.init			= nv04_mc_init;
-		engine->mc.takedown		= nv04_mc_takedown;
 		engine->timer.init		= nv04_timer_init;
 		engine->timer.read		= nv04_timer_read;
 		engine->timer.takedown		= nv04_timer_takedown;
@@ -91,8 +89,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.map		= nv04_instmem_map;
 		engine->instmem.unmap		= nv04_instmem_unmap;
 		engine->instmem.flush		= nv04_instmem_flush;
-		engine->mc.init			= nv04_mc_init;
-		engine->mc.takedown		= nv04_mc_takedown;
 		engine->timer.init		= nv04_timer_init;
 		engine->timer.read		= nv04_timer_read;
 		engine->timer.takedown		= nv04_timer_takedown;
@@ -128,8 +124,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.map		= nv04_instmem_map;
 		engine->instmem.unmap		= nv04_instmem_unmap;
 		engine->instmem.flush		= nv04_instmem_flush;
-		engine->mc.init			= nv04_mc_init;
-		engine->mc.takedown		= nv04_mc_takedown;
 		engine->timer.init		= nv04_timer_init;
 		engine->timer.read		= nv04_timer_read;
 		engine->timer.takedown		= nv04_timer_takedown;
@@ -161,8 +155,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.map		= nv04_instmem_map;
 		engine->instmem.unmap		= nv04_instmem_unmap;
 		engine->instmem.flush		= nv04_instmem_flush;
-		engine->mc.init			= nv04_mc_init;
-		engine->mc.takedown		= nv04_mc_takedown;
 		engine->timer.init		= nv04_timer_init;
 		engine->timer.read		= nv04_timer_read;
 		engine->timer.takedown		= nv04_timer_takedown;
@@ -197,8 +189,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.map		= nv04_instmem_map;
 		engine->instmem.unmap		= nv04_instmem_unmap;
 		engine->instmem.flush		= nv04_instmem_flush;
-		engine->mc.init			= nv40_mc_init;
-		engine->mc.takedown		= nv40_mc_takedown;
 		engine->timer.init		= nv04_timer_init;
 		engine->timer.read		= nv04_timer_read;
 		engine->timer.takedown		= nv04_timer_takedown;
@@ -241,8 +231,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 			engine->instmem.flush	= nv50_instmem_flush;
 		else
 			engine->instmem.flush	= nv84_instmem_flush;
-		engine->mc.init			= nv50_mc_init;
-		engine->mc.takedown		= nv50_mc_takedown;
 		engine->timer.init		= nv04_timer_init;
 		engine->timer.read		= nv04_timer_read;
 		engine->timer.takedown		= nv04_timer_takedown;
@@ -299,8 +287,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.map		= nv50_instmem_map;
 		engine->instmem.unmap		= nv50_instmem_unmap;
 		engine->instmem.flush		= nv84_instmem_flush;
-		engine->mc.init			= nv50_mc_init;
-		engine->mc.takedown		= nv50_mc_takedown;
 		engine->timer.init		= nv04_timer_init;
 		engine->timer.read		= nv04_timer_read;
 		engine->timer.takedown		= nv04_timer_takedown;
@@ -336,8 +322,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.map		= nv50_instmem_map;
 		engine->instmem.unmap		= nv50_instmem_unmap;
 		engine->instmem.flush		= nv84_instmem_flush;
-		engine->mc.init			= nv50_mc_init;
-		engine->mc.takedown		= nv50_mc_takedown;
 		engine->timer.init		= nv04_timer_init;
 		engine->timer.read		= nv04_timer_read;
 		engine->timer.takedown		= nv04_timer_takedown;
@@ -371,8 +355,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.map		= nv50_instmem_map;
 		engine->instmem.unmap		= nv50_instmem_unmap;
 		engine->instmem.flush		= nv84_instmem_flush;
-		engine->mc.init			= nv50_mc_init;
-		engine->mc.takedown		= nv50_mc_takedown;
 		engine->timer.init		= nv04_timer_init;
 		engine->timer.read		= nv04_timer_read;
 		engine->timer.takedown		= nv04_timer_takedown;
@@ -533,15 +515,10 @@ nouveau_card_init(struct drm_device *dev)
 		nv_mask(dev, 0x00088080, 0x00000800, 0x00000000);
 	}
 
-	/* PMC */
-	ret = engine->mc.init(dev);
-	if (ret)
-		goto out_bios;
-
 	/* PTIMER */
 	ret = engine->timer.init(dev);
 	if (ret)
-		goto out_mc;
+		goto out_bios;
 
 	/* PFB */
 	ret = engine->fb.init(dev);
@@ -795,8 +772,6 @@ out_fb:
 	engine->fb.takedown(dev);
 out_timer:
 	engine->timer.takedown(dev);
-out_mc:
-	engine->mc.takedown(dev);
 out_bios:
 	nouveau_bios_takedown(dev);
 out_display_early:
@@ -850,7 +825,6 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	engine->vram.takedown(dev);
 	engine->fb.takedown(dev);
 	engine->timer.takedown(dev);
-	engine->mc.takedown(dev);
 
 	nouveau_bios_takedown(dev);
 	engine->display.late_takedown(dev);

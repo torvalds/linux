@@ -28,6 +28,7 @@
 #include <subdev/i2c.h>
 #include <subdev/clock.h>
 #include <subdev/devinit.h>
+#include <subdev/mc.h>
 
 int
 nv30_identify(struct nouveau_device *device)
@@ -39,6 +40,7 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
 		break;
 	case 0x35:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -46,6 +48,7 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
 		break;
 	case 0x31:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -53,6 +56,7 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
 		break;
 	case 0x36:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -60,6 +64,7 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
 		break;
 	case 0x34:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -67,6 +72,7 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv10_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Rankine chipset\n");

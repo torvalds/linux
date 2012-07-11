@@ -22,35 +22,28 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/device.h>
-#include <subdev/bios.h>
-#include <subdev/i2c.h>
-#include <subdev/clock.h>
-#include <subdev/devinit.h>
 #include <subdev/mc.h>
 
-int
-nv04_identify(struct nouveau_device *device)
+void
+nouveau_mc_intr(struct nouveau_subdev *subdev)
 {
-	switch (device->chipset) {
-	case 0x04:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv04_devinit_oclass;
-		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
-		break;
-	case 0x05:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv05_devinit_oclass;
-		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
-		break;
-	default:
-		nv_fatal(device, "unknown RIVA chipset\n");
-		return -EINVAL;
+	struct nouveau_mc *pmc = nouveau_mc(subdev);
+	const struct nouveau_mc_intr *map = pmc->intr_map;
+	struct nouveau_subdev *unit;
+	u32 stat;
+
+	stat = nv_rd32(pmc, 0x000100);
+	while (stat && map->stat) {
+		if (stat & map->stat) {
+			unit = nouveau_subdev(subdev, map->unit);
+			if (unit && unit->intr)
+				unit->intr(unit);
+			stat &= ~map->stat;
+		}
+		map++;
 	}
 
-	return 0;
+	if (stat) {
+		nv_error(pmc, "unknown intr 0x%08x\n", stat);
+	}
 }

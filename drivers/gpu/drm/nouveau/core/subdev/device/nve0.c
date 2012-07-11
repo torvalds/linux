@@ -28,6 +28,7 @@
 #include <subdev/i2c.h>
 #include <subdev/clock.h>
 #include <subdev/devinit.h>
+#include <subdev/mc.h>
 
 int
 nve0_identify(struct nouveau_device *device)
@@ -39,6 +40,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nvc0_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv50_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_MC     ] = &nvc0_mc_oclass;
 		break;
 	case 0xe7:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -46,6 +48,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nvc0_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv50_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_MC     ] = &nvc0_mc_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Kepler chipset\n");

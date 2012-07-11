@@ -51,4 +51,6 @@ struct dcb_output;
 void nouveau_bios_run_init_table(struct drm_device *, u16, struct dcb_output *, int);
 void nouveau_bios_init_exec(struct drm_device *, u16);
 
+void nv_intr(struct drm_device *);
+
 #endif

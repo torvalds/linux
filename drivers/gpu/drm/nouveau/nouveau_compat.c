@@ -8,6 +8,7 @@
 #include <subdev/gpio.h>
 #include <subdev/i2c.h>
 #include <subdev/clock.h>
+#include <subdev/mc.h>
 
 void *nouveau_newpriv(struct drm_device *);
 
@@ -292,4 +293,12 @@ void
 nouveau_bios_init_exec(struct drm_device *dev, uint16_t table)
 {
 	nouveau_bios_run_init_table(dev, table, NULL, 0);
+}
+
+void
+nv_intr(struct drm_device *dev)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_mc *pmc = nouveau_mc(drm->device);
+	nv_subdev(pmc)->intr(pmc);
 }

@@ -252,7 +252,6 @@ nouveau_pci_resume(struct pci_dev *pdev)
 
 	NV_INFO(dev, "Reinitialising engines...\n");
 	engine->instmem.resume(dev);
-	engine->mc.init(dev);
 	engine->timer.init(dev);
 	engine->fb.init(dev);
 	for (i = 0; i < NVOBJ_ENGINE_NR; i++) {
