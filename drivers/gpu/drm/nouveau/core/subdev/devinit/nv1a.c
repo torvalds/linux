@@ -22,32 +22,37 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/device.h>
-#include <subdev/bios.h>
-#include <subdev/i2c.h>
-#include <subdev/clock.h>
 #include <subdev/devinit.h>
+#include <subdev/vga.h>
 
-int
-nv04_identify(struct nouveau_device *device)
+struct nv1a_devinit_priv {
+	struct nouveau_devinit base;
+	u8 owner;
+};
+
+static int
+nv1a_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+		  struct nouveau_oclass *oclass, void *data, u32 size,
+		  struct nouveau_object **pobject)
 {
-	switch (device->chipset) {
-	case 0x04:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv04_devinit_oclass;
-		break;
-	case 0x05:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv05_devinit_oclass;
-		break;
-	default:
-		nv_fatal(device, "unknown RIVA chipset\n");
-		return -EINVAL;
-	}
+	struct nv1a_devinit_priv *priv;
+	int ret;
+
+	ret = nouveau_devinit_create(parent, engine, oclass, &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
 
 	return 0;
 }
+
+struct nouveau_oclass
+nv1a_devinit_oclass = {
+	.handle = NV_SUBDEV(DEVINIT, 0x1a),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv1a_devinit_ctor,
+		.dtor = nv04_devinit_dtor,
+		.init = nv04_devinit_init,
+		.fini = nv04_devinit_fini,
+	},
+};

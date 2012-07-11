@@ -37,7 +37,7 @@
 #include "nv50_display.h"
 
 static u32
-nv50_sor_dp_lane_map(struct drm_device *dev, struct dcb_entry *dcb, u8 lane)
+nv50_sor_dp_lane_map(struct drm_device *dev, struct dcb_output *dcb, u8 lane)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	static const u8 nvaf[] = { 24, 16, 8, 0 }; /* thanks, apple.. */
@@ -48,14 +48,14 @@ nv50_sor_dp_lane_map(struct drm_device *dev, struct dcb_entry *dcb, u8 lane)
 }
 
 static void
-nv50_sor_dp_train_set(struct drm_device *dev, struct dcb_entry *dcb, u8 pattern)
+nv50_sor_dp_train_set(struct drm_device *dev, struct dcb_output *dcb, u8 pattern)
 {
 	u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
 	nv_mask(dev, NV50_SOR_DP_CTRL(or, link), 0x0f000000, pattern << 24);
 }
 
 static void
-nv50_sor_dp_train_adj(struct drm_device *dev, struct dcb_entry *dcb,
+nv50_sor_dp_train_adj(struct drm_device *dev, struct dcb_output *dcb,
 		      u8 lane, u8 swing, u8 preem)
 {
 	u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
@@ -82,7 +82,7 @@ nv50_sor_dp_train_adj(struct drm_device *dev, struct dcb_entry *dcb,
 }
 
 static void
-nv50_sor_dp_link_set(struct drm_device *dev, struct dcb_entry *dcb, int crtc,
+nv50_sor_dp_link_set(struct drm_device *dev, struct dcb_output *dcb, int crtc,
 		     int link_nr, u32 link_bw, bool enhframe)
 {
 	u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
@@ -269,9 +269,9 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 		struct nouveau_encoder *nvenc = nouveau_encoder(enc);
 
 		if (nvenc == nv_encoder ||
-		    (nvenc->dcb->type != OUTPUT_TMDS &&
-		     nvenc->dcb->type != OUTPUT_LVDS &&
-		     nvenc->dcb->type != OUTPUT_DP) ||
+		    (nvenc->dcb->type != DCB_OUTPUT_TMDS &&
+		     nvenc->dcb->type != DCB_OUTPUT_LVDS &&
+		     nvenc->dcb->type != DCB_OUTPUT_DP) ||
 		    nvenc->dcb->or != nv_encoder->dcb->or)
 			continue;
 
@@ -303,7 +303,7 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 			 nv_rd32(dev, NV50_PDISPLAY_SOR_DPMS_STATE(or)));
 	}
 
-	if (nv_encoder->dcb->type == OUTPUT_DP) {
+	if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
 		struct dp_train_func func = {
 			.link_set = nv50_sor_dp_link_set,
 			.train_set = nv50_sor_dp_train_set,
@@ -354,7 +354,7 @@ nv50_sor_prepare(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	nv50_sor_disconnect(encoder);
-	if (nv_encoder->dcb->type == OUTPUT_DP) {
+	if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
 		/* avoid race between link training and supervisor intr */
 		nv50_display_sync(encoder->dev);
 	}
@@ -382,7 +382,7 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 	nv_encoder->crtc = encoder->crtc;
 
 	switch (nv_encoder->dcb->type) {
-	case OUTPUT_TMDS:
+	case DCB_OUTPUT_TMDS:
 		if (nv_encoder->dcb->sorconf.link & 1) {
 			if (mode->clock < 165000)
 				mode_ctl = 0x0100;
@@ -393,7 +393,7 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 
 		nouveau_hdmi_mode_set(encoder, mode);
 		break;
-	case OUTPUT_DP:
+	case DCB_OUTPUT_DP:
 		nv_connector = nouveau_encoder_connector_get(nv_encoder);
 		if (nv_connector && nv_connector->base.display_info.bpc == 6) {
 			nv_encoder->dp.datarate = mode->clock * 18 / 8;
@@ -474,7 +474,7 @@ static const struct drm_encoder_funcs nv50_sor_encoder_funcs = {
 };
 
 int
-nv50_sor_create(struct drm_connector *connector, struct dcb_entry *entry)
+nv50_sor_create(struct drm_connector *connector, struct dcb_output *entry)
 {
 	struct nouveau_encoder *nv_encoder = NULL;
 	struct drm_device *dev = connector->dev;
@@ -484,11 +484,11 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_entry *entry)
 	NV_DEBUG_KMS(dev, "\n");
 
 	switch (entry->type) {
-	case OUTPUT_TMDS:
-	case OUTPUT_DP:
+	case DCB_OUTPUT_TMDS:
+	case DCB_OUTPUT_DP:
 		type = DRM_MODE_ENCODER_TMDS;
 		break;
-	case OUTPUT_LVDS:
+	case DCB_OUTPUT_LVDS:
 		type = DRM_MODE_ENCODER_LVDS;
 		break;
 	default:

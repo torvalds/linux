@@ -38,12 +38,12 @@
 
 int nv04_dac_output_offset(struct drm_encoder *encoder)
 {
-	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
+	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
 	int offset = 0;
 
-	if (dcb->or & (8 | OUTPUT_C))
+	if (dcb->or & (8 | DCB_OUTPUT_C))
 		offset += 0x68;
-	if (dcb->or & (8 | OUTPUT_B))
+	if (dcb->or & (8 | DCB_OUTPUT_B))
 		offset += 0x2000;
 
 	return offset;
@@ -222,14 +222,14 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
+	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
 	uint32_t sample, testval, regoffset = nv04_dac_output_offset(encoder);
 	uint32_t saved_powerctrl_2 = 0, saved_powerctrl_4 = 0, saved_routput,
 		saved_rtest_ctrl, saved_gpio0, saved_gpio1, temp, routput;
 	int head;
 
 #define RGB_TEST_DATA(r, g, b) (r << 0 | g << 10 | b << 20)
-	if (dcb->type == OUTPUT_TV) {
+	if (dcb->type == DCB_OUTPUT_TV) {
 		testval = RGB_TEST_DATA(0xa0, 0xa0, 0xa0);
 
 		if (dev_priv->vbios.tvdactestval)
@@ -256,8 +256,8 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 	saved_gpio1 = nouveau_gpio_func_get(dev, DCB_GPIO_TVDAC1);
 	saved_gpio0 = nouveau_gpio_func_get(dev, DCB_GPIO_TVDAC0);
 
-	nouveau_gpio_func_set(dev, DCB_GPIO_TVDAC1, dcb->type == OUTPUT_TV);
-	nouveau_gpio_func_set(dev, DCB_GPIO_TVDAC0, dcb->type == OUTPUT_TV);
+	nouveau_gpio_func_set(dev, DCB_GPIO_TVDAC1, dcb->type == DCB_OUTPUT_TV);
+	nouveau_gpio_func_set(dev, DCB_GPIO_TVDAC0, dcb->type == DCB_OUTPUT_TV);
 
 	msleep(4);
 
@@ -272,7 +272,7 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 	routput = (saved_routput & 0xfffffece) | head << 8;
 
 	if (dev_priv->card_type >= NV_40) {
-		if (dcb->type == OUTPUT_TV)
+		if (dcb->type == DCB_OUTPUT_TV)
 			routput |= 0x1a << 16;
 		else
 			routput &= ~(0x1a << 16);
@@ -317,7 +317,7 @@ static enum drm_connector_status
 nv17_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 {
 	struct drm_device *dev = encoder->dev;
-	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
+	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
 
 	if (nv04_dac_in_use(encoder))
 		return connector_status_disconnected;
@@ -373,7 +373,7 @@ static void nv04_dac_mode_set(struct drm_encoder *encoder,
 		/* force any other vga encoders to bind to the other crtc */
 		list_for_each_entry(rebind, &dev->mode_config.encoder_list, head) {
 			if (rebind == encoder
-			    || nouveau_encoder(rebind)->dcb->type != OUTPUT_ANALOG)
+			    || nouveau_encoder(rebind)->dcb->type != DCB_OUTPUT_ANALOG)
 				continue;
 
 			dac_offset = nv04_dac_output_offset(rebind);
@@ -408,7 +408,7 @@ void nv04_dac_update_dacclk(struct drm_encoder *encoder, bool enable)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
+	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
 
 	if (nv_gf4_disp_arch(dev)) {
 		uint32_t *dac_users = &dev_priv->dac_users[ffs(dcb->or) - 1];
@@ -433,7 +433,7 @@ void nv04_dac_update_dacclk(struct drm_encoder *encoder, bool enable)
 bool nv04_dac_in_use(struct drm_encoder *encoder)
 {
 	struct drm_nouveau_private *dev_priv = encoder->dev->dev_private;
-	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
+	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
 
 	return nv_gf4_disp_arch(encoder->dev) &&
 		(dev_priv->dac_users[ffs(dcb->or) - 1] & ~(1 << dcb->index));
@@ -513,7 +513,7 @@ static const struct drm_encoder_funcs nv04_dac_funcs = {
 };
 
 int
-nv04_dac_create(struct drm_connector *connector, struct dcb_entry *entry)
+nv04_dac_create(struct drm_connector *connector, struct dcb_output *entry)
 {
 	const struct drm_encoder_helper_funcs *helper;
 	struct nouveau_encoder *nv_encoder = NULL;

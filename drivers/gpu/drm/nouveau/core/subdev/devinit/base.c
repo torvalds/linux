@@ -22,32 +22,48 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/device.h>
-#include <subdev/bios.h>
-#include <subdev/i2c.h>
-#include <subdev/clock.h>
+#include <core/option.h>
+
 #include <subdev/devinit.h>
+#include <subdev/bios.h>
+#include <subdev/bios/init.h>
 
 int
-nv04_identify(struct nouveau_device *device)
+nouveau_devinit_init(struct nouveau_devinit *devinit)
 {
-	switch (device->chipset) {
-	case 0x04:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv04_devinit_oclass;
-		break;
-	case 0x05:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv05_devinit_oclass;
-		break;
-	default:
-		nv_fatal(device, "unknown RIVA chipset\n");
-		return -EINVAL;
-	}
+	int ret = nouveau_subdev_init(&devinit->base);
+	if (ret)
+		return ret;
 
+	return nvbios_init(&devinit->base, devinit->post);
+}
+
+int
+nouveau_devinit_fini(struct nouveau_devinit *devinit, bool suspend)
+{
+	/* force full reinit on resume */
+	if (suspend)
+		devinit->post = true;
+
+	return nouveau_subdev_fini(&devinit->base, suspend);
+}
+
+int
+nouveau_devinit_create_(struct nouveau_object *parent,
+			struct nouveau_object *engine,
+			struct nouveau_oclass *oclass,
+			int size, void **pobject)
+{
+	struct nouveau_device *device = nv_device(parent);
+	struct nouveau_devinit *devinit;
+	int ret;
+
+	ret = nouveau_subdev_create_(parent, engine, oclass, 0, "DEVINIT",
+				     "init", size, pobject);
+	devinit = *pobject;
+	if (ret)
+		return ret;
+
+	devinit->post = nouveau_boolopt(device->cfgopt, "NvForcePost", false);
 	return 0;
 }

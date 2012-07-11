@@ -27,6 +27,7 @@
 #include <subdev/gpio.h>
 #include <subdev/i2c.h>
 #include <subdev/clock.h>
+#include <subdev/devinit.h>
 
 int
 nv20_identify(struct nouveau_device *device)
@@ -37,24 +38,28 @@ nv20_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
 		break;
 	case 0x25:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
 		break;
 	case 0x28:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
 		break;
 	case 0x2a:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Kelvin chipset\n");

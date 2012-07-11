@@ -1063,7 +1063,7 @@ static const struct drm_encoder_funcs nvd0_dac_func = {
 };
 
 static int
-nvd0_dac_create(struct drm_connector *connector, struct dcb_entry *dcbe)
+nvd0_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct drm_device *dev = connector->dev;
 	struct nouveau_encoder *nv_encoder;
@@ -1191,14 +1191,14 @@ nvd0_hdmi_disconnect(struct drm_encoder *encoder)
  * SOR
  *****************************************************************************/
 static inline u32
-nvd0_sor_dp_lane_map(struct drm_device *dev, struct dcb_entry *dcb, u8 lane)
+nvd0_sor_dp_lane_map(struct drm_device *dev, struct dcb_output *dcb, u8 lane)
 {
 	static const u8 nvd0[] = { 16, 8, 0, 24 };
 	return nvd0[lane];
 }
 
 static void
-nvd0_sor_dp_train_set(struct drm_device *dev, struct dcb_entry *dcb, u8 pattern)
+nvd0_sor_dp_train_set(struct drm_device *dev, struct dcb_output *dcb, u8 pattern)
 {
 	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
 	const u32 loff = (or * 0x800) + (link * 0x80);
@@ -1206,7 +1206,7 @@ nvd0_sor_dp_train_set(struct drm_device *dev, struct dcb_entry *dcb, u8 pattern)
 }
 
 static void
-nvd0_sor_dp_train_adj(struct drm_device *dev, struct dcb_entry *dcb,
+nvd0_sor_dp_train_adj(struct drm_device *dev, struct dcb_output *dcb,
 		      u8 lane, u8 swing, u8 preem)
 {
 	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
@@ -1247,7 +1247,7 @@ nvd0_sor_dp_train_adj(struct drm_device *dev, struct dcb_entry *dcb,
 }
 
 static void
-nvd0_sor_dp_link_set(struct drm_device *dev, struct dcb_entry *dcb, int crtc,
+nvd0_sor_dp_link_set(struct drm_device *dev, struct dcb_output *dcb, int crtc,
 		     int link_nr, u32 link_bw, bool enhframe)
 {
 	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
@@ -1290,7 +1290,7 @@ nvd0_sor_dp_link_set(struct drm_device *dev, struct dcb_entry *dcb, int crtc,
 }
 
 static void
-nvd0_sor_dp_link_get(struct drm_device *dev, struct dcb_entry *dcb,
+nvd0_sor_dp_link_get(struct drm_device *dev, struct dcb_output *dcb,
 		     u32 *link_nr, u32 *link_bw)
 {
 	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
@@ -1308,7 +1308,7 @@ nvd0_sor_dp_link_get(struct drm_device *dev, struct dcb_entry *dcb,
 }
 
 static void
-nvd0_sor_dp_calc_tu(struct drm_device *dev, struct dcb_entry *dcb,
+nvd0_sor_dp_calc_tu(struct drm_device *dev, struct dcb_output *dcb,
 		    u32 crtc, u32 datarate)
 {
 	const u32 symbol = 100000;
@@ -1366,7 +1366,7 @@ nvd0_sor_dpms(struct drm_encoder *encoder, int mode)
 	nv_wait(dev, 0x61c004 + (or * 0x0800), 0x80000000, 0x00000000);
 	nv_wait(dev, 0x61c030 + (or * 0x0800), 0x10000000, 0x00000000);
 
-	if (nv_encoder->dcb->type == OUTPUT_DP) {
+	if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
 		struct dp_train_func func = {
 			.link_set = nvd0_sor_dp_link_set,
 			.train_set = nvd0_sor_dp_train_set,
@@ -1427,7 +1427,7 @@ static void
 nvd0_sor_prepare(struct drm_encoder *encoder)
 {
 	nvd0_sor_disconnect(encoder);
-	if (nouveau_encoder(encoder)->dcb->type == OUTPUT_DP)
+	if (nouveau_encoder(encoder)->dcb->type == DCB_OUTPUT_DP)
 		evo_sync(encoder->dev, EVO_MASTER);
 }
 
@@ -1462,7 +1462,7 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	switch (nv_encoder->dcb->type) {
-	case OUTPUT_TMDS:
+	case DCB_OUTPUT_TMDS:
 		if (nv_encoder->dcb->sorconf.link & 1) {
 			if (mode->clock < 165000)
 				mode_ctrl |= 0x00000100;
@@ -1478,7 +1478,7 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 
 		nvd0_hdmi_mode_set(encoder, mode);
 		break;
-	case OUTPUT_LVDS:
+	case DCB_OUTPUT_LVDS:
 		or_config = (mode_ctrl & 0x00000f00) >> 8;
 		if (bios->fp_no_ddc) {
 			if (bios->fp.dual_link)
@@ -1507,7 +1507,7 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 
 		}
 		break;
-	case OUTPUT_DP:
+	case DCB_OUTPUT_DP:
 		if (nv_connector->base.display_info.bpc == 6) {
 			nv_encoder->dp.datarate = mode->clock * 18 / 8;
 			syncs |= 0x00000002 << 6;
@@ -1530,7 +1530,7 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 
 	nvd0_sor_dpms(encoder, DRM_MODE_DPMS_ON);
 
-	if (nv_encoder->dcb->type == OUTPUT_DP) {
+	if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
 		nvd0_sor_dp_calc_tu(dev, nv_encoder->dcb, nv_crtc->index,
 					 nv_encoder->dp.datarate);
 	}
@@ -1571,7 +1571,7 @@ static const struct drm_encoder_funcs nvd0_sor_func = {
 };
 
 static int
-nvd0_sor_create(struct drm_connector *connector, struct dcb_entry *dcbe)
+nvd0_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct drm_device *dev = connector->dev;
 	struct nouveau_encoder *nv_encoder;
@@ -1597,23 +1597,23 @@ nvd0_sor_create(struct drm_connector *connector, struct dcb_entry *dcbe)
 /******************************************************************************
  * IRQ
  *****************************************************************************/
-static struct dcb_entry *
+static struct dcb_output *
 lookup_dcb(struct drm_device *dev, int id, u32 mc)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	int type, or, i, link = -1;
 
 	if (id < 4) {
-		type = OUTPUT_ANALOG;
+		type = DCB_OUTPUT_ANALOG;
 		or   = id;
 	} else {
 		switch (mc & 0x00000f00) {
-		case 0x00000000: link = 0; type = OUTPUT_LVDS; break;
-		case 0x00000100: link = 0; type = OUTPUT_TMDS; break;
-		case 0x00000200: link = 1; type = OUTPUT_TMDS; break;
-		case 0x00000500: link = 0; type = OUTPUT_TMDS; break;
-		case 0x00000800: link = 0; type = OUTPUT_DP; break;
-		case 0x00000900: link = 1; type = OUTPUT_DP; break;
+		case 0x00000000: link = 0; type = DCB_OUTPUT_LVDS; break;
+		case 0x00000100: link = 0; type = DCB_OUTPUT_TMDS; break;
+		case 0x00000200: link = 1; type = DCB_OUTPUT_TMDS; break;
+		case 0x00000500: link = 0; type = DCB_OUTPUT_TMDS; break;
+		case 0x00000800: link = 0; type = DCB_OUTPUT_DP; break;
+		case 0x00000900: link = 1; type = DCB_OUTPUT_DP; break;
 		default:
 			NV_ERROR(dev, "PDISP: unknown SOR mc 0x%08x\n", mc);
 			return NULL;
@@ -1623,7 +1623,7 @@ lookup_dcb(struct drm_device *dev, int id, u32 mc)
 	}
 
 	for (i = 0; i < dev_priv->vbios.dcb.entries; i++) {
-		struct dcb_entry *dcb = &dev_priv->vbios.dcb.entry[i];
+		struct dcb_output *dcb = &dev_priv->vbios.dcb.entry[i];
 		if (dcb->type == type && (dcb->or & (1 << or)) &&
 		    (link < 0 || link == !(dcb->sorconf.link & 1)))
 			return dcb;
@@ -1636,7 +1636,7 @@ lookup_dcb(struct drm_device *dev, int id, u32 mc)
 static void
 nvd0_display_unk1_handler(struct drm_device *dev, u32 crtc, u32 mask)
 {
-	struct dcb_entry *dcb;
+	struct dcb_output *dcb;
 	int i;
 
 	for (i = 0; mask && i < 8; i++) {
@@ -1659,7 +1659,7 @@ nvd0_display_unk1_handler(struct drm_device *dev, u32 crtc, u32 mask)
 static void
 nvd0_display_unk2_handler(struct drm_device *dev, u32 crtc, u32 mask)
 {
-	struct dcb_entry *dcb;
+	struct dcb_output *dcb;
 	u32 or, tmp, pclk;
 	int i;
 
@@ -1697,12 +1697,12 @@ nvd0_display_unk2_handler(struct drm_device *dev, u32 crtc, u32 mask)
 
 		nv_wr32(dev, 0x612200 + (crtc * 0x800), 0x00000000);
 		switch (dcb->type) {
-		case OUTPUT_ANALOG:
+		case DCB_OUTPUT_ANALOG:
 			nv_wr32(dev, 0x612280 + (or * 0x800), 0x00000000);
 			break;
-		case OUTPUT_TMDS:
-		case OUTPUT_LVDS:
-		case OUTPUT_DP:
+		case DCB_OUTPUT_TMDS:
+		case DCB_OUTPUT_LVDS:
+		case DCB_OUTPUT_DP:
 			if (cfg & 0x00000100)
 				tmp = 0x00000101;
 			else
@@ -1725,7 +1725,7 @@ nvd0_display_unk2_handler(struct drm_device *dev, u32 crtc, u32 mask)
 static void
 nvd0_display_unk4_handler(struct drm_device *dev, u32 crtc, u32 mask)
 {
-	struct dcb_entry *dcb;
+	struct dcb_output *dcb;
 	int pclk, i;
 
 	pclk = nv_rd32(dev, 0x660450 + (crtc * 0x300)) / 1000;
@@ -1972,7 +1972,7 @@ nvd0_display_create(struct drm_device *dev)
 	struct drm_connector *connector, *tmp;
 	struct pci_dev *pdev = dev->pdev;
 	struct nvd0_display *disp;
-	struct dcb_entry *dcbe;
+	struct dcb_output *dcbe;
 	int crtcs, ret, i;
 
 	disp = kzalloc(sizeof(*disp), GFP_KERNEL);
@@ -2001,12 +2001,12 @@ nvd0_display_create(struct drm_device *dev)
 		}
 
 		switch (dcbe->type) {
-		case OUTPUT_TMDS:
-		case OUTPUT_LVDS:
-		case OUTPUT_DP:
+		case DCB_OUTPUT_TMDS:
+		case DCB_OUTPUT_LVDS:
+		case DCB_OUTPUT_DP:
 			nvd0_sor_create(connector, dcbe);
 			break;
-		case OUTPUT_ANALOG:
+		case DCB_OUTPUT_ANALOG:
 			nvd0_dac_create(connector, dcbe);
 			break;
 		default:

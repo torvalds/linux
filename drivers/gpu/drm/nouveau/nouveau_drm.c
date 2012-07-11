@@ -32,6 +32,7 @@
 #include <subdev/device.h>
 
 #include "nouveau_drm.h"
+#include "nouveau_agp.h"
 
 int __devinit nouveau_pci_probe(struct pci_dev *, const struct pci_device_id *);
 void nouveau_pci_remove(struct pci_dev *);
@@ -123,6 +124,30 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	INIT_LIST_HEAD(&drm->clients);
 	drm->dev = dev;
 
+	/* make sure AGP controller is in a consistent state before we
+	 * (possibly) execute vbios init tables (see nouveau_agp.h)
+	 */
+	if (drm_pci_device_is_agp(dev) && dev->agp) {
+		/* dummy device object, doesn't init anything, but allows
+		 * agp code access to registers
+		 */
+		ret = nouveau_object_new(nv_object(drm), NVDRM_CLIENT,
+					 NVDRM_DEVICE, 0x0080,
+					 &(struct nv_device_class) {
+						.device = ~0,
+						.disable =
+						 ~(NV_DEVICE_DISABLE_MMIO |
+						   NV_DEVICE_DISABLE_IDENTIFY),
+						.debug0 = ~0,
+					 }, sizeof(struct nv_device_class),
+					 &drm->device);
+		if (ret)
+			return ret;
+
+		nouveau_agp_reset(drm);
+		nouveau_object_del(nv_object(drm), NVDRM_CLIENT, NVDRM_DEVICE);
+	}
+
 	ret = nouveau_object_new(nv_object(drm), NVDRM_CLIENT, NVDRM_DEVICE,
 				 0x0080, &(struct nv_device_class) {
 					.device = ~0,
@@ -132,6 +157,9 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 				 &drm->device);
 	if (ret)
 		goto fail_device;
+
+	/* initialise AGP */
+	nouveau_agp_init(drm);
 
 	ret = nouveau_load(dev, flags);
 	if (ret)
@@ -154,6 +182,8 @@ nouveau_drm_unload(struct drm_device *dev)
 	ret = nouveau_unload(dev);
 	if (ret)
 		return ret;
+
+	nouveau_agp_fini(drm);
 
 	pci_set_drvdata(pdev, drm->client.base.device);
 	nouveau_cli_destroy(&drm->client);
@@ -195,6 +225,8 @@ nouveau_drm_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 	if (ret)
 		goto fail_client;
 
+	nouveau_agp_fini(drm);
+
 	pci_save_state(pdev);
 	if (pm_state.event == PM_EVENT_SUSPEND) {
 		pci_disable_device(pdev);
@@ -230,11 +262,15 @@ nouveau_drm_resume(struct pci_dev *pdev)
 		return ret;
 	pci_set_master(pdev);
 
+	nouveau_agp_reset(drm);
+
 	nouveau_client_init(&drm->client.base);
 
 	list_for_each_entry(cli, &drm->clients, head) {
 		nouveau_client_init(&cli->base);
 	}
+
+	nouveau_agp_init(drm);
 
 	return nouveau_pci_resume(pdev);
 }

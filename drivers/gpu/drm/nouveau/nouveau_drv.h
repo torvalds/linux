@@ -1040,22 +1040,19 @@ static inline void nouveau_backlight_exit(struct drm_device *dev) { }
 extern int nouveau_bios_init(struct drm_device *);
 extern void nouveau_bios_takedown(struct drm_device *dev);
 extern int nouveau_run_vbios_init(struct drm_device *);
-extern void nouveau_bios_run_init_table(struct drm_device *, uint16_t table,
-					struct dcb_entry *, int crtc);
-extern void nouveau_bios_init_exec(struct drm_device *, uint16_t table);
 extern struct dcb_connector_table_entry *
 nouveau_bios_connector_entry(struct drm_device *, int index);
 extern int nouveau_bios_run_display_table(struct drm_device *, u16 id, int clk,
-					  struct dcb_entry *, int crtc);
+					  struct dcb_output *, int crtc);
 extern bool nouveau_bios_fp_mode(struct drm_device *, struct drm_display_mode *);
 extern uint8_t *nouveau_bios_embedded_edid(struct drm_device *);
 extern int nouveau_bios_parse_lvds_table(struct drm_device *, int pxclk,
 					 bool *dl, bool *if_is_24bit);
-extern int run_tmds_table(struct drm_device *, struct dcb_entry *,
+extern int run_tmds_table(struct drm_device *, struct dcb_output *,
 			  int head, int pxclk);
-extern int call_lvds_script(struct drm_device *, struct dcb_entry *, int head,
+extern int call_lvds_script(struct drm_device *, struct dcb_output *, int head,
 			    enum LVDS_script, int pxclk);
-bool bios_encoder_match(struct dcb_entry *, u32 hash);
+bool bios_encoder_match(struct dcb_output *, u32 hash);
 
 /* nouveau_mxm.c */
 int  nouveau_mxm_init(struct drm_device *dev);
@@ -1234,26 +1231,26 @@ extern long nouveau_compat_ioctl(struct file *file, unsigned int cmd,
 				 unsigned long arg);
 
 /* nv04_dac.c */
-extern int nv04_dac_create(struct drm_connector *, struct dcb_entry *);
+extern int nv04_dac_create(struct drm_connector *, struct dcb_output *);
 extern uint32_t nv17_dac_sample_load(struct drm_encoder *encoder);
 extern int nv04_dac_output_offset(struct drm_encoder *encoder);
 extern void nv04_dac_update_dacclk(struct drm_encoder *encoder, bool enable);
 extern bool nv04_dac_in_use(struct drm_encoder *encoder);
 
 /* nv04_dfp.c */
-extern int nv04_dfp_create(struct drm_connector *, struct dcb_entry *);
-extern int nv04_dfp_get_bound_head(struct drm_device *dev, struct dcb_entry *dcbent);
-extern void nv04_dfp_bind_head(struct drm_device *dev, struct dcb_entry *dcbent,
+extern int nv04_dfp_create(struct drm_connector *, struct dcb_output *);
+extern int nv04_dfp_get_bound_head(struct drm_device *dev, struct dcb_output *dcbent);
+extern void nv04_dfp_bind_head(struct drm_device *dev, struct dcb_output *dcbent,
 			       int head, bool dl);
 extern void nv04_dfp_disable(struct drm_device *dev, int head);
 extern void nv04_dfp_update_fp_control(struct drm_encoder *encoder, int mode);
 
 /* nv04_tv.c */
 extern int nv04_tv_identify(struct drm_device *dev, int i2c_index);
-extern int nv04_tv_create(struct drm_connector *, struct dcb_entry *);
+extern int nv04_tv_create(struct drm_connector *, struct dcb_output *);
 
 /* nv17_tv.c */
-extern int nv17_tv_create(struct drm_connector *, struct dcb_entry *);
+extern int nv17_tv_create(struct drm_connector *, struct dcb_output *);
 
 /* nv04_display.c */
 extern int nv04_display_early_init(struct drm_device *);

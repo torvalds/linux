@@ -22,32 +22,34 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/device.h>
+#include <core/device.h>
+
 #include <subdev/bios.h>
-#include <subdev/i2c.h>
-#include <subdev/clock.h>
-#include <subdev/devinit.h>
+#include <subdev/bios/dcb.h>
 
-int
-nv04_identify(struct nouveau_device *device)
+u16
+dcb_conntab(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
-	switch (device->chipset) {
-	case 0x04:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv04_devinit_oclass;
-		break;
-	case 0x05:
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv05_devinit_oclass;
-		break;
-	default:
-		nv_fatal(device, "unknown RIVA chipset\n");
-		return -EINVAL;
+	u16 dcb = dcb_table(bios, ver, hdr, cnt, len);
+	if (dcb && *ver >= 0x30 && *hdr >= 0x16) {
+		u16 data = nv_ro16(bios, dcb + 0x14);
+		if (data) {
+			*ver = nv_ro08(bios, data + 0);
+			*hdr = nv_ro08(bios, data + 1);
+			*cnt = nv_ro08(bios, data + 2);
+			*len = nv_ro08(bios, data + 3);
+			return data;
+		}
 	}
+	return 0x0000;
+}
 
-	return 0;
+u16
+dcb_conn(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len)
+{
+	u8  hdr, cnt;
+	u16 data = dcb_conntab(bios, ver, &hdr, &cnt, len);
+	if (data && idx < cnt)
+		return data + hdr + (idx * *len);
+	return 0x0000;
 }

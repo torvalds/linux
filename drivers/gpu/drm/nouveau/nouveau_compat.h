@@ -1,6 +1,8 @@
 #ifndef __NOUVEAU_COMPAT_H__
 #define __NOUVEAU_COMPAT_H__
 
+int nvdrm_gart_init(struct drm_device *, u64 *, u64 *);
+
 u8   _nv_rd08(struct drm_device *, u32);
 void _nv_wr08(struct drm_device *, u32, u8);
 u32  _nv_rd32(struct drm_device *, u32);
@@ -44,5 +46,9 @@ int nouveau_calc_pll_mnp(struct drm_device *, struct nvbios_pll *,
 int nva3_calc_pll(struct drm_device *dev, struct nvbios_pll *info, u32 freq,
 	      int *N, int *fN, int *M, int *P);
 int nouveau_hw_setpll(struct drm_device *, u32, struct nouveau_pll_vals *);
+
+struct dcb_output;
+void nouveau_bios_run_init_table(struct drm_device *, u16, struct dcb_output *, int);
+void nouveau_bios_init_exec(struct drm_device *, u16);
 
 #endif

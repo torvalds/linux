@@ -251,8 +251,8 @@ nv_crtc_mode_set_vga(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 
 		if (encoder->crtc == crtc &&
-		    (nv_encoder->dcb->type == OUTPUT_LVDS ||
-		     nv_encoder->dcb->type == OUTPUT_TMDS))
+		    (nv_encoder->dcb->type == DCB_OUTPUT_LVDS ||
+		     nv_encoder->dcb->type == DCB_OUTPUT_TMDS))
 			fp_output = true;
 	}
 
@@ -467,11 +467,11 @@ nv_crtc_mode_set_regs(struct drm_crtc *crtc, struct drm_display_mode * mode)
 		if (encoder->crtc != crtc)
 			continue;
 
-		if (nv_encoder->dcb->type == OUTPUT_LVDS)
+		if (nv_encoder->dcb->type == DCB_OUTPUT_LVDS)
 			digital = lvds_output = true;
-		if (nv_encoder->dcb->type == OUTPUT_TV)
+		if (nv_encoder->dcb->type == DCB_OUTPUT_TV)
 			tv_output = true;
-		if (nv_encoder->dcb->type == OUTPUT_TMDS)
+		if (nv_encoder->dcb->type == DCB_OUTPUT_TMDS)
 			digital = tmds_output = true;
 		if (nv_encoder->dcb->location != DCB_LOC_ON_CHIP && digital)
 			off_chip_digital = true;

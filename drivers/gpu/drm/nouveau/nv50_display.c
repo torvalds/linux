@@ -74,53 +74,9 @@ nv50_display_active_crtcs(struct drm_device *dev)
 	return mask & 3;
 }
 
-static int
-evo_icmd(struct drm_device *dev, int ch, u32 mthd, u32 data)
-{
-	int ret = 0;
-	nv_mask(dev, 0x610300 + (ch * 0x08), 0x00000001, 0x00000001);
-	nv_wr32(dev, 0x610304 + (ch * 0x08), data);
-	nv_wr32(dev, 0x610300 + (ch * 0x08), 0x80000001 | mthd);
-	if (!nv_wait(dev, 0x610300 + (ch * 0x08), 0x80000000, 0x00000000))
-		ret = -EBUSY;
-	if (ret || (nouveau_reg_debug & NOUVEAU_REG_DEBUG_EVO))
-		NV_INFO(dev, "EvoPIO: %d 0x%04x 0x%08x\n", ch, mthd, data);
-	nv_mask(dev, 0x610300 + (ch * 0x08), 0x00000001, 0x00000000);
-	return ret;
-}
-
 int
 nv50_display_early_init(struct drm_device *dev)
 {
-	u32 ctrl = nv_rd32(dev, 0x610200);
-	int i;
-
-	/* check if master evo channel is already active, a good a sign as any
-	 * that the display engine is in a weird state (hibernate/kexec), if
-	 * it is, do our best to reset the display engine...
-	 */
-	if ((ctrl & 0x00000003) == 0x00000003) {
-		NV_INFO(dev, "PDISP: EVO(0) 0x%08x, resetting...\n", ctrl);
-
-		/* deactivate both heads first, PDISP will disappear forever
-		 * (well, until you power cycle) on some boards as soon as
-		 * PMC_ENABLE is hit unless they are..
-		 */
-		for (i = 0; i < 2; i++) {
-			evo_icmd(dev, 0, 0x0880 + (i * 0x400), 0x05000000);
-			evo_icmd(dev, 0, 0x089c + (i * 0x400), 0);
-			evo_icmd(dev, 0, 0x0840 + (i * 0x400), 0);
-			evo_icmd(dev, 0, 0x0844 + (i * 0x400), 0);
-			evo_icmd(dev, 0, 0x085c + (i * 0x400), 0);
-			evo_icmd(dev, 0, 0x0874 + (i * 0x400), 0);
-		}
-		evo_icmd(dev, 0, 0x0080, 0);
-
-		/* reset PDISP */
-		nv_mask(dev, 0x000200, 0x40000000, 0x00000000);
-		nv_mask(dev, 0x000200, 0x40000000, 0x40000000);
-	}
-
 	return 0;
 }
 
@@ -367,7 +323,7 @@ nv50_display_create(struct drm_device *dev)
 
 	/* We setup the encoders from the BIOS table */
 	for (i = 0 ; i < dcb->entries; i++) {
-		struct dcb_entry *entry = &dcb->entry[i];
+		struct dcb_output *entry = &dcb->entry[i];
 
 		if (entry->location != DCB_LOC_ON_CHIP) {
 			NV_WARN(dev, "Off-chip encoder %d/%d unsupported\n",
@@ -380,12 +336,12 @@ nv50_display_create(struct drm_device *dev)
 			continue;
 
 		switch (entry->type) {
-		case OUTPUT_TMDS:
-		case OUTPUT_LVDS:
-		case OUTPUT_DP:
+		case DCB_OUTPUT_TMDS:
+		case DCB_OUTPUT_LVDS:
+		case DCB_OUTPUT_DP:
 			nv50_sor_create(connector, entry);
 			break;
-		case OUTPUT_ANALOG:
+		case DCB_OUTPUT_ANALOG:
 			nv50_dac_create(connector, entry);
 			break;
 		default:
@@ -555,7 +511,7 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 }
 
 static u16
-nv50_display_script_select(struct drm_device *dev, struct dcb_entry *dcb,
+nv50_display_script_select(struct drm_device *dev, struct dcb_output *dcb,
 			   u32 mc, int pxclk)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -576,7 +532,7 @@ nv50_display_script_select(struct drm_device *dev, struct dcb_entry *dcb,
 
 	or = ffs(dcb->or) - 1;
 	switch (dcb->type) {
-	case OUTPUT_LVDS:
+	case DCB_OUTPUT_LVDS:
 		script = (mc >> 8) & 0xf;
 		if (bios->fp_no_ddc) {
 			if (bios->fp.dual_link)
@@ -617,7 +573,7 @@ nv50_display_script_select(struct drm_device *dev, struct dcb_entry *dcb,
 			script = nouveau_uscript_lvds;
 		}
 		break;
-	case OUTPUT_TMDS:
+	case DCB_OUTPUT_TMDS:
 		script = (mc >> 8) & 0xf;
 		if (pxclk >= 165000)
 			script |= 0x0100;
@@ -629,10 +585,10 @@ nv50_display_script_select(struct drm_device *dev, struct dcb_entry *dcb,
 			script = nouveau_uscript_tmds;
 		}
 		break;
-	case OUTPUT_DP:
+	case DCB_OUTPUT_DP:
 		script = (mc >> 8) & 0xf;
 		break;
-	case OUTPUT_ANALOG:
+	case DCB_OUTPUT_ANALOG:
 		script = 0xff;
 		break;
 	default:
@@ -691,7 +647,7 @@ nv50_display_unk10_handler(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv50_display *disp = nv50_display(dev);
 	u32 unk30 = nv_rd32(dev, 0x610030), mc;
-	int i, crtc, or = 0, type = OUTPUT_ANY;
+	int i, crtc, or = 0, type = DCB_OUTPUT_ANY;
 
 	NV_DEBUG_KMS(dev, "0x610030: 0x%08x\n", unk30);
 	disp->irq.dcb = NULL;
@@ -711,15 +667,15 @@ nv50_display_unk10_handler(struct drm_device *dev)
 		goto ack;
 
 	/* Find which encoder was connected to the CRTC */
-	for (i = 0; type == OUTPUT_ANY && i < 3; i++) {
+	for (i = 0; type == DCB_OUTPUT_ANY && i < 3; i++) {
 		mc = nv_rd32(dev, NV50_PDISPLAY_DAC_MODE_CTRL_C(i));
 		NV_DEBUG_KMS(dev, "DAC-%d mc: 0x%08x\n", i, mc);
 		if (!(mc & (1 << crtc)))
 			continue;
 
 		switch ((mc & 0x00000f00) >> 8) {
-		case 0: type = OUTPUT_ANALOG; break;
-		case 1: type = OUTPUT_TV; break;
+		case 0: type = DCB_OUTPUT_ANALOG; break;
+		case 1: type = DCB_OUTPUT_TV; break;
 		default:
 			NV_ERROR(dev, "invalid mc, DAC-%d: 0x%08x\n", i, mc);
 			goto ack;
@@ -728,7 +684,7 @@ nv50_display_unk10_handler(struct drm_device *dev)
 		or = i;
 	}
 
-	for (i = 0; type == OUTPUT_ANY && i < nv50_sor_nr(dev); i++) {
+	for (i = 0; type == DCB_OUTPUT_ANY && i < nv50_sor_nr(dev); i++) {
 		if (dev_priv->chipset  < 0x90 ||
 		    dev_priv->chipset == 0x92 ||
 		    dev_priv->chipset == 0xa0)
@@ -741,12 +697,12 @@ nv50_display_unk10_handler(struct drm_device *dev)
 			continue;
 
 		switch ((mc & 0x00000f00) >> 8) {
-		case 0: type = OUTPUT_LVDS; break;
-		case 1: type = OUTPUT_TMDS; break;
-		case 2: type = OUTPUT_TMDS; break;
-		case 5: type = OUTPUT_TMDS; break;
-		case 8: type = OUTPUT_DP; break;
-		case 9: type = OUTPUT_DP; break;
+		case 0: type = DCB_OUTPUT_LVDS; break;
+		case 1: type = DCB_OUTPUT_TMDS; break;
+		case 2: type = DCB_OUTPUT_TMDS; break;
+		case 5: type = DCB_OUTPUT_TMDS; break;
+		case 8: type = DCB_OUTPUT_DP; break;
+		case 9: type = DCB_OUTPUT_DP; break;
 		default:
 			NV_ERROR(dev, "invalid mc, SOR-%d: 0x%08x\n", i, mc);
 			goto ack;
@@ -756,12 +712,12 @@ nv50_display_unk10_handler(struct drm_device *dev)
 	}
 
 	/* There was no encoder to disable */
-	if (type == OUTPUT_ANY)
+	if (type == DCB_OUTPUT_ANY)
 		goto ack;
 
 	/* Disable the encoder */
 	for (i = 0; i < dev_priv->vbios.dcb.entries; i++) {
-		struct dcb_entry *dcb = &dev_priv->vbios.dcb.entry[i];
+		struct dcb_output *dcb = &dev_priv->vbios.dcb.entry[i];
 
 		if (dcb->type == type && (dcb->or & (1 << or))) {
 			nouveau_bios_run_display_table(dev, 0, -1, dcb, -1);
@@ -782,8 +738,8 @@ nv50_display_unk20_handler(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv50_display *disp = nv50_display(dev);
 	u32 unk30 = nv_rd32(dev, 0x610030), tmp, pclk, script, mc = 0;
-	struct dcb_entry *dcb;
-	int i, crtc, or = 0, type = OUTPUT_ANY;
+	struct dcb_output *dcb;
+	int i, crtc, or = 0, type = DCB_OUTPUT_ANY;
 
 	NV_DEBUG_KMS(dev, "0x610030: 0x%08x\n", unk30);
 	dcb = disp->irq.dcb;
@@ -812,15 +768,15 @@ nv50_display_unk20_handler(struct drm_device *dev)
 	pclk  = nv_rd32(dev, NV50_PDISPLAY_CRTC_P(crtc, CLOCK)) & 0x003fffff;
 
 	/* Find which encoder is connected to the CRTC */
-	for (i = 0; type == OUTPUT_ANY && i < 3; i++) {
+	for (i = 0; type == DCB_OUTPUT_ANY && i < 3; i++) {
 		mc = nv_rd32(dev, NV50_PDISPLAY_DAC_MODE_CTRL_P(i));
 		NV_DEBUG_KMS(dev, "DAC-%d mc: 0x%08x\n", i, mc);
 		if (!(mc & (1 << crtc)))
 			continue;
 
 		switch ((mc & 0x00000f00) >> 8) {
-		case 0: type = OUTPUT_ANALOG; break;
-		case 1: type = OUTPUT_TV; break;
+		case 0: type = DCB_OUTPUT_ANALOG; break;
+		case 1: type = DCB_OUTPUT_TV; break;
 		default:
 			NV_ERROR(dev, "invalid mc, DAC-%d: 0x%08x\n", i, mc);
 			goto ack;
@@ -829,7 +785,7 @@ nv50_display_unk20_handler(struct drm_device *dev)
 		or = i;
 	}
 
-	for (i = 0; type == OUTPUT_ANY && i < nv50_sor_nr(dev); i++) {
+	for (i = 0; type == DCB_OUTPUT_ANY && i < nv50_sor_nr(dev); i++) {
 		if (dev_priv->chipset  < 0x90 ||
 		    dev_priv->chipset == 0x92 ||
 		    dev_priv->chipset == 0xa0)
@@ -842,12 +798,12 @@ nv50_display_unk20_handler(struct drm_device *dev)
 			continue;
 
 		switch ((mc & 0x00000f00) >> 8) {
-		case 0: type = OUTPUT_LVDS; break;
-		case 1: type = OUTPUT_TMDS; break;
-		case 2: type = OUTPUT_TMDS; break;
-		case 5: type = OUTPUT_TMDS; break;
-		case 8: type = OUTPUT_DP; break;
-		case 9: type = OUTPUT_DP; break;
+		case 0: type = DCB_OUTPUT_LVDS; break;
+		case 1: type = DCB_OUTPUT_TMDS; break;
+		case 2: type = DCB_OUTPUT_TMDS; break;
+		case 5: type = DCB_OUTPUT_TMDS; break;
+		case 8: type = DCB_OUTPUT_DP; break;
+		case 9: type = DCB_OUTPUT_DP; break;
 		default:
 			NV_ERROR(dev, "invalid mc, SOR-%d: 0x%08x\n", i, mc);
 			goto ack;
@@ -856,7 +812,7 @@ nv50_display_unk20_handler(struct drm_device *dev)
 		or = i;
 	}
 
-	if (type == OUTPUT_ANY)
+	if (type == DCB_OUTPUT_ANY)
 		goto ack;
 
 	/* Enable the encoder */
@@ -874,7 +830,7 @@ nv50_display_unk20_handler(struct drm_device *dev)
 	script = nv50_display_script_select(dev, dcb, mc, pclk);
 	nouveau_bios_run_display_table(dev, script, pclk, dcb, -1);
 
-	if (type == OUTPUT_DP) {
+	if (type == DCB_OUTPUT_DP) {
 		int link = !(dcb->dpconf.sor.link & 1);
 		if ((mc & 0x000f0000) == 0x00020000)
 			nv50_sor_dp_calc_tu(dev, or, link, pclk, 18);
@@ -882,7 +838,7 @@ nv50_display_unk20_handler(struct drm_device *dev)
 			nv50_sor_dp_calc_tu(dev, or, link, pclk, 24);
 	}
 
-	if (dcb->type != OUTPUT_ANALOG) {
+	if (dcb->type != DCB_OUTPUT_ANALOG) {
 		tmp = nv_rd32(dev, NV50_PDISPLAY_SOR_CLK_CTRL2(or));
 		tmp &= ~0x00000f0f;
 		if (script & 0x0100)
@@ -910,19 +866,19 @@ ack:
  * programmed for DisplayPort.
  */
 static void
-nv50_display_unk40_dp_set_tmds(struct drm_device *dev, struct dcb_entry *dcb)
+nv50_display_unk40_dp_set_tmds(struct drm_device *dev, struct dcb_output *dcb)
 {
 	int or = ffs(dcb->or) - 1, link = !(dcb->dpconf.sor.link & 1);
 	struct drm_encoder *encoder;
 	u32 tmp;
 
-	if (dcb->type != OUTPUT_TMDS)
+	if (dcb->type != DCB_OUTPUT_TMDS)
 		return;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 
-		if (nv_encoder->dcb->type == OUTPUT_DP &&
+		if (nv_encoder->dcb->type == DCB_OUTPUT_DP &&
 		    nv_encoder->dcb->or & (1 << or)) {
 			tmp  = nv_rd32(dev, NV50_SOR_DP_CTRL(or, link));
 			tmp &= ~NV50_SOR_DP_CTRL_ENABLED;
@@ -936,7 +892,7 @@ static void
 nv50_display_unk40_handler(struct drm_device *dev)
 {
 	struct nv50_display *disp = nv50_display(dev);
-	struct dcb_entry *dcb = disp->irq.dcb;
+	struct dcb_output *dcb = disp->irq.dcb;
 	u16 script = disp->irq.script;
 	u32 unk30 = nv_rd32(dev, 0x610030), pclk = disp->irq.pclk;
 

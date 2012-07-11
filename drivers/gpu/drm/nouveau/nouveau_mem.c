@@ -36,7 +36,6 @@
 #include "drm_sarea.h"
 
 #include "nouveau_drv.h"
-#include "nouveau_agp.h"
 #include "nouveau_pm.h"
 #include <core/mm.h>
 #include <subdev/vm.h>
@@ -173,7 +172,6 @@ void
 nouveau_mem_gart_fini(struct drm_device *dev)
 {
 	nouveau_sgdma_takedown(dev);
-	nouveau_agp_fini(dev);
 }
 
 bool
@@ -308,7 +306,9 @@ nouveau_mem_gart_init(struct drm_device *dev)
 	struct ttm_bo_device *bdev = &dev_priv->ttm.bdev;
 	int ret;
 
-	nouveau_agp_init(dev);
+	if (!nvdrm_gart_init(dev, &dev_priv->gart_info.aper_base,
+				  &dev_priv->gart_info.aper_size))
+		dev_priv->gart_info.type = NOUVEAU_GART_AGP;
 
 	if (dev_priv->gart_info.type == NOUVEAU_GART_NONE) {
 		ret = nouveau_sgdma_init(dev);

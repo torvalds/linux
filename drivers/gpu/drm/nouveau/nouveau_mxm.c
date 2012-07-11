@@ -390,7 +390,7 @@ mxm_dcb_sanitise_entry(struct drm_device *dev, void *data, int idx, u8 *dcbe)
 	 * vbios mxm table
 	 */
 	i2cidx = mxm_ddc_map(dev, ctx.desc.ddc_port);
-	if ((ctx.outp[0] & 0x0000000f) != OUTPUT_DP)
+	if ((ctx.outp[0] & 0x0000000f) != DCB_OUTPUT_DP)
 		i2cidx = (i2cidx & 0x0f) << 4;
 	else
 		i2cidx = (i2cidx & 0xf0);
@@ -419,7 +419,7 @@ mxm_dcb_sanitise_entry(struct drm_device *dev, void *data, int idx, u8 *dcbe)
 	 * and the mxm data says the connector is really HDMI.  another
 	 * common example is DP->eDP.
 	 */
-	conn = dcb_conn(dev, (ctx.outp[0] & 0x0000f000) >> 12);
+	conn = olddcb_conn(dev, (ctx.outp[0] & 0x0000f000) >> 12);
 	type = conn[0];
 	switch (ctx.desc.conn_type) {
 	case 0x01: /* LVDS */

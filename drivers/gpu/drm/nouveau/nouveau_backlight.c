@@ -181,9 +181,9 @@ nv50_backlight_init(struct drm_connector *connector)
 	struct backlight_device *bd;
 	const struct backlight_ops *ops;
 
-	nv_encoder = find_encoder(connector, OUTPUT_LVDS);
+	nv_encoder = find_encoder(connector, DCB_OUTPUT_LVDS);
 	if (!nv_encoder) {
-		nv_encoder = find_encoder(connector, OUTPUT_DP);
+		nv_encoder = find_encoder(connector, DCB_OUTPUT_DP);
 		if (!nv_encoder)
 			return -ENODEV;
 	}

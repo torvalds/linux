@@ -144,7 +144,7 @@ nv17_tv_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct drm_mode_config *conf = &dev->mode_config;
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
-	struct dcb_entry *dcb = tv_enc->base.dcb;
+	struct dcb_output *dcb = tv_enc->base.dcb;
 	bool reliable = get_tv_detect_quirks(dev, &tv_enc->pin_mask);
 
 	if (nv04_dac_in_use(encoder))
@@ -411,10 +411,10 @@ static void nv17_tv_prepare(struct drm_encoder *encoder)
 		struct drm_encoder *enc;
 
 		list_for_each_entry(enc, &dev->mode_config.encoder_list, head) {
-			struct dcb_entry *dcb = nouveau_encoder(enc)->dcb;
+			struct dcb_output *dcb = nouveau_encoder(enc)->dcb;
 
-			if ((dcb->type == OUTPUT_TMDS ||
-			     dcb->type == OUTPUT_LVDS) &&
+			if ((dcb->type == DCB_OUTPUT_TMDS ||
+			     dcb->type == DCB_OUTPUT_LVDS) &&
 			     !enc->crtc &&
 			     nv04_dfp_get_bound_head(dev, dcb) == head) {
 				nv04_dfp_bind_head(dev, dcb, head ^ 1,
@@ -633,7 +633,7 @@ static int nv17_tv_create_resources(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct drm_mode_config *conf = &dev->mode_config;
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
-	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
+	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
 	int num_tv_norms = dcb->tvconf.has_component_output ? NUM_TV_NORMS :
 							NUM_LD_TV_NORMS;
 	int i;
@@ -789,7 +789,7 @@ static struct drm_encoder_funcs nv17_tv_funcs = {
 };
 
 int
-nv17_tv_create(struct drm_connector *connector, struct dcb_entry *entry)
+nv17_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_encoder *encoder;

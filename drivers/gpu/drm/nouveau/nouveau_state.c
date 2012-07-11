@@ -34,7 +34,6 @@
 
 #include "nouveau_drv.h"
 #include <nouveau_drm.h>
-#include "nouveau_agp.h"
 #include "nouveau_fbcon.h"
 #include <core/ramht.h>
 #include "nouveau_pm.h"
@@ -515,9 +514,6 @@ nouveau_card_init(struct drm_device *dev)
 	spin_lock_init(&dev_priv->tile.lock);
 	spin_lock_init(&dev_priv->context_switch_lock);
 	spin_lock_init(&dev_priv->vm_lock);
-
-	/* Make sure the AGP controller is in a consistent state */
-	nouveau_agp_reset(dev);
 
 	/* Make the CRTCs and I2C buses accessible */
 	ret = engine->display.early_init(dev);

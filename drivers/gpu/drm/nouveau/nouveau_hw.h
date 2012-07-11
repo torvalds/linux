@@ -161,7 +161,7 @@ static inline void NVWriteRAMDAC(struct drm_device *dev,
 static inline uint8_t nv_read_tmds(struct drm_device *dev,
 					int or, int dl, uint8_t address)
 {
-	int ramdac = (or & OUTPUT_C) >> 2;
+	int ramdac = (or & DCB_OUTPUT_C) >> 2;
 
 	NVWriteRAMDAC(dev, ramdac, NV_PRAMDAC_FP_TMDS_CONTROL + dl * 8,
 	NV_PRAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE | address);
@@ -172,7 +172,7 @@ static inline void nv_write_tmds(struct drm_device *dev,
 					int or, int dl, uint8_t address,
 					uint8_t data)
 {
-	int ramdac = (or & OUTPUT_C) >> 2;
+	int ramdac = (or & DCB_OUTPUT_C) >> 2;
 
 	NVWriteRAMDAC(dev, ramdac, NV_PRAMDAC_FP_TMDS_DATA + dl * 8, data);
 	NVWriteRAMDAC(dev, ramdac, NV_PRAMDAC_FP_TMDS_CONTROL + dl * 8, address);

@@ -224,10 +224,10 @@ nv50_dac_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		mode_ctl |= NV50_EVO_DAC_MODE_CTRL_CRTC0;
 
 	/* Lacking a working tv-out, this is not a 100% sure. */
-	if (nv_encoder->dcb->type == OUTPUT_ANALOG)
+	if (nv_encoder->dcb->type == DCB_OUTPUT_ANALOG)
 		mode_ctl |= 0x40;
 	else
-	if (nv_encoder->dcb->type == OUTPUT_TV)
+	if (nv_encoder->dcb->type == DCB_OUTPUT_TV)
 		mode_ctl |= 0x100;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC)
@@ -286,7 +286,7 @@ static const struct drm_encoder_funcs nv50_dac_encoder_funcs = {
 };
 
 int
-nv50_dac_create(struct drm_connector *connector, struct dcb_entry *entry)
+nv50_dac_create(struct drm_connector *connector, struct dcb_output *entry)
 {
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;

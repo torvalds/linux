@@ -2,12 +2,26 @@
 #include "nouveau_compat.h"
 
 #include <subdev/bios.h>
+#include <subdev/bios/dcb.h>
+#include <subdev/bios/init.h>
 #include <subdev/bios/pll.h>
 #include <subdev/gpio.h>
 #include <subdev/i2c.h>
 #include <subdev/clock.h>
 
 void *nouveau_newpriv(struct drm_device *);
+
+int
+nvdrm_gart_init(struct drm_device *dev, u64 *base, u64 *size)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	if (drm->agp.stat == ENABLED) {
+		*base = drm->agp.base;
+		*size = drm->agp.base;
+		return 0;
+	}
+	return -ENODEV;
+}
 
 u8
 _nv_rd08(struct drm_device *dev, u32 reg)
@@ -254,4 +268,28 @@ nva3_calc_pll(struct drm_device *dev, struct nvbios_pll *info, u32 freq,
 	struct nouveau_clock *clk = nouveau_clock(drm->device);
 
 	return nva3_pll_calc(clk, info, freq, N, fN, M, P);
+}
+
+void
+nouveau_bios_run_init_table(struct drm_device *dev, uint16_t table,
+			    struct dcb_output *dcbent, int crtc)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_bios *bios = nouveau_bios(drm->device);
+	struct nvbios_init init = {
+		.subdev = nv_subdev(bios),
+		.bios = bios,
+		.offset = table,
+		.outp = dcbent,
+		.crtc = crtc,
+		.execute = 1
+	};
+
+	nvbios_exec(&init);
+}
+
+void
+nouveau_bios_init_exec(struct drm_device *dev, uint16_t table)
+{
+	nouveau_bios_run_init_table(dev, table, NULL, 0);
 }

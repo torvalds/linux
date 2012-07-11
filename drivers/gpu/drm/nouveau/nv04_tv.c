@@ -181,7 +181,7 @@ static const struct drm_encoder_funcs nv04_tv_funcs = {
 };
 
 int
-nv04_tv_create(struct drm_connector *connector, struct dcb_entry *entry)
+nv04_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 {
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;

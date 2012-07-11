@@ -53,7 +53,7 @@ struct nv50_display {
 
 	struct tasklet_struct tasklet;
 	struct {
-		struct dcb_entry *dcb;
+		struct dcb_output *dcb;
 		u16 script;
 		u32 pclk;
 	} irq;

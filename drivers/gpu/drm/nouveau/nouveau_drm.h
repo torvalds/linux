@@ -23,6 +23,16 @@ struct nouveau_drm {
 
 	struct nouveau_object *device;
 	struct list_head clients;
+
+	struct {
+		enum {
+			UNKNOWN = 0,
+			DISABLE = 1,
+			ENABLED = 2
+		} stat;
+		u32 base;
+		u32 size;
+	} agp;
 };
 
 int nouveau_drm_suspend(struct pci_dev *, pm_message_t);

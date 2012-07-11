@@ -29,7 +29,6 @@
 #include "drm.h"
 #include "drm_crtc_helper.h"
 #include "nouveau_drv.h"
-#include "nouveau_agp.h"
 #include "nouveau_abi16.h"
 #include "nouveau_hw.h"
 #include "nouveau_fb.h"
@@ -219,7 +218,6 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 		goto out_abort;
 	}
 
-	nouveau_agp_fini(dev);
 	return 0;
 
 out_abort:
@@ -241,9 +239,6 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	struct drm_crtc *crtc;
 	int ret, i;
 
-	/* Make sure the AGP controller is in a consistent state */
-	nouveau_agp_reset(dev);
-
 	/* Make the CRTCs accessible */
 	engine->display.early_init(dev);
 
@@ -251,8 +246,6 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	ret = nouveau_run_vbios_init(dev);
 	if (ret)
 		return ret;
-
-	nouveau_agp_init(dev);
 
 	NV_INFO(dev, "Restoring GPU objects...\n");
 	nouveau_gpuobj_resume(dev);

@@ -31,7 +31,7 @@
 #include "nouveau_crtc.h"
 
 u8 *
-nouveau_dp_bios_data(struct drm_device *dev, struct dcb_entry *dcb, u8 **entry)
+nouveau_dp_bios_data(struct drm_device *dev, struct dcb_output *dcb, u8 **entry)
 {
 	struct bit_entry d;
 	u8 *table;
@@ -80,7 +80,7 @@ nouveau_dp_bios_data(struct drm_device *dev, struct dcb_entry *dcb, u8 **entry)
 struct dp_state {
 	struct nouveau_i2c_port *auxch;
 	struct dp_train_func *func;
-	struct dcb_entry *dcb;
+	struct dcb_output *dcb;
 	int crtc;
 	u8 *dpcd;
 	int link_nr;
