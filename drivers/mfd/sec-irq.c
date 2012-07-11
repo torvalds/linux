@@ -14,7 +14,10 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/mfd/samsung/s5m-core.h>
+#include <linux/mfd/samsung/core.h>
+#include <linux/mfd/samsung/irq.h>
+#include <linux/mfd/samsung/s5m8763.h>
+#include <linux/mfd/samsung/s5m8767.h>
 
 struct sec_irq_data {
 	int reg;
