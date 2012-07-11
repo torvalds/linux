@@ -159,6 +159,10 @@ config PPC_E500MC
 	bool "e500mc Support"
 	select PPC_FPU
 	depends on E500
+	help
+	  This must be enabled for running on e500mc (and derivatives
+	  such as e5500/e6500), and must be disabled for running on
+	  e500v1 or e500v2.
 
 config PPC_FPU
 	bool

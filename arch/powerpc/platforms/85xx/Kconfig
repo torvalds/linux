@@ -254,6 +254,22 @@ config P5020_DS
 	help
 	  This option enables support for the P5020 DS board
 
+config PPC_QEMU_E500
+	bool "QEMU generic e500 platform"
+	depends on EXPERIMENTAL
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for running as a QEMU guest using
+	  QEMU's generic e500 machine.  This is not required if you're
+	  using a QEMU machine that targets a specific board, such as
+	  mpc8544ds.
+
+	  Unlike most e500 boards that target a specific CPU, this
+	  platform works with any e500-family CPU that QEMU supports.
+	  Thus, you'll need to make sure CONFIG_PPC_E500MC is set or
+	  unset based on the emulated CPU (or actual host CPU in the case
+	  of KVM).
+
 endif # FSL_SOC_BOOKE
 
 config TQM85xx
