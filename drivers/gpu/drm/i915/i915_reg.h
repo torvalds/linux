@@ -1552,6 +1552,7 @@
 /* VGA port control */
 #define ADPA			0x61100
 #define PCH_ADPA                0xe1100
+#define VLV_ADPA		(VLV_DISPLAY_BASE + ADPA)
 
 #define   ADPA_DAC_ENABLE	(1<<31)
 #define   ADPA_DAC_DISABLE	0
