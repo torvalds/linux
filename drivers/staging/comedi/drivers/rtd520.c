@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Reset board state for DMA 0 */
-#define RtdDma0Reset(dev) \
-	writel(0, devpriv->las0+LAS0_DMA0_RESET)
-
 /* Reset board state for DMA 1 */
 #define RtdDma1Reset(dev) \
 	writel(0, devpriv->las0+LAS0_DMA1_SRC)
@@ -1297,7 +1293,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			RtdDma0Control(dev, PLX_CLEAR_DMA_INTR_BIT);
 		}
 	}
-	RtdDma0Reset(dev);	/* reset onboard state */
+	writel(0, devpriv->las0 + LAS0_DMA0_RESET);
 #endif /* USE_DMA */
 	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
 	writel(0, devpriv->las0 + LAS0_OVERRUN);
