@@ -230,6 +230,7 @@ static inline int fib_lookup(struct net *net, struct flowi4 *flp,
 			     struct fib_result *res)
 {
 	if (!net->ipv4.fib_has_custom_rules) {
+		res->r = NULL;
 		if (net->ipv4.fib_local &&
 		    !fib_table_lookup(net->ipv4.fib_local, flp, res,
 				      FIB_LOOKUP_NOREF))
