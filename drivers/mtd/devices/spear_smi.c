@@ -935,7 +935,7 @@ static int __devinit spear_smi_probe(struct platform_device *pdev)
 		}
 	} else {
 		pdata = dev_get_platdata(&pdev->dev);
-		if (pdata < 0) {
+		if (!pdata) {
 			ret = -ENODEV;
 			dev_err(&pdev->dev, "no platform data\n");
 			goto err;
