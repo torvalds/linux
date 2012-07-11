@@ -19,6 +19,7 @@ config ARCH_SH7372
 	select CPU_V7
 	select SH_CLK_CPG
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_CPU_SUSPEND if PM || CPU_IDLE
 
 config ARCH_SH73A0
 	bool "SH-Mobile AG5 (R8A73A00)"
