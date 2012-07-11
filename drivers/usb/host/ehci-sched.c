@@ -479,29 +479,27 @@ static int tt_no_collision (
 
 /*-------------------------------------------------------------------------*/
 
-static int enable_periodic (struct ehci_hcd *ehci)
+static void enable_periodic(struct ehci_hcd *ehci)
 {
 	if (ehci->periodic_count++)
-		return 0;
+		return;
 
 	/* Stop waiting to turn off the periodic schedule */
 	ehci->enabled_hrtimer_events &= ~BIT(EHCI_HRTIMER_DISABLE_PERIODIC);
 
 	/* Don't start the schedule until PSS is 0 */
 	ehci_poll_PSS(ehci);
-	return 0;
 }
 
-static int disable_periodic (struct ehci_hcd *ehci)
+static void disable_periodic(struct ehci_hcd *ehci)
 {
 	if (--ehci->periodic_count)
-		return 0;
+		return;
 
 	ehci->next_uframe = -1;		/* the periodic schedule is empty */
 
 	/* Don't turn off the schedule until PSS is 1 */
 	ehci_poll_PSS(ehci);
-	return 0;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -512,7 +510,7 @@ static int disable_periodic (struct ehci_hcd *ehci)
  * this just links in a qh; caller guarantees uframe masks are set right.
  * no FSTN support (yet; ehci 0.96+)
  */
-static int qh_link_periodic (struct ehci_hcd *ehci, struct ehci_qh *qh)
+static void qh_link_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
 	unsigned	i;
 	unsigned	period = qh->period;
@@ -572,10 +570,10 @@ static int qh_link_periodic (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		: (qh->usecs * 8);
 
 	/* maybe enable periodic schedule processing */
-	return enable_periodic(ehci);
+	enable_periodic(ehci);
 }
 
-static int qh_unlink_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
+static void qh_unlink_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
 	unsigned	i;
 	unsigned	period;
@@ -608,8 +606,6 @@ static int qh_unlink_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	/* qh->qh_next still "live" to HC */
 	qh->qh_state = QH_STATE_UNLINK;
 	qh->qh_next.ptr = NULL;
-
-	return 0;
 }
 
 static void intr_deschedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
@@ -843,7 +839,7 @@ static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 		ehci_dbg (ehci, "reused qh %p schedule\n", qh);
 
 	/* stuff into the periodic schedule */
-	status = qh_link_periodic (ehci, qh);
+	qh_link_periodic(ehci, qh);
 done:
 	return status;
 }
@@ -1574,8 +1570,7 @@ itd_link (struct ehci_hcd *ehci, unsigned frame, struct ehci_itd *itd)
 }
 
 /* fit urb's itds into the selected schedule slot; activate as needed */
-static int
-itd_link_urb (
+static void itd_link_urb(
 	struct ehci_hcd		*ehci,
 	struct urb		*urb,
 	unsigned		mod,
@@ -1646,7 +1641,7 @@ itd_link_urb (
 	urb->hcpriv = NULL;
 
 	timer_action (ehci, TIMER_IO_WATCHDOG);
-	return enable_periodic(ehci);
+	enable_periodic(ehci);
 }
 
 #define	ISO_ERRS (EHCI_ISOC_BUF_ERR | EHCI_ISOC_BABBLE | EHCI_ISOC_XACTERR)
@@ -1726,7 +1721,7 @@ itd_complete (
 	ehci_urb_done(ehci, urb, 0);
 	retval = true;
 	urb = NULL;
-	(void) disable_periodic(ehci);
+	disable_periodic(ehci);
 	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs--;
 
 	if (ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs == 0) {
@@ -1993,8 +1988,7 @@ sitd_link (struct ehci_hcd *ehci, unsigned frame, struct ehci_sitd *sitd)
 }
 
 /* fit urb's sitds into the selected schedule slot; activate as needed */
-static int
-sitd_link_urb (
+static void sitd_link_urb(
 	struct ehci_hcd		*ehci,
 	struct urb		*urb,
 	unsigned		mod,
@@ -2056,7 +2050,7 @@ sitd_link_urb (
 	urb->hcpriv = NULL;
 
 	timer_action (ehci, TIMER_IO_WATCHDOG);
-	return enable_periodic(ehci);
+	enable_periodic(ehci);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2122,7 +2116,7 @@ sitd_complete (
 	ehci_urb_done(ehci, urb, 0);
 	retval = true;
 	urb = NULL;
-	(void) disable_periodic(ehci);
+	disable_periodic(ehci);
 	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs--;
 
 	if (ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs == 0) {
