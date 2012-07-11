@@ -58,14 +58,17 @@ struct fixed_voltage_config {
 struct regulator_consumer_supply;
 
 #if IS_ENABLED(CONFIG_REGULATOR)
-struct platform_device *regulator_register_fixed(int id,
-		struct regulator_consumer_supply *supplies, int num_supplies);
+struct platform_device *regulator_register_always_on(int id, const char *name,
+		struct regulator_consumer_supply *supplies, int num_supplies, int uv);
 #else
-static inline struct platform_device *regulator_register_fixed(int id,
-		struct regulator_consumer_supply *supplies, int num_supplies)
+static inline struct platform_device *regulator_register_always_on(int id, const char *name,
+		struct regulator_consumer_supply *supplies, int num_supplies, int uv)
 {
 	return NULL;
 }
 #endif
+
+#define regulator_register_fixed(id, s, ns) regulator_register_always_on(id, \
+						"fixed-dummy", s, ns, 0)
 
 #endif
