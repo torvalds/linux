@@ -571,6 +571,13 @@ static struct virtio_scsi_target_state *virtscsi_alloc_tgt(
 	return tgt;
 }
 
+static void virtscsi_scan(struct virtio_device *vdev)
+{
+	struct Scsi_Host *shost = (struct Scsi_Host *)vdev->priv;
+
+	scsi_scan_host(shost);
+}
+
 static void virtscsi_remove_vqs(struct virtio_device *vdev)
 {
 	struct Scsi_Host *sh = virtio_scsi_host(vdev);
@@ -677,9 +684,10 @@ static int __devinit virtscsi_probe(struct virtio_device *vdev)
 	err = scsi_add_host(shost, &vdev->dev);
 	if (err)
 		goto scsi_add_host_failed;
-
-	scsi_scan_host(shost);
-
+	/*
+	 * scsi_scan_host() happens in virtscsi_scan() via virtio_driver->scan()
+	 * after VIRTIO_CONFIG_S_DRIVER_OK has been set..
+	 */
 	return 0;
 
 scsi_add_host_failed:
@@ -735,6 +743,7 @@ static struct virtio_driver virtio_scsi_driver = {
 	.driver.owner = THIS_MODULE,
 	.id_table = id_table,
 	.probe = virtscsi_probe,
+	.scan = virtscsi_scan,
 #ifdef CONFIG_PM
 	.freeze = virtscsi_freeze,
 	.restore = virtscsi_restore,
