@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* PLX9080 interrupt mask and status */
-#define RtdPlxInterruptWrite(dev, v) \
-	writel(v, devpriv->lcfg+LCFG_ITCSR)
-
 /* Set  mode for DMA 0 */
 #define RtdDma0Mode(dev, m) \
 	writel((m), devpriv->lcfg+LCFG_DMAMODE0)
@@ -1008,8 +1004,8 @@ transferDone:
 	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 #ifdef USE_DMA
 	if (devpriv->flags & DMA0_ACTIVE) {
-		RtdPlxInterruptWrite(dev,
-			readl(devpriv->lcfg + LCFG_ITCSR) & ~ICS_DMA0_E);
+		writel(readl(devpriv->lcfg + LCFG_ITCSR) & ~ICS_DMA0_E,
+			devpriv->lcfg + LCFG_ITCSR);
 		abort_dma(dev, 0);
 		devpriv->flags &= ~DMA0_ACTIVE;
 		/* if Using DMA, then we should have read everything by now */
@@ -1279,8 +1275,8 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 #ifdef USE_DMA
 	if (devpriv->flags & DMA0_ACTIVE) {	/* cancel anything running */
-		RtdPlxInterruptWrite(dev,
-			readl(devpriv->lcfg + LCFG_ITCSR) & ~ICS_DMA0_E);
+		writel(readl(devpriv->lcfg + LCFG_ITCSR) & ~ICS_DMA0_E,
+			devpriv->lcfg + LCFG_ITCSR);
 		abort_dma(dev, 0);
 		devpriv->flags &= ~DMA0_ACTIVE;
 		if (readl(devpriv->lcfg + LCFG_ITCSR) & ICS_DMA0_A)
@@ -1446,8 +1442,8 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		RtdDma0Next(dev,	/* point to first block */
 			    devpriv->dma0Chain[DMA_CHAIN_COUNT - 1].next);
 		writel(DMAS_ADFIFO_HALF_FULL, devpriv->las0 + LAS0_DMA0_SRC);
-		RtdPlxInterruptWrite(dev,
-			readl(devpriv->lcfg + LCFG_ITCSR) | ICS_DMA0_E);
+		writel(readl(devpriv->lcfg + LCFG_ITCSR) | ICS_DMA0_E,
+			devpriv->lcfg + LCFG_ITCSR);
 		/* Must be 2 steps.  See PLX app note about "Starting a DMA transfer" */
 		RtdDma0Control(dev, PLX_DMA_EN_BIT);	/* enable DMA (clear INTR?) */
 		RtdDma0Control(dev, PLX_DMA_EN_BIT | PLX_DMA_START_BIT);	/*start DMA */
@@ -1482,8 +1478,8 @@ static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->aiCount = 0;	/* stop and don't transfer any more */
 #ifdef USE_DMA
 	if (devpriv->flags & DMA0_ACTIVE) {
-		RtdPlxInterruptWrite(dev,
-			readl(devpriv->lcfg + LCFG_ITCSR) & ~ICS_DMA0_E);
+		writel(readl(devpriv->lcfg + LCFG_ITCSR) & ~ICS_DMA0_E,
+			devpriv->lcfg + LCFG_ITCSR);
 		abort_dma(dev, 0);
 		devpriv->flags &= ~DMA0_ACTIVE;
 	}
@@ -1832,7 +1828,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* also, initialize shadow registers */
 	writel(0, devpriv->las0 + LAS0_BOARD_RESET);
 	udelay(100);		/* needed? */
-	RtdPlxInterruptWrite(dev, 0);
+	writel(0, devpriv->lcfg + LCFG_ITCSR);
 	devpriv->intMask = 0;
 	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 	devpriv->intClearMask = ~0;
@@ -1947,9 +1943,8 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 #endif /* USE_DMA */
 
-	if (dev->irq) {		/* enable plx9080 interrupts */
-		RtdPlxInterruptWrite(dev, ICS_PIE | ICS_PLIE);
-	}
+	if (dev->irq)
+		writel(ICS_PIE | ICS_PLIE, devpriv->lcfg + LCFG_ITCSR);
 
 	printk("\ncomedi%d: rtd520 driver attached.\n", dev->minor);
 
@@ -1979,9 +1974,9 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #endif /* USE_DMA */
 	/* subdevices and priv are freed by the core */
 	if (dev->irq) {
-		RtdPlxInterruptWrite(dev,
-			readl(devpriv->lcfg + LCFG_ITCSR) &
-				~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E));
+		writel(readl(devpriv->lcfg + LCFG_ITCSR) &
+			~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E),
+			devpriv->lcfg + LCFG_ITCSR);
 		free_irq(dev->irq, dev);
 	}
 
@@ -2014,7 +2009,7 @@ static void rtd_detach(struct comedi_device *dev)
 		if (devpriv->lcfg) {
 			RtdDma0Control(dev, 0);	/* disable DMA */
 			RtdDma1Control(dev, 0);	/* disable DMA */
-			RtdPlxInterruptWrite(dev, ICS_PIE | ICS_PLIE);
+			writel(ICS_PIE | ICS_PLIE, devpriv->lcfg + LCFG_ITCSR);
 		}
 #endif /* USE_DMA */
 		if (devpriv->las0) {
@@ -2048,9 +2043,9 @@ static void rtd_detach(struct comedi_device *dev)
 		}
 #endif /* USE_DMA */
 		if (dev->irq) {
-			RtdPlxInterruptWrite(dev,
-				readl(devpriv->lcfg + LCFG_ITCSR) &
-					~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E));
+			writel(readl(devpriv->lcfg + LCFG_ITCSR) &
+				~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E),
+				devpriv->lcfg + LCFG_ITCSR);
 			free_irq(dev->irq, dev);
 		}
 		if (devpriv->las0)
