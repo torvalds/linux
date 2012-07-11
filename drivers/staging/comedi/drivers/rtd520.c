@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Reset board state for DMA 1 */
-#define RtdDma1Reset(dev) \
-	writel(0, devpriv->las0+LAS0_DMA1_SRC)
-
 /* PLX9080 interrupt mask and status */
 #define RtdPlxInterruptRead(dev) \
 	readl(devpriv->lcfg+LCFG_ITCSR)
