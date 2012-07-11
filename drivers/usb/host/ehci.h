@@ -84,6 +84,7 @@ enum ehci_hrtimer_event {
 	EHCI_HRTIMER_POLL_DEAD,		/* Wait for dead controller to stop */
 	EHCI_HRTIMER_UNLINK_INTR,	/* Wait for interrupt QH unlink */
 	EHCI_HRTIMER_FREE_ITDS,		/* Wait for unused iTDs and siTDs */
+	EHCI_HRTIMER_IAA_WATCHDOG,	/* Handle lost IAA interrupts */
 	EHCI_HRTIMER_DISABLE_PERIODIC,	/* Wait to disable periodic sched */
 	EHCI_HRTIMER_DISABLE_ASYNC,	/* Wait to disable async sched */
 	EHCI_HRTIMER_NUM_EVENTS		/* Must come last */
@@ -168,7 +169,6 @@ struct ehci_hcd {			/* one per controller */
 	struct dma_pool		*itd_pool;	/* itd per iso urb */
 	struct dma_pool		*sitd_pool;	/* sitd per split iso urb */
 
-	struct timer_list	iaa_watchdog;
 	struct timer_list	watchdog;
 	unsigned long		actions;
 	unsigned		periodic_stamp;
@@ -226,20 +226,6 @@ static inline struct ehci_hcd *hcd_to_ehci (struct usb_hcd *hcd)
 static inline struct usb_hcd *ehci_to_hcd (struct ehci_hcd *ehci)
 {
 	return container_of ((void *) ehci, struct usb_hcd, hcd_priv);
-}
-
-
-static inline void
-iaa_watchdog_start(struct ehci_hcd *ehci)
-{
-	WARN_ON(timer_pending(&ehci->iaa_watchdog));
-	mod_timer(&ehci->iaa_watchdog,
-			jiffies + msecs_to_jiffies(EHCI_IAA_MSECS));
-}
-
-static inline void iaa_watchdog_done(struct ehci_hcd *ehci)
-{
-	del_timer(&ehci->iaa_watchdog);
 }
 
 enum ehci_timer_action {

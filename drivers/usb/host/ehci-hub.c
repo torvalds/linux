@@ -209,7 +209,6 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	if (time_before (jiffies, ehci->next_statechange))
 		msleep(5);
 	del_timer_sync(&ehci->watchdog);
-	del_timer_sync(&ehci->iaa_watchdog);
 
 	spin_lock_irq (&ehci->lock);
 

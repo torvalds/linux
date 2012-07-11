@@ -1173,8 +1173,6 @@ static void end_unlink_async (struct ehci_hcd *ehci)
 	struct ehci_qh		*qh = ehci->async_unlink;
 	struct ehci_qh		*next;
 
-	iaa_watchdog_done(ehci);
-
 	// qh->hw_next = cpu_to_hc32(qh->qh_dma);
 	qh->qh_state = QH_STATE_IDLE;
 	qh->qh_next.qh = NULL;
@@ -1243,7 +1241,7 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	ehci_writel(ehci, ehci->command | CMD_IAAD, &ehci->regs->command);
 	(void)ehci_readl(ehci, &ehci->regs->command);
-	iaa_watchdog_start(ehci);
+	ehci_enable_event(ehci, EHCI_HRTIMER_IAA_WATCHDOG, true);
 }
 
 /*-------------------------------------------------------------------------*/

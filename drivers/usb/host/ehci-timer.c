@@ -72,6 +72,7 @@ static unsigned event_delays_ns[] = {
 	1 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_POLL_DEAD */
 	1125 * NSEC_PER_USEC,	/* EHCI_HRTIMER_UNLINK_INTR */
 	2 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_FREE_ITDS */
+	10 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_IAA_WATCHDOG */
 	10 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_DISABLE_PERIODIC */
 	15 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_DISABLE_ASYNC */
 };
@@ -291,6 +292,49 @@ static void end_free_itds(struct ehci_hcd *ehci)
 }
 
 
+/* Handle lost (or very late) IAA interrupts */
+static void ehci_iaa_watchdog(struct ehci_hcd *ehci)
+{
+	if (ehci->rh_state != EHCI_RH_RUNNING)
+		return;
+
+	/*
+	 * Lost IAA irqs wedge things badly; seen first with a vt8235.
+	 * So we need this watchdog, but must protect it against both
+	 * (a) SMP races against real IAA firing and retriggering, and
+	 * (b) clean HC shutdown, when IAA watchdog was pending.
+	 */
+	if (ehci->async_unlink) {
+		u32 cmd, status;
+
+		/* If we get here, IAA is *REALLY* late.  It's barely
+		 * conceivable that the system is so busy that CMD_IAAD
+		 * is still legitimately set, so let's be sure it's
+		 * clear before we read STS_IAA.  (The HC should clear
+		 * CMD_IAAD when it sets STS_IAA.)
+		 */
+		cmd = ehci_readl(ehci, &ehci->regs->command);
+
+		/*
+		 * If IAA is set here it either legitimately triggered
+		 * after the watchdog timer expired (_way_ late, so we'll
+		 * still count it as lost) ... or a silicon erratum:
+		 * - VIA seems to set IAA without triggering the IRQ;
+		 * - IAAD potentially cleared without setting IAA.
+		 */
+		status = ehci_readl(ehci, &ehci->regs->status);
+		if ((status & STS_IAA) || !(cmd & CMD_IAAD)) {
+			COUNT(ehci->stats.lost_iaa);
+			ehci_writel(ehci, STS_IAA, &ehci->regs->status);
+		}
+
+		ehci_vdbg(ehci, "IAA watchdog: status %x cmd %x\n",
+				status, cmd);
+		end_unlink_async(ehci);
+	}
+}
+
+
 /*
  * Handler functions for the hrtimer event types.
  * Keep this array in the same order as the event types indexed by
@@ -302,6 +346,7 @@ static void (*event_handlers[])(struct ehci_hcd *) = {
 	ehci_handle_controller_death,	/* EHCI_HRTIMER_POLL_DEAD */
 	ehci_handle_intr_unlinks,	/* EHCI_HRTIMER_UNLINK_INTR */
 	end_free_itds,			/* EHCI_HRTIMER_FREE_ITDS */
+	ehci_iaa_watchdog,		/* EHCI_HRTIMER_IAA_WATCHDOG */
 	ehci_disable_PSE,		/* EHCI_HRTIMER_DISABLE_PERIODIC */
 	ehci_disable_ASE,		/* EHCI_HRTIMER_DISABLE_ASYNC */
 };

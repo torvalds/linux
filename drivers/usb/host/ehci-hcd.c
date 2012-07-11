@@ -93,7 +93,6 @@ static const char	hcd_name [] = "ehci_hcd";
  */
 #define	EHCI_TUNE_FLS		1	/* (medium) 512-frame schedule */
 
-#define EHCI_IAA_MSECS		10		/* arbitrary */
 #define EHCI_IO_JIFFIES		(HZ/10)		/* io watchdog > irq_thresh */
 #define EHCI_SHRINK_JIFFIES	(DIV_ROUND_UP(HZ, 200) + 1)
 						/* 5-ms async qh unlink delay */
@@ -322,51 +321,6 @@ static void end_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh);
 
 /*-------------------------------------------------------------------------*/
 
-static void ehci_iaa_watchdog(unsigned long param)
-{
-	struct ehci_hcd		*ehci = (struct ehci_hcd *) param;
-	unsigned long		flags;
-
-	spin_lock_irqsave (&ehci->lock, flags);
-
-	/* Lost IAA irqs wedge things badly; seen first with a vt8235.
-	 * So we need this watchdog, but must protect it against both
-	 * (a) SMP races against real IAA firing and retriggering, and
-	 * (b) clean HC shutdown, when IAA watchdog was pending.
-	 */
-	if (ehci->async_unlink
-			&& !timer_pending(&ehci->iaa_watchdog)
-			&& ehci->rh_state == EHCI_RH_RUNNING) {
-		u32 cmd, status;
-
-		/* If we get here, IAA is *REALLY* late.  It's barely
-		 * conceivable that the system is so busy that CMD_IAAD
-		 * is still legitimately set, so let's be sure it's
-		 * clear before we read STS_IAA.  (The HC should clear
-		 * CMD_IAAD when it sets STS_IAA.)
-		 */
-		cmd = ehci_readl(ehci, &ehci->regs->command);
-
-		/* If IAA is set here it either legitimately triggered
-		 * before we cleared IAAD above (but _way_ late, so we'll
-		 * still count it as lost) ... or a silicon erratum:
-		 * - VIA seems to set IAA without triggering the IRQ;
-		 * - IAAD potentially cleared without setting IAA.
-		 */
-		status = ehci_readl(ehci, &ehci->regs->status);
-		if ((status & STS_IAA) || !(cmd & CMD_IAAD)) {
-			COUNT (ehci->stats.lost_iaa);
-			ehci_writel(ehci, STS_IAA, &ehci->regs->status);
-		}
-
-		ehci_vdbg(ehci, "IAA watchdog: status %x cmd %x\n",
-				status, cmd);
-		end_unlink_async(ehci);
-	}
-
-	spin_unlock_irqrestore(&ehci->lock, flags);
-}
-
 static void ehci_watchdog(unsigned long param)
 {
 	struct ehci_hcd		*ehci = (struct ehci_hcd *) param;
@@ -418,7 +372,6 @@ static void ehci_shutdown(struct usb_hcd *hcd)
 	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
 
 	del_timer_sync(&ehci->watchdog);
-	del_timer_sync(&ehci->iaa_watchdog);
 
 	spin_lock_irq(&ehci->lock);
 	ehci->rh_state = EHCI_RH_STOPPING;
@@ -491,7 +444,6 @@ static void ehci_stop (struct usb_hcd *hcd)
 
 	/* no more interrupts ... */
 	del_timer_sync (&ehci->watchdog);
-	del_timer_sync(&ehci->iaa_watchdog);
 
 	spin_lock_irq(&ehci->lock);
 	ehci->enabled_hrtimer_events = 0;
@@ -546,10 +498,6 @@ static int ehci_init(struct usb_hcd *hcd)
 	init_timer(&ehci->watchdog);
 	ehci->watchdog.function = ehci_watchdog;
 	ehci->watchdog.data = (unsigned long) ehci;
-
-	init_timer(&ehci->iaa_watchdog);
-	ehci->iaa_watchdog.function = ehci_iaa_watchdog;
-	ehci->iaa_watchdog.data = (unsigned long) ehci;
 
 	hrtimer_init(&ehci->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	ehci->hrtimer.function = ehci_hrtimer_func;
@@ -830,6 +778,20 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 
 	/* complete the unlinking of some qh [4.15.2.3] */
 	if (status & STS_IAA) {
+
+		/* Turn off the IAA watchdog */
+		ehci->enabled_hrtimer_events &= ~BIT(EHCI_HRTIMER_IAA_WATCHDOG);
+
+		/*
+		 * Mild optimization: Allow another IAAD to reset the
+		 * hrtimer, if one occurs before the next expiration.
+		 * In theory we could always cancel the hrtimer, but
+		 * tests show that about half the time it will be reset
+		 * for some other event anyway.
+		 */
+		if (ehci->next_hrtimer_event == EHCI_HRTIMER_IAA_WATCHDOG)
+			++ehci->next_hrtimer_event;
+
 		/* guard against (alleged) silicon errata */
 		if (cmd & CMD_IAAD)
 			ehci_dbg(ehci, "IAA with IAAD still set?\n");
