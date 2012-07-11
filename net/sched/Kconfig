@@ -517,6 +517,16 @@ config NET_EMATCH_CANID
 	  To compile this code as a module, choose M here: the
 	  module will be called em_canid.
 
+config NET_EMATCH_IPSET
+	tristate "IPset"
+	depends on NET_EMATCH && IP_SET
+	---help---
+	  Say Y here if you want to be able to classify packets based on
+	  ipset membership.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called em_ipset.
+
 config NET_CLS_ACT
 	bool "Actions"
 	---help---
