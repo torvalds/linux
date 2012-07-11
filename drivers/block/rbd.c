@@ -623,23 +623,18 @@ out_err:
 
 static int snap_by_name(struct rbd_device *rbd_dev, const char *snap_name)
 {
-	int i;
-	struct rbd_image_header *header = &rbd_dev->header;
-	char *p = header->snap_names;
 
-	rbd_assert(header->snapc != NULL);
-	for (i = 0; i < header->snapc->num_snaps; i++) {
-		if (!strcmp(snap_name, p)) {
+	struct rbd_snap *snap;
 
-			/* Found it.  Pass back its id and/or size */
+	list_for_each_entry(snap, &rbd_dev->snaps, node) {
+		if (!strcmp(snap_name, snap->name)) {
+			rbd_dev->mapping.snap_id = snap->id;
+			rbd_dev->mapping.size = snap->size;
 
-			rbd_dev->mapping.snap_id = header->snapc->snaps[i];
-			rbd_dev->mapping.size = header->snap_sizes[i];
-
-			return i;
+			return 0;
 		}
-		p += strlen(p) + 1;	/* Skip ahead to the next name */
 	}
+
 	return -ENOENT;
 }
 
@@ -653,6 +648,7 @@ static int rbd_header_set_snap(struct rbd_device *rbd_dev, char *snap_name)
 		rbd_dev->mapping.size = rbd_dev->header.image_size;
 		rbd_dev->mapping.snap_exists = false;
 		rbd_dev->mapping.read_only = rbd_dev->rbd_opts.read_only;
+		ret = 0;
 	} else {
 		ret = snap_by_name(rbd_dev, snap_name);
 		if (ret < 0)
@@ -661,8 +657,6 @@ static int rbd_header_set_snap(struct rbd_device *rbd_dev, char *snap_name)
 		rbd_dev->mapping.read_only = true;
 	}
 	rbd_dev->mapping.snap_name = snap_name;
-
-	ret = 0;
 done:
 	return ret;
 }
