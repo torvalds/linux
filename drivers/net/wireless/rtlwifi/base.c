@@ -167,7 +167,7 @@ static const u8 tid_to_ac[] = {
 	0, /* IEEE80211_AC_VO */
 };
 
-u8 rtl_tid_to_ac(struct ieee80211_hw *hw, u8 tid)
+u8 rtl_tid_to_ac(u8 tid)
 {
 	return tid_to_ac[tid];
 }
