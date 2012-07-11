@@ -314,6 +314,9 @@ lowpan_uncompress_udp_header(struct sk_buff *skb)
 	struct udphdr *uh = udp_hdr(skb);
 	u8 tmp;
 
+	if (!uh)
+		goto err;
+
 	if (lowpan_fetch_skb_u8(skb, &tmp))
 		goto err;
 
