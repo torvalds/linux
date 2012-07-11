@@ -823,12 +823,12 @@ static int ehci_setup(struct usb_hcd *hcd)
 
 	ehci->sbrn = HCD_USB2;
 
-	retval = ehci_halt(ehci);
+	/* data structure init */
+	retval = ehci_init(hcd);
 	if (retval)
 		return retval;
 
-	/* data structure init */
-	retval = ehci_init(hcd);
+	retval = ehci_halt(ehci);
 	if (retval)
 		return retval;
 
