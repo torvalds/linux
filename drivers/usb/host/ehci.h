@@ -79,8 +79,10 @@ enum ehci_rh_state {
  * ehci-timer.c) in parallel with this list.
  */
 enum ehci_hrtimer_event {
+	EHCI_HRTIMER_POLL_ASS,		/* Poll for async schedule off */
 	EHCI_HRTIMER_POLL_PSS,		/* Poll for periodic schedule off */
 	EHCI_HRTIMER_DISABLE_PERIODIC,	/* Wait to disable periodic sched */
+	EHCI_HRTIMER_DISABLE_ASYNC,	/* Wait to disable async sched */
 	EHCI_HRTIMER_NUM_EVENTS		/* Must come last */
 };
 #define EHCI_HRTIMER_NO_EVENT	99
@@ -93,6 +95,7 @@ struct ehci_hcd {			/* one per controller */
 	struct hrtimer		hrtimer;
 
 	int			PSS_poll_count;
+	int			ASS_poll_count;
 
 	/* glue to PCI and HCD framework */
 	struct ehci_caps __iomem *caps;
@@ -110,6 +113,7 @@ struct ehci_hcd {			/* one per controller */
 	struct ehci_qh		*async_unlink_last;
 	struct ehci_qh		*qh_scan_next;
 	unsigned		scanning : 1;
+	unsigned		async_count;	/* async activity count */
 
 	/* periodic schedule support */
 #define	DEFAULT_I_TDPS		1024		/* some HCs can do less */
@@ -229,7 +233,6 @@ static inline void iaa_watchdog_done(struct ehci_hcd *ehci)
 enum ehci_timer_action {
 	TIMER_IO_WATCHDOG,
 	TIMER_ASYNC_SHRINK,
-	TIMER_ASYNC_OFF,
 };
 
 static inline void

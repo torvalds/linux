@@ -964,6 +964,30 @@ done:
 
 /*-------------------------------------------------------------------------*/
 
+static void enable_async(struct ehci_hcd *ehci)
+{
+	if (ehci->async_count++)
+		return;
+
+	/* Stop waiting to turn off the async schedule */
+	ehci->enabled_hrtimer_events &= ~BIT(EHCI_HRTIMER_DISABLE_ASYNC);
+
+	/* Don't start the schedule until ASS is 0 */
+	ehci_poll_ASS(ehci);
+}
+
+static void disable_async(struct ehci_hcd *ehci)
+{
+	if (--ehci->async_count)
+		return;
+
+	/* The async schedule and async_unlink list are supposed to be empty */
+	WARN_ON(ehci->async->qh_next.qh || ehci->async_unlink);
+
+	/* Don't turn off the schedule until ASS is 1 */
+	ehci_poll_ASS(ehci);
+}
+
 /* move qh (and its qtds) onto async queue; maybe enable queue.  */
 
 static void qh_link_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
@@ -977,24 +1001,11 @@ static void qh_link_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	WARN_ON(qh->qh_state != QH_STATE_IDLE);
 
-	/* (re)start the async schedule? */
-	head = ehci->async;
-	timer_action_done (ehci, TIMER_ASYNC_OFF);
-	if (!head->qh_next.qh) {
-		if (!(ehci->command & CMD_ASE)) {
-			/* in case a clear of CMD_ASE didn't take yet */
-			(void)handshake(ehci, &ehci->regs->status,
-					STS_ASS, 0, 150);
-			ehci->command |= CMD_ASE;
-			ehci_writel(ehci, ehci->command, &ehci->regs->command);
-			/* posted write need not be known to HC yet ... */
-		}
-	}
-
 	/* clear halt and/or toggle; and maybe recover from silicon quirk */
 	qh_refresh(ehci, qh);
 
 	/* splice right after start */
+	head = ehci->async;
 	qh->qh_next = head->qh_next;
 	qh->hw->hw_next = head->hw->hw_next;
 	wmb ();
@@ -1005,6 +1016,8 @@ static void qh_link_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	qh->xacterrs = 0;
 	qh->qh_state = QH_STATE_LINKED;
 	/* qtd completions reported later by interrupt */
+
+	enable_async(ehci);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1173,16 +1186,10 @@ static void end_unlink_async (struct ehci_hcd *ehci)
 
 	qh_completions (ehci, qh);
 
-	if (!list_empty(&qh->qtd_list) && ehci->rh_state == EHCI_RH_RUNNING) {
+	if (!list_empty(&qh->qtd_list) && ehci->rh_state == EHCI_RH_RUNNING)
 		qh_link_async (ehci, qh);
-	} else {
-		/* it's not free to turn the async schedule on/off; leave it
-		 * active but idle for a while once it empties.
-		 */
-		if (ehci->rh_state == EHCI_RH_RUNNING
-				&& ehci->async->qh_next.qh == NULL)
-			timer_action (ehci, TIMER_ASYNC_OFF);
-	}
+
+	disable_async(ehci);
 
 	if (next) {
 		ehci->async_unlink = NULL;
@@ -1209,21 +1216,6 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 			)
 		BUG ();
 #endif
-
-	/* stop async schedule right now? */
-	if (unlikely (qh == ehci->async)) {
-		/* can't get here without STS_ASS set */
-		if (ehci->rh_state != EHCI_RH_HALTED
-				&& !ehci->async_unlink) {
-			/* ... and CMD_IAAD clear */
-			ehci->command &= ~CMD_ASE;
-			ehci_writel(ehci, ehci->command, &ehci->regs->command);
-			wmb ();
-			// handshake later, if we need to
-			timer_action_done (ehci, TIMER_ASYNC_OFF);
-		}
-		return;
-	}
 
 	qh->qh_state = QH_STATE_UNLINK;
 	ehci->async_unlink = qh;

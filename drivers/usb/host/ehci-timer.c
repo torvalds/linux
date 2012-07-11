@@ -67,8 +67,10 @@ static void ehci_clear_command_bit(struct ehci_hcd *ehci, u32 bit)
  * the event types indexed by enum ehci_hrtimer_event in ehci.h.
  */
 static unsigned event_delays_ns[] = {
+	1 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_POLL_ASS */
 	1 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_POLL_PSS */
 	10 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_DISABLE_PERIODIC */
+	15 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_DISABLE_ASYNC */
 };
 
 /* Enable a pending hrtimer event */
@@ -88,6 +90,51 @@ static void ehci_enable_event(struct ehci_hcd *ehci, unsigned event,
 		hrtimer_start_range_ns(&ehci->hrtimer, *timeout,
 				NSEC_PER_MSEC, HRTIMER_MODE_ABS);
 	}
+}
+
+
+/* Poll the STS_ASS status bit; see when it agrees with CMD_ASE */
+static void ehci_poll_ASS(struct ehci_hcd *ehci)
+{
+	unsigned	actual, want;
+
+	/* Don't enable anything if the controller isn't running (e.g., died) */
+	if (ehci->rh_state != EHCI_RH_RUNNING)
+		return;
+
+	want = (ehci->command & CMD_ASE) ? STS_ASS : 0;
+	actual = ehci_readl(ehci, &ehci->regs->status) & STS_ASS;
+
+	if (want != actual) {
+
+		/* Poll again later, but give up after about 20 ms */
+		if (ehci->ASS_poll_count++ < 20) {
+			ehci_enable_event(ehci, EHCI_HRTIMER_POLL_ASS, true);
+			return;
+		}
+		ehci_warn(ehci, "Waited too long for the async schedule status, giving up\n");
+	}
+	ehci->ASS_poll_count = 0;
+
+	/* The status is up-to-date; restart or stop the schedule as needed */
+	if (want == 0) {	/* Stopped */
+		if (ehci->async_count > 0)
+			ehci_set_command_bit(ehci, CMD_ASE);
+
+	} else {		/* Running */
+		if (ehci->async_count == 0) {
+
+			/* Turn off the schedule after a while */
+			ehci_enable_event(ehci, EHCI_HRTIMER_DISABLE_ASYNC,
+					true);
+		}
+	}
+}
+
+/* Turn off the async schedule after a brief delay */
+static void ehci_disable_ASE(struct ehci_hcd *ehci)
+{
+	ehci_clear_command_bit(ehci, CMD_ASE);
 }
 
 
@@ -151,8 +198,10 @@ static void ehci_disable_PSE(struct ehci_hcd *ehci)
  * enum ehci_hrtimer_event in ehci.h.
  */
 static void (*event_handlers[])(struct ehci_hcd *) = {
+	ehci_poll_ASS,			/* EHCI_HRTIMER_POLL_ASS */
 	ehci_poll_PSS,			/* EHCI_HRTIMER_POLL_PSS */
 	ehci_disable_PSE,		/* EHCI_HRTIMER_DISABLE_PERIODIC */
+	ehci_disable_ASE,		/* EHCI_HRTIMER_DISABLE_ASYNC */
 };
 
 static enum hrtimer_restart ehci_hrtimer_func(struct hrtimer *t)
