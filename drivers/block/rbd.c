@@ -1652,8 +1652,6 @@ static void rbd_free_disk(struct rbd_device *rbd_dev)
 	if (!disk)
 		return;
 
-	rbd_header_free(&rbd_dev->header);
-
 	if (disk->flags & GENHD_FL_UP)
 		del_gendisk(disk);
 	if (disk->queue)
@@ -1875,20 +1873,6 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	int rc;
 	u64 segment_size;
 
-	/* contact OSD, request size info about the object being mapped */
-	rc = rbd_read_header(rbd_dev, &rbd_dev->header);
-	if (rc)
-		return rc;
-
-	/* no need to lock here, as rbd_dev is not registered yet */
-	rc = rbd_dev_snap_devs_update(rbd_dev);
-	if (rc)
-		return rc;
-
-	rc = rbd_header_set_snap(rbd_dev, snap_name);
-	if (rc)
-		return rc;
-
 	/* create gendisk info */
 	rc = -ENOMEM;
 	disk = alloc_disk(RBD_MINORS_PER_MAJOR);
@@ -1925,12 +1909,6 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 
 	rbd_dev->disk = disk;
 
-	/* finally, announce the disk to the world */
-	set_capacity(disk, (sector_t) rbd_dev->mapping.size / SECTOR_SIZE);
-	add_disk(disk);
-
-	pr_info("%s: added with size 0x%llx\n",
-		disk->disk_name, (unsigned long long) rbd_dev->mapping.size);
 	return 0;
 
 out_disk:
@@ -2622,12 +2600,34 @@ static ssize_t rbd_add(struct bus_type *bus,
 	/*
 	 * At this point cleanup in the event of an error is the job
 	 * of the sysfs code (initiated by rbd_bus_del_dev()).
-	 *
-	 * Set up and announce blkdev mapping.
 	 */
+
+	/* contact OSD, request size info about the object being mapped */
+	rc = rbd_read_header(rbd_dev, &rbd_dev->header);
+	if (rc)
+		goto err_out_bus;
+
+	/* no need to lock here, as rbd_dev is not registered yet */
+	rc = rbd_dev_snap_devs_update(rbd_dev);
+	if (rc)
+		goto err_out_bus;
+
+	rc = rbd_header_set_snap(rbd_dev, snap_name);
+	if (rc)
+		goto err_out_bus;
+
+	/* Set up the blkdev mapping. */
+
 	rc = rbd_init_disk(rbd_dev);
 	if (rc)
 		goto err_out_bus;
+
+	/* Everything's ready.  Announce the disk to the world. */
+
+	set_capacity(rbd_dev->disk, rbd_dev->mapping.size / SECTOR_SIZE);
+	add_disk(rbd_dev->disk);
+	pr_info("%s: added with size 0x%llx\n", rbd_dev->disk->disk_name,
+		(unsigned long long) rbd_dev->mapping.size);
 
 	rc = rbd_init_watch_dev(rbd_dev);
 	if (rc)
@@ -2699,6 +2699,9 @@ static void rbd_dev_release(struct device *dev)
 	/* clean up and free blkdev */
 	rbd_free_disk(rbd_dev);
 	unregister_blkdev(rbd_dev->major, rbd_dev->name);
+
+	/* release allocated disk header fields */
+	rbd_header_free(&rbd_dev->header);
 
 	/* done with the id, and with the rbd_dev */
 	kfree(rbd_dev->mapping.snap_name);
