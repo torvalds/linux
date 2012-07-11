@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-#define RtdUtcCounterPut(dev, n, v) \
-	writeb((v) & 0xff, devpriv->las0 \
-		+ ((n <= 0) ? LAS0_UTC0 : ((1 == n) ? LAS0_UTC1 : LAS0_UTC2)))
-
 /* Set UTC (8254) control byte  */
 #define RtdUtcCtrlPut(dev, n, v) \
 	writeb(devpriv->utcCtrl[(n) & 3] = (((n) & 3) << 6) | ((v) & 0x3f), \
