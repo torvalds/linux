@@ -138,6 +138,7 @@ struct smb347_charger {
 	bool			usb_online;
 	bool			charging_enabled;
 	unsigned int		mains_current_limit;
+	bool			usb_hc_mode;
 	struct dentry		*dentry;
 	const struct smb347_charger_platform_data *pdata;
 };
@@ -1013,9 +1014,17 @@ static int smb347_usb_get_property(struct power_supply *psy,
 	struct smb347_charger *smb =
 		container_of(psy, struct smb347_charger, usb);
 
-	if (prop == POWER_SUPPLY_PROP_ONLINE) {
+	switch (prop) {
+	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = smb->usb_online;
 		return 0;
+
+	case POWER_SUPPLY_PROP_USB_HC:
+		val->intval = smb->usb_hc_mode;
+		return 0;
+
+	default:
+		break;
 	}
 	return -EINVAL;
 }
@@ -1034,6 +1043,7 @@ static int smb347_usb_set_property(struct power_supply *psy,
 		ret = smb347_write(smb, CMD_B, val->intval ?
 				   CMD_B_HC_MODE : CMD_B_USB59_MODE);
 		smb347_set_writable(smb, false);
+		smb->usb_hc_mode = val->intval;
 		break;
 
 	default:
