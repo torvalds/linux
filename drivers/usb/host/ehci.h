@@ -141,19 +141,19 @@ struct ehci_hcd {			/* one per controller */
 	struct ehci_qh		*intr_unlink;
 	struct ehci_qh		*intr_unlink_last;
 	unsigned		intr_unlink_cycle;
-	int			next_uframe;	/* scan periodic, start here */
+	unsigned		now_frame;	/* frame from HC hardware */
+	unsigned		next_frame;	/* scan periodic, start here */
 	unsigned		intr_count;	/* intr activity count */
 	unsigned		isoc_count;	/* isoc activity count */
 	unsigned		periodic_count;	/* periodic activity count */
 	unsigned		uframe_periodic_max; /* max periodic time per uframe */
 
 
-	/* list of itds & sitds completed while clock_frame was still active */
+	/* list of itds & sitds completed while now_frame was still active */
 	struct list_head	cached_itd_list;
 	struct ehci_itd		*last_itd_to_free;
 	struct list_head	cached_sitd_list;
 	struct ehci_sitd	*last_sitd_to_free;
-	unsigned		clock_frame;
 
 	/* per root hub port */
 	unsigned long		reset_done [EHCI_MAX_ROOT_PORTS];

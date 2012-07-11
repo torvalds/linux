@@ -497,8 +497,6 @@ static void disable_periodic(struct ehci_hcd *ehci)
 	if (--ehci->periodic_count)
 		return;
 
-	ehci->next_uframe = -1;		/* the periodic schedule is empty */
-
 	/* Don't turn off the schedule until PSS is 1 */
 	ehci_poll_PSS(ehci);
 }
@@ -1220,7 +1218,7 @@ itd_urb_transaction (
 		if (likely(!list_empty(&stream->free_list))) {
 			itd = list_first_entry(&stream->free_list,
 					struct ehci_itd, itd_list);
-			if (itd->frame == ehci->clock_frame)
+			if (itd->frame == ehci->now_frame)
 				goto alloc_itd;
 			list_del (&itd->itd_list);
 			itd_dma = itd->itd_dma;
@@ -1492,7 +1490,7 @@ iso_stream_schedule (
 
 	/* Make sure scan_isoc() sees these */
 	if (ehci->isoc_count == 0)
-		ehci->next_uframe = now;
+		ehci->next_frame = now >> 3;
 	return 0;
 
  fail:
@@ -1666,11 +1664,8 @@ static void itd_link_urb(
  * (b) only this endpoint's completions submit URBs.  It seems some silicon
  * corrupts things if you reuse completed descriptors very quickly...
  */
-static unsigned
-itd_complete (
-	struct ehci_hcd	*ehci,
-	struct ehci_itd	*itd
-) {
+static bool itd_complete(struct ehci_hcd *ehci, struct ehci_itd *itd)
+{
 	struct urb				*urb = itd->urb;
 	struct usb_iso_packet_descriptor	*desc;
 	u32					t;
@@ -1678,7 +1673,7 @@ itd_complete (
 	int					urb_index = -1;
 	struct ehci_iso_stream			*stream = itd->stream;
 	struct usb_device			*dev;
-	unsigned				retval = false;
+	bool					retval = false;
 
 	/* for each uframe with a packet */
 	for (uframe = 0; uframe < 8; uframe++) {
@@ -1917,7 +1912,7 @@ sitd_urb_transaction (
 		if (likely(!list_empty(&stream->free_list))) {
 			sitd = list_first_entry(&stream->free_list,
 					 struct ehci_sitd, sitd_list);
-			if (sitd->frame == ehci->clock_frame)
+			if (sitd->frame == ehci->now_frame)
 				goto alloc_sitd;
 			list_del (&sitd->sitd_list);
 			sitd_dma = sitd->sitd_dma;
@@ -2071,18 +2066,15 @@ static void sitd_link_urb(
  * (b) only this endpoint's completions submit URBs.  It seems some silicon
  * corrupts things if you reuse completed descriptors very quickly...
  */
-static unsigned
-sitd_complete (
-	struct ehci_hcd		*ehci,
-	struct ehci_sitd	*sitd
-) {
+static bool sitd_complete(struct ehci_hcd *ehci, struct ehci_sitd *sitd)
+{
 	struct urb				*urb = sitd->urb;
 	struct usb_iso_packet_descriptor	*desc;
 	u32					t;
 	int					urb_index = -1;
 	struct ehci_iso_stream			*stream = sitd->stream;
 	struct usb_device			*dev;
-	unsigned				retval = false;
+	bool					retval = false;
 
 	urb_index = sitd->index;
 	desc = &urb->iso_frame_desc [urb_index];
@@ -2214,34 +2206,29 @@ static int sitd_submit (struct ehci_hcd *ehci, struct urb *urb,
 
 static void scan_isoc(struct ehci_hcd *ehci)
 {
-	unsigned	now_uframe, frame, clock, clock_frame, mod;
-	unsigned	modified;
-
-	mod = ehci->periodic_size << 3;
+	unsigned	uf, now_frame, frame;
+	unsigned	fmask = ehci->periodic_size - 1;
+	bool		modified, live;
 
 	/*
 	 * When running, scan from last scan point up to "now"
 	 * else clean up by scanning everything that's left.
 	 * Touches as few pages as possible:  cache-friendly.
 	 */
-	now_uframe = ehci->next_uframe;
 	if (ehci->rh_state >= EHCI_RH_RUNNING) {
-		clock = ehci_read_frame_index(ehci);
-		clock_frame = (clock >> 3) & (ehci->periodic_size - 1);
+		uf = ehci_read_frame_index(ehci);
+		now_frame = (uf >> 3) & fmask;
+		live = true;
 	} else  {
-		clock = now_uframe + mod - 1;
-		clock_frame = -1;
+		now_frame = (ehci->next_frame - 1) & fmask;
+		live = false;
 	}
-	ehci->clock_frame = clock_frame;
-	clock &= mod - 1;
-	clock_frame = clock >> 3;
+	ehci->now_frame = now_frame;
 
+	frame = ehci->next_frame;
 	for (;;) {
 		union ehci_shadow	q, *q_p;
 		__hc32			type, *hw_p;
-		unsigned		incomplete = false;
-
-		frame = now_uframe >> 3;
 
 restart:
 		/* scan each element in frame's queue for completions */
@@ -2249,13 +2236,9 @@ restart:
 		hw_p = &ehci->periodic [frame];
 		q.ptr = q_p->ptr;
 		type = Q_NEXT_TYPE(ehci, *hw_p);
-		modified = 0;
+		modified = false;
 
 		while (q.ptr != NULL) {
-			unsigned		uf;
-			int			live;
-
-			live = (ehci->rh_state >= EHCI_RH_RUNNING);
 			switch (hc32_to_cpu(ehci, type)) {
 			case Q_TYPE_ITD:
 				/* If this ITD is still active, leave it for
@@ -2263,7 +2246,7 @@ restart:
 				 * No need to check for activity unless the
 				 * frame is current.
 				 */
-				if (frame == clock_frame && live) {
+				if (frame == now_frame && live) {
 					rmb();
 					for (uf = 0; uf < 8; uf++) {
 						if (q.itd->hw_transaction[uf] &
@@ -2271,7 +2254,6 @@ restart:
 							break;
 					}
 					if (uf < 8) {
-						incomplete = true;
 						q_p = &q.itd->itd_next;
 						hw_p = &q.itd->hw_next;
 						type = Q_NEXT_TYPE(ehci,
@@ -2303,14 +2285,12 @@ restart:
 				 * No need to check for activity unless the
 				 * frame is current.
 				 */
-				if (((frame == clock_frame) ||
-				     (((frame + 1) & (ehci->periodic_size - 1))
-				      == clock_frame))
+				if (((frame == now_frame) ||
+				     (((frame + 1) & fmask) == now_frame))
 				    && live
 				    && (q.sitd->hw_results &
 					SITD_ACTIVE(ehci))) {
 
-					incomplete = true;
 					q_p = &q.sitd->sitd_next;
 					hw_p = &q.sitd->hw_next;
 					type = Q_NEXT_TYPE(ehci,
@@ -2347,50 +2327,14 @@ restart:
 			}
 
 			/* assume completion callbacks modify the queue */
-			if (unlikely (modified)) {
-				if (likely(ehci->isoc_count > 0))
-					goto restart;
-				/* short-circuit this scan */
-				now_uframe = clock;
-				break;
-			}
+			if (unlikely(modified && ehci->isoc_count > 0))
+				goto restart;
 		}
 
-		/* If we can tell we caught up to the hardware, stop now.
-		 * We can't advance our scan without collecting the ISO
-		 * transfers that are still pending in this frame.
-		 */
-		if (incomplete && ehci->rh_state >= EHCI_RH_RUNNING) {
-			ehci->next_uframe = now_uframe;
+		/* Stop when we have reached the current frame */
+		if (frame == now_frame)
 			break;
-		}
-
-		// FIXME:  this assumes we won't get lapped when
-		// latencies climb; that should be rare, but...
-		// detect it, and just go all the way around.
-		// FLR might help detect this case, so long as latencies
-		// don't exceed periodic_size msec (default 1.024 sec).
-
-		// FIXME:  likewise assumes HC doesn't halt mid-scan
-
-		if (now_uframe == clock) {
-			unsigned	now;
-
-			if (ehci->rh_state < EHCI_RH_RUNNING
-					|| ehci->isoc_count == 0)
-				break;
-			ehci->next_uframe = now_uframe;
-			now = ehci_read_frame_index(ehci) & (mod - 1);
-			if (now_uframe == now)
-				break;
-
-			/* rescan the rest of this frame, then ... */
-			clock = now;
-			clock_frame = clock >> 3;
-			ehci->clock_frame = clock_frame;
-		} else {
-			now_uframe++;
-			now_uframe &= mod - 1;
-		}
+		frame = (frame + 1) & fmask;
 	}
+	ehci->next_frame = now_frame;
 }
