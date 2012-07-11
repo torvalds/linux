@@ -406,11 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set UTC (8254) control byte  */
-#define RtdUtcCtrlPut(dev, n, v) \
-	writeb(devpriv->utcCtrl[(n) & 3] = (((n) & 3) << 6) | ((v) & 0x3f), \
-		devpriv->las0 + LAS0_UTC_CTRL)
-
 /* Set UTCn clock source (write only) */
 #define RtdUtcClockSource(dev, n, v) \
 	writew(v, devpriv->las0 \
@@ -1929,10 +1924,14 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	RtdDacClearFifo(dev, 1);
 	/* clear digital IO fifo */
 	RtdDioStatusWrite(dev, 0);	/* safe state, set shadow */
-	RtdUtcCtrlPut(dev, 0, 0x30);	/* safe state, set shadow */
-	RtdUtcCtrlPut(dev, 1, 0x30);	/* safe state, set shadow */
-	RtdUtcCtrlPut(dev, 2, 0x30);	/* safe state, set shadow */
-	RtdUtcCtrlPut(dev, 3, 0);	/* safe state, set shadow */
+	devpriv->utcCtrl[0] = (0 << 6) | 0x30;
+	devpriv->utcCtrl[1] = (1 << 6) | 0x30;
+	devpriv->utcCtrl[2] = (2 << 6) | 0x30;
+	devpriv->utcCtrl[3] = (3 << 6) | 0x00;
+	writeb(devpriv->utcCtrl[0], devpriv->las0 + LAS0_UTC_CTRL);
+	writeb(devpriv->utcCtrl[1], devpriv->las0 + LAS0_UTC_CTRL);
+	writeb(devpriv->utcCtrl[2], devpriv->las0 + LAS0_UTC_CTRL);
+	writeb(devpriv->utcCtrl[3], devpriv->las0 + LAS0_UTC_CTRL);
 	/* TODO: set user out source ??? */
 
 	/* check if our interrupt is available and get it */
