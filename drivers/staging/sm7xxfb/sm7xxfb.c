@@ -764,7 +764,7 @@ static inline void sm7xx_init_hw(void)
  */
 static int __init sm712vga_setup(char *options)
 {
-	int index;
+	int i;
 
 	if (!options || !*options)
 		return -EINVAL;
@@ -775,16 +775,14 @@ static int __init sm712vga_setup(char *options)
 
 	pr_debug("sm712vga_setup = %s\n", options);
 
-	for (index = 0;
-	     index < ARRAY_SIZE(vesa_mode_table);
-	     index++) {
-		if (strstr(options, vesa_mode_table[index].index)) {
+	for (i = 0; i < ARRAY_SIZE(vesa_mode_table); i++) {
+		if (strstr(options, vesa_mode_table[i].index)) {
 			smtc_screen_info.lfb_width =
-				vesa_mode_table[index].lfb_width;
+				vesa_mode_table[i].lfb_width;
 			smtc_screen_info.lfb_height =
-				vesa_mode_table[index].lfb_height;
+				vesa_mode_table[i].lfb_height;
 			smtc_screen_info.lfb_depth =
-				vesa_mode_table[index].lfb_depth;
+				vesa_mode_table[i].lfb_depth;
 			return 0;
 		}
 	}
