@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set source for DMA 0 (write only, shadow?) */
-#define RtdDma0Source(dev, n) \
-	writel((n) & 0xf, devpriv->las0+LAS0_DMA0_SRC)
-
 /* Set source for DMA 1 (write only, shadow?) */
 #define RtdDma1Source(dev, n) \
 	writel((n) & 0xf, devpriv->las0+LAS0_DMA1_SRC)
@@ -1464,7 +1460,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		RtdDma0Mode(dev, DMA_MODE_BITS);
 		RtdDma0Next(dev,	/* point to first block */
 			    devpriv->dma0Chain[DMA_CHAIN_COUNT - 1].next);
-		RtdDma0Source(dev, DMAS_ADFIFO_HALF_FULL);	/* set DMA trigger source */
+		writel(DMAS_ADFIFO_HALF_FULL, devpriv->las0 + LAS0_DMA0_SRC);
 
 		RtdPlxInterruptWrite(dev,	/* enable interrupt */
 				     RtdPlxInterruptRead(dev) | ICS_DMA0_E);
@@ -1961,7 +1957,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		RtdDma0Mode(dev, DMA_MODE_BITS);
 		/* set DMA trigger source */
-		RtdDma0Source(dev, DMAS_ADFIFO_HALF_FULL);
+		writel(DMAS_ADFIFO_HALF_FULL, devpriv->las0 + LAS0_DMA0_SRC);
 	} else {
 		printk(KERN_INFO "( no IRQ->no DMA )");
 	}
