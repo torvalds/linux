@@ -2355,6 +2355,7 @@ si_is_sprom_available(si_t *sih)
 	}
 }
 
+
 uint32 si_get_sromctl(si_t *sih)
 {
 	chipcregs_t *cc;

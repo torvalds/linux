@@ -109,7 +109,7 @@ const bcmevent_name_t bcmevent_names[] = {
 	{ WLC_E_REASSOC_IND_NDIS, "REASSOC_IND_NDIS"},
 	{ WLC_E_ACTION_FRAME_RX_NDIS, "WLC_E_ACTION_FRAME_RX_NDIS" },
 	{ WLC_E_AUTH_REQ, "WLC_E_AUTH_REQ" },
-#endif
+#endif 
 #ifdef BCMWAPI_WAI
 	{ WLC_E_WAI_STA_EVENT, "WAI_STA_EVENT" },
 	{ WLC_E_WAI_MSG, "WAI_MSG" },

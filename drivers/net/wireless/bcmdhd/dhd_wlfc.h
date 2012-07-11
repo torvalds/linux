@@ -18,7 +18,7 @@
 *      Notwithstanding the above, under no circumstances may you combine this
 * software in any way with any other Broadcom software provided under a license
 * other than the GPL, without Broadcom's express prior written consent.
-* $Id: dhd_wlfc.h 328424 2012-04-19 05:23:09Z $
+* $Id: dhd_wlfc.h 341930 2012-06-29 04:51:25Z $
 *
 */
 #ifndef __wlfc_host_driver_definitions_h__
@@ -29,7 +29,7 @@
 
 #define WLFC_HANGER_ITEM_STATE_FREE		1
 #define WLFC_HANGER_ITEM_STATE_INUSE	2
-
+#define WLFC_HANGER_ITEM_STATE_INUSE_SUPPRESSED	3
 #define WLFC_PKTID_HSLOT_MASK			0xffff /* allow 16 bits only */
 #define WLFC_PKTID_HSLOT_SHIFT			8
 
@@ -68,7 +68,8 @@ typedef enum ewlfc_mac_entry_action {
 
 typedef struct wlfc_hanger_item {
 	uint8	state;
-	uint8	pad[3];
+	uint8   gen;
+	uint8	pad[2];
 	uint32	identifier;
 	void*	pkt;
 #ifdef PROP_TXSTATUS_DEBUG
@@ -93,12 +94,14 @@ typedef struct wlfc_hanger {
 #define WLFC_STATE_CLOSE	2
 
 #define WLFC_PSQ_PREC_COUNT		((AC_COUNT + 1) * 2) /* 2 for each AC traffic and bc/mc */
-#define WLFC_PSQ_LEN			256
-#define WLFC_SENDQ_LEN			128
+
+#define WLFC_PSQ_LEN			2048
+
+#define WLFC_SENDQ_LEN			256
 
 
-#define WLFC_FLOWCONTROL_HIWATER	128
-#define WLFC_FLOWCONTROL_LOWATER	64
+#define WLFC_FLOWCONTROL_HIWATER	(2048 - 256)
+#define WLFC_FLOWCONTROL_LOWATER	256
 
 
 typedef struct wlfc_mac_descriptor {
@@ -124,6 +127,11 @@ typedef struct wlfc_mac_descriptor {
 	/* 1= send on next opportunity */
 	uint8 send_tim_signal;
 	uint8 mac_handle;
+	uint transit_count;
+	uint suppr_transit_count;
+	uint suppress_count;
+    uint8 suppressed;
+
 #ifdef PROP_TXSTATUS_DEBUG
 	uint32 dstncredit_sent_packets;
 	uint32 dstncredit_acks;

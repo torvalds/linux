@@ -30,19 +30,19 @@
 
 #define	EPI_MINOR_VERSION	28
 
-#define	EPI_RC_NUMBER		4
+#define	EPI_RC_NUMBER		5
 
 #define	EPI_INCREMENTAL_NUMBER	0
 
 #define	EPI_BUILD_NUMBER	0
 
-#define	EPI_VERSION		1, 28, 4, 0
+#define	EPI_VERSION		1, 28, 5, 0
 
-#define	EPI_VERSION_NUM		0x011c0400
+#define	EPI_VERSION_NUM		0x011c0500
 
-#define EPI_VERSION_DEV		1.28.4
+#define EPI_VERSION_DEV		1.28.5
 
 
-#define	EPI_VERSION_STR		"1.28.4 (r339952)"
+#define	EPI_VERSION_STR		"1.28.5 (r343831)"
 
 #endif 

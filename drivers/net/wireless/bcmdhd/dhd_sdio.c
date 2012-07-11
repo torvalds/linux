@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 339946 2012-06-20 13:48:35Z $
+ * $Id: dhd_sdio.c 342970 2012-07-05 02:59:54Z $
  */
 
 #include <typedefs.h>
@@ -1390,7 +1390,7 @@ dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 #endif /* WLMEDIA_HTSF */
 
 	/* Add alignment padding, allocate new packet if needed */
-	if ((pad1 = ((uintptr)frame % DHD_SDALIGN))) {
+	if (!((uintptr)frame & 1) && (pad1 = ((uintptr)frame % DHD_SDALIGN))) {
 		if (PKTHEADROOM(osh, pkt) < pad1) {
 			DHD_INFO(("%s: insufficient headroom %d for %d pad1\n",
 			          __FUNCTION__, (int)PKTHEADROOM(osh, pkt), pad1));
@@ -1481,7 +1481,7 @@ dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 			DHD_ERROR(("%s: Device asleep already\n", __FUNCTION__));
 		} else if (ret < 0) {
 			/* On failure, abort the command and terminate the frame */
-			DHD_INFO(("%s: sdio error %d, abort command and terminate frame.\n",
+			DHD_ERROR(("%s: sdio error %d, abort command and terminate frame.\n",
 			          __FUNCTION__, ret));
 			bus->tx_sderrs++;
 
@@ -1532,7 +1532,13 @@ dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
 	int ret = BCME_ERROR;
 	osl_t *osh;
 	uint datalen, prec;
-
+#ifdef DHD_TX_DUMP
+	uint8 *dump_data;
+	uint16 protocol;
+#ifdef DHD_TX_FULL_DUMP
+	int i;
+#endif /* DHD_TX_FULL_DUMP */
+#endif /* DHD_TX_DUMP */
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
 	osh = bus->dhd->osh;
@@ -1551,6 +1557,27 @@ dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
 		datalen += SDPCM_TEST_HDRLEN;
 	}
 #endif /* SDTEST */
+
+#ifdef DHD_TX_DUMP
+	dump_data = PKTDATA(osh, pkt);
+	dump_data += 4; /* skip 4 bytes header */
+	protocol = (dump_data[12] << 8) | dump_data[13];
+#ifdef DHD_TX_FULL_DUMP
+	DHD_ERROR(("TX DUMP\n"));
+
+	for (i = 0; i < (datalen - 4); i++) {
+		DHD_ERROR(("%02X ", dump_data[i]));
+		if ((i & 15) == 15)
+			printk("\n");
+	}
+	DHD_ERROR(("\n"));
+
+#endif /* DHD_TX_FULL_DUMP */
+	if (protocol == ETHER_TYPE_802_1X) {
+		DHD_ERROR(("ETHER_TYPE_802_1X: ver %d, type %d, replay %d\n",
+			dump_data[14], dump_data[15], dump_data[30]));
+	}
+#endif /* DHD_TX_DUMP */
 
 	/* Add space for the header */
 	PKTPUSH(osh, pkt, SDPCM_HDRLEN);
@@ -1907,7 +1934,14 @@ dhd_bus_rxctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 		DHD_CTL(("%s: resumed on rxctl frame, got %d expected %d\n",
 		         __FUNCTION__, rxlen, msglen));
 	} else if (timeleft == 0) {
+#ifdef DHD_DEBUG
+		uint32 status, retry = 0;
+		R_SDREG(status, &bus->regs->intstatus, retry);
+		DHD_ERROR(("%s: resumed on timeout, INT status=0x%08X\n",
+			__FUNCTION__, status));
+#else
 		DHD_ERROR(("%s: resumed on timeout\n", __FUNCTION__));
+#endif /* DHD_DEBUG */
 #ifdef DHD_DEBUG
 		dhd_os_sdlock(bus->dhd);
 		dhdsdio_checkdied(bus, NULL, 0);
@@ -3903,7 +3937,10 @@ dhdsdio_rxglom(dhd_bus_t *bus, uint8 rxseq)
 	uint8 *dptr, num = 0;
 
 	uint16 sublen, check;
-	void *pfirst, *plast, *pnext, *save_pfirst;
+	void *pfirst, *plast, *pnext;
+	void * list_tail[DHD_MAX_IFS] = { NULL };
+	void * list_head[DHD_MAX_IFS] = { NULL };
+	uint8 idx;
 	osl_t *osh = bus->dhd->osh;
 
 	int errcode;
@@ -4192,7 +4229,6 @@ dhdsdio_rxglom(dhd_bus_t *bus, uint8 rxseq)
 		}
 
 		/* Basic SD framing looks ok - process each packet (header) */
-		save_pfirst = pfirst;
 		bus->glom = NULL;
 		plast = NULL;
 
@@ -4235,9 +4271,6 @@ dhdsdio_rxglom(dhd_bus_t *bus, uint8 rxseq)
 				PKTFREE(bus->dhd->osh, pfirst, FALSE);
 				if (plast) {
 					PKTSETNEXT(osh, plast, pnext);
-				} else {
-					ASSERT(save_pfirst == pfirst);
-					save_pfirst = pnext;
 				}
 				continue;
 			} else if (dhd_prot_hdrpull(bus->dhd, &ifidx, pfirst, reorder_info_buf,
@@ -4247,9 +4280,6 @@ dhdsdio_rxglom(dhd_bus_t *bus, uint8 rxseq)
 				PKTFREE(osh, pfirst, FALSE);
 				if (plast) {
 					PKTSETNEXT(osh, plast, pnext);
-				} else {
-					ASSERT(save_pfirst == pfirst);
-					save_pfirst = pnext;
 				}
 				continue;
 			}
@@ -4265,9 +4295,6 @@ dhdsdio_rxglom(dhd_bus_t *bus, uint8 rxseq)
 				if (free_buf_count == 0) {
 					if (plast) {
 						PKTSETNEXT(osh, plast, pnext);
-					} else {
-						ASSERT(save_pfirst == pfirst);
-						save_pfirst = pnext;
 					}
 					continue;
 				}
@@ -4280,15 +4307,14 @@ dhdsdio_rxglom(dhd_bus_t *bus, uint8 rxseq)
 						temp = PKTNEXT(osh, temp);
 					}
 					pfirst = temp;
-					if (plast) {
-						PKTSETNEXT(osh, plast, ppfirst);
+					if (list_tail[ifidx] == NULL) {
+						list_head[ifidx] = ppfirst;
+						list_tail[ifidx] = pfirst;
 					}
 					else {
-						/* first one in the chain */
-						save_pfirst = ppfirst;
+						PKTSETNEXT(osh, list_tail[ifidx], ppfirst);
+						list_tail[ifidx] = pfirst;
 					}
-
-					PKTSETNEXT(osh, pfirst, pnext);
 					plast = pfirst;
 				}
 
@@ -4296,8 +4322,15 @@ dhdsdio_rxglom(dhd_bus_t *bus, uint8 rxseq)
 			}
 			else {
 				/* this packet will go up, link back into chain and count it */
-				PKTSETNEXT(osh, pfirst, pnext);
 				plast = pfirst;
+
+				if (list_tail[ifidx] == NULL) {
+					list_head[ifidx] = list_tail[ifidx] = pfirst;
+				}
+				else {
+					PKTSETNEXT(osh, list_tail[ifidx], pfirst);
+					list_tail[ifidx] = pfirst;
+				}
 				num++;
 			}
 #ifdef DHD_DEBUG
@@ -4312,12 +4345,22 @@ dhdsdio_rxglom(dhd_bus_t *bus, uint8 rxseq)
 #endif /* DHD_DEBUG */
 		}
 		dhd_os_sdunlock_rxq(bus->dhd);
-		if (num) {
-			dhd_os_sdunlock(bus->dhd);
-			dhd_rx_frame(bus->dhd, ifidx, save_pfirst, num, 0);
-			dhd_os_sdlock(bus->dhd);
+		for (idx = 0; idx < DHD_MAX_IFS; idx++) {
+			if (list_head[idx]) {
+				void *temp;
+				uint8 cnt = 0;
+				temp = list_head[idx];
+				do {
+					temp = PKTNEXT(osh, temp);
+					cnt++;
+				} while (temp);
+				if (cnt) {
+					dhd_os_sdunlock(bus->dhd);
+					dhd_rx_frame(bus->dhd, idx, list_head[idx], cnt, 0);
+					dhd_os_sdlock(bus->dhd);
+				}
+			}
 		}
-
 		bus->rxglomframes++;
 		bus->rxglompkts += num;
 	}
@@ -5403,7 +5446,7 @@ dhdsdio_pktgen_init(dhd_bus_t *bus)
 
 	/* Default to per-watchdog burst with 10s print time */
 	bus->pktgen_freq = 1;
-	bus->pktgen_print = dhd_watchdog_ms ? 10000 / dhd_watchdog_ms : 0;
+	bus->pktgen_print = dhd_watchdog_ms ? (10000/dhd_watchdog_ms):0;
 	bus->pktgen_count = (dhd_pktgen * dhd_watchdog_ms + 999) / 1000;
 
 	/* Default to echo mode */

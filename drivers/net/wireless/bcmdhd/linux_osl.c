@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: linux_osl.c 334758 2012-05-23 21:24:54Z $
+ * $Id: linux_osl.c 342903 2012-07-04 12:33:27Z $
  */
 
 #define LINUX_PORT
@@ -743,6 +743,13 @@ osl_pktfree_static(osl_t *osh, void *p, bool send)
 			return;
 		}
 	}
+#ifdef ENHANCED_STATIC_BUF
+	if (p == bcm_static_skb->skb_16k) {
+		bcm_static_skb->pkt_use[STATIC_PKT_MAX_NUM*2] = 0;
+		up(&bcm_static_skb->osl_pkt_sem);
+		return;
+	}
+#endif
 	up(&bcm_static_skb->osl_pkt_sem);
 
 	osl_pktfree(osh, p, send);
