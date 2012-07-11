@@ -1037,6 +1037,8 @@ static int do_test(int m)
 
 	case 14:
 		ret += tcrypt_test("ecb(cast5)");
+		ret += tcrypt_test("cbc(cast5)");
+		ret += tcrypt_test("ctr(cast5)");
 		break;
 
 	case 15:
@@ -1359,6 +1361,21 @@ static int do_test(int m)
 				  speed_template_8);
 		break;
 
+	case 209:
+		test_cipher_speed("ecb(cast5)", ENCRYPT, sec, NULL, 0,
+				  speed_template_8_16);
+		test_cipher_speed("ecb(cast5)", DECRYPT, sec, NULL, 0,
+				  speed_template_8_16);
+		test_cipher_speed("cbc(cast5)", ENCRYPT, sec, NULL, 0,
+				  speed_template_8_16);
+		test_cipher_speed("cbc(cast5)", DECRYPT, sec, NULL, 0,
+				  speed_template_8_16);
+		test_cipher_speed("ctr(cast5)", ENCRYPT, sec, NULL, 0,
+				  speed_template_8_16);
+		test_cipher_speed("ctr(cast5)", DECRYPT, sec, NULL, 0,
+				  speed_template_8_16);
+		break;
+
 	case 300:
 		/* fall through */
 
@@ -1637,6 +1654,21 @@ static int do_test(int m)
 	case 505:
 		test_acipher_speed("ecb(arc4)", ENCRYPT, sec, NULL, 0,
 				   speed_template_8);
+		break;
+
+	case 506:
+		test_acipher_speed("ecb(cast5)", ENCRYPT, sec, NULL, 0,
+				   speed_template_8_16);
+		test_acipher_speed("ecb(cast5)", DECRYPT, sec, NULL, 0,
+				   speed_template_8_16);
+		test_acipher_speed("cbc(cast5)", ENCRYPT, sec, NULL, 0,
+				   speed_template_8_16);
+		test_acipher_speed("cbc(cast5)", DECRYPT, sec, NULL, 0,
+				   speed_template_8_16);
+		test_acipher_speed("ctr(cast5)", ENCRYPT, sec, NULL, 0,
+				   speed_template_8_16);
+		test_acipher_speed("ctr(cast5)", DECRYPT, sec, NULL, 0,
+				   speed_template_8_16);
 		break;
 
 	case 1000:
