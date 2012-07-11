@@ -399,12 +399,6 @@ struct rtdPrivate {
 	(((array)[(index)/8] &= ~(1 << ((index) & 0x7))))
 
 /*
- * most drivers define the following macro to make it easy to
- * access the private structure.
- */
-#define devpriv ((struct rtdPrivate *)dev->private)
-
-/*
   Given a desired period and the clock period (both in ns),
   return the proper counter value (divider-1).
   Sets the original period to be the true value.
@@ -453,6 +447,7 @@ static int rtd_ns_to_timer(unsigned int *ns, int round_mode)
 static unsigned short rtdConvertChanGain(struct comedi_device *dev,
 					 unsigned int comediChan, int chanIndex)
 {				/* index in channel list */
+	struct rtdPrivate *devpriv = dev->private;
 	unsigned int chan, range, aref;
 	unsigned short r = 0;
 
@@ -505,6 +500,8 @@ static unsigned short rtdConvertChanGain(struct comedi_device *dev,
 static void rtd_load_channelgain_list(struct comedi_device *dev,
 				      unsigned int n_chan, unsigned int *list)
 {
+	struct rtdPrivate *devpriv = dev->private;
+
 	if (n_chan > 1) {	/* setup channel gain table */
 		int ii;
 
@@ -525,6 +522,7 @@ static void rtd_load_channelgain_list(struct comedi_device *dev,
 empty status flag clears */
 static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 {
+	struct rtdPrivate *devpriv = dev->private;
 	unsigned int chanspec = CR_PACK(0, 0, AREF_GROUND);
 	unsigned i;
 	static const unsigned limit = 0x2000;
@@ -572,6 +570,7 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 			struct comedi_subdevice *s, struct comedi_insn *insn,
 			unsigned int *data)
 {
+	struct rtdPrivate *devpriv = dev->private;
 	int n, ii;
 	int stat;
 
@@ -627,6 +626,7 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 		     int count)
 {
+	struct rtdPrivate *devpriv = dev->private;
 	int ii;
 
 	for (ii = 0; ii < count; ii++) {
@@ -667,6 +667,8 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 */
 static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct rtdPrivate *devpriv = dev->private;
+
 	while (readl(devpriv->las0 + LAS0_ADC) & FS_ADC_NOT_EMPTY) {
 		short sample;
 		s16 d = readw(devpriv->las1 + LAS1_ADC_FIFO);
@@ -697,6 +699,7 @@ static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
 */
 void abort_dma(struct comedi_device *dev, unsigned int channel)
 {				/* DMA channel 0, 1 */
+	struct rtdPrivate *devpriv = dev->private;
 	unsigned long dma_cs_addr;	/* the control/status register */
 	uint8_t status;
 	unsigned int ii;
@@ -755,6 +758,7 @@ abortDmaExit:
 */
 static int ai_process_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct rtdPrivate *devpriv = dev->private;
 	int ii, n;
 	s16 *dp;
 
@@ -817,8 +821,9 @@ static int ai_process_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 				 void *d)
 {				/* our data *//* cpu context (ignored) */
-	struct comedi_device *dev = d;	/* must be called "dev" for devpriv */
+	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->subdevices + 0;	/* analog in subdevice */
+	struct rtdPrivate *devpriv = dev->private;
 	u32 overrun;
 	u16 status;
 	u16 fifoStatus;
@@ -1206,6 +1211,7 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 */
 static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct rtdPrivate *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int timer;
 
@@ -1417,6 +1423,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 */
 static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct rtdPrivate *devpriv = dev->private;
 	u32 overrun;
 	u16 status;
 
@@ -1449,6 +1456,7 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 			struct comedi_subdevice *s, struct comedi_insn *insn,
 			unsigned int *data)
 {
+	struct rtdPrivate *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 	int range = CR_RANGE(insn->chanspec);
@@ -1511,6 +1519,7 @@ static int rtd_ao_rinsn(struct comedi_device *dev,
 			struct comedi_subdevice *s, struct comedi_insn *insn,
 			unsigned int *data)
 {
+	struct rtdPrivate *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -1535,6 +1544,8 @@ static int rtd_dio_insn_bits(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
+	struct rtdPrivate *devpriv = dev->private;
+
 	/* The insn data is a mask in data[0] and the new data
 	 * in data[1], each channel cooresponding to a bit. */
 	if (data[0]) {
@@ -1560,6 +1571,7 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct rtdPrivate *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
 
 	/* The input or output configuration of each digital line is
@@ -1599,6 +1611,7 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 
 static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {				/* board name and options flags */
+	struct rtdPrivate *devpriv;
 	struct comedi_subdevice *s;
 	struct pci_dev *pcidev;
 	int ret;
@@ -1623,6 +1636,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	 */
 	if (alloc_private(dev, sizeof(struct rtdPrivate)) < 0)
 		return -ENOMEM;
+	devpriv = dev->private;
 
 	/*
 	 * Probe the device to determine what device in the series it is.
@@ -1949,6 +1963,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void rtd_detach(struct comedi_device *dev)
 {
+	struct rtdPrivate *devpriv = dev->private;
 #ifdef USE_DMA
 	int index;
 #endif
