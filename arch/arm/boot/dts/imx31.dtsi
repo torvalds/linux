@@ -1,0 +1,88 @@
+/*
+ * Copyright 2012 Denis 'GNUtoo' Carikli <GNUtoo@no-log.org>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	aliases {
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		serial3 = &uart4;
+		serial4 = &uart5;
+	};
+
+	avic: avic-interrupt-controller@60000000 {
+		compatible = "fsl,imx31-avic", "fsl,avic";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		reg = <0x60000000 0x100000>;
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		interrupt-parent = <&avic>;
+		ranges;
+
+		aips@43f00000 { /* AIPS1 */
+			compatible = "fsl,aips-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x43f00000 0x100000>;
+			ranges;
+
+			uart1: serial@43f90000 {
+				compatible = "fsl,imx31-uart", "fsl,imx21-uart";
+				reg = <0x43f90000 0x4000>;
+				interrupts = <45>;
+				status = "disabled";
+			};
+
+			uart2: serial@43f94000 {
+				compatible = "fsl,imx31-uart", "fsl,imx21-uart";
+				reg = <0x43f94000 0x4000>;
+				interrupts = <32>;
+				status = "disabled";
+			};
+
+			uart4: serial@43fb0000 {
+				compatible = "fsl,imx31-uart", "fsl,imx21-uart";
+				reg = <0x43fb0000 0x4000>;
+				interrupts = <46>;
+				status = "disabled";
+			};
+
+			uart5: serial@43fb4000 {
+				compatible = "fsl,imx31-uart", "fsl,imx21-uart";
+				reg = <0x43fb4000 0x4000>;
+				interrupts = <47>;
+				status = "disabled";
+			};
+		};
+
+		spba@50000000 {
+			compatible = "fsl,spba-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x50000000 0x100000>;
+			ranges;
+
+			uart3: serial@5000c000 {
+				compatible = "fsl,imx31-uart", "fsl,imx21-uart";
+				reg = <0x5000c000 0x4000>;
+				interrupts = <18>;
+				status = "disabled";
+			};
+		};
+	};
+};

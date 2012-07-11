@@ -20,6 +20,7 @@
 #include <linux/clkdev.h>
 #include <linux/io.h>
 #include <linux/err.h>
+#include <linux/of.h>
 
 #include <mach/hardware.h>
 #include <mach/mx31.h>
@@ -179,3 +180,21 @@ int __init mx31_clocks_init(unsigned long fref)
 
 	return 0;
 }
+
+#ifdef CONFIG_OF
+int __init mx31_clocks_init_dt(void)
+{
+	struct device_node *np;
+	u32 fref = 26000000; /* default */
+
+	for_each_compatible_node(np, NULL, "fixed-clock") {
+		if (!of_device_is_compatible(np, "fsl,imx-osc26m"))
+			continue;
+
+		if (!of_property_read_u32(np, "clock-frequency", &fref))
+			break;
+	}
+
+	return mx31_clocks_init(fref);
+}
+#endif

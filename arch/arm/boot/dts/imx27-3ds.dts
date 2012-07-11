@@ -1,0 +1,41 @@
+/*
+ * Copyright 2012 Sascha Hauer, Pengutronix
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "imx27.dtsi"
+
+/ {
+	model = "mx27_3ds";
+	compatible = "freescale,imx27-3ds", "fsl,imx27";
+
+	memory {
+		reg = <0x0 0x0>;
+	};
+
+	soc {
+		aipi@10000000 { /* aipi */
+
+			wdog@10002000 {
+				status = "okay";
+			};
+
+			uart@1000a000 {
+				fsl,uart-has-rtscts;
+				status = "okay";
+			};
+
+			fec@1002b000 {
+				status = "okay";
+			};
+		};
+	};
+
+};
