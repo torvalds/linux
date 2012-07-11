@@ -84,6 +84,7 @@ enum ehci_hrtimer_event {
 	EHCI_HRTIMER_POLL_DEAD,		/* Wait for dead controller to stop */
 	EHCI_HRTIMER_UNLINK_INTR,	/* Wait for interrupt QH unlink */
 	EHCI_HRTIMER_FREE_ITDS,		/* Wait for unused iTDs and siTDs */
+	EHCI_HRTIMER_ASYNC_UNLINKS,	/* Unlink empty async QHs */
 	EHCI_HRTIMER_IAA_WATCHDOG,	/* Handle lost IAA interrupts */
 	EHCI_HRTIMER_DISABLE_PERIODIC,	/* Wait to disable periodic sched */
 	EHCI_HRTIMER_DISABLE_ASYNC,	/* Wait to disable async sched */
@@ -123,6 +124,7 @@ struct ehci_hcd {			/* one per controller */
 	struct ehci_qh		*async_unlink_last;
 	struct ehci_qh		*async_iaa;
 	struct ehci_qh		*qh_scan_next;
+	unsigned		async_unlink_cycle;
 	unsigned		async_count;	/* async activity count */
 
 	/* periodic schedule support */
@@ -232,7 +234,6 @@ static inline struct usb_hcd *ehci_to_hcd (struct ehci_hcd *ehci)
 
 enum ehci_timer_action {
 	TIMER_IO_WATCHDOG,
-	TIMER_ASYNC_SHRINK,
 };
 
 static inline void
@@ -382,7 +383,6 @@ struct ehci_qh {
 	struct ehci_qtd		*dummy;
 	struct ehci_qh		*unlink_next;	/* next on unlink list */
 
-	unsigned long		unlink_time;
 	unsigned		unlink_cycle;
 	unsigned		stamp;
 

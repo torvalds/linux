@@ -94,8 +94,6 @@ static const char	hcd_name [] = "ehci_hcd";
 #define	EHCI_TUNE_FLS		1	/* (medium) 512-frame schedule */
 
 #define EHCI_IO_JIFFIES		(HZ/10)		/* io watchdog > irq_thresh */
-#define EHCI_SHRINK_JIFFIES	(DIV_ROUND_UP(HZ, 200) + 1)
-						/* 5-ms async qh unlink delay */
 
 /* Initial IRQ latency:  faster than hw default */
 static int log2_irq_thresh = 0;		// 0 to 6
@@ -130,15 +128,6 @@ MODULE_PARM_DESC(hird, "host initiated resume duration, +1 for each 75us");
 static void
 timer_action(struct ehci_hcd *ehci, enum ehci_timer_action action)
 {
-	/* Don't override timeouts which shrink or (later) disable
-	 * the async ring; just the I/O watchdog.  Note that if a
-	 * SHRINK were pending, OFF would never be requested.
-	 */
-	if (timer_pending(&ehci->watchdog)
-			&& (BIT(TIMER_ASYNC_SHRINK)
-				& ehci->actions))
-		return;
-
 	if (!test_and_set_bit(action, &ehci->actions)) {
 		unsigned long t;
 
@@ -147,10 +136,6 @@ timer_action(struct ehci_hcd *ehci, enum ehci_timer_action action)
 			if (!ehci->need_io_watchdog)
 				return;
 			t = EHCI_IO_JIFFIES;
-			break;
-		/* case TIMER_ASYNC_SHRINK: */
-		default:
-			t = EHCI_SHRINK_JIFFIES;
 			break;
 		}
 		mod_timer(&ehci->watchdog, t + jiffies);
@@ -307,6 +292,7 @@ static void ehci_quiesce (struct ehci_hcd *ehci)
 /*-------------------------------------------------------------------------*/
 
 static void end_unlink_async(struct ehci_hcd *ehci);
+static void unlink_empty_async(struct ehci_hcd *ehci);
 static void ehci_work(struct ehci_hcd *ehci);
 static void start_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh);
 static void end_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh);

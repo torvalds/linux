@@ -1205,7 +1205,7 @@ static void start_iaa_cycle(struct ehci_hcd *ehci, bool nested)
 			end_unlink_async(ehci);
 
 	/* Otherwise start a new IAA cycle */
-	} else {
+	} else if (likely(ehci->rh_state == EHCI_RH_RUNNING)) {
 		/* Make sure the unlinks are all visible to the hardware */
 		wmb();
 
@@ -1253,6 +1253,39 @@ static void end_unlink_async(struct ehci_hcd *ehci)
 	}
 }
 
+static void unlink_empty_async(struct ehci_hcd *ehci)
+{
+	struct ehci_qh		*qh, *next;
+	bool			stopped = (ehci->rh_state < EHCI_RH_RUNNING);
+	bool			check_unlinks_later = false;
+
+	/* Unlink all the async QHs that have been empty for a timer cycle */
+	next = ehci->async->qh_next.qh;
+	while (next) {
+		qh = next;
+		next = qh->qh_next.qh;
+
+		if (list_empty(&qh->qtd_list) &&
+				qh->qh_state == QH_STATE_LINKED) {
+			if (!stopped && qh->unlink_cycle ==
+					ehci->async_unlink_cycle)
+				check_unlinks_later = true;
+			else
+				single_unlink_async(ehci, qh);
+		}
+	}
+
+	/* Start a new IAA cycle if any QHs are waiting for it */
+	if (ehci->async_unlink)
+		start_iaa_cycle(ehci, false);
+
+	/* QHs that haven't been empty for long enough will be handled later */
+	if (check_unlinks_later) {
+		ehci_enable_event(ehci, EHCI_HRTIMER_ASYNC_UNLINKS, true);
+		++ehci->async_unlink_cycle;
+	}
+}
+
 /* makes sure the async qh will become idle */
 /* caller must own ehci->lock */
 
@@ -1277,12 +1310,8 @@ static void start_unlink_async(struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 static void scan_async (struct ehci_hcd *ehci)
 {
-	bool			stopped;
 	struct ehci_qh		*qh;
-	enum ehci_timer_action	action = TIMER_IO_WATCHDOG;
-
-	timer_action_done (ehci, TIMER_ASYNC_SHRINK);
-	stopped = (ehci->rh_state < EHCI_RH_RUNNING);
+	bool			check_unlinks_later = false;
 
 	ehci->qh_scan_next = ehci->async->qh_next.qh;
 	while (ehci->qh_scan_next) {
@@ -1301,28 +1330,27 @@ static void scan_async (struct ehci_hcd *ehci)
 			 * in single_unlink_async().
 			 */
 			temp = qh_completions(ehci, qh);
-			if (qh->needs_rescan)
+			if (qh->needs_rescan) {
 				start_unlink_async(ehci, qh);
-			qh->unlink_time = jiffies + EHCI_SHRINK_JIFFIES;
-			if (temp != 0)
+			} else if (list_empty(&qh->qtd_list)
+					&& qh->qh_state == QH_STATE_LINKED) {
+				qh->unlink_cycle = ehci->async_unlink_cycle;
+				check_unlinks_later = true;
+			} else if (temp != 0)
 				goto rescan;
 		}
-
-		/* unlink idle entries, reducing DMA usage as well
-		 * as HCD schedule-scanning costs.  delay for any qh
-		 * we just scanned, there's a not-unusual case that it
-		 * doesn't stay idle for long.
-		 * (plus, avoids some kind of re-activation race.)
-		 */
-		if (list_empty(&qh->qtd_list)
-				&& qh->qh_state == QH_STATE_LINKED) {
-			if (!ehci->async_unlink && (stopped ||
-					time_after_eq(jiffies, qh->unlink_time)))
-				start_unlink_async(ehci, qh);
-			else
-				action = TIMER_ASYNC_SHRINK;
-		}
 	}
-	if (action == TIMER_ASYNC_SHRINK)
-		timer_action (ehci, TIMER_ASYNC_SHRINK);
+
+	/*
+	 * Unlink empty entries, reducing DMA usage as well
+	 * as HCD schedule-scanning costs.  Delay for any qh
+	 * we just scanned, there's a not-unusual case that it
+	 * doesn't stay idle for long.
+	 */
+	if (check_unlinks_later && ehci->rh_state == EHCI_RH_RUNNING &&
+			!(ehci->enabled_hrtimer_events &
+				BIT(EHCI_HRTIMER_ASYNC_UNLINKS))) {
+		ehci_enable_event(ehci, EHCI_HRTIMER_ASYNC_UNLINKS, true);
+		++ehci->async_unlink_cycle;
+	}
 }
