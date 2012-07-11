@@ -78,7 +78,7 @@
  */
 struct rbd_image_header {
 	u64 image_size;
-	char block_name[32];
+	char object_prefix[32];
 	__u8 obj_order;
 	__u8 crypt_type;
 	__u8 comp_type;
@@ -518,7 +518,7 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 		header->snap_names = NULL;
 		header->snap_sizes = NULL;
 	}
-	memcpy(header->block_name, ondisk->block_name,
+	memcpy(header->object_prefix, ondisk->block_name,
 	       sizeof(ondisk->block_name));
 
 	header->image_size = le64_to_cpu(ondisk->image_size);
@@ -620,7 +620,7 @@ static void rbd_header_free(struct rbd_image_header *header)
  * get the actual striped segment name, offset and length
  */
 static u64 rbd_get_segment(struct rbd_image_header *header,
-			   const char *block_name,
+			   const char *object_prefix,
 			   u64 ofs, u64 len,
 			   char *seg_name, u64 *segofs)
 {
@@ -628,7 +628,7 @@ static u64 rbd_get_segment(struct rbd_image_header *header,
 
 	if (seg_name)
 		snprintf(seg_name, RBD_MAX_SEG_NAME_LEN,
-			 "%s.%012llx", block_name, seg);
+			 "%s.%012llx", object_prefix, seg);
 
 	ofs = ofs & ((1 << header->obj_order) - 1);
 	len = min_t(u64, len, (1 << header->obj_order) - ofs);
@@ -1091,7 +1091,7 @@ static int rbd_do_op(struct request *rq,
 		return -ENOMEM;
 
 	seg_len = rbd_get_segment(&rbd_dev->header,
-				  rbd_dev->header.block_name,
+				  rbd_dev->header.object_prefix,
 				  ofs, len,
 				  seg_name, &seg_ofs);
 
@@ -1482,7 +1482,7 @@ static void rbd_rq_fn(struct request_queue *q)
 			/* a bio clone to be passed down to OSD req */
 			dout("rq->bio->bi_vcnt=%d\n", rq->bio->bi_vcnt);
 			op_size = rbd_get_segment(&rbd_dev->header,
-						  rbd_dev->header.block_name,
+						  rbd_dev->header.object_prefix,
 						  ofs, size,
 						  NULL, NULL);
 			kref_get(&coll->kref);
