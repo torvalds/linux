@@ -858,6 +858,8 @@ struct proto {
 	int			(*backlog_rcv) (struct sock *sk,
 						struct sk_buff *skb);
 
+	void		(*release_cb)(struct sock *sk);
+
 	/* Keeping track of sk's, looking them up, and port selection methods. */
 	void			(*hash)(struct sock *sk);
 	void			(*unhash)(struct sock *sk);

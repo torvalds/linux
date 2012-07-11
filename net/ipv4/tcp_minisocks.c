@@ -424,6 +424,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 			treq->snt_isn + 1 + tcp_s_data_size(oldtp);
 
 		tcp_prequeue_init(newtp);
+		INIT_LIST_HEAD(&newtp->tsq_node);
 
 		tcp_init_wl(newtp, treq->rcv_isn);
 

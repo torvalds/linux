@@ -376,6 +376,7 @@ void tcp_init_sock(struct sock *sk)
 	skb_queue_head_init(&tp->out_of_order_queue);
 	tcp_init_xmit_timers(sk);
 	tcp_prequeue_init(tp);
+	INIT_LIST_HEAD(&tp->tsq_node);
 
 	icsk->icsk_rto = TCP_TIMEOUT_INIT;
 	tp->mdev = TCP_TIMEOUT_INIT;
@@ -795,6 +796,10 @@ static unsigned int tcp_xmit_size_goal(struct sock *sk, u32 mss_now,
 				  inet_csk(sk)->icsk_af_ops->net_header_len -
 				  inet_csk(sk)->icsk_ext_hdr_len -
 				  tp->tcp_header_len);
+
+		/* TSQ : try to have two TSO segments in flight */
+		xmit_size_goal = min_t(u32, xmit_size_goal,
+				       sysctl_tcp_limit_output_bytes >> 1);
 
 		xmit_size_goal = tcp_bound_to_half_wnd(tp, xmit_size_goal);
 
@@ -3574,4 +3579,5 @@ void __init tcp_init(void)
 	tcp_secret_primary = &tcp_secret_one;
 	tcp_secret_retiring = &tcp_secret_two;
 	tcp_secret_secondary = &tcp_secret_two;
+	tcp_tasklet_init();
 }
