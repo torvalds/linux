@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set PCI address for DMA 1 */
-#define RtdDma1PciAddr(dev, a) \
-	writel((a), devpriv->lcfg+LCFG_DMAADR1)
-
 /* Set local address for DMA 1 */
 #define RtdDma1LocalAddr(dev, a) \
 	writel((a), devpriv->lcfg+LCFG_DMALADR1)
