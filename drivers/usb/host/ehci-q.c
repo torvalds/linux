@@ -1227,6 +1227,8 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	qh->qh_state = QH_STATE_UNLINK;
 	ehci->async_unlink = qh;
+	if (!qh->unlink_next)
+		ehci->async_unlink_last = qh;
 
 	prev = ehci->async;
 	while (prev->qh_next.qh != qh)

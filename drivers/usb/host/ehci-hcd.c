@@ -1041,14 +1041,9 @@ static void unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	/* defer till later if busy */
 	if (ehci->async_unlink) {
-		struct ehci_qh		*last;
-
-		for (last = ehci->async_unlink;
-				last->unlink_next;
-				last = last->unlink_next)
-			continue;
 		qh->qh_state = QH_STATE_UNLINK_WAIT;
-		last->unlink_next = qh;
+		ehci->async_unlink_last->unlink_next = qh;
+		ehci->async_unlink_last = qh;
 
 	/* start IAA cycle */
 	} else

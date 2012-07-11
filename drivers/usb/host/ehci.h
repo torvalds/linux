@@ -82,6 +82,7 @@ struct ehci_hcd {			/* one per controller */
 	struct ehci_qh		*async;
 	struct ehci_qh		*dummy;		/* For AMD quirk use */
 	struct ehci_qh		*async_unlink;
+	struct ehci_qh		*async_unlink_last;
 	struct ehci_qh		*qh_scan_next;
 	unsigned		scanning : 1;
 
