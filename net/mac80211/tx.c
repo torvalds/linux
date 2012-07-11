@@ -1836,6 +1836,9 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 					/* RA TA mDA mSA AE:DA SA */
 					mesh_da = mppath->mpp;
 					is_mesh_mcast = 0;
+				} else if (mpath) {
+					mesh_da = mpath->dst;
+					is_mesh_mcast = 0;
 				} else {
 					/* DA TA mSA AE:SA */
 					mesh_da = bcast;
