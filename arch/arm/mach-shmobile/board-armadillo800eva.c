@@ -28,6 +28,8 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/sh_eth.h>
 #include <linux/videodev2.h>
 #include <linux/usb/renesas_usbhs.h>
@@ -49,6 +51,8 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <video/sh_mobile_lcdc.h>
 #include <video/sh_mobile_hdmi.h>
+#include <sound/sh_fsi.h>
+#include <sound/simple_card.h>
 
 /*
  * CON1		Camera Module
@@ -112,6 +116,14 @@
  */
 
 /*
+ * FSI-WM8978
+ *
+ * this command is required when playback.
+ *
+ * # amixer set "Headphone" 50
+ */
+
+/*
  * USB function
  *
  * When you use USB Function,
@@ -121,14 +133,8 @@
  * These are a little bit complex.
  * see
  *	usbhsf_power_ctrl()
- *
- * CAUTION
- *
- * It uses autonomy mode for USB hotplug at this point
- * (= usbhs_private.platform_callback.get_vbus is NULL),
- * since we don't know what's happen on PM control
- * on this workaround.
  */
+#define IRQ7		evt2irq(0x02e0)
 #define USBCR1		0xe605810a
 #define USBH		0xC6700000
 #define USBH_USBCTR	0x10834
@@ -208,6 +214,20 @@ static void usbhsf_power_ctrl(struct platform_device *pdev,
 	}
 }
 
+static int usbhsf_get_vbus(struct platform_device *pdev)
+{
+	return gpio_get_value(GPIO_PORT209);
+}
+
+static irqreturn_t usbhsf_interrupt(int irq, void *data)
+{
+	struct platform_device *pdev = data;
+
+	renesas_usbhs_call_notify_hotplug(pdev);
+
+	return IRQ_HANDLED;
+}
+
 static void usbhsf_hardware_exit(struct platform_device *pdev)
 {
 	struct usbhsf_private *priv = usbhsf_get_priv(pdev);
@@ -231,11 +251,14 @@ static void usbhsf_hardware_exit(struct platform_device *pdev)
 	priv->host	= NULL;
 	priv->func	= NULL;
 	priv->usbh_base	= NULL;
+
+	free_irq(IRQ7, pdev);
 }
 
 static int usbhsf_hardware_init(struct platform_device *pdev)
 {
 	struct usbhsf_private *priv = usbhsf_get_priv(pdev);
+	int ret;
 
 	priv->phy	= clk_get(&pdev->dev, "phy");
 	priv->usb24	= clk_get(&pdev->dev, "usb24");
@@ -255,6 +278,14 @@ static int usbhsf_hardware_init(struct platform_device *pdev)
 		return -EIO;
 	}
 
+	ret = request_irq(IRQ7, usbhsf_interrupt, IRQF_TRIGGER_NONE,
+			  dev_name(&pdev->dev), pdev);
+	if (ret) {
+		dev_err(&pdev->dev, "request_irq err\n");
+		return ret;
+	}
+	irq_set_irq_type(IRQ7, IRQ_TYPE_EDGE_BOTH);
+
 	/* usb24 use 1/1 of parent clock (= usb24s = 24MHz) */
 	clk_set_rate(priv->usb24,
 		     clk_get_rate(clk_get_parent(priv->usb24)));
@@ -266,6 +297,7 @@ static struct usbhsf_private usbhsf_private = {
 	.info = {
 		.platform_callback = {
 			.get_id		= usbhsf_get_id,
+			.get_vbus	= usbhsf_get_vbus,
 			.hardware_init	= usbhsf_hardware_init,
 			.hardware_exit	= usbhsf_hardware_exit,
 			.power_ctrl	= usbhsf_power_ctrl,
@@ -273,6 +305,8 @@ static struct usbhsf_private usbhsf_private = {
 		.driver_param = {
 			.buswait_bwait		= 5,
 			.detection_delay	= 5,
+			.d0_rx_id	= SHDMA_SLAVE_USBHS_RX,
+			.d1_tx_id	= SHDMA_SLAVE_USBHS_TX,
 		},
 	}
 };
@@ -508,6 +542,17 @@ static struct platform_device gpio_keys_device = {
 	},
 };
 
+/* Fixed 3.3V regulator to be used by SDHI0, SDHI1, MMCIF */
+static struct regulator_consumer_supply fixed3v3_power_consumers[] =
+{
+	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.0"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.0"),
+	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.1"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.1"),
+	REGULATOR_SUPPLY("vmmc", "sh_mmcif"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mmcif"),
+};
+
 /* SDHI0 */
 /*
  * FIXME
@@ -519,6 +564,8 @@ static struct platform_device gpio_keys_device = {
  */
 #define IRQ31	evt2irq(0x33E0)
 static struct sh_mobile_sdhi_info sdhi0_info = {
+	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
+	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |\
 			  MMC_CAP_NEEDS_POLL,
 	.tmio_ocr_mask	= MMC_VDD_165_195 | MMC_VDD_32_33 | MMC_VDD_33_34,
@@ -559,6 +606,8 @@ static struct platform_device sdhi0_device = {
 
 /* SDHI1 */
 static struct sh_mobile_sdhi_info sdhi1_info = {
+	.dma_slave_tx	= SHDMA_SLAVE_SDHI1_TX,
+	.dma_slave_rx	= SHDMA_SLAVE_SDHI1_RX,
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
 	.tmio_ocr_mask	= MMC_VDD_165_195 | MMC_VDD_32_33 | MMC_VDD_33_34,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
@@ -714,11 +763,127 @@ static struct platform_device ceu0_device = {
 	},
 };
 
+/* FSI */
+static int fsi_hdmi_set_rate(struct device *dev, int rate, int enable)
+{
+	struct clk *fsib;
+	int ret;
+
+	/* it support 48KHz only */
+	if (48000 != rate)
+		return -EINVAL;
+
+	fsib = clk_get(dev, "ickb");
+	if (IS_ERR(fsib))
+		return -EINVAL;
+
+	if (enable) {
+		ret = SH_FSI_ACKMD_256 | SH_FSI_BPFMD_64;
+		clk_enable(fsib);
+	} else {
+		ret = 0;
+		clk_disable(fsib);
+	}
+
+	clk_put(fsib);
+
+	return ret;
+}
+
+static struct sh_fsi_platform_info fsi_info = {
+	/* FSI-WM8978 */
+	.port_a = {
+		.tx_id = SHDMA_SLAVE_FSIA_TX,
+	},
+	/* FSI-HDMI */
+	.port_b = {
+		.flags		= SH_FSI_FMT_SPDIF |
+				  SH_FSI_ENABLE_STREAM_MODE,
+		.set_rate	= fsi_hdmi_set_rate,
+		.tx_id		= SHDMA_SLAVE_FSIB_TX,
+	}
+};
+
+static struct resource fsi_resources[] = {
+	[0] = {
+		.name	= "FSI",
+		.start	= 0xfe1f0000,
+		.end	= 0xfe1f8400 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = evt2irq(0x1840),
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device fsi_device = {
+	.name		= "sh_fsi2",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(fsi_resources),
+	.resource	= fsi_resources,
+	.dev	= {
+		.platform_data	= &fsi_info,
+	},
+};
+
+/* FSI-WM8978 */
+static struct asoc_simple_dai_init_info fsi_wm8978_init_info = {
+	.fmt		= SND_SOC_DAIFMT_I2S,
+	.codec_daifmt	= SND_SOC_DAIFMT_CBM_CFM | SND_SOC_DAIFMT_NB_NF,
+	.cpu_daifmt	= SND_SOC_DAIFMT_CBS_CFS,
+	.sysclk		= 12288000,
+};
+
+static struct asoc_simple_card_info fsi_wm8978_info = {
+	.name		= "wm8978",
+	.card		= "FSI2A-WM8978",
+	.cpu_dai	= "fsia-dai",
+	.codec		= "wm8978.0-001a",
+	.platform	= "sh_fsi2",
+	.codec_dai	= "wm8978-hifi",
+	.init		= &fsi_wm8978_init_info,
+};
+
+static struct platform_device fsi_wm8978_device = {
+	.name	= "asoc-simple-card",
+	.id	= 0,
+	.dev	= {
+		.platform_data	= &fsi_wm8978_info,
+	},
+};
+
+/* FSI-HDMI */
+static struct asoc_simple_dai_init_info fsi2_hdmi_init_info = {
+	.cpu_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
+};
+
+static struct asoc_simple_card_info fsi2_hdmi_info = {
+	.name		= "HDMI",
+	.card		= "FSI2B-HDMI",
+	.cpu_dai	= "fsib-dai",
+	.codec		= "sh-mobile-hdmi",
+	.platform	= "sh_fsi2",
+	.codec_dai	= "sh_mobile_hdmi-hifi",
+	.init		= &fsi2_hdmi_init_info,
+};
+
+static struct platform_device fsi_hdmi_device = {
+	.name	= "asoc-simple-card",
+	.id	= 1,
+	.dev	= {
+		.platform_data	= &fsi2_hdmi_info,
+	},
+};
+
 /* I2C */
 static struct i2c_board_info i2c0_devices[] = {
 	{
 		I2C_BOARD_INFO("st1232-ts", 0x55),
 		.irq = evt2irq(0x0340),
+	},
+	{
+		I2C_BOARD_INFO("wm8978", 0x1a),
 	},
 };
 
@@ -735,6 +900,9 @@ static struct platform_device *eva_devices[] __initdata = {
 	&hdmi_lcdc_device,
 	&camera_device,
 	&ceu0_device,
+	&fsi_device,
+	&fsi_hdmi_device,
+	&fsi_wm8978_device,
 };
 
 static void __init eva_clock_init(void)
@@ -742,10 +910,14 @@ static void __init eva_clock_init(void)
 	struct clk *system	= clk_get(NULL, "system_clk");
 	struct clk *xtal1	= clk_get(NULL, "extal1");
 	struct clk *usb24s	= clk_get(NULL, "usb24s");
+	struct clk *fsibck	= clk_get(NULL, "fsibck");
+	struct clk *fsib	= clk_get(&fsi_device.dev, "ickb");
 
 	if (IS_ERR(system)	||
 	    IS_ERR(xtal1)	||
-	    IS_ERR(usb24s)) {
+	    IS_ERR(usb24s)	||
+	    IS_ERR(fsibck)	||
+	    IS_ERR(fsib)) {
 		pr_err("armadillo800eva board clock init failed\n");
 		goto clock_error;
 	}
@@ -756,6 +928,11 @@ static void __init eva_clock_init(void)
 	/* usb24s use extal1 (= system) clock (= 24MHz) */
 	clk_set_parent(usb24s, system);
 
+	/* FSIBCK is 12.288MHz, and it is parent of FSI-B */
+	clk_set_parent(fsib, fsibck);
+	clk_set_rate(fsibck, 12288000);
+	clk_set_rate(fsib,   12288000);
+
 clock_error:
 	if (!IS_ERR(system))
 		clk_put(system);
@@ -763,14 +940,23 @@ clock_error:
 		clk_put(xtal1);
 	if (!IS_ERR(usb24s))
 		clk_put(usb24s);
+	if (!IS_ERR(fsibck))
+		clk_put(fsibck);
+	if (!IS_ERR(fsib))
+		clk_put(fsib);
 }
 
 /*
  * board init
  */
+#define GPIO_PORT7CR	0xe6050007
+#define GPIO_PORT8CR	0xe6050008
 static void __init eva_init(void)
 {
-	eva_clock_init();
+	struct platform_device *usb = NULL;
+
+	regulator_register_always_on(0, "fixed-3.3V", fixed3v3_power_consumers,
+				     ARRAY_SIZE(fixed3v3_power_consumers), 3300000);
 
 	r8a7740_pinmux_init();
 	r8a7740_meram_workaround();
@@ -854,8 +1040,19 @@ static void __init eva_init(void)
 		/* USB Host */
 	} else {
 		/* USB Func */
-		gpio_request(GPIO_FN_VBUS, NULL);
+		/*
+		 * A1 chip has 2 IRQ7 pin and it was controled by MSEL register.
+		 * OTOH, usbhs interrupt needs its value (HI/LOW) to decide
+		 * USB connection/disconnection (usbhsf_get_vbus()).
+		 * This means we needs to select GPIO_FN_IRQ7_PORT209 first,
+		 * and select GPIO_PORT209 here
+		 */
+		gpio_request(GPIO_FN_IRQ7_PORT209, NULL);
+		gpio_request(GPIO_PORT209, NULL);
+		gpio_direction_input(GPIO_PORT209);
+
 		platform_device_register(&usbhsf_device);
+		usb = &usbhsf_device;
 	}
 
 	/* SDHI0 */
@@ -916,6 +1113,25 @@ static void __init eva_init(void)
 	gpio_direction_output(GPIO_PORT172, 1);
 	gpio_direction_output(GPIO_PORT158, 0); /* see mt9t111_power() */
 
+	/* FSI-WM8978 */
+	gpio_request(GPIO_FN_FSIAIBT,		NULL);
+	gpio_request(GPIO_FN_FSIAILR,		NULL);
+	gpio_request(GPIO_FN_FSIAOMC,		NULL);
+	gpio_request(GPIO_FN_FSIAOSLD,		NULL);
+	gpio_request(GPIO_FN_FSIAISLD_PORT5,	NULL);
+
+	gpio_request(GPIO_PORT7, NULL);
+	gpio_request(GPIO_PORT8, NULL);
+	gpio_direction_none(GPIO_PORT7CR); /* FSIAOBT needs no direction */
+	gpio_direction_none(GPIO_PORT8CR); /* FSIAOLR needs no direction */
+
+	/* FSI-HDMI */
+	gpio_request(GPIO_FN_FSIBCK,		NULL);
+
+	/* HDMI */
+	gpio_request(GPIO_FN_HDMI_HPD,		NULL);
+	gpio_request(GPIO_FN_HDMI_CEC,		NULL);
+
 	/*
 	 * CAUTION
 	 *
@@ -962,6 +1178,13 @@ static void __init eva_init(void)
 
 	platform_add_devices(eva_devices,
 			     ARRAY_SIZE(eva_devices));
+
+	eva_clock_init();
+
+	rmobile_add_device_to_domain(&r8a7740_pd_a4lc, &lcdc0_device);
+	rmobile_add_device_to_domain(&r8a7740_pd_a4lc, &hdmi_lcdc_device);
+	if (usb)
+		rmobile_add_device_to_domain(&r8a7740_pd_a3sp, usb);
 }
 
 static void __init eva_earlytimer_init(void)
