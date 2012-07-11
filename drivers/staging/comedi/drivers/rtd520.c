@@ -265,11 +265,8 @@ static const struct comedi_lrange rtd_ao_range = {
 	}
 };
 
-/*
-  Board descriptions
- */
 struct rtdBoard {
-	const char *name;	/* must be first */
+	const char *name;
 	int device_id;
 	int aiChans;
 	int aiBits;
@@ -280,23 +277,22 @@ struct rtdBoard {
 
 static const struct rtdBoard rtd520Boards[] = {
 	{
-	 .name = "DM7520",
-	 .device_id = 0x7520,
-	 .aiChans = 16,
-	 .aiBits = 12,
-	 .aiMaxGain = 32,
-	 .range10Start = 6,
-	 .rangeUniStart = 12,
-	 },
-	{
-	 .name = "PCI4520",
-	 .device_id = 0x4520,
-	 .aiChans = 16,
-	 .aiBits = 12,
-	 .aiMaxGain = 128,
-	 .range10Start = 8,
-	 .rangeUniStart = 16,
-	 },
+		.name		= "DM7520",
+		.device_id	= 0x7520,
+		.aiChans	= 16,
+		.aiBits		= 12,
+		.aiMaxGain	= 32,
+		.range10Start	= 6,
+		.rangeUniStart	= 12,
+	}, {
+		.name		= "PCI4520",
+		.device_id	= 0x4520,
+		.aiChans	= 16,
+		.aiBits		= 12,
+		.aiMaxGain	= 128,
+		.range10Start	= 8,
+		.rangeUniStart	= 16,
+	},
 };
 
 /*
