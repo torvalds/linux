@@ -406,11 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set DAC output type and range */
-#define RtdDacRange(dev, n, v) \
-	writew((v) & 7, devpriv->las0 \
-		+(((n) == 0) ? LAS0_DAC1_CTRL : LAS0_DAC2_CTRL))
-
 /* Reset DAC FIFO */
 #define RtdDacClearFifo(dev, n) \
 	writel(0, devpriv->las0+(((n) == 0) ? LAS0_DAC1_RESET : \
@@ -1538,7 +1533,8 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 	int range = CR_RANGE(insn->chanspec);
 
 	/* Configure the output range (table index matches the range values) */
-	RtdDacRange(dev, chan, range);
+	writew(range & 7, devpriv->las0 +
+		((chan == 0) ? LAS0_DAC1_CTRL : LAS0_DAC2_CTRL));
 
 	/* Writing a list of values to an AO channel is probably not
 	 * very useful, but that's how the interface is defined. */
