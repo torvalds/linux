@@ -26,6 +26,8 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
 #include <linux/videodev2.h>
 #include <mach/common.h>
@@ -74,6 +76,12 @@
  * S38.1 = OFF
  * S38.2 = OFF
  */
+
+/* Dummy supplies, where voltage doesn't matter */
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+};
 
 /*
  * FPGA
@@ -359,6 +367,8 @@ static void __init bonito_map_io(void)
 static void __init bonito_init(void)
 {
 	u16 val;
+
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
 	r8a7740_pinmux_init();
 	bonito_fpga_init();
