@@ -62,4 +62,7 @@
 #define CIK_ALPHA_CONTROL                         0x6af0
 #       define CIK_CURSOR_ALPHA_BLND_ENA          (1 << 1)
 
+#define CIK_LB_DATA_FORMAT                        0x6b00
+#       define CIK_INTERLEAVE_EN                  (1 << 3)
+
 #endif
