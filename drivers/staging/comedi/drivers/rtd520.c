@@ -406,12 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set UTCn clock source (write only) */
-#define RtdUtcClockSource(dev, n, v) \
-	writew(v, devpriv->las0 \
-		+ ((n <= 0) ? LAS0_UTC0_CLOCK : \
-			((1 == n) ? LAS0_UTC1_CLOCK : LAS0_UTC2_CLOCK)))
-
 /* Set UTCn gate source (write only) */
 #define RtdUtcGateSource(dev, n, v) \
 	writew(v, devpriv->las0 \
