@@ -6578,10 +6578,9 @@ static int _nfs41_test_stateid(struct nfs_server *server, nfs4_stateid *stateid)
 
 	nfs41_init_sequence(&args.seq_args, &res.seq_res, 0);
 	status = nfs4_call_sync_sequence(server->client, server, &msg, &args.seq_args, &res.seq_res, 1);
-
-	if (status == NFS_OK)
-		return res.status;
-	return status;
+	if (status != NFS_OK)
+		return status;
+	return -res.status;
 }
 
 static int nfs41_test_stateid(struct nfs_server *server, nfs4_stateid *stateid)
@@ -6589,9 +6588,10 @@ static int nfs41_test_stateid(struct nfs_server *server, nfs4_stateid *stateid)
 	struct nfs4_exception exception = { };
 	int err;
 	do {
-		err = nfs4_handle_exception(server,
-				_nfs41_test_stateid(server, stateid),
-				&exception);
+		err = _nfs41_test_stateid(server, stateid);
+		if (err != -NFS4ERR_DELAY)
+			break;
+		nfs4_handle_exception(server, err, &exception);
 	} while (exception.retry);
 	return err;
 }
@@ -6609,7 +6609,8 @@ static int _nfs4_free_stateid(struct nfs_server *server, nfs4_stateid *stateid)
 	};
 
 	nfs41_init_sequence(&args.seq_args, &res.seq_res, 0);
-	return nfs4_call_sync_sequence(server->client, server, &msg, &args.seq_args, &res.seq_res, 1);
+	return nfs4_call_sync_sequence(server->client, server, &msg,
+					 &args.seq_args, &res.seq_res, 1);
 }
 
 static int nfs41_free_stateid(struct nfs_server *server, nfs4_stateid *stateid)
@@ -6617,9 +6618,10 @@ static int nfs41_free_stateid(struct nfs_server *server, nfs4_stateid *stateid)
 	struct nfs4_exception exception = { };
 	int err;
 	do {
-		err = nfs4_handle_exception(server,
-				_nfs4_free_stateid(server, stateid),
-				&exception);
+		err = _nfs4_free_stateid(server, stateid);
+		if (err != -NFS4ERR_DELAY)
+			break;
+		nfs4_handle_exception(server, err, &exception);
 	} while (exception.retry);
 	return err;
 }
