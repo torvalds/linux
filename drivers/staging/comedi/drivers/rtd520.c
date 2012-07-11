@@ -406,11 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* User Timer/Counter (8254) */
-#define RtdUtcCounterGet(dev, n) \
-	readb(devpriv->las0 \
-		+ ((n <= 0) ? LAS0_UTC0 : ((1 == n) ? LAS0_UTC1 : LAS0_UTC2)))
-
 #define RtdUtcCounterPut(dev, n, v) \
 	writeb((v) & 0xff, devpriv->las0 \
 		+ ((n <= 0) ? LAS0_UTC0 : ((1 == n) ? LAS0_UTC1 : LAS0_UTC2)))
