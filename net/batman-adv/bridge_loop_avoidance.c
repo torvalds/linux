@@ -1381,6 +1381,7 @@ void batadv_bla_free(struct batadv_priv *bat_priv)
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the frame to be checked
  * @vid: the VLAN ID of the frame
+ * @is_bcast: the packet came in a broadcast packet type.
  *
  * bla_rx avoidance checks if:
  *  * we have to race for a claim
@@ -1390,7 +1391,8 @@ void batadv_bla_free(struct batadv_priv *bat_priv)
  * returns 1, otherwise it returns 0 and the caller shall further
  * process the skb.
  */
-int batadv_bla_rx(struct batadv_priv *bat_priv, struct sk_buff *skb, short vid)
+int batadv_bla_rx(struct batadv_priv *bat_priv, struct sk_buff *skb, short vid,
+		  bool is_bcast)
 {
 	struct ethhdr *ethhdr;
 	struct batadv_claim search_claim, *claim = NULL;
@@ -1409,7 +1411,7 @@ int batadv_bla_rx(struct batadv_priv *bat_priv, struct sk_buff *skb, short vid)
 
 	if (unlikely(atomic_read(&bat_priv->bla_num_requests)))
 		/* don't allow broadcasts while requests are in flight */
-		if (is_multicast_ether_addr(ethhdr->h_dest))
+		if (is_multicast_ether_addr(ethhdr->h_dest) && is_bcast)
 			goto handled;
 
 	memcpy(search_claim.addr, ethhdr->h_source, ETH_ALEN);
@@ -1435,8 +1437,13 @@ int batadv_bla_rx(struct batadv_priv *bat_priv, struct sk_buff *skb, short vid)
 	}
 
 	/* if it is a broadcast ... */
-	if (is_multicast_ether_addr(ethhdr->h_dest)) {
-		/* ... drop it. the responsible gateway is in charge. */
+	if (is_multicast_ether_addr(ethhdr->h_dest) && is_bcast) {
+		/* ... drop it. the responsible gateway is in charge.
+		 *
+		 * We need to check is_bcast because with the gateway
+		 * feature, broadcasts (like DHCP requests) may be sent
+		 * using a unicast packet type.
+		 */
 		goto handled;
 	} else {
 		/* seems the client considers us as its best gateway.

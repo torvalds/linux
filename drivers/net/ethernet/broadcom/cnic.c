@@ -542,7 +542,8 @@ int cnic_unregister_driver(int ulp_type)
 	}
 
 	if (atomic_read(&ulp_ops->ref_count) != 0)
-		netdev_warn(dev->netdev, "Failed waiting for ref count to go to zero\n");
+		pr_warn("%s: Failed waiting for ref count to go to zero\n",
+			__func__);
 	return 0;
 
 out_unlock:
