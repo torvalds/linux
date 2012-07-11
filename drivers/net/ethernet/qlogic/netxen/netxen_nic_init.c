@@ -1437,8 +1437,6 @@ netxen_handle_linkevent(struct netxen_adapter *adapter, nx_fw_msg_t *msg)
 				netdev->name, cable_len);
 	}
 
-	netxen_advert_link_change(adapter, link_status);
-
 	/* update link parameters */
 	if (duplex == LINKEVENT_FULL_DUPLEX)
 		adapter->link_duplex = DUPLEX_FULL;
@@ -1447,6 +1445,8 @@ netxen_handle_linkevent(struct netxen_adapter *adapter, nx_fw_msg_t *msg)
 	adapter->module_type = module;
 	adapter->link_autoneg = autoneg;
 	adapter->link_speed = link_speed;
+
+	netxen_advert_link_change(adapter, link_status);
 }
 
 static void
