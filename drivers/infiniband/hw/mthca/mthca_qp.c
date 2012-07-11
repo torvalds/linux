@@ -502,6 +502,7 @@ done:
 	qp_attr->cap.max_inline_data = qp->max_inline_data;
 
 	qp_init_attr->cap	     = qp_attr->cap;
+	qp_init_attr->sq_sig_type    = qp->sq_policy;
 
 out_mailbox:
 	mthca_free_mailbox(dev, mailbox);
