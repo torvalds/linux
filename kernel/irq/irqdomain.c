@@ -34,22 +34,24 @@ static struct irq_domain *irq_default_domain;
  * to IRQ domain, or NULL on failure.
  */
 static struct irq_domain *irq_domain_alloc(struct device_node *of_node,
-					   unsigned int revmap_type,
+					   unsigned int revmap_type, int size,
 					   const struct irq_domain_ops *ops,
 					   void *host_data)
 {
 	struct irq_domain *domain;
 
-	domain = kzalloc_node(sizeof(*domain), GFP_KERNEL,
-			      of_node_to_nid(of_node));
+	domain = kzalloc_node(sizeof(*domain) + (sizeof(unsigned int) * size),
+			      GFP_KERNEL, of_node_to_nid(of_node));
 	if (WARN_ON(!domain))
 		return NULL;
 
 	/* Fill structure */
+	INIT_RADIX_TREE(&domain->revmap_data.tree, GFP_KERNEL);
 	domain->revmap_type = revmap_type;
 	domain->ops = ops;
 	domain->host_data = host_data;
 	domain->of_node = of_node_get(of_node);
+	domain->revmap_data.linear.size = size;
 
 	return domain;
 }
@@ -81,22 +83,12 @@ void irq_domain_remove(struct irq_domain *domain)
 {
 	mutex_lock(&irq_domain_mutex);
 
-	switch (domain->revmap_type) {
-	case IRQ_DOMAIN_MAP_TREE:
-		/*
-		 * radix_tree_delete() takes care of destroying the root
-		 * node when all entries are removed. Shout if there are
-		 * any mappings left.
-		 */
-		WARN_ON(domain->revmap_data.tree.height);
-		break;
-	case IRQ_DOMAIN_MAP_LINEAR:
-		kfree(domain->revmap_data.linear.revmap);
-		domain->revmap_data.linear.size = 0;
-		break;
-	case IRQ_DOMAIN_MAP_NOMAP:
-		break;
-	}
+	/*
+	 * radix_tree_delete() takes care of destroying the root
+	 * node when all entries are removed. Shout if there are
+	 * any mappings left.
+	 */
+	WARN_ON(domain->revmap_data.tree.height);
 
 	list_del(&domain->link);
 
@@ -223,20 +215,11 @@ struct irq_domain *irq_domain_add_linear(struct device_node *of_node,
 					 void *host_data)
 {
 	struct irq_domain *domain;
-	unsigned int *revmap;
 
-	revmap = kzalloc_node(sizeof(*revmap) * size, GFP_KERNEL,
-			      of_node_to_nid(of_node));
-	if (WARN_ON(!revmap))
+	domain = irq_domain_alloc(of_node, IRQ_DOMAIN_MAP_LINEAR, size, ops, host_data);
+	if (!domain)
 		return NULL;
 
-	domain = irq_domain_alloc(of_node, IRQ_DOMAIN_MAP_LINEAR, ops, host_data);
-	if (!domain) {
-		kfree(revmap);
-		return NULL;
-	}
-	domain->revmap_data.linear.size = size;
-	domain->revmap_data.linear.revmap = revmap;
 	irq_domain_add(domain);
 	return domain;
 }
@@ -248,7 +231,7 @@ struct irq_domain *irq_domain_add_nomap(struct device_node *of_node,
 					 void *host_data)
 {
 	struct irq_domain *domain = irq_domain_alloc(of_node,
-					IRQ_DOMAIN_MAP_NOMAP, ops, host_data);
+					IRQ_DOMAIN_MAP_NOMAP, 0, ops, host_data);
 	if (domain) {
 		domain->revmap_data.nomap.max_irq = max_irq ? max_irq : ~0;
 		irq_domain_add(domain);
@@ -256,28 +239,6 @@ struct irq_domain *irq_domain_add_nomap(struct device_node *of_node,
 	return domain;
 }
 EXPORT_SYMBOL_GPL(irq_domain_add_nomap);
-
-/**
- * irq_domain_add_tree()
- * @of_node: pointer to interrupt controller's device tree node.
- * @ops: map/unmap domain callbacks
- *
- * Note: The radix tree will be allocated later during boot automatically
- * (the reverse mapping will use the slow path until that happens).
- */
-struct irq_domain *irq_domain_add_tree(struct device_node *of_node,
-					 const struct irq_domain_ops *ops,
-					 void *host_data)
-{
-	struct irq_domain *domain = irq_domain_alloc(of_node,
-					IRQ_DOMAIN_MAP_TREE, ops, host_data);
-	if (domain) {
-		INIT_RADIX_TREE(&domain->revmap_data.tree, GFP_KERNEL);
-		irq_domain_add(domain);
-	}
-	return domain;
-}
-EXPORT_SYMBOL_GPL(irq_domain_add_tree);
 
 /**
  * irq_find_host() - Locates a domain for a given device node
@@ -359,17 +320,13 @@ static void irq_domain_disassociate_many(struct irq_domain *domain,
 		irq_data->domain = NULL;
 		irq_data->hwirq = 0;
 
-		/* Clear reverse map */
-		switch(domain->revmap_type) {
-		case IRQ_DOMAIN_MAP_LINEAR:
-			if (hwirq < domain->revmap_data.linear.size)
-				domain->revmap_data.linear.revmap[hwirq] = 0;
-			break;
-		case IRQ_DOMAIN_MAP_TREE:
+		/* Clear reverse map for this hwirq */
+		if (hwirq < domain->revmap_data.linear.size) {
+			domain->linear_revmap[hwirq] = 0;
+		} else {
 			mutex_lock(&revmap_trees_mutex);
 			radix_tree_delete(&domain->revmap_data.tree, hwirq);
 			mutex_unlock(&revmap_trees_mutex);
-			break;
 		}
 	}
 }
@@ -421,16 +378,12 @@ int irq_domain_associate_many(struct irq_domain *domain, unsigned int irq_base,
 				domain->name = irq_data->chip->name;
 		}
 
-		switch (domain->revmap_type) {
-		case IRQ_DOMAIN_MAP_LINEAR:
-			if (hwirq < domain->revmap_data.linear.size)
-				domain->revmap_data.linear.revmap[hwirq] = virq;
-			break;
-		case IRQ_DOMAIN_MAP_TREE:
+		if (hwirq < domain->revmap_data.linear.size) {
+			domain->linear_revmap[hwirq] = virq;
+		} else {
 			mutex_lock(&revmap_trees_mutex);
 			radix_tree_insert(&domain->revmap_data.tree, hwirq, irq_data);
 			mutex_unlock(&revmap_trees_mutex);
-			break;
 		}
 
 		irq_clear_status_flags(virq, IRQ_NOREQUEST);
@@ -667,13 +620,6 @@ unsigned int irq_find_mapping(struct irq_domain *domain,
 	switch (domain->revmap_type) {
 	case IRQ_DOMAIN_MAP_LINEAR:
 		return irq_linear_revmap(domain, hwirq);
-	case IRQ_DOMAIN_MAP_TREE:
-		rcu_read_lock();
-		data = radix_tree_lookup(&domain->revmap_data.tree, hwirq);
-		rcu_read_unlock();
-		if (data)
-			return data->irq;
-		break;
 	case IRQ_DOMAIN_MAP_NOMAP:
 		data = irq_get_irq_data(hwirq);
 		if (data && (data->domain == domain) && (data->hwirq == hwirq))
@@ -696,13 +642,18 @@ EXPORT_SYMBOL_GPL(irq_find_mapping);
 unsigned int irq_linear_revmap(struct irq_domain *domain,
 			       irq_hw_number_t hwirq)
 {
+	struct irq_data *data;
 	BUG_ON(domain->revmap_type != IRQ_DOMAIN_MAP_LINEAR);
 
 	/* Check revmap bounds; complain if exceeded */
-	if (WARN_ON(hwirq >= domain->revmap_data.linear.size))
-		return 0;
+	if (hwirq >= domain->revmap_data.linear.size) {
+		rcu_read_lock();
+		data = radix_tree_lookup(&domain->revmap_data.tree, hwirq);
+		rcu_read_unlock();
+		return data ? data->irq : 0;
+	}
 
-	return domain->revmap_data.linear.revmap[hwirq];
+	return domain->linear_revmap[hwirq];
 }
 EXPORT_SYMBOL_GPL(irq_linear_revmap);
 
