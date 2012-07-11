@@ -100,3 +100,17 @@ void cpuquiet_unregister_governor(struct cpuquiet_governor *gov)
 	list_del(&gov->governor_list);
 	mutex_unlock(&cpuquiet_lock);
 }
+
+void cpuquiet_device_busy(void)
+{
+	if (cpuquiet_curr_governor &&
+			cpuquiet_curr_governor->device_busy_notification)
+		cpuquiet_curr_governor->device_busy_notification();
+}
+
+void cpuquiet_device_free(void)
+{
+	if (cpuquiet_curr_governor &&
+			cpuquiet_curr_governor->device_free_notification)
+		cpuquiet_curr_governor->device_free_notification();
+}

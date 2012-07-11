@@ -30,6 +30,8 @@ struct cpuquiet_governor {
 	int (*start)		(void);
 	void (*stop)		(void);
 	int (*store_active)	(unsigned int cpu, bool active);
+	void (*device_free_notification) (void);
+	void (*device_busy_notification) (void);
 	struct module		*owner;
 };
 
@@ -47,6 +49,8 @@ extern int cpuquiet_register_driver(struct cpuquiet_driver *drv);
 extern void cpuquiet_unregister_driver(struct cpuquiet_driver *drv);
 extern int cpuquiet_add_group(struct attribute_group *attrs);
 extern void cpuquiet_remove_group(struct attribute_group *attrs);
+extern void cpuquiet_device_busy(void);
+extern void cpuquiet_device_free(void);
 int cpuquiet_kobject_init(struct kobject *kobj, struct kobj_type *type,
 				char *name);
 extern unsigned int nr_cluster_ids;
