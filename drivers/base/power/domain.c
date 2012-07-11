@@ -1676,7 +1676,7 @@ int __pm_genpd_remove_callbacks(struct device *dev, bool clear_td)
 
 	if (dev->power.subsys_data->domain_data) {
 		gpd_data = to_gpd_data(dev->power.subsys_data->domain_data);
-		gpd_data->ops = (struct gpd_dev_ops){ 0 };
+		gpd_data->ops = (struct gpd_dev_ops){ NULL };
 		if (clear_td)
 			gpd_data->td = (struct gpd_timing_data){ 0 };
 
