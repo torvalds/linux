@@ -2029,15 +2029,21 @@ static int rbd_register_snap_dev(struct rbd_snap *snap,
 	return ret;
 }
 
-static int __rbd_add_snap_dev(struct rbd_device *rbd_dev,
-			      int i, const char *name,
-			      struct rbd_snap **snapp)
+static struct rbd_snap *__rbd_add_snap_dev(struct rbd_device *rbd_dev,
+					      int i, const char *name)
 {
+	struct rbd_snap *snap;
 	int ret;
-	struct rbd_snap *snap = kzalloc(sizeof(*snap), GFP_KERNEL);
+
+	snap = kzalloc(sizeof (*snap), GFP_KERNEL);
 	if (!snap)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
+
+	ret = -ENOMEM;
 	snap->name = kstrdup(name, GFP_KERNEL);
+	if (!snap->name)
+		goto err;
+
 	snap->size = rbd_dev->header.snap_sizes[i];
 	snap->id = rbd_dev->header.snapc->snaps[i];
 	if (device_is_registered(&rbd_dev->dev)) {
@@ -2045,12 +2051,14 @@ static int __rbd_add_snap_dev(struct rbd_device *rbd_dev,
 		if (ret < 0)
 			goto err;
 	}
-	*snapp = snap;
-	return 0;
+
+	return snap;
+
 err:
 	kfree(snap->name);
 	kfree(snap);
-	return ret;
+
+	return ERR_PTR(ret);
 }
 
 /*
@@ -2083,7 +2091,6 @@ static int __rbd_init_snaps_header(struct rbd_device *rbd_dev)
 	const char *name, *first_name;
 	int i = rbd_dev->header.total_snaps;
 	struct rbd_snap *snap, *old_snap = NULL;
-	int ret;
 	struct list_head *p, *n;
 
 	first_name = rbd_dev->header.snap_names;
@@ -2126,9 +2133,9 @@ static int __rbd_init_snaps_header(struct rbd_device *rbd_dev)
 			if (cur_id >= old_snap->id)
 				break;
 			/* a new snapshot */
-			ret = __rbd_add_snap_dev(rbd_dev, i - 1, name, &snap);
-			if (ret < 0)
-				return ret;
+			snap = __rbd_add_snap_dev(rbd_dev, i - 1, name);
+			if (IS_ERR(snap))
+				return PTR_ERR(snap);
 
 			/* note that we add it backward so using n and not p */
 			list_add(&snap->node, n);
@@ -2142,9 +2149,9 @@ static int __rbd_init_snaps_header(struct rbd_device *rbd_dev)
 			WARN_ON(1);
 			return -EINVAL;
 		}
-		ret = __rbd_add_snap_dev(rbd_dev, i - 1, name, &snap);
-		if (ret < 0)
-			return ret;
+		snap = __rbd_add_snap_dev(rbd_dev, i - 1, name);
+		if (IS_ERR(snap))
+			return PTR_ERR(snap);
 		list_add(&snap->node, &rbd_dev->snaps);
 	}
 
