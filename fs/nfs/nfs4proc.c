@@ -1756,32 +1756,67 @@ static int nfs4_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *sta
 }
 
 #if defined(CONFIG_NFS_V4_1)
-static int nfs41_check_expired_stateid(struct nfs4_state *state, nfs4_stateid *stateid, unsigned int flags)
+static void nfs41_clear_delegation_stateid(struct nfs4_state *state)
 {
 	struct nfs_server *server = NFS_SERVER(state->inode);
-	int status = -NFS4ERR_BAD_STATEID;
+	nfs4_stateid *stateid = &state->stateid;
+	int status;
 
-	if (state->flags & flags) {
-		status = nfs41_test_stateid(server, stateid);
-		if (status != NFS_OK) {
-			if (status != -NFS4ERR_BAD_STATEID)
-				nfs41_free_stateid(server, stateid);
-			state->flags &= ~flags;
-		}
+	/* If a state reset has been done, test_stateid is unneeded */
+	if (test_bit(NFS_DELEGATED_STATE, &state->flags) == 0)
+		return;
+
+	status = nfs41_test_stateid(server, stateid);
+	if (status != NFS_OK) {
+		/* Free the stateid unless the server explicitly
+		 * informs us the stateid is unrecognized. */
+		if (status != -NFS4ERR_BAD_STATEID)
+			nfs41_free_stateid(server, stateid);
+
+		clear_bit(NFS_DELEGATED_STATE, &state->flags);
+	}
+}
+
+/**
+ * nfs41_check_open_stateid - possibly free an open stateid
+ *
+ * @state: NFSv4 state for an inode
+ *
+ * Returns NFS_OK if recovery for this stateid is now finished.
+ * Otherwise a negative NFS4ERR value is returned.
+ */
+static int nfs41_check_open_stateid(struct nfs4_state *state)
+{
+	struct nfs_server *server = NFS_SERVER(state->inode);
+	nfs4_stateid *stateid = &state->stateid;
+	int status;
+
+	/* If a state reset has been done, test_stateid is unneeded */
+	if ((test_bit(NFS_O_RDONLY_STATE, &state->flags) == 0) &&
+	    (test_bit(NFS_O_WRONLY_STATE, &state->flags) == 0) &&
+	    (test_bit(NFS_O_RDWR_STATE, &state->flags) == 0))
+		return -NFS4ERR_BAD_STATEID;
+
+	status = nfs41_test_stateid(server, stateid);
+	if (status != NFS_OK) {
+		/* Free the stateid unless the server explicitly
+		 * informs us the stateid is unrecognized. */
+		if (status != -NFS4ERR_BAD_STATEID)
+			nfs41_free_stateid(server, stateid);
+
+		clear_bit(NFS_O_RDONLY_STATE, &state->flags);
+		clear_bit(NFS_O_WRONLY_STATE, &state->flags);
+		clear_bit(NFS_O_RDWR_STATE, &state->flags);
 	}
 	return status;
 }
 
 static int nfs41_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *state)
 {
-	int deleg_flags = 1 << NFS_DELEGATED_STATE;
-	int open_flags = (1 << NFS_O_RDONLY_STATE) | (1 << NFS_O_WRONLY_STATE) | (1 << NFS_O_RDWR_STATE);
 	int status;
 
-	nfs41_check_expired_stateid(state, &state->stateid, deleg_flags);
-	status = nfs41_check_expired_stateid(state, &state->open_stateid,
-							open_flags);
-
+	nfs41_clear_delegation_stateid(state);
+	status = nfs41_check_open_stateid(state);
 	if (status != NFS_OK)
 		status = nfs4_open_expired(sp, state);
 	return status;
@@ -4689,6 +4724,14 @@ out:
 }
 
 #if defined(CONFIG_NFS_V4_1)
+/**
+ * nfs41_check_expired_locks - possibly free a lock stateid
+ *
+ * @state: NFSv4 state for an inode
+ *
+ * Returns NFS_OK if recovery for this stateid is now finished.
+ * Otherwise a negative NFS4ERR value is returned.
+ */
 static int nfs41_check_expired_locks(struct nfs4_state *state)
 {
 	int status, ret = -NFS4ERR_BAD_STATEID;
@@ -4699,6 +4742,8 @@ static int nfs41_check_expired_locks(struct nfs4_state *state)
 		if (lsp->ls_flags & NFS_LOCK_INITIALIZED) {
 			status = nfs41_test_stateid(server, &lsp->ls_stateid);
 			if (status != NFS_OK) {
+				/* Free the stateid unless the server
+				 * informs us the stateid is unrecognized. */
 				if (status != -NFS4ERR_BAD_STATEID)
 					nfs41_free_stateid(server,
 							&lsp->ls_stateid);
