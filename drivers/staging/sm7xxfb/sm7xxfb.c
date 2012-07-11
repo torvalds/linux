@@ -34,7 +34,7 @@
 
 #include "sm7xx.h"
 
-struct screen_info smtc_screen_info;
+struct screen_info smtc_scr_info;
 
 /*
 * Private structure
@@ -769,20 +769,17 @@ static int __init sm712vga_setup(char *options)
 	if (!options || !*options)
 		return -EINVAL;
 
-	smtc_screen_info.lfb_width = 0;
-	smtc_screen_info.lfb_height = 0;
-	smtc_screen_info.lfb_depth = 0;
+	smtc_scr_info.lfb_width = 0;
+	smtc_scr_info.lfb_height = 0;
+	smtc_scr_info.lfb_depth = 0;
 
 	pr_debug("sm712vga_setup = %s\n", options);
 
 	for (i = 0; i < ARRAY_SIZE(vesa_mode_table); i++) {
 		if (strstr(options, vesa_mode_table[i].index)) {
-			smtc_screen_info.lfb_width =
-				vesa_mode_table[i].lfb_width;
-			smtc_screen_info.lfb_height =
-				vesa_mode_table[i].lfb_height;
-			smtc_screen_info.lfb_depth =
-				vesa_mode_table[i].lfb_depth;
+			smtc_scr_info.lfb_width  = vesa_mode_table[i].lfb_width;
+			smtc_scr_info.lfb_height = vesa_mode_table[i].lfb_height;
+			smtc_scr_info.lfb_depth  = vesa_mode_table[i].lfb_depth;
 			return 0;
 		}
 	}
@@ -820,11 +817,11 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 
 	sm7xx_init_hw();
 
-	/*get mode parameter from smtc_screen_info */
-	if (smtc_screen_info.lfb_width != 0) {
-		sfb->fb.var.xres = smtc_screen_info.lfb_width;
-		sfb->fb.var.yres = smtc_screen_info.lfb_height;
-		sfb->fb.var.bits_per_pixel = smtc_screen_info.lfb_depth;
+	/* get mode parameter from smtc_scr_info */
+	if (smtc_scr_info.lfb_width != 0) {
+		sfb->fb.var.xres = smtc_scr_info.lfb_width;
+		sfb->fb.var.yres = smtc_scr_info.lfb_height;
+		sfb->fb.var.bits_per_pixel = smtc_scr_info.lfb_depth;
 	} else {
 		/* default resolution 1024x600 16bit mode */
 		sfb->fb.var.xres = SCREEN_X_RES;
