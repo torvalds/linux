@@ -63,8 +63,15 @@ struct team_port {
 	long mode_priv[0];
 };
 
-extern bool team_port_enabled(struct team_port *port);
-extern bool team_port_txable(struct team_port *port);
+static inline bool team_port_enabled(struct team_port *port)
+{
+	return port->index != -1;
+}
+
+static inline bool team_port_txable(struct team_port *port)
+{
+	return port->linkup && team_port_enabled(port);
+}
 
 struct team_mode_ops {
 	int (*init)(struct team *team);
