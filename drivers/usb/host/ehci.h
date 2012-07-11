@@ -350,16 +350,7 @@ struct ehci_qh {
 	struct ehci_qtd		*dummy;
 	struct ehci_qh		*reclaim;	/* next to reclaim */
 
-	struct ehci_hcd		*ehci;
 	unsigned long		unlink_time;
-
-	/*
-	 * Do NOT use atomic operations for QH refcounting. On some CPUs
-	 * (PPC7448 for example), atomic operations cannot be performed on
-	 * memory that is cache-inhibited (i.e. being used for DMA).
-	 * Spinlocks are used to protect all QH fields.
-	 */
-	u32			refcount;
 	unsigned		stamp;
 
 	u8			needs_rescan;	/* Dequeue during giveback */
