@@ -100,7 +100,6 @@ extern int __put_user_bad(void);
 	break;							\
     default:							\
 	__gu_err = __get_user_bad();				\
-	__gu_val = 0;						\
 	break;							\
     }								\
     (x) = __gu_val;						\
