@@ -113,7 +113,8 @@ struct ehci_hcd {			/* one per controller */
 	enum ehci_rh_state	rh_state;
 
 	/* general schedule support */
-	unsigned		scanning:1;
+	bool			scanning:1;
+	bool			need_rescan:1;
 	bool			intr_unlinking:1;
 	bool			async_unlinking:1;
 

@@ -400,14 +400,21 @@ static void ehci_work (struct ehci_hcd *ehci)
 	 * it reports urb completions.  this flag guards against bogus
 	 * attempts at re-entrant schedule scanning.
 	 */
-	if (ehci->scanning)
+	if (ehci->scanning) {
+		ehci->need_rescan = true;
 		return;
-	ehci->scanning = 1;
+	}
+	ehci->scanning = true;
+
+ rescan:
+	ehci->need_rescan = false;
 	if (ehci->async_count)
 		scan_async(ehci);
 	if (ehci->next_uframe != -1)
 		scan_periodic (ehci);
-	ehci->scanning = 0;
+	if (ehci->need_rescan)
+		goto rescan;
+	ehci->scanning = false;
 
 	/* the IO watchdog guards against hardware or driver bugs that
 	 * misplace IRQs, and should let us run completely without IRQs.
