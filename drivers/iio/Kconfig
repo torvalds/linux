@@ -8,8 +8,7 @@ menuconfig IIO
 	help
 	  The industrial I/O subsystem provides a unified framework for
 	  drivers for many different types of embedded sensors using a
-	  number of different physical interfaces (i2c, spi, etc). See
-	  Documentation/iio for more information.
+	  number of different physical interfaces (i2c, spi, etc).
 
 if IIO
 

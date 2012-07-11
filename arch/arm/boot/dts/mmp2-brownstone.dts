@@ -11,7 +11,7 @@
 /include/ "mmp2.dtsi"
 
 / {
-	model = "Marvell MMP2 Aspenite Development Board";
+	model = "Marvell MMP2 Brownstone Development Board";
 	compatible = "mrvl,mmp2-brownstone", "mrvl,mmp2";
 
 	chosen {
@@ -19,7 +19,7 @@
 	};
 
 	memory {
-		reg = <0x00000000 0x04000000>;
+		reg = <0x00000000 0x08000000>;
 	};
 
 	soc {

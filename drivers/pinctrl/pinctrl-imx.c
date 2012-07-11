@@ -27,16 +27,16 @@
 #include "core.h"
 #include "pinctrl-imx.h"
 
-#define IMX_PMX_DUMP(info, p, m, c, n)		\
-{						\
-	int i, j;				\
-	printk("Format: Pin Mux Config\n");	\
-	for (i = 0; i < n; i++) {		\
-		j = p[i];			\
-		printk("%s %d 0x%lx\n",		\
-			info->pins[j].name,	\
-			m[i], c[i]);		\
-	}					\
+#define IMX_PMX_DUMP(info, p, m, c, n)			\
+{							\
+	int i, j;					\
+	printk(KERN_DEBUG "Format: Pin Mux Config\n");	\
+	for (i = 0; i < n; i++) {			\
+		j = p[i];				\
+		printk(KERN_DEBUG "%s %d 0x%lx\n",	\
+			info->pins[j].name,		\
+			m[i], c[i]);			\
+	}						\
 }
 
 /* The bits in CONFIG cell defined in binding doc*/
@@ -173,8 +173,10 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	/* create mux map */
 	parent = of_get_parent(np);
-	if (!parent)
+	if (!parent) {
+		kfree(new_map);
 		return -EINVAL;
+	}
 	new_map[0].type = PIN_MAP_TYPE_MUX_GROUP;
 	new_map[0].data.mux.function = parent->name;
 	new_map[0].data.mux.group = np->name;
@@ -193,7 +195,7 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 	}
 
 	dev_dbg(pctldev->dev, "maps: function %s group %s num %d\n",
-		new_map->data.mux.function, new_map->data.mux.group, map_num);
+		(*map)->data.mux.function, (*map)->data.mux.group, map_num);
 
 	return 0;
 }
@@ -201,10 +203,7 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 static void imx_dt_free_map(struct pinctrl_dev *pctldev,
 				struct pinctrl_map *map, unsigned num_maps)
 {
-	int i;
-
-	for (i = 0; i < num_maps; i++)
-		kfree(map);
+	kfree(map);
 }
 
 static struct pinctrl_ops imx_pctrl_ops = {
@@ -475,9 +474,8 @@ static int __devinit imx_pinctrl_parse_groups(struct device_node *np,
 		grp->configs[j] = config & ~IMX_PAD_SION;
 	}
 
-#ifdef DEBUG
 	IMX_PMX_DUMP(info, grp->pins, grp->mux_mode, grp->configs, grp->npins);
-#endif
+
 	return 0;
 }
 

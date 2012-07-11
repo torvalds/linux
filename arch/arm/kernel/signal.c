@@ -27,6 +27,7 @@
  */
 #define SWI_SYS_SIGRETURN	(0xef000000|(__NR_sigreturn)|(__NR_OABI_SYSCALL_BASE))
 #define SWI_SYS_RT_SIGRETURN	(0xef000000|(__NR_rt_sigreturn)|(__NR_OABI_SYSCALL_BASE))
+#define SWI_SYS_RESTART		(0xef000000|__NR_restart_syscall|__NR_OABI_SYSCALL_BASE)
 
 /*
  * With EABI, the syscall number has to be loaded into r7.
@@ -44,6 +45,18 @@
 const unsigned long sigreturn_codes[7] = {
 	MOV_R7_NR_SIGRETURN,    SWI_SYS_SIGRETURN,    SWI_THUMB_SIGRETURN,
 	MOV_R7_NR_RT_SIGRETURN, SWI_SYS_RT_SIGRETURN, SWI_THUMB_RT_SIGRETURN,
+};
+
+/*
+ * Either we support OABI only, or we have EABI with the OABI
+ * compat layer enabled.  In the later case we don't know if
+ * user space is EABI or not, and if not we must not clobber r7.
+ * Always using the OABI syscall solves that issue and works for
+ * all those cases.
+ */
+const unsigned long syscall_restart_code[2] = {
+	SWI_SYS_RESTART,	/* swi	__NR_restart_syscall */
+	0xe49df004,		/* ldr	pc, [sp], #4 */
 };
 
 /*
@@ -592,9 +605,11 @@ static void do_signal(struct pt_regs *regs, int syscall)
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
 		case -ERESTARTNOINTR:
-		case -ERESTART_RESTARTBLOCK:
 			regs->ARM_r0 = regs->ARM_ORIG_r0;
 			regs->ARM_pc = restart_addr;
+			break;
+		case -ERESTART_RESTARTBLOCK:
+			regs->ARM_r0 = -EINTR;
 			break;
 		}
 	}
@@ -611,14 +626,12 @@ static void do_signal(struct pt_regs *regs, int syscall)
 		 * debugger has chosen to restart at a different PC.
 		 */
 		if (regs->ARM_pc == restart_addr) {
-			if (retval == -ERESTARTNOHAND ||
-			    retval == -ERESTART_RESTARTBLOCK
+			if (retval == -ERESTARTNOHAND
 			    || (retval == -ERESTARTSYS
 				&& !(ka.sa.sa_flags & SA_RESTART))) {
 				regs->ARM_r0 = -EINTR;
 				regs->ARM_pc = continue_addr;
 			}
-			clear_thread_flag(TIF_SYSCALL_RESTARTSYS);
 		}
 
 		handle_signal(signr, &ka, &info, regs);
@@ -632,8 +645,29 @@ static void do_signal(struct pt_regs *regs, int syscall)
 		 * ignore the restart.
 		 */
 		if (retval == -ERESTART_RESTARTBLOCK
-		    && regs->ARM_pc == restart_addr)
-			set_thread_flag(TIF_SYSCALL_RESTARTSYS);
+		    && regs->ARM_pc == continue_addr) {
+			if (thumb_mode(regs)) {
+				regs->ARM_r7 = __NR_restart_syscall - __NR_SYSCALL_BASE;
+				regs->ARM_pc -= 2;
+			} else {
+#if defined(CONFIG_AEABI) && !defined(CONFIG_OABI_COMPAT)
+				regs->ARM_r7 = __NR_restart_syscall;
+				regs->ARM_pc -= 4;
+#else
+				u32 __user *usp;
+
+				regs->ARM_sp -= 4;
+				usp = (u32 __user *)regs->ARM_sp;
+
+				if (put_user(regs->ARM_pc, usp) == 0) {
+					regs->ARM_pc = KERN_RESTART_CODE;
+				} else {
+					regs->ARM_sp += 4;
+					force_sigsegv(0, current);
+				}
+#endif
+			}
+		}
 	}
 
 	restore_saved_sigmask();

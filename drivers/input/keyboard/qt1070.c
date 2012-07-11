@@ -201,7 +201,8 @@ static int __devinit qt1070_probe(struct i2c_client *client,
 	msleep(QT1070_RESET_TIME);
 
 	err = request_threaded_irq(client->irq, NULL, qt1070_interrupt,
-		IRQF_TRIGGER_NONE, client->dev.driver->name, data);
+				   IRQF_TRIGGER_NONE | IRQF_ONESHOT,
+				   client->dev.driver->name, data);
 	if (err) {
 		dev_err(&client->dev, "fail to request irq\n");
 		goto err_free_mem;

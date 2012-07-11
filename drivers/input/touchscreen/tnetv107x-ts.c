@@ -297,7 +297,7 @@ static int __devinit tsc_probe(struct platform_device *pdev)
 		goto error_clk;
 	}
 
-	error = request_threaded_irq(ts->tsc_irq, NULL, tsc_irq, 0,
+	error = request_threaded_irq(ts->tsc_irq, NULL, tsc_irq, IRQF_ONESHOT,
 				     dev_name(dev), ts);
 	if (error < 0) {
 		dev_err(ts->dev, "Could not allocate ts irq\n");

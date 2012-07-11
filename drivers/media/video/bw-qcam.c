@@ -607,8 +607,9 @@ static long qc_capture(struct qcam *q, char __user *buf, unsigned long len)
 				}
 				o = i * pixels_per_line + pixels_read + k;
 				if (o < len) {
+					u8 ch = invert - buffer[k];
 					got++;
-					put_user((invert - buffer[k]) << shift, buf + o);
+					put_user(ch << shift, buf + o);
 				}
 			}
 			pixels_read += bytes;
@@ -648,8 +649,8 @@ static int qcam_querycap(struct file *file, void  *priv,
 	struct qcam *qcam = video_drvdata(file);
 
 	strlcpy(vcap->driver, qcam->v4l2_dev.name, sizeof(vcap->driver));
-	strlcpy(vcap->card, "B&W Quickcam", sizeof(vcap->card));
-	strlcpy(vcap->bus_info, "parport", sizeof(vcap->bus_info));
+	strlcpy(vcap->card, "Connectix B&W Quickcam", sizeof(vcap->card));
+	strlcpy(vcap->bus_info, qcam->pport->name, sizeof(vcap->bus_info));
 	vcap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE;
 	vcap->capabilities = vcap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
@@ -688,8 +689,8 @@ static int qcam_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f
 	pix->height = qcam->height / qcam->transfer_scale;
 	pix->pixelformat = (qcam->bpp == 4) ? V4L2_PIX_FMT_Y4 : V4L2_PIX_FMT_Y6;
 	pix->field = V4L2_FIELD_NONE;
-	pix->bytesperline = qcam->width;
-	pix->sizeimage = qcam->width * qcam->height;
+	pix->bytesperline = pix->width;
+	pix->sizeimage = pix->width * pix->height;
 	/* Just a guess */
 	pix->colorspace = V4L2_COLORSPACE_SRGB;
 	return 0;
@@ -757,7 +758,7 @@ static int qcam_enum_fmt_vid_cap(struct file *file, void *fh, struct v4l2_fmtdes
 		  "4-Bit Monochrome", V4L2_PIX_FMT_Y4,
 		  { 0, 0, 0, 0 }
 		},
-		{ 0, 0, 0,
+		{ 1, 0, 0,
 		  "6-Bit Monochrome", V4L2_PIX_FMT_Y6,
 		  { 0, 0, 0, 0 }
 		},
@@ -769,6 +770,25 @@ static int qcam_enum_fmt_vid_cap(struct file *file, void *fh, struct v4l2_fmtdes
 
 	*fmt = formats[fmt->index];
 	fmt->type = type;
+	return 0;
+}
+
+static int qcam_enum_framesizes(struct file *file, void *fh,
+					 struct v4l2_frmsizeenum *fsize)
+{
+	static const struct v4l2_frmsize_discrete sizes[] = {
+		{  80,  60 },
+		{ 160, 120 },
+		{ 320, 240 },
+	};
+
+	if (fsize->index > 2)
+		return -EINVAL;
+	if (fsize->pixel_format != V4L2_PIX_FMT_Y4 &&
+	    fsize->pixel_format != V4L2_PIX_FMT_Y6)
+		return -EINVAL;
+	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+	fsize->discrete = sizes[fsize->index];
 	return 0;
 }
 
@@ -793,6 +813,11 @@ static ssize_t qcam_read(struct file *file, char __user *buf,
 
 	parport_release(qcam->pdev);
 	return len;
+}
+
+static unsigned int qcam_poll(struct file *filp, poll_table *wait)
+{
+	return v4l2_ctrl_poll(filp, wait) | POLLIN | POLLRDNORM;
 }
 
 static int qcam_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -828,7 +853,7 @@ static const struct v4l2_file_operations qcam_fops = {
 	.owner		= THIS_MODULE,
 	.open		= v4l2_fh_open,
 	.release	= v4l2_fh_release,
-	.poll		= v4l2_ctrl_poll,
+	.poll		= qcam_poll,
 	.unlocked_ioctl = video_ioctl2,
 	.read		= qcam_read,
 };
@@ -839,6 +864,7 @@ static const struct v4l2_ioctl_ops qcam_ioctl_ops = {
 	.vidioc_s_input      		    = qcam_s_input,
 	.vidioc_enum_input   		    = qcam_enum_input,
 	.vidioc_enum_fmt_vid_cap 	    = qcam_enum_fmt_vid_cap,
+	.vidioc_enum_framesizes		    = qcam_enum_framesizes,
 	.vidioc_g_fmt_vid_cap 		    = qcam_g_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap  		    = qcam_s_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap  	    = qcam_try_fmt_vid_cap,
@@ -864,9 +890,9 @@ static struct qcam *qcam_init(struct parport *port)
 		return NULL;
 
 	v4l2_dev = &qcam->v4l2_dev;
-	strlcpy(v4l2_dev->name, "bw-qcam", sizeof(v4l2_dev->name));
+	snprintf(v4l2_dev->name, sizeof(v4l2_dev->name), "bw-qcam%d", num_cams);
 
-	if (v4l2_device_register(NULL, v4l2_dev) < 0) {
+	if (v4l2_device_register(port->dev, v4l2_dev) < 0) {
 		v4l2_err(v4l2_dev, "Could not register v4l2_device\n");
 		kfree(qcam);
 		return NULL;
@@ -886,7 +912,7 @@ static struct qcam *qcam_init(struct parport *port)
 		return NULL;
 	}
 	qcam->pport = port;
-	qcam->pdev = parport_register_device(port, "bw-qcam", NULL, NULL,
+	qcam->pdev = parport_register_device(port, v4l2_dev->name, NULL, NULL,
 			NULL, 0, NULL);
 	if (qcam->pdev == NULL) {
 		v4l2_err(v4l2_dev, "couldn't register for %s.\n", port->name);
@@ -975,6 +1001,7 @@ static int init_bwqcam(struct parport *port)
 		return -ENODEV;
 	}
 	qc_calibrate(qcam);
+	v4l2_ctrl_handler_setup(&qcam->hdl);
 
 	parport_release(qcam->pdev);
 

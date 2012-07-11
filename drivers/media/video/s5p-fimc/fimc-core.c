@@ -615,7 +615,7 @@ int fimc_ctrls_create(struct fimc_ctx *ctx)
 	ctx->effect.type = FIMC_REG_CIIMGEFF_FIN_BYPASS;
 
 	if (!handler->error) {
-		v4l2_ctrl_cluster(3, &ctrls->colorfx);
+		v4l2_ctrl_cluster(2, &ctrls->colorfx);
 		ctrls->ready = true;
 	}
 

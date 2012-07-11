@@ -661,7 +661,6 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 	 * New channel registration method - relies on the fact a group does
 	 * not need to be initialized if it is name is NULL.
 	 */
-	INIT_LIST_HEAD(&indio_dev->channel_attr_list);
 	if (indio_dev->channels)
 		for (i = 0; i < indio_dev->num_channels; i++) {
 			ret = iio_device_add_channel_sysfs(indio_dev,
@@ -725,12 +724,16 @@ static void iio_device_unregister_sysfs(struct iio_dev *indio_dev)
 static void iio_dev_release(struct device *device)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(device);
-	cdev_del(&indio_dev->chrdev);
+	if (indio_dev->chrdev.dev)
+		cdev_del(&indio_dev->chrdev);
 	if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
 		iio_device_unregister_trigger_consumer(indio_dev);
 	iio_device_unregister_eventset(indio_dev);
 	iio_device_unregister_sysfs(indio_dev);
 	iio_device_unregister_debugfs(indio_dev);
+
+	ida_simple_remove(&iio_ida, indio_dev->id);
+	kfree(indio_dev);
 }
 
 static struct device_type iio_dev_type = {
@@ -761,6 +764,7 @@ struct iio_dev *iio_device_alloc(int sizeof_priv)
 		dev_set_drvdata(&dev->dev, (void *)dev);
 		mutex_init(&dev->mlock);
 		mutex_init(&dev->info_exist_lock);
+		INIT_LIST_HEAD(&dev->channel_attr_list);
 
 		dev->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
 		if (dev->id < 0) {
@@ -778,10 +782,8 @@ EXPORT_SYMBOL(iio_device_alloc);
 
 void iio_device_free(struct iio_dev *dev)
 {
-	if (dev) {
-		ida_simple_remove(&iio_ida, dev->id);
-		kfree(dev);
-	}
+	if (dev)
+		put_device(&dev->dev);
 }
 EXPORT_SYMBOL(iio_device_free);
 
@@ -902,7 +904,7 @@ void iio_device_unregister(struct iio_dev *indio_dev)
 	mutex_lock(&indio_dev->info_exist_lock);
 	indio_dev->info = NULL;
 	mutex_unlock(&indio_dev->info_exist_lock);
-	device_unregister(&indio_dev->dev);
+	device_del(&indio_dev->dev);
 }
 EXPORT_SYMBOL(iio_device_unregister);
 subsys_initcall(iio_init);

@@ -1557,7 +1557,7 @@ static void __mcheck_cpu_init_vendor(struct cpuinfo_x86 *c)
 static void __mcheck_cpu_init_timer(void)
 {
 	struct timer_list *t = &__get_cpu_var(mce_timer);
-	unsigned long iv = __this_cpu_read(mce_next_interval);
+	unsigned long iv = check_interval * HZ;
 
 	setup_timer(t, mce_timer_fn, smp_processor_id());
 

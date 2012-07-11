@@ -26,7 +26,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <linux/blkdev.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -2477,11 +2476,9 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha, uint32_t handle,
 	}
 
 	cmd = qlt_ctio_to_cmd(vha, handle, ctio);
-	if (cmd == NULL) {
-		if (status != CTIO_SUCCESS)
-			qlt_term_ctio_exchange(vha, ctio, NULL, status);
+	if (cmd == NULL)
 		return;
-	}
+
 	se_cmd = &cmd->se_cmd;
 	tfo = se_cmd->se_tfo;
 
@@ -2727,10 +2724,12 @@ static void qlt_do_work(struct work_struct *work)
 out_term:
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf020, "Terminating work cmd %p", cmd);
 	/*
-	 * cmd has not sent to target yet, so pass NULL as the second argument
+	 * cmd has not sent to target yet, so pass NULL as the second
+	 * argument to qlt_send_term_exchange() and free the memory here.
 	 */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	qlt_send_term_exchange(vha, NULL, &cmd->atio, 1);
+	kmem_cache_free(qla_tgt_cmd_cachep, cmd);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	if (sess)
 		ha->tgt.tgt_ops->put_sess(sess);
@@ -3961,7 +3960,7 @@ void qlt_async_event(uint16_t code, struct scsi_qla_host *vha,
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_tgt *tgt = ha->tgt.qla_tgt;
-	int reason_code;
+	int login_code;
 
 	ql_dbg(ql_dbg_tgt, vha, 0xe039,
 	    "scsi(%ld): ha state %d init_done %d oper_mode %d topo %d\n",
@@ -4004,9 +4003,9 @@ void qlt_async_event(uint16_t code, struct scsi_qla_host *vha,
 	{
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf03b,
 		    "qla_target(%d): Async LOOP_UP occured "
-		    "(m[1]=%x, m[2]=%x, m[3]=%x, m[4]=%x)", vha->vp_idx,
-		    le16_to_cpu(mailbox[1]), le16_to_cpu(mailbox[2]),
-		    le16_to_cpu(mailbox[3]), le16_to_cpu(mailbox[4]));
+		    "(m[0]=%x, m[1]=%x, m[2]=%x, m[3]=%x)", vha->vp_idx,
+		    le16_to_cpu(mailbox[0]), le16_to_cpu(mailbox[1]),
+		    le16_to_cpu(mailbox[2]), le16_to_cpu(mailbox[3]));
 		if (tgt->link_reinit_iocb_pending) {
 			qlt_send_notify_ack(vha, (void *)&tgt->link_reinit_iocb,
 			    0, 0, 0, 0, 0, 0);
@@ -4021,23 +4020,24 @@ void qlt_async_event(uint16_t code, struct scsi_qla_host *vha,
 	case MBA_RSCN_UPDATE:
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf03c,
 		    "qla_target(%d): Async event %#x occured "
-		    "(m[1]=%x, m[2]=%x, m[3]=%x, m[4]=%x)", vha->vp_idx, code,
-		    le16_to_cpu(mailbox[1]), le16_to_cpu(mailbox[2]),
-		    le16_to_cpu(mailbox[3]), le16_to_cpu(mailbox[4]));
+		    "(m[0]=%x, m[1]=%x, m[2]=%x, m[3]=%x)", vha->vp_idx, code,
+		    le16_to_cpu(mailbox[0]), le16_to_cpu(mailbox[1]),
+		    le16_to_cpu(mailbox[2]), le16_to_cpu(mailbox[3]));
 		break;
 
 	case MBA_PORT_UPDATE:
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf03d,
 		    "qla_target(%d): Port update async event %#x "
-		    "occured: updating the ports database (m[1]=%x, m[2]=%x, "
-		    "m[3]=%x, m[4]=%x)", vha->vp_idx, code,
-		    le16_to_cpu(mailbox[1]), le16_to_cpu(mailbox[2]),
-		    le16_to_cpu(mailbox[3]), le16_to_cpu(mailbox[4]));
-		reason_code = le16_to_cpu(mailbox[2]);
-		if (reason_code == 0x4)
+		    "occured: updating the ports database (m[0]=%x, m[1]=%x, "
+		    "m[2]=%x, m[3]=%x)", vha->vp_idx, code,
+		    le16_to_cpu(mailbox[0]), le16_to_cpu(mailbox[1]),
+		    le16_to_cpu(mailbox[2]), le16_to_cpu(mailbox[3]));
+
+		login_code = le16_to_cpu(mailbox[2]);
+		if (login_code == 0x4)
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf03e,
 			    "Async MB 2: Got PLOGI Complete\n");
-		else if (reason_code == 0x7)
+		else if (login_code == 0x7)
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf03f,
 			    "Async MB 2: Port Logged Out\n");
 		break;
@@ -4045,9 +4045,9 @@ void qlt_async_event(uint16_t code, struct scsi_qla_host *vha,
 	default:
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf040,
 		    "qla_target(%d): Async event %#x occured: "
-		    "ignore (m[1]=%x, m[2]=%x, m[3]=%x, m[4]=%x)", vha->vp_idx,
-		    code, le16_to_cpu(mailbox[1]), le16_to_cpu(mailbox[2]),
-		    le16_to_cpu(mailbox[3]), le16_to_cpu(mailbox[4]));
+		    "ignore (m[0]=%x, m[1]=%x, m[2]=%x, m[3]=%x)", vha->vp_idx,
+		    code, le16_to_cpu(mailbox[0]), le16_to_cpu(mailbox[1]),
+		    le16_to_cpu(mailbox[2]), le16_to_cpu(mailbox[3]));
 		break;
 	}
 
