@@ -63,6 +63,37 @@
  */
 #define MAX_PKT_DEFAULT 1500
 
+struct tipc_stats {
+	u32 sent_info;		/* used in counting # sent packets */
+	u32 recv_info;		/* used in counting # recv'd packets */
+	u32 sent_states;
+	u32 recv_states;
+	u32 sent_probes;
+	u32 recv_probes;
+	u32 sent_nacks;
+	u32 recv_nacks;
+	u32 sent_acks;
+	u32 sent_bundled;
+	u32 sent_bundles;
+	u32 recv_bundled;
+	u32 recv_bundles;
+	u32 retransmitted;
+	u32 sent_fragmented;
+	u32 sent_fragments;
+	u32 recv_fragmented;
+	u32 recv_fragments;
+	u32 link_congs;		/* # port sends blocked by congestion */
+	u32 bearer_congs;
+	u32 deferred_recv;
+	u32 duplicates;
+	u32 max_queue_sz;	/* send queue size high water mark */
+	u32 accu_queue_sz;	/* used for send queue size profiling */
+	u32 queue_sz_counts;	/* used for send queue size profiling */
+	u32 msg_length_counts;	/* used for message length profiling */
+	u32 msg_lengths_total;	/* used for message length profiling */
+	u32 msg_length_profile[7]; /* used for msg. length profiling */
+};
+
 /**
  * struct tipc_link - TIPC link data structure
  * @addr: network address of link's peer node
@@ -175,36 +206,7 @@ struct tipc_link {
 	struct sk_buff *defragm_buf;
 
 	/* Statistics */
-	struct {
-		u32 sent_info;		/* used in counting # sent packets */
-		u32 recv_info;		/* used in counting # recv'd packets */
-		u32 sent_states;
-		u32 recv_states;
-		u32 sent_probes;
-		u32 recv_probes;
-		u32 sent_nacks;
-		u32 recv_nacks;
-		u32 sent_acks;
-		u32 sent_bundled;
-		u32 sent_bundles;
-		u32 recv_bundled;
-		u32 recv_bundles;
-		u32 retransmitted;
-		u32 sent_fragmented;
-		u32 sent_fragments;
-		u32 recv_fragmented;
-		u32 recv_fragments;
-		u32 link_congs;		/* # port sends blocked by congestion */
-		u32 bearer_congs;
-		u32 deferred_recv;
-		u32 duplicates;
-		u32 max_queue_sz;	/* send queue size high water mark */
-		u32 accu_queue_sz;	/* used for send queue size profiling */
-		u32 queue_sz_counts;	/* used for send queue size profiling */
-		u32 msg_length_counts;	/* used for message length profiling */
-		u32 msg_lengths_total;	/* used for message length profiling */
-		u32 msg_length_profile[7]; /* used for msg. length profiling */
-	} stats;
+	struct tipc_stats stats;
 };
 
 struct tipc_port;
