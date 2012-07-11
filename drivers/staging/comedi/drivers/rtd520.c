@@ -194,103 +194,75 @@ Configuration options:
 ======================================================================*/
 
 /*
-  The board has 3 input modes and the gains of 1,2,4,...32 (, 64, 128)
-*/
-static const struct comedi_lrange rtd_ai_7520_range = { 18, {
-							     /* +-5V input range gain steps */
-							     BIP_RANGE(5.0),
-							     BIP_RANGE(5.0 / 2),
-							     BIP_RANGE(5.0 / 4),
-							     BIP_RANGE(5.0 / 8),
-							     BIP_RANGE(5.0 /
-								       16),
-							     BIP_RANGE(5.0 /
-								       32),
-							     /* +-10V input range gain steps */
-							     BIP_RANGE(10.0),
-							     BIP_RANGE(10.0 /
-								       2),
-							     BIP_RANGE(10.0 /
-								       4),
-							     BIP_RANGE(10.0 /
-								       8),
-							     BIP_RANGE(10.0 /
-								       16),
-							     BIP_RANGE(10.0 /
-								       32),
-							     /* +10V input range gain steps */
-							     UNI_RANGE(10.0),
-							     UNI_RANGE(10.0 /
-								       2),
-							     UNI_RANGE(10.0 /
-								       4),
-							     UNI_RANGE(10.0 /
-								       8),
-							     UNI_RANGE(10.0 /
-								       16),
-							     UNI_RANGE(10.0 /
-								       32),
-
-							     }
+ * The board has 3 input modes and the gains of 1,2,4,...32 (, 64, 128)
+ */
+static const struct comedi_lrange rtd_ai_7520_range = {
+	18, {
+		/* +-5V input range gain steps */
+		BIP_RANGE(5.0),
+		BIP_RANGE(5.0 / 2),
+		BIP_RANGE(5.0 / 4),
+		BIP_RANGE(5.0 / 8),
+		BIP_RANGE(5.0 / 16),
+		BIP_RANGE(5.0 / 32),
+		/* +-10V input range gain steps */
+		BIP_RANGE(10.0),
+		BIP_RANGE(10.0 / 2),
+		BIP_RANGE(10.0 / 4),
+		BIP_RANGE(10.0 / 8),
+		BIP_RANGE(10.0 / 16),
+		BIP_RANGE(10.0 / 32),
+		/* +10V input range gain steps */
+		UNI_RANGE(10.0),
+		UNI_RANGE(10.0 / 2),
+		UNI_RANGE(10.0 / 4),
+		UNI_RANGE(10.0 / 8),
+		UNI_RANGE(10.0 / 16),
+		UNI_RANGE(10.0 / 32),
+	}
 };
 
 /* PCI4520 has two more gains (6 more entries) */
-static const struct comedi_lrange rtd_ai_4520_range = { 24, {
-							     /* +-5V input range gain steps */
-							     BIP_RANGE(5.0),
-							     BIP_RANGE(5.0 / 2),
-							     BIP_RANGE(5.0 / 4),
-							     BIP_RANGE(5.0 / 8),
-							     BIP_RANGE(5.0 /
-								       16),
-							     BIP_RANGE(5.0 /
-								       32),
-							     BIP_RANGE(5.0 /
-								       64),
-							     BIP_RANGE(5.0 /
-								       128),
-							     /* +-10V input range gain steps */
-							     BIP_RANGE(10.0),
-							     BIP_RANGE(10.0 /
-								       2),
-							     BIP_RANGE(10.0 /
-								       4),
-							     BIP_RANGE(10.0 /
-								       8),
-							     BIP_RANGE(10.0 /
-								       16),
-							     BIP_RANGE(10.0 /
-								       32),
-							     BIP_RANGE(10.0 /
-								       64),
-							     BIP_RANGE(10.0 /
-								       128),
-							     /* +10V input range gain steps */
-							     UNI_RANGE(10.0),
-							     UNI_RANGE(10.0 /
-								       2),
-							     UNI_RANGE(10.0 /
-								       4),
-							     UNI_RANGE(10.0 /
-								       8),
-							     UNI_RANGE(10.0 /
-								       16),
-							     UNI_RANGE(10.0 /
-								       32),
-							     UNI_RANGE(10.0 /
-								       64),
-							     UNI_RANGE(10.0 /
-								       128),
-							     }
+static const struct comedi_lrange rtd_ai_4520_range = {
+	24, {
+		/* +-5V input range gain steps */
+		BIP_RANGE(5.0),
+		BIP_RANGE(5.0 / 2),
+		BIP_RANGE(5.0 / 4),
+		BIP_RANGE(5.0 / 8),
+		BIP_RANGE(5.0 / 16),
+		BIP_RANGE(5.0 / 32),
+		BIP_RANGE(5.0 / 64),
+		BIP_RANGE(5.0 / 128),
+		/* +-10V input range gain steps */
+		BIP_RANGE(10.0),
+		BIP_RANGE(10.0 / 2),
+		BIP_RANGE(10.0 / 4),
+		BIP_RANGE(10.0 / 8),
+		BIP_RANGE(10.0 / 16),
+		BIP_RANGE(10.0 / 32),
+		BIP_RANGE(10.0 / 64),
+		BIP_RANGE(10.0 / 128),
+		/* +10V input range gain steps */
+		UNI_RANGE(10.0),
+		UNI_RANGE(10.0 / 2),
+		UNI_RANGE(10.0 / 4),
+		UNI_RANGE(10.0 / 8),
+		UNI_RANGE(10.0 / 16),
+		UNI_RANGE(10.0 / 32),
+		UNI_RANGE(10.0 / 64),
+		UNI_RANGE(10.0 / 128),
+	}
 };
 
 /* Table order matches range values */
-static const struct comedi_lrange rtd_ao_range = { 4, {
-						       RANGE(0, 5),
-						       RANGE(0, 10),
-						       RANGE(-5, 5),
-						       RANGE(-10, 10),
-						       }
+static const struct comedi_lrange rtd_ao_range = {
+	4, {
+		UNI_RANGE(5),
+		UNI_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(10),
+	}
 };
 
 /*
