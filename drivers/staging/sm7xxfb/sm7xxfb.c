@@ -756,13 +756,8 @@ static inline void sm7xx_init_hw(void)
 	outb_p(0x11, 0x3c5);
 }
 
-/*
- *	sm712vga_setup - process command line options, get vga parameter
- *	@options: string of options
- *	Returns zero.
- *
- */
-static int __init sm712vga_setup(char *options)
+/* process command line options, get vga parameter */
+static int __init sm7xx_vga_setup(char *options)
 {
 	int i;
 
@@ -773,7 +768,7 @@ static int __init sm712vga_setup(char *options)
 	smtc_scr_info.lfb_height = 0;
 	smtc_scr_info.lfb_depth = 0;
 
-	pr_debug("sm712vga_setup = %s\n", options);
+	pr_debug("sm7xx_vga_setup = %s\n", options);
 
 	for (i = 0; i < ARRAY_SIZE(vesa_mode_table); i++) {
 		if (strstr(options, vesa_mode_table[i].index)) {
@@ -786,7 +781,7 @@ static int __init sm712vga_setup(char *options)
 
 	return -1;
 }
-__setup("vga=", sm712vga_setup);
+__setup("vga=", sm7xx_vga_setup);
 
 static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *ent)
