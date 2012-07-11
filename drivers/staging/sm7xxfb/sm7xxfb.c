@@ -34,8 +34,6 @@
 
 #include "sm7xx.h"
 
-struct screen_info smtc_scr_info;
-
 /*
 * Private structure
 */
@@ -54,30 +52,6 @@ struct smtcfb_info {
 	u_int width;
 	u_int height;
 	u_int hz;
-};
-
-struct vesa_mode {
-	char index[6];
-	u16  lfb_width;
-	u16  lfb_height;
-	u16  lfb_depth;
-};
-
-static struct vesa_mode vesa_mode_table[] = {
-	{"0x301", 640,  480,  8},
-	{"0x303", 800,  600,  8},
-	{"0x305", 1024, 768,  8},
-	{"0x307", 1280, 1024, 8},
-
-	{"0x311", 640,  480,  16},
-	{"0x314", 800,  600,  16},
-	{"0x317", 1024, 768,  16},
-	{"0x31A", 1280, 1024, 16},
-
-	{"0x312", 640,  480,  24},
-	{"0x315", 800,  600,  24},
-	{"0x318", 1024, 768,  24},
-	{"0x31B", 1280, 1024, 24},
 };
 
 char __iomem *smtc_RegBaseAddress;	/* Memory Map IO starting address */
@@ -107,6 +81,59 @@ static struct fb_fix_screeninfo smtcfb_fix = {
 	.line_length    = 800 * 3,
 	.accel          = FB_ACCEL_SMI_LYNX,
 };
+
+struct vesa_mode {
+	char index[6];
+	u16  lfb_width;
+	u16  lfb_height;
+	u16  lfb_depth;
+};
+
+static struct vesa_mode vesa_mode_table[] = {
+	{"0x301", 640,  480,  8},
+	{"0x303", 800,  600,  8},
+	{"0x305", 1024, 768,  8},
+	{"0x307", 1280, 1024, 8},
+
+	{"0x311", 640,  480,  16},
+	{"0x314", 800,  600,  16},
+	{"0x317", 1024, 768,  16},
+	{"0x31A", 1280, 1024, 16},
+
+	{"0x312", 640,  480,  24},
+	{"0x315", 800,  600,  24},
+	{"0x318", 1024, 768,  24},
+	{"0x31B", 1280, 1024, 24},
+};
+
+struct screen_info smtc_scr_info;
+
+/* process command line options, get vga parameter */
+static int __init sm7xx_vga_setup(char *options)
+{
+	int i;
+
+	if (!options || !*options)
+		return -EINVAL;
+
+	smtc_scr_info.lfb_width = 0;
+	smtc_scr_info.lfb_height = 0;
+	smtc_scr_info.lfb_depth = 0;
+
+	pr_debug("sm7xx_vga_setup = %s\n", options);
+
+	for (i = 0; i < ARRAY_SIZE(vesa_mode_table); i++) {
+		if (strstr(options, vesa_mode_table[i].index)) {
+			smtc_scr_info.lfb_width  = vesa_mode_table[i].lfb_width;
+			smtc_scr_info.lfb_height = vesa_mode_table[i].lfb_height;
+			smtc_scr_info.lfb_depth  = vesa_mode_table[i].lfb_depth;
+			return 0;
+		}
+	}
+
+	return -1;
+}
+__setup("vga=", sm7xx_vga_setup);
 
 static void sm712_set_timing(struct smtcfb_info *sfb)
 {
@@ -755,33 +782,6 @@ static inline void sm7xx_init_hw(void)
 	outb_p(0x18, 0x3c4);
 	outb_p(0x11, 0x3c5);
 }
-
-/* process command line options, get vga parameter */
-static int __init sm7xx_vga_setup(char *options)
-{
-	int i;
-
-	if (!options || !*options)
-		return -EINVAL;
-
-	smtc_scr_info.lfb_width = 0;
-	smtc_scr_info.lfb_height = 0;
-	smtc_scr_info.lfb_depth = 0;
-
-	pr_debug("sm7xx_vga_setup = %s\n", options);
-
-	for (i = 0; i < ARRAY_SIZE(vesa_mode_table); i++) {
-		if (strstr(options, vesa_mode_table[i].index)) {
-			smtc_scr_info.lfb_width  = vesa_mode_table[i].lfb_width;
-			smtc_scr_info.lfb_height = vesa_mode_table[i].lfb_height;
-			smtc_scr_info.lfb_depth  = vesa_mode_table[i].lfb_depth;
-			return 0;
-		}
-	}
-
-	return -1;
-}
-__setup("vga=", sm7xx_vga_setup);
 
 static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *ent)
