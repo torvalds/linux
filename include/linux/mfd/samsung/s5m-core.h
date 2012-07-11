@@ -16,7 +16,7 @@
 
 #define NUM_IRQ_REGS	4
 
-enum s5m_device_type {
+enum sec_device_type {
 	S5M8751X,
 	S5M8763X,
 	S5M8767X,
@@ -292,20 +292,20 @@ enum s5m8763_irq {
 #define S5M8763_ENRAMP                  (1 << 4)
 
 /**
- * struct s5m87xx_dev - s5m87xx master device for sub-drivers
+ * struct sec_pmic_dev - sec_pmic master device for sub-drivers
  * @dev: master device of the chip (can be used to access platform data)
  * @i2c: i2c client private data for regulator
  * @rtc: i2c client private data for rtc
  * @iolock: mutex for serializing io access
  * @irqlock: mutex for buslock
- * @irq_base: base IRQ number for s5m87xx, required for IRQs
+ * @irq_base: base IRQ number for sec_pmic, required for IRQs
  * @irq: generic IRQ number for s5m87xx
  * @ono: power onoff IRQ number for s5m87xx
  * @irq_masks_cur: currently active value
  * @irq_masks_cache: cached hardware value
  * @type: indicate which s5m87xx "variant" is used
  */
-struct s5m87xx_dev {
+struct sec_pmic_dev {
 	struct device *dev;
 	struct regmap *regmap;
 	struct i2c_client *i2c;
@@ -323,19 +323,19 @@ struct s5m87xx_dev {
 	bool wakeup;
 };
 
-int s5m_irq_init(struct s5m87xx_dev *s5m87xx);
-void s5m_irq_exit(struct s5m87xx_dev *s5m87xx);
-int s5m_irq_resume(struct s5m87xx_dev *s5m87xx);
+int sec_irq_init(struct sec_pmic_dev *sec_pmic);
+void sec_irq_exit(struct sec_pmic_dev *sec_pmic);
+int sec_irq_resume(struct sec_pmic_dev *sec_pmic);
 
-extern int s5m_reg_read(struct s5m87xx_dev *s5m87xx, u8 reg, void *dest);
-extern int s5m_bulk_read(struct s5m87xx_dev *s5m87xx, u8 reg, int count, u8 *buf);
-extern int s5m_reg_write(struct s5m87xx_dev *s5m87xx, u8 reg, u8 value);
-extern int s5m_bulk_write(struct s5m87xx_dev *s5m87xx, u8 reg, int count, u8 *buf);
-extern int s5m_reg_update(struct s5m87xx_dev *s5m87xx, u8 reg, u8 val, u8 mask);
+extern int sec_reg_read(struct sec_pmic_dev *sec_pmic, u8 reg, void *dest);
+extern int sec_bulk_read(struct sec_pmic_dev *sec_pmic, u8 reg, int count, u8 *buf);
+extern int sec_reg_write(struct sec_pmic_dev *sec_pmic, u8 reg, u8 value);
+extern int sec_bulk_write(struct sec_pmic_dev *sec_pmic, u8 reg, int count, u8 *buf);
+extern int sec_reg_update(struct sec_pmic_dev *sec_pmic, u8 reg, u8 val, u8 mask);
 
-struct s5m_platform_data {
-	struct s5m_regulator_data	*regulators;
-	struct s5m_opmode_data		*opmode;
+struct sec_platform_data {
+	struct sec_regulator_data	*regulators;
+	struct sec_opmode_data		*opmode;
 	int				device_type;
 	int				num_regulators;
 

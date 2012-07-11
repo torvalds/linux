@@ -94,7 +94,7 @@ enum s5m8763_regulators {
  * @id: regulator id
  * @initdata: regulator init data (contraints, supplies, ...)
  */
-struct s5m_regulator_data {
+struct sec_regulator_data {
 	int				id;
 	struct regulator_init_data	*initdata;
 };
@@ -104,26 +104,26 @@ struct s5m_regulator_data {
  * @id: regulator id
  * @mode: regulator operation mode
  */
-struct s5m_opmode_data {
+struct sec_opmode_data {
 	int id;
 	int mode;
 };
 
 /*
- * s5m regulator operation mode
- * S5M_OPMODE_OFF	Regulator always OFF
- * S5M_OPMODE_ON	Regulator always ON
- * S5M_OPMODE_LOWPOWER  Regulator is on in low-power mode
- * S5M_OPMODE_SUSPEND   Regulator is changed by PWREN pin
+ * samsung regulator operation mode
+ * SEC_OPMODE_OFF	Regulator always OFF
+ * SEC_OPMODE_ON	Regulator always ON
+ * SEC_OPMODE_LOWPOWER  Regulator is on in low-power mode
+ * SEC_OPMODE_SUSPEND   Regulator is changed by PWREN pin
  *			If PWREN is high, regulator is on
  *			If PWREN is low, regulator is off
  */
 
-enum s5m_opmode {
-	S5M_OPMODE_OFF,
-	S5M_OPMODE_ON,
-	S5M_OPMODE_LOWPOWER,
-	S5M_OPMODE_SUSPEND,
+enum sec_opmode {
+	SEC_OPMODE_OFF,
+	SEC_OPMODE_ON,
+	SEC_OPMODE_LOWPOWER,
+	SEC_OPMODE_SUSPEND,
 };
 
 #endif /*  __LINUX_MFD_S5M_PMIC_H */

@@ -1,5 +1,5 @@
 /*
- * s5m-irq.c
+ * sec-irq.c
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd
  *              http://www.samsung.com
@@ -16,12 +16,12 @@
 #include <linux/irq.h>
 #include <linux/mfd/samsung/s5m-core.h>
 
-struct s5m_irq_data {
+struct sec_irq_data {
 	int reg;
 	int mask;
 };
 
-static struct s5m_irq_data s5m8767_irqs[] = {
+static struct sec_irq_data s5m8767_irqs[] = {
 	[S5M8767_IRQ_PWRR] = {
 		.reg = 1,
 		.mask = S5M8767_IRQ_PWRR_MASK,
@@ -92,7 +92,7 @@ static struct s5m_irq_data s5m8767_irqs[] = {
 	},
 };
 
-static struct s5m_irq_data s5m8763_irqs[] = {
+static struct sec_irq_data s5m8763_irqs[] = {
 	[S5M8763_IRQ_DCINF] = {
 		.reg = 1,
 		.mask = S5M8763_IRQ_DCINF_MASK,
@@ -167,51 +167,51 @@ static struct s5m_irq_data s5m8763_irqs[] = {
 	},
 };
 
-static inline struct s5m_irq_data *
-irq_to_s5m8767_irq(struct s5m87xx_dev *s5m87xx, int irq)
+static inline struct sec_irq_data *
+irq_to_s5m8767_irq(struct sec_pmic_dev *sec_pmic, int irq)
 {
-	return &s5m8767_irqs[irq - s5m87xx->irq_base];
+	return &s5m8767_irqs[irq - sec_pmic->irq_base];
 }
 
 static void s5m8767_irq_lock(struct irq_data *data)
 {
-	struct s5m87xx_dev *s5m87xx = irq_data_get_irq_chip_data(data);
+	struct sec_pmic_dev *sec_pmic = irq_data_get_irq_chip_data(data);
 
-	mutex_lock(&s5m87xx->irqlock);
+	mutex_lock(&sec_pmic->irqlock);
 }
 
 static void s5m8767_irq_sync_unlock(struct irq_data *data)
 {
-	struct s5m87xx_dev *s5m87xx = irq_data_get_irq_chip_data(data);
+	struct sec_pmic_dev *sec_pmic = irq_data_get_irq_chip_data(data);
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(s5m87xx->irq_masks_cur); i++) {
-		if (s5m87xx->irq_masks_cur[i] != s5m87xx->irq_masks_cache[i]) {
-			s5m87xx->irq_masks_cache[i] = s5m87xx->irq_masks_cur[i];
-			s5m_reg_write(s5m87xx, S5M8767_REG_INT1M + i,
-					s5m87xx->irq_masks_cur[i]);
+	for (i = 0; i < ARRAY_SIZE(sec_pmic->irq_masks_cur); i++) {
+		if (sec_pmic->irq_masks_cur[i] != sec_pmic->irq_masks_cache[i]) {
+			sec_pmic->irq_masks_cache[i] = sec_pmic->irq_masks_cur[i];
+			sec_reg_write(sec_pmic, S5M8767_REG_INT1M + i,
+					sec_pmic->irq_masks_cur[i]);
 		}
 	}
 
-	mutex_unlock(&s5m87xx->irqlock);
+	mutex_unlock(&sec_pmic->irqlock);
 }
 
 static void s5m8767_irq_unmask(struct irq_data *data)
 {
-	struct s5m87xx_dev *s5m87xx = irq_data_get_irq_chip_data(data);
-	struct s5m_irq_data *irq_data = irq_to_s5m8767_irq(s5m87xx,
+	struct sec_pmic_dev *sec_pmic = irq_data_get_irq_chip_data(data);
+	struct sec_irq_data *irq_data = irq_to_s5m8767_irq(sec_pmic,
 							       data->irq);
 
-	s5m87xx->irq_masks_cur[irq_data->reg - 1] &= ~irq_data->mask;
+	sec_pmic->irq_masks_cur[irq_data->reg - 1] &= ~irq_data->mask;
 }
 
 static void s5m8767_irq_mask(struct irq_data *data)
 {
-	struct s5m87xx_dev *s5m87xx = irq_data_get_irq_chip_data(data);
-	struct s5m_irq_data *irq_data = irq_to_s5m8767_irq(s5m87xx,
+	struct sec_pmic_dev *sec_pmic = irq_data_get_irq_chip_data(data);
+	struct sec_irq_data *irq_data = irq_to_s5m8767_irq(sec_pmic,
 							       data->irq);
 
-	s5m87xx->irq_masks_cur[irq_data->reg - 1] |= irq_data->mask;
+	sec_pmic->irq_masks_cur[irq_data->reg - 1] |= irq_data->mask;
 }
 
 static struct irq_chip s5m8767_irq_chip = {
@@ -222,51 +222,51 @@ static struct irq_chip s5m8767_irq_chip = {
 	.irq_unmask = s5m8767_irq_unmask,
 };
 
-static inline struct s5m_irq_data *
-irq_to_s5m8763_irq(struct s5m87xx_dev *s5m87xx, int irq)
+static inline struct sec_irq_data *
+irq_to_s5m8763_irq(struct sec_pmic_dev *sec_pmic, int irq)
 {
-	return &s5m8763_irqs[irq - s5m87xx->irq_base];
+	return &s5m8763_irqs[irq - sec_pmic->irq_base];
 }
 
 static void s5m8763_irq_lock(struct irq_data *data)
 {
-	struct s5m87xx_dev *s5m87xx = irq_data_get_irq_chip_data(data);
+	struct sec_pmic_dev *sec_pmic = irq_data_get_irq_chip_data(data);
 
-	mutex_lock(&s5m87xx->irqlock);
+	mutex_lock(&sec_pmic->irqlock);
 }
 
 static void s5m8763_irq_sync_unlock(struct irq_data *data)
 {
-	struct s5m87xx_dev *s5m87xx = irq_data_get_irq_chip_data(data);
+	struct sec_pmic_dev *sec_pmic = irq_data_get_irq_chip_data(data);
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(s5m87xx->irq_masks_cur); i++) {
-		if (s5m87xx->irq_masks_cur[i] != s5m87xx->irq_masks_cache[i]) {
-			s5m87xx->irq_masks_cache[i] = s5m87xx->irq_masks_cur[i];
-			s5m_reg_write(s5m87xx, S5M8763_REG_IRQM1 + i,
-					s5m87xx->irq_masks_cur[i]);
+	for (i = 0; i < ARRAY_SIZE(sec_pmic->irq_masks_cur); i++) {
+		if (sec_pmic->irq_masks_cur[i] != sec_pmic->irq_masks_cache[i]) {
+			sec_pmic->irq_masks_cache[i] = sec_pmic->irq_masks_cur[i];
+			sec_reg_write(sec_pmic, S5M8763_REG_IRQM1 + i,
+					sec_pmic->irq_masks_cur[i]);
 		}
 	}
 
-	mutex_unlock(&s5m87xx->irqlock);
+	mutex_unlock(&sec_pmic->irqlock);
 }
 
 static void s5m8763_irq_unmask(struct irq_data *data)
 {
-	struct s5m87xx_dev *s5m87xx = irq_data_get_irq_chip_data(data);
-	struct s5m_irq_data *irq_data = irq_to_s5m8763_irq(s5m87xx,
+	struct sec_pmic_dev *sec_pmic = irq_data_get_irq_chip_data(data);
+	struct sec_irq_data *irq_data = irq_to_s5m8763_irq(sec_pmic,
 							       data->irq);
 
-	s5m87xx->irq_masks_cur[irq_data->reg - 1] &= ~irq_data->mask;
+	sec_pmic->irq_masks_cur[irq_data->reg - 1] &= ~irq_data->mask;
 }
 
 static void s5m8763_irq_mask(struct irq_data *data)
 {
-	struct s5m87xx_dev *s5m87xx = irq_data_get_irq_chip_data(data);
-	struct s5m_irq_data *irq_data = irq_to_s5m8763_irq(s5m87xx,
+	struct sec_pmic_dev *sec_pmic = irq_data_get_irq_chip_data(data);
+	struct sec_irq_data *irq_data = irq_to_s5m8763_irq(sec_pmic,
 							       data->irq);
 
-	s5m87xx->irq_masks_cur[irq_data->reg - 1] |= irq_data->mask;
+	sec_pmic->irq_masks_cur[irq_data->reg - 1] |= irq_data->mask;
 }
 
 static struct irq_chip s5m8763_irq_chip = {
@@ -280,26 +280,26 @@ static struct irq_chip s5m8763_irq_chip = {
 
 static irqreturn_t s5m8767_irq_thread(int irq, void *data)
 {
-	struct s5m87xx_dev *s5m87xx = data;
+	struct sec_pmic_dev *sec_pmic = data;
 	u8 irq_reg[NUM_IRQ_REGS-1];
 	int ret;
 	int i;
 
 
-	ret = s5m_bulk_read(s5m87xx, S5M8767_REG_INT1,
+	ret = sec_bulk_read(sec_pmic, S5M8767_REG_INT1,
 				NUM_IRQ_REGS - 1, irq_reg);
 	if (ret < 0) {
-		dev_err(s5m87xx->dev, "Failed to read interrupt register: %d\n",
+		dev_err(sec_pmic->dev, "Failed to read interrupt register: %d\n",
 				ret);
 		return IRQ_NONE;
 	}
 
 	for (i = 0; i < NUM_IRQ_REGS - 1; i++)
-		irq_reg[i] &= ~s5m87xx->irq_masks_cur[i];
+		irq_reg[i] &= ~sec_pmic->irq_masks_cur[i];
 
 	for (i = 0; i < S5M8767_IRQ_NR; i++) {
 		if (irq_reg[s5m8767_irqs[i].reg - 1] & s5m8767_irqs[i].mask)
-			handle_nested_irq(s5m87xx->irq_base + i);
+			handle_nested_irq(sec_pmic->irq_base + i);
 	}
 
 	return IRQ_HANDLED;
@@ -307,44 +307,44 @@ static irqreturn_t s5m8767_irq_thread(int irq, void *data)
 
 static irqreturn_t s5m8763_irq_thread(int irq, void *data)
 {
-	struct s5m87xx_dev *s5m87xx = data;
+	struct sec_pmic_dev *sec_pmic = data;
 	u8 irq_reg[NUM_IRQ_REGS];
 	int ret;
 	int i;
 
-	ret = s5m_bulk_read(s5m87xx, S5M8763_REG_IRQ1,
+	ret = sec_bulk_read(sec_pmic, S5M8763_REG_IRQ1,
 				NUM_IRQ_REGS, irq_reg);
 	if (ret < 0) {
-		dev_err(s5m87xx->dev, "Failed to read interrupt register: %d\n",
+		dev_err(sec_pmic->dev, "Failed to read interrupt register: %d\n",
 				ret);
 		return IRQ_NONE;
 	}
 
 	for (i = 0; i < NUM_IRQ_REGS; i++)
-		irq_reg[i] &= ~s5m87xx->irq_masks_cur[i];
+		irq_reg[i] &= ~sec_pmic->irq_masks_cur[i];
 
 	for (i = 0; i < S5M8763_IRQ_NR; i++) {
 		if (irq_reg[s5m8763_irqs[i].reg - 1] & s5m8763_irqs[i].mask)
-			handle_nested_irq(s5m87xx->irq_base + i);
+			handle_nested_irq(sec_pmic->irq_base + i);
 	}
 
 	return IRQ_HANDLED;
 }
 
-int s5m_irq_resume(struct s5m87xx_dev *s5m87xx)
+int sec_irq_resume(struct sec_pmic_dev *sec_pmic)
 {
-	if (s5m87xx->irq && s5m87xx->irq_base) {
-		switch (s5m87xx->device_type) {
+	if (sec_pmic->irq && sec_pmic->irq_base) {
+		switch (sec_pmic->device_type) {
 		case S5M8763X:
-			s5m8763_irq_thread(s5m87xx->irq_base, s5m87xx);
+			s5m8763_irq_thread(sec_pmic->irq_base, sec_pmic);
 			break;
 		case S5M8767X:
-			s5m8767_irq_thread(s5m87xx->irq_base, s5m87xx);
+			s5m8767_irq_thread(sec_pmic->irq_base, sec_pmic);
 			break;
 		default:
-			dev_err(s5m87xx->dev,
+			dev_err(sec_pmic->dev,
 				"Unknown device type %d\n",
-				s5m87xx->device_type);
+				sec_pmic->device_type);
 			return -EINVAL;
 
 		}
@@ -352,43 +352,43 @@ int s5m_irq_resume(struct s5m87xx_dev *s5m87xx)
 	return 0;
 }
 
-int s5m_irq_init(struct s5m87xx_dev *s5m87xx)
+int sec_irq_init(struct sec_pmic_dev *sec_pmic)
 {
 	int i;
 	int cur_irq;
 	int ret = 0;
-	int type = s5m87xx->device_type;
+	int type = sec_pmic->device_type;
 
-	if (!s5m87xx->irq) {
-		dev_warn(s5m87xx->dev,
+	if (!sec_pmic->irq) {
+		dev_warn(sec_pmic->dev,
 			 "No interrupt specified, no interrupts\n");
-		s5m87xx->irq_base = 0;
+		sec_pmic->irq_base = 0;
 		return 0;
 	}
 
-	if (!s5m87xx->irq_base) {
-		dev_err(s5m87xx->dev,
+	if (!sec_pmic->irq_base) {
+		dev_err(sec_pmic->dev,
 			"No interrupt base specified, no interrupts\n");
 		return 0;
 	}
 
-	mutex_init(&s5m87xx->irqlock);
+	mutex_init(&sec_pmic->irqlock);
 
 	switch (type) {
 	case S5M8763X:
 		for (i = 0; i < NUM_IRQ_REGS; i++) {
-			s5m87xx->irq_masks_cur[i] = 0xff;
-			s5m87xx->irq_masks_cache[i] = 0xff;
-			s5m_reg_write(s5m87xx, S5M8763_REG_IRQM1 + i,
+			sec_pmic->irq_masks_cur[i] = 0xff;
+			sec_pmic->irq_masks_cache[i] = 0xff;
+			sec_reg_write(sec_pmic, S5M8763_REG_IRQM1 + i,
 						0xff);
 		}
 
-		s5m_reg_write(s5m87xx, S5M8763_REG_STATUSM1, 0xff);
-		s5m_reg_write(s5m87xx, S5M8763_REG_STATUSM2, 0xff);
+		sec_reg_write(sec_pmic, S5M8763_REG_STATUSM1, 0xff);
+		sec_reg_write(sec_pmic, S5M8763_REG_STATUSM2, 0xff);
 
 		for (i = 0; i < S5M8763_IRQ_NR; i++) {
-			cur_irq = i + s5m87xx->irq_base;
-			irq_set_chip_data(cur_irq, s5m87xx);
+			cur_irq = i + sec_pmic->irq_base;
+			irq_set_chip_data(cur_irq, sec_pmic);
 			irq_set_chip_and_handler(cur_irq, &s5m8763_irq_chip,
 						 handle_edge_irq);
 			irq_set_nested_thread(cur_irq, 1);
@@ -399,30 +399,30 @@ int s5m_irq_init(struct s5m87xx_dev *s5m87xx)
 #endif
 		}
 
-		ret = request_threaded_irq(s5m87xx->irq, NULL,
+		ret = request_threaded_irq(sec_pmic->irq, NULL,
 					s5m8763_irq_thread,
 					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-					"s5m87xx-irq", s5m87xx);
+					"sec-pmic-irq", sec_pmic);
 		if (ret) {
-			dev_err(s5m87xx->dev, "Failed to request IRQ %d: %d\n",
-				s5m87xx->irq, ret);
+			dev_err(sec_pmic->dev, "Failed to request IRQ %d: %d\n",
+				sec_pmic->irq, ret);
 			return ret;
 		}
 		break;
 	case S5M8767X:
 		for (i = 0; i < NUM_IRQ_REGS - 1; i++) {
-			s5m87xx->irq_masks_cur[i] = 0xff;
-			s5m87xx->irq_masks_cache[i] = 0xff;
-			s5m_reg_write(s5m87xx, S5M8767_REG_INT1M + i,
+			sec_pmic->irq_masks_cur[i] = 0xff;
+			sec_pmic->irq_masks_cache[i] = 0xff;
+			sec_reg_write(sec_pmic, S5M8767_REG_INT1M + i,
 						0xff);
 		}
 		for (i = 0; i < S5M8767_IRQ_NR; i++) {
-			cur_irq = i + s5m87xx->irq_base;
-			irq_set_chip_data(cur_irq, s5m87xx);
+			cur_irq = i + sec_pmic->irq_base;
+			irq_set_chip_data(cur_irq, sec_pmic);
 			if (ret) {
-				dev_err(s5m87xx->dev,
+				dev_err(sec_pmic->dev,
 					"Failed to irq_set_chip_data %d: %d\n",
-					s5m87xx->irq, ret);
+					sec_pmic->irq, ret);
 				return ret;
 			}
 
@@ -436,40 +436,40 @@ int s5m_irq_init(struct s5m87xx_dev *s5m87xx)
 #endif
 		}
 
-		ret = request_threaded_irq(s5m87xx->irq, NULL,
+		ret = request_threaded_irq(sec_pmic->irq, NULL,
 					   s5m8767_irq_thread,
 					   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-					   "s5m87xx-irq", s5m87xx);
+					   "sec-pmic-irq", sec_pmic);
 		if (ret) {
-			dev_err(s5m87xx->dev, "Failed to request IRQ %d: %d\n",
-				s5m87xx->irq, ret);
+			dev_err(sec_pmic->dev, "Failed to request IRQ %d: %d\n",
+				sec_pmic->irq, ret);
 			return ret;
 		}
 		break;
 	default:
-		dev_err(s5m87xx->dev,
-			"Unknown device type %d\n", s5m87xx->device_type);
+		dev_err(sec_pmic->dev,
+			"Unknown device type %d\n", sec_pmic->device_type);
 		return -EINVAL;
 	}
 
-	if (!s5m87xx->ono)
+	if (!sec_pmic->ono)
 		return 0;
 
 	switch (type) {
 	case S5M8763X:
-		ret = request_threaded_irq(s5m87xx->ono, NULL,
+		ret = request_threaded_irq(sec_pmic->ono, NULL,
 						s5m8763_irq_thread,
 						IRQF_TRIGGER_FALLING |
 						IRQF_TRIGGER_RISING |
-						IRQF_ONESHOT, "s5m87xx-ono",
-						s5m87xx);
+						IRQF_ONESHOT, "sec_pmic-ono",
+						sec_pmic);
 		break;
 	case S5M8767X:
-		ret = request_threaded_irq(s5m87xx->ono, NULL,
+		ret = request_threaded_irq(sec_pmic->ono, NULL,
 					s5m8767_irq_thread,
 					IRQF_TRIGGER_FALLING |
 					IRQF_TRIGGER_RISING |
-					IRQF_ONESHOT, "s5m87xx-ono", s5m87xx);
+					IRQF_ONESHOT, "sec_pmic-ono", sec_pmic);
 		break;
 	default:
 		ret = -EINVAL;
@@ -477,19 +477,19 @@ int s5m_irq_init(struct s5m87xx_dev *s5m87xx)
 	}
 
 	if (ret) {
-		dev_err(s5m87xx->dev, "Failed to request IRQ %d: %d\n",
-			s5m87xx->ono, ret);
+		dev_err(sec_pmic->dev, "Failed to request IRQ %d: %d\n",
+			sec_pmic->ono, ret);
 		return ret;
 	}
 
 	return 0;
 }
 
-void s5m_irq_exit(struct s5m87xx_dev *s5m87xx)
+void sec_irq_exit(struct sec_pmic_dev *sec_pmic)
 {
-	if (s5m87xx->ono)
-		free_irq(s5m87xx->ono, s5m87xx);
+	if (sec_pmic->ono)
+		free_irq(sec_pmic->ono, sec_pmic);
 
-	if (s5m87xx->irq)
-		free_irq(s5m87xx->irq, s5m87xx);
+	if (sec_pmic->irq)
+		free_irq(sec_pmic->irq, sec_pmic);
 }

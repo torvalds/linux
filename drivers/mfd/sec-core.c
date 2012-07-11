@@ -1,7 +1,7 @@
 /*
- * s5m87xx.c
+ * sec-core.c
  *
- * Copyright (c) 2011 Samsung Electronics Co., Ltd
+ * Copyright (c) 2012 Samsung Electronics Co., Ltd
  *              http://www.samsung.com
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -54,95 +54,95 @@ static struct mfd_cell s5m8767_devs[] = {
 	},
 };
 
-int s5m_reg_read(struct s5m87xx_dev *s5m87xx, u8 reg, void *dest)
+int sec_reg_read(struct sec_pmic_dev *sec_pmic, u8 reg, void *dest)
 {
-	return regmap_read(s5m87xx->regmap, reg, dest);
+	return regmap_read(sec_pmic->regmap, reg, dest);
 }
-EXPORT_SYMBOL_GPL(s5m_reg_read);
+EXPORT_SYMBOL_GPL(sec_reg_read);
 
-int s5m_bulk_read(struct s5m87xx_dev *s5m87xx, u8 reg, int count, u8 *buf)
+int sec_bulk_read(struct sec_pmic_dev *sec_pmic, u8 reg, int count, u8 *buf)
 {
-	return regmap_bulk_read(s5m87xx->regmap, reg, buf, count);
+	return regmap_bulk_read(sec_pmic->regmap, reg, buf, count);
 }
-EXPORT_SYMBOL_GPL(s5m_bulk_read);
+EXPORT_SYMBOL_GPL(sec_bulk_read);
 
-int s5m_reg_write(struct s5m87xx_dev *s5m87xx, u8 reg, u8 value)
+int sec_reg_write(struct sec_pmic_dev *sec_pmic, u8 reg, u8 value)
 {
-	return regmap_write(s5m87xx->regmap, reg, value);
+	return regmap_write(sec_pmic->regmap, reg, value);
 }
-EXPORT_SYMBOL_GPL(s5m_reg_write);
+EXPORT_SYMBOL_GPL(sec_reg_write);
 
-int s5m_bulk_write(struct s5m87xx_dev *s5m87xx, u8 reg, int count, u8 *buf)
+int sec_bulk_write(struct sec_pmic_dev *sec_pmic, u8 reg, int count, u8 *buf)
 {
-	return regmap_raw_write(s5m87xx->regmap, reg, buf, count);
+	return regmap_raw_write(sec_pmic->regmap, reg, buf, count);
 }
-EXPORT_SYMBOL_GPL(s5m_bulk_write);
+EXPORT_SYMBOL_GPL(sec_bulk_write);
 
-int s5m_reg_update(struct s5m87xx_dev *s5m87xx, u8 reg, u8 val, u8 mask)
+int sec_reg_update(struct sec_pmic_dev *sec_pmic, u8 reg, u8 val, u8 mask)
 {
-	return regmap_update_bits(s5m87xx->regmap, reg, mask, val);
+	return regmap_update_bits(sec_pmic->regmap, reg, mask, val);
 }
-EXPORT_SYMBOL_GPL(s5m_reg_update);
+EXPORT_SYMBOL_GPL(sec_reg_update);
 
-static struct regmap_config s5m_regmap_config = {
+static struct regmap_config sec_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };
 
-static int s5m87xx_i2c_probe(struct i2c_client *i2c,
+static int sec_pmic_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
-	struct s5m_platform_data *pdata = i2c->dev.platform_data;
-	struct s5m87xx_dev *s5m87xx;
+	struct sec_platform_data *pdata = i2c->dev.platform_data;
+	struct sec_pmic_dev *sec_pmic;
 	int ret;
 
-	s5m87xx = devm_kzalloc(&i2c->dev, sizeof(struct s5m87xx_dev),
+	sec_pmic = devm_kzalloc(&i2c->dev, sizeof(struct sec_pmic_dev),
 				GFP_KERNEL);
-	if (s5m87xx == NULL)
+	if (sec_pmic == NULL)
 		return -ENOMEM;
 
-	i2c_set_clientdata(i2c, s5m87xx);
-	s5m87xx->dev = &i2c->dev;
-	s5m87xx->i2c = i2c;
-	s5m87xx->irq = i2c->irq;
-	s5m87xx->type = id->driver_data;
+	i2c_set_clientdata(i2c, sec_pmic);
+	sec_pmic->dev = &i2c->dev;
+	sec_pmic->i2c = i2c;
+	sec_pmic->irq = i2c->irq;
+	sec_pmic->type = id->driver_data;
 
 	if (pdata) {
-		s5m87xx->device_type = pdata->device_type;
-		s5m87xx->ono = pdata->ono;
-		s5m87xx->irq_base = pdata->irq_base;
-		s5m87xx->wakeup = pdata->wakeup;
+		sec_pmic->device_type = pdata->device_type;
+		sec_pmic->ono = pdata->ono;
+		sec_pmic->irq_base = pdata->irq_base;
+		sec_pmic->wakeup = pdata->wakeup;
 	}
 
-	s5m87xx->regmap = devm_regmap_init_i2c(i2c, &s5m_regmap_config);
-	if (IS_ERR(s5m87xx->regmap)) {
-		ret = PTR_ERR(s5m87xx->regmap);
+	sec_pmic->regmap = devm_regmap_init_i2c(i2c, &sec_regmap_config);
+	if (IS_ERR(sec_pmic->regmap)) {
+		ret = PTR_ERR(sec_pmic->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
 			ret);
 		return ret;
 	}
 
-	s5m87xx->rtc = i2c_new_dummy(i2c->adapter, RTC_I2C_ADDR);
-	i2c_set_clientdata(s5m87xx->rtc, s5m87xx);
+	sec_pmic->rtc = i2c_new_dummy(i2c->adapter, RTC_I2C_ADDR);
+	i2c_set_clientdata(sec_pmic->rtc, sec_pmic);
 
 	if (pdata && pdata->cfg_pmic_irq)
 		pdata->cfg_pmic_irq();
 
-	s5m_irq_init(s5m87xx);
+	sec_irq_init(sec_pmic);
 
-	pm_runtime_set_active(s5m87xx->dev);
+	pm_runtime_set_active(sec_pmic->dev);
 
-	switch (s5m87xx->device_type) {
+	switch (sec_pmic->device_type) {
 	case S5M8751X:
-		ret = mfd_add_devices(s5m87xx->dev, -1, s5m8751_devs,
+		ret = mfd_add_devices(sec_pmic->dev, -1, s5m8751_devs,
 					ARRAY_SIZE(s5m8751_devs), NULL, 0);
 		break;
 	case S5M8763X:
-		ret = mfd_add_devices(s5m87xx->dev, -1, s5m8763_devs,
+		ret = mfd_add_devices(sec_pmic->dev, -1, s5m8763_devs,
 					ARRAY_SIZE(s5m8763_devs), NULL, 0);
 		break;
 	case S5M8767X:
-		ret = mfd_add_devices(s5m87xx->dev, -1, s5m8767_devs,
+		ret = mfd_add_devices(sec_pmic->dev, -1, s5m8767_devs,
 					ARRAY_SIZE(s5m8767_devs), NULL, 0);
 		break;
 	default:
@@ -156,50 +156,50 @@ static int s5m87xx_i2c_probe(struct i2c_client *i2c,
 	return ret;
 
 err:
-	mfd_remove_devices(s5m87xx->dev);
-	s5m_irq_exit(s5m87xx);
-	i2c_unregister_device(s5m87xx->rtc);
+	mfd_remove_devices(sec_pmic->dev);
+	sec_irq_exit(sec_pmic);
+	i2c_unregister_device(sec_pmic->rtc);
 	return ret;
 }
 
-static int s5m87xx_i2c_remove(struct i2c_client *i2c)
+static int sec_pmic_remove(struct i2c_client *i2c)
 {
-	struct s5m87xx_dev *s5m87xx = i2c_get_clientdata(i2c);
+	struct sec_pmic_dev *sec_pmic = i2c_get_clientdata(i2c);
 
-	mfd_remove_devices(s5m87xx->dev);
-	s5m_irq_exit(s5m87xx);
-	i2c_unregister_device(s5m87xx->rtc);
+	mfd_remove_devices(sec_pmic->dev);
+	sec_irq_exit(sec_pmic);
+	i2c_unregister_device(sec_pmic->rtc);
 	return 0;
 }
 
-static const struct i2c_device_id s5m87xx_i2c_id[] = {
-	{ "s5m87xx", 0 },
+static const struct i2c_device_id sec_pmic_id[] = {
+	{ "sec_pmic", 0 },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, s5m87xx_i2c_id);
+MODULE_DEVICE_TABLE(i2c, sec_pmic_id);
 
-static struct i2c_driver s5m87xx_i2c_driver = {
+static struct i2c_driver sec_pmic_driver = {
 	.driver = {
-		   .name = "s5m87xx",
+		   .name = "sec_pmic",
 		   .owner = THIS_MODULE,
 	},
-	.probe = s5m87xx_i2c_probe,
-	.remove = s5m87xx_i2c_remove,
-	.id_table = s5m87xx_i2c_id,
+	.probe = sec_pmic_probe,
+	.remove = sec_pmic_remove,
+	.id_table = sec_pmic_id,
 };
 
-static int __init s5m87xx_i2c_init(void)
+static int __init sec_pmic_init(void)
 {
-	return i2c_add_driver(&s5m87xx_i2c_driver);
+	return i2c_add_driver(&sec_pmic_driver);
 }
 
-subsys_initcall(s5m87xx_i2c_init);
+subsys_initcall(sec_pmic_init);
 
-static void __exit s5m87xx_i2c_exit(void)
+static void __exit sec_pmic_exit(void)
 {
-	i2c_del_driver(&s5m87xx_i2c_driver);
+	i2c_del_driver(&sec_pmic_driver);
 }
-module_exit(s5m87xx_i2c_exit);
+module_exit(sec_pmic_exit);
 
 MODULE_AUTHOR("Sangbeom Kim <sbkim73@samsung.com>");
 MODULE_DESCRIPTION("Core support for the S5M MFD");
