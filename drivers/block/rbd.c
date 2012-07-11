@@ -2036,7 +2036,8 @@ static int rbd_register_snap_dev(struct rbd_snap *snap,
 }
 
 static struct rbd_snap *__rbd_add_snap_dev(struct rbd_device *rbd_dev,
-					      int i, const char *name)
+						const char *snap_name,
+						u64 snap_id, u64 snap_size)
 {
 	struct rbd_snap *snap;
 	int ret;
@@ -2046,12 +2047,12 @@ static struct rbd_snap *__rbd_add_snap_dev(struct rbd_device *rbd_dev,
 		return ERR_PTR(-ENOMEM);
 
 	ret = -ENOMEM;
-	snap->name = kstrdup(name, GFP_KERNEL);
+	snap->name = kstrdup(snap_name, GFP_KERNEL);
 	if (!snap->name)
 		goto err;
 
-	snap->size = rbd_dev->header.snap_sizes[i];
-	snap->id = rbd_dev->header.snapc->snaps[i];
+	snap->id = snap_id;
+	snap->size = snap_size;
 
 	return snap;
 
@@ -2116,12 +2117,13 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 		dout("entry %u: snap_id = %llu\n", (unsigned int) snap_count,
 			(unsigned long long) snap_id);
 		if (!snap || (snap_id != CEPH_NOSNAP && snap->id < snap_id)) {
+			struct rbd_image_header	*header = &rbd_dev->header;
 			struct rbd_snap *new_snap;
 
 			/* We haven't seen this snapshot before */
 
-			new_snap = __rbd_add_snap_dev(rbd_dev, index,
-							snap_name);
+			new_snap = __rbd_add_snap_dev(rbd_dev, snap_name,
+					snap_id, header->snap_sizes[index]);
 			if (IS_ERR(new_snap)) {
 				int err = PTR_ERR(new_snap);
 
