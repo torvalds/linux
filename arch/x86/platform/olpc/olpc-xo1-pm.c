@@ -18,6 +18,7 @@
 #include <linux/pm.h>
 #include <linux/mfd/core.h>
 #include <linux/suspend.h>
+#include <linux/olpc-ec.h>
 
 #include <asm/io.h>
 #include <asm/olpc.h>

@@ -22,6 +22,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/debugfs.h>
 #include <linux/mutex.h>
+#include <linux/olpc-ec.h>
 
 #include <asm/geode.h>
 #include <asm/setup.h>

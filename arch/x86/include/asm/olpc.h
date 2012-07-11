@@ -4,7 +4,6 @@
 #define _ASM_X86_OLPC_H
 
 #include <asm/geode.h>
-#include <linux/olpc-ec.h>
 
 struct olpc_platform_t {
 	int flags;
