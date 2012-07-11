@@ -1548,12 +1548,34 @@
 
 /* VGA port control */
 #define ADPA			0x61100
+#define PCH_ADPA                0xe1100
+
 #define   ADPA_DAC_ENABLE	(1<<31)
 #define   ADPA_DAC_DISABLE	0
 #define   ADPA_PIPE_SELECT_MASK	(1<<30)
 #define   ADPA_PIPE_A_SELECT	0
 #define   ADPA_PIPE_B_SELECT	(1<<30)
 #define   ADPA_PIPE_SELECT(pipe) ((pipe) << 30)
+/* CPT uses bits 29:30 for pch transcoder select */
+#define   ADPA_CRT_HOTPLUG_MASK  0x03ff0000 /* bit 25-16 */
+#define   ADPA_CRT_HOTPLUG_MONITOR_NONE  (0<<24)
+#define   ADPA_CRT_HOTPLUG_MONITOR_MASK  (3<<24)
+#define   ADPA_CRT_HOTPLUG_MONITOR_COLOR (3<<24)
+#define   ADPA_CRT_HOTPLUG_MONITOR_MONO  (2<<24)
+#define   ADPA_CRT_HOTPLUG_ENABLE        (1<<23)
+#define   ADPA_CRT_HOTPLUG_PERIOD_64     (0<<22)
+#define   ADPA_CRT_HOTPLUG_PERIOD_128    (1<<22)
+#define   ADPA_CRT_HOTPLUG_WARMUP_5MS    (0<<21)
+#define   ADPA_CRT_HOTPLUG_WARMUP_10MS   (1<<21)
+#define   ADPA_CRT_HOTPLUG_SAMPLE_2S     (0<<20)
+#define   ADPA_CRT_HOTPLUG_SAMPLE_4S     (1<<20)
+#define   ADPA_CRT_HOTPLUG_VOLTAGE_40    (0<<18)
+#define   ADPA_CRT_HOTPLUG_VOLTAGE_50    (1<<18)
+#define   ADPA_CRT_HOTPLUG_VOLTAGE_60    (2<<18)
+#define   ADPA_CRT_HOTPLUG_VOLTAGE_70    (3<<18)
+#define   ADPA_CRT_HOTPLUG_VOLREF_325MV  (0<<17)
+#define   ADPA_CRT_HOTPLUG_VOLREF_475MV  (1<<17)
+#define   ADPA_CRT_HOTPLUG_FORCE_TRIGGER (1<<16)
 #define   ADPA_USE_VGA_HVPOLARITY (1<<15)
 #define   ADPA_SETS_HVPOLARITY	0
 #define   ADPA_VSYNC_CNTL_DISABLE (1<<11)
@@ -3887,31 +3909,6 @@
 
 #define FDI_PLL_CTL_1           0xfe000
 #define FDI_PLL_CTL_2           0xfe004
-
-/* CRT */
-#define PCH_ADPA                0xe1100
-#define  ADPA_TRANS_SELECT_MASK (1<<30)
-#define  ADPA_TRANS_A_SELECT    0
-#define  ADPA_TRANS_B_SELECT    (1<<30)
-#define  ADPA_CRT_HOTPLUG_MASK  0x03ff0000 /* bit 25-16 */
-#define  ADPA_CRT_HOTPLUG_MONITOR_NONE  (0<<24)
-#define  ADPA_CRT_HOTPLUG_MONITOR_MASK  (3<<24)
-#define  ADPA_CRT_HOTPLUG_MONITOR_COLOR (3<<24)
-#define  ADPA_CRT_HOTPLUG_MONITOR_MONO  (2<<24)
-#define  ADPA_CRT_HOTPLUG_ENABLE        (1<<23)
-#define  ADPA_CRT_HOTPLUG_PERIOD_64     (0<<22)
-#define  ADPA_CRT_HOTPLUG_PERIOD_128    (1<<22)
-#define  ADPA_CRT_HOTPLUG_WARMUP_5MS    (0<<21)
-#define  ADPA_CRT_HOTPLUG_WARMUP_10MS   (1<<21)
-#define  ADPA_CRT_HOTPLUG_SAMPLE_2S     (0<<20)
-#define  ADPA_CRT_HOTPLUG_SAMPLE_4S     (1<<20)
-#define  ADPA_CRT_HOTPLUG_VOLTAGE_40    (0<<18)
-#define  ADPA_CRT_HOTPLUG_VOLTAGE_50    (1<<18)
-#define  ADPA_CRT_HOTPLUG_VOLTAGE_60    (2<<18)
-#define  ADPA_CRT_HOTPLUG_VOLTAGE_70    (3<<18)
-#define  ADPA_CRT_HOTPLUG_VOLREF_325MV  (0<<17)
-#define  ADPA_CRT_HOTPLUG_VOLREF_475MV  (1<<17)
-#define  ADPA_CRT_HOTPLUG_FORCE_TRIGGER (1<<16)
 
 /* or SDVOB */
 #define HDMIB   0xe1140
