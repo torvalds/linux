@@ -331,7 +331,7 @@ static int radeon_fence_wait_any_seq(struct radeon_device *rdev,
 
 	/* nothing to wait for ? */
 	if (ring == RADEON_NUM_RINGS) {
-		return 0;
+		return -ENOENT;
 	}
 
 	while (!radeon_fence_any_seq_signaled(rdev, target_seq)) {
