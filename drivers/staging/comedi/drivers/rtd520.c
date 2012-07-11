@@ -406,12 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set UTCn gate source (write only) */
-#define RtdUtcGateSource(dev, n, v) \
-	writew(v, devpriv->las0 \
-		+ ((n <= 0) ? LAS0_UTC0_GATE : \
-			((1 == n) ? LAS0_UTC1_GATE : LAS0_UTC2_GATE)))
-
 /* User output N source select (write only) */
 #define RtdUsrOutSource(dev, n, v) \
 	writel(v, devpriv->las0+((n <= 0) ? LAS0_UOUT0_SELECT : \
