@@ -1148,6 +1148,12 @@ static int wl18xx_plt_init(struct wl1271 *wl)
 {
 	int ret;
 
+	/* calibrator based auto/fem detect not supported for 18xx */
+	if (wl->plt_mode == PLT_FEM_DETECT) {
+		wl1271_error("wl18xx_plt_init: PLT FEM_DETECT not supported");
+		return -EINVAL;
+	}
+
 	ret = wlcore_write32(wl, WL18XX_SCR_PAD8, WL18XX_SCR_PAD8_PLT);
 	if (ret < 0)
 		return ret;
