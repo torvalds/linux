@@ -19,6 +19,8 @@
 #ifndef __ASM_R8A7740_H__
 #define __ASM_R8A7740_H__
 
+#include <mach/pm-rmobile.h>
+
 /*
  * MD_CKx pin
  */
@@ -587,5 +589,27 @@ enum {
 	GPIO_FN_TRACEAUD_FROM_LCDC0,
 	GPIO_FN_TRACEAUD_FROM_MEMC,
 };
+
+/* DMA slave IDs */
+enum {
+	SHDMA_SLAVE_INVALID,
+	SHDMA_SLAVE_SDHI0_RX,
+	SHDMA_SLAVE_SDHI0_TX,
+	SHDMA_SLAVE_SDHI1_RX,
+	SHDMA_SLAVE_SDHI1_TX,
+	SHDMA_SLAVE_SDHI2_RX,
+	SHDMA_SLAVE_SDHI2_TX,
+	SHDMA_SLAVE_FSIA_RX,
+	SHDMA_SLAVE_FSIA_TX,
+	SHDMA_SLAVE_FSIB_TX,
+	SHDMA_SLAVE_USBHS_TX,
+	SHDMA_SLAVE_USBHS_RX,
+};
+
+#ifdef CONFIG_PM
+extern struct rmobile_pm_domain r8a7740_pd_a4s;
+extern struct rmobile_pm_domain r8a7740_pd_a3sp;
+extern struct rmobile_pm_domain r8a7740_pd_a4lc;
+#endif /* CONFIG_PM */
 
 #endif /* __ASM_R8A7740_H__ */
