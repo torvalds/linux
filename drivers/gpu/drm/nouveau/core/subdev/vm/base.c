@@ -282,7 +282,8 @@ nouveau_vm_get(struct nouveau_vm *vm, u64 size, u32 page_shift,
 	int ret;
 
 	mutex_lock(&vm->mm.mutex);
-	ret = nouveau_mm_get(&vm->mm, page_shift, msize, 0, align, &vma->node);
+	ret = nouveau_mm_head(&vm->mm, page_shift, msize, msize, align,
+			     &vma->node);
 	if (unlikely(ret != 0)) {
 		mutex_unlock(&vm->mm.mutex);
 		return ret;
@@ -303,9 +304,8 @@ nouveau_vm_get(struct nouveau_vm *vm, u64 size, u32 page_shift,
 		if (ret) {
 			if (pde != fpde)
 				nouveau_vm_unmap_pgt(vm, big, fpde, pde - 1);
-			nouveau_mm_put(&vm->mm, vma->node);
+			nouveau_mm_free(&vm->mm, &vma->node);
 			mutex_unlock(&vm->mm.mutex);
-			vma->node = NULL;
 			return ret;
 		}
 	}
@@ -330,8 +330,7 @@ nouveau_vm_put(struct nouveau_vma *vma)
 
 	mutex_lock(&vm->mm.mutex);
 	nouveau_vm_unmap_pgt(vm, vma->node->type != vm->spg_shift, fpde, lpde);
-	nouveau_mm_put(&vm->mm, vma->node);
-	vma->node = NULL;
+	nouveau_mm_free(&vm->mm, &vma->node);
 	mutex_unlock(&vm->mm.mutex);
 }
 
