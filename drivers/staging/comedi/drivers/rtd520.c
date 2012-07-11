@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Get status for DMA 0 */
-#define RtdDma0Status(dev) \
-	readb(devpriv->lcfg+LCFG_DMACSR0)
-
 /* Set control for DMA 1 (write only, shadow?) */
 #define RtdDma1Control(dev, n) \
 	writeb(devpriv->dma1Control = (n), devpriv->lcfg+LCFG_DMACSR1)
