@@ -481,67 +481,26 @@ static int tt_no_collision (
 
 static int enable_periodic (struct ehci_hcd *ehci)
 {
-	int	status;
-
-	if (ehci->periodic_sched++)
+	if (ehci->periodic_count++)
 		return 0;
 
-	/* did clearing PSE did take effect yet?
-	 * takes effect only at frame boundaries...
-	 */
-	status = handshake_on_error_set_halt(ehci, &ehci->regs->status,
-					     STS_PSS, 0, 9 * 125);
-	if (status) {
-		usb_hc_died(ehci_to_hcd(ehci));
-		return status;
-	}
+	/* Stop waiting to turn off the periodic schedule */
+	ehci->enabled_hrtimer_events &= ~BIT(EHCI_HRTIMER_DISABLE_PERIODIC);
 
-	ehci->command |= CMD_PSE;
-	ehci_writel(ehci, ehci->command, &ehci->regs->command);
-	/* posted write ... PSS happens later */
-
-	/* make sure ehci_work scans these */
-	ehci->next_uframe = ehci_read_frame_index(ehci)
-		% (ehci->periodic_size << 3);
-	if (unlikely(ehci->broken_periodic))
-		ehci->last_periodic_enable = ktime_get_real();
+	/* Don't start the schedule until PSS is 0 */
+	ehci_poll_PSS(ehci);
 	return 0;
 }
 
 static int disable_periodic (struct ehci_hcd *ehci)
 {
-	int	status;
-
-	if (--ehci->periodic_sched)
+	if (--ehci->periodic_count)
 		return 0;
 
-	if (unlikely(ehci->broken_periodic)) {
-		/* delay experimentally determined */
-		ktime_t safe = ktime_add_us(ehci->last_periodic_enable, 1000);
-		ktime_t now = ktime_get_real();
-		s64 delay = ktime_us_delta(safe, now);
+	ehci->next_uframe = -1;		/* the periodic schedule is empty */
 
-		if (unlikely(delay > 0))
-			udelay(delay);
-	}
-
-	/* did setting PSE not take effect yet?
-	 * takes effect only at frame boundaries...
-	 */
-	status = handshake_on_error_set_halt(ehci, &ehci->regs->status,
-					     STS_PSS, STS_PSS, 9 * 125);
-	if (status) {
-		usb_hc_died(ehci_to_hcd(ehci));
-		return status;
-	}
-
-	ehci->command &= ~CMD_PSE;
-	ehci_writel(ehci, ehci->command, &ehci->regs->command);
-	/* posted write ... */
-
-	free_cached_lists(ehci);
-
-	ehci->next_uframe = -1;
+	/* Don't turn off the schedule until PSS is 1 */
+	ehci_poll_PSS(ehci);
 	return 0;
 }
 
@@ -650,8 +609,7 @@ static int qh_unlink_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	qh->qh_state = QH_STATE_UNLINK;
 	qh->qh_next.ptr = NULL;
 
-	/* maybe turn off periodic schedule */
-	return disable_periodic(ehci);
+	return 0;
 }
 
 static void intr_deschedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
@@ -706,6 +664,9 @@ static void intr_deschedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 			ehci_err(ehci, "can't reschedule qh %p, err %d\n",
 					qh, rc);
 	}
+
+	/* maybe turn off periodic schedule */
+	disable_periodic(ehci);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2447,7 +2408,7 @@ restart:
 
 			/* assume completion callbacks modify the queue */
 			if (unlikely (modified)) {
-				if (likely(ehci->periodic_sched > 0))
+				if (likely(ehci->periodic_count > 0))
 					goto restart;
 				/* short-circuit this scan */
 				now_uframe = clock;
@@ -2476,7 +2437,7 @@ restart:
 			unsigned	now;
 
 			if (ehci->rh_state < EHCI_RH_RUNNING
-					|| ehci->periodic_sched == 0)
+					|| ehci->periodic_count == 0)
 				break;
 			ehci->next_uframe = now_uframe;
 			now = ehci_read_frame_index(ehci) & (mod - 1);

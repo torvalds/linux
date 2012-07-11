@@ -79,6 +79,8 @@ enum ehci_rh_state {
  * ehci-timer.c) in parallel with this list.
  */
 enum ehci_hrtimer_event {
+	EHCI_HRTIMER_POLL_PSS,		/* Poll for periodic schedule off */
+	EHCI_HRTIMER_DISABLE_PERIODIC,	/* Wait to disable periodic sched */
 	EHCI_HRTIMER_NUM_EVENTS		/* Must come last */
 };
 #define EHCI_HRTIMER_NO_EVENT	99
@@ -89,6 +91,8 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		enabled_hrtimer_events;
 	ktime_t			hr_timeouts[EHCI_HRTIMER_NUM_EVENTS];
 	struct hrtimer		hrtimer;
+
+	int			PSS_poll_count;
 
 	/* glue to PCI and HCD framework */
 	struct ehci_caps __iomem *caps;
@@ -116,7 +120,7 @@ struct ehci_hcd {			/* one per controller */
 
 	union ehci_shadow	*pshadow;	/* mirror hw periodic table */
 	int			next_uframe;	/* scan periodic, start here */
-	unsigned		periodic_sched;	/* periodic activity count */
+	unsigned		periodic_count;	/* periodic activity count */
 	unsigned		uframe_periodic_max; /* max periodic time per uframe */
 
 
@@ -165,7 +169,6 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		big_endian_capbase:1;
 	unsigned		has_amcc_usb23:1;
 	unsigned		need_io_watchdog:1;
-	unsigned		broken_periodic:1;
 	unsigned		amd_pll_fix:1;
 	unsigned		fs_i_thresh:1;	/* Intel iso scheduling */
 	unsigned		use_dummy_qh:1;	/* AMD Frame List table quirk*/

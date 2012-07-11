@@ -546,7 +546,7 @@ static void ehci_work (struct ehci_hcd *ehci)
 	 */
 	if (ehci->rh_state == EHCI_RH_RUNNING &&
 			(ehci->async->qh_next.ptr != NULL ||
-			 ehci->periodic_sched != 0))
+			 ehci->periodic_count != 0))
 		timer_action (ehci, TIMER_IO_WATCHDOG);
 }
 

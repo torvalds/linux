@@ -16,6 +16,28 @@
 
 /*-------------------------------------------------------------------------*/
 
+/* Set a bit in the USBCMD register */
+static void ehci_set_command_bit(struct ehci_hcd *ehci, u32 bit)
+{
+	ehci->command |= bit;
+	ehci_writel(ehci, ehci->command, &ehci->regs->command);
+
+	/* unblock posted write */
+	ehci_readl(ehci, &ehci->regs->command);
+}
+
+/* Clear a bit in the USBCMD register */
+static void ehci_clear_command_bit(struct ehci_hcd *ehci, u32 bit)
+{
+	ehci->command &= ~bit;
+	ehci_writel(ehci, ehci->command, &ehci->regs->command);
+
+	/* unblock posted write */
+	ehci_readl(ehci, &ehci->regs->command);
+}
+
+/*-------------------------------------------------------------------------*/
+
 /*
  * EHCI timer support...  Now using hrtimers.
  *
@@ -45,6 +67,8 @@
  * the event types indexed by enum ehci_hrtimer_event in ehci.h.
  */
 static unsigned event_delays_ns[] = {
+	1 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_POLL_PSS */
+	10 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_DISABLE_PERIODIC */
 };
 
 /* Enable a pending hrtimer event */
@@ -67,12 +91,68 @@ static void ehci_enable_event(struct ehci_hcd *ehci, unsigned event,
 }
 
 
+/* Poll the STS_PSS status bit; see when it agrees with CMD_PSE */
+static void ehci_poll_PSS(struct ehci_hcd *ehci)
+{
+	unsigned	actual, want;
+
+	/* Don't do anything if the controller isn't running (e.g., died) */
+	if (ehci->rh_state != EHCI_RH_RUNNING)
+		return;
+
+	want = (ehci->command & CMD_PSE) ? STS_PSS : 0;
+	actual = ehci_readl(ehci, &ehci->regs->status) & STS_PSS;
+
+	if (want != actual) {
+
+		/* Poll again later, but give up after about 20 ms */
+		if (ehci->PSS_poll_count++ < 20) {
+			ehci_enable_event(ehci, EHCI_HRTIMER_POLL_PSS, true);
+			return;
+		}
+		ehci_warn(ehci, "Waited too long for the periodic schedule status, giving up\n");
+	}
+	ehci->PSS_poll_count = 0;
+
+	/* The status is up-to-date; restart or stop the schedule as needed */
+	if (want == 0) {	/* Stopped */
+		free_cached_lists(ehci);
+		if (ehci->periodic_count > 0) {
+
+			/* make sure ehci_work scans these */
+			ehci->next_uframe = ehci_read_frame_index(ehci)
+					& ((ehci->periodic_size << 3) - 1);
+			ehci_set_command_bit(ehci, CMD_PSE);
+		}
+
+	} else {		/* Running */
+		if (ehci->periodic_count == 0) {
+
+			/* Turn off the schedule after a while */
+			ehci_enable_event(ehci, EHCI_HRTIMER_DISABLE_PERIODIC,
+					true);
+		}
+	}
+}
+
+/* Turn off the periodic schedule after a brief delay */
+static void ehci_disable_PSE(struct ehci_hcd *ehci)
+{
+	ehci_clear_command_bit(ehci, CMD_PSE);
+
+	/* Poll to see when it actually stops */
+	ehci_enable_event(ehci, EHCI_HRTIMER_POLL_PSS, true);
+}
+
+
 /*
  * Handler functions for the hrtimer event types.
  * Keep this array in the same order as the event types indexed by
  * enum ehci_hrtimer_event in ehci.h.
  */
 static void (*event_handlers[])(struct ehci_hcd *) = {
+	ehci_poll_PSS,			/* EHCI_HRTIMER_POLL_PSS */
+	ehci_disable_PSE,		/* EHCI_HRTIMER_DISABLE_PERIODIC */
 };
 
 static enum hrtimer_restart ehci_hrtimer_func(struct hrtimer *t)
