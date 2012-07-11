@@ -397,8 +397,9 @@ static __devinit int sta529_i2c_probe(struct i2c_client *i2c,
 
 	sta529->regmap = devm_regmap_init_i2c(i2c, &sta529_regmap);
 	if (IS_ERR(sta529->regmap)) {
+		ret = PTR_ERR(sta529->regmap);
 		dev_err(&i2c->dev, "Failed to allocate regmap: %d\n", ret);
-		return PTR_ERR(sta529->regmap);
+		return ret;
 	}
 
 	i2c_set_clientdata(i2c, sta529);
