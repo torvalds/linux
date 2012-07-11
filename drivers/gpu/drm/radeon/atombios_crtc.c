@@ -1143,7 +1143,9 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	}
 
 	if (tiling_flags & RADEON_TILING_MACRO) {
-		if (rdev->family >= CHIP_TAHITI)
+		if (rdev->family >= CHIP_BONAIRE)
+			tmp = rdev->config.cik.tile_config;
+		else if (rdev->family >= CHIP_TAHITI)
 			tmp = rdev->config.si.tile_config;
 		else if (rdev->family >= CHIP_CAYMAN)
 			tmp = rdev->config.cayman.tile_config;
@@ -1170,11 +1172,29 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		fb_format |= EVERGREEN_GRPH_BANK_WIDTH(bankw);
 		fb_format |= EVERGREEN_GRPH_BANK_HEIGHT(bankh);
 		fb_format |= EVERGREEN_GRPH_MACRO_TILE_ASPECT(mtaspect);
+		if (rdev->family >= CHIP_BONAIRE) {
+			/* XXX need to know more about the surface tiling mode */
+			fb_format |= CIK_GRPH_MICRO_TILE_MODE(CIK_DISPLAY_MICRO_TILING);
+		}
 	} else if (tiling_flags & RADEON_TILING_MICRO)
 		fb_format |= EVERGREEN_GRPH_ARRAY_MODE(EVERGREEN_GRPH_ARRAY_1D_TILED_THIN1);
 
-	if ((rdev->family == CHIP_TAHITI) ||
-	    (rdev->family == CHIP_PITCAIRN))
+	if (rdev->family >= CHIP_BONAIRE) {
+		u32 num_pipe_configs = rdev->config.cik.max_tile_pipes;
+		u32 num_rb = rdev->config.cik.max_backends_per_se;
+		if (num_pipe_configs > 8)
+			num_pipe_configs = 8;
+		if (num_pipe_configs == 8)
+			fb_format |= CIK_GRPH_PIPE_CONFIG(CIK_ADDR_SURF_P8_32x32_16x16);
+		else if (num_pipe_configs == 4) {
+			if (num_rb == 4)
+				fb_format |= CIK_GRPH_PIPE_CONFIG(CIK_ADDR_SURF_P4_16x16);
+			else if (num_rb < 4)
+				fb_format |= CIK_GRPH_PIPE_CONFIG(CIK_ADDR_SURF_P4_8x16);
+		} else if (num_pipe_configs == 2)
+			fb_format |= CIK_GRPH_PIPE_CONFIG(CIK_ADDR_SURF_P2);
+	} else if ((rdev->family == CHIP_TAHITI) ||
+		   (rdev->family == CHIP_PITCAIRN))
 		fb_format |= SI_GRPH_PIPE_CONFIG(SI_ADDR_SURF_P8_32x32_8x16);
 	else if (rdev->family == CHIP_VERDE)
 		fb_format |= SI_GRPH_PIPE_CONFIG(SI_ADDR_SURF_P4_8x16);
@@ -1224,8 +1244,12 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(EVERGREEN_GRPH_PITCH + radeon_crtc->crtc_offset, fb_pitch_pixels);
 	WREG32(EVERGREEN_GRPH_ENABLE + radeon_crtc->crtc_offset, 1);
 
-	WREG32(EVERGREEN_DESKTOP_HEIGHT + radeon_crtc->crtc_offset,
-	       target_fb->height);
+	if (rdev->family >= CHIP_BONAIRE)
+		WREG32(CIK_LB_DESKTOP_HEIGHT + radeon_crtc->crtc_offset,
+		       target_fb->height);
+	else
+		WREG32(EVERGREEN_DESKTOP_HEIGHT + radeon_crtc->crtc_offset,
+		       target_fb->height);
 	x &= ~3;
 	y &= ~1;
 	WREG32(EVERGREEN_VIEWPORT_START + radeon_crtc->crtc_offset,
