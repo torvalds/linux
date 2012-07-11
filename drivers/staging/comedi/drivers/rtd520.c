@@ -406,9 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-#define RtdDio0CtrlWrite(dev, v) \
-	writew((v) & 0xff, devpriv->las0+LAS0_DIO0_CTRL)
-
 /* Digital to Analog converter */
 /* Write one data value (sign + 12bit + marker bits) */
 /* Note: matches what DMA would put.  Actual value << 3 */
@@ -1686,7 +1683,7 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 	/* TODO support digital match interrupts and strobes */
 	devpriv->dioStatus = 0x01;	/* set direction */
 	writew(devpriv->dioStatus, devpriv->las0 + LAS0_DIO_STATUS);
-	RtdDio0CtrlWrite(dev, s->io_bits);	/* set direction 1 means Out */
+	writew(s->io_bits & 0xff, devpriv->las0 + LAS0_DIO0_CTRL);
 	devpriv->dioStatus = 0x00;	/* clear interrupts */
 	writew(devpriv->dioStatus, devpriv->las0 + LAS0_DIO_STATUS);
 
