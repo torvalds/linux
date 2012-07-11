@@ -206,7 +206,6 @@ struct twl6040 {
 	struct regmap *regmap;
 	struct regulator_bulk_data supplies[2]; /* supplies for vio, v2v1 */
 	struct mutex mutex;
-	struct mutex io_mutex;
 	struct mutex irq_mutex;
 	struct mfd_cell cells[TWL6040_CELLS];
 	struct completion ready;
