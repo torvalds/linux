@@ -247,7 +247,8 @@ void mthca_qp_event(struct mthca_dev *dev, u32 qpn,
 	spin_unlock(&dev->qp_table.lock);
 
 	if (!qp) {
-		mthca_warn(dev, "Async event for bogus QP %08x\n", qpn);
+		mthca_warn(dev, "Async event %d for bogus QP %08x\n",
+			   event_type, qpn);
 		return;
 	}
 
