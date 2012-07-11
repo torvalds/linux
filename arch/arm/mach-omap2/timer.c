@@ -324,7 +324,6 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 		}
 	}
 	__omap_dm_timer_init_regs(timer);
-	__omap_dm_timer_reset(timer, 1, 1);
 
 	if (posted)
 		__omap_dm_timer_enable_posted(timer);
