@@ -509,6 +509,7 @@ static void ehci_stop (struct usb_hcd *hcd)
 	spin_lock_irq (&ehci->lock);
 	if (ehci->async)
 		ehci_work (ehci);
+	end_free_itds(ehci);
 	spin_unlock_irq (&ehci->lock);
 	ehci_mem_cleanup (ehci);
 

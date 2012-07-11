@@ -118,7 +118,6 @@ fail:
 
 static void ehci_mem_cleanup (struct ehci_hcd *ehci)
 {
-	free_cached_lists(ehci);
 	if (ehci->async)
 		qh_destroy(ehci, ehci->async);
 	ehci->async = NULL;

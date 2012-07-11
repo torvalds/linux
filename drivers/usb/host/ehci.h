@@ -83,6 +83,7 @@ enum ehci_hrtimer_event {
 	EHCI_HRTIMER_POLL_PSS,		/* Poll for periodic schedule off */
 	EHCI_HRTIMER_POLL_DEAD,		/* Wait for dead controller to stop */
 	EHCI_HRTIMER_UNLINK_INTR,	/* Wait for interrupt QH unlink */
+	EHCI_HRTIMER_FREE_ITDS,		/* Wait for unused iTDs and siTDs */
 	EHCI_HRTIMER_DISABLE_PERIODIC,	/* Wait to disable periodic sched */
 	EHCI_HRTIMER_DISABLE_ASYNC,	/* Wait to disable async sched */
 	EHCI_HRTIMER_NUM_EVENTS		/* Must come last */
@@ -139,7 +140,9 @@ struct ehci_hcd {			/* one per controller */
 
 	/* list of itds & sitds completed while clock_frame was still active */
 	struct list_head	cached_itd_list;
+	struct ehci_itd		*last_itd_to_free;
 	struct list_head	cached_sitd_list;
+	struct ehci_sitd	*last_sitd_to_free;
 	unsigned		clock_frame;
 
 	/* per root hub port */
@@ -249,8 +252,6 @@ timer_action_done (struct ehci_hcd *ehci, enum ehci_timer_action action)
 {
 	clear_bit (action, &ehci->actions);
 }
-
-static void free_cached_lists(struct ehci_hcd *ehci);
 
 /*-------------------------------------------------------------------------*/
 

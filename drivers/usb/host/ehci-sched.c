@@ -1045,31 +1045,6 @@ iso_stream_put(struct ehci_hcd *ehci, struct ehci_iso_stream *stream)
 	if (stream->refcount == 1) {
 		// BUG_ON (!list_empty(&stream->td_list));
 
-		while (!list_empty (&stream->free_list)) {
-			struct list_head	*entry;
-
-			entry = stream->free_list.next;
-			list_del (entry);
-
-			/* knows about ITD vs SITD */
-			if (stream->highspeed) {
-				struct ehci_itd		*itd;
-
-				itd = list_entry (entry, struct ehci_itd,
-						itd_list);
-				dma_pool_free (ehci->itd_pool, itd,
-						itd->itd_dma);
-			} else {
-				struct ehci_sitd	*sitd;
-
-				sitd = list_entry (entry, struct ehci_sitd,
-						sitd_list);
-				dma_pool_free (ehci->sitd_pool, sitd,
-						sitd->sitd_dma);
-			}
-		}
-
-		stream->bEndpointAddress &= 0x0f;
 		if (stream->ep)
 			stream->ep->hcpriv = NULL;
 
@@ -1230,17 +1205,19 @@ itd_urb_transaction (
 	spin_lock_irqsave (&ehci->lock, flags);
 	for (i = 0; i < num_itds; i++) {
 
-		/* free_list.next might be cache-hot ... but maybe
-		 * the HC caches it too. avoid that issue for now.
+		/*
+		 * Use iTDs from the free list, but not iTDs that may
+		 * still be in use by the hardware.
 		 */
-
-		/* prefer previously-allocated itds */
-		if (likely (!list_empty(&stream->free_list))) {
-			itd = list_entry (stream->free_list.prev,
+		if (likely(!list_empty(&stream->free_list))) {
+			itd = list_first_entry(&stream->free_list,
 					struct ehci_itd, itd_list);
+			if (itd->frame == ehci->clock_frame)
+				goto alloc_itd;
 			list_del (&itd->itd_list);
 			itd_dma = itd->itd_dma;
 		} else {
+ alloc_itd:
 			spin_unlock_irqrestore (&ehci->lock, flags);
 			itd = dma_pool_alloc (ehci->itd_pool, mem_flags,
 					&itd_dma);
@@ -1762,24 +1739,18 @@ itd_complete (
 
 done:
 	itd->urb = NULL;
-	if (ehci->clock_frame != itd->frame || itd->index[7] != -1) {
-		/* OK to recycle this ITD now. */
-		itd->stream = NULL;
-		list_move(&itd->itd_list, &stream->free_list);
-		iso_stream_put(ehci, stream);
-	} else {
-		/* HW might remember this ITD, so we can't recycle it yet.
-		 * Move it to a safe place until a new frame starts.
-		 */
-		list_move(&itd->itd_list, &ehci->cached_itd_list);
-		if (stream->refcount == 2) {
-			/* If iso_stream_put() were called here, stream
-			 * would be freed.  Instead, just prevent reuse.
-			 */
-			stream->ep->hcpriv = NULL;
-			stream->ep = NULL;
-		}
+
+	/* Add to the end of the free list for later reuse */
+	list_move_tail(&itd->itd_list, &stream->free_list);
+
+	/* Recycle the iTDs when the pipeline is empty (ep no longer in use) */
+	if (list_empty(&stream->td_list)) {
+		list_splice_tail_init(&stream->free_list,
+				&ehci->cached_itd_list);
+		start_free_itds(ehci);
 	}
+
+	iso_stream_put(ehci, stream);
 	return retval;
 }
 
@@ -1930,17 +1901,19 @@ sitd_urb_transaction (
 		 * means we never need two sitds for full speed packets.
 		 */
 
-		/* free_list.next might be cache-hot ... but maybe
-		 * the HC caches it too. avoid that issue for now.
+		/*
+		 * Use siTDs from the free list, but not siTDs that may
+		 * still be in use by the hardware.
 		 */
-
-		/* prefer previously-allocated sitds */
-		if (!list_empty(&stream->free_list)) {
-			sitd = list_entry (stream->free_list.prev,
+		if (likely(!list_empty(&stream->free_list))) {
+			sitd = list_first_entry(&stream->free_list,
 					 struct ehci_sitd, sitd_list);
+			if (sitd->frame == ehci->clock_frame)
+				goto alloc_sitd;
 			list_del (&sitd->sitd_list);
 			sitd_dma = sitd->sitd_dma;
 		} else {
+ alloc_sitd:
 			spin_unlock_irqrestore (&ehci->lock, flags);
 			sitd = dma_pool_alloc (ehci->sitd_pool, mem_flags,
 					&sitd_dma);
@@ -2157,24 +2130,18 @@ sitd_complete (
 
 done:
 	sitd->urb = NULL;
-	if (ehci->clock_frame != sitd->frame) {
-		/* OK to recycle this SITD now. */
-		sitd->stream = NULL;
-		list_move(&sitd->sitd_list, &stream->free_list);
-		iso_stream_put(ehci, stream);
-	} else {
-		/* HW might remember this SITD, so we can't recycle it yet.
-		 * Move it to a safe place until a new frame starts.
-		 */
-		list_move(&sitd->sitd_list, &ehci->cached_sitd_list);
-		if (stream->refcount == 2) {
-			/* If iso_stream_put() were called here, stream
-			 * would be freed.  Instead, just prevent reuse.
-			 */
-			stream->ep->hcpriv = NULL;
-			stream->ep = NULL;
-		}
+
+	/* Add to the end of the free list for later reuse */
+	list_move_tail(&sitd->sitd_list, &stream->free_list);
+
+	/* Recycle the siTDs when the pipeline is empty (ep no longer in use) */
+	if (list_empty(&stream->td_list)) {
+		list_splice_tail_init(&stream->free_list,
+				&ehci->cached_sitd_list);
+		start_free_itds(ehci);
 	}
+
+	iso_stream_put(ehci, stream);
 	return retval;
 }
 
@@ -2239,28 +2206,6 @@ done:
 
 /*-------------------------------------------------------------------------*/
 
-static void free_cached_lists(struct ehci_hcd *ehci)
-{
-	struct ehci_itd *itd, *n;
-	struct ehci_sitd *sitd, *sn;
-
-	list_for_each_entry_safe(itd, n, &ehci->cached_itd_list, itd_list) {
-		struct ehci_iso_stream	*stream = itd->stream;
-		itd->stream = NULL;
-		list_move(&itd->itd_list, &stream->free_list);
-		iso_stream_put(ehci, stream);
-	}
-
-	list_for_each_entry_safe(sitd, sn, &ehci->cached_sitd_list, sitd_list) {
-		struct ehci_iso_stream	*stream = sitd->stream;
-		sitd->stream = NULL;
-		list_move(&sitd->sitd_list, &stream->free_list);
-		iso_stream_put(ehci, stream);
-	}
-}
-
-/*-------------------------------------------------------------------------*/
-
 static void
 scan_periodic (struct ehci_hcd *ehci)
 {
@@ -2282,10 +2227,7 @@ scan_periodic (struct ehci_hcd *ehci)
 		clock = now_uframe + mod - 1;
 		clock_frame = -1;
 	}
-	if (ehci->clock_frame != clock_frame) {
-		free_cached_lists(ehci);
-		ehci->clock_frame = clock_frame;
-	}
+	ehci->clock_frame = clock_frame;
 	clock &= mod - 1;
 	clock_frame = clock >> 3;
 	++ehci->periodic_stamp;
@@ -2463,7 +2405,6 @@ restart:
 			clock = now;
 			clock_frame = clock >> 3;
 			if (ehci->clock_frame != clock_frame) {
-				free_cached_lists(ehci);
 				ehci->clock_frame = clock_frame;
 				++ehci->periodic_stamp;
 			}

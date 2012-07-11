@@ -71,6 +71,7 @@ static unsigned event_delays_ns[] = {
 	1 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_POLL_PSS */
 	1 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_POLL_DEAD */
 	1125 * NSEC_PER_USEC,	/* EHCI_HRTIMER_UNLINK_INTR */
+	2 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_FREE_ITDS */
 	10 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_DISABLE_PERIODIC */
 	15 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_DISABLE_ASYNC */
 };
@@ -165,7 +166,6 @@ static void ehci_poll_PSS(struct ehci_hcd *ehci)
 
 	/* The status is up-to-date; restart or stop the schedule as needed */
 	if (want == 0) {	/* Stopped */
-		free_cached_lists(ehci);
 		if (ehci->periodic_count > 0) {
 
 			/* make sure ehci_work scans these */
@@ -188,9 +188,6 @@ static void ehci_poll_PSS(struct ehci_hcd *ehci)
 static void ehci_disable_PSE(struct ehci_hcd *ehci)
 {
 	ehci_clear_command_bit(ehci, CMD_PSE);
-
-	/* Poll to see when it actually stops */
-	ehci_enable_event(ehci, EHCI_HRTIMER_POLL_PSS, true);
 }
 
 
@@ -250,6 +247,50 @@ static void ehci_handle_intr_unlinks(struct ehci_hcd *ehci)
 }
 
 
+/* Start another free-iTDs/siTDs cycle */
+static void start_free_itds(struct ehci_hcd *ehci)
+{
+	if (!(ehci->enabled_hrtimer_events & BIT(EHCI_HRTIMER_FREE_ITDS))) {
+		ehci->last_itd_to_free = list_entry(
+				ehci->cached_itd_list.prev,
+				struct ehci_itd, itd_list);
+		ehci->last_sitd_to_free = list_entry(
+				ehci->cached_sitd_list.prev,
+				struct ehci_sitd, sitd_list);
+		ehci_enable_event(ehci, EHCI_HRTIMER_FREE_ITDS, true);
+	}
+}
+
+/* Wait for controller to stop using old iTDs and siTDs */
+static void end_free_itds(struct ehci_hcd *ehci)
+{
+	struct ehci_itd		*itd, *n;
+	struct ehci_sitd	*sitd, *sn;
+
+	if (ehci->rh_state < EHCI_RH_RUNNING) {
+		ehci->last_itd_to_free = NULL;
+		ehci->last_sitd_to_free = NULL;
+	}
+
+	list_for_each_entry_safe(itd, n, &ehci->cached_itd_list, itd_list) {
+		list_del(&itd->itd_list);
+		dma_pool_free(ehci->itd_pool, itd, itd->itd_dma);
+		if (itd == ehci->last_itd_to_free)
+			break;
+	}
+	list_for_each_entry_safe(sitd, sn, &ehci->cached_sitd_list, sitd_list) {
+		list_del(&sitd->sitd_list);
+		dma_pool_free(ehci->sitd_pool, sitd, sitd->sitd_dma);
+		if (sitd == ehci->last_sitd_to_free)
+			break;
+	}
+
+	if (!list_empty(&ehci->cached_itd_list) ||
+			!list_empty(&ehci->cached_sitd_list))
+		start_free_itds(ehci);
+}
+
+
 /*
  * Handler functions for the hrtimer event types.
  * Keep this array in the same order as the event types indexed by
@@ -260,6 +301,7 @@ static void (*event_handlers[])(struct ehci_hcd *) = {
 	ehci_poll_PSS,			/* EHCI_HRTIMER_POLL_PSS */
 	ehci_handle_controller_death,	/* EHCI_HRTIMER_POLL_DEAD */
 	ehci_handle_intr_unlinks,	/* EHCI_HRTIMER_UNLINK_INTR */
+	end_free_itds,			/* EHCI_HRTIMER_FREE_ITDS */
 	ehci_disable_PSE,		/* EHCI_HRTIMER_DISABLE_PERIODIC */
 	ehci_disable_ASE,		/* EHCI_HRTIMER_DISABLE_ASYNC */
 };
