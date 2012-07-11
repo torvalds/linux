@@ -814,14 +814,15 @@ static irqreturn_t smb347_interrupt(int irq, void *data)
 
 	/*
 	 * If we got an under voltage interrupt it means that AC/USB input
-	 * was connected or disconnected.
+	 * was disconnected.
 	 */
-	if (irqstat_e & (IRQSTAT_E_USBIN_UV_IRQ | IRQSTAT_E_DCIN_UV_IRQ)) {
-		if (smb347_update_status(smb) > 0) {
-			smb347_update_online(smb);
-			power_supply_changed(&smb->mains);
-			power_supply_changed(&smb->usb);
-		}
+	if (irqstat_e & (IRQSTAT_E_USBIN_UV_IRQ | IRQSTAT_E_DCIN_UV_IRQ))
+		ret = IRQ_HANDLED;
+
+	if (smb347_update_status(smb) > 0) {
+		smb347_update_online(smb);
+		power_supply_changed(&smb->mains);
+		power_supply_changed(&smb->usb);
 		ret = IRQ_HANDLED;
 	}
 
