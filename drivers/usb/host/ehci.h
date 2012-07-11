@@ -386,7 +386,7 @@ struct ehci_qh_hw {
 } __attribute__ ((aligned(32)));
 
 struct ehci_qh {
-	struct ehci_qh_hw	*hw;
+	struct ehci_qh_hw	*hw;		/* Must come first */
 	/* the rest is HCD-private */
 	dma_addr_t		qh_dma;		/* address of qh */
 	union ehci_shadow	qh_next;	/* ptr to qh; or periodic */
@@ -453,7 +453,6 @@ struct ehci_iso_stream {
 	/* first field matches ehci_hq, but is NULL */
 	struct ehci_qh_hw	*hw;
 
-	u32			refcount;
 	u8			bEndpointAddress;
 	u8			highspeed;
 	struct list_head	td_list;	/* queued itds/sitds */

@@ -934,7 +934,6 @@ iso_stream_alloc (gfp_t mem_flags)
 		INIT_LIST_HEAD(&stream->td_list);
 		INIT_LIST_HEAD(&stream->free_list);
 		stream->next_uframe = -1;
-		stream->refcount = 1;
 	}
 	return stream;
 }
@@ -1034,32 +1033,6 @@ iso_stream_init (
 	stream->maxp = maxp;
 }
 
-static void
-iso_stream_put(struct ehci_hcd *ehci, struct ehci_iso_stream *stream)
-{
-	stream->refcount--;
-
-	/* free whenever just a dev->ep reference remains.
-	 * not like a QH -- no persistent state (toggle, halt)
-	 */
-	if (stream->refcount == 1) {
-		// BUG_ON (!list_empty(&stream->td_list));
-
-		if (stream->ep)
-			stream->ep->hcpriv = NULL;
-
-		kfree(stream);
-	}
-}
-
-static inline struct ehci_iso_stream *
-iso_stream_get (struct ehci_iso_stream *stream)
-{
-	if (likely (stream != NULL))
-		stream->refcount++;
-	return stream;
-}
-
 static struct ehci_iso_stream *
 iso_stream_find (struct ehci_hcd *ehci, struct urb *urb)
 {
@@ -1080,7 +1053,6 @@ iso_stream_find (struct ehci_hcd *ehci, struct urb *urb)
 	if (unlikely (stream == NULL)) {
 		stream = iso_stream_alloc(GFP_ATOMIC);
 		if (likely (stream != NULL)) {
-			/* dev->ep owns the initial refcount */
 			ep->hcpriv = stream;
 			stream->ep = ep;
 			iso_stream_init(ehci, stream, urb->dev, urb->pipe,
@@ -1094,9 +1066,6 @@ iso_stream_find (struct ehci_hcd *ehci, struct urb *urb)
 			usb_pipein(urb->pipe) ? "in" : "out");
 		stream = NULL;
 	}
-
-	/* caller guarantees an eventual matching iso_stream_put */
-	stream = iso_stream_get (stream);
 
 	spin_unlock_irqrestore (&ehci->lock, flags);
 	return stream;
@@ -1611,7 +1580,7 @@ static void itd_link_urb(
 			itd = list_entry (iso_sched->td_list.next,
 					struct ehci_itd, itd_list);
 			list_move_tail (&itd->itd_list, &stream->td_list);
-			itd->stream = iso_stream_get (stream);
+			itd->stream = stream;
 			itd->urb = urb;
 			itd_init (ehci, stream, itd);
 		}
@@ -1735,7 +1704,6 @@ itd_complete (
 			dev->devpath, stream->bEndpointAddress & 0x0f,
 			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out");
 	}
-	iso_stream_put (ehci, stream);
 
 done:
 	itd->urb = NULL;
@@ -1750,7 +1718,6 @@ done:
 		start_free_itds(ehci);
 	}
 
-	iso_stream_put(ehci, stream);
 	return retval;
 }
 
@@ -1807,12 +1774,9 @@ static int itd_submit (struct ehci_hcd *ehci, struct urb *urb,
 		itd_link_urb (ehci, urb, ehci->periodic_size << 3, stream);
 	else
 		usb_hcd_unlink_urb_from_ep(ehci_to_hcd(ehci), urb);
-done_not_linked:
+ done_not_linked:
 	spin_unlock_irqrestore (&ehci->lock, flags);
-
-done:
-	if (unlikely (status < 0))
-		iso_stream_put (ehci, stream);
+ done:
 	return status;
 }
 
@@ -2028,7 +1992,7 @@ static void sitd_link_urb(
 		sitd = list_entry (sched->td_list.next,
 				struct ehci_sitd, sitd_list);
 		list_move_tail (&sitd->sitd_list, &stream->td_list);
-		sitd->stream = iso_stream_get (stream);
+		sitd->stream = stream;
 		sitd->urb = urb;
 
 		sitd_patch(ehci, stream, sitd, sched, packet);
@@ -2126,7 +2090,6 @@ sitd_complete (
 			dev->devpath, stream->bEndpointAddress & 0x0f,
 			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out");
 	}
-	iso_stream_put (ehci, stream);
 
 done:
 	sitd->urb = NULL;
@@ -2141,7 +2104,6 @@ done:
 		start_free_itds(ehci);
 	}
 
-	iso_stream_put(ehci, stream);
 	return retval;
 }
 
@@ -2195,12 +2157,9 @@ static int sitd_submit (struct ehci_hcd *ehci, struct urb *urb,
 		sitd_link_urb (ehci, urb, ehci->periodic_size << 3, stream);
 	else
 		usb_hcd_unlink_urb_from_ep(ehci_to_hcd(ehci), urb);
-done_not_linked:
+ done_not_linked:
 	spin_unlock_irqrestore (&ehci->lock, flags);
-
-done:
-	if (status < 0)
-		iso_stream_put (ehci, stream);
+ done:
 	return status;
 }
 
