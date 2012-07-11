@@ -122,25 +122,6 @@ enum ad5064_type {
 	ID_AD5668_2,
 };
 
-static int ad5064_i2c_write(struct ad5064_state *st, unsigned int cmd,
-	unsigned int addr, unsigned int val)
-{
-	struct i2c_client *i2c = to_i2c_client(st->dev);
-
-	st->data.i2c[0] = (cmd << 4) | addr;
-	put_unaligned_be16(val, &st->data.i2c[1]);
-	return i2c_master_send(i2c, st->data.i2c, 3);
-}
-
-static int ad5064_spi_write(struct ad5064_state *st, unsigned int cmd,
-	unsigned int addr, unsigned int val)
-{
-	struct spi_device *spi = to_spi_device(st->dev);
-
-	st->data.spi = cpu_to_be32(AD5064_CMD(cmd) | AD5064_ADDR(addr) | val);
-	return spi_write(spi, &st->data.spi, sizeof(st->data.spi));
-}
-
 static int ad5064_write(struct ad5064_state *st, unsigned int cmd,
 	unsigned int addr, unsigned int val, unsigned int shift)
 {
@@ -533,6 +514,15 @@ static int __devexit ad5064_remove(struct device *dev)
 
 #if IS_ENABLED(CONFIG_SPI_MASTER)
 
+static int ad5064_spi_write(struct ad5064_state *st, unsigned int cmd,
+	unsigned int addr, unsigned int val)
+{
+	struct spi_device *spi = to_spi_device(st->dev);
+
+	st->data.spi = cpu_to_be32(AD5064_CMD(cmd) | AD5064_ADDR(addr) | val);
+	return spi_write(spi, &st->data.spi, sizeof(st->data.spi));
+}
+
 static int __devinit ad5064_spi_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
@@ -595,6 +585,16 @@ static inline void ad5064_spi_unregister_driver(void) { }
 #endif
 
 #if IS_ENABLED(CONFIG_I2C)
+
+static int ad5064_i2c_write(struct ad5064_state *st, unsigned int cmd,
+	unsigned int addr, unsigned int val)
+{
+	struct i2c_client *i2c = to_i2c_client(st->dev);
+
+	st->data.i2c[0] = (cmd << 4) | addr;
+	put_unaligned_be16(val, &st->data.i2c[1]);
+	return i2c_master_send(i2c, st->data.i2c, 3);
+}
 
 static int __devinit ad5064_i2c_probe(struct i2c_client *i2c,
 	const struct i2c_device_id *id)
