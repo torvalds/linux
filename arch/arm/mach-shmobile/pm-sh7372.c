@@ -303,6 +303,7 @@ static void sh7372_enter_a3sm_common(int pllc0_on)
 	sh7372_set_reset_vector(__pa(sh7372_resume_core_standby_sysc));
 	sh7372_enter_sysc(pllc0_on, 1 << 12);
 }
+#endif /* CONFIG_SUSPEND || CONFIG_CPU_IDLE */
 
 #ifdef CONFIG_CPU_IDLE
 static int sh7372_do_idle_core_standby(unsigned long unused)
@@ -442,7 +443,6 @@ static void sh7372_suspend_init(void)
 #else
 static void sh7372_suspend_init(void) {}
 #endif
-#endif /* CONFIG_SUSPEND || CONFIG_CPU_IDLE */
 
 void __init sh7372_pm_init(void)
 {
