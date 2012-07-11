@@ -979,31 +979,33 @@ stu300_probe(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int stu300_suspend(struct platform_device *pdev, pm_message_t state)
+static int stu300_suspend(struct device *device)
 {
-	struct stu300_dev *dev = platform_get_drvdata(pdev);
+	struct stu300_dev *dev = dev_get_drvdata(device);
 
 	/* Turn off everything */
 	stu300_wr8(0x00, dev->virtbase + I2C_CR);
 	return 0;
 }
 
-static int stu300_resume(struct platform_device *pdev)
+static int stu300_resume(struct device *device)
 {
 	int ret = 0;
-	struct stu300_dev *dev = platform_get_drvdata(pdev);
+	struct stu300_dev *dev = dev_get_drvdata(device);
 
 	clk_enable(dev->clk);
 	ret = stu300_init_hw(dev);
 	clk_disable(dev->clk);
 
 	if (ret != 0)
-		dev_err(&pdev->dev, "error re-initializing hardware.\n");
+		dev_err(device, "error re-initializing hardware.\n");
 	return ret;
 }
+
+static SIMPLE_DEV_PM_OPS(stu300_pm, stu300_suspend, stu300_resume);
+#define STU300_I2C_PM	(&stu300_pm)
 #else
-#define stu300_suspend NULL
-#define stu300_resume NULL
+#define STU300_I2C_PM	NULL
 #endif
 
 static int __exit
@@ -1028,10 +1030,9 @@ static struct platform_driver stu300_i2c_driver = {
 	.driver = {
 		.name	= NAME,
 		.owner	= THIS_MODULE,
+		.pm	= STU300_I2C_PM,
 	},
 	.remove		= __exit_p(stu300_remove),
-	.suspend        = stu300_suspend,
-	.resume         = stu300_resume,
 
 };
 
