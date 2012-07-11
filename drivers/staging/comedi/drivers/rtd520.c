@@ -407,8 +407,6 @@ struct rtdPrivate {
 /* Macros to access registers */
 
 /* ADC sample counter, 10bit */
-#define RtdAdcSampleCount(dev) \
-	readl(devpriv->las0+LAS0_ADC_SCNT)
 #define RtdAdcSampleCounter(dev, v) \
 	writel((v) & 0x3ff, devpriv->las0+LAS0_ADC_SCNT)
 
