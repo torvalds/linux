@@ -7001,6 +7001,7 @@ int ixgbe_wol_supported(struct ixgbe_adapter *adapter, u16 device_id,
 			if (hw->bus.func != 0)
 				break;
 		case IXGBE_SUBDEV_ID_82599_SFP:
+		case IXGBE_SUBDEV_ID_82599_RNDC:
 			is_wol_supported = 1;
 			break;
 		}
