@@ -404,12 +404,6 @@ struct rtdPrivate {
  */
 #define devpriv ((struct rtdPrivate *)dev->private)
 
-/* Macros to access registers */
-
-/* Get status for DMA 1 */
-#define RtdDma1Status(dev) \
-	readb(devpriv->lcfg+LCFG_DMACSR1)
-
 /*
   Given a desired period and the clock period (both in ns),
   return the proper counter value (divider-1).
