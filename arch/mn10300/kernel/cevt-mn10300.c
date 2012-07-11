@@ -70,6 +70,16 @@ static void event_handler(struct clock_event_device *dev)
 {
 }
 
+static inline void setup_jiffies_interrupt(int irq,
+					   struct irqaction *action)
+{
+	u16 tmp;
+	setup_irq(irq, action);
+	set_intr_level(irq, NUM2GxICR_LEVEL(CONFIG_TIMER_IRQ_LEVEL));
+	GxICR(irq) |= GxICR_ENABLE | GxICR_DETECT | GxICR_REQUEST;
+	tmp = GxICR(irq);
+}
+
 int __init init_clockevents(void)
 {
 	struct clock_event_device *cd;
