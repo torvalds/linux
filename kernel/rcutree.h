@@ -102,6 +102,9 @@ struct rcu_dynticks {
 				    /* idle-period nonlazy_posted snapshot. */
 	int tick_nohz_enabled_snap; /* Previously seen value from sysfs. */
 #endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
+#ifdef CONFIG_RCU_USER_QS
+	bool in_user;		    /* Is the CPU in userland from RCU POV? */
+#endif
 };
 
 /* RCU's kthread states for tracing. */
