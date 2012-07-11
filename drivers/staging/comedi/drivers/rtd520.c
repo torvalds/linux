@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set next descriptor for DMA 0 */
-#define RtdDma0Next(dev, a) \
-	writel((a), devpriv->lcfg+LCFG_DMADPR0)
-
 /* Set  mode for DMA 1 */
 #define RtdDma1Mode(dev, m) \
 	writel((m), devpriv->lcfg+LCFG_DMAMODE1)
@@ -1423,8 +1419,9 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* point to first transfer in ring */
 		devpriv->dma0Offset = 0;
 		writel(DMA_MODE_BITS, devpriv->lcfg + LCFG_DMAMODE0);
-		RtdDma0Next(dev,	/* point to first block */
-			    devpriv->dma0Chain[DMA_CHAIN_COUNT - 1].next);
+		/* point to first block */
+		writel(devpriv->dma0Chain[DMA_CHAIN_COUNT - 1].next,
+			devpriv->lcfg + LCFG_DMADPR0);
 		writel(DMAS_ADFIFO_HALF_FULL, devpriv->las0 + LAS0_DMA0_SRC);
 		writel(readl(devpriv->lcfg + LCFG_ITCSR) | ICS_DMA0_E,
 			devpriv->lcfg + LCFG_ITCSR);
