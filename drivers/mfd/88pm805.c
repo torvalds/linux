@@ -192,6 +192,7 @@ static struct regmap_irq_chip pm805_irq_chip = {
 static int __devinit device_805_init(struct pm80x_chip *chip)
 {
 	int ret = 0;
+	unsigned int val;
 	struct regmap *map = chip->regmap;
 
 	if (!map) {
@@ -199,12 +200,12 @@ static int __devinit device_805_init(struct pm80x_chip *chip)
 		return -EINVAL;
 	}
 
-	regmap_read(map, PM805_CHIP_ID, &ret);
+	ret = regmap_read(map, PM805_CHIP_ID, &val);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to read CHIP ID: %d\n", ret);
 		goto out_irq_init;
 	}
-	chip->version = ret;
+	chip->version = val;
 
 	chip->regmap_irq_chip = &pm805_irq_chip;
 

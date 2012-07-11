@@ -419,22 +419,24 @@ static int __devinit device_800_init(struct pm80x_chip *chip,
 				     struct pm80x_platform_data *pdata)
 {
 	int ret, pmic_id;
+	unsigned int val;
 
-	regmap_read(chip->regmap, PM800_CHIP_ID, &ret);
+	ret = regmap_read(chip->regmap, PM800_CHIP_ID, &val);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to read CHIP ID: %d\n", ret);
 		goto out;
 	}
 
-	pmic_id = ret & PM80X_VERSION_MASK;
+	pmic_id = val & PM80X_VERSION_MASK;
 
 	if ((pmic_id >= PM800_CHIP_A0) && (pmic_id <= PM800_CHIP_END)) {
-		chip->version = ret;
+		chip->version = val;
 		dev_info(chip->dev,
-			 "88PM80x:Marvell 88PM800 (ID:0x%x) detected\n", ret);
+			 "88PM80x:Marvell 88PM800 (ID:0x%x) detected\n", val);
 	} else {
 		dev_err(chip->dev,
-			"Failed to detect Marvell 88PM800:ChipID[0x%x]\n", ret);
+			"Failed to detect Marvell 88PM800:ChipID[0x%x]\n", val);
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -442,12 +444,12 @@ static int __devinit device_800_init(struct pm80x_chip *chip,
 	 * alarm wake up bit will be clear in device_irq_init(),
 	 * read before that
 	 */
-	regmap_read(chip->regmap, PM800_RTC_CONTROL, &ret);
+	ret = regmap_read(chip->regmap, PM800_RTC_CONTROL, &val);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to read RTC register: %d\n", ret);
 		goto out;
 	}
-	if (ret & PM800_ALARM_WAKEUP) {
+	if (val & PM800_ALARM_WAKEUP) {
 		if (pdata && pdata->rtc)
 			pdata->rtc->rtc_wakeup = 1;
 	}
