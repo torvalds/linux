@@ -17,6 +17,7 @@
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/delay.h>
+#include <linux/of.h>
 
 #define AB8500_RTC_SOFF_STAT_REG	0x00
 #define AB8500_RTC_CC_CONF_REG		0x01
@@ -430,7 +431,6 @@ static int __devinit ab8500_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtc);
 
-
 	err = ab8500_sysfs_rtc_register(&pdev->dev);
 	if (err) {
 		dev_err(&pdev->dev, "sysfs RTC failed to register\n");
@@ -454,10 +454,16 @@ static int __devexit ab8500_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id ab8500_rtc_match[] = {
+	{ .compatible = "stericsson,ab8500-rtc", },
+	{}
+};
+
 static struct platform_driver ab8500_rtc_driver = {
 	.driver = {
 		.name = "ab8500-rtc",
 		.owner = THIS_MODULE,
+		.of_match_table = ab8500_rtc_match,
 	},
 	.probe	= ab8500_rtc_probe,
 	.remove = __devexit_p(ab8500_rtc_remove),
