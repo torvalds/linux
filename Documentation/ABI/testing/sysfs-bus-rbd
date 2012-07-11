@@ -33,6 +33,11 @@ name
 
 	The name of the rbd image.
 
+image_id
+
+	The unique id for the rbd image.  (For rbd image format 1
+	this is empty.)
+
 pool
 
 	The name of the storage pool where this rbd image resides.
