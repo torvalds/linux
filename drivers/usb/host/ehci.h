@@ -81,6 +81,7 @@ enum ehci_rh_state {
 enum ehci_hrtimer_event {
 	EHCI_HRTIMER_POLL_ASS,		/* Poll for async schedule off */
 	EHCI_HRTIMER_POLL_PSS,		/* Poll for periodic schedule off */
+	EHCI_HRTIMER_POLL_DEAD,		/* Wait for dead controller to stop */
 	EHCI_HRTIMER_UNLINK_INTR,	/* Wait for interrupt QH unlink */
 	EHCI_HRTIMER_DISABLE_PERIODIC,	/* Wait to disable periodic sched */
 	EHCI_HRTIMER_DISABLE_ASYNC,	/* Wait to disable async sched */
@@ -97,6 +98,7 @@ struct ehci_hcd {			/* one per controller */
 
 	int			PSS_poll_count;
 	int			ASS_poll_count;
+	int			died_poll_count;
 
 	/* glue to PCI and HCD framework */
 	struct ehci_caps __iomem *caps;

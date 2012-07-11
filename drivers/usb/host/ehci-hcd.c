@@ -888,20 +888,20 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 	/* PCI errors [4.15.2.4] */
 	if (unlikely ((status & STS_FATAL) != 0)) {
 		ehci_err(ehci, "fatal error\n");
-		ehci->rh_state = EHCI_RH_STOPPING;
 		dbg_cmd(ehci, "fatal", cmd);
 		dbg_status(ehci, "fatal", status);
-		ehci_halt(ehci);
 dead:
-		ehci->enabled_hrtimer_events = 0;
-		hrtimer_try_to_cancel(&ehci->hrtimer);
-		ehci_reset(ehci);
-		ehci_writel(ehci, 0, &ehci->regs->configured_flag);
 		usb_hc_died(hcd);
-		/* generic layer kills/unlinks all urbs, then
-		 * uses ehci_stop to clean up the rest
-		 */
-		bh = 1;
+
+		/* Don't let the controller do anything more */
+		ehci->rh_state = EHCI_RH_STOPPING;
+		ehci->command &= ~(CMD_RUN | CMD_ASE | CMD_PSE);
+		ehci_writel(ehci, ehci->command, &ehci->regs->command);
+		ehci_writel(ehci, 0, &ehci->regs->intr_enable);
+		ehci_handle_controller_death(ehci);
+
+		/* Handle completions when the controller stops */
+		bh = 0;
 	}
 
 	if (bh)

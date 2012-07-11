@@ -69,6 +69,7 @@ static void ehci_clear_command_bit(struct ehci_hcd *ehci, u32 bit)
 static unsigned event_delays_ns[] = {
 	1 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_POLL_ASS */
 	1 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_POLL_PSS */
+	1 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_POLL_DEAD */
 	1125 * NSEC_PER_USEC,	/* EHCI_HRTIMER_UNLINK_INTR */
 	10 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_DISABLE_PERIODIC */
 	15 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_DISABLE_ASYNC */
@@ -193,6 +194,30 @@ static void ehci_disable_PSE(struct ehci_hcd *ehci)
 }
 
 
+/* Poll the STS_HALT status bit; see when a dead controller stops */
+static void ehci_handle_controller_death(struct ehci_hcd *ehci)
+{
+	if (!(ehci_readl(ehci, &ehci->regs->status) & STS_HALT)) {
+
+		/* Give up after a few milliseconds */
+		if (ehci->died_poll_count++ < 5) {
+			/* Try again later */
+			ehci_enable_event(ehci, EHCI_HRTIMER_POLL_DEAD, true);
+			return;
+		}
+		ehci_warn(ehci, "Waited too long for the controller to stop, giving up\n");
+	}
+
+	/* Clean up the mess */
+	ehci->rh_state = EHCI_RH_HALTED;
+	ehci_writel(ehci, 0, &ehci->regs->configured_flag);
+	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
+	ehci_work(ehci);
+
+	/* Not in process context, so don't try to reset the controller */
+}
+
+
 /* Handle unlinked interrupt QHs once they are gone from the hardware */
 static void ehci_handle_intr_unlinks(struct ehci_hcd *ehci)
 {
@@ -233,6 +258,7 @@ static void ehci_handle_intr_unlinks(struct ehci_hcd *ehci)
 static void (*event_handlers[])(struct ehci_hcd *) = {
 	ehci_poll_ASS,			/* EHCI_HRTIMER_POLL_ASS */
 	ehci_poll_PSS,			/* EHCI_HRTIMER_POLL_PSS */
+	ehci_handle_controller_death,	/* EHCI_HRTIMER_POLL_DEAD */
 	ehci_handle_intr_unlinks,	/* EHCI_HRTIMER_UNLINK_INTR */
 	ehci_disable_PSE,		/* EHCI_HRTIMER_DISABLE_PERIODIC */
 	ehci_disable_ASE,		/* EHCI_HRTIMER_DISABLE_ASYNC */
