@@ -1031,7 +1031,7 @@ static bool IS_DISPLAYREG(u32 reg)
 	 * This should make it easier to transition modules over to the
 	 * new register block scheme, since we can do it incrementally.
 	 */
-	if (reg >= 0x180000)
+	if (reg >= VLV_DISPLAY_BASE)
 		return false;
 
 	if (reg >= RENDER_RING_BASE &&
