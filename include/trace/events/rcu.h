@@ -289,6 +289,7 @@ TRACE_EVENT(rcu_dyntick,
  *	"In holdoff": Nothing to do, holding off after unsuccessful attempt.
  *	"Begin holdoff": Attempt failed, don't retry until next jiffy.
  *	"Dyntick with callbacks": Entering dyntick-idle despite callbacks.
+ *	"Dyntick with lazy callbacks": Entering dyntick-idle w/lazy callbacks.
  *	"More callbacks": Still more callbacks, try again to clear them out.
  *	"Callbacks drained": All callbacks processed, off to dyntick idle!
  *	"Timer": Timer fired to cause CPU to continue processing callbacks.

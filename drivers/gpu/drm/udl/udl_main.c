@@ -61,7 +61,7 @@ static int udl_parse_vendor_descriptor(struct drm_device *dev,
 			u8 length;
 			u16 key;
 
-			key = *((u16 *) desc);
+			key = le16_to_cpu(*((u16 *) desc));
 			desc += sizeof(u16);
 			length = *desc;
 			desc++;
