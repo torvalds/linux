@@ -46,6 +46,15 @@ config BCMA_DRIVER_MIPS
 
 	  If unsure, say N
 
+config BCMA_DRIVER_GMAC_CMN
+	bool "BCMA Broadcom GBIT MAC COMMON core driver"
+	depends on BCMA
+	help
+	  Driver for the Broadcom GBIT MAC COMMON core attached to Broadcom
+	  specific Advanced Microcontroller Bus.
+
+	  If unsure, say N
+
 config BCMA_DEBUG
 	bool "BCMA debugging"
 	depends on BCMA
