@@ -20,6 +20,7 @@
 #include <linux/usb.h>
 #include <linux/usbdevice_fs.h>
 #include <linux/usb/hcd.h>
+#include <linux/usb/otg.h>
 #include <linux/usb/quirks.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
@@ -4099,6 +4100,13 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		} else {
 			portstatus = status;
 		}
+	}
+
+	if (hcd->phy && !hdev->parent) {
+		if (portstatus & USB_PORT_STAT_CONNECTION)
+			usb_phy_notify_connect(hcd->phy, port1);
+		else
+			usb_phy_notify_disconnect(hcd->phy, port1);
 	}
 
 	/* Return now if debouncing failed or nothing is connected or
