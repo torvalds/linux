@@ -69,10 +69,9 @@ struct nfs_client {
 	struct idmap *		cl_idmap;
 
 	/* Our own IP address, as a null-terminated string.
-	 * This is used to generate the clientid, and the callback address.
+	 * This is used to generate the mv0 callback address.
 	 */
 	char			cl_ipaddr[48];
-	unsigned char		cl_id_uniquifier;
 	u32			cl_cb_ident;	/* v4.0 callback identifier */
 	const struct nfs4_minor_version_ops *cl_mvops;
 

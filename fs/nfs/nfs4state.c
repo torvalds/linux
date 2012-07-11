@@ -1606,10 +1606,15 @@ static int nfs4_handle_reclaim_lease_error(struct nfs_client *clp, int status)
 			return -ESERVERFAULT;
 		/* Lease confirmation error: retry after purging the lease */
 		ssleep(1);
-	case -NFS4ERR_CLID_INUSE:
 	case -NFS4ERR_STALE_CLIENTID:
 		clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
 		break;
+	case -NFS4ERR_CLID_INUSE:
+		pr_err("NFS: Server %s reports our clientid is in use\n",
+			clp->cl_hostname);
+		nfs_mark_client_ready(clp, -EPERM);
+		clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
+		return -EPERM;
 	case -EACCES:
 		if (clp->cl_machine_cred == NULL)
 			return -EACCES;
