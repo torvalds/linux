@@ -410,8 +410,10 @@ static void ehci_work (struct ehci_hcd *ehci)
 	ehci->need_rescan = false;
 	if (ehci->async_count)
 		scan_async(ehci);
-	if (ehci->next_uframe != -1)
-		scan_periodic (ehci);
+	if (ehci->intr_count > 0)
+		scan_intr(ehci);
+	if (ehci->isoc_count > 0)
+		scan_isoc(ehci);
 	if (ehci->need_rescan)
 		goto rescan;
 	ehci->scanning = false;
@@ -509,6 +511,7 @@ static int ehci_init(struct usb_hcd *hcd)
 	 * periodic_size can shrink by USBCMD update if hcc_params allows.
 	 */
 	ehci->periodic_size = DEFAULT_I_TDPS;
+	INIT_LIST_HEAD(&ehci->intr_qh_list);
 	INIT_LIST_HEAD(&ehci->cached_itd_list);
 	INIT_LIST_HEAD(&ehci->cached_sitd_list);
 

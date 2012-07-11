@@ -168,13 +168,8 @@ static void ehci_poll_PSS(struct ehci_hcd *ehci)
 
 	/* The status is up-to-date; restart or stop the schedule as needed */
 	if (want == 0) {	/* Stopped */
-		if (ehci->periodic_count > 0) {
-
-			/* make sure ehci_work scans these */
-			ehci->next_uframe = ehci_read_frame_index(ehci)
-					& ((ehci->periodic_size << 3) - 1);
+		if (ehci->periodic_count > 0)
 			ehci_set_command_bit(ehci, CMD_PSE);
-		}
 
 	} else {		/* Running */
 		if (ehci->periodic_count == 0) {

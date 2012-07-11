@@ -569,7 +569,10 @@ static void qh_link_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 		? ((qh->usecs + qh->c_usecs) / qh->period)
 		: (qh->usecs * 8);
 
+	list_add(&qh->intr_node, &ehci->intr_qh_list);
+
 	/* maybe enable periodic schedule processing */
+	++ehci->intr_count;
 	enable_periodic(ehci);
 }
 
@@ -614,6 +617,11 @@ static void qh_unlink_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	/* qh->qh_next still "live" to HC */
 	qh->qh_state = QH_STATE_UNLINK;
 	qh->qh_next.ptr = NULL;
+
+	if (ehci->qh_scan_next == qh)
+		ehci->qh_scan_next = list_entry(qh->intr_node.next,
+				struct ehci_qh, intr_node);
+	list_del(&qh->intr_node);
 }
 
 static void start_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh)
@@ -683,6 +691,7 @@ static void end_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	}
 
 	/* maybe turn off periodic schedule */
+	--ehci->intr_count;
 	disable_periodic(ehci);
 }
 
@@ -918,6 +927,35 @@ done_not_linked:
 		qtd_list_free (ehci, urb, qtd_list);
 
 	return status;
+}
+
+static void scan_intr(struct ehci_hcd *ehci)
+{
+	struct ehci_qh		*qh;
+
+	list_for_each_entry_safe(qh, ehci->qh_scan_next, &ehci->intr_qh_list,
+			intr_node) {
+ rescan:
+		/* clean any finished work for this qh */
+		if (!list_empty(&qh->qtd_list)) {
+			int temp;
+
+			/*
+			 * Unlinks could happen here; completion reporting
+			 * drops the lock.  That's why ehci->qh_scan_next
+			 * always holds the next qh to scan; if the next qh
+			 * gets unlinked then ehci->qh_scan_next is adjusted
+			 * in qh_unlink_periodic().
+			 */
+			temp = qh_completions(ehci, qh);
+			if (unlikely(qh->needs_rescan ||
+					(list_empty(&qh->qtd_list) &&
+						qh->qh_state == QH_STATE_LINKED)))
+				start_unlink_intr(ehci, qh);
+			else if (temp != 0)
+				goto rescan;
+		}
+	}
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1450,6 +1488,10 @@ iso_stream_schedule (
 	urb->start_frame = stream->next_uframe;
 	if (!stream->highspeed)
 		urb->start_frame >>= 3;
+
+	/* Make sure scan_isoc() sees these */
+	if (ehci->isoc_count == 0)
+		ehci->next_uframe = now;
 	return 0;
 
  fail:
@@ -1608,6 +1650,7 @@ static void itd_link_urb(
 	urb->hcpriv = NULL;
 
 	timer_action (ehci, TIMER_IO_WATCHDOG);
+	++ehci->isoc_count;
 	enable_periodic(ehci);
 }
 
@@ -1688,9 +1731,11 @@ itd_complete (
 	ehci_urb_done(ehci, urb, 0);
 	retval = true;
 	urb = NULL;
-	disable_periodic(ehci);
-	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs--;
 
+	--ehci->isoc_count;
+	disable_periodic(ehci);
+
+	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs--;
 	if (ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs == 0) {
 		if (ehci->amd_pll_fix == 1)
 			usb_amd_quirk_pll_enable();
@@ -2008,6 +2053,7 @@ static void sitd_link_urb(
 	urb->hcpriv = NULL;
 
 	timer_action (ehci, TIMER_IO_WATCHDOG);
+	++ehci->isoc_count;
 	enable_periodic(ehci);
 }
 
@@ -2074,9 +2120,11 @@ sitd_complete (
 	ehci_urb_done(ehci, urb, 0);
 	retval = true;
 	urb = NULL;
-	disable_periodic(ehci);
-	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs--;
 
+	--ehci->isoc_count;
+	disable_periodic(ehci);
+
+	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs--;
 	if (ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs == 0) {
 		if (ehci->amd_pll_fix == 1)
 			usb_amd_quirk_pll_enable();
@@ -2165,8 +2213,7 @@ static int sitd_submit (struct ehci_hcd *ehci, struct urb *urb,
 
 /*-------------------------------------------------------------------------*/
 
-static void
-scan_periodic (struct ehci_hcd *ehci)
+static void scan_isoc(struct ehci_hcd *ehci)
 {
 	unsigned	now_uframe, frame, clock, clock_frame, mod;
 	unsigned	modified;
@@ -2189,7 +2236,6 @@ scan_periodic (struct ehci_hcd *ehci)
 	ehci->clock_frame = clock_frame;
 	clock &= mod - 1;
 	clock_frame = clock >> 3;
-	++ehci->periodic_stamp;
 
 	for (;;) {
 		union ehci_shadow	q, *q_p;
@@ -2208,36 +2254,10 @@ restart:
 
 		while (q.ptr != NULL) {
 			unsigned		uf;
-			union ehci_shadow	temp;
 			int			live;
 
 			live = (ehci->rh_state >= EHCI_RH_RUNNING);
 			switch (hc32_to_cpu(ehci, type)) {
-			case Q_TYPE_QH:
-				/* handle any completions */
-				temp.qh = q.qh;
-				type = Q_NEXT_TYPE(ehci, q.qh->hw->hw_next);
-				q = q.qh->qh_next;
-				if (temp.qh->stamp != ehci->periodic_stamp) {
-					modified = qh_completions(ehci, temp.qh);
-					if (!modified)
-						temp.qh->stamp = ehci->periodic_stamp;
-					if (unlikely(list_empty(&temp.qh->qtd_list) ||
-							temp.qh->needs_rescan))
-						start_unlink_intr(ehci, temp.qh);
-				}
-				break;
-			case Q_TYPE_FSTN:
-				/* for "save place" FSTNs, look at QH entries
-				 * in the previous frame for completions.
-				 */
-				if (q.fstn->hw_prev != EHCI_LIST_END(ehci)) {
-					ehci_dbg(ehci,
-						"ignoring completions from FSTNs\n");
-				}
-				type = Q_NEXT_TYPE(ehci, q.fstn->hw_next);
-				q = q.fstn->fstn_next;
-				break;
 			case Q_TYPE_ITD:
 				/* If this ITD is still active, leave it for
 				 * later processing ... check the next entry.
@@ -2319,12 +2339,17 @@ restart:
 				ehci_dbg(ehci, "corrupt type %d frame %d shadow %p\n",
 					type, frame, q.ptr);
 				// BUG ();
+				/* FALL THROUGH */
+			case Q_TYPE_QH:
+			case Q_TYPE_FSTN:
+				/* End of the iTDs and siTDs */
 				q.ptr = NULL;
+				break;
 			}
 
 			/* assume completion callbacks modify the queue */
 			if (unlikely (modified)) {
-				if (likely(ehci->periodic_count > 0))
+				if (likely(ehci->isoc_count > 0))
 					goto restart;
 				/* short-circuit this scan */
 				now_uframe = clock;
@@ -2353,7 +2378,7 @@ restart:
 			unsigned	now;
 
 			if (ehci->rh_state < EHCI_RH_RUNNING
-					|| ehci->periodic_count == 0)
+					|| ehci->isoc_count == 0)
 				break;
 			ehci->next_uframe = now_uframe;
 			now = ehci_read_frame_index(ehci) & (mod - 1);
@@ -2363,10 +2388,7 @@ restart:
 			/* rescan the rest of this frame, then ... */
 			clock = now;
 			clock_frame = clock >> 3;
-			if (ehci->clock_frame != clock_frame) {
-				ehci->clock_frame = clock_frame;
-				++ehci->periodic_stamp;
-			}
+			ehci->clock_frame = clock_frame;
 		} else {
 			now_uframe++;
 			now_uframe &= mod - 1;

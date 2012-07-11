@@ -117,6 +117,7 @@ struct ehci_hcd {			/* one per controller */
 	bool			need_rescan:1;
 	bool			intr_unlinking:1;
 	bool			async_unlinking:1;
+	struct ehci_qh		*qh_scan_next;
 
 	/* async schedule support */
 	struct ehci_qh		*async;
@@ -124,7 +125,6 @@ struct ehci_hcd {			/* one per controller */
 	struct ehci_qh		*async_unlink;
 	struct ehci_qh		*async_unlink_last;
 	struct ehci_qh		*async_iaa;
-	struct ehci_qh		*qh_scan_next;
 	unsigned		async_unlink_cycle;
 	unsigned		async_count;	/* async activity count */
 
@@ -133,6 +133,7 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		periodic_size;
 	__hc32			*periodic;	/* hw periodic table */
 	dma_addr_t		periodic_dma;
+	struct list_head	intr_qh_list;
 	unsigned		i_thresh;	/* uframes HC might cache */
 
 	union ehci_shadow	*pshadow;	/* mirror hw periodic table */
@@ -140,6 +141,8 @@ struct ehci_hcd {			/* one per controller */
 	struct ehci_qh		*intr_unlink_last;
 	unsigned		intr_unlink_cycle;
 	int			next_uframe;	/* scan periodic, start here */
+	unsigned		intr_count;	/* intr activity count */
+	unsigned		isoc_count;	/* isoc activity count */
 	unsigned		periodic_count;	/* periodic activity count */
 	unsigned		uframe_periodic_max; /* max periodic time per uframe */
 
@@ -176,7 +179,6 @@ struct ehci_hcd {			/* one per controller */
 
 	struct timer_list	watchdog;
 	unsigned long		actions;
-	unsigned		periodic_stamp;
 	unsigned		random_frame;
 	unsigned long		next_statechange;
 	ktime_t			last_periodic_enable;
@@ -381,11 +383,11 @@ struct ehci_qh {
 	dma_addr_t		qh_dma;		/* address of qh */
 	union ehci_shadow	qh_next;	/* ptr to qh; or periodic */
 	struct list_head	qtd_list;	/* sw qtd list */
+	struct list_head	intr_node;	/* list of intr QHs */
 	struct ehci_qtd		*dummy;
 	struct ehci_qh		*unlink_next;	/* next on unlink list */
 
 	unsigned		unlink_cycle;
-	unsigned		stamp;
 
 	u8			needs_rescan;	/* Dequeue during giveback */
 	u8			qh_state;

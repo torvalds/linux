@@ -322,7 +322,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	 *
 	 * It's a bug for qh->qh_state to be anything other than
 	 * QH_STATE_IDLE, unless our caller is scan_async() or
-	 * scan_periodic().
+	 * scan_intr().
 	 */
 	state = qh->qh_state;
 	qh->qh_state = QH_STATE_COMPLETING;
@@ -832,7 +832,6 @@ qh_make (
 				is_input, 0,
 				hb_mult(maxp) * max_packet(maxp)));
 		qh->start = NO_FRAME;
-		qh->stamp = ehci->periodic_stamp;
 
 		if (urb->dev->speed == USB_SPEED_HIGH) {
 			qh->c_usecs = 0;
