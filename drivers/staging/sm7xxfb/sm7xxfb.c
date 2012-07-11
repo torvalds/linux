@@ -52,12 +52,12 @@ struct smtcfb_info {
 	u_int width;
 	u_int height;
 	u_int hz;
+
+	u32 colreg[17];
 };
 
 char __iomem *smtc_RegBaseAddress;	/* Memory Map IO starting address */
 char __iomem *smtc_VRAMBaseAddress;	/* video memory starting address */
-
-static u32 colreg[17];
 
 static struct fb_var_screeninfo smtcfb_var = {
 	.xres           = 1024,
@@ -709,9 +709,9 @@ static struct smtcfb_info *smtc_alloc_fb_info(struct pci_dev *pdev, char *name)
 	sfb->fb.var.accel_flags = FB_ACCELF_TEXT;
 	sfb->fb.var.vmode = FB_VMODE_NONINTERLACED;
 
-	sfb->fb.par = sfb;
+	sfb->fb.pseudo_palette = sfb->colreg;
 
-	sfb->fb.pseudo_palette = colreg;
+	sfb->fb.par = sfb;
 
 	return sfb;
 }
