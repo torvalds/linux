@@ -82,7 +82,7 @@ struct xway_stp {
 	struct gpio_chip gc;
 	void __iomem *virt;
 	u32 edge;	/* rising or falling edge triggered shift register */
-	u16 shadow;	/* shadow the shift registers state */
+	u32 shadow;	/* shadow the shift registers state */
 	u8 groups;	/* we can drive 1-3 groups of 8bit each */
 	u8 dsl;		/* the 2 LSBs can be driven by the dsl core */
 	u8 phy1;	/* 3 bits can be driven by phy1 */
