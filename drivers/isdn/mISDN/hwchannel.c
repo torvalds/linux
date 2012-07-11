@@ -81,10 +81,16 @@ mISDN_initdchannel(struct dchannel *ch, int maxlen, void *phf)
 EXPORT_SYMBOL(mISDN_initdchannel);
 
 int
-mISDN_initbchannel(struct bchannel *ch, int maxlen)
+mISDN_initbchannel(struct bchannel *ch, unsigned short maxlen,
+		   unsigned short minlen)
 {
 	ch->Flags = 0;
+	ch->minlen = minlen;
+	ch->next_minlen = minlen;
+	ch->init_minlen = minlen;
 	ch->maxlen = maxlen;
+	ch->next_maxlen = maxlen;
+	ch->init_maxlen = maxlen;
 	ch->hw = NULL;
 	ch->rx_skb = NULL;
 	ch->tx_skb = NULL;
@@ -134,6 +140,14 @@ mISDN_clear_bchannel(struct bchannel *ch)
 	test_and_clear_bit(FLG_TX_BUSY, &ch->Flags);
 	test_and_clear_bit(FLG_TX_NEXT, &ch->Flags);
 	test_and_clear_bit(FLG_ACTIVE, &ch->Flags);
+	test_and_clear_bit(FLG_FILLEMPTY, &ch->Flags);
+	test_and_clear_bit(FLG_TX_EMPTY, &ch->Flags);
+	test_and_clear_bit(FLG_RX_OFF, &ch->Flags);
+	ch->dropcnt = 0;
+	ch->minlen = ch->init_minlen;
+	ch->next_minlen = ch->init_minlen;
+	ch->maxlen = ch->init_maxlen;
+	ch->next_maxlen = ch->init_maxlen;
 }
 EXPORT_SYMBOL(mISDN_clear_bchannel);
 
@@ -147,6 +161,51 @@ mISDN_freebchannel(struct bchannel *ch)
 	return 0;
 }
 EXPORT_SYMBOL(mISDN_freebchannel);
+
+int
+mISDN_ctrl_bchannel(struct bchannel *bch, struct mISDN_ctrl_req *cq)
+{
+	int ret = 0;
+
+	switch (cq->op) {
+	case MISDN_CTRL_GETOP:
+		cq->op = MISDN_CTRL_RX_BUFFER | MISDN_CTRL_FILL_EMPTY |
+			 MISDN_CTRL_RX_OFF;
+		break;
+	case MISDN_CTRL_FILL_EMPTY:
+		if (cq->p1) {
+			memset(bch->fill, cq->p2 & 0xff, MISDN_BCH_FILL_SIZE);
+			test_and_set_bit(FLG_FILLEMPTY, &bch->Flags);
+		} else {
+			test_and_clear_bit(FLG_FILLEMPTY, &bch->Flags);
+		}
+		break;
+	case MISDN_CTRL_RX_OFF:
+		/* read back dropped byte count */
+		cq->p2 = bch->dropcnt;
+		if (cq->p1)
+			test_and_set_bit(FLG_RX_OFF, &bch->Flags);
+		else
+			test_and_clear_bit(FLG_RX_OFF, &bch->Flags);
+		bch->dropcnt = 0;
+		break;
+	case MISDN_CTRL_RX_BUFFER:
+		if (cq->p2 > MISDN_CTRL_RX_SIZE_IGNORE)
+			bch->next_maxlen = cq->p2;
+		if (cq->p1 > MISDN_CTRL_RX_SIZE_IGNORE)
+			bch->next_minlen = cq->p1;
+		/* we return the old values */
+		cq->p1 = bch->minlen;
+		cq->p2 = bch->maxlen;
+		break;
+	default:
+		pr_info("mISDN unhandled control %x operation\n", cq->op);
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+EXPORT_SYMBOL(mISDN_ctrl_bchannel);
 
 static inline u_int
 get_sapi_tei(u_char *p)
@@ -197,24 +256,37 @@ recv_Echannel(struct dchannel *ech, struct dchannel *dch)
 EXPORT_SYMBOL(recv_Echannel);
 
 void
-recv_Bchannel(struct bchannel *bch, unsigned int id)
+recv_Bchannel(struct bchannel *bch, unsigned int id, bool force)
 {
 	struct mISDNhead *hh;
 
-	hh = mISDN_HEAD_P(bch->rx_skb);
-	hh->prim = PH_DATA_IND;
-	hh->id = id;
-	if (bch->rcount >= 64) {
-		printk(KERN_WARNING "B-channel %p receive queue overflow, "
-		       "flushing!\n", bch);
-		skb_queue_purge(&bch->rqueue);
-		bch->rcount = 0;
+	/* if allocation did fail upper functions still may call us */
+	if (unlikely(!bch->rx_skb))
 		return;
+	if (unlikely(!bch->rx_skb->len)) {
+		/* we have no data to send - this may happen after recovery
+		 * from overflow or too small allocation.
+		 * We need to free the buffer here */
+		dev_kfree_skb(bch->rx_skb);
+		bch->rx_skb = NULL;
+	} else {
+		if (test_bit(FLG_TRANSPARENT, &bch->Flags) &&
+		    (bch->rx_skb->len < bch->minlen) && !force)
+				return;
+		hh = mISDN_HEAD_P(bch->rx_skb);
+		hh->prim = PH_DATA_IND;
+		hh->id = id;
+		if (bch->rcount >= 64) {
+			printk(KERN_WARNING
+			       "B%d receive queue overflow - flushing!\n",
+			       bch->nr);
+			skb_queue_purge(&bch->rqueue);
+		}
+		bch->rcount++;
+		skb_queue_tail(&bch->rqueue, bch->rx_skb);
+		bch->rx_skb = NULL;
+		schedule_event(bch, FLG_RECVQUEUE);
 	}
-	bch->rcount++;
-	skb_queue_tail(&bch->rqueue, bch->rx_skb);
-	bch->rx_skb = NULL;
-	schedule_event(bch, FLG_RECVQUEUE);
 }
 EXPORT_SYMBOL(recv_Bchannel);
 
@@ -272,7 +344,7 @@ get_next_dframe(struct dchannel *dch)
 }
 EXPORT_SYMBOL(get_next_dframe);
 
-void
+static void
 confirm_Bsend(struct bchannel *bch)
 {
 	struct sk_buff	*skb;
@@ -294,7 +366,6 @@ confirm_Bsend(struct bchannel *bch)
 	skb_queue_tail(&bch->rqueue, skb);
 	schedule_event(bch, FLG_RECVQUEUE);
 }
-EXPORT_SYMBOL(confirm_Bsend);
 
 int
 get_next_bframe(struct bchannel *bch)
@@ -305,8 +376,8 @@ get_next_bframe(struct bchannel *bch)
 		if (bch->tx_skb) {
 			bch->next_skb = NULL;
 			test_and_clear_bit(FLG_TX_NEXT, &bch->Flags);
-			if (!test_bit(FLG_TRANSPARENT, &bch->Flags))
-				confirm_Bsend(bch); /* not for transparent */
+			/* confirm imediately to allow next data */
+			confirm_Bsend(bch);
 			return 1;
 		} else {
 			test_and_clear_bit(FLG_TX_NEXT, &bch->Flags);
@@ -395,7 +466,62 @@ bchannel_senddata(struct bchannel *ch, struct sk_buff *skb)
 		/* write to fifo */
 		ch->tx_skb = skb;
 		ch->tx_idx = 0;
+		confirm_Bsend(ch);
 		return 1;
 	}
 }
 EXPORT_SYMBOL(bchannel_senddata);
+
+/* The function allocates a new receive skb on demand with a size for the
+ * requirements of the current protocol. It returns the tailroom of the
+ * receive skb or an error.
+ */
+int
+bchannel_get_rxbuf(struct bchannel *bch, int reqlen)
+{
+	int len;
+
+	if (bch->rx_skb) {
+		len = skb_tailroom(bch->rx_skb);
+		if (len < reqlen) {
+			pr_warning("B%d no space for %d (only %d) bytes\n",
+				   bch->nr, reqlen, len);
+			if (test_bit(FLG_TRANSPARENT, &bch->Flags)) {
+				/* send what we have now and try a new buffer */
+				recv_Bchannel(bch, 0, true);
+			} else {
+				/* on HDLC we have to drop too big frames */
+				return -EMSGSIZE;
+			}
+		} else {
+			return len;
+		}
+	}
+	/* update current min/max length first */
+	if (unlikely(bch->maxlen != bch->next_maxlen))
+		bch->maxlen = bch->next_maxlen;
+	if (unlikely(bch->minlen != bch->next_minlen))
+		bch->minlen = bch->next_minlen;
+	if (unlikely(reqlen > bch->maxlen))
+		return -EMSGSIZE;
+	if (test_bit(FLG_TRANSPARENT, &bch->Flags)) {
+		if (reqlen >= bch->minlen) {
+			len = reqlen;
+		} else {
+			len = 2 * bch->minlen;
+			if (len > bch->maxlen)
+				len = bch->maxlen;
+		}
+	} else {
+		/* with HDLC we do not know the length yet */
+		len = bch->maxlen;
+	}
+	bch->rx_skb = mI_alloc_skb(len, GFP_ATOMIC);
+	if (!bch->rx_skb) {
+		pr_warning("B%d receive no memory for %d bytes\n",
+			   bch->nr, len);
+		len = -ENOMEM;
+	}
+	return len;
+}
+EXPORT_SYMBOL(bchannel_get_rxbuf);

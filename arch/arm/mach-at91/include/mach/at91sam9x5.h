@@ -55,14 +55,6 @@
 #define AT91SAM9X5_BASE_USART2	0xf8024000
 
 /*
- * Base addresses for early serial code (uncompress.h)
- */
-#define AT91_DBGU	AT91_BASE_DBGU0
-#define AT91_USART0	AT91SAM9X5_BASE_USART0
-#define AT91_USART1	AT91SAM9X5_BASE_USART1
-#define AT91_USART2	AT91SAM9X5_BASE_USART2
-
-/*
  * Internal Memory.
  */
 #define AT91SAM9X5_SRAM_BASE	0x00300000	/* Internal SRAM base address */

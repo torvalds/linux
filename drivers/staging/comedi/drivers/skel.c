@@ -156,7 +156,7 @@ struct skel_private {
  * the device code.
  */
 static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static int skel_detach(struct comedi_device *dev);
+static void skel_detach(struct comedi_device *dev);
 static struct comedi_driver driver_skel = {
 	.driver_name = "dummy",
 	.module = THIS_MODULE,
@@ -295,11 +295,8 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int skel_detach(struct comedi_device *dev)
+static void skel_detach(struct comedi_device *dev)
 {
-	pr_info("comedi%d: skel: remove\n", dev->minor);
-
-	return 0;
 }
 
 /*
@@ -623,7 +620,7 @@ static int skel_dio_insn_config(struct comedi_device *dev,
 static int __devinit driver_skel_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, driver_skel.driver_name);
+	return comedi_pci_auto_config(dev, &driver_skel);
 }
 
 static void __devexit driver_skel_pci_remove(struct pci_dev *dev)

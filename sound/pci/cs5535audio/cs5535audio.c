@@ -394,7 +394,7 @@ static void __devexit snd_cs5535audio_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_driver driver = {
+static struct pci_driver cs5535audio_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_cs5535audio_ids,
 	.probe = snd_cs5535audio_probe,
@@ -405,18 +405,7 @@ static struct pci_driver driver = {
 #endif
 };
 
-static int __init alsa_card_cs5535audio_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_cs5535audio_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_cs5535audio_init)
-module_exit(alsa_card_cs5535audio_exit)
+module_pci_driver(cs5535audio_driver);
 
 MODULE_AUTHOR("Jaya Kumar");
 MODULE_LICENSE("GPL");

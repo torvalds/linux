@@ -30,11 +30,15 @@
 
 #include <linux/nfs_fs.h>
 #include <linux/vmalloc.h>
+#include <linux/module.h>
 
 #include "internal.h"
 #include "nfs4filelayout.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS_LD
+
+static unsigned int dataserver_timeo = NFS4_DEF_DS_TIMEO;
+static unsigned int dataserver_retrans = NFS4_DEF_DS_RETRANS;
 
 /*
  * Data server cache
@@ -145,6 +149,28 @@ _data_server_lookup_locked(const struct list_head *dsaddrs)
 }
 
 /*
+ * Lookup DS by nfs_client pointer. Zero data server client pointer
+ */
+void nfs4_ds_disconnect(struct nfs_client *clp)
+{
+	struct nfs4_pnfs_ds *ds;
+	struct nfs_client *found = NULL;
+
+	dprintk("%s clp %p\n", __func__, clp);
+	spin_lock(&nfs4_ds_cache_lock);
+	list_for_each_entry(ds, &nfs4_data_server_cache, ds_node)
+		if (ds->ds_clp && ds->ds_clp == clp) {
+			found = ds->ds_clp;
+			ds->ds_clp = NULL;
+		}
+	spin_unlock(&nfs4_ds_cache_lock);
+	if (found) {
+		set_bit(NFS_CS_STOP_RENEW, &clp->cl_res_state);
+		nfs_put_client(clp);
+	}
+}
+
+/*
  * Create an rpc connection to the nfs4_pnfs_ds data server
  * Currently only supports IPv4 and IPv6 addresses
  */
@@ -165,8 +191,9 @@ nfs4_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds)
 			__func__, ds->ds_remotestr, da->da_remotestr);
 
 		clp = nfs4_set_ds_client(mds_srv->nfs_client,
-				 (struct sockaddr *)&da->da_addr,
-				 da->da_addrlen, IPPROTO_TCP);
+					(struct sockaddr *)&da->da_addr,
+					da->da_addrlen, IPPROTO_TCP,
+					dataserver_timeo, dataserver_retrans);
 		if (!IS_ERR(clp))
 			break;
 	}
@@ -176,28 +203,7 @@ nfs4_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds)
 		goto out;
 	}
 
-	if ((clp->cl_exchange_flags & EXCHGID4_FLAG_MASK_PNFS) != 0) {
-		if (!is_ds_client(clp)) {
-			status = -ENODEV;
-			goto out_put;
-		}
-		ds->ds_clp = clp;
-		dprintk("%s [existing] server=%s\n", __func__,
-			ds->ds_remotestr);
-		goto out;
-	}
-
-	/*
-	 * Do not set NFS_CS_CHECK_LEASE_TIME instead set the DS lease to
-	 * be equal to the MDS lease. Renewal is scheduled in create_session.
-	 */
-	spin_lock(&mds_srv->nfs_client->cl_lock);
-	clp->cl_lease_time = mds_srv->nfs_client->cl_lease_time;
-	spin_unlock(&mds_srv->nfs_client->cl_lock);
-	clp->cl_last_renewal = jiffies;
-
-	/* New nfs_client */
-	status = nfs4_init_ds_session(clp);
+	status = nfs4_init_ds_session(clp, mds_srv->nfs_client->cl_lease_time);
 	if (status)
 		goto out_put;
 
@@ -602,7 +608,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 
 		mp_count = be32_to_cpup(p); /* multipath count */
 		for (j = 0; j < mp_count; j++) {
-			da = decode_ds_addr(NFS_SERVER(ino)->nfs_client->net,
+			da = decode_ds_addr(NFS_SERVER(ino)->nfs_client->cl_net,
 					    &stream, gfp_flags);
 			if (da)
 				list_add_tail(&da->da_node, &dsaddrs);
@@ -791,48 +797,42 @@ nfs4_fl_select_ds_fh(struct pnfs_layout_segment *lseg, u32 j)
 	return flseg->fh_array[i];
 }
 
-static void
-filelayout_mark_devid_negative(struct nfs4_file_layout_dsaddr *dsaddr,
-			       int err, const char *ds_remotestr)
-{
-	u32 *p = (u32 *)&dsaddr->id_node.deviceid;
-
-	printk(KERN_ERR "NFS: data server %s connection error %d."
-		" Deviceid [%x%x%x%x] marked out of use.\n",
-		ds_remotestr, err, p[0], p[1], p[2], p[3]);
-
-	spin_lock(&nfs4_ds_cache_lock);
-	dsaddr->flags |= NFS4_DEVICE_ID_NEG_ENTRY;
-	spin_unlock(&nfs4_ds_cache_lock);
-}
-
 struct nfs4_pnfs_ds *
 nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 {
 	struct nfs4_file_layout_dsaddr *dsaddr = FILELAYOUT_LSEG(lseg)->dsaddr;
 	struct nfs4_pnfs_ds *ds = dsaddr->ds_list[ds_idx];
+	struct nfs4_deviceid_node *devid = FILELAYOUT_DEVID_NODE(lseg);
+
+	if (filelayout_test_devid_invalid(devid))
+		return NULL;
 
 	if (ds == NULL) {
 		printk(KERN_ERR "NFS: %s: No data server for offset index %d\n",
 			__func__, ds_idx);
-		return NULL;
+		goto mark_dev_invalid;
 	}
 
 	if (!ds->ds_clp) {
 		struct nfs_server *s = NFS_SERVER(lseg->pls_layout->plh_inode);
 		int err;
 
-		if (dsaddr->flags & NFS4_DEVICE_ID_NEG_ENTRY) {
-			/* Already tried to connect, don't try again */
-			dprintk("%s Deviceid marked out of use\n", __func__);
-			return NULL;
-		}
 		err = nfs4_ds_connect(s, ds);
-		if (err) {
-			filelayout_mark_devid_negative(dsaddr, err,
-						       ds->ds_remotestr);
-			return NULL;
-		}
+		if (err)
+			goto mark_dev_invalid;
 	}
 	return ds;
+
+mark_dev_invalid:
+	filelayout_mark_devid_invalid(devid);
+	return NULL;
 }
+
+module_param(dataserver_retrans, uint, 0644);
+MODULE_PARM_DESC(dataserver_retrans, "The  number of times the NFSv4.1 client "
+			"retries a request before it attempts further "
+			" recovery  action.");
+module_param(dataserver_timeo, uint, 0644);
+MODULE_PARM_DESC(dataserver_timeo, "The time (in tenths of a second) the "
+			"NFSv4.1  client  waits for a response from a "
+			" data server before it retries an NFS request.");

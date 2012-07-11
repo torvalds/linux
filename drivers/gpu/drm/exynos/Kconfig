@@ -10,6 +10,12 @@ config DRM_EXYNOS
 	  Choose this option if you have a Samsung SoC EXYNOS chipset.
 	  If M is selected the module will be called exynosdrm.
 
+config DRM_EXYNOS_DMABUF
+	bool "EXYNOS DRM DMABUF"
+	depends on DRM_EXYNOS
+	help
+	  Choose this option if you want to use DMABUF feature for DRM.
+
 config DRM_EXYNOS_FIMD
 	bool "Exynos DRM FIMD"
 	depends on DRM_EXYNOS && !FB_S3C
@@ -27,3 +33,9 @@ config DRM_EXYNOS_VIDI
 	depends on DRM_EXYNOS
 	help
 	  Choose this option if you want to use Exynos VIDI for DRM.
+
+config DRM_EXYNOS_G2D
+	bool "Exynos DRM G2D"
+	depends on DRM_EXYNOS
+	help
+	  Choose this option if you want to use Exynos G2D for DRM.

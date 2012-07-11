@@ -30,11 +30,8 @@
 
 void mcf_cache_push(void);
 
-static inline void __flush_cache_all(void)
+static inline void __clear_cache_all(void)
 {
-#ifdef CACHE_PUSH
-	mcf_cache_push();
-#endif
 #ifdef CACHE_INVALIDATE
 	__asm__ __volatile__ (
 		"movel	%0, %%d0\n\t"
@@ -42,6 +39,14 @@ static inline void __flush_cache_all(void)
 		"nop\n\t"
 		: : "i" (CACHE_INVALIDATE) : "d0" );
 #endif
+}
+
+static inline void __flush_cache_all(void)
+{
+#ifdef CACHE_PUSH
+	mcf_cache_push();
+#endif
+	__clear_cache_all();
 }
 
 /*
@@ -76,4 +81,23 @@ static inline void __flush_dcache_all(void)
 	__asm__ __volatile__ ( "nop" );
 #endif
 }
+
+/*
+ * Push cache entries at supplied address. We want to write back any dirty
+ * data and the invalidate the cache lines associated with this address.
+ */
+static inline void cache_push(unsigned long paddr, int len)
+{
+	__flush_cache_all();
+}
+
+/*
+ * Clear cache entries at supplied address (that is don't write back any
+ * dirty data).
+ */
+static inline void cache_clear(unsigned long paddr, int len)
+{
+	__clear_cache_all();
+}
+
 #endif /* _M68KNOMMU_CACHEFLUSH_H */

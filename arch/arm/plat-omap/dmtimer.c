@@ -82,8 +82,6 @@ static void omap_dm_timer_write_reg(struct omap_dm_timer *timer, u32 reg,
 
 static void omap_timer_restore_context(struct omap_dm_timer *timer)
 {
-	__raw_writel(timer->context.tiocp_cfg,
-			timer->io_base + OMAP_TIMER_OCP_CFG_OFFSET);
 	if (timer->revision == 1)
 		__raw_writel(timer->context.tistat, timer->sys_stat);
 
@@ -349,11 +347,12 @@ EXPORT_SYMBOL_GPL(omap_dm_timer_start);
 int omap_dm_timer_stop(struct omap_dm_timer *timer)
 {
 	unsigned long rate = 0;
-	struct dmtimer_platform_data *pdata = timer->pdev->dev.platform_data;
+	struct dmtimer_platform_data *pdata;
 
 	if (unlikely(!timer))
 		return -EINVAL;
 
+	pdata = timer->pdev->dev.platform_data;
 	if (!pdata->needs_manual_reset)
 		rate = clk_get_rate(timer->fclk);
 

@@ -707,7 +707,7 @@ static int ld9040_probe(struct spi_device *spi)
 	struct backlight_device *bd = NULL;
 	struct backlight_properties props;
 
-	lcd = kzalloc(sizeof(struct ld9040), GFP_KERNEL);
+	lcd = devm_kzalloc(&spi->dev, sizeof(struct ld9040), GFP_KERNEL);
 	if (!lcd)
 		return -ENOMEM;
 
@@ -717,7 +717,7 @@ static int ld9040_probe(struct spi_device *spi)
 	ret = spi_setup(spi);
 	if (ret < 0) {
 		dev_err(&spi->dev, "spi setup failed.\n");
-		goto out_free_lcd;
+		return ret;
 	}
 
 	lcd->spi = spi;
@@ -726,7 +726,7 @@ static int ld9040_probe(struct spi_device *spi)
 	lcd->lcd_pd = spi->dev.platform_data;
 	if (!lcd->lcd_pd) {
 		dev_err(&spi->dev, "platform data is NULL.\n");
-		goto out_free_lcd;
+		return -EFAULT;
 	}
 
 	mutex_init(&lcd->lock);
@@ -734,13 +734,13 @@ static int ld9040_probe(struct spi_device *spi)
 	ret = regulator_bulk_get(lcd->dev, ARRAY_SIZE(supplies), supplies);
 	if (ret) {
 		dev_err(lcd->dev, "Failed to get regulators: %d\n", ret);
-		goto out_free_lcd;
+		return ret;
 	}
 
 	ld = lcd_device_register("ld9040", &spi->dev, lcd, &ld9040_lcd_ops);
 	if (IS_ERR(ld)) {
 		ret = PTR_ERR(ld);
-		goto out_free_lcd;
+		goto out_free_regulator;
 	}
 
 	lcd->ld = ld;
@@ -782,10 +782,9 @@ static int ld9040_probe(struct spi_device *spi)
 
 out_unregister_lcd:
 	lcd_device_unregister(lcd->ld);
-out_free_lcd:
+out_free_regulator:
 	regulator_bulk_free(ARRAY_SIZE(supplies), supplies);
 
-	kfree(lcd);
 	return ret;
 }
 
@@ -797,7 +796,6 @@ static int __devexit ld9040_remove(struct spi_device *spi)
 	backlight_device_unregister(lcd->bd);
 	lcd_device_unregister(lcd->ld);
 	regulator_bulk_free(ARRAY_SIZE(supplies), supplies);
-	kfree(lcd);
 
 	return 0;
 }
@@ -846,7 +844,6 @@ static void ld9040_shutdown(struct spi_device *spi)
 static struct spi_driver ld9040_driver = {
 	.driver = {
 		.name	= "ld9040",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ld9040_probe,

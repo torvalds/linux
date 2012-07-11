@@ -449,6 +449,37 @@ static void qt202x_phy_remove(struct efx_nic *efx)
 	efx->phy_data = NULL;
 }
 
+static int qt202x_phy_get_module_info(struct efx_nic *efx,
+				      struct ethtool_modinfo *modinfo)
+{
+	modinfo->type = ETH_MODULE_SFF_8079;
+	modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
+	return 0;
+}
+
+static int qt202x_phy_get_module_eeprom(struct efx_nic *efx,
+					struct ethtool_eeprom *ee, u8 *data)
+{
+	int mmd, reg_base, rc, i;		
+
+	if (efx->phy_type == PHY_TYPE_QT2025C) {
+		mmd = MDIO_MMD_PCS;
+		reg_base = 0xd000;
+	} else {
+		mmd = MDIO_MMD_PMAPMD;
+		reg_base = 0x8007;
+	}
+
+	for (i = 0; i < ee->len; i++) {
+		rc = efx_mdio_read(efx, mmd, reg_base + ee->offset + i);
+		if (rc < 0)
+			return rc;
+		data[i] = rc;
+	}
+
+	return 0;
+}
+
 const struct efx_phy_operations falcon_qt202x_phy_ops = {
 	.probe		 = qt202x_phy_probe,
 	.init		 = qt202x_phy_init,
@@ -459,4 +490,6 @@ const struct efx_phy_operations falcon_qt202x_phy_ops = {
 	.get_settings	 = qt202x_phy_get_settings,
 	.set_settings	 = efx_mdio_set_settings,
 	.test_alive	 = efx_mdio_test_alive,
+	.get_module_eeprom = qt202x_phy_get_module_eeprom,
+	.get_module_info = qt202x_phy_get_module_info,
 };

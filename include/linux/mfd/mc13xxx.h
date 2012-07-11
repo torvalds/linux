@@ -170,6 +170,16 @@ struct mc13xxx_ts_platform_data {
 	bool atox;
 };
 
+enum mc13783_ssi_port {
+	MC13783_SSI1_PORT,
+	MC13783_SSI2_PORT,
+};
+
+struct mc13xxx_codec_platform_data {
+	enum mc13783_ssi_port adc_ssi_port;
+	enum mc13783_ssi_port dac_ssi_port;
+};
+
 struct mc13xxx_platform_data {
 #define MC13XXX_USE_TOUCHSCREEN (1 << 0)
 #define MC13XXX_USE_CODEC	(1 << 1)
@@ -181,6 +191,7 @@ struct mc13xxx_platform_data {
 	struct mc13xxx_leds_platform_data *leds;
 	struct mc13xxx_buttons_platform_data *buttons;
 	struct mc13xxx_ts_platform_data touch;
+	struct mc13xxx_codec_platform_data *codec;
 };
 
 #define MC13XXX_ADC_MODE_TS		1

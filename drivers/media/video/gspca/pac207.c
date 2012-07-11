@@ -29,6 +29,8 @@
 
 #include <linux/input.h>
 #include "gspca.h"
+/* Include pac common sof detection functions */
+#include "pac_common.h"
 
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("Pixart PAC207");
@@ -39,16 +41,17 @@ MODULE_LICENSE("GPL");
 #define PAC207_BRIGHTNESS_MIN		0
 #define PAC207_BRIGHTNESS_MAX		255
 #define PAC207_BRIGHTNESS_DEFAULT	46
+#define PAC207_BRIGHTNESS_REG		0x08
 
 #define PAC207_EXPOSURE_MIN		3
 #define PAC207_EXPOSURE_MAX		90 /* 1 sec expo time / 1 fps */
 #define PAC207_EXPOSURE_DEFAULT		5 /* power on default: 3 */
-#define PAC207_EXPOSURE_KNEE		9 /* fps: 90 / exposure -> 9: 10 fps */
+#define PAC207_EXPOSURE_REG		0x02
 
 #define PAC207_GAIN_MIN			0
 #define PAC207_GAIN_MAX			31
 #define PAC207_GAIN_DEFAULT		7 /* power on default: 9 */
-#define PAC207_GAIN_KNEE		15
+#define PAC207_GAIN_REG			0x0e
 
 #define PAC207_AUTOGAIN_DEADZONE	30
 
@@ -56,92 +59,14 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;		/* !! must be the first item */
 
+	struct v4l2_ctrl *brightness;
+
 	u8 mode;
-
-	u8 brightness;
-	u8 exposure;
-	u8 autogain;
-	u8 gain;
-
 	u8 sof_read;
 	u8 header_read;
 	u8 autogain_ignore_frames;
 
 	atomic_t avg_lum;
-};
-
-/* V4L2 controls supported by the driver */
-static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val);
-
-static const struct ctrl sd_ctrls[] = {
-#define SD_BRIGHTNESS 0
-	{
-	    {
-		.id      = V4L2_CID_BRIGHTNESS,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Brightness",
-		.minimum = PAC207_BRIGHTNESS_MIN,
-		.maximum = PAC207_BRIGHTNESS_MAX,
-		.step = 1,
-		.default_value = PAC207_BRIGHTNESS_DEFAULT,
-		.flags = 0,
-	    },
-	    .set = sd_setbrightness,
-	    .get = sd_getbrightness,
-	},
-#define SD_EXPOSURE 1
-	{
-	    {
-		.id = V4L2_CID_EXPOSURE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Exposure",
-		.minimum = PAC207_EXPOSURE_MIN,
-		.maximum = PAC207_EXPOSURE_MAX,
-		.step = 1,
-		.default_value = PAC207_EXPOSURE_DEFAULT,
-		.flags = 0,
-	    },
-	    .set = sd_setexposure,
-	    .get = sd_getexposure,
-	},
-#define SD_AUTOGAIN 2
-	{
-	    {
-		.id	  = V4L2_CID_AUTOGAIN,
-		.type	= V4L2_CTRL_TYPE_BOOLEAN,
-		.name	= "Auto Gain",
-		.minimum = 0,
-		.maximum = 1,
-		.step	= 1,
-#define AUTOGAIN_DEF 1
-		.default_value = AUTOGAIN_DEF,
-		.flags = 0,
-	    },
-	    .set = sd_setautogain,
-	    .get = sd_getautogain,
-	},
-#define SD_GAIN 3
-	{
-	    {
-		.id = V4L2_CID_GAIN,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Gain",
-		.minimum = PAC207_GAIN_MIN,
-		.maximum = PAC207_GAIN_MAX,
-		.step = 1,
-		.default_value = PAC207_GAIN_DEFAULT,
-		.flags = 0,
-	    },
-	    .set = sd_setgain,
-	    .get = sd_getgain,
-	},
 };
 
 static const struct v4l2_pix_format sif_mode[] = {
@@ -167,11 +92,14 @@ static const __u8 pac207_sensor_init[][8] = {
 	{0x32, 0x00, 0x96, 0x00, 0xa2, 0x02, 0xaf, 0x00},
 };
 
-static int pac207_write_regs(struct gspca_dev *gspca_dev, u16 index,
+static void pac207_write_regs(struct gspca_dev *gspca_dev, u16 index,
 	const u8 *buffer, u16 length)
 {
 	struct usb_device *udev = gspca_dev->dev;
 	int err;
+
+	if (gspca_dev->usb_err < 0)
+		return;
 
 	memcpy(gspca_dev->usb_buf, buffer, length);
 
@@ -179,33 +107,38 @@ static int pac207_write_regs(struct gspca_dev *gspca_dev, u16 index,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 			0x00, index,
 			gspca_dev->usb_buf, length, PAC207_CTRL_TIMEOUT);
-	if (err < 0)
+	if (err < 0) {
 		pr_err("Failed to write registers to index 0x%04X, error %d\n",
 		       index, err);
-
-	return err;
+		gspca_dev->usb_err = err;
+	}
 }
 
-
-static int pac207_write_reg(struct gspca_dev *gspca_dev, u16 index, u16 value)
+static void pac207_write_reg(struct gspca_dev *gspca_dev, u16 index, u16 value)
 {
 	struct usb_device *udev = gspca_dev->dev;
 	int err;
 
+	if (gspca_dev->usb_err < 0)
+		return;
+
 	err = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x00,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 			value, index, NULL, 0, PAC207_CTRL_TIMEOUT);
-	if (err)
+	if (err) {
 		pr_err("Failed to write a register (index 0x%04X, value 0x%02X, error %d)\n",
 		       index, value, err);
-
-	return err;
+		gspca_dev->usb_err = err;
+	}
 }
 
 static int pac207_read_reg(struct gspca_dev *gspca_dev, u16 index)
 {
 	struct usb_device *udev = gspca_dev->dev;
 	int res;
+
+	if (gspca_dev->usb_err < 0)
+		return 0;
 
 	res = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0), 0x00,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
@@ -214,7 +147,8 @@ static int pac207_read_reg(struct gspca_dev *gspca_dev, u16 index)
 	if (res < 0) {
 		pr_err("Failed to read a register (index 0x%04X, error %d)\n",
 		       index, res);
-		return res;
+		gspca_dev->usb_err = res;
+		return 0;
 	}
 
 	return gspca_dev->usb_buf[0];
@@ -224,7 +158,6 @@ static int pac207_read_reg(struct gspca_dev *gspca_dev, u16 index)
 static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
 	u8 idreg[2];
 
@@ -247,10 +180,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam = &gspca_dev->cam;
 	cam->cam_mode = sif_mode;
 	cam->nmodes = ARRAY_SIZE(sif_mode);
-	sd->brightness = PAC207_BRIGHTNESS_DEFAULT;
-	sd->exposure = PAC207_EXPOSURE_DEFAULT;
-	sd->gain = PAC207_GAIN_DEFAULT;
-	sd->autogain = AUTOGAIN_DEF;
 
 	return 0;
 }
@@ -264,6 +193,87 @@ static int sd_init(struct gspca_dev *gspca_dev)
 				 * Bit_2=Compression test mode enable */
 	pac207_write_reg(gspca_dev, 0x0f, 0x00); /* Power Control */
 
+	return gspca_dev->usb_err;
+}
+
+static void setcontrol(struct gspca_dev *gspca_dev, u16 reg, u16 val)
+{
+	pac207_write_reg(gspca_dev, reg, val);
+	pac207_write_reg(gspca_dev, 0x13, 0x01);	/* Bit 0, auto clear */
+	pac207_write_reg(gspca_dev, 0x1c, 0x01);	/* not documented */
+}
+
+static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
+	struct sd *sd = (struct sd *)gspca_dev;
+
+	gspca_dev->usb_err = 0;
+
+	if (ctrl->id == V4L2_CID_AUTOGAIN && ctrl->is_new && ctrl->val) {
+		/* when switching to autogain set defaults to make sure
+		   we are on a valid point of the autogain gain /
+		   exposure knee graph, and give this change time to
+		   take effect before doing autogain. */
+		gspca_dev->exposure->val    = PAC207_EXPOSURE_DEFAULT;
+		gspca_dev->gain->val        = PAC207_GAIN_DEFAULT;
+		sd->autogain_ignore_frames  = PAC_AUTOGAIN_IGNORE_FRAMES;
+	}
+
+	if (!gspca_dev->streaming)
+		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		setcontrol(gspca_dev, PAC207_BRIGHTNESS_REG, ctrl->val);
+		break;
+	case V4L2_CID_AUTOGAIN:
+		if (gspca_dev->exposure->is_new || (ctrl->is_new && ctrl->val))
+			setcontrol(gspca_dev, PAC207_EXPOSURE_REG,
+				   gspca_dev->exposure->val);
+		if (gspca_dev->gain->is_new || (ctrl->is_new && ctrl->val))
+			setcontrol(gspca_dev, PAC207_GAIN_REG,
+				   gspca_dev->gain->val);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return gspca_dev->usb_err;
+}
+
+static const struct v4l2_ctrl_ops sd_ctrl_ops = {
+	.s_ctrl = sd_s_ctrl,
+};
+
+/* this function is called at probe time */
+static int sd_init_controls(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
+
+	gspca_dev->vdev.ctrl_handler = hdl;
+	v4l2_ctrl_handler_init(hdl, 4);
+
+	sd->brightness = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+				V4L2_CID_BRIGHTNESS,
+				PAC207_BRIGHTNESS_MIN, PAC207_BRIGHTNESS_MAX,
+				1, PAC207_BRIGHTNESS_DEFAULT);
+	gspca_dev->autogain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+				V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
+	gspca_dev->exposure = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+				V4L2_CID_EXPOSURE,
+				PAC207_EXPOSURE_MIN, PAC207_EXPOSURE_MAX,
+				1, PAC207_EXPOSURE_DEFAULT);
+	gspca_dev->gain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+				V4L2_CID_GAIN,
+				PAC207_GAIN_MIN, PAC207_GAIN_MAX,
+				1, PAC207_GAIN_DEFAULT);
+	if (hdl->error) {
+		pr_err("Could not initialize controls\n");
+		return hdl->error;
+	}
+	v4l2_ctrl_auto_cluster(3, &gspca_dev->autogain, 0, false);
 	return 0;
 }
 
@@ -285,11 +295,13 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	else
 		pac207_write_reg(gspca_dev, 0x4a, 0x30);
 	pac207_write_reg(gspca_dev, 0x4b, 0x00); /* Sram test value */
-	pac207_write_reg(gspca_dev, 0x08, sd->brightness);
+	pac207_write_reg(gspca_dev, 0x08, v4l2_ctrl_g_ctrl(sd->brightness));
 
 	/* PGA global gain (Bit 4-0) */
-	pac207_write_reg(gspca_dev, 0x0e, sd->gain);
-	pac207_write_reg(gspca_dev, 0x02, sd->exposure); /* PXCK = 12MHz /n */
+	pac207_write_reg(gspca_dev, 0x0e,
+		v4l2_ctrl_g_ctrl(gspca_dev->gain));
+	pac207_write_reg(gspca_dev, 0x02,
+		v4l2_ctrl_g_ctrl(gspca_dev->exposure)); /* PXCK = 12MHz /n */
 
 	mode = 0x02; /* Image Format (Bit 0), LED (1), Compr. test mode (2) */
 	if (gspca_dev->width == 176) {	/* 176x144 */
@@ -308,7 +320,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	sd->sof_read = 0;
 	sd->autogain_ignore_frames = 0;
 	atomic_set(&sd->avg_lum, -1);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
@@ -318,8 +330,6 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	pac207_write_reg(gspca_dev, 0x0f, 0x00); /* Power Control */
 }
 
-/* Include pac common sof detection functions */
-#include "pac_common.h"
 
 static void pac207_do_auto_gain(struct gspca_dev *gspca_dev)
 {
@@ -331,9 +341,8 @@ static void pac207_do_auto_gain(struct gspca_dev *gspca_dev)
 
 	if (sd->autogain_ignore_frames > 0)
 		sd->autogain_ignore_frames--;
-	else if (gspca_auto_gain_n_exposure(gspca_dev, avg_lum,
-			90, PAC207_AUTOGAIN_DEADZONE,
-			PAC207_GAIN_KNEE, PAC207_EXPOSURE_KNEE))
+	else if (gspca_coarse_grained_expo_autogain(gspca_dev, avg_lum,
+			90, PAC207_AUTOGAIN_DEADZONE))
 		sd->autogain_ignore_frames = PAC_AUTOGAIN_IGNORE_FRAMES;
 }
 
@@ -384,118 +393,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
-static void setbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	pac207_write_reg(gspca_dev, 0x08, sd->brightness);
-	pac207_write_reg(gspca_dev, 0x13, 0x01);	/* Bit 0, auto clear */
-	pac207_write_reg(gspca_dev, 0x1c, 0x01);	/* not documented */
-}
-
-static void setexposure(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	pac207_write_reg(gspca_dev, 0x02, sd->exposure);
-	pac207_write_reg(gspca_dev, 0x13, 0x01);	/* Bit 0, auto clear */
-	pac207_write_reg(gspca_dev, 0x1c, 0x01);	/* not documented */
-}
-
-static void setgain(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	pac207_write_reg(gspca_dev, 0x0e, sd->gain);
-	pac207_write_reg(gspca_dev, 0x13, 0x01);	/* Bit 0, auto clear */
-	pac207_write_reg(gspca_dev, 0x1c, 0x01);	/* not documented */
-}
-
-static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->brightness = val;
-	if (gspca_dev->streaming)
-		setbrightness(gspca_dev);
-	return 0;
-}
-
-static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->brightness;
-	return 0;
-}
-
-static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->exposure = val;
-	if (gspca_dev->streaming)
-		setexposure(gspca_dev);
-	return 0;
-}
-
-static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->exposure;
-	return 0;
-}
-
-static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->gain = val;
-	if (gspca_dev->streaming)
-		setgain(gspca_dev);
-	return 0;
-}
-
-static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->gain;
-	return 0;
-}
-
-static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->autogain = val;
-	/* when switching to autogain set defaults to make sure
-	   we are on a valid point of the autogain gain /
-	   exposure knee graph, and give this change time to
-	   take effect before doing autogain. */
-	if (sd->autogain) {
-		sd->exposure = PAC207_EXPOSURE_DEFAULT;
-		sd->gain = PAC207_GAIN_DEFAULT;
-		if (gspca_dev->streaming) {
-			sd->autogain_ignore_frames =
-				PAC_AUTOGAIN_IGNORE_FRAMES;
-			setexposure(gspca_dev);
-			setgain(gspca_dev);
-		}
-	}
-
-	return 0;
-}
-
-static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->autogain;
-	return 0;
-}
-
 #if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,		/* interrupt packet data */
@@ -518,10 +415,9 @@ static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
-	.ctrls = sd_ctrls,
-	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
+	.init_controls = sd_init_controls,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.dq_callback = pac207_do_auto_gain,

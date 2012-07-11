@@ -150,3 +150,15 @@ struct clk clk_##_name = {						\
 
 int __init clk_db8500_ed_fixup(void);
 int __init clk_init(void);
+
+#ifdef CONFIG_DEBUG_FS
+int clk_debugfs_init(void);
+#else
+static inline int clk_debugfs_init(void) { return 0; }
+#endif
+
+#ifdef CONFIG_CPU_FREQ
+int clk_init_smp_twd_cpufreq(void);
+#else
+static inline int clk_init_smp_twd_cpufreq(void) { return 0; }
+#endif

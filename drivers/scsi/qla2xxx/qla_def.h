@@ -186,6 +186,7 @@
 #define RESPONSE_ENTRY_CNT_2100		64	/* Number of response entries.*/
 #define RESPONSE_ENTRY_CNT_2300		512	/* Number of response entries.*/
 #define RESPONSE_ENTRY_CNT_MQ		128	/* Number of response entries.*/
+#define ATIO_ENTRY_CNT_24XX		4096	/* Number of ATIO entries. */
 
 struct req_que;
 
@@ -1234,10 +1235,26 @@ typedef struct {
  * ISP queue - response queue entry definition.
  */
 typedef struct {
-	uint8_t		data[60];
+	uint8_t		entry_type;		/* Entry type. */
+	uint8_t		entry_count;		/* Entry count. */
+	uint8_t		sys_define;		/* System defined. */
+	uint8_t		entry_status;		/* Entry Status. */
+	uint32_t	handle;			/* System defined handle */
+	uint8_t		data[52];
 	uint32_t	signature;
 #define RESPONSE_PROCESSED	0xDEADDEAD	/* Signature */
 } response_t;
+
+/*
+ * ISP queue - ATIO queue entry definition.
+ */
+struct atio {
+	uint8_t		entry_type;		/* Entry type. */
+	uint8_t		entry_count;		/* Entry count. */
+	uint8_t		data[58];
+	uint32_t	signature;
+#define ATIO_PROCESSED 0xDEADDEAD		/* Signature */
+};
 
 typedef union {
 	uint16_t extended;
@@ -1719,10 +1736,12 @@ typedef struct fc_port {
 	struct fc_rport *rport, *drport;
 	u32 supported_classes;
 
-	uint16_t vp_idx;
 	uint8_t fc4_type;
 	uint8_t scan_state;
 } fc_port_t;
+
+#define QLA_FCPORT_SCAN_NONE	0
+#define QLA_FCPORT_SCAN_FOUND	1
 
 /*
  * Fibre channel port/lun states.
@@ -1747,6 +1766,7 @@ static const char * const port_state_str[] = {
 #define FCF_LOGIN_NEEDED	BIT_1
 #define FCF_FCP2_DEVICE		BIT_2
 #define FCF_ASYNC_SENT		BIT_3
+#define FCF_CONF_COMP_SUPPORTED BIT_4
 
 /* No loop ID flag. */
 #define FC_NO_LOOP_ID		0x1000
@@ -2419,6 +2439,40 @@ struct qlfc_fw {
 	uint32_t len;
 };
 
+struct qlt_hw_data {
+	/* Protected by hw lock */
+	uint32_t enable_class_2:1;
+	uint32_t enable_explicit_conf:1;
+	uint32_t ini_mode_force_reverse:1;
+	uint32_t node_name_set:1;
+
+	dma_addr_t atio_dma;	/* Physical address. */
+	struct atio *atio_ring;	/* Base virtual address */
+	struct atio *atio_ring_ptr;	/* Current address. */
+	uint16_t atio_ring_index; /* Current index. */
+	uint16_t atio_q_length;
+
+	void *target_lport_ptr;
+	struct qla_tgt_func_tmpl *tgt_ops;
+	struct qla_tgt *qla_tgt;
+	struct qla_tgt_cmd *cmds[MAX_OUTSTANDING_COMMANDS];
+	uint16_t current_handle;
+
+	struct qla_tgt_vp_map *tgt_vp_map;
+	struct mutex tgt_mutex;
+	struct mutex tgt_host_action_mutex;
+
+	int saved_set;
+	uint16_t saved_exchange_count;
+	uint32_t saved_firmware_options_1;
+	uint32_t saved_firmware_options_2;
+	uint32_t saved_firmware_options_3;
+	uint8_t saved_firmware_options[2];
+	uint8_t saved_add_firmware_options[2];
+
+	uint8_t tgt_node_name[WWN_SIZE];
+};
+
 /*
  * Qlogic host adapter specific data structure.
 */
@@ -2460,7 +2514,9 @@ struct qla_hw_data {
 		uint32_t	thermal_supported:1;
 		uint32_t	isp82xx_reset_hdlr_active:1;
 		uint32_t	isp82xx_reset_owner:1;
-		/* 28 bits */
+		uint32_t	isp82xx_no_md_cap:1;
+		uint32_t	host_shutting_down:1;
+		/* 30 bits */
 	} flags;
 
 	/* This spinlock is used to protect "io transactions", you must
@@ -2804,7 +2860,6 @@ struct qla_hw_data {
 					/* ISP2322: red, green, amber. */
 	uint16_t        zio_mode;
 	uint16_t        zio_timer;
-	struct fc_host_statistics fc_host_stat;
 
 	struct qla_msix_entry *msix_entries;
 
@@ -2817,7 +2872,6 @@ struct qla_hw_data {
 	int             cur_vport_count;
 
 	struct qla_chip_state_84xx *cs84xx;
-	struct qla_statistics qla_stats;
 	struct isp_operations *isp_ops;
 	struct workqueue_struct *wq;
 	struct qlfc_fw fw_buf;
@@ -2863,6 +2917,8 @@ struct qla_hw_data {
 	dma_addr_t      md_tmplt_hdr_dma;
 	void            *md_dump;
 	uint32_t	md_dump_size;
+
+	struct qlt_hw_data tgt;
 };
 
 /*
@@ -2920,6 +2976,7 @@ typedef struct scsi_qla_host {
 #define FCOE_CTX_RESET_NEEDED	18	/* Initiate FCoE context reset */
 #define MPI_RESET_NEEDED	19	/* Initiate MPI FW reset */
 #define ISP_QUIESCE_NEEDED	20	/* Driver need some quiescence */
+#define SCR_PENDING		21	/* SCR in target mode */
 
 	uint32_t	device_flags;
 #define SWITCH_FOUND		BIT_0
@@ -2979,9 +3036,20 @@ typedef struct scsi_qla_host {
 	struct req_que *req;
 	int		fw_heartbeat_counter;
 	int		seconds_since_last_heartbeat;
+	struct fc_host_statistics fc_host_stat;
+	struct qla_statistics qla_stats;
 
 	atomic_t	vref_count;
 } scsi_qla_host_t;
+
+#define SET_VP_IDX	1
+#define SET_AL_PA	2
+#define RESET_VP_IDX	3
+#define RESET_AL_PA	4
+struct qla_tgt_vp_map {
+	uint8_t	idx;
+	scsi_qla_host_t *vha;
+};
 
 /*
  * Macros to help code, maintain, etc.

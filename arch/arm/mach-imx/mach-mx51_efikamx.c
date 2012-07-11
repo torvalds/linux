@@ -207,29 +207,32 @@ static void mx51_efikamx_power_off(void)
 
 static int __init mx51_efikamx_power_init(void)
 {
-	if (machine_is_mx51_efikamx()) {
-		pwgt1 = regulator_get(NULL, "pwgt1");
-		pwgt2 = regulator_get(NULL, "pwgt2");
-		if (!IS_ERR(pwgt1) && !IS_ERR(pwgt2)) {
-			regulator_enable(pwgt1);
-			regulator_enable(pwgt2);
-		}
-		gpio_request(EFIKAMX_POWEROFF, "poweroff");
-		pm_power_off = mx51_efikamx_power_off;
-
-		/* enable coincell charger. maybe need a small power driver ? */
-		coincell = regulator_get(NULL, "coincell");
-		if (!IS_ERR(coincell)) {
-			regulator_set_voltage(coincell, 3000000, 3000000);
-			regulator_enable(coincell);
-		}
-
-		regulator_has_full_constraints();
+	pwgt1 = regulator_get(NULL, "pwgt1");
+	pwgt2 = regulator_get(NULL, "pwgt2");
+	if (!IS_ERR(pwgt1) && !IS_ERR(pwgt2)) {
+		regulator_enable(pwgt1);
+		regulator_enable(pwgt2);
 	}
+	gpio_request(EFIKAMX_POWEROFF, "poweroff");
+	pm_power_off = mx51_efikamx_power_off;
+
+	/* enable coincell charger. maybe need a small power driver ? */
+	coincell = regulator_get(NULL, "coincell");
+	if (!IS_ERR(coincell)) {
+		regulator_set_voltage(coincell, 3000000, 3000000);
+		regulator_enable(coincell);
+	}
+
+	regulator_has_full_constraints();
 
 	return 0;
 }
-late_initcall(mx51_efikamx_power_init);
+
+static void __init mx51_efikamx_init_late(void)
+{
+	imx51_init_late();
+	mx51_efikamx_power_init();
+}
 
 static void __init mx51_efikamx_init(void)
 {
@@ -284,8 +287,7 @@ static struct sys_timer mx51_efikamx_timer = {
 	.init = mx51_efikamx_timer_init,
 };
 
-MACHINE_START(MX51_EFIKAMX, "Genesi EfikaMX nettop")
-	/* Maintainer: Amit Kucheria <amit.kucheria@linaro.org> */
+MACHINE_START(MX51_EFIKAMX, "Genesi Efika MX (Smarttop)")
 	.atag_offset = 0x100,
 	.map_io = mx51_map_io,
 	.init_early = imx51_init_early,
@@ -293,5 +295,6 @@ MACHINE_START(MX51_EFIKAMX, "Genesi EfikaMX nettop")
 	.handle_irq = imx51_handle_irq,
 	.timer = &mx51_efikamx_timer,
 	.init_machine = mx51_efikamx_init,
+	.init_late = mx51_efikamx_init_late,
 	.restart = mx51_efikamx_restart,
 MACHINE_END

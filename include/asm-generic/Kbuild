@@ -8,6 +8,7 @@ header-y += int-ll64.h
 header-y += ioctl.h
 header-y += ioctls.h
 header-y += ipcbuf.h
+header-y += kvm_para.h
 header-y += mman-common.h
 header-y += mman.h
 header-y += msgbuf.h

@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
+#include <linux/regulator/of_regulator.h>
 
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps6586x.h>
@@ -460,6 +461,7 @@ static int __devinit tps6586x_add_subdevs(struct tps6586x *tps6586x,
 
 		pdev->dev.parent = tps6586x->dev;
 		pdev->dev.platform_data = subdev->platform_data;
+		pdev->dev.of_node = subdev->of_node;
 
 		ret = platform_device_add(pdev);
 		if (ret) {
@@ -474,12 +476,95 @@ failed:
 	return ret;
 }
 
+#ifdef CONFIG_OF
+static struct of_regulator_match tps6586x_matches[] = {
+	{ .name = "sm0",     .driver_data = (void *)TPS6586X_ID_SM_0    },
+	{ .name = "sm1",     .driver_data = (void *)TPS6586X_ID_SM_1    },
+	{ .name = "sm2",     .driver_data = (void *)TPS6586X_ID_SM_2    },
+	{ .name = "ldo0",    .driver_data = (void *)TPS6586X_ID_LDO_0   },
+	{ .name = "ldo1",    .driver_data = (void *)TPS6586X_ID_LDO_1   },
+	{ .name = "ldo2",    .driver_data = (void *)TPS6586X_ID_LDO_2   },
+	{ .name = "ldo3",    .driver_data = (void *)TPS6586X_ID_LDO_3   },
+	{ .name = "ldo4",    .driver_data = (void *)TPS6586X_ID_LDO_4   },
+	{ .name = "ldo5",    .driver_data = (void *)TPS6586X_ID_LDO_5   },
+	{ .name = "ldo6",    .driver_data = (void *)TPS6586X_ID_LDO_6   },
+	{ .name = "ldo7",    .driver_data = (void *)TPS6586X_ID_LDO_7   },
+	{ .name = "ldo8",    .driver_data = (void *)TPS6586X_ID_LDO_8   },
+	{ .name = "ldo9",    .driver_data = (void *)TPS6586X_ID_LDO_9   },
+	{ .name = "ldo_rtc", .driver_data = (void *)TPS6586X_ID_LDO_RTC },
+};
+
+static struct tps6586x_platform_data *tps6586x_parse_dt(struct i2c_client *client)
+{
+	const unsigned int num = ARRAY_SIZE(tps6586x_matches);
+	struct device_node *np = client->dev.of_node;
+	struct tps6586x_platform_data *pdata;
+	struct tps6586x_subdev_info *devs;
+	struct device_node *regs;
+	unsigned int count;
+	unsigned int i, j;
+	int err;
+
+	regs = of_find_node_by_name(np, "regulators");
+	if (!regs)
+		return NULL;
+
+	err = of_regulator_match(&client->dev, regs, tps6586x_matches, num);
+	if (err < 0) {
+		of_node_put(regs);
+		return NULL;
+	}
+
+	of_node_put(regs);
+	count = err;
+
+	devs = devm_kzalloc(&client->dev, count * sizeof(*devs), GFP_KERNEL);
+	if (!devs)
+		return NULL;
+
+	for (i = 0, j = 0; i < num && j < count; i++) {
+		if (!tps6586x_matches[i].init_data)
+			continue;
+
+		devs[j].name = "tps6586x-regulator";
+		devs[j].platform_data = tps6586x_matches[i].init_data;
+		devs[j].id = (int)tps6586x_matches[i].driver_data;
+		devs[j].of_node = tps6586x_matches[i].of_node;
+		j++;
+	}
+
+	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return NULL;
+
+	pdata->num_subdevs = count;
+	pdata->subdevs = devs;
+	pdata->gpio_base = -1;
+	pdata->irq_base = -1;
+
+	return pdata;
+}
+
+static struct of_device_id tps6586x_of_match[] = {
+	{ .compatible = "ti,tps6586x", },
+	{ },
+};
+#else
+static struct tps6586x_platform_data *tps6586x_parse_dt(struct i2c_client *client)
+{
+	return NULL;
+}
+#endif
+
 static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct tps6586x_platform_data *pdata = client->dev.platform_data;
 	struct tps6586x *tps6586x;
 	int ret;
+
+	if (!pdata && client->dev.of_node)
+		pdata = tps6586x_parse_dt(client);
 
 	if (!pdata) {
 		dev_err(&client->dev, "tps6586x requires platform data\n");
@@ -573,6 +658,7 @@ static struct i2c_driver tps6586x_driver = {
 	.driver	= {
 		.name	= "tps6586x",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(tps6586x_of_match),
 	},
 	.probe		= tps6586x_i2c_probe,
 	.remove		= __devexit_p(tps6586x_i2c_remove),

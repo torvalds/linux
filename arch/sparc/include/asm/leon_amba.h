@@ -87,8 +87,6 @@ struct amba_prom_registers {
 #define LEON3_GPTIMER_CONFIG_NRTIMERS(c) ((c)->config & 0x7)
 #define LEON3_GPTIMER_CTRL_ISPENDING(r)  (((r)&LEON3_GPTIMER_CTRL_PENDING) ? 1 : 0)
 
-#ifdef CONFIG_SPARC_LEON
-
 #ifndef __ASSEMBLY__
 
 struct leon3_irqctrl_regs_map {
@@ -263,7 +261,5 @@ extern unsigned int sparc_leon_eirq;
 #define amba_vendor(x) (((x) >> 24) & 0xff)
 
 #define amba_device(x) (((x) >> 12) & 0xfff)
-
-#endif /* !defined(CONFIG_SPARC_LEON) */
 
 #endif

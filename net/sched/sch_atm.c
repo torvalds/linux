@@ -16,8 +16,6 @@
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 
-extern struct socket *sockfd_lookup(int fd, int *err);	/* @@@ fix this */
-
 /*
  * The ATM queuing discipline provides a framework for invoking classifiers
  * (aka "filters"), which in turn select classes of this queuing discipline.
@@ -423,8 +421,6 @@ drop: __maybe_unused
 		}
 		return ret;
 	}
-	qdisc_bstats_update(sch, skb);
-	bstats_update(&flow->bstats, skb);
 	/*
 	 * Okay, this may seem weird. We pretend we've dropped the packet if
 	 * it goes via ATM. The reason for this is that the outer qdisc
@@ -472,6 +468,8 @@ static void sch_atm_dequeue(unsigned long data)
 			if (unlikely(!skb))
 				break;
 
+			qdisc_bstats_update(sch, skb);
+			bstats_update(&flow->bstats, skb);
 			pr_debug("atm_tc_dequeue: sending on class %p\n", flow);
 			/* remove any LL header somebody else has attached */
 			skb_pull(skb, skb_network_offset(skb));
@@ -601,7 +599,8 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 	if (nest == NULL)
 		goto nla_put_failure;
 
-	NLA_PUT(skb, TCA_ATM_HDR, flow->hdr_len, flow->hdr);
+	if (nla_put(skb, TCA_ATM_HDR, flow->hdr_len, flow->hdr))
+		goto nla_put_failure;
 	if (flow->vcc) {
 		struct sockaddr_atmpvc pvc;
 		int state;
@@ -610,15 +609,19 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 		pvc.sap_addr.itf = flow->vcc->dev ? flow->vcc->dev->number : -1;
 		pvc.sap_addr.vpi = flow->vcc->vpi;
 		pvc.sap_addr.vci = flow->vcc->vci;
-		NLA_PUT(skb, TCA_ATM_ADDR, sizeof(pvc), &pvc);
+		if (nla_put(skb, TCA_ATM_ADDR, sizeof(pvc), &pvc))
+			goto nla_put_failure;
 		state = ATM_VF2VS(flow->vcc->flags);
-		NLA_PUT_U32(skb, TCA_ATM_STATE, state);
+		if (nla_put_u32(skb, TCA_ATM_STATE, state))
+			goto nla_put_failure;
 	}
-	if (flow->excess)
-		NLA_PUT_U32(skb, TCA_ATM_EXCESS, flow->classid);
-	else
-		NLA_PUT_U32(skb, TCA_ATM_EXCESS, 0);
-
+	if (flow->excess) {
+		if (nla_put_u32(skb, TCA_ATM_EXCESS, flow->classid))
+			goto nla_put_failure;
+	} else {
+		if (nla_put_u32(skb, TCA_ATM_EXCESS, 0))
+			goto nla_put_failure;
+	}
 	nla_nest_end(skb, nest);
 	return skb->len;
 

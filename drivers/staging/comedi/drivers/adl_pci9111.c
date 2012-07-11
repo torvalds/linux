@@ -289,16 +289,6 @@ TODO:
 			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_2); \
 	} while (0)
 
-/*  Function prototypes */
-
-static int pci9111_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static int pci9111_detach(struct comedi_device *dev);
-static void pci9111_ai_munge(struct comedi_device *dev,
-			     struct comedi_subdevice *s, void *data,
-			     unsigned int num_bytes,
-			     unsigned int start_chan_index);
-
 static const struct comedi_lrange pci9111_hr_ai_range = {
 	5,
 	{
@@ -309,14 +299,6 @@ static const struct comedi_lrange pci9111_hr_ai_range = {
 	 BIP_RANGE(0.625)
 	 }
 };
-
-static DEFINE_PCI_DEVICE_TABLE(pci9111_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI9111_HR_DEVICE_ID) },
-	/* { PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI9111_HG_DEVICE_ID) }, */
-	{ 0 }
-};
-
-MODULE_DEVICE_TABLE(pci, pci9111_pci_table);
 
 /*  */
 /*  Board specification structure */
@@ -353,51 +335,6 @@ static const struct pci9111_board pci9111_boards[] = {
 
 #define pci9111_board_nbr \
 	(sizeof(pci9111_boards)/sizeof(struct pci9111_board))
-
-static struct comedi_driver pci9111_driver = {
-	.driver_name = PCI9111_DRIVER_NAME,
-	.module = THIS_MODULE,
-	.attach = pci9111_attach,
-	.detach = pci9111_detach,
-};
-
-static int __devinit pci9111_driver_pci_probe(struct pci_dev *dev,
-					      const struct pci_device_id *ent)
-{
-	return comedi_pci_auto_config(dev, pci9111_driver.driver_name);
-}
-
-static void __devexit pci9111_driver_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static struct pci_driver pci9111_driver_pci_driver = {
-	.id_table = pci9111_pci_table,
-	.probe = &pci9111_driver_pci_probe,
-	.remove = __devexit_p(&pci9111_driver_pci_remove)
-};
-
-static int __init pci9111_driver_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&pci9111_driver);
-	if (retval < 0)
-		return retval;
-
-	pci9111_driver_pci_driver.name = (char *)pci9111_driver.driver_name;
-	return pci_register_driver(&pci9111_driver_pci_driver);
-}
-
-static void __exit pci9111_driver_cleanup_module(void)
-{
-	pci_unregister_driver(&pci9111_driver_pci_driver);
-	comedi_driver_unregister(&pci9111_driver);
-}
-
-module_init(pci9111_driver_init_module);
-module_exit(pci9111_driver_cleanup_module);
 
 /*  Private data structure */
 
@@ -1445,30 +1382,53 @@ found:
 	return 0;
 }
 
-/*  Detach */
-
-static int pci9111_detach(struct comedi_device *dev)
+static void pci9111_detach(struct comedi_device *dev)
 {
-	/*  Reset device */
-
 	if (dev->private != NULL) {
 		if (dev_private->is_valid)
 			pci9111_reset(dev);
-
 	}
-	/*  Release previously allocated irq */
-
 	if (dev->irq != 0)
 		free_irq(dev->irq, dev);
-
 	if (dev_private != NULL && dev_private->pci_device != NULL) {
 		if (dev->iobase)
 			comedi_pci_disable(dev_private->pci_device);
 		pci_dev_put(dev_private->pci_device);
 	}
-
-	return 0;
 }
+
+static struct comedi_driver adl_pci9111_driver = {
+	.driver_name	= "adl_pci9111",
+	.module		= THIS_MODULE,
+	.attach		= pci9111_attach,
+	.detach		= pci9111_detach,
+};
+
+static int __devinit pci9111_pci_probe(struct pci_dev *dev,
+				       const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, &adl_pci9111_driver);
+}
+
+static void __devexit pci9111_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static DEFINE_PCI_DEVICE_TABLE(pci9111_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI9111_HR_DEVICE_ID) },
+	/* { PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI9111_HG_DEVICE_ID) }, */
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, pci9111_pci_table);
+
+static struct pci_driver adl_pci9111_pci_driver = {
+	.name		= "adl_pci9111",
+	.id_table	= pci9111_pci_table,
+	.probe		= pci9111_pci_probe,
+	.remove		= __devexit_p(pci9111_pci_remove),
+};
+module_comedi_pci_driver(adl_pci9111_driver, adl_pci9111_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

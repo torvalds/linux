@@ -746,8 +746,9 @@ unsigned int ivtv_v4l2_dec_poll(struct file *filp, poll_table *wait)
 	return res;
 }
 
-unsigned int ivtv_v4l2_enc_poll(struct file *filp, poll_table * wait)
+unsigned int ivtv_v4l2_enc_poll(struct file *filp, poll_table *wait)
 {
+	unsigned long req_events = poll_requested_events(wait);
 	struct ivtv_open_id *id = fh2id(filp->private_data);
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
@@ -755,7 +756,8 @@ unsigned int ivtv_v4l2_enc_poll(struct file *filp, poll_table * wait)
 	unsigned res = 0;
 
 	/* Start a capture if there is none */
-	if (!eof && !test_bit(IVTV_F_S_STREAMING, &s->s_flags)) {
+	if (!eof && !test_bit(IVTV_F_S_STREAMING, &s->s_flags) &&
+			(req_events & (POLLIN | POLLRDNORM))) {
 		int rc;
 
 		rc = ivtv_start_capture(id);

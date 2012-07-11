@@ -1380,22 +1380,11 @@ static void __devexit snd_mixart_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_driver driver = {
+static struct pci_driver mixart_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_mixart_ids,
 	.probe = snd_mixart_probe,
 	.remove = __devexit_p(snd_mixart_remove),
 };
 
-static int __init alsa_card_mixart_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_mixart_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_mixart_init)
-module_exit(alsa_card_mixart_exit)
+module_pci_driver(mixart_driver);

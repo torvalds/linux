@@ -1,4 +1,4 @@
-extra-y := head.o vmlinux.lds init_task.o
+extra-y := head.o vmlinux.lds
 
 obj-$(CONFIG_SMP) += smp.o topology.o
 

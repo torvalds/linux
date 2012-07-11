@@ -68,9 +68,9 @@ static DEFINE_SPINLOCK(xfrm6_tunnel_spi_lock);
 
 static struct kmem_cache *xfrm6_tunnel_spi_kmem __read_mostly;
 
-static inline unsigned xfrm6_tunnel_spi_hash_byaddr(const xfrm_address_t *addr)
+static inline unsigned int xfrm6_tunnel_spi_hash_byaddr(const xfrm_address_t *addr)
 {
-	unsigned h;
+	unsigned int h;
 
 	h = (__force u32)(addr->a6[0] ^ addr->a6[1] ^ addr->a6[2] ^ addr->a6[3]);
 	h ^= h >> 16;
@@ -80,7 +80,7 @@ static inline unsigned xfrm6_tunnel_spi_hash_byaddr(const xfrm_address_t *addr)
 	return h;
 }
 
-static inline unsigned xfrm6_tunnel_spi_hash_byspi(u32 spi)
+static inline unsigned int xfrm6_tunnel_spi_hash_byspi(u32 spi)
 {
 	return spi % XFRM6_TUNNEL_SPI_BYSPI_HSIZE;
 }

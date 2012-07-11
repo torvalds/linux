@@ -15,8 +15,8 @@
 
 #include <asm/gptimers.h>
 
-#include "../iio.h"
-#include "../trigger.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/trigger.h>
 
 struct bfin_timer {
 	unsigned short id, bit;
@@ -172,7 +172,7 @@ static int __devinit iio_bfin_tmr_trigger_probe(struct platform_device *pdev)
 	st->timer_num = ret;
 	st->t = &iio_bfin_timer_code[st->timer_num];
 
-	st->trig = iio_allocate_trigger("bfintmr%d", st->timer_num);
+	st->trig = iio_trigger_alloc("bfintmr%d", st->timer_num);
 	if (!st->trig) {
 		ret = -ENOMEM;
 		goto out1;
@@ -203,7 +203,7 @@ static int __devinit iio_bfin_tmr_trigger_probe(struct platform_device *pdev)
 out4:
 	iio_trigger_unregister(st->trig);
 out2:
-	iio_put_trigger(st->trig);
+	iio_trigger_put(st->trig);
 out1:
 	kfree(st);
 out:
@@ -217,7 +217,7 @@ static int __devexit iio_bfin_tmr_trigger_remove(struct platform_device *pdev)
 	disable_gptimers(st->t->bit);
 	free_irq(st->irq, st);
 	iio_trigger_unregister(st->trig);
-	iio_put_trigger(st->trig);
+	iio_trigger_put(st->trig);
 	kfree(st);
 
 	return 0;

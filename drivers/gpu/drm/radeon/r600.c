@@ -713,6 +713,14 @@ void r600_hpd_init(struct radeon_device *rdev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 
+		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
+		    connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
+			/* don't try to enable hpd on eDP or LVDS avoid breaking the
+			 * aux dp channel on imac and help (but not completely fix)
+			 * https://bugzilla.redhat.com/show_bug.cgi?id=726143
+			 */
+			continue;
+		}
 		if (ASIC_IS_DCE3(rdev)) {
 			u32 tmp = DC_HPDx_CONNECTION_TIMER(0x9c4) | DC_HPDx_RX_INT_TIMER(0xfa);
 			if (ASIC_IS_DCE32(rdev))
@@ -1223,7 +1231,7 @@ int r600_vram_scratch_init(struct radeon_device *rdev)
 	if (rdev->vram_scratch.robj == NULL) {
 		r = radeon_bo_create(rdev, RADEON_GPU_PAGE_SIZE,
 				     PAGE_SIZE, true, RADEON_GEM_DOMAIN_VRAM,
-				     &rdev->vram_scratch.robj);
+				     NULL, &rdev->vram_scratch.robj);
 		if (r) {
 			return r;
 		}
@@ -1350,31 +1358,17 @@ bool r600_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 	u32 srbm_status;
 	u32 grbm_status;
 	u32 grbm_status2;
-	struct r100_gpu_lockup *lockup;
-	int r;
-
-	if (rdev->family >= CHIP_RV770)
-		lockup = &rdev->config.rv770.lockup;
-	else
-		lockup = &rdev->config.r600.lockup;
 
 	srbm_status = RREG32(R_000E50_SRBM_STATUS);
 	grbm_status = RREG32(R_008010_GRBM_STATUS);
 	grbm_status2 = RREG32(R_008014_GRBM_STATUS2);
 	if (!G_008010_GUI_ACTIVE(grbm_status)) {
-		r100_gpu_lockup_update(lockup, ring);
+		radeon_ring_lockup_update(ring);
 		return false;
 	}
 	/* force CP activities */
-	r = radeon_ring_lock(rdev, ring, 2);
-	if (!r) {
-		/* PACKET2 NOP */
-		radeon_ring_write(ring, 0x80000000);
-		radeon_ring_write(ring, 0x80000000);
-		radeon_ring_unlock_commit(rdev, ring);
-	}
-	ring->rptr = RREG32(ring->rptr_reg);
-	return r100_gpu_cp_is_lockup(rdev, lockup, ring);
+	radeon_ring_force_activity(rdev, ring);
+	return radeon_ring_test_lockup(rdev, ring);
 }
 
 int r600_asic_reset(struct radeon_device *rdev)
@@ -1382,113 +1376,51 @@ int r600_asic_reset(struct radeon_device *rdev)
 	return r600_gpu_soft_reset(rdev);
 }
 
-static u32 r600_get_tile_pipe_to_backend_map(u32 num_tile_pipes,
-					     u32 num_backends,
-					     u32 backend_disable_mask)
+u32 r6xx_remap_render_backend(struct radeon_device *rdev,
+			      u32 tiling_pipe_num,
+			      u32 max_rb_num,
+			      u32 total_max_rb_num,
+			      u32 disabled_rb_mask)
 {
-	u32 backend_map = 0;
-	u32 enabled_backends_mask;
-	u32 enabled_backends_count;
-	u32 cur_pipe;
-	u32 swizzle_pipe[R6XX_MAX_PIPES];
-	u32 cur_backend;
-	u32 i;
+	u32 rendering_pipe_num, rb_num_width, req_rb_num;
+	u32 pipe_rb_ratio, pipe_rb_remain;
+	u32 data = 0, mask = 1 << (max_rb_num - 1);
+	unsigned i, j;
 
-	if (num_tile_pipes > R6XX_MAX_PIPES)
-		num_tile_pipes = R6XX_MAX_PIPES;
-	if (num_tile_pipes < 1)
-		num_tile_pipes = 1;
-	if (num_backends > R6XX_MAX_BACKENDS)
-		num_backends = R6XX_MAX_BACKENDS;
-	if (num_backends < 1)
-		num_backends = 1;
+	/* mask out the RBs that don't exist on that asic */
+	disabled_rb_mask |= (0xff << max_rb_num) & 0xff;
 
-	enabled_backends_mask = 0;
-	enabled_backends_count = 0;
-	for (i = 0; i < R6XX_MAX_BACKENDS; ++i) {
-		if (((backend_disable_mask >> i) & 1) == 0) {
-			enabled_backends_mask |= (1 << i);
-			++enabled_backends_count;
+	rendering_pipe_num = 1 << tiling_pipe_num;
+	req_rb_num = total_max_rb_num - r600_count_pipe_bits(disabled_rb_mask);
+	BUG_ON(rendering_pipe_num < req_rb_num);
+
+	pipe_rb_ratio = rendering_pipe_num / req_rb_num;
+	pipe_rb_remain = rendering_pipe_num - pipe_rb_ratio * req_rb_num;
+
+	if (rdev->family <= CHIP_RV740) {
+		/* r6xx/r7xx */
+		rb_num_width = 2;
+	} else {
+		/* eg+ */
+		rb_num_width = 4;
+	}
+
+	for (i = 0; i < max_rb_num; i++) {
+		if (!(mask & disabled_rb_mask)) {
+			for (j = 0; j < pipe_rb_ratio; j++) {
+				data <<= rb_num_width;
+				data |= max_rb_num - i - 1;
+			}
+			if (pipe_rb_remain) {
+				data <<= rb_num_width;
+				data |= max_rb_num - i - 1;
+				pipe_rb_remain--;
+			}
 		}
-		if (enabled_backends_count == num_backends)
-			break;
+		mask >>= 1;
 	}
 
-	if (enabled_backends_count == 0) {
-		enabled_backends_mask = 1;
-		enabled_backends_count = 1;
-	}
-
-	if (enabled_backends_count != num_backends)
-		num_backends = enabled_backends_count;
-
-	memset((uint8_t *)&swizzle_pipe[0], 0, sizeof(u32) * R6XX_MAX_PIPES);
-	switch (num_tile_pipes) {
-	case 1:
-		swizzle_pipe[0] = 0;
-		break;
-	case 2:
-		swizzle_pipe[0] = 0;
-		swizzle_pipe[1] = 1;
-		break;
-	case 3:
-		swizzle_pipe[0] = 0;
-		swizzle_pipe[1] = 1;
-		swizzle_pipe[2] = 2;
-		break;
-	case 4:
-		swizzle_pipe[0] = 0;
-		swizzle_pipe[1] = 1;
-		swizzle_pipe[2] = 2;
-		swizzle_pipe[3] = 3;
-		break;
-	case 5:
-		swizzle_pipe[0] = 0;
-		swizzle_pipe[1] = 1;
-		swizzle_pipe[2] = 2;
-		swizzle_pipe[3] = 3;
-		swizzle_pipe[4] = 4;
-		break;
-	case 6:
-		swizzle_pipe[0] = 0;
-		swizzle_pipe[1] = 2;
-		swizzle_pipe[2] = 4;
-		swizzle_pipe[3] = 5;
-		swizzle_pipe[4] = 1;
-		swizzle_pipe[5] = 3;
-		break;
-	case 7:
-		swizzle_pipe[0] = 0;
-		swizzle_pipe[1] = 2;
-		swizzle_pipe[2] = 4;
-		swizzle_pipe[3] = 6;
-		swizzle_pipe[4] = 1;
-		swizzle_pipe[5] = 3;
-		swizzle_pipe[6] = 5;
-		break;
-	case 8:
-		swizzle_pipe[0] = 0;
-		swizzle_pipe[1] = 2;
-		swizzle_pipe[2] = 4;
-		swizzle_pipe[3] = 6;
-		swizzle_pipe[4] = 1;
-		swizzle_pipe[5] = 3;
-		swizzle_pipe[6] = 5;
-		swizzle_pipe[7] = 7;
-		break;
-	}
-
-	cur_backend = 0;
-	for (cur_pipe = 0; cur_pipe < num_tile_pipes; ++cur_pipe) {
-		while (((1 << cur_backend) & enabled_backends_mask) == 0)
-			cur_backend = (cur_backend + 1) % R6XX_MAX_BACKENDS;
-
-		backend_map |= (u32)(((cur_backend & 3) << (swizzle_pipe[cur_pipe] * 2)));
-
-		cur_backend = (cur_backend + 1) % R6XX_MAX_BACKENDS;
-	}
-
-	return backend_map;
+	return data;
 }
 
 int r600_count_pipe_bits(uint32_t val)
@@ -1506,7 +1438,6 @@ void r600_gpu_init(struct radeon_device *rdev)
 {
 	u32 tiling_config;
 	u32 ramcfg;
-	u32 backend_map;
 	u32 cc_rb_backend_disable;
 	u32 cc_gc_shader_pipe_config;
 	u32 tmp;
@@ -1517,8 +1448,9 @@ void r600_gpu_init(struct radeon_device *rdev)
 	u32 sq_thread_resource_mgmt = 0;
 	u32 sq_stack_resource_mgmt_1 = 0;
 	u32 sq_stack_resource_mgmt_2 = 0;
+	u32 disabled_rb_mask;
 
-	/* FIXME: implement */
+	rdev->config.r600.tiling_group_size = 256;
 	switch (rdev->family) {
 	case CHIP_R600:
 		rdev->config.r600.max_pipes = 4;
@@ -1622,10 +1554,7 @@ void r600_gpu_init(struct radeon_device *rdev)
 	rdev->config.r600.tiling_nbanks = 4 << ((ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT);
 	tiling_config |= BANK_TILING((ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT);
 	tiling_config |= GROUP_SIZE((ramcfg & BURSTLENGTH_MASK) >> BURSTLENGTH_SHIFT);
-	if ((ramcfg & BURSTLENGTH_MASK) >> BURSTLENGTH_SHIFT)
-		rdev->config.r600.tiling_group_size = 512;
-	else
-		rdev->config.r600.tiling_group_size = 256;
+
 	tmp = (ramcfg & NOOFROWS_MASK) >> NOOFROWS_SHIFT;
 	if (tmp > 3) {
 		tiling_config |= ROW_TILING(3);
@@ -1637,31 +1566,35 @@ void r600_gpu_init(struct radeon_device *rdev)
 	tiling_config |= BANK_SWAPS(1);
 
 	cc_rb_backend_disable = RREG32(CC_RB_BACKEND_DISABLE) & 0x00ff0000;
-	cc_rb_backend_disable |=
-		BACKEND_DISABLE((R6XX_MAX_BACKENDS_MASK << rdev->config.r600.max_backends) & R6XX_MAX_BACKENDS_MASK);
+	tmp = R6XX_MAX_BACKENDS -
+		r600_count_pipe_bits((cc_rb_backend_disable >> 16) & R6XX_MAX_BACKENDS_MASK);
+	if (tmp < rdev->config.r600.max_backends) {
+		rdev->config.r600.max_backends = tmp;
+	}
 
-	cc_gc_shader_pipe_config = RREG32(CC_GC_SHADER_PIPE_CONFIG) & 0xffffff00;
-	cc_gc_shader_pipe_config |=
-		INACTIVE_QD_PIPES((R6XX_MAX_PIPES_MASK << rdev->config.r600.max_pipes) & R6XX_MAX_PIPES_MASK);
-	cc_gc_shader_pipe_config |=
-		INACTIVE_SIMDS((R6XX_MAX_SIMDS_MASK << rdev->config.r600.max_simds) & R6XX_MAX_SIMDS_MASK);
+	cc_gc_shader_pipe_config = RREG32(CC_GC_SHADER_PIPE_CONFIG) & 0x00ffff00;
+	tmp = R6XX_MAX_PIPES -
+		r600_count_pipe_bits((cc_gc_shader_pipe_config >> 8) & R6XX_MAX_PIPES_MASK);
+	if (tmp < rdev->config.r600.max_pipes) {
+		rdev->config.r600.max_pipes = tmp;
+	}
+	tmp = R6XX_MAX_SIMDS -
+		r600_count_pipe_bits((cc_gc_shader_pipe_config >> 16) & R6XX_MAX_SIMDS_MASK);
+	if (tmp < rdev->config.r600.max_simds) {
+		rdev->config.r600.max_simds = tmp;
+	}
 
-	backend_map = r600_get_tile_pipe_to_backend_map(rdev->config.r600.max_tile_pipes,
-							(R6XX_MAX_BACKENDS -
-							 r600_count_pipe_bits((cc_rb_backend_disable &
-									       R6XX_MAX_BACKENDS_MASK) >> 16)),
-							(cc_rb_backend_disable >> 16));
+	disabled_rb_mask = (RREG32(CC_RB_BACKEND_DISABLE) >> 16) & R6XX_MAX_BACKENDS_MASK;
+	tmp = (tiling_config & PIPE_TILING__MASK) >> PIPE_TILING__SHIFT;
+	tmp = r6xx_remap_render_backend(rdev, tmp, rdev->config.r600.max_backends,
+					R6XX_MAX_BACKENDS, disabled_rb_mask);
+	tiling_config |= tmp << 16;
+	rdev->config.r600.backend_map = tmp;
+
 	rdev->config.r600.tile_config = tiling_config;
-	rdev->config.r600.backend_map = backend_map;
-	tiling_config |= BACKEND_MAP(backend_map);
 	WREG32(GB_TILING_CONFIG, tiling_config);
 	WREG32(DCP_TILING_CONFIG, tiling_config & 0xffff);
 	WREG32(HDP_TILING_CONFIG, tiling_config & 0xffff);
-
-	/* Setup pipes */
-	WREG32(CC_RB_BACKEND_DISABLE, cc_rb_backend_disable);
-	WREG32(CC_GC_SHADER_PIPE_CONFIG, cc_gc_shader_pipe_config);
-	WREG32(GC_USER_SHADER_PIPE_CONFIG, cc_gc_shader_pipe_config);
 
 	tmp = R6XX_MAX_PIPES - r600_count_pipe_bits((cc_gc_shader_pipe_config & INACTIVE_QD_PIPES_MASK) >> 8);
 	WREG32(VGT_OUT_DEALLOC_CNTL, (tmp * 4) & DEALLOC_DIST_MASK);
@@ -1906,6 +1839,7 @@ void r600_gpu_init(struct radeon_device *rdev)
 	WREG32(PA_CL_ENHANCE, (CLIP_VTX_REORDER_ENA |
 			       NUM_CLIP_SEQ(3)));
 	WREG32(PA_SC_ENHANCE, FORCE_EOV_MAX_CLK_CNT(4095));
+	WREG32(VC_ENHANCE, 0);
 }
 
 
@@ -2377,20 +2311,15 @@ int r600_copy_blit(struct radeon_device *rdev,
 		   unsigned num_gpu_pages,
 		   struct radeon_fence *fence)
 {
+	struct radeon_sa_bo *vb = NULL;
 	int r;
 
-	mutex_lock(&rdev->r600_blit.mutex);
-	rdev->r600_blit.vb_ib = NULL;
-	r = r600_blit_prepare_copy(rdev, num_gpu_pages);
+	r = r600_blit_prepare_copy(rdev, num_gpu_pages, &vb);
 	if (r) {
-		if (rdev->r600_blit.vb_ib)
-			radeon_ib_free(rdev, &rdev->r600_blit.vb_ib);
-		mutex_unlock(&rdev->r600_blit.mutex);
 		return r;
 	}
-	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_gpu_pages);
-	r600_blit_done_copy(rdev, fence);
-	mutex_unlock(&rdev->r600_blit.mutex);
+	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_gpu_pages, vb);
+	r600_blit_done_copy(rdev, fence, vb);
 	return 0;
 }
 
@@ -2494,10 +2423,13 @@ int r600_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
+	r = radeon_ib_ring_tests(rdev);
+	if (r)
+		return r;
+
+	r = r600_audio_init(rdev);
 	if (r) {
-		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
-		rdev->accel_working = false;
+		DRM_ERROR("radeon: audio init failed\n");
 		return r;
 	}
 
@@ -2537,12 +2469,6 @@ int r600_resume(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = r600_audio_init(rdev);
-	if (r) {
-		DRM_ERROR("radeon: audio resume failed\n");
-		return r;
-	}
-
 	return r;
 }
 
@@ -2574,10 +2500,6 @@ int r600_init(struct radeon_device *rdev)
 	if (r600_debugfs_mc_info_init(rdev)) {
 		DRM_ERROR("Failed to register debugfs file for mc !\n");
 	}
-	/* This don't do much */
-	r = radeon_gem_init(rdev);
-	if (r)
-		return r;
 	/* Read BIOS */
 	if (!radeon_get_bios(rdev)) {
 		if (ASIC_IS_AVIVO(rdev))
@@ -2656,9 +2578,6 @@ int r600_init(struct radeon_device *rdev)
 		rdev->accel_working = false;
 	}
 
-	r = r600_audio_init(rdev);
-	if (r)
-		return r; /* TODO error handling */
 	return 0;
 }
 
@@ -2675,7 +2594,6 @@ void r600_fini(struct radeon_device *rdev)
 	r600_vram_scratch_fini(rdev);
 	radeon_agp_fini(rdev);
 	radeon_gem_fini(rdev);
-	radeon_semaphore_driver_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_bo_fini(rdev);
 	radeon_atombios_fini(rdev);
@@ -2704,7 +2622,7 @@ void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 
 int r600_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-	struct radeon_ib *ib;
+	struct radeon_ib ib;
 	uint32_t scratch;
 	uint32_t tmp = 0;
 	unsigned i;
@@ -2722,18 +2640,18 @@ int r600_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		DRM_ERROR("radeon: failed to get ib (%d).\n", r);
 		return r;
 	}
-	ib->ptr[0] = PACKET3(PACKET3_SET_CONFIG_REG, 1);
-	ib->ptr[1] = ((scratch - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
-	ib->ptr[2] = 0xDEADBEEF;
-	ib->length_dw = 3;
-	r = radeon_ib_schedule(rdev, ib);
+	ib.ptr[0] = PACKET3(PACKET3_SET_CONFIG_REG, 1);
+	ib.ptr[1] = ((scratch - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
+	ib.ptr[2] = 0xDEADBEEF;
+	ib.length_dw = 3;
+	r = radeon_ib_schedule(rdev, &ib);
 	if (r) {
 		radeon_scratch_free(rdev, scratch);
 		radeon_ib_free(rdev, &ib);
 		DRM_ERROR("radeon: failed to schedule ib (%d).\n", r);
 		return r;
 	}
-	r = radeon_fence_wait(ib->fence, false);
+	r = radeon_fence_wait(ib.fence, false);
 	if (r) {
 		DRM_ERROR("radeon: fence wait failed (%d).\n", r);
 		return r;
@@ -2745,7 +2663,7 @@ int r600_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		DRM_UDELAY(1);
 	}
 	if (i < rdev->usec_timeout) {
-		DRM_INFO("ib test on ring %d succeeded in %u usecs\n", ib->fence->ring, i);
+		DRM_INFO("ib test on ring %d succeeded in %u usecs\n", ib.fence->ring, i);
 	} else {
 		DRM_ERROR("radeon: ib test failed (scratch(0x%04X)=0x%08X)\n",
 			  scratch, tmp);
@@ -2788,7 +2706,7 @@ int r600_ih_ring_alloc(struct radeon_device *rdev)
 		r = radeon_bo_create(rdev, rdev->ih.ring_size,
 				     PAGE_SIZE, true,
 				     RADEON_GEM_DOMAIN_GTT,
-				     &rdev->ih.ring_obj);
+				     NULL, &rdev->ih.ring_obj);
 		if (r) {
 			DRM_ERROR("radeon: failed to create ih ring buffer (%d).\n", r);
 			return r;
@@ -2968,6 +2886,15 @@ static void r600_disable_interrupt_state(struct radeon_device *rdev)
 			WREG32(DC_HPD5_INT_CONTROL, tmp);
 			tmp = RREG32(DC_HPD6_INT_CONTROL) & DC_HPDx_INT_POLARITY;
 			WREG32(DC_HPD6_INT_CONTROL, tmp);
+			tmp = RREG32(AFMT_AUDIO_PACKET_CONTROL + DCE3_HDMI_OFFSET0) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
+			WREG32(AFMT_AUDIO_PACKET_CONTROL + DCE3_HDMI_OFFSET0, tmp);
+			tmp = RREG32(AFMT_AUDIO_PACKET_CONTROL + DCE3_HDMI_OFFSET1) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
+			WREG32(AFMT_AUDIO_PACKET_CONTROL + DCE3_HDMI_OFFSET1, tmp);
+		} else {
+			tmp = RREG32(HDMI0_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
+			WREG32(HDMI0_AUDIO_PACKET_CONTROL, tmp);
+			tmp = RREG32(DCE3_HDMI1_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
+			WREG32(DCE3_HDMI1_AUDIO_PACKET_CONTROL, tmp);
 		}
 	} else {
 		WREG32(DACA_AUTODETECT_INT_CONTROL, 0);
@@ -2978,6 +2905,10 @@ static void r600_disable_interrupt_state(struct radeon_device *rdev)
 		WREG32(DC_HOT_PLUG_DETECT2_INT_CONTROL, tmp);
 		tmp = RREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL) & DC_HOT_PLUG_DETECTx_INT_POLARITY;
 		WREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL, tmp);
+		tmp = RREG32(HDMI0_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
+		WREG32(HDMI0_AUDIO_PACKET_CONTROL, tmp);
+		tmp = RREG32(HDMI1_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
+		WREG32(HDMI1_AUDIO_PACKET_CONTROL, tmp);
 	}
 }
 
@@ -3047,6 +2978,9 @@ int r600_irq_init(struct radeon_device *rdev)
 	else
 		r600_disable_interrupt_state(rdev);
 
+	/* at this point everything should be setup correctly to enable master */
+	pci_set_master(rdev->pdev);
+
 	/* enable irqs */
 	r600_enable_interrupts(rdev);
 
@@ -3071,7 +3005,7 @@ int r600_irq_set(struct radeon_device *rdev)
 	u32 mode_int = 0;
 	u32 hpd1, hpd2, hpd3, hpd4 = 0, hpd5 = 0, hpd6 = 0;
 	u32 grbm_int_cntl = 0;
-	u32 hdmi1, hdmi2;
+	u32 hdmi0, hdmi1;
 	u32 d1grph = 0, d2grph = 0;
 
 	if (!rdev->irq.installed) {
@@ -3086,9 +3020,7 @@ int r600_irq_set(struct radeon_device *rdev)
 		return 0;
 	}
 
-	hdmi1 = RREG32(R600_HDMI_BLOCK1 + R600_HDMI_CNTL) & ~R600_HDMI_INT_EN;
 	if (ASIC_IS_DCE3(rdev)) {
-		hdmi2 = RREG32(R600_HDMI_BLOCK3 + R600_HDMI_CNTL) & ~R600_HDMI_INT_EN;
 		hpd1 = RREG32(DC_HPD1_INT_CONTROL) & ~DC_HPDx_INT_EN;
 		hpd2 = RREG32(DC_HPD2_INT_CONTROL) & ~DC_HPDx_INT_EN;
 		hpd3 = RREG32(DC_HPD3_INT_CONTROL) & ~DC_HPDx_INT_EN;
@@ -3096,12 +3028,18 @@ int r600_irq_set(struct radeon_device *rdev)
 		if (ASIC_IS_DCE32(rdev)) {
 			hpd5 = RREG32(DC_HPD5_INT_CONTROL) & ~DC_HPDx_INT_EN;
 			hpd6 = RREG32(DC_HPD6_INT_CONTROL) & ~DC_HPDx_INT_EN;
+			hdmi0 = RREG32(AFMT_AUDIO_PACKET_CONTROL + DCE3_HDMI_OFFSET0) & ~AFMT_AZ_FORMAT_WTRIG_MASK;
+			hdmi1 = RREG32(AFMT_AUDIO_PACKET_CONTROL + DCE3_HDMI_OFFSET1) & ~AFMT_AZ_FORMAT_WTRIG_MASK;
+		} else {
+			hdmi0 = RREG32(HDMI0_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
+			hdmi1 = RREG32(DCE3_HDMI1_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
 		}
 	} else {
-		hdmi2 = RREG32(R600_HDMI_BLOCK2 + R600_HDMI_CNTL) & ~R600_HDMI_INT_EN;
 		hpd1 = RREG32(DC_HOT_PLUG_DETECT1_INT_CONTROL) & ~DC_HPDx_INT_EN;
 		hpd2 = RREG32(DC_HOT_PLUG_DETECT2_INT_CONTROL) & ~DC_HPDx_INT_EN;
 		hpd3 = RREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL) & ~DC_HPDx_INT_EN;
+		hdmi0 = RREG32(HDMI0_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
+		hdmi1 = RREG32(HDMI1_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
 	}
 
 	if (rdev->irq.sw_int[RADEON_RING_TYPE_GFX_INDEX]) {
@@ -3143,13 +3081,13 @@ int r600_irq_set(struct radeon_device *rdev)
 		DRM_DEBUG("r600_irq_set: hpd 6\n");
 		hpd6 |= DC_HPDx_INT_EN;
 	}
-	if (rdev->irq.hdmi[0]) {
-		DRM_DEBUG("r600_irq_set: hdmi 1\n");
-		hdmi1 |= R600_HDMI_INT_EN;
+	if (rdev->irq.afmt[0]) {
+		DRM_DEBUG("r600_irq_set: hdmi 0\n");
+		hdmi0 |= HDMI0_AZ_FORMAT_WTRIG_MASK;
 	}
-	if (rdev->irq.hdmi[1]) {
-		DRM_DEBUG("r600_irq_set: hdmi 2\n");
-		hdmi2 |= R600_HDMI_INT_EN;
+	if (rdev->irq.afmt[1]) {
+		DRM_DEBUG("r600_irq_set: hdmi 0\n");
+		hdmi1 |= HDMI0_AZ_FORMAT_WTRIG_MASK;
 	}
 	if (rdev->irq.gui_idle) {
 		DRM_DEBUG("gui idle\n");
@@ -3161,9 +3099,7 @@ int r600_irq_set(struct radeon_device *rdev)
 	WREG32(D1GRPH_INTERRUPT_CONTROL, d1grph);
 	WREG32(D2GRPH_INTERRUPT_CONTROL, d2grph);
 	WREG32(GRBM_INT_CNTL, grbm_int_cntl);
-	WREG32(R600_HDMI_BLOCK1 + R600_HDMI_CNTL, hdmi1);
 	if (ASIC_IS_DCE3(rdev)) {
-		WREG32(R600_HDMI_BLOCK3 + R600_HDMI_CNTL, hdmi2);
 		WREG32(DC_HPD1_INT_CONTROL, hpd1);
 		WREG32(DC_HPD2_INT_CONTROL, hpd2);
 		WREG32(DC_HPD3_INT_CONTROL, hpd3);
@@ -3171,12 +3107,18 @@ int r600_irq_set(struct radeon_device *rdev)
 		if (ASIC_IS_DCE32(rdev)) {
 			WREG32(DC_HPD5_INT_CONTROL, hpd5);
 			WREG32(DC_HPD6_INT_CONTROL, hpd6);
+			WREG32(AFMT_AUDIO_PACKET_CONTROL + DCE3_HDMI_OFFSET0, hdmi0);
+			WREG32(AFMT_AUDIO_PACKET_CONTROL + DCE3_HDMI_OFFSET1, hdmi1);
+		} else {
+			WREG32(HDMI0_AUDIO_PACKET_CONTROL, hdmi0);
+			WREG32(DCE3_HDMI1_AUDIO_PACKET_CONTROL, hdmi1);
 		}
 	} else {
-		WREG32(R600_HDMI_BLOCK2 + R600_HDMI_CNTL, hdmi2);
 		WREG32(DC_HOT_PLUG_DETECT1_INT_CONTROL, hpd1);
 		WREG32(DC_HOT_PLUG_DETECT2_INT_CONTROL, hpd2);
 		WREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL, hpd3);
+		WREG32(HDMI0_AUDIO_PACKET_CONTROL, hdmi0);
+		WREG32(HDMI1_AUDIO_PACKET_CONTROL, hdmi1);
 	}
 
 	return 0;
@@ -3190,10 +3132,19 @@ static void r600_irq_ack(struct radeon_device *rdev)
 		rdev->irq.stat_regs.r600.disp_int = RREG32(DCE3_DISP_INTERRUPT_STATUS);
 		rdev->irq.stat_regs.r600.disp_int_cont = RREG32(DCE3_DISP_INTERRUPT_STATUS_CONTINUE);
 		rdev->irq.stat_regs.r600.disp_int_cont2 = RREG32(DCE3_DISP_INTERRUPT_STATUS_CONTINUE2);
+		if (ASIC_IS_DCE32(rdev)) {
+			rdev->irq.stat_regs.r600.hdmi0_status = RREG32(AFMT_STATUS + DCE3_HDMI_OFFSET0);
+			rdev->irq.stat_regs.r600.hdmi1_status = RREG32(AFMT_STATUS + DCE3_HDMI_OFFSET1);
+		} else {
+			rdev->irq.stat_regs.r600.hdmi0_status = RREG32(HDMI0_STATUS);
+			rdev->irq.stat_regs.r600.hdmi1_status = RREG32(DCE3_HDMI1_STATUS);
+		}
 	} else {
 		rdev->irq.stat_regs.r600.disp_int = RREG32(DISP_INTERRUPT_STATUS);
 		rdev->irq.stat_regs.r600.disp_int_cont = RREG32(DISP_INTERRUPT_STATUS_CONTINUE);
 		rdev->irq.stat_regs.r600.disp_int_cont2 = 0;
+		rdev->irq.stat_regs.r600.hdmi0_status = RREG32(HDMI0_STATUS);
+		rdev->irq.stat_regs.r600.hdmi1_status = RREG32(HDMI1_STATUS);
 	}
 	rdev->irq.stat_regs.r600.d1grph_int = RREG32(D1GRPH_INTERRUPT_STATUS);
 	rdev->irq.stat_regs.r600.d2grph_int = RREG32(D2GRPH_INTERRUPT_STATUS);
@@ -3259,17 +3210,32 @@ static void r600_irq_ack(struct radeon_device *rdev)
 			tmp |= DC_HPDx_INT_ACK;
 			WREG32(DC_HPD6_INT_CONTROL, tmp);
 		}
-	}
-	if (RREG32(R600_HDMI_BLOCK1 + R600_HDMI_STATUS) & R600_HDMI_INT_PENDING) {
-		WREG32_P(R600_HDMI_BLOCK1 + R600_HDMI_CNTL, R600_HDMI_INT_ACK, ~R600_HDMI_INT_ACK);
-	}
-	if (ASIC_IS_DCE3(rdev)) {
-		if (RREG32(R600_HDMI_BLOCK3 + R600_HDMI_STATUS) & R600_HDMI_INT_PENDING) {
-			WREG32_P(R600_HDMI_BLOCK3 + R600_HDMI_CNTL, R600_HDMI_INT_ACK, ~R600_HDMI_INT_ACK);
+		if (rdev->irq.stat_regs.r600.hdmi0_status & AFMT_AZ_FORMAT_WTRIG) {
+			tmp = RREG32(AFMT_AUDIO_PACKET_CONTROL + DCE3_HDMI_OFFSET0);
+			tmp |= AFMT_AZ_FORMAT_WTRIG_ACK;
+			WREG32(AFMT_AUDIO_PACKET_CONTROL + DCE3_HDMI_OFFSET0, tmp);
+		}
+		if (rdev->irq.stat_regs.r600.hdmi1_status & AFMT_AZ_FORMAT_WTRIG) {
+			tmp = RREG32(AFMT_AUDIO_PACKET_CONTROL + DCE3_HDMI_OFFSET1);
+			tmp |= AFMT_AZ_FORMAT_WTRIG_ACK;
+			WREG32(AFMT_AUDIO_PACKET_CONTROL + DCE3_HDMI_OFFSET1, tmp);
 		}
 	} else {
-		if (RREG32(R600_HDMI_BLOCK2 + R600_HDMI_STATUS) & R600_HDMI_INT_PENDING) {
-			WREG32_P(R600_HDMI_BLOCK2 + R600_HDMI_CNTL, R600_HDMI_INT_ACK, ~R600_HDMI_INT_ACK);
+		if (rdev->irq.stat_regs.r600.hdmi0_status & HDMI0_AZ_FORMAT_WTRIG) {
+			tmp = RREG32(HDMI0_AUDIO_PACKET_CONTROL);
+			tmp |= HDMI0_AZ_FORMAT_WTRIG_ACK;
+			WREG32(HDMI0_AUDIO_PACKET_CONTROL, tmp);
+		}
+		if (rdev->irq.stat_regs.r600.hdmi1_status & HDMI0_AZ_FORMAT_WTRIG) {
+			if (ASIC_IS_DCE3(rdev)) {
+				tmp = RREG32(DCE3_HDMI1_AUDIO_PACKET_CONTROL);
+				tmp |= HDMI0_AZ_FORMAT_WTRIG_ACK;
+				WREG32(DCE3_HDMI1_AUDIO_PACKET_CONTROL, tmp);
+			} else {
+				tmp = RREG32(HDMI1_AUDIO_PACKET_CONTROL);
+				tmp |= HDMI0_AZ_FORMAT_WTRIG_ACK;
+				WREG32(HDMI1_AUDIO_PACKET_CONTROL, tmp);
+			}
 		}
 	}
 }
@@ -3345,6 +3311,7 @@ int r600_irq_process(struct radeon_device *rdev)
 	u32 ring_index;
 	unsigned long flags;
 	bool queue_hotplug = false;
+	bool queue_hdmi = false;
 
 	if (!rdev->ih.enabled || rdev->shutdown)
 		return IRQ_NONE;
@@ -3480,9 +3447,26 @@ restart_ih:
 				break;
 			}
 			break;
-		case 21: /* HDMI */
-			DRM_DEBUG("IH: HDMI: 0x%x\n", src_data);
-			r600_audio_schedule_polling(rdev);
+		case 21: /* hdmi */
+			switch (src_data) {
+			case 4:
+				if (rdev->irq.stat_regs.r600.hdmi0_status & HDMI0_AZ_FORMAT_WTRIG) {
+					rdev->irq.stat_regs.r600.hdmi0_status &= ~HDMI0_AZ_FORMAT_WTRIG;
+					queue_hdmi = true;
+					DRM_DEBUG("IH: HDMI0\n");
+				}
+				break;
+			case 5:
+				if (rdev->irq.stat_regs.r600.hdmi1_status & HDMI0_AZ_FORMAT_WTRIG) {
+					rdev->irq.stat_regs.r600.hdmi1_status &= ~HDMI0_AZ_FORMAT_WTRIG;
+					queue_hdmi = true;
+					DRM_DEBUG("IH: HDMI1\n");
+				}
+				break;
+			default:
+				DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
+				break;
+			}
 			break;
 		case 176: /* CP_INT in ring buffer */
 		case 177: /* CP_INT in IB1 */
@@ -3514,6 +3498,8 @@ restart_ih:
 		goto restart_ih;
 	if (queue_hotplug)
 		schedule_work(&rdev->hotplug_work);
+	if (queue_hdmi)
+		schedule_work(&rdev->audio_work);
 	rdev->ih.rptr = rptr;
 	WREG32(IH_RB_RPTR, rdev->ih.rptr);
 	spin_unlock_irqrestore(&rdev->ih.lock, flags);

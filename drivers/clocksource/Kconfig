@@ -18,7 +18,7 @@ config DW_APB_TIMER
 
 config CLKSRC_DBX500_PRCMU
 	bool "Clocksource PRCMU Timer"
-	depends on UX500_SOC_DB5500 || UX500_SOC_DB8500
+	depends on UX500_SOC_DB8500
 	default y
 	help
 	  Use the always on PRCMU Timer as clocksource

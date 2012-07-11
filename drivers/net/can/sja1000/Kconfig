@@ -75,7 +75,7 @@ config CAN_KVASER_PCI
 	tristate "Kvaser PCIcanx and Kvaser PCIcan PCI Cards"
 	depends on PCI
 	---help---
-	  This driver is for the the PCIcanx and PCIcan cards (1, 2 or
+	  This driver is for the PCIcanx and PCIcan cards (1, 2 or
 	  4 channel) from Kvaser (http://www.kvaser.com).
 
 config CAN_PLX_PCI

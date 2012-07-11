@@ -385,6 +385,11 @@ struct qla_flt_region {
 #define MBOX_CMD_GET_IP_ADDR_STATE		0x0091
 #define MBOX_CMD_SEND_IPV6_ROUTER_SOL		0x0092
 #define MBOX_CMD_GET_DB_ENTRY_CURRENT_IP_ADDR	0x0093
+#define MBOX_CMD_MINIDUMP			0x0129
+
+/* Minidump subcommand */
+#define MINIDUMP_GET_SIZE_SUBCOMMAND		0x00
+#define MINIDUMP_GET_TMPLT_SUBCOMMAND		0x01
 
 /* Mailbox 1 */
 #define FW_STATE_READY				0x0000
@@ -1188,6 +1193,29 @@ struct ql_iscsi_stats {
 	uint32_t rx_reject_pdus; /* 0304–0307 */
 
 	uint8_t reserved2[264]; /* 0x0308 - 0x040F */
+};
+
+#define QLA82XX_DBG_STATE_ARRAY_LEN		16
+#define QLA82XX_DBG_CAP_SIZE_ARRAY_LEN		8
+#define QLA82XX_DBG_RSVD_ARRAY_LEN		8
+
+struct qla4_8xxx_minidump_template_hdr {
+	uint32_t entry_type;
+	uint32_t first_entry_offset;
+	uint32_t size_of_template;
+	uint32_t capture_debug_level;
+	uint32_t num_of_entries;
+	uint32_t version;
+	uint32_t driver_timestamp;
+	uint32_t checksum;
+
+	uint32_t driver_capture_mask;
+	uint32_t driver_info_word2;
+	uint32_t driver_info_word3;
+	uint32_t driver_info_word4;
+
+	uint32_t saved_state_array[QLA82XX_DBG_STATE_ARRAY_LEN];
+	uint32_t capture_size_array[QLA82XX_DBG_CAP_SIZE_ARRAY_LEN];
 };
 
 #endif /*  _QLA4X_FW_H */

@@ -649,7 +649,7 @@ solution for a couple of reasons:
   The CAN device must be configured via netlink interface. The supported
   netlink message types are defined and briefly described in
   "include/linux/can/netlink.h". CAN link support for the program "ip"
-  of the IPROUTE2 utility suite is avaiable and it can be used as shown
+  of the IPROUTE2 utility suite is available and it can be used as shown
   below:
 
   - Setting CAN device properties:

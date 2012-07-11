@@ -20,29 +20,6 @@ Devices: [Advantech] PCL-725 (pcl725)
 #define PCL725_DO 0
 #define PCL725_DI 1
 
-static int pcl725_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int pcl725_detach(struct comedi_device *dev);
-static struct comedi_driver driver_pcl725 = {
-	.driver_name = "pcl725",
-	.module = THIS_MODULE,
-	.attach = pcl725_attach,
-	.detach = pcl725_detach,
-};
-
-static int __init driver_pcl725_init_module(void)
-{
-	return comedi_driver_register(&driver_pcl725);
-}
-
-static void __exit driver_pcl725_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcl725);
-}
-
-module_init(driver_pcl725_init_module);
-module_exit(driver_pcl725_cleanup_module);
-
 static int pcl725_do_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
@@ -112,15 +89,19 @@ static int pcl725_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int pcl725_detach(struct comedi_device *dev)
+static void pcl725_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: pcl725: remove\n", dev->minor);
-
 	if (dev->iobase)
 		release_region(dev->iobase, PCL725_SIZE);
-
-	return 0;
 }
+
+static struct comedi_driver pcl725_driver = {
+	.driver_name	= "pcl725",
+	.module		= THIS_MODULE,
+	.attach		= pcl725_attach,
+	.detach		= pcl725_detach,
+};
+module_comedi_driver(pcl725_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

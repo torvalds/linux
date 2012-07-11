@@ -27,7 +27,7 @@
 	ATI provided their EEPROM configuration code header file.
     Thanks to NIIBE Yutaka <gniibe@mri.co.jp> for bug fixes.
 
-    MCA bus (AT1720) support by Rene Schmit <rene@bss.lu>
+    MCA bus (AT1720) support (now deleted) by Rene Schmit <rene@bss.lu>
 
   Bugs:
 	The MB86965 has a design flaw that makes all probes unreliable.  Not
@@ -38,7 +38,6 @@
 #include <linux/errno.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/mca-legacy.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -79,24 +78,6 @@ static unsigned at1700_probe_list[] __initdata = {
 	0x260, 0x280, 0x2a0, 0x240, 0x340, 0x320, 0x380, 0x300, 0
 };
 
-/*
- *	MCA
- */
-#ifdef CONFIG_MCA_LEGACY
-static int at1700_ioaddr_pattern[] __initdata = {
-	0x00, 0x04, 0x01, 0x05, 0x02, 0x06, 0x03, 0x07
-};
-
-static int at1700_mca_probe_list[] __initdata = {
-	0x400, 0x1400, 0x2400, 0x3400, 0x4400, 0x5400, 0x6400, 0x7400, 0
-};
-
-static int at1700_irq_pattern[] __initdata = {
-	0x00, 0x00, 0x00, 0x30, 0x70, 0xb0, 0x00, 0x00,
-	0x00, 0xf0, 0x34, 0x74, 0xb4, 0x00, 0x00, 0xf4, 0x00
-};
-#endif
-
 /* use 0 for production, 1 for verification, >2 for debug */
 #ifndef NET_DEBUG
 #define NET_DEBUG 1
@@ -114,7 +95,6 @@ struct net_local {
 	uint tx_queue_ready:1;			/* Tx queue is ready to be sent. */
 	uint rx_started:1;			/* Packets are Rxing. */
 	uchar tx_queue;				/* Number of packet on the Tx queue. */
-	char mca_slot;				/* -1 means ISA */
 	ushort tx_queue_len;			/* Current length of the Tx queue. */
 };
 
@@ -166,21 +146,6 @@ static void set_rx_mode(struct net_device *dev);
 static void net_tx_timeout (struct net_device *dev);
 
 
-#ifdef CONFIG_MCA_LEGACY
-struct at1720_mca_adapters_struct {
-	char* name;
-	int id;
-};
-/* rEnE : maybe there are others I don't know off... */
-
-static struct at1720_mca_adapters_struct at1720_mca_adapters[] __initdata = {
-	{ "Allied Telesys AT1720AT",	0x6410 },
-	{ "Allied Telesys AT1720BT", 	0x6413 },
-	{ "Allied Telesys AT1720T",	0x6416 },
-	{ NULL, 0 },
-};
-#endif
-
 /* Check for a network adaptor of this type, and return '0' iff one exists.
    If dev->base_addr == 0, probe all likely locations.
    If dev->base_addr == 1, always return failure.
@@ -194,11 +159,6 @@ static int irq;
 
 static void cleanup_card(struct net_device *dev)
 {
-#ifdef CONFIG_MCA_LEGACY
-	struct net_local *lp = netdev_priv(dev);
-	if (lp->mca_slot >= 0)
-		mca_mark_as_unused(lp->mca_slot);
-#endif
 	free_irq(dev->irq, NULL);
 	release_region(dev->base_addr, AT1700_IO_EXTENT);
 }
@@ -273,7 +233,7 @@ static int __init at1700_probe1(struct net_device *dev, int ioaddr)
 	static const char fmv_irqmap_pnp[8] = {3, 4, 5, 7, 9, 10, 11, 15};
 	static const char at1700_irqmap[8] = {3, 4, 5, 9, 10, 11, 14, 15};
 	unsigned int i, irq, is_fmv18x = 0, is_at1700 = 0;
-	int slot, ret = -ENODEV;
+	int ret = -ENODEV;
 	struct net_local *lp = netdev_priv(dev);
 
 	if (!request_region(ioaddr, AT1700_IO_EXTENT, DRV_NAME))
@@ -288,64 +248,6 @@ static int __init at1700_probe1(struct net_device *dev, int ioaddr)
 		   ioaddr, read_eeprom(ioaddr, 4), read_eeprom(ioaddr, 5),
 		   read_eeprom(ioaddr, 6), inw(ioaddr + EEPROM_Ctrl));
 #endif
-
-#ifdef CONFIG_MCA_LEGACY
-	/* rEnE (rene@bss.lu): got this from 3c509 driver source , adapted for AT1720 */
-
-    /* Based on Erik Nygren's (nygren@mit.edu) 3c529 patch, heavily
-	modified by Chris Beauregard (cpbeaure@csclub.uwaterloo.ca)
-	to support standard MCA probing. */
-
-	/* redone for multi-card detection by ZP Gu (zpg@castle.net) */
-	/* now works as a module */
-
-	if (MCA_bus) {
-		int j;
-		int l_i;
-		u_char pos3, pos4;
-
-		for (j = 0; at1720_mca_adapters[j].name != NULL; j ++) {
-			slot = 0;
-			while (slot != MCA_NOTFOUND) {
-
-				slot = mca_find_unused_adapter( at1720_mca_adapters[j].id, slot );
-				if (slot == MCA_NOTFOUND) break;
-
-				/* if we get this far, an adapter has been detected and is
-				enabled */
-
-				pos3 = mca_read_stored_pos( slot, 3 );
-				pos4 = mca_read_stored_pos( slot, 4 );
-
-				for (l_i = 0; l_i < 8; l_i++)
-					if (( pos3 & 0x07) == at1700_ioaddr_pattern[l_i])
-						break;
-				ioaddr = at1700_mca_probe_list[l_i];
-
-				for (irq = 0; irq < 0x10; irq++)
-					if (((((pos4>>4) & 0x0f) | (pos3 & 0xf0)) & 0xff) == at1700_irq_pattern[irq])
-						break;
-
-					/* probing for a card at a particular IO/IRQ */
-				if ((dev->irq && dev->irq != irq) ||
-				    (dev->base_addr && dev->base_addr != ioaddr)) {
-				  	slot++;		/* probing next slot */
-				  	continue;
-				}
-
-				dev->irq = irq;
-
-				/* claim the slot */
-				mca_set_adapter_name( slot, at1720_mca_adapters[j].name );
-				mca_mark_as_used(slot);
-
-				goto found;
-			}
-		}
-		/* if we get here, we didn't find an MCA adapter - try ISA */
-	}
-#endif
-	slot = -1;
 	/* We must check for the EEPROM-config boards first, else accessing
 	   IOCONFIG0 will move the board! */
 	if (at1700_probe_list[inb(ioaddr + IOCONFIG1) & 0x07] == ioaddr &&
@@ -360,11 +262,7 @@ static int __init at1700_probe1(struct net_device *dev, int ioaddr)
 		goto err_out;
 	}
 
-#ifdef CONFIG_MCA_LEGACY
-found:
-#endif
-
-		/* Reset the internal state machines. */
+	/* Reset the internal state machines. */
 	outb(0, ioaddr + RESET);
 
 	if (is_at1700) {
@@ -380,11 +278,11 @@ found:
 					break;
 			}
 			if (i == 8) {
-				goto err_mca;
+				goto err_out;
 			}
 		} else {
 			if (fmv18x_probe_list[inb(ioaddr + IOCONFIG) & 0x07] != ioaddr)
-				goto err_mca;
+				goto err_out;
 			irq = fmv_irqmap[(inb(ioaddr + IOCONFIG)>>6) & 0x03];
 		}
 	}
@@ -464,23 +362,17 @@ found:
 	spin_lock_init(&lp->lock);
 
 	lp->jumpered = is_fmv18x;
-	lp->mca_slot = slot;
 	/* Snarf the interrupt vector now. */
 	ret = request_irq(irq, net_interrupt, 0, DRV_NAME, dev);
 	if (ret) {
 		printk(KERN_ERR "AT1700 at %#3x is unusable due to a "
 		       "conflict on IRQ %d.\n",
 		       ioaddr, irq);
-		goto err_mca;
+		goto err_out;
 	}
 
 	return 0;
 
-err_mca:
-#ifdef CONFIG_MCA_LEGACY
-	if (slot >= 0)
-		mca_mark_as_unused(slot);
-#endif
 err_out:
 	release_region(ioaddr, AT1700_IO_EXTENT);
 	return ret;

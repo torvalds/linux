@@ -23,10 +23,6 @@ typedef __kernel_ulong_t __kernel_ino_t;
 typedef unsigned int	__kernel_mode_t;
 #endif
 
-#ifndef __kernel_nlink_t
-typedef __kernel_ulong_t __kernel_nlink_t;
-#endif
-
 #ifndef __kernel_pid_t
 typedef int		__kernel_pid_t;
 #endif

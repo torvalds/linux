@@ -175,6 +175,7 @@ extern int  qla2x00_vp_abort_isp(scsi_qla_host_t *);
 /*
  * Global Function Prototypes in qla_iocb.c source file.
  */
+
 extern uint16_t qla2x00_calc_iocbs_32(uint16_t);
 extern uint16_t qla2x00_calc_iocbs_64(uint16_t);
 extern void qla2x00_build_scsi_iocbs_32(srb_t *, cmd_entry_t *, uint16_t);
@@ -188,6 +189,8 @@ extern uint16_t qla24xx_calc_iocbs(scsi_qla_host_t *, uint16_t);
 extern void qla24xx_build_scsi_iocbs(srb_t *, struct cmd_type_7 *, uint16_t);
 extern int qla24xx_dif_start_scsi(srb_t *);
 
+extern void *qla2x00_alloc_iocbs(scsi_qla_host_t *, srb_t *);
+extern int qla2x00_issue_marker(scsi_qla_host_t *, int);
 
 /*
  * Global Function Prototypes in qla_mbx.c source file.
@@ -237,6 +240,9 @@ qla2x00_get_retry_cnt(scsi_qla_host_t *, uint8_t *, uint8_t *, uint16_t *);
 
 extern int
 qla2x00_init_firmware(scsi_qla_host_t *, uint16_t);
+
+extern int
+qla2x00_get_node_name_list(scsi_qla_host_t *, void **, int *);
 
 extern int
 qla2x00_get_port_database(scsi_qla_host_t *, fc_port_t *, uint8_t);
@@ -383,6 +389,8 @@ extern int qla2x00_request_irqs(struct qla_hw_data *, struct rsp_que *);
 extern void qla2x00_free_irqs(scsi_qla_host_t *);
 
 extern int qla2x00_get_data_rate(scsi_qla_host_t *);
+extern char *qla2x00_get_link_speed_str(struct qla_hw_data *);
+
 /*
  * Global Function Prototypes in qla_sup.c source file.
  */
@@ -546,6 +554,7 @@ extern void qla2x00_sp_free(void *, void *);
 extern void qla2x00_sp_timeout(unsigned long);
 extern void qla2x00_bsg_job_done(void *, void *, int);
 extern void qla2x00_bsg_sp_free(void *, void *);
+extern void qla2x00_start_iocbs(struct scsi_qla_host *, struct req_que *);
 
 /* Interrupt related */
 extern irqreturn_t qla82xx_intr_handler(int, void *);

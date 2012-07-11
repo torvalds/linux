@@ -68,6 +68,7 @@ struct tps6586x_subdev_info {
 	int		id;
 	const char	*name;
 	void		*platform_data;
+	struct device_node *of_node;
 };
 
 struct tps6586x_platform_data {

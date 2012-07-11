@@ -338,8 +338,6 @@ static struct mtd_partition em_x270_partition_info[] = {
 	},
 };
 
-static const char *em_x270_part_probes[] = { "cmdlinepart", NULL };
-
 struct platform_nand_data em_x270_nand_platdata = {
 	.chip = {
 		.nr_chips = 1,
@@ -347,7 +345,6 @@ struct platform_nand_data em_x270_nand_platdata = {
 		.nr_partitions = ARRAY_SIZE(em_x270_partition_info),
 		.partitions = em_x270_partition_info,
 		.chip_delay = 20,
-		.part_probe_types = em_x270_part_probes,
 	},
 	.ctrl = {
 		.hwcontrol = 0,
@@ -1085,10 +1082,7 @@ static void __init em_x270_userspace_consumers_init(void)
 /* DA9030 related initializations */
 #define REGULATOR_CONSUMER(_name, _dev_name, _supply)		        \
 	static struct regulator_consumer_supply _name##_consumers[] = {	\
-		{							\
-			.dev_name = _dev_name,				\
-			.supply = _supply,				\
-		},							\
+		REGULATOR_SUPPLY(_supply, _dev_name),			\
 	}
 
 REGULATOR_CONSUMER(ldo3, "reg-userspace-consumer.0", "vcc gps");

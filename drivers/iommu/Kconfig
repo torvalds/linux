@@ -43,7 +43,7 @@ config AMD_IOMMU
 	  With this option you can enable support for AMD IOMMU hardware in
 	  your system. An IOMMU is a hardware component which provides
 	  remapping of DMA memory accesses from devices. With an AMD IOMMU you
-	  can isolate the the DMA memory of different devices and protect the
+	  can isolate the DMA memory of different devices and protect the
 	  system from misbehaving device drivers or hardware.
 
 	  You can find out if your system has an AMD IOMMU if you look into
@@ -67,7 +67,7 @@ config AMD_IOMMU_V2
 	---help---
 	  This option enables support for the AMD IOMMUv2 features of the IOMMU
 	  hardware. Select this option if you want to use devices that support
-	  the the PCI PRI and PASID interface.
+	  the PCI PRI and PASID interface.
 
 # Intel IOMMU support
 config DMAR_TABLE
@@ -161,5 +161,26 @@ config TEGRA_IOMMU_SMMU
 	  shared with the operating system into contiguous I/O virtual
 	  space through the SMMU (System Memory Management Unit)
 	  hardware included on Tegra SoCs.
+
+config EXYNOS_IOMMU
+	bool "Exynos IOMMU Support"
+	depends on ARCH_EXYNOS && EXYNOS_DEV_SYSMMU
+	select IOMMU_API
+	help
+	  Support for the IOMMU(System MMU) of Samsung Exynos application
+	  processor family. This enables H/W multimedia accellerators to see
+	  non-linear physical memory chunks as a linear memory in their
+	  address spaces
+
+	  If unsure, say N here.
+
+config EXYNOS_IOMMU_DEBUG
+	bool "Debugging log for Exynos IOMMU"
+	depends on EXYNOS_IOMMU
+	help
+	  Select this to see the detailed log message that shows what
+	  happens in the IOMMU driver
+
+	  Say N unless you need kernel log message for IOMMU debugging
 
 endif # IOMMU_SUPPORT

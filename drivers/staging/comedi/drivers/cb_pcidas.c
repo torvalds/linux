@@ -405,20 +405,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	 },
 };
 
-static DEFINE_PCI_DEVICE_TABLE(cb_pcidas_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0001) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x000f) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0010) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0019) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x001c) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x004c) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x001a) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x001b) },
-	{ 0 }
-};
-
-MODULE_DEVICE_TABLE(pci, cb_pcidas_pci_table);
-
 /*
  * Useful for shorthand access to the particular board structure
  */
@@ -461,22 +447,6 @@ struct cb_pcidas_private {
  * access the private structure.
  */
 #define devpriv ((struct cb_pcidas_private *)dev->private)
-
-/*
- * The struct comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
-static int cb_pcidas_attach(struct comedi_device *dev,
-			    struct comedi_devconfig *it);
-static int cb_pcidas_detach(struct comedi_device *dev);
-static struct comedi_driver driver_cb_pcidas = {
-	.driver_name = "cb_pcidas",
-	.module = THIS_MODULE,
-	.attach = cb_pcidas_attach,
-	.detach = cb_pcidas_detach,
-};
 
 static int cb_pcidas_ai_rinsn(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
@@ -756,26 +726,12 @@ found:
 	return 1;
 }
 
-/*
- * cb_pcidas_detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int cb_pcidas_detach(struct comedi_device *dev)
+static void cb_pcidas_detach(struct comedi_device *dev)
 {
-
 	if (devpriv) {
 		if (devpriv->s5933_config) {
-			/*  disable and clear interrupts on amcc s5933 */
 			outl(INTCSR_INBOX_INTR_STATUS,
 			     devpriv->s5933_config + AMCC_OP_REG_INTCSR);
-#ifdef CB_PCIDAS_DEBUG
-			dev_dbg(dev->hw_dev, "detaching, incsr is 0x%x\n",
-				inl(devpriv->s5933_config + AMCC_OP_REG_INTCSR));
-#endif
 		}
 	}
 	if (dev->irq)
@@ -787,8 +743,6 @@ static int cb_pcidas_detach(struct comedi_device *dev)
 			comedi_pci_disable(devpriv->pci_dev);
 		pci_dev_put(devpriv->pci_dev);
 	}
-
-	return 0;
 }
 
 /*
@@ -1918,47 +1872,44 @@ static int nvram_read(struct comedi_device *dev, unsigned int address,
 	return 0;
 }
 
-/*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
- */
-static int __devinit driver_cb_pcidas_pci_probe(struct pci_dev *dev,
-						const struct pci_device_id *ent)
+static struct comedi_driver cb_pcidas_driver = {
+	.driver_name	= "cb_pcidas",
+	.module		= THIS_MODULE,
+	.attach		= cb_pcidas_attach,
+	.detach		= cb_pcidas_detach,
+};
+
+static int __devinit cb_pcidas_pci_probe(struct pci_dev *dev,
+					 const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, driver_cb_pcidas.driver_name);
+	return comedi_pci_auto_config(dev, &cb_pcidas_driver);
 }
 
-static void __devexit driver_cb_pcidas_pci_remove(struct pci_dev *dev)
+static void __devexit cb_pcidas_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static struct pci_driver driver_cb_pcidas_pci_driver = {
-	.id_table = cb_pcidas_pci_table,
-	.probe = &driver_cb_pcidas_pci_probe,
-	.remove = __devexit_p(&driver_cb_pcidas_pci_remove)
+static DEFINE_PCI_DEVICE_TABLE(cb_pcidas_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0001) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x000f) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0010) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0019) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x001c) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x004c) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x001a) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x001b) },
+	{ 0 }
 };
+MODULE_DEVICE_TABLE(pci, cb_pcidas_pci_table);
 
-static int __init driver_cb_pcidas_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_cb_pcidas);
-	if (retval < 0)
-		return retval;
-
-	driver_cb_pcidas_pci_driver.name = (char *)driver_cb_pcidas.driver_name;
-	return pci_register_driver(&driver_cb_pcidas_pci_driver);
-}
-
-static void __exit driver_cb_pcidas_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_cb_pcidas_pci_driver);
-	comedi_driver_unregister(&driver_cb_pcidas);
-}
-
-module_init(driver_cb_pcidas_init_module);
-module_exit(driver_cb_pcidas_cleanup_module);
+static struct pci_driver cb_pcidas_pci_driver = {
+	.name		= "cb_pcidas",
+	.id_table	= cb_pcidas_pci_table,
+	.probe		= cb_pcidas_pci_probe,
+	.remove		= __devexit_p(cb_pcidas_pci_remove)
+};
+module_comedi_pci_driver(cb_pcidas_driver, cb_pcidas_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

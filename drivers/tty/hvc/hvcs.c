@@ -261,6 +261,7 @@ static DEFINE_SPINLOCK(hvcs_pi_lock);
 
 /* One vty-server per hvcs_struct */
 struct hvcs_struct {
+	struct tty_port port;
 	spinlock_t lock;
 
 	/*
@@ -268,9 +269,6 @@ struct hvcs_struct {
 	 * specific tty index.
 	 */
 	unsigned int index;
-
-	struct tty_struct *tty;
-	int open_count;
 
 	/*
 	 * Used to tell the driver kernel_thread what operations need to take
@@ -290,12 +288,11 @@ struct hvcs_struct {
 	int chars_in_buffer;
 
 	/*
-	 * Any variable below the kref is valid before a tty is connected and
+	 * Any variable below is valid before a tty is connected and
 	 * stays valid after the tty is disconnected.  These shouldn't be
 	 * whacked until the kobject refcount reaches zero though some entries
 	 * may be changed via sysfs initiatives.
 	 */
-	struct kref kref; /* ref count & hvcs_struct lifetime */
 	int connected; /* is the vty-server currently connected to a vty? */
 	uint32_t p_unit_address; /* partner unit address */
 	uint32_t p_partition_ID; /* partner partition ID */
@@ -303,9 +300,6 @@ struct hvcs_struct {
 	struct list_head next; /* list management */
 	struct vio_dev *vdev;
 };
-
-/* Required to back map a kref to its containing object */
-#define from_kref(k) container_of(k, struct hvcs_struct, kref)
 
 static LIST_HEAD(hvcs_structs);
 static DEFINE_SPINLOCK(hvcs_structs_lock);
@@ -422,7 +416,7 @@ static ssize_t hvcs_vterm_state_store(struct device *dev, struct device_attribut
 
 	spin_lock_irqsave(&hvcsd->lock, flags);
 
-	if (hvcsd->open_count > 0) {
+	if (hvcsd->port.count > 0) {
 		spin_unlock_irqrestore(&hvcsd->lock, flags);
 		printk(KERN_INFO "HVCS: vterm state unchanged.  "
 				"The hvcs device node is still in use.\n");
@@ -564,7 +558,7 @@ static irqreturn_t hvcs_handle_interrupt(int irq, void *dev_instance)
 static void hvcs_try_write(struct hvcs_struct *hvcsd)
 {
 	uint32_t unit_address = hvcsd->vdev->unit_address;
-	struct tty_struct *tty = hvcsd->tty;
+	struct tty_struct *tty = hvcsd->port.tty;
 	int sent;
 
 	if (hvcsd->todo_mask & HVCS_TRY_WRITE) {
@@ -602,7 +596,7 @@ static int hvcs_io(struct hvcs_struct *hvcsd)
 	spin_lock_irqsave(&hvcsd->lock, flags);
 
 	unit_address = hvcsd->vdev->unit_address;
-	tty = hvcsd->tty;
+	tty = hvcsd->port.tty;
 
 	hvcs_try_write(hvcsd);
 
@@ -701,10 +695,9 @@ static void hvcs_return_index(int index)
 		hvcs_index_list[index] = -1;
 }
 
-/* callback when the kref ref count reaches zero */
-static void destroy_hvcs_struct(struct kref *kref)
+static void hvcs_destruct_port(struct tty_port *p)
 {
-	struct hvcs_struct *hvcsd = from_kref(kref);
+	struct hvcs_struct *hvcsd = container_of(p, struct hvcs_struct, port);
 	struct vio_dev *vdev;
 	unsigned long flags;
 
@@ -740,6 +733,10 @@ static void destroy_hvcs_struct(struct kref *kref)
 
 	kfree(hvcsd);
 }
+
+static const struct tty_port_operations hvcs_port_ops = {
+	.destruct = hvcs_destruct_port,
+};
 
 static int hvcs_get_index(void)
 {
@@ -789,10 +786,9 @@ static int __devinit hvcs_probe(
 	if (!hvcsd)
 		return -ENODEV;
 
-
+	tty_port_init(&hvcsd->port);
+	hvcsd->port.ops = &hvcs_port_ops;
 	spin_lock_init(&hvcsd->lock);
-	/* Automatically incs the refcount the first time */
-	kref_init(&hvcsd->kref);
 
 	hvcsd->vdev = dev;
 	dev_set_drvdata(&dev->dev, hvcsd);
@@ -852,7 +848,7 @@ static int __devexit hvcs_remove(struct vio_dev *dev)
 
 	spin_lock_irqsave(&hvcsd->lock, flags);
 
-	tty = hvcsd->tty;
+	tty = hvcsd->port.tty;
 
 	spin_unlock_irqrestore(&hvcsd->lock, flags);
 
@@ -860,7 +856,7 @@ static int __devexit hvcs_remove(struct vio_dev *dev)
 	 * Let the last holder of this object cause it to be removed, which
 	 * would probably be tty_hangup below.
 	 */
-	kref_put(&hvcsd->kref, destroy_hvcs_struct);
+	tty_port_put(&hvcsd->port);
 
 	/*
 	 * The hangup is a scheduled function which will auto chain call
@@ -1094,7 +1090,7 @@ static struct hvcs_struct *hvcs_get_by_index(int index)
 	list_for_each_entry(hvcsd, &hvcs_structs, next) {
 		spin_lock_irqsave(&hvcsd->lock, flags);
 		if (hvcsd->index == index) {
-			kref_get(&hvcsd->kref);
+			tty_port_get(&hvcsd->port);
 			spin_unlock_irqrestore(&hvcsd->lock, flags);
 			spin_unlock(&hvcs_structs_lock);
 			return hvcsd;
@@ -1138,8 +1134,8 @@ static int hvcs_open(struct tty_struct *tty, struct file *filp)
 		if ((retval = hvcs_partner_connect(hvcsd)))
 			goto error_release;
 
-	hvcsd->open_count = 1;
-	hvcsd->tty = tty;
+	hvcsd->port.count = 1;
+	hvcsd->port.tty = tty;
 	tty->driver_data = hvcsd;
 
 	memset(&hvcsd->buffer[0], 0x00, HVCS_BUFF_LEN);
@@ -1160,7 +1156,7 @@ static int hvcs_open(struct tty_struct *tty, struct file *filp)
 	 * and will grab the spinlock and free the connection if it fails.
 	 */
 	if (((rc = hvcs_enable_device(hvcsd, unit_address, irq, vdev)))) {
-		kref_put(&hvcsd->kref, destroy_hvcs_struct);
+		tty_port_put(&hvcsd->port);
 		printk(KERN_WARNING "HVCS: enable device failed.\n");
 		return rc;
 	}
@@ -1171,8 +1167,8 @@ fast_open:
 	hvcsd = tty->driver_data;
 
 	spin_lock_irqsave(&hvcsd->lock, flags);
-	kref_get(&hvcsd->kref);
-	hvcsd->open_count++;
+	tty_port_get(&hvcsd->port);
+	hvcsd->port.count++;
 	hvcsd->todo_mask |= HVCS_SCHED_READ;
 	spin_unlock_irqrestore(&hvcsd->lock, flags);
 
@@ -1186,7 +1182,7 @@ open_success:
 
 error_release:
 	spin_unlock_irqrestore(&hvcsd->lock, flags);
-	kref_put(&hvcsd->kref, destroy_hvcs_struct);
+	tty_port_put(&hvcsd->port);
 
 	printk(KERN_WARNING "HVCS: partner connect failed.\n");
 	return retval;
@@ -1216,7 +1212,7 @@ static void hvcs_close(struct tty_struct *tty, struct file *filp)
 	hvcsd = tty->driver_data;
 
 	spin_lock_irqsave(&hvcsd->lock, flags);
-	if (--hvcsd->open_count == 0) {
+	if (--hvcsd->port.count == 0) {
 
 		vio_disable_interrupts(hvcsd->vdev);
 
@@ -1225,7 +1221,7 @@ static void hvcs_close(struct tty_struct *tty, struct file *filp)
 		 * execute any operations on the TTY even though it is obligated
 		 * to deliver any pending I/O to the hypervisor.
 		 */
-		hvcsd->tty = NULL;
+		hvcsd->port.tty = NULL;
 
 		irq = hvcsd->vdev->irq;
 		spin_unlock_irqrestore(&hvcsd->lock, flags);
@@ -1240,16 +1236,16 @@ static void hvcs_close(struct tty_struct *tty, struct file *filp)
 		tty->driver_data = NULL;
 
 		free_irq(irq, hvcsd);
-		kref_put(&hvcsd->kref, destroy_hvcs_struct);
+		tty_port_put(&hvcsd->port);
 		return;
-	} else if (hvcsd->open_count < 0) {
+	} else if (hvcsd->port.count < 0) {
 		printk(KERN_ERR "HVCS: vty-server@%X open_count: %d"
 				" is missmanaged.\n",
-		hvcsd->vdev->unit_address, hvcsd->open_count);
+		hvcsd->vdev->unit_address, hvcsd->port.count);
 	}
 
 	spin_unlock_irqrestore(&hvcsd->lock, flags);
-	kref_put(&hvcsd->kref, destroy_hvcs_struct);
+	tty_port_put(&hvcsd->port);
 }
 
 static void hvcs_hangup(struct tty_struct * tty)
@@ -1261,7 +1257,7 @@ static void hvcs_hangup(struct tty_struct * tty)
 
 	spin_lock_irqsave(&hvcsd->lock, flags);
 	/* Preserve this so that we know how many kref refs to put */
-	temp_open_count = hvcsd->open_count;
+	temp_open_count = hvcsd->port.count;
 
 	/*
 	 * Don't kref put inside the spinlock because the destruction
@@ -1273,10 +1269,10 @@ static void hvcs_hangup(struct tty_struct * tty)
 	hvcsd->todo_mask = 0;
 
 	/* I don't think the tty needs the hvcs_struct pointer after a hangup */
-	hvcsd->tty->driver_data = NULL;
-	hvcsd->tty = NULL;
+	tty->driver_data = NULL;
+	hvcsd->port.tty = NULL;
 
-	hvcsd->open_count = 0;
+	hvcsd->port.count = 0;
 
 	/* This will drop any buffered data on the floor which is OK in a hangup
 	 * scenario. */
@@ -1301,7 +1297,7 @@ static void hvcs_hangup(struct tty_struct * tty)
 		 * NOTE:  If this hangup was signaled from user space then the
 		 * final put will never happen.
 		 */
-		kref_put(&hvcsd->kref, destroy_hvcs_struct);
+		tty_port_put(&hvcsd->port);
 	}
 }
 
@@ -1347,7 +1343,7 @@ static int hvcs_write(struct tty_struct *tty,
 	 * the middle of a write operation?  This is a crummy place to do this
 	 * but we want to keep it all in the spinlock.
 	 */
-	if (hvcsd->open_count <= 0) {
+	if (hvcsd->port.count <= 0) {
 		spin_unlock_irqrestore(&hvcsd->lock, flags);
 		return -ENODEV;
 	}
@@ -1421,7 +1417,7 @@ static int hvcs_write_room(struct tty_struct *tty)
 {
 	struct hvcs_struct *hvcsd = tty->driver_data;
 
-	if (!hvcsd || hvcsd->open_count <= 0)
+	if (!hvcsd || hvcsd->port.count <= 0)
 		return 0;
 
 	return HVCS_BUFF_LEN - hvcsd->chars_in_buffer;

@@ -620,11 +620,10 @@ _ctl_set_task_mid(struct MPT2SAS_ADAPTER *ioc, struct mpt2_ioctl_command *karg,
  * @ioc: per adapter object
  * @karg - (struct mpt2_ioctl_command)
  * @mf - pointer to mf in user space
- * @state - NON_BLOCKING or BLOCKING
  */
 static long
-_ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
-    struct mpt2_ioctl_command karg, void __user *mf, enum block_state state)
+_ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc, struct mpt2_ioctl_command karg,
+	void __user *mf)
 {
 	MPI2RequestHeader_t *mpi_request = NULL, *request;
 	MPI2DefaultReply_t *mpi_reply;
@@ -646,11 +645,6 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 	u16 wait_state_count;
 
 	issue_reset = 0;
-
-	if (state == NON_BLOCKING && !mutex_trylock(&ioc->ctl_cmds.mutex))
-		return -EAGAIN;
-	else if (mutex_lock_interruptible(&ioc->ctl_cmds.mutex))
-		return -ERESTARTSYS;
 
 	if (ioc->ctl_cmds.status != MPT2_CMD_NOT_USED) {
 		printk(MPT2SAS_ERR_FMT "%s: ctl_cmd in use\n",
@@ -871,8 +865,16 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 		if (smp_request->PassthroughFlags &
 		    MPI2_SMP_PT_REQ_PT_FLAGS_IMMEDIATE)
 			data = (u8 *)&smp_request->SGL;
-		else
+		else {
+			if (unlikely(data_out == NULL)) {
+				printk(KERN_ERR "failure at %s:%d/%s()!\n",
+				    __FILE__, __LINE__, __func__);
+				mpt2sas_base_free_smid(ioc, smid);
+				ret = -EINVAL;
+				goto out;
+			}
 			data = data_out;
+		}
 
 		if (data[1] == 0x91 && (data[10] == 1 || data[10] == 2)) {
 			ioc->ioc_link_reset_in_progress = 1;
@@ -985,7 +987,8 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 		ret = -ENODATA;
 		if ((mpi_request->Function == MPI2_FUNCTION_SCSI_IO_REQUEST ||
 		    mpi_request->Function ==
-		    MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH)) {
+		    MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH ||
+		    mpi_request->Function == MPI2_FUNCTION_SATA_PASSTHROUGH)) {
 			printk(MPT2SAS_INFO_FMT "issue target reset: handle "
 			    "= (0x%04x)\n", ioc->name,
 			    le16_to_cpu(mpi_request->FunctionDependent1));
@@ -1013,27 +1016,24 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 
 	kfree(mpi_request);
 	ioc->ctl_cmds.status = MPT2_CMD_NOT_USED;
-	mutex_unlock(&ioc->ctl_cmds.mutex);
 	return ret;
 }
 
 /**
  * _ctl_getiocinfo - main handler for MPT2IOCINFO opcode
+ * @ioc: per adapter object
  * @arg - user space buffer containing ioctl content
  */
 static long
-_ctl_getiocinfo(void __user *arg)
+_ctl_getiocinfo(struct MPT2SAS_ADAPTER *ioc, void __user *arg)
 {
 	struct mpt2_ioctl_iocinfo karg;
-	struct MPT2SAS_ADAPTER *ioc;
 
 	if (copy_from_user(&karg, arg, sizeof(karg))) {
 		printk(KERN_ERR "failure at %s:%d/%s()!\n",
 		    __FILE__, __LINE__, __func__);
 		return -EFAULT;
 	}
-	if (_ctl_verify_adapter(karg.hdr.ioc_number, &ioc) == -1 || !ioc)
-		return -ENODEV;
 
 	dctlprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: enter\n", ioc->name,
 	    __func__));
@@ -1069,21 +1069,19 @@ _ctl_getiocinfo(void __user *arg)
 
 /**
  * _ctl_eventquery - main handler for MPT2EVENTQUERY opcode
+ * @ioc: per adapter object
  * @arg - user space buffer containing ioctl content
  */
 static long
-_ctl_eventquery(void __user *arg)
+_ctl_eventquery(struct MPT2SAS_ADAPTER *ioc, void __user *arg)
 {
 	struct mpt2_ioctl_eventquery karg;
-	struct MPT2SAS_ADAPTER *ioc;
 
 	if (copy_from_user(&karg, arg, sizeof(karg))) {
 		printk(KERN_ERR "failure at %s:%d/%s()!\n",
 		    __FILE__, __LINE__, __func__);
 		return -EFAULT;
 	}
-	if (_ctl_verify_adapter(karg.hdr.ioc_number, &ioc) == -1 || !ioc)
-		return -ENODEV;
 
 	dctlprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: enter\n", ioc->name,
 	    __func__));
@@ -1102,21 +1100,19 @@ _ctl_eventquery(void __user *arg)
 
 /**
  * _ctl_eventenable - main handler for MPT2EVENTENABLE opcode
+ * @ioc: per adapter object
  * @arg - user space buffer containing ioctl content
  */
 static long
-_ctl_eventenable(void __user *arg)
+_ctl_eventenable(struct MPT2SAS_ADAPTER *ioc, void __user *arg)
 {
 	struct mpt2_ioctl_eventenable karg;
-	struct MPT2SAS_ADAPTER *ioc;
 
 	if (copy_from_user(&karg, arg, sizeof(karg))) {
 		printk(KERN_ERR "failure at %s:%d/%s()!\n",
 		    __FILE__, __LINE__, __func__);
 		return -EFAULT;
 	}
-	if (_ctl_verify_adapter(karg.hdr.ioc_number, &ioc) == -1 || !ioc)
-		return -ENODEV;
 
 	dctlprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: enter\n", ioc->name,
 	    __func__));
@@ -1142,13 +1138,13 @@ _ctl_eventenable(void __user *arg)
 
 /**
  * _ctl_eventreport - main handler for MPT2EVENTREPORT opcode
+ * @ioc: per adapter object
  * @arg - user space buffer containing ioctl content
  */
 static long
-_ctl_eventreport(void __user *arg)
+_ctl_eventreport(struct MPT2SAS_ADAPTER *ioc, void __user *arg)
 {
 	struct mpt2_ioctl_eventreport karg;
-	struct MPT2SAS_ADAPTER *ioc;
 	u32 number_bytes, max_events, max;
 	struct mpt2_ioctl_eventreport __user *uarg = arg;
 
@@ -1157,8 +1153,6 @@ _ctl_eventreport(void __user *arg)
 		    __FILE__, __LINE__, __func__);
 		return -EFAULT;
 	}
-	if (_ctl_verify_adapter(karg.hdr.ioc_number, &ioc) == -1 || !ioc)
-		return -ENODEV;
 
 	dctlprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: enter\n", ioc->name,
 	    __func__));
@@ -1188,13 +1182,13 @@ _ctl_eventreport(void __user *arg)
 
 /**
  * _ctl_do_reset - main handler for MPT2HARDRESET opcode
+ * @ioc: per adapter object
  * @arg - user space buffer containing ioctl content
  */
 static long
-_ctl_do_reset(void __user *arg)
+_ctl_do_reset(struct MPT2SAS_ADAPTER *ioc, void __user *arg)
 {
 	struct mpt2_ioctl_diag_reset karg;
-	struct MPT2SAS_ADAPTER *ioc;
 	int retval;
 
 	if (copy_from_user(&karg, arg, sizeof(karg))) {
@@ -1202,8 +1196,6 @@ _ctl_do_reset(void __user *arg)
 		    __FILE__, __LINE__, __func__);
 		return -EFAULT;
 	}
-	if (_ctl_verify_adapter(karg.hdr.ioc_number, &ioc) == -1 || !ioc)
-		return -ENODEV;
 
 	if (ioc->shost_recovery || ioc->pci_error_recovery ||
 		ioc->is_driver_loading)
@@ -1292,13 +1284,13 @@ _ctl_btdh_search_raid_device(struct MPT2SAS_ADAPTER *ioc,
 
 /**
  * _ctl_btdh_mapping - main handler for MPT2BTDHMAPPING opcode
+ * @ioc: per adapter object
  * @arg - user space buffer containing ioctl content
  */
 static long
-_ctl_btdh_mapping(void __user *arg)
+_ctl_btdh_mapping(struct MPT2SAS_ADAPTER *ioc, void __user *arg)
 {
 	struct mpt2_ioctl_btdh_mapping karg;
-	struct MPT2SAS_ADAPTER *ioc;
 	int rc;
 
 	if (copy_from_user(&karg, arg, sizeof(karg))) {
@@ -1306,8 +1298,6 @@ _ctl_btdh_mapping(void __user *arg)
 		    __FILE__, __LINE__, __func__);
 		return -EFAULT;
 	}
-	if (_ctl_verify_adapter(karg.hdr.ioc_number, &ioc) == -1 || !ioc)
-		return -ENODEV;
 
 	dctlprintk(ioc, printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
 	    __func__));
@@ -1576,17 +1566,16 @@ mpt2sas_enable_diag_buffer(struct MPT2SAS_ADAPTER *ioc, u8 bits_to_register)
 
 /**
  * _ctl_diag_register - application register with driver
+ * @ioc: per adapter object
  * @arg - user space buffer containing ioctl content
- * @state - NON_BLOCKING or BLOCKING
  *
  * This will allow the driver to setup any required buffers that will be
  * needed by firmware to communicate with the driver.
  */
 static long
-_ctl_diag_register(void __user *arg, enum block_state state)
+_ctl_diag_register(struct MPT2SAS_ADAPTER *ioc, void __user *arg)
 {
 	struct mpt2_diag_register karg;
-	struct MPT2SAS_ADAPTER *ioc;
 	long rc;
 
 	if (copy_from_user(&karg, arg, sizeof(karg))) {
@@ -1594,30 +1583,23 @@ _ctl_diag_register(void __user *arg, enum block_state state)
 		    __FILE__, __LINE__, __func__);
 		return -EFAULT;
 	}
-	if (_ctl_verify_adapter(karg.hdr.ioc_number, &ioc) == -1 || !ioc)
-		return -ENODEV;
 
-	if (state == NON_BLOCKING && !mutex_trylock(&ioc->ctl_cmds.mutex))
-		return -EAGAIN;
-	else if (mutex_lock_interruptible(&ioc->ctl_cmds.mutex))
-		return -ERESTARTSYS;
 	rc = _ctl_diag_register_2(ioc, &karg);
-	mutex_unlock(&ioc->ctl_cmds.mutex);
 	return rc;
 }
 
 /**
  * _ctl_diag_unregister - application unregister with driver
+ * @ioc: per adapter object
  * @arg - user space buffer containing ioctl content
  *
  * This will allow the driver to cleanup any memory allocated for diag
  * messages and to free up any resources.
  */
 static long
-_ctl_diag_unregister(void __user *arg)
+_ctl_diag_unregister(struct MPT2SAS_ADAPTER *ioc, void __user *arg)
 {
 	struct mpt2_diag_unregister karg;
-	struct MPT2SAS_ADAPTER *ioc;
 	void *request_data;
 	dma_addr_t request_data_dma;
 	u32 request_data_sz;
@@ -1628,8 +1610,6 @@ _ctl_diag_unregister(void __user *arg)
 		    __FILE__, __LINE__, __func__);
 		return -EFAULT;
 	}
-	if (_ctl_verify_adapter(karg.hdr.ioc_number, &ioc) == -1 || !ioc)
-		return -ENODEV;
 
 	dctlprintk(ioc, printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
 	    __func__));
@@ -1678,6 +1658,7 @@ _ctl_diag_unregister(void __user *arg)
 
 /**
  * _ctl_diag_query - query relevant info associated with diag buffers
+ * @ioc: per adapter object
  * @arg - user space buffer containing ioctl content
  *
  * The application will send only buffer_type and unique_id.  Driver will
@@ -1685,10 +1666,9 @@ _ctl_diag_unregister(void __user *arg)
  * 0x00, the driver will return info specified by Buffer Type.
  */
 static long
-_ctl_diag_query(void __user *arg)
+_ctl_diag_query(struct MPT2SAS_ADAPTER *ioc, void __user *arg)
 {
 	struct mpt2_diag_query karg;
-	struct MPT2SAS_ADAPTER *ioc;
 	void *request_data;
 	int i;
 	u8 buffer_type;
@@ -1698,8 +1678,6 @@ _ctl_diag_query(void __user *arg)
 		    __FILE__, __LINE__, __func__);
 		return -EFAULT;
 	}
-	if (_ctl_verify_adapter(karg.hdr.ioc_number, &ioc) == -1 || !ioc)
-		return -ENODEV;
 
 	dctlprintk(ioc, printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
 	    __func__));
@@ -1866,17 +1844,15 @@ _ctl_send_release(struct MPT2SAS_ADAPTER *ioc, u8 buffer_type, u8 *issue_reset)
 /**
  * _ctl_diag_release - request to send Diag Release Message to firmware
  * @arg - user space buffer containing ioctl content
- * @state - NON_BLOCKING or BLOCKING
  *
  * This allows ownership of the specified buffer to returned to the driver,
  * allowing an application to read the buffer without fear that firmware is
  * overwritting information in the buffer.
  */
 static long
-_ctl_diag_release(void __user *arg, enum block_state state)
+_ctl_diag_release(struct MPT2SAS_ADAPTER *ioc, void __user *arg)
 {
 	struct mpt2_diag_release karg;
-	struct MPT2SAS_ADAPTER *ioc;
 	void *request_data;
 	int rc;
 	u8 buffer_type;
@@ -1887,8 +1863,6 @@ _ctl_diag_release(void __user *arg, enum block_state state)
 		    __FILE__, __LINE__, __func__);
 		return -EFAULT;
 	}
-	if (_ctl_verify_adapter(karg.hdr.ioc_number, &ioc) == -1 || !ioc)
-		return -ENODEV;
 
 	dctlprintk(ioc, printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
 	    __func__));
@@ -1942,32 +1916,25 @@ _ctl_diag_release(void __user *arg, enum block_state state)
 		return 0;
 	}
 
-	if (state == NON_BLOCKING && !mutex_trylock(&ioc->ctl_cmds.mutex))
-		return -EAGAIN;
-	else if (mutex_lock_interruptible(&ioc->ctl_cmds.mutex))
-		return -ERESTARTSYS;
-
 	rc = _ctl_send_release(ioc, buffer_type, &issue_reset);
 
 	if (issue_reset)
 		mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
 		    FORCE_BIG_HAMMER);
 
-	mutex_unlock(&ioc->ctl_cmds.mutex);
 	return rc;
 }
 
 /**
  * _ctl_diag_read_buffer - request for copy of the diag buffer
+ * @ioc: per adapter object
  * @arg - user space buffer containing ioctl content
- * @state - NON_BLOCKING or BLOCKING
  */
 static long
-_ctl_diag_read_buffer(void __user *arg, enum block_state state)
+_ctl_diag_read_buffer(struct MPT2SAS_ADAPTER *ioc, void __user *arg)
 {
 	struct mpt2_diag_read_buffer karg;
 	struct mpt2_diag_read_buffer __user *uarg = arg;
-	struct MPT2SAS_ADAPTER *ioc;
 	void *request_data, *diag_data;
 	Mpi2DiagBufferPostRequest_t *mpi_request;
 	Mpi2DiagBufferPostReply_t *mpi_reply;
@@ -1983,8 +1950,6 @@ _ctl_diag_read_buffer(void __user *arg, enum block_state state)
 		    __FILE__, __LINE__, __func__);
 		return -EFAULT;
 	}
-	if (_ctl_verify_adapter(karg.hdr.ioc_number, &ioc) == -1 || !ioc)
-		return -ENODEV;
 
 	dctlprintk(ioc, printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
 	    __func__));
@@ -2055,10 +2020,6 @@ _ctl_diag_read_buffer(void __user *arg, enum block_state state)
 	}
 	/* Get a free request frame and save the message context.
 	*/
-	if (state == NON_BLOCKING && !mutex_trylock(&ioc->ctl_cmds.mutex))
-		return -EAGAIN;
-	else if (mutex_lock_interruptible(&ioc->ctl_cmds.mutex))
-		return -ERESTARTSYS;
 
 	if (ioc->ctl_cmds.status != MPT2_CMD_NOT_USED) {
 		printk(MPT2SAS_ERR_FMT "%s: ctl_cmd in use\n",
@@ -2139,152 +2100,26 @@ _ctl_diag_read_buffer(void __user *arg, enum block_state state)
  out:
 
 	ioc->ctl_cmds.status = MPT2_CMD_NOT_USED;
-	mutex_unlock(&ioc->ctl_cmds.mutex);
 	return rc;
 }
 
-/**
- * _ctl_ioctl_main - main ioctl entry point
- * @file - (struct file)
- * @cmd - ioctl opcode
- * @arg -
- */
-static long
-_ctl_ioctl_main(struct file *file, unsigned int cmd, void __user *arg)
-{
-	enum block_state state;
-	long ret = -EINVAL;
-
-	state = (file->f_flags & O_NONBLOCK) ? NON_BLOCKING :
-	    BLOCKING;
-
-	switch (cmd) {
-	case MPT2IOCINFO:
-		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_ioctl_iocinfo))
-			ret = _ctl_getiocinfo(arg);
-		break;
-	case MPT2COMMAND:
-	{
-		struct mpt2_ioctl_command karg;
-		struct mpt2_ioctl_command __user *uarg;
-		struct MPT2SAS_ADAPTER *ioc;
-
-		if (copy_from_user(&karg, arg, sizeof(karg))) {
-			printk(KERN_ERR "failure at %s:%d/%s()!\n",
-			    __FILE__, __LINE__, __func__);
-			return -EFAULT;
-		}
-
-		if (_ctl_verify_adapter(karg.hdr.ioc_number, &ioc) == -1 ||
-		    !ioc)
-			return -ENODEV;
-
-		if (ioc->shost_recovery || ioc->pci_error_recovery ||
-				ioc->is_driver_loading)
-			return -EAGAIN;
-
-		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_ioctl_command)) {
-			uarg = arg;
-			ret = _ctl_do_mpt_command(ioc, karg, &uarg->mf, state);
-		}
-		break;
-	}
-	case MPT2EVENTQUERY:
-		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_ioctl_eventquery))
-			ret = _ctl_eventquery(arg);
-		break;
-	case MPT2EVENTENABLE:
-		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_ioctl_eventenable))
-			ret = _ctl_eventenable(arg);
-		break;
-	case MPT2EVENTREPORT:
-		ret = _ctl_eventreport(arg);
-		break;
-	case MPT2HARDRESET:
-		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_ioctl_diag_reset))
-			ret = _ctl_do_reset(arg);
-		break;
-	case MPT2BTDHMAPPING:
-		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_ioctl_btdh_mapping))
-			ret = _ctl_btdh_mapping(arg);
-		break;
-	case MPT2DIAGREGISTER:
-		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_diag_register))
-			ret = _ctl_diag_register(arg, state);
-		break;
-	case MPT2DIAGUNREGISTER:
-		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_diag_unregister))
-			ret = _ctl_diag_unregister(arg);
-		break;
-	case MPT2DIAGQUERY:
-		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_diag_query))
-			ret = _ctl_diag_query(arg);
-		break;
-	case MPT2DIAGRELEASE:
-		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_diag_release))
-			ret = _ctl_diag_release(arg, state);
-		break;
-	case MPT2DIAGREADBUFFER:
-		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_diag_read_buffer))
-			ret = _ctl_diag_read_buffer(arg, state);
-		break;
-	default:
-	{
-		struct mpt2_ioctl_command karg;
-		struct MPT2SAS_ADAPTER *ioc;
-
-		if (copy_from_user(&karg, arg, sizeof(karg))) {
-			printk(KERN_ERR "failure at %s:%d/%s()!\n",
-			    __FILE__, __LINE__, __func__);
-			return -EFAULT;
-		}
-
-		if (_ctl_verify_adapter(karg.hdr.ioc_number, &ioc) == -1 ||
-		    !ioc)
-			return -ENODEV;
-
-		dctlprintk(ioc, printk(MPT2SAS_INFO_FMT
-		    "unsupported ioctl opcode(0x%08x)\n", ioc->name, cmd));
-		break;
-	}
-	}
-	return ret;
-}
-
-/**
- * _ctl_ioctl - main ioctl entry point (unlocked)
- * @file - (struct file)
- * @cmd - ioctl opcode
- * @arg -
- */
-static long
-_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-{
-	long ret;
-
-	mutex_lock(&_ctl_mutex);
-	ret = _ctl_ioctl_main(file, cmd, (void __user *)arg);
-	mutex_unlock(&_ctl_mutex);
-	return ret;
-}
 
 #ifdef CONFIG_COMPAT
 /**
  * _ctl_compat_mpt_command - convert 32bit pointers to 64bit.
- * @file - (struct file)
+ * @ioc: per adapter object
  * @cmd - ioctl opcode
  * @arg - (struct mpt2_ioctl_command32)
  *
  * MPT2COMMAND32 - Handle 32bit applications running on 64bit os.
  */
 static long
-_ctl_compat_mpt_command(struct file *file, unsigned cmd, unsigned long arg)
+_ctl_compat_mpt_command(struct MPT2SAS_ADAPTER *ioc, unsigned cmd,
+	void __user *arg)
 {
 	struct mpt2_ioctl_command32 karg32;
 	struct mpt2_ioctl_command32 __user *uarg;
 	struct mpt2_ioctl_command karg;
-	struct MPT2SAS_ADAPTER *ioc;
-	enum block_state state;
 
 	if (_IOC_SIZE(cmd) != sizeof(struct mpt2_ioctl_command32))
 		return -EINVAL;
@@ -2296,12 +2131,6 @@ _ctl_compat_mpt_command(struct file *file, unsigned cmd, unsigned long arg)
 		    __FILE__, __LINE__, __func__);
 		return -EFAULT;
 	}
-	if (_ctl_verify_adapter(karg32.hdr.ioc_number, &ioc) == -1 || !ioc)
-		return -ENODEV;
-
-	if (ioc->shost_recovery || ioc->pci_error_recovery ||
-			ioc->is_driver_loading)
-		return -EAGAIN;
 
 	memset(&karg, 0, sizeof(struct mpt2_ioctl_command));
 	karg.hdr.ioc_number = karg32.hdr.ioc_number;
@@ -2317,10 +2146,142 @@ _ctl_compat_mpt_command(struct file *file, unsigned cmd, unsigned long arg)
 	karg.data_in_buf_ptr = compat_ptr(karg32.data_in_buf_ptr);
 	karg.data_out_buf_ptr = compat_ptr(karg32.data_out_buf_ptr);
 	karg.sense_data_ptr = compat_ptr(karg32.sense_data_ptr);
+	return _ctl_do_mpt_command(ioc, karg, &uarg->mf);
+}
+#endif
+
+/**
+ * _ctl_ioctl_main - main ioctl entry point
+ * @file - (struct file)
+ * @cmd - ioctl opcode
+ * @arg -
+ * compat - handles 32 bit applications in 64bit os
+ */
+static long
+_ctl_ioctl_main(struct file *file, unsigned int cmd, void __user *arg,
+	u8 compat)
+{
+	struct MPT2SAS_ADAPTER *ioc;
+	struct mpt2_ioctl_header ioctl_header;
+	enum block_state state;
+	long ret = -EINVAL;
+
+	/* get IOCTL header */
+	if (copy_from_user(&ioctl_header, (char __user *)arg,
+	    sizeof(struct mpt2_ioctl_header))) {
+		printk(KERN_ERR "failure at %s:%d/%s()!\n",
+		    __FILE__, __LINE__, __func__);
+		return -EFAULT;
+	}
+
+	if (_ctl_verify_adapter(ioctl_header.ioc_number, &ioc) == -1 || !ioc)
+		return -ENODEV;
+	if (ioc->shost_recovery || ioc->pci_error_recovery ||
+	    ioc->is_driver_loading)
+		return -EAGAIN;
+
 	state = (file->f_flags & O_NONBLOCK) ? NON_BLOCKING : BLOCKING;
-	return _ctl_do_mpt_command(ioc, karg, &uarg->mf, state);
+	if (state == NON_BLOCKING && !mutex_trylock(&ioc->ctl_cmds.mutex))
+		return -EAGAIN;
+	else if (mutex_lock_interruptible(&ioc->ctl_cmds.mutex))
+		return -ERESTARTSYS;
+
+	switch (cmd) {
+	case MPT2IOCINFO:
+		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_ioctl_iocinfo))
+			ret = _ctl_getiocinfo(ioc, arg);
+		break;
+#ifdef CONFIG_COMPAT
+	case MPT2COMMAND32:
+#endif
+	case MPT2COMMAND:
+	{
+		struct mpt2_ioctl_command __user *uarg;
+		struct mpt2_ioctl_command karg;
+#ifdef CONFIG_COMPAT
+		if (compat) {
+			ret = _ctl_compat_mpt_command(ioc, cmd, arg);
+			break;
+		}
+#endif
+		if (copy_from_user(&karg, arg, sizeof(karg))) {
+			printk(KERN_ERR "failure at %s:%d/%s()!\n",
+			    __FILE__, __LINE__, __func__);
+			ret = -EFAULT;
+			break;
+		}
+
+		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_ioctl_command)) {
+			uarg = arg;
+			ret = _ctl_do_mpt_command(ioc, karg, &uarg->mf);
+		}
+		break;
+	}
+	case MPT2EVENTQUERY:
+		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_ioctl_eventquery))
+			ret = _ctl_eventquery(ioc, arg);
+		break;
+	case MPT2EVENTENABLE:
+		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_ioctl_eventenable))
+			ret = _ctl_eventenable(ioc, arg);
+		break;
+	case MPT2EVENTREPORT:
+		ret = _ctl_eventreport(ioc, arg);
+		break;
+	case MPT2HARDRESET:
+		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_ioctl_diag_reset))
+			ret = _ctl_do_reset(ioc, arg);
+		break;
+	case MPT2BTDHMAPPING:
+		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_ioctl_btdh_mapping))
+			ret = _ctl_btdh_mapping(ioc, arg);
+		break;
+	case MPT2DIAGREGISTER:
+		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_diag_register))
+			ret = _ctl_diag_register(ioc, arg);
+		break;
+	case MPT2DIAGUNREGISTER:
+		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_diag_unregister))
+			ret = _ctl_diag_unregister(ioc, arg);
+		break;
+	case MPT2DIAGQUERY:
+		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_diag_query))
+			ret = _ctl_diag_query(ioc, arg);
+		break;
+	case MPT2DIAGRELEASE:
+		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_diag_release))
+			ret = _ctl_diag_release(ioc, arg);
+		break;
+	case MPT2DIAGREADBUFFER:
+		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_diag_read_buffer))
+			ret = _ctl_diag_read_buffer(ioc, arg);
+		break;
+	default:
+
+		dctlprintk(ioc, printk(MPT2SAS_INFO_FMT
+		    "unsupported ioctl opcode(0x%08x)\n", ioc->name, cmd));
+		break;
+	}
+
+	mutex_unlock(&ioc->ctl_cmds.mutex);
+	return ret;
 }
 
+/**
+ * _ctl_ioctl - main ioctl entry point (unlocked)
+ * @file - (struct file)
+ * @cmd - ioctl opcode
+ * @arg -
+ */
+static long
+_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	long ret;
+
+	ret = _ctl_ioctl_main(file, cmd, (void __user *)arg, 0);
+	return ret;
+}
+#ifdef CONFIG_COMPAT
 /**
  * _ctl_ioctl_compat - main ioctl entry point (compat)
  * @file -
@@ -2334,12 +2295,7 @@ _ctl_ioctl_compat(struct file *file, unsigned cmd, unsigned long arg)
 {
 	long ret;
 
-	mutex_lock(&_ctl_mutex);
-	if (cmd == MPT2COMMAND32)
-		ret = _ctl_compat_mpt_command(file, cmd, arg);
-	else
-		ret = _ctl_ioctl_main(file, cmd, (void __user *)arg);
-	mutex_unlock(&_ctl_mutex);
+	ret = _ctl_ioctl_main(file, cmd, (void __user *)arg, 1);
 	return ret;
 }
 #endif
@@ -2884,7 +2840,7 @@ _ctl_host_trace_buffer_enable_store(struct device *cdev,
 	struct mpt2_diag_register diag_register;
 	u8 issue_reset = 0;
 
-	if (sscanf(buf, "%s", str) != 1)
+	if (sscanf(buf, "%9s", str) != 1)
 		return -EINVAL;
 
 	if (!strcmp(str, "post")) {

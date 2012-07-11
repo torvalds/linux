@@ -48,6 +48,12 @@
   <refsect1>
     <title>Description</title>
 
+    <note>
+      <title>Experimental</title>
+      <para>This is an <link linkend="experimental"> experimental </link>
+      interface and may change in the future.</para>
+    </note>
+
     <para>This ioctl is used to create buffers for <link linkend="mmap">memory
 mapped</link> or <link linkend="userp">user pointer</link>
 I/O. It can be used as an alternative or in addition to the
@@ -94,14 +100,15 @@ information.</para>
 	    <entry>The number of buffers requested or granted.</entry>
 	  </row>
 	  <row>
-	    <entry>&v4l2-memory;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>memory</structfield></entry>
 	    <entry>Applications set this field to
 <constant>V4L2_MEMORY_MMAP</constant> or
-<constant>V4L2_MEMORY_USERPTR</constant>.</entry>
+<constant>V4L2_MEMORY_USERPTR</constant>. See <xref linkend="v4l2-memory"
+/></entry>
 	  </row>
 	  <row>
-	    <entry>&v4l2-format;</entry>
+	    <entry>struct&nbsp;v4l2_format</entry>
 	    <entry><structfield>format</structfield></entry>
 	    <entry>Filled in by the application, preserved by the driver.</entry>
 	  </row>

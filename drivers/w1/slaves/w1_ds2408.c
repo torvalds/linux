@@ -332,7 +332,6 @@ static struct bin_attribute w1_f29_sysfs_bin_files[NB_SYSFS_BIN_FILES] = {
 		},
 		.size = 1,
 		.read = w1_f29_read_cond_search_mask,
-		.write = 0,
 	},
 	{
 		.attr =	{
@@ -341,7 +340,6 @@ static struct bin_attribute w1_f29_sysfs_bin_files[NB_SYSFS_BIN_FILES] = {
 		},
 		.size = 1,
 		.read = w1_f29_read_cond_search_polarity,
-		.write = 0,
 	},
 	{
 		.attr =	{

@@ -609,15 +609,4 @@ static struct pci_driver plx_pci_driver = {
 	.remove = plx_pci_del_card,
 };
 
-static int __init plx_pci_init(void)
-{
-	return pci_register_driver(&plx_pci_driver);
-}
-
-static void __exit plx_pci_exit(void)
-{
-	pci_unregister_driver(&plx_pci_driver);
-}
-
-module_init(plx_pci_init);
-module_exit(plx_pci_exit);
+module_pci_driver(plx_pci_driver);

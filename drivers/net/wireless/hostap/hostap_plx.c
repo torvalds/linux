@@ -616,18 +616,4 @@ static struct pci_driver prism2_plx_driver = {
 	.remove		= prism2_plx_remove,
 };
 
-
-static int __init init_prism2_plx(void)
-{
-	return pci_register_driver(&prism2_plx_driver);
-}
-
-
-static void __exit exit_prism2_plx(void)
-{
-	pci_unregister_driver(&prism2_plx_driver);
-}
-
-
-module_init(init_prism2_plx);
-module_exit(exit_prism2_plx);
+module_pci_driver(prism2_plx_driver);

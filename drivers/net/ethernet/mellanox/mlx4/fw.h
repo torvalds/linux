@@ -79,6 +79,7 @@ struct mlx4_dev_cap {
 	u64 trans_code[MLX4_MAX_PORTS + 1];
 	u16 stat_rate_support;
 	u64 flags;
+	u64 flags2;
 	int reserved_uars;
 	int uar_size;
 	int min_page_sz;
@@ -110,6 +111,7 @@ struct mlx4_dev_cap {
 	u32 reserved_lkey;
 	u64 max_icm_sz;
 	int max_gso_sz;
+	int max_rss_tbl_sz;
 	u8  supported_port_types[MLX4_MAX_PORTS + 1];
 	u8  suggested_type[MLX4_MAX_PORTS + 1];
 	u8  default_sense[MLX4_MAX_PORTS + 1];

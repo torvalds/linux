@@ -73,18 +73,8 @@ rtrap_nmi:	ldx			[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
 		.globl			rtrap_irq, rtrap, irqsz_patchme, rtrap_xcall
 rtrap_irq:
 rtrap:
-#ifndef CONFIG_SMP
-		sethi			%hi(__cpu_data), %l0
-		lduw			[%l0 + %lo(__cpu_data)], %l1
-#else
-		sethi			%hi(__cpu_data), %l0
-		or			%l0, %lo(__cpu_data), %l0
-		lduw			[%l0 + %g5], %l1
-#endif
-		cmp			%l1, 0
-
 		/* mm/ultra.S:xcall_report_regs KNOWS about this load. */
-		 ldx			[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
+		ldx			[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
 rtrap_xcall:
 		sethi			%hi(0xf << 20), %l4
 		and			%l1, %l4, %l4

@@ -333,7 +333,7 @@ udc_ep_enable(struct usb_ep *usbep, const struct usb_endpoint_descriptor *desc)
 		return -ESHUTDOWN;
 
 	spin_lock_irqsave(&dev->lock, iflags);
-	ep->desc = desc;
+	ep->ep.desc = desc;
 
 	ep->halted = 0;
 
@@ -442,7 +442,6 @@ static void ep_init(struct udc_regs __iomem *regs, struct udc_ep *ep)
 	u32		tmp;
 
 	VDBG(ep->dev, "ep-%d reset\n", ep->num);
-	ep->desc = NULL;
 	ep->ep.desc = NULL;
 	ep->ep.ops = &udc_ep_ops;
 	INIT_LIST_HEAD(&ep->queue);
@@ -489,7 +488,7 @@ static int udc_ep_disable(struct usb_ep *usbep)
 		return -EINVAL;
 
 	ep = container_of(usbep, struct udc_ep, ep);
-	if (usbep->name == ep0_string || !ep->desc)
+	if (usbep->name == ep0_string || !ep->ep.desc)
 		return -EINVAL;
 
 	DBG(ep->dev, "Disable ep-%d\n", ep->num);
@@ -1066,7 +1065,7 @@ udc_queue(struct usb_ep *usbep, struct usb_request *usbreq, gfp_t gfp)
 		return -EINVAL;
 
 	ep = container_of(usbep, struct udc_ep, ep);
-	if (!ep->desc && (ep->num != 0 && ep->num != UDC_EP0OUT_IX))
+	if (!ep->ep.desc && (ep->num != 0 && ep->num != UDC_EP0OUT_IX))
 		return -EINVAL;
 
 	VDBG(ep->dev, "udc_queue(): ep%d-in=%d\n", ep->num, ep->in);
@@ -1257,7 +1256,7 @@ static int udc_dequeue(struct usb_ep *usbep, struct usb_request *usbreq)
 	unsigned long		iflags;
 
 	ep = container_of(usbep, struct udc_ep, ep);
-	if (!usbep || !usbreq || (!ep->desc && (ep->num != 0
+	if (!usbep || !usbreq || (!ep->ep.desc && (ep->num != 0
 				&& ep->num != UDC_EP0OUT_IX)))
 		return -EINVAL;
 
@@ -1317,7 +1316,7 @@ udc_set_halt(struct usb_ep *usbep, int halt)
 	pr_debug("set_halt %s: halt=%d\n", usbep->name, halt);
 
 	ep = container_of(usbep, struct udc_ep, ep);
-	if (!ep->desc && (ep->num != 0 && ep->num != UDC_EP0OUT_IX))
+	if (!ep->ep.desc && (ep->num != 0 && ep->num != UDC_EP0OUT_IX))
 		return -EINVAL;
 	if (!ep->dev->driver || ep->dev->gadget.speed == USB_SPEED_UNKNOWN)
 		return -ESHUTDOWN;
@@ -1539,7 +1538,7 @@ static void udc_setup_endpoints(struct udc *dev)
 		 * disabling ep interrupts when ENUM interrupt occurs but ep is
 		 * not enabled by gadget driver
 		 */
-		if (!ep->desc)
+		if (!ep->ep.desc)
 			ep_init(dev->regs, ep);
 
 		if (use_dma) {
@@ -3402,19 +3401,7 @@ static struct pci_driver udc_pci_driver = {
 	.remove =	udc_pci_remove,
 };
 
-/* Inits driver */
-static int __init init(void)
-{
-	return pci_register_driver(&udc_pci_driver);
-}
-module_init(init);
-
-/* Cleans driver */
-static void __exit cleanup(void)
-{
-	pci_unregister_driver(&udc_pci_driver);
-}
-module_exit(cleanup);
+module_pci_driver(udc_pci_driver);
 
 MODULE_DESCRIPTION(UDC_MOD_DESCRIPTION);
 MODULE_AUTHOR("Thomas Dahlmann");

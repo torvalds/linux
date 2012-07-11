@@ -32,6 +32,7 @@
 #include "nouveau_fb.h"
 #include "nouveau_fbcon.h"
 #include "nouveau_ramht.h"
+#include "nouveau_software.h"
 #include "drm_crtc_helper.h"
 
 static void nv50_display_isr(struct drm_device *);
@@ -140,11 +141,11 @@ nv50_display_sync(struct drm_device *dev)
 
 	ret = RING_SPACE(evo, 6);
 	if (ret == 0) {
-		BEGIN_RING(evo, 0, 0x0084, 1);
+		BEGIN_NV04(evo, 0, 0x0084, 1);
 		OUT_RING  (evo, 0x80000000);
-		BEGIN_RING(evo, 0, 0x0080, 1);
+		BEGIN_NV04(evo, 0, 0x0080, 1);
 		OUT_RING  (evo, 0);
-		BEGIN_RING(evo, 0, 0x0084, 1);
+		BEGIN_NV04(evo, 0, 0x0084, 1);
 		OUT_RING  (evo, 0x00000000);
 
 		nv_wo32(disp->ntfy, 0x000, 0x00000000);
@@ -267,7 +268,7 @@ nv50_display_init(struct drm_device *dev)
 	ret = RING_SPACE(evo, 3);
 	if (ret)
 		return ret;
-	BEGIN_RING(evo, 0, NV50_EVO_UNK84, 2);
+	BEGIN_NV04(evo, 0, NV50_EVO_UNK84, 2);
 	OUT_RING  (evo, NV50_EVO_UNK84_NOTIFY_DISABLED);
 	OUT_RING  (evo, NvEvoSync);
 
@@ -292,7 +293,7 @@ nv50_display_fini(struct drm_device *dev)
 
 	ret = RING_SPACE(evo, 2);
 	if (ret == 0) {
-		BEGIN_RING(evo, 0, NV50_EVO_UPDATE, 1);
+		BEGIN_NV04(evo, 0, NV50_EVO_UPDATE, 1);
 		OUT_RING(evo, 0);
 	}
 	FIRE_RING(evo);
@@ -358,8 +359,11 @@ nv50_display_create(struct drm_device *dev)
 	dev_priv->engine.display.priv = priv;
 
 	/* Create CRTC objects */
-	for (i = 0; i < 2; i++)
-		nv50_crtc_create(dev, i);
+	for (i = 0; i < 2; i++) {
+		ret = nv50_crtc_create(dev, i);
+		if (ret)
+			return ret;
+	}
 
 	/* We setup the encoders from the BIOS table */
 	for (i = 0 ; i < dcb->entries; i++) {
@@ -438,13 +442,13 @@ nv50_display_flip_stop(struct drm_crtc *crtc)
 		return;
 	}
 
-	BEGIN_RING(evo, 0, 0x0084, 1);
+	BEGIN_NV04(evo, 0, 0x0084, 1);
 	OUT_RING  (evo, 0x00000000);
-	BEGIN_RING(evo, 0, 0x0094, 1);
+	BEGIN_NV04(evo, 0, 0x0094, 1);
 	OUT_RING  (evo, 0x00000000);
-	BEGIN_RING(evo, 0, 0x00c0, 1);
+	BEGIN_NV04(evo, 0, 0x00c0, 1);
 	OUT_RING  (evo, 0x00000000);
-	BEGIN_RING(evo, 0, 0x0080, 1);
+	BEGIN_NV04(evo, 0, 0x0080, 1);
 	OUT_RING  (evo, 0x00000000);
 	FIRE_RING (evo);
 }
@@ -474,28 +478,28 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		}
 
 		if (dev_priv->chipset < 0xc0) {
-			BEGIN_RING(chan, 0, 0x0060, 2);
+			BEGIN_NV04(chan, 0, 0x0060, 2);
 			OUT_RING  (chan, NvEvoSema0 + nv_crtc->index);
 			OUT_RING  (chan, dispc->sem.offset);
-			BEGIN_RING(chan, 0, 0x006c, 1);
+			BEGIN_NV04(chan, 0, 0x006c, 1);
 			OUT_RING  (chan, 0xf00d0000 | dispc->sem.value);
-			BEGIN_RING(chan, 0, 0x0064, 2);
+			BEGIN_NV04(chan, 0, 0x0064, 2);
 			OUT_RING  (chan, dispc->sem.offset ^ 0x10);
 			OUT_RING  (chan, 0x74b1e000);
-			BEGIN_RING(chan, 0, 0x0060, 1);
+			BEGIN_NV04(chan, 0, 0x0060, 1);
 			if (dev_priv->chipset < 0x84)
 				OUT_RING  (chan, NvSema);
 			else
 				OUT_RING  (chan, chan->vram_handle);
 		} else {
-			u64 offset = chan->dispc_vma[nv_crtc->index].offset;
+			u64 offset = nvc0_software_crtc(chan, nv_crtc->index);
 			offset += dispc->sem.offset;
-			BEGIN_NVC0(chan, 2, 0, 0x0010, 4);
+			BEGIN_NVC0(chan, 0, 0x0010, 4);
 			OUT_RING  (chan, upper_32_bits(offset));
 			OUT_RING  (chan, lower_32_bits(offset));
 			OUT_RING  (chan, 0xf00d0000 | dispc->sem.value);
 			OUT_RING  (chan, 0x1002);
-			BEGIN_NVC0(chan, 2, 0, 0x0010, 4);
+			BEGIN_NVC0(chan, 0, 0x0010, 4);
 			OUT_RING  (chan, upper_32_bits(offset));
 			OUT_RING  (chan, lower_32_bits(offset ^ 0x10));
 			OUT_RING  (chan, 0x74b1e000);
@@ -508,40 +512,40 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	}
 
 	/* queue the flip on the crtc's "display sync" channel */
-	BEGIN_RING(evo, 0, 0x0100, 1);
+	BEGIN_NV04(evo, 0, 0x0100, 1);
 	OUT_RING  (evo, 0xfffe0000);
 	if (chan) {
-		BEGIN_RING(evo, 0, 0x0084, 1);
+		BEGIN_NV04(evo, 0, 0x0084, 1);
 		OUT_RING  (evo, 0x00000100);
 	} else {
-		BEGIN_RING(evo, 0, 0x0084, 1);
+		BEGIN_NV04(evo, 0, 0x0084, 1);
 		OUT_RING  (evo, 0x00000010);
 		/* allows gamma somehow, PDISP will bitch at you if
 		 * you don't wait for vblank before changing this..
 		 */
-		BEGIN_RING(evo, 0, 0x00e0, 1);
+		BEGIN_NV04(evo, 0, 0x00e0, 1);
 		OUT_RING  (evo, 0x40000000);
 	}
-	BEGIN_RING(evo, 0, 0x0088, 4);
+	BEGIN_NV04(evo, 0, 0x0088, 4);
 	OUT_RING  (evo, dispc->sem.offset);
 	OUT_RING  (evo, 0xf00d0000 | dispc->sem.value);
 	OUT_RING  (evo, 0x74b1e000);
 	OUT_RING  (evo, NvEvoSync);
-	BEGIN_RING(evo, 0, 0x00a0, 2);
+	BEGIN_NV04(evo, 0, 0x00a0, 2);
 	OUT_RING  (evo, 0x00000000);
 	OUT_RING  (evo, 0x00000000);
-	BEGIN_RING(evo, 0, 0x00c0, 1);
+	BEGIN_NV04(evo, 0, 0x00c0, 1);
 	OUT_RING  (evo, nv_fb->r_dma);
-	BEGIN_RING(evo, 0, 0x0110, 2);
+	BEGIN_NV04(evo, 0, 0x0110, 2);
 	OUT_RING  (evo, 0x00000000);
 	OUT_RING  (evo, 0x00000000);
-	BEGIN_RING(evo, 0, 0x0800, 5);
+	BEGIN_NV04(evo, 0, 0x0800, 5);
 	OUT_RING  (evo, nv_fb->nvbo->bo.offset >> 8);
 	OUT_RING  (evo, 0);
 	OUT_RING  (evo, (fb->height << 16) | fb->width);
 	OUT_RING  (evo, nv_fb->r_pitch);
 	OUT_RING  (evo, nv_fb->r_format);
-	BEGIN_RING(evo, 0, 0x0080, 1);
+	BEGIN_NV04(evo, 0, 0x0080, 1);
 	OUT_RING  (evo, 0x00000000);
 	FIRE_RING (evo);
 
@@ -642,20 +646,7 @@ nv50_display_script_select(struct drm_device *dev, struct dcb_entry *dcb,
 static void
 nv50_display_vblank_crtc_handler(struct drm_device *dev, int crtc)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_channel *chan, *tmp;
-
-	list_for_each_entry_safe(chan, tmp, &dev_priv->vbl_waiting,
-				 nvsw.vbl_wait) {
-		if (chan->nvsw.vblsem_head != crtc)
-			continue;
-
-		nouveau_bo_wr32(chan->notifier_bo, chan->nvsw.vblsem_offset,
-						chan->nvsw.vblsem_rval);
-		list_del(&chan->nvsw.vbl_wait);
-		drm_vblank_put(dev, crtc);
-	}
-
+	nouveau_software_vblank(dev, crtc);
 	drm_handle_vblank(dev, crtc);
 }
 

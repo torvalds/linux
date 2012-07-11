@@ -245,7 +245,7 @@ struct das800_private {
 
 static int das800_attach(struct comedi_device *dev,
 			 struct comedi_devconfig *it);
-static int das800_detach(struct comedi_device *dev);
+static void das800_detach(struct comedi_device *dev);
 static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 
 static struct comedi_driver driver_das800 = {
@@ -556,16 +556,12 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 };
 
-static int das800_detach(struct comedi_device *dev)
+static void das800_detach(struct comedi_device *dev)
 {
-	dev_info(dev->hw_dev, "comedi%d: das800: remove\n", dev->minor);
-
-	/* only free stuff if it has been allocated by _attach */
 	if (dev->iobase)
 		release_region(dev->iobase, DAS800_SIZE);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	return 0;
 };
 
 static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)

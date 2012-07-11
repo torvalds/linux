@@ -20,6 +20,9 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+
+#include <asm/memblock.h>
+
 #include "cm2xxx_3xxx.h"
 #include "prm2xxx_3xxx.h"
 #ifdef CONFIG_BRIDGE_DVFS
@@ -27,8 +30,6 @@
 #endif
 
 #include <plat/dsp.h>
-
-extern phys_addr_t omap_dsp_get_mempool_base(void);
 
 static struct platform_device *omap_dsp_pdev;
 
@@ -47,6 +48,31 @@ static struct omap_dsp_platform_data omap_dsp_pdata __initdata = {
 	.dsp_cm_rmw_bits = omap2_cm_rmw_mod_reg_bits,
 };
 
+static phys_addr_t omap_dsp_phys_mempool_base;
+
+void __init omap_dsp_reserve_sdram_memblock(void)
+{
+	phys_addr_t size = CONFIG_TIDSPBRIDGE_MEMPOOL_SIZE;
+	phys_addr_t paddr;
+
+	if (!size)
+		return;
+
+	paddr = arm_memblock_steal(size, SZ_1M);
+	if (!paddr) {
+		pr_err("%s: failed to reserve %llx bytes\n",
+				__func__, (unsigned long long)size);
+		return;
+	}
+
+	omap_dsp_phys_mempool_base = paddr;
+}
+
+static phys_addr_t omap_dsp_get_mempool_base(void)
+{
+	return omap_dsp_phys_mempool_base;
+}
+
 static int __init omap_dsp_init(void)
 {
 	struct platform_device *pdev;
@@ -57,8 +83,9 @@ static int __init omap_dsp_init(void)
 
 	if (pdata->phys_mempool_base) {
 		pdata->phys_mempool_size = CONFIG_TIDSPBRIDGE_MEMPOOL_SIZE;
-		pr_info("%s: %x bytes @ %x\n", __func__,
-			pdata->phys_mempool_size, pdata->phys_mempool_base);
+		pr_info("%s: %llx bytes @ %llx\n", __func__,
+			(unsigned long long)pdata->phys_mempool_size,
+			(unsigned long long)pdata->phys_mempool_base);
 	}
 
 	pdev = platform_device_alloc("omap-dsp", -1);

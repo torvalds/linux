@@ -142,6 +142,23 @@ static void sta_rx_agg_session_timer_expired(unsigned long data)
 	u8 *timer_to_id = ptid - *ptid;
 	struct sta_info *sta = container_of(timer_to_id, struct sta_info,
 					 timer_to_tid[0]);
+	struct tid_ampdu_rx *tid_rx;
+	unsigned long timeout;
+
+	rcu_read_lock();
+	tid_rx = rcu_dereference(sta->ampdu_mlme.tid_rx[*ptid]);
+	if (!tid_rx) {
+		rcu_read_unlock();
+		return;
+	}
+
+	timeout = tid_rx->last_rx + TU_TO_JIFFIES(tid_rx->timeout);
+	if (time_is_after_jiffies(timeout)) {
+		mod_timer(&tid_rx->session_timer, timeout);
+		rcu_read_unlock();
+		return;
+	}
+	rcu_read_unlock();
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "rx session timer expired on tid %d\n", (u16)*ptid);
@@ -248,11 +265,8 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	    (buf_size > IEEE80211_MAX_AMPDU_BUF)) {
 		status = WLAN_STATUS_INVALID_QOS_PARAM;
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		if (net_ratelimit())
-			printk(KERN_DEBUG "AddBA Req with bad params from "
-				"%pM on tid %u. policy %d, buffer size %d\n",
-				mgmt->sa, tid, ba_policy,
-				buf_size);
+		net_dbg_ratelimited("AddBA Req with bad params from %pM on tid %u. policy %d, buffer size %d\n",
+				    mgmt->sa, tid, ba_policy, buf_size);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 		goto end_no_lock;
 	}
@@ -269,10 +283,8 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 
 	if (sta->ampdu_mlme.tid_rx[tid]) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		if (net_ratelimit())
-			printk(KERN_DEBUG "unexpected AddBA Req from "
-				"%pM on tid %u\n",
-				mgmt->sa, tid);
+		net_dbg_ratelimited("unexpected AddBA Req from %pM on tid %u\n",
+				    mgmt->sa, tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 		/* delete existing Rx BA session on the same tid */
@@ -291,7 +303,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	/* rx timer */
 	tid_agg_rx->session_timer.function = sta_rx_agg_session_timer_expired;
 	tid_agg_rx->session_timer.data = (unsigned long)&sta->timer_to_tid[tid];
-	init_timer(&tid_agg_rx->session_timer);
+	init_timer_deferrable(&tid_agg_rx->session_timer);
 
 	/* rx reorder timer */
 	tid_agg_rx->reorder_timer.function = sta_rx_agg_reorder_timer_expired;
@@ -335,8 +347,10 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	/* activate it for RX */
 	rcu_assign_pointer(sta->ampdu_mlme.tid_rx[tid], tid_agg_rx);
 
-	if (timeout)
+	if (timeout) {
 		mod_timer(&tid_agg_rx->session_timer, TU_TO_EXP_TIME(timeout));
+		tid_agg_rx->last_rx = jiffies;
+	}
 
 end:
 	mutex_unlock(&sta->ampdu_mlme.mtx);

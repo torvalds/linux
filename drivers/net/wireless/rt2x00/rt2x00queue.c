@@ -33,7 +33,7 @@
 #include "rt2x00.h"
 #include "rt2x00lib.h"
 
-struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry)
+struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry, gfp_t gfp)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct sk_buff *skb;
@@ -68,7 +68,7 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry)
 	/*
 	 * Allocate skbuffer.
 	 */
-	skb = dev_alloc_skb(frame_size + head_size + tail_size);
+	skb = __dev_alloc_skb(frame_size + head_size + tail_size, gfp);
 	if (!skb)
 		return NULL;
 
@@ -207,14 +207,26 @@ static void rt2x00queue_create_tx_descriptor_seq(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct rt2x00_intf *intf = vif_to_intf(tx_info->control.vif);
+	u16 seqno;
 
 	if (!(tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ))
 		return;
 
 	__set_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
 
-	if (!test_bit(REQUIRE_SW_SEQNO, &rt2x00dev->cap_flags))
-		return;
+	if (!test_bit(REQUIRE_SW_SEQNO, &rt2x00dev->cap_flags)) {
+		/*
+		 * rt2800 has a H/W (or F/W) bug, device incorrectly increase
+		 * seqno on retransmited data (non-QOS) frames. To workaround
+		 * the problem let's generate seqno in software if QOS is
+		 * disabled.
+		 */
+		if (test_bit(CONFIG_QOS_DISABLED, &rt2x00dev->flags))
+			__clear_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
+		else
+			/* H/W will generate sequence number */
+			return;
+	}
 
 	/*
 	 * The hardware is not able to insert a sequence number. Assign a
@@ -227,15 +239,13 @@ static void rt2x00queue_create_tx_descriptor_seq(struct rt2x00_dev *rt2x00dev,
 	 * sequence counting per-frame, since those will override the
 	 * sequence counter given by mac80211.
 	 */
-	spin_lock(&intf->seqlock);
-
 	if (test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags))
-		intf->seqno += 0x10;
+		seqno = atomic_add_return(0x10, &intf->seqno);
+	else
+		seqno = atomic_read(&intf->seqno);
+
 	hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
-	hdr->seq_ctrl |= cpu_to_le16(intf->seqno);
-
-	spin_unlock(&intf->seqlock);
-
+	hdr->seq_ctrl |= cpu_to_le16(seqno);
 }
 
 static void rt2x00queue_create_tx_descriptor_plcp(struct rt2x00_dev *rt2x00dev,
@@ -320,14 +330,6 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 		txdesc->u.ht.wcid = sta_priv->wcid;
 	}
 
-	txdesc->u.ht.ba_size = 7;	/* FIXME: What value is needed? */
-
-	/*
-	 * Only one STBC stream is supported for now.
-	 */
-	if (tx_info->flags & IEEE80211_TX_CTL_STBC)
-		txdesc->u.ht.stbc = 1;
-
 	/*
 	 * If IEEE80211_TX_RC_MCS is set txrate->idx just contains the
 	 * mcs rate to be used
@@ -350,6 +352,24 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 		if (txrate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
 			txdesc->u.ht.mcs |= 0x08;
 	}
+
+	if (test_bit(CONFIG_HT_DISABLED, &rt2x00dev->flags)) {
+		if (!(tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT))
+			txdesc->u.ht.txop = TXOP_SIFS;
+		else
+			txdesc->u.ht.txop = TXOP_BACKOFF;
+
+		/* Left zero on all other settings. */
+		return;
+	}
+
+	txdesc->u.ht.ba_size = 7;	/* FIXME: What value is needed? */
+
+	/*
+	 * Only one STBC stream is supported for now.
+	 */
+	if (tx_info->flags & IEEE80211_TX_CTL_STBC)
+		txdesc->u.ht.stbc = 1;
 
 	/*
 	 * This frame is eligible for an AMPDU, however, don't aggregate
@@ -1142,7 +1162,7 @@ static int rt2x00queue_alloc_rxskbs(struct data_queue *queue)
 	struct sk_buff *skb;
 
 	for (i = 0; i < queue->limit; i++) {
-		skb = rt2x00queue_alloc_rxskb(&queue->entries[i]);
+		skb = rt2x00queue_alloc_rxskb(&queue->entries[i], GFP_KERNEL);
 		if (!skb)
 			return -ENOMEM;
 		queue->entries[i].skb = skb;

@@ -398,24 +398,16 @@ static int impd1_probe(struct lm_device *dev)
 		struct impd1_device *idev = impd1_devs + i;
 		struct amba_device *d;
 		unsigned long pc_base;
+		char devname[32];
 
 		pc_base = dev->resource.start + idev->offset;
-
-		d = amba_device_alloc(NULL, pc_base, SZ_4K);
-		if (!d)
+		snprintf(devname, 32, "lm%x:%5.5lx", dev->id, idev->offset >> 12);
+		d = amba_ahb_device_add(&dev->dev, devname, pc_base, SZ_4K,
+					dev->irq, dev->irq,
+					idev->platform_data, idev->id);
+		if (IS_ERR(d)) {
+			dev_err(&dev->dev, "unable to register device: %ld\n", PTR_ERR(d));
 			continue;
-
-		dev_set_name(&d->dev, "lm%x:%5.5lx", dev->id, idev->offset >> 12);
-		d->dev.parent	= &dev->dev;
-		d->irq[0]	= dev->irq;
-		d->irq[1]	= dev->irq;
-		d->periphid	= idev->id;
-		d->dev.platform_data = idev->platform_data;
-
-		ret = amba_device_add(d, &dev->resource);
-		if (ret) {
-			dev_err(&d->dev, "unable to register device: %d\n", ret);
-			amba_device_put(d);
 		}
 	}
 

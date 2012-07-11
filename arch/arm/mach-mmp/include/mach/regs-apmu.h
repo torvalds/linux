@@ -13,9 +13,6 @@
 
 #include <mach/addr-map.h>
 
-#define APMU_VIRT_BASE	(AXI_VIRT_BASE + 0x82800)
-#define APMU_REG(x)	(APMU_VIRT_BASE + (x))
-
 /* Clock Reset Control */
 #define APMU_IRE	APMU_REG(0x048)
 #define APMU_LCD	APMU_REG(0x04c)

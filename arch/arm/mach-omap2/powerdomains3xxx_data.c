@@ -311,7 +311,7 @@ void __init omap3xxx_powerdomains_init(void)
 		 rev == OMAP3430_REV_ES3_0 || rev == OMAP3630_REV_ES1_0)
 		pwrdm_register_pwrdms(powerdomains_omap3430es2_es3_0);
 	else if (rev == OMAP3430_REV_ES3_1 || rev == OMAP3430_REV_ES3_1_2 ||
-		 rev == OMAP3517_REV_ES1_0 || rev == OMAP3517_REV_ES1_1 ||
+		 rev == AM35XX_REV_ES1_0 || rev == AM35XX_REV_ES1_1 ||
 		 rev == OMAP3630_REV_ES1_1 || rev == OMAP3630_REV_ES1_2)
 		pwrdm_register_pwrdms(powerdomains_omap3430es3_1plus);
 	else

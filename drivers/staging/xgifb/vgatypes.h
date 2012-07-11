@@ -66,8 +66,6 @@ struct xgi_hw_device_info {
 	unsigned long ulVideoMemorySize; /* size, in bytes, of the
 					    memory on the board */
 
-	unsigned char *pjIOAddress; /* base I/O address of VGA ports (0x3B0) */
-
 	unsigned char jChipType; /* Used to Identify Graphics Chip */
 				 /* defined in the data structure type  */
 				 /* "XGI_CHIP_TYPE" */

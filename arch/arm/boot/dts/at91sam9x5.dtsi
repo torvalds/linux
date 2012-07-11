@@ -190,6 +190,44 @@
 				interrupts = <27 4>;
 				status = "disabled";
 			};
+
+			adc0: adc@f804c000 {
+				compatible = "atmel,at91sam9260-adc";
+				reg = <0xf804c000 0x100>;
+				interrupts = <19 4>;
+				atmel,adc-use-external;
+				atmel,adc-channels-used = <0xffff>;
+				atmel,adc-vref = <3300>;
+				atmel,adc-num-channels = <12>;
+				atmel,adc-startup-time = <40>;
+				atmel,adc-channel-base = <0x50>;
+				atmel,adc-drdy-mask = <0x1000000>;
+				atmel,adc-status-register = <0x30>;
+				atmel,adc-trigger-register = <0xc0>;
+
+				trigger@0 {
+					trigger-name = "external-rising";
+					trigger-value = <0x1>;
+					trigger-external;
+				};
+
+				trigger@1 {
+					trigger-name = "external-falling";
+					trigger-value = <0x2>;
+					trigger-external;
+				};
+
+				trigger@2 {
+					trigger-name = "external-any";
+					trigger-value = <0x3>;
+					trigger-external;
+				};
+
+				trigger@3 {
+					trigger-name = "continuous";
+					trigger-value = <0x6>;
+				};
+			};
 		};
 
 		nand0: nand@40000000 {

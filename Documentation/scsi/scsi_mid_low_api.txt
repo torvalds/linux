@@ -30,7 +30,7 @@ the motherboard (or both). Some aic7xxx based HBAs are dual controllers
 and thus represent two hosts. Like most modern HBAs, each aic7xxx host
 has its own PCI device address. [The one-to-one correspondence between
 a SCSI host and a PCI device is common but not required (e.g. with
-ISA or MCA adapters).]
+ISA adapters).]
 
 The SCSI mid level isolates an LLD from other layers such as the SCSI
 upper layer drivers and the block layer.

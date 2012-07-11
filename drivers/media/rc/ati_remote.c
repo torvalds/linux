@@ -1,7 +1,7 @@
 /*
  *  USB ATI Remote support
  *
- *                Copyright (c) 2011 Anssi Hannula <anssi.hannula@iki.fi>
+ *                Copyright (c) 2011, 2012 Anssi Hannula <anssi.hannula@iki.fi>
  *  Version 2.2.0 Copyright (c) 2004 Torrey Hoffman <thoffman@arnor.net>
  *  Version 2.1.1 Copyright (c) 2002 Vladimir Dergachev
  *
@@ -151,13 +151,57 @@ MODULE_PARM_DESC(mouse, "Enable mouse device, default = yes");
 #undef err
 #define err(format, arg...) printk(KERN_ERR format , ## arg)
 
+struct ati_receiver_type {
+	/* either default_keymap or get_default_keymap should be set */
+	const char *default_keymap;
+	const char *(*get_default_keymap)(struct usb_interface *interface);
+};
+
+static const char *get_medion_keymap(struct usb_interface *interface)
+{
+	struct usb_device *udev = interface_to_usbdev(interface);
+
+	/*
+	 * There are many different Medion remotes shipped with a receiver
+	 * with the same usb id, but the receivers have subtle differences
+	 * in the USB descriptors allowing us to detect them.
+	 */
+
+	if (udev->manufacturer && udev->product) {
+		if (udev->actconfig->desc.bmAttributes & USB_CONFIG_ATT_WAKEUP) {
+
+			if (!strcmp(udev->manufacturer, "X10 Wireless Technology Inc")
+			    && !strcmp(udev->product, "USB Receiver"))
+				return RC_MAP_MEDION_X10_DIGITAINER;
+
+			if (!strcmp(udev->manufacturer, "X10 WTI")
+			    && !strcmp(udev->product, "RF receiver"))
+				return RC_MAP_MEDION_X10_OR2X;
+		} else {
+
+			 if (!strcmp(udev->manufacturer, "X10 Wireless Technology Inc")
+			    && !strcmp(udev->product, "USB Receiver"))
+				return RC_MAP_MEDION_X10;
+		}
+	}
+
+	dev_info(&interface->dev,
+		 "Unknown Medion X10 receiver, using default ati_remote Medion keymap\n");
+
+	return RC_MAP_MEDION_X10;
+}
+
+static const struct ati_receiver_type type_ati		= { .default_keymap = RC_MAP_ATI_X10 };
+static const struct ati_receiver_type type_medion	= { .get_default_keymap = get_medion_keymap };
+static const struct ati_receiver_type type_firefly	= { .default_keymap = RC_MAP_SNAPSTREAM_FIREFLY };
+
 static struct usb_device_id ati_remote_table[] = {
-	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, LOLA_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_ATI_X10 },
-	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, LOLA2_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_ATI_X10 },
-	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, ATI_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_ATI_X10 },
-	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, NVIDIA_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_ATI_X10 },
-	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, MEDION_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_MEDION_X10 },
-	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, FIREFLY_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_SNAPSTREAM_FIREFLY },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, LOLA_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)&type_ati },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, LOLA2_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)&type_ati },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, ATI_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)&type_ati },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, NVIDIA_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)&type_ati },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, MEDION_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)&type_medion },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, FIREFLY_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)&type_firefly },
 	{}	/* Terminating entry */
 };
 
@@ -445,6 +489,7 @@ static void ati_remote_input_report(struct urb *urb)
 	int acc;
 	int remote_num;
 	unsigned char scancode;
+	u32 wheel_keycode = KEY_RESERVED;
 	int i;
 
 	/*
@@ -484,25 +529,32 @@ static void ati_remote_input_report(struct urb *urb)
 	 */
 	scancode = data[2] & 0x7f;
 
-	/* Look up event code index in the mouse translation table. */
-	for (i = 0; ati_remote_tbl[i].kind != KIND_END; i++) {
-		if (scancode == ati_remote_tbl[i].data) {
-			index = i;
-			break;
+	dbginfo(&ati_remote->interface->dev,
+		"channel 0x%02x; key data %02x, scancode %02x\n",
+		remote_num, data[2], scancode);
+
+	if (scancode >= 0x70) {
+		/*
+		 * This is either a mouse or scrollwheel event, depending on
+		 * the remote/keymap.
+		 * Get the keycode assigned to scancode 0x78/0x70. If it is
+		 * set, assume this is a scrollwheel up/down event.
+		 */
+		wheel_keycode = rc_g_keycode_from_table(ati_remote->rdev,
+							scancode & 0x78);
+
+		if (wheel_keycode == KEY_RESERVED) {
+			/* scrollwheel was not mapped, assume mouse */
+
+			/* Look up event code index in the mouse translation table. */
+			for (i = 0; ati_remote_tbl[i].kind != KIND_END; i++) {
+				if (scancode == ati_remote_tbl[i].data) {
+					index = i;
+					break;
+				}
+			}
 		}
 	}
-
-	if (index >= 0) {
-		dbginfo(&ati_remote->interface->dev,
-			"channel 0x%02x; mouse data %02x; index %d; keycode %d\n",
-			remote_num, data[2], index, ati_remote_tbl[index].code);
-		if (!dev)
-			return; /* no mouse device */
-	} else
-		dbginfo(&ati_remote->interface->dev,
-			"channel 0x%02x; key data %02x, scancode %02x\n",
-			remote_num, data[2], scancode);
-
 
 	if (index >= 0 && ati_remote_tbl[index].kind == KIND_LITERAL) {
 		input_event(dev, ati_remote_tbl[index].type,
@@ -542,15 +594,29 @@ static void ati_remote_input_report(struct urb *urb)
 
 		if (index < 0) {
 			/* Not a mouse event, hand it to rc-core. */
+			int count = 1;
 
-			/*
-			 * We don't use the rc-core repeat handling yet as
-			 * it would cause ghost repeats which would be a
-			 * regression for this driver.
-			 */
-			rc_keydown_notimeout(ati_remote->rdev, scancode,
-					     data[2]);
-			rc_keyup(ati_remote->rdev);
+			if (wheel_keycode != KEY_RESERVED) {
+				/*
+				 * This is a scrollwheel event, send the
+				 * scroll up (0x78) / down (0x70) scancode
+				 * repeatedly as many times as indicated by
+				 * rest of the scancode.
+				 */
+				count = (scancode & 0x07) + 1;
+				scancode &= 0x78;
+			}
+
+			while (count--) {
+				/*
+				* We don't use the rc-core repeat handling yet as
+				* it would cause ghost repeats which would be a
+				* regression for this driver.
+				*/
+				rc_keydown_notimeout(ati_remote->rdev, scancode,
+						     data[2]);
+				rc_keyup(ati_remote->rdev);
+			}
 			return;
 		}
 
@@ -766,6 +832,7 @@ static int ati_remote_probe(struct usb_interface *interface, const struct usb_de
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct usb_host_interface *iface_host = interface->cur_altsetting;
 	struct usb_endpoint_descriptor *endpoint_in, *endpoint_out;
+	struct ati_receiver_type *type = (struct ati_receiver_type *)id->driver_info;
 	struct ati_remote *ati_remote;
 	struct input_dev *input_dev;
 	struct rc_dev *rc_dev;
@@ -827,10 +894,15 @@ static int ati_remote_probe(struct usb_interface *interface, const struct usb_de
 	snprintf(ati_remote->mouse_name, sizeof(ati_remote->mouse_name),
 		 "%s mouse", ati_remote->rc_name);
 
-	if (id->driver_info)
-		rc_dev->map_name = (const char *)id->driver_info;
-	else
-		rc_dev->map_name = RC_MAP_ATI_X10;
+	rc_dev->map_name = RC_MAP_ATI_X10; /* default map */
+
+	/* set default keymap according to receiver model */
+	if (type) {
+		if (type->default_keymap)
+			rc_dev->map_name = type->default_keymap;
+		else if (type->get_default_keymap)
+			rc_dev->map_name = type->get_default_keymap(interface);
+	}
 
 	ati_remote_rc_init(ati_remote);
 	mutex_init(&ati_remote->open_mutex);

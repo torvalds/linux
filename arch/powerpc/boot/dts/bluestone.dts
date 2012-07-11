@@ -373,5 +373,30 @@
 				0x0 0x0 0x0 0x3 &UIC3 0xe 0x4 /* swizzled int C */
 				0x0 0x0 0x0 0x4 &UIC3 0xf 0x4 /* swizzled int D */>;
 		};
+
+		MSI: ppc4xx-msi@C10000000 {
+			compatible = "amcc,ppc4xx-msi", "ppc4xx-msi";
+			reg = < 0xC 0x10000000 0x100
+				0xC 0x10000000 0x100>;
+			sdr-base = <0x36C>;
+			msi-data = <0x00004440>;
+			msi-mask = <0x0000ffe0>;
+			interrupts =<0 1 2 3 4 5 6 7>;
+			interrupt-parent = <&MSI>;
+			#interrupt-cells = <1>;
+			#address-cells = <0>;
+			#size-cells = <0>;
+			msi-available-ranges = <0x0 0x100>;
+			interrupt-map = <
+				0 &UIC3 0x18 1
+				1 &UIC3 0x19 1
+				2 &UIC3 0x1A 1
+				3 &UIC3 0x1B 1
+				4 &UIC3 0x1C 1
+				5 &UIC3 0x1D 1
+				6 &UIC3 0x1E 1
+				7 &UIC3 0x1F 1
+			>;
+		};
 	};
 };

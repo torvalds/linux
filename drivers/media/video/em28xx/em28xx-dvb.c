@@ -183,7 +183,7 @@ static int em28xx_stop_streaming(struct em28xx_dvb *dvb)
 {
 	struct em28xx *dev = dvb->adapter.priv;
 
-	em28xx_capture_start(dev, 0);
+	em28xx_stop_urbs(dev);
 
 	em28xx_set_mode(dev, EM28XX_SUSPEND);
 
@@ -336,6 +336,8 @@ struct drxk_config pctv_520e_drxk = {
 	.single_master = 1,
 	.microcode_name = "dvb-demod-drxk-pctv.fw",
 	.chunk_size = 58,
+	.antenna_dvbt = true, /* disable LNA */
+	.antenna_gpio = (1 << 2), /* disable LNA */
 };
 
 static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
@@ -474,8 +476,8 @@ static void terratec_h5_init(struct em28xx *dev)
 static void pctv_520e_init(struct em28xx *dev)
 {
 	/*
-	 * Init TDA8295(?) analog demodulator. Looks like I2C traffic to
-	 * digital demodulator and tuner are routed via TDA8295.
+	 * Init AVF4910B analog decoder. Looks like I2C traffic to
+	 * digital demodulator and tuner are routed via AVF4910B.
 	 */
 	int i;
 	struct {
@@ -542,7 +544,8 @@ static struct cxd2820r_config em28xx_cxd2820r_config = {
 	.i2c_address = (0xd8 >> 1),
 	.ts_mode = CXD2820R_TS_SERIAL,
 
-	/* enable LNA for DVB-T2 and DVB-C */
+	/* enable LNA for DVB-T, DVB-T2 and DVB-C */
+	.gpio_dvbt[0] = CXD2820R_GPIO_E | CXD2820R_GPIO_O | CXD2820R_GPIO_L,
 	.gpio_dvbt2[0] = CXD2820R_GPIO_E | CXD2820R_GPIO_O | CXD2820R_GPIO_L,
 	.gpio_dvbc[0] = CXD2820R_GPIO_E | CXD2820R_GPIO_O | CXD2820R_GPIO_L,
 };

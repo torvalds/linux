@@ -23,7 +23,7 @@ BA session stop & deauth/disassoc frames
 end note
 end
 
-mac80211->driver: config(channel, non-HT)
+mac80211->driver: config(channel, channel type)
 mac80211->driver: bss_info_changed(set BSSID, basic rate bitmap)
 mac80211->driver: sta_state(AP, exists)
 
@@ -51,7 +51,7 @@ note over mac80211,driver: cleanup like for authenticate
 end
 
 alt not previously authenticated (FT)
-mac80211->driver: config(channel, non-HT)
+mac80211->driver: config(channel, channel type)
 mac80211->driver: bss_info_changed(set BSSID, basic rate bitmap)
 mac80211->driver: sta_state(AP, exists)
 mac80211->driver: sta_state(AP, authenticated)
@@ -66,10 +66,6 @@ mac80211->driver: sta_state(AP, authorized)
 end
 
 mac80211->driver: set up QoS parameters
-
-alt is HT channel
-mac80211->driver: config(channel, HT params)
-end
 
 mac80211->driver: bss_info_changed(QoS, HT, associated with AID)
 mac80211->userspace: associated
@@ -95,5 +91,5 @@ mac80211->driver: sta_state(AP,exists)
 mac80211->driver: sta_state(AP,not-exists)
 mac80211->driver: turn off powersave
 mac80211->driver: bss_info_changed(clear BSSID, not associated, no QoS, ...)
-mac80211->driver: config(non-HT channel type)
+mac80211->driver: config(channel type to non-HT)
 mac80211->userspace: disconnected

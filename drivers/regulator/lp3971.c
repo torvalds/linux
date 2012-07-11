@@ -124,6 +124,10 @@ static const int *ldo_voltage_map[] = {
 static int lp3971_ldo_list_voltage(struct regulator_dev *dev, unsigned index)
 {
 	int ldo = rdev_get_id(dev) - LP3971_LDO1;
+
+	if (index > LDO_VOL_MAX_IDX)
+		return -EINVAL;
+
 	return 1000 * LDO_VOL_VALUE_MAP(ldo)[index];
 }
 
@@ -168,32 +172,15 @@ static int lp3971_ldo_get_voltage(struct regulator_dev *dev)
 	return 1000 * LDO_VOL_VALUE_MAP(ldo)[val];
 }
 
-static int lp3971_ldo_set_voltage(struct regulator_dev *dev,
-				  int min_uV, int max_uV,
-				  unsigned int *selector)
+static int lp3971_ldo_set_voltage_sel(struct regulator_dev *dev,
+				      unsigned int selector)
 {
 	struct lp3971 *lp3971 = rdev_get_drvdata(dev);
 	int ldo = rdev_get_id(dev) - LP3971_LDO1;
-	int min_vol = min_uV / 1000, max_vol = max_uV / 1000;
-	const int *vol_map = LDO_VOL_VALUE_MAP(ldo);
-	u16 val;
-
-	if (min_vol < vol_map[LDO_VOL_MIN_IDX] ||
-	    min_vol > vol_map[LDO_VOL_MAX_IDX])
-		return -EINVAL;
-
-	for (val = LDO_VOL_MIN_IDX; val <= LDO_VOL_MAX_IDX; val++)
-		if (vol_map[val] >= min_vol)
-			break;
-
-	if (val > LDO_VOL_MAX_IDX || vol_map[val] > max_vol)
-		return -EINVAL;
-
-	*selector = val;
 
 	return lp3971_set_bits(lp3971, LP3971_LDO_VOL_CONTR_REG(ldo),
 			LDO_VOL_CONTR_MASK << LDO_VOL_CONTR_SHIFT(ldo),
-			val << LDO_VOL_CONTR_SHIFT(ldo));
+			selector << LDO_VOL_CONTR_SHIFT(ldo));
 }
 
 static struct regulator_ops lp3971_ldo_ops = {
@@ -202,11 +189,14 @@ static struct regulator_ops lp3971_ldo_ops = {
 	.enable = lp3971_ldo_enable,
 	.disable = lp3971_ldo_disable,
 	.get_voltage = lp3971_ldo_get_voltage,
-	.set_voltage = lp3971_ldo_set_voltage,
+	.set_voltage_sel = lp3971_ldo_set_voltage_sel,
 };
 
 static int lp3971_dcdc_list_voltage(struct regulator_dev *dev, unsigned index)
 {
+	if (index < BUCK_TARGET_VOL_MIN_IDX || index > BUCK_TARGET_VOL_MAX_IDX)
+		return -EINVAL;
+
 	return 1000 * buck_voltage_map[index];
 }
 
@@ -259,33 +249,15 @@ static int lp3971_dcdc_get_voltage(struct regulator_dev *dev)
 	return val;
 }
 
-static int lp3971_dcdc_set_voltage(struct regulator_dev *dev,
-				   int min_uV, int max_uV,
-				   unsigned int *selector)
+static int lp3971_dcdc_set_voltage_sel(struct regulator_dev *dev,
+				       unsigned int selector)
 {
 	struct lp3971 *lp3971 = rdev_get_drvdata(dev);
 	int buck = rdev_get_id(dev) - LP3971_DCDC1;
-	int min_vol = min_uV / 1000, max_vol = max_uV / 1000;
-	const int *vol_map = buck_voltage_map;
-	u16 val;
 	int ret;
 
-	if (min_vol < vol_map[BUCK_TARGET_VOL_MIN_IDX] ||
-	    min_vol > vol_map[BUCK_TARGET_VOL_MAX_IDX])
-		return -EINVAL;
-
-	for (val = BUCK_TARGET_VOL_MIN_IDX; val <= BUCK_TARGET_VOL_MAX_IDX;
-	     val++)
-		if (vol_map[val] >= min_vol)
-			break;
-
-	if (val > BUCK_TARGET_VOL_MAX_IDX || vol_map[val] > max_vol)
-		return -EINVAL;
-
-	*selector = val;
-
 	ret = lp3971_set_bits(lp3971, LP3971_BUCK_TARGET_VOL1_REG(buck),
-	       BUCK_TARGET_VOL_MASK, val);
+	       BUCK_TARGET_VOL_MASK, selector);
 	if (ret)
 		return ret;
 
@@ -306,10 +278,10 @@ static struct regulator_ops lp3971_dcdc_ops = {
 	.enable = lp3971_dcdc_enable,
 	.disable = lp3971_dcdc_disable,
 	.get_voltage = lp3971_dcdc_get_voltage,
-	.set_voltage = lp3971_dcdc_set_voltage,
+	.set_voltage_sel = lp3971_dcdc_set_voltage_sel,
 };
 
-static struct regulator_desc regulators[] = {
+static const struct regulator_desc regulators[] = {
 	{
 		.name = "LDO1",
 		.id = LP3971_LDO1,
@@ -449,10 +421,15 @@ static int __devinit setup_regulators(struct lp3971 *lp3971,
 
 	/* Instantiate the regulators */
 	for (i = 0; i < pdata->num_regulators; i++) {
+		struct regulator_config config = { };
 		struct lp3971_regulator_subdev *reg = &pdata->regulators[i];
-		lp3971->rdev[i] = regulator_register(&regulators[reg->id],
-				lp3971->dev, reg->initdata, lp3971, NULL);
 
+		config.dev = lp3971->dev;
+		config.init_data = reg->initdata;
+		config.driver_data = lp3971;
+
+		lp3971->rdev[i] = regulator_register(&regulators[reg->id],
+						     &config);
 		if (IS_ERR(lp3971->rdev[i])) {
 			err = PTR_ERR(lp3971->rdev[i]);
 			dev_err(lp3971->dev, "regulator init failed: %d\n",
@@ -545,23 +522,7 @@ static struct i2c_driver lp3971_i2c_driver = {
 	.id_table = lp3971_i2c_id,
 };
 
-static int __init lp3971_module_init(void)
-{
-	int ret;
-
-	ret = i2c_add_driver(&lp3971_i2c_driver);
-	if (ret != 0)
-		pr_err("Failed to register I2C driver: %d\n", ret);
-
-	return ret;
-}
-module_init(lp3971_module_init);
-
-static void __exit lp3971_module_exit(void)
-{
-	i2c_del_driver(&lp3971_i2c_driver);
-}
-module_exit(lp3971_module_exit);
+module_i2c_driver(lp3971_i2c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marek Szyprowski <m.szyprowski@samsung.com>");

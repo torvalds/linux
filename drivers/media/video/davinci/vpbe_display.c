@@ -1618,6 +1618,10 @@ static __devinit int init_vpbe_layer(int i, struct vpbe_display *disp_dev,
 	vbd->ioctl_ops	= &vpbe_ioctl_ops;
 	vbd->minor	= -1;
 	vbd->v4l2_dev   = &disp_dev->vpbe_dev->v4l2_dev;
+	/* Locking in file operations other than ioctl should be done
+	   by the driver, not the V4L2 core.
+	   This driver needs auditing so that this flag can be removed. */
+	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vbd->flags);
 	vbd->lock	= &vpbe_display_layer->opslock;
 
 	if (disp_dev->vpbe_dev->current_timings.timings_type &

@@ -2212,6 +2212,9 @@
 /*
  * R256 (0x100) - Chip Revision
  */
+#define WM8994_CUST_ID_MASK                     0xFF00  /* CUST_ID - [15:8] */
+#define WM8994_CUST_ID_SHIFT                         8  /* CUST_ID - [15:8] */
+#define WM8994_CUST_ID_WIDTH                         8  /* CUST_ID - [15:8] */
 #define WM8994_CHIP_REV_MASK                    0x000F  /* CHIP_REV - [3:0] */
 #define WM8994_CHIP_REV_SHIFT                        0  /* CHIP_REV - [3:0] */
 #define WM8994_CHIP_REV_WIDTH                        4  /* CHIP_REV - [3:0] */

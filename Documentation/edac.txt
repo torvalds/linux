@@ -734,7 +734,7 @@ were done at i7core_edac driver. This chapter will cover those differences
    associated with a physical CPU socket.
 
    Each MC have 3 physical read channels, 3 physical write channels and
-   3 logic channels. The driver currenty sees it as just 3 channels.
+   3 logic channels. The driver currently sees it as just 3 channels.
    Each channel can have up to 3 DIMMs.
 
    The minimum known unity is DIMMs. There are no information about csrows.

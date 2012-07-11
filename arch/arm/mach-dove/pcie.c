@@ -43,6 +43,7 @@ static int __init dove_pcie_setup(int nr, struct pci_sys_data *sys)
 		return 0;
 
 	pp = &pcie_port[nr];
+	sys->private_data = pp;
 	pp->root_bus_nr = sys->busnr;
 
 	/*
@@ -93,19 +94,6 @@ static int __init dove_pcie_setup(int nr, struct pci_sys_data *sys)
 	return 1;
 }
 
-static struct pcie_port *bus_to_port(int bus)
-{
-	int i;
-
-	for (i = num_pcie_ports - 1; i >= 0; i--) {
-		int rbus = pcie_port[i].root_bus_nr;
-		if (rbus != -1 && rbus <= bus)
-			break;
-	}
-
-	return i >= 0 ? pcie_port + i : NULL;
-}
-
 static int pcie_valid_config(struct pcie_port *pp, int bus, int dev)
 {
 	/*
@@ -121,7 +109,8 @@ static int pcie_valid_config(struct pcie_port *pp, int bus, int dev)
 static int pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 			int size, u32 *val)
 {
-	struct pcie_port *pp = bus_to_port(bus->number);
+	struct pci_sys_data *sys = bus->sysdata;
+	struct pcie_port *pp = sys->private_data;
 	unsigned long flags;
 	int ret;
 
@@ -140,7 +129,8 @@ static int pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 static int pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 			int where, int size, u32 val)
 {
-	struct pcie_port *pp = bus_to_port(bus->number);
+	struct pci_sys_data *sys = bus->sysdata;
+	struct pcie_port *pp = sys->private_data;
 	unsigned long flags;
 	int ret;
 
@@ -194,14 +184,14 @@ dove_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 
 static int __init dove_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
-	struct pcie_port *pp = bus_to_port(dev->bus->number);
+	struct pci_sys_data *sys = dev->sysdata;
+	struct pcie_port *pp = sys->private_data;
 
 	return pp->index ? IRQ_DOVE_PCIE1 : IRQ_DOVE_PCIE0;
 }
 
 static struct hw_pci dove_pci __initdata = {
 	.nr_controllers	= 2,
-	.swizzle	= pci_std_swizzle,
 	.setup		= dove_pcie_setup,
 	.scan		= dove_pcie_scan_bus,
 	.map_irq	= dove_pcie_map_irq,

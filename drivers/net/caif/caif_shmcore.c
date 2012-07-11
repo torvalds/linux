@@ -13,6 +13,7 @@
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
+#include <linux/io.h>
 
 #include <net/caif/caif_device.h>
 #include <net/caif/caif_shm.h>
@@ -647,6 +648,9 @@ int caif_shmcore_probe(struct shmdev_layer *pshm_dev)
 		if (pshm_dev->shm_loopback)
 			tx_buf->desc_vptr = (unsigned char *)tx_buf->phy_addr;
 		else
+			/*
+			 * FIXME: the result of ioremap is not a pointer - arnd
+			 */
 			tx_buf->desc_vptr =
 					ioremap(tx_buf->phy_addr, TX_BUF_SZ);
 

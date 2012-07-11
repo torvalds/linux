@@ -1776,8 +1776,7 @@ static int __devinit omap24xxcam_probe(struct platform_device *pdev)
 	cam->mmio_size = resource_size(mem);
 
 	/* map the region */
-	cam->mmio_base = (unsigned long)
-		ioremap_nocache(cam->mmio_base_phys, cam->mmio_size);
+	cam->mmio_base = ioremap_nocache(cam->mmio_base_phys, cam->mmio_size);
 	if (!cam->mmio_base) {
 		dev_err(cam->dev, "cannot map camera register I/O region\n");
 		goto err;

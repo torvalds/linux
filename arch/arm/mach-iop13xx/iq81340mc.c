@@ -54,7 +54,6 @@ iq81340mc_pcix_map_irq(const struct pci_dev *dev, u8 idsel, u8 pin)
 }
 
 static struct hw_pci iq81340mc_pci __initdata = {
-	.swizzle	= pci_std_swizzle,
 	.nr_controllers = 0,
 	.setup		= iop13xx_pci_setup,
 	.map_irq	= iq81340mc_pcix_map_irq,

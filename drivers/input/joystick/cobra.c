@@ -261,15 +261,4 @@ static struct gameport_driver cobra_drv = {
 	.disconnect	= cobra_disconnect,
 };
 
-static int __init cobra_init(void)
-{
-	return gameport_register_driver(&cobra_drv);
-}
-
-static void __exit cobra_exit(void)
-{
-	gameport_unregister_driver(&cobra_drv);
-}
-
-module_init(cobra_init);
-module_exit(cobra_exit);
+module_gameport_driver(cobra_drv);

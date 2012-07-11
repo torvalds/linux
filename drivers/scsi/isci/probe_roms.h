@@ -156,8 +156,6 @@ int sci_oem_parameters_validate(struct sci_oem_params *oem, u8 version);
 
 struct isci_orom;
 struct isci_orom *isci_request_oprom(struct pci_dev *pdev);
-enum sci_status isci_parse_oem_parameters(struct sci_oem_params *oem,
-					  struct isci_orom *orom, int scu_index);
 struct isci_orom *isci_request_firmware(struct pci_dev *pdev, const struct firmware *fw);
 struct isci_orom *isci_get_efi_var(struct pci_dev *pdev);
 

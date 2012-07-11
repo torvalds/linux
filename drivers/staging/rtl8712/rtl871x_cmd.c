@@ -50,7 +50,6 @@
 #include "drv_types.h"
 #include "recv_osdep.h"
 #include "mlme_osdep.h"
-#include "rtl871x_byteorder.h"
 
 /*
 Caller and the r8712_cmd_thread can protect cmd_q by spin_lock.

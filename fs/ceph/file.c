@@ -54,7 +54,6 @@ prepare_open_request(struct super_block *sb, int flags, int create_mode)
 	req->r_fmode = ceph_flags_to_mode(flags);
 	req->r_args.open.flags = cpu_to_le32(flags);
 	req->r_args.open.mode = cpu_to_le32(create_mode);
-	req->r_args.open.preferred = cpu_to_le32(-1);
 out:
 	return req;
 }

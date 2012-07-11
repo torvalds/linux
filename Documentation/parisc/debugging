@@ -34,6 +34,6 @@ registers interruption handlers read to find out where the machine
 was interrupted - so if you get an interruption between the instruction
 that clears the Q bit and the RFI that sets it again you don't know
 where exactly it happened.  If you're lucky the IAOQ will point to the
-instrucion that cleared the Q bit, if you're not it points anywhere
+instruction that cleared the Q bit, if you're not it points anywhere
 at all.  Usually Q bit problems will show themselves in unexplainable
 system hangs or running off the end of physical memory.

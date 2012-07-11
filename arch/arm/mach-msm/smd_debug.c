@@ -216,7 +216,7 @@ static void debug_create(const char *name, umode_t mode,
 	debugfs_create_file(name, mode, dent, fill, &debug_ops);
 }
 
-static int smd_debugfs_init(void)
+int __init smd_debugfs_init(void)
 {
 	struct dentry *dent;
 
@@ -234,7 +234,6 @@ static int smd_debugfs_init(void)
 	return 0;
 }
 
-late_initcall(smd_debugfs_init);
 #endif
 
 

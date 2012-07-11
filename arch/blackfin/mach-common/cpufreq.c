@@ -10,12 +10,14 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/fs.h>
 #include <linux/delay.h>
 #include <asm/blackfin.h>
 #include <asm/time.h>
 #include <asm/dpmc.h>
+
 
 /* this is the table of CCLK frequencies, in Hz */
 /* .index is the entry in the auxiliary dpm_state_table[] */
@@ -67,12 +69,22 @@ static void __init bfin_init_tables(unsigned long cclk, unsigned long sclk)
 #else
 	min_cclk = sclk;
 #endif
+
+#ifndef CONFIG_BF60x
 	csel = ((bfin_read_PLL_DIV() & CSEL) >> 4);
+#else
+	csel = bfin_read32(CGU0_DIV) & 0x1F;
+#endif
 
 	for (index = 0;  (cclk >> index) >= min_cclk && csel <= 3; index++, csel++) {
 		bfin_freq_table[index].frequency = cclk >> index;
+#ifndef CONFIG_BF60x
 		dpm_state_table[index].csel = csel << 4; /* Shift now into PLL_DIV bitpos */
 		dpm_state_table[index].tscale =  (TIME_SCALE / (1 << csel)) - 1;
+#else
+		dpm_state_table[index].csel = csel;
+		dpm_state_table[index].tscale =  TIME_SCALE >> index;
+#endif
 
 		pr_debug("cpufreq: freq:%d csel:0x%x tscale:%d\n",
 						 bfin_freq_table[index].frequency,
@@ -99,14 +111,34 @@ static unsigned int bfin_getfreq_khz(unsigned int cpu)
 	return get_cclk() / 1000;
 }
 
+#ifdef CONFIG_BF60x
+unsigned long cpu_set_cclk(int cpu, unsigned long new)
+{
+	struct clk *clk;
+	int ret;
+
+	clk = clk_get(NULL, "CCLK");
+	if (IS_ERR(clk))
+		return -ENODEV;
+
+	ret = clk_set_rate(clk, new);
+	clk_put(clk);
+	return ret;
+}
+#endif
+
 static int bfin_target(struct cpufreq_policy *poli,
 			unsigned int target_freq, unsigned int relation)
 {
-	unsigned int index, plldiv, cpu;
+#ifndef CONFIG_BF60x
+	unsigned int plldiv;
+#endif
+	unsigned int index, cpu;
 	unsigned long flags, cclk_hz;
 	struct cpufreq_freqs freqs;
 	static unsigned long lpj_ref;
 	static unsigned int  lpj_ref_freq;
+	int ret = 0;
 
 #if defined(CONFIG_CYCLES_CLOCKSOURCE)
 	cycles_t cycles;
@@ -134,9 +166,17 @@ static int bfin_target(struct cpufreq_policy *poli,
 		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 		if (cpu == CPUFREQ_CPU) {
 			flags = hard_local_irq_save();
+#ifndef CONFIG_BF60x
 			plldiv = (bfin_read_PLL_DIV() & SSEL) |
 						dpm_state_table[index].csel;
 			bfin_write_PLL_DIV(plldiv);
+#else
+			ret = cpu_set_cclk(cpu, freqs.new * 1000);
+			if (ret != 0) {
+				pr_debug("cpufreq set freq failed %d\n", ret);
+				break;
+			}
+#endif
 			on_each_cpu(bfin_adjust_core_timer, &index, 1);
 #if defined(CONFIG_CYCLES_CLOCKSOURCE)
 			cycles = get_cycles();
@@ -161,7 +201,7 @@ static int bfin_target(struct cpufreq_policy *poli,
 	}
 
 	pr_debug("cpufreq: done\n");
-	return 0;
+	return ret;
 }
 
 static int bfin_verify_speed(struct cpufreq_policy *policy)
@@ -169,7 +209,7 @@ static int bfin_verify_speed(struct cpufreq_policy *policy)
 	return cpufreq_frequency_table_verify(policy, bfin_freq_table);
 }
 
-static int __init __bfin_cpu_init(struct cpufreq_policy *policy)
+static int __bfin_cpu_init(struct cpufreq_policy *policy)
 {
 
 	unsigned long cclk, sclk;

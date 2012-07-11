@@ -20,6 +20,7 @@
 #include <linux/i2c-pca-platform.h>
 #include <linux/i2c-algo-pca.h>
 #include <linux/usb/r8a66597.h>
+#include <linux/sh_intc.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/clk.h>
@@ -105,8 +106,8 @@ static struct resource r8a66597_usb_host_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 2,
-		.end	= 2,
+		.start	= evt2irq(0x240),
+		.end	= evt2irq(0x240),
 		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_LOW,
 	},
 };
@@ -135,7 +136,7 @@ static struct resource sm501_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[2]	= {
-		.start	= 10,
+		.start	= evt2irq(0x340),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -223,8 +224,8 @@ static struct resource i2c_proto_resources[] = {
 		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_8BIT,
 	},
 	[1] = {
-		.start	= 12,
-		.end	= 12,
+		.start	= evt2irq(0x380),
+		.end	= evt2irq(0x380),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -236,8 +237,8 @@ static struct resource i2c_resources[] = {
 		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_8BIT,
 	},
 	[1] = {
-		.start	= 12,
-		.end	= 12,
+		.start	= evt2irq(0x380),
+		.end	= evt2irq(0x380),
 		.flags	= IORESOURCE_IRQ,
 	},
 };

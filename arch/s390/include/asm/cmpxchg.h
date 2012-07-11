@@ -29,7 +29,7 @@ static inline unsigned long __xchg(unsigned long x, void *ptr, int size)
 			"	cs	%0,0,%4\n"
 			"	jl	0b\n"
 			: "=&d" (old), "=Q" (*(int *) addr)
-			: "d" (x << shift), "d" (~(255 << shift)),
+			: "d" ((x & 0xff) << shift), "d" (~(0xff << shift)),
 			  "Q" (*(int *) addr) : "memory", "cc", "0");
 		return old >> shift;
 	case 2:
@@ -44,7 +44,7 @@ static inline unsigned long __xchg(unsigned long x, void *ptr, int size)
 			"	cs	%0,0,%4\n"
 			"	jl	0b\n"
 			: "=&d" (old), "=Q" (*(int *) addr)
-			: "d" (x << shift), "d" (~(65535 << shift)),
+			: "d" ((x & 0xffff) << shift), "d" (~(0xffff << shift)),
 			  "Q" (*(int *) addr) : "memory", "cc", "0");
 		return old >> shift;
 	case 4:
@@ -113,9 +113,10 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 			"	nr	%1,%5\n"
 			"	jnz	0b\n"
 			"1:"
-			: "=&d" (prev), "=&d" (tmp), "=Q" (*(int *) ptr)
-			: "d" (old << shift), "d" (new << shift),
-			  "d" (~(255 << shift)), "Q" (*(int *) ptr)
+			: "=&d" (prev), "=&d" (tmp), "+Q" (*(int *) addr)
+			: "d" ((old & 0xff) << shift),
+			  "d" ((new & 0xff) << shift),
+			  "d" (~(0xff << shift))
 			: "memory", "cc");
 		return prev >> shift;
 	case 2:
@@ -134,9 +135,10 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 			"	nr	%1,%5\n"
 			"	jnz	0b\n"
 			"1:"
-			: "=&d" (prev), "=&d" (tmp), "=Q" (*(int *) ptr)
-			: "d" (old << shift), "d" (new << shift),
-			  "d" (~(65535 << shift)), "Q" (*(int *) ptr)
+			: "=&d" (prev), "=&d" (tmp), "+Q" (*(int *) addr)
+			: "d" ((old & 0xffff) << shift),
+			  "d" ((new & 0xffff) << shift),
+			  "d" (~(0xffff << shift))
 			: "memory", "cc");
 		return prev >> shift;
 	case 4:
@@ -160,9 +162,14 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 	return old;
 }
 
-#define cmpxchg(ptr, o, n)						\
-	((__typeof__(*(ptr)))__cmpxchg((ptr), (unsigned long)(o),	\
-				       (unsigned long)(n), sizeof(*(ptr))))
+#define cmpxchg(ptr, o, n)						 \
+({									 \
+	__typeof__(*(ptr)) __ret;					 \
+	__ret = (__typeof__(*(ptr)))					 \
+		__cmpxchg((ptr), (unsigned long)(o), (unsigned long)(n), \
+			  sizeof(*(ptr)));				 \
+	__ret;								 \
+})
 
 #ifdef CONFIG_64BIT
 #define cmpxchg64(ptr, o, n)						\
@@ -181,13 +188,19 @@ static inline unsigned long long __cmpxchg64(void *ptr,
 		"	cds	%0,%2,%1"
 		: "+&d" (rp_old), "=Q" (ptr)
 		: "d" (rp_new), "Q" (ptr)
-		: "cc");
+		: "memory", "cc");
 	return rp_old.pair;
 }
-#define cmpxchg64(ptr, o, n)						\
-	((__typeof__(*(ptr)))__cmpxchg64((ptr),				\
-					 (unsigned long long)(o),	\
-					 (unsigned long long)(n)))
+
+#define cmpxchg64(ptr, o, n)				\
+({							\
+	__typeof__(*(ptr)) __ret;			\
+	__ret = (__typeof__(*(ptr)))			\
+		__cmpxchg64((ptr),			\
+			    (unsigned long long)(o),	\
+			    (unsigned long long)(n));	\
+	__ret;						\
+})
 #endif /* CONFIG_64BIT */
 
 #include <asm-generic/cmpxchg-local.h>
@@ -216,8 +229,13 @@ static inline unsigned long __cmpxchg_local(void *ptr,
  * them available.
  */
 #define cmpxchg_local(ptr, o, n)					\
-	((__typeof__(*(ptr)))__cmpxchg_local((ptr), (unsigned long)(o),	\
-			(unsigned long)(n), sizeof(*(ptr))))
+({									\
+	__typeof__(*(ptr)) __ret;					\
+	__ret = (__typeof__(*(ptr)))					\
+		__cmpxchg_local((ptr), (unsigned long)(o),		\
+				(unsigned long)(n), sizeof(*(ptr)));	\
+	__ret;								\
+})
 
 #define cmpxchg64_local(ptr, o, n)	cmpxchg64((ptr), (o), (n))
 

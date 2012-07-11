@@ -627,6 +627,7 @@ static const struct ethtool_ops ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_coalesce = emac_get_coalesce,
 	.set_coalesce =  emac_set_coalesce,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 /**

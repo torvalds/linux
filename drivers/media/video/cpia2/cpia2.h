@@ -32,11 +32,12 @@
 #define __CPIA2_H__
 
 #include <linux/videodev2.h>
-#include <media/v4l2-common.h>
 #include <linux/usb.h>
 #include <linux/poll.h>
+#include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 
-#include "cpia2dev.h"
 #include "cpia2_registers.h"
 
 /* define for verbose debug output */
@@ -65,7 +66,6 @@
 
 /* Flicker Modes */
 #define NEVER_FLICKER   0
-#define ANTI_FLICKER_ON 1
 #define FLICKER_60      60
 #define FLICKER_50      50
 
@@ -148,7 +148,6 @@ enum {
 #define DEFAULT_BRIGHTNESS 0x46
 #define DEFAULT_CONTRAST 0x93
 #define DEFAULT_SATURATION 0x7f
-#define DEFAULT_TARGET_KB 0x30
 
 /* Power state */
 #define HI_POWER_MODE CPIA2_SYSTEM_CONTROL_HIGH_POWER
@@ -287,7 +286,6 @@ struct camera_params {
 	struct {
 		u8 cam_register;
 		u8 flicker_mode_req;	/* 1 if flicker on, else never flicker */
-		int mains_frequency;
 	} flicker_control;
 
 	struct {
@@ -337,7 +335,7 @@ struct camera_params {
 		u8 vc_control;
 		u8 vc_mp_direction;
 		u8 vc_mp_data;
-		u8 target_kb;
+		u8 quality;
 	} vc_params;
 
 	struct {
@@ -366,23 +364,23 @@ struct framebuf {
 	struct framebuf *next;
 };
 
-struct cpia2_fh {
-	enum v4l2_priority prio;
-	u8 mmapped;
-};
-
 struct camera_data {
 	/* locks */
+	struct v4l2_device v4l2_dev;
 	struct mutex v4l2_lock;	/* serialize file operations */
-	struct v4l2_prio_state prio;
+	struct v4l2_ctrl_handler hdl;
+	struct {
+		/* Lights control cluster */
+		struct v4l2_ctrl *top_light;
+		struct v4l2_ctrl *bottom_light;
+	};
+	struct v4l2_ctrl *usb_alt;
 
 	/* camera status */
-	volatile int present;	/* Is the camera still present? */
-	int open_count;		/* # of process that have camera open */
 	int first_image_seen;
-	u8 mains_freq;		/* for flicker control */
 	enum sensors sensor_type;
 	u8 flush;
+	struct v4l2_fh *stream_fh;
 	u8 mmapped;
 	int streaming;		/* 0 = no, 1 = yes */
 	int xfer_mode;		/* XFER_BULK or XFER_ISOC */
@@ -390,7 +388,7 @@ struct camera_data {
 
 	/* v4l */
 	int video_size;			/* VIDEO_SIZE_ */
-	struct video_device *vdev;	/* v4l videodev */
+	struct video_device vdev;	/* v4l videodev */
 	u32 width;
 	u32 height;			/* Its size */
 	__u32 pixelformat;       /* Format fourcc      */
@@ -425,6 +423,7 @@ struct camera_data {
 /* v4l */
 int cpia2_register_camera(struct camera_data *cam);
 void cpia2_unregister_camera(struct camera_data *cam);
+void cpia2_camera_release(struct v4l2_device *v4l2_dev);
 
 /* core */
 int cpia2_reset_camera(struct camera_data *cam);
@@ -443,7 +442,7 @@ int cpia2_send_command(struct camera_data *cam, struct cpia2_command *cmd);
 int cpia2_do_command(struct camera_data *cam,
 		     unsigned int command,
 		     unsigned char direction, unsigned char param);
-struct camera_data *cpia2_init_camera_struct(void);
+struct camera_data *cpia2_init_camera_struct(struct usb_interface *intf);
 int cpia2_init_camera(struct camera_data *cam);
 int cpia2_allocate_buffers(struct camera_data *cam);
 void cpia2_free_buffers(struct camera_data *cam);
@@ -454,7 +453,6 @@ unsigned int cpia2_poll(struct camera_data *cam,
 int cpia2_remap_buffer(struct camera_data *cam, struct vm_area_struct *vma);
 void cpia2_set_property_flip(struct camera_data *cam, int prop_val);
 void cpia2_set_property_mirror(struct camera_data *cam, int prop_val);
-int cpia2_set_target_kb(struct camera_data *cam, unsigned char value);
 int cpia2_set_gpio(struct camera_data *cam, unsigned char setting);
 int cpia2_set_fps(struct camera_data *cam, int framerate);
 

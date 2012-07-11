@@ -709,6 +709,96 @@ int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack);
 #define WM5100_HPLPF3_2                         0xEC9
 #define WM5100_HPLPF4_1                         0xECC
 #define WM5100_HPLPF4_2                         0xECD
+#define WM5100_DSP1_CONTROL_1                   0xF00
+#define WM5100_DSP1_CONTROL_2                   0xF02
+#define WM5100_DSP1_CONTROL_3                   0xF03
+#define WM5100_DSP1_CONTROL_4                   0xF04
+#define WM5100_DSP1_CONTROL_5                   0xF06
+#define WM5100_DSP1_CONTROL_6                   0xF07
+#define WM5100_DSP1_CONTROL_7                   0xF08
+#define WM5100_DSP1_CONTROL_8                   0xF09
+#define WM5100_DSP1_CONTROL_9                   0xF0A
+#define WM5100_DSP1_CONTROL_10                  0xF0B
+#define WM5100_DSP1_CONTROL_11                  0xF0C
+#define WM5100_DSP1_CONTROL_12                  0xF0D
+#define WM5100_DSP1_CONTROL_13                  0xF0F
+#define WM5100_DSP1_CONTROL_14                  0xF10
+#define WM5100_DSP1_CONTROL_15                  0xF11
+#define WM5100_DSP1_CONTROL_16                  0xF12
+#define WM5100_DSP1_CONTROL_17                  0xF13
+#define WM5100_DSP1_CONTROL_18                  0xF14
+#define WM5100_DSP1_CONTROL_19                  0xF16
+#define WM5100_DSP1_CONTROL_20                  0xF17
+#define WM5100_DSP1_CONTROL_21                  0xF18
+#define WM5100_DSP1_CONTROL_22                  0xF1A
+#define WM5100_DSP1_CONTROL_23                  0xF1B
+#define WM5100_DSP1_CONTROL_24                  0xF1C
+#define WM5100_DSP1_CONTROL_25                  0xF1E
+#define WM5100_DSP1_CONTROL_26                  0xF20
+#define WM5100_DSP1_CONTROL_27                  0xF21
+#define WM5100_DSP1_CONTROL_28                  0xF22
+#define WM5100_DSP1_CONTROL_29                  0xF23
+#define WM5100_DSP1_CONTROL_30                  0xF24
+#define WM5100_DSP2_CONTROL_1                   0x1000
+#define WM5100_DSP2_CONTROL_2                   0x1002
+#define WM5100_DSP2_CONTROL_3                   0x1003
+#define WM5100_DSP2_CONTROL_4                   0x1004
+#define WM5100_DSP2_CONTROL_5                   0x1006
+#define WM5100_DSP2_CONTROL_6                   0x1007
+#define WM5100_DSP2_CONTROL_7                   0x1008
+#define WM5100_DSP2_CONTROL_8                   0x1009
+#define WM5100_DSP2_CONTROL_9                   0x100A
+#define WM5100_DSP2_CONTROL_10                  0x100B
+#define WM5100_DSP2_CONTROL_11                  0x100C
+#define WM5100_DSP2_CONTROL_12                  0x100D
+#define WM5100_DSP2_CONTROL_13                  0x100F
+#define WM5100_DSP2_CONTROL_14                  0x1010
+#define WM5100_DSP2_CONTROL_15                  0x1011
+#define WM5100_DSP2_CONTROL_16                  0x1012
+#define WM5100_DSP2_CONTROL_17                  0x1013
+#define WM5100_DSP2_CONTROL_18                  0x1014
+#define WM5100_DSP2_CONTROL_19                  0x1016
+#define WM5100_DSP2_CONTROL_20                  0x1017
+#define WM5100_DSP2_CONTROL_21                  0x1018
+#define WM5100_DSP2_CONTROL_22                  0x101A
+#define WM5100_DSP2_CONTROL_23                  0x101B
+#define WM5100_DSP2_CONTROL_24                  0x101C
+#define WM5100_DSP2_CONTROL_25                  0x101E
+#define WM5100_DSP2_CONTROL_26                  0x1020
+#define WM5100_DSP2_CONTROL_27                  0x1021
+#define WM5100_DSP2_CONTROL_28                  0x1022
+#define WM5100_DSP2_CONTROL_29                  0x1023
+#define WM5100_DSP2_CONTROL_30                  0x1024
+#define WM5100_DSP3_CONTROL_1                   0x1100
+#define WM5100_DSP3_CONTROL_2                   0x1102
+#define WM5100_DSP3_CONTROL_3                   0x1103
+#define WM5100_DSP3_CONTROL_4                   0x1104
+#define WM5100_DSP3_CONTROL_5                   0x1106
+#define WM5100_DSP3_CONTROL_6                   0x1107
+#define WM5100_DSP3_CONTROL_7                   0x1108
+#define WM5100_DSP3_CONTROL_8                   0x1109
+#define WM5100_DSP3_CONTROL_9                   0x110A
+#define WM5100_DSP3_CONTROL_10                  0x110B
+#define WM5100_DSP3_CONTROL_11                  0x110C
+#define WM5100_DSP3_CONTROL_12                  0x110D
+#define WM5100_DSP3_CONTROL_13                  0x110F
+#define WM5100_DSP3_CONTROL_14                  0x1110
+#define WM5100_DSP3_CONTROL_15                  0x1111
+#define WM5100_DSP3_CONTROL_16                  0x1112
+#define WM5100_DSP3_CONTROL_17                  0x1113
+#define WM5100_DSP3_CONTROL_18                  0x1114
+#define WM5100_DSP3_CONTROL_19                  0x1116
+#define WM5100_DSP3_CONTROL_20                  0x1117
+#define WM5100_DSP3_CONTROL_21                  0x1118
+#define WM5100_DSP3_CONTROL_22                  0x111A
+#define WM5100_DSP3_CONTROL_23                  0x111B
+#define WM5100_DSP3_CONTROL_24                  0x111C
+#define WM5100_DSP3_CONTROL_25                  0x111E
+#define WM5100_DSP3_CONTROL_26                  0x1120
+#define WM5100_DSP3_CONTROL_27                  0x1121
+#define WM5100_DSP3_CONTROL_28                  0x1122
+#define WM5100_DSP3_CONTROL_29                  0x1123
+#define WM5100_DSP3_CONTROL_30                  0x1124
 #define WM5100_DSP1_DM_0                        0x4000
 #define WM5100_DSP1_DM_1                        0x4001
 #define WM5100_DSP1_DM_2                        0x4002
@@ -4559,6 +4649,75 @@ int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack);
 #define WM5100_LHPF4_COEFF_MASK                 0xFFFF  /* LHPF4_COEFF - [15:0] */
 #define WM5100_LHPF4_COEFF_SHIFT                     0  /* LHPF4_COEFF - [15:0] */
 #define WM5100_LHPF4_COEFF_WIDTH                    16  /* LHPF4_COEFF - [15:0] */
+
+/*
+ * R4132 (0x1024) - DSP2 Control 30
+ */
+#define WM5100_DSP2_RATE_MASK                   0xC000  /* DSP2_RATE - [15:14] */
+#define WM5100_DSP2_RATE_SHIFT                      14  /* DSP2_RATE - [15:14] */
+#define WM5100_DSP2_RATE_WIDTH                       2  /* DSP2_RATE - [15:14] */
+#define WM5100_DSP2_DBG_CLK_ENA                 0x0008  /* DSP2_DBG_CLK_ENA */
+#define WM5100_DSP2_DBG_CLK_ENA_MASK            0x0008  /* DSP2_DBG_CLK_ENA */
+#define WM5100_DSP2_DBG_CLK_ENA_SHIFT                3  /* DSP2_DBG_CLK_ENA */
+#define WM5100_DSP2_DBG_CLK_ENA_WIDTH                1  /* DSP2_DBG_CLK_ENA */
+#define WM5100_DSP2_SYS_ENA                     0x0004  /* DSP2_SYS_ENA */
+#define WM5100_DSP2_SYS_ENA_MASK                0x0004  /* DSP2_SYS_ENA */
+#define WM5100_DSP2_SYS_ENA_SHIFT                    2  /* DSP2_SYS_ENA */
+#define WM5100_DSP2_SYS_ENA_WIDTH                    1  /* DSP2_SYS_ENA */
+#define WM5100_DSP2_CORE_ENA                    0x0002  /* DSP2_CORE_ENA */
+#define WM5100_DSP2_CORE_ENA_MASK               0x0002  /* DSP2_CORE_ENA */
+#define WM5100_DSP2_CORE_ENA_SHIFT                   1  /* DSP2_CORE_ENA */
+#define WM5100_DSP2_CORE_ENA_WIDTH                   1  /* DSP2_CORE_ENA */
+#define WM5100_DSP2_START                       0x0001  /* DSP2_START */
+#define WM5100_DSP2_START_MASK                  0x0001  /* DSP2_START */
+#define WM5100_DSP2_START_SHIFT                      0  /* DSP2_START */
+#define WM5100_DSP2_START_WIDTH                      1  /* DSP2_START */
+
+/*
+ * R3876 (0xF24) - DSP1 Control 30
+ */
+#define WM5100_DSP1_RATE_MASK                   0xC000  /* DSP1_RATE - [15:14] */
+#define WM5100_DSP1_RATE_SHIFT                      14  /* DSP1_RATE - [15:14] */
+#define WM5100_DSP1_RATE_WIDTH                       2  /* DSP1_RATE - [15:14] */
+#define WM5100_DSP1_DBG_CLK_ENA                 0x0008  /* DSP1_DBG_CLK_ENA */
+#define WM5100_DSP1_DBG_CLK_ENA_MASK            0x0008  /* DSP1_DBG_CLK_ENA */
+#define WM5100_DSP1_DBG_CLK_ENA_SHIFT                3  /* DSP1_DBG_CLK_ENA */
+#define WM5100_DSP1_DBG_CLK_ENA_WIDTH                1  /* DSP1_DBG_CLK_ENA */
+#define WM5100_DSP1_SYS_ENA                     0x0004  /* DSP1_SYS_ENA */
+#define WM5100_DSP1_SYS_ENA_MASK                0x0004  /* DSP1_SYS_ENA */
+#define WM5100_DSP1_SYS_ENA_SHIFT                    2  /* DSP1_SYS_ENA */
+#define WM5100_DSP1_SYS_ENA_WIDTH                    1  /* DSP1_SYS_ENA */
+#define WM5100_DSP1_CORE_ENA                    0x0002  /* DSP1_CORE_ENA */
+#define WM5100_DSP1_CORE_ENA_MASK               0x0002  /* DSP1_CORE_ENA */
+#define WM5100_DSP1_CORE_ENA_SHIFT                   1  /* DSP1_CORE_ENA */
+#define WM5100_DSP1_CORE_ENA_WIDTH                   1  /* DSP1_CORE_ENA */
+#define WM5100_DSP1_START                       0x0001  /* DSP1_START */
+#define WM5100_DSP1_START_MASK                  0x0001  /* DSP1_START */
+#define WM5100_DSP1_START_SHIFT                      0  /* DSP1_START */
+#define WM5100_DSP1_START_WIDTH                      1  /* DSP1_START */
+
+/*
+ * R4388 (0x1124) - DSP3 Control 30
+ */
+#define WM5100_DSP3_RATE_MASK                   0xC000  /* DSP3_RATE - [15:14] */
+#define WM5100_DSP3_RATE_SHIFT                      14  /* DSP3_RATE - [15:14] */
+#define WM5100_DSP3_RATE_WIDTH                       2  /* DSP3_RATE - [15:14] */
+#define WM5100_DSP3_DBG_CLK_ENA                 0x0008  /* DSP3_DBG_CLK_ENA */
+#define WM5100_DSP3_DBG_CLK_ENA_MASK            0x0008  /* DSP3_DBG_CLK_ENA */
+#define WM5100_DSP3_DBG_CLK_ENA_SHIFT                3  /* DSP3_DBG_CLK_ENA */
+#define WM5100_DSP3_DBG_CLK_ENA_WIDTH                1  /* DSP3_DBG_CLK_ENA */
+#define WM5100_DSP3_SYS_ENA                     0x0004  /* DSP3_SYS_ENA */
+#define WM5100_DSP3_SYS_ENA_MASK                0x0004  /* DSP3_SYS_ENA */
+#define WM5100_DSP3_SYS_ENA_SHIFT                    2  /* DSP3_SYS_ENA */
+#define WM5100_DSP3_SYS_ENA_WIDTH                    1  /* DSP3_SYS_ENA */
+#define WM5100_DSP3_CORE_ENA                    0x0002  /* DSP3_CORE_ENA */
+#define WM5100_DSP3_CORE_ENA_MASK               0x0002  /* DSP3_CORE_ENA */
+#define WM5100_DSP3_CORE_ENA_SHIFT                   1  /* DSP3_CORE_ENA */
+#define WM5100_DSP3_CORE_ENA_WIDTH                   1  /* DSP3_CORE_ENA */
+#define WM5100_DSP3_START                       0x0001  /* DSP3_START */
+#define WM5100_DSP3_START_MASK                  0x0001  /* DSP3_START */
+#define WM5100_DSP3_START_SHIFT                      0  /* DSP3_START */
+#define WM5100_DSP3_START_WIDTH                      1  /* DSP3_START */
 
 /*
  * R16384 (0x4000) - DSP1 DM 0

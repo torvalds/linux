@@ -17,6 +17,8 @@
 #include <linux/interrupt.h>
 #include <linux/i2c/pca953x.h>
 #include <linux/gpio.h>
+#include <linux/mfd/88pm860x.h>
+#include <linux/platform_data/mv_usb.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -25,6 +27,7 @@
 #include <mach/mfp-pxa910.h>
 #include <mach/pxa910.h>
 #include <mach/irqs.h>
+#include <mach/regs-usb.h>
 
 #include "common.h"
 
@@ -135,7 +138,17 @@ static struct pca953x_platform_data max7312_data[] = {
 	},
 };
 
+static struct pm860x_platform_data ttc_dkb_pm8607_info = {
+	.irq_base       = IRQ_BOARD_START,
+};
+
 static struct i2c_board_info ttc_dkb_i2c_info[] = {
+	{
+		.type           = "88PM860x",
+		.addr           = 0x34,
+		.platform_data  = &ttc_dkb_pm8607_info,
+		.irq            = IRQ_PXA910_PMIC_INT,
+	},
 	{
 		.type		= "max7312",
 		.addr		= 0x23,
@@ -143,6 +156,26 @@ static struct i2c_board_info ttc_dkb_i2c_info[] = {
 		.platform_data	= &max7312_data,
 	},
 };
+
+#ifdef CONFIG_USB_SUPPORT
+#if defined(CONFIG_USB_MV_UDC) || defined(CONFIG_USB_EHCI_MV_U2O)
+
+static char *pxa910_usb_clock_name[] = {
+	[0] = "U2OCLK",
+};
+
+static struct mv_usb_platform_data ttc_usb_pdata = {
+	.clknum		= 1,
+	.clkname	= pxa910_usb_clock_name,
+	.vbus		= NULL,
+	.mode		= MV_USB_MODE_OTG,
+	.otg_force_a_bus_req = 1,
+	.phy_init	= pxa_usb_phy_init,
+	.phy_deinit	= pxa_usb_phy_deinit,
+	.set_vbus	= NULL,
+};
+#endif
+#endif
 
 static void __init ttc_dkb_init(void)
 {
@@ -154,6 +187,21 @@ static void __init ttc_dkb_init(void)
 	/* off-chip devices */
 	pxa910_add_twsi(0, NULL, ARRAY_AND_SIZE(ttc_dkb_i2c_info));
 	platform_add_devices(ARRAY_AND_SIZE(ttc_dkb_devices));
+
+#ifdef CONFIG_USB_MV_UDC
+	pxa168_device_u2o.dev.platform_data = &ttc_usb_pdata;
+	platform_device_register(&pxa168_device_u2o);
+#endif
+
+#ifdef CONFIG_USB_EHCI_MV_U2O
+	pxa168_device_u2oehci.dev.platform_data = &ttc_usb_pdata;
+	platform_device_register(&pxa168_device_u2oehci);
+#endif
+
+#ifdef CONFIG_USB_MV_OTG
+	pxa168_device_u2ootg.dev.platform_data = &ttc_usb_pdata;
+	platform_device_register(&pxa168_device_u2ootg);
+#endif
 }
 
 MACHINE_START(TTC_DKB, "PXA910-based TTC_DKB Development Platform")

@@ -71,7 +71,7 @@ struct bnad_rx_ctrl {
 #define BNAD_NAME			"bna"
 #define BNAD_NAME_LEN			64
 
-#define BNAD_VERSION			"3.0.2.2"
+#define BNAD_VERSION			"3.0.23.0"
 
 #define BNAD_MAILBOX_MSIX_INDEX		0
 #define BNAD_MAILBOX_MSIX_VECTORS	1
@@ -210,6 +210,7 @@ struct bnad_tx_info {
 	struct bna_tx *tx; /* 1:1 between tx_info & tx */
 	struct bna_tcb *tcb[BNAD_MAX_TXQ_PER_TX];
 	u32 tx_id;
+	struct delayed_work tx_cleanup_work;
 } ____cacheline_aligned;
 
 struct bnad_rx_info {
@@ -217,6 +218,7 @@ struct bnad_rx_info {
 
 	struct bnad_rx_ctrl rx_ctrl[BNAD_MAX_RXP_PER_RX];
 	u32 rx_id;
+	struct work_struct rx_cleanup_work;
 } ____cacheline_aligned;
 
 /* Unmap queues for Tx / Rx cleanup */
@@ -318,7 +320,7 @@ struct bnad {
 	/* Burnt in MAC address */
 	mac_t			perm_addr;
 
-	struct tasklet_struct	tx_free_tasklet;
+	struct workqueue_struct *work_q;
 
 	/* Statistics */
 	struct bnad_stats stats;
@@ -328,6 +330,7 @@ struct bnad {
 	char			adapter_name[BNAD_NAME_LEN];
 	char			port_name[BNAD_NAME_LEN];
 	char			mbox_irq_name[BNAD_NAME_LEN];
+	char			wq_name[BNAD_NAME_LEN];
 
 	/* debugfs specific data */
 	char	*regdata;
@@ -370,8 +373,8 @@ extern void bnad_rx_coalescing_timeo_set(struct bnad *bnad);
 
 extern int bnad_setup_rx(struct bnad *bnad, u32 rx_id);
 extern int bnad_setup_tx(struct bnad *bnad, u32 tx_id);
-extern void bnad_cleanup_tx(struct bnad *bnad, u32 tx_id);
-extern void bnad_cleanup_rx(struct bnad *bnad, u32 rx_id);
+extern void bnad_destroy_tx(struct bnad *bnad, u32 tx_id);
+extern void bnad_destroy_rx(struct bnad *bnad, u32 rx_id);
 
 /* Timer start/stop protos */
 extern void bnad_dim_timer_start(struct bnad *bnad);

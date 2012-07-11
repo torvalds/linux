@@ -39,6 +39,9 @@ struct v4l2_ctrl_handler;
 #define V4L2_FL_USES_V4L2_FH	(1)
 /* Use the prio field of v4l2_fh for core priority checking */
 #define V4L2_FL_USE_FH_PRIO	(2)
+/* If ioctl core locking is in use, then apply that also to all
+   file operations. Don't use this flag in new drivers! */
+#define V4L2_FL_LOCK_ALL_FOPS	(3)
 
 /* Priority helper functions */
 
@@ -126,8 +129,10 @@ struct video_device
 
 	/* ioctl callbacks */
 	const struct v4l2_ioctl_ops *ioctl_ops;
+	DECLARE_BITMAP(valid_ioctls, BASE_VIDIOC_PRIVATE);
 
 	/* serialization lock */
+	DECLARE_BITMAP(disable_locking, BASE_VIDIOC_PRIVATE);
 	struct mutex *lock;
 };
 
@@ -172,6 +177,26 @@ void video_device_release(struct video_device *vdev);
    static global struct. Note that having a static video_device is
    a dubious construction at best. */
 void video_device_release_empty(struct video_device *vdev);
+
+/* returns true if cmd is a known V4L2 ioctl */
+bool v4l2_is_known_ioctl(unsigned int cmd);
+
+/* mark that this command shouldn't use core locking */
+static inline void v4l2_disable_ioctl_locking(struct video_device *vdev, unsigned int cmd)
+{
+	if (_IOC_NR(cmd) < BASE_VIDIOC_PRIVATE)
+		set_bit(_IOC_NR(cmd), vdev->disable_locking);
+}
+
+/* Mark that this command isn't implemented. This must be called before
+   video_device_register. See also the comments in determine_valid_ioctls().
+   This function allows drivers to provide just one v4l2_ioctl_ops struct, but
+   disable ioctls based on the specific card that is actually found. */
+static inline void v4l2_disable_ioctl(struct video_device *vdev, unsigned int cmd)
+{
+	if (_IOC_NR(cmd) < BASE_VIDIOC_PRIVATE)
+		set_bit(_IOC_NR(cmd), vdev->valid_ioctls);
+}
 
 /* helper functions to access driver private data. */
 static inline void *video_get_drvdata(struct video_device *vdev)

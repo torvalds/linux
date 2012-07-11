@@ -285,7 +285,7 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 }
 
 static int __dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
-				  const struct dccp_hdr *dh, const unsigned len)
+				  const struct dccp_hdr *dh, const unsigned int len)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 
@@ -366,7 +366,7 @@ discard:
 }
 
 int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
-			 const struct dccp_hdr *dh, const unsigned len)
+			 const struct dccp_hdr *dh, const unsigned int len)
 {
 	if (dccp_check_seqno(sk, skb))
 		goto discard;
@@ -388,7 +388,7 @@ EXPORT_SYMBOL_GPL(dccp_rcv_established);
 static int dccp_rcv_request_sent_state_process(struct sock *sk,
 					       struct sk_buff *skb,
 					       const struct dccp_hdr *dh,
-					       const unsigned len)
+					       const unsigned int len)
 {
 	/*
 	 *  Step 4: Prepare sequence numbers in REQUEST
@@ -521,7 +521,7 @@ unable_to_proceed:
 static int dccp_rcv_respond_partopen_state_process(struct sock *sk,
 						   struct sk_buff *skb,
 						   const struct dccp_hdr *dh,
-						   const unsigned len)
+						   const unsigned int len)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	u32 sample = dp->dccps_options_received.dccpor_timestamp_echo;
@@ -572,7 +572,7 @@ static int dccp_rcv_respond_partopen_state_process(struct sock *sk,
 }
 
 int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
-			   struct dccp_hdr *dh, unsigned len)
+			   struct dccp_hdr *dh, unsigned int len)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);

@@ -14,32 +14,6 @@
 #define ERROR_RETRY_DELAY_MS	5
 
 /**
- * rcode_string - convert a firewire result code to a string
- * @rcode: the result
- */
-const char *rcode_string(unsigned int rcode)
-{
-	static const char *const names[] = {
-		[RCODE_COMPLETE]	= "complete",
-		[RCODE_CONFLICT_ERROR]	= "conflict error",
-		[RCODE_DATA_ERROR]	= "data error",
-		[RCODE_TYPE_ERROR]	= "type error",
-		[RCODE_ADDRESS_ERROR]	= "address error",
-		[RCODE_SEND_ERROR]	= "send error",
-		[RCODE_CANCELLED]	= "cancelled",
-		[RCODE_BUSY]		= "busy",
-		[RCODE_GENERATION]	= "generation",
-		[RCODE_NO_ACK]		= "no ack",
-	};
-
-	if (rcode < ARRAY_SIZE(names) && names[rcode])
-		return names[rcode];
-	else
-		return "unknown";
-}
-EXPORT_SYMBOL(rcode_string);
-
-/**
  * snd_fw_transaction - send a request and wait for its completion
  * @unit: the driver's unit on the target device
  * @tcode: the transaction code
@@ -71,7 +45,7 @@ int snd_fw_transaction(struct fw_unit *unit, int tcode,
 
 		if (rcode_is_permanent_error(rcode) || ++tries >= 3) {
 			dev_err(&unit->device, "transaction failed: %s\n",
-				rcode_string(rcode));
+				fw_rcode_string(rcode));
 			return -EIO;
 		}
 

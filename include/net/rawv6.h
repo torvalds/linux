@@ -5,7 +5,7 @@
 
 void raw6_icmp_error(struct sk_buff *, int nexthdr,
 		u8 type, u8 code, int inner_offset, __be32);
-int raw6_local_deliver(struct sk_buff *, int);
+bool raw6_local_deliver(struct sk_buff *, int);
 
 extern int			rawv6_rcv(struct sock *sk,
 					  struct sk_buff *skb);

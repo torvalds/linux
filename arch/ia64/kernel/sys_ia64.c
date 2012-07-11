@@ -171,22 +171,9 @@ asmlinkage unsigned long
 ia64_mremap (unsigned long addr, unsigned long old_len, unsigned long new_len, unsigned long flags,
 	     unsigned long new_addr)
 {
-	extern unsigned long do_mremap (unsigned long addr,
-					unsigned long old_len,
-					unsigned long new_len,
-					unsigned long flags,
-					unsigned long new_addr);
-
-	down_write(&current->mm->mmap_sem);
-	{
-		addr = do_mremap(addr, old_len, new_len, flags, new_addr);
-	}
-	up_write(&current->mm->mmap_sem);
-
-	if (IS_ERR((void *) addr))
-		return addr;
-
-	force_successful_syscall_return();
+	addr = sys_mremap(addr, old_len, new_len, flags, new_addr);
+	if (!IS_ERR((void *) addr))
+		force_successful_syscall_return();
 	return addr;
 }
 

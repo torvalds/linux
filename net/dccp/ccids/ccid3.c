@@ -100,7 +100,7 @@ static void ccid3_update_send_interval(struct ccid3_hc_tx_sock *hc)
 
 	DCCP_BUG_ON(hc->tx_t_ipi == 0);
 	ccid3_pr_debug("t_ipi=%u, s=%u, X=%u\n", hc->tx_t_ipi,
-		       hc->tx_s, (unsigned)(hc->tx_x >> 6));
+		       hc->tx_s, (unsigned int)(hc->tx_x >> 6));
 }
 
 static u32 ccid3_hc_tx_idle_rtt(struct ccid3_hc_tx_sock *hc, ktime_t now)
@@ -153,9 +153,9 @@ static void ccid3_hc_tx_update_x(struct sock *sk, ktime_t *stamp)
 
 	if (hc->tx_x != old_x) {
 		ccid3_pr_debug("X_prev=%u, X_now=%u, X_calc=%u, "
-			       "X_recv=%u\n", (unsigned)(old_x >> 6),
-			       (unsigned)(hc->tx_x >> 6), hc->tx_x_calc,
-			       (unsigned)(hc->tx_x_recv >> 6));
+			       "X_recv=%u\n", (unsigned int)(old_x >> 6),
+			       (unsigned int)(hc->tx_x >> 6), hc->tx_x_calc,
+			       (unsigned int)(hc->tx_x_recv >> 6));
 
 		ccid3_update_send_interval(hc);
 	}
@@ -425,8 +425,8 @@ done_computing_x:
 			       "p=%u, X_calc=%u, X_recv=%u, X=%u\n",
 			       dccp_role(sk), sk, hc->tx_rtt, r_sample,
 			       hc->tx_s, hc->tx_p, hc->tx_x_calc,
-			       (unsigned)(hc->tx_x_recv >> 6),
-			       (unsigned)(hc->tx_x >> 6));
+			       (unsigned int)(hc->tx_x_recv >> 6),
+			       (unsigned int)(hc->tx_x >> 6));
 
 	/* unschedule no feedback timer */
 	sk_stop_timer(sk, &hc->tx_no_feedback_timer);

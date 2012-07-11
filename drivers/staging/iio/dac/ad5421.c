@@ -16,9 +16,9 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../events.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/events.h>
 #include "dac.h"
 #include "ad5421.h"
 
@@ -87,7 +87,8 @@ static const struct iio_chan_spec ad5421_channels[] = {
 		.indexed = 1,
 		.output = 1,
 		.channel = 0,
-		.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
 			IIO_CHAN_INFO_OFFSET_SHARED_BIT |
 			IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |
 			IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
@@ -304,7 +305,7 @@ static int ad5421_read_raw(struct iio_dev *indio_dev,
 		return -EINVAL;
 
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		ret = ad5421_read(indio_dev, AD5421_REG_DAC_DATA);
 		if (ret < 0)
 			return ret;
@@ -340,7 +341,7 @@ static int ad5421_write_raw(struct iio_dev *indio_dev,
 	const unsigned int max_val = 1 << 16;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		if (val >= max_val || val < 0)
 			return -EINVAL;
 
@@ -456,7 +457,7 @@ static int __devinit ad5421_probe(struct spi_device *spi)
 	struct ad5421_state *st;
 	int ret;
 
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		dev_err(&spi->dev, "Failed to allocate iio device\n");
 		return  -ENOMEM;
@@ -511,7 +512,7 @@ error_free_irq:
 	if (spi->irq)
 		free_irq(spi->irq, indio_dev);
 error_free:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -523,7 +524,7 @@ static int __devexit ad5421_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	if (spi->irq)
 		free_irq(spi->irq, indio_dev);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

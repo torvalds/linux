@@ -85,7 +85,7 @@ void __init time_init(void)
 	mach_sched_init(timer_interrupt);
 }
 
-#ifdef CONFIG_M68KCLASSIC
+#ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
 
 u32 arch_gettimeoffset(void)
 {
@@ -108,4 +108,4 @@ static int __init rtc_init(void)
 
 module_init(rtc_init);
 
-#endif /* CONFIG_M68KCLASSIC */
+#endif /* CONFIG_ARCH_USES_GETTIMEOFFSET */

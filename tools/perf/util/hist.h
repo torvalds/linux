@@ -67,8 +67,6 @@ struct hists {
 	struct events_stats	stats;
 	u64			event_stream;
 	u16			col_len[HISTC_NR_COLS];
-	/* Best would be to reuse the session callchain cursor */
-	struct callchain_cursor	callchain_cursor;
 };
 
 struct hist_entry *__hists__add_entry(struct hists *self,
@@ -138,7 +136,7 @@ static inline int hist_entry__tui_annotate(struct hist_entry *self __used,
 #define K_LEFT -1
 #define K_RIGHT -2
 #else
-#include "ui/keysyms.h"
+#include "../ui/keysyms.h"
 int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
 			     void(*timer)(void *arg), void *arg, int delay_secs);
 

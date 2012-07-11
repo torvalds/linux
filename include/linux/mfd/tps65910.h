@@ -18,6 +18,7 @@
 #define __LINUX_MFD_TPS65910_H
 
 #include <linux/gpio.h>
+#include <linux/regmap.h>
 
 /* TPS chip id list */
 #define TPS65910			0
@@ -783,6 +784,18 @@
 #define TPS65910_SLEEP_CONTROL_EXT_INPUT_EN3		0x4
 #define TPS65911_SLEEP_CONTROL_EXT_INPUT_SLEEP		0x8
 
+/*
+ * Sleep keepon data: Maintains the state in sleep mode
+ * @therm_keepon: Keep on the thermal monitoring in sleep state.
+ * @clkout32k_keepon: Keep on the 32KHz clock output in sleep state.
+ * @i2chs_keepon: Keep on high speed internal clock in sleep state.
+ */
+struct tps65910_sleep_keepon_data {
+	unsigned therm_keepon:1;
+	unsigned clkout32k_keepon:1;
+	unsigned i2chs_keepon:1;
+};
+
 /**
  * struct tps65910_board
  * Board platform data may be used to initialize regulators.
@@ -794,6 +807,8 @@ struct tps65910_board {
 	int irq_base;
 	int vmbch_threshold;
 	int vmbch2_threshold;
+	bool en_dev_slp;
+	struct tps65910_sleep_keepon_data *slp_keepon;
 	bool en_gpio_sleep[TPS6591X_MAX_NUM_GPIO];
 	unsigned long regulator_ext_sleep_control[TPS65910_NUM_REGS];
 	struct regulator_init_data *tps65910_pmic_init_data[TPS65910_NUM_REGS];
@@ -809,16 +824,14 @@ struct tps65910 {
 	struct regmap *regmap;
 	struct mutex io_mutex;
 	unsigned int id;
-	int (*read)(struct tps65910 *tps65910, u8 reg, int size, void *dest);
-	int (*write)(struct tps65910 *tps65910, u8 reg, int size, void *src);
 
 	/* Client devices */
 	struct tps65910_pmic *pmic;
 	struct tps65910_rtc *rtc;
 	struct tps65910_power *power;
 
-	/* GPIO Handling */
-	struct gpio_chip gpio;
+	/* Device node parsed board data */
+	struct tps65910_board *of_plat_data;
 
 	/* IRQ Handling */
 	struct mutex irq_lock;
@@ -826,6 +839,7 @@ struct tps65910 {
 	int irq_base;
 	int irq_num;
 	u32 irq_mask;
+	struct irq_domain *domain;
 };
 
 struct tps65910_platform_data {
@@ -833,9 +847,6 @@ struct tps65910_platform_data {
 	int irq_base;
 };
 
-int tps65910_set_bits(struct tps65910 *tps65910, u8 reg, u8 mask);
-int tps65910_clear_bits(struct tps65910 *tps65910, u8 reg, u8 mask);
-void tps65910_gpio_init(struct tps65910 *tps65910, int gpio_base);
 int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 		struct tps65910_platform_data *pdata);
 int tps65910_irq_exit(struct tps65910 *tps65910);
@@ -843,6 +854,30 @@ int tps65910_irq_exit(struct tps65910 *tps65910);
 static inline int tps65910_chip_id(struct tps65910 *tps65910)
 {
 	return tps65910->id;
+}
+
+static inline int tps65910_reg_read(struct tps65910 *tps65910, u8 reg,
+		unsigned int *val)
+{
+	return regmap_read(tps65910->regmap, reg, val);
+}
+
+static inline int tps65910_reg_write(struct tps65910 *tps65910, u8 reg,
+		unsigned int val)
+{
+	return regmap_write(tps65910->regmap, reg, val);
+}
+
+static inline int tps65910_reg_set_bits(struct tps65910 *tps65910, u8 reg,
+		u8 mask)
+{
+	return regmap_update_bits(tps65910->regmap, reg, mask, mask);
+}
+
+static inline int tps65910_reg_clear_bits(struct tps65910 *tps65910, u8 reg,
+		u8 mask)
+{
+	return regmap_update_bits(tps65910->regmap, reg, mask, 0);
 }
 
 #endif /*  __LINUX_MFD_TPS65910_H */

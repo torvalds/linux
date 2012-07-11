@@ -362,15 +362,20 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 	/* assume this IO needs the full row - we'll adjust if not true */
 	regSize             = stripSize;
 
-	/* If IO spans more than 1 strip, fp is not possible
-	   FP is not possible for writes on non-0 raid levels
-	   FP is not possible if LD is not capable */
-	if (num_strips > 1 || (!isRead && raid->level != 0) ||
-	    !raid->capability.fpCapable) {
+	/* Check if we can send this I/O via FastPath */
+	if (raid->capability.fpCapable) {
+		if (isRead)
+			io_info->fpOkForIo = (raid->capability.fpReadCapable &&
+					      ((num_strips == 1) ||
+					       raid->capability.
+					       fpReadAcrossStripe));
+		else
+			io_info->fpOkForIo = (raid->capability.fpWriteCapable &&
+					      ((num_strips == 1) ||
+					       raid->capability.
+					       fpWriteAcrossStripe));
+	} else
 		io_info->fpOkForIo = FALSE;
-	} else {
-		io_info->fpOkForIo = TRUE;
-	}
 
 	if (numRows == 1) {
 		/* single-strip IOs can always lock only the data needed */

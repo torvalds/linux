@@ -24,8 +24,6 @@ menuconfig STAGING
 
 if STAGING
 
-source "drivers/staging/serial/Kconfig"
-
 source "drivers/staging/et131x/Kconfig"
 
 source "drivers/staging/slicoss/Kconfig"
@@ -68,13 +66,9 @@ source "drivers/staging/octeon/Kconfig"
 
 source "drivers/staging/serqt_usb2/Kconfig"
 
-source "drivers/staging/quatech_usb2/Kconfig"
-
 source "drivers/staging/vt6655/Kconfig"
 
 source "drivers/staging/vt6656/Kconfig"
-
-source "drivers/staging/vme/Kconfig"
 
 source "drivers/staging/sep/Kconfig"
 
@@ -116,11 +110,11 @@ source "drivers/staging/cptm1217/Kconfig"
 
 source "drivers/staging/ste_rmi4/Kconfig"
 
-source "drivers/staging/mei/Kconfig"
-
 source "drivers/staging/nvec/Kconfig"
 
 source "drivers/staging/media/Kconfig"
+
+source "drivers/staging/net/Kconfig"
 
 source "drivers/staging/omapdrm/Kconfig"
 
@@ -131,5 +125,11 @@ source "drivers/staging/telephony/Kconfig"
 source "drivers/staging/ramster/Kconfig"
 
 source "drivers/staging/ozwpan/Kconfig"
+
+source "drivers/staging/ccg/Kconfig"
+
+source "drivers/staging/ipack/Kconfig"
+
+source "drivers/staging/gdm72xx/Kconfig"
 
 endif # STAGING

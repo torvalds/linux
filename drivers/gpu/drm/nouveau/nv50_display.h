@@ -33,6 +33,7 @@
 #include "nouveau_dma.h"
 #include "nouveau_reg.h"
 #include "nouveau_crtc.h"
+#include "nouveau_software.h"
 #include "nv50_evo.h"
 
 struct nv50_display_crtc {

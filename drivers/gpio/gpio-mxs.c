@@ -25,23 +25,25 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/basic_mmio_gpio.h>
 #include <linux/module.h>
-#include <mach/mxs.h>
 
 #define MXS_SET		0x4
 #define MXS_CLR		0x8
 
-#define PINCTRL_DOUT(n)		((cpu_is_mx23() ? 0x0500 : 0x0700) + (n) * 0x10)
-#define PINCTRL_DIN(n)		((cpu_is_mx23() ? 0x0600 : 0x0900) + (n) * 0x10)
-#define PINCTRL_DOE(n)		((cpu_is_mx23() ? 0x0700 : 0x0b00) + (n) * 0x10)
-#define PINCTRL_PIN2IRQ(n)	((cpu_is_mx23() ? 0x0800 : 0x1000) + (n) * 0x10)
-#define PINCTRL_IRQEN(n)	((cpu_is_mx23() ? 0x0900 : 0x1100) + (n) * 0x10)
-#define PINCTRL_IRQLEV(n)	((cpu_is_mx23() ? 0x0a00 : 0x1200) + (n) * 0x10)
-#define PINCTRL_IRQPOL(n)	((cpu_is_mx23() ? 0x0b00 : 0x1300) + (n) * 0x10)
-#define PINCTRL_IRQSTAT(n)	((cpu_is_mx23() ? 0x0c00 : 0x1400) + (n) * 0x10)
+#define PINCTRL_DOUT(p)		((is_imx23_gpio(p) ? 0x0500 : 0x0700) + (p->id) * 0x10)
+#define PINCTRL_DIN(p)		((is_imx23_gpio(p) ? 0x0600 : 0x0900) + (p->id) * 0x10)
+#define PINCTRL_DOE(p)		((is_imx23_gpio(p) ? 0x0700 : 0x0b00) + (p->id) * 0x10)
+#define PINCTRL_PIN2IRQ(p)	((is_imx23_gpio(p) ? 0x0800 : 0x1000) + (p->id) * 0x10)
+#define PINCTRL_IRQEN(p)	((is_imx23_gpio(p) ? 0x0900 : 0x1100) + (p->id) * 0x10)
+#define PINCTRL_IRQLEV(p)	((is_imx23_gpio(p) ? 0x0a00 : 0x1200) + (p->id) * 0x10)
+#define PINCTRL_IRQPOL(p)	((is_imx23_gpio(p) ? 0x0b00 : 0x1300) + (p->id) * 0x10)
+#define PINCTRL_IRQSTAT(p)	((is_imx23_gpio(p) ? 0x0c00 : 0x1400) + (p->id) * 0x10)
 
 #define GPIO_INT_FALL_EDGE	0x0
 #define GPIO_INT_LOW_LEV	0x1
@@ -52,13 +54,29 @@
 
 #define irq_to_gpio(irq)	((irq) - MXS_GPIO_IRQ_START)
 
+enum mxs_gpio_id {
+	IMX23_GPIO,
+	IMX28_GPIO,
+};
+
 struct mxs_gpio_port {
 	void __iomem *base;
 	int id;
 	int irq;
 	int virtual_irq_start;
 	struct bgpio_chip bgc;
+	enum mxs_gpio_id devid;
 };
+
+static inline int is_imx23_gpio(struct mxs_gpio_port *port)
+{
+	return port->devid == IMX23_GPIO;
+}
+
+static inline int is_imx28_gpio(struct mxs_gpio_port *port)
+{
+	return port->devid == IMX28_GPIO;
+}
 
 /* Note: This driver assumes 32 GPIOs are handled in one register */
 
@@ -89,21 +107,21 @@ static int mxs_gpio_set_irq_type(struct irq_data *d, unsigned int type)
 	}
 
 	/* set level or edge */
-	pin_addr = port->base + PINCTRL_IRQLEV(port->id);
+	pin_addr = port->base + PINCTRL_IRQLEV(port);
 	if (edge & GPIO_INT_LEV_MASK)
 		writel(pin_mask, pin_addr + MXS_SET);
 	else
 		writel(pin_mask, pin_addr + MXS_CLR);
 
 	/* set polarity */
-	pin_addr = port->base + PINCTRL_IRQPOL(port->id);
+	pin_addr = port->base + PINCTRL_IRQPOL(port);
 	if (edge & GPIO_INT_POL_MASK)
 		writel(pin_mask, pin_addr + MXS_SET);
 	else
 		writel(pin_mask, pin_addr + MXS_CLR);
 
 	writel(1 << (gpio & 0x1f),
-	       port->base + PINCTRL_IRQSTAT(port->id) + MXS_CLR);
+	       port->base + PINCTRL_IRQSTAT(port) + MXS_CLR);
 
 	return 0;
 }
@@ -117,8 +135,8 @@ static void mxs_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
 
-	irq_stat = readl(port->base + PINCTRL_IRQSTAT(port->id)) &
-			readl(port->base + PINCTRL_IRQEN(port->id));
+	irq_stat = readl(port->base + PINCTRL_IRQSTAT(port)) &
+			readl(port->base + PINCTRL_IRQEN(port));
 
 	while (irq_stat != 0) {
 		int irqoffset = fls(irq_stat) - 1;
@@ -164,8 +182,8 @@ static void __init mxs_gpio_init_gc(struct mxs_gpio_port *port)
 	ct->chip.irq_unmask = irq_gc_mask_set_bit;
 	ct->chip.irq_set_type = mxs_gpio_set_irq_type;
 	ct->chip.irq_set_wake = mxs_gpio_set_wake_irq;
-	ct->regs.ack = PINCTRL_IRQSTAT(port->id) + MXS_CLR;
-	ct->regs.mask = PINCTRL_IRQEN(port->id);
+	ct->regs.ack = PINCTRL_IRQSTAT(port) + MXS_CLR;
+	ct->regs.mask = PINCTRL_IRQEN(port);
 
 	irq_setup_generic_chip(gc, IRQ_MSK(32), 0, IRQ_NOREQUEST, 0);
 }
@@ -179,60 +197,83 @@ static int mxs_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 	return port->virtual_irq_start + offset;
 }
 
+static struct platform_device_id mxs_gpio_ids[] = {
+	{
+		.name = "imx23-gpio",
+		.driver_data = IMX23_GPIO,
+	}, {
+		.name = "imx28-gpio",
+		.driver_data = IMX28_GPIO,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(platform, mxs_gpio_ids);
+
+static const struct of_device_id mxs_gpio_dt_ids[] = {
+	{ .compatible = "fsl,imx23-gpio", .data = (void *) IMX23_GPIO, },
+	{ .compatible = "fsl,imx28-gpio", .data = (void *) IMX28_GPIO, },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mxs_gpio_dt_ids);
+
 static int __devinit mxs_gpio_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id =
+			of_match_device(mxs_gpio_dt_ids, &pdev->dev);
+	struct device_node *np = pdev->dev.of_node;
+	struct device_node *parent;
 	static void __iomem *base;
 	struct mxs_gpio_port *port;
 	struct resource *iores = NULL;
 	int err;
 
-	port = kzalloc(sizeof(struct mxs_gpio_port), GFP_KERNEL);
+	port = devm_kzalloc(&pdev->dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
 
-	port->id = pdev->id;
+	if (np) {
+		port->id = of_alias_get_id(np, "gpio");
+		if (port->id < 0)
+			return port->id;
+		port->devid = (enum mxs_gpio_id) of_id->data;
+	} else {
+		port->id = pdev->id;
+		port->devid = pdev->id_entry->driver_data;
+	}
 	port->virtual_irq_start = MXS_GPIO_IRQ_START + port->id * 32;
+
+	port->irq = platform_get_irq(pdev, 0);
+	if (port->irq < 0)
+		return port->irq;
 
 	/*
 	 * map memory region only once, as all the gpio ports
 	 * share the same one
 	 */
 	if (!base) {
-		iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!iores) {
-			err = -ENODEV;
-			goto out_kfree;
+		if (np) {
+			parent = of_get_parent(np);
+			base = of_iomap(parent, 0);
+			of_node_put(parent);
+		} else {
+			iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+			base = devm_request_and_ioremap(&pdev->dev, iores);
 		}
-
-		if (!request_mem_region(iores->start, resource_size(iores),
-					pdev->name)) {
-			err = -EBUSY;
-			goto out_kfree;
-		}
-
-		base = ioremap(iores->start, resource_size(iores));
-		if (!base) {
-			err = -ENOMEM;
-			goto out_release_mem;
-		}
+		if (!base)
+			return -EADDRNOTAVAIL;
 	}
 	port->base = base;
-
-	port->irq = platform_get_irq(pdev, 0);
-	if (port->irq < 0) {
-		err = -EINVAL;
-		goto out_iounmap;
-	}
 
 	/*
 	 * select the pin interrupt functionality but initially
 	 * disable the interrupts
 	 */
-	writel(~0U, port->base + PINCTRL_PIN2IRQ(port->id));
-	writel(0, port->base + PINCTRL_IRQEN(port->id));
+	writel(~0U, port->base + PINCTRL_PIN2IRQ(port));
+	writel(0, port->base + PINCTRL_IRQEN(port));
 
 	/* clear address has to be used to clear IRQSTAT bits */
-	writel(~0U, port->base + PINCTRL_IRQSTAT(port->id) + MXS_CLR);
+	writel(~0U, port->base + PINCTRL_IRQSTAT(port) + MXS_CLR);
 
 	/* gpio-mxs can be a generic irq chip */
 	mxs_gpio_init_gc(port);
@@ -242,41 +283,32 @@ static int __devinit mxs_gpio_probe(struct platform_device *pdev)
 	irq_set_handler_data(port->irq, port);
 
 	err = bgpio_init(&port->bgc, &pdev->dev, 4,
-			 port->base + PINCTRL_DIN(port->id),
-			 port->base + PINCTRL_DOUT(port->id), NULL,
-			 port->base + PINCTRL_DOE(port->id), NULL, false);
+			 port->base + PINCTRL_DIN(port),
+			 port->base + PINCTRL_DOUT(port), NULL,
+			 port->base + PINCTRL_DOE(port), NULL, 0);
 	if (err)
-		goto out_iounmap;
+		return err;
 
 	port->bgc.gc.to_irq = mxs_gpio_to_irq;
 	port->bgc.gc.base = port->id * 32;
 
 	err = gpiochip_add(&port->bgc.gc);
-	if (err)
-		goto out_bgpio_remove;
+	if (err) {
+		bgpio_remove(&port->bgc);
+		return err;
+	}
 
 	return 0;
-
-out_bgpio_remove:
-	bgpio_remove(&port->bgc);
-out_iounmap:
-	if (iores)
-		iounmap(port->base);
-out_release_mem:
-	if (iores)
-		release_mem_region(iores->start, resource_size(iores));
-out_kfree:
-	kfree(port);
-	dev_info(&pdev->dev, "%s failed with errno %d\n", __func__, err);
-	return err;
 }
 
 static struct platform_driver mxs_gpio_driver = {
 	.driver		= {
 		.name	= "gpio-mxs",
 		.owner	= THIS_MODULE,
+		.of_match_table = mxs_gpio_dt_ids,
 	},
 	.probe		= mxs_gpio_probe,
+	.id_table	= mxs_gpio_ids,
 };
 
 static int __init mxs_gpio_init(void)

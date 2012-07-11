@@ -5,6 +5,7 @@
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
 #include "qla_def.h"
+#include "qla_target.h"
 
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -309,6 +310,28 @@ qla81xx_idc_event(scsi_qla_host_t *vha, uint16_t aen, uint16_t descr)
 		    "IDC failed to post ACK.\n");
 }
 
+#define LS_UNKNOWN	2
+char *
+qla2x00_get_link_speed_str(struct qla_hw_data *ha)
+{
+	static char *link_speeds[] = {"1", "2", "?", "4", "8", "16", "10"};
+	char *link_speed;
+	int fw_speed = ha->link_data_rate;
+
+	if (IS_QLA2100(ha) || IS_QLA2200(ha))
+		link_speed = link_speeds[0];
+	else if (fw_speed == 0x13)
+		link_speed = link_speeds[6];
+	else {
+		link_speed = link_speeds[LS_UNKNOWN];
+		if (fw_speed < 6)
+			link_speed =
+			    link_speeds[fw_speed];
+	}
+
+	return link_speed;
+}
+
 /**
  * qla2x00_async_event() - Process aynchronous events.
  * @ha: SCSI driver HA context
@@ -317,9 +340,6 @@ qla81xx_idc_event(scsi_qla_host_t *vha, uint16_t aen, uint16_t descr)
 void
 qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 {
-#define LS_UNKNOWN	2
-	static char *link_speeds[] = { "1", "2", "?", "4", "8", "16", "10" };
-	char		*link_speed;
 	uint16_t	handle_cnt;
 	uint16_t	cnt, mbx;
 	uint32_t	handles[5];
@@ -454,8 +474,8 @@ skip_rio:
 	case MBA_WAKEUP_THRES:		/* Request Queue Wake-up */
 		ql_dbg(ql_dbg_async, vha, 0x5008,
 		    "Asynchronous WAKEUP_THRES.\n");
-		break;
 
+		break;
 	case MBA_LIP_OCCURRED:		/* Loop Initialization Procedure */
 		ql_dbg(ql_dbg_async, vha, 0x5009,
 		    "LIP occurred (%x).\n", mb[1]);
@@ -479,20 +499,14 @@ skip_rio:
 		break;
 
 	case MBA_LOOP_UP:		/* Loop Up Event */
-		if (IS_QLA2100(ha) || IS_QLA2200(ha)) {
-			link_speed = link_speeds[0];
+		if (IS_QLA2100(ha) || IS_QLA2200(ha))
 			ha->link_data_rate = PORT_SPEED_1GB;
-		} else {
-			link_speed = link_speeds[LS_UNKNOWN];
-			if (mb[1] < 6)
-				link_speed = link_speeds[mb[1]];
-			else if (mb[1] == 0x13)
-				link_speed = link_speeds[6];
+		else
 			ha->link_data_rate = mb[1];
-		}
 
 		ql_dbg(ql_dbg_async, vha, 0x500a,
-		    "LOOP UP detected (%s Gbps).\n", link_speed);
+		    "LOOP UP detected (%s Gbps).\n",
+		    qla2x00_get_link_speed_str(ha));
 
 		vha->flags.management_server_logged_in = 0;
 		qla2x00_post_aen_work(vha, FCH_EVT_LINKUP, ha->link_data_rate);
@@ -638,6 +652,8 @@ skip_rio:
 			ql_dbg(ql_dbg_async, vha, 0x5010,
 			    "Port unavailable %04x %04x %04x.\n",
 			    mb[1], mb[2], mb[3]);
+			ql_log(ql_log_warn, vha, 0x505e,
+			    "Link is offline.\n");
 
 			if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
 				atomic_set(&vha->loop_state, LOOP_DOWN);
@@ -670,12 +686,17 @@ skip_rio:
 			ql_dbg(ql_dbg_async, vha, 0x5011,
 			    "Asynchronous PORT UPDATE ignored %04x/%04x/%04x.\n",
 			    mb[1], mb[2], mb[3]);
+
+			qlt_async_event(mb[0], vha, mb);
 			break;
 		}
 
 		ql_dbg(ql_dbg_async, vha, 0x5012,
 		    "Port database changed %04x %04x %04x.\n",
 		    mb[1], mb[2], mb[3]);
+		ql_log(ql_log_warn, vha, 0x505f,
+		    "Link is operational (%s Gbps).\n",
+		    qla2x00_get_link_speed_str(ha));
 
 		/*
 		 * Mark all devices as missing so we will login again.
@@ -684,8 +705,13 @@ skip_rio:
 
 		qla2x00_mark_all_devices_lost(vha, 1);
 
+		if (vha->vp_idx == 0 && !qla_ini_mode_enabled(vha))
+			set_bit(SCR_PENDING, &vha->dpc_flags);
+
 		set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 		set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
+
+		qlt_async_event(mb[0], vha, mb);
 		break;
 
 	case MBA_RSCN_UPDATE:		/* State Change Registration */
@@ -806,6 +832,8 @@ skip_rio:
 		    "Unknown AEN:%04x %04x %04x %04x\n",
 		    mb[0], mb[1], mb[2], mb[3]);
 	}
+
+	qlt_async_event(mb[0], vha, mb);
 
 	if (!vha->vp_idx && ha->num_vhosts)
 		qla2x00_alert_all_vps(rsp, mb);
@@ -1171,6 +1199,9 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 				fcport->flags |= FCF_FCP2_DEVICE;
 		} else if (iop[0] & BIT_5)
 			fcport->port_type = FCT_INITIATOR;
+
+		if (iop[0] & BIT_7)
+			fcport->flags |= FCF_CONF_COMP_SUPPORTED;
 
 		if (logio->io_parameter[7] || logio->io_parameter[8])
 			fcport->supported_classes |= FC_COS_CLASS2;
@@ -1715,13 +1746,24 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 				res = DID_ERROR << 16;
 				break;
 			}
-		} else {
+		} else if (lscsi_status != SAM_STAT_TASK_SET_FULL &&
+			    lscsi_status != SAM_STAT_BUSY) {
+			/*
+			 * scsi status of task set and busy are considered to be
+			 * task not completed.
+			 */
+
 			ql_dbg(ql_dbg_io, fcport->vha, 0x301f,
 			    "Dropped frame(s) detected (0x%x "
-			    "of 0x%x bytes).\n", resid, scsi_bufflen(cp));
+			    "of 0x%x bytes).\n", resid,
+			    scsi_bufflen(cp));
 
 			res = DID_ERROR << 16 | lscsi_status;
 			goto check_scsi_status;
+		} else {
+			ql_dbg(ql_dbg_io, fcport->vha, 0x3030,
+			    "scsi_status: 0x%x, lscsi_status: 0x%x\n",
+			    scsi_status, lscsi_status);
 		}
 
 		res = DID_OK << 16 | lscsi_status;
@@ -1975,6 +2017,9 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 
 		if (pkt->entry_status != 0) {
 			qla2x00_error_entry(vha, rsp, (sts_entry_t *) pkt);
+
+			(void)qlt_24xx_process_response_error(vha, pkt);
+
 			((response_t *)pkt)->signature = RESPONSE_PROCESSED;
 			wmb();
 			continue;
@@ -2004,6 +2049,14 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 			break;
                 case ELS_IOCB_TYPE:
 			qla24xx_els_ct_entry(vha, rsp->req, pkt, ELS_IOCB_TYPE);
+			break;
+		case ABTS_RECV_24XX:
+			/* ensure that the ATIO queue is empty */
+			qlt_24xx_process_atio_queue(vha);
+		case ABTS_RESP_24XX:
+		case CTIO_TYPE7:
+		case NOTIFY_ACK_TYPE:
+			qlt_response_pkt_all_vps(vha, (response_t *)pkt);
 			break;
 		case MARKER_TYPE:
 			/* Do nothing in this case, this check is to prevent it
@@ -2157,6 +2210,13 @@ qla24xx_intr_handler(int irq, void *dev_id)
 		case 0x14:
 			qla24xx_process_response_queue(vha, rsp);
 			break;
+		case 0x1C: /* ATIO queue updated */
+			qlt_24xx_process_atio_queue(vha);
+			break;
+		case 0x1D: /* ATIO and response queues updated */
+			qlt_24xx_process_atio_queue(vha);
+			qla24xx_process_response_queue(vha, rsp);
+			break;
 		default:
 			ql_dbg(ql_dbg_async, vha, 0x504f,
 			    "Unrecognized interrupt type (%d).\n", stat * 0xff);
@@ -2299,6 +2359,13 @@ qla24xx_msix_default(int irq, void *dev_id)
 			break;
 		case 0x13:
 		case 0x14:
+			qla24xx_process_response_queue(vha, rsp);
+			break;
+		case 0x1C: /* ATIO queue updated */
+			qlt_24xx_process_atio_queue(vha);
+			break;
+		case 0x1D: /* ATIO and response queues updated */
+			qlt_24xx_process_atio_queue(vha);
 			qla24xx_process_response_queue(vha, rsp);
 			break;
 		default:
@@ -2553,7 +2620,15 @@ void
 qla2x00_free_irqs(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
-	struct rsp_que *rsp = ha->rsp_q_map[0];
+	struct rsp_que *rsp;
+
+	/*
+	 * We need to check that ha->rsp_q_map is valid in case we are called
+	 * from a probe failure context.
+	 */
+	if (!ha->rsp_q_map || !ha->rsp_q_map[0])
+		return;
+	rsp = ha->rsp_q_map[0];
 
 	if (ha->flags.msix_enabled)
 		qla24xx_disable_msix(ha);

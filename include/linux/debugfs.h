@@ -93,6 +93,10 @@ struct dentry *debugfs_create_regset32(const char *name, umode_t mode,
 int debugfs_print_regs32(struct seq_file *s, const struct debugfs_reg32 *regs,
 			 int nregs, void __iomem *base, char *prefix);
 
+struct dentry *debugfs_create_u32_array(const char *name, umode_t mode,
+					struct dentry *parent,
+					u32 *array, u32 elements);
+
 bool debugfs_initialized(void);
 
 #else
@@ -217,6 +221,13 @@ static inline struct dentry *debugfs_create_regset32(const char *name,
 static inline bool debugfs_initialized(void)
 {
 	return false;
+}
+
+static inline struct dentry *debugfs_create_u32_array(const char *name, umode_t mode,
+					struct dentry *parent,
+					u32 *array, u32 elements)
+{
+	return ERR_PTR(-ENODEV);
 }
 
 #endif

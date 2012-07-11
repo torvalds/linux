@@ -162,12 +162,10 @@ mrstFindBestPLL(struct drm_crtc *crtc, int target, int refclk,
 static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	int pipe = psb_intel_crtc->pipe;
-	int dpll_reg = (pipe == 0) ? MRST_DPLL_A : DPLL_B;
-	int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
-	int dspbase_reg = (pipe == 0) ? MRST_DSPABASE : DSPBBASE;
-	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
+	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	u32 temp;
 
 	if (!gma_power_begin(dev, true))
@@ -181,32 +179,32 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 		/* Enable the DPLL */
-		temp = REG_READ(dpll_reg);
+		temp = REG_READ(map->dpll);
 		if ((temp & DPLL_VCO_ENABLE) == 0) {
-			REG_WRITE(dpll_reg, temp);
-			REG_READ(dpll_reg);
+			REG_WRITE(map->dpll, temp);
+			REG_READ(map->dpll);
 			/* Wait for the clocks to stabilize. */
 			udelay(150);
-			REG_WRITE(dpll_reg, temp | DPLL_VCO_ENABLE);
-			REG_READ(dpll_reg);
+			REG_WRITE(map->dpll, temp | DPLL_VCO_ENABLE);
+			REG_READ(map->dpll);
 			/* Wait for the clocks to stabilize. */
 			udelay(150);
-			REG_WRITE(dpll_reg, temp | DPLL_VCO_ENABLE);
-			REG_READ(dpll_reg);
+			REG_WRITE(map->dpll, temp | DPLL_VCO_ENABLE);
+			REG_READ(map->dpll);
 			/* Wait for the clocks to stabilize. */
 			udelay(150);
 		}
 		/* Enable the pipe */
-		temp = REG_READ(pipeconf_reg);
+		temp = REG_READ(map->conf);
 		if ((temp & PIPEACONF_ENABLE) == 0)
-			REG_WRITE(pipeconf_reg, temp | PIPEACONF_ENABLE);
+			REG_WRITE(map->conf, temp | PIPEACONF_ENABLE);
 		/* Enable the plane */
-		temp = REG_READ(dspcntr_reg);
+		temp = REG_READ(map->cntr);
 		if ((temp & DISPLAY_PLANE_ENABLE) == 0) {
-			REG_WRITE(dspcntr_reg,
+			REG_WRITE(map->cntr,
 				  temp | DISPLAY_PLANE_ENABLE);
 			/* Flush the plane changes */
-			REG_WRITE(dspbase_reg, REG_READ(dspbase_reg));
+			REG_WRITE(map->base, REG_READ(map->base));
 		}
 
 		psb_intel_crtc_load_lut(crtc);
@@ -223,28 +221,28 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 		/* Disable the VGA plane that we never use */
 		REG_WRITE(VGACNTRL, VGA_DISP_DISABLE);
 		/* Disable display plane */
-		temp = REG_READ(dspcntr_reg);
+		temp = REG_READ(map->cntr);
 		if ((temp & DISPLAY_PLANE_ENABLE) != 0) {
-			REG_WRITE(dspcntr_reg,
+			REG_WRITE(map->cntr,
 				  temp & ~DISPLAY_PLANE_ENABLE);
 			/* Flush the plane changes */
-			REG_WRITE(dspbase_reg, REG_READ(dspbase_reg));
-			REG_READ(dspbase_reg);
+			REG_WRITE(map->base, REG_READ(map->base));
+			REG_READ(map->base);
 		}
 
 		/* Next, disable display pipes */
-		temp = REG_READ(pipeconf_reg);
+		temp = REG_READ(map->conf);
 		if ((temp & PIPEACONF_ENABLE) != 0) {
-			REG_WRITE(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
-			REG_READ(pipeconf_reg);
+			REG_WRITE(map->conf, temp & ~PIPEACONF_ENABLE);
+			REG_READ(map->conf);
 		}
 		/* Wait for for the pipe disable to take effect. */
 		psb_intel_wait_for_vblank(dev);
 
-		temp = REG_READ(dpll_reg);
+		temp = REG_READ(map->dpll);
 		if ((temp & DPLL_VCO_ENABLE) != 0) {
-			REG_WRITE(dpll_reg, temp & ~DPLL_VCO_ENABLE);
-			REG_READ(dpll_reg);
+			REG_WRITE(map->dpll, temp & ~DPLL_VCO_ENABLE);
+			REG_READ(map->dpll);
 		}
 
 		/* Wait for the clocks to turn off. */
@@ -292,17 +290,7 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	int pipe = psb_intel_crtc->pipe;
-	int fp_reg = (pipe == 0) ? MRST_FPA0 : FPB0;
-	int dpll_reg = (pipe == 0) ? MRST_DPLL_A : DPLL_B;
-	int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
-	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
-	int htot_reg = (pipe == 0) ? HTOTAL_A : HTOTAL_B;
-	int hblank_reg = (pipe == 0) ? HBLANK_A : HBLANK_B;
-	int hsync_reg = (pipe == 0) ? HSYNC_A : HSYNC_B;
-	int vtot_reg = (pipe == 0) ? VTOTAL_A : VTOTAL_B;
-	int vblank_reg = (pipe == 0) ? VBLANK_A : VBLANK_B;
-	int vsync_reg = (pipe == 0) ? VSYNC_A : VSYNC_B;
-	int pipesrc_reg = (pipe == 0) ? PIPEASRC : PIPEBSRC;
+	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	int refclk = 0;
 	struct oaktrail_clock_t clock;
 	u32 dpll = 0, fp = 0, dspcntr, pipeconf;
@@ -350,7 +338,7 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	if (oaktrail_panel_fitter_pipe(dev) == pipe)
 		REG_WRITE(PFIT_CONTROL, 0);
 
-	REG_WRITE(pipesrc_reg,
+	REG_WRITE(map->src,
 		  ((mode->crtc_hdisplay - 1) << 16) |
 		  (mode->crtc_vdisplay - 1));
 
@@ -369,34 +357,34 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 		offsetY = (adjusted_mode->crtc_vdisplay -
 			   mode->crtc_vdisplay) / 2;
 
-		REG_WRITE(htot_reg, (mode->crtc_hdisplay - 1) |
+		REG_WRITE(map->htotal, (mode->crtc_hdisplay - 1) |
 			((adjusted_mode->crtc_htotal - 1) << 16));
-		REG_WRITE(vtot_reg, (mode->crtc_vdisplay - 1) |
+		REG_WRITE(map->vtotal, (mode->crtc_vdisplay - 1) |
 			((adjusted_mode->crtc_vtotal - 1) << 16));
-		REG_WRITE(hblank_reg,
+		REG_WRITE(map->hblank,
 			(adjusted_mode->crtc_hblank_start - offsetX - 1) |
 			((adjusted_mode->crtc_hblank_end - offsetX - 1) << 16));
-		REG_WRITE(hsync_reg,
+		REG_WRITE(map->hsync,
 			(adjusted_mode->crtc_hsync_start - offsetX - 1) |
 			((adjusted_mode->crtc_hsync_end - offsetX - 1) << 16));
-		REG_WRITE(vblank_reg,
+		REG_WRITE(map->vblank,
 			(adjusted_mode->crtc_vblank_start - offsetY - 1) |
 			((adjusted_mode->crtc_vblank_end - offsetY - 1) << 16));
-		REG_WRITE(vsync_reg,
+		REG_WRITE(map->vsync,
 			(adjusted_mode->crtc_vsync_start - offsetY - 1) |
 			((adjusted_mode->crtc_vsync_end - offsetY - 1) << 16));
 	} else {
-		REG_WRITE(htot_reg, (adjusted_mode->crtc_hdisplay - 1) |
+		REG_WRITE(map->htotal, (adjusted_mode->crtc_hdisplay - 1) |
 			((adjusted_mode->crtc_htotal - 1) << 16));
-		REG_WRITE(vtot_reg, (adjusted_mode->crtc_vdisplay - 1) |
+		REG_WRITE(map->vtotal, (adjusted_mode->crtc_vdisplay - 1) |
 			((adjusted_mode->crtc_vtotal - 1) << 16));
-		REG_WRITE(hblank_reg, (adjusted_mode->crtc_hblank_start - 1) |
+		REG_WRITE(map->hblank, (adjusted_mode->crtc_hblank_start - 1) |
 			((adjusted_mode->crtc_hblank_end - 1) << 16));
-		REG_WRITE(hsync_reg, (adjusted_mode->crtc_hsync_start - 1) |
+		REG_WRITE(map->hsync, (adjusted_mode->crtc_hsync_start - 1) |
 			((adjusted_mode->crtc_hsync_end - 1) << 16));
-		REG_WRITE(vblank_reg, (adjusted_mode->crtc_vblank_start - 1) |
+		REG_WRITE(map->vblank, (adjusted_mode->crtc_vblank_start - 1) |
 			((adjusted_mode->crtc_vblank_end - 1) << 16));
-		REG_WRITE(vsync_reg, (adjusted_mode->crtc_vsync_start - 1) |
+		REG_WRITE(map->vsync, (adjusted_mode->crtc_vsync_start - 1) |
 			((adjusted_mode->crtc_vsync_end - 1) << 16));
 	}
 
@@ -408,10 +396,10 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	/* setup pipeconf */
-	pipeconf = REG_READ(pipeconf_reg);
+	pipeconf = REG_READ(map->conf);
 
 	/* Set up the display plane register */
-	dspcntr = REG_READ(dspcntr_reg);
+	dspcntr = REG_READ(map->cntr);
 	dspcntr |= DISPPLANE_GAMMA_ENABLE;
 
 	if (pipe == 0)
@@ -467,30 +455,30 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	mrstPrintPll("chosen", &clock);
 
 	if (dpll & DPLL_VCO_ENABLE) {
-		REG_WRITE(fp_reg, fp);
-		REG_WRITE(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
-		REG_READ(dpll_reg);
+		REG_WRITE(map->fp0, fp);
+		REG_WRITE(map->dpll, dpll & ~DPLL_VCO_ENABLE);
+		REG_READ(map->dpll);
 		/* Check the DPLLA lock bit PIPEACONF[29] */
 		udelay(150);
 	}
 
-	REG_WRITE(fp_reg, fp);
-	REG_WRITE(dpll_reg, dpll);
-	REG_READ(dpll_reg);
+	REG_WRITE(map->fp0, fp);
+	REG_WRITE(map->dpll, dpll);
+	REG_READ(map->dpll);
 	/* Wait for the clocks to stabilize. */
 	udelay(150);
 
 	/* write it again -- the BIOS does, after all */
-	REG_WRITE(dpll_reg, dpll);
-	REG_READ(dpll_reg);
+	REG_WRITE(map->dpll, dpll);
+	REG_READ(map->dpll);
 	/* Wait for the clocks to stabilize. */
 	udelay(150);
 
-	REG_WRITE(pipeconf_reg, pipeconf);
-	REG_READ(pipeconf_reg);
+	REG_WRITE(map->conf, pipeconf);
+	REG_READ(map->conf);
 	psb_intel_wait_for_vblank(dev);
 
-	REG_WRITE(dspcntr_reg, dspcntr);
+	REG_WRITE(map->cntr, dspcntr);
 	psb_intel_wait_for_vblank(dev);
 
 oaktrail_crtc_mode_set_exit:
@@ -509,15 +497,13 @@ static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
 			    int x, int y, struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	struct psb_framebuffer *psbfb = to_psb_fb(crtc->fb);
 	int pipe = psb_intel_crtc->pipe;
+	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	unsigned long start, offset;
 
-	int dspbase = (pipe == 0 ? DSPALINOFF : DSPBBASE);
-	int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
-	int dspstride = (pipe == 0) ? DSPASTRIDE : DSPBSTRIDE;
-	int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
 	u32 dspcntr;
 	int ret = 0;
 
@@ -533,9 +519,9 @@ static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
 	start = psbfb->gtt->offset;
 	offset = y * crtc->fb->pitches[0] + x * (crtc->fb->bits_per_pixel / 8);
 
-	REG_WRITE(dspstride, crtc->fb->pitches[0]);
+	REG_WRITE(map->stride, crtc->fb->pitches[0]);
 
-	dspcntr = REG_READ(dspcntr_reg);
+	dspcntr = REG_READ(map->cntr);
 	dspcntr &= ~DISPPLANE_PIXFORMAT_MASK;
 
 	switch (crtc->fb->bits_per_pixel) {
@@ -557,12 +543,12 @@ static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
 		ret = -EINVAL;
 		goto pipe_set_base_exit;
 	}
-	REG_WRITE(dspcntr_reg, dspcntr);
+	REG_WRITE(map->cntr, dspcntr);
 
-	REG_WRITE(dspbase, offset);
-	REG_READ(dspbase);
-	REG_WRITE(dspsurf, start);
-	REG_READ(dspsurf);
+	REG_WRITE(map->base, offset);
+	REG_READ(map->base);
+	REG_WRITE(map->surf, start);
+	REG_READ(map->surf);
 
 pipe_set_base_exit:
 	gma_power_end(dev);

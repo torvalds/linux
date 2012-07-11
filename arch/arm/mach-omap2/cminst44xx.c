@@ -32,6 +32,7 @@
 #include "prcm44xx.h"
 #include "prm44xx.h"
 #include "prcm_mpu44xx.h"
+#include "prcm-common.h"
 
 /*
  * CLKCTRL_IDLEST_*: possible values for the CM_*_CLKCTRL.IDLEST bitfield:
@@ -49,14 +50,21 @@
 #define CLKCTRL_IDLEST_INTERFACE_IDLE		0x2
 #define CLKCTRL_IDLEST_DISABLED			0x3
 
-static u32 _cm_bases[OMAP4_MAX_PRCM_PARTITIONS] = {
-	[OMAP4430_INVALID_PRCM_PARTITION]	= 0,
-	[OMAP4430_PRM_PARTITION]		= OMAP4430_PRM_BASE,
-	[OMAP4430_CM1_PARTITION]		= OMAP4430_CM1_BASE,
-	[OMAP4430_CM2_PARTITION]		= OMAP4430_CM2_BASE,
-	[OMAP4430_SCRM_PARTITION]		= 0,
-	[OMAP4430_PRCM_MPU_PARTITION]		= OMAP4430_PRCM_MPU_BASE,
-};
+static void __iomem *_cm_bases[OMAP4_MAX_PRCM_PARTITIONS];
+
+/**
+ * omap_cm_base_init - Populates the cm partitions
+ *
+ * Populates the base addresses of the _cm_bases
+ * array used for read/write of cm module registers.
+ */
+void omap_cm_base_init(void)
+{
+	_cm_bases[OMAP4430_PRM_PARTITION] = prm_base;
+	_cm_bases[OMAP4430_CM1_PARTITION] = cm_base;
+	_cm_bases[OMAP4430_CM2_PARTITION] = cm2_base;
+	_cm_bases[OMAP4430_PRCM_MPU_PARTITION] = prcm_mpu_base;
+}
 
 /* Private functions */
 
@@ -106,7 +114,7 @@ u32 omap4_cminst_read_inst_reg(u8 part, s16 inst, u16 idx)
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
 	       !_cm_bases[part]);
-	return __raw_readl(OMAP2_L4_IO_ADDRESS(_cm_bases[part] + inst + idx));
+	return __raw_readl(_cm_bases[part] + inst + idx);
 }
 
 /* Write into a register in a CM instance */
@@ -115,7 +123,7 @@ void omap4_cminst_write_inst_reg(u32 val, u8 part, s16 inst, u16 idx)
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
 	       !_cm_bases[part]);
-	__raw_writel(val, OMAP2_L4_IO_ADDRESS(_cm_bases[part] + inst + idx));
+	__raw_writel(val, _cm_bases[part] + inst + idx);
 }
 
 /* Read-modify-write a register in CM1. Caller must lock */
@@ -305,9 +313,9 @@ int omap4_cminst_wait_module_idle(u8 part, u16 inst, s16 cdoffs, u16 clkctrl_off
 
 	omap_test_timeout((_clkctrl_idlest(part, inst, cdoffs, clkctrl_offs) ==
 			   CLKCTRL_IDLEST_DISABLED),
-			  MAX_MODULE_READY_TIME, i);
+			  MAX_MODULE_DISABLE_TIME, i);
 
-	return (i < MAX_MODULE_READY_TIME) ? 0 : -EBUSY;
+	return (i < MAX_MODULE_DISABLE_TIME) ? 0 : -EBUSY;
 }
 
 /**

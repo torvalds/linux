@@ -456,7 +456,7 @@ struct m66592_ep {
 	unsigned		use_dma:1;
 	u16			pipenum;
 	u16			type;
-	const struct usb_endpoint_descriptor	*desc;
+
 	/* register address */
 	unsigned long		fifoaddr;
 	unsigned long		fifosel;

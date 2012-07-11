@@ -140,7 +140,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->max_mr_size	   = ~0ull;
 	props->page_size_cap	   = dev->dev->caps.page_size_cap;
 	props->max_qp		   = dev->dev->caps.num_qps - dev->dev->caps.reserved_qps;
-	props->max_qp_wr	   = dev->dev->caps.max_wqes;
+	props->max_qp_wr	   = dev->dev->caps.max_wqes - MLX4_IB_SQ_MAX_SPARE;
 	props->max_sge		   = min(dev->dev->caps.max_sq_sg,
 					 dev->dev->caps.max_rq_sg);
 	props->max_cq		   = dev->dev->caps.num_cqs - dev->dev->caps.reserved_cqs;
@@ -789,7 +789,7 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		list_del(&ge->list);
 		kfree(ge);
 	} else
-		printk(KERN_WARNING "could not find mgid entry\n");
+		pr_warn("could not find mgid entry\n");
 
 	mutex_unlock(&mqp->mutex);
 
@@ -902,7 +902,7 @@ static void update_gids_task(struct work_struct *work)
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox)) {
-		printk(KERN_WARNING "update gid table failed %ld\n", PTR_ERR(mailbox));
+		pr_warn("update gid table failed %ld\n", PTR_ERR(mailbox));
 		return;
 	}
 
@@ -913,7 +913,7 @@ static void update_gids_task(struct work_struct *work)
 		       1, MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
 		       MLX4_CMD_NATIVE);
 	if (err)
-		printk(KERN_WARNING "set port command failed\n");
+		pr_warn("set port command failed\n");
 	else {
 		memcpy(gw->dev->iboe.gid_table[gw->port - 1], gw->gids, sizeof gw->gids);
 		event.device = &gw->dev->ib_dev;
@@ -1076,18 +1076,93 @@ static int mlx4_ib_netdev_event(struct notifier_block *this, unsigned long event
 	return NOTIFY_DONE;
 }
 
+static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
+{
+	char name[32];
+	int eq_per_port = 0;
+	int added_eqs = 0;
+	int total_eqs = 0;
+	int i, j, eq;
+
+	/* Legacy mode or comp_pool is not large enough */
+	if (dev->caps.comp_pool == 0 ||
+	    dev->caps.num_ports > dev->caps.comp_pool)
+		return;
+
+	eq_per_port = rounddown_pow_of_two(dev->caps.comp_pool/
+					dev->caps.num_ports);
+
+	/* Init eq table */
+	added_eqs = 0;
+	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
+		added_eqs += eq_per_port;
+
+	total_eqs = dev->caps.num_comp_vectors + added_eqs;
+
+	ibdev->eq_table = kzalloc(total_eqs * sizeof(int), GFP_KERNEL);
+	if (!ibdev->eq_table)
+		return;
+
+	ibdev->eq_added = added_eqs;
+
+	eq = 0;
+	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB) {
+		for (j = 0; j < eq_per_port; j++) {
+			sprintf(name, "mlx4-ib-%d-%d@%s",
+				i, j, dev->pdev->bus->name);
+			/* Set IRQ for specific name (per ring) */
+			if (mlx4_assign_eq(dev, name, &ibdev->eq_table[eq])) {
+				/* Use legacy (same as mlx4_en driver) */
+				pr_warn("Can't allocate EQ %d; reverting to legacy\n", eq);
+				ibdev->eq_table[eq] =
+					(eq % dev->caps.num_comp_vectors);
+			}
+			eq++;
+		}
+	}
+
+	/* Fill the reset of the vector with legacy EQ */
+	for (i = 0, eq = added_eqs; i < dev->caps.num_comp_vectors; i++)
+		ibdev->eq_table[eq++] = i;
+
+	/* Advertise the new number of EQs to clients */
+	ibdev->ib_dev.num_comp_vectors = total_eqs;
+}
+
+static void mlx4_ib_free_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
+{
+	int i;
+
+	/* no additional eqs were added */
+	if (!ibdev->eq_table)
+		return;
+
+	/* Reset the advertised EQ number */
+	ibdev->ib_dev.num_comp_vectors = dev->caps.num_comp_vectors;
+
+	/* Free only the added eqs */
+	for (i = 0; i < ibdev->eq_added; i++) {
+		/* Don't free legacy eqs if used */
+		if (ibdev->eq_table[i] <= dev->caps.num_comp_vectors)
+			continue;
+		mlx4_release_eq(dev, ibdev->eq_table[i]);
+	}
+
+	kfree(ibdev->eq_table);
+}
+
 static void *mlx4_ib_add(struct mlx4_dev *dev)
 {
 	struct mlx4_ib_dev *ibdev;
 	int num_ports = 0;
-	int i;
+	int i, j;
 	int err;
 	struct mlx4_ib_iboe *iboe;
 
-	printk_once(KERN_INFO "%s", mlx4_ib_version);
+	pr_info_once("%s", mlx4_ib_version);
 
 	if (mlx4_is_mfunc(dev)) {
-		printk(KERN_WARNING "IB not yet supported in SRIOV\n");
+		pr_warn("IB not yet supported in SRIOV\n");
 		return NULL;
 	}
 
@@ -1210,6 +1285,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			(1ull << IB_USER_VERBS_CMD_CLOSE_XRCD);
 	}
 
+	mlx4_ib_alloc_eqs(dev, ibdev);
+
 	spin_lock_init(&iboe->lock);
 
 	if (init_node_data(ibdev))
@@ -1241,9 +1318,9 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			goto err_reg;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(mlx4_class_attributes); ++i) {
+	for (j = 0; j < ARRAY_SIZE(mlx4_class_attributes); ++j) {
 		if (device_create_file(&ibdev->ib_dev.dev,
-				       mlx4_class_attributes[i]))
+				       mlx4_class_attributes[j]))
 			goto err_notif;
 	}
 
@@ -1253,7 +1330,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 err_notif:
 	if (unregister_netdevice_notifier(&ibdev->iboe.nb))
-		printk(KERN_WARNING "failure unregistering notifier\n");
+		pr_warn("failure unregistering notifier\n");
 	flush_workqueue(wq);
 
 err_reg:
@@ -1288,7 +1365,7 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 	ib_unregister_device(&ibdev->ib_dev);
 	if (ibdev->iboe.nb.notifier_call) {
 		if (unregister_netdevice_notifier(&ibdev->iboe.nb))
-			printk(KERN_WARNING "failure unregistering notifier\n");
+			pr_warn("failure unregistering notifier\n");
 		ibdev->iboe.nb.notifier_call = NULL;
 	}
 	iounmap(ibdev->uar_map);
@@ -1297,6 +1374,8 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 			mlx4_counter_free(ibdev->dev, ibdev->counters[p]);
 	mlx4_foreach_port(p, dev, MLX4_PORT_TYPE_IB)
 		mlx4_CLOSE_PORT(dev, p);
+
+	mlx4_ib_free_eqs(dev, ibdev);
 
 	mlx4_uar_free(dev, &ibdev->priv_uar);
 	mlx4_pd_free(dev, ibdev->priv_pdn);

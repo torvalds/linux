@@ -767,8 +767,13 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *q,
 static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 {
 	wmb();            /* write descriptors before telling HW */
-	t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
-		     QID(q->cntxt_id) | PIDX(n));
+	spin_lock(&q->db_lock);
+	if (!q->db_disabled) {
+		t4_write_reg(adap, MYPF_REG(A_SGE_PF_KDOORBELL),
+			     V_QID(q->cntxt_id) | V_PIDX(n));
+	}
+	q->db_pidx = q->pidx;
+	spin_unlock(&q->db_lock);
 }
 
 /**
@@ -2081,6 +2086,7 @@ static void init_txq(struct adapter *adap, struct sge_txq *q, unsigned int id)
 	q->stops = q->restarts = 0;
 	q->stat = (void *)&q->desc[q->size];
 	q->cntxt_id = id;
+	spin_lock_init(&q->db_lock);
 	adap->sge.egr_map[id - adap->sge.egr_start] = q;
 }
 
@@ -2414,6 +2420,18 @@ void t4_sge_init(struct adapter *adap)
 			 INGPADBOUNDARY(fl_align_log - 5) | PKTSHIFT(2) |
 			 RXPKTCPLMODE |
 			 (STAT_LEN == 128 ? EGRSTATUSPAGESIZE : 0));
+
+	/*
+	 * Set up to drop DOORBELL writes when the DOORBELL FIFO overflows
+	 * and generate an interrupt when this occurs so we can recover.
+	 */
+	t4_set_reg_field(adap, A_SGE_DBFIFO_STATUS,
+			V_HP_INT_THRESH(M_HP_INT_THRESH) |
+			V_LP_INT_THRESH(M_LP_INT_THRESH),
+			V_HP_INT_THRESH(dbfifo_int_thresh) |
+			V_LP_INT_THRESH(dbfifo_int_thresh));
+	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, F_ENABLE_DROP,
+			F_ENABLE_DROP);
 
 	for (i = v = 0; i < 32; i += 4)
 		v |= (PAGE_SHIFT - 10) << i;

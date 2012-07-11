@@ -21,7 +21,6 @@
 #include <linux/bitops.h>
 #include <linux/perf_event.h>
 #include <linux/ratelimit.h>
-#include <linux/bitops.h>
 #include <asm/fpumacro.h>
 #include <asm/cacheflush.h>
 

@@ -66,9 +66,10 @@ enum port_type {
 
 /* driver compile-time configuration */
 #define	PM8001_MAX_CCB		 512	/* max ccbs supported */
+#define PM8001_MPI_QUEUE         1024   /* maximum mpi queue entries */
 #define	PM8001_MAX_INB_NUM	 1
 #define	PM8001_MAX_OUTB_NUM	 1
-#define	PM8001_CAN_QUEUE	 128	/* SCSI Queue depth */
+#define	PM8001_CAN_QUEUE	 508	/* SCSI Queue depth */
 
 /* unchangeable hardware details */
 #define	PM8001_MAX_PHYS		 8	/* max. possible phys */

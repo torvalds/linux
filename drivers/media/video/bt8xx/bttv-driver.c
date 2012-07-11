@@ -663,7 +663,7 @@ static const struct v4l2_queryctrl bttv_ctls[] = {
 		.minimum       = 0,
 		.maximum       = 65535,
 		.step          = 128,
-		.default_value = 32768,
+		.default_value = 27648,
 		.type          = V4L2_CTRL_TYPE_INTEGER,
 	},{
 		.id            = V4L2_CID_SATURATION,
@@ -1218,6 +1218,11 @@ audio_mux(struct bttv *btv, int input, int mute)
 		   For now this is sufficient. */
 		switch (input) {
 		case TVAUDIO_INPUT_RADIO:
+			/* Some boards need the msp do to the radio demod */
+			if (btv->radio_uses_msp_demodulator) {
+				in = MSP_INPUT_DEFAULT;
+				break;
+			}
 			in = MSP_INPUT(MSP_IN_SCART2, MSP_IN_TUNER1,
 				    MSP_DSP_IN_SCART, MSP_DSP_IN_SCART);
 			break;
@@ -4394,7 +4399,7 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 	if (!bttv_tvcards[btv->c.type].no_video) {
 		bttv_register_video(btv);
 		bt848_bright(btv,32768);
-		bt848_contrast(btv,32768);
+		bt848_contrast(btv, 27648);
 		bt848_hue(btv,32768);
 		bt848_sat(btv,32768);
 		audio_mute(btv, 1);

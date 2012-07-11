@@ -203,7 +203,7 @@ void __init ipi_init(void)
 		if (hv_get_ipi_pte(tile, KERNEL_PL, &pte) != 0)
 			panic("Failed to initialize IPI for cpu %d\n", cpu);
 
-		offset = hv_pte_get_pfn(pte) << PAGE_SHIFT;
+		offset = PFN_PHYS(pte_pfn(pte));
 		ipi_mappings[cpu] = ioremap_prot(offset, PAGE_SIZE, pte);
 	}
 #endif

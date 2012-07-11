@@ -59,7 +59,15 @@ struct clk {
 	unsigned int		nr_freqs;
 };
 
-#define CLK_ENABLE_ON_INIT	(1 << 0)
+#define CLK_ENABLE_ON_INIT	BIT(0)
+
+#define CLK_ENABLE_REG_32BIT	BIT(1)	/* default access size */
+#define CLK_ENABLE_REG_16BIT	BIT(2)
+#define CLK_ENABLE_REG_8BIT	BIT(3)
+
+#define CLK_ENABLE_REG_MASK	(CLK_ENABLE_REG_32BIT | \
+				 CLK_ENABLE_REG_16BIT | \
+				 CLK_ENABLE_REG_8BIT)
 
 /* drivers/sh/clk.c */
 unsigned long followparent_recalc(struct clk *);
@@ -102,7 +110,7 @@ long clk_round_parent(struct clk *clk, unsigned long target,
 		      unsigned long *best_freq, unsigned long *parent_freq,
 		      unsigned int div_min, unsigned int div_max);
 
-#define SH_CLK_MSTP32(_parent, _enable_reg, _enable_bit, _flags)	\
+#define SH_CLK_MSTP(_parent, _enable_reg, _enable_bit, _flags)		\
 {									\
 	.parent		= _parent,					\
 	.enable_reg	= (void __iomem *)_enable_reg,			\
@@ -110,7 +118,27 @@ long clk_round_parent(struct clk *clk, unsigned long target,
 	.flags		= _flags,					\
 }
 
-int sh_clk_mstp32_register(struct clk *clks, int nr);
+#define SH_CLK_MSTP32(_p, _r, _b, _f)					\
+	SH_CLK_MSTP(_p, _r, _b, _f | CLK_ENABLE_REG_32BIT)
+
+#define SH_CLK_MSTP16(_p, _r, _b, _f)					\
+	SH_CLK_MSTP(_p, _r, _b, _f | CLK_ENABLE_REG_16BIT)
+
+#define SH_CLK_MSTP8(_p, _r, _b, _f)					\
+	SH_CLK_MSTP(_p, _r, _b, _f | CLK_ENABLE_REG_8BIT)
+
+int sh_clk_mstp_register(struct clk *clks, int nr);
+
+/*
+ * MSTP registration never really cared about access size, despite the
+ * original enable/disable pairs assuming a 32-bit access. Clocks are
+ * responsible for defining their access sizes either directly or via the
+ * clock definition wrappers.
+ */
+static inline int __deprecated sh_clk_mstp32_register(struct clk *clks, int nr)
+{
+	return sh_clk_mstp_register(clks, nr);
+}
 
 #define SH_CLK_DIV4(_parent, _reg, _shift, _div_bitmap, _flags)	\
 {								\

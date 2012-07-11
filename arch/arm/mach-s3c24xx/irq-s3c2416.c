@@ -27,6 +27,7 @@
 #include <linux/ioport.h>
 #include <linux/device.h>
 #include <linux/io.h>
+#include <linux/syscore_ops.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
@@ -192,6 +193,43 @@ static struct irq_chip s3c2416_irq_uart3 = {
 	.irq_ack	= s3c2416_irq_uart3_ack,
 };
 
+/* second interrupt register */
+
+static inline void s3c2416_irq_ack_second(struct irq_data *data)
+{
+	unsigned long bitval = 1UL << (data->irq - IRQ_S3C2416_2D);
+
+	__raw_writel(bitval, S3C2416_SRCPND2);
+	__raw_writel(bitval, S3C2416_INTPND2);
+}
+
+static void s3c2416_irq_mask_second(struct irq_data *data)
+{
+	unsigned long bitval = 1UL << (data->irq - IRQ_S3C2416_2D);
+	unsigned long mask;
+
+	mask = __raw_readl(S3C2416_INTMSK2);
+	mask |= bitval;
+	__raw_writel(mask, S3C2416_INTMSK2);
+}
+
+static void s3c2416_irq_unmask_second(struct irq_data *data)
+{
+	unsigned long bitval = 1UL << (data->irq - IRQ_S3C2416_2D);
+	unsigned long mask;
+
+	mask = __raw_readl(S3C2416_INTMSK2);
+	mask &= ~bitval;
+	__raw_writel(mask, S3C2416_INTMSK2);
+}
+
+struct irq_chip s3c2416_irq_second = {
+	.irq_ack	= s3c2416_irq_ack_second,
+	.irq_mask	= s3c2416_irq_mask_second,
+	.irq_unmask	= s3c2416_irq_unmask_second,
+};
+
+
 /* IRQ initialisation code */
 
 static int __init s3c2416_add_sub(unsigned int base,
@@ -213,6 +251,42 @@ static int __init s3c2416_add_sub(unsigned int base,
 	return 0;
 }
 
+static void __init s3c2416_irq_add_second(void)
+{
+	unsigned long pend;
+	unsigned long last;
+	int irqno;
+	int i;
+
+	/* first, clear all interrupts pending... */
+	last = 0;
+	for (i = 0; i < 4; i++) {
+		pend = __raw_readl(S3C2416_INTPND2);
+
+		if (pend == 0 || pend == last)
+			break;
+
+		__raw_writel(pend, S3C2416_SRCPND2);
+		__raw_writel(pend, S3C2416_INTPND2);
+		printk(KERN_INFO "irq: clearing pending status %08x\n",
+		       (int)pend);
+		last = pend;
+	}
+
+	for (irqno = IRQ_S3C2416_2D; irqno <= IRQ_S3C2416_I2S1; irqno++) {
+		switch (irqno) {
+		case IRQ_S3C2416_RESERVED2:
+		case IRQ_S3C2416_RESERVED3:
+			/* no IRQ here */
+			break;
+		default:
+			irq_set_chip_and_handler(irqno, &s3c2416_irq_second,
+						 handle_edge_irq);
+			set_irq_flags(irqno, IRQF_VALID);
+		}
+	}
+}
+
 static int __init s3c2416_irq_add(struct device *dev,
 				  struct subsys_interface *sif)
 {
@@ -232,6 +306,8 @@ static int __init s3c2416_irq_add(struct device *dev,
 			&s3c2416_irq_wdtac97,
 			IRQ_S3C2443_WDT, IRQ_S3C2443_AC97);
 
+	s3c2416_irq_add_second();
+
 	return 0;
 }
 
@@ -248,3 +324,25 @@ static int __init s3c2416_irq_init(void)
 
 arch_initcall(s3c2416_irq_init);
 
+#ifdef CONFIG_PM
+static struct sleep_save irq_save[] = {
+	SAVE_ITEM(S3C2416_INTMSK2),
+};
+
+int s3c2416_irq_suspend(void)
+{
+	s3c_pm_do_save(irq_save, ARRAY_SIZE(irq_save));
+
+	return 0;
+}
+
+void s3c2416_irq_resume(void)
+{
+	s3c_pm_do_restore(irq_save, ARRAY_SIZE(irq_save));
+}
+
+struct syscore_ops s3c2416_irq_syscore_ops = {
+	.suspend	= s3c2416_irq_suspend,
+	.resume		= s3c2416_irq_resume,
+};
+#endif

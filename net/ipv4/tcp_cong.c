@@ -280,19 +280,19 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
 /* RFC2861 Check whether we are limited by application or congestion window
  * This is the inverse of cwnd check in tcp_tso_should_defer
  */
-int tcp_is_cwnd_limited(const struct sock *sk, u32 in_flight)
+bool tcp_is_cwnd_limited(const struct sock *sk, u32 in_flight)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	u32 left;
 
 	if (in_flight >= tp->snd_cwnd)
-		return 1;
+		return true;
 
 	left = tp->snd_cwnd - in_flight;
 	if (sk_can_gso(sk) &&
 	    left * sysctl_tcp_tso_win_divisor < tp->snd_cwnd &&
 	    left * tp->mss_cache < sk->sk_gso_max_size)
-		return 1;
+		return true;
 	return left <= tcp_max_tso_deferred_mss(tp);
 }
 EXPORT_SYMBOL_GPL(tcp_is_cwnd_limited);

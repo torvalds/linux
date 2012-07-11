@@ -44,7 +44,6 @@ typedef __kernel_uid32_t __compat_gid32_t;
 typedef __kernel_mode_t compat_mode_t;
 typedef __kernel_dev_t compat_dev_t;
 typedef __kernel_loff_t compat_loff_t;
-typedef __kernel_nlink_t compat_nlink_t;
 typedef __kernel_ipc_pid_t compat_ipc_pid_t;
 typedef __kernel_daddr_t compat_daddr_t;
 typedef __kernel_fsid_t	compat_fsid_t;
@@ -241,9 +240,6 @@ long compat_sys_fallocate(int fd, int mode,
 			  u32 len_lo, u32 len_hi);
 long compat_sys_sched_rr_get_interval(compat_pid_t pid,
 				      struct compat_timespec __user *interval);
-
-/* Tilera Linux syscalls that don't have "compat" versions. */
-#define compat_sys_flush_cache sys_flush_cache
 
 /* These are the intvec_64.S trampolines. */
 long _compat_sys_execve(const char __user *path,

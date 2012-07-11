@@ -265,7 +265,7 @@ static void ark3116_set_termios(struct tty_struct *tty,
 	hcr = (cflag & CRTSCTS) ? 0x03 : 0x00;
 
 	/* calc baudrate */
-	dbg("%s - setting bps to %d", __func__, bps);
+	dev_dbg(&port->dev, "%s - setting bps to %d\n", __func__, bps);
 	eval = 0;
 	switch (bps) {
 	case 0:
@@ -292,8 +292,8 @@ static void ark3116_set_termios(struct tty_struct *tty,
 	/* keep old LCR_SBC bit */
 	lcr |= (priv->lcr & UART_LCR_SBC);
 
-	dbg("%s - setting hcr:0x%02x,lcr:0x%02x,quot:%d",
-	    __func__, hcr, lcr, quot);
+	dev_dbg(&port->dev, "%s - setting hcr:0x%02x,lcr:0x%02x,quot:%d\n",
+		__func__, hcr, lcr, quot);
 
 	/* handshake control */
 	if (priv->hcr != hcr) {
@@ -375,8 +375,9 @@ static int ark3116_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	result = usb_serial_generic_open(tty, port);
 	if (result) {
-		dbg("%s - usb_serial_generic_open failed: %d",
-		    __func__, result);
+		dev_dbg(&port->dev,
+			"%s - usb_serial_generic_open failed: %d\n",
+			__func__, result);
 		goto err_out;
 	}
 
@@ -622,24 +623,26 @@ static void ark3116_read_int_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d",
-		    __func__, status);
+		dev_dbg(&port->dev, "%s - urb shutting down with status: %d\n",
+			__func__, status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d",
-		    __func__, status);
+		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+			__func__, status);
 		break;
 	case 0: /* success */
 		/* discovered this by trail and error... */
 		if ((urb->actual_length == 4) && (data[0] == 0xe8)) {
 			const __u8 id = data[1]&UART_IIR_ID;
-			dbg("%s: iir=%02x", __func__, data[1]);
+			dev_dbg(&port->dev, "%s: iir=%02x\n", __func__, data[1]);
 			if (id == UART_IIR_MSI) {
-				dbg("%s: msr=%02x", __func__, data[3]);
+				dev_dbg(&port->dev, "%s: msr=%02x\n",
+					__func__, data[3]);
 				ark3116_update_msr(port, data[3]);
 				break;
 			} else if (id == UART_IIR_RLSI) {
-				dbg("%s: lsr=%02x", __func__, data[2]);
+				dev_dbg(&port->dev, "%s: lsr=%02x\n",
+					__func__, data[2]);
 				ark3116_update_lsr(port, data[2]);
 				break;
 			}
@@ -714,13 +717,6 @@ static void ark3116_process_read_urb(struct urb *urb)
 	tty_kref_put(tty);
 }
 
-static struct usb_driver ark3116_driver = {
-	.name =		"ark3116",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table,
-};
-
 static struct usb_serial_driver ark3116_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -747,7 +743,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&ark3116_device, NULL
 };
 
-module_usb_serial_driver(ark3116_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_LICENSE("GPL");
 

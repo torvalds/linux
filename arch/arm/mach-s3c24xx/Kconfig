@@ -518,6 +518,11 @@ config S3C2443_DMA
 	help
 	  Internal config node for S3C2443 DMA support
 
+config S3C2443_SETUP_SPI
+	bool
+	help
+	  Common setup code for SPI GPIO configurations
+
 endif	# CPU_S3C2443 || CPU_S3C2416
 
 if CPU_S3C2443

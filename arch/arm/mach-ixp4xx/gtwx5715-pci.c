@@ -67,10 +67,9 @@ static int __init gtwx5715_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 
 struct hw_pci gtwx5715_pci __initdata = {
 	.nr_controllers = 1,
+	.ops		= &ixp4xx_ops,
 	.preinit =        gtwx5715_pci_preinit,
-	.swizzle =        pci_std_swizzle,
 	.setup =          ixp4xx_setup,
-	.scan =           ixp4xx_scan_bus,
 	.map_irq =        gtwx5715_map_irq,
 };
 

@@ -44,12 +44,6 @@ static void __init csb637_init_early(void)
 {
 	/* Initialize processor: 3.6864 MHz crystal */
 	at91_initialize(3686400);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* make console=ttyS0 (ie, DBGU) the default */
-	at91_set_serial_console(0);
 }
 
 static struct macb_platform_data __initdata csb637_eth_data = {
@@ -118,6 +112,8 @@ static void __init csb637_board_init(void)
 	/* LED(s) */
 	at91_gpio_leds(csb_leds, ARRAY_SIZE(csb_leds));
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
 	at91_add_device_serial();
 	/* Ethernet */
 	at91_add_device_eth(&csb637_eth_data);

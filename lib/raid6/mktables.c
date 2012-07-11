@@ -81,6 +81,31 @@ int main(int argc, char *argv[])
 	printf("EXPORT_SYMBOL(raid6_gfmul);\n");
 	printf("#endif\n");
 
+	/* Compute vector multiplication table */
+	printf("\nconst u8  __attribute__((aligned(256)))\n"
+		"raid6_vgfmul[256][32] =\n"
+		"{\n");
+	for (i = 0; i < 256; i++) {
+		printf("\t{\n");
+		for (j = 0; j < 16; j += 8) {
+			printf("\t\t");
+			for (k = 0; k < 8; k++)
+				printf("0x%02x,%c", gfmul(i, j + k),
+				       (k == 7) ? '\n' : ' ');
+		}
+		for (j = 0; j < 16; j += 8) {
+			printf("\t\t");
+			for (k = 0; k < 8; k++)
+				printf("0x%02x,%c", gfmul(i, (j + k) << 4),
+				       (k == 7) ? '\n' : ' ');
+		}
+		printf("\t},\n");
+	}
+	printf("};\n");
+	printf("#ifdef __KERNEL__\n");
+	printf("EXPORT_SYMBOL(raid6_vgfmul);\n");
+	printf("#endif\n");
+
 	/* Compute power-of-2 table (exponent) */
 	v = 1;
 	printf("\nconst u8 __attribute__((aligned(256)))\n"

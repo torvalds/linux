@@ -34,6 +34,8 @@
 struct ceph_ioctl_layout {
 	__u64 stripe_unit, stripe_count, object_size;
 	__u64 data_pool;
+
+	/* obsolete.  new values ignored, always return -1 */
 	__s64 preferred_osd;
 };
 

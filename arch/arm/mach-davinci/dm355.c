@@ -424,7 +424,7 @@ static struct platform_device dm355_spi0_device = {
 };
 
 void __init dm355_init_spi0(unsigned chipselect_mask,
-		struct spi_board_info *info, unsigned len)
+		const struct spi_board_info *info, unsigned len)
 {
 	/* for now, assume we need MISO */
 	davinci_cfg_reg(DM355_SPI0_SDI);

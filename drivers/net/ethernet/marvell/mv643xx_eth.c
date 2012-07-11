@@ -57,6 +57,7 @@
 #include <linux/types.h>
 #include <linux/inet_lro.h>
 #include <linux/slab.h>
+#include <linux/clk.h>
 
 static char mv643xx_eth_driver_name[] = "mv643xx_eth";
 static char mv643xx_eth_driver_version[] = "1.4";
@@ -289,10 +290,10 @@ struct mv643xx_eth_shared_private {
 	/*
 	 * Hardware-specific parameters.
 	 */
-	unsigned int t_clk;
 	int extended_rx_coal_limit;
 	int tx_bw_control;
 	int tx_csum_limit;
+
 };
 
 #define TX_BW_CONTROL_ABSENT		0
@@ -431,6 +432,14 @@ struct mv643xx_eth_private {
 	int tx_desc_sram_size;
 	int txq_count;
 	struct tx_queue txq[8];
+
+	/*
+	 * Hardware-specific parameters.
+	 */
+#if defined(CONFIG_HAVE_CLK)
+	struct clk *clk;
+#endif
+	unsigned int t_clk;
 };
 
 
@@ -1010,7 +1019,7 @@ static void tx_set_rate(struct mv643xx_eth_private *mp, int rate, int burst)
 	int mtu;
 	int bucket_size;
 
-	token_rate = ((rate / 1000) * 64) / (mp->shared->t_clk / 1000);
+	token_rate = ((rate / 1000) * 64) / (mp->t_clk / 1000);
 	if (token_rate > 1023)
 		token_rate = 1023;
 
@@ -1042,7 +1051,7 @@ static void txq_set_rate(struct tx_queue *txq, int rate, int burst)
 	int token_rate;
 	int bucket_size;
 
-	token_rate = ((rate / 1000) * 64) / (mp->shared->t_clk / 1000);
+	token_rate = ((rate / 1000) * 64) / (mp->t_clk / 1000);
 	if (token_rate > 1023)
 		token_rate = 1023;
 
@@ -1309,7 +1318,7 @@ static unsigned int get_rx_coal(struct mv643xx_eth_private *mp)
 		temp = (val & 0x003fff00) >> 8;
 
 	temp *= 64000000;
-	do_div(temp, mp->shared->t_clk);
+	do_div(temp, mp->t_clk);
 
 	return (unsigned int)temp;
 }
@@ -1319,7 +1328,7 @@ static void set_rx_coal(struct mv643xx_eth_private *mp, unsigned int usec)
 	u64 temp;
 	u32 val;
 
-	temp = (u64)usec * mp->shared->t_clk;
+	temp = (u64)usec * mp->t_clk;
 	temp += 31999999;
 	do_div(temp, 64000000);
 
@@ -1345,7 +1354,7 @@ static unsigned int get_tx_coal(struct mv643xx_eth_private *mp)
 
 	temp = (rdlp(mp, TX_FIFO_URGENT_THRESHOLD) & 0x3fff0) >> 4;
 	temp *= 64000000;
-	do_div(temp, mp->shared->t_clk);
+	do_div(temp, mp->t_clk);
 
 	return (unsigned int)temp;
 }
@@ -1354,7 +1363,7 @@ static void set_tx_coal(struct mv643xx_eth_private *mp, unsigned int usec)
 {
 	u64 temp;
 
-	temp = (u64)usec * mp->shared->t_clk;
+	temp = (u64)usec * mp->t_clk;
 	temp += 31999999;
 	do_div(temp, 64000000);
 
@@ -1665,6 +1674,7 @@ static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
 	.get_strings		= mv643xx_eth_get_strings,
 	.get_ethtool_stats	= mv643xx_eth_get_ethtool_stats,
 	.get_sset_count		= mv643xx_eth_get_sset_count,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 
@@ -2662,10 +2672,6 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	if (dram)
 		mv643xx_eth_conf_mbus_windows(msp, dram);
 
-	/*
-	 * Detect hardware parameters.
-	 */
-	msp->t_clk = (pd != NULL && pd->t_clk != 0) ? pd->t_clk : 133000000;
 	msp->tx_csum_limit = (pd != NULL && pd->tx_csum_limit) ?
 					pd->tx_csum_limit : 9 * 1024;
 	infer_hw_params(msp);
@@ -2890,6 +2896,18 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	mp->dev = dev;
 
+	/*
+	 * Start with a default rate, and if there is a clock, allow
+	 * it to override the default.
+	 */
+	mp->t_clk = 133000000;
+#if defined(CONFIG_HAVE_CLK)
+	mp->clk = clk_get(&pdev->dev, (pdev->id ? "1" : "0"));
+	if (!IS_ERR(mp->clk)) {
+		clk_prepare_enable(mp->clk);
+		mp->t_clk = clk_get_rate(mp->clk);
+	}
+#endif
 	set_params(mp, pd);
 	netif_set_real_num_tx_queues(dev, mp->txq_count);
 	netif_set_real_num_rx_queues(dev, mp->rxq_count);
@@ -2978,6 +2996,14 @@ static int mv643xx_eth_remove(struct platform_device *pdev)
 	if (mp->phy != NULL)
 		phy_detach(mp->phy);
 	cancel_work_sync(&mp->tx_timeout_task);
+
+#if defined(CONFIG_HAVE_CLK)
+	if (!IS_ERR(mp->clk)) {
+		clk_disable_unprepare(mp->clk);
+		clk_put(mp->clk);
+	}
+#endif
+
 	free_netdev(mp->dev);
 
 	platform_set_drvdata(pdev, NULL);

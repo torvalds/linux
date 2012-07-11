@@ -131,10 +131,14 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 	stag_idx = (*stag) >> 8;
 
 	if ((!reset_tpt_entry) && (*stag == T4_STAG_UNSET)) {
-		stag_idx = c4iw_get_resource(&rdev->resource.tpt_fifo,
-					     &rdev->resource.tpt_fifo_lock);
+		stag_idx = c4iw_get_resource(&rdev->resource.tpt_table);
 		if (!stag_idx)
 			return -ENOMEM;
+		mutex_lock(&rdev->stats.lock);
+		rdev->stats.stag.cur += 32;
+		if (rdev->stats.stag.cur > rdev->stats.stag.max)
+			rdev->stats.stag.max = rdev->stats.stag.cur;
+		mutex_unlock(&rdev->stats.lock);
 		*stag = (stag_idx << 8) | (atomic_inc_return(&key) & 0xff);
 	}
 	PDBG("%s stag_state 0x%0x type 0x%0x pdid 0x%0x, stag_idx 0x%x\n",
@@ -165,9 +169,12 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 				(rdev->lldi.vr->stag.start >> 5),
 				sizeof(tpt), &tpt);
 
-	if (reset_tpt_entry)
-		c4iw_put_resource(&rdev->resource.tpt_fifo, stag_idx,
-				  &rdev->resource.tpt_fifo_lock);
+	if (reset_tpt_entry) {
+		c4iw_put_resource(&rdev->resource.tpt_table, stag_idx);
+		mutex_lock(&rdev->stats.lock);
+		rdev->stats.stag.cur -= 32;
+		mutex_unlock(&rdev->stats.lock);
+	}
 	return err;
 }
 
@@ -686,8 +693,8 @@ int c4iw_dealloc_mw(struct ib_mw *mw)
 	mhp = to_c4iw_mw(mw);
 	rhp = mhp->rhp;
 	mmid = (mw->rkey) >> 8;
-	deallocate_window(&rhp->rdev, mhp->attr.stag);
 	remove_handle(rhp, &rhp->mmidr, mmid);
+	deallocate_window(&rhp->rdev, mhp->attr.stag);
 	kfree(mhp);
 	PDBG("%s ib_mw %p mmid 0x%x ptr %p\n", __func__, mw, mmid, mhp);
 	return 0;
@@ -789,12 +796,12 @@ int c4iw_dereg_mr(struct ib_mr *ib_mr)
 	mhp = to_c4iw_mr(ib_mr);
 	rhp = mhp->rhp;
 	mmid = mhp->attr.stag >> 8;
+	remove_handle(rhp, &rhp->mmidr, mmid);
 	dereg_mem(&rhp->rdev, mhp->attr.stag, mhp->attr.pbl_size,
 		       mhp->attr.pbl_addr);
 	if (mhp->attr.pbl_size)
 		c4iw_pblpool_free(&mhp->rhp->rdev, mhp->attr.pbl_addr,
 				  mhp->attr.pbl_size << 3);
-	remove_handle(rhp, &rhp->mmidr, mmid);
 	if (mhp->kva)
 		kfree((void *) (unsigned long) mhp->kva);
 	if (mhp->umem)

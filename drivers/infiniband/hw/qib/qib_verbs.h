@@ -367,9 +367,10 @@ struct qib_rwq {
 
 struct qib_rq {
 	struct qib_rwq *wq;
-	spinlock_t lock; /* protect changes in this struct */
 	u32 size;               /* size of RWQE array */
 	u8 max_sge;
+	spinlock_t lock /* protect changes in this struct */
+		____cacheline_aligned_in_smp;
 };
 
 struct qib_srq {
@@ -412,31 +413,75 @@ struct qib_ack_entry {
  */
 struct qib_qp {
 	struct ib_qp ibqp;
-	struct qib_qp *next;            /* link list for QPN hash table */
-	struct qib_qp *timer_next;      /* link list for qib_ib_timer() */
-	struct list_head iowait;        /* link for wait PIO buf */
-	struct list_head rspwait;       /* link for waititing to respond */
+	/* read mostly fields above and below */
 	struct ib_ah_attr remote_ah_attr;
 	struct ib_ah_attr alt_ah_attr;
-	struct qib_ib_header s_hdr;     /* next packet header to send */
-	atomic_t refcount;
-	wait_queue_head_t wait;
-	wait_queue_head_t wait_dma;
-	struct timer_list s_timer;
-	struct work_struct s_work;
+	struct qib_qp *next;            /* link list for QPN hash table */
+	struct qib_swqe *s_wq;  /* send work queue */
 	struct qib_mmap_info *ip;
-	struct qib_sge_state *s_cur_sge;
-	struct qib_verbs_txreq *s_tx;
-	struct qib_mregion *s_rdma_mr;
-	struct qib_sge_state s_sge;     /* current send request data */
-	struct qib_ack_entry s_ack_queue[QIB_MAX_RDMA_ATOMIC + 1];
-	struct qib_sge_state s_ack_rdma_sge;
+	struct qib_ib_header *s_hdr;     /* next packet header to send */
+	unsigned long timeout_jiffies;  /* computed from timeout */
+
+	enum ib_mtu path_mtu;
+	u32 remote_qpn;
+	u32 pmtu;		/* decoded from path_mtu */
+	u32 qkey;               /* QKEY for this QP (for UD or RD) */
+	u32 s_size;             /* send work queue size */
+	u32 s_rnr_timeout;      /* number of milliseconds for RNR timeout */
+
+	u8 state;               /* QP state */
+	u8 qp_access_flags;
+	u8 alt_timeout;         /* Alternate path timeout for this QP */
+	u8 timeout;             /* Timeout for this QP */
+	u8 s_srate;
+	u8 s_mig_state;
+	u8 port_num;
+	u8 s_pkey_index;        /* PKEY index to use */
+	u8 s_alt_pkey_index;    /* Alternate path PKEY index to use */
+	u8 r_max_rd_atomic;     /* max number of RDMA read/atomic to receive */
+	u8 s_max_rd_atomic;     /* max number of RDMA read/atomic to send */
+	u8 s_retry_cnt;         /* number of times to retry */
+	u8 s_rnr_retry_cnt;
+	u8 r_min_rnr_timer;     /* retry timeout value for RNR NAKs */
+	u8 s_max_sge;           /* size of s_wq->sg_list */
+	u8 s_draining;
+
+	/* start of read/write fields */
+
+	atomic_t refcount ____cacheline_aligned_in_smp;
+	wait_queue_head_t wait;
+
+
+	struct qib_ack_entry s_ack_queue[QIB_MAX_RDMA_ATOMIC + 1]
+		____cacheline_aligned_in_smp;
 	struct qib_sge_state s_rdma_read_sge;
+
+	spinlock_t r_lock ____cacheline_aligned_in_smp;      /* used for APM */
+	unsigned long r_aflags;
+	u64 r_wr_id;            /* ID for current receive WQE */
+	u32 r_ack_psn;          /* PSN for next ACK or atomic ACK */
+	u32 r_len;              /* total length of r_sge */
+	u32 r_rcv_len;          /* receive data len processed */
+	u32 r_psn;              /* expected rcv packet sequence number */
+	u32 r_msn;              /* message sequence number */
+
+	u8 r_state;             /* opcode of last packet received */
+	u8 r_flags;
+	u8 r_head_ack_queue;    /* index into s_ack_queue[] */
+
+	struct list_head rspwait;       /* link for waititing to respond */
+
 	struct qib_sge_state r_sge;     /* current receive data */
-	spinlock_t r_lock;      /* used for APM */
-	spinlock_t s_lock;
-	atomic_t s_dma_busy;
+	struct qib_rq r_rq;             /* receive work queue */
+
+	spinlock_t s_lock ____cacheline_aligned_in_smp;
+	struct qib_sge_state *s_cur_sge;
 	u32 s_flags;
+	struct qib_verbs_txreq *s_tx;
+	struct qib_swqe *s_wqe;
+	struct qib_sge_state s_sge;     /* current send request data */
+	struct qib_mregion *s_rdma_mr;
+	atomic_t s_dma_busy;
 	u32 s_cur_size;         /* size of send packet in bytes */
 	u32 s_len;              /* total length of s_sge */
 	u32 s_rdma_read_len;    /* total length of s_rdma_read_sge */
@@ -447,48 +492,6 @@ struct qib_qp {
 	u32 s_psn;              /* current packet sequence number */
 	u32 s_ack_rdma_psn;     /* PSN for sending RDMA read responses */
 	u32 s_ack_psn;          /* PSN for acking sends and RDMA writes */
-	u32 s_rnr_timeout;      /* number of milliseconds for RNR timeout */
-	u32 r_ack_psn;          /* PSN for next ACK or atomic ACK */
-	u64 r_wr_id;            /* ID for current receive WQE */
-	unsigned long r_aflags;
-	u32 r_len;              /* total length of r_sge */
-	u32 r_rcv_len;          /* receive data len processed */
-	u32 r_psn;              /* expected rcv packet sequence number */
-	u32 r_msn;              /* message sequence number */
-	u16 s_hdrwords;         /* size of s_hdr in 32 bit words */
-	u16 s_rdma_ack_cnt;
-	u8 state;               /* QP state */
-	u8 s_state;             /* opcode of last packet sent */
-	u8 s_ack_state;         /* opcode of packet to ACK */
-	u8 s_nak_state;         /* non-zero if NAK is pending */
-	u8 r_state;             /* opcode of last packet received */
-	u8 r_nak_state;         /* non-zero if NAK is pending */
-	u8 r_min_rnr_timer;     /* retry timeout value for RNR NAKs */
-	u8 r_flags;
-	u8 r_max_rd_atomic;     /* max number of RDMA read/atomic to receive */
-	u8 r_head_ack_queue;    /* index into s_ack_queue[] */
-	u8 qp_access_flags;
-	u8 s_max_sge;           /* size of s_wq->sg_list */
-	u8 s_retry_cnt;         /* number of times to retry */
-	u8 s_rnr_retry_cnt;
-	u8 s_retry;             /* requester retry counter */
-	u8 s_rnr_retry;         /* requester RNR retry counter */
-	u8 s_pkey_index;        /* PKEY index to use */
-	u8 s_alt_pkey_index;    /* Alternate path PKEY index to use */
-	u8 s_max_rd_atomic;     /* max number of RDMA read/atomic to send */
-	u8 s_num_rd_atomic;     /* number of RDMA read/atomic pending */
-	u8 s_tail_ack_queue;    /* index into s_ack_queue[] */
-	u8 s_srate;
-	u8 s_draining;
-	u8 s_mig_state;
-	u8 timeout;             /* Timeout for this QP */
-	u8 alt_timeout;         /* Alternate path timeout for this QP */
-	u8 port_num;
-	enum ib_mtu path_mtu;
-	u32 pmtu;		/* decoded from path_mtu */
-	u32 remote_qpn;
-	u32 qkey;               /* QKEY for this QP (for UD or RD) */
-	u32 s_size;             /* send work queue size */
 	u32 s_head;             /* new entries added here */
 	u32 s_tail;             /* next entry to process */
 	u32 s_cur;              /* current work queue entry */
@@ -496,11 +499,27 @@ struct qib_qp {
 	u32 s_last;             /* last completed entry */
 	u32 s_ssn;              /* SSN of tail entry */
 	u32 s_lsn;              /* limit sequence number (credit) */
-	unsigned long timeout_jiffies;  /* computed from timeout */
-	struct qib_swqe *s_wq;  /* send work queue */
-	struct qib_swqe *s_wqe;
-	struct qib_rq r_rq;             /* receive work queue */
-	struct qib_sge r_sg_list[0];    /* verified SGEs */
+	u16 s_hdrwords;         /* size of s_hdr in 32 bit words */
+	u16 s_rdma_ack_cnt;
+	u8 s_state;             /* opcode of last packet sent */
+	u8 s_ack_state;         /* opcode of packet to ACK */
+	u8 s_nak_state;         /* non-zero if NAK is pending */
+	u8 r_nak_state;         /* non-zero if NAK is pending */
+	u8 s_retry;             /* requester retry counter */
+	u8 s_rnr_retry;         /* requester RNR retry counter */
+	u8 s_num_rd_atomic;     /* number of RDMA read/atomic pending */
+	u8 s_tail_ack_queue;    /* index into s_ack_queue[] */
+
+	struct qib_sge_state s_ack_rdma_sge;
+	struct timer_list s_timer;
+	struct list_head iowait;        /* link for wait PIO buf */
+
+	struct work_struct s_work;
+
+	wait_queue_head_t wait_dma;
+
+	struct qib_sge r_sg_list[0] /* verified SGEs */
+		____cacheline_aligned_in_smp;
 };
 
 /*

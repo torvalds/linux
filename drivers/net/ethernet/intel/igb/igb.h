@@ -35,8 +35,8 @@
 #include "e1000_82575.h"
 
 #include <linux/clocksource.h>
-#include <linux/timecompare.h>
 #include <linux/net_tstamp.h>
+#include <linux/ptp_clock_kernel.h>
 #include <linux/bitops.h>
 #include <linux/if_vlan.h>
 
@@ -65,10 +65,13 @@ struct igb_adapter;
 #define MAX_Q_VECTORS                      8
 
 /* Transmit and receive queues */
-#define IGB_MAX_RX_QUEUES                  (adapter->vfs_allocated_count ? 2 : \
-                                           (hw->mac.type > e1000_82575 ? 8 : 4))
+#define IGB_MAX_RX_QUEUES		((adapter->vfs_allocated_count ? 2 : \
+					(hw->mac.type > e1000_82575 ? 8 : 4)))
+#define IGB_MAX_RX_QUEUES_I210             4
+#define IGB_MAX_RX_QUEUES_I211             2
 #define IGB_MAX_TX_QUEUES                  16
-
+#define IGB_MAX_TX_QUEUES_I210             4
+#define IGB_MAX_TX_QUEUES_I211             2
 #define IGB_MAX_VF_MC_ENTRIES              30
 #define IGB_MAX_VF_FUNCTIONS               8
 #define IGB_MAX_VFTA_ENTRIES               128
@@ -328,9 +331,6 @@ struct igb_adapter {
 
 	/* OS defined structs */
 	struct pci_dev *pdev;
-	struct cyclecounter cycles;
-	struct timecounter clock;
-	struct timecompare compare;
 	struct hwtstamp_config hwtstamp_config;
 
 	spinlock_t stats64_lock;
@@ -364,6 +364,13 @@ struct igb_adapter {
 	u32 wvbr;
 	int node;
 	u32 *shadow_vfta;
+
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info caps;
+	struct delayed_work overflow_work;
+	spinlock_t tmreg_lock;
+	struct cyclecounter cc;
+	struct timecounter tc;
 };
 
 #define IGB_FLAG_HAS_MSI           (1 << 0)
@@ -378,7 +385,6 @@ struct igb_adapter {
 #define IGB_DMCTLX_DCFLUSH_DIS     0x80000000  /* Disable DMA Coal Flush */
 
 #define IGB_82576_TSYNC_SHIFT 19
-#define IGB_82580_TSYNC_SHIFT 24
 #define IGB_TS_HDR_LEN        16
 enum e1000_state_t {
 	__IGB_TESTING,
@@ -414,7 +420,15 @@ extern void igb_update_stats(struct igb_adapter *, struct rtnl_link_stats64 *);
 extern bool igb_has_link(struct igb_adapter *adapter);
 extern void igb_set_ethtool_ops(struct net_device *);
 extern void igb_power_up_link(struct igb_adapter *);
+#ifdef CONFIG_IGB_PTP
+extern void igb_ptp_init(struct igb_adapter *adapter);
+extern void igb_ptp_remove(struct igb_adapter *adapter);
 
+extern void igb_systim_to_hwtstamp(struct igb_adapter *adapter,
+				   struct skb_shared_hwtstamps *hwtstamps,
+				   u64 systim);
+
+#endif
 static inline s32 igb_reset_phy(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.reset)

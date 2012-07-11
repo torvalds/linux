@@ -397,15 +397,4 @@ static struct pci_driver kvaser_pci_driver = {
 	.remove = __devexit_p(kvaser_pci_remove_one),
 };
 
-static int __init kvaser_pci_init(void)
-{
-	return pci_register_driver(&kvaser_pci_driver);
-}
-
-static void __exit kvaser_pci_exit(void)
-{
-	pci_unregister_driver(&kvaser_pci_driver);
-}
-
-module_init(kvaser_pci_init);
-module_exit(kvaser_pci_exit);
+module_pci_driver(kvaser_pci_driver);

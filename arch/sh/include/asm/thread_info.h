@@ -10,7 +10,17 @@
  *  - Incorporating suggestions made by Linus Torvalds and Dave Miller
  */
 #ifdef __KERNEL__
+
 #include <asm/page.h>
+
+/*
+ * Page fault error code bits
+ */
+#define FAULT_CODE_WRITE	(1 << 0)	/* write access */
+#define FAULT_CODE_INITIAL	(1 << 1)	/* initial page write */
+#define FAULT_CODE_ITLB		(1 << 2)	/* ITLB miss */
+#define FAULT_CODE_PROT		(1 << 3)	/* protection fault */
+#define FAULT_CODE_USER		(1 << 4)	/* user-mode access */
 
 #ifndef __ASSEMBLY__
 #include <asm/processor.h>
@@ -88,29 +98,23 @@ static inline struct thread_info *current_thread_info(void)
 	return ti;
 }
 
-/* thread information allocation */
-#if THREAD_SHIFT >= PAGE_SHIFT
-
 #define THREAD_SIZE_ORDER	(THREAD_SHIFT - PAGE_SHIFT)
 
-#endif
-
-extern struct thread_info *alloc_thread_info_node(struct task_struct *tsk, int node);
-extern void free_thread_info(struct thread_info *ti);
 extern void arch_task_cache_init(void);
-#define arch_task_cache_init arch_task_cache_init
 extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
+extern void arch_release_task_struct(struct task_struct *tsk);
 extern void init_thread_xstate(void);
-
-#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
 
 #endif /* __ASSEMBLY__ */
 
 /*
- * thread information flags
- * - these are process state flags that various assembly files may need to access
- * - pending work-to-be-done flags are in LSW
- * - other flags in MSW
+ * Thread information flags
+ *
+ * - Limited to 24 bits, upper byte used for fault code encoding.
+ *
+ * - _TIF_ALLWORK_MASK and _TIF_WORK_MASK need to fit within 2 bytes, or
+ *   we blow the tst immediate size constraints and need to fix up
+ *   arch/sh/kernel/entry-common.S.
  */
 #define TIF_SYSCALL_TRACE	0	/* syscall trace active */
 #define TIF_SIGPENDING		1	/* signal pending */
@@ -132,12 +136,6 @@ extern void init_thread_xstate(void);
 #define _TIF_NOTIFY_RESUME	(1 << TIF_NOTIFY_RESUME)
 #define _TIF_SYSCALL_TRACEPOINT	(1 << TIF_SYSCALL_TRACEPOINT)
 #define _TIF_POLLING_NRFLAG	(1 << TIF_POLLING_NRFLAG)
-
-/*
- * _TIF_ALLWORK_MASK and _TIF_WORK_MASK need to fit within 2 bytes, or we
- * blow the tst immediate size constraints and need to fix up
- * arch/sh/kernel/entry-common.S.
- */
 
 /* work to do in syscall trace */
 #define _TIF_WORK_SYSCALL_MASK	(_TIF_SYSCALL_TRACE | _TIF_SINGLESTEP | \
@@ -165,12 +163,48 @@ extern void init_thread_xstate(void);
 #define TS_USEDFPU		0x0002	/* FPU used by this task this quantum */
 
 #ifndef __ASSEMBLY__
+
 #define HAVE_SET_RESTORE_SIGMASK	1
 static inline void set_restore_sigmask(void)
 {
 	struct thread_info *ti = current_thread_info();
 	ti->status |= TS_RESTORE_SIGMASK;
-	set_bit(TIF_SIGPENDING, (unsigned long *)&ti->flags);
+	WARN_ON(!test_bit(TIF_SIGPENDING, (unsigned long *)&ti->flags));
+}
+
+#define TI_FLAG_FAULT_CODE_SHIFT	24
+
+/*
+ * Additional thread flag encoding
+ */
+static inline void set_thread_fault_code(unsigned int val)
+{
+	struct thread_info *ti = current_thread_info();
+	ti->flags = (ti->flags & (~0 >> (32 - TI_FLAG_FAULT_CODE_SHIFT)))
+		| (val << TI_FLAG_FAULT_CODE_SHIFT);
+}
+
+static inline unsigned int get_thread_fault_code(void)
+{
+	struct thread_info *ti = current_thread_info();
+	return ti->flags >> TI_FLAG_FAULT_CODE_SHIFT;
+}
+
+static inline void clear_restore_sigmask(void)
+{
+	current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
+}
+static inline bool test_restore_sigmask(void)
+{
+	return current_thread_info()->status & TS_RESTORE_SIGMASK;
+}
+static inline bool test_and_clear_restore_sigmask(void)
+{
+	struct thread_info *ti = current_thread_info();
+	if (!(ti->status & TS_RESTORE_SIGMASK))
+		return false;
+	ti->status &= ~TS_RESTORE_SIGMASK;
+	return true;
 }
 #endif	/* !__ASSEMBLY__ */
 

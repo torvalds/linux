@@ -4,6 +4,8 @@
  * Copyright (C) 2009 Neil Horman <nhorman@tuxdriver.com>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/string.h>
@@ -22,6 +24,7 @@
 #include <linux/timer.h>
 #include <linux/bitops.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <net/genetlink.h>
 #include <net/netevent.h>
 
@@ -33,9 +36,6 @@
 #define TRACE_ON 1
 #define TRACE_OFF 0
 
-static void send_dm_alert(struct work_struct *unused);
-
-
 /*
  * Globals, our netlink socket pointer
  * and the work handle that will send up
@@ -45,11 +45,10 @@ static int trace_state = TRACE_OFF;
 static DEFINE_MUTEX(trace_state_mutex);
 
 struct per_cpu_dm_data {
-	struct work_struct dm_alert_work;
-	struct sk_buff __rcu *skb;
-	atomic_t dm_hit_count;
-	struct timer_list send_timer;
-	int cpu;
+	spinlock_t		lock;
+	struct sk_buff		*skb;
+	struct work_struct	dm_alert_work;
+	struct timer_list	send_timer;
 };
 
 struct dm_hw_stat_delta {
@@ -75,13 +74,13 @@ static int dm_delay = 1;
 static unsigned long dm_hw_check_delta = 2*HZ;
 static LIST_HEAD(hw_stats_list);
 
-static void reset_per_cpu_data(struct per_cpu_dm_data *data)
+static struct sk_buff *reset_per_cpu_data(struct per_cpu_dm_data *data)
 {
 	size_t al;
 	struct net_dm_alert_msg *msg;
 	struct nlattr *nla;
 	struct sk_buff *skb;
-	struct sk_buff *oskb = rcu_dereference_protected(data->skb, 1);
+	unsigned long flags;
 
 	al = sizeof(struct net_dm_alert_msg);
 	al += dm_hit_limit * sizeof(struct net_dm_drop_point);
@@ -96,65 +95,40 @@ static void reset_per_cpu_data(struct per_cpu_dm_data *data)
 				  sizeof(struct net_dm_alert_msg));
 		msg = nla_data(nla);
 		memset(msg, 0, al);
-	} else
-		schedule_work_on(data->cpu, &data->dm_alert_work);
-
-	/*
-	 * Don't need to lock this, since we are guaranteed to only
-	 * run this on a single cpu at a time.
-	 * Note also that we only update data->skb if the old and new skb
-	 * pointers don't match.  This ensures that we don't continually call
-	 * synchornize_rcu if we repeatedly fail to alloc a new netlink message.
-	 */
-	if (skb != oskb) {
-		rcu_assign_pointer(data->skb, skb);
-
-		synchronize_rcu();
-
-		atomic_set(&data->dm_hit_count, dm_hit_limit);
+	} else {
+		mod_timer(&data->send_timer, jiffies + HZ / 10);
 	}
 
+	spin_lock_irqsave(&data->lock, flags);
+	swap(data->skb, skb);
+	spin_unlock_irqrestore(&data->lock, flags);
+
+	return skb;
 }
 
-static void send_dm_alert(struct work_struct *unused)
+static void send_dm_alert(struct work_struct *work)
 {
 	struct sk_buff *skb;
-	struct per_cpu_dm_data *data = &get_cpu_var(dm_cpu_data);
+	struct per_cpu_dm_data *data;
 
-	WARN_ON_ONCE(data->cpu != smp_processor_id());
+	data = container_of(work, struct per_cpu_dm_data, dm_alert_work);
 
-	/*
-	 * Grab the skb we're about to send
-	 */
-	skb = rcu_dereference_protected(data->skb, 1);
+	skb = reset_per_cpu_data(data);
 
-	/*
-	 * Replace it with a new one
-	 */
-	reset_per_cpu_data(data);
-
-	/*
-	 * Ship it!
-	 */
 	if (skb)
 		genlmsg_multicast(skb, 0, NET_DM_GRP_ALERT, GFP_KERNEL);
-
-	put_cpu_var(dm_cpu_data);
 }
 
 /*
  * This is the timer function to delay the sending of an alert
  * in the event that more drops will arrive during the
- * hysteresis period.  Note that it operates under the timer interrupt
- * so we don't need to disable preemption here
+ * hysteresis period.
  */
-static void sched_send_work(unsigned long unused)
+static void sched_send_work(unsigned long _data)
 {
-	struct per_cpu_dm_data *data =  &get_cpu_var(dm_cpu_data);
+	struct per_cpu_dm_data *data = (struct per_cpu_dm_data *)_data;
 
-	schedule_work_on(smp_processor_id(), &data->dm_alert_work);
-
-	put_cpu_var(dm_cpu_data);
+	schedule_work(&data->dm_alert_work);
 }
 
 static void trace_drop_common(struct sk_buff *skb, void *location)
@@ -164,21 +138,16 @@ static void trace_drop_common(struct sk_buff *skb, void *location)
 	struct nlattr *nla;
 	int i;
 	struct sk_buff *dskb;
-	struct per_cpu_dm_data *data = &get_cpu_var(dm_cpu_data);
+	struct per_cpu_dm_data *data;
+	unsigned long flags;
 
-
-	rcu_read_lock();
-	dskb = rcu_dereference(data->skb);
+	local_irq_save(flags);
+	data = &__get_cpu_var(dm_cpu_data);
+	spin_lock(&data->lock);
+	dskb = data->skb;
 
 	if (!dskb)
 		goto out;
-
-	if (!atomic_add_unless(&data->dm_hit_count, -1, 0)) {
-		/*
-		 * we're already at zero, discard this hit
-		 */
-		goto out;
-	}
 
 	nlh = (struct nlmsghdr *)dskb->data;
 	nla = genlmsg_data(nlmsg_data(nlh));
@@ -186,11 +155,11 @@ static void trace_drop_common(struct sk_buff *skb, void *location)
 	for (i = 0; i < msg->entries; i++) {
 		if (!memcmp(&location, msg->points[i].pc, sizeof(void *))) {
 			msg->points[i].count++;
-			atomic_inc(&data->dm_hit_count);
 			goto out;
 		}
 	}
-
+	if (msg->entries == dm_hit_limit)
+		goto out;
 	/*
 	 * We need to create a new entry
 	 */
@@ -202,13 +171,11 @@ static void trace_drop_common(struct sk_buff *skb, void *location)
 
 	if (!timer_pending(&data->send_timer)) {
 		data->send_timer.expires = jiffies + dm_delay * HZ;
-		add_timer_on(&data->send_timer, smp_processor_id());
+		add_timer(&data->send_timer);
 	}
 
 out:
-	rcu_read_unlock();
-	put_cpu_var(dm_cpu_data);
-	return;
+	spin_unlock_irqrestore(&data->lock, flags);
 }
 
 static void trace_kfree_skb_hit(void *ignore, struct sk_buff *skb, void *location)
@@ -261,9 +228,15 @@ static int set_all_monitor_traces(int state)
 
 	switch (state) {
 	case TRACE_ON:
+		if (!try_module_get(THIS_MODULE)) {
+			rc = -ENODEV;
+			break;
+		}
+
 		rc |= register_trace_kfree_skb(trace_kfree_skb_hit, NULL);
 		rc |= register_trace_napi_poll(trace_napi_poll_hit, NULL);
 		break;
+
 	case TRACE_OFF:
 		rc |= unregister_trace_kfree_skb(trace_kfree_skb_hit, NULL);
 		rc |= unregister_trace_napi_poll(trace_napi_poll_hit, NULL);
@@ -279,6 +252,9 @@ static int set_all_monitor_traces(int state)
 				kfree_rcu(new_stat, rcu);
 			}
 		}
+
+		module_put(THIS_MODULE);
+
 		break;
 	default:
 		rc = 1;
@@ -381,10 +357,10 @@ static int __init init_net_drop_monitor(void)
 	struct per_cpu_dm_data *data;
 	int cpu, rc;
 
-	printk(KERN_INFO "Initializing network drop monitor service\n");
+	pr_info("Initializing network drop monitor service\n");
 
 	if (sizeof(void *) > 8) {
-		printk(KERN_ERR "Unable to store program counters on this arch, Drop monitor failed\n");
+		pr_err("Unable to store program counters on this arch, Drop monitor failed\n");
 		return -ENOSPC;
 	}
 
@@ -392,25 +368,25 @@ static int __init init_net_drop_monitor(void)
 					   dropmon_ops,
 					   ARRAY_SIZE(dropmon_ops));
 	if (rc) {
-		printk(KERN_ERR "Could not create drop monitor netlink family\n");
+		pr_err("Could not create drop monitor netlink family\n");
 		return rc;
 	}
 
 	rc = register_netdevice_notifier(&dropmon_net_notifier);
 	if (rc < 0) {
-		printk(KERN_CRIT "Failed to register netdevice notifier\n");
+		pr_crit("Failed to register netdevice notifier\n");
 		goto out_unreg;
 	}
 
 	rc = 0;
 
-	for_each_present_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		data = &per_cpu(dm_cpu_data, cpu);
-		data->cpu = cpu;
 		INIT_WORK(&data->dm_alert_work, send_dm_alert);
 		init_timer(&data->send_timer);
-		data->send_timer.data = cpu;
+		data->send_timer.data = (unsigned long)data;
 		data->send_timer.function = sched_send_work;
+		spin_lock_init(&data->lock);
 		reset_per_cpu_data(data);
 	}
 
@@ -423,4 +399,37 @@ out:
 	return rc;
 }
 
-late_initcall(init_net_drop_monitor);
+static void exit_net_drop_monitor(void)
+{
+	struct per_cpu_dm_data *data;
+	int cpu;
+
+	BUG_ON(unregister_netdevice_notifier(&dropmon_net_notifier));
+
+	/*
+	 * Because of the module_get/put we do in the trace state change path
+	 * we are guarnateed not to have any current users when we get here
+	 * all we need to do is make sure that we don't have any running timers
+	 * or pending schedule calls
+	 */
+
+	for_each_possible_cpu(cpu) {
+		data = &per_cpu(dm_cpu_data, cpu);
+		del_timer_sync(&data->send_timer);
+		cancel_work_sync(&data->dm_alert_work);
+		/*
+		 * At this point, we should have exclusive access
+		 * to this struct and can free the skb inside it
+		 */
+		kfree_skb(data->skb);
+	}
+
+	BUG_ON(genl_unregister_family(&net_drop_monitor_family));
+}
+
+module_init(init_net_drop_monitor);
+module_exit(exit_net_drop_monitor);
+
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR("Neil Horman <nhorman@tuxdriver.com>");
+MODULE_ALIAS_GENL_FAMILY("NET_DM");

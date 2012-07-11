@@ -290,11 +290,9 @@ static irqreturn_t cx25821_irq(int irq, void *dev_id)
 	u32 status, pci_status;
 	u32 audint_status, audint_mask;
 	int loop, handled = 0;
-	int audint_count = 0;
 
 	audint_status = cx_read(AUD_A_INT_STAT);
 	audint_mask = cx_read(AUD_A_INT_MSK);
-	audint_count = cx_read(AUD_A_GPCNT);
 	status = cx_read(PCI_INT_STAT);
 
 	for (loop = 0; loop < 1; loop++) {

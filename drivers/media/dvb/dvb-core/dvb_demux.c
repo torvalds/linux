@@ -568,6 +568,16 @@ void dvb_dmx_swfilter_204(struct dvb_demux *demux, const u8 *buf, size_t count)
 }
 EXPORT_SYMBOL(dvb_dmx_swfilter_204);
 
+void dvb_dmx_swfilter_raw(struct dvb_demux *demux, const u8 *buf, size_t count)
+{
+	spin_lock(&demux->lock);
+
+	demux->feed->cb.ts(buf, count, NULL, 0, &demux->feed->feed.ts, DMX_OK);
+
+	spin_unlock(&demux->lock);
+}
+EXPORT_SYMBOL(dvb_dmx_swfilter_raw);
+
 static struct dvb_demux_filter *dvb_dmx_filter_alloc(struct dvb_demux *demux)
 {
 	int i;

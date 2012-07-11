@@ -1,0 +1,37 @@
+Vibra driver for the twl6040 family
+
+The vibra driver is a child of the twl6040 MFD dirver.
+Documentation/devicetree/bindings/mfd/twl6040.txt
+
+Required properties:
+- compatible : Must be "ti,twl6040-vibra";
+- interrupts: 4, Vibra overcurrent interrupt
+- vddvibl-supply: Regulator supplying the left vibra motor
+- vddvibr-supply: Regulator supplying the right vibra motor
+- vibldrv_res: Board specific left driver resistance
+- vibrdrv_res: Board specific right driver resistance
+- viblmotor_res: Board specific left motor resistance
+- vibrmotor_res: Board specific right motor resistance
+
+Optional properties:
+- vddvibl_uV: If the vddvibl default voltage need to be changed
+- vddvibr_uV: If the vddvibr default voltage need to be changed
+
+Example:
+/*
+ * 8-channel high quality low-power audio codec
+ * http://www.ti.com/lit/ds/symlink/twl6040.pdf
+ */
+twl6040: twl6040@4b {
+	...
+	twl6040_vibra: twl6040@1 {
+		compatible = "ti,twl6040-vibra";
+		interrupts = <4>;
+		vddvibl-supply = <&vbat>;
+		vddvibr-supply = <&vbat>;
+		vibldrv_res = <8>;
+		vibrdrv_res = <3>;
+		viblmotor_res = <10>;
+		vibrmotor_res = <10>;
+	};
+};

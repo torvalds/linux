@@ -699,7 +699,7 @@ struct winch {
 static void __free_winch(struct work_struct *work)
 {
 	struct winch *winch = container_of(work, struct winch, work);
-	free_irq(WINCH_IRQ, winch);
+	um_free_irq(WINCH_IRQ, winch);
 
 	if (winch->pid != -1)
 		os_kill_process(winch->pid, 1);

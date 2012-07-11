@@ -685,7 +685,7 @@ static int sh_sir_stop(struct net_device *ndev)
 
 	netif_stop_queue(ndev);
 
-	dev_info(&ndev->dev, "stoped\n");
+	dev_info(&ndev->dev, "stopped\n");
 
 	return 0;
 }

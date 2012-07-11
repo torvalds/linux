@@ -195,7 +195,6 @@ static inline void *neighbour_priv(const struct neighbour *n)
 #define NEIGH_UPDATE_F_ADMIN			0x80000000
 
 extern void			neigh_table_init(struct neigh_table *tbl);
-extern void			neigh_table_init_no_netlink(struct neigh_table *tbl);
 extern int			neigh_table_clear(struct neigh_table *tbl);
 extern struct neighbour *	neigh_lookup(struct neigh_table *tbl,
 					     const void *pkey,
@@ -323,7 +322,7 @@ static inline int neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 #ifdef CONFIG_BRIDGE_NETFILTER
 static inline int neigh_hh_bridge(struct hh_cache *hh, struct sk_buff *skb)
 {
-	unsigned seq, hh_alen;
+	unsigned int seq, hh_alen;
 
 	do {
 		seq = read_seqbegin(&hh->hh_lock);
@@ -336,7 +335,7 @@ static inline int neigh_hh_bridge(struct hh_cache *hh, struct sk_buff *skb)
 
 static inline int neigh_hh_output(struct hh_cache *hh, struct sk_buff *skb)
 {
-	unsigned seq;
+	unsigned int seq;
 	int hh_len;
 
 	do {

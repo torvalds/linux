@@ -204,6 +204,27 @@ config MEDIA_TUNER_TDA18218
 	help
 	  NXP TDA18218 silicon tuner driver.
 
+config MEDIA_TUNER_FC0011
+	tristate "Fitipower FC0011 silicon tuner"
+	depends on VIDEO_MEDIA && I2C
+	default m if MEDIA_TUNER_CUSTOMISE
+	help
+	  Fitipower FC0011 silicon tuner driver.
+
+config MEDIA_TUNER_FC0012
+	tristate "Fitipower FC0012 silicon tuner"
+	depends on VIDEO_MEDIA && I2C
+	default m if MEDIA_TUNER_CUSTOMISE
+	help
+	  Fitipower FC0012 silicon tuner driver.
+
+config MEDIA_TUNER_FC0013
+	tristate "Fitipower FC0013 silicon tuner"
+	depends on VIDEO_MEDIA && I2C
+	default m if MEDIA_TUNER_CUSTOMISE
+	help
+	  Fitipower FC0013 silicon tuner driver.
+
 config MEDIA_TUNER_TDA18212
 	tristate "NXP TDA18212 silicon tuner"
 	depends on VIDEO_MEDIA && I2C
@@ -211,4 +232,10 @@ config MEDIA_TUNER_TDA18212
 	help
 	  NXP TDA18212 silicon tuner driver.
 
+config MEDIA_TUNER_TUA9001
+	tristate "Infineon TUA 9001 silicon tuner"
+	depends on VIDEO_MEDIA && I2C
+	default m if MEDIA_TUNER_CUSTOMISE
+	help
+	  Infineon TUA 9001 silicon tuner driver.
 endmenu

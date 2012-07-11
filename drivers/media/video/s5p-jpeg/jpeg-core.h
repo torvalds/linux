@@ -54,7 +54,6 @@
  * @vfd_encoder:	video device node for encoder mem2mem mode
  * @vfd_decoder:	video device node for decoder mem2mem mode
  * @m2m_dev:		v4l2 mem2mem device data
- * @ioarea:		JPEG IP memory region
  * @regs:		JPEG IP registers mapping
  * @irq:		JPEG IP irq
  * @clk:		JPEG IP clock
@@ -70,7 +69,6 @@ struct s5p_jpeg {
 	struct video_device	*vfd_decoder;
 	struct v4l2_m2m_dev	*m2m_dev;
 
-	struct resource		*ioarea;
 	void __iomem		*regs;
 	unsigned int		irq;
 	struct clk		*clk;

@@ -18,6 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifdef WANT_REGULAR_AUTOGAIN
 /* auto gain and exposure algorithm based on the knee algorithm described here:
    http://ytse.tricolour.net/docs/LowLightOptimization.html
 
@@ -91,7 +92,9 @@ static inline int auto_gain_n_exposure(
 			gain, exposure);
 	return retval;
 }
+#endif
 
+#ifdef WANT_COARSE_EXPO_AUTOGAIN
 /* Autogain + exposure algorithm for cameras with a coarse exposure control
    (usually this means we can only control the clockdiv to change exposure)
    As changing the clockdiv so that the fps drops from 30 to 15 fps for
@@ -103,7 +106,7 @@ static inline int auto_gain_n_exposure(
    which leads to oscilating as one exposure step is huge.
 
    Note this assumes that the sd struct for the cam in question has
-   exp_too_high_cnt and exp_too_high_cnt int members for use by this function.
+   exp_too_low_cnt and exp_too_high_cnt int members for use by this function.
 
    Returns 0 if no changes were made, 1 if the gain and or exposure settings
    where changed. */
@@ -177,3 +180,4 @@ static inline int coarse_grained_expo_autogain(
 			gain, exposure);
 	return retval;
 }
+#endif

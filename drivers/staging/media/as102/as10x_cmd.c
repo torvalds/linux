@@ -31,7 +31,7 @@
  */
 int as10x_cmd_turn_on(struct as10x_bus_adapter_t *adap)
 {
-	int error;
+	int error = AS10X_CMD_ERROR;
 	struct as10x_cmd_t *pcmd, *prsp;
 
 	ENTER();
@@ -54,8 +54,6 @@ int as10x_cmd_turn_on(struct as10x_bus_adapter_t *adap)
 					    (uint8_t *) prsp,
 					    sizeof(prsp->body.turn_on.rsp) +
 					    HEADER_SIZE);
-	} else {
-		error = AS10X_CMD_ERROR;
 	}
 
 	if (error < 0)
@@ -77,7 +75,7 @@ out:
  */
 int as10x_cmd_turn_off(struct as10x_bus_adapter_t *adap)
 {
-	int error;
+	int error = AS10X_CMD_ERROR;
 	struct as10x_cmd_t *pcmd, *prsp;
 
 	ENTER();
@@ -99,8 +97,6 @@ int as10x_cmd_turn_off(struct as10x_bus_adapter_t *adap)
 			sizeof(pcmd->body.turn_off.req) + HEADER_SIZE,
 			(uint8_t *) prsp,
 			sizeof(prsp->body.turn_off.rsp) + HEADER_SIZE);
-	} else {
-		error = AS10X_CMD_ERROR;
 	}
 
 	if (error < 0)
@@ -124,7 +120,7 @@ out:
 int as10x_cmd_set_tune(struct as10x_bus_adapter_t *adap,
 		       struct as10x_tune_args *ptune)
 {
-	int error;
+	int error = AS10X_CMD_ERROR;
 	struct as10x_cmd_t *preq, *prsp;
 
 	ENTER();
@@ -159,8 +155,6 @@ int as10x_cmd_set_tune(struct as10x_bus_adapter_t *adap,
 					    (uint8_t *) prsp,
 					    sizeof(prsp->body.set_tune.rsp)
 					    + HEADER_SIZE);
-	} else {
-		error = AS10X_CMD_ERROR;
 	}
 
 	if (error < 0)
@@ -184,7 +178,7 @@ out:
 int as10x_cmd_get_tune_status(struct as10x_bus_adapter_t *adap,
 			      struct as10x_tune_status *pstatus)
 {
-	int error;
+	int error = AS10X_CMD_ERROR;
 	struct as10x_cmd_t  *preq, *prsp;
 
 	ENTER();
@@ -208,8 +202,6 @@ int as10x_cmd_get_tune_status(struct as10x_bus_adapter_t *adap,
 			sizeof(preq->body.get_tune_status.req) + HEADER_SIZE,
 			(uint8_t *) prsp,
 			sizeof(prsp->body.get_tune_status.rsp) + HEADER_SIZE);
-	} else {
-		error = AS10X_CMD_ERROR;
 	}
 
 	if (error < 0)
@@ -241,7 +233,7 @@ out:
  */
 int as10x_cmd_get_tps(struct as10x_bus_adapter_t *adap, struct as10x_tps *ptps)
 {
-	int error;
+	int error = AS10X_CMD_ERROR;
 	struct as10x_cmd_t *pcmd, *prsp;
 
 	ENTER();
@@ -266,8 +258,6 @@ int as10x_cmd_get_tps(struct as10x_bus_adapter_t *adap, struct as10x_tps *ptps)
 					    (uint8_t *) prsp,
 					    sizeof(prsp->body.get_tps.rsp) +
 					    HEADER_SIZE);
-	} else {
-		error = AS10X_CMD_ERROR;
 	}
 
 	if (error < 0)
@@ -305,7 +295,7 @@ out:
 int as10x_cmd_get_demod_stats(struct as10x_bus_adapter_t *adap,
 			      struct as10x_demod_stats *pdemod_stats)
 {
-	int error;
+	int error = AS10X_CMD_ERROR;
 	struct as10x_cmd_t *pcmd, *prsp;
 
 	ENTER();
@@ -330,8 +320,6 @@ int as10x_cmd_get_demod_stats(struct as10x_bus_adapter_t *adap,
 				(uint8_t *) prsp,
 				sizeof(prsp->body.get_demod_stats.rsp)
 				+ HEADER_SIZE);
-	} else {
-		error = AS10X_CMD_ERROR;
 	}
 
 	if (error < 0)
@@ -370,7 +358,7 @@ out:
 int as10x_cmd_get_impulse_resp(struct as10x_bus_adapter_t *adap,
 			       uint8_t *is_ready)
 {
-	int error;
+	int error = AS10X_CMD_ERROR;
 	struct as10x_cmd_t *pcmd, *prsp;
 
 	ENTER();
@@ -395,8 +383,6 @@ int as10x_cmd_get_impulse_resp(struct as10x_bus_adapter_t *adap,
 					(uint8_t *) prsp,
 					sizeof(prsp->body.get_impulse_rsp.rsp)
 					+ HEADER_SIZE);
-	} else {
-		error = AS10X_CMD_ERROR;
 	}
 
 	if (error < 0)

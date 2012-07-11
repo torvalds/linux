@@ -451,7 +451,7 @@ static int bq27x00_battery_capacity_level(struct bq27x00_device_info *di,
 }
 
 /*
- * Return the battery Voltage in milivolts
+ * Return the battery Voltage in millivolts
  * Or < 0 if something fails.
  */
 static int bq27x00_battery_voltage(struct bq27x00_device_info *di,

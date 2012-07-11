@@ -13,6 +13,7 @@ config SUPERH
 	select HAVE_DMA_ATTRS
 	select HAVE_IRQ_WORK
 	select HAVE_PERF_EVENTS
+	select ARCH_HAVE_CUSTOM_GPIO_H
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG if (GUSA_RB || CPU_SH4A)
 	select PERF_USE_VMALLOC
 	select HAVE_KERNEL_GZIP
@@ -28,6 +29,11 @@ config SUPERH
 	select RTC_LIB
 	select GENERIC_ATOMIC64
 	select GENERIC_IRQ_SHOW
+	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_CMOS_UPDATE if SH_SH03 || SH_DREAMCAST
+	select GENERIC_STRNCPY_FROM_USER
+	select GENERIC_STRNLEN_USER
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast
@@ -86,16 +92,6 @@ config GENERIC_GPIO
 config GENERIC_CALIBRATE_DELAY
 	bool
 
-config GENERIC_CLOCKEVENTS
-	def_bool y
-
-config GENERIC_CLOCKEVENTS_BROADCAST
-	bool
-
-config GENERIC_CMOS_UPDATE
-	def_bool y
-	depends on SH_SH03 || SH_DREAMCAST
-
 config GENERIC_LOCKBREAK
 	def_bool y
 	depends on SMP && PREEMPT
@@ -152,12 +148,10 @@ config ARCH_NO_VIRT_TO_BUS
 config ARCH_HAS_DEFAULT_IDLE
 	def_bool y
 
-config ARCH_HAS_CPU_IDLE_WAIT
-	def_bool y
-
 config NO_IOPORT
 	def_bool !PCI
-	depends on !SH_CAYMAN && !SH_SH4202_MICRODEV && !SH_SHMIN
+	depends on !SH_CAYMAN && !SH_SH4202_MICRODEV && !SH_SHMIN && \
+		   !SH_HP6XX && !SH_SOLUTION_ENGINE
 
 config IO_TRAPPED
 	bool
@@ -283,6 +277,20 @@ config CPU_SUBTYPE_SH7206
 
 config CPU_SUBTYPE_SH7263
 	bool "Support SH7263 processor"
+	select CPU_SH2A
+	select CPU_HAS_FPU
+	select SYS_SUPPORTS_CMT
+	select SYS_SUPPORTS_MTU2
+
+config CPU_SUBTYPE_SH7264
+	bool "Support SH7264 processor"
+	select CPU_SH2A
+	select CPU_HAS_FPU
+	select SYS_SUPPORTS_CMT
+	select SYS_SUPPORTS_MTU2
+
+config CPU_SUBTYPE_SH7269
+	bool "Support SH7269 processor"
 	select CPU_SH2A
 	select CPU_HAS_FPU
 	select SYS_SUPPORTS_CMT
@@ -426,6 +434,16 @@ config CPU_SUBTYPE_SH7724
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  Select SH7724 if you have an SH-MobileR2R CPU.
+
+config CPU_SUBTYPE_SH7734
+	bool "Support SH7734 processor"
+	select CPU_SH4A
+	select CPU_SHX2
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select USB_ARCH_HAS_OHCI
+	select USB_ARCH_HAS_EHCI
+	help
+	  Select SH7734 if you have a SH4A SH7734 CPU.
 
 config CPU_SUBTYPE_SH7757
 	bool "Support SH7757 processor"
@@ -584,9 +602,9 @@ config SH_CLK_CPG
 config SH_CLK_CPG_LEGACY
 	depends on SH_CLK_CPG
 	def_bool y if !CPU_SUBTYPE_SH7785 && !ARCH_SHMOBILE && \
-		      !CPU_SHX3 && !CPU_SUBTYPE_SH7757
-
-source "kernel/time/Kconfig"
+		      !CPU_SHX3 && !CPU_SUBTYPE_SH7757 && \
+		      !CPU_SUBTYPE_SH7734 && !CPU_SUBTYPE_SH7264 && \
+		      !CPU_SUBTYPE_SH7269
 
 endmenu
 
@@ -684,6 +702,20 @@ config SECCOMP
 	  mode.
 
 	  If unsure, say N.
+
+config CC_STACKPROTECTOR
+	bool "Enable -fstack-protector buffer overflow detection (EXPERIMENTAL)"
+	depends on SUPERH32 && EXPERIMENTAL
+	help
+	  This option turns on the -fstack-protector GCC feature. This
+	  feature puts, at the beginning of functions, a canary value on
+	  the stack just before the return address, and validates
+	  the value just before actually returning.  Stack based buffer
+	  overflows (that need to overwrite this return address) now also
+	  overwrite the canary, which gets detected and the attack is then
+	  neutralized via a kernel panic.
+
+	  This feature requires gcc version 4.2 or above.
 
 config SMP
 	bool "Symmetric multi-processing support"

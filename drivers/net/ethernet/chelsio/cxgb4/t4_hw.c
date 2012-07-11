@@ -868,11 +868,14 @@ int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port)
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
+typedef void (*int_handler_t)(struct adapter *adap);
+
 struct intr_info {
 	unsigned int mask;       /* bits to check in interrupt status */
 	const char *msg;         /* message to print or NULL */
 	short stat_idx;          /* stat counter to increment or -1 */
 	unsigned short fatal;    /* whether the condition reported is fatal */
+	int_handler_t int_handler; /* platform-specific int handler */
 };
 
 /**
@@ -905,6 +908,8 @@ static int t4_handle_intr_status(struct adapter *adapter, unsigned int reg,
 		} else if (acts->msg && printk_ratelimit())
 			dev_warn(adapter->pdev_dev, "%s (0x%x)\n", acts->msg,
 				 status & acts->mask);
+		if (acts->int_handler)
+			acts->int_handler(adapter);
 		mask |= acts->mask;
 	}
 	status &= mask;
@@ -1013,7 +1018,9 @@ static void sge_intr_handler(struct adapter *adapter)
 		{ ERR_INVALID_CIDX_INC,
 		  "SGE GTS CIDX increment too large", -1, 0 },
 		{ ERR_CPL_OPCODE_0, "SGE received 0-length CPL", -1, 0 },
-		{ ERR_DROPPED_DB, "SGE doorbell dropped", -1, 0 },
+		{ F_DBFIFO_LP_INT, NULL, -1, 0, t4_db_full },
+		{ F_DBFIFO_HP_INT, NULL, -1, 0, t4_db_full },
+		{ F_ERR_DROPPED_DB, NULL, -1, 0, t4_db_dropped },
 		{ ERR_DATA_CPL_ON_HIGH_QID1 | ERR_DATA_CPL_ON_HIGH_QID0,
 		  "SGE IQID > 1023 received CPL for FL", -1, 0 },
 		{ ERR_BAD_DB_PIDX3, "SGE DBP 3 pidx increment too large", -1,
@@ -1034,10 +1041,10 @@ static void sge_intr_handler(struct adapter *adapter)
 	};
 
 	v = (u64)t4_read_reg(adapter, SGE_INT_CAUSE1) |
-	    ((u64)t4_read_reg(adapter, SGE_INT_CAUSE2) << 32);
+		((u64)t4_read_reg(adapter, SGE_INT_CAUSE2) << 32);
 	if (v) {
 		dev_alert(adapter->pdev_dev, "SGE parity error (%#llx)\n",
-			 (unsigned long long)v);
+				(unsigned long long)v);
 		t4_write_reg(adapter, SGE_INT_CAUSE1, v);
 		t4_write_reg(adapter, SGE_INT_CAUSE2, v >> 32);
 	}
@@ -1513,6 +1520,7 @@ void t4_intr_enable(struct adapter *adapter)
 		     ERR_BAD_DB_PIDX2 | ERR_BAD_DB_PIDX1 |
 		     ERR_BAD_DB_PIDX0 | ERR_ING_CTXT_PRIO |
 		     ERR_EGR_CTXT_PRIO | INGRESS_SIZE_ERR |
+		     F_DBFIFO_HP_INT | F_DBFIFO_LP_INT |
 		     EGRESS_SIZE_ERR);
 	t4_write_reg(adapter, MYPF_REG(PL_PF_INT_ENABLE), PF_INTR_MASK);
 	t4_set_reg_field(adapter, PL_INT_MAP0, 0, 1 << pf);
@@ -1985,6 +1993,54 @@ int t4_wol_pat_enable(struct adapter *adap, unsigned int port, unsigned int map,
 				  FW_CMD_REQUEST | FW_CMD_##rd_wr); \
 	(var).retval_len16 = htonl(FW_LEN16(var)); \
 } while (0)
+
+int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
+			  u32 addr, u32 val)
+{
+	struct fw_ldst_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_addrspace = htonl(V_FW_CMD_OP(FW_LDST_CMD) | F_FW_CMD_REQUEST |
+			    F_FW_CMD_WRITE |
+			    V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_FIRMWARE));
+	c.cycles_to_len16 = htonl(FW_LEN16(c));
+	c.u.addrval.addr = htonl(addr);
+	c.u.addrval.val = htonl(val);
+
+	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+}
+
+/*
+ *     t4_mem_win_read_len - read memory through PCIE memory window
+ *     @adap: the adapter
+ *     @addr: address of first byte requested aligned on 32b.
+ *     @data: len bytes to hold the data read
+ *     @len: amount of data to read from window.  Must be <=
+ *            MEMWIN0_APERATURE after adjusting for 16B alignment
+ *            requirements of the the memory window.
+ *
+ *     Read len bytes of data from MC starting at @addr.
+ */
+int t4_mem_win_read_len(struct adapter *adap, u32 addr, __be32 *data, int len)
+{
+	int i;
+	int off;
+
+	/*
+	 * Align on a 16B boundary.
+	 */
+	off = addr & 15;
+	if ((addr & 3) || (len + off) > MEMWIN0_APERTURE)
+		return -EINVAL;
+
+	t4_write_reg(adap, A_PCIE_MEM_ACCESS_OFFSET, addr & ~15);
+	t4_read_reg(adap, A_PCIE_MEM_ACCESS_OFFSET);
+
+	for (i = 0; i < len; i += 4)
+		*data++ = t4_read_reg(adap, (MEMWIN0_BASE + off + i));
+
+	return 0;
+}
 
 /**
  *	t4_mdio_rd - read a PHY register through MDIO

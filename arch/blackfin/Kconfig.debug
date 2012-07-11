@@ -253,4 +253,11 @@ config BFIN_PSEUDODBG_INSNS
 
 	  Most people should say N here.
 
+config BFIN_PM_WAKEUP_TIME_BENCH
+	bool "Display the total time for kernel to resume from power saving mode"
+	default n
+	help
+	  Display the total time when kernel resumes normal from standby or
+	  suspend to mem mode.
+
 endmenu

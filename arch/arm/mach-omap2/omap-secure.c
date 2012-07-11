@@ -18,6 +18,7 @@
 #include <asm/cacheflush.h>
 #include <asm/memblock.h>
 
+#include <plat/omap-secure.h>
 #include <mach/omap-secure.h>
 
 static phys_addr_t omap_secure_memblock_base;

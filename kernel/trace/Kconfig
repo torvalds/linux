@@ -141,7 +141,6 @@ if FTRACE
 config FUNCTION_TRACER
 	bool "Kernel Function Tracer"
 	depends on HAVE_FUNCTION_TRACER
-	select FRAME_POINTER if !ARM_UNWIND && !PPC && !S390 && !MICROBLAZE
 	select KALLSYMS
 	select GENERIC_TRACER
 	select CONTEXT_SWITCH_TRACER
@@ -272,7 +271,7 @@ config PROFILE_ANNOTATED_BRANCHES
 	bool "Trace likely/unlikely profiler"
 	select TRACE_BRANCH_PROFILING
 	help
-	  This tracer profiles all the the likely and unlikely macros
+	  This tracer profiles all likely and unlikely macros
 	  in the kernel. It will display the results in:
 
 	  /sys/kernel/debug/tracing/trace_stat/branch_annotated
@@ -373,6 +372,7 @@ config KPROBE_EVENT
 	depends on HAVE_REGS_AND_STACK_ACCESS_API
 	bool "Enable kprobes-based dynamic events"
 	select TRACING
+	select PROBE_EVENTS
 	default y
 	help
 	  This allows the user to add tracing events (similar to tracepoints)
@@ -384,6 +384,25 @@ config KPROBE_EVENT
 
 	  This option is also required by perf-probe subcommand of perf tools.
 	  If you want to use perf tools, this option is strongly recommended.
+
+config UPROBE_EVENT
+	bool "Enable uprobes-based dynamic events"
+	depends on ARCH_SUPPORTS_UPROBES
+	depends on MMU
+	select UPROBES
+	select PROBE_EVENTS
+	select TRACING
+	default n
+	help
+	  This allows the user to add tracing events on top of userspace
+	  dynamic events (similar to tracepoints) on the fly via the trace
+	  events interface. Those events can be inserted wherever uprobes
+	  can probe, and record various registers.
+	  This option is required if you plan to use perf-probe subcommand
+	  of perf tools on user space applications.
+
+config PROBE_EVENTS
+	def_bool n
 
 config DYNAMIC_FTRACE
 	bool "enable/disable ftrace tracepoints dynamically"

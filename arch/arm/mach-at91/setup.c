@@ -143,6 +143,11 @@ static void __init soc_detect(u32 dbgu_base)
 		at91_soc_initdata.type = AT91_SOC_SAM9X5;
 		at91_boot_soc = at91sam9x5_soc;
 		break;
+
+	case ARCH_ID_AT91SAM9N12:
+		at91_soc_initdata.type = AT91_SOC_SAM9N12;
+		at91_boot_soc = at91sam9n12_soc;
+		break;
 	}
 
 	/* at91sam9g10 */
@@ -210,6 +215,7 @@ static const char *soc_name[] = {
 	[AT91_SOC_SAM9G45]	= "at91sam9g45",
 	[AT91_SOC_SAM9RL]	= "at91sam9rl",
 	[AT91_SOC_SAM9X5]	= "at91sam9x5",
+	[AT91_SOC_SAM9N12]	= "at91sam9n12",
 	[AT91_SOC_NONE]		= "Unknown"
 };
 

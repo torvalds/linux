@@ -53,5 +53,12 @@ void ep93xx_init_devices(void);
 extern struct sys_timer ep93xx_timer;
 
 void ep93xx_restart(char, const char *);
+void ep93xx_init_late(void);
+
+#ifdef CONFIG_CRUNCH
+int crunch_init(void);
+#else
+static inline int crunch_init(void) { return 0; }
+#endif
 
 #endif

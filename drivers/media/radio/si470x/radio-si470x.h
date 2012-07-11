@@ -36,6 +36,9 @@
 #include <linux/mutex.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
+#include <media/v4l2-device.h>
 #include <asm/unaligned.h>
 
 
@@ -141,10 +144,9 @@
  * si470x_device - private data
  */
 struct si470x_device {
-	struct video_device *videodev;
-
-	/* driver management */
-	unsigned int users;
+	struct v4l2_device v4l2_dev;
+	struct video_device videodev;
+	struct v4l2_ctrl_handler hdl;
 
 	/* Silabs internal registers (0..15) */
 	unsigned short registers[RADIO_REGISTER_NUM];
@@ -174,9 +176,6 @@ struct si470x_device {
 	/* scratch page */
 	unsigned char software_version;
 	unsigned char hardware_version;
-
-	/* driver management */
-	unsigned char disconnected;
 #endif
 
 #if defined(CONFIG_I2C_SI470X) || defined(CONFIG_I2C_SI470X_MODULE)
@@ -213,6 +212,7 @@ struct si470x_device {
  * Common Functions
  **************************************************************************/
 extern struct video_device si470x_viddev_template;
+extern const struct v4l2_ctrl_ops si470x_ctrl_ops;
 int si470x_get_register(struct si470x_device *radio, int regnr);
 int si470x_set_register(struct si470x_device *radio, int regnr);
 int si470x_disconnect_check(struct si470x_device *radio);

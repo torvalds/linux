@@ -1,5 +1,5 @@
 config IWM
-	tristate "Intel Wireless Multicomm 3200 WiFi driver"
+	tristate "Intel Wireless Multicomm 3200 WiFi driver (EXPERIMENTAL)"
 	depends on MMC && EXPERIMENTAL
 	depends on CFG80211
 	select FW_LOADER

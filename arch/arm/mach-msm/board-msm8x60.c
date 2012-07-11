@@ -81,6 +81,11 @@ static void __init msm8x60_init(void)
 {
 }
 
+static void __init msm8x60_init_late(void)
+{
+	smd_debugfs_init();
+}
+
 #ifdef CONFIG_OF
 static struct of_dev_auxdata msm_auxdata_lookup[] __initdata = {
 	{}
@@ -111,6 +116,7 @@ MACHINE_START(MSM8X60_RUMI3, "QCT MSM8X60 RUMI3")
 	.init_irq = msm8x60_init_irq,
 	.handle_irq = gic_handle_irq,
 	.init_machine = msm8x60_init,
+	.init_late = msm8x60_init_late,
 	.timer = &msm_timer,
 MACHINE_END
 
@@ -121,6 +127,7 @@ MACHINE_START(MSM8X60_SURF, "QCT MSM8X60 SURF")
 	.init_irq = msm8x60_init_irq,
 	.handle_irq = gic_handle_irq,
 	.init_machine = msm8x60_init,
+	.init_late = msm8x60_init_late,
 	.timer = &msm_timer,
 MACHINE_END
 
@@ -131,6 +138,7 @@ MACHINE_START(MSM8X60_SIM, "QCT MSM8X60 SIMULATOR")
 	.init_irq = msm8x60_init_irq,
 	.handle_irq = gic_handle_irq,
 	.init_machine = msm8x60_init,
+	.init_late = msm8x60_init_late,
 	.timer = &msm_timer,
 MACHINE_END
 
@@ -141,6 +149,7 @@ MACHINE_START(MSM8X60_FFA, "QCT MSM8X60 FFA")
 	.init_irq = msm8x60_init_irq,
 	.handle_irq = gic_handle_irq,
 	.init_machine = msm8x60_init,
+	.init_late = msm8x60_init_late,
 	.timer = &msm_timer,
 MACHINE_END
 
@@ -150,6 +159,7 @@ DT_MACHINE_START(MSM_DT, "Qualcomm MSM (Flattened Device Tree)")
 	.map_io = msm8x60_map_io,
 	.init_irq = msm8x60_init_irq,
 	.init_machine = msm8x60_dt_init,
+	.init_late = msm8x60_init_late,
 	.timer = &msm_timer,
 	.dt_compat = msm8x60_fluid_match,
 MACHINE_END

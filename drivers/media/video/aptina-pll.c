@@ -148,9 +148,8 @@ int aptina_pll_calculate(struct device *dev,
 		unsigned int mf_high;
 		unsigned int mf_low;
 
-		mf_low = max(roundup(mf_min, mf_inc),
-			     DIV_ROUND_UP(pll->ext_clock * p1,
-			       limits->int_clock_max * div));
+		mf_low = roundup(max(mf_min, DIV_ROUND_UP(pll->ext_clock * p1,
+					limits->int_clock_max * div)), mf_inc);
 		mf_high = min(mf_max, pll->ext_clock * p1 /
 			      (limits->int_clock_min * div));
 

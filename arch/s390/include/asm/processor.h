@@ -20,7 +20,6 @@
 #include <asm/ptrace.h>
 #include <asm/setup.h>
 
-#ifdef __KERNEL__
 /*
  * Default implementation of macro that returns current
  * instruction pointer ("program counter").
@@ -33,39 +32,33 @@ static inline void get_cpu_id(struct cpuid *ptr)
 }
 
 extern void s390_adjust_jiffies(void);
-extern int get_cpu_capability(unsigned int *);
 extern const struct seq_operations cpuinfo_op;
 extern int sysctl_ieee_emulation_warnings;
 
 /*
  * User space process size: 2GB for 31 bit, 4TB or 8PT for 64 bit.
  */
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 
 #define TASK_SIZE		(1UL << 31)
 #define TASK_UNMAPPED_BASE	(1UL << 30)
 
-#else /* __s390x__ */
+#else /* CONFIG_64BIT */
 
 #define TASK_SIZE_OF(tsk)	((tsk)->mm->context.asce_limit)
 #define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_31BIT) ? \
 					(1UL << 30) : (1UL << 41))
 #define TASK_SIZE		TASK_SIZE_OF(current)
 
-#endif /* __s390x__ */
+#endif /* CONFIG_64BIT */
 
-#ifdef __KERNEL__
-
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 #define STACK_TOP		(1UL << 31)
 #define STACK_TOP_MAX		(1UL << 31)
-#else /* __s390x__ */
+#else /* CONFIG_64BIT */
 #define STACK_TOP		(1UL << (test_thread_flag(TIF_31BIT) ? 31:42))
 #define STACK_TOP_MAX		(1UL << 42)
-#endif /* __s390x__ */
-
-
-#endif
+#endif /* CONFIG_64BIT */
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
 
@@ -141,9 +134,6 @@ struct seq_file;
 extern void release_thread(struct task_struct *);
 extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
-/* Prepare to copy thread state - unlazy all lazy status */
-#define prepare_to_copy(tsk)	do { } while (0)
-
 /*
  * Return saved PC of a blocked thread.
  */
@@ -185,7 +175,7 @@ static inline void psw_set_key(unsigned int key)
  */
 static inline void __load_psw(psw_t psw)
 {
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 	asm volatile("lpsw  %0" : : "Q" (psw) : "cc");
 #else
 	asm volatile("lpswe %0" : : "Q" (psw) : "cc");
@@ -203,7 +193,7 @@ static inline void __load_psw_mask (unsigned long mask)
 
 	psw.mask = mask;
 
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 	asm volatile(
 		"	basr	%0,0\n"
 		"0:	ahi	%0,1f-0b\n"
@@ -211,14 +201,14 @@ static inline void __load_psw_mask (unsigned long mask)
 		"	lpsw	%1\n"
 		"1:"
 		: "=&d" (addr), "=Q" (psw) : "Q" (psw) : "memory", "cc");
-#else /* __s390x__ */
+#else /* CONFIG_64BIT */
 	asm volatile(
 		"	larl	%0,1f\n"
 		"	stg	%0,%O1+8(%R1)\n"
 		"	lpswe	%1\n"
 		"1:"
 		: "=&d" (addr), "=Q" (psw) : "Q" (psw) : "memory", "cc");
-#endif /* __s390x__ */
+#endif /* CONFIG_64BIT */
 }
 
 /*
@@ -226,7 +216,7 @@ static inline void __load_psw_mask (unsigned long mask)
  */
 static inline unsigned long __rewind_psw(psw_t psw, unsigned long ilc)
 {
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 	if (psw.addr & PSW_ADDR_AMODE)
 		/* 31 bit mode */
 		return (psw.addr - ilc) | PSW_ADDR_AMODE;
@@ -256,7 +246,7 @@ static inline void __noreturn disabled_wait(unsigned long code)
          * Store status and then load disabled wait psw,
          * the processor is dead afterwards
          */
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 	asm volatile(
 		"	stctl	0,0,0(%2)\n"
 		"	ni	0(%2),0xef\n"	/* switch off protection */
@@ -275,7 +265,7 @@ static inline void __noreturn disabled_wait(unsigned long code)
 		"	lpsw	0(%1)"
 		: "=m" (ctl_buf)
 		: "a" (&dw_psw), "a" (&ctl_buf), "m" (dw_psw) : "cc");
-#else /* __s390x__ */
+#else /* CONFIG_64BIT */
 	asm volatile(
 		"	stctg	0,0,0(%2)\n"
 		"	ni	4(%2),0xef\n"	/* switch off protection */
@@ -308,7 +298,7 @@ static inline void __noreturn disabled_wait(unsigned long code)
 		"	lpswe	0(%1)"
 		: "=m" (ctl_buf)
 		: "a" (&dw_psw), "a" (&ctl_buf), "m" (dw_psw) : "cc", "0", "1");
-#endif /* __s390x__ */
+#endif /* CONFIG_64BIT */
 	while (1);
 }
 
@@ -341,12 +331,10 @@ extern void (*s390_base_ext_handler_fn)(void);
 
 #define ARCH_LOW_ADDRESS_LIMIT	0x7fffffffUL
 
-#endif
-
 /*
  * Helper macro for exception table entries
  */
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 #define EX_TABLE(_fault,_target)			\
 	".section __ex_table,\"a\"\n"			\
 	"	.align 4\n"				\

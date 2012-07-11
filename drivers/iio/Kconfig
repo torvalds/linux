@@ -1,0 +1,53 @@
+#
+# Industrial I/O subsytem configuration
+#
+
+menuconfig IIO
+	tristate "Industrial I/O support"
+	depends on GENERIC_HARDIRQS
+	help
+	  The industrial I/O subsystem provides a unified framework for
+	  drivers for many different types of embedded sensors using a
+	  number of different physical interfaces (i2c, spi, etc).
+
+if IIO
+
+config IIO_BUFFER
+	bool "Enable buffer support within IIO"
+	help
+	  Provide core support for various buffer based data
+	  acquisition methods.
+
+if IIO_BUFFER
+
+config IIO_KFIFO_BUF
+	select IIO_TRIGGER
+	tristate "Industrial I/O buffering based on kfifo"
+	help
+	  A simple fifo based on kfifo.  Use this if you want a fifo
+	  rather than a ring buffer. Note that this currently provides
+	  no buffer events so it is up to userspace to work out how
+	  often to read from the buffer.
+
+endif # IIO_BUFFER
+
+config IIO_TRIGGER
+	boolean "Enable triggered sampling support"
+	help
+	  Provides IIO core support for triggers.  Currently these
+	  are used to initialize capture of samples to push into
+	  ring buffers.  The triggers are effectively a 'capture
+	  data now' interrupt.
+
+config IIO_CONSUMERS_PER_TRIGGER
+       int "Maximum number of consumers per trigger"
+       depends on IIO_TRIGGER
+       default "2"
+       help
+	This value controls the maximum number of consumers that a
+	given trigger may handle. Default is 2.
+
+source "drivers/iio/adc/Kconfig"
+source "drivers/iio/amplifiers/Kconfig"
+
+endif # IIO

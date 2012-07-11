@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/connect.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2009
+ *   Copyright (C) International Business Machines  Corp., 2002,2011
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -102,7 +102,7 @@ enum {
 	Opt_srcaddr, Opt_prefixpath,
 	Opt_iocharset, Opt_sockopt,
 	Opt_netbiosname, Opt_servern,
-	Opt_ver, Opt_sec,
+	Opt_ver, Opt_vers, Opt_sec, Opt_cache,
 
 	/* Mount options to be ignored */
 	Opt_ignore,
@@ -164,7 +164,8 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_sign, "sign" },
 	{ Opt_seal, "seal" },
 	{ Opt_direct, "direct" },
-	{ Opt_direct, "forceddirectio" },
+	{ Opt_direct, "directio" },
+	{ Opt_direct, "forcedirectio" },
 	{ Opt_strictcache, "strictcache" },
 	{ Opt_noac, "noac" },
 	{ Opt_fsc, "fsc" },
@@ -209,9 +210,9 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_netbiosname, "netbiosname=%s" },
 	{ Opt_servern, "servern=%s" },
 	{ Opt_ver, "ver=%s" },
-	{ Opt_ver, "vers=%s" },
-	{ Opt_ver, "version=%s" },
+	{ Opt_vers, "vers=%s" },
 	{ Opt_sec, "sec=%s" },
+	{ Opt_cache, "cache=%s" },
 
 	{ Opt_ignore, "cred" },
 	{ Opt_ignore, "credentials" },
@@ -258,6 +259,26 @@ static const match_table_t cifs_secflavor_tokens = {
 	{ Opt_sec_none, "none" },
 
 	{ Opt_sec_err, NULL }
+};
+
+/* cache flavors */
+enum {
+	Opt_cache_loose,
+	Opt_cache_strict,
+	Opt_cache_none,
+	Opt_cache_err
+};
+
+static const match_table_t cifs_cacheflavor_tokens = {
+	{ Opt_cache_loose, "loose" },
+	{ Opt_cache_strict, "strict" },
+	{ Opt_cache_none, "none" },
+	{ Opt_cache_err, NULL }
+};
+
+static const match_table_t cifs_smb_version_tokens = {
+	{ Smb_1, SMB1_VERSION_STRING },
+	{ Smb_21, SMB21_VERSION_STRING },
 };
 
 static int ip_connect(struct TCP_Server_Info *server);
@@ -548,7 +569,7 @@ allocate_buffers(struct TCP_Server_Info *server)
 		}
 	} else if (server->large_buf) {
 		/* we are reusing a dirty large buf, clear its start */
-		memset(server->bigbuf, 0, header_size());
+		memset(server->bigbuf, 0, HEADER_SIZE(server));
 	}
 
 	if (!server->smallbuf) {
@@ -562,7 +583,7 @@ allocate_buffers(struct TCP_Server_Info *server)
 		/* beginning of smb buffer is cleared in our buf_get */
 	} else {
 		/* if existing small buf clear beginning */
-		memset(server->smallbuf, 0, header_size());
+		memset(server->smallbuf, 0, HEADER_SIZE(server));
 	}
 
 	return true;
@@ -763,25 +784,6 @@ is_smb_response(struct TCP_Server_Info *server, unsigned char type)
 	return false;
 }
 
-static struct mid_q_entry *
-find_mid(struct TCP_Server_Info *server, char *buffer)
-{
-	struct smb_hdr *buf = (struct smb_hdr *)buffer;
-	struct mid_q_entry *mid;
-
-	spin_lock(&GlobalMid_Lock);
-	list_for_each_entry(mid, &server->pending_mid_q, qhead) {
-		if (mid->mid == buf->Mid &&
-		    mid->mid_state == MID_REQUEST_SUBMITTED &&
-		    le16_to_cpu(mid->command) == buf->Command) {
-			spin_unlock(&GlobalMid_Lock);
-			return mid;
-		}
-	}
-	spin_unlock(&GlobalMid_Lock);
-	return NULL;
-}
-
 void
 dequeue_mid(struct mid_q_entry *mid, bool malformed)
 {
@@ -933,7 +935,7 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	unsigned int pdu_length = get_rfc1002_length(buf);
 
 	/* make sure this will fit in a large buffer */
-	if (pdu_length > CIFSMaxBufSize + max_header_size() - 4) {
+	if (pdu_length > CIFSMaxBufSize + MAX_HEADER_SIZE(server) - 4) {
 		cERROR(1, "SMB response too long (%u bytes)",
 			pdu_length);
 		cifs_reconnect(server);
@@ -949,8 +951,8 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	}
 
 	/* now read the rest */
-	length = cifs_read_from_socket(server, buf + header_size() - 1,
-				       pdu_length - header_size() + 1 + 4);
+	length = cifs_read_from_socket(server, buf + HEADER_SIZE(server) - 1,
+				pdu_length - HEADER_SIZE(server) + 1 + 4);
 	if (length < 0)
 		return length;
 	server->total_read += length;
@@ -966,7 +968,7 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	 * 48 bytes is enough to display the header and a little bit
 	 * into the payload for debugging purposes.
 	 */
-	length = checkSMB(buf, server->total_read);
+	length = server->ops->check_message(buf, server->total_read);
 	if (length != 0)
 		cifs_dump_mem("Bad SMB: ", buf,
 			min_t(unsigned int, server->total_read, 48));
@@ -1024,7 +1026,7 @@ cifs_demultiplex_thread(void *p)
 			continue;
 
 		/* make sure we have enough to get to the MID */
-		if (pdu_length < header_size() - 1 - 4) {
+		if (pdu_length < HEADER_SIZE(server) - 1 - 4) {
 			cERROR(1, "SMB response too short (%u bytes)",
 				pdu_length);
 			cifs_reconnect(server);
@@ -1034,12 +1036,12 @@ cifs_demultiplex_thread(void *p)
 
 		/* read down to the MID */
 		length = cifs_read_from_socket(server, buf + 4,
-					       header_size() - 1 - 4);
+					       HEADER_SIZE(server) - 1 - 4);
 		if (length < 0)
 			continue;
 		server->total_read += length;
 
-		mid_entry = find_mid(server, buf);
+		mid_entry = server->ops->find_mid(server, buf);
 
 		if (!mid_entry || !mid_entry->receive)
 			length = standard_receive3(server, mid_entry);
@@ -1056,12 +1058,15 @@ cifs_demultiplex_thread(void *p)
 		if (mid_entry != NULL) {
 			if (!mid_entry->multiRsp || mid_entry->multiEnd)
 				mid_entry->callback(mid_entry);
-		} else if (!is_valid_oplock_break(buf, server)) {
+		} else if (!server->ops->is_oplock_break ||
+			   !server->ops->is_oplock_break(buf, server)) {
 			cERROR(1, "No task to wake, unknown frame received! "
 				   "NumMids %d", atomic_read(&midCount));
-			cifs_dump_mem("Received Data is: ", buf, header_size());
+			cifs_dump_mem("Received Data is: ", buf,
+				      HEADER_SIZE(server));
 #ifdef CONFIG_CIFS_DEBUG2
-			cifs_dump_detail(buf);
+			if (server->ops->dump_detail)
+				server->ops->dump_detail(buf);
 			cifs_dump_mids(server);
 #endif /* CIFS_DEBUG2 */
 
@@ -1185,6 +1190,54 @@ static int cifs_parse_security_flavors(char *value,
 }
 
 static int
+cifs_parse_cache_flavor(char *value, struct smb_vol *vol)
+{
+	substring_t args[MAX_OPT_ARGS];
+
+	switch (match_token(value, cifs_cacheflavor_tokens, args)) {
+	case Opt_cache_loose:
+		vol->direct_io = false;
+		vol->strict_io = false;
+		break;
+	case Opt_cache_strict:
+		vol->direct_io = false;
+		vol->strict_io = true;
+		break;
+	case Opt_cache_none:
+		vol->direct_io = true;
+		vol->strict_io = false;
+		break;
+	default:
+		cERROR(1, "bad cache= option: %s", value);
+		return 1;
+	}
+	return 0;
+}
+
+static int
+cifs_parse_smb_version(char *value, struct smb_vol *vol)
+{
+	substring_t args[MAX_OPT_ARGS];
+
+	switch (match_token(value, cifs_smb_version_tokens, args)) {
+	case Smb_1:
+		vol->ops = &smb1_operations;
+		vol->vals = &smb1_values;
+		break;
+#ifdef CONFIG_CIFS_SMB2
+	case Smb_21:
+		vol->ops = &smb21_operations;
+		vol->vals = &smb21_values;
+		break;
+#endif
+	default:
+		cERROR(1, "Unknown vers= option specified: %s", value);
+		return 1;
+	}
+	return 0;
+}
+
+static int
 cifs_parse_mount_options(const char *mountdata, const char *devname,
 			 struct smb_vol *vol)
 {
@@ -1202,6 +1255,8 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	char *string = NULL;
 	char *tmp_end, *value;
 	char delim;
+	bool cache_specified = false;
+	static bool cache_warned = false;
 
 	separator[0] = ',';
 	separator[1] = 0;
@@ -1234,6 +1289,10 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	vol->server_ino = 1;
 
 	vol->actimeo = CIFS_DEF_ACTIMEO;
+
+	/* FIXME: add autonegotiation -- for now, SMB1 is default */
+	vol->ops = &smb1_operations;
+	vol->vals = &smb1_values;
 
 	if (!mountdata)
 		goto cifs_parse_mount_err;
@@ -1413,10 +1472,20 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			vol->seal = 1;
 			break;
 		case Opt_direct:
-			vol->direct_io = 1;
+			cache_specified = true;
+			vol->direct_io = true;
+			vol->strict_io = false;
+			cERROR(1, "The \"directio\" option will be removed in "
+				  "3.7. Please switch to the \"cache=none\" "
+				  "option.");
 			break;
 		case Opt_strictcache:
-			vol->strict_io = 1;
+			cache_specified = true;
+			vol->direct_io = false;
+			vol->strict_io = true;
+			cERROR(1, "The \"strictcache\" option will be removed "
+				"in 3.7. Please switch to the \"cache=strict\" "
+				"option.");
 			break;
 		case Opt_noac:
 			printk(KERN_WARNING "CIFS: Mount option noac not "
@@ -1820,8 +1889,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (string == NULL)
 				goto out_nomem;
 
-			if (strnicmp(string, "cifs", 4) == 0 ||
-			    strnicmp(string, "1", 1) == 0) {
+			if (strnicmp(string, "1", 1) == 0) {
 				/* This is the default */
 				break;
 			}
@@ -1829,12 +1897,29 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			printk(KERN_WARNING "CIFS: Invalid version"
 					    " specified\n");
 			goto cifs_parse_mount_err;
+		case Opt_vers:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+
+			if (cifs_parse_smb_version(string, vol) != 0)
+				goto cifs_parse_mount_err;
+			break;
 		case Opt_sec:
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
 
 			if (cifs_parse_security_flavors(string, vol) != 0)
+				goto cifs_parse_mount_err;
+			break;
+		case Opt_cache:
+			cache_specified = true;
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+
+			if (cifs_parse_cache_flavor(string, vol) != 0)
 				goto cifs_parse_mount_err;
 			break;
 		default:
@@ -1879,6 +1964,14 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	else if (override_gid == 1)
 		printk(KERN_NOTICE "CIFS: ignoring forcegid mount option "
 				   "specified with no gid= option.\n");
+
+	/* FIXME: remove this block in 3.7 */
+	if (!cache_specified && !cache_warned) {
+		cache_warned = true;
+		printk(KERN_NOTICE "CIFS: no cache= option specified, using "
+				   "\"cache=loose\". This default will change "
+				   "to \"cache=strict\" in 3.7.\n");
+	}
 
 	kfree(mountdata_copy);
 	return 0;
@@ -2040,6 +2133,9 @@ match_security(struct TCP_Server_Info *server, struct smb_vol *vol)
 static int match_server(struct TCP_Server_Info *server, struct sockaddr *addr,
 			 struct smb_vol *vol)
 {
+	if ((server->vals != vol->vals) || (server->ops != vol->ops))
+		return 0;
+
 	if (!net_eq(cifs_net_ns(server), current->nsproxy->net_ns))
 		return 0;
 
@@ -2162,6 +2258,8 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		goto out_err;
 	}
 
+	tcp_ses->ops = volume_info->ops;
+	tcp_ses->vals = volume_info->vals;
 	cifs_set_net_ns(tcp_ses, get_net(current->nsproxy->net_ns));
 	tcp_ses->hostname = extract_hostname(volume_info->UNC);
 	if (IS_ERR(tcp_ses->hostname)) {
@@ -3568,6 +3666,7 @@ cifs_setup_volume_info(struct smb_vol *volume_info, char *mount_data,
 	if (cifs_parse_mount_options(mount_data, devname, volume_info))
 		return -EINVAL;
 
+
 	if (volume_info->nullauth) {
 		cFYI(1, "Anonymous login");
 		kfree(volume_info->username);
@@ -3841,7 +3940,7 @@ CIFSTCon(unsigned int xid, struct cifs_ses *ses,
 	header_assemble(smb_buffer, SMB_COM_TREE_CONNECT_ANDX,
 			NULL /*no tid */ , 4 /*wct */ );
 
-	smb_buffer->Mid = GetNextMid(ses->server);
+	smb_buffer->Mid = get_next_mid(ses->server);
 	smb_buffer->Uid = ses->Suid;
 	pSMB = (TCONX_REQ *) smb_buffer;
 	pSMBr = (TCONX_RSP *) smb_buffer_response;
@@ -4009,11 +4108,11 @@ int cifs_negotiate_protocol(unsigned int xid, struct cifs_ses *ses)
 	if (server->maxBuf != 0)
 		return 0;
 
-	cifs_set_credits(server, 1);
+	set_credits(server, 1);
 	rc = CIFSSMBNegotiate(xid, ses);
 	if (rc == -EAGAIN) {
 		/* retry only once on 1st time connection */
-		cifs_set_credits(server, 1);
+		set_credits(server, 1);
 		rc = CIFSSMBNegotiate(xid, ses);
 		if (rc == -EAGAIN)
 			rc = -EHOSTDOWN;

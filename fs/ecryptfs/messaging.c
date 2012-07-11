@@ -303,7 +303,7 @@ int ecryptfs_process_response(struct ecryptfs_message *msg, uid_t euid,
 		mutex_unlock(&ecryptfs_daemon_hash_mux);
 		goto wake_up;
 	}
-	tsk_user_ns = __task_cred(msg_ctx->task)->user->user_ns;
+	tsk_user_ns = __task_cred(msg_ctx->task)->user_ns;
 	ctx_euid = task_euid(msg_ctx->task);
 	rc = ecryptfs_find_daemon_by_euid(&daemon, ctx_euid, tsk_user_ns);
 	rcu_read_unlock();

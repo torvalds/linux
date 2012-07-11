@@ -788,7 +788,6 @@ int mlx4_fmr_alloc(struct mlx4_dev *dev, u32 pd, u32 access, int max_pages,
 		   int max_maps, u8 page_shift, struct mlx4_fmr *fmr)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	u64 mtt_offset;
 	int err = -ENOMEM;
 
 	if (max_maps > dev->caps.max_fmr_maps)
@@ -810,8 +809,6 @@ int mlx4_fmr_alloc(struct mlx4_dev *dev, u32 pd, u32 access, int max_pages,
 			    page_shift, &fmr->mr);
 	if (err)
 		return err;
-
-	mtt_offset = fmr->mr.mtt.offset * dev->caps.mtt_entry_sz;
 
 	fmr->mtts = mlx4_table_find(&priv->mr_table.mtt_table,
 				    fmr->mr.mtt.offset,
@@ -895,6 +892,6 @@ EXPORT_SYMBOL_GPL(mlx4_fmr_free);
 int mlx4_SYNC_TPT(struct mlx4_dev *dev)
 {
 	return mlx4_cmd(dev, 0, 0, 0, MLX4_CMD_SYNC_TPT, 1000,
-			MLX4_CMD_WRAPPED);
+			MLX4_CMD_NATIVE);
 }
 EXPORT_SYMBOL_GPL(mlx4_SYNC_TPT);

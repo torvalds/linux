@@ -739,6 +739,80 @@ static const char *efx_mcdi_phy_test_name(struct efx_nic *efx,
 	return NULL;
 }
 
+#define SFP_PAGE_SIZE	128
+#define SFP_NUM_PAGES	2
+static int efx_mcdi_phy_get_module_eeprom(struct efx_nic *efx,
+					  struct ethtool_eeprom *ee, u8 *data)
+{
+	u8 outbuf[MC_CMD_GET_PHY_MEDIA_INFO_OUT_LENMAX];
+	u8 inbuf[MC_CMD_GET_PHY_MEDIA_INFO_IN_LEN];
+	size_t outlen;
+	int rc;
+	unsigned int payload_len;
+	unsigned int space_remaining = ee->len;
+	unsigned int page;
+	unsigned int page_off;
+	unsigned int to_copy;
+	u8 *user_data = data;
+
+	BUILD_BUG_ON(SFP_PAGE_SIZE * SFP_NUM_PAGES != ETH_MODULE_SFF_8079_LEN);
+
+	page_off = ee->offset % SFP_PAGE_SIZE;
+	page = ee->offset / SFP_PAGE_SIZE;
+
+	while (space_remaining && (page < SFP_NUM_PAGES)) {
+		MCDI_SET_DWORD(inbuf, GET_PHY_MEDIA_INFO_IN_PAGE, page);
+
+		rc = efx_mcdi_rpc(efx, MC_CMD_GET_PHY_MEDIA_INFO,
+				  inbuf, sizeof(inbuf),
+				  outbuf, sizeof(outbuf),
+				  &outlen);
+		if (rc)
+			return rc;
+
+		if (outlen < (MC_CMD_GET_PHY_MEDIA_INFO_OUT_DATA_OFST +
+			      SFP_PAGE_SIZE))
+			return -EIO;
+
+		payload_len = MCDI_DWORD(outbuf,
+					 GET_PHY_MEDIA_INFO_OUT_DATALEN);
+		if (payload_len != SFP_PAGE_SIZE)
+			return -EIO;
+
+		/* Copy as much as we can into data */
+		payload_len -= page_off;
+		to_copy = (space_remaining < payload_len) ?
+			space_remaining : payload_len;
+
+		memcpy(user_data,
+		       outbuf + page_off +
+		       MC_CMD_GET_PHY_MEDIA_INFO_OUT_DATA_OFST,
+		       to_copy);
+
+		space_remaining -= to_copy;
+		user_data += to_copy;
+		page_off = 0;
+		page++;
+	}
+
+	return 0;
+}
+
+static int efx_mcdi_phy_get_module_info(struct efx_nic *efx,
+					struct ethtool_modinfo *modinfo)
+{
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
+
+	switch (phy_cfg->media) {
+	case MC_CMD_MEDIA_SFP_PLUS:
+		modinfo->type = ETH_MODULE_SFF_8079;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 const struct efx_phy_operations efx_mcdi_phy_ops = {
 	.probe		= efx_mcdi_phy_probe,
 	.init		= efx_port_dummy_op_int,
@@ -751,4 +825,6 @@ const struct efx_phy_operations efx_mcdi_phy_ops = {
 	.test_alive	= efx_mcdi_phy_test_alive,
 	.run_tests	= efx_mcdi_phy_run_tests,
 	.test_name	= efx_mcdi_phy_test_name,
+	.get_module_eeprom = efx_mcdi_phy_get_module_eeprom,
+	.get_module_info = efx_mcdi_phy_get_module_info,
 };

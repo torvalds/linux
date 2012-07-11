@@ -72,7 +72,7 @@ static void *didd_callback(void *context, DESCRIPTOR *adapter,
 /*
  * connect to didd
  */
-static int DIVA_INIT_FUNCTION connect_didd(void)
+static int __init connect_didd(void)
 {
 	int x = 0;
 	int dadapter = 0;
@@ -114,7 +114,7 @@ static int DIVA_INIT_FUNCTION connect_didd(void)
 /*
  * disconnect from didd
  */
-static void DIVA_EXIT_FUNCTION disconnect_didd(void)
+static void __exit disconnect_didd(void)
 {
 	IDI_SYNC_REQ req;
 
@@ -300,7 +300,7 @@ int maint_read_write(void __user *buf, int count)
 /*
  *  init
  */
-int DIVA_INIT_FUNCTION mntfunc_init(int *buffer_length, void **buffer,
+int __init mntfunc_init(int *buffer_length, void **buffer,
 				    unsigned long diva_dbg_mem)
 {
 	if (*buffer_length < 64) {
@@ -348,7 +348,7 @@ int DIVA_INIT_FUNCTION mntfunc_init(int *buffer_length, void **buffer,
 /*
  *  exit
  */
-void DIVA_EXIT_FUNCTION mntfunc_finit(void)
+void __exit mntfunc_finit(void)
 {
 	void *buffer;
 	int i = 100;

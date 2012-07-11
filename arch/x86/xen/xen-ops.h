@@ -28,7 +28,6 @@ void xen_setup_shared_info(void);
 void xen_build_mfn_list_list(void);
 void xen_setup_machphys_mapping(void);
 pgd_t *xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn);
-void xen_ident_map_ISA(void);
 void xen_reserve_top(void);
 extern unsigned long xen_max_p2m_pfn;
 
@@ -92,9 +91,13 @@ struct dom0_vga_console_info;
 
 #ifdef CONFIG_XEN_DOM0
 void __init xen_init_vga(const struct dom0_vga_console_info *, size_t size);
+void __init xen_init_apic(void);
 #else
 static inline void __init xen_init_vga(const struct dom0_vga_console_info *info,
 				       size_t size)
+{
+}
+static inline void __init xen_init_apic(void)
 {
 }
 #endif

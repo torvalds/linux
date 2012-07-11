@@ -30,7 +30,19 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
  */
 #define elf_check_arch(x) ((x)->e_machine == EM_TI_C6000)
 
-#define elf_check_const_displacement(x) (1)
+#define elf_check_fdpic(x) (1)
+#define elf_check_const_displacement(x) (0)
+
+#define ELF_FDPIC_PLAT_INIT(_regs, _exec_map, _interp_map, _dynamic_addr) \
+do {								\
+	_regs->b4	= (_exec_map);				\
+	_regs->a6	= (_interp_map);			\
+	_regs->b6	= (_dynamic_addr);			\
+} while (0)
+
+#define ELF_FDPIC_CORE_EFLAGS	0
+
+#define ELF_CORE_COPY_FPREGS(...) 0 /* No FPU regs to copy */
 
 /*
  * These are used to set parameters in the core dumps.

@@ -79,7 +79,6 @@ struct kvm_task_sleep_node {
 	u32 token;
 	int cpu;
 	bool halted;
-	struct mm_struct *mm;
 };
 
 static struct kvm_task_sleep_head {
@@ -126,9 +125,7 @@ void kvm_async_pf_task_wait(u32 token)
 
 	n.token = token;
 	n.cpu = smp_processor_id();
-	n.mm = current->active_mm;
 	n.halted = idle || preempt_count() > 1;
-	atomic_inc(&n.mm->mm_count);
 	init_waitqueue_head(&n.wq);
 	hlist_add_head(&n.link, &b->list);
 	spin_unlock(&b->lock);
@@ -161,9 +158,6 @@ EXPORT_SYMBOL_GPL(kvm_async_pf_task_wait);
 static void apf_task_wake_one(struct kvm_task_sleep_node *n)
 {
 	hlist_del_init(&n->link);
-	if (!n->mm)
-		return;
-	mmdrop(n->mm);
 	if (n->halted)
 		smp_send_reschedule(n->cpu);
 	else if (waitqueue_active(&n->wq))
@@ -207,7 +201,7 @@ again:
 		 * async PF was not yet handled.
 		 * Add dummy entry for the token.
 		 */
-		n = kmalloc(sizeof(*n), GFP_ATOMIC);
+		n = kzalloc(sizeof(*n), GFP_ATOMIC);
 		if (!n) {
 			/*
 			 * Allocation failed! Busy wait while other cpu
@@ -219,7 +213,6 @@ again:
 		}
 		n->token = token;
 		n->cpu = smp_processor_id();
-		n->mm = NULL;
 		init_waitqueue_head(&n->wq);
 		hlist_add_head(&n->link, &b->list);
 	} else

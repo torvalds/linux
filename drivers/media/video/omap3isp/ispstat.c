@@ -1032,7 +1032,7 @@ int omap3isp_stat_subscribe_event(struct v4l2_subdev *subdev,
 	if (sub->type != stat->event_type)
 		return -EINVAL;
 
-	return v4l2_event_subscribe(fh, sub, STAT_NEVENTS);
+	return v4l2_event_subscribe(fh, sub, STAT_NEVENTS, NULL);
 }
 
 int omap3isp_stat_unsubscribe_event(struct v4l2_subdev *subdev,

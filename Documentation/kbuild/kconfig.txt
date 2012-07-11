@@ -53,15 +53,15 @@ KCONFIG_ALLCONFIG
 --------------------------------------------------
 (partially based on lkml email from/by Rob Landley, re: miniconfig)
 --------------------------------------------------
-The allyesconfig/allmodconfig/allnoconfig/randconfig variants can
-also use the environment variable KCONFIG_ALLCONFIG as a flag or a
-filename that contains config symbols that the user requires to be
-set to a specific value.  If KCONFIG_ALLCONFIG is used without a
-filename, "make *config" checks for a file named
-"all{yes/mod/no/def/random}.config" (corresponding to the *config command
-that was used) for symbol values that are to be forced.  If this file
-is not found, it checks for a file named "all.config" to contain forced
-values.
+The allyesconfig/allmodconfig/allnoconfig/randconfig variants can also
+use the environment variable KCONFIG_ALLCONFIG as a flag or a filename
+that contains config symbols that the user requires to be set to a
+specific value.  If KCONFIG_ALLCONFIG is used without a filename where
+KCONFIG_ALLCONFIG == "" or KCONFIG_ALLCONFIG == "1", "make *config"
+checks for a file named "all{yes/mod/no/def/random}.config"
+(corresponding to the *config command that was used) for symbol values
+that are to be forced.  If this file is not found, it checks for a
+file named "all.config" to contain forced values.
 
 This enables you to create "miniature" config (miniconfig) or custom
 config files containing just the config symbols that you are interested

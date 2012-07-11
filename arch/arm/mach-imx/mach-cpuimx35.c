@@ -70,7 +70,6 @@ static struct i2c_board_info eukrea_cpuimx35_i2c_devices[] = {
 		I2C_BOARD_INFO("pcf8563", 0x51),
 	}, {
 		I2C_BOARD_INFO("tsc2007", 0x48),
-		.type		= "tsc2007",
 		.platform_data	= &tsc2007_info,
 		.irq		= IMX_GPIO_TO_IRQ(TSC2007_IRQGPIO),
 	},
@@ -194,7 +193,7 @@ static void __init eukrea_cpuimx35_timer_init(void)
 	mx35_clocks_init();
 }
 
-struct sys_timer eukrea_cpuimx35_timer = {
+static struct sys_timer eukrea_cpuimx35_timer = {
 	.init	= eukrea_cpuimx35_timer_init,
 };
 

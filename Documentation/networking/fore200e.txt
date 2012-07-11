@@ -11,12 +11,10 @@ i386, alpha (untested), powerpc, sparc and sparc64 archs.
 
 The intent is to enable the use of different models of FORE adapters at the
 same time, by hosts that have several bus interfaces (such as PCI+SBUS,
-PCI+MCA or PCI+EISA).
+or PCI+EISA).
 
 Only PCI and SBUS devices are currently supported by the driver, but support
-for other bus interfaces such as EISA should not be too hard to add (this may
-be more tricky for the MCA bus, though, as FORE made some MCA-specific
-modifications to the adapter's AALI interface).
+for other bus interfaces such as EISA should not be too hard to add.
 
 
 Firmware Copyright Notice

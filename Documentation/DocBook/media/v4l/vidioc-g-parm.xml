@@ -75,11 +75,12 @@ devices.</para>
 	&cs-ustr;
 	<tbody valign="top">
 	  <row>
-	    <entry>&v4l2-buf-type;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>type</structfield></entry>
 	    <entry></entry>
 	    <entry>The buffer (stream) type, same as &v4l2-format;
-<structfield>type</structfield>, set by the application.</entry>
+<structfield>type</structfield>, set by the application. See <xref
+	    linkend="v4l2-buf-type" /></entry>
 	  </row>
 	  <row>
 	    <entry>union</entry>

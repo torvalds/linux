@@ -11,7 +11,7 @@
 #include <linux/types.h>
 #include <linux/err.h>
 
-#include "../iio.h"
+#include <linux/iio/iio.h>
 #include "ad7606.h"
 
 #define MAX_SPI_FREQ_HZ		23500000	/* VDRIVE above 4.75 V */

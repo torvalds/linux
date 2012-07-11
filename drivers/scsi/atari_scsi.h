@@ -18,11 +18,6 @@
 /* (I_HAVE_OVERRUNS stuff removed) */
 
 #ifndef ASM
-int atari_scsi_detect (struct scsi_host_template *);
-const char *atari_scsi_info (struct Scsi_Host *);
-int atari_scsi_reset (Scsi_Cmnd *, unsigned int);
-int atari_scsi_release (struct Scsi_Host *);
-
 /* The values for CMD_PER_LUN and CAN_QUEUE are somehow arbitrary. Higher
  * values should work, too; try it! (but cmd_per_lun costs memory!) */
 

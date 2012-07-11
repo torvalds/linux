@@ -90,18 +90,17 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		spin_lock_irq(&pDevice->lock);
 
 		if (memcmp(pMgmt->abyCurrBSSID, &abyNullAddr[0], 6) == 0)
-			BSSvClearBSSList((void *)pDevice, FALSE);
+			BSSvClearBSSList(pDevice, FALSE);
 		else
-			BSSvClearBSSList((void *)pDevice, pDevice->bLinkPass);
+			BSSvClearBSSList(pDevice, pDevice->bLinkPass);
 
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WLAN_CMD_BSS_SCAN..begin\n");
 
 		if (pItemSSID->len != 0)
-			bScheduleCommand((void *)pDevice,
-					 WLAN_CMD_BSSID_SCAN,
+			bScheduleCommand(pDevice, WLAN_CMD_BSSID_SCAN,
 					 abyScanSSID);
 		else
-			bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
+			bScheduleCommand(pDevice, WLAN_CMD_BSSID_SCAN, NULL);
 
 		spin_unlock_irq(&pDevice->lock);
 		break;
@@ -150,6 +149,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			}
 		}
 		break;
+
 	case WLAN_CMD_BSS_JOIN:
 		if (copy_from_user(&sJoinCmd, pReq->data, sizeof(SCmdBSSJoin))) {
 			result = -EFAULT;
@@ -190,10 +190,9 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		netif_stop_queue(pDevice->dev);
 		spin_lock_irq(&pDevice->lock);
 		pMgmt->eCurrState = WMAC_STATE_IDLE;
-		bScheduleCommand((void *) pDevice,
-				 WLAN_CMD_BSSID_SCAN,
+		bScheduleCommand(pDevice, WLAN_CMD_BSSID_SCAN,
 				 pMgmt->abyDesireSSID);
-		bScheduleCommand((void *) pDevice, WLAN_CMD_SSID, NULL);
+		bScheduleCommand(pDevice, WLAN_CMD_SSID, NULL);
 		spin_unlock_irq(&pDevice->lock);
 		break;
 
@@ -299,7 +298,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			result = -EINVAL;
 			break;
 		}
-		pList = (PSBSSIDList)kmalloc(sizeof(SBSSIDList) + (sList.uItem * sizeof(SBSSIDItem)), (int)GFP_ATOMIC);
+		pList = kmalloc(sizeof(SBSSIDList) + (sList.uItem * sizeof(SBSSIDItem)), GFP_ATOMIC);
 		if (pList == NULL) {
 			result = -ENOMEM;
 			break;
@@ -313,7 +312,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 				pList->sBSSIDList[ii].wBeaconInterval = pBSS->wBeaconInterval;
 				pList->sBSSIDList[ii].wCapInfo = pBSS->wCapInfo;
 				RFvRSSITodBm(pDevice, (BYTE)(pBSS->uRSSI), &ldBm);
-				pList->sBSSIDList[ii].uRSSI = (unsigned int) ldBm;
+				pList->sBSSIDList[ii].uRSSI = (unsigned int)ldBm;
 				/* pList->sBSSIDList[ii].uRSSI = pBSS->uRSSI; */
 				memcpy(pList->sBSSIDList[ii].abyBSSID, pBSS->abyBSSID, WLAN_BSSID_LEN);
 				pItemSSID = (PWLAN_IE_SSID)pBSS->abySSID;
@@ -356,6 +355,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			break;
 		}
 		break;
+
 	case WLAN_CMD_STOP_MAC:
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WLAN_CMD_STOP_MAC\n");
 		/* Todo xxxxxx */
@@ -534,7 +534,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 
 		netif_stop_queue(pDevice->dev);
 		spin_lock_irq(&pDevice->lock);
-		bScheduleCommand((void *)pDevice, WLAN_CMD_RUN_AP, NULL);
+		bScheduleCommand(pDevice, WLAN_CMD_RUN_AP, NULL);
 		spin_unlock_irq(&pDevice->lock);
 		break;
 
@@ -565,7 +565,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			result = -ENOMEM;
 			break;
 		}
-		pNodeList = kmalloc(sizeof(SNodeList) + (sNodeList.uItem * sizeof(SNodeItem)), (int)GFP_ATOMIC);
+		pNodeList = kmalloc(sizeof(SNodeList) + (sNodeList.uItem * sizeof(SNodeItem)), GFP_ATOMIC);
 		if (pNodeList == NULL) {
 			result = -ENOMEM;
 			break;

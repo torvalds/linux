@@ -25,3 +25,12 @@ config SCSI_QLA_FC
 	Firmware images can be retrieved from:
 
 		ftp://ftp.qlogic.com/outgoing/linux/firmware/
+
+config TCM_QLA2XXX
+	tristate "TCM_QLA2XXX fabric module for Qlogic 2xxx series target mode HBAs"
+	depends on SCSI_QLA_FC && TARGET_CORE
+	select LIBFC
+	select BTREE
+	default n
+	---help---
+	Say Y here to enable the TCM_QLA2XXX fabric module for Qlogic 2xxx series target mode HBAs

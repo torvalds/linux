@@ -55,6 +55,7 @@ struct usbhsg_gpriv {
 #define USBHSG_STATUS_STARTED		(1 << 0)
 #define USBHSG_STATUS_REGISTERD		(1 << 1)
 #define USBHSG_STATUS_WEDGE		(1 << 2)
+#define USBHSG_STATUS_SELF_POWERED	(1 << 3)
 };
 
 struct usbhsg_recip_handle {
@@ -333,7 +334,10 @@ static int usbhsg_recip_handler_std_get_device(struct usbhs_priv *priv,
 					       struct usb_ctrlrequest *ctrl)
 {
 	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
-	unsigned short status = 1 << USB_DEVICE_SELF_POWERED;
+	unsigned short status = 0;
+
+	if (usbhsg_status_has(gpriv, USBHSG_STATUS_SELF_POWERED))
+		status = 1 << USB_DEVICE_SELF_POWERED;
 
 	__usbhsg_recip_send_status(gpriv, status);
 
@@ -879,8 +883,21 @@ static int usbhsg_get_frame(struct usb_gadget *gadget)
 	return usbhs_frame_get_num(priv);
 }
 
+static int usbhsg_set_selfpowered(struct usb_gadget *gadget, int is_self)
+{
+	struct usbhsg_gpriv *gpriv = usbhsg_gadget_to_gpriv(gadget);
+
+	if (is_self)
+		usbhsg_status_set(gpriv, USBHSG_STATUS_SELF_POWERED);
+	else
+		usbhsg_status_clr(gpriv, USBHSG_STATUS_SELF_POWERED);
+
+	return 0;
+}
+
 static struct usb_gadget_ops usbhsg_gadget_ops = {
 	.get_frame		= usbhsg_get_frame,
+	.set_selfpowered	= usbhsg_set_selfpowered,
 	.udc_start		= usbhsg_gadget_start,
 	.udc_stop		= usbhsg_gadget_stop,
 };

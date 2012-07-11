@@ -177,9 +177,8 @@ static void wl_adapter_detach(struct pcmcia_device *link)
 	if (dev) {
 		unregister_wlags_sysfs(dev);
 		unregister_netdev(dev);
+		wl_device_dealloc(dev);
 	}
-
-	wl_device_dealloc(dev);
 
 	DBG_LEAVE(DbgInfo);
 } /* wl_adapter_detach */

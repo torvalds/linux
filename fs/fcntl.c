@@ -442,28 +442,24 @@ static int check_fcntl_cmd(unsigned cmd)
 SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd, unsigned long, arg)
 {	
 	struct file *filp;
+	int fput_needed;
 	long err = -EBADF;
 
-	filp = fget_raw(fd);
+	filp = fget_raw_light(fd, &fput_needed);
 	if (!filp)
 		goto out;
 
 	if (unlikely(filp->f_mode & FMODE_PATH)) {
-		if (!check_fcntl_cmd(cmd)) {
-			fput(filp);
-			goto out;
-		}
+		if (!check_fcntl_cmd(cmd))
+			goto out1;
 	}
 
 	err = security_file_fcntl(filp, cmd, arg);
-	if (err) {
-		fput(filp);
-		return err;
-	}
+	if (!err)
+		err = do_fcntl(fd, cmd, arg, filp);
 
-	err = do_fcntl(fd, cmd, arg, filp);
-
- 	fput(filp);
+out1:
+ 	fput_light(filp, fput_needed);
 out:
 	return err;
 }
@@ -473,26 +469,21 @@ SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		unsigned long, arg)
 {	
 	struct file * filp;
-	long err;
+	long err = -EBADF;
+	int fput_needed;
 
-	err = -EBADF;
-	filp = fget_raw(fd);
+	filp = fget_raw_light(fd, &fput_needed);
 	if (!filp)
 		goto out;
 
 	if (unlikely(filp->f_mode & FMODE_PATH)) {
-		if (!check_fcntl_cmd(cmd)) {
-			fput(filp);
-			goto out;
-		}
+		if (!check_fcntl_cmd(cmd))
+			goto out1;
 	}
 
 	err = security_file_fcntl(filp, cmd, arg);
-	if (err) {
-		fput(filp);
-		return err;
-	}
-	err = -EBADF;
+	if (err)
+		goto out1;
 	
 	switch (cmd) {
 		case F_GETLK64:
@@ -507,7 +498,8 @@ SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 			err = do_fcntl(fd, cmd, arg, filp);
 			break;
 	}
-	fput(filp);
+out1:
+	fput_light(filp, fput_needed);
 out:
 	return err;
 }
@@ -532,9 +524,9 @@ static inline int sigio_perm(struct task_struct *p,
 
 	rcu_read_lock();
 	cred = __task_cred(p);
-	ret = ((fown->euid == 0 ||
-		fown->euid == cred->suid || fown->euid == cred->uid ||
-		fown->uid  == cred->suid || fown->uid  == cred->uid) &&
+	ret = ((uid_eq(fown->euid, GLOBAL_ROOT_UID) ||
+		uid_eq(fown->euid, cred->suid) || uid_eq(fown->euid, cred->uid) ||
+		uid_eq(fown->uid,  cred->suid) || uid_eq(fown->uid,  cred->uid)) &&
 	       !security_file_send_sigiotask(p, fown, sig));
 	rcu_read_unlock();
 	return ret;

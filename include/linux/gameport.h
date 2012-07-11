@@ -153,6 +153,19 @@ int __must_check __gameport_register_driver(struct gameport_driver *drv,
 
 void gameport_unregister_driver(struct gameport_driver *drv);
 
+/**
+ * module_gameport_driver() - Helper macro for registering a gameport driver
+ * @__gameport_driver: gameport_driver struct
+ *
+ * Helper macro for gameport drivers which do not do anything special in
+ * module init/exit. This eliminates a lot of boilerplate. Each module may
+ * only use this macro once, and calling it replaces module_init() and
+ * module_exit().
+ */
+#define module_gameport_driver(__gameport_driver) \
+	module_driver(__gameport_driver, gameport_register_driver, \
+		       gameport_unregister_driver)
+
 #endif /* __KERNEL__ */
 
 #define GAMEPORT_MODE_DISABLED		0

@@ -2119,15 +2119,4 @@ static struct pci_driver rt2500pci_driver = {
 	.resume		= rt2x00pci_resume,
 };
 
-static int __init rt2500pci_init(void)
-{
-	return pci_register_driver(&rt2500pci_driver);
-}
-
-static void __exit rt2500pci_exit(void)
-{
-	pci_unregister_driver(&rt2500pci_driver);
-}
-
-module_init(rt2500pci_init);
-module_exit(rt2500pci_exit);
+module_pci_driver(rt2500pci_driver);

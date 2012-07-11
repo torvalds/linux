@@ -402,12 +402,13 @@ list_set_head(struct ip_set *set, struct sk_buff *skb)
 	nested = ipset_nest_start(skb, IPSET_ATTR_DATA);
 	if (!nested)
 		goto nla_put_failure;
-	NLA_PUT_NET32(skb, IPSET_ATTR_SIZE, htonl(map->size));
-	if (with_timeout(map->timeout))
-		NLA_PUT_NET32(skb, IPSET_ATTR_TIMEOUT, htonl(map->timeout));
-	NLA_PUT_NET32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref - 1));
-	NLA_PUT_NET32(skb, IPSET_ATTR_MEMSIZE,
-		      htonl(sizeof(*map) + map->size * map->dsize));
+	if (nla_put_net32(skb, IPSET_ATTR_SIZE, htonl(map->size)) ||
+	    (with_timeout(map->timeout) &&
+	     nla_put_net32(skb, IPSET_ATTR_TIMEOUT, htonl(map->timeout))) ||
+	    nla_put_net32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref - 1)) ||
+	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE,
+			  htonl(sizeof(*map) + map->size * map->dsize)))
+		goto nla_put_failure;
 	ipset_nest_end(skb, nested);
 
 	return 0;
@@ -442,13 +443,15 @@ list_set_list(const struct ip_set *set,
 			} else
 				goto nla_put_failure;
 		}
-		NLA_PUT_STRING(skb, IPSET_ATTR_NAME,
-			       ip_set_name_byindex(e->id));
+		if (nla_put_string(skb, IPSET_ATTR_NAME,
+				   ip_set_name_byindex(e->id)))
+			goto nla_put_failure;
 		if (with_timeout(map->timeout)) {
 			const struct set_telem *te =
 				(const struct set_telem *) e;
-			NLA_PUT_NET32(skb, IPSET_ATTR_TIMEOUT,
-				      htonl(ip_set_timeout_get(te->timeout)));
+			__be32 to = htonl(ip_set_timeout_get(te->timeout));
+			if (nla_put_net32(skb, IPSET_ATTR_TIMEOUT, to))
+				goto nla_put_failure;
 		}
 		ipset_nest_end(skb, nested);
 	}

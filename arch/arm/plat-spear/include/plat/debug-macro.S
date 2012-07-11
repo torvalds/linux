@@ -4,7 +4,7 @@
  * Debugging macro include header for spear platform
  *
  * Copyright (C) 2009 ST Microelectronics
- * Viresh Kumar<viresh.kumar@st.com>
+ * Viresh Kumar <viresh.linux@gmail.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -12,7 +12,7 @@
  */
 
 #include <linux/amba/serial.h>
-#include <mach/hardware.h>
+#include <mach/spear.h>
 
 		.macro	addruart, rp, rv, tmp
 		mov	\rp, #SPEAR_DBG_UART_BASE		@ Physical base

@@ -130,7 +130,17 @@ Menu controls are added by calling v4l2_ctrl_new_std_menu:
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, s32 max, s32 skip_mask, s32 def);
 
+Or alternatively for integer menu controls, by calling v4l2_ctrl_new_int_menu:
+
+	struct v4l2_ctrl *v4l2_ctrl_new_int_menu(struct v4l2_ctrl_handler *hdl,
+			const struct v4l2_ctrl_ops *ops,
+			u32 id, s32 max, s32 def, const s64 *qmenu_int);
+
 These functions are typically called right after the v4l2_ctrl_handler_init:
+
+	static const s64 exp_bias_qmenu[] = {
+	       -2, -1, 0, 1, 2
+	};
 
 	v4l2_ctrl_handler_init(&foo->ctrl_handler, nr_of_controls);
 	v4l2_ctrl_new_std(&foo->ctrl_handler, &foo_ctrl_ops,
@@ -141,6 +151,11 @@ These functions are typically called right after the v4l2_ctrl_handler_init:
 			V4L2_CID_POWER_LINE_FREQUENCY,
 			V4L2_CID_POWER_LINE_FREQUENCY_60HZ, 0,
 			V4L2_CID_POWER_LINE_FREQUENCY_DISABLED);
+	v4l2_ctrl_new_int_menu(&foo->ctrl_handler, &foo_ctrl_ops,
+			V4L2_CID_EXPOSURE_BIAS,
+			ARRAY_SIZE(exp_bias_qmenu) - 1,
+			ARRAY_SIZE(exp_bias_qmenu) / 2 - 1,
+			exp_bias_qmenu);
 	...
 	if (foo->ctrl_handler.error) {
 		int err = foo->ctrl_handler.error;
@@ -163,6 +178,12 @@ The v4l2_ctrl_new_std_menu function is very similar but it is used for menu
 controls. There is no min argument since that is always 0 for menu controls,
 and instead of a step there is a skip_mask argument: if bit X is 1, then menu
 item X is skipped.
+
+The v4l2_ctrl_new_int_menu function creates a new standard integer menu
+control with driver-specific items in the menu. It differs from
+v4l2_ctrl_new_std_menu in that it doesn't have the mask argument and takes
+as the last argument an array of signed 64-bit integers that form an exact
+menu item list.
 
 Note that if something fails, the function will return NULL or an error and
 set ctrl_handler->error to the error code. If ctrl_handler->error was already

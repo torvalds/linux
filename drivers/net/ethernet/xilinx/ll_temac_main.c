@@ -1000,6 +1000,7 @@ static const struct ethtool_ops temac_ethtool_ops = {
 	.set_settings = temac_set_settings,
 	.nway_reset = temac_nway_reset,
 	.get_link = ethtool_op_get_link,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 static int __devinit temac_of_probe(struct platform_device *op)

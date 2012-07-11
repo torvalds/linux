@@ -34,6 +34,7 @@
 
 #ifndef __ASSEMBLY__
 extern void mcount(void);
+extern atomic_t modifying_ftrace_code;
 
 static inline unsigned long ftrace_call_adjust(unsigned long addr)
 {
@@ -49,6 +50,8 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 struct dyn_arch_ftrace {
 	/* No extra data needed for x86 */
 };
+
+int ftrace_int3_handler(struct pt_regs *regs);
 
 #endif /*  CONFIG_DYNAMIC_FTRACE */
 #endif /* __ASSEMBLY__ */

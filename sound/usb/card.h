@@ -30,20 +30,71 @@ struct audioformat {
 };
 
 struct snd_usb_substream;
+struct snd_usb_endpoint;
 
 struct snd_urb_ctx {
 	struct urb *urb;
 	unsigned int buffer_size;	/* size of data buffer, if data URB */
 	struct snd_usb_substream *subs;
+	struct snd_usb_endpoint *ep;
 	int index;	/* index for urb array */
 	int packets;	/* number of packets per urb */
+	int packet_size[MAX_PACKS_HS]; /* size of packets for next submission */
+	struct list_head ready_list;
 };
 
-struct snd_urb_ops {
-	int (*prepare)(struct snd_usb_substream *subs, struct snd_pcm_runtime *runtime, struct urb *u);
-	int (*retire)(struct snd_usb_substream *subs, struct snd_pcm_runtime *runtime, struct urb *u);
-	int (*prepare_sync)(struct snd_usb_substream *subs, struct snd_pcm_runtime *runtime, struct urb *u);
-	int (*retire_sync)(struct snd_usb_substream *subs, struct snd_pcm_runtime *runtime, struct urb *u);
+struct snd_usb_endpoint {
+	struct snd_usb_audio *chip;
+
+	int use_count;
+	int ep_num;		/* the referenced endpoint number */
+	int type;		/* SND_USB_ENDPOINT_TYPE_* */
+	unsigned long flags;
+
+	void (*prepare_data_urb) (struct snd_usb_substream *subs,
+				  struct urb *urb);
+	void (*retire_data_urb) (struct snd_usb_substream *subs,
+				 struct urb *urb);
+
+	struct snd_usb_substream *data_subs;
+	struct snd_usb_endpoint *sync_master;
+	struct snd_usb_endpoint *sync_slave;
+
+	struct snd_urb_ctx urb[MAX_URBS];
+
+	struct snd_usb_packet_info {
+		uint32_t packet_size[MAX_PACKS_HS];
+		int packets;
+	} next_packet[MAX_URBS];
+	int next_packet_read_pos, next_packet_write_pos;
+	struct list_head ready_playback_urbs;
+
+	unsigned int nurbs;		/* # urbs */
+	unsigned long active_mask;	/* bitmask of active urbs */
+	unsigned long unlink_mask;	/* bitmask of unlinked urbs */
+	char *syncbuf;			/* sync buffer for all sync URBs */
+	dma_addr_t sync_dma;		/* DMA address of syncbuf */
+
+	unsigned int pipe;		/* the data i/o pipe */
+	unsigned int freqn;		/* nominal sampling rate in fs/fps in Q16.16 format */
+	unsigned int freqm;		/* momentary sampling rate in fs/fps in Q16.16 format */
+	int	   freqshift;		/* how much to shift the feedback value to get Q16.16 */
+	unsigned int freqmax;		/* maximum sampling rate, used for buffer management */
+	unsigned int phase;		/* phase accumulator */
+	unsigned int maxpacksize;	/* max packet size in bytes */
+	unsigned int maxframesize;      /* max packet size in frames */
+	unsigned int curpacksize;	/* current packet size in bytes (for capture) */
+	unsigned int curframesize;      /* current packet size in frames (for capture) */
+	unsigned int syncmaxsize;	/* sync endpoint packet size */
+	unsigned int fill_max:1;	/* fill max packet size always */
+	unsigned int datainterval;      /* log_2 of data packet interval */
+	unsigned int syncinterval;	/* P for adaptive mode, 0 otherwise */
+	unsigned char silence_value;
+	unsigned int stride;
+	int iface, alt_idx;
+
+	spinlock_t lock;
+	struct list_head list;
 };
 
 struct snd_usb_substream {
@@ -57,21 +108,6 @@ struct snd_usb_substream {
 	unsigned int cur_rate;		/* current rate (for hw_params callback) */
 	unsigned int period_bytes;	/* current period bytes (for hw_params callback) */
 	unsigned int altset_idx;     /* USB data format: index of alternate setting */
-	unsigned int datapipe;   /* the data i/o pipe */
-	unsigned int syncpipe;   /* 1 - async out or adaptive in */
-	unsigned int datainterval;	/* log_2 of data packet interval */
-	unsigned int syncinterval;  /* P for adaptive mode, 0 otherwise */
-	unsigned int freqn;      /* nominal sampling rate in fs/fps in Q16.16 format */
-	unsigned int freqm;      /* momentary sampling rate in fs/fps in Q16.16 format */
-	int          freqshift;  /* how much to shift the feedback value to get Q16.16 */
-	unsigned int freqmax;    /* maximum sampling rate, used for buffer management */
-	unsigned int phase;      /* phase accumulator */
-	unsigned int maxpacksize;	/* max packet size in bytes */
-	unsigned int maxframesize;	/* max packet size in frames */
-	unsigned int curpacksize;	/* current packet size in bytes (for capture) */
-	unsigned int curframesize;	/* current packet size in frames (for capture) */
-	unsigned int syncmaxsize;	/* sync endpoint packet size */
-	unsigned int fill_max: 1;	/* fill max packet size always */
 	unsigned int txfr_quirk:1;	/* allow sub-frame alignment */
 	unsigned int fmt_type;		/* USB audio format type (1-3) */
 
@@ -82,11 +118,11 @@ struct snd_usb_substream {
 	unsigned long active_mask;	/* bitmask of active urbs */
 	unsigned long unlink_mask;	/* bitmask of unlinked urbs */
 
-	unsigned int nurbs;			/* # urbs */
-	struct snd_urb_ctx dataurb[MAX_URBS];	/* data urb table */
-	struct snd_urb_ctx syncurb[SYNC_URBS];	/* sync urb table */
-	char *syncbuf;				/* sync buffer for all sync URBs */
-	dma_addr_t sync_dma;			/* DMA address of syncbuf */
+	/* data and sync endpoints for this stream */
+	unsigned int ep_num;		/* the endpoint number */
+	struct snd_usb_endpoint *data_endpoint;
+	struct snd_usb_endpoint *sync_endpoint;
+	unsigned long flags;
 
 	u64 formats;			/* format bitmasks (all or'ed) */
 	unsigned int num_formats;		/* number of supported audio formats (list) */
@@ -94,7 +130,6 @@ struct snd_usb_substream {
 	struct snd_pcm_hw_constraint_list rate_list;	/* limited rates */
 	spinlock_t lock;
 
-	struct snd_urb_ops ops;		/* callbacks (must be filled at init) */
 	int last_frame_number;          /* stored frame number */
 	int last_delay;                 /* stored delay */
 };

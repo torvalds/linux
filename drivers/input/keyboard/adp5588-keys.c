@@ -197,6 +197,7 @@ static int __devinit adp5588_gpio_add(struct adp5588_kpad *kpad)
 	kpad->gc.base = gpio_data->gpio_start;
 	kpad->gc.label = kpad->client->name;
 	kpad->gc.owner = THIS_MODULE;
+	kpad->gc.names = gpio_data->names;
 
 	mutex_init(&kpad->gpio_lock);
 

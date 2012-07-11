@@ -57,7 +57,7 @@ static struct pcmcia_device *pcmcia_cur_dev;
 
 static int dio700_attach(struct comedi_device *dev,
 			 struct comedi_devconfig *it);
-static int dio700_detach(struct comedi_device *dev);
+static void dio700_detach(struct comedi_device *dev);
 
 enum dio700_bustype { pcmcia_bustype };
 
@@ -419,19 +419,14 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 };
 
-static int dio700_detach(struct comedi_device *dev)
+static void dio700_detach(struct comedi_device *dev)
 {
-	printk(KERN_ERR "comedi%d: ni_daq_700: cs-remove\n", dev->minor);
-
 	if (dev->subdevices)
 		subdev_700_cleanup(dev, dev->subdevices + 0);
-
 	if (thisboard->bustype != pcmcia_bustype && dev->iobase)
 		release_region(dev->iobase, DIO700_SIZE);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
-	return 0;
 };
 
 static void dio700_config(struct pcmcia_device *link);
@@ -472,18 +467,12 @@ static int dio700_cs_attach(struct pcmcia_device *link)
 
 static void dio700_cs_detach(struct pcmcia_device *link)
 {
-
-	printk(KERN_INFO "ni_daq_700: cs-detach!\n");
-
-	dev_dbg(&link->dev, "dio700_cs_detach\n");
-
 	((struct local_info_t *)link->priv)->stop = 1;
 	dio700_release(link);
 
 	/* This points to the parent struct local_info_t struct */
 	kfree(link->priv);
-
-}				/* dio700_cs_detach */
+}
 
 static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				void *priv_data)

@@ -23,7 +23,6 @@
 #include <linux/of_pdt.h>
 #include <asm/prom.h>
 #include <asm/oplib.h>
-#include <asm/leon.h>
 
 #include "prom.h"
 

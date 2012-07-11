@@ -69,6 +69,7 @@ config IR_JVC_DECODER
 config IR_SONY_DECODER
 	tristate "Enable IR raw decoder for the Sony protocol"
 	depends on RC_CORE
+	select BITREVERSE
 	default y
 
 	---help---

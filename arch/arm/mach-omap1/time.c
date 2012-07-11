@@ -232,20 +232,6 @@ static inline void omap_mpu_timer_init(void)
 }
 #endif	/* CONFIG_OMAP_MPU_TIMER */
 
-static inline int omap_32k_timer_usable(void)
-{
-	int res = false;
-
-	if (cpu_is_omap730() || cpu_is_omap15xx())
-		return res;
-
-#ifdef CONFIG_OMAP_32K_TIMER
-	res = omap_32k_timer_init();
-#endif
-
-	return res;
-}
-
 /*
  * ---------------------------------------------------------------------------
  * Timer initialization
@@ -253,7 +239,7 @@ static inline int omap_32k_timer_usable(void)
  */
 static void __init omap1_timer_init(void)
 {
-	if (!omap_32k_timer_usable())
+	if (omap_32k_timer_init() != 0)
 		omap_mpu_timer_init();
 }
 

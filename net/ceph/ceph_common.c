@@ -441,8 +441,8 @@ EXPORT_SYMBOL(ceph_client_id);
  * create a fresh client instance
  */
 struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private,
-				       unsigned supported_features,
-				       unsigned required_features)
+				       unsigned int supported_features,
+				       unsigned int required_features)
 {
 	struct ceph_client *client;
 	struct ceph_entity_addr *myaddr = NULL;
@@ -503,13 +503,6 @@ void ceph_destroy_client(struct ceph_client *client)
 
 	/* unmount */
 	ceph_osdc_stop(&client->osdc);
-
-	/*
-	 * make sure osd connections close out before destroying the
-	 * auth module, which is needed to free those connections'
-	 * ceph_authorizers.
-	 */
-	ceph_msgr_flush();
 
 	ceph_monc_stop(&client->monc);
 

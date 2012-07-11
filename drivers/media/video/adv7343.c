@@ -130,13 +130,11 @@ static int adv7343_setstd(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct adv7343_state *state = to_state(sd);
 	struct adv7343_std_info *std_info;
-	int output_idx, num_std;
+	int num_std;
 	char *fsc_ptr;
 	u8 reg, val;
 	int err = 0;
 	int i = 0;
-
-	output_idx = state->output;
 
 	std_info = (struct adv7343_std_info *)stdinfo;
 	num_std = ARRAY_SIZE(stdinfo);

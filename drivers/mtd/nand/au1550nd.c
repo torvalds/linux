@@ -508,8 +508,6 @@ static int __devinit au1550nd_probe(struct platform_device *pdev)
 	this->chip_delay = 30;
 	this->ecc.mode = NAND_ECC_SOFT;
 
-	this->options = NAND_NO_AUTOINCR;
-
 	if (pd->devwidth)
 		this->options |= NAND_BUSWIDTH_16;
 

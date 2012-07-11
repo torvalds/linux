@@ -87,55 +87,6 @@
 #define TX_POWER_NEAR_FIELD_THRESH_LVL1		67
 #define INDEX_MAPPING_NUM			13
 
-struct ps_t {
-	u8 pre_ccastate;
-	u8 cur_ccasate;
-
-	u8 pre_rfstate;
-	u8 cur_rfstate;
-
-	long rssi_val_min;
-};
-
-struct dig_t {
-	u8 dig_enable_flag;
-	u8 dig_ext_port_stage;
-
-	u32 rssi_lowthresh;
-	u32 rssi_highthresh;
-
-	u32 fa_lowthresh;
-	u32 fa_highthresh;
-
-	u8 cursta_connectctate;
-	u8 presta_connectstate;
-	u8 curmultista_connectstate;
-
-	u8 pre_igvalue;
-	u8 cur_igvalue;
-
-	char backoff_val;
-	char backoff_val_range_max;
-	char backoff_val_range_min;
-	u8 rx_gain_range_max;
-	u8 rx_gain_range_min;
-	u8 min_undecorated_pwdb_for_dm;
-	long last_min_undecorated_pwdb_for_dm;
-
-	u8 pre_cck_pd_state;
-	u8 cur_cck_pd_state;
-
-	u8 pre_cck_fa_state;
-	u8 cur_cck_fa_state;
-
-	u8 pre_ccastate;
-	u8 cur_ccasate;
-
-	u8 large_fa_hit;
-	u8 forbidden_igi;
-	u32 recover_cnt;
-};
-
 struct swat {
 	u8 failure_cnt;
 	u8 try_flag;
@@ -199,8 +150,6 @@ enum dm_dig_connect {
 	DIG_MULTISTA_CONNECT = 4,
 	DIG_CONNECT_MAX
 };
-
-extern struct dig_t de_digtable;
 
 void rtl92d_dm_init(struct ieee80211_hw *hw);
 void rtl92d_dm_watchdog(struct ieee80211_hw *hw);

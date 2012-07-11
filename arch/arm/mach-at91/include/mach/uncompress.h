@@ -1,7 +1,8 @@
 /*
  * arch/arm/mach-at91/include/mach/uncompress.h
  *
- *  Copyright (C) 2003 SAN People
+ * Copyright (C) 2003 SAN People
+ * Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,22 +26,147 @@
 #include <linux/atmel_serial.h>
 #include <mach/hardware.h>
 
-#if defined(CONFIG_AT91_EARLY_DBGU0)
-#define UART_OFFSET AT91_BASE_DBGU0
-#elif defined(CONFIG_AT91_EARLY_DBGU1)
-#define UART_OFFSET AT91_BASE_DBGU1
-#elif defined(CONFIG_AT91_EARLY_USART0)
-#define UART_OFFSET AT91_USART0
-#elif defined(CONFIG_AT91_EARLY_USART1)
-#define UART_OFFSET AT91_USART1
-#elif defined(CONFIG_AT91_EARLY_USART2)
-#define UART_OFFSET AT91_USART2
-#elif defined(CONFIG_AT91_EARLY_USART3)
-#define UART_OFFSET AT91_USART3
-#elif defined(CONFIG_AT91_EARLY_USART4)
-#define UART_OFFSET AT91_USART4
-#elif defined(CONFIG_AT91_EARLY_USART5)
-#define UART_OFFSET AT91_USART5
+#include <mach/at91_dbgu.h>
+#include <mach/cpu.h>
+
+void __iomem *at91_uart;
+
+#if !defined(CONFIG_ARCH_AT91X40)
+static const u32 uarts_rm9200[] = {
+	AT91_BASE_DBGU0,
+	AT91RM9200_BASE_US0,
+	AT91RM9200_BASE_US1,
+	AT91RM9200_BASE_US2,
+	AT91RM9200_BASE_US3,
+	0,
+};
+
+static const u32 uarts_sam9260[] = {
+	AT91_BASE_DBGU0,
+	AT91SAM9260_BASE_US0,
+	AT91SAM9260_BASE_US1,
+	AT91SAM9260_BASE_US2,
+	AT91SAM9260_BASE_US3,
+	AT91SAM9260_BASE_US4,
+	AT91SAM9260_BASE_US5,
+	0,
+};
+
+static const u32 uarts_sam9261[] = {
+	AT91_BASE_DBGU0,
+	AT91SAM9261_BASE_US0,
+	AT91SAM9261_BASE_US1,
+	AT91SAM9261_BASE_US2,
+	0,
+};
+
+static const u32 uarts_sam9263[] = {
+	AT91_BASE_DBGU1,
+	AT91SAM9263_BASE_US0,
+	AT91SAM9263_BASE_US1,
+	AT91SAM9263_BASE_US2,
+	0,
+};
+
+static const u32 uarts_sam9g45[] = {
+	AT91_BASE_DBGU1,
+	AT91SAM9G45_BASE_US0,
+	AT91SAM9G45_BASE_US1,
+	AT91SAM9G45_BASE_US2,
+	AT91SAM9G45_BASE_US3,
+	0,
+};
+
+static const u32 uarts_sam9rl[] = {
+	AT91_BASE_DBGU0,
+	AT91SAM9RL_BASE_US0,
+	AT91SAM9RL_BASE_US1,
+	AT91SAM9RL_BASE_US2,
+	AT91SAM9RL_BASE_US3,
+	0,
+};
+
+static const u32 uarts_sam9x5[] = {
+	AT91_BASE_DBGU0,
+	AT91SAM9X5_BASE_USART0,
+	AT91SAM9X5_BASE_USART1,
+	AT91SAM9X5_BASE_USART2,
+	0,
+};
+
+static inline const u32* decomp_soc_detect(u32 dbgu_base)
+{
+	u32 cidr, socid;
+
+	cidr = __raw_readl(dbgu_base + AT91_DBGU_CIDR);
+	socid = cidr & ~AT91_CIDR_VERSION;
+
+	switch (socid) {
+	case ARCH_ID_AT91RM9200:
+		return uarts_rm9200;
+
+	case ARCH_ID_AT91SAM9G20:
+	case ARCH_ID_AT91SAM9260:
+		return uarts_sam9260;
+
+	case ARCH_ID_AT91SAM9261:
+		return uarts_sam9261;
+
+	case ARCH_ID_AT91SAM9263:
+		return uarts_sam9263;
+
+	case ARCH_ID_AT91SAM9G45:
+		return uarts_sam9g45;
+
+	case ARCH_ID_AT91SAM9RL64:
+		return uarts_sam9rl;
+
+	case ARCH_ID_AT91SAM9X5:
+		return uarts_sam9x5;
+	}
+
+	/* at91sam9g10 */
+	if ((cidr & ~AT91_CIDR_EXT) == ARCH_ID_AT91SAM9G10) {
+		return uarts_sam9261;
+	}
+	/* at91sam9xe */
+	else if ((cidr & AT91_CIDR_ARCH) == ARCH_FAMILY_AT91SAM9XE) {
+		return uarts_sam9260;
+	}
+
+	return NULL;
+}
+
+static inline void arch_decomp_setup(void)
+{
+	int i = 0;
+	const u32* usarts;
+
+	usarts = decomp_soc_detect(AT91_BASE_DBGU0);
+
+	if (!usarts)
+		usarts = decomp_soc_detect(AT91_BASE_DBGU1);
+	if (!usarts) {
+		at91_uart = NULL;
+		return;
+	}
+
+	do {
+		/* physical address */
+		at91_uart = (void __iomem *)usarts[i];
+
+		if (__raw_readl(at91_uart + ATMEL_US_BRGR))
+			return;
+		i++;
+	} while (usarts[i]);
+
+	at91_uart = NULL;
+}
+#else
+static inline void arch_decomp_setup(void)
+{
+	at91_uart = NULL;
+}
 #endif
 
 /*
@@ -52,27 +178,23 @@
  */
 static void putc(int c)
 {
-#ifdef UART_OFFSET
-	void __iomem *sys = (void __iomem *) UART_OFFSET;	/* physical address */
+	if (!at91_uart)
+		return;
 
-	while (!(__raw_readl(sys + ATMEL_US_CSR) & ATMEL_US_TXRDY))
+	while (!(__raw_readl(at91_uart + ATMEL_US_CSR) & ATMEL_US_TXRDY))
 		barrier();
-	__raw_writel(c, sys + ATMEL_US_THR);
-#endif
+	__raw_writel(c, at91_uart + ATMEL_US_THR);
 }
 
 static inline void flush(void)
 {
-#ifdef UART_OFFSET
-	void __iomem *sys = (void __iomem *) UART_OFFSET;	/* physical address */
+	if (!at91_uart)
+		return;
 
 	/* wait for transmission to complete */
-	while (!(__raw_readl(sys + ATMEL_US_CSR) & ATMEL_US_TXEMPTY))
+	while (!(__raw_readl(at91_uart + ATMEL_US_CSR) & ATMEL_US_TXEMPTY))
 		barrier();
-#endif
 }
-
-#define arch_decomp_setup()
 
 #define arch_decomp_wdog()
 

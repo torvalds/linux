@@ -184,7 +184,7 @@ static void divas_maint_unregister_chrdev(void)
 	unregister_chrdev(major, DEVNAME);
 }
 
-static int DIVA_INIT_FUNCTION divas_maint_register_chrdev(void)
+static int __init divas_maint_register_chrdev(void)
 {
 	if ((major = register_chrdev(0, DEVNAME, &divas_maint_fops)) < 0)
 	{
@@ -207,7 +207,7 @@ void diva_maint_wakeup_read(void)
 /*
  *  Driver Load
  */
-static int DIVA_INIT_FUNCTION maint_init(void)
+static int __init maint_init(void)
 {
 	char tmprev[50];
 	int ret = 0;
@@ -245,7 +245,7 @@ out:
 /*
 **  Driver Unload
 */
-static void DIVA_EXIT_FUNCTION maint_exit(void)
+static void __exit maint_exit(void)
 {
 	divas_maint_unregister_chrdev();
 	mntfunc_finit();

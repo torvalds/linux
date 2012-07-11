@@ -3335,6 +3335,8 @@ static int __devinit ehea_probe_adapter(struct platform_device *dev,
 		goto out_shutdown_ports;
 	}
 
+	/* Handle any events that might be pending. */
+	tasklet_hi_schedule(&adapter->neq_tasklet);
 
 	ret = 0;
 	goto out;

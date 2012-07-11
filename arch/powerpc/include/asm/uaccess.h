@@ -40,6 +40,8 @@
 
 #define segment_eq(a, b)	((a).seg == (b).seg)
 
+#define user_addr_max()	(get_fs().seg)
+
 #ifdef __powerpc64__
 /*
  * This check is sufficient because there is a large enough
@@ -453,42 +455,9 @@ static inline unsigned long clear_user(void __user *addr, unsigned long size)
 	return size;
 }
 
-extern int __strncpy_from_user(char *dst, const char __user *src, long count);
-
-static inline long strncpy_from_user(char *dst, const char __user *src,
-		long count)
-{
-	might_sleep();
-	if (likely(access_ok(VERIFY_READ, src, 1)))
-		return __strncpy_from_user(dst, src, count);
-	return -EFAULT;
-}
-
-/*
- * Return the size of a string (including the ending 0)
- *
- * Return 0 for error
- */
-extern int __strnlen_user(const char __user *str, long len, unsigned long top);
-
-/*
- * Returns the length of the string at str (including the null byte),
- * or 0 if we hit a page we can't access,
- * or something > len if we didn't find a null byte.
- *
- * The `top' parameter to __strnlen_user is to make sure that
- * we can never overflow from the user area into kernel space.
- */
-static inline int strnlen_user(const char __user *str, long len)
-{
-	unsigned long top = current->thread.fs.seg;
-
-	if ((unsigned long)str > top)
-		return 0;
-	return __strnlen_user(str, len, top);
-}
-
-#define strlen_user(str)	strnlen_user((str), 0x7ffffffe)
+extern long strncpy_from_user(char *dst, const char __user *src, long count);
+extern __must_check long strlen_user(const char __user *str);
+extern __must_check long strnlen_user(const char __user *str, long n);
 
 #endif  /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

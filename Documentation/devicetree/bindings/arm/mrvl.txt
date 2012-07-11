@@ -1,6 +1,0 @@
-Marvell Platforms Device Tree Bindings
-----------------------------------------------------
-
-PXA168 Aspenite Board
-Required root node properties:
-	- compatible = "mrvl,pxa168-aspenite", "mrvl,pxa168";

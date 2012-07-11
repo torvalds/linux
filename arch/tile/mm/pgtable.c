@@ -132,15 +132,6 @@ void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t flags)
 	set_pte_pfn(address, phys >> PAGE_SHIFT, flags);
 }
 
-#if defined(CONFIG_HIGHPTE)
-pte_t *_pte_offset_map(pmd_t *dir, unsigned long address)
-{
-	pte_t *pte = kmap_atomic(pmd_page(*dir)) +
-		(pmd_ptfn(*dir) << HV_LOG2_PAGE_TABLE_ALIGN) & ~PAGE_MASK;
-	return &pte[pte_index(address)];
-}
-#endif
-
 /**
  * shatter_huge_page() - ensure a given address is mapped by a small page.
  *
@@ -289,33 +280,26 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 
 #define L2_USER_PGTABLE_PAGES (1 << L2_USER_PGTABLE_ORDER)
 
-struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
+struct page *pgtable_alloc_one(struct mm_struct *mm, unsigned long address,
+			       int order)
 {
 	gfp_t flags = GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO;
 	struct page *p;
-#if L2_USER_PGTABLE_ORDER > 0
 	int i;
-#endif
-
-#ifdef CONFIG_HIGHPTE
-	flags |= __GFP_HIGHMEM;
-#endif
 
 	p = alloc_pages(flags, L2_USER_PGTABLE_ORDER);
 	if (p == NULL)
 		return NULL;
 
-#if L2_USER_PGTABLE_ORDER > 0
 	/*
 	 * Make every page have a page_count() of one, not just the first.
 	 * We don't use __GFP_COMP since it doesn't look like it works
 	 * correctly with tlb_remove_page().
 	 */
-	for (i = 1; i < L2_USER_PGTABLE_PAGES; ++i) {
+	for (i = 1; i < order; ++i) {
 		init_page_count(p+i);
 		inc_zone_page_state(p+i, NR_PAGETABLE);
 	}
-#endif
 
 	pgtable_page_ctor(p);
 	return p;
@@ -326,28 +310,28 @@ struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
  * process).  We have to correct whatever pte_alloc_one() did before
  * returning the pages to the allocator.
  */
-void pte_free(struct mm_struct *mm, struct page *p)
+void pgtable_free(struct mm_struct *mm, struct page *p, int order)
 {
 	int i;
 
 	pgtable_page_dtor(p);
 	__free_page(p);
 
-	for (i = 1; i < L2_USER_PGTABLE_PAGES; ++i) {
+	for (i = 1; i < order; ++i) {
 		__free_page(p+i);
 		dec_zone_page_state(p+i, NR_PAGETABLE);
 	}
 }
 
-void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte,
-		    unsigned long address)
+void __pgtable_free_tlb(struct mmu_gather *tlb, struct page *pte,
+			unsigned long address, int order)
 {
 	int i;
 
 	pgtable_page_dtor(pte);
 	tlb_remove_page(tlb, pte);
 
-	for (i = 1; i < L2_USER_PGTABLE_PAGES; ++i) {
+	for (i = 1; i < order; ++i) {
 		tlb_remove_page(tlb, pte + i);
 		dec_zone_page_state(pte + i, NR_PAGETABLE);
 	}
@@ -490,7 +474,7 @@ void set_pte(pte_t *ptep, pte_t pte)
 /* Can this mm load a PTE with cached_priority set? */
 static inline int mm_is_priority_cached(struct mm_struct *mm)
 {
-	return mm->context.priority_cached;
+	return mm->context.priority_cached != 0;
 }
 
 /*
@@ -500,8 +484,8 @@ static inline int mm_is_priority_cached(struct mm_struct *mm)
 void start_mm_caching(struct mm_struct *mm)
 {
 	if (!mm_is_priority_cached(mm)) {
-		mm->context.priority_cached = -1U;
-		hv_set_caching(-1U);
+		mm->context.priority_cached = -1UL;
+		hv_set_caching(-1UL);
 	}
 }
 
@@ -516,7 +500,7 @@ void start_mm_caching(struct mm_struct *mm)
  * Presumably we'll come back later and have more luck and clear
  * the value then; for now we'll just keep the cache marked for priority.
  */
-static unsigned int update_priority_cached(struct mm_struct *mm)
+static unsigned long update_priority_cached(struct mm_struct *mm)
 {
 	if (mm->context.priority_cached && down_write_trylock(&mm->mmap_sem)) {
 		struct vm_area_struct *vm;

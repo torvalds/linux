@@ -69,8 +69,8 @@ since mlme_priv is a shared resource between many threads,
 like ISR/Call-Back functions, the OID handlers, and even timer functions.
 Each _queue has its own locks, already.
 Other items are protected by mlme_priv.lock.
-To avoid possible dead lock, any thread trying to modifiying mlme_priv
-SHALL not lock up more than one locks at a time!
+To avoid possible dead lock, any thread trying to modify mlme_priv
+SHALL not lock up more than one lock at a time!
 */
 
 #define traffic_threshold	10
@@ -132,7 +132,7 @@ static inline sint get_fwstate(struct mlme_priv *pmlmepriv)
  * therefore set it to be the critical section...
  *
  * ### NOTE:#### (!!!!)
- * TAKE CARE THAT BEFORE CALLING THIS FUNC, LOCK pmlmepriv->lock
+ * TAKE CARE BEFORE CALLING THIS FUNC, LOCK pmlmepriv->lock
  */
 static inline void set_fwstate(struct mlme_priv *pmlmepriv, sint state)
 {

@@ -144,6 +144,7 @@ static const struct pci_device_id fm801_gp_id_table[] = {
 	{ PCI_VENDOR_ID_FORTEMEDIA, PCI_DEVICE_ID_FM801_GP, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0  },
 	{ 0 }
 };
+MODULE_DEVICE_TABLE(pci, fm801_gp_id_table);
 
 static struct pci_driver fm801_gp_driver = {
 	.name =		"FM801_gameport",
@@ -152,20 +153,7 @@ static struct pci_driver fm801_gp_driver = {
 	.remove =	__devexit_p(fm801_gp_remove),
 };
 
-static int __init fm801_gp_init(void)
-{
-	return pci_register_driver(&fm801_gp_driver);
-}
-
-static void __exit fm801_gp_exit(void)
-{
-	pci_unregister_driver(&fm801_gp_driver);
-}
-
-module_init(fm801_gp_init);
-module_exit(fm801_gp_exit);
-
-MODULE_DEVICE_TABLE(pci, fm801_gp_id_table);
+module_pci_driver(fm801_gp_driver);
 
 MODULE_DESCRIPTION("FM801 gameport driver");
 MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");

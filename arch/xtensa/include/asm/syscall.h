@@ -15,10 +15,6 @@ asmlinkage long xtensa_clone(unsigned long, unsigned long, struct pt_regs*);
 asmlinkage long xtensa_ptrace(long, long, long, long);
 asmlinkage long xtensa_sigreturn(struct pt_regs*);
 asmlinkage long xtensa_rt_sigreturn(struct pt_regs*);
-asmlinkage long xtensa_sigsuspend(struct pt_regs*);
-asmlinkage long xtensa_rt_sigsuspend(struct pt_regs*);
-asmlinkage long xtensa_sigaction(int, const struct old_sigaction*,
-				 struct old_sigaction*);
 asmlinkage long xtensa_sigaltstack(struct pt_regs *regs);
 asmlinkage long sys_rt_sigaction(int,
 				 const struct sigaction __user *,
@@ -35,5 +31,5 @@ asmlinkage long sys_pselect6(int n, fd_set __user *inp, fd_set __user *outp,
 asmlinkage long sys_ppoll(struct pollfd __user *ufds, unsigned int nfds,
 	struct timespec __user *tsp, const sigset_t __user *sigmask,
 	size_t sigsetsize);
-
-
+asmlinkage long sys_rt_sigsuspend(sigset_t __user *unewset,
+		size_t sigsetsize);

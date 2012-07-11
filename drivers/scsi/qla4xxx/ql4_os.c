@@ -68,11 +68,33 @@ MODULE_PARM_DESC(ql4xmaxqdepth,
 		 " Maximum queue depth to report for target devices.\n"
 		 "\t\t  Default: 32.");
 
+static int ql4xqfulltracking = 1;
+module_param(ql4xqfulltracking, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(ql4xqfulltracking,
+		 " Enable or disable dynamic tracking and adjustment of\n"
+		 "\t\t scsi device queue depth.\n"
+		 "\t\t  0 - Disable.\n"
+		 "\t\t  1 - Enable. (Default)");
+
 static int ql4xsess_recovery_tmo = QL4_SESS_RECOVERY_TMO;
 module_param(ql4xsess_recovery_tmo, int, S_IRUGO);
 MODULE_PARM_DESC(ql4xsess_recovery_tmo,
 		" Target Session Recovery Timeout.\n"
 		"\t\t  Default: 120 sec.");
+
+int ql4xmdcapmask = 0x1F;
+module_param(ql4xmdcapmask, int, S_IRUGO);
+MODULE_PARM_DESC(ql4xmdcapmask,
+		 " Set the Minidump driver capture mask level.\n"
+		 "\t\t  Default is 0x1F.\n"
+		 "\t\t  Can be set to 0x3, 0x7, 0xF, 0x1F, 0x3F, 0x7F");
+
+int ql4xenablemd = 1;
+module_param(ql4xenablemd, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(ql4xenablemd,
+		 " Set to enable minidump.\n"
+		 "\t\t  0 - disable minidump\n"
+		 "\t\t  1 - enable minidump (Default)");
 
 static int qla4xxx_wait_for_hba_online(struct scsi_qla_host *ha);
 /*
@@ -140,6 +162,8 @@ static int qla4xxx_slave_configure(struct scsi_device *device);
 static void qla4xxx_slave_destroy(struct scsi_device *sdev);
 static umode_t ql4_attr_is_visible(int param_type, int param);
 static int qla4xxx_host_reset(struct Scsi_Host *shost, int reset_type);
+static int qla4xxx_change_queue_depth(struct scsi_device *sdev, int qdepth,
+				      int reason);
 
 static struct qla4_8xxx_legacy_intr_set legacy_intr[] =
     QLA82XX_LEGACY_INTR_CONFIG;
@@ -159,6 +183,7 @@ static struct scsi_host_template qla4xxx_driver_template = {
 	.slave_configure	= qla4xxx_slave_configure,
 	.slave_alloc		= qla4xxx_slave_alloc,
 	.slave_destroy		= qla4xxx_slave_destroy,
+	.change_queue_depth	= qla4xxx_change_queue_depth,
 
 	.this_id		= -1,
 	.cmd_per_lun		= 3,
@@ -1555,19 +1580,53 @@ static void qla4xxx_session_destroy(struct iscsi_cls_session *cls_sess)
 	struct iscsi_session *sess;
 	struct ddb_entry *ddb_entry;
 	struct scsi_qla_host *ha;
-	unsigned long flags;
+	unsigned long flags, wtime;
+	struct dev_db_entry *fw_ddb_entry = NULL;
+	dma_addr_t fw_ddb_entry_dma;
+	uint32_t ddb_state;
+	int ret;
 
 	DEBUG2(printk(KERN_INFO "Func: %s\n", __func__));
 	sess = cls_sess->dd_data;
 	ddb_entry = sess->dd_data;
 	ha = ddb_entry->ha;
 
+	fw_ddb_entry = dma_alloc_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
+					  &fw_ddb_entry_dma, GFP_KERNEL);
+	if (!fw_ddb_entry) {
+		ql4_printk(KERN_ERR, ha,
+			   "%s: Unable to allocate dma buffer\n", __func__);
+		goto destroy_session;
+	}
+
+	wtime = jiffies + (HZ * LOGOUT_TOV);
+	do {
+		ret = qla4xxx_get_fwddb_entry(ha, ddb_entry->fw_ddb_index,
+					      fw_ddb_entry, fw_ddb_entry_dma,
+					      NULL, NULL, &ddb_state, NULL,
+					      NULL, NULL);
+		if (ret == QLA_ERROR)
+			goto destroy_session;
+
+		if ((ddb_state == DDB_DS_NO_CONNECTION_ACTIVE) ||
+		    (ddb_state == DDB_DS_SESSION_FAILED))
+			goto destroy_session;
+
+		schedule_timeout_uninterruptible(HZ);
+	} while ((time_after(wtime, jiffies)));
+
+destroy_session:
 	qla4xxx_clear_ddb_entry(ha, ddb_entry->fw_ddb_index);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	qla4xxx_free_ddb(ha, ddb_entry);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
 	iscsi_session_teardown(cls_sess);
+
+	if (fw_ddb_entry)
+		dma_free_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
+				  fw_ddb_entry, fw_ddb_entry_dma);
 }
 
 static struct iscsi_cls_conn *
@@ -2220,6 +2279,9 @@ static void qla4xxx_mem_free(struct scsi_qla_host *ha)
 		dma_free_coherent(&ha->pdev->dev, ha->queues_len, ha->queues,
 				  ha->queues_dma);
 
+	 if (ha->fw_dump)
+		vfree(ha->fw_dump);
+
 	ha->queues_len = 0;
 	ha->queues = NULL;
 	ha->queues_dma = 0;
@@ -2229,6 +2291,8 @@ static void qla4xxx_mem_free(struct scsi_qla_host *ha)
 	ha->response_dma = 0;
 	ha->shadow_regs = NULL;
 	ha->shadow_regs_dma = 0;
+	ha->fw_dump = NULL;
+	ha->fw_dump_size = 0;
 
 	/* Free srb pool. */
 	if (ha->srb_mempool)
@@ -5023,6 +5087,8 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 
 	set_bit(AF_INIT_DONE, &ha->flags);
 
+	qla4_8xxx_alloc_sysfs_attr(ha);
+
 	printk(KERN_INFO
 	       " QLogic iSCSI HBA Driver version: %s\n"
 	       "  QLogic ISP%04x @ %s, host#=%ld, fw=%02d.%02d.%02d.%02d\n",
@@ -5149,6 +5215,7 @@ static void __devexit qla4xxx_remove_adapter(struct pci_dev *pdev)
 		iscsi_boot_destroy_kset(ha->boot_kset);
 
 	qla4xxx_destroy_fw_ddb_session(ha);
+	qla4_8xxx_free_sysfs_attr(ha);
 
 	scsi_remove_host(ha->host);
 
@@ -5215,6 +5282,15 @@ static int qla4xxx_slave_configure(struct scsi_device *sdev)
 static void qla4xxx_slave_destroy(struct scsi_device *sdev)
 {
 	scsi_deactivate_tcq(sdev, 1);
+}
+
+static int qla4xxx_change_queue_depth(struct scsi_device *sdev, int qdepth,
+				      int reason)
+{
+	if (!ql4xqfulltracking)
+		return -EOPNOTSUPP;
+
+	return iscsi_change_queue_depth(sdev, qdepth, reason);
 }
 
 /**

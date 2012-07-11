@@ -1483,9 +1483,9 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 			ERR("cannot init vv subsystem\n");
 			return err;
 		}
-		vv_data.ops.vidioc_enum_input = vidioc_enum_input;
-		vv_data.ops.vidioc_g_input = vidioc_g_input;
-		vv_data.ops.vidioc_s_input = vidioc_s_input;
+		vv_data.vid_ops.vidioc_enum_input = vidioc_enum_input;
+		vv_data.vid_ops.vidioc_g_input = vidioc_g_input;
+		vv_data.vid_ops.vidioc_s_input = vidioc_s_input;
 
 		if ((err = saa7146_register_device(&budget_av->vd, dev, "knc1", VFL_TYPE_GRABBER))) {
 			/* fixme: proper cleanup here */

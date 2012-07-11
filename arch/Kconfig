@@ -76,6 +76,23 @@ config OPTPROBES
 	depends on KPROBES && HAVE_OPTPROBES
 	depends on !PREEMPT
 
+config UPROBES
+	bool "Transparent user-space probes (EXPERIMENTAL)"
+	depends on UPROBE_EVENT && PERF_EVENTS
+	default n
+	help
+	  Uprobes is the user-space counterpart to kprobes: they
+	  enable instrumentation applications (such as 'perf probe')
+	  to establish unintrusive probes in user-space binaries and
+	  libraries, by executing handler functions when the probes
+	  are hit by user-space applications.
+
+	  ( These probes come in the form of single-byte breakpoints,
+	    managed by the kernel and kept transparent to the probed
+	    application. )
+
+	  If in doubt, say "N".
+
 config HAVE_EFFICIENT_UNALIGNED_ACCESS
 	bool
 	help
@@ -142,7 +159,25 @@ config HAVE_ARCH_TRACEHOOK
 config HAVE_DMA_ATTRS
 	bool
 
+config HAVE_DMA_CONTIGUOUS
+	bool
+
 config USE_GENERIC_SMP_HELPERS
+	bool
+
+config GENERIC_SMP_IDLE_THREAD
+       bool
+
+# Select if arch init_task initializer is different to init/init_task.c
+config ARCH_INIT_TASK
+       bool
+
+# Select if arch has its private alloc_task_struct() function
+config ARCH_TASK_STRUCT_ALLOCATOR
+	bool
+
+# Select if arch has its private alloc_thread_info() function
+config ARCH_THREAD_INFO_ALLOCATOR
 	bool
 
 config HAVE_REGS_AND_STACK_ACCESS_API
@@ -215,5 +250,28 @@ config HAVE_CMPXCHG_DOUBLE
 
 config ARCH_WANT_OLD_COMPAT_IPC
 	bool
+
+config HAVE_ARCH_SECCOMP_FILTER
+	bool
+	help
+	  An arch should select this symbol if it provides all of these things:
+	  - syscall_get_arch()
+	  - syscall_get_arguments()
+	  - syscall_rollback()
+	  - syscall_set_return_value()
+	  - SIGSYS siginfo_t support
+	  - secure_computing is called from a ptrace_event()-safe context
+	  - secure_computing return value is checked and a return value of -1
+	    results in the system call being skipped immediately.
+
+config SECCOMP_FILTER
+	def_bool y
+	depends on HAVE_ARCH_SECCOMP_FILTER && SECCOMP && NET
+	help
+	  Enable tasks to build secure computing environments defined
+	  in terms of Berkeley Packet Filter programs which implement
+	  task-defined system call filtering polices.
+
+	  See Documentation/prctl/seccomp_filter.txt for details.
 
 source "kernel/gcov/Kconfig"

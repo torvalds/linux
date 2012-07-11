@@ -106,6 +106,7 @@ int __init s3c2416_init(void)
 	register_syscore_ops(&s3c2416_pm_syscore_ops);
 #endif
 	register_syscore_ops(&s3c24xx_irq_syscore_ops);
+	register_syscore_ops(&s3c2416_irq_syscore_ops);
 
 	return device_register(&s3c2416_dev);
 }

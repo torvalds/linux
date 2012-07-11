@@ -17,6 +17,8 @@
  */
 #define U8500_IO_VIRTUAL	0xf0000000
 #define U8500_IO_PHYSICAL	0xa0000000
+/* This is where we map in the ROM to check ASIC IDs */
+#define UX500_VIRT_ROM		0xf0000000
 
 /* This macro is used in assembly, so no cast */
 #define IO_ADDRESS(x)           \
@@ -24,13 +26,16 @@
 
 /* typesafe io address */
 #define __io_address(n)		IOMEM(IO_ADDRESS(n))
+
 /* Used by some plat-nomadik code */
 #define io_p2v(n)		__io_address(n)
 
 #include <mach/db8500-regs.h>
-#include <mach/db5500-regs.h>
 
 #define MSP_TX_RX_REG_OFFSET	0
+#define CRYP1_RX_REG_OFFSET	0x10
+#define CRYP1_TX_REG_OFFSET	0x8
+#define HASH1_TX_REG_OFFSET	0x4
 
 #ifndef __ASSEMBLY__
 

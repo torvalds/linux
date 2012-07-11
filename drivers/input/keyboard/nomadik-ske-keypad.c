@@ -39,7 +39,8 @@
 #define SKE_KPRISA	(0x1 << 2)
 
 #define SKE_KEYPAD_ROW_SHIFT	3
-#define SKE_KPD_KEYMAP_SIZE	(8 * 8)
+#define SKE_KPD_NUM_ROWS	8
+#define SKE_KPD_NUM_COLS	8
 
 /* keypad auto scan registers */
 #define SKE_ASR0	0x20
@@ -63,7 +64,7 @@ struct ske_keypad {
 	void __iomem *reg_base;
 	struct input_dev *input;
 	const struct ske_keypad_platform_data *board;
-	unsigned short keymap[SKE_KPD_KEYMAP_SIZE];
+	unsigned short keymap[SKE_KPD_NUM_ROWS * SKE_KPD_NUM_COLS];
 	struct clk *clk;
 	spinlock_t ske_keypad_lock;
 };
@@ -261,18 +262,17 @@ static int __init ske_keypad_probe(struct platform_device *pdev)
 	input->name = "ux500-ske-keypad";
 	input->dev.parent = &pdev->dev;
 
-	input->keycode = keypad->keymap;
-	input->keycodesize = sizeof(keypad->keymap[0]);
-	input->keycodemax = ARRAY_SIZE(keypad->keymap);
+	error = matrix_keypad_build_keymap(plat->keymap_data, NULL,
+					   SKE_KPD_NUM_ROWS, SKE_KPD_NUM_COLS,
+					   keypad->keymap, input);
+	if (error) {
+		dev_err(&pdev->dev, "Failed to build keymap\n");
+		goto err_iounmap;
+	}
 
 	input_set_capability(input, EV_MSC, MSC_SCAN);
-
-	__set_bit(EV_KEY, input->evbit);
 	if (!plat->no_autorepeat)
 		__set_bit(EV_REP, input->evbit);
-
-	matrix_keypad_build_keymap(plat->keymap_data, SKE_KEYPAD_ROW_SHIFT,
-			input->keycode, input->keybit);
 
 	clk_enable(keypad->clk);
 

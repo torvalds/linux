@@ -1,11 +1,11 @@
 [Generated file: see http://ozlabs.org/~rusty/virtio-spec/]
 Virtio PCI Card Specification
-v0.9.1 DRAFT
+v0.9.5 DRAFT
 -
 
-Rusty Russell <rusty@rustcorp.com.au>IBM Corporation (Editor)
+Rusty Russell <rusty@rustcorp.com.au> IBM Corporation (Editor)
 
-2011 August 1.
+2012 May 7.
 
 Purpose and Description
 
@@ -68,11 +68,11 @@ and consists of three parts:
 +-------------------+-----------------------------------+-----------+
 
 
-When the driver wants to send buffers to the device, it puts them
-in one or more slots in the descriptor table, and writes the
-descriptor indices into the available ring. It then notifies the
-device. When the device has finished with the buffers, it writes
-the descriptors into the used ring, and sends an interrupt.
+When the driver wants to send a buffer to the device, it fills in
+a slot in the descriptor table (or chains several together), and
+writes the descriptor index into the available ring. It then
+notifies the device. When the device has finished a buffer, it
+writes the descriptor into the used ring, and sends an interrupt.
 
 Specification
 
@@ -106,7 +106,13 @@ for informational purposes by the guest).
 +----------------------+--------------------+---------------+
 |          6           |     ioMemory       |       -       |
 +----------------------+--------------------+---------------+
+|          7           |       rpmsg        |  Appendix H   |
++----------------------+--------------------+---------------+
+|          8           |     SCSI host      |  Appendix I   |
++----------------------+--------------------+---------------+
 |          9           |   9P transport     |       -       |
++----------------------+--------------------+---------------+
+|         10           |   mac80211 wlan    |       -       |
 +----------------------+--------------------+---------------+
 
 
@@ -127,7 +133,7 @@ Note that this is possible because while the virtio header is PCI
 the native endian of the guest (where such distinction is
 applicable).
 
-  Device Initialization Sequence
+  Device Initialization Sequence<sub:Device-Initialization-Sequence>
 
 We start with an overview of device initialization, then expand
 on the details of the device and how each step is preformed.
@@ -177,7 +183,10 @@ The virtio header looks as follows:
 
 
 If MSI-X is enabled for the device, two additional fields
-immediately follow this header:
+immediately follow this header:[footnote:
+ie. once you enable MSI-X on the device, the other fields move.
+If you turn it off again, they move back!
+]
 
 
 +------------++----------------+--------+
@@ -189,20 +198,6 @@ immediately follow this header:
 | Purpose    || Configuration  | Queue  |
 | (MSI-X)    || Vector         | Vector |
 +------------++----------------+--------+
-
-
-Finally, if feature bits (VIRTIO_F_FEATURES_HI) this is
-immediately followed by two additional fields:
-
-
-+------------++----------------------+----------------------
-| Bits       || 32                   | 32
-+------------++----------------------+----------------------
-| Read/Write || R                    | R+W
-+------------++----------------------+----------------------
-| Purpose    || Device               | Guest
-|            || Features bits 32:63  | Features bits 32:63
-+------------++----------------------+----------------------
 
 
 Immediately following these general headers, there may be
@@ -238,30 +233,24 @@ at least one bit should be set:
   may be a significant (or infinite) delay before setting this
   bit.
 
-  DRIVER_OK (3) Indicates that the driver is set up and ready to
+  DRIVER_OK (4) Indicates that the driver is set up and ready to
   drive the device.
 
-  FAILED (8) Indicates that something went wrong in the guest,
+  FAILED (128) Indicates that something went wrong in the guest,
   and it has given up on the device. This could be an internal
   error, or the driver didn't like the device for some reason, or
   even a fatal error during device operation. The device must be
   reset before attempting to re-initialize.
 
-  Feature Bits
+  Feature Bits<sub:Feature-Bits>
 
-The least significant 31 bits of the first configuration field
-indicates the features that the device supports (the high bit is
-reserved, and will be used to indicate the presence of future
-feature bits elsewhere). If more than 31 feature bits are
-supported, the device indicates so by setting feature bit 31 (see
-[cha:Reserved-Feature-Bits]). The bits are allocated as follows:
+Thefirst configuration field indicates the features that the
+device supports. The bits are allocated as follows:
 
   0 to 23 Feature bits for the specific device type
 
-  24 to 40 Feature bits reserved for extensions to the queue and
+  24 to 32 Feature bits reserved for extensions to the queue and
   feature negotiation mechanisms
-
-  41 to 63 Feature bits reserved for future extensions
 
 For example, feature bit 0 for a network device (i.e. Subsystem
 Device ID 1) indicates that the device supports checksumming of
@@ -285,10 +274,6 @@ is enhanced with a feature that the device doesn't support, it
 will not see that feature bit in the Device Features field and
 can go into backwards compatibility mode (or, for poor
 implementations, set the FAILED Device Status bit).
-
-Access to feature bits 32 to 63 is enabled by Guest by setting
-feature bit 31. If this bit is unset, Device must assume that all
-feature bits > 31 are unset.
 
   Configuration/Queue Vectors
 
@@ -324,7 +309,7 @@ success, the previously written value is returned, and on
 failure, NO_VECTOR is returned. If a mapping failure is detected,
 the driver can retry mapping with fewervectors, or disable MSI-X.
 
-  Virtqueue Configuration
+  Virtqueue Configuration<sec:Virtqueue-Configuration>
 
 As a device can have zero or more virtqueues for bulk data
 transport (for example, the network driver has two), the driver
@@ -587,7 +572,7 @@ and Red Hat under the (3-clause) BSD license so that it can be
 freely used by all other projects, and is reproduced (with slight
 variation to remove Linux assumptions) in Appendix A.
 
-  Device Operation
+  Device Operation<sec:Device-Operation>
 
 There are two parts to device operation: supplying new buffers to
 the device, and processing used buffers from the device. As an
@@ -813,7 +798,7 @@ vring.used->ring[vq->last_seen_used%vsz];
 
 }
 
-  Dealing With Configuration Changes
+  Dealing With Configuration Changes<sub:Dealing-With-Configuration>
 
 Some virtio PCI devices can change the device configuration
 state, as reflected in the virtio header in the PCI configuration
@@ -1260,18 +1245,6 @@ Currently there are five device-independent feature bits defined:
   driver should ignore the used_event field; the device should
   ignore the avail_event field; the flags field is used
 
-  VIRTIO_F_BAD_FEATURE(30) This feature should never be
-  negotiated by the guest; doing so is an indication that the
-  guest is faulty[footnote:
-An experimental virtio PCI driver contained in Linux version
-2.6.25 had this problem, and this feature bit can be used to
-detect it.
-]
-
-  VIRTIO_F_FEATURES_HIGH(31) This feature indicates that the
-  device supports feature bits 32:63. If unset, feature bits
-  32:63 are unset.
-
 Appendix C: Network Device
 
 The virtio network device is a virtual ethernet card, and is the
@@ -1335,11 +1308,17 @@ were required.
 
   VIRTIO_NET_F_CTRL_VLAN (19) Control channel VLAN filtering.
 
+  VIRTIO_NET_F_GUEST_ANNOUNCE(21) Guest can send gratuitous
+    packets.
+
   Device configuration layout Two configuration fields are
   currently defined. The mac address field always exists (though
   is only valid if VIRTIO_NET_F_MAC is set), and the status field
-  only exists if VIRTIO_NET_F_STATUS is set. Only one bit is
-  currently defined for the status field: VIRTIO_NET_S_LINK_UP. #define VIRTIO_NET_S_LINK_UP	1
+  only exists if VIRTIO_NET_F_STATUS is set. Two read-only bits
+  are currently defined for the status field:
+  VIRTIO_NET_S_LINK_UP and VIRTIO_NET_S_ANNOUNCE. #define VIRTIO_NET_S_LINK_UP	1
+
+#define VIRTIO_NET_S_ANNOUNCE	2
 
 
 
@@ -1377,12 +1356,19 @@ struct virtio_net_config {
   packets by negotating the VIRTIO_NET_F_CSUM feature. This “
   checksum offload” is a common feature on modern network cards.
 
-  If that feature is negotiated, a driver can use TCP or UDP
-  segmentation offload by negotiating the VIRTIO_NET_F_HOST_TSO4
-  (IPv4 TCP), VIRTIO_NET_F_HOST_TSO6 (IPv6 TCP) and
-  VIRTIO_NET_F_HOST_UFO (UDP fragmentation) features. It should
-  not send TCP packets requiring segmentation offload which have
-  the Explicit Congestion Notification bit set, unless the
+  If that feature is negotiated[footnote:
+ie. VIRTIO_NET_F_HOST_TSO* and VIRTIO_NET_F_HOST_UFO are
+dependent on VIRTIO_NET_F_CSUM; a dvice which offers the offload
+features must offer the checksum feature, and a driver which
+accepts the offload features must accept the checksum feature.
+Similar logic applies to the VIRTIO_NET_F_GUEST_TSO4 features
+depending on VIRTIO_NET_F_GUEST_CSUM.
+], a driver can use TCP or UDP segmentation offload by
+  negotiating the VIRTIO_NET_F_HOST_TSO4 (IPv4 TCP),
+  VIRTIO_NET_F_HOST_TSO6 (IPv6 TCP) and VIRTIO_NET_F_HOST_UFO
+  (UDP fragmentation) features. It should not send TCP packets
+  requiring segmentation offload which have the Explicit
+  Congestion Notification bit set, unless the
   VIRTIO_NET_F_HOST_ECN feature is negotiated.[footnote:
 This is a common restriction in real, older network cards.
 ]
@@ -1403,7 +1389,7 @@ segmentation, if both guests are amenable.
 
 Packets are transmitted by placing them in the transmitq, and
 buffers for incoming packets are placed in the receiveq. In each
-case, the packet itself is preceded by a header:
+case, the packet itself is preceeded by a header:
 
 struct virtio_net_hdr {
 
@@ -1462,9 +1448,10 @@ It will have a 14 byte ethernet header and 20 byte IP header
 followed by the TCP header (with the TCP checksum field 16 bytes
 into that header). csum_start will be 14+20 = 34 (the TCP
 checksum includes the header), and csum_offset will be 16. The
-value in the TCP checksum field will be the sum of the TCP pseudo
-header, so that replacing it by the ones' complement checksum of
-the TCP header and body will give the correct result.
+value in the TCP checksum field should be initialized to the sum
+of the TCP pseudo header, so that replacing it by the ones'
+complement checksum of the TCP header and body will give the
+correct result.
 ]
 
   <enu:If-the-driver>If the driver negotiated
@@ -1483,8 +1470,8 @@ Due to various bugs in implementations, this field is not useful
 as a guarantee of the transport header size.
 ]
 
-  gso_size is the size of the packet beyond that header (ie.
-    MSS).
+  gso_size is the maximum size of each packet beyond that header
+    (ie. MSS).
 
   If the driver negotiated the VIRTIO_NET_F_HOST_ECN feature, the
     VIRTIO_NET_HDR_GSO_ECN bit may be set in “gso_type” as well,
@@ -1567,7 +1554,9 @@ Processing packet involves:
   If the VIRTIO_NET_F_GUEST_TSO4, TSO6 or UFO options were
   negotiated, then the “gso_type” may be something other than
   VIRTIO_NET_HDR_GSO_NONE, and the “gso_size” field indicates the
-  desired MSS (see [enu:If-the-driver]).Control Virtqueue
+  desired MSS (see [enu:If-the-driver]).
+
+  Control Virtqueue
 
 The driver uses the control virtqueue (if VIRTIO_NET_F_VTRL_VQ is
 negotiated) to send commands to manipulate various features of
@@ -1642,7 +1631,7 @@ struct virtio_net_ctrl_mac {
 
 The device can filter incoming packets by any number of
 destination MAC addresses.[footnote:
-Since there are no guarantees, it can use a hash filter
+Since there are no guarentees, it can use a hash filter
 orsilently switch to allmulti or promiscuous mode if it is given
 too many addresses.
 ] This table is set using the class VIRTIO_NET_CTRL_MAC and the
@@ -1664,6 +1653,38 @@ can control a VLAN filter table in the device.
 
 Both the VIRTIO_NET_CTRL_VLAN_ADD and VIRTIO_NET_CTRL_VLAN_DEL
 command take a 16-bit VLAN id as the command-specific-data.
+
+  Gratuitous Packet Sending
+
+If the driver negotiates the VIRTIO_NET_F_GUEST_ANNOUNCE (depends
+on VIRTIO_NET_F_CTRL_VQ), it can ask the guest to send gratuitous
+packets; this is usually done after the guest has been physically
+migrated, and needs to announce its presence on the new network
+links. (As hypervisor does not have the knowledge of guest
+network configuration (eg. tagged vlan) it is simplest to prod
+the guest in this way).
+
+#define VIRTIO_NET_CTRL_ANNOUNCE       3
+
+ #define VIRTIO_NET_CTRL_ANNOUNCE_ACK             0
+
+The Guest needs to check VIRTIO_NET_S_ANNOUNCE bit in status
+field when it notices the changes of device configuration. The
+command VIRTIO_NET_CTRL_ANNOUNCE_ACK is used to indicate that
+driver has recevied the notification and device would clear the
+VIRTIO_NET_S_ANNOUNCE bit in the status filed after it received
+this command.
+
+Processing this notification involves:
+
+  Sending the gratuitous packets or marking there are pending
+  gratuitous packets to be sent and letting deferred routine to
+  send them.
+
+  Sending VIRTIO_NET_CTRL_ANNOUNCE_ACK command through control
+  vq.
+
+  .
 
 Appendix D: Block Device
 
@@ -1698,8 +1719,6 @@ device except where noted.
   VIRTIO_BLK_F_SCSI (7) Device supports scsi packet commands.
 
   VIRTIO_BLK_F_FLUSH (9) Cache flush command support.
-
-
 
   Device configuration layout The capacity of the device
   (expressed in 512-byte sectors) is always present. The
@@ -1742,8 +1761,6 @@ device except where noted.
 
   If the VIRTIO_BLK_F_RO feature is set by the device, any write
   requests will fail.
-
-
 
   Device Operation
 
@@ -1805,7 +1822,7 @@ the FLUSH and FLUSH_OUT types are equivalent, the device does not
 distinguish between them
 ]). If the device has VIRTIO_BLK_F_BARRIER feature the high bit
 (VIRTIO_BLK_T_BARRIER) indicates that this request acts as a
-barrier and that all preceding requests must be complete before
+barrier and that all preceeding requests must be complete before
 this one, and all following requests must not be started until
 this is complete. Note that a barrier does not flush caches in
 the underlying backend device in host, and thus does not serve as
@@ -2118,7 +2135,7 @@ This is historical, and independent of the guest page size
 
   Otherwise, the guest may begin to re-use pages previously given
     to the balloon before the device has acknowledged their
-    withdrawal. [footnote:
+    withdrawl. [footnote:
 In this case, deflation advice is merely a courtesy
 ]
 
@@ -2197,4 +2214,997 @@ as follows:
 
   VIRTIO_BALLOON_S_MEMTOT The total amount of memory available
   (in bytes).
+
+Appendix H: Rpmsg: Remote Processor Messaging
+
+Virtio rpmsg devices represent remote processors on the system
+which run in asymmetric multi-processing (AMP) configuration, and
+which are usually used to offload cpu-intensive tasks from the
+main application processor (a typical SoC methodology).
+
+Virtio is being used to communicate with those remote processors;
+empty buffers are placed in one virtqueue for receiving messages,
+and non-empty buffers, containing outbound messages, are enqueued
+in a second virtqueue for transmission.
+
+Numerous communication channels can be multiplexed over those two
+virtqueues, so different entities, running on the application and
+remote processor, can directly communicate in a point-to-point
+fashion.
+
+  Configuration
+
+  Subsystem Device ID 7
+
+  Virtqueues 0:receiveq. 1:transmitq.
+
+  Feature bits
+
+  VIRTIO_RPMSG_F_NS (0) Device sends (and capable of receiving)
+    name service messages announcing the creation (or
+    destruction) of a channel:/**
+
+ * struct rpmsg_ns_msg - dynamic name service announcement
+message
+
+ * @name: name of remote service that is published
+
+ * @addr: address of remote service that is published
+
+ * @flags: indicates whether service is created or destroyed
+
+ *
+
+ * This message is sent across to publish a new service (or
+announce
+
+ * about its removal). When we receives these messages, an
+appropriate
+
+ * rpmsg channel (i.e device) is created/destroyed.
+
+ */
+
+struct rpmsg_ns_msgoon_config {
+
+	char name[RPMSG_NAME_SIZE];
+
+	u32 addr;
+
+	u32 flags;
+
+} __packed;
+
+
+
+/**
+
+ * enum rpmsg_ns_flags - dynamic name service announcement flags
+
+ *
+
+ * @RPMSG_NS_CREATE: a new remote service was just created
+
+ * @RPMSG_NS_DESTROY: a remote service was just destroyed
+
+ */
+
+enum rpmsg_ns_flags {
+
+	RPMSG_NS_CREATE = 0,
+
+	RPMSG_NS_DESTROY = 1,
+
+};
+
+  Device configuration layout
+
+At his point none currently defined.
+
+  Device Initialization
+
+  The initialization routine should identify the receive and
+  transmission virtqueues.
+
+  The receive virtqueue should be filled with receive buffers.
+
+  Device Operation
+
+Messages are transmitted by placing them in the transmitq, and
+buffers for inbound messages are placed in the receiveq. In any
+case, messages are always preceded by the following header: /**
+
+ * struct rpmsg_hdr - common header for all rpmsg messages
+
+ * @src: source address
+
+ * @dst: destination address
+
+ * @reserved: reserved for future use
+
+ * @len: length of payload (in bytes)
+
+ * @flags: message flags
+
+ * @data: @len bytes of message payload data
+
+ *
+
+ * Every message sent(/received) on the rpmsg bus begins with
+this header.
+
+ */
+
+struct rpmsg_hdr {
+
+	u32 src;
+
+	u32 dst;
+
+	u32 reserved;
+
+	u16 len;
+
+	u16 flags;
+
+	u8 data[0];
+
+} __packed;
+
+Appendix I: SCSI Host Device
+
+The virtio SCSI host device groups together one or more virtual
+logical units (such as disks), and allows communicating to them
+using the SCSI protocol. An instance of the device represents a
+SCSI host to which many targets and LUNs are attached.
+
+The virtio SCSI device services two kinds of requests:
+
+  command requests for a logical unit;
+
+  task management functions related to a logical unit, target or
+  command.
+
+The device is also able to send out notifications about added and
+removed logical units. Together, these capabilities provide a
+SCSI transport protocol that uses virtqueues as the transfer
+medium. In the transport protocol, the virtio driver acts as the
+initiator, while the virtio SCSI host provides one or more
+targets that receive and process the requests.
+
+  Configuration
+
+  Subsystem Device ID 8
+
+  Virtqueues 0:controlq; 1:eventq; 2..n:request queues.
+
+  Feature bits
+
+  VIRTIO_SCSI_F_INOUT (0) A single request can include both
+    read-only and write-only data buffers.
+
+  VIRTIO_SCSI_F_HOTPLUG (1) The host should enable
+    hot-plug/hot-unplug of new LUNs and targets on the SCSI bus.
+
+  Device configuration layout All fields of this configuration
+  are always available. sense_size and cdb_size are writable by
+  the guest.struct virtio_scsi_config {
+
+    u32 num_queues;
+
+    u32 seg_max;
+
+    u32 max_sectors;
+
+    u32 cmd_per_lun;
+
+    u32 event_info_size;
+
+    u32 sense_size;
+
+    u32 cdb_size;
+
+    u16 max_channel;
+
+    u16 max_target;
+
+    u32 max_lun;
+
+};
+
+  num_queues is the total number of request virtqueues exposed by
+    the device. The driver is free to use only one request queue,
+    or it can use more to achieve better performance.
+
+  seg_max is the maximum number of segments that can be in a
+    command. A bidirectional command can include seg_max input
+    segments and seg_max output segments.
+
+  max_sectors is a hint to the guest about the maximum transfer
+    size it should use.
+
+  cmd_per_lun is a hint to the guest about the maximum number of
+    linked commands it should send to one LUN. The actual value
+    to be used is the minimum of cmd_per_lun and the virtqueue
+    size.
+
+  event_info_size is the maximum size that the device will fill
+    for buffers that the driver places in the eventq. The driver
+    should always put buffers at least of this size. It is
+    written by the device depending on the set of negotated
+    features.
+
+  sense_size is the maximum size of the sense data that the
+    device will write. The default value is written by the device
+    and will always be 96, but the driver can modify it. It is
+    restored to the default when the device is reset.
+
+  cdb_size is the maximum size of the CDB that the driver will
+    write. The default value is written by the device and will
+    always be 32, but the driver can likewise modify it. It is
+    restored to the default when the device is reset.
+
+  max_channel, max_target and max_lun can be used by the driver
+    as hints to constrain scanning the logical units on the
+    host.h
+
+  Device Initialization
+
+The initialization routine should first of all discover the
+device's virtqueues.
+
+If the driver uses the eventq, it should then place at least a
+buffer in the eventq.
+
+The driver can immediately issue requests (for example, INQUIRY
+or REPORT LUNS) or task management functions (for example, I_T
+RESET).
+
+  Device Operation: request queues
+
+The driver queues requests to an arbitrary request queue, and
+they are used by the device on that same queue. It is the
+responsibility of the driver to ensure strict request ordering
+for commands placed on different queues, because they will be
+consumed with no order constraints.
+
+Requests have the following format:
+
+struct virtio_scsi_req_cmd {
+
+    // Read-only
+
+    u8 lun[8];
+
+    u64 id;
+
+    u8 task_attr;
+
+    u8 prio;
+
+    u8 crn;
+
+    char cdb[cdb_size];
+
+    char dataout[];
+
+    // Write-only part
+
+    u32 sense_len;
+
+    u32 residual;
+
+    u16 status_qualifier;
+
+    u8 status;
+
+    u8 response;
+
+    u8 sense[sense_size];
+
+    char datain[];
+
+};
+
+
+
+/* command-specific response values */
+
+#define VIRTIO_SCSI_S_OK                0
+
+#define VIRTIO_SCSI_S_OVERRUN           1
+
+#define VIRTIO_SCSI_S_ABORTED           2
+
+#define VIRTIO_SCSI_S_BAD_TARGET        3
+
+#define VIRTIO_SCSI_S_RESET             4
+
+#define VIRTIO_SCSI_S_BUSY              5
+
+#define VIRTIO_SCSI_S_TRANSPORT_FAILURE 6
+
+#define VIRTIO_SCSI_S_TARGET_FAILURE    7
+
+#define VIRTIO_SCSI_S_NEXUS_FAILURE     8
+
+#define VIRTIO_SCSI_S_FAILURE           9
+
+
+
+/* task_attr */
+
+#define VIRTIO_SCSI_S_SIMPLE            0
+
+#define VIRTIO_SCSI_S_ORDERED           1
+
+#define VIRTIO_SCSI_S_HEAD              2
+
+#define VIRTIO_SCSI_S_ACA               3
+
+The lun field addresses a target and logical unit in the
+virtio-scsi device's SCSI domain. The only supported format for
+the LUN field is: first byte set to 1, second byte set to target,
+third and fourth byte representing a single level LUN structure,
+followed by four zero bytes. With this representation, a
+virtio-scsi device can serve up to 256 targets and 16384 LUNs per
+target.
+
+The id field is the command identifier (“tag”).
+
+task_attr, prio and crn should be left to zero. task_attr defines
+the task attribute as in the table above, but all task attributes
+may be mapped to SIMPLE by the device; crn may also be provided
+by clients, but is generally expected to be 0. The maximum CRN
+value defined by the protocol is 255, since CRN is stored in an
+8-bit integer.
+
+All of these fields are defined in SAM. They are always
+read-only, as are the cdb and dataout field. The cdb_size is
+taken from the configuration space.
+
+sense and subsequent fields are always write-only. The sense_len
+field indicates the number of bytes actually written to the sense
+buffer. The residual field indicates the residual size,
+calculated as “data_length - number_of_transferred_bytes”, for
+read or write operations. For bidirectional commands, the
+number_of_transferred_bytes includes both read and written bytes.
+A residual field that is less than the size of datain means that
+the dataout field was processed entirely. A residual field that
+exceeds the size of datain means that the dataout field was
+processed partially and the datain field was not processed at
+all.
+
+The status byte is written by the device to be the status code as
+defined in SAM.
+
+The response byte is written by the device to be one of the
+following:
+
+  VIRTIO_SCSI_S_OK when the request was completed and the status
+  byte is filled with a SCSI status code (not necessarily
+  "GOOD").
+
+  VIRTIO_SCSI_S_OVERRUN if the content of the CDB requires
+  transferring more data than is available in the data buffers.
+
+  VIRTIO_SCSI_S_ABORTED if the request was cancelled due to an
+  ABORT TASK or ABORT TASK SET task management function.
+
+  VIRTIO_SCSI_S_BAD_TARGET if the request was never processed
+  because the target indicated by the lun field does not exist.
+
+  VIRTIO_SCSI_S_RESET if the request was cancelled due to a bus
+  or device reset (including a task management function).
+
+  VIRTIO_SCSI_S_TRANSPORT_FAILURE if the request failed due to a
+  problem in the connection between the host and the target
+  (severed link).
+
+  VIRTIO_SCSI_S_TARGET_FAILURE if the target is suffering a
+  failure and the guest should not retry on other paths.
+
+  VIRTIO_SCSI_S_NEXUS_FAILURE if the nexus is suffering a failure
+  but retrying on other paths might yield a different result.
+
+  VIRTIO_SCSI_S_BUSY if the request failed but retrying on the
+  same path should work.
+
+  VIRTIO_SCSI_S_FAILURE for other host or guest error. In
+  particular, if neither dataout nor datain is empty, and the
+  VIRTIO_SCSI_F_INOUT feature has not been negotiated, the
+  request will be immediately returned with a response equal to
+  VIRTIO_SCSI_S_FAILURE.
+
+  Device Operation: controlq
+
+The controlq is used for other SCSI transport operations.
+Requests have the following format:
+
+struct virtio_scsi_ctrl {
+
+    u32 type;
+
+    ...
+
+    u8 response;
+
+};
+
+
+
+/* response values valid for all commands */
+
+#define VIRTIO_SCSI_S_OK                       0
+
+#define VIRTIO_SCSI_S_BAD_TARGET               3
+
+#define VIRTIO_SCSI_S_BUSY                     5
+
+#define VIRTIO_SCSI_S_TRANSPORT_FAILURE        6
+
+#define VIRTIO_SCSI_S_TARGET_FAILURE           7
+
+#define VIRTIO_SCSI_S_NEXUS_FAILURE            8
+
+#define VIRTIO_SCSI_S_FAILURE                  9
+
+#define VIRTIO_SCSI_S_INCORRECT_LUN            12
+
+The type identifies the remaining fields.
+
+The following commands are defined:
+
+  Task management function
+#define VIRTIO_SCSI_T_TMF                      0
+
+
+
+#define VIRTIO_SCSI_T_TMF_ABORT_TASK           0
+
+#define VIRTIO_SCSI_T_TMF_ABORT_TASK_SET       1
+
+#define VIRTIO_SCSI_T_TMF_CLEAR_ACA            2
+
+#define VIRTIO_SCSI_T_TMF_CLEAR_TASK_SET       3
+
+#define VIRTIO_SCSI_T_TMF_I_T_NEXUS_RESET      4
+
+#define VIRTIO_SCSI_T_TMF_LOGICAL_UNIT_RESET   5
+
+#define VIRTIO_SCSI_T_TMF_QUERY_TASK           6
+
+#define VIRTIO_SCSI_T_TMF_QUERY_TASK_SET       7
+
+
+
+struct virtio_scsi_ctrl_tmf
+
+{
+
+    // Read-only part
+
+    u32 type;
+
+    u32 subtype;
+
+    u8 lun[8];
+
+    u64 id;
+
+    // Write-only part
+
+    u8 response;
+
+}
+
+
+
+/* command-specific response values */
+
+#define VIRTIO_SCSI_S_FUNCTION_COMPLETE        0
+
+#define VIRTIO_SCSI_S_FUNCTION_SUCCEEDED       10
+
+#define VIRTIO_SCSI_S_FUNCTION_REJECTED        11
+
+  The type is VIRTIO_SCSI_T_TMF; the subtype field defines. All
+  fields except response are filled by the driver. The subtype
+  field must always be specified and identifies the requested
+  task management function.
+
+  Other fields may be irrelevant for the requested TMF; if so,
+  they are ignored but they should still be present. The lun
+  field is in the same format specified for request queues; the
+  single level LUN is ignored when the task management function
+  addresses a whole I_T nexus. When relevant, the value of the id
+  field is matched against the id values passed on the requestq.
+
+  The outcome of the task management function is written by the
+  device in the response field. The command-specific response
+  values map 1-to-1 with those defined in SAM.
+
+  Asynchronous notification query
+#define VIRTIO_SCSI_T_AN_QUERY                    1
+
+
+
+struct virtio_scsi_ctrl_an {
+
+    // Read-only part
+
+    u32 type;
+
+    u8  lun[8];
+
+    u32 event_requested;
+
+    // Write-only part
+
+    u32 event_actual;
+
+    u8  response;
+
+}
+
+
+
+#define VIRTIO_SCSI_EVT_ASYNC_OPERATIONAL_CHANGE  2
+
+#define VIRTIO_SCSI_EVT_ASYNC_POWER_MGMT          4
+
+#define VIRTIO_SCSI_EVT_ASYNC_EXTERNAL_REQUEST    8
+
+#define VIRTIO_SCSI_EVT_ASYNC_MEDIA_CHANGE        16
+
+#define VIRTIO_SCSI_EVT_ASYNC_MULTI_HOST          32
+
+#define VIRTIO_SCSI_EVT_ASYNC_DEVICE_BUSY         64
+
+  By sending this command, the driver asks the device which
+  events the given LUN can report, as described in paragraphs 6.6
+  and A.6 of the SCSI MMC specification. The driver writes the
+  events it is interested in into the event_requested; the device
+  responds by writing the events that it supports into
+  event_actual.
+
+  The type is VIRTIO_SCSI_T_AN_QUERY. The lun and event_requested
+  fields are written by the driver. The event_actual and response
+  fields are written by the device.
+
+  No command-specific values are defined for the response byte.
+
+  Asynchronous notification subscription
+#define VIRTIO_SCSI_T_AN_SUBSCRIBE                2
+
+
+
+struct virtio_scsi_ctrl_an {
+
+    // Read-only part
+
+    u32 type;
+
+    u8  lun[8];
+
+    u32 event_requested;
+
+    // Write-only part
+
+    u32 event_actual;
+
+    u8  response;
+
+}
+
+  By sending this command, the driver asks the specified LUN to
+  report events for its physical interface, again as described in
+  the SCSI MMC specification. The driver writes the events it is
+  interested in into the event_requested; the device responds by
+  writing the events that it supports into event_actual.
+
+  Event types are the same as for the asynchronous notification
+  query message.
+
+  The type is VIRTIO_SCSI_T_AN_SUBSCRIBE. The lun and
+  event_requested fields are written by the driver. The
+  event_actual and response fields are written by the device.
+
+  No command-specific values are defined for the response byte.
+
+  Device Operation: eventq
+
+The eventq is used by the device to report information on logical
+units that are attached to it. The driver should always leave a
+few buffers ready in the eventq. In general, the device will not
+queue events to cope with an empty eventq, and will end up
+dropping events if it finds no buffer ready. However, when
+reporting events for many LUNs (e.g. when a whole target
+disappears), the device can throttle events to avoid dropping
+them. For this reason, placing 10-15 buffers on the event queue
+should be enough.
+
+Buffers are placed in the eventq and filled by the device when
+interesting events occur. The buffers should be strictly
+write-only (device-filled) and the size of the buffers should be
+at least the value given in the device's configuration
+information.
+
+Buffers returned by the device on the eventq will be referred to
+as "events" in the rest of this section. Events have the
+following format:
+
+#define VIRTIO_SCSI_T_EVENTS_MISSED   0x80000000
+
+
+
+struct virtio_scsi_event {
+
+    // Write-only part
+
+    u32 event;
+
+    ...
+
+}
+
+If bit 31 is set in the event field, the device failed to report
+an event due to missing buffers. In this case, the driver should
+poll the logical units for unit attention conditions, and/or do
+whatever form of bus scan is appropriate for the guest operating
+system.
+
+Other data that the device writes to the buffer depends on the
+contents of the event field. The following events are defined:
+
+  No event
+#define VIRTIO_SCSI_T_NO_EVENT         0
+
+  This event is fired in the following cases:
+
+  When the device detects in the eventq a buffer that is shorter
+    than what is indicated in the configuration field, it might
+    use it immediately and put this dummy value in the event
+    field. A well-written driver will never observe this
+    situation.
+
+  When events are dropped, the device may signal this event as
+    soon as the drivers makes a buffer available, in order to
+    request action from the driver. In this case, of course, this
+    event will be reported with the VIRTIO_SCSI_T_EVENTS_MISSED
+    flag.
+
+  Transport reset
+#define VIRTIO_SCSI_T_TRANSPORT_RESET  1
+
+
+
+struct virtio_scsi_event_reset {
+
+    // Write-only part
+
+    u32 event;
+
+    u8  lun[8];
+
+    u32 reason;
+
+}
+
+
+
+#define VIRTIO_SCSI_EVT_RESET_HARD         0
+
+#define VIRTIO_SCSI_EVT_RESET_RESCAN       1
+
+#define VIRTIO_SCSI_EVT_RESET_REMOVED      2
+
+  By sending this event, the device signals that a logical unit
+  on a target has been reset, including the case of a new device
+  appearing or disappearing on the bus.The device fills in all
+  fields. The event field is set to
+  VIRTIO_SCSI_T_TRANSPORT_RESET. The lun field addresses a
+  logical unit in the SCSI host.
+
+  The reason value is one of the three #define values appearing
+  above:
+
+  VIRTIO_SCSI_EVT_RESET_REMOVED (“LUN/target removed”) is used if
+    the target or logical unit is no longer able to receive
+    commands.
+
+  VIRTIO_SCSI_EVT_RESET_HARD (“LUN hard reset”) is used if the
+    logical unit has been reset, but is still present.
+
+  VIRTIO_SCSI_EVT_RESET_RESCAN (“rescan LUN/target”) is used if a
+    target or logical unit has just appeared on the device.
+
+  The “removed” and “rescan” events, when sent for LUN 0, may
+  apply to the entire target. After receiving them the driver
+  should ask the initiator to rescan the target, in order to
+  detect the case when an entire target has appeared or
+  disappeared. These two events will never be reported unless the
+  VIRTIO_SCSI_F_HOTPLUG feature was negotiated between the host
+  and the guest.
+
+  Events will also be reported via sense codes (this obviously
+  does not apply to newly appeared buses or targets, since the
+  application has never discovered them):
+
+  “LUN/target removed” maps to sense key ILLEGAL REQUEST, asc
+    0x25, ascq 0x00 (LOGICAL UNIT NOT SUPPORTED)
+
+  “LUN hard reset” maps to sense key UNIT ATTENTION, asc 0x29
+    (POWER ON, RESET OR BUS DEVICE RESET OCCURRED)
+
+  “rescan LUN/target” maps to sense key UNIT ATTENTION, asc 0x3f,
+    ascq 0x0e (REPORTED LUNS DATA HAS CHANGED)
+
+  The preferred way to detect transport reset is always to use
+  events, because sense codes are only seen by the driver when it
+  sends a SCSI command to the logical unit or target. However, in
+  case events are dropped, the initiator will still be able to
+  synchronize with the actual state of the controller if the
+  driver asks the initiator to rescan of the SCSI bus. During the
+  rescan, the initiator will be able to observe the above sense
+  codes, and it will process them as if it the driver had
+  received the equivalent event.
+
+  Asynchronous notification
+#define VIRTIO_SCSI_T_ASYNC_NOTIFY     2
+
+
+
+struct virtio_scsi_event_an {
+
+    // Write-only part
+
+    u32 event;
+
+    u8  lun[8];
+
+    u32 reason;
+
+}
+
+  By sending this event, the device signals that an asynchronous
+  event was fired from a physical interface.
+
+  All fields are written by the device. The event field is set to
+  VIRTIO_SCSI_T_ASYNC_NOTIFY. The lun field addresses a logical
+  unit in the SCSI host. The reason field is a subset of the
+  events that the driver has subscribed to via the "Asynchronous
+  notification subscription" command.
+
+  When dropped events are reported, the driver should poll for
+  asynchronous events manually using SCSI commands.
+
+Appendix X: virtio-mmio
+
+Virtual environments without PCI support (a common situation in
+embedded devices models) might use simple memory mapped device (“
+virtio-mmio”) instead of the PCI device.
+
+The memory mapped virtio device behaviour is based on the PCI
+device specification. Therefore most of operations like device
+initialization, queues configuration and buffer transfers are
+nearly identical. Existing differences are described in the
+following sections.
+
+  Device Initialization
+
+Instead of using the PCI IO space for virtio header, the “
+virtio-mmio” device provides a set of memory mapped control
+registers, all 32 bits wide, followed by device-specific
+configuration space. The following list presents their layout:
+
+  Offset from the device base address | Direction | Name
+ Description
+
+  0x000 | R | MagicValue
+ “virt” string.
+
+  0x004 | R | Version
+ Device version number. Currently must be 1.
+
+  0x008 | R | DeviceID
+ Virtio Subsystem Device ID (ie. 1 for network card).
+
+  0x00c | R | VendorID
+ Virtio Subsystem Vendor ID.
+
+  0x010 | R | HostFeatures
+ Flags representing features the device supports.
+ Reading from this register returns 32 consecutive flag bits,
+  first bit depending on the last value written to
+  HostFeaturesSel register. Access to this register returns bits HostFeaturesSel*32
+
+   to (HostFeaturesSel*32)+31
+, eg. feature bits 0 to 31 if
+  HostFeaturesSel is set to 0 and features bits 32 to 63 if
+  HostFeaturesSel is set to 1. Also see [sub:Feature-Bits]
+
+  0x014 | W | HostFeaturesSel
+ Device (Host) features word selection.
+ Writing to this register selects a set of 32 device feature bits
+  accessible by reading from HostFeatures register. Device driver
+  must write a value to the HostFeaturesSel register before
+  reading from the HostFeatures register.
+
+  0x020 | W | GuestFeatures
+ Flags representing device features understood and activated by
+  the driver.
+ Writing to this register sets 32 consecutive flag bits, first
+  bit depending on the last value written to GuestFeaturesSel
+  register. Access to this register sets bits GuestFeaturesSel*32
+
+   to (GuestFeaturesSel*32)+31
+, eg. feature bits 0 to 31 if
+  GuestFeaturesSel is set to 0 and features bits 32 to 63 if
+  GuestFeaturesSel is set to 1. Also see [sub:Feature-Bits]
+
+  0x024 | W | GuestFeaturesSel
+ Activated (Guest) features word selection.
+ Writing to this register selects a set of 32 activated feature
+  bits accessible by writing to the GuestFeatures register.
+  Device driver must write a value to the GuestFeaturesSel
+  register before writing to the GuestFeatures register.
+
+  0x028 | W | GuestPageSize
+ Guest page size.
+ Device driver must write the guest page size in bytes to the
+  register during initialization, before any queues are used.
+  This value must be a power of 2 and is used by the Host to
+  calculate Guest address of the first queue page (see QueuePFN).
+
+  0x030 | W | QueueSel
+ Virtual queue index (first queue is 0).
+ Writing to this register selects the virtual queue that the
+  following operations on QueueNum, QueueAlign and QueuePFN apply
+  to.
+
+  0x034 | R | QueueNumMax
+ Maximum virtual queue size.
+ Reading from the register returns the maximum size of the queue
+  the Host is ready to process or zero (0x0) if the queue is not
+  available. This applies to the queue selected by writing to
+  QueueSel and is allowed only when QueuePFN is set to zero
+  (0x0), so when the queue is not actively used.
+
+  0x038 | W | QueueNum
+ Virtual queue size.
+ Queue size is a number of elements in the queue, therefore size
+  of the descriptor table and both available and used rings.
+ Writing to this register notifies the Host what size of the
+  queue the Guest will use. This applies to the queue selected by
+  writing to QueueSel.
+
+  0x03c | W | QueueAlign
+ Used Ring alignment in the virtual queue.
+ Writing to this register notifies the Host about alignment
+  boundary of the Used Ring in bytes. This value must be a power
+  of 2 and applies to the queue selected by writing to QueueSel.
+
+  0x040 | RW | QueuePFN
+ Guest physical page number of the virtual queue.
+ Writing to this register notifies the host about location of the
+  virtual queue in the Guest's physical address space. This value
+  is the index number of a page starting with the queue
+  Descriptor Table. Value zero (0x0) means physical address zero
+  (0x00000000) and is illegal. When the Guest stops using the
+  queue it must write zero (0x0) to this register.
+ Reading from this register returns the currently used page
+  number of the queue, therefore a value other than zero (0x0)
+  means that the queue is in use.
+ Both read and write accesses apply to the queue selected by
+  writing to QueueSel.
+
+  0x050 | W | QueueNotify
+ Queue notifier.
+ Writing a queue index to this register notifies the Host that
+  there are new buffers to process in the queue.
+
+  0x60 | R | InterruptStatus
+Interrupt status.
+Reading from this register returns a bit mask of interrupts
+  asserted by the device. An interrupt is asserted if the
+  corresponding bit is set, ie. equals one (1).
+
+  Bit 0 | Used Ring Update
+This interrupt is asserted when the Host has updated the Used
+    Ring in at least one of the active virtual queues.
+
+  Bit 1 | Configuration change
+This interrupt is asserted when configuration of the device has
+    changed.
+
+  0x064 | W | InterruptACK
+ Interrupt acknowledge.
+ Writing to this register notifies the Host that the Guest
+  finished handling interrupts. Set bits in the value clear the
+  corresponding bits of the InterruptStatus register.
+
+  0x070 | RW | Status
+ Device status.
+ Reading from this register returns the current device status
+  flags.
+ Writing non-zero values to this register sets the status flags,
+  indicating the Guest progress. Writing zero (0x0) to this
+  register triggers a device reset.
+ Also see [sub:Device-Initialization-Sequence]
+
+  0x100+ | RW | Config
+ Device-specific configuration space starts at an offset 0x100
+  and is accessed with byte alignment. Its meaning and size
+  depends on the device and the driver.
+
+Virtual queue size is a number of elements in the queue,
+therefore size of the descriptor table and both available and
+used rings.
+
+The endianness of the registers follows the native endianness of
+the Guest. Writing to registers described as “R” and reading from
+registers described as “W” is not permitted and can cause
+undefined behavior.
+
+The device initialization is performed as described in [sub:Device-Initialization-Sequence]
+ with one exception: the Guest must notify the Host about its
+page size, writing the size in bytes to GuestPageSize register
+before the initialization is finished.
+
+The memory mapped virtio devices generate single interrupt only,
+therefore no special configuration is required.
+
+  Virtqueue Configuration
+
+The virtual queue configuration is performed in a similar way to
+the one described in [sec:Virtqueue-Configuration] with a few
+additional operations:
+
+  Select the queue writing its index (first queue is 0) to the
+  QueueSel register.
+
+  Check if the queue is not already in use: read QueuePFN
+  register, returned value should be zero (0x0).
+
+  Read maximum queue size (number of elements) from the
+  QueueNumMax register. If the returned value is zero (0x0) the
+  queue is not available.
+
+  Allocate and zero the queue pages in contiguous virtual memory,
+  aligning the Used Ring to an optimal boundary (usually page
+  size). Size of the allocated queue may be smaller than or equal
+  to the maximum size returned by the Host.
+
+  Notify the Host about the queue size by writing the size to
+  QueueNum register.
+
+  Notify the Host about the used alignment by writing its value
+  in bytes to QueueAlign register.
+
+  Write the physical number of the first page of the queue to the
+  QueuePFN register.
+
+The queue and the device are ready to begin normal operations
+now.
+
+  Device Operation
+
+The memory mapped virtio device behaves in the same way as
+described in [sec:Device-Operation], with the following
+exceptions:
+
+  The device is notified about new buffers available in a queue
+  by writing the queue index to register QueueNum instead of the
+  virtio header in PCI I/O space ([sub:Notifying-The-Device]).
+
+  The memory mapped virtio device is using single, dedicated
+  interrupt signal, which is raised when at least one of the
+  interrupts described in the InterruptStatus register
+  description is asserted. After receiving an interrupt, the
+  driver must read the InterruptStatus register to check what
+  caused the interrupt (see the register description). After the
+  interrupt is handled, the driver must acknowledge it by writing
+  a bit mask corresponding to the serviced interrupt to the
+  InterruptACK register.
 

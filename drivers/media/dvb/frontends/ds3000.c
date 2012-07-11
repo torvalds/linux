@@ -1114,7 +1114,10 @@ static int ds3000_set_frontend(struct dvb_frontend *fe)
 			ds3000_writereg(state,
 				ds3000_dvbs2_init_tab[i],
 				ds3000_dvbs2_init_tab[i + 1]);
-		ds3000_writereg(state, 0xfe, 0x98);
+		if (c->symbol_rate >= 30000000)
+			ds3000_writereg(state, 0xfe, 0x54);
+		else
+			ds3000_writereg(state, 0xfe, 0x98);
 		break;
 	default:
 		return 1;

@@ -58,7 +58,7 @@ static atomic_t tipc_num_links = ATOMIC_INIT(0);
  * entries has been chosen so that no hash chain exceeds 8 nodes and will
  * usually be much smaller (typically only a single node).
  */
-static inline unsigned int tipc_hashfn(u32 addr)
+static unsigned int tipc_hashfn(u32 addr)
 {
 	return addr & (NODE_HTABLE_SIZE - 1);
 }
@@ -66,13 +66,12 @@ static inline unsigned int tipc_hashfn(u32 addr)
 /*
  * tipc_node_find - locate specified node object, if it exists
  */
-
 struct tipc_node *tipc_node_find(u32 addr)
 {
 	struct tipc_node *node;
 	struct hlist_node *pos;
 
-	if (unlikely(!in_own_cluster(addr)))
+	if (unlikely(!in_own_cluster_exact(addr)))
 		return NULL;
 
 	hlist_for_each_entry(node, pos, &node_htable[tipc_hashfn(addr)], hash) {
@@ -91,7 +90,6 @@ struct tipc_node *tipc_node_find(u32 addr)
  * time.  (It would be preferable to switch to holding net_lock in write mode,
  * but this is a non-trivial change.)
  */
-
 struct tipc_node *tipc_node_create(u32 addr)
 {
 	struct tipc_node *n_ptr, *temp_node;
@@ -142,13 +140,11 @@ void tipc_node_delete(struct tipc_node *n_ptr)
 	tipc_num_nodes--;
 }
 
-
 /**
  * tipc_node_link_up - handle addition of link
  *
  * Link becomes active (alone or shared) or standby, depending on its priority.
  */
-
 void tipc_node_link_up(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 {
 	struct tipc_link **active = &n_ptr->active_links[0];
@@ -181,7 +177,6 @@ void tipc_node_link_up(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 /**
  * node_select_active_links - select active link
  */
-
 static void node_select_active_links(struct tipc_node *n_ptr)
 {
 	struct tipc_link **active = &n_ptr->active_links[0];
@@ -209,7 +204,6 @@ static void node_select_active_links(struct tipc_node *n_ptr)
 /**
  * tipc_node_link_down - handle loss of link
  */
-
 void tipc_node_link_down(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 {
 	struct tipc_link **active;
@@ -300,7 +294,6 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 	     tipc_addr_string_fill(addr_string, n_ptr->addr));
 
 	/* Flush broadcast link info associated with lost node */
-
 	if (n_ptr->bclink.supported) {
 		while (n_ptr->bclink.deferred_head) {
 			struct sk_buff *buf = n_ptr->bclink.deferred_head;
@@ -334,7 +327,6 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 	tipc_nodesub_notify(n_ptr);
 
 	/* Prevent re-contact with node until cleanup is done */
-
 	n_ptr->block_setup = WAIT_PEER_DOWN | WAIT_NAMES_GONE;
 	tipc_k_signal((Handler)node_name_purge_complete, n_ptr->addr);
 }
@@ -362,7 +354,6 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 	}
 
 	/* For now, get space for all other nodes */
-
 	payload_size = TLV_SPACE(sizeof(node_info)) * tipc_num_nodes;
 	if (payload_size > 32768u) {
 		read_unlock_bh(&tipc_net_lock);
@@ -376,7 +367,6 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 	}
 
 	/* Add TLVs for all nodes in scope */
-
 	list_for_each_entry(n_ptr, &tipc_node_list, list) {
 		if (!tipc_in_scope(domain, n_ptr->addr))
 			continue;
@@ -412,7 +402,6 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 	read_lock_bh(&tipc_net_lock);
 
 	/* Get space for all unicast links + broadcast link */
-
 	payload_size = TLV_SPACE(sizeof(link_info)) *
 		(atomic_read(&tipc_num_links) + 1);
 	if (payload_size > 32768u) {
@@ -427,14 +416,12 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 	}
 
 	/* Add TLV for broadcast link */
-
 	link_info.dest = htonl(tipc_cluster_mask(tipc_own_addr));
 	link_info.up = htonl(1);
 	strlcpy(link_info.str, tipc_bclink_name, TIPC_MAX_LINK_NAME);
 	tipc_cfg_append_tlv(buf, TIPC_TLV_LINK_INFO, &link_info, sizeof(link_info));
 
 	/* Add TLVs for any other links in scope */
-
 	list_for_each_entry(n_ptr, &tipc_node_list, list) {
 		u32 i;
 
