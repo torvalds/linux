@@ -117,6 +117,12 @@ struct jr_outentry {
 #define CHA_NUM_DECONUM_SHIFT	56
 #define CHA_NUM_DECONUM_MASK	(0xfull << CHA_NUM_DECONUM_SHIFT)
 
+struct sec_vid {
+	u16 ip_id;
+	u8 maj_rev;
+	u8 min_rev;
+};
+
 struct caam_perfmon {
 	/* Performance Monitor Registers			f00-f9f */
 	u64 req_dequeued;	/* PC_REQ_DEQ - Dequeued Requests	     */
