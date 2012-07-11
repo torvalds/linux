@@ -127,33 +127,6 @@ void pci_disable_bridge_window(struct pci_dev *dev)
 	pci_write_config_dword(dev, PCI_PREF_BASE_UPPER32, 0xffffffff);
 }
 
-static int __pci_assign_resource(struct pci_bus *bus, struct pci_dev *dev,
-		int resno, resource_size_t size, resource_size_t align)
-{
-	struct resource *res = dev->resource + resno;
-	resource_size_t min;
-	int ret;
-
-	min = (res->flags & IORESOURCE_IO) ? PCIBIOS_MIN_IO : PCIBIOS_MIN_MEM;
-
-	/* First, try exact prefetching match.. */
-	ret = pci_bus_alloc_resource(bus, res, size, align, min,
-				     IORESOURCE_PREFETCH,
-				     pcibios_align_resource, dev);
-
-	if (ret < 0 && (res->flags & IORESOURCE_PREFETCH)) {
-		/*
-		 * That failed.
-		 *
-		 * But a prefetching area can handle a non-prefetching
-		 * window (it will just not perform as well).
-		 */
-		ret = pci_bus_alloc_resource(bus, res, size, align, min, 0,
-					     pcibios_align_resource, dev);
-	}
-	return ret;
-}
-
 /*
  * Generic function that returns a value indicating that the device's
  * original BIOS BAR address was not saved and so is not available for
@@ -206,6 +179,33 @@ static int pci_revert_fw_address(struct resource *res, struct pci_dev *dev,
 	return ret;
 }
 
+static int __pci_assign_resource(struct pci_bus *bus, struct pci_dev *dev,
+		int resno, resource_size_t size, resource_size_t align)
+{
+	struct resource *res = dev->resource + resno;
+	resource_size_t min;
+	int ret;
+
+	min = (res->flags & IORESOURCE_IO) ? PCIBIOS_MIN_IO : PCIBIOS_MIN_MEM;
+
+	/* First, try exact prefetching match.. */
+	ret = pci_bus_alloc_resource(bus, res, size, align, min,
+				     IORESOURCE_PREFETCH,
+				     pcibios_align_resource, dev);
+
+	if (ret < 0 && (res->flags & IORESOURCE_PREFETCH)) {
+		/*
+		 * That failed.
+		 *
+		 * But a prefetching area can handle a non-prefetching
+		 * window (it will just not perform as well).
+		 */
+		ret = pci_bus_alloc_resource(bus, res, size, align, min, 0,
+					     pcibios_align_resource, dev);
+	}
+	return ret;
+}
+
 static int _pci_assign_resource(struct pci_dev *dev, int resno,
 				resource_size_t size, resource_size_t min_align)
 {
@@ -239,31 +239,6 @@ static int _pci_assign_resource(struct pci_dev *dev, int resno,
 	return ret;
 }
 
-int pci_reassign_resource(struct pci_dev *dev, int resno, resource_size_t addsize,
-			resource_size_t min_align)
-{
-	struct resource *res = dev->resource + resno;
-	resource_size_t new_size;
-	int ret;
-
-	if (!res->parent) {
-		dev_info(&dev->dev, "BAR %d: can't reassign an unassigned resource %pR "
-			 "\n", resno, res);
-		return -EINVAL;
-	}
-
-	/* already aligned with min_align */
-	new_size = resource_size(res) + addsize;
-	ret = _pci_assign_resource(dev, resno, new_size, min_align);
-	if (!ret) {
-		res->flags &= ~IORESOURCE_STARTALIGN;
-		dev_info(&dev->dev, "BAR %d: reassigned %pR\n", resno, res);
-		if (resno < PCI_BRIDGE_RESOURCES)
-			pci_update_resource(dev, resno);
-	}
-	return ret;
-}
-
 int pci_assign_resource(struct pci_dev *dev, int resno)
 {
 	struct resource *res = dev->resource + resno;
@@ -293,6 +268,31 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 	if (!ret) {
 		res->flags &= ~IORESOURCE_STARTALIGN;
 		dev_info(&dev->dev, "BAR %d: assigned %pR\n", resno, res);
+		if (resno < PCI_BRIDGE_RESOURCES)
+			pci_update_resource(dev, resno);
+	}
+	return ret;
+}
+
+int pci_reassign_resource(struct pci_dev *dev, int resno, resource_size_t addsize,
+			resource_size_t min_align)
+{
+	struct resource *res = dev->resource + resno;
+	resource_size_t new_size;
+	int ret;
+
+	if (!res->parent) {
+		dev_info(&dev->dev, "BAR %d: can't reassign an unassigned resource %pR "
+			 "\n", resno, res);
+		return -EINVAL;
+	}
+
+	/* already aligned with min_align */
+	new_size = resource_size(res) + addsize;
+	ret = _pci_assign_resource(dev, resno, new_size, min_align);
+	if (!ret) {
+		res->flags &= ~IORESOURCE_STARTALIGN;
+		dev_info(&dev->dev, "BAR %d: reassigned %pR\n", resno, res);
 		if (resno < PCI_BRIDGE_RESOURCES)
 			pci_update_resource(dev, resno);
 	}
