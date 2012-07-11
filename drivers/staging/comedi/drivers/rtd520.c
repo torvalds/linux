@@ -407,8 +407,6 @@ struct rtdPrivate {
 /* Macros to access registers */
 
 /* Digital IO */
-#define RtdDio0Read(dev) \
-	(readw(devpriv->las0+LAS0_DIO0) & 0xff)
 #define RtdDio0Write(dev, v) \
 	writew((v) & 0xff, devpriv->las0+LAS0_DIO0)
 
@@ -1664,7 +1662,7 @@ static int rtd_dio_insn_bits(struct comedi_device *dev,
 	}
 	/* on return, data[1] contains the value of the digital
 	 * input lines. */
-	data[1] = RtdDio0Read(dev);
+	data[1] = readw(devpriv->las0 + LAS0_DIO0) & 0xff;
 
 	/*DPRINTK("rtd520:port_0 wrote: 0x%x read: 0x%x\n", s->state, data[1]); */
 
