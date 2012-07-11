@@ -362,7 +362,7 @@ struct radeon_bo_list {
  * alignment).
  */
 struct radeon_sa_manager {
-	spinlock_t		lock;
+	wait_queue_head_t	wq;
 	struct radeon_bo	*bo;
 	struct list_head	*hole;
 	struct list_head	flist[RADEON_NUM_RINGS];
