@@ -611,9 +611,9 @@ static struct i2c_algorithm bfin_twi_algorithm = {
 	.functionality = bfin_twi_functionality,
 };
 
-static int i2c_bfin_twi_suspend(struct platform_device *pdev, pm_message_t state)
+static int i2c_bfin_twi_suspend(struct device *dev)
 {
-	struct bfin_twi_iface *iface = platform_get_drvdata(pdev);
+	struct bfin_twi_iface *iface = dev_get_drvdata(dev);
 
 	iface->saved_clkdiv = read_CLKDIV(iface);
 	iface->saved_control = read_CONTROL(iface);
@@ -626,14 +626,14 @@ static int i2c_bfin_twi_suspend(struct platform_device *pdev, pm_message_t state
 	return 0;
 }
 
-static int i2c_bfin_twi_resume(struct platform_device *pdev)
+static int i2c_bfin_twi_resume(struct device *dev)
 {
-	struct bfin_twi_iface *iface = platform_get_drvdata(pdev);
+	struct bfin_twi_iface *iface = dev_get_drvdata(dev);
 
 	int rc = request_irq(iface->irq, bfin_twi_interrupt_entry,
-		0, pdev->name, iface);
+		0, to_platform_device(dev)->name, iface);
 	if (rc) {
-		dev_err(&pdev->dev, "Can't get IRQ %d !\n", iface->irq);
+		dev_err(dev, "Can't get IRQ %d !\n", iface->irq);
 		return -ENODEV;
 	}
 
@@ -645,6 +645,9 @@ static int i2c_bfin_twi_resume(struct platform_device *pdev)
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(i2c_bfin_twi_pm,
+			 i2c_bfin_twi_suspend, i2c_bfin_twi_resume);
 
 static int i2c_bfin_twi_probe(struct platform_device *pdev)
 {
@@ -770,11 +773,10 @@ static int i2c_bfin_twi_remove(struct platform_device *pdev)
 static struct platform_driver i2c_bfin_twi_driver = {
 	.probe		= i2c_bfin_twi_probe,
 	.remove		= i2c_bfin_twi_remove,
-	.suspend	= i2c_bfin_twi_suspend,
-	.resume		= i2c_bfin_twi_resume,
 	.driver		= {
 		.name	= "i2c-bfin-twi",
 		.owner	= THIS_MODULE,
+		.pm	= &i2c_bfin_twi_pm,
 	},
 };
 
