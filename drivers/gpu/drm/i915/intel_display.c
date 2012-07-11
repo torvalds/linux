@@ -3553,7 +3553,7 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	}
 }
 
-void intel_encoder_disable(struct drm_encoder *encoder)
+void intel_encoder_noop(struct drm_encoder *encoder)
 {
 }
 

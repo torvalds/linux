@@ -1492,7 +1492,7 @@ out:
 static const struct drm_encoder_helper_funcs intel_tv_helper_funcs = {
 	.mode_fixup = intel_tv_mode_fixup,
 	.mode_set = intel_tv_mode_set,
-	.disable = intel_encoder_disable,
+	.disable = intel_encoder_noop,
 };
 
 static const struct drm_connector_funcs intel_tv_connector_funcs = {

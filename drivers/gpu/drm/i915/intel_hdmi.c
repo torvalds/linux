@@ -907,13 +907,13 @@ static void intel_hdmi_destroy(struct drm_connector *connector)
 static const struct drm_encoder_helper_funcs intel_hdmi_helper_funcs_hsw = {
 	.mode_fixup = intel_hdmi_mode_fixup,
 	.mode_set = intel_ddi_mode_set,
-	.disable = intel_encoder_disable,
+	.disable = intel_encoder_noop,
 };
 
 static const struct drm_encoder_helper_funcs intel_hdmi_helper_funcs = {
 	.mode_fixup = intel_hdmi_mode_fixup,
 	.mode_set = intel_hdmi_mode_set,
-	.disable = intel_encoder_disable,
+	.disable = intel_encoder_noop,
 };
 
 static const struct drm_connector_funcs intel_hdmi_connector_funcs = {

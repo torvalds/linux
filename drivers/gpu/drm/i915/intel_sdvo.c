@@ -1936,7 +1936,7 @@ done:
 static const struct drm_encoder_helper_funcs intel_sdvo_helper_funcs = {
 	.mode_fixup = intel_sdvo_mode_fixup,
 	.mode_set = intel_sdvo_mode_set,
-	.disable = intel_encoder_disable
+	.disable = intel_encoder_noop,
 };
 
 static const struct drm_connector_funcs intel_sdvo_connector_funcs = {

@@ -590,7 +590,7 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 static const struct drm_encoder_helper_funcs intel_lvds_helper_funcs = {
 	.mode_fixup = intel_lvds_mode_fixup,
 	.mode_set = intel_lvds_mode_set,
-	.disable = intel_encoder_disable,
+	.disable = intel_encoder_noop,
 };
 
 static const struct drm_connector_helper_funcs intel_lvds_connector_helper_funcs = {

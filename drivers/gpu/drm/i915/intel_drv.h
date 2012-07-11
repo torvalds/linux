@@ -451,7 +451,7 @@ extern bool intel_set_mode(struct drm_crtc *crtc, struct drm_display_mode *mode,
 			   int x, int y, struct drm_framebuffer *old_fb);
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_crtc_update_dpms(struct drm_crtc *crtc);
-extern void intel_encoder_disable(struct drm_encoder *encoder);
+extern void intel_encoder_noop(struct drm_encoder *encoder);
 extern void intel_encoder_destroy(struct drm_encoder *encoder);
 extern void intel_encoder_dpms(struct intel_encoder *encoder, int mode);
 extern bool intel_encoder_check_is_cloned(struct intel_encoder *encoder);
