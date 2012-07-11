@@ -206,6 +206,9 @@ EXPORT_SYMBOL_GPL(rcu_note_context_switch);
 DEFINE_PER_CPU(struct rcu_dynticks, rcu_dynticks) = {
 	.dynticks_nesting = DYNTICK_TASK_EXIT_IDLE,
 	.dynticks = ATOMIC_INIT(1),
+#ifdef CONFIG_RCU_USER_QS
+	.ignore_user_qs = true,
+#endif
 };
 
 static int blimit = 10;		/* Maximum callbacks per rcu_do_batch. */
@@ -430,7 +433,7 @@ void rcu_user_enter(void)
 
 	local_irq_save(flags);
 	rdtp = &__get_cpu_var(rcu_dynticks);
-	if (!rdtp->in_user) {
+	if (!rdtp->ignore_user_qs && !rdtp->in_user) {
 		rdtp->in_user = true;
 		rcu_eqs_enter(1);
 	}
