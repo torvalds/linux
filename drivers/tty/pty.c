@@ -618,12 +618,11 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	/* find a device that is not in use. */
 	mutex_lock(&devpts_mutex);
 	index = devpts_new_index(inode);
+	mutex_unlock(&devpts_mutex);
 	if (index < 0) {
 		retval = index;
 		goto err_file;
 	}
-
-	mutex_unlock(&devpts_mutex);
 
 	mutex_lock(&tty_mutex);
 	tty = tty_init_dev(ptm_driver, index);
@@ -659,7 +658,6 @@ out:
 	mutex_unlock(&tty_mutex);
 	devpts_kill_index(inode, index);
 err_file:
-        mutex_unlock(&devpts_mutex);
 	tty_free_file(filp);
 	return retval;
 }
