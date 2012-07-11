@@ -43,7 +43,6 @@
 #include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/sunrpc/clnt.h>
-#include <linux/sunrpc/gss_api.h>
 #include <linux/nfs.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
@@ -2412,11 +2411,15 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 	int i, len, status = 0;
 	rpc_authflavor_t flav_array[NFS_MAX_SECFLAVORS];
 
-	len = gss_mech_list_pseudoflavors(&flav_array[0]);
-	flav_array[len] = RPC_AUTH_NULL;
-	len += 1;
+	len = rpcauth_list_flavors(flav_array, ARRAY_SIZE(flav_array));
+	BUG_ON(len < 0);
 
 	for (i = 0; i < len; i++) {
+		/* AUTH_UNIX is the default flavor if none was specified,
+		 * thus has already been tried. */
+		if (flav_array[i] == RPC_AUTH_UNIX)
+			continue;
+
 		status = nfs4_lookup_root_sec(server, fhandle, info, flav_array[i]);
 		if (status == -NFS4ERR_WRONGSEC || status == -EACCES)
 			continue;
