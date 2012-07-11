@@ -501,7 +501,7 @@ static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn)
 /* AMP Manager functions */
 void amp_mgr_get(struct amp_mgr *mgr)
 {
-	BT_DBG("mgr %p", mgr);
+	BT_DBG("mgr %p orig refcnt %d", mgr, atomic_read(&mgr->kref.refcount));
 
 	kref_get(&mgr->kref);
 }
@@ -517,7 +517,7 @@ static void amp_mgr_destroy(struct kref *kref)
 
 int amp_mgr_put(struct amp_mgr *mgr)
 {
-	BT_DBG("mgr %p", mgr);
+	BT_DBG("mgr %p orig refcnt %d", mgr, atomic_read(&mgr->kref.refcount));
 
 	return kref_put(&mgr->kref, &amp_mgr_destroy);
 }
