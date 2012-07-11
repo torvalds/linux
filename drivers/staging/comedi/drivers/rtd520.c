@@ -407,8 +407,6 @@ struct rtdPrivate {
 /* Macros to access registers */
 
 /* PLX9080 interrupt mask and status */
-#define RtdPlxInterruptRead(dev) \
-	readl(devpriv->lcfg+LCFG_ITCSR)
 #define RtdPlxInterruptWrite(dev, v) \
 	writel(v, devpriv->lcfg+LCFG_ITCSR)
 
@@ -900,7 +898,7 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 	}
 #ifdef USE_DMA
 	if (devpriv->flags & DMA0_ACTIVE) {	/* Check DMA */
-		u32 istatus = RtdPlxInterruptRead(dev);
+		u32 istatus = readl(devpriv->lcfg + LCFG_ITCSR);
 
 		if (istatus & ICS_DMA0_A) {
 			if (ai_process_dma(dev, s) < 0) {
@@ -1010,8 +1008,8 @@ transferDone:
 	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 #ifdef USE_DMA
 	if (devpriv->flags & DMA0_ACTIVE) {
-		RtdPlxInterruptWrite(dev,	/* disable any more interrupts */
-				     RtdPlxInterruptRead(dev) & ~ICS_DMA0_E);
+		RtdPlxInterruptWrite(dev,
+			readl(devpriv->lcfg + LCFG_ITCSR) & ~ICS_DMA0_E);
 		abort_dma(dev, 0);
 		devpriv->flags &= ~DMA0_ACTIVE;
 		/* if Using DMA, then we should have read everything by now */
@@ -1281,13 +1279,12 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 #ifdef USE_DMA
 	if (devpriv->flags & DMA0_ACTIVE) {	/* cancel anything running */
-		RtdPlxInterruptWrite(dev,	/* disable any more interrupts */
-				     RtdPlxInterruptRead(dev) & ~ICS_DMA0_E);
+		RtdPlxInterruptWrite(dev,
+			readl(devpriv->lcfg + LCFG_ITCSR) & ~ICS_DMA0_E);
 		abort_dma(dev, 0);
 		devpriv->flags &= ~DMA0_ACTIVE;
-		if (RtdPlxInterruptRead(dev) & ICS_DMA0_A) {	/*clear pending int */
+		if (readl(devpriv->lcfg + LCFG_ITCSR) & ICS_DMA0_A)
 			RtdDma0Control(dev, PLX_CLEAR_DMA_INTR_BIT);
-		}
 	}
 	writel(0, devpriv->las0 + LAS0_DMA0_RESET);
 #endif /* USE_DMA */
@@ -1449,14 +1446,13 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		RtdDma0Next(dev,	/* point to first block */
 			    devpriv->dma0Chain[DMA_CHAIN_COUNT - 1].next);
 		writel(DMAS_ADFIFO_HALF_FULL, devpriv->las0 + LAS0_DMA0_SRC);
-
-		RtdPlxInterruptWrite(dev,	/* enable interrupt */
-				     RtdPlxInterruptRead(dev) | ICS_DMA0_E);
+		RtdPlxInterruptWrite(dev,
+			readl(devpriv->lcfg + LCFG_ITCSR) | ICS_DMA0_E);
 		/* Must be 2 steps.  See PLX app note about "Starting a DMA transfer" */
 		RtdDma0Control(dev, PLX_DMA_EN_BIT);	/* enable DMA (clear INTR?) */
 		RtdDma0Control(dev, PLX_DMA_EN_BIT | PLX_DMA_START_BIT);	/*start DMA */
 		DPRINTK("rtd520: Using DMA0 transfers. plxInt %x RtdInt %x\n",
-			RtdPlxInterruptRead(dev), devpriv->intMask);
+			readl(devpriv->lcfg + LCFG_ITCSR), devpriv->intMask);
 #else /* USE_DMA */
 		devpriv->intMask = IRQM_ADC_ABOUT_CNT;
 		writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
@@ -1486,8 +1482,8 @@ static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->aiCount = 0;	/* stop and don't transfer any more */
 #ifdef USE_DMA
 	if (devpriv->flags & DMA0_ACTIVE) {
-		RtdPlxInterruptWrite(dev,	/* disable any more interrupts */
-				     RtdPlxInterruptRead(dev) & ~ICS_DMA0_E);
+		RtdPlxInterruptWrite(dev,
+			readl(devpriv->lcfg + LCFG_ITCSR) & ~ICS_DMA0_E);
 		abort_dma(dev, 0);
 		devpriv->flags &= ~DMA0_ACTIVE;
 	}
@@ -1983,9 +1979,9 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #endif /* USE_DMA */
 	/* subdevices and priv are freed by the core */
 	if (dev->irq) {
-		/* disable interrupt controller */
-		RtdPlxInterruptWrite(dev, RtdPlxInterruptRead(dev)
-				     & ~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E));
+		RtdPlxInterruptWrite(dev,
+			readl(devpriv->lcfg + LCFG_ITCSR) &
+				~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E));
 		free_irq(dev->irq, dev);
 	}
 
@@ -2052,9 +2048,9 @@ static void rtd_detach(struct comedi_device *dev)
 		}
 #endif /* USE_DMA */
 		if (dev->irq) {
-			RtdPlxInterruptWrite(dev, RtdPlxInterruptRead(dev)
-					     & ~(ICS_PLIE | ICS_DMA0_E |
-						 ICS_DMA1_E));
+			RtdPlxInterruptWrite(dev,
+				readl(devpriv->lcfg + LCFG_ITCSR) &
+					~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E));
 			free_irq(dev->irq, dev);
 		}
 		if (devpriv->las0)
