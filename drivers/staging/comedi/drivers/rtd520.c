@@ -328,11 +328,6 @@ static const struct rtdBoard rtd520Boards[] = {
 };
 
 /*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct rtdBoard *)dev->board_ptr)
-
-/*
    This structure is for data unique to this hardware driver.
    This is also unique for each board in the system.
 */
@@ -447,6 +442,7 @@ static int rtd_ns_to_timer(unsigned int *ns, int round_mode)
 static unsigned short rtdConvertChanGain(struct comedi_device *dev,
 					 unsigned int comediChan, int chanIndex)
 {				/* index in channel list */
+	const struct rtdBoard *thisboard = comedi_board(dev);
 	struct rtdPrivate *devpriv = dev->private;
 	unsigned int chan, range, aref;
 	unsigned short r = 0;
@@ -1611,6 +1607,7 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 
 static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {				/* board name and options flags */
+	const struct rtdBoard *thisboard;
 	struct rtdPrivate *devpriv;
 	struct comedi_subdevice *s;
 	struct pci_dev *pcidev;
@@ -1671,6 +1668,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EIO;
 	}
 	devpriv->pci_dev = pcidev;
+	thisboard = comedi_board(dev);
 	dev->board_name = thisboard->name;
 
 	ret = comedi_pci_enable(pcidev, DRV_NAME);
