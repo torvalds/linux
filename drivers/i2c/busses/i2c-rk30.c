@@ -17,7 +17,7 @@
 
 void i2c_adap_sel(struct rk30_i2c *i2c, int nr, int adap_type)
 {
-        writel((1 << I2C_ADAP_SEL_BIT(nr)) | (1 << I2C_ADAP_SEL_MASK(nr)) ,
+        i2c_writel((1 << I2C_ADAP_SEL_BIT(nr)) | (1 << I2C_ADAP_SEL_MASK(nr)) ,
                         i2c->con_base);
 }
 

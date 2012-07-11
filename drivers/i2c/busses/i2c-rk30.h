@@ -44,8 +44,12 @@
 
 #define rk30_ceil(x, y) \
 	({ unsigned long __x = (x), __y = (y); (__x + __y - 1) / __y; })
-
+#ifdef CONFIG_ARCH_RK30
 #define GRF_I2C_CON_BASE            (RK30_GRF_BASE + GRF_SOC_CON1)
+#endif
+#ifdef CONFIG_ARCH_RK2928
+#define GRF_I2C_CON_BASE            (RK2928_GRF_BASE + GRF_SOC_CON1)
+#endif
 #define I2C_ADAP_SEL_BIT(nr)        ((nr) + 11)
 #define I2C_ADAP_SEL_MASK(nr)        ((nr) + 27)
 enum rk30_i2c_state {

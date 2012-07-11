@@ -26,7 +26,7 @@
 #include <mach/board.h>
 #include <mach/dma-pl330.h>
 #include <mach/gpio.h>
-//#include <mach/iomux.h>
+#include <mach/iomux.h>
 #include <plat/rk_fiq_debugger.h>
 
 
@@ -102,9 +102,208 @@ static void __init rk2928_init_dma(void)
 {
 	platform_add_devices(rk2928_dmacs, ARRAY_SIZE(rk2928_dmacs));
 }
+// i2c
+#ifdef CONFIG_I2C0_CONTROLLER_RK29
+#define I2C0_ADAP_TYPE  I2C_RK29_ADAP
+#define I2C0_START      RK2928_I2C0_PHYS
+#define I2C0_END        RK2928_I2C0_PHYS + SZ_4K - 1
+#endif
+#ifdef CONFIG_I2C0_CONTROLLER_RK30
+#define I2C0_ADAP_TYPE   I2C_RK30_ADAP
+#define I2C0_START      RK2928_RKI2C0_PHYS
+#define I2C0_END        RK2928_RKI2C0_PHYS + SZ_4K - 1
+#endif
+
+#ifdef CONFIG_I2C1_CONTROLLER_RK29
+#define I2C1_ADAP_TYPE  I2C_RK29_ADAP
+#define I2C1_START      RK2928_I2C1_PHYS
+#define I2C1_END        RK2928_I2C1_PHYS + SZ_4K - 1
+#endif
+#ifdef CONFIG_I2C1_CONTROLLER_RK30
+#define I2C1_ADAP_TYPE   I2C_RK30_ADAP
+#define I2C1_START      RK2928_RKI2C1_PHYS 
+#define I2C1_END        RK2928_RKI2C1_PHYS + SZ_4K - 1
+#endif
+
+#ifdef CONFIG_I2C2_CONTROLLER_RK29
+#define I2C2_ADAP_TYPE  I2C_RK29_ADAP
+#define I2C2_START      RK2928_I2C2_PHYS
+#define I2C2_END        RK2928_I2C2_PHYS + SZ_4K - 1
+#endif
+#ifdef CONFIG_I2C2_CONTROLLER_RK30
+#define I2C2_ADAP_TYPE   I2C_RK30_ADAP
+#define I2C2_START      RK2928_RKI2C2_PHYS
+#define I2C2_END        RK2928_RKI2C2_PHYS + SZ_4K - 1
+#endif
+
+#ifdef CONFIG_I2C3_CONTROLLER_RK29
+#define I2C3_ADAP_TYPE  I2C_RK29_ADAP
+#define I2C3_START      RK2928_I2C3_PHYS
+#define I2C3_END        RK2928_I2C3_PHYS + SZ_4K - 1
+#endif
+#ifdef CONFIG_I2C3_CONTROLLER_RK30
+#define I2C3_ADAP_TYPE   I2C_RK30_ADAP
+#define I2C3_START      RK2928_RKI2C3_PHYS
+#define I2C3_END        RK2928_RKI2C3_PHYS + SZ_4K - 1
+#endif
+
+#ifdef CONFIG_I2C0_RK30
+static struct rk30_i2c_platform_data default_i2c0_data = {
+	.bus_num = 0,
+	.is_div_from_arm = 1,
+	.adap_type = I2C0_ADAP_TYPE,
+};
+
+static struct resource resources_i2c0[] = {
+	{
+		.start	= IRQ_I2C0,
+		.end	= IRQ_I2C0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= I2C0_START,
+        .end    = I2C0_END,    
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device device_i2c0 = {
+	.name	= "rk30_i2c",
+	.id	= 0,
+	.num_resources	= ARRAY_SIZE(resources_i2c0),
+	.resource	= resources_i2c0,
+	.dev 		= {
+		.platform_data = &default_i2c0_data,
+	},
+};
+#endif
+
+#ifdef CONFIG_I2C1_RK30
+static struct rk30_i2c_platform_data default_i2c1_data = {
+	.bus_num = 1,
+	.is_div_from_arm = 1,
+	.adap_type = I2C1_ADAP_TYPE,
+};
+
+static struct resource resources_i2c1[] = {
+	{
+		.start	= IRQ_I2C1,
+		.end	= IRQ_I2C1,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= I2C1_START,
+        .end    = I2C1_END,    
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device device_i2c1 = {
+	.name	= "rk30_i2c",
+	.id	= 1,
+	.num_resources	= ARRAY_SIZE(resources_i2c1),
+	.resource	= resources_i2c1,
+	.dev 		= {
+		.platform_data = &default_i2c1_data,
+	},
+};
+#endif
+
+#ifdef CONFIG_I2C2_RK30
+static struct rk30_i2c_platform_data default_i2c2_data = {
+	.bus_num = 2,
+	.is_div_from_arm = 0,
+	.adap_type = I2C2_ADAP_TYPE,
+};
+
+static struct resource resources_i2c2[] = {
+	{
+		.start	= IRQ_I2C2,
+		.end	= IRQ_I2C2,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= I2C2_START,
+        .end    = I2C2_END,    
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device device_i2c2 = {
+	.name	= "rk30_i2c",
+	.id	= 2,
+	.num_resources	= ARRAY_SIZE(resources_i2c2),
+	.resource	= resources_i2c2,
+	.dev 		= {
+		.platform_data = &default_i2c2_data,
+	},
+};
+#endif
+
+#ifdef CONFIG_I2C3_RK30
+static struct rk30_i2c_platform_data default_i2c3_data = {
+	.bus_num = 3,
+	.is_div_from_arm = 0,
+	.adap_type = I2C3_ADAP_TYPE,
+};
+
+static struct resource resources_i2c3[] = {
+	{
+		.start	= IRQ_I2C3,
+		.end	= IRQ_I2C3,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= I2C3_START,
+        .end    = I2C3_END,    
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device device_i2c3 = {
+	.name	= "rk30_i2c",
+	.id	= 3,
+	.num_resources	= ARRAY_SIZE(resources_i2c3),
+	.resource	= resources_i2c3,
+	.dev 		= {
+		.platform_data = &default_i2c3_data,
+	},
+};
+#endif
+
+#ifdef CONFIG_I2C_GPIO_RK30
+static struct platform_device device_i2c_gpio = {
+        .name   = "i2c-gpio",
+        .id = 4,
+        .dev            = {
+                .platform_data = &default_i2c_gpio_data,
+        },
+};
+#endif
+
+static void __init rk30_init_i2c(void)
+{
+#ifdef CONFIG_I2C0_RK30
+	platform_device_register(&device_i2c0);
+#endif
+#ifdef CONFIG_I2C1_RK30
+	platform_device_register(&device_i2c1);
+#endif
+#ifdef CONFIG_I2C2_RK30
+	platform_device_register(&device_i2c2);
+#endif
+#ifdef CONFIG_I2C3_RK30
+	platform_device_register(&device_i2c3);
+#endif
+#ifdef CONFIG_I2C_GPIO_RK30
+	platform_device_register(&device_i2c_gpio);
+#endif
+}
+//end of i2c
 static int __init rk2928_init_devices(void)
 {
 	rk2928_init_dma();
+	rk30_init_i2c();
 #if defined(CONFIG_FIQ_DEBUGGER) && defined(DEBUG_UART_PHYS)
 	rk_serial_debug_init(DEBUG_UART_BASE, IRQ_DEBUG_UART, IRQ_UART_SIGNAL, -1);
 #endif
