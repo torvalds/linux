@@ -5866,6 +5866,16 @@ L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/s3c-fb.c
 
+SAMSUNG MULTIFUNCTION DEVICE DRIVERS
+M:	Sangbeom Kim <sbkim73@samsung.com>
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+F:	drivers/mfd/sec*.c
+F:	drivers/regulator/s2m*.c
+F:	drivers/regulator/s5m*.c
+F:	drivers/rtc/rtc-sec.c
+F:	include/linux/mfd/samsung/
+
 SERIAL DRIVERS
 M:	Alan Cox <alan@linux.intel.com>
 L:	linux-serial@vger.kernel.org
