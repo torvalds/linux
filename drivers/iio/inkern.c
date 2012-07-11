@@ -198,11 +198,12 @@ struct iio_channel *iio_channel_get_all(const char *name)
 		iio_device_get(chans[mapind].indio_dev);
 		mapind++;
 	}
-	mutex_unlock(&iio_map_list_lock);
 	if (mapind == 0) {
 		ret = -ENODEV;
 		goto error_free_chans;
 	}
+	mutex_unlock(&iio_map_list_lock);
+
 	return chans;
 
 error_free_chans:
