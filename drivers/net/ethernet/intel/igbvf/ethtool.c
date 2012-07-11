@@ -357,21 +357,28 @@ static int igbvf_set_coalesce(struct net_device *netdev,
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
-	if ((ec->rx_coalesce_usecs > IGBVF_MAX_ITR_USECS) ||
-	    ((ec->rx_coalesce_usecs > 3) &&
-	     (ec->rx_coalesce_usecs < IGBVF_MIN_ITR_USECS)) ||
-	    (ec->rx_coalesce_usecs == 2))
-		return -EINVAL;
-
-	/* convert to rate of irq's per second */
-	if (ec->rx_coalesce_usecs && ec->rx_coalesce_usecs <= 3) {
-		adapter->current_itr = IGBVF_START_ITR;
-		adapter->requested_itr = ec->rx_coalesce_usecs;
-	} else {
+	if ((ec->rx_coalesce_usecs >= IGBVF_MIN_ITR_USECS) &&
+	     (ec->rx_coalesce_usecs <= IGBVF_MAX_ITR_USECS)) {
 		adapter->current_itr = ec->rx_coalesce_usecs << 2;
 		adapter->requested_itr = 1000000000 /
 					(adapter->current_itr * 256);
-	}
+	} else if ((ec->rx_coalesce_usecs == 3) ||
+		   (ec->rx_coalesce_usecs == 2)) {
+		adapter->current_itr = IGBVF_START_ITR;
+		adapter->requested_itr = ec->rx_coalesce_usecs;
+	} else if (ec->rx_coalesce_usecs == 0) {
+		/*
+		 * The user's desire is to turn off interrupt throttling
+		 * altogether, but due to HW limitations, we can't do that.
+		 * Instead we set a very small value in EITR, which would
+		 * allow ~967k interrupts per second, but allow the adapter's
+		 * internal clocking to still function properly.
+		 */
+		adapter->current_itr = 4;
+		adapter->requested_itr = 1000000000 /
+					(adapter->current_itr * 256);
+	} else
+		return -EINVAL;
 
 	writel(adapter->current_itr,
 	       hw->hw_addr + adapter->rx_ring->itr_register);

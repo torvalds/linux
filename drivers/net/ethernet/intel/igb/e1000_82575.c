@@ -206,8 +206,6 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		mac->rar_entry_count = E1000_RAR_ENTRIES_82580;
 		break;
 	case e1000_i350:
-	case e1000_i210:
-	case e1000_i211:
 		mac->rar_entry_count = E1000_RAR_ENTRIES_I350;
 		break;
 	default:

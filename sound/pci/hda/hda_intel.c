@@ -1766,7 +1766,7 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 				   buff_step);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
 				   buff_step);
-	snd_hda_power_up(apcm->codec);
+	snd_hda_power_up_d3wait(apcm->codec);
 	err = hinfo->ops.open(hinfo, apcm->codec, substream);
 	if (err < 0) {
 		azx_release_device(azx_dev);

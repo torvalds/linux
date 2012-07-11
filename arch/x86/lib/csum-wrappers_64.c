@@ -115,7 +115,7 @@ EXPORT_SYMBOL(csum_partial_copy_to_user);
  * @src: source address
  * @dst: destination address
  * @len: number of bytes to be copied.
- * @isum: initial sum that is added into the result (32bit unfolded)
+ * @sum: initial sum that is added into the result (32bit unfolded)
  *
  * Returns an 32bit unfolded checksum of the buffer.
  */
