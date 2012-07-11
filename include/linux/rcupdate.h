@@ -191,10 +191,19 @@ extern void rcu_idle_enter(void);
 extern void rcu_idle_exit(void);
 extern void rcu_irq_enter(void);
 extern void rcu_irq_exit(void);
+
+#ifdef CONFIG_RCU_USER_QS
 extern void rcu_user_enter(void);
 extern void rcu_user_exit(void);
 extern void rcu_user_enter_after_irq(void);
 extern void rcu_user_exit_after_irq(void);
+#else
+static inline void rcu_user_enter(void) { }
+static inline void rcu_user_exit(void) { }
+static inline void rcu_user_enter_after_irq(void) { }
+static inline void rcu_user_exit_after_irq(void) { }
+#endif /* CONFIG_RCU_USER_QS */
+
 extern void exit_rcu(void);
 
 /**
