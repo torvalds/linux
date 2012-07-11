@@ -267,7 +267,6 @@ struct omap_dm_timer {
 	struct clk *fclk;
 
 	void __iomem	*io_base;
-	void __iomem	*sys_stat;	/* TISTAT timer status */
 	void __iomem	*irq_stat;	/* TISR/IRQSTATUS interrupt status */
 	void __iomem	*irq_ena;	/* irq enable */
 	void __iomem	*irq_dis;	/* irq disable, only on v2 ip */
@@ -317,8 +316,6 @@ static inline void __omap_dm_timer_init_regs(struct omap_dm_timer *timer)
 	tidr = __raw_readl(timer->io_base);
 	if (!(tidr >> 16)) {
 		timer->revision = 1;
-		timer->sys_stat = timer->io_base +
-				OMAP_TIMER_V1_SYS_STAT_OFFSET;
 		timer->irq_stat = timer->io_base + OMAP_TIMER_V1_STAT_OFFSET;
 		timer->irq_ena = timer->io_base + OMAP_TIMER_V1_INT_EN_OFFSET;
 		timer->irq_dis = timer->io_base + OMAP_TIMER_V1_INT_EN_OFFSET;
@@ -326,7 +323,6 @@ static inline void __omap_dm_timer_init_regs(struct omap_dm_timer *timer)
 		timer->func_base = timer->io_base;
 	} else {
 		timer->revision = 2;
-		timer->sys_stat = NULL;
 		timer->irq_stat = timer->io_base + OMAP_TIMER_V2_IRQSTATUS;
 		timer->irq_ena = timer->io_base + OMAP_TIMER_V2_IRQENABLE_SET;
 		timer->irq_dis = timer->io_base + OMAP_TIMER_V2_IRQENABLE_CLR;
@@ -335,25 +331,6 @@ static inline void __omap_dm_timer_init_regs(struct omap_dm_timer *timer)
 				OMAP_TIMER_V2_FUNC_OFFSET;
 		timer->func_base = timer->io_base + OMAP_TIMER_V2_FUNC_OFFSET;
 	}
-}
-
-/* Assumes the source clock has been set by caller */
-static inline void __omap_dm_timer_reset(struct omap_dm_timer *timer,
-					int autoidle, int wakeup)
-{
-	u32 l;
-
-	l = __raw_readl(timer->io_base + OMAP_TIMER_OCP_CFG_OFFSET);
-	l |= 0x02 << 3;  /* Set to smart-idle mode */
-	l |= 0x2 << 8;   /* Set clock activity to perserve f-clock on idle */
-
-	if (autoidle)
-		l |= 0x1 << 0;
-
-	if (wakeup)
-		l |= 1 << 2;
-
-	__raw_writel(l, timer->io_base + OMAP_TIMER_OCP_CFG_OFFSET);
 }
 
 /*
