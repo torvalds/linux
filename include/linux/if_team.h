@@ -64,6 +64,7 @@ struct team_port {
 };
 
 extern bool team_port_enabled(struct team_port *port);
+extern bool team_port_txable(struct team_port *port);
 
 struct team_mode_ops {
 	int (*init)(struct team *team);

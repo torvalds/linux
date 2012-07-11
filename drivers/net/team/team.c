@@ -677,6 +677,12 @@ bool team_port_enabled(struct team_port *port)
 }
 EXPORT_SYMBOL(team_port_enabled);
 
+bool team_port_txable(struct team_port *port)
+{
+	return port->linkup && team_port_enabled(port);
+}
+EXPORT_SYMBOL(team_port_txable);
+
 /*
  * Enable/disable port by adding to enabled port hashlist and setting
  * port->index (Might be racy so reader could see incorrect ifindex when

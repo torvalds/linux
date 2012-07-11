@@ -30,16 +30,16 @@ static struct team_port *__get_first_port_up(struct team *team,
 {
 	struct team_port *cur;
 
-	if (port->linkup)
+	if (team_port_txable(port))
 		return port;
 	cur = port;
 	list_for_each_entry_continue_rcu(cur, &team->port_list, list)
-		if (cur->linkup)
+		if (team_port_txable(port))
 			return cur;
 	list_for_each_entry_rcu(cur, &team->port_list, list) {
 		if (cur == port)
 			break;
-		if (cur->linkup)
+		if (team_port_txable(port))
 			return cur;
 	}
 	return NULL;
