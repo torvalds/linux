@@ -158,4 +158,6 @@ clear_user(void *to, unsigned long n)
 	return 0;
 }
 
+#define __clear_user	clear_user
+
 #endif /* _H8300_UACCESS_H */
