@@ -410,6 +410,22 @@ struct tcp6_sock {
 
 extern int inet6_sk_rebuild_header(struct sock *sk);
 
+struct inet6_timewait_sock {
+	struct in6_addr tw_v6_daddr;
+	struct in6_addr	tw_v6_rcv_saddr;
+};
+
+struct tcp6_timewait_sock {
+	struct tcp_timewait_sock   tcp6tw_tcp;
+	struct inet6_timewait_sock tcp6tw_inet6;
+};
+
+static inline struct inet6_timewait_sock *inet6_twsk(const struct sock *sk)
+{
+	return (struct inet6_timewait_sock *)(((u8 *)sk) +
+					      inet_twsk(sk)->tw_ipv6_offset);
+}
+
 #if IS_ENABLED(CONFIG_IPV6)
 static inline struct ipv6_pinfo * inet6_sk(const struct sock *__sk)
 {
@@ -459,26 +475,10 @@ static inline void inet_sk_copy_descendant(struct sock *sk_to,
 #define __ipv6_only_sock(sk)	(inet6_sk(sk)->ipv6only)
 #define ipv6_only_sock(sk)	((sk)->sk_family == PF_INET6 && __ipv6_only_sock(sk))
 
-struct inet6_timewait_sock {
-	struct in6_addr tw_v6_daddr;
-	struct in6_addr	tw_v6_rcv_saddr;
-};
-
-struct tcp6_timewait_sock {
-	struct tcp_timewait_sock   tcp6tw_tcp;
-	struct inet6_timewait_sock tcp6tw_inet6;
-};
-
 static inline u16 inet6_tw_offset(const struct proto *prot)
 {
 	return prot->twsk_prot->twsk_obj_size -
 			sizeof(struct inet6_timewait_sock);
-}
-
-static inline struct inet6_timewait_sock *inet6_twsk(const struct sock *sk)
-{
-	return (struct inet6_timewait_sock *)(((u8 *)sk) +
-					      inet_twsk(sk)->tw_ipv6_offset);
 }
 
 static inline struct in6_addr *__inet6_rcv_saddr(const struct sock *sk)
