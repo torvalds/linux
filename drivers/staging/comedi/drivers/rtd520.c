@@ -406,9 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-#define RtdDio1Write(dev, v) \
-	writew((v) & 0xff, devpriv->las0+LAS0_DIO1)
-
 #define RtdDioStatusRead(dev) \
 	(readw(devpriv->las0+LAS0_DIO_STATUS) & 0xff)
 #define RtdDioStatusWrite(dev, v) \
