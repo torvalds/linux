@@ -65,7 +65,6 @@ static int s3c24xx_led_remove(struct platform_device *dev)
 	struct s3c24xx_gpio_led *led = pdev_to_gpio(dev);
 
 	led_classdev_unregister(&led->cdev);
-	gpio_free(led->pdata->gpio);
 
 	return 0;
 }
@@ -92,7 +91,7 @@ static int s3c24xx_led_probe(struct platform_device *dev)
 
 	led->pdata = pdata;
 
-	ret = gpio_request(pdata->gpio, "S3C24XX_LED");
+	ret = devm_gpio_request(&dev->dev, pdata->gpio, "S3C24XX_LED");
 	if (ret < 0)
 		return ret;
 
