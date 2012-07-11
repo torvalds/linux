@@ -56,14 +56,14 @@ struct smtcfb_info {
 	u_int hz;
 };
 
-struct vesa_mode_table	{
-	char mode_index[6];
-	u16 lfb_width;
-	u16 lfb_height;
-	u16 lfb_depth;
+struct vesa_mode {
+	char index[6];
+	u16  lfb_width;
+	u16  lfb_height;
+	u16  lfb_depth;
 };
 
-static struct vesa_mode_table vesa_mode[] = {
+static struct vesa_mode vesa_mode_table[] = {
 	{"0x301", 640,  480,  8},
 	{"0x303", 800,  600,  8},
 	{"0x305", 1024, 768,  8},
@@ -776,13 +776,15 @@ static int __init sm712vga_setup(char *options)
 	pr_debug("sm712vga_setup = %s\n", options);
 
 	for (index = 0;
-	     index < ARRAY_SIZE(vesa_mode);
+	     index < ARRAY_SIZE(vesa_mode_table);
 	     index++) {
-		if (strstr(options, vesa_mode[index].mode_index)) {
-			smtc_screen_info.lfb_width = vesa_mode[index].lfb_width;
+		if (strstr(options, vesa_mode_table[index].index)) {
+			smtc_screen_info.lfb_width =
+				vesa_mode_table[index].lfb_width;
 			smtc_screen_info.lfb_height =
-					vesa_mode[index].lfb_height;
-			smtc_screen_info.lfb_depth = vesa_mode[index].lfb_depth;
+				vesa_mode_table[index].lfb_height;
+			smtc_screen_info.lfb_depth =
+				vesa_mode_table[index].lfb_depth;
 			return 0;
 		}
 	}
