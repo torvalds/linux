@@ -128,7 +128,6 @@ nv31_mpeg_object_new(struct nouveau_channel *chan, int engine,
 static int
 nv31_mpeg_init(struct drm_device *dev, int engine)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv31_mpeg_engine *pmpeg = nv_engine(dev, engine);
 	int i;
 
@@ -138,7 +137,7 @@ nv31_mpeg_init(struct drm_device *dev, int engine)
 	nv_wr32(dev, 0x00b0e0, 0x00000020); /* nvidia: rd 0x01, wr 0x20 */
 	nv_wr32(dev, 0x00b0e8, 0x00000020); /* nvidia: rd 0x01, wr 0x20 */
 
-	for (i = 0; i < dev_priv->engine.fb.num_tiles; i++)
+	for (i = 0; i < nvfb_tile_nr(dev); i++)
 		pmpeg->base.set_tile_region(dev, i);
 
 	/* PMPEG init */
@@ -235,9 +234,7 @@ nv31_mpeg_isr_chid(struct drm_device *dev, u32 inst)
 static void
 nv31_vpe_set_tile_region(struct drm_device *dev, int i)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
-
+	struct nouveau_fb_tile *tile = nvfb_tile(dev, i);
 	nv_wr32(dev, 0x00b008 + (i * 0x10), tile->pitch);
 	nv_wr32(dev, 0x00b004 + (i * 0x10), tile->limit);
 	nv_wr32(dev, 0x00b000 + (i * 0x10), tile->addr);

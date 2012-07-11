@@ -895,9 +895,7 @@ nv10_graph_context_del(struct nouveau_channel *chan, int engine)
 static void
 nv10_graph_set_tile_region(struct drm_device *dev, int i)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
-
+	struct nouveau_fb_tile *tile = nvfb_tile(dev, i);
 	nv_wr32(dev, NV10_PGRAPH_TLIMIT(i), tile->limit);
 	nv_wr32(dev, NV10_PGRAPH_TSIZE(i), tile->pitch);
 	nv_wr32(dev, NV10_PGRAPH_TILE(i), tile->addr);

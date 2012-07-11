@@ -471,17 +471,16 @@ mclk_mrg(struct nouveau_mem_exec_func *exec, int mr)
 static void
 mclk_mrs(struct nouveau_mem_exec_func *exec, int mr, u32 data)
 {
-	struct drm_nouveau_private *dev_priv = exec->dev->dev_private;
 	struct nv50_pm_state *info = exec->priv;
 	struct hwsq_ucode *hwsq = &info->mclk_hwsq;
 
 	if (mr <= 1) {
-		if (dev_priv->vram_rank_B)
+		if (nvfb_vram_rank_B(exec->dev))
 			hwsq_wr32(hwsq, 0x1002c8 + ((mr - 0) * 4), data);
 		hwsq_wr32(hwsq, 0x1002c0 + ((mr - 0) * 4), data);
 	} else
 	if (mr <= 3) {
-		if (dev_priv->vram_rank_B)
+		if (nvfb_vram_rank_B(exec->dev))
 			hwsq_wr32(hwsq, 0x1002e8 + ((mr - 2) * 4), data);
 		hwsq_wr32(hwsq, 0x1002e0 + ((mr - 2) * 4), data);
 	}

@@ -137,9 +137,8 @@ nouveau_debugfs_memory_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_minor *minor = node->minor;
-	struct drm_nouveau_private *dev_priv = minor->dev->dev_private;
 
-	seq_printf(m, "VRAM total: %dKiB\n", (int)(dev_priv->vram_size >> 10));
+	seq_printf(m, "VRAM total: %dKiB\n", (int)(nvfb_vram_size(minor->dev) >> 10));
 	return 0;
 }
 

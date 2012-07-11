@@ -45,6 +45,23 @@
 #include "ttm/ttm_memory.h"
 #include "ttm/ttm_module.h"
 
+#define XXX_THIS_IS_A_HACK
+#include <subdev/fb.h>
+
+enum blah {
+	NV_MEM_TYPE_UNKNOWN = 0,
+	NV_MEM_TYPE_STOLEN,
+	NV_MEM_TYPE_SGRAM,
+	NV_MEM_TYPE_SDRAM,
+	NV_MEM_TYPE_DDR1,
+	NV_MEM_TYPE_DDR2,
+	NV_MEM_TYPE_DDR3,
+	NV_MEM_TYPE_GDDR2,
+	NV_MEM_TYPE_GDDR3,
+	NV_MEM_TYPE_GDDR4,
+	NV_MEM_TYPE_GDDR5
+};
+
 struct nouveau_fpriv {
 	spinlock_t lock;
 	struct list_head channels;
@@ -76,29 +93,8 @@ struct nouveau_mem;
 #define NOUVEAU_MAX_CHANNEL_NR 4096
 #define NOUVEAU_MAX_TILE_NR 15
 
-struct nouveau_mem {
-	struct drm_device *dev;
-
-	struct nouveau_vma bar_vma;
-	struct nouveau_vma vma[2];
-	u8  page_shift;
-
-	struct drm_mm_node *tag;
-	struct list_head regions;
-	dma_addr_t *pages;
-	u32 memtype;
-	u64 offset;
-	u64 size;
-	struct sg_table *sg;
-};
-
 struct nouveau_tile_reg {
 	bool used;
-	uint32_t addr;
-	uint32_t limit;
-	uint32_t pitch;
-	uint32_t zcomp;
-	struct drm_mm_node *tag_mem;
 	struct nouveau_fence *fence;
 };
 
@@ -324,21 +320,6 @@ struct nouveau_instmem_engine {
 	void	(*flush)(struct drm_device *);
 };
 
-struct nouveau_fb_engine {
-	int num_tiles;
-	struct drm_mm tag_heap;
-	void *priv;
-
-	int  (*init)(struct drm_device *dev);
-	void (*takedown)(struct drm_device *dev);
-
-	void (*init_tile_region)(struct drm_device *dev, int i,
-				 uint32_t addr, uint32_t size,
-				 uint32_t pitch, uint32_t flags);
-	void (*set_tile_region)(struct drm_device *dev, int i);
-	void (*free_tile_region)(struct drm_device *dev, int i);
-};
-
 struct nouveau_display_engine {
 	void *priv;
 	int (*early_init)(struct drm_device *);
@@ -519,24 +500,10 @@ struct nouveau_pm_engine {
 	int (*temp_get)(struct drm_device *);
 };
 
-struct nouveau_vram_engine {
-	struct nouveau_mm mm;
-
-	int  (*init)(struct drm_device *);
-	void (*takedown)(struct drm_device *dev);
-	int  (*get)(struct drm_device *, u64, u32 align, u32 size_nc,
-		    u32 type, struct nouveau_mem **);
-	void (*put)(struct drm_device *, struct nouveau_mem **);
-
-	bool (*flags_valid)(struct drm_device *, u32 tile_flags);
-};
-
 struct nouveau_engine {
 	struct nouveau_instmem_engine instmem;
-	struct nouveau_fb_engine      fb;
 	struct nouveau_display_engine display;
 	struct nouveau_pm_engine      pm;
-	struct nouveau_vram_engine    vram;
 };
 
 enum nv04_fp_display_regs {
@@ -713,24 +680,6 @@ struct drm_nouveau_private {
 		struct nouveau_tile_reg reg[NOUVEAU_MAX_TILE_NR];
 		spinlock_t lock;
 	} tile;
-
-	/* VRAM/fb configuration */
-	enum {
-		NV_MEM_TYPE_UNKNOWN = 0,
-		NV_MEM_TYPE_STOLEN,
-		NV_MEM_TYPE_SGRAM,
-		NV_MEM_TYPE_SDRAM,
-		NV_MEM_TYPE_DDR1,
-		NV_MEM_TYPE_DDR2,
-		NV_MEM_TYPE_DDR3,
-		NV_MEM_TYPE_GDDR2,
-		NV_MEM_TYPE_GDDR3,
-		NV_MEM_TYPE_GDDR4,
-		NV_MEM_TYPE_GDDR5
-	} vram_type;
-	uint64_t vram_size;
-	uint64_t vram_sys_base;
-	bool vram_rank_B;
 
 	uint64_t fb_available_size;
 	uint64_t fb_mappable_pages;
@@ -1046,55 +995,6 @@ int nouveau_ttm_mmap(struct file *, struct vm_area_struct *);
 
 /* nouveau_hdmi.c */
 void nouveau_hdmi_mode_set(struct drm_encoder *, struct drm_display_mode *);
-
-/* nv04_fb.c */
-extern int  nv04_fb_vram_init(struct drm_device *);
-extern int  nv04_fb_init(struct drm_device *);
-extern void nv04_fb_takedown(struct drm_device *);
-
-/* nv10_fb.c */
-extern int  nv10_fb_vram_init(struct drm_device *dev);
-extern int  nv1a_fb_vram_init(struct drm_device *dev);
-extern int  nv10_fb_init(struct drm_device *);
-extern void nv10_fb_takedown(struct drm_device *);
-extern void nv10_fb_init_tile_region(struct drm_device *dev, int i,
-				     uint32_t addr, uint32_t size,
-				     uint32_t pitch, uint32_t flags);
-extern void nv10_fb_set_tile_region(struct drm_device *dev, int i);
-extern void nv10_fb_free_tile_region(struct drm_device *dev, int i);
-
-/* nv20_fb.c */
-extern int  nv20_fb_vram_init(struct drm_device *dev);
-extern int  nv20_fb_init(struct drm_device *);
-extern void nv20_fb_takedown(struct drm_device *);
-extern void nv20_fb_init_tile_region(struct drm_device *dev, int i,
-				     uint32_t addr, uint32_t size,
-				     uint32_t pitch, uint32_t flags);
-extern void nv20_fb_set_tile_region(struct drm_device *dev, int i);
-extern void nv20_fb_free_tile_region(struct drm_device *dev, int i);
-
-/* nv30_fb.c */
-extern int  nv30_fb_init(struct drm_device *);
-extern void nv30_fb_takedown(struct drm_device *);
-extern void nv30_fb_init_tile_region(struct drm_device *dev, int i,
-				     uint32_t addr, uint32_t size,
-				     uint32_t pitch, uint32_t flags);
-extern void nv30_fb_free_tile_region(struct drm_device *dev, int i);
-
-/* nv40_fb.c */
-extern int  nv40_fb_vram_init(struct drm_device *dev);
-extern int  nv40_fb_init(struct drm_device *);
-extern void nv40_fb_takedown(struct drm_device *);
-extern void nv40_fb_set_tile_region(struct drm_device *dev, int i);
-
-/* nv50_fb.c */
-extern int  nv50_fb_init(struct drm_device *);
-extern void nv50_fb_takedown(struct drm_device *);
-extern void nv50_fb_vm_trap(struct drm_device *, int display);
-
-/* nvc0_fb.c */
-extern int  nvc0_fb_init(struct drm_device *);
-extern void nvc0_fb_takedown(struct drm_device *);
 
 /* nv04_graph.c */
 extern int  nv04_graph_create(struct drm_device *);
@@ -1487,18 +1387,6 @@ nv44_graph_class(struct drm_device *dev)
 
 	return !(0x0baf & (1 << (dev_priv->chipset & 0x0f)));
 }
-
-int  nv50_vram_init(struct drm_device *);
-void nv50_vram_fini(struct drm_device *);
-int  nv50_vram_new(struct drm_device *, u64 size, u32 align, u32 size_nc,
-		    u32 memtype, struct nouveau_mem **);
-void nv50_vram_del(struct drm_device *, struct nouveau_mem **);
-bool nv50_vram_flags_valid(struct drm_device *, u32 tile_flags);
-
-int  nvc0_vram_init(struct drm_device *);
-int  nvc0_vram_new(struct drm_device *, u64 size, u32 align, u32 ncmin,
-		    u32 memtype, struct nouveau_mem **);
-bool nvc0_vram_flags_valid(struct drm_device *, u32 tile_flags);
 
 /* memory type/access flags, do not match hardware values */
 #define NV_MEM_ACCESS_RO  1

@@ -209,7 +209,7 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 
 	dev_priv->ttm.bdev.dev_mapping = dev->dev_mapping;
 
-	if (!dev_priv->engine.vram.flags_valid(dev, req->info.tile_flags)) {
+	if (!nvfb_flags_valid(dev, req->info.tile_flags)) {
 		NV_ERROR(dev, "bad page flags: 0x%08x\n", req->info.tile_flags);
 		return -EINVAL;
 	}

@@ -24,8 +24,8 @@
  *
  */
 
-#ifndef __NOUVEAU_FB_H__
-#define __NOUVEAU_FB_H__
+#ifndef __NOUVEAU_FRB_H__
+#define __NOUVEAU_FRB_H__
 
 struct nouveau_framebuffer {
 	struct drm_framebuffer base;

@@ -361,15 +361,13 @@ mclk_mrg(struct nouveau_mem_exec_func *exec, int mr)
 static void
 mclk_mrs(struct nouveau_mem_exec_func *exec, int mr, u32 data)
 {
-	struct drm_nouveau_private *dev_priv = exec->dev->dev_private;
-
 	if (mr <= 1) {
-		if (dev_priv->vram_rank_B)
+		if (nvfb_vram_rank_B(exec->dev))
 			nv_wr32(exec->dev, 0x1002c8 + ((mr - 0) * 4), data);
 		nv_wr32(exec->dev, 0x1002c0 + ((mr - 0) * 4), data);
 	} else
 	if (mr <= 3) {
-		if (dev_priv->vram_rank_B)
+		if (nvfb_vram_rank_B(exec->dev))
 			nv_wr32(exec->dev, 0x1002e8 + ((mr - 2) * 4), data);
 		nv_wr32(exec->dev, 0x1002e0 + ((mr - 2) * 4), data);
 	}

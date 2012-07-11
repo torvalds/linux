@@ -459,8 +459,7 @@ static u32
 mclk_mrg(struct nouveau_mem_exec_func *exec, int mr)
 {
 	struct drm_device *dev = exec->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	if (dev_priv->vram_type != NV_MEM_TYPE_GDDR5) {
+	if (nvfb_vram_type(dev) != NV_MEM_TYPE_GDDR5) {
 		if (mr <= 1)
 			return nv_rd32(dev, 0x10f300 + ((mr - 0) * 4));
 		return nv_rd32(dev, 0x10f320 + ((mr - 2) * 4));
@@ -478,16 +477,15 @@ static void
 mclk_mrs(struct nouveau_mem_exec_func *exec, int mr, u32 data)
 {
 	struct drm_device *dev = exec->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	if (dev_priv->vram_type != NV_MEM_TYPE_GDDR5) {
+	if (nvfb_vram_type(dev) != NV_MEM_TYPE_GDDR5) {
 		if (mr <= 1) {
 			nv_wr32(dev, 0x10f300 + ((mr - 0) * 4), data);
-			if (dev_priv->vram_rank_B)
+			if (nvfb_vram_rank_B(dev))
 				nv_wr32(dev, 0x10f308 + ((mr - 0) * 4), data);
 		} else
 		if (mr <= 3) {
 			nv_wr32(dev, 0x10f320 + ((mr - 2) * 4), data);
-			if (dev_priv->vram_rank_B)
+			if (nvfb_vram_rank_B(dev))
 				nv_wr32(dev, 0x10f328 + ((mr - 2) * 4), data);
 		}
 	} else {

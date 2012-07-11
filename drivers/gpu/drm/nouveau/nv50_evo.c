@@ -300,24 +300,24 @@ nv50_evo_create(struct drm_device *dev)
 
 	/* create some default objects for the scanout memtypes we support */
 	ret = nv50_evo_dmaobj_new(disp->master, NvEvoVRAM, 0x0000,
-				  0, dev_priv->vram_size, NULL);
+				  0, nvfb_vram_size(dev), NULL);
 	if (ret)
 		goto err;
 
 	ret = nv50_evo_dmaobj_new(disp->master, NvEvoVRAM_LP, 0x80000000,
-				  0, dev_priv->vram_size, NULL);
+				  0, nvfb_vram_size(dev), NULL);
 	if (ret)
 		goto err;
 
 	ret = nv50_evo_dmaobj_new(disp->master, NvEvoFB32, 0x80000000 |
 				  (dev_priv->chipset < 0xc0 ? 0x7a00 : 0xfe00),
-				  0, dev_priv->vram_size, NULL);
+				  0, nvfb_vram_size(dev), NULL);
 	if (ret)
 		goto err;
 
 	ret = nv50_evo_dmaobj_new(disp->master, NvEvoFB16, 0x80000000 |
 				  (dev_priv->chipset < 0xc0 ? 0x7000 : 0xfe00),
-				  0, dev_priv->vram_size, NULL);
+				  0, nvfb_vram_size(dev), NULL);
 	if (ret)
 		goto err;
 
@@ -352,21 +352,21 @@ nv50_evo_create(struct drm_device *dev)
 			goto err;
 
 		ret = nv50_evo_dmaobj_new(dispc->sync, NvEvoVRAM_LP, 0x80000000,
-					  0, dev_priv->vram_size, NULL);
+					  0, nvfb_vram_size(dev), NULL);
 		if (ret)
 			goto err;
 
 		ret = nv50_evo_dmaobj_new(dispc->sync, NvEvoFB32, 0x80000000 |
 					  (dev_priv->chipset < 0xc0 ?
 					  0x7a00 : 0xfe00),
-					  0, dev_priv->vram_size, NULL);
+					  0, nvfb_vram_size(dev), NULL);
 		if (ret)
 			goto err;
 
 		ret = nv50_evo_dmaobj_new(dispc->sync, NvEvoFB16, 0x80000000 |
 					  (dev_priv->chipset < 0xc0 ?
 					  0x7000 : 0xfe00),
-					  0, dev_priv->vram_size, NULL);
+					  0, nvfb_vram_size(dev), NULL);
 		if (ret)
 			goto err;
 

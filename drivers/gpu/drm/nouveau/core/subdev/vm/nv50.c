@@ -80,8 +80,8 @@ nv50_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 
 	/* IGPs don't have real VRAM, re-target to stolen system memory */
 	target = 0;
-	if (dev_priv->vram_sys_base) {
-		phys += dev_priv->vram_sys_base;
+	if (nvfb_vram_sys_base(dev_priv->dev)) {
+		phys += nvfb_vram_sys_base(dev_priv->dev);
 		target = 3;
 	}
 
@@ -103,7 +103,7 @@ nv50_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 		phys += block << (vma->node->type - 3);
 		cnt  -= block;
 		if (comp) {
-			u32 tag = mem->tag->start + ((delta >> 16) * comp);
+			u32 tag = mem->tag->offset + ((delta >> 16) * comp);
 			offset_h |= (tag << 17);
 			delta    += block << (vma->node->type - 3);
 		}

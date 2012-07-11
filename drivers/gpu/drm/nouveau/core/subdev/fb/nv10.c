@@ -1,104 +1,120 @@
-#include "drmP.h"
-#include "drm.h"
-#include "nouveau_drv.h"
-#include <nouveau_drm.h>
+/*
+ * Copyright (C) 2010 Francisco Jerez.
+ * All Rights Reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial
+ * portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
 
-void
-nv10_fb_init_tile_region(struct drm_device *dev, int i, uint32_t addr,
-			 uint32_t size, uint32_t pitch, uint32_t flags)
+#include <subdev/fb.h>
+
+struct nv10_fb_priv {
+	struct nouveau_fb base;
+};
+
+static void
+nv10_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
+		  u32 flags, struct nouveau_fb_tile *tile)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
-
 	tile->addr  = 0x80000000 | addr;
 	tile->limit = max(1u, addr + size) - 1;
 	tile->pitch = pitch;
 }
 
-void
-nv10_fb_free_tile_region(struct drm_device *dev, int i)
+static void
+nv10_fb_tile_fini(struct nouveau_fb *pfb, int i, struct nouveau_fb_tile *tile)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
-
-	tile->addr = tile->limit = tile->pitch = tile->zcomp = 0;
+	tile->addr  = 0;
+	tile->limit = 0;
+	tile->pitch = 0;
+	tile->zcomp = 0;
 }
 
 void
-nv10_fb_set_tile_region(struct drm_device *dev, int i)
+nv10_fb_tile_prog(struct nouveau_fb *pfb, int i, struct nouveau_fb_tile *tile)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
-
-	nv_wr32(dev, NV10_PFB_TLIMIT(i), tile->limit);
-	nv_wr32(dev, NV10_PFB_TSIZE(i), tile->pitch);
-	nv_wr32(dev, NV10_PFB_TILE(i), tile->addr);
+	nv_wr32(pfb, 0x100244 + (i * 0x10), tile->limit);
+	nv_wr32(pfb, 0x100248 + (i * 0x10), tile->pitch);
+	nv_wr32(pfb, 0x100240 + (i * 0x10), tile->addr);
 }
 
-int
-nv1a_fb_vram_init(struct drm_device *dev)
+static int
+nv10_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+	     struct nouveau_oclass *oclass, void *data, u32 size,
+	     struct nouveau_object **pobject)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct pci_dev *bridge;
-	uint32_t mem, mib;
+	struct nouveau_device *device = nv_device(parent);
+	struct nv10_fb_priv *priv;
+	int ret;
 
-	bridge = pci_get_bus_and_slot(0, PCI_DEVFN(0, 1));
-	if (!bridge) {
-		NV_ERROR(dev, "no bridge device\n");
-		return 0;
-	}
+	ret = nouveau_fb_create(parent, engine, oclass, &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
 
-	if (dev_priv->chipset == 0x1a) {
-		pci_read_config_dword(bridge, 0x7c, &mem);
-		mib = ((mem >> 6) & 31) + 1;
+	if (device->chipset == 0x1a ||  device->chipset == 0x1f) {
+		struct pci_dev *bridge;
+		u32 mem, mib;
+
+		bridge = pci_get_bus_and_slot(0, PCI_DEVFN(0, 1));
+		if (!bridge) {
+			nv_fatal(device, "no bridge device\n");
+			return 0;
+		}
+
+		if (device->chipset == 0x1a) {
+			pci_read_config_dword(bridge, 0x7c, &mem);
+			mib = ((mem >> 6) & 31) + 1;
+		} else {
+			pci_read_config_dword(bridge, 0x84, &mem);
+			mib = ((mem >> 4) & 127) + 1;
+		}
+
+		priv->base.ram.type = NV_MEM_TYPE_STOLEN;
+		priv->base.ram.size = mib * 1024 * 1024;
 	} else {
-		pci_read_config_dword(bridge, 0x84, &mem);
-		mib = ((mem >> 4) & 127) + 1;
+		u32 cfg0 = nv_rd32(priv, 0x100200);
+		if (cfg0 & 0x00000001)
+			priv->base.ram.type = NV_MEM_TYPE_DDR1;
+		else
+			priv->base.ram.type = NV_MEM_TYPE_SDRAM;
+
+		priv->base.ram.size = nv_rd32(priv, 0x10020c) & 0xff000000;
 	}
 
-	dev_priv->vram_size = mib * 1024 * 1024;
-	return 0;
+	priv->base.memtype_valid = nv04_fb_memtype_valid;
+	priv->base.tile.regions = 8;
+	priv->base.tile.init = nv10_fb_tile_init;
+	priv->base.tile.fini = nv10_fb_tile_fini;
+	priv->base.tile.prog = nv10_fb_tile_prog;
+	return nouveau_fb_created(&priv->base);
 }
 
-int
-nv10_fb_vram_init(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	u32 fifo_data = nv_rd32(dev, NV04_PFB_FIFO_DATA);
-	u32 cfg0 = nv_rd32(dev, 0x100200);
-
-	dev_priv->vram_size = fifo_data & NV10_PFB_FIFO_DATA_RAM_AMOUNT_MB_MASK;
-
-	if (cfg0 & 0x00000001)
-		dev_priv->vram_type = NV_MEM_TYPE_DDR1;
-	else
-		dev_priv->vram_type = NV_MEM_TYPE_SDRAM;
-
-	return 0;
-}
-
-int
-nv10_fb_init(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
-	int i;
-
-	/* Turn all the tiling regions off. */
-	pfb->num_tiles = NV10_PFB_TILE__SIZE;
-	for (i = 0; i < pfb->num_tiles; i++)
-		pfb->set_tile_region(dev, i);
-
-	return 0;
-}
-
-void
-nv10_fb_takedown(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
-	int i;
-
-	for (i = 0; i < pfb->num_tiles; i++)
-		pfb->free_tile_region(dev, i);
-}
+struct nouveau_oclass
+nv10_fb_oclass = {
+	.handle = NV_SUBDEV(FB, 0x10),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv10_fb_ctor,
+		.dtor = _nouveau_fb_dtor,
+		.init = _nouveau_fb_init,
+		.fini = _nouveau_fb_fini,
+	},
+};

@@ -1,55 +1,83 @@
-#include "drmP.h"
-#include "drm.h"
-#include "nouveau_drv.h"
-#include <nouveau_drm.h>
+/*
+ * Copyright (C) 2010 Francisco Jerez.
+ * All Rights Reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial
+ * portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
 
-void
-nv40_fb_set_tile_region(struct drm_device *dev, int i)
+#include <subdev/fb.h>
+
+struct nv40_fb_priv {
+	struct nouveau_fb base;
+};
+
+static inline int
+nv44_graph_class(struct nouveau_device *device)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
+	if ((device->chipset & 0xf0) == 0x60)
+		return 1;
 
-	switch (dev_priv->chipset) {
-	case 0x40:
-		nv_wr32(dev, NV10_PFB_TLIMIT(i), tile->limit);
-		nv_wr32(dev, NV10_PFB_TSIZE(i), tile->pitch);
-		nv_wr32(dev, NV10_PFB_TILE(i), tile->addr);
-		break;
-
-	default:
-		nv_wr32(dev, NV40_PFB_TLIMIT(i), tile->limit);
-		nv_wr32(dev, NV40_PFB_TSIZE(i), tile->pitch);
-		nv_wr32(dev, NV40_PFB_TILE(i), tile->addr);
-		break;
-	}
+	return !(0x0baf & (1 << (device->chipset & 0x0f)));
 }
 
 static void
-nv40_fb_init_gart(struct drm_device *dev)
+nv40_fb_tile_prog(struct nouveau_fb *pfb, int i, struct nouveau_fb_tile *tile)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *gart = dev_priv->gart_info.sg_ctxdma;
+	nv_wr32(pfb, 0x100604 + (i * 0x10), tile->limit);
+	nv_wr32(pfb, 0x100608 + (i * 0x10), tile->pitch);
+	nv_wr32(pfb, 0x100600 + (i * 0x10), tile->addr);
+}
 
-	if (dev_priv->gart_info.type != NOUVEAU_GART_HW) {
-		nv_wr32(dev, 0x100800, 0x00000001);
+static void
+nv40_fb_init_gart(struct nv40_fb_priv *priv)
+{
+#if 0
+	struct nouveau_gpuobj *gart = ndev->gart_info.sg_ctxdma;
+
+	if (ndev->gart_info.type != NOUVEAU_GART_HW) {
+#endif
+		nv_wr32(priv, 0x100800, 0x00000001);
+#if 0
 		return;
 	}
 
-	nv_wr32(dev, 0x100800, gart->pinst | 0x00000002);
-	nv_mask(dev, 0x10008c, 0x00000100, 0x00000100);
-	nv_wr32(dev, 0x100820, 0x00000000);
+	nv_wr32(ndev, 0x100800, gart->pinst | 0x00000002);
+	nv_mask(ndev, 0x10008c, 0x00000100, 0x00000100);
+	nv_wr32(ndev, 0x100820, 0x00000000);
+#endif
 }
 
 static void
-nv44_fb_init_gart(struct drm_device *dev)
+nv44_fb_init_gart(struct nv40_fb_priv *priv)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *gart = dev_priv->gart_info.sg_ctxdma;
+#if 0
+	struct nouveau_gpuobj *gart = ndev->gart_info.sg_ctxdma;
 	u32 vinst;
 
-	if (dev_priv->gart_info.type != NOUVEAU_GART_HW) {
-		nv_wr32(dev, 0x100850, 0x80000000);
-		nv_wr32(dev, 0x100800, 0x00000001);
+	if (ndev->gart_info.type != NOUVEAU_GART_HW) {
+#endif
+		nv_wr32(priv, 0x100850, 0x80000000);
+		nv_wr32(priv, 0x100800, 0x00000001);
+#if 0
 		return;
 	}
 
@@ -57,24 +85,60 @@ nv44_fb_init_gart(struct drm_device *dev)
 	 * must be allocated on 512KiB alignment, and not exceed
 	 * a total size of 512KiB for this to work correctly
 	 */
-	vinst  = nv_rd32(dev, 0x10020c);
+	vinst  = nv_rd32(ndev, 0x10020c);
 	vinst -= ((gart->pinst >> 19) + 1) << 19;
 
-	nv_wr32(dev, 0x100850, 0x80000000);
-	nv_wr32(dev, 0x100818, dev_priv->gart_info.dummy.addr);
+	nv_wr32(ndev, 0x100850, 0x80000000);
+	nv_wr32(ndev, 0x100818, ndev->gart_info.dummy.addr);
 
-	nv_wr32(dev, 0x100804, dev_priv->gart_info.aper_size);
-	nv_wr32(dev, 0x100850, 0x00008000);
-	nv_mask(dev, 0x10008c, 0x00000200, 0x00000200);
-	nv_wr32(dev, 0x100820, 0x00000000);
-	nv_wr32(dev, 0x10082c, 0x00000001);
-	nv_wr32(dev, 0x100800, vinst | 0x00000010);
+	nv_wr32(ndev, 0x100804, ndev->gart_info.aper_size);
+	nv_wr32(ndev, 0x100850, 0x00008000);
+	nv_mask(ndev, 0x10008c, 0x00000200, 0x00000200);
+	nv_wr32(ndev, 0x100820, 0x00000000);
+	nv_wr32(ndev, 0x10082c, 0x00000001);
+	nv_wr32(ndev, 0x100800, vinst | 0x00000010);
+#endif
 }
 
-int
-nv40_fb_vram_init(struct drm_device *dev)
+static int
+nv40_fb_init(struct nouveau_object *object)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nv40_fb_priv *priv = (void *)object;
+	int ret;
+
+	ret = nouveau_fb_init(&priv->base);
+	if (ret)
+		return ret;
+
+	switch (nv_device(priv)->chipset) {
+	case 0x40:
+	case 0x45:
+		nv_mask(priv, 0x10033c, 0x00008000, 0x00000000);
+		break;
+	default:
+		if (nv44_graph_class(nv_device(priv)))
+			nv44_fb_init_gart(priv);
+		else
+			nv40_fb_init_gart(priv);
+		break;
+	}
+
+	return 0;
+}
+
+static int
+nv40_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+	     struct nouveau_oclass *oclass, void *data, u32 size,
+	     struct nouveau_object **pobject)
+{
+	struct nouveau_device *device = nv_device(parent);
+	struct nv40_fb_priv *priv;
+	int ret;
+
+	ret = nouveau_fb_create(parent, engine, oclass, &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
 
 	/* 0x001218 is actually present on a few other NV4X I looked at,
 	 * and even contains sane values matching 0x100474.  From looking
@@ -82,82 +146,73 @@ nv40_fb_vram_init(struct drm_device *dev)
 	 * So, I chose to use the same regs I've seen NVIDIA reading around
 	 * the memory detection, hopefully that'll get us the right numbers
 	 */
-	if (dev_priv->chipset == 0x40) {
-		u32 pbus1218 = nv_rd32(dev, 0x001218);
+	if (device->chipset == 0x40) {
+		u32 pbus1218 = nv_rd32(priv, 0x001218);
 		switch (pbus1218 & 0x00000300) {
-		case 0x00000000: dev_priv->vram_type = NV_MEM_TYPE_SDRAM; break;
-		case 0x00000100: dev_priv->vram_type = NV_MEM_TYPE_DDR1; break;
-		case 0x00000200: dev_priv->vram_type = NV_MEM_TYPE_GDDR3; break;
-		case 0x00000300: dev_priv->vram_type = NV_MEM_TYPE_DDR2; break;
+		case 0x00000000: priv->base.ram.type = NV_MEM_TYPE_SDRAM; break;
+		case 0x00000100: priv->base.ram.type = NV_MEM_TYPE_DDR1; break;
+		case 0x00000200: priv->base.ram.type = NV_MEM_TYPE_GDDR3; break;
+		case 0x00000300: priv->base.ram.type = NV_MEM_TYPE_DDR2; break;
 		}
 	} else
-	if (dev_priv->chipset == 0x49 || dev_priv->chipset == 0x4b) {
-		u32 pfb914 = nv_rd32(dev, 0x100914);
+	if (device->chipset == 0x49 || device->chipset == 0x4b) {
+		u32 pfb914 = nv_rd32(priv, 0x100914);
 		switch (pfb914 & 0x00000003) {
-		case 0x00000000: dev_priv->vram_type = NV_MEM_TYPE_DDR1; break;
-		case 0x00000001: dev_priv->vram_type = NV_MEM_TYPE_DDR2; break;
-		case 0x00000002: dev_priv->vram_type = NV_MEM_TYPE_GDDR3; break;
+		case 0x00000000: priv->base.ram.type = NV_MEM_TYPE_DDR1; break;
+		case 0x00000001: priv->base.ram.type = NV_MEM_TYPE_DDR2; break;
+		case 0x00000002: priv->base.ram.type = NV_MEM_TYPE_GDDR3; break;
 		case 0x00000003: break;
 		}
 	} else
-	if (dev_priv->chipset != 0x4e) {
-		u32 pfb474 = nv_rd32(dev, 0x100474);
+	if (device->chipset != 0x4e) {
+		u32 pfb474 = nv_rd32(priv, 0x100474);
 		if (pfb474 & 0x00000004)
-			dev_priv->vram_type = NV_MEM_TYPE_GDDR3;
+			priv->base.ram.type = NV_MEM_TYPE_GDDR3;
 		if (pfb474 & 0x00000002)
-			dev_priv->vram_type = NV_MEM_TYPE_DDR2;
+			priv->base.ram.type = NV_MEM_TYPE_DDR2;
 		if (pfb474 & 0x00000001)
-			dev_priv->vram_type = NV_MEM_TYPE_DDR1;
+			priv->base.ram.type = NV_MEM_TYPE_DDR1;
 	} else {
-		dev_priv->vram_type = NV_MEM_TYPE_STOLEN;
+		priv->base.ram.type = NV_MEM_TYPE_STOLEN;
 	}
 
-	dev_priv->vram_size = nv_rd32(dev, 0x10020c) & 0xff000000;
-	return 0;
-}
+	priv->base.ram.size = nv_rd32(priv, 0x10020c) & 0xff000000;
 
-int
-nv40_fb_init(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
-	uint32_t tmp;
-	int i;
-
-	if (dev_priv->chipset != 0x40 && dev_priv->chipset != 0x45) {
-		if (nv44_graph_class(dev))
-			nv44_fb_init_gart(dev);
-		else
-			nv40_fb_init_gart(dev);
-	}
-
-	switch (dev_priv->chipset) {
+	priv->base.memtype_valid = nv04_fb_memtype_valid;
+	switch (device->chipset) {
 	case 0x40:
 	case 0x45:
-		tmp = nv_rd32(dev, NV10_PFB_CLOSE_PAGE2);
-		nv_wr32(dev, NV10_PFB_CLOSE_PAGE2, tmp & ~(1 << 15));
-		pfb->num_tiles = NV10_PFB_TILE__SIZE;
+		priv->base.tile.regions = 8;
 		break;
-	case 0x46: /* G72 */
-	case 0x47: /* G70 */
-	case 0x49: /* G71 */
-	case 0x4b: /* G73 */
-	case 0x4c: /* C51 (G7X version) */
-		pfb->num_tiles = NV40_PFB_TILE__SIZE_1;
+	case 0x46:
+	case 0x47:
+	case 0x49:
+	case 0x4b:
+	case 0x4c:
+		priv->base.tile.regions = 15;
 		break;
 	default:
-		pfb->num_tiles = NV40_PFB_TILE__SIZE_0;
+		priv->base.tile.regions = 12;
 		break;
 	}
+	priv->base.tile.init = nv30_fb_tile_init;
+	priv->base.tile.fini = nv30_fb_tile_fini;
+	if (device->chipset == 0x40)
+		priv->base.tile.prog = nv10_fb_tile_prog;
+	else
+		priv->base.tile.prog = nv40_fb_tile_prog;
 
-	/* Turn all the tiling regions off. */
-	for (i = 0; i < pfb->num_tiles; i++)
-		pfb->set_tile_region(dev, i);
-
-	return 0;
+	return nouveau_fb_created(&priv->base);
 }
 
-void
-nv40_fb_takedown(struct drm_device *dev)
-{
-}
+
+struct nouveau_oclass
+nv40_fb_oclass = {
+	.handle = NV_SUBDEV(FB, 0x40),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv40_fb_ctor,
+		.dtor = _nouveau_fb_dtor,
+		.init = nv40_fb_init,
+		.fini = _nouveau_fb_fini,
+	},
+};

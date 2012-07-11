@@ -62,4 +62,24 @@ bool nouveau_wait_cb(struct drm_device *, u64 timeout,
 
 u64 nv_timer_read(struct drm_device *);
 
+int  nvfb_tile_nr(struct drm_device *);
+void nvfb_tile_init(struct drm_device *, int, u32, u32, u32, u32);
+void nvfb_tile_fini(struct drm_device *, int);
+void nvfb_tile_prog(struct drm_device *, int);
+
+struct nouveau_fb_tile *nvfb_tile(struct drm_device *, int);
+
+struct nouveau_mem;
+int nvfb_vram_get(struct drm_device *dev, u64 size, u32 align, u32 ncmin,
+		  u32 memtype, struct nouveau_mem **pmem);
+void nvfb_vram_put(struct drm_device *dev, struct nouveau_mem **pmem);
+bool nvfb_flags_valid(struct drm_device *dev, u32);
+
+u64 nvfb_vram_sys_base(struct drm_device *);
+u64 nvfb_vram_size(struct drm_device *);
+int nvfb_vram_type(struct drm_device *);
+int nvfb_vram_rank_B(struct drm_device *);
+
+void nv50_fb_vm_trap(struct drm_device *, int);
+
 #endif

@@ -163,7 +163,7 @@ nv40_fifo_init(struct drm_device *dev, int engine)
 		break;
 	default:
 		nv_wr32(dev, 0x002230, 0x00000000);
-		nv_wr32(dev, 0x002220, ((dev_priv->vram_size - 512 * 1024 +
+		nv_wr32(dev, 0x002220, ((nvfb_vram_size(dev) - 512 * 1024 +
 					 dev_priv->ramfc->pinst) >> 16) |
 				       0x00030000);
 		break;

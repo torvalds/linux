@@ -310,8 +310,6 @@ nv50_instmem_get(struct nouveau_gpuobj *gpuobj, struct nouveau_channel *chan,
 		 u32 size, u32 align)
 {
 	struct drm_device *dev = gpuobj->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_vram_engine *vram = &dev_priv->engine.vram;
 	struct nv50_gpuobj_node *node = NULL;
 	int ret;
 
@@ -323,7 +321,7 @@ nv50_instmem_get(struct nouveau_gpuobj *gpuobj, struct nouveau_channel *chan,
 	size  = (size + 4095) & ~4095;
 	align = max(align, (u32)4096);
 
-	ret = vram->get(dev, size, align, 0, 0x800, &node->vram);
+	ret = nvfb_vram_get(dev, size, align, 0, 0x800, &node->vram);
 	if (ret) {
 		kfree(node);
 		return ret;
@@ -339,7 +337,7 @@ nv50_instmem_get(struct nouveau_gpuobj *gpuobj, struct nouveau_channel *chan,
 		ret = nouveau_vm_get(chan->vm, size, 12, flags,
 				     &node->chan_vma);
 		if (ret) {
-			vram->put(dev, &node->vram);
+			nvfb_vram_put(dev, &node->vram);
 			kfree(node);
 			return ret;
 		}
@@ -357,8 +355,6 @@ void
 nv50_instmem_put(struct nouveau_gpuobj *gpuobj)
 {
 	struct drm_device *dev = gpuobj->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_vram_engine *vram = &dev_priv->engine.vram;
 	struct nv50_gpuobj_node *node;
 
 	node = gpuobj->node;
@@ -368,7 +364,7 @@ nv50_instmem_put(struct nouveau_gpuobj *gpuobj)
 		nouveau_vm_unmap(&node->chan_vma);
 		nouveau_vm_put(&node->chan_vma);
 	}
-	vram->put(dev, &node->vram);
+	nvfb_vram_put(dev, &node->vram);
 	kfree(node);
 }
 

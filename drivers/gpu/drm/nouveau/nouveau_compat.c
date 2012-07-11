@@ -10,6 +10,7 @@
 #include <subdev/clock.h>
 #include <subdev/mc.h>
 #include <subdev/timer.h>
+#include <subdev/fb.h>
 
 void *nouveau_newpriv(struct drm_device *);
 
@@ -331,4 +332,109 @@ nv_timer_read(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_newpriv(dev);
 	struct nouveau_timer *ptimer = nouveau_timer(drm->device);
 	return ptimer->read(ptimer);
+}
+
+int
+nvfb_tile_nr(struct drm_device *dev)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	return pfb->tile.regions;
+}
+
+struct nouveau_fb_tile *
+nvfb_tile(struct drm_device *dev, int i)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	return &pfb->tile.region[i];
+}
+
+void
+nvfb_tile_init(struct drm_device *dev, int i, u32 a, u32 b, u32 c, u32 d)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	pfb->tile.init(pfb, i, a, b, c, d, &pfb->tile.region[i]);
+}
+
+void
+nvfb_tile_fini(struct drm_device *dev, int i)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	pfb->tile.fini(pfb, i, &pfb->tile.region[i]);
+}
+
+void
+nvfb_tile_prog(struct drm_device *dev, int i)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	pfb->tile.prog(pfb, i, &pfb->tile.region[i]);
+}
+
+bool
+nvfb_flags_valid(struct drm_device *dev, u32 flags)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	return pfb->memtype_valid(pfb, flags);
+}
+
+int
+nvfb_vram_get(struct drm_device *dev, u64 size, u32 align, u32 ncmin,
+	      u32 memtype, struct nouveau_mem **pmem)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	int ret = pfb->ram.get(pfb, size, align, ncmin, memtype, pmem);
+	if (ret)
+		return ret;
+	(*pmem)->dev = dev;
+	return 0;
+}
+
+void
+nvfb_vram_put(struct drm_device *dev, struct nouveau_mem **pmem)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	pfb->ram.put(pfb, pmem);
+}
+
+
+u64 nvfb_vram_sys_base(struct drm_device *dev)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	return pfb->ram.stolen;
+}
+
+u64 nvfb_vram_size(struct drm_device *dev)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	return pfb->ram.size;
+}
+
+int nvfb_vram_type(struct drm_device *dev)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	return pfb->ram.type;
+}
+
+int nvfb_vram_rank_B(struct drm_device *dev)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	return pfb->ram.ranks > 1;
+}
+
+void
+nv50_fb_vm_trap(struct drm_device *dev, int disp)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	nv50_fb_trap(nouveau_fb(drm->device), disp);
 }

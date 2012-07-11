@@ -25,10 +25,9 @@
 #ifndef __NOUVEAU_VM_H__
 #define __NOUVEAU_VM_H__
 
-#include "drmP.h"
-
-#include "nouveau_drv.h"
 #include <core/mm.h>
+
+struct nouveau_mem;
 
 struct nouveau_vm_pgt {
 	struct nouveau_gpuobj *obj[2];

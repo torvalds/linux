@@ -472,7 +472,7 @@ static void
 nv20_graph_set_tile_region(struct drm_device *dev, int i)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
+	struct nouveau_fb_tile *tile = nvfb_tile(dev, i);
 
 	nv_wr32(dev, NV20_PGRAPH_TLIMIT(i), tile->limit);
 	nv_wr32(dev, NV20_PGRAPH_TSIZE(i), tile->pitch);

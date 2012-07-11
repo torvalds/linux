@@ -156,7 +156,7 @@ static void
 set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(nvbo->bo.bdev);
-	int vram_pages = dev_priv->vram_size >> PAGE_SHIFT;
+	int vram_pages = nvfb_vram_size(dev_priv->dev) >> PAGE_SHIFT;
 
 	if (dev_priv->card_type == NV_10 &&
 	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM) &&

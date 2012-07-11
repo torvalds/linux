@@ -125,7 +125,7 @@ static void
 nv40_graph_set_tile_region(struct drm_device *dev, int i)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
+	struct nouveau_fb_tile *tile = nvfb_tile(dev, i);
 
 	switch (dev_priv->chipset) {
 	case 0x40:
@@ -178,7 +178,6 @@ nv40_graph_init(struct drm_device *dev, int engine)
 {
 	struct nv40_graph_engine *pgraph = nv_engine(dev, engine);
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
 	uint32_t vramsz;
 	int i, j;
 
@@ -280,7 +279,7 @@ nv40_graph_init(struct drm_device *dev, int engine)
 	}
 
 	/* Turn all the tiling regions off. */
-	for (i = 0; i < pfb->num_tiles; i++)
+	for (i = 0; i < nvfb_tile_nr(dev); i++)
 		nv40_graph_set_tile_region(dev, i);
 
 	/* begin RAM config */

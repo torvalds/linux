@@ -475,9 +475,9 @@ int nouveau_fbcon_init(struct drm_device *dev)
 
 	drm_fb_helper_single_add_all_connectors(&nfbdev->helper);
 
-	if (dev_priv->vram_size <= 32 * 1024 * 1024)
+	if (nvfb_vram_size(dev) <= 32 * 1024 * 1024)
 		preferred_bpp = 8;
-	else if (dev_priv->vram_size <= 64 * 1024 * 1024)
+	else if (nvfb_vram_size(dev) <= 64 * 1024 * 1024)
 		preferred_bpp = 16;
 	else
 		preferred_bpp = 32;
