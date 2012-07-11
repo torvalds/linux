@@ -88,6 +88,10 @@ void __init rk30_clock_init(void)
 		clkdev_add(lk);
 	}
 }
+void __init board_clock_init(void)
+{
+     rk30_clock_init();   
+}
 
 int clk_enable(struct clk *clk)
 {

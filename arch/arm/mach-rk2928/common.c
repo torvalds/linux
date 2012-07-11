@@ -130,7 +130,7 @@ void __init rk2928_map_io(void)
 	rk29_setup_early_printk();
 	rk2928_cpu_axi_init();
 	rk29_sram_init();
-//	board_clock_init();
+	board_clock_init();
 	rk2928_l2_cache_init();
 //	ddr_init(DDR_TYPE, DDR_FREQ);
 //	clk_disable_unused();
