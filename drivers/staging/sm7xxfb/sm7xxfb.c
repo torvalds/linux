@@ -135,7 +135,7 @@ static int __init sm7xx_vga_setup(char *options)
 }
 __setup("vga=", sm7xx_vga_setup);
 
-static void sm712_set_timing(struct smtcfb_info *sfb)
+static void sm7xx_set_timing(struct smtcfb_info *sfb)
 {
 	int i = 0, j = 0;
 	u32 m_nScreenStride;
@@ -243,6 +243,17 @@ static void sm712_set_timing(struct smtcfb_info *sfb)
 
 }
 
+static void smtc_set_timing(struct smtcfb_info *sfb)
+{
+	switch (sfb->chip_id) {
+	case 0x710:
+	case 0x712:
+	case 0x720:
+		sm7xx_set_timing(sfb);
+		break;
+	}
+}
+
 static void sm712_setpalette(int regno, unsigned red, unsigned green,
 			     unsigned blue, struct fb_info *info)
 {
@@ -253,17 +264,6 @@ static void sm712_setpalette(int regno, unsigned red, unsigned green,
 	smtc_mmiowb(red >> 10, dac_val);
 	smtc_mmiowb(green >> 10, dac_val);
 	smtc_mmiowb(blue >> 10, dac_val);
-}
-
-static void smtc_set_timing(struct smtcfb_info *sfb)
-{
-	switch (sfb->chip_id) {
-	case 0x710:
-	case 0x712:
-	case 0x720:
-		sm712_set_timing(sfb);
-		break;
-	}
 }
 
 /* chan_to_field
