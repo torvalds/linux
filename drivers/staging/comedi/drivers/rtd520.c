@@ -406,11 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Reset DAC FIFO */
-#define RtdDacClearFifo(dev, n) \
-	writel(0, devpriv->las0+(((n) == 0) ? LAS0_DAC1_RESET : \
-				LAS0_DAC2_RESET))
-
 /* Set source for DMA 0 (write only, shadow?) */
 #define RtdDma0Source(dev, n) \
 	writel((n) & 0xf, devpriv->las0+LAS0_DMA0_SRC)
@@ -1866,8 +1861,8 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	writel(0, devpriv->las0 + LAS0_OVERRUN);
 	writel(0, devpriv->las0 + LAS0_CGT_CLEAR);
 	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
-	RtdDacClearFifo(dev, 0);
-	RtdDacClearFifo(dev, 1);
+	writel(0, devpriv->las0 + LAS0_DAC1_RESET);
+	writel(0, devpriv->las0 + LAS0_DAC2_RESET);
 	/* clear digital IO fifo */
 	devpriv->dioStatus = 0;
 	writew(devpriv->dioStatus, devpriv->las0 + LAS0_DIO_STATUS);
