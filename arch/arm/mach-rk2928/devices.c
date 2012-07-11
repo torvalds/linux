@@ -102,6 +102,85 @@ static void __init rk2928_init_dma(void)
 {
 	platform_add_devices(rk2928_dmacs, ARRAY_SIZE(rk2928_dmacs));
 }
+
+#ifdef CONFIG_UART0_RK29
+static struct resource resources_uart0[] = {
+	{
+		.start	= IRQ_UART0,
+		.end	= IRQ_UART0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK2928_UART0_PHYS,
+		.end	= RK2928_UART0_PHYS + RK2928_UART0_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device device_uart0 = {
+	.name	= "rk_serial",
+	.id	= 0,
+	.num_resources	= ARRAY_SIZE(resources_uart0),
+	.resource	= resources_uart0,
+};
+#endif
+
+#ifdef CONFIG_UART1_RK29
+static struct resource resources_uart1[] = {
+	{
+		.start	= IRQ_UART1,
+		.end	= IRQ_UART1,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK2928_UART1_PHYS,
+		.end	= RK2928_UART1_PHYS + RK2928_UART1_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device device_uart1 = {
+	.name	= "rk_serial",
+	.id	= 1,
+	.num_resources	= ARRAY_SIZE(resources_uart1),
+	.resource	= resources_uart1,
+};
+#endif
+
+#ifdef CONFIG_UART2_RK29
+static struct resource resources_uart2[] = {
+	{
+		.start	= IRQ_UART2,
+		.end	= IRQ_UART2,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK2928_UART2_PHYS,
+		.end	= RK2928_UART2_PHYS + RK2928_UART2_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device device_uart2 = {
+	.name	= "rk_serial",
+	.id	= 2,
+	.num_resources	= ARRAY_SIZE(resources_uart2),
+	.resource	= resources_uart2,
+};
+#endif
+
+static void __init rk2928_init_uart(void)
+{
+#ifdef CONFIG_UART0_RK29
+	platform_device_register(&device_uart0);
+#endif
+#ifdef CONFIG_UART1_RK29
+	platform_device_register(&device_uart1);
+#endif
+#ifdef CONFIG_UART2_RK29
+	platform_device_register(&device_uart2);
+#endif
+}
 // i2c
 #ifdef CONFIG_I2C0_CONTROLLER_RK29
 #define I2C0_ADAP_TYPE  I2C_RK29_ADAP
@@ -414,6 +493,7 @@ static void __init rk2928_init_spim(void)
 static int __init rk2928_init_devices(void)
 {
 	rk2928_init_dma();
+	rk2928_init_uart();
 	rk2928_init_i2c();
 	rk2928_init_spim();
 #if defined(CONFIG_FIQ_DEBUGGER) && defined(DEBUG_UART_PHYS)

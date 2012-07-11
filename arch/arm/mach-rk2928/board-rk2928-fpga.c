@@ -78,6 +78,19 @@ static struct clk_lookup clks[] = {
 	CLK("rk30_i2c.3", "i2c", &xin24m),
 	CLK("rk29xx_spim.0", "spi", &xin24m),
 	CLK("rk29xx_spim.1", "spi", &xin24m),
+
+        CLK("rk_serial.0", "uart_div", &xin24m),
+	CLK("rk_serial.0", "uart_frac_div", &xin24m),
+	CLK("rk_serial.0", "uart", &xin24m),
+	CLK("rk_serial.0", "pclk_uart", &xin24m),
+	CLK("rk_serial.1", "uart_div", &xin24m),
+	CLK("rk_serial.1", "uart_frac_div", &xin24m),
+	CLK("rk_serial.1", "uart", &xin24m),
+	CLK("rk_serial.1", "pclk_uart", &xin24m),
+	CLK("rk_serial.2", "uart_div", &xin24m),
+	CLK("rk_serial.2", "uart_frac_div", &xin24m),
+	CLK("rk_serial.2", "uart", &xin24m),
+	CLK("rk_serial.2", "pclk_uart", &xin24m),
 };
 
 void __init rk30_clock_init(void)
