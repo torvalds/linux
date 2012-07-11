@@ -706,6 +706,8 @@ static const char *rh_state_string(struct ehci_hcd *ehci)
 		return "suspended";
 	case EHCI_RH_RUNNING:
 		return "running";
+	case EHCI_RH_STOPPING:
+		return "stopping";
 	}
 	return "?";
 }

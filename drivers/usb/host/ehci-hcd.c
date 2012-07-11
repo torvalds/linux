@@ -357,10 +357,8 @@ static void ehci_quiesce (struct ehci_hcd *ehci)
 {
 	u32	temp;
 
-#ifdef DEBUG
 	if (ehci->rh_state != EHCI_RH_RUNNING)
-		BUG ();
-#endif
+		return;
 
 	/* wait for any schedule enables/disables to take effect */
 	temp = (ehci->command << 10) & (STS_ASS | STS_PSS);
@@ -494,6 +492,7 @@ static void ehci_shutdown(struct usb_hcd *hcd)
 	del_timer_sync(&ehci->iaa_watchdog);
 
 	spin_lock_irq(&ehci->lock);
+	ehci->rh_state = EHCI_RH_STOPPING;
 	ehci_silence_controller(ehci);
 	spin_unlock_irq(&ehci->lock);
 }
@@ -562,8 +561,7 @@ static void ehci_stop (struct usb_hcd *hcd)
 	del_timer_sync(&ehci->iaa_watchdog);
 
 	spin_lock_irq(&ehci->lock);
-	if (ehci->rh_state == EHCI_RH_RUNNING)
-		ehci_quiesce (ehci);
+	ehci_quiesce(ehci);
 
 	ehci_silence_controller(ehci);
 	ehci_reset (ehci);
@@ -951,6 +949,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 	/* PCI errors [4.15.2.4] */
 	if (unlikely ((status & STS_FATAL) != 0)) {
 		ehci_err(ehci, "fatal error\n");
+		ehci->rh_state = EHCI_RH_STOPPING;
 		dbg_cmd(ehci, "fatal", cmd);
 		dbg_status(ehci, "fatal", status);
 		ehci_halt(ehci);
@@ -1026,7 +1025,7 @@ static int ehci_urb_enqueue (
 static void unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
 	/* failfast */
-	if (ehci->rh_state != EHCI_RH_RUNNING && ehci->async_unlink)
+	if (ehci->rh_state < EHCI_RH_RUNNING && ehci->async_unlink)
 		end_unlink_async(ehci);
 
 	/* If the QH isn't linked then there's nothing we can do
@@ -1148,7 +1147,7 @@ rescan:
 		goto idle_timeout;
 	}
 
-	if (ehci->rh_state != EHCI_RH_RUNNING)
+	if (ehci->rh_state < EHCI_RH_RUNNING)
 		qh->qh_state = QH_STATE_IDLE;
 	switch (qh->qh_state) {
 	case QH_STATE_LINKED:

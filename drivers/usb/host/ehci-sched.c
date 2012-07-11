@@ -2299,7 +2299,7 @@ scan_periodic (struct ehci_hcd *ehci)
 	 * Touches as few pages as possible:  cache-friendly.
 	 */
 	now_uframe = ehci->next_uframe;
-	if (ehci->rh_state == EHCI_RH_RUNNING) {
+	if (ehci->rh_state >= EHCI_RH_RUNNING) {
 		clock = ehci_read_frame_index(ehci);
 		clock_frame = (clock >> 3) & (ehci->periodic_size - 1);
 	} else  {
@@ -2334,7 +2334,7 @@ restart:
 			union ehci_shadow	temp;
 			int			live;
 
-			live = (ehci->rh_state == EHCI_RH_RUNNING);
+			live = (ehci->rh_state >= EHCI_RH_RUNNING);
 			switch (hc32_to_cpu(ehci, type)) {
 			case Q_TYPE_QH:
 				/* handle any completions */
@@ -2459,7 +2459,7 @@ restart:
 		 * We can't advance our scan without collecting the ISO
 		 * transfers that are still pending in this frame.
 		 */
-		if (incomplete && ehci->rh_state == EHCI_RH_RUNNING) {
+		if (incomplete && ehci->rh_state >= EHCI_RH_RUNNING) {
 			ehci->next_uframe = now_uframe;
 			break;
 		}
@@ -2475,7 +2475,7 @@ restart:
 		if (now_uframe == clock) {
 			unsigned	now;
 
-			if (ehci->rh_state != EHCI_RH_RUNNING
+			if (ehci->rh_state < EHCI_RH_RUNNING
 					|| ehci->periodic_sched == 0)
 				break;
 			ehci->next_uframe = now_uframe;

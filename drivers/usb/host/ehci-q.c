@@ -433,7 +433,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 		/* stop scanning when we reach qtds the hc is using */
 		} else if (likely (!stopped
-				&& ehci->rh_state == EHCI_RH_RUNNING)) {
+				&& ehci->rh_state >= EHCI_RH_RUNNING)) {
 			break;
 
 		/* scan the whole queue for unlinks whenever it stops */
@@ -441,7 +441,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 			stopped = 1;
 
 			/* cancel everything if we halt, suspend, etc */
-			if (ehci->rh_state != EHCI_RH_RUNNING)
+			if (ehci->rh_state < EHCI_RH_RUNNING)
 				last_status = -ESHUTDOWN;
 
 			/* this qtd is active; skip it unless a previous qtd
@@ -1241,7 +1241,7 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	wmb ();
 
 	/* If the controller isn't running, we don't have to wait for it */
-	if (unlikely(ehci->rh_state != EHCI_RH_RUNNING)) {
+	if (unlikely(ehci->rh_state < EHCI_RH_RUNNING)) {
 		/* if (unlikely (qh->unlink_next != 0))
 		 *	this will recurse, probably not much
 		 */
@@ -1263,7 +1263,7 @@ static void scan_async (struct ehci_hcd *ehci)
 	enum ehci_timer_action	action = TIMER_IO_WATCHDOG;
 
 	timer_action_done (ehci, TIMER_ASYNC_SHRINK);
-	stopped = (ehci->rh_state != EHCI_RH_RUNNING);
+	stopped = (ehci->rh_state < EHCI_RH_RUNNING);
 
 	ehci->qh_scan_next = ehci->async->qh_next.qh;
 	while (ehci->qh_scan_next) {

@@ -62,10 +62,15 @@ struct ehci_stats {
 
 #define	EHCI_MAX_ROOT_PORTS	15		/* see HCS_N_PORTS */
 
+/*
+ * ehci_rh_state values of EHCI_RH_RUNNING or above mean that the
+ * controller may be doing DMA.  Lower values mean there's no DMA.
+ */
 enum ehci_rh_state {
 	EHCI_RH_HALTED,
 	EHCI_RH_SUSPENDED,
-	EHCI_RH_RUNNING
+	EHCI_RH_RUNNING,
+	EHCI_RH_STOPPING
 };
 
 struct ehci_hcd {			/* one per controller */
