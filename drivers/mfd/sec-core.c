@@ -21,9 +21,9 @@
 #include <linux/pm_runtime.h>
 #include <linux/mutex.h>
 #include <linux/mfd/core.h>
-#include <linux/mfd/s5m87xx/s5m-core.h>
-#include <linux/mfd/s5m87xx/s5m-pmic.h>
-#include <linux/mfd/s5m87xx/s5m-rtc.h>
+#include <linux/mfd/samsung/s5m-core.h>
+#include <linux/mfd/samsung/s5m-pmic.h>
+#include <linux/mfd/samsung/s5m-rtc.h>
 #include <linux/regmap.h>
 
 static struct mfd_cell s5m8751_devs[] = {

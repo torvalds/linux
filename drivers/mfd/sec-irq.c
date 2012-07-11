@@ -14,7 +14,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/mfd/s5m87xx/s5m-core.h>
+#include <linux/mfd/samsung/s5m-core.h>
 
 struct s5m_irq_data {
 	int reg;
@@ -333,7 +333,7 @@ static irqreturn_t s5m8763_irq_thread(int irq, void *data)
 
 int s5m_irq_resume(struct s5m87xx_dev *s5m87xx)
 {
-	if (s5m87xx->irq && s5m87xx->irq_base){
+	if (s5m87xx->irq && s5m87xx->irq_base) {
 		switch (s5m87xx->device_type) {
 		case S5M8763X:
 			s5m8763_irq_thread(s5m87xx->irq_base, s5m87xx);

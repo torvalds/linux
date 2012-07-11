@@ -340,7 +340,7 @@ struct s5m_platform_data {
 	int				num_regulators;
 
 	int				irq_base;
-	int 				(*cfg_pmic_irq)(void);
+	int				(*cfg_pmic_irq)(void);
 
 	int				ono;
 	bool				wakeup;

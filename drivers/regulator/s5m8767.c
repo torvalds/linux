@@ -19,8 +19,8 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
-#include <linux/mfd/s5m87xx/s5m-core.h>
-#include <linux/mfd/s5m87xx/s5m-pmic.h>
+#include <linux/mfd/samsung/s5m-core.h>
+#include <linux/mfd/samsung/s5m-pmic.h>
 
 struct s5m8767_info {
 	struct device *dev;
