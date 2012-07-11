@@ -293,6 +293,12 @@ enum rx_filter_action {
 	FILTER_FW_HANDLE = 2
 };
 
+enum plt_mode {
+	PLT_OFF = 0,
+	PLT_ON = 1,
+	PLT_FEM_DETECT = 2,
+};
+
 struct wl12xx_rx_filter_field {
 	__le16 offset;
 	u8 len;
@@ -459,7 +465,7 @@ struct ieee80211_vif *wl12xx_wlvif_to_vif(struct wl12xx_vif *wlvif)
 #define wl12xx_for_each_wlvif_ap(wl, wlvif)	\
 		wl12xx_for_each_wlvif_bss_type(wl, wlvif, BSS_TYPE_AP_BSS)
 
-int wl1271_plt_start(struct wl1271 *wl);
+int wl1271_plt_start(struct wl1271 *wl, const enum plt_mode plt_mode);
 int wl1271_plt_stop(struct wl1271 *wl);
 int wl1271_recalc_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 void wl12xx_queue_recovery_work(struct wl1271 *wl);

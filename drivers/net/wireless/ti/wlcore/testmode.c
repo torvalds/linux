@@ -258,11 +258,12 @@ static int wl1271_tm_cmd_set_plt_mode(struct wl1271 *wl, struct nlattr *tb[])
 	val = nla_get_u32(tb[WL1271_TM_ATTR_PLT_MODE]);
 
 	switch (val) {
-	case 0:
+	case PLT_OFF:
 		ret = wl1271_plt_stop(wl);
 		break;
-	case 1:
-		ret = wl1271_plt_start(wl);
+	case PLT_ON:
+	case PLT_FEM_DETECT:
+		ret = wl1271_plt_start(wl, val);
 		break;
 	default:
 		ret = -EINVAL;

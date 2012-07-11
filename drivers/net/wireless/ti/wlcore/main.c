@@ -1064,10 +1064,17 @@ out:
 	return ret;
 }
 
-int wl1271_plt_start(struct wl1271 *wl)
+int wl1271_plt_start(struct wl1271 *wl, const enum plt_mode plt_mode)
 {
 	int retries = WL1271_BOOT_RETRIES;
 	struct wiphy *wiphy = wl->hw->wiphy;
+
+	static const char* const PLT_MODE[] = {
+		"PLT_OFF",
+		"PLT_ON",
+		"PLT_FEM_DETECT"
+	};
+
 	int ret;
 
 	mutex_lock(&wl->mutex);
@@ -1081,6 +1088,10 @@ int wl1271_plt_start(struct wl1271 *wl)
 		goto out;
 	}
 
+	/* Indicate to lower levels that we are now in PLT mode */
+	wl->plt = true;
+	wl->plt_mode = plt_mode;
+
 	while (retries) {
 		retries--;
 		ret = wl12xx_chip_wakeup(wl, true);
@@ -1091,9 +1102,9 @@ int wl1271_plt_start(struct wl1271 *wl)
 		if (ret < 0)
 			goto power_off;
 
-		wl->plt = true;
 		wl->state = WL1271_STATE_ON;
-		wl1271_notice("firmware booted in PLT mode (%s)",
+		wl1271_notice("firmware booted in PLT mode %s (%s)",
+			      PLT_MODE[plt_mode],
 			      wl->chip.fw_ver_str);
 
 		/* update hw/fw version info in wiphy struct */
@@ -1106,6 +1117,9 @@ int wl1271_plt_start(struct wl1271 *wl)
 power_off:
 		wl1271_power_off(wl);
 	}
+
+	wl->plt = false;
+	wl->plt_mode = PLT_OFF;
 
 	wl1271_error("firmware boot in PLT mode failed despite %d retries",
 		     WL1271_BOOT_RETRIES);
@@ -1159,6 +1173,7 @@ int wl1271_plt_stop(struct wl1271 *wl)
 	wl->sleep_auth = WL1271_PSM_ILLEGAL;
 	wl->state = WL1271_STATE_OFF;
 	wl->plt = false;
+	wl->plt_mode = PLT_OFF;
 	wl->rx_counter = 0;
 	mutex_unlock(&wl->mutex);
 
