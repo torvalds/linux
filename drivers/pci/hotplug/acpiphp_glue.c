@@ -396,8 +396,6 @@ static void add_host_bridge(acpi_handle *handle)
 
 	bridge->pci_bus = root->bus;
 
-	spin_lock_init(&bridge->res_lock);
-
 	init_bridge_misc(bridge);
 }
 
@@ -430,7 +428,6 @@ static void add_p2p_bridge(acpi_handle *handle)
 	 * (which we access during module unload).
 	 */
 	get_device(&bridge->pci_bus->dev);
-	spin_lock_init(&bridge->res_lock);
 
 	init_bridge_misc(bridge);
 	return;
