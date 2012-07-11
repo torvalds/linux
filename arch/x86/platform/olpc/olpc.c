@@ -125,7 +125,7 @@ static int __wait_on_obf(unsigned int line, unsigned int port, int desired)
  * <http://wiki.laptop.org/go/Ec_specification>.  Unfortunately, while
  * OpenFirmware's source is available, the EC's is not.
  */
-int olpc_ec_cmd(unsigned char cmd, unsigned char *inbuf, size_t inlen,
+int olpc_ec_cmd_x86(unsigned char cmd, unsigned char *inbuf, size_t inlen,
 		unsigned char *outbuf,  size_t outlen)
 {
 	unsigned long flags;
@@ -201,7 +201,7 @@ err:
 	spin_unlock_irqrestore(&ec_lock, flags);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(olpc_ec_cmd);
+EXPORT_SYMBOL_GPL(olpc_ec_cmd_x86);
 
 void olpc_ec_wakeup_set(u16 value)
 {
