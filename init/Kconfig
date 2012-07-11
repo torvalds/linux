@@ -451,6 +451,14 @@ config RCU_USER_QS
 	  excluded from the global RCU state machine and thus doesn't
 	  to keep the timer tick on for RCU.
 
+config RCU_USER_QS_FORCE
+	bool "Force userspace extended QS by default"
+	depends on RCU_USER_QS
+	help
+	  Set the hooks in user/kernel boundaries by default in order to
+	  test this feature that treats userspace as an extended quiescent
+	  state until we have a real user like a full adaptive nohz option.
+
 config RCU_FANOUT
 	int "Tree-based hierarchical RCU fanout value"
 	range 2 64 if 64BIT
