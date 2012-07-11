@@ -940,8 +940,10 @@ void tipc_nametbl_stop(void)
 	/* Verify name table is empty, then release it */
 	write_lock_bh(&tipc_nametbl_lock);
 	for (i = 0; i < tipc_nametbl_size; i++) {
-		if (!hlist_empty(&table.types[i]))
-			err("tipc_nametbl_stop(): hash chain %u is non-null\n", i);
+		if (hlist_empty(&table.types[i]))
+			continue;
+		err("tipc_nametbl_stop(): orphaned hash chain detected\n");
+		break;
 	}
 	kfree(table.types);
 	table.types = NULL;
