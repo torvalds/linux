@@ -70,7 +70,6 @@ static struct crypto_alg alg = {
 	.cra_ctxsize		=	sizeof(struct twofish_ctx),
 	.cra_alignmask		=	0,
 	.cra_module		=	THIS_MODULE,
-	.cra_list		=	LIST_HEAD_INIT(alg.cra_list),
 	.cra_u			=	{
 		.cipher = {
 			.cia_min_keysize	=	TF_MIN_KEY_SIZE,

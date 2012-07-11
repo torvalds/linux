@@ -1118,7 +1118,7 @@ MODULE_DEVICE_TABLE(x86cpu, aesni_cpu_id);
 
 static int __init aesni_init(void)
 {
-	int err, i;
+	int err;
 
 	if (!x86_match_cpu(aesni_cpu_id))
 		return -ENODEV;
@@ -1126,9 +1126,6 @@ static int __init aesni_init(void)
 	err = crypto_fpu_init();
 	if (err)
 		return err;
-
-	for (i = 0; i < ARRAY_SIZE(aesni_algs); i++)
-		INIT_LIST_HEAD(&aesni_algs[i].cra_list);
 
 	return crypto_register_algs(aesni_algs, ARRAY_SIZE(aesni_algs));
 }

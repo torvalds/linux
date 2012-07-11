@@ -97,7 +97,6 @@ static struct crypto_alg alg = {
 	.cra_ctxsize        =   sizeof(struct salsa20_ctx),
 	.cra_alignmask      =	3,
 	.cra_module         =   THIS_MODULE,
-	.cra_list           =   LIST_HEAD_INIT(alg.cra_list),
 	.cra_u              =   {
 		.blkcipher = {
 			.setkey         =   setkey,
