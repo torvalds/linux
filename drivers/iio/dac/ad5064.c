@@ -572,7 +572,7 @@ static int __init ad5064_spi_register_driver(void)
 	return spi_register_driver(&ad5064_spi_driver);
 }
 
-static void __exit ad5064_spi_unregister_driver(void)
+static void ad5064_spi_unregister_driver(void)
 {
 	spi_unregister_driver(&ad5064_spi_driver);
 }
