@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set next descriptor for DMA 1 */
-#define RtdDma1Next(dev, a) \
-	writel((a), devpriv->lcfg+LCFG_DMADPR1)
-
 /* Set control for DMA 0 (write only, shadow?) */
 #define RtdDma0Control(dev, n) \
 	writeb(devpriv->dma0Control = (n), devpriv->lcfg+LCFG_DMACSR0)
