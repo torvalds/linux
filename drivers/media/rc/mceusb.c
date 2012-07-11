@@ -199,6 +199,7 @@ static bool debug;
 #define VENDOR_REALTEK		0x0bda
 #define VENDOR_TIVO		0x105a
 #define VENDOR_CONEXANT		0x0572
+#define VENDOR_TWISTEDMELON	0x2596
 
 enum mceusb_model_type {
 	MCE_GEN2 = 0,		/* Most boards */
@@ -391,6 +392,12 @@ static struct usb_device_id mceusb_dev_table[] = {
 	/* Conexant Hybrid TV RDU253S Polaris */
 	{ USB_DEVICE(VENDOR_CONEXANT, 0x58a5),
 	  .driver_info = CX_HYBRID_TV },
+	/* Twisted Melon Inc. - Manta Mini Receiver */
+	{ USB_DEVICE(VENDOR_TWISTEDMELON, 0x8008) },
+	/* Twisted Melon Inc. - Manta Pico Receiver */
+	{ USB_DEVICE(VENDOR_TWISTEDMELON, 0x8016) },
+	/* Twisted Melon Inc. - Manta Transceiver */
+	{ USB_DEVICE(VENDOR_TWISTEDMELON, 0x8042) },
 	/* Terminating entry */
 	{ }
 };
