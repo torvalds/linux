@@ -538,12 +538,13 @@ static ssize_t fill_async_buffer(struct debug_buffer *buf)
 	spin_lock_irqsave (&ehci->lock, flags);
 	for (qh = ehci->async->qh_next.qh; size > 0 && qh; qh = qh->qh_next.qh)
 		qh_lines (ehci, qh, &next, &size);
-	if (ehci->reclaim && size > 0) {
-		temp = scnprintf (next, size, "\nreclaim =\n");
+	if (ehci->async_unlink && size > 0) {
+		temp = scnprintf(next, size, "\nunlink =\n");
 		size -= temp;
 		next += temp;
 
-		for (qh = ehci->reclaim; size > 0 && qh; qh = qh->reclaim)
+		for (qh = ehci->async_unlink; size > 0 && qh;
+				qh = qh->unlink_next)
 			qh_lines (ehci, qh, &next, &size);
 	}
 	spin_unlock_irqrestore (&ehci->lock, flags);
@@ -841,16 +842,17 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 		}
 	}
 
-	if (ehci->reclaim) {
-		temp = scnprintf(next, size, "reclaim qh %p\n", ehci->reclaim);
+	if (ehci->async_unlink) {
+		temp = scnprintf(next, size, "async unlink qh %p\n",
+				ehci->async_unlink);
 		size -= temp;
 		next += temp;
 	}
 
 #ifdef EHCI_STATS
 	temp = scnprintf (next, size,
-		"irq normal %ld err %ld reclaim %ld (lost %ld)\n",
-		ehci->stats.normal, ehci->stats.error, ehci->stats.reclaim,
+		"irq normal %ld err %ld iaa %ld (lost %ld)\n",
+		ehci->stats.normal, ehci->stats.error, ehci->stats.iaa,
 		ehci->stats.lost_iaa);
 	size -= temp;
 	next += temp;

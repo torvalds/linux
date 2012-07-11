@@ -42,7 +42,7 @@ struct ehci_stats {
 	/* irq usage */
 	unsigned long		normal;
 	unsigned long		error;
-	unsigned long		reclaim;
+	unsigned long		iaa;
 	unsigned long		lost_iaa;
 
 	/* termination of urbs from core */
@@ -51,7 +51,7 @@ struct ehci_stats {
 };
 
 /* ehci_hcd->lock guards shared data against other CPUs:
- *   ehci_hcd:	async, reclaim, periodic (and shadow), ...
+ *   ehci_hcd:	async, unlink, periodic (and shadow), ...
  *   usb_host_endpoint: hcpriv
  *   ehci_qh:	qh_next, qtd_list
  *   ehci_qtd:	qtd_list
@@ -81,7 +81,7 @@ struct ehci_hcd {			/* one per controller */
 	/* async schedule support */
 	struct ehci_qh		*async;
 	struct ehci_qh		*dummy;		/* For AMD quirk use */
-	struct ehci_qh		*reclaim;
+	struct ehci_qh		*async_unlink;
 	struct ehci_qh		*qh_scan_next;
 	unsigned		scanning : 1;
 
@@ -354,7 +354,7 @@ struct ehci_qh {
 	union ehci_shadow	qh_next;	/* ptr to qh; or periodic */
 	struct list_head	qtd_list;	/* sw qtd list */
 	struct ehci_qtd		*dummy;
-	struct ehci_qh		*reclaim;	/* next to reclaim */
+	struct ehci_qh		*unlink_next;	/* next on unlink list */
 
 	unsigned long		unlink_time;
 	unsigned		stamp;
@@ -364,7 +364,7 @@ struct ehci_qh {
 #define	QH_STATE_LINKED		1		/* HC sees this */
 #define	QH_STATE_UNLINK		2		/* HC may still see this */
 #define	QH_STATE_IDLE		3		/* HC doesn't see this */
-#define	QH_STATE_UNLINK_WAIT	4		/* LINKED and on reclaim q */
+#define	QH_STATE_UNLINK_WAIT	4		/* LINKED and on unlink q */
 #define	QH_STATE_COMPLETING	5		/* don't touch token.HALT */
 
 	u8			xacterrs;	/* XactErr retry counter */

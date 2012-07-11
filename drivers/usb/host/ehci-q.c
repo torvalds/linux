@@ -1153,11 +1153,11 @@ submit_async (
 
 /*-------------------------------------------------------------------------*/
 
-/* the async qh for the qtds being reclaimed are now unlinked from the HC */
+/* the async qh for the qtds being unlinked are now gone from the HC */
 
 static void end_unlink_async (struct ehci_hcd *ehci)
 {
-	struct ehci_qh		*qh = ehci->reclaim;
+	struct ehci_qh		*qh = ehci->async_unlink;
 	struct ehci_qh		*next;
 
 	iaa_watchdog_done(ehci);
@@ -1167,9 +1167,9 @@ static void end_unlink_async (struct ehci_hcd *ehci)
 	qh->qh_next.qh = NULL;
 
 	/* other unlink(s) may be pending (in QH_STATE_UNLINK_WAIT) */
-	next = qh->reclaim;
-	ehci->reclaim = next;
-	qh->reclaim = NULL;
+	next = qh->unlink_next;
+	ehci->async_unlink = next;
+	qh->unlink_next = NULL;
 
 	qh_completions (ehci, qh);
 
@@ -1185,7 +1185,7 @@ static void end_unlink_async (struct ehci_hcd *ehci)
 	}
 
 	if (next) {
-		ehci->reclaim = NULL;
+		ehci->async_unlink = NULL;
 		start_unlink_async (ehci, next);
 	}
 
@@ -1203,7 +1203,7 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 #ifdef DEBUG
 	assert_spin_locked(&ehci->lock);
-	if (ehci->reclaim
+	if (ehci->async_unlink
 			|| (qh->qh_state != QH_STATE_LINKED
 				&& qh->qh_state != QH_STATE_UNLINK_WAIT)
 			)
@@ -1214,7 +1214,7 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	if (unlikely (qh == ehci->async)) {
 		/* can't get here without STS_ASS set */
 		if (ehci->rh_state != EHCI_RH_HALTED
-				&& !ehci->reclaim) {
+				&& !ehci->async_unlink) {
 			/* ... and CMD_IAAD clear */
 			ehci->command &= ~CMD_ASE;
 			ehci_writel(ehci, ehci->command, &ehci->regs->command);
@@ -1226,7 +1226,7 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	}
 
 	qh->qh_state = QH_STATE_UNLINK;
-	ehci->reclaim = qh;
+	ehci->async_unlink = qh;
 
 	prev = ehci->async;
 	while (prev->qh_next.qh != qh)
@@ -1240,7 +1240,7 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	/* If the controller isn't running, we don't have to wait for it */
 	if (unlikely(ehci->rh_state != EHCI_RH_RUNNING)) {
-		/* if (unlikely (qh->reclaim != 0))
+		/* if (unlikely (qh->unlink_next != 0))
 		 *	this will recurse, probably not much
 		 */
 		end_unlink_async (ehci);
@@ -1295,7 +1295,7 @@ static void scan_async (struct ehci_hcd *ehci)
 		 */
 		if (list_empty(&qh->qtd_list)
 				&& qh->qh_state == QH_STATE_LINKED) {
-			if (!ehci->reclaim && (stopped ||
+			if (!ehci->async_unlink && (stopped ||
 					time_after_eq(jiffies, qh->unlink_time)))
 				start_unlink_async(ehci, qh);
 			else

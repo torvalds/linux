@@ -301,7 +301,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	ehci_halt (ehci);
 	ehci->rh_state = EHCI_RH_SUSPENDED;
 
-	if (ehci->reclaim)
+	if (ehci->async_unlink)
 		end_unlink_async(ehci);
 
 	/* allow remote wakeup */
