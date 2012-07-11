@@ -88,6 +88,7 @@ enum ehci_hrtimer_event {
 	EHCI_HRTIMER_IAA_WATCHDOG,	/* Handle lost IAA interrupts */
 	EHCI_HRTIMER_DISABLE_PERIODIC,	/* Wait to disable periodic sched */
 	EHCI_HRTIMER_DISABLE_ASYNC,	/* Wait to disable async sched */
+	EHCI_HRTIMER_IO_WATCHDOG,	/* Check for missing IRQs */
 	EHCI_HRTIMER_NUM_EVENTS		/* Must come last */
 };
 #define EHCI_HRTIMER_NO_EVENT	99
@@ -177,8 +178,6 @@ struct ehci_hcd {			/* one per controller */
 	struct dma_pool		*itd_pool;	/* itd per iso urb */
 	struct dma_pool		*sitd_pool;	/* sitd per split iso urb */
 
-	struct timer_list	watchdog;
-	unsigned long		actions;
 	unsigned		random_frame;
 	unsigned long		next_statechange;
 	ktime_t			last_periodic_enable;
@@ -233,16 +232,6 @@ static inline struct ehci_hcd *hcd_to_ehci (struct usb_hcd *hcd)
 static inline struct usb_hcd *ehci_to_hcd (struct ehci_hcd *ehci)
 {
 	return container_of ((void *) ehci, struct usb_hcd, hcd_priv);
-}
-
-enum ehci_timer_action {
-	TIMER_IO_WATCHDOG,
-};
-
-static inline void
-timer_action_done (struct ehci_hcd *ehci, enum ehci_timer_action action)
-{
-	clear_bit (action, &ehci->actions);
 }
 
 /*-------------------------------------------------------------------------*/

@@ -93,8 +93,6 @@ static const char	hcd_name [] = "ehci_hcd";
  */
 #define	EHCI_TUNE_FLS		1	/* (medium) 512-frame schedule */
 
-#define EHCI_IO_JIFFIES		(HZ/10)		/* io watchdog > irq_thresh */
-
 /* Initial IRQ latency:  faster than hw default */
 static int log2_irq_thresh = 0;		// 0 to 6
 module_param (log2_irq_thresh, int, S_IRUGO);
@@ -122,25 +120,6 @@ MODULE_PARM_DESC(hird, "host initiated resume duration, +1 for each 75us");
 #include "ehci.h"
 #include "ehci-dbg.c"
 #include "pci-quirks.h"
-
-/*-------------------------------------------------------------------------*/
-
-static void
-timer_action(struct ehci_hcd *ehci, enum ehci_timer_action action)
-{
-	if (!test_and_set_bit(action, &ehci->actions)) {
-		unsigned long t;
-
-		switch (action) {
-		case TIMER_IO_WATCHDOG:
-			if (!ehci->need_io_watchdog)
-				return;
-			t = EHCI_IO_JIFFIES;
-			break;
-		}
-		mod_timer(&ehci->watchdog, t + jiffies);
-	}
-}
 
 /*-------------------------------------------------------------------------*/
 
@@ -307,19 +286,6 @@ static void end_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh);
 
 /*-------------------------------------------------------------------------*/
 
-static void ehci_watchdog(unsigned long param)
-{
-	struct ehci_hcd		*ehci = (struct ehci_hcd *) param;
-	unsigned long		flags;
-
-	spin_lock_irqsave(&ehci->lock, flags);
-
-	/* ehci could run by timer, without IRQs ... */
-	ehci_work (ehci);
-
-	spin_unlock_irqrestore (&ehci->lock, flags);
-}
-
 /* On some systems, leaving remote wakeup enabled prevents system shutdown.
  * The firmware seems to think that powering off is a wakeup event!
  * This routine turns off remote wakeup and everything else, on all ports.
@@ -357,8 +323,6 @@ static void ehci_shutdown(struct usb_hcd *hcd)
 {
 	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
 
-	del_timer_sync(&ehci->watchdog);
-
 	spin_lock_irq(&ehci->lock);
 	ehci->rh_state = EHCI_RH_STOPPING;
 	ehci_silence_controller(ehci);
@@ -394,8 +358,6 @@ static void ehci_port_power (struct ehci_hcd *ehci, int is_on)
  */
 static void ehci_work (struct ehci_hcd *ehci)
 {
-	timer_action_done (ehci, TIMER_IO_WATCHDOG);
-
 	/* another CPU may drop ehci->lock during a schedule scan while
 	 * it reports urb completions.  this flag guards against bogus
 	 * attempts at re-entrant schedule scanning.
@@ -422,10 +384,7 @@ static void ehci_work (struct ehci_hcd *ehci)
 	 * misplace IRQs, and should let us run completely without IRQs.
 	 * such lossage has been observed on both VT6202 and VT8235.
 	 */
-	if (ehci->rh_state == EHCI_RH_RUNNING &&
-			(ehci->async->qh_next.ptr != NULL ||
-			 ehci->periodic_count != 0))
-		timer_action (ehci, TIMER_IO_WATCHDOG);
+	turn_on_io_watchdog(ehci);
 }
 
 /*
@@ -438,7 +397,6 @@ static void ehci_stop (struct usb_hcd *hcd)
 	ehci_dbg (ehci, "stop\n");
 
 	/* no more interrupts ... */
-	del_timer_sync (&ehci->watchdog);
 
 	spin_lock_irq(&ehci->lock);
 	ehci->enabled_hrtimer_events = 0;
@@ -490,9 +448,6 @@ static int ehci_init(struct usb_hcd *hcd)
 	 * keep io watchdog by default, those good HCDs could turn off it later
 	 */
 	ehci->need_io_watchdog = 1;
-	init_timer(&ehci->watchdog);
-	ehci->watchdog.function = ehci_watchdog;
-	ehci->watchdog.data = (unsigned long) ehci;
 
 	hrtimer_init(&ehci->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	ehci->hrtimer.function = ehci_hrtimer_func;

@@ -76,6 +76,7 @@ static unsigned event_delays_ns[] = {
 	10 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_IAA_WATCHDOG */
 	10 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_DISABLE_PERIODIC */
 	15 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_DISABLE_ASYNC */
+	100 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_IO_WATCHDOG */
 };
 
 /* Enable a pending hrtimer event */
@@ -332,6 +333,25 @@ static void ehci_iaa_watchdog(struct ehci_hcd *ehci)
 }
 
 
+/* Enable the I/O watchdog, if appropriate */
+static void turn_on_io_watchdog(struct ehci_hcd *ehci)
+{
+	/* Not needed if the controller isn't running or it's already enabled */
+	if (ehci->rh_state != EHCI_RH_RUNNING ||
+			(ehci->enabled_hrtimer_events &
+				BIT(EHCI_HRTIMER_IO_WATCHDOG)))
+		return;
+
+	/*
+	 * Isochronous transfers always need the watchdog.
+	 * For other sorts we use it only if the flag is set.
+	 */
+	if (ehci->isoc_count > 0 || (ehci->need_io_watchdog &&
+			ehci->async_count + ehci->intr_count > 0))
+		ehci_enable_event(ehci, EHCI_HRTIMER_IO_WATCHDOG, true);
+}
+
+
 /*
  * Handler functions for the hrtimer event types.
  * Keep this array in the same order as the event types indexed by
@@ -347,6 +367,7 @@ static void (*event_handlers[])(struct ehci_hcd *) = {
 	ehci_iaa_watchdog,		/* EHCI_HRTIMER_IAA_WATCHDOG */
 	ehci_disable_PSE,		/* EHCI_HRTIMER_DISABLE_PERIODIC */
 	ehci_disable_ASE,		/* EHCI_HRTIMER_DISABLE_ASYNC */
+	ehci_work,			/* EHCI_HRTIMER_IO_WATCHDOG */
 };
 
 static enum hrtimer_restart ehci_hrtimer_func(struct hrtimer *t)

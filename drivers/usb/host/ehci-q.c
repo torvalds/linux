@@ -970,6 +970,7 @@ static void enable_async(struct ehci_hcd *ehci)
 
 	/* Don't start the schedule until ASS is 0 */
 	ehci_poll_ASS(ehci);
+	turn_on_io_watchdog(ehci);
 }
 
 static void disable_async(struct ehci_hcd *ehci)

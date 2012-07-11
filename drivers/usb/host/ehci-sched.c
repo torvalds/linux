@@ -489,6 +489,7 @@ static void enable_periodic(struct ehci_hcd *ehci)
 
 	/* Don't start the schedule until PSS is 0 */
 	ehci_poll_PSS(ehci);
+	turn_on_io_watchdog(ehci);
 }
 
 static void disable_periodic(struct ehci_hcd *ehci)
@@ -1649,7 +1650,6 @@ static void itd_link_urb(
 	iso_sched_free (stream, iso_sched);
 	urb->hcpriv = NULL;
 
-	timer_action (ehci, TIMER_IO_WATCHDOG);
 	++ehci->isoc_count;
 	enable_periodic(ehci);
 }
@@ -2052,7 +2052,6 @@ static void sitd_link_urb(
 	iso_sched_free (stream, sched);
 	urb->hcpriv = NULL;
 
-	timer_action (ehci, TIMER_IO_WATCHDOG);
 	++ehci->isoc_count;
 	enable_periodic(ehci);
 }
