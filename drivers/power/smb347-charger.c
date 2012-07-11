@@ -1030,12 +1030,11 @@ static int smb347_usb_set_property(struct power_supply *psy,
 
 	switch (prop) {
 	case POWER_SUPPLY_PROP_USB_HC:
-		if (smb->usb_online) {
-			smb347_set_writable(smb, true);
-			ret = smb347_write(smb, CMD_B, val->intval ?
-					   CMD_B_HC_MODE : CMD_B_USB59_MODE);
-			smb347_set_writable(smb, false);
-		}
+		smb347_set_writable(smb, true);
+		ret = smb347_write(smb, CMD_B, val->intval ?
+				   CMD_B_HC_MODE : CMD_B_USB59_MODE);
+		smb347_set_writable(smb, false);
+		break;
 
 	default:
 		break;
