@@ -211,6 +211,7 @@ static void ehci_handle_controller_death(struct ehci_hcd *ehci)
 	ehci_writel(ehci, 0, &ehci->regs->configured_flag);
 	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
 	ehci_work(ehci);
+	end_unlink_async(ehci);
 
 	/* Not in process context, so don't try to reset the controller */
 }
@@ -304,7 +305,7 @@ static void ehci_iaa_watchdog(struct ehci_hcd *ehci)
 	 * (a) SMP races against real IAA firing and retriggering, and
 	 * (b) clean HC shutdown, when IAA watchdog was pending.
 	 */
-	if (ehci->async_unlink) {
+	if (ehci->async_iaa) {
 		u32 cmd, status;
 
 		/* If we get here, IAA is *REALLY* late.  It's barely

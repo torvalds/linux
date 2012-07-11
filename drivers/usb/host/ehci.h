@@ -114,12 +114,14 @@ struct ehci_hcd {			/* one per controller */
 	/* general schedule support */
 	unsigned		scanning:1;
 	bool			intr_unlinking:1;
+	bool			async_unlinking:1;
 
 	/* async schedule support */
 	struct ehci_qh		*async;
 	struct ehci_qh		*dummy;		/* For AMD quirk use */
 	struct ehci_qh		*async_unlink;
 	struct ehci_qh		*async_unlink_last;
+	struct ehci_qh		*async_iaa;
 	struct ehci_qh		*qh_scan_next;
 	unsigned		async_count;	/* async activity count */
 

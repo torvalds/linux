@@ -299,8 +299,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	ehci_halt (ehci);
 	ehci->rh_state = EHCI_RH_SUSPENDED;
 
-	if (ehci->async_unlink)
-		end_unlink_async(ehci);
+	end_unlink_async(ehci);
 	ehci_handle_intr_unlinks(ehci);
 	end_free_itds(ehci);
 

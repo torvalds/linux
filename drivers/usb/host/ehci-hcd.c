@@ -795,7 +795,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		/* guard against (alleged) silicon errata */
 		if (cmd & CMD_IAAD)
 			ehci_dbg(ehci, "IAA with IAAD still set?\n");
-		if (ehci->async_unlink) {
+		if (ehci->async_iaa) {
 			COUNT(ehci->stats.iaa);
 			end_unlink_async(ehci);
 		} else
@@ -926,33 +926,6 @@ static int ehci_urb_enqueue (
 	}
 }
 
-static void unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
-{
-	/* failfast */
-	if (ehci->rh_state < EHCI_RH_RUNNING && ehci->async_unlink)
-		end_unlink_async(ehci);
-
-	/* If the QH isn't linked then there's nothing we can do
-	 * unless we were called during a giveback, in which case
-	 * qh_completions() has to deal with it.
-	 */
-	if (qh->qh_state != QH_STATE_LINKED) {
-		if (qh->qh_state == QH_STATE_COMPLETING)
-			qh->needs_rescan = 1;
-		return;
-	}
-
-	/* defer till later if busy */
-	if (ehci->async_unlink) {
-		qh->qh_state = QH_STATE_UNLINK_WAIT;
-		ehci->async_unlink_last->unlink_next = qh;
-		ehci->async_unlink_last = qh;
-
-	/* start IAA cycle */
-	} else
-		start_unlink_async (ehci, qh);
-}
-
 /* remove from hardware lists
  * completions normally happen asynchronously
  */
@@ -979,7 +952,7 @@ static int ehci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		switch (qh->qh_state) {
 		case QH_STATE_LINKED:
 		case QH_STATE_COMPLETING:
-			unlink_async(ehci, qh);
+			start_unlink_async(ehci, qh);
 			break;
 		case QH_STATE_UNLINK:
 		case QH_STATE_UNLINK_WAIT:
@@ -1070,7 +1043,7 @@ rescan:
 		 * may already be unlinked.
 		 */
 		if (tmp)
-			unlink_async(ehci, qh);
+			start_unlink_async(ehci, qh);
 		/* FALL THROUGH */
 	case QH_STATE_UNLINK:		/* wait for hw to finish? */
 	case QH_STATE_UNLINK_WAIT:
@@ -1133,7 +1106,7 @@ ehci_endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 			 * re-linking will call qh_refresh().
 			 */
 			if (eptype == USB_ENDPOINT_XFER_BULK)
-				unlink_async(ehci, qh);
+				start_unlink_async(ehci, qh);
 			else
 				start_unlink_intr(ehci, qh);
 		}

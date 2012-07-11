@@ -293,9 +293,6 @@ __acquires(ehci->lock)
 	spin_lock (&ehci->lock);
 }
 
-static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh);
-static void unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh);
-
 static int qh_schedule (struct ehci_hcd *ehci, struct ehci_qh *qh);
 
 /*
@@ -1166,60 +1163,19 @@ submit_async (
 
 /*-------------------------------------------------------------------------*/
 
-/* the async qh for the qtds being unlinked are now gone from the HC */
-
-static void end_unlink_async (struct ehci_hcd *ehci)
+static void single_unlink_async(struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
-	struct ehci_qh		*qh = ehci->async_unlink;
-	struct ehci_qh		*next;
+	struct ehci_qh		*prev;
 
-	// qh->hw_next = cpu_to_hc32(qh->qh_dma);
-	qh->qh_state = QH_STATE_IDLE;
-	qh->qh_next.qh = NULL;
-
-	/* other unlink(s) may be pending (in QH_STATE_UNLINK_WAIT) */
-	next = qh->unlink_next;
-	ehci->async_unlink = next;
-	qh->unlink_next = NULL;
-
-	qh_completions (ehci, qh);
-
-	if (!list_empty(&qh->qtd_list) && ehci->rh_state == EHCI_RH_RUNNING)
-		qh_link_async (ehci, qh);
-
-	disable_async(ehci);
-
-	if (next) {
-		ehci->async_unlink = NULL;
-		start_unlink_async (ehci, next);
-	}
-
-	if (ehci->has_synopsys_hc_bug)
-		ehci_writel(ehci, (u32) ehci->async->qh_dma,
-			    &ehci->regs->async_next);
-}
-
-/* makes sure the async qh will become idle */
-/* caller must own ehci->lock */
-
-static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
-{
-	struct ehci_qh	*prev;
-
-#ifdef DEBUG
-	assert_spin_locked(&ehci->lock);
-	if (ehci->async_unlink
-			|| (qh->qh_state != QH_STATE_LINKED
-				&& qh->qh_state != QH_STATE_UNLINK_WAIT)
-			)
-		BUG ();
-#endif
-
+	/* Add to the end of the list of QHs waiting for the next IAAD */
 	qh->qh_state = QH_STATE_UNLINK;
-	ehci->async_unlink = qh;
-	if (!qh->unlink_next)
-		ehci->async_unlink_last = qh;
+	if (ehci->async_unlink)
+		ehci->async_unlink_last->unlink_next = qh;
+	else
+		ehci->async_unlink = qh;
+	ehci->async_unlink_last = qh;
 
+	/* Unlink it from the schedule */
 	prev = ehci->async;
 	while (prev->qh_next.qh != qh)
 		prev = prev->qh_next.qh;
@@ -1228,20 +1184,93 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	prev->qh_next = qh->qh_next;
 	if (ehci->qh_scan_next == qh)
 		ehci->qh_scan_next = qh->qh_next.qh;
-	wmb ();
+}
+
+static void start_iaa_cycle(struct ehci_hcd *ehci, bool nested)
+{
+	/*
+	 * Do nothing if an IAA cycle is already running or
+	 * if one will be started shortly.
+	 */
+	if (ehci->async_iaa || ehci->async_unlinking)
+		return;
+
+	/* Do all the waiting QHs at once */
+	ehci->async_iaa = ehci->async_unlink;
+	ehci->async_unlink = NULL;
 
 	/* If the controller isn't running, we don't have to wait for it */
 	if (unlikely(ehci->rh_state < EHCI_RH_RUNNING)) {
-		/* if (unlikely (qh->unlink_next != 0))
-		 *	this will recurse, probably not much
-		 */
-		end_unlink_async (ehci);
+		if (!nested)		/* Avoid recursion */
+			end_unlink_async(ehci);
+
+	/* Otherwise start a new IAA cycle */
+	} else {
+		/* Make sure the unlinks are all visible to the hardware */
+		wmb();
+
+		ehci_writel(ehci, ehci->command | CMD_IAAD,
+				&ehci->regs->command);
+		ehci_readl(ehci, &ehci->regs->command);
+		ehci_enable_event(ehci, EHCI_HRTIMER_IAA_WATCHDOG, true);
+	}
+}
+
+/* the async qh for the qtds being unlinked are now gone from the HC */
+
+static void end_unlink_async(struct ehci_hcd *ehci)
+{
+	struct ehci_qh		*qh;
+
+	if (ehci->has_synopsys_hc_bug)
+		ehci_writel(ehci, (u32) ehci->async->qh_dma,
+			    &ehci->regs->async_next);
+
+	/* Process the idle QHs */
+ restart:
+	ehci->async_unlinking = true;
+	while (ehci->async_iaa) {
+		qh = ehci->async_iaa;
+		ehci->async_iaa = qh->unlink_next;
+		qh->unlink_next = NULL;
+
+		qh->qh_state = QH_STATE_IDLE;
+		qh->qh_next.qh = NULL;
+
+		qh_completions(ehci, qh);
+		if (!list_empty(&qh->qtd_list) &&
+				ehci->rh_state == EHCI_RH_RUNNING)
+			qh_link_async(ehci, qh);
+		disable_async(ehci);
+	}
+	ehci->async_unlinking = false;
+
+	/* Start a new IAA cycle if any QHs are waiting for it */
+	if (ehci->async_unlink) {
+		start_iaa_cycle(ehci, true);
+		if (unlikely(ehci->rh_state < EHCI_RH_RUNNING))
+			goto restart;
+	}
+}
+
+/* makes sure the async qh will become idle */
+/* caller must own ehci->lock */
+
+static void start_unlink_async(struct ehci_hcd *ehci, struct ehci_qh *qh)
+{
+	/*
+	 * If the QH isn't linked then there's nothing we can do
+	 * unless we were called during a giveback, in which case
+	 * qh_completions() has to deal with it.
+	 */
+	if (qh->qh_state != QH_STATE_LINKED) {
+		if (qh->qh_state == QH_STATE_COMPLETING)
+			qh->needs_rescan = 1;
 		return;
 	}
 
-	ehci_writel(ehci, ehci->command | CMD_IAAD, &ehci->regs->command);
-	(void)ehci_readl(ehci, &ehci->regs->command);
-	ehci_enable_event(ehci, EHCI_HRTIMER_IAA_WATCHDOG, true);
+	single_unlink_async(ehci, qh);
+	start_iaa_cycle(ehci, false);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1269,11 +1298,11 @@ static void scan_async (struct ehci_hcd *ehci)
 			 * drops the lock.  That's why ehci->qh_scan_next
 			 * always holds the next qh to scan; if the next qh
 			 * gets unlinked then ehci->qh_scan_next is adjusted
-			 * in start_unlink_async().
+			 * in single_unlink_async().
 			 */
 			temp = qh_completions(ehci, qh);
 			if (qh->needs_rescan)
-				unlink_async(ehci, qh);
+				start_unlink_async(ehci, qh);
 			qh->unlink_time = jiffies + EHCI_SHRINK_JIFFIES;
 			if (temp != 0)
 				goto rescan;
