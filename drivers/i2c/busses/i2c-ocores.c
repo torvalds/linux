@@ -367,9 +367,9 @@ static int __devexit ocores_i2c_remove(struct platform_device* pdev)
 }
 
 #ifdef CONFIG_PM
-static int ocores_i2c_suspend(struct platform_device *pdev, pm_message_t state)
+static int ocores_i2c_suspend(struct device *dev)
 {
-	struct ocores_i2c *i2c = platform_get_drvdata(pdev);
+	struct ocores_i2c *i2c = dev_get_drvdata(dev);
 	u8 ctrl = oc_getreg(i2c, OCI2C_CONTROL);
 
 	/* make sure the device is disabled */
@@ -378,17 +378,19 @@ static int ocores_i2c_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int ocores_i2c_resume(struct platform_device *pdev)
+static int ocores_i2c_resume(struct device *dev)
 {
-	struct ocores_i2c *i2c = platform_get_drvdata(pdev);
+	struct ocores_i2c *i2c = dev_get_drvdata(dev);
 
 	ocores_init(i2c);
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(ocores_i2c_pm, ocores_i2c_suspend, ocores_i2c_resume);
+#define OCORES_I2C_PM	(&ocores_i2c_pm)
 #else
-#define ocores_i2c_suspend	NULL
-#define ocores_i2c_resume	NULL
+#define OCORES_I2C_PM	NULL
 #endif
 
 static struct of_device_id ocores_i2c_match[] = {
@@ -400,12 +402,11 @@ MODULE_DEVICE_TABLE(of, ocores_i2c_match);
 static struct platform_driver ocores_i2c_driver = {
 	.probe   = ocores_i2c_probe,
 	.remove  = __devexit_p(ocores_i2c_remove),
-	.suspend = ocores_i2c_suspend,
-	.resume  = ocores_i2c_resume,
 	.driver  = {
 		.owner = THIS_MODULE,
 		.name = "ocores-i2c",
 		.of_match_table = ocores_i2c_match,
+		.pm = OCORES_I2C_PM,
 	},
 };
 
