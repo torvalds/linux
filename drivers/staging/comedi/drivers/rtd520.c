@@ -406,11 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* User output N source select (write only) */
-#define RtdUsrOutSource(dev, n, v) \
-	writel(v, devpriv->las0+((n <= 0) ? LAS0_UOUT0_SELECT : \
-				LAS0_UOUT1_SELECT))
-
 /* Digital IO */
 #define RtdDio0Read(dev) \
 	(readw(devpriv->las0+LAS0_DIO0) & 0xff)
