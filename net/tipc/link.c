@@ -3009,26 +3009,16 @@ u32 tipc_link_get_max_pkt(u32 dest, u32 selector)
 
 static void link_print(struct tipc_link *l_ptr, const char *str)
 {
-	char print_area[256];
-	struct print_buf pb;
-	struct print_buf *buf = &pb;
-
-	tipc_printbuf_init(buf, print_area, sizeof(print_area));
-
-	tipc_printf(buf, str);
-	tipc_printf(buf, "Link %x<%s>:",
-		    l_ptr->addr, l_ptr->b_ptr->name);
+	pr_info("%s Link %x<%s>:", str, l_ptr->addr, l_ptr->b_ptr->name);
 
 	if (link_working_unknown(l_ptr))
-		tipc_printf(buf, ":WU");
+		pr_cont(":WU\n");
 	else if (link_reset_reset(l_ptr))
-		tipc_printf(buf, ":RR");
+		pr_cont(":RR\n");
 	else if (link_reset_unknown(l_ptr))
-		tipc_printf(buf, ":RU");
+		pr_cont(":RU\n");
 	else if (link_working_working(l_ptr))
-		tipc_printf(buf, ":WW");
-	tipc_printf(buf, "\n");
-
-	tipc_printbuf_validate(buf);
-	pr_info("%s", print_area);
+		pr_cont(":WW\n");
+	else
+		pr_cont("\n");
 }
