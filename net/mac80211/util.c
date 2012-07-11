@@ -529,6 +529,11 @@ void ieee80211_iterate_active_interfaces(
 				 &sdata->vif);
 	}
 
+	sdata = rcu_dereference_protected(local->monitor_sdata,
+					  lockdep_is_held(&local->iflist_mtx));
+	if (sdata)
+		iterator(data, sdata->vif.addr, &sdata->vif);
+
 	mutex_unlock(&local->iflist_mtx);
 }
 EXPORT_SYMBOL_GPL(ieee80211_iterate_active_interfaces);
@@ -556,6 +561,10 @@ void ieee80211_iterate_active_interfaces_atomic(
 			iterator(data, sdata->vif.addr,
 				 &sdata->vif);
 	}
+
+	sdata = rcu_dereference(local->monitor_sdata);
+	if (sdata)
+		iterator(data, sdata->vif.addr, &sdata->vif);
 
 	rcu_read_unlock();
 }

@@ -334,17 +334,21 @@ static void ieee80211_set_default_queues(struct ieee80211_sub_if_data *sdata)
 int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
-	int ret;
+	int ret = 0;
 
 	if (!(local->hw.flags & IEEE80211_HW_WANT_MONITOR_VIF))
 		return 0;
 
+	mutex_lock(&local->iflist_mtx);
+
 	if (local->monitor_sdata)
-		return 0;
+		goto out_unlock;
 
 	sdata = kzalloc(sizeof(*sdata) + local->hw.vif_data_size, GFP_KERNEL);
-	if (!sdata)
-		return -ENOMEM;
+	if (!sdata) {
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
 
 	/* set up data */
 	sdata->local = local;
@@ -358,18 +362,19 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 	if (WARN_ON(ret)) {
 		/* ok .. stupid driver, it asked for this! */
 		kfree(sdata);
-		return ret;
+		goto out_unlock;
 	}
 
 	ret = ieee80211_check_queues(sdata);
 	if (ret) {
 		kfree(sdata);
-		return ret;
+		goto out_unlock;
 	}
 
 	rcu_assign_pointer(local->monitor_sdata, sdata);
-
-	return 0;
+ out_unlock:
+	mutex_unlock(&local->iflist_mtx);
+	return ret;
 }
 
 void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
@@ -379,10 +384,12 @@ void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
 	if (!(local->hw.flags & IEEE80211_HW_WANT_MONITOR_VIF))
 		return;
 
-	sdata = rtnl_dereference(local->monitor_sdata);
+	mutex_lock(&local->iflist_mtx);
 
+	sdata = rcu_dereference_protected(local->monitor_sdata,
+					  lockdep_is_held(&local->iflist_mtx));
 	if (!sdata)
-		return;
+		goto out_unlock;
 
 	rcu_assign_pointer(local->monitor_sdata, NULL);
 	synchronize_net();
@@ -390,6 +397,8 @@ void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
 	drv_remove_interface(local, sdata);
 
 	kfree(sdata);
+ out_unlock:
+	mutex_unlock(&local->iflist_mtx);
 }
 
 /*
