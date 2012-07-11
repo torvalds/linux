@@ -673,7 +673,7 @@ static struct fb_ops smtcfb_ops = {
 };
 
 /*
- * Alloc struct smtcfb_info and assign the default value
+ * alloc struct smtcfb_info and assign the default value
  */
 static struct smtcfb_info *smtc_alloc_fb_info(struct pci_dev *pdev, char *name)
 {
@@ -686,30 +686,30 @@ static struct smtcfb_info *smtc_alloc_fb_info(struct pci_dev *pdev, char *name)
 
 	sfb->pdev = pdev;
 
-	/*** Init sfb->fb with default value ***/
+	/* init sfb->fb with default value */
+
 	sfb->fb.flags = FBINFO_FLAG_DEFAULT;
 	sfb->fb.fbops = &smtcfb_ops;
-	sfb->fb.var = smtcfb_var;
-	sfb->fb.fix = smtcfb_fix;
 
+	sfb->fb.fix = smtcfb_fix;
 	strcpy(sfb->fb.fix.id, name);
 
-	sfb->fb.fix.type = FB_TYPE_PACKED_PIXELS;
-	sfb->fb.fix.type_aux = 0;
-	sfb->fb.fix.xpanstep = 0;
-	sfb->fb.fix.ypanstep = 0;
-	sfb->fb.fix.ywrapstep = 0;
-	sfb->fb.fix.accel = FB_ACCEL_SMI_LYNX;
+	sfb->fb.fix.type        = FB_TYPE_PACKED_PIXELS;
+	sfb->fb.fix.type_aux    = 0;
+	sfb->fb.fix.xpanstep    = 0;
+	sfb->fb.fix.ypanstep    = 0;
+	sfb->fb.fix.ywrapstep   = 0;
+	sfb->fb.fix.accel       = FB_ACCEL_SMI_LYNX;
 
-	sfb->fb.var.nonstd = 0;
-	sfb->fb.var.activate = FB_ACTIVATE_NOW;
-	sfb->fb.var.height = -1;
-	sfb->fb.var.width = -1;
-	/* text mode acceleration */
+	sfb->fb.var             = smtcfb_var;
+	sfb->fb.var.nonstd      = 0;
+	sfb->fb.var.activate    = FB_ACTIVATE_NOW;
+	sfb->fb.var.height      = -1;
+	sfb->fb.var.width       = -1;
 	sfb->fb.var.accel_flags = FB_ACCELF_TEXT;
-	sfb->fb.var.vmode = FB_VMODE_NONINTERLACED;
+	sfb->fb.var.vmode       = FB_VMODE_NONINTERLACED;
 
-	sfb->fb.pseudo_palette = sfb->colreg;
+	sfb->fb.pseudo_palette  = sfb->colreg;
 
 	sfb->fb.par = sfb;
 
