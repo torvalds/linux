@@ -91,7 +91,7 @@ err_regmap_init:
 }
 EXPORT_SYMBOL_GPL(pm80x_init);
 
-int __devexit pm80x_deinit(struct i2c_client *client)
+int pm80x_deinit(struct i2c_client *client)
 {
 	struct pm80x_chip *chip = i2c_get_clientdata(client);
 
