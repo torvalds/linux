@@ -1665,6 +1665,10 @@ static int nfs4_establish_lease(struct nfs_client *clp)
 	return 0;
 }
 
+/*
+ * Returns zero or a negative errno.  NFS4ERR values are converted
+ * to local errno values.
+ */
 static int nfs4_reclaim_lease(struct nfs_client *clp)
 {
 	int status;
