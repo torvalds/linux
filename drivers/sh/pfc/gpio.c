@@ -8,7 +8,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define pr_fmt(fmt) "sh_pfc " KBUILD_MODNAME ": " fmt
 
 #include <linux/init.h>
 #include <linux/gpio.h>
