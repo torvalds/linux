@@ -367,7 +367,8 @@ static inline int s_name ## _to_unpriv_skb(struct sk_buff *skb,		\
 		__is_signed)						\
 	if (!exclude_sensitive || !((attr_flag) & DRBD_F_SENSITIVE)) {	\
 		DPRINT_FIELD(">>", nla_type, name, s, NULL);		\
-		__put(skb, attr_nr, s->name);				\
+		if (__put(skb, attr_nr, s->name))			\
+			goto nla_put_failure;				\
 	}
 
 #undef __array
@@ -375,9 +376,10 @@ static inline int s_name ## _to_unpriv_skb(struct sk_buff *skb,		\
 		__get, __put, __is_signed)				\
 	if (!exclude_sensitive || !((attr_flag) & DRBD_F_SENSITIVE)) {	\
 		DPRINT_ARRAY(">>",nla_type, name, s, NULL);		\
-		__put(skb, attr_nr, min_t(int, maxlen,			\
+		if (__put(skb, attr_nr, min_t(int, maxlen,		\
 			s->name ## _len + (nla_type == NLA_NUL_STRING)),\
-						s->name);		\
+						s->name))		\
+			goto nla_put_failure;				\
 	}
 
 #include GENL_MAGIC_INCLUDE_FILE

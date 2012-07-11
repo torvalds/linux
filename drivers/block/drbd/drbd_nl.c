@@ -2554,13 +2554,17 @@ int nla_put_drbd_cfg_context(struct sk_buff *skb, struct drbd_tconn *tconn, unsi
 	nla = nla_nest_start(skb, DRBD_NLA_CFG_CONTEXT);
 	if (!nla)
 		goto nla_put_failure;
-	if (vnr != VOLUME_UNSPECIFIED)
-		NLA_PUT_U32(skb, T_ctx_volume, vnr);
-	NLA_PUT_STRING(skb, T_ctx_resource_name, tconn->name);
-	if (tconn->my_addr_len)
-		NLA_PUT(skb, T_ctx_my_addr, tconn->my_addr_len, &tconn->my_addr);
-	if (tconn->peer_addr_len)
-		NLA_PUT(skb, T_ctx_peer_addr, tconn->peer_addr_len, &tconn->peer_addr);
+	if (vnr != VOLUME_UNSPECIFIED &&
+	    nla_put_u32(skb, T_ctx_volume, vnr))
+		goto nla_put_failure;
+	if (nla_put_string(skb, T_ctx_resource_name, tconn->name))
+		goto nla_put_failure;
+	if (tconn->my_addr_len &&
+	    nla_put(skb, T_ctx_my_addr, tconn->my_addr_len, &tconn->my_addr))
+		goto nla_put_failure;
+	if (tconn->peer_addr_len &&
+	    nla_put(skb, T_ctx_peer_addr, tconn->peer_addr_len, &tconn->peer_addr))
+		goto nla_put_failure;
 	nla_nest_end(skb, nla);
 	return 0;
 
@@ -2618,20 +2622,23 @@ int nla_put_status_info(struct sk_buff *skb, struct drbd_conf *mdev,
 	nla = nla_nest_start(skb, DRBD_NLA_STATE_INFO);
 	if (!nla)
 		goto nla_put_failure;
-	NLA_PUT_U32(skb, T_sib_reason, sib ? sib->sib_reason : SIB_GET_STATUS_REPLY);
-	NLA_PUT_U32(skb, T_current_state, mdev->state.i);
-	NLA_PUT_U64(skb, T_ed_uuid, mdev->ed_uuid);
-	NLA_PUT_U64(skb, T_capacity, drbd_get_capacity(mdev->this_bdev));
+	if (nla_put_u32(skb, T_sib_reason, sib ? sib->sib_reason : SIB_GET_STATUS_REPLY) ||
+	    nla_put_u32(skb, T_current_state, mdev->state.i) ||
+	    nla_put_u64(skb, T_ed_uuid, mdev->ed_uuid) ||
+	    nla_put_u64(skb, T_capacity, drbd_get_capacity(mdev->this_bdev)))
+		goto nla_put_failure;
 
 	if (got_ldev) {
-		NLA_PUT_U32(skb, T_disk_flags, mdev->ldev->md.flags);
-		NLA_PUT(skb, T_uuids, sizeof(si->uuids), mdev->ldev->md.uuid);
-		NLA_PUT_U64(skb, T_bits_total, drbd_bm_bits(mdev));
-		NLA_PUT_U64(skb, T_bits_oos, drbd_bm_total_weight(mdev));
+		if (nla_put_u32(skb, T_disk_flags, mdev->ldev->md.flags) ||
+		    nla_put(skb, T_uuids, sizeof(si->uuids), mdev->ldev->md.uuid) ||
+		    nla_put_u64(skb, T_bits_total, drbd_bm_bits(mdev)) ||
+		    nla_put_u64(skb, T_bits_oos, drbd_bm_total_weight(mdev)))
+			goto nla_put_failure;
 		if (C_SYNC_SOURCE <= mdev->state.conn &&
 		    C_PAUSED_SYNC_T >= mdev->state.conn) {
-			NLA_PUT_U64(skb, T_bits_rs_total, mdev->rs_total);
-			NLA_PUT_U64(skb, T_bits_rs_failed, mdev->rs_failed);
+			if (nla_put_u64(skb, T_bits_rs_total, mdev->rs_total) ||
+			    nla_put_u64(skb, T_bits_rs_failed, mdev->rs_failed))
+				goto nla_put_failure;
 		}
 	}
 
@@ -2641,15 +2648,18 @@ int nla_put_status_info(struct sk_buff *skb, struct drbd_conf *mdev,
 		case SIB_GET_STATUS_REPLY:
 			break;
 		case SIB_STATE_CHANGE:
-			NLA_PUT_U32(skb, T_prev_state, sib->os.i);
-			NLA_PUT_U32(skb, T_new_state, sib->ns.i);
+			if (nla_put_u32(skb, T_prev_state, sib->os.i) ||
+			    nla_put_u32(skb, T_new_state, sib->ns.i))
+				goto nla_put_failure;
 			break;
 		case SIB_HELPER_POST:
-			NLA_PUT_U32(skb,
-				T_helper_exit_code, sib->helper_exit_code);
+			if (nla_put_u32(skb, T_helper_exit_code,
+					sib->helper_exit_code))
+				goto nla_put_failure;
 			/* fall through */
 		case SIB_HELPER_PRE:
-			NLA_PUT_STRING(skb, T_helper, sib->helper_name);
+			if (nla_put_string(skb, T_helper, sib->helper_name))
+				goto nla_put_failure;
 			break;
 		}
 	}

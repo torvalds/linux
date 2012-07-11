@@ -65,28 +65,28 @@ extern void CONCAT_(GENL_MAGIC_FAMILY, _genl_unregister)(void);
 /* possible field types */
 #define __flg_field(attr_nr, attr_flag, name) \
 	__field(attr_nr, attr_flag, name, NLA_U8, char, \
-			nla_get_u8, NLA_PUT_U8, false)
+			nla_get_u8, nla_put_u8, false)
 #define __u8_field(attr_nr, attr_flag, name)	\
 	__field(attr_nr, attr_flag, name, NLA_U8, unsigned char, \
-			nla_get_u8, NLA_PUT_U8, false)
+			nla_get_u8, nla_put_u8, false)
 #define __u16_field(attr_nr, attr_flag, name)	\
 	__field(attr_nr, attr_flag, name, NLA_U16, __u16, \
-			nla_get_u16, NLA_PUT_U16, false)
+			nla_get_u16, nla_put_u16, false)
 #define __u32_field(attr_nr, attr_flag, name)	\
 	__field(attr_nr, attr_flag, name, NLA_U32, __u32, \
-			nla_get_u32, NLA_PUT_U32, false)
+			nla_get_u32, nla_put_u32, false)
 #define __s32_field(attr_nr, attr_flag, name)	\
 	__field(attr_nr, attr_flag, name, NLA_U32, __s32, \
-			nla_get_u32, NLA_PUT_U32, true)
+			nla_get_u32, nla_put_u32, true)
 #define __u64_field(attr_nr, attr_flag, name)	\
 	__field(attr_nr, attr_flag, name, NLA_U64, __u64, \
-			nla_get_u64, NLA_PUT_U64, false)
+			nla_get_u64, nla_put_u64, false)
 #define __str_field(attr_nr, attr_flag, name, maxlen) \
 	__array(attr_nr, attr_flag, name, NLA_NUL_STRING, char, maxlen, \
-			nla_strlcpy, NLA_PUT, false)
+			nla_strlcpy, nla_put, false)
 #define __bin_field(attr_nr, attr_flag, name, maxlen) \
 	__array(attr_nr, attr_flag, name, NLA_BINARY, char, maxlen, \
-			nla_memcpy, NLA_PUT, false)
+			nla_memcpy, nla_put, false)
 
 /* fields with default values */
 #define __flg_field_def(attr_nr, attr_flag, name, default) \
