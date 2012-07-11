@@ -1093,7 +1093,7 @@ void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu,
 	memset(&fl6, 0, sizeof(fl6));
 	fl6.flowi6_oif = oif;
 	fl6.flowi6_mark = mark;
-	fl6.flowi6_flags = FLOWI_FLAG_PRECOW_METRICS;
+	fl6.flowi6_flags = 0;
 	fl6.daddr = iph->daddr;
 	fl6.saddr = iph->saddr;
 	fl6.flowlabel = (*(__be32 *) iph) & IPV6_FLOWINFO_MASK;
@@ -2348,13 +2348,11 @@ static int rt6_fill_node(struct net *net,
 			 int iif, int type, u32 pid, u32 seq,
 			 int prefix, int nowait, unsigned int flags)
 {
-	const struct inet_peer *peer;
 	struct rtmsg *rtm;
 	struct nlmsghdr *nlh;
 	long expires;
 	u32 table;
 	struct neighbour *n;
-	u32 ts, tsage;
 
 	if (prefix) {	/* user wants prefix routes only */
 		if (!(rt->rt6i_flags & RTF_PREFIX_RT)) {
@@ -2473,17 +2471,7 @@ static int rt6_fill_node(struct net *net,
 	else
 		expires = INT_MAX;
 
-	peer = NULL;
-	if (rt6_has_peer(rt))
-		peer = rt6_peer_ptr(rt);
-	ts = tsage = 0;
-	if (peer && peer->tcp_ts_stamp) {
-		ts = peer->tcp_ts;
-		tsage = get_seconds() - peer->tcp_ts_stamp;
-	}
-
-	if (rtnl_put_cacheinfo(skb, &rt->dst, 0, ts, tsage,
-			       expires, rt->dst.error) < 0)
+	if (rtnl_put_cacheinfo(skb, &rt->dst, 0, expires, rt->dst.error) < 0)
 		goto nla_put_failure;
 
 	return nlmsg_end(skb, nlh);

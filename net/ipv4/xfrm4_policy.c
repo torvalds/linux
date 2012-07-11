@@ -90,8 +90,6 @@ static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	xdst->u.dst.dev = dev;
 	dev_hold(dev);
 
-	rt_transfer_peer(&xdst->u.rt, rt);
-
 	/* Sheit... I remember I did this right. Apparently,
 	 * it was magically lost, so this code needs audit */
 	xdst->u.rt.rt_flags = rt->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST |
@@ -100,6 +98,7 @@ static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	xdst->u.rt.rt_src = rt->rt_src;
 	xdst->u.rt.rt_dst = rt->rt_dst;
 	xdst->u.rt.rt_gateway = rt->rt_gateway;
+	xdst->u.rt.rt_pmtu = rt->rt_pmtu;
 
 	return 0;
 }
@@ -208,11 +207,6 @@ static void xfrm4_dst_destroy(struct dst_entry *dst)
 	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
 
 	dst_destroy_metrics_generic(dst);
-
-	if (rt_has_peer(&xdst->u.rt)) {
-		struct inet_peer *peer = rt_peer_ptr(&xdst->u.rt);
-		inet_putpeer(peer);
-	}
 
 	xfrm_dst_destroy(xdst);
 }

@@ -375,7 +375,7 @@ struct dst_entry *inet_csk_route_req(struct sock *sk,
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	struct ip_options_rcu *opt = inet_rsk(req)->opt;
 	struct net *net = sock_net(sk);
-	int flags = inet_sk_flowi_flags(sk) & ~FLOWI_FLAG_PRECOW_METRICS;
+	int flags = inet_sk_flowi_flags(sk);
 
 	if (nocache)
 		flags |= FLOWI_FLAG_RT_NOCACHE;

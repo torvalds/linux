@@ -388,6 +388,13 @@ extern void tcp_enter_frto(struct sock *sk);
 extern void tcp_enter_loss(struct sock *sk, int how);
 extern void tcp_clear_retrans(struct tcp_sock *tp);
 extern void tcp_update_metrics(struct sock *sk);
+extern void tcp_init_metrics(struct sock *sk);
+extern void tcp_metrics_init(void);
+extern bool tcp_peer_is_proven(struct request_sock *req, struct dst_entry *dst, bool paws_check);
+extern bool tcp_remember_stamp(struct sock *sk);
+extern bool tcp_tw_remember_stamp(struct inet_timewait_sock *tw);
+extern void tcp_fetch_timewait_stamp(struct sock *sk, struct dst_entry *dst);
+extern void tcp_disable_fack(struct tcp_sock *tp);
 extern void tcp_close(struct sock *sk, long timeout);
 extern void tcp_init_sock(struct sock *sk);
 extern unsigned int tcp_poll(struct file * file, struct socket *sock,
@@ -555,6 +562,8 @@ static inline u32 __tcp_set_rto(const struct tcp_sock *tp)
 {
 	return (tp->srtt >> 3) + tp->rttvar;
 }
+
+extern void tcp_set_rto(struct sock *sk);
 
 static inline void __tcp_fast_path_on(struct tcp_sock *tp, u32 snd_wnd)
 {

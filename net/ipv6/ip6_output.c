@@ -466,13 +466,15 @@ int ip6_forward(struct sk_buff *skb)
 		else
 			target = &hdr->daddr;
 
-		peer = rt6_get_peer_create(rt);
+		peer = inet_getpeer_v6(net->ipv6.peers, &rt->rt6i_dst.addr, 1);
 
 		/* Limit redirects both by destination (here)
 		   and by source (inside ndisc_send_redirect)
 		 */
 		if (inet_peer_xrlim_allow(peer, 1*HZ))
 			ndisc_send_redirect(skb, target);
+		if (peer)
+			inet_putpeer(peer);
 	} else {
 		int addrtype = ipv6_addr_type(&hdr->saddr);
 
@@ -592,10 +594,14 @@ void ipv6_select_ident(struct frag_hdr *fhdr, struct rt6_info *rt)
 	int old, new;
 
 	if (rt && !(rt->dst.flags & DST_NOPEER)) {
-		struct inet_peer *peer = rt6_get_peer_create(rt);
+		struct inet_peer *peer;
+		struct net *net;
 
+		net = dev_net(rt->dst.dev);
+		peer = inet_getpeer_v6(net->ipv6.peers, &rt->rt6i_dst.addr, 1);
 		if (peer) {
 			fhdr->identification = htonl(inet_getid(peer, 0));
+			inet_putpeer(peer);
 			return;
 		}
 	}

@@ -36,25 +36,19 @@ struct inet_peer {
 	u32			metrics[RTAX_MAX];
 	u32			rate_tokens;	/* rate limiting for ICMP */
 	unsigned long		rate_last;
-	unsigned long		pmtu_expires;
-	u32			pmtu_orig;
-	u32			pmtu_learned;
-	struct inetpeer_addr_base redirect_learned;
 	union {
 		struct list_head	gc_list;
 		struct rcu_head     gc_rcu;
 	};
 	/*
 	 * Once inet_peer is queued for deletion (refcnt == -1), following fields
-	 * are not available: rid, ip_id_count, tcp_ts, tcp_ts_stamp
+	 * are not available: rid, ip_id_count
 	 * We can share memory with rcu_head to help keep inet_peer small.
 	 */
 	union {
 		struct {
 			atomic_t			rid;		/* Frag reception counter */
 			atomic_t			ip_id_count;	/* IP ID for the next packet */
-			__u32				tcp_ts;
-			__u32				tcp_ts_stamp;
 		};
 		struct rcu_head         rcu;
 		struct inet_peer	*gc_next;

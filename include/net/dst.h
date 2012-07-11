@@ -209,12 +209,6 @@ static inline unsigned long dst_metric_rtt(const struct dst_entry *dst, int metr
 	return msecs_to_jiffies(dst_metric(dst, metric));
 }
 
-static inline void set_dst_metric_rtt(struct dst_entry *dst, int metric,
-				      unsigned long rtt)
-{
-	dst_metric_set(dst, metric, jiffies_to_msecs(rtt));
-}
-
 static inline u32
 dst_allfrag(const struct dst_entry *dst)
 {

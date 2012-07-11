@@ -1486,6 +1486,7 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 	int rd_len;
 	int err;
 	u8 ha_buf[MAX_ADDR_LEN], *ha = NULL;
+	bool ret;
 
 	if (ipv6_get_lladdr(dev, &saddr_buf, IFA_F_TENTATIVE)) {
 		ND_PRINTK(2, warn, "Redirect: no link-local address on %s\n",
@@ -1519,8 +1520,11 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 			  "Redirect: destination is not a neighbour\n");
 		goto release;
 	}
-	peer = rt6_get_peer_create(rt);
-	if (!inet_peer_xrlim_allow(peer, 1*HZ))
+	peer = inet_getpeer_v6(net->ipv6.peers, &rt->rt6i_dst.addr, 1);
+	ret = inet_peer_xrlim_allow(peer, 1*HZ);
+	if (peer)
+		inet_putpeer(peer);
+	if (!ret)
 		goto release;
 
 	if (dev->addr_len) {
