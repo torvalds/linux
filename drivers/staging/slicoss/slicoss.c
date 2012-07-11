@@ -3234,6 +3234,7 @@ static void __devexit slic_entry_remove(struct pci_dev *pcidev)
 	}
 	free_netdev(dev);
 	pci_release_regions(pcidev);
+	pci_disable_device(pcidev);
 }
 
 static int slic_entry_halt(struct net_device *dev)
