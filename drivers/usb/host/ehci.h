@@ -118,6 +118,7 @@ struct ehci_hcd {			/* one per controller */
 	bool			need_rescan:1;
 	bool			intr_unlinking:1;
 	bool			async_unlinking:1;
+	bool			shutdown:1;
 	struct ehci_qh		*qh_scan_next;
 
 	/* async schedule support */

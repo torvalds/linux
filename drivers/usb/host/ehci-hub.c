@@ -221,6 +221,8 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	ehci_quiesce(ehci);
 
 	spin_lock_irq (&ehci->lock);
+	if (ehci->rh_state < EHCI_RH_RUNNING)
+		goto done;
 
 	/* Once the controller is stopped, port resumes that are already
 	 * in progress won't complete.  Hence if remote wakeup is enabled
@@ -306,6 +308,10 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	ehci_halt (ehci);
 
 	spin_lock_irq(&ehci->lock);
+	if (ehci->enabled_hrtimer_events & BIT(EHCI_HRTIMER_POLL_DEAD))
+		ehci_handle_controller_death(ehci);
+	if (ehci->rh_state != EHCI_RH_RUNNING)
+		goto done;
 	ehci->rh_state = EHCI_RH_SUSPENDED;
 
 	end_unlink_async(ehci);
@@ -320,6 +326,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	ehci_writel(ehci, mask, &ehci->regs->intr_enable);
 	ehci_readl(ehci, &ehci->regs->intr_enable);
 
+ done:
 	ehci->next_statechange = jiffies + msecs_to_jiffies(10);
 	ehci->enabled_hrtimer_events = 0;
 	ehci->next_hrtimer_event = EHCI_HRTIMER_NO_EVENT;
@@ -342,10 +349,8 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	if (time_before (jiffies, ehci->next_statechange))
 		msleep(5);
 	spin_lock_irq (&ehci->lock);
-	if (!HCD_HW_ACCESSIBLE(hcd)) {
-		spin_unlock_irq(&ehci->lock);
-		return -ESHUTDOWN;
-	}
+	if (!HCD_HW_ACCESSIBLE(hcd) || ehci->shutdown)
+		goto shutdown;
 
 	if (unlikely(ehci->debug)) {
 		if (!dbgp_reset_prep())
@@ -384,6 +389,8 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	spin_unlock_irq(&ehci->lock);
 	msleep(8);
 	spin_lock_irq(&ehci->lock);
+	if (ehci->shutdown)
+		goto shutdown;
 
 	/* clear phy low-power mode before resume */
 	if (ehci->bus_suspended && ehci->has_hostpc) {
@@ -401,6 +408,8 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 		spin_unlock_irq(&ehci->lock);
 		msleep(5);
 		spin_lock_irq(&ehci->lock);
+		if (ehci->shutdown)
+			goto shutdown;
 	}
 
 	/* manually resume the ports we suspended during bus_suspend() */
@@ -421,6 +430,8 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 		spin_unlock_irq(&ehci->lock);
 		msleep(20);
 		spin_lock_irq(&ehci->lock);
+		if (ehci->shutdown)
+			goto shutdown;
 	}
 
 	i = HCS_N_PORTS (ehci->hcs_params);
@@ -439,10 +450,18 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	ehci_handover_companion_ports(ehci);
 
 	/* Now we can safely re-enable irqs */
+	spin_lock_irq(&ehci->lock);
+	if (ehci->shutdown)
+		goto shutdown;
 	ehci_writel(ehci, INTR_MASK, &ehci->regs->intr_enable);
 	(void) ehci_readl(ehci, &ehci->regs->intr_enable);
+	spin_unlock_irq(&ehci->lock);
 
 	return 0;
+
+ shutdown:
+	spin_unlock_irq(&ehci->lock);
+	return -ESHUTDOWN;
 }
 
 #else

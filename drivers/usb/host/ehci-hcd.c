@@ -343,6 +343,7 @@ static void ehci_shutdown(struct usb_hcd *hcd)
 	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
 
 	spin_lock_irq(&ehci->lock);
+	ehci->shutdown = true;
 	ehci->rh_state = EHCI_RH_STOPPING;
 	ehci->enabled_hrtimer_events = 0;
 	spin_unlock_irq(&ehci->lock);
@@ -823,6 +824,7 @@ dead:
 		usb_hc_died(hcd);
 
 		/* Don't let the controller do anything more */
+		ehci->shutdown = true;
 		ehci->rh_state = EHCI_RH_STOPPING;
 		ehci->command &= ~(CMD_RUN | CMD_ASE | CMD_PSE);
 		ehci_writel(ehci, ehci->command, &ehci->regs->command);
@@ -1129,6 +1131,9 @@ static int __maybe_unused ehci_resume(struct usb_hcd *hcd, bool hibernated)
 	/* Mark hardware accessible again as we are back to full power by now */
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
+	if (ehci->shutdown)
+		return 0;		/* Controller is dead */
+
 	/*
 	 * If CF is still set and we aren't resuming from hibernation
 	 * then we maintained suspend power.
@@ -1139,10 +1144,17 @@ static int __maybe_unused ehci_resume(struct usb_hcd *hcd, bool hibernated)
 		int	mask = INTR_MASK;
 
 		ehci_prepare_ports_for_controller_resume(ehci);
+
+		spin_lock_irq(&ehci->lock);
+		if (ehci->shutdown)
+			goto skip;
+
 		if (!hcd->self.root_hub->do_remote_wakeup)
 			mask &= ~STS_PCD;
 		ehci_writel(ehci, mask, &ehci->regs->intr_enable);
 		ehci_readl(ehci, &ehci->regs->intr_enable);
+ skip:
+		spin_unlock_irq(&ehci->lock);
 		return 0;
 	}
 
@@ -1154,14 +1166,20 @@ static int __maybe_unused ehci_resume(struct usb_hcd *hcd, bool hibernated)
 	(void) ehci_halt(ehci);
 	(void) ehci_reset(ehci);
 
+	spin_lock_irq(&ehci->lock);
+	if (ehci->shutdown)
+		goto skip;
+
 	ehci_writel(ehci, ehci->command, &ehci->regs->command);
 	ehci_writel(ehci, FLAG_CF, &ehci->regs->configured_flag);
 	ehci_readl(ehci, &ehci->regs->command);	/* unblock posted writes */
 
+	ehci->rh_state = EHCI_RH_SUSPENDED;
+	spin_unlock_irq(&ehci->lock);
+
 	/* here we "know" root ports should always stay powered */
 	ehci_port_power(ehci, 1);
 
-	ehci->rh_state = EHCI_RH_SUSPENDED;
 	return 1;
 }
 
