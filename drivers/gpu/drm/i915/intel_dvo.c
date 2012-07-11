@@ -105,6 +105,30 @@ static struct intel_dvo *intel_attached_dvo(struct drm_connector *connector)
 			    struct intel_dvo, base);
 }
 
+static void intel_disable_dvo(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_dvo *intel_dvo = enc_to_intel_dvo(&encoder->base);
+	u32 dvo_reg = intel_dvo->dev.dvo_reg;
+	u32 temp = I915_READ(dvo_reg);
+
+	intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, false);
+	I915_WRITE(dvo_reg, temp & ~DVO_ENABLE);
+	I915_READ(dvo_reg);
+}
+
+static void intel_enable_dvo(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_dvo *intel_dvo = enc_to_intel_dvo(&encoder->base);
+	u32 dvo_reg = intel_dvo->dev.dvo_reg;
+	u32 temp = I915_READ(dvo_reg);
+
+	I915_WRITE(dvo_reg, temp | DVO_ENABLE);
+	I915_READ(dvo_reg);
+	intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, true);
+}
+
 static void intel_dvo_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
@@ -277,9 +301,10 @@ static void intel_dvo_destroy(struct drm_connector *connector)
 static const struct drm_encoder_helper_funcs intel_dvo_helper_funcs = {
 	.dpms = intel_dvo_dpms,
 	.mode_fixup = intel_dvo_mode_fixup,
-	.prepare = intel_encoder_prepare,
+	.prepare = intel_encoder_noop,
 	.mode_set = intel_dvo_mode_set,
-	.commit = intel_encoder_commit,
+	.commit = intel_encoder_noop,
+	.disable = intel_encoder_disable,
 };
 
 static const struct drm_connector_funcs intel_dvo_connector_funcs = {
@@ -371,6 +396,9 @@ void intel_dvo_init(struct drm_device *dev)
 	intel_encoder = &intel_dvo->base;
 	drm_encoder_init(dev, &intel_encoder->base,
 			 &intel_dvo_enc_funcs, encoder_type);
+
+	intel_encoder->disable = intel_disable_dvo;
+	intel_encoder->enable = intel_enable_dvo;
 
 	/* Now, try to find a controller */
 	for (i = 0; i < ARRAY_SIZE(intel_dvo_devices); i++) {
