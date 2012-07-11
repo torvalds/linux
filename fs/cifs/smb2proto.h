@@ -43,6 +43,10 @@ extern int smb2_check_receive(struct mid_q_entry *mid,
 			      struct TCP_Server_Info *server, bool log_error);
 extern int smb2_setup_request(struct cifs_ses *ses, struct kvec *iov,
 			      unsigned int nvec, struct mid_q_entry **ret_mid);
+extern int smb2_setup_async_request(struct TCP_Server_Info *server,
+				    struct kvec *iov, unsigned int nvec,
+				    struct mid_q_entry **ret_mid);
+extern void smb2_echo_request(struct work_struct *work);
 
 extern int smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 				struct cifs_sb_info *cifs_sb,

@@ -209,6 +209,7 @@ smb2_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
 
 struct smb_version_operations smb21_operations = {
 	.setup_request = smb2_setup_request,
+	.setup_async_request = smb2_setup_async_request,
 	.check_receive = smb2_check_receive,
 	.add_credits = smb2_add_credits,
 	.set_credits = smb2_set_credits,

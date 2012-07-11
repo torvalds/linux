@@ -148,4 +148,25 @@ smb2_setup_request(struct cifs_ses *ses, struct kvec *iov,
 	return rc;
 }
 
-/* BB add missing functions here */
+int
+smb2_setup_async_request(struct TCP_Server_Info *server, struct kvec *iov,
+			 unsigned int nvec, struct mid_q_entry **ret_mid)
+{
+	int rc = 0;
+	struct smb2_hdr *hdr = (struct smb2_hdr *)iov[0].iov_base;
+	struct mid_q_entry *mid;
+
+	smb2_seq_num_into_buf(server, hdr);
+
+	mid = smb2_mid_entry_alloc(hdr, server);
+	if (mid == NULL)
+		return -ENOMEM;
+
+	/* rc = smb2_sign_smb2(iov, nvec, server);
+	if (rc) {
+		DeleteMidQEntry(mid);
+		return rc;
+	}*/
+	*ret_mid = mid;
+	return rc;
+}
