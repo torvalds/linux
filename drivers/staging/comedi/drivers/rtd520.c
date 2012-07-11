@@ -1608,36 +1608,31 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 static struct pci_dev *rtd_find_pci(struct comedi_device *dev,
 				    struct comedi_devconfig *it)
 {
-	struct pci_dev *pcidev;
+	const struct rtdBoard *thisboard;
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
+	int i;
 
-	for (pcidev = pci_get_device(PCI_VENDOR_ID_RTD, PCI_ANY_ID, NULL);
-	     pcidev != NULL;
-	     pcidev = pci_get_device(PCI_VENDOR_ID_RTD, PCI_ANY_ID, pcidev)) {
-		int i;
-
-		if (it->options[0] || it->options[1]) {
-			if (pcidev->bus->number != it->options[0]
-			    || PCI_SLOT(pcidev->devfn) != it->options[1]) {
+	for_each_pci_dev(pcidev) {
+		if (pcidev->vendor != PCI_VENDOR_ID_RTD)
+			continue;
+		if (bus || slot) {
+			if (pcidev->bus->number != bus ||
+			    PCI_SLOT(pcidev->devfn) != slot)
 				continue;
+		}
+		for (i = 0; i < ARRAY_SIZE(rtd520Boards); i++) {
+			thisboard = &rtd520Boards[i];
+			if (pcidev->device == thisboard->device_id) {
+				dev->board_ptr = thisboard;
+				return pcidev;
 			}
 		}
-		for (i = 0; i < ARRAY_SIZE(rtd520Boards); ++i) {
-			if (pcidev->device == rtd520Boards[i].device_id) {
-				dev->board_ptr = &rtd520Boards[i];
-				break;
-			}
-		}
-		if (dev->board_ptr)
-			return pcidev;	/* found one */
 	}
-	if (!pcidev) {
-		if (it->options[0] && it->options[1]) {
-			printk(KERN_INFO "No RTD card at bus=%d slot=%d.\n",
-			       it->options[0], it->options[1]);
-		} else {
-			printk(KERN_INFO "No RTD card found.\n");
-		}
-	}
+	dev_warn(dev->class_dev,
+		"no supported board found! (req. bus/slot: %d/%d)\n",
+		bus, slot);
 	return NULL;
 }
 
