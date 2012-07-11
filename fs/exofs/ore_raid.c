@@ -144,25 +144,25 @@ static void _sp2d_reset(struct __stripe_pages_2d *sp2d,
 {
 	unsigned data_devs = sp2d->data_devs;
 	unsigned group_width = data_devs + sp2d->parity;
-	unsigned p;
+	int p, c;
 
 	if (!sp2d->needed)
 		return;
 
+	for (c = data_devs - 1; c >= 0; --c)
+		for (p = sp2d->pages_in_unit - 1; p >= 0; --p) {
+			struct __1_page_stripe *_1ps = &sp2d->_1p_stripes[p];
+
+			if (_1ps->page_is_read[c]) {
+				struct page *page = _1ps->pages[c];
+
+				r4w->put_page(priv, page);
+				_1ps->page_is_read[c] = false;
+			}
+		}
+
 	for (p = 0; p < sp2d->pages_in_unit; p++) {
 		struct __1_page_stripe *_1ps = &sp2d->_1p_stripes[p];
-
-		if (_1ps->write_count < group_width) {
-			unsigned c;
-
-			for (c = 0; c < data_devs; c++)
-				if (_1ps->page_is_read[c]) {
-					struct page *page = _1ps->pages[c];
-
-					r4w->put_page(priv, page);
-					_1ps->page_is_read[c] = false;
-				}
-		}
 
 		memset(_1ps->pages, 0, group_width * sizeof(*_1ps->pages));
 		_1ps->write_count = 0;
