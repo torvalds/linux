@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set  mode for DMA 0 */
-#define RtdDma0Mode(dev, m) \
-	writel((m), devpriv->lcfg+LCFG_DMAMODE0)
-
 /* Set PCI address for DMA 0 */
 #define RtdDma0PciAddr(dev, a) \
 	writel((a), devpriv->lcfg+LCFG_DMAPADR0)
@@ -1438,7 +1434,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 		/* point to first transfer in ring */
 		devpriv->dma0Offset = 0;
-		RtdDma0Mode(dev, DMA_MODE_BITS);
+		writel(DMA_MODE_BITS, devpriv->lcfg + LCFG_DMAMODE0);
 		RtdDma0Next(dev,	/* point to first block */
 			    devpriv->dma0Chain[DMA_CHAIN_COUNT - 1].next);
 		writel(DMAS_ADFIFO_HALF_FULL, devpriv->las0 + LAS0_DMA0_SRC);
@@ -1935,7 +1931,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			goto rtd_attach_die_error;
 		}
 
-		RtdDma0Mode(dev, DMA_MODE_BITS);
+		writel(DMA_MODE_BITS, devpriv->lcfg + LCFG_DMAMODE0);
 		/* set DMA trigger source */
 		writel(DMAS_ADFIFO_HALF_FULL, devpriv->las0 + LAS0_DMA0_SRC);
 	} else {
