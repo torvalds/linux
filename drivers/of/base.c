@@ -1073,7 +1073,8 @@ int prom_remove_property(struct device_node *np, struct property *prop)
 }
 
 /*
- * prom_update_property - Update a property in a node.
+ * prom_update_property - Update a property in a node, if the property does
+ * not exist, add it.
  *
  * Note that we don't actually remove it, since we have given out
  * who-knows-how-many pointers to the data using get-property.
@@ -1081,12 +1082,18 @@ int prom_remove_property(struct device_node *np, struct property *prop)
  * and add the new property to the property list
  */
 int prom_update_property(struct device_node *np,
-			 struct property *newprop,
-			 struct property *oldprop)
+			 struct property *newprop)
 {
-	struct property **next;
+	struct property **next, *oldprop;
 	unsigned long flags;
 	int found = 0;
+
+	if (!newprop->name)
+		return -EINVAL;
+
+	oldprop = of_find_property(np, newprop->name, NULL);
+	if (!oldprop)
+		return prom_add_property(np, newprop);
 
 	write_lock_irqsave(&devtree_lock, flags);
 	next = &np->properties;
