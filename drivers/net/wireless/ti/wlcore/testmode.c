@@ -129,8 +129,12 @@ static int wl1271_tm_cmd_test(struct wl1271 *wl, struct nlattr *tb[])
 			goto out_sleep;
 		}
 
-		if (nla_put(skb, WL1271_TM_ATTR_DATA, buf_len, buf))
-			goto nla_put_failure;
+		if (nla_put(skb, WL1271_TM_ATTR_DATA, buf_len, buf)) {
+			kfree_skb(skb);
+			ret = -EMSGSIZE;
+			goto out_sleep;
+		}
+
 		ret = cfg80211_testmode_reply(skb);
 		if (ret < 0)
 			goto out_sleep;
@@ -142,11 +146,6 @@ out:
 	mutex_unlock(&wl->mutex);
 
 	return ret;
-
-nla_put_failure:
-	kfree_skb(skb);
-	ret = -EMSGSIZE;
-	goto out_sleep;
 }
 
 static int wl1271_tm_cmd_interrogate(struct wl1271 *wl, struct nlattr *tb[])
@@ -192,8 +191,12 @@ static int wl1271_tm_cmd_interrogate(struct wl1271 *wl, struct nlattr *tb[])
 		goto out_free;
 	}
 
-	if (nla_put(skb, WL1271_TM_ATTR_DATA, sizeof(*cmd), cmd))
-		goto nla_put_failure;
+	if (nla_put(skb, WL1271_TM_ATTR_DATA, sizeof(*cmd), cmd)) {
+		kfree_skb(skb);
+		ret = -EMSGSIZE;
+		goto out_free;
+	}
+
 	ret = cfg80211_testmode_reply(skb);
 	if (ret < 0)
 		goto out_free;
@@ -206,11 +209,6 @@ out:
 	mutex_unlock(&wl->mutex);
 
 	return ret;
-
-nla_put_failure:
-	kfree_skb(skb);
-	ret = -EMSGSIZE;
-	goto out_free;
 }
 
 static int wl1271_tm_cmd_configure(struct wl1271 *wl, struct nlattr *tb[])
@@ -343,8 +341,12 @@ static int wl12xx_tm_cmd_get_mac(struct wl1271 *wl, struct nlattr *tb[])
 		goto out;
 	}
 
-	if (nla_put(skb, WL1271_TM_ATTR_DATA, ETH_ALEN, mac_addr))
-		goto nla_put_failure;
+	if (nla_put(skb, WL1271_TM_ATTR_DATA, ETH_ALEN, mac_addr)) {
+		kfree_skb(skb);
+		ret = -EMSGSIZE;
+		goto out;
+	}
+
 	ret = cfg80211_testmode_reply(skb);
 	if (ret < 0)
 		goto out;
@@ -352,11 +354,6 @@ static int wl12xx_tm_cmd_get_mac(struct wl1271 *wl, struct nlattr *tb[])
 out:
 	mutex_unlock(&wl->mutex);
 	return ret;
-
-nla_put_failure:
-	kfree_skb(skb);
-	ret = -EMSGSIZE;
-	goto out;
 }
 
 int wl1271_tm_cmd(struct ieee80211_hw *hw, void *data, int len)
