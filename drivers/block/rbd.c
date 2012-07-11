@@ -494,14 +494,14 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 				 struct rbd_image_header_ondisk *ondisk,
 				 u32 allocated_snaps)
 {
-	u32 i, snap_count;
+	u32 snap_count;
 
 	if (!rbd_dev_ondisk_valid(ondisk))
 		return -ENXIO;
 
 	snap_count = le32_to_cpu(ondisk->snap_count);
-	if (snap_count > (UINT_MAX - sizeof(struct ceph_snap_context))
-			 / sizeof (*ondisk))
+	if (snap_count > (SIZE_MAX - sizeof(struct ceph_snap_context))
+				 / sizeof (u64))
 		return -EINVAL;
 	header->snapc = kmalloc(sizeof(struct ceph_snap_context) +
 				snap_count * sizeof(u64),
@@ -509,8 +509,8 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	if (!header->snapc)
 		return -ENOMEM;
 
-	header->snap_names_len = le64_to_cpu(ondisk->snap_names_len);
 	if (snap_count) {
+		header->snap_names_len = le64_to_cpu(ondisk->snap_names_len);
 		header->snap_names = kmalloc(header->snap_names_len,
 					     GFP_KERNEL);
 		if (!header->snap_names)
@@ -520,6 +520,8 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 		if (!header->snap_sizes)
 			goto err_names;
 	} else {
+		WARN_ON(ondisk->snap_names_len);
+		header->snap_names_len = 0;
 		header->snap_names = NULL;
 		header->snap_sizes = NULL;
 	}
@@ -544,6 +546,8 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	header->total_snaps = snap_count;
 
 	if (snap_count && allocated_snaps == snap_count) {
+		int i;
+
 		for (i = 0; i < snap_count; i++) {
 			header->snapc->snaps[i] =
 				le64_to_cpu(ondisk->snaps[i].id);
@@ -552,7 +556,7 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 		}
 
 		/* copy snapshot names */
-		memcpy(header->snap_names, &ondisk->snaps[i],
+		memcpy(header->snap_names, &ondisk->snaps[snap_count],
 			header->snap_names_len);
 	}
 
@@ -560,10 +564,14 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 
 err_sizes:
 	kfree(header->snap_sizes);
+	header->snap_sizes = NULL;
 err_names:
 	kfree(header->snap_names);
+	header->snap_names = NULL;
 err_snapc:
 	kfree(header->snapc);
+	header->snapc = NULL;
+
 	return -ENOMEM;
 }
 
