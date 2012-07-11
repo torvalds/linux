@@ -491,7 +491,7 @@ int bcma_bus_scan(struct bcma_bus *bus)
 			  core->id.manuf, core->id.id, core->id.rev,
 			  core->id.class);
 
-		list_add(&core->list, &bus->cores);
+		list_add_tail(&core->list, &bus->cores);
 	}
 
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC)
@@ -546,7 +546,7 @@ int __init bcma_bus_scan_early(struct bcma_bus *bus,
 			  core->id.manuf, core->id.id, core->id.rev,
 			  core->id.class);
 
-		list_add(&core->list, &bus->cores);
+		list_add_tail(&core->list, &bus->cores);
 		err = 0;
 		break;
 	}
