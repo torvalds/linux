@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set source for DMA 1 (write only, shadow?) */
-#define RtdDma1Source(dev, n) \
-	writel((n) & 0xf, devpriv->las0+LAS0_DMA1_SRC)
-
 /* Reset board state for DMA 0 */
 #define RtdDma0Reset(dev) \
 	writel(0, devpriv->las0+LAS0_DMA0_RESET)
