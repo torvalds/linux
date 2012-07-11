@@ -1312,13 +1312,6 @@ static int __maybe_unused ehci_resume(struct usb_hcd *hcd, bool hibernated)
 	(void) ehci_halt(ehci);
 	(void) ehci_reset(ehci);
 
-	/* emptying the schedule aborts any urbs */
-	spin_lock_irq(&ehci->lock);
-	if (ehci->reclaim)
-		end_unlink_async(ehci);
-	ehci_work(ehci);
-	spin_unlock_irq(&ehci->lock);
-
 	ehci_writel(ehci, ehci->command, &ehci->regs->command);
 	ehci_writel(ehci, FLAG_CF, &ehci->regs->configured_flag);
 	ehci_readl(ehci, &ehci->regs->command);	/* unblock posted writes */

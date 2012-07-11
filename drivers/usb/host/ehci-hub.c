@@ -424,23 +424,12 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 			ehci_vdbg (ehci, "resumed port %d\n", i + 1);
 		}
 	}
-	(void) ehci_readl(ehci, &ehci->regs->command);
-
-	/* maybe re-activate the schedule(s) */
-	temp = 0;
-	if (ehci->async->qh_next.qh)
-		temp |= CMD_ASE;
-	if (ehci->periodic_sched)
-		temp |= CMD_PSE;
-	if (temp) {
-		ehci->command |= temp;
-		ehci_writel(ehci, ehci->command, &ehci->regs->command);
-	}
 
 	ehci->next_statechange = jiffies + msecs_to_jiffies(5);
 
 	/* Now we can safely re-enable irqs */
 	ehci_writel(ehci, INTR_MASK, &ehci->regs->intr_enable);
+	(void) ehci_readl(ehci, &ehci->regs->intr_enable);
 
 	spin_unlock_irq (&ehci->lock);
 	ehci_handover_companion_ports(ehci);
