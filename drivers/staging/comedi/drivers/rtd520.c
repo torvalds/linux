@@ -406,13 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Digital to Analog converter */
-/* Write one data value (sign + 12bit + marker bits) */
-/* Note: matches what DMA would put.  Actual value << 3 */
-#define RtdDacFifoPut(dev, n, v) \
-	writew((v), devpriv->las1 + (((n) == 0) ? LAS1_DAC1_FIFO : \
-				LAS1_DAC2_FIFO))
-
 /* Start single DAC conversion */
 #define RtdDacUpdate(dev, n) \
 	writew(0, devpriv->las0 + (((n) == 0) ? LAS0_DAC1 : LAS0_DAC2))
@@ -1577,7 +1570,8 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 		     chan, range, data[i], val);
 
 		/* a typical programming sequence */
-		RtdDacFifoPut(dev, chan, val);	/* put the value in */
+		writew(val, devpriv->las1 +
+			((chan == 0) ? LAS1_DAC1_FIFO : LAS1_DAC2_FIFO));
 		RtdDacUpdate(dev, chan);	/* trigger the conversion */
 
 		devpriv->aoValue[chan] = data[i];	/* save for read back */
