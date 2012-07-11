@@ -302,7 +302,7 @@ static inline int lowpan_fetch_skb_u16(struct sk_buff *skb, u16 *val)
 	if (unlikely(!pskb_may_pull(skb, 2)))
 		return -EINVAL;
 
-	*val = skb->data[0] | (skb->data[1] << 8);
+	*val = (skb->data[0] << 8) | skb->data[1];
 	skb_pull(skb, 2);
 
 	return 0;
@@ -1006,8 +1006,8 @@ lowpan_skb_fragmentation(struct sk_buff *skb)
 	/* first fragment header */
 	head[0] = LOWPAN_DISPATCH_FRAG1 | (payload_length & 0x7);
 	head[1] = (payload_length >> 3) & 0xff;
-	head[2] = tag & 0xff;
-	head[3] = tag >> 8;
+	head[2] = tag >> 8;
+	head[3] = tag & 0xff;
 
 	err = lowpan_fragment_xmit(skb, head, header_length, 0, 0);
 
