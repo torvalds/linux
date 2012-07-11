@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Start single DAC conversion on both DACs */
-#define RtdDacBothUpdate(dev) \
-	writew(0, devpriv->las0+LAS0_DAC)
-
 /* Set DAC output type and range */
 #define RtdDacRange(dev, n, v) \
 	writew((v) & 7, devpriv->las0 \
