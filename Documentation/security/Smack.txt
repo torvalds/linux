@@ -194,6 +194,9 @@ onlycap
 	these capabilities are effective at for processes with any
 	label. The value is set by writing the desired label to the
 	file or cleared by writing "-" to the file.
+revoke-subject
+	Writing a Smack label here sets the access to '-' for all access
+	rules with that subject label.
 
 You can add access rules in /etc/smack/accesses. They take the form:
 
