@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set local address for DMA 0 */
-#define RtdDma0LocalAddr(dev, a) \
-	writel((a), devpriv->lcfg+LCFG_DMALADR0)
-
 /* Set byte count for DMA 0 */
 #define RtdDma0Count(dev, c) \
 	writel((c), devpriv->lcfg+LCFG_DMASIZ0)
