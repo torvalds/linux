@@ -339,10 +339,11 @@ static int caam_jr_init(struct device *dev)
 	if (error)
 		return error;
 
-	jrp->inpring = kzalloc(sizeof(dma_addr_t) * JOBR_DEPTH,
-			       GFP_KERNEL | GFP_DMA);
-	jrp->outring = kzalloc(sizeof(struct jr_outentry) *
-			       JOBR_DEPTH, GFP_KERNEL | GFP_DMA);
+	jrp->inpring = dma_alloc_coherent(dev, sizeof(dma_addr_t) * JOBR_DEPTH,
+					  &inpbusaddr, GFP_KERNEL);
+
+	jrp->outring = dma_alloc_coherent(dev, sizeof(struct jr_outentry) *
+					  JOBR_DEPTH, &outbusaddr, GFP_KERNEL);
 
 	jrp->entinfo = kzalloc(sizeof(struct caam_jrentry_info) * JOBR_DEPTH,
 			       GFP_KERNEL);
@@ -358,31 +359,6 @@ static int caam_jr_init(struct device *dev)
 		jrp->entinfo[i].desc_addr_dma = !0;
 
 	/* Setup rings */
-	inpbusaddr = dma_map_single(dev, jrp->inpring,
-				    sizeof(dma_addr_t) * JOBR_DEPTH,
-				    DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(dev, inpbusaddr)) {
-		dev_err(dev, "caam_jr_init(): can't map input ring\n");
-		kfree(jrp->inpring);
-		kfree(jrp->outring);
-		kfree(jrp->entinfo);
-		return -EIO;
-	}
-
-	outbusaddr = dma_map_single(dev, jrp->outring,
-				    sizeof(struct jr_outentry) * JOBR_DEPTH,
-				    DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(dev, outbusaddr)) {
-		dev_err(dev, "caam_jr_init(): can't map output ring\n");
-		dma_unmap_single(dev, inpbusaddr,
-				 sizeof(dma_addr_t) * JOBR_DEPTH,
-				 DMA_BIDIRECTIONAL);
-		kfree(jrp->inpring);
-		kfree(jrp->outring);
-		kfree(jrp->entinfo);
-		return -EIO;
-	}
-
 	jrp->inp_ring_write_index = 0;
 	jrp->out_ring_read_index = 0;
 	jrp->head = 0;
@@ -426,13 +402,10 @@ int caam_jr_shutdown(struct device *dev)
 	/* Free rings */
 	inpbusaddr = rd_reg64(&jrp->rregs->inpring_base);
 	outbusaddr = rd_reg64(&jrp->rregs->outring_base);
-	dma_unmap_single(dev, outbusaddr,
-			 sizeof(struct jr_outentry) * JOBR_DEPTH,
-			 DMA_BIDIRECTIONAL);
-	dma_unmap_single(dev, inpbusaddr, sizeof(dma_addr_t) * JOBR_DEPTH,
-			 DMA_BIDIRECTIONAL);
-	kfree(jrp->outring);
-	kfree(jrp->inpring);
+	dma_free_coherent(dev, sizeof(dma_addr_t) * JOBR_DEPTH,
+			  jrp->inpring, inpbusaddr);
+	dma_free_coherent(dev, sizeof(struct jr_outentry) * JOBR_DEPTH,
+			  jrp->outring, outbusaddr);
 	kfree(jrp->entinfo);
 
 	return ret;
