@@ -126,7 +126,6 @@ struct crypto_alg nx_ecb_aes_alg = {
 	.cra_ctxsize     = sizeof(struct nx_crypto_ctx),
 	.cra_type        = &crypto_blkcipher_type,
 	.cra_module      = THIS_MODULE,
-	.cra_list        = LIST_HEAD_INIT(nx_ecb_aes_alg.cra_list),
 	.cra_init        = nx_crypto_ctx_aes_ecb_init,
 	.cra_exit        = nx_crypto_ctx_exit,
 	.cra_blkcipher = {

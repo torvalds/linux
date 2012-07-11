@@ -1044,7 +1044,6 @@ static int atmel_tdes_register_algs(struct atmel_tdes_dev *dd)
 	int err, i, j;
 
 	for (i = 0; i < ARRAY_SIZE(tdes_algs); i++) {
-		INIT_LIST_HEAD(&tdes_algs[i].cra_list);
 		err = crypto_register_alg(&tdes_algs[i]);
 		if (err)
 			goto err_tdes_algs;
