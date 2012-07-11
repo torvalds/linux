@@ -9,6 +9,7 @@
 #include <subdev/i2c.h>
 #include <subdev/clock.h>
 #include <subdev/mc.h>
+#include <subdev/timer.h>
 
 void *nouveau_newpriv(struct drm_device *);
 
@@ -300,5 +301,34 @@ nv_intr(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_newpriv(dev);
 	struct nouveau_mc *pmc = nouveau_mc(drm->device);
-	nv_subdev(pmc)->intr(pmc);
+	nv_subdev(pmc)->intr(&pmc->base);
+}
+
+bool nouveau_wait_eq(struct drm_device *dev, uint64_t timeout,
+			    uint32_t reg, uint32_t mask, uint32_t val)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	return nouveau_timer_wait_eq(drm->device, timeout, reg, mask, val);
+}
+
+bool nouveau_wait_ne(struct drm_device *dev, uint64_t timeout,
+			    uint32_t reg, uint32_t mask, uint32_t val)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	return nouveau_timer_wait_ne(drm->device, timeout, reg, mask, val);
+}
+
+bool nouveau_wait_cb(struct drm_device *dev, u64 timeout,
+			    bool (*cond)(void *), void *data)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	return nouveau_timer_wait_cb(drm->device, timeout, cond, data);
+}
+
+u64
+nv_timer_read(struct drm_device *dev)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_timer *ptimer = nouveau_timer(drm->device);
+	return ptimer->read(ptimer);
 }

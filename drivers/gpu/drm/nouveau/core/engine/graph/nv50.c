@@ -224,7 +224,6 @@ static void
 nv84_graph_tlb_flush(struct drm_device *dev, int engine)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
 	bool idle, timeout = false;
 	unsigned long flags;
 	u64 start;
@@ -233,7 +232,7 @@ nv84_graph_tlb_flush(struct drm_device *dev, int engine)
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 	nv_mask(dev, 0x400500, 0x00000001, 0x00000000);
 
-	start = ptimer->read(dev);
+	start = nv_timer_read(dev);
 	do {
 		idle = true;
 
@@ -251,7 +250,7 @@ nv84_graph_tlb_flush(struct drm_device *dev, int engine)
 			if ((tmp & 7) == 1)
 				idle = false;
 		}
-	} while (!idle && !(timeout = ptimer->read(dev) - start > 2000000000));
+	} while (!idle && !(timeout = nv_timer_read(dev) - start > 2000000000));
 
 	if (timeout) {
 		NV_ERROR(dev, "PGRAPH TLB flush idle timeout fail: "

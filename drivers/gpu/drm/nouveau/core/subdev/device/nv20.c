@@ -29,6 +29,7 @@
 #include <subdev/clock.h>
 #include <subdev/devinit.h>
 #include <subdev/mc.h>
+#include <subdev/timer.h>
 
 int
 nv20_identify(struct nouveau_device *device)
@@ -41,6 +42,7 @@ nv20_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
+		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		break;
 	case 0x25:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -49,6 +51,7 @@ nv20_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
+		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		break;
 	case 0x28:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -57,6 +60,7 @@ nv20_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
+		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		break;
 	case 0x2a:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -65,6 +69,7 @@ nv20_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv20_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
+		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Kelvin chipset\n");

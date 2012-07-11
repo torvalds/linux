@@ -324,12 +324,6 @@ struct nouveau_instmem_engine {
 	void	(*flush)(struct drm_device *);
 };
 
-struct nouveau_timer_engine {
-	int      (*init)(struct drm_device *dev);
-	void     (*takedown)(struct drm_device *dev);
-	uint64_t (*read)(struct drm_device *dev);
-};
-
 struct nouveau_fb_engine {
 	int num_tiles;
 	struct drm_mm tag_heap;
@@ -539,7 +533,6 @@ struct nouveau_vram_engine {
 
 struct nouveau_engine {
 	struct nouveau_instmem_engine instmem;
-	struct nouveau_timer_engine   timer;
 	struct nouveau_fb_engine      fb;
 	struct nouveau_display_engine display;
 	struct nouveau_pm_engine      pm;
@@ -836,12 +829,6 @@ extern int  nouveau_load(struct drm_device *, unsigned long flags);
 extern int  nouveau_firstopen(struct drm_device *);
 extern void nouveau_lastclose(struct drm_device *);
 extern int  nouveau_unload(struct drm_device *);
-extern bool nouveau_wait_eq(struct drm_device *, uint64_t timeout,
-			    uint32_t reg, uint32_t mask, uint32_t val);
-extern bool nouveau_wait_ne(struct drm_device *, uint64_t timeout,
-			    uint32_t reg, uint32_t mask, uint32_t val);
-extern bool nouveau_wait_cb(struct drm_device *, u64 timeout,
-			    bool (*cond)(void *), void *);
 extern bool nouveau_wait_for_idle(struct drm_device *);
 extern int  nouveau_card_init(struct drm_device *);
 
@@ -1203,11 +1190,6 @@ extern int  nvc0_instmem_init(struct drm_device *);
 extern void nvc0_instmem_takedown(struct drm_device *);
 extern int  nvc0_instmem_suspend(struct drm_device *);
 extern void nvc0_instmem_resume(struct drm_device *);
-
-/* nv04_timer.c */
-extern int  nv04_timer_init(struct drm_device *);
-extern uint64_t nv04_timer_read(struct drm_device *);
-extern void nv04_timer_takedown(struct drm_device *);
 
 extern long nouveau_compat_ioctl(struct file *file, unsigned int cmd,
 				 unsigned long arg);

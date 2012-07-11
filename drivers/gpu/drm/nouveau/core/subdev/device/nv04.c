@@ -28,6 +28,7 @@
 #include <subdev/clock.h>
 #include <subdev/devinit.h>
 #include <subdev/mc.h>
+#include <subdev/timer.h>
 
 int
 nv04_identify(struct nouveau_device *device)
@@ -39,6 +40,7 @@ nv04_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv04_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
+		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		break;
 	case 0x05:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -46,6 +48,7 @@ nv04_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv05_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
+		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown RIVA chipset\n");

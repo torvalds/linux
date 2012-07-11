@@ -53,4 +53,13 @@ void nouveau_bios_init_exec(struct drm_device *, u16);
 
 void nv_intr(struct drm_device *);
 
+bool nouveau_wait_eq(struct drm_device *, uint64_t timeout,
+			    uint32_t reg, uint32_t mask, uint32_t val);
+bool nouveau_wait_ne(struct drm_device *, uint64_t timeout,
+			    uint32_t reg, uint32_t mask, uint32_t val);
+bool nouveau_wait_cb(struct drm_device *, u64 timeout,
+			    bool (*cond)(void *), void *);
+
+u64 nv_timer_read(struct drm_device *);
+
 #endif

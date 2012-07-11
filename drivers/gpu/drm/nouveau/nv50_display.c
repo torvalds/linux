@@ -88,8 +88,6 @@ nv50_display_late_takedown(struct drm_device *dev)
 int
 nv50_display_sync(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
 	struct nv50_display *disp = nv50_display(dev);
 	struct nouveau_channel *evo = disp->master;
 	u64 start;
@@ -107,11 +105,11 @@ nv50_display_sync(struct drm_device *dev)
 		nv_wo32(disp->ntfy, 0x000, 0x00000000);
 		FIRE_RING (evo);
 
-		start = ptimer->read(dev);
+		start = nv_timer_read(dev);
 		do {
 			if (nv_ro32(disp->ntfy, 0x000))
 				return 0;
-		} while (ptimer->read(dev) - start < 2000000000ULL);
+		} while (nv_timer_read(dev) - start < 2000000000ULL);
 	}
 
 	return -EBUSY;

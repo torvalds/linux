@@ -75,6 +75,7 @@ nouveau-y += core/subdev/mc/nv44.o
 nouveau-y += core/subdev/mc/nv50.o
 nouveau-y += core/subdev/mc/nv98.o
 nouveau-y += core/subdev/mc/nvc0.o
+nouveau-y += core/subdev/timer/base.o
 nouveau-y += core/subdev/timer/nv04.o
 nouveau-y += core/subdev/vm/base.o
 nouveau-y += core/subdev/vm/nv50.o

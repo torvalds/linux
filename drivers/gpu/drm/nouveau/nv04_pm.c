@@ -114,7 +114,6 @@ int
 nv04_pm_clocks_set(struct drm_device *dev, void *pre_state)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
 	struct nv04_pm_state *state = pre_state;
 
 	prog_pll(dev, &state->core);
@@ -130,7 +129,9 @@ nv04_pm_clocks_set(struct drm_device *dev, void *pre_state)
 		}
 	}
 
+#if 0 /*XXX*/
 	ptimer->init(dev);
+#endif
 
 	kfree(state);
 	return 0;

@@ -194,8 +194,7 @@ nouveau_pm_trigger(struct drm_device *dev)
 
 	/* change perflvl, if necessary */
 	if (perflvl != pm->cur) {
-		struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
-		u64 time0 = ptimer->read(dev);
+		u64 time0 = nv_timer_read(dev);
 
 		NV_INFO(dev, "setting performance level: %d", perflvl->id);
 		ret = nouveau_pm_perflvl_set(dev, perflvl);
@@ -203,7 +202,7 @@ nouveau_pm_trigger(struct drm_device *dev)
 			NV_INFO(dev, "> reclocking failed: %d\n\n", ret);
 
 		NV_INFO(dev, "> reclocking took %lluns\n\n",
-			     ptimer->read(dev) - time0);
+			     nv_timer_read(dev) - time0);
 	}
 }
 
@@ -553,8 +552,6 @@ nouveau_hwmon_show_fan0_input(struct device *d, struct device_attribute *attr,
 			      char *buf)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
 	u32 cycles, cur, prev;
 	u64 start;
 
@@ -565,7 +562,7 @@ nouveau_hwmon_show_fan0_input(struct device *d, struct device_attribute *attr,
 	 * When the fan spins, it changes the value of GPIO FAN_SENSE.
 	 * We get 4 changes (0 -> 1 -> 0 -> 1 -> [...]) per complete rotation.
 	 */
-	start = ptimer->read(dev);
+	start = nv_timer_read(dev);
 	prev = nouveau_gpio_func_get(dev, DCB_GPIO_FAN_SENSE);
 	cycles = 0;
 	do {
@@ -576,7 +573,7 @@ nouveau_hwmon_show_fan0_input(struct device *d, struct device_attribute *attr,
 		}
 
 		usleep_range(500, 1000); /* supports 0 < rpm < 7500 */
-	} while (ptimer->read(dev) - start < 250000000);
+	} while (nv_timer_read(dev) - start < 250000000);
 
 	/* interpolate to get rpm */
 	return sprintf(buf, "%i\n", cycles / 4 * 4 * 60);

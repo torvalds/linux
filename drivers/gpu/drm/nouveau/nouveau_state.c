@@ -61,9 +61,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.map		= nv04_instmem_map;
 		engine->instmem.unmap		= nv04_instmem_unmap;
 		engine->instmem.flush		= nv04_instmem_flush;
-		engine->timer.init		= nv04_timer_init;
-		engine->timer.read		= nv04_timer_read;
-		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nv04_fb_init;
 		engine->fb.takedown		= nv04_fb_takedown;
 		engine->display.early_init	= nv04_display_early_init;
@@ -89,9 +86,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.map		= nv04_instmem_map;
 		engine->instmem.unmap		= nv04_instmem_unmap;
 		engine->instmem.flush		= nv04_instmem_flush;
-		engine->timer.init		= nv04_timer_init;
-		engine->timer.read		= nv04_timer_read;
-		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nv10_fb_init;
 		engine->fb.takedown		= nv10_fb_takedown;
 		engine->fb.init_tile_region	= nv10_fb_init_tile_region;
@@ -124,9 +118,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.map		= nv04_instmem_map;
 		engine->instmem.unmap		= nv04_instmem_unmap;
 		engine->instmem.flush		= nv04_instmem_flush;
-		engine->timer.init		= nv04_timer_init;
-		engine->timer.read		= nv04_timer_read;
-		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nv20_fb_init;
 		engine->fb.takedown		= nv20_fb_takedown;
 		engine->fb.init_tile_region	= nv20_fb_init_tile_region;
@@ -155,9 +146,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.map		= nv04_instmem_map;
 		engine->instmem.unmap		= nv04_instmem_unmap;
 		engine->instmem.flush		= nv04_instmem_flush;
-		engine->timer.init		= nv04_timer_init;
-		engine->timer.read		= nv04_timer_read;
-		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nv30_fb_init;
 		engine->fb.takedown		= nv30_fb_takedown;
 		engine->fb.init_tile_region	= nv30_fb_init_tile_region;
@@ -189,9 +177,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.map		= nv04_instmem_map;
 		engine->instmem.unmap		= nv04_instmem_unmap;
 		engine->instmem.flush		= nv04_instmem_flush;
-		engine->timer.init		= nv04_timer_init;
-		engine->timer.read		= nv04_timer_read;
-		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nv40_fb_init;
 		engine->fb.takedown		= nv40_fb_takedown;
 		engine->fb.init_tile_region	= nv30_fb_init_tile_region;
@@ -231,9 +216,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 			engine->instmem.flush	= nv50_instmem_flush;
 		else
 			engine->instmem.flush	= nv84_instmem_flush;
-		engine->timer.init		= nv04_timer_init;
-		engine->timer.read		= nv04_timer_read;
-		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nv50_fb_init;
 		engine->fb.takedown		= nv50_fb_takedown;
 		engine->display.early_init	= nv50_display_early_init;
@@ -287,9 +269,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.map		= nv50_instmem_map;
 		engine->instmem.unmap		= nv50_instmem_unmap;
 		engine->instmem.flush		= nv84_instmem_flush;
-		engine->timer.init		= nv04_timer_init;
-		engine->timer.read		= nv04_timer_read;
-		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nvc0_fb_init;
 		engine->fb.takedown		= nvc0_fb_takedown;
 		engine->display.early_init	= nv50_display_early_init;
@@ -322,9 +301,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.map		= nv50_instmem_map;
 		engine->instmem.unmap		= nv50_instmem_unmap;
 		engine->instmem.flush		= nv84_instmem_flush;
-		engine->timer.init		= nv04_timer_init;
-		engine->timer.read		= nv04_timer_read;
-		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nvc0_fb_init;
 		engine->fb.takedown		= nvc0_fb_takedown;
 		engine->display.early_init	= nouveau_stub_init;
@@ -355,9 +331,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.map		= nv50_instmem_map;
 		engine->instmem.unmap		= nv50_instmem_unmap;
 		engine->instmem.flush		= nv84_instmem_flush;
-		engine->timer.init		= nv04_timer_init;
-		engine->timer.read		= nv04_timer_read;
-		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nvc0_fb_init;
 		engine->fb.takedown		= nvc0_fb_takedown;
 		engine->display.early_init	= nouveau_stub_init;
@@ -515,15 +488,10 @@ nouveau_card_init(struct drm_device *dev)
 		nv_mask(dev, 0x00088080, 0x00000800, 0x00000000);
 	}
 
-	/* PTIMER */
-	ret = engine->timer.init(dev);
-	if (ret)
-		goto out_bios;
-
 	/* PFB */
 	ret = engine->fb.init(dev);
 	if (ret)
-		goto out_timer;
+		goto out_bios;
 
 	ret = engine->vram.init(dev);
 	if (ret)
@@ -770,8 +738,6 @@ out_vram:
 	engine->vram.takedown(dev);
 out_fb:
 	engine->fb.takedown(dev);
-out_timer:
-	engine->timer.takedown(dev);
 out_bios:
 	nouveau_bios_takedown(dev);
 out_display_early:
@@ -824,7 +790,6 @@ static void nouveau_card_takedown(struct drm_device *dev)
 
 	engine->vram.takedown(dev);
 	engine->fb.takedown(dev);
-	engine->timer.takedown(dev);
 
 	nouveau_bios_takedown(dev);
 	engine->display.late_takedown(dev);
@@ -1141,57 +1106,6 @@ int nouveau_unload(struct drm_device *dev)
 	dev->dev_private = dev_priv->newpriv;
 	kfree(dev_priv);
 	return 0;
-}
-
-/* Wait until (value(reg) & mask) == val, up until timeout has hit */
-bool
-nouveau_wait_eq(struct drm_device *dev, uint64_t timeout,
-		uint32_t reg, uint32_t mask, uint32_t val)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
-	uint64_t start = ptimer->read(dev);
-
-	do {
-		if ((nv_rd32(dev, reg) & mask) == val)
-			return true;
-	} while (ptimer->read(dev) - start < timeout);
-
-	return false;
-}
-
-/* Wait until (value(reg) & mask) != val, up until timeout has hit */
-bool
-nouveau_wait_ne(struct drm_device *dev, uint64_t timeout,
-		uint32_t reg, uint32_t mask, uint32_t val)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
-	uint64_t start = ptimer->read(dev);
-
-	do {
-		if ((nv_rd32(dev, reg) & mask) != val)
-			return true;
-	} while (ptimer->read(dev) - start < timeout);
-
-	return false;
-}
-
-/* Wait until cond(data) == true, up until timeout has hit */
-bool
-nouveau_wait_cb(struct drm_device *dev, u64 timeout,
-		bool (*cond)(void *), void *data)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
-	u64 start = ptimer->read(dev);
-
-	do {
-		if (cond(data) == true)
-			return true;
-	} while (ptimer->read(dev) - start < timeout);
-
-	return false;
 }
 
 /* Waits for PGRAPH to go completely idle */
