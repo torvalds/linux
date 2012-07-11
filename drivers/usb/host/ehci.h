@@ -73,7 +73,23 @@ enum ehci_rh_state {
 	EHCI_RH_STOPPING
 };
 
+/*
+ * Timer events, ordered by increasing delay length.
+ * Always update event_delays_ns[] and event_handlers[] (defined in
+ * ehci-timer.c) in parallel with this list.
+ */
+enum ehci_hrtimer_event {
+	EHCI_HRTIMER_NUM_EVENTS		/* Must come last */
+};
+#define EHCI_HRTIMER_NO_EVENT	99
+
 struct ehci_hcd {			/* one per controller */
+	/* timing support */
+	enum ehci_hrtimer_event	next_hrtimer_event;
+	unsigned		enabled_hrtimer_events;
+	ktime_t			hr_timeouts[EHCI_HRTIMER_NUM_EVENTS];
+	struct hrtimer		hrtimer;
+
 	/* glue to PCI and HCD framework */
 	struct ehci_caps __iomem *caps;
 	struct ehci_regs __iomem *regs;

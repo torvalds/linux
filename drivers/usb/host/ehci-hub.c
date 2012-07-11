@@ -311,12 +311,15 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	ehci_readl(ehci, &ehci->regs->intr_enable);
 
 	ehci->next_statechange = jiffies + msecs_to_jiffies(10);
+	ehci->enabled_hrtimer_events = 0;
+	ehci->next_hrtimer_event = EHCI_HRTIMER_NO_EVENT;
 	spin_unlock_irq (&ehci->lock);
 
 	/* ehci_work() may have re-enabled the watchdog timer, which we do not
 	 * want, and so we must delete any pending watchdog timer events.
 	 */
 	del_timer_sync(&ehci->watchdog);
+	hrtimer_cancel(&ehci->hrtimer);
 	return 0;
 }
 
