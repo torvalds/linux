@@ -245,6 +245,43 @@ static int wl1271_tm_cmd_configure(struct wl1271 *wl, struct nlattr *tb[])
 	return 0;
 }
 
+static int wl1271_tm_detect_fem(struct wl1271 *wl, struct nlattr *tb[])
+{
+	/* return FEM type */
+	int ret, len;
+	struct sk_buff *skb;
+
+	ret = wl1271_plt_start(wl, PLT_FEM_DETECT);
+	if (ret < 0)
+		goto out;
+
+	mutex_lock(&wl->mutex);
+
+	len = nla_total_size(sizeof(wl->fem_manuf));
+	skb = cfg80211_testmode_alloc_reply_skb(wl->hw->wiphy, len);
+	if (!skb) {
+		ret = -ENOMEM;
+		goto out_mutex;
+	}
+
+	if (nla_put(skb, WL1271_TM_ATTR_DATA, sizeof(wl->fem_manuf),
+					      &wl->fem_manuf)) {
+		kfree_skb(skb);
+		ret = -EMSGSIZE;
+		goto out_mutex;
+	}
+
+	ret = cfg80211_testmode_reply(skb);
+
+out_mutex:
+	mutex_unlock(&wl->mutex);
+
+	/* We always stop plt after DETECT mode */
+	wl1271_plt_stop(wl);
+out:
+	return ret;
+}
+
 static int wl1271_tm_cmd_set_plt_mode(struct wl1271 *wl, struct nlattr *tb[])
 {
 	u32 val;
@@ -262,8 +299,10 @@ static int wl1271_tm_cmd_set_plt_mode(struct wl1271 *wl, struct nlattr *tb[])
 		ret = wl1271_plt_stop(wl);
 		break;
 	case PLT_ON:
+		ret = wl1271_plt_start(wl, PLT_ON);
+		break;
 	case PLT_FEM_DETECT:
-		ret = wl1271_plt_start(wl, val);
+		ret = wl1271_tm_detect_fem(wl, tb);
 		break;
 	default:
 		ret = -EINVAL;

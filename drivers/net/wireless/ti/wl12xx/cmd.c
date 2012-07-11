@@ -85,7 +85,11 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 
 	memcpy(&gen_parms->general_params, gp, sizeof(*gp));
 
-	if (gp->tx_bip_fem_auto_detect)
+	/* If we started in PLT FEM_DETECT mode, force auto detect */
+	if (wl->plt_mode == PLT_FEM_DETECT)
+		gen_parms->general_params.tx_bip_fem_auto_detect = true;
+
+	if (gen_parms->general_params.tx_bip_fem_auto_detect)
 		answer = true;
 
 	/* Override the REF CLK from the NVS with the one from platform data */
@@ -106,8 +110,17 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 		goto out;
 	}
 
+	/* If we are in calibrator based fem auto detect - save fem nr */
+	if (wl->plt_mode == PLT_FEM_DETECT)
+		wl->fem_manuf = gp->tx_bip_fem_manufacturer;
+
 	wl1271_debug(DEBUG_CMD, "FEM autodetect: %s, manufacturer: %d\n",
-		     answer ? "auto" : "manual", gp->tx_bip_fem_manufacturer);
+		answer == false ?
+			"manual" :
+		wl->plt_mode == PLT_FEM_DETECT ?
+			"calibrator_fem_detect" :
+			"auto",
+		gp->tx_bip_fem_manufacturer);
 
 out:
 	kfree(gen_parms);
@@ -139,7 +152,11 @@ int wl128x_cmd_general_parms(struct wl1271 *wl)
 
 	memcpy(&gen_parms->general_params, gp, sizeof(*gp));
 
-	if (gp->tx_bip_fem_auto_detect)
+	/* If we started in PLT FEM_DETECT mode, force auto detect */
+	if (wl->plt_mode == PLT_FEM_DETECT)
+		gen_parms->general_params.tx_bip_fem_auto_detect = true;
+
+	if (gen_parms->general_params.tx_bip_fem_auto_detect)
 		answer = true;
 
 	/* Replace REF and TCXO CLKs with the ones from platform data */
@@ -161,8 +178,17 @@ int wl128x_cmd_general_parms(struct wl1271 *wl)
 		goto out;
 	}
 
+	/* If we are in calibrator based fem auto detect - save fem nr */
+	if (wl->plt_mode == PLT_FEM_DETECT)
+		wl->fem_manuf = gp->tx_bip_fem_manufacturer;
+
 	wl1271_debug(DEBUG_CMD, "FEM autodetect: %s, manufacturer: %d\n",
-		     answer ? "auto" : "manual", gp->tx_bip_fem_manufacturer);
+		answer == false ?
+			"manual" :
+		wl->plt_mode == PLT_FEM_DETECT ?
+			"calibrator_fem_detect" :
+			"auto",
+		gp->tx_bip_fem_manufacturer);
 
 out:
 	kfree(gen_parms);
