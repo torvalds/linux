@@ -75,19 +75,6 @@ static int genpd_start_dev(struct generic_pm_domain *genpd, struct device *dev)
 					start_latency_ns, "start");
 }
 
-static int genpd_save_dev(struct generic_pm_domain *genpd, struct device *dev)
-{
-	return GENPD_DEV_TIMED_CALLBACK(genpd, int, save_state, dev,
-					save_state_latency_ns, "state save");
-}
-
-static int genpd_restore_dev(struct generic_pm_domain *genpd, struct device *dev)
-{
-	return GENPD_DEV_TIMED_CALLBACK(genpd, int, restore_state, dev,
-					restore_state_latency_ns,
-					"state restore");
-}
-
 static bool genpd_sd_counter_dec(struct generic_pm_domain *genpd)
 {
 	bool ret = false;
@@ -272,6 +259,19 @@ int pm_genpd_poweron(struct generic_pm_domain *genpd)
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_PM_RUNTIME
+
+static int genpd_save_dev(struct generic_pm_domain *genpd, struct device *dev)
+{
+	return GENPD_DEV_TIMED_CALLBACK(genpd, int, save_state, dev,
+					save_state_latency_ns, "state save");
+}
+
+static int genpd_restore_dev(struct generic_pm_domain *genpd, struct device *dev)
+{
+	return GENPD_DEV_TIMED_CALLBACK(genpd, int, restore_state, dev,
+					restore_state_latency_ns,
+					"state restore");
+}
 
 static int genpd_dev_pm_qos_notifier(struct notifier_block *nb,
 				     unsigned long val, void *ptr)
