@@ -404,9 +404,9 @@ struct debug_buffer {
 
 #define speed_char(info1) ({ char tmp; \
 		switch (info1 & (3 << 12)) { \
-		case 0 << 12: tmp = 'f'; break; \
-		case 1 << 12: tmp = 'l'; break; \
-		case 2 << 12: tmp = 'h'; break; \
+		case QH_FULL_SPEED: tmp = 'f'; break; \
+		case QH_LOW_SPEED:  tmp = 'l'; break; \
+		case QH_HIGH_SPEED: tmp = 'h'; break; \
 		default: tmp = '?'; break; \
 		}; tmp; })
 

@@ -324,7 +324,13 @@ union ehci_shadow {
 struct ehci_qh_hw {
 	__hc32			hw_next;	/* see EHCI 3.6.1 */
 	__hc32			hw_info1;       /* see EHCI 3.6.2 */
-#define	QH_HEAD		0x00008000
+#define	QH_CONTROL_EP	(1 << 27)	/* FS/LS control endpoint */
+#define	QH_HEAD		(1 << 15)	/* Head of async reclamation list */
+#define	QH_TOGGLE_CTL	(1 << 14)	/* Data toggle control */
+#define	QH_HIGH_SPEED	(2 << 12)	/* Endpoint speed */
+#define	QH_LOW_SPEED	(1 << 12)
+#define	QH_FULL_SPEED	(0 << 12)
+#define	QH_INACTIVATE	(1 << 7)	/* Inactivate on next transaction */
 	__hc32			hw_info2;        /* see EHCI 3.6.2 */
 #define	QH_SMASK	0x000000ff
 #define	QH_CMASK	0x0000ff00

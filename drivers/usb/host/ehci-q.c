@@ -100,7 +100,7 @@ qh_update (struct ehci_hcd *ehci, struct ehci_qh *qh, struct ehci_qtd *qtd)
 	 * and set the pseudo-toggle in udev. Only usb_clear_halt() will
 	 * ever clear it.
 	 */
-	if (!(hw->hw_info1 & cpu_to_hc32(ehci, 1 << 14))) {
+	if (!(hw->hw_info1 & cpu_to_hc32(ehci, QH_TOGGLE_CTL))) {
 		unsigned	is_out, epnum;
 
 		is_out = qh->is_out;
@@ -886,7 +886,7 @@ qh_make (
 	/* using TT? */
 	switch (urb->dev->speed) {
 	case USB_SPEED_LOW:
-		info1 |= (1 << 12);	/* EPS "low" */
+		info1 |= QH_LOW_SPEED;
 		/* FALL THROUGH */
 
 	case USB_SPEED_FULL:
@@ -894,8 +894,8 @@ qh_make (
 		if (type != PIPE_INTERRUPT)
 			info1 |= (EHCI_TUNE_RL_TT << 28);
 		if (type == PIPE_CONTROL) {
-			info1 |= (1 << 27);	/* for TT */
-			info1 |= 1 << 14;	/* toggle from qtd */
+			info1 |= QH_CONTROL_EP;		/* for TT */
+			info1 |= QH_TOGGLE_CTL;		/* toggle from qtd */
 		}
 		info1 |= maxp << 16;
 
@@ -920,11 +920,11 @@ qh_make (
 		break;
 
 	case USB_SPEED_HIGH:		/* no TT involved */
-		info1 |= (2 << 12);	/* EPS "high" */
+		info1 |= QH_HIGH_SPEED;
 		if (type == PIPE_CONTROL) {
 			info1 |= (EHCI_TUNE_RL_HS << 28);
 			info1 |= 64 << 16;	/* usb2 fixed maxpacket */
-			info1 |= 1 << 14;	/* toggle from qtd */
+			info1 |= QH_TOGGLE_CTL;	/* toggle from qtd */
 			info2 |= (EHCI_TUNE_MULT_HS << 30);
 		} else if (type == PIPE_BULK) {
 			info1 |= (EHCI_TUNE_RL_HS << 28);
