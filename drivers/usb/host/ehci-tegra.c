@@ -445,12 +445,11 @@ static int controller_suspend(struct device *dev)
 	if (time_before(jiffies, ehci->next_statechange))
 		msleep(10);
 
-	spin_lock_irqsave(&ehci->lock, flags);
-
-	tegra->port_speed = (readl(&hw->port_status[0]) >> 26) & 0x3;
 	ehci_halt(ehci);
-	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
+	spin_lock_irqsave(&ehci->lock, flags);
+	tegra->port_speed = (readl(&hw->port_status[0]) >> 26) & 0x3;
+	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	spin_unlock_irqrestore(&ehci->lock, flags);
 
 	tegra_ehci_power_down(hcd);
