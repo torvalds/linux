@@ -1075,6 +1075,12 @@ static int smb347_battery_get_property(struct power_supply *psy,
 	if (ret < 0)
 		return ret;
 
+	if (ret > 0) {
+		smb347_update_online(smb);
+		power_supply_changed(&smb->mains);
+		power_supply_changed(&smb->usb);
+	}
+
 	switch (prop) {
 	case POWER_SUPPLY_PROP_STATUS:
 		if (!smb347_is_online(smb)) {
