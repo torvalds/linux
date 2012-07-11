@@ -54,6 +54,12 @@ static struct mfd_cell s5m8767_devs[] = {
 	},
 };
 
+static struct mfd_cell s2mps11_devs[] = {
+	{
+		.name = "s2mps11-pmic",
+	},
+};
+
 int sec_reg_read(struct sec_pmic_dev *sec_pmic, u8 reg, void *dest)
 {
 	return regmap_read(sec_pmic->regmap, reg, dest);
@@ -144,6 +150,10 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	case S5M8767X:
 		ret = mfd_add_devices(sec_pmic->dev, -1, s5m8767_devs,
 					ARRAY_SIZE(s5m8767_devs), NULL, 0);
+		break;
+	case S2MPS11X:
+		ret = mfd_add_devices(sec_pmic->dev, -1, s2mps11_devs,
+					ARRAY_SIZE(s2mps11_devs), NULL, 0);
 		break;
 	default:
 		/* If this happens the probe function is problem */

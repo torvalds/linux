@@ -20,6 +20,7 @@ enum sec_device_type {
 	S5M8751X,
 	S5M8763X,
 	S5M8767X,
+	S2MPS11X,
 };
 
 /**
@@ -98,9 +99,18 @@ struct sec_platform_data {
 	int				buck4_default_idx;
 
 	int                             buck_ramp_delay;
+
+	int				buck2_ramp_delay;
+	int				buck34_ramp_delay;
+	int				buck5_ramp_delay;
+	int				buck16_ramp_delay;
+	int				buck7810_ramp_delay;
+	int				buck9_ramp_delay;
+
 	bool                            buck2_ramp_enable;
 	bool                            buck3_ramp_enable;
 	bool                            buck4_ramp_enable;
+	bool				buck6_ramp_enable;
 
 	int				buck2_init;
 	int				buck3_init;
