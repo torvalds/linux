@@ -81,6 +81,7 @@ enum ehci_rh_state {
 enum ehci_hrtimer_event {
 	EHCI_HRTIMER_POLL_ASS,		/* Poll for async schedule off */
 	EHCI_HRTIMER_POLL_PSS,		/* Poll for periodic schedule off */
+	EHCI_HRTIMER_UNLINK_INTR,	/* Wait for interrupt QH unlink */
 	EHCI_HRTIMER_DISABLE_PERIODIC,	/* Wait to disable periodic sched */
 	EHCI_HRTIMER_DISABLE_ASYNC,	/* Wait to disable async sched */
 	EHCI_HRTIMER_NUM_EVENTS		/* Must come last */
@@ -106,13 +107,16 @@ struct ehci_hcd {			/* one per controller */
 	spinlock_t		lock;
 	enum ehci_rh_state	rh_state;
 
+	/* general schedule support */
+	unsigned		scanning:1;
+	bool			intr_unlinking:1;
+
 	/* async schedule support */
 	struct ehci_qh		*async;
 	struct ehci_qh		*dummy;		/* For AMD quirk use */
 	struct ehci_qh		*async_unlink;
 	struct ehci_qh		*async_unlink_last;
 	struct ehci_qh		*qh_scan_next;
-	unsigned		scanning : 1;
 	unsigned		async_count;	/* async activity count */
 
 	/* periodic schedule support */
@@ -123,6 +127,9 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		i_thresh;	/* uframes HC might cache */
 
 	union ehci_shadow	*pshadow;	/* mirror hw periodic table */
+	struct ehci_qh		*intr_unlink;
+	struct ehci_qh		*intr_unlink_last;
+	unsigned		intr_unlink_cycle;
 	int			next_uframe;	/* scan periodic, start here */
 	unsigned		periodic_count;	/* periodic activity count */
 	unsigned		uframe_periodic_max; /* max periodic time per uframe */
@@ -385,6 +392,7 @@ struct ehci_qh {
 	struct ehci_qh		*unlink_next;	/* next on unlink list */
 
 	unsigned long		unlink_time;
+	unsigned		unlink_cycle;
 	unsigned		stamp;
 
 	u8			needs_rescan;	/* Dequeue during giveback */

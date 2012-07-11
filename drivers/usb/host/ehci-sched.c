@@ -578,12 +578,20 @@ static void qh_unlink_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	unsigned	i;
 	unsigned	period;
 
-	// FIXME:
-	// IF this isn't high speed
-	//   and this qh is active in the current uframe
-	//   (and overlay token SplitXstate is false?)
-	// THEN
-	//   qh->hw_info1 |= cpu_to_hc32(1 << 7 /* "ignore" */);
+	/*
+	 * If qh is for a low/full-speed device, simply unlinking it
+	 * could interfere with an ongoing split transaction.  To unlink
+	 * it safely would require setting the QH_INACTIVATE bit and
+	 * waiting at least one frame, as described in EHCI 4.12.2.5.
+	 *
+	 * We won't bother with any of this.  Instead, we assume that the
+	 * only reason for unlinking an interrupt QH while the current URB
+	 * is still active is to dequeue all the URBs (flush the whole
+	 * endpoint queue).
+	 *
+	 * If rebalancing the periodic schedule is ever implemented, this
+	 * approach will no longer be valid.
+	 */
 
 	/* high bandwidth, or otherwise part of every microframe */
 	if ((period = qh->period) == 0)
@@ -608,12 +616,8 @@ static void qh_unlink_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	qh->qh_next.ptr = NULL;
 }
 
-static void intr_deschedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
+static void start_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
-	unsigned		wait;
-	struct ehci_qh_hw	*hw = qh->hw;
-	int			rc;
-
 	/* If the QH isn't linked then there's nothing we can do
 	 * unless we were called during a giveback, in which case
 	 * qh_completions() has to deal with it.
@@ -626,28 +630,45 @@ static void intr_deschedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	qh_unlink_periodic (ehci, qh);
 
-	/* simple/paranoid:  always delay, expecting the HC needs to read
-	 * qh->hw_next or finish a writeback after SPLIT/CSPLIT ... and
-	 * expect khubd to clean up after any CSPLITs we won't issue.
-	 * active high speed queues may need bigger delays...
-	 */
-	if (list_empty (&qh->qtd_list)
-			|| (cpu_to_hc32(ehci, QH_CMASK)
-					& hw->hw_info2) != 0)
-		wait = 2;
-	else
-		wait = 55;	/* worst case: 3 * 1024 */
+	/* Make sure the unlinks are visible before starting the timer */
+	wmb();
 
-	udelay (wait);
+	/*
+	 * The EHCI spec doesn't say how long it takes the controller to
+	 * stop accessing an unlinked interrupt QH.  The timer delay is
+	 * 9 uframes; presumably that will be long enough.
+	 */
+	qh->unlink_cycle = ehci->intr_unlink_cycle;
+
+	/* New entries go at the end of the intr_unlink list */
+	if (ehci->intr_unlink)
+		ehci->intr_unlink_last->unlink_next = qh;
+	else
+		ehci->intr_unlink = qh;
+	ehci->intr_unlink_last = qh;
+
+	if (ehci->intr_unlinking)
+		;	/* Avoid recursive calls */
+	else if (ehci->rh_state < EHCI_RH_RUNNING)
+		ehci_handle_intr_unlinks(ehci);
+	else if (ehci->intr_unlink == qh) {
+		ehci_enable_event(ehci, EHCI_HRTIMER_UNLINK_INTR, true);
+		++ehci->intr_unlink_cycle;
+	}
+}
+
+static void end_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh)
+{
+	struct ehci_qh_hw	*hw = qh->hw;
+	int			rc;
+
 	qh->qh_state = QH_STATE_IDLE;
 	hw->hw_next = EHCI_LIST_END(ehci);
-	wmb ();
 
 	qh_completions(ehci, qh);
 
 	/* reschedule QH iff another request is queued */
-	if (!list_empty(&qh->qtd_list) &&
-			ehci->rh_state == EHCI_RH_RUNNING) {
+	if (!list_empty(&qh->qtd_list) && ehci->rh_state == EHCI_RH_RUNNING) {
 		rc = qh_schedule(ehci, qh);
 
 		/* An error here likely indicates handshake failure
@@ -2302,7 +2323,7 @@ restart:
 						temp.qh->stamp = ehci->periodic_stamp;
 					if (unlikely(list_empty(&temp.qh->qtd_list) ||
 							temp.qh->needs_rescan))
-						intr_deschedule(ehci, temp.qh);
+						start_unlink_intr(ehci, temp.qh);
 				}
 				break;
 			case Q_TYPE_FSTN:

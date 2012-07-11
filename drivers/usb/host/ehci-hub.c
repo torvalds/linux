@@ -302,6 +302,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 
 	if (ehci->async_unlink)
 		end_unlink_async(ehci);
+	ehci_handle_intr_unlinks(ehci);
 
 	/* allow remote wakeup */
 	mask = INTR_MASK;

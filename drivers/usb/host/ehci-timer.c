@@ -69,6 +69,7 @@ static void ehci_clear_command_bit(struct ehci_hcd *ehci, u32 bit)
 static unsigned event_delays_ns[] = {
 	1 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_POLL_ASS */
 	1 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_POLL_PSS */
+	1125 * NSEC_PER_USEC,	/* EHCI_HRTIMER_UNLINK_INTR */
 	10 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_DISABLE_PERIODIC */
 	15 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_DISABLE_ASYNC */
 };
@@ -192,6 +193,38 @@ static void ehci_disable_PSE(struct ehci_hcd *ehci)
 }
 
 
+/* Handle unlinked interrupt QHs once they are gone from the hardware */
+static void ehci_handle_intr_unlinks(struct ehci_hcd *ehci)
+{
+	bool		stopped = (ehci->rh_state < EHCI_RH_RUNNING);
+
+	/*
+	 * Process all the QHs on the intr_unlink list that were added
+	 * before the current unlink cycle began.  The list is in
+	 * temporal order, so stop when we reach the first entry in the
+	 * current cycle.  But if the root hub isn't running then
+	 * process all the QHs on the list.
+	 */
+	ehci->intr_unlinking = true;
+	while (ehci->intr_unlink) {
+		struct ehci_qh	*qh = ehci->intr_unlink;
+
+		if (!stopped && qh->unlink_cycle == ehci->intr_unlink_cycle)
+			break;
+		ehci->intr_unlink = qh->unlink_next;
+		qh->unlink_next = NULL;
+		end_unlink_intr(ehci, qh);
+	}
+
+	/* Handle remaining entries later */
+	if (ehci->intr_unlink) {
+		ehci_enable_event(ehci, EHCI_HRTIMER_UNLINK_INTR, true);
+		++ehci->intr_unlink_cycle;
+	}
+	ehci->intr_unlinking = false;
+}
+
+
 /*
  * Handler functions for the hrtimer event types.
  * Keep this array in the same order as the event types indexed by
@@ -200,6 +233,7 @@ static void ehci_disable_PSE(struct ehci_hcd *ehci)
 static void (*event_handlers[])(struct ehci_hcd *) = {
 	ehci_poll_ASS,			/* EHCI_HRTIMER_POLL_ASS */
 	ehci_poll_PSS,			/* EHCI_HRTIMER_POLL_PSS */
+	ehci_handle_intr_unlinks,	/* EHCI_HRTIMER_UNLINK_INTR */
 	ehci_disable_PSE,		/* EHCI_HRTIMER_DISABLE_PERIODIC */
 	ehci_disable_ASE,		/* EHCI_HRTIMER_DISABLE_ASYNC */
 };

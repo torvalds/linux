@@ -309,6 +309,8 @@ static void ehci_quiesce (struct ehci_hcd *ehci)
 
 static void end_unlink_async(struct ehci_hcd *ehci);
 static void ehci_work(struct ehci_hcd *ehci);
+static void start_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh);
+static void end_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh);
 
 #include "ehci-timer.c"
 #include "ehci-hub.c"
@@ -1034,7 +1036,7 @@ static int ehci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		switch (qh->qh_state) {
 		case QH_STATE_LINKED:
 		case QH_STATE_COMPLETING:
-			intr_deschedule (ehci, qh);
+			start_unlink_intr(ehci, qh);
 			break;
 		case QH_STATE_IDLE:
 			qh_completions (ehci, qh);
@@ -1164,7 +1166,7 @@ ehci_endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 			if (eptype == USB_ENDPOINT_XFER_BULK)
 				unlink_async(ehci, qh);
 			else
-				intr_deschedule(ehci, qh);
+				start_unlink_intr(ehci, qh);
 		}
 	}
 	spin_unlock_irqrestore(&ehci->lock, flags);
