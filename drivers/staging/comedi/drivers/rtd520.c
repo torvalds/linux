@@ -406,9 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-#define RtdDioStatusWrite(dev, v) \
-	writew((devpriv->dioStatus = (v)), devpriv->las0+LAS0_DIO_STATUS)
-
 #define RtdDio0CtrlRead(dev) \
 	(readw(devpriv->las0+LAS0_DIO0_CTRL) & 0xff)
 #define RtdDio0CtrlWrite(dev, v) \
@@ -1689,9 +1686,11 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 
 	DPRINTK("rtd520: port_0_direction=0x%x (1 means out)\n", s->io_bits);
 	/* TODO support digital match interrupts and strobes */
-	RtdDioStatusWrite(dev, 0x01);	/* make Dio0Ctrl point to direction */
+	devpriv->dioStatus = 0x01;	/* set direction */
+	writew(devpriv->dioStatus, devpriv->las0 + LAS0_DIO_STATUS);
 	RtdDio0CtrlWrite(dev, s->io_bits);	/* set direction 1 means Out */
-	RtdDioStatusWrite(dev, 0);	/* make Dio0Ctrl clear interrupts */
+	devpriv->dioStatus = 0x00;	/* clear interrupts */
+	writew(devpriv->dioStatus, devpriv->las0 + LAS0_DIO_STATUS);
 
 	/* port1 can only be all input or all output */
 
@@ -1893,7 +1892,8 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	RtdDacClearFifo(dev, 0);
 	RtdDacClearFifo(dev, 1);
 	/* clear digital IO fifo */
-	RtdDioStatusWrite(dev, 0);	/* safe state, set shadow */
+	devpriv->dioStatus = 0;
+	writew(devpriv->dioStatus, devpriv->las0 + LAS0_DIO_STATUS);
 	devpriv->utcCtrl[0] = (0 << 6) | 0x30;
 	devpriv->utcCtrl[1] = (1 << 6) | 0x30;
 	devpriv->utcCtrl[2] = (2 << 6) | 0x30;
