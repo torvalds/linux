@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Set control for DMA 1 (write only, shadow?) */
-#define RtdDma1Control(dev, n) \
-	writeb(devpriv->dma1Control = (n), devpriv->lcfg+LCFG_DMACSR1)
-
 /* Get status for DMA 1 */
 #define RtdDma1Status(dev) \
 	readb(devpriv->lcfg+LCFG_DMACSR1)
@@ -1968,9 +1964,11 @@ static void rtd_detach(struct comedi_device *dev)
 #ifdef USE_DMA
 		if (devpriv->lcfg) {
 			devpriv->dma0Control = 0;
+			devpriv->dma1Control = 0;
 			writeb(devpriv->dma0Control,
 				devpriv->lcfg + LCFG_DMACSR0);
-			RtdDma1Control(dev, 0);	/* disable DMA */
+			writeb(devpriv->dma1Control,
+				devpriv->lcfg + LCFG_DMACSR1);
 			writel(ICS_PIE | ICS_PLIE, devpriv->lcfg + LCFG_ITCSR);
 		}
 #endif /* USE_DMA */
