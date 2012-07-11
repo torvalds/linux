@@ -1333,11 +1333,12 @@ static s64 tile_net_equeue_try_reserve(struct net_device *dev,
 static int tso_count_edescs(struct sk_buff *skb)
 {
 	struct skb_shared_info *sh = skb_shinfo(skb);
-	unsigned int data_len = skb->data_len;
+	unsigned int sh_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	unsigned int data_len = skb->data_len + skb->hdr_len - sh_len;
 	unsigned int p_len = sh->gso_size;
 	long f_id = -1;    /* id of the current fragment */
-	long f_size = -1;  /* size of the current fragment */
-	long f_used = -1;  /* bytes used from the current fragment */
+	long f_size = skb->hdr_len;  /* size of the current fragment */
+	long f_used = sh_len;  /* bytes used from the current fragment */
 	long n;            /* size of the current piece of payload */
 	int num_edescs = 0;
 	int segment;
@@ -1382,13 +1383,14 @@ static void tso_headers_prepare(struct sk_buff *skb, unsigned char *headers,
 	struct skb_shared_info *sh = skb_shinfo(skb);
 	struct iphdr *ih;
 	struct tcphdr *th;
-	unsigned int data_len = skb->data_len;
+	unsigned int sh_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	unsigned int data_len = skb->data_len + skb->hdr_len - sh_len;
 	unsigned char *data = skb->data;
-	unsigned int ih_off, th_off, sh_len, p_len;
+	unsigned int ih_off, th_off, p_len;
 	unsigned int isum_seed, tsum_seed, id, seq;
 	long f_id = -1;    /* id of the current fragment */
-	long f_size = -1;  /* size of the current fragment */
-	long f_used = -1;  /* bytes used from the current fragment */
+	long f_size = skb->hdr_len;  /* size of the current fragment */
+	long f_used = sh_len;  /* bytes used from the current fragment */
 	long n;            /* size of the current piece of payload */
 	int segment;
 
@@ -1397,14 +1399,13 @@ static void tso_headers_prepare(struct sk_buff *skb, unsigned char *headers,
 	th = tcp_hdr(skb);
 	ih_off = skb_network_offset(skb);
 	th_off = skb_transport_offset(skb);
-	sh_len = th_off + tcp_hdrlen(skb);
 	p_len = sh->gso_size;
 
 	/* Set up seed values for IP and TCP csum and initialize id and seq. */
 	isum_seed = ((0xFFFF - ih->check) +
 		     (0xFFFF - ih->tot_len) +
 		     (0xFFFF - ih->id));
-	tsum_seed = th->check + (0xFFFF ^ htons(skb->len));
+	tsum_seed = th->check + (0xFFFF ^ htons(sh_len + data_len));
 	id = ntohs(ih->id);
 	seq = ntohl(th->seq);
 
@@ -1476,21 +1477,22 @@ static void tso_egress(struct net_device *dev, gxio_mpipe_equeue_t *equeue,
 {
 	struct tile_net_priv *priv = netdev_priv(dev);
 	struct skb_shared_info *sh = skb_shinfo(skb);
-	unsigned int data_len = skb->data_len;
+	unsigned int sh_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	unsigned int data_len = skb->data_len + skb->hdr_len - sh_len;
 	unsigned int p_len = sh->gso_size;
 	gxio_mpipe_edesc_t edesc_head = { { 0 } };
 	gxio_mpipe_edesc_t edesc_body = { { 0 } };
 	long f_id = -1;    /* id of the current fragment */
-	long f_size = -1;  /* size of the current fragment */
-	long f_used = -1;  /* bytes used from the current fragment */
+	long f_size = skb->hdr_len;  /* size of the current fragment */
+	long f_used = sh_len;  /* bytes used from the current fragment */
+	void *f_data = skb->data;
 	long n;            /* size of the current piece of payload */
 	unsigned long tx_packets = 0, tx_bytes = 0;
-	unsigned int csum_start, sh_len;
+	unsigned int csum_start;
 	int segment;
 
 	/* Prepare to egress the headers: set up header edesc. */
 	csum_start = skb_checksum_start_offset(skb);
-	sh_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 	edesc_head.csum = 1;
 	edesc_head.csum_start = csum_start;
 	edesc_head.csum_dest = csum_start + skb->csum_offset;
@@ -1502,7 +1504,6 @@ static void tso_egress(struct net_device *dev, gxio_mpipe_equeue_t *equeue,
 
 	/* Egress all the edescs. */
 	for (segment = 0; segment < sh->gso_segs; segment++) {
-		void *va;
 		unsigned char *buf;
 		unsigned int p_used = 0;
 
@@ -1521,9 +1522,8 @@ static void tso_egress(struct net_device *dev, gxio_mpipe_equeue_t *equeue,
 				f_id++;
 				f_size = sh->frags[f_id].size;
 				f_used = 0;
+				f_data = tile_net_frag_buf(&sh->frags[f_id]);
 			}
-
-			va = tile_net_frag_buf(&sh->frags[f_id]) + f_used;
 
 			/* Use bytes from the current fragment. */
 			n = p_len - p_used;
@@ -1533,7 +1533,7 @@ static void tso_egress(struct net_device *dev, gxio_mpipe_equeue_t *equeue,
 			p_used += n;
 
 			/* Egress a piece of the payload. */
-			edesc_body.va = va_to_tile_io_addr(va);
+			edesc_body.va = va_to_tile_io_addr(f_data) + f_used;
 			edesc_body.xfer_size = n;
 			edesc_body.bound = !(p_used < p_len);
 			gxio_mpipe_equeue_put_at(equeue, edesc_body, slot);
