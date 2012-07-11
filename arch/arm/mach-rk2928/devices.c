@@ -281,7 +281,7 @@ static struct platform_device device_i2c_gpio = {
 };
 #endif
 
-static void __init rk30_init_i2c(void)
+static void __init rk2928_init_i2c(void)
 {
 #ifdef CONFIG_I2C0_RK30
 	platform_device_register(&device_i2c0);
@@ -300,10 +300,122 @@ static void __init rk30_init_i2c(void)
 #endif
 }
 //end of i2c
+
+#if defined(CONFIG_SPIM0_RK29) || defined(CONFIG_SPIM1_RK29)
+/*****************************************************************************************
+ * spi devices
+ * author: cmc@rock-chips.com
+ *****************************************************************************************/
+#define SPI_CHIPSELECT_NUM 2
+
+static int spi_io_init(struct spi_cs_gpio *cs_gpios, int cs_num)
+{
+	int i;
+	if (cs_gpios) {
+		for (i = 0; i < cs_num; i++) {
+			rk30_mux_api_set(cs_gpios[i].cs_iomux_name, cs_gpios[i].cs_iomux_mode);
+		}
+	}
+	return 0;
+}
+
+static int spi_io_deinit(struct spi_cs_gpio *cs_gpios, int cs_num)
+{
+	return 0;
+}
+
+static int spi_io_fix_leakage_bug(void)
+{
+#if 0
+	gpio_direction_output(RK29_PIN2_PC1, GPIO_LOW);
+#endif
+	return 0;
+}
+
+static int spi_io_resume_leakage_bug(void)
+{
+#if 0
+	gpio_direction_output(RK29_PIN2_PC1, GPIO_HIGH);
+#endif
+	return 0;
+}
+#endif
+
+/*
+ * rk29xx spi master device
+ */
+#ifdef CONFIG_SPIM0_RK29
+static struct spi_cs_gpio rk29xx_spi0_cs_gpios[SPI_CHIPSELECT_NUM] = {
+	{
+		.name = "spi0 cs0",
+		.cs_gpio = RK2928_PIN1_PB3,
+		.cs_iomux_name = GPIO1B3_SPI_CSN0_UART1_RTSN_NAME,
+		.cs_iomux_mode = GPIO1B_SPI_CSN0,
+	},
+	{
+		.name = "spi0 cs1",
+		.cs_gpio = RK2928_PIN1_PB4,
+		.cs_iomux_name = GPIO1B4_SPI_CSN1_UART1_CTSN_NAME,//if no iomux,set it NULL
+		.cs_iomux_mode = GPIO1B_SPI_CSN1,
+	},
+};
+
+static struct rk29xx_spi_platform_data rk29xx_spi0_platdata = {
+	.num_chipselect = SPI_CHIPSELECT_NUM,
+	.chipselect_gpios = rk29xx_spi0_cs_gpios,
+	.io_init = spi_io_init,
+	.io_deinit = spi_io_deinit,
+	.io_fix_leakage_bug = spi_io_fix_leakage_bug,
+	.io_resume_leakage_bug = spi_io_resume_leakage_bug,
+};
+
+static struct resource rk29_spi0_resources[] = {
+	{
+		.start	= IRQ_SPI,
+		.end	= IRQ_SPI,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK2928_SPI_PHYS,
+		.end	= RK2928_SPI_PHYS + RK2928_SPI_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start  = DMACH_SPI0_TX,
+		.end    = DMACH_SPI0_TX,
+		.flags  = IORESOURCE_DMA,
+	},
+	{
+		.start  = DMACH_SPI0_RX,
+		.end    = DMACH_SPI0_RX,
+		.flags  = IORESOURCE_DMA,
+	},
+};
+
+struct platform_device rk29xx_device_spi0m = {
+	.name	= "rk29xx_spim",
+	.id	= 0,
+	.num_resources	= ARRAY_SIZE(rk29_spi0_resources),
+	.resource	= rk29_spi0_resources,
+	.dev			= {
+		.dma_mask = &dma_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data	= &rk29xx_spi0_platdata,
+	},
+};
+#endif
+
+static void __init rk2928_init_spim(void)
+{
+#ifdef CONFIG_SPIM0_RK29
+	platform_device_register(&rk29xx_device_spi0m);
+#endif
+}
 static int __init rk2928_init_devices(void)
 {
 	rk2928_init_dma();
-	rk30_init_i2c();
+	rk2928_init_i2c();
+	rk2928_init_spim();
 #if defined(CONFIG_FIQ_DEBUGGER) && defined(DEBUG_UART_PHYS)
 	rk_serial_debug_init(DEBUG_UART_BASE, IRQ_DEBUG_UART, IRQ_UART_SIGNAL, -1);
 #endif
