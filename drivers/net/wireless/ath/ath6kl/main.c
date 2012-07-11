@@ -293,13 +293,17 @@ int ath6kl_read_fwlogs(struct ath6kl *ar)
 	}
 
 	address = TARG_VTOP(ar->target_type, debug_hdr_addr);
-	ath6kl_diag_read(ar, address, &debug_hdr, sizeof(debug_hdr));
+	ret = ath6kl_diag_read(ar, address, &debug_hdr, sizeof(debug_hdr));
+	if (ret)
+		goto out;
 
 	address = TARG_VTOP(ar->target_type,
 			    le32_to_cpu(debug_hdr.dbuf_addr));
 	firstbuf = address;
 	dropped = le32_to_cpu(debug_hdr.dropped);
-	ath6kl_diag_read(ar, address, &debug_buf, sizeof(debug_buf));
+	ret = ath6kl_diag_read(ar, address, &debug_buf, sizeof(debug_buf));
+	if (ret)
+		goto out;
 
 	loop = 100;
 
@@ -322,7 +326,8 @@ int ath6kl_read_fwlogs(struct ath6kl *ar)
 
 		address = TARG_VTOP(ar->target_type,
 				    le32_to_cpu(debug_buf.next));
-		ath6kl_diag_read(ar, address, &debug_buf, sizeof(debug_buf));
+		ret = ath6kl_diag_read(ar, address, &debug_buf,
+				       sizeof(debug_buf));
 		if (ret)
 			goto out;
 
