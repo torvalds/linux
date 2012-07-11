@@ -494,6 +494,7 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 
 	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
 	rtd_load_channelgain_list(dev, 1, &chanspec);
+	/* ADC conversion trigger source: SOFTWARE */
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 	/* convert  samples */
 	for (i = 0; i < limit; ++i) {
@@ -544,7 +545,7 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 	/* write channel to multiplexer and clear channel gain table */
 	rtd_load_channelgain_list(dev, 1, &insn->chanspec);
 
-	/* set conversion source */
+	/* ADC conversion trigger source: SOFTWARE */
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 
 	/* convert n samples */
@@ -908,8 +909,9 @@ abortTransfer:
 	/* fall into transferDone */
 
 transferDone:
+	/* pacer stop source: SOFTWARE */
 	writel(0, devpriv->las0 + LAS0_PACER_STOP);
-	writel(0, devpriv->las0 + LAS0_PACER);
+	writel(0, devpriv->las0 + LAS0_PACER);	/* stop pacer */
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 	devpriv->intMask = 0;
 	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
@@ -1180,8 +1182,9 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int timer;
 
 	/* stop anything currently running */
+	/* pacer stop source: SOFTWARE */
 	writel(0, devpriv->las0 + LAS0_PACER_STOP);
-	writel(0, devpriv->las0 + LAS0_PACER);
+	writel(0, devpriv->las0 + LAS0_PACER);	/* stop pacer */
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 	devpriv->intMask = 0;
 	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
@@ -1215,12 +1218,17 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* setup the common case and override if needed */
 	if (cmd->chanlist_len > 1) {
 		/*DPRINTK ("rtd520: Multi channel setup\n"); */
+		/* pacer start source: SOFTWARE */
 		writel(0, devpriv->las0 + LAS0_PACER_START);
+		/* burst trigger source: PACER */
 		writel(1, devpriv->las0 + LAS0_BURST_START);
+		/* ADC conversion trigger source: BURST */
 		writel(2, devpriv->las0 + LAS0_ADC_CONVERSION);
 	} else {		/* single channel */
 		/*DPRINTK ("rtd520: single channel setup\n"); */
+		/* pacer start source: SOFTWARE */
 		writel(0, devpriv->las0 + LAS0_PACER_START);
+		/* ADC conversion trigger source: PACER */
 		writel(1, devpriv->las0 + LAS0_ADC_CONVERSION);
 	}
 	writel((devpriv->fifoLen / 2 - 1) & 0xffff, devpriv->las0 + LAS0_ACNT);
@@ -1269,7 +1277,9 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->transCount = 0;
 		devpriv->flags &= ~SEND_EOS;
 	}
+	/* pacer clock source: INTERNAL 8MHz */
 	writel(1, devpriv->las0 + LAS0_PACER_SELECT);
+	/* just interrupt, don't stop */
 	writel(1, devpriv->las0 + LAS0_ACNT_STOP_ENABLE);
 
 	/* BUG??? these look like enumerated values, but they are bit fields */
@@ -1305,6 +1315,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		break;
 
 	case TRIG_EXT:
+		/* pacer start source: EXTERNAL */
 		writel(1, devpriv->las0 + LAS0_PACER_START);
 		break;
 
@@ -1327,6 +1338,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		break;
 
 	case TRIG_EXT:		/* external */
+		/* burst trigger source: EXTERNAL */
 		writel(2, devpriv->las0 + LAS0_BURST_START);
 		break;
 
@@ -1378,7 +1390,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* BUG: start_src is ASSUMED to be TRIG_NOW */
 	/* BUG? it seems like things are running before the "start" */
-	readl(devpriv->las0 + LAS0_PACER);
+	readl(devpriv->las0 + LAS0_PACER);	/* start pacer */
 	return 0;
 }
 
@@ -1391,8 +1403,9 @@ static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	u32 overrun;
 	u16 status;
 
+	/* pacer stop source: SOFTWARE */
 	writel(0, devpriv->las0 + LAS0_PACER_STOP);
-	writel(0, devpriv->las0 + LAS0_PACER);
+	writel(0, devpriv->las0 + LAS0_PACER);	/* stop pacer */
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 	devpriv->intMask = 0;
 	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
