@@ -406,10 +406,6 @@ struct rtdPrivate {
 
 /* Macros to access registers */
 
-/* Start single DAC conversion */
-#define RtdDacUpdate(dev, n) \
-	writew(0, devpriv->las0 + (((n) == 0) ? LAS0_DAC1 : LAS0_DAC2))
-
 /* Start single DAC conversion on both DACs */
 #define RtdDacBothUpdate(dev) \
 	writew(0, devpriv->las0+LAS0_DAC)
@@ -1572,7 +1568,7 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 		/* a typical programming sequence */
 		writew(val, devpriv->las1 +
 			((chan == 0) ? LAS1_DAC1_FIFO : LAS1_DAC2_FIFO));
-		RtdDacUpdate(dev, chan);	/* trigger the conversion */
+		writew(0, devpriv->las0 + ((chan == 0) ? LAS0_DAC1 : LAS0_DAC2));
 
 		devpriv->aoValue[chan] = data[i];	/* save for read back */
 
