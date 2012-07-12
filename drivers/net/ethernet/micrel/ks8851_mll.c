@@ -1609,7 +1609,7 @@ static int __devinit ks8851_probe(struct platform_device *pdev)
 	memcpy(ks->mac_addr, pdata->mac_addr, 6);
 	if (!is_valid_ether_addr(ks->mac_addr)) {
 		/* Use random MAC address if none passed */
-		random_ether_addr(ks->mac_addr);
+		eth_random_addr(ks->mac_addr);
 		netdev_info(netdev, "Using random mac address\n");
 	}
 	netdev_info(netdev, "Mac address is: %pM\n", ks->mac_addr);

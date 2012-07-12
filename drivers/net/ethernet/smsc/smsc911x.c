@@ -2488,7 +2488,7 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 			eth_hw_addr_random(dev);
 			smsc911x_set_hw_mac_address(pdata, dev->dev_addr);
 			SMSC_TRACE(pdata, probe,
-				   "MAC Address is set to random_ether_addr");
+				   "MAC Address is set to eth_random_addr");
 		}
 	}
 

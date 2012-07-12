@@ -5008,7 +5008,7 @@ static int igb_vf_configure(struct igb_adapter *adapter, int vf)
 	unsigned int device_id;
 	u16 thisvf_devfn;
 
-	random_ether_addr(mac_addr);
+	eth_random_addr(mac_addr);
 	igb_set_vf_mac(adapter, vf, mac_addr);
 
 	switch (adapter->hw.mac.type) {
@@ -5417,7 +5417,7 @@ static void igb_vf_reset_event(struct igb_adapter *adapter, u32 vf)
 
 	/* generate a new mac address as we were hotplug removed/added */
 	if (!(adapter->vf_data[vf].flags & IGB_VF_FLAG_PF_SET_MAC))
-		random_ether_addr(vf_mac);
+		eth_random_addr(vf_mac);
 
 	/* process remaining reset events */
 	igb_vf_reset(adapter, vf);

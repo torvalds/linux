@@ -557,7 +557,7 @@ static int __devinit w5300_hw_probe(struct platform_device *pdev)
 	if (data && is_valid_ether_addr(data->mac_addr)) {
 		memcpy(ndev->dev_addr, data->mac_addr, ETH_ALEN);
 	} else {
-		random_ether_addr(ndev->dev_addr);
+		eth_random_addr(ndev->dev_addr);
 		ndev->addr_assign_type |= NET_ADDR_RANDOM;
 	}
 

@@ -467,7 +467,7 @@ int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask)
 	bool enable = ((event_mask & 0x10000000U) != 0);
 
 	if (enable) {
-		random_ether_addr(vf_mac_addr);
+		eth_random_addr(vf_mac_addr);
 		e_info(probe, "IOV: VF %d is enabled MAC %pM\n",
 		       vfn, vf_mac_addr);
 		/*

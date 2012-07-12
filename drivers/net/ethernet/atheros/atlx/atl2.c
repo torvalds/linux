@@ -2346,7 +2346,7 @@ static s32 atl2_read_mac_addr(struct atl2_hw *hw)
 {
 	if (get_permanent_address(hw)) {
 		/* for test */
-		/* FIXME: shouldn't we use random_ether_addr() here? */
+		/* FIXME: shouldn't we use eth_random_addr() here? */
 		hw->perm_mac_addr[0] = 0x00;
 		hw->perm_mac_addr[1] = 0x13;
 		hw->perm_mac_addr[2] = 0x74;

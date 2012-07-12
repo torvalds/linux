@@ -422,7 +422,7 @@ static void ks8851_read_mac_addr(struct net_device *dev)
  *
  * Get or create the initial mac address for the device and then set that
  * into the station address register. If there is an EEPROM present, then
- * we try that. If no valid mac address is found we use random_ether_addr()
+ * we try that. If no valid mac address is found we use eth_random_addr()
  * to create a new one.
  */
 static void ks8851_init_mac(struct ks8851_net *ks)

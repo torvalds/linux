@@ -199,7 +199,7 @@ int atl1c_read_mac_addr(struct atl1c_hw *hw)
 
 	err = atl1c_get_permanent_address(hw);
 	if (err)
-		random_ether_addr(hw->perm_mac_addr);
+		eth_random_addr(hw->perm_mac_addr);
 
 	memcpy(hw->mac_addr, hw->perm_mac_addr, sizeof(hw->perm_mac_addr));
 	return err;

@@ -538,7 +538,7 @@ static s32 atl1_read_mac_addr(struct atl1_hw *hw)
 	u16 i;
 
 	if (atl1_get_permanent_address(hw)) {
-		random_ether_addr(hw->perm_mac_addr);
+		eth_random_addr(hw->perm_mac_addr);
 		ret = 1;
 	}
 

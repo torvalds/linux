@@ -1057,7 +1057,7 @@ static int __devinit ethoc_probe(struct platform_device *pdev)
 	/* Check the MAC again for validity, if it still isn't choose and
 	 * program a random one. */
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
-		random_ether_addr(netdev->dev_addr);
+		eth_random_addr(netdev->dev_addr);
 		random_mac = true;
 	}
 
