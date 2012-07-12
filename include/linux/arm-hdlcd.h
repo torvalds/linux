@@ -102,6 +102,10 @@
  * and /proc/hdlcd_underrun to read the counter
  */
 //#define HDLCD_COUNT_BUFFERUNDERRUNS
+/* Restrict height to 1x screen size
+ *
+ */
+//#define HDLCD_NO_VIRTUAL_SCREEN
 
 struct hdlcd_device {
 	struct fb_info		fb;
