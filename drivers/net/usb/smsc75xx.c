@@ -616,7 +616,7 @@ static void smsc75xx_init_mac_address(struct usbnet *dev)
 
 	/* no eeprom, or eeprom values are invalid. generate random MAC */
 	eth_hw_addr_random(dev->net);
-	netif_dbg(dev, ifup, dev->net, "MAC address set to random_ether_addr");
+	netif_dbg(dev, ifup, dev->net, "MAC address set to eth_random_addr");
 }
 
 static int smsc75xx_set_mac_address(struct usbnet *dev)

@@ -1593,7 +1593,7 @@ static int __init usbnet_init(void)
 	BUILD_BUG_ON(
 		FIELD_SIZEOF(struct sk_buff, cb) < sizeof(struct skb_data));
 
-	random_ether_addr(node_id);
+	eth_random_addr(node_id);
 	return 0;
 }
 module_init(usbnet_init);
