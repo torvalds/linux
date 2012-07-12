@@ -118,7 +118,7 @@ void __init rk2928_init_irq(void)
 #ifdef CONFIG_FIQ
 	rk_fiq_init();
 #endif
-	rk2928_gpio_init();
+	rk30_gpio_init();
 }
 
 extern void __init rk2928_map_common_io(void);
