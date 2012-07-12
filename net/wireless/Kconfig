@@ -74,6 +74,27 @@ config CFG80211_REG_DEBUG
 
 	  If unsure, say N.
 
+config CFG80211_CERTIFICATION_ONUS
+	bool "cfg80211 certification onus"
+	depends on CFG80211 && EXPERT
+	default n
+	---help---
+	  You should disable this option unless you are both capable
+	  and willing to ensure your system will remain regulatory
+	  compliant with the features available under this option.
+	  Some options may still be under heavy development and
+	  for whatever reason regulatory compliance has not or
+	  cannot yet be verified. Regulatory verification may at
+	  times only be possible until you have the final system
+	  in place.
+
+	  This option should only be enabled by system integrators
+	  or distributions that have done work necessary to ensure
+	  regulatory certification on the system with the enabled
+	  features. Alternatively you can enable this option if
+	  you are a wireless researcher and are working in a controlled
+	  and approved environment by your local regulatory agency.
+
 config CFG80211_DEFAULT_PS
 	bool "enable powersave by default"
 	depends on CFG80211
