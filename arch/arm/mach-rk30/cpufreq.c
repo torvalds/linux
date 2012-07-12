@@ -548,7 +548,6 @@ int cpufreq_scale_rate_for_dvfs(struct clk *clk, unsigned long rate, dvfs_set_ra
 	freqs.new = rate / 1000;
 	freqs.old = rk30_getspeed(0);
 
-	get_online_cpus();
 	for_each_online_cpu(freqs.cpu) {
 		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 	}
@@ -571,7 +570,6 @@ int cpufreq_scale_rate_for_dvfs(struct clk *clk, unsigned long rate, dvfs_set_ra
 	for_each_online_cpu(freqs.cpu) {
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 	}
-	put_online_cpus();
 	return ret;
 
 }
