@@ -2033,6 +2033,7 @@ struct v4l2_modulator {
 #define V4L2_TUNER_CAP_RDS_BLOCK_IO	0x0100
 #define V4L2_TUNER_CAP_RDS_CONTROLS	0x0200
 #define V4L2_TUNER_CAP_FREQ_BANDS	0x0400
+#define V4L2_TUNER_CAP_HWSEEK_PROG_LIM	0x0800
 
 /*  Flags for the 'rxsubchans' field */
 #define V4L2_TUNER_SUB_MONO		0x0001
@@ -2078,7 +2079,9 @@ struct v4l2_hw_freq_seek {
 	__u32	seek_upward;
 	__u32	wrap_around;
 	__u32	spacing;
-	__u32	reserved[7];
+	__u32	rangelow;
+	__u32	rangehigh;
+	__u32	reserved[5];
 };
 
 /*
