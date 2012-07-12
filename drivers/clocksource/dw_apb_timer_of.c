@@ -1,11 +1,20 @@
 /*
+ * Copyright (C) 2012 Altera Corporation
  * Copyright (c) 2011 Picochip Ltd., Jamie Iles
+ *
+ * Modified from mach-picoxcell/time.c
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * All enquiries to support@picochip.com
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/dw_apb_timer.h>
 #include <linux/of.h>
@@ -15,8 +24,6 @@
 #include <asm/mach/time.h>
 #include <asm/sched_clock.h>
 
-#include "common.h"
-
 static void timer_get_base_and_rate(struct device_node *np,
 				    void __iomem **base, u32 *rate)
 {
@@ -25,11 +32,12 @@ static void timer_get_base_and_rate(struct device_node *np,
 	if (!*base)
 		panic("Unable to map regs for %s", np->name);
 
-	if (of_property_read_u32(np, "clock-freq", rate))
-		panic("No clock-freq property for %s", np->name);
+	if (of_property_read_u32(np, "clock-freq", rate) &&
+		of_property_read_u32(np, "clock-frequency", rate))
+		panic("No clock-frequency property for %s", np->name);
 }
 
-static void picoxcell_add_clockevent(struct device_node *event_timer)
+static void add_clockevent(struct device_node *event_timer)
 {
 	void __iomem *iobase;
 	struct dw_apb_clock_event_device *ced;
@@ -49,7 +57,7 @@ static void picoxcell_add_clockevent(struct device_node *event_timer)
 	dw_apb_clockevent_register(ced);
 }
 
-static void picoxcell_add_clocksource(struct device_node *source_timer)
+static void add_clocksource(struct device_node *source_timer)
 {
 	void __iomem *iobase;
 	struct dw_apb_clocksource *cs;
@@ -67,55 +75,57 @@ static void picoxcell_add_clocksource(struct device_node *source_timer)
 
 static void __iomem *sched_io_base;
 
-static u32 picoxcell_read_sched_clock(void)
+static u32 read_sched_clock(void)
 {
 	return __raw_readl(sched_io_base);
 }
 
-static const struct of_device_id picoxcell_rtc_ids[] __initconst = {
+static const struct of_device_id sptimer_ids[] __initconst = {
 	{ .compatible = "picochip,pc3x2-rtc" },
+	{ .compatible = "snps,dw-apb-timer-sp" },
 	{ /* Sentinel */ },
 };
 
-static void picoxcell_init_sched_clock(void)
+static void init_sched_clock(void)
 {
 	struct device_node *sched_timer;
 	u32 rate;
 
-	sched_timer = of_find_matching_node(NULL, picoxcell_rtc_ids);
+	sched_timer = of_find_matching_node(NULL, sptimer_ids);
 	if (!sched_timer)
 		panic("No RTC for sched clock to use");
 
 	timer_get_base_and_rate(sched_timer, &sched_io_base, &rate);
 	of_node_put(sched_timer);
 
-	setup_sched_clock(picoxcell_read_sched_clock, 32, rate);
+	setup_sched_clock(read_sched_clock, 32, rate);
 }
 
-static const struct of_device_id picoxcell_timer_ids[] __initconst = {
+static const struct of_device_id osctimer_ids[] __initconst = {
 	{ .compatible = "picochip,pc3x2-timer" },
+	{ .compatible = "snps,dw-apb-timer-osc" },
 	{},
 };
 
-static void __init picoxcell_timer_init(void)
+static void __init timer_init(void)
 {
 	struct device_node *event_timer, *source_timer;
 
-	event_timer = of_find_matching_node(NULL, picoxcell_timer_ids);
+	event_timer = of_find_matching_node(NULL, osctimer_ids);
 	if (!event_timer)
 		panic("No timer for clockevent");
-	picoxcell_add_clockevent(event_timer);
+	add_clockevent(event_timer);
 
-	source_timer = of_find_matching_node(event_timer, picoxcell_timer_ids);
+	source_timer = of_find_matching_node(event_timer, osctimer_ids);
 	if (!source_timer)
 		panic("No timer for clocksource");
-	picoxcell_add_clocksource(source_timer);
+	add_clocksource(source_timer);
 
 	of_node_put(source_timer);
 
-	picoxcell_init_sched_clock();
+	init_sched_clock();
 }
 
-struct sys_timer picoxcell_timer = {
-	.init = picoxcell_timer_init,
+struct sys_timer dw_apb_timer = {
+	.init = timer_init,
 };
