@@ -1019,6 +1019,7 @@ int dapm_clock_event(struct snd_soc_dapm_widget *w,
 		return 0;
 	}
 #endif
+	return 0;
 }
 EXPORT_SYMBOL_GPL(dapm_clock_event);
 
