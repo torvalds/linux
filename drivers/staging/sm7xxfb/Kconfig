@@ -1,6 +1,6 @@
 config FB_SM7XX
 	tristate "Silicon Motion SM7XX framebuffer support"
-	depends on FB
+	depends on FB && PCI
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
