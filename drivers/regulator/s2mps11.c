@@ -24,8 +24,6 @@
 #include <linux/mfd/samsung/s2mps11.h>
 
 struct s2mps11_info {
-	struct device *dev;
-	struct sec_pmic_dev *iodev;
 	struct regulator_dev **rdev;
 
 	int ramp_delay2;
@@ -260,8 +258,6 @@ static __devinit int s2mps11_pmic_probe(struct platform_device *pdev)
 	}
 
 	rdev = s2mps11->rdev;
-	config.dev = &pdev->dev;
-	config.regmap = iodev->regmap;
 	platform_set_drvdata(pdev, s2mps11);
 
 	s2mps11->ramp_delay2 = pdata->buck2_ramp_delay;
@@ -284,7 +280,7 @@ static __devinit int s2mps11_pmic_probe(struct platform_device *pdev)
 			ramp_reg |= get_ramp_delay(s2mps11->ramp_delay2) >> 6;
 		if (s2mps11->buck3_ramp || s2mps11->buck4_ramp)
 			ramp_reg |= get_ramp_delay(s2mps11->ramp_delay34) >> 4;
-		sec_reg_update(s2mps11->iodev, S2MPS11_REG_RAMP,
+		sec_reg_update(iodev, S2MPS11_REG_RAMP,
 			ramp_reg | ramp_enable, 0xff);
 	}
 
@@ -293,11 +289,11 @@ static __devinit int s2mps11_pmic_probe(struct platform_device *pdev)
 	ramp_reg |= get_ramp_delay(s2mps11->ramp_delay16) >> 4;
 	ramp_reg |= get_ramp_delay(s2mps11->ramp_delay7810) >> 2;
 	ramp_reg |= get_ramp_delay(s2mps11->ramp_delay9);
-	sec_reg_update(s2mps11->iodev, S2MPS11_REG_RAMP_BUCK, ramp_reg, 0xff);
+	sec_reg_update(iodev, S2MPS11_REG_RAMP_BUCK, ramp_reg, 0xff);
 
 	for (i = 0; i < S2MPS11_REGULATOR_MAX; i++) {
 
-		config.dev = s2mps11->dev;
+		config.dev = &pdev->dev;
 		config.regmap = iodev->regmap;
 		config.init_data = pdata->regulators[i].initdata;
 		config.driver_data = s2mps11;
@@ -305,8 +301,8 @@ static __devinit int s2mps11_pmic_probe(struct platform_device *pdev)
 		rdev[i] = regulator_register(&regulators[i], &config);
 		if (IS_ERR(rdev[i])) {
 			ret = PTR_ERR(rdev[i]);
-			dev_err(s2mps11->dev, "regulator init failed for %d\n",
-					i);
+			dev_err(&pdev->dev, "regulator init failed for %d\n",
+				i);
 			rdev[i] = NULL;
 			goto err;
 		}
