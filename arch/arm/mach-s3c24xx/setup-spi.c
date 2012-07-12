@@ -18,7 +18,7 @@
 #include <mach/regs-gpio.h>
 
 #ifdef CONFIG_S3C64XX_DEV_SPI0
-int s3c64xx_spi0_cfg_gpio(struct platform_device *pdev)
+int s3c64xx_spi0_cfg_gpio(void)
 {
 	/* enable hsspi bit in misccr */
 	s3c2410_modify_misccr(S3C2416_MISCCR_HSSPI_EN2, 1);

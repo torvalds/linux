@@ -9,12 +9,10 @@
  */
 
 #include <linux/gpio.h>
-#include <linux/platform_device.h>
-
 #include <plat/gpio-cfg.h>
 
 #ifdef CONFIG_S3C64XX_DEV_SPI0
-int s3c64xx_spi0_cfg_gpio(struct platform_device *dev)
+int s3c64xx_spi0_cfg_gpio(void)
 {
 	s3c_gpio_cfgpin(EXYNOS4_GPB(0), S3C_GPIO_SFN(2));
 	s3c_gpio_setpull(EXYNOS4_GPB(0), S3C_GPIO_PULL_UP);
@@ -25,7 +23,7 @@ int s3c64xx_spi0_cfg_gpio(struct platform_device *dev)
 #endif
 
 #ifdef CONFIG_S3C64XX_DEV_SPI1
-int s3c64xx_spi1_cfg_gpio(struct platform_device *dev)
+int s3c64xx_spi1_cfg_gpio(void)
 {
 	s3c_gpio_cfgpin(EXYNOS4_GPB(4), S3C_GPIO_SFN(2));
 	s3c_gpio_setpull(EXYNOS4_GPB(4), S3C_GPIO_PULL_UP);
@@ -36,7 +34,7 @@ int s3c64xx_spi1_cfg_gpio(struct platform_device *dev)
 #endif
 
 #ifdef CONFIG_S3C64XX_DEV_SPI2
-int s3c64xx_spi2_cfg_gpio(struct platform_device *dev)
+int s3c64xx_spi2_cfg_gpio(void)
 {
 	s3c_gpio_cfgpin(EXYNOS4_GPC1(1), S3C_GPIO_SFN(5));
 	s3c_gpio_setpull(EXYNOS4_GPC1(1), S3C_GPIO_PULL_UP);

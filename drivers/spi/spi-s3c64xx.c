@@ -1071,7 +1071,7 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	if (sci->cfg_gpio == NULL || sci->cfg_gpio(pdev)) {
+	if (sci->cfg_gpio == NULL || sci->cfg_gpio()) {
 		dev_err(&pdev->dev, "Unable to config gpio\n");
 		ret = -EBUSY;
 		goto err2;
@@ -1214,12 +1214,11 @@ static int s3c64xx_spi_suspend(struct device *dev)
 
 static int s3c64xx_spi_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct spi_master *master = spi_master_get(dev_get_drvdata(dev));
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 
-	sci->cfg_gpio(pdev);
+	sci->cfg_gpio();
 
 	/* Enable the clock */
 	clk_enable(sdd->src_clk);

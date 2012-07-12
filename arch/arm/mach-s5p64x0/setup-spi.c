@@ -9,11 +9,10 @@
  */
 
 #include <linux/gpio.h>
-#include <linux/platform_device.h>
 #include <plat/gpio-cfg.h>
 
 #ifdef CONFIG_S3C64XX_DEV_SPI0
-int s3c64xx_spi0_cfg_gpio(struct platform_device *dev)
+int s3c64xx_spi0_cfg_gpio(void)
 {
 	if (soc_is_s5p6450())
 		s3c_gpio_cfgall_range(S5P6450_GPC(0), 3,
@@ -26,7 +25,7 @@ int s3c64xx_spi0_cfg_gpio(struct platform_device *dev)
 #endif
 
 #ifdef CONFIG_S3C64XX_DEV_SPI1
-int s3c64xx_spi1_cfg_gpio(struct platform_device *dev)
+int s3c64xx_spi1_cfg_gpio(void)
 {
 	if (soc_is_s5p6450())
 		s3c_gpio_cfgall_range(S5P6450_GPC(4), 3,

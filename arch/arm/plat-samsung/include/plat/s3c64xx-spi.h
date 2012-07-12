@@ -39,7 +39,7 @@ struct s3c64xx_spi_csinfo {
 struct s3c64xx_spi_info {
 	int src_clk_nr;
 	int num_cs;
-	int (*cfg_gpio)(struct platform_device *pdev);
+	int (*cfg_gpio)(void);
 };
 
 /**
@@ -60,9 +60,9 @@ extern void s3c64xx_spi2_set_platdata(struct s3c64xx_spi_info *pd,
 				      int src_clk_nr, int num_cs);
 
 /* defined by architecture to configure gpio */
-extern int s3c64xx_spi0_cfg_gpio(struct platform_device *dev);
-extern int s3c64xx_spi1_cfg_gpio(struct platform_device *dev);
-extern int s3c64xx_spi2_cfg_gpio(struct platform_device *dev);
+extern int s3c64xx_spi0_cfg_gpio(void);
+extern int s3c64xx_spi1_cfg_gpio(void);
+extern int s3c64xx_spi2_cfg_gpio(void);
 
 extern struct s3c64xx_spi_info s3c64xx_spi0_pdata;
 extern struct s3c64xx_spi_info s3c64xx_spi1_pdata;
