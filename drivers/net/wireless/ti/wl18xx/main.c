@@ -1013,6 +1013,13 @@ static void wl18xx_set_rx_csum(struct wl1271 *wl,
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 }
 
+static bool wl18xx_is_mimo_supported(struct wl1271 *wl)
+{
+	struct wl18xx_priv *priv = wl->priv;
+
+	return priv->conf.phy.number_of_assembled_ant2_4 >= 2;
+}
+
 /*
  * TODO: instead of having these two functions to get the rate mask,
  * we should modify the wlvif->rate_set instead
@@ -1029,6 +1036,9 @@ static u32 wl18xx_sta_get_ap_rate_mask(struct wl1271 *wl,
 
 		/* we don't support MIMO in wide-channel mode */
 		hw_rate_set &= ~CONF_TX_MIMO_RATES;
+	} else if (wl18xx_is_mimo_supported(wl)) {
+		wl1271_debug(DEBUG_ACX, "using MIMO channel rate mask");
+		hw_rate_set |= CONF_TX_MIMO_RATES;
 	}
 
 	return hw_rate_set;
@@ -1037,8 +1047,6 @@ static u32 wl18xx_sta_get_ap_rate_mask(struct wl1271 *wl,
 static u32 wl18xx_ap_get_mimo_wide_rate_mask(struct wl1271 *wl,
 					     struct wl12xx_vif *wlvif)
 {
-	struct wl18xx_priv *priv = wl->priv;
-
 	if (wlvif->channel_type == NL80211_CHAN_HT40MINUS ||
 	    wlvif->channel_type == NL80211_CHAN_HT40PLUS) {
 		wl1271_debug(DEBUG_ACX, "using wide channel rate mask");
@@ -1048,7 +1056,7 @@ static u32 wl18xx_ap_get_mimo_wide_rate_mask(struct wl1271 *wl,
 			return 0;
 
 		return CONF_TX_RATE_USE_WIDE_CHAN;
-	} else if (priv->conf.phy.number_of_assembled_ant2_4 >= 2 &&
+	} else if (wl18xx_is_mimo_supported(wl) &&
 		   wlvif->band == IEEE80211_BAND_2GHZ) {
 		wl1271_debug(DEBUG_ACX, "using MIMO rate mask");
 		/*
@@ -1478,7 +1486,7 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 		 * Only support mimo with multiple antennas. Fall back to
 		 * siso20.
 		 */
-		if (priv->conf.phy.number_of_assembled_ant2_4 >= 2)
+		if (wl18xx_is_mimo_supported(wl))
 			wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
 					  &wl18xx_mimo_ht_cap_2ghz);
 		else
