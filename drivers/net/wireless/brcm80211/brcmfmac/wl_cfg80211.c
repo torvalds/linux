@@ -920,9 +920,7 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 	set_bit(WL_STATUS_CONNECTING, &cfg_priv->status);
 
 	if (params->bssid)
-		WL_CONN("BSSID: %02X %02X %02X %02X %02X %02X\n",
-		params->bssid[0], params->bssid[1], params->bssid[2],
-		params->bssid[3], params->bssid[4], params->bssid[5]);
+		WL_CONN("BSSID: %pM\n", params->bssid);
 	else
 		WL_CONN("No BSSID specified\n");
 
