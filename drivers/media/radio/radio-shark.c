@@ -333,6 +333,7 @@ static int usb_shark_probe(struct usb_interface *intf,
 	shark->tea.radio_nr = -1;
 	shark->tea.ops = &shark_tea_ops;
 	shark->tea.cannot_mute = true;
+	shark->tea.has_am = true;
 	strlcpy(shark->tea.card, "Griffin radioSHARK",
 		sizeof(shark->tea.card));
 	usb_make_path(shark->usbdev, shark->tea.bus_info,

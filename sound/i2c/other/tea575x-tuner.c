@@ -37,9 +37,6 @@ MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Routines for control of TEA5757/5759 Philips AM/FM radio tuner chips");
 MODULE_LICENSE("GPL");
 
-#define FREQ_LO		((tea->tea5759 ? 760 :  875) * 1600U)
-#define FREQ_HI		((tea->tea5759 ? 910 : 1080) * 1600U)
-
 /*
  * definitions
  */
@@ -50,8 +47,8 @@ MODULE_LICENSE("GPL");
 #define TEA575X_BIT_BAND_MASK	(3<<20)
 #define TEA575X_BIT_BAND_FM	(0<<20)
 #define TEA575X_BIT_BAND_MW	(1<<20)
-#define TEA575X_BIT_BAND_LW	(1<<21)
-#define TEA575X_BIT_BAND_SW	(1<<22)
+#define TEA575X_BIT_BAND_LW	(2<<20)
+#define TEA575X_BIT_BAND_SW	(3<<20)
 #define TEA575X_BIT_PORT_0	(1<<19)		/* user bit */
 #define TEA575X_BIT_PORT_1	(1<<18)		/* user bit */
 #define TEA575X_BIT_SEARCH_MASK	(3<<16)		/* search level */
@@ -61,6 +58,37 @@ MODULE_LICENSE("GPL");
 #define TEA575X_BIT_SEARCH_150_1000  (3<<16)	/* FM > 150uV, AM > 1000uV */
 #define TEA575X_BIT_DUMMY	(1<<15)		/* buffer */
 #define TEA575X_BIT_FREQ_MASK	0x7fff
+
+enum { BAND_FM, BAND_FM_JAPAN, BAND_AM };
+
+static const struct v4l2_frequency_band bands[] = {
+	{
+		.type = V4L2_TUNER_RADIO,
+		.index = 0,
+		.capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO |
+			      V4L2_TUNER_CAP_FREQ_BANDS,
+		.rangelow   =  87500 * 16,
+		.rangehigh  = 108000 * 16,
+		.modulation = V4L2_BAND_MODULATION_FM,
+	},
+	{
+		.type = V4L2_TUNER_RADIO,
+		.index = 0,
+		.capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO |
+			      V4L2_TUNER_CAP_FREQ_BANDS,
+		.rangelow   = 76000 * 16,
+		.rangehigh  = 91000 * 16,
+		.modulation = V4L2_BAND_MODULATION_FM,
+	},
+	{
+		.type = V4L2_TUNER_RADIO,
+		.index = 1,
+		.capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_FREQ_BANDS,
+		.rangelow   =  530 * 16,
+		.rangehigh  = 1710 * 16,
+		.modulation = V4L2_BAND_MODULATION_AM,
+	},
+};
 
 /*
  * lowlevel part
@@ -133,16 +161,29 @@ static u32 snd_tea575x_val_to_freq(struct snd_tea575x *tea, u32 val)
 	if (freq == 0)
 		return freq;
 
-	/* freq *= 12.5 */
-	freq *= 125;
-	freq /= 10;
-	/* crystal fixup */
-	if (tea->tea5759)
-		freq += TEA575X_FMIF;
-	else
+	switch (tea->band) {
+	case BAND_FM:
+		/* freq *= 12.5 */
+		freq *= 125;
+		freq /= 10;
+		/* crystal fixup */
 		freq -= TEA575X_FMIF;
+		break;
+	case BAND_FM_JAPAN:
+		/* freq *= 12.5 */
+		freq *= 125;
+		freq /= 10;
+		/* crystal fixup */
+		freq += TEA575X_FMIF;
+		break;
+	case BAND_AM:
+		/* crystal fixup */
+		freq -= TEA575X_AMIF;
+		break;
+	}
 
-	return clamp(freq * 16, FREQ_LO, FREQ_HI); /* from kHz */
+	return clamp(freq * 16, bands[tea->band].rangelow,
+				bands[tea->band].rangehigh); /* from kHz */
 }
 
 static u32 snd_tea575x_get_freq(struct snd_tea575x *tea)
@@ -152,19 +193,35 @@ static u32 snd_tea575x_get_freq(struct snd_tea575x *tea)
 
 static void snd_tea575x_set_freq(struct snd_tea575x *tea)
 {
-	u32 freq = tea->freq;
+	u32 freq = tea->freq / 16;	/* to kHz */
+	u32 band = 0;
 
-	freq /= 16;		/* to kHz */
-	/* crystal fixup */
-	if (tea->tea5759)
-		freq -= TEA575X_FMIF;
-	else
+	switch (tea->band) {
+	case BAND_FM:
+		band = TEA575X_BIT_BAND_FM;
+		/* crystal fixup */
 		freq += TEA575X_FMIF;
-	/* freq /= 12.5 */
-	freq *= 10;
-	freq /= 125;
+		/* freq /= 12.5 */
+		freq *= 10;
+		freq /= 125;
+		break;
+	case BAND_FM_JAPAN:
+		band = TEA575X_BIT_BAND_FM;
+		/* crystal fixup */
+		freq -= TEA575X_FMIF;
+		/* freq /= 12.5 */
+		freq *= 10;
+		freq /= 125;
+		break;
+	case BAND_AM:
+		band = TEA575X_BIT_BAND_MW;
+		/* crystal fixup */
+		freq += TEA575X_AMIF;
+		break;
+	}
 
-	tea->val &= ~TEA575X_BIT_FREQ_MASK;
+	tea->val &= ~(TEA575X_BIT_FREQ_MASK | TEA575X_BIT_BAND_MASK);
+	tea->val |= band;
 	tea->val |= freq & TEA575X_BIT_FREQ_MASK;
 	snd_tea575x_write(tea, tea->val);
 	tea->freq = snd_tea575x_val_to_freq(tea, tea->val);
@@ -190,23 +247,57 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
+static int vidioc_enum_freq_bands(struct file *file, void *priv,
+					 struct v4l2_frequency_band *band)
+{
+	struct snd_tea575x *tea = video_drvdata(file);
+	int index;
+
+	if (band->tuner != 0)
+		return -EINVAL;
+
+	switch (band->index) {
+	case 0:
+		if (tea->tea5759)
+			index = BAND_FM_JAPAN;
+		else
+			index = BAND_FM;
+		break;
+	case 1:
+		if (tea->has_am) {
+			index = BAND_AM;
+			break;
+		}
+		/* Fall through */
+	default:
+		return -EINVAL;
+	}
+
+	*band = bands[index];
+	if (!tea->cannot_read_data)
+		band->capability |= V4L2_TUNER_CAP_HWSEEK_BOUNDED;
+
+	return 0;
+}
+
 static int vidioc_g_tuner(struct file *file, void *priv,
 					struct v4l2_tuner *v)
 {
 	struct snd_tea575x *tea = video_drvdata(file);
+	struct v4l2_frequency_band band_fm = { 0, };
 
 	if (v->index > 0)
 		return -EINVAL;
 
 	snd_tea575x_read(tea);
+	vidioc_enum_freq_bands(file, priv, &band_fm);
 
-	strcpy(v->name, "FM");
+	memset(v, 0, sizeof(*v));
+	strlcpy(v->name, tea->has_am ? "FM/AM" : "FM", sizeof(v->name));
 	v->type = V4L2_TUNER_RADIO;
-	v->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
-	if (!tea->cannot_read_data)
-		v->capability |= V4L2_TUNER_CAP_HWSEEK_BOUNDED;
-	v->rangelow = FREQ_LO;
-	v->rangehigh = FREQ_HI;
+	v->capability = band_fm.capability;
+	v->rangelow = tea->has_am ? bands[BAND_AM].rangelow : band_fm.rangelow;
+	v->rangehigh = band_fm.rangehigh;
 	v->rxsubchans = tea->stereo ? V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
 	v->audmode = (tea->val & TEA575X_BIT_MONO) ?
 		V4L2_TUNER_MODE_MONO : V4L2_TUNER_MODE_STEREO;
@@ -218,13 +309,17 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 					struct v4l2_tuner *v)
 {
 	struct snd_tea575x *tea = video_drvdata(file);
+	u32 orig_val = tea->val;
 
 	if (v->index)
 		return -EINVAL;
 	tea->val &= ~TEA575X_BIT_MONO;
 	if (v->audmode == V4L2_TUNER_MODE_MONO)
 		tea->val |= TEA575X_BIT_MONO;
-	snd_tea575x_write(tea, tea->val);
+	/* Only apply changes if currently tuning FM */
+	if (tea->band != BAND_AM && tea->val != orig_val)
+		snd_tea575x_set_freq(tea);
+
 	return 0;
 }
 
@@ -248,8 +343,15 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
 		return -EINVAL;
 
-	tea->val &= ~TEA575X_BIT_SEARCH;
-	tea->freq = clamp(f->frequency, FREQ_LO, FREQ_HI);
+	if (tea->has_am && f->frequency < (20000 * 16))
+		tea->band = BAND_AM;
+	else if (tea->tea5759)
+		tea->band = BAND_FM_JAPAN;
+	else
+		tea->band = BAND_FM;
+
+	tea->freq = clamp(f->frequency, bands[tea->band].rangelow,
+					bands[tea->band].rangehigh);
 	snd_tea575x_set_freq(tea);
 	return 0;
 }
@@ -259,12 +361,34 @@ static int vidioc_s_hw_freq_seek(struct file *file, void *fh,
 {
 	struct snd_tea575x *tea = video_drvdata(file);
 	unsigned long timeout;
-	int i;
+	int i, spacing;
 
 	if (tea->cannot_read_data)
 		return -ENOTTY;
 	if (a->tuner || a->wrap_around)
 		return -EINVAL;
+
+	if (a->rangelow || a->rangehigh) {
+		for (i = 0; i < ARRAY_SIZE(bands); i++) {
+			if ((i == BAND_FM && tea->tea5759) ||
+			    (i == BAND_FM_JAPAN && !tea->tea5759) ||
+			    (i == BAND_AM && !tea->has_am))
+				continue;
+			if (bands[i].rangelow  == a->rangelow &&
+			    bands[i].rangehigh == a->rangehigh)
+				break;
+		}
+		if (i == ARRAY_SIZE(bands))
+			return -EINVAL; /* No matching band found */
+		if (i != tea->band) {
+			tea->band = i;
+			tea->freq = clamp(tea->freq, bands[i].rangelow,
+						     bands[i].rangehigh);
+			snd_tea575x_set_freq(tea);
+		}
+	}
+
+	spacing = (tea->band == BAND_AM) ? 5 : 50; /* kHz */
 
 	/* clear the frequency, HW will fill it in */
 	tea->val &= ~TEA575X_BIT_FREQ_MASK;
@@ -297,10 +421,10 @@ static int vidioc_s_hw_freq_seek(struct file *file, void *fh,
 			if (freq == 0) /* shouldn't happen */
 				break;
 			/*
-			 * if we moved by less than 50 kHz, or in the wrong
-			 * direction, continue seeking
+			 * if we moved by less than the spacing, or in the
+			 * wrong direction, continue seeking
 			 */
-			if (abs(tea->freq - freq) < 16 * 50 ||
+			if (abs(tea->freq - freq) < 16 * spacing ||
 					(a->seek_upward && freq < tea->freq) ||
 					(!a->seek_upward && freq > tea->freq)) {
 				snd_tea575x_write(tea, tea->val);
@@ -344,6 +468,7 @@ static const struct v4l2_ioctl_ops tea575x_ioctl_ops = {
 	.vidioc_g_frequency = vidioc_g_frequency,
 	.vidioc_s_frequency = vidioc_s_frequency,
 	.vidioc_s_hw_freq_seek = vidioc_s_hw_freq_seek,
+	.vidioc_enum_freq_bands = vidioc_enum_freq_bands,
 	.vidioc_log_status  = v4l2_ctrl_log_status,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
