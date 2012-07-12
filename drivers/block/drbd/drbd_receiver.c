@@ -468,11 +468,6 @@ static int drbd_accept(const char **what, struct socket *sock, struct socket **n
 	struct sock *sk = sock->sk;
 	int err = 0;
 
-	*what = "listen";
-	err = sock->ops->listen(sock, 5);
-	if (err < 0)
-		goto out;
-
 	*what = "sock_create_lite";
 	err = sock_create_lite(sk->sk_family, sk->sk_type, sk->sk_protocol,
 			       newsock);
@@ -739,6 +734,11 @@ static struct socket *drbd_wait_for_connect(struct drbd_tconn *tconn)
 
 	what = "bind before listen";
 	err = s_listen->ops->bind(s_listen, (struct sockaddr *)&my_addr, my_addr_len);
+	if (err < 0)
+		goto out;
+
+	what = "listen";
+	err = s_listen->ops->listen(s_listen, 5);
 	if (err < 0)
 		goto out;
 
