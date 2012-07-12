@@ -1981,10 +1981,9 @@ static struct logical_input *panel_bind_key(char *name, char *press,
 	struct logical_input *key;
 
 	key = kzalloc(sizeof(struct logical_input), GFP_KERNEL);
-	if (!key) {
-		printk(KERN_ERR "panel: not enough memory\n");
+	if (!key)
 		return NULL;
-	}
+
 	if (!input_name2mask(name, &key->mask, &key->value, &scan_mask_i,
 			     &scan_mask_o)) {
 		kfree(key);
@@ -2020,10 +2019,9 @@ static struct logical_input *panel_bind_callback(char *name,
 	struct logical_input *callback;
 
 	callback = kmalloc(sizeof(struct logical_input), GFP_KERNEL);
-	if (!callback) {
-		printk(KERN_ERR "panel: not enough memory\n");
+	if (!callback)
 		return NULL;
-	}
+
 	memset(callback, 0, sizeof(struct logical_input));
 	if (!input_name2mask(name, &callback->mask, &callback->value,
 			     &scan_mask_i, &scan_mask_o))
@@ -2100,10 +2098,8 @@ static void panel_attach(struct parport *port)
 		return;
 
 	if (pprt) {
-		printk(KERN_ERR
-		       "panel_attach(): port->number=%d parport=%d, "
-		       "already registered !\n",
-		       port->number, parport);
+		pr_err("%s: port->number=%d parport=%d, already registered!\n",
+		       __func__, port->number, parport);
 		return;
 	}
 
@@ -2112,16 +2108,14 @@ static void panel_attach(struct parport *port)
 				       /*PARPORT_DEV_EXCL */
 				       0, (void *)&pprt);
 	if (pprt == NULL) {
-		pr_err("panel_attach(): port->number=%d parport=%d, "
-		       "parport_register_device() failed\n",
-		       port->number, parport);
+		pr_err("%s: port->number=%d parport=%d, parport_register_device() failed\n",
+		       __func__, port->number, parport);
 		return;
 	}
 
 	if (parport_claim(pprt)) {
-		printk(KERN_ERR
-		       "Panel: could not claim access to parport%d. "
-		       "Aborting.\n", parport);
+		pr_err("could not claim access to parport%d. Aborting.\n",
+		       parport);
 		goto err_unreg_device;
 	}
 
@@ -2155,10 +2149,8 @@ static void panel_detach(struct parport *port)
 		return;
 
 	if (!pprt) {
-		printk(KERN_ERR
-		       "panel_detach(): port->number=%d parport=%d, "
-		       "nothing to unregister.\n",
-		       port->number, parport);
+		pr_err("%s: port->number=%d parport=%d, nothing to unregister.\n",
+		       __func__, port->number, parport);
 		return;
 	}
 
@@ -2268,8 +2260,7 @@ int panel_init(void)
 	init_in_progress = 1;
 
 	if (parport_register_driver(&panel_driver)) {
-		printk(KERN_ERR
-		       "Panel: could not register with parport. Aborting.\n");
+		pr_err("could not register with parport. Aborting.\n");
 		return -EIO;
 	}
 
@@ -2281,8 +2272,7 @@ int panel_init(void)
 			pprt = NULL;
 		}
 		parport_unregister_driver(&panel_driver);
-		printk(KERN_ERR "Panel driver version " PANEL_VERSION
-		       " disabled.\n");
+		pr_err("driver version " PANEL_VERSION " disabled.\n");
 		return -ENODEV;
 	}
 
