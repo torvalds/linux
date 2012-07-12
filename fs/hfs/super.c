@@ -53,8 +53,7 @@ static void hfs_write_super(struct super_block *sb)
 	sb->s_dirt = 0;
 
 	/* sync everything to the buffers */
-	if (!(sb->s_flags & MS_RDONLY))
-		hfs_mdb_commit(sb);
+	hfs_mdb_commit(sb);
 }
 
 static int hfs_sync_fs(struct super_block *sb, int wait)
