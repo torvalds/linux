@@ -18,7 +18,7 @@ static int ehci_xls_setup(struct usb_hcd *hcd)
 
 	ehci->caps = hcd->regs;
 
-	return ehci_setup(ehci);
+	return ehci_setup(hcd);
 }
 
 int ehci_xls_probe_internal(const struct hc_driver *driver,

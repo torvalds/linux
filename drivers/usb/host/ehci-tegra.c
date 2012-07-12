@@ -285,7 +285,7 @@ static int tegra_ehci_setup(struct usb_hcd *hcd)
 	/* switch to host mode */
 	hcd->has_tt = 1;
 
-	retval = ehci_setup(ehci);
+	retval = ehci_setup(hcd);
 	if (retval)
 		return retval;
 

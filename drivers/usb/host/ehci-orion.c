@@ -106,7 +106,7 @@ static int ehci_orion_setup(struct usb_hcd *hcd)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int retval;
 
-	retval = ehci_setup(ehci);
+	retval = ehci_setup(hcd);
 	if (retval)
 		return retval;
 
