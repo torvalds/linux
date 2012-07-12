@@ -1734,19 +1734,36 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 	init_level4_pgt[0] = __pgd(0);
 
 	/* Pre-constructed entries are in pfn, so convert to mfn */
+	/* L4[272] -> level3_ident_pgt
+	 * L4[511] -> level3_kernel_pgt */
 	convert_pfn_mfn(init_level4_pgt);
+
+	/* L3_i[0] -> level2_ident_pgt */
 	convert_pfn_mfn(level3_ident_pgt);
+	/* L3_k[510] -> level2_kernel_pgt
+	 * L3_i[511] -> level2_fixmap_pgt */
 	convert_pfn_mfn(level3_kernel_pgt);
 
+	/* We get [511][511] and have Xen's version of level2_kernel_pgt */
 	l3 = m2v(pgd[pgd_index(__START_KERNEL_map)].pgd);
 	l2 = m2v(l3[pud_index(__START_KERNEL_map)].pud);
 
+	/* Graft it onto L4[272][0]. Note that we creating an aliasing problem:
+	 * Both L4[272][0] and L4[511][511] have entries that point to the same
+	 * L2 (PMD) tables. Meaning that if you modify it in __va space
+	 * it will be also modified in the __ka space! (But if you just
+	 * modify the PMD table to point to other PTE's or none, then you
+	 * are OK - which is what cleanup_highmap does) */
 	memcpy(level2_ident_pgt, l2, sizeof(pmd_t) * PTRS_PER_PMD);
+	/* Graft it onto L4[511][511] */
 	memcpy(level2_kernel_pgt, l2, sizeof(pmd_t) * PTRS_PER_PMD);
 
+	/* Get [511][510] and graft that in level2_fixmap_pgt */
 	l3 = m2v(pgd[pgd_index(__START_KERNEL_map + PMD_SIZE)].pgd);
 	l2 = m2v(l3[pud_index(__START_KERNEL_map + PMD_SIZE)].pud);
 	memcpy(level2_fixmap_pgt, l2, sizeof(pmd_t) * PTRS_PER_PMD);
+	/* Note that we don't do anything with level1_fixmap_pgt which
+	 * we don't need. */
 
 	/* Set up identity map */
 	xen_map_identity_early(level2_ident_pgt, max_pfn);
