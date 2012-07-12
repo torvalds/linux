@@ -14,6 +14,7 @@
 #include <linux/mutex.h>
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
+#include <linux/workqueue.h>
 
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
@@ -143,6 +144,9 @@ struct hfs_sb_info {
 	u16 blockoffset;
 	int fs_div;
 	struct super_block *sb;
+	int work_queued;		/* non-zero delayed work is queued */
+	struct delayed_work mdb_work;	/* MDB flush delayed work */
+	spinlock_t work_lock;		/* protects mdb_work and work_queued */
 };
 
 #define HFS_FLG_BITMAP_DIRTY	0
@@ -222,6 +226,9 @@ extern int hfs_compare_dentry(const struct dentry *parent,
 extern void hfs_asc2mac(struct super_block *, struct hfs_name *, struct qstr *);
 extern int hfs_mac2asc(struct super_block *, char *, const struct hfs_name *);
 
+/* super.c */
+extern void hfs_mark_mdb_dirty(struct super_block *sb);
+
 extern struct timezone sys_tz;
 
 /*
@@ -249,7 +256,7 @@ static inline const char *hfs_mdb_name(struct super_block *sb)
 static inline void hfs_bitmap_dirty(struct super_block *sb)
 {
 	set_bit(HFS_FLG_BITMAP_DIRTY, &HFS_SB(sb)->flags);
-	sb->s_dirt = 1;
+	hfs_mark_mdb_dirty(sb);
 }
 
 #define sb_bread512(sb, sec, data) ({			\
