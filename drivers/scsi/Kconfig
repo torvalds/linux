@@ -444,7 +444,7 @@ config SCSI_ACARD
 
 config SCSI_AHA152X
 	tristate "Adaptec AHA152X/2825 support"
-	depends on ISA && SCSI && !64BIT
+	depends on ISA && SCSI
 	select SCSI_SPI_ATTRS
 	select CHECK_SIGNATURE
 	---help---
