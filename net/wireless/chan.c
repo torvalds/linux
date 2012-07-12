@@ -134,9 +134,16 @@ cfg80211_get_chan_state(struct wireless_dev *wdev,
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
+		if (wdev->beacon_interval) {
+			*chan = wdev->channel;
+			*chanmode = CHAN_MODE_SHARED;
+		}
+		return;
 	case NL80211_IFTYPE_MESH_POINT:
-		*chan = wdev->channel;
-		*chanmode = CHAN_MODE_SHARED;
+		if (wdev->mesh_id_len) {
+			*chan = wdev->channel;
+			*chanmode = CHAN_MODE_SHARED;
+		}
 		return;
 	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_AP_VLAN:
