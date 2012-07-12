@@ -1232,14 +1232,6 @@ static void wiphy_update_regulatory(struct wiphy *wiphy,
 		wiphy->reg_notifier(wiphy, last_request);
 }
 
-static void regulatory_update(struct wiphy *wiphy,
-			      enum nl80211_reg_initiator setby)
-{
-	mutex_lock(&reg_mutex);
-	wiphy_update_regulatory(wiphy, setby);
-	mutex_unlock(&reg_mutex);
-}
-
 static void update_all_wiphy_regulatory(enum nl80211_reg_initiator initiator)
 {
 	struct cfg80211_registered_device *rdev;
@@ -2387,9 +2379,9 @@ void wiphy_regulatory_register(struct wiphy *wiphy)
 	if (!reg_dev_ignore_cell_hint(wiphy))
 		reg_num_devs_support_basehint++;
 
-	mutex_unlock(&reg_mutex);
+	wiphy_update_regulatory(wiphy, NL80211_REGDOM_SET_BY_CORE);
 
-	regulatory_update(wiphy, NL80211_REGDOM_SET_BY_CORE);
+	mutex_unlock(&reg_mutex);
 }
 
 /* Caller must hold cfg80211_mutex */
