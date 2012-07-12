@@ -15,6 +15,8 @@
 
 #include "smpboot.h"
 
+#ifdef CONFIG_SMP
+
 #ifdef CONFIG_GENERIC_SMP_IDLE_THREAD
 /*
  * For the hotplug case we keep the task structs around and reuse
@@ -71,6 +73,8 @@ void __init idle_threads_init(void)
 	}
 }
 #endif
+
+#endif /* #ifdef CONFIG_SMP */
 
 static LIST_HEAD(hotplug_threads);
 static DEFINE_MUTEX(smpboot_threads_lock);
