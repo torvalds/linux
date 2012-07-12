@@ -1238,9 +1238,6 @@ static void ufs_put_super(struct super_block *sb)
 		
 	UFSD("ENTER\n");
 
-	if (sb->s_dirt)
-		ufs_write_super(sb);
-
 	if (!(sb->s_flags & MS_RDONLY))
 		ufs_put_super_internal(sb);
 	
