@@ -1837,12 +1837,6 @@ static void panel_process_inputs(void)
 	struct list_head *item;
 	struct logical_input *input;
 
-#if 0
-	printk(KERN_DEBUG
-	       "entering panel_process_inputs with pp=%016Lx & pc=%016Lx\n",
-	       phys_prev, phys_curr);
-#endif
-
 	keypressed = 0;
 	inputs_stable = 1;
 	list_for_each(item, &logical_inputs) {
@@ -2002,10 +1996,6 @@ static struct logical_input *panel_bind_key(char *name, char *press,
 	key->rise_time = 1;
 	key->fall_time = 1;
 
-#if 0
-	printk(KERN_DEBUG "bind: <%s> : m=%016Lx v=%016Lx\n", name, key->mask,
-	       key->value);
-#endif
 	strncpy(key->u.kbd.press_str, press, sizeof(key->u.kbd.press_str));
 	strncpy(key->u.kbd.repeat_str, repeat, sizeof(key->u.kbd.repeat_str));
 	strncpy(key->u.kbd.release_str, release,
