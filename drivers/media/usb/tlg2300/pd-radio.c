@@ -156,7 +156,7 @@ static const struct v4l2_file_operations poseidon_fm_fops = {
 	.owner         = THIS_MODULE,
 	.open          = poseidon_fm_open,
 	.release       = poseidon_fm_close,
-	.ioctl	       = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static int tlg_fm_vidioc_g_tuner(struct file *file, void *priv,
