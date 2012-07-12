@@ -966,11 +966,11 @@ static int ath6kl_set_probed_ssids(struct ath6kl *ar,
 	return 0;
 }
 
-static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
+static int ath6kl_cfg80211_scan(struct wiphy *wiphy,
 				struct cfg80211_scan_request *request)
 {
-	struct ath6kl *ar = ath6kl_priv(ndev);
-	struct ath6kl_vif *vif = netdev_priv(ndev);
+	struct ath6kl_vif *vif = ath6kl_vif_from_wdev(request->wdev);
+	struct ath6kl *ar = ath6kl_priv(vif->ndev);
 	s8 n_channels = 0;
 	u16 *channels = NULL;
 	int ret = 0;
@@ -1487,14 +1487,14 @@ static int ath6kl_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 	return 0;
 }
 
-static struct net_device *ath6kl_cfg80211_add_iface(struct wiphy *wiphy,
-						    char *name,
-						    enum nl80211_iftype type,
-						    u32 *flags,
-						    struct vif_params *params)
+static struct wireless_dev *ath6kl_cfg80211_add_iface(struct wiphy *wiphy,
+						      char *name,
+						      enum nl80211_iftype type,
+						      u32 *flags,
+						      struct vif_params *params)
 {
 	struct ath6kl *ar = wiphy_priv(wiphy);
-	struct net_device *ndev;
+	struct wireless_dev *wdev;
 	u8 if_idx, nw_type;
 
 	if (ar->num_vif == ar->vif_max) {
@@ -1507,20 +1507,20 @@ static struct net_device *ath6kl_cfg80211_add_iface(struct wiphy *wiphy,
 		return ERR_PTR(-EINVAL);
 	}
 
-	ndev = ath6kl_interface_add(ar, name, type, if_idx, nw_type);
-	if (!ndev)
+	wdev = ath6kl_interface_add(ar, name, type, if_idx, nw_type);
+	if (!wdev)
 		return ERR_PTR(-ENOMEM);
 
 	ar->num_vif++;
 
-	return ndev;
+	return wdev;
 }
 
 static int ath6kl_cfg80211_del_iface(struct wiphy *wiphy,
-				     struct net_device *ndev)
+				     struct wireless_dev *wdev)
 {
 	struct ath6kl *ar = wiphy_priv(wiphy);
-	struct ath6kl_vif *vif = netdev_priv(ndev);
+	struct ath6kl_vif *vif = netdev_priv(wdev->netdev);
 
 	spin_lock_bh(&ar->list_lock);
 	list_del(&vif->list);
@@ -2975,14 +2975,14 @@ static int ath6kl_change_station(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int ath6kl_remain_on_channel(struct wiphy *wiphy,
-				    struct net_device *dev,
+				    struct wireless_dev *wdev,
 				    struct ieee80211_channel *chan,
 				    enum nl80211_channel_type channel_type,
 				    unsigned int duration,
 				    u64 *cookie)
 {
-	struct ath6kl *ar = ath6kl_priv(dev);
-	struct ath6kl_vif *vif = netdev_priv(dev);
+	struct ath6kl_vif *vif = ath6kl_vif_from_wdev(wdev);
+	struct ath6kl *ar = ath6kl_priv(vif->ndev);
 	u32 id;
 
 	/* TODO: if already pending or ongoing remain-on-channel,
@@ -2999,11 +2999,11 @@ static int ath6kl_remain_on_channel(struct wiphy *wiphy,
 }
 
 static int ath6kl_cancel_remain_on_channel(struct wiphy *wiphy,
-					   struct net_device *dev,
+					   struct wireless_dev *wdev,
 					   u64 cookie)
 {
-	struct ath6kl *ar = ath6kl_priv(dev);
-	struct ath6kl_vif *vif = netdev_priv(dev);
+	struct ath6kl_vif *vif = ath6kl_vif_from_wdev(wdev);
+	struct ath6kl *ar = ath6kl_priv(vif->ndev);
 
 	if (cookie != vif->last_roc_id)
 		return -ENOENT;
@@ -3134,15 +3134,15 @@ static bool ath6kl_is_p2p_go_ssid(const u8 *buf, size_t len)
 	return false;
 }
 
-static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
+static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			  struct ieee80211_channel *chan, bool offchan,
 			  enum nl80211_channel_type channel_type,
 			  bool channel_type_valid, unsigned int wait,
 			  const u8 *buf, size_t len, bool no_cck,
 			  bool dont_wait_for_ack, u64 *cookie)
 {
-	struct ath6kl *ar = ath6kl_priv(dev);
-	struct ath6kl_vif *vif = netdev_priv(dev);
+	struct ath6kl_vif *vif = ath6kl_vif_from_wdev(wdev);
+	struct ath6kl *ar = ath6kl_priv(vif->ndev);
 	u32 id;
 	const struct ieee80211_mgmt *mgmt;
 	bool more_data, queued;
@@ -3187,10 +3187,10 @@ static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static void ath6kl_mgmt_frame_register(struct wiphy *wiphy,
-				       struct net_device *dev,
+				       struct wireless_dev *wdev,
 				       u16 frame_type, bool reg)
 {
-	struct ath6kl_vif *vif = netdev_priv(dev);
+	struct ath6kl_vif *vif = ath6kl_vif_from_wdev(wdev);
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: frame_type=0x%x reg=%d\n",
 		   __func__, frame_type, reg);
@@ -3477,9 +3477,9 @@ void ath6kl_cfg80211_vif_cleanup(struct ath6kl_vif *vif)
 	ar->num_vif--;
 }
 
-struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
-					enum nl80211_iftype type, u8 fw_vif_idx,
-					u8 nw_type)
+struct wireless_dev *ath6kl_interface_add(struct ath6kl *ar, char *name,
+					  enum nl80211_iftype type,
+					  u8 fw_vif_idx, u8 nw_type)
 {
 	struct net_device *ndev;
 	struct ath6kl_vif *vif;
@@ -3533,7 +3533,7 @@ struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 	list_add_tail(&vif->list, &ar->vif_list);
 	spin_unlock_bh(&ar->list_lock);
 
-	return ndev;
+	return &vif->wdev;
 
 err:
 	aggr_module_destroy(vif->aggr_cntxt);

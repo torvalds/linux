@@ -191,7 +191,7 @@ void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc)
 			roc->frame = NULL;
 		}
 	} else {
-		cfg80211_ready_on_channel(roc->sdata->dev, (unsigned long)roc,
+		cfg80211_ready_on_channel(&roc->sdata->wdev, (unsigned long)roc,
 					  roc->chan, roc->chan_type,
 					  roc->req_duration, GFP_KERNEL);
 	}
@@ -299,7 +299,7 @@ void ieee80211_roc_notify_destroy(struct ieee80211_roc_work *roc)
 
 	/* was never transmitted */
 	if (roc->frame) {
-		cfg80211_mgmt_tx_status(roc->sdata->dev,
+		cfg80211_mgmt_tx_status(&roc->sdata->wdev,
 					(unsigned long)roc->frame,
 					roc->frame->data, roc->frame->len,
 					false, GFP_KERNEL);
@@ -307,7 +307,7 @@ void ieee80211_roc_notify_destroy(struct ieee80211_roc_work *roc)
 	}
 
 	if (!roc->mgmt_tx_cookie)
-		cfg80211_remain_on_channel_expired(roc->sdata->dev,
+		cfg80211_remain_on_channel_expired(&roc->sdata->wdev,
 						   (unsigned long)roc,
 						   roc->chan, roc->chan_type,
 						   GFP_KERNEL);

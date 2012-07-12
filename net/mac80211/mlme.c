@@ -1108,7 +1108,7 @@ void ieee80211_dynamic_ps_timer(unsigned long data)
 }
 
 /* MLME */
-static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
+static bool ieee80211_sta_wmm_params(struct ieee80211_local *local,
 				     struct ieee80211_sub_if_data *sdata,
 				     u8 *wmm_param, size_t wmm_param_len)
 {
@@ -1119,23 +1119,23 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 	u8 *pos, uapsd_queues = 0;
 
 	if (!local->ops->conf_tx)
-		return;
+		return false;
 
 	if (local->hw.queues < IEEE80211_NUM_ACS)
-		return;
+		return false;
 
 	if (!wmm_param)
-		return;
+		return false;
 
 	if (wmm_param_len < 8 || wmm_param[5] /* version */ != 1)
-		return;
+		return false;
 
 	if (ifmgd->flags & IEEE80211_STA_UAPSD_ENABLED)
 		uapsd_queues = ifmgd->uapsd_queues;
 
 	count = wmm_param[6] & 0x0f;
 	if (count == ifmgd->wmm_last_param_set)
-		return;
+		return false;
 	ifmgd->wmm_last_param_set = count;
 
 	pos = wmm_param + 8;
@@ -1202,6 +1202,7 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 
 	/* enable WMM or activate new settings */
 	sdata->vif.bss_conf.qos = true;
+	return true;
 }
 
 static void __ieee80211_stop_poll(struct ieee80211_sub_if_data *sdata)
@@ -1268,11 +1269,6 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
 
 	bss_info_changed |= BSS_CHANGED_ASSOC;
-	/* set timing information */
-	bss_conf->beacon_int = cbss->beacon_interval;
-	bss_conf->last_tsf = cbss->tsf;
-
-	bss_info_changed |= BSS_CHANGED_BEACON_INT;
 	bss_info_changed |= ieee80211_handle_bss_capability(sdata,
 		bss_conf->assoc_capability, bss->has_erp_value, bss->erp_value);
 
@@ -2435,14 +2431,6 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		directed_tim = ieee80211_check_tim(elems.tim, elems.tim_len,
 						   ifmgd->aid);
 
-	if (ncrc != ifmgd->beacon_crc || !ifmgd->beacon_crc_valid) {
-		ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems,
-				      true);
-
-		ieee80211_sta_wmm_params(local, sdata, elems.wmm_param,
-					 elems.wmm_param_len);
-	}
-
 	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) {
 		if (directed_tim) {
 			if (local->hw.conf.dynamic_ps_timeout > 0) {
@@ -2472,6 +2460,13 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		return;
 	ifmgd->beacon_crc = ncrc;
 	ifmgd->beacon_crc_valid = true;
+
+	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems,
+			      true);
+
+	if (ieee80211_sta_wmm_params(local, sdata, elems.wmm_param,
+				     elems.wmm_param_len))
+		changed |= BSS_CHANGED_QOS;
 
 	if (elems.erp_info && elems.erp_info_len >= 1) {
 		erp_valid = true;
@@ -2974,7 +2969,7 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 /* scan finished notification */
 void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local)
 {
-	struct ieee80211_sub_if_data *sdata = local->scan_sdata;
+	struct ieee80211_sub_if_data *sdata;
 
 	/* Restart STA timers */
 	rcu_read_lock();
@@ -3132,9 +3127,15 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 
 		memcpy(ifmgd->bssid, cbss->bssid, ETH_ALEN);
 
-		/* tell driver about BSSID and basic rates */
+		/* set timing information */
+		sdata->vif.bss_conf.beacon_int = cbss->beacon_interval;
+		sdata->vif.bss_conf.sync_tsf = cbss->tsf;
+		sdata->vif.bss_conf.sync_device_ts = bss->device_ts;
+
+		/* tell driver about BSSID, basic rates and timing */
 		ieee80211_bss_info_change_notify(sdata,
-			BSS_CHANGED_BSSID | BSS_CHANGED_BASIC_RATES);
+			BSS_CHANGED_BSSID | BSS_CHANGED_BASIC_RATES |
+			BSS_CHANGED_BEACON_INT);
 
 		if (assoc)
 			sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);

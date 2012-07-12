@@ -85,6 +85,8 @@ struct ieee80211_bss {
 	size_t ssid_len;
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 
+	u32 device_ts;
+
 	u8 dtim_period;
 
 	bool wmm_used;
@@ -207,7 +209,6 @@ typedef unsigned __bitwise__ ieee80211_rx_result;
  * enum ieee80211_packet_rx_flags - packet RX flags
  * @IEEE80211_RX_RA_MATCH: frame is destined to interface currently processed
  *	(incl. multicast frames)
- * @IEEE80211_RX_IN_SCAN: received while scanning
  * @IEEE80211_RX_FRAGMENTED: fragmented frame
  * @IEEE80211_RX_AMSDU: a-MSDU packet
  * @IEEE80211_RX_MALFORMED_ACTION_FRM: action frame is malformed
@@ -217,7 +218,6 @@ typedef unsigned __bitwise__ ieee80211_rx_result;
  * @rx_flags field of &struct ieee80211_rx_status.
  */
 enum ieee80211_packet_rx_flags {
-	IEEE80211_RX_IN_SCAN			= BIT(0),
 	IEEE80211_RX_RA_MATCH			= BIT(1),
 	IEEE80211_RX_FRAGMENTED			= BIT(2),
 	IEEE80211_RX_AMSDU			= BIT(3),
@@ -965,14 +965,14 @@ struct ieee80211_local {
 	int scan_channel_idx;
 	int scan_ies_len;
 
-	bool sched_scanning;
 	struct ieee80211_sched_scan_ies sched_scan_ies;
 	struct work_struct sched_scan_stopped_work;
+	struct ieee80211_sub_if_data __rcu *sched_scan_sdata;
 
 	unsigned long leave_oper_channel_time;
 	enum mac80211_scan_state next_scan_state;
 	struct delayed_work scan_work;
-	struct ieee80211_sub_if_data *scan_sdata;
+	struct ieee80211_sub_if_data __rcu *scan_sdata;
 	enum nl80211_channel_type _oper_channel_type;
 	struct ieee80211_channel *oper_channel, *csa_channel;
 
@@ -1014,7 +1014,6 @@ struct ieee80211_local {
 	unsigned int rx_handlers_drop_nullfunc;
 	unsigned int rx_handlers_drop_defrag;
 	unsigned int rx_handlers_drop_short;
-	unsigned int rx_handlers_drop_passive_scan;
 	unsigned int tx_expand_skb_head;
 	unsigned int tx_expand_skb_head_cloned;
 	unsigned int rx_expand_skb_head;
@@ -1089,6 +1088,12 @@ static inline struct ieee80211_sub_if_data *
 IEEE80211_DEV_TO_SUB_IF(struct net_device *dev)
 {
 	return netdev_priv(dev);
+}
+
+static inline struct ieee80211_sub_if_data *
+IEEE80211_WDEV_TO_SUB_IF(struct wireless_dev *wdev)
+{
+	return container_of(wdev, struct ieee80211_sub_if_data, wdev);
 }
 
 /* this struct represents 802.11n's RA/TID combination */
@@ -1241,8 +1246,7 @@ int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
 			   struct cfg80211_scan_request *req);
 void ieee80211_scan_cancel(struct ieee80211_local *local);
 void ieee80211_run_deferred_scan(struct ieee80211_local *local);
-ieee80211_rx_result
-ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb);
+void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb);
 
 void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local);
 struct ieee80211_bss *
@@ -1278,7 +1282,7 @@ void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc);
 int ieee80211_iface_init(void);
 void ieee80211_iface_exit(void);
 int ieee80211_if_add(struct ieee80211_local *local, const char *name,
-		     struct net_device **new_dev, enum nl80211_iftype type,
+		     struct wireless_dev **new_wdev, enum nl80211_iftype type,
 		     struct vif_params *params);
 int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 			     enum nl80211_iftype type);

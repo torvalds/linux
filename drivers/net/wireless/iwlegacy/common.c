@@ -5359,7 +5359,7 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (changes & BSS_CHANGED_ASSOC) {
 		D_MAC80211("ASSOC %d\n", bss_conf->assoc);
 		if (bss_conf->assoc) {
-			il->timestamp = bss_conf->last_tsf;
+			il->timestamp = bss_conf->sync_tsf;
 
 			if (!il_is_rfkill(il))
 				il->ops->post_associate(il);

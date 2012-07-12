@@ -771,6 +771,9 @@ enum nl80211_commands {
  * @NL80211_ATTR_IFNAME: network interface name
  * @NL80211_ATTR_IFTYPE: type of virtual interface, see &enum nl80211_iftype
  *
+ * @NL80211_ATTR_WDEV: wireless device identifier, used for pseudo-devices
+ *	that don't have a netdev (u64)
+ *
  * @NL80211_ATTR_MAC: MAC address (various uses)
  *
  * @NL80211_ATTR_KEY_DATA: (temporal) key data; for TKIP this consists of
@@ -1492,6 +1495,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_RX_SIGNAL_DBM,
 
 	NL80211_ATTR_BG_SCAN_PERIOD,
+
+	NL80211_ATTR_WDEV,
 
 	/* add attributes here, update the policy in nl80211.c */
 

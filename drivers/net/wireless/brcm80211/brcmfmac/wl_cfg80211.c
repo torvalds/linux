@@ -691,9 +691,10 @@ scan_out:
 }
 
 static s32
-brcmf_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
+brcmf_cfg80211_scan(struct wiphy *wiphy,
 		 struct cfg80211_scan_request *request)
 {
+	struct net_device *ndev = request->wdev->netdev;
 	s32 err = 0;
 
 	WL_TRACE("Enter\n");

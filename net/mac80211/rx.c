@@ -413,29 +413,6 @@ static void ieee80211_verify_alignment(struct ieee80211_rx_data *rx)
 
 /* rx handlers */
 
-static ieee80211_rx_result debug_noinline
-ieee80211_rx_h_passive_scan(struct ieee80211_rx_data *rx)
-{
-	struct ieee80211_local *local = rx->local;
-	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(rx->skb);
-	struct sk_buff *skb = rx->skb;
-
-	if (likely(!(status->rx_flags & IEEE80211_RX_IN_SCAN) &&
-		   !local->sched_scanning))
-		return RX_CONTINUE;
-
-	if (test_bit(SCAN_HW_SCANNING, &local->scanning) ||
-	    test_bit(SCAN_SW_SCANNING, &local->scanning) ||
-	    test_bit(SCAN_ONCHANNEL_SCANNING, &local->scanning) ||
-	    local->sched_scanning)
-		return ieee80211_scan_rx(rx->sdata, skb);
-
-	/* scanning finished during invoking of handlers */
-	I802_DEBUG_INC(local->rx_handlers_drop_passive_scan);
-	return RX_DROP_UNUSABLE;
-}
-
-
 static int ieee80211_is_unicast_robust_mgmt_frame(struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
@@ -2404,7 +2381,7 @@ ieee80211_rx_h_userspace_mgmt(struct ieee80211_rx_data *rx)
 	if (rx->local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
 		sig = status->signal;
 
-	if (cfg80211_rx_mgmt(rx->sdata->dev, status->freq, sig,
+	if (cfg80211_rx_mgmt(&rx->sdata->wdev, status->freq, sig,
 			     rx->skb->data, rx->skb->len,
 			     GFP_ATOMIC)) {
 		if (rx->sta)
@@ -2695,7 +2672,6 @@ static void ieee80211_invoke_rx_handlers(struct ieee80211_rx_data *rx)
 			goto rxh_next;  \
 	} while (0);
 
-	CALL_RXH(ieee80211_rx_h_passive_scan)
 	CALL_RXH(ieee80211_rx_h_check)
 
 	ieee80211_rx_reorder_ampdu(rx);
@@ -2765,11 +2741,8 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 			return 0;
 		if (ieee80211_is_beacon(hdr->frame_control)) {
 			return 1;
-		}
-		else if (!ieee80211_bssid_match(bssid, sdata->u.ibss.bssid)) {
-			if (!(status->rx_flags & IEEE80211_RX_IN_SCAN))
-				return 0;
-			status->rx_flags &= ~IEEE80211_RX_RA_MATCH;
+		} else if (!ieee80211_bssid_match(bssid, sdata->u.ibss.bssid)) {
+			return 0;
 		} else if (!multicast &&
 			   !ether_addr_equal(sdata->vif.addr, hdr->addr1)) {
 			if (!(sdata->dev->flags & IFF_PROMISC))
@@ -2807,11 +2780,9 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 			 * and location updates. Note that mac80211
 			 * itself never looks at these frames.
 			 */
-			if (!(status->rx_flags & IEEE80211_RX_IN_SCAN) &&
-			    ieee80211_is_public_action(hdr, skb->len))
+			if (ieee80211_is_public_action(hdr, skb->len))
 				return 1;
-			if (!(status->rx_flags & IEEE80211_RX_IN_SCAN) &&
-			    !ieee80211_is_beacon(hdr->frame_control))
+			if (!ieee80211_is_beacon(hdr->frame_control))
 				return 0;
 			status->rx_flags &= ~IEEE80211_RX_RA_MATCH;
 		}
@@ -2877,7 +2848,6 @@ static bool ieee80211_prepare_and_rx_handle(struct ieee80211_rx_data *rx,
 static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 					 struct sk_buff *skb)
 {
-	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_hdr *hdr;
@@ -2895,11 +2865,6 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	if (ieee80211_is_data(fc) || ieee80211_is_mgmt(fc))
 		local->dot11ReceivedFragmentCount++;
 
-	if (unlikely(test_bit(SCAN_HW_SCANNING, &local->scanning) ||
-		     test_bit(SCAN_ONCHANNEL_SCANNING, &local->scanning) ||
-		     test_bit(SCAN_SW_SCANNING, &local->scanning)))
-		status->rx_flags |= IEEE80211_RX_IN_SCAN;
-
 	if (ieee80211_is_mgmt(fc))
 		err = skb_linearize(skb);
 	else
@@ -2913,6 +2878,10 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	hdr = (struct ieee80211_hdr *)skb->data;
 	ieee80211_parse_qos(&rx);
 	ieee80211_verify_alignment(&rx);
+
+	if (unlikely(ieee80211_is_probe_resp(hdr->frame_control) ||
+		     ieee80211_is_beacon(hdr->frame_control)))
+		ieee80211_scan_rx(local, skb);
 
 	if (ieee80211_is_data(fc)) {
 		prev_sta = NULL;
