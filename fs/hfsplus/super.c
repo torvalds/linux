@@ -171,7 +171,7 @@ static int hfsplus_sync_fs(struct super_block *sb, int wait)
 	if (!wait)
 		return 0;
 
-	dprint(DBG_SUPER, "hfsplus_write_super\n");
+	dprint(DBG_SUPER, "hfsplus_sync_fs\n");
 
 	sb->s_dirt = 0;
 
