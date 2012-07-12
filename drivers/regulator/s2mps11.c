@@ -88,7 +88,7 @@ static struct regulator_ops s2mps11_buck_ops = {
 	.uV_step	= S2MPS11_LDO_STEP1,		\
 	.n_voltages	= S2MPS11_LDO_N_VOLTAGES,	\
 	.vsel_reg	= S2MPS11_REG_L1CTRL + num - 1,	\
-	.vsel_mask	= S2MPS11_LDO_VSEL_MASK		\
+	.vsel_mask	= S2MPS11_LDO_VSEL_MASK,	\
 	.enable_reg	= S2MPS11_REG_L1CTRL + num - 1,	\
 	.enable_mask	= S2MPS11_ENABLE_MASK		\
 }
@@ -102,7 +102,7 @@ static struct regulator_ops s2mps11_buck_ops = {
 	.uV_step	= S2MPS11_LDO_STEP2,		\
 	.n_voltages	= S2MPS11_LDO_N_VOLTAGES,	\
 	.vsel_reg	= S2MPS11_REG_L1CTRL + num - 1,	\
-	.vsel_mask	= S2MPS11_LDO_VSEL_MASK		\
+	.vsel_mask	= S2MPS11_LDO_VSEL_MASK,	\
 	.enable_reg	= S2MPS11_REG_L1CTRL + num - 1,	\
 	.enable_mask	= S2MPS11_ENABLE_MASK		\
 }
@@ -117,7 +117,7 @@ static struct regulator_ops s2mps11_buck_ops = {
 	.uV_step	= S2MPS11_BUCK_STEP1,			\
 	.n_voltages	= S2MPS11_BUCK_N_VOLTAGES,		\
 	.vsel_reg	= S2MPS11_REG_B1CTRL2 + (num - 1) * 2,	\
-	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK		\
+	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK,		\
 	.enable_reg	= S2MPS11_REG_B1CTRL1 + (num - 1) * 2,	\
 	.enable_mask	= S2MPS11_ENABLE_MASK			\
 }
@@ -132,7 +132,7 @@ static struct regulator_ops s2mps11_buck_ops = {
 	.uV_step	= S2MPS11_BUCK_STEP1,			\
 	.n_voltages	= S2MPS11_BUCK_N_VOLTAGES,		\
 	.vsel_reg	= S2MPS11_REG_B5CTRL2,			\
-	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK		\
+	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK,		\
 	.enable_reg	= S2MPS11_REG_B5CTRL1,			\
 	.enable_mask	= S2MPS11_ENABLE_MASK			\
 }
@@ -147,7 +147,7 @@ static struct regulator_ops s2mps11_buck_ops = {
 	.uV_step	= S2MPS11_BUCK_STEP1,			\
 	.n_voltages	= S2MPS11_BUCK_N_VOLTAGES,		\
 	.vsel_reg	= S2MPS11_REG_B6CTRL2 + (num - 6) * 2,	\
-	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK		\
+	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK,		\
 	.enable_reg	= S2MPS11_REG_B6CTRL1 + (num - 6) * 2,	\
 	.enable_mask	= S2MPS11_ENABLE_MASK			\
 }
@@ -162,7 +162,7 @@ static struct regulator_ops s2mps11_buck_ops = {
 	.uV_step	= S2MPS11_BUCK_STEP3,			\
 	.n_voltages	= S2MPS11_BUCK_N_VOLTAGES,		\
 	.vsel_reg	= S2MPS11_REG_B9CTRL2,			\
-	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK		\
+	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK,		\
 	.enable_reg	= S2MPS11_REG_B9CTRL1,			\
 	.enable_mask	= S2MPS11_ENABLE_MASK			\
 }
@@ -177,7 +177,7 @@ static struct regulator_ops s2mps11_buck_ops = {
 	.uV_step	= S2MPS11_BUCK_STEP2,			\
 	.n_voltages	= S2MPS11_BUCK_N_VOLTAGES,		\
 	.vsel_reg	= S2MPS11_REG_B9CTRL2,			\
-	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK		\
+	.vsel_mask	= S2MPS11_BUCK_VSEL_MASK,		\
 	.enable_reg	= S2MPS11_REG_B9CTRL1,			\
 	.enable_mask	= S2MPS11_ENABLE_MASK			\
 }
