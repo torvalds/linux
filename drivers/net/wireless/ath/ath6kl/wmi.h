@@ -48,7 +48,7 @@
 
 #define A_BAND_24GHZ           0
 #define A_BAND_5GHZ            1
-#define A_NUM_BANDS            2
+#define ATH6KL_NUM_BANDS       2
 
 /* in ms */
 #define WMI_IMPLICIT_PSTREAM_INACTIVITY_INT 5000
@@ -853,7 +853,7 @@ struct wmi_begin_scan_cmd {
 	u8 scan_type;
 
 	/* Supported rates to advertise in the probe request frames */
-	struct wmi_supp_rates supp_rates[IEEE80211_NUM_BANDS];
+	struct wmi_supp_rates supp_rates[ATH6KL_NUM_BANDS];
 
 	/* how many channels follow */
 	u8 num_ch;

@@ -2695,11 +2695,13 @@ static int ath6kl_set_bitrate_mask64(struct wmi *wmi, u8 if_idx,
 {
 	struct sk_buff *skb;
 	int ret, mode, band;
-	u64 mcsrate, ratemask[IEEE80211_NUM_BANDS];
+	u64 mcsrate, ratemask[ATH6KL_NUM_BANDS];
 	struct wmi_set_tx_select_rates64_cmd *cmd;
 
 	memset(&ratemask, 0, sizeof(ratemask));
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+
+	/* only check 2.4 and 5 GHz bands, skip the rest */
+	for (band = 0; band <= IEEE80211_BAND_5GHZ; band++) {
 		/* copy legacy rate mask */
 		ratemask[band] = mask->control[band].legacy;
 		if (band == IEEE80211_BAND_5GHZ)
@@ -2745,11 +2747,13 @@ static int ath6kl_set_bitrate_mask32(struct wmi *wmi, u8 if_idx,
 {
 	struct sk_buff *skb;
 	int ret, mode, band;
-	u32 mcsrate, ratemask[IEEE80211_NUM_BANDS];
+	u32 mcsrate, ratemask[ATH6KL_NUM_BANDS];
 	struct wmi_set_tx_select_rates32_cmd *cmd;
 
 	memset(&ratemask, 0, sizeof(ratemask));
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+
+	/* only check 2.4 and 5 GHz bands, skip the rest */
+	for (band = 0; band <= IEEE80211_BAND_5GHZ; band++) {
 		/* copy legacy rate mask */
 		ratemask[band] = mask->control[band].legacy;
 		if (band == IEEE80211_BAND_5GHZ)
