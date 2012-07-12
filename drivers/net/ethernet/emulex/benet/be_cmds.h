@@ -1089,6 +1089,8 @@ struct be_cmd_resp_query_fw_cfg {
 #define RSS_ENABLE_TCP_IPV4			0x2
 #define RSS_ENABLE_IPV6				0x4
 #define RSS_ENABLE_TCP_IPV6			0x8
+#define RSS_ENABLE_UDP_IPV4			0x10
+#define RSS_ENABLE_UDP_IPV6			0x20
 
 struct be_cmd_req_rss_config {
 	struct be_cmd_req_hdr hdr;

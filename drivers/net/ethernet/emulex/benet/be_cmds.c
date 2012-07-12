@@ -1792,6 +1792,13 @@ int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable, u16 table_size)
 	req->if_id = cpu_to_le32(adapter->if_handle);
 	req->enable_rss = cpu_to_le16(RSS_ENABLE_TCP_IPV4 | RSS_ENABLE_IPV4 |
 				      RSS_ENABLE_TCP_IPV6 | RSS_ENABLE_IPV6);
+
+	if (lancer_chip(adapter) || skyhawk_chip(adapter)) {
+		req->hdr.version = 1;
+		req->enable_rss |= cpu_to_le16(RSS_ENABLE_UDP_IPV4 |
+					       RSS_ENABLE_UDP_IPV6);
+	}
+
 	req->cpu_table_size_log2 = cpu_to_le16(fls(table_size) - 1);
 	memcpy(req->cpu_table, rsstable, table_size);
 	memcpy(req->hash, myhash, sizeof(myhash));

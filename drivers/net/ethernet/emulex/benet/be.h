@@ -457,6 +457,9 @@ struct be_adapter {
 #define lancer_chip(adapter)	((adapter->pdev->device == OC_DEVICE_ID3) || \
 				 (adapter->pdev->device == OC_DEVICE_ID4))
 
+#define skyhawk_chip(adapter)	(adapter->pdev->device == OC_DEVICE_ID5)
+
+
 #define be_roce_supported(adapter) ((adapter->if_type == SLI_INTF_TYPE_3 || \
 				adapter->sli_family == SKYHAWK_SLI_FAMILY) && \
 				(adapter->function_mode & RDMA_ENABLED))
