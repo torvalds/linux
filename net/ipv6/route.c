@@ -79,6 +79,7 @@ static int		ip6_pkt_discard(struct sk_buff *skb);
 static int		ip6_pkt_discard_out(struct sk_buff *skb);
 static void		ip6_link_failure(struct sk_buff *skb);
 static void		ip6_rt_update_pmtu(struct dst_entry *dst, u32 mtu);
+static void		rt6_do_redirect(struct dst_entry *dst, struct sk_buff *skb);
 
 #ifdef CONFIG_IPV6_ROUTE_INFO
 static struct rt6_info *rt6_add_route_info(struct net *net,
@@ -174,6 +175,7 @@ static struct dst_ops ip6_dst_ops_template = {
 	.negative_advice	=	ip6_negative_advice,
 	.link_failure		=	ip6_link_failure,
 	.update_pmtu		=	ip6_rt_update_pmtu,
+	.redirect		=	rt6_do_redirect,
 	.local_out		=	__ip6_local_out,
 	.neigh_lookup		=	ip6_neigh_lookup,
 };
@@ -186,6 +188,10 @@ static unsigned int ip6_blackhole_mtu(const struct dst_entry *dst)
 }
 
 static void ip6_rt_blackhole_update_pmtu(struct dst_entry *dst, u32 mtu)
+{
+}
+
+static void ip6_rt_blackhole_redirect(struct dst_entry *dst, struct sk_buff *skb)
 {
 }
 
@@ -203,6 +209,7 @@ static struct dst_ops ip6_dst_blackhole_ops = {
 	.mtu			=	ip6_blackhole_mtu,
 	.default_advmss		=	ip6_default_advmss,
 	.update_pmtu		=	ip6_rt_blackhole_update_pmtu,
+	.redirect		=	ip6_rt_blackhole_redirect,
 	.cow_metrics		=	ip6_rt_blackhole_cow_metrics,
 	.neigh_lookup		=	ip6_neigh_lookup,
 };
@@ -1112,6 +1119,33 @@ void ip6_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, __be32 mtu)
 }
 EXPORT_SYMBOL_GPL(ip6_sk_update_pmtu);
 
+void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark)
+{
+	const struct ipv6hdr *iph = (struct ipv6hdr *) skb->data;
+	struct dst_entry *dst;
+	struct flowi6 fl6;
+
+	memset(&fl6, 0, sizeof(fl6));
+	fl6.flowi6_oif = oif;
+	fl6.flowi6_mark = mark;
+	fl6.flowi6_flags = 0;
+	fl6.daddr = iph->daddr;
+	fl6.saddr = iph->saddr;
+	fl6.flowlabel = (*(__be32 *) iph) & IPV6_FLOWINFO_MASK;
+
+	dst = ip6_route_output(net, NULL, &fl6);
+	if (!dst->error)
+		rt6_do_redirect(dst, skb);
+	dst_release(dst);
+}
+EXPORT_SYMBOL_GPL(ip6_redirect);
+
+void ip6_sk_redirect(struct sk_buff *skb, struct sock *sk)
+{
+	ip6_redirect(skb, sock_net(sk), sk->sk_bound_dev_if, sk->sk_mark);
+}
+EXPORT_SYMBOL_GPL(ip6_sk_redirect);
+
 static unsigned int ip6_default_advmss(const struct dst_entry *dst)
 {
 	struct net_device *dev = dst->dev;
@@ -1604,107 +1638,93 @@ static int ip6_route_del(struct fib6_config *cfg)
 	return err;
 }
 
-/*
- *	Handle redirects
- */
-struct ip6rd_flowi {
-	struct flowi6 fl6;
-	struct in6_addr gateway;
-};
-
-static struct rt6_info *__ip6_route_redirect(struct net *net,
-					     struct fib6_table *table,
-					     struct flowi6 *fl6,
-					     int flags)
+static void rt6_do_redirect(struct dst_entry *dst, struct sk_buff *skb)
 {
-	struct ip6rd_flowi *rdfl = (struct ip6rd_flowi *)fl6;
-	struct rt6_info *rt;
-	struct fib6_node *fn;
+	struct net *net = dev_net(skb->dev);
+	struct netevent_redirect netevent;
+	struct rt6_info *rt, *nrt = NULL;
+	const struct in6_addr *target;
+	struct ndisc_options ndopts;
+	const struct in6_addr *dest;
+	struct neighbour *old_neigh;
+	struct inet6_dev *in6_dev;
+	struct neighbour *neigh;
+	struct icmp6hdr *icmph;
+	int optlen, on_link;
+	u8 *lladdr;
 
-	/*
-	 * Get the "current" route for this destination and
-	 * check if the redirect has come from approriate router.
-	 *
-	 * RFC 2461 specifies that redirects should only be
-	 * accepted if they come from the nexthop to the target.
-	 * Due to the way the routes are chosen, this notion
-	 * is a bit fuzzy and one might need to check all possible
-	 * routes.
+	optlen = skb->tail - skb->transport_header;
+	optlen -= sizeof(struct icmp6hdr) + 2 * sizeof(struct in6_addr);
+
+	if (optlen < 0) {
+		net_dbg_ratelimited("rt6_do_redirect: packet too short\n");
+		return;
+	}
+
+	icmph = icmp6_hdr(skb);
+	target = (const struct in6_addr *) (icmph + 1);
+	dest = target + 1;
+
+	if (ipv6_addr_is_multicast(dest)) {
+		net_dbg_ratelimited("rt6_do_redirect: destination address is multicast\n");
+		return;
+	}
+
+	on_link = 0;
+	if (ipv6_addr_equal(dest, target)) {
+		on_link = 1;
+	} else if (ipv6_addr_type(target) !=
+		   (IPV6_ADDR_UNICAST|IPV6_ADDR_LINKLOCAL)) {
+		net_dbg_ratelimited("rt6_do_redirect: target address is not link-local unicast\n");
+		return;
+	}
+
+	in6_dev = __in6_dev_get(skb->dev);
+	if (!in6_dev)
+		return;
+	if (in6_dev->cnf.forwarding || !in6_dev->cnf.accept_redirects)
+		return;
+
+	/* RFC2461 8.1:
+	 *	The IP source address of the Redirect MUST be the same as the current
+	 *	first-hop router for the specified ICMP Destination Address.
 	 */
 
-	read_lock_bh(&table->tb6_lock);
-	fn = fib6_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
-restart:
-	for (rt = fn->leaf; rt; rt = rt->dst.rt6_next) {
-		/*
-		 * Current route is on-link; redirect is always invalid.
-		 *
-		 * Seems, previous statement is not true. It could
-		 * be node, which looks for us as on-link (f.e. proxy ndisc)
-		 * But then router serving it might decide, that we should
-		 * know truth 8)8) --ANK (980726).
-		 */
-		if (rt6_check_expired(rt))
-			continue;
-		if (!(rt->rt6i_flags & RTF_GATEWAY))
-			continue;
-		if (fl6->flowi6_oif != rt->dst.dev->ifindex)
-			continue;
-		if (!ipv6_addr_equal(&rdfl->gateway, &rt->rt6i_gateway))
-			continue;
-		break;
+	if (!ndisc_parse_options((u8*)(dest + 1), optlen, &ndopts)) {
+		net_dbg_ratelimited("rt6_redirect: invalid ND options\n");
+		return;
 	}
 
-	if (!rt)
-		rt = net->ipv6.ip6_null_entry;
-	BACKTRACK(net, &fl6->saddr);
-out:
-	dst_hold(&rt->dst);
+	lladdr = NULL;
+	if (ndopts.nd_opts_tgt_lladdr) {
+		lladdr = ndisc_opt_addr_data(ndopts.nd_opts_tgt_lladdr,
+					     skb->dev);
+		if (!lladdr) {
+			net_dbg_ratelimited("rt6_redirect: invalid link-layer address length\n");
+			return;
+		}
+	}
 
-	read_unlock_bh(&table->tb6_lock);
-
-	return rt;
-};
-
-static struct rt6_info *ip6_route_redirect(const struct in6_addr *dest,
-					   const struct in6_addr *src,
-					   const struct in6_addr *gateway,
-					   struct net_device *dev)
-{
-	int flags = RT6_LOOKUP_F_HAS_SADDR;
-	struct net *net = dev_net(dev);
-	struct ip6rd_flowi rdfl = {
-		.fl6 = {
-			.flowi6_oif = dev->ifindex,
-			.daddr = *dest,
-			.saddr = *src,
-		},
-	};
-
-	rdfl.gateway = *gateway;
-
-	if (rt6_need_strict(dest))
-		flags |= RT6_LOOKUP_F_IFACE;
-
-	return (struct rt6_info *)fib6_rule_lookup(net, &rdfl.fl6,
-						   flags, __ip6_route_redirect);
-}
-
-void rt6_redirect(const struct in6_addr *dest, const struct in6_addr *src,
-		  const struct in6_addr *saddr,
-		  struct neighbour *neigh, u8 *lladdr, int on_link)
-{
-	struct rt6_info *rt, *nrt = NULL;
-	struct netevent_redirect netevent;
-	struct net *net = dev_net(neigh->dev);
-	struct neighbour *old_neigh;
-
-	rt = ip6_route_redirect(dest, src, saddr, neigh->dev);
-
+	rt = (struct rt6_info *) dst;
 	if (rt == net->ipv6.ip6_null_entry) {
 		net_dbg_ratelimited("rt6_redirect: source isn't a valid nexthop for redirect target\n");
-		goto out;
+		return;
 	}
+
+	/* Redirect received -> path was valid.
+	 * Look, redirects are sent only in response to data packets,
+	 * so that this nexthop apparently is reachable. --ANK
+	 */
+	dst_confirm(&rt->dst);
+
+	neigh = __neigh_lookup(&nd_tbl, target, skb->dev, 1);
+	if (!neigh)
+		return;
+
+	/* Duplicate redirect: silently ignore. */
+	old_neigh = rt->n;
+	if (neigh == old_neigh)
+		goto out;
 
 	/*
 	 *	We have finally decided to accept it.
@@ -1716,18 +1736,6 @@ void rt6_redirect(const struct in6_addr *dest, const struct in6_addr *src,
 		     (on_link ? 0 : (NEIGH_UPDATE_F_OVERRIDE_ISROUTER|
 				     NEIGH_UPDATE_F_ISROUTER))
 		     );
-
-	/*
-	 * Redirect received -> path was valid.
-	 * Look, redirects are sent only in response to data packets,
-	 * so that this nexthop apparently is reachable. --ANK
-	 */
-	dst_confirm(&rt->dst);
-
-	/* Duplicate redirect: silently ignore. */
-	old_neigh = rt->n;
-	if (neigh == old_neigh)
-		goto out;
 
 	nrt = ip6_rt_copy(rt, dest);
 	if (!nrt)
@@ -1751,12 +1759,12 @@ void rt6_redirect(const struct in6_addr *dest, const struct in6_addr *src,
 	call_netevent_notifiers(NETEVENT_REDIRECT, &netevent);
 
 	if (rt->rt6i_flags & RTF_CACHE) {
+		rt = (struct rt6_info *) dst_clone(&rt->dst);
 		ip6_del_rt(rt);
-		return;
 	}
 
 out:
-	dst_release(&rt->dst);
+	neigh_release(neigh);
 }
 
 /*

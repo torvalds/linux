@@ -634,18 +634,31 @@ out:;
 EXPORT_SYMBOL(icmp_send);
 
 
+static void icmp_socket_deliver(struct sk_buff *skb, u32 info)
+{
+	const struct iphdr *iph = (const struct iphdr *) skb->data;
+	const struct net_protocol *ipprot;
+	int protocol = iph->protocol;
+
+	raw_icmp_error(skb, protocol, info);
+
+	rcu_read_lock();
+	ipprot = rcu_dereference(inet_protos[protocol]);
+	if (ipprot && ipprot->err_handler)
+		ipprot->err_handler(skb, info);
+	rcu_read_unlock();
+}
+
 /*
  *	Handle ICMP_DEST_UNREACH, ICMP_TIME_EXCEED, and ICMP_QUENCH.
  */
 
 static void icmp_unreach(struct sk_buff *skb)
 {
-	const struct net_protocol *ipprot;
 	const struct iphdr *iph;
 	struct icmphdr *icmph;
 	struct net *net;
 	u32 info = 0;
-	int protocol;
 
 	net = dev_net(skb_dst(skb)->dev);
 
@@ -726,19 +739,7 @@ static void icmp_unreach(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, iph->ihl * 4 + 8))
 		goto out;
 
-	iph = (const struct iphdr *)skb->data;
-	protocol = iph->protocol;
-
-	/*
-	 *	Deliver ICMP message to raw sockets. Pretty useless feature?
-	 */
-	raw_icmp_error(skb, protocol, info);
-
-	rcu_read_lock();
-	ipprot = rcu_dereference(inet_protos[protocol]);
-	if (ipprot && ipprot->err_handler)
-		ipprot->err_handler(skb, info);
-	rcu_read_unlock();
+	icmp_socket_deliver(skb, info);
 
 out:
 	return;
@@ -754,46 +755,15 @@ out_err:
 
 static void icmp_redirect(struct sk_buff *skb)
 {
-	const struct iphdr *iph;
+	if (skb->len < sizeof(struct iphdr)) {
+		ICMP_INC_STATS_BH(dev_net(skb->dev), ICMP_MIB_INERRORS);
+		return;
+	}
 
-	if (skb->len < sizeof(struct iphdr))
-		goto out_err;
-
-	/*
-	 *	Get the copied header of the packet that caused the redirect
-	 */
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
-		goto out;
+		return;
 
-	iph = (const struct iphdr *)skb->data;
-
-	switch (icmp_hdr(skb)->code & 7) {
-	case ICMP_REDIR_NET:
-	case ICMP_REDIR_NETTOS:
-		/*
-		 * As per RFC recommendations now handle it as a host redirect.
-		 */
-	case ICMP_REDIR_HOST:
-	case ICMP_REDIR_HOSTTOS:
-		ip_rt_redirect(ip_hdr(skb)->saddr, iph->daddr,
-			       icmp_hdr(skb)->un.gateway,
-			       iph->saddr, skb->dev);
-		break;
-	}
-
-	/* Ping wants to see redirects.
-         * Let's pretend they are errors of sorts... */
-	if (iph->protocol == IPPROTO_ICMP &&
-	    iph->ihl >= 5 &&
-	    pskb_may_pull(skb, (iph->ihl<<2)+8)) {
-		ping_err(skb, icmp_hdr(skb)->un.gateway);
-	}
-
-out:
-	return;
-out_err:
-	ICMP_INC_STATS_BH(dev_net(skb->dev), ICMP_MIB_INERRORS);
-	goto out;
+	icmp_socket_deliver(skb, icmp_hdr(skb)->un.gateway);
 }
 
 /*

@@ -115,6 +115,10 @@ static void fake_update_pmtu(struct dst_entry *dst, u32 mtu)
 {
 }
 
+static void fake_redirect(struct dst_entry *dst, struct sk_buff *skb)
+{
+}
+
 static u32 *fake_cow_metrics(struct dst_entry *dst, unsigned long old)
 {
 	return NULL;
@@ -136,6 +140,7 @@ static struct dst_ops fake_dst_ops = {
 	.family =		AF_INET,
 	.protocol =		cpu_to_be16(ETH_P_IP),
 	.update_pmtu =		fake_update_pmtu,
+	.redirect =		fake_redirect,
 	.cow_metrics =		fake_cow_metrics,
 	.neigh_lookup =		fake_neigh_lookup,
 	.mtu =			fake_mtu,

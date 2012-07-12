@@ -251,6 +251,8 @@ static inline void fl6_sock_release(struct ip6_flowlabel *fl)
 		atomic_dec(&fl->users);
 }
 
+extern void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info);
+
 extern int 			ip6_ra_control(struct sock *sk, int sel);
 
 extern int			ipv6_parse_hopopts(struct sk_buff *skb);

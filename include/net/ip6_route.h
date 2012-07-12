@@ -133,17 +133,12 @@ extern int			rt6_route_rcv(struct net_device *dev,
 					      u8 *opt, int len,
 					      const struct in6_addr *gwaddr);
 
-extern void			rt6_redirect(const struct in6_addr *dest,
-					     const struct in6_addr *src,
-					     const struct in6_addr *saddr,
-					     struct neighbour *neigh,
-					     u8 *lladdr,
-					     int on_link);
-
 extern void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu,
 			    int oif, u32 mark);
 extern void ip6_sk_update_pmtu(struct sk_buff *skb, struct sock *sk,
 			       __be32 mtu);
+extern void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark);
+extern void ip6_sk_redirect(struct sk_buff *skb, struct sock *sk);
 
 struct netlink_callback;
 

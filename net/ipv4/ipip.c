@@ -360,6 +360,8 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 		if (code != ICMP_EXC_TTL)
 			return 0;
 		break;
+	case ICMP_REDIRECT:
+		break;
 	}
 
 	err = -ENOENT;
@@ -372,6 +374,13 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
 		ipv4_update_pmtu(skb, dev_net(skb->dev), info,
 				 t->dev->ifindex, 0, IPPROTO_IPIP, 0);
+		err = 0;
+		goto out;
+	}
+
+	if (type == ICMP_REDIRECT) {
+		ipv4_redirect(skb, dev_net(skb->dev), t->dev->ifindex, 0,
+			      IPPROTO_IPIP, 0);
 		err = 0;
 		goto out;
 	}

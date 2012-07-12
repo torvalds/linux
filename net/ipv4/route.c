@@ -149,6 +149,7 @@ static void		 ipv4_dst_destroy(struct dst_entry *dst);
 static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst);
 static void		 ipv4_link_failure(struct sk_buff *skb);
 static void		 ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu);
+static void		 ip_do_redirect(struct dst_entry *dst, struct sk_buff *skb);
 static int rt_garbage_collect(struct dst_ops *ops);
 
 static void ipv4_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
@@ -179,6 +180,7 @@ static struct dst_ops ipv4_dst_ops = {
 	.negative_advice =	ipv4_negative_advice,
 	.link_failure =		ipv4_link_failure,
 	.update_pmtu =		ip_rt_update_pmtu,
+	.redirect =		ip_do_redirect,
 	.local_out =		__ip_local_out,
 	.neigh_lookup =		ipv4_neigh_lookup,
 };
@@ -1271,16 +1273,35 @@ static void rt_del(unsigned int hash, struct rtable *rt)
 	spin_unlock_bh(rt_hash_lock_addr(hash));
 }
 
-/* called in rcu_read_lock() section */
-void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
-		    __be32 saddr, struct net_device *dev)
+static void ip_do_redirect(struct dst_entry *dst, struct sk_buff *skb)
 {
-	int s, i;
-	struct in_device *in_dev = __in_dev_get_rcu(dev);
-	__be32 skeys[2] = { saddr, 0 };
-	int    ikeys[2] = { dev->ifindex, 0 };
+	const struct iphdr *iph = (const struct iphdr *) skb->data;
+	__be32 new_gw = icmp_hdr(skb)->un.gateway;
+	__be32 old_gw = ip_hdr(skb)->saddr;
+	struct net_device *dev = skb->dev;
+	__be32 daddr = iph->daddr;
+	__be32 saddr = iph->saddr;
+	struct in_device *in_dev;
+	struct neighbour *n;
+	struct rtable *rt;
 	struct net *net;
 
+	switch (icmp_hdr(skb)->code & 7) {
+	case ICMP_REDIR_NET:
+	case ICMP_REDIR_NETTOS:
+	case ICMP_REDIR_HOST:
+	case ICMP_REDIR_HOSTTOS:
+		break;
+
+	default:
+		return;
+	}
+
+	rt = (struct rtable *) dst;
+	if (rt->rt_gateway != old_gw)
+		return;
+
+	in_dev = __in_dev_get_rcu(dev);
 	if (!in_dev)
 		return;
 
@@ -1300,45 +1321,16 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 			goto reject_redirect;
 	}
 
-	for (s = 0; s < 2; s++) {
-		for (i = 0; i < 2; i++) {
-			unsigned int hash;
-			struct rtable __rcu **rthp;
-			struct rtable *rt;
-
-			hash = rt_hash(daddr, skeys[s], ikeys[i], rt_genid(net));
-
-			rthp = &rt_hash_table[hash].chain;
-
-			while ((rt = rcu_dereference(*rthp)) != NULL) {
-				struct neighbour *n;
-
-				rthp = &rt->dst.rt_next;
-
-				if (rt->rt_key_dst != daddr ||
-				    rt->rt_key_src != skeys[s] ||
-				    rt->rt_oif != ikeys[i] ||
-				    rt_is_input_route(rt) ||
-				    rt_is_expired(rt) ||
-				    !net_eq(dev_net(rt->dst.dev), net) ||
-				    rt->dst.error ||
-				    rt->dst.dev != dev ||
-				    rt->rt_gateway != old_gw)
-					continue;
-
-				n = ipv4_neigh_lookup(&rt->dst, NULL, &new_gw);
-				if (n) {
-					if (!(n->nud_state & NUD_VALID)) {
-						neigh_event_send(n, NULL);
-					} else {
-						rt->rt_gateway = new_gw;
-						rt->rt_flags |= RTCF_REDIRECTED;
-						call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, n);
-					}
-					neigh_release(n);
-				}
-			}
+	n = ipv4_neigh_lookup(dst, NULL, &new_gw);
+	if (n) {
+		if (!(n->nud_state & NUD_VALID)) {
+			neigh_event_send(n, NULL);
+		} else {
+			rt->rt_gateway = new_gw;
+			rt->rt_flags |= RTCF_REDIRECTED;
+			call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, n);
 		}
+		neigh_release(n);
 	}
 	return;
 
@@ -1553,6 +1545,34 @@ void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu)
 				inet_sk_flowi_flags(sk));
 }
 EXPORT_SYMBOL_GPL(ipv4_sk_update_pmtu);
+
+void ipv4_redirect(struct sk_buff *skb, struct net *net,
+		   int oif, u32 mark, u8 protocol, int flow_flags)
+{
+	const struct iphdr *iph = (const struct iphdr *)skb->data;
+	struct flowi4 fl4;
+	struct rtable *rt;
+
+	flowi4_init_output(&fl4, oif, mark, RT_TOS(iph->tos), RT_SCOPE_UNIVERSE,
+			   protocol, flow_flags, iph->daddr, iph->saddr, 0, 0);
+	rt = __ip_route_output_key(net, &fl4);
+	if (!IS_ERR(rt)) {
+		ip_do_redirect(&rt->dst, skb);
+		ip_rt_put(rt);
+	}
+}
+EXPORT_SYMBOL_GPL(ipv4_redirect);
+
+void ipv4_sk_redirect(struct sk_buff *skb, struct sock *sk)
+{
+	const struct inet_sock *inet = inet_sk(sk);
+
+	return ipv4_redirect(skb, sock_net(sk), sk->sk_bound_dev_if,
+			     sk->sk_mark,
+			     inet->hdrincl ? IPPROTO_RAW : sk->sk_protocol,
+			     inet_sk_flowi_flags(sk));
+}
+EXPORT_SYMBOL_GPL(ipv4_sk_redirect);
 
 static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie)
 {
@@ -2571,6 +2591,10 @@ static void ipv4_rt_blackhole_update_pmtu(struct dst_entry *dst, u32 mtu)
 {
 }
 
+static void ipv4_rt_blackhole_redirect(struct dst_entry *dst, struct sk_buff *skb)
+{
+}
+
 static u32 *ipv4_rt_blackhole_cow_metrics(struct dst_entry *dst,
 					  unsigned long old)
 {
@@ -2585,6 +2609,7 @@ static struct dst_ops ipv4_dst_blackhole_ops = {
 	.mtu			=	ipv4_blackhole_mtu,
 	.default_advmss		=	ipv4_default_advmss,
 	.update_pmtu		=	ipv4_rt_blackhole_update_pmtu,
+	.redirect		=	ipv4_rt_blackhole_redirect,
 	.cow_metrics		=	ipv4_rt_blackhole_cow_metrics,
 	.neigh_lookup		=	ipv4_neigh_lookup,
 };
