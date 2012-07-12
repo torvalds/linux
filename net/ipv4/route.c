@@ -2591,6 +2591,10 @@ static void ipv4_rt_blackhole_update_pmtu(struct dst_entry *dst, u32 mtu)
 {
 }
 
+static void ipv4_rt_blackhole_redirect(struct dst_entry *dst, struct sk_buff *skb)
+{
+}
+
 static u32 *ipv4_rt_blackhole_cow_metrics(struct dst_entry *dst,
 					  unsigned long old)
 {
@@ -2605,6 +2609,7 @@ static struct dst_ops ipv4_dst_blackhole_ops = {
 	.mtu			=	ipv4_blackhole_mtu,
 	.default_advmss		=	ipv4_default_advmss,
 	.update_pmtu		=	ipv4_rt_blackhole_update_pmtu,
+	.redirect		=	ipv4_rt_blackhole_redirect,
 	.cow_metrics		=	ipv4_rt_blackhole_cow_metrics,
 	.neigh_lookup		=	ipv4_neigh_lookup,
 };

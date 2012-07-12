@@ -191,6 +191,10 @@ static void ip6_rt_blackhole_update_pmtu(struct dst_entry *dst, u32 mtu)
 {
 }
 
+static void ip6_rt_blackhole_redirect(struct dst_entry *dst, struct sk_buff *skb)
+{
+}
+
 static u32 *ip6_rt_blackhole_cow_metrics(struct dst_entry *dst,
 					 unsigned long old)
 {
@@ -205,6 +209,7 @@ static struct dst_ops ip6_dst_blackhole_ops = {
 	.mtu			=	ip6_blackhole_mtu,
 	.default_advmss		=	ip6_default_advmss,
 	.update_pmtu		=	ip6_rt_blackhole_update_pmtu,
+	.redirect		=	ip6_rt_blackhole_redirect,
 	.cow_metrics		=	ip6_rt_blackhole_cow_metrics,
 	.neigh_lookup		=	ip6_neigh_lookup,
 };
