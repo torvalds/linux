@@ -648,7 +648,7 @@ be_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	int status;
 
-	if (ecmd->autoneg != 0)
+	if (ecmd->autoneg != adapter->phy.fc_autoneg)
 		return -EINVAL;
 	adapter->tx_fc = ecmd->tx_pause;
 	adapter->rx_fc = ecmd->rx_pause;
