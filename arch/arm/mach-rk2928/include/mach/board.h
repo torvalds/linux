@@ -24,6 +24,7 @@ struct machine_desc;
 void __init rk2928_fixup(struct machine_desc *desc, struct tag *tags, char **cmdline, struct meminfo *mi);
 void __init rk2928_clock_data_init(unsigned long gpll,unsigned long cpll,u32 flags);
 void __init board_clock_init(void);
+void __init rk2928_iomux_init(void);
 void board_gpio_suspend(void);
 void board_gpio_resume(void);
 void __sramfunc board_pmu_suspend(void);

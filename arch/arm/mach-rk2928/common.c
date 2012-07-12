@@ -118,7 +118,7 @@ void __init rk2928_init_irq(void)
 #ifdef CONFIG_FIQ
 	rk_fiq_init();
 #endif
-//	rk30_gpio_init();
+	rk2928_gpio_init();
 }
 
 extern void __init rk2928_map_common_io(void);
@@ -134,7 +134,7 @@ void __init rk2928_map_io(void)
 	rk2928_l2_cache_init();
 //	ddr_init(DDR_TYPE, DDR_FREQ);
 //	clk_disable_unused();
-//	rk2928_iomux_init();
+	rk2928_iomux_init();
 	rk2928_boot_mode_init();
 }
 

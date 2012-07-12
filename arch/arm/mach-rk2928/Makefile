@@ -6,4 +6,4 @@ obj-y += devices.o
 obj-y += iomux.o
 obj-$(CONFIG_PM) += pm.o
 
-obj-$(CONFIG_MACH_RK2928_FPGA) += board-rk2928-fpga.o
+obj-$(CONFIG_MACH_RK2928_FPGA) += board-rk2928-fpga.o board-rk2928-fpga-key.o

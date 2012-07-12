@@ -164,7 +164,7 @@ void rk30_mux_set(struct mux_config *cfg)
 }
 
 
-int __init rk30_iomux_init(void)
+int __init rk2928_iomux_init(void)
 {
 	int i;
 	printk("%s\n",__func__);

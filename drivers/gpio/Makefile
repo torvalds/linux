@@ -47,6 +47,7 @@ obj-$(CONFIG_PLAT_NOMADIK)	+= gpio-nomadik.o
 obj-$(CONFIG_GPIO_RDC321X)	+= rdc321x-gpio.o
 obj-$(CONFIG_ARCH_RK29)		+= gpio-rk29.o
 obj-$(CONFIG_ARCH_RK30)		+= gpio-rk30.o
+obj-$(CONFIG_ARCH_RK2928)	+= gpio-rk2928.o
 obj-$(CONFIG_GPIO_JANZ_TTL)	+= janz-ttl.o
 obj-$(CONFIG_GPIO_SX150X)	+= sx150x.o
 obj-$(CONFIG_GPIO_VX855)	+= vx855_gpio.o

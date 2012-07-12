@@ -490,12 +490,25 @@ static void __init rk2928_init_spim(void)
 	platform_device_register(&rk29xx_device_spi0m);
 #endif
 }
+#ifdef CONFIG_KEYS_RK29
+extern struct rk29_keys_platform_data rk29_keys_pdata;
+static struct platform_device device_keys = {
+	.name		= "rk29-keypad",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &rk29_keys_pdata,
+	},
+};
+#endif
 static int __init rk2928_init_devices(void)
 {
 	rk2928_init_dma();
 	rk2928_init_uart();
 	rk2928_init_i2c();
 	rk2928_init_spim();
+#ifdef CONFIG_KEYS_RK29
+	platform_device_register(&device_keys);
+#endif
 #if defined(CONFIG_FIQ_DEBUGGER) && defined(DEBUG_UART_PHYS)
 	rk_serial_debug_init(DEBUG_UART_BASE, IRQ_DEBUG_UART, IRQ_UART_SIGNAL, -1);
 #endif
