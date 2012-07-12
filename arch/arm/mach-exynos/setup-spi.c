@@ -12,17 +12,8 @@
 #include <linux/platform_device.h>
 
 #include <plat/gpio-cfg.h>
-#include <plat/s3c64xx-spi.h>
 
 #ifdef CONFIG_S3C64XX_DEV_SPI0
-struct s3c64xx_spi_info s3c64xx_spi0_pdata __initdata = {
-	.fifo_lvl_mask	= 0x1ff,
-	.rx_lvl_offset	= 15,
-	.high_speed	= 1,
-	.clk_from_cmu	= true,
-	.tx_st_done	= 25,
-};
-
 int s3c64xx_spi0_cfg_gpio(struct platform_device *dev)
 {
 	s3c_gpio_cfgpin(EXYNOS4_GPB(0), S3C_GPIO_SFN(2));
@@ -34,14 +25,6 @@ int s3c64xx_spi0_cfg_gpio(struct platform_device *dev)
 #endif
 
 #ifdef CONFIG_S3C64XX_DEV_SPI1
-struct s3c64xx_spi_info s3c64xx_spi1_pdata __initdata = {
-	.fifo_lvl_mask	= 0x7f,
-	.rx_lvl_offset	= 15,
-	.high_speed	= 1,
-	.clk_from_cmu	= true,
-	.tx_st_done	= 25,
-};
-
 int s3c64xx_spi1_cfg_gpio(struct platform_device *dev)
 {
 	s3c_gpio_cfgpin(EXYNOS4_GPB(4), S3C_GPIO_SFN(2));
@@ -53,14 +36,6 @@ int s3c64xx_spi1_cfg_gpio(struct platform_device *dev)
 #endif
 
 #ifdef CONFIG_S3C64XX_DEV_SPI2
-struct s3c64xx_spi_info s3c64xx_spi2_pdata __initdata = {
-	.fifo_lvl_mask	= 0x7f,
-	.rx_lvl_offset	= 15,
-	.high_speed	= 1,
-	.clk_from_cmu	= true,
-	.tx_st_done	= 25,
-};
-
 int s3c64xx_spi2_cfg_gpio(struct platform_device *dev)
 {
 	s3c_gpio_cfgpin(EXYNOS4_GPC1(1), S3C_GPIO_SFN(5));

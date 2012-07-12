@@ -31,6 +31,8 @@
 #include <mach/dma.h>
 #include <plat/s3c64xx-spi.h>
 
+#define MAX_SPI_PORTS		3
+
 /* Registers and bit-fields */
 
 #define S3C64XX_SPI_CH_CFG		0x00
@@ -113,9 +115,12 @@
 
 #define S3C64XX_SPI_FBCLK_MSK		(3<<0)
 
-#define S3C64XX_SPI_ST_TX_DONE(v, i) (((v) & (1 << (i)->tx_st_done)) ? 1 : 0)
-#define TX_FIFO_LVL(v, i) (((v) >> 6) & (i)->fifo_lvl_mask)
-#define RX_FIFO_LVL(v, i) (((v) >> (i)->rx_lvl_offset) & (i)->fifo_lvl_mask)
+#define FIFO_LVL_MASK(i) ((i)->port_conf->fifo_lvl_mask[i->port_id])
+#define S3C64XX_SPI_ST_TX_DONE(v, i) (((v) & \
+				(1 << (i)->port_conf->tx_st_done)) ? 1 : 0)
+#define TX_FIFO_LVL(v, i) (((v) >> 6) & FIFO_LVL_MASK(i))
+#define RX_FIFO_LVL(v, i) (((v) >> (i)->port_conf->rx_lvl_offset) & \
+					FIFO_LVL_MASK(i))
 
 #define S3C64XX_SPI_MAX_TRAILCNT	0x3ff
 #define S3C64XX_SPI_TRAILCNT_OFF	19
@@ -131,6 +136,28 @@ struct s3c64xx_spi_dma_data {
 	unsigned		ch;
 	enum dma_data_direction direction;
 	enum dma_ch	dmach;
+};
+
+/**
+ * struct s3c64xx_spi_info - SPI Controller hardware info
+ * @fifo_lvl_mask: Bit-mask for {TX|RX}_FIFO_LVL bits in SPI_STATUS register.
+ * @rx_lvl_offset: Bit offset of RX_FIFO_LVL bits in SPI_STATUS regiter.
+ * @tx_st_done: Bit offset of TX_DONE bit in SPI_STATUS regiter.
+ * @high_speed: True, if the controller supports HIGH_SPEED_EN bit.
+ * @clk_from_cmu: True, if the controller does not include a clock mux and
+ *	prescaler unit.
+ *
+ * The Samsung s3c64xx SPI controller are used on various Samsung SoC's but
+ * differ in some aspects such as the size of the fifo and spi bus clock
+ * setup. Such differences are specified to the driver using this structure
+ * which is provided as driver data to the driver.
+ */
+struct s3c64xx_spi_port_config {
+	int	fifo_lvl_mask[MAX_SPI_PORTS];
+	int	rx_lvl_offset;
+	int	tx_st_done;
+	bool	high_speed;
+	bool	clk_from_cmu;
 };
 
 /**
@@ -171,6 +198,8 @@ struct s3c64xx_spi_driver_data {
 	struct s3c64xx_spi_dma_data	rx_dma;
 	struct s3c64xx_spi_dma_data	tx_dma;
 	struct samsung_dma_ops		*ops;
+	struct s3c64xx_spi_port_config	*port_conf;
+	unsigned int			port_id;
 };
 
 static struct s3c2410_dma_client s3c64xx_spi_dma_client = {
@@ -179,7 +208,6 @@ static struct s3c2410_dma_client s3c64xx_spi_dma_client = {
 
 static void flush_fifo(struct s3c64xx_spi_driver_data *sdd)
 {
-	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	void __iomem *regs = sdd->regs;
 	unsigned long loops;
 	u32 val;
@@ -195,7 +223,7 @@ static void flush_fifo(struct s3c64xx_spi_driver_data *sdd)
 	loops = msecs_to_loops(1);
 	do {
 		val = readl(regs + S3C64XX_SPI_STATUS);
-	} while (TX_FIFO_LVL(val, sci) && loops--);
+	} while (TX_FIFO_LVL(val, sdd) && loops--);
 
 	if (loops == 0)
 		dev_warn(&sdd->pdev->dev, "Timed out flushing TX FIFO\n");
@@ -204,7 +232,7 @@ static void flush_fifo(struct s3c64xx_spi_driver_data *sdd)
 	loops = msecs_to_loops(1);
 	do {
 		val = readl(regs + S3C64XX_SPI_STATUS);
-		if (RX_FIFO_LVL(val, sci))
+		if (RX_FIFO_LVL(val, sdd))
 			readl(regs + S3C64XX_SPI_RX_DATA);
 		else
 			break;
@@ -307,7 +335,6 @@ static void enable_datapath(struct s3c64xx_spi_driver_data *sdd,
 				struct spi_device *spi,
 				struct spi_transfer *xfer, int dma_mode)
 {
-	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	void __iomem *regs = sdd->regs;
 	u32 modecfg, chcfg;
 
@@ -357,7 +384,7 @@ static void enable_datapath(struct s3c64xx_spi_driver_data *sdd,
 	if (xfer->rx_buf != NULL) {
 		sdd->state |= RXBUSY;
 
-		if (sci->high_speed && sdd->cur_speed >= 30000000UL
+		if (sdd->port_conf->high_speed && sdd->cur_speed >= 30000000UL
 					&& !(sdd->cur_mode & SPI_CPHA))
 			chcfg |= S3C64XX_SPI_CH_HS_EN;
 
@@ -397,7 +424,6 @@ static inline void enable_cs(struct s3c64xx_spi_driver_data *sdd,
 static int wait_for_xfer(struct s3c64xx_spi_driver_data *sdd,
 				struct spi_transfer *xfer, int dma_mode)
 {
-	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	void __iomem *regs = sdd->regs;
 	unsigned long val;
 	int ms;
@@ -414,7 +440,7 @@ static int wait_for_xfer(struct s3c64xx_spi_driver_data *sdd,
 		val = msecs_to_loops(ms);
 		do {
 			status = readl(regs + S3C64XX_SPI_STATUS);
-		} while (RX_FIFO_LVL(status, sci) < xfer->len && --val);
+		} while (RX_FIFO_LVL(status, sdd) < xfer->len && --val);
 	}
 
 	if (!val)
@@ -433,8 +459,8 @@ static int wait_for_xfer(struct s3c64xx_spi_driver_data *sdd,
 		if (xfer->rx_buf == NULL) {
 			val = msecs_to_loops(10);
 			status = readl(regs + S3C64XX_SPI_STATUS);
-			while ((TX_FIFO_LVL(status, sci)
-				|| !S3C64XX_SPI_ST_TX_DONE(status, sci))
+			while ((TX_FIFO_LVL(status, sdd)
+				|| !S3C64XX_SPI_ST_TX_DONE(status, sdd))
 					&& --val) {
 				cpu_relax();
 				status = readl(regs + S3C64XX_SPI_STATUS);
@@ -483,12 +509,11 @@ static inline void disable_cs(struct s3c64xx_spi_driver_data *sdd,
 
 static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 {
-	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	void __iomem *regs = sdd->regs;
 	u32 val;
 
 	/* Disable Clock */
-	if (sci->clk_from_cmu) {
+	if (sdd->port_conf->clk_from_cmu) {
 		clk_disable(sdd->src_clk);
 	} else {
 		val = readl(regs + S3C64XX_SPI_CLK_CFG);
@@ -532,7 +557,7 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 
 	writel(val, regs + S3C64XX_SPI_MODE_CFG);
 
-	if (sci->clk_from_cmu) {
+	if (sdd->port_conf->clk_from_cmu) {
 		/* Configure Clock */
 		/* There is half-multiplier before the SPI */
 		clk_set_rate(sdd->src_clk, sdd->cur_speed * 2);
@@ -558,7 +583,6 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 static int s3c64xx_spi_map_mssg(struct s3c64xx_spi_driver_data *sdd,
 						struct spi_message *msg)
 {
-	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	struct device *dev = &sdd->pdev->dev;
 	struct spi_transfer *xfer;
 
@@ -574,7 +598,7 @@ static int s3c64xx_spi_map_mssg(struct s3c64xx_spi_driver_data *sdd,
 	/* Map until end or first fail */
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 
-		if (xfer->len <= ((sci->fifo_lvl_mask >> 1) + 1))
+		if (xfer->len <= ((FIFO_LVL_MASK(sdd) >> 1) + 1))
 			continue;
 
 		if (xfer->tx_buf != NULL) {
@@ -608,7 +632,6 @@ static int s3c64xx_spi_map_mssg(struct s3c64xx_spi_driver_data *sdd,
 static void s3c64xx_spi_unmap_mssg(struct s3c64xx_spi_driver_data *sdd,
 						struct spi_message *msg)
 {
-	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	struct device *dev = &sdd->pdev->dev;
 	struct spi_transfer *xfer;
 
@@ -617,7 +640,7 @@ static void s3c64xx_spi_unmap_mssg(struct s3c64xx_spi_driver_data *sdd,
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 
-		if (xfer->len <= ((sci->fifo_lvl_mask >> 1) + 1))
+		if (xfer->len <= ((FIFO_LVL_MASK(sdd) >> 1) + 1))
 			continue;
 
 		if (xfer->rx_buf != NULL
@@ -636,7 +659,6 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 					    struct spi_message *msg)
 {
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
-	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	struct spi_device *spi = msg->spi;
 	struct s3c64xx_spi_csinfo *cs = spi->controller_data;
 	struct spi_transfer *xfer;
@@ -691,7 +713,7 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 		}
 
 		/* Polling method for xfers not bigger than FIFO capacity */
-		if (xfer->len <= ((sci->fifo_lvl_mask >> 1) + 1))
+		if (xfer->len <= ((FIFO_LVL_MASK(sdd) >> 1) + 1))
 			use_dma = 0;
 		else
 			use_dma = 1;
@@ -845,7 +867,7 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 	pm_runtime_get_sync(&sdd->pdev->dev);
 
 	/* Check if we can provide the requested rate */
-	if (!sci->clk_from_cmu) {
+	if (!sdd->port_conf->clk_from_cmu) {
 		u32 psr, speed;
 
 		/* Max possible */
@@ -926,7 +948,7 @@ static void s3c64xx_spi_hwinit(struct s3c64xx_spi_driver_data *sdd, int channel)
 	/* Disable Interrupts - we use Polling if not DMA mode */
 	writel(0, regs + S3C64XX_SPI_INT_EN);
 
-	if (!sci->clk_from_cmu)
+	if (!sdd->port_conf->clk_from_cmu)
 		writel(sci->src_clk_nr << S3C64XX_SPI_CLKSEL_SRCSHFT,
 				regs + S3C64XX_SPI_CLK_CFG);
 	writel(0, regs + S3C64XX_SPI_MODE_CFG);
@@ -945,6 +967,13 @@ static void s3c64xx_spi_hwinit(struct s3c64xx_spi_driver_data *sdd, int channel)
 	writel(val, regs + S3C64XX_SPI_MODE_CFG);
 
 	flush_fifo(sdd);
+}
+
+static inline struct s3c64xx_spi_port_config *s3c64xx_spi_get_port_config(
+						struct platform_device *pdev)
+{
+	return (struct s3c64xx_spi_port_config *)
+			 platform_get_device_id(pdev)->driver_data;
 }
 
 static int __init s3c64xx_spi_probe(struct platform_device *pdev)
@@ -1005,6 +1034,7 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 
 	sdd = spi_master_get_devdata(master);
+	sdd->port_conf = s3c64xx_spi_get_port_config(pdev);
 	sdd->master = master;
 	sdd->cntrlr_info = sci;
 	sdd->pdev = pdev;
@@ -1013,10 +1043,11 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 	sdd->tx_dma.direction = DMA_MEM_TO_DEV;
 	sdd->rx_dma.dmach = dmarx_res->start;
 	sdd->rx_dma.direction = DMA_DEV_TO_MEM;
+	sdd->port_id = pdev->id;
 
 	sdd->cur_bpw = 8;
 
-	master->bus_num = pdev->id;
+	master->bus_num = sdd->port_id;
 	master->setup = s3c64xx_spi_setup;
 	master->prepare_transfer_hardware = s3c64xx_spi_prepare_transfer;
 	master->transfer_one_message = s3c64xx_spi_transfer_one_message;
@@ -1076,7 +1107,7 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 	}
 
 	/* Setup Deufult Mode */
-	s3c64xx_spi_hwinit(sdd, pdev->id);
+	s3c64xx_spi_hwinit(sdd, sdd->port_id);
 
 	spin_lock_init(&sdd->lock);
 	init_completion(&sdd->xfer_completion);
@@ -1101,7 +1132,7 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "Samsung SoC SPI Driver loaded for Bus SPI-%d "
 					"with %d Slaves attached\n",
-					pdev->id, master->num_chipselect);
+					sdd->port_id, master->num_chipselect);
 	dev_dbg(&pdev->dev, "\tIOmem=[0x%x-0x%x]\tDMA=[Rx-%d, Tx-%d]\n",
 					mem_res->end, mem_res->start,
 					sdd->rx_dma.dmach, sdd->tx_dma.dmach);
@@ -1194,7 +1225,7 @@ static int s3c64xx_spi_resume(struct device *dev)
 	clk_enable(sdd->src_clk);
 	clk_enable(sdd->clk);
 
-	s3c64xx_spi_hwinit(sdd, pdev->id);
+	s3c64xx_spi_hwinit(sdd, sdd->port_id);
 
 	spi_master_resume(master);
 
@@ -1232,6 +1263,70 @@ static const struct dev_pm_ops s3c64xx_spi_pm = {
 			   s3c64xx_spi_runtime_resume, NULL)
 };
 
+struct s3c64xx_spi_port_config s3c2443_spi_port_config = {
+	.fifo_lvl_mask	= { 0x7f },
+	.rx_lvl_offset	= 13,
+	.tx_st_done	= 21,
+	.high_speed	= true,
+};
+
+struct s3c64xx_spi_port_config s3c6410_spi_port_config = {
+	.fifo_lvl_mask	= { 0x7f, 0x7F },
+	.rx_lvl_offset	= 13,
+	.tx_st_done	= 21,
+};
+
+struct s3c64xx_spi_port_config s5p64x0_spi_port_config = {
+	.fifo_lvl_mask	= { 0x1ff, 0x7F },
+	.rx_lvl_offset	= 15,
+	.tx_st_done	= 25,
+};
+
+struct s3c64xx_spi_port_config s5pc100_spi_port_config = {
+	.fifo_lvl_mask	= { 0x7f, 0x7F },
+	.rx_lvl_offset	= 13,
+	.tx_st_done	= 21,
+	.high_speed	= true,
+};
+
+struct s3c64xx_spi_port_config s5pv210_spi_port_config = {
+	.fifo_lvl_mask	= { 0x1ff, 0x7F },
+	.rx_lvl_offset	= 15,
+	.tx_st_done	= 25,
+	.high_speed	= true,
+};
+
+struct s3c64xx_spi_port_config exynos4_spi_port_config = {
+	.fifo_lvl_mask	= { 0x1ff, 0x7F, 0x7F },
+	.rx_lvl_offset	= 15,
+	.tx_st_done	= 25,
+	.high_speed	= true,
+	.clk_from_cmu	= true,
+};
+
+static struct platform_device_id s3c64xx_spi_driver_ids[] = {
+	{
+		.name		= "s3c2443-spi",
+		.driver_data	= (kernel_ulong_t)&s3c2443_spi_port_config,
+	}, {
+		.name		= "s3c6410-spi",
+		.driver_data	= (kernel_ulong_t)&s3c6410_spi_port_config,
+	}, {
+		.name		= "s5p64x0-spi",
+		.driver_data	= (kernel_ulong_t)&s5p64x0_spi_port_config,
+	}, {
+		.name		= "s5pc100-spi",
+		.driver_data	= (kernel_ulong_t)&s5pc100_spi_port_config,
+	}, {
+		.name		= "s5pv210-spi",
+		.driver_data	= (kernel_ulong_t)&s5pv210_spi_port_config,
+	}, {
+		.name		= "exynos4210-spi",
+		.driver_data	= (kernel_ulong_t)&exynos4_spi_port_config,
+	},
+	{ },
+};
+
 static struct platform_driver s3c64xx_spi_driver = {
 	.driver = {
 		.name	= "s3c64xx-spi",
@@ -1239,6 +1334,7 @@ static struct platform_driver s3c64xx_spi_driver = {
 		.pm = &s3c64xx_spi_pm,
 	},
 	.remove = s3c64xx_spi_remove,
+	.id_table = s3c64xx_spi_driver_ids,
 };
 MODULE_ALIAS("platform:s3c64xx-spi");
 

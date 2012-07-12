@@ -586,17 +586,17 @@ static struct clk exynos4_init_clocks_off[] = {
 		.ctrlbit	= (1 << 13),
 	}, {
 		.name		= "spi",
-		.devname	= "s3c64xx-spi.0",
+		.devname	= "exynos4210-spi.0",
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 16),
 	}, {
 		.name		= "spi",
-		.devname	= "s3c64xx-spi.1",
+		.devname	= "exynos4210-spi.1",
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 17),
 	}, {
 		.name		= "spi",
-		.devname	= "s3c64xx-spi.2",
+		.devname	= "exynos4210-spi.2",
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 18),
 	}, {
@@ -1245,7 +1245,7 @@ static struct clksrc_clk exynos4_clk_sclk_mmc3 = {
 static struct clksrc_clk exynos4_clk_sclk_spi0 = {
 	.clk	= {
 		.name		= "sclk_spi",
-		.devname	= "s3c64xx-spi.0",
+		.devname	= "exynos4210-spi.0",
 		.enable		= exynos4_clksrc_mask_peril1_ctrl,
 		.ctrlbit	= (1 << 16),
 	},
@@ -1257,7 +1257,7 @@ static struct clksrc_clk exynos4_clk_sclk_spi0 = {
 static struct clksrc_clk exynos4_clk_sclk_spi1 = {
 	.clk	= {
 		.name		= "sclk_spi",
-		.devname	= "s3c64xx-spi.1",
+		.devname	= "exynos4210-spi.1",
 		.enable		= exynos4_clksrc_mask_peril1_ctrl,
 		.ctrlbit	= (1 << 20),
 	},
@@ -1269,7 +1269,7 @@ static struct clksrc_clk exynos4_clk_sclk_spi1 = {
 static struct clksrc_clk exynos4_clk_sclk_spi2 = {
 	.clk	= {
 		.name		= "sclk_spi",
-		.devname	= "s3c64xx-spi.2",
+		.devname	= "exynos4210-spi.2",
 		.enable		= exynos4_clksrc_mask_peril1_ctrl,
 		.ctrlbit	= (1 << 24),
 	},
@@ -1347,9 +1347,9 @@ static struct clk_lookup exynos4_clk_lookup[] = {
 	CLKDEV_INIT("dma-pl330.0", "apb_pclk", &exynos4_clk_pdma0),
 	CLKDEV_INIT("dma-pl330.1", "apb_pclk", &exynos4_clk_pdma1),
 	CLKDEV_INIT("dma-pl330.2", "apb_pclk", &exynos4_clk_mdma1),
-	CLKDEV_INIT("s3c64xx-spi.0", "spi_busclk0", &exynos4_clk_sclk_spi0.clk),
-	CLKDEV_INIT("s3c64xx-spi.1", "spi_busclk0", &exynos4_clk_sclk_spi1.clk),
-	CLKDEV_INIT("s3c64xx-spi.2", "spi_busclk0", &exynos4_clk_sclk_spi2.clk),
+	CLKDEV_INIT("exynos4210-spi.0", "spi_busclk0", &exynos4_clk_sclk_spi0.clk),
+	CLKDEV_INIT("exynos4210-spi.1", "spi_busclk0", &exynos4_clk_sclk_spi1.clk),
+	CLKDEV_INIT("exynos4210-spi.2", "spi_busclk0", &exynos4_clk_sclk_spi2.clk),
 };
 
 static int xtal_rate;

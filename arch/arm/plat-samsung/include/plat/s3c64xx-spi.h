@@ -33,28 +33,13 @@ struct s3c64xx_spi_csinfo {
 /**
  * struct s3c64xx_spi_info - SPI Controller defining structure
  * @src_clk_nr: Clock source index for the CLK_CFG[SPI_CLKSEL] field.
- * @clk_from_cmu: If the SPI clock/prescalar control block is present
- *     by the platform's clock-management-unit and not in SPI controller.
  * @num_cs: Number of CS this controller emulates.
  * @cfg_gpio: Configure pins for this SPI controller.
- * @fifo_lvl_mask: All tx fifo_lvl fields start at offset-6
- * @rx_lvl_offset: Depends on tx fifo_lvl field and bus number
- * @high_speed: If the controller supports HIGH_SPEED_EN bit
- * @tx_st_done: Depends on tx fifo_lvl field
  */
 struct s3c64xx_spi_info {
 	int src_clk_nr;
-	bool clk_from_cmu;
-
 	int num_cs;
-
 	int (*cfg_gpio)(struct platform_device *pdev);
-
-	/* Following two fields are for future compatibility */
-	int fifo_lvl_mask;
-	int rx_lvl_offset;
-	int high_speed;
-	int tx_st_done;
 };
 
 /**
