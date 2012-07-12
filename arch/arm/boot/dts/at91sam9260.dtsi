@@ -208,6 +208,14 @@
 					};
 				};
 
+				nand {
+					pinctrl_nand: nand-0 {
+						atmel,pins =
+							<2 13 0x0 0x1	/* PC13 gpio RDY pin pull_up */
+							 2 14 0x0 0x1>;	/* PC14 gpio enable pin pull_up */
+					};
+				};
+
 				pioA: gpio@fffff400 {
 					compatible = "atmel,at91rm9200-gpio";
 					reg = <0xfffff400 0x200>;
@@ -382,6 +390,8 @@
 			      >;
 			atmel,nand-addr-offset = <21>;
 			atmel,nand-cmd-offset = <22>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_nand>;
 			gpios = <&pioC 13 0
 				 &pioC 14 0
 				 0

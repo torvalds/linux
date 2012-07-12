@@ -155,6 +155,14 @@
 					};
 				};
 
+				nand {
+					pinctrl_nand: nand-0 {
+						atmel,pins =
+							<0 22 0x0 0x1	/* PA22 gpio RDY pin pull_up*/
+							 3 15 0x0 0x1>;	/* PD15 gpio enable pin pull_up */
+					};
+				};
+
 				pioA: gpio@fffff200 {
 					compatible = "atmel,at91rm9200-gpio";
 					reg = <0xfffff200 0x200>;
@@ -281,6 +289,8 @@
 			      >;
 			atmel,nand-addr-offset = <21>;
 			atmel,nand-cmd-offset = <22>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_nand>;
 			gpios = <&pioA 22 0
 				 &pioD 15 0
 				 0
