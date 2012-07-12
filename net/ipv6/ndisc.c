@@ -143,8 +143,6 @@ struct neigh_table nd_tbl = {
 	.gc_thresh3 =	1024,
 };
 
-#define NDISC_OPT_SPACE(len) (((len)+2+7)&~7)
-
 static inline int ndisc_opt_addr_space(struct net_device *dev)
 {
 	return NDISC_OPT_SPACE(dev->addr_len + ndisc_addr_option_pad(dev->type));
@@ -1336,16 +1334,6 @@ out:
 
 static void ndisc_redirect_rcv(struct sk_buff *skb)
 {
-	struct inet6_dev *in6_dev;
-	struct icmp6hdr *icmph;
-	const struct in6_addr *dest;
-	const struct in6_addr *target;	/* new first hop to destination */
-	struct neighbour *neigh;
-	int on_link = 0;
-	struct ndisc_options ndopts;
-	int optlen;
-	u8 *lladdr = NULL;
-
 #ifdef CONFIG_IPV6_NDISC_NODETYPE
 	switch (skb->ndisc_nodetype) {
 	case NDISC_NODETYPE_HOST:
@@ -1362,65 +1350,7 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 		return;
 	}
 
-	optlen = skb->tail - skb->transport_header;
-	optlen -= sizeof(struct icmp6hdr) + 2 * sizeof(struct in6_addr);
-
-	if (optlen < 0) {
-		ND_PRINTK(2, warn, "Redirect: packet too short\n");
-		return;
-	}
-
-	icmph = icmp6_hdr(skb);
-	target = (const struct in6_addr *) (icmph + 1);
-	dest = target + 1;
-
-	if (ipv6_addr_is_multicast(dest)) {
-		ND_PRINTK(2, warn,
-			  "Redirect: destination address is multicast\n");
-		return;
-	}
-
-	if (ipv6_addr_equal(dest, target)) {
-		on_link = 1;
-	} else if (ipv6_addr_type(target) !=
-		   (IPV6_ADDR_UNICAST|IPV6_ADDR_LINKLOCAL)) {
-		ND_PRINTK(2, warn,
-			  "Redirect: target address is not link-local unicast\n");
-		return;
-	}
-
-	in6_dev = __in6_dev_get(skb->dev);
-	if (!in6_dev)
-		return;
-	if (in6_dev->cnf.forwarding || !in6_dev->cnf.accept_redirects)
-		return;
-
-	/* RFC2461 8.1:
-	 *	The IP source address of the Redirect MUST be the same as the current
-	 *	first-hop router for the specified ICMP Destination Address.
-	 */
-
-	if (!ndisc_parse_options((u8*)(dest + 1), optlen, &ndopts)) {
-		ND_PRINTK(2, warn, "Redirect: invalid ND options\n");
-		return;
-	}
-	if (ndopts.nd_opts_tgt_lladdr) {
-		lladdr = ndisc_opt_addr_data(ndopts.nd_opts_tgt_lladdr,
-					     skb->dev);
-		if (!lladdr) {
-			ND_PRINTK(2, warn,
-				  "Redirect: invalid link-layer address length\n");
-			return;
-		}
-	}
-
-	neigh = __neigh_lookup(&nd_tbl, target, skb->dev, 1);
-	if (neigh) {
-		rt6_redirect(dest, &ipv6_hdr(skb)->daddr,
-			     &ipv6_hdr(skb)->saddr, neigh, lladdr,
-			     on_link);
-		neigh_release(neigh);
-	}
+	rt6_redirect(skb);
 }
 
 void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)

@@ -1690,14 +1690,78 @@ static struct rt6_info *ip6_route_redirect(const struct in6_addr *dest,
 						   flags, __ip6_route_redirect);
 }
 
-void rt6_redirect(const struct in6_addr *dest, const struct in6_addr *src,
-		  const struct in6_addr *saddr,
-		  struct neighbour *neigh, u8 *lladdr, int on_link)
+void rt6_redirect(struct sk_buff *skb)
 {
-	struct rt6_info *rt, *nrt = NULL;
+	struct net *net = dev_net(skb->dev);
 	struct netevent_redirect netevent;
-	struct net *net = dev_net(neigh->dev);
+	struct rt6_info *rt, *nrt = NULL;
+	const struct in6_addr *target;
 	struct neighbour *old_neigh;
+	const struct in6_addr *dest;
+	const struct in6_addr *src;
+	const struct in6_addr *saddr;
+	struct ndisc_options ndopts;
+	struct inet6_dev *in6_dev;
+	struct neighbour *neigh;
+	struct icmp6hdr *icmph;
+	int on_link, optlen;
+	u8 *lladdr = NULL;
+
+	optlen = skb->tail - skb->transport_header;
+	optlen -= sizeof(struct icmp6hdr) + 2 * sizeof(struct in6_addr);
+
+	if (optlen < 0) {
+		net_dbg_ratelimited("rt6_redirect: packet too short\n");
+		return;
+	}
+
+	icmph = icmp6_hdr(skb);
+	target = (const struct in6_addr *) (icmph + 1);
+	dest = target + 1;
+
+	if (ipv6_addr_is_multicast(dest)) {
+		net_dbg_ratelimited("rt6_redirect: destination address is multicast\n");
+		return;
+	}
+
+	if (ipv6_addr_equal(dest, target)) {
+		on_link = 1;
+	} else if (ipv6_addr_type(target) !=
+		   (IPV6_ADDR_UNICAST|IPV6_ADDR_LINKLOCAL)) {
+		net_dbg_ratelimited("rt6_redirect: target address is not link-local unicast\n");
+		return;
+	}
+
+	in6_dev = __in6_dev_get(skb->dev);
+	if (!in6_dev)
+		return;
+	if (in6_dev->cnf.forwarding || !in6_dev->cnf.accept_redirects)
+		return;
+
+	/* RFC2461 8.1:
+	 *	The IP source address of the Redirect MUST be the same as the current
+	 *	first-hop router for the specified ICMP Destination Address.
+	 */
+
+	if (!ndisc_parse_options((u8*)(dest + 1), optlen, &ndopts)) {
+		net_dbg_ratelimited("rt6_redirect: invalid ND options\n");
+		return;
+	}
+	if (ndopts.nd_opts_tgt_lladdr) {
+		lladdr = ndisc_opt_addr_data(ndopts.nd_opts_tgt_lladdr,
+					     skb->dev);
+		if (!lladdr) {
+			net_dbg_ratelimited("rt6_redirect: invalid link-layer address length\n");
+			return;
+		}
+	}
+
+	neigh = __neigh_lookup(&nd_tbl, target, skb->dev, 1);
+	if (!neigh)
+		return;
+
+	src = &ipv6_hdr(skb)->daddr;
+	saddr = &ipv6_hdr(skb)->saddr;
 
 	rt = ip6_route_redirect(dest, src, saddr, neigh->dev);
 
@@ -1756,6 +1820,7 @@ void rt6_redirect(const struct in6_addr *dest, const struct in6_addr *src,
 	}
 
 out:
+	neigh_release(neigh);
 	dst_release(&rt->dst);
 }
 
