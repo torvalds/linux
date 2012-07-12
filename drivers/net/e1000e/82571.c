@@ -1573,6 +1573,9 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 	ctrl = er32(CTRL);
 	status = er32(STATUS);
 	rxcw = er32(RXCW);
+	/* SYNCH bit and IV bit are sticky */
+	udelay(10);
+	rxcw = er32(RXCW);
 
 	if ((rxcw & E1000_RXCW_SYNCH) && !(rxcw & E1000_RXCW_IV)) {
 
