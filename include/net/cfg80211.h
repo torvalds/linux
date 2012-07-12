@@ -1612,6 +1612,10 @@ struct cfg80211_gtk_rekey_data {
  * @get_et_strings:  Ethtool API to get a set of strings to describe stats
  *	and perhaps other supported types of ethtool data-sets.
  *	See @ethtool_ops.get_strings
+ *
+ * @get_channel: Get the current operating channel for the virtual interface.
+ *	For monitor interfaces, it should return %NULL unless there's a single
+ *	current monitoring channel.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -1821,6 +1825,11 @@ struct cfg80211_ops {
 				  u32 sset, u8 *data);
 
 	void (*set_monitor_enabled)(struct wiphy *wiphy, bool enabled);
+
+	struct ieee80211_channel *
+		(*get_channel)(struct wiphy *wiphy,
+			       struct wireless_dev *wdev,
+			       enum nl80211_channel_type *type);
 };
 
 /*

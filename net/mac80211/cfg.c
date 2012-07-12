@@ -2982,6 +2982,16 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
+static struct ieee80211_channel *
+ieee80211_cfg_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
+			  enum nl80211_channel_type *type)
+{
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+
+	*type = local->_oper_channel_type;
+	return local->oper_channel;
+}
+
 #ifdef CONFIG_PM
 static void ieee80211_set_wakeup(struct wiphy *wiphy, bool enabled)
 {
@@ -3062,4 +3072,5 @@ struct cfg80211_ops mac80211_config_ops = {
 	.get_et_sset_count = ieee80211_get_et_sset_count,
 	.get_et_stats = ieee80211_get_et_stats,
 	.get_et_strings = ieee80211_get_et_strings,
+	.get_channel = ieee80211_cfg_get_channel,
 };
