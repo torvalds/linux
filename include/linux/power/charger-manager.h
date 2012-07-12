@@ -94,6 +94,14 @@ struct charger_cable {
 	bool attached;
 
 	struct charger_regulator *charger;
+
+	/*
+	 * Set min/max current of regulator to protect over-current issue
+	 * according to a kind of charger cable when cable is attached.
+	 */
+	int min_uA;
+	int max_uA;
+
 	struct charger_manager *cm;
 };
 
