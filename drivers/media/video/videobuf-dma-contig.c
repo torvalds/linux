@@ -56,7 +56,7 @@ static int __videobuf_dc_alloc(struct device *dev,
 				dev_err(dev, "dma_map_single failed\n");
 
 				free_pages_exact(mem->vaddr, mem->size);
-				mem->vaddr = 0;
+				mem->vaddr = NULL;
 				return err;
 			}
 		}
