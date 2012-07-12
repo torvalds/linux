@@ -2391,7 +2391,7 @@ void wiphy_regulatory_register(struct wiphy *wiphy)
 }
 
 /* Caller must hold cfg80211_mutex */
-void reg_device_remove(struct wiphy *wiphy)
+void wiphy_regulatory_deregister(struct wiphy *wiphy)
 {
 	struct wiphy *request_wiphy = NULL;
 

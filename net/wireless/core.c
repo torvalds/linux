@@ -653,9 +653,11 @@ void wiphy_unregister(struct wiphy *wiphy)
 	/* nothing */
 	cfg80211_unlock_rdev(rdev);
 
-	/* If this device got a regulatory hint tell core its
-	 * free to listen now to a new shiny device regulatory hint */
-	reg_device_remove(wiphy);
+	/*
+	 * If this device got a regulatory hint tell core its
+	 * free to listen now to a new shiny device regulatory hint
+	 */
+	wiphy_regulatory_deregister(wiphy);
 
 	cfg80211_rdev_list_generation++;
 	device_del(&rdev->wiphy.dev);

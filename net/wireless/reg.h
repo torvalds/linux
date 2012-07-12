@@ -27,7 +27,7 @@ int regulatory_hint_user(const char *alpha2,
 
 int reg_device_uevent(struct device *dev, struct kobj_uevent_env *env);
 void wiphy_regulatory_register(struct wiphy *wiphy);
-void reg_device_remove(struct wiphy *wiphy);
+void wiphy_regulatory_deregister(struct wiphy *wiphy);
 
 int __init regulatory_init(void);
 void regulatory_exit(void);
