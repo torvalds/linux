@@ -195,7 +195,7 @@ static u32 chk_ipv4_rule(struct gdm_wimax_csr_s *csr, u8 *Stream, u8 *port)
 	return 0;
 }
 
-static u32 get_qos_index(struct nic *nic, u8* iph, u8* tcpudph)
+static u32 get_qos_index(struct nic *nic, u8 *iph, u8 *tcpudph)
 {
 	u32	IP_Ver, Header_Len, i;
 	struct qos_cb_s *qcb = &nic->qos;
@@ -240,8 +240,7 @@ static u32 extract_qos_list(struct nic *nic, struct list_head *head)
 					qcb->csr[i].QoSBufCount++;
 
 					if (!list_empty(&qcb->qos_list[i]))
-						wprintk("QoS Index(%d) "
-							"is piled!!\n", i);
+						wprintk("QoS Index(%d) is piled!!\n", i);
 				}
 			}
 		}
