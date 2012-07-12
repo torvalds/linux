@@ -43,8 +43,57 @@
 #include <linux/rfkill-rk.h>
 #include <linux/sensor-dev.h>
 
+//i2c
+#ifdef CONFIG_I2C0_RK30
+static struct i2c_board_info __initdata i2c0_info[] = {
+};
+#endif
+#ifdef CONFIG_I2C1_RK30
+static struct i2c_board_info __initdata i2c1_info[] = {
+};
+#endif
+#ifdef CONFIG_I2C2_RK30
+static struct i2c_board_info __initdata i2c2_info[] = {
+};
+#endif
+#ifdef CONFIG_I2C3_RK30
+static struct i2c_board_info __initdata i2c3_info[] = {
+};
+#endif
+#ifdef CONFIG_I2C_GPIO_RK30
+static struct i2c_board_info __initdata i2c_gpio_info[] = {
+};
+#endif
+static void __init rk30_i2c_register_board_info(void)
+{
+#ifdef CONFIG_I2C0_RK30
+	i2c_register_board_info(0, i2c0_info, ARRAY_SIZE(i2c0_info));
+#endif
+#ifdef CONFIG_I2C1_RK30
+	i2c_register_board_info(1, i2c1_info, ARRAY_SIZE(i2c1_info));
+#endif
+#ifdef CONFIG_I2C2_RK30
+	i2c_register_board_info(2, i2c2_info, ARRAY_SIZE(i2c2_info));
+#endif
+#ifdef CONFIG_I2C3_RK30
+	i2c_register_board_info(3, i2c3_info, ARRAY_SIZE(i2c3_info));
+#endif
+#ifdef CONFIG_I2C_GPIO_RK30
+	i2c_register_board_info(4, i2c_gpio_info, ARRAY_SIZE(i2c_gpio_info));
+#endif
+}
+//end of i2c
+static struct spi_board_info board_spi_devices[] = {
+};
+
+static struct platform_device *devices[] __initdata = {
+};
+
 static void __init rk2928_board_init(void)
 {
+        rk30_i2c_register_board_info();
+        spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
+        platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
 static void __init rk2928_reserve(void)
