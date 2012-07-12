@@ -1,7 +1,6 @@
 #ifndef _FT1000_USB_H_
 #define _FT1000_USB_H_
 
-/*Jim*/
 #include "../ft1000.h"
 #include "ft1000_ioctl.h"
 #define FT1000_DRV_VER      0x01010403
@@ -27,7 +26,6 @@ struct app_info_block {
 	struct list_head app_sqlist;   // link list of msgs for applicaton on slow queue
 } __attribute__((packed));
 
-/*end of Jim*/
 #define DEBUG(args...) printk(KERN_INFO args)
 
 #define FALSE           0
@@ -121,8 +119,8 @@ struct ft1000_info {
 	u8 RfCalVer[CALVERSZ];
 	u8 RfCalDate[CALDATESZ];
 	u16 DSP_TIME[4];
-	u16 LedStat;	//mbelian
-	u16 ConStat;	//mbelian
+	u16 LedStat;
+	u16 ConStat;
 	u16 ProgConStat;
 	struct list_head prov_list;
 	int appcnt;
@@ -137,7 +135,7 @@ struct ft1000_info {
 	} DSPSess;
 	unsigned short tempbuf[32];
 	char netdevname[IFNAMSIZ];
-	struct proc_dir_entry *ft1000_proc_dir; //mbelian
+	struct proc_dir_entry *ft1000_proc_dir;
 };
 
 
