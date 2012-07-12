@@ -410,6 +410,7 @@ static int __devinit da9052_regulator_probe(struct platform_device *pdev)
 					 regulator->info->reg_desc.name)) {
 				config.init_data = of_get_regulator_init_data(
 					&pdev->dev, np);
+				config.of_node = np;
 				break;
 			}
 		}
