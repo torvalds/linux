@@ -1245,6 +1245,12 @@ enum nl80211_commands {
  * @NL80211_ATTR_BG_SCAN_PERIOD: Background scan period in seconds
  *      or 0 to disable background scan.
  *
+ * @NL80211_ATTR_USER_REG_HINT_TYPE: type of regulatory hint passed from
+ *	userspace. If unset it is assumed the hint comes directly from
+ *	a user. If set code could specify exactly what type of source
+ *	was used to provide the hint. For the different types of
+ *	allowed user regulatory hints see nl80211_user_reg_hint_type.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1497,6 +1503,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_BG_SCAN_PERIOD,
 
 	NL80211_ATTR_WDEV,
+
+	NL80211_ATTR_USER_REG_HINT_TYPE,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -2058,6 +2066,26 @@ enum nl80211_dfs_regions {
 	NL80211_DFS_FCC		= 1,
 	NL80211_DFS_ETSI	= 2,
 	NL80211_DFS_JP		= 3,
+};
+
+/**
+ * enum nl80211_user_reg_hint_type - type of user regulatory hint
+ *
+ * @NL80211_USER_REG_HINT_USER: a user sent the hint. This is always
+ *	assumed if the attribute is not set.
+ * @NL80211_USER_REG_HINT_CELL_BASE: the hint comes from a cellular
+ *	base station. Device drivers that have been tested to work
+ *	properly to support this type of hint can enable these hints
+ *	by setting the NL80211_FEATURE_CELL_BASE_REG_HINTS feature
+ *	capability on the struct wiphy. The wireless core will
+ *	ignore all cell base station hints until at least one device
+ *	present has been registered with the wireless core that
+ *	has listed NL80211_FEATURE_CELL_BASE_REG_HINTS as a
+ *	supported feature.
+ */
+enum nl80211_user_reg_hint_type {
+	NL80211_USER_REG_HINT_USER	= 0,
+	NL80211_USER_REG_HINT_CELL_BASE = 1,
 };
 
 /**
@@ -2963,11 +2991,15 @@ enum nl80211_ap_sme_features {
  * @NL80211_FEATURE_HT_IBSS: This driver supports IBSS with HT datarates.
  * @NL80211_FEATURE_INACTIVITY_TIMER: This driver takes care of freeing up
  *	the connected inactive stations in AP mode.
+ * @NL80211_FEATURE_CELL_BASE_REG_HINTS: This driver has been tested
+ *	to work properly to suppport receiving regulatory hints from
+ *	cellular base stations.
  */
 enum nl80211_feature_flags {
 	NL80211_FEATURE_SK_TX_STATUS	= 1 << 0,
 	NL80211_FEATURE_HT_IBSS		= 1 << 1,
 	NL80211_FEATURE_INACTIVITY_TIMER = 1 << 2,
+	NL80211_FEATURE_CELL_BASE_REG_HINTS = 1 << 3,
 };
 
 /**

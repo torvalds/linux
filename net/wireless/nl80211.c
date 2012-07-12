@@ -354,6 +354,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_INACTIVITY_TIMEOUT] = { .type = NLA_U16 },
 	[NL80211_ATTR_BG_SCAN_PERIOD] = { .type = NLA_U16 },
 	[NL80211_ATTR_WDEV] = { .type = NLA_U64 },
+	[NL80211_ATTR_USER_REG_HINT_TYPE] = { .type = NLA_U32 },
 };
 
 /* policy for the key attributes */
@@ -3582,6 +3583,7 @@ static int nl80211_req_set_reg(struct sk_buff *skb, struct genl_info *info)
 {
 	int r;
 	char *data = NULL;
+	enum nl80211_user_reg_hint_type user_reg_hint_type;
 
 	/*
 	 * You should only get this when cfg80211 hasn't yet initialized
@@ -3601,7 +3603,21 @@ static int nl80211_req_set_reg(struct sk_buff *skb, struct genl_info *info)
 
 	data = nla_data(info->attrs[NL80211_ATTR_REG_ALPHA2]);
 
-	r = regulatory_hint_user(data);
+	if (info->attrs[NL80211_ATTR_USER_REG_HINT_TYPE])
+		user_reg_hint_type =
+		  nla_get_u32(info->attrs[NL80211_ATTR_USER_REG_HINT_TYPE]);
+	else
+		user_reg_hint_type = NL80211_USER_REG_HINT_USER;
+
+	switch (user_reg_hint_type) {
+	case NL80211_USER_REG_HINT_USER:
+	case NL80211_USER_REG_HINT_CELL_BASE:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	r = regulatory_hint_user(data, user_reg_hint_type);
 
 	return r;
 }
@@ -3969,6 +3985,11 @@ static int nl80211_get_reg(struct sk_buff *skb, struct genl_info *info)
 	    (cfg80211_regdomain->dfs_region &&
 	     nla_put_u8(msg, NL80211_ATTR_DFS_REGION,
 			cfg80211_regdomain->dfs_region)))
+		goto nla_put_failure;
+
+	if (reg_last_request_cell_base() &&
+	    nla_put_u32(msg, NL80211_ATTR_USER_REG_HINT_TYPE,
+			NL80211_USER_REG_HINT_CELL_BASE))
 		goto nla_put_failure;
 
 	nl_reg_rules = nla_nest_start(msg, NL80211_ATTR_REG_RULES);
