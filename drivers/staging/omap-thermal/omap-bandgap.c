@@ -1158,6 +1158,12 @@ static const struct of_device_id of_omap_bandgap_match[] = {
 		.data = (void *)&omap4470_data,
 	},
 #endif
+#ifdef CONFIG_OMAP5_THERMAL
+	{
+		.compatible = "ti,omap5430-bandgap",
+		.data = (void *)&omap5430_data,
+	},
+#endif
 	/* Sentinel */
 	{ },
 };

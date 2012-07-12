@@ -432,4 +432,10 @@ extern const struct omap_bandgap_data omap4470_data;
 #define omap4470_data					NULL
 #endif
 
+#ifdef CONFIG_OMAP5_THERMAL
+extern const struct omap_bandgap_data omap5430_data;
+#else
+#define omap5430_data					NULL
+#endif
+
 #endif

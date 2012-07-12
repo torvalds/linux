@@ -32,3 +32,15 @@ config OMAP4_THERMAL
 
 	  This includes alert interrupts generation and also the TSHUT
 	  support.
+
+config OMAP5_THERMAL
+	bool "Texas Instruments OMAP5 thermal support"
+	depends on OMAP_BANDGAP
+	depends on SOC_OMAP5
+	help
+	  If you say yes here you get thermal support for the Texas Instruments
+	  OMAP5 SoC family. The current chip supported are:
+	   - OMAP5430
+
+	  This includes alert interrupts generation and also the TSHUT
+	  support.
