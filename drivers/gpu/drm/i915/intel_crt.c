@@ -658,9 +658,7 @@ void intel_crt_init(struct drm_device *dev)
 	intel_connector_attach_encoder(intel_connector, &crt->base);
 
 	crt->base.type = INTEL_OUTPUT_ANALOG;
-	crt->base.clone_mask = (1 << INTEL_SDVO_NON_TV_CLONE_BIT |
-				1 << INTEL_ANALOG_CLONE_BIT |
-				1 << INTEL_SDVO_LVDS_CLONE_BIT);
+	crt->base.cloneable = true;
 	if (IS_HASWELL(dev))
 		crt->base.crtc_mask = (1 << 0);
 	else

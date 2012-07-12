@@ -923,42 +923,36 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 	connector->doublescan_allowed = 0;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 
+	intel_encoder->cloneable = false;
+
 	/* Set up the DDC bus. */
 	if (sdvox_reg == SDVOB) {
-		intel_encoder->clone_mask = (1 << INTEL_HDMIB_CLONE_BIT);
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPB;
 		dev_priv->hotplug_supported_mask |= HDMIB_HOTPLUG_INT_STATUS;
 	} else if (sdvox_reg == SDVOC) {
-		intel_encoder->clone_mask = (1 << INTEL_HDMIC_CLONE_BIT);
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPC;
 		dev_priv->hotplug_supported_mask |= HDMIC_HOTPLUG_INT_STATUS;
 	} else if (sdvox_reg == HDMIB) {
-		intel_encoder->clone_mask = (1 << INTEL_HDMID_CLONE_BIT);
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPB;
 		dev_priv->hotplug_supported_mask |= HDMIB_HOTPLUG_INT_STATUS;
 	} else if (sdvox_reg == HDMIC) {
-		intel_encoder->clone_mask = (1 << INTEL_HDMIE_CLONE_BIT);
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPC;
 		dev_priv->hotplug_supported_mask |= HDMIC_HOTPLUG_INT_STATUS;
 	} else if (sdvox_reg == HDMID) {
-		intel_encoder->clone_mask = (1 << INTEL_HDMIF_CLONE_BIT);
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPD;
 		dev_priv->hotplug_supported_mask |= HDMID_HOTPLUG_INT_STATUS;
 	} else if (sdvox_reg == DDI_BUF_CTL(PORT_B)) {
 		DRM_DEBUG_DRIVER("LPT: detected output on DDI B\n");
-		intel_encoder->clone_mask = (1 << INTEL_HDMIB_CLONE_BIT);
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPB;
 		intel_hdmi->ddi_port = PORT_B;
 		dev_priv->hotplug_supported_mask |= HDMIB_HOTPLUG_INT_STATUS;
 	} else if (sdvox_reg == DDI_BUF_CTL(PORT_C)) {
 		DRM_DEBUG_DRIVER("LPT: detected output on DDI C\n");
-		intel_encoder->clone_mask = (1 << INTEL_HDMIC_CLONE_BIT);
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPC;
 		intel_hdmi->ddi_port = PORT_C;
 		dev_priv->hotplug_supported_mask |= HDMIC_HOTPLUG_INT_STATUS;
 	} else if (sdvox_reg == DDI_BUF_CTL(PORT_D)) {
 		DRM_DEBUG_DRIVER("LPT: detected output on DDI D\n");
-		intel_encoder->clone_mask = (1 << INTEL_HDMID_CLONE_BIT);
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPD;
 		intel_hdmi->ddi_port = PORT_D;
 		dev_priv->hotplug_supported_mask |= HDMID_HOTPLUG_INT_STATUS;

@@ -6707,15 +6707,23 @@ int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static int intel_encoder_clones(struct drm_device *dev, int type_mask)
+static int intel_encoder_clones(struct intel_encoder *encoder)
 {
-	struct intel_encoder *encoder;
+	struct drm_device *dev = encoder->base.dev;
+	struct intel_encoder *source_encoder;
 	int index_mask = 0;
 	int entry = 0;
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
-		if (type_mask & encoder->clone_mask)
+	list_for_each_entry(source_encoder,
+			    &dev->mode_config.encoder_list, base.head) {
+
+		if (encoder == source_encoder)
 			index_mask |= (1 << entry);
+
+		/* Intel hw has only one MUX where enocoders could be cloned. */
+		if (encoder->cloneable && source_encoder->cloneable)
+			index_mask |= (1 << entry);
+
 		entry++;
 	}
 
@@ -6874,7 +6882,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
 		encoder->base.possible_crtcs = encoder->crtc_mask;
 		encoder->base.possible_clones =
-			intel_encoder_clones(dev, encoder->clone_mask);
+			intel_encoder_clones(encoder);
 	}
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */

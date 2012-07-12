@@ -2451,18 +2451,10 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 
-	if (output_reg == DP_B || output_reg == PCH_DP_B)
-		intel_encoder->clone_mask = (1 << INTEL_DP_B_CLONE_BIT);
-	else if (output_reg == DP_C || output_reg == PCH_DP_C)
-		intel_encoder->clone_mask = (1 << INTEL_DP_C_CLONE_BIT);
-	else if (output_reg == DP_D || output_reg == PCH_DP_D)
-		intel_encoder->clone_mask = (1 << INTEL_DP_D_CLONE_BIT);
+	intel_encoder->cloneable = false;
 
-	if (is_edp(intel_dp)) {
-		intel_encoder->clone_mask = (1 << INTEL_EDP_CLONE_BIT);
-		INIT_DELAYED_WORK(&intel_dp->panel_vdd_work,
-				  ironlake_panel_vdd_work);
-	}
+	INIT_DELAYED_WORK(&intel_dp->panel_vdd_work,
+			  ironlake_panel_vdd_work);
 
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 
