@@ -10,6 +10,7 @@
 #include <linux/poll.h>
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 
 #include "dvb_frontend.h"
 #include "dvbdev.h"
@@ -119,6 +120,7 @@ struct radio_data {
 	unsigned int	is_radio_streaming;
 	int		pre_emphasis;
 	struct video_device fm_dev;
+	struct v4l2_ctrl_handler ctrl_handler;
 };
 
 #define DVB_SBUF_NUM		4
