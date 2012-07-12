@@ -521,6 +521,7 @@ static int rockchip_i2s_dai_probe(struct snd_soc_dai *dai)
                 rk30_mux_api_set(GPIO1A3_I2S_LRCKTX_NAME, GPIO1A_I2S_LRCKTX);
                 rk30_mux_api_set(GPIO1A4_I2S_SDO_NAME, GPIO1A_I2S_SDO);
                 rk30_mux_api_set(GPIO1A5_I2S_SDI_NAME, GPIO1A_I2S_SDI);
+                break;
 #endif
         default:
             I2S_DBG("Enter:%s, %d, Error For DevId!!!", __FUNCTION__, __LINE__);
