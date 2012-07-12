@@ -44,7 +44,7 @@ struct pci_serial_quirk {
 	int	(*init)(struct pci_dev *dev);
 	int	(*setup)(struct serial_private *,
 			 const struct pciserial_board *,
-			 struct uart_port *, int);
+			 struct uart_8250_port *, int);
 	void	(*exit)(struct pci_dev *dev);
 };
 
@@ -59,7 +59,7 @@ struct serial_private {
 };
 
 static int pci_default_setup(struct serial_private*,
-	  const struct pciserial_board*, struct uart_port*, int);
+	  const struct pciserial_board*, struct uart_8250_port *, int);
 
 static void moan_device(const char *str, struct pci_dev *dev)
 {
@@ -74,7 +74,7 @@ static void moan_device(const char *str, struct pci_dev *dev)
 }
 
 static int
-setup_port(struct serial_private *priv, struct uart_port *port,
+setup_port(struct serial_private *priv, struct uart_8250_port *port,
 	   int bar, int offset, int regshift)
 {
 	struct pci_dev *dev = priv->dev;
@@ -93,17 +93,17 @@ setup_port(struct serial_private *priv, struct uart_port *port,
 		if (!priv->remapped_bar[bar])
 			return -ENOMEM;
 
-		port->iotype = UPIO_MEM;
-		port->iobase = 0;
-		port->mapbase = base + offset;
-		port->membase = priv->remapped_bar[bar] + offset;
-		port->regshift = regshift;
+		port->port.iotype = UPIO_MEM;
+		port->port.iobase = 0;
+		port->port.mapbase = base + offset;
+		port->port.membase = priv->remapped_bar[bar] + offset;
+		port->port.regshift = regshift;
 	} else {
-		port->iotype = UPIO_PORT;
-		port->iobase = base + offset;
-		port->mapbase = 0;
-		port->membase = NULL;
-		port->regshift = 0;
+		port->port.iotype = UPIO_PORT;
+		port->port.iobase = base + offset;
+		port->port.mapbase = 0;
+		port->port.membase = NULL;
+		port->port.regshift = 0;
 	}
 	return 0;
 }
@@ -113,7 +113,7 @@ setup_port(struct serial_private *priv, struct uart_port *port,
  */
 static int addidata_apci7800_setup(struct serial_private *priv,
 				const struct pciserial_board *board,
-				struct uart_port *port, int idx)
+				struct uart_8250_port *port, int idx)
 {
 	unsigned int bar = 0, offset = board->first_offset;
 	bar = FL_GET_BASE(board->flags);
@@ -140,7 +140,7 @@ static int addidata_apci7800_setup(struct serial_private *priv,
  */
 static int
 afavlab_setup(struct serial_private *priv, const struct pciserial_board *board,
-	      struct uart_port *port, int idx)
+	      struct uart_8250_port *port, int idx)
 {
 	unsigned int bar, offset = board->first_offset;
 
@@ -195,7 +195,7 @@ static int pci_hp_diva_init(struct pci_dev *dev)
 static int
 pci_hp_diva_setup(struct serial_private *priv,
 		const struct pciserial_board *board,
-		struct uart_port *port, int idx)
+		struct uart_8250_port *port, int idx)
 {
 	unsigned int offset = board->first_offset;
 	unsigned int bar = FL_GET_BASE(board->flags);
@@ -370,7 +370,7 @@ static void __devexit pci_ni8430_exit(struct pci_dev *dev)
 /* SBS Technologies Inc. PMC-OCTPRO and P-OCTAL cards */
 static int
 sbs_setup(struct serial_private *priv, const struct pciserial_board *board,
-		struct uart_port *port, int idx)
+		struct uart_8250_port *port, int idx)
 {
 	unsigned int bar, offset = board->first_offset;
 
@@ -525,7 +525,7 @@ static int pci_siig_init(struct pci_dev *dev)
 
 static int pci_siig_setup(struct serial_private *priv,
 			  const struct pciserial_board *board,
-			  struct uart_port *port, int idx)
+			  struct uart_8250_port *port, int idx)
 {
 	unsigned int bar = FL_GET_BASE(board->flags) + idx, offset = 0;
 
@@ -619,7 +619,7 @@ static int pci_timedia_init(struct pci_dev *dev)
 static int
 pci_timedia_setup(struct serial_private *priv,
 		  const struct pciserial_board *board,
-		  struct uart_port *port, int idx)
+		  struct uart_8250_port *port, int idx)
 {
 	unsigned int bar = 0, offset = board->first_offset;
 
@@ -653,7 +653,7 @@ pci_timedia_setup(struct serial_private *priv,
 static int
 titan_400l_800l_setup(struct serial_private *priv,
 		      const struct pciserial_board *board,
-		      struct uart_port *port, int idx)
+		      struct uart_8250_port *port, int idx)
 {
 	unsigned int bar, offset = board->first_offset;
 
@@ -754,7 +754,7 @@ static int pci_ni8430_init(struct pci_dev *dev)
 static int
 pci_ni8430_setup(struct serial_private *priv,
 		 const struct pciserial_board *board,
-		 struct uart_port *port, int idx)
+		 struct uart_8250_port *port, int idx)
 {
 	void __iomem *p;
 	unsigned long base, len;
@@ -781,7 +781,7 @@ pci_ni8430_setup(struct serial_private *priv,
 
 static int pci_netmos_9900_setup(struct serial_private *priv,
 				const struct pciserial_board *board,
-				struct uart_port *port, int idx)
+				struct uart_8250_port *port, int idx)
 {
 	unsigned int bar;
 
@@ -1035,7 +1035,7 @@ static int pci_oxsemi_tornado_init(struct pci_dev *dev)
 static int
 pci_default_setup(struct serial_private *priv,
 		  const struct pciserial_board *board,
-		  struct uart_port *port, int idx)
+		  struct uart_8250_port *port, int idx)
 {
 	unsigned int bar, offset = board->first_offset, maxnr;
 
@@ -1057,15 +1057,15 @@ pci_default_setup(struct serial_private *priv,
 static int
 ce4100_serial_setup(struct serial_private *priv,
 		  const struct pciserial_board *board,
-		  struct uart_port *port, int idx)
+		  struct uart_8250_port *port, int idx)
 {
 	int ret;
 
 	ret = setup_port(priv, port, 0, 0, board->reg_shift);
-	port->iotype = UPIO_MEM32;
-	port->type = PORT_XSCALE;
-	port->flags = (port->flags | UPF_FIXED_PORT | UPF_FIXED_TYPE);
-	port->regshift = 2;
+	port->port.iotype = UPIO_MEM32;
+	port->port.type = PORT_XSCALE;
+	port->port.flags = (port->port.flags | UPF_FIXED_PORT | UPF_FIXED_TYPE);
+	port->port.regshift = 2;
 
 	return ret;
 }
@@ -1073,16 +1073,16 @@ ce4100_serial_setup(struct serial_private *priv,
 static int
 pci_omegapci_setup(struct serial_private *priv,
 		      const struct pciserial_board *board,
-		      struct uart_port *port, int idx)
+		      struct uart_8250_port *port, int idx)
 {
 	return setup_port(priv, port, 2, idx * 8, 0);
 }
 
 static int skip_tx_en_setup(struct serial_private *priv,
 			const struct pciserial_board *board,
-			struct uart_port *port, int idx)
+			struct uart_8250_port *port, int idx)
 {
-	port->flags |= UPF_NO_TXEN_TEST;
+	port->port.flags |= UPF_NO_TXEN_TEST;
 	printk(KERN_DEBUG "serial8250: skipping TxEn test for device "
 			  "[%04x:%04x] subsystem [%04x:%04x]\n",
 			  priv->dev->vendor,
@@ -1131,11 +1131,11 @@ static unsigned int kt_serial_in(struct uart_port *p, int offset)
 
 static int kt_serial_setup(struct serial_private *priv,
 			   const struct pciserial_board *board,
-			   struct uart_port *port, int idx)
+			   struct uart_8250_port *port, int idx)
 {
-	port->flags |= UPF_BUG_THRE;
-	port->serial_in = kt_serial_in;
-	port->handle_break = kt_handle_break;
+	port->port.flags |= UPF_BUG_THRE;
+	port->port.serial_in = kt_serial_in;
+	port->port.handle_break = kt_handle_break;
 	return skip_tx_en_setup(priv, board, port, idx);
 }
 
@@ -1151,9 +1151,9 @@ static int pci_eg20t_init(struct pci_dev *dev)
 static int
 pci_xr17c154_setup(struct serial_private *priv,
 		  const struct pciserial_board *board,
-		  struct uart_port *port, int idx)
+		  struct uart_8250_port *port, int idx)
 {
-	port->flags |= UPF_EXAR_EFR;
+	port->port.flags |= UPF_EXAR_EFR;
 	return pci_default_setup(priv, board, port, idx);
 }
 
@@ -2720,7 +2720,7 @@ serial_pci_matches(const struct pciserial_board *board,
 struct serial_private *
 pciserial_init_ports(struct pci_dev *dev, const struct pciserial_board *board)
 {
-	struct uart_port serial_port;
+	struct uart_8250_port uart;
 	struct serial_private *priv;
 	struct pci_serial_quirk *quirk;
 	int rc, nr_ports, i;
@@ -2760,22 +2760,22 @@ pciserial_init_ports(struct pci_dev *dev, const struct pciserial_board *board)
 	priv->dev = dev;
 	priv->quirk = quirk;
 
-	memset(&serial_port, 0, sizeof(struct uart_port));
-	serial_port.flags = UPF_SKIP_TEST | UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ;
-	serial_port.uartclk = board->base_baud * 16;
-	serial_port.irq = get_pci_irq(dev, board);
-	serial_port.dev = &dev->dev;
+	memset(&uart, 0, sizeof(uart));
+	uart.port.flags = UPF_SKIP_TEST | UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ;
+	uart.port.uartclk = board->base_baud * 16;
+	uart.port.irq = get_pci_irq(dev, board);
+	uart.port.dev = &dev->dev;
 
 	for (i = 0; i < nr_ports; i++) {
-		if (quirk->setup(priv, board, &serial_port, i))
+		if (quirk->setup(priv, board, &uart, i))
 			break;
 
 #ifdef SERIAL_DEBUG_PCI
 		printk(KERN_DEBUG "Setup PCI port: port %lx, irq %d, type %d\n",
-		       serial_port.iobase, serial_port.irq, serial_port.iotype);
+		       uart.port.iobase, uart.port.irq, uart.port.iotype);
 #endif
 
-		priv->line[i] = serial8250_register_port(&serial_port);
+		priv->line[i] = serial8250_register_8250_port(&uart);
 		if (priv->line[i] < 0) {
 			printk(KERN_WARNING "Couldn't register serial port %s: %d\n", pci_name(dev), priv->line[i]);
 			break;

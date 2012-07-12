@@ -73,7 +73,7 @@ struct serial_quirk {
 	unsigned int prodid;
 	int multi;		/* 1 = multifunction, > 1 = # ports */
 	void (*config)(struct pcmcia_device *);
-	void (*setup)(struct pcmcia_device *, struct uart_port *);
+	void (*setup)(struct pcmcia_device *, struct uart_8250_port *);
 	void (*wakeup)(struct pcmcia_device *);
 	int (*post)(struct pcmcia_device *);
 };
@@ -105,9 +105,9 @@ struct serial_cfg_mem {
  * Elan VPU16551 UART with 14.7456MHz oscillator
  * manfid 0x015D, 0x4C45
  */
-static void quirk_setup_brainboxes_0104(struct pcmcia_device *link, struct uart_port *port)
+static void quirk_setup_brainboxes_0104(struct pcmcia_device *link, struct uart_8250_port *uart)
 {
-	port->uartclk = 14745600;
+	uart->port.uartclk = 14745600;
 }
 
 static int quirk_post_ibm(struct pcmcia_device *link)
@@ -343,25 +343,25 @@ static void serial_detach(struct pcmcia_device *link)
 static int setup_serial(struct pcmcia_device *handle, struct serial_info * info,
 			unsigned int iobase, int irq)
 {
-	struct uart_port port;
+	struct uart_8250_port uart;
 	int line;
 
-	memset(&port, 0, sizeof (struct uart_port));
-	port.iobase = iobase;
-	port.irq = irq;
-	port.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_SHARE_IRQ;
-	port.uartclk = 1843200;
-	port.dev = &handle->dev;
+	memset(&uart, 0, sizeof(uart));
+	uart.port.iobase = iobase;
+	uart.port.irq = irq;
+	uart.port.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_SHARE_IRQ;
+	uart.port.uartclk = 1843200;
+	uart.port.dev = &handle->dev;
 	if (buggy_uart)
-		port.flags |= UPF_BUGGY_UART;
+		uart.port.flags |= UPF_BUGGY_UART;
 
 	if (info->quirk && info->quirk->setup)
-		info->quirk->setup(handle, &port);
+		info->quirk->setup(handle, &uart);
 
-	line = serial8250_register_port(&port);
+	line = serial8250_register_8250_port(&uart);
 	if (line < 0) {
-		printk(KERN_NOTICE "serial_cs: serial8250_register_port() at "
-		       "0x%04lx, irq %d failed\n", (u_long)iobase, irq);
+		pr_err("serial_cs: serial8250_register_8250_port() at 0x%04lx, irq %d failed\n",
+							(unsigned long)iobase, irq);
 		return -EINVAL;
 	}
 
