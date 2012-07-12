@@ -1275,12 +1275,9 @@ static void rt_del(unsigned int hash, struct rtable *rt)
 
 static void ip_do_redirect(struct dst_entry *dst, struct sk_buff *skb)
 {
-	const struct iphdr *iph = (const struct iphdr *) skb->data;
 	__be32 new_gw = icmp_hdr(skb)->un.gateway;
 	__be32 old_gw = ip_hdr(skb)->saddr;
 	struct net_device *dev = skb->dev;
-	__be32 daddr = iph->daddr;
-	__be32 saddr = iph->saddr;
 	struct in_device *in_dev;
 	struct neighbour *n;
 	struct rtable *rt;
@@ -1336,11 +1333,16 @@ static void ip_do_redirect(struct dst_entry *dst, struct sk_buff *skb)
 
 reject_redirect:
 #ifdef CONFIG_IP_ROUTE_VERBOSE
-	if (IN_DEV_LOG_MARTIANS(in_dev))
+	if (IN_DEV_LOG_MARTIANS(in_dev)) {
+		const struct iphdr *iph = (const struct iphdr *) skb->data;
+		__be32 daddr = iph->daddr;
+		__be32 saddr = iph->saddr;
+
 		net_info_ratelimited("Redirect from %pI4 on %s about %pI4 ignored\n"
 				     "  Advised path = %pI4 -> %pI4\n",
 				     &old_gw, dev->name, &new_gw,
 				     &saddr, &daddr);
+	}
 #endif
 	;
 }
