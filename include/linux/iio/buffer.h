@@ -177,6 +177,9 @@ ssize_t iio_buffer_show_enable(struct device *dev,
 
 int iio_sw_buffer_preenable(struct iio_dev *indio_dev);
 
+bool iio_validate_scan_mask_onehot(struct iio_dev *indio_dev,
+	const unsigned long *mask);
+
 #else /* CONFIG_IIO_BUFFER */
 
 static inline int iio_buffer_register(struct iio_dev *indio_dev,

@@ -3,6 +3,18 @@
 #
 menu "Light sensors"
 
+config ADJD_S311
+	tristate "ADJD-S311-CR999 digital color sensor"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	depends on I2C
+	help
+	 If you say yes here you get support for the Avago ADJD-S311-CR999
+	 digital color light sensor.
+
+	 This driver can also be built as a module.  If so, the module
+	 will be called adjd_s311.
+
 config SENSORS_LM3533
 	tristate "LM3533 ambient light sensor"
 	depends on MFD_LM3533

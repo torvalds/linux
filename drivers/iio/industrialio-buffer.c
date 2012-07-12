@@ -571,6 +571,31 @@ int iio_sw_buffer_preenable(struct iio_dev *indio_dev)
 EXPORT_SYMBOL(iio_sw_buffer_preenable);
 
 /**
+ * iio_validate_scan_mask_onehot() - Validates that exactly one channel is selected
+ * @indio_dev: the iio device
+ * @mask: scan mask to be checked
+ *
+ * Return true if exactly one bit is set in the scan mask, false otherwise. It
+ * can be used for devices where only one channel can be active for sampling at
+ * a time.
+ */
+bool iio_validate_scan_mask_onehot(struct iio_dev *indio_dev,
+	const unsigned long *mask)
+{
+	return bitmap_weight(mask, indio_dev->masklength) == 1;
+}
+EXPORT_SYMBOL_GPL(iio_validate_scan_mask_onehot);
+
+static bool iio_validate_scan_mask(struct iio_dev *indio_dev,
+	const unsigned long *mask)
+{
+	if (!indio_dev->setup_ops->validate_scan_mask)
+		return true;
+
+	return indio_dev->setup_ops->validate_scan_mask(indio_dev, mask);
+}
+
+/**
  * iio_scan_mask_set() - set particular bit in the scan mask
  * @buffer: the buffer whose scan mask we are interested in
  * @bit: the bit to be set.
@@ -589,27 +614,31 @@ int iio_scan_mask_set(struct iio_dev *indio_dev,
 		return -ENOMEM;
 	if (!indio_dev->masklength) {
 		WARN_ON("trying to set scanmask prior to registering buffer\n");
-		kfree(trialmask);
-		return -EINVAL;
+		goto err_invalid_mask;
 	}
 	bitmap_copy(trialmask, buffer->scan_mask, indio_dev->masklength);
 	set_bit(bit, trialmask);
+
+	if (!iio_validate_scan_mask(indio_dev, trialmask))
+		goto err_invalid_mask;
 
 	if (indio_dev->available_scan_masks) {
 		mask = iio_scan_mask_match(indio_dev->available_scan_masks,
 					   indio_dev->masklength,
 					   trialmask);
-		if (!mask) {
-			kfree(trialmask);
-			return -EINVAL;
-		}
+		if (!mask)
+			goto err_invalid_mask;
 	}
 	bitmap_copy(buffer->scan_mask, trialmask, indio_dev->masklength);
 
 	kfree(trialmask);
 
 	return 0;
-};
+
+err_invalid_mask:
+	kfree(trialmask);
+	return -EINVAL;
+}
 EXPORT_SYMBOL_GPL(iio_scan_mask_set);
 
 int iio_scan_mask_query(struct iio_dev *indio_dev,

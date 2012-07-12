@@ -146,7 +146,6 @@ struct ad7192_state {
 	u32				mode;
 	u32				conf;
 	u32				scale_avail[8][2];
-	long				available_scan_masks[9];
 	u8				gpocon;
 	u8				devid;
 	/*
@@ -538,6 +537,7 @@ static const struct iio_buffer_setup_ops ad7192_ring_setup_ops = {
 	.postenable = &iio_triggered_buffer_postenable,
 	.predisable = &iio_triggered_buffer_predisable,
 	.postdisable = &ad7192_ring_postdisable,
+	.validate_scan_mask = &iio_validate_scan_mask_onehot,
 };
 
 static int ad7192_register_ring_funcs_and_init(struct iio_dev *indio_dev)
@@ -984,7 +984,7 @@ static int __devinit ad7192_probe(struct spi_device *spi)
 	struct ad7192_platform_data *pdata = spi->dev.platform_data;
 	struct ad7192_state *st;
 	struct iio_dev *indio_dev;
-	int ret, i , voltage_uv = 0;
+	int ret , voltage_uv = 0;
 
 	if (!pdata) {
 		dev_err(&spi->dev, "no platform data?\n");
@@ -1028,16 +1028,10 @@ static int __devinit ad7192_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ad7192_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad7192_channels);
-	indio_dev->available_scan_masks = st->available_scan_masks;
 	if (st->devid == ID_AD7195)
 		indio_dev->info = &ad7195_info;
 	else
 		indio_dev->info = &ad7192_info;
-
-	for (i = 0; i < indio_dev->num_channels; i++)
-		st->available_scan_masks[i] = (1 << i) | (1 <<
-			indio_dev->channels[indio_dev->num_channels - 1].
-			scan_index);
 
 	init_waitqueue_head(&st->wq_data_avail);
 
