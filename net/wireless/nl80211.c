@@ -6466,8 +6466,8 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct nlattr *tb[NUM_NL80211_WOWLAN_TRIG];
-	struct cfg80211_wowlan no_triggers = {};
 	struct cfg80211_wowlan new_triggers = {};
+	struct cfg80211_wowlan *ntrig;
 	struct wiphy_wowlan_support *wowlan = &rdev->wiphy.wowlan;
 	int err, i;
 	bool prev_enabled = rdev->wowlan;
@@ -6475,8 +6475,11 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 	if (!rdev->wiphy.wowlan.flags && !rdev->wiphy.wowlan.n_patterns)
 		return -EOPNOTSUPP;
 
-	if (!info->attrs[NL80211_ATTR_WOWLAN_TRIGGERS])
-		goto no_triggers;
+	if (!info->attrs[NL80211_ATTR_WOWLAN_TRIGGERS]) {
+		cfg80211_rdev_free_wowlan(rdev);
+		rdev->wowlan = NULL;
+		goto set_wakeup;
+	}
 
 	err = nla_parse(tb, MAX_NL80211_WOWLAN_TRIG,
 			nla_data(info->attrs[NL80211_ATTR_WOWLAN_TRIGGERS]),
@@ -6587,22 +6590,15 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	if (memcmp(&new_triggers, &no_triggers, sizeof(new_triggers))) {
-		struct cfg80211_wowlan *ntrig;
-		ntrig = kmemdup(&new_triggers, sizeof(new_triggers),
-				GFP_KERNEL);
-		if (!ntrig) {
-			err = -ENOMEM;
-			goto error;
-		}
-		cfg80211_rdev_free_wowlan(rdev);
-		rdev->wowlan = ntrig;
-	} else {
- no_triggers:
-		cfg80211_rdev_free_wowlan(rdev);
-		rdev->wowlan = NULL;
+	ntrig = kmemdup(&new_triggers, sizeof(new_triggers), GFP_KERNEL);
+	if (!ntrig) {
+		err = -ENOMEM;
+		goto error;
 	}
+	cfg80211_rdev_free_wowlan(rdev);
+	rdev->wowlan = ntrig;
 
+ set_wakeup:
 	if (rdev->ops->set_wakeup && prev_enabled != !!rdev->wowlan)
 		rdev->ops->set_wakeup(&rdev->wiphy, rdev->wowlan);
 
