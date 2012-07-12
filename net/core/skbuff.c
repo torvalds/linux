@@ -296,8 +296,11 @@ EXPORT_SYMBOL(build_skb);
 struct netdev_alloc_cache {
 	struct page *page;
 	unsigned int offset;
+	unsigned int pagecnt_bias;
 };
 static DEFINE_PER_CPU(struct netdev_alloc_cache, netdev_alloc_cache);
+
+#define NETDEV_PAGECNT_BIAS (PAGE_SIZE / SMP_CACHE_BYTES)
 
 /**
  * netdev_alloc_frag - allocate a page fragment
@@ -317,17 +320,26 @@ void *netdev_alloc_frag(unsigned int fragsz)
 	if (unlikely(!nc->page)) {
 refill:
 		nc->page = alloc_page(GFP_ATOMIC | __GFP_COLD);
+		if (unlikely(!nc->page))
+			goto end;
+recycle:
+		atomic_set(&nc->page->_count, NETDEV_PAGECNT_BIAS);
+		nc->pagecnt_bias = NETDEV_PAGECNT_BIAS;
 		nc->offset = 0;
 	}
-	if (likely(nc->page)) {
-		if (nc->offset + fragsz > PAGE_SIZE) {
-			put_page(nc->page);
-			goto refill;
-		}
-		data = page_address(nc->page) + nc->offset;
-		nc->offset += fragsz;
-		get_page(nc->page);
+
+	if (nc->offset + fragsz > PAGE_SIZE) {
+		/* avoid unnecessary locked operations if possible */
+		if ((atomic_read(&nc->page->_count) == nc->pagecnt_bias) ||
+		    atomic_sub_and_test(nc->pagecnt_bias, &nc->page->_count))
+			goto recycle;
+		goto refill;
 	}
+
+	data = page_address(nc->page) + nc->offset;
+	nc->offset += fragsz;
+	nc->pagecnt_bias--;
+end:
 	local_irq_restore(flags);
 	return data;
 }
