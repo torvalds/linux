@@ -139,6 +139,8 @@ extern void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu,
 			    int oif, u32 mark);
 extern void ip6_sk_update_pmtu(struct sk_buff *skb, struct sock *sk,
 			       __be32 mtu);
+extern void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark);
+extern void ip6_sk_redirect(struct sk_buff *skb, struct sock *sk);
 
 struct netlink_callback;
 
