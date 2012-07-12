@@ -6798,16 +6798,16 @@ static void intel_setup_outputs(struct drm_device *dev)
 			/* PCH SDVOB multiplex with HDMIB */
 			found = intel_sdvo_init(dev, PCH_SDVOB, true);
 			if (!found)
-				intel_hdmi_init(dev, HDMIB);
+				intel_hdmi_init(dev, HDMIB, PORT_B);
 			if (!found && (I915_READ(PCH_DP_B) & DP_DETECTED))
 				intel_dp_init(dev, PCH_DP_B);
 		}
 
 		if (I915_READ(HDMIC) & PORT_DETECTED)
-			intel_hdmi_init(dev, HDMIC);
+			intel_hdmi_init(dev, HDMIC, PORT_C);
 
 		if (!dpd_is_edp && I915_READ(HDMID) & PORT_DETECTED)
-			intel_hdmi_init(dev, HDMID);
+			intel_hdmi_init(dev, HDMID, PORT_D);
 
 		if (I915_READ(PCH_DP_C) & DP_DETECTED)
 			intel_dp_init(dev, PCH_DP_C);
@@ -6821,13 +6821,13 @@ static void intel_setup_outputs(struct drm_device *dev)
 			/* SDVOB multiplex with HDMIB */
 			found = intel_sdvo_init(dev, SDVOB, true);
 			if (!found)
-				intel_hdmi_init(dev, SDVOB);
+				intel_hdmi_init(dev, SDVOB, PORT_B);
 			if (!found && (I915_READ(DP_B) & DP_DETECTED))
 				intel_dp_init(dev, DP_B);
 		}
 
 		if (I915_READ(SDVOC) & PORT_DETECTED)
-			intel_hdmi_init(dev, SDVOC);
+			intel_hdmi_init(dev, SDVOC, PORT_C);
 
 		/* Shares lanes with HDMI on SDVOC */
 		if (I915_READ(DP_C) & DP_DETECTED)
@@ -6840,7 +6840,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 			found = intel_sdvo_init(dev, SDVOB, true);
 			if (!found && SUPPORTS_INTEGRATED_HDMI(dev)) {
 				DRM_DEBUG_KMS("probing HDMI on SDVOB\n");
-				intel_hdmi_init(dev, SDVOB);
+				intel_hdmi_init(dev, SDVOB, PORT_B);
 			}
 
 			if (!found && SUPPORTS_INTEGRATED_DP(dev)) {
@@ -6860,7 +6860,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 			if (SUPPORTS_INTEGRATED_HDMI(dev)) {
 				DRM_DEBUG_KMS("probing HDMI on SDVOC\n");
-				intel_hdmi_init(dev, SDVOC);
+				intel_hdmi_init(dev, SDVOC, PORT_C);
 			}
 			if (SUPPORTS_INTEGRATED_DP(dev)) {
 				DRM_DEBUG_KMS("probing DP_C\n");

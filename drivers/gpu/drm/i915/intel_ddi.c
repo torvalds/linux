@@ -250,7 +250,7 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	case PORT_B:
 	case PORT_C:
 	case PORT_D:
-		intel_hdmi_init(dev, DDI_BUF_CTL(port));
+		intel_hdmi_init(dev, DDI_BUF_CTL(port), port);
 		break;
 	default:
 		DRM_DEBUG_DRIVER("No handlers defined for port %d, skipping DDI initialization\n",

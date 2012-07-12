@@ -889,7 +889,7 @@ intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *c
 	intel_attach_broadcast_rgb_property(connector);
 }
 
-void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
+void intel_hdmi_init(struct drm_device *dev, int sdvox_reg, enum port port)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_connector *connector;
@@ -925,40 +925,23 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 
 	intel_encoder->cloneable = false;
 
-	/* Set up the DDC bus. */
-	if (sdvox_reg == SDVOB) {
+	intel_hdmi->ddi_port = port;
+	switch (port) {
+	case PORT_B:
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPB;
 		dev_priv->hotplug_supported_mask |= HDMIB_HOTPLUG_INT_STATUS;
-	} else if (sdvox_reg == SDVOC) {
+		break;
+	case PORT_C:
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPC;
 		dev_priv->hotplug_supported_mask |= HDMIC_HOTPLUG_INT_STATUS;
-	} else if (sdvox_reg == HDMIB) {
-		intel_hdmi->ddc_bus = GMBUS_PORT_DPB;
-		dev_priv->hotplug_supported_mask |= HDMIB_HOTPLUG_INT_STATUS;
-	} else if (sdvox_reg == HDMIC) {
-		intel_hdmi->ddc_bus = GMBUS_PORT_DPC;
-		dev_priv->hotplug_supported_mask |= HDMIC_HOTPLUG_INT_STATUS;
-	} else if (sdvox_reg == HDMID) {
+		break;
+	case PORT_D:
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPD;
 		dev_priv->hotplug_supported_mask |= HDMID_HOTPLUG_INT_STATUS;
-	} else if (sdvox_reg == DDI_BUF_CTL(PORT_B)) {
-		DRM_DEBUG_DRIVER("LPT: detected output on DDI B\n");
-		intel_hdmi->ddc_bus = GMBUS_PORT_DPB;
-		intel_hdmi->ddi_port = PORT_B;
-		dev_priv->hotplug_supported_mask |= HDMIB_HOTPLUG_INT_STATUS;
-	} else if (sdvox_reg == DDI_BUF_CTL(PORT_C)) {
-		DRM_DEBUG_DRIVER("LPT: detected output on DDI C\n");
-		intel_hdmi->ddc_bus = GMBUS_PORT_DPC;
-		intel_hdmi->ddi_port = PORT_C;
-		dev_priv->hotplug_supported_mask |= HDMIC_HOTPLUG_INT_STATUS;
-	} else if (sdvox_reg == DDI_BUF_CTL(PORT_D)) {
-		DRM_DEBUG_DRIVER("LPT: detected output on DDI D\n");
-		intel_hdmi->ddc_bus = GMBUS_PORT_DPD;
-		intel_hdmi->ddi_port = PORT_D;
-		dev_priv->hotplug_supported_mask |= HDMID_HOTPLUG_INT_STATUS;
-	} else {
-		/* If we got an unknown sdvox_reg, things are pretty much broken
-		 * in a way that we should let the kernel know about it */
+		break;
+	case PORT_A:
+		/* Internal port only for eDP. */
+	default:
 		BUG();
 	}
 

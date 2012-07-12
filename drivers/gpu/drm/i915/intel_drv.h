@@ -364,7 +364,8 @@ extern void intel_attach_force_audio_property(struct drm_connector *connector);
 extern void intel_attach_broadcast_rgb_property(struct drm_connector *connector);
 
 extern void intel_crt_init(struct drm_device *dev);
-extern void intel_hdmi_init(struct drm_device *dev, int sdvox_reg);
+extern void intel_hdmi_init(struct drm_device *dev,
+			    int sdvox_reg, enum port port);
 extern struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder);
 extern void intel_dip_infoframe_csum(struct dip_infoframe *avi_if);
 extern bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg,
