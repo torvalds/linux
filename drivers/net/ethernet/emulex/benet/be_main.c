@@ -1734,9 +1734,10 @@ static void be_evt_queues_destroy(struct be_adapter *adapter)
 	int i;
 
 	for_all_evt_queues(adapter, eqo, i) {
-		be_eq_clean(eqo);
-		if (eqo->q.created)
+		if (eqo->q.created) {
+			be_eq_clean(eqo);
 			be_cmd_q_destroy(adapter, &eqo->q, QTYPE_EQ);
+		}
 		be_queue_free(adapter, &eqo->q);
 	}
 }
