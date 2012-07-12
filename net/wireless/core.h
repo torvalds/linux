@@ -61,9 +61,6 @@ struct cfg80211_registered_device {
 	int num_running_ifaces;
 	int num_running_monitor_ifaces;
 
-	struct ieee80211_channel *monitor_channel;
-	enum nl80211_channel_type monitor_channel_type;
-
 	/* BSSes/scanning */
 	spinlock_t bss_lock;
 	struct list_head bss_list;

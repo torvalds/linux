@@ -1504,8 +1504,6 @@ struct cfg80211_gtk_rekey_data {
  *	interfaces are active this callback should reject the configuration.
  *	If no interfaces are active or the device is down, the channel should
  *	be stored for when a monitor interface becomes active.
- * @set_monitor_enabled: Notify driver that there are only monitor
- *	interfaces running.
  *
  * @scan: Request to do a scan. If returning zero, the scan request is given
  *	the driver, and will be valid until passed to cfg80211_scan_done().
@@ -1823,8 +1821,6 @@ struct cfg80211_ops {
 				struct ethtool_stats *stats, u64 *data);
 	void	(*get_et_strings)(struct wiphy *wiphy, struct net_device *dev,
 				  u32 sset, u8 *data);
-
-	void (*set_monitor_enabled)(struct wiphy *wiphy, bool enabled);
 
 	struct ieee80211_channel *
 		(*get_channel)(struct wiphy *wiphy,
