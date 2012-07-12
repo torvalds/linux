@@ -1292,17 +1292,32 @@ static void ip_do_redirect(struct rtable *rt, __be32 old_gw, __be32 new_gw)
 }
 
 /* called in rcu_read_lock() section */
-void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
-		    __be32 saddr, struct net_device *dev)
+void ip_rt_redirect(struct sk_buff *skb, __be32 new_gw)
 {
-	int s, i;
+	const struct iphdr *iph = (const struct iphdr *) skb->data;
+	__be32 old_gw = ip_hdr(skb)->saddr;
+	__be32 daddr = iph->daddr;
+	__be32 saddr = iph->saddr;
+	struct net_device *dev = skb->dev;
 	struct in_device *in_dev = __in_dev_get_rcu(dev);
-	__be32 skeys[2] = { saddr, 0 };
 	int    ikeys[2] = { dev->ifindex, 0 };
+	__be32 skeys[2] = { saddr, 0 };
 	struct net *net;
+	int s, i;
 
 	if (!in_dev)
 		return;
+
+	switch (icmp_hdr(skb)->code & 7) {
+	case ICMP_REDIR_NET:
+	case ICMP_REDIR_NETTOS:
+	case ICMP_REDIR_HOST:
+	case ICMP_REDIR_HOSTTOS:
+		break;
+
+	default:
+		return;
+	}
 
 	net = dev_net(dev);
 	if (new_gw == old_gw || !IN_DEV_RX_REDIRECTS(in_dev) ||

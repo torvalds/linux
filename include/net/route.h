@@ -108,8 +108,7 @@ extern struct ip_rt_acct __percpu *ip_rt_acct;
 
 struct in_device;
 extern int		ip_rt_init(void);
-extern void		ip_rt_redirect(__be32 old_gw, __be32 dst, __be32 new_gw,
-				       __be32 src, struct net_device *dev);
+extern void		ip_rt_redirect(struct sk_buff *skb, __be32 new_gw);
 extern void		rt_cache_flush(struct net *net, int how);
 extern void		rt_cache_flush_batch(struct net *net);
 extern struct rtable *__ip_route_output_key(struct net *, struct flowi4 *flp);
