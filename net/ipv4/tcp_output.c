@@ -838,7 +838,7 @@ static void tcp_tasklet_func(unsigned long data)
 		if (!sock_owned_by_user(sk)) {
 			if ((1 << sk->sk_state) &
 			    (TCPF_ESTABLISHED | TCPF_FIN_WAIT1 |
-			     TCPF_CLOSING | TCPF_CLOSE_WAIT))
+			     TCPF_CLOSING | TCPF_CLOSE_WAIT | TCPF_LAST_ACK))
 				tcp_write_xmit(sk,
 					       tcp_current_mss(sk),
 					       0, 0,
@@ -868,7 +868,7 @@ void tcp_release_cb(struct sock *sk)
 	if (test_and_clear_bit(TSQ_OWNED, &tp->tsq_flags)) {
 		if ((1 << sk->sk_state) &
 		    (TCPF_ESTABLISHED | TCPF_FIN_WAIT1 |
-		     TCPF_CLOSING | TCPF_CLOSE_WAIT))
+		     TCPF_CLOSING | TCPF_CLOSE_WAIT | TCPF_LAST_ACK))
 			tcp_write_xmit(sk,
 				       tcp_current_mss(sk),
 				       0, 0,
