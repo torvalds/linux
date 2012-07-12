@@ -292,7 +292,7 @@ struct mac80211_hwsim_data {
 	struct list_head list;
 	struct ieee80211_hw *hw;
 	struct device *dev;
-	struct ieee80211_supported_band bands[2];
+	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 	struct ieee80211_channel channels_2ghz[ARRAY_SIZE(hwsim_channels_2ghz)];
 	struct ieee80211_channel channels_5ghz[ARRAY_SIZE(hwsim_channels_5ghz)];
 	struct ieee80211_rate rates[ARRAY_SIZE(hwsim_rates)];
@@ -1082,6 +1082,8 @@ enum hwsim_testmode_attr {
 enum hwsim_testmode_cmd {
 	HWSIM_TM_CMD_SET_PS		= 0,
 	HWSIM_TM_CMD_GET_PS		= 1,
+	HWSIM_TM_CMD_STOP_QUEUES	= 2,
+	HWSIM_TM_CMD_WAKE_QUEUES	= 3,
 };
 
 static const struct nla_policy hwsim_testmode_policy[HWSIM_TM_ATTR_MAX + 1] = {
@@ -1121,6 +1123,12 @@ static int mac80211_hwsim_testmode_cmd(struct ieee80211_hw *hw,
 		if (nla_put_u32(skb, HWSIM_TM_ATTR_PS, hwsim->ps))
 			goto nla_put_failure;
 		return cfg80211_testmode_reply(skb);
+	case HWSIM_TM_CMD_STOP_QUEUES:
+		ieee80211_stop_queues(hw);
+		return 0;
+	case HWSIM_TM_CMD_WAKE_QUEUES:
+		ieee80211_wake_queues(hw);
+		return 0;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1855,7 +1863,7 @@ static int __init init_mac80211_hwsim(void)
 				sband->n_bitrates = ARRAY_SIZE(hwsim_rates) - 4;
 				break;
 			default:
-				break;
+				continue;
 			}
 
 			sband->ht_cap.ht_supported = true;

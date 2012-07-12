@@ -35,19 +35,29 @@ int ieee80211_channel_to_frequency(int chan, enum ieee80211_band band)
 {
 	/* see 802.11 17.3.8.3.2 and Annex J
 	 * there are overlapping channel numbers in 5GHz and 2GHz bands */
-	if (band == IEEE80211_BAND_5GHZ) {
-		if (chan >= 182 && chan <= 196)
-			return 4000 + chan * 5;
-		else
-			return 5000 + chan * 5;
-	} else { /* IEEE80211_BAND_2GHZ */
+	if (chan <= 0)
+		return 0; /* not supported */
+	switch (band) {
+	case IEEE80211_BAND_2GHZ:
 		if (chan == 14)
 			return 2484;
 		else if (chan < 14)
 			return 2407 + chan * 5;
+		break;
+	case IEEE80211_BAND_5GHZ:
+		if (chan >= 182 && chan <= 196)
+			return 4000 + chan * 5;
 		else
-			return 0; /* not supported */
+			return 5000 + chan * 5;
+		break;
+	case IEEE80211_BAND_60GHZ:
+		if (chan < 5)
+			return 56160 + chan * 2160;
+		break;
+	default:
+		;
 	}
+	return 0; /* not supported */
 }
 EXPORT_SYMBOL(ieee80211_channel_to_frequency);
 
@@ -60,8 +70,12 @@ int ieee80211_frequency_to_channel(int freq)
 		return (freq - 2407) / 5;
 	else if (freq >= 4910 && freq <= 4980)
 		return (freq - 4000) / 5;
-	else
+	else if (freq <= 45000) /* DMG band lower limit */
 		return (freq - 5000) / 5;
+	else if (freq >= 58320 && freq <= 64800)
+		return (freq - 56160) / 2160;
+	else
+		return 0;
 }
 EXPORT_SYMBOL(ieee80211_frequency_to_channel);
 
@@ -136,6 +150,11 @@ static void set_mandatory_flags_band(struct ieee80211_supported_band *sband,
 					IEEE80211_RATE_ERP_G;
 		}
 		WARN_ON(want != 0 && want != 3 && want != 6);
+		break;
+	case IEEE80211_BAND_60GHZ:
+		/* check for mandatory HT MCS 1..4 */
+		WARN_ON(!sband->ht_cap.ht_supported);
+		WARN_ON((sband->ht_cap.mcs.rx_mask[0] & 0x1e) != 0x1e);
 		break;
 	case IEEE80211_NUM_BANDS:
 		WARN_ON(1);
@@ -805,8 +824,10 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		return -EBUSY;
 
 	if (ntype != otype && netif_running(dev)) {
+		mutex_lock(&rdev->devlist_mtx);
 		err = cfg80211_can_change_interface(rdev, dev->ieee80211_ptr,
 						    ntype);
+		mutex_unlock(&rdev->devlist_mtx);
 		if (err)
 			return err;
 
@@ -814,6 +835,9 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		dev->ieee80211_ptr->mesh_id_up_len = 0;
 
 		switch (otype) {
+		case NL80211_IFTYPE_AP:
+			cfg80211_stop_ap(rdev, dev);
+			break;
 		case NL80211_IFTYPE_ADHOC:
 			cfg80211_leave_ibss(rdev, dev, false);
 			break;
@@ -868,15 +892,69 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		}
 	}
 
+	if (!err && ntype != otype && netif_running(dev)) {
+		cfg80211_update_iface_num(rdev, ntype, 1);
+		cfg80211_update_iface_num(rdev, otype, -1);
+	}
+
 	return err;
 }
 
-u16 cfg80211_calculate_bitrate(struct rate_info *rate)
+static u32 cfg80211_calculate_bitrate_60g(struct rate_info *rate)
+{
+	static const u32 __mcs2bitrate[] = {
+		/* control PHY */
+		[0] =   275,
+		/* SC PHY */
+		[1] =  3850,
+		[2] =  7700,
+		[3] =  9625,
+		[4] = 11550,
+		[5] = 12512, /* 1251.25 mbps */
+		[6] = 15400,
+		[7] = 19250,
+		[8] = 23100,
+		[9] = 25025,
+		[10] = 30800,
+		[11] = 38500,
+		[12] = 46200,
+		/* OFDM PHY */
+		[13] =  6930,
+		[14] =  8662, /* 866.25 mbps */
+		[15] = 13860,
+		[16] = 17325,
+		[17] = 20790,
+		[18] = 27720,
+		[19] = 34650,
+		[20] = 41580,
+		[21] = 45045,
+		[22] = 51975,
+		[23] = 62370,
+		[24] = 67568, /* 6756.75 mbps */
+		/* LP-SC PHY */
+		[25] =  6260,
+		[26] =  8340,
+		[27] = 11120,
+		[28] = 12510,
+		[29] = 16680,
+		[30] = 22240,
+		[31] = 25030,
+	};
+
+	if (WARN_ON_ONCE(rate->mcs >= ARRAY_SIZE(__mcs2bitrate)))
+		return 0;
+
+	return __mcs2bitrate[rate->mcs];
+}
+
+u32 cfg80211_calculate_bitrate(struct rate_info *rate)
 {
 	int modulation, streams, bitrate;
 
 	if (!(rate->flags & RATE_INFO_FLAGS_MCS))
 		return rate->legacy;
+	if (rate->flags & RATE_INFO_FLAGS_60G)
+		return cfg80211_calculate_bitrate_60g(rate);
 
 	/* the formula below does only work for MCS values smaller than 32 */
 	if (WARN_ON_ONCE(rate->mcs >= 32))
@@ -930,27 +1008,48 @@ int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 	return res;
 }
 
-int cfg80211_can_change_interface(struct cfg80211_registered_device *rdev,
-				  struct wireless_dev *wdev,
-				  enum nl80211_iftype iftype)
+int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
+				 struct wireless_dev *wdev,
+				 enum nl80211_iftype iftype,
+				 struct ieee80211_channel *chan,
+				 enum cfg80211_chan_mode chanmode)
 {
 	struct wireless_dev *wdev_iter;
 	u32 used_iftypes = BIT(iftype);
 	int num[NUM_NL80211_IFTYPES];
+	struct ieee80211_channel
+			*used_channels[CFG80211_MAX_NUM_DIFFERENT_CHANNELS];
+	struct ieee80211_channel *ch;
+	enum cfg80211_chan_mode chmode;
+	int num_different_channels = 0;
 	int total = 1;
 	int i, j;
 
 	ASSERT_RTNL();
+	lockdep_assert_held(&rdev->devlist_mtx);
 
 	/* Always allow software iftypes */
 	if (rdev->wiphy.software_iftypes & BIT(iftype))
 		return 0;
 
 	memset(num, 0, sizeof(num));
+	memset(used_channels, 0, sizeof(used_channels));
 
 	num[iftype] = 1;
 
-	mutex_lock(&rdev->devlist_mtx);
+	switch (chanmode) {
+	case CHAN_MODE_UNDEFINED:
+		break;
+	case CHAN_MODE_SHARED:
+		WARN_ON(!chan);
+		used_channels[0] = chan;
+		num_different_channels++;
+		break;
+	case CHAN_MODE_EXCLUSIVE:
+		num_different_channels++;
+		break;
+	}
+
 	list_for_each_entry(wdev_iter, &rdev->netdev_list, list) {
 		if (wdev_iter == wdev)
 			continue;
@@ -960,11 +1059,33 @@ int cfg80211_can_change_interface(struct cfg80211_registered_device *rdev,
 		if (rdev->wiphy.software_iftypes & BIT(wdev_iter->iftype))
 			continue;
 
+		cfg80211_get_chan_state(rdev, wdev_iter, &ch, &chmode);
+
+		switch (chmode) {
+		case CHAN_MODE_UNDEFINED:
+			break;
+		case CHAN_MODE_SHARED:
+			for (i = 0; i < CFG80211_MAX_NUM_DIFFERENT_CHANNELS; i++)
+				if (!used_channels[i] || used_channels[i] == ch)
+					break;
+
+			if (i == CFG80211_MAX_NUM_DIFFERENT_CHANNELS)
+				return -EBUSY;
+
+			if (used_channels[i] == NULL) {
+				used_channels[i] = ch;
+				num_different_channels++;
+			}
+			break;
+		case CHAN_MODE_EXCLUSIVE:
+			num_different_channels++;
+			break;
+		}
+
 		num[wdev_iter->iftype]++;
 		total++;
 		used_iftypes |= BIT(wdev_iter->iftype);
 	}
-	mutex_unlock(&rdev->devlist_mtx);
 
 	if (total == 1)
 		return 0;
@@ -976,12 +1097,15 @@ int cfg80211_can_change_interface(struct cfg80211_registered_device *rdev,
 
 		c = &rdev->wiphy.iface_combinations[i];
 
+		if (total > c->max_interfaces)
+			continue;
+		if (num_different_channels > c->num_different_channels)
+			continue;
+
 		limits = kmemdup(c->limits, sizeof(limits[0]) * c->n_limits,
 				 GFP_KERNEL);
 		if (!limits)
 			return -ENOMEM;
-		if (total > c->max_interfaces)
-			goto cont;
 
 		for (iftype = 0; iftype < NUM_NL80211_IFTYPES; iftype++) {
 			if (rdev->wiphy.software_iftypes & BIT(iftype))

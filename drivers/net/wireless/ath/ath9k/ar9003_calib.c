@@ -159,14 +159,11 @@ static bool ar9003_hw_calibrate(struct ath_hw *ah,
 		}
 	}
 
-	/* Do NF cal only at longer intervals */
-	if (longcal) {
-		/*
-		 * Get the value from the previous NF cal and update
-		 * history buffer.
-		 */
-		ath9k_hw_getnf(ah, chan);
-
+	/*
+	 * Do NF cal only at longer intervals. Get the value from
+	 * the previous NF cal and update history buffer.
+	 */
+	if (longcal && ath9k_hw_getnf(ah, chan)) {
 		/*
 		 * Load the NF from history buffer of the current channel.
 		 * NF is slow time-variant, so it is OK to use a historical

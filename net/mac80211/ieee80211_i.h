@@ -1284,7 +1284,6 @@ int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 			     enum nl80211_iftype type);
 void ieee80211_if_remove(struct ieee80211_sub_if_data *sdata);
 void ieee80211_remove_interfaces(struct ieee80211_local *local);
-u32 __ieee80211_recalc_idle(struct ieee80211_local *local);
 void ieee80211_recalc_idle(struct ieee80211_local *local);
 void ieee80211_adjust_monitor_flags(struct ieee80211_sub_if_data *sdata,
 				    const int offset);
@@ -1481,6 +1480,16 @@ u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 			       struct ieee80211_channel *channel,
 			       enum nl80211_channel_type channel_type,
 			       u16 prot_mode);
+u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
+			       u32 cap);
+int ieee80211_add_srates_ie(struct ieee80211_sub_if_data *sdata,
+			    struct sk_buff *skb, bool need_basic);
+int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
+				struct sk_buff *skb, bool need_basic);
+
+/* virtual monitor */
+int ieee80211_add_virtual_monitor(struct ieee80211_local *local);
+void ieee80211_del_virtual_monitor(struct ieee80211_local *local);
 
 /* channel management */
 enum ieee80211_chan_mode {

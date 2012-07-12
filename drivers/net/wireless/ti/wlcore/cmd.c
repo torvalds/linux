@@ -39,6 +39,7 @@
 #include "hw_ops.h"
 
 #define WL1271_CMD_FAST_POLL_COUNT       50
+#define WL1271_WAIT_EVENT_FAST_POLL_COUNT 20
 
 /*
  * send command to firmware
@@ -138,6 +139,7 @@ static int wl1271_cmd_wait_for_event_or_timeout(struct wl1271 *wl,
 	u32 *events_vector;
 	u32 event;
 	unsigned long timeout_time;
+	u16 poll_count = 0;
 	int ret = 0;
 
 	*timeout = false;
@@ -156,7 +158,11 @@ static int wl1271_cmd_wait_for_event_or_timeout(struct wl1271 *wl,
 			goto out;
 		}
 
-		msleep(1);
+		poll_count++;
+		if (poll_count < WL1271_WAIT_EVENT_FAST_POLL_COUNT)
+			usleep_range(50, 51);
+		else
+			usleep_range(1000, 5000);
 
 		/* read from both event fields */
 		ret = wlcore_read(wl, wl->mbox_ptr[0], events_vector,
@@ -1007,12 +1013,14 @@ out:
 int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			       u8 role_id, u8 band,
 			       const u8 *ssid, size_t ssid_len,
-			       const u8 *ie, size_t ie_len)
+			       const u8 *ie, size_t ie_len, bool sched_scan)
 {
 	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 	struct sk_buff *skb;
 	int ret;
 	u32 rate;
+	u16 template_id_2_4 = CMD_TEMPL_CFG_PROBE_REQ_2_4;
+	u16 template_id_5 = CMD_TEMPL_CFG_PROBE_REQ_5;
 
 	skb = ieee80211_probereq_get(wl->hw, vif, ssid, ssid_len,
 				     ie, ie_len);
@@ -1023,14 +1031,20 @@ int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	wl1271_dump(DEBUG_SCAN, "PROBE REQ: ", skb->data, skb->len);
 
+	if (!sched_scan &&
+	    (wl->quirks & WLCORE_QUIRK_DUAL_PROBE_TMPL)) {
+		template_id_2_4 = CMD_TEMPL_APP_PROBE_REQ_2_4;
+		template_id_5 = CMD_TEMPL_APP_PROBE_REQ_5;
+	}
+
 	rate = wl1271_tx_min_rate_get(wl, wlvif->bitrate_masks[band]);
 	if (band == IEEE80211_BAND_2GHZ)
 		ret = wl1271_cmd_template_set(wl, role_id,
-					      CMD_TEMPL_CFG_PROBE_REQ_2_4,
+					      template_id_2_4,
 					      skb->data, skb->len, 0, rate);
 	else
 		ret = wl1271_cmd_template_set(wl, role_id,
-					      CMD_TEMPL_CFG_PROBE_REQ_5,
+					      template_id_5,
 					      skb->data, skb->len, 0, rate);
 
 out:

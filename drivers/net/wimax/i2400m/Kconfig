@@ -7,9 +7,6 @@ config WIMAX_I2400M
 comment "Enable USB support to see WiMAX USB drivers"
 	depends on USB = n
 
-comment "Enable MMC support to see WiMAX SDIO drivers"
-	depends on MMC = n
-
 config WIMAX_I2400M_USB
 	tristate "Intel Wireless WiMAX Connection 2400 over USB (including 5x50)"
 	depends on WIMAX && USB
@@ -20,25 +17,6 @@ config WIMAX_I2400M_USB
 	  WiMAX/WiFi Link 5x50 series).
 
 	  If unsure, it is safe to select M (module).
-
-config WIMAX_I2400M_SDIO
-	tristate "Intel Wireless WiMAX Connection 2400 over SDIO"
-	depends on WIMAX && MMC
-	select WIMAX_I2400M
-	help
-	  Select if you have a device based on the Intel WiMAX
-	  Connection 2400 over SDIO.
-
-	  If unsure, it is safe to select M (module).
-
-config WIMAX_IWMC3200_SDIO
-	bool "Intel Wireless Multicom WiMAX Connection 3200 over SDIO (EXPERIMENTAL)"
-	depends on WIMAX_I2400M_SDIO
-	depends on EXPERIMENTAL
-	select IWMC3200TOP
-	help
-	  Select if you have a device based on the Intel Multicom WiMAX
-          Connection 3200 over SDIO.
 
 config WIMAX_I2400M_DEBUG_LEVEL
 	int "WiMAX i2400m debug level"

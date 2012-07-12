@@ -47,6 +47,7 @@ struct wl1271;
 void wlcore_disable_interrupts(struct wl1271 *wl);
 void wlcore_disable_interrupts_nosync(struct wl1271 *wl);
 void wlcore_enable_interrupts(struct wl1271 *wl);
+void wlcore_synchronize_interrupts(struct wl1271 *wl);
 
 void wl1271_io_reset(struct wl1271 *wl);
 void wl1271_io_init(struct wl1271 *wl);
@@ -59,12 +60,12 @@ static inline int __must_check wlcore_raw_write(struct wl1271 *wl, int addr,
 {
 	int ret;
 
-	if (test_bit(WL1271_FLAG_SDIO_FAILED, &wl->flags))
+	if (test_bit(WL1271_FLAG_IO_FAILED, &wl->flags))
 		return -EIO;
 
 	ret = wl->if_ops->write(wl->dev, addr, buf, len, fixed);
-	if (ret)
-		set_bit(WL1271_FLAG_SDIO_FAILED, &wl->flags);
+	if (ret && wl->state != WL1271_STATE_OFF)
+		set_bit(WL1271_FLAG_IO_FAILED, &wl->flags);
 
 	return ret;
 }
@@ -75,12 +76,12 @@ static inline int __must_check wlcore_raw_read(struct wl1271 *wl, int addr,
 {
 	int ret;
 
-	if (test_bit(WL1271_FLAG_SDIO_FAILED, &wl->flags))
+	if (test_bit(WL1271_FLAG_IO_FAILED, &wl->flags))
 		return -EIO;
 
 	ret = wl->if_ops->read(wl->dev, addr, buf, len, fixed);
-	if (ret)
-		set_bit(WL1271_FLAG_SDIO_FAILED, &wl->flags);
+	if (ret && wl->state != WL1271_STATE_OFF)
+		set_bit(WL1271_FLAG_IO_FAILED, &wl->flags);
 
 	return ret;
 }

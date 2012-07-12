@@ -204,4 +204,6 @@ int nfc_tm_activated(struct nfc_dev *dev, u32 protocol, u8 comm_mode,
 int nfc_tm_deactivated(struct nfc_dev *dev);
 int nfc_tm_data_received(struct nfc_dev *dev, struct sk_buff *skb);
 
+void nfc_driver_failure(struct nfc_dev *dev, int err);
+
 #endif /* __NET_NFC_H */

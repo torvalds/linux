@@ -573,6 +573,7 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 	struct dma_info *di;
 	u8 rev = core->id.rev;
 	uint size;
+	struct si_info *sii = container_of(sih, struct si_info, pub);
 
 	/* allocate private info structure */
 	di = kzalloc(sizeof(struct dma_info), GFP_ATOMIC);
@@ -633,16 +634,20 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 	 */
 	di->ddoffsetlow = 0;
 	di->dataoffsetlow = 0;
-	/* add offset for pcie with DMA64 bus */
-	di->ddoffsetlow = 0;
-	di->ddoffsethigh = SI_PCIE_DMA_H32;
+	/* for pci bus, add offset */
+	if (sii->icbus->hosttype == BCMA_HOSTTYPE_PCI) {
+		/* add offset for pcie with DMA64 bus */
+		di->ddoffsetlow = 0;
+		di->ddoffsethigh = SI_PCIE_DMA_H32;
+	}
 	di->dataoffsetlow = di->ddoffsetlow;
 	di->dataoffsethigh = di->ddoffsethigh;
+
 	/* WAR64450 : DMACtl.Addr ext fields are not supported in SDIOD core. */
-	if ((core->id.id == SDIOD_CORE_ID)
+	if ((core->id.id == BCMA_CORE_SDIO_DEV)
 	    && ((rev > 0) && (rev <= 2)))
 		di->addrext = false;
-	else if ((core->id.id == I2S_CORE_ID) &&
+	else if ((core->id.id == BCMA_CORE_I2S) &&
 		 ((rev == 0) || (rev == 1)))
 		di->addrext = false;
 	else

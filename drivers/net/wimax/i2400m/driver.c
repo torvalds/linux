@@ -754,8 +754,7 @@ EXPORT_SYMBOL_GPL(i2400m_error_recovery);
 /*
  * Alloc the command and ack buffers for boot mode
  *
- * Get the buffers needed to deal with boot mode messages.  These
- * buffers need to be allocated before the sdio receive irq is setup.
+ * Get the buffers needed to deal with boot mode messages.
  */
 static
 int i2400m_bm_buf_alloc(struct i2400m *i2400m)

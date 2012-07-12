@@ -318,10 +318,6 @@
 #define	IS_SIM(chippkg)	\
 	((chippkg == HDLSIM_PKG_ID) || (chippkg == HWSIM_PKG_ID))
 
-#define PCIE(sih)	(ai_get_buscoretype(sih) == PCIE_CORE_ID)
-
-#define PCI_FORCEHT(sih) (PCIE(sih) && (ai_get_chip_id(sih) == BCM4716_CHIP_ID))
-
 #ifdef DEBUG
 #define	SI_MSG(fmt, ...)	pr_debug(fmt, ##__VA_ARGS__)
 #else
@@ -473,9 +469,6 @@ ai_buscore_setup(struct si_info *sii, struct bcma_device *cc)
 		sii->pub.pmurev = sii->pub.pmucaps & PCAP_REV_MASK;
 	}
 
-	/* figure out buscore */
-	sii->buscore = ai_findcore(&sii->pub, PCIE_CORE_ID, 0);
-
 	return true;
 }
 
@@ -483,11 +476,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 				   struct bcma_bus *pbus)
 {
 	struct si_pub *sih = &sii->pub;
-	u32 w, savewin;
 	struct bcma_device *cc;
-	struct ssb_sprom *sprom = &pbus->sprom;
-
-	savewin = 0;
 
 	sii->icbus = pbus;
 	sii->pcibus = pbus->host_pci;
@@ -510,47 +499,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 
 	/* PMU specific initializations */
 	if (ai_get_cccaps(sih) & CC_CAP_PMU) {
-		si_pmu_init(sih);
 		(void)si_pmu_measure_alpclk(sih);
-		si_pmu_res_init(sih);
-	}
-
-	/* setup the GPIO based LED powersave register */
-	w = (sprom->leddc_on_time << BCMA_CC_GPIOTIMER_ONTIME_SHIFT) |
-		 (sprom->leddc_off_time << BCMA_CC_GPIOTIMER_OFFTIME_SHIFT);
-	if (w == 0)
-		w = DEFAULT_GPIOTIMERVAL;
-	ai_cc_reg(sih, offsetof(struct chipcregs, gpiotimerval),
-		  ~0, w);
-
-	if (ai_get_chip_id(sih) == BCM43224_CHIP_ID) {
-		/*
-		 * enable 12 mA drive strenth for 43224 and
-		 * set chipControl register bit 15
-		 */
-		if (ai_get_chiprev(sih) == 0) {
-			SI_MSG("Applying 43224A0 WARs\n");
-			ai_cc_reg(sih, offsetof(struct chipcregs, chipcontrol),
-				  CCTRL43224_GPIO_TOGGLE,
-				  CCTRL43224_GPIO_TOGGLE);
-			si_pmu_chipcontrol(sih, 0, CCTRL_43224A0_12MA_LED_DRIVE,
-					   CCTRL_43224A0_12MA_LED_DRIVE);
-		}
-		if (ai_get_chiprev(sih) >= 1) {
-			SI_MSG("Applying 43224B0+ WARs\n");
-			si_pmu_chipcontrol(sih, 0, CCTRL_43224B0_12MA_LED_DRIVE,
-					   CCTRL_43224B0_12MA_LED_DRIVE);
-		}
-	}
-
-	if (ai_get_chip_id(sih) == BCM4313_CHIP_ID) {
-		/*
-		 * enable 12 mA drive strenth for 4313 and
-		 * set chipControl register bit 1
-		 */
-		SI_MSG("Applying 4313 WARs\n");
-		si_pmu_chipcontrol(sih, 0, CCTRL_4313_12MA_LED_DRIVE,
-				   CCTRL_4313_12MA_LED_DRIVE);
 	}
 
 	return sii;
@@ -589,33 +538,12 @@ void ai_detach(struct si_pub *sih)
 	struct si_pub *si_local = NULL;
 	memcpy(&si_local, &sih, sizeof(struct si_pub **));
 
-	sii = (struct si_info *)sih;
+	sii = container_of(sih, struct si_info, pub);
 
 	if (sii == NULL)
 		return;
 
 	kfree(sii);
-}
-
-/* return index of coreid or BADIDX if not found */
-struct bcma_device *ai_findcore(struct si_pub *sih, u16 coreid, u16 coreunit)
-{
-	struct bcma_device *core;
-	struct si_info *sii;
-	uint found;
-
-	sii = (struct si_info *)sih;
-
-	found = 0;
-
-	list_for_each_entry(core, &sii->icbus->cores, list)
-		if (core->id.id == coreid) {
-			if (found == coreunit)
-				return core;
-			found++;
-		}
-
-	return NULL;
 }
 
 /*
@@ -627,7 +555,7 @@ uint ai_cc_reg(struct si_pub *sih, uint regoff, u32 mask, u32 val)
 	u32 w;
 	struct si_info *sii;
 
-	sii = (struct si_info *)sih;
+	sii = container_of(sih, struct si_info, pub);
 	cc = sii->icbus->drv_cc.core;
 
 	/* mask and set */
@@ -693,12 +621,13 @@ ai_clkctl_setdelay(struct si_pub *sih, struct bcma_device *cc)
 /* initialize power control delay registers */
 void ai_clkctl_init(struct si_pub *sih)
 {
+	struct si_info *sii = container_of(sih, struct si_info, pub);
 	struct bcma_device *cc;
 
 	if (!(ai_get_cccaps(sih) & CC_CAP_PWR_CTL))
 		return;
 
-	cc = ai_findcore(sih, BCMA_CORE_CHIPCOMMON, 0);
+	cc = sii->icbus->drv_cc.core;
 	if (cc == NULL)
 		return;
 
@@ -720,7 +649,7 @@ u16 ai_clkctl_fast_pwrup_delay(struct si_pub *sih)
 	uint slowminfreq;
 	u16 fpdelay;
 
-	sii = (struct si_info *)sih;
+	sii = container_of(sih, struct si_info, pub);
 	if (ai_get_cccaps(sih) & CC_CAP_PMU) {
 		fpdelay = si_pmu_fast_pwrup_delay(sih);
 		return fpdelay;
@@ -730,7 +659,7 @@ u16 ai_clkctl_fast_pwrup_delay(struct si_pub *sih)
 		return 0;
 
 	fpdelay = 0;
-	cc = ai_findcore(sih, CC_CORE_ID, 0);
+	cc = sii->icbus->drv_cc.core;
 	if (cc) {
 		slowminfreq = ai_slowclk_freq(sih, false, cc);
 		fpdelay = (((bcma_read32(cc, CHIPCREGOFFS(pll_on_delay)) + 2)
@@ -752,12 +681,9 @@ bool ai_clkctl_cc(struct si_pub *sih, enum bcma_clkmode mode)
 	struct si_info *sii;
 	struct bcma_device *cc;
 
-	sii = (struct si_info *)sih;
+	sii = container_of(sih, struct si_info, pub);
 
-	if (PCI_FORCEHT(sih))
-		return mode == BCMA_CLKMODE_FAST;
-
-	cc = ai_findcore(&sii->pub, BCMA_CORE_CHIPCOMMON, 0);
+	cc = sii->icbus->drv_cc.core;
 	bcma_core_set_clockmode(cc, mode);
 	return mode == BCMA_CLKMODE_FAST;
 }
@@ -765,16 +691,10 @@ bool ai_clkctl_cc(struct si_pub *sih, enum bcma_clkmode mode)
 void ai_pci_up(struct si_pub *sih)
 {
 	struct si_info *sii;
-	struct bcma_device *cc;
 
-	sii = (struct si_info *)sih;
+	sii = container_of(sih, struct si_info, pub);
 
-	if (PCI_FORCEHT(sih)) {
-		cc = ai_findcore(&sii->pub, BCMA_CORE_CHIPCOMMON, 0);
-		bcma_core_set_clockmode(cc, BCMA_CLKMODE_FAST);
-	}
-
-	if (PCIE(sih))
+	if (sii->icbus->hosttype == BCMA_HOSTTYPE_PCI)
 		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, true);
 }
 
@@ -782,26 +702,20 @@ void ai_pci_up(struct si_pub *sih)
 void ai_pci_down(struct si_pub *sih)
 {
 	struct si_info *sii;
-	struct bcma_device *cc;
 
-	sii = (struct si_info *)sih;
+	sii = container_of(sih, struct si_info, pub);
 
-	/* release FORCEHT since chip is going to "down" state */
-	if (PCI_FORCEHT(sih)) {
-		cc = ai_findcore(&sii->pub, BCMA_CORE_CHIPCOMMON, 0);
-		bcma_core_set_clockmode(cc, BCMA_CLKMODE_DYNAMIC);
-	}
-
-	if (PCIE(sih))
+	if (sii->icbus->hosttype == BCMA_HOSTTYPE_PCI)
 		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, false);
 }
 
 /* Enable BT-COEX & Ex-PA for 4313 */
 void ai_epa_4313war(struct si_pub *sih)
 {
+	struct si_info *sii = container_of(sih, struct si_info, pub);
 	struct bcma_device *cc;
 
-	cc = ai_findcore(sih, CC_CORE_ID, 0);
+	cc = sii->icbus->drv_cc.core;
 
 	/* EPA Fix */
 	bcma_set32(cc, CHIPCREGOFFS(gpiocontrol), GPIO_CTRL_EPA_EN_MASK);
@@ -813,7 +727,7 @@ bool ai_deviceremoved(struct si_pub *sih)
 	u32 w;
 	struct si_info *sii;
 
-	sii = (struct si_info *)sih;
+	sii = container_of(sih, struct si_info, pub);
 
 	if (sii->icbus->hosttype != BCMA_HOSTTYPE_PCI)
 		return false;
@@ -823,16 +737,4 @@ bool ai_deviceremoved(struct si_pub *sih)
 		return true;
 
 	return false;
-}
-
-uint ai_get_buscoretype(struct si_pub *sih)
-{
-	struct si_info *sii = (struct si_info *)sih;
-	return sii->buscore->id.id;
-}
-
-uint ai_get_buscorerev(struct si_pub *sih)
-{
-	struct si_info *sii = (struct si_info *)sih;
-	return sii->buscore->id.rev;
 }

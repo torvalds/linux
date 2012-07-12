@@ -798,6 +798,7 @@
 #define AR_SREV_REVISION_9580_10	4 /* AR9580 1.0 */
 #define AR_SREV_VERSION_9462		0x280
 #define AR_SREV_REVISION_9462_20	2
+#define AR_SREV_VERSION_9550		0x400
 
 #define AR_SREV_5416(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_5416_PCI) || \
@@ -904,6 +905,9 @@
 #define AR_SREV_9462_20_OR_LATER(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462) && \
 	((_ah)->hw_version.macRev >= AR_SREV_REVISION_9462_20))
+
+#define AR_SREV_9550(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9550))
 
 #define AR_SREV_9580(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9580) && \
@@ -1643,11 +1647,11 @@ enum {
 
 #define AR_TPC                 0x80e8
 #define AR_TPC_ACK             0x0000003f
-#define AR_TPC_ACK_S           0x00
+#define AR_TPC_ACK_S           0
 #define AR_TPC_CTS             0x00003f00
-#define AR_TPC_CTS_S           0x08
+#define AR_TPC_CTS_S           8
 #define AR_TPC_CHIRP           0x003f0000
-#define AR_TPC_CHIRP_S         0x16
+#define AR_TPC_CHIRP_S         16
 
 #define AR_QUIET1          0x80fc
 #define AR_QUIET1_NEXT_QUIET_S         0
@@ -2077,12 +2081,6 @@ enum {
 					 AR_MCI_INTERRUPT_RX_MSG_REMOTE_RESET| \
 					 AR_MCI_INTERRUPT_RX_MSG_SYS_WAKING  | \
 					 AR_MCI_INTERRUPT_RX_MSG_SYS_SLEEPING| \
-					 AR_MCI_INTERRUPT_RX_MSG_SCHD_INFO   | \
-					 AR_MCI_INTERRUPT_RX_MSG_LNA_CONTROL | \
-					 AR_MCI_INTERRUPT_RX_MSG_LNA_INFO    | \
-					 AR_MCI_INTERRUPT_RX_MSG_CONT_NACK   | \
-					 AR_MCI_INTERRUPT_RX_MSG_CONT_INFO   | \
-					 AR_MCI_INTERRUPT_RX_MSG_CONT_RST    | \
 					 AR_MCI_INTERRUPT_RX_MSG_REQ_WAKE)
 
 #define AR_MCI_CPU_INT					0x1840

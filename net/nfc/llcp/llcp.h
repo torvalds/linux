@@ -37,6 +37,7 @@ enum llcp_state {
 #define LLCP_LOCAL_NUM_SAP 32
 #define LLCP_LOCAL_SAP_OFFSET (LLCP_WKS_NUM_SAP + LLCP_SDP_NUM_SAP)
 #define LLCP_MAX_SAP (LLCP_WKS_NUM_SAP + LLCP_SDP_NUM_SAP + LLCP_LOCAL_NUM_SAP)
+#define LLCP_SDP_UNBOUND   (LLCP_MAX_SAP + 1)
 
 struct nfc_llcp_sock;
 
@@ -69,6 +70,7 @@ struct nfc_llcp_local {
 	unsigned long local_wks;      /* Well known services */
 	unsigned long local_sdp;      /* Local services  */
 	unsigned long local_sap; /* Local SAPs, not available for discovery */
+	atomic_t local_sdp_cnt[LLCP_SDP_NUM_SAP];
 
 	/* local */
 	u8 gb[NFC_MAX_GT_LEN];
@@ -112,6 +114,9 @@ struct nfc_llcp_sock {
 
 	/* Is the remote peer ready to receive */
 	u8 remote_ready;
+
+	/* Reserved source SAP */
+	u8 reserved_ssap;
 
 	struct sk_buff_head tx_queue;
 	struct sk_buff_head tx_pending_queue;

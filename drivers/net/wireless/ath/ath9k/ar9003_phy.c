@@ -99,7 +99,7 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 			channelSel = (freq * 4) / 120;
 			chan_frac = (((freq * 4) % 120) * 0x20000) / 120;
 			channelSel = (channelSel << 17) | chan_frac;
-		} else if (AR_SREV_9340(ah)) {
+		} else if (AR_SREV_9340(ah) || AR_SREV_9550(ah)) {
 			if (ah->is_clk_25mhz) {
 				u32 chan_frac;
 
@@ -113,7 +113,8 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 		/* Set to 2G mode */
 		bMode = 1;
 	} else {
-		if (AR_SREV_9340(ah) && ah->is_clk_25mhz) {
+		if ((AR_SREV_9340(ah) || AR_SREV_9550(ah)) &&
+		    ah->is_clk_25mhz) {
 			u32 chan_frac;
 
 			channelSel = (freq * 2) / 75;
@@ -180,7 +181,8 @@ static void ar9003_hw_spur_mitigate_mrc_cck(struct ath_hw *ah,
 	 * is out-of-band and can be ignored.
 	 */
 
-	if (AR_SREV_9485(ah) || AR_SREV_9340(ah) || AR_SREV_9330(ah)) {
+	if (AR_SREV_9485(ah) || AR_SREV_9340(ah) || AR_SREV_9330(ah) ||
+	    AR_SREV_9550(ah)) {
 		if (spur_fbin_ptr[0] == 0) /* No spur */
 			return;
 		max_spur_cnts = 5;
@@ -205,7 +207,8 @@ static void ar9003_hw_spur_mitigate_mrc_cck(struct ath_hw *ah,
 		if (AR_SREV_9462(ah) && (i == 0 || i == 3))
 			continue;
 		negative = 0;
-		if (AR_SREV_9485(ah) || AR_SREV_9340(ah) || AR_SREV_9330(ah))
+		if (AR_SREV_9485(ah) || AR_SREV_9340(ah) || AR_SREV_9330(ah) ||
+		    AR_SREV_9550(ah))
 			cur_bb_spur = ath9k_hw_fbin2freq(spur_fbin_ptr[i],
 							 IS_CHAN_2GHZ(chan));
 		else
@@ -618,6 +621,50 @@ static void ar9003_hw_prog_ini(struct ath_hw *ah,
 	}
 }
 
+static int ar9550_hw_get_modes_txgain_index(struct ath_hw *ah,
+					    struct ath9k_channel *chan)
+{
+	int ret;
+
+	switch (chan->chanmode) {
+	case CHANNEL_A:
+	case CHANNEL_A_HT20:
+		if (chan->channel <= 5350)
+			ret = 1;
+		else if ((chan->channel > 5350) && (chan->channel <= 5600))
+			ret = 3;
+		else
+			ret = 5;
+		break;
+
+	case CHANNEL_A_HT40PLUS:
+	case CHANNEL_A_HT40MINUS:
+		if (chan->channel <= 5350)
+			ret = 2;
+		else if ((chan->channel > 5350) && (chan->channel <= 5600))
+			ret = 4;
+		else
+			ret = 6;
+		break;
+
+	case CHANNEL_G:
+	case CHANNEL_G_HT20:
+	case CHANNEL_B:
+		ret = 8;
+		break;
+
+	case CHANNEL_G_HT40PLUS:
+	case CHANNEL_G_HT40MINUS:
+		ret = 7;
+		break;
+
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 static int ar9003_hw_process_ini(struct ath_hw *ah,
 				 struct ath9k_channel *chan)
 {
@@ -659,7 +706,22 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	}
 
 	REG_WRITE_ARRAY(&ah->iniModesRxGain, 1, regWrites);
-	REG_WRITE_ARRAY(&ah->iniModesTxGain, modesIndex, regWrites);
+	if (AR_SREV_9550(ah))
+		REG_WRITE_ARRAY(&ah->ini_modes_rx_gain_bounds, modesIndex,
+				regWrites);
+
+	if (AR_SREV_9550(ah)) {
+		int modes_txgain_index;
+
+		modes_txgain_index = ar9550_hw_get_modes_txgain_index(ah, chan);
+		if (modes_txgain_index < 0)
+			return -EINVAL;
+
+		REG_WRITE_ARRAY(&ah->iniModesTxGain, modes_txgain_index,
+				regWrites);
+	} else {
+		REG_WRITE_ARRAY(&ah->iniModesTxGain, modesIndex, regWrites);
+	}
 
 	/*
 	 * For 5GHz channels requiring Fast Clock, apply

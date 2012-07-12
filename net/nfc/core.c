@@ -29,6 +29,8 @@
 #include <linux/slab.h>
 #include <linux/nfc.h>
 
+#include <net/genetlink.h>
+
 #include "nfc.h"
 
 #define VERSION "0.1"
@@ -560,6 +562,8 @@ EXPORT_SYMBOL(nfc_alloc_recv_skb);
  * The device driver must call this function when one or many nfc targets
  * are found. After calling this function, the device driver must stop
  * polling for targets.
+ * NOTE: This function can be called with targets=NULL and n_targets=0 to
+ * notify a driver error, meaning that the polling operation cannot complete.
  * IMPORTANT: this function must not be called from an atomic context.
  * In addition, it must also not be called from a context that would prevent
  * the NFC Core to call other nfc ops entry point concurrently.
@@ -571,23 +575,33 @@ int nfc_targets_found(struct nfc_dev *dev,
 
 	pr_debug("dev_name=%s n_targets=%d\n", dev_name(&dev->dev), n_targets);
 
-	dev->polling = false;
-
 	for (i = 0; i < n_targets; i++)
 		targets[i].idx = dev->target_next_idx++;
 
 	device_lock(&dev->dev);
 
+	if (dev->polling == false) {
+		device_unlock(&dev->dev);
+		return 0;
+	}
+
+	dev->polling = false;
+
 	dev->targets_generation++;
 
 	kfree(dev->targets);
-	dev->targets = kmemdup(targets, n_targets * sizeof(struct nfc_target),
-			       GFP_ATOMIC);
+	dev->targets = NULL;
 
-	if (!dev->targets) {
-		dev->n_targets = 0;
-		device_unlock(&dev->dev);
-		return -ENOMEM;
+	if (targets) {
+		dev->targets = kmemdup(targets,
+				       n_targets * sizeof(struct nfc_target),
+				       GFP_ATOMIC);
+
+		if (!dev->targets) {
+			dev->n_targets = 0;
+			device_unlock(&dev->dev);
+			return -ENOMEM;
+		}
 	}
 
 	dev->n_targets = n_targets;
@@ -650,6 +664,12 @@ int nfc_target_lost(struct nfc_dev *dev, u32 target_idx)
 	return 0;
 }
 EXPORT_SYMBOL(nfc_target_lost);
+
+inline void nfc_driver_failure(struct nfc_dev *dev, int err)
+{
+	nfc_targets_found(dev, NULL, 0);
+}
+EXPORT_SYMBOL(nfc_driver_failure);
 
 static void nfc_release(struct device *d)
 {
@@ -906,3 +926,5 @@ MODULE_AUTHOR("Lauro Ramos Venancio <lauro.venancio@openbossa.org>");
 MODULE_DESCRIPTION("NFC Core ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_NETPROTO(PF_NFC);
+MODULE_ALIAS_GENL_FAMILY(NFC_GENL_NAME);

@@ -130,6 +130,8 @@ void ath9k_ps_restore(struct ath_softc *sc)
 				     PS_WAIT_FOR_PSPOLL_DATA |
 				     PS_WAIT_FOR_TX_ACK))) {
 		mode = ATH9K_PM_NETWORK_SLEEP;
+		if (ath9k_hw_btcoex_is_enabled(sc->sc_ah))
+			ath9k_btcoex_stop_gen_timer(sc);
 	} else {
 		goto unlock;
 	}
@@ -169,7 +171,8 @@ static void ath_restart_work(struct ath_softc *sc)
 
 	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 
-	if (AR_SREV_9485(sc->sc_ah) || AR_SREV_9340(sc->sc_ah))
+	if (AR_SREV_9340(sc->sc_ah) || AR_SREV_9485(sc->sc_ah) ||
+	    AR_SREV_9550(sc->sc_ah))
 		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work,
 				     msecs_to_jiffies(ATH_PLL_WORK_INTERVAL));
 
@@ -666,8 +669,6 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
-	ath9k_start_btcoex(sc);
-
 	if (ah->caps.pcie_lcr_extsync_en && common->bus_ops->extn_synch_en)
 		common->bus_ops->extn_synch_en(common);
 
@@ -773,8 +774,6 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	/* Ensure HW is awake when we try to shut it down. */
 	ath9k_ps_wakeup(sc);
-
-	ath9k_stop_btcoex(sc);
 
 	spin_lock_bh(&sc->sc_pcu_lock);
 
@@ -1139,14 +1138,17 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
 		sc->ps_idle = !!(conf->flags & IEEE80211_CONF_IDLE);
-		if (sc->ps_idle)
+		if (sc->ps_idle) {
 			ath_cancel_work(sc);
-		else
+			ath9k_stop_btcoex(sc);
+		} else {
+			ath9k_start_btcoex(sc);
 			/*
 			 * The chip needs a reset to properly wake up from
 			 * full sleep
 			 */
 			reset_channel = ah->chip_fullsleep;
+		}
 	}
 
 	/*

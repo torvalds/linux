@@ -1015,12 +1015,9 @@ void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool force)
 		return;
 
 	if (mci->is_2g) {
-		if (!force) {
-			ar9003_mci_send_2g5g_status(ah, true);
-
-			ar9003_mci_send_lna_transfer(ah, true);
-			udelay(5);
-		}
+		ar9003_mci_send_2g5g_status(ah, true);
+		ar9003_mci_send_lna_transfer(ah, true);
+		udelay(5);
 
 		REG_CLR_BIT(ah, AR_MCI_TX_CTRL,
 			    AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
@@ -1030,10 +1027,8 @@ void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool force)
 		if (!(mci->config & ATH_MCI_CONFIG_DISABLE_OSLA))
 			ar9003_mci_osla_setup(ah, true);
 	} else {
-		if (!force) {
-			ar9003_mci_send_lna_take(ah, true);
-			udelay(5);
-		}
+		ar9003_mci_send_lna_take(ah, true);
+		udelay(5);
 
 		REG_SET_BIT(ah, AR_MCI_TX_CTRL,
 			    AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
@@ -1041,8 +1036,7 @@ void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool force)
 			    AR_BTCOEX_CTRL_BT_OWN_SPDT_CTRL);
 
 		ar9003_mci_osla_setup(ah, false);
-		if (!force)
-			ar9003_mci_send_2g5g_status(ah, true);
+		ar9003_mci_send_2g5g_status(ah, true);
 	}
 }
 

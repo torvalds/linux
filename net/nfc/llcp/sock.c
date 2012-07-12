@@ -78,10 +78,10 @@ static int llcp_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	struct sockaddr_nfc_llcp llcp_addr;
 	int len, ret = 0;
 
-	pr_debug("sk %p addr %p family %d\n", sk, addr, addr->sa_family);
-
 	if (!addr || addr->sa_family != AF_NFC)
 		return -EINVAL;
+
+	pr_debug("sk %p addr %p family %d\n", sk, addr, addr->sa_family);
 
 	memset(&llcp_addr, 0, sizeof(llcp_addr));
 	len = min_t(unsigned int, sizeof(llcp_addr), alen);
@@ -121,8 +121,12 @@ static int llcp_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 					  GFP_KERNEL);
 
 	llcp_sock->ssap = nfc_llcp_get_sdp_ssap(local, llcp_sock);
-	if (llcp_sock->ssap == LLCP_MAX_SAP)
+	if (llcp_sock->ssap == LLCP_SAP_MAX) {
+		ret = -EADDRINUSE;
 		goto put_dev;
+	}
+
+	llcp_sock->reserved_ssap = llcp_sock->ssap;
 
 	nfc_llcp_sock_link(&local->sockets, sk);
 
@@ -283,22 +287,28 @@ error:
 	return ret;
 }
 
-static int llcp_sock_getname(struct socket *sock, struct sockaddr *addr,
+static int llcp_sock_getname(struct socket *sock, struct sockaddr *uaddr,
 			     int *len, int peer)
 {
-	struct sockaddr_nfc_llcp *llcp_addr = (struct sockaddr_nfc_llcp *)addr;
 	struct sock *sk = sock->sk;
 	struct nfc_llcp_sock *llcp_sock = nfc_llcp_sock(sk);
-
-	pr_debug("%p\n", sk);
+	DECLARE_SOCKADDR(struct sockaddr_nfc_llcp *, llcp_addr, uaddr);
 
 	if (llcp_sock == NULL || llcp_sock->dev == NULL)
 		return -EBADFD;
 
-	addr->sa_family = AF_NFC;
+	pr_debug("%p %d %d %d\n", sk, llcp_sock->target_idx,
+		 llcp_sock->dsap, llcp_sock->ssap);
+
+	if (llcp_sock == NULL || llcp_sock->dev == NULL)
+		return -EBADFD;
+
+	uaddr->sa_family = AF_NFC;
+
 	*len = sizeof(struct sockaddr_nfc_llcp);
 
 	llcp_addr->dev_idx = llcp_sock->dev->idx;
+	llcp_addr->target_idx = llcp_sock->target_idx;
 	llcp_addr->dsap = llcp_sock->dsap;
 	llcp_addr->ssap = llcp_sock->ssap;
 	llcp_addr->service_name_len = llcp_sock->service_name_len;
@@ -406,7 +416,8 @@ static int llcp_sock_release(struct socket *sock)
 		}
 	}
 
-	nfc_llcp_put_ssap(llcp_sock->local, llcp_sock->ssap);
+	if (llcp_sock->reserved_ssap < LLCP_SAP_MAX)
+		nfc_llcp_put_ssap(llcp_sock->local, llcp_sock->ssap);
 
 	release_sock(sk);
 
@@ -486,6 +497,9 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 		ret = -ENOMEM;
 		goto put_dev;
 	}
+
+	llcp_sock->reserved_ssap = llcp_sock->ssap;
+
 	if (addr->service_name_len == 0)
 		llcp_sock->dsap = addr->dsap;
 	else
@@ -687,6 +701,7 @@ struct sock *nfc_llcp_sock_alloc(struct socket *sock, int type, gfp_t gfp)
 	llcp_sock->send_n = llcp_sock->send_ack_n = 0;
 	llcp_sock->recv_n = llcp_sock->recv_ack_n = 0;
 	llcp_sock->remote_ready = 1;
+	llcp_sock->reserved_ssap = LLCP_SAP_MAX;
 	skb_queue_head_init(&llcp_sock->tx_queue);
 	skb_queue_head_init(&llcp_sock->tx_pending_queue);
 	skb_queue_head_init(&llcp_sock->tx_backlog_queue);

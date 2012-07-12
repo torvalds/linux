@@ -194,7 +194,7 @@ static void nci_rf_discover_req(struct nci_dev *ndev, unsigned long opt)
 	}
 
 	if ((cmd.num_disc_configs < NCI_MAX_NUM_RF_CONFIGS) &&
-	    (protocols & NFC_PROTO_ISO14443_MASK)) {
+	    (protocols & NFC_PROTO_ISO14443_B_MASK)) {
 		cmd.disc_configs[cmd.num_disc_configs].rf_tech_and_mode =
 			NCI_NFC_B_PASSIVE_POLL_MODE;
 		cmd.disc_configs[cmd.num_disc_configs].frequency = 1;
@@ -486,7 +486,8 @@ static int nci_activate_target(struct nfc_dev *nfc_dev,
 			param.rf_protocol = NCI_RF_PROTOCOL_T2T;
 		else if (protocol == NFC_PROTO_FELICA)
 			param.rf_protocol = NCI_RF_PROTOCOL_T3T;
-		else if (protocol == NFC_PROTO_ISO14443)
+		else if (protocol == NFC_PROTO_ISO14443 ||
+			 protocol == NFC_PROTO_ISO14443_B)
 			param.rf_protocol = NCI_RF_PROTOCOL_ISO_DEP;
 		else
 			param.rf_protocol = NCI_RF_PROTOCOL_NFC_DEP;

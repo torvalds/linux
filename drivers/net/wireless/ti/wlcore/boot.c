@@ -81,6 +81,53 @@ out:
 	return ret;
 }
 
+static int wlcore_validate_fw_ver(struct wl1271 *wl)
+{
+	unsigned int *fw_ver = wl->chip.fw_ver;
+	unsigned int *min_ver = wl->min_fw_ver;
+
+	/* the chip must be exactly equal */
+	if (min_ver[FW_VER_CHIP] != fw_ver[FW_VER_CHIP])
+		goto fail;
+
+	/* always check the next digit if all previous ones are equal */
+
+	if (min_ver[FW_VER_IF_TYPE] < fw_ver[FW_VER_IF_TYPE])
+		goto out;
+	else if (min_ver[FW_VER_IF_TYPE] > fw_ver[FW_VER_IF_TYPE])
+		goto fail;
+
+	if (min_ver[FW_VER_MAJOR] < fw_ver[FW_VER_MAJOR])
+		goto out;
+	else if (min_ver[FW_VER_MAJOR] > fw_ver[FW_VER_MAJOR])
+		goto fail;
+
+	if (min_ver[FW_VER_SUBTYPE] < fw_ver[FW_VER_SUBTYPE])
+		goto out;
+	else if (min_ver[FW_VER_SUBTYPE] > fw_ver[FW_VER_SUBTYPE])
+		goto fail;
+
+	if (min_ver[FW_VER_MINOR] < fw_ver[FW_VER_MINOR])
+		goto out;
+	else if (min_ver[FW_VER_MINOR] > fw_ver[FW_VER_MINOR])
+		goto fail;
+
+out:
+	return 0;
+
+fail:
+	wl1271_error("Your WiFi FW version (%u.%u.%u.%u.%u) is outdated.\n"
+		     "Please use at least FW %u.%u.%u.%u.%u.\n"
+		     "You can get more information at:\n"
+		     "http://wireless.kernel.org/en/users/Drivers/wl12xx",
+		     fw_ver[FW_VER_CHIP], fw_ver[FW_VER_IF_TYPE],
+		     fw_ver[FW_VER_MAJOR], fw_ver[FW_VER_SUBTYPE],
+		     fw_ver[FW_VER_MINOR], min_ver[FW_VER_CHIP],
+		     min_ver[FW_VER_IF_TYPE], min_ver[FW_VER_MAJOR],
+		     min_ver[FW_VER_SUBTYPE], min_ver[FW_VER_MINOR]);
+	return -EINVAL;
+}
+
 static int wlcore_boot_static_data(struct wl1271 *wl)
 {
 	struct wl1271_static_data *static_data;
@@ -98,6 +145,10 @@ static int wlcore_boot_static_data(struct wl1271 *wl)
 		goto out_free;
 
 	ret = wlcore_boot_parse_fw_ver(wl, static_data);
+	if (ret < 0)
+		goto out_free;
+
+	ret = wlcore_validate_fw_ver(wl);
 	if (ret < 0)
 		goto out_free;
 
@@ -141,7 +192,7 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 	partition.mem.start = dest;
 	ret = wlcore_set_partition(wl, &partition);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	/* 10.1 set partition limit and chunk num */
 	chunk_num = 0;
@@ -157,7 +208,7 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 			partition.mem.start = addr;
 			ret = wlcore_set_partition(wl, &partition);
 			if (ret < 0)
-				return ret;
+				goto out;
 		}
 
 		/* 10.3 upload the chunk */

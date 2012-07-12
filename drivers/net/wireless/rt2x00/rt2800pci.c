@@ -986,7 +986,7 @@ static int rt2800_enable_wlan_rt3290(struct rt2x00_dev *rt2x00dev)
 	int i, count;
 
 	rt2800_register_read(rt2x00dev, WLAN_FUN_CTRL, &reg);
-	if ((rt2x00_get_field32(reg, WLAN_EN) == 1))
+	if (rt2x00_get_field32(reg, WLAN_EN))
 		return 0;
 
 	rt2x00_set_field32(&reg, WLAN_GPIO_OUT_OE_BIT_ALL, 0xff);
@@ -1004,9 +1004,9 @@ static int rt2800_enable_wlan_rt3290(struct rt2x00_dev *rt2x00dev)
 		 */
 		for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
 			rt2800_register_read(rt2x00dev, CMB_CTRL, &reg);
-			if ((rt2x00_get_field32(reg, PLL_LD) == 1) &&
-				(rt2x00_get_field32(reg, XTAL_RDY) == 1))
-					break;
+			if (rt2x00_get_field32(reg, PLL_LD) &&
+			    rt2x00_get_field32(reg, XTAL_RDY))
+				break;
 			udelay(REGISTER_BUSY_DELAY);
 		}
 

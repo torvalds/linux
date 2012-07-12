@@ -35,15 +35,6 @@
 #include "conf.h"
 #include "ini.h"
 
-#define WL127X_FW_NAME_MULTI "ti-connectivity/wl127x-fw-4-mr.bin"
-#define WL127X_FW_NAME_SINGLE "ti-connectivity/wl127x-fw-4-sr.bin"
-
-#define WL128X_FW_NAME_MULTI "ti-connectivity/wl128x-fw-4-mr.bin"
-#define WL128X_FW_NAME_SINGLE "ti-connectivity/wl128x-fw-4-sr.bin"
-
-#define WL127X_PLT_FW_NAME "ti-connectivity/wl127x-fw-4-plt.bin"
-#define WL128X_PLT_FW_NAME "ti-connectivity/wl128x-fw-4-plt.bin"
-
 /*
  * wl127x and wl128x are using the same NVS file name. However, the
  * ini parameters between them are different.  The driver validates
@@ -70,6 +61,9 @@
 #define WL12XX_MAX_LINKS           12
 #define WL12XX_INVALID_ROLE_ID     0xff
 #define WL12XX_INVALID_LINK_ID     0xff
+
+/* the driver supports the 2.4Ghz and 5Ghz bands */
+#define WLCORE_NUM_BANDS           2
 
 #define WL12XX_MAX_RATE_POLICIES 16
 
@@ -247,7 +241,7 @@ enum wl12xx_flags {
 	WL1271_FLAG_RECOVERY_IN_PROGRESS,
 	WL1271_FLAG_VIF_CHANGE_IN_PROGRESS,
 	WL1271_FLAG_INTENDED_FW_RECOVERY,
-	WL1271_FLAG_SDIO_FAILED,
+	WL1271_FLAG_IO_FAILED,
 };
 
 enum wl12xx_vif_flags {
@@ -369,7 +363,7 @@ struct wl12xx_vif {
 	int channel;
 	enum nl80211_channel_type channel_type;
 
-	u32 bitrate_masks[IEEE80211_NUM_BANDS];
+	u32 bitrate_masks[WLCORE_NUM_BANDS];
 	u32 basic_rate_set;
 
 	/*

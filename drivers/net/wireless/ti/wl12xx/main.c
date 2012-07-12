@@ -242,7 +242,7 @@ static struct wlcore_conf wl12xx_conf = {
 		.psm_entry_retries           = 8,
 		.psm_exit_retries            = 16,
 		.psm_entry_nullfunc_retries  = 3,
-		.dynamic_ps_timeout          = 200,
+		.dynamic_ps_timeout          = 1500,
 		.forced_ps                   = false,
 		.keep_alive_interval         = 55000,
 		.max_listen_interval         = 20,
@@ -590,13 +590,13 @@ static const int wl12xx_rtable[REG_TABLE_LEN] = {
 };
 
 /* TODO: maybe move to a new header file? */
-#define WL127X_FW_NAME_MULTI	"ti-connectivity/wl127x-fw-4-mr.bin"
-#define WL127X_FW_NAME_SINGLE	"ti-connectivity/wl127x-fw-4-sr.bin"
-#define WL127X_PLT_FW_NAME	"ti-connectivity/wl127x-fw-4-plt.bin"
+#define WL127X_FW_NAME_MULTI	"ti-connectivity/wl127x-fw-5-mr.bin"
+#define WL127X_FW_NAME_SINGLE	"ti-connectivity/wl127x-fw-5-sr.bin"
+#define WL127X_PLT_FW_NAME	"ti-connectivity/wl127x-fw-5-plt.bin"
 
-#define WL128X_FW_NAME_MULTI	"ti-connectivity/wl128x-fw-4-mr.bin"
-#define WL128X_FW_NAME_SINGLE	"ti-connectivity/wl128x-fw-4-sr.bin"
-#define WL128X_PLT_FW_NAME	"ti-connectivity/wl128x-fw-4-plt.bin"
+#define WL128X_FW_NAME_MULTI	"ti-connectivity/wl128x-fw-5-mr.bin"
+#define WL128X_FW_NAME_SINGLE	"ti-connectivity/wl128x-fw-5-sr.bin"
+#define WL128X_PLT_FW_NAME	"ti-connectivity/wl128x-fw-5-plt.bin"
 
 static int wl127x_prepare_read(struct wl1271 *wl, u32 rx_desc, u32 len)
 {
@@ -637,6 +637,7 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 			       wl->chip.id);
 
 		wl->quirks |= WLCORE_QUIRK_LEGACY_NVS |
+			      WLCORE_QUIRK_DUAL_PROBE_TMPL |
 			      WLCORE_QUIRK_TKIP_HEADER_SPACE;
 		wl->sr_fw_name = WL127X_FW_NAME_SINGLE;
 		wl->mr_fw_name = WL127X_FW_NAME_MULTI;
@@ -646,6 +647,9 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		/* read data preparation is only needed by wl127x */
 		wl->ops->prepare_read = wl127x_prepare_read;
 
+		wlcore_set_min_fw_ver(wl, WL127X_CHIP_VER, WL127X_IFTYPE_VER,
+				      WL127X_MAJOR_VER, WL127X_SUBTYPE_VER,
+				      WL127X_MINOR_VER);
 		break;
 
 	case CHIP_ID_1271_PG20:
@@ -653,6 +657,7 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 			     wl->chip.id);
 
 		wl->quirks |= WLCORE_QUIRK_LEGACY_NVS |
+			      WLCORE_QUIRK_DUAL_PROBE_TMPL |
 			      WLCORE_QUIRK_TKIP_HEADER_SPACE;
 		wl->plt_fw_name = WL127X_PLT_FW_NAME;
 		wl->sr_fw_name = WL127X_FW_NAME_SINGLE;
@@ -663,6 +668,9 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		/* read data preparation is only needed by wl127x */
 		wl->ops->prepare_read = wl127x_prepare_read;
 
+		wlcore_set_min_fw_ver(wl, WL127X_CHIP_VER, WL127X_IFTYPE_VER,
+				      WL127X_MAJOR_VER, WL127X_SUBTYPE_VER,
+				      WL127X_MINOR_VER);
 		break;
 
 	case CHIP_ID_1283_PG20:
@@ -674,8 +682,12 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 
 		/* wl128x requires TX blocksize alignment */
 		wl->quirks |= WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN |
+			      WLCORE_QUIRK_DUAL_PROBE_TMPL |
 			      WLCORE_QUIRK_TKIP_HEADER_SPACE;
 
+		wlcore_set_min_fw_ver(wl, WL128X_CHIP_VER, WL128X_IFTYPE_VER,
+				      WL128X_MAJOR_VER, WL128X_SUBTYPE_VER,
+				      WL128X_MINOR_VER);
 		break;
 	case CHIP_ID_1283_PG10:
 	default:

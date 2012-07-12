@@ -475,7 +475,7 @@ enum mac80211_rate_control_flags {
 #define IEEE80211_TX_INFO_RATE_DRIVER_DATA_SIZE 24
 
 /* maximum number of rate stages */
-#define IEEE80211_TX_MAX_RATES	5
+#define IEEE80211_TX_MAX_RATES	4
 
 /**
  * struct ieee80211_tx_rate - rate selection/status
@@ -563,11 +563,11 @@ struct ieee80211_tx_info {
 		} control;
 		struct {
 			struct ieee80211_tx_rate rates[IEEE80211_TX_MAX_RATES];
-			u8 ampdu_ack_len;
 			int ack_signal;
+			u8 ampdu_ack_len;
 			u8 ampdu_len;
 			u8 antenna;
-			/* 14 bytes free */
+			/* 21 bytes free */
 		} status;
 		struct {
 			struct ieee80211_tx_rate driver_rates[
@@ -634,7 +634,7 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
 		info->status.rates[i].count = 0;
 
 	BUILD_BUG_ON(
-	    offsetof(struct ieee80211_tx_info, status.ampdu_ack_len) != 23);
+	    offsetof(struct ieee80211_tx_info, status.ack_signal) != 20);
 	memset(&info->status.ampdu_ack_len, 0,
 	       sizeof(struct ieee80211_tx_info) -
 	       offsetof(struct ieee80211_tx_info, status.ampdu_ack_len));
@@ -1896,19 +1896,6 @@ enum ieee80211_rate_control_changed {
  *	The low-level driver should send the frame out based on
  *	configuration in the TX control data. This handler should,
  *	preferably, never fail and stop queues appropriately.
- *	This must be implemented if @tx_frags is not.
- *	Must be atomic.
- *
- * @tx_frags: Called to transmit multiple fragments of a single MSDU.
- *	This handler must consume all fragments, sending out some of
- *	them only is useless and it can't ask for some of them to be
- *	queued again. If the frame is not fragmented the queue has a
- *	single SKB only. To avoid issues with the networking stack
- *	when TX status is reported the frames should be removed from
- *	the skb queue.
- *	If this is used, the tx_info @vif and @sta pointers will be
- *	invalid -- you must not use them in that case.
- *	This must be implemented if @tx isn't.
  *	Must be atomic.
  *
  * @start: Called before the first netdevice attached to the hardware
@@ -2257,11 +2244,21 @@ enum ieee80211_rate_control_changed {
  * @get_rssi: Get current signal strength in dBm, the function is optional
  *	and can sleep.
  *
+ * @mgd_prepare_tx: Prepare for transmitting a management frame for association
+ *	before associated. In multi-channel scenarios, a virtual interface is
+ *	bound to a channel before it is associated, but as it isn't associated
+ *	yet it need not necessarily be given airtime, in particular since any
+ *	transmission to a P2P GO needs to be synchronized against the GO's
+ *	powersave state. mac80211 will call this function before transmitting a
+ *	management frame prior to having successfully associated to allow the
+ *	driver to give it channel time for the transmission, to get a response
+ *	and to be able to synchronize with the GO.
+ *	The callback will be called before each transmission and upon return
+ *	mac80211 will transmit the frame right away.
+ *	The callback is optional and can (should!) sleep.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
-	void (*tx_frags)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			 struct ieee80211_sta *sta, struct sk_buff_head *skbs);
 	int (*start)(struct ieee80211_hw *hw);
 	void (*stop)(struct ieee80211_hw *hw);
 #ifdef CONFIG_PM
@@ -2398,6 +2395,9 @@ struct ieee80211_ops {
 				  u32 sset, u8 *data);
 	int	(*get_rssi)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, s8 *rssi_dbm);
+
+	void	(*mgd_prepare_tx)(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif);
 };
 
 /**
@@ -3831,12 +3831,6 @@ void ieee80211_enable_rssi_reports(struct ieee80211_vif *vif,
 				   int rssi_max_thold);
 
 void ieee80211_disable_rssi_reports(struct ieee80211_vif *vif);
-
-int ieee80211_add_srates_ie(struct ieee80211_vif *vif,
-			    struct sk_buff *skb, bool need_basic);
-
-int ieee80211_add_ext_srates_ie(struct ieee80211_vif *vif,
-				struct sk_buff *skb, bool need_basic);
 
 /**
  * ieee80211_ave_rssi - report the average rssi for the specified interface
