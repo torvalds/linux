@@ -2716,6 +2716,44 @@ err:
 	return status;
 }
 
+int be_cmd_query_port_name(struct be_adapter *adapter, u8 *port_name)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_get_port_name *req;
+	int status;
+
+	if (!lancer_chip(adapter)) {
+		*port_name = adapter->hba_port_num + '0';
+		return 0;
+	}
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = embedded_payload(wrb);
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_GET_PORT_NAME, sizeof(*req), wrb,
+			       NULL);
+	req->hdr.version = 1;
+
+	status = be_mcc_notify_wait(adapter);
+	if (!status) {
+		struct be_cmd_resp_get_port_name *resp = embedded_payload(wrb);
+		*port_name = resp->port_name[adapter->hba_port_num];
+	} else {
+		*port_name = adapter->hba_port_num + '0';
+	}
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
 int be_roce_mcc_cmd(void *netdev_handle, void *wrb_payload,
 			int wrb_payload_size, u16 *cmd_status, u16 *ext_status)
 {

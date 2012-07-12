@@ -3797,6 +3797,7 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	int status = 0;
 	struct be_adapter *adapter;
 	struct net_device *netdev;
+	char port_name;
 
 	status = pci_enable_device(pdev);
 	if (status)
@@ -3887,8 +3888,11 @@ static int __devinit be_probe(struct pci_dev *pdev,
 
 	schedule_delayed_work(&adapter->func_recovery_work,
 			      msecs_to_jiffies(1000));
-	dev_info(&pdev->dev, "%s: %s port %d\n", netdev->name, nic_name(pdev),
-		adapter->port_num);
+
+	be_cmd_query_port_name(adapter, &port_name);
+
+	dev_info(&pdev->dev, "%s: %s port %c\n", netdev->name, nic_name(pdev),
+		 port_name);
 
 	return 0;
 

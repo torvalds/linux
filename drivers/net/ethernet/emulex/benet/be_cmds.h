@@ -186,6 +186,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_ENABLE_DISABLE_BEACON		69
 #define OPCODE_COMMON_GET_BEACON_STATE			70
 #define OPCODE_COMMON_READ_TRANSRECV_DATA		73
+#define OPCODE_COMMON_GET_PORT_NAME			77
 #define OPCODE_COMMON_GET_PHY_DETAILS			102
 #define OPCODE_COMMON_SET_DRIVER_FUNCTION_CAP		103
 #define OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES	121
@@ -1506,6 +1507,17 @@ struct be_cmd_resp_get_hsw_config {
 	u32 rsvd;
 };
 
+/******************* get port names ***************/
+struct be_cmd_req_get_port_name {
+	struct be_cmd_req_hdr hdr;
+	u32 rsvd0;
+};
+
+struct be_cmd_resp_get_port_name {
+	struct be_cmd_req_hdr hdr;
+	u8 port_name[4];
+};
+
 /*************** HW Stats Get v1 **********************************/
 #define BE_TXP_SW_SZ			48
 struct be_port_rxf_stats_v1 {
@@ -1772,4 +1784,5 @@ extern int be_cmd_set_ext_fat_capabilites(struct be_adapter *adapter,
 					  struct be_fat_conf_params *cfgs);
 extern int lancer_wait_ready(struct be_adapter *adapter);
 extern int lancer_test_and_set_rdy_state(struct be_adapter *adapter);
+extern int be_cmd_query_port_name(struct be_adapter *adapter, u8 *port_name);
 
