@@ -440,7 +440,7 @@ static int ql_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 	unsigned short ssys_dev = qdev->pdev->subsystem_device;
 
 	/* WOL is only supported for mezz card. */
-	if (ssys_dev != QLGE_MEZZ_SSYS_ID_068 ||
+	if (ssys_dev != QLGE_MEZZ_SSYS_ID_068 &&
 			ssys_dev != QLGE_MEZZ_SSYS_ID_180) {
 		netif_info(qdev, drv, qdev->ndev,
 				"WOL is only supported for mezz card\n");
