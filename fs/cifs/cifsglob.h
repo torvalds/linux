@@ -43,6 +43,7 @@
 
 #define CIFS_MIN_RCV_POOL 4
 
+#define MAX_REOPEN_ATT	5 /* these many maximum attempts to reopen a file */
 /*
  * default attribute cache timeout (jiffies)
  */

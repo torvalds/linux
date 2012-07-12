@@ -206,7 +206,7 @@ static const struct usb_device_id moschip_port_id_table[] = {
 	{}			/* terminating entry */
 };
 
-static const struct usb_device_id moschip_id_table_combined[] __devinitconst = {
+static const struct usb_device_id moschip_id_table_combined[] = {
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7840)},
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7820)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USO9ML2_2)},
