@@ -78,6 +78,10 @@ config S5P_HRT
 
 # clock options
 
+config SAMSUNG_CLOCK
+	bool
+	default y if !COMMON_CLK
+
 config SAMSUNG_CLKSRC
 	bool
 	help
