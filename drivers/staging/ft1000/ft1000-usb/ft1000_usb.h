@@ -142,8 +142,8 @@ struct ft1000_info {
 
 
 struct dpram_blk {
-    struct list_head list;
-    u16 *pbuffer;
+	struct list_head list;
+	u16 *pbuffer;
 } __attribute__ ((packed));
 
 int ft1000_read_register(struct ft1000_device *ft1000dev, u16* Data, u16 nRegIndx);
