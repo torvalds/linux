@@ -422,4 +422,14 @@ int omap_bandgap_set_sensor_data(struct omap_bandgap *bg_ptr, int id,
 				 void *data);
 void *omap_bandgap_get_sensor_data(struct omap_bandgap *bg_ptr, int id);
 
+#ifdef CONFIG_OMAP4_THERMAL
+extern const struct omap_bandgap_data omap4430_data;
+extern const struct omap_bandgap_data omap4460_data;
+extern const struct omap_bandgap_data omap4470_data;
+#else
+#define omap4430_data					NULL
+#define omap4460_data					NULL
+#define omap4470_data					NULL
+#endif
+
 #endif

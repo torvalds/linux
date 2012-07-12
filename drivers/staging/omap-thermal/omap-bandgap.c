@@ -1144,6 +1144,20 @@ static const struct dev_pm_ops omap_bandgap_dev_pm_ops = {
 #endif
 
 static const struct of_device_id of_omap_bandgap_match[] = {
+#ifdef CONFIG_OMAP4_THERMAL
+	{
+		.compatible = "ti,omap4430-bandgap",
+		.data = (void *)&omap4430_data,
+	},
+	{
+		.compatible = "ti,omap4460-bandgap",
+		.data = (void *)&omap4460_data,
+	},
+	{
+		.compatible = "ti,omap4470-bandgap",
+		.data = (void *)&omap4470_data,
+	},
+#endif
 	/* Sentinel */
 	{ },
 };
