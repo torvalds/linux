@@ -1232,6 +1232,7 @@ static int musb_gadget_disable(struct usb_ep *ep)
 	}
 
 	musb_ep->desc = NULL;
+	musb_ep->end_point.desc = NULL;
 
 	/* abort all pending DMA and requests */
 	nuke(musb_ep, -ESHUTDOWN);

@@ -169,11 +169,18 @@ static struct pci_ops pci_versatile_ops = {
 	.write	= versatile_write_config,
 };
 
+static struct resource io_port = {
+	.name	= "PCI",
+	.start	= 0,
+	.end	= IO_SPACE_LIMIT,
+	.flags	= IORESOURCE_IO,
+};
+
 static struct resource io_mem = {
 	.name	= "PCI I/O space",
 	.start	= VERSATILE_PCI_MEM_BASE0,
 	.end	= VERSATILE_PCI_MEM_BASE0+VERSATILE_PCI_MEM_BASE0_SIZE-1,
-	.flags	= IORESOURCE_IO,
+	.flags	= IORESOURCE_MEM,
 };
 
 static struct resource non_mem = {
@@ -200,6 +207,12 @@ static int __init pci_versatile_setup_resources(struct pci_sys_data *sys)
 		       "memory region (%d)\n", ret);
 		goto out;
 	}
+	ret = request_resource(&ioport_resource, &io_port);
+	if (ret) {
+		printk(KERN_ERR "PCI: unable to allocate I/O "
+		       "port region (%d)\n", ret);
+		goto out;
+	}
 	ret = request_resource(&iomem_resource, &non_mem);
 	if (ret) {
 		printk(KERN_ERR "PCI: unable to allocate non-prefetchable "
@@ -218,7 +231,7 @@ static int __init pci_versatile_setup_resources(struct pci_sys_data *sys)
 	 * the mem resource for this bus
 	 * the prefetch mem resource for this bus
 	 */
-	pci_add_resource_offset(&sys->resources, &io_mem, sys->io_offset);
+	pci_add_resource_offset(&sys->resources, &io_port, sys->io_offset);
 	pci_add_resource_offset(&sys->resources, &non_mem, sys->mem_offset);
 	pci_add_resource_offset(&sys->resources, &pre_mem, sys->mem_offset);
 
@@ -249,6 +262,7 @@ int __init pci_versatile_setup(int nr, struct pci_sys_data *sys)
 
 	if (nr == 0) {
 		sys->mem_offset = 0;
+		sys->io_offset = 0;
 		ret = pci_versatile_setup_resources(sys);
 		if (ret < 0) {
 			printk("pci_versatile_setup: resources... oops?\n");

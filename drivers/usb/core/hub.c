@@ -3379,7 +3379,7 @@ int usb_disable_lpm(struct usb_device *udev)
 		return 0;
 
 	udev->lpm_disable_count++;
-	if ((udev->u1_params.timeout == 0 && udev->u1_params.timeout == 0))
+	if ((udev->u1_params.timeout == 0 && udev->u2_params.timeout == 0))
 		return 0;
 
 	/* If LPM is enabled, attempt to disable it. */
