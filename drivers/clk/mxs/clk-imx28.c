@@ -329,6 +329,10 @@ int __init mx28_clocks_init(void)
 	clk_register_clkdevs(clks[fec], fec_lookups, ARRAY_SIZE(fec_lookups));
 	clk_register_clkdevs(clks[can0], can0_lookups, ARRAY_SIZE(can0_lookups));
 	clk_register_clkdevs(clks[can1], can1_lookups, ARRAY_SIZE(can1_lookups));
+	clk_register_clkdev(clks[usb0_pwr], NULL, "8007c000.usbphy");
+	clk_register_clkdev(clks[usb1_pwr], NULL, "8007e000.usbphy");
+	clk_register_clkdev(clks[usb0], NULL, "80080000.usb");
+	clk_register_clkdev(clks[usb1], NULL, "80090000.usb");
 
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
 		clk_prepare_enable(clks[clks_init_on[i]]);
