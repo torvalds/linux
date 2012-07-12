@@ -60,6 +60,8 @@
 						0x31c3 /* MX28_PAD_PWM3__GPIO_3_28 */
 						0x31e3 /* MX28_PAD_LCD_RESET__GPIO_3_30 */
 						0x3053 /* MX28_PAD_AUART1_TX__GPIO_3_5 */
+						0x3083 /* MX28_PAD_AUART2_RX__GPIO_3_8 */
+						0x3093 /* MX28_PAD_AUART2_TX__GPIO_3_9 */
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
@@ -163,10 +165,28 @@
 				pinctrl-0 = <&auart3_pins_a>;
 				status = "okay";
 			};
+
+			usbphy0: usbphy@8007c000 {
+				status = "okay";
+			};
+
+			usbphy1: usbphy@8007e000 {
+				status = "okay";
+			};
 		};
 	};
 
 	ahb@80080000 {
+		usb0: usb@80080000 {
+			vbus-supply = <&reg_usb0_vbus>;
+			status = "okay";
+		};
+
+		usb1: usb@80090000 {
+			vbus-supply = <&reg_usb1_vbus>;
+			status = "okay";
+		};
+
 		mac0: ethernet@800f0000 {
 			phy-mode = "rmii";
 			pinctrl-names = "default";
@@ -210,6 +230,24 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio2 15 0>;
+		};
+
+		reg_usb0_vbus: usb0_vbus {
+			compatible = "regulator-fixed";
+			regulator-name = "usb0_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio3 9 0>;
+			enable-active-high;
+		};
+
+		reg_usb1_vbus: usb1_vbus {
+			compatible = "regulator-fixed";
+			regulator-name = "usb1_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio3 8 0>;
+			enable-active-high;
 		};
 	};
 
