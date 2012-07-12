@@ -1022,6 +1022,7 @@ static struct dtv_cmds_h dtv_cmds[DTV_MAX_COMMAND + 1] = {
 
 	_DTV_CMD(DTV_STREAM_ID, 1, 0),
 	_DTV_CMD(DTV_DVBT2_PLP_ID_LEGACY, 1, 0),
+	_DTV_CMD(DTV_LNA, 1, 0),
 
 	/* Get */
 	_DTV_CMD(DTV_DISEQC_SLAVE_REPLY, 0, 1),
@@ -1729,6 +1730,10 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 		break;
 	case DTV_INTERLEAVING:
 		c->interleaving = tvp->u.data;
+		break;
+	case DTV_LNA:
+		if (fe->ops.set_lna)
+			r = fe->ops.set_lna(fe, tvp->u.data);
 		break;
 
 	/* ISDB-T Support here */

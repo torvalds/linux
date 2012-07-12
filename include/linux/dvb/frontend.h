@@ -363,8 +363,9 @@ struct dvb_frontend_event {
 #define DTV_ATSCMH_SCCC_CODE_MODE_D	59
 
 #define DTV_INTERLEAVING			60
+#define DTV_LNA					61
 
-#define DTV_MAX_COMMAND				DTV_INTERLEAVING
+#define DTV_MAX_COMMAND				DTV_LNA
 
 typedef enum fe_pilot {
 	PILOT_ON,
@@ -438,6 +439,7 @@ enum atscmh_rs_code_mode {
 };
 
 #define NO_STREAM_ID_FILTER	(~0U)
+#define LNA_AUTO                (~0U)
 
 struct dtv_cmds_h {
 	char	*name;		/* A display name for debugging purposes */
