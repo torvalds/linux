@@ -441,11 +441,14 @@ static bool ftmac100_rx_packet(struct ftmac100 *priv, int *processed)
 	skb->len += length;
 	skb->data_len += length;
 
-	/* page might be freed in __pskb_pull_tail() */
-	if (length > 64)
+	if (length > 128) {
 		skb->truesize += PAGE_SIZE;
-	__pskb_pull_tail(skb, min(length, 64));
-
+		/* We pull the minimum amount into linear part */
+		__pskb_pull_tail(skb, ETH_HLEN);
+	} else {
+		/* Small frames are copied into linear part to free one page */
+		__pskb_pull_tail(skb, length);
+	}
 	ftmac100_alloc_rx_page(priv, rxdes, GFP_ATOMIC);
 
 	ftmac100_rx_pointer_advance(priv);
