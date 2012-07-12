@@ -304,7 +304,7 @@ static void exynos_dp_link_start(struct exynos_dp_device *dp)
 		buf[lane] = DPCD_PRE_EMPHASIS_PATTERN2_LEVEL0 |
 			    DPCD_VOLTAGE_SWING_PATTERN1_LEVEL0;
 	exynos_dp_write_bytes_to_dpcd(dp,
-		DPCD_ADDR_TRAINING_PATTERN_SET,
+		DPCD_ADDR_TRAINING_LANE0_SET,
 		lane_count, buf);
 }
 
@@ -504,7 +504,7 @@ static int exynos_dp_process_clock_recovery(struct exynos_dp_device *dp)
 		buf[0] = DPCD_SCRAMBLING_DISABLED |
 			 DPCD_TRAINING_PATTERN_2;
 		exynos_dp_write_byte_to_dpcd(dp,
-			DPCD_ADDR_TRAINING_LANE0_SET,
+			DPCD_ADDR_TRAINING_PATTERN_SET,
 			buf[0]);
 
 		for (lane = 0; lane < lane_count; lane++) {
