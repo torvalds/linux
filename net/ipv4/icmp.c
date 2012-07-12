@@ -763,7 +763,6 @@ static void icmp_redirect(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
 		return;
 
-	ip_rt_redirect(skb, icmp_hdr(skb)->un.gateway);
 	icmp_socket_deliver(skb, icmp_hdr(skb)->un.gateway);
 }
 

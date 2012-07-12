@@ -1345,50 +1345,6 @@ reject_redirect:
 	;
 }
 
-/* called in rcu_read_lock() section */
-void ip_rt_redirect(struct sk_buff *skb, __be32 new_gw)
-{
-	const struct iphdr *iph = (const struct iphdr *) skb->data;
-	__be32 daddr = iph->daddr;
-	__be32 saddr = iph->saddr;
-	struct net_device *dev = skb->dev;
-	int    ikeys[2] = { dev->ifindex, 0 };
-	__be32 skeys[2] = { saddr, 0 };
-	struct net *net;
-	int s, i;
-
-	net = dev_net(dev);
-	for (s = 0; s < 2; s++) {
-		for (i = 0; i < 2; i++) {
-			unsigned int hash;
-			struct rtable __rcu **rthp;
-			struct rtable *rt;
-
-			hash = rt_hash(daddr, skeys[s], ikeys[i], rt_genid(net));
-
-			rthp = &rt_hash_table[hash].chain;
-
-			while ((rt = rcu_dereference(*rthp)) != NULL) {
-				rthp = &rt->dst.rt_next;
-
-				if (rt->rt_key_dst != daddr ||
-				    rt->rt_key_src != skeys[s] ||
-				    rt->rt_oif != ikeys[i] ||
-				    rt_is_input_route(rt) ||
-				    rt_is_expired(rt) ||
-				    !net_eq(dev_net(rt->dst.dev), net) ||
-				    rt->dst.error ||
-				    rt->dst.dev != dev)
-					continue;
-
-				ip_do_redirect(&rt->dst, skb);
-			}
-		}
-	}
-	return;
-
-}
-
 static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst)
 {
 	struct rtable *rt = (struct rtable *)dst;
