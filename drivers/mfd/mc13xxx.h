@@ -24,7 +24,8 @@ struct mc13xxx_variant {
 
 extern struct mc13xxx_variant
 		mc13xxx_variant_mc13783,
-		mc13xxx_variant_mc13892;
+		mc13xxx_variant_mc13892,
+		mc13xxx_variant_mc34708;
 
 struct mc13xxx {
 	struct regmap *regmap;

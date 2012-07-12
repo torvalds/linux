@@ -119,6 +119,11 @@
 #define MC13XXX_REVISION_FAB		(0x03 << 11)
 #define MC13XXX_REVISION_ICIDCODE	(0x3f << 13)
 
+#define MC34708_REVISION_REVMETAL	(0x07 <<  0)
+#define MC34708_REVISION_REVFULL	(0x07 <<  3)
+#define MC34708_REVISION_FIN		(0x07 <<  6)
+#define MC34708_REVISION_FAB		(0x07 <<  9)
+
 #define MC13XXX_ADC1		44
 #define MC13XXX_ADC1_ADEN		(1 << 0)
 #define MC13XXX_ADC1_RAND		(1 << 1)
@@ -424,6 +429,16 @@ static void mc13xxx_print_revision(struct mc13xxx *mc13xxx, u32 revision)
 			maskval(revision, MC13XXX_REVISION_ICIDCODE));
 }
 
+static void mc34708_print_revision(struct mc13xxx *mc13xxx, u32 revision)
+{
+	dev_info(mc13xxx->dev, "%s: rev %d.%d, fin: %d, fab: %d\n",
+			mc13xxx->variant->name,
+			maskval(revision, MC34708_REVISION_REVFULL),
+			maskval(revision, MC34708_REVISION_REVMETAL),
+			maskval(revision, MC34708_REVISION_FIN),
+			maskval(revision, MC34708_REVISION_FAB));
+}
+
 /* These are only exported for mc13xxx-i2c and mc13xxx-spi */
 struct mc13xxx_variant mc13xxx_variant_mc13783 = {
 	.name = "mc13783",
@@ -436,6 +451,12 @@ struct mc13xxx_variant mc13xxx_variant_mc13892 = {
 	.print_revision = mc13xxx_print_revision,
 };
 EXPORT_SYMBOL_GPL(mc13xxx_variant_mc13892);
+
+struct mc13xxx_variant mc13xxx_variant_mc34708 = {
+	.name = "mc34708",
+	.print_revision = mc34708_print_revision,
+};
+EXPORT_SYMBOL_GPL(mc13xxx_variant_mc34708);
 
 static const char *mc13xxx_get_chipname(struct mc13xxx *mc13xxx)
 {
