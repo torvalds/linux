@@ -1074,3 +1074,52 @@ qinf_exit:
 	free_rsp_buf(resp_buftype, rsp);
 	return rc;
 }
+
+/*
+ * This is a no-op for now. We're not really interested in the reply, but
+ * rather in the fact that the server sent one and that server->lstrp
+ * gets updated.
+ *
+ * FIXME: maybe we should consider checking that the reply matches request?
+ */
+static void
+smb2_echo_callback(struct mid_q_entry *mid)
+{
+	struct TCP_Server_Info *server = mid->callback_data;
+	struct smb2_echo_rsp *smb2 = (struct smb2_echo_rsp *)mid->resp_buf;
+	unsigned int credits_received = 1;
+
+	if (mid->mid_state == MID_RESPONSE_RECEIVED)
+		credits_received = le16_to_cpu(smb2->hdr.CreditRequest);
+
+	DeleteMidQEntry(mid);
+	add_credits(server, credits_received, CIFS_ECHO_OP);
+}
+
+int
+SMB2_echo(struct TCP_Server_Info *server)
+{
+	struct smb2_echo_req *req;
+	int rc = 0;
+	struct kvec iov;
+
+	cFYI(1, "In echo request");
+
+	rc = small_smb2_init(SMB2_ECHO, NULL, (void **)&req);
+	if (rc)
+		return rc;
+
+	req->hdr.CreditRequest = cpu_to_le16(1);
+
+	iov.iov_base = (char *)req;
+	/* 4 for rfc1002 length field */
+	iov.iov_len = get_rfc1002_length(req) + 4;
+
+	rc = cifs_call_async(server, &iov, 1, NULL, smb2_echo_callback, server,
+			     CIFS_ECHO_OP);
+	if (rc)
+		cFYI(1, "Echo request failed: %d", rc);
+
+	cifs_small_buf_release(req);
+	return rc;
+}

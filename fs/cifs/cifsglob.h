@@ -73,6 +73,9 @@
 /*           (max path length + 1 for null) * 2 for unicode    */
 #define MAX_NAME 514
 
+/* SMB echo "timeout" -- FIXME: tunable? */
+#define SMB_ECHO_INTERVAL (60 * HZ)
+
 #include "cifspdu.h"
 
 #ifndef XATTR_DOS_ATTRIB
