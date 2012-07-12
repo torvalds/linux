@@ -95,7 +95,7 @@ const struct imx_spi_imx_data imx51_ecspi_data[] __initconst = {
 #ifdef CONFIG_SOC_IMX53
 /* i.mx53 has the i.mx35 type cspi */
 const struct imx_spi_imx_data imx53_cspi_data __initconst =
-	imx_spi_imx_data_entry_single(MX53, CSPI, "imx35-cspi", 0, , SZ_4K);
+	imx_spi_imx_data_entry_single(MX53, CSPI, "imx35-cspi", 2, , SZ_4K);
 
 /* i.mx53 has the i.mx51 type ecspi */
 const struct imx_spi_imx_data imx53_ecspi_data[] __initconst = {
