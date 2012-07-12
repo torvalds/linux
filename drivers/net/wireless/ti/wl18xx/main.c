@@ -505,8 +505,8 @@ static struct wl18xx_priv_conf wl18xx_default_priv_conf = {
 		.rdl				= 0x01,
 		.auto_detect			= 0x00,
 		.dedicated_fem			= FEM_NONE,
-		.low_band_component		= COMPONENT_2_WAY_SWITCH,
-		.low_band_component_type	= 0x06,
+		.low_band_component		= COMPONENT_3_WAY_SWITCH,
+		.low_band_component_type	= 0x04,
 		.high_band_component		= COMPONENT_2_WAY_SWITCH,
 		.high_band_component_type	= 0x09,
 		.tcxo_ldo_voltage		= 0x00,
@@ -1428,18 +1428,7 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* HACK! Just for now we hardcode COM8 and HDK to 0x06 */
-	switch (priv->conf.phy.board_type) {
-	case BOARD_TYPE_HDK_18XX:
-	case BOARD_TYPE_COM8_18XX:
-		priv->conf.phy.low_band_component_type = 0x06;
-		break;
-	case BOARD_TYPE_FPGA_18XX:
-	case BOARD_TYPE_DVP_18XX:
-	case BOARD_TYPE_EVB_18XX:
-		priv->conf.phy.low_band_component_type = 0x05;
-		break;
-	default:
+	if (priv->conf.phy.board_type >= NUM_BOARD_TYPES) {
 		wl1271_error("invalid board type '%d'",
 			priv->conf.phy.board_type);
 		ret = -EINVAL;
