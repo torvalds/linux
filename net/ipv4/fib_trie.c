@@ -1843,8 +1843,6 @@ int fib_table_flush(struct fib_table *tb)
 	if (ll && hlist_empty(&ll->list))
 		trie_leaf_remove(t, ll);
 
-	inetpeer_invalidate_tree(&tb->tb_peers);
-
 	pr_debug("trie_flush found=%d\n", found);
 	return found;
 }
@@ -1993,7 +1991,6 @@ struct fib_table *fib_trie_table(u32 id)
 	tb->tb_id = id;
 	tb->tb_default = -1;
 	tb->tb_num_default = 0;
-	inet_peer_base_init(&tb->tb_peers);
 
 	t = (struct trie *) tb->tb_data;
 	memset(t, 0, sizeof(*t));

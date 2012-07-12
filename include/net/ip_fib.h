@@ -162,7 +162,6 @@ struct fib_table {
 	u32			tb_id;
 	int			tb_default;
 	int			tb_num_default;
-	struct inet_peer_base	tb_peers;
 	unsigned long		tb_data[0];
 };
 
