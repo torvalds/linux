@@ -189,7 +189,7 @@ acpi_status acpi_ut_delete_caches(void)
  *
  * FUNCTION:    acpi_ut_validate_buffer
  *
- * PARAMETERS:  Buffer              - Buffer descriptor to be validated
+ * PARAMETERS:  buffer              - Buffer descriptor to be validated
  *
  * RETURN:      Status
  *
@@ -227,7 +227,7 @@ acpi_status acpi_ut_validate_buffer(struct acpi_buffer * buffer)
  *
  * FUNCTION:    acpi_ut_initialize_buffer
  *
- * PARAMETERS:  Buffer              - Buffer to be validated
+ * PARAMETERS:  buffer              - Buffer to be validated
  *              required_length     - Length needed
  *
  * RETURN:      Status
@@ -308,10 +308,10 @@ acpi_ut_initialize_buffer(struct acpi_buffer * buffer,
  *
  * FUNCTION:    acpi_ut_allocate
  *
- * PARAMETERS:  Size                - Size of the allocation
- *              Component           - Component type of caller
- *              Module              - Source file name of caller
- *              Line                - Line number of caller
+ * PARAMETERS:  size                - Size of the allocation
+ *              component           - Component type of caller
+ *              module              - Source file name of caller
+ *              line                - Line number of caller
  *
  * RETURN:      Address of the allocated memory on success, NULL on failure.
  *
@@ -352,10 +352,10 @@ void *acpi_ut_allocate(acpi_size size,
  *
  * FUNCTION:    acpi_ut_allocate_zeroed
  *
- * PARAMETERS:  Size                - Size of the allocation
- *              Component           - Component type of caller
- *              Module              - Source file name of caller
- *              Line                - Line number of caller
+ * PARAMETERS:  size                - Size of the allocation
+ *              component           - Component type of caller
+ *              module              - Source file name of caller
+ *              line                - Line number of caller
  *
  * RETURN:      Address of the allocated memory on success, NULL on failure.
  *

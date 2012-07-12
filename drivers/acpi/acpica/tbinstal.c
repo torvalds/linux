@@ -397,10 +397,10 @@ acpi_status acpi_tb_resize_root_table_list(void)
  *
  * FUNCTION:    acpi_tb_store_table
  *
- * PARAMETERS:  Address             - Table address
- *              Table               - Table header
- *              Length              - Table length
- *              Flags               - flags
+ * PARAMETERS:  address             - Table address
+ *              table               - Table header
+ *              length              - Table length
+ *              flags               - flags
  *
  * RETURN:      Status and table index.
  *

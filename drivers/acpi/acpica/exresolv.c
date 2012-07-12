@@ -321,7 +321,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
  * FUNCTION:    acpi_ex_resolve_multiple
  *
  * PARAMETERS:  walk_state          - Current state (contains AML opcode)
- *              Operand             - Starting point for resolution
+ *              operand             - Starting point for resolution
  *              return_type         - Where the object type is returned
  *              return_desc         - Where the resolved object is returned
  *

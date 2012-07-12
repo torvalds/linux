@@ -285,7 +285,7 @@ acpi_status acpi_ut_init_globals(void)
 		acpi_gbl_owner_id_mask[i] = 0;
 	}
 
-	/* Last owner_iD is never valid */
+	/* Last owner_ID is never valid */
 
 	acpi_gbl_owner_id_mask[ACPI_NUM_OWNERID_MASKS - 1] = 0x80000000;
 

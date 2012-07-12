@@ -173,7 +173,7 @@ static struct acpi_fadt_pm_info fadt_pm_info_table[] = {
  *
  * PARAMETERS:  generic_address     - GAS struct to be initialized
  *              byte_width          - Width of this register
- *              Address             - Address of the register
+ *              address             - Address of the register
  *
  * RETURN:      None
  *
@@ -283,8 +283,8 @@ void acpi_tb_parse_fadt(u32 table_index)
  *
  * FUNCTION:    acpi_tb_create_local_fadt
  *
- * PARAMETERS:  Table               - Pointer to BIOS FADT
- *              Length              - Length of the table
+ * PARAMETERS:  table               - Pointer to BIOS FADT
+ *              length              - Length of the table
  *
  * RETURN:      None
  *
@@ -484,7 +484,7 @@ static void acpi_tb_convert_fadt(void)
  *
  * FUNCTION:    acpi_tb_validate_fadt
  *
- * PARAMETERS:  Table           - Pointer to the FADT to be validated
+ * PARAMETERS:  table           - Pointer to the FADT to be validated
  *
  * RETURN:      None
  *
@@ -583,7 +583,7 @@ static void acpi_tb_validate_fadt(void)
 			}
 		} else if (fadt_info_table[i].type & ACPI_FADT_SEPARATE_LENGTH) {
 			/*
-			 * Field is optional (PM2Control, GPE0, GPE1) AND has its own
+			 * Field is optional (Pm2_control, GPE0, GPE1) AND has its own
 			 * length field. If present, both the address and length must
 			 * be valid.
 			 */

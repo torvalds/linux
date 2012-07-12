@@ -91,8 +91,8 @@ const u8 acpi_gbl_ns_properties[ACPI_NUM_NS_TYPES] = {
  *
  * FUNCTION:    acpi_ut_hex_to_ascii_char
  *
- * PARAMETERS:  Integer             - Contains the hex digit
- *              Position            - bit position of the digit within the
+ * PARAMETERS:  integer             - Contains the hex digit
+ *              position            - bit position of the digit within the
  *                                    integer (multiple of 4)
  *
  * RETURN:      The converted Ascii character
@@ -194,7 +194,7 @@ char *acpi_ut_get_event_name(u32 event_id)
  *
  * FUNCTION:    acpi_ut_get_type_name
  *
- * PARAMETERS:  Type                - An ACPI object type
+ * PARAMETERS:  type                - An ACPI object type
  *
  * RETURN:      Decoded ACPI object type name
  *
@@ -272,7 +272,7 @@ char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
  *
  * FUNCTION:    acpi_ut_get_node_name
  *
- * PARAMETERS:  Object               - A namespace node
+ * PARAMETERS:  object               - A namespace node
  *
  * RETURN:      ASCII name of the node
  *
@@ -317,7 +317,7 @@ char *acpi_ut_get_node_name(void *object)
  *
  * FUNCTION:    acpi_ut_get_descriptor_name
  *
- * PARAMETERS:  Object               - An ACPI object
+ * PARAMETERS:  object               - An ACPI object
  *
  * RETURN:      Decoded name of the descriptor type
  *
@@ -367,7 +367,7 @@ char *acpi_ut_get_descriptor_name(void *object)
  *
  * FUNCTION:    acpi_ut_get_reference_name
  *
- * PARAMETERS:  Object               - An ACPI reference object
+ * PARAMETERS:  object               - An ACPI reference object
  *
  * RETURN:      Decoded name of the type of reference
  *
@@ -498,7 +498,7 @@ const char *acpi_ut_get_notify_name(u32 notify_value)
  *
  * FUNCTION:    acpi_ut_valid_object_type
  *
- * PARAMETERS:  Type            - Object type to be validated
+ * PARAMETERS:  type            - Object type to be validated
  *
  * RETURN:      TRUE if valid object type, FALSE otherwise
  *

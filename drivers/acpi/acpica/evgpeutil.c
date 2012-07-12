@@ -54,7 +54,7 @@ ACPI_MODULE_NAME("evgpeutil")
  * FUNCTION:    acpi_ev_walk_gpe_list
  *
  * PARAMETERS:  gpe_walk_callback   - Routine called for each GPE block
- *              Context             - Value passed to callback
+ *              context             - Value passed to callback
  *
  * RETURN:      Status
  *

@@ -157,7 +157,7 @@ acpi_ds_do_implicit_return(union acpi_operand_object *return_desc,
  *
  * FUNCTION:    acpi_ds_is_result_used
  *
- * PARAMETERS:  Op                  - Current Op
+ * PARAMETERS:  op                  - Current Op
  *              walk_state          - Current State
  *
  * RETURN:      TRUE if result is used, FALSE otherwise
@@ -323,7 +323,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
  *
  * FUNCTION:    acpi_ds_delete_result_if_not_used
  *
- * PARAMETERS:  Op              - Current parse Op
+ * PARAMETERS:  op              - Current parse Op
  *              result_obj      - Result of the operation
  *              walk_state      - Current state
  *
@@ -445,7 +445,7 @@ void acpi_ds_clear_operands(struct acpi_walk_state *walk_state)
  * FUNCTION:    acpi_ds_create_operand
  *
  * PARAMETERS:  walk_state      - Current walk state
- *              Arg             - Parse object for the argument
+ *              arg             - Parse object for the argument
  *              arg_index       - Which argument (zero based)
  *
  * RETURN:      Status

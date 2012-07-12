@@ -167,7 +167,7 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
  * PARAMETERS:  walk_state          - Current state
  *              aml_op_start        - Begin of named Op in AML
  *              unnamed_op          - Early Op (not a named Op)
- *              Op                  - Returned Op
+ *              op                  - Returned Op
  *
  * RETURN:      Status
  *
@@ -323,7 +323,7 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
 
 	if (walk_state->op_info->flags & AML_CREATE) {
 		/*
-		 * Backup to beginning of create_xXXfield declaration
+		 * Backup to beginning of create_XXXfield declaration
 		 * body_length is unknown until we parse the body
 		 */
 		op->named.data = aml_op_start;
@@ -380,7 +380,7 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
  *
  * PARAMETERS:  walk_state          - Current state
  *              aml_op_start        - Op start in AML
- *              Op                  - Current Op
+ *              op                  - Current Op
  *
  * RETURN:      Status
  *
@@ -679,8 +679,8 @@ acpi_ps_link_module_code(union acpi_parse_object *parent_op,
  * FUNCTION:    acpi_ps_complete_op
  *
  * PARAMETERS:  walk_state          - Current state
- *              Op                  - Returned Op
- *              Status              - Parse status before complete Op
+ *              op                  - Returned Op
+ *              status              - Parse status before complete Op
  *
  * RETURN:      Status
  *
@@ -853,8 +853,8 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
  * FUNCTION:    acpi_ps_complete_final_op
  *
  * PARAMETERS:  walk_state          - Current state
- *              Op                  - Current Op
- *              Status              - Current parse status before complete last
+ *              op                  - Current Op
+ *              status              - Current parse status before complete last
  *                                    Op
  *
  * RETURN:      Status
@@ -1165,7 +1165,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 
 		if (walk_state->op_info->flags & AML_CREATE) {
 			/*
-			 * Backup to beginning of create_xXXfield declaration (1 for
+			 * Backup to beginning of create_XXXfield declaration (1 for
 			 * Opcode)
 			 *
 			 * body_length is unknown until we parse the body

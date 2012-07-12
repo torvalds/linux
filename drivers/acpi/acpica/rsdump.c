@@ -703,7 +703,7 @@ acpi_rs_dump_resource_source(struct acpi_resource_source *resource_source)
  *
  * FUNCTION:    acpi_rs_dump_address_common
  *
- * PARAMETERS:  Resource        - Pointer to an internal resource descriptor
+ * PARAMETERS:  resource        - Pointer to an internal resource descriptor
  *
  * RETURN:      None
  *
@@ -850,8 +850,8 @@ void acpi_rs_dump_irq_list(u8 * route_table)
  *
  * FUNCTION:    acpi_rs_out*
  *
- * PARAMETERS:  Title       - Name of the resource field
- *              Value       - Value of the resource field
+ * PARAMETERS:  title       - Name of the resource field
+ *              value       - Value of the resource field
  *
  * RETURN:      None
  *
@@ -898,8 +898,8 @@ static void acpi_rs_out_title(char *title)
  *
  * FUNCTION:    acpi_rs_dump*List
  *
- * PARAMETERS:  Length      - Number of elements in the list
- *              Data        - Start of the list
+ * PARAMETERS:  length      - Number of elements in the list
+ *              data        - Start of the list
  *
  * RETURN:      None
  *

@@ -299,7 +299,7 @@ acpi_status(*ACPI_INTERNAL_METHOD) (struct acpi_walk_state * walk_state);
  * Information structure for ACPI predefined names.
  * Each entry in the table contains the following items:
  *
- * Name                 - The ACPI reserved name
+ * name                 - The ACPI reserved name
  * param_count          - Number of arguments to the method
  * expected_return_btypes - Allowed type(s) for the return value
  */
@@ -734,7 +734,7 @@ struct acpi_parse_obj_named {
 	u32 name;		/* 4-byte name or zero if no name */
 };
 
-/* This version is used by the i_aSL compiler only */
+/* This version is used by the iASL compiler only */
 
 #define ACPI_MAX_PARSEOP_NAME   20
 

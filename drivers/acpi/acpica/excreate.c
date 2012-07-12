@@ -369,7 +369,7 @@ acpi_ex_create_region(u8 * aml_start,
  *
  * DESCRIPTION: Create a new processor object and populate the fields
  *
- *              Processor (Name[0], cpu_iD[1], pblock_addr[2], pblock_length[3])
+ *              Processor (Name[0], cpu_ID[1], pblock_addr[2], pblock_length[3])
  *
  ******************************************************************************/
 

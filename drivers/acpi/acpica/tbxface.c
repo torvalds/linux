@@ -59,7 +59,7 @@ ACPI_MODULE_NAME("tbxface")
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Allocate a root table array. Used by i_aSL compiler and
+ * DESCRIPTION: Allocate a root table array. Used by iASL compiler and
  *              acpi_initialize_tables.
  *
  ******************************************************************************/
@@ -217,8 +217,8 @@ acpi_status acpi_reallocate_root_table(void)
  *
  * FUNCTION:    acpi_get_table_header
  *
- * PARAMETERS:  Signature           - ACPI signature of needed table
- *              Instance            - Which instance (for SSDTs)
+ * PARAMETERS:  signature           - ACPI signature of needed table
+ *              instance            - Which instance (for SSDTs)
  *              out_table_header    - The pointer to the table header to fill
  *
  * RETURN:      Status and pointer to mapped table header
@@ -333,8 +333,8 @@ ACPI_EXPORT_SYMBOL(acpi_unload_table_id)
  *
  * FUNCTION:    acpi_get_table_with_size
  *
- * PARAMETERS:  Signature           - ACPI signature of needed table
- *              Instance            - Which instance (for SSDTs)
+ * PARAMETERS:  signature           - ACPI signature of needed table
+ *              instance            - Which instance (for SSDTs)
  *              out_table           - Where the pointer to the table is returned
  *
  * RETURN:      Status and pointer to table
@@ -404,7 +404,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_table)
  * FUNCTION:    acpi_get_table_by_index
  *
  * PARAMETERS:  table_index         - Table index
- *              Table               - Where the pointer to the table is returned
+ *              table               - Where the pointer to the table is returned
  *
  * RETURN:      Status and pointer to the table
  *
@@ -458,8 +458,8 @@ ACPI_EXPORT_SYMBOL(acpi_get_table_by_index)
  *
  * FUNCTION:    acpi_install_table_handler
  *
- * PARAMETERS:  Handler         - Table event handler
- *              Context         - Value passed to the handler on each event
+ * PARAMETERS:  handler         - Table event handler
+ *              context         - Value passed to the handler on each event
  *
  * RETURN:      Status
  *
@@ -505,7 +505,7 @@ ACPI_EXPORT_SYMBOL(acpi_install_table_handler)
  *
  * FUNCTION:    acpi_remove_table_handler
  *
- * PARAMETERS:  Handler         - Table event handler that was installed
+ * PARAMETERS:  handler         - Table event handler that was installed
  *                                previously.
  *
  * RETURN:      Status

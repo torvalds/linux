@@ -53,7 +53,7 @@ ACPI_MODULE_NAME("utxferror")
  * This module is used for the in-kernel ACPICA as well as the ACPICA
  * tools/applications.
  *
- * For the i_aSL compiler case, the output is redirected to stderr so that
+ * For the iASL compiler case, the output is redirected to stderr so that
  * any of the various ACPI errors and warnings do not appear in the output
  * files, for either the compiler or disassembler portions of the tool.
  */
@@ -70,7 +70,7 @@ extern FILE *acpi_gbl_output_file;
 
 #else
 /*
- * non-i_aSL case - no redirection, nothing to do
+ * non-iASL case - no redirection, nothing to do
  */
 #define ACPI_MSG_REDIRECT_BEGIN
 #define ACPI_MSG_REDIRECT_END
@@ -95,7 +95,7 @@ extern FILE *acpi_gbl_output_file;
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
- *              Format              - Printf format string + additional args
+ *              format              - Printf format string + additional args
  *
  * RETURN:      None
  *
@@ -126,8 +126,8 @@ ACPI_EXPORT_SYMBOL(acpi_error)
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
- *              Status              - Status to be formatted
- *              Format              - Printf format string + additional args
+ *              status              - Status to be formatted
+ *              format              - Printf format string + additional args
  *
  * RETURN:      None
  *
@@ -161,7 +161,7 @@ ACPI_EXPORT_SYMBOL(acpi_exception)
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
- *              Format              - Printf format string + additional args
+ *              format              - Printf format string + additional args
  *
  * RETURN:      None
  *
@@ -192,7 +192,7 @@ ACPI_EXPORT_SYMBOL(acpi_warning)
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
- *              Format              - Printf format string + additional args
+ *              format              - Printf format string + additional args
  *
  * RETURN:      None
  *
@@ -339,9 +339,9 @@ acpi_ut_predefined_warning(const char *module_name,
  *
  * PARAMETERS:  module_name     - Caller's module name (for error output)
  *              line_number     - Caller's line number (for error output)
- *              Pathname        - Full pathname to the node
+ *              pathname        - Full pathname to the node
  *              node_flags      - From Namespace node for the method/object
- *              Format          - Printf format string + additional args
+ *              format          - Printf format string + additional args
  *
  * RETURN:      None
  *
@@ -441,9 +441,9 @@ acpi_ut_namespace_error(const char *module_name,
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
- *              Message             - Error message to use on failure
+ *              message             - Error message to use on failure
  *              prefix_node         - Prefix relative to the path
- *              Path                - Path to the node (optional)
+ *              path                - Path to the node (optional)
  *              method_status       - Execution status
  *
  * RETURN:      None

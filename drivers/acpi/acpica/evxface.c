@@ -342,7 +342,7 @@ ACPI_EXPORT_SYMBOL(acpi_remove_notify_handler)
  *
  * FUNCTION:    acpi_install_exception_handler
  *
- * PARAMETERS:  Handler         - Pointer to the handler function for the
+ * PARAMETERS:  handler         - Pointer to the handler function for the
  *                                event
  *
  * RETURN:      Status
@@ -386,8 +386,8 @@ ACPI_EXPORT_SYMBOL(acpi_install_exception_handler)
  *
  * FUNCTION:    acpi_install_global_event_handler
  *
- * PARAMETERS:  Handler         - Pointer to the global event handler function
- *              Context         - Value passed to the handler on each event
+ * PARAMETERS:  handler         - Pointer to the global event handler function
+ *              context         - Value passed to the handler on each event
  *
  * RETURN:      Status
  *
@@ -436,10 +436,10 @@ ACPI_EXPORT_SYMBOL(acpi_install_global_event_handler)
  *
  * FUNCTION:    acpi_install_fixed_event_handler
  *
- * PARAMETERS:  Event           - Event type to enable.
- *              Handler         - Pointer to the handler function for the
+ * PARAMETERS:  event           - Event type to enable.
+ *              handler         - Pointer to the handler function for the
  *                                event
- *              Context         - Value passed to the handler on each GPE
+ *              context         - Value passed to the handler on each GPE
  *
  * RETURN:      Status
  *
@@ -506,8 +506,8 @@ ACPI_EXPORT_SYMBOL(acpi_install_fixed_event_handler)
  *
  * FUNCTION:    acpi_remove_fixed_event_handler
  *
- * PARAMETERS:  Event           - Event type to disable.
- *              Handler         - Address of the handler
+ * PARAMETERS:  event           - Event type to disable.
+ *              handler         - Address of the handler
  *
  * RETURN:      Status
  *
@@ -563,10 +563,10 @@ ACPI_EXPORT_SYMBOL(acpi_remove_fixed_event_handler)
  * PARAMETERS:  gpe_device      - Namespace node for the GPE (NULL for FADT
  *                                defined GPEs)
  *              gpe_number      - The GPE number within the GPE block
- *              Type            - Whether this GPE should be treated as an
+ *              type            - Whether this GPE should be treated as an
  *                                edge- or level-triggered interrupt.
- *              Address         - Address of the handler
- *              Context         - Value passed to the handler on each GPE
+ *              address         - Address of the handler
+ *              context         - Value passed to the handler on each GPE
  *
  * RETURN:      Status
  *
@@ -673,7 +673,7 @@ ACPI_EXPORT_SYMBOL(acpi_install_gpe_handler)
  * PARAMETERS:  gpe_device      - Namespace node for the GPE (NULL for FADT
  *                                defined GPEs)
  *              gpe_number      - The event to remove a handler
- *              Address         - Address of the handler
+ *              address         - Address of the handler
  *
  * RETURN:      Status
  *
@@ -769,8 +769,8 @@ ACPI_EXPORT_SYMBOL(acpi_remove_gpe_handler)
  *
  * FUNCTION:    acpi_acquire_global_lock
  *
- * PARAMETERS:  Timeout         - How long the caller is willing to wait
- *              Handle          - Where the handle to the lock is returned
+ * PARAMETERS:  timeout         - How long the caller is willing to wait
+ *              handle          - Where the handle to the lock is returned
  *                                (if acquired)
  *
  * RETURN:      Status
@@ -817,7 +817,7 @@ ACPI_EXPORT_SYMBOL(acpi_acquire_global_lock)
  *
  * FUNCTION:    acpi_release_global_lock
  *
- * PARAMETERS:  Handle      - Returned from acpi_acquire_global_lock
+ * PARAMETERS:  handle      - Returned from acpi_acquire_global_lock
  *
  * RETURN:      Status
  *

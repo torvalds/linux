@@ -102,7 +102,7 @@ void acpi_ex_unlink_mutex(union acpi_operand_object *obj_desc)
  * FUNCTION:    acpi_ex_link_mutex
  *
  * PARAMETERS:  obj_desc            - The mutex to be linked
- *              Thread              - Current executing thread object
+ *              thread              - Current executing thread object
  *
  * RETURN:      None
  *
@@ -138,7 +138,7 @@ acpi_ex_link_mutex(union acpi_operand_object *obj_desc,
  *
  * FUNCTION:    acpi_ex_acquire_mutex_object
  *
- * PARAMETERS:  Timeout             - Timeout in milliseconds
+ * PARAMETERS:  timeout             - Timeout in milliseconds
  *              obj_desc            - Mutex object
  *              thread_id           - Current thread state
  *
@@ -443,7 +443,7 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
  *
  * FUNCTION:    acpi_ex_release_all_mutexes
  *
- * PARAMETERS:  Thread              - Current executing thread object
+ * PARAMETERS:  thread              - Current executing thread object
  *
  * RETURN:      Status
  *

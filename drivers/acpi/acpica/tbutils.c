@@ -178,8 +178,8 @@ u8 acpi_tb_tables_loaded(void)
  *
  * FUNCTION:    acpi_tb_fix_string
  *
- * PARAMETERS:  String              - String to be repaired
- *              Length              - Maximum length
+ * PARAMETERS:  string              - String to be repaired
+ *              length              - Maximum length
  *
  * RETURN:      None
  *
@@ -205,7 +205,7 @@ static void acpi_tb_fix_string(char *string, acpi_size length)
  * FUNCTION:    acpi_tb_cleanup_table_header
  *
  * PARAMETERS:  out_header          - Where the cleaned header is returned
- *              Header              - Input ACPI table header
+ *              header              - Input ACPI table header
  *
  * RETURN:      Returns the cleaned header in out_header
  *
@@ -231,8 +231,8 @@ acpi_tb_cleanup_table_header(struct acpi_table_header *out_header,
  *
  * FUNCTION:    acpi_tb_print_table_header
  *
- * PARAMETERS:  Address             - Table physical address
- *              Header              - Table header
+ * PARAMETERS:  address             - Table physical address
+ *              header              - Table header
  *
  * RETURN:      None
  *
@@ -296,8 +296,8 @@ acpi_tb_print_table_header(acpi_physical_address address,
  *
  * FUNCTION:    acpi_tb_validate_checksum
  *
- * PARAMETERS:  Table               - ACPI table to verify
- *              Length              - Length of entire table
+ * PARAMETERS:  table               - ACPI table to verify
+ *              length              - Length of entire table
  *
  * RETURN:      Status
  *
@@ -336,8 +336,8 @@ acpi_status acpi_tb_verify_checksum(struct acpi_table_header *table, u32 length)
  *
  * FUNCTION:    acpi_tb_checksum
  *
- * PARAMETERS:  Buffer          - Pointer to memory region to be checked
- *              Length          - Length of this memory region
+ * PARAMETERS:  buffer          - Pointer to memory region to be checked
+ *              length          - Length of this memory region
  *
  * RETURN:      Checksum (u8)
  *
@@ -440,8 +440,8 @@ struct acpi_table_header *acpi_tb_copy_dsdt(u32 table_index)
  *
  * FUNCTION:    acpi_tb_install_table
  *
- * PARAMETERS:  Address                 - Physical address of DSDT or FACS
- *              Signature               - Table signature, NULL if no need to
+ * PARAMETERS:  address                 - Physical address of DSDT or FACS
+ *              signature               - Table signature, NULL if no need to
  *                                        match
  *              table_index             - Index into root table array
  *
@@ -606,7 +606,7 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size)
  *
  * FUNCTION:    acpi_tb_parse_root_table
  *
- * PARAMETERS:  Rsdp                    - Pointer to the RSDP
+ * PARAMETERS:  rsdp                    - Pointer to the RSDP
  *
  * RETURN:      Status
  *

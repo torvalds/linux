@@ -323,7 +323,7 @@ static struct acpi_exdump_info *acpi_ex_dump_info[] = {
  * FUNCTION:    acpi_ex_dump_object
  *
  * PARAMETERS:  obj_desc            - Descriptor to dump
- *              Info                - Info table corresponding to this object
+ *              info                - Info table corresponding to this object
  *                                    type
  *
  * RETURN:      None
@@ -449,7 +449,7 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
  * FUNCTION:    acpi_ex_dump_operand
  *
  * PARAMETERS:  *obj_desc       - Pointer to entry to be dumped
- *              Depth           - Current nesting depth
+ *              depth           - Current nesting depth
  *
  * RETURN:      None
  *
@@ -731,7 +731,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
  *
  * FUNCTION:    acpi_ex_dump_operands
  *
- * PARAMETERS:	Operands	    - A list of Operand objects
+ * PARAMETERS:  operands            - A list of Operand objects
  *		opcode_name	    - AML opcode name
  *		num_operands	    - Operand count for this opcode
  *
@@ -774,8 +774,8 @@ acpi_ex_dump_operands(union acpi_operand_object **operands,
  *
  * FUNCTION:    acpi_ex_out* functions
  *
- * PARAMETERS:  Title               - Descriptive text
- *              Value               - Value to be displayed
+ * PARAMETERS:  title               - Descriptive text
+ *              value               - Value to be displayed
  *
  * DESCRIPTION: Object dump output formatting functions.  These functions
  *              reduce the number of format strings required and keeps them
@@ -797,8 +797,8 @@ static void acpi_ex_out_pointer(char *title, void *value)
  *
  * FUNCTION:    acpi_ex_dump_namespace_node
  *
- * PARAMETERS:  Node                - Descriptor to dump
- *              Flags               - Force display if TRUE
+ * PARAMETERS:  node                - Descriptor to dump
+ *              flags               - Force display if TRUE
  *
  * DESCRIPTION: Dumps the members of the given.Node
  *
@@ -830,7 +830,7 @@ void acpi_ex_dump_namespace_node(struct acpi_namespace_node *node, u32 flags)
  *
  * FUNCTION:    acpi_ex_dump_reference_obj
  *
- * PARAMETERS:  Object              - Descriptor to dump
+ * PARAMETERS:  object              - Descriptor to dump
  *
  * DESCRIPTION: Dumps a reference object
  *
@@ -887,8 +887,8 @@ static void acpi_ex_dump_reference_obj(union acpi_operand_object *obj_desc)
  * FUNCTION:    acpi_ex_dump_package_obj
  *
  * PARAMETERS:  obj_desc            - Descriptor to dump
- *              Level               - Indentation Level
- *              Index               - Package index for this object
+ *              level               - Indentation Level
+ *              index               - Package index for this object
  *
  * DESCRIPTION: Dumps the elements of the package
  *
@@ -980,7 +980,7 @@ acpi_ex_dump_package_obj(union acpi_operand_object *obj_desc,
  * FUNCTION:    acpi_ex_dump_object_descriptor
  *
  * PARAMETERS:  obj_desc            - Descriptor to dump
- *              Flags               - Force display if TRUE
+ *              flags               - Force display if TRUE
  *
  * DESCRIPTION: Dumps the members of the object descriptor given.
  *

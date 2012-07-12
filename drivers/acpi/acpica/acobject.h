@@ -381,7 +381,7 @@ struct acpi_object_cache_list {
 
 /******************************************************************************
  *
- * union acpi_operand_object Descriptor - a giant union of all of the above
+ * union acpi_operand_object descriptor - a giant union of all of the above
  *
  *****************************************************************************/
 

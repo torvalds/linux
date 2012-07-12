@@ -64,7 +64,7 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
  * FUNCTION:    acpi_ds_build_internal_object
  *
  * PARAMETERS:  walk_state      - Current walk state
- *              Op              - Parser object to be translated
+ *              op              - Parser object to be translated
  *              obj_desc_ptr    - Where the ACPI internal object is returned
  *
  * RETURN:      Status
@@ -250,7 +250,7 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
  * FUNCTION:    acpi_ds_build_internal_buffer_obj
  *
  * PARAMETERS:  walk_state      - Current walk state
- *              Op              - Parser object to be translated
+ *              op              - Parser object to be translated
  *              buffer_length   - Length of the buffer
  *              obj_desc_ptr    - Where the ACPI internal object is returned
  *
@@ -354,7 +354,7 @@ acpi_ds_build_internal_buffer_obj(struct acpi_walk_state *walk_state,
  * FUNCTION:    acpi_ds_build_internal_package_obj
  *
  * PARAMETERS:  walk_state      - Current walk state
- *              Op              - Parser object to be translated
+ *              op              - Parser object to be translated
  *              element_count   - Number of elements in the package - this is
  *                                the num_elements argument to Package()
  *              obj_desc_ptr    - Where the ACPI internal object is returned
@@ -547,8 +547,8 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
  * FUNCTION:    acpi_ds_create_node
  *
  * PARAMETERS:  walk_state      - Current walk state
- *              Node            - NS Node to be initialized
- *              Op              - Parser object to be translated
+ *              node            - NS Node to be initialized
+ *              op              - Parser object to be translated
  *
  * RETURN:      Status
  *
@@ -611,8 +611,8 @@ acpi_ds_create_node(struct acpi_walk_state *walk_state,
  * FUNCTION:    acpi_ds_init_object_from_op
  *
  * PARAMETERS:  walk_state      - Current walk state
- *              Op              - Parser op used to init the internal object
- *              Opcode          - AML opcode associated with the object
+ *              op              - Parser op used to init the internal object
+ *              opcode          - AML opcode associated with the object
  *              ret_obj_desc    - Namespace object to be initialized
  *
  * RETURN:      Status

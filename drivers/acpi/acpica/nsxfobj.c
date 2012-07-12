@@ -98,7 +98,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_id)
  *
  * FUNCTION:    acpi_get_type
  *
- * PARAMETERS:  Handle          - Handle of object whose type is desired
+ * PARAMETERS:  handle          - Handle of object whose type is desired
  *              ret_type        - Where the type will be placed
  *
  * RETURN:      Status
@@ -151,7 +151,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_type)
  *
  * FUNCTION:    acpi_get_parent
  *
- * PARAMETERS:  Handle          - Handle of object whose parent is desired
+ * PARAMETERS:  handle          - Handle of object whose parent is desired
  *              ret_handle      - Where the parent handle will be placed
  *
  * RETURN:      Status
@@ -212,8 +212,8 @@ ACPI_EXPORT_SYMBOL(acpi_get_parent)
  *
  * FUNCTION:    acpi_get_next_object
  *
- * PARAMETERS:  Type            - Type of object to be searched for
- *              Parent          - Parent object whose children we are getting
+ * PARAMETERS:  type            - Type of object to be searched for
+ *              parent          - Parent object whose children we are getting
  *              last_child      - Previous child that was found.
  *                                The NEXT child will be returned
  *              ret_handle      - Where handle to the next object is placed

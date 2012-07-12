@@ -173,7 +173,7 @@ typedef u64 acpi_physical_address;
  * to indicate that special precautions must be taken to avoid alignment faults.
  * (IA64 or ia64 is currently used by existing compilers to indicate IPF.)
  *
- * Note: Em64_t and other X86-64 processors support misaligned transfers,
+ * Note: EM64T and other X86-64 processors support misaligned transfers,
  * so there is no need to define this flag.
  */
 #if defined (__IA64__) || defined (__ia64__)
@@ -636,7 +636,7 @@ typedef u32 acpi_event_type;
 #define ACPI_NUM_FIXED_EVENTS           ACPI_EVENT_MAX + 1
 
 /*
- * Event Status - Per event
+ * Event status - Per event
  * -------------
  * The encoding of acpi_event_status is illustrated below.
  * Note that a set bit (1) indicates the property is TRUE

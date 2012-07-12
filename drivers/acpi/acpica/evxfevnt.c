@@ -153,8 +153,8 @@ ACPI_EXPORT_SYMBOL(acpi_disable)
  *
  * FUNCTION:    acpi_enable_event
  *
- * PARAMETERS:  Event           - The fixed eventto be enabled
- *              Flags           - Reserved
+ * PARAMETERS:  event           - The fixed eventto be enabled
+ *              flags           - Reserved
  *
  * RETURN:      Status
  *
@@ -265,7 +265,7 @@ ACPI_EXPORT_SYMBOL(acpi_disable_event)
  *
  * FUNCTION:    acpi_clear_event
  *
- * PARAMETERS:  Event           - The fixed event to be cleared
+ * PARAMETERS:  event           - The fixed event to be cleared
  *
  * RETURN:      Status
  *
@@ -301,7 +301,7 @@ ACPI_EXPORT_SYMBOL(acpi_clear_event)
  *
  * FUNCTION:    acpi_get_event_status
  *
- * PARAMETERS:  Event           - The fixed event
+ * PARAMETERS:  event           - The fixed event
  *              event_status    - Where the current status of the event will
  *                                be returned
  *

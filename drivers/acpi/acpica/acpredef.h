@@ -140,7 +140,7 @@ enum acpi_return_package_types {
  *
  * The main entries in the table each contain the following items:
  *
- * Name                 - The ACPI reserved name
+ * name                 - The ACPI reserved name
  * param_count          - Number of arguments to the method
  * expected_btypes      - Allowed type(s) for the return value.
  *                        0 means that no return value is expected.

@@ -56,8 +56,8 @@ static u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node);
  *
  * FUNCTION:    acpi_ev_system_memory_region_setup
  *
- * PARAMETERS:  Handle              - Region we are interested in
- *              Function            - Start or stop
+ * PARAMETERS:  handle              - Region we are interested in
+ *              function            - Start or stop
  *              handler_context     - Address space handler context
  *              region_context      - Region specific context
  *
@@ -118,8 +118,8 @@ acpi_ev_system_memory_region_setup(acpi_handle handle,
  *
  * FUNCTION:    acpi_ev_io_space_region_setup
  *
- * PARAMETERS:  Handle              - Region we are interested in
- *              Function            - Start or stop
+ * PARAMETERS:  handle              - Region we are interested in
+ *              function            - Start or stop
  *              handler_context     - Address space handler context
  *              region_context      - Region specific context
  *
@@ -149,8 +149,8 @@ acpi_ev_io_space_region_setup(acpi_handle handle,
  *
  * FUNCTION:    acpi_ev_pci_config_region_setup
  *
- * PARAMETERS:  Handle              - Region we are interested in
- *              Function            - Start or stop
+ * PARAMETERS:  handle              - Region we are interested in
+ *              function            - Start or stop
  *              handler_context     - Address space handler context
  *              region_context      - Region specific context
  *
@@ -338,7 +338,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
  *
  * FUNCTION:    acpi_ev_is_pci_root_bridge
  *
- * PARAMETERS:  Node            - Device node being examined
+ * PARAMETERS:  node            - Device node being examined
  *
  * RETURN:      TRUE if device is a PCI/PCI-Express Root Bridge
  *
@@ -393,14 +393,14 @@ static u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node)
  *
  * FUNCTION:    acpi_ev_pci_bar_region_setup
  *
- * PARAMETERS:  Handle              - Region we are interested in
- *              Function            - Start or stop
+ * PARAMETERS:  handle              - Region we are interested in
+ *              function            - Start or stop
  *              handler_context     - Address space handler context
  *              region_context      - Region specific context
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Setup a pci_bAR operation region
+ * DESCRIPTION: Setup a pci_BAR operation region
  *
  * MUTEX:       Assumes namespace is not locked
  *
@@ -420,8 +420,8 @@ acpi_ev_pci_bar_region_setup(acpi_handle handle,
  *
  * FUNCTION:    acpi_ev_cmos_region_setup
  *
- * PARAMETERS:  Handle              - Region we are interested in
- *              Function            - Start or stop
+ * PARAMETERS:  handle              - Region we are interested in
+ *              function            - Start or stop
  *              handler_context     - Address space handler context
  *              region_context      - Region specific context
  *
@@ -447,8 +447,8 @@ acpi_ev_cmos_region_setup(acpi_handle handle,
  *
  * FUNCTION:    acpi_ev_default_region_setup
  *
- * PARAMETERS:  Handle              - Region we are interested in
- *              Function            - Start or stop
+ * PARAMETERS:  handle              - Region we are interested in
+ *              function            - Start or stop
  *              handler_context     - Address space handler context
  *              region_context      - Region specific context
  *

@@ -62,7 +62,7 @@
  * printf() format helpers
  */
 
-/* Split 64-bit integer into two 32-bit values. Use with %8.8_x%8.8_x */
+/* Split 64-bit integer into two 32-bit values. Use with %8.8X%8.8X */
 
 #define ACPI_FORMAT_UINT64(i)           ACPI_HIDWORD(i), ACPI_LODWORD(i)
 

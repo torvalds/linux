@@ -135,7 +135,7 @@ acpi_status acpi_ev_remove_global_lock_handler(void)
  *
  * FUNCTION:    acpi_ev_global_lock_handler
  *
- * PARAMETERS:  Context         - From thread interface, not used
+ * PARAMETERS:  context         - From thread interface, not used
  *
  * RETURN:      ACPI_INTERRUPT_HANDLED
  *
@@ -182,7 +182,7 @@ static u32 acpi_ev_global_lock_handler(void *context)
  *
  * FUNCTION:    acpi_ev_acquire_global_lock
  *
- * PARAMETERS:  Timeout         - Max time to wait for the lock, in millisec.
+ * PARAMETERS:  timeout         - Max time to wait for the lock, in millisec.
  *
  * RETURN:      Status
  *

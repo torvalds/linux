@@ -55,7 +55,7 @@ ACPI_MODULE_NAME("utmisc")
  *
  * FUNCTION:    ut_convert_backslashes
  *
- * PARAMETERS:  Pathname        - File pathname string to be converted
+ * PARAMETERS:  pathname        - File pathname string to be converted
  *
  * RETURN:      Modifies the input Pathname
  *
@@ -84,7 +84,7 @@ void ut_convert_backslashes(char *pathname)
  *
  * FUNCTION:    acpi_ut_is_pci_root_bridge
  *
- * PARAMETERS:  Id              - The HID/CID in string format
+ * PARAMETERS:  id              - The HID/CID in string format
  *
  * RETURN:      TRUE if the Id is a match for a PCI/PCI-Express Root Bridge
  *
@@ -112,7 +112,7 @@ u8 acpi_ut_is_pci_root_bridge(char *id)
  *
  * FUNCTION:    acpi_ut_is_aml_table
  *
- * PARAMETERS:  Table               - An ACPI table
+ * PARAMETERS:  table               - An ACPI table
  *
  * RETURN:      TRUE if table contains executable AML; FALSE otherwise
  *
@@ -246,7 +246,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
  *
  * FUNCTION:    acpi_ut_release_owner_id
  *
- * PARAMETERS:  owner_id_ptr        - Pointer to a previously allocated owner_iD
+ * PARAMETERS:  owner_id_ptr        - Pointer to a previously allocated owner_ID
  *
  * RETURN:      None. No error is returned because we are either exiting a
  *              control method or unloading a table. Either way, we would
@@ -269,7 +269,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 
 	*owner_id_ptr = 0;
 
-	/* Zero is not a valid owner_iD */
+	/* Zero is not a valid owner_ID */
 
 	if (owner_id == 0) {
 		ACPI_ERROR((AE_INFO, "Invalid OwnerId: 0x%2.2X", owner_id));
@@ -343,7 +343,7 @@ void acpi_ut_strupr(char *src_string)
  *
  * FUNCTION:    acpi_ut_print_string
  *
- * PARAMETERS:  String          - Null terminated ASCII string
+ * PARAMETERS:  string          - Null terminated ASCII string
  *              max_length      - Maximum output length
  *
  * RETURN:      None
@@ -429,7 +429,7 @@ void acpi_ut_print_string(char *string, u8 max_length)
  *
  * FUNCTION:    acpi_ut_dword_byte_swap
  *
- * PARAMETERS:  Value           - Value to be converted
+ * PARAMETERS:  value           - Value to be converted
  *
  * RETURN:      u32 integer with bytes swapped
  *
@@ -499,9 +499,9 @@ void acpi_ut_set_integer_width(u8 revision)
  *
  * FUNCTION:    acpi_ut_display_init_pathname
  *
- * PARAMETERS:  Type                - Object type of the node
+ * PARAMETERS:  type                - Object type of the node
  *              obj_handle          - Handle whose pathname will be displayed
- *              Path                - Additional path string to be appended.
+ *              path                - Additional path string to be appended.
  *                                      (NULL if no extra path)
  *
  * RETURN:      acpi_status
@@ -566,8 +566,8 @@ acpi_ut_display_init_pathname(u8 type,
  *
  * FUNCTION:    acpi_ut_valid_acpi_char
  *
- * PARAMETERS:  Char            - The character to be examined
- *              Position        - Byte position (0-3)
+ * PARAMETERS:  char            - The character to be examined
+ *              position        - Byte position (0-3)
  *
  * RETURN:      TRUE if the character is valid, FALSE otherwise
  *
@@ -602,7 +602,7 @@ u8 acpi_ut_valid_acpi_char(char character, u32 position)
  *
  * FUNCTION:    acpi_ut_valid_acpi_name
  *
- * PARAMETERS:  Name            - The name to be examined
+ * PARAMETERS:  name            - The name to be examined
  *
  * RETURN:      TRUE if the name is valid, FALSE otherwise
  *
@@ -633,7 +633,7 @@ u8 acpi_ut_valid_acpi_name(u32 name)
  *
  * FUNCTION:    acpi_ut_repair_name
  *
- * PARAMETERS:  Name            - The ACPI name to be repaired
+ * PARAMETERS:  name            - The ACPI name to be repaired
  *
  * RETURN:      Repaired version of the name
  *
@@ -667,8 +667,8 @@ acpi_name acpi_ut_repair_name(char *name)
  *
  * FUNCTION:    acpi_ut_strtoul64
  *
- * PARAMETERS:  String          - Null terminated string
- *              Base            - Radix of the string: 16 or ACPI_ANY_BASE;
+ * PARAMETERS:  string          - Null terminated string
+ *              base            - Radix of the string: 16 or ACPI_ANY_BASE;
  *                                ACPI_ANY_BASE means 'in behalf of to_integer'
  *              ret_integer     - Where the converted integer is returned
  *
@@ -717,7 +717,7 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 * ret_integer)
 
 	if (to_integer_op) {
 		/*
-		 * Base equal to ACPI_ANY_BASE means 'to_integer operation case'.
+		 * Base equal to ACPI_ANY_BASE means 'ToInteger operation case'.
 		 * We need to determine if it is decimal or hexadecimal.
 		 */
 		if ((*string == '0') && (ACPI_TOLOWER(*(string + 1)) == 'x')) {
@@ -840,8 +840,8 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 * ret_integer)
  *
  * FUNCTION:    acpi_ut_create_update_state_and_push
  *
- * PARAMETERS:  Object          - Object to be added to the new state
- *              Action          - Increment/Decrement
+ * PARAMETERS:  object          - Object to be added to the new state
+ *              action          - Increment/Decrement
  *              state_list      - List the state will be added to
  *
  * RETURN:      Status
@@ -881,7 +881,7 @@ acpi_ut_create_update_state_and_push(union acpi_operand_object *object,
  * PARAMETERS:  source_object       - The package to walk
  *              target_object       - Target object (if package is being copied)
  *              walk_callback       - Called once for each package element
- *              Context             - Passed to the callback function
+ *              context             - Passed to the callback function
  *
  * RETURN:      Status
  *

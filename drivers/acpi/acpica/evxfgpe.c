@@ -315,7 +315,7 @@ ACPI_EXPORT_SYMBOL(acpi_setup_gpe_for_wake)
  *
  * PARAMETERS:  gpe_device      - Parent GPE Device. NULL for GPE0/GPE1
  *              gpe_number      - GPE level within the GPE block
- *              Action          - Enable or Disable
+ *              action              - Enable or Disable
  *
  * RETURN:      Status
  *
@@ -540,7 +540,7 @@ ACPI_EXPORT_SYMBOL(acpi_enable_all_runtime_gpes)
  * FUNCTION:    acpi_install_gpe_block
  *
  * PARAMETERS:  gpe_device          - Handle to the parent GPE Block Device
- *              gpe_block_address   - Address and space_iD
+ *              gpe_block_address   - Address and space_ID
  *              register_count      - Number of GPE register pairs in the block
  *              interrupt_number    - H/W interrupt for the block
  *
@@ -685,7 +685,7 @@ ACPI_EXPORT_SYMBOL(acpi_remove_gpe_block)
  *
  * FUNCTION:    acpi_get_gpe_device
  *
- * PARAMETERS:  Index               - System GPE index (0-current_gpe_count)
+ * PARAMETERS:  index               - System GPE index (0-current_gpe_count)
  *              gpe_device          - Where the parent GPE Device is returned
  *
  * RETURN:      Status

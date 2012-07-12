@@ -145,7 +145,7 @@ static const char *acpi_ut_trim_function_name(const char *function_name)
  *              function_name       - Caller's procedure name
  *              module_name         - Caller's module name
  *              component_id        - Caller's component ID
- *              Format              - Printf format field
+ *              format              - Printf format field
  *              ...                 - Optional printf arguments
  *
  * RETURN:      None
@@ -217,7 +217,7 @@ ACPI_EXPORT_SYMBOL(acpi_debug_print)
  *              function_name       - Caller's procedure name
  *              module_name         - Caller's module name
  *              component_id        - Caller's component ID
- *              Format              - Printf format field
+ *              format              - Printf format field
  *              ...                 - Optional printf arguments
  *
  * RETURN:      None
@@ -286,7 +286,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_trace)
  *              function_name       - Caller's procedure name
  *              module_name         - Caller's module name
  *              component_id        - Caller's component ID
- *              Pointer             - Pointer to display
+ *              pointer             - Pointer to display
  *
  * RETURN:      None
  *
@@ -315,7 +315,7 @@ acpi_ut_trace_ptr(u32 line_number,
  *              function_name       - Caller's procedure name
  *              module_name         - Caller's module name
  *              component_id        - Caller's component ID
- *              String              - Additional string to display
+ *              string              - Additional string to display
  *
  * RETURN:      None
  *
@@ -346,7 +346,7 @@ acpi_ut_trace_str(u32 line_number,
  *              function_name       - Caller's procedure name
  *              module_name         - Caller's module name
  *              component_id        - Caller's component ID
- *              Integer             - Integer to display
+ *              integer             - Integer to display
  *
  * RETURN:      None
  *
@@ -408,7 +408,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_exit)
  *              function_name       - Caller's procedure name
  *              module_name         - Caller's module name
  *              component_id        - Caller's component ID
- *              Status              - Exit status code
+ *              status              - Exit status code
  *
  * RETURN:      None
  *
@@ -449,7 +449,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_status_exit)
  *              function_name       - Caller's procedure name
  *              module_name         - Caller's module name
  *              component_id        - Caller's component ID
- *              Value               - Value to be printed with exit msg
+ *              value               - Value to be printed with exit msg
  *
  * RETURN:      None
  *
@@ -481,7 +481,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_value_exit)
  *              function_name       - Caller's procedure name
  *              module_name         - Caller's module name
  *              component_id        - Caller's component ID
- *              Ptr                 - Pointer to display
+ *              ptr                 - Pointer to display
  *
  * RETURN:      None
  *
@@ -508,10 +508,10 @@ acpi_ut_ptr_exit(u32 line_number,
  *
  * FUNCTION:    acpi_ut_dump_buffer
  *
- * PARAMETERS:  Buffer              - Buffer to dump
- *              Count               - Amount to dump, in bytes
- *              Display             - BYTE, WORD, DWORD, or QWORD display
- *              component_iD        - Caller's component ID
+ * PARAMETERS:  buffer              - Buffer to dump
+ *              count               - Amount to dump, in bytes
+ *              display             - BYTE, WORD, DWORD, or QWORD display
+ *              component_ID        - Caller's component ID
  *
  * RETURN:      None
  *
@@ -625,10 +625,10 @@ void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display)
  *
  * FUNCTION:    acpi_ut_dump_buffer
  *
- * PARAMETERS:  Buffer              - Buffer to dump
- *              Count               - Amount to dump, in bytes
- *              Display             - BYTE, WORD, DWORD, or QWORD display
- *              component_iD        - Caller's component ID
+ * PARAMETERS:  buffer              - Buffer to dump
+ *              count               - Amount to dump, in bytes
+ *              display             - BYTE, WORD, DWORD, or QWORD display
+ *              component_ID        - Caller's component ID
  *
  * RETURN:      None
  *

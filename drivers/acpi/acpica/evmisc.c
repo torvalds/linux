@@ -56,7 +56,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_notify_dispatch(void *context);
  *
  * FUNCTION:    acpi_ev_is_notify_object
  *
- * PARAMETERS:  Node            - Node to check
+ * PARAMETERS:  node            - Node to check
  *
  * RETURN:      TRUE if notifies allowed on this object
  *
@@ -86,7 +86,7 @@ u8 acpi_ev_is_notify_object(struct acpi_namespace_node *node)
  *
  * FUNCTION:    acpi_ev_queue_notify_request
  *
- * PARAMETERS:  Node            - NS node for the notified object
+ * PARAMETERS:  node            - NS node for the notified object
  *              notify_value    - Value from the Notify() request
  *
  * RETURN:      Status
@@ -181,7 +181,7 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node * node,
  *
  * FUNCTION:    acpi_ev_notify_dispatch
  *
- * PARAMETERS:  Context         - To be passed to the notify handler
+ * PARAMETERS:  context         - To be passed to the notify handler
  *
  * RETURN:      None.
  *

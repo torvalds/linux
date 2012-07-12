@@ -361,7 +361,7 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
  * FUNCTION:    acpi_ex_store_object_to_node
  *
  * PARAMETERS:  source_desc             - Value to be stored
- *              Node                    - Named object to receive the value
+ *              node                    - Named object to receive the value
  *              walk_state              - Current walk state
  *              implicit_conversion     - Perform implicit conversion (yes/no)
  *

@@ -391,7 +391,7 @@ acpi_ex_prep_common_field_object(union acpi_operand_object *obj_desc,
  *
  * FUNCTION:    acpi_ex_prep_field_value
  *
- * PARAMETERS:  Info    - Contains all field creation info
+ * PARAMETERS:  info    - Contains all field creation info
  *
  * RETURN:      Status
  *

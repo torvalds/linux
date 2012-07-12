@@ -52,7 +52,7 @@ ACPI_MODULE_NAME("utlock")
  * FUNCTION:    acpi_ut_create_rw_lock
  *              acpi_ut_delete_rw_lock
  *
- * PARAMETERS:  Lock                - Pointer to a valid RW lock
+ * PARAMETERS:  lock                - Pointer to a valid RW lock
  *
  * RETURN:      Status
  *
@@ -89,7 +89,7 @@ void acpi_ut_delete_rw_lock(struct acpi_rw_lock *lock)
  * FUNCTION:    acpi_ut_acquire_read_lock
  *              acpi_ut_release_read_lock
  *
- * PARAMETERS:  Lock                - Pointer to a valid RW lock
+ * PARAMETERS:  lock                - Pointer to a valid RW lock
  *
  * RETURN:      Status
  *
@@ -149,7 +149,7 @@ acpi_status acpi_ut_release_read_lock(struct acpi_rw_lock *lock)
  * FUNCTION:    acpi_ut_acquire_write_lock
  *              acpi_ut_release_write_lock
  *
- * PARAMETERS:  Lock                - Pointer to a valid RW lock
+ * PARAMETERS:  lock                - Pointer to a valid RW lock
  *
  * RETURN:      Status
  *

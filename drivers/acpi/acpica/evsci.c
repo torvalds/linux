@@ -56,7 +56,7 @@ static u32 ACPI_SYSTEM_XFACE acpi_ev_sci_xrupt_handler(void *context);
  *
  * FUNCTION:    acpi_ev_sci_xrupt_handler
  *
- * PARAMETERS:  Context   - Calling Context
+ * PARAMETERS:  context   - Calling Context
  *
  * RETURN:      Status code indicates whether interrupt was handled.
  *
@@ -96,7 +96,7 @@ static u32 ACPI_SYSTEM_XFACE acpi_ev_sci_xrupt_handler(void *context)
  *
  * FUNCTION:    acpi_ev_gpe_xrupt_handler
  *
- * PARAMETERS:  Context   - Calling Context
+ * PARAMETERS:  context   - Calling Context
  *
  * RETURN:      Status code indicates whether interrupt was handled.
  *

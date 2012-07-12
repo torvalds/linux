@@ -55,9 +55,9 @@ ACPI_MODULE_NAME("nsdumpdv")
  *
  * FUNCTION:    acpi_ns_dump_one_device
  *
- * PARAMETERS:  Handle              - Node to be dumped
- *              Level               - Nesting level of the handle
- *              Context             - Passed into walk_namespace
+ * PARAMETERS:  handle              - Node to be dumped
+ *              level               - Nesting level of the handle
+ *              context             - Passed into walk_namespace
  *              return_value        - Not used
  *
  * RETURN:      Status

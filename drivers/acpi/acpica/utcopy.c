@@ -317,7 +317,7 @@ acpi_ut_copy_ielement_to_eelement(u8 object_type,
  * FUNCTION:    acpi_ut_copy_ipackage_to_epackage
  *
  * PARAMETERS:  internal_object     - Pointer to the object we are returning
- *              Buffer              - Where the object is returned
+ *              buffer              - Where the object is returned
  *              space_used          - Where the object length is returned
  *
  * RETURN:      Status

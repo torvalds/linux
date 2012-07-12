@@ -60,7 +60,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action);
  *
  * FUNCTION:    acpi_ut_delete_internal_obj
  *
- * PARAMETERS:  Object         - Object to be deleted
+ * PARAMETERS:  object         - Object to be deleted
  *
  * RETURN:      None
  *
@@ -358,8 +358,8 @@ void acpi_ut_delete_internal_object_list(union acpi_operand_object **obj_list)
  *
  * FUNCTION:    acpi_ut_update_ref_count
  *
- * PARAMETERS:  Object          - Object whose ref count is to be updated
- *              Action          - What to do
+ * PARAMETERS:  object          - Object whose ref count is to be updated
+ *              action          - What to do
  *
  * RETURN:      New ref count
  *
@@ -456,9 +456,9 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
  *
  * FUNCTION:    acpi_ut_update_object_reference
  *
- * PARAMETERS:  Object              - Increment ref count for this object
+ * PARAMETERS:  object              - Increment ref count for this object
  *                                    and all sub-objects
- *              Action              - Either REF_INCREMENT or REF_DECREMENT or
+ *              action              - Either REF_INCREMENT or REF_DECREMENT or
  *                                    REF_FORCE_DELETE
  *
  * RETURN:      Status
@@ -640,7 +640,7 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
  *
  * FUNCTION:    acpi_ut_add_reference
  *
- * PARAMETERS:  Object          - Object whose reference count is to be
+ * PARAMETERS:  object          - Object whose reference count is to be
  *                                incremented
  *
  * RETURN:      None
@@ -674,7 +674,7 @@ void acpi_ut_add_reference(union acpi_operand_object *object)
  *
  * FUNCTION:    acpi_ut_remove_reference
  *
- * PARAMETERS:  Object         - Object whose ref count will be decremented
+ * PARAMETERS:  object         - Object whose ref count will be decremented
  *
  * RETURN:      None
  *

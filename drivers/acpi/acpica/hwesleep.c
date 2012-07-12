@@ -90,7 +90,7 @@ void acpi_hw_execute_sleep_method(char *method_pathname, u32 integer_argument)
  * FUNCTION:    acpi_hw_extended_sleep
  *
  * PARAMETERS:  sleep_state         - Which sleep state to enter
- *              Flags               - ACPI_EXECUTE_GTS to run optional method
+ *              flags               - ACPI_EXECUTE_GTS to run optional method
  *
  * RETURN:      Status
  *
@@ -172,7 +172,7 @@ acpi_status acpi_hw_extended_sleep(u8 sleep_state, u8 flags)
  * FUNCTION:    acpi_hw_extended_wake_prep
  *
  * PARAMETERS:  sleep_state         - Which sleep state we just exited
- *              Flags               - ACPI_EXECUTE_BFS to run optional method
+ *              flags               - ACPI_EXECUTE_BFS to run optional method
  *
  * RETURN:      Status
  *
@@ -213,7 +213,7 @@ acpi_status acpi_hw_extended_wake_prep(u8 sleep_state, u8 flags)
  * FUNCTION:    acpi_hw_extended_wake
  *
  * PARAMETERS:  sleep_state         - Which sleep state we just exited
- *              Flags               - Reserved, set to zero
+ *              flags               - Reserved, set to zero
  *
  * RETURN:      Status
  *

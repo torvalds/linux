@@ -79,7 +79,7 @@ acpi_rs_validate_parameters(acpi_handle device_handle,
  * FUNCTION:    acpi_rs_validate_parameters
  *
  * PARAMETERS:  device_handle   - Handle to a device
- *              Buffer          - Pointer to a data buffer
+ *              buffer          - Pointer to a data buffer
  *              return_node     - Pointer to where the device node is returned
  *
  * RETURN:      Status
@@ -351,8 +351,8 @@ ACPI_EXPORT_SYMBOL(acpi_get_event_resources)
  *
  * FUNCTION:    acpi_resource_to_address64
  *
- * PARAMETERS:  Resource        - Pointer to a resource
- *              Out             - Pointer to the users's return buffer
+ * PARAMETERS:  resource        - Pointer to a resource
+ *              out             - Pointer to the users's return buffer
  *                                (a struct acpi_resource_address64)
  *
  * RETURN:      Status
@@ -415,9 +415,9 @@ ACPI_EXPORT_SYMBOL(acpi_resource_to_address64)
  * FUNCTION:    acpi_get_vendor_resource
  *
  * PARAMETERS:  device_handle   - Handle for the parent device object
- *              Name            - Method name for the parent resource
+ *              name            - Method name for the parent resource
  *                                (METHOD_NAME__CRS or METHOD_NAME__PRS)
- *              Uuid            - Pointer to the UUID to be matched.
+ *              uuid            - Pointer to the UUID to be matched.
  *                                includes both subtype and 16-byte UUID
  *              ret_buffer      - Where the vendor resource is returned
  *
@@ -526,11 +526,11 @@ acpi_rs_match_vendor_resource(struct acpi_resource *resource, void *context)
  *
  * PARAMETERS:  device_handle   - Handle to the device object for the
  *                                device we are querying
- *              Name            - Method name of the resources we want.
+ *              name            - Method name of the resources we want.
  *                                (METHOD_NAME__CRS, METHOD_NAME__PRS, or
  *                                METHOD_NAME__AEI)
  *              user_function   - Called for each resource
- *              Context         - Passed to user_function
+ *              context         - Passed to user_function
  *
  * RETURN:      Status
  *
