@@ -369,31 +369,23 @@ static struct video_device poseidon_fm_template = {
 	.name       = "Telegent-Radio",
 	.fops       = &poseidon_fm_fops,
 	.minor      = -1,
-	.release    = video_device_release,
+	.release    = video_device_release_empty,
 	.ioctl_ops  = &poseidon_fm_ioctl_ops,
 };
 
 int poseidon_fm_init(struct poseidon *p)
 {
-	struct video_device *fm_dev;
-	int err;
+	struct video_device *vfd = &p->radio_data.fm_dev;
 
-	fm_dev = vdev_init(p, &poseidon_fm_template);
-	if (fm_dev == NULL)
-		return -ENOMEM;
+	*vfd = poseidon_fm_template;
+	vfd->v4l2_dev	= &p->v4l2_dev;
+	video_set_drvdata(vfd, p);
 
-	p->radio_data.fm_dev = fm_dev;
 	set_frequency(p, TUNER_FREQ_MIN_FM);
-	err = video_register_device(fm_dev, VFL_TYPE_RADIO, -1);
-	if (err < 0) {
-		video_device_release(fm_dev);
-		return err;
-	}
-	return 0;
+	return video_register_device(vfd, VFL_TYPE_RADIO, -1);
 }
 
 int poseidon_fm_exit(struct poseidon *p)
 {
-	destroy_video_device(&p->radio_data.fm_dev);
 	return 0;
 }

@@ -118,7 +118,7 @@ struct radio_data {
 	int		users;
 	unsigned int	is_radio_streaming;
 	int		pre_emphasis;
-	struct video_device *fm_dev;
+	struct video_device fm_dev;
 };
 
 #define DVB_SBUF_NUM		4
