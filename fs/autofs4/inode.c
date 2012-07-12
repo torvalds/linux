@@ -292,7 +292,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 		printk("autofs: could not open pipe file descriptor\n");
 		goto fail_dput;
 	}
-	if (!pipe->f_op || !pipe->f_op->write)
+	if (autofs_prepare_pipe(pipe) < 0)
 		goto fail_fput;
 	sbi->pipe = pipe;
 	sbi->pipefd = pipefd;

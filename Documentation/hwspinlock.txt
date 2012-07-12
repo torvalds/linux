@@ -39,23 +39,20 @@ independent, drivers.
      in case an unused hwspinlock isn't available. Users of this
      API will usually want to communicate the lock's id to the remote core
      before it can be used to achieve synchronization.
-     Can be called from an atomic context (this function will not sleep) but
-     not from within interrupt context.
+     Should be called from a process context (might sleep).
 
   struct hwspinlock *hwspin_lock_request_specific(unsigned int id);
    - assign a specific hwspinlock id and return its address, or NULL
      if that hwspinlock is already in use. Usually board code will
      be calling this function in order to reserve specific hwspinlock
      ids for predefined purposes.
-     Can be called from an atomic context (this function will not sleep) but
-     not from within interrupt context.
+     Should be called from a process context (might sleep).
 
   int hwspin_lock_free(struct hwspinlock *hwlock);
    - free a previously-assigned hwspinlock; returns 0 on success, or an
      appropriate error code on failure (e.g. -EINVAL if the hwspinlock
      is already free).
-     Can be called from an atomic context (this function will not sleep) but
-     not from within interrupt context.
+     Should be called from a process context (might sleep).
 
   int hwspin_lock_timeout(struct hwspinlock *hwlock, unsigned int timeout);
    - lock a previously-assigned hwspinlock with a timeout limit (specified in
@@ -232,15 +229,14 @@ int hwspinlock_example2(void)
 
   int hwspin_lock_register(struct hwspinlock *hwlock);
    - to be called from the underlying platform-specific implementation, in
-     order to register a new hwspinlock instance. Can be called from an atomic
-     context (this function will not sleep) but not from within interrupt
-     context. Returns 0 on success, or appropriate error code on failure.
+     order to register a new hwspinlock instance. Should be called from
+     a process context (this function might sleep).
+     Returns 0 on success, or appropriate error code on failure.
 
   struct hwspinlock *hwspin_lock_unregister(unsigned int id);
    - to be called from the underlying vendor-specific implementation, in order
      to unregister an existing (and unused) hwspinlock instance.
-     Can be called from an atomic context (will not sleep) but not from
-     within interrupt context.
+     Should be called from a process context (this function might sleep).
      Returns the address of hwspinlock on success, or NULL on error (e.g.
      if the hwspinlock is sill in use).
 

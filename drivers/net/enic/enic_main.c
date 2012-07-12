@@ -1718,8 +1718,12 @@ static void enic_poll_controller(struct net_device *netdev)
 			enic_isr_msix_rq(enic->msix_entry[intr].vector,
 				&enic->napi[i]);
 		}
-		intr = enic_msix_wq_intr(enic, i);
-		enic_isr_msix_wq(enic->msix_entry[intr].vector, enic);
+
+		for (i = 0; i < enic->wq_count; i++) {
+			intr = enic_msix_wq_intr(enic, i);
+			enic_isr_msix_wq(enic->msix_entry[intr].vector, enic);
+		}
+
 		break;
 	case VNIC_DEV_INTR_MODE_MSI:
 		enic_isr_msi(enic->pdev->irq, enic);

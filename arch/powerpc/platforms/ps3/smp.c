@@ -94,6 +94,8 @@ static void __init ps3_smp_setup_cpu(int cpu)
 
 		if (result)
 			virqs[i] = NO_IRQ;
+		else
+			ps3_register_ipi_irq(cpu, virqs[i]);
 	}
 
 	ps3_register_ipi_debug_brk(cpu, virqs[PPC_MSG_DEBUGGER_BREAK]);

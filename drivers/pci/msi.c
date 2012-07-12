@@ -869,5 +869,15 @@ EXPORT_SYMBOL(pci_msi_enabled);
 
 void pci_msi_init_pci_dev(struct pci_dev *dev)
 {
+	int pos;
 	INIT_LIST_HEAD(&dev->msi_list);
+
+	/* Disable the msi hardware to avoid screaming interrupts
+	 * during boot.  This is the power on reset default so
+	 * usually this should be a noop.
+	 */
+	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
+	if (pos)
+		msi_set_enable(dev, pos, 0);
+	msix_set_enable(dev, 0);
 }

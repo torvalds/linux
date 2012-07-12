@@ -72,6 +72,7 @@
 
 #define MXS_I2C_QUEUESTAT	(0x70)
 #define MXS_I2C_QUEUESTAT_RD_QUEUE_EMPTY        0x00002000
+#define MXS_I2C_QUEUESTAT_WRITE_QUEUE_CNT_MASK	0x0000001F
 
 #define MXS_I2C_QUEUECMD	(0x80)
 
@@ -219,13 +220,13 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 	int ret;
 	int flags;
 
-	init_completion(&i2c->cmd_complete);
-
 	dev_dbg(i2c->dev, "addr: 0x%04x, len: %d, flags: 0x%x, stop: %d\n",
 		msg->addr, msg->len, msg->flags, stop);
 
 	if (msg->len == 0)
 		return -EINVAL;
+
+	init_completion(&i2c->cmd_complete);
 
 	flags = stop ? MXS_I2C_CTRL0_POST_SEND_STOP : 0;
 
@@ -286,6 +287,7 @@ static irqreturn_t mxs_i2c_isr(int this_irq, void *dev_id)
 {
 	struct mxs_i2c_dev *i2c = dev_id;
 	u32 stat = readl(i2c->regs + MXS_I2C_CTRL1) & MXS_I2C_IRQ_MASK;
+	bool is_last_cmd;
 
 	if (!stat)
 		return IRQ_NONE;
@@ -300,9 +302,14 @@ static irqreturn_t mxs_i2c_isr(int this_irq, void *dev_id)
 	else
 		i2c->cmd_err = 0;
 
-	complete(&i2c->cmd_complete);
+	is_last_cmd = (readl(i2c->regs + MXS_I2C_QUEUESTAT) &
+		MXS_I2C_QUEUESTAT_WRITE_QUEUE_CNT_MASK) == 0;
+
+	if (is_last_cmd || i2c->cmd_err)
+		complete(&i2c->cmd_complete);
 
 	writel(stat, i2c->regs + MXS_I2C_CTRL1_CLR);
+
 	return IRQ_HANDLED;
 }
 

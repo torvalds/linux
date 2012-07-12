@@ -385,7 +385,7 @@ static inline int gred_change_vq(struct Qdisc *sch, int dp,
 	struct gred_sched_data *q;
 
 	if (table->tab[dp] == NULL) {
-		table->tab[dp] = kzalloc(sizeof(*q), GFP_KERNEL);
+		table->tab[dp] = kzalloc(sizeof(*q), GFP_ATOMIC);
 		if (table->tab[dp] == NULL)
 			return -ENOMEM;
 	}
@@ -544,11 +544,8 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 		opt.packets	= q->packetsin;
 		opt.bytesin	= q->bytesin;
 
-		if (gred_wred_mode(table)) {
-			q->parms.qidlestart =
-				table->tab[table->def]->parms.qidlestart;
-			q->parms.qavg = table->tab[table->def]->parms.qavg;
-		}
+		if (gred_wred_mode(table))
+			gred_load_wred_set(table, q);
 
 		opt.qave = red_calc_qavg(&q->parms, q->parms.qavg);
 

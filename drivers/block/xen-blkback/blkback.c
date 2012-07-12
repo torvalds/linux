@@ -667,7 +667,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 
 	if (operation == READ)
 		blkif->st_rd_sect += preq.nr_sects;
-	else if (operation == WRITE || operation == WRITE_FLUSH)
+	else if (operation & WRITE)
 		blkif->st_wr_sect += preq.nr_sects;
 
 	return 0;

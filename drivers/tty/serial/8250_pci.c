@@ -1459,51 +1459,61 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.vendor         = PCI_VENDOR_ID_INTEL,
 		.device         = 0x8811,
 		.init		= pci_eg20t_init,
+		.setup		= pci_default_setup,
 	},
 	{
 		.vendor         = PCI_VENDOR_ID_INTEL,
 		.device         = 0x8812,
 		.init		= pci_eg20t_init,
+		.setup		= pci_default_setup,
 	},
 	{
 		.vendor         = PCI_VENDOR_ID_INTEL,
 		.device         = 0x8813,
 		.init		= pci_eg20t_init,
+		.setup		= pci_default_setup,
 	},
 	{
 		.vendor         = PCI_VENDOR_ID_INTEL,
 		.device         = 0x8814,
 		.init		= pci_eg20t_init,
+		.setup		= pci_default_setup,
 	},
 	{
 		.vendor         = 0x10DB,
 		.device         = 0x8027,
 		.init		= pci_eg20t_init,
+		.setup		= pci_default_setup,
 	},
 	{
 		.vendor         = 0x10DB,
 		.device         = 0x8028,
 		.init		= pci_eg20t_init,
+		.setup		= pci_default_setup,
 	},
 	{
 		.vendor         = 0x10DB,
 		.device         = 0x8029,
 		.init		= pci_eg20t_init,
+		.setup		= pci_default_setup,
 	},
 	{
 		.vendor         = 0x10DB,
 		.device         = 0x800C,
 		.init		= pci_eg20t_init,
+		.setup		= pci_default_setup,
 	},
 	{
 		.vendor         = 0x10DB,
 		.device         = 0x800D,
 		.init		= pci_eg20t_init,
+		.setup		= pci_default_setup,
 	},
 	{
 		.vendor         = 0x10DB,
 		.device         = 0x800D,
 		.init		= pci_eg20t_init,
+		.setup		= pci_default_setup,
 	},
 	/*
 	 * Cronyx Omega PCI (PLX-chip based)

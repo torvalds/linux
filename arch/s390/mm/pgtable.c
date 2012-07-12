@@ -243,8 +243,6 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
 	}
 }
 
-#ifdef CONFIG_HAVE_RCU_TABLE_FREE
-
 static void __page_table_free_rcu(void *table, unsigned bit)
 {
 	struct page *page;
@@ -291,8 +289,9 @@ void page_table_free_rcu(struct mmu_gather *tlb, unsigned long *table)
 
 void __tlb_remove_table(void *_table)
 {
-	void *table = (void *)((unsigned long) _table & PAGE_MASK);
-	unsigned type = (unsigned long) _table & ~PAGE_MASK;
+	const unsigned long mask = (FRAG_MASK << 4) | FRAG_MASK;
+	void *table = (void *)((unsigned long) _table & ~mask);
+	unsigned type = (unsigned long) _table & mask;
 
 	if (type)
 		__page_table_free_rcu(table, type);
@@ -300,7 +299,66 @@ void __tlb_remove_table(void *_table)
 		free_pages((unsigned long) table, ALLOC_ORDER);
 }
 
-#endif
+static void tlb_remove_table_smp_sync(void *arg)
+{
+	/* Simply deliver the interrupt */
+}
+
+static void tlb_remove_table_one(void *table)
+{
+	/*
+	 * This isn't an RCU grace period and hence the page-tables cannot be
+	 * assumed to be actually RCU-freed.
+	 *
+	 * It is however sufficient for software page-table walkers that rely
+	 * on IRQ disabling. See the comment near struct mmu_table_batch.
+	 */
+	smp_call_function(tlb_remove_table_smp_sync, NULL, 1);
+	__tlb_remove_table(table);
+}
+
+static void tlb_remove_table_rcu(struct rcu_head *head)
+{
+	struct mmu_table_batch *batch;
+	int i;
+
+	batch = container_of(head, struct mmu_table_batch, rcu);
+
+	for (i = 0; i < batch->nr; i++)
+		__tlb_remove_table(batch->tables[i]);
+
+	free_page((unsigned long)batch);
+}
+
+void tlb_table_flush(struct mmu_gather *tlb)
+{
+	struct mmu_table_batch **batch = &tlb->batch;
+
+	if (*batch) {
+		__tlb_flush_mm(tlb->mm);
+		call_rcu_sched(&(*batch)->rcu, tlb_remove_table_rcu);
+		*batch = NULL;
+	}
+}
+
+void tlb_remove_table(struct mmu_gather *tlb, void *table)
+{
+	struct mmu_table_batch **batch = &tlb->batch;
+
+	if (*batch == NULL) {
+		*batch = (struct mmu_table_batch *)
+			__get_free_page(GFP_NOWAIT | __GFP_NOWARN);
+		if (*batch == NULL) {
+			__tlb_flush_mm(tlb->mm);
+			tlb_remove_table_one(table);
+			return;
+		}
+		(*batch)->nr = 0;
+	}
+	(*batch)->tables[(*batch)->nr++] = table;
+	if ((*batch)->nr == MAX_TABLE_BATCH)
+		tlb_table_flush(tlb);
+}
 
 /*
  * switch on pgstes for its userspace process (for kvm)

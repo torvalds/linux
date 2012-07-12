@@ -64,6 +64,7 @@ static const unsigned short normal_i2c[] = {
 
 /* Manufacturer IDs */
 #define ADT_MANID		0x11d4  /* Analog Devices */
+#define ATMEL_MANID		0x001f  /* Atmel */
 #define MAX_MANID		0x004d  /* Maxim */
 #define IDT_MANID		0x00b3  /* IDT */
 #define MCP_MANID		0x0054  /* Microchip */
@@ -77,15 +78,25 @@ static const unsigned short normal_i2c[] = {
 #define ADT7408_DEVID		0x0801
 #define ADT7408_DEVID_MASK	0xffff
 
+/* Atmel */
+#define AT30TS00_DEVID		0x8201
+#define AT30TS00_DEVID_MASK	0xffff
+
 /* IDT */
 #define TS3000B3_DEVID		0x2903  /* Also matches TSE2002B3 */
 #define TS3000B3_DEVID_MASK	0xffff
+
+#define TS3000GB2_DEVID		0x2912  /* Also matches TSE2002GB2 */
+#define TS3000GB2_DEVID_MASK	0xffff
 
 /* Maxim */
 #define MAX6604_DEVID		0x3e00
 #define MAX6604_DEVID_MASK	0xffff
 
 /* Microchip */
+#define MCP9804_DEVID		0x0200
+#define MCP9804_DEVID_MASK	0xfffc
+
 #define MCP98242_DEVID		0x2000
 #define MCP98242_DEVID_MASK	0xfffc
 
@@ -113,6 +124,12 @@ static const unsigned short normal_i2c[] = {
 #define STTS424E_DEVID		0x0000
 #define STTS424E_DEVID_MASK	0xfffe
 
+#define STTS2002_DEVID		0x0300
+#define STTS2002_DEVID_MASK	0xffff
+
+#define STTS3000_DEVID		0x0200
+#define STTS3000_DEVID_MASK	0xffff
+
 static u16 jc42_hysteresis[] = { 0, 1500, 3000, 6000 };
 
 struct jc42_chips {
@@ -123,8 +140,11 @@ struct jc42_chips {
 
 static struct jc42_chips jc42_chips[] = {
 	{ ADT_MANID, ADT7408_DEVID, ADT7408_DEVID_MASK },
+	{ ATMEL_MANID, AT30TS00_DEVID, AT30TS00_DEVID_MASK },
 	{ IDT_MANID, TS3000B3_DEVID, TS3000B3_DEVID_MASK },
+	{ IDT_MANID, TS3000GB2_DEVID, TS3000GB2_DEVID_MASK },
 	{ MAX_MANID, MAX6604_DEVID, MAX6604_DEVID_MASK },
+	{ MCP_MANID, MCP9804_DEVID, MCP9804_DEVID_MASK },
 	{ MCP_MANID, MCP98242_DEVID, MCP98242_DEVID_MASK },
 	{ MCP_MANID, MCP98243_DEVID, MCP98243_DEVID_MASK },
 	{ MCP_MANID, MCP9843_DEVID, MCP9843_DEVID_MASK },
@@ -133,6 +153,8 @@ static struct jc42_chips jc42_chips[] = {
 	{ NXP_MANID, SE98_DEVID, SE98_DEVID_MASK },
 	{ STM_MANID, STTS424_DEVID, STTS424_DEVID_MASK },
 	{ STM_MANID, STTS424E_DEVID, STTS424E_DEVID_MASK },
+	{ STM_MANID, STTS2002_DEVID, STTS2002_DEVID_MASK },
+	{ STM_MANID, STTS3000_DEVID, STTS3000_DEVID_MASK },
 };
 
 /* Each client has this additional data */
@@ -161,10 +183,12 @@ static struct jc42_data *jc42_update_device(struct device *dev);
 
 static const struct i2c_device_id jc42_id[] = {
 	{ "adt7408", 0 },
+	{ "at30ts00", 0 },
 	{ "cat94ts02", 0 },
 	{ "cat6095", 0 },
 	{ "jc42", 0 },
 	{ "max6604", 0 },
+	{ "mcp9804", 0 },
 	{ "mcp9805", 0 },
 	{ "mcp98242", 0 },
 	{ "mcp98243", 0 },
@@ -173,8 +197,10 @@ static const struct i2c_device_id jc42_id[] = {
 	{ "se97b", 0 },
 	{ "se98", 0 },
 	{ "stts424", 0 },
-	{ "tse2002b3", 0 },
-	{ "ts3000b3", 0 },
+	{ "stts2002", 0 },
+	{ "stts3000", 0 },
+	{ "tse2002", 0 },
+	{ "ts3000", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, jc42_id);

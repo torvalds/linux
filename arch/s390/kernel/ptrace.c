@@ -20,8 +20,8 @@
 #include <linux/regset.h>
 #include <linux/tracehook.h>
 #include <linux/seccomp.h>
+#include <linux/compat.h>
 #include <trace/syscall.h>
-#include <asm/compat.h>
 #include <asm/segment.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -47,29 +47,31 @@ enum s390_regset {
 
 void update_per_regs(struct task_struct *task)
 {
-	static const struct per_regs per_single_step = {
-		.control = PER_EVENT_IFETCH,
-		.start = 0,
-		.end = PSW_ADDR_INSN,
-	};
 	struct pt_regs *regs = task_pt_regs(task);
 	struct thread_struct *thread = &task->thread;
-	const struct per_regs *new;
-	struct per_regs old;
+	struct per_regs old, new;
 
-	/* TIF_SINGLE_STEP overrides the user specified PER registers. */
-	new = test_tsk_thread_flag(task, TIF_SINGLE_STEP) ?
-		&per_single_step : &thread->per_user;
+	/* Copy user specified PER registers */
+	new.control = thread->per_user.control;
+	new.start = thread->per_user.start;
+	new.end = thread->per_user.end;
+
+	/* merge TIF_SINGLE_STEP into user specified PER registers. */
+	if (test_tsk_thread_flag(task, TIF_SINGLE_STEP)) {
+		new.control |= PER_EVENT_IFETCH;
+		new.start = 0;
+		new.end = PSW_ADDR_INSN;
+	}
 
 	/* Take care of the PER enablement bit in the PSW. */
-	if (!(new->control & PER_EVENT_MASK)) {
+	if (!(new.control & PER_EVENT_MASK)) {
 		regs->psw.mask &= ~PSW_MASK_PER;
 		return;
 	}
 	regs->psw.mask |= PSW_MASK_PER;
 	__ctl_store(old, 9, 11);
-	if (memcmp(new, &old, sizeof(struct per_regs)) != 0)
-		__ctl_load(*new, 9, 11);
+	if (memcmp(&new, &old, sizeof(struct per_regs)) != 0)
+		__ctl_load(new, 9, 11);
 }
 
 void user_enable_single_step(struct task_struct *task)
@@ -895,6 +897,14 @@ static int s390_last_break_get(struct task_struct *target,
 	return 0;
 }
 
+static int s390_last_break_set(struct task_struct *target,
+			       const struct user_regset *regset,
+			       unsigned int pos, unsigned int count,
+			       const void *kbuf, const void __user *ubuf)
+{
+	return 0;
+}
+
 #endif
 
 static const struct user_regset s390_regsets[] = {
@@ -921,6 +931,7 @@ static const struct user_regset s390_regsets[] = {
 		.size = sizeof(long),
 		.align = sizeof(long),
 		.get = s390_last_break_get,
+		.set = s390_last_break_set,
 	},
 #endif
 };
@@ -1078,6 +1089,14 @@ static int s390_compat_last_break_get(struct task_struct *target,
 	return 0;
 }
 
+static int s390_compat_last_break_set(struct task_struct *target,
+				      const struct user_regset *regset,
+				      unsigned int pos, unsigned int count,
+				      const void *kbuf, const void __user *ubuf)
+{
+	return 0;
+}
+
 static const struct user_regset s390_compat_regsets[] = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS,
@@ -1101,6 +1120,7 @@ static const struct user_regset s390_compat_regsets[] = {
 		.size = sizeof(long),
 		.align = sizeof(long),
 		.get = s390_compat_last_break_get,
+		.set = s390_compat_last_break_set,
 	},
 	[REGSET_GENERAL_EXTENDED] = {
 		.core_note_type = NT_S390_HIGH_GPRS,

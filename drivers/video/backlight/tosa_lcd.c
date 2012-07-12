@@ -271,7 +271,7 @@ static int tosa_lcd_resume(struct spi_device *spi)
 }
 #else
 #define tosa_lcd_suspend	NULL
-#define tosa_lcd_reume NULL
+#define tosa_lcd_resume NULL
 #endif
 
 static struct spi_driver tosa_lcd_driver = {

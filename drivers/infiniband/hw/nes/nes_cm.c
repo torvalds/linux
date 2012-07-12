@@ -1150,9 +1150,11 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 		neigh_release(neigh);
 	}
 
-	if ((neigh == NULL) || (!(neigh->nud_state & NUD_VALID)))
-		neigh_event_send(rt->dst.neighbour, NULL);
-
+	if ((neigh == NULL) || (!(neigh->nud_state & NUD_VALID))) {
+		rcu_read_lock();
+		neigh_event_send(dst_get_neighbour(&rt->dst), NULL);
+		rcu_read_unlock();
+	}
 	ip_rt_put(rt);
 	return rc;
 }

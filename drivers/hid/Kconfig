@@ -69,7 +69,7 @@ config HID_ACRUX
 	Say Y here if you want to enable support for ACRUX game controllers.
 
 config HID_ACRUX_FF
-	tristate "ACRUX force feedback support"
+	bool "ACRUX force feedback support"
 	depends on HID_ACRUX
 	select INPUT_FF_MEMLESS
 	---help---
@@ -314,6 +314,7 @@ config HID_MULTITOUCH
 	  - Hanvon dual touch panels
 	  - Ilitek dual touch panels
 	  - IrTouch Infrared USB panels
+	  - LG Display panels (Dell ST2220Tc)
 	  - Lumio CrystalTouch panels
 	  - MosArt dual-touch panels
 	  - PenMount dual touch panels

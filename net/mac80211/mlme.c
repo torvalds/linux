@@ -613,6 +613,9 @@ static bool ieee80211_powersave_allowed(struct ieee80211_sub_if_data *sdata)
 	if (!mgd->powersave)
 		return false;
 
+	if (mgd->broken_ap)
+		return false;
+
 	if (!mgd->associated)
 		return false;
 
@@ -1450,9 +1453,20 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 	capab_info = le16_to_cpu(mgmt->u.assoc_resp.capab_info);
 
 	if ((aid & (BIT(15) | BIT(14))) != (BIT(15) | BIT(14)))
-		printk(KERN_DEBUG "%s: invalid aid value %d; bits 15:14 not "
-		       "set\n", sdata->name, aid);
+		printk(KERN_DEBUG
+		       "%s: invalid AID value 0x%x; bits 15:14 not set\n",
+		       sdata->name, aid);
 	aid &= ~(BIT(15) | BIT(14));
+
+	ifmgd->broken_ap = false;
+
+	if (aid == 0 || aid > IEEE80211_MAX_AID) {
+		printk(KERN_DEBUG
+		       "%s: invalid AID value %d (out of range), turn off PS\n",
+		       sdata->name, aid);
+		aid = 0;
+		ifmgd->broken_ap = true;
+	}
 
 	pos = mgmt->u.assoc_resp.variable;
 	ieee802_11_parse_elems(pos, len - (pos - (u8 *) mgmt), &elems);

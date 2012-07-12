@@ -294,9 +294,11 @@ objlayout_read_done(struct objlayout_io_state *state, ssize_t status, bool sync)
 	dprintk("%s: Begin status=%zd eof=%d\n", __func__, status, eof);
 	rdata = state->rpcdata;
 	rdata->task.tk_status = status;
-	if (status >= 0) {
+	if (likely(status >= 0)) {
 		rdata->res.count = status;
 		rdata->res.eof = eof;
+	} else {
+		rdata->pnfs_error = status;
 	}
 	objlayout_iodone(state);
 	/* must not use state after this point */
@@ -380,15 +382,17 @@ objlayout_write_done(struct objlayout_io_state *state, ssize_t status,
 	wdata = state->rpcdata;
 	state->status = status;
 	wdata->task.tk_status = status;
-	if (status >= 0) {
+	if (likely(status >= 0)) {
 		wdata->res.count = status;
 		wdata->verf.committed = state->committed;
 		dprintk("%s: Return status %d committed %d\n",
 			__func__, wdata->task.tk_status,
 			wdata->verf.committed);
-	} else
+	} else {
+		wdata->pnfs_error = status;
 		dprintk("%s: Return status %d\n",
 			__func__, wdata->task.tk_status);
+	}
 	objlayout_iodone(state);
 	/* must not use state after this point */
 

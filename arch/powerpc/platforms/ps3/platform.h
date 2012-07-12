@@ -43,6 +43,7 @@ void ps3_mm_shutdown(void);
 void ps3_init_IRQ(void);
 void ps3_shutdown_IRQ(int cpu);
 void __init ps3_register_ipi_debug_brk(unsigned int cpu, unsigned int virq);
+void __init ps3_register_ipi_irq(unsigned int cpu, unsigned int virq);
 
 /* smp */
 

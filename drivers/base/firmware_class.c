@@ -226,13 +226,13 @@ static ssize_t firmware_loading_store(struct device *dev,
 	int loading = simple_strtol(buf, NULL, 10);
 	int i;
 
+	mutex_lock(&fw_lock);
+
+	if (!fw_priv->fw)
+		goto out;
+
 	switch (loading) {
 	case 1:
-		mutex_lock(&fw_lock);
-		if (!fw_priv->fw) {
-			mutex_unlock(&fw_lock);
-			break;
-		}
 		firmware_free_data(fw_priv->fw);
 		memset(fw_priv->fw, 0, sizeof(struct firmware));
 		/* If the pages are not owned by 'struct firmware' */
@@ -243,7 +243,6 @@ static ssize_t firmware_loading_store(struct device *dev,
 		fw_priv->page_array_size = 0;
 		fw_priv->nr_pages = 0;
 		set_bit(FW_STATUS_LOADING, &fw_priv->status);
-		mutex_unlock(&fw_lock);
 		break;
 	case 0:
 		if (test_bit(FW_STATUS_LOADING, &fw_priv->status)) {
@@ -274,7 +273,8 @@ static ssize_t firmware_loading_store(struct device *dev,
 		fw_load_abort(fw_priv);
 		break;
 	}
-
+out:
+	mutex_unlock(&fw_lock);
 	return count;
 }
 

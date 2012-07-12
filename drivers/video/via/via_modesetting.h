@@ -28,6 +28,11 @@
 
 #include <linux/types.h>
 
+
+#define VIA_PITCH_SIZE	(1<<3)
+#define VIA_PITCH_MAX	0x3FF8
+
+
 void via_set_primary_address(u32 addr);
 void via_set_secondary_address(u32 addr);
 void via_set_primary_pitch(u32 pitch);

@@ -750,10 +750,6 @@ static inline bool kern_addr_valid(unsigned long addr)
 
 extern int page_in_phys_avail(unsigned long paddr);
 
-extern int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
-			       unsigned long pfn,
-			       unsigned long size, pgprot_t prot);
-
 /*
  * For sparc32&64, the pfn in io_remap_pfn_range() carries <iospace> in
  * its high 4 bits.  These macros/functions put it there or get it from there.
@@ -761,6 +757,22 @@ extern int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 #define MK_IOSPACE_PFN(space, pfn)	(pfn | (space << (BITS_PER_LONG - 4)))
 #define GET_IOSPACE(pfn)		(pfn >> (BITS_PER_LONG - 4))
 #define GET_PFN(pfn)			(pfn & 0x0fffffffffffffffUL)
+
+extern int remap_pfn_range(struct vm_area_struct *, unsigned long, unsigned long,
+			   unsigned long, pgprot_t);
+
+static inline int io_remap_pfn_range(struct vm_area_struct *vma,
+				     unsigned long from, unsigned long pfn,
+				     unsigned long size, pgprot_t prot)
+{
+	unsigned long offset = GET_PFN(pfn) << PAGE_SHIFT;
+	int space = GET_IOSPACE(pfn);
+	unsigned long phys_base;
+
+	phys_base = offset | (((unsigned long) space) << 32UL);
+
+	return remap_pfn_range(vma, from, phys_base >> PAGE_SHIFT, size, prot);
+}
 
 #include <asm-generic/pgtable.h>
 

@@ -157,37 +157,39 @@ early_param("nokgdbroundup", opt_nokgdbroundup);
  * Weak aliases for breakpoint management,
  * can be overriden by architectures when needed:
  */
-int __weak kgdb_arch_set_breakpoint(unsigned long addr, char *saved_instr)
+int __weak kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
 {
 	int err;
 
-	err = probe_kernel_read(saved_instr, (char *)addr, BREAK_INSTR_SIZE);
+	err = probe_kernel_read(bpt->saved_instr, (char *)bpt->bpt_addr,
+				BREAK_INSTR_SIZE);
 	if (err)
 		return err;
-
-	return probe_kernel_write((char *)addr, arch_kgdb_ops.gdb_bpt_instr,
-				  BREAK_INSTR_SIZE);
+	err = probe_kernel_write((char *)bpt->bpt_addr,
+				 arch_kgdb_ops.gdb_bpt_instr, BREAK_INSTR_SIZE);
+	return err;
 }
 
-int __weak kgdb_arch_remove_breakpoint(unsigned long addr, char *bundle)
+int __weak kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
 {
-	return probe_kernel_write((char *)addr,
-				  (char *)bundle, BREAK_INSTR_SIZE);
+	return probe_kernel_write((char *)bpt->bpt_addr,
+				  (char *)bpt->saved_instr, BREAK_INSTR_SIZE);
 }
 
 int __weak kgdb_validate_break_address(unsigned long addr)
 {
-	char tmp_variable[BREAK_INSTR_SIZE];
+	struct kgdb_bkpt tmp;
 	int err;
-	/* Validate setting the breakpoint and then removing it.  In the
+	/* Validate setting the breakpoint and then removing it.  If the
 	 * remove fails, the kernel needs to emit a bad message because we
 	 * are deep trouble not being able to put things back the way we
 	 * found them.
 	 */
-	err = kgdb_arch_set_breakpoint(addr, tmp_variable);
+	tmp.bpt_addr = addr;
+	err = kgdb_arch_set_breakpoint(&tmp);
 	if (err)
 		return err;
-	err = kgdb_arch_remove_breakpoint(addr, tmp_variable);
+	err = kgdb_arch_remove_breakpoint(&tmp);
 	if (err)
 		printk(KERN_ERR "KGDB: Critical breakpoint error, kernel "
 		   "memory destroyed at: %lx", addr);
@@ -231,7 +233,6 @@ static void kgdb_flush_swbreak_addr(unsigned long addr)
  */
 int dbg_activate_sw_breakpoints(void)
 {
-	unsigned long addr;
 	int error;
 	int ret = 0;
 	int i;
@@ -240,16 +241,15 @@ int dbg_activate_sw_breakpoints(void)
 		if (kgdb_break[i].state != BP_SET)
 			continue;
 
-		addr = kgdb_break[i].bpt_addr;
-		error = kgdb_arch_set_breakpoint(addr,
-				kgdb_break[i].saved_instr);
+		error = kgdb_arch_set_breakpoint(&kgdb_break[i]);
 		if (error) {
 			ret = error;
-			printk(KERN_INFO "KGDB: BP install failed: %lx", addr);
+			printk(KERN_INFO "KGDB: BP install failed: %lx",
+			       kgdb_break[i].bpt_addr);
 			continue;
 		}
 
-		kgdb_flush_swbreak_addr(addr);
+		kgdb_flush_swbreak_addr(kgdb_break[i].bpt_addr);
 		kgdb_break[i].state = BP_ACTIVE;
 	}
 	return ret;
@@ -298,7 +298,6 @@ int dbg_set_sw_break(unsigned long addr)
 
 int dbg_deactivate_sw_breakpoints(void)
 {
-	unsigned long addr;
 	int error;
 	int ret = 0;
 	int i;
@@ -306,15 +305,14 @@ int dbg_deactivate_sw_breakpoints(void)
 	for (i = 0; i < KGDB_MAX_BREAKPOINTS; i++) {
 		if (kgdb_break[i].state != BP_ACTIVE)
 			continue;
-		addr = kgdb_break[i].bpt_addr;
-		error = kgdb_arch_remove_breakpoint(addr,
-					kgdb_break[i].saved_instr);
+		error = kgdb_arch_remove_breakpoint(&kgdb_break[i]);
 		if (error) {
-			printk(KERN_INFO "KGDB: BP remove failed: %lx\n", addr);
+			printk(KERN_INFO "KGDB: BP remove failed: %lx\n",
+			       kgdb_break[i].bpt_addr);
 			ret = error;
 		}
 
-		kgdb_flush_swbreak_addr(addr);
+		kgdb_flush_swbreak_addr(kgdb_break[i].bpt_addr);
 		kgdb_break[i].state = BP_SET;
 	}
 	return ret;
@@ -348,7 +346,6 @@ int kgdb_isremovedbreak(unsigned long addr)
 
 int dbg_remove_all_break(void)
 {
-	unsigned long addr;
 	int error;
 	int i;
 
@@ -356,12 +353,10 @@ int dbg_remove_all_break(void)
 	for (i = 0; i < KGDB_MAX_BREAKPOINTS; i++) {
 		if (kgdb_break[i].state != BP_ACTIVE)
 			goto setundefined;
-		addr = kgdb_break[i].bpt_addr;
-		error = kgdb_arch_remove_breakpoint(addr,
-				kgdb_break[i].saved_instr);
+		error = kgdb_arch_remove_breakpoint(&kgdb_break[i]);
 		if (error)
 			printk(KERN_ERR "KGDB: breakpoint remove failed: %lx\n",
-			   addr);
+			       kgdb_break[i].bpt_addr);
 setundefined:
 		kgdb_break[i].state = BP_UNDEFINED;
 	}

@@ -314,6 +314,10 @@ const u32 r6xx_default_state[] =
 	0x00000000, /* VGT_VTX_CNT_EN */
 
 	0xc0016900,
+	0x000000d4,
+	0x00000000, /* SX_MISC */
+
+	0xc0016900,
 	0x000002c8,
 	0x00000000, /* VGT_STRMOUT_BUFFER_EN */
 
@@ -624,6 +628,10 @@ const u32 r7xx_default_state[] =
 	0x00000000, /* VGT_STRMOUT_EN */
 	0x00000000, /* VGT_REUSE_OFF */
 	0x00000000, /* VGT_VTX_CNT_EN */
+
+	0xc0016900,
+	0x000000d4,
+	0x00000000, /* SX_MISC */
 
 	0xc0016900,
 	0x000002c8,

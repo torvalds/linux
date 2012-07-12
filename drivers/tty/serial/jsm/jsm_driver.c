@@ -211,7 +211,6 @@ static void __devexit jsm_remove_one(struct pci_dev *pdev)
 		if (brd->channels[i]) {
 			kfree(brd->channels[i]->ch_rqueue);
 			kfree(brd->channels[i]->ch_equeue);
-			kfree(brd->channels[i]->ch_wqueue);
 			kfree(brd->channels[i]);
 		}
 	}
@@ -270,6 +269,7 @@ static void jsm_io_resume(struct pci_dev *pdev)
 	struct jsm_board *brd = pci_get_drvdata(pdev);
 
 	pci_restore_state(pdev);
+	pci_save_state(pdev);
 
 	jsm_uart_port_init(brd);
 }

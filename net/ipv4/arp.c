@@ -518,26 +518,32 @@ EXPORT_SYMBOL(arp_find);
 
 /* END OF OBSOLETE FUNCTIONS */
 
+struct neighbour *__arp_bind_neighbour(struct dst_entry *dst, __be32 nexthop)
+{
+	struct net_device *dev = dst->dev;
+
+	if (dev->flags & (IFF_LOOPBACK | IFF_POINTOPOINT))
+		nexthop = 0;
+	return __neigh_lookup_errno(
+#if defined(CONFIG_ATM_CLIP) || defined(CONFIG_ATM_CLIP_MODULE)
+		dev->type == ARPHRD_ATM ?
+		clip_tbl_hook :
+#endif
+		&arp_tbl, &nexthop, dev);
+}
+
 int arp_bind_neighbour(struct dst_entry *dst)
 {
 	struct net_device *dev = dst->dev;
-	struct neighbour *n = dst->neighbour;
+	struct neighbour *n = dst_get_neighbour(dst);
 
 	if (dev == NULL)
 		return -EINVAL;
 	if (n == NULL) {
-		__be32 nexthop = ((struct rtable *)dst)->rt_gateway;
-		if (dev->flags & (IFF_LOOPBACK | IFF_POINTOPOINT))
-			nexthop = 0;
-		n = __neigh_lookup_errno(
-#if defined(CONFIG_ATM_CLIP) || defined(CONFIG_ATM_CLIP_MODULE)
-					 dev->type == ARPHRD_ATM ?
-					 clip_tbl_hook :
-#endif
-					 &arp_tbl, &nexthop, dev);
+		n = __arp_bind_neighbour(dst, ((struct rtable *)dst)->rt_gateway);
 		if (IS_ERR(n))
 			return PTR_ERR(n);
-		dst->neighbour = n;
+		dst_set_neighbour(dst, n);
 	}
 	return 0;
 }
@@ -900,7 +906,8 @@ static int arp_process(struct sk_buff *skb)
 			if (addr_type == RTN_UNICAST  &&
 			    (arp_fwd_proxy(in_dev, dev, rt) ||
 			     arp_fwd_pvlan(in_dev, dev, rt, sip, tip) ||
-			     pneigh_lookup(&arp_tbl, net, &tip, dev, 0))) {
+			     (rt->dst.dev != dev &&
+			      pneigh_lookup(&arp_tbl, net, &tip, dev, 0)))) {
 				n = neigh_event_ns(&arp_tbl, sha, &sip, dev);
 				if (n)
 					neigh_release(n);
