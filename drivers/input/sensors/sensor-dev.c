@@ -447,8 +447,10 @@ static long gsensor_dev_ioctl(struct file *file,
 		DBG("%s:GSENSOR_IOCTL_APP_SET_RATE start\n", __func__);		
 		mutex_lock(&sensor->operation_mutex);	
 		result = sensor_reset_rate(client, rate);
-		if (result < 0)
-		goto error;
+		if (result < 0){
+			mutex_unlock(&sensor->operation_mutex);
+			goto error;
+		}
 		if(sensor->status_cur == SENSOR_OFF)
 		{		
 			if(sensor->pdata->irq_enable)
