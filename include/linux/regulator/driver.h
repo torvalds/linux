@@ -32,6 +32,8 @@ enum regulator_status {
 	REGULATOR_STATUS_NORMAL,
 	REGULATOR_STATUS_IDLE,
 	REGULATOR_STATUS_STANDBY,
+	/* in case that any other status doesn't apply */
+	REGULATOR_STATUS_UNDEFINED,
 };
 
 /**
