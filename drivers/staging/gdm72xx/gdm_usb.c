@@ -590,19 +590,16 @@ static int gdm_usb_probe(struct usb_interface *intf,
 		goto out;
 	}
 
-	phy_dev = kmalloc(sizeof(*phy_dev), GFP_KERNEL);
+	phy_dev = kzalloc(sizeof(*phy_dev), GFP_KERNEL);
 	if (phy_dev == NULL) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	udev = kmalloc(sizeof(*udev), GFP_KERNEL);
+	udev = kzalloc(sizeof(*udev), GFP_KERNEL);
 	if (udev == NULL) {
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	memset(phy_dev, 0, sizeof(*phy_dev));
-	memset(udev, 0, sizeof(*udev));
 
 	if (idProduct == 0x7205 || idProduct == 0x7206)
 		udev->padding = GDM7205_PADDING;
