@@ -6,6 +6,9 @@ endif
 ifdef CONFIG_ARCH_RK30
 snd-soc-rockchip-i2s-objs := rk30_i2s.o
 endif
+ifdef CONFIG_ARCH_RK2928
+snd-soc-rockchip-i2s-objs := rk30_i2s.o
+endif
 snd-soc-rockchip-spdif-objs := rk29_spdif.o
 
 obj-$(CONFIG_SND_RK29_SOC) += snd-soc-rockchip.o

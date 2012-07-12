@@ -490,6 +490,51 @@ static void __init rk2928_init_spim(void)
 	platform_device_register(&rk29xx_device_spi0m);
 #endif
 }
+#ifdef CONFIG_SND_RK29_SOC_I2S
+#ifdef CONFIG_SND_RK29_SOC_I2S_8CH
+static struct resource resource_iis0_8ch[] = {
+	[0] = {
+		.start	= RK2928_I2S_PHYS,
+		.end	= RK2928_I2S_PHYS + RK2928_I2S_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= DMACH_I2S0_8CH_TX,
+		.end	= DMACH_I2S0_8CH_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	[2] = {
+		.start	= DMACH_I2S0_8CH_RX,
+		.end	= DMACH_I2S0_8CH_RX,
+		.flags	= IORESOURCE_DMA,
+	},
+	[3] = {
+		.start	= IRQ_I2S,
+		.end	= IRQ_I2S,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device device_iis0_8ch = {
+	.name		= "rk29_i2s",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(resource_iis0_8ch),
+	.resource	= resource_iis0_8ch,
+};
+#endif
+#endif
+static struct platform_device device_pcm = {
+	.name = "rockchip-audio",
+	.id = -1,
+};
+
+static void __init rk2928_init_i2s(void)
+{
+#ifdef CONFIG_SND_RK29_SOC_I2S_8CH
+	platform_device_register(&device_iis0_8ch);
+#endif
+	platform_device_register(&device_pcm);
+}
 #ifdef CONFIG_KEYS_RK29
 extern struct rk29_keys_platform_data rk29_keys_pdata;
 static struct platform_device device_keys = {
@@ -512,6 +557,7 @@ static int __init rk2928_init_devices(void)
 #if defined(CONFIG_FIQ_DEBUGGER) && defined(DEBUG_UART_PHYS)
 	rk_serial_debug_init(DEBUG_UART_BASE, IRQ_DEBUG_UART, IRQ_UART_SIGNAL, -1);
 #endif
+	rk2928_init_i2s();
 	return 0;
 }
 arch_initcall(rk2928_init_devices);

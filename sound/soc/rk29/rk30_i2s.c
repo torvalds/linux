@@ -484,6 +484,7 @@ static int rockchip_i2s_dai_probe(struct snd_soc_dai *dai)
 {	
 	I2S_DBG("Enter %s, %d >>>>>>>>>>>\n", __func__, __LINE__);
 	switch(dai->id) {
+#ifdef CONFIG_ARCH_RK30
         case 0:
 			rk30_mux_api_set(GPIO0A7_I2S8CHSDI_NAME, GPIO0A_I2S_8CH_SDI);		
 			rk30_mux_api_set(GPIO0B0_I2S8CHCLK_NAME, GPIO0B_I2S_8CH_CLK);                
@@ -511,6 +512,16 @@ static int rockchip_i2s_dai_probe(struct snd_soc_dai *dai)
             rk30_mux_api_set(GPIO0D4_I2S22CHSDI_SMCADDR0_NAME, GPIO0D_I2S2_2CH_SDI);
             rk30_mux_api_set(GPIO0D5_I2S22CHSDO_SMCADDR1_NAME, GPIO0D_I2S2_2CH_SDO);
             break;				
+#endif
+#ifdef CONFIG_ARCH_RK2928
+        case 0:
+                rk30_mux_api_set(GPIO1A0_I2S_MCLK_NAME, GPIO1A_I2S_MCLK);
+                rk30_mux_api_set(GPIO1A1_I2S_SCLK_NAME, GPIO1A_I2S_SCLK);
+                rk30_mux_api_set(GPIO1A2_I2S_LRCKRX_NAME, GPIO1A_I2S_LRCKRX);
+                rk30_mux_api_set(GPIO1A3_I2S_LRCKTX_NAME, GPIO1A_I2S_LRCKTX);
+                rk30_mux_api_set(GPIO1A4_I2S_SDO_NAME, GPIO1A_I2S_SDO);
+                rk30_mux_api_set(GPIO1A5_I2S_SDI_NAME, GPIO1A_I2S_SDI);
+#endif
         default:
             I2S_DBG("Enter:%s, %d, Error For DevId!!!", __FUNCTION__, __LINE__);
             return -EINVAL;
@@ -627,6 +638,7 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	
 	switch(pdev->id)
 	{
+#ifdef CONFIG_ARCH_RK30
 	case 0:
 		i2s->dma_capture->channel = DMACH_I2S0_8CH_RX;
 		i2s->dma_capture->dma_addr = RK30_I2S0_8CH_PHYS + I2S_RXR_BUFF;
@@ -644,7 +656,16 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 		i2s->dma_capture->dma_addr = RK30_I2S2_2CH_PHYS + I2S_RXR_BUFF;
 		i2s->dma_playback->channel = DMACH_I2S2_2CH_TX;
 		i2s->dma_playback->dma_addr = RK30_I2S2_2CH_PHYS + I2S_TXR_BUFF;	
-		break;		
+		break;
+#endif
+#ifdef CONFIG_ARCH_RK2928
+	case 0:
+		i2s->dma_capture->channel = DMACH_I2S0_8CH_RX;
+		i2s->dma_capture->dma_addr = RK2928_I2S_PHYS + I2S_RXR_BUFF;
+		i2s->dma_playback->channel = DMACH_I2S0_8CH_TX;
+		i2s->dma_playback->dma_addr = RK2928_I2S_PHYS + I2S_TXR_BUFF;		
+		break;
+#endif
 	}
 
 	i2s->dma_capture->client = &rk29_dma_client_in;
