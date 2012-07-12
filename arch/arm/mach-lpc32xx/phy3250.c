@@ -186,13 +186,12 @@ static struct pl08x_channel_data pl08x_slave_channels[] = {
 	},
 };
 
-/* NOTE: These will change, according to RMK */
-static int pl08x_get_signal(struct pl08x_dma_chan *ch)
+static int pl08x_get_signal(const struct pl08x_channel_data *cd)
 {
-	return ch->cd->min_signal;
+	return cd->min_signal;
 }
 
-static void pl08x_put_signal(struct pl08x_dma_chan *ch)
+static void pl08x_put_signal(const struct pl08x_channel_data *cd, int ch)
 {
 }
 
