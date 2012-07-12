@@ -205,7 +205,11 @@ static int hdlcd_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	struct hdlcd_device *hdlcd = to_hdlcd_device(info);
 	int bytes_per_pixel = var->bits_per_pixel / 8;
 
+#ifdef HDLCD_NO_VIRTUAL_SCREEN
+	var->yres_virtual = var->yres;
+#else
 	var->yres_virtual = 2 * var->yres;
+#endif
 
 	if ((var->xres_virtual * bytes_per_pixel * var->yres_virtual) > hdlcd->fb.fix.smem_len)
 		return -ENOMEM;
@@ -570,7 +574,11 @@ static int hdlcd_setup(struct hdlcd_device *hdlcd)
 		hdlcd->fb.var.yres, hdlcd->fb.var.bits_per_pixel,
 		hdlcd->fb.mode ? hdlcd->fb.mode->refresh : 60);
 	hdlcd->fb.var.xres_virtual	= hdlcd->fb.var.xres;
+#ifdef HDLCD_NO_VIRTUAL_SCREEN
+	hdlcd->fb.var.yres_virtual	= hdlcd->fb.var.yres;
+#else
 	hdlcd->fb.var.yres_virtual	= hdlcd->fb.var.yres * 2;
+#endif
 
 	/* initialise and set the palette */
 	if (fb_alloc_cmap(&hdlcd->fb.cmap, NR_PALETTE, 0)) {
