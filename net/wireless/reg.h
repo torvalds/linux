@@ -34,7 +34,6 @@ void regulatory_exit(void);
 
 int set_regdom(const struct ieee80211_regdomain *rd);
 
-void regulatory_update(struct wiphy *wiphy, enum nl80211_reg_initiator setby);
 bool reg_last_request_cell_base(void);
 
 /**
