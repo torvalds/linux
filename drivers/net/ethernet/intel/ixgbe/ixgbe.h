@@ -278,8 +278,10 @@ enum ixgbe_ring_f_enum {
 #define MAX_TX_QUEUES IXGBE_MAX_FDIR_INDICES
 #endif /* IXGBE_FCOE */
 struct ixgbe_ring_feature {
-	int indices;
-	int mask;
+	u16 limit;	/* upper limit on feature indices */
+	u16 indices;	/* current value of indices */
+	u16 mask;	/* Mask used for feature to ring mapping */
+	u16 offset;	/* offset to start of feature */
 } ____cacheline_internodealigned_in_smp;
 
 /*
@@ -315,7 +317,7 @@ struct ixgbe_ring_container {
                               ? 8 : 1)
 #define MAX_TX_PACKET_BUFFERS MAX_RX_PACKET_BUFFERS
 
-/* MAX_MSIX_Q_VECTORS of these are allocated,
+/* MAX_Q_VECTORS of these are allocated,
  * but we only use one per queue-specific vector.
  */
 struct ixgbe_q_vector {
@@ -401,11 +403,11 @@ static inline u16 ixgbe_desc_unused(struct ixgbe_ring *ring)
 #define NON_Q_VECTORS (OTHER_VECTOR)
 
 #define MAX_MSIX_VECTORS_82599 64
-#define MAX_MSIX_Q_VECTORS_82599 64
+#define MAX_Q_VECTORS_82599 64
 #define MAX_MSIX_VECTORS_82598 18
-#define MAX_MSIX_Q_VECTORS_82598 16
+#define MAX_Q_VECTORS_82598 16
 
-#define MAX_MSIX_Q_VECTORS MAX_MSIX_Q_VECTORS_82599
+#define MAX_Q_VECTORS MAX_Q_VECTORS_82599
 #define MAX_MSIX_COUNT MAX_MSIX_VECTORS_82599
 
 #define MIN_MSIX_Q_VECTORS 1
@@ -496,7 +498,7 @@ struct ixgbe_adapter {
 	u32 alloc_rx_page_failed;
 	u32 alloc_rx_buff_failed;
 
-	struct ixgbe_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
+	struct ixgbe_q_vector *q_vector[MAX_Q_VECTORS];
 
 	/* DCB parameters */
 	struct ieee_pfc *ixgbe_ieee_pfc;
@@ -507,8 +509,8 @@ struct ixgbe_adapter {
 	u8 dcbx_cap;
 	enum ixgbe_fc_mode last_lfc_mode;
 
-	int num_msix_vectors;
-	int max_msix_q_vectors;         /* true count of q_vectors for device */
+	int num_q_vectors;	/* current number of q_vectors for device */
+	int max_q_vectors;	/* true count of q_vectors for device */
 	struct ixgbe_ring_feature ring_feature[RING_F_ARRAY_SIZE];
 	struct msix_entry *msix_entries;
 

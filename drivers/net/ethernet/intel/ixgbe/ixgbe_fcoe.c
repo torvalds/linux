@@ -674,7 +674,7 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 	if (adapter->ring_feature[RING_F_FCOE].indices) {
 		/* Use multiple rx queues for FCoE by redirection table */
 		for (i = 0; i < IXGBE_FCRETA_SIZE; i++) {
-			fcoe_i = f->mask + i % f->indices;
+			fcoe_i = f->offset + i % f->indices;
 			fcoe_i &= IXGBE_FCRETA_ENTRY_MASK;
 			fcoe_q = adapter->rx_ring[fcoe_i]->reg_idx;
 			IXGBE_WRITE_REG(hw, IXGBE_FCRETA(i), fcoe_q);
@@ -683,7 +683,7 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_ETQS(IXGBE_ETQF_FILTER_FCOE), 0);
 	} else  {
 		/* Use single rx queue for FCoE */
-		fcoe_i = f->mask;
+		fcoe_i = f->offset;
 		fcoe_q = adapter->rx_ring[fcoe_i]->reg_idx;
 		IXGBE_WRITE_REG(hw, IXGBE_FCRECTL, 0);
 		IXGBE_WRITE_REG(hw, IXGBE_ETQS(IXGBE_ETQF_FILTER_FCOE),
@@ -691,7 +691,7 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 				(fcoe_q << IXGBE_ETQS_RX_QUEUE_SHIFT));
 	}
 	/* send FIP frames to the first FCoE queue */
-	fcoe_i = f->mask;
+	fcoe_i = f->offset;
 	fcoe_q = adapter->rx_ring[fcoe_i]->reg_idx;
 	IXGBE_WRITE_REG(hw, IXGBE_ETQS(IXGBE_ETQF_FILTER_FIP),
 			IXGBE_ETQS_QUEUE_EN |
@@ -770,7 +770,7 @@ int ixgbe_fcoe_enable(struct net_device *netdev)
 	ixgbe_clear_interrupt_scheme(adapter);
 
 	adapter->flags |= IXGBE_FLAG_FCOE_ENABLED;
-	adapter->ring_feature[RING_F_FCOE].indices = IXGBE_FCRETA_SIZE;
+	adapter->ring_feature[RING_F_FCOE].limit = IXGBE_FCRETA_SIZE;
 	netdev->features |= NETIF_F_FCOE_CRC;
 	netdev->features |= NETIF_F_FSO;
 	netdev->features |= NETIF_F_FCOE_MTU;

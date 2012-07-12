@@ -138,30 +138,6 @@ static inline bool ixgbe_cache_ring_dcb(struct ixgbe_adapter *adapter)
 }
 #endif
 
-/**
- * ixgbe_cache_ring_fdir - Descriptor ring to register mapping for Flow Director
- * @adapter: board private structure to initialize
- *
- * Cache the descriptor ring offsets for Flow Director to the assigned rings.
- *
- **/
-static inline bool ixgbe_cache_ring_fdir(struct ixgbe_adapter *adapter)
-{
-	int i;
-	bool ret = false;
-
-	if ((adapter->flags & IXGBE_FLAG_RSS_ENABLED) &&
-	    (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE)) {
-		for (i = 0; i < adapter->num_rx_queues; i++)
-			adapter->rx_ring[i]->reg_idx = i;
-		for (i = 0; i < adapter->num_tx_queues; i++)
-			adapter->tx_ring[i]->reg_idx = i;
-		ret = true;
-	}
-
-	return ret;
-}
-
 #ifdef IXGBE_FCOE
 /**
  * ixgbe_cache_ring_fcoe - Descriptor ring to register mapping for the FCoE
@@ -180,17 +156,14 @@ static inline bool ixgbe_cache_ring_fcoe(struct ixgbe_adapter *adapter)
 		return false;
 
 	if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
-		if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE)
-			ixgbe_cache_ring_fdir(adapter);
-		else
-			ixgbe_cache_ring_rss(adapter);
+		ixgbe_cache_ring_rss(adapter);
 
-		fcoe_rx_i = f->mask;
-		fcoe_tx_i = f->mask;
+		fcoe_rx_i = f->offset;
+		fcoe_tx_i = f->offset;
 	}
 	for (i = 0; i < f->indices; i++, fcoe_rx_i++, fcoe_tx_i++) {
-		adapter->rx_ring[f->mask + i]->reg_idx = fcoe_rx_i;
-		adapter->tx_ring[f->mask + i]->reg_idx = fcoe_tx_i;
+		adapter->rx_ring[f->offset + i]->reg_idx = fcoe_rx_i;
+		adapter->tx_ring[f->offset + i]->reg_idx = fcoe_tx_i;
 	}
 	return true;
 }
@@ -244,9 +217,6 @@ static void ixgbe_cache_ring_register(struct ixgbe_adapter *adapter)
 		return;
 #endif /* IXGBE_FCOE */
 
-	if (ixgbe_cache_ring_fdir(adapter))
-		return;
-
 	if (ixgbe_cache_ring_rss(adapter))
 		return;
 }
@@ -272,53 +242,39 @@ static inline bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
  * to allocate one Rx queue per CPU, and if available, one Tx queue per CPU.
  *
  **/
-static inline bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
+static bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
 {
-	bool ret = false;
-	struct ixgbe_ring_feature *f = &adapter->ring_feature[RING_F_RSS];
+	struct ixgbe_ring_feature *f;
+	u16 rss_i;
 
-	if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
-		f->mask = 0xF;
-		adapter->num_rx_queues = f->indices;
-		adapter->num_tx_queues = f->indices;
-		ret = true;
+	if (!(adapter->flags & IXGBE_FLAG_RSS_ENABLED)) {
+		adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
+		return false;
 	}
 
-	return ret;
-}
+	/* set mask for 16 queue limit of RSS */
+	f = &adapter->ring_feature[RING_F_RSS];
+	rss_i = f->limit;
 
-/**
- * ixgbe_set_fdir_queues - Allocate queues for Flow Director
- * @adapter: board private structure to initialize
- *
- * Flow Director is an advanced Rx filter, attempting to get Rx flows back
- * to the original CPU that initiated the Tx session.  This runs in addition
- * to RSS, so if a packet doesn't match an FDIR filter, we can still spread the
- * Rx load across CPUs using RSS.
- *
- **/
-static inline bool ixgbe_set_fdir_queues(struct ixgbe_adapter *adapter)
-{
-	bool ret = false;
-	struct ixgbe_ring_feature *f_fdir = &adapter->ring_feature[RING_F_FDIR];
-
-	f_fdir->indices = min_t(int, num_online_cpus(), f_fdir->indices);
-	f_fdir->mask = 0;
+	f->indices = rss_i;
+	f->mask = 0xF;
 
 	/*
-	 * Use RSS in addition to Flow Director to ensure the best
+	 * Use Flow Director in addition to RSS to ensure the best
 	 * distribution of flows across cores, even when an FDIR flow
 	 * isn't matched.
 	 */
-	if ((adapter->flags & IXGBE_FLAG_RSS_ENABLED) &&
-	    (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE)) {
-		adapter->num_tx_queues = f_fdir->indices;
-		adapter->num_rx_queues = f_fdir->indices;
-		ret = true;
-	} else {
-		adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
+	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) {
+		f = &adapter->ring_feature[RING_F_FDIR];
+
+		f->indices = min_t(u16, num_online_cpus(), f->limit);
+		rss_i = max_t(u16, rss_i, f->indices);
 	}
-	return ret;
+
+	adapter->num_rx_queues = rss_i;
+	adapter->num_tx_queues = rss_i;
+
+	return true;
 }
 
 #ifdef IXGBE_FCOE
@@ -327,10 +283,7 @@ static inline bool ixgbe_set_fdir_queues(struct ixgbe_adapter *adapter)
  * @adapter: board private structure to initialize
  *
  * FCoE RX FCRETA can use up to 8 rx queues for up to 8 different exchanges.
- * The ring feature mask is not used as a mask for FCoE, as it can take any 8
- * rx queues out of the max number of rx queues, instead, it is used as the
- * index of the first rx queue used by FCoE.
- *
+ * Offset is used as the index of the first rx queue used by FCoE.
  **/
 static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
 {
@@ -339,21 +292,18 @@ static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
 	if (!(adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
 		return false;
 
-	f->indices = min_t(int, num_online_cpus(), f->indices);
+	f->indices = min_t(int, num_online_cpus(), f->limit);
 
 	adapter->num_rx_queues = 1;
 	adapter->num_tx_queues = 1;
 
 	if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
 		e_info(probe, "FCoE enabled with RSS\n");
-		if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE)
-			ixgbe_set_fdir_queues(adapter);
-		else
-			ixgbe_set_rss_queues(adapter);
+		ixgbe_set_rss_queues(adapter);
 	}
 
 	/* adding FCoE rx rings to the end */
-	f->mask = adapter->num_rx_queues;
+	f->offset = adapter->num_rx_queues;
 	adapter->num_rx_queues += f->indices;
 	adapter->num_tx_queues += f->indices;
 
@@ -388,7 +338,7 @@ static inline bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 
 #ifdef IXGBE_FCOE
 	/* FCoE enabled queues require special configuration indexed
-	 * by feature specific indices and mask. Here we map FCoE
+	 * by feature specific indices and offset. Here we map FCoE
 	 * indices onto the DCB queue pairs allowing FCoE to own
 	 * configuration later.
 	 */
@@ -401,7 +351,7 @@ static inline bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 		ixgbe_dcb_unpack_map(&adapter->dcb_cfg, DCB_TX_CONFIG, prio_tc);
 		tc = prio_tc[adapter->fcoe.up];
 		f->indices = dev->tc_to_txq[tc].count;
-		f->mask = dev->tc_to_txq[tc].offset;
+		f->offset = dev->tc_to_txq[tc].offset;
 	}
 #endif
 
@@ -441,9 +391,6 @@ static int ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 		goto done;
 
 #endif /* IXGBE_FCOE */
-	if (ixgbe_set_fdir_queues(adapter))
-		goto done;
-
 	if (ixgbe_set_rss_queues(adapter))
 		goto done;
 
@@ -507,8 +454,8 @@ static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
 		 * of max_msix_q_vectors + NON_Q_VECTORS, or the number of
 		 * vectors we were allocated.
 		 */
-		adapter->num_msix_vectors = min(vectors,
-				   adapter->max_msix_q_vectors + NON_Q_VECTORS);
+		vectors -= NON_Q_VECTORS;
+		adapter->num_q_vectors = min(vectors, adapter->max_q_vectors);
 	}
 }
 
@@ -632,8 +579,8 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 		if (adapter->netdev->features & NETIF_F_FCOE_MTU) {
 			struct ixgbe_ring_feature *f;
 			f = &adapter->ring_feature[RING_F_FCOE];
-			if ((rxr_idx >= f->mask) &&
-			    (rxr_idx < f->mask + f->indices))
+			if ((rxr_idx >= f->offset) &&
+			    (rxr_idx < f->offset + f->indices))
 				set_bit(__IXGBE_RX_FCOE, &ring->state);
 		}
 
@@ -695,7 +642,7 @@ static void ixgbe_free_q_vector(struct ixgbe_adapter *adapter, int v_idx)
  **/
 static int ixgbe_alloc_q_vectors(struct ixgbe_adapter *adapter)
 {
-	int q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+	int q_vectors = adapter->num_q_vectors;
 	int rxr_remaining = adapter->num_rx_queues;
 	int txr_remaining = adapter->num_tx_queues;
 	int rxr_idx = 0, txr_idx = 0, v_idx = 0;
@@ -739,10 +686,12 @@ static int ixgbe_alloc_q_vectors(struct ixgbe_adapter *adapter)
 	return 0;
 
 err_out:
-	while (v_idx) {
-		v_idx--;
+	adapter->num_tx_queues = 0;
+	adapter->num_rx_queues = 0;
+	adapter->num_q_vectors = 0;
+
+	while (v_idx--)
 		ixgbe_free_q_vector(adapter, v_idx);
-	}
 
 	return -ENOMEM;
 }
@@ -757,14 +706,13 @@ err_out:
  **/
 static void ixgbe_free_q_vectors(struct ixgbe_adapter *adapter)
 {
-	int v_idx, q_vectors;
+	int v_idx = adapter->num_q_vectors;
 
-	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED)
-		q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
-	else
-		q_vectors = 1;
+	adapter->num_tx_queues = 0;
+	adapter->num_rx_queues = 0;
+	adapter->num_q_vectors = 0;
 
-	for (v_idx = 0; v_idx < q_vectors; v_idx++)
+	while (v_idx--)
 		ixgbe_free_q_vector(adapter, v_idx);
 }
 
@@ -843,6 +791,8 @@ static int ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 	err = ixgbe_set_num_queues(adapter);
 	if (err)
 		return err;
+
+	adapter->num_q_vectors = 1;
 
 	err = pci_enable_msi(adapter->pdev);
 	if (!err) {
