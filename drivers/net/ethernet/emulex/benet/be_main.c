@@ -2573,9 +2573,6 @@ static int be_clear(struct be_adapter *adapter)
 	be_tx_queues_destroy(adapter);
 	be_evt_queues_destroy(adapter);
 
-	/* tell fw we're done with firing cmds */
-	be_cmd_fw_clean(adapter);
-
 	be_msix_disable(adapter);
 	return 0;
 }
@@ -3476,6 +3473,9 @@ static void __devexit be_remove(struct pci_dev *pdev)
 
 	be_clear(adapter);
 
+	/* tell fw we're done with firing cmds */
+	be_cmd_fw_clean(adapter);
+
 	be_stats_cleanup(adapter);
 
 	be_ctrl_cleanup(adapter);
@@ -3625,54 +3625,6 @@ static int be_dev_type_check(struct be_adapter *adapter)
 	return 0;
 }
 
-static int lancer_wait_ready(struct be_adapter *adapter)
-{
-#define SLIPORT_READY_TIMEOUT 30
-	u32 sliport_status;
-	int status = 0, i;
-
-	for (i = 0; i < SLIPORT_READY_TIMEOUT; i++) {
-		sliport_status = ioread32(adapter->db + SLIPORT_STATUS_OFFSET);
-		if (sliport_status & SLIPORT_STATUS_RDY_MASK)
-			break;
-
-		msleep(1000);
-	}
-
-	if (i == SLIPORT_READY_TIMEOUT)
-		status = -1;
-
-	return status;
-}
-
-static int lancer_test_and_set_rdy_state(struct be_adapter *adapter)
-{
-	int status;
-	u32 sliport_status, err, reset_needed;
-	status = lancer_wait_ready(adapter);
-	if (!status) {
-		sliport_status = ioread32(adapter->db + SLIPORT_STATUS_OFFSET);
-		err = sliport_status & SLIPORT_STATUS_ERR_MASK;
-		reset_needed = sliport_status & SLIPORT_STATUS_RN_MASK;
-		if (err && reset_needed) {
-			iowrite32(SLI_PORT_CONTROL_IP_MASK,
-					adapter->db + SLIPORT_CONTROL_OFFSET);
-
-			/* check adapter has corrected the error */
-			status = lancer_wait_ready(adapter);
-			sliport_status = ioread32(adapter->db +
-							SLIPORT_STATUS_OFFSET);
-			sliport_status &= (SLIPORT_STATUS_ERR_MASK |
-						SLIPORT_STATUS_RN_MASK);
-			if (status || sliport_status)
-				status = -1;
-		} else if (err || reset_needed) {
-			status = -1;
-		}
-	}
-	return status;
-}
-
 static void lancer_test_and_recover_fn_err(struct be_adapter *adapter)
 {
 	int status;
@@ -3820,22 +3772,9 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	if (status)
 		goto free_netdev;
 
-	if (lancer_chip(adapter)) {
-		status = lancer_wait_ready(adapter);
-		if (!status) {
-			iowrite32(SLI_PORT_CONTROL_IP_MASK,
-					adapter->db + SLIPORT_CONTROL_OFFSET);
-			status = lancer_test_and_set_rdy_state(adapter);
-		}
-		if (status) {
-			dev_err(&pdev->dev, "Adapter in non recoverable error\n");
-			goto ctrl_clean;
-		}
-	}
-
 	/* sync up with fw's ready state */
 	if (be_physfn(adapter)) {
-		status = be_cmd_POST(adapter);
+		status = be_fw_wait_ready(adapter);
 		if (status)
 			goto ctrl_clean;
 	}
@@ -4033,7 +3972,7 @@ static pci_ers_result_t be_eeh_reset(struct pci_dev *pdev)
 	pci_restore_state(pdev);
 
 	/* Check if card is ok and fw is ready */
-	status = be_cmd_POST(adapter);
+	status = be_fw_wait_ready(adapter);
 	if (status)
 		return PCI_ERS_RESULT_DISCONNECT;
 
@@ -4052,6 +3991,10 @@ static void be_eeh_resume(struct pci_dev *pdev)
 
 	/* tell fw we're ready to fire cmds */
 	status = be_cmd_fw_init(adapter);
+	if (status)
+		goto err;
+
+	status = be_cmd_reset_function(adapter);
 	if (status)
 		goto err;
 

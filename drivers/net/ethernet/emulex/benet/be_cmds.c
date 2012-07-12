@@ -426,11 +426,64 @@ static int be_POST_stage_get(struct be_adapter *adapter, u16 *stage)
 		return 0;
 }
 
-int be_cmd_POST(struct be_adapter *adapter)
+int lancer_wait_ready(struct be_adapter *adapter)
+{
+#define SLIPORT_READY_TIMEOUT 30
+	u32 sliport_status;
+	int status = 0, i;
+
+	for (i = 0; i < SLIPORT_READY_TIMEOUT; i++) {
+		sliport_status = ioread32(adapter->db + SLIPORT_STATUS_OFFSET);
+		if (sliport_status & SLIPORT_STATUS_RDY_MASK)
+			break;
+
+		msleep(1000);
+	}
+
+	if (i == SLIPORT_READY_TIMEOUT)
+		status = -1;
+
+	return status;
+}
+
+int lancer_test_and_set_rdy_state(struct be_adapter *adapter)
+{
+	int status;
+	u32 sliport_status, err, reset_needed;
+	status = lancer_wait_ready(adapter);
+	if (!status) {
+		sliport_status = ioread32(adapter->db + SLIPORT_STATUS_OFFSET);
+		err = sliport_status & SLIPORT_STATUS_ERR_MASK;
+		reset_needed = sliport_status & SLIPORT_STATUS_RN_MASK;
+		if (err && reset_needed) {
+			iowrite32(SLI_PORT_CONTROL_IP_MASK,
+				  adapter->db + SLIPORT_CONTROL_OFFSET);
+
+			/* check adapter has corrected the error */
+			status = lancer_wait_ready(adapter);
+			sliport_status = ioread32(adapter->db +
+						  SLIPORT_STATUS_OFFSET);
+			sliport_status &= (SLIPORT_STATUS_ERR_MASK |
+						SLIPORT_STATUS_RN_MASK);
+			if (status || sliport_status)
+				status = -1;
+		} else if (err || reset_needed) {
+			status = -1;
+		}
+	}
+	return status;
+}
+
+int be_fw_wait_ready(struct be_adapter *adapter)
 {
 	u16 stage;
 	int status, timeout = 0;
 	struct device *dev = &adapter->pdev->dev;
+
+	if (lancer_chip(adapter)) {
+		status = lancer_wait_ready(adapter);
+		return status;
+	}
 
 	do {
 		status = be_POST_stage_get(adapter, &stage);
@@ -562,6 +615,9 @@ int be_cmd_fw_init(struct be_adapter *adapter)
 	u8 *wrb;
 	int status;
 
+	if (lancer_chip(adapter))
+		return 0;
+
 	if (mutex_lock_interruptible(&adapter->mbox_lock))
 		return -1;
 
@@ -589,6 +645,9 @@ int be_cmd_fw_clean(struct be_adapter *adapter)
 	u8 *wrb;
 	int status;
 
+	if (lancer_chip(adapter))
+		return 0;
+
 	if (mutex_lock_interruptible(&adapter->mbox_lock))
 		return -1;
 
@@ -607,6 +666,7 @@ int be_cmd_fw_clean(struct be_adapter *adapter)
 	mutex_unlock(&adapter->mbox_lock);
 	return status;
 }
+
 int be_cmd_eq_create(struct be_adapter *adapter,
 		struct be_queue_info *eq, int eq_delay)
 {
@@ -1681,6 +1741,20 @@ int be_cmd_reset_function(struct be_adapter *adapter)
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_hdr *req;
 	int status;
+
+	if (lancer_chip(adapter)) {
+		status = lancer_wait_ready(adapter);
+		if (!status) {
+			iowrite32(SLI_PORT_CONTROL_IP_MASK,
+				  adapter->db + SLIPORT_CONTROL_OFFSET);
+			status = lancer_test_and_set_rdy_state(adapter);
+		}
+		if (status) {
+			dev_err(&adapter->pdev->dev,
+				"Adapter in non recoverable error\n");
+		}
+		return status;
+	}
 
 	if (mutex_lock_interruptible(&adapter->mbox_lock))
 		return -1;

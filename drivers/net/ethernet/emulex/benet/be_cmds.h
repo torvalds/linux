@@ -1656,7 +1656,7 @@ struct be_cmd_req_set_ext_fat_caps {
 };
 
 extern int be_pci_fnum_get(struct be_adapter *adapter);
-extern int be_cmd_POST(struct be_adapter *adapter);
+extern int be_fw_wait_ready(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
 			u8 type, bool permanent, u32 if_handle, u32 pmac_id);
 extern int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
@@ -1765,4 +1765,6 @@ extern int be_cmd_get_ext_fat_capabilites(struct be_adapter *adapter,
 extern int be_cmd_set_ext_fat_capabilites(struct be_adapter *adapter,
 					  struct be_dma_mem *cmd,
 					  struct be_fat_conf_params *cfgs);
+extern int lancer_wait_ready(struct be_adapter *adapter);
+extern int lancer_test_and_set_rdy_state(struct be_adapter *adapter);
 
