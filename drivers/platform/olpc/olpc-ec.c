@@ -5,12 +5,120 @@
  *
  * Licensed under the GPL v2 or later.
  */
+#include <linux/completion.h>
+#include <linux/spinlock.h>
+#include <linux/mutex.h>
+#include <linux/workqueue.h>
 #include <linux/module.h>
+#include <linux/list.h>
+#include <linux/olpc-ec.h>
 #include <asm/olpc.h>
+
+struct ec_cmd_desc {
+	u8 cmd;
+	u8 *inbuf, *outbuf;
+	size_t inlen, outlen;
+
+	int err;
+	struct completion finished;
+	struct list_head node;
+
+	void *priv;
+};
+
+static void olpc_ec_worker(struct work_struct *w);
+
+static DECLARE_WORK(ec_worker, olpc_ec_worker);
+static LIST_HEAD(ec_cmd_q);
+static DEFINE_SPINLOCK(ec_cmd_q_lock);
+
+static struct olpc_ec_driver *ec_driver;
+static void *ec_cb_arg;
+static DEFINE_MUTEX(ec_cb_lock);
+
+void olpc_ec_driver_register(struct olpc_ec_driver *drv, void *arg)
+{
+	ec_driver = drv;
+	ec_cb_arg = arg;
+}
+EXPORT_SYMBOL_GPL(olpc_ec_driver_register);
+
+static void olpc_ec_worker(struct work_struct *w)
+{
+	struct ec_cmd_desc *desc = NULL;
+	unsigned long flags;
+
+	/* Grab the first pending command from the queue */
+	spin_lock_irqsave(&ec_cmd_q_lock, flags);
+	if (!list_empty(&ec_cmd_q)) {
+		desc = list_first_entry(&ec_cmd_q, struct ec_cmd_desc, node);
+		list_del(&desc->node);
+	}
+	spin_unlock_irqrestore(&ec_cmd_q_lock, flags);
+
+	/* Do we actually have anything to do? */
+	if (!desc)
+		return;
+
+	/* Protect the EC hw with a mutex; only run one cmd at a time */
+	mutex_lock(&ec_cb_lock);
+	desc->err = ec_driver->ec_cmd(desc->cmd, desc->inbuf, desc->inlen,
+			desc->outbuf, desc->outlen, ec_cb_arg);
+	mutex_unlock(&ec_cb_lock);
+
+	/* Finished, wake up olpc_ec_cmd() */
+	complete(&desc->finished);
+
+	/* Run the worker thread again in case there are more cmds pending */
+	schedule_work(&ec_worker);
+}
+
+/*
+ * Throw a cmd descripter onto the list.  We now have SMP OLPC machines, so
+ * locking is pretty critical.
+ */
+static void queue_ec_descriptor(struct ec_cmd_desc *desc)
+{
+	unsigned long flags;
+
+	INIT_LIST_HEAD(&desc->node);
+
+	spin_lock_irqsave(&ec_cmd_q_lock, flags);
+	list_add_tail(&desc->node, &ec_cmd_q);
+	spin_unlock_irqrestore(&ec_cmd_q_lock, flags);
+
+	schedule_work(&ec_worker);
+}
 
 int olpc_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *outbuf, size_t outlen)
 {
-	/* Currently a stub; this will be expanded upon later. */
-	return olpc_ec_cmd_x86(cmd, inbuf, inlen, outbuf, outlen);
+	struct ec_cmd_desc desc;
+
+	/* XXX: this will be removed in later patches */
+	/* Are we using old-style callers? */
+	if (!ec_driver || !ec_driver->ec_cmd)
+		return olpc_ec_cmd_x86(cmd, inbuf, inlen, outbuf, outlen);
+
+	/* Ensure a driver and ec hook have been registered */
+	if (WARN_ON(!ec_driver || !ec_driver->ec_cmd))
+		return -ENODEV;
+
+	might_sleep();
+
+	desc.cmd = cmd;
+	desc.inbuf = inbuf;
+	desc.outbuf = outbuf;
+	desc.inlen = inlen;
+	desc.outlen = outlen;
+	desc.err = 0;
+	init_completion(&desc.finished);
+
+	queue_ec_descriptor(&desc);
+
+	/* Timeouts must be handled in the platform-specific EC hook */
+	wait_for_completion(&desc.finished);
+
+	/* The worker thread dequeues the cmd; no need to do anything here */
+	return desc.err;
 }
 EXPORT_SYMBOL_GPL(olpc_ec_cmd);

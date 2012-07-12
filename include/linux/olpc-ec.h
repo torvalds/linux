@@ -14,7 +14,13 @@
 #define EC_SCI_QUERY			0x84
 #define EC_EXT_SCI_QUERY		0x85
 
+struct olpc_ec_driver {
+	int (*ec_cmd)(u8, u8 *, size_t, u8 *, size_t, void *);
+};
+
 #ifdef CONFIG_OLPC
+
+extern void olpc_ec_driver_register(struct olpc_ec_driver *drv, void *arg);
 
 extern int olpc_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *outbuf,
 		size_t outlen);
