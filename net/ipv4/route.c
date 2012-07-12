@@ -1590,6 +1590,34 @@ void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu)
 }
 EXPORT_SYMBOL_GPL(ipv4_sk_update_pmtu);
 
+void ipv4_redirect(struct sk_buff *skb, struct net *net,
+		   int oif, u32 mark, u8 protocol, int flow_flags)
+{
+	const struct iphdr *iph = (const struct iphdr *)skb->data;
+	struct flowi4 fl4;
+	struct rtable *rt;
+
+	flowi4_init_output(&fl4, oif, mark, RT_TOS(iph->tos), RT_SCOPE_UNIVERSE,
+			   protocol, flow_flags, iph->daddr, iph->saddr, 0, 0);
+	rt = __ip_route_output_key(net, &fl4);
+	if (!IS_ERR(rt)) {
+		ip_do_redirect(&rt->dst, skb);
+		ip_rt_put(rt);
+	}
+}
+EXPORT_SYMBOL_GPL(ipv4_redirect);
+
+void ipv4_sk_redirect(struct sk_buff *skb, struct sock *sk)
+{
+	const struct inet_sock *inet = inet_sk(sk);
+
+	return ipv4_redirect(skb, sock_net(sk), sk->sk_bound_dev_if,
+			     sk->sk_mark,
+			     inet->hdrincl ? IPPROTO_RAW : sk->sk_protocol,
+			     inet_sk_flowi_flags(sk));
+}
+EXPORT_SYMBOL_GPL(ipv4_sk_redirect);
+
 static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie)
 {
 	struct rtable *rt = (struct rtable *) dst;
