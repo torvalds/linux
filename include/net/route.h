@@ -48,7 +48,6 @@ struct rtable {
 	unsigned int		rt_flags;
 	__u16			rt_type;
 
-	__be32			rt_dst;	/* Path destination	*/
 	int			rt_route_iif;
 	int			rt_iif;
 	int			rt_oif;

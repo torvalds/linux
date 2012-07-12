@@ -850,7 +850,7 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 		    peer->rate_tokens == ip_rt_redirect_number)
 			net_warn_ratelimited("host %pI4/if%d ignores redirects for %pI4 to %pI4\n",
 					     &ip_hdr(skb)->saddr, rt->rt_iif,
-					     &rt->rt_dst, &rt->rt_gateway);
+					     &ip_hdr(skb)->daddr, &rt->rt_gateway);
 #endif
 	}
 out_put_peer:
@@ -1132,8 +1132,7 @@ static unsigned int ipv4_mtu(const struct dst_entry *dst)
 	mtu = dst->dev->mtu;
 
 	if (unlikely(dst_metric_locked(dst, RTAX_MTU))) {
-
-		if (rt->rt_gateway != rt->rt_dst && mtu > 576)
+		if (rt->rt_gateway != 0 && mtu > 576)
 			mtu = 576;
 	}
 
@@ -1271,7 +1270,6 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	rth->rt_genid	= rt_genid(dev_net(dev));
 	rth->rt_flags	= RTCF_MULTICAST;
 	rth->rt_type	= RTN_MULTICAST;
-	rth->rt_dst	= daddr;
 	rth->rt_route_iif = dev->ifindex;
 	rth->rt_iif	= dev->ifindex;
 	rth->rt_oif	= 0;
@@ -1390,7 +1388,6 @@ static int __mkroute_input(struct sk_buff *skb,
 	rth->rt_genid = rt_genid(dev_net(rth->dst.dev));
 	rth->rt_flags = flags;
 	rth->rt_type = res->type;
-	rth->rt_dst	= daddr;
 	rth->rt_route_iif = in_dev->dev->ifindex;
 	rth->rt_iif 	= in_dev->dev->ifindex;
 	rth->rt_oif 	= 0;
@@ -1556,7 +1553,6 @@ local_input:
 	rth->rt_genid = rt_genid(net);
 	rth->rt_flags 	= flags|RTCF_LOCAL;
 	rth->rt_type	= res.type;
-	rth->rt_dst	= daddr;
 	rth->rt_route_iif = dev->ifindex;
 	rth->rt_iif	= dev->ifindex;
 	rth->rt_oif	= 0;
@@ -1707,7 +1703,6 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 	rth->rt_genid = rt_genid(dev_net(dev_out));
 	rth->rt_flags	= flags;
 	rth->rt_type	= type;
-	rth->rt_dst	= fl4->daddr;
 	rth->rt_route_iif = 0;
 	rth->rt_iif	= orig_oif ? : dev_out->ifindex;
 	rth->rt_oif	= orig_oif;
@@ -1995,7 +1990,6 @@ struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_or
 		rt->rt_genid = rt_genid(net);
 		rt->rt_flags = ort->rt_flags;
 		rt->rt_type = ort->rt_type;
-		rt->rt_dst = ort->rt_dst;
 		rt->rt_gateway = ort->rt_gateway;
 		rt->fi = ort->fi;
 		if (rt->fi)
@@ -2026,9 +2020,9 @@ struct rtable *ip_route_output_flow(struct net *net, struct flowi4 *flp4,
 }
 EXPORT_SYMBOL_GPL(ip_route_output_flow);
 
-static int rt_fill_info(struct net *net,  __be32 src, struct flowi4 *fl4,
-			struct sk_buff *skb, u32 pid, u32 seq, int event,
-			int nowait, unsigned int flags)
+static int rt_fill_info(struct net *net,  __be32 dst, __be32 src,
+			struct flowi4 *fl4, struct sk_buff *skb, u32 pid,
+			u32 seq, int event, int nowait, unsigned int flags)
 {
 	struct rtable *rt = skb_rtable(skb);
 	struct rtmsg *r;
@@ -2056,7 +2050,7 @@ static int rt_fill_info(struct net *net,  __be32 src, struct flowi4 *fl4,
 	if (rt->rt_flags & RTCF_NOTIFY)
 		r->rtm_flags |= RTM_F_NOTIFY;
 
-	if (nla_put_be32(skb, RTA_DST, rt->rt_dst))
+	if (nla_put_be32(skb, RTA_DST, dst))
 		goto nla_put_failure;
 	if (src) {
 		r->rtm_src_len = 32;
@@ -2100,29 +2094,8 @@ static int rt_fill_info(struct net *net,  __be32 src, struct flowi4 *fl4,
 	}
 
 	if (rt_is_input_route(rt)) {
-#ifdef CONFIG_IP_MROUTE
-		__be32 dst = rt->rt_dst;
-
-		if (ipv4_is_multicast(dst) && !ipv4_is_local_multicast(dst) &&
-		    IPV4_DEVCONF_ALL(net, MC_FORWARDING)) {
-			int err = ipmr_get_route(net, skb,
-						 fl4->saddr, fl4->daddr,
-						 r, nowait);
-			if (err <= 0) {
-				if (!nowait) {
-					if (err == 0)
-						return 0;
-					goto nla_put_failure;
-				} else {
-					if (err == -EMSGSIZE)
-						goto nla_put_failure;
-					error = err;
-				}
-			}
-		} else
-#endif
-			if (nla_put_u32(skb, RTA_IIF, rt->rt_iif))
-				goto nla_put_failure;
+		if (nla_put_u32(skb, RTA_IIF, rt->rt_iif))
+			goto nla_put_failure;
 	}
 
 	if (rtnl_put_cacheinfo(skb, &rt->dst, 0, expires, error) < 0)
@@ -2217,7 +2190,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void 
 	if (rtm->rtm_flags & RTM_F_NOTIFY)
 		rt->rt_flags |= RTCF_NOTIFY;
 
-	err = rt_fill_info(net, src, &fl4, skb,
+	err = rt_fill_info(net, dst, src, &fl4, skb,
 			   NETLINK_CB(in_skb).pid, nlh->nlmsg_seq,
 			   RTM_NEWROUTE, 0, 0);
 	if (err <= 0)
