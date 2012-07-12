@@ -634,18 +634,31 @@ out:;
 EXPORT_SYMBOL(icmp_send);
 
 
+static void icmp_socket_deliver(struct sk_buff *skb, u32 info)
+{
+	const struct iphdr *iph = (const struct iphdr *) skb->data;
+	const struct net_protocol *ipprot;
+	int protocol = iph->protocol;
+
+	raw_icmp_error(skb, protocol, info);
+
+	rcu_read_lock();
+	ipprot = rcu_dereference(inet_protos[protocol]);
+	if (ipprot && ipprot->err_handler)
+		ipprot->err_handler(skb, info);
+	rcu_read_unlock();
+}
+
 /*
  *	Handle ICMP_DEST_UNREACH, ICMP_TIME_EXCEED, and ICMP_QUENCH.
  */
 
 static void icmp_unreach(struct sk_buff *skb)
 {
-	const struct net_protocol *ipprot;
 	const struct iphdr *iph;
 	struct icmphdr *icmph;
 	struct net *net;
 	u32 info = 0;
-	int protocol;
 
 	net = dev_net(skb_dst(skb)->dev);
 
@@ -726,19 +739,7 @@ static void icmp_unreach(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, iph->ihl * 4 + 8))
 		goto out;
 
-	iph = (const struct iphdr *)skb->data;
-	protocol = iph->protocol;
-
-	/*
-	 *	Deliver ICMP message to raw sockets. Pretty useless feature?
-	 */
-	raw_icmp_error(skb, protocol, info);
-
-	rcu_read_lock();
-	ipprot = rcu_dereference(inet_protos[protocol]);
-	if (ipprot && ipprot->err_handler)
-		ipprot->err_handler(skb, info);
-	rcu_read_unlock();
+	icmp_socket_deliver(skb, info);
 
 out:
 	return;
