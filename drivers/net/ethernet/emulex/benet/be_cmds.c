@@ -349,7 +349,7 @@ static int be_mbox_db_ready_wait(struct be_adapter *adapter, void __iomem *db)
 		if (msecs > 4000) {
 			dev_err(&adapter->pdev->dev, "FW not responding\n");
 			adapter->fw_timeout = true;
-			be_detect_dump_ue(adapter);
+			be_detect_error(adapter);
 			return -1;
 		}
 
@@ -1869,8 +1869,9 @@ err:
 }
 
 int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
-			u32 data_size, u32 data_offset, const char *obj_name,
-			u32 *data_written, u8 *addn_status)
+			    u32 data_size, u32 data_offset,
+			    const char *obj_name, u32 *data_written,
+			    u8 *change_status, u8 *addn_status)
 {
 	struct be_mcc_wrb *wrb;
 	struct lancer_cmd_req_write_object *req;
@@ -1926,10 +1927,12 @@ int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 		status = adapter->flash_status;
 
 	resp = embedded_payload(wrb);
-	if (!status)
+	if (!status) {
 		*data_written = le32_to_cpu(resp->actual_write_len);
-	else
+		*change_status = resp->change_status;
+	} else {
 		*addn_status = resp->additional_status;
+	}
 
 	return status;
 

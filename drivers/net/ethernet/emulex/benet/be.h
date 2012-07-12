@@ -389,6 +389,7 @@ struct be_adapter {
 	struct delayed_work work;
 	u16 work_counter;
 
+	struct delayed_work func_recovery_work;
 	u32 flags;
 	/* Ethtool knobs and info */
 	char fw_ver[FW_VER_LEN];
@@ -396,9 +397,10 @@ struct be_adapter {
 	u32 *pmac_id;		/* MAC addr handle used by BE card */
 	u32 beacon_state;	/* for set_phys_id */
 
-	bool eeh_err;
-	bool ue_detected;
+	bool eeh_error;
 	bool fw_timeout;
+	bool hw_error;
+
 	u32 port_num;
 	bool promiscuous;
 	u32 function_mode;
@@ -599,7 +601,19 @@ static inline bool be_multi_rxq(const struct be_adapter *adapter)
 
 static inline bool be_error(struct be_adapter *adapter)
 {
-	return adapter->eeh_err || adapter->ue_detected || adapter->fw_timeout;
+	return adapter->eeh_error || adapter->hw_error || adapter->fw_timeout;
+}
+
+static inline bool be_crit_error(struct be_adapter *adapter)
+{
+	return adapter->eeh_error || adapter->hw_error;
+}
+
+static inline void  be_clear_all_error(struct be_adapter *adapter)
+{
+	adapter->eeh_error = false;
+	adapter->hw_error = false;
+	adapter->fw_timeout = false;
 }
 
 static inline bool be_is_wol_excluded(struct be_adapter *adapter)

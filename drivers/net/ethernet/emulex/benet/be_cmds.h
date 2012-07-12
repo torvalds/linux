@@ -1163,6 +1163,8 @@ struct lancer_cmd_req_write_object {
 	u32 addr_high;
 };
 
+#define LANCER_NO_RESET_NEEDED		0x00
+#define LANCER_FW_RESET_NEEDED		0x02
 struct lancer_cmd_resp_write_object {
 	u8 opcode;
 	u8 subsystem;
@@ -1173,6 +1175,8 @@ struct lancer_cmd_resp_write_object {
 	u32 resp_len;
 	u32 actual_resp_len;
 	u32 actual_write_len;
+	u8 change_status;
+	u8 rsvd3[3];
 };
 
 /************************ Lancer Read FW info **************/
@@ -1718,10 +1722,11 @@ extern int be_cmd_write_flashrom(struct be_adapter *adapter,
 			struct be_dma_mem *cmd, u32 flash_oper,
 			u32 flash_opcode, u32 buf_size);
 extern int lancer_cmd_write_object(struct be_adapter *adapter,
-				struct be_dma_mem *cmd,
-				u32 data_size, u32 data_offset,
-				const char *obj_name,
-				u32 *data_written, u8 *addn_status);
+				   struct be_dma_mem *cmd,
+				   u32 data_size, u32 data_offset,
+				   const char *obj_name,
+				   u32 *data_written, u8 *change_status,
+				   u8 *addn_status);
 int lancer_cmd_read_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 		u32 data_size, u32 data_offset, const char *obj_name,
 		u32 *data_read, u32 *eof, u8 *addn_status);
@@ -1744,7 +1749,7 @@ extern int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
 				u8 loopback_type, u8 enable);
 extern int be_cmd_get_phy_info(struct be_adapter *adapter);
 extern int be_cmd_set_qos(struct be_adapter *adapter, u32 bps, u32 domain);
-extern void be_detect_dump_ue(struct be_adapter *adapter);
+extern void be_detect_error(struct be_adapter *adapter);
 extern int be_cmd_get_die_temperature(struct be_adapter *adapter);
 extern int be_cmd_get_cntl_attributes(struct be_adapter *adapter);
 extern int be_cmd_req_native_mode(struct be_adapter *adapter);
