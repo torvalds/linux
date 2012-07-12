@@ -70,7 +70,7 @@ static int ft1000_probe(struct usb_interface *interface,
 	ft1000dev = kzalloc(sizeof(struct ft1000_device), GFP_KERNEL);
 
 	if (!ft1000dev) {
-		printk(KERN_ERR "out of memory allocating device structure\n");
+		pr_err("out of memory allocating device structure\n");
 		return -ENOMEM;
 	}
 
@@ -138,7 +138,7 @@ static int ft1000_probe(struct usb_interface *interface,
 
 	ret = request_firmware(&dsp_fw, "ft3000.img", &dev->dev);
 	if (ret < 0) {
-		printk(KERN_ERR "Error request_firmware().\n");
+		pr_err("Error request_firmware().\n");
 		goto err_fw;
 	}
 
@@ -166,7 +166,7 @@ static int ft1000_probe(struct usb_interface *interface,
 	DEBUG("In probe: pft1000info=%p\n", pft1000info);
 	ret = dsp_reload(ft1000dev);
 	if (ret) {
-		printk(KERN_ERR "Problem with DSP image loading\n");
+		pr_err("Problem with DSP image loading\n");
 		goto err_load;
 	}
 
