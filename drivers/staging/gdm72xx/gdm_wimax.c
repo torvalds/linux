@@ -255,17 +255,15 @@ static void gdm_wimax_event_rcv(struct net_device *dev, u16 type, void *msg,
 
 static int gdm_wimax_event_init(void)
 {
-	if (wm_event.ref_cnt == 0) {
+	if (!wm_event.ref_cnt) {
 		wm_event.sock = netlink_init(NETLINK_WIMAX,
 						gdm_wimax_event_rcv);
+		if (wm_event.sock)
+			wm_event.ref_cnt++;
 		INIT_LIST_HEAD(&wm_event.evtq);
 		INIT_LIST_HEAD(&wm_event.freeq);
 		INIT_WORK(&wm_event.ws, __gdm_wimax_event_send);
 		spin_lock_init(&wm_event.evt_lock);
-	}
-
-	if (wm_event.sock) {
-		wm_event.ref_cnt++;
 		return 0;
 	}
 
