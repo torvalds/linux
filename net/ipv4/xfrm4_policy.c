@@ -207,8 +207,7 @@ static void xfrm4_redirect(struct dst_entry *dst, struct sk_buff *skb)
 	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
 	struct dst_entry *path = xdst->route;
 
-	if (path->ops->redirect)
-		path->ops->redirect(path, skb);
+	path->ops->redirect(path, skb);
 }
 
 static void xfrm4_dst_destroy(struct dst_entry *dst)

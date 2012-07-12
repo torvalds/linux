@@ -366,7 +366,7 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (type == NDISC_REDIRECT) {
 		struct dst_entry *dst = __sk_dst_check(sk, np->dst_cookie);
 
-		if (dst && dst->ops->redirect)
+		if (dst)
 			dst->ops->redirect(dst,skb);
 	}
 
