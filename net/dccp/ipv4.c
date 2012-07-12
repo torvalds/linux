@@ -195,6 +195,14 @@ static inline void dccp_do_pmtu_discovery(struct sock *sk,
 	} /* else let the usual retransmit timer handle it */
 }
 
+static void dccp_do_redirect(struct sk_buff *skb, struct sock *sk)
+{
+	struct dst_entry *dst = __sk_dst_check(sk, 0);
+
+	if (dst && dst->ops->redirect)
+		dst->ops->redirect(dst, skb);
+}
+
 /*
  * This routine is called by the ICMP module when it gets some sort of error
  * condition. If err < 0 then the socket should be closed and the error
@@ -259,6 +267,9 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 	}
 
 	switch (type) {
+	case ICMP_REDIRECT:
+		dccp_do_redirect(skb, sk);
+		goto out;
 	case ICMP_SOURCE_QUENCH:
 		/* Just silently ignore these. */
 		goto out;

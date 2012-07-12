@@ -528,6 +528,9 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 		if (code != ICMP_EXC_TTL)
 			return;
 		break;
+
+	case ICMP_REDIRECT:
+		break;
 	}
 
 	rcu_read_lock();
@@ -543,7 +546,11 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 				 t->parms.link, 0, IPPROTO_GRE, 0);
 		goto out;
 	}
-
+	if (type == ICMP_REDIRECT) {
+		ipv4_redirect(skb, dev_net(skb->dev), t->parms.link, 0,
+			      IPPROTO_GRE, 0);
+		goto out;
+	}
 	if (t->parms.iph.daddr == 0 ||
 	    ipv4_is_multicast(t->parms.iph.daddr))
 		goto out;

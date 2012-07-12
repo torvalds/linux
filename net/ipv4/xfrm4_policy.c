@@ -202,6 +202,15 @@ static void xfrm4_update_pmtu(struct dst_entry *dst, u32 mtu)
 	path->ops->update_pmtu(path, mtu);
 }
 
+static void xfrm4_redirect(struct dst_entry *dst, struct sk_buff *skb)
+{
+	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
+	struct dst_entry *path = xdst->route;
+
+	if (path->ops->redirect)
+		path->ops->redirect(path, skb);
+}
+
 static void xfrm4_dst_destroy(struct dst_entry *dst)
 {
 	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
@@ -225,6 +234,7 @@ static struct dst_ops xfrm4_dst_ops = {
 	.protocol =		cpu_to_be16(ETH_P_IP),
 	.gc =			xfrm4_garbage_collect,
 	.update_pmtu =		xfrm4_update_pmtu,
+	.redirect =		xfrm4_redirect,
 	.cow_metrics =		dst_cow_metrics_generic,
 	.destroy =		xfrm4_dst_destroy,
 	.ifdown =		xfrm4_dst_ifdown,

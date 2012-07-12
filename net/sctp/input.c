@@ -423,6 +423,18 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 	sctp_retransmit(&asoc->outqueue, t, SCTP_RTXR_PMTUD);
 }
 
+static void sctp_icmp_redirect(struct sock *sk, struct sctp_transport *t,
+			       struct sk_buff *skb)
+{
+	struct dst_entry *dst;
+
+	if (!t)
+		return;
+	dst = sctp_transport_dst_check(t);
+	if (dst && dst->ops->redirect)
+		dst->ops->redirect(dst, skb);
+}
+
 /*
  * SCTP Implementer's Guide, 2.37 ICMP handling procedures
  *
@@ -627,6 +639,10 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 			goto out_unlock;
 
 		err = EHOSTUNREACH;
+		break;
+	case ICMP_REDIRECT:
+		sctp_icmp_redirect(sk, transport, skb);
+		err = 0;
 		break;
 	default:
 		goto out_unlock;

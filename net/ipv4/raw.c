@@ -218,6 +218,8 @@ static void raw_err(struct sock *sk, struct sk_buff *skb, u32 info)
 
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED)
 		ipv4_sk_update_pmtu(skb, sk, info);
+	else if (type == ICMP_REDIRECT)
+		ipv4_sk_redirect(skb, sk);
 
 	/* Report error on raw socket, if:
 	   1. User requested ip_recverr.
