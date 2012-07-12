@@ -369,10 +369,9 @@ int driver_probe_device(struct device_driver *drv, struct device *dev)
 	pr_debug("bus: '%s': %s: matched device %s with driver %s\n",
 		 drv->bus->name, __func__, dev_name(dev), drv->name);
 
-	pm_runtime_get_noresume(dev);
 	pm_runtime_barrier(dev);
 	ret = really_probe(dev, drv);
-	pm_runtime_put_sync(dev);
+	pm_runtime_idle(dev);
 
 	return ret;
 }
@@ -419,9 +418,8 @@ int device_attach(struct device *dev)
 			ret = 0;
 		}
 	} else {
-		pm_runtime_get_noresume(dev);
 		ret = bus_for_each_drv(dev->bus, NULL, dev, __device_attach);
-		pm_runtime_put_sync(dev);
+		pm_runtime_idle(dev);
 	}
 out_unlock:
 	device_unlock(dev);
