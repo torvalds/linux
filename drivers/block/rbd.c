@@ -56,7 +56,6 @@
 #define RBD_MINORS_PER_MAJOR	256		/* max minors per blkdev */
 
 #define RBD_MAX_MD_NAME_LEN	(RBD_MAX_OBJ_NAME_LEN + sizeof(RBD_SUFFIX))
-#define RBD_MAX_POOL_NAME_LEN	64
 #define RBD_MAX_SNAP_NAME_LEN	32
 #define RBD_MAX_OPT_LEN		1024
 
@@ -166,7 +165,7 @@ struct rbd_device {
 	char			obj[RBD_MAX_OBJ_NAME_LEN]; /* rbd image name */
 	int			obj_len;
 	char			obj_md_name[RBD_MAX_MD_NAME_LEN]; /* hdr nm. */
-	char			pool_name[RBD_MAX_POOL_NAME_LEN];
+	char			*pool_name;
 	int			pool_id;
 
 	struct ceph_osd_event   *watch_event;
@@ -2331,6 +2330,8 @@ static inline char *dup_token(const char **buf, size_t *lenp)
  * rbd_dev, rbd_md_name, and name fields of the given rbd_dev, based
  * on the list of monitor addresses and other options provided via
  * /sys/bus/rbd/add.
+ *
+ * Note: rbd_dev is assumed to have been initially zero-filled.
  */
 static int rbd_add_parse_args(struct rbd_device *rbd_dev,
 			      const char *buf,
@@ -2339,7 +2340,8 @@ static int rbd_add_parse_args(struct rbd_device *rbd_dev,
 			      char *options,
 			      size_t options_size)
 {
-	size_t	len;
+	size_t len;
+	int ret;
 
 	/* The first four tokens are required */
 
@@ -2355,13 +2357,14 @@ static int rbd_add_parse_args(struct rbd_device *rbd_dev,
 	if (!len || len >= options_size)
 		return -EINVAL;
 
-	len = copy_token(&buf, rbd_dev->pool_name, sizeof (rbd_dev->pool_name));
-	if (!len || len >= sizeof (rbd_dev->pool_name))
-		return -EINVAL;
+	rbd_dev->pool_name = dup_token(&buf, NULL);
+	if (!rbd_dev->pool_name)
+		return -ENOMEM;
 
+	ret = -EINVAL;
 	len = copy_token(&buf, rbd_dev->obj, sizeof (rbd_dev->obj));
 	if (!len || len >= sizeof (rbd_dev->obj))
-		return -EINVAL;
+		goto out_err;
 
 	/* We have the object length in hand, save it. */
 
@@ -2380,9 +2383,15 @@ static int rbd_add_parse_args(struct rbd_device *rbd_dev,
 		memcpy(rbd_dev->snap_name, RBD_SNAP_HEAD_NAME,
 			sizeof (RBD_SNAP_HEAD_NAME));
 	else if (len >= sizeof (rbd_dev->snap_name))
-		return -EINVAL;
+		goto out_err;
 
 	return 0;
+
+out_err:
+	kfree(rbd_dev->pool_name);
+	rbd_dev->pool_name = NULL;
+
+	return ret;
 }
 
 static ssize_t rbd_add(struct bus_type *bus,
@@ -2480,6 +2489,7 @@ err_out_blkdev:
 err_out_client:
 	rbd_put_client(rbd_dev);
 err_put_id:
+	kfree(rbd_dev->pool_name);
 	rbd_id_put(rbd_dev);
 err_nomem:
 	kfree(options);
@@ -2528,6 +2538,7 @@ static void rbd_dev_release(struct device *dev)
 	unregister_blkdev(rbd_dev->major, rbd_dev->name);
 
 	/* done with the id, and with the rbd_dev */
+	kfree(rbd_dev->pool_name);
 	rbd_id_put(rbd_dev);
 	kfree(rbd_dev);
 
