@@ -461,12 +461,14 @@
 				};
 			};
 
-			usbphy@020c9000 { /* USBPHY1 */
+			usbphy1: usbphy@020c9000 {
+				compatible = "fsl,imx6q-usbphy", "fsl,imx23-usbphy";
 				reg = <0x020c9000 0x1000>;
 				interrupts = <0 44 0x04>;
 			};
 
-			usbphy@020ca000 { /* USBPHY2 */
+			usbphy2: usbphy@020ca000 {
+				compatible = "fsl,imx6q-usbphy", "fsl,imx23-usbphy";
 				reg = <0x020ca000 0x1000>;
 				interrupts = <0 45 0x04>;
 			};
@@ -612,6 +614,36 @@
 
 			aipstz@0217c000 { /* AIPSTZ2 */
 				reg = <0x0217c000 0x4000>;
+			};
+
+			usb@02184000 { /* USB OTG */
+				compatible = "fsl,imx6q-usb", "fsl,imx27-usb";
+				reg = <0x02184000 0x200>;
+				interrupts = <0 43 0x04>;
+				fsl,usbphy = <&usbphy1>;
+				status = "disabled";
+			};
+
+			usb@02184200 { /* USB1 */
+				compatible = "fsl,imx6q-usb", "fsl,imx27-usb";
+				reg = <0x02184200 0x200>;
+				interrupts = <0 40 0x04>;
+				fsl,usbphy = <&usbphy2>;
+				status = "disabled";
+			};
+
+			usb@02184400 { /* USB2 */
+				compatible = "fsl,imx6q-usb", "fsl,imx27-usb";
+				reg = <0x02184400 0x200>;
+				interrupts = <0 41 0x04>;
+				status = "disabled";
+			};
+
+			usb@02184600 { /* USB3 */
+				compatible = "fsl,imx6q-usb", "fsl,imx27-usb";
+				reg = <0x02184600 0x200>;
+				interrupts = <0 42 0x04>;
+				status = "disabled";
 			};
 
 			ethernet@02188000 {

@@ -42,9 +42,30 @@
 				};
 			};
 
+			iomuxc@020e0000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_gpio_hog>;
+
+				gpios {
+					pinctrl_gpio_hog: gpiohog {
+						fsl,pins = <
+							   144  0x80000000	/* MX6Q_PAD_EIM_D22__GPIO_3_22 */
+							   >;
+					};
+				};
+			};
 		};
 
 		aips-bus@02100000 { /* AIPS2 */
+			usb@02184000 { /* USB OTG */
+				vbus-supply = <&reg_usb_otg_vbus>;
+				status = "okay";
+			};
+
+			usb@02184200 { /* USB1 */
+				status = "okay";
+			};
+
 			ethernet@02188000 {
 				phy-mode = "rgmii";
 				phy-reset-gpios = <&gpio3 23 0>;
@@ -110,6 +131,15 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
+		};
+
+		reg_usb_otg_vbus: usb_otg_vbus {
+			compatible = "regulator-fixed";
+			regulator-name = "usb_otg_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio3 22 0>;
+			enable-active-high;
 		};
 	};
 
