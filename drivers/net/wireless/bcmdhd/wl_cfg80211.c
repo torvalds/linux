@@ -8002,7 +8002,6 @@ static int wl_construct_reginfo(struct wl_priv *wl, s32 bw_cap)
 #if LINUX_VERSION_CODE == KERNEL_VERSION(2, 6, 38) && !defined(WL_COMPAT_WIRELESS)
 			band_chan_arr[index].center_freq =
 				ieee80211_channel_to_frequency(channel);
-			(void)band;
 #else
 			band_chan_arr[index].center_freq =
 				ieee80211_channel_to_frequency(channel, band);
@@ -8068,18 +8067,23 @@ s32 wl_update_wiphybands(struct wl_priv *wl)
 	s32 err = 0;
 	s32 index = 0;
 	s32 nmode = 0;
+	bool rollback_lock = false;
 	s32 bw_cap = 0;
 	s32 cur_band = -1;
-	if (wl == NULL)
+
+	if (wl == NULL) {
 		wl = wlcfg_drv_priv;
+		mutex_lock(&wl->usr_sync);
+		rollback_lock = true;
+	}
 	dev = wl_to_prmry_ndev(wl);
 
 	memset(bandlist, 0, sizeof(bandlist));
 	err = wldev_ioctl(dev, WLC_GET_BANDLIST, bandlist,
 		sizeof(bandlist), false);
 	if (unlikely(err)) {
-		WL_ERR(("error (%d)\n", err));
-		return err;
+		WL_ERR(("error read bandlist (%d)\n", err));
+		goto end_bands;
 	}
 	wiphy = wl_to_wiphy(wl);
 	wiphy->bands[IEEE80211_BAND_2GHZ] = &__wl_band_2ghz;
@@ -8089,24 +8093,29 @@ s32 wl_update_wiphybands(struct wl_priv *wl)
 		sizeof(s32), false);
 	if (unlikely(err)) {
 		WL_ERR(("error (%d)\n", err));
-		return err;
+		goto end_bands;
 	}
 
 	err = wldev_iovar_getint(dev, "nmode", &nmode);
-	if (err) {
-		return err;
-	}
-
-	err = wldev_iovar_getint(dev, "mimo_bw_cap", &bw_cap);
-	if (err) {
-		return err;
+	if (unlikely(err)) {
+		WL_ERR(("error reading nmode (%d)\n", err));
+	} else {
+		/* For nmodeonly  check bw cap */
+		err = wldev_iovar_getint(dev, "mimo_bw_cap", &bw_cap);
+		if (unlikely(err)) {
+			WL_ERR(("error get mimo_bw_cap (%d)\n", err));
+		}
 	}
 
 	err = wl_construct_reginfo(wl, bw_cap);
 	if (err) {
 		WL_ERR(("wl_construct_reginfo() fails err=%d\n", err));
-		return err;
+		if (err != BCME_UNSUPPORTED)
+			goto end_bands;
+		/* Ignore error if "chanspecs" command is not supported */
+		err = 0;
 	}
+
 	if ((cur_band == WLC_BAND_2G) ||
 		(cur_band == WLC_BAND_5G)) {
 		bandlist[0] = 1;
@@ -8142,6 +8151,10 @@ s32 wl_update_wiphybands(struct wl_priv *wl)
 	}
 
 	wiphy_apply_custom_regulatory(wiphy, &brcm_regdom);
+
+end_bands:
+	if (rollback_lock)
+		mutex_unlock(&wl->usr_sync);
 	return err;
 }
 
