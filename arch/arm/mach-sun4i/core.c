@@ -74,6 +74,7 @@ void __init sw_core_map_io(void)
 	iotable_init(sw_io_desc, ARRAY_SIZE(sw_io_desc));
 }
 
+#ifdef CONFIG_SUNXI_IGNORE_ATAG_MEM
 static u32 DRAMC_get_dram_size(void)
 {
 	u32 reg_val;
@@ -104,16 +105,17 @@ static u32 DRAMC_get_dram_size(void)
 
 	return dram_size;
 }
+#endif
 
 static void __init sw_core_fixup(struct machine_desc *desc,
-                  struct tag *tags, char **cmdline,
+                  struct tag *t, char **cmdline,
                   struct meminfo *mi)
 {
-	u32 size;
+	u32 size = 0;
+	int banks = 0;
 
+#ifdef CONFIG_SUNXI_IGNORE_ATAG_MEM
 	size = DRAMC_get_dram_size();
-
-	early_printk("DRAM: %d", size);
 
 	if (size <= 512) {
 		mi->nr_banks = 1;
@@ -126,8 +128,15 @@ static void __init sw_core_fixup(struct machine_desc *desc,
 		mi->bank[1].start = 0x60000000;
 		mi->bank[1].size = SZ_1M * (size - 512);
 	}
-
-	pr_info("Total Detected Memory: %uMB with %d banks\n", size, mi->nr_banks);
+	banks = mi->nr_banks;
+#else
+	for (; t->hdr.size; t = tag_next(t)) if (t->hdr.tag == ATAG_MEM) {
+		size += t->u.mem.size / SZ_1M;
+		if (banks++ == 0)
+			t->u.mem.size -= 64 * SZ_1M;
+	}
+#endif
+	pr_info("Total Detected Memory: %uMB with %d banks\n", size, banks);
 }
 
 #define pr_reserve_info(L, START, SIZE) \
