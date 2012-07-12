@@ -27,6 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/spi/spi.h>
+#include <linux/gpio.h>
 
 #include <mach/dma.h>
 #include <plat/s3c64xx-spi.h>
@@ -411,14 +412,14 @@ static inline void enable_cs(struct s3c64xx_spi_driver_data *sdd,
 		if (sdd->tgl_spi != spi) { /* if last mssg on diff device */
 			/* Deselect the last toggled device */
 			cs = sdd->tgl_spi->controller_data;
-			cs->set_level(cs->line,
-					spi->mode & SPI_CS_HIGH ? 0 : 1);
+			gpio_set_value(cs->line,
+				spi->mode & SPI_CS_HIGH ? 0 : 1);
 		}
 		sdd->tgl_spi = NULL;
 	}
 
 	cs = spi->controller_data;
-	cs->set_level(cs->line, spi->mode & SPI_CS_HIGH ? 1 : 0);
+	gpio_set_value(cs->line, spi->mode & SPI_CS_HIGH ? 1 : 0);
 }
 
 static int wait_for_xfer(struct s3c64xx_spi_driver_data *sdd,
@@ -504,7 +505,7 @@ static inline void disable_cs(struct s3c64xx_spi_driver_data *sdd,
 	if (sdd->tgl_spi == spi)
 		sdd->tgl_spi = NULL;
 
-	cs->set_level(cs->line, spi->mode & SPI_CS_HIGH ? 0 : 1);
+	gpio_set_value(cs->line, spi->mode & SPI_CS_HIGH ? 0 : 1);
 }
 
 static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
@@ -833,9 +834,19 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 	unsigned long flags;
 	int err = 0;
 
-	if (cs == NULL || cs->set_level == NULL) {
+	if (cs == NULL) {
 		dev_err(&spi->dev, "No CS for SPI(%d)\n", spi->chip_select);
 		return -ENODEV;
+	}
+
+	if (!spi_get_ctldata(spi)) {
+		err = gpio_request(cs->line, dev_name(&spi->dev));
+		if (err) {
+			dev_err(&spi->dev, "request for slave select gpio "
+					"line [%d] failed\n", cs->line);
+			return -EBUSY;
+		}
+		spi_set_ctldata(spi, cs);
 	}
 
 	sdd = spi_master_get_devdata(spi->master);
@@ -906,6 +917,15 @@ setup_exit:
 	disable_cs(sdd, spi);
 
 	return err;
+}
+
+static void s3c64xx_spi_cleanup(struct spi_device *spi)
+{
+	struct s3c64xx_spi_csinfo *cs = spi_get_ctldata(spi);
+
+	if (cs)
+		gpio_free(cs->line);
+	spi_set_ctldata(spi, NULL);
 }
 
 static irqreturn_t s3c64xx_spi_irq(int irq, void *data)
@@ -1049,6 +1069,7 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 
 	master->bus_num = sdd->port_id;
 	master->setup = s3c64xx_spi_setup;
+	master->cleanup = s3c64xx_spi_cleanup;
 	master->prepare_transfer_hardware = s3c64xx_spi_prepare_transfer;
 	master->transfer_one_message = s3c64xx_spi_transfer_one_message;
 	master->unprepare_transfer_hardware = s3c64xx_spi_unprepare_transfer;

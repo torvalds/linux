@@ -18,7 +18,6 @@ struct platform_device;
  * @fb_delay: Slave specific feedback delay.
  *            Refer to FB_CLK_SEL register definition in SPI chapter.
  * @line: Custom 'identity' of the CS line.
- * @set_level: CS line control.
  *
  * This is per SPI-Slave Chipselect information.
  * Allocate and initialize one in machine init code and make the
@@ -27,7 +26,6 @@ struct platform_device;
 struct s3c64xx_spi_csinfo {
 	u8 fb_delay;
 	unsigned line;
-	void (*set_level)(unsigned line_id, int lvl);
 };
 
 /**
