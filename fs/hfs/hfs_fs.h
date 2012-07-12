@@ -137,16 +137,12 @@ struct hfs_sb_info {
 	gid_t s_gid;				/* The gid of all files */
 
 	int session, part;
-
 	struct nls_table *nls_io, *nls_disk;
-
 	struct mutex bitmap_lock;
-
 	unsigned long flags;
-
 	u16 blockoffset;
-
 	int fs_div;
+	struct super_block *sb;
 };
 
 #define HFS_FLG_BITMAP_DIRTY	0
