@@ -74,10 +74,6 @@ struct ft1000_device
 
 	u8 bulk_in_endpointAddr;
 	u8 bulk_out_endpointAddr;
-
-	//struct ft1000_ethernet_configuration configuration;
-
-//	struct net_device_stats stats; //mbelian
 } __attribute__ ((packed));
 
 struct ft1000_debug_dirs {
