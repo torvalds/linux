@@ -1271,6 +1271,26 @@ static void rt_del(unsigned int hash, struct rtable *rt)
 	spin_unlock_bh(rt_hash_lock_addr(hash));
 }
 
+static void ip_do_redirect(struct rtable *rt, __be32 old_gw, __be32 new_gw)
+{
+	struct neighbour *n;
+
+	if (rt->rt_gateway != old_gw)
+		return;
+
+	n = ipv4_neigh_lookup(&rt->dst, NULL, &new_gw);
+	if (n) {
+		if (!(n->nud_state & NUD_VALID)) {
+			neigh_event_send(n, NULL);
+		} else {
+			rt->rt_gateway = new_gw;
+			rt->rt_flags |= RTCF_REDIRECTED;
+			call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, n);
+		}
+		neigh_release(n);
+	}
+}
+
 /* called in rcu_read_lock() section */
 void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 		    __be32 saddr, struct net_device *dev)
@@ -1311,8 +1331,6 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 			rthp = &rt_hash_table[hash].chain;
 
 			while ((rt = rcu_dereference(*rthp)) != NULL) {
-				struct neighbour *n;
-
 				rthp = &rt->dst.rt_next;
 
 				if (rt->rt_key_dst != daddr ||
@@ -1322,21 +1340,10 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 				    rt_is_expired(rt) ||
 				    !net_eq(dev_net(rt->dst.dev), net) ||
 				    rt->dst.error ||
-				    rt->dst.dev != dev ||
-				    rt->rt_gateway != old_gw)
+				    rt->dst.dev != dev)
 					continue;
 
-				n = ipv4_neigh_lookup(&rt->dst, NULL, &new_gw);
-				if (n) {
-					if (!(n->nud_state & NUD_VALID)) {
-						neigh_event_send(n, NULL);
-					} else {
-						rt->rt_gateway = new_gw;
-						rt->rt_flags |= RTCF_REDIRECTED;
-						call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, n);
-					}
-					neigh_release(n);
-				}
+				ip_do_redirect(rt, old_gw, new_gw);
 			}
 		}
 	}
