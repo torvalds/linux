@@ -24,7 +24,8 @@
 		apbh@80000000 {
 			gpmi-nand@8000c000 {
 				pinctrl-names = "default";
-				pinctrl-0 = <&gpmi_pins_a &gpmi_status_cfg>;
+				pinctrl-0 = <&gpmi_pins_a &gpmi_status_cfg
+					     &gpmi_pins_evk>;
 				status = "okay";
 			};
 
@@ -59,6 +60,32 @@
 						0x31c3 /* MX28_PAD_PWM3__GPIO_3_28 */
 						0x31e3 /* MX28_PAD_LCD_RESET__GPIO_3_30 */
 						0x3053 /* MX28_PAD_AUART1_TX__GPIO_3_5 */
+						0x3083 /* MX28_PAD_AUART2_RX__GPIO_3_8 */
+						0x3093 /* MX28_PAD_AUART2_TX__GPIO_3_9 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				gpmi_pins_evk: gpmi-nand-evk@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x0110 /* MX28_PAD_GPMI_CE1N__GPMI_CE1N */
+						0x0150 /* MX28_PAD_GPMI_RDY1__GPMI_READY1 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				lcdif_pins_evk: lcdif-evk@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x1181 /* MX28_PAD_LCD_RD_E__LCD_VSYNC */
+						0x1191 /* MX28_PAD_LCD_WR_RWN__LCD_HSYNC */
+						0x11a1 /* MX28_PAD_LCD_RS__LCD_DOTCLK */
+						0x11b1 /* MX28_PAD_LCD_CS__LCD_ENABLE */
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
@@ -68,7 +95,8 @@
 
 			lcdif@80030000 {
 				pinctrl-names = "default";
-				pinctrl-0 = <&lcdif_24bit_pins_a>;
+				pinctrl-0 = <&lcdif_24bit_pins_a
+					     &lcdif_pins_evk>;
 				panel-enable-gpios = <&gpio3 30 0>;
 				status = "okay";
 			};
@@ -137,10 +165,28 @@
 				pinctrl-0 = <&auart3_pins_a>;
 				status = "okay";
 			};
+
+			usbphy0: usbphy@8007c000 {
+				status = "okay";
+			};
+
+			usbphy1: usbphy@8007e000 {
+				status = "okay";
+			};
 		};
 	};
 
 	ahb@80080000 {
+		usb0: usb@80080000 {
+			vbus-supply = <&reg_usb0_vbus>;
+			status = "okay";
+		};
+
+		usb1: usb@80090000 {
+			vbus-supply = <&reg_usb1_vbus>;
+			status = "okay";
+		};
+
 		mac0: ethernet@800f0000 {
 			phy-mode = "rmii";
 			pinctrl-names = "default";
@@ -184,6 +230,24 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio2 15 0>;
+		};
+
+		reg_usb0_vbus: usb0_vbus {
+			compatible = "regulator-fixed";
+			regulator-name = "usb0_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio3 9 0>;
+			enable-active-high;
+		};
+
+		reg_usb1_vbus: usb1_vbus {
+			compatible = "regulator-fixed";
+			regulator-name = "usb1_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio3 8 0>;
+			enable-active-high;
 		};
 	};
 
