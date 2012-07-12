@@ -2460,7 +2460,7 @@ that used it. It was originally scheduled for removal in 2.6.35.
     </section>
 
     <section>
-      <title>V4L2 in Linux 3.5</title>
+      <title>V4L2 in Linux 3.6</title>
       <orderedlist>
 	<listitem>
 	  <para>Replaced <structfield>input</structfield> in
