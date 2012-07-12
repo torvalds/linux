@@ -782,13 +782,7 @@ static void icmp_redirect(struct sk_buff *skb)
 		break;
 	}
 
-	/* Ping wants to see redirects.
-         * Let's pretend they are errors of sorts... */
-	if (iph->protocol == IPPROTO_ICMP &&
-	    iph->ihl >= 5 &&
-	    pskb_may_pull(skb, (iph->ihl<<2)+8)) {
-		ping_err(skb, icmp_hdr(skb)->un.gateway);
-	}
+	icmp_socket_deliver(skb, icmp_hdr(skb)->un.gateway);
 
 out:
 	return;
