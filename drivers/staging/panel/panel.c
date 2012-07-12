@@ -34,6 +34,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 
 #include <linux/types.h>
@@ -2279,12 +2281,12 @@ int panel_init(void)
 	register_reboot_notifier(&panel_notifier);
 
 	if (pprt)
-		printk(KERN_INFO "Panel driver version " PANEL_VERSION
-		       " registered on parport%d (io=0x%lx).\n", parport,
-		       pprt->port->base);
+		pr_info("driver version " PANEL_VERSION
+			" registered on parport%d (io=0x%lx).\n", parport,
+			pprt->port->base);
 	else
-		printk(KERN_INFO "Panel driver version " PANEL_VERSION
-		       " not yet registered\n");
+		pr_info("driver version " PANEL_VERSION
+			" not yet registered\n");
 	/* tells various subsystems about the fact that initialization
 	   is finished */
 	init_in_progress = 0;
