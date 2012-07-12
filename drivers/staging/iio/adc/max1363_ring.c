@@ -74,7 +74,7 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 	else
 		b_sent = i2c_master_recv(st->client, rxbuf, numvals);
 	if (b_sent < 0)
-		goto done;
+		goto done_free;
 
 	time_ns = iio_get_time_ns();
 
@@ -82,9 +82,10 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 		memcpy(rxbuf + d_size - sizeof(s64), &time_ns, sizeof(time_ns));
 	iio_push_to_buffer(indio_dev->buffer, rxbuf, time_ns);
 
+done_free:
+	kfree(rxbuf);
 done:
 	iio_trigger_notify_done(indio_dev->trig);
-	kfree(rxbuf);
 
 	return IRQ_HANDLED;
 }
