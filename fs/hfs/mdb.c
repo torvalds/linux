@@ -260,6 +260,7 @@ void hfs_mdb_commit(struct super_block *sb)
 {
 	struct hfs_mdb *mdb = HFS_SB(sb)->mdb;
 
+	lock_super(sb);
 	if (test_and_clear_bit(HFS_FLG_MDB_DIRTY, &HFS_SB(sb)->flags)) {
 		/* These parameters may have been modified, so write them back */
 		mdb->drLsMod = hfs_mtime();
@@ -317,6 +318,7 @@ void hfs_mdb_commit(struct super_block *sb)
 			size -= len;
 		}
 	}
+	unlock_super(sb);
 }
 
 void hfs_mdb_close(struct super_block *sb)

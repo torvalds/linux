@@ -645,11 +645,9 @@ static int hfs_file_fsync(struct file *filp, loff_t start, loff_t end,
 	/* sync the superblock to buffers */
 	sb = inode->i_sb;
 	if (sb->s_dirt) {
-		lock_super(sb);
 		sb->s_dirt = 0;
 		if (!(sb->s_flags & MS_RDONLY))
 			hfs_mdb_commit(sb);
-		unlock_super(sb);
 	}
 	/* .. finally sync the buffers to disk */
 	err = sync_blockdev(sb->s_bdev);
