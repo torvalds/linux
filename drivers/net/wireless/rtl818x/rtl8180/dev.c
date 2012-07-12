@@ -1078,7 +1078,7 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 	if (!is_valid_ether_addr(mac_addr)) {
 		printk(KERN_WARNING "%s (rtl8180): Invalid hwaddr! Using"
 		       " randomly generated MAC addr\n", pci_name(pdev));
-		random_ether_addr(mac_addr);
+		eth_random_addr(mac_addr);
 	}
 	SET_IEEE80211_PERM_ADDR(dev, mac_addr);
 

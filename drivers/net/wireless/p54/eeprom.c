@@ -857,7 +857,7 @@ good_eeprom:
 
 		wiphy_warn(dev->wiphy,
 			   "Invalid hwaddr! Using randomly generated MAC addr\n");
-		random_ether_addr(perm_addr);
+		eth_random_addr(perm_addr);
 		SET_IEEE80211_PERM_ADDR(dev, perm_addr);
 	}
 
