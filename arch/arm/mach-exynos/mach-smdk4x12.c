@@ -295,8 +295,6 @@ static struct platform_device *smdk4x12_devices[] __initdata = {
 
 static void __init smdk4x12_map_io(void)
 {
-	clk_xusbxti.rate = 24000000;
-
 	exynos_init_io(NULL, 0);
 	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(smdk4x12_uartcfgs, ARRAY_SIZE(smdk4x12_uartcfgs));

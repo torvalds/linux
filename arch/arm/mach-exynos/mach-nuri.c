@@ -1342,9 +1342,8 @@ static struct platform_device *nuri_devices[] __initdata = {
 
 static void __init nuri_map_io(void)
 {
-	clk_xusbxti.rate = 24000000;
 	exynos_init_io(NULL, 0);
-	s3c24xx_init_clocks(24000000);
+	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(nuri_uartcfgs, ARRAY_SIZE(nuri_uartcfgs));
 }
 

@@ -908,7 +908,7 @@ static void __init goni_sound_init(void)
 static void __init goni_map_io(void)
 {
 	s5pv210_init_io(NULL, 0);
-	s3c24xx_init_clocks(24000000);
+	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(goni_uartcfgs, ARRAY_SIZE(goni_uartcfgs));
 	s5p_set_timer_source(S5P_PWM3, S5P_PWM4);
 }
@@ -965,8 +965,6 @@ static void __init goni_machine_init(void)
 
 	/* KEYPAD */
 	samsung_keypad_set_platdata(&keypad_data);
-
-	clk_xusbxti.rate = 24000000;
 
 	platform_add_devices(goni_devices, ARRAY_SIZE(goni_devices));
 }
