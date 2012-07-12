@@ -147,6 +147,7 @@ struct si470x_device {
 	struct v4l2_device v4l2_dev;
 	struct video_device videodev;
 	struct v4l2_ctrl_handler hdl;
+	int band;
 
 	/* Silabs internal registers (0..15) */
 	unsigned short registers[RADIO_REGISTER_NUM];

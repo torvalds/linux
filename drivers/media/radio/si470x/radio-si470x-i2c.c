@@ -350,6 +350,7 @@ static int __devinit si470x_i2c_probe(struct i2c_client *client,
 	}
 
 	radio->client = client;
+	radio->band = 1; /* Default to 76 - 108 MHz */
 	mutex_init(&radio->lock);
 	init_completion(&radio->completion);
 

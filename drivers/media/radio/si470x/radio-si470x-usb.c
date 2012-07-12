@@ -597,6 +597,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	}
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->intf = intf;
+	radio->band = 1; /* Default to 76 - 108 MHz */
 	mutex_init(&radio->lock);
 	init_completion(&radio->completion);
 
