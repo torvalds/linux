@@ -401,6 +401,10 @@ int __init mx6q_clocks_init(void)
 	clk_register_clkdev(clk[gpmi_bch], "gpmi_bch", "112000.gpmi-nand");
 	clk_register_clkdev(clk[gpmi_apb], "gpmi_apb", "112000.gpmi-nand");
 	clk_register_clkdev(clk[gpmi_io], "gpmi_io", "112000.gpmi-nand");
+	clk_register_clkdev(clk[usboh3], NULL, "2184000.usb");
+	clk_register_clkdev(clk[usboh3], NULL, "2184200.usb");
+	clk_register_clkdev(clk[usboh3], NULL, "2184400.usb");
+	clk_register_clkdev(clk[usboh3], NULL, "2184600.usb");
 	clk_register_clkdev(clk[uart_serial], "per", "2020000.serial");
 	clk_register_clkdev(clk[uart_ipg], "ipg", "2020000.serial");
 	clk_register_clkdev(clk[uart_serial], "per", "21e8000.serial");
