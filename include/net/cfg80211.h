@@ -1573,6 +1573,8 @@ struct cfg80211_gtk_rekey_data {
  * @set_power_mgmt: Configure WLAN power management. A timeout value of -1
  *	allows the driver to adjust the dynamic ps timeout value.
  * @set_cqm_rssi_config: Configure connection quality monitor RSSI threshold.
+ * @set_cqm_txe_config: Configure connection quality monitor TX error
+ *	thresholds.
  * @sched_scan_start: Tell the driver to start a scheduled scan.
  * @sched_scan_stop: Tell the driver to stop an ongoing scheduled
  *	scan.  The driver_initiated flag specifies whether the driver
@@ -1782,6 +1784,10 @@ struct cfg80211_ops {
 	int	(*set_cqm_rssi_config)(struct wiphy *wiphy,
 				       struct net_device *dev,
 				       s32 rssi_thold, u32 rssi_hyst);
+
+	int	(*set_cqm_txe_config)(struct wiphy *wiphy,
+				      struct net_device *dev,
+				      u32 rate, u32 pkts, u32 intvl);
 
 	void	(*mgmt_frame_register)(struct wiphy *wiphy,
 				       struct wireless_dev *wdev,
@@ -3394,6 +3400,21 @@ void cfg80211_cqm_rssi_notify(struct net_device *dev,
  */
 void cfg80211_cqm_pktloss_notify(struct net_device *dev,
 				 const u8 *peer, u32 num_packets, gfp_t gfp);
+
+/**
+ * cfg80211_cqm_txe_notify - TX error rate event
+ * @dev: network device
+ * @peer: peer's MAC address
+ * @num_packets: how many packets were lost
+ * @rate: % of packets which failed transmission
+ * @intvl: interval (in s) over which the TX failure threshold was breached.
+ * @gfp: context flags
+ *
+ * Notify userspace when configured % TX failures over number of packets in a
+ * given interval is exceeded.
+ */
+void cfg80211_cqm_txe_notify(struct net_device *dev, const u8 *peer,
+			     u32 num_packets, u32 rate, u32 intvl, gfp_t gfp);
 
 /**
  * cfg80211_gtk_rekey_notify - notify userspace about driver rekeying
