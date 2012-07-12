@@ -3567,6 +3567,9 @@ static int be_get_initial_config(struct be_adapter *adapter)
 	if (be_is_wol_supported(adapter))
 		adapter->wol = true;
 
+	/* Must be a power of 2 or else MODULO will BUG_ON */
+	adapter->be_get_temp_freq = 64;
+
 	level = be_get_fw_log_level(adapter);
 	adapter->msg_enable = level <= FW_LOG_LEVEL_DEFAULT ? NETIF_MSG_HW : 0;
 
@@ -3746,6 +3749,9 @@ static void be_worker(struct work_struct *work)
 		else
 			be_cmd_get_stats(adapter, &adapter->stats_cmd);
 	}
+
+	if (MODULO(adapter->work_counter, adapter->be_get_temp_freq) == 0)
+		be_cmd_get_die_temperature(adapter);
 
 	for_all_rx_queues(adapter, rxo, i) {
 		if (rxo->rx_post_starved) {

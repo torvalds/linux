@@ -19,9 +19,6 @@
 #include "be.h"
 #include "be_cmds.h"
 
-/* Must be a power of 2 or else MODULO will BUG_ON */
-static int be_get_temp_freq = 64;
-
 static inline void *embedded_payload(struct be_mcc_wrb *wrb)
 {
 	return wrb->payload.embedded_payload;
@@ -115,7 +112,7 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 		}
 	} else {
 		if (opcode == OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES)
-			be_get_temp_freq = 0;
+			adapter->be_get_temp_freq = 0;
 
 		if (compl_status == MCC_STATUS_NOT_SUPPORTED ||
 			compl_status == MCC_STATUS_ILLEGAL_REQUEST)
@@ -1205,9 +1202,6 @@ int be_cmd_get_stats(struct be_adapter *adapter, struct be_dma_mem *nonemb_cmd)
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_hdr *hdr;
 	int status = 0;
-
-	if (MODULO(adapter->work_counter, be_get_temp_freq) == 0)
-		be_cmd_get_die_temperature(adapter);
 
 	spin_lock_bh(&adapter->mcc_lock);
 
