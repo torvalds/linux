@@ -691,6 +691,64 @@ static void ufs_put_super_internal(struct super_block *sb)
 	UFSD("EXIT\n");
 }
 
+static int ufs_sync_fs(struct super_block *sb, int wait)
+{
+	struct ufs_sb_private_info * uspi;
+	struct ufs_super_block_first * usb1;
+	struct ufs_super_block_third * usb3;
+	unsigned flags;
+
+	lock_ufs(sb);
+	lock_super(sb);
+
+	UFSD("ENTER\n");
+
+	flags = UFS_SB(sb)->s_flags;
+	uspi = UFS_SB(sb)->s_uspi;
+	usb1 = ubh_get_usb_first(uspi);
+	usb3 = ubh_get_usb_third(uspi);
+
+	usb1->fs_time = cpu_to_fs32(sb, get_seconds());
+	if ((flags & UFS_ST_MASK) == UFS_ST_SUN  ||
+	    (flags & UFS_ST_MASK) == UFS_ST_SUNOS ||
+	    (flags & UFS_ST_MASK) == UFS_ST_SUNx86)
+		ufs_set_fs_state(sb, usb1, usb3,
+				UFS_FSOK - fs32_to_cpu(sb, usb1->fs_time));
+	ufs_put_cstotal(sb);
+	sb->s_dirt = 0;
+
+	UFSD("EXIT\n");
+	unlock_super(sb);
+	unlock_ufs(sb);
+
+	return 0;
+}
+
+static void ufs_write_super(struct super_block *sb)
+{
+	if (!(sb->s_flags & MS_RDONLY))
+		ufs_sync_fs(sb, 1);
+	else
+		sb->s_dirt = 0;
+}
+
+static void ufs_put_super(struct super_block *sb)
+{
+	struct ufs_sb_info * sbi = UFS_SB(sb);
+
+	UFSD("ENTER\n");
+
+	if (!(sb->s_flags & MS_RDONLY))
+		ufs_put_super_internal(sb);
+
+	ubh_brelse_uspi (sbi->s_uspi);
+	kfree (sbi->s_uspi);
+	kfree (sbi);
+	sb->s_fs_info = NULL;
+	UFSD("EXIT\n");
+	return;
+}
+
 static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct ufs_sb_info * sbi;
@@ -1190,65 +1248,6 @@ failed_nomem:
 	UFSD("EXIT (NOMEM)\n");
 	return -ENOMEM;
 }
-
-static int ufs_sync_fs(struct super_block *sb, int wait)
-{
-	struct ufs_sb_private_info * uspi;
-	struct ufs_super_block_first * usb1;
-	struct ufs_super_block_third * usb3;
-	unsigned flags;
-
-	lock_ufs(sb);
-	lock_super(sb);
-
-	UFSD("ENTER\n");
-
-	flags = UFS_SB(sb)->s_flags;
-	uspi = UFS_SB(sb)->s_uspi;
-	usb1 = ubh_get_usb_first(uspi);
-	usb3 = ubh_get_usb_third(uspi);
-
-	usb1->fs_time = cpu_to_fs32(sb, get_seconds());
-	if ((flags & UFS_ST_MASK) == UFS_ST_SUN  ||
-	    (flags & UFS_ST_MASK) == UFS_ST_SUNOS ||
-	    (flags & UFS_ST_MASK) == UFS_ST_SUNx86)
-		ufs_set_fs_state(sb, usb1, usb3,
-				UFS_FSOK - fs32_to_cpu(sb, usb1->fs_time));
-	ufs_put_cstotal(sb);
-	sb->s_dirt = 0;
-
-	UFSD("EXIT\n");
-	unlock_super(sb);
-	unlock_ufs(sb);
-
-	return 0;
-}
-
-static void ufs_write_super(struct super_block *sb)
-{
-	if (!(sb->s_flags & MS_RDONLY))
-		ufs_sync_fs(sb, 1);
-	else
-		sb->s_dirt = 0;
-}
-
-static void ufs_put_super(struct super_block *sb)
-{
-	struct ufs_sb_info * sbi = UFS_SB(sb);
-		
-	UFSD("ENTER\n");
-
-	if (!(sb->s_flags & MS_RDONLY))
-		ufs_put_super_internal(sb);
-	
-	ubh_brelse_uspi (sbi->s_uspi);
-	kfree (sbi->s_uspi);
-	kfree (sbi);
-	sb->s_fs_info = NULL;
-	UFSD("EXIT\n");
-	return;
-}
-
 
 static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 {
