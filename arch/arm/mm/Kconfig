@@ -392,7 +392,8 @@ config CPU_V7
 	select CPU_CACHE_V7
 	select CPU_CACHE_VIPT
 	select CPU_COPY_V6 if MMU
-	select CPU_CP15_MMU
+	select CPU_CP15_MMU if MMU
+	select CPU_CP15_MPU if !MMU
 	select CPU_HAS_ASID if MMU
 	select CPU_PABRT_V7
 	select CPU_TLB_V7 if MMU
