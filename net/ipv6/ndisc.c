@@ -1350,7 +1350,7 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 		return;
 	}
 
-	rt6_redirect(skb);
+	icmpv6_notify(skb, NDISC_REDIRECT, 0, 0);
 }
 
 void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)

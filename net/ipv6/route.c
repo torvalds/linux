@@ -1633,92 +1633,6 @@ static int ip6_route_del(struct fib6_config *cfg)
 	return err;
 }
 
-/*
- *	Handle redirects
- */
-struct ip6rd_flowi {
-	struct flowi6 fl6;
-	struct in6_addr gateway;
-};
-
-static struct rt6_info *__ip6_route_redirect(struct net *net,
-					     struct fib6_table *table,
-					     struct flowi6 *fl6,
-					     int flags)
-{
-	struct ip6rd_flowi *rdfl = (struct ip6rd_flowi *)fl6;
-	struct rt6_info *rt;
-	struct fib6_node *fn;
-
-	/*
-	 * Get the "current" route for this destination and
-	 * check if the redirect has come from approriate router.
-	 *
-	 * RFC 2461 specifies that redirects should only be
-	 * accepted if they come from the nexthop to the target.
-	 * Due to the way the routes are chosen, this notion
-	 * is a bit fuzzy and one might need to check all possible
-	 * routes.
-	 */
-
-	read_lock_bh(&table->tb6_lock);
-	fn = fib6_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
-restart:
-	for (rt = fn->leaf; rt; rt = rt->dst.rt6_next) {
-		/*
-		 * Current route is on-link; redirect is always invalid.
-		 *
-		 * Seems, previous statement is not true. It could
-		 * be node, which looks for us as on-link (f.e. proxy ndisc)
-		 * But then router serving it might decide, that we should
-		 * know truth 8)8) --ANK (980726).
-		 */
-		if (rt6_check_expired(rt))
-			continue;
-		if (!(rt->rt6i_flags & RTF_GATEWAY))
-			continue;
-		if (fl6->flowi6_oif != rt->dst.dev->ifindex)
-			continue;
-		if (!ipv6_addr_equal(&rdfl->gateway, &rt->rt6i_gateway))
-			continue;
-		break;
-	}
-
-	if (!rt)
-		rt = net->ipv6.ip6_null_entry;
-	BACKTRACK(net, &fl6->saddr);
-out:
-	dst_hold(&rt->dst);
-
-	read_unlock_bh(&table->tb6_lock);
-
-	return rt;
-};
-
-static struct rt6_info *ip6_route_redirect(const struct in6_addr *dest,
-					   const struct in6_addr *src,
-					   const struct in6_addr *gateway,
-					   struct net_device *dev)
-{
-	int flags = RT6_LOOKUP_F_HAS_SADDR;
-	struct net *net = dev_net(dev);
-	struct ip6rd_flowi rdfl = {
-		.fl6 = {
-			.flowi6_oif = dev->ifindex,
-			.daddr = *dest,
-			.saddr = *src,
-		},
-	};
-
-	rdfl.gateway = *gateway;
-
-	if (rt6_need_strict(dest))
-		flags |= RT6_LOOKUP_F_IFACE;
-
-	return (struct rt6_info *)fib6_rule_lookup(net, &rdfl.fl6,
-						   flags, __ip6_route_redirect);
-}
-
 static void rt6_do_redirect(struct dst_entry *dst, struct sk_buff *skb)
 {
 	struct net *net = dev_net(skb->dev);
@@ -1846,27 +1760,6 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sk_buff *skb)
 
 out:
 	neigh_release(neigh);
-}
-
-void rt6_redirect(struct sk_buff *skb)
-{
-	const struct in6_addr *target;
-	const struct in6_addr *dest;
-	const struct in6_addr *src;
-	const struct in6_addr *saddr;
-	struct icmp6hdr *icmph;
-	struct rt6_info *rt;
-
-	icmph = icmp6_hdr(skb);
-	target = (const struct in6_addr *) (icmph + 1);
-	dest = target + 1;
-
-	src = &ipv6_hdr(skb)->daddr;
-	saddr = &ipv6_hdr(skb)->saddr;
-
-	rt = ip6_route_redirect(dest, src, saddr, skb->dev);
-	rt6_do_redirect(&rt->dst, skb);
-	dst_release(&rt->dst);
 }
 
 /*
