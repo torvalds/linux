@@ -24,7 +24,7 @@ struct app_info_block {
 	int NumOfMsg;                   /* number of messages queued up */
 	wait_queue_head_t wait_dpram_msg;
 	struct list_head app_sqlist;   /* link list of msgs for applicaton on slow queue */
-} __attribute__((packed));
+} __packed;
 
 #define DEBUG(args...) printk(KERN_INFO args)
 
@@ -57,8 +57,7 @@ struct app_info_block {
 
 #define MAX_BUF_SIZE            4096
 
-struct ft1000_device
-{
+struct ft1000_device {
 	struct usb_device *dev;
 	struct net_device *net;
 
@@ -72,7 +71,7 @@ struct ft1000_device
 
 	u8 bulk_in_endpointAddr;
 	u8 bulk_out_endpointAddr;
-} __attribute__ ((packed));
+} __packed;
 
 struct ft1000_debug_dirs {
 	struct list_head list;
@@ -142,10 +141,10 @@ struct ft1000_info {
 struct dpram_blk {
 	struct list_head list;
 	u16 *pbuffer;
-} __attribute__ ((packed));
+} __packed;
 
 int ft1000_read_register(struct ft1000_device *ft1000dev,
-			u16* Data, u16 nRegIndx);
+			u16 *Data, u16 nRegIndx);
 int ft1000_write_register(struct ft1000_device *ft1000dev,
 			u16 value, u16 nRegIndx);
 int ft1000_read_dpram32(struct ft1000_device *ft1000dev,
@@ -165,7 +164,7 @@ extern void *pFileStart;
 extern size_t FileLength;
 extern int numofmsgbuf;
 
-int ft1000_close (struct net_device *dev);
+int ft1000_close(struct net_device *dev);
 u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart,
 		u32  FileLength);
 
@@ -186,7 +185,7 @@ int init_ft1000_netdev(struct ft1000_device *ft1000dev);
 struct usb_interface;
 int reg_ft1000_netdev(struct ft1000_device *ft1000dev,
 			struct usb_interface *intf);
-int ft1000_poll(void* dev_id);
+int ft1000_poll(void *dev_id);
 
 int ft1000_init_proc(struct net_device *dev);
 void ft1000_cleanup_proc(struct ft1000_info *info);
