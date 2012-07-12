@@ -1891,7 +1891,7 @@ struct v4l2_ioctl_info {
 		u32 offset;
 		int (*func)(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *p);
-	};
+	} u;
 	void (*debug)(const void *arg, bool write_only);
 };
 
@@ -1916,7 +1916,7 @@ struct v4l2_ioctl_info {
 		.ioctl = _ioctl,					\
 		.flags = _flags | INFO_FL_STD,				\
 		.name = #_ioctl,					\
-		.offset = offsetof(struct v4l2_ioctl_ops, _vidioc),	\
+		.u.offset = offsetof(struct v4l2_ioctl_ops, _vidioc),	\
 		.debug = _debug,					\
 	}
 
@@ -1925,7 +1925,7 @@ struct v4l2_ioctl_info {
 		.ioctl = _ioctl,					\
 		.flags = _flags | INFO_FL_FUNC,				\
 		.name = #_ioctl,					\
-		.func = _func,						\
+		.u.func = _func,					\
 		.debug = _debug,					\
 	}
 
@@ -2124,11 +2124,11 @@ static long __video_do_ioctl(struct file *file,
 	if (info->flags & INFO_FL_STD) {
 		typedef int (*vidioc_op)(struct file *file, void *fh, void *p);
 		const void *p = vfd->ioctl_ops;
-		const vidioc_op *vidioc = p + info->offset;
+		const vidioc_op *vidioc = p + info->u.offset;
 
 		ret = (*vidioc)(file, fh, arg);
 	} else if (info->flags & INFO_FL_FUNC) {
-		ret = info->func(ops, file, fh, arg);
+		ret = info->u.func(ops, file, fh, arg);
 	} else if (!ops->vidioc_default) {
 		ret = -ENOTTY;
 	} else {
