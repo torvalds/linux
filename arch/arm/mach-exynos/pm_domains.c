@@ -119,7 +119,9 @@ static __init void exynos_pm_add_dev_to_genpd(struct platform_device *pdev,
 						struct exynos_pm_domain *pd)
 {
 	if (pdev->dev.bus) {
-		if (pm_genpd_add_device(&pd->pd, &pdev->dev))
+		if (!pm_genpd_add_device(&pd->pd, &pdev->dev))
+			pm_genpd_dev_need_restore(&pdev->dev, true);
+		else
 			pr_info("%s: error in adding %s device to %s power"
 				"domain\n", __func__, dev_name(&pdev->dev),
 				pd->name);
