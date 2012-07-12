@@ -630,6 +630,11 @@ static void switch_cpu(struct fiq_debugger_state *state, int cpu)
 	else {
 		struct cpumask cpumask;
 
+		if (!cpu_online(cpu)) {
+			debug_printf(state, "cpu %d offline\n", cpu);
+			return;
+		}
+
 		cpumask_clear(&cpumask);
 		cpumask_set_cpu(cpu, &cpumask);
 
