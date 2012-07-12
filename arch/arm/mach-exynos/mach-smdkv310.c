@@ -275,6 +275,12 @@ static void __init smdkv310_ohci_init(void)
 /* USB OTG */
 static struct s3c_hsotg_plat smdkv310_hsotg_pdata;
 
+/* Audio device */
+static struct platform_device smdkv310_device_audio = {
+	.name = "smdk-audio",
+	.id = -1,
+};
+
 static struct platform_device *smdkv310_devices[] __initdata = {
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
@@ -307,6 +313,7 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&samsung_asoc_dma,
 	&samsung_asoc_idma,
 	&s5p_device_fimd0,
+	&smdkv310_device_audio,
 	&smdkv310_lcd_lte480wv,
 	&smdkv310_smsc911x,
 	&exynos4_device_ahci,
