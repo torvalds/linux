@@ -149,6 +149,7 @@ static void		 ipv4_dst_destroy(struct dst_entry *dst);
 static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst);
 static void		 ipv4_link_failure(struct sk_buff *skb);
 static void		 ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu);
+static void		 ip_do_redirect(struct dst_entry *dst, struct sk_buff *skb);
 static int rt_garbage_collect(struct dst_ops *ops);
 
 static void ipv4_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
@@ -179,6 +180,7 @@ static struct dst_ops ipv4_dst_ops = {
 	.negative_advice =	ipv4_negative_advice,
 	.link_failure =		ipv4_link_failure,
 	.update_pmtu =		ip_rt_update_pmtu,
+	.redirect =		ip_do_redirect,
 	.local_out =		__ip_local_out,
 	.neigh_lookup =		ipv4_neigh_lookup,
 };
@@ -1271,42 +1273,18 @@ static void rt_del(unsigned int hash, struct rtable *rt)
 	spin_unlock_bh(rt_hash_lock_addr(hash));
 }
 
-static void ip_do_redirect(struct rtable *rt, __be32 old_gw, __be32 new_gw)
-{
-	struct neighbour *n;
-
-	if (rt->rt_gateway != old_gw)
-		return;
-
-	n = ipv4_neigh_lookup(&rt->dst, NULL, &new_gw);
-	if (n) {
-		if (!(n->nud_state & NUD_VALID)) {
-			neigh_event_send(n, NULL);
-		} else {
-			rt->rt_gateway = new_gw;
-			rt->rt_flags |= RTCF_REDIRECTED;
-			call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, n);
-		}
-		neigh_release(n);
-	}
-}
-
-/* called in rcu_read_lock() section */
-void ip_rt_redirect(struct sk_buff *skb, __be32 new_gw)
+static void ip_do_redirect(struct dst_entry *dst, struct sk_buff *skb)
 {
 	const struct iphdr *iph = (const struct iphdr *) skb->data;
+	__be32 new_gw = icmp_hdr(skb)->un.gateway;
 	__be32 old_gw = ip_hdr(skb)->saddr;
+	struct net_device *dev = skb->dev;
 	__be32 daddr = iph->daddr;
 	__be32 saddr = iph->saddr;
-	struct net_device *dev = skb->dev;
-	struct in_device *in_dev = __in_dev_get_rcu(dev);
-	int    ikeys[2] = { dev->ifindex, 0 };
-	__be32 skeys[2] = { saddr, 0 };
+	struct in_device *in_dev;
+	struct neighbour *n;
+	struct rtable *rt;
 	struct net *net;
-	int s, i;
-
-	if (!in_dev)
-		return;
 
 	switch (icmp_hdr(skb)->code & 7) {
 	case ICMP_REDIR_NET:
@@ -1318,6 +1296,14 @@ void ip_rt_redirect(struct sk_buff *skb, __be32 new_gw)
 	default:
 		return;
 	}
+
+	rt = (struct rtable *) dst;
+	if (rt->rt_gateway != old_gw)
+		return;
+
+	in_dev = __in_dev_get_rcu(dev);
+	if (!in_dev)
+		return;
 
 	net = dev_net(dev);
 	if (new_gw == old_gw || !IN_DEV_RX_REDIRECTS(in_dev) ||
@@ -1335,6 +1321,43 @@ void ip_rt_redirect(struct sk_buff *skb, __be32 new_gw)
 			goto reject_redirect;
 	}
 
+	n = ipv4_neigh_lookup(dst, NULL, &new_gw);
+	if (n) {
+		if (!(n->nud_state & NUD_VALID)) {
+			neigh_event_send(n, NULL);
+		} else {
+			rt->rt_gateway = new_gw;
+			rt->rt_flags |= RTCF_REDIRECTED;
+			call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, n);
+		}
+		neigh_release(n);
+	}
+	return;
+
+reject_redirect:
+#ifdef CONFIG_IP_ROUTE_VERBOSE
+	if (IN_DEV_LOG_MARTIANS(in_dev))
+		net_info_ratelimited("Redirect from %pI4 on %s about %pI4 ignored\n"
+				     "  Advised path = %pI4 -> %pI4\n",
+				     &old_gw, dev->name, &new_gw,
+				     &saddr, &daddr);
+#endif
+	;
+}
+
+/* called in rcu_read_lock() section */
+void ip_rt_redirect(struct sk_buff *skb, __be32 new_gw)
+{
+	const struct iphdr *iph = (const struct iphdr *) skb->data;
+	__be32 daddr = iph->daddr;
+	__be32 saddr = iph->saddr;
+	struct net_device *dev = skb->dev;
+	int    ikeys[2] = { dev->ifindex, 0 };
+	__be32 skeys[2] = { saddr, 0 };
+	struct net *net;
+	int s, i;
+
+	net = dev_net(dev);
 	for (s = 0; s < 2; s++) {
 		for (i = 0; i < 2; i++) {
 			unsigned int hash;
@@ -1358,21 +1381,12 @@ void ip_rt_redirect(struct sk_buff *skb, __be32 new_gw)
 				    rt->dst.dev != dev)
 					continue;
 
-				ip_do_redirect(rt, old_gw, new_gw);
+				ip_do_redirect(&rt->dst, skb);
 			}
 		}
 	}
 	return;
 
-reject_redirect:
-#ifdef CONFIG_IP_ROUTE_VERBOSE
-	if (IN_DEV_LOG_MARTIANS(in_dev))
-		net_info_ratelimited("Redirect from %pI4 on %s about %pI4 ignored\n"
-				     "  Advised path = %pI4 -> %pI4\n",
-				     &old_gw, dev->name, &new_gw,
-				     &saddr, &daddr);
-#endif
-	;
 }
 
 static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst)
