@@ -503,11 +503,7 @@ int gpio_init(void)
 {
 	printk(KERN_INFO "Init eGon pin module V2.0\n");
 	gpio_g_pioMemBase = (u32)CSP_OSAL_PHY_2_VIRT(CSP_PIN_PHY_ADDR_BASE , CSP_PIN_PHY_ADDR_SIZE);
-#ifdef FPGA_RUNTIME_ENV
-	return script_parser_init((char *)(sys_cofig_data));
-#else
 	return script_parser_init((char *)__va(SYS_CONFIG_MEMBASE));
-#endif
 }
 fs_initcall(gpio_init);
 
