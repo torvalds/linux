@@ -64,7 +64,9 @@ static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		(struct ip_comp_hdr *)(skb->data + offset);
 	struct xfrm_state *x;
 
-	if (type != ICMPV6_DEST_UNREACH && type != ICMPV6_PKT_TOOBIG)
+	if (type != ICMPV6_DEST_UNREACH &&
+	    type != ICMPV6_PKT_TOOBIG &&
+	    type != NDISC_REDIRECT)
 		return;
 
 	spi = htonl(ntohs(ipcomph->cpi));
@@ -73,9 +75,10 @@ static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (!x)
 		return;
 
-	pr_debug("pmtu discovery on SA IPCOMP/%08x/%pI6\n",
-		 spi, &iph->daddr);
-	ip6_update_pmtu(skb, net, info, 0, 0);
+	if (type == NDISC_REDIRECT)
+		ip6_redirect(skb, net, 0, 0);
+	else
+		ip6_update_pmtu(skb, net, info, 0, 0);
 	xfrm_state_put(x);
 }
 

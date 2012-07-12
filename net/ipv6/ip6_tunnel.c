@@ -550,6 +550,9 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		rel_type = ICMP_DEST_UNREACH;
 		rel_code = ICMP_FRAG_NEEDED;
 		break;
+	case NDISC_REDIRECT:
+		rel_type = ICMP_REDIRECT;
+		rel_code = ICMP_REDIR_HOST;
 	default:
 		return 0;
 	}
@@ -607,6 +610,10 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			goto out;
 
 		skb_dst(skb2)->ops->update_pmtu(skb_dst(skb2), rel_info);
+	}
+	if (rel_type == ICMP_REDIRECT) {
+		if (skb_dst(skb2)->ops->redirect)
+			skb_dst(skb2)->ops->redirect(skb_dst(skb2), skb2);
 	}
 
 	icmp_send(skb2, rel_type, rel_code, htonl(rel_info));

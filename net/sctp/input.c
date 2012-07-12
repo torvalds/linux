@@ -423,8 +423,8 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 	sctp_retransmit(&asoc->outqueue, t, SCTP_RTXR_PMTUD);
 }
 
-static void sctp_icmp_redirect(struct sock *sk, struct sctp_transport *t,
-			       struct sk_buff *skb)
+void sctp_icmp_redirect(struct sock *sk, struct sctp_transport *t,
+			struct sk_buff *skb)
 {
 	struct dst_entry *dst;
 

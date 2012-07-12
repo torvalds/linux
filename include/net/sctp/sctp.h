@@ -162,6 +162,8 @@ struct sock *sctp_err_lookup(int family, struct sk_buff *,
 void sctp_err_finish(struct sock *, struct sctp_association *);
 void sctp_icmp_frag_needed(struct sock *, struct sctp_association *,
 			   struct sctp_transport *t, __u32 pmtu);
+void sctp_icmp_redirect(struct sock *, struct sctp_transport *,
+			struct sk_buff *);
 void sctp_icmp_proto_unreachable(struct sock *sk,
 				 struct sctp_association *asoc,
 				 struct sctp_transport *t);
