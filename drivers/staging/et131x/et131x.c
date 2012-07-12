@@ -3943,12 +3943,6 @@ static struct ethtool_ops et131x_ethtool_ops = {
 	.get_regs	= et131x_get_regs,
 	.get_link = ethtool_op_get_link,
 };
-
-static void et131x_set_ethtool_ops(struct net_device *netdev)
-{
-	SET_ETHTOOL_OPS(netdev, &et131x_ethtool_ops);
-}
-
 /**
  * et131x_hwaddr_init - set up the MAC Address on the ET1310
  * @adapter: pointer to our private adapter structure
@@ -5301,7 +5295,7 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	netdev->netdev_ops     = &et131x_netdev_ops;
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
-	et131x_set_ethtool_ops(netdev);
+	SET_ETHTOOL_OPS(netdev, &et131x_ethtool_ops);
 
 	adapter = et131x_adapter_init(netdev, pdev);
 
