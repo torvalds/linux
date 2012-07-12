@@ -240,9 +240,6 @@ static void hfsplus_put_super(struct super_block *sb)
 
 	dprint(DBG_SUPER, "hfsplus_put_super\n");
 
-	if (!sb->s_fs_info)
-		return;
-
 	if (!(sb->s_flags & MS_RDONLY) && sbi->s_vhdr) {
 		struct hfsplus_vh *vhdr = sbi->s_vhdr;
 
