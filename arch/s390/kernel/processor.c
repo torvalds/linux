@@ -25,8 +25,8 @@ static DEFINE_PER_CPU(struct cpuid, cpu_id);
  */
 void __cpuinit cpu_init(void)
 {
-	struct cpuid *id = &per_cpu(cpu_id, smp_processor_id());
 	struct s390_idle_data *idle = &__get_cpu_var(s390_idle);
+	struct cpuid *id = &__get_cpu_var(cpu_id);
 
 	get_cpu_id(id);
 	atomic_inc(&init_mm.mm_count);
