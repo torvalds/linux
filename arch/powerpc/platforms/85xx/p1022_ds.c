@@ -419,18 +419,6 @@ void __init p1022_ds_pic_init(void)
 
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
 
-/*
- * Disables a node in the device tree.
- *
- * This function is called before kmalloc() is available, so the 'new' object
- * should be allocated in the global area.  The easiest way is to do that is
- * to allocate one static local variable for each call to this function.
- */
-static void __init disable_one_node(struct device_node *np, struct property *new)
-{
-	prom_update_property(np, new);
-}
-
 /* TRUE if there is a "video=fslfb" command-line parameter. */
 static bool fslfb;
 
@@ -493,28 +481,58 @@ static void __init p1022_ds_setup_arch(void)
 	diu_ops.valid_monitor_port	= p1022ds_valid_monitor_port;
 
 	/*
-	 * Disable the NOR flash node if there is video=fslfb... command-line
-	 * parameter.  When the DIU is active, NOR flash is unavailable, so we
-	 * have to disable the node before the MTD driver loads.
+	 * Disable the NOR and NAND flash nodes if there is video=fslfb...
+	 * command-line parameter.  When the DIU is active, the localbus is
+	 * unavailable, so we have to disable these nodes before the MTD
+	 * driver loads.
 	 */
 	if (fslfb) {
 		struct device_node *np =
 			of_find_compatible_node(NULL, NULL, "fsl,p1022-elbc");
 
 		if (np) {
-			np = of_find_compatible_node(np, NULL, "cfi-flash");
-			if (np) {
+			struct device_node *np2;
+
+			of_node_get(np);
+			np2 = of_find_compatible_node(np, NULL, "cfi-flash");
+			if (np2) {
 				static struct property nor_status = {
 					.name = "status",
 					.value = "disabled",
 					.length = sizeof("disabled"),
 				};
 
+				/*
+				 * prom_update_property() is called before
+				 * kmalloc() is available, so the 'new' object
+				 * should be allocated in the global area.
+				 * The easiest way is to do that is to
+				 * allocate one static local variable for each
+				 * call to this function.
+				 */
 				pr_info("p1022ds: disabling %s node",
-					np->full_name);
-				disable_one_node(np, &nor_status);
-				of_node_put(np);
+					np2->full_name);
+				prom_update_property(np2, &nor_status);
+				of_node_put(np2);
 			}
+
+			of_node_get(np);
+			np2 = of_find_compatible_node(np, NULL,
+						      "fsl,elbc-fcm-nand");
+			if (np2) {
+				static struct property nand_status = {
+					.name = "status",
+					.value = "disabled",
+					.length = sizeof("disabled"),
+				};
+
+				pr_info("p1022ds: disabling %s node",
+					np2->full_name);
+				prom_update_property(np2, &nand_status);
+				of_node_put(np2);
+			}
+
+			of_node_put(np);
 		}
 
 	}
