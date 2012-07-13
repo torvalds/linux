@@ -416,7 +416,7 @@ static int a2mp_chan_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 
 static void a2mp_chan_close_cb(struct l2cap_chan *chan)
 {
-	l2cap_chan_destroy(chan);
+	l2cap_chan_put(chan);
 }
 
 static void a2mp_chan_state_change_cb(struct l2cap_chan *chan, int state)
