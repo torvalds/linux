@@ -1300,5 +1300,4 @@ void BSSvSecondTxData(void *hDeviceContext)
 
 	pDevice->sTimerTxData.expires = RUN_AT(10 * HZ);      //10s callback
 	add_timer(&pDevice->sTimerTxData);
-	return;
 }
