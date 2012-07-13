@@ -1735,7 +1735,7 @@ static void rt_set_nexthop(struct rtable *rt, const struct flowi4 *fl4,
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
 #ifdef CONFIG_IP_MULTIPLE_TABLES
-	set_class_tag(rt, fib_rules_tclass(res));
+	set_class_tag(rt, res->tclassid);
 #endif
 	set_class_tag(rt, itag);
 #endif
@@ -2353,11 +2353,9 @@ static struct rtable *ip_route_output_slow(struct net *net, struct flowi4 *fl4)
 	__be32 orig_saddr;
 	int orig_oif;
 
+	res.tclassid	= 0;
 	res.fi		= NULL;
 	res.table	= NULL;
-#ifdef CONFIG_IP_MULTIPLE_TABLES
-	res.r		= NULL;
-#endif
 
 	orig_daddr = fl4->daddr;
 	orig_saddr = fl4->saddr;

@@ -106,12 +106,10 @@ struct fib_result {
 	unsigned char	nh_sel;
 	unsigned char	type;
 	unsigned char	scope;
+	u32		tclassid;
 	struct fib_info *fi;
 	struct fib_table *table;
 	struct list_head *fa_head;
-#ifdef CONFIG_IP_MULTIPLE_TABLES
-	struct fib_rule	*r;
-#endif
 };
 
 struct fib_result_nl {
@@ -215,10 +213,6 @@ static inline int fib_lookup(struct net *net, const struct flowi4 *flp,
 extern int __net_init fib4_rules_init(struct net *net);
 extern void __net_exit fib4_rules_exit(struct net *net);
 
-#ifdef CONFIG_IP_ROUTE_CLASSID
-extern u32 fib_rules_tclass(const struct fib_result *res);
-#endif
-
 extern struct fib_table *fib_new_table(struct net *net, u32 id);
 extern struct fib_table *fib_get_table(struct net *net, u32 id);
 
@@ -229,7 +223,7 @@ static inline int fib_lookup(struct net *net, struct flowi4 *flp,
 			     struct fib_result *res)
 {
 	if (!net->ipv4.fib_has_custom_rules) {
-		res->r = NULL;
+		res->tclassid = 0;
 		if (net->ipv4.fib_local &&
 		    !fib_table_lookup(net->ipv4.fib_local, flp, res,
 				      FIB_LOOKUP_NOREF))
@@ -289,7 +283,7 @@ static inline void fib_combine_itag(u32 *itag, const struct fib_result *res)
 #endif
 	*itag = FIB_RES_NH(*res).nh_tclassid<<16;
 #ifdef CONFIG_IP_MULTIPLE_TABLES
-	rtag = fib_rules_tclass(res);
+	rtag = res->tclassid;
 	if (*itag == 0)
 		*itag = (rtag<<16);
 	*itag |= (rtag>>16);
