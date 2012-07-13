@@ -74,6 +74,9 @@ void bcm63xx_machine_reboot(void)
 	case BCM6338_CPU_ID:
 		perf_regs[0] = PERF_EXTIRQ_CFG_REG_6338;
 		break;
+	case BCM6345_CPU_ID:
+		perf_regs[0] = PERF_EXTIRQ_CFG_REG_6345;
+		break;
 	case BCM6348_CPU_ID:
 		perf_regs[0] = PERF_EXTIRQ_CFG_REG_6348;
 		break;
