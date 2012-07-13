@@ -3,6 +3,7 @@ obj-y += clock_data.o
 obj-y += common.o
 CFLAGS_common.o += -DTEXT_OFFSET=$(TEXT_OFFSET)
 obj-y += ddr.o
+CFLAGS_ddr.o += -Os
 obj-y += devices.o
 obj-y += io.o
 obj-y += iomux.o
