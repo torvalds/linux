@@ -161,50 +161,68 @@ nvc0_graph_create_context_mmio_list(struct nouveau_channel *chan)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	int i = 0, gpc, tp, ret;
 
-	ret = nouveau_gpuobj_new(dev, chan, 0x2000, 256, NVOBJ_FLAG_VM,
-				 &grch->unk408004);
+	ret = nouveau_gpuobj_new(dev, NULL, 0x2000, 256, 0, &grch->unk408004);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(dev, chan, 0x8000, 256, NVOBJ_FLAG_VM,
-				 &grch->unk40800c);
+	ret = nouveau_gpuobj_map_vm(grch->unk408004, NV_MEM_ACCESS_RW |
+				    NV_MEM_ACCESS_SYS, chan->vm,
+				    &grch->unk408004_vma);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(dev, chan, 384 * 1024, 4096,
-				 NVOBJ_FLAG_VM | NVOBJ_FLAG_VM_USER,
+	ret = nouveau_gpuobj_new(dev, NULL, 0x8000, 256, 0, &grch->unk40800c);
+	if (ret)
+		return ret;
+
+	ret = nouveau_gpuobj_map_vm(grch->unk40800c, NV_MEM_ACCESS_RW |
+				    NV_MEM_ACCESS_SYS, chan->vm,
+				    &grch->unk40800c_vma);
+	if (ret)
+		return ret;
+
+	ret = nouveau_gpuobj_new(dev, NULL, 384 * 1024, 4096, 0,
 				 &grch->unk418810);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(dev, chan, 0x1000, 0, NVOBJ_FLAG_VM,
-				 &grch->mmio);
+	ret = nouveau_gpuobj_map_vm(grch->unk418810, NV_MEM_ACCESS_RW,
+				    chan->vm, &grch->unk418810_vma);
 	if (ret)
 		return ret;
 
+	ret = nouveau_gpuobj_new(dev, NULL, 0x1000, 0, 0, &grch->mmio);
+	if (ret)
+		return ret;
+
+	ret = nouveau_gpuobj_map_vm(grch->mmio, NV_MEM_ACCESS_RW |
+				    NV_MEM_ACCESS_SYS, chan->vm,
+				    &grch->mmio_vma);
+	if (ret)
+		return ret;
 
 	nv_wo32(grch->mmio, i++ * 4, 0x00408004);
-	nv_wo32(grch->mmio, i++ * 4, grch->unk408004->linst >> 8);
+	nv_wo32(grch->mmio, i++ * 4, grch->unk408004_vma.offset >> 8);
 	nv_wo32(grch->mmio, i++ * 4, 0x00408008);
 	nv_wo32(grch->mmio, i++ * 4, 0x80000018);
 
 	nv_wo32(grch->mmio, i++ * 4, 0x0040800c);
-	nv_wo32(grch->mmio, i++ * 4, grch->unk40800c->linst >> 8);
+	nv_wo32(grch->mmio, i++ * 4, grch->unk40800c_vma.offset >> 8);
 	nv_wo32(grch->mmio, i++ * 4, 0x00408010);
 	nv_wo32(grch->mmio, i++ * 4, 0x80000000);
 
 	nv_wo32(grch->mmio, i++ * 4, 0x00418810);
-	nv_wo32(grch->mmio, i++ * 4, 0x80000000 | grch->unk418810->linst >> 12);
+	nv_wo32(grch->mmio, i++ * 4, 0x80000000 | grch->unk418810_vma.offset >> 12);
 	nv_wo32(grch->mmio, i++ * 4, 0x00419848);
-	nv_wo32(grch->mmio, i++ * 4, 0x10000000 | grch->unk418810->linst >> 12);
+	nv_wo32(grch->mmio, i++ * 4, 0x10000000 | grch->unk418810_vma.offset >> 12);
 
 	nv_wo32(grch->mmio, i++ * 4, 0x00419004);
-	nv_wo32(grch->mmio, i++ * 4, grch->unk40800c->linst >> 8);
+	nv_wo32(grch->mmio, i++ * 4, grch->unk40800c_vma.offset >> 8);
 	nv_wo32(grch->mmio, i++ * 4, 0x00419008);
 	nv_wo32(grch->mmio, i++ * 4, 0x00000000);
 
 	nv_wo32(grch->mmio, i++ * 4, 0x00418808);
-	nv_wo32(grch->mmio, i++ * 4, grch->unk408004->linst >> 8);
+	nv_wo32(grch->mmio, i++ * 4, grch->unk408004_vma.offset >> 8);
 	nv_wo32(grch->mmio, i++ * 4, 0x0041880c);
 	nv_wo32(grch->mmio, i++ * 4, 0x80000018);
 
@@ -262,19 +280,25 @@ nvc0_graph_context_new(struct nouveau_channel *chan, int engine)
 		return -ENOMEM;
 	chan->engctx[NVOBJ_ENGINE_GR] = grch;
 
-	ret = nouveau_gpuobj_new(dev, chan, priv->grctx_size, 256,
-				 NVOBJ_FLAG_VM | NVOBJ_FLAG_ZERO_ALLOC,
+	ret = nouveau_gpuobj_new(dev, NULL, priv->grctx_size, 256, 0,
 				 &grch->grctx);
 	if (ret)
 		goto error;
+
+	ret = nouveau_gpuobj_map_vm(grch->grctx, NV_MEM_ACCESS_RW |
+				    NV_MEM_ACCESS_SYS, chan->vm,
+				    &grch->grctx_vma);
+	if (ret)
+		return ret;
+
 	grctx = grch->grctx;
 
 	ret = nvc0_graph_create_context_mmio_list(chan);
 	if (ret)
 		goto error;
 
-	nv_wo32(chan->ramin, 0x0210, lower_32_bits(grctx->linst) | 4);
-	nv_wo32(chan->ramin, 0x0214, upper_32_bits(grctx->linst));
+	nv_wo32(chan->ramin, 0x0210, lower_32_bits(grch->grctx_vma.offset) | 4);
+	nv_wo32(chan->ramin, 0x0214, upper_32_bits(grch->grctx_vma.offset));
 	pinstmem->flush(dev);
 
 	if (!priv->grctx_vals) {
@@ -288,13 +312,13 @@ nvc0_graph_context_new(struct nouveau_channel *chan, int engine)
 
 	if (!nouveau_ctxfw) {
 		nv_wo32(grctx, 0x00, grch->mmio_nr);
-		nv_wo32(grctx, 0x04, grch->mmio->linst >> 8);
+		nv_wo32(grctx, 0x04, grch->mmio_vma.offset >> 8);
 	} else {
 		nv_wo32(grctx, 0xf4, 0);
 		nv_wo32(grctx, 0xf8, 0);
 		nv_wo32(grctx, 0x10, grch->mmio_nr);
-		nv_wo32(grctx, 0x14, lower_32_bits(grch->mmio->linst));
-		nv_wo32(grctx, 0x18, upper_32_bits(grch->mmio->linst));
+		nv_wo32(grctx, 0x14, lower_32_bits(grch->mmio_vma.offset));
+		nv_wo32(grctx, 0x18, upper_32_bits(grch->mmio_vma.offset));
 		nv_wo32(grctx, 0x1c, 1);
 		nv_wo32(grctx, 0x20, 0);
 		nv_wo32(grctx, 0x28, 0);
@@ -313,6 +337,11 @@ nvc0_graph_context_del(struct nouveau_channel *chan, int engine)
 {
 	struct nvc0_graph_chan *grch = chan->engctx[engine];
 
+	nouveau_gpuobj_unmap(&grch->mmio_vma);
+	nouveau_gpuobj_unmap(&grch->unk418810_vma);
+	nouveau_gpuobj_unmap(&grch->unk40800c_vma);
+	nouveau_gpuobj_unmap(&grch->unk408004_vma);
+	nouveau_gpuobj_unmap(&grch->grctx_vma);
 	nouveau_gpuobj_ref(NULL, &grch->mmio);
 	nouveau_gpuobj_ref(NULL, &grch->unk418810);
 	nouveau_gpuobj_ref(NULL, &grch->unk40800c);

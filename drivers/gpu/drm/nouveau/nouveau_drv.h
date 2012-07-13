@@ -175,8 +175,6 @@ enum nouveau_flags {
 #define NVOBJ_FLAG_DONT_MAP             (1 << 0)
 #define NVOBJ_FLAG_ZERO_ALLOC		(1 << 1)
 #define NVOBJ_FLAG_ZERO_FREE		(1 << 2)
-#define NVOBJ_FLAG_VM			(1 << 3)
-#define NVOBJ_FLAG_VM_USER		(1 << 4)
 
 #define NVOBJ_CINST_GLOBAL	0xdeadbeef
 
@@ -194,7 +192,6 @@ struct nouveau_gpuobj {
 	u32 pinst;	/* PRAMIN BAR offset */
 	u32 cinst;	/* Channel offset */
 	u64 vinst;	/* VRAM address */
-	u64 linst;	/* VM address */
 
 	uint32_t engine;
 	uint32_t class;

@@ -38,27 +38,38 @@ struct nvc0_copy_engine {
 	u32 ctx;
 };
 
+struct nvc0_copy_chan {
+	struct nouveau_gpuobj *mem;
+	struct nouveau_vma vma;
+};
+
 static int
 nvc0_copy_context_new(struct nouveau_channel *chan, int engine)
 {
 	struct nvc0_copy_engine *pcopy = nv_engine(chan->dev, engine);
+	struct nvc0_copy_chan *cctx;
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *ramin = chan->ramin;
-	struct nouveau_gpuobj *ctx = NULL;
 	int ret;
 
-	ret = nouveau_gpuobj_new(dev, chan, 256, 256,
-				 NVOBJ_FLAG_VM | NVOBJ_FLAG_VM_USER |
-				 NVOBJ_FLAG_ZERO_ALLOC, &ctx);
+	cctx = chan->engctx[engine] = kzalloc(sizeof(*cctx), GFP_KERNEL);
+	if (!cctx)
+		return -ENOMEM;
+
+	ret = nouveau_gpuobj_new(dev, NULL, 256, 256,
+				 NVOBJ_FLAG_ZERO_ALLOC, &cctx->mem);
 	if (ret)
 		return ret;
 
-	nv_wo32(ramin, pcopy->ctx + 0, lower_32_bits(ctx->linst));
-	nv_wo32(ramin, pcopy->ctx + 4, upper_32_bits(ctx->linst));
-	dev_priv->engine.instmem.flush(dev);
+	ret = nouveau_gpuobj_map_vm(cctx->mem, NV_MEM_ACCESS_RW, chan->vm,
+				   &cctx->vma);
+	if (ret)
+		return ret;
 
-	chan->engctx[engine] = ctx;
+	nv_wo32(ramin, pcopy->ctx + 0, lower_32_bits(cctx->vma.offset));
+	nv_wo32(ramin, pcopy->ctx + 4, upper_32_bits(cctx->vma.offset));
+	dev_priv->engine.instmem.flush(dev);
 	return 0;
 }
 
@@ -73,7 +84,7 @@ static void
 nvc0_copy_context_del(struct nouveau_channel *chan, int engine)
 {
 	struct nvc0_copy_engine *pcopy = nv_engine(chan->dev, engine);
-	struct nouveau_gpuobj *ctx = chan->engctx[engine];
+	struct nvc0_copy_chan *cctx = chan->engctx[engine];
 	struct drm_device *dev = chan->dev;
 	u32 inst;
 
@@ -93,9 +104,12 @@ nvc0_copy_context_del(struct nouveau_channel *chan, int engine)
 
 	nv_wo32(chan->ramin, pcopy->ctx + 0, 0x00000000);
 	nv_wo32(chan->ramin, pcopy->ctx + 4, 0x00000000);
-	nouveau_gpuobj_ref(NULL, &ctx);
 
-	chan->engctx[engine] = ctx;
+	nouveau_gpuobj_unmap(&cctx->vma);
+	nouveau_gpuobj_ref(NULL, &cctx->mem);
+
+	kfree(cctx);
+	chan->engctx[engine] = NULL;
 }
 
 static int
