@@ -9,27 +9,33 @@
 static int
 nouveau_fifo_ctx_size(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-
-	if (dev_priv->chipset >= 0x17)
-		return 64 * 32;
-	else
-	if (dev_priv->chipset >= 0x10)
-		return 32 * 32;
-
-	return 32 * 16;
+	return 128 * 32;
 }
 
-int nv04_instmem_init(struct drm_device *dev)
+int nv40_instmem_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *ramht = NULL;
-	u32 offset, length;
+	u32 offset, length, vs, rsvd;
 	int ret;
 
 	/* RAMIN always available */
 	dev_priv->ramin_available = true;
-	dev_priv->ramin_rsvd_vram = 512 * 1024;
+
+	/* Reserve space at end of VRAM for PRAMIN */
+	/* estimate grctx size, the magics come from nv40_grctx.c */
+	vs = hweight8((nv_rd32(dev, 0x001540) & 0x0000ff00) >> 8);
+	if      (dev_priv->chipset == 0x40) rsvd = 0x6aa0 * vs;
+	else if (dev_priv->chipset  < 0x43) rsvd = 0x4f00 * vs;
+	else if (nv44_graph_class(dev))	    rsvd = 0x4980 * vs;
+	else				    rsvd = 0x4a40 * vs;
+	rsvd += 16 * 1024;
+	rsvd *= 32; /* per-channel */
+
+	rsvd += 512 * 1024; /* pci(e)gart table */
+	rsvd += 512 * 1024; /* object storage */
+
+	dev_priv->ramin_rsvd_vram = round_up(rsvd, 4096);
 
 	/* Setup shared RAMHT */
 	ret = nouveau_gpuobj_new_fake(dev, 0x10000, ~0, 4096,
@@ -50,7 +56,7 @@ int nv04_instmem_init(struct drm_device *dev)
 
 	/* And RAMFC */
 	length = nouveau_fifo_ctx_size(dev);
-	offset = 0x11400;
+	offset = 0x20000;
 
 	ret = nouveau_gpuobj_new_fake(dev, offset, ~0, length,
 				      NVOBJ_FLAG_ZERO_ALLOC, &dev_priv->ramfc);
@@ -59,6 +65,17 @@ int nv04_instmem_init(struct drm_device *dev)
 
 	/* Only allow space after RAMFC to be used for object allocation */
 	offset += length;
+
+	/* It appears RAMRO (or something?) is controlled by 0x2220/0x2230
+	 * on certain NV4x chipsets as well as RAMFC.  When 0x2230 == 0
+	 * ("new style" control) the upper 16-bits of 0x2220 points at this
+	 * other mysterious table that's clobbering important things.
+	 *
+	 * We're now pointing this at RAMIN+0x30000 to avoid RAMFC getting
+	 * smashed to pieces on us, so reserve 0x30000-0x40000 too..
+	 */
+	if (offset < 0x40000)
+		offset = 0x40000;
 
 	ret = drm_mm_init(&dev_priv->ramin_heap, offset,
 			  dev_priv->ramin_rsvd_vram - offset);
@@ -71,7 +88,7 @@ int nv04_instmem_init(struct drm_device *dev)
 }
 
 void
-nv04_instmem_takedown(struct drm_device *dev)
+nv40_instmem_takedown(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
@@ -84,18 +101,18 @@ nv04_instmem_takedown(struct drm_device *dev)
 }
 
 int
-nv04_instmem_suspend(struct drm_device *dev)
+nv40_instmem_suspend(struct drm_device *dev)
 {
 	return 0;
 }
 
 void
-nv04_instmem_resume(struct drm_device *dev)
+nv40_instmem_resume(struct drm_device *dev)
 {
 }
 
 int
-nv04_instmem_get(struct nouveau_gpuobj *gpuobj, struct nouveau_channel *chan,
+nv40_instmem_get(struct nouveau_gpuobj *gpuobj, struct nouveau_channel *chan,
 		 u32 size, u32 align)
 {
 	struct drm_nouveau_private *dev_priv = gpuobj->dev->dev_private;
@@ -122,7 +139,7 @@ nv04_instmem_get(struct nouveau_gpuobj *gpuobj, struct nouveau_channel *chan,
 }
 
 void
-nv04_instmem_put(struct nouveau_gpuobj *gpuobj)
+nv40_instmem_put(struct nouveau_gpuobj *gpuobj)
 {
 	struct drm_nouveau_private *dev_priv = gpuobj->dev->dev_private;
 
@@ -133,18 +150,18 @@ nv04_instmem_put(struct nouveau_gpuobj *gpuobj)
 }
 
 int
-nv04_instmem_map(struct nouveau_gpuobj *gpuobj)
+nv40_instmem_map(struct nouveau_gpuobj *gpuobj)
 {
 	gpuobj->pinst = gpuobj->vinst;
 	return 0;
 }
 
 void
-nv04_instmem_unmap(struct nouveau_gpuobj *gpuobj)
+nv40_instmem_unmap(struct nouveau_gpuobj *gpuobj)
 {
 }
 
 void
-nv04_instmem_flush(struct drm_device *dev)
+nv40_instmem_flush(struct drm_device *dev)
 {
 }

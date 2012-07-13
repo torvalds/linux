@@ -67,6 +67,7 @@ nouveau-y += core/subdev/i2c/base.o
 nouveau-y += core/subdev/i2c/aux.o
 nouveau-y += core/subdev/i2c/bit.o
 nouveau-y += core/subdev/instmem/nv04.o
+nouveau-y += core/subdev/instmem/nv40.o
 nouveau-y += core/subdev/instmem/nv50.o
 nouveau-y += core/subdev/instmem/nvc0.o
 nouveau-y += core/subdev/ltcg/nvc0.o

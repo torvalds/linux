@@ -135,15 +135,15 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		break;
 	case 0x40:
 	case 0x60:
-		engine->instmem.init		= nv04_instmem_init;
-		engine->instmem.takedown	= nv04_instmem_takedown;
-		engine->instmem.suspend		= nv04_instmem_suspend;
-		engine->instmem.resume		= nv04_instmem_resume;
-		engine->instmem.get		= nv04_instmem_get;
-		engine->instmem.put		= nv04_instmem_put;
-		engine->instmem.map		= nv04_instmem_map;
-		engine->instmem.unmap		= nv04_instmem_unmap;
-		engine->instmem.flush		= nv04_instmem_flush;
+		engine->instmem.init		= nv40_instmem_init;
+		engine->instmem.takedown	= nv40_instmem_takedown;
+		engine->instmem.suspend		= nv40_instmem_suspend;
+		engine->instmem.resume		= nv40_instmem_resume;
+		engine->instmem.get		= nv40_instmem_get;
+		engine->instmem.put		= nv40_instmem_put;
+		engine->instmem.map		= nv40_instmem_map;
+		engine->instmem.unmap		= nv40_instmem_unmap;
+		engine->instmem.flush		= nv40_instmem_flush;
 		engine->display.early_init	= nv04_display_early_init;
 		engine->display.late_takedown	= nv04_display_late_takedown;
 		engine->display.create		= nv04_display_create;
