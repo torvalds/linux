@@ -1473,7 +1473,7 @@ static int qeth_l3_iqd_read_initial_mac_cb(struct qeth_card *card,
 		memcpy(card->dev->dev_addr,
 			cmd->data.create_destroy_addr.unique_id, ETH_ALEN);
 	else
-		random_ether_addr(card->dev->dev_addr);
+		eth_random_addr(card->dev->dev_addr);
 
 	return 0;
 }
