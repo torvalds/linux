@@ -374,12 +374,9 @@ static int __init pci_v3_setup_resources(struct pci_sys_data *sys)
 	}
 
 	/*
-	 * the IO resource for this bus
 	 * the mem resource for this bus
 	 * the prefetch mem resource for this bus
 	 */
-	pci_add_resource_offset(&sys->resources,
-				&ioport_resource, sys->io_offset);
 	pci_add_resource_offset(&sys->resources, &non_mem, sys->mem_offset);
 	pci_add_resource_offset(&sys->resources, &pre_mem, sys->mem_offset);
 
@@ -498,7 +495,6 @@ void __init pci_v3_preinit(void)
 	unsigned int temp;
 	int ret;
 
-	pcibios_min_io = 0x6000;
 	pcibios_min_mem = 0x00100000;
 
 	/*
