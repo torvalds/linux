@@ -1216,7 +1216,7 @@ static const struct platform_device_id atdma_devtypes[] = {
 	}
 };
 
-static inline struct at_dma_platform_data * __init at_dma_get_driver_data(
+static inline const struct at_dma_platform_data * __init at_dma_get_driver_data(
 						struct platform_device *pdev)
 {
 	if (pdev->dev.of_node) {
@@ -1254,7 +1254,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	int			irq;
 	int			err;
 	int			i;
-	struct at_dma_platform_data *plat_dat;
+	const struct at_dma_platform_data *plat_dat;
 
 	/* setup platform data for each SoC */
 	dma_cap_set(DMA_MEMCPY, at91sam9rl_config.cap_mask);
