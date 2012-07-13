@@ -148,12 +148,12 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_SCOPE,
 	POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT,
 	POWER_SUPPLY_PROP_CALIBRATE,
+	/* Local extensions */
+	POWER_SUPPLY_PROP_USB_HC,
 	/* Properties of type `const char *' */
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
-	/* Local extensions */
-	POWER_SUPPLY_PROP_USB_HC,
 };
 
 enum power_supply_type {
