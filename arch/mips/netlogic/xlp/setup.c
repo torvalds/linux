@@ -35,6 +35,7 @@
 #include <linux/kernel.h>
 #include <linux/serial_8250.h>
 #include <linux/pm.h>
+#include <linux/bootmem.h>
 
 #include <asm/reboot.h>
 #include <asm/time.h>
@@ -110,6 +111,25 @@ void __init prom_init(void)
 
 	register_smp_ops(&nlm_smp_ops);
 #endif
+}
+
+void __init device_tree_init(void)
+{
+	unsigned long base, size;
+
+	if (!initial_boot_params)
+		return;
+
+	base = virt_to_phys((void *)initial_boot_params);
+	size = be32_to_cpu(initial_boot_params->totalsize);
+
+	/* Before we do anything, lets reserve the dt blob */
+	reserve_bootmem(base, size, BOOTMEM_DEFAULT);
+
+	unflatten_device_tree();
+
+	/* free the space reserved for the dt blob */
+	free_bootmem(base, size);
 }
 
 static struct of_device_id __initdata xlp_ids[] = {
