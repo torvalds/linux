@@ -1,7 +1,7 @@
 /*
- * P1021 RDB Device Tree Source (36-bit address map)
+ * BSC9131 Silicon/SoC Device Tree Source (pre include)
  *
- * Copyright 2011 Freescale Semiconductor Inc.
+ * Copyright 2011-2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -20,7 +20,7 @@
  * Foundation, either version 2 of that License or (at your option) any
  * later version.
  *
- * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor "AS IS" AND ANY
+ * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
  * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
@@ -32,65 +32,28 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/include/ "fsl/p1021si-pre.dtsi"
+/dts-v1/;
 / {
-	model = "fsl,P1021RDB";
-	compatible = "fsl,P1021RDB-PC";
+	compatible = "fsl,BSC9131";
+	#address-cells = <2>;
+	#size-cells = <2>;
+	interrupt-parent = <&mpic>;
 
-	memory {
-		device_type = "memory";
+	aliases {
+		serial0 = &serial0;
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
 	};
 
-	lbc: localbus@fffe05000 {
-		reg = <0xf 0xffe05000 0 0x1000>;
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		/* NOR, NAND Flashes and Vitesse 5 port L2 switch */
-		ranges = <0x0 0x0 0xf 0xef000000 0x01000000
-			  0x1 0x0 0xf 0xff800000 0x00040000
-			  0x2 0x0 0xf 0xffb00000 0x00020000>;
-	};
-
-	soc: soc@fffe00000 {
-		ranges = <0x0 0xf 0xffe00000 0x100000>;
-	};
-
-	pci0: pcie@fffe09000 {
-		ranges = <0x2000000 0x0 0xc0000000 0xc 0x20000000 0x0 0x20000000
-			  0x1000000 0x0 0x00000000 0xf 0xffc10000 0x0 0x10000>;
-		reg = <0xf 0xffe09000 0 0x1000>;
-		pcie@0 {
-			ranges = <0x2000000 0x0 0xa0000000
-				  0x2000000 0x0 0xa0000000
-				  0x0 0x20000000
-
-				  0x1000000 0x0 0x0
-				  0x1000000 0x0 0x0
-				  0x0 0x100000>;
+		PowerPC,BSC9131@0 {
+			device_type = "cpu";
+			compatible = "fsl,e500v2";
+			reg = <0x0>;
+			next-level-cache = <&L2>;
 		};
 	};
-
-	pci1: pcie@fffe0a000 {
-		reg = <0xf 0xffe0a000 0 0x1000>;
-		ranges = <0x2000000 0x0 0x80000000 0xc 0x00000000 0x0 0x20000000
-			  0x1000000 0x0 0x00000000 0xf 0xffc00000 0x0 0x10000>;
-		pcie@0 {
-			ranges = <0x2000000 0x0 0xc0000000
-				  0x2000000 0x0 0xc0000000
-				  0x0 0x20000000
-
-				  0x1000000 0x0 0x0
-				  0x1000000 0x0 0x0
-				  0x0 0x100000>;
-		};
-	};
-
-	qe: qe@fffe80000 {
-                ranges = <0x0 0xf 0xffe80000 0x40000>;
-                reg = <0xf 0xffe80000 0 0x480>;
-                brg-frequency = <0>;
-                bus-frequency = <0>;
-        };
 };
-
-/include/ "p1021rdb.dtsi"
-/include/ "fsl/p1021si-post.dtsi"
