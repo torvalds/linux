@@ -143,10 +143,12 @@ int mc13xxx_fixed_regulator_set_voltage(struct regulator_dev *rdev, int min_uV,
 		__func__, id, min_uV, max_uV);
 
 	if (min_uV <= rdev->desc->volt_table[0] &&
-	    rdev->desc->volt_table[0] <= max_uV)
+	    rdev->desc->volt_table[0] <= max_uV) {
+		*selector = 0;
 		return 0;
-	else
+	} else {
 		return -EINVAL;
+	}
 }
 EXPORT_SYMBOL_GPL(mc13xxx_fixed_regulator_set_voltage);
 
