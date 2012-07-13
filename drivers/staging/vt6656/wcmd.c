@@ -1254,21 +1254,21 @@ static BOOL s_bClearBSSID_SCAN(void *hDeviceContext)
 //mike add:reset command timer
 void vResetCommandTimer(void *hDeviceContext)
 {
-  PSDevice        pDevice = (PSDevice)hDeviceContext;
+	PSDevice pDevice = (PSDevice)hDeviceContext;
 
-  //delete timer
-      del_timer(&pDevice->sTimerCommand);
-  //init timer
-      init_timer(&pDevice->sTimerCommand);
-    pDevice->sTimerCommand.data = (unsigned long)pDevice;
-    pDevice->sTimerCommand.function = (TimerFunction)vRunCommand;
-    pDevice->sTimerCommand.expires = RUN_AT(HZ);
-    pDevice->cbFreeCmdQueue = CMD_Q_SIZE;
-    pDevice->uCmdDequeueIdx = 0;
-    pDevice->uCmdEnqueueIdx = 0;
-    pDevice->eCommandState = WLAN_CMD_IDLE;
-    pDevice->bCmdRunning = FALSE;
-    pDevice->bCmdClear = FALSE;
+	//delete timer
+	del_timer(&pDevice->sTimerCommand);
+	//init timer
+	init_timer(&pDevice->sTimerCommand);
+	pDevice->sTimerCommand.data = (unsigned long)pDevice;
+	pDevice->sTimerCommand.function = (TimerFunction)vRunCommand;
+	pDevice->sTimerCommand.expires = RUN_AT(HZ);
+	pDevice->cbFreeCmdQueue = CMD_Q_SIZE;
+	pDevice->uCmdDequeueIdx = 0;
+	pDevice->uCmdEnqueueIdx = 0;
+	pDevice->eCommandState = WLAN_CMD_IDLE;
+	pDevice->bCmdRunning = FALSE;
+	pDevice->bCmdClear = FALSE;
 }
 
 void BSSvSecondTxData(void *hDeviceContext)
