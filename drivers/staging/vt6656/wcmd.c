@@ -1273,32 +1273,32 @@ void vResetCommandTimer(void *hDeviceContext)
 
 void BSSvSecondTxData(void *hDeviceContext)
 {
-  PSDevice        pDevice = (PSDevice)hDeviceContext;
-  PSMgmtObject  pMgmt = &(pDevice->sMgmtObj);
+	PSDevice pDevice = (PSDevice)hDeviceContext;
+	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
 
-  pDevice->nTxDataTimeCout++;
+	pDevice->nTxDataTimeCout++;
 
-  if(pDevice->nTxDataTimeCout<4)     //don't tx data if timer less than 40s
-    {
-     // printk("mike:%s-->no data Tx not exceed the desired Time as %d\n",__FUNCTION__,
-	//  	(int)pDevice->nTxDataTimeCout);
-     pDevice->sTimerTxData.expires = RUN_AT(10*HZ);      //10s callback
-     add_timer(&pDevice->sTimerTxData);
-      return;
-    }
+	if (pDevice->nTxDataTimeCout < 4) {   //don't tx data if timer less than 40s
+		// printk("mike:%s-->no data Tx not exceed the desired Time as %d\n",__FUNCTION__,
+		//  	(int)pDevice->nTxDataTimeCout);
+		pDevice->sTimerTxData.expires = RUN_AT(10 * HZ);      //10s callback
+		add_timer(&pDevice->sTimerTxData);
+		return;
+	}
 
-  spin_lock_irq(&pDevice->lock);
-  //is wap_supplicant running successful OR only open && sharekey mode!
-  if(((pDevice->bLinkPass ==TRUE)&&(pMgmt->eAuthenMode < WMAC_AUTH_WPA)) ||  //open && sharekey linking
-      (pDevice->fWPA_Authened == TRUE)) {   //wpa linking
-        //   printk("mike:%s-->InSleep Tx Data Procedure\n",__FUNCTION__);
-	  pDevice->fTxDataInSleep = TRUE;
-	  PSbSendNullPacket(pDevice);      //send null packet
-	  pDevice->fTxDataInSleep = FALSE;
-  	}
-  spin_unlock_irq(&pDevice->lock);
+	spin_lock_irq(&pDevice->lock);
+	//is wap_supplicant running successful OR only open && sharekey mode!
+	if (((pDevice->bLinkPass == TRUE) &&
+		(pMgmt->eAuthenMode < WMAC_AUTH_WPA)) ||  //open && sharekey linking
+		(pDevice->fWPA_Authened == TRUE)) {   //wpa linking
+		//   printk("mike:%s-->InSleep Tx Data Procedure\n",__FUNCTION__);
+		pDevice->fTxDataInSleep = TRUE;
+		PSbSendNullPacket(pDevice);      //send null packet
+		pDevice->fTxDataInSleep = FALSE;
+	}
+	spin_unlock_irq(&pDevice->lock);
 
-  pDevice->sTimerTxData.expires = RUN_AT(10*HZ);      //10s callback
-  add_timer(&pDevice->sTimerTxData);
-  return;
+	pDevice->sTimerTxData.expires = RUN_AT(10 * HZ);      //10s callback
+	add_timer(&pDevice->sTimerTxData);
+	return;
 }
