@@ -47,7 +47,6 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <mach/regs-gpio.h>
 #include <mach/leds-gpio.h>
 #include <mach/regs-lcd.h>
 #include <plat/regs-serial.h>
@@ -325,8 +324,9 @@ static void __init qt2410_machine_init(void)
 	}
 	s3c24xx_fb_set_platdata(&qt2410_fb_info);
 
-	s3c_gpio_cfgpin(S3C2410_GPB(0), S3C2410_GPIO_OUTPUT);
-	s3c2410_gpio_setpin(S3C2410_GPB(0), 1);
+	/* set initial state of the LED GPIO */
+	WARN_ON(gpio_request_one(S3C2410_GPB(0), GPIOF_OUT_INIT_HIGH, NULL));
+	gpio_free(S3C2410_GPB(0));
 
 	s3c24xx_udc_set_platdata(&qt2410_udc_cfg);
 	s3c_i2c0_set_platdata(NULL);
