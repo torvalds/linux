@@ -86,6 +86,7 @@
 #define CMD_A					0x30
 #define CMD_A_CHG_ENABLED			BIT(1)
 #define CMD_A_SUSPEND_ENABLED			BIT(2)
+#define CMD_A_OTG_ENABLE			BIT(4)
 #define CMD_A_ALLOW_WRITE			BIT(7)
 #define CMD_B					0x31
 #define CMD_B_USB59_MODE			BIT(1)
@@ -140,6 +141,7 @@ struct smb347_charger {
 	bool			charging_enabled;
 	unsigned int		mains_current_limit;
 	bool			usb_hc_mode;
+	bool			usb_otg_enabled;
 	struct dentry		*dentry;
 	const struct smb347_charger_platform_data *pdata;
 };
@@ -1027,6 +1029,10 @@ static int smb347_usb_get_property(struct power_supply *psy,
 		val->intval = smb->usb_hc_mode;
 		return 0;
 
+	case POWER_SUPPLY_PROP_USB_OTG:
+		val->intval = smb->usb_otg_enabled;
+		return 0;
+
 	default:
 		break;
 	}
@@ -1050,6 +1056,24 @@ static int smb347_usb_set_property(struct power_supply *psy,
 		smb->usb_hc_mode = val->intval;
 		break;
 
+	case POWER_SUPPLY_PROP_USB_OTG:
+		ret = smb347_read(smb, CMD_A);
+
+		if (ret < 0)
+			return ret;
+
+		if (val->intval)
+			ret |= CMD_A_OTG_ENABLE;
+		else
+			ret &= ~CMD_A_OTG_ENABLE;
+
+		ret = smb347_write(smb, CMD_A, ret);
+
+		if (ret >= 0)
+			smb->usb_otg_enabled = val->intval;
+
+		break;
+
 	default:
 		break;
 	}
@@ -1062,6 +1086,7 @@ static int smb347_usb_property_is_writeable(struct power_supply *psy,
 {
 	switch (prop) {
 	case POWER_SUPPLY_PROP_USB_HC:
+	case POWER_SUPPLY_PROP_USB_OTG:
 		return 1;
 	default:
 		break;
@@ -1073,6 +1098,7 @@ static int smb347_usb_property_is_writeable(struct power_supply *psy,
 static enum power_supply_property smb347_usb_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_USB_HC,
+	POWER_SUPPLY_PROP_USB_OTG,
 };
 
 static int smb347_battery_get_property(struct power_supply *psy,
