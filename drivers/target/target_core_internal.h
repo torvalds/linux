@@ -10,8 +10,10 @@ int	core_free_device_list_for_node(struct se_node_acl *,
 		struct se_portal_group *);
 void	core_dec_lacl_count(struct se_node_acl *, struct se_cmd *);
 void	core_update_device_list_access(u32, u32, struct se_node_acl *);
-int	core_update_device_list_for_node(struct se_lun *, struct se_lun_acl *,
-		u32, u32, struct se_node_acl *, struct se_portal_group *, int);
+int	core_enable_device_list_for_node(struct se_lun *, struct se_lun_acl *,
+		u32, u32, struct se_node_acl *, struct se_portal_group *);
+int	core_disable_device_list_for_node(struct se_lun *, struct se_lun_acl *,
+		u32, u32, struct se_node_acl *, struct se_portal_group *);
 void	core_clear_lun_from_tpg(struct se_lun *, struct se_portal_group *);
 int	core_dev_export(struct se_device *, struct se_portal_group *,
 		struct se_lun *);
