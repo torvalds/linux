@@ -182,19 +182,21 @@ static struct platform_device __initdata *smdk_devs[] = {
 	&smdk_led7,
 };
 
+static const struct gpio smdk_led_gpios[] = {
+	{ S3C2410_GPF(4), GPIOF_OUT_INIT_HIGH, NULL },
+	{ S3C2410_GPF(5), GPIOF_OUT_INIT_HIGH, NULL },
+	{ S3C2410_GPF(6), GPIOF_OUT_INIT_HIGH, NULL },
+	{ S3C2410_GPF(7), GPIOF_OUT_INIT_HIGH, NULL },
+};
+
 void __init smdk_machine_init(void)
 {
 	/* Configure the LEDs (even if we have no LED support)*/
 
-	s3c_gpio_cfgpin(S3C2410_GPF(4), S3C2410_GPIO_OUTPUT);
-	s3c_gpio_cfgpin(S3C2410_GPF(5), S3C2410_GPIO_OUTPUT);
-	s3c_gpio_cfgpin(S3C2410_GPF(6), S3C2410_GPIO_OUTPUT);
-	s3c_gpio_cfgpin(S3C2410_GPF(7), S3C2410_GPIO_OUTPUT);
-
-	s3c2410_gpio_setpin(S3C2410_GPF(4), 1);
-	s3c2410_gpio_setpin(S3C2410_GPF(5), 1);
-	s3c2410_gpio_setpin(S3C2410_GPF(6), 1);
-	s3c2410_gpio_setpin(S3C2410_GPF(7), 1);
+	int ret = gpio_request_array(smdk_led_gpios,
+				     ARRAY_SIZE(smdk_led_gpios));
+	if (!WARN_ON(ret < 0))
+		gpio_free_array(smdk_led_gpios, ARRAY_SIZE(smdk_led_gpios));
 
 	if (machine_is_smdk2443())
 		smdk_nand_info.twrph0 = 50;
