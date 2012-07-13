@@ -162,7 +162,7 @@ enum mac_oui {
 static void __init update_fec_mac_prop(enum mac_oui oui)
 {
 	struct device_node *np, *from = NULL;
-	struct property *oldmac, *newmac;
+	struct property *newmac;
 	const u32 *ocotp = mxs_get_ocotp();
 	u8 *macaddr;
 	u32 val;
@@ -208,11 +208,7 @@ static void __init update_fec_mac_prop(enum mac_oui oui)
 		macaddr[4] = (val >> 8) & 0xff;
 		macaddr[5] = (val >> 0) & 0xff;
 
-		oldmac = of_find_property(np, newmac->name, NULL);
-		if (oldmac)
-			prom_update_property(np, newmac, oldmac);
-		else
-			prom_add_property(np, newmac);
+		prom_update_property(np, newmac);
 	}
 }
 
