@@ -411,7 +411,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	spin_unlock_irqrestore(&dwc->lock, flags);
 }
 
-static void dwc_dump_lli(struct dw_dma_chan *dwc, struct dw_lli *lli)
+static inline void dwc_dump_lli(struct dw_dma_chan *dwc, struct dw_lli *lli)
 {
 	dev_printk(KERN_CRIT, chan2dev(&dwc->chan),
 			"  desc: s0x%llx d0x%llx l0x%llx c0x%x:%x\n",
