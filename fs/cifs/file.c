@@ -385,9 +385,8 @@ int cifs_open(struct inode *inode, struct file *file)
 		oplock = 0;
 
 	if (!tcon->broken_posix_open && tcon->unix_ext &&
-	    (tcon->ses->capabilities & CAP_UNIX) &&
-	    (CIFS_UNIX_POSIX_PATH_OPS_CAP &
-			le64_to_cpu(tcon->fsUnixInfo.Capability))) {
+	    cap_unix(tcon->ses) && (CIFS_UNIX_POSIX_PATH_OPS_CAP &
+				le64_to_cpu(tcon->fsUnixInfo.Capability))) {
 		/* can not refresh inode info since size could be stale */
 		rc = cifs_posix_open(full_path, &inode, inode->i_sb,
 				cifs_sb->mnt_file_mode /* ignored */,
@@ -509,10 +508,9 @@ static int cifs_reopen_file(struct cifsFileInfo *pCifsFile, bool can_flush)
 	else
 		oplock = 0;
 
-	if (tcon->unix_ext && (tcon->ses->capabilities & CAP_UNIX) &&
+	if (tcon->unix_ext && cap_unix(tcon->ses) &&
 	    (CIFS_UNIX_POSIX_PATH_OPS_CAP &
-			le64_to_cpu(tcon->fsUnixInfo.Capability))) {
-
+				le64_to_cpu(tcon->fsUnixInfo.Capability))) {
 		/*
 		 * O_CREAT, O_EXCL and O_TRUNC already had their effect on the
 		 * original open. Must mask them off for a reopen.
@@ -1071,7 +1069,7 @@ cifs_push_locks(struct cifsFileInfo *cfile)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(cfile->dentry->d_sb);
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 
-	if ((tcon->ses->capabilities & CAP_UNIX) &&
+	if (cap_unix(tcon->ses) &&
 	    (CIFS_UNIX_FCNTL_CAP & le64_to_cpu(tcon->fsUnixInfo.Capability)) &&
 	    ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOPOSIXBRL) == 0))
 		return cifs_push_posix_locks(cfile);
@@ -1419,7 +1417,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *flock)
 	netfid = cfile->netfid;
 	cinode = CIFS_I(file->f_path.dentry->d_inode);
 
-	if ((tcon->ses->capabilities & CAP_UNIX) &&
+	if (cap_unix(tcon->ses) &&
 	    (CIFS_UNIX_FCNTL_CAP & le64_to_cpu(tcon->fsUnixInfo.Capability)) &&
 	    ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOPOSIXBRL) == 0))
 		posix_lck = true;
@@ -2745,7 +2743,7 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 	unsigned int current_read_size;
 	unsigned int rsize;
 	struct cifs_sb_info *cifs_sb;
-	struct cifs_tcon *pTcon;
+	struct cifs_tcon *tcon;
 	unsigned int xid;
 	char *current_offset;
 	struct cifsFileInfo *open_file;
@@ -2765,7 +2763,7 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 		return rc;
 	}
 	open_file = file->private_data;
-	pTcon = tlink_tcon(open_file->tlink);
+	tcon = tlink_tcon(open_file->tlink);
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
 		pid = open_file->pid;
@@ -2779,11 +2777,12 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 	     read_size > total_read;
 	     total_read += bytes_read, current_offset += bytes_read) {
 		current_read_size = min_t(uint, read_size - total_read, rsize);
-
-		/* For windows me and 9x we do not want to request more
-		than it negotiated since it will refuse the read then */
-		if ((pTcon->ses) &&
-			!(pTcon->ses->capabilities & CAP_LARGE_FILES)) {
+		/*
+		 * For windows me and 9x we do not want to request more than it
+		 * negotiated since it will refuse the read then.
+		 */
+		if ((tcon->ses) && !(tcon->ses->capabilities &
+				tcon->ses->server->vals->cap_large_files)) {
 			current_read_size = min_t(uint, current_read_size,
 					CIFSMaxBufSize);
 		}
@@ -2796,7 +2795,7 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 			}
 			io_parms.netfid = open_file->netfid;
 			io_parms.pid = pid;
-			io_parms.tcon = pTcon;
+			io_parms.tcon = tcon;
 			io_parms.offset = *poffset;
 			io_parms.length = current_read_size;
 			rc = CIFSSMBRead(xid, &io_parms, &bytes_read,
@@ -2810,7 +2809,7 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 				return rc;
 			}
 		} else {
-			cifs_stats_bytes_read(pTcon, total_read);
+			cifs_stats_bytes_read(tcon, total_read);
 			*poffset += bytes_read;
 		}
 	}

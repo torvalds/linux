@@ -1149,9 +1149,8 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 		goto unlink_out;
 	}
 
-	if ((tcon->ses->capabilities & CAP_UNIX) &&
-		(CIFS_UNIX_POSIX_PATH_OPS_CAP &
-			le64_to_cpu(tcon->fsUnixInfo.Capability))) {
+	if (cap_unix(tcon->ses) && (CIFS_UNIX_POSIX_PATH_OPS_CAP &
+				le64_to_cpu(tcon->fsUnixInfo.Capability))) {
 		rc = CIFSPOSIXDelFile(xid, tcon, full_path,
 			SMB_POSIX_UNLINK_FILE_TARGET, cifs_sb->local_nls,
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
@@ -1226,7 +1225,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, umode_t mode)
 	unsigned int xid;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
-	struct cifs_tcon *pTcon;
+	struct cifs_tcon *tcon;
 	char *full_path = NULL;
 	struct inode *newinode = NULL;
 	struct cifs_fattr fattr;
@@ -1237,7 +1236,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, umode_t mode)
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
-	pTcon = tlink_tcon(tlink);
+	tcon = tlink_tcon(tlink);
 
 	xid = get_xid();
 
@@ -1247,9 +1246,8 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, umode_t mode)
 		goto mkdir_out;
 	}
 
-	if ((pTcon->ses->capabilities & CAP_UNIX) &&
-		(CIFS_UNIX_POSIX_PATH_OPS_CAP &
-			le64_to_cpu(pTcon->fsUnixInfo.Capability))) {
+	if (cap_unix(tcon->ses) && (CIFS_UNIX_POSIX_PATH_OPS_CAP &
+				le64_to_cpu(tcon->fsUnixInfo.Capability))) {
 		u32 oplock = 0;
 		FILE_UNIX_BASIC_INFO *pInfo =
 			kzalloc(sizeof(FILE_UNIX_BASIC_INFO), GFP_KERNEL);
@@ -1259,7 +1257,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, umode_t mode)
 		}
 
 		mode &= ~current_umask();
-		rc = CIFSPOSIXCreate(xid, pTcon, SMB_O_DIRECTORY | SMB_O_CREAT,
+		rc = CIFSPOSIXCreate(xid, tcon, SMB_O_DIRECTORY | SMB_O_CREAT,
 				mode, NULL /* netfid */, pInfo, &oplock,
 				full_path, cifs_sb->local_nls,
 				cifs_sb->mnt_cifs_flags &
@@ -1303,14 +1301,14 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, umode_t mode)
 	}
 mkdir_retry_old:
 	/* BB add setting the equivalent of mode via CreateX w/ACLs */
-	rc = CIFSSMBMkDir(xid, pTcon, full_path, cifs_sb->local_nls,
+	rc = CIFSSMBMkDir(xid, tcon, full_path, cifs_sb->local_nls,
 			  cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc) {
 		cFYI(1, "cifs_mkdir returned 0x%x", rc);
 		d_drop(direntry);
 	} else {
 mkdir_get_info:
-		if (pTcon->unix_ext)
+		if (tcon->unix_ext)
 			rc = cifs_get_inode_info_unix(&newinode, full_path,
 						      inode->i_sb, xid);
 		else
@@ -1328,7 +1326,7 @@ mkdir_get_info:
 		if (inode->i_mode & S_ISGID)
 			mode |= S_ISGID;
 
-		if (pTcon->unix_ext) {
+		if (tcon->unix_ext) {
 			struct cifs_unix_set_info_args args = {
 				.mode	= mode,
 				.ctime	= NO_CHANGE_64,
@@ -1346,7 +1344,7 @@ mkdir_get_info:
 				args.uid = NO_CHANGE_64;
 				args.gid = NO_CHANGE_64;
 			}
-			CIFSSMBUnixSetPathInfo(xid, pTcon, full_path, &args,
+			CIFSSMBUnixSetPathInfo(xid, tcon, full_path, &args,
 					       cifs_sb->local_nls,
 					       cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
@@ -1361,7 +1359,7 @@ mkdir_get_info:
 				cifsInode = CIFS_I(newinode);
 				dosattrs = cifsInode->cifsAttrs|ATTR_READONLY;
 				pInfo.Attributes = cpu_to_le32(dosattrs);
-				tmprc = CIFSSMBSetPathInfo(xid, pTcon,
+				tmprc = CIFSSMBSetPathInfo(xid, tcon,
 						full_path, &pInfo,
 						cifs_sb->local_nls,
 						cifs_sb->mnt_cifs_flags &

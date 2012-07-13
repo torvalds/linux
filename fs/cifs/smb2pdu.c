@@ -428,6 +428,8 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	/* BB Do we need to validate the SecurityMode? */
 	server->sec_mode = le16_to_cpu(rsp->SecurityMode);
 	server->capabilities = le32_to_cpu(rsp->Capabilities);
+	/* Internal types */
+	server->capabilities |= SMB2_NT_FIND | SMB2_LARGE_FILES;
 
 	security_blob = smb2_get_data_area_len(&blob_offset, &blob_length,
 					       &rsp->hdr);

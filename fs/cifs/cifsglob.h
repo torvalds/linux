@@ -258,6 +258,9 @@ struct smb_version_values {
 	size_t		max_header_size;
 	size_t		read_rsp_size;
 	__le16		lock_cmd;
+	unsigned int	cap_unix;
+	unsigned int	cap_nt_find;
+	unsigned int	cap_large_files;
 };
 
 #define HEADER_SIZE(server) (server->vals->header_size)
@@ -408,7 +411,7 @@ struct TCP_Server_Info {
 	unsigned int max_vcs;	/* maximum number of smb sessions, at least
 				   those that can be specified uniquely with
 				   vcnumbers */
-	int capabilities; /* allow selective disabling of caps by smb sess */
+	unsigned int capabilities; /* selective disabling of caps by smb sess */
 	int timeAdj;  /* Adjust for difference in server time zone in sec */
 	__u64 CurrentMid;         /* multiplex id - rotating counter */
 	char cryptkey[CIFS_CRYPTO_KEY_SIZE]; /* used by ntlm, ntlmv2 etc */
@@ -532,7 +535,7 @@ struct cifs_ses {
 	__u64 Suid;		/* remote smb uid  */
 	uid_t linux_uid;        /* overriding owner of files on the mount */
 	uid_t cred_uid;		/* owner of credentials */
-	int capabilities;
+	unsigned int capabilities;
 	char serverName[SERVER_NAME_LEN_WITH_NULL * 2];	/* BB make bigger for
 				TCP names - will ipv6 and sctp addresses fit? */
 	char *user_name;	/* must not be null except during init of sess
@@ -554,6 +557,13 @@ struct cifs_ses {
    which do not negotiate NTLM or POSIX dialects, but instead
    negotiate one of the older LANMAN dialects */
 #define CIFS_SES_LANMAN 8
+
+static inline bool
+cap_unix(struct cifs_ses *ses)
+{
+	return ses->server->vals->cap_unix & ses->capabilities;
+}
+
 /*
  * there is one of these for each connection to a resource on a particular
  * session

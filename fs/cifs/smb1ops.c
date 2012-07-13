@@ -632,4 +632,7 @@ struct smb_version_values smb1_values = {
 	.max_header_size = MAX_CIFS_HDR_SIZE,
 	.read_rsp_size = sizeof(READ_RSP),
 	.lock_cmd = cpu_to_le16(SMB_COM_LOCKING_ANDX),
+	.cap_unix = CAP_UNIX,
+	.cap_nt_find = CAP_NT_SMBS | CAP_NT_FIND,
+	.cap_large_files = CAP_LARGE_FILES,
 };

@@ -495,8 +495,8 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 	 * but there doesn't seem to be any harm in allowing the client to
 	 * read them.
 	 */
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS)
-	    && !(tcon->ses->capabilities & CAP_UNIX)) {
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS) &&
+	    !cap_unix(tcon->ses)) {
 		rc = -EACCES;
 		goto out;
 	}
@@ -518,7 +518,7 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 					cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 
-	if ((rc != 0) && (tcon->ses->capabilities & CAP_UNIX))
+	if ((rc != 0) && cap_unix(tcon->ses))
 		rc = CIFSSMBUnixQuerySymLink(xid, tcon, full_path, &target_path,
 					     cifs_sb->local_nls);
 
