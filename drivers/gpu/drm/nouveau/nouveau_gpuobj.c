@@ -806,3 +806,34 @@ nv_wo32(struct nouveau_gpuobj *gpuobj, u32 offset, u32 val)
 
 	nv_wi32(dev, gpuobj->pinst + offset, val);
 }
+
+int
+nouveau_gpuobj_map_vm(struct nouveau_gpuobj *gpuobj, u32 flags,
+		      struct nouveau_vm *vm, struct nouveau_vma *vma)
+{
+	struct nouveau_mem **mem = gpuobj->node;
+	struct nouveau_mem *node = *mem;
+	int ret;
+
+	ret = nouveau_vm_get(vm, node->size << 12, 12, flags, vma);
+	if (ret)
+		return ret;
+
+	nouveau_vm_map(vma, node);
+	return 0;
+}
+
+int
+nouveau_gpuobj_map_bar(struct nouveau_gpuobj *gpuobj, u32 flags,
+		       struct nouveau_vma *vma)
+{
+	struct drm_nouveau_private *dev_priv = gpuobj->dev->dev_private;
+	return nouveau_gpuobj_map_vm(gpuobj, flags, dev_priv->bar1_vm, vma);
+}
+
+void
+nouveau_gpuobj_unmap(struct nouveau_vma *vma)
+{
+	nouveau_vm_unmap(vma);
+	nouveau_vm_put(vma);
+}

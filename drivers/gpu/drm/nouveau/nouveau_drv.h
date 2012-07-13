@@ -879,6 +879,13 @@ extern void nv50_gpuobj_dma_init(struct nouveau_gpuobj *, u32 offset,
 				 int class, u64 base, u64 size, int target,
 				 int access, u32 type, u32 comp);
 
+
+int  nouveau_gpuobj_map_vm(struct nouveau_gpuobj *gpuobj, u32 flags,
+			   struct nouveau_vm *vm, struct nouveau_vma *vma);
+int  nouveau_gpuobj_map_bar(struct nouveau_gpuobj *gpuobj, u32 flags,
+			    struct nouveau_vma *vma);
+void nouveau_gpuobj_unmap(struct nouveau_vma *vma);
+
 /* nouveau_irq.c */
 extern int         nouveau_irq_init(struct drm_device *);
 extern void        nouveau_irq_fini(struct drm_device *);

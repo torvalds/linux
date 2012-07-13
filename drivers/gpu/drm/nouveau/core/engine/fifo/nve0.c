@@ -402,7 +402,7 @@ nve0_fifo_destroy(struct drm_device *dev, int engine)
 	struct nve0_fifo_priv *priv = nv_engine(dev, engine);
 	int i;
 
-	nouveau_vm_put(&priv->user.bar);
+	nouveau_gpuobj_unmap(&priv->user.bar);
 	nouveau_gpuobj_ref(NULL, &priv->user.mem);
 
 	for (i = 0; i < NVE0_FIFO_ENGINE_NUM; i++) {
@@ -438,12 +438,10 @@ nve0_fifo_create(struct drm_device *dev)
 	if (ret)
 		goto error;
 
-	ret = nouveau_vm_get(dev_priv->bar1_vm, priv->user.mem->size,
-			     12, NV_MEM_ACCESS_RW, &priv->user.bar);
+	ret = nouveau_gpuobj_map_bar(priv->user.mem, NV_MEM_ACCESS_RW,
+				    &priv->user.bar);
 	if (ret)
 		goto error;
-
-	nouveau_vm_map(&priv->user.bar, *(struct nouveau_mem **)priv->user.mem->node);
 
 	nouveau_irq_register(dev, 8, nve0_fifo_isr);
 error:
