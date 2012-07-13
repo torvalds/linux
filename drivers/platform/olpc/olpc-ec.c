@@ -8,6 +8,7 @@
 #include <linux/completion.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
+#include <linux/platform_device.h>
 #include <linux/workqueue.h>
 #include <linux/module.h>
 #include <linux/list.h>
@@ -122,3 +123,50 @@ int olpc_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *outbuf, size_t outlen)
 	return desc.err;
 }
 EXPORT_SYMBOL_GPL(olpc_ec_cmd);
+
+static int olpc_ec_probe(struct platform_device *pdev)
+{
+	int err;
+
+	if (!ec_driver)
+		return -ENODEV;
+
+	err = ec_driver->probe ? ec_driver->probe(pdev) : 0;
+
+	return err;
+}
+
+static int olpc_ec_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	return ec_driver->suspend ? ec_driver->suspend(pdev) : 0;
+}
+
+static int olpc_ec_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	return ec_driver->resume ? ec_driver->resume(pdev) : 0;
+}
+
+static const struct dev_pm_ops olpc_ec_pm_ops = {
+	.suspend_late = olpc_ec_suspend,
+	.resume_early = olpc_ec_resume,
+};
+
+static struct platform_driver olpc_ec_plat_driver = {
+	.probe = olpc_ec_probe,
+	.driver = {
+		.name = "olpc-ec",
+		.pm = &olpc_ec_pm_ops,
+	},
+};
+
+static int __init olpc_ec_init_module(void)
+{
+	return platform_driver_register(&olpc_ec_plat_driver);
+}
+
+module_init(olpc_ec_init_module);
+
+MODULE_AUTHOR("Andres Salomon <dilinger@queued.net>");
+MODULE_LICENSE("GPL");

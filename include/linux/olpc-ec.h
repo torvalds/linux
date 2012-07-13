@@ -14,7 +14,13 @@
 #define EC_SCI_QUERY			0x84
 #define EC_EXT_SCI_QUERY		0x85
 
+struct platform_device;
+
 struct olpc_ec_driver {
+	int (*probe)(struct platform_device *);
+	int (*suspend)(struct platform_device *);
+	int (*resume)(struct platform_device *);
+
 	int (*ec_cmd)(u8, u8 *, size_t, u8 *, size_t, void *);
 };
 
