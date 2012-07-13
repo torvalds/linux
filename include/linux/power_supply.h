@@ -152,6 +152,7 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_CALIBRATE,
 	/* Local extensions */
 	POWER_SUPPLY_PROP_USB_HC,
+	POWER_SUPPLY_PROP_USB_OTG,
 	/* Properties of type `const char *' */
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
