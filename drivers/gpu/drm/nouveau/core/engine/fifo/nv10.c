@@ -61,7 +61,7 @@ struct nv10_fifo_priv {
 
 struct nv10_fifo_chan {
 	struct nouveau_fifo_chan base;
-	struct nouveau_gpuobj *ramfc;
+	u32 ramfc;
 };
 
 static int
@@ -78,6 +78,8 @@ nv10_fifo_context_new(struct nouveau_channel *chan, int engine)
 	if (!fctx)
 		return -ENOMEM;
 
+	fctx->ramfc = chan->id * 32;
+
 	/* map channel control registers */
 	chan->user = ioremap(pci_resource_start(dev->pdev, 0) +
 			     NV03_USER(chan->id), PAGE_SIZE);
@@ -87,25 +89,16 @@ nv10_fifo_context_new(struct nouveau_channel *chan, int engine)
 	}
 
 	/* initialise default fifo context */
-	ret = nouveau_gpuobj_new_fake(dev, priv->ramfc->pinst +
-				      chan->id * 32, ~0, 32,
-				      NVOBJ_FLAG_ZERO_FREE, &fctx->ramfc);
-	if (ret)
-		goto error;
-
-	nv_wo32(fctx->ramfc, 0x00, chan->pushbuf_base);
-	nv_wo32(fctx->ramfc, 0x04, chan->pushbuf_base);
-	nv_wo32(fctx->ramfc, 0x08, 0x00000000);
-	nv_wo32(fctx->ramfc, 0x0c, chan->pushbuf->pinst >> 4);
-	nv_wo32(fctx->ramfc, 0x10, 0x00000000);
-	nv_wo32(fctx->ramfc, 0x14, NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
-				   NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
+	nv_wo32(priv->ramfc, fctx->ramfc + 0x00, chan->pushbuf_base);
+	nv_wo32(priv->ramfc, fctx->ramfc + 0x04, chan->pushbuf_base);
+	nv_wo32(priv->ramfc, fctx->ramfc + 0x0c, chan->pushbuf->pinst >> 4);
+	nv_wo32(priv->ramfc, fctx->ramfc + 0x14,
+			     NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
+			     NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
 #ifdef __BIG_ENDIAN
-				   NV_PFIFO_CACHE1_BIG_ENDIAN |
+			     NV_PFIFO_CACHE1_BIG_ENDIAN |
 #endif
-				   NV_PFIFO_CACHE1_DMA_FETCH_MAX_REQS_8);
-	nv_wo32(fctx->ramfc, 0x18, 0x00000000);
-	nv_wo32(fctx->ramfc, 0x1c, 0x00000000);
+			     NV_PFIFO_CACHE1_DMA_FETCH_MAX_REQS_8);
 
 	/* enable dma mode on the channel */
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
