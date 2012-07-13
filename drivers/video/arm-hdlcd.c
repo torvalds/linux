@@ -29,10 +29,12 @@
 
 #include "edid.h"
 
-#ifdef CONFIG_SERIAL_AMBA_PCU_UART
 /* set the DVI output mode using the firmware */
-int set_dvi_mode(u8 *msgbuf);
+extern int set_dvi_mode(int mode);
+
+#ifdef CONFIG_SERIAL_AMBA_PCU_UART
 int get_edid(u8 *msgbuf);
+#else
 #endif
 
 #define to_hdlcd_device(info)	container_of(info, struct hdlcd_device, fb)
@@ -140,34 +142,29 @@ static int hdlcd_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	return hdlcd_set_bitfields(hdlcd, var);
 }
 
-#ifdef CONFIG_SERIAL_AMBA_PCU_UART
 static int hdlcd_set_output_mode(int xres, int yres)
 {
-	/* firmware uses some stupid protocol: 5 bytes (only byte 1 used)
+	/* some firmware uses some stupid protocol: 5 bytes (only byte 1 used)
 	   to send 3 bits of information (value between 0 - 5) */
 	u8 msgbuffer[5];
 
 	memset(msgbuffer, 0, sizeof(msgbuffer));
-	/* default resolution: 640 x 480 */
-	if (xres == 800 && yres <= 600)
+
+	if (xres < 800 && yres < 600)
+		msgbuffer[0] = 0;	/* default resolution: 640 x 480 */
+	else if (xres < 1024 && yres < 768)
 		msgbuffer[0] = 1;	/* SVGA: 800 * 600 */
-	else if (xres == 1024 && yres <= 768)
+	else if (xres < 1280 && yres < 1024)
 		msgbuffer[0] = 2;	/* XGA: 1024 * 768 */
-	else if (xres == 1280 && yres <= 1024)
+	else if (xres < 1600 && yres < 1200)
 		msgbuffer[0] = 3;	/* SXGA: 1280 * 1024 */
-	else if (xres == 1600 && yres <= 1200)
+	else if (xres < 1920 && yres <= 1200)
 		msgbuffer[0] = 4;	/* UXGA: 1600 * 1200 */
-	else if (xres == 1920 && yres <= 1200)
+	else
 		msgbuffer[0] = 5;	/* WUXGA: 1920 * 1200 */
 
-	return set_dvi_mode(msgbuffer);
+	return set_dvi_mode(msgbuffer[0]);
 }
-#else
-inline int hdlcd_set_output_mode(int xres, int yres)
-{
-	return 0;
-}
-#endif
 
 #define WRITE_HDLCD_REG(reg, value)	writel((value), hdlcd->base + (reg))
 #define READ_HDLCD_REG(reg)		readl(hdlcd->base + (reg))
@@ -565,13 +562,16 @@ static int hdlcd_probe(struct platform_device *pdev)
 	if (of_node) {
 		int len;
 		const u8 *edid;
-		const void *prop = of_get_property(of_node, "mode", &len);
+		const __be32 *prop = of_get_property(of_node, "mode", &len);
 		if (prop)
-			strncpy(fb_mode, prop, len);
+			strncpy(fb_mode, (char *)prop, len);
 		prop = of_get_property(of_node, "framebuffer", &len);
 		if (prop) {
-			hdlcd->fb.fix.smem_start = of_read_ulong((const __be32 *) prop, 1);
-			framebuffer_size = of_read_ulong((const __be32 *)prop, 1);
+			hdlcd->fb.fix.smem_start = of_read_ulong(prop,
+					of_n_addr_cells(of_node));
+			prop += of_n_addr_cells(of_node);
+			framebuffer_size = of_read_ulong(prop,
+					of_n_size_cells(of_node));
 			if (framebuffer_size > HDLCD_MAX_FRAMEBUFFER_SIZE)
 				framebuffer_size = HDLCD_MAX_FRAMEBUFFER_SIZE;
 			dev_dbg(&pdev->dev, "HDLCD: phys_addr = 0x%lx, size = 0x%lx\n",
