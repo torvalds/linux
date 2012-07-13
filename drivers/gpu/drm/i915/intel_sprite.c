@@ -234,6 +234,7 @@ ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	dvscntr &= ~DVS_PIXFORMAT_MASK;
 	dvscntr &= ~DVS_RGB_ORDER_XBGR;
 	dvscntr &= ~DVS_YUV_BYTE_ORDER_MASK;
+	dvscntr &= ~DVS_TILED;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
