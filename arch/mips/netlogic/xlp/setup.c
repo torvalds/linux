@@ -57,6 +57,7 @@ unsigned long nlm_common_ebase = 0x0;
 /* default to uniprocessor */
 uint32_t nlm_coremask = 1, nlm_cpumask  = 1;
 int  nlm_threads_per_core = 1;
+extern u32 __dtb_start[];
 
 static void nlm_linux_exit(void)
 {
@@ -97,9 +98,18 @@ void __init prom_init(void)
 {
 	void *fdtp;
 
-	fdtp = (void *)(long)fw_arg0;
 	xlp_mmu_init();
 	nlm_hal_init();
+
+	/*
+	 * If no FDT pointer is passed in, use the built-in FDT.
+	 * device_tree_init() does not handle CKSEG0 pointers in
+	 * 64-bit, so convert pointer.
+	 */
+	fdtp = (void *)(long)fw_arg0;
+	if (!fdtp)
+		fdtp = __dtb_start;
+	fdtp = phys_to_virt(__pa(fdtp));
 	early_init_devtree(fdtp);
 
 	nlm_common_ebase = read_c0_ebase() & (~((1 << 12) - 1));
