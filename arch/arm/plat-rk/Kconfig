@@ -101,6 +101,19 @@ config DVFS
 	depends on REGULATOR&&CPU_FREQ
 	default y
 
+config RK_CLOCK_PROC
+	bool "/proc/clocks support"
+	depends on PROC_FS
+
+if !ARCH_RK29
+menu "Support for RK power manage"
+
+config CLK_SWITCH_TO_32K
+	bool "Support clock switch to 32.768k"
+
+endmenu
+endif
+
 config WIFI_CONTROL_FUNC
         bool "Enable WiFi control function abstraction"
         help
