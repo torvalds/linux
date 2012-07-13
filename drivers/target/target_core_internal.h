@@ -45,8 +45,7 @@ int	se_dev_set_max_sectors(struct se_device *, u32);
 int	se_dev_set_fabric_max_sectors(struct se_device *, u32);
 int	se_dev_set_optimal_sectors(struct se_device *, u32);
 int	se_dev_set_block_size(struct se_device *, u32);
-struct se_lun *core_dev_add_lun(struct se_portal_group *, struct se_hba *,
-		struct se_device *, u32);
+struct se_lun *core_dev_add_lun(struct se_portal_group *, struct se_device *, u32);
 int	core_dev_del_lun(struct se_portal_group *, u32);
 struct se_lun *core_get_lun_from_tpg(struct se_portal_group *, u32);
 struct se_lun_acl *core_dev_init_initiator_node_lun_acl(struct se_portal_group *,

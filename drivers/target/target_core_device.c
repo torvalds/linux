@@ -1273,7 +1273,6 @@ int se_dev_set_block_size(struct se_device *dev, u32 block_size)
 
 struct se_lun *core_dev_add_lun(
 	struct se_portal_group *tpg,
-	struct se_hba *hba,
 	struct se_device *dev,
 	u32 lun)
 {
@@ -1298,7 +1297,7 @@ struct se_lun *core_dev_add_lun(
 	pr_debug("%s_TPG[%u]_LUN[%u] - Activated %s Logical Unit from"
 		" CORE HBA: %u\n", tpg->se_tpg_tfo->get_fabric_name(),
 		tpg->se_tpg_tfo->tpg_get_tag(tpg), lun_p->unpacked_lun,
-		tpg->se_tpg_tfo->get_fabric_name(), hba->hba_id);
+		tpg->se_tpg_tfo->get_fabric_name(), dev->se_hba->hba_id);
 	/*
 	 * Update LUN maps for dynamically added initiators when
 	 * generate_node_acl is enabled.
