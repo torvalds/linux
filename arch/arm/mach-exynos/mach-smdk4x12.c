@@ -13,6 +13,7 @@
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/io.h>
+#include <linux/lcd.h>
 #include <linux/mfd/max8997.h>
 #include <linux/mmc/host.h>
 #include <linux/platform_device.h>
@@ -29,10 +30,12 @@
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
+#include <plat/fb.h>
 #include <plat/gpio-cfg.h>
 #include <plat/iic.h>
 #include <plat/keypad.h>
 #include <plat/mfc.h>
+#include <plat/regs-fb.h>
 #include <plat/regs-serial.h>
 #include <plat/sdhci.h>
 
@@ -237,6 +240,34 @@ static struct samsung_keypad_platdata smdk4x12_keypad_data __initdata = {
 	.cols		= 8,
 };
 
+static struct s3c_fb_pd_win smdk4x12_fb_win0 = {
+	.xres		= 480,
+	.yres		= 800,
+	.virtual_x	= 480,
+	.virtual_y	= 800 * 2,
+	.max_bpp	= 32,
+	.default_bpp	= 24,
+};
+
+static struct fb_videomode smdk4x12_lcd_timing = {
+	.left_margin	= 8,
+	.right_margin	= 8,
+	.upper_margin	= 6,
+	.lower_margin	= 6,
+	.hsync_len	= 6,
+	.vsync_len	= 4,
+	.xres		= 480,
+	.yres		= 800,
+};
+
+static struct s3c_fb_platdata smdk4x12_lcd_pdata __initdata = {
+	.win[0]		= &smdk4x12_fb_win0,
+	.vtiming	= &smdk4x12_lcd_timing,
+	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
+	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
+	.setup_gpio	= exynos4_fimd0_gpio_setup_24bpp,
+};
+
 /* USB OTG */
 static struct s3c_hsotg_plat smdk4x12_hsotg_pdata;
 
@@ -255,6 +286,7 @@ static struct platform_device *smdk4x12_devices[] __initdata = {
 	&s5p_device_fimc2,
 	&s5p_device_fimc3,
 	&s5p_device_fimc_md,
+	&s5p_device_fimd0,
 	&s5p_device_mfc,
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
@@ -301,6 +333,8 @@ static void __init smdk4x12_machine_init(void)
 	s3c_sdhci3_set_platdata(&smdk4x12_hsmmc3_pdata);
 
 	s3c_hsotg_set_platdata(&smdk4x12_hsotg_pdata);
+
+	s5p_fimd0_set_platdata(&smdk4x12_lcd_pdata);
 
 	platform_add_devices(smdk4x12_devices, ARRAY_SIZE(smdk4x12_devices));
 }
