@@ -219,9 +219,9 @@ static inline struct dw_dma *to_dw_dma(struct dma_device *ddev)
 /* LLI == Linked List Item; a.k.a. DMA block descriptor */
 struct dw_lli {
 	/* values that are not changed by hardware */
-	dma_addr_t	sar;
-	dma_addr_t	dar;
-	dma_addr_t	llp;		/* chain to next lli */
+	u32		sar;
+	u32		dar;
+	u32		llp;		/* chain to next lli */
 	u32		ctllo;
 	/* values that may get written back: */
 	u32		ctlhi;

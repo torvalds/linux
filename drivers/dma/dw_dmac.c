@@ -414,11 +414,8 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 static inline void dwc_dump_lli(struct dw_dma_chan *dwc, struct dw_lli *lli)
 {
 	dev_printk(KERN_CRIT, chan2dev(&dwc->chan),
-			"  desc: s0x%llx d0x%llx l0x%llx c0x%x:%x\n",
-			(unsigned long long)lli->sar,
-			(unsigned long long)lli->dar,
-			(unsigned long long)lli->llp,
-			lli->ctlhi, lli->ctllo);
+			"  desc: s0x%x d0x%x l0x%x c0x%x:%x\n",
+			lli->sar, lli->dar, lli->llp, lli->ctlhi, lli->ctllo);
 }
 
 static void dwc_handle_error(struct dw_dma *dw, struct dw_dma_chan *dwc)
