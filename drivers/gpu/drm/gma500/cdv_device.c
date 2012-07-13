@@ -457,6 +457,7 @@ static void cdv_get_core_freq(struct drm_device *dev)
 	case 6:
 	case 7:
 		dev_priv->core_freq = 266;
+		break;
 	default:
 		dev_priv->core_freq = 0;
 	}
