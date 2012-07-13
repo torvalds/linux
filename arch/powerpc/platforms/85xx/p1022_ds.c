@@ -435,6 +435,8 @@ static void __init disable_one_node(struct device_node *np, struct property *new
 		prom_update_property(np, new, old);
 	else
 		prom_add_property(np, new);
+
+	pr_info("p1022ds: disabling %s node\n", np->full_name);
 }
 
 /* TRUE if there is a "video=fslfb" command-line parameter. */
@@ -499,28 +501,46 @@ static void __init p1022_ds_setup_arch(void)
 	diu_ops.valid_monitor_port	= p1022ds_valid_monitor_port;
 
 	/*
-	 * Disable the NOR flash node if there is video=fslfb... command-line
-	 * parameter.  When the DIU is active, NOR flash is unavailable, so we
-	 * have to disable the node before the MTD driver loads.
+	 * Disable the NOR and NAND flash nodes if there is video=fslfb...
+	 * command-line parameter.  When the DIU is active, the localbus is
+	 * unavailable, so we have to disable these nodes before the MTD
+	 * driver loads.
 	 */
 	if (fslfb) {
 		struct device_node *np =
 			of_find_compatible_node(NULL, NULL, "fsl,p1022-elbc");
 
 		if (np) {
-			np = of_find_compatible_node(np, NULL, "cfi-flash");
-			if (np) {
+			struct device_node *np2;
+
+			of_node_get(np);
+			np2 = of_find_compatible_node(np, NULL, "cfi-flash");
+			if (np2) {
 				static struct property nor_status = {
 					.name = "status",
 					.value = "disabled",
 					.length = sizeof("disabled"),
 				};
 
-				pr_info("p1022ds: disabling %s node",
-					np->full_name);
-				disable_one_node(np, &nor_status);
-				of_node_put(np);
+				disable_one_node(np2, &nor_status);
+				of_node_put(np2);
 			}
+
+			of_node_get(np);
+			np2 = of_find_compatible_node(np, NULL,
+						      "fsl,elbc-fcm-nand");
+			if (np2) {
+				static struct property nand_status = {
+					.name = "status",
+					.value = "disabled",
+					.length = sizeof("disabled"),
+				};
+
+				disable_one_node(np2, &nand_status);
+				of_node_put(np2);
+			}
+
+			of_node_put(np);
 		}
 
 	}
