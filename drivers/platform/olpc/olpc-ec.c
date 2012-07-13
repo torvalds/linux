@@ -113,11 +113,6 @@ int olpc_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *outbuf, size_t outlen)
 	struct olpc_ec_priv *ec = ec_priv;
 	struct ec_cmd_desc desc;
 
-	/* XXX: this will be removed in later patches */
-	/* Are we using old-style callers? */
-	if (!ec_driver || !ec_driver->ec_cmd)
-		return olpc_ec_cmd_x86(cmd, inbuf, inlen, outbuf, outlen);
-
 	/* Ensure a driver and ec hook have been registered */
 	if (WARN_ON(!ec_driver || !ec_driver->ec_cmd))
 		return -ENODEV;

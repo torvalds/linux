@@ -100,11 +100,6 @@ extern void olpc_xo1_pm_wakeup_clear(u16 value);
 
 extern int pci_olpc_init(void);
 
-/* EC related functions */
-
-extern int olpc_ec_cmd_x86(unsigned char cmd, unsigned char *inbuf,
-		size_t inlen, unsigned char *outbuf, size_t outlen);
-
 /* SCI source values */
 
 #define EC_SCI_SRC_EMPTY	0x00
