@@ -3693,7 +3693,7 @@ int r100_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	ib.ptr[6] = PACKET2(0);
 	ib.ptr[7] = PACKET2(0);
 	ib.length_dw = 8;
-	r = radeon_ib_schedule(rdev, &ib);
+	r = radeon_ib_schedule(rdev, &ib, NULL);
 	if (r) {
 		radeon_scratch_free(rdev, scratch);
 		radeon_ib_free(rdev, &ib);

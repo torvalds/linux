@@ -354,7 +354,7 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 	}
 	radeon_cs_sync_rings(parser);
 	parser->ib.vm_id = 0;
-	r = radeon_ib_schedule(rdev, &parser->ib);
+	r = radeon_ib_schedule(rdev, &parser->ib, NULL);
 	if (r) {
 		DRM_ERROR("Failed to schedule IB !\n");
 	}
@@ -452,25 +452,24 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	}
 	radeon_cs_sync_rings(parser);
 
+	parser->ib.vm_id = vm->id;
+	/* ib pool is bind at 0 in virtual address space,
+	 * so gpu_addr is the offset inside the pool bo
+	 */
+	parser->ib.gpu_addr = parser->ib.sa_bo->soffset;
+
 	if ((rdev->family >= CHIP_TAHITI) &&
 	    (parser->chunk_const_ib_idx != -1)) {
 		parser->const_ib.vm_id = vm->id;
-		/* ib pool is bind at 0 in virtual address space to gpu_addr is the
-		 * offset inside the pool bo
+		/* ib pool is bind at 0 in virtual address space,
+		 * so gpu_addr is the offset inside the pool bo
 		 */
 		parser->const_ib.gpu_addr = parser->const_ib.sa_bo->soffset;
-		r = radeon_ib_schedule(rdev, &parser->const_ib);
-		if (r)
-			goto out;
+		r = radeon_ib_schedule(rdev, &parser->ib, &parser->const_ib);
+	} else {
+		r = radeon_ib_schedule(rdev, &parser->ib, NULL);
 	}
 
-	parser->ib.vm_id = vm->id;
-	/* ib pool is bind at 0 in virtual address space to gpu_addr is the
-	 * offset inside the pool bo
-	 */
-	parser->ib.gpu_addr = parser->ib.sa_bo->soffset;
-	parser->ib.is_const_ib = false;
-	r = radeon_ib_schedule(rdev, &parser->ib);
 out:
 	if (!r) {
 		if (vm->fence) {

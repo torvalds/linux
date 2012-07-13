@@ -74,7 +74,8 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib)
 	radeon_fence_unref(&ib->fence);
 }
 
-int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
+int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
+		       struct radeon_ib *const_ib)
 {
 	struct radeon_ring *ring = &rdev->ring[ib->ring];
 	bool need_sync = false;
@@ -105,12 +106,19 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
 	if (!need_sync) {
 		radeon_semaphore_free(rdev, &ib->semaphore, NULL);
 	}
+	if (const_ib) {
+		radeon_ring_ib_execute(rdev, const_ib->ring, const_ib);
+		radeon_semaphore_free(rdev, &const_ib->semaphore, NULL);
+	}
 	radeon_ring_ib_execute(rdev, ib->ring, ib);
 	r = radeon_fence_emit(rdev, &ib->fence, ib->ring);
 	if (r) {
 		dev_err(rdev->dev, "failed to emit fence for new IB (%d)\n", r);
 		radeon_ring_unlock_undo(rdev, ring);
 		return r;
+	}
+	if (const_ib) {
+		const_ib->fence = radeon_fence_ref(ib->fence);
 	}
 	radeon_ring_unlock_commit(rdev, ring);
 	return 0;

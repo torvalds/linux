@@ -751,7 +751,8 @@ struct si_rlc {
 int radeon_ib_get(struct radeon_device *rdev, int ring,
 		  struct radeon_ib *ib, unsigned size);
 void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib);
-int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib);
+int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
+		       struct radeon_ib *const_ib);
 int radeon_ib_pool_init(struct radeon_device *rdev);
 void radeon_ib_pool_fini(struct radeon_device *rdev);
 int radeon_ib_ring_tests(struct radeon_device *rdev);

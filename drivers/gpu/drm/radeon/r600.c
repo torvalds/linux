@@ -2619,7 +2619,7 @@ int r600_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	ib.ptr[1] = ((scratch - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
 	ib.ptr[2] = 0xDEADBEEF;
 	ib.length_dw = 3;
-	r = radeon_ib_schedule(rdev, &ib);
+	r = radeon_ib_schedule(rdev, &ib, NULL);
 	if (r) {
 		radeon_scratch_free(rdev, scratch);
 		radeon_ib_free(rdev, &ib);
