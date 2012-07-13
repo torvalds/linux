@@ -74,6 +74,10 @@
 #define AX_CMD_SW_PHY_STATUS		0x21
 #define AX_CMD_SW_PHY_SELECT		0x22
 
+#define AX_PHY_SELECT_MASK		(BIT(3) | BIT(2))
+#define AX_PHY_SELECT_INTERNAL		0
+#define AX_PHY_SELECT_EXTERNAL		BIT(2)
+
 #define AX_MONITOR_MODE			0x01
 #define AX_MONITOR_LINK			0x02
 #define AX_MONITOR_MAGIC		0x04
@@ -181,6 +185,7 @@ struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 int asix_set_sw_mii(struct usbnet *dev);
 int asix_set_hw_mii(struct usbnet *dev);
 
+int asix_read_phy_addr(struct usbnet *dev, int internal);
 int asix_get_phy_addr(struct usbnet *dev);
 
 int asix_sw_reset(struct usbnet *dev, u8 flags);

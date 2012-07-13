@@ -872,6 +872,8 @@ static const struct driver_info ax88178_info = {
 	.tx_fixup = asix_tx_fixup,
 };
 
+extern const struct driver_info ax88172a_info;
+
 static const struct usb_device_id	products [] = {
 {
 	// Linksys USB200M
@@ -997,6 +999,10 @@ static const struct usb_device_id	products [] = {
 	// Asus USB Ethernet Adapter
 	USB_DEVICE (0x0b95, 0x7e2b),
 	.driver_info = (unsigned long) &ax88772_info,
+}, {
+	/* ASIX 88172a demo board */
+	USB_DEVICE(0x0b95, 0x172a),
+	.driver_info = (unsigned long) &ax88172a_info,
 },
 	{ },		// END
 };

@@ -258,8 +258,9 @@ int asix_set_hw_mii(struct usbnet *dev)
 	return ret;
 }
 
-int asix_get_phy_addr(struct usbnet *dev)
+int asix_read_phy_addr(struct usbnet *dev, int internal)
 {
+	int offset = (internal ? 1 : 0);
 	u8 buf[2];
 	int ret = asix_read_cmd(dev, AX_CMD_READ_PHY_ID, 0, 0, 2, buf);
 
@@ -271,11 +272,18 @@ int asix_get_phy_addr(struct usbnet *dev)
 	}
 	netdev_dbg(dev->net, "asix_get_phy_addr() returning 0x%04x\n",
 		   *((__le16 *)buf));
-	ret = buf[1];
+	ret = buf[offset];
 
 out:
 	return ret;
 }
+
+int asix_get_phy_addr(struct usbnet *dev)
+{
+	/* return the address of the internal phy */
+	return asix_read_phy_addr(dev, 1);
+}
+
 
 int asix_sw_reset(struct usbnet *dev, u8 flags)
 {
