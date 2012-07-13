@@ -4861,12 +4861,12 @@ void dhd_set_version_info(dhd_pub_t *dhdp, char *fw)
 	int i;
 
 	i = snprintf(info_string, sizeof(info_string),
-		"WLAN:\n  Driver: %s\n  Firmware: %s ", EPI_VERSION_STR, fw);
+		"  Driver: %s\n  Firmware: %s ", EPI_VERSION_STR, fw);
 
 	if (!dhdp)
 		return;
 	i = snprintf(&info_string[i], sizeof(info_string) - i,
-		"\n  Chip: %x Rev %x Pkg %x\n", dhd_bus_chip_id(dhdp),
+		"\n  Chip: %x Rev %x Pkg %x", dhd_bus_chip_id(dhdp),
 		dhd_bus_chiprev_id(dhdp), dhd_bus_chippkg_id(dhdp));
 }
 
