@@ -217,7 +217,7 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	#if defined(CONFIG_HDMI_RK30)
 		#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
-			if(hdmi_get_hotplug())
+			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
 			{
 				if(inf->num_fb >= 2)
 				{
@@ -370,7 +370,7 @@ static int rk_fb_set_par(struct fb_info *info)
 	
 	#if defined(CONFIG_HDMI_RK30)
 		#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
-			if(hdmi_get_hotplug())
+			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
 			{
 				if(inf->num_fb >= 2)
 				{
@@ -481,7 +481,7 @@ static int rk_fb_set_par(struct fb_info *info)
 
 	#if defined(CONFIG_HDMI_RK30)
 		#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
-			if(hdmi_get_hotplug())
+			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
 			{
 				if(info != info2)
 				{
