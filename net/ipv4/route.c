@@ -1085,8 +1085,9 @@ void ip_rt_get_source(u8 *addr, struct sk_buff *skb, struct rtable *rt)
 		if (fib_lookup(dev_net(rt->dst.dev), &fl4, &res) == 0)
 			src = FIB_RES_PREFSRC(dev_net(rt->dst.dev), res);
 		else
-			src = inet_select_addr(rt->dst.dev, rt->rt_gateway,
-					RT_SCOPE_UNIVERSE);
+			src = inet_select_addr(rt->dst.dev,
+					       rt_nexthop(rt, iph->daddr),
+					       RT_SCOPE_UNIVERSE);
 		rcu_read_unlock();
 	}
 	memcpy(addr, &src, 4);
@@ -1132,7 +1133,7 @@ static unsigned int ipv4_mtu(const struct dst_entry *dst)
 	mtu = dst->dev->mtu;
 
 	if (unlikely(dst_metric_locked(dst, RTAX_MTU))) {
-		if (rt->rt_gateway != 0 && mtu > 576)
+		if (rt->rt_gateway && mtu > 576)
 			mtu = 576;
 	}
 
@@ -1274,7 +1275,7 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	rth->rt_iif	= dev->ifindex;
 	rth->rt_oif	= 0;
 	rth->rt_pmtu	= 0;
-	rth->rt_gateway	= daddr;
+	rth->rt_gateway	= 0;
 	rth->fi = NULL;
 	if (our) {
 		rth->dst.input= ip_local_deliver;
@@ -1392,7 +1393,7 @@ static int __mkroute_input(struct sk_buff *skb,
 	rth->rt_iif 	= in_dev->dev->ifindex;
 	rth->rt_oif 	= 0;
 	rth->rt_pmtu	= 0;
-	rth->rt_gateway	= daddr;
+	rth->rt_gateway	= 0;
 	rth->fi = NULL;
 
 	rth->dst.input = ip_forward;
@@ -1557,7 +1558,7 @@ local_input:
 	rth->rt_iif	= dev->ifindex;
 	rth->rt_oif	= 0;
 	rth->rt_pmtu	= 0;
-	rth->rt_gateway	= daddr;
+	rth->rt_gateway	= 0;
 	rth->fi = NULL;
 	if (res.type == RTN_UNREACHABLE) {
 		rth->dst.input= ip_error;
@@ -1707,7 +1708,7 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 	rth->rt_iif	= orig_oif ? : dev_out->ifindex;
 	rth->rt_oif	= orig_oif;
 	rth->rt_pmtu	= 0;
-	rth->rt_gateway = fl4->daddr;
+	rth->rt_gateway = 0;
 	rth->fi = NULL;
 
 	RT_CACHE_STAT_INC(out_slow_tot);
@@ -2070,7 +2071,7 @@ static int rt_fill_info(struct net *net,  __be32 dst, __be32 src,
 		if (nla_put_be32(skb, RTA_PREFSRC, fl4->saddr))
 			goto nla_put_failure;
 	}
-	if (fl4->daddr != rt->rt_gateway &&
+	if (rt->rt_gateway &&
 	    nla_put_be32(skb, RTA_GATEWAY, rt->rt_gateway))
 		goto nla_put_failure;
 

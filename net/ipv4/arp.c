@@ -475,8 +475,7 @@ int arp_find(unsigned char *haddr, struct sk_buff *skb)
 		return 1;
 	}
 
-	paddr = skb_rtable(skb)->rt_gateway;
-
+	paddr = rt_nexthop(skb_rtable(skb), ip_hdr(skb)->daddr);
 	if (arp_set_predefined(inet_addr_type(dev_net(dev), paddr), haddr,
 			       paddr, dev))
 		return 0;
