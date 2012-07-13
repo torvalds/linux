@@ -362,6 +362,7 @@ config MACH_SMDK4212
 	select S3C_DEV_I2C3
 	select S3C_DEV_I2C7
 	select S3C_DEV_RTC
+	select S3C_DEV_USB_HSOTG
 	select S3C_DEV_WDT
 	select S5P_DEV_FIMC0
 	select S5P_DEV_FIMC1
@@ -378,6 +379,7 @@ config MACH_SMDK4212
 	select EXYNOS4_SETUP_I2C7
 	select EXYNOS4_SETUP_KEYPAD
 	select EXYNOS4_SETUP_SDHCI
+	select EXYNOS4_SETUP_USB_PHY
 	help
 	  Machine support for Samsung SMDK4212
 

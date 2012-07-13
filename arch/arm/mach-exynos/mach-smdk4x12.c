@@ -19,6 +19,7 @@
 #include <linux/pwm_backlight.h>
 #include <linux/regulator/machine.h>
 #include <linux/serial_core.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
@@ -236,6 +237,9 @@ static struct samsung_keypad_platdata smdk4x12_keypad_data __initdata = {
 	.cols		= 8,
 };
 
+/* USB OTG */
+static struct s3c_hsotg_plat smdk4x12_hsotg_pdata;
+
 static struct platform_device *smdk4x12_devices[] __initdata = {
 	&s3c_device_hsmmc2,
 	&s3c_device_hsmmc3,
@@ -244,6 +248,7 @@ static struct platform_device *smdk4x12_devices[] __initdata = {
 	&s3c_device_i2c3,
 	&s3c_device_i2c7,
 	&s3c_device_rtc,
+	&s3c_device_usb_hsotg,
 	&s3c_device_wdt,
 	&s5p_device_fimc0,
 	&s5p_device_fimc1,
@@ -294,6 +299,8 @@ static void __init smdk4x12_machine_init(void)
 
 	s3c_sdhci2_set_platdata(&smdk4x12_hsmmc2_pdata);
 	s3c_sdhci3_set_platdata(&smdk4x12_hsmmc3_pdata);
+
+	s3c_hsotg_set_platdata(&smdk4x12_hsotg_pdata);
 
 	platform_add_devices(smdk4x12_devices, ARRAY_SIZE(smdk4x12_devices));
 }
