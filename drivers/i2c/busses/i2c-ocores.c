@@ -25,10 +25,11 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/of_i2c.h>
+#include <linux/log2.h>
 
 struct ocores_i2c {
 	void __iomem *base;
-	int regstep;
+	u32 reg_shift;
 	wait_queue_head_t wait;
 	struct i2c_adapter adap;
 	struct i2c_msg *msg;
@@ -71,12 +72,12 @@ struct ocores_i2c {
 
 static inline void oc_setreg(struct ocores_i2c *i2c, int reg, u8 value)
 {
-	iowrite8(value, i2c->base + reg * i2c->regstep);
+	iowrite8(value, i2c->base + (reg << i2c->reg_shift));
 }
 
 static inline u8 oc_getreg(struct ocores_i2c *i2c, int reg)
 {
-	return ioread8(i2c->base + reg * i2c->regstep);
+	return ioread8(i2c->base + (reg << i2c->reg_shift));
 }
 
 static void ocores_process(struct ocores_i2c *i2c)
@@ -219,22 +220,29 @@ static struct i2c_adapter ocores_adapter = {
 static int ocores_i2c_of_probe(struct platform_device *pdev,
 				struct ocores_i2c *i2c)
 {
-	const __be32* val;
+	struct device_node *np = pdev->dev.of_node;
+	u32 val;
 
-	val = of_get_property(pdev->dev.of_node, "regstep", NULL);
-	if (!val) {
-		dev_err(&pdev->dev, "Missing required parameter 'regstep'\n");
-		return -ENODEV;
+	if (of_property_read_u32(np, "reg-shift", &i2c->reg_shift)) {
+		/* no 'reg-shift', check for deprecated 'regstep' */
+		if (!of_property_read_u32(np, "regstep", &val)) {
+			if (!is_power_of_2(val)) {
+				dev_err(&pdev->dev, "invalid regstep %d\n",
+					val);
+				return -EINVAL;
+			}
+			i2c->reg_shift = ilog2(val);
+			dev_warn(&pdev->dev,
+				"regstep property deprecated, use reg-shift\n");
+		}
 	}
-	i2c->regstep = be32_to_cpup(val);
 
-	val = of_get_property(pdev->dev.of_node, "clock-frequency", NULL);
-	if (!val) {
+	if (of_property_read_u32(np, "clock-frequency", &val)) {
 		dev_err(&pdev->dev,
 			"Missing required parameter 'clock-frequency'\n");
 		return -ENODEV;
 	}
-	i2c->clock_khz = be32_to_cpup(val) / 1000;
+	i2c->clock_khz = val / 1000;
 
 	return 0;
 }
@@ -277,7 +285,7 @@ static int __devinit ocores_i2c_probe(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 	if (pdata) {
-		i2c->regstep = pdata->regstep;
+		i2c->reg_shift = pdata->reg_shift;
 		i2c->clock_khz = pdata->clock_khz;
 	} else {
 		ret = ocores_i2c_of_probe(pdev, i2c);
