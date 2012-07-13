@@ -915,6 +915,10 @@ static int smb347_irq_init(struct smb347_charger *smb)
 	if (ret < 0)
 		goto fail_gpio;
 
+	ret = enable_irq_wake(irq);
+	if (ret)
+		pr_err("%s: failed to enable wake on irq %d\n", __func__, irq);
+
 	ret = smb347_set_writable(smb, true);
 	if (ret < 0)
 		goto fail_irq;
@@ -945,6 +949,7 @@ static int smb347_irq_init(struct smb347_charger *smb)
 fail_readonly:
 	smb347_set_writable(smb, false);
 fail_irq:
+	disable_irq_wake(irq);
 	free_irq(irq, smb);
 fail_gpio:
 	gpio_free(pdata->irq_gpio);
@@ -1391,6 +1396,7 @@ static int smb347_remove(struct i2c_client *client)
 
 	if (client->irq) {
 		smb347_irq_disable(smb);
+		disable_irq_wake(client->irq);
 		free_irq(client->irq, smb);
 		gpio_free(smb->pdata->irq_gpio);
 	}
