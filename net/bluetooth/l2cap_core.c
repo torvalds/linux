@@ -425,6 +425,21 @@ void l2cap_chan_destroy(struct l2cap_chan *chan)
 	l2cap_chan_put(chan);
 }
 
+void l2cap_chan_hold(struct l2cap_chan *c)
+{
+	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->refcnt));
+
+	atomic_inc(&c->refcnt);
+}
+
+void l2cap_chan_put(struct l2cap_chan *c)
+{
+	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->refcnt));
+
+	if (atomic_dec_and_test(&c->refcnt))
+		kfree(c);
+}
+
 void l2cap_chan_set_defaults(struct l2cap_chan *chan)
 {
 	chan->fcs  = L2CAP_FCS_CRC16;
