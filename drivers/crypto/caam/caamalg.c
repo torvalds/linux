@@ -205,7 +205,7 @@ static void init_sh_desc_key_aead(u32 *desc, struct caam_ctx *ctx,
 {
 	u32 *key_jump_cmd;
 
-	init_sh_desc(desc, HDR_SHARE_WAIT);
+	init_sh_desc(desc, HDR_SHARE_SERIAL);
 
 	/* Skip if already shared */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
@@ -302,7 +302,7 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	desc = ctx->sh_desc_dec;
 
 	/* aead_decrypt shared descriptor */
-	init_sh_desc(desc, HDR_SHARE_WAIT);
+	init_sh_desc(desc, HDR_SHARE_SERIAL);
 
 	/* Skip if already shared */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
@@ -564,7 +564,7 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 
 	/* ablkcipher_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
-	init_sh_desc(desc, HDR_SHARE_WAIT);
+	init_sh_desc(desc, HDR_SHARE_SERIAL);
 	/* Skip if already shared */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
@@ -605,7 +605,7 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	/* ablkcipher_decrypt shared descriptor */
 	desc = ctx->sh_desc_dec;
 
-	init_sh_desc(desc, HDR_SHARE_WAIT);
+	init_sh_desc(desc, HDR_SHARE_SERIAL);
 	/* Skip if already shared */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
