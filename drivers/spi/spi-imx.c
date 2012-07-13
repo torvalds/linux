@@ -688,8 +688,6 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 		config.speed_hz = spi->max_speed_hz;
 	if (!config.bpw)
 		config.bpw = spi->bits_per_word;
-	if (!config.speed_hz)
-		config.speed_hz = spi->max_speed_hz;
 
 	/* Initialize the functions for transfer */
 	if (config.bpw <= 8) {
