@@ -420,7 +420,7 @@ static void wl_cfg80211_bt_handler(struct work_struct *work)
 				__FUNCTION__));
 			btcx_inf->bt_state = BT_DHCP_OPPR_WIN;
 			mod_timer(&btcx_inf->timer,
-				jiffies + BT_DHCP_OPPR_WIN_TIME*HZ/1000);
+				jiffies + msecs_to_jiffies(BT_DHCP_OPPR_WIN_TIME));
 			btcx_inf->timer_on = 1;
 			break;
 
@@ -440,7 +440,7 @@ static void wl_cfg80211_bt_handler(struct work_struct *work)
 				wl_cfg80211_bt_setflag(btcx_inf->dev, TRUE);
 			btcx_inf->bt_state = BT_DHCP_FLAG_FORCE_TIMEOUT;
 			mod_timer(&btcx_inf->timer,
-				jiffies + BT_DHCP_FLAG_FORCE_TIME*HZ/1000);
+				jiffies + msecs_to_jiffies(BT_DHCP_FLAG_FORCE_TIME));
 			btcx_inf->timer_on = 1;
 			break;
 
