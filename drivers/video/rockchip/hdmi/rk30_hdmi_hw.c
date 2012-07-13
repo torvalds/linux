@@ -70,7 +70,7 @@ int rk30_hdmi_detect_hotplug(void)
 		return HDMI_HPD_REMOVED;
 }
 
-#define HDMI_EDID_DDC_CLK	100000
+#define HDMI_EDID_DDC_CLK	90000
 int rk30_hdmi_read_edid(int block, unsigned char *buff)
 {
 	int value, ret = -1, ddc_bus_freq = 0;
