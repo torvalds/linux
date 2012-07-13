@@ -63,6 +63,8 @@ struct spear_kbd {
 	unsigned short last_key;
 	unsigned short keycodes[NUM_ROWS * NUM_COLS];
 	bool rep;
+	unsigned int suspended_rate;
+	u32 mode_ctl_reg;
 };
 
 static irqreturn_t spear_kbd_interrupt(int irq, void *dev_id)
@@ -149,7 +151,7 @@ static int __devinit spear_kbd_parse_dt(struct platform_device *pdev,
 {
 	struct device_node *np = pdev->dev.of_node;
 	int error;
-	u32 val;
+	u32 val, suspended_rate;
 
 	if (!np) {
 		dev_err(&pdev->dev, "Missing DT data\n");
@@ -158,6 +160,9 @@ static int __devinit spear_kbd_parse_dt(struct platform_device *pdev,
 
 	if (of_property_read_bool(np, "autorepeat"))
 		kbd->rep = true;
+
+	if (of_property_read_u32(np, "suspended_rate", &suspended_rate))
+		kbd->suspended_rate = suspended_rate;
 
 	error = of_property_read_u32(np, "st,mode", &val);
 	if (error) {
@@ -216,6 +221,7 @@ static int __devinit spear_kbd_probe(struct platform_device *pdev)
 	} else {
 		kbd->mode = pdata->mode;
 		kbd->rep = pdata->rep;
+		kbd->suspended_rate = pdata->suspended_rate;
 	}
 
 	kbd->res = request_mem_region(res->start, resource_size(res),
@@ -317,15 +323,47 @@ static int spear_kbd_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct spear_kbd *kbd = platform_get_drvdata(pdev);
 	struct input_dev *input_dev = kbd->input;
+	unsigned int rate = 0, mode_ctl_reg, val;
 
 	mutex_lock(&input_dev->mutex);
 
+	/* explicitly enable clock as we may program device */
+	clk_enable(kbd->clk);
+
+	mode_ctl_reg = readl_relaxed(kbd->io_base + MODE_CTL_REG);
+
 	if (device_may_wakeup(&pdev->dev)) {
 		enable_irq_wake(kbd->irq);
+
+		/*
+		 * reprogram the keyboard operating frequency as on some
+		 * platform it may change during system suspended
+		 */
+		if (kbd->suspended_rate)
+			rate = kbd->suspended_rate / 1000000 - 1;
+		else
+			rate = clk_get_rate(kbd->clk) / 1000000 - 1;
+
+		val = mode_ctl_reg &
+			~(MODE_CTL_PCLK_FREQ_MSK << MODE_CTL_PCLK_FREQ_SHIFT);
+		val |= (rate & MODE_CTL_PCLK_FREQ_MSK)
+			<< MODE_CTL_PCLK_FREQ_SHIFT;
+		writel_relaxed(val, kbd->io_base + MODE_CTL_REG);
+
 	} else {
-		if (input_dev->users)
+		if (input_dev->users) {
+			writel_relaxed(mode_ctl_reg & ~MODE_CTL_START_SCAN,
+					kbd->io_base + MODE_CTL_REG);
 			clk_disable(kbd->clk);
+		}
 	}
+
+	/* store current configuration */
+	if (input_dev->users)
+		kbd->mode_ctl_reg = mode_ctl_reg;
+
+	/* restore previous clk state */
+	clk_disable(kbd->clk);
 
 	mutex_unlock(&input_dev->mutex);
 
@@ -346,6 +384,10 @@ static int spear_kbd_resume(struct device *dev)
 		if (input_dev->users)
 			clk_enable(kbd->clk);
 	}
+
+	/* restore current configuration */
+	if (input_dev->users)
+		writel_relaxed(kbd->mode_ctl_reg, kbd->io_base + MODE_CTL_REG);
 
 	mutex_unlock(&input_dev->mutex);
 
