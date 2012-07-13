@@ -649,8 +649,6 @@ struct drm_nouveau_private {
 
 	/* RAMIN configuration, RAMFC, RAMHT and RAMRO offsets */
 	struct nouveau_ramht  *ramht;
-	struct nouveau_gpuobj *ramfc;
-	struct nouveau_gpuobj *ramro;
 
 	uint32_t ramin_rsvd_vram;
 

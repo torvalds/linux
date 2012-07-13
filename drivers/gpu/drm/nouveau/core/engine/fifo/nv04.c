@@ -32,6 +32,8 @@
 #include <core/ramht.h>
 #include "nouveau_software.h"
 
+#include <core/subdev/instmem/nv04.h>
+
 static struct ramfc_desc {
 	unsigned bits:6;
 	unsigned ctxs:5;
@@ -53,6 +55,8 @@ static struct ramfc_desc {
 struct nv04_fifo_priv {
 	struct nouveau_fifo_priv base;
 	struct ramfc_desc *ramfc_desc;
+	struct nouveau_gpuobj *ramro;
+	struct nouveau_gpuobj *ramfc;
 };
 
 struct nv04_fifo_chan {
@@ -112,7 +116,7 @@ nv04_fifo_context_new(struct nouveau_channel *chan, int engine)
 	}
 
 	/* initialise default fifo context */
-	ret = nouveau_gpuobj_new_fake(dev, dev_priv->ramfc->pinst +
+	ret = nouveau_gpuobj_new_fake(dev, priv->ramfc->pinst +
 				      chan->id * 32, ~0, 32,
 				      NVOBJ_FLAG_ZERO_FREE, &fctx->ramfc);
 	if (ret)
@@ -207,8 +211,8 @@ nv04_fifo_init(struct drm_device *dev, int engine)
 	nv_wr32(dev, NV03_PFIFO_RAMHT, (0x03 << 24) /* search 128 */ |
 				       ((dev_priv->ramht->bits - 9) << 16) |
 				       (dev_priv->ramht->gpuobj->pinst >> 8));
-	nv_wr32(dev, NV03_PFIFO_RAMRO, dev_priv->ramro->pinst >> 8);
-	nv_wr32(dev, NV03_PFIFO_RAMFC, dev_priv->ramfc->pinst >> 8);
+	nv_wr32(dev, NV03_PFIFO_RAMRO, priv->ramro->pinst >> 8);
+	nv_wr32(dev, NV03_PFIFO_RAMFC, priv->ramfc->pinst >> 8);
 
 	nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH1, priv->base.channels);
 
@@ -478,6 +482,9 @@ nv04_fifo_destroy(struct drm_device *dev, int engine)
 
 	nouveau_irq_unregister(dev, 8);
 
+	nouveau_gpuobj_ref(NULL, &priv->ramfc);
+	nouveau_gpuobj_ref(NULL, &priv->ramro);
+
 	dev_priv->eng[engine] = NULL;
 	kfree(priv);
 }
@@ -486,11 +493,15 @@ int
 nv04_fifo_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nv04_instmem_priv *imem = dev_priv->engine.instmem.priv;
 	struct nv04_fifo_priv *priv;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	nouveau_gpuobj_ref(imem->ramro, &priv->ramro);
+	nouveau_gpuobj_ref(imem->ramfc, &priv->ramfc);
 
 	priv->base.base.destroy = nv04_fifo_destroy;
 	priv->base.base.init = nv04_fifo_init;
