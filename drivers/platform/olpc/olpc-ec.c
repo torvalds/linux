@@ -6,6 +6,7 @@
  * Licensed under the GPL v2 or later.
  */
 #include <linux/completion.h>
+#include <linux/debugfs.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
@@ -30,6 +31,8 @@ struct ec_cmd_desc {
 
 struct olpc_ec_priv {
 	struct olpc_ec_driver *drv;
+
+	struct dentry *dbgfs_dir;
 
 	/*
 	 * Running an EC command while suspending means we don't always finish
@@ -144,6 +147,114 @@ int olpc_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *outbuf, size_t outlen)
 }
 EXPORT_SYMBOL_GPL(olpc_ec_cmd);
 
+#ifdef CONFIG_DEBUG_FS
+
+/*
+ * debugfs support for "generic commands", to allow sending
+ * arbitrary EC commands from userspace.
+ */
+
+#define EC_MAX_CMD_ARGS (5 + 1)		/* cmd byte + 5 args */
+#define EC_MAX_CMD_REPLY (8)
+
+static DEFINE_MUTEX(ec_dbgfs_lock);
+static unsigned char ec_dbgfs_resp[EC_MAX_CMD_REPLY];
+static unsigned int ec_dbgfs_resp_bytes;
+
+static ssize_t ec_dbgfs_cmd_write(struct file *file, const char __user *buf,
+		size_t size, loff_t *ppos)
+{
+	int i, m;
+	unsigned char ec_cmd[EC_MAX_CMD_ARGS];
+	unsigned int ec_cmd_int[EC_MAX_CMD_ARGS];
+	char cmdbuf[64];
+	int ec_cmd_bytes;
+
+	mutex_lock(&ec_dbgfs_lock);
+
+	size = simple_write_to_buffer(cmdbuf, sizeof(cmdbuf), ppos, buf, size);
+
+	m = sscanf(cmdbuf, "%x:%u %x %x %x %x %x", &ec_cmd_int[0],
+			&ec_dbgfs_resp_bytes, &ec_cmd_int[1], &ec_cmd_int[2],
+			&ec_cmd_int[3], &ec_cmd_int[4], &ec_cmd_int[5]);
+	if (m < 2 || ec_dbgfs_resp_bytes > EC_MAX_CMD_REPLY) {
+		/* reset to prevent overflow on read */
+		ec_dbgfs_resp_bytes = 0;
+
+		pr_debug("olpc-ec: bad ec cmd:  cmd:response-count [arg1 [arg2 ...]]\n");
+		size = -EINVAL;
+		goto out;
+	}
+
+	/* convert scanf'd ints to char */
+	ec_cmd_bytes = m - 2;
+	for (i = 0; i <= ec_cmd_bytes; i++)
+		ec_cmd[i] = ec_cmd_int[i];
+
+	pr_debug("olpc-ec: debugfs cmd 0x%02x with %d args %02x %02x %02x %02x %02x, want %d returns\n",
+			ec_cmd[0], ec_cmd_bytes, ec_cmd[1], ec_cmd[2],
+			ec_cmd[3], ec_cmd[4], ec_cmd[5], ec_dbgfs_resp_bytes);
+
+	olpc_ec_cmd(ec_cmd[0], (ec_cmd_bytes == 0) ? NULL : &ec_cmd[1],
+			ec_cmd_bytes, ec_dbgfs_resp, ec_dbgfs_resp_bytes);
+
+	pr_debug("olpc-ec: response %02x %02x %02x %02x %02x %02x %02x %02x (%d bytes expected)\n",
+			ec_dbgfs_resp[0], ec_dbgfs_resp[1], ec_dbgfs_resp[2],
+			ec_dbgfs_resp[3], ec_dbgfs_resp[4], ec_dbgfs_resp[5],
+			ec_dbgfs_resp[6], ec_dbgfs_resp[7],
+			ec_dbgfs_resp_bytes);
+
+out:
+	mutex_unlock(&ec_dbgfs_lock);
+	return size;
+}
+
+static ssize_t ec_dbgfs_cmd_read(struct file *file, char __user *buf,
+		size_t size, loff_t *ppos)
+{
+	unsigned int i, r;
+	char *rp;
+	char respbuf[64];
+
+	mutex_lock(&ec_dbgfs_lock);
+	rp = respbuf;
+	rp += sprintf(rp, "%02x", ec_dbgfs_resp[0]);
+	for (i = 1; i < ec_dbgfs_resp_bytes; i++)
+		rp += sprintf(rp, ", %02x", ec_dbgfs_resp[i]);
+	mutex_unlock(&ec_dbgfs_lock);
+	rp += sprintf(rp, "\n");
+
+	r = rp - respbuf;
+	return simple_read_from_buffer(buf, size, ppos, respbuf, r);
+}
+
+static const struct file_operations ec_dbgfs_ops = {
+	.write = ec_dbgfs_cmd_write,
+	.read = ec_dbgfs_cmd_read,
+};
+
+static struct dentry *olpc_ec_setup_debugfs(void)
+{
+	struct dentry *dbgfs_dir;
+
+	dbgfs_dir = debugfs_create_dir("olpc-ec", NULL);
+	if (IS_ERR_OR_NULL(dbgfs_dir))
+		return NULL;
+
+	debugfs_create_file("cmd", 0600, dbgfs_dir, NULL, &ec_dbgfs_ops);
+
+	return dbgfs_dir;
+}
+
+#else
+
+static struct dentry *olpc_ec_setup_debugfs(void)
+{
+	return NULL;
+}
+
+#endif /* CONFIG_DEBUG_FS */
+
 static int olpc_ec_probe(struct platform_device *pdev)
 {
 	struct olpc_ec_priv *ec;
@@ -160,6 +271,12 @@ static int olpc_ec_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ec);
 
 	err = ec_driver->probe ? ec_driver->probe(pdev) : 0;
+	if (err) {
+		ec_priv = NULL;
+		kfree(ec);
+	} else {
+		ec->dbgfs_dir = olpc_ec_setup_debugfs();
+	}
 
 	return err;
 }
