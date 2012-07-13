@@ -676,9 +676,9 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid)
 		tbl->nr_pools = 1;
 
 	/* We reserve the top 1/4 of the table for large allocations */
-	tbl->poolsize = (tbl->it_size * 3 / 4) / IOMMU_NR_POOLS;
+	tbl->poolsize = (tbl->it_size * 3 / 4) / tbl->nr_pools;
 
-	for (i = 0; i < IOMMU_NR_POOLS; i++) {
+	for (i = 0; i < tbl->nr_pools; i++) {
 		p = &tbl->pools[i];
 		spin_lock_init(&(p->lock));
 		p->start = tbl->poolsize * i;
