@@ -502,15 +502,15 @@ static const struct fsl_msi_feature vmpic_msi_feature = {
 static const struct of_device_id fsl_of_msi_ids[] = {
 	{
 		.compatible = "fsl,mpic-msi",
-		.data = (void *)&mpic_msi_feature,
+		.data = &mpic_msi_feature,
 	},
 	{
 		.compatible = "fsl,ipic-msi",
-		.data = (void *)&ipic_msi_feature,
+		.data = &ipic_msi_feature,
 	},
 	{
 		.compatible = "fsl,vmpic-msi",
-		.data = (void *)&vmpic_msi_feature,
+		.data = &vmpic_msi_feature,
 	},
 	{}
 };
