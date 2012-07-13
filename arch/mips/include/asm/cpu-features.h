@@ -252,4 +252,8 @@
 #define cpu_hwrena_impl_bits		0
 #endif
 
+#ifndef cpu_has_perf_cntr_intr_bit
+#define cpu_has_perf_cntr_intr_bit	(cpu_data[0].options & MIPS_CPU_PCI)
+#endif
+
 #endif /* __ASM_CPU_FEATURES_H */

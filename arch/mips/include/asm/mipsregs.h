@@ -458,6 +458,8 @@
 #define  CAUSEF_IP7		(_ULCAST_(1)   << 15)
 #define  CAUSEB_IV		23
 #define  CAUSEF_IV		(_ULCAST_(1)   << 23)
+#define  CAUSEB_PCI		26
+#define  CAUSEF_PCI		(_ULCAST_(1)   << 26)
 #define  CAUSEB_CE		28
 #define  CAUSEF_CE		(_ULCAST_(3)   << 28)
 #define  CAUSEB_TI		30

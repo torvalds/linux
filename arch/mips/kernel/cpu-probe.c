@@ -1194,8 +1194,11 @@ __cpuinit void cpu_probe(void)
 		}
 	}
 
-	if (cpu_has_mips_r2)
+	if (cpu_has_mips_r2) {
 		c->srsets = ((read_c0_srsctl() >> 26) & 0x0f) + 1;
+		/* R2 has Performance Counter Interrupt indicator */
+		c->options |= MIPS_CPU_PCI;
+	}
 	else
 		c->srsets = 1;
 

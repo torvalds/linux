@@ -1158,7 +1158,7 @@ static int mipsxx_pmu_handle_shared_irq(void)
 	int handled = IRQ_NONE;
 	struct pt_regs *regs;
 
-	if (cpu_has_mips_r2 && !(read_c0_cause() & (1 << 26)))
+	if (cpu_has_perf_cntr_intr_bit && !(read_c0_cause() & CAUSEF_PCI))
 		return handled;
 	/*
 	 * First we pause the local counters, so that when we are locked
