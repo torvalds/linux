@@ -617,7 +617,7 @@ static int __devinit adis16260_probe(struct spi_device *spi)
 	if (pd)
 		st->negate = pd->negate;
 	/* this is only used for removal purposes */
-	spi_set_drvdata(spi, st);
+	spi_set_drvdata(spi, indio_dev);
 
 	st->us = spi;
 	mutex_init(&st->buf_lock);
