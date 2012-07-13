@@ -438,7 +438,8 @@ static int bcm63xx_external_irq_set_type(struct irq_data *d,
 	reg = bcm_perf_readl(regaddr);
 	irq %= 4;
 
-	if (BCMCPU_IS_6348()) {
+	switch (bcm63xx_get_cpu_id()) {
+	case BCM6348_CPU_ID:
 		if (levelsense)
 			reg |= EXTIRQ_CFG_LEVELSENSE_6348(irq);
 		else
@@ -451,9 +452,13 @@ static int bcm63xx_external_irq_set_type(struct irq_data *d,
 			reg |= EXTIRQ_CFG_BOTHEDGE_6348(irq);
 		else
 			reg &= ~EXTIRQ_CFG_BOTHEDGE_6348(irq);
-	}
+		break;
 
-	if (BCMCPU_IS_6338() || BCMCPU_IS_6358() || BCMCPU_IS_6368()) {
+	case BCM6328_CPU_ID:
+	case BCM6338_CPU_ID:
+	case BCM6345_CPU_ID:
+	case BCM6358_CPU_ID:
+	case BCM6368_CPU_ID:
 		if (levelsense)
 			reg |= EXTIRQ_CFG_LEVELSENSE(irq);
 		else
@@ -466,6 +471,9 @@ static int bcm63xx_external_irq_set_type(struct irq_data *d,
 			reg |= EXTIRQ_CFG_BOTHEDGE(irq);
 		else
 			reg &= ~EXTIRQ_CFG_BOTHEDGE(irq);
+		break;
+	default:
+		BUG();
 	}
 
 	bcm_perf_writel(reg, regaddr);
