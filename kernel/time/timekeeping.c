@@ -24,32 +24,31 @@
 /* Structure holding internal timekeeping values. */
 struct timekeeper {
 	/* Current clocksource used for timekeeping. */
-	struct clocksource *clock;
+	struct clocksource	*clock;
 	/* NTP adjusted clock multiplier */
-	u32	mult;
+	u32			mult;
 	/* The shift value of the current clocksource. */
-	int	shift;
-
+	int			shift;
 	/* Number of clock cycles in one NTP interval. */
-	cycle_t cycle_interval;
+	cycle_t			cycle_interval;
 	/* Number of clock shifted nano seconds in one NTP interval. */
-	u64	xtime_interval;
+	u64			xtime_interval;
 	/* shifted nano seconds left over when rounding cycle_interval */
-	s64	xtime_remainder;
+	s64			xtime_remainder;
 	/* Raw nano seconds accumulated per NTP interval. */
-	u32	raw_interval;
+	u32			raw_interval;
 
 	/* Clock shifted nano seconds remainder not stored in xtime.tv_nsec. */
-	u64	xtime_nsec;
+	u64			xtime_nsec;
 	/* Difference between accumulated time and NTP time in ntp
 	 * shifted nano seconds. */
-	s64	ntp_error;
+	s64			ntp_error;
 	/* Shift conversion between clock shifted nano seconds and
 	 * ntp shifted nano seconds. */
-	int	ntp_error_shift;
+	int			ntp_error_shift;
 
 	/* The current time */
-	struct timespec xtime;
+	struct timespec 	xtime;
 	/*
 	 * wall_to_monotonic is what we need to add to xtime (or xtime corrected
 	 * for sub jiffie times) to get to monotonic time.  Monotonic is pegged
@@ -64,20 +63,17 @@ struct timekeeper {
 	 * - wall_to_monotonic is no longer the boot time, getboottime must be
 	 * used instead.
 	 */
-	struct timespec wall_to_monotonic;
+	struct timespec		wall_to_monotonic;
 	/* time spent in suspend */
-	struct timespec total_sleep_time;
+	struct timespec		total_sleep_time;
 	/* The raw monotonic time for the CLOCK_MONOTONIC_RAW posix clock. */
-	struct timespec raw_time;
-
+	struct timespec		raw_time;
 	/* Offset clock monotonic -> clock realtime */
-	ktime_t offs_real;
-
+	ktime_t			offs_real;
 	/* Offset clock monotonic -> clock boottime */
-	ktime_t offs_boot;
-
+	ktime_t			offs_boot;
 	/* Seqlock for all timekeeper values */
-	seqlock_t lock;
+	seqlock_t		lock;
 };
 
 static struct timekeeper timekeeper;
@@ -547,6 +543,7 @@ u64 timekeeping_max_deferment(void)
 {
 	unsigned long seq;
 	u64 ret;
+
 	do {
 		seq = read_seqbegin(&timekeeper.lock);
 
