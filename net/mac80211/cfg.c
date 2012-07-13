@@ -950,7 +950,7 @@ static void ieee80211_send_layer2_update(struct sta_info *sta)
 	/* 802.2 Type 1 Logical Link Control (LLC) Exchange Identifier (XID)
 	 * Update response frame; IEEE Std 802.2-1998, 5.4.1.2.1 */
 
-	memset(msg->da, 0xff, ETH_ALEN);
+	eth_broadcast_addr(msg->da);
 	memcpy(msg->sa, sta->sta.addr, ETH_ALEN);
 	msg->len = htons(6);
 	msg->dsap = 0;

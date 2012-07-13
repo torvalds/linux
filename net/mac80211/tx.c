@@ -2415,7 +2415,7 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 		memset(mgmt, 0, hdr_len);
 		mgmt->frame_control =
 		    cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON);
-		memset(mgmt->da, 0xff, ETH_ALEN);
+		eth_broadcast_addr(mgmt->da);
 		memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 		memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
 		mgmt->u.beacon.beacon_int =
@@ -2609,9 +2609,9 @@ struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw,
 	memset(hdr, 0, sizeof(*hdr));
 	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					 IEEE80211_STYPE_PROBE_REQ);
-	memset(hdr->addr1, 0xff, ETH_ALEN);
+	eth_broadcast_addr(hdr->addr1);
 	memcpy(hdr->addr2, vif->addr, ETH_ALEN);
-	memset(hdr->addr3, 0xff, ETH_ALEN);
+	eth_broadcast_addr(hdr->addr3);
 
 	pos = skb_put(skb, ie_ssid_len);
 	*pos++ = WLAN_EID_SSID;
