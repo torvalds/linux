@@ -46,6 +46,7 @@
 #define CFG_STAT_ACTIVE_HIGH			BIT(7)
 #define CFG_PIN					0x06
 #define CFG_PIN_EN_CTRL_MASK			0x60
+#define CFG_PIN_USB_MODE_CTRL			BIT(4)
 #define CFG_PIN_EN_CTRL_ACTIVE_HIGH		0x40
 #define CFG_PIN_EN_CTRL_ACTIVE_LOW		0x60
 #define CFG_PIN_EN_APSD_IRQ			BIT(1)
@@ -732,7 +733,7 @@ static int smb347_hw_init(struct smb347_charger *smb)
 	 * command register unless pin control is specified in the platform
 	 * data.
 	 */
-	ret &= ~CFG_PIN_EN_CTRL_MASK;
+	ret &= ~(CFG_PIN_EN_CTRL_MASK | CFG_PIN_USB_MODE_CTRL);
 
 	switch (smb->pdata->enable_control) {
 	case SMB347_CHG_ENABLE_SW:
@@ -745,6 +746,9 @@ static int smb347_hw_init(struct smb347_charger *smb)
 		ret |= CFG_PIN_EN_CTRL_ACTIVE_HIGH;
 		break;
 	}
+
+	if (smb->pdata->usb_mode_pin_ctrl)
+		ret |= CFG_PIN_USB_MODE_CTRL;
 
 	/* Disable Automatic Power Source Detection (APSD) interrupt. */
 	ret &= ~CFG_PIN_EN_APSD_IRQ;
