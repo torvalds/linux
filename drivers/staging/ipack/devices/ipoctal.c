@@ -114,8 +114,6 @@ static int ipoctal_port_activate(struct tty_port *port, struct tty_struct *tty)
 
 	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].u.w.cr,
 			     CR_ENABLE_RX);
-	tty->driver_data = ipoctal;
-
 	return 0;
 }
 
@@ -135,6 +133,8 @@ static int ipoctal_open(struct tty_struct *tty, struct file *file)
 
 	if (atomic_read(&ipoctal->open[channel]))
 		return -EBUSY;
+
+	tty->driver_data = ipoctal;
 
 	res = tty_port_open(&ipoctal->tty_port[channel], tty, file);
 	if (res)
