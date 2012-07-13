@@ -980,6 +980,27 @@ static void timekeeping_adjust(s64 offset)
 	timekeeper.xtime_nsec -= offset;
 	timekeeper.ntp_error -= (interval - offset) <<
 				timekeeper.ntp_error_shift;
+
+	/*
+	 * It may be possible that when we entered this function, xtime_nsec
+	 * was very small.  Further, if we're slightly speeding the clocksource
+	 * in the code above, its possible the required corrective factor to
+	 * xtime_nsec could cause it to underflow.
+	 *
+	 * Now, since we already accumulated the second, cannot simply roll
+	 * the accumulated second back, since the NTP subsystem has been
+	 * notified via second_overflow. So instead we push xtime_nsec forward
+	 * by the amount we underflowed, and add that amount into the error.
+	 *
+	 * We'll correct this error next time through this function, when
+	 * xtime_nsec is not as small.
+	 */
+	if (unlikely((s64)timekeeper.xtime_nsec < 0)) {
+		s64 neg = -(s64)timekeeper.xtime_nsec;
+		timekeeper.xtime_nsec = 0;
+		timekeeper.ntp_error += neg << timekeeper.ntp_error_shift;
+	}
+
 }
 
 
@@ -1105,27 +1126,6 @@ static void update_wall_time(void)
 	/* correct the clock when NTP error is too big */
 	timekeeping_adjust(offset);
 
-	/*
-	 * Since in the loop above, we accumulate any amount of time
-	 * in xtime_nsec over a second into xtime.tv_sec, its possible for
-	 * xtime_nsec to be fairly small after the loop. Further, if we're
-	 * slightly speeding the clocksource up in timekeeping_adjust(),
-	 * its possible the required corrective factor to xtime_nsec could
-	 * cause it to underflow.
-	 *
-	 * Now, we cannot simply roll the accumulated second back, since
-	 * the NTP subsystem has been notified via second_overflow. So
-	 * instead we push xtime_nsec forward by the amount we underflowed,
-	 * and add that amount into the error.
-	 *
-	 * We'll correct this error next time through this function, when
-	 * xtime_nsec is not as small.
-	 */
-	if (unlikely((s64)timekeeper.xtime_nsec < 0)) {
-		s64 neg = -(s64)timekeeper.xtime_nsec;
-		timekeeper.xtime_nsec = 0;
-		timekeeper.ntp_error += neg << timekeeper.ntp_error_shift;
-	}
 
 	/*
 	* Store only full nanoseconds into xtime_nsec after rounding
