@@ -10,6 +10,7 @@ Required properties:
 
 Optional properties:
 - reg-shift       : device register offsets are shifted by this value
+- reg-io-width    : io register width in bytes (1, 2 or 4)
 - regstep         : deprecated, use reg-shift above
 
 Example:
@@ -23,6 +24,7 @@ Example:
 		clock-frequency = <20000000>;
 
 		reg-shift = <0>;	/* 8 bit registers */
+		reg-io-width = <1>;	/* 8 bit read/write */
 
 		dummy@60 {
 			compatible = "dummy";

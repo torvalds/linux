@@ -30,6 +30,7 @@
 struct ocores_i2c {
 	void __iomem *base;
 	u32 reg_shift;
+	u32 reg_io_width;
 	wait_queue_head_t wait;
 	struct i2c_adapter adap;
 	struct i2c_msg *msg;
@@ -72,12 +73,22 @@ struct ocores_i2c {
 
 static inline void oc_setreg(struct ocores_i2c *i2c, int reg, u8 value)
 {
-	iowrite8(value, i2c->base + (reg << i2c->reg_shift));
+	if (i2c->reg_io_width == 4)
+		iowrite32(value, i2c->base + (reg << i2c->reg_shift));
+	else if (i2c->reg_io_width == 2)
+		iowrite16(value, i2c->base + (reg << i2c->reg_shift));
+	else
+		iowrite8(value, i2c->base + (reg << i2c->reg_shift));
 }
 
 static inline u8 oc_getreg(struct ocores_i2c *i2c, int reg)
 {
-	return ioread8(i2c->base + (reg << i2c->reg_shift));
+	if (i2c->reg_io_width == 4)
+		return ioread32(i2c->base + (reg << i2c->reg_shift));
+	else if (i2c->reg_io_width == 2)
+		return ioread16(i2c->base + (reg << i2c->reg_shift));
+	else
+		return ioread8(i2c->base + (reg << i2c->reg_shift));
 }
 
 static void ocores_process(struct ocores_i2c *i2c)
@@ -244,6 +255,8 @@ static int ocores_i2c_of_probe(struct platform_device *pdev,
 	}
 	i2c->clock_khz = val / 1000;
 
+	of_property_read_u32(pdev->dev.of_node, "reg-io-width",
+				&i2c->reg_io_width);
 	return 0;
 }
 #else
@@ -286,12 +299,16 @@ static int __devinit ocores_i2c_probe(struct platform_device *pdev)
 	pdata = pdev->dev.platform_data;
 	if (pdata) {
 		i2c->reg_shift = pdata->reg_shift;
+		i2c->reg_io_width = pdata->reg_io_width;
 		i2c->clock_khz = pdata->clock_khz;
 	} else {
 		ret = ocores_i2c_of_probe(pdev, i2c);
 		if (ret)
 			return ret;
 	}
+
+	if (i2c->reg_io_width == 0)
+		i2c->reg_io_width = 1; /* Set to default value */
 
 	ocores_init(i2c);
 
