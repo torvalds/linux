@@ -130,7 +130,7 @@ static struct mips_pmu mipspmu;
 #define M_PERFCTL_EVENT_MASK		0xfe0
 
 
-#ifdef CONFIG_MIPS_MT_SMP
+#ifdef CONFIG_MIPS_PERF_SHARED_TC_COUNTERS
 static int cpu_has_mipsmt_pertccounters;
 
 static DEFINE_RWLOCK(pmuint_rwlock);
@@ -156,10 +156,10 @@ static unsigned int counters_total_to_per_cpu(unsigned int counters)
 	return counters >> vpe_shift();
 }
 
-#else /* !CONFIG_MIPS_MT_SMP */
+#else /* !CONFIG_MIPS_PERF_SHARED_TC_COUNTERS */
 #define vpe_id()	0
 
-#endif /* CONFIG_MIPS_MT_SMP */
+#endif /* CONFIG_MIPS_PERF_SHARED_TC_COUNTERS */
 
 static void resume_local_counters(void);
 static void pause_local_counters(void);
@@ -503,7 +503,7 @@ static void mipspmu_read(struct perf_event *event)
 
 static void mipspmu_enable(struct pmu *pmu)
 {
-#ifdef CONFIG_MIPS_MT_SMP
+#ifdef CONFIG_MIPS_PERF_SHARED_TC_COUNTERS
 	write_unlock(&pmuint_rwlock);
 #endif
 	resume_local_counters();
@@ -523,7 +523,7 @@ static void mipspmu_enable(struct pmu *pmu)
 static void mipspmu_disable(struct pmu *pmu)
 {
 	pause_local_counters();
-#ifdef CONFIG_MIPS_MT_SMP
+#ifdef CONFIG_MIPS_PERF_SHARED_TC_COUNTERS
 	write_lock(&pmuint_rwlock);
 #endif
 }
@@ -1163,7 +1163,7 @@ static int mipsxx_pmu_handle_shared_irq(void)
 	 * See also mipsxx_pmu_start().
 	 */
 	pause_local_counters();
-#ifdef CONFIG_MIPS_MT_SMP
+#ifdef CONFIG_MIPS_PERF_SHARED_TC_COUNTERS
 	read_lock(&pmuint_rwlock);
 #endif
 
@@ -1195,7 +1195,7 @@ static int mipsxx_pmu_handle_shared_irq(void)
 	if (handled == IRQ_HANDLED)
 		irq_work_run();
 
-#ifdef CONFIG_MIPS_MT_SMP
+#ifdef CONFIG_MIPS_PERF_SHARED_TC_COUNTERS
 	read_unlock(&pmuint_rwlock);
 #endif
 	resume_local_counters();
@@ -1362,7 +1362,7 @@ init_hw_perf_events(void)
 		return -ENODEV;
 	}
 
-#ifdef CONFIG_MIPS_MT_SMP
+#ifdef CONFIG_MIPS_PERF_SHARED_TC_COUNTERS
 	cpu_has_mipsmt_pertccounters = read_c0_config7() & (1<<19);
 	if (!cpu_has_mipsmt_pertccounters)
 		counters = counters_total_to_per_cpu(counters);
