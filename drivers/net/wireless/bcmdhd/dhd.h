@@ -251,7 +251,7 @@ typedef struct dhd_cmn {
 			SMP_RD_BARRIER_DEPENDS(); \
 			while (dhd_mmc_suspend && retry++ != b) { \
 				SMP_RD_BARRIER_DEPENDS(); \
-				wait_event_interruptible_timeout(a, !dhd_mmc_suspend, HZ/100); \
+				wait_event_interruptible_timeout(a, !dhd_mmc_suspend, 1); \
 			} \
 		} while (0)
 	#define DHD_PM_RESUME_WAIT(a) 		_DHD_PM_RESUME_WAIT(a, 200)
@@ -263,7 +263,7 @@ typedef struct dhd_cmn {
 	#define SPINWAIT_SLEEP(a, exp, us) do { \
 		uint countdown = (us) + 9999; \
 		while ((exp) && (countdown >= 10000)) { \
-			wait_event_interruptible_timeout(a, FALSE, HZ/100); \
+			wait_event_interruptible_timeout(a, FALSE, 1); \
 			countdown -= 10000; \
 		} \
 	} while (0)

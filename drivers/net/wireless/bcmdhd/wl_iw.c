@@ -64,7 +64,7 @@ typedef const struct si_pub  si_t;
 #endif
 
 
-#define JF2MS ((((jiffies / HZ) * 1000) + ((jiffies % HZ) * 1000) / HZ))
+#define JF2MS jiffies_to_msecs(jiffies)
 
 #ifdef COEX_DBG       
 #define WL_TRACE_COEX(x) printf("TS:%lu ", JF2MS); \
@@ -3284,7 +3284,7 @@ _iscan_sysioc_thread(void *data)
 				rtnl_unlock();
 #endif
 				
-				mod_timer(&iscan->timer, jiffies + iscan->timer_ms*HZ/1000);
+				mod_timer(&iscan->timer, jiffies + msecs_to_jiffies(iscan->timer_ms));
 				iscan->timer_on = 1;
 				break;
 			case WL_SCAN_RESULTS_SUCCESS:
@@ -3295,7 +3295,7 @@ _iscan_sysioc_thread(void *data)
 			case WL_SCAN_RESULTS_PENDING:
 				WL_TRACE(("iscanresults pending\n"));
 				
-				mod_timer(&iscan->timer, jiffies + iscan->timer_ms*HZ/1000);
+				mod_timer(&iscan->timer, jiffies + msecs_to_jiffies(iscan->timer_ms));
 				iscan->timer_on = 1;
 				break;
 			case WL_SCAN_RESULTS_ABORTED:
@@ -3395,9 +3395,9 @@ wl_iw_run_ss_cache_timer(int kick_off)
 	if (*timer) {
 		if (kick_off) {
 #ifdef CONFIG_PRESCANNED
-			(*timer)->expires = jiffies + 70000 * HZ / 1000;
+			(*timer)->expires = jiffies + msecs_to_jiffies(70000);
 #else
-			(*timer)->expires = jiffies + 30000 * HZ / 1000;	
+			(*timer)->expires = jiffies + msecs_to_jiffies(30000);
 #endif
 			add_timer(*timer);
 			WL_TRACE(("%s : timer starts \n", __FUNCTION__));
@@ -3715,7 +3715,7 @@ wl_iw_iscan_set_scan_broadcast_prep(struct net_device *dev, uint flag)
 		rtnl_unlock();
 #endif
 
-	mod_timer(&iscan->timer, jiffies + iscan->timer_ms*HZ/1000);
+	mod_timer(&iscan->timer, jiffies + msecs_to_jiffies(iscan->timer_ms));
 
 	iscan->timer_on = 1;
 
@@ -6007,7 +6007,7 @@ wl_iw_combined_scan_set(struct net_device *dev, wlc_ssid_t* ssids_local, int nss
 	iscan->list_cur = iscan->list_hdr;
 	iscan->iscan_state = ISCAN_STATE_SCANING;
 	wl_iw_set_event_mask(dev);
-	mod_timer(&iscan->timer, jiffies + iscan->timer_ms*HZ/1000);
+	mod_timer(&iscan->timer, jiffies + msecs_to_jiffies(iscan->timer_ms));
 
 	iscan->timer_on = 1;
 
@@ -8639,7 +8639,7 @@ _bt_dhcp_sysioc_thread(void *data)
 				WL_TRACE_COEX(("%s bt_dhcp stm: started \n", __FUNCTION__));
 				g_bt->bt_state = BT_DHCP_OPPORTUNITY_WINDOW;
 				mod_timer(&g_bt->timer,
-				          jiffies + BT_DHCP_OPPORTUNITY_WINDOW_TIME*HZ/1000);
+				          jiffies + msecs_to_jiffies(BT_DHCP_OPPORTUNITY_WINDOW_TIME));
 				g_bt->timer_on = 1;
 				break;
 
@@ -8656,7 +8656,7 @@ _bt_dhcp_sysioc_thread(void *data)
 				
 				if (g_bt->dev) wl_iw_bt_flag_set(g_bt->dev, TRUE);
 				g_bt->bt_state = BT_DHCP_FLAG_FORCE_TIMEOUT;
-				mod_timer(&g_bt->timer, jiffies + BT_DHCP_FLAG_FORCE_TIME*HZ/1000);
+				mod_timer(&g_bt->timer, jiffies + msecs_to_jiffies(BT_DHCP_FLAG_FORCE_TIME));
 				g_bt->timer_on = 1;
 				break;
 
