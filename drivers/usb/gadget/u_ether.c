@@ -724,7 +724,7 @@ static int get_ether_addr(const char *str, u8 *dev_addr)
 		if (is_valid_ether_addr(dev_addr))
 			return 0;
 	}
-	random_ether_addr(dev_addr);
+	eth_random_addr(dev_addr);
 	return 1;
 }
 
