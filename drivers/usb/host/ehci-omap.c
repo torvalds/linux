@@ -115,9 +115,8 @@ static void omap_ehci_erratum_i693(struct ehci_hcd *ehci)
 	clk_disable(usbhost_p2_fck);
 }
 
-static void omap_ehci_soft_phy_reset(struct platform_device *pdev, u8 port)
+static void omap_ehci_soft_phy_reset(struct usb_hcd *hcd, u8 port)
 {
-	struct usb_hcd	*hcd = dev_get_drvdata(&pdev->dev);
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 	unsigned reg = 0;
 
@@ -139,7 +138,8 @@ static void omap_ehci_soft_phy_reset(struct platform_device *pdev, u8 port)
 		cpu_relax();
 
 		if (time_after(jiffies, timeout)) {
-			dev_dbg(&pdev->dev, "phy reset operation timed out\n");
+			dev_dbg(hcd->self.controller,
+					"phy reset operation timed out\n");
 			break;
 		}
 	}
@@ -167,9 +167,9 @@ static int omap_ehci_init(struct usb_hcd *hcd)
 
 	/* Soft reset the PHY using PHY reset command over ULPI */
 	if (pdata->port_mode[0] == OMAP_EHCI_PORT_MODE_PHY)
-		omap_ehci_soft_phy_reset(pdev, 0);
+		omap_ehci_soft_phy_reset(hcd, 0);
 	if (pdata->port_mode[1] == OMAP_EHCI_PORT_MODE_PHY)
-		omap_ehci_soft_phy_reset(pdev, 1);
+		omap_ehci_soft_phy_reset(hcd, 1);
 
 	/* we know this is the memory we want, no need to ioremap again */
 	ehci->caps = hcd->regs;
