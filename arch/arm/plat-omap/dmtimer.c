@@ -661,6 +661,37 @@ int omap_dm_timer_set_int_enable(struct omap_dm_timer *timer,
 }
 EXPORT_SYMBOL_GPL(omap_dm_timer_set_int_enable);
 
+/**
+ * omap_dm_timer_set_int_disable - disable timer interrupts
+ * @timer:	pointer to timer handle
+ * @mask:	bit mask of interrupts to be disabled
+ *
+ * Disables the specified timer interrupts for a timer.
+ */
+int omap_dm_timer_set_int_disable(struct omap_dm_timer *timer, u32 mask)
+{
+	u32 l = mask;
+
+	if (unlikely(!timer))
+		return -EINVAL;
+
+	omap_dm_timer_enable(timer);
+
+	if (timer->revision == 1)
+		l = __raw_readl(timer->irq_ena) & ~mask;
+
+	__raw_writel(l, timer->irq_dis);
+	l = omap_dm_timer_read_reg(timer, OMAP_TIMER_WAKEUP_EN_REG) & ~mask;
+	omap_dm_timer_write_reg(timer, OMAP_TIMER_WAKEUP_EN_REG, l);
+
+	/* Save the context */
+	timer->context.tier &= ~mask;
+	timer->context.twer &= ~mask;
+	omap_dm_timer_disable(timer);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(omap_dm_timer_set_int_disable);
+
 unsigned int omap_dm_timer_read_status(struct omap_dm_timer *timer)
 {
 	unsigned int l;
