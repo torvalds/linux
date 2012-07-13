@@ -9,6 +9,7 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/module.h>
 #include <linux/list.h>
@@ -27,6 +28,21 @@ struct ec_cmd_desc {
 	void *priv;
 };
 
+struct olpc_ec_priv {
+	struct olpc_ec_driver *drv;
+
+	/*
+	 * Running an EC command while suspending means we don't always finish
+	 * the command before the machine suspends.  This means that the EC
+	 * is expecting the command protocol to finish, but we after a period
+	 * of time (while the OS is asleep) the EC times out and restarts its
+	 * idle loop.  Meanwhile, the OS wakes up, thinks it's still in the
+	 * middle of the command protocol, starts throwing random things at
+	 * the EC... and everyone's uphappy.
+	 */
+	bool suspended;
+};
+
 static void olpc_ec_worker(struct work_struct *w);
 
 static DECLARE_WORK(ec_worker, olpc_ec_worker);
@@ -34,6 +50,7 @@ static LIST_HEAD(ec_cmd_q);
 static DEFINE_SPINLOCK(ec_cmd_q_lock);
 
 static struct olpc_ec_driver *ec_driver;
+static struct olpc_ec_priv *ec_priv;
 static void *ec_cb_arg;
 static DEFINE_MUTEX(ec_cb_lock);
 
@@ -93,6 +110,7 @@ static void queue_ec_descriptor(struct ec_cmd_desc *desc)
 
 int olpc_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *outbuf, size_t outlen)
 {
+	struct olpc_ec_priv *ec = ec_priv;
 	struct ec_cmd_desc desc;
 
 	/* XXX: this will be removed in later patches */
@@ -103,6 +121,13 @@ int olpc_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *outbuf, size_t outlen)
 	/* Ensure a driver and ec hook have been registered */
 	if (WARN_ON(!ec_driver || !ec_driver->ec_cmd))
 		return -ENODEV;
+
+	if (!ec)
+		return -ENOMEM;
+
+	/* Suspending in the middle of a command hoses things really badly */
+	if (WARN_ON(ec->suspended))
+		return -EBUSY;
 
 	might_sleep();
 
@@ -126,10 +151,18 @@ EXPORT_SYMBOL_GPL(olpc_ec_cmd);
 
 static int olpc_ec_probe(struct platform_device *pdev)
 {
+	struct olpc_ec_priv *ec;
 	int err;
 
 	if (!ec_driver)
 		return -ENODEV;
+
+	ec = kzalloc(sizeof(*ec), GFP_KERNEL);
+	if (!ec)
+		return -ENOMEM;
+	ec->drv = ec_driver;
+	ec_priv = ec;
+	platform_set_drvdata(pdev, ec);
 
 	err = ec_driver->probe ? ec_driver->probe(pdev) : 0;
 
@@ -139,12 +172,23 @@ static int olpc_ec_probe(struct platform_device *pdev)
 static int olpc_ec_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	return ec_driver->suspend ? ec_driver->suspend(pdev) : 0;
+	struct olpc_ec_priv *ec = platform_get_drvdata(pdev);
+	int err = 0;
+
+	if (ec_driver->suspend)
+		err = ec_driver->suspend(pdev);
+	if (!err)
+		ec->suspended = true;
+
+	return err;
 }
 
 static int olpc_ec_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	struct olpc_ec_priv *ec = platform_get_drvdata(pdev);
+
+	ec->suspended = false;
 	return ec_driver->resume ? ec_driver->resume(pdev) : 0;
 }
 
