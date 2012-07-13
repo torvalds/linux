@@ -1736,8 +1736,11 @@ static void __exit caam_algapi_hash_exit(void)
 	struct caam_hash_alg *t_alg, *n;
 
 	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
-	if (!dev_node)
-		return;
+	if (!dev_node) {
+		dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec4.0");
+		if (!dev_node)
+			return;
+	}
 
 	pdev = of_find_device_by_node(dev_node);
 	if (!pdev)
@@ -1812,8 +1815,11 @@ static int __init caam_algapi_hash_init(void)
 	int i = 0, err = 0;
 
 	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
-	if (!dev_node)
-		return -ENODEV;
+	if (!dev_node) {
+		dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec4.0");
+		if (!dev_node)
+			return -ENODEV;
+	}
 
 	pdev = of_find_device_by_node(dev_node);
 	if (!pdev)

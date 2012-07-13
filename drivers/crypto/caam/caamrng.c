@@ -284,8 +284,11 @@ static int __init caam_rng_init(void)
 	struct caam_drv_private *priv;
 
 	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
-	if (!dev_node)
-		return -ENODEV;
+	if (!dev_node) {
+		dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec4.0");
+		if (!dev_node)
+			return -ENODEV;
+	}
 
 	pdev = of_find_device_by_node(dev_node);
 	if (!pdev)
