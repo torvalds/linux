@@ -107,6 +107,10 @@
  */
 //#define HDLCD_NO_VIRTUAL_SCREEN
 
+#ifdef CONFIG_ANDROID
+#define HDLCD_NO_VIRTUAL_SCREEN
+#endif
+
 struct hdlcd_device {
 	struct fb_info		fb;
 	struct device		*dev;
