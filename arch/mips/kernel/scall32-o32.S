@@ -218,20 +218,6 @@ einval: li	v0, -ENOSYS
 	jr	ra
 	END(sys_syscall)
 
-	.macro	fifty ptr, nargs, from=1, to=50
-	sys	\ptr		\nargs
-	.if	\to-\from
-	fifty	\ptr,\nargs,"(\from+1)",\to
-	.endif
-	.endm
-
-	.macro	mille ptr, nargs, from=1, to=20
-	fifty	\ptr,\nargs
-	.if	\to-\from
-	mille	\ptr,\nargs,"(\from+1)",\to
-	.endif
-	.endm
-
 	.macro	syscalltable
 	sys	sys_syscall		8	/* 4000 */
 	sys	sys_exit		1
