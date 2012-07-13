@@ -19,6 +19,7 @@
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #include <asm/mcfuart.h>
+#include <asm/mcfclk.h>
 
 /***************************************************************************/
 
@@ -27,6 +28,31 @@
  */
 unsigned short ppdata;
 unsigned char ledbank = 0xff;
+
+/***************************************************************************/
+
+DEFINE_CLK(pll, "pll.0", MCF_CLK);
+DEFINE_CLK(sys, "sys.0", MCF_BUSCLK);
+DEFINE_CLK(mcftmr0, "mcftmr.0", MCF_BUSCLK);
+DEFINE_CLK(mcftmr1, "mcftmr.1", MCF_BUSCLK);
+DEFINE_CLK(mcftmr2, "mcftmr.2", MCF_BUSCLK);
+DEFINE_CLK(mcftmr3, "mcftmr.3", MCF_BUSCLK);
+DEFINE_CLK(mcfuart0, "mcfuart.0", MCF_BUSCLK);
+DEFINE_CLK(mcfuart1, "mcfuart.1", MCF_BUSCLK);
+DEFINE_CLK(fec0, "fec.0", MCF_BUSCLK);
+
+struct clk *mcf_clks[] = {
+	&clk_pll,
+	&clk_sys,
+	&clk_mcftmr0,
+	&clk_mcftmr1,
+	&clk_mcftmr2,
+	&clk_mcftmr3,
+	&clk_mcfuart0,
+	&clk_mcfuart1,
+	&clk_fec0,
+	NULL
+};
 
 /***************************************************************************/
 
