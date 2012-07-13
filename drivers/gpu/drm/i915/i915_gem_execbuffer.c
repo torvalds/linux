@@ -885,11 +885,16 @@ i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
 			return ret;
 	}
 
-	/* Unconditionally invalidate gpu caches. */
-	ret = i915_gem_flush_ring(ring, I915_GEM_GPU_DOMAINS, 0);
+	/* Unconditionally invalidate gpu caches and ensure that we do flush
+	 * any residual writes from the previous batch.
+	 */
+	ret = i915_gem_flush_ring(ring,
+				  I915_GEM_GPU_DOMAINS,
+				  ring->gpu_caches_dirty ? I915_GEM_GPU_DOMAINS : 0);
 	if (ret)
 		return ret;
 
+	ring->gpu_caches_dirty = false;
 	return 0;
 }
 
