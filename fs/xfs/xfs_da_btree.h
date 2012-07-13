@@ -32,7 +32,7 @@ struct zone;
 /*
  * This structure is common to both leaf nodes and non-leaf nodes in the Btree.
  *
- * Is is used to manage a doubly linked list of all blocks at the same
+ * It is used to manage a doubly linked list of all blocks at the same
  * level in the Btree, and to identify which type of block this is.
  */
 #define XFS_DA_NODE_MAGIC	0xfebe	/* magic number: non-leaf blocks */
