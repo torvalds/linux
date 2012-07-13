@@ -289,10 +289,10 @@ extern int CIFSSMBUnixSetFileInfo(const unsigned int xid,
 				  u16 fid, u32 pid_of_opener);
 
 extern int CIFSSMBUnixSetPathInfo(const unsigned int xid,
-				  struct cifs_tcon *tcon, char *file_name,
+				  struct cifs_tcon *tcon, const char *file_name,
 				  const struct cifs_unix_set_info_args *args,
 				  const struct nls_table *nls_codepage,
-				  int remap_special_chars);
+				  int remap);
 
 extern int CIFSSMBMkDir(const unsigned int xid, struct cifs_tcon *tcon,
 			const char *newName,

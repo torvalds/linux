@@ -5943,7 +5943,7 @@ CIFSSMBUnixSetFileInfo(const unsigned int xid, struct cifs_tcon *tcon,
 
 int
 CIFSSMBUnixSetPathInfo(const unsigned int xid, struct cifs_tcon *tcon,
-		       char *fileName,
+		       const char *file_name,
 		       const struct cifs_unix_set_info_args *args,
 		       const struct nls_table *nls_codepage, int remap)
 {
@@ -5964,14 +5964,14 @@ setPermsRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifsConvertToUTF16((__le16 *) pSMB->FileName, fileName,
+		    cifsConvertToUTF16((__le16 *) pSMB->FileName, file_name,
 				       PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {	/* BB improve the check for buffer overruns BB */
-		name_len = strnlen(fileName, PATH_MAX);
+		name_len = strnlen(file_name, PATH_MAX);
 		name_len++;	/* trailing null */
-		strncpy(pSMB->FileName, fileName, name_len);
+		strncpy(pSMB->FileName, file_name, name_len);
 	}
 
 	params = 6 + name_len;
