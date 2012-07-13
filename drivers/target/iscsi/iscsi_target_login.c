@@ -518,7 +518,7 @@ int iscsi_login_post_auth_non_zero_tsih(
 	 * initiator and release the new connection.
 	 */
 	conn_ptr = iscsit_get_conn_from_cid_rcfr(sess, cid);
-	if ((conn_ptr)) {
+	if (conn_ptr) {
 		pr_err("Connection exists with CID %hu for %s,"
 			" performing connection reinstatement.\n",
 			conn_ptr->cid, sess->sess_ops->InitiatorName);
@@ -539,7 +539,7 @@ int iscsi_login_post_auth_non_zero_tsih(
 	if (sess->sess_ops->ErrorRecoveryLevel == 2) {
 		cr = iscsit_get_inactive_connection_recovery_entry(
 				sess, cid);
-		if ((cr)) {
+		if (cr) {
 			pr_debug("Performing implicit logout"
 				" for connection recovery on CID: %hu\n",
 					conn->cid);
@@ -1081,7 +1081,7 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 		goto new_sess_out;
 
 	zero_tsih = (pdu->tsih == 0x0000);
-	if ((zero_tsih)) {
+	if (zero_tsih) {
 		/*
 		 * This is the leading connection of a new session.
 		 * We wait until after authentication to check for

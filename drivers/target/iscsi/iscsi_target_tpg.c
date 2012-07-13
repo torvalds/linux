@@ -593,7 +593,7 @@ int iscsit_ta_authentication(struct iscsi_portal_group *tpg, u32 authentication)
 	} else {
 		snprintf(buf1, sizeof(buf1), "%s", param->value);
 		none = strstr(buf1, NONE);
-		if ((none))
+		if (none)
 			goto out;
 		strncat(buf1, ",", strlen(","));
 		strncat(buf1, NONE, strlen(NONE));

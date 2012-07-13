@@ -2685,7 +2685,7 @@ static int iscsit_send_logout_response(
 		 */
 		logout_conn = iscsit_get_conn_from_cid_rcfr(sess,
 				cmd->logout_cid);
-		if ((logout_conn)) {
+		if (logout_conn) {
 			iscsit_connection_reinstatement_rcfr(logout_conn);
 			iscsit_dec_conn_usage_count(logout_conn);
 		}
