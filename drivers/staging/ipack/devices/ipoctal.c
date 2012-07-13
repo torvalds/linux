@@ -411,6 +411,20 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	for (i = 0; i < NR_CHANNELS ; i++) {
 		ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[i].u.w.cr,
 				     CR_DISABLE_RX | CR_DISABLE_TX);
+		ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[i].u.w.cr,
+				     CR_CMD_RESET_RX);
+		ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[i].u.w.cr,
+				     CR_CMD_RESET_TX);
+		ipoctal_write_io_reg(ipoctal,
+				     &ipoctal->chan_regs[i].u.w.mr,
+				     MR1_CHRL_8_BITS | MR1_ERROR_CHAR |
+				     MR1_RxINT_RxRDY); /* mr1 */
+		ipoctal_write_io_reg(ipoctal,
+				     &ipoctal->chan_regs[i].u.w.mr,
+				     0); /* mr2 */
+		ipoctal_write_io_reg(ipoctal,
+				     &ipoctal->chan_regs[i].u.w.csr,
+				     TX_CLK_9600  | RX_CLK_9600);
 	}
 
 	for (i = 0; i < IP_OCTAL_NB_BLOCKS; i++) {
