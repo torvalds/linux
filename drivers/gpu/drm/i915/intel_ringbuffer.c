@@ -972,6 +972,7 @@ static int init_status_page(struct intel_ring_buffer *ring)
 	ring->status_page.gfx_addr = obj->gtt_offset;
 	ring->status_page.page_addr = kmap(obj->pages[0]);
 	if (ring->status_page.page_addr == NULL) {
+		ret = -ENOMEM;
 		goto err_unpin;
 	}
 	ring->status_page.obj = obj;
