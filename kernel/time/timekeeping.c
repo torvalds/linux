@@ -991,6 +991,35 @@ static void timekeeping_adjust(s64 offset)
 
 
 /**
+ * accumulate_nsecs_to_secs - Accumulates nsecs into secs
+ *
+ * Helper function that accumulates a the nsecs greater then a second
+ * from the xtime_nsec field to the xtime_secs field.
+ * It also calls into the NTP code to handle leapsecond processing.
+ *
+ */
+static inline void accumulate_nsecs_to_secs(struct timekeeper *tk)
+{
+	u64 nsecps = (u64)NSEC_PER_SEC << tk->shift;
+
+	while (tk->xtime_nsec >= nsecps) {
+		int leap;
+
+		tk->xtime_nsec -= nsecps;
+		tk->xtime_sec++;
+
+		/* Figure out if its a leap sec and apply if needed */
+		leap = second_overflow(tk->xtime_sec);
+		tk->xtime_sec += leap;
+		tk->wall_to_monotonic.tv_sec -= leap;
+		if (leap)
+			clock_was_set_delayed();
+
+	}
+}
+
+
+/**
  * logarithmic_accumulation - shifted accumulation of cycles
  *
  * This functions accumulates a shifted interval of cycles into
@@ -1001,7 +1030,6 @@ static void timekeeping_adjust(s64 offset)
  */
 static cycle_t logarithmic_accumulation(cycle_t offset, u32 shift)
 {
-	u64 nsecps = (u64)NSEC_PER_SEC << timekeeper.shift;
 	u64 raw_nsecs;
 
 	/* If the offset is smaller than a shifted interval, do nothing */
@@ -1013,16 +1041,8 @@ static cycle_t logarithmic_accumulation(cycle_t offset, u32 shift)
 	timekeeper.clock->cycle_last += timekeeper.cycle_interval << shift;
 
 	timekeeper.xtime_nsec += timekeeper.xtime_interval << shift;
-	while (timekeeper.xtime_nsec >= nsecps) {
-		int leap;
-		timekeeper.xtime_nsec -= nsecps;
-		timekeeper.xtime_sec++;
-		leap = second_overflow(timekeeper.xtime_sec);
-		timekeeper.xtime_sec += leap;
-		timekeeper.wall_to_monotonic.tv_sec -= leap;
-		if (leap)
-			clock_was_set_delayed();
-	}
+
+	accumulate_nsecs_to_secs(&timekeeper);
 
 	/* Accumulate raw time */
 	raw_nsecs = timekeeper.raw_interval << shift;
@@ -1132,17 +1152,7 @@ static void update_wall_time(void)
 	 * Finally, make sure that after the rounding
 	 * xtime_nsec isn't larger than NSEC_PER_SEC
 	 */
-	if (unlikely(timekeeper.xtime_nsec >=
-			((u64)NSEC_PER_SEC << timekeeper.shift))) {
-		int leap;
-		timekeeper.xtime_nsec -= (u64)NSEC_PER_SEC << timekeeper.shift;
-		timekeeper.xtime_sec++;
-		leap = second_overflow(timekeeper.xtime_sec);
-		timekeeper.xtime_sec += leap;
-		timekeeper.wall_to_monotonic.tv_sec -= leap;
-		if (leap)
-			clock_was_set_delayed();
-	}
+	accumulate_nsecs_to_secs(&timekeeper);
 
 	timekeeping_update(false);
 
