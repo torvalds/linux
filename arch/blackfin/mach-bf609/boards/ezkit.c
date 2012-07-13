@@ -974,17 +974,17 @@ static struct adv7842_platform_data adv7842_data = {
 	.prim_mode = ADV7842_PRIM_MODE_SDP,
 	.vid_std_select = ADV7842_SDP_VID_STD_CVBS_SD_4x1,
 	.inp_color_space = ADV7842_INP_COLOR_SPACE_AUTO,
-	.i2c_sdp_io = 0x30,
-	.i2c_sdp = 0x31,
-	.i2c_cp = 0x32,
-	.i2c_vdp = 0x33,
-	.i2c_afe = 0x34,
-	.i2c_hdmi = 0x35,
-	.i2c_repeater = 0x36,
-	.i2c_edid = 0x37,
-	.i2c_infoframe = 0x39,
-	.i2c_cec = 0x3a,
-	.i2c_avlink = 0x3b,
+	.i2c_sdp_io = 0x40,
+	.i2c_sdp = 0x41,
+	.i2c_cp = 0x42,
+	.i2c_vdp = 0x43,
+	.i2c_afe = 0x44,
+	.i2c_hdmi = 0x45,
+	.i2c_repeater = 0x46,
+	.i2c_edid = 0x47,
+	.i2c_infoframe = 0x48,
+	.i2c_cec = 0x49,
+	.i2c_avlink = 0x4a,
 	.i2c_ex = 0x26,
 };
 
@@ -1009,6 +1009,80 @@ static struct platform_device bfin_capture_device = {
 	.name = "bfin_capture",
 	.dev = {
 		.platform_data = &bfin_capture_data,
+	},
+};
+#endif
+
+#if defined(CONFIG_VIDEO_BLACKFIN_DISPLAY) \
+	|| defined(CONFIG_VIDEO_BLACKFIN_DISPLAY_MODULE)
+#include <linux/videodev2.h>
+#include <media/blackfin/bfin_display.h>
+#include <media/blackfin/ppi.h>
+
+static const unsigned short ppi_req_disp[] = {
+	P_PPI0_D0, P_PPI0_D1, P_PPI0_D2, P_PPI0_D3,
+	P_PPI0_D4, P_PPI0_D5, P_PPI0_D6, P_PPI0_D7,
+	P_PPI0_D8, P_PPI0_D9, P_PPI0_D10, P_PPI0_D11,
+	P_PPI0_D12, P_PPI0_D13, P_PPI0_D14, P_PPI0_D15,
+	P_PPI0_CLK, P_PPI0_FS1, P_PPI0_FS2,
+	0,
+};
+
+static const struct ppi_info ppi_info = {
+	.type = PPI_TYPE_EPPI3,
+	.dma_ch = CH_EPPI0_CH0,
+	.irq_err = IRQ_EPPI0_STAT,
+	.base = (void __iomem *)EPPI0_STAT,
+	.pin_req = ppi_req_disp,
+};
+
+#if defined(CONFIG_VIDEO_ADV7511) \
+	|| defined(CONFIG_VIDEO_ADV7511_MODULE)
+#include <media/adv7511.h>
+
+static struct v4l2_output adv7511_outputs[] = {
+	{
+		.index = 0,
+		.name = "HDMI",
+		.type = V4L2_INPUT_TYPE_CAMERA,
+		.capabilities = V4L2_OUT_CAP_CUSTOM_TIMINGS,
+	},
+};
+
+static struct disp_route adv7511_routes[] = {
+	{
+		.output = 0,
+	},
+};
+
+static struct adv7511_platform_data adv7511_data = {
+	.edid_addr = 0x7e,
+	.i2c_ex = 0x25,
+};
+
+static struct bfin_display_config bfin_display_data = {
+	.card_name = "BF609",
+	.outputs = adv7511_outputs,
+	.num_outputs = ARRAY_SIZE(adv7511_outputs),
+	.routes = adv7511_routes,
+	.i2c_adapter_id = 0,
+	.board_info = {
+		.type = "adv7511",
+		.addr = 0x39,
+		.platform_data = (void *)&adv7511_data,
+	},
+	.ppi_info = &ppi_info,
+	.ppi_control = (EPPI_CTL_SPLTWRD | PACK_EN | DLEN_16
+			| EPPI_CTL_FS1LO_FS2LO | EPPI_CTL_POLC3
+			| EPPI_CTL_IFSGEN | EPPI_CTL_SYNC2
+			| EPPI_CTL_NON656 | EPPI_CTL_DIR),
+};
+#endif
+
+static struct platform_device bfin_display_device = {
+	.name = "bfin_display",
+	.dev = {
+		.platform_data = &bfin_display_data,
 	},
 };
 #endif
@@ -1477,6 +1551,11 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	|| defined(CONFIG_VIDEO_BLACKFIN_CAPTURE_MODULE)
 	&bfin_capture_device,
 #endif
+#if defined(CONFIG_VIDEO_BLACKFIN_DISPLAY) \
+	|| defined(CONFIG_VIDEO_BLACKFIN_DISPLAY_MODULE)
+	&bfin_display_device,
+#endif
+
 };
 
 static int __init ezkit_init(void)
