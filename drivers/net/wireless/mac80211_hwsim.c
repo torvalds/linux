@@ -1540,11 +1540,6 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 	/* now send back TX status */
 	txi = IEEE80211_SKB_CB(skb);
 
-	if (txi->control.vif)
-		hwsim_check_magic(txi->control.vif);
-	if (txi->control.sta)
-		hwsim_check_sta_magic(txi->control.sta);
-
 	ieee80211_tx_info_clear_status(txi);
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
