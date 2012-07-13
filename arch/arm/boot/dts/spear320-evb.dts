@@ -26,7 +26,7 @@
 
 	ahb {
 		pinmux@b3000000 {
-			st,pinmux-mode = <3>;
+			st,pinmux-mode = <4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&state_default>;
 
