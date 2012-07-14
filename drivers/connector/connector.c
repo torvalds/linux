@@ -1,5 +1,5 @@
 /*
- * 	connector.c
+ *	connector.c
  *
  * 2004+ Copyright (c) Evgeniy Polyakov <zbr@ioremap.net>
  * All rights reserved.
@@ -185,7 +185,8 @@ static void cn_rx_skb(struct sk_buff *__skb)
  * May sleep.
  */
 int cn_add_callback(struct cb_id *id, const char *name,
-		    void (*callback)(struct cn_msg *, struct netlink_skb_parms *))
+		    void (*callback)(struct cn_msg *,
+				     struct netlink_skb_parms *))
 {
 	int err;
 	struct cn_dev *dev = &cdev;
