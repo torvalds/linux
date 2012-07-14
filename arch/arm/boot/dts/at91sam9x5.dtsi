@@ -133,6 +133,7 @@
 					interrupts = <2 4 1>;
 					#gpio-cells = <2>;
 					gpio-controller;
+					#gpio-lines = <19>;
 					interrupt-controller;
 					#interrupt-cells = <2>;
 				};
@@ -153,6 +154,7 @@
 					interrupts = <3 4 1>;
 					#gpio-cells = <2>;
 					gpio-controller;
+					#gpio-lines = <22>;
 					interrupt-controller;
 					#interrupt-cells = <2>;
 				};
