@@ -465,7 +465,7 @@ try_again:
 		goto try_again;
 	} else {
 		len = min(count, sizeof(**uhid->outq));
-		if (copy_to_user(buffer, &uhid->outq[uhid->tail], len)) {
+		if (copy_to_user(buffer, uhid->outq[uhid->tail], len)) {
 			ret = -EFAULT;
 		} else {
 			kfree(uhid->outq[uhid->tail]);
