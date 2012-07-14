@@ -656,34 +656,6 @@ static int mwifiex_ret_802_11d_domain_info(struct mwifiex_private *priv,
 }
 
 /*
- * This function handles the command response of get RF channel.
- *
- * Handling includes changing the header fields into CPU format
- * and saving the new channel in driver.
- */
-static int mwifiex_ret_802_11_rf_channel(struct mwifiex_private *priv,
-					 struct host_cmd_ds_command *resp,
-					 u16 *data_buf)
-{
-	struct host_cmd_ds_802_11_rf_channel *rf_channel =
-		&resp->params.rf_channel;
-	u16 new_channel = le16_to_cpu(rf_channel->current_channel);
-
-	if (priv->curr_bss_params.bss_descriptor.channel != new_channel) {
-		dev_dbg(priv->adapter->dev, "cmd: Channel Switch: %d to %d\n",
-			priv->curr_bss_params.bss_descriptor.channel,
-			new_channel);
-		/* Update the channel again */
-		priv->curr_bss_params.bss_descriptor.channel = new_channel;
-	}
-
-	if (data_buf)
-		*data_buf = new_channel;
-
-	return 0;
-}
-
-/*
  * This function handles the command response of get extended version.
  *
  * Handling includes forming the extended version string and sending it
@@ -934,9 +906,6 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_802_11_TX_RATE_QUERY:
 		ret = mwifiex_ret_802_11_tx_rate_query(priv, resp);
-		break;
-	case HostCmd_CMD_802_11_RF_CHANNEL:
-		ret = mwifiex_ret_802_11_rf_channel(priv, resp, data_buf);
 		break;
 	case HostCmd_CMD_VERSION_EXT:
 		ret = mwifiex_ret_ver_ext(priv, resp, data_buf);

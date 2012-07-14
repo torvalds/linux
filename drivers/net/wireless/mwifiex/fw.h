@@ -225,7 +225,6 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_BBP_REG_ACCESS                    0x001a
 #define HostCmd_CMD_RF_REG_ACCESS                     0x001b
 #define HostCmd_CMD_PMIC_REG_ACCESS                   0x00ad
-#define HostCmd_CMD_802_11_RF_CHANNEL                 0x001d
 #define HostCmd_CMD_RF_TX_PWR                         0x001e
 #define HostCmd_CMD_RF_ANTENNA                        0x0020
 #define HostCmd_CMD_802_11_DEAUTHENTICATE             0x0024
@@ -1292,14 +1291,6 @@ struct host_cmd_tlv_channel_band {
 	u8 channel;
 } __packed;
 
-struct host_cmd_ds_802_11_rf_channel {
-	__le16 action;
-	__le16 current_channel;
-	__le16 rf_type;
-	__le16 reserved;
-	u8 reserved_1[32];
-} __packed;
-
 struct host_cmd_ds_version_ext {
 	u8 version_str_sel;
 	char version_str[128];
@@ -1384,7 +1375,6 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_802_11_rssi_info rssi_info;
 		struct host_cmd_ds_802_11_rssi_info_rsp rssi_info_rsp;
 		struct host_cmd_ds_802_11_snmp_mib smib;
-		struct host_cmd_ds_802_11_rf_channel rf_channel;
 		struct host_cmd_ds_tx_rate_query tx_rate;
 		struct host_cmd_ds_tx_rate_cfg tx_rate_cfg;
 		struct host_cmd_ds_txpwr_cfg txp_cfg;

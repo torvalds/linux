@@ -953,8 +953,6 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 			  const struct mwifiex_user_scan_cfg *user_scan_in);
 int mwifiex_set_radio(struct mwifiex_private *priv, u8 option);
 
-int mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, u16 channel);
-
 int mwifiex_set_encode(struct mwifiex_private *priv, const u8 *key,
 		       int key_len, u8 key_index, const u8 *mac_addr,
 		       int disable);
@@ -993,8 +991,6 @@ int mwifiex_set_tx_power(struct mwifiex_private *priv,
 
 int mwifiex_main_process(struct mwifiex_adapter *);
 
-int mwifiex_bss_set_channel(struct mwifiex_private *,
-			    struct mwifiex_chan_freq_power *cfp);
 int mwifiex_get_bss_info(struct mwifiex_private *,
 			 struct mwifiex_bss_info *);
 int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,

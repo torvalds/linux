@@ -349,7 +349,6 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 		       struct ieee80211_channel *chan,
 		       enum nl80211_channel_type channel_type)
 {
-	struct mwifiex_chan_freq_power cfp;
 	u32 config_bands = 0;
 	struct wiphy *wiphy = priv->wdev->wiphy;
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -389,24 +388,14 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 			mwifiex_cfg80211_channel_type_to_sec_chan_offset
 			(channel_type);
 		adapter->channel_type = channel_type;
+		priv->adhoc_channel =
+			ieee80211_frequency_to_channel(chan->center_freq);
 
 		mwifiex_send_domain_info_cmd_fw(wiphy);
 	}
 
 	wiphy_dbg(wiphy, "info: setting band %d, chan offset %d, mode %d\n",
 		  config_bands, adapter->sec_chan_offset, priv->bss_mode);
-	if (!chan)
-		return 0;
-
-	memset(&cfp, 0, sizeof(cfp));
-	cfp.freq = chan->center_freq;
-	cfp.channel = ieee80211_frequency_to_channel(chan->center_freq);
-
-	if (priv->bss_type == MWIFIEX_BSS_TYPE_STA) {
-		if (mwifiex_bss_set_channel(priv, &cfp))
-			return -EFAULT;
-		return mwifiex_drv_change_adhoc_chan(priv, cfp.channel);
-	}
 
 	return 0;
 }
