@@ -247,6 +247,7 @@ struct nouveau_channel {
 	struct drm_mm notifier_heap;
 
 	/* PFIFO context */
+	struct nouveau_gpuobj *engptr;
 	struct nouveau_gpuobj *ramfc;
 
 	/* Execution engine contexts */
@@ -862,9 +863,6 @@ extern int nouveau_gpuobj_new(struct drm_device *, struct nouveau_channel *,
 			      struct nouveau_gpuobj **);
 extern void nouveau_gpuobj_ref(struct nouveau_gpuobj *,
 			       struct nouveau_gpuobj **);
-extern int nouveau_gpuobj_new_fake(struct drm_device *, u32 pinst, u64 vinst,
-				   u32 size, u32 flags,
-				   struct nouveau_gpuobj **);
 extern int nouveau_gpuobj_dma_new(struct nouveau_channel *, int class,
 				  uint64_t offset, uint64_t size, int access,
 				  int target, struct nouveau_gpuobj **);
