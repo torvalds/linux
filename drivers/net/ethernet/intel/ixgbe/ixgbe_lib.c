@@ -29,6 +29,83 @@
 #include "ixgbe_sriov.h"
 
 #ifdef CONFIG_IXGBE_DCB
+/**
+ * ixgbe_cache_ring_dcb_sriov - Descriptor ring to register mapping for SR-IOV
+ * @adapter: board private structure to initialize
+ *
+ * Cache the descriptor ring offsets for SR-IOV to the assigned rings.  It
+ * will also try to cache the proper offsets if RSS/FCoE are enabled along
+ * with VMDq.
+ *
+ **/
+static bool ixgbe_cache_ring_dcb_sriov(struct ixgbe_adapter *adapter)
+{
+#ifdef IXGBE_FCOE
+	struct ixgbe_ring_feature *fcoe = &adapter->ring_feature[RING_F_FCOE];
+#endif /* IXGBE_FCOE */
+	struct ixgbe_ring_feature *vmdq = &adapter->ring_feature[RING_F_VMDQ];
+	int i;
+	u16 reg_idx;
+	u8 tcs = netdev_get_num_tc(adapter->netdev);
+
+	/* verify we have DCB queueing enabled before proceeding */
+	if (tcs <= 1)
+		return false;
+
+	/* verify we have VMDq enabled before proceeding */
+	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
+		return false;
+
+	/* start at VMDq register offset for SR-IOV enabled setups */
+	reg_idx = vmdq->offset * __ALIGN_MASK(1, ~vmdq->mask);
+	for (i = 0; i < adapter->num_rx_queues; i++, reg_idx++) {
+		/* If we are greater than indices move to next pool */
+		if ((reg_idx & ~vmdq->mask) >= tcs)
+			reg_idx = __ALIGN_MASK(reg_idx, ~vmdq->mask);
+		adapter->rx_ring[i]->reg_idx = reg_idx;
+	}
+
+	reg_idx = vmdq->offset * __ALIGN_MASK(1, ~vmdq->mask);
+	for (i = 0; i < adapter->num_tx_queues; i++, reg_idx++) {
+		/* If we are greater than indices move to next pool */
+		if ((reg_idx & ~vmdq->mask) >= tcs)
+			reg_idx = __ALIGN_MASK(reg_idx, ~vmdq->mask);
+		adapter->tx_ring[i]->reg_idx = reg_idx;
+	}
+
+#ifdef IXGBE_FCOE
+	/* nothing to do if FCoE is disabled */
+	if (!(adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
+		return true;
+
+	/* The work is already done if the FCoE ring is shared */
+	if (fcoe->offset < tcs)
+		return true;
+
+	/* The FCoE rings exist separately, we need to move their reg_idx */
+	if (fcoe->indices) {
+		u16 queues_per_pool = __ALIGN_MASK(1, ~vmdq->mask);
+		u8 fcoe_tc = ixgbe_fcoe_get_tc(adapter);
+
+		reg_idx = (vmdq->offset + vmdq->indices) * queues_per_pool;
+		for (i = fcoe->offset; i < adapter->num_rx_queues; i++) {
+			reg_idx = __ALIGN_MASK(reg_idx, ~vmdq->mask) + fcoe_tc;
+			adapter->rx_ring[i]->reg_idx = reg_idx;
+			reg_idx++;
+		}
+
+		reg_idx = (vmdq->offset + vmdq->indices) * queues_per_pool;
+		for (i = fcoe->offset; i < adapter->num_tx_queues; i++) {
+			reg_idx = __ALIGN_MASK(reg_idx, ~vmdq->mask) + fcoe_tc;
+			adapter->tx_ring[i]->reg_idx = reg_idx;
+			reg_idx++;
+		}
+	}
+
+#endif /* IXGBE_FCOE */
+	return true;
+}
+
 /* ixgbe_get_first_reg_idx - Return first register index associated with ring */
 static void ixgbe_get_first_reg_idx(struct ixgbe_adapter *adapter, u8 tc,
 				    unsigned int *tx, unsigned int *rx)
@@ -120,14 +197,61 @@ static bool ixgbe_cache_ring_dcb(struct ixgbe_adapter *adapter)
  * no other mapping is used.
  *
  */
-static inline bool ixgbe_cache_ring_sriov(struct ixgbe_adapter *adapter)
+static bool ixgbe_cache_ring_sriov(struct ixgbe_adapter *adapter)
 {
-	adapter->rx_ring[0]->reg_idx = adapter->num_vfs * 2;
-	adapter->tx_ring[0]->reg_idx = adapter->num_vfs * 2;
-	if (adapter->num_vfs)
-		return true;
-	else
+#ifdef IXGBE_FCOE
+	struct ixgbe_ring_feature *fcoe = &adapter->ring_feature[RING_F_FCOE];
+#endif /* IXGBE_FCOE */
+	struct ixgbe_ring_feature *vmdq = &adapter->ring_feature[RING_F_VMDQ];
+	struct ixgbe_ring_feature *rss = &adapter->ring_feature[RING_F_RSS];
+	int i;
+	u16 reg_idx;
+
+	/* only proceed if VMDq is enabled */
+	if (!(adapter->flags & IXGBE_FLAG_VMDQ_ENABLED))
 		return false;
+
+	/* start at VMDq register offset for SR-IOV enabled setups */
+	reg_idx = vmdq->offset * __ALIGN_MASK(1, ~vmdq->mask);
+	for (i = 0; i < adapter->num_rx_queues; i++, reg_idx++) {
+#ifdef IXGBE_FCOE
+		/* Allow first FCoE queue to be mapped as RSS */
+		if (fcoe->offset && (i > fcoe->offset))
+			break;
+#endif
+		/* If we are greater than indices move to next pool */
+		if ((reg_idx & ~vmdq->mask) >= rss->indices)
+			reg_idx = __ALIGN_MASK(reg_idx, ~vmdq->mask);
+		adapter->rx_ring[i]->reg_idx = reg_idx;
+	}
+
+#ifdef IXGBE_FCOE
+	/* FCoE uses a linear block of queues so just assigning 1:1 */
+	for (; i < adapter->num_rx_queues; i++, reg_idx++)
+		adapter->rx_ring[i]->reg_idx = reg_idx;
+
+#endif
+	reg_idx = vmdq->offset * __ALIGN_MASK(1, ~vmdq->mask);
+	for (i = 0; i < adapter->num_tx_queues; i++, reg_idx++) {
+#ifdef IXGBE_FCOE
+		/* Allow first FCoE queue to be mapped as RSS */
+		if (fcoe->offset && (i > fcoe->offset))
+			break;
+#endif
+		/* If we are greater than indices move to next pool */
+		if ((reg_idx & rss->mask) >= rss->indices)
+			reg_idx = __ALIGN_MASK(reg_idx, ~vmdq->mask);
+		adapter->tx_ring[i]->reg_idx = reg_idx;
+	}
+
+#ifdef IXGBE_FCOE
+	/* FCoE uses a linear block of queues so just assigning 1:1 */
+	for (; i < adapter->num_tx_queues; i++, reg_idx++)
+		adapter->tx_ring[i]->reg_idx = reg_idx;
+
+#endif
+
+	return true;
 }
 
 /**
@@ -169,28 +293,18 @@ static void ixgbe_cache_ring_register(struct ixgbe_adapter *adapter)
 	adapter->rx_ring[0]->reg_idx = 0;
 	adapter->tx_ring[0]->reg_idx = 0;
 
+#ifdef CONFIG_IXGBE_DCB
+	if (ixgbe_cache_ring_dcb_sriov(adapter))
+		return;
+
+	if (ixgbe_cache_ring_dcb(adapter))
+		return;
+
+#endif
 	if (ixgbe_cache_ring_sriov(adapter))
 		return;
 
-#ifdef CONFIG_IXGBE_DCB
-	if (ixgbe_cache_ring_dcb(adapter))
-		return;
-#endif
-
 	ixgbe_cache_ring_rss(adapter);
-}
-
-/**
- * ixgbe_set_sriov_queues - Allocate queues for IOV use
- * @adapter: board private structure to initialize
- *
- * IOV doesn't actually use anything, so just NAK the
- * request for now and let the other queue routines
- * figure out what to do.
- */
-static inline bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
-{
-	return false;
 }
 
 #define IXGBE_RSS_16Q_MASK	0xF
@@ -200,6 +314,109 @@ static inline bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
 #define IXGBE_RSS_DISABLED_MASK	0x0
 
 #ifdef CONFIG_IXGBE_DCB
+/**
+ * ixgbe_set_dcb_sriov_queues: Allocate queues for SR-IOV devices w/ DCB
+ * @adapter: board private structure to initialize
+ *
+ * When SR-IOV (Single Root IO Virtualiztion) is enabled, allocate queues
+ * and VM pools where appropriate.  Also assign queues based on DCB
+ * priorities and map accordingly..
+ *
+ **/
+static bool ixgbe_set_dcb_sriov_queues(struct ixgbe_adapter *adapter)
+{
+	int i;
+	u16 vmdq_i = adapter->ring_feature[RING_F_VMDQ].limit;
+	u16 vmdq_m = 0;
+#ifdef IXGBE_FCOE
+	u16 fcoe_i = 0;
+#endif
+	u8 tcs = netdev_get_num_tc(adapter->netdev);
+
+	/* verify we have DCB queueing enabled before proceeding */
+	if (tcs <= 1)
+		return false;
+
+	/* verify we have VMDq enabled before proceeding */
+	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
+		return false;
+
+	/* Add starting offset to total pool count */
+	vmdq_i += adapter->ring_feature[RING_F_VMDQ].offset;
+
+	/* 16 pools w/ 8 TC per pool */
+	if (tcs > 4) {
+		vmdq_i = min_t(u16, vmdq_i, 16);
+		vmdq_m = IXGBE_82599_VMDQ_8Q_MASK;
+	/* 32 pools w/ 4 TC per pool */
+	} else {
+		vmdq_i = min_t(u16, vmdq_i, 32);
+		vmdq_m = IXGBE_82599_VMDQ_4Q_MASK;
+	}
+
+#ifdef IXGBE_FCOE
+	/* queues in the remaining pools are available for FCoE */
+	fcoe_i = (128 / __ALIGN_MASK(1, ~vmdq_m)) - vmdq_i;
+
+#endif
+	/* remove the starting offset from the pool count */
+	vmdq_i -= adapter->ring_feature[RING_F_VMDQ].offset;
+
+	/* save features for later use */
+	adapter->ring_feature[RING_F_VMDQ].indices = vmdq_i;
+	adapter->ring_feature[RING_F_VMDQ].mask = vmdq_m;
+
+	/*
+	 * We do not support DCB, VMDq, and RSS all simultaneously
+	 * so we will disable RSS since it is the lowest priority
+	 */
+	adapter->ring_feature[RING_F_RSS].indices = 1;
+	adapter->ring_feature[RING_F_RSS].mask = IXGBE_RSS_DISABLED_MASK;
+
+	adapter->num_rx_pools = vmdq_i;
+	adapter->num_rx_queues_per_pool = tcs;
+
+	adapter->num_tx_queues = vmdq_i * tcs;
+	adapter->num_rx_queues = vmdq_i * tcs;
+
+#ifdef IXGBE_FCOE
+	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+		struct ixgbe_ring_feature *fcoe;
+
+		fcoe = &adapter->ring_feature[RING_F_FCOE];
+
+		/* limit ourselves based on feature limits */
+		fcoe_i = min_t(u16, fcoe_i, num_online_cpus());
+		fcoe_i = min_t(u16, fcoe_i, fcoe->limit);
+
+		if (fcoe_i) {
+			/* alloc queues for FCoE separately */
+			fcoe->indices = fcoe_i;
+			fcoe->offset = vmdq_i * tcs;
+
+			/* add queues to adapter */
+			adapter->num_tx_queues += fcoe_i;
+			adapter->num_rx_queues += fcoe_i;
+		} else if (tcs > 1) {
+			/* use queue belonging to FcoE TC */
+			fcoe->indices = 1;
+			fcoe->offset = ixgbe_fcoe_get_tc(adapter);
+		} else {
+			adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
+
+			fcoe->indices = 0;
+			fcoe->offset = 0;
+		}
+	}
+
+#endif /* IXGBE_FCOE */
+	/* configure TC to queue mapping */
+	for (i = 0; i < tcs; i++)
+		netdev_set_tc_queue(adapter->netdev, i, 1, i);
+
+	return true;
+}
+
 static bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 {
 	struct net_device *dev = adapter->netdev;
@@ -261,6 +478,117 @@ static bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 }
 
 #endif
+/**
+ * ixgbe_set_sriov_queues - Allocate queues for SR-IOV devices
+ * @adapter: board private structure to initialize
+ *
+ * When SR-IOV (Single Root IO Virtualiztion) is enabled, allocate queues
+ * and VM pools where appropriate.  If RSS is available, then also try and
+ * enable RSS and map accordingly.
+ *
+ **/
+static bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
+{
+	u16 vmdq_i = adapter->ring_feature[RING_F_VMDQ].limit;
+	u16 vmdq_m = 0;
+	u16 rss_i = adapter->ring_feature[RING_F_RSS].limit;
+	u16 rss_m = IXGBE_RSS_DISABLED_MASK;
+#ifdef IXGBE_FCOE
+	u16 fcoe_i = 0;
+#endif
+
+	/* only proceed if SR-IOV is enabled */
+	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
+		return false;
+
+	/* Add starting offset to total pool count */
+	vmdq_i += adapter->ring_feature[RING_F_VMDQ].offset;
+
+	/* double check we are limited to maximum pools */
+	vmdq_i = min_t(u16, IXGBE_MAX_VMDQ_INDICES, vmdq_i);
+
+	/* 64 pool mode with 2 queues per pool */
+	if ((vmdq_i > 32) || (rss_i < 4)) {
+		vmdq_m = IXGBE_82599_VMDQ_2Q_MASK;
+		rss_m = IXGBE_RSS_2Q_MASK;
+		rss_i = min_t(u16, rss_i, 2);
+	/* 32 pool mode with 4 queues per pool */
+	} else {
+		vmdq_m = IXGBE_82599_VMDQ_4Q_MASK;
+		rss_m = IXGBE_RSS_4Q_MASK;
+		rss_i = 4;
+	}
+
+#ifdef IXGBE_FCOE
+	/* queues in the remaining pools are available for FCoE */
+	fcoe_i = 128 - (vmdq_i * __ALIGN_MASK(1, ~vmdq_m));
+
+#endif
+	/* remove the starting offset from the pool count */
+	vmdq_i -= adapter->ring_feature[RING_F_VMDQ].offset;
+
+	/* save features for later use */
+	adapter->ring_feature[RING_F_VMDQ].indices = vmdq_i;
+	adapter->ring_feature[RING_F_VMDQ].mask = vmdq_m;
+
+	/* limit RSS based on user input and save for later use */
+	adapter->ring_feature[RING_F_RSS].indices = rss_i;
+	adapter->ring_feature[RING_F_RSS].mask = rss_m;
+
+	adapter->num_rx_pools = vmdq_i;
+	adapter->num_rx_queues_per_pool = rss_i;
+
+	adapter->num_rx_queues = vmdq_i * rss_i;
+	adapter->num_tx_queues = vmdq_i * rss_i;
+
+	/* disable ATR as it is not supported when VMDq is enabled */
+	adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
+
+#ifdef IXGBE_FCOE
+	/*
+	 * FCoE can use rings from adjacent buffers to allow RSS
+	 * like behavior.  To account for this we need to add the
+	 * FCoE indices to the total ring count.
+	 */
+	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+		struct ixgbe_ring_feature *fcoe;
+
+		fcoe = &adapter->ring_feature[RING_F_FCOE];
+
+		/* limit ourselves based on feature limits */
+		fcoe_i = min_t(u16, fcoe_i, fcoe->limit);
+
+		if (vmdq_i > 1 && fcoe_i) {
+			/* reserve no more than number of CPUs */
+			fcoe_i = min_t(u16, fcoe_i, num_online_cpus());
+
+			/* alloc queues for FCoE separately */
+			fcoe->indices = fcoe_i;
+			fcoe->offset = vmdq_i * rss_i;
+		} else {
+			/* merge FCoE queues with RSS queues */
+			fcoe_i = min_t(u16, fcoe_i + rss_i, num_online_cpus());
+
+			/* limit indices to rss_i if MSI-X is disabled */
+			if (!(adapter->flags & IXGBE_FLAG_MSIX_ENABLED))
+				fcoe_i = rss_i;
+
+			/* attempt to reserve some queues for just FCoE */
+			fcoe->indices = min_t(u16, fcoe_i, fcoe->limit);
+			fcoe->offset = fcoe_i - fcoe->indices;
+
+			fcoe_i -= rss_i;
+		}
+
+		/* add queues to adapter */
+		adapter->num_tx_queues += fcoe_i;
+		adapter->num_rx_queues += fcoe_i;
+	}
+
+#endif
+	return true;
+}
+
 /**
  * ixgbe_set_rss_queues - Allocate queues for RSS
  * @adapter: board private structure to initialize
@@ -353,14 +681,17 @@ static void ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 	adapter->num_rx_pools = adapter->num_rx_queues;
 	adapter->num_rx_queues_per_pool = 1;
 
-	if (ixgbe_set_sriov_queues(adapter))
+#ifdef CONFIG_IXGBE_DCB
+	if (ixgbe_set_dcb_sriov_queues(adapter))
 		return;
 
-#ifdef CONFIG_IXGBE_DCB
 	if (ixgbe_set_dcb_queues(adapter))
 		return;
 
 #endif
+	if (ixgbe_set_sriov_queues(adapter))
+		return;
+
 	ixgbe_set_rss_queues(adapter);
 }
 

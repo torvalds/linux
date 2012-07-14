@@ -3161,9 +3161,18 @@ static void ixgbe_configure_virtualization(struct ixgbe_adapter *adapter)
 	 * Set up VF register offsets for selected VT Mode,
 	 * i.e. 32 or 64 VFs for SR-IOV
 	 */
-	gcr_ext = IXGBE_READ_REG(hw, IXGBE_GCR_EXT);
-	gcr_ext |= IXGBE_GCR_EXT_MSIX_EN;
-	gcr_ext |= IXGBE_GCR_EXT_VT_MODE_64;
+	switch (adapter->ring_feature[RING_F_VMDQ].mask) {
+	case IXGBE_82599_VMDQ_8Q_MASK:
+		gcr_ext = IXGBE_GCR_EXT_VT_MODE_16;
+		break;
+	case IXGBE_82599_VMDQ_4Q_MASK:
+		gcr_ext = IXGBE_GCR_EXT_VT_MODE_32;
+		break;
+	default:
+		gcr_ext = IXGBE_GCR_EXT_VT_MODE_64;
+		break;
+	}
+
 	IXGBE_WRITE_REG(hw, IXGBE_GCR_EXT, gcr_ext);
 
 	/* enable Tx loopback for VF/PF communication */
@@ -3947,7 +3956,18 @@ static void ixgbe_setup_gpie(struct ixgbe_adapter *adapter)
 
 	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
 		gpie &= ~IXGBE_GPIE_VTMODE_MASK;
-		gpie |= IXGBE_GPIE_VTMODE_64;
+
+		switch (adapter->ring_feature[RING_F_VMDQ].mask) {
+		case IXGBE_82599_VMDQ_8Q_MASK:
+			gpie |= IXGBE_GPIE_VTMODE_16;
+			break;
+		case IXGBE_82599_VMDQ_4Q_MASK:
+			gpie |= IXGBE_GPIE_VTMODE_32;
+			break;
+		default:
+			gpie |= IXGBE_GPIE_VTMODE_64;
+			break;
+		}
 	}
 
 	/* Enable Thermal over heat sensor interrupt */
@@ -6674,11 +6694,6 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 		return -EINVAL;
 	}
 
-	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
-		e_err(drv, "Enable failed, SR-IOV enabled\n");
-		return -EINVAL;
-	}
-
 	/* Hardware supports up to 8 traffic classes */
 	if (tc > adapter->dcb_cfg.num_tcs.pg_tcs ||
 	    (hw->mac.type == ixgbe_mac_82598EB &&
@@ -7224,10 +7239,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 	netdev->priv_flags |= IFF_SUPP_NOFCS;
-
-	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
-		adapter->flags &= ~(IXGBE_FLAG_RSS_ENABLED |
-				    IXGBE_FLAG_DCB_ENABLED);
 
 #ifdef CONFIG_IXGBE_DCB
 	netdev->dcbnl_ops = &dcbnl_ops;

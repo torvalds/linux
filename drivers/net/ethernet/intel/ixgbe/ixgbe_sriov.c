@@ -107,14 +107,20 @@ void ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
 			 "VF drivers to avoid spoofed packet errors\n");
 	} else {
 		err = pci_enable_sriov(adapter->pdev, adapter->num_vfs);
+		if (err) {
+			e_err(probe, "Failed to enable PCI sriov: %d\n", err);
+			goto err_novfs;
+		}
 	}
-	if (err) {
-		e_err(probe, "Failed to enable PCI sriov: %d\n", err);
-		goto err_novfs;
-	}
-	adapter->flags |= IXGBE_FLAG_SRIOV_ENABLED;
 
+	adapter->flags |= IXGBE_FLAG_SRIOV_ENABLED;
 	e_info(probe, "SR-IOV enabled with %d VFs\n", adapter->num_vfs);
+
+	/* Enable VMDq flag so device will be set in VM mode */
+	adapter->flags |= IXGBE_FLAG_VMDQ_ENABLED;
+	if (!adapter->ring_feature[RING_F_VMDQ].limit)
+		adapter->ring_feature[RING_F_VMDQ].limit = 1;
+	adapter->ring_feature[RING_F_VMDQ].offset = adapter->num_vfs;
 
 	num_vf_macvlans = hw->mac.num_rar_entries -
 	(IXGBE_MAX_PF_MACVLANS + 1 + adapter->num_vfs);
@@ -146,12 +152,39 @@ void ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
 		 * and memory allocated set up the mailbox parameters
 		 */
 		ixgbe_init_mbx_params_pf(hw);
-		memcpy(&hw->mbx.ops, ii->mbx_ops,
-		       sizeof(hw->mbx.ops));
+		memcpy(&hw->mbx.ops, ii->mbx_ops, sizeof(hw->mbx.ops));
+
+		/* limit trafffic classes based on VFs enabled */
+		if ((adapter->hw.mac.type == ixgbe_mac_82599EB) &&
+		    (adapter->num_vfs < 16)) {
+			adapter->dcb_cfg.num_tcs.pg_tcs = MAX_TRAFFIC_CLASS;
+			adapter->dcb_cfg.num_tcs.pfc_tcs = MAX_TRAFFIC_CLASS;
+		} else if (adapter->num_vfs < 32) {
+			adapter->dcb_cfg.num_tcs.pg_tcs = 4;
+			adapter->dcb_cfg.num_tcs.pfc_tcs = 4;
+		} else {
+			adapter->dcb_cfg.num_tcs.pg_tcs = 1;
+			adapter->dcb_cfg.num_tcs.pfc_tcs = 1;
+		}
+
+		/* We do not support RSS w/ SR-IOV */
+		adapter->ring_feature[RING_F_RSS].limit = 1;
 
 		/* Disable RSC when in SR-IOV mode */
 		adapter->flags2 &= ~(IXGBE_FLAG2_RSC_CAPABLE |
 				     IXGBE_FLAG2_RSC_ENABLED);
+
+#ifdef IXGBE_FCOE
+		/*
+		 * When SR-IOV is enabled 82599 cannot support jumbo frames
+		 * so we must disable FCoE because we cannot support FCoE MTU.
+		 */
+		if (adapter->hw.mac.type == ixgbe_mac_82599EB)
+			adapter->flags &= ~(IXGBE_FLAG_FCOE_ENABLED |
+					    IXGBE_FLAG_FCOE_CAPABLE);
+#endif
+
+		/* enable spoof checking for all VFs */
 		for (i = 0; i < adapter->num_vfs; i++)
 			adapter->vfinfo[i].spoofchk_enabled = true;
 		return;
@@ -171,7 +204,6 @@ err_novfs:
 void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 gcr;
 	u32 gpie;
 	u32 vmdctl;
 	int i;
@@ -182,9 +214,7 @@ void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 #endif
 
 	/* turn off device IOV mode */
-	gcr = IXGBE_READ_REG(hw, IXGBE_GCR_EXT);
-	gcr &= ~(IXGBE_GCR_EXT_SRIOV);
-	IXGBE_WRITE_REG(hw, IXGBE_GCR_EXT, gcr);
+	IXGBE_WRITE_REG(hw, IXGBE_GCR_EXT, 0);
 	gpie = IXGBE_READ_REG(hw, IXGBE_GPIE);
 	gpie &= ~IXGBE_GPIE_VTMODE_MASK;
 	IXGBE_WRITE_REG(hw, IXGBE_GPIE, gpie);

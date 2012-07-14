@@ -284,6 +284,10 @@ struct ixgbe_ring_feature {
 	u16 offset;	/* offset to start of feature */
 } ____cacheline_internodealigned_in_smp;
 
+#define IXGBE_82599_VMDQ_8Q_MASK 0x78
+#define IXGBE_82599_VMDQ_4Q_MASK 0x7C
+#define IXGBE_82599_VMDQ_2Q_MASK 0x7E
+
 /*
  * FCoE requires that all Rx buffers be over 2200 bytes in length.  Since
  * this is twice the size of a half page we need to double the page order
