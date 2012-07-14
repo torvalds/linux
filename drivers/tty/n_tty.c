@@ -1466,7 +1466,7 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 	BUG_ON(!tty);
 
 	if (old)
-		canon_change = (old->c_lflag ^ tty->termios->c_lflag) & ICANON;
+		canon_change = (old->c_lflag ^ tty->termios.c_lflag) & ICANON;
 	if (canon_change) {
 		memset(&tty->read_flags, 0, sizeof tty->read_flags);
 		tty->canon_head = tty->read_tail;

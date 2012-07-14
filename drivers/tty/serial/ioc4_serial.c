@@ -1803,7 +1803,7 @@ static inline int ic4_startup_local(struct uart_port *the_port)
 	ioc4_set_proto(port, the_port->mapbase);
 
 	/* set the speed of the serial port */
-	ioc4_change_speed(the_port, state->port.tty->termios,
+	ioc4_change_speed(the_port, &state->port.tty->termios,
 			  (struct ktermios *)0);
 
 	return 0;

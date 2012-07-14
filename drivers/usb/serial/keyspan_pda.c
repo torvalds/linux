@@ -338,7 +338,7 @@ static void keyspan_pda_set_termios(struct tty_struct *tty,
 	   7[EOMS]1: 10 bit, b0/b7 is parity
 	   7[EOMS]2: 11 bit, b0/b7 is parity, extra bit always (mark?)
 
-	   HW flow control is dictated by the tty->termios->c_cflags & CRTSCTS
+	   HW flow control is dictated by the tty->termios.c_cflags & CRTSCTS
 	   bit.
 
 	   For now, just do baud. */
@@ -353,7 +353,7 @@ static void keyspan_pda_set_termios(struct tty_struct *tty,
 	}
 	/* Only speed can change so copy the old h/w parameters
 	   then encode the new speed */
-	tty_termios_copy_hw(tty->termios, old_termios);
+	tty_termios_copy_hw(&tty->termios, old_termios);
 	tty_encode_baud_rate(tty, speed, speed);
 }
 

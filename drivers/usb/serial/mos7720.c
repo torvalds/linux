@@ -1349,7 +1349,7 @@ static void mos7720_throttle(struct tty_struct *tty)
 	}
 
 	/* if we are implementing RTS/CTS, toggle that line */
-	if (tty->termios->c_cflag & CRTSCTS) {
+	if (tty->termios.c_cflag & CRTSCTS) {
 		mos7720_port->shadowMCR &= ~UART_MCR_RTS;
 		write_mos_reg(port->serial, port->number - port->serial->minor,
 			      MCR, mos7720_port->shadowMCR);
@@ -1383,7 +1383,7 @@ static void mos7720_unthrottle(struct tty_struct *tty)
 	}
 
 	/* if we are implementing RTS/CTS, toggle that line */
-	if (tty->termios->c_cflag & CRTSCTS) {
+	if (tty->termios.c_cflag & CRTSCTS) {
 		mos7720_port->shadowMCR |= UART_MCR_RTS;
 		write_mos_reg(port->serial, port->number - port->serial->minor,
 			      MCR, mos7720_port->shadowMCR);
@@ -1604,8 +1604,8 @@ static void change_port_settings(struct tty_struct *tty,
 	lStop = 0x00;	/* 1 stop bit */
 	lParity = 0x00;	/* No parity */
 
-	cflag = tty->termios->c_cflag;
-	iflag = tty->termios->c_iflag;
+	cflag = tty->termios.c_cflag;
+	iflag = tty->termios.c_iflag;
 
 	/* Change the number of bits */
 	switch (cflag & CSIZE) {
@@ -1753,11 +1753,11 @@ static void mos7720_set_termios(struct tty_struct *tty,
 
 	dbg("%s\n", "setting termios - ASPIRE");
 
-	cflag = tty->termios->c_cflag;
+	cflag = tty->termios.c_cflag;
 
 	dbg("%s - cflag %08x iflag %08x", __func__,
-	    tty->termios->c_cflag,
-	    RELEVANT_IFLAG(tty->termios->c_iflag));
+	    tty->termios.c_cflag,
+	    RELEVANT_IFLAG(tty->termios.c_iflag));
 
 	dbg("%s - old cflag %08x old iflag %08x", __func__,
 	    old_termios->c_cflag,

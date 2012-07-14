@@ -454,7 +454,7 @@ static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port)
 	 * either.
 	 */
 	spin_lock_irqsave(&priv->lock, flags);
-	if (tty && (tty->termios->c_cflag & CBAUD))
+	if (tty && (tty->termios.c_cflag & CBAUD))
 		priv->control_state = TIOCM_DTR | TIOCM_RTS;
 	else
 		priv->control_state = 0;
@@ -634,7 +634,7 @@ static void mct_u232_set_termios(struct tty_struct *tty,
 {
 	struct usb_serial *serial = port->serial;
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);
-	struct ktermios *termios = tty->termios;
+	struct ktermios *termios = &tty->termios;
 	unsigned int cflag = termios->c_cflag;
 	unsigned int old_cflag = old_termios->c_cflag;
 	unsigned long flags;

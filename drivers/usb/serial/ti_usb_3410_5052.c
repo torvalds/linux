@@ -520,7 +520,7 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 	}
 
 	if (tty)
-		ti_set_termios(tty, port, tty->termios);
+		ti_set_termios(tty, port, &tty->termios);
 
 	dbg("%s - sending TI_OPEN_PORT", __func__);
 	status = ti_command_out_sync(tdev, TI_OPEN_PORT,
@@ -562,7 +562,7 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 	usb_clear_halt(dev, port->read_urb->pipe);
 
 	if (tty)
-		ti_set_termios(tty, port, tty->termios);
+		ti_set_termios(tty, port, &tty->termios);
 
 	dbg("%s - sending TI_OPEN_PORT (2)", __func__);
 	status = ti_command_out_sync(tdev, TI_OPEN_PORT,
@@ -831,8 +831,8 @@ static void ti_set_termios(struct tty_struct *tty,
 	int port_number = port->number - port->serial->minor;
 	unsigned int mcr;
 
-	cflag = tty->termios->c_cflag;
-	iflag = tty->termios->c_iflag;
+	cflag = tty->termios.c_cflag;
+	iflag = tty->termios.c_iflag;
 
 	dbg("%s - cflag %08x, iflag %08x", __func__, cflag, iflag);
 	dbg("%s - old clfag %08x, old iflag %08x", __func__,
@@ -871,7 +871,7 @@ static void ti_set_termios(struct tty_struct *tty,
 	}
 
 	/* CMSPAR isn't supported by this driver */
-	tty->termios->c_cflag &= ~CMSPAR;
+	tty->termios.c_cflag &= ~CMSPAR;
 
 	if (cflag & PARENB) {
 		if (cflag & PARODD) {

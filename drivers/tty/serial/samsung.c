@@ -1035,7 +1035,7 @@ static int s3c24xx_serial_cpufreq_transition(struct notifier_block *nb,
 		if (tty == NULL)
 			goto exit;
 
-		termios = tty->termios;
+		termios = &tty->termios;
 
 		if (termios == NULL) {
 			printk(KERN_WARNING "%s: no termios?\n", __func__);

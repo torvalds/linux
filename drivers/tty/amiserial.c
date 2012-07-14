@@ -646,7 +646,7 @@ static void shutdown(struct tty_struct *tty, struct serial_state *info)
 	custom.adkcon = AC_UARTBRK;
 	mb();
 
-	if (tty->termios->c_cflag & HUPCL)
+	if (tty->termios.c_cflag & HUPCL)
 		info->MCR &= ~(SER_DTR|SER_RTS);
 	rtsdtr_ctrl(info->MCR);
 
@@ -670,7 +670,7 @@ static void change_speed(struct tty_struct *tty, struct serial_state *info,
 	int	bits;
 	unsigned long	flags;
 
-	cflag = tty->termios->c_cflag;
+	cflag = tty->termios.c_cflag;
 
 	/* Byte size is always 8 bits plus parity bit if requested */
 
@@ -707,8 +707,8 @@ static void change_speed(struct tty_struct *tty, struct serial_state *info,
 	/* If the quotient is zero refuse the change */
 	if (!quot && old_termios) {
 		/* FIXME: Will need updating for new tty in the end */
-		tty->termios->c_cflag &= ~CBAUD;
-		tty->termios->c_cflag |= (old_termios->c_cflag & CBAUD);
+		tty->termios.c_cflag &= ~CBAUD;
+		tty->termios.c_cflag |= (old_termios->c_cflag & CBAUD);
 		baud = tty_get_baud_rate(tty);
 		if (!baud)
 			baud = 9600;
@@ -984,7 +984,7 @@ static void rs_throttle(struct tty_struct * tty)
 	if (I_IXOFF(tty))
 		rs_send_xchar(tty, STOP_CHAR(tty));
 
-	if (tty->termios->c_cflag & CRTSCTS)
+	if (tty->termios.c_cflag & CRTSCTS)
 		info->MCR &= ~SER_RTS;
 
 	local_irq_save(flags);
@@ -1012,7 +1012,7 @@ static void rs_unthrottle(struct tty_struct * tty)
 		else
 			rs_send_xchar(tty, START_CHAR(tty));
 	}
-	if (tty->termios->c_cflag & CRTSCTS)
+	if (tty->termios.c_cflag & CRTSCTS)
 		info->MCR |= SER_RTS;
 	local_irq_save(flags);
 	rtsdtr_ctrl(info->MCR);
@@ -1330,7 +1330,7 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
-	unsigned int cflag = tty->termios->c_cflag;
+	unsigned int cflag = tty->termios.c_cflag;
 
 	change_speed(tty, info, old_termios);
 
@@ -1347,7 +1347,7 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	if (!(old_termios->c_cflag & CBAUD) &&
 	    (cflag & CBAUD)) {
 		info->MCR |= SER_DTR;
-		if (!(tty->termios->c_cflag & CRTSCTS) || 
+		if (!(tty->termios.c_cflag & CRTSCTS) || 
 		    !test_bit(TTY_THROTTLED, &tty->flags)) {
 			info->MCR |= SER_RTS;
 		}
@@ -1358,7 +1358,7 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 
 	/* Handle turning off CRTSCTS */
 	if ((old_termios->c_cflag & CRTSCTS) &&
-	    !(tty->termios->c_cflag & CRTSCTS)) {
+	    !(tty->termios.c_cflag & CRTSCTS)) {
 		tty->hw_stopped = 0;
 		rs_start(tty);
 	}
@@ -1371,7 +1371,7 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	 * or not.  Hence, this may change.....
 	 */
 	if (!(old_termios->c_cflag & CLOCAL) &&
-	    (tty->termios->c_cflag & CLOCAL))
+	    (tty->termios.c_cflag & CLOCAL))
 		wake_up_interruptible(&info->open_wait);
 #endif
 }

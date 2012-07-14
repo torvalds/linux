@@ -103,28 +103,28 @@ struct tty_bufhead {
 #define TTY_PARITY	3
 #define TTY_OVERRUN	4
 
-#define INTR_CHAR(tty) ((tty)->termios->c_cc[VINTR])
-#define QUIT_CHAR(tty) ((tty)->termios->c_cc[VQUIT])
-#define ERASE_CHAR(tty) ((tty)->termios->c_cc[VERASE])
-#define KILL_CHAR(tty) ((tty)->termios->c_cc[VKILL])
-#define EOF_CHAR(tty) ((tty)->termios->c_cc[VEOF])
-#define TIME_CHAR(tty) ((tty)->termios->c_cc[VTIME])
-#define MIN_CHAR(tty) ((tty)->termios->c_cc[VMIN])
-#define SWTC_CHAR(tty) ((tty)->termios->c_cc[VSWTC])
-#define START_CHAR(tty) ((tty)->termios->c_cc[VSTART])
-#define STOP_CHAR(tty) ((tty)->termios->c_cc[VSTOP])
-#define SUSP_CHAR(tty) ((tty)->termios->c_cc[VSUSP])
-#define EOL_CHAR(tty) ((tty)->termios->c_cc[VEOL])
-#define REPRINT_CHAR(tty) ((tty)->termios->c_cc[VREPRINT])
-#define DISCARD_CHAR(tty) ((tty)->termios->c_cc[VDISCARD])
-#define WERASE_CHAR(tty) ((tty)->termios->c_cc[VWERASE])
-#define LNEXT_CHAR(tty)	((tty)->termios->c_cc[VLNEXT])
-#define EOL2_CHAR(tty) ((tty)->termios->c_cc[VEOL2])
+#define INTR_CHAR(tty) ((tty)->termios.c_cc[VINTR])
+#define QUIT_CHAR(tty) ((tty)->termios.c_cc[VQUIT])
+#define ERASE_CHAR(tty) ((tty)->termios.c_cc[VERASE])
+#define KILL_CHAR(tty) ((tty)->termios.c_cc[VKILL])
+#define EOF_CHAR(tty) ((tty)->termios.c_cc[VEOF])
+#define TIME_CHAR(tty) ((tty)->termios.c_cc[VTIME])
+#define MIN_CHAR(tty) ((tty)->termios.c_cc[VMIN])
+#define SWTC_CHAR(tty) ((tty)->termios.c_cc[VSWTC])
+#define START_CHAR(tty) ((tty)->termios.c_cc[VSTART])
+#define STOP_CHAR(tty) ((tty)->termios.c_cc[VSTOP])
+#define SUSP_CHAR(tty) ((tty)->termios.c_cc[VSUSP])
+#define EOL_CHAR(tty) ((tty)->termios.c_cc[VEOL])
+#define REPRINT_CHAR(tty) ((tty)->termios.c_cc[VREPRINT])
+#define DISCARD_CHAR(tty) ((tty)->termios.c_cc[VDISCARD])
+#define WERASE_CHAR(tty) ((tty)->termios.c_cc[VWERASE])
+#define LNEXT_CHAR(tty)	((tty)->termios.c_cc[VLNEXT])
+#define EOL2_CHAR(tty) ((tty)->termios.c_cc[VEOL2])
 
-#define _I_FLAG(tty, f)	((tty)->termios->c_iflag & (f))
-#define _O_FLAG(tty, f)	((tty)->termios->c_oflag & (f))
-#define _C_FLAG(tty, f)	((tty)->termios->c_cflag & (f))
-#define _L_FLAG(tty, f)	((tty)->termios->c_lflag & (f))
+#define _I_FLAG(tty, f)	((tty)->termios.c_iflag & (f))
+#define _O_FLAG(tty, f)	((tty)->termios.c_oflag & (f))
+#define _C_FLAG(tty, f)	((tty)->termios.c_cflag & (f))
+#define _L_FLAG(tty, f)	((tty)->termios.c_lflag & (f))
 
 #define I_IGNBRK(tty)	_I_FLAG((tty), IGNBRK)
 #define I_BRKINT(tty)	_I_FLAG((tty), BRKINT)
@@ -271,7 +271,7 @@ struct tty_struct {
 	struct mutex termios_mutex;
 	spinlock_t ctrl_lock;
 	/* Termios values are protected by the termios mutex */
-	struct ktermios *termios, *termios_locked;
+	struct ktermios termios, termios_locked;
 	struct termiox *termiox;	/* May be NULL for unsupported */
 	char name[64];
 	struct pid *pgrp;		/* Protected by ctrl lock */

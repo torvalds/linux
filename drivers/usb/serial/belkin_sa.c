@@ -307,7 +307,7 @@ static void belkin_sa_set_termios(struct tty_struct *tty,
 	unsigned long control_state;
 	int bad_flow_control;
 	speed_t baud;
-	struct ktermios *termios = tty->termios;
+	struct ktermios *termios = &tty->termios;
 
 	iflag = termios->c_iflag;
 	cflag = termios->c_cflag;

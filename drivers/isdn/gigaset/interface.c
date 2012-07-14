@@ -446,8 +446,8 @@ static void if_set_termios(struct tty_struct *tty, struct ktermios *old)
 		goto out;
 	}
 
-	iflag = tty->termios->c_iflag;
-	cflag = tty->termios->c_cflag;
+	iflag = tty->termios.c_iflag;
+	cflag = tty->termios.c_cflag;
 	old_cflag = old ? old->c_cflag : cflag;
 	gig_dbg(DEBUG_IF, "%u: iflag %x cflag %x old %x",
 		cs->minor_index, iflag, cflag, old_cflag);

@@ -87,7 +87,7 @@ static int empeg_startup(struct usb_serial *serial)
 
 static void empeg_init_termios(struct tty_struct *tty)
 {
-	struct ktermios *termios = tty->termios;
+	struct ktermios *termios = &tty->termios;
 
 	/*
 	 * The empeg-car player wants these particular tty settings.

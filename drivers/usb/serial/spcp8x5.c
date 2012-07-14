@@ -316,10 +316,10 @@ static void spcp8x5_dtr_rts(struct usb_serial_port *port, int on)
 static void spcp8x5_init_termios(struct tty_struct *tty)
 {
 	/* for the 1st time call this function */
-	*(tty->termios) = tty_std_termios;
-	tty->termios->c_cflag = B115200 | CS8 | CREAD | HUPCL | CLOCAL;
-	tty->termios->c_ispeed = 115200;
-	tty->termios->c_ospeed = 115200;
+	tty->termios = tty_std_termios;
+	tty->termios.c_cflag = B115200 | CS8 | CREAD | HUPCL | CLOCAL;
+	tty->termios.c_ispeed = 115200;
+	tty->termios.c_ospeed = 115200;
 }
 
 /* set the serial param for transfer. we should check if we really need to
@@ -330,7 +330,7 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 	struct usb_serial *serial = port->serial;
 	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
-	unsigned int cflag = tty->termios->c_cflag;
+	unsigned int cflag = tty->termios.c_cflag;
 	unsigned int old_cflag = old_termios->c_cflag;
 	unsigned short uartdata;
 	unsigned char buf[2] = {0, 0};
@@ -340,7 +340,7 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 
 
 	/* check that they really want us to change something */
-	if (!tty_termios_hw_change(tty->termios, old_termios))
+	if (!tty_termios_hw_change(&tty->termios, old_termios))
 		return;
 
 	/* set DTR/RTS active */

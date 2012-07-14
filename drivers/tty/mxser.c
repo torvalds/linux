@@ -643,7 +643,7 @@ static int mxser_change_speed(struct tty_struct *tty,
 	int ret = 0;
 	unsigned char status;
 
-	cflag = tty->termios->c_cflag;
+	cflag = tty->termios.c_cflag;
 	if (!info->ioaddr)
 		return ret;
 
@@ -1520,10 +1520,10 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 				
 				tty = tty_port_tty_get(port);
 
-				if (!tty || !tty->termios)
+				if (!tty)
 					ms.cflag = ip->normal_termios.c_cflag;
 				else
-					ms.cflag = tty->termios->c_cflag;
+					ms.cflag = tty->termios.c_cflag;
 				tty_kref_put(tty);
 				spin_lock_irq(&ip->slock);
 				status = inb(ip->ioaddr + UART_MSR);
@@ -1589,13 +1589,13 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 
 				tty = tty_port_tty_get(&ip->port);
 
-				if (!tty || !tty->termios) {
+				if (!tty) {
 					cflag = ip->normal_termios.c_cflag;
 					iflag = ip->normal_termios.c_iflag;
 					me->baudrate[p] = tty_termios_baud_rate(&ip->normal_termios);
 				} else {
-					cflag = tty->termios->c_cflag;
-					iflag = tty->termios->c_iflag;
+					cflag = tty->termios.c_cflag;
+					iflag = tty->termios.c_iflag;
 					me->baudrate[p] = tty_get_baud_rate(tty);
 				}
 				tty_kref_put(tty);
@@ -1853,7 +1853,7 @@ static void mxser_stoprx(struct tty_struct *tty)
 		}
 	}
 
-	if (tty->termios->c_cflag & CRTSCTS) {
+	if (tty->termios.c_cflag & CRTSCTS) {
 		info->MCR &= ~UART_MCR_RTS;
 		outb(info->MCR, info->ioaddr + UART_MCR);
 	}
@@ -1890,7 +1890,7 @@ static void mxser_unthrottle(struct tty_struct *tty)
 		}
 	}
 
-	if (tty->termios->c_cflag & CRTSCTS) {
+	if (tty->termios.c_cflag & CRTSCTS) {
 		info->MCR |= UART_MCR_RTS;
 		outb(info->MCR, info->ioaddr + UART_MCR);
 	}
@@ -1939,14 +1939,14 @@ static void mxser_set_termios(struct tty_struct *tty, struct ktermios *old_termi
 	spin_unlock_irqrestore(&info->slock, flags);
 
 	if ((old_termios->c_cflag & CRTSCTS) &&
-			!(tty->termios->c_cflag & CRTSCTS)) {
+			!(tty->termios.c_cflag & CRTSCTS)) {
 		tty->hw_stopped = 0;
 		mxser_start(tty);
 	}
 
 	/* Handle sw stopped */
 	if ((old_termios->c_iflag & IXON) &&
-			!(tty->termios->c_iflag & IXON)) {
+			!(tty->termios.c_iflag & IXON)) {
 		tty->stopped = 0;
 
 		if (info->board->chip_flag) {

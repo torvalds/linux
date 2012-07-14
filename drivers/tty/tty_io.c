@@ -1251,19 +1251,17 @@ int tty_init_termios(struct tty_struct *tty)
 
 	tp = tty->driver->termios[idx];
 	if (tp == NULL) {
-		tp = kzalloc(sizeof(struct ktermios[2]), GFP_KERNEL);
+		tp = kmalloc(sizeof(struct ktermios), GFP_KERNEL);
 		if (tp == NULL)
 			return -ENOMEM;
-		memcpy(tp, &tty->driver->init_termios,
-						sizeof(struct ktermios));
+		*tp = tty->driver->init_termios;
 		tty->driver->termios[idx] = tp;
 	}
-	tty->termios = tp;
-	tty->termios_locked = tp + 1;
+	tty->termios = *tp;
 
 	/* Compatibility until drivers always set this */
-	tty->termios->c_ispeed = tty_termios_input_baud_rate(tty->termios);
-	tty->termios->c_ospeed = tty_termios_baud_rate(tty->termios);
+	tty->termios.c_ispeed = tty_termios_input_baud_rate(&tty->termios);
+	tty->termios.c_ospeed = tty_termios_baud_rate(&tty->termios);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tty_init_termios);
@@ -1442,10 +1440,12 @@ void tty_free_termios(struct tty_struct *tty)
 	/* Kill this flag and push into drivers for locking etc */
 	if (tty->driver->flags & TTY_DRIVER_RESET_TERMIOS) {
 		/* FIXME: Locking on ->termios array */
-		tp = tty->termios;
+		tp = tty->driver->termios[idx];
 		tty->driver->termios[idx] = NULL;
 		kfree(tp);
 	}
+	else
+		*tty->driver->termios[idx] = tty->termios;
 }
 EXPORT_SYMBOL(tty_free_termios);
 
@@ -1575,19 +1575,9 @@ static int tty_release_checks(struct tty_struct *tty, struct tty_struct *o_tty,
 				__func__, idx, tty->name);
 		return -1;
 	}
-	if (tty->termios != tty->driver->termios[idx]) {
-		printk(KERN_DEBUG "%s: driver.termios[%d] not termios for (%s)\n",
-				__func__, idx, tty->name);
-		return -1;
-	}
 	if (tty->driver->other) {
 		if (o_tty != tty->driver->other->ttys[idx]) {
 			printk(KERN_DEBUG "%s: other->table[%d] not o_tty for (%s)\n",
-					__func__, idx, tty->name);
-			return -1;
-		}
-		if (o_tty->termios != tty->driver->other->termios[idx]) {
-			printk(KERN_DEBUG "%s: other->termios[%d] not o_termios for (%s)\n",
 					__func__, idx, tty->name);
 			return -1;
 		}

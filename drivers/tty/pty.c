@@ -231,8 +231,8 @@ out:
 static void pty_set_termios(struct tty_struct *tty,
 					struct ktermios *old_termios)
 {
-	tty->termios->c_cflag &= ~(CSIZE | PARENB);
-	tty->termios->c_cflag |= (CS8 | CREAD);
+	tty->termios.c_cflag &= ~(CSIZE | PARENB);
+	tty->termios.c_cflag |= (CS8 | CREAD);
 }
 
 /**
@@ -315,18 +315,10 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 		driver->other->ttys[idx] = o_tty;
 		driver->ttys[idx] = tty;
 	} else {
-		tty->termios = kzalloc(sizeof(struct ktermios[2]), GFP_KERNEL);
-		if (tty->termios == NULL)
-			goto err_deinit_tty;
-		*tty->termios = driver->init_termios;
-		tty->termios_locked = tty->termios + 1;
-
-		o_tty->termios = kzalloc(sizeof(struct ktermios[2]),
-				GFP_KERNEL);
-		if (o_tty->termios == NULL)
-			goto err_free_termios;
-		*o_tty->termios = driver->other->init_termios;
-		o_tty->termios_locked = o_tty->termios + 1;
+		memset(&tty->termios_locked, 0, sizeof(tty->termios_locked));
+		tty->termios = driver->init_termios;
+		memset(&o_tty->termios_locked, 0, sizeof(tty->termios_locked));
+		o_tty->termios = driver->other->init_termios;
 	}
 
 	/*
@@ -349,8 +341,6 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 err_free_termios:
 	if (legacy)
 		tty_free_termios(tty);
-	else
-		kfree(tty->termios);
 err_deinit_tty:
 	deinitialize_tty_struct(o_tty);
 	module_put(o_tty->driver->owner);
@@ -541,7 +531,6 @@ static void pty_unix98_shutdown(struct tty_struct *tty)
 {
 	tty_driver_remove_tty(tty->driver, tty);
 	/* We have our own method as we don't use the tty index */
-	kfree(tty->termios);
 }
 
 /* We have no need to install and remove our tty objects as devpts does all

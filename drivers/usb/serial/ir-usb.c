@@ -381,7 +381,7 @@ static void ir_set_termios(struct tty_struct *tty,
 		ir_xbof = ir_xbof_change(xbof) ;
 
 	/* Only speed changes are supported */
-	tty_termios_copy_hw(tty->termios, old_termios);
+	tty_termios_copy_hw(&tty->termios, old_termios);
 	tty_encode_baud_rate(tty, baud, baud);
 
 	/*

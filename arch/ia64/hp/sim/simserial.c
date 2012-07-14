@@ -338,7 +338,7 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	/* Handle turning off CRTSCTS */
 	if ((old_termios->c_cflag & CRTSCTS) &&
-	    !(tty->termios->c_cflag & CRTSCTS)) {
+	    !(tty->termios.c_cflag & CRTSCTS)) {
 		tty->hw_stopped = 0;
 	}
 }

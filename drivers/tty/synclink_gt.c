@@ -785,7 +785,7 @@ static void set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 
 	/* Handle transition to B0 status */
 	if (old_termios->c_cflag & CBAUD &&
-	    !(tty->termios->c_cflag & CBAUD)) {
+	    !(tty->termios.c_cflag & CBAUD)) {
 		info->signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
 		spin_lock_irqsave(&info->lock,flags);
 		set_signals(info);
@@ -794,9 +794,9 @@ static void set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 
 	/* Handle transition away from B0 status */
 	if (!(old_termios->c_cflag & CBAUD) &&
-	    tty->termios->c_cflag & CBAUD) {
+	    tty->termios.c_cflag & CBAUD) {
 		info->signals |= SerialSignal_DTR;
- 		if (!(tty->termios->c_cflag & CRTSCTS) ||
+ 		if (!(tty->termios.c_cflag & CRTSCTS) ||
  		    !test_bit(TTY_THROTTLED, &tty->flags)) {
 			info->signals |= SerialSignal_RTS;
  		}
@@ -807,7 +807,7 @@ static void set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 
 	/* Handle turning off CRTSCTS */
 	if (old_termios->c_cflag & CRTSCTS &&
-	    !(tty->termios->c_cflag & CRTSCTS)) {
+	    !(tty->termios.c_cflag & CRTSCTS)) {
 		tty->hw_stopped = 0;
 		tx_release(tty);
 	}
@@ -1372,7 +1372,7 @@ static void throttle(struct tty_struct * tty)
 	DBGINFO(("%s throttle\n", info->device_name));
 	if (I_IXOFF(tty))
 		send_xchar(tty, STOP_CHAR(tty));
- 	if (tty->termios->c_cflag & CRTSCTS) {
+ 	if (tty->termios.c_cflag & CRTSCTS) {
 		spin_lock_irqsave(&info->lock,flags);
 		info->signals &= ~SerialSignal_RTS;
 	 	set_signals(info);
@@ -1397,7 +1397,7 @@ static void unthrottle(struct tty_struct * tty)
 		else
 			send_xchar(tty, START_CHAR(tty));
 	}
- 	if (tty->termios->c_cflag & CRTSCTS) {
+ 	if (tty->termios.c_cflag & CRTSCTS) {
 		spin_lock_irqsave(&info->lock,flags);
 		info->signals |= SerialSignal_RTS;
 	 	set_signals(info);
@@ -2493,7 +2493,7 @@ static void shutdown(struct slgt_info *info)
 
 	slgt_irq_off(info, IRQ_ALL | IRQ_MASTER);
 
- 	if (!info->port.tty || info->port.tty->termios->c_cflag & HUPCL) {
+ 	if (!info->port.tty || info->port.tty->termios.c_cflag & HUPCL) {
  		info->signals &= ~(SerialSignal_DTR + SerialSignal_RTS);
 		set_signals(info);
 	}
@@ -2534,7 +2534,7 @@ static void program_hw(struct slgt_info *info)
 	get_signals(info);
 
 	if (info->netcount ||
-	    (info->port.tty && info->port.tty->termios->c_cflag & CREAD))
+	    (info->port.tty && info->port.tty->termios.c_cflag & CREAD))
 		rx_start(info);
 
 	spin_unlock_irqrestore(&info->lock,flags);
@@ -2548,11 +2548,11 @@ static void change_params(struct slgt_info *info)
 	unsigned cflag;
 	int bits_per_char;
 
-	if (!info->port.tty || !info->port.tty->termios)
+	if (!info->port.tty)
 		return;
 	DBGINFO(("%s change_params\n", info->device_name));
 
-	cflag = info->port.tty->termios->c_cflag;
+	cflag = info->port.tty->termios.c_cflag;
 
 	/* if B0 rate (hangup) specified then negate DTR and RTS */
 	/* otherwise assert DTR and RTS */
@@ -3292,7 +3292,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 		return 0;
 	}
 
-	if (tty->termios->c_cflag & CLOCAL)
+	if (tty->termios.c_cflag & CLOCAL)
 		do_clocal = true;
 
 	/* Wait for carrier detect and the line to become
@@ -3314,7 +3314,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	port->blocked_open++;
 
 	while (1) {
-		if ((tty->termios->c_cflag & CBAUD))
+		if ((tty->termios.c_cflag & CBAUD))
 			tty_port_raise_dtr_rts(port);
 
 		set_current_state(TASK_INTERRUPTIBLE);

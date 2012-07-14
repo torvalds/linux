@@ -292,7 +292,7 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 		return 0;
 	}
 
-	if (tty->termios->c_cflag & CLOCAL) {
+	if (tty->termios.c_cflag & CLOCAL) {
 		IRDA_DEBUG(1, "%s(), doing CLOCAL!\n", __func__ );
 		do_clocal = 1;
 	}
@@ -319,7 +319,7 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 	port->blocked_open++;
 
 	while (1) {
-		if (tty->termios->c_cflag & CBAUD)
+		if (tty->termios.c_cflag & CBAUD)
 			tty_port_raise_dtr_rts(port);
 
 		current->state = TASK_INTERRUPTIBLE;
@@ -421,8 +421,8 @@ static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
 		 *
 		 * Note this is completely usafe and doesn't work properly
 		 */
-		tty->termios->c_iflag = 0;
-		tty->termios->c_oflag = 0;
+		tty->termios.c_iflag = 0;
+		tty->termios.c_oflag = 0;
 
 		/* Insert into hash */
 		/* FIXME there is a window from find to here */
@@ -842,7 +842,7 @@ static void ircomm_tty_throttle(struct tty_struct *tty)
 		ircomm_tty_send_xchar(tty, STOP_CHAR(tty));
 
 	/* Hardware flow control? */
-	if (tty->termios->c_cflag & CRTSCTS) {
+	if (tty->termios.c_cflag & CRTSCTS) {
 		self->settings.dte &= ~IRCOMM_RTS;
 		self->settings.dte |= IRCOMM_DELTA_RTS;
 
@@ -874,7 +874,7 @@ static void ircomm_tty_unthrottle(struct tty_struct *tty)
 	}
 
 	/* Using hardware flow control? */
-	if (tty->termios->c_cflag & CRTSCTS) {
+	if (tty->termios.c_cflag & CRTSCTS) {
 		self->settings.dte |= (IRCOMM_RTS|IRCOMM_DELTA_RTS);
 
 		ircomm_param_request(self, IRCOMM_DTE, TRUE);

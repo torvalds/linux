@@ -215,7 +215,7 @@ static void ark3116_release(struct usb_serial *serial)
 
 static void ark3116_init_termios(struct tty_struct *tty)
 {
-	struct ktermios *termios = tty->termios;
+	struct ktermios *termios = &tty->termios;
 	*termios = tty_std_termios;
 	termios->c_cflag = B9600 | CS8
 				      | CREAD | HUPCL | CLOCAL;
@@ -229,7 +229,7 @@ static void ark3116_set_termios(struct tty_struct *tty,
 {
 	struct usb_serial *serial = port->serial;
 	struct ark3116_private *priv = usb_get_serial_port_data(port);
-	struct ktermios *termios = tty->termios;
+	struct ktermios *termios = &tty->termios;
 	unsigned int cflag = termios->c_cflag;
 	int bps = tty_get_baud_rate(tty);
 	int quot;

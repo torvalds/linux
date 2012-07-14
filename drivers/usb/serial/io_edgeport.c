@@ -1458,7 +1458,7 @@ static void edge_throttle(struct tty_struct *tty)
 	}
 
 	/* if we are implementing RTS/CTS, toggle that line */
-	if (tty->termios->c_cflag & CRTSCTS) {
+	if (tty->termios.c_cflag & CRTSCTS) {
 		edge_port->shadowMCR &= ~MCR_RTS;
 		status = send_cmd_write_uart_register(edge_port, MCR,
 							edge_port->shadowMCR);
@@ -1497,7 +1497,7 @@ static void edge_unthrottle(struct tty_struct *tty)
 			return;
 	}
 	/* if we are implementing RTS/CTS, toggle that line */
-	if (tty->termios->c_cflag & CRTSCTS) {
+	if (tty->termios.c_cflag & CRTSCTS) {
 		edge_port->shadowMCR |= MCR_RTS;
 		send_cmd_write_uart_register(edge_port, MCR,
 						edge_port->shadowMCR);
@@ -1516,9 +1516,9 @@ static void edge_set_termios(struct tty_struct *tty,
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	unsigned int cflag;
 
-	cflag = tty->termios->c_cflag;
+	cflag = tty->termios.c_cflag;
 	dbg("%s - clfag %08x iflag %08x", __func__,
-	    tty->termios->c_cflag, tty->termios->c_iflag);
+	    tty->termios.c_cflag, tty->termios.c_iflag);
 	dbg("%s - old clfag %08x old iflag %08x", __func__,
 	    old_termios->c_cflag, old_termios->c_iflag);
 
@@ -1987,7 +1987,7 @@ static void process_rcvd_status(struct edgeport_serial *edge_serial,
 		tty = tty_port_tty_get(&edge_port->port->port);
 		if (tty) {
 			change_port_settings(tty,
-				edge_port, tty->termios);
+				edge_port, &tty->termios);
 			tty_kref_put(tty);
 		}
 
@@ -2570,7 +2570,7 @@ static void change_port_settings(struct tty_struct *tty,
 		return;
 	}
 
-	cflag = tty->termios->c_cflag;
+	cflag = tty->termios.c_cflag;
 
 	switch (cflag & CSIZE) {
 	case CS5:

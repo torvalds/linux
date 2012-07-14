@@ -404,10 +404,10 @@ static int oti6858_chars_in_buffer(struct tty_struct *tty)
 
 static void oti6858_init_termios(struct tty_struct *tty)
 {
-	*(tty->termios) = tty_std_termios;
-	tty->termios->c_cflag = B38400 | CS8 | CREAD | HUPCL | CLOCAL;
-	tty->termios->c_ispeed = 38400;
-	tty->termios->c_ospeed = 38400;
+	tty->termios = tty_std_termios;
+	tty->termios.c_cflag = B38400 | CS8 | CREAD | HUPCL | CLOCAL;
+	tty->termios.c_ispeed = 38400;
+	tty->termios.c_ospeed = 38400;
 }
 
 static void oti6858_set_termios(struct tty_struct *tty,
@@ -425,7 +425,7 @@ static void oti6858_set_termios(struct tty_struct *tty,
 		return;
 	}
 
-	cflag = tty->termios->c_cflag;
+	cflag = tty->termios.c_cflag;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	divisor = priv->pending_setup.divisor;

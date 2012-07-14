@@ -255,7 +255,7 @@ int tty_port_block_til_ready(struct tty_port *port,
 	}
 	if (filp->f_flags & O_NONBLOCK) {
 		/* Indicate we are open */
-		if (tty->termios->c_cflag & CBAUD)
+		if (tty->termios.c_cflag & CBAUD)
 			tty_port_raise_dtr_rts(port);
 		port->flags |= ASYNC_NORMAL_ACTIVE;
 		return 0;
@@ -279,7 +279,7 @@ int tty_port_block_til_ready(struct tty_port *port,
 
 	while (1) {
 		/* Indicate we are open */
-		if (tty->termios->c_cflag & CBAUD)
+		if (tty->termios.c_cflag & CBAUD)
 			tty_port_raise_dtr_rts(port);
 
 		prepare_to_wait(&port->open_wait, &wait, TASK_INTERRUPTIBLE);
@@ -378,7 +378,7 @@ int tty_port_close_start(struct tty_port *port,
 
 	/* Drop DTR/RTS if HUPCL is set. This causes any attached modem to
 	   hang up the line */
-	if (tty->termios->c_cflag & HUPCL)
+	if (tty->termios.c_cflag & HUPCL)
 		tty_port_lower_dtr_rts(port);
 
 	/* Don't call port->drop for the last reference. Callers will want

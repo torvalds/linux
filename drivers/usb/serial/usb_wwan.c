@@ -67,7 +67,7 @@ void usb_wwan_set_termios(struct tty_struct *tty,
 	struct usb_wwan_intf_private *intfdata = port->serial->private;
 
 	/* Doesn't support option setting */
-	tty_termios_copy_hw(tty->termios, old_termios);
+	tty_termios_copy_hw(&tty->termios, old_termios);
 
 	if (intfdata->send_setup)
 		intfdata->send_setup(port);

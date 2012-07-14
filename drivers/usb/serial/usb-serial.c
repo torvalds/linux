@@ -423,7 +423,7 @@ static void serial_set_termios(struct tty_struct *tty, struct ktermios *old)
 	if (port->serial->type->set_termios)
 		port->serial->type->set_termios(tty, port, old);
 	else
-		tty_termios_copy_hw(tty->termios, old);
+		tty_termios_copy_hw(&tty->termios, old);
 }
 
 static int serial_break(struct tty_struct *tty, int break_state)

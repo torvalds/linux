@@ -63,7 +63,7 @@ static void ircomm_tty_change_speed(struct ircomm_tty_cb *self,
 	if (!self->ircomm)
 		return;
 
-	cflag = tty->termios->c_cflag;
+	cflag = tty->termios.c_cflag;
 
 	/*  byte size and parity */
 	switch (cflag & CSIZE) {
@@ -149,12 +149,12 @@ void ircomm_tty_set_termios(struct tty_struct *tty,
 			    struct ktermios *old_termios)
 {
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) tty->driver_data;
-	unsigned int cflag = tty->termios->c_cflag;
+	unsigned int cflag = tty->termios.c_cflag;
 
 	IRDA_DEBUG(2, "%s()\n", __func__ );
 
 	if ((cflag == old_termios->c_cflag) &&
-	    (RELEVANT_IFLAG(tty->termios->c_iflag) ==
+	    (RELEVANT_IFLAG(tty->termios.c_iflag) ==
 	     RELEVANT_IFLAG(old_termios->c_iflag)))
 	{
 		return;
@@ -173,7 +173,7 @@ void ircomm_tty_set_termios(struct tty_struct *tty,
 	if (!(old_termios->c_cflag & CBAUD) &&
 	    (cflag & CBAUD)) {
 		self->settings.dte |= IRCOMM_DTR;
-		if (!(tty->termios->c_cflag & CRTSCTS) ||
+		if (!(tty->termios.c_cflag & CRTSCTS) ||
 		    !test_bit(TTY_THROTTLED, &tty->flags)) {
 			self->settings.dte |= IRCOMM_RTS;
 		}
@@ -182,7 +182,7 @@ void ircomm_tty_set_termios(struct tty_struct *tty,
 
 	/* Handle turning off CRTSCTS */
 	if ((old_termios->c_cflag & CRTSCTS) &&
-	    !(tty->termios->c_cflag & CRTSCTS))
+	    !(tty->termios.c_cflag & CRTSCTS))
 	{
 		tty->hw_stopped = 0;
 		ircomm_tty_start(tty);

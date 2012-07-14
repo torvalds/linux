@@ -469,7 +469,7 @@ static void cp210x_get_termios(struct tty_struct *tty,
 
 	if (tty) {
 		cp210x_get_termios_port(tty->driver_data,
-			&tty->termios->c_cflag, &baud);
+			&tty->termios.c_cflag, &baud);
 		tty_encode_baud_rate(tty, baud, baud);
 	}
 
@@ -631,7 +631,7 @@ static void cp210x_change_speed(struct tty_struct *tty,
 {
 	u32 baud;
 
-	baud = tty->termios->c_ospeed;
+	baud = tty->termios.c_ospeed;
 
 	/* This maps the requested rate to a rate valid on cp2102 or cp2103,
 	 * or to an arbitrary rate in [1M,2M].
@@ -665,10 +665,10 @@ static void cp210x_set_termios(struct tty_struct *tty,
 	if (!tty)
 		return;
 
-	cflag = tty->termios->c_cflag;
+	cflag = tty->termios.c_cflag;
 	old_cflag = old_termios->c_cflag;
 
-	if (tty->termios->c_ospeed != old_termios->c_ospeed)
+	if (tty->termios.c_ospeed != old_termios->c_ospeed)
 		cp210x_change_speed(tty, port, old_termios);
 
 	/* If the number of data bits is to be updated */

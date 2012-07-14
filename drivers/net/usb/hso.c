@@ -1107,7 +1107,6 @@ static void _hso_serial_set_termios(struct tty_struct *tty,
 				    struct ktermios *old)
 {
 	struct hso_serial *serial = tty->driver_data;
-	struct ktermios *termios;
 
 	if (!serial) {
 		printk(KERN_ERR "%s: no tty structures", __func__);
@@ -1119,16 +1118,15 @@ static void _hso_serial_set_termios(struct tty_struct *tty,
 	/*
 	 *	Fix up unsupported bits
 	 */
-	termios = tty->termios;
-	termios->c_iflag &= ~IXON; /* disable enable XON/XOFF flow control */
+	tty->termios.c_iflag &= ~IXON; /* disable enable XON/XOFF flow control */
 
-	termios->c_cflag &=
+	tty->termios.c_cflag &=
 		~(CSIZE		/* no size */
 		| PARENB	/* disable parity bit */
 		| CBAUD		/* clear current baud rate */
 		| CBAUDEX);	/* clear current buad rate */
 
-	termios->c_cflag |= CS8;	/* character size 8 bits */
+	tty->termios.c_cflag |= CS8;	/* character size 8 bits */
 
 	/* baud rate 115200 */
 	tty_encode_baud_rate(tty, 115200, 115200);
@@ -1425,14 +1423,14 @@ static void hso_serial_set_termios(struct tty_struct *tty, struct ktermios *old)
 
 	if (old)
 		D5("Termios called with: cflags new[%d] - old[%d]",
-		   tty->termios->c_cflag, old->c_cflag);
+		   tty->termios.c_cflag, old->c_cflag);
 
 	/* the actual setup */
 	spin_lock_irqsave(&serial->serial_lock, flags);
 	if (serial->port.count)
 		_hso_serial_set_termios(tty, old);
 	else
-		tty->termios = old;
+		tty->termios = *old;
 	spin_unlock_irqrestore(&serial->serial_lock, flags);
 
 	/* done */

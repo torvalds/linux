@@ -2823,9 +2823,9 @@ static int con_install(struct tty_driver *driver, struct tty_struct *tty)
 		tty->winsize.ws_col = vc_cons[currcons].d->vc_cols;
 	}
 	if (vc->vc_utf)
-		tty->termios->c_iflag |= IUTF8;
+		tty->termios.c_iflag |= IUTF8;
 	else
-		tty->termios->c_iflag &= ~IUTF8;
+		tty->termios.c_iflag &= ~IUTF8;
 unlock:
 	console_unlock();
 	return ret;
