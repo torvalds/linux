@@ -25,6 +25,10 @@ client_id
 
 	The ceph unique client id that was assigned for this specific session.
 
+features
+
+	A hexadecimal encoding of the feature bits for this image.
+
 major
 
 	The block device major number.
@@ -78,4 +82,7 @@ snap_size
 
 	The size of the image when this snapshot was taken.
 
+snap_features
+
+	A hexadecimal encoding of the feature bits for this snapshot.
 
