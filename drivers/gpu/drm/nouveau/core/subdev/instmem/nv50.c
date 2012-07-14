@@ -53,7 +53,6 @@ nv50_channel_del(struct nouveau_channel **pchan)
 	if (!chan)
 		return;
 
-	nouveau_gpuobj_ref(NULL, &chan->ramfc);
 	nouveau_vm_ref(NULL, &chan->vm, chan->vm_pd);
 	nouveau_gpuobj_ref(NULL, &chan->vm_pd);
 	if (drm_mm_initialized(&chan->ramin_heap))
@@ -68,7 +67,6 @@ nv50_channel_new(struct drm_device *dev, u32 size, struct nouveau_vm *vm,
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	u32 pgd = (dev_priv->chipset == 0x50) ? 0x1400 : 0x0200;
-	u32  fc = (dev_priv->chipset == 0x50) ? 0x0000 : 0x4200;
 	struct nouveau_channel *chan;
 	int ret, i;
 
@@ -83,17 +81,13 @@ nv50_channel_new(struct drm_device *dev, u32 size, struct nouveau_vm *vm,
 		return ret;
 	}
 
-	ret = drm_mm_init(&chan->ramin_heap, 0x6000, chan->ramin->size - 0x6000);
+	ret = drm_mm_init(&chan->ramin_heap, pgd, chan->ramin->size - pgd);
 	if (ret) {
 		nv50_channel_del(&chan);
 		return ret;
 	}
 
-	ret = nouveau_gpuobj_new_fake(dev, chan->ramin->pinst == ~0 ? ~0 :
-				      chan->ramin->pinst + pgd,
-				      chan->ramin->vinst + pgd,
-				      0x4000, NVOBJ_FLAG_ZERO_ALLOC,
-				      &chan->vm_pd);
+	ret = nouveau_gpuobj_new(dev, chan, 0x4000, 0, 0, &chan->vm_pd);
 	if (ret) {
 		nv50_channel_del(&chan);
 		return ret;
@@ -105,15 +99,6 @@ nv50_channel_new(struct drm_device *dev, u32 size, struct nouveau_vm *vm,
 	}
 
 	ret = nouveau_vm_ref(vm, &chan->vm, chan->vm_pd);
-	if (ret) {
-		nv50_channel_del(&chan);
-		return ret;
-	}
-
-	ret = nouveau_gpuobj_new_fake(dev, chan->ramin->pinst == ~0 ? ~0 :
-				      chan->ramin->pinst + fc,
-				      chan->ramin->vinst + fc, 0x100,
-				      NVOBJ_FLAG_ZERO_ALLOC, &chan->ramfc);
 	if (ret) {
 		nv50_channel_del(&chan);
 		return ret;
