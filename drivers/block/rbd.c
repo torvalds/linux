@@ -734,9 +734,8 @@ static struct bio *bio_chain_clone(struct bio **old, struct bio **next,
 			 * split_bio will BUG_ON if this is not the case
 			 */
 			dout("bio_chain_clone split! total=%d remaining=%d"
-			     "bi_size=%d\n",
-			     (int)total, (int)len-total,
-			     (int)old_chain->bi_size);
+			     "bi_size=%u\n",
+			     total, len - total, old_chain->bi_size);
 
 			/* split the bio. We'll release it either in the next
 			   call, or it will have to be released outside */
@@ -816,8 +815,8 @@ static void rbd_coll_end_req_index(struct request *rq,
 	struct request_queue *q;
 	int min, max, i;
 
-	dout("rbd_coll_end_req_index %p index %d ret %d len %lld\n",
-	     coll, index, ret, len);
+	dout("rbd_coll_end_req_index %p index %d ret %d len %llu\n",
+	     coll, index, ret, (unsigned long long) len);
 
 	if (!rq)
 		return;
@@ -894,8 +893,8 @@ static int rbd_do_request(struct request *rq,
 		req_data->coll_index = coll_index;
 	}
 
-	dout("rbd_do_request object_name=%s ofs=%lld len=%lld\n",
-		object_name, len, ofs);
+	dout("rbd_do_request object_name=%s ofs=%llu len=%llu\n", object_name,
+		(unsigned long long) ofs, (unsigned long long) len);
 
 	osdc = &rbd_dev->rbd_client->client->osdc;
 	req = ceph_osdc_alloc_request(osdc, flags, snapc, ops,
@@ -948,8 +947,9 @@ static int rbd_do_request(struct request *rq,
 		ret = ceph_osdc_wait_request(osdc, req);
 		if (ver)
 			*ver = le64_to_cpu(req->r_reassert_version.version);
-		dout("reassert_ver=%lld\n",
-		     le64_to_cpu(req->r_reassert_version.version));
+		dout("reassert_ver=%llu\n",
+			(unsigned long long)
+				le64_to_cpu(req->r_reassert_version.version));
 		ceph_osdc_put_request(req);
 	}
 	return ret;
@@ -983,7 +983,8 @@ static void rbd_req_cb(struct ceph_osd_request *req, struct ceph_msg *msg)
 	bytes = le64_to_cpu(op->extent.length);
 	read_op = (le16_to_cpu(op->op) == CEPH_OSD_OP_READ);
 
-	dout("rbd_req_cb bytes=%lld readop=%d rc=%d\n", bytes, read_op, rc);
+	dout("rbd_req_cb bytes=%llu readop=%d rc=%d\n",
+		(unsigned long long) bytes, read_op, (int) rc);
 
 	if (rc == -ENOENT && read_op) {
 		zero_bio_chain(req_data->bio, 0);
@@ -1217,8 +1218,9 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 	if (!rbd_dev)
 		return;
 
-	dout("rbd_watch_cb %s notify_id=%lld opcode=%d\n",
-		rbd_dev->header_name, notify_id, (int) opcode);
+	dout("rbd_watch_cb %s notify_id=%llu opcode=%u\n",
+		rbd_dev->header_name, (unsigned long long) notify_id,
+		(unsigned int) opcode);
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 	rc = __rbd_refresh_header(rbd_dev);
 	hver = rbd_dev->header.obj_version;
@@ -1314,9 +1316,9 @@ static void rbd_notify_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 	if (!rbd_dev)
 		return;
 
-	dout("rbd_notify_cb %s notify_id=%lld opcode=%d\n",
-				rbd_dev->header_name,
-		notify_id, (int)opcode);
+	dout("rbd_notify_cb %s notify_id=%llu opcode=%u\n",
+			rbd_dev->header_name, (unsigned long long) notify_id,
+			(unsigned int) opcode);
 }
 
 /*
@@ -1437,7 +1439,8 @@ static void rbd_rq_fn(struct request_queue *q)
 		struct bio *bio;
 		struct bio *rq_bio, *next_bio = NULL;
 		bool do_write;
-		int size, op_size = 0;
+		unsigned int size;
+		u64 op_size = 0;
 		u64 ofs;
 		int num_segs, cur_seg = 0;
 		struct rbd_req_coll *coll;
@@ -1484,7 +1487,7 @@ static void rbd_rq_fn(struct request_queue *q)
 
 		dout("%s 0x%x bytes at 0x%llx\n",
 		     do_write ? "write" : "read",
-		     size, blk_rq_pos(rq) * SECTOR_SIZE);
+		     size, (unsigned long long) blk_rq_pos(rq) * SECTOR_SIZE);
 
 		num_segs = rbd_get_num_segments(&rbd_dev->header, ofs, size);
 		coll = rbd_alloc_coll(num_segs);
@@ -1497,7 +1500,7 @@ static void rbd_rq_fn(struct request_queue *q)
 
 		do {
 			/* a bio clone to be passed down to OSD req */
-			dout("rq->bio->bi_vcnt=%d\n", rq->bio->bi_vcnt);
+			dout("rq->bio->bi_vcnt=%hu\n", rq->bio->bi_vcnt);
 			op_size = rbd_get_segment(&rbd_dev->header,
 						  rbd_dev->header.object_prefix,
 						  ofs, size,
@@ -1664,7 +1667,7 @@ static int rbd_header_add_snap(struct rbd_device *rbd_dev,
 
 	monc = &rbd_dev->rbd_client->client->monc;
 	ret = ceph_monc_create_snapid(monc, rbd_dev->pool_id, &new_snapid);
-	dout("created snapid=%lld\n", new_snapid);
+	dout("created snapid=%llu\n", (unsigned long long) new_snapid);
 	if (ret < 0)
 		return ret;
 
