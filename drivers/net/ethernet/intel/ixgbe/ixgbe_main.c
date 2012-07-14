@@ -2891,9 +2891,6 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 	int i, j;
 	u16 rss_i = adapter->ring_feature[RING_F_RSS].indices;
 
-	if (!(adapter->flags & IXGBE_FLAG_RSS_ENABLED))
-		rss_i = 1;
-
 	/*
 	 * Program table for at least 2 queues w/ SR-IOV so that VFs can
 	 * make full use of any rings they may have.  We will use the
@@ -2923,7 +2920,7 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(hw, IXGBE_RXCSUM, rxcsum);
 
 	if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
-		if (adapter->flags & IXGBE_FLAG_RSS_ENABLED)
+		if (adapter->ring_feature[RING_F_RSS].mask)
 			mrqc = IXGBE_MRQC_RSSEN;
 	} else {
 		u8 tcs = netdev_get_num_tc(adapter->netdev);
@@ -3102,6 +3099,7 @@ void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 static void ixgbe_setup_psrtype(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
+	int rss_i = adapter->ring_feature[RING_F_RSS].indices;
 	int p;
 
 	/* PSRTYPE must be initialized in non 82598 adapters */
@@ -3114,13 +3112,10 @@ static void ixgbe_setup_psrtype(struct ixgbe_adapter *adapter)
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		return;
 
-	if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
-		int rss_i = adapter->ring_feature[RING_F_RSS].indices;
-		if (rss_i > 3)
-			psrtype |= 2 << 29;
-		else if (rss_i > 1)
-			psrtype |= 1 << 29;
-	}
+	if (rss_i > 3)
+		psrtype |= 2 << 29;
+	else if (rss_i > 1)
+		psrtype |= 1 << 29;
 
 	for (p = 0; p < adapter->num_rx_pools; p++)
 		IXGBE_WRITE_REG(hw, IXGBE_PSRTYPE(adapter->num_vfs + p),
@@ -4408,7 +4403,6 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	/* Set capability flags */
 	rss = min_t(int, IXGBE_MAX_RSS_INDICES, num_online_cpus());
 	adapter->ring_feature[RING_F_RSS].limit = rss;
-	adapter->flags |= IXGBE_FLAG_RSS_ENABLED;
 	switch (hw->mac.type) {
 	case ixgbe_mac_82598EB:
 		if (hw->device_id == IXGBE_DEV_ID_82598AT)
@@ -6756,10 +6750,6 @@ static netdev_features_t ixgbe_fix_features(struct net_device *netdev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-	/* return error if RXHASH is being enabled when RSS is not supported */
-	if (!(adapter->flags & IXGBE_FLAG_RSS_ENABLED))
-		features &= ~NETIF_F_RXHASH;
-
 	/* If Rx checksum is disabled, then RSC/LRO should also be disabled */
 	if (!(features & NETIF_F_RXCSUM))
 		features &= ~NETIF_F_LRO;
@@ -6802,7 +6792,7 @@ static int ixgbe_set_features(struct net_device *netdev,
 	if (!(features & NETIF_F_NTUPLE)) {
 		if (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE) {
 			/* turn off Flow Director, set ATR and reset */
-			if ((adapter->flags & IXGBE_FLAG_RSS_ENABLED) &&
+			if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) &&
 			    !(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
 				adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
 			need_reset = true;
@@ -7293,11 +7283,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	err = ixgbe_init_interrupt_scheme(adapter);
 	if (err)
 		goto err_sw_init;
-
-	if (!(adapter->flags & IXGBE_FLAG_RSS_ENABLED)) {
-		netdev->hw_features &= ~NETIF_F_RXHASH;
-		netdev->features &= ~NETIF_F_RXHASH;
-	}
 
 	/* WOL not supported for all devices */
 	adapter->wol = 0;

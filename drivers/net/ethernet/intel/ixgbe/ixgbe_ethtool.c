@@ -2245,10 +2245,6 @@ static int ixgbe_get_rss_hash_opts(struct ixgbe_adapter *adapter,
 {
 	cmd->data = 0;
 
-	/* if RSS is disabled then report no hashing */
-	if (!(adapter->flags & IXGBE_FLAG_RSS_ENABLED))
-		return 0;
-
 	/* Report default options for RSS on ixgbe */
 	switch (cmd->flow_type) {
 	case TCP_V4_FLOW:

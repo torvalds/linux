@@ -265,9 +265,6 @@ static bool ixgbe_cache_ring_rss(struct ixgbe_adapter *adapter)
 {
 	int i;
 
-	if (!(adapter->flags & IXGBE_FLAG_RSS_ENABLED))
-		return false;
-
 	for (i = 0; i < adapter->num_rx_queues; i++)
 		adapter->rx_ring[i]->reg_idx = i;
 	for (i = 0; i < adapter->num_tx_queues; i++)
@@ -601,11 +598,6 @@ static bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_ring_feature *f;
 	u16 rss_i;
-
-	if (!(adapter->flags & IXGBE_FLAG_RSS_ENABLED)) {
-		adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
-		return false;
-	}
 
 	/* set mask for 16 queue limit of RSS */
 	f = &adapter->ring_feature[RING_F_RSS];
@@ -1062,7 +1054,6 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 	}
 
 	adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
-	adapter->flags &= ~IXGBE_FLAG_RSS_ENABLED;
 	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) {
 		e_err(probe,
 		      "ATR is not supported while multiple "
@@ -1073,6 +1064,7 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
 		ixgbe_disable_sriov(adapter);
 
+	adapter->ring_feature[RING_F_RSS].limit = 1;
 	ixgbe_set_num_queues(adapter);
 	adapter->num_q_vectors = 1;
 
