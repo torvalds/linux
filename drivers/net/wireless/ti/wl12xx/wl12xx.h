@@ -24,6 +24,20 @@
 
 #include "conf.h"
 
+/* minimum FW required for driver for wl127x */
+#define WL127X_CHIP_VER		6
+#define WL127X_IFTYPE_VER	3
+#define WL127X_MAJOR_VER	10
+#define WL127X_SUBTYPE_VER	2
+#define WL127X_MINOR_VER	115
+
+/* minimum FW required for driver for wl128x */
+#define WL128X_CHIP_VER		7
+#define WL128X_IFTYPE_VER	3
+#define WL128X_MAJOR_VER	10
+#define WL128X_SUBTYPE_VER	2
+#define WL128X_MINOR_VER	115
+
 struct wl127x_rx_mem_pool_addr {
 	u32 addr;
 	u32 addr_extra;

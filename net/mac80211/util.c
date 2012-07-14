@@ -268,6 +268,10 @@ EXPORT_SYMBOL(ieee80211_ctstoself_duration);
 void ieee80211_propagate_queue_wake(struct ieee80211_local *local, int queue)
 {
 	struct ieee80211_sub_if_data *sdata;
+	int n_acs = IEEE80211_NUM_ACS;
+
+	if (local->hw.queues < IEEE80211_NUM_ACS)
+		n_acs = 1;
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		int ac;
@@ -279,7 +283,7 @@ void ieee80211_propagate_queue_wake(struct ieee80211_local *local, int queue)
 		    local->queue_stop_reasons[sdata->vif.cab_queue] != 0)
 			continue;
 
-		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		for (ac = 0; ac < n_acs; ac++) {
 			int ac_queue = sdata->vif.hw_queue[ac];
 
 			if (ac_queue == queue ||
@@ -341,6 +345,7 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
+	int n_acs = IEEE80211_NUM_ACS;
 
 	trace_stop_queue(local, queue, reason);
 
@@ -352,11 +357,14 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 
 	__set_bit(reason, &local->queue_stop_reasons[queue]);
 
+	if (local->hw.queues < IEEE80211_NUM_ACS)
+		n_acs = 1;
+
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		int ac;
 
-		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		for (ac = 0; ac < n_acs; ac++) {
 			if (sdata->vif.hw_queue[ac] == queue ||
 			    sdata->vif.cab_queue == queue)
 				netif_stop_subqueue(sdata->dev, ac);
@@ -1072,6 +1080,10 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 		pos += noffset - offset;
 	}
 
+	if (sband->vht_cap.vht_supported)
+		pos = ieee80211_ie_build_vht_cap(pos, &sband->vht_cap,
+						 sband->vht_cap.cap);
+
 	return pos - buffer;
 }
 
@@ -1411,10 +1423,10 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		if (ieee80211_sdata_running(sdata))
 			ieee80211_enable_keys(sdata);
 
+ wake_up:
 	local->in_reconfig = false;
 	barrier();
 
- wake_up:
 	/*
 	 * Clear the WLAN_STA_BLOCK_BA flag so new aggregation
 	 * sessions can be established after a resume.
@@ -1699,6 +1711,27 @@ u8 *ieee80211_ie_build_ht_cap(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 	return pos;
 }
 
+u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
+							   u32 cap)
+{
+	__le32 tmp;
+
+	*pos++ = WLAN_EID_VHT_CAPABILITY;
+	*pos++ = sizeof(struct ieee80211_vht_capabilities);
+	memset(pos, 0, sizeof(struct ieee80211_vht_capabilities));
+
+	/* capability flags */
+	tmp = cpu_to_le32(cap);
+	memcpy(pos, &tmp, sizeof(u32));
+	pos += sizeof(u32);
+
+	/* VHT MCS set */
+	memcpy(pos, &vht_cap->vht_mcs, sizeof(vht_cap->vht_mcs));
+	pos += sizeof(vht_cap->vht_mcs);
+
+	return pos;
+}
+
 u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 			       struct ieee80211_channel *channel,
 			       enum nl80211_channel_type channel_type,
@@ -1764,15 +1797,14 @@ ieee80211_ht_oper_to_channel_type(struct ieee80211_ht_operation *ht_oper)
 	return channel_type;
 }
 
-int ieee80211_add_srates_ie(struct ieee80211_vif *vif,
+int ieee80211_add_srates_ie(struct ieee80211_sub_if_data *sdata,
 			    struct sk_buff *skb, bool need_basic)
 {
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
 	int rate;
 	u8 i, rates, *pos;
-	u32 basic_rates = vif->bss_conf.basic_rates;
+	u32 basic_rates = sdata->vif.bss_conf.basic_rates;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 	rates = sband->n_bitrates;
@@ -1796,15 +1828,14 @@ int ieee80211_add_srates_ie(struct ieee80211_vif *vif,
 	return 0;
 }
 
-int ieee80211_add_ext_srates_ie(struct ieee80211_vif *vif,
+int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
 				struct sk_buff *skb, bool need_basic)
 {
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
 	int rate;
 	u8 i, exrates, *pos;
-	u32 basic_rates = vif->bss_conf.basic_rates;
+	u32 basic_rates = sdata->vif.bss_conf.basic_rates;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 	exrates = sband->n_bitrates;

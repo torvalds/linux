@@ -60,6 +60,12 @@ void wlcore_enable_interrupts(struct wl1271 *wl)
 }
 EXPORT_SYMBOL_GPL(wlcore_enable_interrupts);
 
+void wlcore_synchronize_interrupts(struct wl1271 *wl)
+{
+	synchronize_irq(wl->irq);
+}
+EXPORT_SYMBOL_GPL(wlcore_synchronize_interrupts);
+
 int wlcore_translate_addr(struct wl1271 *wl, int addr)
 {
 	struct wlcore_partition_set *part = &wl->curr_part;

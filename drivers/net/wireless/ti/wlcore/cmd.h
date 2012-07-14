@@ -58,7 +58,7 @@ int wl1271_cmd_build_ps_poll(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			       u8 role_id, u8 band,
 			       const u8 *ssid, size_t ssid_len,
-			       const u8 *ie, size_t ie_len);
+			       const u8 *ie, size_t ie_len, bool sched_scan);
 struct sk_buff *wl1271_cmd_build_ap_probe_req(struct wl1271 *wl,
 					      struct wl12xx_vif *wlvif,
 					      struct sk_buff *skb);
@@ -172,8 +172,8 @@ enum cmd_templ {
 	CMD_TEMPL_PS_POLL,
 	CMD_TEMPL_KLV,
 	CMD_TEMPL_DISCONNECT,
-	CMD_TEMPL_PROBE_REQ_2_4, /* for firmware internal use only */
-	CMD_TEMPL_PROBE_REQ_5,   /* for firmware internal use only */
+	CMD_TEMPL_APP_PROBE_REQ_2_4,
+	CMD_TEMPL_APP_PROBE_REQ_5,
 	CMD_TEMPL_BAR,           /* for firmware internal use only */
 	CMD_TEMPL_CTS,           /*
 				  * For CTS-to-self (FastCTS) mechanism

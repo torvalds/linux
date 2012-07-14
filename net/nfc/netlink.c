@@ -634,6 +634,15 @@ static int nfc_genl_stop_poll(struct sk_buff *skb, struct genl_info *info)
 	if (!dev)
 		return -ENODEV;
 
+	device_lock(&dev->dev);
+
+	if (!dev->polling) {
+		device_unlock(&dev->dev);
+		return -EINVAL;
+	}
+
+	device_unlock(&dev->dev);
+
 	mutex_lock(&dev->genl_data.genl_data_mutex);
 
 	if (dev->genl_data.poll_req_pid != info->snd_pid) {

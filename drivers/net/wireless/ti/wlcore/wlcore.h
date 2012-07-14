@@ -304,7 +304,7 @@ struct wl1271 {
 	s8 noise;
 
 	/* bands supported by this instance of wl12xx */
-	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
+	struct ieee80211_supported_band bands[WLCORE_NUM_BANDS];
 
 	/*
 	 * wowlan trigger was configured during suspend.
@@ -371,7 +371,7 @@ struct wl1271 {
 	u8 hw_min_ht_rate;
 
 	/* HW HT (11n) capabilities */
-	struct ieee80211_sta_ht_cap ht_cap[IEEE80211_NUM_BANDS];
+	struct ieee80211_sta_ht_cap ht_cap[WLCORE_NUM_BANDS];
 
 	/* size of the private FW status data */
 	size_t fw_status_priv_len;
@@ -390,6 +390,9 @@ struct wl1271 {
 
 	/* sleep auth value currently configured to FW */
 	int sleep_auth;
+
+	/* the minimum FW version required for the driver to work */
+	unsigned int min_fw_ver[NUM_FW_VER];
 };
 
 int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
@@ -406,6 +409,18 @@ wlcore_set_ht_cap(struct wl1271 *wl, enum ieee80211_band band,
 		  struct ieee80211_sta_ht_cap *ht_cap)
 {
 	memcpy(&wl->ht_cap[band], ht_cap, sizeof(*ht_cap));
+}
+
+static inline void
+wlcore_set_min_fw_ver(struct wl1271 *wl, unsigned int chip,
+		      unsigned int iftype, unsigned int major,
+		      unsigned int subtype, unsigned int minor)
+{
+	wl->min_fw_ver[FW_VER_CHIP] = chip;
+	wl->min_fw_ver[FW_VER_IF_TYPE] = iftype;
+	wl->min_fw_ver[FW_VER_MAJOR] = major;
+	wl->min_fw_ver[FW_VER_SUBTYPE] = subtype;
+	wl->min_fw_ver[FW_VER_MINOR] = minor;
 }
 
 /* Firmware image load chunk size */
@@ -436,6 +451,12 @@ wlcore_set_ht_cap(struct wl1271 *wl, enum ieee80211_band band,
 
 /* extra header space is required for TKIP */
 #define WLCORE_QUIRK_TKIP_HEADER_SPACE		BIT(8)
+
+/* Some firmwares not support sched scans while connected */
+#define WLCORE_QUIRK_NO_SCHED_SCAN_WHILE_CONN	BIT(9)
+
+/* separate probe response templates for one-shot and sched scans */
+#define WLCORE_QUIRK_DUAL_PROBE_TMPL		BIT(10)
 
 /* TODO: move to the lower drivers when all usages are abstracted */
 #define CHIP_ID_1271_PG10              (0x4030101)

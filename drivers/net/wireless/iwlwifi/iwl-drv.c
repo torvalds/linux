@@ -1013,6 +1013,7 @@ struct iwl_mod_params iwlwifi_mod_params = {
 	.power_level = IWL_POWER_INDEX_1,
 	.bt_ch_announce = true,
 	.auto_agg = true,
+	.wd_disable = true,
 	/* the rest are 0 by default */
 };
 EXPORT_SYMBOL_GPL(iwlwifi_mod_params);

@@ -46,7 +46,7 @@
  *  - bus generic driver (this part)
  *
  * The bus specific driver sets up stuff specific to the bus the
- * device is connected to (USB, SDIO, PCI, tam-tam...non-authoritative
+ * device is connected to (USB, PCI, tam-tam...non-authoritative
  * nor binding list) which is basically the device-model management
  * (probe/disconnect, etc), moving data from device to kernel and
  * back, doing the power saving details and reseting the device.
@@ -238,14 +238,13 @@ struct i2400m_barker_db;
  * amount needed for loading firmware, where us dev_start/stop setup
  * the rest needed to do full data/control traffic.
  *
- * @bus_tx_block_size: [fill] SDIO imposes a 256 block size, USB 16,
- *     so we have a tx_blk_size variable that the bus layer sets to
- *     tell the engine how much of that we need.
+ * @bus_tx_block_size: [fill] USB imposes a 16 block size, but other
+ *     busses will differ.  So we have a tx_blk_size variable that the
+ *     bus layer sets to tell the engine how much of that we need.
  *
  * @bus_tx_room_min: [fill] Minimum room required while allocating
- *     TX queue's buffer space for message header. SDIO requires
- *     224 bytes and USB 16 bytes. Refer bus specific driver code
- *     for details.
+ *     TX queue's buffer space for message header. USB requires
+ *     16 bytes. Refer to bus specific driver code for details.
  *
  * @bus_pl_size_max: [fill] Maximum payload size.
  *

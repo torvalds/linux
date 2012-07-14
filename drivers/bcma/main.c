@@ -118,8 +118,9 @@ static int bcma_register_cores(struct bcma_bus *bus)
 
 		err = device_register(&core->dev);
 		if (err) {
-			pr_err("Could not register dev for core 0x%03X\n",
-			       core->id.id);
+			bcma_err(bus,
+				 "Could not register dev for core 0x%03X\n",
+				 core->id.id);
 			continue;
 		}
 		core->dev_registered = true;
@@ -151,7 +152,7 @@ int __devinit bcma_bus_register(struct bcma_bus *bus)
 	/* Scan for devices (cores) */
 	err = bcma_bus_scan(bus);
 	if (err) {
-		pr_err("Failed to scan: %d\n", err);
+		bcma_err(bus, "Failed to scan: %d\n", err);
 		return -1;
 	}
 
@@ -179,14 +180,14 @@ int __devinit bcma_bus_register(struct bcma_bus *bus)
 	/* Try to get SPROM */
 	err = bcma_sprom_get(bus);
 	if (err == -ENOENT) {
-		pr_err("No SPROM available\n");
+		bcma_err(bus, "No SPROM available\n");
 	} else if (err)
-		pr_err("Failed to get SPROM: %d\n", err);
+		bcma_err(bus, "Failed to get SPROM: %d\n", err);
 
 	/* Register found cores */
 	bcma_register_cores(bus);
 
-	pr_info("Bus registered\n");
+	bcma_info(bus, "Bus registered\n");
 
 	return 0;
 }
@@ -214,7 +215,7 @@ int __init bcma_bus_early_register(struct bcma_bus *bus,
 	/* Scan for chip common core */
 	err = bcma_bus_scan_early(bus, &match, core_cc);
 	if (err) {
-		pr_err("Failed to scan for common core: %d\n", err);
+		bcma_err(bus, "Failed to scan for common core: %d\n", err);
 		return -1;
 	}
 
@@ -226,7 +227,7 @@ int __init bcma_bus_early_register(struct bcma_bus *bus,
 	/* Scan for mips core */
 	err = bcma_bus_scan_early(bus, &match, core_mips);
 	if (err) {
-		pr_err("Failed to scan for mips core: %d\n", err);
+		bcma_err(bus, "Failed to scan for mips core: %d\n", err);
 		return -1;
 	}
 
@@ -244,7 +245,7 @@ int __init bcma_bus_early_register(struct bcma_bus *bus,
 		bcma_core_mips_init(&bus->drv_mips);
 	}
 
-	pr_info("Early bus registered\n");
+	bcma_info(bus, "Early bus registered\n");
 
 	return 0;
 }

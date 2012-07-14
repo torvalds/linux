@@ -369,7 +369,7 @@ static struct wlcore_conf wl18xx_conf = {
 		.psm_entry_retries           = 8,
 		.psm_exit_retries            = 16,
 		.psm_entry_nullfunc_retries  = 3,
-		.dynamic_ps_timeout          = 200,
+		.dynamic_ps_timeout          = 1500,
 		.forced_ps                   = false,
 		.keep_alive_interval         = 55000,
 		.max_listen_interval         = 20,
@@ -609,7 +609,12 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 		wl->quirks |= WLCORE_QUIRK_NO_ELP |
 			      WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN |
 			      WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN |
+			      WLCORE_QUIRK_NO_SCHED_SCAN_WHILE_CONN |
 			      WLCORE_QUIRK_TX_PAD_LAST_FRAME;
+
+		wlcore_set_min_fw_ver(wl, WL18XX_CHIP_VER, WL18XX_IFTYPE_VER,
+				      WL18XX_MAJOR_VER, WL18XX_SUBTYPE_VER,
+				      WL18XX_MINOR_VER);
 		break;
 	case CHIP_ID_185x_PG10:
 		wl1271_warning("chip id 0x%x (185x PG10) is deprecated",
@@ -1020,14 +1025,24 @@ static u32 wl18xx_sta_get_ap_rate_mask(struct wl1271 *wl,
 static u32 wl18xx_ap_get_mimo_wide_rate_mask(struct wl1271 *wl,
 					     struct wl12xx_vif *wlvif)
 {
-	if ((wlvif->channel_type == NL80211_CHAN_HT40MINUS ||
-	     wlvif->channel_type == NL80211_CHAN_HT40PLUS) &&
-	    !strcmp(ht_mode_param, "wide")) {
-		wl1271_debug(DEBUG_ACX, "using wide channel rate mask");
-		return CONF_TX_RATE_USE_WIDE_CHAN;
-	} else if (!strcmp(ht_mode_param, "mimo")) {
-		wl1271_debug(DEBUG_ACX, "using MIMO rate mask");
+	struct wl18xx_priv *priv = wl->priv;
 
+	if (wlvif->channel_type == NL80211_CHAN_HT40MINUS ||
+	    wlvif->channel_type == NL80211_CHAN_HT40PLUS) {
+		wl1271_debug(DEBUG_ACX, "using wide channel rate mask");
+
+		/* sanity check - we don't support this */
+		if (WARN_ON(wlvif->band != IEEE80211_BAND_5GHZ))
+			return 0;
+
+		return CONF_TX_RATE_USE_WIDE_CHAN;
+	} else if (priv->conf.phy.number_of_assembled_ant2_4 >= 2 &&
+		   wlvif->band == IEEE80211_BAND_2GHZ) {
+		wl1271_debug(DEBUG_ACX, "using MIMO rate mask");
+		/*
+		 * we don't care about HT channel here - if a peer doesn't
+		 * support MIMO, we won't enable it in its rates
+		 */
 		return CONF_TX_MIMO_RATES;
 	} else {
 		return 0;

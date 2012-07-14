@@ -174,8 +174,8 @@ skip_tuning:
 			btcoex->btcoex_period >>= 1;
 	}
 
-	ath9k_hw_btcoex_disable(sc->sc_ah);
 	ath9k_btcoex_timer_pause(sc);
+	ath9k_hw_btcoex_disable(sc->sc_ah);
 
 	if (IS_CHAN_5GHZ(sc->sc_ah->curchan))
 		return;

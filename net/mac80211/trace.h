@@ -1244,6 +1244,13 @@ TRACE_EVENT(drv_get_rssi,
 	)
 );
 
+DEFINE_EVENT(local_sdata_evt, drv_mgd_prepare_tx,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+
+	TP_ARGS(local, sdata)
+);
+
 /*
  * Tracing for API calls that drivers call.
  */

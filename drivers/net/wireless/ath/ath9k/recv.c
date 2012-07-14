@@ -430,6 +430,9 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 		rfilt |= ATH9K_RX_FILTER_MCAST_BCAST_ALL;
 	}
 
+	if (AR_SREV_9550(sc->sc_ah))
+		rfilt |= ATH9K_RX_FILTER_4ADDRESS;
+
 	return rfilt;
 
 }
