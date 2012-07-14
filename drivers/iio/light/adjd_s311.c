@@ -185,7 +185,7 @@ static irqreturn_t adjd_s311_trigger_handler(int irq, void *p)
 	}
 
 	if (indio_dev->scan_timestamp)
-		*(s64 *)((phys_addr_t)data->buffer + ALIGN(len, sizeof(s64)))
+		*(s64 *)((u8 *)data->buffer + ALIGN(len, sizeof(s64)))
 			= time_ns;
 	iio_push_to_buffer(buffer, (u8 *)data->buffer, time_ns);
 
