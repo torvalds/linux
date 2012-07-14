@@ -22,10 +22,17 @@
  * Authors: Ben Skeggs
  */
 
-#include "drmP.h"
+#include <core/device.h>
+#include <core/gpuobj.h>
 
-#include "nouveau_drv.h"
+#include <subdev/timer.h>
+#include <subdev/fb.h>
 #include <subdev/vm.h>
+
+struct nv50_vmmgr_priv {
+	struct nouveau_vmmgr base;
+	spinlock_t lock;
+};
 
 void
 nv50_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 pde,
@@ -35,11 +42,11 @@ nv50_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 pde,
 	u32 coverage = 0;
 
 	if (pgt[0]) {
-		phys = 0x00000003 | pgt[0]->vinst; /* present, 4KiB pages */
+		phys = 0x00000003 | pgt[0]->addr; /* present, 4KiB pages */
 		coverage = (pgt[0]->size >> 3) << 12;
 	} else
 	if (pgt[1]) {
-		phys = 0x00000001 | pgt[1]->vinst; /* present */
+		phys = 0x00000001 | pgt[1]->addr; /* present */
 		coverage = (pgt[1]->size >> 3) << 16;
 	}
 
@@ -73,15 +80,14 @@ void
 nv50_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 	    struct nouveau_mem *mem, u32 pte, u32 cnt, u64 phys, u64 delta)
 {
-	struct drm_nouveau_private *dev_priv = vma->vm->dev->dev_private;
 	u32 comp = (mem->memtype & 0x180) >> 7;
 	u32 block, target;
 	int i;
 
 	/* IGPs don't have real VRAM, re-target to stolen system memory */
 	target = 0;
-	if (nvfb_vram_sys_base(dev_priv->dev)) {
-		phys += nvfb_vram_sys_base(dev_priv->dev);
+	if (nouveau_fb(vma->vm->vmm)->ram.stolen) {
+		phys += nouveau_fb(vma->vm->vmm)->ram.stolen;
 		target = 3;
 	}
 
@@ -145,33 +151,81 @@ nv50_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
 void
 nv50_vm_flush(struct nouveau_vm *vm)
 {
-	struct drm_nouveau_private *dev_priv = vm->dev->dev_private;
-	struct nouveau_instmem_engine *pinstmem = &dev_priv->engine.instmem;
+	struct nouveau_engine *engine;
 	int i;
 
-	pinstmem->flush(vm->dev);
-
-	/* BAR */
-	if (vm == dev_priv->bar1_vm || vm == dev_priv->bar3_vm) {
-		nv50_vm_flush_engine(vm->dev, 6);
-		return;
+#if 0
+	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
+		if (atomic_read(&vm->engref[i])) {
+			engine = nouveau_engine(vm->vmm, i);
+			if (engine && engine->tlb_flush)
+				engine->tlb_flush(engine);
+		}
 	}
-
-	for (i = 0; i < NVOBJ_ENGINE_NR; i++) {
-		if (atomic_read(&vm->engref[i]))
-			dev_priv->eng[i]->tlb_flush(vm->dev, i);
-	}
+#else
+	nv50_vm_flush_engine(nv_subdev(vm->vmm), 0x06); /* bar */
+	nv50_vm_flush_engine(nv_subdev(vm->vmm), 0x05); /* fifo */
+	nv50_vm_flush_engine(nv_subdev(vm->vmm), 0x00); /* gr */
+#endif
 }
 
 void
-nv50_vm_flush_engine(struct drm_device *dev, int engine)
+nv50_vm_flush_engine(struct nouveau_subdev *subdev, int engine)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nv50_vmmgr_priv *priv = (void *)nouveau_vmmgr(subdev);
 	unsigned long flags;
 
-	spin_lock_irqsave(&dev_priv->vm_lock, flags);
-	nv_wr32(dev, 0x100c80, (engine << 16) | 1);
-	if (!nv_wait(dev, 0x100c80, 0x00000001, 0x00000000))
-		NV_ERROR(dev, "vm flush timeout: engine %d\n", engine);
-	spin_unlock_irqrestore(&dev_priv->vm_lock, flags);
+	spin_lock_irqsave(&priv->lock, flags);
+	nv_wr32(subdev, 0x100c80, (engine << 16) | 1);
+	if (!nv_wait(subdev, 0x100c80, 0x00000001, 0x00000000))
+		nv_error(subdev, "vm flush timeout: engine %d\n", engine);
+	spin_unlock_irqrestore(&priv->lock, flags);
 }
+
+static int
+nv50_vm_create(struct nouveau_vmmgr *vmm, u64 offset, u64 length,
+	       u64 mm_offset, struct nouveau_vm **pvm)
+{
+	u32 block = (1 << (vmm->pgt_bits + 12));
+	if (block > length)
+		block = length;
+
+	return nouveau_vm_create(vmm, offset, length, mm_offset, block, pvm);
+}
+
+static int
+nv50_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+		struct nouveau_oclass *oclass, void *data, u32 size,
+		struct nouveau_object **pobject)
+{
+	struct nv50_vmmgr_priv *priv;
+	int ret;
+
+	ret = nouveau_vmmgr_create(parent, engine, oclass, "VM", "vm", &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
+
+	priv->base.pgt_bits  = 29 - 12;
+	priv->base.spg_shift = 12;
+	priv->base.lpg_shift = 16;
+	priv->base.create = nv50_vm_create;
+	priv->base.map_pgt = nv50_vm_map_pgt;
+	priv->base.map = nv50_vm_map;
+	priv->base.map_sg = nv50_vm_map_sg;
+	priv->base.unmap = nv50_vm_unmap;
+	priv->base.flush = nv50_vm_flush;
+	spin_lock_init(&priv->lock);
+	return 0;
+}
+
+struct nouveau_oclass
+nv50_vmmgr_oclass = {
+	.handle = NV_SUBDEV(VM, 0x50),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv50_vmmgr_ctor,
+		.dtor = _nouveau_vmmgr_dtor,
+		.init = _nouveau_vmmgr_init,
+		.fini = _nouveau_vmmgr_fini,
+	},
+};

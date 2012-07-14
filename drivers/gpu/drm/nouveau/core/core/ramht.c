@@ -86,7 +86,6 @@ nouveau_ramht_insert(struct nouveau_channel *chan, u32 handle,
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_instmem_engine *instmem = &dev_priv->engine.instmem;
 	struct nouveau_ramht_entry *entry;
 	struct nouveau_gpuobj *ramht = chan->ramht->gpuobj;
 	unsigned long flags;
@@ -104,21 +103,21 @@ nouveau_ramht_insert(struct nouveau_channel *chan, u32 handle,
 	nouveau_gpuobj_ref(gpuobj, &entry->gpuobj);
 
 	if (dev_priv->card_type < NV_40) {
-		ctx = NV_RAMHT_CONTEXT_VALID | (gpuobj->pinst >> 4) |
+		ctx = NV_RAMHT_CONTEXT_VALID | (gpuobj->addr >> 4) |
 		      (chan->id << NV_RAMHT_CONTEXT_CHANNEL_SHIFT) |
 		      (gpuobj->engine << NV_RAMHT_CONTEXT_ENGINE_SHIFT);
 	} else
 	if (dev_priv->card_type < NV_50) {
-		ctx = (gpuobj->pinst >> 4) |
+		ctx = (gpuobj->addr >> 4) |
 		      (chan->id << NV40_RAMHT_CONTEXT_CHANNEL_SHIFT) |
 		      (gpuobj->engine << NV40_RAMHT_CONTEXT_ENGINE_SHIFT);
 	} else {
 		if (gpuobj->engine == NVOBJ_ENGINE_DISPLAY) {
-			ctx = (gpuobj->cinst << 10) |
+			ctx = (gpuobj->node->offset << 10) |
 			      (chan->id << 28) |
 			      chan->id; /* HASH_TAG */
 		} else {
-			ctx = (gpuobj->cinst >> 4) |
+			ctx = (gpuobj->node->offset >> 4) |
 			      ((gpuobj->engine <<
 				NV40_RAMHT_CONTEXT_ENGINE_SHIFT));
 		}
@@ -137,7 +136,7 @@ nouveau_ramht_insert(struct nouveau_channel *chan, u32 handle,
 			nv_wo32(ramht, co + 4, ctx);
 
 			spin_unlock_irqrestore(&chan->ramht->lock, flags);
-			instmem->flush(dev);
+			nvimem_flush(dev);
 			return 0;
 		}
 		NV_DEBUG(dev, "collision ch%d 0x%08x: h=0x%08x\n",
@@ -184,8 +183,6 @@ static void
 nouveau_ramht_remove_hash(struct nouveau_channel *chan, u32 handle)
 {
 	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_instmem_engine *instmem = &dev_priv->engine.instmem;
 	struct nouveau_gpuobj *ramht = chan->ramht->gpuobj;
 	unsigned long flags;
 	u32 co, ho;
@@ -201,7 +198,7 @@ nouveau_ramht_remove_hash(struct nouveau_channel *chan, u32 handle)
 				 chan->id, co, handle, nv_ro32(ramht, co + 4));
 			nv_wo32(ramht, co + 0, 0x00000000);
 			nv_wo32(ramht, co + 4, 0x00000000);
-			instmem->flush(dev);
+			nvimem_flush(dev);
 			goto out;
 		}
 

@@ -29,7 +29,6 @@
 #include "nouveau_drv.h"
 #include <engine/fifo.h>
 #include <core/ramht.h>
-#include <subdev/vm.h>
 
 struct nv50_fifo_priv {
 	struct nouveau_fifo_priv base;
@@ -45,7 +44,6 @@ void
 nv50_fifo_playlist_update(struct drm_device *dev)
 {
 	struct nv50_fifo_priv *priv = nv_engine(dev, NVOBJ_ENGINE_FIFO);
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *cur;
 	int i, p;
 
@@ -57,9 +55,9 @@ nv50_fifo_playlist_update(struct drm_device *dev)
 			nv_wo32(cur, p++ * 4, i);
 	}
 
-	dev_priv->engine.instmem.flush(dev);
+	nvimem_flush(dev);
 
-	nv_wr32(dev, 0x0032f4, cur->vinst >> 12);
+	nv_wr32(dev, 0x0032f4, cur->addr >> 12);
 	nv_wr32(dev, 0x0032ec, p);
 	nv_wr32(dev, 0x002500, 0x00000101);
 }
@@ -72,14 +70,14 @@ nv50_fifo_context_new(struct nouveau_channel *chan, int engine)
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	u64 ib_offset = chan->pushbuf_base + chan->dma.ib_base * 4;
-	u64 instance = chan->ramin->vinst >> 12;
+	u64 instance = chan->ramin->addr >> 12;
 	unsigned long flags;
 	int ret = 0, i;
 
 	fctx = chan->engctx[engine] = kzalloc(sizeof(*fctx), GFP_KERNEL);
 	if (!fctx)
 		return -ENOMEM;
-	atomic_inc(&chan->vm->engref[engine]);
+	nvvm_engref(chan->vm, engine, 1);
 
 	chan->user = ioremap(pci_resource_start(dev->pdev, 0) +
 			     NV50_USER(chan->id), PAGE_SIZE);
@@ -93,7 +91,7 @@ nv50_fifo_context_new(struct nouveau_channel *chan, int engine)
 	nv_wo32(chan->ramin, 0x3c, 0x403f6078);
 	nv_wo32(chan->ramin, 0x40, 0x00000000);
 	nv_wo32(chan->ramin, 0x44, 0x01003fff);
-	nv_wo32(chan->ramin, 0x48, chan->pushbuf->cinst >> 4);
+	nv_wo32(chan->ramin, 0x48, chan->pushbuf->node->offset >> 4);
 	nv_wo32(chan->ramin, 0x50, lower_32_bits(ib_offset));
 	nv_wo32(chan->ramin, 0x54, upper_32_bits(ib_offset) |
 				   drm_order(chan->dma.ib_max + 1) << 16);
@@ -102,9 +100,9 @@ nv50_fifo_context_new(struct nouveau_channel *chan, int engine)
 	nv_wo32(chan->ramin, 0x7c, 0x30000001);
 	nv_wo32(chan->ramin, 0x80, ((chan->ramht->bits - 9) << 27) |
 				   (4 << 24) /* SEARCH_FULL */ |
-				   (chan->ramht->gpuobj->cinst >> 4));
+				   (chan->ramht->gpuobj->node->offset >> 4));
 
-	dev_priv->engine.instmem.flush(dev);
+	nvimem_flush(dev);
 
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 	nv_wr32(dev, 0x002600 + (chan->id * 4), 0x80000000 | instance);
@@ -141,7 +139,7 @@ nv50_fifo_kickoff(struct nouveau_channel *chan)
 	me = nv_mask(dev, 0x00b860, 0x00000001, 0x00000001);
 
 	/* do the kickoff... */
-	nv_wr32(dev, 0x0032fc, chan->ramin->vinst >> 12);
+	nv_wr32(dev, 0x0032fc, chan->ramin->addr >> 12);
 	if (!nv_wait_ne(dev, 0x0032fc, 0xffffffff, 0xffffffff)) {
 		NV_INFO(dev, "PFIFO: channel %d unload timeout\n", chan->id);
 		done = false;
@@ -177,7 +175,7 @@ nv50_fifo_context_del(struct nouveau_channel *chan, int engine)
 		chan->user = NULL;
 	}
 
-	atomic_dec(&chan->vm->engref[engine]);
+	nvvm_engref(chan->vm, engine, -1);
 	chan->engctx[engine] = NULL;
 	kfree(fctx);
 }
@@ -200,7 +198,7 @@ nv50_fifo_init(struct drm_device *dev, int engine)
 	for (i = 0; i < 128; i++) {
 		struct nouveau_channel *chan = dev_priv->channels.ptr[i];
 		if (chan && chan->engctx[engine])
-			instance = 0x80000000 | chan->ramin->vinst >> 12;
+			instance = 0x80000000 | chan->ramin->addr >> 12;
 		else
 			instance = 0x00000000;
 		nv_wr32(dev, 0x002600 + (i * 4), instance);

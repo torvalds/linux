@@ -47,7 +47,6 @@ static int
 nv50_mpeg_context_new(struct nouveau_channel *chan, int engine)
 {
 	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *ramin = chan->ramin;
 	struct nouveau_gpuobj *ctx = NULL;
 	int ret;
@@ -60,15 +59,15 @@ nv50_mpeg_context_new(struct nouveau_channel *chan, int engine)
 		return ret;
 
 	nv_wo32(ramin, CTX_PTR(dev, 0x00), 0x80190002);
-	nv_wo32(ramin, CTX_PTR(dev, 0x04), ctx->vinst + ctx->size - 1);
-	nv_wo32(ramin, CTX_PTR(dev, 0x08), ctx->vinst);
+	nv_wo32(ramin, CTX_PTR(dev, 0x04), ctx->addr + ctx->size - 1);
+	nv_wo32(ramin, CTX_PTR(dev, 0x08), ctx->addr);
 	nv_wo32(ramin, CTX_PTR(dev, 0x0c), 0);
 	nv_wo32(ramin, CTX_PTR(dev, 0x10), 0);
 	nv_wo32(ramin, CTX_PTR(dev, 0x14), 0x00010000);
 
 	nv_wo32(ctx, 0x70, 0x00801ec1);
 	nv_wo32(ctx, 0x7c, 0x0000037c);
-	dev_priv->engine.instmem.flush(dev);
+	nvimem_flush(dev);
 
 	chan->engctx[engine] = ctx;
 	return 0;
@@ -93,7 +92,6 @@ nv50_mpeg_object_new(struct nouveau_channel *chan, int engine,
 		     u32 handle, u16 class)
 {
 	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *obj = NULL;
 	int ret;
 
@@ -107,7 +105,7 @@ nv50_mpeg_object_new(struct nouveau_channel *chan, int engine,
 	nv_wo32(obj, 0x04, 0x00000000);
 	nv_wo32(obj, 0x08, 0x00000000);
 	nv_wo32(obj, 0x0c, 0x00000000);
-	dev_priv->engine.instmem.flush(dev);
+	nvimem_flush(dev);
 
 	ret = nouveau_ramht_insert(chan, handle, obj);
 	nouveau_gpuobj_ref(NULL, &obj);

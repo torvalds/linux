@@ -145,6 +145,9 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	/* allocate hw channel id */
 	spin_lock_irqsave(&dev_priv->channels.lock, flags);
 	for (chan->id = 0; chan->id < pfifo->channels; chan->id++) {
+		if ( dev_priv->card_type == NV_50 && chan->id == 0)
+			continue;
+
 		if (!dev_priv->channels.ptr[chan->id]) {
 			nouveau_channel_ref(chan, &dev_priv->channels.ptr[chan->id]);
 			break;

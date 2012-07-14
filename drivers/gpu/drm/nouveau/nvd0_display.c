@@ -1903,7 +1903,7 @@ nvd0_display_init(struct drm_device *dev)
 	}
 
 	/* point at our hash table / objects, enable interrupts */
-	nv_wr32(dev, 0x610010, (disp->mem->vinst >> 8) | 9);
+	nv_wr32(dev, 0x610010, (disp->mem->addr >> 8) | 9);
 	nv_mask(dev, 0x6100b0, 0x00000307, 0x00000307);
 
 	/* init master */
@@ -1967,7 +1967,6 @@ int
 nvd0_display_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_instmem_engine *pinstmem = &dev_priv->engine.instmem;
 	struct dcb_table *dcb = &dev_priv->vbios.dcb;
 	struct drm_connector *connector, *tmp;
 	struct pci_dev *pdev = dev->pdev;
@@ -2106,7 +2105,7 @@ nvd0_display_create(struct drm_device *dev)
 						((dmao + 0x60) << 9));
 	}
 
-	pinstmem->flush(dev);
+	nvimem_flush(dev);
 
 out:
 	if (ret)

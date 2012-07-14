@@ -22,22 +22,24 @@
  * Authors: Ben Skeggs
  */
 
-#include "drmP.h"
-#include "nouveau_drv.h"
+#include <core/gpuobj.h>
 #include <core/mm.h>
+
+#include <subdev/fb.h>
 #include <subdev/vm.h>
 
 void
 nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_mem *node)
 {
 	struct nouveau_vm *vm = vma->vm;
+	struct nouveau_vmmgr *vmm = vm->vmm;
 	struct nouveau_mm_node *r;
-	int big = vma->node->type != vm->spg_shift;
+	int big = vma->node->type != vmm->spg_shift;
 	u32 offset = vma->node->offset + (delta >> 12);
 	u32 bits = vma->node->type - 12;
-	u32 pde  = (offset >> vm->pgt_bits) - vm->fpde;
-	u32 pte  = (offset & ((1 << vm->pgt_bits) - 1)) >> bits;
-	u32 max  = 1 << (vm->pgt_bits - bits);
+	u32 pde  = (offset >> vmm->pgt_bits) - vm->fpde;
+	u32 pte  = (offset & ((1 << vmm->pgt_bits) - 1)) >> bits;
+	u32 max  = 1 << (vmm->pgt_bits - bits);
 	u32 end, len;
 
 	delta = 0;
@@ -53,7 +55,7 @@ nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_mem *node)
 				end = max;
 			len = end - pte;
 
-			vm->map(vma, pgt, node, pte, len, phys, delta);
+			vmm->map(vma, pgt, node, pte, len, phys, delta);
 
 			num -= len;
 			pte += len;
@@ -67,7 +69,7 @@ nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_mem *node)
 		}
 	}
 
-	vm->flush(vm);
+	vmm->flush(vm);
 }
 
 void
@@ -81,13 +83,14 @@ nouveau_vm_map_sg_table(struct nouveau_vma *vma, u64 delta, u64 length,
 			struct nouveau_mem *mem)
 {
 	struct nouveau_vm *vm = vma->vm;
-	int big = vma->node->type != vm->spg_shift;
+	struct nouveau_vmmgr *vmm = vm->vmm;
+	int big = vma->node->type != vmm->spg_shift;
 	u32 offset = vma->node->offset + (delta >> 12);
 	u32 bits = vma->node->type - 12;
 	u32 num  = length >> vma->node->type;
-	u32 pde  = (offset >> vm->pgt_bits) - vm->fpde;
-	u32 pte  = (offset & ((1 << vm->pgt_bits) - 1)) >> bits;
-	u32 max  = 1 << (vm->pgt_bits - bits);
+	u32 pde  = (offset >> vmm->pgt_bits) - vm->fpde;
+	u32 pte  = (offset & ((1 << vmm->pgt_bits) - 1)) >> bits;
+	u32 max  = 1 << (vmm->pgt_bits - bits);
 	unsigned m, sglen;
 	u32 end, len;
 	int i;
@@ -105,7 +108,7 @@ nouveau_vm_map_sg_table(struct nouveau_vma *vma, u64 delta, u64 length,
 		for (m = 0; m < len; m++) {
 			dma_addr_t addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
 
-			vm->map_sg(vma, pgt, mem, pte, 1, &addr);
+			vmm->map_sg(vma, pgt, mem, pte, 1, &addr);
 			num--;
 			pte++;
 
@@ -120,7 +123,7 @@ nouveau_vm_map_sg_table(struct nouveau_vma *vma, u64 delta, u64 length,
 			for (; m < sglen; m++) {
 				dma_addr_t addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
 
-				vm->map_sg(vma, pgt, mem, pte, 1, &addr);
+				vmm->map_sg(vma, pgt, mem, pte, 1, &addr);
 				num--;
 				pte++;
 				if (num == 0)
@@ -130,7 +133,7 @@ nouveau_vm_map_sg_table(struct nouveau_vma *vma, u64 delta, u64 length,
 
 	}
 finish:
-	vm->flush(vm);
+	vmm->flush(vm);
 }
 
 void
@@ -138,14 +141,15 @@ nouveau_vm_map_sg(struct nouveau_vma *vma, u64 delta, u64 length,
 		  struct nouveau_mem *mem)
 {
 	struct nouveau_vm *vm = vma->vm;
+	struct nouveau_vmmgr *vmm = vm->vmm;
 	dma_addr_t *list = mem->pages;
-	int big = vma->node->type != vm->spg_shift;
+	int big = vma->node->type != vmm->spg_shift;
 	u32 offset = vma->node->offset + (delta >> 12);
 	u32 bits = vma->node->type - 12;
 	u32 num  = length >> vma->node->type;
-	u32 pde  = (offset >> vm->pgt_bits) - vm->fpde;
-	u32 pte  = (offset & ((1 << vm->pgt_bits) - 1)) >> bits;
-	u32 max  = 1 << (vm->pgt_bits - bits);
+	u32 pde  = (offset >> vmm->pgt_bits) - vm->fpde;
+	u32 pte  = (offset & ((1 << vmm->pgt_bits) - 1)) >> bits;
+	u32 max  = 1 << (vmm->pgt_bits - bits);
 	u32 end, len;
 
 	while (num) {
@@ -156,7 +160,7 @@ nouveau_vm_map_sg(struct nouveau_vma *vma, u64 delta, u64 length,
 			end = max;
 		len = end - pte;
 
-		vm->map_sg(vma, pgt, mem, pte, len, list);
+		vmm->map_sg(vma, pgt, mem, pte, len, list);
 
 		num  -= len;
 		pte  += len;
@@ -167,20 +171,21 @@ nouveau_vm_map_sg(struct nouveau_vma *vma, u64 delta, u64 length,
 		}
 	}
 
-	vm->flush(vm);
+	vmm->flush(vm);
 }
 
 void
 nouveau_vm_unmap_at(struct nouveau_vma *vma, u64 delta, u64 length)
 {
 	struct nouveau_vm *vm = vma->vm;
-	int big = vma->node->type != vm->spg_shift;
+	struct nouveau_vmmgr *vmm = vm->vmm;
+	int big = vma->node->type != vmm->spg_shift;
 	u32 offset = vma->node->offset + (delta >> 12);
 	u32 bits = vma->node->type - 12;
 	u32 num  = length >> vma->node->type;
-	u32 pde  = (offset >> vm->pgt_bits) - vm->fpde;
-	u32 pte  = (offset & ((1 << vm->pgt_bits) - 1)) >> bits;
-	u32 max  = 1 << (vm->pgt_bits - bits);
+	u32 pde  = (offset >> vmm->pgt_bits) - vm->fpde;
+	u32 pte  = (offset & ((1 << vmm->pgt_bits) - 1)) >> bits;
+	u32 max  = 1 << (vmm->pgt_bits - bits);
 	u32 end, len;
 
 	while (num) {
@@ -191,7 +196,7 @@ nouveau_vm_unmap_at(struct nouveau_vma *vma, u64 delta, u64 length)
 			end = max;
 		len = end - pte;
 
-		vm->unmap(pgt, pte, len);
+		vmm->unmap(pgt, pte, len);
 
 		num -= len;
 		pte += len;
@@ -201,7 +206,7 @@ nouveau_vm_unmap_at(struct nouveau_vma *vma, u64 delta, u64 length)
 		}
 	}
 
-	vm->flush(vm);
+	vmm->flush(vm);
 }
 
 void
@@ -213,6 +218,7 @@ nouveau_vm_unmap(struct nouveau_vma *vma)
 static void
 nouveau_vm_unmap_pgt(struct nouveau_vm *vm, int big, u32 fpde, u32 lpde)
 {
+	struct nouveau_vmmgr *vmm = vm->vmm;
 	struct nouveau_vm_pgd *vpgd;
 	struct nouveau_vm_pgt *vpgt;
 	struct nouveau_gpuobj *pgt;
@@ -227,7 +233,7 @@ nouveau_vm_unmap_pgt(struct nouveau_vm *vm, int big, u32 fpde, u32 lpde)
 		vpgt->obj[big] = NULL;
 
 		list_for_each_entry(vpgd, &vm->pgd_list, head) {
-			vm->map_pgt(vpgd->obj, pde, vpgt->obj);
+			vmm->map_pgt(vpgd->obj, pde, vpgt->obj);
 		}
 
 		mutex_unlock(&vm->mm.mutex);
@@ -239,18 +245,19 @@ nouveau_vm_unmap_pgt(struct nouveau_vm *vm, int big, u32 fpde, u32 lpde)
 static int
 nouveau_vm_map_pgt(struct nouveau_vm *vm, u32 pde, u32 type)
 {
+	struct nouveau_vmmgr *vmm = vm->vmm;
 	struct nouveau_vm_pgt *vpgt = &vm->pgt[pde - vm->fpde];
 	struct nouveau_vm_pgd *vpgd;
 	struct nouveau_gpuobj *pgt;
-	int big = (type != vm->spg_shift);
+	int big = (type != vmm->spg_shift);
 	u32 pgt_size;
 	int ret;
 
-	pgt_size  = (1 << (vm->pgt_bits + 12)) >> type;
+	pgt_size  = (1 << (vmm->pgt_bits + 12)) >> type;
 	pgt_size *= 8;
 
 	mutex_unlock(&vm->mm.mutex);
-	ret = nouveau_gpuobj_new(vm->dev, NULL, pgt_size, 0x1000,
+	ret = nouveau_gpuobj_new(nv_object(vm->vmm), NULL, pgt_size, 0x1000,
 				 NVOBJ_FLAG_ZERO_ALLOC, &pgt);
 	mutex_lock(&vm->mm.mutex);
 	if (unlikely(ret))
@@ -266,7 +273,7 @@ nouveau_vm_map_pgt(struct nouveau_vm *vm, u32 pde, u32 type)
 
 	vpgt->obj[big] = pgt;
 	list_for_each_entry(vpgd, &vm->pgd_list, head) {
-		vm->map_pgt(vpgd->obj, pde, vpgt->obj);
+		vmm->map_pgt(vpgd->obj, pde, vpgt->obj);
 	}
 
 	return 0;
@@ -276,6 +283,7 @@ int
 nouveau_vm_get(struct nouveau_vm *vm, u64 size, u32 page_shift,
 	       u32 access, struct nouveau_vma *vma)
 {
+	struct nouveau_vmmgr *vmm = vm->vmm;
 	u32 align = (1 << page_shift) >> 12;
 	u32 msize = size >> 12;
 	u32 fpde, lpde, pde;
@@ -289,11 +297,11 @@ nouveau_vm_get(struct nouveau_vm *vm, u64 size, u32 page_shift,
 		return ret;
 	}
 
-	fpde = (vma->node->offset >> vm->pgt_bits);
-	lpde = (vma->node->offset + vma->node->length - 1) >> vm->pgt_bits;
+	fpde = (vma->node->offset >> vmm->pgt_bits);
+	lpde = (vma->node->offset + vma->node->length - 1) >> vmm->pgt_bits;
 	for (pde = fpde; pde <= lpde; pde++) {
 		struct nouveau_vm_pgt *vpgt = &vm->pgt[pde - vm->fpde];
-		int big = (vma->node->type != vm->spg_shift);
+		int big = (vma->node->type != vmm->spg_shift);
 
 		if (likely(vpgt->refcount[big])) {
 			vpgt->refcount[big]++;
@@ -321,90 +329,67 @@ void
 nouveau_vm_put(struct nouveau_vma *vma)
 {
 	struct nouveau_vm *vm = vma->vm;
+	struct nouveau_vmmgr *vmm = vm->vmm;
 	u32 fpde, lpde;
 
 	if (unlikely(vma->node == NULL))
 		return;
-	fpde = (vma->node->offset >> vm->pgt_bits);
-	lpde = (vma->node->offset + vma->node->length - 1) >> vm->pgt_bits;
+	fpde = (vma->node->offset >> vmm->pgt_bits);
+	lpde = (vma->node->offset + vma->node->length - 1) >> vmm->pgt_bits;
 
 	mutex_lock(&vm->mm.mutex);
-	nouveau_vm_unmap_pgt(vm, vma->node->type != vm->spg_shift, fpde, lpde);
+	nouveau_vm_unmap_pgt(vm, vma->node->type != vmm->spg_shift, fpde, lpde);
 	nouveau_mm_free(&vm->mm, &vma->node);
 	mutex_unlock(&vm->mm.mutex);
 }
 
 int
-nouveau_vm_new(struct drm_device *dev, u64 offset, u64 length, u64 mm_offset,
-	       struct nouveau_vm **pvm)
+nouveau_vm_create(struct nouveau_vmmgr *vmm, u64 offset, u64 length,
+		  u64 mm_offset, u32 block, struct nouveau_vm **pvm)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_vm *vm;
 	u64 mm_length = (offset + length) - mm_offset;
-	u32 block, pgt_bits;
 	int ret;
 
-	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
+	vm = *pvm = kzalloc(sizeof(*vm), GFP_KERNEL);
 	if (!vm)
 		return -ENOMEM;
 
-	if (dev_priv->card_type == NV_50) {
-		vm->map_pgt = nv50_vm_map_pgt;
-		vm->map = nv50_vm_map;
-		vm->map_sg = nv50_vm_map_sg;
-		vm->unmap = nv50_vm_unmap;
-		vm->flush = nv50_vm_flush;
-		vm->spg_shift = 12;
-		vm->lpg_shift = 16;
+	INIT_LIST_HEAD(&vm->pgd_list);
+	vm->vmm = vmm;
+	vm->refcount = 1;
+	vm->fpde = offset >> (vmm->pgt_bits + 12);
+	vm->lpde = (offset + length - 1) >> (vmm->pgt_bits + 12);
 
-		pgt_bits = 29;
-		block = (1 << pgt_bits);
-		if (length < block)
-			block = length;
-
-	} else
-	if (dev_priv->card_type >= NV_C0) {
-		vm->map_pgt = nvc0_vm_map_pgt;
-		vm->map = nvc0_vm_map;
-		vm->map_sg = nvc0_vm_map_sg;
-		vm->unmap = nvc0_vm_unmap;
-		vm->flush = nvc0_vm_flush;
-		vm->spg_shift = 12;
-		vm->lpg_shift = 17;
-		pgt_bits = 27;
-		block = 4096;
-	} else {
-		kfree(vm);
-		return -ENOSYS;
-	}
-
-	vm->fpde   = offset >> pgt_bits;
-	vm->lpde   = (offset + length - 1) >> pgt_bits;
-	vm->pgt = kcalloc(vm->lpde - vm->fpde + 1, sizeof(*vm->pgt), GFP_KERNEL);
+	vm->pgt  = kcalloc(vm->lpde - vm->fpde + 1, sizeof(*vm->pgt), GFP_KERNEL);
 	if (!vm->pgt) {
 		kfree(vm);
 		return -ENOMEM;
 	}
 
-	INIT_LIST_HEAD(&vm->pgd_list);
-	vm->dev = dev;
-	vm->refcount = 1;
-	vm->pgt_bits = pgt_bits - 12;
-
 	ret = nouveau_mm_init(&vm->mm, mm_offset >> 12, mm_length >> 12,
 			      block >> 12);
 	if (ret) {
+		kfree(vm->pgt);
 		kfree(vm);
 		return ret;
 	}
 
-	*pvm = vm;
 	return 0;
+}
+
+int
+nouveau_vm_new(struct nouveau_device *device, u64 offset, u64 length,
+	       u64 mm_offset, struct nouveau_vm **pvm)
+{
+	struct nouveau_vmmgr *vmm = nouveau_vmmgr(device);
+	return vmm->create(vmm, offset, length, mm_offset, pvm);
 }
 
 static int
 nouveau_vm_link(struct nouveau_vm *vm, struct nouveau_gpuobj *pgd)
 {
+	struct nouveau_vmmgr *vmm = vm->vmm;
 	struct nouveau_vm_pgd *vpgd;
 	int i;
 
@@ -419,7 +404,7 @@ nouveau_vm_link(struct nouveau_vm *vm, struct nouveau_gpuobj *pgd)
 
 	mutex_lock(&vm->mm.mutex);
 	for (i = vm->fpde; i <= vm->lpde; i++)
-		vm->map_pgt(pgd, i, vm->pgt[i - vm->fpde].obj);
+		vmm->map_pgt(pgd, i, vm->pgt[i - vm->fpde].obj);
 	list_add(&vpgd->head, &vm->pgd_list);
 	mutex_unlock(&vm->mm.mutex);
 	return 0;

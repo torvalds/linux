@@ -25,7 +25,6 @@
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include "nouveau_util.h"
-#include <subdev/vm.h>
 #include <core/ramht.h>
 
 struct nv98_ppp_engine {

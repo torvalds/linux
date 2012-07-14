@@ -30,7 +30,6 @@
 #include <engine/fifo.h>
 #include <core/ramht.h>
 #include "nouveau_dma.h"
-#include <subdev/vm.h>
 #include "nv50_evo.h"
 
 struct nv50_graph_engine {
@@ -155,18 +154,18 @@ nv50_graph_context_new(struct nouveau_channel *chan, int engine)
 
 	hdr = (dev_priv->chipset == 0x50) ? 0x200 : 0x20;
 	nv_wo32(ramin, hdr + 0x00, 0x00190002);
-	nv_wo32(ramin, hdr + 0x04, grctx->vinst + grctx->size - 1);
-	nv_wo32(ramin, hdr + 0x08, grctx->vinst);
+	nv_wo32(ramin, hdr + 0x04, grctx->addr + grctx->size - 1);
+	nv_wo32(ramin, hdr + 0x08, grctx->addr);
 	nv_wo32(ramin, hdr + 0x0c, 0);
 	nv_wo32(ramin, hdr + 0x10, 0);
 	nv_wo32(ramin, hdr + 0x14, 0x00010000);
 
 	nv50_grctx_fill(dev, grctx);
-	nv_wo32(grctx, 0x00000, chan->ramin->vinst >> 12);
+	nv_wo32(grctx, 0x00000, chan->ramin->addr >> 12);
 
-	dev_priv->engine.instmem.flush(dev);
+	nvimem_flush(dev);
 
-	atomic_inc(&chan->vm->engref[NVOBJ_ENGINE_GR]);
+	nvvm_engref(chan->vm, engine, 1);
 	chan->engctx[NVOBJ_ENGINE_GR] = grctx;
 	return 0;
 }
@@ -181,9 +180,9 @@ nv50_graph_context_del(struct nouveau_channel *chan, int engine)
 
 	for (i = hdr; i < hdr + 24; i += 4)
 		nv_wo32(chan->ramin, i, 0);
-	dev_priv->engine.instmem.flush(dev);
+	nvimem_flush(dev);
 
-	atomic_dec(&chan->vm->engref[engine]);
+	nvvm_engref(chan->vm, engine, -1);
 	nouveau_gpuobj_ref(NULL, &grctx);
 	chan->engctx[engine] = NULL;
 }
@@ -193,7 +192,6 @@ nv50_graph_object_new(struct nouveau_channel *chan, int engine,
 		      u32 handle, u16 class)
 {
 	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *obj = NULL;
 	int ret;
 
@@ -207,7 +205,7 @@ nv50_graph_object_new(struct nouveau_channel *chan, int engine,
 	nv_wo32(obj, 0x04, 0x00000000);
 	nv_wo32(obj, 0x08, 0x00000000);
 	nv_wo32(obj, 0x0c, 0x00000000);
-	dev_priv->engine.instmem.flush(dev);
+	nvimem_flush(dev);
 
 	ret = nouveau_ramht_insert(chan, handle, obj);
 	nouveau_gpuobj_ref(NULL, &obj);
@@ -723,7 +721,7 @@ nv50_graph_isr_chid(struct drm_device *dev, u64 inst)
 		if (!chan || !chan->ramin)
 			continue;
 
-		if (inst == chan->ramin->vinst)
+		if (inst == chan->ramin->addr)
 			break;
 	}
 	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);

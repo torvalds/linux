@@ -32,6 +32,9 @@
 #include <subdev/timer.h>
 #include <subdev/fb.h>
 #include <subdev/ltcg.h>
+#include <subdev/instmem.h>
+#include <subdev/vm.h>
+#include <subdev/bar.h>
 
 int
 nve0_identify(struct nouveau_device *device)
@@ -47,6 +50,9 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] = &nvc0_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTCG   ] = &nvc0_ltcg_oclass;
+		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
+		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
+		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
 		break;
 	case 0xe7:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -58,6 +64,9 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] = &nvc0_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTCG   ] = &nvc0_ltcg_oclass;
+		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
+		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
+		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Kepler chipset\n");

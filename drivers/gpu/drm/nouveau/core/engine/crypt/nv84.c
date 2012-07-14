@@ -25,7 +25,6 @@
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include "nouveau_util.h"
-#include <subdev/vm.h>
 #include <core/ramht.h>
 
 struct nv84_crypt_engine {
@@ -36,7 +35,6 @@ static int
 nv84_crypt_context_new(struct nouveau_channel *chan, int engine)
 {
 	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *ramin = chan->ramin;
 	struct nouveau_gpuobj *ctx;
 	int ret;
@@ -49,14 +47,14 @@ nv84_crypt_context_new(struct nouveau_channel *chan, int engine)
 		return ret;
 
 	nv_wo32(ramin, 0xa0, 0x00190000);
-	nv_wo32(ramin, 0xa4, ctx->vinst + ctx->size - 1);
-	nv_wo32(ramin, 0xa8, ctx->vinst);
+	nv_wo32(ramin, 0xa4, ctx->addr + ctx->size - 1);
+	nv_wo32(ramin, 0xa8, ctx->addr);
 	nv_wo32(ramin, 0xac, 0);
 	nv_wo32(ramin, 0xb0, 0);
 	nv_wo32(ramin, 0xb4, 0);
-	dev_priv->engine.instmem.flush(dev);
+	nvimem_flush(dev);
 
-	atomic_inc(&chan->vm->engref[engine]);
+	nvvm_engref(chan->vm, engine, 1);
 	chan->engctx[engine] = ctx;
 	return 0;
 }
@@ -68,7 +66,7 @@ nv84_crypt_context_del(struct nouveau_channel *chan, int engine)
 	struct drm_device *dev = chan->dev;
 	u32 inst;
 
-	inst  = (chan->ramin->vinst >> 12);
+	inst  = (chan->ramin->addr >> 12);
 	inst |= 0x80000000;
 
 	/* mark context as invalid if still on the hardware, not
@@ -84,7 +82,7 @@ nv84_crypt_context_del(struct nouveau_channel *chan, int engine)
 
 	nouveau_gpuobj_ref(NULL, &ctx);
 
-	atomic_dec(&chan->vm->engref[engine]);
+	nvvm_engref(chan->vm, engine, -1);
 	chan->engctx[engine] = NULL;
 }
 
@@ -93,7 +91,6 @@ nv84_crypt_object_new(struct nouveau_channel *chan, int engine,
 		      u32 handle, u16 class)
 {
 	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *obj = NULL;
 	int ret;
 
@@ -104,7 +101,7 @@ nv84_crypt_object_new(struct nouveau_channel *chan, int engine,
 	obj->class  = class;
 
 	nv_wo32(obj, 0x00, class);
-	dev_priv->engine.instmem.flush(dev);
+	nvimem_flush(dev);
 
 	ret = nouveau_ramht_insert(chan, handle, obj);
 	nouveau_gpuobj_ref(NULL, &obj);

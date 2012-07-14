@@ -52,16 +52,16 @@ nv40_graph_context_new(struct nouveau_channel *chan, int engine)
 
 	/* Initialise default context values */
 	nv40_grctx_fill(dev, grctx);
-	nv_wo32(grctx, 0, grctx->vinst);
+	nv_wo32(grctx, 0, grctx->addr);
 
 	/* init grctx pointer in ramfc, and on PFIFO if channel is
 	 * already active there
 	 */
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
-	nv_wo32(chan->ramfc, 0x38, grctx->vinst >> 4);
+	nv_wo32(chan->ramfc, 0x38, grctx->addr >> 4);
 	nv_mask(dev, 0x002500, 0x00000001, 0x00000000);
 	if ((nv_rd32(dev, 0x003204) & 0x0000001f) == chan->id)
-		nv_wr32(dev, 0x0032e0, grctx->vinst >> 4);
+		nv_wr32(dev, 0x0032e0, grctx->addr >> 4);
 	nv_mask(dev, 0x002500, 0x00000001, 0x00000001);
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
@@ -75,7 +75,7 @@ nv40_graph_context_del(struct nouveau_channel *chan, int engine)
 	struct nouveau_gpuobj *grctx = chan->engctx[engine];
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	u32 inst = 0x01000000 | (grctx->pinst >> 4);
+	u32 inst = 0x01000000 | (grctx->addr >> 4);
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
@@ -357,7 +357,7 @@ nv40_graph_isr_chid(struct drm_device *dev, u32 inst)
 			continue;
 		grctx = dev_priv->channels.ptr[i]->engctx[NVOBJ_ENGINE_GR];
 
-		if (grctx && grctx->pinst == inst)
+		if (grctx && grctx->addr == inst)
 			break;
 	}
 	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);

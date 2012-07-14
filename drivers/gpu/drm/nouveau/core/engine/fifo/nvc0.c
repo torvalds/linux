@@ -48,8 +48,6 @@ struct nvc0_fifo_chan {
 static void
 nvc0_fifo_playlist_update(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_instmem_engine *pinstmem = &dev_priv->engine.instmem;
 	struct nvc0_fifo_priv *priv = nv_engine(dev, NVOBJ_ENGINE_FIFO);
 	struct nouveau_gpuobj *cur;
 	int i, p;
@@ -64,9 +62,9 @@ nvc0_fifo_playlist_update(struct drm_device *dev)
 		nv_wo32(cur, p + 4, 0x00000004);
 		p += 8;
 	}
-	pinstmem->flush(dev);
+	nvimem_flush(dev);
 
-	nv_wr32(dev, 0x002270, cur->vinst >> 12);
+	nv_wr32(dev, 0x002270, cur->addr >> 12);
 	nv_wr32(dev, 0x002274, 0x01f00000 | (p >> 3));
 	if (!nv_wait(dev, 0x00227c, 0x00100000, 0x00000000))
 		NV_ERROR(dev, "PFIFO - playlist update failed\n");
@@ -76,11 +74,9 @@ static int
 nvc0_fifo_context_new(struct nouveau_channel *chan, int engine)
 {
 	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_instmem_engine *pinstmem = &dev_priv->engine.instmem;
 	struct nvc0_fifo_priv *priv = nv_engine(dev, engine);
 	struct nvc0_fifo_chan *fctx;
-	u64 usermem = priv->user.mem->vinst + chan->id * 0x1000;
+	u64 usermem = priv->user.mem->addr + chan->id * 0x1000;
 	u64 ib_virt = chan->pushbuf_base + chan->dma.ib_base * 4;
 	int ret, i;
 
@@ -115,10 +111,10 @@ nvc0_fifo_context_new(struct nouveau_channel *chan, int engine)
 	nv_wo32(chan->ramin, 0xb8, 0xf8000000);
 	nv_wo32(chan->ramin, 0xf8, 0x10003080); /* 0x002310 */
 	nv_wo32(chan->ramin, 0xfc, 0x10000010); /* 0x002350 */
-	pinstmem->flush(dev);
+	nvimem_flush(dev);
 
 	nv_wr32(dev, 0x003000 + (chan->id * 8), 0xc0000000 |
-						(chan->ramin->vinst >> 12));
+						(chan->ramin->addr >> 12));
 	nv_wr32(dev, 0x003004 + (chan->id * 8), 0x001f0001);
 	nvc0_fifo_playlist_update(dev);
 
@@ -198,7 +194,7 @@ nvc0_fifo_init(struct drm_device *dev, int engine)
 			continue;
 
 		nv_wr32(dev, 0x003000 + (i * 8), 0xc0000000 |
-						 (chan->ramin->vinst >> 12));
+						 (chan->ramin->addr >> 12));
 		nv_wr32(dev, 0x003004 + (i * 8), 0x001f0001);
 	}
 	nvc0_fifo_playlist_update(dev);

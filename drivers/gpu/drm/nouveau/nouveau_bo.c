@@ -34,7 +34,6 @@
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include <core/mm.h>
-#include <subdev/vm.h>
 #include "nouveau_fence.h"
 #include <core/ramht.h>
 
@@ -114,9 +113,9 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	nvbo->bo.bdev = &dev_priv->ttm.bdev;
 
 	nvbo->page_shift = 12;
-	if (dev_priv->bar1_vm) {
+	if (dev_priv->chan_vm) {
 		if (!(flags & TTM_PL_FLAG_TT) && size > 256 * 1024)
-			nvbo->page_shift = dev_priv->bar1_vm->lpg_shift;
+			nvbo->page_shift = nvvm_lpg_shift(dev_priv->chan_vm);
 	}
 
 	nouveau_bo_fixup_align(nvbo, flags, &align, &size);
@@ -419,6 +418,9 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 	case TTM_PL_TT:
 		if (dev_priv->card_type >= NV_50)
 			man->func = &nouveau_gart_manager;
+		else
+		if (dev_priv->gart_info.type != NOUVEAU_GART_AGP)
+			man->func = &nv04_gart_manager;
 		else
 			man->func = &ttm_bo_manager_func;
 		switch (dev_priv->gart_info.type) {
@@ -1044,7 +1046,7 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem)
 			nouveau_vm_map(vma, new_mem->mm_node);
 		} else
 		if (new_mem && new_mem->mem_type == TTM_PL_TT &&
-		    nvbo->page_shift == vma->vm->spg_shift) {
+		    nvbo->page_shift == nvvm_spg_shift(vma->vm)) {
 			if (((struct nouveau_mem *)new_mem->mm_node)->sg)
 				nouveau_vm_map_sg_table(vma, 0, new_mem->
 						  num_pages << PAGE_SHIFT,
@@ -1184,40 +1186,19 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 #endif
 		break;
 	case TTM_PL_VRAM:
-	{
-		struct nouveau_mem *node = mem->mm_node;
-		u8 page_shift;
-
-		if (!dev_priv->bar1_vm) {
-			mem->bus.offset = mem->start << PAGE_SHIFT;
-			mem->bus.base = pci_resource_start(dev->pdev, 1);
-			mem->bus.is_iomem = true;
-			break;
-		}
-
-		if (dev_priv->card_type >= NV_C0)
-			page_shift = node->page_shift;
-		else
-			page_shift = 12;
-
-		ret = nouveau_vm_get(dev_priv->bar1_vm, mem->bus.size,
-				     page_shift, NV_MEM_ACCESS_RW,
-				     &node->bar_vma);
-		if (ret)
-			return ret;
-
-		nouveau_vm_map(&node->bar_vma, node);
-		if (ret) {
-			nouveau_vm_put(&node->bar_vma);
-			return ret;
-		}
-
-		mem->bus.offset = node->bar_vma.offset;
-		if (dev_priv->card_type == NV_50) /*XXX*/
-			mem->bus.offset -= 0x0020000000ULL;
+		mem->bus.offset = mem->start << PAGE_SHIFT;
 		mem->bus.base = pci_resource_start(dev->pdev, 1);
 		mem->bus.is_iomem = true;
-	}
+		if (dev_priv->card_type >= NV_50) {
+			struct nouveau_mem *node = mem->mm_node;
+
+			ret = nvbar_map(dev, node, NV_MEM_ACCESS_RW,
+					&node->bar_vma);
+			if (ret)
+				return ret;
+
+			mem->bus.offset = node->bar_vma.offset;
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -1231,14 +1212,13 @@ nouveau_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bdev);
 	struct nouveau_mem *node = mem->mm_node;
 
-	if (!dev_priv->bar1_vm || mem->mem_type != TTM_PL_VRAM)
+	if (mem->mem_type != TTM_PL_VRAM)
 		return;
 
 	if (!node->bar_vma.node)
 		return;
 
-	nouveau_vm_unmap(&node->bar_vma);
-	nouveau_vm_put(&node->bar_vma);
+	nvbar_unmap(dev_priv->dev, &node->bar_vma);
 }
 
 static int

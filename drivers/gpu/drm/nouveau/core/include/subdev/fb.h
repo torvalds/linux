@@ -6,6 +6,7 @@
 #include <core/device.h>
 #endif
 #include <core/mm.h>
+
 #include <subdev/vm.h>
 
 /* memory type/access flags, do not match hardware values */

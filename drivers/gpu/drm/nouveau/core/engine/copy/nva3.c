@@ -26,7 +26,6 @@
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include "nouveau_util.h"
-#include <subdev/vm.h>
 #include <core/ramht.h>
 #include "fuc/nva3.fuc.h"
 
@@ -38,7 +37,6 @@ static int
 nva3_copy_context_new(struct nouveau_channel *chan, int engine)
 {
 	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *ramin = chan->ramin;
 	struct nouveau_gpuobj *ctx = NULL;
 	int ret;
@@ -51,14 +49,14 @@ nva3_copy_context_new(struct nouveau_channel *chan, int engine)
 		return ret;
 
 	nv_wo32(ramin, 0xc0, 0x00190000);
-	nv_wo32(ramin, 0xc4, ctx->vinst + ctx->size - 1);
-	nv_wo32(ramin, 0xc8, ctx->vinst);
+	nv_wo32(ramin, 0xc4, ctx->addr + ctx->size - 1);
+	nv_wo32(ramin, 0xc8, ctx->addr);
 	nv_wo32(ramin, 0xcc, 0x00000000);
 	nv_wo32(ramin, 0xd0, 0x00000000);
 	nv_wo32(ramin, 0xd4, 0x00000000);
-	dev_priv->engine.instmem.flush(dev);
+	nvimem_flush(dev);
 
-	atomic_inc(&chan->vm->engref[engine]);
+	nvvm_engref(chan->vm, engine, 1);
 	chan->engctx[engine] = ctx;
 	return 0;
 }
@@ -84,7 +82,7 @@ nva3_copy_context_del(struct nouveau_channel *chan, int engine)
 	for (i = 0xc0; i <= 0xd4; i += 4)
 		nv_wo32(chan->ramin, i, 0x00000000);
 
-	atomic_dec(&chan->vm->engref[engine]);
+	nvvm_engref(chan->vm, engine, -1);
 	nouveau_gpuobj_ref(NULL, &ctx);
 	chan->engctx[engine] = ctx;
 }

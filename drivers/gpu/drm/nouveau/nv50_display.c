@@ -217,7 +217,7 @@ nv50_display_init(struct drm_device *dev)
 		return ret;
 	evo = nv50_display(dev)->master;
 
-	nv_wr32(dev, NV50_PDISPLAY_OBJECTS, (evo->ramin->vinst >> 8) | 9);
+	nv_wr32(dev, NV50_PDISPLAY_OBJECTS, (evo->ramin->addr >> 8) | 9);
 
 	ret = RING_SPACE(evo, 3);
 	if (ret)

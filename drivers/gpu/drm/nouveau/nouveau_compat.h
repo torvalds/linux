@@ -82,4 +82,46 @@ int nvfb_vram_rank_B(struct drm_device *);
 
 void nv50_fb_vm_trap(struct drm_device *, int);
 
+struct nouveau_gpuobj *nvimem_ramro(struct drm_device *);
+struct nouveau_gpuobj *nvimem_ramfc(struct drm_device *);
+
+int _nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_gpuobj *par,
+			int size, int align, u32 flags,
+			struct nouveau_gpuobj **pboj);
+
+u32 nv_ri32(struct drm_device *, u32);
+void nv_wi32(struct drm_device *, u32, u32);
+u32 nvimem_reserved(struct drm_device *);
+
+void nvimem_flush(struct drm_device *);
+
+void _nv50_vm_flush_engine(struct drm_device *dev, int engine);
+
+int _nouveau_vm_new(struct drm_device *, u64 offset, u64 length,
+		    u64 mm_offset, struct nouveau_vm **);
+
+struct nouveau_vma;
+int nouveau_gpuobj_map_bar(struct nouveau_gpuobj *, u32, struct nouveau_vma *);
+
+int
+nvbar_map(struct drm_device *dev, struct nouveau_mem *mem, u32 flags,
+	  struct nouveau_vma *vma);
+void
+nvbar_unmap(struct drm_device *dev, struct nouveau_vma *vma);
+
+struct nouveau_vm *
+nv04vm_ref(struct drm_device *dev);
+
+struct nouveau_gpuobj *
+nv04vm_refdma(struct drm_device *dev);
+
+void
+nvvm_engref(struct nouveau_vm *, int, int);
+
+int
+nvvm_spg_shift(struct nouveau_vm *);
+
+int
+nvvm_lpg_shift(struct nouveau_vm *);
+
 #endif

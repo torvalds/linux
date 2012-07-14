@@ -152,7 +152,6 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_instmem_engine *pinstmem = &dev_priv->engine.instmem;
 	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
 	struct nouveau_channel *chan;
 	struct drm_crtc *crtc;
@@ -204,20 +203,6 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 		}
 	}
 
-	ret = pinstmem->suspend(dev);
-	if (ret) {
-		NV_ERROR(dev, "... failed: %d\n", ret);
-		goto out_abort;
-	}
-
-	NV_INFO(dev, "Suspending GPU objects...\n");
-	ret = nouveau_gpuobj_suspend(dev);
-	if (ret) {
-		NV_ERROR(dev, "... failed: %d\n", ret);
-		pinstmem->resume(dev);
-		goto out_abort;
-	}
-
 	return 0;
 
 out_abort:
@@ -247,11 +232,7 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	if (ret)
 		return ret;
 
-	NV_INFO(dev, "Restoring GPU objects...\n");
-	nouveau_gpuobj_resume(dev);
-
 	NV_INFO(dev, "Reinitialising engines...\n");
-	engine->instmem.resume(dev);
 	for (i = 0; i < NVOBJ_ENGINE_NR; i++) {
 		if (dev_priv->eng[i])
 			dev_priv->eng[i]->init(dev, i);

@@ -22,10 +22,17 @@
  * Authors: Ben Skeggs
  */
 
-#include "drmP.h"
+#include <core/device.h>
+#include <core/gpuobj.h>
 
-#include "nouveau_drv.h"
+#include <subdev/timer.h>
+#include <subdev/fb.h>
 #include <subdev/vm.h>
+
+struct nvc0_vmmgr_priv {
+	struct nouveau_vmmgr base;
+	spinlock_t lock;
+};
 
 void
 nvc0_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 index,
@@ -34,9 +41,9 @@ nvc0_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 index,
 	u32 pde[2] = { 0, 0 };
 
 	if (pgt[0])
-		pde[1] = 0x00000001 | (pgt[0]->vinst >> 8);
+		pde[1] = 0x00000001 | (pgt[0]->addr >> 8);
 	if (pgt[1])
-		pde[0] = 0x00000001 | (pgt[1]->vinst >> 8);
+		pde[0] = 0x00000001 | (pgt[1]->addr >> 8);
 
 	nv_wo32(pgd, (index * 8) + 0, pde[0]);
 	nv_wo32(pgd, (index * 8) + 4, pde[1]);
@@ -100,37 +107,81 @@ nvc0_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
 }
 
 void
+nvc0_vm_flush_engine(struct nouveau_subdev *subdev, u64 addr, int type)
+{
+	struct nvc0_vmmgr_priv *priv = (void *)nouveau_vmmgr(subdev);
+	unsigned long flags;
+
+	/* looks like maybe a "free flush slots" counter, the
+	 * faster you write to 0x100cbc to more it decreases
+	 */
+	spin_lock_irqsave(&priv->lock, flags);
+	if (!nv_wait_ne(subdev, 0x100c80, 0x00ff0000, 0x00000000)) {
+		nv_error(subdev, "vm timeout 0: 0x%08x %d\n",
+			 nv_rd32(subdev, 0x100c80), type);
+	}
+
+	nv_wr32(subdev, 0x100cb8, addr >> 8);
+	nv_wr32(subdev, 0x100cbc, 0x80000000 | type);
+
+	/* wait for flush to be queued? */
+	if (!nv_wait(subdev, 0x100c80, 0x00008000, 0x00008000)) {
+		nv_error(subdev, "vm timeout 1: 0x%08x %d\n",
+			 nv_rd32(subdev, 0x100c80), type);
+	}
+	spin_unlock_irqrestore(&priv->lock, flags);
+}
+
+void
 nvc0_vm_flush(struct nouveau_vm *vm)
 {
-	struct drm_nouveau_private *dev_priv = vm->dev->dev_private;
-	struct nouveau_instmem_engine *pinstmem = &dev_priv->engine.instmem;
-	struct drm_device *dev = vm->dev;
 	struct nouveau_vm_pgd *vpgd;
-	unsigned long flags;
-	u32 engine;
 
-	engine = 1;
-	if (vm == dev_priv->bar1_vm || vm == dev_priv->bar3_vm)
-		engine |= 4;
-
-	pinstmem->flush(vm->dev);
-
-	spin_lock_irqsave(&dev_priv->vm_lock, flags);
 	list_for_each_entry(vpgd, &vm->pgd_list, head) {
-		/* looks like maybe a "free flush slots" counter, the
-		 * faster you write to 0x100cbc to more it decreases
-		 */
-		if (!nv_wait_ne(dev, 0x100c80, 0x00ff0000, 0x00000000)) {
-			NV_ERROR(dev, "vm timeout 0: 0x%08x %d\n",
-				 nv_rd32(dev, 0x100c80), engine);
-		}
-		nv_wr32(dev, 0x100cb8, vpgd->obj->vinst >> 8);
-		nv_wr32(dev, 0x100cbc, 0x80000000 | engine);
-		/* wait for flush to be queued? */
-		if (!nv_wait(dev, 0x100c80, 0x00008000, 0x00008000)) {
-			NV_ERROR(dev, "vm timeout 1: 0x%08x %d\n",
-				 nv_rd32(dev, 0x100c80), engine);
-		}
+		nvc0_vm_flush_engine(nv_subdev(vm->vmm), vpgd->obj->addr, 1);
 	}
-	spin_unlock_irqrestore(&dev_priv->vm_lock, flags);
 }
+
+static int
+nvc0_vm_create(struct nouveau_vmmgr *vmm, u64 offset, u64 length,
+	       u64 mm_offset, struct nouveau_vm **pvm)
+{
+	return nouveau_vm_create(vmm, offset, length, mm_offset, 4096, pvm);
+}
+
+static int
+nvc0_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+		struct nouveau_oclass *oclass, void *data, u32 size,
+		struct nouveau_object **pobject)
+{
+	struct nvc0_vmmgr_priv *priv;
+	int ret;
+
+	ret = nouveau_vmmgr_create(parent, engine, oclass, "VM", "vm", &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
+
+	priv->base.pgt_bits  = 27 - 12;
+	priv->base.spg_shift = 12;
+	priv->base.lpg_shift = 17;
+	priv->base.create = nvc0_vm_create;
+	priv->base.map_pgt = nvc0_vm_map_pgt;
+	priv->base.map = nvc0_vm_map;
+	priv->base.map_sg = nvc0_vm_map_sg;
+	priv->base.unmap = nvc0_vm_unmap;
+	priv->base.flush = nvc0_vm_flush;
+	spin_lock_init(&priv->lock);
+	return 0;
+}
+
+struct nouveau_oclass
+nvc0_vmmgr_oclass = {
+	.handle = NV_SUBDEV(VM, 0xc0),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nvc0_vmmgr_ctor,
+		.dtor = _nouveau_vmmgr_dtor,
+		.init = _nouveau_vmmgr_init,
+		.fini = _nouveau_vmmgr_fini,
+	},
+};

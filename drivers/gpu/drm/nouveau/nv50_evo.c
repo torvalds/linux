@@ -70,7 +70,7 @@ nv50_evo_dmaobj_init(struct nouveau_gpuobj *obj, u32 memtype, u64 base, u64 size
 	nv50_gpuobj_dma_init(obj, 0, 0x3d, base, size, NV_MEM_TARGET_VRAM,
 			     NV_MEM_ACCESS_RW, (memtype >> 8) & 0xff, 0);
 	nv_wo32(obj, 0x14, flags5);
-	dev_priv->engine.instmem.flush(obj->dev);
+	nvimem_flush(obj->dev);
 }
 
 int
@@ -263,12 +263,6 @@ nv50_evo_create(struct drm_device *dev)
 		goto err;
 	}
 
-	ret = drm_mm_init(&evo->ramin_heap, 0, 32768);
-	if (ret) {
-		NV_ERROR(dev, "Error initialising EVO PRAMIN heap: %d\n", ret);
-		goto err;
-	}
-
 	ret = nouveau_gpuobj_new(dev, evo, 4096, 16, 0, &ramht);
 	if (ret) {
 		NV_ERROR(dev, "Unable to allocate EVO RAMHT: %d\n", ret);
@@ -294,7 +288,7 @@ nv50_evo_create(struct drm_device *dev)
 		goto err;
 
 	ret = nv50_evo_dmaobj_new(disp->master, NvEvoSync, 0x0000,
-				  disp->ntfy->vinst, disp->ntfy->size, NULL);
+				  disp->ntfy->addr, disp->ntfy->size, NULL);
 	if (ret)
 		goto err;
 

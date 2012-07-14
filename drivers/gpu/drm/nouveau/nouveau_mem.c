@@ -38,7 +38,6 @@
 #include "nouveau_drv.h"
 #include "nouveau_pm.h"
 #include <core/mm.h>
-#include <subdev/vm.h>
 #include <engine/fifo.h>
 #include "nouveau_fence.h"
 
@@ -220,7 +219,7 @@ nouveau_mem_vram_init(struct drm_device *dev)
 		dev_priv->fb_mappable_pages = pci_resource_len(dev->pdev, 1);
 	dev_priv->fb_mappable_pages >>= PAGE_SHIFT;
 
-	dev_priv->fb_available_size -= dev_priv->ramin_rsvd_vram;
+	dev_priv->fb_available_size -= nvimem_reserved(dev);
 	dev_priv->fb_aper_free = dev_priv->fb_available_size;
 
 	/* mappable vram */
@@ -1057,4 +1056,72 @@ const struct ttm_mem_type_manager_func nouveau_gart_manager = {
 	nouveau_gart_manager_new,
 	nouveau_gart_manager_del,
 	nouveau_gart_manager_debug
+};
+
+static int
+nv04_gart_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
+{
+	struct drm_nouveau_private *dev_priv = nouveau_bdev(man->bdev);
+	struct drm_device *dev = dev_priv->dev;
+	man->priv = nv04vm_ref(dev);
+	return (man->priv != NULL) ? 0 : -ENODEV;
+}
+
+static int
+nv04_gart_manager_fini(struct ttm_mem_type_manager *man)
+{
+	struct nouveau_vm *vm = man->priv;
+	nouveau_vm_ref(NULL, &vm, NULL);
+	man->priv = NULL;
+	return 0;
+}
+
+static void
+nv04_gart_manager_del(struct ttm_mem_type_manager *man, struct ttm_mem_reg *mem)
+{
+	struct nouveau_mem *node = mem->mm_node;
+	if (node->vma[0].node)
+		nouveau_vm_put(&node->vma[0]);
+	kfree(mem->mm_node);
+	mem->mm_node = NULL;
+}
+
+static int
+nv04_gart_manager_new(struct ttm_mem_type_manager *man,
+		      struct ttm_buffer_object *bo,
+		      struct ttm_placement *placement,
+		      struct ttm_mem_reg *mem)
+{
+	struct nouveau_mem *node;
+	int ret;
+
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node)
+		return -ENOMEM;
+
+	node->page_shift = 12;
+
+	ret = nouveau_vm_get(man->priv, mem->num_pages << 12, node->page_shift,
+			     NV_MEM_ACCESS_RW, &node->vma[0]);
+	if (ret) {
+		kfree(node);
+		return ret;
+	}
+
+	mem->mm_node = node;
+	mem->start   = node->vma[0].offset >> PAGE_SHIFT;
+	return 0;
+}
+
+void
+nv04_gart_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
+{
+}
+
+const struct ttm_mem_type_manager_func nv04_gart_manager = {
+	nv04_gart_manager_init,
+	nv04_gart_manager_fini,
+	nv04_gart_manager_new,
+	nv04_gart_manager_del,
+	nv04_gart_manager_debug
 };

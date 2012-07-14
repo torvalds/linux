@@ -106,7 +106,7 @@ nv84_fence_context_new(struct nouveau_channel *chan, int engine)
 	nouveau_fence_context_new(&fctx->base);
 
 	ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_FROM_MEMORY,
-				     priv->mem->vinst, priv->mem->size,
+				     priv->mem->addr, priv->mem->size,
 				     NV_MEM_ACCESS_RW,
 				     NV_MEM_TARGET_VRAM, &obj);
 	if (ret == 0) {

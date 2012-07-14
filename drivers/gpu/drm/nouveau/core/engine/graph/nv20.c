@@ -52,7 +52,7 @@ nv20_graph_unload_context(struct drm_device *dev)
 		return 0;
 	grctx = chan->engctx[NVOBJ_ENGINE_GR];
 
-	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_POINTER, grctx->pinst >> 4);
+	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_POINTER, grctx->addr >> 4);
 	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_XFER,
 		     NV20_PGRAPH_CHANNEL_CTX_XFER_SAVE);
 
@@ -437,7 +437,7 @@ nv20_graph_context_new(struct nouveau_channel *chan, int engine)
 	/* CTX_USER */
 	nv_wo32(grctx, pgraph->grctx_user, (chan->id << 24) | 0x1);
 
-	nv_wo32(pgraph->ctxtab, chan->id * 4, grctx->pinst >> 4);
+	nv_wo32(pgraph->ctxtab, chan->id * 4, grctx->addr >> 4);
 	chan->engctx[engine] = grctx;
 	return 0;
 }
@@ -505,7 +505,7 @@ nv20_graph_init(struct drm_device *dev, int engine)
 	nv_wr32(dev, NV03_PMC_ENABLE,
 		nv_rd32(dev, NV03_PMC_ENABLE) |  NV_PMC_ENABLE_PGRAPH);
 
-	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_TABLE, pgraph->ctxtab->pinst >> 4);
+	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_TABLE, pgraph->ctxtab->addr >> 4);
 
 	nv20_graph_rdi(dev);
 
@@ -592,7 +592,7 @@ nv30_graph_init(struct drm_device *dev, int engine)
 	nv_wr32(dev, NV03_PMC_ENABLE,
 		nv_rd32(dev, NV03_PMC_ENABLE) |  NV_PMC_ENABLE_PGRAPH);
 
-	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_TABLE, pgraph->ctxtab->pinst >> 4);
+	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_TABLE, pgraph->ctxtab->addr >> 4);
 
 	nv_wr32(dev, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
 	nv_wr32(dev, NV03_PGRAPH_INTR_EN, 0xFFFFFFFF);

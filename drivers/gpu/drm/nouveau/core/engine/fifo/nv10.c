@@ -31,8 +31,6 @@
 #include "nouveau_util.h"
 #include <core/ramht.h>
 
-#include <core/subdev/instmem/nv04.h>
-
 static struct ramfc_desc {
 	unsigned bits:6;
 	unsigned ctxs:5;
@@ -91,7 +89,7 @@ nv10_fifo_context_new(struct nouveau_channel *chan, int engine)
 	/* initialise default fifo context */
 	nv_wo32(priv->ramfc, fctx->ramfc + 0x00, chan->pushbuf_base);
 	nv_wo32(priv->ramfc, fctx->ramfc + 0x04, chan->pushbuf_base);
-	nv_wo32(priv->ramfc, fctx->ramfc + 0x0c, chan->pushbuf->pinst >> 4);
+	nv_wo32(priv->ramfc, fctx->ramfc + 0x0c, chan->pushbuf->addr >> 4);
 	nv_wo32(priv->ramfc, fctx->ramfc + 0x14,
 			     NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
 			     NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
@@ -115,15 +113,14 @@ int
 nv10_fifo_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nv04_instmem_priv *imem = dev_priv->engine.instmem.priv;
 	struct nv10_fifo_priv *priv;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	nouveau_gpuobj_ref(imem->ramro, &priv->ramro);
-	nouveau_gpuobj_ref(imem->ramfc, &priv->ramfc);
+	nouveau_gpuobj_ref(nvimem_ramro(dev), &priv->ramro);
+	nouveau_gpuobj_ref(nvimem_ramfc(dev), &priv->ramfc);
 
 	priv->base.base.destroy = nv04_fifo_destroy;
 	priv->base.base.init = nv04_fifo_init;

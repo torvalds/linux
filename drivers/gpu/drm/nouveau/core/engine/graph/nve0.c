@@ -63,7 +63,7 @@ nve0_graph_load_context(struct nouveau_channel *chan)
 	struct drm_device *dev = chan->dev;
 
 	nv_wr32(dev, 0x409840, 0x00000030);
-	nv_wr32(dev, 0x409500, 0x80000000 | chan->ramin->vinst >> 12);
+	nv_wr32(dev, 0x409500, 0x80000000 | chan->ramin->addr >> 12);
 	nv_wr32(dev, 0x409504, 0x00000003);
 	if (!nv_wait(dev, 0x409800, 0x00000010, 0x00000010))
 		NV_ERROR(dev, "PGRAPH: load_ctx timeout\n");
@@ -88,7 +88,6 @@ nve0_graph_unload_context_to(struct drm_device *dev, u64 chan)
 static int
 nve0_graph_construct_context(struct nouveau_channel *chan)
 {
-	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
 	struct nve0_graph_priv *priv = nv_engine(chan->dev, NVOBJ_ENGINE_GR);
 	struct nve0_graph_chan *grch = chan->engctx[NVOBJ_ENGINE_GR];
 	struct drm_device *dev = chan->dev;
@@ -105,13 +104,13 @@ nve0_graph_construct_context(struct nouveau_channel *chan)
 	nv_wo32(grch->grctx, 0x20, 0);
 	nv_wo32(grch->grctx, 0x28, 0);
 	nv_wo32(grch->grctx, 0x2c, 0);
-	dev_priv->engine.instmem.flush(dev);
+	nvimem_flush(dev);
 
 	ret = nve0_grctx_generate(chan);
 	if (ret)
 		goto err;
 
-	ret = nve0_graph_unload_context_to(dev, chan->ramin->vinst);
+	ret = nve0_graph_unload_context_to(dev, chan->ramin->addr);
 	if (ret)
 		goto err;
 
@@ -141,8 +140,8 @@ nve0_graph_create_context_mmio_list(struct nouveau_channel *chan)
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_map_vm(grch->unk408004, NV_MEM_ACCESS_RW |
-				    NV_MEM_ACCESS_SYS, chan->vm,
+	ret = nouveau_gpuobj_map_vm(grch->unk408004, chan->vm,
+				    NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS,
 				    &grch->unk408004_vma);
 	if (ret)
 		return ret;
@@ -151,8 +150,8 @@ nve0_graph_create_context_mmio_list(struct nouveau_channel *chan)
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_map_vm(grch->unk40800c, NV_MEM_ACCESS_RW |
-				    NV_MEM_ACCESS_SYS, chan->vm,
+	ret = nouveau_gpuobj_map_vm(grch->unk40800c, chan->vm,
+				    NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS,
 				    &grch->unk40800c_vma);
 	if (ret)
 		return ret;
@@ -162,8 +161,8 @@ nve0_graph_create_context_mmio_list(struct nouveau_channel *chan)
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_map_vm(grch->unk418810, NV_MEM_ACCESS_RW,
-				    chan->vm, &grch->unk418810_vma);
+	ret = nouveau_gpuobj_map_vm(grch->unk418810, chan->vm,
+				    NV_MEM_ACCESS_RW, &grch->unk418810_vma);
 	if (ret)
 		return ret;
 
@@ -171,8 +170,8 @@ nve0_graph_create_context_mmio_list(struct nouveau_channel *chan)
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_map_vm(grch->mmio, NV_MEM_ACCESS_RW |
-				    NV_MEM_ACCESS_SYS, chan->vm,
+	ret = nouveau_gpuobj_map_vm(grch->mmio, chan->vm,
+				    NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS,
 				    &grch->mmio_vma);
 	if (ret)
 		return ret;
@@ -221,8 +220,6 @@ static int
 nve0_graph_context_new(struct nouveau_channel *chan, int engine)
 {
 	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_instmem_engine *pinstmem = &dev_priv->engine.instmem;
 	struct nve0_graph_priv *priv = nv_engine(dev, engine);
 	struct nve0_graph_chan *grch;
 	struct nouveau_gpuobj *grctx;
@@ -238,9 +235,8 @@ nve0_graph_context_new(struct nouveau_channel *chan, int engine)
 	if (ret)
 		goto error;
 
-	ret = nouveau_gpuobj_map_vm(grch->grctx, NV_MEM_ACCESS_RW |
-				    NV_MEM_ACCESS_SYS, chan->vm,
-				    &grch->grctx_vma);
+	ret = nouveau_gpuobj_map_vm(grch->grctx, chan->vm, NV_MEM_ACCESS_RW |
+				    NV_MEM_ACCESS_SYS, &grch->grctx_vma);
 	if (ret)
 		return ret;
 
@@ -252,7 +248,7 @@ nve0_graph_context_new(struct nouveau_channel *chan, int engine)
 
 	nv_wo32(chan->ramin, 0x0210, lower_32_bits(grch->grctx_vma.offset) | 4);
 	nv_wo32(chan->ramin, 0x0214, upper_32_bits(grch->grctx_vma.offset));
-	pinstmem->flush(dev);
+	nvimem_flush(dev);
 
 	if (!priv->grctx_vals) {
 		ret = nve0_graph_construct_context(chan);
@@ -272,7 +268,7 @@ nve0_graph_context_new(struct nouveau_channel *chan, int engine)
 	nv_wo32(grctx, 0x28, 0);
 	nv_wo32(grctx, 0x2c, 0);
 
-	pinstmem->flush(dev);
+	nvimem_flush(dev);
 	return 0;
 
 error:
@@ -321,8 +317,8 @@ nve0_graph_init_obj418880(struct drm_device *dev)
 	nv_wr32(dev, GPC_BCAST(0x08a4), 0x00000000);
 	for (i = 0; i < 4; i++)
 		nv_wr32(dev, GPC_BCAST(0x0888) + (i * 4), 0x00000000);
-	nv_wr32(dev, GPC_BCAST(0x08b4), priv->unk4188b4->vinst >> 8);
-	nv_wr32(dev, GPC_BCAST(0x08b8), priv->unk4188b8->vinst >> 8);
+	nv_wr32(dev, GPC_BCAST(0x08b4), priv->unk4188b4->addr >> 8);
+	nv_wr32(dev, GPC_BCAST(0x08b8), priv->unk4188b8->addr >> 8);
 }
 
 static void
@@ -591,7 +587,7 @@ nve0_graph_isr_chid(struct drm_device *dev, u64 inst)
 		if (!chan || !chan->ramin)
 			continue;
 
-		if (inst == chan->ramin->vinst)
+		if (inst == chan->ramin->addr)
 			break;
 	}
 	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);

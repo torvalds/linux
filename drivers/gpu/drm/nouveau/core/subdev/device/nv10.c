@@ -31,6 +31,8 @@
 #include <subdev/mc.h>
 #include <subdev/timer.h>
 #include <subdev/fb.h>
+#include <subdev/instmem.h>
+#include <subdev/vm.h>
 
 int
 nv10_identify(struct nouveau_device *device)
@@ -45,6 +47,8 @@ nv10_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] = &nv10_fb_oclass;
+		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
+		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		break;
 	case 0x15:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -55,6 +59,8 @@ nv10_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] = &nv10_fb_oclass;
+		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
+		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		break;
 	case 0x16:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -65,6 +71,8 @@ nv10_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] = &nv10_fb_oclass;
+		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
+		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		break;
 	case 0x1a:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -75,6 +83,8 @@ nv10_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] = &nv10_fb_oclass;
+		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
+		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		break;
 	case 0x11:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -85,6 +95,8 @@ nv10_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] = &nv10_fb_oclass;
+		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
+		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		break;
 	case 0x17:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -95,6 +107,8 @@ nv10_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] = &nv10_fb_oclass;
+		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
+		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		break;
 	case 0x1f:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -105,6 +119,8 @@ nv10_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] = &nv10_fb_oclass;
+		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
+		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		break;
 	case 0x18:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -115,6 +131,8 @@ nv10_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] = &nv10_fb_oclass;
+		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
+		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Celsius chipset\n");

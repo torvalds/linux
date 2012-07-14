@@ -48,7 +48,7 @@ mthd_dma_vblsem(struct nouveau_channel *chan, u32 class, u32 mthd, u32 data)
 	if (!gpuobj)
 		return -ENOENT;
 
-	pch->base.vblank.ctxdma = gpuobj->cinst >> 4;
+	pch->base.vblank.ctxdma = gpuobj->node->offset >> 4;
 	return 0;
 }
 
@@ -105,7 +105,7 @@ nv50_software_context_new(struct nouveau_channel *chan, int engine)
 		return -ENOMEM;
 
 	nouveau_software_context_new(&pch->base);
-	pch->base.vblank.channel = chan->ramin->vinst >> 12;
+	pch->base.vblank.channel = chan->ramin->addr >> 12;
 	chan->engctx[engine] = pch;
 
 	/* dma objects for display sync channel semaphore blocks */

@@ -26,7 +26,6 @@
 
 #include "nouveau_drv.h"
 #include "nouveau_util.h"
-#include <subdev/vm.h>
 #include <core/ramht.h>
 
 #include "fuc/nv98.fuc.h"
@@ -43,7 +42,6 @@ static int
 nv98_crypt_context_new(struct nouveau_channel *chan, int engine)
 {
 	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv98_crypt_priv *priv = nv_engine(dev, engine);
 	struct nv98_crypt_chan *cctx;
 	int ret;
@@ -52,7 +50,7 @@ nv98_crypt_context_new(struct nouveau_channel *chan, int engine)
 	if (!cctx)
 		return -ENOMEM;
 
-	atomic_inc(&chan->vm->engref[engine]);
+	nvvm_engref(chan->vm, engine, 1);
 
 	ret = nouveau_gpuobj_new(dev, chan, 256, 0, NVOBJ_FLAG_ZERO_ALLOC |
 				 NVOBJ_FLAG_ZERO_FREE, &cctx->mem);
@@ -60,12 +58,12 @@ nv98_crypt_context_new(struct nouveau_channel *chan, int engine)
 		goto error;
 
 	nv_wo32(chan->ramin, 0xa0, 0x00190000);
-	nv_wo32(chan->ramin, 0xa4, cctx->mem->vinst + cctx->mem->size - 1);
-	nv_wo32(chan->ramin, 0xa8, cctx->mem->vinst);
+	nv_wo32(chan->ramin, 0xa4, cctx->mem->addr + cctx->mem->size - 1);
+	nv_wo32(chan->ramin, 0xa8, cctx->mem->addr);
 	nv_wo32(chan->ramin, 0xac, 0x00000000);
 	nv_wo32(chan->ramin, 0xb0, 0x00000000);
 	nv_wo32(chan->ramin, 0xb4, 0x00000000);
-	dev_priv->engine.instmem.flush(dev);
+	nvimem_flush(dev);
 
 error:
 	if (ret)
@@ -84,7 +82,7 @@ nv98_crypt_context_del(struct nouveau_channel *chan, int engine)
 
 	nouveau_gpuobj_ref(NULL, &cctx->mem);
 
-	atomic_dec(&chan->vm->engref[engine]);
+	nvvm_engref(chan->vm, engine, -1);
 	chan->engctx[engine] = NULL;
 	kfree(cctx);
 }

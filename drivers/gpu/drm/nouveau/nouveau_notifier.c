@@ -96,16 +96,6 @@ nouveau_notifier_takedown_channel(struct nouveau_channel *chan)
 	drm_mm_takedown(&chan->notifier_heap);
 }
 
-static void
-nouveau_notifier_gpuobj_dtor(struct drm_device *dev,
-			     struct nouveau_gpuobj *gpuobj)
-{
-	NV_DEBUG(dev, "\n");
-
-	if (gpuobj->priv)
-		drm_mm_put_block(gpuobj->priv);
-}
-
 int
 nouveau_notifier_alloc(struct nouveau_channel *chan, uint32_t handle,
 		       int size, uint32_t start, uint32_t end,
@@ -147,8 +137,6 @@ nouveau_notifier_alloc(struct nouveau_channel *chan, uint32_t handle,
 		NV_ERROR(dev, "Error creating notifier ctxdma: %d\n", ret);
 		return ret;
 	}
-	nobj->dtor = nouveau_notifier_gpuobj_dtor;
-	nobj->priv = mem;
 
 	ret = nouveau_ramht_insert(chan, handle, nobj);
 	nouveau_gpuobj_ref(NULL, &nobj);

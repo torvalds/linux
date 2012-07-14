@@ -26,7 +26,6 @@
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include "nouveau_util.h"
-#include <subdev/vm.h>
 #include <core/ramht.h>
 #include "fuc/nvc0.fuc.h"
 
@@ -49,7 +48,6 @@ nvc0_copy_context_new(struct nouveau_channel *chan, int engine)
 	struct nvc0_copy_engine *pcopy = nv_engine(chan->dev, engine);
 	struct nvc0_copy_chan *cctx;
 	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *ramin = chan->ramin;
 	int ret;
 
@@ -62,14 +60,14 @@ nvc0_copy_context_new(struct nouveau_channel *chan, int engine)
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_map_vm(cctx->mem, NV_MEM_ACCESS_RW, chan->vm,
+	ret = nouveau_gpuobj_map_vm(cctx->mem, chan->vm, NV_MEM_ACCESS_RW,
 				   &cctx->vma);
 	if (ret)
 		return ret;
 
 	nv_wo32(ramin, pcopy->ctx + 0, lower_32_bits(cctx->vma.offset));
 	nv_wo32(ramin, pcopy->ctx + 4, upper_32_bits(cctx->vma.offset));
-	dev_priv->engine.instmem.flush(dev);
+	nvimem_flush(dev);
 	return 0;
 }
 
@@ -88,7 +86,7 @@ nvc0_copy_context_del(struct nouveau_channel *chan, int engine)
 	struct drm_device *dev = chan->dev;
 	u32 inst;
 
-	inst  = (chan->ramin->vinst >> 12);
+	inst  = (chan->ramin->addr >> 12);
 	inst |= 0x40000000;
 
 	/* disable fifo access */

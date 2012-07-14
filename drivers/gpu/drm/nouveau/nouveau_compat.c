@@ -11,6 +11,8 @@
 #include <subdev/mc.h>
 #include <subdev/timer.h>
 #include <subdev/fb.h>
+#include <subdev/bar.h>
+#include <subdev/vm.h>
 
 void *nouveau_newpriv(struct drm_device *);
 
@@ -437,4 +439,147 @@ nv50_fb_vm_trap(struct drm_device *dev, int disp)
 {
 	struct nouveau_drm *drm = nouveau_newpriv(dev);
 	nv50_fb_trap(nouveau_fb(drm->device), disp);
+}
+
+#include <core/subdev/instmem/nv04.h>
+
+struct nouveau_gpuobj *
+nvimem_ramro(struct drm_device *dev)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nv04_instmem_priv *imem = (void *)nouveau_instmem(drm->device);
+	return imem->ramro;
+}
+
+struct nouveau_gpuobj *
+nvimem_ramfc(struct drm_device *dev)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nv04_instmem_priv *imem = (void *)nouveau_instmem(drm->device);
+	return imem->ramfc;
+}
+
+int _nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_gpuobj *par,
+			int size, int align, u32 flags,
+			struct nouveau_gpuobj **pobj)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	int ret;
+
+	if (!par)
+		flags |= NVOBJ_FLAG_HEAP;
+
+	ret = nouveau_gpuobj_new(drm->device, nv_object(par), size, align,
+				 flags, pobj);
+	if (ret)
+		return ret;
+
+	(*pobj)->dev = dev;
+	return 0;
+}
+
+u32 nv_ri32(struct drm_device *dev , u32 addr)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_instmem *imem = nouveau_instmem(drm->device);
+	return nv_ro32(imem, addr);
+}
+
+void nv_wi32(struct drm_device *dev, u32 addr, u32 data)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_instmem *imem = nouveau_instmem(drm->device);
+	nv_wo32(imem, addr, data);
+}
+
+u32 nvimem_reserved(struct drm_device *dev)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_instmem *imem = nouveau_instmem(drm->device);
+	return imem->reserved;
+}
+
+int
+nvbar_map(struct drm_device *dev, struct nouveau_mem *mem, u32 flags,
+	  struct nouveau_vma *vma)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_bar *bar = nouveau_bar(drm->device);
+	return bar->umap(bar, mem, flags, vma);
+}
+
+void
+nvbar_unmap(struct drm_device *dev, struct nouveau_vma *vma)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_bar *bar = nouveau_bar(drm->device);
+	bar->unmap(bar, vma);
+}
+
+int
+nouveau_gpuobj_map_bar(struct nouveau_gpuobj *gpuobj, u32 flags,
+		       struct nouveau_vma *vma)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(gpuobj->dev);
+	struct nouveau_bar *bar = nouveau_bar(drm->device);
+	struct nouveau_instobj *iobj = (void *)
+		nv_pclass(nv_object(gpuobj), NV_MEMOBJ_CLASS);
+	struct nouveau_mem **mem = (void *)(iobj + 1);
+	struct nouveau_mem *node = *mem;
+
+	return bar->umap(bar, node, flags, vma);
+}
+
+void
+nvimem_flush(struct drm_device *dev)
+{
+}
+
+void _nv50_vm_flush_engine(struct drm_device *dev, int engine)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	nv50_vm_flush_engine(nv_subdev(drm->device), engine);
+}
+
+int _nouveau_vm_new(struct drm_device *dev, u64 offset, u64 length,
+		    u64 mm_offset, struct nouveau_vm **pvm)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	return nouveau_vm_new(nv_device(drm->device), offset, length, mm_offset, pvm);
+}
+
+#include <core/subdev/vm/nv04.h>
+struct nouveau_vm *
+nv04vm_ref(struct drm_device *dev)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_vmmgr *vmm = nouveau_vmmgr(drm->device);
+	struct nv04_vmmgr_priv *priv = (void *)vmm;
+	return priv->vm;
+}
+
+struct nouveau_gpuobj *
+nv04vm_refdma(struct drm_device *dev)
+{
+	struct nouveau_gpuobj *gpuobj = NULL;
+	nouveau_gpuobj_ref(nv04vm_ref(dev)->pgt[0].obj[0], &gpuobj);
+	return gpuobj;
+}
+
+void
+nvvm_engref(struct nouveau_vm *vm, int eng, int ref)
+{
+	atomic_add(ref, &vm->engref[eng]);
+}
+
+int
+nvvm_spg_shift(struct nouveau_vm *vm)
+{
+	return vm->vmm->spg_shift;
+}
+
+int
+nvvm_lpg_shift(struct nouveau_vm *vm)
+{
+	return vm->vmm->lpg_shift;
 }

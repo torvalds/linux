@@ -50,54 +50,14 @@ nv40_fb_tile_prog(struct nouveau_fb *pfb, int i, struct nouveau_fb_tile *tile)
 static void
 nv40_fb_init_gart(struct nv40_fb_priv *priv)
 {
-#if 0
-	struct nouveau_gpuobj *gart = ndev->gart_info.sg_ctxdma;
-
-	if (ndev->gart_info.type != NOUVEAU_GART_HW) {
-#endif
-		nv_wr32(priv, 0x100800, 0x00000001);
-#if 0
-		return;
-	}
-
-	nv_wr32(ndev, 0x100800, gart->pinst | 0x00000002);
-	nv_mask(ndev, 0x10008c, 0x00000100, 0x00000100);
-	nv_wr32(ndev, 0x100820, 0x00000000);
-#endif
+	nv_wr32(priv, 0x100800, 0x00000001);
 }
 
 static void
 nv44_fb_init_gart(struct nv40_fb_priv *priv)
 {
-#if 0
-	struct nouveau_gpuobj *gart = ndev->gart_info.sg_ctxdma;
-	u32 vinst;
-
-	if (ndev->gart_info.type != NOUVEAU_GART_HW) {
-#endif
-		nv_wr32(priv, 0x100850, 0x80000000);
-		nv_wr32(priv, 0x100800, 0x00000001);
-#if 0
-		return;
-	}
-
-	/* calculate vram address of this PRAMIN block, object
-	 * must be allocated on 512KiB alignment, and not exceed
-	 * a total size of 512KiB for this to work correctly
-	 */
-	vinst  = nv_rd32(ndev, 0x10020c);
-	vinst -= ((gart->pinst >> 19) + 1) << 19;
-
-	nv_wr32(ndev, 0x100850, 0x80000000);
-	nv_wr32(ndev, 0x100818, ndev->gart_info.dummy.addr);
-
-	nv_wr32(ndev, 0x100804, ndev->gart_info.aper_size);
-	nv_wr32(ndev, 0x100850, 0x00008000);
-	nv_mask(ndev, 0x10008c, 0x00000200, 0x00000200);
-	nv_wr32(ndev, 0x100820, 0x00000000);
-	nv_wr32(ndev, 0x10082c, 0x00000001);
-	nv_wr32(ndev, 0x100800, vinst | 0x00000010);
-#endif
+	nv_wr32(priv, 0x100850, 0x80000000);
+	nv_wr32(priv, 0x100800, 0x00000001);
 }
 
 static int
