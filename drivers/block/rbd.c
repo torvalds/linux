@@ -1668,7 +1668,6 @@ static int rbd_header_add_snap(struct rbd_device *rbd_dev,
 	u64 new_snapid;
 	int ret;
 	void *data, *p, *e;
-	u64 ver;
 	struct ceph_mon_client *monc;
 
 	/* we should create a snapshot only if we're pointing at the head */
@@ -1693,7 +1692,7 @@ static int rbd_header_add_snap(struct rbd_device *rbd_dev,
 
 	ret = rbd_req_sync_exec(rbd_dev, rbd_dev->header_name,
 				"rbd", "snap_add",
-				data, p - data, &ver);
+				data, p - data, NULL);
 
 	kfree(data);
 
