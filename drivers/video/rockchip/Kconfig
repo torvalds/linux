@@ -40,5 +40,12 @@ config DUAL_DISP_IN_KERNEL
 	default y if HDMI_RK30
 	help
 	  select y will implement dual screen display in kernel
+
+config THREE_FB_BUFFER
+	bool "Three fb buffer support"
+	depends on FB_ROCKCHIP
+	default y
+	help
+	   select y if android support three buffer,like Jelly Bean
 source "drivers/video/rockchip/hdmi/Kconfig"
 source "drivers/video/rockchip/rga/Kconfig"
