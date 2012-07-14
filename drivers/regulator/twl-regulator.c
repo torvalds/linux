@@ -757,12 +757,11 @@ static int twl6030smps_list_voltage(struct regulator_dev *rdev, unsigned index)
 	return voltage;
 }
 
-static int
-twl6030smps_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
-			unsigned int *selector)
+static int twl6030smps_map_voltage(struct regulator_dev *rdev, int min_uV,
+				   int max_uV)
 {
-	struct twlreg_info	*info = rdev_get_drvdata(rdev);
-	int vsel = 0, calc_uV;
+	struct twlreg_info *info = rdev_get_drvdata(rdev);
+	int vsel = 0;
 
 	switch (info->flags) {
 	case 0:
@@ -829,14 +828,16 @@ twl6030smps_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
 		break;
 	}
 
-	calc_uV = twl6030smps_list_voltage(rdev, vsel);
-	if (calc_uV > max_uV)
-		return -EINVAL;
+	return vsel;
+}
 
-	*selector = vsel;
+static int twl6030smps_set_voltage_sel(struct regulator_dev *rdev,
+				       unsigned int selector)
+{
+	struct twlreg_info *info = rdev_get_drvdata(rdev);
 
 	return twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_VOLTAGE_SMPS,
-							vsel);
+			    selector);
 }
 
 static int twl6030smps_get_voltage_sel(struct regulator_dev *rdev)
@@ -848,8 +849,9 @@ static int twl6030smps_get_voltage_sel(struct regulator_dev *rdev)
 
 static struct regulator_ops twlsmps_ops = {
 	.list_voltage		= twl6030smps_list_voltage,
+	.map_voltage		= twl6030smps_map_voltage,
 
-	.set_voltage		= twl6030smps_set_voltage,
+	.set_voltage_sel	= twl6030smps_set_voltage_sel,
 	.get_voltage_sel	= twl6030smps_get_voltage_sel,
 
 	.enable			= twl6030reg_enable,
