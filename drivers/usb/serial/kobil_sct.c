@@ -192,8 +192,8 @@ static void kobil_init_termios(struct tty_struct *tty)
 {
 	/* Default to echo off and other sane device settings */
 	tty->termios.c_lflag = 0;
-	tty->termios.c_lflag &= ~(ISIG | ICANON | ECHO | IEXTEN | XCASE);
-	tty->termios.c_lflag = IGNBRK | IGNPAR | IXOFF;
+	tty->termios.c_iflag &= ~(ISIG | ICANON | ECHO | IEXTEN | XCASE);
+	tty->termios.c_iflag |= IGNBRK | IGNPAR | IXOFF;
 	/* do NOT translate CR to CR-NL (0x0A -> 0x0A 0x0D) */
 	tty->termios.c_oflag &= ~ONLCR;
 }
@@ -588,7 +588,7 @@ static void kobil_set_termios(struct tty_struct *tty,
 	if (priv->device_type == KOBIL_USBTWIN_PRODUCT_ID ||
 			priv->device_type == KOBIL_KAAN_SIM_PRODUCT_ID) {
 		/* This device doesn't support ioctl calls */
-		tty->termios = *old;
+		tty_termios_copy_hw(&tty->termios, old);
 		return;
 	}
 
