@@ -136,37 +136,36 @@ static void do_destroy(struct i915_hw_context *ctx)
 	kfree(ctx);
 }
 
-static int
+static struct i915_hw_context *
 create_hw_context(struct drm_device *dev,
-		  struct drm_i915_file_private *file_priv,
-		  struct i915_hw_context **ctx_out)
+		  struct drm_i915_file_private *file_priv)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_hw_context *ctx;
 	int ret, id;
 
-	*ctx_out = kzalloc(sizeof(struct drm_i915_file_private), GFP_KERNEL);
-	if (*ctx_out == NULL)
-		return -ENOMEM;
+	ctx = kzalloc(sizeof(struct drm_i915_file_private), GFP_KERNEL);
+	if (ctx == NULL)
+		return ERR_PTR(-ENOMEM);
 
-	(*ctx_out)->obj = i915_gem_alloc_object(dev,
-						dev_priv->hw_context_size);
-	if ((*ctx_out)->obj == NULL) {
-		kfree(*ctx_out);
+	ctx->obj = i915_gem_alloc_object(dev, dev_priv->hw_context_size);
+	if (ctx->obj == NULL) {
+		kfree(ctx);
 		DRM_DEBUG_DRIVER("Context object allocated failed\n");
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	/* The ring associated with the context object is handled by the normal
 	 * object tracking code. We give an initial ring value simple to pass an
 	 * assertion in the context switch code.
 	 */
-	(*ctx_out)->ring = &dev_priv->ring[RCS];
+	ctx->ring = &dev_priv->ring[RCS];
 
 	/* Default context will never have a file_priv */
 	if (file_priv == NULL)
-		return 0;
+		return ctx;
 
-	(*ctx_out)->file_priv = file_priv;
+	ctx->file_priv = file_priv;
 
 again:
 	if (idr_pre_get(&file_priv->context_idr, GFP_KERNEL) == 0) {
@@ -175,21 +174,21 @@ again:
 		goto err_out;
 	}
 
-	ret = idr_get_new_above(&file_priv->context_idr, *ctx_out,
+	ret = idr_get_new_above(&file_priv->context_idr, ctx,
 				DEFAULT_CONTEXT_ID + 1, &id);
 	if (ret == 0)
-		(*ctx_out)->id = id;
+		ctx->id = id;
 
 	if (ret == -EAGAIN)
 		goto again;
 	else if (ret)
 		goto err_out;
 
-	return 0;
+	return ctx;
 
 err_out:
-	do_destroy(*ctx_out);
-	return ret;
+	do_destroy(ctx);
+	return ERR_PTR(ret);
 }
 
 static inline bool is_default_context(struct i915_hw_context *ctx)
@@ -209,10 +208,9 @@ static int create_default_context(struct drm_i915_private *dev_priv)
 
 	BUG_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
 
-	ret = create_hw_context(dev_priv->dev, NULL,
-				&dev_priv->ring[RCS].default_context);
-	if (ret)
-		return ret;
+	ctx = create_hw_context(dev_priv->dev, NULL);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	/* We may need to do things with the shrinker which require us to
 	 * immediately switch back to the default context. This can cause a
@@ -220,7 +218,7 @@ static int create_default_context(struct drm_i915_private *dev_priv)
 	 * may not be available. To avoid this we always pin the
 	 * default context.
 	 */
-	ctx = dev_priv->ring[RCS].default_context;
+	dev_priv->ring[RCS].default_context = ctx;
 	ret = i915_gem_object_pin(ctx->obj, CONTEXT_ALIGN, false);
 	if (ret) {
 		do_destroy(ctx);
@@ -496,13 +494,13 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	ret = create_hw_context(dev, file_priv, &ctx);
+	ctx = create_hw_context(dev, file_priv);
 	mutex_unlock(&dev->struct_mutex);
 
 	args->ctx_id = ctx->id;
 	DRM_DEBUG_DRIVER("HW context %d created\n", args->ctx_id);
 
-	return ret;
+	return PTR_RET(ctx);
 }
 
 int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,

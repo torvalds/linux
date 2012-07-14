@@ -1458,6 +1458,10 @@
 #define DDRMPLL1		0X12c20
 #define PEG_BAND_GAP_DATA	0x14d68
 
+#define GEN6_GT_THREAD_STATUS_REG 0x13805c
+#define GEN6_GT_THREAD_STATUS_CORE_MASK 0x7
+#define GEN6_GT_THREAD_STATUS_CORE_MASK_HSW (0x7 | (0x07 << 16))
+
 #define GEN6_GT_PERF_STATUS	0x145948
 #define GEN6_RP_STATE_LIMITS	0x145994
 #define GEN6_RP_STATE_CAP	0x145998
@@ -2975,13 +2979,14 @@
 #define DSPSIZE(plane) _PIPE(plane, _DSPASIZE, _DSPBSIZE)
 #define DSPSURF(plane) _PIPE(plane, _DSPASURF, _DSPBSURF)
 #define DSPTILEOFF(plane) _PIPE(plane, _DSPATILEOFF, _DSPBTILEOFF)
+#define DSPLINOFF(plane) DSPADDR(plane)
 
 /* Display/Sprite base address macros */
 #define DISP_BASEADDR_MASK	(0xfffff000)
 #define I915_LO_DISPBASE(val)	(val & ~DISP_BASEADDR_MASK)
 #define I915_HI_DISPBASE(val)	(val & DISP_BASEADDR_MASK)
 #define I915_MODIFY_DISPBASE(reg, gfx_addr) \
-		(I915_WRITE(reg, gfx_addr | I915_LO_DISPBASE(I915_READ(reg))))
+		(I915_WRITE((reg), (gfx_addr) | I915_LO_DISPBASE(I915_READ(reg))))
 
 /* VBIOS flags */
 #define SWF00			0x71410
@@ -3849,6 +3854,9 @@
 #define _FDI_RXA_TUSIZE2         0xf0038
 #define _FDI_RXB_TUSIZE1         0xf1030
 #define _FDI_RXB_TUSIZE2         0xf1038
+#define  FDI_RX_TP1_TO_TP2_48	(2<<20)
+#define  FDI_RX_TP1_TO_TP2_64	(3<<20)
+#define  FDI_RX_FDI_DELAY_90	(0x90<<0)
 #define FDI_RX_MISC(pipe) _PIPE(pipe, _FDI_RXA_MISC, _FDI_RXB_MISC)
 #define FDI_RX_TUSIZE1(pipe) _PIPE(pipe, _FDI_RXA_TUSIZE1, _FDI_RXB_TUSIZE1)
 #define FDI_RX_TUSIZE2(pipe) _PIPE(pipe, _FDI_RXA_TUSIZE2, _FDI_RXB_TUSIZE2)
@@ -4067,6 +4075,7 @@
 #define  FORCEWAKE				0xA18C
 #define  FORCEWAKE_VLV				0x1300b0
 #define  FORCEWAKE_ACK_VLV			0x1300b4
+#define  FORCEWAKE_ACK_HSW			0x130044
 #define  FORCEWAKE_ACK				0x130090
 #define  FORCEWAKE_MT				0xa188 /* multi-threaded */
 #define  FORCEWAKE_MT_ACK			0x130040
@@ -4127,6 +4136,7 @@
 #define   GEN6_RP_UP_IDLE_MIN			(0x1<<3)
 #define   GEN6_RP_UP_BUSY_AVG			(0x2<<3)
 #define   GEN6_RP_UP_BUSY_CONT			(0x4<<3)
+#define   GEN7_RP_DOWN_IDLE_AVG			(0x2<<0)
 #define   GEN6_RP_DOWN_IDLE_CONT		(0x1<<0)
 #define GEN6_RP_UP_THRESHOLD			0xA02C
 #define GEN6_RP_DOWN_THRESHOLD			0xA030
@@ -4277,7 +4287,7 @@
 					PIPE_DDI_FUNC_CTL_B)
 #define  PIPE_DDI_FUNC_ENABLE		(1<<31)
 /* Those bits are ignored by pipe EDP since it can only connect to DDI A */
-#define  PIPE_DDI_PORT_MASK				(0xf<<28)
+#define  PIPE_DDI_PORT_MASK			(7<<28)
 #define  PIPE_DDI_SELECT_PORT(x)		((x)<<28)
 #define  PIPE_DDI_MODE_SELECT_HDMI		(0<<24)
 #define  PIPE_DDI_MODE_SELECT_DVI		(1<<24)
@@ -4435,7 +4445,7 @@
 #define PIPE_WM_LINETIME_B		0x45274
 #define PIPE_WM_LINETIME(pipe) _PIPE(pipe, \
 					PIPE_WM_LINETIME_A, \
-					PIPE_WM_LINETIME_A)
+					PIPE_WM_LINETIME_B)
 #define   PIPE_WM_LINETIME_MASK		(0x1ff)
 #define   PIPE_WM_LINETIME_TIME(x)			((x))
 #define   PIPE_WM_LINETIME_IPS_LINETIME_MASK	(0x1ff<<16)
@@ -4446,5 +4456,10 @@
 #define  SFUSE_STRAP_DDIB_DETECTED	(1<<2)
 #define  SFUSE_STRAP_DDIC_DETECTED	(1<<1)
 #define  SFUSE_STRAP_DDID_DETECTED	(1<<0)
+
+#define WM_DBG				0x45280
+#define  WM_DBG_DISALLOW_MULTIPLE_LP	(1<<0)
+#define  WM_DBG_DISALLOW_MAXFIFO	(1<<1)
+#define  WM_DBG_DISALLOW_SPRITE		(1<<2)
 
 #endif /* _I915_REG_H_ */

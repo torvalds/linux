@@ -79,6 +79,10 @@ enum port {
 
 #define for_each_pipe(p) for ((p) = 0; (p) < dev_priv->num_pipe; (p)++)
 
+#define for_each_encoder_on_crtc(dev, __crtc, intel_encoder) \
+	list_for_each_entry((intel_encoder), &(dev)->mode_config.encoder_list, base.head) \
+		if ((intel_encoder)->base.crtc == (__crtc))
+
 struct intel_pch_pll {
 	int refcount; /* count of number of CRTCs sharing this PLL */
 	int active; /* count of number of active CRTCs (i.e. DPMS on) */
@@ -262,13 +266,16 @@ struct drm_i915_display_funcs {
 			  struct drm_i915_gem_object *obj);
 	int (*update_plane)(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			    int x, int y);
-	void (*force_wake_get)(struct drm_i915_private *dev_priv);
-	void (*force_wake_put)(struct drm_i915_private *dev_priv);
 	/* clock updates for mode set */
 	/* cursor updates */
 	/* render clock increase/decrease */
 	/* display clock increase/decrease */
 	/* pll clock increase/decrease */
+};
+
+struct drm_i915_gt_funcs {
+	void (*force_wake_get)(struct drm_i915_private *dev_priv);
+	void (*force_wake_put)(struct drm_i915_private *dev_priv);
 };
 
 struct intel_device_info {
@@ -285,7 +292,6 @@ struct intel_device_info {
 	u8 is_crestline:1;
 	u8 is_ivybridge:1;
 	u8 is_valleyview:1;
-	u8 has_pch_split:1;
 	u8 has_force_wake:1;
 	u8 is_haswell:1;
 	u8 has_fbc:1;
@@ -333,6 +339,7 @@ enum no_fbc_reason {
 };
 
 enum intel_pch {
+	PCH_NONE = 0,	/* No PCH present */
 	PCH_IBX,	/* Ibexpeak PCH */
 	PCH_CPT,	/* Cougarpoint PCH */
 	PCH_LPT,	/* Lynxpoint PCH */
@@ -362,6 +369,8 @@ typedef struct drm_i915_private {
 	int relative_constants_mode;
 
 	void __iomem *regs;
+
+	struct drm_i915_gt_funcs gt;
 	/** gt_fifo_count and the subsequent register write are synchronized
 	 * with dev->struct_mutex. */
 	unsigned gt_fifo_count;
@@ -1115,13 +1124,13 @@ struct drm_i915_file_private {
 #define HAS_PIPE_CXSR(dev) (INTEL_INFO(dev)->has_pipe_cxsr)
 #define I915_HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
 
-#define HAS_PCH_SPLIT(dev) (INTEL_INFO(dev)->has_pch_split)
 #define HAS_PIPE_CONTROL(dev) (INTEL_INFO(dev)->gen >= 5)
 
 #define INTEL_PCH_TYPE(dev) (((struct drm_i915_private *)(dev)->dev_private)->pch_type)
 #define HAS_PCH_LPT(dev) (INTEL_PCH_TYPE(dev) == PCH_LPT)
 #define HAS_PCH_CPT(dev) (INTEL_PCH_TYPE(dev) == PCH_CPT)
 #define HAS_PCH_IBX(dev) (INTEL_PCH_TYPE(dev) == PCH_IBX)
+#define HAS_PCH_SPLIT(dev) (INTEL_PCH_TYPE(dev) != PCH_NONE)
 
 #define HAS_FORCE_WAKE(dev) (INTEL_INFO(dev)->has_force_wake)
 
@@ -1200,6 +1209,7 @@ void i915_hangcheck_elapsed(unsigned long data);
 void i915_handle_error(struct drm_device *dev, bool wedged);
 
 extern void intel_irq_init(struct drm_device *dev);
+extern void intel_gt_init(struct drm_device *dev);
 
 void i915_error_state_free(struct kref *error_ref);
 
@@ -1330,6 +1340,8 @@ i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj)
 
 void i915_gem_retire_requests(struct drm_device *dev);
 void i915_gem_retire_requests_ring(struct intel_ring_buffer *ring);
+int __must_check i915_gem_check_wedge(struct drm_i915_private *dev_priv,
+				      bool interruptible);
 
 void i915_gem_reset(struct drm_device *dev);
 void i915_gem_clflush_object(struct drm_i915_gem_object *obj);
@@ -1510,20 +1522,12 @@ extern bool intel_fbc_enabled(struct drm_device *dev);
 extern void intel_disable_fbc(struct drm_device *dev);
 extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
 extern void ironlake_init_pch_refclk(struct drm_device *dev);
-extern void ironlake_enable_rc6(struct drm_device *dev);
 extern void gen6_set_rps(struct drm_device *dev, u8 val);
 extern void intel_detect_pch(struct drm_device *dev);
 extern int intel_trans_dp_port_sel(struct drm_crtc *crtc);
 extern int intel_enable_rc6(const struct drm_device *dev);
 
 extern bool i915_semaphore_is_enabled(struct drm_device *dev);
-extern void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv);
-extern void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv);
-extern void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv);
-extern void __gen6_gt_force_wake_mt_put(struct drm_i915_private *dev_priv);
-
-extern void vlv_force_wake_get(struct drm_i915_private *dev_priv);
-extern void vlv_force_wake_put(struct drm_i915_private *dev_priv);
 
 /* overlay */
 #ifdef CONFIG_DEBUG_FS

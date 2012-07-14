@@ -219,7 +219,9 @@ gen6_render_ring_flush(struct intel_ring_buffer *ring,
 	int ret;
 
 	/* Force SNB workarounds for PIPE_CONTROL flushes */
-	intel_emit_post_sync_nonzero_flush(ring);
+	ret = intel_emit_post_sync_nonzero_flush(ring);
+	if (ret)
+		return ret;
 
 	/* Just flush everything.  Experiments have shown that reducing the
 	 * number of bits based on the write domains has little performance
@@ -233,6 +235,12 @@ gen6_render_ring_flush(struct intel_ring_buffer *ring,
 	flags |= PIPE_CONTROL_VF_CACHE_INVALIDATE;
 	flags |= PIPE_CONTROL_CONST_CACHE_INVALIDATE;
 	flags |= PIPE_CONTROL_STATE_CACHE_INVALIDATE;
+	/*
+	 * Ensure that any following seqno writes only happen when the render
+	 * cache is indeed flushed (but only if the caller actually wants that).
+	 */
+	if (flush_domains)
+		flags |= PIPE_CONTROL_CS_STALL;
 
 	ret = intel_ring_begin(ring, 6);
 	if (ret)
@@ -1109,20 +1117,9 @@ static int intel_wrap_ring_buffer(struct intel_ring_buffer *ring)
 
 static int intel_ring_wait_seqno(struct intel_ring_buffer *ring, u32 seqno)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-	bool was_interruptible;
 	int ret;
 
-	/* XXX As we have not yet audited all the paths to check that
-	 * they are ready for ERESTARTSYS from intel_ring_begin, do not
-	 * allow us to be interruptible by a signal.
-	 */
-	was_interruptible = dev_priv->mm.interruptible;
-	dev_priv->mm.interruptible = false;
-
 	ret = i915_wait_seqno(ring, seqno);
-
-	dev_priv->mm.interruptible = was_interruptible;
 	if (!ret)
 		i915_gem_retire_requests_ring(ring);
 
@@ -1220,8 +1217,10 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 		}
 
 		msleep(1);
-		if (atomic_read(&dev_priv->mm.wedged))
-			return -EAGAIN;
+
+		ret = i915_gem_check_wedge(dev_priv, dev_priv->mm.interruptible);
+		if (ret)
+			return ret;
 	} while (!time_after(jiffies, end));
 	trace_i915_ring_wait_end(ring);
 	return -EBUSY;
@@ -1230,12 +1229,13 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 int intel_ring_begin(struct intel_ring_buffer *ring,
 		     int num_dwords)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	int n = 4*num_dwords;
 	int ret;
 
-	if (unlikely(atomic_read(&dev_priv->mm.wedged)))
-		return -EIO;
+	ret = i915_gem_check_wedge(dev_priv, dev_priv->mm.interruptible);
+	if (ret)
+		return ret;
 
 	if (unlikely(ring->tail + n > ring->effective_size)) {
 		ret = intel_wrap_ring_buffer(ring);

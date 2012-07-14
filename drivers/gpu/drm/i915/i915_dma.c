@@ -1414,7 +1414,7 @@ static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 	if (!ap)
 		return;
 
-	ap->ranges[0].base = dev_priv->dev->agp->base;
+	ap->ranges[0].base = dev_priv->mm.gtt->gma_bus_addr;
 	ap->ranges[0].size =
 		dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
 	primary =
@@ -1547,7 +1547,11 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_mtrrfree;
 	}
 
+	/* This must be called before any calls to HAS_PCH_* */
+	intel_detect_pch(dev);
+
 	intel_irq_init(dev);
+	intel_gt_init(dev);
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
 	intel_setup_mchbar(dev);
@@ -1580,7 +1584,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (!IS_I945G(dev) && !IS_I945GM(dev))
 		pci_enable_msi(dev->pdev);
 
-	spin_lock_init(&dev_priv->gt_lock);
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->error_lock);
 	spin_lock_init(&dev_priv->rps_lock);
@@ -1598,8 +1601,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	/* Start out suspended */
 	dev_priv->mm.suspended = 1;
-
-	intel_detect_pch(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		ret = i915_load_modeset_init(dev);

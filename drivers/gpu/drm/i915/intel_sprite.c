@@ -56,6 +56,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	sprctl &= ~SPRITE_PIXFORMAT_MASK;
 	sprctl &= ~SPRITE_RGB_ORDER_RGBX;
 	sprctl &= ~SPRITE_YUV_BYTE_ORDER_MASK;
+	sprctl &= ~SPRITE_TILED;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
@@ -84,7 +85,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 		break;
 	default:
 		DRM_DEBUG_DRIVER("bad pixel format, assuming RGBX888\n");
-		sprctl |= DVS_FORMAT_RGBX888;
+		sprctl |= SPRITE_FORMAT_RGBX888;
 		pixel_size = 4;
 		break;
 	}
@@ -690,6 +691,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 		break;
 
 	default:
+		kfree(intel_plane);
 		return -ENODEV;
 	}
 
@@ -704,4 +706,3 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 
 	return ret;
 }
-

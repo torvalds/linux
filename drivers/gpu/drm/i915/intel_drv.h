@@ -177,6 +177,11 @@ struct intel_crtc {
 	struct intel_unpin_work *unpin_work;
 	int fdi_lanes;
 
+	/* Display surface base address adjustement for pageflips. Note that on
+	 * gen4+ this only adjusts up to a tile, offsets within a tile are
+	 * handled in the hw itself (with the TILEOFF register). */
+	unsigned long dspaddr_offset;
+
 	struct drm_i915_gem_object *cursor_bo;
 	uint32_t cursor_addr;
 	int16_t cursor_x, cursor_y;
@@ -425,9 +430,6 @@ extern void intel_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 extern void intel_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 				    u16 *blue, int regno);
 extern void intel_enable_clock_gating(struct drm_device *dev);
-extern void ironlake_disable_rc6(struct drm_device *dev);
-extern void ironlake_enable_drps(struct drm_device *dev);
-extern void ironlake_disable_drps(struct drm_device *dev);
 
 extern int intel_pin_and_fence_fb_obj(struct drm_device *dev,
 				      struct drm_i915_gem_object *obj,
@@ -494,10 +496,10 @@ extern void intel_update_fbc(struct drm_device *dev);
 extern void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
 extern void intel_gpu_ips_teardown(void);
 
-extern void gen6_enable_rps(struct drm_i915_private *dev_priv);
-extern void gen6_update_ring_freq(struct drm_i915_private *dev_priv);
-extern void gen6_disable_rps(struct drm_device *dev);
-extern void intel_init_emon(struct drm_device *dev);
+extern void intel_enable_gt_powersave(struct drm_device *dev);
+extern void intel_disable_gt_powersave(struct drm_device *dev);
+extern void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv);
+extern void ironlake_teardown_rc6(struct drm_device *dev);
 
 extern void intel_ddi_dpms(struct drm_encoder *encoder, int mode);
 extern void intel_ddi_mode_set(struct drm_encoder *encoder,
