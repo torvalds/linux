@@ -888,12 +888,12 @@ static const struct preview_update update_attrs[] = {
 		preview_config_contrast,
 		NULL,
 		offsetof(struct prev_params, contrast),
-		0, true,
+		0, 0, true,
 	}, /* OMAP3ISP_PREV_BRIGHTNESS */ {
 		preview_config_brightness,
 		NULL,
 		offsetof(struct prev_params, brightness),
-		0, true,
+		0, 0, true,
 	},
 };
 
@@ -1102,7 +1102,7 @@ static void preview_config_input_size(struct isp_prev_device *prev, u32 active)
 	unsigned int elv = prev->crop.top + prev->crop.height - 1;
 	u32 features;
 
-	if (format->code == V4L2_MBUS_FMT_Y10_1X10) {
+	if (format->code != V4L2_MBUS_FMT_Y10_1X10) {
 		sph -= 2;
 		eph += 2;
 		slv -= 2;
