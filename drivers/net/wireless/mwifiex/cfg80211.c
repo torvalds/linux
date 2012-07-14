@@ -48,10 +48,9 @@ static const struct ieee80211_iface_combination mwifiex_iface_comb_ap_sta = {
  *      Others                 -> IEEE80211_HT_PARAM_CHA_SEC_NONE
  */
 static u8
-mwifiex_cfg80211_channel_type_to_sec_chan_offset(enum nl80211_channel_type
-						 channel_type)
+mwifiex_chan_type_to_sec_chan_offset(enum nl80211_channel_type chan_type)
 {
-	switch (channel_type) {
+	switch (chan_type) {
 	case NL80211_CHAN_NO_HT:
 	case NL80211_CHAN_HT20:
 		return IEEE80211_HT_PARAM_CHA_SEC_NONE;
@@ -334,68 +333,6 @@ static int mwifiex_reg_notifier(struct wiphy *wiphy,
 		break;
 	}
 	mwifiex_send_domain_info_cmd_fw(wiphy);
-
-	return 0;
-}
-
-/*
- * This function sets the RF channel.
- *
- * This function creates multiple IOCTL requests, populates them accordingly
- * and issues them to set the band/channel and frequency.
- */
-static int
-mwifiex_set_rf_channel(struct mwifiex_private *priv,
-		       struct ieee80211_channel *chan,
-		       enum nl80211_channel_type channel_type)
-{
-	u32 config_bands = 0;
-	struct wiphy *wiphy = priv->wdev->wiphy;
-	struct mwifiex_adapter *adapter = priv->adapter;
-
-	if (chan) {
-		/* Set appropriate bands */
-		if (chan->band == IEEE80211_BAND_2GHZ) {
-			if (channel_type == NL80211_CHAN_NO_HT)
-				if (priv->adapter->config_bands == BAND_B ||
-				    priv->adapter->config_bands == BAND_G)
-					config_bands =
-						priv->adapter->config_bands;
-				else
-					config_bands = BAND_B | BAND_G;
-			else
-				config_bands = BAND_B | BAND_G | BAND_GN;
-		} else {
-			if (channel_type == NL80211_CHAN_NO_HT)
-				config_bands = BAND_A;
-			else
-				config_bands = BAND_AN | BAND_A;
-		}
-
-		if (!((config_bands | adapter->fw_bands) &
-						~adapter->fw_bands)) {
-			adapter->config_bands = config_bands;
-			if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
-				adapter->adhoc_start_band = config_bands;
-				if ((config_bands & BAND_GN) ||
-				    (config_bands & BAND_AN))
-					adapter->adhoc_11n_enabled = true;
-				else
-					adapter->adhoc_11n_enabled = false;
-			}
-		}
-		adapter->sec_chan_offset =
-			mwifiex_cfg80211_channel_type_to_sec_chan_offset
-			(channel_type);
-		adapter->channel_type = channel_type;
-		priv->adhoc_channel =
-			ieee80211_frequency_to_channel(chan->center_freq);
-
-		mwifiex_send_domain_info_cmd_fw(wiphy);
-	}
-
-	wiphy_dbg(wiphy, "info: setting band %d, chan offset %d, mode %d\n",
-		  config_bands, adapter->sec_chan_offset, priv->bss_mode);
 
 	return 0;
 }
@@ -996,6 +933,7 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 {
 	struct mwifiex_uap_bss_param *bss_cfg;
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	u8 config_bands = 0;
 
 	if (priv->bss_type != MWIFIEX_BSS_TYPE_UAP)
 		return -1;
@@ -1036,12 +974,24 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 	    (u8)ieee80211_frequency_to_channel(params->channel->center_freq);
 	bss_cfg->band_cfg = BAND_CONFIG_MANUAL;
 
-	if (mwifiex_set_rf_channel(priv, params->channel,
-				   params->channel_type)) {
-		kfree(bss_cfg);
-		wiphy_err(wiphy, "Failed to set band config information!\n");
-		return -1;
+	/* Set appropriate bands */
+	if (params->channel->band == IEEE80211_BAND_2GHZ) {
+		if (params->channel_type == NL80211_CHAN_NO_HT)
+			config_bands = BAND_B | BAND_G;
+		else
+			config_bands = BAND_B | BAND_G | BAND_GN;
+	} else {
+		if (params->channel_type == NL80211_CHAN_NO_HT)
+			config_bands = BAND_A;
+		else
+			config_bands = BAND_AN | BAND_A;
 	}
+
+	if (!((config_bands | priv->adapter->fw_bands) &
+	      ~priv->adapter->fw_bands))
+		priv->adapter->config_bands = config_bands;
+
+	mwifiex_send_domain_info_cmd_fw(wiphy);
 
 	if (mwifiex_set_secure_params(priv, bss_cfg, params)) {
 		kfree(bss_cfg);
@@ -1176,7 +1126,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	struct cfg80211_ssid req_ssid;
 	int ret, auth_type = 0;
 	struct cfg80211_bss *bss = NULL;
-	u8 is_scanning_required = 0;
+	u8 is_scanning_required = 0, config_bands = 0;
 
 	memset(&req_ssid, 0, sizeof(struct cfg80211_ssid));
 
@@ -1195,9 +1145,19 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	/* disconnect before try to associate */
 	mwifiex_deauthenticate(priv, NULL);
 
-	if (channel)
-		ret = mwifiex_set_rf_channel(priv, channel,
-						priv->adapter->channel_type);
+	if (channel) {
+		if (mode == NL80211_IFTYPE_STATION) {
+			if (channel->band == IEEE80211_BAND_2GHZ)
+				config_bands = BAND_B | BAND_G | BAND_GN;
+			else
+				config_bands = BAND_A | BAND_AN;
+
+			if (!((config_bands | priv->adapter->fw_bands) &
+			      ~priv->adapter->fw_bands))
+				priv->adapter->config_bands = config_bands;
+		}
+		mwifiex_send_domain_info_cmd_fw(priv->wdev->wiphy);
+	}
 
 	/* As this is new association, clear locally stored
 	 * keys and security related flags */
@@ -1362,6 +1322,76 @@ done:
 }
 
 /*
+ * This function sets following parameters for ibss network.
+ *  -  channel
+ *  -  start band
+ *  -  11n flag
+ *  -  secondary channel offset
+ */
+static int mwifiex_set_ibss_params(struct mwifiex_private *priv,
+				   struct cfg80211_ibss_params *params)
+{
+	struct wiphy *wiphy = priv->wdev->wiphy;
+	struct mwifiex_adapter *adapter = priv->adapter;
+	int index = 0, i;
+	u8 config_bands = 0;
+
+	if (params->channel->band == IEEE80211_BAND_2GHZ) {
+		if (!params->basic_rates) {
+			config_bands = BAND_B | BAND_G;
+		} else {
+			for (i = 0; i < mwifiex_band_2ghz.n_bitrates; i++) {
+				/*
+				 * Rates below 6 Mbps in the table are CCK
+				 * rates; 802.11b and from 6 they are OFDM;
+				 * 802.11G
+				 */
+				if (mwifiex_rates[i].bitrate == 60) {
+					index = 1 << i;
+					break;
+				}
+			}
+
+			if (params->basic_rates < index) {
+				config_bands = BAND_B;
+			} else {
+				config_bands = BAND_G;
+				if (params->basic_rates % index)
+					config_bands |= BAND_B;
+			}
+		}
+
+		if (params->channel_type != NL80211_CHAN_NO_HT)
+			config_bands |= BAND_GN;
+	} else {
+		if (params->channel_type == NL80211_CHAN_NO_HT)
+			config_bands = BAND_A;
+		else
+			config_bands = BAND_AN | BAND_A;
+	}
+
+	if (!((config_bands | adapter->fw_bands) & ~adapter->fw_bands)) {
+		adapter->config_bands = config_bands;
+		adapter->adhoc_start_band = config_bands;
+
+		if ((config_bands & BAND_GN) || (config_bands & BAND_AN))
+			adapter->adhoc_11n_enabled = true;
+		else
+			adapter->adhoc_11n_enabled = false;
+	}
+
+	adapter->sec_chan_offset =
+		mwifiex_chan_type_to_sec_chan_offset(params->channel_type);
+	priv->adhoc_channel =
+		ieee80211_frequency_to_channel(params->channel->center_freq);
+
+	wiphy_dbg(wiphy, "info: set ibss band %d, chan %d, chan offset %d\n",
+		  config_bands, priv->adhoc_channel, adapter->sec_chan_offset);
+
+	return 0;
+}
+
+/*
  * CFG802.11 operation handler to join an IBSS.
  *
  * This function does not work in any mode other than Ad-Hoc, or if
@@ -1382,6 +1412,8 @@ mwifiex_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 
 	wiphy_dbg(wiphy, "info: trying to join to %s and bssid %pM\n",
 		  (char *) params->ssid, params->bssid);
+
+	mwifiex_set_ibss_params(priv, params);
 
 	ret = mwifiex_cfg80211_assoc(priv, params->ssid_len, params->ssid,
 				     params->bssid, priv->bss_mode,
@@ -1807,6 +1839,8 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 
 	wiphy->available_antennas_tx = BIT(adapter->number_of_antenna) - 1;
 	wiphy->available_antennas_rx = BIT(adapter->number_of_antenna) - 1;
+
+	wiphy->features = NL80211_FEATURE_HT_IBSS;
 
 	/* Reserve space for mwifiex specific private data for BSS */
 	wiphy->bss_priv_size = sizeof(struct mwifiex_bss_priv);
