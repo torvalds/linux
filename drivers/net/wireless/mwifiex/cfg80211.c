@@ -753,8 +753,8 @@ static const u32 mwifiex_cipher_suites[] = {
 /*
  * CFG802.11 operation handler for setting bit rates.
  *
- * Function selects legacy bang B/G/BG from corresponding bitrates selection.
- * Currently only 2.4GHz band is supported.
+ * Function configures data rates to firmware using bitrate mask
+ * provided by cfg80211.
  */
 static int mwifiex_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
 				struct net_device *dev,
@@ -762,43 +762,36 @@ static int mwifiex_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
 				const struct cfg80211_bitrate_mask *mask)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
-	int index = 0, mode = 0, i;
-	struct mwifiex_adapter *adapter = priv->adapter;
+	u16 bitmap_rates[MAX_BITMAP_RATES_SIZE];
+	enum ieee80211_band band;
 
-	/* Currently only 2.4GHz is supported */
-	for (i = 0; i < mwifiex_band_2ghz.n_bitrates; i++) {
-		/*
-		 * Rates below 6 Mbps in the table are CCK rates; 802.11b
-		 * and from 6 they are OFDM; 802.11G
-		 */
-		if (mwifiex_rates[i].bitrate == 60) {
-			index = 1 << i;
-			break;
-		}
+	if (!priv->media_connected) {
+		dev_err(priv->adapter->dev,
+			"Can not set Tx data rate in disconnected state\n");
+		return -EINVAL;
 	}
 
-	if (mask->control[IEEE80211_BAND_2GHZ].legacy < index) {
-		mode = BAND_B;
-	} else {
-		mode = BAND_G;
-		if (mask->control[IEEE80211_BAND_2GHZ].legacy % index)
-			mode |=  BAND_B;
-	}
+	band = mwifiex_band_to_radio_type(priv->curr_bss_params.band);
 
-	if (!((mode | adapter->fw_bands) & ~adapter->fw_bands)) {
-		adapter->config_bands = mode;
-		if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
-			adapter->adhoc_start_band = mode;
-			adapter->adhoc_11n_enabled = false;
-		}
-	}
-	adapter->sec_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_NONE;
-	adapter->channel_type = NL80211_CHAN_NO_HT;
+	memset(bitmap_rates, 0, sizeof(bitmap_rates));
 
-	wiphy_debug(wiphy, "info: device configured in 802.11%s%s mode\n",
-		    (mode & BAND_B) ? "b" : "", (mode & BAND_G) ? "g" : "");
+	/* Fill HR/DSSS rates. */
+	if (band == IEEE80211_BAND_2GHZ)
+		bitmap_rates[0] = mask->control[band].legacy & 0x000f;
 
-	return 0;
+	/* Fill OFDM rates */
+	if (band == IEEE80211_BAND_2GHZ)
+		bitmap_rates[1] = (mask->control[band].legacy & 0x0ff0) >> 4;
+	else
+		bitmap_rates[1] = mask->control[band].legacy;
+
+	/* Fill MCS rates */
+	bitmap_rates[2] = mask->control[band].mcs[0];
+	if (priv->adapter->hw_dev_mcs_support == HT_STREAM_2X2)
+		bitmap_rates[2] |= mask->control[band].mcs[1] << 8;
+
+	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_TX_RATE_CFG,
+				     HostCmd_ACT_GEN_SET, 0, bitmap_rates);
 }
 
 /*
