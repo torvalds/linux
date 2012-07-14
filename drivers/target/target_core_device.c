@@ -432,11 +432,7 @@ int core_disable_device_list_for_node(
 	struct se_portal_group *tpg)
 {
 	struct se_port *port = lun->lun_sep;
-	struct se_dev_entry *deve;
-
-	spin_lock_irq(&nacl->device_list_lock);
-
-	deve = nacl->device_list[mapped_lun];
+	struct se_dev_entry *deve = nacl->device_list[mapped_lun];
 
 	/*
 	 * If the MappedLUN entry is being disabled, the entry in
@@ -454,14 +450,13 @@ int core_disable_device_list_for_node(
 	spin_lock_bh(&port->sep_alua_lock);
 	list_del(&deve->alua_port_list);
 	spin_unlock_bh(&port->sep_alua_lock);
-
 	/*
 	 * Wait for any in process SPEC_I_PT=1 or REGISTER_AND_MOVE
 	 * PR operation to complete.
 	 */
-	spin_unlock_irq(&nacl->device_list_lock);
 	while (atomic_read(&deve->pr_ref_count) != 0)
 		cpu_relax();
+
 	spin_lock_irq(&nacl->device_list_lock);
 	/*
 	 * Disable struct se_dev_entry LUN ACL mapping
