@@ -177,6 +177,7 @@ static void f81232_set_termios(struct tty_struct *tty,
 		return;
 
 	/* Do the real work here... */
+	tty_termios_copy_hw(&tty->termios, old_termios);
 }
 
 static int f81232_tiocmget(struct tty_struct *tty)
