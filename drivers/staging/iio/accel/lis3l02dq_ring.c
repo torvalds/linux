@@ -151,8 +151,7 @@ static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
 
 	  /* Guaranteed to be aligned with 8 byte boundary */
 	if (indio_dev->scan_timestamp)
-		*(s64 *)(((phys_addr_t)data + len
-				+ sizeof(s64) - 1) & ~(sizeof(s64) - 1))
+		*(s64 *)((u8 *)data + ALIGN(len, sizeof(s64)))
 			= pf->timestamp;
 	buffer->access->store_to(buffer, (u8 *)data, pf->timestamp);
 
