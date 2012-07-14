@@ -490,6 +490,7 @@ int parse_events_add_breakpoint(struct list_head **list, int *idx,
 		attr.bp_len = HW_BREAKPOINT_LEN_4;
 
 	attr.type = PERF_TYPE_BREAKPOINT;
+	attr.sample_period = 1;
 
 	return add_event(list, idx, &attr, NULL);
 }
