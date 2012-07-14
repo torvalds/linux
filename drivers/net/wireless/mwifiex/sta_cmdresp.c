@@ -267,12 +267,10 @@ static int mwifiex_ret_get_log(struct mwifiex_private *priv,
  *
  * Based on the new rate bitmaps, the function re-evaluates if
  * auto data rate has been activated. If not, it sends another
- * query to the firmware to get the current Tx data rate and updates
- * the driver value.
+ * query to the firmware to get the current Tx data rate.
  */
 static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
-				   struct host_cmd_ds_command *resp,
-				   struct mwifiex_rate_cfg *ds_rate)
+				   struct host_cmd_ds_command *resp)
 {
 	struct host_cmd_ds_tx_rate_cfg *rate_cfg = &resp->params.tx_rate_cfg;
 	struct mwifiex_rate_scope *rate_scope;
@@ -280,7 +278,6 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 	u16 tlv, tlv_buf_len;
 	u8 *tlv_buf;
 	u32 i;
-	int ret = 0;
 
 	tlv_buf = (u8 *) ((u8 *) rate_cfg) +
 			sizeof(struct host_cmd_ds_tx_rate_cfg);
@@ -318,33 +315,11 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 	if (priv->is_data_rate_auto)
 		priv->data_rate = 0;
 	else
-		ret = mwifiex_send_cmd_async(priv,
-					  HostCmd_CMD_802_11_TX_RATE_QUERY,
-					  HostCmd_ACT_GEN_GET, 0, NULL);
+		return mwifiex_send_cmd_async(priv,
+					      HostCmd_CMD_802_11_TX_RATE_QUERY,
+					      HostCmd_ACT_GEN_GET, 0, NULL);
 
-	if (!ds_rate)
-		return ret;
-
-	if (le16_to_cpu(rate_cfg->action) == HostCmd_ACT_GEN_GET) {
-		if (priv->is_data_rate_auto) {
-			ds_rate->is_rate_auto = 1;
-		return ret;
-	}
-	ds_rate->rate = mwifiex_get_rate_index(priv->bitmap_rates,
-					       sizeof(priv->bitmap_rates));
-
-	if (ds_rate->rate >= MWIFIEX_RATE_BITMAP_OFDM0 &&
-	    ds_rate->rate <= MWIFIEX_RATE_BITMAP_OFDM7)
-		ds_rate->rate -= (MWIFIEX_RATE_BITMAP_OFDM0 -
-				  MWIFIEX_RATE_INDEX_OFDM0);
-
-	if (ds_rate->rate >= MWIFIEX_RATE_BITMAP_MCS0 &&
-	    ds_rate->rate <= MWIFIEX_RATE_BITMAP_MCS127)
-		ds_rate->rate -= (MWIFIEX_RATE_BITMAP_MCS0 -
-				  MWIFIEX_RATE_INDEX_MCS0);
-	}
-
-	return ret;
+	return 0;
 }
 
 /*
@@ -856,7 +831,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		ret = mwifiex_ret_mac_multicast_adr(priv, resp);
 		break;
 	case HostCmd_CMD_TX_RATE_CFG:
-		ret = mwifiex_ret_tx_rate_cfg(priv, resp, data_buf);
+		ret = mwifiex_ret_tx_rate_cfg(priv, resp);
 		break;
 	case HostCmd_CMD_802_11_SCAN:
 		ret = mwifiex_ret_802_11_scan(priv, resp);

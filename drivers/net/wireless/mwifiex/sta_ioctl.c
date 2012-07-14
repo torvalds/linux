@@ -497,134 +497,24 @@ int mwifiex_disable_auto_ds(struct mwifiex_private *priv)
 EXPORT_SYMBOL_GPL(mwifiex_disable_auto_ds);
 
 /*
- * IOCTL request handler to get rate.
- *
- * This function prepares the correct firmware command and
- * issues it to get the current rate if it is connected,
- * otherwise, the function returns the lowest supported rate
- * for the band.
- */
-static int mwifiex_rate_ioctl_get_rate_value(struct mwifiex_private *priv,
-					     struct mwifiex_rate_cfg *rate_cfg)
-{
-	rate_cfg->is_rate_auto = priv->is_data_rate_auto;
-	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_TX_RATE_QUERY,
-				     HostCmd_ACT_GEN_GET, 0, NULL);
-}
-
-/*
- * IOCTL request handler to set rate.
- *
- * This function prepares the correct firmware command and
- * issues it to set the current rate.
- *
- * The function also performs validation checking on the supplied value.
- */
-static int mwifiex_rate_ioctl_set_rate_value(struct mwifiex_private *priv,
-					     struct mwifiex_rate_cfg *rate_cfg)
-{
-	u8 rates[MWIFIEX_SUPPORTED_RATES];
-	u8 *rate;
-	int rate_index, ret;
-	u16 bitmap_rates[MAX_BITMAP_RATES_SIZE];
-	u32 i;
-	struct mwifiex_adapter *adapter = priv->adapter;
-
-	if (rate_cfg->is_rate_auto) {
-		memset(bitmap_rates, 0, sizeof(bitmap_rates));
-		/* Support all HR/DSSS rates */
-		bitmap_rates[0] = 0x000F;
-		/* Support all OFDM rates */
-		bitmap_rates[1] = 0x00FF;
-		/* Support all HT-MCSs rate */
-		for (i = 0; i < ARRAY_SIZE(priv->bitmap_rates) - 3; i++)
-			bitmap_rates[i + 2] = 0xFFFF;
-		bitmap_rates[9] = 0x3FFF;
-	} else {
-		memset(rates, 0, sizeof(rates));
-		mwifiex_get_active_data_rates(priv, rates);
-		rate = rates;
-		for (i = 0; (rate[i] && i < MWIFIEX_SUPPORTED_RATES); i++) {
-			dev_dbg(adapter->dev, "info: rate=%#x wanted=%#x\n",
-				rate[i], rate_cfg->rate);
-			if ((rate[i] & 0x7f) == (rate_cfg->rate & 0x7f))
-				break;
-		}
-		if ((i == MWIFIEX_SUPPORTED_RATES) || !rate[i]) {
-			dev_err(adapter->dev, "fixed data rate %#x is out "
-			       "of range\n", rate_cfg->rate);
-			return -1;
-		}
-		memset(bitmap_rates, 0, sizeof(bitmap_rates));
-
-		rate_index = mwifiex_data_rate_to_index(rate_cfg->rate);
-
-		/* Only allow b/g rates to be set */
-		if (rate_index >= MWIFIEX_RATE_INDEX_HRDSSS0 &&
-		    rate_index <= MWIFIEX_RATE_INDEX_HRDSSS3) {
-			bitmap_rates[0] = 1 << rate_index;
-		} else {
-			rate_index -= 1; /* There is a 0x00 in the table */
-			if (rate_index >= MWIFIEX_RATE_INDEX_OFDM0 &&
-			    rate_index <= MWIFIEX_RATE_INDEX_OFDM7)
-				bitmap_rates[1] = 1 << (rate_index -
-						   MWIFIEX_RATE_INDEX_OFDM0);
-		}
-	}
-
-	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_TX_RATE_CFG,
-				    HostCmd_ACT_GEN_SET, 0, bitmap_rates);
-
-	return ret;
-}
-
-/*
- * IOCTL request handler to set/get rate.
- *
- * This function can be used to set/get either the rate value or the
- * rate index.
- */
-static int mwifiex_rate_ioctl_cfg(struct mwifiex_private *priv,
-				  struct mwifiex_rate_cfg *rate_cfg)
-{
-	int status;
-
-	if (!rate_cfg)
-		return -1;
-
-	if (rate_cfg->action == HostCmd_ACT_GEN_GET)
-		status = mwifiex_rate_ioctl_get_rate_value(priv, rate_cfg);
-	else
-		status = mwifiex_rate_ioctl_set_rate_value(priv, rate_cfg);
-
-	return status;
-}
-
-/*
  * Sends IOCTL request to get the data rate.
  *
  * This function allocates the IOCTL request buffer, fills it
  * with requisite parameters and calls the IOCTL handler.
  */
-int mwifiex_drv_get_data_rate(struct mwifiex_private *priv,
-			      struct mwifiex_rate_cfg *rate)
+int mwifiex_drv_get_data_rate(struct mwifiex_private *priv, u32 *rate)
 {
 	int ret;
 
-	memset(rate, 0, sizeof(struct mwifiex_rate_cfg));
-	rate->action = HostCmd_ACT_GEN_GET;
-	ret = mwifiex_rate_ioctl_cfg(priv, rate);
+	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_TX_RATE_QUERY,
+				    HostCmd_ACT_GEN_GET, 0, NULL);
 
 	if (!ret) {
-		if (rate->is_rate_auto)
-			rate->rate = mwifiex_index_to_data_rate(priv,
-								priv->tx_rate,
-								priv->tx_htinfo
-								);
+		if (priv->is_data_rate_auto)
+			*rate = mwifiex_index_to_data_rate(priv, priv->tx_rate,
+							   priv->tx_htinfo);
 		else
-			rate->rate = priv->data_rate;
-	} else {
-		ret = -1;
+			*rate = priv->data_rate;
 	}
 
 	return ret;
