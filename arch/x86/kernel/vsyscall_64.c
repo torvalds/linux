@@ -139,6 +139,7 @@ static int addr_to_vsyscall_nr(unsigned long addr)
 	return nr;
 }
 
+#ifdef CONFIG_SECCOMP
 static int vsyscall_seccomp(struct task_struct *tsk, int syscall_nr)
 {
 	if (!seccomp_mode(&tsk->seccomp))
@@ -147,6 +148,9 @@ static int vsyscall_seccomp(struct task_struct *tsk, int syscall_nr)
 	task_pt_regs(tsk)->ax = syscall_nr;
 	return __secure_computing(syscall_nr);
 }
+#else
+#define vsyscall_seccomp(_tsk, _nr) 0
+#endif
 
 static bool write_ok_or_segv(unsigned long ptr, size_t size)
 {
