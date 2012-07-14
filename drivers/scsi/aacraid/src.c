@@ -56,21 +56,10 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 	if (bellbits & PmDoorBellResponseSent) {
 		bellbits = PmDoorBellResponseSent;
 		/* handle async. status */
+		src_writel(dev, MUnit.ODR_C, bellbits);
+		src_readl(dev, MUnit.ODR_C);
 		our_interrupt = 1;
 		index = dev->host_rrq_idx;
-		if (dev->host_rrq[index] == 0) {
-			u32 old_index = index;
-			/* adjust index */
-			do {
-				index++;
-				if (index == dev->scsi_host_ptr->can_queue +
-							AAC_NUM_MGT_FIB)
-					index = 0;
-				if (dev->host_rrq[index] != 0)
-					break;
-			} while (index != old_index);
-			dev->host_rrq_idx = index;
-		}
 		for (;;) {
 			isFastResponse = 0;
 			/* remove toggle bit (31) */
@@ -93,6 +82,8 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 	} else {
 		bellbits_shifted = (bellbits >> SRC_ODR_SHIFT);
 		if (bellbits_shifted & DoorBellAifPending) {
+			src_writel(dev, MUnit.ODR_C, bellbits);
+			src_readl(dev, MUnit.ODR_C);
 			our_interrupt = 1;
 			/* handle AIF */
 			aac_intr_normal(dev, 0, 2, 0, NULL);
@@ -100,6 +91,13 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 			unsigned long sflags;
 			struct list_head *entry;
 			int send_it = 0;
+			extern int aac_sync_mode;
+
+			if (!aac_sync_mode) {
+				src_writel(dev, MUnit.ODR_C, bellbits);
+				src_readl(dev, MUnit.ODR_C);
+				our_interrupt = 1;
+			}
 
 			if (dev->sync_fib) {
 				our_interrupt = 1;
@@ -132,7 +130,6 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 	}
 
 	if (our_interrupt) {
-		src_writel(dev, MUnit.ODR_C, bellbits);
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
@@ -336,6 +333,9 @@ static void aac_src_start_adapter(struct aac_dev *dev)
 {
 	struct aac_init *init;
 
+	 /* reset host_rrq_idx first */
+	dev->host_rrq_idx = 0;
+
 	init = dev->init;
 	init->HostElapsedSeconds = cpu_to_le32(get_seconds());
 
@@ -397,31 +397,40 @@ static int aac_src_deliver_message(struct fib *fib)
 	q->numpending++;
 	spin_unlock_irqrestore(q->lock, qflags);
 
-	/* Calculate the amount to the fibsize bits */
-	fibsize = (sizeof(struct aac_fib_xporthdr) + hdr_size + 127) / 128 - 1;
-	if (fibsize > (ALIGN32 - 1))
-		return -EMSGSIZE;
+	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE2) {
+		/* Calculate the amount to the fibsize bits */
+		fibsize = (hdr_size + 127) / 128 - 1;
+		if (fibsize > (ALIGN32 - 1))
+			return -EMSGSIZE;
+		/* New FIB header, 32-bit */
+		address = fib->hw_fib_pa;
+		fib->hw_fib_va->header.StructType = FIB_MAGIC2;
+		fib->hw_fib_va->header.SenderFibAddress = (u32)address;
+		fib->hw_fib_va->header.u.TimeStamp = 0;
+		BUG_ON((u32)(address >> 32) != 0L);
+		address |= fibsize;
+	} else {
+		/* Calculate the amount to the fibsize bits */
+		fibsize = (sizeof(struct aac_fib_xporthdr) + hdr_size + 127) / 128 - 1;
+		if (fibsize > (ALIGN32 - 1))
+			return -EMSGSIZE;
 
-	/* Fill XPORT header */
-	pFibX = (void *)fib->hw_fib_va - sizeof(struct aac_fib_xporthdr);
-	/*
-	 * This was stored by aac_fib_send() and it is the index into
-	 * dev->fibs. Not sure why we add 1 to it, but I suspect that it's
-	 * because it can't be zero when we pass it to the hardware. Note that
-	 * it was stored in native endian, hence the lack of swapping. -- BenC
-	 */
-	pFibX->Handle = cpu_to_le32(fib->hw_fib_va->header.SenderData + 1);
-	pFibX->HostAddress = cpu_to_le64(fib->hw_fib_pa);
-	pFibX->Size = cpu_to_le32(hdr_size);
+		/* Fill XPORT header */
+		pFibX = (void *)fib->hw_fib_va - sizeof(struct aac_fib_xporthdr);
+		pFibX->Handle = cpu_to_le32(fib->hw_fib_va->header.Handle);
+		pFibX->HostAddress = cpu_to_le64(fib->hw_fib_pa);
+		pFibX->Size = cpu_to_le32(hdr_size);
 
-	/*
-	 * The xport header has been 32-byte aligned for us so that fibsize
-	 * can be masked out of this address by hardware. -- BenC
-	 */
-	address = fib->hw_fib_pa - sizeof(struct aac_fib_xporthdr);
-	if (address & (ALIGN32 - 1))
-		return -EINVAL;
-	address |= fibsize;
+		/*
+		 * The xport header has been 32-byte aligned for us so that fibsize
+		 * can be masked out of this address by hardware. -- BenC
+		 */
+		address = fib->hw_fib_pa - sizeof(struct aac_fib_xporthdr);
+		if (address & (ALIGN32 - 1))
+			return -EINVAL;
+		address |= fibsize;
+	}
+
 	src_writel(dev, MUnit.IQ_H, (address >> 32) & 0xffffffff);
 	src_writel(dev, MUnit.IQ_L, address & 0xffffffff);
 
@@ -764,7 +773,7 @@ int aac_srcv_init(struct aac_dev *dev)
 
 	if (aac_init_adapter(dev) == NULL)
 		goto error_iounmap;
-	if (dev->comm_interface != AAC_COMM_MESSAGE_TYPE1)
+	if (dev->comm_interface != AAC_COMM_MESSAGE_TYPE2)
 		goto error_iounmap;
 	dev->msi = aac_msi && !pci_enable_msi(dev->pdev);
 	if (request_irq(dev->pdev->irq, dev->a_ops.adapter_intr,

@@ -1166,7 +1166,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	aac->cardtype = index;
 	INIT_LIST_HEAD(&aac->entry);
 
-	aac->fibs = kmalloc(sizeof(struct fib) * (shost->can_queue + AAC_NUM_MGT_FIB), GFP_KERNEL);
+	aac->fibs = kzalloc(sizeof(struct fib) * (shost->can_queue + AAC_NUM_MGT_FIB), GFP_KERNEL);
 	if (!aac->fibs)
 		goto out_free_host;
 	spin_lock_init(&aac->fib_lock);

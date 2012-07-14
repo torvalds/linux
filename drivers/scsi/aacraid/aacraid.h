@@ -12,7 +12,7 @@
  *----------------------------------------------------------------------------*/
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 28900
+# define AAC_DRIVER_BUILD 29800
 # define AAC_DRIVER_BRANCH "-ms"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
@@ -98,6 +98,13 @@ struct user_sgentryraw {
 	u32		addr[2];
 	u32		count;
 	u32		flags;	/* reserved for F/W use */
+};
+
+struct sge_ieee1212 {
+	u32	addrLow;
+	u32	addrHigh;
+	u32	length;
+	u32	flags;
 };
 
 /*
@@ -270,6 +277,8 @@ enum aac_queue_types {
  */
 
 #define		FIB_MAGIC	0x0001
+#define		FIB_MAGIC2	0x0004
+#define		FIB_MAGIC2_64	0x0005
 
 /*
  *	Define the priority levels the FSA communication routines support.
@@ -296,22 +305,20 @@ struct aac_fibhdr {
 	__le32 XferState;	/* Current transfer state for this CCB */
 	__le16 Command;		/* Routing information for the destination */
 	u8 StructType;		/* Type FIB */
-	u8 Flags;		/* Flags for FIB */
+	u8 Unused;		/* Unused */
 	__le16 Size;		/* Size of this FIB in bytes */
 	__le16 SenderSize;	/* Size of the FIB in the sender
 				   (for response sizing) */
 	__le32 SenderFibAddress;  /* Host defined data in the FIB */
-	__le32 ReceiverFibAddress;/* Logical address of this FIB for
-				     the adapter */
-	u32 SenderData;		/* Place holder for the sender to store data */
 	union {
-		struct {
-		    __le32 _ReceiverTimeStart;	/* Timestamp for
-						   receipt of fib */
-		    __le32 _ReceiverTimeDone;	/* Timestamp for
-						   completion of fib */
-		} _s;
-	} _u;
+		__le32 ReceiverFibAddress;/* Logical address of this FIB for
+				     the adapter (old) */
+		__le32 SenderFibAddressHigh;/* upper 32bit of phys. FIB address */
+		__le32 TimeStamp;	/* otherwise timestamp for FW internal use */
+	} u;
+	u32 Handle;		/* FIB handle used for MSGU commnunication */
+	u32 Previous;		/* FW internal use */
+	u32 Next;		/* FW internal use */
 };
 
 struct hw_fib {
@@ -361,6 +368,7 @@ struct hw_fib {
 #define		ContainerCommand		500
 #define		ContainerCommand64		501
 #define		ContainerRawIo			502
+#define		ContainerRawIo2			503
 /*
  *	Scsi Port commands (scsi passthrough)
  */
@@ -417,6 +425,7 @@ enum fib_xfer_state {
 #define ADAPTER_INIT_STRUCT_REVISION		3
 #define ADAPTER_INIT_STRUCT_REVISION_4		4 // rocket science
 #define ADAPTER_INIT_STRUCT_REVISION_6		6 /* PMC src */
+#define ADAPTER_INIT_STRUCT_REVISION_7		7 /* Denali */
 
 struct aac_init
 {
@@ -441,7 +450,9 @@ struct aac_init
 #define INITFLAGS_NEW_COMM_SUPPORTED	0x00000001
 #define INITFLAGS_DRIVER_USES_UTC_TIME	0x00000010
 #define INITFLAGS_DRIVER_SUPPORTS_PM	0x00000020
-#define INITFLAGS_NEW_COMM_TYPE1_SUPPORTED	0x00000041
+#define INITFLAGS_NEW_COMM_TYPE1_SUPPORTED	0x00000040
+#define INITFLAGS_FAST_JBOD_SUPPORTED	0x00000080
+#define INITFLAGS_NEW_COMM_TYPE2_SUPPORTED	0x00000100
 	__le32	MaxIoCommands;	/* max outstanding commands */
 	__le32	MaxIoSize;	/* largest I/O command */
 	__le32	MaxFibSize;	/* largest FIB to adapter */
@@ -1124,6 +1135,7 @@ struct aac_dev
 #	define AAC_COMM_PRODUCER 0
 #	define AAC_COMM_MESSAGE  1
 #	define AAC_COMM_MESSAGE_TYPE1	3
+#	define AAC_COMM_MESSAGE_TYPE2	4
 	u8			raw_io_interface;
 	u8			raw_io_64;
 	u8			printf_enabled;
@@ -1182,6 +1194,7 @@ struct aac_dev
 #define FIB_CONTEXT_FLAG_TIMED_OUT		(0x00000001)
 #define FIB_CONTEXT_FLAG			(0x00000002)
 #define FIB_CONTEXT_FLAG_WAIT			(0x00000004)
+#define FIB_CONTEXT_FLAG_FASTRESP		(0x00000008)
 
 /*
  *	Define the command values
@@ -1288,6 +1301,22 @@ struct aac_dev
 #define CMDATA_SYNCH		4
 #define CMUNSTABLE		5
 
+#define	RIO_TYPE_WRITE 			0x0000
+#define	RIO_TYPE_READ			0x0001
+#define	RIO_SUREWRITE			0x0008
+
+#define RIO2_IO_TYPE			0x0003
+#define RIO2_IO_TYPE_WRITE		0x0000
+#define RIO2_IO_TYPE_READ		0x0001
+#define RIO2_IO_TYPE_VERIFY		0x0002
+#define RIO2_IO_ERROR			0x0004
+#define RIO2_IO_SUREWRITE		0x0008
+#define RIO2_SGL_CONFORMANT		0x0010
+#define RIO2_SG_FORMAT			0xF000
+#define RIO2_SG_FORMAT_ARC		0x0000
+#define RIO2_SG_FORMAT_SRL		0x1000
+#define RIO2_SG_FORMAT_IEEE1212		0x2000
+
 struct aac_read
 {
 	__le32		command;
@@ -1332,9 +1361,6 @@ struct aac_write64
 	__le32		block;
 	__le16		pad;
 	__le16		flags;
-#define	IO_TYPE_WRITE 0x00000000
-#define	IO_TYPE_READ  0x00000001
-#define	IO_SUREWRITE  0x00000008
 	struct sgmap64	sg;	// Must be last in struct because it is variable
 };
 struct aac_write_reply
@@ -1353,6 +1379,22 @@ struct aac_raw_io
 	__le16		bpTotal;	/* reserved for F/W use */
 	__le16		bpComplete;	/* reserved for F/W use */
 	struct sgmapraw	sg;
+};
+
+struct aac_raw_io2 {
+	__le32		blockLow;
+	__le32		blockHigh;
+	__le32		byteCount;
+	__le16		cid;
+	__le16		flags;		/* RIO2 flags */
+	__le32		sgeFirstSize;	/* size of first sge el. */
+	__le32		sgeNominalSize;	/* size of 2nd sge el. (if conformant) */
+	u8		sgeCnt;		/* only 8 bits required */
+	u8		bpTotal;	/* reserved for F/W use */
+	u8		bpComplete;	/* reserved for F/W use */
+	u8		sgeFirstIndex;	/* reserved for F/W use */
+	u8		unused[4];
+	struct sge_ieee1212	sge[1];
 };
 
 #define CT_FLUSH_CACHE 129
