@@ -64,7 +64,7 @@
 #include "../../../drivers/staging/android/timed_gpio.h"
 #endif
 
-#define RK30_FB0_MEM_SIZE 8*SZ_1M
+#define RK30_FB0_MEM_SIZE 12*SZ_1M
 
 #ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/

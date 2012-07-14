@@ -610,16 +610,18 @@ int rk30_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 		 
 	}
 
-	spin_lock_irqsave(&dev_drv->cpl_lock,flags);
-	init_completion(&dev_drv->frame_done);
-	spin_unlock_irqrestore(&dev_drv->cpl_lock,flags);
-	timeout = wait_for_completion_timeout(&dev_drv->frame_done,msecs_to_jiffies(dev_drv->screen->ft+5));
-	if(!timeout&&(!dev_drv->frame_done.done))
+	if(dev_drv->num_buf < 3) //3buffer ,no need to  wait for sysn
 	{
-		printk(KERN_ERR "wait for new frame start time out!\n");
-		return -ETIMEDOUT;
+		spin_lock_irqsave(&dev_drv->cpl_lock,flags);
+		init_completion(&dev_drv->frame_done);
+		spin_unlock_irqrestore(&dev_drv->cpl_lock,flags);
+		timeout = wait_for_completion_timeout(&dev_drv->frame_done,msecs_to_jiffies(dev_drv->screen->ft+5));
+		if(!timeout&&(!dev_drv->frame_done.done))
+		{
+			printk(KERN_ERR "wait for new frame start time out!\n");
+			return -ETIMEDOUT;
+		}
 	}
-	
 	
 	return 0;
 }
@@ -804,10 +806,13 @@ static irqreturn_t rk30_lcdc_isr(int irq, void *dev_id)
 	LcdMskReg(lcdc_dev, INT_STATUS, m_FRM_START_INT_CLEAR, v_FRM_START_INT_CLEAR(1));
 	LCDC_REG_CFG_DONE();
 	//LcdMskReg(lcdc_dev, INT_STATUS, m_LINE_FLAG_INT_CLEAR, v_LINE_FLAG_INT_CLEAR(1));
-	
-	spin_lock(&(lcdc_dev->driver.cpl_lock));
-	complete(&(lcdc_dev->driver.frame_done));
-	spin_unlock(&(lcdc_dev->driver.cpl_lock));
+ 
+	if(lcdc_dev->driver.num_buf < 3)  //three buffer ,no need to wait for sync
+	{
+		spin_lock(&(lcdc_dev->driver.cpl_lock));
+		complete(&(lcdc_dev->driver.frame_done));
+		spin_unlock(&(lcdc_dev->driver.cpl_lock));
+	}
 	return IRQ_HANDLED;
 }
 

@@ -249,6 +249,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 	int layer_id = get_fb_layer_id(&info->fix);
 	int enable; // enable fb:1 enable;0 disable 
 	int ovl;	//overlay:0 win1 on the top of win0;1,win0 on the top of win1
+	int num_buf; //buffer_number
 	void __user *argp = (void __user *)arg;
 	
 	switch(cmd)
@@ -278,10 +279,17 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 			if (copy_from_user(&ovl, argp, sizeof(ovl)))
 				return -EFAULT;
 			dev_drv->ovl_mgr(dev_drv,ovl,1);
+			break;
 		case FBIOGET_OVERLAY_STATE:
 			ovl = dev_drv->ovl_mgr(dev_drv,0,0);
 			if (copy_to_user(argp, &ovl, sizeof(ovl)))
 				return -EFAULT;
+			break;
+		case FBIOPUT_NUM_BUFFERS:
+			if (copy_from_user(&num_buf, argp, sizeof(num_buf)))
+				return -EFAULT;
+			dev_drv->num_buf = num_buf;
+			break;
 		case FBIOGET_SCREEN_STATE:
 		case FBIOPUT_SET_CURSOR_EN:
 		case FBIOPUT_SET_CURSOR_POS:
