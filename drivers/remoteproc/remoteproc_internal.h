@@ -21,6 +21,7 @@
 #define REMOTEPROC_INTERNAL_H
 
 #include <linux/irqreturn.h>
+#include <linux/firmware.h>
 
 struct rproc;
 
@@ -43,4 +44,14 @@ void rproc_exit_debugfs(void);
 
 void rproc_free_vring(struct rproc_vring *rvring);
 int rproc_alloc_vring(struct rproc_vdev *rvdev, int i);
+
+void *rproc_da_to_va(struct rproc *rproc, u64 da, int len);
+
+struct resource_table *rproc_find_rsc_table(struct rproc *rproc,
+						const struct firmware *fw,
+						int *tablesz);
+int rproc_load_segments(struct rproc *rproc, const struct firmware *fw);
+int rproc_fw_sanity_check(struct rproc *rproc, const struct firmware *fw);
+u32 rproc_get_boot_addr(struct rproc *rproc, const struct firmware *fw);
+
 #endif /* REMOTEPROC_INTERNAL_H */
