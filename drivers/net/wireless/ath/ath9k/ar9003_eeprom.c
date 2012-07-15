@@ -131,8 +131,9 @@ static const struct ar9300_eeprom ar9300_default = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0cf0e0e0),
 		.papdRateMaskHt40 = LE32(0x6cf0e0e0),
+		.xlna_bias_strength = 0,
 		.futureModal = {
-			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0,
 		},
 	 },
 	.base_ext1 = {
@@ -331,8 +332,9 @@ static const struct ar9300_eeprom ar9300_default = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0c80c080),
 		.papdRateMaskHt40 = LE32(0x0080c080),
+		.xlna_bias_strength = 0,
 		.futureModal = {
-			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0,
 		},
 	 },
 	.base_ext2 = {
@@ -704,8 +706,9 @@ static const struct ar9300_eeprom ar9300_x113 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0c80c080),
 		.papdRateMaskHt40 = LE32(0x0080c080),
+		.xlna_bias_strength = 0,
 		.futureModal = {
-			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0,
 		},
 	 },
 	 .base_ext1 = {
@@ -904,8 +907,9 @@ static const struct ar9300_eeprom ar9300_x113 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0cf0e0e0),
 		.papdRateMaskHt40 = LE32(0x6cf0e0e0),
+		.xlna_bias_strength = 0,
 		.futureModal = {
-			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0,
 		},
 	 },
 	.base_ext2 = {
@@ -1278,8 +1282,9 @@ static const struct ar9300_eeprom ar9300_h112 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0c80c080),
 		.papdRateMaskHt40 = LE32(0x0080c080),
+		.xlna_bias_strength = 0,
 		.futureModal = {
-			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0,
 		},
 	},
 	.base_ext1 = {
@@ -1478,8 +1483,9 @@ static const struct ar9300_eeprom ar9300_h112 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0cf0e0e0),
 		.papdRateMaskHt40 = LE32(0x6cf0e0e0),
+		.xlna_bias_strength = 0,
 		.futureModal = {
-			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0,
 		},
 	},
 	.base_ext2 = {
@@ -1852,8 +1858,9 @@ static const struct ar9300_eeprom ar9300_x112 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0c80c080),
 		.papdRateMaskHt40 = LE32(0x0080c080),
+		.xlna_bias_strength = 0,
 		.futureModal = {
-			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0,
 		},
 	},
 	.base_ext1 = {
@@ -2052,8 +2059,9 @@ static const struct ar9300_eeprom ar9300_x112 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0cf0e0e0),
 		.papdRateMaskHt40 = LE32(0x6cf0e0e0),
+		.xlna_bias_strength = 0,
 		.futureModal = {
-			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0,
 		},
 	},
 	.base_ext2 = {
@@ -2425,8 +2433,9 @@ static const struct ar9300_eeprom ar9300_h116 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0c80C080),
 		.papdRateMaskHt40 = LE32(0x0080C080),
+		.xlna_bias_strength = 0,
 		.futureModal = {
-			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0,
 		},
 	 },
 	 .base_ext1 = {
@@ -2625,8 +2634,9 @@ static const struct ar9300_eeprom ar9300_h116 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0cf0e0e0),
 		.papdRateMaskHt40 = LE32(0x6cf0e0e0),
+		.xlna_bias_strength = 0,
 		.futureModal = {
-			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0,
 		},
 	 },
 	.base_ext2 = {
@@ -3942,6 +3952,28 @@ static void ar9003_hw_xpa_timing_control_apply(struct ath_hw *ah, bool is2ghz)
 			      AR_PHY_XPA_TIMING_CTL_FRAME_XPAA_ON, xpa_ctl);
 }
 
+static void ar9003_hw_xlna_bias_strength_apply(struct ath_hw *ah, bool is2ghz)
+{
+	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+	u8 bias;
+
+	if (!(eep->baseEepHeader.featureEnable & 0x40))
+		return;
+
+	if (!AR_SREV_9300(ah))
+		return;
+
+	bias = ar9003_modal_header(ah, is2ghz)->xlna_bias_strength;
+	REG_RMW_FIELD(ah, AR_PHY_65NM_CH0_RXTX4, AR_PHY_65NM_RXTX4_XLNA_BIAS,
+		      bias & 0x3);
+	bias >>= 2;
+	REG_RMW_FIELD(ah, AR_PHY_65NM_CH1_RXTX4, AR_PHY_65NM_RXTX4_XLNA_BIAS,
+		      bias & 0x3);
+	bias >>= 2;
+	REG_RMW_FIELD(ah, AR_PHY_65NM_CH2_RXTX4, AR_PHY_65NM_RXTX4_XLNA_BIAS,
+		      bias & 0x3);
+}
+
 static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 					     struct ath9k_channel *chan)
 {
@@ -3950,6 +3982,7 @@ static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 	ar9003_hw_xpa_bias_level_apply(ah, is2ghz);
 	ar9003_hw_ant_ctrl_apply(ah, is2ghz);
 	ar9003_hw_drive_strength_apply(ah);
+	ar9003_hw_xlna_bias_strength_apply(ah, is2ghz);
 	ar9003_hw_atten_apply(ah, chan);
 	ar9003_hw_quick_drop_apply(ah, chan->channel);
 	if (!AR_SREV_9330(ah) && !AR_SREV_9340(ah) && !AR_SREV_9550(ah))

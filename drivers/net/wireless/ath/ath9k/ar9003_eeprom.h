@@ -231,7 +231,8 @@ struct ar9300_modal_eep_header {
 	__le32 papdRateMaskHt20;
 	__le32 papdRateMaskHt40;
 	__le16 switchcomspdt;
-	u8 futureModal[8];
+	u8 xlna_bias_strength;
+	u8 futureModal[7];
 } __packed;
 
 struct ar9300_cal_data_per_freq_op_loop {
