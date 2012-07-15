@@ -1395,6 +1395,7 @@ static int ath9k_conf_tx(struct ieee80211_hw *hw,
 		queue, txq->axq_qnum, params->aifs, params->cw_min,
 		params->cw_max, params->txop);
 
+	ath_update_max_aggr_framelen(sc, queue, qi.tqi_burstTime);
 	ret = ath_txq_update(sc, txq->axq_qnum, &qi);
 	if (ret)
 		ath_err(common, "TXQ Update failed\n");

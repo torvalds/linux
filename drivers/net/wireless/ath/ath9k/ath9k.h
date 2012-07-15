@@ -298,6 +298,7 @@ struct ath_tx {
 	struct ath_descdma txdma;
 	struct ath_txq *txq_map[WME_NUM_AC];
 	u32 txq_max_pending[WME_NUM_AC];
+	u16 max_aggr_framelen[WME_NUM_AC][4][32];
 };
 
 struct ath_rx_edma {
@@ -342,6 +343,7 @@ int ath_tx_init(struct ath_softc *sc, int nbufs);
 void ath_tx_cleanup(struct ath_softc *sc);
 int ath_txq_update(struct ath_softc *sc, int qnum,
 		   struct ath9k_tx_queue_info *q);
+void ath_update_max_aggr_framelen(struct ath_softc *sc, int queue, int txop);
 int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 		 struct ath_tx_control *txctl);
 void ath_tx_tasklet(struct ath_softc *sc);
