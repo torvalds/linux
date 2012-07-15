@@ -46,8 +46,8 @@
 #define	MCFSIM_RSR		(MCF_MBAR + 0x40)	/* Reset Status */
 #define	MCFSIM_SYPCR		(MCF_MBAR + 0x41)	/* System Protection */
 
-#define	MCFSIM_SWIVR		0x42		/* SW Watchdog intr reg (r/w) */
-#define	MCFSIM_SWSR		0x43		/* SW Watchdog service (r/w) */
+#define	MCFSIM_SWIVR		(MCF_MBAR + 0x42)	/* SW Watchdog intr */
+#define	MCFSIM_SWSR		(MCF_MBAR + 0x43)	/* SW Watchdog srv */
 
 #define	MCFSIM_DCRR		(MCF_MBAR + 0x46) /* DRAM Refresh reg (r/w) */
 #define	MCFSIM_DCTR		(MCF_MBAR + 0x4a) /* DRAM Timing reg (r/w) */

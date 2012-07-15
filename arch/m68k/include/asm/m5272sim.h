@@ -37,10 +37,10 @@
 #define	MCFSIM_PIWR		(MCF_MBAR + 0x38)	/* Intr Wakeup */
 #define	MCFSIM_PIVR		(MCF_MBAR + 0x3f)	/* Intr Vector */
 
-#define	MCFSIM_WRRR		0x280		/* Watchdog reference (r/w) */
-#define	MCFSIM_WIRR		0x284		/* Watchdog interrupt (r/w) */
-#define	MCFSIM_WCR		0x288		/* Watchdog counter (r/w) */
-#define	MCFSIM_WER		0x28c		/* Watchdog event (r/w) */
+#define	MCFSIM_WRRR		(MCF_MBAR + 0x280)	/* Watchdog reference */
+#define	MCFSIM_WIRR		(MCF_MBAR + 0x284)	/* Watchdog interrupt */
+#define	MCFSIM_WCR		(MCF_MBAR + 0x288)	/* Watchdog counter */
+#define	MCFSIM_WER		(MCF_MBAR + 0x28c)	/* Watchdog event */
 
 #define	MCFSIM_CSBR0		0x40		/* CS0 Base Address (r/w) */
 #define	MCFSIM_CSOR0		0x44		/* CS0 Option (r/w) */

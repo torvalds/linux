@@ -25,8 +25,8 @@
  */
 #define	MCFSIM_RSR		(MCF_MBAR + 0x00)	/* Reset Status */
 #define	MCFSIM_SYPCR		(MCF_MBAR + 0x01)	/* System Protection */
-#define	MCFSIM_SWIVR		0x02		/* SW Watchdog intr reg (r/w) */
-#define	MCFSIM_SWSR		0x03		/* SW Watchdog service (r/w) */
+#define	MCFSIM_SWIVR		(MCF_MBAR + 0x02)	/* SW Watchdog intr */
+#define	MCFSIM_SWSR		(MCF_MBAR + 0x03)	/* SW Watchdog service*/
 #define	MCFSIM_PAR		0x04		/* Pin Assignment reg (r/w) */
 #define	MCFSIM_IRQPAR		0x06		/* Interrupt Assignment reg (r/w) */
 #define	MCFSIM_PLLCR		0x08		/* PLL Control Reg*/

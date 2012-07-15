@@ -28,8 +28,8 @@
  */
 #define MCFSIM_RSR		(MCF_MBAR + 0x00)	/* Reset Status */
 #define MCFSIM_SYPCR		(MCF_MBAR + 0x01)	/* System Protection */
-#define MCFSIM_SWIVR		0x02		/* SW Watchdog intr reg (r/w) */
-#define MCFSIM_SWSR		0x03		/* SW Watchdog service (r/w) */
+#define MCFSIM_SWIVR		(MCF_MBAR + 0x02)	/* SW Watchdog intr */
+#define MCFSIM_SWSR		(MCF_MBAR + 0x03)	/* SW Watchdog srv */
 #define MCFSIM_MPARK		0x0C		/* BUS Master Control Reg*/
 #define MCFSIM_IPR		(MCF_MBAR + 0x40)	/* Interrupt Pending */
 #define MCFSIM_IMR		(MCF_MBAR + 0x44)	/* Interrupt Mask */

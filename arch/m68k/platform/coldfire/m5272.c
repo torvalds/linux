@@ -50,9 +50,9 @@ static void m5272_cpu_reset(void)
 {
 	local_irq_disable();
 	/* Set watchdog to reset, and enabled */
-	__raw_writew(0, MCF_MBAR + MCFSIM_WIRR);
-	__raw_writew(1, MCF_MBAR + MCFSIM_WRRR);
-	__raw_writew(0, MCF_MBAR + MCFSIM_WCR);
+	__raw_writew(0, MCFSIM_WIRR);
+	__raw_writew(1, MCFSIM_WRRR);
+	__raw_writew(0, MCFSIM_WCR);
 	for (;;)
 		/* wait for watchdog to timeout */;
 }
