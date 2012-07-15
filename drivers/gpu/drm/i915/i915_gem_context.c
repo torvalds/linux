@@ -419,8 +419,11 @@ static int do_switch(struct drm_i915_gem_object *from_obj,
 		from_obj->dirty = 1;
 		BUG_ON(from_obj->ring != to->ring);
 		i915_gem_object_unpin(from_obj);
+
+		drm_gem_object_unreference(&from_obj->base);
 	}
 
+	drm_gem_object_reference(&to->obj->base);
 	ring->last_context_obj = to->obj;
 	to->is_initialized = true;
 
@@ -470,20 +473,7 @@ int i915_switch_context(struct intel_ring_buffer *ring,
 	if (from_obj == to->obj)
 		return 0;
 
-	ret = do_switch(from_obj, to, i915_gem_next_request_seqno(to->ring));
-	if (ret)
-		return ret;
-
-	/* Just to make the code a little cleaner we take the object reference
-	 * after the switch was successful. It would be more intuitive to ref
-	 * the 'to' object before the switch but we know the refcount must be >0
-	 * if context_get() succeeded, and we hold struct mutex. So it's safe to
-	 * do this here/now
-	 */
-	drm_gem_object_reference(&to->obj->base);
-	if (from_obj != NULL)
-		drm_gem_object_unreference(&from_obj->base);
-	return ret;
+	return do_switch(from_obj, to, i915_gem_next_request_seqno(to->ring));
 }
 
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
