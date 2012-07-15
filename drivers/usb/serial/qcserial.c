@@ -127,6 +127,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 	__u8 nintf;
 	__u8 ifnum;
 	bool is_gobi1k = id->driver_info ? true : false;
+	int altsetting = -1;
 
 	dev_dbg(dev, "Is Gobi 1000 = %d\n", is_gobi1k);
 
@@ -160,15 +161,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 				retval = 0; /* Success */
 				break;
 			}
-
-			retval = usb_set_interface(serial->dev, ifnum, 1);
-			if (retval < 0) {
-				dev_err(dev,
-					"Could not set interface, error %d\n",
-					retval);
-				retval = -ENODEV;
-				kfree(data);
-			}
+			altsetting = 1;
 		}
 		break;
 
@@ -193,24 +186,10 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 
 		if (ifnum == 1 && !is_gobi1k) {
 			dev_dbg(dev, "Gobi 2K+ DM/DIAG interface found\n");
-			retval = usb_set_interface(serial->dev, ifnum, 0);
-			if (retval < 0) {
-				dev_err(dev,
-					"Could not set interface, error %d\n",
-					retval);
-				retval = -ENODEV;
-				kfree(data);
-			}
+			altsetting = 0;
 		} else if (ifnum == 2) {
 			dev_dbg(dev, "Modem port found\n");
-			retval = usb_set_interface(serial->dev, ifnum, 0);
-			if (retval < 0) {
-				dev_err(dev,
-					"Could not set interface, error %d\n",
-					retval);
-				retval = -ENODEV;
-				kfree(data);
-			}
+			altsetting = 0;
 		} else if (ifnum==3 && !is_gobi1k) {
 			/*
 			 * NMEA (serial line 9600 8N1)
@@ -218,14 +197,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 			 * # echo "\$GPS_STOP"  > /dev/ttyUSBx
 			 */
 			dev_dbg(dev, "Gobi 2K+ NMEA GPS interface found\n");
-			retval = usb_set_interface(serial->dev, ifnum, 0);
-			if (retval < 0) {
-				dev_err(dev,
-					"Could not set interface, error %d\n",
-					retval);
-				retval = -ENODEV;
-				kfree(data);
-			}
+			altsetting = 0;
 		}
 		break;
 
@@ -233,6 +205,17 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		dev_err(dev, "unknown number of interfaces: %d\n", nintf);
 		kfree(data);
 		retval = -ENODEV;
+	}
+
+	if (altsetting >= 0) {
+		retval = usb_set_interface(serial->dev, ifnum, altsetting);
+		if (retval < 0) {
+			dev_err(dev,
+				"Could not set interface, error %d\n",
+				retval);
+			retval = -ENODEV;
+			kfree(data);
+		}
 	}
 
 	/* Set serial->private if not returning -ENODEV */
