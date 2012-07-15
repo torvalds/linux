@@ -3962,9 +3962,32 @@ static void ar9003_hw_txend_to_xpa_off_apply(struct ath_hw *ah, u16 freq)
 		      AR_PHY_XPA_TIMING_CTL_TX_END_XPAA_OFF, value);
 }
 
+static void ar9003_hw_xpa_timing_control_apply(struct ath_hw *ah, bool is_2ghz)
+{
+	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+	u8 xpa_ctl;
+
+	if (!(eep->baseEepHeader.featureEnable & 0x80))
+		return;
+
+	if (!AR_SREV_9300(ah) && !AR_SREV_9340(ah) && !AR_SREV_9580(ah))
+		return;
+
+	if (is_2ghz) {
+		xpa_ctl = eep->modalHeader2G.txFrameToXpaOn;
+		REG_RMW_FIELD(ah, AR_PHY_XPA_TIMING_CTL,
+			      AR_PHY_XPA_TIMING_CTL_FRAME_XPAB_ON, xpa_ctl);
+	} else {
+		xpa_ctl = eep->modalHeader5G.txFrameToXpaOn;
+		REG_RMW_FIELD(ah, AR_PHY_XPA_TIMING_CTL,
+			      AR_PHY_XPA_TIMING_CTL_FRAME_XPAA_ON, xpa_ctl);
+	}
+}
+
 static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 					     struct ath9k_channel *chan)
 {
+	ar9003_hw_xpa_timing_control_apply(ah, IS_CHAN_2GHZ(chan));
 	ar9003_hw_xpa_bias_level_apply(ah, IS_CHAN_2GHZ(chan));
 	ar9003_hw_ant_ctrl_apply(ah, IS_CHAN_2GHZ(chan));
 	ar9003_hw_drive_strength_apply(ah);
