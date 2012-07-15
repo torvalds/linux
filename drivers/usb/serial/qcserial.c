@@ -105,6 +105,10 @@ static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(0x1410, 0xa021)},	/* Novatel Gobi 3000 Composite */
 	{USB_DEVICE(0x413c, 0x8193)},	/* Dell Gobi 3000 QDL */
 	{USB_DEVICE(0x413c, 0x8194)},	/* Dell Gobi 3000 Composite */
+	{USB_DEVICE(0x1199, 0x68a4)},	/* Sierra Wireless QDL */
+	{USB_DEVICE(0x1199, 0x68a5)},	/* Sierra Wireless Modem */
+	{USB_DEVICE(0x1199, 0x68a8)},	/* Sierra Wireless QDL */
+	{USB_DEVICE(0x1199, 0x68a9)},	/* Sierra Wireless Modem */
 	{USB_DEVICE(0x1199, 0x9010)},	/* Sierra Wireless Gobi 3000 QDL */
 	{USB_DEVICE(0x1199, 0x9012)},	/* Sierra Wireless Gobi 3000 QDL */
 	{USB_DEVICE(0x1199, 0x9013)},	/* Sierra Wireless Gobi 3000 Modem device (MC8355) */
@@ -112,8 +116,24 @@ static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(0x1199, 0x9015)},	/* Sierra Wireless Gobi 3000 Modem device */
 	{USB_DEVICE(0x1199, 0x9018)},	/* Sierra Wireless Gobi 3000 QDL */
 	{USB_DEVICE(0x1199, 0x9019)},	/* Sierra Wireless Gobi 3000 Modem device */
+	{USB_DEVICE(0x1199, 0x901b)},	/* Sierra Wireless MC7770 */
 	{USB_DEVICE(0x12D1, 0x14F0)},	/* Sony Gobi 3000 QDL */
 	{USB_DEVICE(0x12D1, 0x14F1)},	/* Sony Gobi 3000 Composite */
+
+	/* non Gobi Qualcomm serial devices */
+	{USB_DEVICE_INTERFACE_NUMBER(0x0f3d, 0x68a2, 0)},	/* Sierra Wireless MC7700 Device Management */
+	{USB_DEVICE_INTERFACE_NUMBER(0x0f3d, 0x68a2, 2)},	/* Sierra Wireless MC7700 NMEA */
+	{USB_DEVICE_INTERFACE_NUMBER(0x0f3d, 0x68a2, 3)},	/* Sierra Wireless MC7700 Modem */
+	{USB_DEVICE_INTERFACE_NUMBER(0x114f, 0x68a2, 0)},	/* Sierra Wireless MC7750 Device Management */
+	{USB_DEVICE_INTERFACE_NUMBER(0x114f, 0x68a2, 2)},	/* Sierra Wireless MC7750 NMEA */
+	{USB_DEVICE_INTERFACE_NUMBER(0x114f, 0x68a2, 3)},	/* Sierra Wireless MC7750 Modem */
+	{USB_DEVICE_INTERFACE_NUMBER(0x1199, 0x68a2, 0)},	/* Sierra Wireless MC7710 Device Management */
+	{USB_DEVICE_INTERFACE_NUMBER(0x1199, 0x68a2, 2)},	/* Sierra Wireless MC7710 NMEA */
+	{USB_DEVICE_INTERFACE_NUMBER(0x1199, 0x68a2, 3)},	/* Sierra Wireless MC7710 Modem */
+	{USB_DEVICE_INTERFACE_NUMBER(0x1199, 0x901c, 0)},	/* Sierra Wireless EM7700 Device Management */
+	{USB_DEVICE_INTERFACE_NUMBER(0x1199, 0x901c, 2)},	/* Sierra Wireless EM7700 NMEA */
+	{USB_DEVICE_INTERFACE_NUMBER(0x1199, 0x901c, 3)},	/* Sierra Wireless EM7700 Modem */
+
 	{ }				/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, id_table);
