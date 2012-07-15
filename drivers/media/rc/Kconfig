@@ -259,6 +259,17 @@ config IR_WINBOND_CIR
 	   To compile this driver as a module, choose M here: the module will
 	   be called winbond_cir.
 
+config IR_IGUANA
+	tristate "IguanaWorks USB IR Transceiver"
+	depends on RC_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use the IgaunaWorks USB IR Transceiver.
+	   Both infrared receive and send are supported.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called iguanair.
+
 config RC_LOOPBACK
 	tristate "Remote Control Loopback Driver"
 	depends on RC_CORE
