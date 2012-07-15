@@ -152,6 +152,12 @@ int lbs_start_iface(struct lbs_private *priv)
 		goto err;
 	}
 
+	ret = lbs_set_11d_domain_info(priv);
+	if (ret) {
+		lbs_deb_net("set 11d domain info failed\n");
+		goto err;
+	}
+
 	lbs_update_channel(priv);
 
 	priv->iface_running = true;
