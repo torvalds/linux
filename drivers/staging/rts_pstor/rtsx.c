@@ -1021,7 +1021,7 @@ static int __devinit rtsx_probe(struct pci_dev *pci,
 	}
 
 	/* Start up the thread for delayed SCSI-device scanning */
-	th = kthread_create(rtsx_scan_thread, dev, "rtsx-scan");
+	th = kthread_run(rtsx_scan_thread, dev, "rtsx-scan");
 	if (IS_ERR(th)) {
 		printk(KERN_ERR "Unable to start the device-scanning thread\n");
 		complete(&dev->scanning_done);
@@ -1029,8 +1029,6 @@ static int __devinit rtsx_probe(struct pci_dev *pci,
 		err = PTR_ERR(th);
 		goto errout;
 	}
-
-	wake_up_process(th);
 
 	/* Start up the thread for polling thread */
 	th = kthread_run(rtsx_polling_thread, dev, "rtsx-polling");
