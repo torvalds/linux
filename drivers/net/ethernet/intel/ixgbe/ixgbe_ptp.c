@@ -708,6 +708,7 @@ void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 incval = 0;
+	u32 timinca = 0;
 	u32 shift = 0;
 	u32 cycle_speed;
 	unsigned long flags;
@@ -730,8 +731,16 @@ void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
 		break;
 	}
 
-	/* Bail if the cycle speed didn't change */
-	if (adapter->cycle_speed == cycle_speed)
+	/*
+	 * grab the current TIMINCA value from the register so that it can be
+	 * double checked. If the register value has been cleared, it must be
+	 * reset to the correct value for generating a cyclecounter. If
+	 * TIMINCA is zero, the SYSTIME registers do not increment at all.
+	 */
+	timinca = IXGBE_READ_REG(hw, IXGBE_TIMINCA);
+
+	/* Bail if the cycle speed didn't change and TIMINCA is non-zero */
+	if (adapter->cycle_speed == cycle_speed && timinca)
 		return;
 
 	/* disable the SDP clock out */

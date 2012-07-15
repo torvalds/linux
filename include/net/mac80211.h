@@ -1940,6 +1940,11 @@ enum ieee80211_rate_control_changed {
  *	to also unregister the device. If it returns 1, then mac80211
  *	will also go through the regular complete restart on resume.
  *
+ * @set_wakeup: Enable or disable wakeup when WoWLAN configuration is
+ *	modified. The reason is that device_set_wakeup_enable() is
+ *	supposed to be called when the configuration changes, not only
+ *	in suspend().
+ *
  * @add_interface: Called when a netdevice attached to the hardware is
  *	enabled. Because it is not called for monitor mode devices, @start
  *	and @stop must be implemented.
@@ -2966,6 +2971,7 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
  * ieee80211_generic_frame_duration - Calculate the duration field for a frame
  * @hw: pointer obtained from ieee80211_alloc_hw().
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @band: the band to calculate the frame duration on
  * @frame_len: the length of the frame.
  * @rate: the rate at which the frame is going to be transmitted.
  *

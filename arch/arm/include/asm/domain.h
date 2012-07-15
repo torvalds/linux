@@ -60,13 +60,13 @@
 #ifndef __ASSEMBLY__
 
 #ifdef CONFIG_CPU_USE_DOMAINS
-#define set_domain(x)					\
-	do {						\
-	__asm__ __volatile__(				\
-	"mcr	p15, 0, %0, c3, c0	@ set domain"	\
-	  : : "r" (x));					\
-	isb();						\
-	} while (0)
+static inline void set_domain(unsigned val)
+{
+	asm volatile(
+	"mcr	p15, 0, %0, c3, c0	@ set domain"
+	  : : "r" (val));
+	isb();
+}
 
 #define modify_domain(dom,type)					\
 	do {							\
@@ -78,8 +78,8 @@
 	} while (0)
 
 #else
-#define set_domain(x)		do { } while (0)
-#define modify_domain(dom,type)	do { } while (0)
+static inline void set_domain(unsigned val) { }
+static inline void modify_domain(unsigned dom, unsigned type)	{ }
 #endif
 
 /*

@@ -97,6 +97,7 @@ static void snd_usb_init_substream(struct snd_usb_stream *as,
 	subs->formats |= fp->formats;
 	subs->num_formats++;
 	subs->fmt_type = fp->fmt_type;
+	subs->ep_num = fp->endpoint;
 }
 
 /*
@@ -119,9 +120,7 @@ int snd_usb_add_audio_stream(struct snd_usb_audio *chip,
 		if (as->fmt_type != fp->fmt_type)
 			continue;
 		subs = &as->substream[stream];
-		if (!subs->data_endpoint)
-			continue;
-		if (subs->data_endpoint->ep_num == fp->endpoint) {
+		if (subs->ep_num == fp->endpoint) {
 			list_add_tail(&fp->list, &subs->fmt_list);
 			subs->num_formats++;
 			subs->formats |= fp->formats;
@@ -134,7 +133,7 @@ int snd_usb_add_audio_stream(struct snd_usb_audio *chip,
 		if (as->fmt_type != fp->fmt_type)
 			continue;
 		subs = &as->substream[stream];
-		if (subs->data_endpoint)
+		if (subs->ep_num)
 			continue;
 		err = snd_pcm_new_stream(as->pcm, stream, 1);
 		if (err < 0)
