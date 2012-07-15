@@ -31,9 +31,9 @@
 #define	MCFSIM_IRQPAR		0x06		/* Interrupt Assignment reg (r/w) */
 #define	MCFSIM_PLLCR		0x08		/* PLL Control Reg*/
 #define	MCFSIM_MPARK		0x0C		/* BUS Master Control Reg*/
-#define	MCFSIM_IPR		0x40		/* Interrupt Pend reg (r/w) */
-#define	MCFSIM_IMR		0x44		/* Interrupt Mask reg (r/w) */
-#define	MCFSIM_AVR		0x4b		/* Autovector Ctrl reg (r/w) */
+#define	MCFSIM_IPR		(MCF_MBAR + 0x40)	/* Interrupt Pending */
+#define	MCFSIM_IMR		(MCF_MBAR + 0x44)	/* Interrupt Mask */
+#define	MCFSIM_AVR		(MCF_MBAR + 0x4b)	/* Autovector Ctrl */
 #define	MCFSIM_ICR0		0x4c		/* Intr Ctrl reg 0 (r/w) */
 #define	MCFSIM_ICR1		0x4d		/* Intr Ctrl reg 1 (r/w) */
 #define	MCFSIM_ICR2		0x4e		/* Intr Ctrl reg 2 (r/w) */

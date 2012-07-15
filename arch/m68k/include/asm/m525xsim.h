@@ -31,8 +31,8 @@
 #define MCFSIM_SWIVR		0x02		/* SW Watchdog intr reg (r/w) */
 #define MCFSIM_SWSR		0x03		/* SW Watchdog service (r/w) */
 #define MCFSIM_MPARK		0x0C		/* BUS Master Control Reg*/
-#define MCFSIM_IPR		0x40		/* Interrupt Pend reg (r/w) */
-#define MCFSIM_IMR		0x44		/* Interrupt Mask reg (r/w) */
+#define MCFSIM_IPR		(MCF_MBAR + 0x40)	/* Interrupt Pending */
+#define MCFSIM_IMR		(MCF_MBAR + 0x44)	/* Interrupt Mask */
 #define MCFSIM_ICR0		0x4c		/* Intr Ctrl reg 0 (r/w) */
 #define MCFSIM_ICR1		0x4d		/* Intr Ctrl reg 1 (r/w) */
 #define MCFSIM_ICR2		0x4e		/* Intr Ctrl reg 2 (r/w) */

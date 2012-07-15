@@ -32,10 +32,10 @@
 #define	MCFSIM_ICR3		0x28		/* Intr Ctrl reg 3 (r/w) */
 #define	MCFSIM_ICR4		0x2c		/* Intr Ctrl reg 4 (r/w) */
 
-#define MCFSIM_ISR		0x30		/* Interrupt Source reg (r/w) */
-#define MCFSIM_PITR		0x34		/* Interrupt Transition (r/w) */
-#define	MCFSIM_PIWR		0x38		/* Interrupt Wakeup reg (r/w) */
-#define	MCFSIM_PIVR		0x3f		/* Interrupt Vector reg (r/w( */
+#define	MCFSIM_ISR		(MCF_MBAR + 0x30)	/* Intr Source */
+#define	MCFSIM_PITR		(MCF_MBAR + 0x34)	/* Intr Transition */
+#define	MCFSIM_PIWR		(MCF_MBAR + 0x38)	/* Intr Wakeup */
+#define	MCFSIM_PIVR		(MCF_MBAR + 0x3f)	/* Intr Vector */
 
 #define	MCFSIM_WRRR		0x280		/* Watchdog reference (r/w) */
 #define	MCFSIM_WIRR		0x284		/* Watchdog interrupt (r/w) */

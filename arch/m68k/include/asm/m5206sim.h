@@ -40,8 +40,8 @@
 #define	MCFSIM_ICR15		0x22		/* Intr Ctrl reg 15 (r/w) */
 #endif
 
-#define MCFSIM_IMR		0x36		/* Interrupt Mask reg (r/w) */
-#define MCFSIM_IPR		0x3a		/* Interrupt Pend reg (r/w) */
+#define	MCFSIM_IMR		(MCF_MBAR + 0x36)	/* Interrupt Mask */
+#define	MCFSIM_IPR		(MCF_MBAR + 0x3a)	/* Interrupt Pending */
 
 #define	MCFSIM_RSR		0x40		/* Reset Status reg (r/w) */
 #define	MCFSIM_SYPCR		0x41		/* System Protection reg (r/w)*/
