@@ -1127,7 +1127,7 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
 	v4l2_device_disconnect(&pdev->v4l2_dev);
 	video_unregister_device(&pdev->vdev);
 	mutex_unlock(&pdev->v4l2_lock);
-	mutex_unlock(pdev->vb_queue.lock);
+	mutex_unlock(&pdev->vb_queue_lock);
 
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
 	if (pdev->button_dev)
