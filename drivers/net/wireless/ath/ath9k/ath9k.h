@@ -297,6 +297,7 @@ struct ath_tx {
 	struct ath_txq txq[ATH9K_NUM_TX_QUEUES];
 	struct ath_descdma txdma;
 	struct ath_txq *txq_map[WME_NUM_AC];
+	u32 txq_max_pending[WME_NUM_AC];
 };
 
 struct ath_rx_edma {
