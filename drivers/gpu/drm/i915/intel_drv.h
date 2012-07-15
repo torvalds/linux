@@ -46,15 +46,16 @@
 })
 
 #define wait_for_atomic_us(COND, US) ({ \
-	int i, ret__ = -ETIMEDOUT;	\
-	for (i = 0; i < (US); i++) {	\
-		if ((COND)) {		\
-			ret__ = 0;	\
-			break;		\
-		}			\
-		udelay(1);		\
-	}				\
-	ret__;				\
+	unsigned long timeout__ = jiffies + usecs_to_jiffies(US);	\
+	int ret__ = 0;							\
+	while (!(COND)) {						\
+		if (time_after(jiffies, timeout__)) {			\
+			ret__ = -ETIMEDOUT;				\
+			break;						\
+		}							\
+		cpu_relax();						\
+	}								\
+	ret__;								\
 })
 
 #define wait_for(COND, MS) _wait_for(COND, MS, 1)
