@@ -561,8 +561,8 @@ static void ar9003_tx_gain_table_mode1(struct ath_hw *ah)
 			5);
 	else if (AR_SREV_9340(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			ar9340Modes_lowest_ob_db_tx_gain_table_1p0,
-			ARRAY_SIZE(ar9340Modes_lowest_ob_db_tx_gain_table_1p0),
+			ar9340Modes_high_ob_db_tx_gain_table_1p0,
+			ARRAY_SIZE(ar9340Modes_high_ob_db_tx_gain_table_1p0),
 			5);
 	else if (AR_SREV_9485_11(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
@@ -605,8 +605,8 @@ static void ar9003_tx_gain_table_mode2(struct ath_hw *ah)
 			5);
 	else if (AR_SREV_9340(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			ar9340Modes_lowest_ob_db_tx_gain_table_1p0,
-			ARRAY_SIZE(ar9340Modes_lowest_ob_db_tx_gain_table_1p0),
+			ar9340Modes_low_ob_db_tx_gain_table_1p0,
+			ARRAY_SIZE(ar9340Modes_low_ob_db_tx_gain_table_1p0),
 			5);
 	else if (AR_SREV_9485_11(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
@@ -639,8 +639,8 @@ static void ar9003_tx_gain_table_mode3(struct ath_hw *ah)
 			5);
 	else if (AR_SREV_9340(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			ar9340Modes_lowest_ob_db_tx_gain_table_1p0,
-			ARRAY_SIZE(ar9340Modes_lowest_ob_db_tx_gain_table_1p0),
+			ar9340Modes_high_power_tx_gain_table_1p0,
+			ARRAY_SIZE(ar9340Modes_high_power_tx_gain_table_1p0),
 			5);
 	else if (AR_SREV_9485_11(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
@@ -659,6 +659,20 @@ static void ar9003_tx_gain_table_mode3(struct ath_hw *ah)
 			5);
 }
 
+static void ar9003_tx_gain_table_mode4(struct ath_hw *ah)
+{
+	if (AR_SREV_9340(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			ar9340Modes_mixed_ob_db_tx_gain_table_1p0,
+			ARRAY_SIZE(ar9340Modes_mixed_ob_db_tx_gain_table_1p0),
+			5);
+	else if (AR_SREV_9580(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			ar9580_1p0_mixed_ob_db_tx_gain_table,
+			ARRAY_SIZE(ar9580_1p0_mixed_ob_db_tx_gain_table),
+			5);
+}
+
 static void ar9003_tx_gain_table_apply(struct ath_hw *ah)
 {
 	switch (ar9003_hw_get_tx_gain_idx(ah)) {
@@ -674,6 +688,9 @@ static void ar9003_tx_gain_table_apply(struct ath_hw *ah)
 		break;
 	case 3:
 		ar9003_tx_gain_table_mode3(ah);
+		break;
+	case 4:
+		ar9003_tx_gain_table_mode4(ah);
 		break;
 	}
 }
