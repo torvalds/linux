@@ -374,6 +374,17 @@ static int do_switch(struct drm_i915_gem_object *from_obj,
 	if (ret)
 		return ret;
 
+	/* Clear this page out of any CPU caches for coherent swap-in/out. Note
+	 * that thanks to write = false in this call and us not setting any gpu
+	 * write domains when putting a context object onto the active list
+	 * (when switching away from it), this won't block.
+	 * XXX: We need a real interface to do this instead of trickery. */
+	ret = i915_gem_object_set_to_gtt_domain(to->obj, false);
+	if (ret) {
+		i915_gem_object_unpin(to->obj);
+		return ret;
+	}
+
 	if (!to->obj->has_global_gtt_mapping)
 		i915_gem_gtt_bind_object(to->obj, to->obj->cache_level);
 
