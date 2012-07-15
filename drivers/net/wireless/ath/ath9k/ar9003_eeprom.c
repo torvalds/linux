@@ -3260,10 +3260,20 @@ static int ar9300_eeprom_restore_internal(struct ath_hw *ah,
 	int it;
 	u16 checksum, mchecksum;
 	struct ath_common *common = ath9k_hw_common(ah);
+	struct ar9300_eeprom *eep;
 	eeprom_read_op read;
 
-	if (ath9k_hw_use_flash(ah))
-		return ar9300_eeprom_restore_flash(ah, mptr, mdata_size);
+	if (ath9k_hw_use_flash(ah)) {
+		u8 txrx;
+
+		ar9300_eeprom_restore_flash(ah, mptr, mdata_size);
+
+		/* check if eeprom contains valid data */
+		eep = (struct ar9300_eeprom *) mptr;
+		txrx = eep->baseEepHeader.txrxMask;
+		if (txrx != 0 && txrx != 0xff)
+			return 0;
+	}
 
 	word = kzalloc(2048, GFP_KERNEL);
 	if (!word)
