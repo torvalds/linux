@@ -143,14 +143,13 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 
 	spin_lock_init(&data->susp_lock);
 
-	switch (nintf) {
-	case 1:
+	if (nintf == 1) {
 		/* QDL mode */
 		/* Gobi 2000 has a single altsetting, older ones have two */
 		if (serial->interface->num_altsetting == 2)
 			intf = &serial->interface->altsetting[1];
 		else if (serial->interface->num_altsetting > 2)
-			break;
+			goto done;
 
 		if (intf->desc.bNumEndpoints == 2 &&
 		    usb_endpoint_is_bulk_in(&intf->endpoint[0].desc) &&
@@ -162,10 +161,18 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 			else
 				altsetting = 1;
 		}
-		break;
+		goto done;
 
-	case 3:
-	case 4:
+	}
+
+	if (nintf < 3 || nintf > 4) {
+		dev_err(dev, "unknown number of interfaces: %d\n", nintf);
+		goto done;
+	}
+
+	/* default to enabling interface */
+	altsetting = 0;
+	switch (ifnum) {
 		/* Composite mode; don't bind to the QMI/net interface as that
 		 * gets handled by other drivers.
 		 */
@@ -183,27 +190,28 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		 * 3: NMEA
 		 */
 
-		if (ifnum == 1 && !is_gobi1k) {
+	case 1:
+		if (is_gobi1k)
+			altsetting = -1;
+		else
 			dev_dbg(dev, "Gobi 2K+ DM/DIAG interface found\n");
-			altsetting = 0;
-		} else if (ifnum == 2) {
-			dev_dbg(dev, "Modem port found\n");
-			altsetting = 0;
-		} else if (ifnum==3 && !is_gobi1k) {
+		break;
+	case 2:
+		dev_dbg(dev, "Modem port found\n");
+		break;
+	case 3:
+		if (is_gobi1k)
+			altsetting = -1;
+		else
 			/*
 			 * NMEA (serial line 9600 8N1)
 			 * # echo "\$GPS_START" > /dev/ttyUSBx
 			 * # echo "\$GPS_STOP"  > /dev/ttyUSBx
 			 */
 			dev_dbg(dev, "Gobi 2K+ NMEA GPS interface found\n");
-			altsetting = 0;
-		}
-		break;
-
-	default:
-		dev_err(dev, "unknown number of interfaces: %d\n", nintf);
 	}
 
+done:
 	if (altsetting >= 0) {
 		retval = usb_set_interface(serial->dev, ifnum, altsetting);
 		if (retval < 0) {
