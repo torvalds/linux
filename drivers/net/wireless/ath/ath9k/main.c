@@ -1923,12 +1923,29 @@ static u32 fill_chainmask(u32 cap, u32 new)
 	return filled;
 }
 
+static bool validate_antenna_mask(struct ath_hw *ah, u32 val)
+{
+	switch (val & 0x7) {
+	case 0x1:
+	case 0x3:
+	case 0x7:
+		return true;
+	case 0x2:
+		return (ah->caps.rx_chainmask == 1);
+	default:
+		return false;
+	}
+}
+
 static int ath9k_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 
-	if (!rx_ant || !tx_ant)
+	if (ah->caps.rx_chainmask != 1)
+		rx_ant |= tx_ant;
+
+	if (!validate_antenna_mask(ah, rx_ant) || !tx_ant)
 		return -EINVAL;
 
 	sc->ant_rx = rx_ant;
