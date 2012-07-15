@@ -796,30 +796,16 @@ static int lp872x_config(struct lp872x *lp)
 }
 
 static struct regulator_init_data
-*lp872x_find_regulator_init_data(int idx, struct lp872x *lp)
+*lp872x_find_regulator_init_data(int id, struct lp872x *lp)
 {
-	int i, base, id, max_regulators;
+	int i;
 
-	switch (lp->chipid) {
-	case LP8720:
-		base = LP8720_ID_BASE;
-		max_regulators = LP8720_NUM_REGULATORS;
-		break;
-	case LP8725:
-		base = LP8725_ID_BASE;
-		max_regulators = LP8725_NUM_REGULATORS;
-		break;
-	default:
-		return NULL;
+	for (i = 0; i < lp->num_regulators; i++) {
+		if (lp->pdata->regulator_data[i].id == id)
+			return lp->pdata->regulator_data[i].init_data;
 	}
 
-	id = base + idx;
-	for (i = 0 ; i < max_regulators ; i++)
-		if (lp->pdata->regulator_data[i].id == id)
-			break;
-
-	return (i == max_regulators) ? NULL :
-			lp->pdata->regulator_data[i].init_data;
+	return NULL;
 }
 
 static int lp872x_regulator_register(struct lp872x *lp)
@@ -834,7 +820,7 @@ static int lp872x_regulator_register(struct lp872x *lp)
 						&lp8725_regulator_desc[i];
 
 		cfg.dev = lp->dev;
-		cfg.init_data = lp872x_find_regulator_init_data(i, lp);
+		cfg.init_data = lp872x_find_regulator_init_data(desc->id, lp);
 		cfg.driver_data = lp;
 		cfg.regmap = lp->regmap;
 
