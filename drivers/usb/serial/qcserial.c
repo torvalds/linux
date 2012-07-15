@@ -157,11 +157,10 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		    usb_endpoint_is_bulk_out(&intf->endpoint[1].desc)) {
 			dev_dbg(dev, "QDL port found\n");
 
-			if (serial->interface->num_altsetting == 1) {
+			if (serial->interface->num_altsetting == 1)
 				retval = 0; /* Success */
-				break;
-			}
-			altsetting = 1;
+			else
+				altsetting = 1;
 		}
 		break;
 
@@ -203,8 +202,6 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 
 	default:
 		dev_err(dev, "unknown number of interfaces: %d\n", nintf);
-		kfree(data);
-		retval = -ENODEV;
 	}
 
 	if (altsetting >= 0) {
@@ -214,13 +211,15 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 				"Could not set interface, error %d\n",
 				retval);
 			retval = -ENODEV;
-			kfree(data);
 		}
 	}
 
-	/* Set serial->private if not returning -ENODEV */
-	if (retval != -ENODEV)
+	/* Set serial->private if not returning error */
+	if (retval == 0)
 		usb_set_serial_data(serial, data);
+	else
+		kfree(data);
+
 	return retval;
 }
 
