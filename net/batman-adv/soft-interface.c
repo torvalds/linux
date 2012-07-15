@@ -420,14 +420,15 @@ struct net_device *batadv_softif_create(const char *name)
 
 	atomic_set(&bat_priv->mesh_state, BATADV_MESH_INACTIVE);
 	atomic_set(&bat_priv->bcast_seqno, 1);
-	atomic_set(&bat_priv->ttvn, 0);
-	atomic_set(&bat_priv->tt_local_changes, 0);
-	atomic_set(&bat_priv->tt_ogm_append_cnt, 0);
-	atomic_set(&bat_priv->bla_num_requests, 0);
-
-	bat_priv->tt_buff = NULL;
-	bat_priv->tt_buff_len = 0;
-	bat_priv->tt_poss_change = false;
+	atomic_set(&bat_priv->tt.vn, 0);
+	atomic_set(&bat_priv->tt.local_changes, 0);
+	atomic_set(&bat_priv->tt.ogm_append_cnt, 0);
+#ifdef CONFIG_BATMAN_ADV_BLA
+	atomic_set(&bat_priv->bla.num_requests, 0);
+#endif
+	bat_priv->tt.last_changeset = NULL;
+	bat_priv->tt.last_changeset_len = 0;
+	bat_priv->tt.poss_change = false;
 
 	bat_priv->primary_if = NULL;
 	bat_priv->num_ifaces = 0;

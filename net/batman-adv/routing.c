@@ -721,7 +721,7 @@ int batadv_recv_roam_adv(struct sk_buff *skb, struct batadv_hard_iface *recv_if)
 	 * been incremented yet. This flag will make me check all the incoming
 	 * packets for the correct destination.
 	 */
-	bat_priv->tt_poss_change = true;
+	bat_priv->tt.poss_change = true;
 
 	batadv_orig_node_free_ref(orig_node);
 out:
@@ -947,8 +947,8 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
 
 	if (batadv_is_my_mac(unicast_packet->dest)) {
-		tt_poss_change = bat_priv->tt_poss_change;
-		curr_ttvn = (uint8_t)atomic_read(&bat_priv->ttvn);
+		tt_poss_change = bat_priv->tt.poss_change;
+		curr_ttvn = (uint8_t)atomic_read(&bat_priv->tt.vn);
 	} else {
 		orig_node = batadv_orig_hash_find(bat_priv,
 						  unicast_packet->dest);

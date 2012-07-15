@@ -94,20 +94,20 @@ int batadv_mesh_init(struct net_device *soft_iface)
 
 	spin_lock_init(&bat_priv->forw_bat_list_lock);
 	spin_lock_init(&bat_priv->forw_bcast_list_lock);
-	spin_lock_init(&bat_priv->tt_changes_list_lock);
-	spin_lock_init(&bat_priv->tt_req_list_lock);
-	spin_lock_init(&bat_priv->tt_roam_list_lock);
-	spin_lock_init(&bat_priv->tt_buff_lock);
-	spin_lock_init(&bat_priv->gw_list_lock);
-	spin_lock_init(&bat_priv->vis_hash_lock);
-	spin_lock_init(&bat_priv->vis_list_lock);
+	spin_lock_init(&bat_priv->tt.changes_list_lock);
+	spin_lock_init(&bat_priv->tt.req_list_lock);
+	spin_lock_init(&bat_priv->tt.roam_list_lock);
+	spin_lock_init(&bat_priv->tt.last_changeset_lock);
+	spin_lock_init(&bat_priv->gw.list_lock);
+	spin_lock_init(&bat_priv->vis.hash_lock);
+	spin_lock_init(&bat_priv->vis.list_lock);
 
 	INIT_HLIST_HEAD(&bat_priv->forw_bat_list);
 	INIT_HLIST_HEAD(&bat_priv->forw_bcast_list);
-	INIT_HLIST_HEAD(&bat_priv->gw_list);
-	INIT_LIST_HEAD(&bat_priv->tt_changes_list);
-	INIT_LIST_HEAD(&bat_priv->tt_req_list);
-	INIT_LIST_HEAD(&bat_priv->tt_roam_list);
+	INIT_HLIST_HEAD(&bat_priv->gw.list);
+	INIT_LIST_HEAD(&bat_priv->tt.changes_list);
+	INIT_LIST_HEAD(&bat_priv->tt.req_list);
+	INIT_LIST_HEAD(&bat_priv->tt.roam_list);
 
 	ret = batadv_originator_init(bat_priv);
 	if (ret < 0)
@@ -128,7 +128,7 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	if (ret < 0)
 		goto err;
 
-	atomic_set(&bat_priv->gw_reselect, 0);
+	atomic_set(&bat_priv->gw.reselect, 0);
 	atomic_set(&bat_priv->mesh_state, BATADV_MESH_ACTIVE);
 
 	return 0;

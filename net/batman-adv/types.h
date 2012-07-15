@@ -165,6 +165,67 @@ enum batadv_counters {
 	BATADV_CNT_NUM,
 };
 
+/**
+ * struct batadv_priv_tt - per mesh interface translation table data
+ * @vn: translation table version number
+ * @local_changes: changes registered in an originator interval
+ * @poss_change: Detect an ongoing roaming phase. If true, then this node
+ *  received a roaming_adv and has to inspect every packet directed to it to
+ *  check whether it still is the true destination or not. This flag will be
+ *  reset to false as soon as the this node's ttvn is increased
+ * @changes_list: tracks tt local changes within an originator interval
+ * @req_list: list of pending tt_requests
+ * @local_crc: Checksum of the local table, recomputed before sending a new OGM
+ */
+struct batadv_priv_tt {
+	atomic_t vn;
+	atomic_t ogm_append_cnt;
+	atomic_t local_changes;
+	bool poss_change;
+	struct list_head changes_list;
+	struct batadv_hashtable *local_hash;
+	struct batadv_hashtable *global_hash;
+	struct list_head req_list;
+	struct list_head roam_list;
+	spinlock_t changes_list_lock; /* protects changes */
+	spinlock_t req_list_lock; /* protects req_list */
+	spinlock_t roam_list_lock; /* protects roam_list */
+	atomic_t local_entry_num;
+	uint16_t local_crc;
+	unsigned char *last_changeset;
+	int16_t last_changeset_len;
+	spinlock_t last_changeset_lock; /* protects last_changeset */
+	struct delayed_work work;
+};
+
+#ifdef CONFIG_BATMAN_ADV_BLA
+struct batadv_priv_bla {
+	atomic_t num_requests; /* number of bla requests in flight */
+	struct batadv_hashtable *claim_hash;
+	struct batadv_hashtable *backbone_hash;
+	struct batadv_bcast_duplist_entry bcast_duplist[BATADV_DUPLIST_SIZE];
+	int bcast_duplist_curr;
+	struct batadv_bla_claim_dst claim_dest;
+	struct delayed_work work;
+};
+#endif
+
+struct batadv_priv_gw {
+	struct hlist_head list;
+	spinlock_t list_lock; /* protects gw_list and curr_gw */
+	struct batadv_gw_node __rcu *curr_gw;  /* rcu protected pointer */
+	atomic_t reselect;
+};
+
+struct batadv_priv_vis {
+	struct list_head send_list;
+	struct batadv_hashtable *hash;
+	spinlock_t hash_lock; /* protects hash */
+	spinlock_t list_lock; /* protects info::recv_list */
+	struct delayed_work work;
+	struct batadv_vis_info *my_info;
+};
+
 struct batadv_priv {
 	atomic_t mesh_state;
 	struct net_device_stats stats;
@@ -184,64 +245,24 @@ struct batadv_priv {
 	atomic_t bcast_seqno;
 	atomic_t bcast_queue_left;
 	atomic_t batman_queue_left;
-	atomic_t ttvn; /* translation table version number */
-	atomic_t tt_ogm_append_cnt;
-	atomic_t tt_local_changes; /* changes registered in a OGM interval */
-	atomic_t bla_num_requests; /* number of bla requests in flight */
-	/* The tt_poss_change flag is used to detect an ongoing roaming phase.
-	 * If true, then I received a Roaming_adv and I have to inspect every
-	 * packet directed to me to check whether I am still the true
-	 * destination or not. This flag will be reset to false as soon as I
-	 * increase my TTVN
-	 */
-	bool tt_poss_change;
 	char num_ifaces;
 	struct batadv_debug_log *debug_log;
 	struct kobject *mesh_obj;
 	struct dentry *debug_dir;
 	struct hlist_head forw_bat_list;
 	struct hlist_head forw_bcast_list;
-	struct hlist_head gw_list;
-	struct list_head tt_changes_list; /* tracks changes in a OGM int */
-	struct list_head vis_send_list;
 	struct batadv_hashtable *orig_hash;
-	struct batadv_hashtable *tt_local_hash;
-	struct batadv_hashtable *tt_global_hash;
-#ifdef CONFIG_BATMAN_ADV_BLA
-	struct batadv_hashtable *claim_hash;
-	struct batadv_hashtable *backbone_hash;
-#endif
-	struct list_head tt_req_list; /* list of pending tt_requests */
-	struct list_head tt_roam_list;
-	struct batadv_hashtable *vis_hash;
-#ifdef CONFIG_BATMAN_ADV_BLA
-	struct batadv_bcast_duplist_entry bcast_duplist[BATADV_DUPLIST_SIZE];
-	int bcast_duplist_curr;
-	struct batadv_bla_claim_dst claim_dest;
-#endif
 	spinlock_t forw_bat_list_lock; /* protects forw_bat_list */
 	spinlock_t forw_bcast_list_lock; /* protects  */
-	spinlock_t tt_changes_list_lock; /* protects tt_changes */
-	spinlock_t tt_req_list_lock; /* protects tt_req_list */
-	spinlock_t tt_roam_list_lock; /* protects tt_roam_list */
-	spinlock_t gw_list_lock; /* protects gw_list and curr_gw */
-	spinlock_t vis_hash_lock; /* protects vis_hash */
-	spinlock_t vis_list_lock; /* protects vis_info::recv_list */
-	atomic_t num_local_tt;
-	/* Checksum of the local table, recomputed before sending a new OGM */
-	uint16_t tt_crc;
-	unsigned char *tt_buff;
-	int16_t tt_buff_len;
-	spinlock_t tt_buff_lock; /* protects tt_buff */
-	struct delayed_work tt_work;
 	struct delayed_work orig_work;
-	struct delayed_work vis_work;
-	struct delayed_work bla_work;
-	struct batadv_gw_node __rcu *curr_gw;  /* rcu protected pointer */
-	atomic_t gw_reselect;
 	struct batadv_hard_iface __rcu *primary_if;  /* rcu protected pointer */
-	struct batadv_vis_info *my_vis_info;
 	struct batadv_algo_ops *bat_algo_ops;
+#ifdef CONFIG_BATMAN_ADV_BLA
+	struct batadv_priv_bla bla;
+#endif
+	struct batadv_priv_gw gw;
+	struct batadv_priv_tt tt;
+	struct batadv_priv_vis vis;
 };
 
 struct batadv_socket_client {

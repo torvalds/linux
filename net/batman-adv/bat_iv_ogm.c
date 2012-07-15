@@ -603,8 +603,8 @@ static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 			htonl((uint32_t)atomic_read(&hard_iface->seqno));
 	atomic_inc(&hard_iface->seqno);
 
-	batadv_ogm_packet->ttvn = atomic_read(&bat_priv->ttvn);
-	batadv_ogm_packet->tt_crc = htons(bat_priv->tt_crc);
+	batadv_ogm_packet->ttvn = atomic_read(&bat_priv->tt.vn);
+	batadv_ogm_packet->tt_crc = htons(bat_priv->tt.local_crc);
 	if (tt_num_changes >= 0)
 		batadv_ogm_packet->tt_num_changes = tt_num_changes;
 

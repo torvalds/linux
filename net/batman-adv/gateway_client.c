@@ -48,7 +48,7 @@ batadv_gw_get_selected_gw_node(struct batadv_priv *bat_priv)
 	struct batadv_gw_node *gw_node;
 
 	rcu_read_lock();
-	gw_node = rcu_dereference(bat_priv->curr_gw);
+	gw_node = rcu_dereference(bat_priv->gw.curr_gw);
 	if (!gw_node)
 		goto out;
 
@@ -91,23 +91,23 @@ static void batadv_gw_select(struct batadv_priv *bat_priv,
 {
 	struct batadv_gw_node *curr_gw_node;
 
-	spin_lock_bh(&bat_priv->gw_list_lock);
+	spin_lock_bh(&bat_priv->gw.list_lock);
 
 	if (new_gw_node && !atomic_inc_not_zero(&new_gw_node->refcount))
 		new_gw_node = NULL;
 
-	curr_gw_node = rcu_dereference_protected(bat_priv->curr_gw, 1);
-	rcu_assign_pointer(bat_priv->curr_gw, new_gw_node);
+	curr_gw_node = rcu_dereference_protected(bat_priv->gw.curr_gw, 1);
+	rcu_assign_pointer(bat_priv->gw.curr_gw, new_gw_node);
 
 	if (curr_gw_node)
 		batadv_gw_node_free_ref(curr_gw_node);
 
-	spin_unlock_bh(&bat_priv->gw_list_lock);
+	spin_unlock_bh(&bat_priv->gw.list_lock);
 }
 
 void batadv_gw_deselect(struct batadv_priv *bat_priv)
 {
-	atomic_set(&bat_priv->gw_reselect, 1);
+	atomic_set(&bat_priv->gw.reselect, 1);
 }
 
 static struct batadv_gw_node *
@@ -122,7 +122,7 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 	struct batadv_orig_node *orig_node;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw_list, list) {
+	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw.list, list) {
 		if (gw_node->deleted)
 			continue;
 
@@ -202,7 +202,7 @@ void batadv_gw_election(struct batadv_priv *bat_priv)
 
 	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
 
-	if (!batadv_atomic_dec_not_zero(&bat_priv->gw_reselect) && curr_gw)
+	if (!batadv_atomic_dec_not_zero(&bat_priv->gw.reselect) && curr_gw)
 		goto out;
 
 	next_gw = batadv_gw_get_best_gw_node(bat_priv);
@@ -321,9 +321,9 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
 	gw_node->orig_node = orig_node;
 	atomic_set(&gw_node->refcount, 1);
 
-	spin_lock_bh(&bat_priv->gw_list_lock);
-	hlist_add_head_rcu(&gw_node->list, &bat_priv->gw_list);
-	spin_unlock_bh(&bat_priv->gw_list_lock);
+	spin_lock_bh(&bat_priv->gw.list_lock);
+	hlist_add_head_rcu(&gw_node->list, &bat_priv->gw.list);
+	spin_unlock_bh(&bat_priv->gw.list_lock);
 
 	batadv_gw_bandwidth_to_kbit(new_gwflags, &down, &up);
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
@@ -350,7 +350,7 @@ void batadv_gw_node_update(struct batadv_priv *bat_priv,
 	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw_list, list) {
+	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw.list, list) {
 		if (gw_node->orig_node != orig_node)
 			continue;
 
@@ -404,10 +404,10 @@ void batadv_gw_node_purge(struct batadv_priv *bat_priv)
 
 	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
 
-	spin_lock_bh(&bat_priv->gw_list_lock);
+	spin_lock_bh(&bat_priv->gw.list_lock);
 
 	hlist_for_each_entry_safe(gw_node, node, node_tmp,
-				  &bat_priv->gw_list, list) {
+				  &bat_priv->gw.list, list) {
 		if (((!gw_node->deleted) ||
 		     (time_before(jiffies, gw_node->deleted + timeout))) &&
 		    atomic_read(&bat_priv->mesh_state) == BATADV_MESH_ACTIVE)
@@ -420,7 +420,7 @@ void batadv_gw_node_purge(struct batadv_priv *bat_priv)
 		batadv_gw_node_free_ref(gw_node);
 	}
 
-	spin_unlock_bh(&bat_priv->gw_list_lock);
+	spin_unlock_bh(&bat_priv->gw.list_lock);
 
 	/* gw_deselect() needs to acquire the gw_list_lock */
 	if (do_deselect)
@@ -496,7 +496,7 @@ int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
 		   primary_if->net_dev->dev_addr, net_dev->name);
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw_list, list) {
+	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw.list, list) {
 		if (gw_node->deleted)
 			continue;
 
