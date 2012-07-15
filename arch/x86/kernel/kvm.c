@@ -299,7 +299,7 @@ static void kvm_guest_apic_eoi_write(u32 reg, u32 val)
 	 */
 	if (__test_and_clear_bit(KVM_PV_EOI_BIT, &__get_cpu_var(kvm_apic_eoi)))
 		return;
-	apic->write(APIC_EOI, APIC_EOI_ACK);
+	apic_write(APIC_EOI, APIC_EOI_ACK);
 }
 
 void __cpuinit kvm_guest_cpu_init(void)
@@ -466,15 +466,8 @@ void __init kvm_guest_init(void)
 		pv_time_ops.steal_clock = kvm_steal_clock;
 	}
 
-	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI)) {
-		struct apic **drv;
-
-		for (drv = __apicdrivers; drv < __apicdrivers_end; drv++) {
-			/* Should happen once for each apic */
-			WARN_ON((*drv)->eoi_write == kvm_guest_apic_eoi_write);
-			(*drv)->eoi_write = kvm_guest_apic_eoi_write;
-		}
-	}
+	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
+		apic_set_eoi_write(kvm_guest_apic_eoi_write);
 
 #ifdef CONFIG_SMP
 	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
