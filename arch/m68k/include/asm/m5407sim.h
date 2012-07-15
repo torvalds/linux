@@ -23,8 +23,8 @@
 /*
  *	Define the 5407 SIM register set addresses.
  */
-#define	MCFSIM_RSR		0x00		/* Reset Status reg (r/w) */
-#define	MCFSIM_SYPCR		0x01		/* System Protection reg (r/w)*/
+#define	MCFSIM_RSR		(MCF_MBAR + 0x00)	/* Reset Status */
+#define	MCFSIM_SYPCR		(MCF_MBAR + 0x01)	/* System Protection */
 #define	MCFSIM_SWIVR		0x02		/* SW Watchdog intr reg (r/w) */
 #define	MCFSIM_SWSR		0x03		/* SW Watchdog service (r/w) */
 #define	MCFSIM_PAR		0x04		/* Pin Assignment reg (r/w) */
