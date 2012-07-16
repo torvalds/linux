@@ -43,6 +43,14 @@
  */
 #define H5_MAX_LEN (4 + 0xfff + 2)
 
+/* Convenience macros for reading Three-wire header values */
+#define H5_HDR_SEQ(hdr)		((hdr)[0] & 0x07)
+#define H5_HDR_ACK(hdr)		(((hdr)[0] >> 3) & 0x07)
+#define H5_HDR_CRC(hdr)		(((hdr)[0] >> 6) & 0x01)
+#define H5_HDR_RELIABLE(hdr)	(((hdr)[0] >> 7) & 0x01)
+#define H5_HDR_PKT_TYPE(hdr)	((hdr)[1] & 0x0f)
+#define H5_HDR_LEN(hdr)		((((hdr)[1] >> 4) & 0xff) + ((hdr)[2] << 4))
+
 #define SLIP_DELIMITER	0xc0
 #define SLIP_ESC	0xdb
 #define SLIP_ESC_DELIM	0xdc
