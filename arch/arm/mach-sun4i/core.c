@@ -130,6 +130,12 @@ static void __init sw_core_fixup(struct machine_desc *desc,
 	pr_info("Total Detected Memory: %uMB with %d banks\n", size, mi->nr_banks);
 }
 
+#define pr_reserve_info(L, START, SIZE) \
+	pr_info("\t" L " : 0x%08x - 0x%08x  (%4d %s)\n", \
+		(u32)(START), (u32)((START) + (SIZE) - 1), \
+		(u32)((SIZE) < SZ_1M ? (SIZE) / SZ_1K : (SIZE) / SZ_1M), \
+		(SIZE) < SZ_1M ? "kB" : "MB")
+
 /* Only reserve certain important memory blocks if there are actually
  * drivers which use them.
  */
@@ -158,7 +164,7 @@ static void __init reserve_fb(void)
     if (sw_cfg_get_int(script_base, "disp_init", "disp_init_enable"))
     {
 		memblock_reserve(fb_start, fb_size);
-		pr_info("\tLCD: 0x%08x, 0x%08x\n", (unsigned int)fb_start, (unsigned int)fb_size);
+		pr_reserve_info("LCD ", fb_start, fb_size);
     }
 	else
 		fb_start = fb_size = 0;
@@ -196,7 +202,7 @@ static void __init reserve_g2d(void)
 		g2d_size = g2d_size;
 		memblock_reserve(g2d_start, g2d_size);
 
-		pr_info("\tG2D: 0x%08x, 0x%08x\n", (unsigned int)g2d_start, (unsigned int)g2d_size);
+		pr_reserve_info("G2D ", g2d_start, g2d_size);
     }
     else
     	g2d_start = g2d_size = 0;
@@ -230,7 +236,7 @@ static void __init reserve_ve(void)
 	memblock_reserve(ve_start, SZ_64M);
 	memblock_reserve(ve_start + SZ_64M, SZ_16M);
 
-	pr_info("\tVE : 0x%08x, 0x%08x\n", (unsigned int)ve_start, (unsigned int)ve_size);
+	pr_reserve_info("VE  ", ve_start, ve_size);
 }
 
 #else
@@ -246,8 +252,7 @@ static void __init reserve_ve(void) {}
 static void __init reserve_ramconsole(void)
 {
 	memblock_remove(SUN4I_RAMCONSOLE_START, SUN4I_RAMCONSOLE_SIZE);
-	pr_info("\tRAMCONSOLE : 0x%08x, 0x%08x\n",
-		(unsigned int)SUN4I_RAMCONSOLE_START, (unsigned int)SUN4I_RAMCONSOLE_SIZE);
+	pr_reserve_info("RAMCONSOLE", SUN4I_RAMCONSOLE_START, SUN4I_RAMCONSOLE_SIZE);
 }
 #else
 static void __init reserve_ramconsole(void) {}
@@ -256,18 +261,16 @@ static void __init reserve_ramconsole(void) {}
 static void reserve_sys(void)
 {
 	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
-	pr_info("\tSYS: 0x%08x, 0x%08x\n",
-			(unsigned int)SYS_CONFIG_MEMBASE,
-			(unsigned int)SYS_CONFIG_MEMSIZE);
+	pr_reserve_info("SYS ", SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
 }
 
 static void __init sw_core_reserve(void)
 {
-	pr_info("Memory Reserved(in bytes):\n");
+	pr_info("Memory Reserved:\n");
 	reserve_sys();
-	reserve_fb();
-	reserve_g2d();
 	reserve_ve();
+	reserve_g2d();
+	reserve_fb();
 	reserve_ramconsole();
 }
 
