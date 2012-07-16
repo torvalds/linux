@@ -26,7 +26,6 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/sched.h>
-#include <linux/timex.h>
 
 #include <asm/sizes.h>
 #include <mach/hardware.h>
@@ -188,7 +187,6 @@ static struct irqaction clps711x_timer_irq = {
 
 static void __init clps711x_timer_init(void)
 {
-	struct timespec tv;
 	unsigned int syscon;
 
 	syscon = clps_readl(SYSCON1);
@@ -198,10 +196,6 @@ static void __init clps711x_timer_init(void)
 	clps_writel(LATCH-1, TC2D); /* 512kHz / 100Hz - 1 */
 
 	setup_irq(IRQ_TC2OI, &clps711x_timer_irq);
-
-	tv.tv_nsec = 0;
-	tv.tv_sec = clps_readl(RTCDR);
-	do_settimeofday(&tv);
 }
 
 struct sys_timer clps711x_timer = {
