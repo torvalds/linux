@@ -21,6 +21,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#define pr_fmt(fmt) "nand-s3c2410: " fmt
+
 #ifdef CONFIG_MTD_NAND_S3C2410_DEBUG
 #define DEBUG
 #endif
@@ -215,7 +217,8 @@ static int s3c_nand_calc_rate(int wanted, unsigned long clk, int max)
 	pr_debug("result %d from %ld, %d\n", result, clk, wanted);
 
 	if (result > max) {
-		printk("%d ns is too big for current clock rate %ld\n", wanted, clk);
+		pr_err("%d ns is too big for current clock rate %ld\n",
+			wanted, clk);
 		return -1;
 	}
 
