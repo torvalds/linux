@@ -374,6 +374,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	if (ret)
 		return ret;
+	psb_intel_opregion_enable_asle(dev);
 #if 0
 	/*enable runtime pm at last*/
 	pm_runtime_enable(&dev->pdev->dev);
