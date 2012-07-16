@@ -32,6 +32,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
@@ -44,8 +45,6 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
-
-#include <asm/io.h>
 
 #include <plat/regs-nand.h>
 #include <plat/nand.h>
