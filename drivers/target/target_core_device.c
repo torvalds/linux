@@ -841,7 +841,7 @@ int se_dev_check_shutdown(struct se_device *dev)
 	return ret;
 }
 
-u32 se_dev_align_max_sectors(u32 max_sectors, u32 block_size)
+static u32 se_dev_align_max_sectors(u32 max_sectors, u32 block_size)
 {
 	u32 tmp, aligned_max_sectors;
 	/*
