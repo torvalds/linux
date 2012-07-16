@@ -116,7 +116,6 @@ struct poseidon_audio {
 
 struct radio_data {
 	__u32		fm_freq;
-	int		users;
 	unsigned int	is_radio_streaming;
 	int		pre_emphasis;
 	struct video_device fm_dev;

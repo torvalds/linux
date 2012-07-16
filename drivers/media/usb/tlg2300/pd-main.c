@@ -267,7 +267,8 @@ static inline void set_map_flags(struct poseidon *pd, struct usb_device *udev)
 static inline int get_autopm_ref(struct poseidon *pd)
 {
 	return  pd->video_data.users + pd->vbi_data.users + pd->audio.users
-		+ atomic_read(&pd->dvb_data.users) + pd->radio_data.users;
+		+ atomic_read(&pd->dvb_data.users) +
+		!list_empty(&pd->radio_data.fm_dev.fh_list);
 }
 
 /* fixup something for poseidon */
