@@ -1656,6 +1656,10 @@ static void snd_wss_resume(struct snd_wss *chip)
 			break;
 		}
 	}
+	/* Yamaha needs this to resume properly */
+	if (chip->hardware == WSS_HW_OPL3SA2)
+		snd_wss_out(chip, CS4231_PLAYBK_FORMAT,
+			    chip->image[CS4231_PLAYBK_FORMAT]);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 #if 1
 	snd_wss_mce_down(chip);
