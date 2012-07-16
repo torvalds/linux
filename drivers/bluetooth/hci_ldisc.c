@@ -156,6 +156,35 @@ restart:
 	return 0;
 }
 
+static void hci_uart_init_work(struct work_struct *work)
+{
+	struct hci_uart *hu = container_of(work, struct hci_uart, init_ready);
+	int err;
+
+	if (!test_and_clear_bit(HCI_UART_INIT_PENDING, &hu->hdev_flags))
+		return;
+
+	err = hci_register_dev(hu->hdev);
+	if (err < 0) {
+		BT_ERR("Can't register HCI device");
+		hci_free_dev(hu->hdev);
+		hu->hdev = NULL;
+		hu->proto->close(hu);
+	}
+
+	set_bit(HCI_UART_REGISTERED, &hu->flags);
+}
+
+int hci_uart_init_ready(struct hci_uart *hu)
+{
+	if (!test_bit(HCI_UART_INIT_PENDING, &hu->hdev_flags))
+		return -EALREADY;
+
+	schedule_work(&hu->init_ready);
+
+	return 0;
+}
+
 /* ------- Interface to HCI layer ------ */
 /* Initialize device */
 static int hci_uart_open(struct hci_dev *hdev)
@@ -264,6 +293,8 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 	hu->tty = tty;
 	tty->receive_room = 65536;
 
+	INIT_WORK(&hu->init_ready, hci_uart_init_work);
+
 	spin_lock_init(&hu->rx_lock);
 
 	/* Flush any pending characters in the driver and line discipline. */
@@ -302,7 +333,8 @@ static void hci_uart_tty_close(struct tty_struct *tty)
 
 	if (test_and_clear_bit(HCI_UART_PROTO_SET, &hu->flags)) {
 		if (hdev) {
-			hci_unregister_dev(hdev);
+			if (test_bit(HCI_UART_REGISTERED, &hu->flags))
+				hci_unregister_dev(hdev);
 			hci_free_dev(hdev);
 		}
 		hu->proto->close(hu);
@@ -402,11 +434,16 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 	else
 		hdev->dev_type = HCI_BREDR;
 
+	if (test_bit(HCI_UART_INIT_PENDING, &hu->hdev_flags))
+		return 0;
+
 	if (hci_register_dev(hdev) < 0) {
 		BT_ERR("Can't register HCI device");
 		hci_free_dev(hdev);
 		return -ENODEV;
 	}
+
+	set_bit(HCI_UART_REGISTERED, &hu->flags);
 
 	return 0;
 }
