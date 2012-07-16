@@ -21,7 +21,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
@@ -436,6 +435,7 @@ static int usbhs_runtime_resume(struct device *dev)
 		return  -ENODEV;
 	}
 
+	omap_tll_enable();
 	spin_lock_irqsave(&omap->lock, flags);
 
 	if (omap->ehci_logic_fck && !IS_ERR(omap->ehci_logic_fck))
@@ -487,6 +487,7 @@ static int usbhs_runtime_suspend(struct device *dev)
 		clk_disable(omap->ehci_logic_fck);
 
 	spin_unlock_irqrestore(&omap->lock, flags);
+	omap_tll_disable();
 
 	return 0;
 }
@@ -910,8 +911,10 @@ static int __init omap_usbhs_drvinit(void)
  * init before ehci and ohci drivers;
  * The usbhs core driver should be initialized much before
  * the omap ehci and ohci probe functions are called.
+ * This usbhs core driver should be initialized after
+ * usb tll driver
  */
-fs_initcall(omap_usbhs_drvinit);
+fs_initcall_sync(omap_usbhs_drvinit);
 
 static void __exit omap_usbhs_drvexit(void)
 {
