@@ -903,7 +903,7 @@ static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *in)
 	 * the audio input index mixed with this video input,
 	 * Poseidon only have one audio/video, set to "0"
 	 */
-	in->audioset	= 0;
+	in->audioset	= 1;
 	in->tuner	= 0;
 	in->std		= V4L2_STD_ALL;
 	in->status	= 0;
