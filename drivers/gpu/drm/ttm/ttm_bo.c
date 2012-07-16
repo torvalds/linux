@@ -1193,6 +1193,7 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 			(*destroy)(bo);
 		else
 			kfree(bo);
+		ttm_mem_global_free(mem_glob, acc_size);
 		return -EINVAL;
 	}
 	bo->destroy = destroy;
@@ -1294,22 +1295,14 @@ int ttm_bo_create(struct ttm_bo_device *bdev,
 			struct ttm_buffer_object **p_bo)
 {
 	struct ttm_buffer_object *bo;
-	struct ttm_mem_global *mem_glob = bdev->glob->mem_glob;
 	size_t acc_size;
 	int ret;
 
-	acc_size = ttm_bo_acc_size(bdev, size, sizeof(struct ttm_buffer_object));
-	ret = ttm_mem_global_alloc(mem_glob, acc_size, false, false);
-	if (unlikely(ret != 0))
-		return ret;
-
 	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
-
-	if (unlikely(bo == NULL)) {
-		ttm_mem_global_free(mem_glob, acc_size);
+	if (unlikely(bo == NULL))
 		return -ENOMEM;
-	}
 
+	acc_size = ttm_bo_acc_size(bdev, size, sizeof(struct ttm_buffer_object));
 	ret = ttm_bo_init(bdev, bo, size, type, placement, page_alignment,
 				buffer_start, interruptible,
 				persistent_swap_storage, acc_size, NULL);
@@ -1821,6 +1814,7 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 			spin_unlock(&glob->lru_lock);
 			(void) ttm_bo_cleanup_refs(bo, false, false, false);
 			kref_put(&bo->list_kref, ttm_bo_release_list);
+			spin_lock(&glob->lru_lock);
 			continue;
 		}
 

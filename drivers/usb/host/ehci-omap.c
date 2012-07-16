@@ -242,15 +242,6 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 
 	ehci_reset(omap_ehci);
 
-	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
-	if (ret) {
-		dev_err(dev, "failed to add hcd with err %d\n", ret);
-		goto err_add_hcd;
-	}
-
-	/* root ports should always stay powered */
-	ehci_port_power(omap_ehci, 1);
-
 	if (pdata->phy_reset) {
 		/* Hold the PHY in RESET for enough time till
 		 * PHY is settled and ready
@@ -263,6 +254,15 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 		if (gpio_is_valid(pdata->reset_gpio_port[1]))
 			gpio_set_value(pdata->reset_gpio_port[1], 1);
 	}
+
+	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
+	if (ret) {
+		dev_err(dev, "failed to add hcd with err %d\n", ret);
+		goto err_add_hcd;
+	}
+
+	/* root ports should always stay powered */
+	ehci_port_power(omap_ehci, 1);
 
 	return 0;
 

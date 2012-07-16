@@ -196,6 +196,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 			    WIPHY_FLAG_DISABLE_BEACON_HINTS |
 			    WIPHY_FLAG_IBSS_RSN;
 
+#ifdef CONFIG_PM_SLEEP
 	if (priv->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&
 	    trans(priv)->ops->wowlan_suspend &&
 	    device_can_wakeup(trans(priv)->dev)) {
@@ -214,6 +215,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 		hw->wiphy->wowlan.pattern_max_len =
 					IWLAGN_WOWLAN_MAX_PATTERN_LEN;
 	}
+#endif
 
 	if (iwlagn_mod_params.power_save)
 		hw->wiphy->flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT;
@@ -243,6 +245,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	ret = ieee80211_register_hw(priv->hw);
 	if (ret) {
 		IWL_ERR(priv, "Failed to register hw (error %d)\n", ret);
+		iwl_leds_exit(priv);
 		return ret;
 	}
 	priv->mac80211_registered = 1;
@@ -785,6 +788,18 @@ static int iwlagn_mac_sta_state(struct ieee80211_hw *hw,
 	switch (op) {
 	case ADD:
 		ret = iwlagn_mac_sta_add(hw, vif, sta);
+		if (ret)
+			break;
+		/*
+		 * Clear the in-progress flag, the AP station entry was added
+		 * but we'll initialize LQ only when we've associated (which
+		 * would also clear the in-progress flag). This is necessary
+		 * in case we never initialize LQ because association fails.
+		 */
+		spin_lock_bh(&priv->sta_lock);
+		priv->stations[iwl_sta_id(sta)].used &=
+			~IWL_STA_UCODE_INPROGRESS;
+		spin_unlock_bh(&priv->sta_lock);
 		break;
 	case REMOVE:
 		ret = iwlagn_mac_sta_remove(hw, vif, sta);

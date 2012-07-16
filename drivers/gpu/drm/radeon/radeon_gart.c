@@ -289,8 +289,9 @@ int radeon_vm_manager_init(struct radeon_device *rdev)
 	rdev->vm_manager.enabled = false;
 
 	/* mark first vm as always in use, it's the system one */
+	/* allocate enough for 2 full VM pts */
 	r = radeon_sa_bo_manager_init(rdev, &rdev->vm_manager.sa_manager,
-				      rdev->vm_manager.max_pfn * 8,
+				      rdev->vm_manager.max_pfn * 8 * 2,
 				      RADEON_GEM_DOMAIN_VRAM);
 	if (r) {
 		dev_err(rdev->dev, "failed to allocate vm bo (%dKB)\n",
@@ -478,12 +479,18 @@ int radeon_vm_bo_add(struct radeon_device *rdev,
 
 	mutex_lock(&vm->mutex);
 	if (last_pfn > vm->last_pfn) {
-		/* grow va space 32M by 32M */
-		unsigned align = ((32 << 20) >> 12) - 1;
+		/* release mutex and lock in right order */
+		mutex_unlock(&vm->mutex);
 		radeon_mutex_lock(&rdev->cs_mutex);
-		radeon_vm_unbind_locked(rdev, vm);
+		mutex_lock(&vm->mutex);
+		/* and check again */
+		if (last_pfn > vm->last_pfn) {
+			/* grow va space 32M by 32M */
+			unsigned align = ((32 << 20) >> 12) - 1;
+			radeon_vm_unbind_locked(rdev, vm);
+			vm->last_pfn = (last_pfn + align) & ~align;
+		}
 		radeon_mutex_unlock(&rdev->cs_mutex);
-		vm->last_pfn = (last_pfn + align) & ~align;
 	}
 	head = &vm->va;
 	last_offset = 0;
@@ -597,8 +604,8 @@ int radeon_vm_bo_rmv(struct radeon_device *rdev,
 	if (bo_va == NULL)
 		return 0;
 
-	mutex_lock(&vm->mutex);
 	radeon_mutex_lock(&rdev->cs_mutex);
+	mutex_lock(&vm->mutex);
 	radeon_vm_bo_update_pte(rdev, vm, bo, NULL);
 	radeon_mutex_unlock(&rdev->cs_mutex);
 	list_del(&bo_va->vm_list);
@@ -629,7 +636,15 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 	mutex_init(&vm->mutex);
 	INIT_LIST_HEAD(&vm->list);
 	INIT_LIST_HEAD(&vm->va);
-	vm->last_pfn = 0;
+	/* SI requires equal sized PTs for all VMs, so always set
+	 * last_pfn to max_pfn.  cayman allows variable sized
+	 * pts so we can grow then as needed.  Once we switch
+	 * to two level pts we can unify this again.
+	 */
+	if (rdev->family >= CHIP_TAHITI)
+		vm->last_pfn = rdev->vm_manager.max_pfn;
+	else
+		vm->last_pfn = 0;
 	/* map the ib pool buffer at 0 in virtual address space, set
 	 * read only
 	 */
@@ -643,9 +658,8 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 	struct radeon_bo_va *bo_va, *tmp;
 	int r;
 
-	mutex_lock(&vm->mutex);
-
 	radeon_mutex_lock(&rdev->cs_mutex);
+	mutex_lock(&vm->mutex);
 	radeon_vm_unbind_locked(rdev, vm);
 	radeon_mutex_unlock(&rdev->cs_mutex);
 

@@ -462,6 +462,42 @@ void xhci_test_and_clear_bit(struct xhci_hcd *xhci, __le32 __iomem **port_array,
 	}
 }
 
+/* Updates Link Status for super Speed port */
+static void xhci_hub_report_link_state(u32 *status, u32 status_reg)
+{
+	u32 pls = status_reg & PORT_PLS_MASK;
+
+	/* resume state is a xHCI internal state.
+	 * Do not report it to usb core.
+	 */
+	if (pls == XDEV_RESUME)
+		return;
+
+	/* When the CAS bit is set then warm reset
+	 * should be performed on port
+	 */
+	if (status_reg & PORT_CAS) {
+		/* The CAS bit can be set while the port is
+		 * in any link state.
+		 * Only roothubs have CAS bit, so we
+		 * pretend to be in compliance mode
+		 * unless we're already in compliance
+		 * or the inactive state.
+		 */
+		if (pls != USB_SS_PORT_LS_COMP_MOD &&
+		    pls != USB_SS_PORT_LS_SS_INACTIVE) {
+			pls = USB_SS_PORT_LS_COMP_MOD;
+		}
+		/* Return also connection bit -
+		 * hub state machine resets port
+		 * when this bit is set.
+		 */
+		pls |= USB_PORT_STAT_CONNECTION;
+	}
+	/* update status field */
+	*status |= pls;
+}
+
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		u16 wIndex, char *buf, u16 wLength)
 {
@@ -558,6 +594,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				xhci_dbg(xhci, "Resume USB2 port %d\n",
 					wIndex + 1);
 				bus_state->resume_done[wIndex] = 0;
+				clear_bit(wIndex, &bus_state->resuming_ports);
 				xhci_set_link_state(xhci, port_array, wIndex,
 							XDEV_U0);
 				xhci_dbg(xhci, "set port %d resume\n",
@@ -604,13 +641,9 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			else
 				status |= USB_PORT_STAT_POWER;
 		}
-		/* Port Link State */
+		/* Update Port Link State for super speed ports*/
 		if (hcd->speed == HCD_USB3) {
-			/* resume state is a xHCI internal state.
-			 * Do not report it to usb core.
-			 */
-			if ((temp & PORT_PLS_MASK) != XDEV_RESUME)
-				status |= (temp & PORT_PLS_MASK);
+			xhci_hub_report_link_state(&status, temp);
 		}
 		if (bus_state->port_c_suspend & (1 << wIndex))
 			status |= 1 << USB_PORT_FEAT_C_SUSPEND;
@@ -845,7 +878,12 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	/* Initial status is no changes */
 	retval = (max_ports + 8) / 8;
 	memset(buf, 0, retval);
-	status = 0;
+
+	/*
+	 * Inform the usbcore about resume-in-progress by returning
+	 * a non-zero value even if there are no status changes.
+	 */
+	status = bus_state->resuming_ports;
 
 	mask = PORT_CSC | PORT_PEC | PORT_OCC | PORT_PLC | PORT_WRC;
 
@@ -885,15 +923,11 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 	spin_lock_irqsave(&xhci->lock, flags);
 
 	if (hcd->self.root_hub->do_remote_wakeup) {
-		port_index = max_ports;
-		while (port_index--) {
-			if (bus_state->resume_done[port_index] != 0) {
-				spin_unlock_irqrestore(&xhci->lock, flags);
-				xhci_dbg(xhci, "suspend failed because "
-						"port %d is resuming\n",
-						port_index + 1);
-				return -EBUSY;
-			}
+		if (bus_state->resuming_ports) {
+			spin_unlock_irqrestore(&xhci->lock, flags);
+			xhci_dbg(xhci, "suspend failed because "
+						"a port is resuming\n");
+			return -EBUSY;
 		}
 	}
 

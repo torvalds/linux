@@ -66,7 +66,7 @@ static int vmw_gmr2_bind(struct vmw_private *dev_priv,
 	cmd += sizeof(remap_cmd) / sizeof(uint32);
 
 	for (i = 0; i < num_pages; ++i) {
-		if (VMW_PPN_SIZE > 4)
+		if (VMW_PPN_SIZE <= 4)
 			*cmd = page_to_pfn(*pages++);
 		else
 			*((uint64_t *)cmd) = page_to_pfn(*pages++);

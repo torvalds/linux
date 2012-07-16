@@ -257,7 +257,7 @@ static int lockd_up_net(struct net *net)
 	struct svc_serv *serv = nlmsvc_rqst->rq_server;
 	int error;
 
-	if (ln->nlmsvc_users)
+	if (ln->nlmsvc_users++)
 		return 0;
 
 	error = svc_rpcb_setup(serv, net);
@@ -272,6 +272,7 @@ static int lockd_up_net(struct net *net)
 err_socks:
 	svc_rpcb_cleanup(serv, net);
 err_rpcb:
+	ln->nlmsvc_users--;
 	return error;
 }
 
@@ -295,11 +296,11 @@ static void lockd_down_net(struct net *net)
 /*
  * Bring up the lockd process if it's not already up.
  */
-int lockd_up(void)
+int lockd_up(struct net *net)
 {
 	struct svc_serv *serv;
 	int		error = 0;
-	struct net *net = current->nsproxy->net_ns;
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
 	mutex_lock(&nlmsvc_mutex);
 	/*
@@ -325,9 +326,17 @@ int lockd_up(void)
 		goto out;
 	}
 
+	error = svc_bind(serv, net);
+	if (error < 0) {
+		printk(KERN_WARNING "lockd_up: bind service failed\n");
+		goto destroy_and_out;
+	}
+
+	ln->nlmsvc_users++;
+
 	error = make_socks(serv, net);
 	if (error < 0)
-		goto destroy_and_out;
+		goto err_start;
 
 	/*
 	 * Create the kernel thread and wait for it to start.
@@ -339,7 +348,7 @@ int lockd_up(void)
 		printk(KERN_WARNING
 			"lockd_up: svc_rqst allocation failed, error=%d\n",
 			error);
-		goto destroy_and_out;
+		goto err_start;
 	}
 
 	svc_sock_update_bufs(serv);
@@ -353,7 +362,7 @@ int lockd_up(void)
 		nlmsvc_rqst = NULL;
 		printk(KERN_WARNING
 			"lockd_up: kthread_run failed, error=%d\n", error);
-		goto destroy_and_out;
+		goto err_start;
 	}
 
 	/*
@@ -363,14 +372,14 @@ int lockd_up(void)
 destroy_and_out:
 	svc_destroy(serv);
 out:
-	if (!error) {
-		struct lockd_net *ln = net_generic(net, lockd_net_id);
-
-		ln->nlmsvc_users++;
+	if (!error)
 		nlmsvc_users++;
-	}
 	mutex_unlock(&nlmsvc_mutex);
 	return error;
+
+err_start:
+	lockd_down_net(net);
+	goto destroy_and_out;
 }
 EXPORT_SYMBOL_GPL(lockd_up);
 
@@ -378,14 +387,13 @@ EXPORT_SYMBOL_GPL(lockd_up);
  * Decrement the user count and bring down lockd if we're the last.
  */
 void
-lockd_down(void)
+lockd_down(struct net *net)
 {
 	mutex_lock(&nlmsvc_mutex);
+	lockd_down_net(net);
 	if (nlmsvc_users) {
-		if (--nlmsvc_users) {
-			lockd_down_net(current->nsproxy->net_ns);
+		if (--nlmsvc_users)
 			goto out;
-		}
 	} else {
 		printk(KERN_ERR "lockd_down: no users! task=%p\n",
 			nlmsvc_task);

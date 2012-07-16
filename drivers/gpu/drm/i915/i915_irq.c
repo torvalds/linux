@@ -424,13 +424,34 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 }
 
-static void pch_irq_handler(struct drm_device *dev)
+static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
+				u32 pm_iir)
+{
+	unsigned long flags;
+
+	/*
+	 * IIR bits should never already be set because IMR should
+	 * prevent an interrupt from being shown in IIR. The warning
+	 * displays a case where we've unsafely cleared
+	 * dev_priv->pm_iir. Although missing an interrupt of the same
+	 * type is not a problem, it displays a problem in the logic.
+	 *
+	 * The mask bit in IMR is cleared by rps_work.
+	 */
+
+	spin_lock_irqsave(&dev_priv->rps_lock, flags);
+	dev_priv->pm_iir |= pm_iir;
+	I915_WRITE(GEN6_PMIMR, dev_priv->pm_iir);
+	POSTING_READ(GEN6_PMIMR);
+	spin_unlock_irqrestore(&dev_priv->rps_lock, flags);
+
+	queue_work(dev_priv->wq, &dev_priv->rps_work);
+}
+
+static void pch_irq_handler(struct drm_device *dev, u32 pch_iir)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32 pch_iir;
 	int pipe;
-
-	pch_iir = I915_READ(SDEIIR);
 
 	if (pch_iir & SDE_AUDIO_POWER_MASK)
 		DRM_DEBUG_DRIVER("PCH audio power change on port %d\n",
@@ -529,19 +550,11 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 	if (de_iir & DE_PCH_EVENT_IVB) {
 		if (pch_iir & SDE_HOTPLUG_MASK_CPT)
 			queue_work(dev_priv->wq, &dev_priv->hotplug_work);
-		pch_irq_handler(dev);
+		pch_irq_handler(dev, pch_iir);
 	}
 
-	if (pm_iir & GEN6_PM_DEFERRED_EVENTS) {
-		unsigned long flags;
-		spin_lock_irqsave(&dev_priv->rps_lock, flags);
-		WARN(dev_priv->pm_iir & pm_iir, "Missed a PM interrupt\n");
-		dev_priv->pm_iir |= pm_iir;
-		I915_WRITE(GEN6_PMIMR, dev_priv->pm_iir);
-		POSTING_READ(GEN6_PMIMR);
-		spin_unlock_irqrestore(&dev_priv->rps_lock, flags);
-		queue_work(dev_priv->wq, &dev_priv->rps_work);
-	}
+	if (pm_iir & GEN6_PM_DEFERRED_EVENTS)
+		gen6_queue_rps_work(dev_priv, pm_iir);
 
 	/* should clear PCH hotplug event before clear CPU irq */
 	I915_WRITE(SDEIIR, pch_iir);
@@ -629,7 +642,7 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 	if (de_iir & DE_PCH_EVENT) {
 		if (pch_iir & hotplug_mask)
 			queue_work(dev_priv->wq, &dev_priv->hotplug_work);
-		pch_irq_handler(dev);
+		pch_irq_handler(dev, pch_iir);
 	}
 
 	if (de_iir & DE_PCU_EVENT) {
@@ -637,25 +650,8 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 		i915_handle_rps_change(dev);
 	}
 
-	if (IS_GEN6(dev) && pm_iir & GEN6_PM_DEFERRED_EVENTS) {
-		/*
-		 * IIR bits should never already be set because IMR should
-		 * prevent an interrupt from being shown in IIR. The warning
-		 * displays a case where we've unsafely cleared
-		 * dev_priv->pm_iir. Although missing an interrupt of the same
-		 * type is not a problem, it displays a problem in the logic.
-		 *
-		 * The mask bit in IMR is cleared by rps_work.
-		 */
-		unsigned long flags;
-		spin_lock_irqsave(&dev_priv->rps_lock, flags);
-		WARN(dev_priv->pm_iir & pm_iir, "Missed a PM interrupt\n");
-		dev_priv->pm_iir |= pm_iir;
-		I915_WRITE(GEN6_PMIMR, dev_priv->pm_iir);
-		POSTING_READ(GEN6_PMIMR);
-		spin_unlock_irqrestore(&dev_priv->rps_lock, flags);
-		queue_work(dev_priv->wq, &dev_priv->rps_work);
-	}
+	if (IS_GEN6(dev) && pm_iir & GEN6_PM_DEFERRED_EVENTS)
+		gen6_queue_rps_work(dev_priv, pm_iir);
 
 	/* should clear PCH hotplug event before clear CPU irq */
 	I915_WRITE(SDEIIR, pch_iir);

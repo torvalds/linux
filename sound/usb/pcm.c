@@ -699,6 +699,9 @@ static int snd_usb_pcm_check_knot(struct snd_pcm_runtime *runtime,
 	int count = 0, needs_knot = 0;
 	int err;
 
+	kfree(subs->rate_list.list);
+	subs->rate_list.list = NULL;
+
 	list_for_each_entry(fp, &subs->fmt_list, list) {
 		if (fp->rates & SNDRV_PCM_RATE_CONTINUOUS)
 			return 0;

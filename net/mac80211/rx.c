@@ -2459,7 +2459,7 @@ ieee80211_rx_h_action_return(struct ieee80211_rx_data *rx)
 	 * frames that we didn't handle, including returning unknown
 	 * ones. For all other modes we will return them to the sender,
 	 * setting the 0x80 bit in the action category, as required by
-	 * 802.11-2007 7.3.1.11.
+	 * 802.11-2012 9.24.4.
 	 * Newer versions of hostapd shall also use the management frame
 	 * registration mechanisms, but older ones still use cooked
 	 * monitor interfaces so push all frames there.
@@ -2467,6 +2467,9 @@ ieee80211_rx_h_action_return(struct ieee80211_rx_data *rx)
 	if (!(status->rx_flags & IEEE80211_RX_MALFORMED_ACTION_FRM) &&
 	    (sdata->vif.type == NL80211_IFTYPE_AP ||
 	     sdata->vif.type == NL80211_IFTYPE_AP_VLAN))
+		return RX_DROP_MONITOR;
+
+	if (is_multicast_ether_addr(mgmt->da))
 		return RX_DROP_MONITOR;
 
 	/* do not return rejected action frames */

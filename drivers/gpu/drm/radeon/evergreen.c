@@ -1029,6 +1029,11 @@ int evergreen_pcie_gart_enable(struct radeon_device *rdev)
 		WREG32(MC_VM_MD_L1_TLB0_CNTL, tmp);
 		WREG32(MC_VM_MD_L1_TLB1_CNTL, tmp);
 		WREG32(MC_VM_MD_L1_TLB2_CNTL, tmp);
+		if ((rdev->family == CHIP_JUNIPER) ||
+		    (rdev->family == CHIP_CYPRESS) ||
+		    (rdev->family == CHIP_HEMLOCK) ||
+		    (rdev->family == CHIP_BARTS))
+			WREG32(MC_VM_MD_L1_TLB3_CNTL, tmp);
 	}
 	WREG32(MC_VM_MB_L1_TLB0_CNTL, tmp);
 	WREG32(MC_VM_MB_L1_TLB1_CNTL, tmp);
@@ -2136,9 +2141,12 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	/* num banks is 8 on all fusion asics. 0 = 4, 1 = 8, 2 = 16 */
 	if (rdev->flags & RADEON_IS_IGP)
 		rdev->config.evergreen.tile_config |= 1 << 4;
-	else
-		rdev->config.evergreen.tile_config |=
-			((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT) << 4;
+	else {
+		if ((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT)
+			rdev->config.evergreen.tile_config |= 1 << 4;
+		else
+			rdev->config.evergreen.tile_config |= 0 << 4;
+	}
 	rdev->config.evergreen.tile_config |=
 		((mc_arb_ramcfg & BURSTLENGTH_MASK) >> BURSTLENGTH_SHIFT) << 8;
 	rdev->config.evergreen.tile_config |=
@@ -2170,9 +2178,9 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 		WREG32(CC_SYS_RB_BACKEND_DISABLE, rb);
 		WREG32(GC_USER_RB_BACKEND_DISABLE, rb);
 		WREG32(CC_GC_SHADER_PIPE_CONFIG, sp);
-        }
+	}
 
-	grbm_gfx_index |= SE_BROADCAST_WRITES;
+	grbm_gfx_index = INSTANCE_BROADCAST_WRITES | SE_BROADCAST_WRITES;
 	WREG32(GRBM_GFX_INDEX, grbm_gfx_index);
 	WREG32(RLC_GFX_INDEX, grbm_gfx_index);
 
@@ -2201,6 +2209,9 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	smx_dc_ctl0 &= ~NUMBER_OF_SETS(0x1ff);
 	smx_dc_ctl0 |= NUMBER_OF_SETS(rdev->config.evergreen.sx_num_of_sets);
 	WREG32(SMX_DC_CTL0, smx_dc_ctl0);
+
+	if (rdev->family <= CHIP_SUMO2)
+		WREG32(SMX_SAR_CTL0, 0x00010000);
 
 	WREG32(SX_EXPORT_BUFFER_SIZES, (COLOR_BUFFER_SIZE((rdev->config.evergreen.sx_max_export_size / 4) - 1) |
 					POSITION_BUFFER_SIZE((rdev->config.evergreen.sx_max_export_pos_size / 4) - 1) |

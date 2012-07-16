@@ -38,7 +38,7 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		handle_t *handle = NULL;
 		int err, migrate = 0;
 		struct ext4_iloc iloc;
-		unsigned int oldflags;
+		unsigned int oldflags, mask, i;
 		unsigned int jflag;
 
 		if (!inode_owner_or_capable(inode))
@@ -115,9 +115,14 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (err)
 			goto flags_err;
 
-		flags = flags & EXT4_FL_USER_MODIFIABLE;
-		flags |= oldflags & ~EXT4_FL_USER_MODIFIABLE;
-		ei->i_flags = flags;
+		for (i = 0, mask = 1; i < 32; i++, mask <<= 1) {
+			if (!(mask & EXT4_FL_USER_MODIFIABLE))
+				continue;
+			if (mask & flags)
+				ext4_set_inode_flag(inode, i);
+			else
+				ext4_clear_inode_flag(inode, i);
+		}
 
 		ext4_set_inode_flags(inode);
 		inode->i_ctime = ext4_current_time(inode);

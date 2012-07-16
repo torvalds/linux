@@ -192,11 +192,13 @@ extern int CIFSTCon(unsigned int xid, struct cifs_ses *ses,
 
 extern int CIFSFindFirst(const int xid, struct cifs_tcon *tcon,
 		const char *searchName, const struct nls_table *nls_codepage,
-		__u16 *searchHandle, struct cifs_search_info *psrch_inf,
+		__u16 *searchHandle, __u16 search_flags,
+		struct cifs_search_info *psrch_inf,
 		int map, const char dirsep);
 
 extern int CIFSFindNext(const int xid, struct cifs_tcon *tcon,
-		__u16 searchHandle, struct cifs_search_info *psrch_inf);
+		__u16 searchHandle, __u16 search_flags,
+		struct cifs_search_info *psrch_inf);
 
 extern int CIFSFindClose(const int, struct cifs_tcon *tcon,
 			const __u16 search_handle);

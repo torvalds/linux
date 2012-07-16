@@ -83,6 +83,8 @@ static struct iommu_ops amd_iommu_ops;
 static ATOMIC_NOTIFIER_HEAD(ppr_notifier);
 int amd_iommu_max_glx_val = -1;
 
+static struct dma_map_ops amd_iommu_dma_ops;
+
 /*
  * general struct to manage commands send to an IOMMU
  */
@@ -450,12 +452,27 @@ static void dump_command(unsigned long phys_addr)
 
 static void iommu_print_event(struct amd_iommu *iommu, void *__evt)
 {
-	u32 *event = __evt;
-	int type  = (event[1] >> EVENT_TYPE_SHIFT)  & EVENT_TYPE_MASK;
-	int devid = (event[0] >> EVENT_DEVID_SHIFT) & EVENT_DEVID_MASK;
-	int domid = (event[1] >> EVENT_DOMID_SHIFT) & EVENT_DOMID_MASK;
-	int flags = (event[1] >> EVENT_FLAGS_SHIFT) & EVENT_FLAGS_MASK;
-	u64 address = (u64)(((u64)event[3]) << 32) | event[2];
+	int type, devid, domid, flags;
+	volatile u32 *event = __evt;
+	int count = 0;
+	u64 address;
+
+retry:
+	type    = (event[1] >> EVENT_TYPE_SHIFT)  & EVENT_TYPE_MASK;
+	devid   = (event[0] >> EVENT_DEVID_SHIFT) & EVENT_DEVID_MASK;
+	domid   = (event[1] >> EVENT_DOMID_SHIFT) & EVENT_DOMID_MASK;
+	flags   = (event[1] >> EVENT_FLAGS_SHIFT) & EVENT_FLAGS_MASK;
+	address = (u64)(((u64)event[3]) << 32) | event[2];
+
+	if (type == 0) {
+		/* Did we hit the erratum? */
+		if (++count == LOOP_TIMEOUT) {
+			pr_err("AMD-Vi: No event written to event log\n");
+			return;
+		}
+		udelay(1);
+		goto retry;
+	}
 
 	printk(KERN_ERR "AMD-Vi: Event logged [");
 
@@ -508,6 +525,8 @@ static void iommu_print_event(struct amd_iommu *iommu, void *__evt)
 	default:
 		printk(KERN_ERR "UNKNOWN type=0x%02x]\n", type);
 	}
+
+	memset(__evt, 0, 4 * sizeof(u32));
 }
 
 static void iommu_poll_events(struct amd_iommu *iommu)
@@ -530,25 +549,11 @@ static void iommu_poll_events(struct amd_iommu *iommu)
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
-static void iommu_handle_ppr_entry(struct amd_iommu *iommu, u32 head)
+static void iommu_handle_ppr_entry(struct amd_iommu *iommu, u64 *raw)
 {
 	struct amd_iommu_fault fault;
-	volatile u64 *raw;
-	int i;
 
 	INC_STATS_COUNTER(pri_requests);
-
-	raw = (u64 *)(iommu->ppr_log + head);
-
-	/*
-	 * Hardware bug: Interrupt may arrive before the entry is written to
-	 * memory. If this happens we need to wait for the entry to arrive.
-	 */
-	for (i = 0; i < LOOP_TIMEOUT; ++i) {
-		if (PPR_REQ_TYPE(raw[0]) != 0)
-			break;
-		udelay(1);
-	}
 
 	if (PPR_REQ_TYPE(raw[0]) != PPR_REQ_FAULT) {
 		pr_err_ratelimited("AMD-Vi: Unknown PPR request received\n");
@@ -561,12 +566,6 @@ static void iommu_handle_ppr_entry(struct amd_iommu *iommu, u32 head)
 	fault.tag       = PPR_TAG(raw[0]);
 	fault.flags     = PPR_FLAGS(raw[0]);
 
-	/*
-	 * To detect the hardware bug we need to clear the entry
-	 * to back to zero.
-	 */
-	raw[0] = raw[1] = 0;
-
 	atomic_notifier_call_chain(&ppr_notifier, 0, &fault);
 }
 
@@ -578,24 +577,61 @@ static void iommu_poll_ppr_log(struct amd_iommu *iommu)
 	if (iommu->ppr_log == NULL)
 		return;
 
+	/* enable ppr interrupts again */
+	writel(MMIO_STATUS_PPR_INT_MASK, iommu->mmio_base + MMIO_STATUS_OFFSET);
+
 	spin_lock_irqsave(&iommu->lock, flags);
 
 	head = readl(iommu->mmio_base + MMIO_PPR_HEAD_OFFSET);
 	tail = readl(iommu->mmio_base + MMIO_PPR_TAIL_OFFSET);
 
 	while (head != tail) {
+		volatile u64 *raw;
+		u64 entry[2];
+		int i;
 
-		/* Handle PPR entry */
-		iommu_handle_ppr_entry(iommu, head);
+		raw = (u64 *)(iommu->ppr_log + head);
 
-		/* Update and refresh ring-buffer state*/
+		/*
+		 * Hardware bug: Interrupt may arrive before the entry is
+		 * written to memory. If this happens we need to wait for the
+		 * entry to arrive.
+		 */
+		for (i = 0; i < LOOP_TIMEOUT; ++i) {
+			if (PPR_REQ_TYPE(raw[0]) != 0)
+				break;
+			udelay(1);
+		}
+
+		/* Avoid memcpy function-call overhead */
+		entry[0] = raw[0];
+		entry[1] = raw[1];
+
+		/*
+		 * To detect the hardware bug we need to clear the entry
+		 * back to zero.
+		 */
+		raw[0] = raw[1] = 0UL;
+
+		/* Update head pointer of hardware ring-buffer */
 		head = (head + PPR_ENTRY_SIZE) % PPR_LOG_SIZE;
 		writel(head, iommu->mmio_base + MMIO_PPR_HEAD_OFFSET);
+
+		/*
+		 * Release iommu->lock because ppr-handling might need to
+		 * re-aquire it
+		 */
+		spin_unlock_irqrestore(&iommu->lock, flags);
+
+		/* Handle PPR entry */
+		iommu_handle_ppr_entry(iommu, entry);
+
+		spin_lock_irqsave(&iommu->lock, flags);
+
+		/* Refresh ring-buffer information */
+		head = readl(iommu->mmio_base + MMIO_PPR_HEAD_OFFSET);
 		tail = readl(iommu->mmio_base + MMIO_PPR_TAIL_OFFSET);
 	}
-
-	/* enable ppr interrupts again */
-	writel(MMIO_STATUS_PPR_INT_MASK, iommu->mmio_base + MMIO_STATUS_OFFSET);
 
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
@@ -2035,20 +2071,20 @@ out_err:
 }
 
 /* FIXME: Move this to PCI code */
-#define PCI_PRI_TLP_OFF		(1 << 2)
+#define PCI_PRI_TLP_OFF		(1 << 15)
 
 bool pci_pri_tlp_required(struct pci_dev *pdev)
 {
-	u16 control;
+	u16 status;
 	int pos;
 
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
 	if (!pos)
 		return false;
 
-	pci_read_config_word(pdev, pos + PCI_PRI_CTRL, &control);
+	pci_read_config_word(pdev, pos + PCI_PRI_STATUS, &status);
 
-	return (control & PCI_PRI_TLP_OFF) ? true : false;
+	return (status & PCI_PRI_TLP_OFF) ? true : false;
 }
 
 /*
@@ -2232,6 +2268,13 @@ static int device_change_notifier(struct notifier_block *nb,
 		spin_lock_irqsave(&iommu_pd_list_lock, flags);
 		list_add_tail(&dma_domain->list, &iommu_pd_list);
 		spin_unlock_irqrestore(&iommu_pd_list_lock, flags);
+
+		dev_data = get_dev_data(dev);
+
+		if (!dev_data->passthrough)
+			dev->archdata.dma_ops = &amd_iommu_dma_ops;
+		else
+			dev->archdata.dma_ops = &nommu_dma_ops;
 
 		break;
 	case BUS_NOTIFY_DEL_DEVICE:
