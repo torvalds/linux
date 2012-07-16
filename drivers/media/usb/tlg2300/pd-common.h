@@ -64,6 +64,7 @@ struct running_context {
 struct video_data {
 	/* v4l2 video device */
 	struct video_device	v_dev;
+	struct v4l2_ctrl_handler ctrl_handler;
 
 	/* the working context */
 	struct running_context	context;
