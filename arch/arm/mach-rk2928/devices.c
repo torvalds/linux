@@ -490,6 +490,27 @@ static void __init rk2928_init_spim(void)
 	platform_device_register(&rk29xx_device_spi0m);
 #endif
 }
+#ifdef CONFIG_RGA_RK30
+static struct resource resource_rga[] = {
+	[0] = {
+		.start = RK30_RGA_PHYS,
+		.end   = RK30_RGA_PHYS + RK30_RGA_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_RGA,
+		.end   = IRQ_RGA,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device device_rga = {
+	.name		= "rga",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(resource_rga),
+	.resource	= resource_rga,
+};
+#endif
 #ifdef CONFIG_SND_RK29_SOC_I2S
 #ifdef CONFIG_SND_RK29_SOC_I2S_8CH
 static struct resource resource_iis0_8ch[] = {
@@ -553,6 +574,9 @@ static int __init rk2928_init_devices(void)
 	rk2928_init_spim();
 #ifdef CONFIG_KEYS_RK29
 	platform_device_register(&device_keys);
+#endif
+#ifdef CONFIG_RGA_RK30
+	platform_device_register(&device_rga);
 #endif
 #if defined(CONFIG_FIQ_DEBUGGER) && defined(DEBUG_UART_PHYS)
 	rk_serial_debug_init(DEBUG_UART_BASE, IRQ_DEBUG_UART, IRQ_UART_SIGNAL, -1);
