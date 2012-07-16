@@ -4943,6 +4943,13 @@ S:	Maintained
 F:	drivers/usb/*/*omap*
 F:	arch/arm/*omap*/usb*
 
+OMAP GPIO DRIVER
+M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+M:	Kevin Hilman <khilman@ti.com>
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	drivers/gpio/gpio-omap.c
+
 OMFS FILESYSTEM
 M:	Bob Copeland <me@bobcopeland.com>
 L:	linux-karma-devel@lists.sourceforge.net
