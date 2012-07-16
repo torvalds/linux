@@ -80,6 +80,8 @@
 #define FANS_MANUAL		"FS! " /* r-w ui16 */
 #define FAN_ID_FMT		"F%dID" /* r-o char[16] */
 
+#define TEMP_SENSOR_TYPE	"sp78"
+
 /* List of keys used to read/write fan speeds */
 static const char *const fan_speed_fmt[] = {
 	"F%dAc",		/* actual speed */
@@ -720,27 +722,22 @@ static ssize_t applesmc_show_temperature(struct device *dev,
 	int index = smcreg.temp_begin + to_index(devattr);
 	const struct applesmc_entry *entry;
 	int ret;
-	u8 buffer[2];
-	unsigned int temp;
+	s16 value;
+	int temp;
 
 	entry = applesmc_get_entry_by_index(index);
 	if (IS_ERR(entry))
 		return PTR_ERR(entry);
-	if (entry->len > 2)
+	if (strcmp(entry->type, TEMP_SENSOR_TYPE))
 		return -EINVAL;
 
-	ret = applesmc_read_entry(entry, buffer, entry->len);
+	ret = applesmc_read_s16(entry->key, &value);
 	if (ret)
 		return ret;
 
-	if (entry->len == 2) {
-		temp = buffer[0] * 1000;
-		temp += (buffer[1] >> 6) * 250;
-	} else {
-		temp = buffer[0] * 4000;
-	}
+	temp = 250 * (value >> 6);
 
-	return snprintf(sysfsbuf, PAGE_SIZE, "%u\n", temp);
+	return snprintf(sysfsbuf, PAGE_SIZE, "%d\n", temp);
 }
 
 static ssize_t applesmc_show_fan_speed(struct device *dev,
