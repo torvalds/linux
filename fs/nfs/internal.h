@@ -247,6 +247,15 @@ extern struct nfs_client *nfs_init_client(struct nfs_client *clp,
 /* dir.c */
 extern int nfs_access_cache_shrinker(struct shrinker *shrink,
 					struct shrink_control *sc);
+struct dentry *nfs_lookup(struct inode *, struct dentry *, unsigned int);
+int nfs_create(struct inode *, struct dentry *, umode_t, bool);
+int nfs_mkdir(struct inode *, struct dentry *, umode_t);
+int nfs_rmdir(struct inode *, struct dentry *);
+int nfs_unlink(struct inode *, struct dentry *);
+int nfs_symlink(struct inode *, struct dentry *, const char *);
+int nfs_link(struct dentry *, struct inode *, struct dentry *);
+int nfs_mknod(struct inode *, struct dentry *, umode_t, dev_t);
+int nfs_rename(struct inode *, struct dentry *, struct inode *, struct dentry *);
 
 /* inode.c */
 extern struct workqueue_struct *nfsiod_workqueue;

@@ -41,12 +41,6 @@
 
 static const struct vm_operations_struct nfs_file_vm_ops;
 
-const struct inode_operations nfs_file_inode_operations = {
-	.permission	= nfs_permission,
-	.getattr	= nfs_getattr,
-	.setattr	= nfs_setattr,
-};
-
 #ifdef CONFIG_NFS_V3
 const struct inode_operations nfs3_file_inode_operations = {
 	.permission	= nfs_permission,
