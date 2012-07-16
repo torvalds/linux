@@ -334,6 +334,7 @@ int poseidon_fm_init(struct poseidon *p)
 
 int poseidon_fm_exit(struct poseidon *p)
 {
+	video_unregister_device(&p->radio_data.fm_dev);
 	v4l2_ctrl_handler_free(&p->radio_data.ctrl_handler);
 	return 0;
 }
