@@ -731,44 +731,52 @@ static void tg3_ape_unlock(struct tg3 *tp, int locknum)
 	tg3_ape_write32(tp, gnt + 4 * locknum, bit);
 }
 
-static void tg3_ape_send_event(struct tg3 *tp, u32 event)
+static int tg3_ape_event_lock(struct tg3 *tp, u32 timeout_us)
 {
-	int i;
 	u32 apedata;
 
-	/* NCSI does not support APE events */
-	if (tg3_flag(tp, APE_HAS_NCSI))
-		return;
-
-	apedata = tg3_ape_read32(tp, TG3_APE_SEG_SIG);
-	if (apedata != APE_SEG_SIG_MAGIC)
-		return;
-
-	apedata = tg3_ape_read32(tp, TG3_APE_FW_STATUS);
-	if (!(apedata & APE_FW_STATUS_READY))
-		return;
-
-	/* Wait for up to 1 millisecond for APE to service previous event. */
-	for (i = 0; i < 10; i++) {
+	while (timeout_us) {
 		if (tg3_ape_lock(tp, TG3_APE_LOCK_MEM))
-			return;
+			return -EBUSY;
 
 		apedata = tg3_ape_read32(tp, TG3_APE_EVENT_STATUS);
-
-		if (!(apedata & APE_EVENT_STATUS_EVENT_PENDING))
-			tg3_ape_write32(tp, TG3_APE_EVENT_STATUS,
-					event | APE_EVENT_STATUS_EVENT_PENDING);
-
-		tg3_ape_unlock(tp, TG3_APE_LOCK_MEM);
-
 		if (!(apedata & APE_EVENT_STATUS_EVENT_PENDING))
 			break;
 
-		udelay(100);
+		tg3_ape_unlock(tp, TG3_APE_LOCK_MEM);
+
+		udelay(10);
+		timeout_us -= (timeout_us > 10) ? 10 : timeout_us;
 	}
 
-	if (!(apedata & APE_EVENT_STATUS_EVENT_PENDING))
-		tg3_ape_write32(tp, TG3_APE_EVENT, APE_EVENT_1);
+	return timeout_us ? 0 : -EBUSY;
+}
+
+static int tg3_ape_send_event(struct tg3 *tp, u32 event)
+{
+	int err;
+	u32 apedata;
+
+	apedata = tg3_ape_read32(tp, TG3_APE_SEG_SIG);
+	if (apedata != APE_SEG_SIG_MAGIC)
+		return -EAGAIN;
+
+	apedata = tg3_ape_read32(tp, TG3_APE_FW_STATUS);
+	if (!(apedata & APE_FW_STATUS_READY))
+		return -EAGAIN;
+
+	/* Wait for up to 1 millisecond for APE to service previous event. */
+	err = tg3_ape_event_lock(tp, 1000);
+	if (err)
+		return err;
+
+	tg3_ape_write32(tp, TG3_APE_EVENT_STATUS,
+			event | APE_EVENT_STATUS_EVENT_PENDING);
+
+	tg3_ape_unlock(tp, TG3_APE_LOCK_MEM);
+	tg3_ape_write32(tp, TG3_APE_EVENT, APE_EVENT_1);
+
+	return 0;
 }
 
 static void tg3_ape_driver_state_change(struct tg3 *tp, int kind)
