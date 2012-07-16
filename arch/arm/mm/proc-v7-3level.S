@@ -39,6 +39,14 @@
 #define TTB_FLAGS_SMP	(TTB_IRGN_WBWA|TTB_S|TTB_RGN_OC_WBWA)
 #define PMD_FLAGS_SMP	(PMD_SECT_WBWA|PMD_SECT_S)
 
+#ifndef __ARMEB__
+#  define rpgdl	r0
+#  define rpgdh	r1
+#else
+#  define rpgdl	r1
+#  define rpgdh	r0
+#endif
+
 /*
  * cpu_v7_switch_mm(pgd_phys, tsk)
  *
@@ -47,10 +55,10 @@
  */
 ENTRY(cpu_v7_switch_mm)
 #ifdef CONFIG_MMU
-	mmid	r1, r1				@ get mm->context.id
-	asid	r3, r1
-	mov	r3, r3, lsl #(48 - 32)		@ ASID
-	mcrr	p15, 0, r0, r3, c2		@ set TTB 0
+	mmid	r2, r2
+	asid	r2, r2
+	orr	rpgdh, rpgdh, r2, lsl #(48 - 32)	@ upper 32-bits of pgd
+	mcrr	p15, 0, rpgdl, rpgdh, c2		@ set TTB 0
 	isb
 #endif
 	mov	pc, lr
