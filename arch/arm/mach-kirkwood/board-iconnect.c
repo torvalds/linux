@@ -20,7 +20,6 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
-#include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
 #include <asm/mach/arch.h>
@@ -90,12 +89,6 @@ static unsigned int iconnect_mpp_config[] __initdata = {
 	0
 };
 
-static struct i2c_board_info __initdata iconnect_board_info[] = {
-	{
-		I2C_BOARD_INFO("lm63", 0x4c),
-	},
-};
-
 static struct mtd_partition iconnect_nand_parts[] = {
 	{
 		.name = "flash",
@@ -142,9 +135,6 @@ void __init iconnect_init(void)
 {
 	kirkwood_mpp_conf(iconnect_mpp_config);
 	kirkwood_nand_init(ARRAY_AND_SIZE(iconnect_nand_parts), 25);
-	kirkwood_i2c_init();
-	i2c_register_board_info(0, iconnect_board_info,
-		ARRAY_SIZE(iconnect_board_info));
 
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&iconnect_ge00_data);
