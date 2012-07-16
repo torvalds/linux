@@ -75,31 +75,16 @@ struct h5 {
 	u8			tx_seq;		/* Next seq number to send */
 	u8			tx_ack;		/* Next ack number to send */
 
+	enum {
+		H5_UNINITIALIZED,
+		H5_INITIALIZED,
+		H5_ACTIVE,
+	} state;
+
 	bool			sleeping;
 };
 
 static void h5_reset_rx(struct h5 *h5);
-
-static void h5_timed_event(unsigned long arg)
-{
-	struct hci_uart *hu = (struct hci_uart *) arg;
-	struct h5 *h5 = hu->priv;
-	struct sk_buff *skb;
-	unsigned long flags;
-
-	BT_DBG("hu %p retransmitting %u pkts", hu, h5->unack.qlen);
-
-	spin_lock_irqsave_nested(&h5->unack.lock, flags, SINGLE_DEPTH_NESTING);
-
-	while ((skb = __skb_dequeue_tail(&h5->unack)) != NULL) {
-		h5->tx_seq = (h5->tx_seq - 1) & 0x07;
-		skb_queue_head(&h5->rel, skb);
-	}
-
-	spin_unlock_irqrestore(&h5->unack.lock, flags);
-
-	hci_uart_tx_wakeup(hu);
-}
 
 static void h5_link_control(struct hci_uart *hu, const void *data, size_t len)
 {
@@ -115,6 +100,41 @@ static void h5_link_control(struct hci_uart *hu, const void *data, size_t len)
 	memcpy(skb_put(nskb, len), data, len);
 
 	skb_queue_tail(&h5->unrel, nskb);
+}
+
+static void h5_timed_event(unsigned long arg)
+{
+	const unsigned char sync_req[] = { 0x01, 0x7e };
+	const unsigned char conf_req[] = { 0x03, 0xfc, 0x01 };
+	struct hci_uart *hu = (struct hci_uart *) arg;
+	struct h5 *h5 = hu->priv;
+	struct sk_buff *skb;
+	unsigned long flags;
+
+	if (h5->state == H5_UNINITIALIZED)
+		h5_link_control(hu, sync_req, sizeof(sync_req));
+
+	if (h5->state == H5_INITIALIZED)
+		h5_link_control(hu, conf_req, sizeof(conf_req));
+
+	if (h5->state != H5_ACTIVE) {
+		mod_timer(&h5->timer, jiffies + H5_SYNC_TIMEOUT);
+		goto wakeup;
+	}
+
+	BT_DBG("hu %p retransmitting %u pkts", hu, h5->unack.qlen);
+
+	spin_lock_irqsave_nested(&h5->unack.lock, flags, SINGLE_DEPTH_NESTING);
+
+	while ((skb = __skb_dequeue_tail(&h5->unack)) != NULL) {
+		h5->tx_seq = (h5->tx_seq - 1) & 0x07;
+		skb_queue_head(&h5->rel, skb);
+	}
+
+	spin_unlock_irqrestore(&h5->unack.lock, flags);
+
+wakeup:
+	hci_uart_tx_wakeup(hu);
 }
 
 static int h5_open(struct hci_uart *hu)
@@ -230,12 +250,14 @@ static void h5_handle_internal_rx(struct hci_uart *hu)
 	if (memcmp(data, sync_req, 2) == 0) {
 		h5_link_control(hu, sync_rsp, 2);
 	} else if (memcmp(data, sync_rsp, 2) == 0) {
+		h5->state = H5_INITIALIZED;
 		h5_link_control(hu, conf_req, 3);
 	} else if (memcmp(data, conf_req, 2) == 0) {
 		h5_link_control(hu, conf_rsp, 2);
 		h5_link_control(hu, conf_req, 3);
 	} else if (memcmp(data, conf_rsp, 2) == 0) {
 		BT_DBG("Three-wire init sequence complete");
+		h5->state = H5_ACTIVE;
 		hci_uart_init_ready(hu);
 		return;
 	} else if (memcmp(data, sleep_req, 2) == 0) {
@@ -338,6 +360,12 @@ static int h5_rx_3wire_hdr(struct hci_uart *hu, unsigned char c)
 		       H5_HDR_SEQ(hdr), h5->tx_ack);
 		h5_reset_rx(h5);
 		return 0;
+	}
+
+	if (h5->state != H5_ACTIVE &&
+	    H5_HDR_PKT_TYPE(hdr) != HCI_3WIRE_LINK_PKT) {
+		BT_ERR("Non-link packet received in non-active state");
+		h5_reset_rx(h5);
 	}
 
 	h5->rx_func = h5_rx_payload;
@@ -464,6 +492,12 @@ static int h5_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 
 	if (skb->len > 0xfff) {
 		BT_ERR("Packet too long (%u bytes)", skb->len);
+		kfree_skb(skb);
+		return 0;
+	}
+
+	if (h5->state != H5_ACTIVE) {
+		BT_ERR("Ignoring HCI data in non-active state");
 		kfree_skb(skb);
 		return 0;
 	}
