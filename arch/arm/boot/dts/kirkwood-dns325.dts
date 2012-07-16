@@ -16,6 +16,14 @@
 	};
 
 	ocp@f1000000 {
+		i2c@11000 {
+			status = "okay";
+
+			lm75: lm75@48 {
+				compatible = "national,lm75";
+				reg = <0x48>;
+			};
+		};
 		serial@12000 {
 			clock-frequency = <200000000>;
 			status = "okay";

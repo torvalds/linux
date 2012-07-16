@@ -14,7 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/i2c.h>
 #include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/of.h>
@@ -153,13 +152,6 @@ static struct platform_device dns320_led_device = {
 	},
 };
 
-static struct i2c_board_info dns325_i2c_board_info[] __initdata = {
-	{
-		I2C_BOARD_INFO("lm75", 0x48),
-	},
-	/* Something at 0x0c also */
-};
-
 static struct gpio_keys_button dnskw_button_pins[] = {
 	{
 		.code		= KEY_POWER,
@@ -241,17 +233,14 @@ void __init dnskw_init(void)
 
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&dnskw_ge00_data);
-	kirkwood_i2c_init();
 
 	platform_device_register(&dnskw_button_device);
 	platform_device_register(&dnskw_fan_device);
 
-	if (of_machine_is_compatible("dlink,dns-325")) {
-		i2c_register_board_info(0, dns325_i2c_board_info,
-					ARRAY_SIZE(dns325_i2c_board_info));
+	if (of_machine_is_compatible("dlink,dns-325"))
 		platform_device_register(&dns325_led_device);
 
-	} else if (of_machine_is_compatible("dlink,dns-320"))
+	else if (of_machine_is_compatible("dlink,dns-320"))
 		platform_device_register(&dns320_led_device);
 
 	/* Register power-off GPIO. */
