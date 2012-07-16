@@ -1219,28 +1219,14 @@ static void sbp_handle_command(struct sbp_target_request *req)
 	ret = sbp_fetch_command(req);
 	if (ret) {
 		pr_debug("sbp_handle_command: fetch command failed: %d\n", ret);
-		req->status.status |= cpu_to_be32(
-			STATUS_BLOCK_RESP(STATUS_RESP_TRANSPORT_FAILURE) |
-			STATUS_BLOCK_DEAD(0) |
-			STATUS_BLOCK_LEN(1) |
-			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_UNSPECIFIED_ERROR));
-		sbp_send_status(req);
-		sbp_free_request(req);
-		return;
+		goto err;
 	}
 
 	ret = sbp_fetch_page_table(req);
 	if (ret) {
 		pr_debug("sbp_handle_command: fetch page table failed: %d\n",
 			ret);
-		req->status.status |= cpu_to_be32(
-			STATUS_BLOCK_RESP(STATUS_RESP_TRANSPORT_FAILURE) |
-			STATUS_BLOCK_DEAD(0) |
-			STATUS_BLOCK_LEN(1) |
-			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_UNSPECIFIED_ERROR));
-		sbp_send_status(req);
-		sbp_free_request(req);
-		return;
+		goto err;
 	}
 
 	unpacked_lun = req->login->lun->unpacked_lun;
@@ -1252,6 +1238,16 @@ static void sbp_handle_command(struct sbp_target_request *req)
 	target_submit_cmd(&req->se_cmd, sess->se_sess, req->cmd_buf,
 			req->sense_buf, unpacked_lun, data_length,
 			MSG_SIMPLE_TAG, data_dir, 0);
+	return;
+
+err:
+	req->status.status |= cpu_to_be32(
+		STATUS_BLOCK_RESP(STATUS_RESP_TRANSPORT_FAILURE) |
+		STATUS_BLOCK_DEAD(0) |
+		STATUS_BLOCK_LEN(1) |
+		STATUS_BLOCK_SBP_STATUS(SBP_STATUS_UNSPECIFIED_ERROR));
+	sbp_send_status(req);
+	sbp_free_request(req);
 }
 
 /*
