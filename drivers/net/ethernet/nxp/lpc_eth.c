@@ -44,7 +44,6 @@
 #include <linux/of_net.h>
 #include <linux/types.h>
 
-#include <linux/delay.h>
 #include <linux/io.h>
 #include <mach/board.h>
 #include <mach/platform.h>
