@@ -644,8 +644,8 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 	struct usb_request	*request = &req->request;
 	struct musb_ep		*musb_ep;
 	void __iomem		*epio = musb->endpoints[epnum].regs;
-	unsigned		fifo_count = 0;
-	u16			len;
+	unsigned		len = 0;
+	u16			fifo_count;
 	u16			csr = musb_readw(epio, MUSB_RXCSR);
 	struct musb_hw_ep	*hw_ep = &musb->endpoints[epnum];
 	u8			use_mode_1;
@@ -655,7 +655,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 	else
 		musb_ep = &hw_ep->ep_out;
 
-	len = musb_ep->packet_sz;
+	fifo_count = musb_ep->packet_sz;
 
 	/* Check if EP is disabled */
 	if (!musb_ep->desc) {
@@ -704,7 +704,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 	}
 
 	if (csr & MUSB_RXCSR_RXPKTRDY) {
-		len = musb_readw(epio, MUSB_RXCOUNT);
+		fifo_count = musb_readw(epio, MUSB_RXCOUNT);
 
 		/*
 		 * Enable Mode 1 on RX transfers only when short_not_ok flag
@@ -712,7 +712,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 		 * file_storage and f_mass_storage drivers
 		 */
 
-		if (request->short_not_ok && len == musb_ep->packet_sz)
+		if (request->short_not_ok && fifo_count == musb_ep->packet_sz)
 			use_mode_1 = 1;
 		else
 			use_mode_1 = 0;
@@ -780,7 +780,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 						musb_ep->dma->desired_mode = 1;
 					} else {
 						transfer_size = min(request->length - request->actual,
-								(unsigned)len);
+							(unsigned)fifo_count);
 						musb_ep->dma->desired_mode = 0;
 					}
 
@@ -808,8 +808,8 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 				channel = musb_ep->dma;
 
 				/* In case first packet is short */
-				if (len < musb_ep->packet_sz)
-					transfer_size = len;
+				if (fifo_count < musb_ep->packet_sz)
+					transfer_size = fifo_count;
 				else if (request->short_not_ok)
 					transfer_size =	min(request->length -
 							request->actual,
@@ -817,7 +817,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 				else
 					transfer_size = min(request->length -
 							request->actual,
-							(unsigned)len);
+							(unsigned)fifo_count);
 
 				csr &= ~MUSB_RXCSR_DMAMODE;
 				csr |= (MUSB_RXCSR_DMAENAB |
@@ -845,10 +845,10 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 			}
 #endif	/* Mentor's DMA */
 
-			fifo_count = request->length - request->actual;
+			len = request->length - request->actual;
 			dev_dbg(musb->controller, "%s OUT/RX pio fifo %d/%d, maxpacket %d\n",
 					musb_ep->end_point.name,
-					len, fifo_count,
+					fifo_count, len,
 					musb_ep->packet_sz);
 
 			fifo_count = min_t(unsigned, len, fifo_count);
@@ -901,7 +901,8 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 	}
 
 	/* reach the end or short packet detected */
-	if (request->actual == request->length || len < musb_ep->packet_sz)
+	if (request->actual == request->length ||
+	    fifo_count < musb_ep->packet_sz)
 		musb_g_giveback(musb_ep, request, 0);
 }
 
