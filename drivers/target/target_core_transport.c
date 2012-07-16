@@ -70,7 +70,7 @@ static void transport_complete_task_attr(struct se_cmd *cmd);
 static void transport_handle_queue_full(struct se_cmd *cmd,
 		struct se_device *dev);
 static int transport_generic_get_mem(struct se_cmd *cmd);
-static void target_get_sess_cmd(struct se_session *, struct se_cmd *, bool);
+static int target_get_sess_cmd(struct se_session *, struct se_cmd *, bool);
 static void transport_put_cmd(struct se_cmd *cmd);
 static int transport_set_sense_codes(struct se_cmd *cmd, u8 asc, u8 ascq);
 static void target_complete_ok_work(struct work_struct *work);
@@ -1477,7 +1477,9 @@ void target_submit_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
 	 * for fabrics using TARGET_SCF_ACK_KREF that expect a second
 	 * kref_put() to happen during fabric packet acknowledgement.
 	 */
-	target_get_sess_cmd(se_sess, se_cmd, (flags & TARGET_SCF_ACK_KREF));
+	rc = target_get_sess_cmd(se_sess, se_cmd, (flags & TARGET_SCF_ACK_KREF));
+	if (rc)
+		return;
 	/*
 	 * Signal bidirectional data payloads to target-core
 	 */
@@ -1561,7 +1563,11 @@ int target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
 		se_cmd->se_tmr_req->ref_task_tag = tag;
 
 	/* See target_submit_cmd for commentary */
-	target_get_sess_cmd(se_sess, se_cmd, (flags & TARGET_SCF_ACK_KREF));
+	ret = target_get_sess_cmd(se_sess, se_cmd, (flags & TARGET_SCF_ACK_KREF));
+	if (ret) {
+		core_tmr_release_req(se_cmd->se_tmr_req);
+		return ret;
+	}
 
 	ret = transport_lookup_tmr_lun(se_cmd, unpacked_lun);
 	if (ret) {
@@ -2409,10 +2415,11 @@ EXPORT_SYMBOL(transport_generic_free_cmd);
  * @se_cmd:	command descriptor to add
  * @ack_kref:	Signal that fabric will perform an ack target_put_sess_cmd()
  */
-static void target_get_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cmd,
-				bool ack_kref)
+static int target_get_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cmd,
+			       bool ack_kref)
 {
 	unsigned long flags;
+	int ret = 0;
 
 	kref_init(&se_cmd->cmd_kref);
 	/*
@@ -2426,9 +2433,16 @@ static void target_get_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cm
 	}
 
 	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
+	if (se_sess->sess_tearing_down) {
+		ret = -ESHUTDOWN;
+		goto out;
+	}
 	list_add_tail(&se_cmd->se_cmd_list, &se_sess->sess_cmd_list);
 	se_cmd->check_release = 1;
+
+out:
 	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+	return ret;
 }
 
 static void target_release_cmd_kref(struct kref *kref)
