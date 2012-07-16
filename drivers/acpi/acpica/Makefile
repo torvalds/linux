@@ -140,6 +140,7 @@ acpi-y +=		\
 	utaddress.o	\
 	utalloc.o	\
 	utcopy.o	\
+	utexcep.o	\
 	utdebug.o	\
 	utdecode.o	\
 	utdelete.o	\
