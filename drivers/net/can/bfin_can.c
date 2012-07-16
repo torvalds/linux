@@ -44,7 +44,7 @@ struct bfin_can_priv {
 /*
  * bfin can timing parameters
  */
-static struct can_bittiming_const bfin_can_bittiming_const = {
+static const struct can_bittiming_const bfin_can_bittiming_const = {
 	.name = DRV_NAME,
 	.tseg1_min = 1,
 	.tseg1_max = 16,

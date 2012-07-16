@@ -1490,7 +1490,7 @@ static const struct net_device_ops ican3_netdev_ops = {
  */
 
 /* This structure was stolen from drivers/net/can/sja1000/sja1000.c */
-static struct can_bittiming_const ican3_bittiming_const = {
+static const struct can_bittiming_const ican3_bittiming_const = {
 	.name = DRV_NAME,
 	.tseg1_min = 1,
 	.tseg1_max = 16,

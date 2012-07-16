@@ -189,7 +189,7 @@ enum c_can_bus_error_types {
 	C_CAN_ERROR_PASSIVE,
 };
 
-static struct can_bittiming_const c_can_bittiming_const = {
+static const struct can_bittiming_const c_can_bittiming_const = {
 	.name = KBUILD_MODNAME,
 	.tseg1_min = 2,		/* Time segment 1 = prop_seg + phase_seg1 */
 	.tseg1_max = 16,

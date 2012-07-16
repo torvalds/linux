@@ -203,7 +203,7 @@ static struct flexcan_devtype_data fsl_imx6q_devtype_data = {
 	.hw_ver = 10,
 };
 
-static struct can_bittiming_const flexcan_bittiming_const = {
+static const struct can_bittiming_const flexcan_bittiming_const = {
 	.name = DRV_NAME,
 	.tseg1_min = 4,
 	.tseg1_max = 16,

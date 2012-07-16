@@ -69,7 +69,7 @@ MODULE_AUTHOR("Oliver Hartkopp <oliver.hartkopp@volkswagen.de>");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION(DRV_NAME "CAN netdevice driver");
 
-static struct can_bittiming_const sja1000_bittiming_const = {
+static const struct can_bittiming_const sja1000_bittiming_const = {
 	.name = DRV_NAME,
 	.tseg1_min = 1,
 	.tseg1_max = 16,

@@ -34,7 +34,7 @@
 
 #include "mscan.h"
 
-static struct can_bittiming_const mscan_bittiming_const = {
+static const struct can_bittiming_const mscan_bittiming_const = {
 	.name = "mscan",
 	.tseg1_min = 4,
 	.tseg1_max = 16,
