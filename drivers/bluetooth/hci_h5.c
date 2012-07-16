@@ -30,6 +30,10 @@
 
 #include "hci_uart.h"
 
+#define H5_TXWINSIZE	4
+
+#define H5_ACK_TIMEOUT	msecs_to_jiffies(250)
+
 struct h5 {
 	struct sk_buff_head unack;	/* Unack'ed packets queue */
 	struct sk_buff_head rel;	/* Reliable packets queue */
@@ -37,10 +41,33 @@ struct h5 {
 
 	struct sk_buff *rx_skb;
 
+	struct timer_list timer;	/* Retransmission timer */
+
 	bool txack_req;
 
 	u8 msgq_txseq;
 };
+
+static void h5_timed_event(unsigned long arg)
+{
+	struct hci_uart *hu = (struct hci_uart *) arg;
+	struct h5 *h5 = hu->priv;
+	struct sk_buff *skb;
+	unsigned long flags;
+
+	BT_DBG("hu %p retransmitting %u pkts", hu, h5->unack.qlen);
+
+	spin_lock_irqsave_nested(&h5->unack.lock, flags, SINGLE_DEPTH_NESTING);
+
+	while ((skb = __skb_dequeue_tail(&h5->unack)) != NULL) {
+		h5->msgq_txseq = (h5->msgq_txseq - 1) & 0x07;
+		skb_queue_head(&h5->rel, skb);
+	}
+
+	spin_unlock_irqrestore(&h5->unack.lock, flags);
+
+	hci_uart_tx_wakeup(hu);
+}
 
 static int h5_open(struct hci_uart *hu)
 {
@@ -58,6 +85,10 @@ static int h5_open(struct hci_uart *hu)
 	skb_queue_head_init(&h5->rel);
 	skb_queue_head_init(&h5->unrel);
 
+	init_timer(&h5->timer);
+	h5->timer.function = h5_timed_event;
+	h5->timer.data = (unsigned long) hu;
+
 	return 0;
 }
 
@@ -68,6 +99,8 @@ static int h5_close(struct hci_uart *hu)
 	skb_queue_purge(&h5->unack);
 	skb_queue_purge(&h5->rel);
 	skb_queue_purge(&h5->unrel);
+
+	del_timer(&h5->timer);
 
 	kfree(h5);
 
@@ -123,6 +156,7 @@ static struct sk_buff *h5_prepare_ack(struct h5 *h5)
 static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 {
 	struct h5 *h5 = hu->priv;
+	unsigned long flags;
 	struct sk_buff *skb, *nskb;
 
 	if ((skb = skb_dequeue(&h5->unrel)) != NULL) {
@@ -135,6 +169,28 @@ static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 		skb_queue_head(&h5->unrel, skb);
 		BT_ERR("Could not dequeue pkt because alloc_skb failed");
 	}
+
+	spin_lock_irqsave_nested(&h5->unack.lock, flags, SINGLE_DEPTH_NESTING);
+
+	if (h5->unack.qlen >= H5_TXWINSIZE)
+		goto unlock;
+
+	if ((skb = skb_dequeue(&h5->rel)) != NULL) {
+		nskb = h5_prepare_pkt(h5, skb);
+
+		if (nskb) {
+			__skb_queue_tail(&h5->unack, skb);
+			mod_timer(&h5->timer, jiffies + H5_ACK_TIMEOUT);
+			spin_unlock_irqrestore(&h5->unack.lock, flags);
+			return nskb;
+		}
+
+		skb_queue_head(&h5->rel, skb);
+		BT_ERR("Could not dequeue pkt because alloc_skb failed");
+	}
+
+unlock:
+	spin_unlock_irqrestore(&h5->unack.lock, flags);
 
 	if (h5->txack_req)
 		return h5_prepare_ack(h5);
