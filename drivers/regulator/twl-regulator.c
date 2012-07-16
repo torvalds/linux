@@ -559,6 +559,27 @@ static struct regulator_ops twl6030coresmps_ops = {
 	.get_voltage	= twl6030coresmps_get_voltage,
 };
 
+static int twl6030ldo_list_voltage(struct regulator_dev *rdev, unsigned sel)
+{
+	struct twlreg_info *info = rdev_get_drvdata(rdev);
+
+	switch (sel) {
+	case 0:
+		return 0;
+	case 1 ... 24:
+		/* Linear mapping from 00000001 to 00011000:
+		 * Absolute voltage value = 1.0 V + 0.1 V × (sel – 00000001)
+		 */
+		return (info->min_mV + 100 * (sel - 1)) * 1000;
+	case 25 ... 30:
+		return -EINVAL;
+	case 31:
+		return 2750000;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int
 twl6030ldo_set_voltage_sel(struct regulator_dev *rdev, unsigned selector)
 {
@@ -577,7 +598,7 @@ static int twl6030ldo_get_voltage_sel(struct regulator_dev *rdev)
 }
 
 static struct regulator_ops twl6030ldo_ops = {
-	.list_voltage	= regulator_list_voltage_linear,
+	.list_voltage	= twl6030ldo_list_voltage,
 
 	.set_voltage_sel = twl6030ldo_set_voltage_sel,
 	.get_voltage_sel = twl6030ldo_get_voltage_sel,
@@ -906,12 +927,10 @@ static struct twlreg_info TWL6030_INFO_##label = { \
 	.desc = { \
 		.name = #label, \
 		.id = TWL6030_REG_##label, \
-		.n_voltages = (max_mVolts - min_mVolts)/100 + 1, \
+		.n_voltages = 32, \
 		.ops = &twl6030ldo_ops, \
 		.type = REGULATOR_VOLTAGE, \
 		.owner = THIS_MODULE, \
-		.min_uV = min_mVolts * 1000, \
-		.uV_step = 100 * 1000, \
 		}, \
 	}
 
@@ -923,12 +942,10 @@ static struct twlreg_info TWL6025_INFO_##label = { \
 	.desc = { \
 		.name = #label, \
 		.id = TWL6025_REG_##label, \
-		.n_voltages = ((max_mVolts - min_mVolts)/100) + 1, \
+		.n_voltages = 32, \
 		.ops = &twl6030ldo_ops, \
 		.type = REGULATOR_VOLTAGE, \
 		.owner = THIS_MODULE, \
-		.min_uV = min_mVolts * 1000, \
-		.uV_step = 100 * 1000, \
 		}, \
 	}
 
