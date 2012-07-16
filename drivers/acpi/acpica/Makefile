@@ -134,6 +134,7 @@ acpi-y +=		\
 	tbinstal.o	\
 	tbutils.o	\
 	tbxface.o	\
+	tbxfload.o	\
 	tbxfroot.o
 
 acpi-y +=		\
