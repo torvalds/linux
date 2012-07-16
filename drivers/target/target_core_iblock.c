@@ -348,6 +348,18 @@ static int iblock_execute_unmap(struct se_cmd *cmd)
 		pr_debug("UNMAP: Using lba: %llu and range: %u\n",
 				 (unsigned long long)lba, range);
 
+		if (range > dev->se_sub_dev->se_dev_attrib.max_unmap_lba_count) {
+			cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
+			ret = -EINVAL;
+			goto err;
+		}
+
+		if (lba + range > dev->transport->get_blocks(dev) + 1) {
+			cmd->scsi_sense_reason = TCM_ADDRESS_OUT_OF_RANGE;
+			ret = -EINVAL;
+			goto err;
+		}
+
 		ret = blkdev_issue_discard(ibd->ibd_bd, lba, range,
 					   GFP_KERNEL, 0);
 		if (ret < 0) {
