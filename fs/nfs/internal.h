@@ -153,6 +153,14 @@ struct nfs_mount_request {
 	struct net		*net;
 };
 
+struct nfs_mount_info {
+	void (*fill_super)(struct super_block *, struct nfs_mount_info *);
+	int (*set_security)(struct super_block *, struct dentry *, struct nfs_mount_info *);
+	struct nfs_parsed_mount_data *parsed;
+	struct nfs_clone_mount *cloned;
+	struct nfs_fh *mntfh;
+};
+
 extern int nfs_mount(struct nfs_mount_request *info);
 extern void nfs_umount(const struct nfs_mount_request *info);
 
@@ -318,6 +326,16 @@ extern struct file_system_type nfs_xdev_fs_type;
 extern struct file_system_type nfs4_xdev_fs_type;
 extern struct file_system_type nfs4_referral_fs_type;
 #endif
+void nfs_initialise_sb(struct super_block *);
+int nfs_set_sb_security(struct super_block *, struct dentry *, struct nfs_mount_info *);
+int nfs_clone_sb_security(struct super_block *, struct dentry *, struct nfs_mount_info *);
+struct dentry *nfs_fs_mount_common(struct file_system_type *, struct nfs_server *,
+				   int, const char *, struct nfs_mount_info *);
+struct dentry *nfs_fs_mount(struct file_system_type *, int, const char *, void *);
+struct dentry * nfs_xdev_mount_common(struct file_system_type *, int,
+		const char *, struct nfs_mount_info *);
+void nfs_kill_super(struct super_block *);
+void nfs_fill_super(struct super_block *, struct nfs_mount_info *);
 
 extern struct rpc_stat nfs_rpcstat;
 
@@ -363,6 +381,17 @@ extern void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
 			const struct nfs_pgio_completion_ops *compl_ops);
 extern void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio);
 extern void nfs_readdata_release(struct nfs_read_data *rdata);
+
+/* super.c */
+void nfs_clone_super(struct super_block *, struct nfs_mount_info *);
+void nfs_umount_begin(struct super_block *);
+int  nfs_statfs(struct dentry *, struct kstatfs *);
+int  nfs_show_options(struct seq_file *, struct dentry *);
+int  nfs_show_devname(struct seq_file *, struct dentry *);
+int  nfs_show_path(struct seq_file *, struct dentry *);
+int  nfs_show_stats(struct seq_file *, struct dentry *);
+void nfs_put_super(struct super_block *);
+int nfs_remount(struct super_block *sb, int *flags, char *raw_data);
 
 /* write.c */
 extern void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,

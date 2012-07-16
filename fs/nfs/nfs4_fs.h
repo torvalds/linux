@@ -365,6 +365,8 @@ extern void nfs4_free_lock_state(struct nfs_server *server, struct nfs4_lock_sta
 extern const nfs4_stateid zero_stateid;
 
 /* nfs4super.c */
+struct nfs_mount_info;
+struct dentry *nfs4_try_mount(int, const char *, struct nfs_mount_info *);
 int init_nfs_v4(void);
 void exit_nfs_v4(void);
 
