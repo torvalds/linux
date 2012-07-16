@@ -85,6 +85,17 @@ struct nfs_clone_mount {
  */
 #define NFS_MAX_READDIR_PAGES 8
 
+struct nfs_client_initdata {
+	unsigned long init_flags;
+	const char *hostname;
+	const struct sockaddr *addr;
+	size_t addrlen;
+	const struct nfs_rpc_ops *rpc_ops;
+	int proto;
+	u32 minorversion;
+	struct net *net;
+};
+
 /*
  * In-kernel mount arguments
  */
@@ -150,6 +161,16 @@ extern const struct rpc_program nfs_program;
 extern void nfs_clients_init(struct net *net);
 extern struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *);
 int nfs_create_rpc_client(struct nfs_client *, const struct rpc_timeout *, rpc_authflavor_t);
+struct nfs_client *nfs_get_client(const struct nfs_client_initdata *,
+				  const struct rpc_timeout *, const char *,
+				  rpc_authflavor_t);
+int nfs_probe_fsinfo(struct nfs_server *server, struct nfs_fh *, struct nfs_fattr *);
+void nfs_server_insert_lists(struct nfs_server *);
+void nfs_init_timeout_values(struct rpc_timeout *, int, unsigned int, unsigned int);
+int nfs_init_server_rpcclient(struct nfs_server *, const struct rpc_timeout *t,
+		rpc_authflavor_t);
+struct nfs_server *nfs_alloc_server(void);
+void nfs_server_copy_userdata(struct nfs_server *, struct nfs_server *);
 
 extern void nfs_cleanup_cb_ident_idr(struct net *);
 extern void nfs_put_client(struct nfs_client *);
@@ -189,6 +210,10 @@ static inline int nfs_fs_proc_init(void)
 static inline void nfs_fs_proc_exit(void)
 {
 }
+#endif
+
+#ifdef CONFIG_NFS_V4_1
+int nfs_sockaddr_match_ipaddr(const struct sockaddr *, const struct sockaddr *);
 #endif
 
 /* callback_xdr.c */
