@@ -368,6 +368,21 @@ extern const nfs4_stateid zero_stateid;
 int init_nfs_v4(void);
 void exit_nfs_v4(void);
 
+/* nfs4sysctl.c */
+#ifdef CONFIG_SYSCTL
+int nfs4_register_sysctl(void);
+void nfs4_unregister_sysctl(void);
+#else
+static inline int nfs4_register_sysctl(void)
+{
+	return 0;
+}
+
+static inline int nfs4_unregister_sysctl(void)
+{
+}
+#endif
+
 /* nfs4xdr.c */
 extern struct rpc_procinfo nfs4_procedures[];
 

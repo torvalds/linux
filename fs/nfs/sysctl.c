@@ -9,37 +9,11 @@
 #include <linux/fs.h>
 #include <linux/sysctl.h>
 #include <linux/module.h>
-#include <linux/nfs4.h>
-#include <linux/nfs_idmap.h>
 #include <linux/nfs_fs.h>
 
-#include "callback.h"
-
-#ifdef CONFIG_NFS_V4
-static const int nfs_set_port_min = 0;
-static const int nfs_set_port_max = 65535;
-#endif
 static struct ctl_table_header *nfs_callback_sysctl_table;
 
 static ctl_table nfs_cb_sysctls[] = {
-#ifdef CONFIG_NFS_V4
-	{
-		.procname = "nfs_callback_tcpport",
-		.data = &nfs_callback_set_tcpport,
-		.maxlen = sizeof(int),
-		.mode = 0644,
-		.proc_handler = proc_dointvec_minmax,
-		.extra1 = (int *)&nfs_set_port_min,
-		.extra2 = (int *)&nfs_set_port_max,
-	},
-	{
-		.procname = "idmap_cache_timeout",
-		.data = &nfs_idmap_cache_timeout,
-		.maxlen = sizeof(int),
-		.mode = 0644,
-		.proc_handler = proc_dointvec_jiffies,
-	},
-#endif
 	{
 		.procname	= "nfs_mountpoint_timeout",
 		.data		= &nfs_mountpoint_expiry_timeout,
