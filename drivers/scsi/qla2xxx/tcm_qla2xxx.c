@@ -464,7 +464,7 @@ static int tcm_qla2xxx_shutdown_session(struct se_session *se_sess)
 	vha = sess->vha;
 
 	spin_lock_irqsave(&vha->hw->hardware_lock, flags);
-	target_splice_sess_cmd_list(se_sess);
+	target_sess_cmd_list_set_waiting(se_sess);
 	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
 
 	return 1;

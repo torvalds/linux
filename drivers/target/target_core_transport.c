@@ -232,7 +232,6 @@ struct se_session *transport_init_session(void)
 	INIT_LIST_HEAD(&se_sess->sess_list);
 	INIT_LIST_HEAD(&se_sess->sess_acl_list);
 	INIT_LIST_HEAD(&se_sess->sess_cmd_list);
-	INIT_LIST_HEAD(&se_sess->sess_wait_list);
 	spin_lock_init(&se_sess->sess_cmd_lock);
 	kref_init(&se_sess->sess_kref);
 
@@ -2478,28 +2477,27 @@ int target_put_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cmd)
 }
 EXPORT_SYMBOL(target_put_sess_cmd);
 
-/* target_splice_sess_cmd_list - Split active cmds into sess_wait_list
- * @se_sess:	session to split
+/* target_sess_cmd_list_set_waiting - Flag all commands in
+ *         sess_cmd_list to complete cmd_wait_comp.  Set
+ *         sess_tearing_down so no more commands are queued.
+ * @se_sess:	session to flag
  */
-void target_splice_sess_cmd_list(struct se_session *se_sess)
+void target_sess_cmd_list_set_waiting(struct se_session *se_sess)
 {
 	struct se_cmd *se_cmd;
 	unsigned long flags;
 
-	WARN_ON(!list_empty(&se_sess->sess_wait_list));
-	INIT_LIST_HEAD(&se_sess->sess_wait_list);
-
 	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
+
+	WARN_ON(se_sess->sess_tearing_down);
 	se_sess->sess_tearing_down = 1;
 
-	list_splice_init(&se_sess->sess_cmd_list, &se_sess->sess_wait_list);
-
-	list_for_each_entry(se_cmd, &se_sess->sess_wait_list, se_cmd_list)
+	list_for_each_entry(se_cmd, &se_sess->sess_cmd_list, se_cmd_list)
 		se_cmd->cmd_wait_set = 1;
 
 	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 }
-EXPORT_SYMBOL(target_splice_sess_cmd_list);
+EXPORT_SYMBOL(target_sess_cmd_list_set_waiting);
 
 /* target_wait_for_sess_cmds - Wait for outstanding descriptors
  * @se_sess:    session to wait for active I/O
@@ -2513,7 +2511,7 @@ void target_wait_for_sess_cmds(
 	bool rc = false;
 
 	list_for_each_entry_safe(se_cmd, tmp_cmd,
-				&se_sess->sess_wait_list, se_cmd_list) {
+				&se_sess->sess_cmd_list, se_cmd_list) {
 		list_del(&se_cmd->se_cmd_list);
 
 		pr_debug("Waiting for se_cmd: %p t_state: %d, fabric state:"

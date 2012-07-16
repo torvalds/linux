@@ -122,7 +122,7 @@ int	transport_check_aborted_status(struct se_cmd *, int);
 int	transport_send_check_condition_and_sense(struct se_cmd *, u8, int);
 
 int	target_put_sess_cmd(struct se_session *, struct se_cmd *);
-void	target_splice_sess_cmd_list(struct se_session *);
+void	target_sess_cmd_list_set_waiting(struct se_session *);
 void	target_wait_for_sess_cmds(struct se_session *, int);
 
 int	core_alua_check_nonop_delay(struct se_cmd *);
