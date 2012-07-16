@@ -18,7 +18,6 @@
 #include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/gpio.h>
-#include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/leds.h>
 #include <asm/mach-types.h>
@@ -85,35 +84,6 @@ static struct platform_device ib62x0_led_device = {
 	}
 };
 
-static struct gpio_keys_button ib62x0_button_pins[] = {
-	{
-		.code		= KEY_COPY,
-		.gpio		= 29,
-		.desc		= "USB Copy",
-		.active_low	= 1,
-	},
-	{
-		.code		= KEY_RESTART,
-		.gpio		= 28,
-		.desc		= "Reset",
-		.active_low	= 1,
-	},
-};
-
-static struct gpio_keys_platform_data ib62x0_button_data = {
-	.buttons	= ib62x0_button_pins,
-	.nbuttons	= ARRAY_SIZE(ib62x0_button_pins),
-};
-
-static struct platform_device ib62x0_button_device = {
-	.name		= "gpio-keys",
-	.id		= -1,
-	.num_resources	= 0,
-	.dev		= {
-		.platform_data	= &ib62x0_button_data,
-	}
-};
-
 static void ib62x0_power_off(void)
 {
 	gpio_set_value(IB62X0_GPIO_POWER_OFF, 1);
@@ -129,7 +99,6 @@ void __init ib62x0_init(void)
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&ib62x0_ge00_data);
 	platform_device_register(&ib62x0_led_device);
-	platform_device_register(&ib62x0_button_device);
 	if (gpio_request(IB62X0_GPIO_POWER_OFF, "ib62x0:power:off") == 0 &&
 	    gpio_direction_output(IB62X0_GPIO_POWER_OFF, 0) == 0)
 		pm_power_off = ib62x0_power_off;
