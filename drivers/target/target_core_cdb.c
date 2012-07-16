@@ -1041,6 +1041,11 @@ int target_emulate_unmap(struct se_task *task)
 	bd_dl = get_unaligned_be16(&buf[2]);
 
 	size = min(size - 8, bd_dl);
+	if (size / 16 > dev->se_sub_dev->se_dev_attrib.max_unmap_block_desc_count) {
+		cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
+		ret = -EINVAL;
+		goto err;
+	}
 
 	/* First UNMAP block descriptor starts at 8 byte offset */
 	ptr = &buf[8];
