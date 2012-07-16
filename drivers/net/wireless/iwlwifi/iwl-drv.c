@@ -194,7 +194,8 @@ static int iwl_alloc_fw_desc(struct iwl_drv *drv, struct fw_desc *desc,
 	return 0;
 }
 
-static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context);
+static void iwl_req_fw_callback(const struct firmware *ucode_raw,
+				void *context);
 
 #define UCODE_EXPERIMENTAL_INDEX	100
 #define UCODE_EXPERIMENTAL_TAG		"exp"
@@ -231,7 +232,7 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 
 	return request_firmware_nowait(THIS_MODULE, 1, drv->firmware_name,
 				       drv->trans->dev,
-				       GFP_KERNEL, drv, iwl_ucode_callback);
+				       GFP_KERNEL, drv, iwl_req_fw_callback);
 }
 
 struct fw_img_parsing {
@@ -760,12 +761,12 @@ static int validate_sec_sizes(struct iwl_drv *drv,
 }
 
 /**
- * iwl_ucode_callback - callback when firmware was loaded
+ * iwl_req_fw_callback - callback when firmware was loaded
  *
  * If loaded successfully, copies the firmware into buffers
  * for the card to fetch (via DMA).
  */
-static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
+static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 {
 	struct iwl_drv *drv = context;
 	struct iwl_fw *fw = &drv->fw;
