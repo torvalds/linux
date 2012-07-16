@@ -655,13 +655,13 @@ static int synpatics_rmi4_touchpad_detect(struct synaptics_rmi4_data *pdata,
 }
 
 /**
- * synpatics_rmi4_touchpad_config() - confiures the rmi4 touchpad device
+ * synaptics_rmi4_touchpad_config() - configures the rmi4 touchpad device
  * @pdata: pointer to synaptics_rmi4_data structure
  * @rfi: pointer to synaptics_rmi4_fn structure
  *
- * This function calls to confiures the rmi4 touchpad device
+ * This function calls to configures the rmi4 touchpad device
  */
-int synpatics_rmi4_touchpad_config(struct synaptics_rmi4_data *pdata,
+int synaptics_rmi4_touchpad_config(struct synaptics_rmi4_data *pdata,
 						struct synaptics_rmi4_fn *rfi)
 {
 	/*
@@ -855,7 +855,7 @@ static int synaptics_rmi4_i2c_query_device(struct synaptics_rmi4_data *pdata)
 			if (rfi->num_of_data_sources) {
 				if (rfi->fn_number ==
 					SYNAPTICS_RMI4_TOUCHPAD_FUNC_NUM) {
-					retval = synpatics_rmi4_touchpad_config
+					retval = synaptics_rmi4_touchpad_config
 								(pdata, rfi);
 					if (retval < 0)
 						return retval;
