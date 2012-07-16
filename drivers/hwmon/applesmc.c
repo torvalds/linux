@@ -133,11 +133,13 @@ static struct applesmc_registers {
 	unsigned int temp_count;	/* number of temperature registers */
 	unsigned int temp_begin;	/* temperature lower index bound */
 	unsigned int temp_end;		/* temperature upper index bound */
+	unsigned int index_count;	/* size of temperature index array */
 	int num_light_sensors;		/* number of light sensors */
 	bool has_accelerometer;		/* has motion sensor */
 	bool has_key_backlight;		/* has keyboard backlight */
 	bool init_complete;		/* true when fully initialized */
 	struct applesmc_entry *cache;	/* cached key entries */
+	const char **index;		/* temperature key index */
 } smcreg = {
 	.mutex = __MUTEX_INITIALIZER(smcreg.mutex),
 };
@@ -469,6 +471,30 @@ static void applesmc_device_init(void)
 	pr_warn("failed to init the device\n");
 }
 
+static int applesmc_init_index(struct applesmc_registers *s)
+{
+	const struct applesmc_entry *entry;
+	unsigned int i;
+
+	if (s->index)
+		return 0;
+
+	s->index = kcalloc(s->temp_count, sizeof(s->index[0]), GFP_KERNEL);
+	if (!s->index)
+		return -ENOMEM;
+
+	for (i = s->temp_begin; i < s->temp_end; i++) {
+		entry = applesmc_get_entry_by_index(i);
+		if (IS_ERR(entry))
+			continue;
+		if (strcmp(entry->type, TEMP_SENSOR_TYPE))
+			continue;
+		s->index[s->index_count++] = entry->key;
+	}
+
+	return 0;
+}
+
 /*
  * applesmc_init_smcreg_try - Try to initialize register cache. Idempotent.
  */
@@ -504,6 +530,10 @@ static int applesmc_init_smcreg_try(void)
 		return ret;
 	s->temp_count = s->temp_end - s->temp_begin;
 
+	ret = applesmc_init_index(s);
+	if (ret)
+		return ret;
+
 	ret = applesmc_has_key(LIGHT_SENSOR_LEFT_KEY, &left_light_sensor);
 	if (ret)
 		return ret;
@@ -520,13 +550,22 @@ static int applesmc_init_smcreg_try(void)
 	s->num_light_sensors = left_light_sensor + right_light_sensor;
 	s->init_complete = true;
 
-	pr_info("key=%d fan=%d temp=%d acc=%d lux=%d kbd=%d\n",
-	       s->key_count, s->fan_count, s->temp_count,
+	pr_info("key=%d fan=%d temp=%d index=%d acc=%d lux=%d kbd=%d\n",
+	       s->key_count, s->fan_count, s->temp_count, s->index_count,
 	       s->has_accelerometer,
 	       s->num_light_sensors,
 	       s->has_key_backlight);
 
 	return 0;
+}
+
+static void applesmc_destroy_smcreg(void)
+{
+	kfree(smcreg.index);
+	smcreg.index = NULL;
+	kfree(smcreg.cache);
+	smcreg.cache = NULL;
+	smcreg.init_complete = false;
 }
 
 /*
@@ -549,17 +588,9 @@ static int applesmc_init_smcreg(void)
 		msleep(INIT_WAIT_MSECS);
 	}
 
-	kfree(smcreg.cache);
-	smcreg.cache = NULL;
+	applesmc_destroy_smcreg();
 
 	return ret;
-}
-
-static void applesmc_destroy_smcreg(void)
-{
-	kfree(smcreg.cache);
-	smcreg.cache = NULL;
-	smcreg.init_complete = false;
 }
 
 /* Device model stuff */
@@ -705,33 +736,21 @@ out:
 static ssize_t applesmc_show_sensor_label(struct device *dev,
 			struct device_attribute *devattr, char *sysfsbuf)
 {
-	int index = smcreg.temp_begin + to_index(devattr);
-	const struct applesmc_entry *entry;
+	const char *key = smcreg.index[to_index(devattr)];
 
-	entry = applesmc_get_entry_by_index(index);
-	if (IS_ERR(entry))
-		return PTR_ERR(entry);
-
-	return snprintf(sysfsbuf, PAGE_SIZE, "%s\n", entry->key);
+	return snprintf(sysfsbuf, PAGE_SIZE, "%s\n", key);
 }
 
 /* Displays degree Celsius * 1000 */
 static ssize_t applesmc_show_temperature(struct device *dev,
 			struct device_attribute *devattr, char *sysfsbuf)
 {
-	int index = smcreg.temp_begin + to_index(devattr);
-	const struct applesmc_entry *entry;
+	const char *key = smcreg.index[to_index(devattr)];
 	int ret;
 	s16 value;
 	int temp;
 
-	entry = applesmc_get_entry_by_index(index);
-	if (IS_ERR(entry))
-		return PTR_ERR(entry);
-	if (strcmp(entry->type, TEMP_SENSOR_TYPE))
-		return -EINVAL;
-
-	ret = applesmc_read_s16(entry->key, &value);
+	ret = applesmc_read_s16(key, &value);
 	if (ret)
 		return ret;
 
@@ -1247,7 +1266,7 @@ static int __init applesmc_init(void)
 	if (ret)
 		goto out_info;
 
-	ret = applesmc_create_nodes(temp_group, smcreg.temp_count);
+	ret = applesmc_create_nodes(temp_group, smcreg.index_count);
 	if (ret)
 		goto out_fans;
 
