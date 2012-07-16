@@ -32,6 +32,7 @@ struct of_dev_auxdata kirkwood_auxdata_lookup[] __initdata = {
 		       NULL),
 	OF_DEV_AUXDATA("marvell,orion-wdt", 0xf1020300, "orion_wdt", NULL),
 	OF_DEV_AUXDATA("marvell,orion-sata", 0xf1080000, "sata_mv.0", NULL),
+	OF_DEV_AUXDATA("mrvl,orion-nand", 0xf4000000, "orion_nand", NULL),
 	{},
 };
 
@@ -80,6 +81,9 @@ static void __init kirkwood_dt_init(void)
 	if (of_machine_is_compatible("qnap,ts219"))
 		qnap_dt_ts219_init();
 
+	if (of_machine_is_compatible("seagate,goflexnet"))
+		goflexnet_init();
+
 	of_platform_populate(NULL, kirkwood_dt_match_table,
 			     kirkwood_auxdata_lookup, NULL);
 }
@@ -91,6 +95,7 @@ static const char *kirkwood_dt_board_compat[] = {
 	"iom,iconnect",
 	"raidsonic,ib-nas62x0",
 	"qnap,ts219",
+	"seagate,goflexnet",
 	NULL
 };
 
