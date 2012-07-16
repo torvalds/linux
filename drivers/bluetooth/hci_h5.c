@@ -81,7 +81,11 @@ struct h5 {
 		H5_ACTIVE,
 	} state;
 
-	bool			sleeping;
+	enum {
+		H5_AWAKE,
+		H5_SLEEPING,
+		H5_WAKING_UP,
+	} sleep;
 };
 
 static void h5_reset_rx(struct h5 *h5);
@@ -111,6 +115,8 @@ static void h5_timed_event(unsigned long arg)
 	struct sk_buff *skb;
 	unsigned long flags;
 
+	BT_DBG("%s", hu->hdev->name);
+
 	if (h5->state == H5_UNINITIALIZED)
 		h5_link_control(hu, sync_req, sizeof(sync_req));
 
@@ -119,6 +125,11 @@ static void h5_timed_event(unsigned long arg)
 
 	if (h5->state != H5_ACTIVE) {
 		mod_timer(&h5->timer, jiffies + H5_SYNC_TIMEOUT);
+		goto wakeup;
+	}
+
+	if (h5->sleep != H5_AWAKE) {
+		h5->sleep = H5_SLEEPING;
 		goto wakeup;
 	}
 
@@ -262,12 +273,15 @@ static void h5_handle_internal_rx(struct hci_uart *hu)
 		return;
 	} else if (memcmp(data, sleep_req, 2) == 0) {
 		BT_DBG("Peer went to sleep");
-		h5->sleeping = true;
-		h5_link_control(hu, wakeup_req, 2);
+		h5->sleep = H5_SLEEPING;
+		return;
 	} else if (memcmp(data, woken_req, 2) == 0) {
 		BT_DBG("Peer woke up");
-		h5->sleeping = false;
-		return;
+		h5->sleep = H5_AWAKE;
+	} else if (memcmp(data, wakeup_req, 2) == 0) {
+		BT_DBG("Peer requested wakeup");
+		h5_link_control(hu, woken_req, 2);
+		h5->sleep = H5_AWAKE;
 	} else {
 		BT_DBG("Link Control: 0x%02hhx 0x%02hhx", data[0], data[1]);
 		return;
@@ -624,6 +638,19 @@ static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 	struct h5 *h5 = hu->priv;
 	unsigned long flags;
 	struct sk_buff *skb, *nskb;
+
+	if (h5->sleep != H5_AWAKE) {
+		const unsigned char wakeup_req[] = { 0x05, 0xfa };
+
+		if (h5->sleep == H5_WAKING_UP)
+			return NULL;
+
+		h5->sleep = H5_WAKING_UP;
+		BT_DBG("Sending wakeup request");
+
+		mod_timer(&h5->timer, jiffies + HZ / 100);
+		return h5_prepare_pkt(hu, HCI_3WIRE_LINK_PKT, wakeup_req, 2);
+	}
 
 	if ((skb = skb_dequeue(&h5->unrel)) != NULL) {
 		nskb = h5_prepare_pkt(hu, bt_cb(skb)->pkt_type,
