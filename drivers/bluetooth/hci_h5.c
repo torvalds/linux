@@ -559,13 +559,32 @@ static void h5_slip_one_byte(struct sk_buff *skb, u8 c)
 	}
 }
 
-static struct sk_buff *h5_build_pkt(struct hci_uart *hu, bool rel, u8 pkt_type,
-				    const u8 *data, size_t len)
+static bool valid_packet_type(u8 type)
+{
+	switch (type) {
+	case HCI_ACLDATA_PKT:
+	case HCI_COMMAND_PKT:
+	case HCI_SCODATA_PKT:
+	case HCI_3WIRE_LINK_PKT:
+	case HCI_3WIRE_ACK_PKT:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static struct sk_buff *h5_prepare_pkt(struct hci_uart *hu, u8 pkt_type,
+				      const u8 *data, size_t len)
 {
 	struct h5 *h5 = hu->priv;
 	struct sk_buff *nskb;
 	u8 hdr[4];
 	int i;
+
+	if (!valid_packet_type(pkt_type)) {
+		BT_ERR("Unknown packet type %u", pkt_type);
+		return NULL;
+	}
 
 	/*
 	 * Max len of packet: (original len + 4 (H5 hdr) + 2 (crc)) * 2
@@ -584,7 +603,8 @@ static struct sk_buff *h5_build_pkt(struct hci_uart *hu, bool rel, u8 pkt_type,
 	hdr[0] = h5->tx_ack << 3;
 	h5->tx_ack_req = false;
 
-	if (rel) {
+	/* Reliable packet? */
+	if (pkt_type == HCI_ACLDATA_PKT || pkt_type == HCI_COMMAND_PKT) {
 		hdr[0] |= 1 << 7;
 		hdr[0] |= h5->tx_seq;
 		h5->tx_seq = (h5->tx_seq + 1) % 8;
@@ -608,29 +628,6 @@ static struct sk_buff *h5_build_pkt(struct hci_uart *hu, bool rel, u8 pkt_type,
 	h5_slip_delim(nskb);
 
 	return nskb;
-}
-
-static struct sk_buff *h5_prepare_pkt(struct hci_uart *hu, u8 pkt_type,
-				      const u8 *data, size_t len)
-{
-	bool rel;
-
-	switch (pkt_type) {
-	case HCI_ACLDATA_PKT:
-	case HCI_COMMAND_PKT:
-		rel = true;
-		break;
-	case HCI_SCODATA_PKT:
-	case HCI_3WIRE_LINK_PKT:
-	case HCI_3WIRE_ACK_PKT:
-		rel = false;
-		break;
-	default:
-		BT_ERR("Unknown packet type %u", pkt_type);
-		return NULL;
-	}
-
-	return h5_build_pkt(hu, rel, pkt_type, data, len);
 }
 
 static struct sk_buff *h5_dequeue(struct hci_uart *hu)
