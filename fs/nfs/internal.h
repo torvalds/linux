@@ -257,6 +257,23 @@ int nfs_link(struct dentry *, struct inode *, struct dentry *);
 int nfs_mknod(struct inode *, struct dentry *, umode_t, dev_t);
 int nfs_rename(struct inode *, struct dentry *, struct inode *, struct dentry *);
 
+/* file.c */
+int nfs_file_fsync_commit(struct file *, loff_t, loff_t, int);
+loff_t nfs_file_llseek(struct file *, loff_t, int);
+int nfs_file_flush(struct file *, fl_owner_t);
+ssize_t nfs_file_read(struct kiocb *, const struct iovec *, unsigned long, loff_t);
+ssize_t nfs_file_splice_read(struct file *, loff_t *, struct pipe_inode_info *,
+			     size_t, unsigned int);
+int nfs_file_mmap(struct file *, struct vm_area_struct *);
+ssize_t nfs_file_write(struct kiocb *, const struct iovec *, unsigned long, loff_t);
+int nfs_file_release(struct inode *, struct file *);
+int nfs_lock(struct file *, int, struct file_lock *);
+int nfs_flock(struct file *, int, struct file_lock *);
+ssize_t nfs_file_splice_write(struct pipe_inode_info *, struct file *, loff_t *,
+			      size_t, unsigned int);
+int nfs_check_flags(int);
+int nfs_setlease(struct file *, long, struct file_lock **);
+
 /* inode.c */
 extern struct workqueue_struct *nfsiod_workqueue;
 extern struct inode *nfs_alloc_inode(struct super_block *sb);
