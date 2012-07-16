@@ -32,7 +32,6 @@
 #include <linux/lockd/bind.h>
 #include <linux/seq_file.h>
 #include <linux/mount.h>
-#include <linux/nfs_idmap.h>
 #include <linux/vfs.h>
 #include <linux/inet.h>
 #include <linux/nfs_xdr.h>
@@ -1628,87 +1627,96 @@ static int __init init_nfs_fs(void)
 {
 	int err;
 
-	err = nfs_idmap_init();
-	if (err < 0)
-		goto out10;
-
 	err = nfs_dns_resolver_init();
 	if (err < 0)
-		goto out9;
+		goto out11;
 
 	err = register_pernet_subsys(&nfs_net_ops);
 	if (err < 0)
-		goto out8;
+		goto out10;
 
 	err = nfs_fscache_register();
 	if (err < 0)
-		goto out7;
+		goto out9;
 
 	err = nfsiod_start();
 	if (err)
-		goto out6;
+		goto out8;
 
 	err = nfs_fs_proc_init();
 	if (err)
-		goto out5;
+		goto out7;
 
 	err = nfs_init_nfspagecache();
 	if (err)
-		goto out4;
+		goto out6;
 
 	err = nfs_init_inodecache();
 	if (err)
-		goto out3;
+		goto out5;
 
 	err = nfs_init_readpagecache();
 	if (err)
-		goto out2;
+		goto out4;
 
 	err = nfs_init_writepagecache();
 	if (err)
-		goto out1;
+		goto out3;
 
 	err = nfs_init_directcache();
 	if (err)
-		goto out0;
+		goto out2;
 
 #ifdef CONFIG_PROC_FS
 	rpc_proc_register(&init_net, &nfs_rpcstat);
 #endif
+
+#ifdef CONFIG_NFS_V4
+	err = init_nfs_v4();
+	if (err)
+		goto out1;
+#endif
+
 	if ((err = register_nfs_fs()) != 0)
-		goto out;
+		goto out0;
+
 	return 0;
-out:
+out0:
+#ifdef CONFIG_NFS_V4
+	exit_nfs_v4();
+out1:
+#endif
 #ifdef CONFIG_PROC_FS
 	rpc_proc_unregister(&init_net, "nfs");
 #endif
 	nfs_destroy_directcache();
-out0:
-	nfs_destroy_writepagecache();
-out1:
-	nfs_destroy_readpagecache();
 out2:
-	nfs_destroy_inodecache();
+	nfs_destroy_writepagecache();
 out3:
-	nfs_destroy_nfspagecache();
+	nfs_destroy_readpagecache();
 out4:
-	nfs_fs_proc_exit();
+	nfs_destroy_inodecache();
 out5:
-	nfsiod_stop();
+	nfs_destroy_nfspagecache();
 out6:
-	nfs_fscache_unregister();
+	nfs_fs_proc_exit();
 out7:
-	unregister_pernet_subsys(&nfs_net_ops);
+	nfsiod_stop();
 out8:
-	nfs_dns_resolver_destroy();
+	nfs_fscache_unregister();
 out9:
-	nfs_idmap_quit();
+	unregister_pernet_subsys(&nfs_net_ops);
 out10:
+	nfs_dns_resolver_destroy();
+out11:
 	return err;
 }
 
 static void __exit exit_nfs_fs(void)
 {
+#ifdef CONFIG_NFS_V4
+	exit_nfs_v4();
+#endif
 	nfs_destroy_directcache();
 	nfs_destroy_writepagecache();
 	nfs_destroy_readpagecache();
@@ -1717,7 +1725,6 @@ static void __exit exit_nfs_fs(void)
 	nfs_fscache_unregister();
 	unregister_pernet_subsys(&nfs_net_ops);
 	nfs_dns_resolver_destroy();
-	nfs_idmap_quit();
 #ifdef CONFIG_PROC_FS
 	rpc_proc_unregister(&init_net, "nfs");
 #endif

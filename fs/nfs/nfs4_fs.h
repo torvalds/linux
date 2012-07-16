@@ -364,6 +364,10 @@ extern void nfs4_free_lock_state(struct nfs_server *server, struct nfs4_lock_sta
 
 extern const nfs4_stateid zero_stateid;
 
+/* nfs4super.c */
+int init_nfs_v4(void);
+void exit_nfs_v4(void);
+
 /* nfs4xdr.c */
 extern struct rpc_procinfo nfs4_procedures[];
 
