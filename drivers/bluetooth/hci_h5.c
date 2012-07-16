@@ -246,8 +246,6 @@ static void h5_complete_rx_pkt(struct hci_uart *hu)
 	struct h5 *h5 = hu->priv;
 	const unsigned char *hdr = h5->rx_skb->data;
 
-	BT_DBG("%s", hu->hdev->name);
-
 	if (H5_HDR_RELIABLE(hdr)) {
 		h5->tx_ack = (h5->tx_ack + 1) % 8;
 		h5->tx_ack_req = true;
@@ -284,8 +282,6 @@ static int h5_rx_crc(struct hci_uart *hu, unsigned char c)
 {
 	struct h5 *h5 = hu->priv;
 
-	BT_DBG("%s 0x%02hhx", hu->hdev->name, c);
-
 	h5_complete_rx_pkt(hu);
 	h5_reset_rx(h5);
 
@@ -296,8 +292,6 @@ static int h5_rx_payload(struct hci_uart *hu, unsigned char c)
 {
 	struct h5 *h5 = hu->priv;
 	const unsigned char *hdr = h5->rx_skb->data;
-
-	BT_DBG("%s 0x%02hhx", hu->hdev->name, c);
 
 	if (H5_HDR_CRC(hdr)) {
 		h5->rx_func = h5_rx_crc;
@@ -314,8 +308,6 @@ static int h5_rx_3wire_hdr(struct hci_uart *hu, unsigned char c)
 {
 	struct h5 *h5 = hu->priv;
 	const unsigned char *hdr = h5->rx_skb->data;
-
-	BT_DBG("%s 0x%02hhx", hu->hdev->name, c);
 
 	BT_DBG("%s rx: seq %u ack %u crc %u rel %u type %u len %u",
 	       hu->hdev->name, H5_HDR_SEQ(hdr), H5_HDR_ACK(hdr),
@@ -345,8 +337,6 @@ static int h5_rx_pkt_start(struct hci_uart *hu, unsigned char c)
 {
 	struct h5 *h5 = hu->priv;
 
-	BT_DBG("%s 0x%02hhx", hu->hdev->name, c);
-
 	if (c == SLIP_DELIMITER)
 		return 1;
 
@@ -368,8 +358,6 @@ static int h5_rx_pkt_start(struct hci_uart *hu, unsigned char c)
 static int h5_rx_delimiter(struct hci_uart *hu, unsigned char c)
 {
 	struct h5 *h5 = hu->priv;
-
-	BT_DBG("%s 0x%02hhx", hu->hdev->name, c);
 
 	if (c == SLIP_DELIMITER)
 		h5->rx_func = h5_rx_pkt_start;
@@ -407,7 +395,7 @@ static void h5_unslip_one_byte(struct h5 *h5, unsigned char c)
 	memcpy(skb_put(h5->rx_skb, 1), byte, 1);
 	h5->rx_pending--;
 
-	BT_DBG("unsliped 0x%02hhx", *byte);
+	BT_DBG("unsliped 0x%02hhx, rx_pending %zu", *byte, h5->rx_pending);
 }
 
 static void h5_reset_rx(struct h5 *h5)
@@ -427,7 +415,8 @@ static int h5_recv(struct hci_uart *hu, void *data, int count)
 	struct h5 *h5 = hu->priv;
 	unsigned char *ptr = data;
 
-	BT_DBG("%s count %d", hu->hdev->name, count);
+	BT_DBG("%s pending %zu count %d", hu->hdev->name, h5->rx_pending,
+	       count);
 
 	while (count > 0) {
 		int processed;
