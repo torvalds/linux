@@ -62,8 +62,8 @@ acpi_ex_store_object_to_index(union acpi_operand_object *val_desc,
  * FUNCTION:    acpi_ex_store
  *
  * PARAMETERS:  *source_desc        - Value to be stored
- *              *dest_desc          - Where to store it.  Must be an NS node
- *                                    or a union acpi_operand_object of type
+ *              *dest_desc          - Where to store it. Must be an NS node
+ *                                    or union acpi_operand_object of type
  *                                    Reference;
  *              walk_state          - Current walk state
  *

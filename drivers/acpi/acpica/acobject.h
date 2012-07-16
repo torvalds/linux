@@ -113,8 +113,8 @@ struct acpi_object_integer {
 };
 
 /*
- * Note: The String and Buffer object must be identical through the Pointer
- * and length elements.  There is code that depends on this.
+ * Note: The String and Buffer object must be identical through the
+ * pointer and length elements. There is code that depends on this.
  *
  * Fields common to both Strings and Buffers
  */

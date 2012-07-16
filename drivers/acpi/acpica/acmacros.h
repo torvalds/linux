@@ -283,8 +283,8 @@
 #define ACPI_INSERT_BITS(target, mask, source)          target = ((target & (~(mask))) | (source & mask))
 
 /*
- * A struct acpi_namespace_node can appear in some contexts
- * where a pointer to a union acpi_operand_object can also
+ * An object of type struct acpi_namespace_node can appear in some contexts
+ * where a pointer to an object of type union acpi_operand_object can also
  * appear. This macro is used to distinguish them.
  *
  * The "Descriptor" field is the first field in both structures.

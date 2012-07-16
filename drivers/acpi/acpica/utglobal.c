@@ -247,8 +247,9 @@ struct acpi_fixed_event_info acpi_gbl_fixed_event_info[ACPI_NUM_FIXED_EVENTS] = 
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Init library globals.  All globals that require specific
- *              initialization should be initialized here!
+ * DESCRIPTION: Initialize ACPICA globals. All globals that require specific
+ *              initialization should be initialized here. This allows for
+ *              a warm restart.
  *
  ******************************************************************************/
 

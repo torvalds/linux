@@ -395,8 +395,8 @@ acpi_ex_prep_common_field_object(union acpi_operand_object *obj_desc,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Construct a union acpi_operand_object of type def_field and
- *              connect it to the parent Node.
+ * DESCRIPTION: Construct an object of type union acpi_operand_object with a
+ *              subtype of def_field and connect it to the parent Node.
  *
  ******************************************************************************/
 
