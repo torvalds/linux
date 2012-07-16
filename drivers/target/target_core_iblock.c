@@ -324,7 +324,6 @@ static int iblock_execute_unmap(struct se_cmd *cmd)
 	struct se_device *dev = cmd->se_dev;
 	struct iblock_dev *ibd = dev->dev_ptr;
 	unsigned char *buf, *ptr = NULL;
-	unsigned char *cdb = &cmd->t_task_cdb[0];
 	sector_t lba;
 	unsigned int size = cmd->data_length, range;
 	int ret = 0, offset;
@@ -333,10 +332,11 @@ static int iblock_execute_unmap(struct se_cmd *cmd)
 	/* First UNMAP block descriptor starts at 8 byte offset */
 	offset = 8;
 	size -= 8;
-	dl = get_unaligned_be16(&cdb[0]);
-	bd_dl = get_unaligned_be16(&cdb[2]);
 
 	buf = transport_kmap_data_sg(cmd);
+
+	dl = get_unaligned_be16(&buf[0]);
+	bd_dl = get_unaligned_be16(&buf[2]);
 
 	ptr = &buf[offset];
 	pr_debug("UNMAP: Sub: %s Using dl: %hu bd_dl: %hu size: %hu"
