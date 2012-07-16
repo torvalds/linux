@@ -201,7 +201,7 @@ static const struct dentry_operations msdos_dentry_operations = {
 
 /***** Get inode using directory and name */
 static struct dentry *msdos_lookup(struct inode *dir, struct dentry *dentry,
-				   struct nameidata *nd)
+				   unsigned int flags)
 {
 	struct super_block *sb = dir->i_sb;
 	struct fat_slot_info sinfo;
@@ -265,7 +265,7 @@ static int msdos_add_entry(struct inode *dir, const unsigned char *name,
 
 /***** Create a file */
 static int msdos_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-			struct nameidata *nd)
+			bool excl)
 {
 	struct super_block *sb = dir->i_sb;
 	struct inode *inode = NULL;

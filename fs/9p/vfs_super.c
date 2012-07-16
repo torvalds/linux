@@ -89,7 +89,7 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 	if (v9ses->cache)
 		sb->s_bdi->ra_pages = (VM_MAX_READAHEAD * 1024)/PAGE_CACHE_SIZE;
 
-	sb->s_flags = flags | MS_ACTIVE | MS_DIRSYNC | MS_NOATIME;
+	sb->s_flags |= MS_ACTIVE | MS_DIRSYNC | MS_NOATIME;
 	if (!v9ses->cache)
 		sb->s_flags |= MS_SYNCHRONOUS;
 
@@ -137,7 +137,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 		goto close_session;
 	}
 
-	sb = sget(fs_type, NULL, v9fs_set_super, v9ses);
+	sb = sget(fs_type, NULL, v9fs_set_super, flags, v9ses);
 	if (IS_ERR(sb)) {
 		retval = PTR_ERR(sb);
 		goto clunk_fid;

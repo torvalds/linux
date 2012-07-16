@@ -168,7 +168,7 @@ const struct dentry_operations hfsplus_dentry_operations = {
 };
 
 static struct dentry *hfsplus_file_lookup(struct inode *dir,
-		struct dentry *dentry, struct nameidata *nd)
+		struct dentry *dentry, unsigned int flags)
 {
 	struct hfs_find_data fd;
 	struct super_block *sb = dir->i_sb;

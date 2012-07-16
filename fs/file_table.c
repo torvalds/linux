@@ -483,10 +483,8 @@ void mark_files_ro(struct super_block *sb)
 {
 	struct file *f;
 
-retry:
 	lg_global_lock(&files_lglock);
 	do_file_list_for_each_entry(sb, f) {
-		struct vfsmount *mnt;
 		if (!S_ISREG(f->f_path.dentry->d_inode->i_mode))
 		       continue;
 		if (!file_count(f))
@@ -499,12 +497,7 @@ retry:
 		if (file_check_writeable(f) != 0)
 			continue;
 		file_release_write(f);
-		mnt = mntget(f->f_path.mnt);
-		/* This can sleep, so we can't hold the spinlock. */
-		lg_global_unlock(&files_lglock);
-		mnt_drop_write(mnt);
-		mntput(mnt);
-		goto retry;
+		mnt_drop_write_file(f);
 	} while_file_list_for_each_entry;
 	lg_global_unlock(&files_lglock);
 }

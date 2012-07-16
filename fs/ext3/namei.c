@@ -1011,7 +1011,7 @@ errout:
 	return NULL;
 }
 
-static struct dentry *ext3_lookup(struct inode * dir, struct dentry *dentry, struct nameidata *nd)
+static struct dentry *ext3_lookup(struct inode * dir, struct dentry *dentry, unsigned int flags)
 {
 	struct inode * inode;
 	struct ext3_dir_entry_2 * de;
@@ -1690,7 +1690,7 @@ static int ext3_add_nondir(handle_t *handle,
  * with d_instantiate().
  */
 static int ext3_create (struct inode * dir, struct dentry * dentry, umode_t mode,
-		struct nameidata *nd)
+		bool excl)
 {
 	handle_t *handle;
 	struct inode * inode;

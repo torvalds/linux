@@ -350,6 +350,7 @@ struct bnx2i_hba {
 	struct pci_dev *pcidev;
 	struct net_device *netdev;
 	void __iomem *regview;
+	resource_size_t reg_base;
 
 	u32 age;
 	unsigned long cnic_dev_type;

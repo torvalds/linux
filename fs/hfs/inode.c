@@ -489,7 +489,7 @@ out:
 }
 
 static struct dentry *hfs_file_lookup(struct inode *dir, struct dentry *dentry,
-				      struct nameidata *nd)
+				      unsigned int flags)
 {
 	struct inode *inode = NULL;
 	hfs_cat_rec rec;

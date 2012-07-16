@@ -14,6 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <asm/byteorder.h>
 #include <asm/backtrace.h>
 #include <asm/tile-desc.h>
 #include <arch/abi.h>
@@ -336,8 +337,12 @@ static void find_caller_pc_and_caller_sp(CallerLocation *location,
 				bytes_to_prefetch / sizeof(tile_bundle_bits);
 		}
 
-		/* Decode the next bundle. */
-		bundle.bits = prefetched_bundles[next_bundle++];
+		/*
+		 * Decode the next bundle.
+		 * TILE always stores instruction bundles in little-endian
+		 * mode, even when the chip is running in big-endian mode.
+		 */
+		bundle.bits = le64_to_cpu(prefetched_bundles[next_bundle++]);
 		bundle.num_insns =
 			parse_insn_tile(bundle.bits, pc, bundle.insns);
 		num_info_ops = bt_get_info_ops(&bundle, info_operands);

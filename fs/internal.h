@@ -50,8 +50,6 @@ extern int copy_mount_string(const void __user *, char **);
 extern struct vfsmount *lookup_mnt(struct path *);
 extern int finish_automount(struct vfsmount *, struct path *);
 
-extern void mnt_make_longterm(struct vfsmount *);
-extern void mnt_make_shortterm(struct vfsmount *);
 extern int sb_prepare_remount_readonly(struct super_block *);
 
 extern void __init mnt_init(void);
@@ -84,9 +82,6 @@ extern struct super_block *user_get_super(dev_t);
 /*
  * open.c
  */
-struct nameidata;
-extern struct file *nameidata_to_filp(struct nameidata *);
-extern void release_open_intent(struct nameidata *);
 struct open_flags {
 	int open_flag;
 	umode_t mode;
