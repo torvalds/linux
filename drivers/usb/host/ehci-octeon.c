@@ -56,7 +56,7 @@ static const struct hc_driver ehci_octeon_hc_driver = {
 	/*
 	 * basic lifecycle operations
 	 */
-	.reset			= ehci_init,
+	.reset			= ehci_setup,
 	.start			= ehci_run,
 	.stop			= ehci_stop,
 	.shutdown		= ehci_shutdown,
@@ -150,12 +150,6 @@ static int ehci_octeon_drv_probe(struct platform_device *pdev)
 #endif
 
 	ehci->caps = hcd->regs;
-	ehci->regs = hcd->regs +
-		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
-	/* cache this readonly data; minimize chip reads */
-	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
-
-	ehci_reset(ehci);
 
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret) {

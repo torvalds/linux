@@ -93,6 +93,12 @@ struct usb_hcd {
 	 */
 	const struct hc_driver	*driver;	/* hw-specific hooks */
 
+	/*
+	 * OTG and some Host controllers need software interaction with phys;
+	 * other external phys should be software-transparent
+	 */
+	struct usb_phy	*phy;
+
 	/* Flags that need to be manipulated atomically because they can
 	 * change while the host controller is running.  Always use
 	 * set_bit() or clear_bit() to change their values.

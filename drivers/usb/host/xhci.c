@@ -4450,6 +4450,8 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 
 	/* Accept arbitrarily long scatter-gather lists */
 	hcd->self.sg_tablesize = ~0;
+	/* XHCI controllers don't stop the ep queue on short packets :| */
+	hcd->self.no_stop_on_short = 1;
 
 	if (usb_hcd_is_primary_hcd(hcd)) {
 		xhci = kzalloc(sizeof(struct xhci_hcd), GFP_KERNEL);

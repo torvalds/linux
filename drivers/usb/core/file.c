@@ -92,7 +92,7 @@ static int init_usb_class(void)
 	}
 
 	kref_init(&usb_class->kref);
-	usb_class->class = class_create(THIS_MODULE, "usb");
+	usb_class->class = class_create(THIS_MODULE, "usbmisc");
 	if (IS_ERR(usb_class->class)) {
 		result = IS_ERR(usb_class->class);
 		printk(KERN_ERR "class_create failed for usb devices\n");

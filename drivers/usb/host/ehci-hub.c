@@ -107,7 +107,7 @@ static void ehci_handover_companion_ports(struct ehci_hcd *ehci)
 	ehci->owned_ports = 0;
 }
 
-static int __maybe_unused ehci_port_change(struct ehci_hcd *ehci)
+static int ehci_port_change(struct ehci_hcd *ehci)
 {
 	int i = HCS_N_PORTS(ehci->hcs_params);
 
@@ -128,7 +128,7 @@ static int __maybe_unused ehci_port_change(struct ehci_hcd *ehci)
 	return 0;
 }
 
-static __maybe_unused void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
+static void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
 		bool suspending, bool do_wakeup)
 {
 	int		port;
@@ -149,10 +149,8 @@ static __maybe_unused void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
 	if (ehci->has_hostpc) {
 		port = HCS_N_PORTS(ehci->hcs_params);
 		while (port--) {
-			u32 __iomem	*hostpc_reg;
+			u32 __iomem	*hostpc_reg = &ehci->regs->hostpc[port];
 
-			hostpc_reg = (u32 __iomem *)((u8 *) ehci->regs
-					+ HOSTPC0 + 4 * port);
 			temp = ehci_readl(ehci, hostpc_reg);
 			ehci_writel(ehci, temp & ~HOSTPC_PHCD, hostpc_reg);
 		}
@@ -185,10 +183,8 @@ static __maybe_unused void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
 	if (ehci->has_hostpc) {
 		port = HCS_N_PORTS(ehci->hcs_params);
 		while (port--) {
-			u32 __iomem	*hostpc_reg;
+			u32 __iomem	*hostpc_reg = &ehci->regs->hostpc[port];
 
-			hostpc_reg = (u32 __iomem *)((u8 *) ehci->regs
-					+ HOSTPC0 + 4 * port);
 			temp = ehci_readl(ehci, hostpc_reg);
 			ehci_writel(ehci, temp | HOSTPC_PHCD, hostpc_reg);
 		}
@@ -285,11 +281,9 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 
 		port = HCS_N_PORTS(ehci->hcs_params);
 		while (port--) {
-			u32 __iomem	*hostpc_reg;
+			u32 __iomem	*hostpc_reg = &ehci->regs->hostpc[port];
 			u32		t3;
 
-			hostpc_reg = (u32 __iomem *)((u8 *) ehci->regs
-					+ HOSTPC0 + 4 * port);
 			t3 = ehci_readl(ehci, hostpc_reg);
 			ehci_writel(ehci, t3 | HOSTPC_PHCD, hostpc_reg);
 			t3 = ehci_readl(ehci, hostpc_reg);
@@ -388,10 +382,9 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 		i = HCS_N_PORTS(ehci->hcs_params);
 		while (i--) {
 			if (test_bit(i, &ehci->bus_suspended)) {
-				u32 __iomem	*hostpc_reg;
+				u32 __iomem	*hostpc_reg =
+							&ehci->regs->hostpc[i];
 
-				hostpc_reg = (u32 __iomem *)((u8 *) ehci->regs
-						+ HOSTPC0 + 4 * i);
 				temp = ehci_readl(ehci, hostpc_reg);
 				ehci_writel(ehci, temp & ~HOSTPC_PHCD,
 						hostpc_reg);
@@ -667,7 +660,7 @@ static int ehci_hub_control (
 	int		ports = HCS_N_PORTS (ehci->hcs_params);
 	u32 __iomem	*status_reg = &ehci->regs->port_status[
 				(wIndex & 0xff) - 1];
-	u32 __iomem	*hostpc_reg = NULL;
+	u32 __iomem	*hostpc_reg = &ehci->regs->hostpc[(wIndex & 0xff) - 1];
 	u32		temp, temp1, status;
 	unsigned long	flags;
 	int		retval = 0;
@@ -680,9 +673,6 @@ static int ehci_hub_control (
 	 * power, "this is the one", etc.  EHCI spec supports this.
 	 */
 
-	if (ehci->has_hostpc)
-		hostpc_reg = (u32 __iomem *)((u8 *)ehci->regs
-				+ HOSTPC0 + 4 * ((wIndex & 0xff) - 1));
 	spin_lock_irqsave (&ehci->lock, flags);
 	switch (typeReq) {
 	case ClearHubFeature:
@@ -724,7 +714,7 @@ static int ehci_hub_control (
 #ifdef CONFIG_USB_OTG
 			if ((hcd->self.otg_port == (wIndex + 1))
 			    && hcd->self.b_hnp_enable) {
-				otg_start_hnp(ehci->transceiver->otg);
+				otg_start_hnp(hcd->phy->otg);
 				break;
 			}
 #endif
@@ -734,7 +724,7 @@ static int ehci_hub_control (
 				goto error;
 
 			/* clear phy low-power mode before resume */
-			if (hostpc_reg) {
+			if (ehci->has_hostpc) {
 				temp1 = ehci_readl(ehci, hostpc_reg);
 				ehci_writel(ehci, temp1 & ~HOSTPC_PHCD,
 						hostpc_reg);
@@ -984,7 +974,7 @@ static int ehci_hub_control (
 			temp &= ~PORT_WKCONN_E;
 			temp |= PORT_WKDISC_E | PORT_WKOC_E;
 			ehci_writel(ehci, temp | PORT_SUSPEND, status_reg);
-			if (hostpc_reg) {
+			if (ehci->has_hostpc) {
 				spin_unlock_irqrestore(&ehci->lock, flags);
 				msleep(5);/* 5ms for HCD enter low pwr mode */
 				spin_lock_irqsave(&ehci->lock, flags);

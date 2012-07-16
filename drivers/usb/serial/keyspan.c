@@ -1036,15 +1036,12 @@ static int keyspan_write_room(struct tty_struct *tty)
 static int keyspan_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct keyspan_port_private 	*p_priv;
-	struct keyspan_serial_private 	*s_priv;
-	struct usb_serial 		*serial = port->serial;
 	const struct keyspan_device_details	*d_details;
 	int				i, err;
 	int				baud_rate, device_port;
 	struct urb			*urb;
 	unsigned int			cflag = 0;
 
-	s_priv = usb_get_serial_data(serial);
 	p_priv = usb_get_serial_port_data(port);
 	d_details = p_priv->device_details;
 
@@ -1130,10 +1127,8 @@ static void keyspan_close(struct usb_serial_port *port)
 {
 	int			i;
 	struct usb_serial	*serial = port->serial;
-	struct keyspan_serial_private 	*s_priv;
 	struct keyspan_port_private 	*p_priv;
 
-	s_priv = usb_get_serial_data(serial);
 	p_priv = usb_get_serial_port_data(port);
 
 	p_priv->rts_state = 0;

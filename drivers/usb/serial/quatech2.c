@@ -345,7 +345,6 @@ static void qt2_set_termios(struct tty_struct *tty,
 static int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial;
-	struct qt2_serial_private *serial_priv;
 	struct qt2_port_private *port_priv;
 	u8 *data;
 	u16 device_port;
@@ -357,7 +356,6 @@ static int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 	serial = port->serial;
 
 	port_priv = usb_get_serial_port_data(port);
-	serial_priv = usb_get_serial_data(serial);
 
 	/* set the port to RS232 mode */
 	status = qt2_control_msg(serial->dev, QT2_GET_SET_QMCR,
@@ -417,13 +415,11 @@ static int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 static void qt2_close(struct usb_serial_port *port)
 {
 	struct usb_serial *serial;
-	struct qt2_serial_private *serial_priv;
 	struct qt2_port_private *port_priv;
 	unsigned long flags;
 	int i;
 
 	serial = port->serial;
-	serial_priv = usb_get_serial_data(serial);
 	port_priv = usb_get_serial_port_data(port);
 
 	port_priv->is_open = false;

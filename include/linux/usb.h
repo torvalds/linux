@@ -331,6 +331,11 @@ struct usb_bus {
 	u8 otg_port;			/* 0, or number of OTG/HNP port */
 	unsigned is_b_host:1;		/* true during some HNP roleswitches */
 	unsigned b_hnp_enable:1;	/* OTG: did A-Host enable HNP? */
+	unsigned no_stop_on_short:1;    /*
+					 * Quirk: some controllers don't stop
+					 * the ep queue on a short transfer
+					 * with the URB_SHORT_NOT_OK flag set.
+					 */
 	unsigned sg_tablesize;		/* 0 or largest number of sg list entries */
 
 	int devnum_next;		/* Next open device number in
@@ -775,6 +780,22 @@ static inline int usb_make_path(struct usb_device *dev, char *buf, size_t size)
 	.idVendor = (vend), \
 	.idProduct = (prod), \
 	.bInterfaceProtocol = (pr)
+
+/**
+ * USB_DEVICE_INTERFACE_NUMBER - describe a usb device with a specific interface number
+ * @vend: the 16 bit USB Vendor ID
+ * @prod: the 16 bit USB Product ID
+ * @num: bInterfaceNumber value
+ *
+ * This macro is used to create a struct usb_device_id that matches a
+ * specific interface number of devices.
+ */
+#define USB_DEVICE_INTERFACE_NUMBER(vend, prod, num) \
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE | \
+		       USB_DEVICE_ID_MATCH_INT_NUMBER, \
+	.idVendor = (vend), \
+	.idProduct = (prod), \
+	.bInterfaceNumber = (num)
 
 /**
  * USB_DEVICE_INFO - macro used to describe a class of usb devices

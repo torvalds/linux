@@ -1811,7 +1811,7 @@ static int imx21_remove(struct platform_device *pdev)
 	usb_remove_hcd(hcd);
 
 	if (res != NULL) {
-		clk_disable(imx21->clk);
+		clk_disable_unprepare(imx21->clk);
 		clk_put(imx21->clk);
 		iounmap(imx21->regs);
 		release_mem_region(res->start, resource_size(res));
@@ -1884,7 +1884,7 @@ static int imx21_probe(struct platform_device *pdev)
 	ret = clk_set_rate(imx21->clk, clk_round_rate(imx21->clk, 48000000));
 	if (ret)
 		goto failed_clock_set;
-	ret = clk_enable(imx21->clk);
+	ret = clk_prepare_enable(imx21->clk);
 	if (ret)
 		goto failed_clock_enable;
 
@@ -1900,7 +1900,7 @@ static int imx21_probe(struct platform_device *pdev)
 	return 0;
 
 failed_add_hcd:
-	clk_disable(imx21->clk);
+	clk_disable_unprepare(imx21->clk);
 failed_clock_enable:
 failed_clock_set:
 	clk_put(imx21->clk);

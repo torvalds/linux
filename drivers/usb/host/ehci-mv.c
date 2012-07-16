@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/usb/otg.h>
 #include <linux/platform_data/mv_usb.h>
 
@@ -76,7 +77,6 @@ static void mv_ehci_disable(struct ehci_hcd_mv *ehci_mv)
 
 static int mv_ehci_reset(struct usb_hcd *hcd)
 {
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	struct device *dev = hcd->self.controller;
 	struct ehci_hcd_mv *ehci_mv = dev_get_drvdata(dev);
 	int retval;
@@ -86,25 +86,13 @@ static int mv_ehci_reset(struct usb_hcd *hcd)
 		return -ENODEV;
 	}
 
-	/*
-	 * data structure init
-	 */
-	retval = ehci_init(hcd);
-	if (retval) {
-		dev_err(dev, "ehci_init failed %d\n", retval);
-		return retval;
-	}
-
 	hcd->has_tt = 1;
-	ehci->sbrn = 0x20;
 
-	retval = ehci_reset(ehci);
-	if (retval) {
-		dev_err(dev, "ehci_reset failed %d\n", retval);
-		return retval;
-	}
+	retval = ehci_setup(hcd);
+	if (retval)
+		dev_err(dev, "ehci_setup failed %d\n", retval);
 
-	return 0;
+	return retval;
 }
 
 static const struct hc_driver mv_ehci_hc_driver = {
@@ -247,14 +235,12 @@ static int mv_ehci_probe(struct platform_device *pdev)
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = (struct ehci_caps *) ehci_mv->cap_regs;
-	ehci->regs = (struct ehci_regs *) ehci_mv->op_regs;
-	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
 	ehci_mv->mode = pdata->mode;
 	if (ehci_mv->mode == MV_USB_MODE_OTG) {
 #ifdef CONFIG_USB_OTG_UTILS
-		ehci_mv->otg = usb_get_transceiver();
-		if (!ehci_mv->otg) {
+		ehci_mv->otg = usb_get_phy(USB_PHY_TYPE_USB2);
+		if (IS_ERR_OR_NULL(ehci_mv->otg)) {
 			dev_err(&pdev->dev,
 				"unable to find transceiver\n");
 			retval = -ENODEV;
@@ -302,8 +288,8 @@ err_set_vbus:
 		pdata->set_vbus(0);
 #ifdef CONFIG_USB_OTG_UTILS
 err_put_transceiver:
-	if (ehci_mv->otg)
-		usb_put_transceiver(ehci_mv->otg);
+	if (!IS_ERR_OR_NULL(ehci_mv->otg))
+		usb_put_phy(ehci_mv->otg);
 #endif
 err_disable_clk:
 	mv_ehci_disable(ehci_mv);
@@ -331,9 +317,9 @@ static int mv_ehci_remove(struct platform_device *pdev)
 	if (hcd->rh_registered)
 		usb_remove_hcd(hcd);
 
-	if (ehci_mv->otg) {
+	if (!IS_ERR_OR_NULL(ehci_mv->otg)) {
 		otg_set_host(ehci_mv->otg->otg, NULL);
-		usb_put_transceiver(ehci_mv->otg);
+		usb_put_phy(ehci_mv->otg);
 	}
 
 	if (ehci_mv->mode == MV_USB_MODE_HOST) {
