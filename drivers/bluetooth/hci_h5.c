@@ -58,21 +58,27 @@
 #define SLIP_ESC_DELIM	0xdc
 #define SLIP_ESC_ESC	0xdd
 
+/* H5 state flags */
+enum {
+	H5_RX_ESC,	/* SLIP escape mode */
+	H5_TX_ACK_REQ,	/* Pending ack to send */
+};
+
 struct h5 {
 	struct sk_buff_head	unack;		/* Unack'ed packets queue */
 	struct sk_buff_head	rel;		/* Reliable packets queue */
 	struct sk_buff_head	unrel;		/* Unreliable packets queue */
 
+	unsigned long		flags;
+
 	struct sk_buff		*rx_skb;	/* Receive buffer */
 	size_t			rx_pending;	/* Expecting more bytes */
-	bool			rx_esc;		/* SLIP escape mode */
 	u8			rx_ack;		/* Last ack number received */
 
 	int			(*rx_func) (struct hci_uart *hu, u8 c);
 
 	struct timer_list	timer;		/* Retransmission timer */
 
-	bool			tx_ack_req;	/* Pending ack to send */
 	u8			tx_seq;		/* Next seq number to send */
 	u8			tx_ack;		/* Next ack number to send */
 	u8			tx_win;		/* Sliding window size */
@@ -317,7 +323,7 @@ static void h5_complete_rx_pkt(struct hci_uart *hu)
 
 	if (H5_HDR_RELIABLE(hdr)) {
 		h5->tx_ack = (h5->tx_ack + 1) % 8;
-		h5->tx_ack_req = true;
+		set_bit(H5_TX_ACK_REQ, &h5->flags);
 		hci_uart_tx_wakeup(hu);
 	}
 
@@ -445,12 +451,12 @@ static void h5_unslip_one_byte(struct h5 *h5, unsigned char c)
 	const u8 delim = SLIP_DELIMITER, esc = SLIP_ESC;
 	const u8 *byte = &c;
 
-	if (!h5->rx_esc && c == SLIP_ESC) {
-		h5->rx_esc = true;
+	if (!test_bit(H5_RX_ESC, &h5->flags) && c == SLIP_ESC) {
+		set_bit(H5_RX_ESC, &h5->flags);
 		return;
 	}
 
-	if (h5->rx_esc) {
+	if (test_and_clear_bit(H5_RX_ESC, &h5->flags)) {
 		switch (c) {
 		case SLIP_ESC_DELIM:
 			byte = &delim;
@@ -463,8 +469,6 @@ static void h5_unslip_one_byte(struct h5 *h5, unsigned char c)
 			h5_reset_rx(h5);
 			return;
 		}
-
-		h5->rx_esc = false;
 	}
 
 	memcpy(skb_put(h5->rx_skb, 1), byte, 1);
@@ -482,7 +486,7 @@ static void h5_reset_rx(struct h5 *h5)
 
 	h5->rx_func = h5_rx_delimiter;
 	h5->rx_pending = 0;
-	h5->rx_esc = false;
+	clear_bit(H5_RX_ESC, &h5->flags);
 }
 
 static int h5_recv(struct hci_uart *hu, void *data, int count)
@@ -621,7 +625,7 @@ static struct sk_buff *h5_prepare_pkt(struct hci_uart *hu, u8 pkt_type,
 	h5_slip_delim(nskb);
 
 	hdr[0] = h5->tx_ack << 3;
-	h5->tx_ack_req = false;
+	clear_bit(H5_TX_ACK_REQ, &h5->flags);
 
 	/* Reliable packet? */
 	if (pkt_type == HCI_ACLDATA_PKT || pkt_type == HCI_COMMAND_PKT) {
@@ -703,7 +707,7 @@ static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 unlock:
 	spin_unlock_irqrestore(&h5->unack.lock, flags);
 
-	if (h5->tx_ack_req)
+	if (test_bit(H5_TX_ACK_REQ, &h5->flags))
 		return h5_prepare_pkt(hu, HCI_3WIRE_ACK_PKT, NULL, 0);
 
 	return NULL;
