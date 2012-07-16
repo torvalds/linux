@@ -1352,12 +1352,14 @@ static int pd_video_open(struct file *file)
 	mutex_lock(&pd->lock);
 	usb_autopm_get_interface(pd->interface);
 
-	if (vfd->vfl_type == VFL_TYPE_GRABBER
-		&& !(pd->state & POSEIDON_STATE_ANALOG)) {
-		front = kzalloc(sizeof(struct front_face), GFP_KERNEL);
-		if (!front)
-			goto out;
-
+	if (pd->state && !(pd->state & POSEIDON_STATE_ANALOG)) {
+		ret = -EBUSY;
+		goto out;
+	}
+	front = kzalloc(sizeof(struct front_face), GFP_KERNEL);
+	if (!front)
+		goto out;
+	if (vfd->vfl_type == VFL_TYPE_GRABBER) {
 		pd->cur_transfer_mode	= usb_transfer_mode;/* bulk or iso */
 		init_video_context(&pd->video_data.context);
 
@@ -1368,7 +1370,6 @@ static int pd_video_open(struct file *file)
 			goto out;
 		}
 
-		pd->state		|= POSEIDON_STATE_ANALOG;
 		front->type		= V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		pd->video_data.users++;
 		set_debug_mode(vfd, debug_mode);
@@ -1379,13 +1380,7 @@ static int pd_video_open(struct file *file)
 				V4L2_FIELD_INTERLACED,/* video is interlacd */
 				sizeof(struct videobuf_buffer),/*it's enough*/
 				front, NULL);
-	} else if (vfd->vfl_type == VFL_TYPE_VBI
-		&& !(pd->state & POSEIDON_STATE_VBI)) {
-		front = kzalloc(sizeof(struct front_face), GFP_KERNEL);
-		if (!front)
-			goto out;
-
-		pd->state	|= POSEIDON_STATE_VBI;
+	} else {
 		front->type	= V4L2_BUF_TYPE_VBI_CAPTURE;
 		pd->vbi_data.front = front;
 		pd->vbi_data.users++;
@@ -1396,19 +1391,15 @@ static int pd_video_open(struct file *file)
 				V4L2_FIELD_NONE, /* vbi is NONE mode */
 				sizeof(struct videobuf_buffer),
 				front, NULL);
-	} else {
-		/* maybe add FM support here */
-		log("other ");
-		ret = -EINVAL;
-		goto out;
 	}
 
-	front->pd		= pd;
-	front->curr_frame	= NULL;
+	pd->state |= POSEIDON_STATE_ANALOG;
+	front->pd = pd;
+	front->curr_frame = NULL;
 	INIT_LIST_HEAD(&front->active);
 	spin_lock_init(&front->queue_lock);
 
-	file->private_data	= front;
+	file->private_data = front;
 	kref_get(&pd->kref);
 
 	mutex_unlock(&pd->lock);
@@ -1429,8 +1420,6 @@ static int pd_video_release(struct file *file)
 	mutex_lock(&pd->lock);
 
 	if (front->type	== V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		pd->state &= ~POSEIDON_STATE_ANALOG;
-
 		/* stop the device, and free the URBs */
 		usb_transfer_stop(&pd->video_data);
 		free_all_urb(&pd->video_data);
@@ -1442,10 +1431,11 @@ static int pd_video_release(struct file *file)
 		pd->file_for_stream = NULL;
 		pd->video_data.users--;
 	} else if (front->type	== V4L2_BUF_TYPE_VBI_CAPTURE) {
-		pd->state &= ~POSEIDON_STATE_VBI;
 		pd->vbi_data.front = NULL;
 		pd->vbi_data.users--;
 	}
+	if (!pd->vbi_data.users && !pd->video_data.users)
+		pd->state &= ~POSEIDON_STATE_ANALOG;
 	videobuf_stop(&front->q);
 	videobuf_mmap_free(&front->q);
 
