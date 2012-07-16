@@ -876,7 +876,27 @@ static void pm2xxx_charger_check_hw_failure_work(struct work_struct *work)
 static void pm2xxx_charger_check_main_thermal_prot_work(
 	struct work_struct *work)
 {
-};
+	int ret;
+	u8 val;
+
+	struct pm2xxx_charger *pm2 = container_of(work, struct pm2xxx_charger,
+					check_main_thermal_prot_work);
+
+	/* Check if die temp warning is still active */
+	ret = pm2xxx_reg_read(pm2, PM2XXX_SRCE_REG_INT5, &val);
+	if (ret < 0) {
+		dev_err(pm2->dev, "%s pm2xxx read failed\n", __func__);
+		return;
+	}
+	if (val & (PM2XXX_INT5_S_ITTHERMALWARNINGRISE
+			| PM2XXX_INT5_S_ITTHERMALSHUTDOWNRISE))
+		pm2->flags.main_thermal_prot = true;
+	else if (val & (PM2XXX_INT5_S_ITTHERMALWARNINGFALL
+				| PM2XXX_INT5_S_ITTHERMALSHUTDOWNFALL))
+		pm2->flags.main_thermal_prot = false;
+
+	power_supply_changed(&pm2->ac_chg.psy);
+}
 
 static struct pm2xxx_interrupts pm2xxx_int = {
 	.handler[0] = pm2_int_reg0,
