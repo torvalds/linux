@@ -49,19 +49,6 @@
 #include <plat/regs-nand.h>
 #include <plat/nand.h>
 
-#ifdef CONFIG_MTD_NAND_S3C2410_HWECC
-static int hardware_ecc = 1;
-#else
-static int hardware_ecc = 0;
-#endif
-
-#ifdef CONFIG_MTD_NAND_S3C2410_CLKSTOP
-static const int clock_stop = 1;
-#else
-static const int clock_stop = 0;
-#endif
-
-
 /* new oob placement block for use with hardware ecc generation
  */
 
@@ -170,7 +157,11 @@ static struct s3c2410_platform_nand *to_nand_plat(struct platform_device *dev)
 
 static inline int allow_clk_suspend(struct s3c2410_nand_info *info)
 {
-	return clock_stop;
+#ifdef CONFIG_MTD_NAND_S3C2410_CLKSTOP
+	return 1;
+#else
+	return 0;
+#endif
 }
 
 /**
@@ -821,32 +812,31 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 	nmtd->mtd.owner    = THIS_MODULE;
 	nmtd->set	   = set;
 
-	if (hardware_ecc) {
+#ifdef CONFIG_MTD_NAND_S3C2410_HWECC
+	chip->ecc.calculate = s3c2410_nand_calculate_ecc;
+	chip->ecc.correct   = s3c2410_nand_correct_data;
+	chip->ecc.mode	    = NAND_ECC_HW;
+	chip->ecc.strength  = 1;
+
+	switch (info->cpu_type) {
+	case TYPE_S3C2410:
+		chip->ecc.hwctl	    = s3c2410_nand_enable_hwecc;
 		chip->ecc.calculate = s3c2410_nand_calculate_ecc;
-		chip->ecc.correct   = s3c2410_nand_correct_data;
-		chip->ecc.mode	    = NAND_ECC_HW;
-		chip->ecc.strength  = 1;
+		break;
 
-		switch (info->cpu_type) {
-		case TYPE_S3C2410:
-			chip->ecc.hwctl	    = s3c2410_nand_enable_hwecc;
-			chip->ecc.calculate = s3c2410_nand_calculate_ecc;
-			break;
+	case TYPE_S3C2412:
+		chip->ecc.hwctl     = s3c2412_nand_enable_hwecc;
+		chip->ecc.calculate = s3c2412_nand_calculate_ecc;
+		break;
 
-		case TYPE_S3C2412:
-  			chip->ecc.hwctl     = s3c2412_nand_enable_hwecc;
-  			chip->ecc.calculate = s3c2412_nand_calculate_ecc;
-			break;
-
-		case TYPE_S3C2440:
-  			chip->ecc.hwctl     = s3c2440_nand_enable_hwecc;
-  			chip->ecc.calculate = s3c2440_nand_calculate_ecc;
-			break;
-
-		}
-	} else {
-		chip->ecc.mode	    = NAND_ECC_SOFT;
+	case TYPE_S3C2440:
+		chip->ecc.hwctl     = s3c2440_nand_enable_hwecc;
+		chip->ecc.calculate = s3c2440_nand_calculate_ecc;
+		break;
 	}
+#else
+	chip->ecc.mode	    = NAND_ECC_SOFT;
+#endif
 
 	if (set->ecc_layout != NULL)
 		chip->ecc.layout = set->ecc_layout;
