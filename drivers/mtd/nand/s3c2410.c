@@ -1134,20 +1134,7 @@ static struct platform_driver s3c24xx_nand_driver = {
 	},
 };
 
-static int __init s3c2410_nand_init(void)
-{
-	printk("S3C24XX NAND Driver, (c) 2004 Simtec Electronics\n");
-
-	return platform_driver_register(&s3c24xx_nand_driver);
-}
-
-static void __exit s3c2410_nand_exit(void)
-{
-	platform_driver_unregister(&s3c24xx_nand_driver);
-}
-
-module_init(s3c2410_nand_init);
-module_exit(s3c2410_nand_exit);
+module_platform_driver(s3c24xx_nand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
