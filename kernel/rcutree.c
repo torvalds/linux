@@ -139,7 +139,7 @@ DEFINE_PER_CPU(char, rcu_cpu_has_work);
 
 #endif /* #ifdef CONFIG_RCU_BOOST */
 
-static void rcu_node_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu);
+static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu);
 static void invoke_rcu_core(void);
 static void invoke_rcu_callbacks(struct rcu_state *rsp, struct rcu_data *rdp);
 
@@ -1469,7 +1469,7 @@ static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 
 	/* Adjust any no-longer-needed kthreads. */
 	rcu_stop_cpu_kthread(cpu);
-	rcu_node_kthread_setaffinity(rnp, -1);
+	rcu_boost_kthread_setaffinity(rnp, -1);
 
 	/* Remove the dead CPU from the bitmasks in the rcu_node hierarchy. */
 
@@ -2594,11 +2594,11 @@ static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
 		break;
 	case CPU_ONLINE:
 	case CPU_DOWN_FAILED:
-		rcu_node_kthread_setaffinity(rnp, -1);
+		rcu_boost_kthread_setaffinity(rnp, -1);
 		rcu_cpu_kthread_setrt(cpu, 1);
 		break;
 	case CPU_DOWN_PREPARE:
-		rcu_node_kthread_setaffinity(rnp, cpu);
+		rcu_boost_kthread_setaffinity(rnp, cpu);
 		rcu_cpu_kthread_setrt(cpu, 0);
 		break;
 	case CPU_DYING:
