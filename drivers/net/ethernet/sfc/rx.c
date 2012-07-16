@@ -479,7 +479,7 @@ static void efx_rx_packet_gro(struct efx_channel *channel,
 		skb->ip_summed = ((rx_buf->flags & EFX_RX_PKT_CSUMMED) ?
 				  CHECKSUM_UNNECESSARY : CHECKSUM_NONE);
 
-		skb_record_rx_queue(skb, channel->channel);
+		skb_record_rx_queue(skb, channel->rx_queue.core_index);
 
 		gro_result = napi_gro_frags(napi);
 	} else {
@@ -571,6 +571,9 @@ static void efx_rx_deliver(struct efx_channel *channel,
 	/* Set the SKB flags */
 	skb_checksum_none_assert(skb);
 
+	/* Record the rx_queue */
+	skb_record_rx_queue(skb, channel->rx_queue.core_index);
+
 	/* Pass the packet up */
 	netif_receive_skb(skb);
 
@@ -608,7 +611,7 @@ void __efx_rx_packet(struct efx_channel *channel, struct efx_rx_buffer *rx_buf)
 		 * at the ethernet header */
 		skb->protocol = eth_type_trans(skb, efx->net_dev);
 
-		skb_record_rx_queue(skb, channel->channel);
+		skb_record_rx_queue(skb, channel->rx_queue.core_index);
 	}
 
 	if (unlikely(!(efx->net_dev->features & NETIF_F_RXCSUM)))

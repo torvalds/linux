@@ -242,6 +242,8 @@ struct efx_rx_page_state {
 /**
  * struct efx_rx_queue - An Efx RX queue
  * @efx: The associated Efx NIC
+ * @core_index:  Index of network core RX queue.  Will be >= 0 iff this
+ *	is associated with a real RX queue.
  * @buffer: The software buffer ring
  * @rxd: The hardware descriptor ring
  * @ptr_mask: The size of the ring minus 1.
@@ -263,6 +265,7 @@ struct efx_rx_page_state {
  */
 struct efx_rx_queue {
 	struct efx_nic *efx;
+	int core_index;
 	struct efx_rx_buffer *buffer;
 	struct efx_special_buffer rxd;
 	unsigned int ptr_mask;
@@ -1047,7 +1050,7 @@ static inline bool efx_tx_queue_used(struct efx_tx_queue *tx_queue)
 
 static inline bool efx_channel_has_rx_queue(struct efx_channel *channel)
 {
-	return channel->channel < channel->efx->n_rx_channels;
+	return channel->rx_queue.core_index >= 0;
 }
 
 static inline struct efx_rx_queue *
