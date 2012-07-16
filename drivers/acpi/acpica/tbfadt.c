@@ -303,11 +303,11 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
 	 * a warning.
 	 */
 	if (length > sizeof(struct acpi_table_fadt)) {
-		ACPI_WARNING((AE_INFO,
-			      "FADT (revision %u) is longer than ACPI 5.0 version, "
-			      "truncating length %u to %u",
-			      table->revision, length,
-			      (u32)sizeof(struct acpi_table_fadt)));
+		ACPI_BIOS_WARNING((AE_INFO,
+				   "FADT (revision %u) is longer than ACPI 5.0 version, "
+				   "truncating length %u to %u",
+				   table->revision, length,
+				   (u32)sizeof(struct acpi_table_fadt)));
 	}
 
 	/* Clear the entire local FADT */
@@ -452,11 +452,13 @@ static void acpi_tb_convert_fadt(void)
 		 * they must match.
 		 */
 		if (address64->address && address32 &&
-		    (address64->address != (u64) address32)) {
-			ACPI_ERROR((AE_INFO,
-				    "32/64X address mismatch in %s: 0x%8.8X/0x%8.8X%8.8X, using 32",
-				    fadt_info_table[i].name, address32,
-				    ACPI_FORMAT_UINT64(address64->address)));
+		    (address64->address != (u64)address32)) {
+			ACPI_BIOS_ERROR((AE_INFO,
+					 "32/64X address mismatch in FADT/%s: "
+					 "0x%8.8X/0x%8.8X%8.8X, using 32",
+					 fadt_info_table[i].name, address32,
+					 ACPI_FORMAT_UINT64(address64->
+							    address)));
 		}
 
 		/* Always use 32-bit address if it is valid (non-null) */
@@ -511,25 +513,25 @@ static void acpi_tb_validate_fadt(void)
 	 * DSDT/X_DSDT) would indicate the presence of two FACS or two DSDT tables.
 	 */
 	if (acpi_gbl_FADT.facs &&
-	    (acpi_gbl_FADT.Xfacs != (u64) acpi_gbl_FADT.facs)) {
-		ACPI_WARNING((AE_INFO,
-			      "32/64X FACS address mismatch in FADT - "
-			      "0x%8.8X/0x%8.8X%8.8X, using 32",
-			      acpi_gbl_FADT.facs,
-			      ACPI_FORMAT_UINT64(acpi_gbl_FADT.Xfacs)));
+	    (acpi_gbl_FADT.Xfacs != (u64)acpi_gbl_FADT.facs)) {
+		ACPI_BIOS_WARNING((AE_INFO,
+				   "32/64X FACS address mismatch in FADT - "
+				   "0x%8.8X/0x%8.8X%8.8X, using 32",
+				   acpi_gbl_FADT.facs,
+				   ACPI_FORMAT_UINT64(acpi_gbl_FADT.Xfacs)));
 
-		acpi_gbl_FADT.Xfacs = (u64) acpi_gbl_FADT.facs;
+		acpi_gbl_FADT.Xfacs = (u64)acpi_gbl_FADT.facs;
 	}
 
 	if (acpi_gbl_FADT.dsdt &&
-	    (acpi_gbl_FADT.Xdsdt != (u64) acpi_gbl_FADT.dsdt)) {
-		ACPI_WARNING((AE_INFO,
-			      "32/64X DSDT address mismatch in FADT - "
-			      "0x%8.8X/0x%8.8X%8.8X, using 32",
-			      acpi_gbl_FADT.dsdt,
-			      ACPI_FORMAT_UINT64(acpi_gbl_FADT.Xdsdt)));
+	    (acpi_gbl_FADT.Xdsdt != (u64)acpi_gbl_FADT.dsdt)) {
+		ACPI_BIOS_WARNING((AE_INFO,
+				   "32/64X DSDT address mismatch in FADT - "
+				   "0x%8.8X/0x%8.8X%8.8X, using 32",
+				   acpi_gbl_FADT.dsdt,
+				   ACPI_FORMAT_UINT64(acpi_gbl_FADT.Xdsdt)));
 
-		acpi_gbl_FADT.Xdsdt = (u64) acpi_gbl_FADT.dsdt;
+		acpi_gbl_FADT.Xdsdt = (u64)acpi_gbl_FADT.dsdt;
 	}
 
 	/* If Hardware Reduced flag is set, we are all done */
@@ -559,10 +561,10 @@ static void acpi_tb_validate_fadt(void)
 		 */
 		if (address64->address &&
 		    (address64->bit_width != ACPI_MUL_8(length))) {
-			ACPI_WARNING((AE_INFO,
-				      "32/64X length mismatch in %s: %u/%u",
-				      name, ACPI_MUL_8(length),
-				      address64->bit_width));
+			ACPI_BIOS_WARNING((AE_INFO,
+					   "32/64X length mismatch in FADT/%s: %u/%u",
+					   name, ACPI_MUL_8(length),
+					   address64->bit_width));
 		}
 
 		if (fadt_info_table[i].type & ACPI_FADT_REQUIRED) {
@@ -571,13 +573,13 @@ static void acpi_tb_validate_fadt(void)
 			 * Both the address and length must be non-zero.
 			 */
 			if (!address64->address || !length) {
-				ACPI_ERROR((AE_INFO,
-					    "Required field %s has zero address and/or length:"
-					    " 0x%8.8X%8.8X/0x%X",
-					    name,
-					    ACPI_FORMAT_UINT64(address64->
-							       address),
-					    length));
+				ACPI_BIOS_ERROR((AE_INFO,
+						 "Required FADT field %s has zero address and/or length: "
+						 "0x%8.8X%8.8X/0x%X",
+						 name,
+						 ACPI_FORMAT_UINT64(address64->
+								    address),
+						 length));
 			}
 		} else if (fadt_info_table[i].type & ACPI_FADT_SEPARATE_LENGTH) {
 			/*
@@ -587,13 +589,13 @@ static void acpi_tb_validate_fadt(void)
 			 */
 			if ((address64->address && !length) ||
 			    (!address64->address && length)) {
-				ACPI_WARNING((AE_INFO,
-					      "Optional field %s has zero address or length: "
-					      "0x%8.8X%8.8X/0x%X",
-					      name,
-					      ACPI_FORMAT_UINT64(address64->
-								 address),
-					      length));
+				ACPI_BIOS_WARNING((AE_INFO,
+						   "Optional FADT field %s has zero address or length: "
+						   "0x%8.8X%8.8X/0x%X",
+						   name,
+						   ACPI_FORMAT_UINT64
+						   (address64->address),
+						   length));
 			}
 		}
 	}
@@ -638,12 +640,12 @@ static void acpi_tb_setup_fadt_registers(void)
 			    (fadt_info_table[i].default_length > 0) &&
 			    (fadt_info_table[i].default_length !=
 			     target64->bit_width)) {
-				ACPI_WARNING((AE_INFO,
-					      "Invalid length for %s: %u, using default %u",
-					      fadt_info_table[i].name,
-					      target64->bit_width,
-					      fadt_info_table[i].
-					      default_length));
+				ACPI_BIOS_WARNING((AE_INFO,
+						   "Invalid length for FADT/%s: %u, using default %u",
+						   fadt_info_table[i].name,
+						   target64->bit_width,
+						   fadt_info_table[i].
+						   default_length));
 
 				/* Incorrect size, set width to the default */
 
