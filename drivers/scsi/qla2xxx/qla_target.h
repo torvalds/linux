@@ -813,7 +813,6 @@ struct qla_tgt_sess {
 	unsigned int conf_compl_supported:1;
 	unsigned int deleted:1;
 	unsigned int local:1;
-	unsigned int tearing_down:1;
 
 	struct se_session *se_sess;
 	struct scsi_qla_host *vha;
