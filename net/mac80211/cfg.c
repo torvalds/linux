@@ -2493,6 +2493,7 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	skb->dev = sdata->dev;
 
 	if (!need_offchan) {
+		*cookie = (unsigned long) skb;
 		ieee80211_tx_skb(sdata, skb);
 		ret = 0;
 		goto out_unlock;
