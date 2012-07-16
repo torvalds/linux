@@ -1053,6 +1053,18 @@ int target_emulate_unmap(struct se_task *task)
 		pr_debug("UNMAP: Using lba: %llu and range: %u\n",
 				 (unsigned long long)lba, range);
 
+		if (range > dev->se_sub_dev->se_dev_attrib.max_unmap_lba_count) {
+			cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
+			ret = -EINVAL;
+			goto err;
+		}
+
+		if (lba + range > dev->transport->get_blocks(dev) + 1) {
+			cmd->scsi_sense_reason = TCM_ADDRESS_OUT_OF_RANGE;
+			ret = -EINVAL;
+			goto err;
+		}
+
 		ret = dev->transport->do_discard(dev, lba, range);
 		if (ret < 0) {
 			pr_err("blkdev_issue_discard() failed: %d\n",
