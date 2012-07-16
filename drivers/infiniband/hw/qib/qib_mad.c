@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
- * All rights reserved.
+ * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -90,14 +90,10 @@ static void qib_send_trap(struct qib_ibport *ibp, void *data, unsigned len)
 	if (!ibp->sm_ah) {
 		if (ibp->sm_lid != be16_to_cpu(IB_LID_PERMISSIVE)) {
 			struct ib_ah *ah;
-			struct ib_ah_attr attr;
 
-			memset(&attr, 0, sizeof attr);
-			attr.dlid = ibp->sm_lid;
-			attr.port_num = ppd_from_ibp(ibp)->port;
-			ah = ib_create_ah(ibp->qp0->ibqp.pd, &attr);
+			ah = qib_create_qp0_ah(ibp, ibp->sm_lid);
 			if (IS_ERR(ah))
-				ret = -EINVAL;
+				ret = PTR_ERR(ah);
 			else {
 				send_buf->ah = ah;
 				ibp->sm_ah = to_iah(ah);

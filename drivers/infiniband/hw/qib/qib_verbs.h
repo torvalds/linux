@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
- * All rights reserved.
+ * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -420,7 +420,7 @@ struct qib_qp {
 	/* read mostly fields above and below */
 	struct ib_ah_attr remote_ah_attr;
 	struct ib_ah_attr alt_ah_attr;
-	struct qib_qp *next;            /* link list for QPN hash table */
+	struct qib_qp __rcu *next;            /* link list for QPN hash table */
 	struct qib_swqe *s_wq;  /* send work queue */
 	struct qib_mmap_info *ip;
 	struct qib_ib_header *s_hdr;     /* next packet header to send */
@@ -659,8 +659,8 @@ struct qib_opcode_stats {
 };
 
 struct qib_ibport {
-	struct qib_qp *qp0;
-	struct qib_qp *qp1;
+	struct qib_qp __rcu *qp0;
+	struct qib_qp __rcu *qp1;
 	struct ib_mad_agent *send_agent;	/* agent for SMI (traps) */
 	struct qib_ah *sm_ah;
 	struct qib_ah *smi_ah;
@@ -743,7 +743,7 @@ struct qib_ibdev {
 	struct list_head memwait;       /* list for wait kernel memory */
 	struct list_head txreq_free;
 	struct timer_list mem_timer;
-	struct qib_qp **qp_table;
+	struct qib_qp __rcu **qp_table;
 	struct qib_pio_header *pio_hdrs;
 	dma_addr_t pio_hdrs_phys;
 	/* list of QPs waiting for RNR timer */
@@ -936,6 +936,8 @@ void qib_rc_rcv(struct qib_ctxtdata *rcd, struct qib_ib_header *hdr,
 		int has_grh, void *data, u32 tlen, struct qib_qp *qp);
 
 int qib_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
+
+struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid);
 
 void qib_rc_rnr_retry(unsigned long arg);
 

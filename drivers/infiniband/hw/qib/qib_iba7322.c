@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2008, 2009, 2010 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2008 - 2012 QLogic Corporation. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -49,6 +50,7 @@
 #include "qib_qsfp.h"
 
 #include "qib_mad.h"
+#include "qib_verbs.h"
 
 static void qib_setup_7322_setextled(struct qib_pportdata *, u32);
 static void qib_7322_handle_hwerrors(struct qib_devdata *, char *, size_t);
@@ -5151,15 +5153,11 @@ static void try_7322_ipg(struct qib_pportdata *ppd)
 		goto retry;
 
 	if (!ibp->smi_ah) {
-		struct ib_ah_attr attr;
 		struct ib_ah *ah;
 
-		memset(&attr, 0, sizeof attr);
-		attr.dlid = be16_to_cpu(IB_LID_PERMISSIVE);
-		attr.port_num = ppd->port;
-		ah = ib_create_ah(ibp->qp0->ibqp.pd, &attr);
+		ah = qib_create_qp0_ah(ibp, be16_to_cpu(IB_LID_PERMISSIVE));
 		if (IS_ERR(ah))
-			ret = -EINVAL;
+			ret = PTR_ERR(ah);
 		else {
 			send_buf->ah = ah;
 			ibp->smi_ah = to_iah(ah);

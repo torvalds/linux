@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
- * All rights reserved.
+ * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -1845,6 +1845,23 @@ bail:
 	return ret;
 }
 
+struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid)
+{
+	struct ib_ah_attr attr;
+	struct ib_ah *ah = ERR_PTR(-EINVAL);
+	struct qib_qp *qp0;
+
+	memset(&attr, 0, sizeof attr);
+	attr.dlid = dlid;
+	attr.port_num = ppd_from_ibp(ibp)->port;
+	rcu_read_lock();
+	qp0 = rcu_dereference(ibp->qp0);
+	if (qp0)
+		ah = ib_create_ah(qp0->ibqp.pd, &attr);
+	rcu_read_unlock();
+	return ah;
+}
+
 /**
  * qib_destroy_ah - destroy an address handle
  * @ibah: the AH to destroy
@@ -2060,7 +2077,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	spin_lock_init(&dev->lk_table.lock);
 	dev->lk_table.max = 1 << ib_qib_lkey_table_size;
 	lk_tab_size = dev->lk_table.max * sizeof(*dev->lk_table.table);
-	dev->lk_table.table = (struct qib_mregion **)
+	dev->lk_table.table = (struct qib_mregion __rcu **)
 		__get_free_pages(GFP_KERNEL, get_order(lk_tab_size));
 	if (dev->lk_table.table == NULL) {
 		ret = -ENOMEM;
