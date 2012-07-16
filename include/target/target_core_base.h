@@ -229,6 +229,7 @@ enum tcm_sense_reason_table {
 	TCM_CHECK_CONDITION_UNIT_ATTENTION	= 0x0e,
 	TCM_CHECK_CONDITION_NOT_READY		= 0x0f,
 	TCM_RESERVATION_CONFLICT		= 0x10,
+	TCM_ADDRESS_OUT_OF_RANGE		= 0x11,
 };
 
 enum target_sc_flags_table {
