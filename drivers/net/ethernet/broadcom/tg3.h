@@ -2676,6 +2676,40 @@ struct tg3_hw_stats {
 	u8				__reserved4[0xb00-0x9c8];
 };
 
+#define TG3_SD_NUM_RECS			3
+#define TG3_OCIR_LEN			(sizeof(struct tg3_ocir))
+#define TG3_OCIR_SIG_MAGIC		0x5253434f
+#define TG3_OCIR_FLAG_ACTIVE		0x00000001
+
+#define TG3_TEMP_CAUTION_OFFSET		0xc8
+#define TG3_TEMP_MAX_OFFSET		0xcc
+#define TG3_TEMP_SENSOR_OFFSET		0xd4
+
+
+struct tg3_ocir {
+	u32				signature;
+	u16				version_flags;
+	u16				refresh_int;
+	u32				refresh_tmr;
+	u32				update_tmr;
+	u32				dst_base_addr;
+	u16				src_hdr_offset;
+	u16				src_hdr_length;
+	u16				src_data_offset;
+	u16				src_data_length;
+	u16				dst_hdr_offset;
+	u16				dst_data_offset;
+	u16				dst_reg_upd_offset;
+	u16				dst_sem_offset;
+	u32				reserved1[2];
+	u32				port0_flags;
+	u32				port1_flags;
+	u32				port2_flags;
+	u32				port3_flags;
+	u32				reserved2[1];
+};
+
+
 /* 'mapping' is superfluous as the chip does not write into
  * the tx/rx post rings so we could just fetch it from there.
  * But the cache behavior is better how we are doing it now.
@@ -3211,6 +3245,10 @@ struct tg3 {
 	const char			*fw_needed;
 	const struct firmware		*fw;
 	u32				fw_len; /* includes BSS */
+
+#if IS_ENABLED(CONFIG_HWMON)
+	struct device			*hwmon_dev;
+#endif
 };
 
 #endif /* !(_T3_H) */

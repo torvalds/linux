@@ -44,6 +44,10 @@
 #include <linux/prefetch.h>
 #include <linux/dma-mapping.h>
 #include <linux/firmware.h>
+#if IS_ENABLED(CONFIG_HWMON)
+#include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
+#endif
 
 #include <net/checksum.h>
 #include <net/ip.h>
@@ -9481,6 +9485,110 @@ static int tg3_init_hw(struct tg3 *tp, int reset_phy)
 	return tg3_reset_hw(tp, reset_phy);
 }
 
+#if IS_ENABLED(CONFIG_HWMON)
+static void tg3_sd_scan_scratchpad(struct tg3 *tp, struct tg3_ocir *ocir)
+{
+	int i;
+
+	for (i = 0; i < TG3_SD_NUM_RECS; i++, ocir++) {
+		u32 off = i * TG3_OCIR_LEN, len = TG3_OCIR_LEN;
+
+		tg3_ape_scratchpad_read(tp, (u32 *) ocir, off, len);
+		off += len;
+
+		if (ocir->signature != TG3_OCIR_SIG_MAGIC ||
+		    !(ocir->version_flags & TG3_OCIR_FLAG_ACTIVE))
+			memset(ocir, 0, TG3_OCIR_LEN);
+	}
+}
+
+/* sysfs attributes for hwmon */
+static ssize_t tg3_show_temp(struct device *dev,
+			     struct device_attribute *devattr, char *buf)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct tg3 *tp = netdev_priv(netdev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	u32 temperature;
+
+	spin_lock_bh(&tp->lock);
+	tg3_ape_scratchpad_read(tp, &temperature, attr->index,
+				sizeof(temperature));
+	spin_unlock_bh(&tp->lock);
+	return sprintf(buf, "%u\n", temperature);
+}
+
+
+static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, tg3_show_temp, NULL,
+			  TG3_TEMP_SENSOR_OFFSET);
+static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, tg3_show_temp, NULL,
+			  TG3_TEMP_CAUTION_OFFSET);
+static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, tg3_show_temp, NULL,
+			  TG3_TEMP_MAX_OFFSET);
+
+static struct attribute *tg3_attributes[] = {
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_crit.dev_attr.attr,
+	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group tg3_group = {
+	.attrs = tg3_attributes,
+};
+
+#endif
+
+static void tg3_hwmon_close(struct tg3 *tp)
+{
+#if IS_ENABLED(CONFIG_HWMON)
+	if (tp->hwmon_dev) {
+		hwmon_device_unregister(tp->hwmon_dev);
+		tp->hwmon_dev = NULL;
+		sysfs_remove_group(&tp->pdev->dev.kobj, &tg3_group);
+	}
+#endif
+}
+
+static void tg3_hwmon_open(struct tg3 *tp)
+{
+#if IS_ENABLED(CONFIG_HWMON)
+	int i, err;
+	u32 size = 0;
+	struct pci_dev *pdev = tp->pdev;
+	struct tg3_ocir ocirs[TG3_SD_NUM_RECS];
+
+	tg3_sd_scan_scratchpad(tp, ocirs);
+
+	for (i = 0; i < TG3_SD_NUM_RECS; i++) {
+		if (!ocirs[i].src_data_length)
+			continue;
+
+		size += ocirs[i].src_hdr_length;
+		size += ocirs[i].src_data_length;
+	}
+
+	if (!size)
+		return;
+
+	/* Register hwmon sysfs hooks */
+	err = sysfs_create_group(&pdev->dev.kobj, &tg3_group);
+	if (err) {
+		dev_err(&pdev->dev, "Cannot create sysfs group, aborting\n");
+		return;
+	}
+
+	tp->hwmon_dev = hwmon_device_register(&pdev->dev);
+	if (IS_ERR(tp->hwmon_dev)) {
+		tp->hwmon_dev = NULL;
+		dev_err(&pdev->dev, "Cannot register hwmon device, aborting\n");
+		sysfs_remove_group(&pdev->dev.kobj, &tg3_group);
+	}
+#endif
+}
+
+
 #define TG3_STAT_ADD32(PSTAT, REG) \
 do {	u32 __val = tr32(REG); \
 	(PSTAT)->low += __val; \
@@ -10189,6 +10297,8 @@ static int tg3_open(struct net_device *dev)
 
 	tg3_phy_start(tp);
 
+	tg3_hwmon_open(tp);
+
 	tg3_full_lock(tp, 0);
 
 	tg3_timer_start(tp);
@@ -10237,6 +10347,8 @@ static int tg3_close(struct net_device *dev)
 	netif_tx_stop_all_queues(dev);
 
 	tg3_timer_stop(tp);
+
+	tg3_hwmon_close(tp);
 
 	tg3_phy_stop(tp);
 
