@@ -2614,6 +2614,50 @@ static int check_port_resume_type(struct usb_device *udev,
 	return status;
 }
 
+int usb_disable_ltm(struct usb_device *udev)
+{
+	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
+
+	/* Check if the roothub and device supports LTM. */
+	if (!usb_device_supports_ltm(hcd->self.root_hub) ||
+			!usb_device_supports_ltm(udev))
+		return 0;
+
+	/* Clear Feature LTM Enable can only be sent if the device is
+	 * configured.
+	 */
+	if (!udev->actconfig)
+		return 0;
+
+	return usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+			USB_REQ_CLEAR_FEATURE, USB_RECIP_DEVICE,
+			USB_DEVICE_LTM_ENABLE, 0, NULL, 0,
+			USB_CTRL_SET_TIMEOUT);
+}
+EXPORT_SYMBOL_GPL(usb_disable_ltm);
+
+void usb_enable_ltm(struct usb_device *udev)
+{
+	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
+
+	/* Check if the roothub and device supports LTM. */
+	if (!usb_device_supports_ltm(hcd->self.root_hub) ||
+			!usb_device_supports_ltm(udev))
+		return;
+
+	/* Set Feature LTM Enable can only be sent if the device is
+	 * configured.
+	 */
+	if (!udev->actconfig)
+		return;
+
+	usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+			USB_REQ_SET_FEATURE, USB_RECIP_DEVICE,
+			USB_DEVICE_LTM_ENABLE, 0, NULL, 0,
+			USB_CTRL_SET_TIMEOUT);
+}
+EXPORT_SYMBOL_GPL(usb_enable_ltm);
+
 #ifdef	CONFIG_USB_SUSPEND
 
 /*
@@ -2709,6 +2753,11 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 	if (udev->usb2_hw_lpm_enabled == 1)
 		usb_set_usb2_hardware_lpm(udev, 0);
 
+	if (usb_disable_ltm(udev)) {
+		dev_err(&udev->dev, "%s Failed to disable LTM before suspend\n.",
+				__func__);
+		return -ENOMEM;
+	}
 	if (usb_unlocked_disable_lpm(udev)) {
 		dev_err(&udev->dev, "%s Failed to disable LPM before suspend\n.",
 				__func__);
@@ -2738,7 +2787,8 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 		if (udev->usb2_hw_lpm_capable == 1)
 			usb_set_usb2_hardware_lpm(udev, 1);
 
-		/* Try to enable USB3 LPM again */
+		/* Try to enable USB3 LTM and LPM again */
+		usb_enable_ltm(udev);
 		usb_unlocked_enable_lpm(udev);
 
 		/* System sleep transitions should never fail */
@@ -2939,7 +2989,8 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 		if (udev->usb2_hw_lpm_capable == 1)
 			usb_set_usb2_hardware_lpm(udev, 1);
 
-		/* Try to enable USB3 LPM */
+		/* Try to enable USB3 LTM and LPM */
+		usb_enable_ltm(udev);
 		usb_unlocked_enable_lpm(udev);
 	}
 
@@ -3492,6 +3543,15 @@ EXPORT_SYMBOL_GPL(usb_unlocked_disable_lpm);
 
 void usb_unlocked_enable_lpm(struct usb_device *udev) { }
 EXPORT_SYMBOL_GPL(usb_unlocked_enable_lpm);
+
+int usb_disable_ltm(struct usb_device *udev)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usb_disable_ltm);
+
+void usb_enable_ltm(struct usb_device *udev) { }
+EXPORT_SYMBOL_GPL(usb_enable_ltm);
 #endif
 
 
@@ -4675,6 +4735,23 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 	}
 	parent_hub = hdev_to_hub(parent_hdev);
 
+	/* Disable LPM and LTM while we reset the device and reinstall the alt
+	 * settings.  Device-initiated LPM settings, and system exit latency
+	 * settings are cleared when the device is reset, so we have to set
+	 * them up again.
+	 */
+	ret = usb_unlocked_disable_lpm(udev);
+	if (ret) {
+		dev_err(&udev->dev, "%s Failed to disable LPM\n.", __func__);
+		goto re_enumerate;
+	}
+	ret = usb_disable_ltm(udev);
+	if (ret) {
+		dev_err(&udev->dev, "%s Failed to disable LTM\n.",
+				__func__);
+		goto re_enumerate;
+	}
+
 	set_bit(port1, parent_hub->busy_bits);
 	for (i = 0; i < SET_CONFIG_TRIES; ++i) {
 
@@ -4702,22 +4779,11 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 		goto done;
 
 	mutex_lock(hcd->bandwidth_mutex);
-	/* Disable LPM while we reset the device and reinstall the alt settings.
-	 * Device-initiated LPM settings, and system exit latency settings are
-	 * cleared when the device is reset, so we have to set them up again.
-	 */
-	ret = usb_disable_lpm(udev);
-	if (ret) {
-		dev_err(&udev->dev, "%s Failed to disable LPM\n.", __func__);
-		mutex_unlock(hcd->bandwidth_mutex);
-		goto done;
-	}
 	ret = usb_hcd_alloc_bandwidth(udev, udev->actconfig, NULL, NULL);
 	if (ret < 0) {
 		dev_warn(&udev->dev,
 				"Busted HC?  Not enough HCD resources for "
 				"old configuration.\n");
-		usb_enable_lpm(udev);
 		mutex_unlock(hcd->bandwidth_mutex);
 		goto re_enumerate;
 	}
@@ -4729,7 +4795,6 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 		dev_err(&udev->dev,
 			"can't restore configuration #%d (error=%d)\n",
 			udev->actconfig->desc.bConfigurationValue, ret);
-		usb_enable_lpm(udev);
 		mutex_unlock(hcd->bandwidth_mutex);
 		goto re_enumerate;
   	}
@@ -4768,17 +4833,18 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 				desc->bInterfaceNumber,
 				desc->bAlternateSetting,
 				ret);
-			usb_unlocked_enable_lpm(udev);
 			goto re_enumerate;
 		}
 	}
 
-	/* Now that the alt settings are re-installed, enable LPM. */
-	usb_unlocked_enable_lpm(udev);
 done:
+	/* Now that the alt settings are re-installed, enable LTM and LPM. */
+	usb_unlocked_enable_lpm(udev);
+	usb_enable_ltm(udev);
 	return 0;
  
 re_enumerate:
+	/* LPM state doesn't matter when we're about to destroy the device. */
 	hub_port_logical_disconnect(parent_hub, port1);
 	return -ENODEV;
 }
