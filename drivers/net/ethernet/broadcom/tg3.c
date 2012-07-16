@@ -13858,14 +13858,9 @@ static void __devinit tg3_read_mgmtfw_ver(struct tg3 *tp)
 	}
 }
 
-static void __devinit tg3_read_dash_ver(struct tg3 *tp)
+static void __devinit tg3_probe_ncsi(struct tg3 *tp)
 {
-	int vlen;
 	u32 apedata;
-	char *fwtype;
-
-	if (!tg3_flag(tp, ENABLE_APE) || !tg3_flag(tp, ENABLE_ASF))
-		return;
 
 	apedata = tg3_ape_read32(tp, TG3_APE_SEG_SIG);
 	if (apedata != APE_SEG_SIG_MAGIC)
@@ -13875,14 +13870,22 @@ static void __devinit tg3_read_dash_ver(struct tg3 *tp)
 	if (!(apedata & APE_FW_STATUS_READY))
 		return;
 
+	if (tg3_ape_read32(tp, TG3_APE_FW_FEATURES) & TG3_APE_FW_FEATURE_NCSI)
+		tg3_flag_set(tp, APE_HAS_NCSI);
+}
+
+static void __devinit tg3_read_dash_ver(struct tg3 *tp)
+{
+	int vlen;
+	u32 apedata;
+	char *fwtype;
+
 	apedata = tg3_ape_read32(tp, TG3_APE_FW_VERSION);
 
-	if (tg3_ape_read32(tp, TG3_APE_FW_FEATURES) & TG3_APE_FW_FEATURE_NCSI) {
-		tg3_flag_set(tp, APE_HAS_NCSI);
+	if (tg3_flag(tp, APE_HAS_NCSI))
 		fwtype = "NCSI";
-	} else {
+	else
 		fwtype = "DASH";
-	}
 
 	vlen = strlen(tp->fw_ver);
 
@@ -13916,20 +13919,17 @@ static void __devinit tg3_read_fw_ver(struct tg3 *tp)
 		tg3_read_sb_ver(tp, val);
 	else if ((val & TG3_EEPROM_MAGIC_HW_MSK) == TG3_EEPROM_MAGIC_HW)
 		tg3_read_hwsb_ver(tp);
-	else
-		return;
 
-	if (vpd_vers)
-		goto done;
-
-	if (tg3_flag(tp, ENABLE_APE)) {
-		if (tg3_flag(tp, ENABLE_ASF))
-			tg3_read_dash_ver(tp);
-	} else if (tg3_flag(tp, ENABLE_ASF)) {
-		tg3_read_mgmtfw_ver(tp);
+	if (tg3_flag(tp, ENABLE_ASF)) {
+		if (tg3_flag(tp, ENABLE_APE)) {
+			tg3_probe_ncsi(tp);
+			if (!vpd_vers)
+				tg3_read_dash_ver(tp);
+		} else if (!vpd_vers) {
+			tg3_read_mgmtfw_ver(tp);
+		}
 	}
 
-done:
 	tp->fw_ver[TG3_VER_SIZE - 1] = 0;
 }
 
