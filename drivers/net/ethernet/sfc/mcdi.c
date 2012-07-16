@@ -320,14 +320,20 @@ static void efx_mcdi_ev_cpl(struct efx_nic *efx, unsigned int seqno,
 		efx_mcdi_complete(mcdi);
 }
 
-/* Issue the given command by writing the data into the shared memory PDU,
- * ring the doorbell and wait for completion. Copyout the result. */
 int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd,
 		 const u8 *inbuf, size_t inlen, u8 *outbuf, size_t outlen,
 		 size_t *outlen_actual)
 {
+	efx_mcdi_rpc_start(efx, cmd, inbuf, inlen);
+	return efx_mcdi_rpc_finish(efx, cmd, inlen,
+				   outbuf, outlen, outlen_actual);
+}
+
+void efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd, const u8 *inbuf,
+			size_t inlen)
+{
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
-	int rc;
+
 	BUG_ON(efx_nic_rev(efx) < EFX_REV_SIENA_A0);
 
 	efx_mcdi_acquire(mcdi);
@@ -338,6 +344,15 @@ int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd,
 	spin_unlock_bh(&mcdi->iface_lock);
 
 	efx_mcdi_copyin(efx, cmd, inbuf, inlen);
+}
+
+int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
+			u8 *outbuf, size_t outlen, size_t *outlen_actual)
+{
+	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
+	int rc;
+
+	BUG_ON(efx_nic_rev(efx) < EFX_REV_SIENA_A0);
 
 	if (mcdi->mode == MCDI_MODE_POLL)
 		rc = efx_mcdi_poll(efx);
