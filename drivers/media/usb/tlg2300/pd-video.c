@@ -1590,48 +1590,18 @@ static struct video_device pd_video_template = {
 	.name = "Telegent-Video",
 	.fops = &pd_video_fops,
 	.minor = -1,
-	.release = video_device_release,
+	.release = video_device_release_empty,
 	.tvnorms = V4L2_STD_ALL,
 	.ioctl_ops = &pd_video_ioctl_ops,
 };
-
-struct video_device *vdev_init(struct poseidon *pd, struct video_device *tmp)
-{
-	struct video_device *vfd;
-
-	vfd = video_device_alloc();
-	if (vfd == NULL)
-		return NULL;
-	*vfd		= *tmp;
-	vfd->minor	= -1;
-	vfd->v4l2_dev	= &pd->v4l2_dev;
-	/*vfd->parent	= &(pd->udev->dev); */
-	vfd->release	= video_device_release;
-	video_set_drvdata(vfd, pd);
-	return vfd;
-}
-
-void destroy_video_device(struct video_device **v_dev)
-{
-	struct video_device *dev = *v_dev;
-
-	if (dev == NULL)
-		return;
-
-	if (video_is_registered(dev))
-		video_unregister_device(dev);
-	else
-		video_device_release(dev);
-	*v_dev = NULL;
-}
 
 void pd_video_exit(struct poseidon *pd)
 {
 	struct video_data *video = &pd->video_data;
 	struct vbi_data *vbi = &pd->vbi_data;
 
-	destroy_video_device(&video->v_dev);
-	destroy_video_device(&vbi->v_dev);
+	video_unregister_device(&video->v_dev);
+	video_unregister_device(&vbi->v_dev);
 	log();
 }
 
@@ -1641,21 +1611,19 @@ int pd_video_init(struct poseidon *pd)
 	struct vbi_data *vbi	= &pd->vbi_data;
 	int ret = -ENOMEM;
 
-	video->v_dev = vdev_init(pd, &pd_video_template);
-	if (video->v_dev == NULL)
-		goto out;
+	video->v_dev = pd_video_template;
+	video->v_dev.v4l2_dev = &pd->v4l2_dev;
+	video_set_drvdata(&video->v_dev, pd);
 
-	ret = video_register_device(video->v_dev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&video->v_dev, VFL_TYPE_GRABBER, -1);
 	if (ret != 0)
 		goto out;
 
 	/* VBI uses the same template as video */
-	vbi->v_dev = vdev_init(pd, &pd_video_template);
-	if (vbi->v_dev == NULL) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	ret = video_register_device(vbi->v_dev, VFL_TYPE_VBI, -1);
+	vbi->v_dev = pd_video_template;
+	vbi->v_dev.v4l2_dev = &pd->v4l2_dev;
+	video_set_drvdata(&vbi->v_dev, pd);
+	ret = video_register_device(&vbi->v_dev, VFL_TYPE_VBI, -1);
 	if (ret != 0)
 		goto out;
 	log("register VIDEO/VBI devices");
@@ -1665,4 +1633,3 @@ out:
 	pd_video_exit(pd);
 	return ret;
 }
-
