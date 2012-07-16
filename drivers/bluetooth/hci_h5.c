@@ -33,7 +33,8 @@
 #define HCI_3WIRE_ACK_PKT	0
 #define HCI_3WIRE_LINK_PKT	15
 
-#define H5_TXWINSIZE	4
+/* Sliding window size */
+#define H5_TX_WIN_MAX		4
 
 #define H5_ACK_TIMEOUT	msecs_to_jiffies(250)
 #define H5_SYNC_TIMEOUT	msecs_to_jiffies(100)
@@ -74,6 +75,7 @@ struct h5 {
 	bool			tx_ack_req;	/* Pending ack to send */
 	u8			tx_seq;		/* Next seq number to send */
 	u8			tx_ack;		/* Next ack number to send */
+	u8			tx_win;		/* Sliding window size */
 
 	enum {
 		H5_UNINITIALIZED,
@@ -106,10 +108,20 @@ static void h5_link_control(struct hci_uart *hu, const void *data, size_t len)
 	skb_queue_tail(&h5->unrel, nskb);
 }
 
+static u8 h5_cfg_field(struct h5 *h5)
+{
+	u8 field = 0;
+
+	/* Sliding window size (first 3 bits) */
+	field |= (h5->tx_win & 7);
+
+	return field;
+}
+
 static void h5_timed_event(unsigned long arg)
 {
 	const unsigned char sync_req[] = { 0x01, 0x7e };
-	const unsigned char conf_req[] = { 0x03, 0xfc, 0x01 };
+	unsigned char conf_req[] = { 0x03, 0xfc, 0x01 };
 	struct hci_uart *hu = (struct hci_uart *) arg;
 	struct h5 *h5 = hu->priv;
 	struct sk_buff *skb;
@@ -120,8 +132,10 @@ static void h5_timed_event(unsigned long arg)
 	if (h5->state == H5_UNINITIALIZED)
 		h5_link_control(hu, sync_req, sizeof(sync_req));
 
-	if (h5->state == H5_INITIALIZED)
+	if (h5->state == H5_INITIALIZED) {
+		conf_req[2] = h5_cfg_field(h5);
 		h5_link_control(hu, conf_req, sizeof(conf_req));
+	}
 
 	if (h5->state != H5_ACTIVE) {
 		mod_timer(&h5->timer, jiffies + H5_SYNC_TIMEOUT);
@@ -170,6 +184,8 @@ static int h5_open(struct hci_uart *hu)
 	init_timer(&h5->timer);
 	h5->timer.function = h5_timed_event;
 	h5->timer.data = (unsigned long) hu;
+
+	h5->tx_win = H5_TX_WIN_MAX;
 
 	set_bit(HCI_UART_INIT_PENDING, &hu->hdev_flags);
 
@@ -242,8 +258,8 @@ static void h5_handle_internal_rx(struct hci_uart *hu)
 	struct h5 *h5 = hu->priv;
 	const unsigned char sync_req[] = { 0x01, 0x7e };
 	const unsigned char sync_rsp[] = { 0x02, 0x7d };
-	const unsigned char conf_req[] = { 0x03, 0xfc, 0x01 };
-	const unsigned char conf_rsp[] = { 0x04, 0x7b, 0x01 };
+	unsigned char conf_req[] = { 0x03, 0xfc, 0x01 };
+	const unsigned char conf_rsp[] = { 0x04, 0x7b };
 	const unsigned char wakeup_req[] = { 0x05, 0xfa };
 	const unsigned char woken_req[] = { 0x06, 0xf9 };
 	const unsigned char sleep_req[] = { 0x07, 0x78 };
@@ -258,6 +274,8 @@ static void h5_handle_internal_rx(struct hci_uart *hu)
 	if (H5_HDR_LEN(hdr) < 2)
 		return;
 
+	conf_req[2] = h5_cfg_field(h5);
+
 	if (memcmp(data, sync_req, 2) == 0) {
 		h5_link_control(hu, sync_rsp, 2);
 	} else if (memcmp(data, sync_rsp, 2) == 0) {
@@ -267,7 +285,9 @@ static void h5_handle_internal_rx(struct hci_uart *hu)
 		h5_link_control(hu, conf_rsp, 2);
 		h5_link_control(hu, conf_req, 3);
 	} else if (memcmp(data, conf_rsp, 2) == 0) {
-		BT_DBG("Three-wire init sequence complete");
+		if (H5_HDR_LEN(hdr) > 2)
+			h5->tx_win = (data[2] & 7);
+		BT_DBG("Three-wire init complete. tx_win %u", h5->tx_win);
 		h5->state = H5_ACTIVE;
 		hci_uart_init_ready(hu);
 		return;
@@ -663,7 +683,7 @@ static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 
 	spin_lock_irqsave_nested(&h5->unack.lock, flags, SINGLE_DEPTH_NESTING);
 
-	if (h5->unack.qlen >= H5_TXWINSIZE)
+	if (h5->unack.qlen >= h5->tx_win)
 		goto unlock;
 
 	if ((skb = skb_dequeue(&h5->rel)) != NULL) {
