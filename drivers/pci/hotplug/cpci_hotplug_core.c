@@ -225,7 +225,7 @@ cpci_hp_register_bus(struct pci_bus *bus, u8 first, u8 last)
 	struct hotplug_slot *hotplug_slot;
 	struct hotplug_slot_info *info;
 	char name[SLOT_NAME_SIZE];
-	int status = -ENOMEM;
+	int status;
 	int i;
 
 	if (!(controller && bus))
@@ -237,18 +237,24 @@ cpci_hp_register_bus(struct pci_bus *bus, u8 first, u8 last)
 	 */
 	for (i = first; i <= last; ++i) {
 		slot = kzalloc(sizeof (struct slot), GFP_KERNEL);
-		if (!slot)
+		if (!slot) {
+			status = -ENOMEM;
 			goto error;
+		}
 
 		hotplug_slot =
 			kzalloc(sizeof (struct hotplug_slot), GFP_KERNEL);
-		if (!hotplug_slot)
+		if (!hotplug_slot) {
+			status = -ENOMEM;
 			goto error_slot;
+		}
 		slot->hotplug_slot = hotplug_slot;
 
 		info = kzalloc(sizeof (struct hotplug_slot_info), GFP_KERNEL);
-		if (!info)
+		if (!info) {
+			status = -ENOMEM;
 			goto error_hpslot;
+		}
 		hotplug_slot->info = info;
 
 		slot->bus = bus;
