@@ -200,7 +200,10 @@ struct nfs4_state_maintenance_ops {
 };
 
 extern const struct dentry_operations nfs4_dentry_operations;
-extern const struct inode_operations nfs4_dir_inode_operations;
+
+/* dir.c */
+int nfs_atomic_open(struct inode *, struct dentry *, struct file *,
+		    unsigned, umode_t, int *);
 
 /* write.c */
 int nfs4_write_inode(struct inode *, struct writeback_control *);
