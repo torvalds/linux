@@ -215,48 +215,6 @@ acpi_status acpi_reallocate_root_table(void)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_load_table
- *
- * PARAMETERS:  table_ptr       - pointer to a buffer containing the entire
- *                                table to be loaded
- *
- * RETURN:      Status
- *
- * DESCRIPTION: This function is called to load a table from the caller's
- *              buffer. The buffer must contain an entire ACPI Table including
- *              a valid header. The header fields will be verified, and if it
- *              is determined that the table is invalid, the call will fail.
- *
- ******************************************************************************/
-acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
-{
-	acpi_status status;
-	u32 table_index;
-	struct acpi_table_desc table_desc;
-
-	if (!table_ptr)
-		return AE_BAD_PARAMETER;
-
-	ACPI_MEMSET(&table_desc, 0, sizeof(struct acpi_table_desc));
-	table_desc.pointer = table_ptr;
-	table_desc.length = table_ptr->length;
-	table_desc.flags = ACPI_TABLE_ORIGIN_UNKNOWN;
-
-	/*
-	 * Install the new table into the local data structures
-	 */
-	status = acpi_tb_add_table(&table_desc, &table_index);
-	if (ACPI_FAILURE(status)) {
-		return status;
-	}
-	status = acpi_ns_load_table(table_index, acpi_gbl_root_node);
-	return status;
-}
-
-ACPI_EXPORT_SYMBOL(acpi_load_table)
-
-/*******************************************************************************
- *
  * FUNCTION:    acpi_get_table_header
  *
  * PARAMETERS:  Signature           - ACPI signature of needed table

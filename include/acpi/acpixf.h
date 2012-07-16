@@ -154,15 +154,20 @@ void *acpi_callocate(u32 size);
 void acpi_free(void *address);
 
 /*
+ * ACPI table load/unload interfaces
+ */
+acpi_status acpi_load_table(struct acpi_table_header *table);
+
+acpi_status acpi_unload_parent_table(acpi_handle object);
+
+acpi_status acpi_load_tables(void);
+
+/*
  * ACPI table manipulation interfaces
  */
 acpi_status acpi_reallocate_root_table(void);
 
 acpi_status acpi_find_root_pointer(acpi_size *rsdp_address);
-
-acpi_status acpi_load_tables(void);
-
-acpi_status acpi_load_table(struct acpi_table_header *table_ptr);
 
 acpi_status acpi_unload_table_id(acpi_owner_id id);
 
