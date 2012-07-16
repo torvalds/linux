@@ -427,9 +427,6 @@ extern __be32 root_nfs_parse_addr(char *name); /*__init*/
 /*
  * linux/fs/nfs/file.c
  */
-#ifdef CONFIG_NFS_V3
-extern const struct inode_operations nfs3_file_inode_operations;
-#endif /* CONFIG_NFS_V3 */
 extern const struct file_operations nfs_file_operations;
 #ifdef CONFIG_NFS_V4
 extern const struct file_operations nfs4_file_operations;
@@ -484,9 +481,6 @@ extern ssize_t nfs_file_direct_write(struct kiocb *iocb,
 /*
  * linux/fs/nfs/dir.c
  */
-#ifdef CONFIG_NFS_V3
-extern const struct inode_operations nfs3_dir_inode_operations;
-#endif /* CONFIG_NFS_V3 */
 extern const struct file_operations nfs_dir_operations;
 extern const struct dentry_operations nfs_dentry_operations;
 
