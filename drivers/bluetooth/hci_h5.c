@@ -138,6 +138,8 @@ static int h5_open(struct hci_uart *hu)
 	h5->timer.function = h5_timed_event;
 	h5->timer.data = (unsigned long) hu;
 
+	set_bit(HCI_UART_INIT_PENDING, &hu->hdev_flags);
+
 	/* Send initial sync request */
 	h5_link_control(hu, sync, sizeof(sync));
 	mod_timer(&h5->timer, jiffies + H5_SYNC_TIMEOUT);
@@ -229,6 +231,7 @@ static void h5_handle_internal_rx(struct hci_uart *hu)
 		h5_link_control(hu, conf_req, 3);
 	} else if (memcmp(data, conf_rsp, 2) == 0) {
 		BT_DBG("Three-wire init sequence complete");
+		hci_uart_init_ready(hu);
 		return;
 	} else {
 		BT_DBG("Link Control: 0x%02hhx 0x%02hhx", data[0], data[1]);
