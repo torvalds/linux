@@ -1065,16 +1065,20 @@ static void usbg_cmd_work(struct work_struct *work)
 				tv_nexus->tvn_se_sess->se_tpg->se_tpg_tfo,
 				tv_nexus->tvn_se_sess, cmd->data_len, DMA_NONE,
 				cmd->prio_attr, cmd->sense_iu.sense);
-
-		transport_send_check_condition_and_sense(se_cmd,
-				TCM_UNSUPPORTED_SCSI_OPCODE, 1);
-		usbg_cleanup_cmd(cmd);
-		return;
+		goto out;
 	}
 
-	target_submit_cmd(se_cmd, tv_nexus->tvn_se_sess,
+	if (target_submit_cmd(se_cmd, tv_nexus->tvn_se_sess,
 			cmd->cmd_buf, cmd->sense_iu.sense, cmd->unpacked_lun,
-			0, cmd->prio_attr, dir, TARGET_SCF_UNKNOWN_SIZE);
+			0, cmd->prio_attr, dir, TARGET_SCF_UNKNOWN_SIZE) < 0)
+		goto out;
+
+	return;
+
+out:
+	transport_send_check_condition_and_sense(se_cmd,
+			TCM_UNSUPPORTED_SCSI_OPCODE, 1);
+	usbg_cleanup_cmd(cmd);
 }
 
 static int usbg_submit_command(struct f_uas *fu,
@@ -1177,16 +1181,20 @@ static void bot_cmd_work(struct work_struct *work)
 				tv_nexus->tvn_se_sess->se_tpg->se_tpg_tfo,
 				tv_nexus->tvn_se_sess, cmd->data_len, DMA_NONE,
 				cmd->prio_attr, cmd->sense_iu.sense);
-
-		transport_send_check_condition_and_sense(se_cmd,
-				TCM_UNSUPPORTED_SCSI_OPCODE, 1);
-		usbg_cleanup_cmd(cmd);
-		return;
+		goto out;
 	}
 
-	target_submit_cmd(se_cmd, tv_nexus->tvn_se_sess,
+	if (target_submit_cmd(se_cmd, tv_nexus->tvn_se_sess,
 			cmd->cmd_buf, cmd->sense_iu.sense, cmd->unpacked_lun,
-			cmd->data_len, cmd->prio_attr, dir, 0);
+			cmd->data_len, cmd->prio_attr, dir, 0) < 0)
+		goto out;
+
+	return;
+
+out:
+	transport_send_check_condition_and_sense(se_cmd,
+				TCM_UNSUPPORTED_SCSI_OPCODE, 1);
+	usbg_cleanup_cmd(cmd);
 }
 
 static int bot_submit_command(struct f_uas *fu,

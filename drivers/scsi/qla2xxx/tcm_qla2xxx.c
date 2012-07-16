@@ -597,10 +597,9 @@ static int tcm_qla2xxx_handle_cmd(scsi_qla_host_t *vha, struct qla_tgt_cmd *cmd,
 		return -EINVAL;
 	}
 
-	target_submit_cmd(se_cmd, se_sess, cdb, &cmd->sense_buffer[0],
+	return target_submit_cmd(se_cmd, se_sess, cdb, &cmd->sense_buffer[0],
 				cmd->unpacked_lun, data_length, fcp_task_attr,
 				data_dir, flags);
-	return 0;
 }
 
 static void tcm_qla2xxx_handle_data_work(struct work_struct *work)

@@ -1235,9 +1235,11 @@ static void sbp_handle_command(struct sbp_target_request *req)
 	pr_debug("sbp_handle_command ORB:0x%llx unpacked_lun:%d data_len:%d data_dir:%d\n",
 			req->orb_pointer, unpacked_lun, data_length, data_dir);
 
-	target_submit_cmd(&req->se_cmd, sess->se_sess, req->cmd_buf,
-			req->sense_buf, unpacked_lun, data_length,
-			MSG_SIMPLE_TAG, data_dir, 0);
+	if (target_submit_cmd(&req->se_cmd, sess->se_sess, req->cmd_buf,
+			      req->sense_buf, unpacked_lun, data_length,
+			      MSG_SIMPLE_TAG, data_dir, 0))
+		goto err;
+
 	return;
 
 err:
