@@ -86,17 +86,7 @@ static void __init p720t_map_io(void)
 	iotable_init(p720t_io_desc, ARRAY_SIZE(p720t_io_desc));
 }
 
-MACHINE_START(P720T, "ARM-Prospector720T")
-	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.atag_offset	= 0x100,
-	.fixup		= fixup_p720t,
-	.map_io		= p720t_map_io,
-	.init_irq	= clps711x_init_irq,
-	.timer		= &clps711x_timer,
-	.restart	= clps711x_restart,
-MACHINE_END
-
-static int p720t_hw_init(void)
+static void __init p720t_init_early(void)
 {
 	/*
 	 * Power down as much as possible in case we don't
@@ -111,13 +101,19 @@ static int p720t_hw_init(void)
 	PLD_CODEC = 0;
 	PLD_TCH   = 0;
 	PLD_SPI   = 0;
-#ifndef CONFIG_DEBUG_LL
-	PLD_COM2  = 0;
-	PLD_COM1  = 0;
-#endif
-
-	return 0;
+	if (!IS_ENABLED(CONFIG_DEBUG_LL)) {
+		PLD_COM2 = 0;
+		PLD_COM1 = 0;
+	}
 }
 
-__initcall(p720t_hw_init);
-
+MACHINE_START(P720T, "ARM-Prospector720T")
+	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
+	.atag_offset	= 0x100,
+	.fixup		= fixup_p720t,
+	.init_early	= p720t_init_early,
+	.map_io		= p720t_map_io,
+	.init_irq	= clps711x_init_irq,
+	.timer		= &clps711x_timer,
+	.restart	= clps711x_restart,
+MACHINE_END
