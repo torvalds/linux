@@ -165,7 +165,7 @@ static int __devinit pixcir_i2c_ts_probe(struct i2c_client *client,
 	input_set_drvdata(input, tsdata);
 
 	error = request_threaded_irq(client->irq, NULL, pixcir_ts_isr,
-				     IRQF_TRIGGER_FALLING,
+				     IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				     client->name, tsdata);
 	if (error) {
 		dev_err(&client->dev, "Unable to request touchscreen IRQ.\n");

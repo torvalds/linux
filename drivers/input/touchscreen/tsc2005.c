@@ -650,7 +650,8 @@ static int __devinit tsc2005_probe(struct spi_device *spi)
 	tsc2005_stop_scan(ts);
 
 	error = request_threaded_irq(spi->irq, NULL, tsc2005_irq_thread,
-				     IRQF_TRIGGER_RISING, "tsc2005", ts);
+				     IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+				     "tsc2005", ts);
 	if (error) {
 		dev_err(&spi->dev, "Failed to request irq, err: %d\n", error);
 		goto err_free_mem;

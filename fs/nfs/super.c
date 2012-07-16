@@ -2860,6 +2860,8 @@ static struct dentry *nfs4_try_mount(int flags, const char *dev_name,
 
 	dfprintk(MOUNT, "--> nfs4_try_mount()\n");
 
+	mount_info->fill_super = nfs4_fill_super;
+
 	export_path = data->nfs_server.export_path;
 	data->nfs_server.export_path = "/";
 	root_mnt = nfs_do_root_mount(&nfs4_remote_fs_type, flags, mount_info,

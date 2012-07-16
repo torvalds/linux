@@ -139,12 +139,12 @@ static void sas_ata_task_done(struct sas_task *task)
 	if (stat->stat == SAS_PROTO_RESPONSE || stat->stat == SAM_STAT_GOOD ||
 	    ((stat->stat == SAM_STAT_CHECK_CONDITION &&
 	      dev->sata_dev.command_set == ATAPI_COMMAND_SET))) {
-		ata_tf_from_fis(resp->ending_fis, &dev->sata_dev.tf);
+		memcpy(dev->sata_dev.fis, resp->ending_fis, ATA_RESP_FIS_SIZE);
 
 		if (!link->sactive) {
-			qc->err_mask |= ac_err_mask(dev->sata_dev.tf.command);
+			qc->err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
 		} else {
-			link->eh_info.err_mask |= ac_err_mask(dev->sata_dev.tf.command);
+			link->eh_info.err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
 			if (unlikely(link->eh_info.err_mask))
 				qc->flags |= ATA_QCFLAG_FAILED;
 		}
@@ -161,8 +161,8 @@ static void sas_ata_task_done(struct sas_task *task)
 				qc->flags |= ATA_QCFLAG_FAILED;
 			}
 
-			dev->sata_dev.tf.feature = 0x04; /* status err */
-			dev->sata_dev.tf.command = ATA_ERR;
+			dev->sata_dev.fis[3] = 0x04; /* status err */
+			dev->sata_dev.fis[2] = ATA_ERR;
 		}
 	}
 
@@ -269,7 +269,7 @@ static bool sas_ata_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
 	struct domain_device *dev = qc->ap->private_data;
 
-	memcpy(&qc->result_tf, &dev->sata_dev.tf, sizeof(qc->result_tf));
+	ata_tf_from_fis(dev->sata_dev.fis, &qc->result_tf);
 	return true;
 }
 

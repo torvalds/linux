@@ -1871,19 +1871,9 @@ static inline void rcu_copy_process(struct task_struct *p)
 	INIT_LIST_HEAD(&p->rcu_node_entry);
 }
 
-static inline void rcu_switch_from(struct task_struct *prev)
-{
-	if (prev->rcu_read_lock_nesting != 0)
-		rcu_preempt_note_context_switch();
-}
-
 #else
 
 static inline void rcu_copy_process(struct task_struct *p)
-{
-}
-
-static inline void rcu_switch_from(struct task_struct *prev)
 {
 }
 
@@ -1908,6 +1898,14 @@ static inline int set_cpus_allowed_ptr(struct task_struct *p,
 	return 0;
 }
 #endif
+
+#ifdef CONFIG_NO_HZ
+void calc_load_enter_idle(void);
+void calc_load_exit_idle(void);
+#else
+static inline void calc_load_enter_idle(void) { }
+static inline void calc_load_exit_idle(void) { }
+#endif /* CONFIG_NO_HZ */
 
 #ifndef CONFIG_CPUMASK_OFFSTACK
 static inline int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
