@@ -2003,6 +2003,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	}
 
 	switch (end) {
+	case -EIO:
 	case -EAGAIN: /* Wedged */
 	case -ERESTARTSYS: /* Signal */
 		return (int)end;
