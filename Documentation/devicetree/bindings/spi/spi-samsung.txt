@@ -18,6 +18,9 @@ Required SoC Specific Properties:
 - interrupts: The interrupt number to the cpu. The interrupt specifier format
   depends on the interrupt controller.
 
+[PRELIMINARY: the dma channel allocation will change once there are
+official DMA bindings]
+
 - tx-dma-channel: The dma channel specifier for tx operations. The format of
   the dma specifier depends on the dma controller.
 
