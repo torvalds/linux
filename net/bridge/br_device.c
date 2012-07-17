@@ -246,10 +246,7 @@ int br_netpoll_enable(struct net_bridge_port *p)
 	if (!np)
 		goto out;
 
-	np->dev = p->dev;
-	strlcpy(np->dev_name, p->dev->name, IFNAMSIZ);
-
-	err = __netpoll_setup(np);
+	err = __netpoll_setup(np, p->dev);
 	if (err) {
 		kfree(np);
 		goto out;

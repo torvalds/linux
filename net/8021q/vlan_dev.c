@@ -681,10 +681,7 @@ static int vlan_dev_netpoll_setup(struct net_device *dev, struct netpoll_info *n
 	if (!netpoll)
 		goto out;
 
-	netpoll->dev = real_dev;
-	strlcpy(netpoll->dev_name, real_dev->name, IFNAMSIZ);
-
-	err = __netpoll_setup(netpoll);
+	err = __netpoll_setup(netpoll, real_dev);
 	if (err) {
 		kfree(netpoll);
 		goto out;
