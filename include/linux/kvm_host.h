@@ -383,7 +383,6 @@ id_to_memslot(struct kvm_memslots *slots, int id)
 static inline int is_error_hpa(hpa_t hpa) { return hpa >> HPA_MSB; }
 
 extern struct page *bad_page;
-extern pfn_t bad_pfn;
 
 int is_error_page(struct page *page);
 int is_error_pfn(pfn_t pfn);

@@ -100,6 +100,9 @@ EXPORT_SYMBOL_GPL(kvm_rebooting);
 
 static bool largepages_enabled = true;
 
+struct page *bad_page;
+static pfn_t bad_pfn;
+
 static struct page *hwpoison_page;
 static pfn_t hwpoison_pfn;
 
@@ -2690,9 +2693,6 @@ static struct syscore_ops kvm_syscore_ops = {
 	.suspend = kvm_suspend,
 	.resume = kvm_resume,
 };
-
-struct page *bad_page;
-pfn_t bad_pfn;
 
 static inline
 struct kvm_vcpu *preempt_notifier_to_vcpu(struct preempt_notifier *pn)
