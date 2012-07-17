@@ -738,27 +738,27 @@ static int get_sgttyb(struct tty_struct *tty, struct sgttyb __user *sgttyb)
 
 static void set_sgflags(struct ktermios *termios, int flags)
 {
-	termios.c_iflag = ICRNL | IXON;
-	termios.c_oflag = 0;
-	termios.c_lflag = ISIG | ICANON;
+	termios->c_iflag = ICRNL | IXON;
+	termios->c_oflag = 0;
+	termios->c_lflag = ISIG | ICANON;
 	if (flags & 0x02) {	/* cbreak */
-		termios.c_iflag = 0;
-		termios.c_lflag &= ~ICANON;
+		termios->c_iflag = 0;
+		termios->c_lflag &= ~ICANON;
 	}
 	if (flags & 0x08) {		/* echo */
-		termios.c_lflag |= ECHO | ECHOE | ECHOK |
+		termios->c_lflag |= ECHO | ECHOE | ECHOK |
 				    ECHOCTL | ECHOKE | IEXTEN;
 	}
 	if (flags & 0x10) {		/* crmod */
-		termios.c_oflag |= OPOST | ONLCR;
+		termios->c_oflag |= OPOST | ONLCR;
 	}
 	if (flags & 0x20) {	/* raw */
-		termios.c_iflag = 0;
-		termios.c_lflag &= ~(ISIG | ICANON);
+		termios->c_iflag = 0;
+		termios->c_lflag &= ~(ISIG | ICANON);
 	}
-	if (!(termios.c_lflag & ICANON)) {
-		termios.c_cc[VMIN] = 1;
-		termios.c_cc[VTIME] = 0;
+	if (!(termios->c_lflag & ICANON)) {
+		termios->c_cc[VMIN] = 1;
+		termios->c_cc[VTIME] = 0;
 	}
 }
 
