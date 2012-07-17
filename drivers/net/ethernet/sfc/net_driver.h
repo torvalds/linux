@@ -37,7 +37,7 @@
  *
  **************************************************************************/
 
-#define EFX_DRIVER_VERSION	"3.1"
+#define EFX_DRIVER_VERSION	"3.2"
 
 #ifdef DEBUG
 #define EFX_BUG_ON_PARANOID(x) BUG_ON(x)
