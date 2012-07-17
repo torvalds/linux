@@ -3610,16 +3610,17 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 	if (hw->mac.type != ixgbe_mac_82598EB) {
 		int i;
 		u32 reg = 0;
+		u8 msb = 0;
+		u8 rss_i = adapter->netdev->tc_to_txq[0].count - 1;
 
-		for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
-			u8 msb = 0;
-			u8 cnt = adapter->netdev->tc_to_txq[i].count;
-
-			while (cnt >>= 1)
-				msb++;
-
-			reg |= msb << IXGBE_RQTC_SHIFT_TC(i);
+		while (rss_i) {
+			msb++;
+			rss_i >>= 1;
 		}
+
+		for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
+			reg |= msb << IXGBE_RQTC_SHIFT_TC(i);
+
 		IXGBE_WRITE_REG(hw, IXGBE_RQTC, reg);
 	}
 }
@@ -3646,18 +3647,12 @@ static int ixgbe_hpbthresh(struct ixgbe_adapter *adapter, int pb)
 
 #ifdef IXGBE_FCOE
 	/* FCoE traffic class uses FCOE jumbo frames */
-	if (dev->features & NETIF_F_FCOE_MTU) {
-		int fcoe_pb = 0;
-
-#ifdef CONFIG_IXGBE_DCB
-		fcoe_pb = netdev_get_prio_tc_map(dev, adapter->fcoe.up);
+	if ((dev->features & NETIF_F_FCOE_MTU) &&
+	    (tc < IXGBE_FCOE_JUMBO_FRAME_SIZE) &&
+	    (pb == ixgbe_fcoe_get_tc(adapter)))
+		tc = IXGBE_FCOE_JUMBO_FRAME_SIZE;
 
 #endif
-		if (fcoe_pb == pb && tc < IXGBE_FCOE_JUMBO_FRAME_SIZE)
-			tc = IXGBE_FCOE_JUMBO_FRAME_SIZE;
-	}
-#endif
-
 	/* Calculate delay value for device */
 	switch (hw->mac.type) {
 	case ixgbe_mac_X540:
@@ -6596,6 +6591,31 @@ static void ixgbe_validate_rtr(struct ixgbe_adapter *adapter, u8 tc)
 }
 
 /**
+ * ixgbe_set_prio_tc_map - Configure netdev prio tc map
+ * @adapter: Pointer to adapter struct
+ *
+ * Populate the netdev user priority to tc map
+ */
+static void ixgbe_set_prio_tc_map(struct ixgbe_adapter *adapter)
+{
+	struct net_device *dev = adapter->netdev;
+	struct ixgbe_dcb_config *dcb_cfg = &adapter->dcb_cfg;
+	struct ieee_ets *ets = adapter->ixgbe_ieee_ets;
+	u8 prio;
+
+	for (prio = 0; prio < MAX_USER_PRIORITY; prio++) {
+		u8 tc = 0;
+
+		if (adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE)
+			tc = ixgbe_dcb_get_tc_from_up(dcb_cfg, 0, prio);
+		else if (ets)
+			tc = ets->prio_tc[prio];
+
+		netdev_set_prio_tc_map(dev, prio, tc);
+	}
+}
+
+/**
  * ixgbe_setup_tc - configure net_device for multiple traffic classes
  *
  * @netdev: net device to configure
@@ -6633,6 +6653,8 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 
 	if (tc) {
 		netdev_set_num_tc(dev, tc);
+		ixgbe_set_prio_tc_map(adapter);
+
 		adapter->flags |= IXGBE_FLAG_DCB_ENABLED;
 		adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
 
@@ -6642,6 +6664,7 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 		}
 	} else {
 		netdev_reset_tc(dev);
+
 		if (adapter->hw.mac.type == ixgbe_mac_82598EB)
 			adapter->hw.fc.requested_mode = adapter->last_lfc_mode;
 
@@ -7005,7 +7028,11 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 #endif
 
 	if (ii->mac == ixgbe_mac_82598EB)
+#ifdef CONFIG_IXGBE_DCB
+		indices = min_t(unsigned int, indices, MAX_TRAFFIC_CLASS * 4);
+#else
 		indices = min_t(unsigned int, indices, IXGBE_MAX_RSS_INDICES);
+#endif
 	else
 		indices = min_t(unsigned int, indices, IXGBE_MAX_FDIR_INDICES);
 

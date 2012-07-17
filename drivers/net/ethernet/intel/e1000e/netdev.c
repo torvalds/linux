@@ -2474,6 +2474,30 @@ set_itr_now:
 }
 
 /**
+ * e1000e_write_itr - write the ITR value to the appropriate registers
+ * @adapter: address of board private structure
+ * @itr: new ITR value to program
+ *
+ * e1000e_write_itr determines if the adapter is in MSI-X mode
+ * and, if so, writes the EITR registers with the ITR value.
+ * Otherwise, it writes the ITR value into the ITR register.
+ **/
+void e1000e_write_itr(struct e1000_adapter *adapter, u32 itr)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 new_itr = itr ? 1000000000 / (itr * 256) : 0;
+
+	if (adapter->msix_entries) {
+		int vector;
+
+		for (vector = 0; vector < adapter->num_vectors; vector++)
+			writel(new_itr, hw->hw_addr + E1000_EITR_82574(vector));
+	} else {
+		ew32(ITR, new_itr);
+	}
+}
+
+/**
  * e1000_alloc_queues - Allocate memory for all rings
  * @adapter: board private structure to initialize
  **/
@@ -3059,7 +3083,7 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 	/* irq moderation */
 	ew32(RADV, adapter->rx_abs_int_delay);
 	if ((adapter->itr_setting != 0) && (adapter->itr != 0))
-		ew32(ITR, 1000000000 / (adapter->itr * 256));
+		e1000e_write_itr(adapter, adapter->itr);
 
 	ctrl_ext = er32(CTRL_EXT);
 	/* Auto-Mask interrupts upon ICR access */
@@ -3486,14 +3510,14 @@ void e1000e_reset(struct e1000_adapter *adapter)
 				dev_info(&adapter->pdev->dev,
 					"Interrupt Throttle Rate turned off\n");
 				adapter->flags2 |= FLAG2_DISABLE_AIM;
-				ew32(ITR, 0);
+				e1000e_write_itr(adapter, 0);
 			}
 		} else if (adapter->flags2 & FLAG2_DISABLE_AIM) {
 			dev_info(&adapter->pdev->dev,
 				 "Interrupt Throttle Rate turned on\n");
 			adapter->flags2 &= ~FLAG2_DISABLE_AIM;
 			adapter->itr = 20000;
-			ew32(ITR, 1000000000 / (adapter->itr * 256));
+			e1000e_write_itr(adapter, adapter->itr);
 		}
 	}
 
@@ -4576,7 +4600,7 @@ link_up:
 			    adapter->gorc - adapter->gotc) / 10000;
 		u32 itr = goc > 0 ? (dif * 6000 / goc + 2000) : 8000;
 
-		ew32(ITR, 1000000000 / (itr * 256));
+		e1000e_write_itr(adapter, itr);
 	}
 
 	/* Cause software interrupt to ensure Rx ring is cleaned */

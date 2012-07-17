@@ -151,34 +151,21 @@ static u8 ixgbe_dcbnl_get_state(struct net_device *netdev)
 
 static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 {
-	int err = 0;
-	u8 prio_tc[MAX_USER_PRIORITY] = {0};
-	int i;
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	int err = 0;
 
 	/* Fail command if not in CEE mode */
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
 		return 1;
 
 	/* verify there is something to do, if not then exit */
-	if (!!state != !(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
+	if (!state == !(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
 		goto out;
 
-	if (state > 0) {
-		err = ixgbe_setup_tc(netdev, adapter->dcb_cfg.num_tcs.pg_tcs);
-		ixgbe_dcb_unpack_map(&adapter->dcb_cfg, DCB_TX_CONFIG, prio_tc);
-	} else {
-		err = ixgbe_setup_tc(netdev, 0);
-	}
-
-	if (err)
-		goto out;
-
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
-		netdev_set_prio_tc_map(netdev, i, prio_tc[i]);
-
+	err = ixgbe_setup_tc(netdev,
+			     state ? adapter->dcb_cfg.num_tcs.pg_tcs : 0);
 out:
-	return err ? 1 : 0;
+	return !!err;
 }
 
 static void ixgbe_dcbnl_get_perm_hw_addr(struct net_device *netdev,
@@ -583,9 +570,6 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 
 	if (err)
 		goto err_out;
-
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
-		netdev_set_prio_tc_map(dev, i, ets->prio_tc[i]);
 
 	err = ixgbe_dcb_hw_ets(&adapter->hw, ets, max_frame);
 err_out:
