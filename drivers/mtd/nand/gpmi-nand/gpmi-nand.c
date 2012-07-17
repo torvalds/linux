@@ -317,7 +317,7 @@ acquire_register_block(struct gpmi_nand_data *this, const char *res_name)
 	struct platform_device *pdev = this->pdev;
 	struct resources *res = &this->resources;
 	struct resource *r;
-	void *p;
+	void __iomem *p;
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res_name);
 	if (!r) {
@@ -424,8 +424,8 @@ static int __devinit acquire_dma_channels(struct gpmi_nand_data *this)
 	struct platform_device *pdev = this->pdev;
 	struct resource *r_dma;
 	struct device_node *dn;
-	int dma_channel;
-	unsigned int ret;
+	u32 dma_channel;
+	int ret;
 	struct dma_chan *dma_chan;
 	dma_cap_mask_t mask;
 
@@ -732,12 +732,12 @@ static int gpmi_alloc_dma_buffer(struct gpmi_nand_data *this)
 	struct device *dev = this->dev;
 
 	/* [1] Allocate a command buffer. PAGE_SIZE is enough. */
-	this->cmd_buffer = kzalloc(PAGE_SIZE, GFP_DMA);
+	this->cmd_buffer = kzalloc(PAGE_SIZE, GFP_DMA | GFP_KERNEL);
 	if (this->cmd_buffer == NULL)
 		goto error_alloc;
 
 	/* [2] Allocate a read/write data buffer. PAGE_SIZE is enough. */
-	this->data_buffer_dma = kzalloc(PAGE_SIZE, GFP_DMA);
+	this->data_buffer_dma = kzalloc(PAGE_SIZE, GFP_DMA | GFP_KERNEL);
 	if (this->data_buffer_dma == NULL)
 		goto error_alloc;
 
@@ -1260,7 +1260,6 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 	unsigned int search_area_size_in_strides;
 	unsigned int stride;
 	unsigned int page;
-	loff_t byte;
 	uint8_t *buffer = chip->buffers->databuf;
 	int saved_chip_number;
 	int found_an_ncb_fingerprint = false;
@@ -1277,9 +1276,8 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 	dev_dbg(dev, "Scanning for an NCB fingerprint...\n");
 
 	for (stride = 0; stride < search_area_size_in_strides; stride++) {
-		/* Compute the page and byte addresses. */
+		/* Compute the page addresses. */
 		page = stride * rom_geo->stride_size_in_pages;
-		byte = page   * mtd->writesize;
 
 		dev_dbg(dev, "Looking for a fingerprint in page 0x%x\n", page);
 
@@ -1321,7 +1319,6 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 	unsigned int block;
 	unsigned int stride;
 	unsigned int page;
-	loff_t       byte;
 	uint8_t      *buffer = chip->buffers->databuf;
 	int saved_chip_number;
 	int status;
@@ -1370,9 +1367,8 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 	/* Loop through the first search area, writing NCB fingerprints. */
 	dev_dbg(dev, "Writing NCB fingerprints...\n");
 	for (stride = 0; stride < search_area_size_in_strides; stride++) {
-		/* Compute the page and byte addresses. */
+		/* Compute the page addresses. */
 		page = stride * rom_geo->stride_size_in_pages;
-		byte = page   * mtd->writesize;
 
 		/* Write the first page of the current stride. */
 		dev_dbg(dev, "Writing an NCB fingerprint in page 0x%x\n", page);
@@ -1527,7 +1523,7 @@ static int gpmi_scan_bbt(struct mtd_info *mtd)
 	return nand_default_bbt(mtd);
 }
 
-void gpmi_nfc_exit(struct gpmi_nand_data *this)
+static void gpmi_nfc_exit(struct gpmi_nand_data *this)
 {
 	nand_release(&this->mtd);
 	gpmi_free_dma_buffer(this);

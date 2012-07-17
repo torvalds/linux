@@ -24,8 +24,8 @@
 
 #define GPMI_CLK_MAX 5 /* MX6Q needs five clocks */
 struct resources {
-	void          *gpmi_regs;
-	void          *bch_regs;
+	void __iomem  *gpmi_regs;
+	void __iomem  *bch_regs;
 	unsigned int  bch_low_interrupt;
 	unsigned int  bch_high_interrupt;
 	unsigned int  dma_low_channel;
