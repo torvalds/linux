@@ -2709,6 +2709,14 @@ M:	Mimi Zohar <zohar@us.ibm.com>
 S:	Supported
 F:	security/integrity/evm/
 
+EXTERNAL CONNECTOR SUBSYSTEM (EXTCON)
+M:	MyungJoo Ham <myungjoo.ham@samsung.com>
+M:	Chanwoo Choi <cw00.choi@samsung.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/extcon/
+F:	Documentation/extcon/
+
 EXYNOS DP DRIVER
 M:	Jingoo Han <jg1.han@samsung.com>
 L:	linux-fbdev@vger.kernel.org

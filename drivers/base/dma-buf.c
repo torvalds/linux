@@ -493,6 +493,7 @@ EXPORT_SYMBOL_GPL(dma_buf_vmap);
 /**
  * dma_buf_vunmap - Unmap a vmap obtained by dma_buf_vmap.
  * @dmabuf:	[in]	buffer to vunmap
+ * @vaddr:	[in]	vmap to vunmap
  */
 void dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
 {

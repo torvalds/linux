@@ -76,6 +76,7 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 
 	INIT_LIST_HEAD(&dev->slist);
 	mutex_init(&dev->mutex);
+	mutex_init(&dev->bus_mutex);
 
 	memcpy(&dev->dev, device, sizeof(struct device));
 	dev_set_name(&dev->dev, "w1_bus_master%u", dev->id);
@@ -117,7 +118,7 @@ int w1_add_master_device(struct w1_bus_master *master)
 		return(-EINVAL);
         }
 	/* While it would be electrically possible to make a device that
-	 * generated a strong pullup in bit bang mode, only hardare that
+	 * generated a strong pullup in bit bang mode, only hardware that
 	 * controls 1-wire time frames are even expected to support a strong
 	 * pullup.  w1_io.c would need to support calling set_pullup before
 	 * the last write_bit operation of a w1_write_8 which it currently

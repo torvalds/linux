@@ -85,8 +85,20 @@ static void deferred_probe_work_func(struct work_struct *work)
 		 * manipulate the deferred list
 		 */
 		mutex_unlock(&deferred_probe_mutex);
+
+		/*
+		 * Force the device to the end of the dpm_list since
+		 * the PM code assumes that the order we add things to
+		 * the list is a good order for suspend but deferred
+		 * probe makes that very unsafe.
+		 */
+		device_pm_lock();
+		device_pm_move_last(dev);
+		device_pm_unlock();
+
 		dev_dbg(dev, "Retrying from deferred list\n");
 		bus_probe_device(dev);
+
 		mutex_lock(&deferred_probe_mutex);
 
 		put_device(dev);
@@ -283,6 +295,7 @@ probe_failed:
 	devres_release_all(dev);
 	driver_sysfs_remove(dev);
 	dev->driver = NULL;
+	dev_set_drvdata(dev, NULL);
 
 	if (ret == -EPROBE_DEFER) {
 		/* Driver requested deferred probing */
@@ -487,6 +500,7 @@ static void __device_release_driver(struct device *dev)
 			drv->remove(dev);
 		devres_release_all(dev);
 		dev->driver = NULL;
+		dev_set_drvdata(dev, NULL);
 		klist_remove(&dev->p->knode_driver);
 		if (dev->bus)
 			blocking_notifier_call_chain(&dev->bus->p->bus_notifier,

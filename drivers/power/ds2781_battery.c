@@ -37,7 +37,6 @@ struct ds2781_device_info {
 	struct device *dev;
 	struct power_supply bat;
 	struct device *w1_dev;
-	struct task_struct *mutex_holder;
 };
 
 enum current_types {
@@ -62,11 +61,7 @@ static inline struct power_supply *to_power_supply(struct device *dev)
 static inline int ds2781_battery_io(struct ds2781_device_info *dev_info,
 	char *buf, int addr, size_t count, int io)
 {
-	if (dev_info->mutex_holder == current)
-		return w1_ds2781_io_nolock(dev_info->w1_dev, buf, addr,
-				count, io);
-	else
-		return w1_ds2781_io(dev_info->w1_dev, buf, addr, count, io);
+	return w1_ds2781_io(dev_info->w1_dev, buf, addr, count, io);
 }
 
 int w1_ds2781_read(struct ds2781_device_info *dev_info, char *buf,
@@ -775,7 +770,6 @@ static int __devinit ds2781_battery_probe(struct platform_device *pdev)
 	dev_info->bat.properties	= ds2781_battery_props;
 	dev_info->bat.num_properties	= ARRAY_SIZE(ds2781_battery_props);
 	dev_info->bat.get_property	= ds2781_battery_get_property;
-	dev_info->mutex_holder		= current;
 
 	ret = power_supply_register(&pdev->dev, &dev_info->bat);
 	if (ret) {
@@ -805,8 +799,6 @@ static int __devinit ds2781_battery_probe(struct platform_device *pdev)
 		goto fail_remove_bin_file;
 	}
 
-	dev_info->mutex_holder = NULL;
-
 	return 0;
 
 fail_remove_bin_file:
@@ -825,8 +817,6 @@ fail:
 static int __devexit ds2781_battery_remove(struct platform_device *pdev)
 {
 	struct ds2781_device_info *dev_info = platform_get_drvdata(pdev);
-
-	dev_info->mutex_holder = current;
 
 	/* remove attributes */
 	sysfs_remove_group(&dev_info->bat.dev->kobj, &ds2781_attr_group);
