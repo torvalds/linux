@@ -1473,6 +1473,9 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	return op_mode;
 
 out_destroy_workqueue:
+	iwl_tt_exit(priv);
+	iwl_testmode_free(priv);
+	iwl_cancel_deferred_work(priv);
 	destroy_workqueue(priv->workqueue);
 	priv->workqueue = NULL;
 	iwl_uninit_drv(priv);
