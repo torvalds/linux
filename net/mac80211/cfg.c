@@ -2493,6 +2493,7 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	skb->dev = sdata->dev;
 
 	if (!need_offchan) {
+		*cookie = (unsigned long) skb;
 		ieee80211_tx_skb(sdata, skb);
 		ret = 0;
 		goto out_unlock;
@@ -2982,14 +2983,14 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
-static void ieee80211_set_monitor_enabled(struct wiphy *wiphy, bool enabled)
+static struct ieee80211_channel *
+ieee80211_cfg_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
+			  enum nl80211_channel_type *type)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 
-	if (enabled)
-		WARN_ON(ieee80211_add_virtual_monitor(local));
-	else
-		ieee80211_del_virtual_monitor(local);
+	*type = local->_oper_channel_type;
+	return local->oper_channel;
 }
 
 #ifdef CONFIG_PM
@@ -3066,11 +3067,11 @@ struct cfg80211_ops mac80211_config_ops = {
 	.tdls_mgmt = ieee80211_tdls_mgmt,
 	.probe_client = ieee80211_probe_client,
 	.set_noack_map = ieee80211_set_noack_map,
-	.set_monitor_enabled = ieee80211_set_monitor_enabled,
 #ifdef CONFIG_PM
 	.set_wakeup = ieee80211_set_wakeup,
 #endif
 	.get_et_sset_count = ieee80211_get_et_sset_count,
 	.get_et_stats = ieee80211_get_et_stats,
 	.get_et_strings = ieee80211_get_et_strings,
+	.get_channel = ieee80211_cfg_get_channel,
 };

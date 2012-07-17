@@ -324,6 +324,7 @@ void ieee80211_sw_roc_work(struct work_struct *work)
 		container_of(work, struct ieee80211_roc_work, work.work);
 	struct ieee80211_sub_if_data *sdata = roc->sdata;
 	struct ieee80211_local *local = sdata->local;
+	bool started;
 
 	mutex_lock(&local->mtx);
 
@@ -366,9 +367,10 @@ void ieee80211_sw_roc_work(struct work_struct *work)
 		/* finish this ROC */
  finish:
 		list_del(&roc->list);
+		started = roc->started;
 		ieee80211_roc_notify_destroy(roc);
 
-		if (roc->started) {
+		if (started) {
 			drv_flush(local, false);
 
 			local->tmp_channel = NULL;
@@ -379,7 +381,7 @@ void ieee80211_sw_roc_work(struct work_struct *work)
 
 		ieee80211_recalc_idle(local);
 
-		if (roc->started)
+		if (started)
 			ieee80211_start_next_roc(local);
 	}
 

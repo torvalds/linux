@@ -1360,6 +1360,17 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	}
 	mutex_unlock(&local->sta_mtx);
 
+	/*
+	 * if we want to get out of ps before disassoc (why?) we have
+	 * to do it before sending disassoc, as otherwise the null-packet
+	 * won't be valid.
+	 */
+	if (local->hw.conf.flags & IEEE80211_CONF_PS) {
+		local->hw.conf.flags &= ~IEEE80211_CONF_PS;
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+	}
+	local->ps_sdata = NULL;
+
 	/* flush out any pending frame (e.g. DELBA) before deauth/disassoc */
 	if (tx)
 		drv_flush(local, false);
@@ -1394,12 +1405,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	del_timer_sync(&local->dynamic_ps_timer);
 	cancel_work_sync(&local->dynamic_ps_enable_work);
-
-	if (local->hw.conf.flags & IEEE80211_CONF_PS) {
-		local->hw.conf.flags &= ~IEEE80211_CONF_PS;
-		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
-	}
-	local->ps_sdata = NULL;
 
 	/* Disable ARP filtering */
 	if (sdata->vif.bss_conf.arp_filter_enabled) {
