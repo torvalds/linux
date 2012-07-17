@@ -2445,6 +2445,18 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr, int *skipp
 				bio->bi_rw = READ;
 				bio->bi_end_io = end_sync_read;
 				read_targets++;
+			} else if (!test_bit(WriteErrorSeen, &rdev->flags) &&
+				test_bit(MD_RECOVERY_SYNC, &mddev->recovery) &&
+				!test_bit(MD_RECOVERY_CHECK, &mddev->recovery)) {
+				/*
+				 * The device is suitable for reading (InSync),
+				 * but has bad block(s) here. Let's try to correct them,
+				 * if we are doing resync or repair. Otherwise, leave
+				 * this device alone for this sync request.
+				 */
+				bio->bi_rw = WRITE;
+				bio->bi_end_io = end_sync_write;
+				write_targets++;
 			}
 		}
 		if (bio->bi_end_io) {
