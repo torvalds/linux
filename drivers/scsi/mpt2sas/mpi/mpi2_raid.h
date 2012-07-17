@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2010 LSI Corporation.
+ *  Copyright (c) 2000-2012 LSI Corporation.
  *
  *
  *           Name:  mpi2_raid.h
  *          Title:  MPI Integrated RAID messages and structures
  *  Creation Date:  April 26, 2007
  *
- *    mpi2_raid.h Version:  02.00.06
+ *    mpi2_raid.h Version:  02.00.08
  *
  *  Version History
  *  ---------------
@@ -26,7 +26,7 @@
  *  08-24-10  02.00.06  Added MPI2_RAID_ACTION_COMPATIBILITY_CHECK along with
  *                      related structures and defines.
  *                      Added product-specific range to RAID Action values.
-
+ *  02-06-12  02.00.08  Added MPI2_RAID_ACTION_PHYSDISK_HIDDEN.
  *  --------------------------------------------------------------------------
  */
 
@@ -181,6 +181,7 @@ typedef struct _MPI2_RAID_ACTION_REQUEST
 #define MPI2_RAID_ACTION_START_RAID_FUNCTION        (0x21)
 #define MPI2_RAID_ACTION_STOP_RAID_FUNCTION         (0x22)
 #define MPI2_RAID_ACTION_COMPATIBILITY_CHECK        (0x23)
+#define MPI2_RAID_ACTION_PHYSDISK_HIDDEN            (0x24)
 #define MPI2_RAID_ACTION_MIN_PRODUCT_SPECIFIC       (0x80)
 #define MPI2_RAID_ACTION_MAX_PRODUCT_SPECIFIC       (0xFF)
 
