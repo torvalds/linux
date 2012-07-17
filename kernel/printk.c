@@ -235,7 +235,8 @@ static u32 log_next_idx;
 static u64 clear_seq;
 static u32 clear_idx;
 
-#define LOG_LINE_MAX 1024
+#define PREFIX_MAX		32
+#define LOG_LINE_MAX		1024 - PREFIX_MAX
 
 /* record buffer */
 #if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
@@ -876,7 +877,7 @@ static size_t msg_print_text(const struct log *msg, enum log_flags prev,
 
 		if (buf) {
 			if (print_prefix(msg, syslog, NULL) +
-			    text_len + 1>= size - len)
+			    text_len + 1 >= size - len)
 				break;
 
 			if (prefix)
@@ -907,7 +908,7 @@ static int syslog_print(char __user *buf, int size)
 	struct log *msg;
 	int len = 0;
 
-	text = kmalloc(LOG_LINE_MAX, GFP_KERNEL);
+	text = kmalloc(LOG_LINE_MAX + PREFIX_MAX, GFP_KERNEL);
 	if (!text)
 		return -ENOMEM;
 
@@ -930,7 +931,8 @@ static int syslog_print(char __user *buf, int size)
 
 		skip = syslog_partial;
 		msg = log_from_idx(syslog_idx);
-		n = msg_print_text(msg, syslog_prev, true, text, LOG_LINE_MAX);
+		n = msg_print_text(msg, syslog_prev, true, text,
+				   LOG_LINE_MAX + PREFIX_MAX);
 		if (n - syslog_partial <= size) {
 			/* message fits into buffer, move forward */
 			syslog_idx = log_next(syslog_idx);
@@ -969,7 +971,7 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 	char *text;
 	int len = 0;
 
-	text = kmalloc(LOG_LINE_MAX, GFP_KERNEL);
+	text = kmalloc(LOG_LINE_MAX + PREFIX_MAX, GFP_KERNEL);
 	if (!text)
 		return -ENOMEM;
 
@@ -1022,7 +1024,8 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 			struct log *msg = log_from_idx(idx);
 			int textlen;
 
-			textlen = msg_print_text(msg, prev, true, text, LOG_LINE_MAX);
+			textlen = msg_print_text(msg, prev, true, text,
+						 LOG_LINE_MAX + PREFIX_MAX);
 			if (textlen < 0) {
 				len = textlen;
 				break;
@@ -1367,15 +1370,15 @@ static struct cont {
 	bool flushed:1;			/* buffer sealed and committed */
 } cont;
 
-static void cont_flush(void)
+static void cont_flush(enum log_flags flags)
 {
 	if (cont.flushed)
 		return;
 	if (cont.len == 0)
 		return;
 
-	log_store(cont.facility, cont.level, LOG_NOCONS, cont.ts_nsec,
-		  NULL, 0, cont.buf, cont.len);
+	log_store(cont.facility, cont.level, LOG_NOCONS | flags,
+		  cont.ts_nsec, NULL, 0, cont.buf, cont.len);
 
 	cont.flushed = true;
 }
@@ -1386,7 +1389,8 @@ static bool cont_add(int facility, int level, const char *text, size_t len)
 		return false;
 
 	if (cont.len + len > sizeof(cont.buf)) {
-		cont_flush();
+		/* the line gets too long, split it up in separate records */
+		cont_flush(LOG_CONT);
 		return false;
 	}
 
@@ -1522,7 +1526,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 		 * or another task also prints continuation lines.
 		 */
 		if (cont.len && (lflags & LOG_PREFIX || cont.owner != current))
-			cont_flush();
+			cont_flush(0);
 
 		/* buffer line if possible, otherwise store it right away */
 		if (!cont_add(facility, level, text, text_len))
@@ -1540,7 +1544,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 		if (cont.len && cont.owner == current) {
 			if (!(lflags & LOG_PREFIX))
 				stored = cont_add(facility, level, text, text_len);
-			cont_flush();
+			cont_flush(0);
 		}
 
 		if (!stored)
@@ -1633,7 +1637,8 @@ EXPORT_SYMBOL(printk);
 
 #else
 
-#define LOG_LINE_MAX 0
+#define LOG_LINE_MAX		0
+#define PREFIX_MAX		0
 static struct cont {
 	size_t len;
 	size_t cons;
@@ -1938,7 +1943,7 @@ static enum log_flags console_prev;
  */
 void console_unlock(void)
 {
-	static char text[LOG_LINE_MAX];
+	static char text[LOG_LINE_MAX + PREFIX_MAX];
 	static u64 seen_seq;
 	unsigned long flags;
 	bool wake_klogd = false;
