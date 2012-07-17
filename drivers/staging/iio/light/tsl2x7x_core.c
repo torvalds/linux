@@ -2028,14 +2028,13 @@ static int tsl2x7x_resume(struct device *dev)
 
 static int __devexit tsl2x7x_remove(struct i2c_client *client)
 {
-	struct tsl2X7X_chip *chip = i2c_get_clientdata(client);
-	struct iio_dev *indio_dev = iio_priv_to_dev(chip);
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
 	tsl2x7x_chip_off(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	if (client->irq)
-		free_irq(client->irq, chip->client->name);
+		free_irq(client->irq, indio_dev);
 
 	iio_device_free(indio_dev);
 
