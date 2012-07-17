@@ -553,11 +553,11 @@ static inline void put_signature(struct smmu_as *as,
 #endif
 
 /*
- * Caller must lock/unlock as
+ * Caller must not hold as->lock
  */
-static int alloc_pdir(struct smmu_as *as, unsigned long *flags)
+static int alloc_pdir(struct smmu_as *as)
 {
-	unsigned long *pdir;
+	unsigned long *pdir, flags;
 	int pdn, err = 0;
 	u32 val;
 	struct smmu_device *smmu = as->smmu;
@@ -565,13 +565,14 @@ static int alloc_pdir(struct smmu_as *as, unsigned long *flags)
 	unsigned int *cnt;
 
 	/*
-	 * do the allocation outside the as->lock
+	 * do the allocation, then grab as->lock
 	 */
-	spin_unlock_irqrestore(&as->lock, *flags);
 	cnt = devm_kzalloc(smmu->dev,
-			   sizeof(cnt[0]) * SMMU_PDIR_COUNT, GFP_KERNEL);
+			   sizeof(cnt[0]) * SMMU_PDIR_COUNT,
+			   GFP_KERNEL);
 	page = alloc_page(GFP_KERNEL | __GFP_DMA);
-	spin_lock_irqsave(&as->lock, *flags);
+
+	spin_lock_irqsave(&as->lock, flags);
 
 	if (as->pdir_page) {
 		/* We raced, free the redundant */
@@ -603,9 +604,13 @@ static int alloc_pdir(struct smmu_as *as, unsigned long *flags)
 	smmu_write(smmu, val, SMMU_TLB_FLUSH);
 	FLUSH_SMMU_REGS(as->smmu);
 
+	spin_unlock_irqrestore(&as->lock, flags);
+
 	return 0;
 
 err_out:
+	spin_unlock_irqrestore(&as->lock, flags);
+
 	devm_kfree(smmu->dev, cnt);
 	if (page)
 		__free_page(page);
@@ -809,13 +814,11 @@ static int smmu_iommu_domain_init(struct iommu_domain *domain)
 	/* Look for a free AS with lock held */
 	for  (i = 0; i < smmu->num_as; i++) {
 		as = &smmu->as[i];
-		spin_lock_irqsave(&as->lock, flags);
 		if (!as->pdir_page) {
-			err = alloc_pdir(as, &flags);
+			err = alloc_pdir(as);
 			if (!err)
 				goto found;
 		}
-		spin_unlock_irqrestore(&as->lock, flags);
 		if (err != -EAGAIN)
 			break;
 	}
@@ -824,7 +827,7 @@ static int smmu_iommu_domain_init(struct iommu_domain *domain)
 	return err;
 
 found:
-	spin_lock(&smmu->lock);
+	spin_lock_irqsave(&smmu->lock, flags);
 
 	/* Update PDIR register */
 	smmu_write(smmu, SMMU_PTB_ASID_CUR(as->asid), SMMU_PTB_ASID);
@@ -832,12 +835,12 @@ found:
 		   SMMU_MK_PDIR(as->pdir_page, as->pdir_attr), SMMU_PTB_DATA);
 	FLUSH_SMMU_REGS(smmu);
 
-	spin_unlock(&smmu->lock);
+	spin_unlock_irqrestore(&smmu->lock, flags);
 
-	spin_unlock_irqrestore(&as->lock, flags);
 	domain->priv = as;
 
 	dev_dbg(smmu->dev, "smmu_as@%p\n", as);
+
 	return 0;
 }
 
