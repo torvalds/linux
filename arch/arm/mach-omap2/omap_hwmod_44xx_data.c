@@ -393,8 +393,7 @@ static struct omap_hwmod_class_sysconfig omap44xx_counter_sysc = {
 	.rev_offs	= 0x0000,
 	.sysc_offs	= 0x0004,
 	.sysc_flags	= SYSC_HAS_SIDLEMODE,
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -854,6 +853,11 @@ static struct omap_hwmod omap44xx_dss_hdmi_hwmod = {
 	.name		= "dss_hdmi",
 	.class		= &omap44xx_hdmi_hwmod_class,
 	.clkdm_name	= "l3_dss_clkdm",
+	/*
+	 * HDMI audio requires to use no-idle mode. Hence,
+	 * set idle mode by software.
+	 */
+	.flags		= HWMOD_SWSUP_SIDLE,
 	.mpu_irqs	= omap44xx_dss_hdmi_irqs,
 	.sdma_reqs	= omap44xx_dss_hdmi_sdma_reqs,
 	.main_clk	= "dss_48mhz_clk",
@@ -1924,7 +1928,7 @@ static struct omap_hwmod_dma_info omap44xx_mcbsp1_sdma_reqs[] = {
 
 static struct omap_hwmod_opt_clk mcbsp1_opt_clks[] = {
 	{ .role = "pad_fck", .clk = "pad_clks_ck" },
-	{ .role = "prcm_clk", .clk = "mcbsp1_sync_mux_ck" },
+	{ .role = "prcm_fck", .clk = "mcbsp1_sync_mux_ck" },
 };
 
 static struct omap_hwmod omap44xx_mcbsp1_hwmod = {
@@ -1959,7 +1963,7 @@ static struct omap_hwmod_dma_info omap44xx_mcbsp2_sdma_reqs[] = {
 
 static struct omap_hwmod_opt_clk mcbsp2_opt_clks[] = {
 	{ .role = "pad_fck", .clk = "pad_clks_ck" },
-	{ .role = "prcm_clk", .clk = "mcbsp2_sync_mux_ck" },
+	{ .role = "prcm_fck", .clk = "mcbsp2_sync_mux_ck" },
 };
 
 static struct omap_hwmod omap44xx_mcbsp2_hwmod = {
@@ -1994,7 +1998,7 @@ static struct omap_hwmod_dma_info omap44xx_mcbsp3_sdma_reqs[] = {
 
 static struct omap_hwmod_opt_clk mcbsp3_opt_clks[] = {
 	{ .role = "pad_fck", .clk = "pad_clks_ck" },
-	{ .role = "prcm_clk", .clk = "mcbsp3_sync_mux_ck" },
+	{ .role = "prcm_fck", .clk = "mcbsp3_sync_mux_ck" },
 };
 
 static struct omap_hwmod omap44xx_mcbsp3_hwmod = {
@@ -2029,7 +2033,7 @@ static struct omap_hwmod_dma_info omap44xx_mcbsp4_sdma_reqs[] = {
 
 static struct omap_hwmod_opt_clk mcbsp4_opt_clks[] = {
 	{ .role = "pad_fck", .clk = "pad_clks_ck" },
-	{ .role = "prcm_clk", .clk = "mcbsp4_sync_mux_ck" },
+	{ .role = "prcm_fck", .clk = "mcbsp4_sync_mux_ck" },
 };
 
 static struct omap_hwmod omap44xx_mcbsp4_hwmod = {
@@ -3860,7 +3864,7 @@ static struct omap_hwmod_ocp_if omap44xx_l4_cfg__l3_main_2 = {
 };
 
 /* usb_host_fs -> l3_main_2 */
-static struct omap_hwmod_ocp_if omap44xx_usb_host_fs__l3_main_2 = {
+static struct omap_hwmod_ocp_if __maybe_unused omap44xx_usb_host_fs__l3_main_2 = {
 	.master		= &omap44xx_usb_host_fs_hwmod,
 	.slave		= &omap44xx_l3_main_2_hwmod,
 	.clk		= "l3_div_ck",
@@ -3918,7 +3922,7 @@ static struct omap_hwmod_ocp_if omap44xx_l4_cfg__l3_main_3 = {
 };
 
 /* aess -> l4_abe */
-static struct omap_hwmod_ocp_if omap44xx_aess__l4_abe = {
+static struct omap_hwmod_ocp_if __maybe_unused omap44xx_aess__l4_abe = {
 	.master		= &omap44xx_aess_hwmod,
 	.slave		= &omap44xx_l4_abe_hwmod,
 	.clk		= "ocp_abe_iclk",
@@ -4009,7 +4013,7 @@ static struct omap_hwmod_addr_space omap44xx_aess_addrs[] = {
 };
 
 /* l4_abe -> aess */
-static struct omap_hwmod_ocp_if omap44xx_l4_abe__aess = {
+static struct omap_hwmod_ocp_if __maybe_unused omap44xx_l4_abe__aess = {
 	.master		= &omap44xx_l4_abe_hwmod,
 	.slave		= &omap44xx_aess_hwmod,
 	.clk		= "ocp_abe_iclk",
@@ -4027,7 +4031,7 @@ static struct omap_hwmod_addr_space omap44xx_aess_dma_addrs[] = {
 };
 
 /* l4_abe -> aess (dma) */
-static struct omap_hwmod_ocp_if omap44xx_l4_abe__aess_dma = {
+static struct omap_hwmod_ocp_if __maybe_unused omap44xx_l4_abe__aess_dma = {
 	.master		= &omap44xx_l4_abe_hwmod,
 	.slave		= &omap44xx_aess_hwmod,
 	.clk		= "ocp_abe_iclk",
@@ -5853,7 +5857,7 @@ static struct omap_hwmod_addr_space omap44xx_usb_host_fs_addrs[] = {
 };
 
 /* l4_cfg -> usb_host_fs */
-static struct omap_hwmod_ocp_if omap44xx_l4_cfg__usb_host_fs = {
+static struct omap_hwmod_ocp_if __maybe_unused omap44xx_l4_cfg__usb_host_fs = {
 	.master		= &omap44xx_l4_cfg_hwmod,
 	.slave		= &omap44xx_usb_host_fs_hwmod,
 	.clk		= "l4_div_ck",
@@ -6010,13 +6014,13 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_iva__l3_main_2,
 	&omap44xx_l3_main_1__l3_main_2,
 	&omap44xx_l4_cfg__l3_main_2,
-	&omap44xx_usb_host_fs__l3_main_2,
+	/* &omap44xx_usb_host_fs__l3_main_2, */
 	&omap44xx_usb_host_hs__l3_main_2,
 	&omap44xx_usb_otg_hs__l3_main_2,
 	&omap44xx_l3_main_1__l3_main_3,
 	&omap44xx_l3_main_2__l3_main_3,
 	&omap44xx_l4_cfg__l3_main_3,
-	&omap44xx_aess__l4_abe,
+	/* &omap44xx_aess__l4_abe, */
 	&omap44xx_dsp__l4_abe,
 	&omap44xx_l3_main_1__l4_abe,
 	&omap44xx_mpu__l4_abe,
@@ -6025,8 +6029,8 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_cfg__l4_wkup,
 	&omap44xx_mpu__mpu_private,
 	&omap44xx_l4_cfg__ocp_wp_noc,
-	&omap44xx_l4_abe__aess,
-	&omap44xx_l4_abe__aess_dma,
+	/* &omap44xx_l4_abe__aess, */
+	/* &omap44xx_l4_abe__aess_dma, */
 	&omap44xx_l3_main_2__c2c,
 	&omap44xx_l4_wkup__counter_32k,
 	&omap44xx_l4_cfg__ctrl_module_core,
@@ -6132,7 +6136,7 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_per__uart2,
 	&omap44xx_l4_per__uart3,
 	&omap44xx_l4_per__uart4,
-	&omap44xx_l4_cfg__usb_host_fs,
+	/* &omap44xx_l4_cfg__usb_host_fs, */
 	&omap44xx_l4_cfg__usb_host_hs,
 	&omap44xx_l4_cfg__usb_otg_hs,
 	&omap44xx_l4_cfg__usb_tll_hs,

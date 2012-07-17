@@ -311,7 +311,7 @@ int __init arch_clk_init(void)
 		ret = sh_clk_div6_register(div6_clks, DIV6_NR);
 
 	if (!ret)
-		ret = sh_clk_mstp32_register(mstp_clks, HWBLK_NR);
+		ret = sh_clk_mstp_register(mstp_clks, HWBLK_NR);
 
 	return ret;
 }

@@ -1045,11 +1045,11 @@ ath5k_drain_tx_buffs(struct ath5k_hw *ah)
 
 				ath5k_txbuf_free_skb(ah, bf);
 
-				spin_lock_bh(&ah->txbuflock);
+				spin_lock(&ah->txbuflock);
 				list_move_tail(&bf->list, &ah->txbuf);
 				ah->txbuf_len++;
 				txq->txq_len--;
-				spin_unlock_bh(&ah->txbuflock);
+				spin_unlock(&ah->txbuflock);
 			}
 			txq->link = NULL;
 			txq->txq_poll_mark = false;

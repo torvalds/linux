@@ -108,10 +108,9 @@ information.</para>
 /></entry>
 	  </row>
 	  <row>
-	    <entry>__u32</entry>
+	    <entry>struct&nbsp;v4l2_format</entry>
 	    <entry><structfield>format</structfield></entry>
-	    <entry>Filled in by the application, preserved by the driver.
-	    See <xref linkend="v4l2-format" />.</entry>
+	    <entry>Filled in by the application, preserved by the driver.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>

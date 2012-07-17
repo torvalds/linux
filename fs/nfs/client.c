@@ -207,7 +207,6 @@ error_0:
 static void nfs4_shutdown_session(struct nfs_client *clp)
 {
 	if (nfs4_has_session(clp)) {
-		nfs4_deviceid_purge_client(clp);
 		nfs4_destroy_session(clp->cl_session);
 		nfs4_destroy_clientid(clp);
 	}

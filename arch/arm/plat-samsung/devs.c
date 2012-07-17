@@ -126,7 +126,8 @@ struct platform_device s3c_device_adc = {
 #ifdef CONFIG_CPU_S3C2440
 static struct resource s3c_camif_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C2440_PA_CAMIF, S3C2440_SZ_CAMIF),
-	[1] = DEFINE_RES_IRQ(IRQ_CAM),
+	[1] = DEFINE_RES_IRQ(IRQ_S3C2440_CAM_C),
+	[2] = DEFINE_RES_IRQ(IRQ_S3C2440_CAM_P),
 };
 
 struct platform_device s3c_device_camif = {

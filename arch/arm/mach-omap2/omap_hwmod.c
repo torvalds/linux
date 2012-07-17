@@ -530,7 +530,7 @@ static int _disable_wakeup(struct omap_hwmod *oh, u32 *v)
 	if (oh->class->sysc->idlemodes & SIDLE_SMART_WKUP)
 		_set_slave_idlemode(oh, HWMOD_IDLEMODE_SMART, v);
 	if (oh->class->sysc->idlemodes & MSTANDBY_SMART_WKUP)
-		_set_master_standbymode(oh, HWMOD_IDLEMODE_SMART_WKUP, v);
+		_set_master_standbymode(oh, HWMOD_IDLEMODE_SMART, v);
 
 	/* XXX test pwrdm_get_wken for this hwmod's subsystem */
 
@@ -1124,15 +1124,18 @@ static struct omap_hwmod_addr_space * __init _find_mpu_rt_addr_space(struct omap
  * _enable_sysc - try to bring a module out of idle via OCP_SYSCONFIG
  * @oh: struct omap_hwmod *
  *
- * If module is marked as SWSUP_SIDLE, force the module out of slave
- * idle; otherwise, configure it for smart-idle.  If module is marked
- * as SWSUP_MSUSPEND, force the module out of master standby;
- * otherwise, configure it for smart-standby.  No return value.
+ * Ensure that the OCP_SYSCONFIG register for the IP block represented
+ * by @oh is set to indicate to the PRCM that the IP block is active.
+ * Usually this means placing the module into smart-idle mode and
+ * smart-standby, but if there is a bug in the automatic idle handling
+ * for the IP block, it may need to be placed into the force-idle or
+ * no-idle variants of these modes.  No return value.
  */
 static void _enable_sysc(struct omap_hwmod *oh)
 {
 	u8 idlemode, sf;
 	u32 v;
+	bool clkdm_act;
 
 	if (!oh->class->sysc)
 		return;
@@ -1141,8 +1144,16 @@ static void _enable_sysc(struct omap_hwmod *oh)
 	sf = oh->class->sysc->sysc_flags;
 
 	if (sf & SYSC_HAS_SIDLEMODE) {
-		idlemode = (oh->flags & HWMOD_SWSUP_SIDLE) ?
-			HWMOD_IDLEMODE_NO : HWMOD_IDLEMODE_SMART;
+		clkdm_act = ((oh->clkdm &&
+			      oh->clkdm->flags & CLKDM_ACTIVE_WITH_MPU) ||
+			     (oh->_clk && oh->_clk->clkdm &&
+			      oh->_clk->clkdm->flags & CLKDM_ACTIVE_WITH_MPU));
+		if (clkdm_act && !(oh->class->sysc->idlemodes &
+				   (SIDLE_SMART | SIDLE_SMART_WKUP)))
+			idlemode = HWMOD_IDLEMODE_FORCE;
+		else
+			idlemode = (oh->flags & HWMOD_SWSUP_SIDLE) ?
+				HWMOD_IDLEMODE_NO : HWMOD_IDLEMODE_SMART;
 		_set_slave_idlemode(oh, idlemode, &v);
 	}
 
@@ -1208,8 +1219,13 @@ static void _idle_sysc(struct omap_hwmod *oh)
 	sf = oh->class->sysc->sysc_flags;
 
 	if (sf & SYSC_HAS_SIDLEMODE) {
-		idlemode = (oh->flags & HWMOD_SWSUP_SIDLE) ?
-			HWMOD_IDLEMODE_FORCE : HWMOD_IDLEMODE_SMART;
+		/* XXX What about HWMOD_IDLEMODE_SMART_WKUP? */
+		if (oh->flags & HWMOD_SWSUP_SIDLE ||
+		    !(oh->class->sysc->idlemodes &
+		      (SIDLE_SMART | SIDLE_SMART_WKUP)))
+			idlemode = HWMOD_IDLEMODE_FORCE;
+		else
+			idlemode = HWMOD_IDLEMODE_SMART;
 		_set_slave_idlemode(oh, idlemode, &v);
 	}
 
