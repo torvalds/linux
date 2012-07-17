@@ -45,10 +45,10 @@ typedef int (*pm_callback_t)(struct device *);
  */
 
 LIST_HEAD(dpm_list);
-LIST_HEAD(dpm_prepared_list);
-LIST_HEAD(dpm_suspended_list);
-LIST_HEAD(dpm_late_early_list);
-LIST_HEAD(dpm_noirq_list);
+static LIST_HEAD(dpm_prepared_list);
+static LIST_HEAD(dpm_suspended_list);
+static LIST_HEAD(dpm_late_early_list);
+static LIST_HEAD(dpm_noirq_list);
 
 struct suspend_stats suspend_stats;
 static DEFINE_MUTEX(dpm_list_mtx);
