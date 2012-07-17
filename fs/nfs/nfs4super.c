@@ -352,7 +352,7 @@ out:
 	return err;
 }
 
-void __exit exit_nfs_v4(void)
+void exit_nfs_v4(void)
 {
 	unregister_filesystem(&nfs4_fs_type);
 	nfs4_unregister_sysctl();
