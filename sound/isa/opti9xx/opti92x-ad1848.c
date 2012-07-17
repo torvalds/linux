@@ -348,7 +348,7 @@ static void snd_opti9xx_write(struct snd_opti9xx *chip, unsigned char reg,
 		(snd_opti9xx_read(chip, reg) & ~(mask)) | ((value) & (mask)))
 
 
-static int __devinit snd_opti9xx_configure(struct snd_opti9xx *chip,
+static int snd_opti9xx_configure(struct snd_opti9xx *chip,
 					   long port,
 					   int irq, int dma1, int dma2,
 					   long mpu_port, int mpu_irq)
