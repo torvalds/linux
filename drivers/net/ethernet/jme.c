@@ -2743,6 +2743,17 @@ jme_set_features(struct net_device *netdev, netdev_features_t features)
 	return 0;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void jme_netpoll(struct net_device *dev)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	jme_intr(dev->irq, dev);
+	local_irq_restore(flags);
+}
+#endif
+
 static int
 jme_nway_reset(struct net_device *netdev)
 {
@@ -2944,6 +2955,9 @@ static const struct net_device_ops jme_netdev_ops = {
 	.ndo_tx_timeout		= jme_tx_timeout,
 	.ndo_fix_features       = jme_fix_features,
 	.ndo_set_features       = jme_set_features,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= jme_netpoll,
+#endif
 };
 
 static int __devinit
