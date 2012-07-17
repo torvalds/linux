@@ -1795,8 +1795,11 @@ static struct mr_table *ipmr_rt_fib_lookup(struct net *net, struct sk_buff *skb)
 		.daddr = iph->daddr,
 		.saddr = iph->saddr,
 		.flowi4_tos = RT_TOS(iph->tos),
-		.flowi4_oif = rt->rt_oif,
-		.flowi4_iif = rt->rt_iif,
+		.flowi4_oif = (rt_is_output_route(rt) ?
+			       skb->dev->ifindex : 0),
+		.flowi4_iif = (rt_is_output_route(rt) ?
+			       net->loopback_dev->ifindex :
+			       skb->dev->ifindex),
 		.flowi4_mark = skb->mark,
 	};
 	struct mr_table *mrt;

@@ -50,7 +50,6 @@ struct rtable {
 
 	int			rt_route_iif;
 	int			rt_iif;
-	int			rt_oif;
 
 	/* Info on neighbour */
 	__be32			rt_gateway;

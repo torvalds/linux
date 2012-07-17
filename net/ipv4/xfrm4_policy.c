@@ -81,7 +81,6 @@ static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 
 	xdst->u.rt.rt_route_iif = fl4->flowi4_iif;
 	xdst->u.rt.rt_iif = fl4->flowi4_iif;
-	xdst->u.rt.rt_oif = fl4->flowi4_oif;
 
 	xdst->u.dst.dev = dev;
 	dev_hold(dev);
