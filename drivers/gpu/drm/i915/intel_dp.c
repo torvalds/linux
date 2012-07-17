@@ -1636,6 +1636,45 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
+	if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || !is_cpu_edp(intel_dp))) {
+		dp_reg_value &= ~DP_LINK_TRAIN_MASK_CPT;
+
+		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
+		case DP_TRAINING_PATTERN_DISABLE:
+			dp_reg_value |= DP_LINK_TRAIN_OFF_CPT;
+			break;
+		case DP_TRAINING_PATTERN_1:
+			dp_reg_value |= DP_LINK_TRAIN_PAT_1_CPT;
+			break;
+		case DP_TRAINING_PATTERN_2:
+			dp_reg_value |= DP_LINK_TRAIN_PAT_2_CPT;
+			break;
+		case DP_TRAINING_PATTERN_3:
+			DRM_ERROR("DP training pattern 3 not supported\n");
+			dp_reg_value |= DP_LINK_TRAIN_PAT_2_CPT;
+			break;
+		}
+
+	} else {
+		dp_reg_value &= ~DP_LINK_TRAIN_MASK;
+
+		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
+		case DP_TRAINING_PATTERN_DISABLE:
+			dp_reg_value |= DP_LINK_TRAIN_OFF;
+			break;
+		case DP_TRAINING_PATTERN_1:
+			dp_reg_value |= DP_LINK_TRAIN_PAT_1;
+			break;
+		case DP_TRAINING_PATTERN_2:
+			dp_reg_value |= DP_LINK_TRAIN_PAT_2;
+			break;
+		case DP_TRAINING_PATTERN_3:
+			DRM_ERROR("DP training pattern 3 not supported\n");
+			dp_reg_value |= DP_LINK_TRAIN_PAT_2;
+			break;
+		}
+	}
+
 	I915_WRITE(intel_dp->output_reg, dp_reg_value);
 	POSTING_READ(intel_dp->output_reg);
 
@@ -1643,12 +1682,15 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 				    DP_TRAINING_PATTERN_SET,
 				    dp_train_pat);
 
-	ret = intel_dp_aux_native_write(intel_dp,
-					DP_TRAINING_LANE0_SET,
-					intel_dp->train_set,
-					intel_dp->lane_count);
-	if (ret != intel_dp->lane_count)
-		return false;
+	if ((dp_train_pat & DP_TRAINING_PATTERN_MASK) !=
+	    DP_TRAINING_PATTERN_DISABLE) {
+		ret = intel_dp_aux_native_write(intel_dp,
+						DP_TRAINING_LANE0_SET,
+						intel_dp->train_set,
+						intel_dp->lane_count);
+		if (ret != intel_dp->lane_count)
+			return false;
+	}
 
 	return true;
 }
@@ -1664,7 +1706,6 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	uint8_t voltage;
 	bool clock_recovery = false;
 	int voltage_tries, loop_tries;
-	u32 reg;
 	uint32_t DP = intel_dp->DP;
 
 	/*
@@ -1685,10 +1726,6 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 
 	DP |= DP_PORT_EN;
 
-	if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || !is_cpu_edp(intel_dp)))
-		DP &= ~DP_LINK_TRAIN_MASK_CPT;
-	else
-		DP &= ~DP_LINK_TRAIN_MASK;
 	memset(intel_dp->train_set, 0, 4);
 	voltage = 0xff;
 	voltage_tries = 0;
@@ -1712,12 +1749,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 			DP = (DP & ~(DP_VOLTAGE_MASK|DP_PRE_EMPHASIS_MASK)) | signal_levels;
 		}
 
-		if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || !is_cpu_edp(intel_dp)))
-			reg = DP | DP_LINK_TRAIN_PAT_1_CPT;
-		else
-			reg = DP | DP_LINK_TRAIN_PAT_1;
-
-		if (!intel_dp_set_link_train(intel_dp, reg,
+		if (!intel_dp_set_link_train(intel_dp, DP,
 					     DP_TRAINING_PATTERN_1 |
 					     DP_LINK_SCRAMBLING_DISABLE))
 			break;
@@ -1772,10 +1804,8 @@ static void
 intel_dp_complete_link_train(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool channel_eq = false;
 	int tries, cr_tries;
-	u32 reg;
 	uint32_t DP = intel_dp->DP;
 
 	/* channel equalization */
@@ -1804,13 +1834,8 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 			DP = (DP & ~(DP_VOLTAGE_MASK|DP_PRE_EMPHASIS_MASK)) | signal_levels;
 		}
 
-		if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || !is_cpu_edp(intel_dp)))
-			reg = DP | DP_LINK_TRAIN_PAT_2_CPT;
-		else
-			reg = DP | DP_LINK_TRAIN_PAT_2;
-
 		/* channel eq pattern */
-		if (!intel_dp_set_link_train(intel_dp, reg,
+		if (!intel_dp_set_link_train(intel_dp, DP,
 					     DP_TRAINING_PATTERN_2 |
 					     DP_LINK_SCRAMBLING_DISABLE))
 			break;
@@ -1845,15 +1870,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 		++tries;
 	}
 
-	if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || !is_cpu_edp(intel_dp)))
-		reg = DP | DP_LINK_TRAIN_OFF_CPT;
-	else
-		reg = DP | DP_LINK_TRAIN_OFF;
-
-	I915_WRITE(intel_dp->output_reg, reg);
-	POSTING_READ(intel_dp->output_reg);
-	intel_dp_aux_native_write_1(intel_dp,
-				    DP_TRAINING_PATTERN_SET, DP_TRAINING_PATTERN_DISABLE);
+	intel_dp_set_link_train(intel_dp, DP, DP_TRAINING_PATTERN_DISABLE);
 }
 
 static void
