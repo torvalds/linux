@@ -119,6 +119,10 @@ module_param(diag_buffer_enable, int, 0);
 MODULE_PARM_DESC(diag_buffer_enable, " post diag buffers "
 	"(TRACE=1/SNAPSHOT=2/EXTENDED=4/default=0)");
 
+static int disable_discovery = -1;
+module_param(disable_discovery, int, 0);
+MODULE_PARM_DESC(disable_discovery, " disable discovery ");
+
 /**
  * struct sense_info - common structure for obtaining sense keys
  * @skey: sense key
@@ -5973,8 +5977,14 @@ _scsih_sas_discovery_event(struct MPT2SAS_ADAPTER *ioc,
 #endif
 
 	if (event_data->ReasonCode == MPI2_EVENT_SAS_DISC_RC_STARTED &&
-	    !ioc->sas_hba.num_phys)
+	    !ioc->sas_hba.num_phys) {
+		if (disable_discovery > 0 && ioc->shost_recovery) {
+			/* Wait for the reset to complete */
+			while (ioc->shost_recovery)
+				ssleep(1);
+		}
 		_scsih_sas_host_add(ioc);
+	}
 }
 
 /**
@@ -7929,6 +7939,9 @@ _scsih_scan_start(struct Scsi_Host *shost)
 	if (diag_buffer_enable != -1 && diag_buffer_enable != 0)
 		mpt2sas_enable_diag_buffer(ioc, diag_buffer_enable);
 
+	if (disable_discovery > 0)
+		return;
+
 	ioc->start_scan = 1;
 	rc = mpt2sas_port_enable(ioc);
 
@@ -7949,6 +7962,12 @@ static int
 _scsih_scan_finished(struct Scsi_Host *shost, unsigned long time)
 {
 	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+
+	if (disable_discovery > 0) {
+		ioc->is_driver_loading = 0;
+		ioc->wait_for_discovery_to_complete = 0;
+		return 1;
+	}
 
 	if (time >= (300 * HZ)) {
 		ioc->base_cmds.status = MPT2_CMD_NOT_USED;
