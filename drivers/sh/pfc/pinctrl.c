@@ -338,6 +338,10 @@ static int __devinit sh_pfc_map_gpios(struct sh_pfc *pfc,
 		pin->number = pfc->first_gpio + i;
 		pin->name = gpio->name;
 
+		/* XXX */
+		if (unlikely(!gpio->enum_id))
+			continue;
+
 		sh_pfc_map_one_gpio(pfc, pmx, gpio, i);
 	}
 
