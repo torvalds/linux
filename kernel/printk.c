@@ -216,6 +216,7 @@ struct log {
  */
 static DEFINE_RAW_SPINLOCK(logbuf_lock);
 
+#ifdef CONFIG_PRINTK
 /* the next printk record to read by syslog(READ) or /proc/kmsg */
 static u64 syslog_seq;
 static u32 syslog_idx;
@@ -228,7 +229,6 @@ static u32 log_first_idx;
 
 /* index and sequence number of the next record to store in the buffer */
 static u64 log_next_seq;
-#ifdef CONFIG_PRINTK
 static u32 log_next_idx;
 
 /* the next printk record to read after the last 'clear' command */
@@ -1635,10 +1635,17 @@ asmlinkage int printk(const char *fmt, ...)
 }
 EXPORT_SYMBOL(printk);
 
-#else
+#else /* CONFIG_PRINTK */
 
 #define LOG_LINE_MAX		0
 #define PREFIX_MAX		0
+#define LOG_LINE_MAX 0
+static u64 syslog_seq;
+static u32 syslog_idx;
+static enum log_flags syslog_prev;
+static u64 log_first_seq;
+static u32 log_first_idx;
+static u64 log_next_seq;
 static struct cont {
 	size_t len;
 	size_t cons;
