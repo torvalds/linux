@@ -1347,6 +1347,16 @@ static struct fib_nh_exception *fnhe_oldest(struct fnhe_hash_bucket *hash, __be3
 	return oldest;
 }
 
+static inline u32 fnhe_hashfun(__be32 daddr)
+{
+	u32 hval;
+
+	hval = (__force u32) daddr;
+	hval ^= (hval >> 11) ^ (hval >> 22);
+
+	return hval & (FNHE_HASH_SIZE - 1);
+}
+
 static struct fib_nh_exception *find_or_create_fnhe(struct fib_nh *nh, __be32 daddr)
 {
 	struct fnhe_hash_bucket *hash = nh->nh_exceptions;
@@ -1361,8 +1371,7 @@ static struct fib_nh_exception *find_or_create_fnhe(struct fib_nh *nh, __be32 da
 			return NULL;
 	}
 
-	hval = (__force u32) daddr;
-	hval ^= (hval >> 11) ^ (hval >> 22);
+	hval = fnhe_hashfun(daddr);
 	hash += hval;
 
 	depth = 0;
@@ -1890,8 +1899,7 @@ static void rt_bind_exception(struct rtable *rt, struct fib_nh *nh, __be32 daddr
 	struct fib_nh_exception *fnhe;
 	u32 hval;
 
-	hval = (__force u32) daddr;
-	hval ^= (hval >> 11) ^ (hval >> 22);
+	hval = fnhe_hashfun(daddr);
 
 	for (fnhe = rcu_dereference(hash[hval].chain); fnhe;
 	     fnhe = rcu_dereference(fnhe->fnhe_next)) {
