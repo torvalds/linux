@@ -78,6 +78,7 @@ struct dst_entry {
 #define DST_OBSOLETE_NONE	0
 #define DST_OBSOLETE_DEAD	2
 #define DST_OBSOLETE_FORCE_CHK	-1
+#define DST_OBSOLETE_KILL	-2
 	unsigned short		header_len;	/* more space at head required */
 	unsigned short		trailer_len;	/* space to reserve at tail */
 #ifdef CONFIG_IP_ROUTE_CLASSID
