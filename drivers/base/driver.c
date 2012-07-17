@@ -185,9 +185,10 @@ int driver_register(struct device_driver *drv)
 	if (ret)
 		return ret;
 	ret = driver_add_groups(drv, drv->groups);
-	if (ret)
+	if (ret) {
 		bus_remove_driver(drv);
-
+		return ret;
+	}
 	kobject_uevent(&drv->p->kobj, KOBJ_ADD);
 
 	return ret;
