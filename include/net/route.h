@@ -47,8 +47,8 @@ struct rtable {
 	int			rt_genid;
 	unsigned int		rt_flags;
 	__u16			rt_type;
+	__u16			rt_is_input;
 
-	int			rt_route_iif;
 	int			rt_iif;
 
 	/* Info on neighbour */
@@ -61,12 +61,12 @@ struct rtable {
 
 static inline bool rt_is_input_route(const struct rtable *rt)
 {
-	return rt->rt_route_iif != 0;
+	return rt->rt_is_input != 0;
 }
 
 static inline bool rt_is_output_route(const struct rtable *rt)
 {
-	return rt->rt_route_iif == 0;
+	return rt->rt_is_input == 0;
 }
 
 static inline __be32 rt_nexthop(const struct rtable *rt, __be32 daddr)
