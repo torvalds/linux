@@ -129,6 +129,12 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 	if (r) {
 		return r;
 	}
+
+	r = radeon_sa_bo_manager_start(rdev, &rdev->ring_tmp_bo);
+	if (r) {
+		return r;
+	}
+
 	rdev->ib_pool_ready = true;
 	if (radeon_debugfs_sa_init(rdev)) {
 		dev_err(rdev->dev, "failed to register debugfs file for SA\n");
@@ -139,19 +145,10 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 void radeon_ib_pool_fini(struct radeon_device *rdev)
 {
 	if (rdev->ib_pool_ready) {
+		radeon_sa_bo_manager_suspend(rdev, &rdev->ring_tmp_bo);
 		radeon_sa_bo_manager_fini(rdev, &rdev->ring_tmp_bo);
 		rdev->ib_pool_ready = false;
 	}
-}
-
-int radeon_ib_pool_start(struct radeon_device *rdev)
-{
-	return radeon_sa_bo_manager_start(rdev, &rdev->ring_tmp_bo);
-}
-
-int radeon_ib_pool_suspend(struct radeon_device *rdev)
-{
-	return radeon_sa_bo_manager_suspend(rdev, &rdev->ring_tmp_bo);
 }
 
 int radeon_ib_ring_tests(struct radeon_device *rdev)
@@ -272,13 +269,8 @@ int radeon_ring_lock(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 
 void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-	unsigned count_dw_pad;
-	unsigned i;
-
 	/* We pad to match fetch size */
-	count_dw_pad = (ring->align_mask + 1) -
-		       (ring->wptr & ring->align_mask);
-	for (i = 0; i < count_dw_pad; i++) {
+	while (ring->wptr & ring->align_mask) {
 		radeon_ring_write(ring, ring->nop);
 	}
 	DRM_MEMORYBARRIER();
@@ -370,6 +362,88 @@ bool radeon_ring_test_lockup(struct radeon_device *rdev, struct radeon_ring *rin
 	return false;
 }
 
+/**
+ * radeon_ring_backup - Back up the content of a ring
+ *
+ * @rdev: radeon_device pointer
+ * @ring: the ring we want to back up
+ *
+ * Saves all unprocessed commits from a ring, returns the number of dwords saved.
+ */
+unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring,
+			    uint32_t **data)
+{
+	unsigned size, ptr, i;
+	int ridx = radeon_ring_index(rdev, ring);
+
+	/* just in case lock the ring */
+	mutex_lock(&rdev->ring_lock);
+	*data = NULL;
+
+	if (ring->ring_obj == NULL || !ring->rptr_save_reg) {
+		mutex_unlock(&rdev->ring_lock);
+		return 0;
+	}
+
+	/* it doesn't make sense to save anything if all fences are signaled */
+	if (!radeon_fence_count_emitted(rdev, ridx)) {
+		mutex_unlock(&rdev->ring_lock);
+		return 0;
+	}
+
+	/* calculate the number of dw on the ring */
+	ptr = RREG32(ring->rptr_save_reg);
+	size = ring->wptr + (ring->ring_size / 4);
+	size -= ptr;
+	size &= ring->ptr_mask;
+	if (size == 0) {
+		mutex_unlock(&rdev->ring_lock);
+		return 0;
+	}
+
+	/* and then save the content of the ring */
+	*data = kmalloc(size * 4, GFP_KERNEL);
+	for (i = 0; i < size; ++i) {
+		(*data)[i] = ring->ring[ptr++];
+		ptr &= ring->ptr_mask;
+	}
+
+	mutex_unlock(&rdev->ring_lock);
+	return size;
+}
+
+/**
+ * radeon_ring_restore - append saved commands to the ring again
+ *
+ * @rdev: radeon_device pointer
+ * @ring: ring to append commands to
+ * @size: number of dwords we want to write
+ * @data: saved commands
+ *
+ * Allocates space on the ring and restore the previously saved commands.
+ */
+int radeon_ring_restore(struct radeon_device *rdev, struct radeon_ring *ring,
+			unsigned size, uint32_t *data)
+{
+	int i, r;
+
+	if (!size || !data)
+		return 0;
+
+	/* restore the saved ring content */
+	r = radeon_ring_lock(rdev, ring, size);
+	if (r)
+		return r;
+
+	for (i = 0; i < size; ++i) {
+		radeon_ring_write(ring, data[i]);
+	}
+
+	radeon_ring_unlock_commit(rdev, ring);
+	kfree(data);
+	return 0;
+}
+
 int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsigned ring_size,
 		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg,
 		     u32 ptr_reg_shift, u32 ptr_reg_mask, u32 nop)
@@ -459,6 +533,10 @@ static int radeon_debugfs_ring_info(struct seq_file *m, void *data)
 	count = (ring->ring_size / 4) - ring->ring_free_dw;
 	seq_printf(m, "wptr(0x%04x): 0x%08x\n", ring->wptr_reg, RREG32(ring->wptr_reg));
 	seq_printf(m, "rptr(0x%04x): 0x%08x\n", ring->rptr_reg, RREG32(ring->rptr_reg));
+	if (ring->rptr_save_reg) {
+		seq_printf(m, "rptr next(0x%04x): 0x%08x\n", ring->rptr_save_reg,
+			   RREG32(ring->rptr_save_reg));
+	}
 	seq_printf(m, "driver's copy of the wptr: 0x%08x\n", ring->wptr);
 	seq_printf(m, "driver's copy of the rptr: 0x%08x\n", ring->rptr);
 	seq_printf(m, "%u free dwords in ring\n", ring->ring_free_dw);

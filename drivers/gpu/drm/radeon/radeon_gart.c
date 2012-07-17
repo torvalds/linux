@@ -282,27 +282,58 @@ void radeon_gart_fini(struct radeon_device *rdev)
  *
  * TODO bind a default page at vm initialization for default address
  */
+
 int radeon_vm_manager_init(struct radeon_device *rdev)
 {
+	struct radeon_vm *vm;
+	struct radeon_bo_va *bo_va;
 	int r;
 
-	rdev->vm_manager.enabled = false;
+	if (!rdev->vm_manager.enabled) {
+		/* mark first vm as always in use, it's the system one */
+		r = radeon_sa_bo_manager_init(rdev, &rdev->vm_manager.sa_manager,
+					      rdev->vm_manager.max_pfn * 8,
+					      RADEON_GEM_DOMAIN_VRAM);
+		if (r) {
+			dev_err(rdev->dev, "failed to allocate vm bo (%dKB)\n",
+				(rdev->vm_manager.max_pfn * 8) >> 10);
+			return r;
+		}
 
-	/* mark first vm as always in use, it's the system one */
-	r = radeon_sa_bo_manager_init(rdev, &rdev->vm_manager.sa_manager,
-				      rdev->vm_manager.max_pfn * 8,
-				      RADEON_GEM_DOMAIN_VRAM);
-	if (r) {
-		dev_err(rdev->dev, "failed to allocate vm bo (%dKB)\n",
-			(rdev->vm_manager.max_pfn * 8) >> 10);
-		return r;
-	}
-
-	r = rdev->vm_manager.funcs->init(rdev);
-	if (r == 0)
+		r = rdev->vm_manager.funcs->init(rdev);
+		if (r)
+			return r;
+	
 		rdev->vm_manager.enabled = true;
 
-	return r;
+		r = radeon_sa_bo_manager_start(rdev, &rdev->vm_manager.sa_manager);
+		if (r)
+			return r;
+	}
+
+	/* restore page table */
+	list_for_each_entry(vm, &rdev->vm_manager.lru_vm, list) {
+		if (vm->id == -1)
+			continue;
+
+		list_for_each_entry(bo_va, &vm->va, vm_list) {
+			struct ttm_mem_reg *mem = NULL;
+			if (bo_va->valid)
+				mem = &bo_va->bo->tbo.mem;
+
+			bo_va->valid = false;
+			r = radeon_vm_bo_update_pte(rdev, vm, bo_va->bo, mem);
+			if (r) {
+				DRM_ERROR("Failed to update pte for vm %d!\n", vm->id);
+			}
+		}
+
+		r = rdev->vm_manager.funcs->bind(rdev, vm, vm->id);
+		if (r) {
+			DRM_ERROR("Failed to bind vm %d!\n", vm->id);
+		}
+	}
+	return 0;
 }
 
 /* global mutex must be lock */
@@ -316,10 +347,21 @@ static void radeon_vm_unbind_locked(struct radeon_device *rdev,
 	}
 
 	/* wait for vm use to end */
-	if (vm->fence) {
-		radeon_fence_wait(vm->fence, false);
-		radeon_fence_unref(&vm->fence);
+	while (vm->fence) {
+		int r;
+		r = radeon_fence_wait(vm->fence, false);
+		if (r)
+			DRM_ERROR("error while waiting for fence: %d\n", r);
+		if (r == -EDEADLK) {
+			mutex_unlock(&rdev->vm_manager.lock);
+			r = radeon_gpu_reset(rdev);
+			mutex_lock(&rdev->vm_manager.lock);
+			if (!r)
+				continue;
+		}
+		break;
 	}
+	radeon_fence_unref(&vm->fence);
 
 	/* hw unbind */
 	rdev->vm_manager.funcs->unbind(rdev, vm);
@@ -336,25 +378,10 @@ static void radeon_vm_unbind_locked(struct radeon_device *rdev,
 
 void radeon_vm_manager_fini(struct radeon_device *rdev)
 {
-	if (rdev->vm_manager.sa_manager.bo == NULL)
-		return;
-	radeon_vm_manager_suspend(rdev);
-	rdev->vm_manager.funcs->fini(rdev);
-	radeon_sa_bo_manager_fini(rdev, &rdev->vm_manager.sa_manager);
-	rdev->vm_manager.enabled = false;
-}
-
-int radeon_vm_manager_start(struct radeon_device *rdev)
-{
-	if (rdev->vm_manager.sa_manager.bo == NULL) {
-		return -EINVAL;
-	}
-	return radeon_sa_bo_manager_start(rdev, &rdev->vm_manager.sa_manager);
-}
-
-int radeon_vm_manager_suspend(struct radeon_device *rdev)
-{
 	struct radeon_vm *vm, *tmp;
+
+	if (!rdev->vm_manager.enabled)
+		return;
 
 	mutex_lock(&rdev->vm_manager.lock);
 	/* unbind all active vm */
@@ -363,7 +390,10 @@ int radeon_vm_manager_suspend(struct radeon_device *rdev)
 	}
 	rdev->vm_manager.funcs->fini(rdev);
 	mutex_unlock(&rdev->vm_manager.lock);
-	return radeon_sa_bo_manager_suspend(rdev, &rdev->vm_manager.sa_manager);
+
+	radeon_sa_bo_manager_suspend(rdev, &rdev->vm_manager.sa_manager);
+	radeon_sa_bo_manager_fini(rdev, &rdev->vm_manager.sa_manager);
+	rdev->vm_manager.enabled = false;
 }
 
 /* global mutex must be locked */

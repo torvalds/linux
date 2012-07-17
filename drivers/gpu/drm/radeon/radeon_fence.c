@@ -42,21 +42,23 @@
 
 static void radeon_fence_write(struct radeon_device *rdev, u32 seq, int ring)
 {
-	if (rdev->wb.enabled) {
-		*rdev->fence_drv[ring].cpu_addr = cpu_to_le32(seq);
+	struct radeon_fence_driver *drv = &rdev->fence_drv[ring];
+	if (likely(rdev->wb.enabled || !drv->scratch_reg)) {
+		*drv->cpu_addr = cpu_to_le32(seq);
 	} else {
-		WREG32(rdev->fence_drv[ring].scratch_reg, seq);
+		WREG32(drv->scratch_reg, seq);
 	}
 }
 
 static u32 radeon_fence_read(struct radeon_device *rdev, int ring)
 {
+	struct radeon_fence_driver *drv = &rdev->fence_drv[ring];
 	u32 seq = 0;
 
-	if (rdev->wb.enabled) {
-		seq = le32_to_cpu(*rdev->fence_drv[ring].cpu_addr);
+	if (likely(rdev->wb.enabled || !drv->scratch_reg)) {
+		seq = le32_to_cpu(*drv->cpu_addr);
 	} else {
-		seq = RREG32(rdev->fence_drv[ring].scratch_reg);
+		seq = RREG32(drv->scratch_reg);
 	}
 	return seq;
 }
@@ -440,14 +442,11 @@ int radeon_fence_wait_any(struct radeon_device *rdev,
 	return 0;
 }
 
+/* caller must hold ring lock */
 int radeon_fence_wait_next_locked(struct radeon_device *rdev, int ring)
 {
 	uint64_t seq;
 
-	/* We are not protected by ring lock when reading current seq but
-	 * it's ok as worst case is we return to early while we could have
-	 * wait.
-	 */
 	seq = atomic64_read(&rdev->fence_drv[ring].last_seq) + 1ULL;
 	if (seq >= rdev->fence_drv[ring].sync_seq[ring]) {
 		/* nothing to wait for, last_seq is
@@ -457,15 +456,27 @@ int radeon_fence_wait_next_locked(struct radeon_device *rdev, int ring)
 	return radeon_fence_wait_seq(rdev, seq, ring, false, false);
 }
 
-int radeon_fence_wait_empty_locked(struct radeon_device *rdev, int ring)
+/* caller must hold ring lock */
+void radeon_fence_wait_empty_locked(struct radeon_device *rdev, int ring)
 {
-	/* We are not protected by ring lock when reading current seq
-	 * but it's ok as wait empty is call from place where no more
-	 * activity can be scheduled so there won't be concurrent access
-	 * to seq value.
-	 */
-	return radeon_fence_wait_seq(rdev, rdev->fence_drv[ring].sync_seq[ring],
-				     ring, false, false);
+	uint64_t seq = rdev->fence_drv[ring].sync_seq[ring];
+
+	while(1) {
+		int r;
+		r = radeon_fence_wait_seq(rdev, seq, ring, false, false);
+		if (r == -EDEADLK) {
+			mutex_unlock(&rdev->ring_lock);
+			r = radeon_gpu_reset(rdev);
+			mutex_lock(&rdev->ring_lock);
+			if (!r)
+				continue;
+		}
+		if (r) {
+			dev_err(rdev->dev, "error waiting for ring to become"
+				" idle (%d)\n", r);
+		}
+		return;
+	}
 }
 
 struct radeon_fence *radeon_fence_ref(struct radeon_fence *fence)
@@ -567,7 +578,7 @@ int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring)
 	}
 	rdev->fence_drv[ring].cpu_addr = &rdev->wb.wb[index/4];
 	rdev->fence_drv[ring].gpu_addr = rdev->wb.gpu_addr + index;
-	radeon_fence_write(rdev, rdev->fence_drv[ring].sync_seq[ring], ring);
+	radeon_fence_write(rdev, atomic64_read(&rdev->fence_drv[ring].last_seq), ring);
 	rdev->fence_drv[ring].initialized = true;
 	dev_info(rdev->dev, "fence driver on ring %d use gpu addr 0x%016llx and cpu addr 0x%p\n",
 		 ring, rdev->fence_drv[ring].gpu_addr, rdev->fence_drv[ring].cpu_addr);
