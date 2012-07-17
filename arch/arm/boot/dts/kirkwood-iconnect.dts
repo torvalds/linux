@@ -31,4 +31,38 @@
 			status = "ok";
 		};
 	};
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		led-level {
+			label = "led_level";
+			gpios = <&gpio1 9 0>;
+			linux,default-trigger = "default-on";
+		};
+		power-blue {
+			label = "power:blue";
+			gpios = <&gpio1 11 0>;
+			linux,default-trigger = "timer";
+		};
+		usb1 {
+			label = "usb1:blue";
+			gpios = <&gpio1 12 0>;
+		};
+		usb2 {
+			label = "usb2:blue";
+			gpios = <&gpio1 13 0>;
+		};
+		usb3 {
+			label = "usb3:blue";
+			gpios = <&gpio1 14 0>;
+		};
+		usb4 {
+			label = "usb4:blue";
+			gpios = <&gpio1 15 0>;
+		};
+		otb {
+			label = "otb:blue";
+			gpios = <&gpio1 16 0>;
+		};
+	};
 };
