@@ -493,8 +493,8 @@ static void __init rk2928_init_spim(void)
 #ifdef CONFIG_RGA_RK30
 static struct resource resource_rga[] = {
 	[0] = {
-		.start = RK30_RGA_PHYS,
-		.end   = RK30_RGA_PHYS + RK30_RGA_SIZE - 1,
+		.start = RK2928_RGA_PHYS,
+		.end   = RK2928_RGA_PHYS + RK2928_RGA_SIZE - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {

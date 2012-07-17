@@ -386,7 +386,7 @@ typedef struct rga_service_info {
 
 
 
-#define RGA_BASE                 0x10114000
+#define RGA_BASE                 0x1010c000
 
 //General Registers
 #define RGA_SYS_CTRL             0x000
