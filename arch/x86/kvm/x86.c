@@ -2632,7 +2632,6 @@ static int kvm_set_guest_paused(struct kvm_vcpu *vcpu)
 	if (!vcpu->arch.time_page)
 		return -EINVAL;
 	src->flags |= PVCLOCK_GUEST_STOPPED;
-	mark_page_dirty(vcpu->kvm, vcpu->arch.time >> PAGE_SHIFT);
 	kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
 	return 0;
 }
