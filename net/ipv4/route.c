@@ -141,7 +141,6 @@ static int ip_rt_min_advmss __read_mostly	= 256;
 static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie);
 static unsigned int	 ipv4_default_advmss(const struct dst_entry *dst);
 static unsigned int	 ipv4_mtu(const struct dst_entry *dst);
-static void		 ipv4_dst_destroy(struct dst_entry *dst);
 static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst);
 static void		 ipv4_link_failure(struct sk_buff *skb);
 static void		 ip_rt_update_pmtu(struct dst_entry *dst, struct sock *sk,
@@ -171,7 +170,6 @@ static struct dst_ops ipv4_dst_ops = {
 	.default_advmss =	ipv4_default_advmss,
 	.mtu =			ipv4_mtu,
 	.cow_metrics =		ipv4_cow_metrics,
-	.destroy =		ipv4_dst_destroy,
 	.ifdown =		ipv4_dst_ifdown,
 	.negative_advice =	ipv4_negative_advice,
 	.link_failure =		ipv4_link_failure,
@@ -1034,17 +1032,6 @@ static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie)
 	return dst;
 }
 
-static void ipv4_dst_destroy(struct dst_entry *dst)
-{
-	struct rtable *rt = (struct rtable *) dst;
-
-	if (rt->fi) {
-		fib_info_put(rt->fi);
-		rt->fi = NULL;
-	}
-}
-
-
 static void ipv4_link_failure(struct sk_buff *skb)
 {
 	struct rtable *rt;
@@ -1158,15 +1145,6 @@ static unsigned int ipv4_mtu(const struct dst_entry *dst)
 	return mtu;
 }
 
-static void rt_init_metrics(struct rtable *rt, struct fib_info *fi)
-{
-	if (fi->fib_metrics != (u32 *) dst_default_metrics) {
-		rt->fi = fi;
-		atomic_inc(&fi->fib_clntref);
-	}
-	dst_init_metrics(&rt->dst, fi->fib_metrics, true);
-}
-
 static struct fib_nh_exception *find_exception(struct fib_nh *nh, __be32 daddr)
 {
 	struct fnhe_hash_bucket *hash = nh->nh_exceptions;
@@ -1261,7 +1239,7 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 			rt->rt_gateway = nh->nh_gw;
 		if (unlikely(fnhe))
 			rt_bind_exception(rt, fnhe, daddr);
-		rt_init_metrics(rt, fi);
+		dst_init_metrics(&rt->dst, fi->fib_metrics, true);
 #ifdef CONFIG_IP_ROUTE_CLASSID
 		rt->dst.tclassid = nh->nh_tclassid;
 #endif
@@ -1334,7 +1312,6 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	rth->rt_iif	= dev->ifindex;
 	rth->rt_pmtu	= 0;
 	rth->rt_gateway	= 0;
-	rth->fi = NULL;
 	if (our) {
 		rth->dst.input= ip_local_deliver;
 		rth->rt_flags |= RTCF_LOCAL;
@@ -1464,7 +1441,6 @@ static int __mkroute_input(struct sk_buff *skb,
 	rth->rt_iif 	= in_dev->dev->ifindex;
 	rth->rt_pmtu	= 0;
 	rth->rt_gateway	= 0;
-	rth->fi = NULL;
 
 	rth->dst.input = ip_forward;
 	rth->dst.output = ip_output;
@@ -1642,7 +1618,6 @@ local_input:
 	rth->rt_iif	= dev->ifindex;
 	rth->rt_pmtu	= 0;
 	rth->rt_gateway	= 0;
-	rth->fi = NULL;
 	if (res.type == RTN_UNREACHABLE) {
 		rth->dst.input= ip_error;
 		rth->dst.error= -err;
@@ -1807,7 +1782,6 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 	rth->rt_iif	= orig_oif ? : dev_out->ifindex;
 	rth->rt_pmtu	= 0;
 	rth->rt_gateway = 0;
-	rth->fi = NULL;
 
 	RT_CACHE_STAT_INC(out_slow_tot);
 
@@ -2052,7 +2026,6 @@ static u32 *ipv4_rt_blackhole_cow_metrics(struct dst_entry *dst,
 static struct dst_ops ipv4_dst_blackhole_ops = {
 	.family			=	AF_INET,
 	.protocol		=	cpu_to_be16(ETH_P_IP),
-	.destroy		=	ipv4_dst_destroy,
 	.check			=	ipv4_blackhole_dst_check,
 	.mtu			=	ipv4_blackhole_mtu,
 	.default_advmss		=	ipv4_default_advmss,
@@ -2087,9 +2060,6 @@ struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_or
 		rt->rt_flags = ort->rt_flags;
 		rt->rt_type = ort->rt_type;
 		rt->rt_gateway = ort->rt_gateway;
-		rt->fi = ort->fi;
-		if (rt->fi)
-			atomic_inc(&rt->fi->fib_clntref);
 
 		dst_free(new);
 	}

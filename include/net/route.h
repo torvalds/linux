@@ -56,7 +56,6 @@ struct rtable {
 
 	/* Miscellaneous cached information */
 	u32			rt_pmtu;
-	struct fib_info		*fi; /* for client ref to shared metrics */
 };
 
 static inline bool rt_is_input_route(const struct rtable *rt)
