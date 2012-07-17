@@ -1769,7 +1769,7 @@ void iwl_dump_csr(struct iwl_trans *trans)
 #define DEBUGFS_ADD_FILE(name, parent, mode) do {			\
 	if (!debugfs_create_file(#name, mode, parent, trans,		\
 				 &iwl_dbgfs_##name##_ops))		\
-		return -ENOMEM;						\
+		goto err;						\
 } while (0)
 
 /* file operation */
@@ -2033,6 +2033,10 @@ static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
 	DEBUGFS_ADD_FILE(fh_reg, dir, S_IRUSR);
 	DEBUGFS_ADD_FILE(fw_restart, dir, S_IWUSR);
 	return 0;
+
+err:
+	IWL_ERR(trans, "failed to create the trans debugfs entry\n");
+	return -ENOMEM;
 }
 #else
 static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,

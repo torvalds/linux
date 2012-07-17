@@ -282,8 +282,14 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!trans_pcie->drv)
 		goto out_free_trans;
 
+	/* register transport layer debugfs here */
+	if (iwl_trans_dbgfs_register(iwl_trans, iwl_trans->dbgfs_dir))
+		goto out_free_drv;
+
 	return 0;
 
+out_free_drv:
+	iwl_drv_stop(trans_pcie->drv);
 out_free_trans:
 	iwl_trans_pcie_free(iwl_trans);
 	pci_set_drvdata(pdev, NULL);

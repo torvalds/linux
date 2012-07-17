@@ -460,6 +460,8 @@ struct iwl_trans {
 	size_t dev_cmd_headroom;
 	char dev_cmd_pool_name[50];
 
+	struct dentry *dbgfs_dir;
+
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
 	char trans_specific[0] __aligned(sizeof(void *));
