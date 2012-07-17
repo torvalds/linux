@@ -1531,6 +1531,9 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) ||
 	    (changed & BSS_CHANGED_BEACON_INT)) {
+		if (ah->opmode == NL80211_IFTYPE_AP &&
+		    bss_conf->enable_beacon)
+			ath9k_set_tsfadjust(sc, vif);
 		if (ath9k_allow_beacon_config(sc, vif))
 			ath9k_beacon_config(sc, vif, changed);
 	}
