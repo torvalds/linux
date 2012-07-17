@@ -378,10 +378,6 @@ id_to_memslot(struct kvm_memslots *slots, int id)
 	return slot;
 }
 
-#define HPA_MSB ((sizeof(hpa_t) * 8) - 1)
-#define HPA_ERR_MASK ((hpa_t)1 << HPA_MSB)
-static inline int is_error_hpa(hpa_t hpa) { return hpa >> HPA_MSB; }
-
 extern struct page *bad_page;
 
 int is_error_page(struct page *page);
