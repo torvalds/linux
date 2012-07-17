@@ -55,4 +55,20 @@
 		};
 	};
 
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		bluetooth {
+			label = "dreamplug:blue:bluetooth";
+			gpios = <&gpio1 15 1>;
+		};
+		wifi {
+			label = "dreamplug:green:wifi";
+			gpios = <&gpio1 16 1>;
+		};
+		wifi-ap {
+			label = "dreamplug:green:wifi_ap";
+			gpios = <&gpio1 17 1>;
+		};
+	};
 };
