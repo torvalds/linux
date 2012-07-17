@@ -363,6 +363,7 @@ void ath9k_tasklet(unsigned long data)
 	struct ath_softc *sc = (struct ath_softc *)data;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
+	enum ath_reset_type type;
 	unsigned long flags;
 	u32 status = sc->intrstatus;
 	u32 rxmask;
@@ -372,18 +373,13 @@ void ath9k_tasklet(unsigned long data)
 
 	if ((status & ATH9K_INT_FATAL) ||
 	    (status & ATH9K_INT_BB_WATCHDOG)) {
-#ifdef CONFIG_ATH9K_DEBUGFS
-		enum ath_reset_type type;
 
 		if (status & ATH9K_INT_FATAL)
 			type = RESET_TYPE_FATAL_INT;
 		else
 			type = RESET_TYPE_BB_WATCHDOG;
 
-		RESET_STAT_INC(sc, type);
-#endif
-		set_bit(SC_OP_HW_RESET, &sc->sc_flags);
-		ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
+		ath9k_queue_reset(sc, type);
 		goto out;
 	}
 
@@ -582,6 +578,15 @@ static int ath_reset(struct ath_softc *sc, bool retry_tx)
 	ath9k_ps_restore(sc);
 
 	return r;
+}
+
+void ath9k_queue_reset(struct ath_softc *sc, enum ath_reset_type type)
+{
+#ifdef CONFIG_ATH9K_DEBUGFS
+	RESET_STAT_INC(sc, type);
+#endif
+	set_bit(SC_OP_HW_RESET, &sc->sc_flags);
+	ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 }
 
 void ath_reset_work(struct work_struct *work)

@@ -50,8 +50,7 @@ void ath_tx_complete_poll_work(struct work_struct *work)
 	if (needreset) {
 		ath_dbg(ath9k_hw_common(sc->sc_ah), RESET,
 			"tx hung, resetting the chip\n");
-		RESET_STAT_INC(sc, RESET_TYPE_TX_HANG);
-		ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
+		ath9k_queue_reset(sc, RESET_TYPE_TX_HANG);
 		return;
 	}
 
@@ -69,6 +68,7 @@ void ath_hw_check(struct work_struct *work)
 	unsigned long flags;
 	int busy;
 	u8 is_alive, nbeacon = 1;
+	enum ath_reset_type type;
 
 	ath9k_ps_wakeup(sc);
 	is_alive = ath9k_hw_check_alive(sc->sc_ah);
@@ -78,7 +78,7 @@ void ath_hw_check(struct work_struct *work)
 	else if (!is_alive && AR_SREV_9300(sc->sc_ah)) {
 		ath_dbg(common, RESET,
 			"DCU stuck is detected. Schedule chip reset\n");
-		RESET_STAT_INC(sc, RESET_TYPE_MAC_HANG);
+		type = RESET_TYPE_MAC_HANG;
 		goto sched_reset;
 	}
 
@@ -90,7 +90,7 @@ void ath_hw_check(struct work_struct *work)
 		busy, sc->hw_busy_count + 1);
 	if (busy >= 99) {
 		if (++sc->hw_busy_count >= 3) {
-			RESET_STAT_INC(sc, RESET_TYPE_BB_HANG);
+			type = RESET_TYPE_BB_HANG;
 			goto sched_reset;
 		}
 	} else if (busy >= 0) {
@@ -102,7 +102,7 @@ void ath_hw_check(struct work_struct *work)
 	goto out;
 
 sched_reset:
-	ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
+	ath9k_queue_reset(sc, type);
 out:
 	ath9k_ps_restore(sc);
 }
@@ -119,8 +119,7 @@ static bool ath_hw_pll_rx_hang_check(struct ath_softc *sc, u32 pll_sqsum)
 		count++;
 		if (count == 3) {
 			ath_dbg(common, RESET, "PLL WAR, resetting the chip\n");
-			RESET_STAT_INC(sc, RESET_TYPE_PLL_HANG);
-			ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
+			ath9k_queue_reset(sc, RESET_TYPE_PLL_HANG);
 			count = 0;
 			return true;
 		}

@@ -589,10 +589,8 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 
 	rcu_read_unlock();
 
-	if (needreset) {
-		RESET_STAT_INC(sc, RESET_TYPE_TX_ERROR);
-		ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
-	}
+	if (needreset)
+		ath9k_queue_reset(sc, RESET_TYPE_TX_ERROR);
 }
 
 static bool ath_lookup_legacy(struct ath_buf *bf)
@@ -1589,7 +1587,8 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 	struct ath_atx_ac *ac, *ac_tmp, *last_ac;
 	struct ath_atx_tid *tid, *last_tid;
 
-	if (work_pending(&sc->hw_reset_work) || list_empty(&txq->axq_acq) ||
+	if (test_bit(SC_OP_HW_RESET, &sc->sc_flags) ||
+	    list_empty(&txq->axq_acq) ||
 	    txq->axq_ampdu_depth >= ATH_AGGR_MIN_QDEPTH)
 		return;
 
@@ -2196,7 +2195,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 
 	ath_txq_lock(sc, txq);
 	for (;;) {
-		if (work_pending(&sc->hw_reset_work))
+		if (test_bit(SC_OP_HW_RESET, &sc->sc_flags))
 			break;
 
 		if (list_empty(&txq->axq_q)) {
@@ -2279,7 +2278,7 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 	int status;
 
 	for (;;) {
-		if (work_pending(&sc->hw_reset_work))
+		if (test_bit(SC_OP_HW_RESET, &sc->sc_flags))
 			break;
 
 		status = ath9k_hw_txprocdesc(ah, NULL, (void *)&ts);
