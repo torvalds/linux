@@ -373,11 +373,22 @@ static int palmas_set_voltage_smps_sel(struct regulator_dev *dev,
 static int palmas_map_voltage_smps(struct regulator_dev *rdev,
 		int min_uV, int max_uV)
 {
+	struct palmas_pmic *pmic = rdev_get_drvdata(rdev);
+	int id = rdev_get_id(rdev);
 	int ret, voltage;
 
-	ret = ((min_uV - 500000) / 10000) + 1;
-	if (ret < 0)
-		return ret;
+	if (min_uV == 0)
+		return 0;
+
+	if (pmic->range[id]) { /* RANGE is x2 */
+		if (min_uV < 1000000)
+			min_uV = 1000000;
+		ret = DIV_ROUND_UP(min_uV - 1000000, 20000) + 1;
+	} else {		/* RANGE is x1 */
+		if (min_uV < 500000)
+			min_uV = 500000;
+		ret = DIV_ROUND_UP(min_uV - 500000, 10000) + 1;
+	}
 
 	/* Map back into a voltage to verify we're still in bounds */
 	voltage = palmas_list_voltage_smps(rdev, ret);
