@@ -185,10 +185,11 @@ static void bcma_core_mips_flash_detect(struct bcma_drv_mips *mcore)
 	switch (bus->drv_cc.capabilities & BCMA_CC_CAP_FLASHT) {
 	case BCMA_CC_FLASHT_STSER:
 	case BCMA_CC_FLASHT_ATSER:
-		bcma_err(bus, "Serial flash not supported.\n");
+		bcma_debug(bus, "Found serial flash\n");
+		bcma_sflash_init(&bus->drv_cc);
 		break;
 	case BCMA_CC_FLASHT_PARA:
-		bcma_info(bus, "found parallel flash.\n");
+		bcma_debug(bus, "Found parallel flash\n");
 		bus->drv_cc.pflash.window = 0x1c000000;
 		bus->drv_cc.pflash.window_size = 0x02000000;
 
@@ -199,7 +200,15 @@ static void bcma_core_mips_flash_detect(struct bcma_drv_mips *mcore)
 			bus->drv_cc.pflash.buswidth = 2;
 		break;
 	default:
-		bcma_err(bus, "flash not supported.\n");
+		bcma_err(bus, "Flash type not supported\n");
+	}
+
+	if (bus->drv_cc.core->id.rev == 38 ||
+	    bus->chipinfo.id == BCMA_CHIP_ID_BCM4706) {
+		if (bus->drv_cc.capabilities & BCMA_CC_CAP_NFLASH) {
+			bcma_debug(bus, "Found NAND flash\n");
+			bcma_nflash_init(&bus->drv_cc);
+		}
 	}
 }
 

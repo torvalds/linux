@@ -51,6 +51,28 @@ void bcma_chipco_serial_init(struct bcma_drv_cc *cc);
 u32 bcma_pmu_alp_clock(struct bcma_drv_cc *cc);
 u32 bcma_pmu_get_clockcpu(struct bcma_drv_cc *cc);
 
+#ifdef CONFIG_BCMA_SFLASH
+/* driver_chipcommon_sflash.c */
+int bcma_sflash_init(struct bcma_drv_cc *cc);
+#else
+static inline int bcma_sflash_init(struct bcma_drv_cc *cc)
+{
+	bcma_err(cc->core->bus, "Serial flash not supported\n");
+	return 0;
+}
+#endif /* CONFIG_BCMA_SFLASH */
+
+#ifdef CONFIG_BCMA_NFLASH
+/* driver_chipcommon_nflash.c */
+int bcma_nflash_init(struct bcma_drv_cc *cc);
+#else
+static inline int bcma_nflash_init(struct bcma_drv_cc *cc)
+{
+	bcma_err(cc->core->bus, "NAND flash not supported\n");
+	return 0;
+}
+#endif /* CONFIG_BCMA_NFLASH */
+
 #ifdef CONFIG_BCMA_HOST_PCI
 /* host_pci.c */
 extern int __init bcma_host_pci_init(void);

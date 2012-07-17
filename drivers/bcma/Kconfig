@@ -46,6 +46,16 @@ config BCMA_DRIVER_MIPS
 
 	  If unsure, say N
 
+config BCMA_SFLASH
+	bool
+	depends on BCMA_DRIVER_MIPS && BROKEN
+	default y
+
+config BCMA_NFLASH
+	bool
+	depends on BCMA_DRIVER_MIPS && BROKEN
+	default y
+
 config BCMA_DRIVER_GMAC_CMN
 	bool "BCMA Broadcom GBIT MAC COMMON core driver"
 	depends on BCMA
