@@ -171,6 +171,8 @@ static void free_fib_info_rcu(struct rcu_head *head)
 			dev_put(nexthop_nh->nh_dev);
 		if (nexthop_nh->nh_exceptions)
 			free_nh_exceptions(nexthop_nh);
+		if (nexthop_nh->nh_rth_output)
+			dst_release(&nexthop_nh->nh_rth_output->dst);
 	} endfor_nexthops(fi);
 
 	release_net(fi->fib_net);
