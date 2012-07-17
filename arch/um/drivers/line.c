@@ -362,18 +362,18 @@ static irqreturn_t line_write_interrupt(int irq, void *data)
 int line_setup_irq(int fd, int input, int output, struct line *line, void *data)
 {
 	const struct line_driver *driver = line->driver;
-	int err = 0, flags = IRQF_SHARED | IRQF_SAMPLE_RANDOM;
+	int err = 0;
 
 	if (input)
 		err = um_request_irq(driver->read_irq, fd, IRQ_READ,
-				       line_interrupt, flags,
-				       driver->read_irq_name, data);
+				     line_interrupt, IRQF_SHARED,
+				     driver->read_irq_name, data);
 	if (err)
 		return err;
 	if (output)
 		err = um_request_irq(driver->write_irq, fd, IRQ_WRITE,
-					line_write_interrupt, flags,
-					driver->write_irq_name, data);
+				     line_write_interrupt, IRQF_SHARED,
+				     driver->write_irq_name, data);
 	return err;
 }
 
@@ -779,8 +779,7 @@ void register_winch_irq(int fd, int tty_fd, int pid, struct tty_struct *tty,
 				   .stack	= stack });
 
 	if (um_request_irq(WINCH_IRQ, fd, IRQ_READ, winch_interrupt,
-			   IRQF_SHARED | IRQF_SAMPLE_RANDOM,
-			   "winch", winch) < 0) {
+			   IRQF_SHARED, "winch", winch) < 0) {
 		printk(KERN_ERR "register_winch_irq - failed to register "
 		       "IRQ\n");
 		goto out_free;
