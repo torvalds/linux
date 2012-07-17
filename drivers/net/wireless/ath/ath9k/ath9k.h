@@ -363,7 +363,7 @@ void ath_tx_aggr_sleep(struct ieee80211_sta *sta, struct ath_softc *sc,
 
 struct ath_vif {
 	int av_bslot;
-	bool is_bslot_active, primary_sta_vif;
+	bool primary_sta_vif;
 	__le64 tsf_adjust; /* TSF adjustment for staggered beacons */
 	struct ath_buf *av_bcbuf;
 };

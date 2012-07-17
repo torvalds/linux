@@ -1788,9 +1788,10 @@ static int ath9k_tx_last_beacon(struct ieee80211_hw *hw)
 	if (!vif)
 		return 0;
 
-	avp = (void *)vif->drv_priv;
-	if (!avp->is_bslot_active)
+	if (!vif->bss_conf.enable_beacon)
 		return 0;
+
+	avp = (void *)vif->drv_priv;
 
 	if (!sc->beacon.tx_processed && !edma) {
 		tasklet_disable(&sc->bcon_tasklet);

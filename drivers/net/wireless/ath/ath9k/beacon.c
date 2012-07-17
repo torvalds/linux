@@ -134,19 +134,16 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_buf *bf;
-	struct ath_vif *avp;
+	struct ath_vif *avp = (void *)vif->drv_priv;
 	struct sk_buff *skb;
-	struct ath_txq *cabq;
+	struct ath_txq *cabq = sc->beacon.cabq;
 	struct ieee80211_tx_info *info;
 	int cabq_depth;
 
-	ath9k_reset_beacon_status(sc);
-
-	avp = (void *)vif->drv_priv;
-	cabq = sc->beacon.cabq;
-
-	if ((avp->av_bcbuf == NULL) || !avp->is_bslot_active)
+	if (avp->av_bcbuf == NULL)
 		return NULL;
+
+	ath9k_reset_beacon_status(sc);
 
 	/* Release the old beacon first */
 
@@ -234,7 +231,6 @@ void ath9k_beacon_assign_slot(struct ath_softc *sc, struct ieee80211_vif *vif)
 	for (slot = 0; slot < ATH_BCBUF; slot++) {
 		if (sc->beacon.bslot[slot] == NULL) {
 			avp->av_bslot = slot;
-			avp->is_bslot_active = false;
 			break;
 		}
 	}
@@ -267,7 +263,6 @@ void ath9k_beacon_remove_slot(struct ath_softc *sc, struct ieee80211_vif *vif)
 	}
 
 	avp->av_bcbuf = NULL;
-	avp->is_bslot_active = false;
 	sc->beacon.bslot[avp->av_bslot] = NULL;
 	sc->nbcnvifs--;
 	list_add_tail(&bf->list, &sc->beacon.bbuf);
