@@ -37,29 +37,35 @@ struct sh_pfc_pinctrl {
 
 static struct sh_pfc_pinctrl *sh_pfc_pmx;
 
-/*
- * No group support yet
- */
-static int sh_pfc_get_noop_count(struct pinctrl_dev *pctldev)
+static int sh_pfc_get_groups_count(struct pinctrl_dev *pctldev)
 {
-	return 0;
+	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
+
+	return pmx->nr_pads;
 }
 
-static const char *sh_pfc_get_noop_name(struct pinctrl_dev *pctldev,
+static const char *sh_pfc_get_group_name(struct pinctrl_dev *pctldev,
 					 unsigned selector)
 {
-	return NULL;
+	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
+
+	return pmx->pads[selector].name;
 }
 
 static int sh_pfc_get_group_pins(struct pinctrl_dev *pctldev, unsigned group,
 				 const unsigned **pins, unsigned *num_pins)
 {
-	return -ENOTSUPP;
+	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
+
+	*pins = &pmx->pads[group].number;
+	*num_pins = 1;
+
+	return 0;
 }
 
 static struct pinctrl_ops sh_pfc_pinctrl_ops = {
-	.get_groups_count	= sh_pfc_get_noop_count,
-	.get_group_name		= sh_pfc_get_noop_name,
+	.get_groups_count	= sh_pfc_get_groups_count,
+	.get_group_name		= sh_pfc_get_group_name,
 	.get_group_pins		= sh_pfc_get_group_pins,
 };
 
