@@ -44,7 +44,7 @@
 #define RK30_LCDC1_SIZE         SZ_8K
 #define RK30_IPP_PHYS           0x10110000
 #define RK30_IPP_SIZE           SZ_16K
-#define RK30_RGA_PHYS           0x1010c000
+#define RK30_RGA_PHYS           0x10114000
 #define RK30_RGA_SIZE           SZ_8K
 #define RK30_HDMI_PHYS          0x10116000
 #define RK30_HDMI_SIZE          SZ_8K

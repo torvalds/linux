@@ -60,9 +60,17 @@
 
 #define RGA_MAJOR		255
 
+#if 0
+#if CONFIG_ARCH_RK2928
 #define RK30_RGA_PHYS	0x1010C000
 #define RK30_RGA_SIZE	SZ_8K
 #define RGA_RESET_TIMEOUT	1000
+#elif CONFIG_ARCH_RK30
+#define RK30_RGA_PHYS	0x10114000
+#define RK30_RGA_SIZE	SZ_8K
+#define RGA_RESET_TIMEOUT	1000
+#endif
+#endif
 
 /* Driver information */
 #define DRIVER_DESC		"RGA Device Driver"
@@ -100,7 +108,7 @@ static void rga_try_set_reg(void);
 
 
 /* Logging */
-#define RGA_DEBUG 1
+#define RGA_DEBUG 0
 #if RGA_DEBUG
 #define DBG(format, args...) printk(KERN_DEBUG "%s: " format, DRIVER_NAME, ## args)
 #define ERR(format, args...) printk(KERN_ERR "%s: " format, DRIVER_NAME, ## args)
@@ -124,7 +132,7 @@ static inline u32 rga_read(u32 r)
 	return __raw_readl(drvdata->rga_base + r);
 }
 
-#if 0
+#if defined(CONFIG_ARCH_RK30)
 static void rga_soft_reset(void)
 {
 	u32 i;
@@ -573,7 +581,10 @@ static void rga_try_set_reg(void)
             dmac_flush_range(&rga_service.cmd_buff[0], &rga_service.cmd_buff[28]);
             outer_flush_range(virt_to_phys(&rga_service.cmd_buff[0]),virt_to_phys(&rga_service.cmd_buff[28]));
 
-            //rga_soft_reset();
+            #if defined(CONFIG_ARCH_RK30)
+            rga_soft_reset();
+            #endif
+            
             rga_write(0, RGA_MMU_CTRL);
 
             /* CMD buff */
@@ -1097,13 +1108,23 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 	data->aclk_rga = clk_get(NULL, "aclk_rga");
 	data->hclk_rga = clk_get(NULL, "hclk_rga");
 
+    
 	/* map the memory */
-	if (!request_mem_region(RK30_RGA_PHYS, RK30_RGA_SIZE, "rga_io"))
+    #if defined(CONFIG_ARCH_RK2928)
+	if (!request_mem_region(RK2928_RGA_PHYS, RK2928_RGA_SIZE, "rga_io"))
+    #elif defined(CONFIG_ARCH_RK30)
+    if (!request_mem_region(RK30_RGA_PHYS, RK30_RGA_SIZE, "rga_io"))
+    #endif    
 	{
 		pr_info("failed to reserve rga HW regs\n");
 		return -EBUSY;
 	}
-	data->rga_base = (void*)ioremap_nocache(RK30_RGA_PHYS, RK30_RGA_SIZE);
+    
+    #if defined(CONFIG_ARCH_RK2928)
+	data->rga_base = (void*)ioremap_nocache(RK2928_RGA_PHYS, RK2928_RGA_SIZE);
+    #elif defined(CONFIG_ARCH_RK30)
+    data->rga_base = (void*)ioremap_nocache(RK30_RGA_PHYS, RK30_RGA_SIZE);
+    #endif
 	if (data->rga_base == NULL)
 	{
 		ERR("rga ioremap failed\n");
