@@ -29,6 +29,6 @@ esdhc@70008000 {
 	compatible = "fsl,imx51-esdhc";
 	reg = <0x70008000 0x4000>;
 	interrupts = <2>;
-	cd-gpios = <&gpio0 6 0>; /* GPIO1_6 */
-	wp-gpios = <&gpio0 5 0>; /* GPIO1_5 */
+	cd-gpios = <&gpio1 6 0>; /* GPIO1_6 */
+	wp-gpios = <&gpio1 5 0>; /* GPIO1_5 */
 };
