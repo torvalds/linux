@@ -1060,6 +1060,14 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	}
 	ring->ready = true;
 	radeon_ttm_set_active_vram_size(rdev, rdev->mc.real_vram_size);
+
+	if (radeon_ring_supports_scratch_reg(rdev, ring)) {
+		r = radeon_scratch_get(rdev, &ring->rptr_save_reg);
+		if (r) {
+			DRM_ERROR("failed to get scratch reg for rptr save (%d).\n", r);
+			ring->rptr_save_reg = 0;
+		}
+	}
 	return 0;
 }
 
@@ -1070,6 +1078,7 @@ void r100_cp_fini(struct radeon_device *rdev)
 	}
 	/* Disable ring */
 	r100_cp_disable(rdev);
+	radeon_scratch_free(rdev, rdev->ring[RADEON_RING_TYPE_GFX_INDEX].rptr_save_reg);
 	radeon_ring_fini(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
 	DRM_INFO("radeon: cp finalized\n");
 }
@@ -3660,6 +3669,12 @@ int r100_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 void r100_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
+
+	if (ring->rptr_save_reg) {
+		u32 next_rptr = ring->wptr + 2 + 3;
+		radeon_ring_write(ring, PACKET0(ring->rptr_save_reg, 0));
+		radeon_ring_write(ring, next_rptr);
+	}
 
 	radeon_ring_write(ring, PACKET0(RADEON_CP_IB_BASE, 1));
 	radeon_ring_write(ring, ib->gpu_addr);
