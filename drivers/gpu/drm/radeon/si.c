@@ -1772,11 +1772,19 @@ void si_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 
 		header = PACKET3(PACKET3_INDIRECT_BUFFER_CONST, 2);
 	} else {
+		u32 next_rptr;
 		if (ring->rptr_save_reg) {
-			uint32_t next_rptr = ring->wptr + 3 + 4 + 8;
+			next_rptr = ring->wptr + 3 + 4 + 8;
 			radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
 			radeon_ring_write(ring, ((ring->rptr_save_reg -
 						  PACKET3_SET_CONFIG_REG_START) >> 2));
+			radeon_ring_write(ring, next_rptr);
+		} else if (rdev->wb.enabled) {
+			next_rptr = ring->wptr + 5 + 4 + 8;
+			radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
+			radeon_ring_write(ring, (1 << 8));
+			radeon_ring_write(ring, ring->next_rptr_gpu_addr & 0xfffffffc);
+			radeon_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr) & 0xffffffff);
 			radeon_ring_write(ring, next_rptr);
 		}
 

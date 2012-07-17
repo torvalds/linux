@@ -207,6 +207,19 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 	ring->ring_free_dw--;
 }
 
+bool radeon_ring_supports_scratch_reg(struct radeon_device *rdev,
+				      struct radeon_ring *ring)
+{
+	switch (ring->idx) {
+	case RADEON_RING_TYPE_GFX_INDEX:
+	case CAYMAN_RING_TYPE_CP1_INDEX:
+	case CAYMAN_RING_TYPE_CP2_INDEX:
+		return true;
+	default:
+		return false;
+	}
+}
+
 void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	u32 rptr;
@@ -372,7 +385,7 @@ unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring
 	mutex_lock(&rdev->ring_lock);
 	*data = NULL;
 
-	if (ring->ring_obj == NULL || !ring->rptr_save_reg) {
+	if (ring->ring_obj == NULL) {
 		mutex_unlock(&rdev->ring_lock);
 		return 0;
 	}
@@ -384,7 +397,16 @@ unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring
 	}
 
 	/* calculate the number of dw on the ring */
-	ptr = RREG32(ring->rptr_save_reg);
+	if (ring->rptr_save_reg)
+		ptr = RREG32(ring->rptr_save_reg);
+	else if (rdev->wb.enabled)
+		ptr = le32_to_cpu(*ring->next_rptr_cpu_addr);
+	else {
+		/* no way to read back the next rptr */
+		mutex_unlock(&rdev->ring_lock);
+		return 0;
+	}
+
 	size = ring->wptr + (ring->ring_size / 4);
 	size -= ptr;
 	size &= ring->ptr_mask;
@@ -478,6 +500,11 @@ int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 	}
 	ring->ptr_mask = (ring->ring_size / 4) - 1;
 	ring->ring_free_dw = ring->ring_size / 4;
+	if (rdev->wb.enabled) {
+		u32 index = RADEON_WB_RING0_NEXT_RPTR + (ring->idx * 4);
+		ring->next_rptr_gpu_addr = rdev->wb.gpu_addr + index;
+		ring->next_rptr_cpu_addr = &rdev->wb.wb[index/4];
+	}
 	if (radeon_debugfs_ring_init(rdev, ring)) {
 		DRM_ERROR("Failed to register debugfs file for rings !\n");
 	}

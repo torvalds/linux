@@ -2163,10 +2163,12 @@ void r600_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsign
 	ring->ring_size = ring_size;
 	ring->align_mask = 16 - 1;
 
-	r = radeon_scratch_get(rdev, &ring->rptr_save_reg);
-	if (r) {
-		DRM_ERROR("failed to get scratch reg for rptr save (%d).\n", r);
-		ring->rptr_save_reg = 0;
+	if (radeon_ring_supports_scratch_reg(rdev, ring)) {
+		r = radeon_scratch_get(rdev, &ring->rptr_save_reg);
+		if (r) {
+			DRM_ERROR("failed to get scratch reg for rptr save (%d).\n", r);
+			ring->rptr_save_reg = 0;
+		}
 	}
 }
 
@@ -2576,13 +2578,21 @@ void r600_fini(struct radeon_device *rdev)
 void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	struct radeon_ring *ring = &rdev->ring[ib->ring];
+	u32 next_rptr;
 
 	if (ring->rptr_save_reg) {
-		uint32_t next_rptr = ring->wptr + 3 + 4;
+		next_rptr = ring->wptr + 3 + 4;
 		radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
 		radeon_ring_write(ring, ((ring->rptr_save_reg -
 					 PACKET3_SET_CONFIG_REG_OFFSET) >> 2));
 		radeon_ring_write(ring, next_rptr);
+	} else if (rdev->wb.enabled) {
+		next_rptr = ring->wptr + 5 + 4;
+		radeon_ring_write(ring, PACKET3(PACKET3_MEM_WRITE, 3));
+		radeon_ring_write(ring, ring->next_rptr_gpu_addr & 0xfffffffc);
+		radeon_ring_write(ring, (upper_32_bits(ring->next_rptr_gpu_addr) & 0xff) | (1 << 18));
+		radeon_ring_write(ring, next_rptr);
+		radeon_ring_write(ring, 0);
 	}
 
 	radeon_ring_write(ring, PACKET3(PACKET3_INDIRECT_BUFFER, 2));

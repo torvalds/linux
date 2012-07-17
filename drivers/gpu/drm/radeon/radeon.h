@@ -623,6 +623,8 @@ struct radeon_ring {
 	unsigned		rptr_offs;
 	unsigned		rptr_reg;
 	unsigned		rptr_save_reg;
+	u64			next_rptr_gpu_addr;
+	volatile u32		*next_rptr_cpu_addr;
 	unsigned		wptr;
 	unsigned		wptr_old;
 	unsigned		wptr_reg;
@@ -758,6 +760,8 @@ int radeon_ib_pool_init(struct radeon_device *rdev);
 void radeon_ib_pool_fini(struct radeon_device *rdev);
 int radeon_ib_ring_tests(struct radeon_device *rdev);
 /* Ring access between begin & end cannot sleep */
+bool radeon_ring_supports_scratch_reg(struct radeon_device *rdev,
+				      struct radeon_ring *ring);
 void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_ring *cp);
 int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *cp, unsigned ndw);
 int radeon_ring_lock(struct radeon_device *rdev, struct radeon_ring *cp, unsigned ndw);
@@ -871,6 +875,7 @@ struct radeon_wb {
 };
 
 #define RADEON_WB_SCRATCH_OFFSET 0
+#define RADEON_WB_RING0_NEXT_RPTR 256
 #define RADEON_WB_CP_RPTR_OFFSET 1024
 #define RADEON_WB_CP1_RPTR_OFFSET 1280
 #define RADEON_WB_CP2_RPTR_OFFSET 1536
