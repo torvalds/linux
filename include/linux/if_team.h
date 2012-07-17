@@ -13,6 +13,8 @@
 
 #ifdef __KERNEL__
 
+#include <linux/netpoll.h>
+
 struct team_pcpu_stats {
 	u64			rx_packets;
 	u64			rx_bytes;
@@ -60,6 +62,10 @@ struct team_port {
 		unsigned int mtu;
 	} orig;
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	struct netpoll *np;
+#endif
+
 	long mode_priv[0];
 };
 
@@ -71,6 +77,33 @@ static inline bool team_port_enabled(struct team_port *port)
 static inline bool team_port_txable(struct team_port *port)
 {
 	return port->linkup && team_port_enabled(port);
+}
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static inline void team_netpoll_send_skb(struct team_port *port,
+					 struct sk_buff *skb)
+{
+	struct netpoll *np = port->np;
+
+	if (np)
+		netpoll_send_skb(np, skb);
+}
+#else
+static inline void team_netpoll_send_skb(struct team_port *port,
+					 struct sk_buff *skb)
+{
+}
+#endif
+
+static inline int team_dev_queue_xmit(struct team *team, struct team_port *port,
+				      struct sk_buff *skb)
+{
+	skb->dev = port->dev;
+	if (unlikely(netpoll_tx_running(port->dev))) {
+		team_netpoll_send_skb(port, skb);
+		return 0;
+	}
+	return dev_queue_xmit(skb);
 }
 
 struct team_mode_ops {

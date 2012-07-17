@@ -18,6 +18,7 @@
 #include <linux/ctype.h>
 #include <linux/notifier.h>
 #include <linux/netdevice.h>
+#include <linux/netpoll.h>
 #include <linux/if_vlan.h>
 #include <linux/if_arp.h>
 #include <linux/socket.h>
@@ -787,6 +788,58 @@ static void team_port_leave(struct team *team, struct team_port *port)
 	dev_put(team->dev);
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static int team_port_enable_netpoll(struct team *team, struct team_port *port)
+{
+	struct netpoll *np;
+	int err;
+
+	np = kzalloc(sizeof(*np), GFP_KERNEL);
+	if (!np)
+		return -ENOMEM;
+
+	err = __netpoll_setup(np, port->dev);
+	if (err) {
+		kfree(np);
+		return err;
+	}
+	port->np = np;
+	return err;
+}
+
+static void team_port_disable_netpoll(struct team_port *port)
+{
+	struct netpoll *np = port->np;
+
+	if (!np)
+		return;
+	port->np = NULL;
+
+	/* Wait for transmitting packets to finish before freeing. */
+	synchronize_rcu_bh();
+	__netpoll_cleanup(np);
+	kfree(np);
+}
+
+static struct netpoll_info *team_netpoll_info(struct team *team)
+{
+	return team->dev->npinfo;
+}
+
+#else
+static int team_port_enable_netpoll(struct team *team, struct team_port *port)
+{
+	return 0;
+}
+static void team_port_disable_netpoll(struct team_port *port)
+{
+}
+static struct netpoll_info *team_netpoll_info(struct team *team)
+{
+	return NULL;
+}
+#endif
+
 static void __team_port_change_check(struct team_port *port, bool linkup);
 
 static int team_port_add(struct team *team, struct net_device *port_dev)
@@ -853,6 +906,15 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 		goto err_vids_add;
 	}
 
+	if (team_netpoll_info(team)) {
+		err = team_port_enable_netpoll(team, port);
+		if (err) {
+			netdev_err(dev, "Failed to enable netpoll on device %s\n",
+				   portname);
+			goto err_enable_netpoll;
+		}
+	}
+
 	err = netdev_set_master(port_dev, dev);
 	if (err) {
 		netdev_err(dev, "Device %s failed to set master\n", portname);
@@ -892,6 +954,9 @@ err_handler_register:
 	netdev_set_master(port_dev, NULL);
 
 err_set_master:
+	team_port_disable_netpoll(port);
+
+err_enable_netpoll:
 	vlan_vids_del_by_dev(port_dev, dev);
 
 err_vids_add:
@@ -932,6 +997,7 @@ static int team_port_del(struct team *team, struct net_device *port_dev)
 	list_del_rcu(&port->list);
 	netdev_rx_handler_unregister(port_dev);
 	netdev_set_master(port_dev, NULL);
+	team_port_disable_netpoll(port);
 	vlan_vids_del_by_dev(port_dev, dev);
 	dev_close(port_dev);
 	team_port_leave(team, port);
@@ -1307,6 +1373,48 @@ static int team_vlan_rx_kill_vid(struct net_device *dev, uint16_t vid)
 	return 0;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void team_poll_controller(struct net_device *dev)
+{
+}
+
+static void __team_netpoll_cleanup(struct team *team)
+{
+	struct team_port *port;
+
+	list_for_each_entry(port, &team->port_list, list)
+		team_port_disable_netpoll(port);
+}
+
+static void team_netpoll_cleanup(struct net_device *dev)
+{
+	struct team *team = netdev_priv(dev);
+
+	mutex_lock(&team->lock);
+	__team_netpoll_cleanup(team);
+	mutex_unlock(&team->lock);
+}
+
+static int team_netpoll_setup(struct net_device *dev,
+			      struct netpoll_info *npifo)
+{
+	struct team *team = netdev_priv(dev);
+	struct team_port *port;
+	int err;
+
+	mutex_lock(&team->lock);
+	list_for_each_entry(port, &team->port_list, list) {
+		err = team_port_enable_netpoll(team, port);
+		if (err) {
+			__team_netpoll_cleanup(team);
+			break;
+		}
+	}
+	mutex_unlock(&team->lock);
+	return err;
+}
+#endif
+
 static int team_add_slave(struct net_device *dev, struct net_device *port_dev)
 {
 	struct team *team = netdev_priv(dev);
@@ -1363,6 +1471,11 @@ static const struct net_device_ops team_netdev_ops = {
 	.ndo_get_stats64	= team_get_stats64,
 	.ndo_vlan_rx_add_vid	= team_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= team_vlan_rx_kill_vid,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= team_poll_controller,
+	.ndo_netpoll_setup	= team_netpoll_setup,
+	.ndo_netpoll_cleanup	= team_netpoll_cleanup,
+#endif
 	.ndo_add_slave		= team_add_slave,
 	.ndo_del_slave		= team_del_slave,
 	.ndo_fix_features	= team_fix_features,

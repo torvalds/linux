@@ -29,8 +29,8 @@ static bool bc_transmit(struct team *team, struct sk_buff *skb)
 			if (last) {
 				skb2 = skb_clone(skb, GFP_ATOMIC);
 				if (skb2) {
-					skb2->dev = last->dev;
-					ret = dev_queue_xmit(skb2);
+					ret = team_dev_queue_xmit(team, last,
+								  skb2);
 					if (!sum_ret)
 						sum_ret = ret;
 				}
@@ -39,8 +39,7 @@ static bool bc_transmit(struct team *team, struct sk_buff *skb)
 		}
 	}
 	if (last) {
-		skb->dev = last->dev;
-		ret = dev_queue_xmit(skb);
+		ret = team_dev_queue_xmit(team, last, skb);
 		if (!sum_ret)
 			sum_ret = ret;
 	}

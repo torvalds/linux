@@ -55,8 +55,7 @@ static bool rr_transmit(struct team *team, struct sk_buff *skb)
 	port = __get_first_port_up(team, port);
 	if (unlikely(!port))
 		goto drop;
-	skb->dev = port->dev;
-	if (dev_queue_xmit(skb))
+	if (team_dev_queue_xmit(team, port, skb))
 		return false;
 	return true;
 

@@ -217,8 +217,7 @@ static bool lb_transmit(struct team *team, struct sk_buff *skb)
 	port = select_tx_port_func(team, lb_priv, skb, hash);
 	if (unlikely(!port))
 		goto drop;
-	skb->dev = port->dev;
-	if (dev_queue_xmit(skb))
+	if (team_dev_queue_xmit(team, port, skb))
 		return false;
 	lb_update_tx_stats(tx_bytes, lb_priv, get_lb_port_priv(port), hash);
 	return true;
