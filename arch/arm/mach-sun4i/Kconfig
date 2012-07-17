@@ -16,4 +16,5 @@ config SW_DEBUG_UART
 config SUNXI_IGNORE_ATAG_MEM
 	bool "Use AllWinner's hack to assume memory size"
 	default n
+
 endif
