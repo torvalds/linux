@@ -35,7 +35,11 @@
 
 
 #define PWM_DIV              PWM_DIV2
+#ifdef CONFIG_MACH_RK30_DS1001B
+#define PWM_APB_PRE_DIV      20000
+#else
 #define PWM_APB_PRE_DIV      1000
+#endif
 #define BL_STEP              255
 
 #endif	/* __ASM_ARCH_RK2818_BACKLIGHT_H */

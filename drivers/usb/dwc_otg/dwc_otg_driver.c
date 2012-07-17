@@ -61,6 +61,12 @@
 #include <asm/io.h>
 #include <asm/sizes.h>
 
+#ifdef CONFIG_MACH_RK30_DS1001B
+#include <mach/io.h>
+#include <mach/gpio.h>
+#include <mach/iomux.h>
+#endif
+
 #include "linux/dwc_otg_plat.h"
 #include <linux/platform_device.h>
 #include "dwc_otg_attr.h"
@@ -2203,6 +2209,15 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 #endif    
 #ifdef CONFIG_ARCH_RK30
     USB_IOMUX_INIT(GPIO0A6_HOSTDRVVBUS_NAME, GPIO0A_HOST_DRV_VBUS);    
+#ifdef CONFIG_MACH_RK30_DS1001B
+    USB_IOMUX_INIT(GPIO0A5_OTGDRVVBUS_NAME, GPIO0A_GPIO0A5); 
+    if(gpio_request(RK30_PIN0_PA5,"host_drv")<0){
+        DWC_ERROR("request of host power control failed\n");
+        gpio_free(RK30_PIN0_PA5);
+    }
+    gpio_direction_output(RK30_PIN0_PA5, GPIO_HIGH);
+    gpio_set_value(RK30_PIN0_PA5, GPIO_HIGH);
+#endif
 #endif
 	/*
 	 * Initialize the DWC_otg core.
