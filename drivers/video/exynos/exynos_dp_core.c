@@ -336,7 +336,7 @@ static int exynos_dp_channel_eq_ok(u8 link_status[6], int lane_count)
 	u8 lane_status;
 
 	lane_align = link_status[2];
-	if ((lane_align == DPCD_INTERLANE_ALIGN_DONE) == 0)
+	if ((lane_align & DPCD_INTERLANE_ALIGN_DONE) == 0)
 		return -EINVAL;
 
 	for (lane = 0; lane < lane_count; lane++) {
