@@ -53,6 +53,8 @@
 #define IRQ_SDMMC_DETECT                78
 #define IRQ_SDIO_DETECT                 79
 
+#define IRQ_ARM_PMU                     86
+
 //hhb@rock-chips.com this spi is used for fiq_debugger signal irq
 #define IRQ_UART_SIGNAL			127
 #if CONFIG_RK_DEBUG_UART >= 0 && CONFIG_RK_DEBUG_UART < 3
