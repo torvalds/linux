@@ -263,11 +263,6 @@ int olpc_ec_sci_query(u16 *sci_value)
 }
 EXPORT_SYMBOL_GPL(olpc_ec_sci_query);
 
-static int olpc_ec_suspend(struct platform_device *pdev)
-{
-	return olpc_ec_mask_write(ec_wakeup_mask);
-}
-
 static bool __init check_ofw_architecture(struct device_node *root)
 {
 	const char *olpc_arch;
@@ -339,9 +334,40 @@ static int olpc_xo1_ec_probe(struct platform_device *pdev)
 
 	return 0;
 }
+static int olpc_xo1_ec_suspend(struct platform_device *pdev)
+{
+	olpc_ec_mask_write(ec_wakeup_mask);
+
+	/*
+	 * Squelch SCIs while suspended.  This is a fix for
+	 * <http://dev.laptop.org/ticket/1835>.
+	 */
+	return olpc_ec_cmd(EC_SET_SCI_INHIBIT, NULL, 0, NULL, 0);
+}
+
+static int olpc_xo1_ec_resume(struct platform_device *pdev)
+{
+	/* Tell the EC to stop inhibiting SCIs */
+	olpc_ec_cmd(EC_SET_SCI_INHIBIT_RELEASE, NULL, 0, NULL, 0);
+
+	/*
+	 * Tell the wireless module to restart USB communication.
+	 * Must be done twice.
+	 */
+	olpc_ec_cmd(EC_WAKE_UP_WLAN, NULL, 0, NULL, 0);
+	olpc_ec_cmd(EC_WAKE_UP_WLAN, NULL, 0, NULL, 0);
+
+	return 0;
+}
 
 static struct olpc_ec_driver ec_xo1_driver = {
-	.suspend = olpc_ec_suspend,
+	.probe = olpc_xo1_ec_probe,
+	.suspend = olpc_xo1_ec_suspend,
+	.resume = olpc_xo1_ec_resume,
+	.ec_cmd = olpc_xo1_ec_cmd,
+};
+
+static struct olpc_ec_driver ec_xo1_5_driver = {
 	.probe = olpc_xo1_ec_probe,
 	.ec_cmd = olpc_xo1_ec_cmd,
 };
@@ -354,7 +380,10 @@ static int __init olpc_init(void)
 		return 0;
 
 	/* register the XO-1 and 1.5-specific EC handler */
-	olpc_ec_driver_register(&ec_xo1_driver, NULL);
+	if (olpc_platform_info.boardrev < olpc_board_pre(0xd0))	/* XO-1 */
+		olpc_ec_driver_register(&ec_xo1_driver, NULL);
+	else
+		olpc_ec_driver_register(&ec_xo1_5_driver, NULL);
 	platform_device_register_simple("olpc-ec", -1, NULL, 0);
 
 	/* assume B1 and above models always have a DCON */
