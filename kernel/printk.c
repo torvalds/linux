@@ -231,6 +231,11 @@ static u32 log_first_idx;
 static u64 log_next_seq;
 static u32 log_next_idx;
 
+/* the next printk record to write to the console */
+static u64 console_seq;
+static u32 console_idx;
+static enum log_flags console_prev;
+
 /* the next printk record to read after the last 'clear' command */
 static u64 clear_seq;
 static u32 clear_idx;
@@ -1386,6 +1391,7 @@ static struct cont {
 	u64 ts_nsec;			/* time of first print */
 	u8 level;			/* log level of first message */
 	u8 facility;			/* log level of first message */
+	enum log_flags flags;		/* prefix, newline flags */
 	bool flushed:1;			/* buffer sealed and committed */
 } cont;
 
@@ -1396,10 +1402,25 @@ static void cont_flush(enum log_flags flags)
 	if (cont.len == 0)
 		return;
 
-	log_store(cont.facility, cont.level, LOG_NOCONS | flags,
-		  cont.ts_nsec, NULL, 0, cont.buf, cont.len);
-
-	cont.flushed = true;
+	if (cont.cons) {
+		/*
+		 * If a fragment of this line was directly flushed to the
+		 * console; wait for the console to pick up the rest of the
+		 * line. LOG_NOCONS suppresses a duplicated output.
+		 */
+		log_store(cont.facility, cont.level, flags | LOG_NOCONS,
+			  cont.ts_nsec, NULL, 0, cont.buf, cont.len);
+		cont.flags = flags;
+		cont.flushed = true;
+	} else {
+		/*
+		 * If no fragment of this line ever reached the console,
+		 * just submit it to the store and free the buffer.
+		 */
+		log_store(cont.facility, cont.level, flags, 0,
+			  NULL, 0, cont.buf, cont.len);
+		cont.len = 0;
+	}
 }
 
 static bool cont_add(int facility, int level, const char *text, size_t len)
@@ -1418,12 +1439,17 @@ static bool cont_add(int facility, int level, const char *text, size_t len)
 		cont.level = level;
 		cont.owner = current;
 		cont.ts_nsec = local_clock();
+		cont.flags = 0;
 		cont.cons = 0;
 		cont.flushed = false;
 	}
 
 	memcpy(cont.buf + cont.len, text, len);
 	cont.len += len;
+
+	if (cont.len > (sizeof(cont.buf) * 80) / 100)
+		cont_flush(LOG_CONT);
+
 	return true;
 }
 
@@ -1432,7 +1458,7 @@ static size_t cont_print_text(char *text, size_t size)
 	size_t textlen = 0;
 	size_t len;
 
-	if (cont.cons == 0) {
+	if (cont.cons == 0 && (console_prev & LOG_NEWLINE)) {
 		textlen += print_time(cont.ts_nsec, text);
 		size -= textlen;
 	}
@@ -1447,7 +1473,8 @@ static size_t cont_print_text(char *text, size_t size)
 	}
 
 	if (cont.flushed) {
-		text[textlen++] = '\n';
+		if (cont.flags & LOG_NEWLINE)
+			text[textlen++] = '\n';
 		/* got everything, release buffer */
 		cont.len = 0;
 	}
@@ -1545,7 +1572,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 		 * or another task also prints continuation lines.
 		 */
 		if (cont.len && (lflags & LOG_PREFIX || cont.owner != current))
-			cont_flush(0);
+			cont_flush(LOG_NEWLINE);
 
 		/* buffer line if possible, otherwise store it right away */
 		if (!cont_add(facility, level, text, text_len))
@@ -1563,7 +1590,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 		if (cont.len && cont.owner == current) {
 			if (!(lflags & LOG_PREFIX))
 				stored = cont_add(facility, level, text, text_len);
-			cont_flush(0);
+			cont_flush(LOG_NEWLINE);
 		}
 
 		if (!stored)
@@ -1661,10 +1688,13 @@ EXPORT_SYMBOL(printk);
 #define LOG_LINE_MAX 0
 static u64 syslog_seq;
 static u32 syslog_idx;
+static u64 console_seq;
+static u32 console_idx;
 static enum log_flags syslog_prev;
 static u64 log_first_seq;
 static u32 log_first_idx;
 static u64 log_next_seq;
+static enum log_flags console_prev;
 static struct cont {
 	size_t len;
 	size_t cons;
@@ -1948,10 +1978,34 @@ void wake_up_klogd(void)
 		this_cpu_or(printk_pending, PRINTK_PENDING_WAKEUP);
 }
 
-/* the next printk record to write to the console */
-static u64 console_seq;
-static u32 console_idx;
-static enum log_flags console_prev;
+static void console_cont_flush(char *text, size_t size)
+{
+	unsigned long flags;
+	size_t len;
+
+	raw_spin_lock_irqsave(&logbuf_lock, flags);
+
+	if (!cont.len)
+		goto out;
+
+	/*
+	 * We still queue earlier records, likely because the console was
+	 * busy. The earlier ones need to be printed before this one, we
+	 * did not flush any fragment so far, so just let it queue up.
+	 */
+	if (console_seq < log_next_seq && !cont.cons)
+		goto out;
+
+	len = cont_print_text(text, size);
+	raw_spin_unlock(&logbuf_lock);
+	stop_critical_timings();
+	call_console_drivers(cont.level, text, len);
+	start_critical_timings();
+	local_irq_restore(flags);
+	return;
+out:
+	raw_spin_unlock_irqrestore(&logbuf_lock, flags);
+}
 
 /**
  * console_unlock - unlock the console system
@@ -1983,19 +2037,7 @@ void console_unlock(void)
 	console_may_schedule = 0;
 
 	/* flush buffered message fragment immediately to console */
-	raw_spin_lock_irqsave(&logbuf_lock, flags);
-	if (cont.len && (cont.cons < cont.len || cont.flushed)) {
-		size_t len;
-
-		len = cont_print_text(text, sizeof(text));
-		raw_spin_unlock(&logbuf_lock);
-		stop_critical_timings();
-		call_console_drivers(cont.level, text, len);
-		start_critical_timings();
-		local_irq_restore(flags);
-	} else
-		raw_spin_unlock_irqrestore(&logbuf_lock, flags);
-
+	console_cont_flush(text, sizeof(text));
 again:
 	for (;;) {
 		struct log *msg;
@@ -2032,6 +2074,7 @@ skip:
 			 * will properly dump everything later.
 			 */
 			msg->flags &= ~LOG_NOCONS;
+			console_prev = msg->flags;
 			goto skip;
 		}
 
