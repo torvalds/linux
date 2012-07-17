@@ -1416,16 +1416,6 @@ int ath_txq_update(struct ath_softc *sc, int qnum,
 	int error = 0;
 	struct ath9k_tx_queue_info qi;
 
-	if (qnum == sc->beacon.beaconq) {
-		/*
-		 * XXX: for beacon queue, we just save the parameter.
-		 * It will be picked up by ath_beaconq_config when
-		 * it's necessary.
-		 */
-		sc->beacon.beacon_qi = *qinfo;
-		return 0;
-	}
-
 	BUG_ON(sc->tx.txq[qnum].axq_qnum != qnum);
 
 	ath9k_hw_get_txq_props(ah, qnum, &qi);

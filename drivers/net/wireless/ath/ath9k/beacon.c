@@ -30,7 +30,7 @@ static void ath9k_reset_beacon_status(struct ath_softc *sc)
  *  the operating mode of the station (AP or AdHoc).  Parameters are AIFS
  *  settings and channel width min/max
 */
-int ath_beaconq_config(struct ath_softc *sc)
+static void ath9k_beaconq_config(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -38,6 +38,7 @@ int ath_beaconq_config(struct ath_softc *sc)
 	struct ath_txq *txq;
 
 	ath9k_hw_get_txq_props(ah, sc->beacon.beaconq, &qi);
+
 	if (sc->sc_ah->opmode == NL80211_IFTYPE_AP) {
 		/* Always burst out beacon and CAB traffic. */
 		qi.tqi_aifs = 1;
@@ -56,12 +57,9 @@ int ath_beaconq_config(struct ath_softc *sc)
 	}
 
 	if (!ath9k_hw_set_txq_props(ah, sc->beacon.beaconq, &qi)) {
-		ath_err(common,
-			"Unable to update h/w beacon queue parameters\n");
-		return 0;
+		ath_err(common, "Unable to update h/w beacon queue parameters\n");
 	} else {
 		ath9k_hw_resettxqueue(ah, sc->beacon.beaconq);
-		return 1;
 	}
 }
 
@@ -401,6 +399,7 @@ static void ath9k_beacon_init(struct ath_softc *sc, u32 nexttbtt, u32 intval)
 
 	ath9k_hw_disable_interrupts(ah);
 	ath9k_hw_reset_tsf(ah);
+	ath9k_beaconq_config(sc);
 	ath9k_hw_beaconinit(ah, nexttbtt, intval);
 	sc->beacon.bmisscnt = 0;
 	ath9k_hw_set_interrupts(ah);
@@ -432,7 +431,6 @@ static void ath9k_beacon_config_ap(struct ath_softc *sc,
 	ath_dbg(common, BEACON, "AP nexttbtt: %u intval: %u conf_intval: %u\n",
 		nexttbtt, intval, conf->beacon_interval);
 
-	ath_beaconq_config(sc);
 	ath9k_beacon_init(sc, nexttbtt, intval);
 }
 
@@ -584,7 +582,6 @@ static void ath9k_beacon_config_adhoc(struct ath_softc *sc,
 	ath_dbg(common, BEACON, "IBSS nexttbtt: %u intval: %u conf_intval: %u\n",
 		nexttbtt, intval, conf->beacon_interval);
 
-	ath_beaconq_config(sc);
 	ath9k_beacon_init(sc, nexttbtt, intval);
 }
 
