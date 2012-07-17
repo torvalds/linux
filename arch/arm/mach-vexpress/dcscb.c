@@ -16,6 +16,7 @@
 #include <linux/errno.h>
 #include <linux/of_address.h>
 #include <linux/vexpress.h>
+#include <linux/arm-cci.h>
 
 #include <asm/mcpm.h>
 #include <asm/proc-fns.h>
@@ -105,7 +106,10 @@ static void dcscb_power_down(void)
 	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
 	BUG_ON(cpu >= 4 || cluster >= 2);
 
+	__mcpm_cpu_going_down(cpu, cluster);
+
 	arch_spin_lock(&dcscb_lock);
+	BUG_ON(__mcpm_cluster_state(cluster) != CLUSTER_UP);
 	dcscb_use_count[cpu][cluster]--;
 	if (dcscb_use_count[cpu][cluster] == 0) {
 		rst_hold = readl_relaxed(dcscb_base + RST_HOLD0 + cluster * 4);
@@ -125,31 +129,59 @@ static void dcscb_power_down(void)
 		skip_wfi = true;
 	} else
 		BUG();
-	arch_spin_unlock(&dcscb_lock);
 
-	/*
-	 * Now let's clean our L1 cache and shut ourself down.
-	 * If we're the last CPU in this cluster then clean L2 too.
-	 */
+	if (last_man && __mcpm_outbound_enter_critical(cpu, cluster)) {
+		arch_spin_unlock(&dcscb_lock);
 
-	/*
-	 * A15/A7 can hit in the cache with SCTLR.C=0, so we don't need
-	 * a preliminary flush here for those CPUs.  At least, that's
-	 * the theory -- without the extra flush, Linux explodes on
-	 * RTSM (to be investigated)..
-	 */
-	flush_cache_louis();
-	set_cr(get_cr() & ~CR_C);
-
-	if (!last_man) {
-		flush_cache_louis();
-	} else {
+		/*
+		 * Flush all cache levels for this cluster.
+		 *
+		 * A15/A7 can hit in the cache with SCTLR.C=0, so we don't need
+		 * a preliminary flush here for those CPUs.  At least, that's
+		 * the theory -- without the extra flush, Linux explodes on
+		 * RTSM (to be investigated).
+		 */
 		flush_cache_all();
+		set_cr(get_cr() & ~CR_C);
+		flush_cache_all();
+
+		/*
+		 * This is a harmless no-op.  On platforms with a real
+		 * outer cache this might either be needed or not,
+		 * depending on where the outer cache sits.
+		 */
 		outer_flush_all();
+
+		/* Disable local coherency by clearing the ACTLR "SMP" bit: */
+		set_auxcr(get_auxcr() & ~(1 << 6));
+
+		/*
+		 * Disable cluster-level coherency by masking
+		 * incoming snoops and DVM messages:
+		 */
+		cci_disable_port_by_cpu(mpidr);
+
+		__mcpm_outbound_leave_critical(cluster, CLUSTER_DOWN);
+	} else {
+		arch_spin_unlock(&dcscb_lock);
+
+		/*
+		 * Flush the local CPU cache.
+		 *
+		 * A15/A7 can hit in the cache with SCTLR.C=0, so we don't need
+		 * a preliminary flush here for those CPUs.  At least, that's
+		 * the theory -- without the extra flush, Linux explodes on
+		 * RTSM (to be investigated).
+		 */
+		flush_cache_louis();
+		set_cr(get_cr() & ~CR_C);
+		flush_cache_louis();
+
+		/* Disable local coherency by clearing the ACTLR "SMP" bit: */
+		set_auxcr(get_auxcr() & ~(1 << 6));
 	}
 
-	/* Disable local coherency by clearing the ACTLR "SMP" bit: */
-	set_auxcr(get_auxcr() & ~(1 << 6));
+	__mcpm_cpu_down(cpu, cluster);
 
 	/* Now we are prepared for power-down, do it: */
 	dsb();
@@ -177,11 +209,16 @@ static void __init dcscb_usage_count_init(void)
 	dcscb_use_count[cpu][cluster] = 1;
 }
 
+extern void dcscb_power_up_setup(unsigned int affinity_level);
+
 static int __init dcscb_init(void)
 {
 	struct device_node *node;
 	unsigned int cfg;
 	int ret;
+
+	if (!cci_probed())
+		return -ENODEV;
 
 	node = of_find_compatible_node(NULL, NULL, "arm,rtsm,dcscb");
 	if (!node)
@@ -195,6 +232,8 @@ static int __init dcscb_init(void)
 	dcscb_usage_count_init();
 
 	ret = mcpm_platform_register(&dcscb_power_ops);
+	if (!ret)
+		ret = mcpm_sync_init(dcscb_power_up_setup);
 	if (ret) {
 		iounmap(dcscb_base);
 		return ret;
