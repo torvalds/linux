@@ -24,6 +24,10 @@
 
 #include <linux/time.h>
 #include <linux/kmsg_dump.h>
+#include <linux/mutex.h>
+#include <linux/types.h>
+#include <linux/spinlock.h>
+#include <linux/errno.h>
 
 /* types */
 enum pstore_type_id {
@@ -33,6 +37,8 @@ enum pstore_type_id {
 	PSTORE_TYPE_FTRACE	= 3,
 	PSTORE_TYPE_UNKNOWN	= 255
 };
+
+struct module;
 
 struct pstore_info {
 	struct module	*owner;
