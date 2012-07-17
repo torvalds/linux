@@ -192,7 +192,7 @@ struct flexcan_priv {
 
 	struct clk *clk;
 	struct flexcan_platform_data *pdata;
-	struct flexcan_devtype_data *devtype_data;
+	const struct flexcan_devtype_data *devtype_data;
 };
 
 static struct flexcan_devtype_data fsl_p1010_devtype_data = {
@@ -960,7 +960,7 @@ static const struct platform_device_id flexcan_id_table[] = {
 static int __devinit flexcan_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id;
-	struct flexcan_devtype_data *devtype_data;
+	const struct flexcan_devtype_data *devtype_data;
 	struct net_device *dev;
 	struct flexcan_priv *priv;
 	struct resource *mem;
