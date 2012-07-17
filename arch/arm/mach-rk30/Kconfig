@@ -12,6 +12,10 @@ config MACH_RK3066_SDK
 
 config MACH_RK30_DS1001B
         bool "RK30 DS1001B board"
+
+config MACH_RK30_PHONE_PAD
+        bool "RK30 smart phone pad board"
+        
 config MACH_RK30_PHONE
 	bool "RK30 smart phone board"
 
