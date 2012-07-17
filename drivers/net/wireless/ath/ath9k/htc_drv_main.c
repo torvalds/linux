@@ -1111,7 +1111,7 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 
 	if ((priv->ah->opmode == NL80211_IFTYPE_AP) &&
 	    !test_bit(OP_ANI_RUNNING, &priv->op_flags)) {
-		ath9k_hw_set_tsfadjust(priv->ah, 1);
+		ath9k_hw_set_tsfadjust(priv->ah, true);
 		ath9k_htc_start_ani(priv);
 	}
 

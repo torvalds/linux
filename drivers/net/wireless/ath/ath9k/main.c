@@ -919,17 +919,15 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 
 	ath9k_calculate_iter_data(hw, vif, &iter_data);
 
-	/* Set BSSID mask. */
 	memcpy(common->bssidmask, iter_data.mask, ETH_ALEN);
 	ath_hw_setbssidmask(common);
 
-	/* Set op-mode & TSF */
 	if (iter_data.naps > 0) {
-		ath9k_hw_set_tsfadjust(ah, 1);
+		ath9k_hw_set_tsfadjust(ah, true);
 		set_bit(SC_OP_TSF_RESET, &sc->sc_flags);
 		ah->opmode = NL80211_IFTYPE_AP;
 	} else {
-		ath9k_hw_set_tsfadjust(ah, 0);
+		ath9k_hw_set_tsfadjust(ah, false);
 		clear_bit(SC_OP_TSF_RESET, &sc->sc_flags);
 
 		if (iter_data.nmeshes)
@@ -942,9 +940,6 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 			ah->opmode = NL80211_IFTYPE_STATION;
 	}
 
-	/*
-	 * Enable MIB interrupts when there are hardware phy counters.
-	 */
 	if ((iter_data.nstations + iter_data.nadhocs + iter_data.nmeshes) > 0)
 		ah->imask |= ATH9K_INT_TSFOOR;
 	else
@@ -952,7 +947,6 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 
 	ath9k_hw_set_interrupts(ah);
 
-	/* Set up ANI */
 	if (iter_data.naps > 0) {
 		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
