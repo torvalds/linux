@@ -456,7 +456,7 @@ static int lubbock_mci_init(struct device *dev,
 	init_timer(&mmc_timer);
 	mmc_timer.data = (unsigned long) data;
 	return request_irq(LUBBOCK_SD_IRQ, lubbock_detect_int,
-			IRQF_SAMPLE_RANDOM, "lubbock-sd-detect", data);
+			   0, "lubbock-sd-detect", data);
 }
 
 static int lubbock_mci_get_ro(struct device *dev)
