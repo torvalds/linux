@@ -257,8 +257,10 @@ int gss_mech_list_pseudoflavors(rpc_authflavor_t *array_ptr, int size)
 	spin_lock(&registered_mechs_lock);
 	list_for_each_entry(pos, &registered_mechs, gm_list) {
 		for (j = 0; j < pos->gm_pf_num; j++) {
-			if (i >= size)
+			if (i >= size) {
+				spin_unlock(&registered_mechs_lock);
 				return -ENOMEM;
+			}
 			array_ptr[i++] = pos->gm_pfs[j].pseudoflavor;
 		}
 	}
