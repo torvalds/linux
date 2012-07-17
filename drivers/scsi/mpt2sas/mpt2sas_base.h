@@ -171,8 +171,8 @@
 				"Intel Integrated RAID Module RMS2LL040"
 #define MPT2SAS_INTEL_RS25GB008_BRANDING       \
 				"Intel(R) RAID Controller RS25GB008"
-#define MPT2SAS_INTEL_RAMSDALE_BRANDING        \
-				"Intel 720 Series SSD"
+#define MPT2SAS_INTEL_SSD910_BRANDING          \
+				"Intel(R) SSD 910 Series"
 /*
  * Intel HBA SSDIDs
  */
@@ -183,7 +183,7 @@
 #define MPT2SAS_INTEL_RMS2LL080_SSDID          0x350E
 #define MPT2SAS_INTEL_RMS2LL040_SSDID          0x350F
 #define MPT2SAS_INTEL_RS25GB008_SSDID          0x3000
-#define MPT2SAS_INTEL_RAMSDALE_SSDID           0x3700
+#define MPT2SAS_INTEL_SSD910_SSDID             0x3700
 
 /*
  * HP HBA branding
