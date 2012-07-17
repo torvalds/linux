@@ -644,11 +644,6 @@ static void mxs_mmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 		       host->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_SET);
 		writel(BM_SSP_CTRL1_SDIO_IRQ_EN,
 		       host->base + HW_SSP_CTRL1(host) + STMP_OFFSET_REG_SET);
-
-		if (readl(host->base + HW_SSP_STATUS(host)) &
-				BM_SSP_STATUS_SDIO_IRQ)
-			mmc_signal_sdio_irq(host->mmc);
-
 	} else {
 		writel(BM_SSP_CTRL0_SDIO_IRQ_CHECK,
 		       host->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_CLR);
@@ -657,6 +652,11 @@ static void mxs_mmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	}
 
 	spin_unlock_irqrestore(&host->lock, flags);
+
+	if (enable && readl(host->base + HW_SSP_STATUS(host)) &
+			BM_SSP_STATUS_SDIO_IRQ)
+		mmc_signal_sdio_irq(host->mmc);
+
 }
 
 static const struct mmc_host_ops mxs_mmc_ops = {
