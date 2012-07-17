@@ -401,7 +401,6 @@ struct ath_beacon {
 
 	u32 beaconq;
 	u32 bmisscnt;
-	u32 ast_be_xmit;
 	u32 bc_tstamp;
 	struct ieee80211_vif *bslot[ATH_BCBUF];
 	int slottime;
@@ -415,7 +414,7 @@ struct ath_beacon {
 	bool tx_last;
 };
 
-void ath_beacon_tasklet(unsigned long data);
+void ath9k_beacon_tasklet(unsigned long data);
 bool ath9k_allow_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif);
 void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif,
 			 u32 changed);

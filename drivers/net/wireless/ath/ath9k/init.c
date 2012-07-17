@@ -559,7 +559,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	spin_lock_init(&sc->debug.samp_lock);
 #endif
 	tasklet_init(&sc->intr_tq, ath9k_tasklet, (unsigned long)sc);
-	tasklet_init(&sc->bcon_tasklet, ath_beacon_tasklet,
+	tasklet_init(&sc->bcon_tasklet, ath9k_beacon_tasklet,
 		     (unsigned long)sc);
 
 	INIT_WORK(&sc->hw_reset_work, ath_reset_work);
