@@ -1525,6 +1525,7 @@ struct ipr_cmnd {
 	struct ata_queued_cmd *qc;
 	struct completion completion;
 	struct timer_list timer;
+	void (*fast_done) (struct ipr_cmnd *);
 	void (*done) (struct ipr_cmnd *);
 	int (*job_step) (struct ipr_cmnd *);
 	int (*job_step_failed) (struct ipr_cmnd *);
