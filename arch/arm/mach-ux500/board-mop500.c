@@ -58,7 +58,7 @@
 static struct gpio_led snowball_led_array[] = {
 	{
 		.name = "user_led",
-		.default_trigger = "none",
+		.default_trigger = "heartbeat",
 		.gpio = 142,
 	},
 };
@@ -331,43 +331,12 @@ static struct i2c_board_info __initdata mop500_i2c2_devices[] = {
 	},
 };
 
-#define U8500_I2C_CONTROLLER(id, _slsu, _tft, _rft, clk, t_out, _sm)	\
-static struct nmk_i2c_controller u8500_i2c##id##_data = { \
-	/*				\
-	 * slave data setup time, which is	\
-	 * 250 ns,100ns,10ns which is 14,6,2	\
-	 * respectively for a 48 Mhz	\
-	 * i2c clock			\
-	 */				\
-	.slsu		= _slsu,	\
-	/* Tx FIFO threshold */		\
-	.tft		= _tft,		\
-	/* Rx FIFO threshold */		\
-	.rft		= _rft,		\
-	/* std. mode operation */	\
-	.clk_freq	= clk,		\
-	/* Slave response timeout(ms) */\
-	.timeout	= t_out,	\
-	.sm		= _sm,		\
-}
-
-/*
- * The board uses 4 i2c controllers, initialize all of
- * them with slave data setup time of 250 ns,
- * Tx & Rx FIFO threshold values as 8 and standard
- * mode of operation
- */
-U8500_I2C_CONTROLLER(0, 0xe, 1, 8, 100000, 200, I2C_FREQ_MODE_FAST);
-U8500_I2C_CONTROLLER(1, 0xe, 1, 8, 100000, 200, I2C_FREQ_MODE_FAST);
-U8500_I2C_CONTROLLER(2,	0xe, 1, 8, 100000, 200, I2C_FREQ_MODE_FAST);
-U8500_I2C_CONTROLLER(3,	0xe, 1, 8, 100000, 200, I2C_FREQ_MODE_FAST);
-
 static void __init mop500_i2c_init(struct device *parent)
 {
-	db8500_add_i2c0(parent, &u8500_i2c0_data);
-	db8500_add_i2c1(parent, &u8500_i2c1_data);
-	db8500_add_i2c2(parent, &u8500_i2c2_data);
-	db8500_add_i2c3(parent, &u8500_i2c3_data);
+	db8500_add_i2c0(parent, NULL);
+	db8500_add_i2c1(parent, NULL);
+	db8500_add_i2c2(parent, NULL);
+	db8500_add_i2c3(parent, NULL);
 }
 
 static struct gpio_keys_button mop500_gpio_keys[] = {
@@ -776,6 +745,8 @@ struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("arm,pl011", 0x80007000, "uart2", &uart2_plat),
 	/* Requires DMA bindings. */
 	OF_DEV_AUXDATA("arm,pl022", 0x80002000, "ssp0",  &ssp0_plat),
+	OF_DEV_AUXDATA("arm,pl18x", 0x80126000, "sdi0",  &mop500_sdi0_data),
+	OF_DEV_AUXDATA("arm,pl18x", 0x80114000, "sdi4",  &mop500_sdi4_data),
 	/* Requires clock name bindings. */
 	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8012e000, "gpio.0", NULL),
 	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8012e080, "gpio.1", NULL),
@@ -786,6 +757,11 @@ struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8011e000, "gpio.6", NULL),
 	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8011e080, "gpio.7", NULL),
 	OF_DEV_AUXDATA("st,nomadik-gpio", 0xa03fe000, "gpio.8", NULL),
+	OF_DEV_AUXDATA("st,nomadik-i2c", 0x80004000, "nmk-i2c.0", NULL),
+	OF_DEV_AUXDATA("st,nomadik-i2c", 0x80122000, "nmk-i2c.1", NULL),
+	OF_DEV_AUXDATA("st,nomadik-i2c", 0x80128000, "nmk-i2c.2", NULL),
+	OF_DEV_AUXDATA("st,nomadik-i2c", 0x80110000, "nmk-i2c.3", NULL),
+	OF_DEV_AUXDATA("st,nomadik-i2c", 0x8012a000, "nmk-i2c.4", NULL),
 	/* Requires device name bindings. */
 	OF_DEV_AUXDATA("stericsson,nmk_pinctrl", 0, "pinctrl-db8500", NULL),
 	{},
@@ -820,8 +796,6 @@ static void __init u8500_init_machine(void)
 
 	for (i = 0; i < ARRAY_SIZE(mop500_platform_devs); i++)
 		mop500_platform_devs[i]->dev.parent = parent;
-	for (i = 0; i < ARRAY_SIZE(snowball_platform_devs); i++)
-		snowball_platform_devs[i]->dev.parent = parent;
 
 	/* automatically probe child nodes of db8500 device */
 	of_platform_populate(NULL, u8500_local_bus_nodes, u8500_auxdata_lookup, parent);
@@ -840,18 +814,6 @@ static void __init u8500_init_machine(void)
 
 		mop500_uib_init();
 
-	} else if (of_machine_is_compatible("calaosystems,snowball-a9500")) {
-		/*
-		 * Devices to be DT:ed:
-		 *   snowball_led_dev   = todo
-		 *   snowball_key_dev   = todo
-		 *   snowball_sbnet_dev = done
-		 *   ab8500_device      = done
-		 */
-		platform_add_devices(snowball_of_platform_devs,
-				ARRAY_SIZE(snowball_of_platform_devs));
-
-		snowball_sdi_init(parent);
 	} else if (of_machine_is_compatible("st-ericsson,hrefv60+")) {
 		/*
 		 * The HREFv60 board removed a GPIO expander and routed
@@ -873,7 +835,6 @@ static void __init u8500_init_machine(void)
 
 		mop500_uib_init();
 	}
-	mop500_i2c_init(parent);
 
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
