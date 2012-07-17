@@ -144,8 +144,15 @@ static int __devinit of_platform_serial_probe(struct platform_device *ofdev)
 	switch (port_type) {
 #ifdef CONFIG_SERIAL_8250
 	case PORT_8250 ... PORT_MAX_8250:
-		ret = serial8250_register_port(&port);
+	{
+		/* For now the of bindings don't support the extra
+		   8250 specific bits */
+		struct uart_8250_port port8250;
+		memset(&port8250, 0, sizeof(port8250));
+		port8250.port = port;
+		ret = serial8250_register_8250_port(&port8250);
 		break;
+	}
 #endif
 #ifdef CONFIG_SERIAL_OF_PLATFORM_NWPSERIAL
 	case PORT_NWPSERIAL:

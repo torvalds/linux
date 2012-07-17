@@ -141,7 +141,7 @@ static int __devinit dw8250_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no clock-frequency property set\n");
 		return -EINVAL;
 	}
-	uart.uart.port.uartclk = val;
+	uart.port.uartclk = val;
 
 	data->line = serial8250_register_8250_port(&uart);
 	if (data->line < 0)
