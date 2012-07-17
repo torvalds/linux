@@ -2426,7 +2426,7 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 }
 
 void
-intel_dp_init(struct drm_device *dev, int output_reg)
+intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_connector *connector;
@@ -2441,6 +2441,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 		return;
 
 	intel_dp->output_reg = output_reg;
+	intel_dp->port = port;
 	intel_dp->dpms_mode = -1;
 
 	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
@@ -2486,28 +2487,25 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	drm_sysfs_connector_add(connector);
 
 	/* Set up the DDC bus. */
-	switch (output_reg) {
-		case DP_A:
-			name = "DPDDC-A";
-			break;
-		case DP_B:
-		case PCH_DP_B:
-			dev_priv->hotplug_supported_mask |=
-				DPB_HOTPLUG_INT_STATUS;
-			name = "DPDDC-B";
-			break;
-		case DP_C:
-		case PCH_DP_C:
-			dev_priv->hotplug_supported_mask |=
-				DPC_HOTPLUG_INT_STATUS;
-			name = "DPDDC-C";
-			break;
-		case DP_D:
-		case PCH_DP_D:
-			dev_priv->hotplug_supported_mask |=
-				DPD_HOTPLUG_INT_STATUS;
-			name = "DPDDC-D";
-			break;
+	switch (port) {
+	case PORT_A:
+		name = "DPDDC-A";
+		break;
+	case PORT_B:
+		dev_priv->hotplug_supported_mask |= DPB_HOTPLUG_INT_STATUS;
+		name = "DPDDC-B";
+		break;
+	case PORT_C:
+		dev_priv->hotplug_supported_mask |= DPC_HOTPLUG_INT_STATUS;
+		name = "DPDDC-C";
+		break;
+	case PORT_D:
+		dev_priv->hotplug_supported_mask |= DPD_HOTPLUG_INT_STATUS;
+		name = "DPDDC-D";
+		break;
+	default:
+		WARN(1, "Invalid port %c\n", port_name(port));
+		break;
 	}
 
 	intel_dp_i2c_init(intel_dp, intel_connector, name);

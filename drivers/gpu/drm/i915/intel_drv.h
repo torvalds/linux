@@ -306,6 +306,7 @@ struct intel_dp {
 	uint8_t  link_configuration[DP_LINK_CONFIGURATION_SIZE];
 	bool has_audio;
 	enum hdmi_force_audio force_audio;
+	enum port port;
 	uint32_t color_range;
 	int dpms_mode;
 	uint8_t link_bw;
@@ -375,7 +376,8 @@ extern void intel_tv_init(struct drm_device *dev);
 extern void intel_mark_busy(struct drm_device *dev,
 			    struct drm_i915_gem_object *obj);
 extern bool intel_lvds_init(struct drm_device *dev);
-extern void intel_dp_init(struct drm_device *dev, int dp_reg);
+extern void intel_dp_init(struct drm_device *dev, int output_reg,
+			  enum port port);
 void
 intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		 struct drm_display_mode *adjusted_mode);
