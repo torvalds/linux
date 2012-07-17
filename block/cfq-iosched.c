@@ -17,8 +17,6 @@
 #include "blk.h"
 #include "blk-cgroup.h"
 
-static struct blkcg_policy blkcg_policy_cfq __maybe_unused;
-
 /*
  * tunables
  */
@@ -418,11 +416,6 @@ static inline struct cfq_group *pd_to_cfqg(struct blkg_policy_data *pd)
 	return pd ? container_of(pd, struct cfq_group, pd) : NULL;
 }
 
-static inline struct cfq_group *blkg_to_cfqg(struct blkcg_gq *blkg)
-{
-	return pd_to_cfqg(blkg_to_pd(blkg, &blkcg_policy_cfq));
-}
-
 static inline struct blkcg_gq *cfqg_to_blkg(struct cfq_group *cfqg)
 {
 	return pd_to_blkg(&cfqg->pd);
@@ -571,6 +564,13 @@ static inline void cfqg_stats_update_avg_queue_size(struct cfq_group *cfqg) { }
 #endif	/* CONFIG_CFQ_GROUP_IOSCHED && CONFIG_DEBUG_BLK_CGROUP */
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
+
+static struct blkcg_policy blkcg_policy_cfq;
+
+static inline struct cfq_group *blkg_to_cfqg(struct blkcg_gq *blkg)
+{
+	return pd_to_cfqg(blkg_to_pd(blkg, &blkcg_policy_cfq));
+}
 
 static inline void cfqg_get(struct cfq_group *cfqg)
 {
@@ -3951,10 +3951,11 @@ static void cfq_exit_queue(struct elevator_queue *e)
 
 	cfq_shutdown_timer_wq(cfqd);
 
-#ifndef CONFIG_CFQ_GROUP_IOSCHED
+#ifdef CONFIG_CFQ_GROUP_IOSCHED
+	blkcg_deactivate_policy(q, &blkcg_policy_cfq);
+#else
 	kfree(cfqd->root_group);
 #endif
-	blkcg_deactivate_policy(q, &blkcg_policy_cfq);
 	kfree(cfqd);
 }
 
@@ -4194,14 +4195,15 @@ static int __init cfq_init(void)
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
 	if (!cfq_group_idle)
 		cfq_group_idle = 1;
-#else
-		cfq_group_idle = 0;
-#endif
 
 	ret = blkcg_policy_register(&blkcg_policy_cfq);
 	if (ret)
 		return ret;
+#else
+	cfq_group_idle = 0;
+#endif
 
+	ret = -ENOMEM;
 	cfq_pool = KMEM_CACHE(cfq_queue, 0);
 	if (!cfq_pool)
 		goto err_pol_unreg;
@@ -4215,13 +4217,17 @@ static int __init cfq_init(void)
 err_free_pool:
 	kmem_cache_destroy(cfq_pool);
 err_pol_unreg:
+#ifdef CONFIG_CFQ_GROUP_IOSCHED
 	blkcg_policy_unregister(&blkcg_policy_cfq);
+#endif
 	return ret;
 }
 
 static void __exit cfq_exit(void)
 {
+#ifdef CONFIG_CFQ_GROUP_IOSCHED
 	blkcg_policy_unregister(&blkcg_policy_cfq);
+#endif
 	elv_unregister(&iosched_cfq);
 	kmem_cache_destroy(cfq_pool);
 }

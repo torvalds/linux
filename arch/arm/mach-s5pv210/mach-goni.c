@@ -859,12 +859,19 @@ static struct s5p_platform_fimc goni_fimc_md_platdata __initdata = {
 	.num_clients	= ARRAY_SIZE(goni_camera_sensors),
 };
 
+/* Audio device */
+static struct platform_device goni_device_audio = {
+	.name = "smdk-audio",
+	.id = -1,
+};
+
 static struct platform_device *goni_devices[] __initdata = {
 	&s3c_device_fb,
 	&s5p_device_onenand,
 	&goni_spi_gpio,
 	&goni_i2c_gpio_pmic,
 	&goni_i2c_gpio5,
+	&goni_device_audio,
 	&mmc2_fixed_voltage,
 	&goni_device_gpiokeys,
 	&s5p_device_mfc,
