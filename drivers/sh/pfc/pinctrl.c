@@ -283,6 +283,7 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(sh_pfc_register_pinctrl);
 
 static inline void __devinit sh_pfc_map_one_gpio(struct sh_pfc *pfc,
 						 struct sh_pfc_pinctrl *pmx,
