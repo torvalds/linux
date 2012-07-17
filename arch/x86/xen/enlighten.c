@@ -1471,32 +1471,6 @@ asmlinkage void __init xen_start_kernel(void)
 #endif
 }
 
-static int init_hvm_pv_info(int *major, int *minor)
-{
-	uint32_t eax, ebx, ecx, edx, pages, msr, base;
-	u64 pfn;
-
-	base = xen_cpuid_base();
-	cpuid(base + 1, &eax, &ebx, &ecx, &edx);
-
-	*major = eax >> 16;
-	*minor = eax & 0xffff;
-	printk(KERN_INFO "Xen version %d.%d.\n", *major, *minor);
-
-	cpuid(base + 2, &pages, &msr, &ecx, &edx);
-
-	pfn = __pa(hypercall_page);
-	wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
-
-	xen_setup_features();
-
-	pv_info.name = "Xen HVM";
-
-	xen_domain_type = XEN_HVM_DOMAIN;
-
-	return 0;
-}
-
 void __ref xen_hvm_init_shared_info(void)
 {
 	int cpu;
@@ -1529,6 +1503,31 @@ void __ref xen_hvm_init_shared_info(void)
 }
 
 #ifdef CONFIG_XEN_PVHVM
+static void __init init_hvm_pv_info(void)
+{
+	int major, minor;
+	uint32_t eax, ebx, ecx, edx, pages, msr, base;
+	u64 pfn;
+
+	base = xen_cpuid_base();
+	cpuid(base + 1, &eax, &ebx, &ecx, &edx);
+
+	major = eax >> 16;
+	minor = eax & 0xffff;
+	printk(KERN_INFO "Xen version %d.%d.\n", major, minor);
+
+	cpuid(base + 2, &pages, &msr, &ecx, &edx);
+
+	pfn = __pa(hypercall_page);
+	wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
+
+	xen_setup_features();
+
+	pv_info.name = "Xen HVM";
+
+	xen_domain_type = XEN_HVM_DOMAIN;
+}
+
 static int __cpuinit xen_hvm_cpu_notify(struct notifier_block *self,
 				    unsigned long action, void *hcpu)
 {
@@ -1551,12 +1550,7 @@ static struct notifier_block xen_hvm_cpu_notifier __cpuinitdata = {
 
 static void __init xen_hvm_guest_init(void)
 {
-	int r;
-	int major, minor;
-
-	r = init_hvm_pv_info(&major, &minor);
-	if (r < 0)
-		return;
+	init_hvm_pv_info();
 
 	xen_hvm_init_shared_info();
 
