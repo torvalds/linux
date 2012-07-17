@@ -76,8 +76,8 @@ struct ab8500_btemp_ranges {
  * @dev:		Pointer to the structure device
  * @node:		List of AB8500 BTEMPs, hence prepared for reentrance
  * @curr_source:	What current source we use, in uA
- * @bat_temp:		Battery temperature in degree Celcius
- * @prev_bat_temp	Last dispatched battery temperature
+ * @bat_temp:		Dispatched battery temperature in degree Celcius
+ * @prev_bat_temp	Last measured battery temperature in degree Celcius
  * @parent:		Pointer to the struct ab8500
  * @gpadc:		Pointer to the struct gpadc
  * @fg:			Pointer to the struct fg
@@ -604,6 +604,7 @@ static int ab8500_btemp_id(struct ab8500_btemp *di)
 static void ab8500_btemp_periodic_work(struct work_struct *work)
 {
 	int interval;
+	int bat_temp;
 	struct ab8500_btemp *di = container_of(work,
 		struct ab8500_btemp, btemp_periodic_work.work);
 
@@ -614,12 +615,26 @@ static void ab8500_btemp_periodic_work(struct work_struct *work)
 			dev_warn(di->dev, "failed to identify the battery\n");
 	}
 
-	di->bat_temp = ab8500_btemp_measure_temp(di);
-
-	if (di->bat_temp != di->prev_bat_temp) {
-		di->prev_bat_temp = di->bat_temp;
+	bat_temp = ab8500_btemp_measure_temp(di);
+	/*
+	 * Filter battery temperature.
+	 * Allow direct updates on temperature only if two samples result in
+	 * same temperature. Else only allow 1 degree change from previous
+	 * reported value in the direction of the new measurement.
+	 */
+	if (bat_temp == di->prev_bat_temp || !di->initialized) {
+		if (di->bat_temp != di->prev_bat_temp || !di->initialized) {
+			di->bat_temp = bat_temp;
+			power_supply_changed(&di->btemp_psy);
+		}
+	} else if (bat_temp < di->prev_bat_temp) {
+		di->bat_temp--;
+		power_supply_changed(&di->btemp_psy);
+	} else if (bat_temp > di->prev_bat_temp) {
+		di->bat_temp++;
 		power_supply_changed(&di->btemp_psy);
 	}
+	di->prev_bat_temp = bat_temp;
 
 	if (di->events.ac_conn || di->events.usb_conn)
 		interval = di->bm->temp_interval_chg;
