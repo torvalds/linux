@@ -25,17 +25,12 @@ Required properties:
   tps65911: vrtc, vio, vdd1, vdd3, vddctrl, ldo1, ldo2, ldo3, ldo4, ldo5,
             ldo6, ldo7, ldo8
 
-Optional properties:
-- ti,vmbch-threshold: (tps65911) main battery charged threshold
-  comparator. (see VMBCH_VSEL in TPS65910 datasheet)
-- ti,vmbch2-threshold: (tps65911) main battery discharged threshold
-  comparator. (see VMBCH_VSEL in TPS65910 datasheet)
-- ti,en-gpio-sleep: enable sleep control for gpios
-  There should be 9 entries here, one for each gpio.
 - xxx-supply: Input voltage supply regulator.
-  Missing of these properties will be assume as there is no supply regulator
-  for that input pins and always powered on.
-  The valid input supply properties are:
+  These entries are require if regulators are enabled for a device. Missing of these
+  properties can cause the regulator registration fails.
+  If some of input supply is powered through battery or always-on supply then
+  also it is require to have these parameters with proper node handle of always
+  on power supply.
   tps65910:
 	vcc1-supply: VDD1 input.
 	vcc2-supply: VDD2 input.
@@ -54,6 +49,16 @@ Optional properties:
 	vcc6-supply: LDO1 and LDO2 input.
 	vcc7-supply: VRTC input.
 	vccio-supply: VIO input.
+
+Optional properties:
+- ti,vmbch-threshold: (tps65911) main battery charged threshold
+  comparator. (see VMBCH_VSEL in TPS65910 datasheet)
+- ti,vmbch2-threshold: (tps65911) main battery discharged threshold
+  comparator. (see VMBCH_VSEL in TPS65910 datasheet)
+- ti,en-ck32k-xtal: enable external 32-kHz crystal oscillator (see CK32K_CTRL
+  in TPS6591X datasheet)
+- ti,en-gpio-sleep: enable sleep control for gpios
+  There should be 9 entries here, one for each gpio.
 
 Regulator Optional properties:
 - ti,regulator-ext-sleep-control: enable external sleep
@@ -79,8 +84,14 @@ Example:
 
 		ti,en-gpio-sleep = <0 0 1 0 0 0 0 0 0>;
 
-		vcc7-supply = <&reg_parent>;
 		vcc1-supply = <&reg_parent>;
+		vcc2-supply = <&some_reg>;
+		vcc3-supply = <...>;
+		vcc4-supply = <...>;
+		vcc5-supply = <...>;
+		vcc6-supply = <...>;
+		vcc7-supply = <...>;
+		vccio-supply = <...>;
 
 		regulators {
 			#address-cells = <1>;

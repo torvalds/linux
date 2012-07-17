@@ -1001,9 +1001,6 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 	*tps65910_reg_matches = matches;
 
 	for (idx = 0; idx < count; idx++) {
-		struct tps_info *info = matches[idx].driver_data;
-		char in_supply[32]; /* 32 is max size of property name */
-
 		if (!matches[idx].init_data || !matches[idx].of_node)
 			continue;
 
@@ -1015,12 +1012,6 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 		if (!ret)
 			pmic_plat_data->regulator_ext_sleep_control[idx] = prop;
 
-		if (info->vin_name) {
-			snprintf(in_supply, 32, "%s-supply", info->vin_name);
-			if (of_find_property(np, in_supply, 0))
-				pmic_plat_data->input_supply[idx] =
-								info->vin_name;
-		}
 	}
 
 	return pmic_plat_data;
@@ -1123,7 +1114,7 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 		pmic->info[i] = info;
 
 		pmic->desc[i].name = info->name;
-		pmic->desc[i].supply_name = pmic_plat_data->input_supply[i];
+		pmic->desc[i].supply_name = info->vin_name;
 		pmic->desc[i].id = i;
 		pmic->desc[i].n_voltages = info->n_voltages;
 		pmic->desc[i].enable_time = info->enable_time_us;
