@@ -62,4 +62,21 @@
 			gpios = <&gpio0 28 1>;
 		};
 	};
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		green-os {
+			label = "ib62x0:green:os";
+			gpios = <&gpio0 25 0>;
+			linux,default-trigger = "default-on";
+		};
+		red-os {
+			label = "ib62x0:red:os";
+			gpios = <&gpio0 22 0>;
+		};
+		usb-copy {
+			label = "ib62x0:red:usb_copy";
+			gpios = <&gpio0 27 0>;
+		};
+	};
 };
