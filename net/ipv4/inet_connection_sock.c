@@ -840,7 +840,7 @@ struct dst_entry *inet_csk_update_pmtu(struct sock *sk, u32 mtu)
 		if (!dst)
 			goto out;
 	}
-	dst->ops->update_pmtu(dst, mtu);
+	dst->ops->update_pmtu(dst, sk, NULL, mtu);
 
 	dst = __sk_dst_check(sk, 0);
 	if (!dst)

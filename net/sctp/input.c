@@ -432,7 +432,7 @@ void sctp_icmp_redirect(struct sock *sk, struct sctp_transport *t,
 		return;
 	dst = sctp_transport_dst_check(t);
 	if (dst)
-		dst->ops->redirect(dst, skb);
+		dst->ops->redirect(dst, sk, skb);
 }
 
 /*

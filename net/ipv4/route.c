@@ -148,8 +148,10 @@ static unsigned int	 ipv4_mtu(const struct dst_entry *dst);
 static void		 ipv4_dst_destroy(struct dst_entry *dst);
 static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst);
 static void		 ipv4_link_failure(struct sk_buff *skb);
-static void		 ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu);
-static void		 ip_do_redirect(struct dst_entry *dst, struct sk_buff *skb);
+static void		 ip_rt_update_pmtu(struct dst_entry *dst, struct sock *sk,
+					   struct sk_buff *skb, u32 mtu);
+static void		 ip_do_redirect(struct dst_entry *dst, struct sock *sk,
+					struct sk_buff *skb);
 static int rt_garbage_collect(struct dst_ops *ops);
 
 static void ipv4_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
@@ -1273,7 +1275,7 @@ static void rt_del(unsigned int hash, struct rtable *rt)
 	spin_unlock_bh(rt_hash_lock_addr(hash));
 }
 
-static void ip_do_redirect(struct dst_entry *dst, struct sk_buff *skb)
+static void ip_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_buff *skb)
 {
 	__be32 new_gw = icmp_hdr(skb)->un.gateway;
 	__be32 old_gw = ip_hdr(skb)->saddr;
@@ -1506,7 +1508,8 @@ out:	kfree_skb(skb);
 	return 0;
 }
 
-static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
+static void ip_rt_update_pmtu(struct dst_entry *dst, struct sock *sk,
+			      struct sk_buff *skb, u32 mtu)
 {
 	struct rtable *rt = (struct rtable *) dst;
 
@@ -1531,7 +1534,7 @@ void ipv4_update_pmtu(struct sk_buff *skb, struct net *net, u32 mtu,
 			   iph->daddr, iph->saddr, 0, 0);
 	rt = __ip_route_output_key(net, &fl4);
 	if (!IS_ERR(rt)) {
-		ip_rt_update_pmtu(&rt->dst, mtu);
+		ip_rt_update_pmtu(&rt->dst, NULL, skb, mtu);
 		ip_rt_put(rt);
 	}
 }
@@ -1559,7 +1562,7 @@ void ipv4_redirect(struct sk_buff *skb, struct net *net,
 			   protocol, flow_flags, iph->daddr, iph->saddr, 0, 0);
 	rt = __ip_route_output_key(net, &fl4);
 	if (!IS_ERR(rt)) {
-		ip_do_redirect(&rt->dst, skb);
+		ip_do_redirect(&rt->dst, NULL, skb);
 		ip_rt_put(rt);
 	}
 }
@@ -2587,11 +2590,13 @@ static unsigned int ipv4_blackhole_mtu(const struct dst_entry *dst)
 	return mtu ? : dst->dev->mtu;
 }
 
-static void ipv4_rt_blackhole_update_pmtu(struct dst_entry *dst, u32 mtu)
+static void ipv4_rt_blackhole_update_pmtu(struct dst_entry *dst, struct sock *sk,
+					  struct sk_buff *skb, u32 mtu)
 {
 }
 
-static void ipv4_rt_blackhole_redirect(struct dst_entry *dst, struct sk_buff *skb)
+static void ipv4_rt_blackhole_redirect(struct dst_entry *dst, struct sock *sk,
+				       struct sk_buff *skb)
 {
 }
 

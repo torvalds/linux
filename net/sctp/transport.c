@@ -249,7 +249,7 @@ void sctp_transport_update_pmtu(struct sock *sk, struct sctp_transport *t, u32 p
 		t->af_specific->get_dst(t, &t->saddr, &t->fl, sk);
 
 	if (dst) {
-		dst->ops->update_pmtu(dst, pmtu);
+		dst->ops->update_pmtu(dst, sk, NULL, pmtu);
 
 		dst = sctp_transport_dst_check(t);
 		if (!dst)

@@ -519,7 +519,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		if (skb_dst(skb))
-			skb_dst(skb)->ops->update_pmtu(skb_dst(skb), mtu);
+			skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
 
 		if ((old_iph->frag_off & htons(IP_DF)) &&
 		    mtu < ntohs(old_iph->tot_len)) {
