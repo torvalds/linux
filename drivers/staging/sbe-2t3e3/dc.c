@@ -63,14 +63,6 @@ void dc_init(struct channel *sc)
 	if (sc->p.loopback == SBE_2T3E3_LOOPBACK_ETHERNET)
 		sc->p.loopback = SBE_2T3E3_LOOPBACK_NONE;
 
-#if 0 /* No need to clear this register - and it may be in use */
-	/*
-	 * BOOT_ROM_SERIAL_ROM_AND_MII_MANAGEMENT (CSR9)
-	 */
-	val = 0;
-	dc_write(sc->addr, SBE_2T3E3_21143_REG_BOOT_ROM_SERIAL_ROM_AND_MII_MANAGEMENT, val);
-#endif
-
 	/*
 	 * GENERAL_PURPOSE_TIMER_AND_INTERRUPT_MITIGATION_CONTROL (CSR11)
 	 */
@@ -300,15 +292,6 @@ void dc_set_loopback(struct channel *sc, u32 mode)
 	default:
 		return;
 	}
-
-#if 0
-	/* restart SIA */
-	dc_clear_bits(sc->addr, SBE_2T3E3_21143_REG_SIA_CONNECTIVITY,
-		      SBE_2T3E3_21143_VAL_SIA_RESET);
-	udelay(1000);
-	dc_set_bits(sc->addr, SBE_2T3E3_21143_REG_SIA_CONNECTIVITY,
-		    SBE_2T3E3_21143_VAL_SIA_RESET);
-#endif
 
 	/* select loopback mode */
 	val = dc_read(sc->addr, SBE_2T3E3_21143_REG_OPERATION_MODE) &

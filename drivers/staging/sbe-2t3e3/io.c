@@ -199,15 +199,6 @@ u32 exar7250_read(struct channel *channel, u32 reg)
 	u32 result;
 	unsigned long flags;
 
-#if 0
-	switch (reg) {
-	case SBE_2T3E3_FRAMER_REG_OPERATING_MODE:
-		return channel->framer_regs[reg];
-		break;
-	default:
-	}
-#endif
-
 	spin_lock_irqsave(&channel->card->bootrom_lock, flags);
 
 	result = bootrom_read(channel, cpld_reg_map[SBE_2T3E3_CPLD_REG_FRAMER_BASE_ADDRESS]
@@ -242,18 +233,6 @@ u32 exar7300_read(struct channel *channel, u32 reg)
 {
 	unsigned long addr = channel->card->bootrom_addr, flags;
 	u32 i, val;
-
-#if 0
-	switch (reg) {
-	case SBE_2T3E3_LIU_REG_REG1:
-	case SBE_2T3E3_LIU_REG_REG2:
-	case SBE_2T3E3_LIU_REG_REG3:
-	case SBE_2T3E3_LIU_REG_REG4:
-		return channel->liu_regs[reg];
-		break;
-	default:
-	}
-#endif
 
 	/* select correct Serial Chip */
 
