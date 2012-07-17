@@ -211,13 +211,12 @@ static void card_cd_debounce(struct rts51x_chip *chip, u8 *need_reset,
 				release_map |= MS_CARD;
 		}
 	} else {
-		if (chip->card_status & XD_CD) {
+		if (chip->card_status & XD_CD)
 			reset_map |= XD_CARD;
-		} else if (chip->card_status & SD_CD) {
+		else if (chip->card_status & SD_CD)
 			reset_map |= SD_CARD;
-		} else if (chip->card_status & MS_CD) {
+		else if (chip->card_status & MS_CD)
 			reset_map |= MS_CARD;
-		}
 	}
 
 	if (CHECK_PKG(chip, QFN24) && reset_map) {
