@@ -600,10 +600,27 @@ static const struct usb_device_id products[] = {
 };
 MODULE_DEVICE_TABLE(usb, products);
 
+static int qmi_wwan_probe(struct usb_interface *intf, const struct usb_device_id *prod)
+{
+	struct usb_device_id *id = (struct usb_device_id *)prod;
+
+	/* Workaround to enable dynamic IDs.  This disables usbnet
+	 * blacklisting functionality.  Which, if required, can be
+	 * reimplemented here by using a magic "blacklist" value
+	 * instead of 0 in the static device id table
+	 */
+	if (!id->driver_info) {
+		dev_dbg(&intf->dev, "setting defaults for dynamic device id\n");
+		id->driver_info = (unsigned long)&qmi_wwan_shared;
+	}
+
+	return usbnet_probe(intf, id);
+}
+
 static struct usb_driver qmi_wwan_driver = {
 	.name		      = "qmi_wwan",
 	.id_table	      = products,
-	.probe		      =	usbnet_probe,
+	.probe		      = qmi_wwan_probe,
 	.disconnect	      = usbnet_disconnect,
 	.suspend	      = qmi_wwan_suspend,
 	.resume		      =	qmi_wwan_resume,
