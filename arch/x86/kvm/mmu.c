@@ -2518,7 +2518,7 @@ static pfn_t pte_prefetch_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn,
 
 	hva = gfn_to_hva_memslot(slot, gfn);
 
-	return hva_to_pfn_atomic(vcpu->kvm, hva);
+	return hva_to_pfn_atomic(hva);
 }
 
 static int direct_pte_prefetch_many(struct kvm_vcpu *vcpu,

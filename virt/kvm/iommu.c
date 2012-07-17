@@ -42,13 +42,13 @@ static int kvm_iommu_unmap_memslots(struct kvm *kvm);
 static void kvm_iommu_put_pages(struct kvm *kvm,
 				gfn_t base_gfn, unsigned long npages);
 
-static pfn_t kvm_pin_pages(struct kvm *kvm, struct kvm_memory_slot *slot,
-			   gfn_t gfn, unsigned long size)
+static pfn_t kvm_pin_pages(struct kvm_memory_slot *slot, gfn_t gfn,
+			   unsigned long size)
 {
 	gfn_t end_gfn;
 	pfn_t pfn;
 
-	pfn     = gfn_to_pfn_memslot(kvm, slot, gfn);
+	pfn     = gfn_to_pfn_memslot(slot, gfn);
 	end_gfn = gfn + (size >> PAGE_SHIFT);
 	gfn    += 1;
 
@@ -56,7 +56,7 @@ static pfn_t kvm_pin_pages(struct kvm *kvm, struct kvm_memory_slot *slot,
 		return pfn;
 
 	while (gfn < end_gfn)
-		gfn_to_pfn_memslot(kvm, slot, gfn++);
+		gfn_to_pfn_memslot(slot, gfn++);
 
 	return pfn;
 }
@@ -105,7 +105,7 @@ int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
 		 * Pin all pages we are about to map in memory. This is
 		 * important because we unmap and unpin in 4kb steps later.
 		 */
-		pfn = kvm_pin_pages(kvm, slot, gfn, page_size);
+		pfn = kvm_pin_pages(slot, gfn, page_size);
 		if (is_error_pfn(pfn)) {
 			gfn += 1;
 			continue;
