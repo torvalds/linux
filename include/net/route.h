@@ -109,7 +109,6 @@ extern struct ip_rt_acct __percpu *ip_rt_acct;
 struct in_device;
 extern int		ip_rt_init(void);
 extern void		rt_cache_flush(struct net *net, int how);
-extern void		rt_cache_flush_batch(struct net *net);
 extern struct rtable *__ip_route_output_key(struct net *, struct flowi4 *flp);
 extern struct rtable *ip_route_output_flow(struct net *, struct flowi4 *flp,
 					   struct sock *sk);

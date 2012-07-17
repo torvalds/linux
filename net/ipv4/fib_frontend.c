@@ -1072,11 +1072,6 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 		rt_cache_flush(dev_net(dev), 0);
 		break;
 	case NETDEV_UNREGISTER_BATCH:
-		/* The batch unregister is only called on the first
-		 * device in the list of devices being unregistered.
-		 * Therefore we should not pass dev_net(dev) in here.
-		 */
-		rt_cache_flush_batch(NULL);
 		break;
 	}
 	return NOTIFY_DONE;
