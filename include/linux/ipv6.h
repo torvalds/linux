@@ -299,9 +299,9 @@ struct ipv6_pinfo {
 	struct in6_addr 	rcv_saddr;
 	struct in6_addr		daddr;
 	struct in6_pktinfo	sticky_pktinfo;
-	struct in6_addr		*daddr_cache;
+	const struct in6_addr		*daddr_cache;
 #ifdef CONFIG_IPV6_SUBTREES
-	struct in6_addr		*saddr_cache;
+	const struct in6_addr		*saddr_cache;
 #endif
 
 	__be32			flow_label;

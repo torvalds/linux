@@ -158,7 +158,8 @@ extern void rt6_remove_prefsrc(struct inet6_ifaddr *ifp);
  *	Store a destination cache entry in a socket
  */
 static inline void __ip6_dst_store(struct sock *sk, struct dst_entry *dst,
-				   struct in6_addr *daddr, struct in6_addr *saddr)
+				   const struct in6_addr *daddr,
+				   const struct in6_addr *saddr)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct rt6_info *rt = (struct rt6_info *) dst;
