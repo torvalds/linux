@@ -19,6 +19,9 @@
 #include "ath9k.h"
 #include "btcoex.h"
 
+static void ath9k_set_assoc_state(struct ath_softc *sc,
+				  struct ieee80211_vif *vif);
+
 u8 ath9k_parse_mpdudensity(u8 mpdudensity)
 {
 	/*
@@ -878,6 +881,18 @@ static void ath9k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	}
 }
 
+static void ath9k_sta_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct ath_softc *sc = data;
+	struct ath_vif *avp = (void *)vif->drv_priv;
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	if (avp->primary_sta_vif)
+		ath9k_set_assoc_state(sc, vif);
+}
+
 /* Called with sc->mutex held. */
 void ath9k_calculate_iter_data(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
@@ -911,6 +926,7 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_vif_iter_data iter_data;
+	enum nl80211_iftype old_opmode = ah->opmode;
 
 	ath9k_calculate_iter_data(hw, vif, &iter_data);
 
@@ -941,6 +957,17 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 		ah->imask &= ~ATH9K_INT_TSFOOR;
 
 	ath9k_hw_set_interrupts(ah);
+
+	/*
+	 * If we are changing the opmode to STATION,
+	 * a beacon sync needs to be done.
+	 */
+	if (ah->opmode == NL80211_IFTYPE_STATION &&
+	    old_opmode == NL80211_IFTYPE_AP &&
+	    test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags)) {
+		ieee80211_iterate_active_interfaces_atomic(sc->hw,
+						   ath9k_sta_vif_iter, sc);
+	}
 }
 
 static int ath9k_add_interface(struct ieee80211_hw *hw,
