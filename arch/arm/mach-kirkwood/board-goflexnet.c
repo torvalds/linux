@@ -27,7 +27,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/gpio.h>
-#include <linux/leds.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -39,86 +38,6 @@
 
 static struct mv643xx_eth_platform_data goflexnet_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(0),
-};
-
-static struct mv_sata_platform_data goflexnet_sata_data = {
-	.n_ports	= 2,
-};
-
-static struct gpio_led goflexnet_led_pins[] = {
-	{
-		.name			= "status:green:health",
-		.default_trigger	= "default-on",
-		.gpio			= 46,
-		.active_low		= 1,
-	},
-	{
-		.name			= "status:orange:fault",
-		.default_trigger	= "none",
-		.gpio			= 47,
-		.active_low		= 1,
-	},
-	{
-		.name			= "status:white:left0",
-		.default_trigger	= "none",
-		.gpio			= 42,
-		.active_low		= 0,
-	},
-	{
-		.name			= "status:white:left1",
-		.default_trigger	= "none",
-		.gpio			= 43,
-		.active_low		= 0,
-	},
-	{
-		.name			= "status:white:left2",
-		.default_trigger	= "none",
-		.gpio			= 44,
-		.active_low		= 0,
-	},
-	{
-		.name			= "status:white:left3",
-		.default_trigger	= "none",
-		.gpio			= 45,
-		.active_low		= 0,
-	},
-	{
-		.name			= "status:white:right0",
-		.default_trigger	= "none",
-		.gpio			= 38,
-		.active_low		= 0,
-	},
-	{
-		.name			= "status:white:right1",
-		.default_trigger	= "none",
-		.gpio			= 39,
-		.active_low		= 0,
-	},
-	{
-		.name			= "status:white:right2",
-		.default_trigger	= "none",
-		.gpio			= 40,
-		.active_low		= 0,
-	},
-	{
-		.name			= "status:white:right3",
-		.default_trigger	= "none",
-		.gpio			= 41,
-		.active_low		= 0,
-	},
-};
-
-static struct gpio_led_platform_data goflexnet_led_data = {
-	.leds		= goflexnet_led_pins,
-	.num_leds	= ARRAY_SIZE(goflexnet_led_pins),
-};
-
-static struct platform_device goflexnet_leds = {
-	.name	= "leds-gpio",
-	.id	= -1,
-	.dev	= {
-		.platform_data	= &goflexnet_led_data,
-	}
 };
 
 static unsigned int goflexnet_mpp_config[] __initdata = {
@@ -149,7 +68,4 @@ void __init goflexnet_init(void)
 	kirkwood_ehci_init();
 
 	kirkwood_ge00_init(&goflexnet_ge00_data);
-	kirkwood_sata_init(&goflexnet_sata_data);
-
-	platform_device_register(&goflexnet_leds);
 }
