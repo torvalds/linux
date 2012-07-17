@@ -806,8 +806,8 @@ EXPORT_SYMBOL_GPL(inet_csk_compat_setsockopt);
 
 static struct dst_entry *inet_csk_rebuild_route(struct sock *sk, struct flowi *fl)
 {
-	struct inet_sock *inet = inet_sk(sk);
-	struct ip_options_rcu *inet_opt;
+	const struct inet_sock *inet = inet_sk(sk);
+	const struct ip_options_rcu *inet_opt;
 	__be32 daddr = inet->inet_daddr;
 	struct flowi4 *fl4;
 	struct rtable *rt;

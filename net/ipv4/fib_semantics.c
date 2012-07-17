@@ -148,11 +148,11 @@ static void free_nh_exceptions(struct fib_nh *nh)
 	for (i = 0; i < FNHE_HASH_SIZE; i++) {
 		struct fib_nh_exception *fnhe;
 
-		fnhe = rcu_dereference(hash[i].chain);
+		fnhe = rcu_dereference_protected(hash[i].chain, 1);
 		while (fnhe) {
 			struct fib_nh_exception *next;
 			
-			next = rcu_dereference(fnhe->fnhe_next);
+			next = rcu_dereference_protected(fnhe->fnhe_next, 1);
 			kfree(fnhe);
 
 			fnhe = next;
