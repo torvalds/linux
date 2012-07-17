@@ -1065,11 +1065,27 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 			return;
 	}
 
-	adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
+	/* disable DCB if number of TCs exceeds 1 */
+	if (netdev_get_num_tc(adapter->netdev) > 1) {
+		e_err(probe, "num TCs exceeds number of queues - disabling DCB\n");
+		netdev_reset_tc(adapter->netdev);
 
+		if (adapter->hw.mac.type == ixgbe_mac_82598EB)
+			adapter->hw.fc.requested_mode = adapter->last_lfc_mode;
+
+		adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
+		adapter->temp_dcb_cfg.pfc_mode_enable = false;
+		adapter->dcb_cfg.pfc_mode_enable = false;
+	}
+	adapter->dcb_cfg.num_tcs.pg_tcs = 1;
+	adapter->dcb_cfg.num_tcs.pfc_tcs = 1;
+
+	/* disable SR-IOV */
 	ixgbe_disable_sriov(adapter);
 
+	/* disable RSS */
 	adapter->ring_feature[RING_F_RSS].limit = 1;
+
 	ixgbe_set_num_queues(adapter);
 	adapter->num_q_vectors = 1;
 
