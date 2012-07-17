@@ -136,8 +136,8 @@ struct snd_opti9xx {
 #ifdef OPTi93X
 	unsigned long mc_indir_index;
 	struct resource *res_mc_indir;
-	struct snd_wss *codec;
 #endif	/* OPTi93X */
+	struct snd_wss *codec;
 	unsigned long pwd_reg;
 
 	spinlock_t lock;
@@ -870,9 +870,7 @@ static int __devinit snd_opti9xx_probe(struct snd_card *card)
 			       &codec);
 	if (error < 0)
 		return error;
-#ifdef OPTi93X
 	chip->codec = codec;
-#endif
 	error = snd_wss_pcm(codec, 0, &pcm);
 	if (error < 0)
 		return error;
@@ -1053,11 +1051,55 @@ static int __devexit snd_opti9xx_isa_remove(struct device *devptr,
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int snd_opti9xx_suspend(struct snd_card *card)
+{
+	struct snd_opti9xx *chip = card->private_data;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	chip->codec->suspend(chip->codec);
+	return 0;
+}
+
+static int snd_opti9xx_resume(struct snd_card *card)
+{
+	struct snd_opti9xx *chip = card->private_data;
+	int error, xdma2;
+#if defined(CS4231) || defined(OPTi93X)
+	xdma2 = dma2;
+#else
+	xdma2 = -1;
+#endif
+
+	error = snd_opti9xx_configure(chip, port, irq, dma1, xdma2,
+				      mpu_port, mpu_irq);
+	if (error)
+		return error;
+	chip->codec->resume(chip->codec);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+
+static int snd_opti9xx_isa_suspend(struct device *dev, unsigned int n,
+				   pm_message_t state)
+{
+	return snd_opti9xx_suspend(dev_get_drvdata(dev));
+}
+
+static int snd_opti9xx_isa_resume(struct device *dev, unsigned int n)
+{
+	return snd_opti9xx_resume(dev_get_drvdata(dev));
+}
+#endif
+
 static struct isa_driver snd_opti9xx_driver = {
 	.match		= snd_opti9xx_isa_match,
 	.probe		= snd_opti9xx_isa_probe,
 	.remove		= __devexit_p(snd_opti9xx_isa_remove),
-	/* FIXME: suspend/resume */
+#ifdef CONFIG_PM
+	.suspend	= snd_opti9xx_isa_suspend,
+	.resume		= snd_opti9xx_isa_resume,
+#endif
 	.driver		= {
 		.name	= DEV_NAME
 	},
@@ -1123,12 +1165,29 @@ static void __devexit snd_opti9xx_pnp_remove(struct pnp_card_link * pcard)
 	snd_opti9xx_pnp_is_probed = 0;
 }
 
+#ifdef CONFIG_PM
+static int snd_opti9xx_pnp_suspend(struct pnp_card_link *pcard,
+				   pm_message_t state)
+{
+	return snd_opti9xx_suspend(pnp_get_card_drvdata(pcard));
+}
+
+static int snd_opti9xx_pnp_resume(struct pnp_card_link *pcard)
+{
+	return snd_opti9xx_resume(pnp_get_card_drvdata(pcard));
+}
+#endif
+
 static struct pnp_card_driver opti9xx_pnpc_driver = {
 	.flags		= PNP_DRIVER_RES_DISABLE,
 	.name		= "opti9xx",
 	.id_table	= snd_opti9xx_pnpids,
 	.probe		= snd_opti9xx_pnp_probe,
 	.remove		= __devexit_p(snd_opti9xx_pnp_remove),
+#ifdef CONFIG_PM
+	.suspend	= snd_opti9xx_pnp_suspend,
+	.resume		= snd_opti9xx_pnp_resume,
+#endif
 };
 #endif
 
