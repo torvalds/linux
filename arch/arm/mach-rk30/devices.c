@@ -51,6 +51,7 @@ struct platform_device device_adc = {
 };
 #endif
 
+#ifdef CONFIG_ARCH_RK30
 static struct resource rk30_tsadc_resource[] = {
 	{
 		.start	= IRQ_TSADC,
@@ -64,12 +65,13 @@ static struct resource rk30_tsadc_resource[] = {
 	},
 };
 
-struct platform_device device_tsadc = {
+static struct platform_device device_tsadc = {
 	.name		= "rk30-tsadc",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(rk30_tsadc_resource),
 	.resource	= rk30_tsadc_resource,
 };
+#endif
 
 static u64 dma_dmamask = DMA_BIT_MASK(32);
 
@@ -1161,7 +1163,9 @@ static int __init rk30_init_devices(void)
 #ifdef CONFIG_ADC_RK30
 	platform_device_register(&device_adc);
 #endif
+#ifdef CONFIG_ARCH_RK30
 	platform_device_register(&device_tsadc);
+#endif
 	rk30_init_sdmmc();
 #if defined(CONFIG_FIQ_DEBUGGER) && defined(DEBUG_UART_PHYS)
 	rk_serial_debug_init(DEBUG_UART_BASE, IRQ_DEBUG_UART, IRQ_UART_SIGNAL, -1);

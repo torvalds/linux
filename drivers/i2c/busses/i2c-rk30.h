@@ -44,7 +44,7 @@
 
 #define rk30_ceil(x, y) \
 	({ unsigned long __x = (x), __y = (y); (__x + __y - 1) / __y; })
-#ifdef CONFIG_ARCH_RK30
+#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
 #define GRF_I2C_CON_BASE            (RK30_GRF_BASE + GRF_SOC_CON1)
 #endif
 #ifdef CONFIG_ARCH_RK2928

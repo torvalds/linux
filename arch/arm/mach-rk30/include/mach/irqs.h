@@ -12,6 +12,8 @@
 #define IRQ_DMAC2_0                     RK30XX_IRQ(2)
 #define IRQ_DMAC2_1                     RK30XX_IRQ(3)
 #define IRQ_DDR_PCTL                    RK30XX_IRQ(4)
+#define IRQ_HSIC                        37
+#define IRQ_GPU                         39
 #define IRQ_GPU_GP                      RK30XX_IRQ(5)
 #define IRQ_GPU_MMU                     RK30XX_IRQ(6)
 #define IRQ_GPU_PP                      RK30XX_IRQ(7)
@@ -25,7 +27,7 @@
 #define IRQ_IPP                         RK30XX_IRQ(15)
 #define IRQ_USB_OTG                     RK30XX_IRQ(16)
 #define IRQ_USB_HOST                    RK30XX_IRQ(17)
-
+#define IRQ_GPS                         50
 #define IRQ_MAC                         RK30XX_IRQ(19)
 #define IRQ_I2S2_2CH                    RK30XX_IRQ(20)
 #define IRQ_TSADC                       RK30XX_IRQ(21)
@@ -79,6 +81,7 @@
 #define IRQ_PMU_STOP_EXIT_INT           RK30XX_IRQ(69)
 #define IRQ_OBSERVER_MAINFAULT          RK30XX_IRQ(70)
 #define IRQ_VPU_OBSRV_MAINFAULT         RK30XX_IRQ(71)
+#define IRQ_ARM_PMU                     103
 #define IRQ_PERI_OBSRV_MAINFAULT        RK30XX_IRQ(72)
 #define IRQ_VIO1_OBSRV_MAINFAULT        RK30XX_IRQ(73)
 #define IRQ_VIO0_OBSRV_MAINFAULT        RK30XX_IRQ(74)

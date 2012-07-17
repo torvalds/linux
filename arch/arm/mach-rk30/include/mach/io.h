@@ -26,7 +26,11 @@
 #define RK30_IMEM_PHYS          0x10080000
 #define RK30_IMEM_BASE          IOMEM(0xFEF00000)
 #define RK30_IMEM_NONCACHED     RK30_IO_TO_VIRT0(RK30_IMEM_PHYS)
+#ifdef CONFIG_ARCH_RK31
+#define RK30_IMEM_SIZE          SZ_16K
+#else
 #define RK30_IMEM_SIZE          SZ_64K
+#endif
 #define RK30_GPU_PHYS           0x10090000
 #define RK30_GPU_SIZE           SZ_64K
 
@@ -36,8 +40,10 @@
 #define RK30_VCODEC_SIZE        SZ_16K
 #define RK30_CIF0_PHYS          0x10108000
 #define RK30_CIF0_SIZE          SZ_8K
+#ifdef CONFIG_ARCH_RK30
 #define RK30_CIF1_PHYS          0x1010a000
 #define RK30_CIF1_SIZE          SZ_8K
+#endif
 #define RK30_LCDC0_PHYS         0x1010c000
 #define RK30_LCDC0_SIZE         SZ_8K
 #define RK30_LCDC1_PHYS         0x1010e000
@@ -46,14 +52,18 @@
 #define RK30_IPP_SIZE           SZ_16K
 #define RK30_RGA_PHYS           0x10114000
 #define RK30_RGA_SIZE           SZ_8K
+#ifdef CONFIG_ARCH_RK30
 #define RK30_HDMI_PHYS          0x10116000
 #define RK30_HDMI_SIZE          SZ_8K
 #define RK30_I2S0_8CH_PHYS      0x10118000
 #define RK30_I2S0_8CH_SIZE      SZ_8K
+#endif
 #define RK30_I2S1_2CH_PHYS      0x1011a000
 #define RK30_I2S1_2CH_SIZE      SZ_8K
+#ifdef CONFIG_ARCH_RK30
 #define RK30_I2S2_2CH_PHYS      0x1011c000
 #define RK30_I2S2_2CH_SIZE      SZ_8K
+#endif
 #define RK30_SPDIF_PHYS         0x1011e000
 #define RK30_SPDIF_SIZE         SZ_8K
 
@@ -133,9 +143,11 @@
 #define RK30_GRF_PHYS           0x20008000
 #define RK30_GRF_BASE           RK30_IO_TO_VIRT1(RK30_GRF_PHYS)
 #define RK30_GRF_SIZE           SZ_8K
+#ifdef CONFIG_ARCH_RK30
 #define RK30_GPIO6_PHYS         0x2000a000
 #define RK30_GPIO6_BASE         RK30_IO_TO_VIRT1(RK30_GPIO6_PHYS)
 #define RK30_GPIO6_SIZE         SZ_8K
+#endif
 
 #define RK30_TIMER2_PHYS        0x2000e000
 #define RK30_TIMER2_BASE        RK30_IO_TO_VIRT1(RK30_TIMER2_PHYS)
@@ -159,7 +171,11 @@
 #define RK30_PWM01_PHYS         0x20030000
 #define RK30_PWM01_BASE         RK30_IO_TO_VIRT1(RK30_PWM01_PHYS)
 #define RK30_PWM01_SIZE         SZ_16K
+#ifdef CONFIG_ARCH_RK31
+#define RK30_GPIO0_PHYS         0x2000a000
+#else
 #define RK30_GPIO0_PHYS         0x20034000
+#endif
 #define RK30_GPIO0_BASE         RK30_IO_TO_VIRT1(RK30_GPIO0_PHYS)
 #define RK30_GPIO0_SIZE         SZ_16K
 #define RK30_TIMER0_PHYS        0x20038000
@@ -189,8 +205,10 @@
 #define RK30_I2C3_SIZE          SZ_16K
 #define RK30_I2C4_PHYS          0x2005c000
 #define RK30_I2C4_SIZE          SZ_16K
+#ifdef CONFIG_ARCH_RK30
 #define RK30_TSADC_PHYS         0x20060000
 #define RK30_TSADC_SIZE         SZ_16K
+#endif
 #define RK30_UART2_PHYS         0x20064000
 #define RK30_UART2_BASE         RK30_IO_TO_VIRT1(RK30_UART2_PHYS)
 #define RK30_UART2_SIZE         SZ_16K
@@ -210,9 +228,18 @@
 #define RK30_GPIO3_PHYS         0x20080000
 #define RK30_GPIO3_BASE         RK30_IO_TO_VIRT1(RK30_GPIO3_PHYS)
 #define RK30_GPIO3_SIZE         SZ_16K
+#ifdef CONFIG_ARCH_RK30
 #define RK30_GPIO4_PHYS         0x20084000
 #define RK30_GPIO4_BASE         RK30_IO_TO_VIRT1(RK30_GPIO4_PHYS)
 #define RK30_GPIO4_SIZE         SZ_16K
+#endif
+
+#ifdef CONFIG_ARCH_RK31
+#define RK31_GPS_PHYS           0x10230000
+#define RK31_GPS_SIZE           SZ_64K
+#define RK31_HSIC_PHYS          0x10240000
+#define RK31_HSIC_SIZE          SZ_256K
+#endif
 
 #if CONFIG_RK_DEBUG_UART == 0
 #define DEBUG_UART_PHYS         RK30_UART0_PHYS

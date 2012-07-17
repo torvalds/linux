@@ -34,9 +34,23 @@
 
 #ifdef CONFIG_ARCH_RK30
 #define MAX_PIN	RK30_PIN6_PB7
-#endif
-#ifdef CONFIG_ARCH_RK2928
+#elif defined(CONFIG_ARCH_RK31)
+#define MAX_PIN	RK30_PIN3_PD7
+#elif defined(CONFIG_ARCH_RK2928)
 #define MAX_PIN	RK2928_PIN3_PD7
+#define RK30_GPIO0_PHYS	RK2928_GPIO0_PHYS
+#define RK30_GPIO0_BASE	RK2928_GPIO0_BASE
+#define RK30_GPIO0_SIZE	RK2928_GPIO0_SIZE
+#define RK30_GPIO1_PHYS	RK2928_GPIO1_PHYS
+#define RK30_GPIO1_BASE	RK2928_GPIO1_BASE
+#define RK30_GPIO1_SIZE	RK2928_GPIO1_SIZE
+#define RK30_GPIO2_PHYS	RK2928_GPIO2_PHYS
+#define RK30_GPIO2_BASE	RK2928_GPIO2_BASE
+#define RK30_GPIO2_SIZE	RK2928_GPIO2_SIZE
+#define RK30_GPIO3_PHYS	RK2928_GPIO3_PHYS
+#define RK30_GPIO3_BASE	RK2928_GPIO3_BASE
+#define RK30_GPIO3_SIZE	RK2928_GPIO3_SIZE
+#define RK30_GRF_BASE	RK2928_GRF_BASE
 #endif
 
 #define to_rk30_gpio_bank(c) container_of(c, struct rk30_gpio_bank, chip)
@@ -62,7 +76,6 @@ static int rk30_gpiolib_direction_input(struct gpio_chip *chip,unsigned offset);
 static int rk30_gpiolib_pull_updown(struct gpio_chip *chip, unsigned offset, unsigned enable);
 static int rk30_gpiolib_to_irq(struct gpio_chip *chip,unsigned offset);
 
-#ifdef CONFIG_ARCH_RK30 
 #define RK30_GPIO_BANK(ID)			\
 	{								\
 		.chip = {						\
@@ -81,27 +94,6 @@ static int rk30_gpiolib_to_irq(struct gpio_chip *chip,unsigned offset);
 		.irq = IRQ_GPIO##ID, \
 		.regbase = (unsigned char __iomem *) RK30_GPIO##ID##_BASE, \
 	}
-#endif 
-#ifdef CONFIG_ARCH_RK2928 
-#define RK30_GPIO_BANK(ID)			\
-	{								\
-		.chip = {						\
-			.label            = "gpio" #ID,			\
-			.direction_input  = rk30_gpiolib_direction_input, \
-			.direction_output = rk30_gpiolib_direction_output, \
-			.get              = rk30_gpiolib_get,		\
-			.set              = rk30_gpiolib_set,		\
-			.pull_updown      = rk30_gpiolib_pull_updown,	\
-			.dbg_show         = rk30_gpiolib_dbg_show,	\
-			.to_irq           = rk30_gpiolib_to_irq,	\
-			.base             = ID < 6 ? PIN_BASE + ID*NUM_GROUP : PIN_BASE + 5*NUM_GROUP,	\
-			.ngpio            = ID < 6 ? NUM_GROUP : 16,	\
-		},							\
-		.id = ID, \
-		.irq = IRQ_GPIO##ID, \
-		.regbase = (unsigned char __iomem *) RK2928_GPIO##ID##_BASE, \
-	}
-#endif 
 
 static struct rk30_gpio_bank rk30_gpio_banks[] = {
 	RK30_GPIO_BANK(0),
@@ -332,18 +324,10 @@ static int rk30_gpiolib_pull_updown(struct gpio_chip *chip, unsigned offset, uns
 	unsigned long flags;
 
 	spin_lock_irqsave(&bank->lock, flags);
-#ifdef CONFIG_ARCH_RK30
 	if(offset>=16)	
-	rk30_gpio_bit_op((void *__iomem) RK30_GRF_BASE, GRF_GPIO0H_PULL + bank->id * 8, (1<<offset) | offset_to_bit(offset-16), !enable);
+		rk30_gpio_bit_op((void *__iomem) RK30_GRF_BASE, GRF_GPIO0H_PULL + bank->id * 8, (1<<offset) | offset_to_bit(offset-16), !enable);
 	else	
-	rk30_gpio_bit_op((void *__iomem) RK30_GRF_BASE, GRF_GPIO0L_PULL + bank->id * 8, (1<<(offset+16)) | offset_to_bit(offset), !enable);
-#endif
-#ifdef CONFIG_ARCH_RK2928
-	if(offset>=16)	
-	rk30_gpio_bit_op((void *__iomem) RK2928_GRF_BASE, GRF_GPIO0H_PULL + bank->id * 8, (1<<offset) | offset_to_bit(offset-16), !enable);
-	else	
-	rk30_gpio_bit_op((void *__iomem) RK2928_GRF_BASE, GRF_GPIO0L_PULL + bank->id * 8, (1<<(offset+16)) | offset_to_bit(offset), !enable);
-#endif
+		rk30_gpio_bit_op((void *__iomem) RK30_GRF_BASE, GRF_GPIO0L_PULL + bank->id * 8, (1<<(offset+16)) | offset_to_bit(offset), !enable);
 	spin_unlock_irqrestore(&bank->lock, flags);
 
 	return 0;
