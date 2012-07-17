@@ -262,8 +262,14 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 				if (!(cursor_end & 0x7f))
 					w--;
 			}
-			if (w <= 0)
+			if (w <= 0) {
 				w = 1;
+				cursor_end = x - xorigin + w;
+				if (!(cursor_end & 0x7f)) {
+					x--;
+					WARN_ON_ONCE(x < 0);
+				}
+			}
 		}
 	}
 
