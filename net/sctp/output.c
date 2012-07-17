@@ -410,7 +410,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	if (!sctp_transport_dst_check(tp)) {
 		sctp_transport_route(tp, NULL, sctp_sk(sk));
 		if (asoc && (asoc->param_flags & SPP_PMTUD_ENABLE)) {
-			sctp_assoc_sync_pmtu(asoc);
+			sctp_assoc_sync_pmtu(sk, asoc);
 		}
 	}
 	dst = dst_clone(tp->dst);

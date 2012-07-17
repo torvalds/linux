@@ -140,6 +140,27 @@ const struct fib_prop fib_props[RTN_MAX + 1] = {
 	},
 };
 
+static void free_nh_exceptions(struct fib_nh *nh)
+{
+	struct fnhe_hash_bucket *hash = nh->nh_exceptions;
+	int i;
+
+	for (i = 0; i < FNHE_HASH_SIZE; i++) {
+		struct fib_nh_exception *fnhe;
+
+		fnhe = rcu_dereference(hash[i].chain);
+		while (fnhe) {
+			struct fib_nh_exception *next;
+			
+			next = rcu_dereference(fnhe->fnhe_next);
+			kfree(fnhe);
+
+			fnhe = next;
+		}
+	}
+	kfree(hash);
+}
+
 /* Release a nexthop info record */
 static void free_fib_info_rcu(struct rcu_head *head)
 {
@@ -148,6 +169,8 @@ static void free_fib_info_rcu(struct rcu_head *head)
 	change_nexthops(fi) {
 		if (nexthop_nh->nh_dev)
 			dev_put(nexthop_nh->nh_dev);
+		if (nexthop_nh->nh_exceptions)
+			free_nh_exceptions(nexthop_nh);
 	} endfor_nexthops(fi);
 
 	release_net(fi->fib_net);

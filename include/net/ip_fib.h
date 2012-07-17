@@ -18,6 +18,7 @@
 
 #include <net/flow.h>
 #include <linux/seq_file.h>
+#include <linux/rcupdate.h>
 #include <net/fib_rules.h>
 #include <net/inetpeer.h>
 
@@ -46,6 +47,22 @@ struct fib_config {
 
 struct fib_info;
 
+struct fib_nh_exception {
+	struct fib_nh_exception __rcu	*fnhe_next;
+	__be32				fnhe_daddr;
+	u32				fnhe_pmtu;
+	u32				fnhe_gw;
+	unsigned long			fnhe_expires;
+	unsigned long			fnhe_stamp;
+};
+
+struct fnhe_hash_bucket {
+	struct fib_nh_exception __rcu	*chain;
+};
+
+#define FNHE_HASH_SIZE		2048
+#define FNHE_RECLAIM_DEPTH	5
+
 struct fib_nh {
 	struct net_device	*nh_dev;
 	struct hlist_node	nh_hash;
@@ -63,6 +80,7 @@ struct fib_nh {
 	__be32			nh_gw;
 	__be32			nh_saddr;
 	int			nh_saddr_genid;
+	struct fnhe_hash_bucket	*nh_exceptions;
 };
 
 /*

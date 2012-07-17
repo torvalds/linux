@@ -289,16 +289,9 @@ static void do_pmtu_discovery(struct sock *sk, const struct iphdr *iph, u32 mtu)
 	if (sk->sk_state == TCP_LISTEN)
 		return;
 
-	/* We don't check in the destentry if pmtu discovery is forbidden
-	 * on this route. We just assume that no packet_to_big packets
-	 * are send back when pmtu discovery is not active.
-	 * There is a small race when the user changes this flag in the
-	 * route, but I think that's acceptable.
-	 */
-	if ((dst = __sk_dst_check(sk, 0)) == NULL)
+	dst = inet_csk_update_pmtu(sk, mtu);
+	if (!dst)
 		return;
-
-	dst->ops->update_pmtu(dst, mtu);
 
 	/* Something is about to be wrong... Remember soft error
 	 * for the case, if this connection will not able to recover.
@@ -326,7 +319,7 @@ static void do_redirect(struct sk_buff *skb, struct sock *sk)
 	struct dst_entry *dst = __sk_dst_check(sk, 0);
 
 	if (dst)
-		dst->ops->redirect(dst, skb);
+		dst->ops->redirect(dst, sk, skb);
 }
 
 /*

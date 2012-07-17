@@ -803,3 +803,49 @@ int inet_csk_compat_setsockopt(struct sock *sk, int level, int optname,
 }
 EXPORT_SYMBOL_GPL(inet_csk_compat_setsockopt);
 #endif
+
+static struct dst_entry *inet_csk_rebuild_route(struct sock *sk, struct flowi *fl)
+{
+	struct inet_sock *inet = inet_sk(sk);
+	struct ip_options_rcu *inet_opt;
+	__be32 daddr = inet->inet_daddr;
+	struct flowi4 *fl4;
+	struct rtable *rt;
+
+	rcu_read_lock();
+	inet_opt = rcu_dereference(inet->inet_opt);
+	if (inet_opt && inet_opt->opt.srr)
+		daddr = inet_opt->opt.faddr;
+	fl4 = &fl->u.ip4;
+	rt = ip_route_output_ports(sock_net(sk), fl4, sk, daddr,
+				   inet->inet_saddr, inet->inet_dport,
+				   inet->inet_sport, sk->sk_protocol,
+				   RT_CONN_FLAGS(sk), sk->sk_bound_dev_if);
+	if (IS_ERR(rt))
+		rt = NULL;
+	if (rt)
+		sk_setup_caps(sk, &rt->dst);
+	rcu_read_unlock();
+
+	return &rt->dst;
+}
+
+struct dst_entry *inet_csk_update_pmtu(struct sock *sk, u32 mtu)
+{
+	struct dst_entry *dst = __sk_dst_check(sk, 0);
+	struct inet_sock *inet = inet_sk(sk);
+
+	if (!dst) {
+		dst = inet_csk_rebuild_route(sk, &inet->cork.fl);
+		if (!dst)
+			goto out;
+	}
+	dst->ops->update_pmtu(dst, sk, NULL, mtu);
+
+	dst = __sk_dst_check(sk, 0);
+	if (!dst)
+		dst = inet_csk_rebuild_route(sk, &inet->cork.fl);
+out:
+	return dst;
+}
+EXPORT_SYMBOL_GPL(inet_csk_update_pmtu);

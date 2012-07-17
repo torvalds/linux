@@ -228,7 +228,7 @@ void sctp_transport_pmtu(struct sctp_transport *transport, struct sock *sk)
 		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
 }
 
-void sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
+void sctp_transport_update_pmtu(struct sock *sk, struct sctp_transport *t, u32 pmtu)
 {
 	struct dst_entry *dst;
 
@@ -245,8 +245,16 @@ void sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
 	}
 
 	dst = sctp_transport_dst_check(t);
-	if (dst)
-		dst->ops->update_pmtu(dst, pmtu);
+	if (!dst)
+		t->af_specific->get_dst(t, &t->saddr, &t->fl, sk);
+
+	if (dst) {
+		dst->ops->update_pmtu(dst, sk, NULL, pmtu);
+
+		dst = sctp_transport_dst_check(t);
+		if (!dst)
+			t->af_specific->get_dst(t, &t->saddr, &t->fl, sk);
+	}
 }
 
 /* Caches the dst entry and source address for a transport's destination

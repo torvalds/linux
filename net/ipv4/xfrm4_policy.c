@@ -194,20 +194,22 @@ static inline int xfrm4_garbage_collect(struct dst_ops *ops)
 	return (dst_entries_get_slow(ops) > ops->gc_thresh * 2);
 }
 
-static void xfrm4_update_pmtu(struct dst_entry *dst, u32 mtu)
+static void xfrm4_update_pmtu(struct dst_entry *dst, struct sock *sk,
+			      struct sk_buff *skb, u32 mtu)
 {
 	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
 	struct dst_entry *path = xdst->route;
 
-	path->ops->update_pmtu(path, mtu);
+	path->ops->update_pmtu(path, sk, skb, mtu);
 }
 
-static void xfrm4_redirect(struct dst_entry *dst, struct sk_buff *skb)
+static void xfrm4_redirect(struct dst_entry *dst, struct sock *sk,
+			   struct sk_buff *skb)
 {
 	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
 	struct dst_entry *path = xdst->route;
 
-	path->ops->redirect(path, skb);
+	path->ops->redirect(path, sk, skb);
 }
 
 static void xfrm4_dst_destroy(struct dst_entry *dst)

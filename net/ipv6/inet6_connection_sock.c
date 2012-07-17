@@ -203,15 +203,13 @@ struct dst_entry *__inet6_csk_dst_check(struct sock *sk, u32 cookie)
 	return dst;
 }
 
-int inet6_csk_xmit(struct sk_buff *skb, struct flowi *fl_unused)
+static struct dst_entry *inet6_csk_route_socket(struct sock *sk)
 {
-	struct sock *sk = skb->sk;
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct flowi6 fl6;
-	struct dst_entry *dst;
 	struct in6_addr *final_p, final;
-	int res;
+	struct dst_entry *dst;
+	struct flowi6 fl6;
 
 	memset(&fl6, 0, sizeof(fl6));
 	fl6.flowi6_proto = sk->sk_protocol;
@@ -228,18 +226,29 @@ int inet6_csk_xmit(struct sk_buff *skb, struct flowi *fl_unused)
 	final_p = fl6_update_dst(&fl6, np->opt, &final);
 
 	dst = __inet6_csk_dst_check(sk, np->dst_cookie);
-
-	if (dst == NULL) {
+	if (!dst) {
 		dst = ip6_dst_lookup_flow(sk, &fl6, final_p, false);
 
-		if (IS_ERR(dst)) {
-			sk->sk_err_soft = -PTR_ERR(dst);
-			sk->sk_route_caps = 0;
-			kfree_skb(skb);
-			return PTR_ERR(dst);
-		}
+		if (!IS_ERR(dst))
+			__inet6_csk_dst_store(sk, dst, NULL, NULL);
+	}
+	return dst;
+}
 
-		__inet6_csk_dst_store(sk, dst, NULL, NULL);
+int inet6_csk_xmit(struct sk_buff *skb, struct flowi *fl_unused)
+{
+	struct sock *sk = skb->sk;
+	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct flowi6 fl6;
+	struct dst_entry *dst;
+	int res;
+
+	dst = inet6_csk_route_socket(sk);
+	if (IS_ERR(dst)) {
+		sk->sk_err_soft = -PTR_ERR(dst);
+		sk->sk_route_caps = 0;
+		kfree_skb(skb);
+		return PTR_ERR(dst);
 	}
 
 	rcu_read_lock();
@@ -253,3 +262,15 @@ int inet6_csk_xmit(struct sk_buff *skb, struct flowi *fl_unused)
 	return res;
 }
 EXPORT_SYMBOL_GPL(inet6_csk_xmit);
+
+struct dst_entry *inet6_csk_update_pmtu(struct sock *sk, u32 mtu)
+{
+	struct dst_entry *dst = inet6_csk_route_socket(sk);
+
+	if (IS_ERR(dst))
+		return NULL;
+	dst->ops->update_pmtu(dst, sk, NULL, mtu);
+
+	return inet6_csk_route_socket(sk);
+}
+EXPORT_SYMBOL_GPL(inet6_csk_update_pmtu);

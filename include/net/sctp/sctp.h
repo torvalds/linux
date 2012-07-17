@@ -519,10 +519,10 @@ static inline int sctp_frag_point(const struct sctp_association *asoc, int pmtu)
 	return frag;
 }
 
-static inline void sctp_assoc_pending_pmtu(struct sctp_association *asoc)
+static inline void sctp_assoc_pending_pmtu(struct sock *sk, struct sctp_association *asoc)
 {
 
-	sctp_assoc_sync_pmtu(asoc);
+	sctp_assoc_sync_pmtu(sk, asoc);
 	asoc->pmtu_pending = 0;
 }
 

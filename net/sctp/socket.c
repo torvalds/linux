@@ -1853,7 +1853,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	}
 
 	if (asoc->pmtu_pending)
-		sctp_assoc_pending_pmtu(asoc);
+		sctp_assoc_pending_pmtu(sk, asoc);
 
 	/* If fragmentation is disabled and the message length exceeds the
 	 * association fragmentation point, return EMSGSIZE.  The I-D
@@ -2365,7 +2365,7 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 	if ((params->spp_flags & SPP_PMTUD_DISABLE) && params->spp_pathmtu) {
 		if (trans) {
 			trans->pathmtu = params->spp_pathmtu;
-			sctp_assoc_sync_pmtu(asoc);
+			sctp_assoc_sync_pmtu(sctp_opt2sk(sp), asoc);
 		} else if (asoc) {
 			asoc->pathmtu = params->spp_pathmtu;
 			sctp_frag_point(asoc, params->spp_pathmtu);
@@ -2382,7 +2382,7 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 				(trans->param_flags & ~SPP_PMTUD) | pmtud_change;
 			if (update) {
 				sctp_transport_pmtu(trans, sctp_opt2sk(sp));
-				sctp_assoc_sync_pmtu(asoc);
+				sctp_assoc_sync_pmtu(sctp_opt2sk(sp), asoc);
 			}
 		} else if (asoc) {
 			asoc->param_flags =
