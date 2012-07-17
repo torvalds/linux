@@ -2434,7 +2434,7 @@ static void do_retry(struct work_struct *ws)
 	}
 }
 
-void drbd_restart_write(struct drbd_request *req)
+void drbd_restart_request(struct drbd_request *req)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&retry.lock, flags);

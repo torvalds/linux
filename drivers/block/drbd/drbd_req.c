@@ -144,7 +144,7 @@ static void _req_is_done(struct drbd_conf *mdev, struct drbd_request *req, const
 	}
 
 	if (s & RQ_POSTPONED)
-		drbd_restart_write(req);
+		drbd_restart_request(req);
 	else
 		drbd_req_free(req);
 }
