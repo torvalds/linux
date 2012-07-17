@@ -389,6 +389,7 @@ struct ath_beacon_config {
 	u16 dtim_period;
 	u16 bmiss_timeout;
 	u8 dtim_count;
+	bool enable_beacon;
 };
 
 struct ath_beacon {
@@ -415,11 +416,13 @@ struct ath_beacon {
 };
 
 void ath_beacon_tasklet(unsigned long data);
-void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif);
+bool ath9k_allow_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif);
+void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif,
+			 u32 changed);
 void ath9k_beacon_assign_slot(struct ath_softc *sc, struct ieee80211_vif *vif);
 void ath9k_beacon_remove_slot(struct ath_softc *sc, struct ieee80211_vif *vif);
 int ath_beaconq_config(struct ath_softc *sc);
-void ath_set_beacon(struct ath_softc *sc);
+void ath9k_set_beacon(struct ath_softc *sc);
 void ath9k_set_beaconing_status(struct ath_softc *sc, bool status);
 
 /*******************/
@@ -622,7 +625,6 @@ enum sc_op_flags {
 	SC_OP_INVALID,
 	SC_OP_BEACONS,
 	SC_OP_RXFLUSH,
-	SC_OP_TSF_RESET,
 	SC_OP_ANI_RUN,
 	SC_OP_PRIM_STA_VIF,
 	SC_OP_HW_RESET,

@@ -236,7 +236,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 		if (!test_bit(SC_OP_BEACONS, &sc->sc_flags))
 			goto work;
 
-		ath_set_beacon(sc);
+		ath9k_set_beacon(sc);
 
 		if (ah->opmode == NL80211_IFTYPE_STATION &&
 		    test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags)) {
@@ -1533,24 +1533,10 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		}
 	}
 
-	/*
-	 * In case of AP mode, the HW TSF has to be reset
-	 * when the beacon interval changes.
-	 */
-	if ((changed & BSS_CHANGED_BEACON_INT) &&
-	    (vif->type == NL80211_IFTYPE_AP))
-		set_bit(SC_OP_TSF_RESET, &sc->sc_flags);
-
-	/* Configure beaconing (AP, IBSS, MESH) */
-	if (ath9k_uses_beacons(vif->type) &&
-	    ((changed & BSS_CHANGED_BEACON) ||
-	     (changed & BSS_CHANGED_BEACON_ENABLED) ||
-	     (changed & BSS_CHANGED_BEACON_INT))) {
-		ath9k_set_beaconing_status(sc, false);
-		if (!bss_conf->enable_beacon)
-			avp->is_bslot_active = false;
-		ath_beacon_config(sc, vif);
-		ath9k_set_beaconing_status(sc, true);
+	if ((changed & BSS_CHANGED_BEACON_ENABLED) ||
+	    (changed & BSS_CHANGED_BEACON_INT)) {
+		if (ath9k_allow_beacon_config(sc, vif))
+			ath9k_beacon_config(sc, vif, changed);
 	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
