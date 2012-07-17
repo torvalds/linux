@@ -325,24 +325,46 @@ static inline void __ew32flash(struct e1000_hw *hw, unsigned long reg, u32 val)
  **/
 static bool e1000_phy_is_accessible_pchlan(struct e1000_hw *hw)
 {
-	u16 phy_reg;
-	u32 phy_id;
+	u16 phy_reg = 0;
+	u32 phy_id = 0;
+	s32 ret_val;
+	u16 retry_count;
 
-	e1e_rphy_locked(hw, PHY_ID1, &phy_reg);
-	phy_id = (u32)(phy_reg << 16);
-	e1e_rphy_locked(hw, PHY_ID2, &phy_reg);
-	phy_id |= (u32)(phy_reg & PHY_REVISION_MASK);
+	for (retry_count = 0; retry_count < 2; retry_count++) {
+		ret_val = e1e_rphy_locked(hw, PHY_ID1, &phy_reg);
+		if (ret_val || (phy_reg == 0xFFFF))
+			continue;
+		phy_id = (u32)(phy_reg << 16);
+
+		ret_val = e1e_rphy_locked(hw, PHY_ID2, &phy_reg);
+		if (ret_val || (phy_reg == 0xFFFF)) {
+			phy_id = 0;
+			continue;
+		}
+		phy_id |= (u32)(phy_reg & PHY_REVISION_MASK);
+		break;
+	}
 
 	if (hw->phy.id) {
 		if (hw->phy.id == phy_id)
 			return true;
-	} else {
-		if ((phy_id != 0) && (phy_id != PHY_REVISION_MASK))
-			hw->phy.id = phy_id;
+	} else if (phy_id) {
+		hw->phy.id = phy_id;
+		hw->phy.revision = (u32)(phy_reg & ~PHY_REVISION_MASK);
 		return true;
 	}
 
-	return false;
+	/*
+	 * In case the PHY needs to be in mdio slow mode,
+	 * set slow mode and try to get the PHY id again.
+	 */
+	hw->phy.ops.release(hw);
+	ret_val = e1000_set_mdio_slow_mode_hv(hw);
+	if (!ret_val)
+		ret_val = e1000e_get_phy_id(hw);
+	hw->phy.ops.acquire(hw);
+
+	return !ret_val;
 }
 
 /**
