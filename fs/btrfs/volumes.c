@@ -4743,9 +4743,6 @@ int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info)
 		key.offset = device->devid;
 		ret = btrfs_search_slot(NULL, dev_root, &key, path, 0, 0);
 		if (ret) {
-			printk_in_rcu(KERN_WARNING "btrfs: no dev_stats entry found for device %s (devid %llu) (OK on first mount after mkfs)\n",
-				      rcu_str_deref(device->name),
-				      (unsigned long long)device->devid);
 			__btrfs_reset_dev_stats(device);
 			device->dev_stats_valid = 1;
 			btrfs_release_path(path);
