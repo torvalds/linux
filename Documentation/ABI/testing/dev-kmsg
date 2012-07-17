@@ -58,16 +58,18 @@ Description:	The /dev/kmsg character device node provides userspace access
 
 		The output format consists of a prefix carrying the syslog
 		prefix including priority and facility, the 64 bit message
-		sequence number and the monotonic timestamp in microseconds.
-		The values are separated by a ','. Future extensions might
-		add more comma separated values before the terminating ';'.
-		Unknown values should be gracefully ignored.
+		sequence number and the monotonic timestamp in microseconds,
+		and a flag field. All fields are separated by a ','.
+
+		Future extensions might add more comma separated values before
+		the terminating ';'. Unknown fields and values should be
+		gracefully ignored.
 
 		The human readable text string starts directly after the ';'
 		and is terminated by a '\n'. Untrusted values derived from
 		hardware or other facilities are printed, therefore
-		all non-printable characters in the log message are escaped
-		by "\x00" C-style hex encoding.
+		all non-printable characters and '\' itself in the log message
+		are escaped by "\x00" C-style hex encoding.
 
 		A line starting with ' ', is a continuation line, adding
 		key/value pairs to the log message, which provide the machine
@@ -75,16 +77,25 @@ Description:	The /dev/kmsg character device node provides userspace access
 		userspace.
 
 		Example:
-		7,160,424069;pci_root PNP0A03:00: host bridge window [io  0x0000-0x0cf7] (ignored)
+		7,160,424069,-;pci_root PNP0A03:00: host bridge window [io  0x0000-0x0cf7] (ignored)
 		 SUBSYSTEM=acpi
 		 DEVICE=+acpi:PNP0A03:00
-		6,339,5140900;NET: Registered protocol family 10
-		30,340,5690716;udevd[80]: starting version 181
+		6,339,5140900,-;NET: Registered protocol family 10
+		30,340,5690716,-;udevd[80]: starting version 181
 
 		The DEVICE= key uniquely identifies devices the following way:
 		  b12:8        - block dev_t
 		  c127:3       - char dev_t
 		  n8           - netdev ifindex
 		  +sound:card0 - subsystem:devname
+
+		The flags field carries '-' by default. A 'c' indicates a
+		fragment of a line. All following fragments are flagged with
+		'+'. Note, that these hints about continuation lines are not
+		neccessarily correct, and the stream could be interleaved with
+		unrelated messages, but merging the lines in the output
+		usually produces better human readable results. A similar
+		logic is used internally when messages are printed to the
+		console, /proc/kmsg or the syslog() syscall.
 
 Users:		dmesg(1), userspace kernel log consumers

@@ -361,6 +361,7 @@ static void log_store(int facility, int level,
 struct devkmsg_user {
 	u64 seq;
 	u32 idx;
+	enum log_flags prev;
 	struct mutex lock;
 	char buf[8192];
 };
@@ -426,6 +427,7 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 	struct log *msg;
 	u64 ts_usec;
 	size_t i;
+	char cont = '-';
 	size_t len;
 	ssize_t ret;
 
@@ -463,8 +465,25 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 	msg = log_from_idx(user->idx);
 	ts_usec = msg->ts_nsec;
 	do_div(ts_usec, 1000);
-	len = sprintf(user->buf, "%u,%llu,%llu;",
-		      (msg->facility << 3) | msg->level, user->seq, ts_usec);
+
+	/*
+	 * If we couldn't merge continuation line fragments during the print,
+	 * export the stored flags to allow an optional external merge of the
+	 * records. Merging the records isn't always neccessarily correct, like
+	 * when we hit a race during printing. In most cases though, it produces
+	 * better readable output. 'c' in the record flags mark the first
+	 * fragment of a line, '+' the following.
+	 */
+	if (msg->flags & LOG_CONT && !(user->prev & LOG_CONT))
+		cont = 'c';
+	else if ((msg->flags & LOG_CONT) ||
+		 ((user->prev & LOG_CONT) && !(msg->flags & LOG_PREFIX)))
+		cont = '+';
+
+	len = sprintf(user->buf, "%u,%llu,%llu,%c;",
+		      (msg->facility << 3) | msg->level,
+		      user->seq, ts_usec, cont);
+	user->prev = msg->flags;
 
 	/* escape non-printable characters */
 	for (i = 0; i < msg->text_len; i++) {
