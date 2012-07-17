@@ -187,6 +187,7 @@ static int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 	struct nfc_target *targets;
 	struct sk_buff *atqa_skb = NULL;
 	struct sk_buff *sak_skb = NULL;
+	struct sk_buff *uid_skb = NULL;
 	int r;
 
 	pr_debug("from gate %d\n", gate);
@@ -221,6 +222,19 @@ static int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 
 		targets->sens_res = be16_to_cpu(*(u16 *)atqa_skb->data);
 		targets->sel_res = sak_skb->data[0];
+
+		r = nfc_hci_get_param(hdev, NFC_HCI_RF_READER_A_GATE,
+				      NFC_HCI_RF_READER_A_UID, &uid_skb);
+		if (r < 0)
+			goto exit;
+
+		if (uid_skb->len == 0 || uid_skb->len > NFC_NFCID1_MAXSIZE) {
+			r = -EPROTO;
+			goto exit;
+		}
+
+		memcpy(targets->nfcid1, uid_skb->data, uid_skb->len);
+		targets->nfcid1_len = uid_skb->len;
 
 		if (hdev->ops->complete_target_discovered) {
 			r = hdev->ops->complete_target_discovered(hdev, gate,
@@ -257,6 +271,7 @@ exit:
 	kfree(targets);
 	kfree_skb(atqa_skb);
 	kfree_skb(sak_skb);
+	kfree_skb(uid_skb);
 
 	return r;
 }
@@ -695,13 +710,12 @@ EXPORT_SYMBOL(nfc_hci_register_device);
 
 void nfc_hci_unregister_device(struct nfc_hci_dev *hdev)
 {
-	struct hci_msg *msg;
+	struct hci_msg *msg, *n;
 
 	skb_queue_purge(&hdev->rx_hcp_frags);
 	skb_queue_purge(&hdev->msg_rx_queue);
 
-	while ((msg = list_first_entry(&hdev->msg_tx_queue, struct hci_msg,
-				       msg_l)) != NULL) {
+	list_for_each_entry_safe(msg, n, &hdev->msg_tx_queue, msg_l) {
 		list_del(&msg->msg_l);
 		skb_queue_purge(&msg->msg_frags);
 		kfree(msg);
