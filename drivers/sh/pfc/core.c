@@ -536,6 +536,9 @@ int register_sh_pfc(struct sh_pfc *pfc)
 
 		if (unlikely(ret != 0))
 			goto err;
+	} else {
+		pr_err("failed to initialize pinctrl bindings\n");
+		goto err;
 	}
 
 	/*
