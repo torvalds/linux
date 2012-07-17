@@ -64,7 +64,8 @@ static void __init bfin_init_tables(unsigned long cclk, unsigned long sclk)
 
 	/* Anomaly 273 seems to still exist on non-BF54x w/dcache turned on */
 #if ANOMALY_05000273 || ANOMALY_05000274 || \
-	(!defined(CONFIG_BF54x) && defined(CONFIG_BFIN_EXTMEM_DCACHEABLE))
+	(!(defined(CONFIG_BF54x) || defined(CONFIG_BF60x)) \
+	&& defined(CONFIG_BFIN_EXTMEM_DCACHEABLE))
 	min_cclk = sclk * 2;
 #else
 	min_cclk = sclk;
