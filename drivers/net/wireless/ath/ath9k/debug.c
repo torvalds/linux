@@ -206,10 +206,9 @@ static ssize_t write_file_disable_ani(struct file *file,
 
 	if (disable_ani) {
 		clear_bit(SC_OP_ANI_RUN, &sc->sc_flags);
-		del_timer_sync(&common->ani.timer);
+		ath_stop_ani(sc);
 	} else {
-		set_bit(SC_OP_ANI_RUN, &sc->sc_flags);
-		ath_start_ani(common);
+		ath_check_ani(sc);
 	}
 
 	return count;

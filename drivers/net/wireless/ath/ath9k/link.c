@@ -432,24 +432,70 @@ set_timer:
 	}
 }
 
-void ath_start_ani(struct ath_common *common)
+void ath_start_ani(struct ath_softc *sc)
 {
-	struct ath_hw *ah = common->ah;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	unsigned long timestamp = jiffies_to_msecs(jiffies);
-	struct ath_softc *sc = (struct ath_softc *) common->priv;
 
-	if (!test_bit(SC_OP_ANI_RUN, &sc->sc_flags))
-		return;
-
-	if (sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
+	if (common->disable_ani ||
+	    !test_bit(SC_OP_ANI_RUN, &sc->sc_flags) ||
+	    (sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL))
 		return;
 
 	common->ani.longcal_timer = timestamp;
 	common->ani.shortcal_timer = timestamp;
 	common->ani.checkani_timer = timestamp;
 
+	ath_dbg(common, ANI, "Starting ANI\n");
 	mod_timer(&common->ani.timer,
 		  jiffies + msecs_to_jiffies((u32)ah->config.ani_poll_interval));
+}
+
+void ath_stop_ani(struct ath_softc *sc)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	ath_dbg(common, ANI, "Stopping ANI\n");
+	del_timer_sync(&common->ani.timer);
+}
+
+void ath_check_ani(struct ath_softc *sc)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
+
+	/*
+	 * Check for the various conditions in which ANI has to
+	 * be stopped.
+	 */
+	if (ah->opmode == NL80211_IFTYPE_ADHOC) {
+		if (!cur_conf->enable_beacon)
+			goto stop_ani;
+	} else if (ah->opmode == NL80211_IFTYPE_AP) {
+		if (!cur_conf->enable_beacon) {
+			/*
+			 * Disable ANI only when there are no
+			 * associated stations.
+			 */
+			if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags))
+				goto stop_ani;
+		}
+	} else if (ah->opmode == NL80211_IFTYPE_STATION) {
+		if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags))
+			goto stop_ani;
+	}
+
+	if (!test_bit(SC_OP_ANI_RUN, &sc->sc_flags)) {
+		set_bit(SC_OP_ANI_RUN, &sc->sc_flags);
+		ath_start_ani(sc);
+	}
+
+	return;
+
+stop_ani:
+	clear_bit(SC_OP_ANI_RUN, &sc->sc_flags);
+	ath_stop_ani(sc);
 }
 
 void ath_update_survey_nf(struct ath_softc *sc, int channel)

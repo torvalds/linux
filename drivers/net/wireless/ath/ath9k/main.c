@@ -167,8 +167,6 @@ static void ath_cancel_work(struct ath_softc *sc)
 
 static void ath_restart_work(struct ath_softc *sc)
 {
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-
 	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 
 	if (AR_SREV_9340(sc->sc_ah) || AR_SREV_9485(sc->sc_ah) ||
@@ -177,21 +175,18 @@ static void ath_restart_work(struct ath_softc *sc)
 				     msecs_to_jiffies(ATH_PLL_WORK_INTERVAL));
 
 	ath_start_rx_poll(sc, 3);
-
-	if (!common->disable_ani)
-		ath_start_ani(common);
+	ath_start_ani(sc);
 }
 
 static bool ath_prepare_reset(struct ath_softc *sc, bool retry_tx, bool flush)
 {
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
 	bool ret = true;
 
 	ieee80211_stop_queues(sc->hw);
 
 	sc->hw_busy_count = 0;
-	del_timer_sync(&common->ani.timer);
+	ath_stop_ani(sc);
 	del_timer_sync(&sc->rx_poll_timer);
 
 	ath9k_debug_samp_bb_mac(sc);
@@ -1481,6 +1476,11 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 				   struct ieee80211_bss_conf *bss_conf,
 				   u32 changed)
 {
+#define CHECK_ANI				\
+	(BSS_CHANGED_ASSOC |			\
+	 BSS_CHANGED_IBSS |			\
+	 BSS_CHANGED_BEACON_ENABLED)
+
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -1517,16 +1517,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
 		common->curaid = bss_conf->aid;
 		ath9k_hw_write_associd(sc->sc_ah);
-
-		if (bss_conf->ibss_joined) {
-			if (!common->disable_ani) {
-				set_bit(SC_OP_ANI_RUN, &sc->sc_flags);
-				ath_start_ani(common);
-			}
-		} else {
-			clear_bit(SC_OP_ANI_RUN, &sc->sc_flags);
-			del_timer_sync(&common->ani.timer);
-		}
 	}
 
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) ||
@@ -1557,8 +1547,13 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		}
 	}
 
+	if (changed & CHECK_ANI)
+		ath_check_ani(sc);
+
 	mutex_unlock(&sc->mutex);
 	ath9k_ps_restore(sc);
+
+#undef CHECK_ANI
 }
 
 static u64 ath9k_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)

@@ -447,7 +447,9 @@ void ath_rx_poll(unsigned long data);
 void ath_start_rx_poll(struct ath_softc *sc, u8 nbeacon);
 void ath_paprd_calibrate(struct work_struct *work);
 void ath_ani_calibrate(unsigned long data);
-void ath_start_ani(struct ath_common *common);
+void ath_start_ani(struct ath_softc *sc);
+void ath_stop_ani(struct ath_softc *sc);
+void ath_check_ani(struct ath_softc *sc);
 int ath_update_survey_stats(struct ath_softc *sc);
 void ath_update_survey_nf(struct ath_softc *sc, int channel);
 
