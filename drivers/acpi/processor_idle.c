@@ -863,7 +863,6 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 		current_thread_info()->status |= TS_POLLING;
 
 	lapic_timer_state_broadcast(pr, cx, 0);
-	cx->time += idle_time;
 	return index;
 }
 
@@ -982,7 +981,6 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		current_thread_info()->status |= TS_POLLING;
 
 	lapic_timer_state_broadcast(pr, cx, 0);
-	cx->time += idle_time;
 	return index;
 }
 
