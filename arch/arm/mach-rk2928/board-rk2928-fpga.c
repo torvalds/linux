@@ -43,6 +43,57 @@
 #include <linux/rfkill-rk.h>
 #include <linux/sensor-dev.h>
 
+
+#define RK2928_FB_MEM_SIZE 3*SZ_1M
+
+#ifdef CONFIG_FB_ROCKCHIP
+
+static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
+{
+	return 0;
+}
+static int rk_fb_io_disable(void)
+{
+	return 0;
+}
+static int rk_fb_io_enable(void)
+{
+	return 0;
+}
+
+#if defined(CONFIG_LCDC_RK2928)
+struct rk29fb_info lcdc_screen_info = {
+	.prop	   = PRMRY,		//primary display device
+	.io_init   = rk_fb_io_init,
+	.io_disable = rk_fb_io_disable,
+	.io_enable = rk_fb_io_enable,
+	.set_screen_info = set_lcd_info,
+};
+#endif
+
+static struct resource resource_fb[] = {
+	[0] = {
+		.name  = "fb0 buf",
+		.start = 0,
+		.end   = 0,//RK30_FB0_MEM_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.name  = "ipp buf",  //for rotate
+		.start = 0,
+		.end   = 0,//RK30_FB0_MEM_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device device_fb = {
+	.name		= "rk-fb",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(resource_fb),
+	.resource	= resource_fb,
+};
+#endif
+
 //i2c
 #ifdef CONFIG_I2C0_RK30
 static struct i2c_board_info __initdata i2c0_info[] = {
@@ -87,6 +138,9 @@ static struct spi_board_info board_spi_devices[] = {
 };
 
 static struct platform_device *devices[] __initdata = {
+#ifdef CONFIG_FB_ROCKCHIP
+	&device_fb,
+#endif
 };
 
 static void __init rk2928_board_init(void)
@@ -98,6 +152,10 @@ static void __init rk2928_board_init(void)
 
 static void __init rk2928_reserve(void)
 {
+#ifdef CONFIG_FB_ROCKCHIP
+	resource_fb[0].start = board_mem_reserve_add("fb0", RK2928_FB_MEM_SIZE);
+	resource_fb[0].end = resource_fb[0].start + RK2928_FB_MEM_SIZE - 1;
+#endif
 	board_mem_reserved();
 }
 
@@ -145,6 +203,10 @@ static struct clk_lookup clks[] = {
 	CLK("rk29_i2s.0", "i2s_frac_div", &xin24m),
 	CLK("rk29_i2s.0", "i2s", &xin24m),
 	CLK("rk29_i2s.0", "hclk_i2s", &xin24m),
+        CLK(NULL, "pd_lcdc0", &xin24m),
+        CLK(NULL, "hclk_lcdc0", &xin24m),
+        CLK(NULL, "aclk_lcdc0", &xin24m),
+        CLK(NULL, "dclk_lcdc0", &xin24m),
 };
 
 void __init rk30_clock_init(void)

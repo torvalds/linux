@@ -33,7 +33,11 @@ config LCDC1_RK30
         default y if HDMI_RK30
         help
            Support rk30 lcdc1 if you say y here
-
+config LCDC_RK2928
+	tristate "rk2928 lcdc support "
+        depends on FB_ROCKCHIP
+        help
+          Driver for rk2928 lcdc .
 config DUAL_DISP_IN_KERNEL
 	bool "implement dual display in kernel"
 	depends on FB_ROCKCHIP
