@@ -117,7 +117,7 @@ static void psb_intel_crtc_commit(struct drm_crtc *crtc)
 }
 
 static bool psb_intel_crtc_mode_fixup(struct drm_crtc *crtc,
-				  struct drm_display_mode *mode,
+				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
 	return true;

@@ -685,7 +685,7 @@ static int intel_hdmi_mode_valid(struct drm_connector *connector,
 }
 
 static bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
-				  struct drm_display_mode *mode,
+				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
 	return true;

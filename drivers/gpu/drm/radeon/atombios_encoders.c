@@ -58,7 +58,7 @@ static inline bool radeon_encoder_is_digital(struct drm_encoder *encoder)
 }
 
 static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
-				   struct drm_display_mode *mode,
+				   const struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
@@ -2234,7 +2234,7 @@ radeon_atom_ext_dpms(struct drm_encoder *encoder, int mode)
 }
 
 static bool radeon_atom_ext_mode_fixup(struct drm_encoder *encoder,
-				       struct drm_display_mode *mode,
+				       const struct drm_display_mode *mode,
 				       struct drm_display_mode *adjusted_mode)
 {
 	return true;

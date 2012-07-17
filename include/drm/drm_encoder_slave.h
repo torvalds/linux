@@ -54,7 +54,7 @@ struct drm_encoder_slave_funcs {
 	void (*save)(struct drm_encoder *encoder);
 	void (*restore)(struct drm_encoder *encoder);
 	bool (*mode_fixup)(struct drm_encoder *encoder,
-			   struct drm_display_mode *mode,
+			   const struct drm_display_mode *mode,
 			   struct drm_display_mode *adjusted_mode);
 	int (*mode_valid)(struct drm_encoder *encoder,
 			  struct drm_display_mode *mode);

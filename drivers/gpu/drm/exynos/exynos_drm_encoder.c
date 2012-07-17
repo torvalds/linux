@@ -108,7 +108,7 @@ static void exynos_drm_encoder_dpms(struct drm_encoder *encoder, int mode)
 
 static bool
 exynos_drm_encoder_mode_fixup(struct drm_encoder *encoder,
-			       struct drm_display_mode *mode,
+			       const struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;

@@ -1624,7 +1624,7 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 }
 
 static bool atombios_crtc_mode_fixup(struct drm_crtc *crtc,
-				     struct drm_display_mode *mode,
+				     const struct drm_display_mode *mode,
 				     struct drm_display_mode *adjusted_mode)
 {
 	if (!radeon_crtc_scaling_mode_fixup(crtc, mode, adjusted_mode))

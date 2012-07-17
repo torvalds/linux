@@ -251,7 +251,7 @@ static void udl_crtc_dpms(struct drm_crtc *crtc, int mode)
 }
 
 static bool udl_crtc_mode_fixup(struct drm_crtc *crtc,
-				  struct drm_display_mode *mode,
+				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 
 {

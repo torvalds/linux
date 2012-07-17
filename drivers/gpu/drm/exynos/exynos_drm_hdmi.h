@@ -51,7 +51,7 @@ struct exynos_hdmi_ops {
 
 	/* manager */
 	void (*mode_fixup)(void *ctx, struct drm_connector *connector,
-				struct drm_display_mode *mode,
+				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode);
 	void (*mode_set)(void *ctx, void *mode);
 	void (*get_max_resol)(void *ctx, unsigned int *width,

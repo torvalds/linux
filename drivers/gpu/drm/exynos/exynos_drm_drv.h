@@ -174,7 +174,7 @@ struct exynos_drm_manager_ops {
 	void (*apply)(struct device *subdrv_dev);
 	void (*mode_fixup)(struct device *subdrv_dev,
 				struct drm_connector *connector,
-				struct drm_display_mode *mode,
+				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode);
 	void (*mode_set)(struct device *subdrv_dev, void *mode);
 	void (*get_max_resol)(struct device *subdrv_dev, unsigned int *width,

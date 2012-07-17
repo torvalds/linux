@@ -608,7 +608,7 @@ int radeon_dp_get_panel_mode(struct drm_encoder *encoder,
 }
 
 void radeon_dp_set_link_config(struct drm_connector *connector,
-			       struct drm_display_mode *mode)
+			       const struct drm_display_mode *mode)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct radeon_connector_atom_dig *dig_connector;

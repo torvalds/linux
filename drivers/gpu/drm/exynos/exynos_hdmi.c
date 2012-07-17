@@ -1940,7 +1940,7 @@ static void hdmi_conf_apply(struct hdmi_context *hdata)
 }
 
 static void hdmi_mode_fixup(void *ctx, struct drm_connector *connector,
-				struct drm_display_mode *mode,
+				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
 	struct drm_display_mode *m;

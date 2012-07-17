@@ -935,7 +935,7 @@ static bool intel_sdvo_set_tv_format(struct intel_sdvo *intel_sdvo)
 
 static bool
 intel_sdvo_set_output_timings_from_mode(struct intel_sdvo *intel_sdvo,
-					struct drm_display_mode *mode)
+					const struct drm_display_mode *mode)
 {
 	struct intel_sdvo_dtd output_dtd;
 
@@ -954,7 +954,7 @@ intel_sdvo_set_output_timings_from_mode(struct intel_sdvo *intel_sdvo,
  * Unfortunately we have to set up the full output mode to do that. */
 static bool
 intel_sdvo_get_preferred_input_mode(struct intel_sdvo *intel_sdvo,
-				    struct drm_display_mode *mode,
+				    const struct drm_display_mode *mode,
 				    struct drm_display_mode *adjusted_mode)
 {
 	struct intel_sdvo_dtd input_dtd;
@@ -979,7 +979,7 @@ intel_sdvo_get_preferred_input_mode(struct intel_sdvo *intel_sdvo,
 }
 
 static bool intel_sdvo_mode_fixup(struct drm_encoder *encoder,
-				  struct drm_display_mode *mode,
+				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
 	struct intel_sdvo *intel_sdvo = to_intel_sdvo(encoder);
