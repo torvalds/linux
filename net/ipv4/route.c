@@ -1231,6 +1231,9 @@ static void rt_cache_route(struct fib_nh *nh, struct rtable *rt)
 {
 	struct rtable *orig, *prev, **p = &nh->nh_rth_output;
 
+	if (rt_is_input_route(rt))
+		p = &nh->nh_rth_input;
+
 	orig = *p;
 
 	prev = cmpxchg(p, orig, rt);
@@ -1239,6 +1242,11 @@ static void rt_cache_route(struct fib_nh *nh, struct rtable *rt)
 		if (orig)
 			call_rcu_bh(&orig->dst.rcu_head, rt_release_rcu);
 	}
+}
+
+static bool rt_cache_valid(struct rtable *rt)
+{
+	return (rt && rt->dst.obsolete == DST_OBSOLETE_FORCE_CHK);
 }
 
 static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
@@ -1257,8 +1265,7 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 #ifdef CONFIG_IP_ROUTE_CLASSID
 		rt->dst.tclassid = nh->nh_tclassid;
 #endif
-		if (!(rt->dst.flags & DST_HOST) &&
-		    rt_is_output_route(rt))
+		if (!(rt->dst.flags & DST_HOST))
 			rt_cache_route(nh, rt);
 	}
 
@@ -1384,11 +1391,11 @@ static int __mkroute_input(struct sk_buff *skb,
 			   __be32 daddr, __be32 saddr, u32 tos,
 			   struct rtable **result)
 {
-	struct fib_nh_exception *fnhe;
 	struct rtable *rth;
 	int err;
 	struct in_device *out_dev;
 	unsigned int flags = 0;
+	bool do_cache;
 	u32 itag;
 
 	/* get a working reference to the output device */
@@ -1431,13 +1438,21 @@ static int __mkroute_input(struct sk_buff *skb,
 		}
 	}
 
-	fnhe = NULL;
-	if (res->fi)
-		fnhe = find_exception(&FIB_RES_NH(*res), daddr);
+	do_cache = false;
+	if (res->fi) {
+		if (!(flags & RTCF_DIRECTSRC) && !itag) {
+			rth = FIB_RES_NH(*res).nh_rth_input;
+			if (rt_cache_valid(rth)) {
+				dst_use(&rth->dst, jiffies);
+				goto out;
+			}
+			do_cache = true;
+		}
+	}
 
 	rth = rt_dst_alloc(out_dev->dev,
 			   IN_DEV_CONF_GET(in_dev, NOPOLICY),
-			   IN_DEV_CONF_GET(out_dev, NOXFRM), false);
+			   IN_DEV_CONF_GET(out_dev, NOXFRM), do_cache);
 	if (!rth) {
 		err = -ENOBUFS;
 		goto cleanup;
@@ -1456,8 +1471,8 @@ static int __mkroute_input(struct sk_buff *skb,
 	rth->dst.input = ip_forward;
 	rth->dst.output = ip_output;
 
-	rt_set_nexthop(rth, daddr, res, fnhe, res->fi, res->type, itag);
-
+	rt_set_nexthop(rth, daddr, res, NULL, res->fi, res->type, itag);
+out:
 	*result = rth;
 	err = 0;
  cleanup:
@@ -1509,6 +1524,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	struct rtable	*rth;
 	int		err = -EINVAL;
 	struct net    *net = dev_net(dev);
+	bool do_cache;
 
 	/* IP on this device is disabled. */
 
@@ -1522,6 +1538,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	if (ipv4_is_multicast(saddr) || ipv4_is_lbcast(saddr))
 		goto martian_source;
 
+	res.fi = NULL;
 	if (ipv4_is_lbcast(daddr) || (saddr == 0 && daddr == 0))
 		goto brd_input;
 
@@ -1597,8 +1614,20 @@ brd_input:
 	RT_CACHE_STAT_INC(in_brd);
 
 local_input:
+	do_cache = false;
+	if (res.fi) {
+		if (!(flags & RTCF_DIRECTSRC) && !itag) {
+			rth = FIB_RES_NH(res).nh_rth_input;
+			if (rt_cache_valid(rth)) {
+				dst_use(&rth->dst, jiffies);
+				goto set_and_out;
+			}
+			do_cache = true;
+		}
+	}
+
 	rth = rt_dst_alloc(net->loopback_dev,
-			   IN_DEV_CONF_GET(in_dev, NOPOLICY), false, false);
+			   IN_DEV_CONF_GET(in_dev, NOPOLICY), false, do_cache);
 	if (!rth)
 		goto e_nobufs;
 
@@ -1622,6 +1651,9 @@ local_input:
 		rth->dst.error= -err;
 		rth->rt_flags 	&= ~RTCF_LOCAL;
 	}
+	if (do_cache)
+		rt_cache_route(&FIB_RES_NH(res), rth);
+set_and_out:
 	skb_dst_set(skb, &rth->dst);
 	err = 0;
 	goto out;
@@ -1756,8 +1788,7 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 		fnhe = find_exception(&FIB_RES_NH(*res), fl4->daddr);
 		if (!fnhe) {
 			rth = FIB_RES_NH(*res).nh_rth_output;
-			if (rth &&
-			    rth->dst.obsolete == DST_OBSOLETE_FORCE_CHK) {
+			if (rt_cache_valid(rth)) {
 				dst_use(&rth->dst, jiffies);
 				return rth;
 			}
