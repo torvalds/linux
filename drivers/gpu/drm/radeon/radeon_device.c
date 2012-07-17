@@ -721,6 +721,10 @@ int radeon_device_init(struct radeon_device *rdev,
 	rdev->usec_timeout = RADEON_MAX_USEC_TIMEOUT;
 	rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
 	rdev->accel_working = false;
+	/* set up ring ids */
+	for (i = 0; i < RADEON_NUM_RINGS; i++) {
+		rdev->ring[i].idx = i;
+	}
 
 	DRM_INFO("initializing kernel modesetting (%s 0x%04X:0x%04X 0x%04X:0x%04X).\n",
 		radeon_family_name[rdev->family], pdev->vendor, pdev->device,

@@ -207,21 +207,6 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 	ring->ring_free_dw--;
 }
 
-int radeon_ring_index(struct radeon_device *rdev, struct radeon_ring *ring)
-{
-	/* r1xx-r5xx only has CP ring */
-	if (rdev->family < CHIP_R600)
-		return RADEON_RING_TYPE_GFX_INDEX;
-
-	if (rdev->family >= CHIP_CAYMAN) {
-		if (ring == &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX])
-			return CAYMAN_RING_TYPE_CP1_INDEX;
-		else if (ring == &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX])
-			return CAYMAN_RING_TYPE_CP2_INDEX;
-	}
-	return RADEON_RING_TYPE_GFX_INDEX;
-}
-
 void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	u32 rptr;
@@ -253,7 +238,7 @@ int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *ring, unsi
 		if (ndw < ring->ring_free_dw) {
 			break;
 		}
-		r = radeon_fence_wait_next_locked(rdev, radeon_ring_index(rdev, ring));
+		r = radeon_fence_wait_next_locked(rdev, ring->idx);
 		if (r)
 			return r;
 	}
@@ -382,7 +367,6 @@ unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring
 			    uint32_t **data)
 {
 	unsigned size, ptr, i;
-	int ridx = radeon_ring_index(rdev, ring);
 
 	/* just in case lock the ring */
 	mutex_lock(&rdev->ring_lock);
@@ -394,7 +378,7 @@ unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring
 	}
 
 	/* it doesn't make sense to save anything if all fences are signaled */
-	if (!radeon_fence_count_emitted(rdev, ridx)) {
+	if (!radeon_fence_count_emitted(rdev, ring->idx)) {
 		mutex_unlock(&rdev->ring_lock);
 		return 0;
 	}

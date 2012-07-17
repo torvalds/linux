@@ -2198,7 +2198,7 @@ int r600_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	uint32_t scratch;
 	uint32_t tmp = 0;
-	unsigned i, ridx = radeon_ring_index(rdev, ring);
+	unsigned i;
 	int r;
 
 	r = radeon_scratch_get(rdev, &scratch);
@@ -2209,7 +2209,7 @@ int r600_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	WREG32(scratch, 0xCAFEDEAD);
 	r = radeon_ring_lock(rdev, ring, 3);
 	if (r) {
-		DRM_ERROR("radeon: cp failed to lock ring %d (%d).\n", ridx, r);
+		DRM_ERROR("radeon: cp failed to lock ring %d (%d).\n", ring->idx, r);
 		radeon_scratch_free(rdev, scratch);
 		return r;
 	}
@@ -2224,10 +2224,10 @@ int r600_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		DRM_UDELAY(1);
 	}
 	if (i < rdev->usec_timeout) {
-		DRM_INFO("ring test on %d succeeded in %d usecs\n", ridx, i);
+		DRM_INFO("ring test on %d succeeded in %d usecs\n", ring->idx, i);
 	} else {
 		DRM_ERROR("radeon: ring %d test failed (scratch(0x%04X)=0x%08X)\n",
-			  ridx, scratch, tmp);
+			  ring->idx, scratch, tmp);
 		r = -EINVAL;
 	}
 	radeon_scratch_free(rdev, scratch);
@@ -2602,7 +2602,6 @@ int r600_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	uint32_t tmp = 0;
 	unsigned i;
 	int r;
-	int ring_index = radeon_ring_index(rdev, ring);
 
 	r = radeon_scratch_get(rdev, &scratch);
 	if (r) {
@@ -2610,7 +2609,7 @@ int r600_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		return r;
 	}
 	WREG32(scratch, 0xCAFEDEAD);
-	r = radeon_ib_get(rdev, ring_index, &ib, 256);
+	r = radeon_ib_get(rdev, ring->idx, &ib, 256);
 	if (r) {
 		DRM_ERROR("radeon: failed to get ib (%d).\n", r);
 		return r;

@@ -638,6 +638,7 @@ struct radeon_ring {
 	u32			ptr_reg_shift;
 	u32			ptr_reg_mask;
 	u32			nop;
+	u32			idx;
 };
 
 /*
@@ -757,7 +758,6 @@ int radeon_ib_pool_init(struct radeon_device *rdev);
 void radeon_ib_pool_fini(struct radeon_device *rdev);
 int radeon_ib_ring_tests(struct radeon_device *rdev);
 /* Ring access between begin & end cannot sleep */
-int radeon_ring_index(struct radeon_device *rdev, struct radeon_ring *cp);
 void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_ring *cp);
 int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *cp, unsigned ndw);
 int radeon_ring_lock(struct radeon_device *rdev, struct radeon_ring *cp, unsigned ndw);
