@@ -472,7 +472,7 @@ static void ath_beacon_config_sta(struct ath_softc *sc,
 	int num_beacons, offset, dtim_dec_count, cfp_dec_count;
 
 	/* No need to configure beacon if we are not associated */
-	if (!common->curaid) {
+	if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags)) {
 		ath_dbg(common, BEACON,
 			"STA is not yet associated..skipping beacon config\n");
 		return;
