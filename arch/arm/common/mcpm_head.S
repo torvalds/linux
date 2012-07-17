@@ -7,10 +7,18 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
+ *
+ *
+ * Refer to Documentation/arm/cluster-pm-race-avoidance.txt
+ * for details of the synchronisation algorithms used here.
  */
 
 #include <linux/linkage.h>
 #include <asm/mcpm.h>
+
+.if MCPM_SYNC_CLUSTER_CPUS
+.error "cpus must be the first member of struct mcpm_sync_struct"
+.endif
 
 	.macro	pr_dbg	string
 #if defined(CONFIG_DEBUG_LL) && defined(DEBUG)
@@ -57,24 +65,114 @@ ENTRY(mcpm_entry_point)
 2:	pr_dbg	"kernel mcpm_entry_point\n"
 
 	/*
-	 * MMU is off so we need to get to mcpm_entry_vectors in a
+	 * MMU is off so we need to get to various variables in a
 	 * position independent way.
 	 */
 	adr	r5, 3f
-	ldr	r6, [r5]
+	ldmia	r5, {r6, r7, r8}
 	add	r6, r5, r6			@ r6 = mcpm_entry_vectors
+	ldr	r7, [r5, r7]			@ r7 = mcpm_power_up_setup_phys
+	add	r8, r5, r8			@ r8 = mcpm_sync
+
+	mov	r0, #MCPM_SYNC_CLUSTER_SIZE
+	mla	r8, r0, r10, r8			@ r8 = sync cluster base
+
+	@ Signal that this CPU is coming UP:
+	mov	r0, #CPU_COMING_UP
+	mov	r5, #MCPM_SYNC_CPU_SIZE
+	mla	r5, r9, r5, r8			@ r5 = sync cpu address
+	strb	r0, [r5]
+
+	@ At this point, the cluster cannot unexpectedly enter the GOING_DOWN
+	@ state, because there is at least one active CPU (this CPU).
+
+	@ Note: the following is racy as another CPU might be testing
+	@ the same flag at the same moment.  That'll be fixed later.
+	ldrb	r0, [r8, #MCPM_SYNC_CLUSTER_CLUSTER]
+	cmp	r0, #CLUSTER_UP			@ cluster already up?
+	bne	mcpm_setup			@ if not, set up the cluster
+
+	@ Otherwise, skip setup:
+	b	mcpm_setup_complete
+
+mcpm_setup:
+	@ Control dependency implies strb not observable before previous ldrb.
+
+	@ Signal that the cluster is being brought up:
+	mov	r0, #INBOUND_COMING_UP
+	strb	r0, [r8, #MCPM_SYNC_CLUSTER_INBOUND]
+	dmb
+
+	@ Any CPU trying to take the cluster into CLUSTER_GOING_DOWN from this
+	@ point onwards will observe INBOUND_COMING_UP and abort.
+
+	@ Wait for any previously-pending cluster teardown operations to abort
+	@ or complete:
+mcpm_teardown_wait:
+	ldrb	r0, [r8, #MCPM_SYNC_CLUSTER_CLUSTER]
+	cmp	r0, #CLUSTER_GOING_DOWN
+	bne	first_man_setup
+	wfe
+	b	mcpm_teardown_wait
+
+first_man_setup:
+	dmb
+
+	@ If the outbound gave up before teardown started, skip cluster setup:
+
+	cmp	r0, #CLUSTER_UP
+	beq	mcpm_setup_leave
+
+	@ power_up_setup is now responsible for setting up the cluster:
+
+	cmp	r7, #0
+	mov	r0, #1		@ second (cluster) affinity level
+	blxne	r7		@ Call power_up_setup if defined
+	dmb
+
+	mov	r0, #CLUSTER_UP
+	strb	r0, [r8, #MCPM_SYNC_CLUSTER_CLUSTER]
+	dmb
+
+mcpm_setup_leave:
+	@ Leave the cluster setup critical section:
+
+	mov	r0, #INBOUND_NOT_COMING_UP
+	strb	r0, [r8, #MCPM_SYNC_CLUSTER_INBOUND]
+	dsb
+	sev
+
+mcpm_setup_complete:
+	@ If a platform-specific CPU setup hook is needed, it is
+	@ called from here.
+
+	cmp	r7, #0
+	mov	r0, #0		@ first (CPU) affinity level
+	blxne	r7		@ Call power_up_setup if defined
+	dmb
+
+	@ Mark the CPU as up:
+
+	mov	r0, #CPU_UP
+	strb	r0, [r5]
+
+	@ Observability order of CPU_UP and opening of the gate does not matter.
 
 mcpm_entry_gated:
 	ldr	r5, [r6, r4, lsl #2]		@ r5 = CPU entry vector
 	cmp	r5, #0
 	wfeeq
 	beq	mcpm_entry_gated
+	dmb
+
 	pr_dbg	"released\n"
 	bx	r5
 
 	.align	2
 
 3:	.word	mcpm_entry_vectors - .
+	.word	mcpm_power_up_setup_phys - 3b
+	.word	mcpm_sync - 3b
 
 ENDPROC(mcpm_entry_point)
 
@@ -84,3 +182,7 @@ ENDPROC(mcpm_entry_point)
 	.type	mcpm_entry_vectors, #object
 ENTRY(mcpm_entry_vectors)
 	.space	4 * MAX_NR_CLUSTERS * MAX_CPUS_PER_CLUSTER
+
+	.type	mcpm_power_up_setup_phys, #object
+ENTRY(mcpm_power_up_setup_phys)
+	.space  4		@ set by mcpm_sync_init()
