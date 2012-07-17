@@ -751,7 +751,7 @@ int skb_copy_ubufs(struct sk_buff *skb, gfp_t gfp_mask)
 		u8 *vaddr;
 		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
 
-		page = alloc_page(GFP_ATOMIC);
+		page = alloc_page(gfp_mask);
 		if (!page) {
 			while (head) {
 				struct page *next = (struct page *)head->private;
@@ -769,15 +769,15 @@ int skb_copy_ubufs(struct sk_buff *skb, gfp_t gfp_mask)
 	}
 
 	/* skb frags release userspace buffers */
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
+	for (i = 0; i < num_frags; i++)
 		skb_frag_unref(skb, i);
 
 	uarg->callback(uarg);
 
 	/* skb frags point to kernel buffers */
-	for (i = skb_shinfo(skb)->nr_frags; i > 0; i--) {
-		__skb_fill_page_desc(skb, i-1, head, 0,
-				     skb_shinfo(skb)->frags[i - 1].size);
+	for (i = num_frags - 1; i >= 0; i--) {
+		__skb_fill_page_desc(skb, i, head, 0,
+				     skb_shinfo(skb)->frags[i].size);
 		head = (struct page *)head->private;
 	}
 
