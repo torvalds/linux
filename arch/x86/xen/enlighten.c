@@ -108,7 +108,7 @@ EXPORT_SYMBOL_GPL(xen_have_vector_callback);
  * Point at some empty memory to start with. We map the real shared_info
  * page as soon as fixmap is up and running.
  */
-struct shared_info *HYPERVISOR_shared_info = (void *)&xen_dummy_shared_info;
+struct shared_info *HYPERVISOR_shared_info = &xen_dummy_shared_info;
 
 /*
  * Flag to determine whether vcpu info placement is available on all
