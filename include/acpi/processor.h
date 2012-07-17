@@ -60,7 +60,6 @@ struct acpi_processor_cx {
 	u8 index;
 	u32 latency;
 	u32 power;
-	u32 usage;
 	u64 time;
 	u8 bm_sts_skip;
 	char desc[ACPI_CX_DESC_LEN];

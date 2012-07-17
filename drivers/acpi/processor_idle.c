@@ -760,7 +760,6 @@ static int acpi_idle_enter_c1(struct cpuidle_device *dev,
 	dev->last_residency = (int)idle_time;
 
 	local_irq_enable();
-	cx->usage++;
 	lapic_timer_state_broadcast(pr, cx, 0);
 
 	return index;
@@ -862,8 +861,6 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	local_irq_enable();
 	if (cx->entry_method != ACPI_CSTATE_FFH)
 		current_thread_info()->status |= TS_POLLING;
-
-	cx->usage++;
 
 	lapic_timer_state_broadcast(pr, cx, 0);
 	cx->time += idle_time;
@@ -983,8 +980,6 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 	local_irq_enable();
 	if (cx->entry_method != ACPI_CSTATE_FFH)
 		current_thread_info()->status |= TS_POLLING;
-
-	cx->usage++;
 
 	lapic_timer_state_broadcast(pr, cx, 0);
 	cx->time += idle_time;
