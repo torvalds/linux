@@ -2850,7 +2850,6 @@ static void con_shutdown(struct tty_struct *tty)
 	console_lock();
 	vc->port.tty = NULL;
 	console_unlock();
-	tty_shutdown(tty);
 }
 
 static int default_italic_color    = 2; // green (ASCII)

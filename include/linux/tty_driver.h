@@ -45,14 +45,9 @@
  *
  * void (*shutdown)(struct tty_struct * tty);
  *
- * 	This routine is called synchronously when a particular tty device
- *	is closed for the last time freeing up the resources.
- *	Note that tty_shutdown() is not called if ops->shutdown is defined.
- *	This means one is responsible to take care of calling ops->remove (e.g.
- *	via tty_driver_remove_tty) and releasing tty->termios.
- *	Note that this hook may be called from *all* the contexts where one
- *	uses tty refcounting (e.g. tty_port_tty_get).
- *
+ * 	This routine is called under the tty lock when a particular tty device
+ *	is closed for the last time. It executes before the tty resources
+ *	are freed so may execute while another function holds a tty kref.
  *
  * void (*cleanup)(struct tty_struct * tty);
  *

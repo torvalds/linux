@@ -1249,16 +1249,16 @@ int tty_init_termios(struct tty_struct *tty)
 	struct ktermios *tp;
 	int idx = tty->index;
 
-	tp = tty->driver->termios[idx];
-	if (tp == NULL) {
-		tp = kmalloc(sizeof(struct ktermios), GFP_KERNEL);
-		if (tp == NULL)
-			return -ENOMEM;
-		*tp = tty->driver->init_termios;
-		tty->driver->termios[idx] = tp;
+	if (tty->driver->flags & TTY_DRIVER_RESET_TERMIOS)
+		tty->termios = tty->driver->init_termios;
+	else {
+		/* Check for lazy saved data */
+		tp = tty->driver->termios[idx];
+		if (tp != NULL)
+			tty->termios = *tp;
+		else
+			tty->termios = tty->driver->init_termios;
 	}
-	tty->termios = *tp;
-
 	/* Compatibility until drivers always set this */
 	tty->termios.c_ispeed = tty_termios_input_baud_rate(&tty->termios);
 	tty->termios.c_ospeed = tty_termios_baud_rate(&tty->termios);
@@ -1437,24 +1437,24 @@ void tty_free_termios(struct tty_struct *tty)
 {
 	struct ktermios *tp;
 	int idx = tty->index;
-	/* Kill this flag and push into drivers for locking etc */
-	if (tty->driver->flags & TTY_DRIVER_RESET_TERMIOS) {
-		/* FIXME: Locking on ->termios array */
-		tp = tty->driver->termios[idx];
-		tty->driver->termios[idx] = NULL;
-		kfree(tp);
+
+	/* If the port is going to reset then it has no termios to save */
+	if (tty->driver->flags & TTY_DRIVER_RESET_TERMIOS)
+		return;
+
+	/* Stash the termios data */
+	tp = tty->driver->termios[idx];
+	if (tp == NULL) {
+		tp = kmalloc(sizeof(struct ktermios), GFP_KERNEL);
+		if (tp == NULL) {
+			pr_warn("tty: no memory to save termios state.\n");
+			return;
+		}
 	}
-	else
-		*tty->driver->termios[idx] = tty->termios;
+	*tp = tty->termios;
 }
 EXPORT_SYMBOL(tty_free_termios);
 
-void tty_shutdown(struct tty_struct *tty)
-{
-	tty_driver_remove_tty(tty->driver, tty);
-	tty_free_termios(tty);
-}
-EXPORT_SYMBOL(tty_shutdown);
 
 /**
  *	release_one_tty		-	release tty structure memory
@@ -1498,11 +1498,6 @@ static void queue_release_one_tty(struct kref *kref)
 {
 	struct tty_struct *tty = container_of(kref, struct tty_struct, kref);
 
-	if (tty->ops->shutdown)
-		tty->ops->shutdown(tty);
-	else
-		tty_shutdown(tty);
-
 	/* The hangup queue is now free so we can reuse it rather than
 	   waste a chunk of memory for each port */
 	INIT_WORK(&tty->hangup_work, release_one_tty);
@@ -1541,6 +1536,11 @@ static void release_tty(struct tty_struct *tty, int idx)
 {
 	/* This should always be true but check for the moment */
 	WARN_ON(tty->index != idx);
+
+	if (tty->ops->shutdown)
+		tty->ops->shutdown(tty);
+	tty_free_termios(tty);
+	tty_driver_remove_tty(tty->driver, tty);
 
 	if (tty->link)
 		tty_kref_put(tty->link);
