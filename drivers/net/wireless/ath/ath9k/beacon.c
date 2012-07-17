@@ -222,51 +222,43 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 	return bf;
 }
 
-int ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_vif *vif)
+void ath9k_beacon_assign_slot(struct ath_softc *sc, struct ieee80211_vif *vif)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_vif *avp;
-	struct ath_buf *bf;
-	struct sk_buff *skb;
-	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
-	__le64 tstamp;
+	struct ath_vif *avp = (void *)vif->drv_priv;
+	int slot;
 
-	avp = (void *)vif->drv_priv;
+	avp->av_bcbuf = list_first_entry(&sc->beacon.bbuf, struct ath_buf, list);
+	list_del(&avp->av_bcbuf->list);
 
-	/* Allocate a beacon descriptor if we haven't done so. */
-	if (!avp->av_bcbuf) {
-		/* Allocate beacon state for hostap/ibss.  We know
-		 * a buffer is available. */
-		avp->av_bcbuf = list_first_entry(&sc->beacon.bbuf,
-						 struct ath_buf, list);
-		list_del(&avp->av_bcbuf->list);
-
-		if (ath9k_uses_beacons(vif->type)) {
-			int slot;
-			/*
-			 * Assign the vif to a beacon xmit slot. As
-			 * above, this cannot fail to find one.
-			 */
-			avp->av_bslot = 0;
-			for (slot = 0; slot < ATH_BCBUF; slot++)
-				if (sc->beacon.bslot[slot] == NULL) {
-					avp->av_bslot = slot;
-					avp->is_bslot_active = false;
-
-					/* NB: keep looking for a double slot */
-					if (slot == 0 || !sc->beacon.bslot[slot-1])
-						break;
-				}
-			BUG_ON(sc->beacon.bslot[avp->av_bslot] != NULL);
-			sc->beacon.bslot[avp->av_bslot] = vif;
-			sc->nbcnvifs++;
+	for (slot = 0; slot < ATH_BCBUF; slot++) {
+		if (sc->beacon.bslot[slot] == NULL) {
+			avp->av_bslot = slot;
+			avp->is_bslot_active = false;
+			break;
 		}
 	}
 
-	/* release the previous beacon frame, if it already exists. */
-	bf = avp->av_bcbuf;
-	if (bf->bf_mpdu != NULL) {
-		skb = bf->bf_mpdu;
+	sc->beacon.bslot[avp->av_bslot] = vif;
+	sc->nbcnvifs++;
+
+	ath_dbg(common, CONFIG, "Added interface at beacon slot: %d\n",
+		avp->av_bslot);
+}
+
+void ath9k_beacon_remove_slot(struct ath_softc *sc, struct ieee80211_vif *vif)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_vif *avp = (void *)vif->drv_priv;
+	struct ath_buf *bf = avp->av_bcbuf;
+
+	ath_dbg(common, CONFIG, "Removing interface at beacon slot: %d\n",
+		avp->av_bslot);
+
+	tasklet_disable(&sc->bcon_tasklet);
+
+	if (bf && bf->bf_mpdu) {
+		struct sk_buff *skb = bf->bf_mpdu;
 		dma_unmap_single(sc->dev, bf->bf_buf_addr,
 				 skb->len, DMA_TO_DEVICE);
 		dev_kfree_skb_any(skb);
@@ -274,80 +266,13 @@ int ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_vif *vif)
 		bf->bf_buf_addr = 0;
 	}
 
-	/* NB: the beacon data buffer must be 32-bit aligned. */
-	skb = ieee80211_beacon_get(sc->hw, vif);
-	if (skb == NULL)
-		return -ENOMEM;
+	avp->av_bcbuf = NULL;
+	avp->is_bslot_active = false;
+	sc->beacon.bslot[avp->av_bslot] = NULL;
+	sc->nbcnvifs--;
+	list_add_tail(&bf->list, &sc->beacon.bbuf);
 
-	tstamp = ((struct ieee80211_mgmt *)skb->data)->u.beacon.timestamp;
-	sc->beacon.bc_tstamp = (u32) le64_to_cpu(tstamp);
-	/* Calculate a TSF adjustment factor required for staggered beacons. */
-	if (avp->av_bslot > 0) {
-		u64 tsfadjust;
-		int intval;
-
-		intval = cur_conf->beacon_interval ? : ATH_DEFAULT_BINTVAL;
-
-		/*
-		 * Calculate the TSF offset for this beacon slot, i.e., the
-		 * number of usecs that need to be added to the timestamp field
-		 * in Beacon and Probe Response frames. Beacon slot 0 is
-		 * processed at the correct offset, so it does not require TSF
-		 * adjustment. Other slots are adjusted to get the timestamp
-		 * close to the TBTT for the BSS.
-		 */
-		tsfadjust = TU_TO_USEC(intval * avp->av_bslot) / ATH_BCBUF;
-		avp->tsf_adjust = cpu_to_le64(tsfadjust);
-
-		ath_dbg(common, BEACON,
-			"stagger beacons, bslot %d intval %u tsfadjust %llu\n",
-			avp->av_bslot, intval, (unsigned long long)tsfadjust);
-
-		((struct ieee80211_mgmt *)skb->data)->u.beacon.timestamp =
-			avp->tsf_adjust;
-	} else
-		avp->tsf_adjust = cpu_to_le64(0);
-
-	bf->bf_mpdu = skb;
-	bf->bf_buf_addr = dma_map_single(sc->dev, skb->data,
-					 skb->len, DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(sc->dev, bf->bf_buf_addr))) {
-		dev_kfree_skb_any(skb);
-		bf->bf_mpdu = NULL;
-		bf->bf_buf_addr = 0;
-		ath_err(common, "dma_mapping_error on beacon alloc\n");
-		return -ENOMEM;
-	}
-	avp->is_bslot_active = true;
-
-	return 0;
-}
-
-void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp)
-{
-	if (avp->av_bcbuf != NULL) {
-		struct ath_buf *bf;
-
-		avp->is_bslot_active = false;
-		if (avp->av_bslot != -1) {
-			sc->beacon.bslot[avp->av_bslot] = NULL;
-			sc->nbcnvifs--;
-			avp->av_bslot = -1;
-		}
-
-		bf = avp->av_bcbuf;
-		if (bf->bf_mpdu != NULL) {
-			struct sk_buff *skb = bf->bf_mpdu;
-			dma_unmap_single(sc->dev, bf->bf_buf_addr,
-					 skb->len, DMA_TO_DEVICE);
-			dev_kfree_skb_any(skb);
-			bf->bf_mpdu = NULL;
-			bf->bf_buf_addr = 0;
-		}
-		list_add_tail(&bf->list, &sc->beacon.bbuf);
-
-		avp->av_bcbuf = NULL;
-	}
+	tasklet_enable(&sc->bcon_tasklet);
 }
 
 void ath_beacon_tasklet(unsigned long data)

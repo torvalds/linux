@@ -416,8 +416,8 @@ struct ath_beacon {
 
 void ath_beacon_tasklet(unsigned long data);
 void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif);
-int ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_vif *vif);
-void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp);
+void ath9k_beacon_assign_slot(struct ath_softc *sc, struct ieee80211_vif *vif);
+void ath9k_beacon_remove_slot(struct ath_softc *sc, struct ieee80211_vif *vif);
 int ath_beaconq_config(struct ath_softc *sc);
 void ath_set_beacon(struct ath_softc *sc);
 void ath9k_set_beaconing_status(struct ath_softc *sc, bool status);
