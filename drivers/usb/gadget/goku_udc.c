@@ -1836,7 +1836,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* init to known state, then setup irqs */
 	udc_reset(dev);
 	udc_reinit (dev);
-	if (request_irq(pdev->irq, goku_irq, IRQF_SHARED/*|IRQF_SAMPLE_RANDOM*/,
+	if (request_irq(pdev->irq, goku_irq, IRQF_SHARED,
 			driver_name, dev) != 0) {
 		DBG(dev, "request interrupt %d failed\n", pdev->irq);
 		retval = -EBUSY;
