@@ -457,22 +457,18 @@ static void atombios_crtc_program_ss(struct radeon_device *rdev,
 		switch (pll_id) {
 		case ATOM_PPLL1:
 			args.v3.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V3_P1PLL;
-			args.v3.usSpreadSpectrumAmount = cpu_to_le16(ss->amount);
-			args.v3.usSpreadSpectrumStep = cpu_to_le16(ss->step);
 			break;
 		case ATOM_PPLL2:
 			args.v3.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V3_P2PLL;
-			args.v3.usSpreadSpectrumAmount = cpu_to_le16(ss->amount);
-			args.v3.usSpreadSpectrumStep = cpu_to_le16(ss->step);
 			break;
 		case ATOM_DCPLL:
 			args.v3.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V3_DCPLL;
-			args.v3.usSpreadSpectrumAmount = cpu_to_le16(0);
-			args.v3.usSpreadSpectrumStep = cpu_to_le16(0);
 			break;
 		case ATOM_PPLL_INVALID:
 			return;
 		}
+		args.v3.usSpreadSpectrumAmount = cpu_to_le16(ss->amount);
+		args.v3.usSpreadSpectrumStep = cpu_to_le16(ss->step);
 		args.v3.ucEnable = enable;
 		if ((ss->percentage == 0) || (ss->type & ATOM_EXTERNAL_SS_MASK) || ASIC_IS_DCE61(rdev))
 			args.v3.ucEnable = ATOM_DISABLE;
@@ -482,22 +478,18 @@ static void atombios_crtc_program_ss(struct radeon_device *rdev,
 		switch (pll_id) {
 		case ATOM_PPLL1:
 			args.v2.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V2_P1PLL;
-			args.v2.usSpreadSpectrumAmount = cpu_to_le16(ss->amount);
-			args.v2.usSpreadSpectrumStep = cpu_to_le16(ss->step);
 			break;
 		case ATOM_PPLL2:
 			args.v2.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V2_P2PLL;
-			args.v2.usSpreadSpectrumAmount = cpu_to_le16(ss->amount);
-			args.v2.usSpreadSpectrumStep = cpu_to_le16(ss->step);
 			break;
 		case ATOM_DCPLL:
 			args.v2.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V2_DCPLL;
-			args.v2.usSpreadSpectrumAmount = cpu_to_le16(0);
-			args.v2.usSpreadSpectrumStep = cpu_to_le16(0);
 			break;
 		case ATOM_PPLL_INVALID:
 			return;
 		}
+		args.v2.usSpreadSpectrumAmount = cpu_to_le16(ss->amount);
+		args.v2.usSpreadSpectrumStep = cpu_to_le16(ss->step);
 		args.v2.ucEnable = enable;
 		if ((ss->percentage == 0) || (ss->type & ATOM_EXTERNAL_SS_MASK) || ASIC_IS_DCE41(rdev))
 			args.v2.ucEnable = ATOM_DISABLE;
