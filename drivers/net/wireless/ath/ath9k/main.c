@@ -924,11 +924,9 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 
 	if (iter_data.naps > 0) {
 		ath9k_hw_set_tsfadjust(ah, true);
-		set_bit(SC_OP_TSF_RESET, &sc->sc_flags);
 		ah->opmode = NL80211_IFTYPE_AP;
 	} else {
 		ath9k_hw_set_tsfadjust(ah, false);
-		clear_bit(SC_OP_TSF_RESET, &sc->sc_flags);
 
 		if (iter_data.nmeshes)
 			ah->opmode = NL80211_IFTYPE_MESH_POINT;
@@ -940,25 +938,14 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 			ah->opmode = NL80211_IFTYPE_STATION;
 	}
 
+	ath9k_hw_setopmode(ah);
+
 	if ((iter_data.nstations + iter_data.nadhocs + iter_data.nmeshes) > 0)
 		ah->imask |= ATH9K_INT_TSFOOR;
 	else
 		ah->imask &= ~ATH9K_INT_TSFOOR;
 
 	ath9k_hw_set_interrupts(ah);
-
-	if (iter_data.naps > 0) {
-		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
-
-		if (!common->disable_ani) {
-			set_bit(SC_OP_ANI_RUN, &sc->sc_flags);
-			ath_start_ani(common);
-		}
-
-	} else {
-		clear_bit(SC_OP_ANI_RUN, &sc->sc_flags);
-		del_timer_sync(&common->ani.timer);
-	}
 }
 
 static int ath9k_add_interface(struct ieee80211_hw *hw,
