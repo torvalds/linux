@@ -809,13 +809,15 @@ static irqreturn_t smb347_interrupt(int irq, void *data)
 	}
 
 	/*
-	 * If we reached the termination current the battery is charged and
-	 * we can update the status now. Charging is automatically
-	 * disabled by the hardware.
+	 * If we reached the termination current the battery is charged.
+	 * Disable charging to ACK the interrupt and update status.
 	 */
 	if (irqstat_c & (IRQSTAT_C_TERMINATION_IRQ | IRQSTAT_C_TAPER_IRQ)) {
-		if (irqstat_c & IRQSTAT_C_TERMINATION_STAT)
+		if (irqstat_c & IRQSTAT_C_TERMINATION_STAT) {
+			smb347_charging_disable(smb);
 			power_supply_changed(&smb->battery);
+		}
+
 		ret = IRQ_HANDLED;
 	}
 
