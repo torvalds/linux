@@ -4,7 +4,7 @@
 
 / {
 	model = "Seagate GoFlex Net";
-	compatible = "seagate,goflexnet", "mrvl,kirkwood-88f6281", "mrvl,kirkwood";
+	compatible = "seagate,goflexnet", "marvell,kirkwood-88f6281", "marvell,kirkwood";
 
 	memory {
 		device_type = "memory";

@@ -2,7 +2,7 @@
 
 / {
 	model = "D-Link DNS NASes (kirkwood-based)";
-	compatible = "dlink,dns-kirkwood", "mrvl,kirkwood-88f6281", "mrvl,kirkwood";
+	compatible = "dlink,dns-kirkwood", "marvell,kirkwood-88f6281", "marvell,kirkwood";
 
 	gpio_keys {
 		compatible = "gpio-keys";

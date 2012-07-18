@@ -4,7 +4,7 @@
 
 / {
 	model = "Buffalo Linkstation LS-XHL";
-	compatible = "buffalo,lsxhl", "buffalo,lsxl", "mrvl,kirkwood-88f6281", "mrvl,kirkwood";
+	compatible = "buffalo,lsxhl", "buffalo,lsxl", "marvell,kirkwood-88f6281", "marvell,kirkwood";
 
 	memory {
 		device_type = "memory";

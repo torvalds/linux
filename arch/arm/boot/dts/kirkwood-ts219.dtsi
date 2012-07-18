@@ -2,7 +2,7 @@
 
 / {
 	model = "QNAP TS219 family";
-	compatible = "qnap,ts219", "mrvl,kirkwood";
+	compatible = "qnap,ts219", "marvell,kirkwood";
 
 	memory {
 		device_type = "memory";
