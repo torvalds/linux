@@ -75,6 +75,7 @@
 #include <linux/cpumask.h>
 #include <linux/cpu.h>
 #include <linux/vmalloc.h>
+#include <linux/hardirq.h>
 
 #include "zsmalloc.h"
 #include "zsmalloc_int.h"
@@ -760,6 +761,13 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
 	struct mapping_area *area;
 
 	BUG_ON(!handle);
+
+	/*
+	 * Because we use per-cpu mapping areas shared among the
+	 * pools/users, we can't allow mapping in interrupt context
+	 * because it can corrupt another users mappings.
+	 */
+	BUG_ON(in_interrupt());
 
 	obj_handle_to_location(handle, &page, &obj_idx);
 	get_zspage_mapping(get_first_page(page), &class_idx, &fg);
