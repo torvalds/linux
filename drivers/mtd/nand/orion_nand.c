@@ -183,6 +183,10 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	return 0;
 
 no_dev:
+	if (!IS_ERR(clk)) {
+		clk_disable_unprepare(clk);
+		clk_put(clk);
+	}
 	platform_set_drvdata(pdev, NULL);
 	iounmap(io_base);
 no_res:
