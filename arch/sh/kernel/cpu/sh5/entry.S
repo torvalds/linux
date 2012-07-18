@@ -1569,86 +1569,6 @@ ___clear_user_exit:
 #endif /* CONFIG_MMU */
 
 /*
- * int __strncpy_from_user(unsigned long __dest, unsigned long __src,
- *			   int __count)
- *
- * Inputs:
- * (r2)  target address
- * (r3)  source address
- * (r4)  maximum size in bytes
- *
- * Ouputs:
- * (*r2) copied data
- * (r2)  -EFAULT (in case of faulting)
- *       copied data (otherwise)
- */
-	.global	__strncpy_from_user
-__strncpy_from_user:
-	pta	___strncpy_from_user1, tr0
-	pta	___strncpy_from_user_done, tr1
-	or	r4, ZERO, r5		/* r5 = original count */
-	beq/u	r4, r63, tr1		/* early exit if r4==0 */
-	movi	-(EFAULT), r6		/* r6 = reply, no real fixup */
-	or	ZERO, ZERO, r7		/* r7 = data, clear top byte of data */
-
-___strncpy_from_user1:
-	ld.b	r3, 0, r7		/* Fault address: only in reading */
-	st.b	r2, 0, r7
-	addi	r2, 1, r2
-	addi	r3, 1, r3
-	beq/u	ZERO, r7, tr1
-	addi	r4, -1, r4		/* return real number of copied bytes */
-	bne/l	ZERO, r4, tr0
-
-___strncpy_from_user_done:
-	sub	r5, r4, r6		/* If done, return copied */
-
-___strncpy_from_user_exit:
-	or	r6, ZERO, r2
-	ptabs	LINK, tr0
-	blink	tr0, ZERO
-
-/*
- * extern long __strnlen_user(const char *__s, long __n)
- *
- * Inputs:
- * (r2)  source address
- * (r3)  source size in bytes
- *
- * Ouputs:
- * (r2)  -EFAULT (in case of faulting)
- *       string length (otherwise)
- */
-	.global	__strnlen_user
-__strnlen_user:
-	pta	___strnlen_user_set_reply, tr0
-	pta	___strnlen_user1, tr1
-	or	ZERO, ZERO, r5		/* r5 = counter */
-	movi	-(EFAULT), r6		/* r6 = reply, no real fixup */
-	or	ZERO, ZERO, r7		/* r7 = data, clear top byte of data */
-	beq	r3, ZERO, tr0
-
-___strnlen_user1:
-	ldx.b	r2, r5, r7		/* Fault address: only in reading */
-	addi	r3, -1, r3		/* No real fixup */
-	addi	r5, 1, r5
-	beq	r3, ZERO, tr0
-	bne	r7, ZERO, tr1
-! The line below used to be active.  This meant led to a junk byte lying between each pair
-! of entries in the argv & envp structures in memory.  Whilst the program saw the right data
-! via the argv and envp arguments to main, it meant the 'flat' representation visible through
-! /proc/$pid/cmdline was corrupt, causing trouble with ps, for example.
-!	addi	r5, 1, r5		/* Include '\0' */
-
-___strnlen_user_set_reply:
-	or	r5, ZERO, r6		/* If done, return counter */
-
-___strnlen_user_exit:
-	or	r6, ZERO, r2
-	ptabs	LINK, tr0
-	blink	tr0, ZERO
-
-/*
  * extern long __get_user_asm_?(void *val, long addr)
  *
  * Inputs:
@@ -1982,8 +1902,6 @@ asm_uaccess_start:
 	.long	___copy_user2, ___copy_user_exit
 	.long	___clear_user1, ___clear_user_exit
 #endif
-	.long	___strncpy_from_user1, ___strncpy_from_user_exit
-	.long	___strnlen_user1, ___strnlen_user_exit
 	.long	___get_user_asm_b1, ___get_user_asm_b_exit
 	.long	___get_user_asm_w1, ___get_user_asm_w_exit
 	.long	___get_user_asm_l1, ___get_user_asm_l_exit

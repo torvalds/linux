@@ -1075,7 +1075,7 @@ void dsi_runtime_put(struct platform_device *dsidev)
 	DSSDBG("dsi_runtime_put\n");
 
 	r = pm_runtime_put_sync(&dsi->pdev->dev);
-	WARN_ON(r < 0);
+	WARN_ON(r < 0 && r != -ENOSYS);
 }
 
 /* source clock for DSI PLL. this could also be PCLKFREE */
@@ -3724,7 +3724,7 @@ static int dsi_compute_interleave_lp(int blank, int enter_hs, int exit_hs,
 	/* CLKIN4DDR = 16 * TXBYTECLKHS */
 	tlp_avail = thsbyte_clk * (blank - trans_lp);
 
-	ttxclkesc = tdsi_fclk / lp_clk_div;
+	ttxclkesc = tdsi_fclk * lp_clk_div;
 
 	lp_inter = ((tlp_avail - 8 * thsbyte_clk - 5 * tdsi_fclk) / ttxclkesc -
 			26) / 16;

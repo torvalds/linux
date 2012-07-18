@@ -122,10 +122,6 @@ static const char *cko1_sels[]	= { "pll3_usb_otg", "pll2_bus", "pll1_sys", "pll5
 				    "dummy", "axi", "enfc", "ipu1_di0", "ipu1_di1", "ipu2_di0",
 				    "ipu2_di1", "ahb", "ipg", "ipg_per", "ckil", "pll4_audio", };
 
-static const char * const clks_init_on[] __initconst = {
-	"mmdc_ch0_axi", "mmdc_ch1_axi", "usboh3",
-};
-
 enum mx6q_clks {
 	dummy, ckil, ckih, osc, pll2_pfd0_352m, pll2_pfd1_594m, pll2_pfd2_396m,
 	pll3_pfd0_720m, pll3_pfd1_540m, pll3_pfd2_508m, pll3_pfd3_454m,
@@ -156,16 +152,20 @@ enum mx6q_clks {
 	ssi2, ssi3, uart_ipg, uart_serial, usboh3, usdhc1, usdhc2, usdhc3,
 	usdhc4, vdo_axi, vpu_axi, cko1, pll1_sys, pll2_bus, pll3_usb_otg,
 	pll4_audio, pll5_video, pll6_mlb, pll7_usb_host, pll8_enet, ssi1_ipg,
-	ssi2_ipg, ssi3_ipg, clk_max
+	ssi2_ipg, ssi3_ipg, rom,
+	clk_max
 };
 
 static struct clk *clk[clk_max];
+
+static enum mx6q_clks const clks_init_on[] __initconst = {
+	mmdc_ch0_axi, rom,
+};
 
 int __init mx6q_clocks_init(void)
 {
 	struct device_node *np;
 	void __iomem *base;
-	struct clk *c;
 	int i, irq;
 
 	clk[dummy] = imx_clk_fixed("dummy", 0);
@@ -365,6 +365,7 @@ int __init mx6q_clocks_init(void)
 	clk[gpmi_bch]     = imx_clk_gate2("gpmi_bch",      "usdhc4",            base + 0x78, 26);
 	clk[gpmi_io]      = imx_clk_gate2("gpmi_io",       "enfc",              base + 0x78, 28);
 	clk[gpmi_apb]     = imx_clk_gate2("gpmi_apb",      "usdhc3",            base + 0x78, 30);
+	clk[rom]          = imx_clk_gate2("rom",           "ahb",               base + 0x7c, 0);
 	clk[sata]         = imx_clk_gate2("sata",          "ipg",               base + 0x7c, 4);
 	clk[sdma]         = imx_clk_gate2("sdma",          "ahb",               base + 0x7c, 6);
 	clk[spba]         = imx_clk_gate2("spba",          "ipg",               base + 0x7c, 12);
@@ -424,21 +425,14 @@ int __init mx6q_clocks_init(void)
 	clk_register_clkdev(clk[ahb], "ahb", NULL);
 	clk_register_clkdev(clk[cko1], "cko1", NULL);
 
-	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++) {
-		c = clk_get_sys(clks_init_on[i], NULL);
-		if (IS_ERR(c)) {
-			pr_err("%s: failed to get clk %s", __func__,
-			       clks_init_on[i]);
-			return PTR_ERR(c);
-		}
-		clk_prepare_enable(c);
-	}
+	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
+		clk_prepare_enable(clk[clks_init_on[i]]);
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-gpt");
 	base = of_iomap(np, 0);
 	WARN_ON(!base);
 	irq = irq_of_parse_and_map(np, 0);
-	mxc_timer_init(NULL, base, irq);
+	mxc_timer_init(base, irq);
 
 	return 0;
 }

@@ -1867,6 +1867,7 @@ static int nfs23_validate_mount_data(void *options,
 	if (data == NULL)
 		goto out_no_data;
 
+	args->version = NFS_DEFAULT_VERSION;
 	switch (data->version) {
 	case 1:
 		data->namlen = 0;
@@ -2637,6 +2638,8 @@ static int nfs4_validate_mount_data(void *options,
 	if (data == NULL)
 		goto out_no_data;
 
+	args->version = 4;
+
 	switch (data->version) {
 	case 1:
 		if (data->host_addrlen > sizeof(args->nfs_server.address))
@@ -2856,6 +2859,8 @@ static struct dentry *nfs4_try_mount(int flags, const char *dev_name,
 	struct nfs_parsed_mount_data *data = mount_info->parsed;
 
 	dfprintk(MOUNT, "--> nfs4_try_mount()\n");
+
+	mount_info->fill_super = nfs4_fill_super;
 
 	export_path = data->nfs_server.export_path;
 	data->nfs_server.export_path = "/";

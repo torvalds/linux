@@ -125,6 +125,7 @@ static int __devinit gpio_extcon_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_request_irq;
 
+	platform_set_drvdata(pdev, extcon_data);
 	/* Perform initial detection */
 	gpio_extcon_work(&extcon_data->work.work);
 
@@ -146,6 +147,7 @@ static int __devexit gpio_extcon_remove(struct platform_device *pdev)
 	struct gpio_extcon_data *extcon_data = platform_get_drvdata(pdev);
 
 	cancel_delayed_work_sync(&extcon_data->work);
+	free_irq(extcon_data->irq, extcon_data);
 	gpio_free(extcon_data->gpio);
 	extcon_dev_unregister(&extcon_data->edev);
 	devm_kfree(&pdev->dev, extcon_data);

@@ -651,7 +651,7 @@ static int nfs_read_done(struct rpc_task *task, struct nfs_read_data *data)
 		/* Emulate the eof flag, which isn't normally needed in NFSv2
 		 * as it is guaranteed to always return the file attributes
 		 */
-		if (data->args.offset + data->args.count >= data->res.fattr->size)
+		if (data->args.offset + data->res.count >= data->res.fattr->size)
 			data->res.eof = 1;
 	}
 	return 0;

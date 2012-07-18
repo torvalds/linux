@@ -334,6 +334,11 @@ static int assigned_device_enable_host_intx(struct kvm *kvm,
 }
 
 #ifdef __KVM_HAVE_MSI
+static irqreturn_t kvm_assigned_dev_msi(int irq, void *dev_id)
+{
+	return IRQ_WAKE_THREAD;
+}
+
 static int assigned_device_enable_host_msi(struct kvm *kvm,
 					   struct kvm_assigned_dev_kernel *dev)
 {
@@ -346,7 +351,7 @@ static int assigned_device_enable_host_msi(struct kvm *kvm,
 	}
 
 	dev->host_irq = dev->dev->irq;
-	if (request_threaded_irq(dev->host_irq, NULL,
+	if (request_threaded_irq(dev->host_irq, kvm_assigned_dev_msi,
 				 kvm_assigned_dev_thread_msi, 0,
 				 dev->irq_name, dev)) {
 		pci_disable_msi(dev->dev);
@@ -358,6 +363,11 @@ static int assigned_device_enable_host_msi(struct kvm *kvm,
 #endif
 
 #ifdef __KVM_HAVE_MSIX
+static irqreturn_t kvm_assigned_dev_msix(int irq, void *dev_id)
+{
+	return IRQ_WAKE_THREAD;
+}
+
 static int assigned_device_enable_host_msix(struct kvm *kvm,
 					    struct kvm_assigned_dev_kernel *dev)
 {
@@ -374,7 +384,8 @@ static int assigned_device_enable_host_msix(struct kvm *kvm,
 
 	for (i = 0; i < dev->entries_nr; i++) {
 		r = request_threaded_irq(dev->host_msix_entries[i].vector,
-					 NULL, kvm_assigned_dev_thread_msix,
+					 kvm_assigned_dev_msix,
+					 kvm_assigned_dev_thread_msix,
 					 0, dev->irq_name, dev);
 		if (r)
 			goto err;
@@ -635,7 +646,6 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 	int r = 0, idx;
 	struct kvm_assigned_dev_kernel *match;
 	struct pci_dev *dev;
-	u8 header_type;
 
 	if (!(assigned_dev->flags & KVM_DEV_ASSIGN_ENABLE_IOMMU))
 		return -EINVAL;
@@ -668,8 +678,7 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 	}
 
 	/* Don't allow bridges to be assigned */
-	pci_read_config_byte(dev, PCI_HEADER_TYPE, &header_type);
-	if ((header_type & PCI_HEADER_TYPE) != PCI_HEADER_TYPE_NORMAL) {
+	if (dev->hdr_type != PCI_HEADER_TYPE_NORMAL) {
 		r = -EPERM;
 		goto out_put;
 	}

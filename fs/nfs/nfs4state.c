@@ -244,6 +244,16 @@ static int nfs4_begin_drain_session(struct nfs_client *clp)
 	return nfs4_wait_on_slot_tbl(&ses->fc_slot_table);
 }
 
+static void nfs41_finish_session_reset(struct nfs_client *clp)
+{
+	clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
+	clear_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
+	/* create_session negotiated new slot table */
+	clear_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state);
+	clear_bit(NFS4CLNT_BIND_CONN_TO_SESSION, &clp->cl_state);
+	nfs41_setup_state_renewal(clp);
+}
+
 int nfs41_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
 {
 	int status;
@@ -259,8 +269,7 @@ do_confirm:
 	status = nfs4_proc_create_session(clp, cred);
 	if (status != 0)
 		goto out;
-	clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
-	nfs41_setup_state_renewal(clp);
+	nfs41_finish_session_reset(clp);
 	nfs_mark_client_ready(clp, NFS_CS_READY);
 out:
 	return status;
@@ -1772,16 +1781,9 @@ static int nfs4_reset_session(struct nfs_client *clp)
 		status = nfs4_handle_reclaim_lease_error(clp, status);
 		goto out;
 	}
-	clear_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
-	/* create_session negotiated new slot table */
-	clear_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state);
-	clear_bit(NFS4CLNT_BIND_CONN_TO_SESSION, &clp->cl_state);
+	nfs41_finish_session_reset(clp);
 	dprintk("%s: session reset was successful for server %s!\n",
 			__func__, clp->cl_hostname);
-
-	 /* Let the state manager reestablish state */
-	if (!test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
-		nfs41_setup_state_renewal(clp);
 out:
 	if (cred)
 		put_rpccred(cred);

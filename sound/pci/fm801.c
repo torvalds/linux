@@ -1254,7 +1254,7 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 	sprintf(chip->tea.bus_info, "PCI:%s", pci_name(pci));
 	if ((tea575x_tuner & TUNER_TYPE_MASK) > 0 &&
 	    (tea575x_tuner & TUNER_TYPE_MASK) < 4) {
-		if (snd_tea575x_init(&chip->tea)) {
+		if (snd_tea575x_init(&chip->tea, THIS_MODULE)) {
 			snd_printk(KERN_ERR "TEA575x radio not found\n");
 			snd_fm801_free(chip);
 			return -ENODEV;
@@ -1263,7 +1263,7 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 		/* autodetect tuner connection */
 		for (tea575x_tuner = 1; tea575x_tuner <= 3; tea575x_tuner++) {
 			chip->tea575x_tuner = tea575x_tuner;
-			if (!snd_tea575x_init(&chip->tea)) {
+			if (!snd_tea575x_init(&chip->tea, THIS_MODULE)) {
 				snd_printk(KERN_INFO "detected TEA575x radio type %s\n",
 					   get_tea575x_gpio(chip)->name);
 				break;

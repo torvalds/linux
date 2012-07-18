@@ -25,6 +25,7 @@ struct nfs41_impl_id;
  */
 struct nfs_client {
 	atomic_t		cl_count;
+	atomic_t		cl_mds_count;
 	int			cl_cons_state;	/* current construction state (-ve: init error) */
 #define NFS_CS_READY		0		/* ready to be used */
 #define NFS_CS_INITING		1		/* busy initialising */
