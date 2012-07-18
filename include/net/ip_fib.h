@@ -51,7 +51,7 @@ struct fib_nh_exception {
 	struct fib_nh_exception __rcu	*fnhe_next;
 	__be32				fnhe_daddr;
 	u32				fnhe_pmtu;
-	u32				fnhe_gw;
+	__be32				fnhe_gw;
 	unsigned long			fnhe_expires;
 	unsigned long			fnhe_stamp;
 };
