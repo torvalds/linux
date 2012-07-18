@@ -972,6 +972,16 @@ static int ican3_handle_cevtind(struct ican3_dev *mod, struct ican3_msg *msg)
 			stats->rx_errors++;
 		}
 
+		/*
+		 * The controller automatically disables bus-error interrupts
+		 * and therefore we must re-enable them.
+		 */
+		ret = ican3_set_buserror(mod, 1);
+		if (ret) {
+			dev_err(mod->dev, "unable to re-enable bus-error\n");
+			return ret;
+		}
+
 		/* bus error reporting is off, return immediately */
 		if (!(mod->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING))
 			return 0;
@@ -1451,7 +1461,7 @@ static int __devinit ican3_startup_module(struct ican3_dev *mod)
 	}
 
 	/* default to "bus errors enabled" */
-	ret = ican3_set_buserror(mod, ICAN3_BUSERR_QUOTA_MAX);
+	ret = ican3_set_buserror(mod, 1);
 	if (ret) {
 		dev_err(mod->dev, "unable to set bus-error\n");
 		return ret;
