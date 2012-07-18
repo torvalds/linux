@@ -112,8 +112,8 @@ static int get_context_size(struct drm_device *dev)
 		ret = GEN6_CXT_TOTAL_SIZE(reg) * 64;
 		break;
 	case 7:
-		reg = I915_READ(GEN7_CTX_SIZE);
-		ret = GEN7_CTX_TOTAL_SIZE(reg) * 64;
+		reg = I915_READ(GEN7_CXT_SIZE);
+		ret = GEN7_CXT_TOTAL_SIZE(reg) * 64;
 		break;
 	default:
 		BUG();
