@@ -1,3 +1,13 @@
+Release Date    : Tue. Jun 17, 2012 17:00:00 PST 2012 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford/Kashyap Desai
+Current Version : 00.00.06.18-rc1
+Old Version     : 00.00.06.15-rc1
+    1. Fix Copyright dates.
+    2. Add throttlequeuedepth module parameter.
+    3. Add resetwaittime module parameter.
+    4. Move poll_aen_lock initializer.
+-------------------------------------------------------------------------------
 Release Date    : Mon. Mar 19, 2012 17:00:00 PST 2012 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Adam Radford
