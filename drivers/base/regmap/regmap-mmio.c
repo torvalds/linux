@@ -172,7 +172,7 @@ static struct regmap_mmio_context *regmap_mmio_gen_context(void __iomem *regs,
 		return ERR_PTR(-EINVAL);
 	}
 
-	ctx = kzalloc(GFP_KERNEL, sizeof(*ctx));
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
