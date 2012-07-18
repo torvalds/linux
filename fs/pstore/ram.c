@@ -32,6 +32,7 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/compiler.h>
 #include <linux/pstore_ram.h>
 
 #define RAMOOPS_KERNMSG_HDR "===="
@@ -181,12 +182,11 @@ static size_t ramoops_write_kmsg_hdr(struct persistent_ram_zone *prz)
 	return len;
 }
 
-
-static int ramoops_pstore_write_buf(enum pstore_type_id type,
-				    enum kmsg_dump_reason reason,
-				    u64 *id, unsigned int part,
-				    const char *buf, size_t size,
-				    struct pstore_info *psi)
+static int notrace ramoops_pstore_write_buf(enum pstore_type_id type,
+					    enum kmsg_dump_reason reason,
+					    u64 *id, unsigned int part,
+					    const char *buf, size_t size,
+					    struct pstore_info *psi)
 {
 	struct ramoops_context *cxt = psi->data;
 	struct persistent_ram_zone *prz = cxt->przs[cxt->dump_write_cnt];
