@@ -377,6 +377,7 @@ static int add_tracepoint(struct list_head **list, int *idx,
 	attr.sample_type |= PERF_SAMPLE_RAW;
 	attr.sample_type |= PERF_SAMPLE_TIME;
 	attr.sample_type |= PERF_SAMPLE_CPU;
+	attr.sample_type |= PERF_SAMPLE_PERIOD;
 	attr.sample_period = 1;
 
 	snprintf(name, MAX_NAME_LEN, "%s:%s", sys_name, evt_name);
