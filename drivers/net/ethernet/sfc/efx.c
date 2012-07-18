@@ -734,6 +734,7 @@ static void efx_remove_channel(struct efx_channel *channel)
 	efx_for_each_possible_channel_tx_queue(tx_queue, channel)
 		efx_remove_tx_queue(tx_queue);
 	efx_remove_eventq(channel);
+	channel->type->post_remove(channel);
 }
 
 static void efx_remove_channels(struct efx_nic *efx)
@@ -852,6 +853,7 @@ void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue)
 
 static const struct efx_channel_type efx_default_channel_type = {
 	.pre_probe		= efx_channel_dummy_op_int,
+	.post_remove		= efx_channel_dummy_op_void,
 	.get_name		= efx_get_channel_name,
 	.copy			= efx_copy_channel,
 	.keep_eventq		= false,
@@ -860,6 +862,10 @@ static const struct efx_channel_type efx_default_channel_type = {
 int efx_channel_dummy_op_int(struct efx_channel *channel)
 {
 	return 0;
+}
+
+void efx_channel_dummy_op_void(struct efx_channel *channel)
+{
 }
 
 /**************************************************************************
