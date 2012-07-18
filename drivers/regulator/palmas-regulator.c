@@ -486,9 +486,12 @@ static int palmas_map_voltage_ldo(struct regulator_dev *rdev,
 {
 	int ret, voltage;
 
-	ret = ((min_uV - 900000) / 50000) + 1;
-	if (ret < 0)
-		return ret;
+	if (min_uV == 0)
+		return 0;
+
+	if (min_uV < 900000)
+		min_uV = 900000;
+	ret = DIV_ROUND_UP(min_uV - 900000, 50000) + 1;
 
 	/* Map back into a voltage to verify we're still in bounds */
 	voltage = palmas_list_voltage_ldo(rdev, ret);
