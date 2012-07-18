@@ -371,7 +371,8 @@ char * __init xen_memory_setup(void)
 	populated = xen_populate_chunk(map, memmap.nr_entries,
 			max_pfn, &last_pfn, xen_released_pages);
 
-	extra_pages += (xen_released_pages - populated);
+	xen_released_pages -= populated;
+	extra_pages += xen_released_pages;
 
 	if (last_pfn > max_pfn) {
 		max_pfn = min(MAX_DOMAIN_PAGES, last_pfn);

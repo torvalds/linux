@@ -66,9 +66,10 @@ BEGIN {
 	rex_expr = "^REX(\\.[XRWB]+)*"
 	fpu_expr = "^ESC" # TODO
 
-	lprefix1_expr = "\\(66\\)"
+	lprefix1_expr = "\\((66|!F3)\\)"
 	lprefix2_expr = "\\(F3\\)"
-	lprefix3_expr = "\\(F2\\)"
+	lprefix3_expr = "\\((F2|!F3)\\)"
+	lprefix_expr = "\\((66|F2|F3)\\)"
 	max_lprefix = 4
 
 	# All opcodes starting with lower-case 'v' or with (v1) superscript
@@ -333,13 +334,16 @@ function convert_operands(count,opnd,       i,j,imm,mod)
 		if (match(ext, lprefix1_expr)) {
 			lptable1[idx] = add_flags(lptable1[idx],flags)
 			variant = "INAT_VARIANT"
-		} else if (match(ext, lprefix2_expr)) {
+		}
+		if (match(ext, lprefix2_expr)) {
 			lptable2[idx] = add_flags(lptable2[idx],flags)
 			variant = "INAT_VARIANT"
-		} else if (match(ext, lprefix3_expr)) {
+		}
+		if (match(ext, lprefix3_expr)) {
 			lptable3[idx] = add_flags(lptable3[idx],flags)
 			variant = "INAT_VARIANT"
-		} else {
+		}
+		if (!match(ext, lprefix_expr)){
 			table[idx] = add_flags(table[idx],flags)
 		}
 	}

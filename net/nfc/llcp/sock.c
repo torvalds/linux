@@ -292,6 +292,9 @@ static int llcp_sock_getname(struct socket *sock, struct sockaddr *addr,
 
 	pr_debug("%p\n", sk);
 
+	if (llcp_sock == NULL)
+		return -EBADFD;
+
 	addr->sa_family = AF_NFC;
 	*len = sizeof(struct sockaddr_nfc_llcp);
 

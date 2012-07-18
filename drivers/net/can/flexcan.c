@@ -939,12 +939,12 @@ static int __devinit flexcan_probe(struct platform_device *pdev)
 		return PTR_ERR(pinctrl);
 
 	if (pdev->dev.of_node) {
-		const u32 *clock_freq_p;
+		const __be32 *clock_freq_p;
 
 		clock_freq_p = of_get_property(pdev->dev.of_node,
 						"clock-frequency", NULL);
 		if (clock_freq_p)
-			clock_freq = *clock_freq_p;
+			clock_freq = be32_to_cpup(clock_freq_p);
 	}
 
 	if (!clock_freq) {

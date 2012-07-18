@@ -1262,11 +1262,11 @@ int ubi_wl_flush(struct ubi_device *ubi, int vol_id, int lnum)
 	dbg_wl("flush pending work for LEB %d:%d (%d pending works)",
 	       vol_id, lnum, ubi->works_count);
 
-	down_write(&ubi->work_sem);
 	while (found) {
 		struct ubi_work *wrk;
 		found = 0;
 
+		down_read(&ubi->work_sem);
 		spin_lock(&ubi->wl_lock);
 		list_for_each_entry(wrk, &ubi->works, list) {
 			if ((vol_id == UBI_ALL || wrk->vol_id == vol_id) &&
@@ -1277,18 +1277,27 @@ int ubi_wl_flush(struct ubi_device *ubi, int vol_id, int lnum)
 				spin_unlock(&ubi->wl_lock);
 
 				err = wrk->func(ubi, wrk, 0);
-				if (err)
-					goto out;
+				if (err) {
+					up_read(&ubi->work_sem);
+					return err;
+				}
+
 				spin_lock(&ubi->wl_lock);
 				found = 1;
 				break;
 			}
 		}
 		spin_unlock(&ubi->wl_lock);
+		up_read(&ubi->work_sem);
 	}
 
-out:
+	/*
+	 * Make sure all the works which have been done in parallel are
+	 * finished.
+	 */
+	down_write(&ubi->work_sem);
 	up_write(&ubi->work_sem);
+
 	return err;
 }
 

@@ -2179,6 +2179,16 @@ static int __devinit sci_init_single(struct platform_device *dev,
 	return 0;
 }
 
+static void sci_cleanup_single(struct sci_port *port)
+{
+	sci_free_gpios(port);
+
+	clk_put(port->iclk);
+	clk_put(port->fclk);
+
+	pm_runtime_disable(port->port.dev);
+}
+
 #ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
 static void serial_console_putchar(struct uart_port *port, int ch)
 {
@@ -2360,14 +2370,10 @@ static int sci_remove(struct platform_device *dev)
 	cpufreq_unregister_notifier(&port->freq_transition,
 				    CPUFREQ_TRANSITION_NOTIFIER);
 
-	sci_free_gpios(port);
-
 	uart_remove_one_port(&sci_uart_driver, &port->port);
 
-	clk_put(port->iclk);
-	clk_put(port->fclk);
+	sci_cleanup_single(port);
 
-	pm_runtime_disable(&dev->dev);
 	return 0;
 }
 
@@ -2385,14 +2391,20 @@ static int __devinit sci_probe_single(struct platform_device *dev,
 			   index+1, SCI_NPORTS);
 		dev_notice(&dev->dev, "Consider bumping "
 			   "CONFIG_SERIAL_SH_SCI_NR_UARTS!\n");
-		return 0;
+		return -EINVAL;
 	}
 
 	ret = sci_init_single(dev, sciport, index, p);
 	if (ret)
 		return ret;
 
-	return uart_add_one_port(&sci_uart_driver, &sciport->port);
+	ret = uart_add_one_port(&sci_uart_driver, &sciport->port);
+	if (ret) {
+		sci_cleanup_single(sciport);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int __devinit sci_probe(struct platform_device *dev)
@@ -2413,24 +2425,22 @@ static int __devinit sci_probe(struct platform_device *dev)
 
 	ret = sci_probe_single(dev, dev->id, p, sp);
 	if (ret)
-		goto err_unreg;
+		return ret;
 
 	sp->freq_transition.notifier_call = sci_notifier;
 
 	ret = cpufreq_register_notifier(&sp->freq_transition,
 					CPUFREQ_TRANSITION_NOTIFIER);
-	if (unlikely(ret < 0))
-		goto err_unreg;
+	if (unlikely(ret < 0)) {
+		sci_cleanup_single(sp);
+		return ret;
+	}
 
 #ifdef CONFIG_SH_STANDARD_BIOS
 	sh_bios_gdb_detach();
 #endif
 
 	return 0;
-
-err_unreg:
-	sci_remove(dev);
-	return ret;
 }
 
 static int sci_suspend(struct device *dev)

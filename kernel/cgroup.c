@@ -255,12 +255,17 @@ int cgroup_lock_is_held(void)
 
 EXPORT_SYMBOL_GPL(cgroup_lock_is_held);
 
+static int css_unbias_refcnt(int refcnt)
+{
+	return refcnt >= 0 ? refcnt : refcnt - CSS_DEACT_BIAS;
+}
+
 /* the current nr of refs, always >= 0 whether @css is deactivated or not */
 static int css_refcnt(struct cgroup_subsys_state *css)
 {
 	int v = atomic_read(&css->refcnt);
 
-	return v >= 0 ? v : v - CSS_DEACT_BIAS;
+	return css_unbias_refcnt(v);
 }
 
 /* convenient tests for these bits */
@@ -896,10 +901,13 @@ static void cgroup_diput(struct dentry *dentry, struct inode *inode)
 		mutex_unlock(&cgroup_mutex);
 
 		/*
-		 * Drop the active superblock reference that we took when we
-		 * created the cgroup
+		 * We want to drop the active superblock reference from the
+		 * cgroup creation after all the dentry refs are gone -
+		 * kill_sb gets mighty unhappy otherwise.  Mark
+		 * dentry->d_fsdata with cgroup_diput() to tell
+		 * cgroup_d_release() to call deactivate_super().
 		 */
-		deactivate_super(cgrp->root->sb);
+		dentry->d_fsdata = cgroup_diput;
 
 		/*
 		 * if we're getting rid of the cgroup, refcount should ensure
@@ -923,6 +931,13 @@ static void cgroup_diput(struct dentry *dentry, struct inode *inode)
 static int cgroup_delete(const struct dentry *d)
 {
 	return 1;
+}
+
+static void cgroup_d_release(struct dentry *dentry)
+{
+	/* did cgroup_diput() tell me to deactivate super? */
+	if (dentry->d_fsdata == cgroup_diput)
+		deactivate_super(dentry->d_sb);
 }
 
 static void remove_dir(struct dentry *d)
@@ -1532,6 +1547,7 @@ static int cgroup_get_rootdir(struct super_block *sb)
 	static const struct dentry_operations cgroup_dops = {
 		.d_iput = cgroup_diput,
 		.d_delete = cgroup_delete,
+		.d_release = cgroup_d_release,
 	};
 
 	struct inode *inode =
@@ -4971,10 +4987,12 @@ EXPORT_SYMBOL_GPL(__css_tryget);
 void __css_put(struct cgroup_subsys_state *css)
 {
 	struct cgroup *cgrp = css->cgroup;
+	int v;
 
 	rcu_read_lock();
-	atomic_dec(&css->refcnt);
-	switch (css_refcnt(css)) {
+	v = css_unbias_refcnt(atomic_dec_return(&css->refcnt));
+
+	switch (v) {
 	case 1:
 		if (notify_on_release(cgrp)) {
 			set_bit(CGRP_RELEASABLE, &cgrp->flags);

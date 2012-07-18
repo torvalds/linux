@@ -779,7 +779,7 @@ send_lock_cancel(const unsigned int xid, struct cifs_tcon *tcon,
 
 	pSMB->LockType = LOCKING_ANDX_CANCEL_LOCK|LOCKING_ANDX_LARGE_FILES;
 	pSMB->Timeout = 0;
-	pSMB->hdr.Mid = GetNextMid(ses->server);
+	pSMB->hdr.Mid = get_next_mid(ses->server);
 
 	return SendReceive(xid, ses, in_buf, out_buf,
 			&bytes_returned, 0);
