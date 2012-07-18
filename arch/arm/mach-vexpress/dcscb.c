@@ -45,10 +45,12 @@ static arch_spinlock_t dcscb_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 
 static void __iomem *dcscb_base;
 static int dcscb_use_count[4][2];
+static int dcscb_allcpus_mask[2];
 
 static int dcscb_power_up(unsigned int cpu, unsigned int cluster)
 {
 	unsigned int rst_hold, cpumask = (1 << cpu);
+	unsigned int all_mask = dcscb_allcpus_mask[cluster];
 
 	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
 	if (cpu >= 4 || cluster >= 2)
@@ -67,7 +69,7 @@ static int dcscb_power_up(unsigned int cpu, unsigned int cluster)
 		if (rst_hold & (1 << 8)) {
 			/* remove cluster reset and add individual CPU's reset */
 			rst_hold &= ~(1 << 8);
-			rst_hold |= 0xf;
+			rst_hold |= all_mask;
 		}
 		rst_hold &= ~(cpumask | (cpumask << 4));
 		writel_relaxed(rst_hold, dcscb_base + RST_HOLD0 + cluster * 4);
@@ -91,13 +93,14 @@ static int dcscb_power_up(unsigned int cpu, unsigned int cluster)
 
 static void dcscb_power_down(void)
 {
-	unsigned int mpidr, cpu, cluster, rst_hold, cpumask;
+	unsigned int mpidr, cpu, cluster, rst_hold, cpumask, all_mask;
 	bool last_man = false, skip_wfi = false;
 
 	mpidr = read_cpuid_mpidr();
 	cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 	cpumask = (1 << cpu);
+	all_mask = dcscb_allcpus_mask[cluster];
 
 	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
 	BUG_ON(cpu >= 4 || cluster >= 2);
@@ -107,7 +110,7 @@ static void dcscb_power_down(void)
 	if (dcscb_use_count[cpu][cluster] == 0) {
 		rst_hold = readl_relaxed(dcscb_base + RST_HOLD0 + cluster * 4);
 		rst_hold |= cpumask;
-		if (((rst_hold | (rst_hold >> 4)) & 0xf) == 0xf) {
+		if (((rst_hold | (rst_hold >> 4)) & all_mask) == all_mask) {
 			rst_hold |= (1 << 8);
 			last_man = true;
 		}
@@ -177,6 +180,7 @@ static void __init dcscb_usage_count_init(void)
 static int __init dcscb_init(void)
 {
 	struct device_node *node;
+	unsigned int cfg;
 	int ret;
 
 	node = of_find_compatible_node(NULL, NULL, "arm,rtsm,dcscb");
@@ -185,7 +189,9 @@ static int __init dcscb_init(void)
 	dcscb_base = of_iomap(node, 0);
 	if (!dcscb_base)
 		return -EADDRNOTAVAIL;
-
+	cfg = readl_relaxed(dcscb_base + DCS_CFG_R);
+	dcscb_allcpus_mask[0] = (1 << (((cfg >> 16) >> (0 << 2)) & 0xf)) - 1;
+	dcscb_allcpus_mask[1] = (1 << (((cfg >> 16) >> (1 << 2)) & 0xf)) - 1;
 	dcscb_usage_count_init();
 
 	ret = mcpm_platform_register(&dcscb_power_ops);
