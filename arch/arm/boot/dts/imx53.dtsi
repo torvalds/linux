@@ -203,6 +203,20 @@
 				status = "disabled";
 			};
 
+			can1: can@53fc8000 {
+				compatible = "fsl,imx53-flexcan", "fsl,p1010-flexcan";
+				reg = <0x53fc8000 0x4000>;
+				interrupts = <82>;
+				status = "disabled";
+			};
+
+			can2: can@53fcc000 {
+				compatible = "fsl,imx53-flexcan", "fsl,p1010-flexcan";
+				reg = <0x53fcc000 0x4000>;
+				interrupts = <83>;
+				status = "disabled";
+			};
+
 			gpio5: gpio@53fdc000 {
 				compatible = "fsl,imx53-gpio", "fsl,imx35-gpio";
 				reg = <0x53fdc000 0x4000>;
