@@ -716,7 +716,6 @@ static irqreturn_t lcdc_irq_handler_rev02(int irq, void *arg)
 {
 	struct da8xx_fb_par *par = arg;
 	u32 stat = lcdc_read(LCD_MASKED_STAT_REG);
-	u32 reg_int;
 
 	if ((stat & LCD_SYNC_LOST) && (stat & LCD_FIFO_UNDERFLOW)) {
 		lcd_disable_raster();
@@ -733,10 +732,8 @@ static irqreturn_t lcdc_irq_handler_rev02(int irq, void *arg)
 
 		lcdc_write(stat, LCD_MASKED_STAT_REG);
 
-		/* Disable PL completion inerrupt */
-		reg_int = lcdc_read(LCD_INT_ENABLE_CLR_REG) |
-		       (LCD_V2_PL_INT_ENA);
-		lcdc_write(reg_int, LCD_INT_ENABLE_CLR_REG);
+		/* Disable PL completion interrupt */
+		lcdc_write(LCD_V2_PL_INT_ENA, LCD_INT_ENABLE_CLR_REG);
 
 		/* Setup and start data loading mode */
 		lcd_blit(LOAD_DATA, par);
