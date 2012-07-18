@@ -2772,6 +2772,13 @@ static int be_setup(struct be_adapter *adapter)
 		en_flags |= BE_IF_FLAGS_RSS;
 	}
 
+	if (lancer_chip(adapter) && !be_physfn(adapter)) {
+		en_flags = BE_IF_FLAGS_UNTAGGED |
+			    BE_IF_FLAGS_BROADCAST |
+			    BE_IF_FLAGS_MULTICAST;
+		cap_flags = en_flags;
+	}
+
 	status = be_cmd_if_create(adapter, cap_flags, en_flags,
 				  &adapter->if_handle, 0);
 	if (status != 0)
