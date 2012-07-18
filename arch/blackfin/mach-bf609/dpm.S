@@ -69,7 +69,7 @@ ENTRY(_dummy_deepsleep)
 ENDPROC(_dummy_deepsleep)
 
 ENTRY(_enter_deepsleep)
-	LINK 0x0;
+	LINK 0xC;
 	[--sp] = (R7:0,P5:0);
 
 	/* Change EVT 11 entry to dummy handler for wake up event */
