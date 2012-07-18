@@ -1493,7 +1493,7 @@ static const struct fb_fix_screeninfo sh_mobile_lcdc_overlay_fix  = {
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_TRUECOLOR,
 	.accel =	FB_ACCEL_NONE,
-	.xpanstep =	0,
+	.xpanstep =	1,
 	.ypanstep =	1,
 	.ywrapstep =	0,
 	.capabilities =	FB_CAP_FOURCC,
@@ -1714,9 +1714,14 @@ sh_mobile_lcdc_overlay_fb_init(struct sh_mobile_lcdc_overlay *ovl)
 	else
 		info->fix.visual = FB_VISUAL_TRUECOLOR;
 
-	if (ovl->format->fourcc == V4L2_PIX_FMT_NV12 ||
-	    ovl->format->fourcc == V4L2_PIX_FMT_NV21)
+	switch (ovl->format->fourcc) {
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV61:
 		info->fix.ypanstep = 2;
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
+		info->fix.xpanstep = 2;
+	}
 
 	/* Initialize variable screen information. */
 	var = &info->var;
@@ -1771,7 +1776,7 @@ static const struct fb_fix_screeninfo sh_mobile_lcdc_fix  = {
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_TRUECOLOR,
 	.accel =	FB_ACCEL_NONE,
-	.xpanstep =	0,
+	.xpanstep =	1,
 	.ypanstep =	1,
 	.ywrapstep =	0,
 	.capabilities =	FB_CAP_FOURCC,
@@ -2209,9 +2214,14 @@ sh_mobile_lcdc_channel_fb_init(struct sh_mobile_lcdc_chan *ch,
 	else
 		info->fix.visual = FB_VISUAL_TRUECOLOR;
 
-	if (ch->format->fourcc == V4L2_PIX_FMT_NV12 ||
-	    ch->format->fourcc == V4L2_PIX_FMT_NV21)
+	switch (ch->format->fourcc) {
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV61:
 		info->fix.ypanstep = 2;
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
+		info->fix.xpanstep = 2;
+	}
 
 	/* Initialize variable screen information using the first mode as
 	 * default.
