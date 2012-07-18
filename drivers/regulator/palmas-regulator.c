@@ -633,7 +633,7 @@ static __devinit int palmas_probe(struct platform_device *pdev)
 
 	ret = palmas_smps_read(palmas, PALMAS_SMPS_CTRL, &reg);
 	if (ret)
-		goto err_unregister_regulator;
+		return ret;
 
 	if (reg & PALMAS_SMPS_CTRL_SMPS12_SMPS123_EN)
 		pmic->smps123 = 1;
@@ -783,8 +783,10 @@ static __devinit int palmas_probe(struct platform_device *pdev)
 			reg_init = pdata->reg_init[id];
 			if (reg_init) {
 				ret = palmas_ldo_init(palmas, id, reg_init);
-				if (ret)
+				if (ret) {
+					regulator_unregister(pmic->rdev[id]);
 					goto err_unregister_regulator;
+				}
 			}
 		}
 	}
