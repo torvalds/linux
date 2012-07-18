@@ -1407,6 +1407,29 @@ static int smb347_remove(struct i2c_client *client)
 	return 0;
 }
 
+static int smb347_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+
+	if (client->irq)
+		disable_irq(client->irq);
+	return 0;
+}
+
+static int smb347_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+
+	if (client->irq)
+		enable_irq(client->irq);
+	return 0;
+}
+
+static const struct dev_pm_ops smb347_pm_ops = {
+	.suspend = smb347_suspend,
+	.resume = smb347_resume,
+};
+
 static const struct i2c_device_id smb347_id[] = {
 	{ "smb347", 0 },
 	{ }
@@ -1416,6 +1439,7 @@ MODULE_DEVICE_TABLE(i2c, smb347_id);
 static struct i2c_driver smb347_driver = {
 	.driver = {
 		.name = "smb347",
+		.pm = &smb347_pm_ops,
 	},
 	.probe        = smb347_probe,
 	.remove       = __devexit_p(smb347_remove),
