@@ -92,6 +92,13 @@ enum ieee80211_sta_info_flags {
 #define HT_AGG_STATE_WANT_START		4
 #define HT_AGG_STATE_WANT_STOP		5
 
+enum ieee80211_agg_stop_reason {
+	AGG_STOP_DECLINED,
+	AGG_STOP_LOCAL_REQUEST,
+	AGG_STOP_PEER_REQUEST,
+	AGG_STOP_DESTROY_STA,
+};
+
 /**
  * struct tid_ampdu_tx - TID aggregation information (Tx).
  *

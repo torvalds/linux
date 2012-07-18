@@ -150,8 +150,7 @@ void ieee80211_assign_tid_tx(struct sta_info *sta, int tid,
 }
 
 int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
-				    enum ieee80211_back_parties initiator,
-				    bool tx)
+				    enum ieee80211_agg_stop_reason reason)
 {
 	struct ieee80211_local *local = sta->local;
 	struct tid_ampdu_tx *tid_tx;
@@ -212,8 +211,10 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 	 */
 	synchronize_net();
 
-	tid_tx->stop_initiator = initiator;
-	tid_tx->tx_stop = tx;
+	tid_tx->stop_initiator = reason == AGG_STOP_PEER_REQUEST ?
+					WLAN_BACK_RECIPIENT :
+					WLAN_BACK_INITIATOR;
+	tid_tx->tx_stop = reason == AGG_STOP_LOCAL_REQUEST;
 
 	ret = drv_ampdu_action(local, sta->sdata,
 			       IEEE80211_AMPDU_TX_STOP,
@@ -660,14 +661,13 @@ void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_vif *vif,
 EXPORT_SYMBOL(ieee80211_start_tx_ba_cb_irqsafe);
 
 int __ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
-				   enum ieee80211_back_parties initiator,
-				   bool tx)
+				   enum ieee80211_agg_stop_reason reason)
 {
 	int ret;
 
 	mutex_lock(&sta->ampdu_mlme.mtx);
 
-	ret = ___ieee80211_stop_tx_ba_session(sta, tid, initiator, tx);
+	ret = ___ieee80211_stop_tx_ba_session(sta, tid, reason);
 
 	mutex_unlock(&sta->ampdu_mlme.mtx);
 
@@ -868,8 +868,7 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 		}
 
 	} else {
-		___ieee80211_stop_tx_ba_session(sta, tid, WLAN_BACK_INITIATOR,
-						false);
+		___ieee80211_stop_tx_ba_session(sta, tid, AGG_STOP_DECLINED);
 	}
 
  out:
