@@ -9,6 +9,7 @@
 #include "drm_sarea.h"
 #include "drm_crtc_helper.h"
 #include "radeon.h"
+#include "radeon_acpi.h"
 
 #include <linux/vga_switcheroo.h>
 
@@ -27,7 +28,7 @@ static int radeon_atif_call(acpi_handle handle)
 	atif_arg.pointer = &atif_arg_elements[0];
 
 	atif_arg_elements[0].type = ACPI_TYPE_INTEGER;
-	atif_arg_elements[0].integer.value = 0;
+	atif_arg_elements[0].integer.value = ATIF_FUNCTION_VERIFY_INTERFACE;
 	atif_arg_elements[1].type = ACPI_TYPE_INTEGER;
 	atif_arg_elements[1].integer.value = 0;
 

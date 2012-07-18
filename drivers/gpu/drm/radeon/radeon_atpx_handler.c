@@ -12,18 +12,7 @@
 #include <acpi/acpi_bus.h>
 #include <linux/pci.h>
 
-#define ATPX_VERSION 0
-#define ATPX_GPU_PWR 2
-#define ATPX_MUX_SELECT 3
-#define ATPX_I2C_MUX_SELECT 4
-#define ATPX_SWITCH_START 5
-#define ATPX_SWITCH_END 6
-
-#define ATPX_INTEGRATED 0
-#define ATPX_DISCRETE 1
-
-#define ATPX_MUX_IGD 0
-#define ATPX_MUX_DISCRETE 1
+#include "radeon_acpi.h"
 
 static struct radeon_atpx_priv {
 	bool atpx_detected;
@@ -43,10 +32,10 @@ static int radeon_atpx_get_version(acpi_handle handle)
 	atpx_arg.pointer = &atpx_arg_elements[0];
 
 	atpx_arg_elements[0].type = ACPI_TYPE_INTEGER;
-	atpx_arg_elements[0].integer.value = ATPX_VERSION;
+	atpx_arg_elements[0].integer.value = ATPX_FUNCTION_VERIFY_INTERFACE;
 
 	atpx_arg_elements[1].type = ACPI_TYPE_INTEGER;
-	atpx_arg_elements[1].integer.value = ATPX_VERSION;
+	atpx_arg_elements[1].integer.value = 0;
 
 	status = acpi_evaluate_object(handle, NULL, &atpx_arg, &buffer);
 	if (ACPI_FAILURE(status)) {
@@ -96,27 +85,31 @@ static int radeon_atpx_execute(acpi_handle handle, int cmd_id, u16 value)
 
 static int radeon_atpx_set_discrete_state(acpi_handle handle, int state)
 {
-	return radeon_atpx_execute(handle, ATPX_GPU_PWR, state);
+	return radeon_atpx_execute(handle, ATPX_FUNCTION_POWER_CONTROL, state);
 }
 
 static int radeon_atpx_switch_mux(acpi_handle handle, int mux_id)
 {
-	return radeon_atpx_execute(handle, ATPX_MUX_SELECT, mux_id);
+	return radeon_atpx_execute(handle, ATPX_FUNCTION_DISPLAY_MUX_CONTROL, mux_id);
 }
 
 static int radeon_atpx_switch_i2c_mux(acpi_handle handle, int mux_id)
 {
-	return radeon_atpx_execute(handle, ATPX_I2C_MUX_SELECT, mux_id);
+	return radeon_atpx_execute(handle, ATPX_FUNCTION_I2C_MUX_CONTROL, mux_id);
 }
 
 static int radeon_atpx_switch_start(acpi_handle handle, int gpu_id)
 {
-	return radeon_atpx_execute(handle, ATPX_SWITCH_START, gpu_id);
+	return radeon_atpx_execute(handle,
+				   ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_START_NOTIFICATION,
+				   gpu_id);
 }
 
 static int radeon_atpx_switch_end(acpi_handle handle, int gpu_id)
 {
-	return radeon_atpx_execute(handle, ATPX_SWITCH_END, gpu_id);
+	return radeon_atpx_execute(handle,
+				   ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_END_NOTIFICATION,
+				   gpu_id);
 }
 
 static int radeon_atpx_switchto(enum vga_switcheroo_client_id id)
@@ -124,9 +117,9 @@ static int radeon_atpx_switchto(enum vga_switcheroo_client_id id)
 	int gpu_id;
 
 	if (id == VGA_SWITCHEROO_IGD)
-		gpu_id = ATPX_INTEGRATED;
+		gpu_id = ATPX_INTEGRATED_GPU;
 	else
-		gpu_id = ATPX_DISCRETE;
+		gpu_id = ATPX_DISCRETE_GPU;
 
 	radeon_atpx_switch_start(radeon_atpx_priv.atpx_handle, gpu_id);
 	radeon_atpx_switch_mux(radeon_atpx_priv.atpx_handle, gpu_id);
