@@ -3695,9 +3695,6 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 
 	if (wm8994->pdata && wm8994->pdata->micdet_irq)
 		wm8994->micdet_irq = wm8994->pdata->micdet_irq;
-	else if (wm8994->pdata && wm8994->pdata->irq_base)
-		wm8994->micdet_irq = wm8994->pdata->irq_base +
-				     WM8994_IRQ_MIC1_DET;
 
 	pm_runtime_enable(codec->dev);
 	pm_runtime_idle(codec->dev);
@@ -3836,6 +3833,10 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 				dev_warn(codec->dev,
 					 "Failed to request Mic detect IRQ: %d\n",
 					 ret);
+		} else {
+			wm8994_request_irq(wm8994->wm8994, WM8994_IRQ_MIC1_DET,
+					   wm8958_mic_irq, "Mic detect",
+					   wm8994);
 		}
 	}
 
