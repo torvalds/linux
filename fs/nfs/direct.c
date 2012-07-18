@@ -393,7 +393,7 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
 	size_t requested_bytes = 0;
 	unsigned long seg;
 
-	nfs_pageio_init_read(&desc, dreq->inode,
+	NFS_PROTO(dreq->inode)->read_pageio_init(&desc, dreq->inode,
 			     &nfs_direct_read_completion_ops);
 	get_dreq(dreq);
 	desc.pg_dreq = dreq;
