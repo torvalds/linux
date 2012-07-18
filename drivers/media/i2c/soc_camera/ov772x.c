@@ -525,10 +525,9 @@ static const struct ov772x_win_size ov772x_win_sizes[] = {
  * general function
  */
 
-static struct ov772x_priv *to_ov772x(const struct i2c_client *client)
+static struct ov772x_priv *to_ov772x(struct v4l2_subdev *sd)
 {
-	return container_of(i2c_get_clientdata(client), struct ov772x_priv,
-			    subdev);
+	return container_of(sd, struct ov772x_priv, subdev);
 }
 
 static int ov772x_write_array(struct i2c_client        *client,
@@ -574,7 +573,7 @@ static int ov772x_reset(struct i2c_client *client)
 static int ov772x_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct ov772x_priv *priv = container_of(sd, struct ov772x_priv, subdev);
+	struct ov772x_priv *priv = to_ov772x(sd);
 
 	if (!enable) {
 		ov772x_mask_set(client, COM2, SOFT_SLEEP_MODE, SOFT_SLEEP_MODE);
@@ -638,7 +637,7 @@ static int ov772x_s_ctrl(struct v4l2_ctrl *ctrl)
 static int ov772x_g_chip_ident(struct v4l2_subdev *sd,
 			       struct v4l2_dbg_chip_ident *id)
 {
-	struct ov772x_priv *priv = container_of(sd, struct ov772x_priv, subdev);
+	struct ov772x_priv *priv = to_ov772x(sd);
 
 	id->ident    = priv->model;
 	id->revision = 0;
@@ -880,7 +879,7 @@ static int ov772x_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 static int ov772x_g_fmt(struct v4l2_subdev *sd,
 			struct v4l2_mbus_framefmt *mf)
 {
-	struct ov772x_priv *priv = container_of(sd, struct ov772x_priv, subdev);
+	struct ov772x_priv *priv = to_ov772x(sd);
 
 	mf->width	= priv->win->width;
 	mf->height	= priv->win->height;
@@ -893,7 +892,7 @@ static int ov772x_g_fmt(struct v4l2_subdev *sd,
 
 static int ov772x_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 {
-	struct ov772x_priv *priv = container_of(sd, struct ov772x_priv, subdev);
+	struct ov772x_priv *priv = to_ov772x(sd);
 	const struct ov772x_color_format *cfmt;
 	const struct ov772x_win_size *win;
 	int ret;
@@ -933,9 +932,9 @@ static int ov772x_try_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov772x_video_probe(struct i2c_client *client)
+static int ov772x_video_probe(struct ov772x_priv *priv)
 {
-	struct ov772x_priv *priv = to_ov772x(client);
+	struct i2c_client  *client = v4l2_get_subdevdata(&priv->subdev);
 	u8                  pid, ver;
 	const char         *devname;
 	int		    ret;
@@ -1078,7 +1077,7 @@ static int ov772x_probe(struct i2c_client *client,
 		goto done;
 	}
 
-	ret = ov772x_video_probe(client);
+	ret = ov772x_video_probe(priv);
 	if (ret < 0)
 		goto done;
 
@@ -1095,7 +1094,7 @@ done:
 
 static int ov772x_remove(struct i2c_client *client)
 {
-	struct ov772x_priv *priv = to_ov772x(client);
+	struct ov772x_priv *priv = to_ov772x(i2c_get_clientdata(client));
 
 	v4l2_device_unregister_subdev(&priv->subdev);
 	v4l2_ctrl_handler_free(&priv->hdl);
