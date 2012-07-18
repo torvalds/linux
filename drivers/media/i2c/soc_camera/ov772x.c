@@ -1098,18 +1098,17 @@ static int ov772x_probe(struct i2c_client *client,
 			V4L2_CID_BAND_STOP_FILTER, 0, 256, 1, 0);
 	priv->subdev.ctrl_handler = &priv->hdl;
 	if (priv->hdl.error) {
-		int err = priv->hdl.error;
-
-		kfree(priv);
-		return err;
+		ret = priv->hdl.error;
+		goto done;
 	}
 
 	ret = ov772x_video_probe(client);
+
+done:
 	if (ret) {
 		v4l2_ctrl_handler_free(&priv->hdl);
 		kfree(priv);
 	}
-
 	return ret;
 }
 
