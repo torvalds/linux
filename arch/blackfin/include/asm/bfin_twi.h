@@ -94,7 +94,7 @@ static inline u16 read_RCV_DATA8(struct bfin_twi_iface *iface)
 	unsigned long flags;
 
 	flags = hard_local_irq_save();
-	ret = iface->regs_base->rcv_data8;
+	ret = bfin_read16(&iface->regs_base->rcv_data8);
 	hard_local_irq_restore(flags);
 
 	return ret;
@@ -106,7 +106,7 @@ static inline u16 read_RCV_DATA16(struct bfin_twi_iface *iface)
 	unsigned long flags;
 
 	flags = hard_local_irq_save();
-	ret = iface->regs_base->rcv_data16;
+	ret = bfin_read16(&iface->regs_base->rcv_data16);
 	hard_local_irq_restore(flags);
 
 	return ret;
