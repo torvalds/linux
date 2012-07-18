@@ -89,24 +89,30 @@ static int soc_camera_power_off(struct soc_camera_device *icd,
 				struct soc_camera_link *icl)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	int ret = v4l2_subdev_call(sd, core, s_power, 0);
+	int ret = 0;
+	int err;
 
-	if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
-		return ret;
+	err = v4l2_subdev_call(sd, core, s_power, 0);
+	if (err < 0 && err != -ENOIOCTLCMD && err != -ENODEV) {
+		dev_err(icd->pdev, "Subdev failed to power-off the camera.\n");
+		ret = err;
+	}
 
 	if (icl->power) {
-		ret = icl->power(icd->control, 0);
-		if (ret < 0) {
+		err = icl->power(icd->control, 0);
+		if (err < 0) {
 			dev_err(icd->pdev,
 				"Platform failed to power-off the camera.\n");
-			return ret;
+			ret = ret ? : err;
 		}
 	}
 
-	ret = regulator_bulk_disable(icl->num_regulators,
+	err = regulator_bulk_disable(icl->num_regulators,
 				     icl->regulators);
-	if (ret < 0)
+	if (err < 0) {
 		dev_err(icd->pdev, "Cannot disable regulators\n");
+		ret = ret ? : err;
+	}
 
 	return ret;
 }
