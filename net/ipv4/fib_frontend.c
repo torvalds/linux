@@ -206,7 +206,8 @@ __be32 fib_compute_spec_dst(struct sk_buff *skb)
 	int scope;
 
 	rt = skb_rtable(skb);
-	if (!(rt->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST)))
+	if ((rt->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST | RTCF_LOCAL)) ==
+	    RTCF_LOCAL)
 		return ip_hdr(skb)->daddr;
 
 	in_dev = __in_dev_get_rcu(dev);
