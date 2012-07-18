@@ -61,9 +61,15 @@ nv04_display_create(struct drm_device *dev)
 	struct drm_connector *connector, *ct;
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
+	struct nv04_display *disp;
 	int i, ret;
 
 	NV_DEBUG_KMS(dev, "\n");
+
+	disp = kzalloc(sizeof(*disp), GFP_KERNEL);
+	dev_priv->engine.display.priv = disp;
+	if (!disp)
+		return -ENOMEM;
 
 	nouveau_hw_save_vga_fonts(dev, 1);
 
@@ -128,6 +134,8 @@ nv04_display_create(struct drm_device *dev)
 void
 nv04_display_destroy(struct drm_device *dev)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nv04_display *disp = nv04_display(dev);
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
 
@@ -156,6 +164,9 @@ nv04_display_destroy(struct drm_device *dev)
 		crtc->funcs->restore(crtc);
 
 	nouveau_hw_save_vga_fonts(dev, 0);
+
+	dev_priv->engine.display.priv = NULL;
+	kfree(disp);
 }
 
 int

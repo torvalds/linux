@@ -65,8 +65,7 @@ static void nv04_tv_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nv04_mode_state *state = &dev_priv->mode_reg;
+	struct nv04_mode_state *state = &nv04_display(dev)->mode_reg;
 	uint8_t crtc1A;
 
 	NV_INFO(dev, "Setting dpms mode %d on TV encoder (output %d)\n",
@@ -94,8 +93,7 @@ static void nv04_tv_dpms(struct drm_encoder *encoder, int mode)
 
 static void nv04_tv_bind(struct drm_device *dev, int head, bool bind)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nv04_crtc_reg *state = &dev_priv->mode_reg.crtc_reg[head];
+	struct nv04_crtc_reg *state = &nv04_display(dev)->mode_reg.crtc_reg[head];
 
 	state->tv_setup = 0;
 
@@ -133,9 +131,8 @@ static void nv04_tv_mode_set(struct drm_encoder *encoder,
 			     struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
-	struct nv04_crtc_reg *regp = &dev_priv->mode_reg.crtc_reg[nv_crtc->index];
+	struct nv04_crtc_reg *regp = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index];
 
 	regp->tv_htotal = adjusted_mode->htotal;
 	regp->tv_vtotal = adjusted_mode->vtotal;

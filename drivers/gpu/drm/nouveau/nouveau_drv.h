@@ -468,76 +468,6 @@ struct nouveau_engine {
 	struct nouveau_pm_engine      pm;
 };
 
-enum nv04_fp_display_regs {
-	FP_DISPLAY_END,
-	FP_TOTAL,
-	FP_CRTC,
-	FP_SYNC_START,
-	FP_SYNC_END,
-	FP_VALID_START,
-	FP_VALID_END
-};
-
-struct nv04_crtc_reg {
-	unsigned char MiscOutReg;
-	uint8_t CRTC[0xa0];
-	uint8_t CR58[0x10];
-	uint8_t Sequencer[5];
-	uint8_t Graphics[9];
-	uint8_t Attribute[21];
-	unsigned char DAC[768];
-
-	/* PCRTC regs */
-	uint32_t fb_start;
-	uint32_t crtc_cfg;
-	uint32_t cursor_cfg;
-	uint32_t gpio_ext;
-	uint32_t crtc_830;
-	uint32_t crtc_834;
-	uint32_t crtc_850;
-	uint32_t crtc_eng_ctrl;
-
-	/* PRAMDAC regs */
-	uint32_t nv10_cursync;
-	struct nouveau_pll_vals pllvals;
-	uint32_t ramdac_gen_ctrl;
-	uint32_t ramdac_630;
-	uint32_t ramdac_634;
-	uint32_t tv_setup;
-	uint32_t tv_vtotal;
-	uint32_t tv_vskew;
-	uint32_t tv_vsync_delay;
-	uint32_t tv_htotal;
-	uint32_t tv_hskew;
-	uint32_t tv_hsync_delay;
-	uint32_t tv_hsync_delay2;
-	uint32_t fp_horiz_regs[7];
-	uint32_t fp_vert_regs[7];
-	uint32_t dither;
-	uint32_t fp_control;
-	uint32_t dither_regs[6];
-	uint32_t fp_debug_0;
-	uint32_t fp_debug_1;
-	uint32_t fp_debug_2;
-	uint32_t fp_margin_color;
-	uint32_t ramdac_8c0;
-	uint32_t ramdac_a20;
-	uint32_t ramdac_a24;
-	uint32_t ramdac_a34;
-	uint32_t ctv_regs[38];
-};
-
-struct nv04_output_reg {
-	uint32_t output;
-	int head;
-};
-
-struct nv04_mode_state {
-	struct nv04_crtc_reg crtc_reg[2];
-	uint32_t pllsel;
-	uint32_t sel_clk;
-};
-
 enum nouveau_card_type {
 	NV_04      = 0x04,
 	NV_10      = 0x10,
@@ -638,12 +568,6 @@ struct drm_nouveau_private {
 	struct nvbios vbios;
 	u8 *mxms;
 	struct list_head i2c_ports;
-
-	struct nv04_mode_state mode_reg;
-	struct nv04_mode_state saved_reg;
-	uint32_t saved_vga_font[4][16384];
-	uint32_t crtc_owner;
-	uint32_t dac_users[4];
 
 	struct backlight_device *backlight;
 
@@ -997,36 +921,6 @@ extern int  nv98_ppp_create(struct drm_device *dev);
 extern long nouveau_compat_ioctl(struct file *file, unsigned int cmd,
 				 unsigned long arg);
 
-/* nv04_dac.c */
-extern int nv04_dac_create(struct drm_connector *, struct dcb_output *);
-extern uint32_t nv17_dac_sample_load(struct drm_encoder *encoder);
-extern int nv04_dac_output_offset(struct drm_encoder *encoder);
-extern void nv04_dac_update_dacclk(struct drm_encoder *encoder, bool enable);
-extern bool nv04_dac_in_use(struct drm_encoder *encoder);
-
-/* nv04_dfp.c */
-extern int nv04_dfp_create(struct drm_connector *, struct dcb_output *);
-extern int nv04_dfp_get_bound_head(struct drm_device *dev, struct dcb_output *dcbent);
-extern void nv04_dfp_bind_head(struct drm_device *dev, struct dcb_output *dcbent,
-			       int head, bool dl);
-extern void nv04_dfp_disable(struct drm_device *dev, int head);
-extern void nv04_dfp_update_fp_control(struct drm_encoder *encoder, int mode);
-
-/* nv04_tv.c */
-extern int nv04_tv_identify(struct drm_device *dev, int i2c_index);
-extern int nv04_tv_create(struct drm_connector *, struct dcb_output *);
-
-/* nv17_tv.c */
-extern int nv17_tv_create(struct drm_connector *, struct dcb_output *);
-
-/* nv04_display.c */
-extern int nv04_display_early_init(struct drm_device *);
-extern void nv04_display_late_takedown(struct drm_device *);
-extern int nv04_display_create(struct drm_device *);
-extern void nv04_display_destroy(struct drm_device *);
-extern int nv04_display_init(struct drm_device *);
-extern void nv04_display_fini(struct drm_device *);
-
 /* nvd0_display.c */
 extern int nvd0_display_create(struct drm_device *);
 extern void nvd0_display_destroy(struct drm_device *);
@@ -1036,9 +930,6 @@ struct nouveau_bo *nvd0_display_crtc_sema(struct drm_device *, int crtc);
 void nvd0_display_flip_stop(struct drm_crtc *);
 int nvd0_display_flip_next(struct drm_crtc *, struct drm_framebuffer *,
 			   struct nouveau_channel *, u32 swap_interval);
-
-/* nv04_crtc.c */
-extern int nv04_crtc_create(struct drm_device *, int index);
 
 /* nouveau_bo.c */
 extern struct ttm_bo_driver nouveau_bo_driver;

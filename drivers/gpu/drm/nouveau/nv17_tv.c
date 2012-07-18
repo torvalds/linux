@@ -395,7 +395,7 @@ static void nv17_tv_prepare(struct drm_encoder *encoder)
 	struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
 	int head = nouveau_crtc(encoder->crtc)->index;
-	uint8_t *cr_lcd = &dev_priv->mode_reg.crtc_reg[head].CRTC[
+	uint8_t *cr_lcd = &nv04_display(dev)->mode_reg.crtc_reg[head].CRTC[
 							NV_CIO_CRE_LCD__INDEX];
 	uint32_t dacclk_off = NV_PRAMDAC_DACCLK +
 					nv04_dac_output_offset(encoder);
@@ -456,7 +456,7 @@ static void nv17_tv_mode_set(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	int head = nouveau_crtc(encoder->crtc)->index;
-	struct nv04_crtc_reg *regs = &dev_priv->mode_reg.crtc_reg[head];
+	struct nv04_crtc_reg *regs = &nv04_display(dev)->mode_reg.crtc_reg[head];
 	struct nv17_tv_state *tv_regs = &to_tv_enc(encoder)->state;
 	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
 	int i;

@@ -407,11 +407,10 @@ static void nv04_dac_commit(struct drm_encoder *encoder)
 void nv04_dac_update_dacclk(struct drm_encoder *encoder, bool enable)
 {
 	struct drm_device *dev = encoder->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
 
 	if (nv_gf4_disp_arch(dev)) {
-		uint32_t *dac_users = &dev_priv->dac_users[ffs(dcb->or) - 1];
+		uint32_t *dac_users = &nv04_display(dev)->dac_users[ffs(dcb->or) - 1];
 		int dacclk_off = NV_PRAMDAC_DACCLK + nv04_dac_output_offset(encoder);
 		uint32_t dacclk = NVReadRAMDAC(dev, 0, dacclk_off);
 
@@ -432,11 +431,11 @@ void nv04_dac_update_dacclk(struct drm_encoder *encoder, bool enable)
  * someone else. */
 bool nv04_dac_in_use(struct drm_encoder *encoder)
 {
-	struct drm_nouveau_private *dev_priv = encoder->dev->dev_private;
+	struct drm_device *dev = encoder->dev;
 	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
 
 	return nv_gf4_disp_arch(encoder->dev) &&
-		(dev_priv->dac_users[ffs(dcb->or) - 1] & ~(1 << dcb->index));
+		(nv04_display(dev)->dac_users[ffs(dcb->or) - 1] & ~(1 << dcb->index));
 }
 
 static void nv04_dac_dpms(struct drm_encoder *encoder, int mode)

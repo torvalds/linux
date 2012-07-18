@@ -25,6 +25,7 @@
 
 #include "drmP.h"
 #include "nouveau_drv.h"
+#include "nv04_display.h"
 
 #include <subdev/bios/pll.h>
 
@@ -437,7 +438,7 @@ nv_show_cursor(struct drm_device *dev, int head, bool show)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	uint8_t *curctl1 =
-		&dev_priv->mode_reg.crtc_reg[head].CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX];
+		&nv04_display(dev)->mode_reg.crtc_reg[head].CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX];
 
 	if (show)
 		*curctl1 |= MASK(NV_CIO_CRE_HCUR_ADDR1_ENABLE);

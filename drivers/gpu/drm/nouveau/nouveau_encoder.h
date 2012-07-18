@@ -29,6 +29,7 @@
 
 #include "drm_encoder_slave.h"
 #include "nouveau_drv.h"
+#include "nv04_display.h"
 
 #define NV_DPMS_CLEARED 0x80
 
