@@ -671,6 +671,15 @@ void log_buf_kexec_setup(void)
 	VMCOREINFO_SYMBOL(log_buf_len);
 	VMCOREINFO_SYMBOL(log_first_idx);
 	VMCOREINFO_SYMBOL(log_next_idx);
+	/*
+	 * Export struct log size and field offsets. User space tools can
+	 * parse it and detect any changes to structure down the line.
+	 */
+	VMCOREINFO_STRUCT_SIZE(log);
+	VMCOREINFO_OFFSET(log, ts_nsec);
+	VMCOREINFO_OFFSET(log, len);
+	VMCOREINFO_OFFSET(log, text_len);
+	VMCOREINFO_OFFSET(log, dict_len);
 }
 #endif
 
