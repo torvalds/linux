@@ -530,13 +530,21 @@ static struct ov772x_priv *to_ov772x(struct v4l2_subdev *sd)
 	return container_of(sd, struct ov772x_priv, subdev);
 }
 
+static inline int ov772x_read(struct i2c_client *client, u8 addr)
+{
+	return i2c_smbus_read_byte_data(client, addr);
+}
+
+static inline int ov772x_write(struct i2c_client *client, u8 addr, u8 value)
+{
+	return i2c_smbus_write_byte_data(client, addr, value);
+}
+
 static int ov772x_write_array(struct i2c_client        *client,
 			      const struct regval_list *vals)
 {
 	while (vals->reg_num != 0xff) {
-		int ret = i2c_smbus_write_byte_data(client,
-						    vals->reg_num,
-						    vals->value);
+		int ret = ov772x_write(client, vals->reg_num, vals->value);
 		if (ret < 0)
 			return ret;
 		vals++;
@@ -544,24 +552,22 @@ static int ov772x_write_array(struct i2c_client        *client,
 	return 0;
 }
 
-static int ov772x_mask_set(struct i2c_client *client,
-					  u8  command,
-					  u8  mask,
-					  u8  set)
+static int ov772x_mask_set(struct i2c_client *client, u8  command, u8  mask,
+			   u8  set)
 {
-	s32 val = i2c_smbus_read_byte_data(client, command);
+	s32 val = ov772x_read(client, command);
 	if (val < 0)
 		return val;
 
 	val &= ~mask;
 	val |= set & mask;
 
-	return i2c_smbus_write_byte_data(client, command, val);
+	return ov772x_write(client, command, val);
 }
 
 static int ov772x_reset(struct i2c_client *client)
 {
-	int ret = i2c_smbus_write_byte_data(client, COM7, SCCB_RESET);
+	int ret = ov772x_write(client, COM7, SCCB_RESET);
 	msleep(1);
 	return ret;
 }
@@ -656,7 +662,7 @@ static int ov772x_g_register(struct v4l2_subdev *sd,
 	if (reg->reg > 0xff)
 		return -EINVAL;
 
-	ret = i2c_smbus_read_byte_data(client, reg->reg);
+	ret = ov772x_read(client, reg->reg);
 	if (ret < 0)
 		return ret;
 
@@ -674,7 +680,7 @@ static int ov772x_s_register(struct v4l2_subdev *sd,
 	    reg->val > 0xff)
 		return -EINVAL;
 
-	return i2c_smbus_write_byte_data(client, reg->reg, reg->val);
+	return ov772x_write(client, reg->reg, reg->val);
 }
 #endif
 
@@ -946,8 +952,8 @@ static int ov772x_video_probe(struct ov772x_priv *priv)
 	/*
 	 * check and show product ID and manufacturer ID
 	 */
-	pid = i2c_smbus_read_byte_data(client, PID);
-	ver = i2c_smbus_read_byte_data(client, VER);
+	pid = ov772x_read(client, PID);
+	ver = ov772x_read(client, VER);
 
 	switch (VERSION(pid, ver)) {
 	case OV7720:
@@ -970,8 +976,8 @@ static int ov772x_video_probe(struct ov772x_priv *priv)
 		 devname,
 		 pid,
 		 ver,
-		 i2c_smbus_read_byte_data(client, MIDH),
-		 i2c_smbus_read_byte_data(client, MIDL));
+		 ov772x_read(client, MIDH),
+		 ov772x_read(client, MIDL));
 	ret = v4l2_ctrl_handler_setup(&priv->hdl);
 
 done:
