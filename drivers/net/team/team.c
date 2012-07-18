@@ -733,18 +733,23 @@ static void __team_compute_features(struct team *team)
 	struct team_port *port;
 	u32 vlan_features = TEAM_VLAN_FEATURES;
 	unsigned short max_hard_header_len = ETH_HLEN;
+	unsigned int flags, dst_release_flag = IFF_XMIT_DST_RELEASE;
 
 	list_for_each_entry(port, &team->port_list, list) {
 		vlan_features = netdev_increment_features(vlan_features,
 					port->dev->vlan_features,
 					TEAM_VLAN_FEATURES);
 
+		dst_release_flag &= port->dev->priv_flags;
 		if (port->dev->hard_header_len > max_hard_header_len)
 			max_hard_header_len = port->dev->hard_header_len;
 	}
 
 	team->dev->vlan_features = vlan_features;
 	team->dev->hard_header_len = max_hard_header_len;
+
+	flags = team->dev->priv_flags & ~IFF_XMIT_DST_RELEASE;
+	team->dev->priv_flags = flags | dst_release_flag;
 
 	netdev_change_features(team->dev);
 }
