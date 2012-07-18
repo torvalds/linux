@@ -93,7 +93,6 @@ int ip_options_echo(struct ip_options *dopt, struct sk_buff *skb)
 	unsigned char *sptr, *dptr;
 	int soffset, doffset;
 	int	optlen;
-	__be32	daddr;
 
 	memset(dopt, 0, sizeof(struct ip_options));
 
@@ -104,8 +103,6 @@ int ip_options_echo(struct ip_options *dopt, struct sk_buff *skb)
 
 	sptr = skb_network_header(skb);
 	dptr = dopt->__data;
-
-	daddr = fib_compute_spec_dst(skb);
 
 	if (sopt->rr) {
 		optlen  = sptr[sopt->rr+1];
@@ -180,6 +177,8 @@ int ip_options_echo(struct ip_options *dopt, struct sk_buff *skb)
 				doffset -= 4;
 		}
 		if (doffset > 3) {
+			__be32 daddr = fib_compute_spec_dst(skb);
+
 			memcpy(&start[doffset-1], &daddr, 4);
 			dopt->faddr = faddr;
 			dptr[0] = start[0];
