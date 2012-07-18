@@ -166,8 +166,12 @@ struct fuse_file_lock {
 /**
  * INIT request/reply flags
  *
+ * FUSE_ASYNC_READ: asynchronous read requests
  * FUSE_POSIX_LOCKS: remote locking for POSIX file locks
+ * FUSE_FILE_OPS: kernel sends file handle for fstat, etc... (not yet supported)
+ * FUSE_ATOMIC_O_TRUNC: handles the O_TRUNC open flag in the filesystem
  * FUSE_EXPORT_SUPPORT: filesystem handles lookups of "." and ".."
+ * FUSE_BIG_WRITES: filesystem can handle write size larger than 4kB
  * FUSE_DONT_MASK: don't apply umask to file mode on create operations
  * FUSE_SPLICE_WRITE: kernel supports splice write on the device
  * FUSE_SPLICE_MOVE: kernel supports splice move on the device
