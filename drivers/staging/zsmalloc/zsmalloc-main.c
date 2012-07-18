@@ -470,15 +470,15 @@ static struct page *find_get_zspage(struct size_class *class)
 	return page;
 }
 
-static void zs_copy_map_object(char *buf, struct page *firstpage,
+static void zs_copy_map_object(char *buf, struct page *page,
 				int off, int size)
 {
 	struct page *pages[2];
 	int sizes[2];
 	void *addr;
 
-	pages[0] = firstpage;
-	pages[1] = get_next_page(firstpage);
+	pages[0] = page;
+	pages[1] = get_next_page(page);
 	BUG_ON(!pages[1]);
 
 	sizes[0] = PAGE_SIZE - off;
@@ -493,15 +493,15 @@ static void zs_copy_map_object(char *buf, struct page *firstpage,
 	kunmap_atomic(addr);
 }
 
-static void zs_copy_unmap_object(char *buf, struct page *firstpage,
+static void zs_copy_unmap_object(char *buf, struct page *page,
 				int off, int size)
 {
 	struct page *pages[2];
 	int sizes[2];
 	void *addr;
 
-	pages[0] = firstpage;
-	pages[1] = get_next_page(firstpage);
+	pages[0] = page;
+	pages[1] = get_next_page(page);
 	BUG_ON(!pages[1]);
 
 	sizes[0] = PAGE_SIZE - off;
