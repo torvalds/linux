@@ -919,38 +919,16 @@ static int ov772x_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 static int ov772x_try_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_mbus_framefmt *mf)
 {
-	struct ov772x_priv *priv = container_of(sd, struct ov772x_priv, subdev);
+	const struct ov772x_color_format *cfmt;
 	const struct ov772x_win_size *win;
-	int i;
 
-	/*
-	 * select suitable win
-	 */
-	win = ov772x_select_win(mf->width, mf->height);
+	ov772x_select_params(mf, &cfmt, &win);
 
-	mf->width	= win->width;
-	mf->height	= win->height;
-	mf->field	= V4L2_FIELD_NONE;
-
-	for (i = 0; i < ARRAY_SIZE(ov772x_cfmts); i++)
-		if (mf->code == ov772x_cfmts[i].code)
-			break;
-
-	if (i == ARRAY_SIZE(ov772x_cfmts)) {
-		/* Unsupported format requested. Propose either */
-		if (priv->cfmt) {
-			/* the current one or */
-			mf->colorspace = priv->cfmt->colorspace;
-			mf->code = priv->cfmt->code;
-		} else {
-			/* the default one */
-			mf->colorspace = ov772x_cfmts[0].colorspace;
-			mf->code = ov772x_cfmts[0].code;
-		}
-	} else {
-		/* Also return the colorspace */
-		mf->colorspace	= ov772x_cfmts[i].colorspace;
-	}
+	mf->code = cfmt->code;
+	mf->width = win->width;
+	mf->height = win->height;
+	mf->field = V4L2_FIELD_NONE;
+	mf->colorspace = cfmt->colorspace;
 
 	return 0;
 }
