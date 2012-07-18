@@ -49,7 +49,9 @@ static int __devinit stmmac_probe_config_dt(struct platform_device *pdev,
 	 * are provided. All other properties should be added
 	 * once needed on other platforms.
 	 */
-	if (of_device_is_compatible(np, "st,spear600-gmac")) {
+	if (of_device_is_compatible(np, "st,spear600-gmac") ||
+		of_device_is_compatible(np, "snps,dwmac-3.70a") ||
+		of_device_is_compatible(np, "snps,dwmac")) {
 		plat->has_gmac = 1;
 		plat->pmt = 1;
 	}
@@ -252,7 +254,9 @@ static const struct dev_pm_ops stmmac_pltfr_pm_ops;
 #endif /* CONFIG_PM */
 
 static const struct of_device_id stmmac_dt_ids[] = {
-	{ .compatible = "st,spear600-gmac", },
+	{ .compatible = "st,spear600-gmac"},
+	{ .compatible = "snps,dwmac-3.70a"},
+	{ .compatible = "snps,dwmac"},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, stmmac_dt_ids);
