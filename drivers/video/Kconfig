@@ -280,7 +280,7 @@ config SUN3I_FB
 
 config SUN3I_HDMI
 	tristate "HDMI Driver Support(sun3i)"
-	depends on ARCH_SUN3I
+	depends on SUN3I_FB
 	---help---
 	default m
 
@@ -292,18 +292,18 @@ config SUN4I_FB
 
 config SUN4I_FB_UMP
 	bool "Enable FB/UMP Integration"
-	depends on MALI=m && SUN4I_FB=m
+	depends on MALI && SUN4I_FB=m
 	default y
 
 config SUN4I_LCD
         tristate "LCD Driver Support(sun4i)"
-        depends on ARCH_SUN4I
+        depends on SUN4I_FB
         ---help---
         default m
 
 config SUN4I_HDMI
         tristate "HDMI Driver Support(sun4i)"
-        depends on ARCH_SUN4I
+        depends on SUN4I_FB
         ---help---
         default m
 
@@ -315,13 +315,13 @@ config SUN5I_FB
 
 config SUN5I_LCD
         tristate "LCD Driver Support(sun5i)"
-        depends on ARCH_SUN5I
+        depends on SUN5I_FB
         ---help---
         default m
 
 config SUN5I_HDMI
         tristate "HDMI Driver Support(sun5i)"
-        depends on ARCH_SUN5I
+        depends on SUN5I_FB
         ---help---
         default m
 
