@@ -5339,8 +5339,8 @@ clkwait:
 	/* Resched if events or tx frames are pending, else await next interrupt */
 	/* On failed register access, all bets are off: no resched or interrupts */
 	if ((bus->dhd->busstate == DHD_BUS_DOWN) || bcmsdh_regfail(sdh)) {
-		if ((bus->sih->buscorerev >= 12) && !(dhdsdio_sleepcsr_get(bus) &
-			SBSDIO_FUNC1_SLEEPCSR_KSO_MASK)) {
+		if ((bus->sih && (bus->sih->buscorerev >= 12)) &&
+		    !(dhdsdio_sleepcsr_get(bus) & SBSDIO_FUNC1_SLEEPCSR_KSO_MASK)) {
 			/* Bus failed because of KSO */
 			DHD_ERROR(("%s: Bus failed due to KSO\n", __FUNCTION__));
 			bus->kso = FALSE;
