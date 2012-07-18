@@ -12,6 +12,7 @@
 #ifndef __LINUX_CLK_H
 #define __LINUX_CLK_H
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/notifier.h>
 
@@ -320,12 +321,12 @@ struct clk *of_clk_get_from_provider(struct of_phandle_args *clkspec);
 #else
 static inline struct clk *of_clk_get(struct device_node *np, int index)
 {
-	return NULL;
+	return ERR_PTR(-ENOENT);
 }
 static inline struct clk *of_clk_get_by_name(struct device_node *np,
 					     const char *name)
 {
-	return NULL;
+	return ERR_PTR(-ENOENT);
 }
 #endif
 
