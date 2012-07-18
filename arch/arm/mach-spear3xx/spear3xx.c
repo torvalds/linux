@@ -87,7 +87,7 @@ void __init spear3xx_map_io(void)
 
 static void __init spear3xx_timer_init(void)
 {
-	char pclk_name[] = "pll3_48m_clk";
+	char pclk_name[] = "pll3_clk";
 	struct clk *gpt_clk, *pclk;
 
 	spear3xx_clk_init();
