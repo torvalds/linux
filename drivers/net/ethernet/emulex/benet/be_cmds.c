@@ -141,6 +141,11 @@ static void be_async_link_state_process(struct be_adapter *adapter,
 	/* When link status changes, link speed must be re-queried from FW */
 	adapter->phy.link_speed = -1;
 
+	/* Ignore physical link event */
+	if (lancer_chip(adapter) &&
+	    !(evt->port_link_status & LOGICAL_LINK_STATUS_MASK))
+		return;
+
 	/* For the initial link status do not rely on the ASYNC event as
 	 * it may not be received in some cases.
 	 */

@@ -93,6 +93,7 @@ enum {
 	LINK_UP		= 0x1
 };
 #define LINK_STATUS_MASK			0x1
+#define LOGICAL_LINK_STATUS_MASK		0x2
 
 /* When the event code of an async trailer is link-state, the mcc_compl
  * must be interpreted as follows
