@@ -722,7 +722,7 @@ int follow_up(struct path *path)
 
 	br_read_lock(&vfsmount_lock);
 	parent = mnt->mnt_parent;
-	if (&parent->mnt == path->mnt) {
+	if (parent == mnt) {
 		br_read_unlock(&vfsmount_lock);
 		return 0;
 	}
