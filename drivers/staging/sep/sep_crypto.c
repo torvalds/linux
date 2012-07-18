@@ -44,7 +44,6 @@
 #include <linux/poll.h>
 #include <linux/wait.h>
 #include <linux/pci.h>
-#include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/err.h>
 #include <linux/device.h>
