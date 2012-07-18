@@ -257,9 +257,24 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 {
 	struct ieee80211_local *local = sta->local;
 	struct tid_ampdu_tx *tid_tx;
+	enum ieee80211_ampdu_mlme_action action;
 	int ret;
 
 	lockdep_assert_held(&sta->ampdu_mlme.mtx);
+
+	switch (reason) {
+	case AGG_STOP_DECLINED:
+	case AGG_STOP_LOCAL_REQUEST:
+	case AGG_STOP_PEER_REQUEST:
+		action = IEEE80211_AMPDU_TX_STOP_CONT;
+		break;
+	case AGG_STOP_DESTROY_STA:
+		action = IEEE80211_AMPDU_TX_STOP_FLUSH;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return -EINVAL;
+	}
 
 	spin_lock_bh(&sta->lock);
 
@@ -269,10 +284,19 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 		return -ENOENT;
 	}
 
-	/* if we're already stopping ignore any new requests to stop */
+	/*
+	 * if we're already stopping ignore any new requests to stop
+	 * unless we're destroying it in which case notify the driver
+	 */
 	if (test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state)) {
 		spin_unlock_bh(&sta->lock);
-		return -EALREADY;
+		if (reason != AGG_STOP_DESTROY_STA)
+			return -EALREADY;
+		ret = drv_ampdu_action(local, sta->sdata,
+				       IEEE80211_AMPDU_TX_STOP_FLUSH_CONT,
+				       &sta->sta, tid, NULL, 0);
+		WARN_ON_ONCE(ret);
+		goto remove_tid_tx;
 	}
 
 	if (test_bit(HT_AGG_STATE_WANT_START, &tid_tx->state)) {
@@ -319,8 +343,7 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 					WLAN_BACK_INITIATOR;
 	tid_tx->tx_stop = reason == AGG_STOP_LOCAL_REQUEST;
 
-	ret = drv_ampdu_action(local, sta->sdata,
-			       IEEE80211_AMPDU_TX_STOP,
+	ret = drv_ampdu_action(local, sta->sdata, action,
 			       &sta->sta, tid, NULL, 0);
 
 	/* HW shall not deny going back to legacy */
@@ -331,7 +354,14 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 		 */
 	}
 
-	return ret;
+	if (reason == AGG_STOP_DESTROY_STA) {
+ remove_tid_tx:
+		spin_lock_bh(&sta->lock);
+		ieee80211_remove_tid_tx(sta, tid);
+		spin_unlock_bh(&sta->lock);
+	}
+
+	return 0;
 }
 
 /*

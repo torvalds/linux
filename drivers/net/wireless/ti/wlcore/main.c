@@ -4575,7 +4575,9 @@ static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
 	 * Falling break here on purpose for all TX APDU commands.
 	 */
 	case IEEE80211_AMPDU_TX_START:
-	case IEEE80211_AMPDU_TX_STOP:
+	case IEEE80211_AMPDU_TX_STOP_CONT:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		ret = -EINVAL;
 		break;
