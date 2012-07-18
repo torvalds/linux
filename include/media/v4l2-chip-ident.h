@@ -215,6 +215,9 @@ enum {
 	V4L2_IDENT_CX23888_AV = 8881, /* Integrated A/V decoder */
 	V4L2_IDENT_CX23888_IR = 8882, /* Integrated infrared controller */
 
+	/* module ad9389b: just ident 9389 */
+	V4L2_IDENT_AD9389B = 9389,
+
 	/* module tda9840: just ident 9840 */
 	V4L2_IDENT_TDA9840 = 9840,
 

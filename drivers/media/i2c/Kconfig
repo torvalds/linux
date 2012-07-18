@@ -387,6 +387,17 @@ config VIDEO_ADV7393
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7393.
 
+config VIDEO_AD9389B
+	tristate "Analog Devices AD9389B encoder"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  Support for the Analog Devices AD9389B video encoder.
+
+	  This is a Analog Devices HDMI transmitter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad9389b.
+
 config VIDEO_AK881X
 	tristate "AK8813/AK8814 video encoders"
 	depends on I2C
