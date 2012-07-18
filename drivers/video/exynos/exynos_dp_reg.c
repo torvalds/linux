@@ -122,7 +122,7 @@ void exynos_dp_reset(struct exynos_dp_device *dp)
 		LS_CLK_DOMAIN_FUNC_EN_N;
 	writel(reg, dp->reg_base + EXYNOS_DP_FUNC_EN_2);
 
-	udelay(20);
+	usleep_range(20, 30);
 
 	exynos_dp_lane_swap(dp, 0);
 
@@ -988,7 +988,7 @@ void exynos_dp_reset_macro(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_PHY_TEST);
 
 	/* 10 us is the minimum reset time. */
-	udelay(10);
+	usleep_range(10, 20);
 
 	reg &= ~MACRO_RST;
 	writel(reg, dp->reg_base + EXYNOS_DP_PHY_TEST);

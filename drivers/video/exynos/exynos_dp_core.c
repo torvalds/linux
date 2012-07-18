@@ -47,7 +47,7 @@ static int exynos_dp_detect_hpd(struct exynos_dp_device *dp)
 
 	exynos_dp_init_hpd(dp);
 
-	udelay(200);
+	usleep_range(200, 210);
 
 	while (exynos_dp_get_plug_in_status(dp) != 0) {
 		timeout_loop++;
@@ -55,7 +55,7 @@ static int exynos_dp_detect_hpd(struct exynos_dp_device *dp)
 			dev_err(dp->dev, "failed to get hpd plug status\n");
 			return -ETIMEDOUT;
 		}
-		udelay(10);
+		usleep_range(10, 11);
 	}
 
 	return 0;
@@ -486,7 +486,7 @@ static int exynos_dp_process_clock_recovery(struct exynos_dp_device *dp)
 	u8 pre_emphasis;
 	u8 training_lane;
 
-	udelay(100);
+	usleep_range(100, 101);
 
 	exynos_dp_read_bytes_from_dpcd(dp, DPCD_ADDR_LANE0_1_STATUS,
 				6, link_status);
@@ -571,7 +571,7 @@ static int exynos_dp_process_equalizer_training(struct exynos_dp_device *dp)
 
 	u8 adjust_request[2];
 
-	udelay(400);
+	usleep_range(400, 401);
 
 	exynos_dp_read_bytes_from_dpcd(dp, DPCD_ADDR_LANE0_1_STATUS,
 				6, link_status);
@@ -739,7 +739,7 @@ static int exynos_dp_set_link_train(struct exynos_dp_device *dp,
 		if (retval == 0)
 			break;
 
-		udelay(100);
+		usleep_range(100, 110);
 	}
 
 	return retval;
@@ -773,7 +773,7 @@ static int exynos_dp_config_video(struct exynos_dp_device *dp,
 			return -ETIMEDOUT;
 		}
 
-		udelay(1);
+		usleep_range(1, 2);
 	}
 
 	/* Set to use the register calculated M/N video */
@@ -807,7 +807,7 @@ static int exynos_dp_config_video(struct exynos_dp_device *dp,
 			return -ETIMEDOUT;
 		}
 
-		mdelay(1);
+		usleep_range(1000, 1001);
 	}
 
 	if (retval != 0)
