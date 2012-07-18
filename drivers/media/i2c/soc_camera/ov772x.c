@@ -541,9 +541,15 @@ static int ov772x_mask_set(struct i2c_client *client, u8  command, u8  mask,
 
 static int ov772x_reset(struct i2c_client *client)
 {
-	int ret = ov772x_write(client, COM7, SCCB_RESET);
+	int ret;
+
+	ret = ov772x_write(client, COM7, SCCB_RESET);
+	if (ret < 0)
+		return ret;
+
 	msleep(1);
-	return ret;
+
+	return ov772x_mask_set(client, COM2, SOFT_SLEEP_MODE, SOFT_SLEEP_MODE);
 }
 
 /*
