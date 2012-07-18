@@ -1274,7 +1274,7 @@ static struct tpm_input_header savestate_header = {
  * We are about to suspend. Save the TPM state
  * so that it can be restored.
  */
-int tpm_pm_suspend(struct device *dev, pm_message_t pm_state)
+int tpm_pm_suspend(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 	struct tpm_cmd_t cmd;
