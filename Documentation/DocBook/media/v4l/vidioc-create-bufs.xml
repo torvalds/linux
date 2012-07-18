@@ -64,7 +64,7 @@ different sizes.</para>
     <para>To allocate device buffers applications initialize relevant fields of
 the <structname>v4l2_create_buffers</structname> structure. They set the
 <structfield>type</structfield> field in the
-<structname>v4l2_format</structname> structure, embedded in this
+&v4l2-format; structure, embedded in this
 structure, to the respective stream or buffer type.
 <structfield>count</structfield> must be set to the number of required buffers.
 <structfield>memory</structfield> specifies the required I/O method. The
@@ -114,7 +114,7 @@ information.</para>
 /></entry>
 	  </row>
 	  <row>
-	    <entry>struct&nbsp;v4l2_format</entry>
+	    <entry>&v4l2-format;</entry>
 	    <entry><structfield>format</structfield></entry>
 	    <entry>Filled in by the application, preserved by the driver.</entry>
 	  </row>
