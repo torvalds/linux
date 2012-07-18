@@ -128,15 +128,10 @@ static inline void pci_iounmap(struct pci_dev *dev, void __iomem *addr) {}
 #define	TILE_PCI_MEM_MAP_BASE_OFFSET	(1ULL << CHIP_PA_WIDTH())
 
 /*
- * End of the PCI memory resource.
+ * Start of the PCI memory resource, which starts at the end of the
+ * maximum system physical RAM address.
  */
-#define	TILE_PCI_MEM_END	\
-		((1ULL << CHIP_PA_WIDTH()) + TILE_PCI_BAR_WINDOW_TOP)
-
-/*
- * Start of the PCI memory resource.
- */
-#define	TILE_PCI_MEM_START	(TILE_PCI_MEM_END - TILE_PCI_BAR_WINDOW_SIZE)
+#define	TILE_PCI_MEM_START	(1ULL << CHIP_PA_WIDTH())
 
 /*
  * Structure of a PCI controller (host bridge) on Gx.
@@ -159,16 +154,18 @@ struct pci_controller {
 	int index;		/* PCI domain number */
 	struct pci_bus *root_bus;
 
+	/* PCI memory space resource for this controller. */
+	struct resource mem_space;
+	char mem_space_name[32];
+
 	uint64_t mem_offset;	/* cpu->bus memory mapping offset. */
 
-	int last_busno;
+	int first_busno;
 
 	struct pci_ops *ops;
 
 	/* Table that maps the INTx numbers to Linux irq numbers. */
 	int irq_intx_table[4];
-
-	struct resource mem_space;
 
 	/* Address ranges that are routed to this controller/bridge. */
 	struct resource mem_resources[3];
@@ -178,14 +175,6 @@ extern struct pci_controller pci_controllers[TILEGX_NUM_TRIO * TILEGX_TRIO_PCIES
 extern gxio_trio_context_t trio_contexts[TILEGX_NUM_TRIO];
 
 extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
-
-extern void
-pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
-			struct resource *res);
-
-extern void
-pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
-			struct pci_bus_region *region);
 
 /*
  * The PCI address space does not equal the physical memory address

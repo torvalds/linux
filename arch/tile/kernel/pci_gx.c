@@ -96,21 +96,6 @@ static struct pci_ops tile_cfg_ops;
 /* Mask of CPUs that should receive PCIe interrupts. */
 static struct cpumask intr_cpus_map;
 
-/* PCI I/O space support is not implemented. */
-static struct resource pci_ioport_resource = {
-	.name	= "PCI IO",
-	.start	= 0,
-	.end	= 0,
-	.flags	= IORESOURCE_IO,
-};
-
-static struct resource pci_iomem_resource = {
-	.name	= "PCI mem",
-	.start	= TILE_PCI_MEM_START,
-	.end	= TILE_PCI_MEM_END,
-	.flags	= IORESOURCE_MEM,
-};
-
 /*
  * We don't need to worry about the alignment of resources.
  */
@@ -437,9 +422,26 @@ out:
 		struct pci_controller *controller = &pci_controllers[i];
 
 		controller->index = i;
-		controller->last_busno = 0xff;
 		controller->ops = &tile_cfg_ops;
 
+		/*
+		 * The PCI memory resource is located above the PA space.
+		 * For every host bridge, the BAR window or the MMIO aperture
+		 * is in range [3GB, 4GB - 1] of a 4GB space beyond the
+		 * PA space.
+		 */
+
+		controller->mem_offset = TILE_PCI_MEM_START +
+			(i * TILE_PCI_BAR_WINDOW_TOP);
+		controller->mem_space.start = controller->mem_offset +
+			TILE_PCI_BAR_WINDOW_TOP - TILE_PCI_BAR_WINDOW_SIZE;
+		controller->mem_space.end = controller->mem_offset +
+			TILE_PCI_BAR_WINDOW_TOP - 1;
+		controller->mem_space.flags = IORESOURCE_MEM;
+		snprintf(controller->mem_space_name,
+			 sizeof(controller->mem_space_name),
+			 "PCI mem domain %d", i);
+		controller->mem_space.name = controller->mem_space_name;
 	}
 
 	return num_rc_controllers;
@@ -588,6 +590,7 @@ int __init pcibios_init(void)
 {
 	resource_size_t offset;
 	LIST_HEAD(resources);
+	int next_busno;
 	int i;
 
 	tile_pci_init();
@@ -628,7 +631,7 @@ int __init pcibios_init(void)
 	msleep(250);
 
 	/* Scan all of the recorded PCI controllers.  */
-	for (i = 0; i < num_rc_controllers; i++) {
+	for (next_busno = 0, i = 0; i < num_rc_controllers; i++) {
 		struct pci_controller *controller = &pci_controllers[i];
 		gxio_trio_context_t *trio_context = controller->trio;
 		TRIO_PCIE_INTFC_PORT_CONFIG_t port_config;
@@ -843,13 +846,14 @@ int __init pcibios_init(void)
 		 * The memory range for the PCI root bus should not overlap
 		 * with the physical RAM
 		 */
-		pci_add_resource_offset(&resources, &iomem_resource,
-					1ULL << CHIP_PA_WIDTH());
+		pci_add_resource_offset(&resources, &controller->mem_space,
+					controller->mem_offset);
 
-		bus = pci_scan_root_bus(NULL, 0, controller->ops,
+		controller->first_busno = next_busno;
+		bus = pci_scan_root_bus(NULL, next_busno, controller->ops,
 					controller, &resources);
 		controller->root_bus = bus;
-		controller->last_busno = bus->subordinate;
+		next_busno = bus->subordinate + 1;
 
 	}
 
@@ -1011,20 +1015,9 @@ alloc_mem_map_failed:
 }
 subsys_initcall(pcibios_init);
 
-/*
- * PCI scan code calls the arch specific pcibios_fixup_bus() each time it scans
- * a new bridge. Called after each bus is probed, but before its children are
- * examined.
- */
+/* Note: to be deleted after Linux 3.6 merge. */
 void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 {
-	struct pci_dev *dev = bus->self;
-
-	if (!dev) {
-		/* This is the root bus. */
-		bus->resource[0] = &pci_ioport_resource;
-		bus->resource[1] = &pci_iomem_resource;
-	}
 }
 
 /*
@@ -1124,7 +1117,10 @@ void __iomem *ioremap(resource_size_t phys_addr, unsigned long size)
 got_it:
 	trio_fd = controller->trio->fd;
 
-	offset = HV_TRIO_PIO_OFFSET(controller->pio_mem_index) + phys_addr;
+	/* Convert the resource start to the bus address offset. */
+	start = phys_addr - controller->mem_offset;
+
+	offset = HV_TRIO_PIO_OFFSET(controller->pio_mem_index) + start;
 
 	/*
 	 * We need to keep the PCI bus address's in-page offset in the VA.
@@ -1172,11 +1168,11 @@ static int __devinit tile_cfg_read(struct pci_bus *bus,
 	void *mmio_addr;
 
 	/*
-	 * Map all accesses to the local device (bus == 0) into the
+	 * Map all accesses to the local device on root bus into the
 	 * MMIO space of the MAC. Accesses to the downstream devices
 	 * go to the PIO space.
 	 */
-	if (busnum == 0) {
+	if (pci_is_root_bus(bus)) {
 		if (device == 0) {
 			/*
 			 * This is the internal downstream P2P bridge,
@@ -1205,11 +1201,11 @@ static int __devinit tile_cfg_read(struct pci_bus *bus,
 	}
 
 	/*
-	 * Accesses to the directly attached device (bus == 1) have to be
+	 * Accesses to the directly attached device have to be
 	 * sent as type-0 configs.
 	 */
 
-	if (busnum == 1) {
+	if (busnum == (controller->first_busno + 1)) {
 		/*
 		 * There is only one device off of our built-in P2P bridge.
 		 */
@@ -1303,11 +1299,11 @@ static int __devinit tile_cfg_write(struct pci_bus *bus,
 	u8 val_8 = (u8)val;
 
 	/*
-	 * Map all accesses to the local device (bus == 0) into the
+	 * Map all accesses to the local device on root bus into the
 	 * MMIO space of the MAC. Accesses to the downstream devices
 	 * go to the PIO space.
 	 */
-	if (busnum == 0) {
+	if (pci_is_root_bus(bus)) {
 		if (device == 0) {
 			/*
 			 * This is the internal downstream P2P bridge,
@@ -1336,11 +1332,11 @@ static int __devinit tile_cfg_write(struct pci_bus *bus,
 	}
 
 	/*
-	 * Accesses to the directly attached device (bus == 1) have to be
+	 * Accesses to the directly attached device have to be
 	 * sent as type-0 configs.
 	 */
 
-	if (busnum == 1) {
+	if (busnum == (controller->first_busno + 1)) {
 		/*
 		 * There is only one device off of our built-in P2P bridge.
 		 */

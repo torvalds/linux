@@ -1536,8 +1536,7 @@ static struct resource code_resource = {
 
 /*
  * On Pro, we reserve all resources above 4GB so that PCI won't try to put
- * mappings above 4GB; the standard allows that for some devices but
- * the probing code trunates values to 32 bits.
+ * mappings above 4GB.
  */
 #if defined(CONFIG_PCI) && !defined(__tilegx__)
 static struct resource* __init
@@ -1584,7 +1583,6 @@ static int __init request_standard_resources(void)
 	int i;
 	enum { CODE_DELTA = MEM_SV_INTRPT - PAGE_OFFSET };
 
-	iomem_resource.end = -1LL;
 #if defined(CONFIG_PCI) && !defined(__tilegx__)
 	insert_non_bus_resource();
 #endif
