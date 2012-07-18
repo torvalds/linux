@@ -62,7 +62,7 @@ static int soc_camera_power_on(struct soc_camera_device *icd,
 	}
 
 	if (icl->power) {
-		ret = icl->power(icd->pdev, 1);
+		ret = icl->power(icd->control, 1);
 		if (ret < 0) {
 			dev_err(icd->pdev,
 				"Platform failed to power-on the camera.\n");
@@ -78,7 +78,7 @@ static int soc_camera_power_on(struct soc_camera_device *icd,
 
 esdpwr:
 	if (icl->power)
-		icl->power(icd->pdev, 0);
+		icl->power(icd->control, 0);
 elinkpwr:
 	regulator_bulk_disable(icl->num_regulators,
 			       icl->regulators);
@@ -95,7 +95,7 @@ static int soc_camera_power_off(struct soc_camera_device *icd,
 		return ret;
 
 	if (icl->power) {
-		ret = icl->power(icd->pdev, 0);
+		ret = icl->power(icd->control, 0);
 		if (ret < 0) {
 			dev_err(icd->pdev,
 				"Platform failed to power-off the camera.\n");
