@@ -37,6 +37,7 @@
 #define SIL164_ADDR	0x38
 #define CH7xxx_ADDR	0x76
 #define TFP410_ADDR	0x38
+#define NS2501_ADDR     0x38
 
 static const struct intel_dvo_device intel_dvo_devices[] = {
 	{
@@ -74,7 +75,14 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 		.slave_addr = 0x75,
 		.gpio = GMBUS_PORT_DPB,
 		.dev_ops = &ch7017_ops,
-	}
+	},
+	{
+	        .type = INTEL_DVO_CHIP_TMDS,
+		.name = "ns2501",
+		.dvo_reg = DVOC,
+		.slave_addr = NS2501_ADDR,
+		.dev_ops = &ns2501_ops,
+       }
 };
 
 struct intel_dvo {
