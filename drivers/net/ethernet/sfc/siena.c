@@ -25,10 +25,12 @@
 #include "workarounds.h"
 #include "mcdi.h"
 #include "mcdi_pcol.h"
+#include "selftest.h"
 
 /* Hardware control for SFC9000 family including SFL9021 (aka Siena). */
 
 static void siena_init_wol(struct efx_nic *efx);
+static int siena_reset_hw(struct efx_nic *efx, enum reset_type method);
 
 
 static void siena_push_irq_moderation(struct efx_channel *channel)
@@ -154,10 +156,29 @@ static const struct efx_nic_register_test siena_register_tests[] = {
 	  EFX_OWORD32(0xFFFFFFFF, 0xFFFFFFFF, 0x00000007, 0x00000000) },
 };
 
-static int siena_test_registers(struct efx_nic *efx)
+static int siena_test_chip(struct efx_nic *efx, struct efx_self_tests *tests)
 {
-	return efx_nic_test_registers(efx, siena_register_tests,
-				      ARRAY_SIZE(siena_register_tests));
+	enum reset_type reset_method = reset_method;
+	int rc, rc2;
+
+	efx_reset_down(efx, reset_method);
+
+	/* Reset the chip immediately so that it is completely
+	 * quiescent regardless of what any VF driver does.
+	 */
+	rc = siena_reset_hw(efx, reset_method);
+	if (rc)
+		goto out;
+
+	tests->registers =
+		efx_nic_test_registers(efx, siena_register_tests,
+				       ARRAY_SIZE(siena_register_tests))
+		? -1 : 1;
+
+	rc = siena_reset_hw(efx, reset_method);
+out:
+	rc2 = efx_reset_up(efx, reset_method, rc == 0);
+	return rc ? rc : rc2;
 }
 
 /**************************************************************************
@@ -437,8 +458,8 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 
 	MAC_STAT(tx_bytes, TX_BYTES);
 	MAC_STAT(tx_bad_bytes, TX_BAD_BYTES);
-	mac_stats->tx_good_bytes = (mac_stats->tx_bytes -
-				    mac_stats->tx_bad_bytes);
+	efx_update_diff_stat(&mac_stats->tx_good_bytes,
+			     mac_stats->tx_bytes - mac_stats->tx_bad_bytes);
 	MAC_STAT(tx_packets, TX_PKTS);
 	MAC_STAT(tx_bad, TX_BAD_FCS_PKTS);
 	MAC_STAT(tx_pause, TX_PAUSE_PKTS);
@@ -471,8 +492,8 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 	MAC_STAT(tx_ip_src_error, TX_IP_SRC_ERR_PKTS);
 	MAC_STAT(rx_bytes, RX_BYTES);
 	MAC_STAT(rx_bad_bytes, RX_BAD_BYTES);
-	mac_stats->rx_good_bytes = (mac_stats->rx_bytes -
-				    mac_stats->rx_bad_bytes);
+	efx_update_diff_stat(&mac_stats->rx_good_bytes,
+			     mac_stats->rx_bytes - mac_stats->rx_bad_bytes);
 	MAC_STAT(rx_packets, RX_PKTS);
 	MAC_STAT(rx_good, RX_GOOD_PKTS);
 	MAC_STAT(rx_bad, RX_BAD_FCS_PKTS);
@@ -649,7 +670,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.get_wol = siena_get_wol,
 	.set_wol = siena_set_wol,
 	.resume_wol = siena_init_wol,
-	.test_registers = siena_test_registers,
+	.test_chip = siena_test_chip,
 	.test_nvram = efx_mcdi_nvram_test_all,
 
 	.revision = EFX_REV_SIENA_A0,
