@@ -36,6 +36,7 @@
 #include <linux/pci.h>
 #include <linux/completion.h>
 #include <linux/radix-tree.h>
+#include <linux/cpu_rmap.h>
 
 #include <linux/atomic.h>
 
@@ -784,7 +785,8 @@ void mlx4_fmr_unmap(struct mlx4_dev *dev, struct mlx4_fmr *fmr,
 int mlx4_fmr_free(struct mlx4_dev *dev, struct mlx4_fmr *fmr);
 int mlx4_SYNC_TPT(struct mlx4_dev *dev);
 int mlx4_test_interrupts(struct mlx4_dev *dev);
-int mlx4_assign_eq(struct mlx4_dev *dev, char* name , int* vector);
+int mlx4_assign_eq(struct mlx4_dev *dev, char *name, struct cpu_rmap *rmap,
+		   int *vector);
 void mlx4_release_eq(struct mlx4_dev *dev, int vec);
 
 int mlx4_wol_read(struct mlx4_dev *dev, u64 *config, int port);
