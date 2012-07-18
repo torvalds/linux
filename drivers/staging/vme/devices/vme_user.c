@@ -31,7 +31,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/syscalls.h>
-#include <linux/mutex.h>
 #include <linux/types.h>
 
 #include <linux/io.h>
