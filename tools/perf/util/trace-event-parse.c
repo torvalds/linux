@@ -188,9 +188,8 @@ void print_trace_event(struct pevent *pevent, int cpu, void *data, int size)
 	record.data = data;
 
 	trace_seq_init(&s);
-	pevent_print_event(pevent, &s, &record);
+	pevent_event_info(&s, event, &record);
 	trace_seq_do_printf(&s);
-	printf("\n");
 }
 
 void print_event(struct pevent *pevent, int cpu, void *data, int size,

@@ -920,12 +920,12 @@ static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 		 */
 		memset(chip->oob_poi, ~0, mtd->oobsize);
 		chip->oob_poi[0] = ((uint8_t *) auxiliary_virt)[0];
-
-		read_page_swap_end(this, buf, mtd->writesize,
-				this->payload_virt, this->payload_phys,
-				nfc_geo->payload_size,
-				payload_virt, payload_phys);
 	}
+
+	read_page_swap_end(this, buf, mtd->writesize,
+			this->payload_virt, this->payload_phys,
+			nfc_geo->payload_size,
+			payload_virt, payload_phys);
 exit_nfc:
 	return ret;
 }
