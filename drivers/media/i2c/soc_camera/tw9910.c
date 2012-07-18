@@ -780,6 +780,7 @@ static int tw9910_video_probe(struct i2c_client *client)
 {
 	struct tw9910_priv *priv = to_tw9910(client);
 	s32 id;
+	int ret;
 
 	/*
 	 * tw9910 only use 8 or 16 bit bus width
@@ -789,6 +790,10 @@ static int tw9910_video_probe(struct i2c_client *client)
 		dev_err(&client->dev, "bus width error\n");
 		return -ENODEV;
 	}
+
+	ret = tw9910_s_power(&priv->subdev, 1);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * check and show Product ID
@@ -803,7 +808,8 @@ static int tw9910_video_probe(struct i2c_client *client)
 		dev_err(&client->dev,
 			"Product ID error %x:%x\n",
 			id, priv->revision);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto done;
 	}
 
 	dev_info(&client->dev,
@@ -811,7 +817,9 @@ static int tw9910_video_probe(struct i2c_client *client)
 
 	priv->norm = V4L2_STD_NTSC;
 
-	return 0;
+done:
+	tw9910_s_power(&priv->subdev, 0);
+	return ret;
 }
 
 static struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {

@@ -1296,8 +1296,13 @@ static struct v4l2_subdev_ops rj54n1_subdev_ops = {
 static int rj54n1_video_probe(struct i2c_client *client,
 			      struct rj54n1_pdata *priv)
 {
+	struct rj54n1 *rj54n1 = to_rj54n1(client);
 	int data1, data2;
 	int ret;
+
+	ret = rj54n1_s_power(&rj54n1->subdev, 1);
+	if (ret < 0)
+		return ret;
 
 	/* Read out the chip version register */
 	data1 = reg_read(client, RJ54N1_DEV_CODE);
@@ -1307,18 +1312,21 @@ static int rj54n1_video_probe(struct i2c_client *client,
 		ret = -ENODEV;
 		dev_info(&client->dev, "No RJ54N1CB0C found, read 0x%x:0x%x\n",
 			 data1, data2);
-		goto ei2c;
+		goto done;
 	}
 
 	/* Configure IOCTL polarity from the platform data: 0 or 1 << 7. */
 	ret = reg_write(client, RJ54N1_IOC, priv->ioctl_high << 7);
 	if (ret < 0)
-		goto ei2c;
+		goto done;
 
 	dev_info(&client->dev, "Detected a RJ54N1CB0C chip ID 0x%x:0x%x\n",
 		 data1, data2);
 
-ei2c:
+	ret = v4l2_ctrl_handler_setup(&rj54n1->hdl);
+
+done:
+	rj54n1_s_power(&rj54n1->subdev, 0);
 	return ret;
 }
 
@@ -1382,9 +1390,9 @@ static int rj54n1_probe(struct i2c_client *client,
 	if (ret < 0) {
 		v4l2_ctrl_handler_free(&rj54n1->hdl);
 		kfree(rj54n1);
-		return ret;
 	}
-	return v4l2_ctrl_handler_setup(&rj54n1->hdl);
+
+	return ret;
 }
 
 static int rj54n1_remove(struct i2c_client *client)

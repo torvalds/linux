@@ -310,26 +310,33 @@ static struct v4l2_subdev_ops imx074_subdev_ops = {
 
 static int imx074_video_probe(struct i2c_client *client)
 {
+	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	int ret;
 	u16 id;
+
+	ret = imx074_s_power(subdev, 1);
+	if (ret < 0)
+		return ret;
 
 	/* Read sensor Model ID */
 	ret = reg_read(client, 0);
 	if (ret < 0)
-		return ret;
+		goto done;
 
 	id = ret << 8;
 
 	ret = reg_read(client, 1);
 	if (ret < 0)
-		return ret;
+		goto done;
 
 	id |= ret;
 
 	dev_info(&client->dev, "Chip ID 0x%04x detected\n", id);
 
-	if (id != 0x74)
-		return -ENODEV;
+	if (id != 0x74) {
+		ret = -ENODEV;
+		goto done;
+	}
 
 	/* PLL Setting EXTCLK=24MHz, 22.5times */
 	reg_write(client, PLL_MULTIPLIER, 0x2D);
@@ -411,7 +418,11 @@ static int imx074_video_probe(struct i2c_client *client)
 
 	reg_write(client, GROUPED_PARAMETER_HOLD, 0x00);	/* off */
 
-	return 0;
+	ret = 0;
+
+done:
+	imx074_s_power(subdev, 0);
+	return ret;
 }
 
 static int imx074_probe(struct i2c_client *client,

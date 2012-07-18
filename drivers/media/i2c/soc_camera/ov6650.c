@@ -829,8 +829,13 @@ static int ov6650_prog_dflt(struct i2c_client *client)
 
 static int ov6650_video_probe(struct i2c_client *client)
 {
+	struct ov6650 *priv = to_ov6650(client);
 	u8		pidh, pidl, midh, midl;
-	int		ret = 0;
+	int		ret;
+
+	ret = ov6650_s_power(&priv->subdev, 1);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * check and show product ID and manufacturer ID
@@ -844,12 +849,13 @@ static int ov6650_video_probe(struct i2c_client *client)
 		ret = ov6650_reg_read(client, REG_MIDL, &midl);
 
 	if (ret)
-		return ret;
+		goto done;
 
 	if ((pidh != OV6650_PIDH) || (pidl != OV6650_PIDL)) {
 		dev_err(&client->dev, "Product ID error 0x%02x:0x%02x\n",
 				pidh, pidl);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto done;
 	}
 
 	dev_info(&client->dev,
@@ -859,7 +865,11 @@ static int ov6650_video_probe(struct i2c_client *client)
 	ret = ov6650_reset(client);
 	if (!ret)
 		ret = ov6650_prog_dflt(client);
+	if (!ret)
+		ret = v4l2_ctrl_handler_setup(&priv->hdl);
 
+done:
+	ov6650_s_power(&priv->subdev, 0);
 	return ret;
 }
 
@@ -1019,9 +1029,6 @@ static int ov6650_probe(struct i2c_client *client,
 	priv->colorspace  = V4L2_COLORSPACE_JPEG;
 
 	ret = ov6650_video_probe(client);
-	if (!ret)
-		ret = v4l2_ctrl_handler_setup(&priv->hdl);
-
 	if (ret) {
 		v4l2_ctrl_handler_free(&priv->hdl);
 		kfree(priv);

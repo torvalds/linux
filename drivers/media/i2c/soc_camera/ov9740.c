@@ -853,34 +853,38 @@ static int ov9740_video_probe(struct i2c_client *client)
 	u8 modelhi, modello;
 	int ret;
 
+	ret = ov9740_s_power(&priv->subdev, 1);
+	if (ret < 0)
+		return ret;
+
 	/*
 	 * check and show product ID and manufacturer ID
 	 */
 	ret = ov9740_reg_read(client, OV9740_MODEL_ID_HI, &modelhi);
 	if (ret < 0)
-		goto err;
+		goto done;
 
 	ret = ov9740_reg_read(client, OV9740_MODEL_ID_LO, &modello);
 	if (ret < 0)
-		goto err;
+		goto done;
 
 	priv->model = (modelhi << 8) | modello;
 
 	ret = ov9740_reg_read(client, OV9740_REVISION_NUMBER, &priv->revision);
 	if (ret < 0)
-		goto err;
+		goto done;
 
 	ret = ov9740_reg_read(client, OV9740_MANUFACTURER_ID, &priv->manid);
 	if (ret < 0)
-		goto err;
+		goto done;
 
 	ret = ov9740_reg_read(client, OV9740_SMIA_VERSION, &priv->smiaver);
 	if (ret < 0)
-		goto err;
+		goto done;
 
 	if (priv->model != 0x9740) {
 		ret = -ENODEV;
-		goto err;
+		goto done;
 	}
 
 	priv->ident = V4L2_IDENT_OV9740;
@@ -889,7 +893,10 @@ static int ov9740_video_probe(struct i2c_client *client)
 		 "Manufacturer 0x%02x, SMIA Version 0x%02x\n",
 		 priv->model, priv->revision, priv->manid, priv->smiaver);
 
-err:
+	ret = v4l2_ctrl_handler_setup(&priv->hdl);
+
+done:
+	ov9740_s_power(&priv->subdev, 0);
 	return ret;
 }
 
@@ -973,8 +980,6 @@ static int ov9740_probe(struct i2c_client *client,
 	}
 
 	ret = ov9740_video_probe(client);
-	if (!ret)
-		ret = v4l2_ctrl_handler_setup(&priv->hdl);
 	if (ret < 0) {
 		v4l2_ctrl_handler_free(&priv->hdl);
 		kfree(priv);

@@ -1041,6 +1041,11 @@ static int mt9t112_camera_probe(struct i2c_client *client)
 	struct mt9t112_priv *priv = to_mt9t112(client);
 	const char          *devname;
 	int                  chipid;
+	int		     ret;
+
+	ret = mt9t112_s_power(&priv->subdev, 1);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * check and show chip ID
@@ -1058,12 +1063,15 @@ static int mt9t112_camera_probe(struct i2c_client *client)
 		break;
 	default:
 		dev_err(&client->dev, "Product ID error %04x\n", chipid);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto done;
 	}
 
 	dev_info(&client->dev, "%s chip ID %04x\n", devname, chipid);
 
-	return 0;
+done:
+	mt9t112_s_power(&priv->subdev, 0);
+	return ret;
 }
 
 static int mt9t112_probe(struct i2c_client *client,

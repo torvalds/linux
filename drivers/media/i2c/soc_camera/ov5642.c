@@ -980,29 +980,40 @@ static struct v4l2_subdev_ops ov5642_subdev_ops = {
 
 static int ov5642_video_probe(struct i2c_client *client)
 {
+	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	int ret;
 	u8 id_high, id_low;
 	u16 id;
 
+	ret = ov5642_s_power(subdev, 1);
+	if (ret < 0)
+		return ret;
+
 	/* Read sensor Model ID */
 	ret = reg_read(client, REG_CHIP_ID_HIGH, &id_high);
 	if (ret < 0)
-		return ret;
+		goto done;
 
 	id = id_high << 8;
 
 	ret = reg_read(client, REG_CHIP_ID_LOW, &id_low);
 	if (ret < 0)
-		return ret;
+		goto done;
 
 	id |= id_low;
 
 	dev_info(&client->dev, "Chip ID 0x%04x detected\n", id);
 
-	if (id != 0x5642)
-		return -ENODEV;
+	if (id != 0x5642) {
+		ret = -ENODEV;
+		goto done;
+	}
 
-	return 0;
+	ret = 0;
+
+done:
+	ov5642_s_power(subdev, 0);
+	return ret;
 }
 
 static int ov5642_probe(struct i2c_client *client,

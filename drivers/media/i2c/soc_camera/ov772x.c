@@ -962,6 +962,11 @@ static int ov772x_video_probe(struct i2c_client *client)
 	struct ov772x_priv *priv = to_ov772x(client);
 	u8                  pid, ver;
 	const char         *devname;
+	int		    ret;
+
+	ret = ov772x_s_power(&priv->subdev, 1);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * check and show product ID and manufacturer ID
@@ -981,7 +986,8 @@ static int ov772x_video_probe(struct i2c_client *client)
 	default:
 		dev_err(&client->dev,
 			"Product ID error %x:%x\n", pid, ver);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto done;
 	}
 
 	dev_info(&client->dev,
@@ -991,7 +997,11 @@ static int ov772x_video_probe(struct i2c_client *client)
 		 ver,
 		 i2c_smbus_read_byte_data(client, MIDH),
 		 i2c_smbus_read_byte_data(client, MIDL));
-	return v4l2_ctrl_handler_setup(&priv->hdl);
+	ret = v4l2_ctrl_handler_setup(&priv->hdl);
+
+done:
+	ov772x_s_power(&priv->subdev, 0);
+	return ret;
 }
 
 static const struct v4l2_ctrl_ops ov772x_ctrl_ops = {

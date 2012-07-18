@@ -955,6 +955,10 @@ static int ov2640_video_probe(struct i2c_client *client)
 	const char *devname;
 	int ret;
 
+	ret = ov2640_s_power(&priv->subdev, 1);
+	if (ret < 0)
+		return ret;
+
 	/*
 	 * check and show product ID and manufacturer ID
 	 */
@@ -973,16 +977,17 @@ static int ov2640_video_probe(struct i2c_client *client)
 		dev_err(&client->dev,
 			"Product ID error %x:%x\n", pid, ver);
 		ret = -ENODEV;
-		goto err;
+		goto done;
 	}
 
 	dev_info(&client->dev,
 		 "%s Product ID %0x:%0x Manufacturer ID %x:%x\n",
 		 devname, pid, ver, midh, midl);
 
-	return v4l2_ctrl_handler_setup(&priv->hdl);
+	ret = v4l2_ctrl_handler_setup(&priv->hdl);
 
-err:
+done:
+	ov2640_s_power(&priv->subdev, 0);
 	return ret;
 }
 

@@ -1086,22 +1086,6 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 	if (ret < 0)
 		goto eadd;
 
-	/*
-	 * This will not yet call v4l2_subdev_core_ops::s_power(1), because the
-	 * subdevice has not been initialised yet. We'll have to call it once
-	 * again after initialisation, even though it shouldn't be needed, we
-	 * don't do any IO here.
-	 *
-	 * The device pointer passed to soc_camera_power_on(), and ultimately to
-	 * the platform callback, should be the subdev physical device. However,
-	 * we have no way to retrieve a pointer to that device here. This isn't
-	 * a real issue, as no platform currently uses the device pointer, and
-	 * this soc_camera_power_on() call will be removed in the next commit.
-	 */
-	ret = soc_camera_power_on(icd->pdev, icl);
-	if (ret < 0)
-		goto epower;
-
 	/* Must have icd->vdev before registering the device */
 	ret = video_dev_create(icd);
 	if (ret < 0)
@@ -1171,8 +1155,6 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 
 	ici->ops->remove(icd);
 
-	__soc_camera_power_off(icd);
-
 	mutex_unlock(&icd->video_lock);
 
 	return 0;
@@ -1193,8 +1175,6 @@ eadddev:
 	video_device_release(icd->vdev);
 	icd->vdev = NULL;
 evdc:
-	__soc_camera_power_off(icd);
-epower:
 	ici->ops->remove(icd);
 eadd:
 	regulator_bulk_free(icl->num_regulators, icl->regulators);

@@ -490,6 +490,10 @@ static int mt9m001_video_probe(struct soc_camera_link *icl,
 	unsigned long flags;
 	int ret;
 
+	ret = mt9m001_s_power(&mt9m001->subdev, 1);
+	if (ret < 0)
+		return ret;
+
 	/* Enable the chip */
 	data = reg_write(client, MT9M001_CHIP_ENABLE, 1);
 	dev_dbg(&client->dev, "write: %d\n", data);
@@ -511,7 +515,8 @@ static int mt9m001_video_probe(struct soc_camera_link *icl,
 	default:
 		dev_err(&client->dev,
 			"No MT9M001 chip detected, register read %x\n", data);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto done;
 	}
 
 	mt9m001->num_fmts = 0;
@@ -540,11 +545,17 @@ static int mt9m001_video_probe(struct soc_camera_link *icl,
 		 data == 0x8431 ? "C12STM" : "C12ST");
 
 	ret = mt9m001_init(client);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(&client->dev, "Failed to initialise the camera\n");
+		goto done;
+	}
 
 	/* mt9m001_init() has reset the chip, returning registers to defaults */
-	return v4l2_ctrl_handler_setup(&mt9m001->hdl);
+	ret = v4l2_ctrl_handler_setup(&mt9m001->hdl);
+
+done:
+	mt9m001_s_power(&mt9m001->subdev, 0);
+	return ret;
 }
 
 static void mt9m001_video_remove(struct soc_camera_link *icl)

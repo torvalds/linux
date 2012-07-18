@@ -796,41 +796,6 @@ static int mt9m111_init(struct mt9m111 *mt9m111)
 	return ret;
 }
 
-/*
- * Interface active, can use i2c. If it fails, it can indeed mean, that
- * this wasn't our capture interface, so, we wait for the right one
- */
-static int mt9m111_video_probe(struct i2c_client *client)
-{
-	struct mt9m111 *mt9m111 = to_mt9m111(client);
-	s32 data;
-	int ret;
-
-	data = reg_read(CHIP_VERSION);
-
-	switch (data) {
-	case 0x143a: /* MT9M111 or MT9M131 */
-		mt9m111->model = V4L2_IDENT_MT9M111;
-		dev_info(&client->dev,
-			"Detected a MT9M111/MT9M131 chip ID %x\n", data);
-		break;
-	case 0x148c: /* MT9M112 */
-		mt9m111->model = V4L2_IDENT_MT9M112;
-		dev_info(&client->dev, "Detected a MT9M112 chip ID %x\n", data);
-		break;
-	default:
-		dev_err(&client->dev,
-			"No MT9M111/MT9M112/MT9M131 chip detected register read %x\n",
-			data);
-		return -ENODEV;
-	}
-
-	ret = mt9m111_init(mt9m111);
-	if (ret)
-		return ret;
-	return v4l2_ctrl_handler_setup(&mt9m111->hdl);
-}
-
 static int mt9m111_power_on(struct mt9m111 *mt9m111)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9m111->subdev);
@@ -940,6 +905,51 @@ static struct v4l2_subdev_ops mt9m111_subdev_ops = {
 	.core	= &mt9m111_subdev_core_ops,
 	.video	= &mt9m111_subdev_video_ops,
 };
+
+/*
+ * Interface active, can use i2c. If it fails, it can indeed mean, that
+ * this wasn't our capture interface, so, we wait for the right one
+ */
+static int mt9m111_video_probe(struct i2c_client *client)
+{
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
+	s32 data;
+	int ret;
+
+	ret = mt9m111_s_power(&mt9m111->subdev, 1);
+	if (ret < 0)
+		return ret;
+
+	data = reg_read(CHIP_VERSION);
+
+	switch (data) {
+	case 0x143a: /* MT9M111 or MT9M131 */
+		mt9m111->model = V4L2_IDENT_MT9M111;
+		dev_info(&client->dev,
+			"Detected a MT9M111/MT9M131 chip ID %x\n", data);
+		break;
+	case 0x148c: /* MT9M112 */
+		mt9m111->model = V4L2_IDENT_MT9M112;
+		dev_info(&client->dev, "Detected a MT9M112 chip ID %x\n", data);
+		break;
+	default:
+		dev_err(&client->dev,
+			"No MT9M111/MT9M112/MT9M131 chip detected register read %x\n",
+			data);
+		ret = -ENODEV;
+		goto done;
+	}
+
+	ret = mt9m111_init(mt9m111);
+	if (ret)
+		goto done;
+
+	ret = v4l2_ctrl_handler_setup(&mt9m111->hdl);
+
+done:
+	mt9m111_s_power(&mt9m111->subdev, 0);
+	return ret;
+}
 
 static int mt9m111_probe(struct i2c_client *client,
 			 const struct i2c_device_id *did)

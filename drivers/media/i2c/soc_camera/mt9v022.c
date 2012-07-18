@@ -578,6 +578,10 @@ static int mt9v022_video_probe(struct i2c_client *client)
 	int ret;
 	unsigned long flags;
 
+	ret = mt9v022_s_power(&mt9v022->subdev, 1);
+	if (ret < 0)
+		return ret;
+
 	/* Read out the chip version register */
 	data = reg_read(client, MT9V022_CHIP_VERSION);
 
@@ -648,6 +652,7 @@ static int mt9v022_video_probe(struct i2c_client *client)
 		dev_err(&client->dev, "Failed to initialise the camera\n");
 
 ei2c:
+	mt9v022_s_power(&mt9v022->subdev, 0);
 	return ret;
 }
 
