@@ -926,6 +926,8 @@ dhdsdio_clk_devsleep_iovar(dhd_bus_t *bus, bool on)
 static int
 dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 {
+#define HT_AVAIL_ERROR_MAX	10
+	static int ht_avail_error = 0;
 	int err;
 	uint8 clkctl, clkreq, devctl;
 	bcmsdh_info_t *sdh;
@@ -955,8 +957,16 @@ dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 
 		bcmsdh_cfg_write(sdh, SDIO_FUNC_1, SBSDIO_FUNC1_CHIPCLKCSR, clkreq, &err);
 		if (err) {
-			DHD_ERROR(("%s: HT Avail request error: %d\n", __FUNCTION__, err));
+			ht_avail_error++;
+			if (ht_avail_error < HT_AVAIL_ERROR_MAX) {
+				DHD_ERROR(("%s: HT Avail request error: %d\n", __FUNCTION__, err));
+			} else {
+				if (ht_avail_error == HT_AVAIL_ERROR_MAX)
+					dhd_os_send_hang_message(bus->dhd);
+			}
 			return BCME_ERROR;
+		} else {
+			ht_avail_error = 0;
 		}
 
 		if (pendok &&
