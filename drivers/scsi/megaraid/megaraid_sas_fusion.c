@@ -94,6 +94,7 @@ int megasas_transition_to_ready(struct megasas_instance *instance, int ocr);
 void megaraid_sas_kill_hba(struct megasas_instance *instance);
 
 extern u32 megasas_dbg_lvl;
+extern int resetwaittime;
 
 /**
  * megasas_enable_intr_fusion -	Enables interrupts
@@ -2063,9 +2064,9 @@ megasas_check_reset_fusion(struct megasas_instance *instance,
 int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance)
 {
 	int i, outstanding, retval = 0;
-	u32 fw_state, wait_time = MEGASAS_RESET_WAIT_TIME;
+	u32 fw_state;
 
-	for (i = 0; i < wait_time; i++) {
+	for (i = 0; i < resetwaittime; i++) {
 		/* Check if firmware is in fault state */
 		fw_state = instance->instancet->read_fw_status_reg(
 			instance->reg_set) & MFI_STATE_MASK;

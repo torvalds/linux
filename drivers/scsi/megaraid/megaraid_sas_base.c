@@ -76,6 +76,11 @@ module_param(throttlequeuedepth, int, S_IRUGO);
 MODULE_PARM_DESC(throttlequeuedepth,
 	"Adapter queue depth when throttled due to I/O timeout. Default: 16");
 
+int resetwaittime = MEGASAS_RESET_WAIT_TIME;
+module_param(resetwaittime, int, S_IRUGO);
+MODULE_PARM_DESC(resetwaittime, "Wait time in seconds after I/O timeout "
+		 "before resetting adapter. Default: 180");
+
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MEGASAS_VERSION);
 MODULE_AUTHOR("megaraidlinux@lsi.com");
@@ -1778,7 +1783,7 @@ static int megasas_wait_for_outstanding(struct megasas_instance *instance)
 		return SUCCESS;
 	}
 
-	for (i = 0; i < wait_time; i++) {
+	for (i = 0; i < resetwaittime; i++) {
 
 		int outstanding = atomic_read(&instance->fw_outstanding);
 
