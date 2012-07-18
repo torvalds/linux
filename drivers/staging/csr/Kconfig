@@ -1,6 +1,6 @@
 config CSR_WIFI
 	tristate "CSR wireless driver"
-	depends on PCI && MMC && CFG80211_WEXT
+	depends on MMC && CFG80211_WEXT
 	select WIRELESS_EXT
 	select WEXT_PRIV
 	help
