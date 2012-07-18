@@ -1276,6 +1276,7 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested)
 			/* fall through */
 		case GLR_TRYFAILED:
 			rgd = gfs2_rgrpd_get_next(rgd);
+			rgd = rgd ? : begin; /* if NULL, wrap */
 			if (rgd != begin) /* If we didn't wrap */
 				break;
 
