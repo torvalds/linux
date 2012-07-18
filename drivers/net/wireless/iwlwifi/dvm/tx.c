@@ -431,7 +431,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		 * only. Check this here.
 		 */
 		if (WARN_ONCE(tid_data->agg.state != IWL_AGG_ON &&
-		    tid_data->agg.state != IWL_AGG_OFF,
+			      tid_data->agg.state != IWL_AGG_OFF,
 		    "Tx while agg.state = %d", tid_data->agg.state))
 			goto drop_unlock_sta;
 
