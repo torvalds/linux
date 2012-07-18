@@ -1851,7 +1851,7 @@ static void tile_net_dev_init(const char *name, const uint8_t *mac)
 		memcpy(dev->dev_addr, mac, 6);
 		dev->addr_len = 6;
 	} else {
-		eth_random_addr(dev->dev_addr);
+		eth_hw_addr_random(dev);
 	}
 
 	/* Register the network device. */
