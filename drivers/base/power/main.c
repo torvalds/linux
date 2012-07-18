@@ -28,7 +28,7 @@
 #include <linux/sched.h>
 #include <linux/async.h>
 #include <linux/suspend.h>
-
+#include <linux/cpuidle.h>
 #include "../base.h"
 #include "power.h"
 
@@ -467,6 +467,7 @@ static void dpm_resume_noirq(pm_message_t state)
 	mutex_unlock(&dpm_list_mtx);
 	dpm_show_time(starttime, state, "noirq");
 	resume_device_irqs();
+	cpuidle_resume();
 }
 
 /**
@@ -867,6 +868,7 @@ static int dpm_suspend_noirq(pm_message_t state)
 	ktime_t starttime = ktime_get();
 	int error = 0;
 
+	cpuidle_pause();
 	suspend_device_irqs();
 	mutex_lock(&dpm_list_mtx);
 	while (!list_empty(&dpm_late_early_list)) {

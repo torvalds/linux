@@ -427,18 +427,11 @@ static int acpi_cpu_soft_notify(struct notifier_block *nfb,
 		 * Initialize missing things
 		 */
 		if (pr->flags.need_hotplug_init) {
-			struct cpuidle_driver *idle_driver =
-				cpuidle_get_driver();
-
 			printk(KERN_INFO "Will online and init hotplugged "
 			       "CPU: %d\n", pr->id);
 			WARN(acpi_processor_start(pr), "Failed to start CPU:"
 				" %d\n", pr->id);
 			pr->flags.need_hotplug_init = 0;
-			if (idle_driver && !strcmp(idle_driver->name,
-						   "intel_idle")) {
-				intel_idle_cpu_init(pr->id);
-			}
 		/* Normal CPU soft online event */
 		} else {
 			acpi_processor_ppc_has_changed(pr, 0);
