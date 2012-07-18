@@ -747,6 +747,7 @@ struct megasas_ctrl_info {
 #define	MEGASAS_RESET_NOTICE_INTERVAL		5
 #define MEGASAS_IOCTL_CMD			0
 #define MEGASAS_DEFAULT_CMD_TIMEOUT		90
+#define MEGASAS_THROTTLE_QUEUE_DEPTH		16
 
 /*
  * FW reports the maximum of number of commands that it can accept (maximum
@@ -1364,6 +1365,7 @@ struct megasas_instance {
 	unsigned long bar;
 	long reset_flags;
 	struct mutex reset_mutex;
+	int throttlequeuedepth;
 };
 
 enum {
