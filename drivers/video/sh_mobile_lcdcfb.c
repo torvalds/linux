@@ -2214,14 +2214,14 @@ sh_mobile_lcdc_channel_fb_init(struct sh_mobile_lcdc_chan *ch,
 		info->fix.ypanstep = 2;
 
 	/* Initialize variable screen information using the first mode as
-	 * default. The default Y virtual resolution is twice the panel size to
-	 * allow for double-buffering.
+	 * default.
 	 */
 	var = &info->var;
 	fb_videomode_to_var(var, mode);
 	var->width = ch->cfg->panel_cfg.width;
 	var->height = ch->cfg->panel_cfg.height;
-	var->yres_virtual = var->yres * 2;
+	var->xres_virtual = ch->xres_virtual;
+	var->yres_virtual = ch->yres_virtual;
 	var->activate = FB_ACTIVATE_NOW;
 
 	/* Use the legacy API by default for RGB formats, and the FOURCC API
@@ -2619,7 +2619,9 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_priv *priv,
 		num_modes = cfg->num_modes;
 	}
 
-	/* Use the first mode as default. */
+	/* Use the first mode as default. The default Y virtual resolution is
+	 * twice the panel size to allow for double-buffering.
+	 */
 	ch->format = format;
 	ch->xres = mode->xres;
 	ch->xres_virtual = mode->xres;
