@@ -239,6 +239,9 @@ int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
 	}
 	vcpu->run = page_address(page);
 
+	kvm_vcpu_set_in_spin_loop(vcpu, false);
+	kvm_vcpu_set_dy_eligible(vcpu, false);
+
 	r = kvm_arch_vcpu_init(vcpu);
 	if (r < 0)
 		goto fail_free_run;
@@ -1585,6 +1588,7 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 	int pass;
 	int i;
 
+	kvm_vcpu_set_in_spin_loop(me, true);
 	/*
 	 * We boost the priority of a VCPU that is runnable but not
 	 * currently running, because it got preempted by something
@@ -1610,6 +1614,7 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 			}
 		}
 	}
+	kvm_vcpu_set_in_spin_loop(me, false);
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_on_spin);
 
