@@ -33,8 +33,6 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-#define AUTO_OFF_TIMEOUT 2000
-
 static void hci_rx_work(struct work_struct *work);
 static void hci_cmd_work(struct work_struct *work);
 static void hci_tx_work(struct work_struct *work);
@@ -61,7 +59,7 @@ static void hci_notify(struct hci_dev *hdev, int event)
 
 void hci_req_complete(struct hci_dev *hdev, __u16 cmd, int result)
 {
-	BT_DBG("%s command 0x%04x result 0x%2.2x", hdev->name, cmd, result);
+	BT_DBG("%s command 0x%4.4x result 0x%2.2x", hdev->name, cmd, result);
 
 	/* If this is the init phase check if the completed command matches
 	 * the last init command, and if not just return.
@@ -188,12 +186,6 @@ static void bredr_init(struct hci_dev *hdev)
 
 	/* Mandatory initialization */
 
-	/* Reset */
-	if (!test_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks)) {
-		set_bit(HCI_RESET, &hdev->flags);
-		hci_send_cmd(hdev, HCI_OP_RESET, 0, NULL);
-	}
-
 	/* Read Local Supported Features */
 	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_FEATURES, 0, NULL);
 
@@ -234,9 +226,6 @@ static void amp_init(struct hci_dev *hdev)
 {
 	hdev->flow_ctl_mode = HCI_FLOW_CTL_MODE_BLOCK_BASED;
 
-	/* Reset */
-	hci_send_cmd(hdev, HCI_OP_RESET, 0, NULL);
-
 	/* Read Local Version */
 	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL);
 
@@ -261,6 +250,10 @@ static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 		queue_work(hdev->workqueue, &hdev->cmd_work);
 	}
 	skb_queue_purge(&hdev->driver_init);
+
+	/* Reset */
+	if (!test_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks))
+		hci_reset_req(hdev, 0);
 
 	switch (hdev->dev_type) {
 	case HCI_BREDR:
@@ -690,12 +683,11 @@ int hci_dev_open(__u16 dev)
 		set_bit(HCI_INIT, &hdev->flags);
 		hdev->init_last_cmd = 0;
 
-		ret = __hci_request(hdev, hci_init_req, 0,
-				    msecs_to_jiffies(HCI_INIT_TIMEOUT));
+		ret = __hci_request(hdev, hci_init_req, 0, HCI_INIT_TIMEOUT);
 
 		if (lmp_host_le_capable(hdev))
 			ret = __hci_request(hdev, hci_le_init_req, 0,
-					    msecs_to_jiffies(HCI_INIT_TIMEOUT));
+					    HCI_INIT_TIMEOUT);
 
 		clear_bit(HCI_INIT, &hdev->flags);
 	}
@@ -782,8 +774,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	if (!test_bit(HCI_RAW, &hdev->flags) &&
 	    test_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks)) {
 		set_bit(HCI_INIT, &hdev->flags);
-		__hci_request(hdev, hci_reset_req, 0,
-			      msecs_to_jiffies(250));
+		__hci_request(hdev, hci_reset_req, 0, HCI_CMD_TIMEOUT);
 		clear_bit(HCI_INIT, &hdev->flags);
 	}
 
@@ -872,8 +863,7 @@ int hci_dev_reset(__u16 dev)
 	hdev->acl_cnt = 0; hdev->sco_cnt = 0; hdev->le_cnt = 0;
 
 	if (!test_bit(HCI_RAW, &hdev->flags))
-		ret = __hci_request(hdev, hci_reset_req, 0,
-				    msecs_to_jiffies(HCI_INIT_TIMEOUT));
+		ret = __hci_request(hdev, hci_reset_req, 0, HCI_INIT_TIMEOUT);
 
 done:
 	hci_req_unlock(hdev);
@@ -913,7 +903,7 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 	switch (cmd) {
 	case HCISETAUTH:
 		err = hci_request(hdev, hci_auth_req, dr.dev_opt,
-				  msecs_to_jiffies(HCI_INIT_TIMEOUT));
+				  HCI_INIT_TIMEOUT);
 		break;
 
 	case HCISETENCRYPT:
@@ -925,23 +915,23 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 		if (!test_bit(HCI_AUTH, &hdev->flags)) {
 			/* Auth must be enabled first */
 			err = hci_request(hdev, hci_auth_req, dr.dev_opt,
-					  msecs_to_jiffies(HCI_INIT_TIMEOUT));
+					  HCI_INIT_TIMEOUT);
 			if (err)
 				break;
 		}
 
 		err = hci_request(hdev, hci_encrypt_req, dr.dev_opt,
-				  msecs_to_jiffies(HCI_INIT_TIMEOUT));
+				  HCI_INIT_TIMEOUT);
 		break;
 
 	case HCISETSCAN:
 		err = hci_request(hdev, hci_scan_req, dr.dev_opt,
-				  msecs_to_jiffies(HCI_INIT_TIMEOUT));
+				  HCI_INIT_TIMEOUT);
 		break;
 
 	case HCISETLINKPOL:
 		err = hci_request(hdev, hci_linkpol_req, dr.dev_opt,
-				  msecs_to_jiffies(HCI_INIT_TIMEOUT));
+				  HCI_INIT_TIMEOUT);
 		break;
 
 	case HCISETLINKMODE:
@@ -1091,8 +1081,7 @@ static void hci_power_on(struct work_struct *work)
 		return;
 
 	if (test_bit(HCI_AUTO_OFF, &hdev->dev_flags))
-		schedule_delayed_work(&hdev->power_off,
-				      msecs_to_jiffies(AUTO_OFF_TIMEOUT));
+		schedule_delayed_work(&hdev->power_off, HCI_AUTO_OFF_TIMEOUT);
 
 	if (test_and_clear_bit(HCI_SETUP, &hdev->dev_flags))
 		mgmt_index_added(hdev);
@@ -1369,11 +1358,19 @@ int hci_remove_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr)
 }
 
 /* HCI command timer function */
-static void hci_cmd_timer(unsigned long arg)
+static void hci_cmd_timeout(unsigned long arg)
 {
 	struct hci_dev *hdev = (void *) arg;
 
-	BT_ERR("%s command tx timeout", hdev->name);
+	if (hdev->sent_cmd) {
+		struct hci_command_hdr *sent = (void *) hdev->sent_cmd->data;
+		u16 opcode = __le16_to_cpu(sent->opcode);
+
+		BT_ERR("%s command 0x%4.4x tx timeout", hdev->name, opcode);
+	} else {
+		BT_ERR("%s command tx timeout", hdev->name);
+	}
+
 	atomic_set(&hdev->cmd_cnt, 1);
 	queue_work(hdev->workqueue, &hdev->cmd_work);
 }
@@ -1671,7 +1668,7 @@ struct hci_dev *hci_alloc_dev(void)
 
 	init_waitqueue_head(&hdev->req_wait_q);
 
-	setup_timer(&hdev->cmd_timer, hci_cmd_timer, (unsigned long) hdev);
+	setup_timer(&hdev->cmd_timer, hci_cmd_timeout, (unsigned long) hdev);
 
 	hci_init_sysfs(hdev);
 	discovery_init(hdev);
@@ -1746,8 +1743,11 @@ int hci_register_dev(struct hci_dev *hdev)
 		}
 	}
 
-	set_bit(HCI_AUTO_OFF, &hdev->dev_flags);
 	set_bit(HCI_SETUP, &hdev->dev_flags);
+
+	if (hdev->dev_type != HCI_AMP)
+		set_bit(HCI_AUTO_OFF, &hdev->dev_flags);
+
 	schedule_work(&hdev->power_on);
 
 	hci_notify(hdev, HCI_DEV_REG);
@@ -2087,7 +2087,7 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param)
 	struct hci_command_hdr *hdr;
 	struct sk_buff *skb;
 
-	BT_DBG("%s opcode 0x%x plen %d", hdev->name, opcode, plen);
+	BT_DBG("%s opcode 0x%4.4x plen %d", hdev->name, opcode, plen);
 
 	skb = bt_skb_alloc(len, GFP_ATOMIC);
 	if (!skb) {
@@ -2129,7 +2129,7 @@ void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 opcode)
 	if (hdr->opcode != cpu_to_le16(opcode))
 		return NULL;
 
-	BT_DBG("%s opcode 0x%x", hdev->name, opcode);
+	BT_DBG("%s opcode 0x%4.4x", hdev->name, opcode);
 
 	return hdev->sent_cmd->data + HCI_COMMAND_HDR_SIZE;
 }
@@ -2199,7 +2199,7 @@ void hci_send_acl(struct hci_chan *chan, struct sk_buff *skb, __u16 flags)
 	struct hci_conn *conn = chan->conn;
 	struct hci_dev *hdev = conn->hdev;
 
-	BT_DBG("%s chan %p flags 0x%x", hdev->name, chan, flags);
+	BT_DBG("%s chan %p flags 0x%4.4x", hdev->name, chan, flags);
 
 	skb->dev = (void *) hdev;
 
@@ -2455,7 +2455,7 @@ static void __check_timeout(struct hci_dev *hdev, unsigned int cnt)
 		/* ACL tx timeout must be longer than maximum
 		 * link supervision timeout (40.9 seconds) */
 		if (!cnt && time_after(jiffies, hdev->acl_last_tx +
-				       msecs_to_jiffies(HCI_ACL_TX_TIMEOUT)))
+				       HCI_ACL_TX_TIMEOUT))
 			hci_link_tx_to(hdev, ACL_LINK);
 	}
 }
@@ -2699,7 +2699,7 @@ static void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 	flags  = hci_flags(handle);
 	handle = hci_handle(handle);
 
-	BT_DBG("%s len %d handle 0x%x flags 0x%x", hdev->name, skb->len,
+	BT_DBG("%s len %d handle 0x%4.4x flags 0x%4.4x", hdev->name, skb->len,
 	       handle, flags);
 
 	hdev->stat.acl_rx++;
@@ -2741,7 +2741,7 @@ static void hci_scodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 
 	handle = __le16_to_cpu(hdr->handle);
 
-	BT_DBG("%s len %d handle 0x%x", hdev->name, skb->len, handle);
+	BT_DBG("%s len %d handle 0x%4.4x", hdev->name, skb->len, handle);
 
 	hdev->stat.sco_rx++;
 
@@ -2821,7 +2821,8 @@ static void hci_cmd_work(struct work_struct *work)
 	struct hci_dev *hdev = container_of(work, struct hci_dev, cmd_work);
 	struct sk_buff *skb;
 
-	BT_DBG("%s cmd %d", hdev->name, atomic_read(&hdev->cmd_cnt));
+	BT_DBG("%s cmd_cnt %d cmd queued %d", hdev->name,
+	       atomic_read(&hdev->cmd_cnt), skb_queue_len(&hdev->cmd_q));
 
 	/* Send queued commands */
 	if (atomic_read(&hdev->cmd_cnt)) {
@@ -2839,7 +2840,7 @@ static void hci_cmd_work(struct work_struct *work)
 				del_timer(&hdev->cmd_timer);
 			else
 				mod_timer(&hdev->cmd_timer,
-				  jiffies + msecs_to_jiffies(HCI_CMD_TIMEOUT));
+					  jiffies + HCI_CMD_TIMEOUT);
 		} else {
 			skb_queue_head(&hdev->cmd_q, skb);
 			queue_work(hdev->workqueue, &hdev->cmd_work);

@@ -464,6 +464,7 @@ struct l2cap_chan {
 
 	__u16		tx_win;
 	__u16		tx_win_max;
+	__u16		ack_win;
 	__u8		max_tx;
 	__u16		retrans_timeout;
 	__u16		monitor_timeout;
@@ -672,11 +673,15 @@ enum {
 
 static inline void l2cap_chan_hold(struct l2cap_chan *c)
 {
+	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->refcnt));
+
 	atomic_inc(&c->refcnt);
 }
 
 static inline void l2cap_chan_put(struct l2cap_chan *c)
 {
+	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->refcnt));
+
 	if (atomic_dec_and_test(&c->refcnt))
 		kfree(c);
 }

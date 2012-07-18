@@ -593,7 +593,7 @@ static int btuart_check_config(struct pcmcia_device *p_dev, void *priv_data)
 {
 	int *try = priv_data;
 
-	if (try == 0)
+	if (!try)
 		p_dev->io_lines = 16;
 
 	if ((p_dev->resource[0]->end != 8) || (p_dev->resource[0]->start == 0))
