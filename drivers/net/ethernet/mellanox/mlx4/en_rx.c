@@ -389,6 +389,9 @@ void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 	mlx4_free_hwq_res(mdev->dev, &ring->wqres, size * stride + TXBB_SIZE);
 	vfree(ring->rx_info);
 	ring->rx_info = NULL;
+#ifdef CONFIG_RFS_ACCEL
+	mlx4_en_cleanup_filters(priv, ring);
+#endif
 }
 
 void mlx4_en_deactivate_rx_ring(struct mlx4_en_priv *priv,
