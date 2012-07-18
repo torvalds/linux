@@ -34,12 +34,12 @@
 #include <linux/kernel.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
+#include <linux/mlx4/driver.h>
 
 #include "mlx4_en.h"
 #include "en_port.h"
 
 #define EN_ETHTOOL_QP_ATTACH (1ull << 63)
-#define EN_ETHTOOL_MAC_MASK 0xffffffffffffULL
 #define EN_ETHTOOL_SHORT_MASK cpu_to_be16(0xffff)
 #define EN_ETHTOOL_WORD_MASK  cpu_to_be32(0xffffffff)
 
@@ -751,7 +751,7 @@ static int mlx4_en_ethtool_to_net_trans_rule(struct net_device *dev,
 	struct ethhdr *eth_spec;
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_spec_list *spec_l2;
-	__be64 mac_msk = cpu_to_be64(EN_ETHTOOL_MAC_MASK << 16);
+	__be64 mac_msk = cpu_to_be64(MLX4_MAC_MASK << 16);
 
 	err = mlx4_en_validate_flow(dev, cmd);
 	if (err)
@@ -761,7 +761,7 @@ static int mlx4_en_ethtool_to_net_trans_rule(struct net_device *dev,
 	if (!spec_l2)
 		return -ENOMEM;
 
-	mac = priv->mac & EN_ETHTOOL_MAC_MASK;
+	mac = priv->mac & MLX4_MAC_MASK;
 	be_mac = cpu_to_be64(mac << 16);
 
 	spec_l2->id = MLX4_NET_TRANS_RULE_ID_ETH;

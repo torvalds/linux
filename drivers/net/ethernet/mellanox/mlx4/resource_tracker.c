@@ -41,13 +41,12 @@
 #include <linux/slab.h>
 #include <linux/mlx4/cmd.h>
 #include <linux/mlx4/qp.h>
+#include <linux/if_ether.h>
 
 #include "mlx4.h"
 #include "fw.h"
 
 #define MLX4_MAC_VALID		(1ull << 63)
-#define MLX4_MAC_MASK		0x7fffffffffffffffULL
-#define ETH_ALEN		6
 
 struct mac_res {
 	struct list_head list;
