@@ -121,6 +121,9 @@ enum ath6kl_fw_capability {
 	/* FW sets mac_addr[4] ^= 0x80 for newly created interfaces */
 	ATH6KL_FW_CAPABILITY_CUSTOM_MAC_ADDR,
 
+	/* Firmware supports TX error rate notification */
+	ATH6KL_FW_CAPABILITY_TX_ERR_NOTIFY,
+
 	/* this needs to be last */
 	ATH6KL_FW_CAPABILITY_MAX,
 };
@@ -593,6 +596,7 @@ struct ath6kl_vif {
 	u16 assoc_bss_beacon_int;
 	u16 listen_intvl_t;
 	u16 bmiss_time_t;
+	u32 txe_intvl;
 	u16 bg_scan_period;
 	u8 assoc_bss_dtim_period;
 	struct net_device_stats net_stats;

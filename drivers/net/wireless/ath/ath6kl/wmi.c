@@ -1531,6 +1531,50 @@ static int ath6kl_wmi_cac_event_rx(struct wmi *wmi, u8 *datap, int len,
 	return 0;
 }
 
+static int ath6kl_wmi_txe_notify_event_rx(struct wmi *wmi, u8 *datap, int len,
+					  struct ath6kl_vif *vif)
+{
+	struct wmi_txe_notify_event *ev;
+	u32 rate, pkts;
+
+	if (len < sizeof(*ev))
+		return -EINVAL;
+
+	if (vif->sme_state != SME_CONNECTED)
+		return -ENOTCONN;
+
+	ev = (struct wmi_txe_notify_event *) datap;
+	rate = le32_to_cpu(ev->rate);
+	pkts = le32_to_cpu(ev->pkts);
+
+	ath6kl_dbg(ATH6KL_DBG_WMI, "TXE notify event: peer %pM rate %d% pkts %d intvl %ds\n",
+		   vif->bssid, rate, pkts, vif->txe_intvl);
+
+	cfg80211_cqm_txe_notify(vif->ndev, vif->bssid, pkts,
+				rate, vif->txe_intvl, GFP_KERNEL);
+
+	return 0;
+}
+
+int ath6kl_wmi_set_txe_notify(struct wmi *wmi, u8 idx,
+			      u32 rate, u32 pkts, u32 intvl)
+{
+	struct sk_buff *skb;
+	struct wmi_txe_notify_cmd *cmd;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_txe_notify_cmd *) skb->data;
+	cmd->rate = cpu_to_le32(rate);
+	cmd->pkts = cpu_to_le32(pkts);
+	cmd->intvl = cpu_to_le32(intvl);
+
+	return ath6kl_wmi_cmd_send(wmi, idx, skb, WMI_SET_TXE_NOTIFY_CMDID,
+				   NO_SYNC_WMIFLAG);
+}
+
 int ath6kl_wmi_set_rssi_filter_cmd(struct wmi *wmi, u8 if_idx, s8 rssi)
 {
 	struct sk_buff *skb;
@@ -3768,6 +3812,9 @@ static int ath6kl_wmi_proc_events_vif(struct wmi *wmi, u16 if_idx, u16 cmd_id,
 	case WMI_RX_ACTION_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_RX_ACTION_EVENTID\n");
 		return ath6kl_wmi_rx_action_event_rx(wmi, datap, len, vif);
+	case WMI_TXE_NOTIFY_EVENTID:
+		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_TXE_NOTIFY_EVENTID\n");
+		return ath6kl_wmi_txe_notify_event_rx(wmi, datap, len, vif);
 	default:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "unknown cmd id 0x%x\n", cmd_id);
 		return -EINVAL;
