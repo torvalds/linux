@@ -525,9 +525,6 @@ config APANIC_PLABEL
 	 If your platform uses a different flash partition label for storing
  	 crashdumps, enter it here.
 
-config STE
-	bool "STE modem control driver"
-
 config MTK23D
 	bool "MTK6223D modem control driver"
 	default n	
@@ -535,14 +532,6 @@ config MTK23D
 config FM580X
 	bool "FM rda580x driver"
 
-config MU509
-	bool "MU509 modem control driver"
-
-config MW100
-	bool "MW100 modem control driver"
-
-config MT6229
-	bool "MT6229 modem control driver"
 
 config RK29_NEWTON
 	bool "RK29_NEWTON misc driver"
@@ -566,5 +555,6 @@ source "drivers/misc/iwmc3200top/Kconfig"
 source "drivers/misc/ti-st/Kconfig"
 source "drivers/misc/lis3lv02d/Kconfig"
 source "drivers/misc/carma/Kconfig"
+source "drivers/misc/3g_module/Kconfig"
 
 endif # MISC_DEVICES

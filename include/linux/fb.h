@@ -27,6 +27,8 @@
 #define FBIOPUT_SET_CURSOR_CMAP    0x460c
 #define FBIOPUT_GET_CURSOR_RESOLUTION    0x460d
 #define FBIOPUT_GET_CURSOR_EN    0x460e
+#define FBIOPUT_NUM_BUFFERS 	0x4625
+
 #ifdef __KERNEL__
 #define FBIO_CURSOR            _IOWR('F', 0x08, struct fb_cursor_user)
 #else

@@ -26,7 +26,6 @@
    
 MODULE_LICENSE("GPL");
 
-//#define DEBUG
 #ifdef DEBUG
 #define MODEMDBG(x...) printk(x)
 #else
@@ -47,54 +46,26 @@ static int  bp_wakeup_ap_irq = 0;
 static struct wake_lock bp_wakelock;
 static bool bpstatus_irq_enable = false;
 
-#if 0
-static void ap_wakeup_bp(struct platform_device *pdev, int wake)
-{
-	struct rk29_mw100_data *pdata = pdev->dev.platform_data;
-	MODEMDBG("ap_wakeup_bp\n");
-
-	gpio_set_value(pdata->ap_wakeup_bp, wake);  
-}
-#endif
-
 static void do_wakeup(struct work_struct *work)
 {
-    MODEMDBG("%s[%d]: %s\n", __FILE__, __LINE__, __FUNCTION__);
     enable_irq(bp_wakeup_ap_irq);
 }
 
 static DECLARE_DELAYED_WORK(wakeup_work, do_wakeup);
 static irqreturn_t detect_irq_handler(int irq, void *dev_id)
 {
-        printk("%s[%d]: %s\n", __FILE__, __LINE__, __FUNCTION__);
       wake_lock_timeout(&bp_wakelock, 10 * HZ);
    
     return IRQ_HANDLED;
 }
-int modem_poweron_off(int on_off)
-{
-  if(on_off)
-  {
-	MODEMDBG("%s::%d--bruins--\n",__func__,__LINE__);
-  }
-  else
-  {
-	MODEMDBG("%s::%d--bruins--\n",__func__,__LINE__);
-  }
-  return 0;
-}
 
 static int mw100_open(struct inode *inode, struct file *file)
 {
-	MODEMDBG("%s::%d--bruins--\n",__func__,__LINE__);
-	//modem_poweron_off(1);
 	return 0;
 }
 
 static int mw100_release(struct inode *inode, struct file *file)
 {
-	MODEMDBG("%s::%d--bruins--\n",__func__,__LINE__);
-	//modem_poweron_off(0);
 	return 0;
 }
 
@@ -104,7 +75,6 @@ static long mw100_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch(cmd)
 	{
 		case MW_IOCTL_RESET:			
-		printk("%s::%d--bruins--ioctl  mw100 reset\n",__func__,__LINE__);
 		gpio_direction_output(pdata->bp_reset,GPIO_LOW);
 		mdelay(120);
 		gpio_set_value(pdata->bp_reset, GPIO_HIGH);
@@ -141,9 +111,6 @@ static int mw100_probe(struct platform_device *pdev)
 	gpio_request(pdata->ap_wakeup_bp,"ap_wakeup_bp");
 	gpio_set_value(pdata->modem_power_en, GPIO_HIGH);
 	msleep(1000);
-#if defined(CONFIG_ARCH_RK29)	
-	rk29_mux_api_set(GPIO6C76_CPUTRACEDATA76_NAME, GPIO4H_GPIO6C76);
-#endif
 	gpio_direction_output(pdata->bp_reset,GPIO_LOW);
 	mdelay(120);
 	gpio_set_value(pdata->bp_reset, GPIO_HIGH);
@@ -157,14 +124,6 @@ static int mw100_probe(struct platform_device *pdev)
 	gpio_set_value(pdata->bp_power, GPIO_LOW);
 	gpio_direction_output(pdata->bp_power,GPIO_LOW);	
 	
-	
-	//±£Áô
-/*	gpio_set_value(pdata->bp_reset, GPIO_LOW);
-	gpio_direction_output(pdata->bp_reset,GPIO_LOW);
-	mdelay(120);
-	gpio_set_value(pdata->bp_reset, GPIO_HIGH);
-	gpio_direction_output(pdata->bp_reset,GPIO_HIGH);
-*/
 	mw100_data = kzalloc(sizeof(struct modem_dev), GFP_KERNEL);
 	if(mw100_data == NULL){
 		printk("failed to request mw100_data\n");
@@ -209,7 +168,6 @@ int mw100_suspend(struct platform_device *pdev, pm_message_t state)
 	
 	struct rk29_mw100_data *pdata = pdev->dev.platform_data;
 	int irq;
-	MODEMDBG("%s::%d--\n",__func__,__LINE__);
 	gpio_set_value(pdata->ap_wakeup_bp, GPIO_LOW);
 	irq = gpio_to_irq(pdata->bp_wakeup_ap);
 	if (irq < 0) {
@@ -217,7 +175,6 @@ int mw100_suspend(struct platform_device *pdev, pm_message_t state)
 	}
 	else
 	{
-		printk("enable pdata->bp_statue irq_wake!! \n");
 		bpstatus_irq_enable = true;
 		enable_irq_wake(irq);
 	}
@@ -228,11 +185,9 @@ int mw100_resume(struct platform_device *pdev)
 {
 	struct rk29_mw100_data *pdata = pdev->dev.platform_data;
 	int irq;
-	MODEMDBG("%s::%d--bruins--\n",__func__,__LINE__);
 	gpio_set_value(pdata->ap_wakeup_bp, GPIO_HIGH);	
 		irq = gpio_to_irq(pdata->bp_wakeup_ap);
 	if (irq ) {
-		printk("enable pdata->bp_statue irq_wake!! \n");
 		disable_irq_wake(irq);
 		bpstatus_irq_enable = false;
 	}
@@ -244,7 +199,6 @@ void mw100_shutdown(struct platform_device *pdev)
 	struct rk29_mw100_data *pdata = pdev->dev.platform_data;
 	struct modem_dev *mw100_data = platform_get_drvdata(pdev);
 	
-	MODEMDBG("%s::%d--bruins--\n",__func__,__LINE__);
 	gpio_set_value(pdata->bp_power, GPIO_HIGH);
 	mdelay(2010);
 	gpio_free(pdata->modem_power_en);
@@ -268,13 +222,11 @@ static struct platform_driver mw100_driver = {
 
 static int __init mw100_init(void)
 {
-	MODEMDBG("%s::%d--bruins--\n",__func__,__LINE__);
 	return platform_driver_register(&mw100_driver);
 }
 
 static void __exit mw100_exit(void)
 {
-	MODEMDBG("%s::%d--bruins--\n",__func__,__LINE__);
 	platform_driver_unregister(&mw100_driver);
 }
 

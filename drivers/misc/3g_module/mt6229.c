@@ -67,7 +67,6 @@ static irqreturn_t detect_irq_handler(int irq, void *dev_id)
     if(do_wakeup_irq)
     {
         do_wakeup_irq = 0;
-  //      MODEMDBG("%s[%d]: %s\n", __FILE__, __LINE__, __FUNCTION__);
         wake_lock_timeout(&modem_wakelock, 10 * HZ);
         schedule_delayed_work(&wakeup_work, 2*HZ);
     }
@@ -78,10 +77,6 @@ int modem_poweron_off(int on_off)
 	struct rk29_mt6229_data *pdata = gpdata;		
   if(on_off)
   {
-		MODEMDBG("------------modem_poweron\n");
-		//gpio_set_value(pdata->bp_reset, GPIO_HIGH);
-		//msleep(100);
-		//gpio_set_value(pdata->bp_reset, GPIO_LOW);
 		gpio_set_value(pdata->bp_power, GPIO_LOW);
 		gpio_set_value(pdata->bp_power, GPIO_HIGH);
 		msleep(10);
@@ -90,7 +85,6 @@ int modem_poweron_off(int on_off)
   }
   else
   {
-		MODEMDBG("------------modem_poweroff\n");
 		gpio_set_value(pdata->bp_power, GPIO_HIGH);
 		gpio_set_value(pdata->ap_wakeup_bp, GPIO_HIGH);
   }
@@ -98,30 +92,22 @@ int modem_poweron_off(int on_off)
 }
 static int mt6229_open(struct inode *inode, struct file *file)
 {
-	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	struct rk29_mt6229_data *pdata = gpdata;
-//	struct platform_data *pdev = container_of(pdata, struct device, platform_data);
 	device_init_wakeup(pdata->dev, 1);
 	return 0;
 }
 
 static int mt6229_release(struct inode *inode, struct file *file)
 {
-	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	return 0;
 }
 
 static long mt6229_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct rk29_mt6229_data *pdata = gpdata;
-	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	switch(cmd)
 	{
 		case MT6229_RESET:					
-			//gpio_set_value(pdata->bp_reset, GPIO_HIGH);
-			//msleep(100);
-			//gpio_set_value(pdata->bp_reset, GPIO_LOW);
-			//msleep(100);
 			gpio_set_value(pdata->bp_power, GPIO_LOW);
 			gpio_set_value(pdata->bp_power, GPIO_HIGH);
 			msleep(10);
@@ -179,14 +165,12 @@ static ssize_t modem_status_write(struct class *cls, const char *_buf, size_t _c
 static CLASS_ATTR(modem_status, 0777, modem_status_read, modem_status_write);
 static void rk29_early_suspend(struct early_suspend *h)
 {
-        printk("*********************mt6229____suspend\n");
 		 
 }
 static void rk29_early_resume(struct early_suspend *h)
 {
 	 if(suspend_int)
 	{
-         printk("***************mt6229____resume\n");
         gpio_set_value(gpdata->ap_wakeup_bp, 0);
 	 suspend_int = 0;
  	}
@@ -202,8 +186,6 @@ static int mt6229_probe(struct platform_device *pdev)
 	struct rk29_mt6229_data *pdata = gpdata = pdev->dev.platform_data;
 	struct modem_dev *mt6229_data = NULL;
 	int result, irq = 0;	
-	//MODEMDBG("-------------%s\n",__FUNCTION__);
-	
 	pdata->dev = &pdev->dev;
 	if(pdata->io_init)
 		pdata->io_init();
@@ -238,7 +220,7 @@ static int mt6229_probe(struct platform_device *pdev)
 	}
 	wake_lock_init(&modem_wakelock, WAKE_LOCK_SUSPEND, "bp_wakeup_ap");
 	gpio_direction_input(pdata->bp_wakeup_ap);
-    gpio_pull_updown(pdata->bp_wakeup_ap, 1);	
+    	gpio_pull_updown(pdata->bp_wakeup_ap, 1);	
 	result = request_irq(irq, detect_irq_handler, IRQ_BB_WAKEUP_AP_TRIGGER, "bp_wakeup_ap", NULL);
 	if (result < 0) {
 		printk("%s: request_irq(%d) failed\n", __func__, irq);
@@ -267,32 +249,13 @@ int mt6229_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	suspend_int = 1;
 	do_wakeup_irq = 1;
-	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	ap_wakeup_bp(pdev, 1);
-#if defined(CONFIG_ARCH_RK29)
-	rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_GPIO1C1);
-	//gpio_direction_output(RK29_PIN1_PC1, 1);
-#endif
-#if defined(CONFIG_ARCH_RK30)
-	rk30_mux_api_set(GPIO1A7_UART1RTSN_SPI0TXD_NAME, GPIO1A_GPIO1A7);
-#endif	
 	return 0;
 }
 
 int mt6229_resume(struct platform_device *pdev)
 {
-	//MODEMDBG("-------------%s\n",__FUNCTION__);
-	//ap_wakeup_bp(pdev, 0);
-#if defined(CONFIG_ARCH_RK29)
-	rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_UART0_RTS_N);
-#endif
-#if defined(CONFIG_ARCH_RK30)
-	rk30_mux_api_set(GPIO1A7_UART1RTSN_SPI0TXD_NAME, GPIO1A_UART1_RTS_N);
-#endif
-	if(gpio_get_value(gpdata->bp_wakeup_ap))
-	{
-		schedule_delayed_work(&wakeup_work, 2*HZ);
-	}
+	ap_wakeup_bp(pdev, 0);
 	return 0;
 }
 
@@ -301,7 +264,6 @@ void mt6229_shutdown(struct platform_device *pdev)
 	struct rk29_mt6229_data *pdata = pdev->dev.platform_data;
 	struct modem_dev *mt6229_data = platform_get_drvdata(pdev);
 	
-	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	modem_poweron_off(0);
 
 	if(pdata->io_deinit)
@@ -328,10 +290,7 @@ static struct platform_driver mt6229_driver = {
 
 static int __init mt6229_init(void)
 {
-	//MODEMDBG("-------------%s\n",__FUNCTION__);
-		int ret ;
-	
-	
+	int ret ;
 	modem_class = class_create(THIS_MODULE, "rk291x_modem");
 	ret =  class_create_file(modem_class, &class_attr_modem_status);
 	if (ret)
@@ -343,7 +302,6 @@ static int __init mt6229_init(void)
 
 static void __exit mt6229_exit(void)
 {
-	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	platform_driver_unregister(&mt6229_driver);
 	class_remove_file(modem_class, &class_attr_modem_status);
 }

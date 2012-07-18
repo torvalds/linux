@@ -191,6 +191,7 @@ struct rk_lcdc_device_driver{
 	struct layer_par *layer_par[RK_MAX_FB_SUPPORT];
 	struct layer_par *def_layer_par;
 	int num_layer;
+	int num_buf;				//the num_of buffer
 	int fb_index_base;                     //the first fb index of the lcdc device
 	rk_screen *screen;
 	u32 pixclock;

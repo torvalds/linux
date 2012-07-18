@@ -10,6 +10,7 @@
 #define LcdClrBit(inf, addr, msk)       inf->preg->addr=((inf->regbak.addr) &= ~(msk))
 #define LcdSetRegBit(inf, addr, msk)    inf->preg->addr=((inf->preg->addr) |= (msk))
 #define LcdMskReg(inf, addr, msk, val)  (inf->regbak.addr)&=~(msk);   inf->preg->addr=(inf->regbak.addr|=(val))
+#define LCDC_REG_CFG_DONE()		LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01); dsb()
 
 /********************************************************************
 **                          结构定义                                *
@@ -483,9 +484,11 @@ struct rk30_lcdc_device{
 	u32 len;               		// physical map length of lcdc register
 	spinlock_t  reg_lock;		//one time only one process allowed to config the register
 	bool clk_on;			//if aclk or hclk is closed ,acess to register is not allowed
+	u8 atv_layer_cnt;		//active layer counter,when  atv_layer_cnt = 0,disable lcdc
 
 	unsigned int		irq;
-	
+
+	struct clk		*pd;				//lcdc power domain
 	struct clk		*hclk;				//lcdc AHP clk
 	struct clk		*dclk;				//lcdc dclk
 	struct clk		*aclk;				//lcdc share memory frequency
