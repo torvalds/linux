@@ -239,6 +239,12 @@ config REGULATOR_LP872X
 	help
 	  This driver supports LP8720/LP8725 PMIC
 
+config REGULATOR_LP8788
+	bool "TI LP8788 Power Regulators"
+	depends on MFD_LP8788
+	help
+	  This driver supports LP8788 voltage regulator chip.
+
 config REGULATOR_PCF50633
 	tristate "NXP PCF50633 regulator driver"
         depends on MFD_PCF50633
