@@ -22,17 +22,12 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
 #include <linux/regulator/of_regulator.h>
 
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps6586x.h>
-
-/* GPIO control registers */
-#define TPS6586X_GPIOSET1	0x5d
-#define TPS6586X_GPIOSET2	0x5e
 
 /* interrupt control registers */
 #define TPS6586X_INT_ACK1	0xb5
@@ -94,12 +89,23 @@ static const struct tps6586x_irq_data tps6586x_irqs[] = {
 	[TPS6586X_INT_RTC_ALM2] = TPS6586X_IRQ(TPS6586X_INT_MASK4, 1 << 1),
 };
 
+static struct mfd_cell tps6586x_cell[] = {
+	{
+		.name = "tps6586x-gpio",
+	},
+	{
+		.name = "tps6586x-rtc",
+	},
+	{
+		.name = "tps6586x-onkey",
+	},
+};
+
 struct tps6586x {
 	struct device		*dev;
 	struct i2c_client	*client;
 	struct regmap		*regmap;
 
-	struct gpio_chip	gpio;
 	struct irq_chip		irq_chip;
 	struct mutex		irq_lock;
 	int			irq_base;
@@ -172,63 +178,6 @@ int tps6586x_update(struct device *dev, int reg, uint8_t val, uint8_t mask)
 	return regmap_update_bits(tps6586x->regmap, reg, mask, val);
 }
 EXPORT_SYMBOL_GPL(tps6586x_update);
-
-static int tps6586x_gpio_get(struct gpio_chip *gc, unsigned offset)
-{
-	struct tps6586x *tps6586x = container_of(gc, struct tps6586x, gpio);
-	uint8_t val;
-	int ret;
-
-	ret = tps6586x_read(tps6586x->dev, TPS6586X_GPIOSET2, &val);
-	if (ret)
-		return ret;
-
-	return !!(val & (1 << offset));
-}
-
-
-static void tps6586x_gpio_set(struct gpio_chip *chip, unsigned offset,
-			      int value)
-{
-	struct tps6586x *tps6586x = container_of(chip, struct tps6586x, gpio);
-
-	tps6586x_update(tps6586x->dev, TPS6586X_GPIOSET2,
-			value << offset, 1 << offset);
-}
-
-static int tps6586x_gpio_output(struct gpio_chip *gc, unsigned offset,
-				int value)
-{
-	struct tps6586x *tps6586x = container_of(gc, struct tps6586x, gpio);
-	uint8_t val, mask;
-
-	tps6586x_gpio_set(gc, offset, value);
-
-	val = 0x1 << (offset * 2);
-	mask = 0x3 << (offset * 2);
-
-	return tps6586x_update(tps6586x->dev, TPS6586X_GPIOSET1, val, mask);
-}
-
-static int tps6586x_gpio_init(struct tps6586x *tps6586x, int gpio_base)
-{
-	if (!gpio_base)
-		return 0;
-
-	tps6586x->gpio.owner		= THIS_MODULE;
-	tps6586x->gpio.label		= tps6586x->client->name;
-	tps6586x->gpio.dev		= tps6586x->dev;
-	tps6586x->gpio.base		= gpio_base;
-	tps6586x->gpio.ngpio		= 4;
-	tps6586x->gpio.can_sleep	= 1;
-
-	/* FIXME: add handling of GPIOs as dedicated inputs */
-	tps6586x->gpio.direction_output	= tps6586x_gpio_output;
-	tps6586x->gpio.set		= tps6586x_gpio_set;
-	tps6586x->gpio.get		= tps6586x_gpio_get;
-
-	return gpiochip_add(&tps6586x->gpio);
-}
 
 static int __remove_subdev(struct device *dev, void *unused)
 {
@@ -543,10 +492,11 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 		}
 	}
 
-	ret = tps6586x_gpio_init(tps6586x, pdata->gpio_base);
-	if (ret) {
-		dev_err(&client->dev, "GPIO registration failed: %d\n", ret);
-		goto err_gpio_init;
+	ret = mfd_add_devices(tps6586x->dev, -1,
+			tps6586x_cell, ARRAY_SIZE(tps6586x_cell), NULL, 0);
+	if (ret < 0) {
+		dev_err(&client->dev, "mfd_add_devices failed: %d\n", ret);
+		goto err_mfd_add;
 	}
 
 	ret = tps6586x_add_subdevs(tps6586x, pdata);
@@ -558,36 +508,21 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 	return 0;
 
 err_add_devs:
-	if (pdata->gpio_base) {
-		ret = gpiochip_remove(&tps6586x->gpio);
-		if (ret)
-			dev_err(&client->dev, "Can't remove gpio chip: %d\n",
-				ret);
-	}
-err_gpio_init:
+	mfd_remove_devices(tps6586x->dev);
+err_mfd_add:
 	if (client->irq)
 		free_irq(client->irq, tps6586x);
-
 	return ret;
 }
 
 static int __devexit tps6586x_i2c_remove(struct i2c_client *client)
 {
 	struct tps6586x *tps6586x = i2c_get_clientdata(client);
-	struct tps6586x_platform_data *pdata = client->dev.platform_data;
-	int ret;
-
-	if (client->irq)
-		free_irq(client->irq, tps6586x);
-
-	if (pdata->gpio_base) {
-		ret = gpiochip_remove(&tps6586x->gpio);
-		if (ret)
-			dev_err(&client->dev, "Can't remove gpio chip: %d\n",
-				ret);
-	}
 
 	tps6586x_remove_subdevs(tps6586x);
+	mfd_remove_devices(tps6586x->dev);
+	if (client->irq)
+		free_irq(client->irq, tps6586x);
 	return 0;
 }
 
