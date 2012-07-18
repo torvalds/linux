@@ -203,6 +203,8 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_GEM_WAIT	0x2c
 #define DRM_I915_GEM_CONTEXT_CREATE	0x2d
 #define DRM_I915_GEM_CONTEXT_DESTROY	0x2e
+#define DRM_I915_GEM_SET_CACHEING	0x2f
+#define DRM_I915_GEM_GET_CACHEING	0x30
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -227,6 +229,8 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_GEM_PIN		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_PIN, struct drm_i915_gem_pin)
 #define DRM_IOCTL_I915_GEM_UNPIN	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_UNPIN, struct drm_i915_gem_unpin)
 #define DRM_IOCTL_I915_GEM_BUSY		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_BUSY, struct drm_i915_gem_busy)
+#define DRM_IOCTL_I915_GEM_SET_CACHEING		DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_SET_CACHEING, struct drm_i915_gem_cacheing)
+#define DRM_IOCTL_I915_GEM_GET_CACHEING		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_GET_CACHEING, struct drm_i915_gem_cacheing)
 #define DRM_IOCTL_I915_GEM_THROTTLE	DRM_IO ( DRM_COMMAND_BASE + DRM_I915_GEM_THROTTLE)
 #define DRM_IOCTL_I915_GEM_ENTERVT	DRM_IO(DRM_COMMAND_BASE + DRM_I915_GEM_ENTERVT)
 #define DRM_IOCTL_I915_GEM_LEAVEVT	DRM_IO(DRM_COMMAND_BASE + DRM_I915_GEM_LEAVEVT)
@@ -700,6 +704,17 @@ struct drm_i915_gem_busy {
 
 	/** Return busy status (1 if busy, 0 if idle) */
 	__u32 busy;
+};
+
+#define I915_CACHEING_NONE		0
+#define I915_CACHEING_CACHED		1
+
+struct drm_i915_gem_cacheing {
+	/** Handle of the buffer to check for busy */
+	__u32 handle;
+
+	/** Cacheing level to apply or return value */
+	__u32 cacheing;
 };
 
 #define I915_TILING_NONE	0
