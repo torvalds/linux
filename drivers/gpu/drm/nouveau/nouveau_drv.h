@@ -104,48 +104,10 @@ struct nouveau_mem;
 #define NOUVEAU_MAX_CHANNEL_NR 4096
 #define NOUVEAU_MAX_TILE_NR 15
 
-struct nouveau_tile_reg {
-	bool used;
-	struct nouveau_fence *fence;
-};
-
-struct nouveau_bo {
-	struct ttm_buffer_object bo;
-	struct ttm_placement placement;
-	u32 valid_domains;
-	u32 placements[3];
-	u32 busy_placements[3];
-	struct ttm_bo_kmap_obj kmap;
-	struct list_head head;
-
-	/* protected by ttm_bo_reserve() */
-	struct drm_file *reserved_by;
-	struct list_head entry;
-	int pbbo_index;
-	bool validate_mapped;
-
-	struct list_head vma_list;
-	unsigned page_shift;
-
-	uint32_t tile_mode;
-	uint32_t tile_flags;
-	struct nouveau_tile_reg *tile;
-
-	struct drm_gem_object *gem;
-	int pin_refcnt;
-
-	struct ttm_bo_kmap_obj dma_buf_vmap;
-	int vmapping_count;
-};
+#include "nouveau_bo.h"
 
 #define nouveau_bo_tile_layout(nvbo)				\
 	((nvbo)->tile_flags & NOUVEAU_GEM_TILE_LAYOUT_MASK)
-
-static inline struct nouveau_bo *
-nouveau_bo(struct ttm_buffer_object *bo)
-{
-	return container_of(bo, struct nouveau_bo, bo);
-}
 
 static inline struct nouveau_bo *
 nouveau_gem_object(struct drm_gem_object *gem)
@@ -591,25 +553,6 @@ nouveau_bdev(struct ttm_bo_device *bd)
 	return container_of(bd, struct drm_nouveau_private, ttm.bdev);
 }
 
-static inline int
-nouveau_bo_ref(struct nouveau_bo *ref, struct nouveau_bo **pnvbo)
-{
-	struct nouveau_bo *prev;
-
-	if (!pnvbo)
-		return -EINVAL;
-	prev = *pnvbo;
-
-	*pnvbo = ref ? nouveau_bo(ttm_bo_reference(&ref->bo)) : NULL;
-	if (prev) {
-		struct ttm_buffer_object *bo = &prev->bo;
-
-		ttm_bo_unref(&bo);
-	}
-
-	return 0;
-}
-
 /* nouveau_drv.c */
 extern int nouveau_modeset;
 extern int nouveau_duallink;
@@ -930,34 +873,6 @@ struct nouveau_bo *nvd0_display_crtc_sema(struct drm_device *, int crtc);
 void nvd0_display_flip_stop(struct drm_crtc *);
 int nvd0_display_flip_next(struct drm_crtc *, struct drm_framebuffer *,
 			   struct nouveau_channel *, u32 swap_interval);
-
-/* nouveau_bo.c */
-extern struct ttm_bo_driver nouveau_bo_driver;
-extern void nouveau_bo_move_init(struct nouveau_channel *);
-extern int nouveau_bo_new(struct drm_device *, int size, int align,
-			  uint32_t flags, uint32_t tile_mode,
-			  uint32_t tile_flags,
-			  struct sg_table *sg,
-			  struct nouveau_bo **);
-extern int nouveau_bo_pin(struct nouveau_bo *, uint32_t flags);
-extern int nouveau_bo_unpin(struct nouveau_bo *);
-extern int nouveau_bo_map(struct nouveau_bo *);
-extern void nouveau_bo_unmap(struct nouveau_bo *);
-extern void nouveau_bo_placement_set(struct nouveau_bo *, uint32_t type,
-				     uint32_t busy);
-extern u16 nouveau_bo_rd16(struct nouveau_bo *nvbo, unsigned index);
-extern void nouveau_bo_wr16(struct nouveau_bo *nvbo, unsigned index, u16 val);
-extern u32 nouveau_bo_rd32(struct nouveau_bo *nvbo, unsigned index);
-extern void nouveau_bo_wr32(struct nouveau_bo *nvbo, unsigned index, u32 val);
-extern void nouveau_bo_fence(struct nouveau_bo *, struct nouveau_fence *);
-extern int nouveau_bo_validate(struct nouveau_bo *, bool interruptible,
-			       bool no_wait_reserve, bool no_wait_gpu);
-
-extern struct nouveau_vma *
-nouveau_bo_vma_find(struct nouveau_bo *, struct nouveau_vm *);
-extern int  nouveau_bo_vma_add(struct nouveau_bo *, struct nouveau_vm *,
-			       struct nouveau_vma *);
-extern void nouveau_bo_vma_del(struct nouveau_bo *, struct nouveau_vma *);
 
 /* nouveau_gem.c */
 extern int nouveau_gem_new(struct drm_device *, int size, int align,

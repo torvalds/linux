@@ -32,6 +32,10 @@
 #include "nouveau_fence.h"
 #include "nouveau_software.h"
 
+MODULE_PARM_DESC(vram_pushbuf, "Force DMA push buffers to be in VRAM");
+int nouveau_vram_pushbuf;
+module_param_named(vram_pushbuf, nouveau_vram_pushbuf, int, 0400);
+
 static int
 nouveau_channel_pushbuf_init(struct nouveau_channel *chan)
 {
