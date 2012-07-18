@@ -164,12 +164,12 @@ struct ixgbevf_q_vector {
 	((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
 	(R)->next_to_clean - (R)->next_to_use - 1)
 
-#define IXGBE_RX_DESC_ADV(R, i)	    \
-	(&(((union ixgbe_adv_rx_desc *)((R).desc))[i]))
-#define IXGBE_TX_DESC_ADV(R, i)	    \
-	(&(((union ixgbe_adv_tx_desc *)((R).desc))[i]))
-#define IXGBE_TX_CTXTDESC_ADV(R, i)	    \
-	(&(((struct ixgbe_adv_tx_context_desc *)((R).desc))[i]))
+#define IXGBEVF_RX_DESC(R, i)	    \
+	(&(((union ixgbe_adv_rx_desc *)((R)->desc))[i]))
+#define IXGBEVF_TX_DESC(R, i)	    \
+	(&(((union ixgbe_adv_tx_desc *)((R)->desc))[i]))
+#define IXGBEVF_TX_CTXTDESC(R, i)	    \
+	(&(((struct ixgbe_adv_tx_context_desc *)((R)->desc))[i]))
 
 #define IXGBE_MAX_JUMBO_FRAME_SIZE        16128
 

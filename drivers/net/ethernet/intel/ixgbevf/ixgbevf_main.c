@@ -195,7 +195,7 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
 
 	i = tx_ring->next_to_clean;
 	eop = tx_ring->tx_buffer_info[i].next_to_watch;
-	eop_desc = IXGBE_TX_DESC_ADV(*tx_ring, eop);
+	eop_desc = IXGBEVF_TX_DESC(tx_ring, eop);
 
 	while ((eop_desc->wb.status & cpu_to_le32(IXGBE_TXD_STAT_DD)) &&
 	       (count < tx_ring->count)) {
@@ -206,7 +206,7 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
 			goto cont_loop;
 		for ( ; !cleaned; count++) {
 			struct sk_buff *skb;
-			tx_desc = IXGBE_TX_DESC_ADV(*tx_ring, i);
+			tx_desc = IXGBEVF_TX_DESC(tx_ring, i);
 			tx_buffer_info = &tx_ring->tx_buffer_info[i];
 			cleaned = (i == eop);
 			skb = tx_buffer_info->skb;
@@ -235,7 +235,7 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
 
 cont_loop:
 		eop = tx_ring->tx_buffer_info[i].next_to_watch;
-		eop_desc = IXGBE_TX_DESC_ADV(*tx_ring, eop);
+		eop_desc = IXGBEVF_TX_DESC(tx_ring, eop);
 	}
 
 	tx_ring->next_to_clean = i;
@@ -339,7 +339,7 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_adapter *adapter,
 	bi = &rx_ring->rx_buffer_info[i];
 
 	while (cleaned_count--) {
-		rx_desc = IXGBE_RX_DESC_ADV(*rx_ring, i);
+		rx_desc = IXGBEVF_RX_DESC(rx_ring, i);
 		skb = bi->skb;
 		if (!skb) {
 			skb = netdev_alloc_skb(adapter->netdev,
@@ -405,7 +405,7 @@ static bool ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 
 	i = rx_ring->next_to_clean;
-	rx_desc = IXGBE_RX_DESC_ADV(*rx_ring, i);
+	rx_desc = IXGBEVF_RX_DESC(rx_ring, i);
 	staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 	rx_buffer_info = &rx_ring->rx_buffer_info[i];
 
@@ -432,7 +432,7 @@ static bool ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 		if (i == rx_ring->count)
 			i = 0;
 
-		next_rxd = IXGBE_RX_DESC_ADV(*rx_ring, i);
+		next_rxd = IXGBEVF_RX_DESC(rx_ring, i);
 		prefetch(next_rxd);
 		cleaned_count++;
 
@@ -2437,7 +2437,7 @@ static int ixgbevf_tso(struct ixgbevf_adapter *adapter,
 		i = tx_ring->next_to_use;
 
 		tx_buffer_info = &tx_ring->tx_buffer_info[i];
-		context_desc = IXGBE_TX_CTXTDESC_ADV(*tx_ring, i);
+		context_desc = IXGBEVF_TX_CTXTDESC(tx_ring, i);
 
 		/* VLAN MACLEN IPLEN */
 		if (tx_flags & IXGBE_TX_FLAGS_VLAN)
@@ -2497,7 +2497,7 @@ static bool ixgbevf_tx_csum(struct ixgbevf_adapter *adapter,
 	    (tx_flags & IXGBE_TX_FLAGS_VLAN)) {
 		i = tx_ring->next_to_use;
 		tx_buffer_info = &tx_ring->tx_buffer_info[i];
-		context_desc = IXGBE_TX_CTXTDESC_ADV(*tx_ring, i);
+		context_desc = IXGBEVF_TX_CTXTDESC(tx_ring, i);
 
 		if (tx_flags & IXGBE_TX_FLAGS_VLAN)
 			vlan_macip_lens |= (tx_flags &
@@ -2700,7 +2700,7 @@ static void ixgbevf_tx_queue(struct ixgbevf_adapter *adapter,
 	i = tx_ring->next_to_use;
 	while (count--) {
 		tx_buffer_info = &tx_ring->tx_buffer_info[i];
-		tx_desc = IXGBE_TX_DESC_ADV(*tx_ring, i);
+		tx_desc = IXGBEVF_TX_DESC(tx_ring, i);
 		tx_desc->read.buffer_addr = cpu_to_le64(tx_buffer_info->dma);
 		tx_desc->read.cmd_type_len =
 			cpu_to_le32(cmd_type_len | tx_buffer_info->length);

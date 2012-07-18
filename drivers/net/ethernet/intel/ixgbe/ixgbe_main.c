@@ -2719,8 +2719,7 @@ void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
 static void ixgbe_setup_mtqc(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 rttdcs;
-	u32 reg;
+	u32 rttdcs, mtqc;
 	u8 tcs = netdev_get_num_tc(adapter->netdev);
 
 	if (hw->mac.type == ixgbe_mac_82598EB)
@@ -2732,28 +2731,32 @@ static void ixgbe_setup_mtqc(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(hw, IXGBE_RTTDCS, rttdcs);
 
 	/* set transmit pool layout */
-	switch (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
-	case (IXGBE_FLAG_SRIOV_ENABLED):
-		IXGBE_WRITE_REG(hw, IXGBE_MTQC,
-				(IXGBE_MTQC_VT_ENA | IXGBE_MTQC_64VF));
-		break;
-	default:
-		if (!tcs)
-			reg = IXGBE_MTQC_64Q_1PB;
-		else if (tcs <= 4)
-			reg = IXGBE_MTQC_RT_ENA | IXGBE_MTQC_4TC_4TQ;
+	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
+		mtqc = IXGBE_MTQC_VT_ENA;
+		if (tcs > 4)
+			mtqc |= IXGBE_MTQC_RT_ENA | IXGBE_MTQC_8TC_8TQ;
+		else if (tcs > 1)
+			mtqc |= IXGBE_MTQC_RT_ENA | IXGBE_MTQC_4TC_4TQ;
+		else if (adapter->ring_feature[RING_F_RSS].indices == 4)
+			mtqc |= IXGBE_MTQC_32VF;
 		else
-			reg = IXGBE_MTQC_RT_ENA | IXGBE_MTQC_8TC_8TQ;
+			mtqc |= IXGBE_MTQC_64VF;
+	} else {
+		if (tcs > 4)
+			mtqc = IXGBE_MTQC_RT_ENA | IXGBE_MTQC_8TC_8TQ;
+		else if (tcs > 1)
+			mtqc = IXGBE_MTQC_RT_ENA | IXGBE_MTQC_4TC_4TQ;
+		else
+			mtqc = IXGBE_MTQC_64Q_1PB;
+	}
 
-		IXGBE_WRITE_REG(hw, IXGBE_MTQC, reg);
+	IXGBE_WRITE_REG(hw, IXGBE_MTQC, mtqc);
 
-		/* Enable Security TX Buffer IFG for multiple pb */
-		if (tcs) {
-			reg = IXGBE_READ_REG(hw, IXGBE_SECTXMINIFG);
-			reg |= IXGBE_SECTX_DCB;
-			IXGBE_WRITE_REG(hw, IXGBE_SECTXMINIFG, reg);
-		}
-		break;
+	/* Enable Security TX Buffer IFG for multiple pb */
+	if (tcs) {
+		u32 sectx = IXGBE_READ_REG(hw, IXGBE_SECTXMINIFG);
+		sectx |= IXGBE_SECTX_DCB;
+		IXGBE_WRITE_REG(hw, IXGBE_SECTXMINIFG, sectx);
 	}
 
 	/* re-enable the arbiter */
@@ -2886,11 +2889,18 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 	u32 mrqc = 0, reta = 0;
 	u32 rxcsum;
 	int i, j;
-	u8 tcs = netdev_get_num_tc(adapter->netdev);
-	int maxq = adapter->ring_feature[RING_F_RSS].indices;
+	u16 rss_i = adapter->ring_feature[RING_F_RSS].indices;
 
-	if (tcs)
-		maxq = min(maxq, adapter->num_tx_queues / tcs);
+	if (!(adapter->flags & IXGBE_FLAG_RSS_ENABLED))
+		rss_i = 1;
+
+	/*
+	 * Program table for at least 2 queues w/ SR-IOV so that VFs can
+	 * make full use of any rings they may have.  We will use the
+	 * PSRTYPE register to control how many rings we use within the PF.
+	 */
+	if ((adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) && (rss_i < 2))
+		rss_i = 2;
 
 	/* Fill out hash function seeds */
 	for (i = 0; i < 10; i++)
@@ -2898,7 +2908,7 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 
 	/* Fill out redirection table */
 	for (i = 0, j = 0; i < 128; i++, j++) {
-		if (j == maxq)
+		if (j == rss_i)
 			j = 0;
 		/* reta = 4-byte sliding window of
 		 * 0x00..(indices-1)(indices-1)00..etc. */
@@ -2912,35 +2922,36 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 	rxcsum |= IXGBE_RXCSUM_PCSD;
 	IXGBE_WRITE_REG(hw, IXGBE_RXCSUM, rxcsum);
 
-	if (adapter->hw.mac.type == ixgbe_mac_82598EB &&
-	    (adapter->flags & IXGBE_FLAG_RSS_ENABLED)) {
-		mrqc = IXGBE_MRQC_RSSEN;
+	if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
+		if (adapter->flags & IXGBE_FLAG_RSS_ENABLED)
+			mrqc = IXGBE_MRQC_RSSEN;
 	} else {
-		int mask = adapter->flags & (IXGBE_FLAG_RSS_ENABLED
-					     | IXGBE_FLAG_SRIOV_ENABLED);
+		u8 tcs = netdev_get_num_tc(adapter->netdev);
 
-		switch (mask) {
-		case (IXGBE_FLAG_RSS_ENABLED):
-			if (!tcs)
-				mrqc = IXGBE_MRQC_RSSEN;
-			else if (tcs <= 4)
+		if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
+			if (tcs > 4)
+				mrqc = IXGBE_MRQC_VMDQRT8TCEN;	/* 8 TCs */
+			else if (tcs > 1)
+				mrqc = IXGBE_MRQC_VMDQRT4TCEN;	/* 4 TCs */
+			else if (adapter->ring_feature[RING_F_RSS].indices == 4)
+				mrqc = IXGBE_MRQC_VMDQRSS32EN;
+			else
+				mrqc = IXGBE_MRQC_VMDQRSS64EN;
+		} else {
+			if (tcs > 4)
+				mrqc = IXGBE_MRQC_RTRSS8TCEN;
+			else if (tcs > 1)
 				mrqc = IXGBE_MRQC_RTRSS4TCEN;
 			else
-				mrqc = IXGBE_MRQC_RTRSS8TCEN;
-			break;
-		case (IXGBE_FLAG_SRIOV_ENABLED):
-			mrqc = IXGBE_MRQC_VMDQEN;
-			break;
-		default:
-			break;
+				mrqc = IXGBE_MRQC_RSSEN;
 		}
 	}
 
 	/* Perform hash on these packet types */
-	mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4
-	      | IXGBE_MRQC_RSS_FIELD_IPV4_TCP
-	      | IXGBE_MRQC_RSS_FIELD_IPV6
-	      | IXGBE_MRQC_RSS_FIELD_IPV6_TCP;
+	mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4 |
+		IXGBE_MRQC_RSS_FIELD_IPV4_TCP |
+		IXGBE_MRQC_RSS_FIELD_IPV6 |
+		IXGBE_MRQC_RSS_FIELD_IPV6_TCP;
 
 	if (adapter->flags2 & IXGBE_FLAG2_RSS_FIELD_IPV4_UDP)
 		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4_UDP;
@@ -3103,8 +3114,13 @@ static void ixgbe_setup_psrtype(struct ixgbe_adapter *adapter)
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		return;
 
-	if (adapter->flags & IXGBE_FLAG_RSS_ENABLED)
-		psrtype |= (adapter->num_rx_queues_per_pool << 29);
+	if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
+		int rss_i = adapter->ring_feature[RING_F_RSS].indices;
+		if (rss_i > 3)
+			psrtype |= 2 << 29;
+		else if (rss_i > 1)
+			psrtype |= 1 << 29;
+	}
 
 	for (p = 0; p < adapter->num_rx_pools; p++)
 		IXGBE_WRITE_REG(hw, IXGBE_PSRTYPE(adapter->num_vfs + p),
@@ -3608,20 +3624,16 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 
 	/* Enable RSS Hash per TC */
 	if (hw->mac.type != ixgbe_mac_82598EB) {
-		int i;
-		u32 reg = 0;
-		u8 msb = 0;
-		u8 rss_i = adapter->netdev->tc_to_txq[0].count - 1;
+		u32 msb = 0;
+		u16 rss_i = adapter->ring_feature[RING_F_RSS].indices - 1;
 
 		while (rss_i) {
 			msb++;
 			rss_i >>= 1;
 		}
 
-		for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
-			reg |= msb << IXGBE_RQTC_SHIFT_TC(i);
-
-		IXGBE_WRITE_REG(hw, IXGBE_RQTC, reg);
+		/* write msb to all 8 TCs in one write */
+		IXGBE_WRITE_REG(hw, IXGBE_RQTC, msb * 0x11111111);
 	}
 }
 #endif
@@ -4549,10 +4561,16 @@ static int ixgbe_setup_all_tx_resources(struct ixgbe_adapter *adapter)
 		err = ixgbe_setup_tx_resources(adapter->tx_ring[i]);
 		if (!err)
 			continue;
+
 		e_err(probe, "Allocation for Tx Queue %u failed\n", i);
-		break;
+		goto err_setup_tx;
 	}
 
+	return 0;
+err_setup_tx:
+	/* rewind the index freeing the rings as we go */
+	while (i--)
+		ixgbe_free_tx_resources(adapter->tx_ring[i]);
 	return err;
 }
 
@@ -4627,10 +4645,16 @@ static int ixgbe_setup_all_rx_resources(struct ixgbe_adapter *adapter)
 		err = ixgbe_setup_rx_resources(adapter->rx_ring[i]);
 		if (!err)
 			continue;
+
 		e_err(probe, "Allocation for Rx Queue %u failed\n", i);
-		break;
+		goto err_setup_rx;
 	}
 
+	return 0;
+err_setup_rx:
+	/* rewind the index freeing the rings as we go */
+	while (i--)
+		ixgbe_free_rx_resources(adapter->rx_ring[i]);
 	return err;
 }
 
@@ -4786,15 +4810,31 @@ static int ixgbe_open(struct net_device *netdev)
 	if (err)
 		goto err_req_irq;
 
+	/* Notify the stack of the actual queue counts. */
+	err = netif_set_real_num_tx_queues(netdev,
+					   adapter->num_rx_pools > 1 ? 1 :
+					   adapter->num_tx_queues);
+	if (err)
+		goto err_set_queues;
+
+
+	err = netif_set_real_num_rx_queues(netdev,
+					   adapter->num_rx_pools > 1 ? 1 :
+					   adapter->num_rx_queues);
+	if (err)
+		goto err_set_queues;
+
 	ixgbe_up_complete(adapter);
 
 	return 0;
 
+err_set_queues:
+	ixgbe_free_irq(adapter);
 err_req_irq:
-err_setup_rx:
 	ixgbe_free_all_rx_resources(adapter);
-err_setup_tx:
+err_setup_rx:
 	ixgbe_free_all_tx_resources(adapter);
+err_setup_tx:
 	ixgbe_reset(adapter);
 
 	return err;
@@ -4852,23 +4892,19 @@ static int ixgbe_resume(struct pci_dev *pdev)
 
 	pci_wake_from_d3(pdev, false);
 
-	rtnl_lock();
-	err = ixgbe_init_interrupt_scheme(adapter);
-	rtnl_unlock();
-	if (err) {
-		e_dev_err("Cannot initialize interrupts for device\n");
-		return err;
-	}
-
 	ixgbe_reset(adapter);
 
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_WUS, ~0);
 
-	if (netif_running(netdev)) {
+	rtnl_lock();
+	err = ixgbe_init_interrupt_scheme(adapter);
+	if (!err && netif_running(netdev))
 		err = ixgbe_open(netdev);
-		if (err)
-			return err;
-	}
+
+	rtnl_unlock();
+
+	if (err)
+		return err;
 
 	netif_device_attach(netdev);
 
@@ -5390,6 +5426,9 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 
 	netif_carrier_on(netdev);
 	ixgbe_check_vf_rate_limit(adapter);
+
+	/* ping all the active vfs to let them know link has changed */
+	ixgbe_ping_all_vfs(adapter);
 }
 
 /**
@@ -5419,6 +5458,9 @@ static void ixgbe_watchdog_link_is_down(struct ixgbe_adapter *adapter)
 
 	e_info(drv, "NIC Link is Down\n");
 	netif_carrier_off(netdev);
+
+	/* ping all the active vfs to let them know link has changed */
+	ixgbe_ping_all_vfs(adapter);
 }
 
 /**

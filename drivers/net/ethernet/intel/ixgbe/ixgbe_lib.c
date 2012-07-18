@@ -42,42 +42,37 @@ static void ixgbe_get_first_reg_idx(struct ixgbe_adapter *adapter, u8 tc,
 
 	switch (hw->mac.type) {
 	case ixgbe_mac_82598EB:
-		*tx = tc << 2;
-		*rx = tc << 3;
+		/* TxQs/TC: 4	RxQs/TC: 8 */
+		*tx = tc << 2; /* 0, 4,  8, 12, 16, 20, 24, 28 */
+		*rx = tc << 3; /* 0, 8, 16, 24, 32, 40, 48, 56 */
 		break;
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
 		if (num_tcs > 4) {
-			if (tc < 3) {
-				*tx = tc << 5;
-				*rx = tc << 4;
-			} else if (tc <  5) {
-				*tx = ((tc + 2) << 4);
-				*rx = tc << 4;
-			} else if (tc < num_tcs) {
-				*tx = ((tc + 8) << 3);
-				*rx = tc << 4;
-			}
+			/*
+			 * TCs    : TC0/1 TC2/3 TC4-7
+			 * TxQs/TC:    32    16     8
+			 * RxQs/TC:    16    16    16
+			 */
+			*rx = tc << 4;
+			if (tc < 3)
+				*tx = tc << 5;		/*   0,  32,  64 */
+			else if (tc < 5)
+				*tx = (tc + 2) << 4;	/*  80,  96 */
+			else
+				*tx = (tc + 8) << 3;	/* 104, 112, 120 */
 		} else {
-			*rx =  tc << 5;
-			switch (tc) {
-			case 0:
-				*tx =  0;
-				break;
-			case 1:
-				*tx = 64;
-				break;
-			case 2:
-				*tx = 96;
-				break;
-			case 3:
-				*tx = 112;
-				break;
-			default:
-				break;
-			}
+			/*
+			 * TCs    : TC0 TC1 TC2/3
+			 * TxQs/TC:  64  32    16
+			 * RxQs/TC:  32  32    32
+			 */
+			*rx = tc << 5;
+			if (tc < 2)
+				*tx = tc << 6;		/*  0,  64 */
+			else
+				*tx = (tc + 4) << 4;	/* 96, 112 */
 		}
-		break;
 	default:
 		break;
 	}
@@ -90,25 +85,26 @@ static void ixgbe_get_first_reg_idx(struct ixgbe_adapter *adapter, u8 tc,
  * Cache the descriptor ring offsets for DCB to the assigned rings.
  *
  **/
-static inline bool ixgbe_cache_ring_dcb(struct ixgbe_adapter *adapter)
+static bool ixgbe_cache_ring_dcb(struct ixgbe_adapter *adapter)
 {
 	struct net_device *dev = adapter->netdev;
-	int i, j, k;
+	unsigned int tx_idx, rx_idx;
+	int tc, offset, rss_i, i;
 	u8 num_tcs = netdev_get_num_tc(dev);
 
-	if (!num_tcs)
+	/* verify we have DCB queueing enabled before proceeding */
+	if (num_tcs <= 1)
 		return false;
 
-	for (i = 0, k = 0; i < num_tcs; i++) {
-		unsigned int tx_s, rx_s;
-		u16 count = dev->tc_to_txq[i].count;
+	rss_i = adapter->ring_feature[RING_F_RSS].indices;
 
-		ixgbe_get_first_reg_idx(adapter, i, &tx_s, &rx_s);
-		for (j = 0; j < count; j++, k++) {
-			adapter->tx_ring[k]->reg_idx = tx_s + j;
-			adapter->rx_ring[k]->reg_idx = rx_s + j;
-			adapter->tx_ring[k]->dcb_tc = i;
-			adapter->rx_ring[k]->dcb_tc = i;
+	for (tc = 0, offset = 0; tc < num_tcs; tc++, offset += rss_i) {
+		ixgbe_get_first_reg_idx(adapter, tc, &tx_idx, &rx_idx);
+		for (i = 0; i < rss_i; i++, tx_idx++, rx_idx++) {
+			adapter->tx_ring[offset + i]->reg_idx = tx_idx;
+			adapter->rx_ring[offset + i]->reg_idx = rx_idx;
+			adapter->tx_ring[offset + i]->dcb_tc = tc;
+			adapter->rx_ring[offset + i]->dcb_tc = tc;
 		}
 	}
 
@@ -349,7 +345,7 @@ static bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
  * fallthrough conditions.
  *
  **/
-static int ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
+static void ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 {
 	/* Start with base case */
 	adapter->num_rx_queues = 1;
@@ -358,29 +354,14 @@ static int ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 	adapter->num_rx_queues_per_pool = 1;
 
 	if (ixgbe_set_sriov_queues(adapter))
-		goto done;
+		return;
 
 #ifdef CONFIG_IXGBE_DCB
 	if (ixgbe_set_dcb_queues(adapter))
-		goto done;
+		return;
 
 #endif
-	if (ixgbe_set_rss_queues(adapter))
-		goto done;
-
-	/* fallback to base case */
-	adapter->num_rx_queues = 1;
-	adapter->num_tx_queues = 1;
-
-done:
-	if ((adapter->netdev->reg_state == NETREG_UNREGISTERED) ||
-	    (adapter->netdev->reg_state == NETREG_UNREGISTERING))
-		return 0;
-
-	/* Notify the stack of the (possibly) reduced queue counts. */
-	netif_set_real_num_tx_queues(adapter->netdev, adapter->num_tx_queues);
-	return netif_set_real_num_rx_queues(adapter->netdev,
-					    adapter->num_rx_queues);
+	ixgbe_set_rss_queues(adapter);
 }
 
 static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
@@ -710,11 +691,10 @@ static void ixgbe_reset_interrupt_capability(struct ixgbe_adapter *adapter)
  * Attempt to configure the interrupts using the best available
  * capabilities of the hardware and the kernel.
  **/
-static int ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
+static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	int err = 0;
-	int vector, v_budget;
+	int vector, v_budget, err;
 
 	/*
 	 * It's easy to be greedy for MSI-X vectors, but it really
@@ -747,7 +727,7 @@ static int ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 		ixgbe_acquire_msix_vectors(adapter, v_budget);
 
 		if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED)
-			goto out;
+			return;
 	}
 
 	adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
@@ -762,25 +742,17 @@ static int ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
 		ixgbe_disable_sriov(adapter);
 
-	err = ixgbe_set_num_queues(adapter);
-	if (err)
-		return err;
-
+	ixgbe_set_num_queues(adapter);
 	adapter->num_q_vectors = 1;
 
 	err = pci_enable_msi(adapter->pdev);
-	if (!err) {
-		adapter->flags |= IXGBE_FLAG_MSI_ENABLED;
-	} else {
+	if (err) {
 		netif_printk(adapter, hw, KERN_DEBUG, adapter->netdev,
 			     "Unable to allocate MSI interrupt, "
 			     "falling back to legacy.  Error: %d\n", err);
-		/* reset err */
-		err = 0;
+		return;
 	}
-
-out:
-	return err;
+	adapter->flags |= IXGBE_FLAG_MSI_ENABLED;
 }
 
 /**
@@ -798,15 +770,10 @@ int ixgbe_init_interrupt_scheme(struct ixgbe_adapter *adapter)
 	int err;
 
 	/* Number of supported queues */
-	err = ixgbe_set_num_queues(adapter);
-	if (err)
-		return err;
+	ixgbe_set_num_queues(adapter);
 
-	err = ixgbe_set_interrupt_capability(adapter);
-	if (err) {
-		e_dev_err("Unable to setup interrupt capabilities\n");
-		goto err_set_interrupt;
-	}
+	/* Set interrupt mode */
+	ixgbe_set_interrupt_capability(adapter);
 
 	err = ixgbe_alloc_q_vectors(adapter);
 	if (err) {
@@ -826,7 +793,6 @@ int ixgbe_init_interrupt_scheme(struct ixgbe_adapter *adapter)
 
 err_alloc_q_vectors:
 	ixgbe_reset_interrupt_capability(adapter);
-err_set_interrupt:
 	return err;
 }
 
