@@ -4510,21 +4510,33 @@ static void dhd_hang_process(struct work_struct *work)
 #endif
 	}
 }
+#endif
+
+int dhd_os_send_hang_message(dhd_pub_t *dhdp)
+{
+	int ret = 0;
+
+	if (dhdp) {
+		if (!dhdp->hang_was_sent) {
+			dhdp->hang_was_sent = 1;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
+			schedule_work(&dhdp->info->work_hang);
+#endif
+		}
+	}
+	return ret;
+}
 
 int net_os_send_hang_message(struct net_device *dev)
 {
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 	int ret = 0;
 
-	if (dhd) {
-		if (!dhd->pub.hang_was_sent) {
-			dhd->pub.hang_was_sent = 1;
-			schedule_work(&dhd->work_hang);
-		}
-	}
+	if (dhd)
+		ret = dhd_os_send_hang_message(&dhd->pub);
+
 	return ret;
 }
-#endif
 
 void dhd_bus_country_set(struct net_device *dev, wl_country_t *cspec)
 {
