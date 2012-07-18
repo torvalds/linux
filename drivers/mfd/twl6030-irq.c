@@ -557,6 +557,8 @@ int twl6030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end,
 	if (status < 0)
 		goto fail_vlow;
 
+	twl_i2c_write_u8(TWL_MODULE_PIH, 0x04,REG_INT_MSK_STS_A);   //close vlow interrupt
+
 	return status;
 
 fail_vlow:
