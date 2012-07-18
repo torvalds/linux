@@ -274,6 +274,7 @@ static int ax88172a_bind(struct usbnet *dev, struct usb_interface *intf)
 		break;
 	default:
 		netdev_err(dev->net, "Interface mode not supported by driver\n");
+		ret = -ENOTSUPP;
 		goto free;
 	}
 
