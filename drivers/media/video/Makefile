@@ -194,6 +194,10 @@ ifeq ($(CONFIG_ARCH_RK30),y)
 obj-$(CONFIG_VIDEO_RK29_WORK_ONEFRAME)	+= rk30_camera_oneframe.o
 obj-$(CONFIG_VIDEO_RK29_WORK_PINGPONG)	+= rk30_camera_pingpong.o
 endif
+ifeq ($(CONFIG_ARCH_RK2928),y)
+obj-$(CONFIG_VIDEO_RK29_WORK_ONEFRAME)  += rk30_camera_oneframe.o
+obj-$(CONFIG_VIDEO_RK29_WORK_PINGPONG)  += rk30_camera_pingpong.o
+endif
 ifeq ($(CONFIG_ARCH_RK29),y)
 obj-$(CONFIG_VIDEO_RK29_WORK_ONEFRAME)    += rk29_camera_oneframe.o
 obj-$(CONFIG_VIDEO_RK29_WORK_PINGPONG)    += rk29_camera_pingpong.o

@@ -9,7 +9,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-#ifdef CONFIG_ARCH_RK30
+#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK30)
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -38,9 +38,15 @@
 #include <media/soc_mediabus.h>
 #include <mach/io.h>
 #include <plat/ipp.h>
+#ifdef CONFIG_ARCH_RK30
 #include <mach/rk30_camera.h>
-#include <mach/cru.h>
-#include <mach/pmu.h>
+#else
+#include <mach/rk2928_camera.h>
+#define RK30_CRU_BASE 0
+#endif
+//#include <mach/cru.h>
+//#include <mach/pmu.h>
+
 
 static int debug ;
 module_param(debug, int, S_IRUGO|S_IWUSR);
@@ -1263,6 +1269,7 @@ static void rk_camera_setup_format(struct soc_camera_device *icd, __u32 host_pix
     }
 #if 1
         {
+#ifdef CONFIG_ARCH_RK30
            mdelay(100);
             if(IS_CIF0()){
         //		pmu_set_idle_request(IDLE_REQ_VIO, true);
@@ -1278,6 +1285,7 @@ static void rk_camera_setup_format(struct soc_camera_device *icd, __u32 host_pix
         		cru_set_soft_reset(SOFT_RST_CIF1, false);
         //		pmu_set_idle_request(IDLE_REQ_VIO, false);  
             }
+#endif
         }
     write_cif_reg(pcdev->base,CIF_CIF_CTRL,AXI_BURST_16|MODE_ONEFRAME|DISABLE_CAPTURE);   /* ddl@rock-chips.com : vip ahb burst 16 */
     write_cif_reg(pcdev->base,CIF_CIF_INTEN, 0x01|0x200);    //capture complete interrupt enable
@@ -2385,6 +2393,7 @@ static struct soc_camera_host_ops rk_soc_camera_host_ops =
 };
 static void rk_camera_cif_iomux(int cif_index)
 {
+#ifdef CONFIG_ARCH_RK30
     switch(cif_index){
         case 0:
             rk30_mux_api_set(GPIO1B3_CIF0CLKOUT_NAME, GPIO1B_CIF0_CLKOUT);
@@ -2411,6 +2420,8 @@ static void rk_camera_cif_iomux(int cif_index)
         default:
             printk("cif index is erro!!!\n");
         }
+#else
+#endif
                 
             
 }
@@ -2522,7 +2533,7 @@ static int rk_camera_probe(struct platform_device *pdev)
     }
    	}
    
-#ifdef CONFIG_VIDEO_RK29_WORK_IPP
+//#ifdef CONFIG_VIDEO_RK29_WORK_IPP
         if(IS_CIF0()){
         	pcdev->camera_wq = create_workqueue("rk_cam_wkque_cif0");
             }
@@ -2531,7 +2542,7 @@ static int rk_camera_probe(struct platform_device *pdev)
         }
     	if (pcdev->camera_wq == NULL)
     		goto exit_free_irq;
-#endif
+//#endif
 
 	pcdev->camera_reinit_work.pcdev = pcdev;
 	INIT_WORK(&(pcdev->camera_reinit_work.work), rk_camera_reinit_work);
