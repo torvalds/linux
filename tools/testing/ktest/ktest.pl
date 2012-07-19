@@ -52,6 +52,7 @@ my %default = (
     "STOP_AFTER_SUCCESS"	=> 10,
     "STOP_AFTER_FAILURE"	=> 60,
     "STOP_TEST_AFTER"		=> 600,
+    "MAX_MONITOR_WAIT"		=> 1800,
 
 # required, and we will ask users if they don't have them but we keep the default
 # value something that is common.
@@ -98,6 +99,7 @@ my $reboot_on_success;
 my $die_on_failure;
 my $powercycle_after_reboot;
 my $poweroff_after_halt;
+my $max_monitor_wait;
 my $ssh_exec;
 my $scp_to_target;
 my $scp_to_target_install;
@@ -243,6 +245,7 @@ my %option_map = (
     "POWER_OFF"			=> \$power_off,
     "POWERCYCLE_AFTER_REBOOT"	=> \$powercycle_after_reboot,
     "POWEROFF_AFTER_HALT"	=> \$poweroff_after_halt,
+    "MAX_MONITOR_WAIT"		=> \$max_monitor_wait,
     "SLEEP_TIME"		=> \$sleep_time,
     "BISECT_SLEEP_TIME"		=> \$bisect_sleep_time,
     "PATCHCHECK_SLEEP_TIME"	=> \$patchcheck_sleep_time,
@@ -1133,7 +1136,10 @@ sub reboot {
     }
 
     if (defined($time)) {
-	wait_for_monitor($time, $reboot_success_line);
+	if (wait_for_monitor($time, $reboot_success_line)) {
+	    # reboot got stuck?
+	    run_command "$power_cycle";
+	}
 	end_monitor;
     }
 }
@@ -1228,6 +1234,8 @@ sub wait_for_monitor {
     my $full_line = "";
     my $line;
     my $booted = 0;
+    my $start_time = time;
+    my $now;
 
     doprint "** Wait for monitor to settle down **\n";
 
@@ -1246,8 +1254,14 @@ sub wait_for_monitor {
 	if ($line =~ /\n/) {
 	    $full_line = "";
 	}
+	$now = time;
+	if ($now - $start_time >= $max_monitor_wait) {
+	    doprint "Exiting monitor flush due to hitting MAX_MONITOR_WAIT\n";
+	    return 1;
+	}
     }
     print "** Monitor flushed **\n";
+    return 0;
 }
 
 sub save_logs {
