@@ -15,3 +15,12 @@ config CRYPTO_DEV_NX_ENCRYPT
 	  Support for Power7+ in-Nest encryption acceleration. This
 	  module supports acceleration for AES and SHA2 algorithms. If you
 	  choose 'M' here, this module will be called nx_crypto.
+
+config CRYPTO_DEV_NX_COMPRESS
+	tristate "Compression acceleration support"
+	depends on PPC64 && IBMVIO
+	default y
+	help
+	  Support for Power7+ in-Nest compression acceleration. This
+	  module supports acceleration for AES and SHA2 algorithms. If you
+	  choose 'M' here, this module will be called nx_compress.

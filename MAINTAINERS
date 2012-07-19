@@ -3415,6 +3415,12 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/aegl/linux.git
 S:	Maintained
 F:	arch/ia64/
 
+IBM Power 842 compression accelerator
+M:	Robert Jennings <rcj@linux.vnet.ibm.com>
+S:	Supported
+F:	drivers/crypto/nx/nx-842.c
+F:	include/linux/nx842.h
+
 IBM Power Linux RAID adapter
 M:	Brian King <brking@us.ibm.com>
 S:	Supported

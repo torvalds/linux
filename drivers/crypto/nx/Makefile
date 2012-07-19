@@ -9,3 +9,6 @@ nx-crypto-objs := nx.o \
 		  nx-aes-xcbc.o \
 		  nx-sha256.o \
 		  nx-sha512.o
+
+obj-$(CONFIG_CRYPTO_DEV_NX_COMPRESS) += nx-compress.o
+nx-compress-objs := nx-842.o
