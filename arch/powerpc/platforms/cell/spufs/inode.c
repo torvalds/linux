@@ -582,39 +582,32 @@ static struct file_system_type spufs_type;
 long spufs_create(struct path *path, struct dentry *dentry,
 		unsigned int flags, umode_t mode, struct file *filp)
 {
+	struct inode *dir = path->dentry->d_inode;
 	int ret;
 
-	ret = -EINVAL;
 	/* check if we are on spufs */
 	if (path->dentry->d_sb->s_type != &spufs_type)
-		goto out;
+		return -EINVAL;
 
 	/* don't accept undefined flags */
 	if (flags & (~SPU_CREATE_FLAG_ALL))
-		goto out;
+		return -EINVAL;
 
 	/* only threads can be underneath a gang */
-	if (path->dentry != path->dentry->d_sb->s_root) {
-		if ((flags & SPU_CREATE_GANG) ||
-		    !SPUFS_I(path->dentry->d_inode)->i_gang)
-			goto out;
-	}
+	if (path->dentry != path->dentry->d_sb->s_root)
+		if ((flags & SPU_CREATE_GANG) || !SPUFS_I(dir)->i_gang)
+			return -EINVAL;
 
 	mode &= ~current_umask();
 
 	if (flags & SPU_CREATE_GANG)
-		ret = spufs_create_gang(path->dentry->d_inode,
-					 dentry, path->mnt, mode);
+		ret = spufs_create_gang(dir, dentry, path->mnt, mode);
 	else
-		ret = spufs_create_context(path->dentry->d_inode,
-					    dentry, path->mnt, flags, mode,
+		ret = spufs_create_context(dir, dentry, path->mnt, flags, mode,
 					    filp);
 	if (ret >= 0)
-		fsnotify_mkdir(path->dentry->d_inode, dentry);
+		fsnotify_mkdir(dir, dentry);
 
-out:
-	mutex_unlock(&path->dentry->d_inode->i_mutex);
-	dput(dentry);
 	return ret;
 }
 
