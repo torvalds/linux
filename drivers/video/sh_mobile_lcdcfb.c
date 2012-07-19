@@ -1539,8 +1539,13 @@ static int sh_mobile_lcdc_overlay_pan(struct fb_var_screeninfo *var,
 		ovl->base_addr_c = base_addr_c;
 	}
 
+	lcdc_write(ovl->channel->lcdc, LDBCR, LDBCR_UPC(ovl->index));
+
 	lcdc_write_overlay(ovl, LDBnBSAYR(ovl->index), ovl->base_addr_y);
 	lcdc_write_overlay(ovl, LDBnBSACR(ovl->index), ovl->base_addr_c);
+
+	lcdc_write(ovl->channel->lcdc, LDBCR,
+		   LDBCR_UPF(ovl->index) | LDBCR_UPD(ovl->index));
 
 	ovl->pan_offset = pan_offset;
 
