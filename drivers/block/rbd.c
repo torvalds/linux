@@ -506,11 +506,14 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	if (snap_count > size / sizeof (header->snapc->snaps[0]))
 		return -EINVAL;
 
-	size = sizeof (struct ceph_snap_context);
-	size += snap_count * sizeof (header->snapc->snaps[0]);
-	header->snapc = kmalloc(size, GFP_KERNEL);
-	if (!header->snapc)
+	memset(header, 0, sizeof (*header));
+
+	size = sizeof (ondisk->block_name) + 1;
+	header->object_prefix = kmalloc(size, GFP_KERNEL);
+	if (!header->object_prefix)
 		return -ENOMEM;
+	memcpy(header->object_prefix, ondisk->block_name, size - 1);
+	header->object_prefix[size - 1] = '\0';
 
 	if (snap_count) {
 		header->snap_names_len = le64_to_cpu(ondisk->snap_names_len);
@@ -518,11 +521,12 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 		header->snap_names = kmalloc(header->snap_names_len,
 					     GFP_KERNEL);
 		if (!header->snap_names)
-			goto err_snapc;
+			goto out_err;
+
 		size = snap_count * sizeof (*header->snap_sizes);
 		header->snap_sizes = kmalloc(size, GFP_KERNEL);
 		if (!header->snap_sizes)
-			goto err_names;
+			goto out_err;
 	} else {
 		WARN_ON(ondisk->snap_names_len);
 		header->snap_names_len = 0;
@@ -530,22 +534,23 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 		header->snap_sizes = NULL;
 	}
 
-	size = sizeof (ondisk->block_name) + 1;
-	header->object_prefix = kmalloc(size, GFP_KERNEL);
-	if (!header->object_prefix)
-		goto err_sizes;
-	memcpy(header->object_prefix, ondisk->block_name, size - 1);
-	header->object_prefix[size - 1] = '\0';
-
 	header->image_size = le64_to_cpu(ondisk->image_size);
 	header->obj_order = ondisk->options.order;
 	header->crypt_type = ondisk->options.crypt_type;
 	header->comp_type = ondisk->options.comp_type;
+	header->total_snaps = snap_count;
+
+	/* Set up the snapshot context */
+
+	size = sizeof (struct ceph_snap_context);
+	size += snap_count * sizeof (header->snapc->snaps[0]);
+	header->snapc = kzalloc(size, GFP_KERNEL);
+	if (!header->snapc)
+		goto out_err;
 
 	atomic_set(&header->snapc->nref, 1);
 	header->snapc->seq = le64_to_cpu(ondisk->snap_seq);
 	header->snapc->num_snaps = snap_count;
-	header->total_snaps = snap_count;
 
 	if (snap_count && allocated_snaps == snap_count) {
 		int i;
@@ -564,16 +569,14 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 
 	return 0;
 
-err_sizes:
+out_err:
 	kfree(header->snap_sizes);
 	header->snap_sizes = NULL;
-err_names:
 	kfree(header->snap_names);
 	header->snap_names = NULL;
 	header->snap_names_len = 0;
-err_snapc:
-	kfree(header->snapc);
-	header->snapc = NULL;
+	kfree(header->object_prefix);
+	header->object_prefix = NULL;
 
 	return -ENOMEM;
 }
