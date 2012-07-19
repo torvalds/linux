@@ -122,8 +122,6 @@ static const struct cb_pcimdas_board cb_pcimdas_boards[] = {
 	 },
 };
 
-#define N_BOARDS 1		/*  Max number of boards supported */
-
 /*
  * Useful for shorthand access to the particular board structure
  */
@@ -179,36 +177,30 @@ static struct pci_dev *cb_pcimdas_find_pci_dev(struct comedi_device *dev,
 					       struct comedi_devconfig *it)
 {
 	struct pci_dev *pcidev = NULL;
-	int index;
+	int bus = it->options[0];
+	int slot = it->options[1];
+	int i;
 
 	for_each_pci_dev(pcidev) {
-		/*  is it not a computer boards card? */
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+				slot != PCI_SLOT(pcidev->devfn))
+				continue;
+		}
 		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
 			continue;
-		/*  loop through cards supported by this driver */
-		for (index = 0; index < N_BOARDS; index++) {
-			if (cb_pcimdas_boards[index].device_id !=
-			    pcidev->device)
+
+		for (i = 0; i < ARRAY_SIZE(cb_pcimdas_boards); i++) {
+			if (cb_pcimdas_boards[i].device_id != pcidev->device)
 				continue;
-			/*  was a particular bus/slot requested? */
-			if (it->options[0] || it->options[1]) {
-				/*  are we on the wrong bus/slot? */
-				if (pcidev->bus->number != it->options[0] ||
-				    PCI_SLOT(pcidev->devfn) != it->options[1]) {
-					continue;
-				}
-			}
-			dev->board_ptr = cb_pcimdas_boards + index;
-			dev_dbg(dev->class_dev,
-				"Found %s on bus %i, slot %i\n",
-				cb_pcimdas_boards[index].name,
-				pcidev->bus->number,
-				PCI_SLOT(pcidev->devfn));
+
+			dev->board_ptr = cb_pcimdas_boards + i;
 			return pcidev;
 		}
 	}
 	dev_err(dev->class_dev,
-		"No supported ComputerBoards/MeasurementComputing card found on requested position\n");
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
 	return NULL;
 }
 
