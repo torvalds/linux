@@ -325,15 +325,17 @@ static inline int a2mp_cmd_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 /* Handle A2MP signalling */
 static int a2mp_chan_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 {
-	struct a2mp_cmd *hdr = (void *) skb->data;
+	struct a2mp_cmd *hdr;
 	struct amp_mgr *mgr = chan->data;
 	int err = 0;
 
 	amp_mgr_get(mgr);
 
 	while (skb->len >= sizeof(*hdr)) {
-		struct a2mp_cmd *hdr = (void *) skb->data;
-		u16 len = le16_to_cpu(hdr->len);
+		u16 len;
+
+		hdr = (void *) skb->data;
+		len = le16_to_cpu(hdr->len);
 
 		BT_DBG("code 0x%2.2x id %d len %u", hdr->code, hdr->ident, len);
 
@@ -393,7 +395,9 @@ static int a2mp_chan_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 
 	if (err) {
 		struct a2mp_cmd_rej rej;
+
 		rej.reason = __constant_cpu_to_le16(0);
+		hdr = (void *) skb->data;
 
 		BT_DBG("Send A2MP Rej: cmd 0x%2.2x err %d", hdr->code, err);
 
