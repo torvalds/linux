@@ -233,7 +233,6 @@ static const struct me_board me_boards[] = {
 
 /* Private data structure */
 struct me_private_data {
-	struct pci_dev *pci_device;
 	void __iomem *plx_regbase;	/* PLX configuration base address */
 	void __iomem *me_regbase;	/* Base address of the Meilhaus card */
 	unsigned long plx_regbase_size;	/* Size of PLX configuration space */
@@ -662,7 +661,7 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	pci_device = me_find_pci_dev(dev, it);
 	if (!pci_device)
 		return -EIO;
-	dev_private->pci_device = pci_device;
+	comedi_set_hw_dev(dev, &pci_device->dev);
 	board = (struct me_board *)dev->board_ptr;
 
 	/* Enable PCI device and request PCI regions */
@@ -799,6 +798,8 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void me_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
 	if (dev_private) {
 		if (dev_private->me_regbase) {
 			me_reset(dev);
@@ -806,11 +807,11 @@ static void me_detach(struct comedi_device *dev)
 		}
 		if (dev_private->plx_regbase)
 			iounmap(dev_private->plx_regbase);
-		if (dev_private->pci_device) {
-			if (dev_private->plx_regbase_size)
-				comedi_pci_disable(dev_private->pci_device);
-			pci_dev_put(dev_private->pci_device);
-		}
+	}
+	if (pcidev) {
+		if (dev_private->plx_regbase_size)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
