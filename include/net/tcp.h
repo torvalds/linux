@@ -214,6 +214,7 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 
 /* Bit Flags for sysctl_tcp_fastopen */
 #define	TFO_CLIENT_ENABLE	1
+#define	TFO_CLIENT_NO_COOKIE	4	/* Data in SYN w/o cookie option */
 
 extern struct inet_timewait_death_row tcp_death_row;
 

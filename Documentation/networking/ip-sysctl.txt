@@ -476,6 +476,8 @@ tcp_fastopen - INTEGER
 
 	The values (bitmap) are:
 	1: Enables sending data in the opening SYN on the client
+	5: Enables sending data in the opening SYN on the client regardless
+	   of cookie availability.
 
 	Default: 0
 
