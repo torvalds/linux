@@ -106,6 +106,7 @@ my $grub_menu;
 my $grub_number;
 my $target;
 my $make;
+my $pre_install;
 my $post_install;
 my $no_install;
 my $noclean;
@@ -225,6 +226,7 @@ my %option_map = (
     "ADD_CONFIG"		=> \$addconfig,
     "REBOOT_TYPE"		=> \$reboot_type,
     "GRUB_MENU"			=> \$grub_menu,
+    "PRE_INSTALL"		=> \$pre_install,
     "POST_INSTALL"		=> \$post_install,
     "NO_INSTALL"		=> \$no_install,
     "REBOOT_SCRIPT"		=> \$reboot_script,
@@ -1668,6 +1670,12 @@ sub do_post_install {
 sub install {
 
     return if ($no_install);
+
+    if (defined($pre_install)) {
+	my $cp_pre_install = eval_kernel_version $pre_install;
+	run_command "$cp_pre_install" or
+	    dodie "Failed to run pre install";
+    }
 
     my $cp_target = eval_kernel_version $target_image;
 
