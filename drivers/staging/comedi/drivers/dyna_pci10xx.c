@@ -229,36 +229,15 @@ static int dyna_pci10xx_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/******************************************************************************/
-/*********************** INITIALIZATION FUNCTIONS *****************************/
-/******************************************************************************/
-
-static int dyna_pci10xx_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static struct pci_dev *dyna_pci10xx_find_pci_dev(struct comedi_device *dev,
+						 struct comedi_devconfig *it)
 {
-	struct comedi_subdevice *s;
-	struct pci_dev *pcidev;
-	unsigned int opt_bus, opt_slot;
-	int board_index, i;
-	int ret;
+	struct pci_dev *pcidev = NULL;
+	int opt_bus = it->options[0];
+	int opt_slot = it->options[1];
+	int board_index;
+	int i;
 
-	mutex_lock(&start_stop_sem);
-
-	if (alloc_private(dev, sizeof(struct dyna_pci10xx_private)) < 0) {
-		printk(KERN_ERR "comedi: dyna_pci10xx: "
-			"failed to allocate memory!\n");
-		mutex_unlock(&start_stop_sem);
-		return -ENOMEM;
-	}
-
-	opt_bus = it->options[0];
-	opt_slot = it->options[1];
-	dev->board_name = thisboard->name;
-	dev->irq = 0;
-
-	/*
-	 * Probe the PCI bus and located the matching device
-	 */
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
 		pcidev != NULL;
 		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
@@ -285,8 +264,7 @@ static int dyna_pci10xx_attach(struct comedi_device *dev,
 		goto found;
 	}
 	printk(KERN_ERR "comedi: dyna_pci10xx: no supported device found!\n");
-	mutex_unlock(&start_stop_sem);
-	return -EIO;
+	return NULL;
 
 found:
 
@@ -299,9 +277,38 @@ found:
 			printk(KERN_ERR "comedi: dyna_pci10xx: "
 				"invalid PCI device\n");
 		}
+		return NULL;
+	}
+
+	dev->board_ptr = &boardtypes[board_index];
+	return pcidev;
+}
+
+static int dyna_pci10xx_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
+{
+	struct pci_dev *pcidev;
+	struct comedi_subdevice *s;
+	int ret;
+
+	mutex_lock(&start_stop_sem);
+
+	if (alloc_private(dev, sizeof(struct dyna_pci10xx_private)) < 0) {
+		printk(KERN_ERR "comedi: dyna_pci10xx: "
+			"failed to allocate memory!\n");
+		mutex_unlock(&start_stop_sem);
+		return -ENOMEM;
+	}
+
+	pcidev = dyna_pci10xx_find_pci_dev(dev, it);
+	if (!pcidev) {
 		mutex_unlock(&start_stop_sem);
 		return -EIO;
 	}
+	devpriv->pci_dev = pcidev;
+
+	dev->board_name = thisboard->name;
+	dev->irq = 0;
 
 	if (comedi_pci_enable(pcidev, DRV_NAME)) {
 		printk(KERN_ERR "comedi: dyna_pci10xx: "
@@ -311,8 +318,6 @@ found:
 	}
 
 	mutex_init(&devpriv->mutex);
-	dev->board_ptr = &boardtypes[board_index];
-	devpriv->pci_dev = pcidev;
 
 	printk(KERN_INFO "comedi: dyna_pci10xx: device found!\n");
 
@@ -375,7 +380,7 @@ found:
 	mutex_unlock(&start_stop_sem);
 
 	printk(KERN_INFO "comedi: dyna_pci10xx: %s - device setup completed!\n",
-		boardtypes[board_index].name);
+		thisboard->name);
 
 	return 1;
 }
