@@ -405,6 +405,10 @@ extern void tcp_metrics_init(void);
 extern bool tcp_peer_is_proven(struct request_sock *req, struct dst_entry *dst, bool paws_check);
 extern bool tcp_remember_stamp(struct sock *sk);
 extern bool tcp_tw_remember_stamp(struct inet_timewait_sock *tw);
+extern void tcp_fastopen_cache_get(struct sock *sk, u16 *mss,
+				   struct tcp_fastopen_cookie *cookie);
+extern void tcp_fastopen_cache_set(struct sock *sk, u16 mss,
+				   struct tcp_fastopen_cookie *cookie);
 extern void tcp_fetch_timewait_stamp(struct sock *sk, struct dst_entry *dst);
 extern void tcp_disable_fack(struct tcp_sock *tp);
 extern void tcp_close(struct sock *sk, long timeout);
