@@ -378,7 +378,6 @@ static const struct pci224_board pci224_boards[] = {
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
 struct pci224_private {
-	struct pci_dev *pci_dev;	/* PCI device */
 	const unsigned short *hwrange;
 	unsigned long iobase1;
 	unsigned long state;
@@ -1297,7 +1296,7 @@ static struct pci_dev *pci224_find_pci_dev(struct comedi_device *dev,
 
 static void pci224_report_attach(struct comedi_device *dev, unsigned int irq)
 {
-	struct pci224_private *devpriv = dev->private;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	char tmpbuf[30];
 
 	if (irq)
@@ -1306,7 +1305,7 @@ static void pci224_report_attach(struct comedi_device *dev, unsigned int irq)
 	else
 		snprintf(tmpbuf, sizeof(tmpbuf), "no irq");
 	dev_info(dev->class_dev, "%s (pci %s) (%s) attached\n",
-		 dev->board_name, pci_name(devpriv->pci_dev), tmpbuf);
+		 dev->board_name, pci_name(pcidev), tmpbuf);
 }
 
 /*
@@ -1322,7 +1321,8 @@ static int pci224_attach_common(struct comedi_device *dev,
 	unsigned n;
 	int ret;
 
-	devpriv->pci_dev = pci_dev;
+	comedi_set_hw_dev(dev, &pci_dev->dev);
+
 	ret = comedi_pci_enable(pci_dev, DRIVER_NAME);
 	if (ret < 0) {
 		dev_err(dev->class_dev,
@@ -1509,6 +1509,7 @@ pci224_attach_pci(struct comedi_device *dev, struct pci_dev *pci_dev)
 static void pci224_detach(struct comedi_device *dev)
 {
 	struct pci224_private *devpriv = dev->private;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);
@@ -1523,11 +1524,11 @@ static void pci224_detach(struct comedi_device *dev)
 		kfree(devpriv->ao_readback);
 		kfree(devpriv->ao_scan_vals);
 		kfree(devpriv->ao_scan_order);
-		if (devpriv->pci_dev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pci_dev);
-			pci_dev_put(devpriv->pci_dev);
-		}
+	}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
