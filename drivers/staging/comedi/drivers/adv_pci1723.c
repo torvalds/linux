@@ -290,59 +290,30 @@ static int pci1723_dio_insn_bits(struct comedi_device *dev,
 static struct pci_dev *pci1723_find_pci_dev(struct comedi_device *dev,
 					    struct comedi_devconfig *it)
 {
-	struct pci_dev *pcidev;
-	unsigned int iobase;
-	unsigned char pci_bus, pci_slot, pci_func;
-	int opt_bus, opt_slot;
-	const char *errstr;
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
 
-	opt_bus = it->options[0];
-	opt_slot = it->options[1];
-
-	/* Look for matching PCI device */
-	errstr = "not found!";
-	pcidev = NULL;
-	while (NULL != (pcidev =
-			pci_get_device(PCI_VENDOR_ID_ADVANTECH,
-				       this_board->device_id, pcidev))) {
-		/* Found matching vendor/device. */
-		if (opt_bus || opt_slot) {
-			/* Check bus/slot. */
-			if (opt_bus != pcidev->bus->number
-			    || opt_slot != PCI_SLOT(pcidev->devfn))
-				continue;	/* no match */
+	for_each_pci_dev(pcidev) {
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+			    slot != PCI_SLOT(pcidev->devfn))
+				continue;
 		}
+		if (pcidev->vendor != PCI_VENDOR_ID_ADVANTECH)
+			continue;
 		/*
 		 * Look for device that isn't in use.
 		 * Enable PCI device and request regions.
 		 */
-		if (comedi_pci_enable(pcidev, "adv_pci1723")) {
-			errstr =
-			    "failed to enable PCI device and request regions!";
+		if (comedi_pci_enable(pcidev, "adv_pci1723"))
 			continue;
-		}
-		break;
+		return pcidev;
 	}
-
-	if (!pcidev) {
-		if (opt_bus || opt_slot) {
-			printk(KERN_ERR " - Card at b:s %d:%d %s\n",
-						     opt_bus, opt_slot, errstr);
-		} else {
-			printk(KERN_ERR " - Card %s\n", errstr);
-		}
-		return NULL;
-	}
-
-	pci_bus = pcidev->bus->number;
-	pci_slot = PCI_SLOT(pcidev->devfn);
-	pci_func = PCI_FUNC(pcidev->devfn);
-	iobase = pci_resource_start(pcidev, 2);
-
-	printk(KERN_ERR ", b:s:f=%d:%d:%d, io=0x%4x",
-					   pci_bus, pci_slot, pci_func, iobase);
-
-	return pcidev;
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
+	return NULL;
 }
 
 static int pci1723_attach(struct comedi_device *dev,
