@@ -29,7 +29,6 @@
 #include <mach/crag6410.h>
 
 static struct s3c64xx_spi_csinfo wm0010_spi_csinfo = {
-	.set_level = gpio_set_value,
 	.line = S3C64XX_GPC(3),
 };
 
