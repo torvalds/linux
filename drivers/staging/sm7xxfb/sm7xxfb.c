@@ -826,7 +826,7 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 
 #ifdef __BIG_ENDIAN
 	if (sfb->fb.var.bits_per_pixel == 24)
-		sfb->fb.var.bits_per_pixel = (smtc_screen_info.lfb_depth = 32);
+		sfb->fb.var.bits_per_pixel = (smtc_scr_info.lfb_depth = 32);
 #endif
 	/* Map address and memory detection */
 	pFramebufferPhysical = pci_resource_start(pdev, 0);
