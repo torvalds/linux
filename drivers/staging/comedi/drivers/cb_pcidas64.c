@@ -1650,26 +1650,11 @@ static inline void warn_external_queue(struct comedi_device *dev)
 		     "Use internal AI channel queue (channels must be consecutive and use same range/aref)");
 }
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.
- */
-static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static struct pci_dev *cb_pcidas64_find_pci_dev(struct comedi_device *dev,
+						struct comedi_devconfig *it)
 {
 	struct pci_dev *pcidev = NULL;
 	int index;
-	uint32_t local_range, local_decode;
-	int retval;
-
-/*
- * Allocate the private structure area.
- */
-	if (alloc_private(dev, sizeof(struct pcidas64_private)) < 0)
-		return -ENOMEM;
-
-/*
- * Probe the device to determine what device in the series it is.
- */
 
 	for_each_pci_dev(pcidev) {
 		/*  is it not a computer boards card? */
@@ -1687,22 +1672,38 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 					continue;
 				}
 			}
-			priv(dev)->hw_dev = pcidev;
 			dev->board_ptr = pcidas64_boards + index;
-			break;
+			dev_dbg(dev->class_dev, "Found %s on bus %i, slot %i\n",
+				board(dev)->name,
+				pcidev->bus->number, PCI_SLOT(pcidev->devfn));
+			return pcidev;
 		}
-		if (dev->board_ptr)
-			break;
 	}
 
-	if (dev->board_ptr == NULL) {
-		printk
-		    ("No supported ComputerBoards/MeasurementComputing card found\n");
+	printk("No supported ComputerBoards/MeasurementComputing card found\n");
+	return NULL;
+}
+
+/*
+ * Attach is called by the Comedi core to configure the driver
+ * for a particular board.
+ */
+static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
+{
+	struct pci_dev *pcidev;
+	uint32_t local_range, local_decode;
+	int retval;
+
+/*
+ * Allocate the private structure area.
+ */
+	if (alloc_private(dev, sizeof(struct pcidas64_private)) < 0)
+		return -ENOMEM;
+
+	pcidev = cb_pcidas64_find_pci_dev(dev, it);
+	if (!pcidev)
 		return -EIO;
-	}
-
-	dev_dbg(dev->class_dev, "Found %s on bus %i, slot %i\n",
-		board(dev)->name, pcidev->bus->number, PCI_SLOT(pcidev->devfn));
+	priv(dev)->hw_dev = pcidev;
 
 	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
 		dev_warn(dev->class_dev,
