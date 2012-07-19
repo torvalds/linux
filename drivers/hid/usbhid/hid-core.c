@@ -213,9 +213,20 @@ static int usbhid_restart_out_queue(struct usbhid_device *usbhid)
 	if ((kicked = (usbhid->outhead != usbhid->outtail))) {
 		hid_dbg(hid, "Kicking head %d tail %d", usbhid->outhead, usbhid->outtail);
 
+		/* Try to wake up from autosuspend... */
 		r = usb_autopm_get_interface_async(usbhid->intf);
 		if (r < 0)
 			return r;
+
+		/*
+		 * If still suspended, don't submit.  Submission will
+		 * occur if/when resume drains the queue.
+		 */
+		if (test_bit(HID_REPORTED_IDLE, &usbhid->iofl)) {
+			usb_autopm_put_interface_no_suspend(usbhid->intf);
+			return r;
+		}
+
 		/* Asynchronously flush queue. */
 		set_bit(HID_OUT_RUNNING, &usbhid->iofl);
 		if (hid_submit_out(hid)) {
@@ -240,9 +251,20 @@ static int usbhid_restart_ctrl_queue(struct usbhid_device *usbhid)
 	if ((kicked = (usbhid->ctrlhead != usbhid->ctrltail))) {
 		hid_dbg(hid, "Kicking head %d tail %d", usbhid->ctrlhead, usbhid->ctrltail);
 
+		/* Try to wake up from autosuspend... */
 		r = usb_autopm_get_interface_async(usbhid->intf);
 		if (r < 0)
 			return r;
+
+		/*
+		 * If still suspended, don't submit.  Submission will
+		 * occur if/when resume drains the queue.
+		 */
+		if (test_bit(HID_REPORTED_IDLE, &usbhid->iofl)) {
+			usb_autopm_put_interface_no_suspend(usbhid->intf);
+			return r;
+		}
+
 		/* Asynchronously flush queue. */
 		set_bit(HID_CTRL_RUNNING, &usbhid->iofl);
 		if (hid_submit_ctrl(hid)) {
@@ -546,49 +568,36 @@ static void __usbhid_submit_report(struct hid_device *hid, struct hid_report *re
 		usbhid->out[usbhid->outhead].report = report;
 		usbhid->outhead = head;
 
-		/* Try to awake from autosuspend... */
-		if (usb_autopm_get_interface_async(usbhid->intf) < 0)
-			return;
+		/* If the queue isn't running, restart it */
+		if (!test_bit(HID_OUT_RUNNING, &usbhid->iofl)) {
+			usbhid_restart_out_queue(usbhid);
 
-		/*
-		 * But if still suspended, leave urb enqueued, don't submit.
-		 * Submission will occur if/when resume() drains the queue.
-		 */
-		if (test_bit(HID_REPORTED_IDLE, &usbhid->iofl))
-			return;
+		/* Otherwise see if an earlier request has timed out */
+		} else if (time_after(jiffies, usbhid->last_out + HZ * 5)) {
 
-		if (!test_and_set_bit(HID_OUT_RUNNING, &usbhid->iofl)) {
-			if (hid_submit_out(hid)) {
-				clear_bit(HID_OUT_RUNNING, &usbhid->iofl);
-				usb_autopm_put_interface_async(usbhid->intf);
-			}
-			wake_up(&usbhid->wait);
-		} else {
+			/* Prevent autosuspend following the unlink */
+			usb_autopm_get_interface_no_resume(usbhid->intf);
+
 			/*
-			 * the queue is known to run
-			 * but an earlier request may be stuck
-			 * we may need to time out
-			 * no race because the URB is blocked under
-			 * spinlock
+			 * Prevent resubmission in case the URB completes
+			 * before we can unlink it.  We don't want to cancel
+			 * the wrong transfer!
 			 */
-			if (time_after(jiffies, usbhid->last_out + HZ * 5)) {
-				usb_block_urb(usbhid->urbout);
-				/* drop lock to not deadlock if the callback is called */
-				spin_unlock(&usbhid->lock);
-				usb_unlink_urb(usbhid->urbout);
-				spin_lock(&usbhid->lock);
-				usb_unblock_urb(usbhid->urbout);
-				/*
-				 * if the unlinking has already completed
-				 * the pump will have been stopped
-				 * it must be restarted now
-				 */
-				if (!test_bit(HID_OUT_RUNNING, &usbhid->iofl))
-					if (!irq_out_pump_restart(hid))
-						set_bit(HID_OUT_RUNNING, &usbhid->iofl);
+			usb_block_urb(usbhid->urbout);
 
+			/* Drop lock to avoid deadlock if the callback runs */
+			spin_unlock(&usbhid->lock);
 
-			}
+			usb_unlink_urb(usbhid->urbout);
+			spin_lock(&usbhid->lock);
+			usb_unblock_urb(usbhid->urbout);
+
+			/* Unlink might have stopped the queue */
+			if (!test_bit(HID_OUT_RUNNING, &usbhid->iofl))
+				usbhid_restart_out_queue(usbhid);
+
+			/* Now we can allow autosuspend again */
+			usb_autopm_put_interface_async(usbhid->intf);
 		}
 		return;
 	}
@@ -610,47 +619,36 @@ static void __usbhid_submit_report(struct hid_device *hid, struct hid_report *re
 	usbhid->ctrl[usbhid->ctrlhead].dir = dir;
 	usbhid->ctrlhead = head;
 
-	/* Try to awake from autosuspend... */
-	if (usb_autopm_get_interface_async(usbhid->intf) < 0)
-		return;
+	/* If the queue isn't running, restart it */
+	if (!test_bit(HID_CTRL_RUNNING, &usbhid->iofl)) {
+		usbhid_restart_ctrl_queue(usbhid);
 
-	/*
-	 * If already suspended, leave urb enqueued, but don't submit.
-	 * Submission will occur if/when resume() drains the queue.
-	 */
-	if (test_bit(HID_REPORTED_IDLE, &usbhid->iofl))
-		return;
+	/* Otherwise see if an earlier request has timed out */
+	} else if (time_after(jiffies, usbhid->last_ctrl + HZ * 5)) {
 
-	if (!test_and_set_bit(HID_CTRL_RUNNING, &usbhid->iofl)) {
-		if (hid_submit_ctrl(hid)) {
-			clear_bit(HID_CTRL_RUNNING, &usbhid->iofl);
-			usb_autopm_put_interface_async(usbhid->intf);
-		}
-		wake_up(&usbhid->wait);
-	} else {
+		/* Prevent autosuspend following the unlink */
+		usb_autopm_get_interface_no_resume(usbhid->intf);
+
 		/*
-		 * the queue is known to run
-		 * but an earlier request may be stuck
-		 * we may need to time out
-		 * no race because the URB is blocked under
-		 * spinlock
+		 * Prevent resubmission in case the URB completes
+		 * before we can unlink it.  We don't want to cancel
+		 * the wrong transfer!
 		 */
-		if (time_after(jiffies, usbhid->last_ctrl + HZ * 5)) {
-			usb_block_urb(usbhid->urbctrl);
-			/* drop lock to not deadlock if the callback is called */
-			spin_unlock(&usbhid->lock);
-			usb_unlink_urb(usbhid->urbctrl);
-			spin_lock(&usbhid->lock);
-			usb_unblock_urb(usbhid->urbctrl);
-			/*
-			 * if the unlinking has already completed
-			 * the pump will have been stopped
-			 * it must be restarted now
-			 */
-			if (!test_bit(HID_CTRL_RUNNING, &usbhid->iofl))
-				if (!ctrl_pump_restart(hid))
-					set_bit(HID_CTRL_RUNNING, &usbhid->iofl);
-		}
+		usb_block_urb(usbhid->urbctrl);
+
+		/* Drop lock to avoid deadlock if the callback runs */
+		spin_unlock(&usbhid->lock);
+
+		usb_unlink_urb(usbhid->urbctrl);
+		spin_lock(&usbhid->lock);
+		usb_unblock_urb(usbhid->urbctrl);
+
+		/* Unlink might have stopped the queue */
+		if (!test_bit(HID_CTRL_RUNNING, &usbhid->iofl))
+			usbhid_restart_ctrl_queue(usbhid);
+
+		/* Now we can allow autosuspend again */
+		usb_autopm_put_interface_async(usbhid->intf);
 	}
 }
 
