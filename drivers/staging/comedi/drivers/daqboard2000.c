@@ -703,48 +703,38 @@ static int daqboard2000_8255_cb(int dir, int port, int data,
 	return result;
 }
 
-static int daqboard2000_attach(struct comedi_device *dev,
-			       struct comedi_devconfig *it)
+static struct pci_dev *daqboard2000_find_pci_dev(struct comedi_device *dev,
+						 struct comedi_devconfig *it)
 {
-	int result = 0;
-	struct comedi_subdevice *s;
-	struct pci_dev *card = NULL;
-	void *aux_data;
-	unsigned int aux_len;
-	int bus, slot;
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
 
-	bus = it->options[0];
-	slot = it->options[1];
-
-	result = alloc_private(dev, sizeof(struct daqboard2000_private));
-	if (result < 0)
-		return -ENOMEM;
-
-	for (card = pci_get_device(0x1616, 0x0409, NULL);
-	     card != NULL; card = pci_get_device(0x1616, 0x0409, card)) {
+	for (pcidev = pci_get_device(0x1616, 0x0409, NULL);
+	     pcidev != NULL; pcidev = pci_get_device(0x1616, 0x0409, pcidev)) {
 		if (bus || slot) {
 			/* requested particular bus/slot */
-			if (card->bus->number != bus ||
-			    PCI_SLOT(card->devfn) != slot) {
+			if (pcidev->bus->number != bus ||
+			    PCI_SLOT(pcidev->devfn) != slot) {
 				continue;
 			}
 		}
 		break;		/* found one */
 	}
-	if (!card) {
+	if (!pcidev) {
 		if (bus || slot)
 			dev_err(dev->class_dev,
 				"no daqboard2000 found at bus/slot: %d/%d\n",
 				bus, slot);
 		else
 			dev_err(dev->class_dev, "no daqboard2000 found\n");
-		return -EIO;
+		return NULL;
 	} else {
 		u32 id;
 		int i;
-		devpriv->pci_dev = card;
-		id = ((u32) card->
-		      subsystem_device << 16) | card->subsystem_vendor;
+
+		id = ((u32) pcidev->
+		      subsystem_device << 16) | pcidev->subsystem_vendor;
 		for (i = 0; i < ARRAY_SIZE(boardtypes); i++) {
 			if (boardtypes[i].id == id) {
 				dev_dbg(dev->class_dev, "%s\n",
@@ -758,9 +748,29 @@ static int daqboard2000_attach(struct comedi_device *dev,
 			     id);
 			dev->board_ptr = boardtypes;
 		}
+		return pcidev;
 	}
+}
 
-	result = comedi_pci_enable(card, "daqboard2000");
+static int daqboard2000_attach(struct comedi_device *dev,
+			       struct comedi_devconfig *it)
+{
+	struct pci_dev *pcidev;
+	struct comedi_subdevice *s;
+	void *aux_data;
+	unsigned int aux_len;
+	int result;
+
+	result = alloc_private(dev, sizeof(struct daqboard2000_private));
+	if (result < 0)
+		return -ENOMEM;
+
+	pcidev = daqboard2000_find_pci_dev(dev, it);
+	if (!pcidev)
+		return -EIO;
+	devpriv->pci_dev = pcidev;
+
+	result = comedi_pci_enable(pcidev, "daqboard2000");
 	if (result < 0) {
 		dev_err(dev->class_dev,
 			"failed to enable PCI device and request regions\n");
@@ -768,9 +778,9 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	}
 	devpriv->got_regions = 1;
 	devpriv->plx =
-	    ioremap(pci_resource_start(card, 0), DAQBOARD2000_PLX_SIZE);
+	    ioremap(pci_resource_start(pcidev, 0), DAQBOARD2000_PLX_SIZE);
 	devpriv->daq =
-	    ioremap(pci_resource_start(card, 2), DAQBOARD2000_DAQ_SIZE);
+	    ioremap(pci_resource_start(pcidev, 2), DAQBOARD2000_DAQ_SIZE);
 	if (!devpriv->plx || !devpriv->daq)
 		return -ENOMEM;
 
@@ -783,7 +793,7 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	/*
 	   u8 interrupt;
 	   Windows code does restore interrupts, but since we don't use them...
-	   pci_read_config_byte(card, PCI_INTERRUPT_LINE, &interrupt);
+	   pci_read_config_byte(pcidev, PCI_INTERRUPT_LINE, &interrupt);
 	   printk("Interrupt before is: %x\n", interrupt);
 	 */
 
@@ -803,7 +813,7 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	daqboard2000_initializeDac(dev);
 	/*
 	   Windows code does restore interrupts, but since we don't use them...
-	   pci_read_config_byte(card, PCI_INTERRUPT_LINE, &interrupt);
+	   pci_read_config_byte(pcidev, PCI_INTERRUPT_LINE, &interrupt);
 	   printk("Interrupt after is: %x\n", interrupt);
 	 */
 
