@@ -384,6 +384,13 @@ config SPI_TXX9
 	help
 	  SPI driver for Toshiba TXx9 MIPS SoCs
 
+config SPI_XCOMM
+	tristate "Analog Devices AD-FMCOMMS1-EBZ SPI-I2C-bridge driver"
+	depends on I2C
+	help
+	  Support for the SPI-I2C bridge found on the Analog Devices
+	  AD-FMCOMMS1-EBZ board.
+
 config SPI_XILINX
 	tristate "Xilinx SPI controller common module"
 	depends on HAS_IOMEM && EXPERIMENTAL
