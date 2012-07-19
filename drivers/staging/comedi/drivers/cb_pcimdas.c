@@ -130,9 +130,6 @@ static const struct cb_pcimdas_board cb_pcimdas_boards[] = {
  * struct.
  */
 struct cb_pcimdas_private {
-	/*  would be useful for a PCI device */
-	struct pci_dev *pci_dev;
-
 	/* base addresses */
 	unsigned long BADR3;
 
@@ -210,7 +207,7 @@ static int cb_pcimdas_attach(struct comedi_device *dev,
 	pcidev = cb_pcimdas_find_pci_dev(dev, it);
 	if (!pcidev)
 		return -EIO;
-	devpriv->pci_dev = pcidev;
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
 	/*  Warn about non-tested features */
 	switch (thisboard->device_id) {
@@ -228,18 +225,18 @@ static int cb_pcimdas_attach(struct comedi_device *dev,
 		return -EIO;
 	}
 
-	dev->iobase = pci_resource_start(devpriv->pci_dev, 2);
-	devpriv->BADR3 = pci_resource_start(devpriv->pci_dev, 3);
-	iobase_8255 = pci_resource_start(devpriv->pci_dev, 4);
+	dev->iobase = pci_resource_start(pcidev, 2);
+	devpriv->BADR3 = pci_resource_start(pcidev, 3);
+	iobase_8255 = pci_resource_start(pcidev, 4);
 
 /* Dont support IRQ yet */
 /*  get irq */
-/* if(request_irq(devpriv->pci_dev->irq, cb_pcimdas_interrupt, IRQF_SHARED, "cb_pcimdas", dev )) */
+/* if(request_irq(pcidev->irq, cb_pcimdas_interrupt, IRQF_SHARED, "cb_pcimdas", dev )) */
 /* { */
-/* printk(" unable to allocate irq %u\n", devpriv->pci_dev->irq); */
+/* printk(" unable to allocate irq %u\n", pcidev->irq); */
 /* return -EINVAL; */
 /* } */
-/* dev->irq = devpriv->pci_dev->irq; */
+/* dev->irq = pcidev->irq; */
 
 	/* Initialize dev->board_name */
 	dev->board_name = thisboard->name;
@@ -283,14 +280,14 @@ static int cb_pcimdas_attach(struct comedi_device *dev,
 
 static void cb_pcimdas_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (devpriv) {
-		if (devpriv->pci_dev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pci_dev);
-			pci_dev_put(devpriv->pci_dev);
-		}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
