@@ -99,7 +99,6 @@ struct pcidio_private {
 	/* used for DO readback, currently unused */
 	unsigned int do_readback[4];	/* up to 4 unsigned int suffice to hold 96 bits for PCI-DIO96 */
 
-	unsigned long dio_reg_base;	/*  address of port A of the first 8255 chip on board */
 };
 
 /*
@@ -165,9 +164,7 @@ static int pcidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (comedi_pci_enable(pcidev, thisboard->name))
 		return -EIO;
 
-	devpriv->dio_reg_base
-	    =
-	    pci_resource_start(pcidev, thisboard->dioregs_badrindex);
+	dev->iobase = pci_resource_start(pcidev, thisboard->dioregs_badrindex);
 
 	ret = comedi_alloc_subdevices(dev, thisboard->n_8255);
 	if (ret)
@@ -175,9 +172,9 @@ static int pcidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	for (i = 0; i < thisboard->n_8255; i++) {
 		subdev_8255_init(dev, dev->subdevices + i,
-				 NULL, devpriv->dio_reg_base + i * 4);
+				 NULL, dev->iobase + i * 4);
 		dev_dbg(dev->class_dev, "subdev %d: base = 0x%lx\n", i,
-			devpriv->dio_reg_base + i * 4);
+			dev->iobase + i * 4);
 	}
 
 	return 1;
@@ -188,7 +185,7 @@ static void pcidio_detach(struct comedi_device *dev)
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
 	if (pcidev) {
-		if (devpriv->dio_reg_base)
+		if (dev->iobase)
 			comedi_pci_disable(pcidev);
 		pci_dev_put(pcidev);
 	}
