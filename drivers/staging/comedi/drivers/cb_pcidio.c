@@ -115,34 +115,29 @@ static struct pci_dev *pcidio_find_pci_dev(struct comedi_device *dev,
 					   struct comedi_devconfig *it)
 {
 	struct pci_dev *pcidev = NULL;
-	int index;
+	int bus = it->options[0];
+	int slot = it->options[1];
+	int i;
 
 	for_each_pci_dev(pcidev) {
-		/*  is it not a computer boards card? */
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+				slot != PCI_SLOT(pcidev->devfn))
+				continue;
+		}
 		if (pcidev->vendor != PCI_VENDOR_ID_CB)
 			continue;
-		/*  loop through cards supported by this driver */
-		for (index = 0; index < ARRAY_SIZE(pcidio_boards); index++) {
-			if (pcidio_boards[index].dev_id != pcidev->device)
+		for (i = 0; i < ARRAY_SIZE(pcidio_boards); i++) {
+			if (pcidio_boards[i].dev_id != pcidev->device)
 				continue;
 
-			/*  was a particular bus/slot requested? */
-			if (it->options[0] || it->options[1]) {
-				/*  are we on the wrong bus/slot? */
-				if (pcidev->bus->number != it->options[0] ||
-				    PCI_SLOT(pcidev->devfn) != it->options[1]) {
-					continue;
-				}
-			}
-			dev->board_ptr = pcidio_boards + index;
-			dev_dbg(dev->class_dev, "Found %s on bus %i, slot %i\n",
-				thisboard->name, devpriv->pci_dev->bus->number,
-				PCI_SLOT(devpriv->pci_dev->devfn));
+			dev->board_ptr = pcidio_boards + i;
 			return pcidev;
 		}
 	}
 	dev_err(dev->class_dev,
-		"No supported ComputerBoards/MeasurementComputing card found on requested position\n");
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
 	return NULL;
 }
 
