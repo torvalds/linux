@@ -29,7 +29,6 @@
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/time.h>
-#include <asm/pmu.h>
 
 #include <asm/mach/arch.h>
 #include <mach/dma.h>
@@ -116,7 +115,7 @@ static struct resource pmu_resource = {
 
 static struct platform_device pmu_device = {
 	.name		= "arm-pmu",
-	.id		= ARM_PMU_DEVICE_CPU,
+	.id		= -1,
 	.resource	= &pmu_resource,
 	.num_resources	= 1,
 };
