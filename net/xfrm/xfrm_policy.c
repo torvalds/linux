@@ -1350,7 +1350,7 @@ static inline struct xfrm_dst *xfrm_alloc_dst(struct net *net, int family)
 	default:
 		BUG();
 	}
-	xdst = dst_alloc(dst_ops, NULL, 0, 0, 0);
+	xdst = dst_alloc(dst_ops, NULL, 0, DST_OBSOLETE_NONE, 0);
 
 	if (likely(xdst)) {
 		struct dst_entry *dst = &xdst->u.dst;
@@ -1477,7 +1477,7 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 		dst1->xfrm = xfrm[i];
 		xdst->xfrm_genid = xfrm[i]->genid;
 
-		dst1->obsolete = -1;
+		dst1->obsolete = DST_OBSOLETE_FORCE_CHK;
 		dst1->flags |= DST_HOST;
 		dst1->lastuse = now;
 
@@ -2219,12 +2219,13 @@ EXPORT_SYMBOL(__xfrm_route_forward);
 static struct dst_entry *xfrm_dst_check(struct dst_entry *dst, u32 cookie)
 {
 	/* Code (such as __xfrm4_bundle_create()) sets dst->obsolete
-	 * to "-1" to force all XFRM destinations to get validated by
-	 * dst_ops->check on every use.  We do this because when a
-	 * normal route referenced by an XFRM dst is obsoleted we do
-	 * not go looking around for all parent referencing XFRM dsts
-	 * so that we can invalidate them.  It is just too much work.
-	 * Instead we make the checks here on every use.  For example:
+	 * to DST_OBSOLETE_FORCE_CHK to force all XFRM destinations to
+	 * get validated by dst_ops->check on every use.  We do this
+	 * because when a normal route referenced by an XFRM dst is
+	 * obsoleted we do not go looking around for all parent
+	 * referencing XFRM dsts so that we can invalidate them.  It
+	 * is just too much work.  Instead we make the checks here on
+	 * every use.  For example:
 	 *
 	 *	XFRM dst A --> IPv4 dst X
 	 *
@@ -2234,9 +2235,9 @@ static struct dst_entry *xfrm_dst_check(struct dst_entry *dst, u32 cookie)
 	 * stale_bundle() check.
 	 *
 	 * When a policy's bundle is pruned, we dst_free() the XFRM
-	 * dst which causes it's ->obsolete field to be set to a
-	 * positive non-zero integer.  If an XFRM dst has been pruned
-	 * like this, we want to force a new route lookup.
+	 * dst which causes it's ->obsolete field to be set to
+	 * DST_OBSOLETE_DEAD.  If an XFRM dst has been pruned like
+	 * this, we want to force a new route lookup.
 	 */
 	if (dst->obsolete < 0 && !stale_bundle(dst))
 		return dst;

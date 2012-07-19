@@ -281,7 +281,7 @@ static inline struct rt6_info *ip6_dst_alloc(struct net *net,
 					     struct fib6_table *table)
 {
 	struct rt6_info *rt = dst_alloc(&net->ipv6.ip6_dst_ops, dev,
-					0, 0, flags);
+					0, DST_OBSOLETE_NONE, flags);
 
 	if (rt) {
 		struct dst_entry *dst = &rt->dst;
@@ -985,7 +985,7 @@ struct dst_entry *ip6_blackhole_route(struct net *net, struct dst_entry *dst_ori
 	struct rt6_info *rt, *ort = (struct rt6_info *) dst_orig;
 	struct dst_entry *new = NULL;
 
-	rt = dst_alloc(&ip6_dst_blackhole_ops, ort->dst.dev, 1, 0, 0);
+	rt = dst_alloc(&ip6_dst_blackhole_ops, ort->dst.dev, 1, DST_OBSOLETE_NONE, 0);
 	if (rt) {
 		new = &rt->dst;
 
