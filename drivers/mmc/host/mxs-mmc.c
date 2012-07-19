@@ -164,16 +164,23 @@ struct mxs_mmc_host {
 	spinlock_t			lock;
 	int				sdio_irq_en;
 	int				wp_gpio;
+	bool				wp_inverted;
 };
 
 static int mxs_mmc_get_ro(struct mmc_host *mmc)
 {
 	struct mxs_mmc_host *host = mmc_priv(mmc);
+	int ret;
 
 	if (!gpio_is_valid(host->wp_gpio))
 		return -EINVAL;
 
-	return gpio_get_value(host->wp_gpio);
+	ret = gpio_get_value(host->wp_gpio);
+
+	if (host->wp_inverted)
+		ret = !ret;
+
+	return ret;
 }
 
 static int mxs_mmc_get_cd(struct mmc_host *mmc)
@@ -708,6 +715,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	int ret = 0, irq_err, irq_dma;
 	dma_cap_mask_t mask;
 	struct regulator *reg_vmmc;
+	enum of_gpio_flags flags;
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
@@ -796,7 +804,10 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 			mmc->caps |= MMC_CAP_4_BIT_DATA;
 		else if (bus_width == 8)
 			mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;
-		host->wp_gpio = of_get_named_gpio(np, "wp-gpios", 0);
+		host->wp_gpio = of_get_named_gpio_flags(np, "wp-gpios", 0,
+							&flags);
+		if (flags & OF_GPIO_ACTIVE_LOW)
+			host->wp_inverted = 1;
 	} else {
 		if (pdata->flags & SLOTF_8_BIT_CAPABLE)
 			mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;
