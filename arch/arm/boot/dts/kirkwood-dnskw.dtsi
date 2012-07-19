@@ -4,6 +4,27 @@
 	model = "D-Link DNS NASes (kirkwood-based)";
 	compatible = "dlink,dns-kirkwood", "mrvl,kirkwood-88f6281", "mrvl,kirkwood";
 
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		button@1 {
+			label = "Power button";
+			linux,code = <116>;
+			gpios = <&gpio1 2 1>;
+		};
+		button@2 {
+			label = "USB unmount button";
+			linux,code = <161>;
+			gpios = <&gpio1 15 1>;
+		};
+		button@3 {
+			label = "Reset button";
+			linux,code = <0x198>;
+			gpios = <&gpio1 16 1>;
+		};
+	};
+
 	ocp@f1000000 {
 		sata@80000 {
 			status = "okay";

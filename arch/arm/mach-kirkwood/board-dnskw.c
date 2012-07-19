@@ -19,7 +19,6 @@
 #include <linux/of.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
-#include <linux/gpio_keys.h>
 #include <linux/gpio-fan.h>
 #include <linux/leds.h>
 #include <asm/mach-types.h>
@@ -66,41 +65,6 @@ static unsigned int dnskw_mpp_config[] __initdata = {
 	MPP48_GPIO,	/* Button: Back reset */
 	MPP49_GPIO,	/* Temp Alarm (DNS-325) Pin of U5 (DNS-320) */
 	0
-};
-
-static struct gpio_keys_button dnskw_button_pins[] = {
-	{
-		.code		= KEY_POWER,
-		.gpio		= 34,
-		.desc		= "Power button",
-		.active_low	= 1,
-	},
-	{
-		.code		= KEY_EJECTCD,
-		.gpio		= 47,
-		.desc		= "USB unmount button",
-		.active_low	= 1,
-	},
-	{
-		.code		= KEY_RESTART,
-		.gpio		= 48,
-		.desc		= "Reset button",
-		.active_low	= 1,
-	},
-};
-
-static struct gpio_keys_platform_data dnskw_button_data = {
-	.buttons	= dnskw_button_pins,
-	.nbuttons	= ARRAY_SIZE(dnskw_button_pins),
-};
-
-static struct platform_device dnskw_button_device = {
-	.name		= "gpio-keys",
-	.id		= -1,
-	.num_resources	= 0,
-	.dev		= {
-		.platform_data	= &dnskw_button_data,
-	}
 };
 
 /* Fan: ADDA AD045HB-G73 40mm 6000rpm@5v */
@@ -150,7 +114,6 @@ void __init dnskw_init(void)
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&dnskw_ge00_data);
 
-	platform_device_register(&dnskw_button_device);
 	platform_device_register(&dnskw_fan_device);
 
 	/* Register power-off GPIO. */
