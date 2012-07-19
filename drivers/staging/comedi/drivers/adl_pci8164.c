@@ -55,12 +55,6 @@ Configuration Options:
 
 #define PCI_DEVICE_ID_PCI8164 0x8164
 
-struct adl_pci8164_private {
-	int data;
-};
-
-#define devpriv ((struct adl_pci8164_private *)dev->private)
-
 /*
  all the read commands are the same except for the addition a constant
  * const to the data for inw()
@@ -258,9 +252,6 @@ static int adl_pci8164_attach(struct comedi_device *dev,
 	printk(KERN_INFO "comedi%d: adl_pci8164\n", dev->minor);
 
 	dev->board_name = "pci8164";
-
-	if (alloc_private(dev, sizeof(struct adl_pci8164_private)) < 0)
-		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
