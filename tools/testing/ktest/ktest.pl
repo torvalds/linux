@@ -1138,6 +1138,7 @@ sub reboot {
     if (defined($time)) {
 	if (wait_for_monitor($time, $reboot_success_line)) {
 	    # reboot got stuck?
+	    doprint "Reboot did not finish. Forcing power cycle\n";
 	    run_command "$power_cycle";
 	}
 	end_monitor;
@@ -1235,6 +1236,9 @@ sub wait_for_monitor {
     my $line;
     my $booted = 0;
     my $start_time = time;
+    my $skip_call_trace = 0;
+    my $bug = 0;
+    my $bug_ignored = 0;
     my $now;
 
     doprint "** Wait for monitor to settle down **\n";
@@ -1251,6 +1255,28 @@ sub wait_for_monitor {
 	    $booted = 1;
 	}
 
+	if ($full_line =~ /\[ backtrace testing \]/) {
+	    $skip_call_trace = 1;
+	}
+
+	if ($full_line =~ /call trace:/i) {
+	    if (!$bug && !$skip_call_trace) {
+		if ($ignore_errors) {
+		    $bug_ignored = 1;
+		} else {
+		    $bug = 1;
+		}
+	    }
+	}
+
+	if ($full_line =~ /\[ end of backtrace testing \]/) {
+	    $skip_call_trace = 0;
+	}
+
+	if ($full_line =~ /Kernel panic -/) {
+	    $bug = 1;
+	}
+
 	if ($line =~ /\n/) {
 	    $full_line = "";
 	}
@@ -1261,7 +1287,7 @@ sub wait_for_monitor {
 	}
     }
     print "** Monitor flushed **\n";
-    return 0;
+    return $bug;
 }
 
 sub save_logs {
