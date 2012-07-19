@@ -216,9 +216,6 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 struct cb_pcidda_private {
 	int data;
 
-	/* would be useful for a PCI device */
-	struct pci_dev *pci_dev;
-
 	unsigned long digitalio;
 	unsigned long dac;
 
@@ -306,7 +303,7 @@ static int cb_pcidda_attach(struct comedi_device *dev,
 	pcidev = cb_pcidda_find_pci_dev(dev, it);
 	if (!pcidev)
 		return -EIO;
-	devpriv->pci_dev = pcidev;
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
 	/*
 	 * Enable PCI device and request regions.
@@ -320,9 +317,9 @@ static int cb_pcidda_attach(struct comedi_device *dev,
 /*
  * Allocate the I/O ports.
  */
-	devpriv->digitalio =
-	    pci_resource_start(devpriv->pci_dev, DIGITALIO_BADRINDEX);
-	devpriv->dac = pci_resource_start(devpriv->pci_dev, DAC_BADRINDEX);
+	devpriv->digitalio = pci_resource_start(pcidev, DIGITALIO_BADRINDEX);
+	devpriv->dac = pci_resource_start(pcidev, DAC_BADRINDEX);
+	dev->iobase = devpriv->dac;
 
 /*
  * Warn about the status of the driver.
@@ -377,12 +374,12 @@ static int cb_pcidda_attach(struct comedi_device *dev,
 
 static void cb_pcidda_detach(struct comedi_device *dev)
 {
-	if (devpriv) {
-		if (devpriv->pci_dev) {
-			if (devpriv->dac)
-				comedi_pci_disable(devpriv->pci_dev);
-			pci_dev_put(devpriv->pci_dev);
-		}
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 	if (dev->subdevices) {
 		subdev_8255_cleanup(dev, dev->subdevices + 1);
