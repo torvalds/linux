@@ -79,11 +79,6 @@
 #define S3C64XX_SPI_SLAVE_AUTO			(1<<1)
 #define S3C64XX_SPI_SLAVE_SIG_INACT		(1<<0)
 
-#define S3C64XX_SPI_ACT(c) writel(0, (c)->regs + S3C64XX_SPI_SLAVE_SEL)
-
-#define S3C64XX_SPI_DEACT(c) writel(S3C64XX_SPI_SLAVE_SIG_INACT, \
-					(c)->regs + S3C64XX_SPI_SLAVE_SEL)
-
 #define S3C64XX_SPI_INT_TRAILING_EN		(1<<6)
 #define S3C64XX_SPI_INT_RX_OVERRUN_EN		(1<<5)
 #define S3C64XX_SPI_INT_RX_UNDERRUN_EN		(1<<4)
@@ -737,14 +732,15 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 		enable_cs(sdd, spi);
 
 		/* Start the signals */
-		S3C64XX_SPI_ACT(sdd);
+		writel(0, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 
 		spin_unlock_irqrestore(&sdd->lock, flags);
 
 		status = wait_for_xfer(sdd, xfer, use_dma);
 
 		/* Quiese the signals */
-		S3C64XX_SPI_DEACT(sdd);
+		writel(S3C64XX_SPI_SLAVE_SIG_INACT,
+		       sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 
 		if (status) {
 			dev_err(&spi->dev, "I/O Error: "
@@ -1032,7 +1028,7 @@ static void s3c64xx_spi_hwinit(struct s3c64xx_spi_driver_data *sdd, int channel)
 
 	sdd->cur_speed = 0;
 
-	S3C64XX_SPI_DEACT(sdd);
+	writel(S3C64XX_SPI_SLAVE_SIG_INACT, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 
 	/* Disable Interrupts - we use Polling if not DMA mode */
 	writel(0, regs + S3C64XX_SPI_INT_EN);
