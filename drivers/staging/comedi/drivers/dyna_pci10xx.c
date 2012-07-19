@@ -346,7 +346,9 @@ static void dyna_pci10xx_detach(struct comedi_device *dev)
 	if (devpriv)
 		mutex_destroy(&devpriv->mutex);
 	if (pcidev) {
-		comedi_pci_disable(pcidev);
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
