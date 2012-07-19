@@ -57,7 +57,6 @@ See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
 
 /* sizes of io regions (bytes) */
 #define BADR0_SIZE 2		/* ?? */
-#define BADR1_SIZE 4
 #define BADR2_SIZE 6
 #define BADR3_SIZE 16
 #define BADR4_SIZE 4
@@ -139,7 +138,6 @@ struct cb_pcimdas_private {
 
 	/* base addresses */
 	unsigned long BADR0;
-	unsigned long BADR1;
 	unsigned long BADR2;
 	unsigned long BADR3;
 	unsigned long BADR4;
@@ -236,7 +234,6 @@ static int cb_pcimdas_attach(struct comedi_device *dev,
 	}
 
 	devpriv->BADR0 = pci_resource_start(devpriv->pci_dev, 0);
-	devpriv->BADR1 = pci_resource_start(devpriv->pci_dev, 1);
 	devpriv->BADR2 = pci_resource_start(devpriv->pci_dev, 2);
 	devpriv->BADR3 = pci_resource_start(devpriv->pci_dev, 3);
 	devpriv->BADR4 = pci_resource_start(devpriv->pci_dev, 4);
