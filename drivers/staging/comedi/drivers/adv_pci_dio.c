@@ -1077,23 +1077,16 @@ static int CheckAndAllocCard(struct comedi_device *dev,
 		pci_priv = devpriv;
 	}
 
-	devpriv->pcidev = pcidev;
-
 	return 1;
 }
 
-static int pci_dio_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static struct pci_dev *pci_dio_find_pci_dev(struct comedi_device *dev,
+					    struct comedi_devconfig *it)
 {
-	struct comedi_subdevice *s;
-	int ret, subdev, n_subdevices, i, j;
-	unsigned long iobase;
 	struct pci_dev *pcidev = NULL;
-
-
-	ret = alloc_private(dev, sizeof(struct pci_dio_private));
-	if (ret < 0)
-		return -ENOMEM;
+	unsigned long iobase;
+	int i;
+	int ret;
 
 	for_each_pci_dev(pcidev) {
 		/*  loop through cards supported by this driver */
@@ -1123,20 +1116,37 @@ static int pci_dio_attach(struct comedi_device *dev,
 	if (!dev->board_ptr) {
 		dev_err(dev->class_dev,
 			"Error: Requested type of the card was not found!\n");
-		return -EIO;
+		return NULL;
 	}
+	iobase = pci_resource_start(devpriv->pcidev, this_board->main_pci_region);
+	dev_dbg(dev->class_dev, "b:s:f=%d:%d:%d, io=0x%4lx\n",
+		pcidev->bus->number, PCI_SLOT(pcidev->devfn),
+		PCI_FUNC(pcidev->devfn), iobase);
+	return pcidev;
+}
 
-	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
+static int pci_dio_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
+{
+	struct comedi_subdevice *s;
+	int ret, subdev, n_subdevices, i, j;
+
+	ret = alloc_private(dev, sizeof(struct pci_dio_private));
+	if (ret < 0)
+		return -ENOMEM;
+
+	devpriv->pcidev = pci_dio_find_pci_dev(dev, it);
+	if (!devpriv->pcidev)
+		return -EIO;
+
+	if (comedi_pci_enable(devpriv->pcidev, dev->driver->driver_name)) {
 		dev_err(dev->class_dev,
 			"Error: Can't enable PCI device and request regions!\n");
 		return -EIO;
 	}
-	iobase = pci_resource_start(pcidev, this_board->main_pci_region);
-	dev_dbg(dev->class_dev, "b:s:f=%d:%d:%d, io=0x%4lx\n",
-		pcidev->bus->number, PCI_SLOT(pcidev->devfn),
-		PCI_FUNC(pcidev->devfn), iobase);
 
-	dev->iobase = iobase;
+	dev->iobase = pci_resource_start(devpriv->pcidev,
+					 this_board->main_pci_region);
 	dev->board_name = this_board->name;
 
 	if (this_board->cardtype == TYPE_PCI1760) {
