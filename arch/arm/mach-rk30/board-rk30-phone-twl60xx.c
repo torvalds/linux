@@ -74,6 +74,8 @@ int tps80032_pre_init(void){
 
 	twl_reg_write(CHARGERUSB_CTRLLIMIT2,TWL6030_MODULE_CHARGER, 0x0f);
 	twl_reg_write(CHARGERUSB_CTRLLIMIT2,TWL6030_MODULE_CHARGER, 0x1f);
+
+	twl_reg_write(0x05,TWL_MODULE_PM_MASTER,0x1d);   //set vlow wakeup voltage 3.45v
 	
 	twl_reg_write(LDO5_CFG_TRANS,TWL_MODULE_PM_RECEIVER,0x03);   //set ldo5 is disabled when in sleep mode 
 	twl_reg_write(LDO7_CFG_TRANS,TWL_MODULE_PM_RECEIVER,0x03);   //set ldo7 is disabled when in sleep mode
@@ -742,13 +744,13 @@ void twl60xx_pmu_early_suspend(struct regulator_dev *rdev)
 {
 	printk("%s\n", __func__);
 	
-	twl_reg_write(0x06,TWL_MODULE_PIH, 0x00);
+	twl_reg_write(REG_INT_MSK_STS_A,TWL_MODULE_PIH, 0x00); //open vlow interrupt
 }
 void twl60xx_pmu_early_resume(struct regulator_dev *rdev)
 {
 	printk("%s\n", __func__);
 
-	twl_reg_write(0x06,TWL_MODULE_PIH, 0x04);
+	twl_reg_write(REG_INT_MSK_STS_A,TWL_MODULE_PIH, 0x04); //close vlow interrupt
 }
 #else
 void twl60xx_pmu_early_suspend(struct regulator_dev *rdev)

@@ -375,7 +375,6 @@ static int rk_fb_set_par(struct fb_info *info)
 	u32 yvir = var->yres_virtual;
 	u8 data_format = var->nonstd&0xff;
 	var->pixclock = dev_drv->pixclock;
-	
 	#if defined(CONFIG_HDMI_RK30)
 		#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
 			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
@@ -496,6 +495,8 @@ static int rk_fb_set_par(struct fb_info *info)
 					par2->xact = par->xact;
 					par2->yact = par->yact;
 					par2->format = par->format;
+					info2->var.nonstd &= 0xffffff00;
+					info2->var.nonstd |= par->format;
 					dev_drv1->set_par(dev_drv1,layer_id);
 				}
 			}
