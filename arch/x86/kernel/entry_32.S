@@ -1169,10 +1169,9 @@ ENTRY(ftrace_regs_caller)
 	movl $__KERNEL_CS,13*4(%esp)
 
 	movl 12*4(%esp), %eax	/* Load ip (1st parameter) */
-	movl 0x4(%ebp), %edx	/* Load parent ip (2cd parameter) */
-	lea  (%esp), %ecx
-	pushl %ecx		/* Save pt_regs as 4th parameter */
+	movl 0x4(%ebp), %edx	/* Load parent ip (2nd parameter) */
 	leal function_trace_op, %ecx /* Save ftrace_pos in 3rd parameter */
+	pushl %esp		/* Save pt_regs as 4th parameter */
 
 GLOBAL(ftrace_regs_call)
 	call ftrace_stub
