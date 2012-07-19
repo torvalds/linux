@@ -615,7 +615,6 @@ void __cpuinit smtc_boot_secondary(int cpu, struct task_struct *idle)
 
 void smtc_init_secondary(void)
 {
-	local_irq_enable();
 }
 
 void smtc_smp_finish(void)
@@ -630,6 +629,8 @@ void smtc_smp_finish(void)
 	 */
 	if (cpu > 0 && (cpu_data[cpu].vpe_id != cpu_data[cpu - 1].vpe_id))
 		write_c0_compare(read_c0_count() + mips_hpt_frequency/HZ);
+
+	local_irq_enable();
 
 	printk("TC %d going on-line as CPU %d\n",
 		cpu_data[smp_processor_id()].tc_id, smp_processor_id());
