@@ -894,7 +894,8 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 	}
 
 	if (!spi_get_ctldata(spi)) {
-		err = gpio_request(cs->line, dev_name(&spi->dev));
+		err = gpio_request_one(cs->line, GPIOF_OUT_INIT_HIGH,
+				       dev_name(&spi->dev));
 		if (err) {
 			dev_err(&spi->dev,
 				"Failed to get /CS gpio [%d]: %d\n",
