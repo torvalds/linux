@@ -1350,6 +1350,8 @@ static struct pci_dev *pci1710_find_pci_dev(struct comedi_device *dev,
 		}
 		if (pcidev->vendor != PCI_VENDOR_ID_ADVANTECH)
 			continue;
+		if (pci_is_enabled(pcidev))
+			continue;
 
 		if (strcmp(this_board->name, DRV_NAME) == 0) {
 			for (i = 0; i < ARRAY_SIZE(boardtypes); ++i) {
@@ -1364,15 +1366,6 @@ static struct pci_dev *pci1710_find_pci_dev(struct comedi_device *dev,
 			if (pcidev->device != boardtypes[board_index].device_id)
 				continue;
 		}
-
-		/*
-		 * Look for device that isn't in use.
-		 * Enable PCI device and request regions.
-		 */
-		if (comedi_pci_enable(pcidev, DRV_NAME)) {
-			continue;
-		}
-		/*  fixup board_ptr in case we were using the dummy entry with the driver name */
 		dev->board_ptr = &boardtypes[board_index];
 		return pcidev;
 	}
@@ -1398,6 +1391,10 @@ static int pci1710_attach(struct comedi_device *dev,
 	devpriv->pcidev = pci1710_find_pci_dev(dev, it);
 	if (!devpriv->pcidev)
 		return -EIO;
+
+	ret = comedi_pci_enable(devpriv->pcidev, DRV_NAME);
+	if (ret)
+		return ret;
 
 	dev->iobase = pci_resource_start(devpriv->pcidev, 2);
 	irq = devpriv->pcidev->irq;
