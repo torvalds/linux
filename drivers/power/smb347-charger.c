@@ -142,6 +142,7 @@ struct smb347_charger {
 	unsigned int		mains_current_limit;
 	bool			usb_hc_mode;
 	bool			usb_otg_enabled;
+	int			en_gpio;
 	struct dentry		*dentry;
 	const struct smb347_charger_platform_data *pdata;
 };
@@ -324,8 +325,12 @@ static int smb347_charging_set(struct smb347_charger *smb, bool enable)
 
 	if (smb->pdata->enable_control != SMB347_CHG_ENABLE_SW) {
 		smb->charging_enabled = enable;
-		dev_dbg(&smb->client->dev,
-			"charging enable/disable in SW disabled\n");
+
+		if (smb->en_gpio)
+			gpio_set_value(
+				smb->en_gpio,
+				(smb->pdata->enable_control ==
+				 SMB347_CHG_ENABLE_PIN_ACTIVE_LOW) ^ enable);
 		return 0;
 	}
 
@@ -1358,6 +1363,19 @@ static int smb347_probe(struct i2c_client *client,
 	smb->pdata = pdata;
 
 	smb->mains_current_limit = smb->pdata->mains_current_limit;
+
+	if (pdata->en_gpio) {
+		ret = gpio_request_one(
+			pdata->en_gpio,
+			smb->pdata->enable_control ==
+			SMB347_CHG_ENABLE_PIN_ACTIVE_LOW ?
+			GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW,
+			smb->client->name);
+		if (ret < 0)
+			dev_warn(dev, "failed to claim EN GPIO: %d\n", ret);
+		else
+			smb->en_gpio = pdata->en_gpio;
+	}
 
 	ret = smb347_hw_init(smb);
 	if (ret < 0)
