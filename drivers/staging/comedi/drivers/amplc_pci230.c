@@ -500,7 +500,6 @@ static const struct pci230_board pci230_boards[] = {
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
 struct pci230_private {
-	struct pci_dev *pci_dev;
 	spinlock_t isr_spinlock;	/* Interrupt spin lock */
 	spinlock_t res_spinlock;	/* Shared resources spin lock */
 	spinlock_t ai_stop_spinlock;	/* Spin lock for stopping AI command */
@@ -2752,7 +2751,8 @@ static int pci230_attach_common(struct comedi_device *dev,
 	/* PCI230's I/O spaces 1 and 2 respectively. */
 	int irq_hdl, rc;
 
-	devpriv->pci_dev = pci_dev;
+	comedi_set_hw_dev(dev, &pci_dev->dev);
+
 	dev->board_name = thisboard->name;
 	/* Enable PCI device and reserve I/O spaces. */
 	if (comedi_pci_enable(pci_dev, "amplc_pci230") < 0) {
@@ -2823,16 +2823,15 @@ static int pci230_attach_common(struct comedi_device *dev,
 	outw(devpriv->adccon | PCI230_ADC_FIFO_RESET,
 	     dev->iobase + PCI230_ADCCON);
 	/* Register the interrupt handler. */
-	irq_hdl = request_irq(devpriv->pci_dev->irq, pci230_interrupt,
+	irq_hdl = request_irq(pci_dev->irq, pci230_interrupt,
 			      IRQF_SHARED, "amplc_pci230", dev);
 	if (irq_hdl < 0) {
 		dev_warn(dev->class_dev,
 			 "unable to register irq %u, commands will not be available\n",
-			 devpriv->pci_dev->irq);
+			 pci_dev->irq);
 	} else {
-		dev->irq = devpriv->pci_dev->irq;
-		dev_dbg(dev->class_dev, "registered irq %u\n",
-			devpriv->pci_dev->irq);
+		dev->irq = pci_dev->irq;
+		dev_dbg(dev->class_dev, "registered irq %u\n", pci_dev->irq);
 	}
 
 	rc = comedi_alloc_subdevices(dev, 3);
@@ -2932,18 +2931,16 @@ static int __devinit pci230_attach_pci(struct comedi_device *dev,
 static void pci230_detach(struct comedi_device *dev)
 {
 	const struct pci230_board *thisboard = comedi_board(dev);
-	struct pci230_private *devpriv = dev->private;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
 	if (dev->subdevices && thisboard->have_dio)
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (devpriv) {
-		if (devpriv->pci_dev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pci_dev);
-			pci_dev_put(devpriv->pci_dev);
-		}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
