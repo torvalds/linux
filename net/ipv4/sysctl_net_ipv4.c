@@ -367,6 +367,13 @@ static struct ctl_table ipv4_table[] = {
 	},
 #endif
 	{
+		.procname	= "tcp_fastopen",
+		.data		= &sysctl_tcp_fastopen,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
 		.procname	= "tcp_tw_recycle",
 		.data		= &tcp_death_row.sysctl_tw_recycle,
 		.maxlen		= sizeof(int),

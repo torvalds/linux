@@ -385,15 +385,17 @@ static inline bool tcp_urg_mode(const struct tcp_sock *tp)
 #define OPTION_MD5		(1 << 2)
 #define OPTION_WSCALE		(1 << 3)
 #define OPTION_COOKIE_EXTENSION	(1 << 4)
+#define OPTION_FAST_OPEN_COOKIE	(1 << 8)
 
 struct tcp_out_options {
-	u8 options;		/* bit field of OPTION_* */
+	u16 options;		/* bit field of OPTION_* */
+	u16 mss;		/* 0 to disable */
 	u8 ws;			/* window scale, 0 to disable */
 	u8 num_sack_blocks;	/* number of SACK blocks to include */
 	u8 hash_size;		/* bytes in hash_location */
-	u16 mss;		/* 0 to disable */
-	__u32 tsval, tsecr;	/* need to include OPTION_TS */
 	__u8 *hash_location;	/* temporary pointer, overloaded */
+	__u32 tsval, tsecr;	/* need to include OPTION_TS */
+	struct tcp_fastopen_cookie *fastopen_cookie;	/* Fast open cookie */
 };
 
 /* The sysctl int routines are generic, so check consistency here.
@@ -442,7 +444,7 @@ static u8 tcp_cookie_size_check(u8 desired)
 static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 			      struct tcp_out_options *opts)
 {
-	u8 options = opts->options;	/* mungable copy */
+	u16 options = opts->options;	/* mungable copy */
 
 	/* Having both authentication and cookies for security is redundant,
 	 * and there's certainly not enough room.  Instead, the cookie-less
@@ -563,6 +565,21 @@ static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 		}
 
 		tp->rx_opt.dsack = 0;
+	}
+
+	if (unlikely(OPTION_FAST_OPEN_COOKIE & options)) {
+		struct tcp_fastopen_cookie *foc = opts->fastopen_cookie;
+
+		*ptr++ = htonl((TCPOPT_EXP << 24) |
+			       ((TCPOLEN_EXP_FASTOPEN_BASE + foc->len) << 16) |
+			       TCPOPT_FASTOPEN_MAGIC);
+
+		memcpy(ptr, foc->val, foc->len);
+		if ((foc->len & 3) == 2) {
+			u8 *align = ((u8 *)ptr) + foc->len;
+			align[0] = align[1] = TCPOPT_NOP;
+		}
+		ptr += (foc->len + 3) >> 2;
 	}
 }
 

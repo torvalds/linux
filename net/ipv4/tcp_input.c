@@ -3732,7 +3732,8 @@ old_ack:
  * the fast version below fails.
  */
 void tcp_parse_options(const struct sk_buff *skb, struct tcp_options_received *opt_rx,
-		       const u8 **hvpp, int estab)
+		       const u8 **hvpp, int estab,
+		       struct tcp_fastopen_cookie *foc)
 {
 	const unsigned char *ptr;
 	const struct tcphdr *th = tcp_hdr(skb);
@@ -3839,8 +3840,25 @@ void tcp_parse_options(const struct sk_buff *skb, struct tcp_options_received *o
 					break;
 				}
 				break;
-			}
 
+			case TCPOPT_EXP:
+				/* Fast Open option shares code 254 using a
+				 * 16 bits magic number. It's valid only in
+				 * SYN or SYN-ACK with an even size.
+				 */
+				if (opsize < TCPOLEN_EXP_FASTOPEN_BASE ||
+				    get_unaligned_be16(ptr) != TCPOPT_FASTOPEN_MAGIC ||
+				    foc == NULL || !th->syn || (opsize & 1))
+					break;
+				foc->len = opsize - TCPOLEN_EXP_FASTOPEN_BASE;
+				if (foc->len >= TCP_FASTOPEN_COOKIE_MIN &&
+				    foc->len <= TCP_FASTOPEN_COOKIE_MAX)
+					memcpy(foc->val, ptr + 2, foc->len);
+				else if (foc->len != 0)
+					foc->len = -1;
+				break;
+
+			}
 			ptr += opsize-2;
 			length -= opsize;
 		}
@@ -3882,7 +3900,7 @@ static bool tcp_fast_parse_options(const struct sk_buff *skb,
 		if (tcp_parse_aligned_timestamp(tp, th))
 			return true;
 	}
-	tcp_parse_options(skb, &tp->rx_opt, hvpp, 1);
+	tcp_parse_options(skb, &tp->rx_opt, hvpp, 1, NULL);
 	return true;
 }
 
@@ -5637,7 +5655,7 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 	struct tcp_cookie_values *cvp = tp->cookie_values;
 	int saved_clamp = tp->rx_opt.mss_clamp;
 
-	tcp_parse_options(skb, &tp->rx_opt, &hash_location, 0);
+	tcp_parse_options(skb, &tp->rx_opt, &hash_location, 0, NULL);
 
 	if (th->ack) {
 		/* rfc793:

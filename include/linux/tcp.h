@@ -243,6 +243,16 @@ static inline unsigned int tcp_optlen(const struct sk_buff *skb)
 	return (tcp_hdr(skb)->doff - 5) * 4;
 }
 
+/* TCP Fast Open */
+#define TCP_FASTOPEN_COOKIE_MIN	4	/* Min Fast Open Cookie size in bytes */
+#define TCP_FASTOPEN_COOKIE_MAX	16	/* Max Fast Open Cookie size in bytes */
+
+/* TCP Fast Open Cookie as stored in memory */
+struct tcp_fastopen_cookie {
+	s8	len;
+	u8	val[TCP_FASTOPEN_COOKIE_MAX];
+};
+
 /* This defines a selective acknowledgement block. */
 struct tcp_sack_block_wire {
 	__be32	start_seq;
