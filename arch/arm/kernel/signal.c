@@ -640,13 +640,24 @@ static void do_signal(struct pt_regs *regs, int syscall)
 }
 
 asmlinkage void
-do_notify_resume(struct pt_regs *regs, unsigned int thread_flags, int syscall)
+do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 {
-	if (thread_flags & _TIF_SIGPENDING)
-		do_signal(regs, syscall);
-
-	if (thread_flags & _TIF_NOTIFY_RESUME) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
-	}
+	do {
+		if (likely(thread_flags & _TIF_NEED_RESCHED)) {
+			schedule();
+		} else {
+			if (unlikely(!user_mode(regs)))
+				return;
+			local_irq_enable();
+			if (thread_flags & _TIF_SIGPENDING) {
+				do_signal(regs, syscall);
+				syscall = 0;
+			} else {
+				clear_thread_flag(TIF_NOTIFY_RESUME);
+				tracehook_notify_resume(regs);
+			}
+		}
+		local_irq_disable();
+		thread_flags = current_thread_info()->flags;
+	} while (thread_flags & _TIF_WORK_MASK);
 }

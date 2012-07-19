@@ -51,23 +51,10 @@ ret_fast_syscall:
 fast_work_pending:
 	str	r0, [sp, #S_R0+S_OFF]!		@ returned r0
 work_pending:
-	tst	r1, #_TIF_NEED_RESCHED
-	bne	work_resched
-	/*
-	 * TIF_SIGPENDING or TIF_NOTIFY_RESUME must've been set if we got here
-	 */
-	ldr	r2, [sp, #S_PSR]
 	mov	r0, sp				@ 'regs'
-	tst	r2, #15				@ are we returning to user mode?
-	bne	no_work_pending			@ no?  just leave, then...
 	mov	r2, why				@ 'syscall'
-	tst	r1, #_TIF_SIGPENDING		@ delivering a signal?
-	movne	why, #0				@ prevent further restarts
-	bl	do_notify_resume
-	b	ret_slow_syscall		@ Check work again
-
-work_resched:
-	bl	schedule
+	bl	do_work_pending
+	b	no_work_pending
 /*
  * "slow" syscall return path.  "why" tells us if this was a real syscall.
  */
