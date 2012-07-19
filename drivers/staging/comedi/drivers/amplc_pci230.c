@@ -2683,11 +2683,13 @@ static const struct pci230_board *pci230_find_pci_board(struct pci_dev *pci_dev)
 }
 
 /* Look for PCI device matching requested board name, bus and slot. */
-static struct pci_dev *pci230_find_pci(struct comedi_device *dev,
-				       int bus, int slot)
+static struct pci_dev *pci230_find_pci_dev(struct comedi_device *dev,
+					   struct comedi_devconfig *it)
 {
 	const struct pci230_board *thisboard = comedi_board(dev);
 	struct pci_dev *pci_dev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
 
 	for_each_pci_dev(pci_dev) {
 		/* Check vendor ID (same for all supported PCI boards). */
@@ -2707,23 +2709,16 @@ static struct pci_dev *pci230_find_pci(struct comedi_device *dev,
 				continue;
 			/* Replace wildcard board_ptr. */
 			dev->board_ptr = foundboard;
-			thisboard = comedi_board(dev);
 		} else {
 			/* Need to match a specific board. */
 			if (!pci230_match_pci_board(thisboard, pci_dev))
 				continue;
 		}
-		/* Found a matching PCI device. */
 		return pci_dev;
 	}
-	/* No matching PCI device found. */
-	if (bus || slot)
-		dev_err(dev->class_dev,
-			"error! no %s found at pci %02x:%02x\n",
-			thisboard->name, bus, slot);
-	else
-		dev_err(dev->class_dev,
-			"error! no %s found\n", thisboard->name);
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
 	return NULL;
 }
 
@@ -2909,8 +2904,7 @@ static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	rc = pci230_alloc_private(dev); /* sets dev->private */
 	if (rc)
 		return rc;
-	/* Find card. */
-	pci_dev = pci230_find_pci(dev, it->options[0], it->options[1]);
+	pci_dev = pci230_find_pci_dev(dev, it);
 	if (!pci_dev)
 		return -EIO;
 	return pci230_attach_common(dev, pci_dev);
