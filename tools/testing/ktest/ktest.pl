@@ -2448,7 +2448,6 @@ sub create_config {
     }
     close(OUT);
 
-#    exit;
     make_oldconfig;
 }
 
