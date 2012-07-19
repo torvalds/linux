@@ -189,6 +189,9 @@ my $newconfig = 0;
 my %entered_configs;
 my %config_help;
 my %variable;
+
+# force_config is the list of configs that we force enabled (or disabled)
+# in a .config file. The MIN_CONFIG and ADD_CONFIG configs.
 my %force_config;
 
 # do not force reboots on config problems
@@ -1837,6 +1840,7 @@ sub make_oldconfig {
 sub load_force_config {
     my ($config) = @_;
 
+    doprint "Loading force configs from $config\n";
     open(IN, $config) or
 	dodie "failed to read $config";
     while (<IN>) {
@@ -2389,9 +2393,24 @@ sub bisect {
     success $i;
 }
 
+# config_ignore holds the configs that were set (or unset) for
+# a good config and we will ignore these configs for the rest
+# of a config bisect. These configs stay as they were.
 my %config_ignore;
+
+# config_set holds what all configs were set as.
 my %config_set;
 
+# config_off holds the set of configs that the bad config had disabled.
+# We need to record them and set them in the .config when running
+# oldnoconfig, because oldnoconfig does not turn off new symbols, but
+# instead just keeps the defaults.
+my %config_off;
+
+# config_off_tmp holds a set of configs to turn off for now
+my @config_off_tmp;
+
+# config_list is the set of configs that are being tested
 my %config_list;
 my %null_config;
 
@@ -2468,6 +2487,16 @@ sub create_config {
 	foreach my $dep (@deps) {
 	    print OUT "$config_set{$dep}\n";
 	}
+    }
+
+    # turn off configs to keep off
+    foreach my $config (keys %config_off) {
+	print OUT "# $config is not set\n";
+    }
+
+    # turn off configs that should be off for now
+    foreach my $config (@config_off_tmp) {
+	print OUT "# $config is not set\n";
     }
 
     foreach my $config (keys %config_ignore) {
@@ -2551,6 +2580,13 @@ sub run_config_bisect {
     do {
 	my @tophalf = @start_list[0 .. $half];
 
+	# keep the bottom half off
+	if ($half < $#start_list) {
+	    @config_off_tmp = @start_list[$half + 1 .. $#start_list];
+	} else {
+	    @config_off_tmp = ();
+	}
+
 	create_config @tophalf;
 	read_current_config \%current_config;
 
@@ -2567,7 +2603,11 @@ sub run_config_bisect {
 	if (!$found) {
 	    # try the other half
 	    doprint "Top half produced no set configs, trying bottom half\n";
+
+	    # keep the top half off
+	    @config_off_tmp = @tophalf;
 	    @tophalf = @start_list[$half + 1 .. $#start_list];
+
 	    create_config @tophalf;
 	    read_current_config \%current_config;
 	    foreach my $config (@tophalf) {
@@ -2705,6 +2745,10 @@ sub config_bisect {
 		$added_configs{$2} = $1;
 		$config_list{$2} = $1;
 	    }
+	} elsif (/^# ((CONFIG\S*).*)/) {
+	    # Keep these configs disabled
+	    $config_set{$2} = $1;
+	    $config_off{$2} = $1;
 	}
     }
     close(IN);
@@ -2726,6 +2770,8 @@ sub config_bisect {
 
     my %config_test;
     my $once = 0;
+
+    @config_off_tmp = ();
 
     # Sometimes kconfig does weird things. We must make sure
     # that the config we autocreate has everything we need
