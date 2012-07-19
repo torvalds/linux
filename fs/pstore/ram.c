@@ -414,13 +414,14 @@ static int __devinit ramoops_probe(struct platform_device *pdev)
 
 	cxt->pstore.data = cxt;
 	/*
-	 * Console can handle any buffer size, so prefer dumps buffer
-	 * size since usually it is smaller.
+	 * Console can handle any buffer size, so prefer LOG_LINE_MAX. If we
+	 * have to handle dumps, we must have at least record_size buffer. And
+	 * for ftrace, bufsize is irrelevant (if bufsize is 0, buf will be
+	 * ZERO_SIZE_PTR).
 	 */
-	if (cxt->przs)
-		cxt->pstore.bufsize = cxt->przs[0]->buffer_size;
-	else
-		cxt->pstore.bufsize = cxt->cprz->buffer_size;
+	if (cxt->console_size)
+		cxt->pstore.bufsize = 1024; /* LOG_LINE_MAX */
+	cxt->pstore.bufsize = max(cxt->record_size, cxt->pstore.bufsize);
 	cxt->pstore.buf = kmalloc(cxt->pstore.bufsize, GFP_KERNEL);
 	spin_lock_init(&cxt->pstore.buf_lock);
 	if (!cxt->pstore.buf) {
