@@ -65,13 +65,13 @@ static int ixgbe_find_enabled_vfs(struct ixgbe_adapter *adapter)
 	}
 
 	vf_devfn = pdev->devfn + 0x80;
-	pvfdev = pci_get_device(IXGBE_INTEL_VENDOR_ID, device_id, NULL);
+	pvfdev = pci_get_device(PCI_VENDOR_ID_INTEL, device_id, NULL);
 	while (pvfdev) {
 		if (pvfdev->devfn == vf_devfn &&
 		    (pvfdev->bus->number >= pdev->bus->number))
 			vfs_found++;
 		vf_devfn += 2;
-		pvfdev = pci_get_device(IXGBE_INTEL_VENDOR_ID,
+		pvfdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 					device_id, pvfdev);
 	}
 
@@ -518,11 +518,11 @@ int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask)
 			break;
 		}
 
-		pvfdev = pci_get_device(IXGBE_INTEL_VENDOR_ID, device_id, NULL);
+		pvfdev = pci_get_device(PCI_VENDOR_ID_INTEL, device_id, NULL);
 		while (pvfdev) {
 			if (pvfdev->devfn == thisvf_devfn)
 				break;
-			pvfdev = pci_get_device(IXGBE_INTEL_VENDOR_ID,
+			pvfdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 						device_id, pvfdev);
 		}
 		if (pvfdev)
