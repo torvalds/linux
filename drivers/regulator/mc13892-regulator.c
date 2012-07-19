@@ -305,9 +305,10 @@ static int mc13892_powermisc_rmw(struct mc13xxx_regulator_priv *priv, u32 mask,
 
 	BUG_ON(val & ~mask);
 
+	mc13xxx_lock(priv->mc13xxx);
 	ret = mc13xxx_reg_read(mc13892, MC13892_POWERMISC, &valread);
 	if (ret)
-		return ret;
+		goto out;
 
 	/* Update the stored state for Power Gates. */
 	priv->powermisc_pwgt_state =
@@ -320,14 +321,16 @@ static int mc13892_powermisc_rmw(struct mc13xxx_regulator_priv *priv, u32 mask,
 	valread = (valread & ~MC13892_POWERMISC_PWGTSPI_M) |
 		priv->powermisc_pwgt_state;
 
-	return mc13xxx_reg_write(mc13892, MC13892_POWERMISC, valread);
+	ret = mc13xxx_reg_write(mc13892, MC13892_POWERMISC, valread);
+out:
+	mc13xxx_unlock(priv->mc13xxx);
+	return ret;
 }
 
 static int mc13892_gpo_regulator_enable(struct regulator_dev *rdev)
 {
 	struct mc13xxx_regulator_priv *priv = rdev_get_drvdata(rdev);
 	int id = rdev_get_id(rdev);
-	int ret;
 	u32 en_val = mc13892_regulators[id].enable_bit;
 	u32 mask = mc13892_regulators[id].enable_bit;
 
@@ -340,18 +343,13 @@ static int mc13892_gpo_regulator_enable(struct regulator_dev *rdev)
 	if (id == MC13892_GPO4)
 		mask |= MC13892_POWERMISC_GPO4ADINEN;
 
-	mc13xxx_lock(priv->mc13xxx);
-	ret = mc13892_powermisc_rmw(priv, mask, en_val);
-	mc13xxx_unlock(priv->mc13xxx);
-
-	return ret;
+	return mc13892_powermisc_rmw(priv, mask, en_val);
 }
 
 static int mc13892_gpo_regulator_disable(struct regulator_dev *rdev)
 {
 	struct mc13xxx_regulator_priv *priv = rdev_get_drvdata(rdev);
 	int id = rdev_get_id(rdev);
-	int ret;
 	u32 dis_val = 0;
 
 	dev_dbg(rdev_get_dev(rdev), "%s id: %d\n", __func__, id);
@@ -360,12 +358,8 @@ static int mc13892_gpo_regulator_disable(struct regulator_dev *rdev)
 	if (id == MC13892_PWGT1SPI || id == MC13892_PWGT2SPI)
 		dis_val = mc13892_regulators[id].enable_bit;
 
-	mc13xxx_lock(priv->mc13xxx);
-	ret = mc13892_powermisc_rmw(priv, mc13892_regulators[id].enable_bit,
+	return mc13892_powermisc_rmw(priv, mc13892_regulators[id].enable_bit,
 		dis_val);
-	mc13xxx_unlock(priv->mc13xxx);
-
-	return ret;
 }
 
 static int mc13892_gpo_regulator_is_enabled(struct regulator_dev *rdev)
