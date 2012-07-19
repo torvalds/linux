@@ -1926,7 +1926,7 @@ restart:
 		if (daddr != fnhe_daddr)
 			continue;
 		if (pmtu) {
-			unsigned long diff = jiffies - expires;
+			unsigned long diff = expires - jiffies;
 
 			if (time_before(jiffies, expires)) {
 				rt->rt_pmtu = pmtu;
