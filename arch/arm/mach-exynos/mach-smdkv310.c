@@ -19,6 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/pwm_backlight.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
@@ -271,6 +272,15 @@ static void __init smdkv310_ohci_init(void)
 	exynos4_ohci_set_platdata(pdata);
 }
 
+/* USB OTG */
+static struct s3c_hsotg_plat smdkv310_hsotg_pdata;
+
+/* Audio device */
+static struct platform_device smdkv310_device_audio = {
+	.name = "smdk-audio",
+	.id = -1,
+};
+
 static struct platform_device *smdkv310_devices[] __initdata = {
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
@@ -279,6 +289,7 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&s3c_device_i2c1,
 	&s5p_device_i2c_hdmiphy,
 	&s3c_device_rtc,
+	&s3c_device_usb_hsotg,
 	&s3c_device_wdt,
 	&s5p_device_ehci,
 	&s5p_device_fimc0,
@@ -302,6 +313,7 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&samsung_asoc_dma,
 	&samsung_asoc_idma,
 	&s5p_device_fimd0,
+	&smdkv310_device_audio,
 	&smdkv310_lcd_lte480wv,
 	&smdkv310_smsc911x,
 	&exynos4_device_ahci,
@@ -390,6 +402,7 @@ static void __init smdkv310_machine_init(void)
 
 	smdkv310_ehci_init();
 	smdkv310_ohci_init();
+	s3c_hsotg_set_platdata(&smdkv310_hsotg_pdata);
 	clk_xusbxti.rate = 24000000;
 
 	platform_add_devices(smdkv310_devices, ARRAY_SIZE(smdkv310_devices));
