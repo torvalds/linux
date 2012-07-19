@@ -101,22 +101,25 @@ static struct pci_dev *contec_find_pci_dev(struct comedi_device *dev,
 					   struct comedi_devconfig *it)
 {
 	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
 
 	for_each_pci_dev(pcidev) {
-		if (pcidev->vendor == PCI_VENDOR_ID_CONTEC &&
-		    pcidev->device == PCI_DEVICE_ID_PIO1616L) {
-			if (it->options[0] || it->options[1]) {
-				/* Check bus and slot. */
-				if (it->options[0] != pcidev->bus->number ||
-				    it->options[1] != PCI_SLOT(pcidev->devfn)) {
-					continue;
-				}
-			}
-			dev->board_ptr = contec_boards + 0;
-			return pcidev;
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+				slot != PCI_SLOT(pcidev->devfn))
+				continue;
 		}
+		if (pcidev->vendor != PCI_VENDOR_ID_CONTEC ||
+		    pcidev->device != PCI_DEVICE_ID_PIO1616L)
+			continue;
+
+		dev->board_ptr = contec_boards + 0;
+		return pcidev;
 	}
-	printk("card not present!\n");
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
 	return NULL;
 }
 
