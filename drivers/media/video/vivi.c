@@ -1330,9 +1330,6 @@ static int __init vivi_create_instance(int inst)
 	/* Now that everything is fine, let's add it to device list */
 	list_add_tail(&dev->vivi_devlist, &vivi_devlist);
 
-	if (video_nr != -1)
-		video_nr++;
-
 	v4l2_info(&dev->v4l2_dev, "V4L2 device registered as %s\n",
 		  video_device_node_name(vfd));
 	return 0;
