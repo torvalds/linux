@@ -32,6 +32,7 @@
 #include <linux/spi/ads7846.h>
 #include <linux/i2c/twl.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/nop-usb-xceiv.h>
 #include <linux/smsc911x.h>
 
 #include <linux/wl12xx.h>

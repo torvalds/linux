@@ -36,6 +36,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 #include <linux/module.h>
+#include <linux/usb/nop-usb-xceiv.h>
 
 #include <linux/of.h>
 #include <linux/of_device.h>

@@ -30,6 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/nop-usb-xceiv.h>
 #include <linux/slab.h>
 
 struct nop_usb_xceiv {
