@@ -259,30 +259,29 @@ static struct pci_dev *cb_pcidda_find_pci_dev(struct comedi_device *dev,
 					      struct comedi_devconfig *it)
 {
 	struct pci_dev *pcidev = NULL;
-	int index;
+	int bus = it->options[0];
+	int slot = it->options[1];
+	int i;
 
 	for_each_pci_dev(pcidev) {
-		if (pcidev->vendor == PCI_VENDOR_ID_CB) {
-			if (it->options[0] || it->options[1]) {
-				if (pcidev->bus->number != it->options[0] ||
-				    PCI_SLOT(pcidev->devfn) != it->options[1]) {
-					continue;
-				}
-			}
-			for (index = 0; index < ARRAY_SIZE(cb_pcidda_boards); index++) {
-				if (cb_pcidda_boards[index].device_id ==
-				    pcidev->device) {
-					dev->board_ptr = cb_pcidda_boards + index;
-					dev_dbg(dev->class_dev,
-						"Found %s at requested position\n",
-						thisboard->name);
-					return pcidev;
-				}
-			}
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+			    slot != PCI_SLOT(pcidev->devfn))
+				continue;
+		}
+		if (pcidev->vendor != PCI_VENDOR_ID_CB)
+			continue;
+
+		for (i = 0; i < ARRAY_SIZE(cb_pcidda_boards); i++) {
+			if (cb_pcidda_boards[i].device_id != pcidev->device)
+				continue;
+			dev->board_ptr = cb_pcidda_boards + i;
+			return pcidev;
 		}
 	}
 	dev_err(dev->class_dev,
-		"Not a ComputerBoards/MeasurementComputing card on requested position\n");
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
 	return NULL;
 }
 
