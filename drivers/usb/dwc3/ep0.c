@@ -155,13 +155,23 @@ static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 
 		dep->flags &= ~(DWC3_EP_PENDING_REQUEST |
 				DWC3_EP0_DIR_IN);
-	} else if (dwc->delayed_status) {
+
+		return 0;
+	}
+
+	/*
+	 * In case gadget driver asked us to delay the STATUS phase,
+	 * handle it here.
+	 */
+	if (dwc->delayed_status) {
 		dwc->delayed_status = false;
 
 		if (dwc->ep0state == EP0_STATUS_PHASE)
 			__dwc3_ep0_do_control_status(dwc, dwc->eps[1]);
 		else
 			dev_dbg(dwc->dev, "too early for delayed status\n");
+
+		return 0;
 	}
 
 	return 0;
