@@ -158,9 +158,9 @@ static struct pci_dev *cnt_find_pci_dev(struct comedi_device *dev,
 
 static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	struct pci_dev *pci_device;
+	const struct cnt_board_struct *board;
+	struct pci_dev *pcidev;
 	struct comedi_subdevice *subdevice;
-	struct cnt_board_struct *board;
 	unsigned long io_base;
 	int error;
 
@@ -169,16 +169,16 @@ static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (error < 0)
 		return error;
 
-	pci_device = cnt_find_pci_dev(dev, it);
-	if (!pci_device)
+	pcidev = cnt_find_pci_dev(dev, it);
+	if (!pcidev)
 		return -EIO;
-	devpriv->pcidev = pci_device;
-	board = (struct cnt_board_struct *)dev->board_ptr;
+	devpriv->pcidev = pcidev;
+	board = comedi_board(dev);
 
 	dev->board_name = board->name;
 
 	/* enable PCI device and request regions */
-	error = comedi_pci_enable(pci_device, CNT_DRIVER_NAME);
+	error = comedi_pci_enable(pcidev, CNT_DRIVER_NAME);
 	if (error < 0) {
 		printk(KERN_WARNING "comedi%d: "
 		       "failed to enable PCI device and request regions!\n",
@@ -187,7 +187,7 @@ static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	/* read register base address [PCI_BASE_ADDRESS #0] */
-	io_base = pci_resource_start(pci_device, 0);
+	io_base = pci_resource_start(pcidev, 0);
 	dev->iobase = io_base;
 
 	error = comedi_alloc_subdevices(dev, 1);
