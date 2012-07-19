@@ -749,7 +749,7 @@ static struct platform_device device_nand = {
 };
 #endif
 
-#ifdef CONFIG_LCDC0_RK30
+#if defined(CONFIG_LCDC0_RK30) || defined(CONFIG_LCDC0_RK31)
 extern struct rk29fb_info lcdc0_screen_info;
 static struct resource resource_lcdc0[] = {
 	[0] = {
@@ -777,7 +777,7 @@ static struct platform_device device_lcdc0 = {
 	},
 };
 #endif
-#ifdef CONFIG_LCDC1_RK30
+#if defined(CONFIG_LCDC1_RK30) || defined(CONFIG_LCDC1_RK31)
 extern struct rk29fb_info lcdc1_screen_info;
 static struct resource resource_lcdc1[] = {
 	[0] = {
@@ -1151,10 +1151,10 @@ static int __init rk30_init_devices(void)
 	platform_device_register(&device_rga);
 #endif
 	platform_device_register(&device_ipp);
-#ifdef CONFIG_LCDC0_RK30
+#if 	defined(CONFIG_LCDC0_RK30) || defined(CONFIG_LCDC0_RK31)
 	platform_device_register(&device_lcdc0);
 #endif
-#ifdef CONFIG_LCDC1_RK30
+#if     defined(CONFIG_LCDC1_RK30) || defined(CONFIG_LCDC1_RK31)
 	platform_device_register(&device_lcdc1);
 #endif
 #ifdef CONFIG_HDMI_RK30

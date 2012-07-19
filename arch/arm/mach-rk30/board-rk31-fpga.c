@@ -43,6 +43,108 @@
 #include <linux/rfkill-rk.h>
 #include <linux/sensor-dev.h>
 
+
+#define RK_FB_MEM_SIZE 3*SZ_1M
+
+#if defined(CONFIG_FB_ROCKCHIP)
+#define LCD_CS_MUX_NAME    GPIO4C7_SMCDATA7_TRACEDATA7_NAME
+#define LCD_CS_PIN         RK30_PIN4_PC7
+#define LCD_CS_VALUE       GPIO_HIGH
+
+#define LCD_EN_MUX_NAME    GPIO4C7_SMCDATA7_TRACEDATA7_NAME
+#define LCD_EN_PIN         RK30_PIN6_PB4
+#define LCD_EN_VALUE       GPIO_LOW
+
+static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
+{
+	int ret = 0;
+	rk30_mux_api_set(LCD_CS_MUX_NAME, GPIO4C_GPIO4C7);
+	ret = gpio_request(LCD_CS_PIN, NULL);
+	if (ret != 0)
+	{
+		gpio_free(LCD_CS_PIN);
+		printk(KERN_ERR "request lcd cs pin fail!\n");
+		return -1;
+	}
+	else
+	{
+		gpio_direction_output(LCD_CS_PIN, LCD_CS_VALUE);
+	}
+	ret = gpio_request(LCD_EN_PIN, NULL);
+	if (ret != 0)
+	{
+		gpio_free(LCD_EN_PIN);
+		printk(KERN_ERR "request lcd en pin fail!\n");
+		return -1;
+	}
+	else
+	{
+		gpio_direction_output(LCD_EN_PIN, LCD_EN_VALUE);
+	}
+	return 0;
+}
+static int rk_fb_io_disable(void)
+{
+	gpio_set_value(LCD_CS_PIN, LCD_CS_VALUE? 0:1);
+	gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE? 0:1);
+	return 0;
+}
+static int rk_fb_io_enable(void)
+{
+	gpio_set_value(LCD_CS_PIN, LCD_CS_VALUE);
+	gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE);
+	return 0;
+}
+
+#if defined(CONFIG_LCDC0_RK31)
+struct rk29fb_info lcdc0_screen_info = {
+	.prop	   = PRMRY,		//primary display device
+	.io_init   = rk_fb_io_init,
+	.io_disable = rk_fb_io_disable,
+	.io_enable = rk_fb_io_enable,
+	.set_screen_info = set_lcd_info,
+};
+#endif
+
+#if defined(CONFIG_LCDC1_RK31)
+struct rk29fb_info lcdc1_screen_info = {
+	#if defined(CONFIG_HDMI_RK30)
+	.prop		= EXTEND,	//extend display device
+	.lcd_info  = NULL,
+	.set_screen_info = hdmi_init_lcdc,
+	#endif
+};
+#endif
+
+static struct resource resource_fb[] = {
+	[0] = {
+		.name  = "fb0 buf",
+		.start = 0,
+		.end   = 0,//RK30_FB0_MEM_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.name  = "ipp buf",  //for rotate
+		.start = 0,
+		.end   = 0,//RK30_FB0_MEM_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[2] = {
+		.name  = "fb2 buf",
+		.start = 0,
+		.end   = 0,//RK30_FB0_MEM_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device device_fb = {
+	.name		= "rk-fb",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(resource_fb),
+	.resource	= resource_fb,
+};
+#endif
+
 //i2c
 #ifdef CONFIG_I2C0_RK30
 static struct i2c_board_info __initdata i2c0_info[] = {
@@ -90,6 +192,9 @@ static struct spi_board_info board_spi_devices[] = {
 };
 
 static struct platform_device *devices[] __initdata = {
+#if defined(CONFIG_FB_ROCKCHIP)
+	&device_fb,
+#endif
 };
 
 static void __init rk31_board_init(void)
@@ -101,6 +206,10 @@ static void __init rk31_board_init(void)
 
 static void __init rk31_reserve(void)
 {
+#if defined(CONFIG_FB_ROCKCHIP)
+	resource_fb[0].start = board_mem_reserve_add("fb0", RK_FB_MEM_SIZE);
+	resource_fb[0].end = resource_fb[0].start + RK_FB_MEM_SIZE - 1;
+#endif
 	board_mem_reserved();
 }
 
