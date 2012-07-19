@@ -2964,8 +2964,9 @@ SYSCALL_DEFINE4(mknodat, int, dfd, const char __user *, filename, umode_t, mode,
 	struct path path;
 	int error;
 
-	if (S_ISDIR(mode))
-		return -EPERM;
+	error = may_mknod(mode);
+	if (error)
+		return error;
 
 	dentry = user_path_create(dfd, filename, &path, 0);
 	if (IS_ERR(dentry))
@@ -2973,9 +2974,6 @@ SYSCALL_DEFINE4(mknodat, int, dfd, const char __user *, filename, umode_t, mode,
 
 	if (!IS_POSIXACL(path.dentry->d_inode))
 		mode &= ~current_umask();
-	error = may_mknod(mode);
-	if (error)
-		goto out_dput;
 	error = mnt_want_write(path.mnt);
 	if (error)
 		goto out_dput;
