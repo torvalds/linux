@@ -125,7 +125,6 @@ static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 		struct dwc3_request *req)
 {
 	struct dwc3		*dwc = dep->dwc;
-	int			ret = 0;
 
 	req->request.actual	= 0;
 	req->request.status	= -EINPROGRESS;
@@ -165,7 +164,7 @@ static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 			dev_dbg(dwc->dev, "too early for delayed status\n");
 	}
 
-	return ret;
+	return 0;
 }
 
 int dwc3_gadget_ep0_queue(struct usb_ep *ep, struct usb_request *request,
