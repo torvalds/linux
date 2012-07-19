@@ -519,6 +519,7 @@ struct qib_pportdata {
 	struct qib_devdata *dd;
 	struct qib_chippport_specific *cpspec; /* chip-specific per-port */
 	struct kobject pport_kobj;
+	struct kobject pport_cc_kobj;
 	struct kobject sl2vl_kobj;
 	struct kobject diagc_kobj;
 
@@ -638,6 +639,39 @@ struct qib_pportdata {
 	struct timer_list led_override_timer;
 	struct xmit_wait cong_stats;
 	struct timer_list symerr_clear_timer;
+
+	/* Synchronize access between driver writes and sysfs reads */
+	spinlock_t cc_shadow_lock
+		____cacheline_aligned_in_smp;
+
+	/* Shadow copy of the congestion control table */
+	struct cc_table_shadow *ccti_entries_shadow;
+
+	/* Shadow copy of the congestion control entries */
+	struct ib_cc_congestion_setting_attr_shadow *congestion_entries_shadow;
+
+	/* List of congestion control table entries */
+	struct ib_cc_table_entry_shadow *ccti_entries;
+
+	/* 16 congestion entries with each entry corresponding to a SL */
+	struct ib_cc_congestion_entry_shadow *congestion_entries;
+
+	/* Total number of congestion control table entries */
+	u16 total_cct_entry;
+
+	/* Bit map identifying service level */
+	u16 cc_sl_control_map;
+
+	/* maximum congestion control table index */
+	u16 ccti_limit;
+
+	/* CA's max number of 64 entry units in the congestion control table */
+	u8 cc_max_table_entries;
+
+	/* Maximum number of congestion control entries that the agent expects
+	 * the manager to send.
+	 */
+	u8 cc_supported_table_entries;
 };
 
 /* Observers. Not to be taken lightly, possibly not to ship. */
@@ -1078,6 +1112,7 @@ extern u32 qib_cpulist_count;
 extern unsigned long *qib_cpulist;
 
 extern unsigned qib_wc_pat;
+extern unsigned qib_cc_table_size;
 int qib_init(struct qib_devdata *, int);
 int init_chip_wc_pat(struct qib_devdata *dd, u32);
 int qib_enable_wc(struct qib_devdata *dd);

@@ -41,6 +41,7 @@
 
 #include "qib.h"
 #include "qib_common.h"
+#include "qib_mad.h"
 
 /*
  * min buffers we want to have per context, after driver
@@ -71,6 +72,9 @@ unsigned qib_n_krcv_queues;
 module_param_named(krcvqs, qib_n_krcv_queues, uint, S_IRUGO);
 MODULE_PARM_DESC(krcvqs, "number of kernel receive queues per IB port");
 
+unsigned qib_cc_table_size;
+module_param_named(cc_table_size, qib_cc_table_size, uint, S_IRUGO);
+MODULE_PARM_DESC(cc_table_size, "Congestion control table entries 0 (CCA disabled - default), min = 128, max = 1984");
 /*
  * qib_wc_pat parameter:
  *      0 is WC via MTRR
@@ -199,6 +203,7 @@ struct qib_ctxtdata *qib_create_ctxtdata(struct qib_pportdata *ppd, u32 ctxt)
 void qib_init_pportdata(struct qib_pportdata *ppd, struct qib_devdata *dd,
 			u8 hw_pidx, u8 port)
 {
+	int size;
 	ppd->dd = dd;
 	ppd->hw_pidx = hw_pidx;
 	ppd->port = port; /* IB port number, not index */
@@ -212,6 +217,81 @@ void qib_init_pportdata(struct qib_pportdata *ppd, struct qib_devdata *dd,
 	ppd->symerr_clear_timer.data = (unsigned long)ppd;
 
 	ppd->qib_wq = NULL;
+
+	spin_lock_init(&ppd->cc_shadow_lock);
+
+	if (qib_cc_table_size < IB_CCT_MIN_ENTRIES)
+		goto bail;
+
+	ppd->cc_supported_table_entries = min(max_t(int, qib_cc_table_size,
+		IB_CCT_MIN_ENTRIES), IB_CCT_ENTRIES*IB_CC_TABLE_CAP_DEFAULT);
+
+	ppd->cc_max_table_entries =
+		ppd->cc_supported_table_entries/IB_CCT_ENTRIES;
+
+	size = IB_CC_TABLE_CAP_DEFAULT * sizeof(struct ib_cc_table_entry)
+		* IB_CCT_ENTRIES;
+	ppd->ccti_entries = kzalloc(size, GFP_KERNEL);
+	if (!ppd->ccti_entries) {
+		qib_dev_err(dd,
+		  "failed to allocate congestion control table for port %d!\n",
+		  port);
+		goto bail;
+	}
+
+	size = IB_CC_CCS_ENTRIES * sizeof(struct ib_cc_congestion_entry);
+	ppd->congestion_entries = kzalloc(size, GFP_KERNEL);
+	if (!ppd->congestion_entries) {
+		qib_dev_err(dd,
+		 "failed to allocate congestion setting list for port %d!\n",
+		 port);
+		goto bail_1;
+	}
+
+	size = sizeof(struct cc_table_shadow);
+	ppd->ccti_entries_shadow = kzalloc(size, GFP_KERNEL);
+	if (!ppd->ccti_entries_shadow) {
+		qib_dev_err(dd,
+		 "failed to allocate shadow ccti list for port %d!\n",
+		 port);
+		goto bail_2;
+	}
+
+	size = sizeof(struct ib_cc_congestion_setting_attr);
+	ppd->congestion_entries_shadow = kzalloc(size, GFP_KERNEL);
+	if (!ppd->congestion_entries_shadow) {
+		qib_dev_err(dd,
+		 "failed to allocate shadow congestion setting list for port %d!\n",
+		 port);
+		goto bail_3;
+	}
+
+	return;
+
+bail_3:
+	kfree(ppd->ccti_entries_shadow);
+	ppd->ccti_entries_shadow = NULL;
+bail_2:
+	kfree(ppd->congestion_entries);
+	ppd->congestion_entries = NULL;
+bail_1:
+	kfree(ppd->ccti_entries);
+	ppd->ccti_entries = NULL;
+bail:
+	/* User is intentionally disabling the congestion control agent */
+	if (!qib_cc_table_size)
+		return;
+
+	if (qib_cc_table_size < IB_CCT_MIN_ENTRIES) {
+		qib_cc_table_size = 0;
+		qib_dev_err(dd,
+		 "Congestion Control table size %d less than minimum %d for port %d\n",
+		 qib_cc_table_size, IB_CCT_MIN_ENTRIES, port);
+	}
+
+	qib_dev_err(dd, "Congestion Control Agent disabled for port %d\n",
+		port);
+	return;
 }
 
 static int init_pioavailregs(struct qib_devdata *dd)
@@ -1164,9 +1244,23 @@ static void cleanup_device_data(struct qib_devdata *dd)
 	unsigned long flags;
 
 	/* users can't do anything more with chip */
-	for (pidx = 0; pidx < dd->num_pports; ++pidx)
+	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
 		if (dd->pport[pidx].statusp)
 			*dd->pport[pidx].statusp &= ~QIB_STATUS_CHIP_PRESENT;
+
+		spin_lock(&dd->pport[pidx].cc_shadow_lock);
+
+		kfree(dd->pport[pidx].congestion_entries);
+		dd->pport[pidx].congestion_entries = NULL;
+		kfree(dd->pport[pidx].ccti_entries);
+		dd->pport[pidx].ccti_entries = NULL;
+		kfree(dd->pport[pidx].ccti_entries_shadow);
+		dd->pport[pidx].ccti_entries_shadow = NULL;
+		kfree(dd->pport[pidx].congestion_entries_shadow);
+		dd->pport[pidx].congestion_entries_shadow = NULL;
+
+		spin_unlock(&dd->pport[pidx].cc_shadow_lock);
+	}
 
 	if (!qib_wc_pat)
 		qib_disable_wc(dd);
