@@ -727,6 +727,8 @@ static const struct atl1c_platform_patch plats[] __devinitdata = {
 
 static void __devinit atl1c_patch_assign(struct atl1c_hw *hw)
 {
+	struct pci_dev	*pdev = hw->adapter->pdev;
+	u32 misc_ctrl;
 	int i = 0;
 
 	hw->msi_lnkpatch = false;
@@ -740,6 +742,18 @@ static void __devinit atl1c_patch_assign(struct atl1c_hw *hw)
 				hw->msi_lnkpatch = true;
 		}
 		i++;
+	}
+
+	if (hw->device_id == PCI_DEVICE_ID_ATHEROS_L2C_B2 &&
+	    hw->revision_id == L2CB_V21) {
+		/* config acess mode */
+		pci_write_config_dword(pdev, REG_PCIE_IND_ACC_ADDR,
+				       REG_PCIE_DEV_MISC_CTRL);
+		pci_read_config_dword(pdev, REG_PCIE_IND_ACC_DATA, &misc_ctrl);
+		misc_ctrl &= ~0x100;
+		pci_write_config_dword(pdev, REG_PCIE_IND_ACC_ADDR,
+				       REG_PCIE_DEV_MISC_CTRL);
+		pci_write_config_dword(pdev, REG_PCIE_IND_ACC_DATA, misc_ctrl);
 	}
 }
 /**
@@ -768,7 +782,7 @@ static int __devinit atl1c_sw_init(struct atl1c_adapter *adapter)
 	hw->device_id = pdev->device;
 	hw->subsystem_vendor_id = pdev->subsystem_vendor;
 	hw->subsystem_id = pdev->subsystem_device;
-	AT_READ_REG(hw, PCI_CLASS_REVISION, &revision);
+	pci_read_config_dword(pdev, PCI_CLASS_REVISION, &revision);
 	hw->revision_id = revision & 0xFF;
 	/* before link up, we assume hibernate is true */
 	hw->hibernate = true;
