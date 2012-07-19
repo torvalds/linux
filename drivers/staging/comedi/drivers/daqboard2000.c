@@ -320,7 +320,6 @@ struct daqboard2000_private {
 	struct pci_dev *pci_dev;
 	void *daq;
 	void *plx;
-	int got_regions;
 	unsigned int ao_readback[2];
 };
 
@@ -760,11 +759,11 @@ static int daqboard2000_attach(struct comedi_device *dev,
 			"failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
-	devpriv->got_regions = 1;
+	dev->iobase = pci_resource_start(pcidev, 2);
+
 	devpriv->plx =
 	    ioremap(pci_resource_start(pcidev, 0), DAQBOARD2000_PLX_SIZE);
-	devpriv->daq =
-	    ioremap(pci_resource_start(pcidev, 2), DAQBOARD2000_DAQ_SIZE);
+	devpriv->daq = ioremap(dev->iobase, DAQBOARD2000_DAQ_SIZE);
 	if (!devpriv->plx || !devpriv->daq)
 		return -ENOMEM;
 
@@ -844,7 +843,7 @@ static void daqboard2000_detach(struct comedi_device *dev)
 		if (devpriv->plx)
 			iounmap(devpriv->plx);
 		if (devpriv->pci_dev) {
-			if (devpriv->got_regions)
+			if (dev->iobase)
 				comedi_pci_disable(devpriv->pci_dev);
 			pci_dev_put(devpriv->pci_dev);
 		}
