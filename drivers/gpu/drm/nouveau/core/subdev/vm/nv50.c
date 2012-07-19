@@ -154,7 +154,6 @@ nv50_vm_flush(struct nouveau_vm *vm)
 	struct nouveau_engine *engine;
 	int i;
 
-#if 0
 	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
 		if (atomic_read(&vm->engref[i])) {
 			engine = nouveau_engine(vm->vmm, i);
@@ -162,11 +161,6 @@ nv50_vm_flush(struct nouveau_vm *vm)
 				engine->tlb_flush(engine);
 		}
 	}
-#else
-	nv50_vm_flush_engine(nv_subdev(vm->vmm), 0x06); /* bar */
-	nv50_vm_flush_engine(nv_subdev(vm->vmm), 0x05); /* fifo */
-	nv50_vm_flush_engine(nv_subdev(vm->vmm), 0x00); /* gr */
-#endif
 }
 
 void
@@ -206,6 +200,7 @@ nv50_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
+	priv->base.limit = 1ULL << 40;
 	priv->base.pgt_bits  = 29 - 12;
 	priv->base.spg_shift = 12;
 	priv->base.lpg_shift = 16;

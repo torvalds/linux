@@ -299,6 +299,7 @@ nouveau_vm_get(struct nouveau_vm *vm, u64 size, u32 page_shift,
 
 	fpde = (vma->node->offset >> vmm->pgt_bits);
 	lpde = (vma->node->offset + vma->node->length - 1) >> vmm->pgt_bits;
+
 	for (pde = fpde; pde <= lpde; pde++) {
 		struct nouveau_vm_pgt *vpgt = &vm->pgt[pde - vm->fpde];
 		int big = (vma->node->type != vmm->spg_shift);

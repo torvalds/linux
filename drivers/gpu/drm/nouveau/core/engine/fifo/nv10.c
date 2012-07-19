@@ -1,43 +1,42 @@
 /*
- * Copyright (C) 2012 Ben Skeggs.
- * All Rights Reserved.
+ * Copyright 2012 Red Hat Inc.
  *
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial
- * portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
- * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
- * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
- * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
  *
+ * Authors: Ben Skeggs
  */
 
-#include "drmP.h"
-#include "drm.h"
-#include "nouveau_drv.h"
-#include <engine/fifo.h>
-#include "nouveau_util.h"
+#include <core/os.h>
+#include <core/class.h>
+#include <core/engctx.h>
 #include <core/ramht.h>
 
-static struct ramfc_desc {
-	unsigned bits:6;
-	unsigned ctxs:5;
-	unsigned ctxp:8;
-	unsigned regs:5;
-	unsigned regp;
-} nv10_ramfc[] = {
+#include <subdev/instmem.h>
+#include <subdev/instmem/nv04.h>
+#include <subdev/fb.h>
+
+#include <engine/fifo.h>
+
+#include "nv04.h"
+
+static struct ramfc_desc
+nv10_ramfc[] = {
 	{ 32,  0, 0x00,  0, NV04_PFIFO_CACHE1_DMA_PUT },
 	{ 32,  0, 0x04,  0, NV04_PFIFO_CACHE1_DMA_GET },
 	{ 32,  0, 0x08,  0, NV10_PFIFO_CACHE1_REF_CNT },
@@ -50,87 +49,122 @@ static struct ramfc_desc {
 	{}
 };
 
-struct nv10_fifo_priv {
-	struct nouveau_fifo_priv base;
-	struct ramfc_desc *ramfc_desc;
-	struct nouveau_gpuobj *ramro;
-	struct nouveau_gpuobj *ramfc;
-};
-
-struct nv10_fifo_chan {
-	struct nouveau_fifo_chan base;
-	u32 ramfc;
-};
+/*******************************************************************************
+ * FIFO channel objects
+ ******************************************************************************/
 
 static int
-nv10_fifo_context_new(struct nouveau_channel *chan, int engine)
+nv10_fifo_chan_ctor(struct nouveau_object *parent,
+		    struct nouveau_object *engine,
+		    struct nouveau_oclass *oclass, void *data, u32 size,
+		    struct nouveau_object **pobject)
 {
-	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nv10_fifo_priv *priv = nv_engine(dev, engine);
-	struct nv10_fifo_chan *fctx;
-	unsigned long flags;
+	struct nv04_fifo_priv *priv = (void *)engine;
+	struct nv04_fifo_chan *chan;
+	struct nv_channel_dma_class *args = data;
 	int ret;
 
-	fctx = chan->engctx[engine] = kzalloc(sizeof(*fctx), GFP_KERNEL);
-	if (!fctx)
-		return -ENOMEM;
+	if (size < sizeof(*args))
+		return -EINVAL;
 
-	fctx->ramfc = chan->id * 32;
+	ret = nouveau_fifo_channel_create(parent, engine, oclass, 0, 0x800000,
+					  0x10000, args->pushbuf,
+					  (1 << NVDEV_ENGINE_DMAOBJ) |
+					  (1 << NVDEV_ENGINE_SW) |
+					  (1 << NVDEV_ENGINE_GR), &chan);
+	*pobject = nv_object(chan);
+	if (ret)
+		return ret;
 
-	/* map channel control registers */
-	chan->user = ioremap(pci_resource_start(dev->pdev, 0) +
-			     NV03_USER(chan->id), PAGE_SIZE);
-	if (!chan->user) {
-		ret = -ENOMEM;
-		goto error;
-	}
+	nv_parent(chan)->object_attach = nv04_fifo_object_attach;
+	nv_parent(chan)->object_detach = nv04_fifo_object_detach;
+	chan->ramfc = chan->base.chid * 32;
 
-	/* initialise default fifo context */
-	nv_wo32(priv->ramfc, fctx->ramfc + 0x00, chan->pushbuf_base);
-	nv_wo32(priv->ramfc, fctx->ramfc + 0x04, chan->pushbuf_base);
-	nv_wo32(priv->ramfc, fctx->ramfc + 0x0c, chan->pushbuf->addr >> 4);
-	nv_wo32(priv->ramfc, fctx->ramfc + 0x14,
+	nv_wo32(priv->ramfc, chan->ramfc + 0x00, args->offset);
+	nv_wo32(priv->ramfc, chan->ramfc + 0x04, args->offset);
+	nv_wo32(priv->ramfc, chan->ramfc + 0x0c, chan->base.pushgpu->addr >> 4);
+	nv_wo32(priv->ramfc, chan->ramfc + 0x14,
 			     NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
 			     NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
 #ifdef __BIG_ENDIAN
 			     NV_PFIFO_CACHE1_BIG_ENDIAN |
 #endif
 			     NV_PFIFO_CACHE1_DMA_FETCH_MAX_REQS_8);
-
-	/* enable dma mode on the channel */
-	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
-	nv_mask(dev, NV04_PFIFO_MODE, (1 << chan->id), (1 << chan->id));
-	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
-
-error:
-	if (ret)
-		priv->base.base.context_del(chan, engine);
-	return ret;
-}
-
-int
-nv10_fifo_create(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nv10_fifo_priv *priv;
-
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	nouveau_gpuobj_ref(nvimem_ramro(dev), &priv->ramro);
-	nouveau_gpuobj_ref(nvimem_ramfc(dev), &priv->ramfc);
-
-	priv->base.base.destroy = nv04_fifo_destroy;
-	priv->base.base.init = nv04_fifo_init;
-	priv->base.base.fini = nv04_fifo_fini;
-	priv->base.base.context_new = nv10_fifo_context_new;
-	priv->base.base.context_del = nv04_fifo_context_del;
-	priv->base.channels = 31;
-	priv->ramfc_desc = nv10_ramfc;
-	dev_priv->eng[NVOBJ_ENGINE_FIFO] = &priv->base.base;
-
-	nouveau_irq_register(dev, 8, nv04_fifo_isr);
 	return 0;
 }
+
+static struct nouveau_ofuncs
+nv10_fifo_ofuncs = {
+	.ctor = nv10_fifo_chan_ctor,
+	.dtor = nv04_fifo_chan_dtor,
+	.init = nv04_fifo_chan_init,
+	.fini = nv04_fifo_chan_fini,
+	.rd32 = _nouveau_fifo_channel_rd32,
+	.wr32 = _nouveau_fifo_channel_wr32,
+};
+
+static struct nouveau_oclass
+nv10_fifo_sclass[] = {
+	{ 0x006e, &nv10_fifo_ofuncs },
+	{}
+};
+
+/*******************************************************************************
+ * FIFO context - basically just the instmem reserved for the channel
+ ******************************************************************************/
+
+static struct nouveau_oclass
+nv10_fifo_cclass = {
+	.handle = NV_ENGCTX(FIFO, 0x10),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv04_fifo_context_ctor,
+		.dtor = _nouveau_fifo_context_dtor,
+		.init = _nouveau_fifo_context_init,
+		.fini = _nouveau_fifo_context_fini,
+		.rd32 = _nouveau_fifo_context_rd32,
+		.wr32 = _nouveau_fifo_context_wr32,
+	},
+};
+
+/*******************************************************************************
+ * PFIFO engine
+ ******************************************************************************/
+
+static int
+nv10_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+	       struct nouveau_oclass *oclass, void *data, u32 size,
+	       struct nouveau_object **pobject)
+{
+	struct nv04_instmem_priv *imem = nv04_instmem(parent);
+	struct nv04_fifo_priv *priv;
+	int ret;
+
+	ret = nouveau_fifo_create(parent, engine, oclass, 0, 31, &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
+
+	nouveau_ramht_ref(imem->ramht, &priv->ramht);
+	nouveau_gpuobj_ref(imem->ramro, &priv->ramro);
+	nouveau_gpuobj_ref(imem->ramfc, &priv->ramfc);
+
+	nv_subdev(priv)->unit = 0x00000100;
+	nv_subdev(priv)->intr = nv04_fifo_intr;
+	nv_engine(priv)->cclass = &nv10_fifo_cclass;
+	nv_engine(priv)->sclass = nv10_fifo_sclass;
+	priv->base.pause = nv04_fifo_pause;
+	priv->base.start = nv04_fifo_start;
+	priv->ramfc_desc = nv10_ramfc;
+	return 0;
+}
+
+struct nouveau_oclass
+nv10_fifo_oclass = {
+	.handle = NV_ENGINE(FIFO, 0x10),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv10_fifo_ctor,
+		.dtor = nv04_fifo_dtor,
+		.init = nv04_fifo_init,
+		.fini = _nouveau_fifo_fini,
+	},
+};

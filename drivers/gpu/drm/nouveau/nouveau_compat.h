@@ -124,4 +124,18 @@ nvvm_spg_shift(struct nouveau_vm *);
 int
 nvvm_lpg_shift(struct nouveau_vm *);
 
+u32
+nv50_display_active_crtcs(struct drm_device *dev);
+
+u64 nvgpuobj_addr(struct nouveau_object *object);
+
+struct drm_device *
+nouveau_drv(void *drm);
+
+struct nouveau_channel *
+nvdrm_channel(struct drm_device *dev);
+
+struct mutex *
+nvchan_mutex(struct nouveau_channel *chan);
+
 #endif

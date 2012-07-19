@@ -1,11 +1,10 @@
-#include "drmP.h"
-#include "nouveau_drv.h"
 #include <linux/pagemap.h>
 #include <linux/slab.h>
 
-#define NV_CTXDMA_PAGE_SHIFT 12
-#define NV_CTXDMA_PAGE_SIZE  (1 << NV_CTXDMA_PAGE_SHIFT)
-#define NV_CTXDMA_PAGE_MASK  (NV_CTXDMA_PAGE_SIZE - 1)
+#include <subdev/fb.h>
+
+#include "nouveau_drm.h"
+#include "nouveau_ttm.h"
 
 struct nouveau_sgdma_be {
 	/* this has to be the first field so populate/unpopulated in
@@ -22,7 +21,6 @@ nouveau_sgdma_destroy(struct ttm_tt *ttm)
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
 
 	if (ttm) {
-		NV_DEBUG(nvbe->dev, "\n");
 		ttm_dma_tt_fini(&nvbe->ttm);
 		kfree(nvbe);
 	}
@@ -93,68 +91,22 @@ nouveau_sgdma_create_ttm(struct ttm_bo_device *bdev,
 			 unsigned long size, uint32_t page_flags,
 			 struct page *dummy_read_page)
 {
-	struct drm_nouveau_private *dev_priv = nouveau_bdev(bdev);
-	struct drm_device *dev = dev_priv->dev;
+	struct nouveau_drm *drm = nouveau_bdev(bdev);
 	struct nouveau_sgdma_be *nvbe;
 
 	nvbe = kzalloc(sizeof(*nvbe), GFP_KERNEL);
 	if (!nvbe)
 		return NULL;
 
-	nvbe->dev = dev;
-	nvbe->ttm.ttm.func = dev_priv->gart_info.func;
+	nvbe->dev = drm->dev;
+	if (nv_device(drm->device)->card_type < NV_50)
+		nvbe->ttm.ttm.func = &nv04_sgdma_backend;
+	else
+		nvbe->ttm.ttm.func = &nv50_sgdma_backend;
 
 	if (ttm_dma_tt_init(&nvbe->ttm, bdev, size, page_flags, dummy_read_page)) {
 		kfree(nvbe);
 		return NULL;
 	}
 	return &nvbe->ttm.ttm;
-}
-
-int
-nouveau_sgdma_init(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	u32 aper_size;
-
-	if (dev_priv->card_type >= NV_50)
-		aper_size = 512 * 1024 * 1024;
-	else
-		aper_size = 128 * 1024 * 1024;
-
-	if (dev_priv->card_type >= NV_50) {
-		dev_priv->gart_info.aper_base = 0;
-		dev_priv->gart_info.aper_size = aper_size;
-		dev_priv->gart_info.type = NOUVEAU_GART_HW;
-		dev_priv->gart_info.func = &nv50_sgdma_backend;
-	} else {
-		dev_priv->gart_info.aper_base = 0;
-		dev_priv->gart_info.aper_size = aper_size;
-		dev_priv->gart_info.type = NOUVEAU_GART_PDMA;
-		dev_priv->gart_info.func = &nv04_sgdma_backend;
-		dev_priv->gart_info.sg_ctxdma = nv04vm_refdma(dev);
-	}
-
-	return 0;
-}
-
-void
-nouveau_sgdma_takedown(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-
-	nouveau_gpuobj_ref(NULL, &dev_priv->gart_info.sg_ctxdma);
-}
-
-uint32_t
-nouveau_sgdma_get_physical(struct drm_device *dev, uint32_t offset)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *gpuobj = dev_priv->gart_info.sg_ctxdma;
-	int pte = (offset >> NV_CTXDMA_PAGE_SHIFT) + 2;
-
-	BUG_ON(dev_priv->card_type >= NV_50);
-
-	return (nv_ro32(gpuobj, 4 * pte) & ~NV_CTXDMA_PAGE_MASK) |
-		(offset & NV_CTXDMA_PAGE_MASK);
 }

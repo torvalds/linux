@@ -35,7 +35,6 @@
 #include "nouveau_fbcon.h"
 #include "nouveau_fence.h"
 #include "nouveau_pm.h"
-#include <engine/fifo.h>
 #include "nv50_display.h"
 
 #include "drm_pciids.h"
@@ -67,14 +66,6 @@ module_param_named(uscript_tmds, nouveau_uscript_tmds, int, 0400);
 MODULE_PARM_DESC(ignorelid, "Ignore ACPI lid status");
 int nouveau_ignorelid = 0;
 module_param_named(ignorelid, nouveau_ignorelid, int, 0400);
-
-MODULE_PARM_DESC(noaccel, "Disable all acceleration");
-int nouveau_noaccel = -1;
-module_param_named(noaccel, nouveau_noaccel, int, 0400);
-
-MODULE_PARM_DESC(nofbaccel, "Disable fbcon acceleration");
-int nouveau_nofbaccel = 0;
-module_param_named(nofbaccel, nouveau_nofbaccel, int, 0400);
 
 MODULE_PARM_DESC(force_post, "Force POST");
 int nouveau_force_post = 0;
@@ -148,18 +139,10 @@ int
 nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
-	struct nouveau_fence_priv *fence = dev_priv->fence.func;
-	struct nouveau_channel *chan;
 	struct drm_crtc *crtc;
-	int ret, i, e;
 
 	NV_INFO(dev, "Disabling display...\n");
 	nouveau_display_fini(dev);
-
-	NV_INFO(dev, "Disabling fbcon...\n");
-	nouveau_fbcon_set_suspend(dev, 1);
 
 	NV_INFO(dev, "Unpinning framebuffer(s)...\n");
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
@@ -179,74 +162,23 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 		nouveau_bo_unpin(nv_crtc->cursor.nvbo);
 	}
 
-	NV_INFO(dev, "Evicting buffers...\n");
-	ttm_bo_evict_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
-
-	NV_INFO(dev, "Idling channels...\n");
-	for (i = 0; i < (pfifo ? pfifo->channels : 0); i++) {
-		chan = dev_priv->channels.ptr[i];
-
-		if (chan && chan->pushbuf_bo)
-			nouveau_channel_idle(chan);
-	}
-
-	if (fence->suspend) {
-		if (!fence->suspend(dev))
-			return -ENOMEM;
-	}
-
-	for (e = NVOBJ_ENGINE_NR - 1; e >= 0; e--) {
-		if (!dev_priv->eng[e])
-			continue;
-
-		ret = dev_priv->eng[e]->fini(dev, e, true);
-		if (ret) {
-			NV_ERROR(dev, "... engine %d failed: %d\n", e, ret);
-			goto out_abort;
-		}
-	}
-
 	return 0;
-
-out_abort:
-	NV_INFO(dev, "Re-enabling acceleration..\n");
-	for (e = e + 1; e < NVOBJ_ENGINE_NR; e++) {
-		if (dev_priv->eng[e])
-			dev_priv->eng[e]->init(dev, e);
-	}
-	return ret;
 }
 
 int
 nouveau_pci_resume(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_fence_priv *fence = dev_priv->fence.func;
-	struct nouveau_engine *engine = &dev_priv->engine;
 	struct drm_crtc *crtc;
-	int ret, i;
+	int ret;
 
-	/* Make the CRTCs accessible */
-	engine->display.early_init(dev);
-
-	NV_INFO(dev, "POSTing device...\n");
 	ret = nouveau_run_vbios_init(dev);
 	if (ret)
 		return ret;
 
-	NV_INFO(dev, "Reinitialising engines...\n");
-	for (i = 0; i < NVOBJ_ENGINE_NR; i++) {
-		if (dev_priv->eng[i])
-			dev_priv->eng[i]->init(dev, i);
-	}
-
-	if (fence->resume)
-		fence->resume(dev);
-
 	nouveau_irq_postinstall(dev);
 
+#if 0
 	/* Re-write SKIPS, they'll have been lost over the suspend */
 	if (nouveau_vram_pushbuf) {
 		struct nouveau_channel *chan;
@@ -261,6 +193,7 @@ nouveau_pci_resume(struct pci_dev *pdev)
 				nouveau_bo_wr32(chan->pushbuf_bo, i, 0);
 		}
 	}
+#endif
 
 	nouveau_pm_resume(dev);
 
@@ -343,6 +276,9 @@ static const struct file_operations nouveau_driver_fops = {
 
 int nouveau_drm_load(struct drm_device *, unsigned long);
 int nouveau_drm_unload(struct drm_device *);
+int  nouveau_drm_open(struct drm_device *, struct drm_file *);
+void nouveau_drm_preclose(struct drm_device *dev, struct drm_file *);
+void nouveau_drm_postclose(struct drm_device *, struct drm_file *);
 
 static struct drm_driver driver = {
 	.driver_features =
@@ -353,13 +289,9 @@ static struct drm_driver driver = {
 	.firstopen = nouveau_firstopen,
 	.lastclose = nouveau_lastclose,
 	.unload = nouveau_drm_unload,
-	.open = nouveau_open,
-	.preclose = nouveau_preclose,
-	.postclose = nouveau_postclose,
-#if defined(CONFIG_DRM_NOUVEAU_DEBUG)
-	.debugfs_init = nouveau_debugfs_init,
-	.debugfs_cleanup = nouveau_debugfs_takedown,
-#endif
+	.open = nouveau_drm_open,
+	.preclose = nouveau_drm_preclose,
+	.postclose = nouveau_drm_postclose,
 	.irq_preinstall = nouveau_irq_preinstall,
 	.irq_postinstall = nouveau_irq_postinstall,
 	.irq_uninstall = nouveau_irq_uninstall,

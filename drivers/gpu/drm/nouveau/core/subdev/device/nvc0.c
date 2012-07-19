@@ -36,6 +36,16 @@
 #include <subdev/vm.h>
 #include <subdev/bar.h>
 
+#include <engine/dmaobj.h>
+#include <engine/fifo.h>
+#include <engine/software.h>
+#include <engine/graph.h>
+#include <engine/vp.h>
+#include <engine/bsp.h>
+#include <engine/ppp.h>
+#include <engine/copy.h>
+#include <engine/disp.h>
+
 int
 nvc0_identify(struct nouveau_device *device)
 {
@@ -53,6 +63,16 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvc0_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nvc0_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nvc0_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nvc0_graph_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_COPY0  ] = &nvc0_copy0_oclass;
+		device->oclass[NVDEV_ENGINE_COPY1  ] = &nvc0_copy1_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xc4:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -67,6 +87,16 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvc0_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nvc0_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nvc0_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nvc0_graph_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_COPY0  ] = &nvc0_copy0_oclass;
+		device->oclass[NVDEV_ENGINE_COPY1  ] = &nvc0_copy1_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xc3:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -81,6 +111,16 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvc0_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nvc0_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nvc0_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nvc0_graph_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_COPY0  ] = &nvc0_copy0_oclass;
+		device->oclass[NVDEV_ENGINE_COPY1  ] = &nvc0_copy1_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xce:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -95,6 +135,16 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvc0_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nvc0_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nvc0_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nvc0_graph_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_COPY0  ] = &nvc0_copy0_oclass;
+		device->oclass[NVDEV_ENGINE_COPY1  ] = &nvc0_copy1_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xcf:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -109,6 +159,16 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvc0_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nvc0_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nvc0_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nvc0_graph_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_COPY0  ] = &nvc0_copy0_oclass;
+		device->oclass[NVDEV_ENGINE_COPY1  ] = &nvc0_copy1_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xc1:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -123,6 +183,16 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvc0_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nvc0_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nvc0_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nvc0_graph_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_COPY0  ] = &nvc0_copy0_oclass;
+		device->oclass[NVDEV_ENGINE_COPY1  ] = &nvc0_copy1_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xc8:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -137,6 +207,16 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvc0_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nvc0_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nvc0_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nvc0_graph_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_COPY0  ] = &nvc0_copy0_oclass;
+		device->oclass[NVDEV_ENGINE_COPY1  ] = &nvc0_copy1_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xd9:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -151,6 +231,15 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvc0_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nvc0_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nvc0_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nvc0_graph_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_COPY0  ] = &nvc0_copy0_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nvd0_disp_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Fermi chipset\n");

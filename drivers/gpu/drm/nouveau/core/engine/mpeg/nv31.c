@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Red Hat Inc.
+ * Copyright 2012 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,159 +22,62 @@
  * Authors: Ben Skeggs
  */
 
-#include "drmP.h"
-#include "nouveau_drv.h"
-#include <engine/fifo.h>
-#include <core/ramht.h>
+#include <core/os.h>
+#include <core/class.h>
+#include <core/engctx.h>
+#include <core/handle.h>
+#include <core/engine/graph/nv40.h>
 
-struct nv31_mpeg_engine {
-	struct nouveau_exec_engine base;
+#include <subdev/fb.h>
+#include <subdev/timer.h>
+#include <subdev/instmem.h>
+
+#include <engine/mpeg.h>
+
+struct nv31_mpeg_priv {
+	struct nouveau_mpeg base;
 	atomic_t refcount;
 };
 
+struct nv31_mpeg_chan {
+	struct nouveau_object base;
+};
+
+/*******************************************************************************
+ * MPEG object classes
+ ******************************************************************************/
 
 static int
-nv31_mpeg_context_new(struct nouveau_channel *chan, int engine)
+nv31_mpeg_object_ctor(struct nouveau_object *parent,
+		      struct nouveau_object *engine,
+		      struct nouveau_oclass *oclass, void *data, u32 size,
+		      struct nouveau_object **pobject)
 {
-	struct nv31_mpeg_engine *pmpeg = nv_engine(chan->dev, engine);
-
-	if (!atomic_add_unless(&pmpeg->refcount, 1, 1))
-		return -EBUSY;
-
-	chan->engctx[engine] = (void *)0xdeadcafe;
-	return 0;
-}
-
-static void
-nv31_mpeg_context_del(struct nouveau_channel *chan, int engine)
-{
-	struct nv31_mpeg_engine *pmpeg = nv_engine(chan->dev, engine);
-	atomic_dec(&pmpeg->refcount);
-	chan->engctx[engine] = NULL;
-}
-
-static int
-nv40_mpeg_context_new(struct nouveau_channel *chan, int engine)
-{
-	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *ctx = NULL;
-	unsigned long flags;
+	struct nouveau_gpuobj *obj;
 	int ret;
 
-	NV_DEBUG(dev, "ch%d\n", chan->id);
-
-	ret = nouveau_gpuobj_new(dev, NULL, 264 * 4, 16, NVOBJ_FLAG_ZERO_ALLOC |
-				 NVOBJ_FLAG_ZERO_FREE, &ctx);
+	ret = nouveau_gpuobj_create(parent, engine, oclass, 0, parent,
+				    20, 16, 0, &obj);
+	*pobject = nv_object(obj);
 	if (ret)
 		return ret;
 
-	nv_wo32(ctx, 0x78, 0x02001ec1);
-
-	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
-	nv_mask(dev, 0x002500, 0x00000001, 0x00000000);
-	if ((nv_rd32(dev, 0x003204) & 0x1f) == chan->id)
-		nv_wr32(dev, 0x00330c, ctx->addr >> 4);
-	nv_wo32(chan->ramfc, 0x54, ctx->addr >> 4);
-	nv_mask(dev, 0x002500, 0x00000001, 0x00000001);
-	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
-
-	chan->engctx[engine] = ctx;
-	return 0;
-}
-
-static void
-nv40_mpeg_context_del(struct nouveau_channel *chan, int engine)
-{
-	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
-	struct nouveau_gpuobj *ctx = chan->engctx[engine];
-	struct drm_device *dev = chan->dev;
-	unsigned long flags;
-	u32 inst = 0x80000000 | (ctx->addr >> 4);
-
-	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
-	nv_mask(dev, 0x00b32c, 0x00000001, 0x00000000);
-	if (nv_rd32(dev, 0x00b318) == inst)
-		nv_mask(dev, 0x00b318, 0x80000000, 0x00000000);
-	nv_mask(dev, 0x00b32c, 0x00000001, 0x00000001);
-	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
-
-	nouveau_gpuobj_ref(NULL, &ctx);
-	chan->engctx[engine] = NULL;
-}
-
-static int
-nv31_mpeg_object_new(struct nouveau_channel *chan, int engine,
-		      u32 handle, u16 class)
-{
-	struct drm_device *dev = chan->dev;
-	struct nouveau_gpuobj *obj = NULL;
-	int ret;
-
-	ret = nouveau_gpuobj_new(dev, chan, 20, 16, NVOBJ_FLAG_ZERO_ALLOC |
-				 NVOBJ_FLAG_ZERO_FREE, &obj);
-	if (ret)
-		return ret;
-	obj->engine = 2;
-	obj->class  = class;
-
-	nv_wo32(obj, 0x00, class);
-
-	ret = nouveau_ramht_insert(chan, handle, obj);
-	nouveau_gpuobj_ref(NULL, &obj);
-	return ret;
-}
-
-static int
-nv31_mpeg_init(struct drm_device *dev, int engine)
-{
-	struct nv31_mpeg_engine *pmpeg = nv_engine(dev, engine);
-	int i;
-
-	/* VPE init */
-	nv_mask(dev, 0x000200, 0x00000002, 0x00000000);
-	nv_mask(dev, 0x000200, 0x00000002, 0x00000002);
-	nv_wr32(dev, 0x00b0e0, 0x00000020); /* nvidia: rd 0x01, wr 0x20 */
-	nv_wr32(dev, 0x00b0e8, 0x00000020); /* nvidia: rd 0x01, wr 0x20 */
-
-	for (i = 0; i < nvfb_tile_nr(dev); i++)
-		pmpeg->base.set_tile_region(dev, i);
-
-	/* PMPEG init */
-	nv_wr32(dev, 0x00b32c, 0x00000000);
-	nv_wr32(dev, 0x00b314, 0x00000100);
-	nv_wr32(dev, 0x00b220, nv44_graph_class(dev) ? 0x00000044 : 0x00000031);
-	nv_wr32(dev, 0x00b300, 0x02001ec1);
-	nv_mask(dev, 0x00b32c, 0x00000001, 0x00000001);
-
-	nv_wr32(dev, 0x00b100, 0xffffffff);
-	nv_wr32(dev, 0x00b140, 0xffffffff);
-
-	if (!nv_wait(dev, 0x00b200, 0x00000001, 0x00000000)) {
-		NV_ERROR(dev, "PMPEG init: 0x%08x\n", nv_rd32(dev, 0x00b200));
-		return -EBUSY;
-	}
-
+	nv_wo32(obj, 0x00, nv_mclass(obj));
+	nv_wo32(obj, 0x04, 0x00000000);
+	nv_wo32(obj, 0x08, 0x00000000);
+	nv_wo32(obj, 0x0c, 0x00000000);
 	return 0;
 }
 
 static int
-nv31_mpeg_fini(struct drm_device *dev, int engine, bool suspend)
+nv31_mpeg_mthd_dma(struct nouveau_object *object, u32 mthd, void *arg, u32 len)
 {
-	/*XXX: context save? */
-	nv_mask(dev, 0x00b32c, 0x00000001, 0x00000000);
-	nv_wr32(dev, 0x00b140, 0x00000000);
-	return 0;
-}
-
-static int
-nv31_mpeg_mthd_dma(struct nouveau_channel *chan, u32 class, u32 mthd, u32 data)
-{
-	struct drm_device *dev = chan->dev;
-	u32 inst = data << 4;
-	u32 dma0 = nv_ri32(dev, inst + 0);
-	u32 dma1 = nv_ri32(dev, inst + 4);
-	u32 dma2 = nv_ri32(dev, inst + 8);
+	struct nouveau_instmem *imem = nouveau_instmem(object);
+	struct nv31_mpeg_priv *priv = (void *)object->engine;
+	u32 inst = *(u32 *)arg << 4;
+	u32 dma0 = nv_ro32(imem, inst + 0);
+	u32 dma1 = nv_ro32(imem, inst + 4);
+	u32 dma2 = nv_ro32(imem, inst + 8);
 	u32 base = (dma2 & 0xfffff000) | (dma0 >> 20);
 	u32 size = dma1 + 1;
 
@@ -184,160 +87,215 @@ nv31_mpeg_mthd_dma(struct nouveau_channel *chan, u32 class, u32 mthd, u32 data)
 
 	if (mthd == 0x0190) {
 		/* DMA_CMD */
-		nv_mask(dev, 0x00b300, 0x00030000, (dma0 & 0x00030000));
-		nv_wr32(dev, 0x00b334, base);
-		nv_wr32(dev, 0x00b324, size);
+		nv_mask(priv, 0x00b300, 0x00030000, (dma0 & 0x00030000));
+		nv_wr32(priv, 0x00b334, base);
+		nv_wr32(priv, 0x00b324, size);
 	} else
 	if (mthd == 0x01a0) {
 		/* DMA_DATA */
-		nv_mask(dev, 0x00b300, 0x000c0000, (dma0 & 0x00030000) << 2);
-		nv_wr32(dev, 0x00b360, base);
-		nv_wr32(dev, 0x00b364, size);
+		nv_mask(priv, 0x00b300, 0x000c0000, (dma0 & 0x00030000) << 2);
+		nv_wr32(priv, 0x00b360, base);
+		nv_wr32(priv, 0x00b364, size);
 	} else {
 		/* DMA_IMAGE, VRAM only */
 		if (dma0 & 0x000c0000)
 			return -EINVAL;
 
-		nv_wr32(dev, 0x00b370, base);
-		nv_wr32(dev, 0x00b374, size);
+		nv_wr32(priv, 0x00b370, base);
+		nv_wr32(priv, 0x00b374, size);
 	}
 
 	return 0;
 }
 
+struct nouveau_ofuncs
+nv31_mpeg_ofuncs = {
+	.ctor = nv31_mpeg_object_ctor,
+	.dtor = _nouveau_gpuobj_dtor,
+	.init = _nouveau_gpuobj_init,
+	.fini = _nouveau_gpuobj_fini,
+	.rd32 = _nouveau_gpuobj_rd32,
+	.wr32 = _nouveau_gpuobj_wr32,
+};
+
+struct nouveau_omthds
+nv31_mpeg_omthds[] = {
+	{ 0x0190, nv31_mpeg_mthd_dma },
+	{ 0x01a0, nv31_mpeg_mthd_dma },
+	{ 0x01b0, nv31_mpeg_mthd_dma },
+	{}
+};
+
+struct nouveau_oclass
+nv31_mpeg_sclass[] = {
+	{ 0x3174, &nv31_mpeg_ofuncs, nv31_mpeg_omthds },
+	{}
+};
+
+/*******************************************************************************
+ * PMPEG context
+ ******************************************************************************/
+
 static int
-nv31_mpeg_isr_chid(struct drm_device *dev, u32 inst)
+nv31_mpeg_context_ctor(struct nouveau_object *parent,
+		       struct nouveau_object *engine,
+		       struct nouveau_oclass *oclass, void *data, u32 size,
+		       struct nouveau_object **pobject)
 {
-	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *ctx;
-	unsigned long flags;
-	int i;
+	struct nv31_mpeg_priv *priv = (void *)engine;
+	struct nv31_mpeg_chan *chan;
+	int ret;
 
-	/* hardcode drm channel id on nv3x, so swmthd lookup works */
-	if (dev_priv->card_type < NV_40)
-		return 0;
+	if (!atomic_add_unless(&priv->refcount, 1, 1))
+		return -EBUSY;
 
-	spin_lock_irqsave(&dev_priv->channels.lock, flags);
-	for (i = 0; i < pfifo->channels; i++) {
-		if (!dev_priv->channels.ptr[i])
-			continue;
+	ret = nouveau_object_create(parent, engine, oclass, 0, &chan);
+	*pobject = nv_object(chan);
+	if (ret)
+		return ret;
 
-		ctx = dev_priv->channels.ptr[i]->engctx[NVOBJ_ENGINE_MPEG];
-		if (ctx && ctx->addr == inst)
-			break;
-	}
-	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
-	return i;
+	return 0;
 }
 
 static void
-nv31_vpe_set_tile_region(struct drm_device *dev, int i)
+nv31_mpeg_context_dtor(struct nouveau_object *object)
 {
-	struct nouveau_fb_tile *tile = nvfb_tile(dev, i);
-	nv_wr32(dev, 0x00b008 + (i * 0x10), tile->pitch);
-	nv_wr32(dev, 0x00b004 + (i * 0x10), tile->limit);
-	nv_wr32(dev, 0x00b000 + (i * 0x10), tile->addr);
+	struct nv31_mpeg_priv *priv = (void *)object->engine;
+	struct nv31_mpeg_chan *chan = (void *)object;
+	atomic_dec(&priv->refcount);
+	nouveau_object_destroy(&chan->base);
 }
 
-static void
-nv31_mpeg_isr(struct drm_device *dev)
+static struct nouveau_oclass
+nv31_mpeg_cclass = {
+	.handle = NV_ENGCTX(MPEG, 0x31),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv31_mpeg_context_ctor,
+		.dtor = nv31_mpeg_context_dtor,
+		.init = nouveau_object_init,
+		.fini = nouveau_object_fini,
+	},
+};
+
+/*******************************************************************************
+ * PMPEG engine/subdev functions
+ ******************************************************************************/
+
+void
+nv31_mpeg_tile_prog(struct nouveau_engine *engine, int i)
 {
-	u32 inst = (nv_rd32(dev, 0x00b318) & 0x000fffff) << 4;
-	u32 chid = nv31_mpeg_isr_chid(dev, inst);
-	u32 stat = nv_rd32(dev, 0x00b100);
-	u32 type = nv_rd32(dev, 0x00b230);
-	u32 mthd = nv_rd32(dev, 0x00b234);
-	u32 data = nv_rd32(dev, 0x00b238);
+	struct nouveau_fb_tile *tile = &nouveau_fb(engine)->tile.region[i];
+	struct nv31_mpeg_priv *priv = (void *)engine;
+
+	nv_wr32(priv, 0x00b008 + (i * 0x10), tile->pitch);
+	nv_wr32(priv, 0x00b004 + (i * 0x10), tile->limit);
+	nv_wr32(priv, 0x00b000 + (i * 0x10), tile->addr);
+}
+
+void
+nv31_mpeg_intr(struct nouveau_subdev *subdev)
+{
+	struct nv31_mpeg_priv *priv = (void *)subdev;
+	struct nouveau_engine *engine = nv_engine(subdev);
+	struct nouveau_handle *handle = NULL;
+	u32 inst = (nv_rd32(priv, 0x00b318) & 0x000fffff) << 4;
+	u32 stat = nv_rd32(priv, 0x00b100);
+	u32 type = nv_rd32(priv, 0x00b230);
+	u32 mthd = nv_rd32(priv, 0x00b234);
+	u32 data = nv_rd32(priv, 0x00b238);
 	u32 show = stat;
 
 	if (stat & 0x01000000) {
 		/* happens on initial binding of the object */
-		if (type == 0x00000020 && mthd == 0x0000) {
-			nv_mask(dev, 0x00b308, 0x00000000, 0x00000000);
+		if (handle && type == 0x00000020 && mthd == 0x0000) {
+			nv_mask(priv, 0x00b308, 0x00000000, 0x00000000);
 			show &= ~0x01000000;
 		}
 
-		if (type == 0x00000010) {
-			if (!nouveau_gpuobj_mthd_call2(dev, chid, 0x3174, mthd, data))
+		if (handle && type == 0x00000010) {
+			handle = nouveau_engctx_lookup_class(engine, inst, 0x3174);
+
+			if (handle && !nv_call(handle->object, mthd, data)) {
+				nouveau_engctx_handle_put(handle);
 				show &= ~0x01000000;
+			}
 		}
 	}
 
-	nv_wr32(dev, 0x00b100, stat);
-	nv_wr32(dev, 0x00b230, 0x00000001);
+	nv_wr32(priv, 0x00b100, stat);
+	nv_wr32(priv, 0x00b230, 0x00000001);
 
-	if (show && nouveau_ratelimit()) {
-		NV_INFO(dev, "PMPEG: Ch %d [0x%08x] 0x%08x 0x%08x 0x%08x 0x%08x\n",
-			chid, inst, stat, type, mthd, data);
+	if (show) {
+		nv_error(priv, "ch %d [0x%08x] 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			 inst, stat, type, mthd, data);
 	}
 }
 
-static void
-nv31_vpe_isr(struct drm_device *dev)
+static int
+nv31_mpeg_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+	       struct nouveau_oclass *oclass, void *data, u32 size,
+	       struct nouveau_object **pobject)
 {
-	if (nv_rd32(dev, 0x00b100))
-		nv31_mpeg_isr(dev);
+	struct nv31_mpeg_priv *priv;
+	int ret;
 
-	if (nv_rd32(dev, 0x00b800)) {
-		u32 stat = nv_rd32(dev, 0x00b800);
-		NV_INFO(dev, "PMSRCH: 0x%08x\n", stat);
-		nv_wr32(dev, 0xb800, stat);
-	}
-}
+	ret = nouveau_mpeg_create(parent, engine, oclass, &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
 
-static void
-nv31_mpeg_destroy(struct drm_device *dev, int engine)
-{
-	struct nv31_mpeg_engine *pmpeg = nv_engine(dev, engine);
-
-	nouveau_irq_unregister(dev, 0);
-
-	NVOBJ_ENGINE_DEL(dev, MPEG);
-	kfree(pmpeg);
+	nv_subdev(priv)->unit = 0x00000002;
+	nv_subdev(priv)->intr = nv31_mpeg_intr;
+	nv_engine(priv)->cclass = &nv31_mpeg_cclass;
+	nv_engine(priv)->sclass = nv31_mpeg_sclass;
+	nv_engine(priv)->tile_prog = nv31_mpeg_tile_prog;
+	return 0;
 }
 
 int
-nv31_mpeg_create(struct drm_device *dev)
+nv31_mpeg_init(struct nouveau_object *object)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nv31_mpeg_engine *pmpeg;
+	struct nouveau_engine *engine = nv_engine(object->engine);
+	struct nv31_mpeg_priv *priv = (void *)engine;
+	struct nouveau_fb *pfb = nouveau_fb(object);
+	int ret, i;
 
-	pmpeg = kzalloc(sizeof(*pmpeg), GFP_KERNEL);
-	if (!pmpeg)
-		return -ENOMEM;
-	atomic_set(&pmpeg->refcount, 0);
+	ret = nouveau_mpeg_init(&priv->base);
+	if (ret)
+		return ret;
 
-	pmpeg->base.destroy = nv31_mpeg_destroy;
-	pmpeg->base.init = nv31_mpeg_init;
-	pmpeg->base.fini = nv31_mpeg_fini;
-	if (dev_priv->card_type < NV_40) {
-		pmpeg->base.context_new = nv31_mpeg_context_new;
-		pmpeg->base.context_del = nv31_mpeg_context_del;
-	} else {
-		pmpeg->base.context_new = nv40_mpeg_context_new;
-		pmpeg->base.context_del = nv40_mpeg_context_del;
+	/* VPE init */
+	nv_wr32(priv, 0x00b0e0, 0x00000020); /* nvidia: rd 0x01, wr 0x20 */
+	nv_wr32(priv, 0x00b0e8, 0x00000020); /* nvidia: rd 0x01, wr 0x20 */
+
+	for (i = 0; i < pfb->tile.regions; i++)
+		engine->tile_prog(engine, i);
+
+	/* PMPEG init */
+	nv_wr32(priv, 0x00b32c, 0x00000000);
+	nv_wr32(priv, 0x00b314, 0x00000100);
+	nv_wr32(priv, 0x00b220, nv44_graph_class(priv) ? 0x00000044 : 0x00000031);
+	nv_wr32(priv, 0x00b300, 0x02001ec1);
+	nv_mask(priv, 0x00b32c, 0x00000001, 0x00000001);
+
+	nv_wr32(priv, 0x00b100, 0xffffffff);
+	nv_wr32(priv, 0x00b140, 0xffffffff);
+
+	if (!nv_wait(priv, 0x00b200, 0x00000001, 0x00000000)) {
+		nv_error(priv, "timeout 0x%08x\n", nv_rd32(priv, 0x00b200));
+		return -EBUSY;
 	}
-	pmpeg->base.object_new = nv31_mpeg_object_new;
 
-	/* ISR vector, PMC_ENABLE bit,  and TILE regs are shared between
-	 * all VPE engines, for this driver's purposes the PMPEG engine
-	 * will be treated as the "master" and handle the global VPE
-	 * bits too
-	 */
-	pmpeg->base.set_tile_region = nv31_vpe_set_tile_region;
-	nouveau_irq_register(dev, 0, nv31_vpe_isr);
-
-	NVOBJ_ENGINE_ADD(dev, MPEG, &pmpeg->base);
-	NVOBJ_CLASS(dev, 0x3174, MPEG);
-	NVOBJ_MTHD (dev, 0x3174, 0x0190, nv31_mpeg_mthd_dma);
-	NVOBJ_MTHD (dev, 0x3174, 0x01a0, nv31_mpeg_mthd_dma);
-	NVOBJ_MTHD (dev, 0x3174, 0x01b0, nv31_mpeg_mthd_dma);
-
-#if 0
-	NVOBJ_ENGINE_ADD(dev, ME, &pme->base);
-	NVOBJ_CLASS(dev, 0x4075, ME);
-#endif
 	return 0;
-
 }
+
+struct nouveau_oclass
+nv31_mpeg_oclass = {
+	.handle = NV_ENGINE(MPEG, 0x31),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv31_mpeg_ctor,
+		.dtor = _nouveau_mpeg_dtor,
+		.init = nv31_mpeg_init,
+		.fini = _nouveau_mpeg_fini,
+	},
+};

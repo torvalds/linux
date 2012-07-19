@@ -87,8 +87,7 @@ nv40_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	/* 0x10000-0x18000: reserve for RAMHT */
-	ret = nouveau_gpuobj_new(parent, NULL, 0x08000, 0,
-				 NVOBJ_FLAG_ZERO_ALLOC, &priv->ramht);
+	ret = nouveau_ramht_new(parent, NULL, 0x08000, 0, &priv->ramht);
 	if (ret)
 		return ret;
 

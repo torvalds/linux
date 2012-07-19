@@ -36,7 +36,6 @@
 #include "nouveau_drv.h"
 #include "nouveau_reg.h"
 #include <core/ramht.h>
-#include "nouveau_util.h"
 
 void
 nouveau_irq_preinstall(struct drm_device *dev)

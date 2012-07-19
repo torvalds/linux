@@ -22,13 +22,10 @@
  * Authors: Ben Skeggs
  */
 
-#include "drmP.h"
-#include "nouveau_drv.h"
-#include <core/mm.h>
 #include "nvc0.h"
 
 static void
-nve0_grctx_generate_icmd(struct drm_device *priv)
+nve0_grctx_generate_icmd(struct nvc0_graph_priv *priv)
 {
 	nv_wr32(priv, 0x400208, 0x80000000);
 	nv_icmd(priv, 0x001000, 0x00000004);
@@ -916,7 +913,7 @@ nve0_grctx_generate_icmd(struct drm_device *priv)
 }
 
 static void
-nve0_grctx_generate_a097(struct drm_device *priv)
+nve0_grctx_generate_a097(struct nvc0_graph_priv *priv)
 {
 	nv_mthd(priv, 0xa097, 0x0800, 0x00000000);
 	nv_mthd(priv, 0xa097, 0x0840, 0x00000000);
@@ -2146,7 +2143,7 @@ nve0_grctx_generate_a097(struct drm_device *priv)
 }
 
 static void
-nve0_grctx_generate_902d(struct drm_device *priv)
+nve0_grctx_generate_902d(struct nvc0_graph_priv *priv)
 {
 	nv_mthd(priv, 0x902d, 0x0200, 0x000000cf);
 	nv_mthd(priv, 0x902d, 0x0204, 0x00000001);
@@ -2169,7 +2166,7 @@ nve0_grctx_generate_902d(struct drm_device *priv)
 }
 
 static void
-nve0_graph_generate_unk40xx(struct drm_device *priv)
+nve0_graph_generate_unk40xx(struct nvc0_graph_priv *priv)
 {
 	nv_wr32(priv, 0x404010, 0x0);
 	nv_wr32(priv, 0x404014, 0x0);
@@ -2213,7 +2210,7 @@ nve0_graph_generate_unk40xx(struct drm_device *priv)
 }
 
 static void
-nve0_graph_generate_unk44xx(struct drm_device *priv)
+nve0_graph_generate_unk44xx(struct nvc0_graph_priv *priv)
 {
 	nv_wr32(priv, 0x404404, 0x0);
 	nv_wr32(priv, 0x404408, 0x0);
@@ -2238,7 +2235,7 @@ nve0_graph_generate_unk44xx(struct drm_device *priv)
 }
 
 static void
-nve0_graph_generate_unk46xx(struct drm_device *priv)
+nve0_graph_generate_unk46xx(struct nvc0_graph_priv *priv)
 {
 	nv_wr32(priv, 0x404604, 0x14);
 	nv_wr32(priv, 0x404608, 0x0);
@@ -2278,7 +2275,7 @@ nve0_graph_generate_unk46xx(struct drm_device *priv)
 }
 
 static void
-nve0_graph_generate_unk47xx(struct drm_device *priv)
+nve0_graph_generate_unk47xx(struct nvc0_graph_priv *priv)
 {
 	nv_wr32(priv, 0x404700, 0x0);
 	nv_wr32(priv, 0x404704, 0x0);
@@ -2299,7 +2296,7 @@ nve0_graph_generate_unk47xx(struct drm_device *priv)
 }
 
 static void
-nve0_graph_generate_unk58xx(struct drm_device *priv)
+nve0_graph_generate_unk58xx(struct nvc0_graph_priv *priv)
 {
 	nv_wr32(priv, 0x405800, 0xf8000bf);
 	nv_wr32(priv, 0x405830, 0x2180648);
@@ -2318,7 +2315,7 @@ nve0_graph_generate_unk58xx(struct drm_device *priv)
 }
 
 static void
-nve0_graph_generate_unk60xx(struct drm_device *priv)
+nve0_graph_generate_unk60xx(struct nvc0_graph_priv *priv)
 {
 	nv_wr32(priv, 0x406020, 0x4103c1);
 	nv_wr32(priv, 0x406028, 0x1);
@@ -2328,7 +2325,7 @@ nve0_graph_generate_unk60xx(struct drm_device *priv)
 }
 
 static void
-nve0_graph_generate_unk64xx(struct drm_device *priv)
+nve0_graph_generate_unk64xx(struct nvc0_graph_priv *priv)
 {
 	nv_wr32(priv, 0x4064a8, 0x0);
 	nv_wr32(priv, 0x4064ac, 0x3fff);
@@ -2350,13 +2347,13 @@ nve0_graph_generate_unk64xx(struct drm_device *priv)
 }
 
 static void
-nve0_graph_generate_unk70xx(struct drm_device *priv)
+nve0_graph_generate_unk70xx(struct nvc0_graph_priv *priv)
 {
 	nv_wr32(priv, 0x407040, 0x0);
 }
 
 static void
-nve0_graph_generate_unk78xx(struct drm_device *priv)
+nve0_graph_generate_unk78xx(struct nvc0_graph_priv *priv)
 {
 	nv_wr32(priv, 0x407804, 0x23);
 	nv_wr32(priv, 0x40780c, 0xa418820);
@@ -2369,7 +2366,7 @@ nve0_graph_generate_unk78xx(struct drm_device *priv)
 }
 
 static void
-nve0_graph_generate_unk80xx(struct drm_device *priv)
+nve0_graph_generate_unk80xx(struct nvc0_graph_priv *priv)
 {
 	nv_wr32(priv, 0x408000, 0x0);
 	nv_wr32(priv, 0x408004, 0x0);
@@ -2382,7 +2379,7 @@ nve0_graph_generate_unk80xx(struct drm_device *priv)
 }
 
 static void
-nve0_graph_generate_unk88xx(struct drm_device *priv)
+nve0_graph_generate_unk88xx(struct nvc0_graph_priv *priv)
 {
 	nv_wr32(priv, 0x408800, 0x2802a3c);
 	nv_wr32(priv, 0x408804, 0x40);
@@ -2395,7 +2392,7 @@ nve0_graph_generate_unk88xx(struct drm_device *priv)
 }
 
 static void
-nve0_graph_generate_gpc(struct drm_device *priv)
+nve0_graph_generate_gpc(struct nvc0_graph_priv *priv)
 {
 	nv_wr32(priv, 0x418380, 0x16);
 	nv_wr32(priv, 0x418400, 0x38004e00);
@@ -2521,7 +2518,7 @@ nve0_graph_generate_gpc(struct drm_device *priv)
 }
 
 static void
-nve0_graph_generate_tpc(struct drm_device *priv)
+nve0_graph_generate_tpc(struct nvc0_graph_priv *priv)
 {
 	nv_wr32(priv, 0x419848, 0x0);
 	nv_wr32(priv, 0x419864, 0x129);
@@ -2586,7 +2583,7 @@ nve0_graph_generate_tpc(struct drm_device *priv)
 }
 
 static void
-nve0_graph_generate_tpcunk(struct drm_device *priv)
+nve0_graph_generate_tpcunk(struct nvc0_graph_priv *priv)
 {
 	nv_wr32(priv, 0x41be24, 0x6);
 	nv_wr32(priv, 0x41bec0, 0x12180000);
@@ -2604,9 +2601,8 @@ nve0_graph_generate_tpcunk(struct drm_device *priv)
 }
 
 int
-nve0_grctx_generate(struct drm_device *priv)
+nve0_grctx_generate(struct nvc0_graph_priv *priv)
 {
-	struct nvc0_graph_priv *oprv = nv_engine(priv, NVOBJ_ENGINE_GR);
 	struct nvc0_grctx info;
 	int ret, i, gpc, tpc, id;
 	u32 data[6] = {}, data2[2] = {}, tmp;
@@ -2615,7 +2611,7 @@ nve0_grctx_generate(struct drm_device *priv)
 	u8 tpcnr[GPC_MAX], a, b;
 	u8 shift, ntpcv;
 
-	ret = nvc0_grctx_init(priv, oprv, &info);
+	ret = nvc0_grctx_init(priv, &info);
 	if (ret)
 		return ret;
 
@@ -2657,17 +2653,17 @@ nve0_grctx_generate(struct drm_device *priv)
 	mmio_list(0x419848, 0x10000000, 12, 2);
 	mmio_list(0x405830, 0x02180648,  0, 0);
 	mmio_list(0x4064c4, 0x0192ffff,  0, 0);
-	for (gpc = 0, offset = 0; gpc < oprv->gpc_nr; gpc++) {
-		u16 magic0 = 0x0218 * oprv->tpc_nr[gpc];
-		u16 magic1 = 0x0648 * oprv->tpc_nr[gpc];
+	for (gpc = 0, offset = 0; gpc < priv->gpc_nr; gpc++) {
+		u16 magic0 = 0x0218 * priv->tpc_nr[gpc];
+		u16 magic1 = 0x0648 * priv->tpc_nr[gpc];
 		magic[gpc][0]  = 0x10000000 | (magic0 << 16) | offset;
 		magic[gpc][1]  = 0x00000000 | (magic1 << 16);
-		offset += 0x0324 * oprv->tpc_nr[gpc];
+		offset += 0x0324 * priv->tpc_nr[gpc];
 	}
-	for (gpc = 0; gpc < oprv->gpc_nr; gpc++) {
+	for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
 		mmio_list(GPC_UNIT(gpc, 0x30c0), magic[gpc][0], 0, 0);
 		mmio_list(GPC_UNIT(gpc, 0x30e4), magic[gpc][1] | offset, 0, 0);
-		offset += 0x07ff * oprv->tpc_nr[gpc];
+		offset += 0x07ff * priv->tpc_nr[gpc];
 	}
 	mmio_list(0x17e91c, 0x06060609, 0, 0);
 	mmio_list(0x17e920, 0x00090a05, 0, 0);
@@ -2680,22 +2676,22 @@ nve0_grctx_generate(struct drm_device *priv)
 	nv_wr32(priv, 0x419c00, 0xa);
 
 	for (tpc = 0, id = 0; tpc < 4; tpc++) {
-		for (gpc = 0; gpc < oprv->gpc_nr; gpc++) {
-			if (tpc < oprv->tpc_nr[gpc]) {
+		for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
+			if (tpc < priv->tpc_nr[gpc]) {
 				nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x0698), id);
 				nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x04e8), id);
 				nv_wr32(priv, GPC_UNIT(gpc, 0x0c10 + tpc * 4), id);
 				nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x0088), id++);
 			}
 
-			nv_wr32(priv, GPC_UNIT(gpc, 0x0c08), oprv->tpc_nr[gpc]);
-			nv_wr32(priv, GPC_UNIT(gpc, 0x0c8c), oprv->tpc_nr[gpc]);
+			nv_wr32(priv, GPC_UNIT(gpc, 0x0c08), priv->tpc_nr[gpc]);
+			nv_wr32(priv, GPC_UNIT(gpc, 0x0c8c), priv->tpc_nr[gpc]);
 		}
 	}
 
 	tmp = 0;
-	for (i = 0; i < oprv->gpc_nr; i++)
-		tmp |= oprv->tpc_nr[i] << (i * 4);
+	for (i = 0; i < priv->gpc_nr; i++)
+		tmp |= priv->tpc_nr[i] << (i * 4);
 	nv_wr32(priv, 0x406028, tmp);
 	nv_wr32(priv, 0x405870, tmp);
 
@@ -2707,12 +2703,12 @@ nve0_grctx_generate(struct drm_device *priv)
 	nv_wr32(priv, 0x40587c, 0x0);
 
 	/* calculate first set of magics */
-	memcpy(tpcnr, oprv->tpc_nr, sizeof(oprv->tpc_nr));
+	memcpy(tpcnr, priv->tpc_nr, sizeof(priv->tpc_nr));
 
 	gpc = -1;
-	for (tpc = 0; tpc < oprv->tpc_total; tpc++) {
+	for (tpc = 0; tpc < priv->tpc_total; tpc++) {
 		do {
-			gpc = (gpc + 1) % oprv->gpc_nr;
+			gpc = (gpc + 1) % priv->gpc_nr;
 		} while (!tpcnr[gpc]);
 		tpcnr[gpc]--;
 
@@ -2724,7 +2720,7 @@ nve0_grctx_generate(struct drm_device *priv)
 
 	/* and the second... */
 	shift = 0;
-	ntpcv = oprv->tpc_total;
+	ntpcv = priv->tpc_total;
 	while (!(ntpcv & (1 << 4))) {
 		ntpcv <<= 1;
 		shift++;
@@ -2733,13 +2729,13 @@ nve0_grctx_generate(struct drm_device *priv)
 	data2[0]  = ntpcv << 16;
 	data2[0] |= shift << 21;
 	data2[0] |= (((1 << (0 + 5)) % ntpcv) << 24);
-	data2[0] |= oprv->tpc_total << 8;
-	data2[0] |= oprv->magic_not_rop_nr;
+	data2[0] |= priv->tpc_total << 8;
+	data2[0] |= priv->magic_not_rop_nr;
 	for (i = 1; i < 7; i++)
 		data2[1] |= ((1 << (i + 5)) % ntpcv) << ((i - 1) * 5);
 
 	/* and write it all the various parts of PGRAPH */
-	nv_wr32(priv, 0x418bb8, (oprv->tpc_total << 8) | oprv->magic_not_rop_nr);
+	nv_wr32(priv, 0x418bb8, (priv->tpc_total << 8) | priv->magic_not_rop_nr);
 	for (i = 0; i < 6; i++)
 		nv_wr32(priv, 0x418b08 + (i * 4), data[i]);
 
@@ -2748,23 +2744,23 @@ nve0_grctx_generate(struct drm_device *priv)
 	for (i = 0; i < 6; i++)
 		nv_wr32(priv, 0x41bf00 + (i * 4), data[i]);
 
-	nv_wr32(priv, 0x4078bc, (oprv->tpc_total << 8) | oprv->magic_not_rop_nr);
+	nv_wr32(priv, 0x4078bc, (priv->tpc_total << 8) | priv->magic_not_rop_nr);
 	for (i = 0; i < 6; i++)
 		nv_wr32(priv, 0x40780c + (i * 4), data[i]);
 
 
-	memcpy(tpcnr, oprv->tpc_nr, sizeof(oprv->tpc_nr));
-	for (gpc = 0; gpc < oprv->gpc_nr; gpc++)
-		tpc_mask |= ((1 << oprv->tpc_nr[gpc]) - 1) << (gpc * 8);
+	memcpy(tpcnr, priv->tpc_nr, sizeof(priv->tpc_nr));
+	for (gpc = 0; gpc < priv->gpc_nr; gpc++)
+		tpc_mask |= ((1 << priv->tpc_nr[gpc]) - 1) << (gpc * 8);
 
 	for (i = 0, gpc = -1, b = -1; i < 32; i++) {
-		a = (i * (oprv->tpc_total - 1)) / 32;
+		a = (i * (priv->tpc_total - 1)) / 32;
 		if (a != b) {
 			b = a;
 			do {
-				gpc = (gpc + 1) % oprv->gpc_nr;
+				gpc = (gpc + 1) % priv->gpc_nr;
 			} while (!tpcnr[gpc]);
-			tpc = oprv->tpc_nr[gpc] - tpcnr[gpc]--;
+			tpc = priv->tpc_nr[gpc] - tpcnr[gpc]--;
 
 			tpc_set |= 1 << ((gpc * 8) + tpc);
 		}

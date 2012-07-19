@@ -34,6 +34,13 @@
 #include <subdev/instmem.h>
 #include <subdev/vm.h>
 
+#include <engine/dmaobj.h>
+#include <engine/fifo.h>
+#include <engine/software.h>
+#include <engine/graph.h>
+#include <engine/mpeg.h>
+#include <engine/disp.h>
+
 int
 nv30_identify(struct nouveau_device *device)
 {
@@ -49,6 +56,11 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_FB     ] = &nv30_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv04_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv17_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv10_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv30_graph_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
 		break;
 	case 0x35:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -61,6 +73,11 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_FB     ] = &nv30_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv04_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv17_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv10_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv35_graph_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
 		break;
 	case 0x31:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -73,6 +90,12 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_FB     ] = &nv30_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv04_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv17_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv10_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv30_graph_oclass;
+		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv31_mpeg_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
 		break;
 	case 0x36:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -85,6 +108,12 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_FB     ] = &nv30_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv04_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv17_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv10_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv35_graph_oclass;
+		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv31_mpeg_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
 		break;
 	case 0x34:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -97,6 +126,12 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_FB     ] = &nv30_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv04_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv17_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv10_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv34_graph_oclass;
+		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv31_mpeg_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Rankine chipset\n");

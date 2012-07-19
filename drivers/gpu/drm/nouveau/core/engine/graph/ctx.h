@@ -2,7 +2,7 @@
 #define __NOUVEAU_GRCTX_H__
 
 struct nouveau_grctx {
-	struct drm_device *dev;
+	struct nouveau_device *device;
 
 	enum {
 		NOUVEAU_GRCTX_PROG,
@@ -10,18 +10,18 @@ struct nouveau_grctx {
 	} mode;
 	void *data;
 
-	uint32_t ctxprog_max;
-	uint32_t ctxprog_len;
-	uint32_t ctxprog_reg;
-	int      ctxprog_label[32];
-	uint32_t ctxvals_pos;
-	uint32_t ctxvals_base;
+	u32 ctxprog_max;
+	u32 ctxprog_len;
+	u32 ctxprog_reg;
+	int ctxprog_label[32];
+	u32 ctxvals_pos;
+	u32 ctxvals_base;
 };
 
 static inline void
-cp_out(struct nouveau_grctx *ctx, uint32_t inst)
+cp_out(struct nouveau_grctx *ctx, u32 inst)
 {
-	uint32_t *ctxprog = ctx->data;
+	u32 *ctxprog = ctx->data;
 
 	if (ctx->mode != NOUVEAU_GRCTX_PROG)
 		return;
@@ -31,13 +31,13 @@ cp_out(struct nouveau_grctx *ctx, uint32_t inst)
 }
 
 static inline void
-cp_lsr(struct nouveau_grctx *ctx, uint32_t val)
+cp_lsr(struct nouveau_grctx *ctx, u32 val)
 {
 	cp_out(ctx, CP_LOAD_SR | val);
 }
 
 static inline void
-cp_ctx(struct nouveau_grctx *ctx, uint32_t reg, uint32_t length)
+cp_ctx(struct nouveau_grctx *ctx, u32 reg, u32 length)
 {
 	ctx->ctxprog_reg = (reg - 0x00400000) >> 2;
 
@@ -55,7 +55,7 @@ cp_ctx(struct nouveau_grctx *ctx, uint32_t reg, uint32_t length)
 static inline void
 cp_name(struct nouveau_grctx *ctx, int name)
 {
-	uint32_t *ctxprog = ctx->data;
+	u32 *ctxprog = ctx->data;
 	int i;
 
 	if (ctx->mode != NOUVEAU_GRCTX_PROG)
@@ -115,7 +115,7 @@ cp_pos(struct nouveau_grctx *ctx, int offset)
 }
 
 static inline void
-gr_def(struct nouveau_grctx *ctx, uint32_t reg, uint32_t val)
+gr_def(struct nouveau_grctx *ctx, u32 reg, u32 val)
 {
 	if (ctx->mode != NOUVEAU_GRCTX_VALS)
 		return;

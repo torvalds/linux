@@ -8,7 +8,6 @@
 struct nouveau_instobj {
 	struct nouveau_object base;
 	struct list_head head;
-	struct nouveau_mm heap;
 	u32 *suspend;
 	u64 addr;
 	u32 size;

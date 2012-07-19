@@ -28,7 +28,6 @@
 #include "nouveau_hw.h"
 #include "nouveau_pm.h"
 #include "nouveau_hwsq.h"
-#include "nv50_display.h"
 
 enum clk_src {
 	clk_src_crystal,

@@ -22,6 +22,8 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/gpuobj.h>
+
 /* NVIDIA context programs handle a number of other conditions which are
  * not implemented in our versions.  It's not clear why NVIDIA context
  * programs have this code, nor whether it's strictly necessary for
@@ -109,8 +111,7 @@
 #define CP_LOAD_MAGIC_NV44TCL    0x00800029 /* per-vs state (0x4497) */
 #define CP_LOAD_MAGIC_NV40TCL    0x00800041 /* per-vs state (0x4097) */
 
-#include "drmP.h"
-#include "nouveau_drv.h"
+#include "nv40.h"
 #include "ctx.h"
 
 /* TODO:
@@ -118,11 +119,10 @@
  */
 
 static int
-nv40_graph_vs_count(struct drm_device *dev)
+nv40_graph_vs_count(struct nouveau_device *device)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-	switch (dev_priv->chipset) {
+	switch (device->chipset) {
 	case 0x47:
 	case 0x49:
 	case 0x4b:
@@ -160,7 +160,7 @@ enum cp_label {
 static void
 nv40_graph_construct_general(struct nouveau_grctx *ctx)
 {
-	struct drm_nouveau_private *dev_priv = ctx->dev->dev_private;
+	struct nouveau_device *device = ctx->device;
 	int i;
 
 	cp_ctx(ctx, 0x4000a4, 1);
@@ -187,7 +187,7 @@ nv40_graph_construct_general(struct nouveau_grctx *ctx)
 	cp_ctx(ctx, 0x400724, 1);
 	gr_def(ctx, 0x400724, 0x02008821);
 	cp_ctx(ctx, 0x400770, 3);
-	if (dev_priv->chipset == 0x40) {
+	if (device->chipset == 0x40) {
 		cp_ctx(ctx, 0x400814, 4);
 		cp_ctx(ctx, 0x400828, 5);
 		cp_ctx(ctx, 0x400840, 5);
@@ -208,7 +208,7 @@ nv40_graph_construct_general(struct nouveau_grctx *ctx)
 		gr_def(ctx, 0x4009dc, 0x80000000);
 	} else {
 		cp_ctx(ctx, 0x400840, 20);
-		if (nv44_graph_class(ctx->dev)) {
+		if (nv44_graph_class(ctx->device)) {
 			for (i = 0; i < 8; i++)
 				gr_def(ctx, 0x400860 + (i * 4), 0x00000001);
 		}
@@ -217,21 +217,21 @@ nv40_graph_construct_general(struct nouveau_grctx *ctx)
 		gr_def(ctx, 0x400888, 0x00000040);
 		cp_ctx(ctx, 0x400894, 11);
 		gr_def(ctx, 0x400894, 0x00000040);
-		if (!nv44_graph_class(ctx->dev)) {
+		if (!nv44_graph_class(ctx->device)) {
 			for (i = 0; i < 8; i++)
 				gr_def(ctx, 0x4008a0 + (i * 4), 0x80000000);
 		}
 		cp_ctx(ctx, 0x4008e0, 2);
 		cp_ctx(ctx, 0x4008f8, 2);
-		if (dev_priv->chipset == 0x4c ||
-		    (dev_priv->chipset & 0xf0) == 0x60)
+		if (device->chipset == 0x4c ||
+		    (device->chipset & 0xf0) == 0x60)
 			cp_ctx(ctx, 0x4009f8, 1);
 	}
 	cp_ctx(ctx, 0x400a00, 73);
 	gr_def(ctx, 0x400b0c, 0x0b0b0b0c);
 	cp_ctx(ctx, 0x401000, 4);
 	cp_ctx(ctx, 0x405004, 1);
-	switch (dev_priv->chipset) {
+	switch (device->chipset) {
 	case 0x47:
 	case 0x49:
 	case 0x4b:
@@ -240,7 +240,7 @@ nv40_graph_construct_general(struct nouveau_grctx *ctx)
 		break;
 	default:
 		cp_ctx(ctx, 0x403440, 1);
-		switch (dev_priv->chipset) {
+		switch (device->chipset) {
 		case 0x40:
 			gr_def(ctx, 0x403440, 0x00000010);
 			break;
@@ -266,19 +266,19 @@ nv40_graph_construct_general(struct nouveau_grctx *ctx)
 static void
 nv40_graph_construct_state3d(struct nouveau_grctx *ctx)
 {
-	struct drm_nouveau_private *dev_priv = ctx->dev->dev_private;
+	struct nouveau_device *device = ctx->device;
 	int i;
 
-	if (dev_priv->chipset == 0x40) {
+	if (device->chipset == 0x40) {
 		cp_ctx(ctx, 0x401880, 51);
 		gr_def(ctx, 0x401940, 0x00000100);
 	} else
-	if (dev_priv->chipset == 0x46 || dev_priv->chipset == 0x47 ||
-	    dev_priv->chipset == 0x49 || dev_priv->chipset == 0x4b) {
+	if (device->chipset == 0x46 || device->chipset == 0x47 ||
+	    device->chipset == 0x49 || device->chipset == 0x4b) {
 		cp_ctx(ctx, 0x401880, 32);
 		for (i = 0; i < 16; i++)
 			gr_def(ctx, 0x401880 + (i * 4), 0x00000111);
-		if (dev_priv->chipset == 0x46)
+		if (device->chipset == 0x46)
 			cp_ctx(ctx, 0x401900, 16);
 		cp_ctx(ctx, 0x401940, 3);
 	}
@@ -289,7 +289,7 @@ nv40_graph_construct_state3d(struct nouveau_grctx *ctx)
 	gr_def(ctx, 0x401978, 0xffff0000);
 	gr_def(ctx, 0x40197c, 0x00000001);
 	gr_def(ctx, 0x401990, 0x46400000);
-	if (dev_priv->chipset == 0x40) {
+	if (device->chipset == 0x40) {
 		cp_ctx(ctx, 0x4019a0, 2);
 		cp_ctx(ctx, 0x4019ac, 5);
 	} else {
@@ -297,7 +297,7 @@ nv40_graph_construct_state3d(struct nouveau_grctx *ctx)
 		cp_ctx(ctx, 0x4019b4, 3);
 	}
 	gr_def(ctx, 0x4019bc, 0xffff0000);
-	switch (dev_priv->chipset) {
+	switch (device->chipset) {
 	case 0x46:
 	case 0x47:
 	case 0x49:
@@ -316,7 +316,7 @@ nv40_graph_construct_state3d(struct nouveau_grctx *ctx)
 	for (i = 0; i < 16; i++)
 		gr_def(ctx, 0x401a44 + (i * 4), 0x07ff0000);
 	gr_def(ctx, 0x401a8c, 0x4b7fffff);
-	if (dev_priv->chipset == 0x40) {
+	if (device->chipset == 0x40) {
 		cp_ctx(ctx, 0x401ab8, 3);
 	} else {
 		cp_ctx(ctx, 0x401ab8, 1);
@@ -327,10 +327,10 @@ nv40_graph_construct_state3d(struct nouveau_grctx *ctx)
 	gr_def(ctx, 0x401ad4, 0x70605040);
 	gr_def(ctx, 0x401ad8, 0xb8a89888);
 	gr_def(ctx, 0x401adc, 0xf8e8d8c8);
-	cp_ctx(ctx, 0x401b10, dev_priv->chipset == 0x40 ? 2 : 1);
+	cp_ctx(ctx, 0x401b10, device->chipset == 0x40 ? 2 : 1);
 	gr_def(ctx, 0x401b10, 0x40100000);
-	cp_ctx(ctx, 0x401b18, dev_priv->chipset == 0x40 ? 6 : 5);
-	gr_def(ctx, 0x401b28, dev_priv->chipset == 0x40 ?
+	cp_ctx(ctx, 0x401b18, device->chipset == 0x40 ? 6 : 5);
+	gr_def(ctx, 0x401b28, device->chipset == 0x40 ?
 			      0x00000004 : 0x00000000);
 	cp_ctx(ctx, 0x401b30, 25);
 	gr_def(ctx, 0x401b34, 0x0000ffff);
@@ -341,8 +341,8 @@ nv40_graph_construct_state3d(struct nouveau_grctx *ctx)
 	gr_def(ctx, 0x401b84, 0xffffffff);
 	gr_def(ctx, 0x401b88, 0x00ff7000);
 	gr_def(ctx, 0x401b8c, 0x0000ffff);
-	if (dev_priv->chipset != 0x44 && dev_priv->chipset != 0x4a &&
-	    dev_priv->chipset != 0x4e)
+	if (device->chipset != 0x44 && device->chipset != 0x4a &&
+	    device->chipset != 0x4e)
 		cp_ctx(ctx, 0x401b94, 1);
 	cp_ctx(ctx, 0x401b98, 8);
 	gr_def(ctx, 0x401b9c, 0x00ff0000);
@@ -371,12 +371,12 @@ nv40_graph_construct_state3d(struct nouveau_grctx *ctx)
 static void
 nv40_graph_construct_state3d_2(struct nouveau_grctx *ctx)
 {
-	struct drm_nouveau_private *dev_priv = ctx->dev->dev_private;
+	struct nouveau_device *device = ctx->device;
 	int i;
 
 	cp_ctx(ctx, 0x402000, 1);
-	cp_ctx(ctx, 0x402404, dev_priv->chipset == 0x40 ? 1 : 2);
-	switch (dev_priv->chipset) {
+	cp_ctx(ctx, 0x402404, device->chipset == 0x40 ? 1 : 2);
+	switch (device->chipset) {
 	case 0x40:
 		gr_def(ctx, 0x402404, 0x00000001);
 		break;
@@ -393,9 +393,9 @@ nv40_graph_construct_state3d_2(struct nouveau_grctx *ctx)
 	default:
 		gr_def(ctx, 0x402404, 0x00000021);
 	}
-	if (dev_priv->chipset != 0x40)
+	if (device->chipset != 0x40)
 		gr_def(ctx, 0x402408, 0x030c30c3);
-	switch (dev_priv->chipset) {
+	switch (device->chipset) {
 	case 0x44:
 	case 0x46:
 	case 0x4a:
@@ -408,10 +408,10 @@ nv40_graph_construct_state3d_2(struct nouveau_grctx *ctx)
 	default:
 		break;
 	}
-	cp_ctx(ctx, 0x402480, dev_priv->chipset == 0x40 ? 8 : 9);
+	cp_ctx(ctx, 0x402480, device->chipset == 0x40 ? 8 : 9);
 	gr_def(ctx, 0x402488, 0x3e020200);
 	gr_def(ctx, 0x40248c, 0x00ffffff);
-	switch (dev_priv->chipset) {
+	switch (device->chipset) {
 	case 0x40:
 		gr_def(ctx, 0x402490, 0x60103f00);
 		break;
@@ -428,16 +428,16 @@ nv40_graph_construct_state3d_2(struct nouveau_grctx *ctx)
 		gr_def(ctx, 0x402490, 0x0c103f00);
 		break;
 	}
-	gr_def(ctx, 0x40249c, dev_priv->chipset <= 0x43 ?
+	gr_def(ctx, 0x40249c, device->chipset <= 0x43 ?
 			      0x00020000 : 0x00040000);
 	cp_ctx(ctx, 0x402500, 31);
 	gr_def(ctx, 0x402530, 0x00008100);
-	if (dev_priv->chipset == 0x40)
+	if (device->chipset == 0x40)
 		cp_ctx(ctx, 0x40257c, 6);
 	cp_ctx(ctx, 0x402594, 16);
 	cp_ctx(ctx, 0x402800, 17);
 	gr_def(ctx, 0x402800, 0x00000001);
-	switch (dev_priv->chipset) {
+	switch (device->chipset) {
 	case 0x47:
 	case 0x49:
 	case 0x4b:
@@ -445,7 +445,7 @@ nv40_graph_construct_state3d_2(struct nouveau_grctx *ctx)
 		gr_def(ctx, 0x402864, 0x00001001);
 		cp_ctx(ctx, 0x402870, 3);
 		gr_def(ctx, 0x402878, 0x00000003);
-		if (dev_priv->chipset != 0x47) { /* belong at end!! */
+		if (device->chipset != 0x47) { /* belong at end!! */
 			cp_ctx(ctx, 0x402900, 1);
 			cp_ctx(ctx, 0x402940, 1);
 			cp_ctx(ctx, 0x402980, 1);
@@ -470,9 +470,9 @@ nv40_graph_construct_state3d_2(struct nouveau_grctx *ctx)
 	}
 
 	cp_ctx(ctx, 0x402c00, 4);
-	gr_def(ctx, 0x402c00, dev_priv->chipset == 0x40 ?
+	gr_def(ctx, 0x402c00, device->chipset == 0x40 ?
 			      0x80800001 : 0x00888001);
-	switch (dev_priv->chipset) {
+	switch (device->chipset) {
 	case 0x47:
 	case 0x49:
 	case 0x4b:
@@ -485,30 +485,30 @@ nv40_graph_construct_state3d_2(struct nouveau_grctx *ctx)
 		break;
 	default:
 		cp_ctx(ctx, 0x402c10, 4);
-		if (dev_priv->chipset == 0x40)
+		if (device->chipset == 0x40)
 			cp_ctx(ctx, 0x402c20, 36);
 		else
-		if (dev_priv->chipset <= 0x42)
+		if (device->chipset <= 0x42)
 			cp_ctx(ctx, 0x402c20, 24);
 		else
-		if (dev_priv->chipset <= 0x4a)
+		if (device->chipset <= 0x4a)
 			cp_ctx(ctx, 0x402c20, 16);
 		else
 			cp_ctx(ctx, 0x402c20, 8);
-		cp_ctx(ctx, 0x402cb0, dev_priv->chipset == 0x40 ? 12 : 13);
+		cp_ctx(ctx, 0x402cb0, device->chipset == 0x40 ? 12 : 13);
 		gr_def(ctx, 0x402cd4, 0x00000005);
-		if (dev_priv->chipset != 0x40)
+		if (device->chipset != 0x40)
 			gr_def(ctx, 0x402ce0, 0x0000ffff);
 		break;
 	}
 
-	cp_ctx(ctx, 0x403400, dev_priv->chipset == 0x40 ? 4 : 3);
-	cp_ctx(ctx, 0x403410, dev_priv->chipset == 0x40 ? 4 : 3);
-	cp_ctx(ctx, 0x403420, nv40_graph_vs_count(ctx->dev));
-	for (i = 0; i < nv40_graph_vs_count(ctx->dev); i++)
+	cp_ctx(ctx, 0x403400, device->chipset == 0x40 ? 4 : 3);
+	cp_ctx(ctx, 0x403410, device->chipset == 0x40 ? 4 : 3);
+	cp_ctx(ctx, 0x403420, nv40_graph_vs_count(ctx->device));
+	for (i = 0; i < nv40_graph_vs_count(ctx->device); i++)
 		gr_def(ctx, 0x403420 + (i * 4), 0x00005555);
 
-	if (dev_priv->chipset != 0x40) {
+	if (device->chipset != 0x40) {
 		cp_ctx(ctx, 0x403600, 1);
 		gr_def(ctx, 0x403600, 0x00000001);
 	}
@@ -516,7 +516,7 @@ nv40_graph_construct_state3d_2(struct nouveau_grctx *ctx)
 
 	cp_ctx(ctx, 0x403c18, 1);
 	gr_def(ctx, 0x403c18, 0x00000001);
-	switch (dev_priv->chipset) {
+	switch (device->chipset) {
 	case 0x46:
 	case 0x47:
 	case 0x49:
@@ -527,7 +527,7 @@ nv40_graph_construct_state3d_2(struct nouveau_grctx *ctx)
 		gr_def(ctx, 0x405c24, 0x000e3000);
 		break;
 	}
-	if (dev_priv->chipset != 0x4e)
+	if (device->chipset != 0x4e)
 		cp_ctx(ctx, 0x405800, 11);
 	cp_ctx(ctx, 0x407000, 1);
 }
@@ -535,7 +535,7 @@ nv40_graph_construct_state3d_2(struct nouveau_grctx *ctx)
 static void
 nv40_graph_construct_state3d_3(struct nouveau_grctx *ctx)
 {
-	int len = nv44_graph_class(ctx->dev) ? 0x0084 : 0x0684;
+	int len = nv44_graph_class(ctx->device) ? 0x0084 : 0x0684;
 
 	cp_out (ctx, 0x300000);
 	cp_lsr (ctx, len - 4);
@@ -550,32 +550,31 @@ nv40_graph_construct_state3d_3(struct nouveau_grctx *ctx)
 static void
 nv40_graph_construct_shader(struct nouveau_grctx *ctx)
 {
-	struct drm_device *dev = ctx->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_device *device = ctx->device;
 	struct nouveau_gpuobj *obj = ctx->data;
 	int vs, vs_nr, vs_len, vs_nr_b0, vs_nr_b1, b0_offset, b1_offset;
 	int offset, i;
 
-	vs_nr    = nv40_graph_vs_count(ctx->dev);
+	vs_nr    = nv40_graph_vs_count(ctx->device);
 	vs_nr_b0 = 363;
-	vs_nr_b1 = dev_priv->chipset == 0x40 ? 128 : 64;
-	if (dev_priv->chipset == 0x40) {
+	vs_nr_b1 = device->chipset == 0x40 ? 128 : 64;
+	if (device->chipset == 0x40) {
 		b0_offset = 0x2200/4; /* 33a0 */
 		b1_offset = 0x55a0/4; /* 1500 */
 		vs_len = 0x6aa0/4;
 	} else
-	if (dev_priv->chipset == 0x41 || dev_priv->chipset == 0x42) {
+	if (device->chipset == 0x41 || device->chipset == 0x42) {
 		b0_offset = 0x2200/4; /* 2200 */
 		b1_offset = 0x4400/4; /* 0b00 */
 		vs_len = 0x4f00/4;
 	} else {
 		b0_offset = 0x1d40/4; /* 2200 */
 		b1_offset = 0x3f40/4; /* 0b00 : 0a40 */
-		vs_len = nv44_graph_class(dev) ? 0x4980/4 : 0x4a40/4;
+		vs_len = nv44_graph_class(device) ? 0x4980/4 : 0x4a40/4;
 	}
 
 	cp_lsr(ctx, vs_len * vs_nr + 0x300/4);
-	cp_out(ctx, nv44_graph_class(dev) ? 0x800029 : 0x800041);
+	cp_out(ctx, nv44_graph_class(device) ? 0x800029 : 0x800041);
 
 	offset = ctx->ctxvals_pos;
 	ctx->ctxvals_pos += (0x0300/4 + (vs_nr * vs_len));
@@ -661,21 +660,21 @@ nv40_grctx_generate(struct nouveau_grctx *ctx)
 }
 
 void
-nv40_grctx_fill(struct drm_device *dev, struct nouveau_gpuobj *mem)
+nv40_grctx_fill(struct nouveau_device *device, struct nouveau_gpuobj *mem)
 {
 	nv40_grctx_generate(&(struct nouveau_grctx) {
-			     .dev = dev,
+			     .device = device,
 			     .mode = NOUVEAU_GRCTX_VALS,
 			     .data = mem,
 			   });
 }
 
 void
-nv40_grctx_init(struct drm_device *dev, u32 *size)
+nv40_grctx_init(struct nouveau_device *device, u32 *size)
 {
 	u32 ctxprog[256], i;
 	struct nouveau_grctx ctx = {
-		.dev = dev,
+		.device = device,
 		.mode = NOUVEAU_GRCTX_PROG,
 		.data = ctxprog,
 		.ctxprog_max = ARRAY_SIZE(ctxprog)
@@ -683,8 +682,8 @@ nv40_grctx_init(struct drm_device *dev, u32 *size)
 
 	nv40_grctx_generate(&ctx);
 
-	nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_INDEX, 0);
+	nv_wr32(device, 0x400324, 0);
 	for (i = 0; i < ctx.ctxprog_len; i++)
-		nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_DATA, ctxprog[i]);
+		nv_wr32(device, 0x400328, ctxprog[i]);
 	*size = ctx.ctxvals_pos * 4;
 }

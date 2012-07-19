@@ -25,6 +25,18 @@
 #ifndef __NVC0_GRAPH_H__
 #define __NVC0_GRAPH_H__
 
+#include <core/client.h>
+#include <core/handle.h>
+#include <core/gpuobj.h>
+#include <core/option.h>
+
+#include <subdev/fb.h>
+#include <subdev/vm.h>
+#include <subdev/bar.h>
+#include <subdev/timer.h>
+
+#include <engine/graph.h>
+
 #define GPC_MAX 4
 #define TPC_MAX 32
 
@@ -53,7 +65,7 @@ struct nvc0_graph_fuc {
 };
 
 struct nvc0_graph_priv {
-	struct nouveau_exec_engine base;
+	struct nouveau_graph base;
 
 	struct nvc0_graph_fuc fuc409c;
 	struct nvc0_graph_fuc fuc409d;
@@ -78,11 +90,10 @@ struct nvc0_graph_priv {
 };
 
 struct nvc0_graph_chan {
-	struct nouveau_gpuobj *grctx;
-	struct nouveau_vma     grctx_vma;
+	struct nouveau_graph_chan base;
 
 	struct nouveau_gpuobj *mmio;
-	struct nouveau_vma     mmio_vma;
+	struct nouveau_vma mmio_vma;
 	int mmio_nr;
 	struct {
 		struct nouveau_gpuobj *mem;
@@ -91,11 +102,11 @@ struct nvc0_graph_chan {
 };
 
 static inline u32
-nvc0_graph_class(struct drm_device *priv)
+nvc0_graph_class(void *obj)
 {
-	struct drm_nouveau_private *dev_priv = priv->dev_private;
+	struct nouveau_device *device = nv_device(obj);
 
-	switch (dev_priv->chipset) {
+	switch (device->chipset) {
 	case 0xc0:
 	case 0xc3:
 	case 0xc4:
@@ -115,17 +126,16 @@ nvc0_graph_class(struct drm_device *priv)
 	}
 }
 
-void nv_icmd(struct drm_device *priv, u32 icmd, u32 data);
+void nv_icmd(struct nvc0_graph_priv *priv, u32 icmd, u32 data);
 
 static inline void
-nv_mthd(struct drm_device *priv, u32 class, u32 mthd, u32 data)
+nv_mthd(struct nvc0_graph_priv *priv, u32 class, u32 mthd, u32 data)
 {
 	nv_wr32(priv, 0x40448c, data);
 	nv_wr32(priv, 0x404488, 0x80000000 | (mthd << 14) | class);
 }
 
 struct nvc0_grctx {
-	struct drm_device *dev;
 	struct nvc0_graph_priv *priv;
 	struct nvc0_graph_data *data;
 	struct nvc0_graph_mmio *mmio;
@@ -135,18 +145,18 @@ struct nvc0_grctx {
 	u64 addr;
 };
 
-int  nvc0_grctx_generate(struct drm_device *);
-int  nvc0_grctx_init(struct drm_device *, struct nvc0_graph_priv *,
-		     struct nvc0_grctx *);
+int  nvc0_grctx_generate(struct nvc0_graph_priv *);
+int  nvc0_grctx_init(struct nvc0_graph_priv *, struct nvc0_grctx *);
 void nvc0_grctx_data(struct nvc0_grctx *, u32, u32, u32);
 void nvc0_grctx_mmio(struct nvc0_grctx *, u32, u32, u32, u32);
 int  nvc0_grctx_fini(struct nvc0_grctx *);
 
-int  nve0_grctx_generate(struct drm_device *);
+int  nve0_grctx_generate(struct nvc0_graph_priv *);
 
 #define mmio_data(s,a,p) nvc0_grctx_data(&info, (s), (a), (p))
 #define mmio_list(r,d,s,b) nvc0_grctx_mmio(&info, (r), (d), (s), (b))
 
+void nvc0_graph_ctxctl_debug(struct nvc0_graph_priv *);
 int  nvc0_graph_ctor_fw(struct nvc0_graph_priv *, const char *,
 			struct nvc0_graph_fuc *);
 void nvc0_graph_dtor(struct nouveau_object *);
@@ -156,10 +166,5 @@ int  nvc0_graph_context_ctor(struct nouveau_object *, struct nouveau_object *,
 			     struct nouveau_oclass *, void *, u32,
 			     struct nouveau_object **);
 void nvc0_graph_context_dtor(struct nouveau_object *);
-
-void nvc0_graph_ctxctl_debug(struct drm_device *);
-
-int  nvc0_graph_context_new(struct nouveau_channel *, int);
-void nvc0_graph_context_del(struct nouveau_channel *, int);
 
 #endif

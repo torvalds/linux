@@ -2,12 +2,8 @@
 #define __NOUVEAU_BO_H__
 
 struct nouveau_channel;
+struct nouveau_fence;
 struct nouveau_vma;
-
-struct nouveau_tile_reg {
-	bool used;
-	struct nouveau_fence *fence;
-};
 
 struct nouveau_bo {
 	struct ttm_buffer_object bo;
@@ -29,7 +25,7 @@ struct nouveau_bo {
 
 	u32 tile_mode;
 	u32 tile_flags;
-	struct nouveau_tile_reg *tile;
+	struct nouveau_drm_tile *tile;
 
 	struct drm_gem_object *gem;
 	int pin_refcnt;
@@ -88,5 +84,16 @@ nouveau_bo_vma_find(struct nouveau_bo *, struct nouveau_vm *);
 int  nouveau_bo_vma_add(struct nouveau_bo *, struct nouveau_vm *,
 			struct nouveau_vma *);
 void nouveau_bo_vma_del(struct nouveau_bo *, struct nouveau_vma *);
+
+/* TODO: submit equivalent to TTM generic API upstream? */
+static inline void __iomem *
+nvbo_kmap_obj_iovirtual(struct nouveau_bo *nvbo)
+{
+	bool is_iomem;
+	void __iomem *ioptr = (void __force __iomem *)ttm_kmap_obj_virtual(
+						&nvbo->kmap, &is_iomem);
+	WARN_ON_ONCE(ioptr && !is_iomem);
+	return ioptr;
+}
 
 #endif

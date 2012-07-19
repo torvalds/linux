@@ -22,13 +22,15 @@
  * Authors: Ben Skeggs
  */
 
-#include "drmP.h"
-#include "nouveau_drv.h"
-#include "nouveau_dma.h"
+#include <core/object.h>
+#include <core/client.h>
+#include <core/class.h>
+
 #include <engine/fifo.h>
-#include <core/ramht.h>
+
+#include "nouveau_drm.h"
+#include "nouveau_dma.h"
 #include "nouveau_fence.h"
-#include "nv50_display.h"
 
 struct nvc0_fence_priv {
 	struct nouveau_fence_priv base;
@@ -54,7 +56,8 @@ nvc0_fence_emit(struct nouveau_fence *fence)
 {
 	struct nouveau_channel *chan = fence->channel;
 	struct nvc0_fence_chan *fctx = chan->fence;
-	u64 addr = fctx->vma.offset + chan->id * 16;
+	struct nouveau_fifo_chan *fifo = (void *)chan->object;
+	u64 addr = fctx->vma.offset + fifo->chid * 16;
 	int ret;
 
 	ret = RING_SPACE(chan, 5);
@@ -75,7 +78,8 @@ nvc0_fence_sync(struct nouveau_fence *fence,
 		struct nouveau_channel *prev, struct nouveau_channel *chan)
 {
 	struct nvc0_fence_chan *fctx = chan->fence;
-	u64 addr = fctx->vma.offset + prev->id * 16;
+	struct nouveau_fifo_chan *fifo = (void *)prev->object;
+	u64 addr = fctx->vma.offset + fifo->chid * 16;
 	int ret;
 
 	ret = RING_SPACE(chan, 5);
@@ -95,31 +99,29 @@ nvc0_fence_sync(struct nouveau_fence *fence,
 static u32
 nvc0_fence_read(struct nouveau_channel *chan)
 {
-	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
-	struct nvc0_fence_priv *priv = dev_priv->fence.func;
-	return nouveau_bo_rd32(priv->bo, chan->id * 16/4);
+	struct nouveau_fifo_chan *fifo = (void *)chan->object;
+	struct nvc0_fence_priv *priv = chan->drm->fence;
+	return nouveau_bo_rd32(priv->bo, fifo->chid * 16/4);
 }
 
 static void
 nvc0_fence_context_del(struct nouveau_channel *chan)
 {
-	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvc0_fence_priv *priv = dev_priv->fence.func;
+	struct drm_device *dev = chan->drm->dev;
+	struct nvc0_fence_priv *priv = chan->drm->fence;
 	struct nvc0_fence_chan *fctx = chan->fence;
 	int i;
 
-	if (dev_priv->card_type >= NV_D0) {
+	if (nv_device(chan->drm->device)->card_type >= NV_D0) {
 		for (i = 0; i < dev->mode_config.num_crtc; i++) {
-			struct nouveau_bo *bo = nvd0_display_crtc_sema(dev, i);
+			struct nouveau_bo *bo = nvd0sema(dev, i);
 			nouveau_bo_vma_del(bo, &fctx->dispc_vma[i]);
 		}
 	} else
-	if (dev_priv->card_type >= NV_50) {
-		struct nv50_display *disp = nv50_display(dev);
+	if (nv_device(chan->drm->device)->card_type >= NV_50) {
 		for (i = 0; i < dev->mode_config.num_crtc; i++) {
-			struct nv50_display_crtc *dispc = &disp->crtc[i];
-			nouveau_bo_vma_del(dispc->sem.bo, &fctx->dispc_vma[i]);
+			struct nouveau_bo *bo = nv50sema(dev, i);
+			nouveau_bo_vma_del(bo, &fctx->dispc_vma[i]);
 		}
 	}
 
@@ -132,9 +134,9 @@ nvc0_fence_context_del(struct nouveau_channel *chan)
 static int
 nvc0_fence_context_new(struct nouveau_channel *chan)
 {
-	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvc0_fence_priv *priv = dev_priv->fence.func;
+	struct nouveau_fifo_chan *fifo = (void *)chan->object;
+	struct nouveau_client *client = nouveau_client(fifo);
+	struct nvc0_fence_priv *priv = chan->drm->fence;
 	struct nvc0_fence_chan *fctx;
 	int ret, i;
 
@@ -144,36 +146,35 @@ nvc0_fence_context_new(struct nouveau_channel *chan)
 
 	nouveau_fence_context_new(&fctx->base);
 
-	ret = nouveau_bo_vma_add(priv->bo, chan->vm, &fctx->vma);
+	ret = nouveau_bo_vma_add(priv->bo, client->vm, &fctx->vma);
 	if (ret)
 		nvc0_fence_context_del(chan);
 
 	/* map display semaphore buffers into channel's vm */
-	for (i = 0; !ret && i < dev->mode_config.num_crtc; i++) {
+	for (i = 0; !ret && i < chan->drm->dev->mode_config.num_crtc; i++) {
 		struct nouveau_bo *bo;
-		if (dev_priv->card_type >= NV_D0)
-			bo = nvd0_display_crtc_sema(dev, i);
+		if (nv_device(chan->drm->device)->card_type >= NV_D0)
+			bo = nvd0sema(chan->drm->dev, i);
 		else
-			bo = nv50_display(dev)->crtc[i].sem.bo;
+			bo = nv50sema(chan->drm->dev, i);
 
-		ret = nouveau_bo_vma_add(bo, chan->vm, &fctx->dispc_vma[i]);
+		ret = nouveau_bo_vma_add(bo, client->vm, &fctx->dispc_vma[i]);
 	}
 
-	nouveau_bo_wr32(priv->bo, chan->id * 16/4, 0x00000000);
+	nouveau_bo_wr32(priv->bo, fifo->chid * 16/4, 0x00000000);
 	return ret;
 }
 
 static bool
-nvc0_fence_suspend(struct drm_device *dev)
+nvc0_fence_suspend(struct nouveau_drm *drm)
 {
-	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvc0_fence_priv *priv = dev_priv->fence.func;
+	struct nouveau_fifo *pfifo = nouveau_fifo(drm->device);
+	struct nvc0_fence_priv *priv = drm->fence;
 	int i;
 
-	priv->suspend = vmalloc(pfifo->channels * sizeof(u32));
+	priv->suspend = vmalloc((pfifo->max + 1) * sizeof(u32));
 	if (priv->suspend) {
-		for (i = 0; i < pfifo->channels; i++)
+		for (i = 0; i <= pfifo->max; i++)
 			priv->suspend[i] = nouveau_bo_rd32(priv->bo, i);
 	}
 
@@ -181,15 +182,14 @@ nvc0_fence_suspend(struct drm_device *dev)
 }
 
 static void
-nvc0_fence_resume(struct drm_device *dev)
+nvc0_fence_resume(struct nouveau_drm *drm)
 {
-	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvc0_fence_priv *priv = dev_priv->fence.func;
+	struct nouveau_fifo *pfifo = nouveau_fifo(drm->device);
+	struct nvc0_fence_priv *priv = drm->fence;
 	int i;
 
 	if (priv->suspend) {
-		for (i = 0; i < pfifo->channels; i++)
+		for (i = 0; i <= pfifo->max; i++)
 			nouveau_bo_wr32(priv->bo, i, priv->suspend[i]);
 		vfree(priv->suspend);
 		priv->suspend = NULL;
@@ -197,26 +197,23 @@ nvc0_fence_resume(struct drm_device *dev)
 }
 
 static void
-nvc0_fence_destroy(struct drm_device *dev)
+nvc0_fence_destroy(struct nouveau_drm *drm)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvc0_fence_priv *priv = dev_priv->fence.func;
-
+	struct nvc0_fence_priv *priv = drm->fence;
 	nouveau_bo_unmap(priv->bo);
 	nouveau_bo_ref(NULL, &priv->bo);
-	dev_priv->fence.func = NULL;
+	drm->fence = NULL;
 	kfree(priv);
 }
 
 int
-nvc0_fence_create(struct drm_device *dev)
+nvc0_fence_create(struct nouveau_drm *drm)
 {
-	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fifo *pfifo = nouveau_fifo(drm->device);
 	struct nvc0_fence_priv *priv;
 	int ret;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = drm->fence = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -228,10 +225,9 @@ nvc0_fence_create(struct drm_device *dev)
 	priv->base.emit = nvc0_fence_emit;
 	priv->base.sync = nvc0_fence_sync;
 	priv->base.read = nvc0_fence_read;
-	dev_priv->fence.func = priv;
 
-	ret = nouveau_bo_new(dev, 16 * pfifo->channels, 0, TTM_PL_FLAG_VRAM,
-			     0, 0, NULL, &priv->bo);
+	ret = nouveau_bo_new(drm->dev, 16 * (pfifo->max + 1), 0,
+			     TTM_PL_FLAG_VRAM, 0, 0, NULL, &priv->bo);
 	if (ret == 0) {
 		ret = nouveau_bo_pin(priv->bo, TTM_PL_FLAG_VRAM);
 		if (ret == 0)
@@ -241,6 +237,6 @@ nvc0_fence_create(struct drm_device *dev)
 	}
 
 	if (ret)
-		nvc0_fence_destroy(dev);
+		nvc0_fence_destroy(drm);
 	return ret;
 }

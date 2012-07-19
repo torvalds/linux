@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat Inc.
+ * Copyright 2012 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,99 +22,106 @@
  * Authors: Ben Skeggs
  */
 
-#include "drmP.h"
-#include "nouveau_drv.h"
-#include "nouveau_util.h"
-#include <core/ramht.h>
+#include <core/os.h>
+#include <core/enum.h>
+#include <core/class.h>
+#include <core/engctx.h>
+#include <core/gpuobj.h>
 
-struct nv84_crypt_engine {
-	struct nouveau_exec_engine base;
+#include <subdev/fb.h>
+
+#include <engine/crypt.h>
+
+struct nv84_crypt_priv {
+	struct nouveau_crypt base;
 };
 
+struct nv84_crypt_chan {
+	struct nouveau_crypt_chan base;
+};
+
+/*******************************************************************************
+ * Crypt object classes
+ ******************************************************************************/
+
 static int
-nv84_crypt_context_new(struct nouveau_channel *chan, int engine)
+nv84_crypt_object_ctor(struct nouveau_object *parent,
+		       struct nouveau_object *engine,
+		       struct nouveau_oclass *oclass, void *data, u32 size,
+		       struct nouveau_object **pobject)
 {
-	struct drm_device *dev = chan->dev;
-	struct nouveau_gpuobj *ramin = chan->ramin;
-	struct nouveau_gpuobj *ctx;
+	struct nouveau_gpuobj *obj;
 	int ret;
 
-	NV_DEBUG(dev, "ch%d\n", chan->id);
-
-	ret = nouveau_gpuobj_new(dev, chan, 256, 0, NVOBJ_FLAG_ZERO_ALLOC |
-				 NVOBJ_FLAG_ZERO_FREE, &ctx);
+	ret = nouveau_gpuobj_create(parent, engine, oclass, 0, parent,
+				    16, 16, 0, &obj);
+	*pobject = nv_object(obj);
 	if (ret)
 		return ret;
 
-	nv_wo32(ramin, 0xa0, 0x00190000);
-	nv_wo32(ramin, 0xa4, ctx->addr + ctx->size - 1);
-	nv_wo32(ramin, 0xa8, ctx->addr);
-	nv_wo32(ramin, 0xac, 0);
-	nv_wo32(ramin, 0xb0, 0);
-	nv_wo32(ramin, 0xb4, 0);
-	nvimem_flush(dev);
-
-	nvvm_engref(chan->vm, engine, 1);
-	chan->engctx[engine] = ctx;
+	nv_wo32(obj, 0x00, nv_mclass(obj));
+	nv_wo32(obj, 0x04, 0x00000000);
+	nv_wo32(obj, 0x08, 0x00000000);
+	nv_wo32(obj, 0x0c, 0x00000000);
 	return 0;
 }
 
-static void
-nv84_crypt_context_del(struct nouveau_channel *chan, int engine)
-{
-	struct nouveau_gpuobj *ctx = chan->engctx[engine];
-	struct drm_device *dev = chan->dev;
-	u32 inst;
+static struct nouveau_ofuncs
+nv84_crypt_ofuncs = {
+	.ctor = nv84_crypt_object_ctor,
+	.dtor = _nouveau_gpuobj_dtor,
+	.init = _nouveau_gpuobj_init,
+	.fini = _nouveau_gpuobj_fini,
+	.rd32 = _nouveau_gpuobj_rd32,
+	.wr32 = _nouveau_gpuobj_wr32,
+};
 
-	inst  = (chan->ramin->addr >> 12);
-	inst |= 0x80000000;
+static struct nouveau_oclass
+nv84_crypt_sclass[] = {
+	{ 0x74c1, &nv84_crypt_ofuncs },
+	{}
+};
 
-	/* mark context as invalid if still on the hardware, not
-	 * doing this causes issues the next time PCRYPT is used,
-	 * unsurprisingly :)
-	 */
-	nv_wr32(dev, 0x10200c, 0x00000000);
-	if (nv_rd32(dev, 0x102188) == inst)
-		nv_mask(dev, 0x102188, 0x80000000, 0x00000000);
-	if (nv_rd32(dev, 0x10218c) == inst)
-		nv_mask(dev, 0x10218c, 0x80000000, 0x00000000);
-	nv_wr32(dev, 0x10200c, 0x00000010);
-
-	nouveau_gpuobj_ref(NULL, &ctx);
-
-	nvvm_engref(chan->vm, engine, -1);
-	chan->engctx[engine] = NULL;
-}
+/*******************************************************************************
+ * PCRYPT context
+ ******************************************************************************/
 
 static int
-nv84_crypt_object_new(struct nouveau_channel *chan, int engine,
-		      u32 handle, u16 class)
+nv84_crypt_context_ctor(struct nouveau_object *parent,
+			struct nouveau_object *engine,
+			struct nouveau_oclass *oclass, void *data, u32 size,
+			struct nouveau_object **pobject)
 {
-	struct drm_device *dev = chan->dev;
-	struct nouveau_gpuobj *obj = NULL;
+	struct nv84_crypt_chan *priv;
 	int ret;
 
-	ret = nouveau_gpuobj_new(dev, chan, 16, 16, NVOBJ_FLAG_ZERO_FREE, &obj);
+	ret = nouveau_crypt_context_create(parent, engine, oclass, NULL, 256,
+					   0, NVOBJ_FLAG_ZERO_ALLOC, &priv);
+	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
-	obj->engine = 5;
-	obj->class  = class;
 
-	nv_wo32(obj, 0x00, class);
-	nvimem_flush(dev);
-
-	ret = nouveau_ramht_insert(chan, handle, obj);
-	nouveau_gpuobj_ref(NULL, &obj);
-	return ret;
+	return 0;
 }
 
-static void
-nv84_crypt_tlb_flush(struct drm_device *dev, int engine)
-{
-	nv50_vm_flush_engine(dev, 0x0a);
-}
+static struct nouveau_oclass
+nv84_crypt_cclass = {
+	.handle = NV_ENGCTX(CRYPT, 0x84),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv84_crypt_context_ctor,
+		.dtor = _nouveau_crypt_context_dtor,
+		.init = _nouveau_crypt_context_init,
+		.fini = _nouveau_crypt_context_fini,
+		.rd32 = _nouveau_crypt_context_rd32,
+		.wr32 = _nouveau_crypt_context_wr32,
+	},
+};
 
-static struct nouveau_bitfield nv84_crypt_intr[] = {
+/*******************************************************************************
+ * PCRYPT engine/subdev functions
+ ******************************************************************************/
+
+static struct nouveau_bitfield nv84_crypt_intr_mask[] = {
 	{ 0x00000001, "INVALID_STATE" },
 	{ 0x00000002, "ILLEGAL_MTHD" },
 	{ 0x00000004, "ILLEGAL_CLASS" },
@@ -124,79 +131,78 @@ static struct nouveau_bitfield nv84_crypt_intr[] = {
 };
 
 static void
-nv84_crypt_isr(struct drm_device *dev)
+nv84_crypt_intr(struct nouveau_subdev *subdev)
 {
-	u32 stat = nv_rd32(dev, 0x102130);
-	u32 mthd = nv_rd32(dev, 0x102190);
-	u32 data = nv_rd32(dev, 0x102194);
-	u64 inst = (u64)(nv_rd32(dev, 0x102188) & 0x7fffffff) << 12;
-	int show = nouveau_ratelimit();
-	int chid = nv50_graph_isr_chid(dev, inst);
+	struct nv84_crypt_priv *priv = (void *)subdev;
+	u32 stat = nv_rd32(priv, 0x102130);
+	u32 mthd = nv_rd32(priv, 0x102190);
+	u32 data = nv_rd32(priv, 0x102194);
+	u32 inst = nv_rd32(priv, 0x102188) & 0x7fffffff;
 
-	if (show) {
-		NV_INFO(dev, "PCRYPT:");
-		nouveau_bitfield_print(nv84_crypt_intr, stat);
-		printk(KERN_CONT " ch %d (0x%010llx) mthd 0x%04x data 0x%08x\n",
-			chid, inst, mthd, data);
+	if (stat) {
+		nv_error(priv, "");
+		nouveau_bitfield_print(nv84_crypt_intr_mask, stat);
+		printk(" ch 0x%010llx mthd 0x%04x data 0x%08x\n",
+		       (u64)inst << 12, mthd, data);
 	}
 
-	nv_wr32(dev, 0x102130, stat);
-	nv_wr32(dev, 0x10200c, 0x10);
+	nv_wr32(priv, 0x102130, stat);
+	nv_wr32(priv, 0x10200c, 0x10);
 
-	nv50_fb_vm_trap(dev, show);
+	nv50_fb_trap(nouveau_fb(priv), 1);
 }
 
 static int
-nv84_crypt_fini(struct drm_device *dev, int engine, bool suspend)
+nv84_crypt_tlb_flush(struct nouveau_engine *engine)
 {
-	nv_wr32(dev, 0x102140, 0x00000000);
+	nv50_vm_flush_engine(&engine->base, 0x0a);
 	return 0;
 }
 
 static int
-nv84_crypt_init(struct drm_device *dev, int engine)
+nv84_crypt_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+	       struct nouveau_oclass *oclass, void *data, u32 size,
+	       struct nouveau_object **pobject)
 {
-	nv_mask(dev, 0x000200, 0x00004000, 0x00000000);
-	nv_mask(dev, 0x000200, 0x00004000, 0x00004000);
+	struct nv84_crypt_priv *priv;
+	int ret;
 
-	nv_wr32(dev, 0x102130, 0xffffffff);
-	nv_wr32(dev, 0x102140, 0xffffffbf);
+	ret = nouveau_crypt_create(parent, engine, oclass, &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
 
-	nv_wr32(dev, 0x10200c, 0x00000010);
+	nv_subdev(priv)->unit = 0x00004000;
+	nv_subdev(priv)->intr = nv84_crypt_intr;
+	nv_engine(priv)->cclass = &nv84_crypt_cclass;
+	nv_engine(priv)->sclass = nv84_crypt_sclass;
+	nv_engine(priv)->tlb_flush = nv84_crypt_tlb_flush;
 	return 0;
 }
 
-static void
-nv84_crypt_destroy(struct drm_device *dev, int engine)
+static int
+nv84_crypt_init(struct nouveau_object *object)
 {
-	struct nv84_crypt_engine *pcrypt = nv_engine(dev, engine);
+	struct nv84_crypt_priv *priv = (void *)object;
+	int ret;
 
-	NVOBJ_ENGINE_DEL(dev, CRYPT);
+	ret = nouveau_crypt_init(&priv->base);
+	if (ret)
+		return ret;
 
-	nouveau_irq_unregister(dev, 14);
-	kfree(pcrypt);
-}
-
-int
-nv84_crypt_create(struct drm_device *dev)
-{
-	struct nv84_crypt_engine *pcrypt;
-
-	pcrypt = kzalloc(sizeof(*pcrypt), GFP_KERNEL);
-	if (!pcrypt)
-		return -ENOMEM;
-
-	pcrypt->base.destroy = nv84_crypt_destroy;
-	pcrypt->base.init = nv84_crypt_init;
-	pcrypt->base.fini = nv84_crypt_fini;
-	pcrypt->base.context_new = nv84_crypt_context_new;
-	pcrypt->base.context_del = nv84_crypt_context_del;
-	pcrypt->base.object_new = nv84_crypt_object_new;
-	pcrypt->base.tlb_flush = nv84_crypt_tlb_flush;
-
-	nouveau_irq_register(dev, 14, nv84_crypt_isr);
-
-	NVOBJ_ENGINE_ADD(dev, CRYPT, &pcrypt->base);
-	NVOBJ_CLASS (dev, 0x74c1, CRYPT);
+	nv_wr32(priv, 0x102130, 0xffffffff);
+	nv_wr32(priv, 0x102140, 0xffffffbf);
+	nv_wr32(priv, 0x10200c, 0x00000010);
 	return 0;
 }
+
+struct nouveau_oclass
+nv84_crypt_oclass = {
+	.handle = NV_ENGINE(CRYPT, 0x84),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv84_crypt_ctor,
+		.dtor = _nouveau_crypt_dtor,
+		.init = nv84_crypt_init,
+		.fini = _nouveau_crypt_fini,
+	},
+};

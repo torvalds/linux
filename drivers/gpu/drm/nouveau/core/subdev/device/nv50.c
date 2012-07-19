@@ -35,6 +35,18 @@
 #include <subdev/vm.h>
 #include <subdev/bar.h>
 
+#include <engine/dmaobj.h>
+#include <engine/fifo.h>
+#include <engine/software.h>
+#include <engine/graph.h>
+#include <engine/mpeg.h>
+#include <engine/vp.h>
+#include <engine/crypt.h>
+#include <engine/bsp.h>
+#include <engine/ppp.h>
+#include <engine/copy.h>
+#include <engine/disp.h>
+
 int
 nv50_identify(struct nouveau_device *device)
 {
@@ -51,6 +63,12 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv50_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv50_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
+		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv50_mpeg_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0x84:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -64,6 +82,15 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv84_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv50_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
+		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv84_mpeg_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_CRYPT  ] = &nv84_crypt_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0x86:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -77,6 +104,15 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv84_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv50_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
+		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv84_mpeg_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_CRYPT  ] = &nv84_crypt_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0x92:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -90,6 +126,15 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv84_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv50_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
+		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv84_mpeg_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_CRYPT  ] = &nv84_crypt_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0x94:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -103,6 +148,15 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv84_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv50_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
+		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv84_mpeg_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_CRYPT  ] = &nv84_crypt_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0x96:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -116,6 +170,15 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv84_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv50_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
+		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv84_mpeg_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_CRYPT  ] = &nv84_crypt_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0x98:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -129,6 +192,15 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv84_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv50_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_CRYPT  ] = &nv98_crypt_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xa0:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -142,6 +214,15 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv84_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv50_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
+		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv84_mpeg_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_CRYPT  ] = &nv84_crypt_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xaa:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -155,6 +236,15 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv84_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv50_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_CRYPT  ] = &nv98_crypt_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xac:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -168,6 +258,15 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv84_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv50_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_CRYPT  ] = &nv98_crypt_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xa3:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -181,6 +280,16 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv84_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv50_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
+		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv84_mpeg_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_COPY0  ] = &nva3_copy_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xa5:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -194,6 +303,15 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv84_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv50_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_COPY0  ] = &nva3_copy_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xa8:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -207,6 +325,15 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv84_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv50_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_COPY0  ] = &nva3_copy_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xaf:
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
@@ -220,6 +347,15 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv50_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv84_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nv50_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv50_graph_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nv84_vp_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nv84_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_COPY0  ] = &nva3_copy_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Tesla chipset\n");

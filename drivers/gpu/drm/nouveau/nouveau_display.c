@@ -33,9 +33,9 @@
 #include "nouveau_crtc.h"
 #include "nouveau_dma.h"
 #include "nouveau_connector.h"
-#include "nouveau_software.h"
-#include "nouveau_fence.h"
 #include "nv50_display.h"
+
+#include "nouveau_fence.h"
 
 #include <subdev/bios/gpio.h>
 
@@ -260,6 +260,24 @@ nouveau_display_fini(struct drm_device *dev)
 	disp->fini(dev);
 }
 
+static void
+nouveau_display_vblank_notify(void *data, int crtc)
+{
+	drm_handle_vblank(data, crtc);
+}
+
+static void
+nouveau_display_vblank_get(void *data, int crtc)
+{
+	drm_vblank_get(data, crtc);
+}
+
+static void
+nouveau_display_vblank_put(void *data, int crtc)
+{
+	drm_vblank_put(data, crtc);
+}
+
 int
 nouveau_display_create(struct drm_device *dev)
 {
@@ -365,6 +383,10 @@ nouveau_vblank_enable(struct drm_device *dev, int crtc)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
+	if (dev_priv->card_type >= NV_D0)
+		nv_mask(dev, 0x6100c0 + (crtc * 0x800), 1, 1);
+	else
+
 	if (dev_priv->card_type >= NV_50)
 		nv_mask(dev, NV50_PDISPLAY_INTR_EN_1, 0,
 			NV50_PDISPLAY_INTR_EN_1_VBLANK_CRTC_(crtc));
@@ -380,6 +402,9 @@ nouveau_vblank_disable(struct drm_device *dev, int crtc)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
+	if (dev_priv->card_type >= NV_D0)
+		nv_mask(dev, 0x6100c0 + (crtc * 0x800), 1, 0);
+	else
 	if (dev_priv->card_type >= NV_50)
 		nv_mask(dev, NV50_PDISPLAY_INTR_EN_1,
 			NV50_PDISPLAY_INTR_EN_1_VBLANK_CRTC_(crtc), 0);
@@ -436,8 +461,8 @@ nouveau_page_flip_emit(struct nouveau_channel *chan,
 		       struct nouveau_fence **pfence)
 {
 	struct nouveau_fence_chan *fctx = chan->fence;
-	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
-	struct drm_device *dev = chan->dev;
+	struct drm_device *dev = nouveau_drv(chan->drm);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	unsigned long flags;
 	int ret;
 
@@ -492,7 +517,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nouveau_fence *fence;
 	int ret;
 
-	if (!dev_priv->channel)
+	if (!nvdrm_channel(dev))
 		return -ENODEV;
 
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
@@ -513,10 +538,10 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	/* Choose the channel the flip will be handled in */
 	fence = new_bo->bo.sync_obj;
 	if (fence)
-		chan = nouveau_channel_get_unlocked(fence->channel);
+		chan = fence->channel;
 	if (!chan)
-		chan = nouveau_channel_get_unlocked(dev_priv->channel);
-	mutex_lock(&chan->mutex);
+		chan = nvdrm_channel(dev);
+	mutex_lock(nvchan_mutex(chan));
 
 	/* Emit a page flip */
 	if (dev_priv->card_type >= NV_50) {
@@ -525,13 +550,13 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		else
 			ret = nv50_display_flip_next(crtc, fb, chan);
 		if (ret) {
-			nouveau_channel_put(&chan);
+			mutex_unlock(nvchan_mutex(chan));
 			goto fail_unreserve;
 		}
 	}
 
 	ret = nouveau_page_flip_emit(chan, old_bo, new_bo, s, &fence);
-	nouveau_channel_put(&chan);
+	mutex_unlock(nvchan_mutex(chan));
 	if (ret)
 		goto fail_unreserve;
 
@@ -554,14 +579,14 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 			 struct nouveau_page_flip_state *ps)
 {
 	struct nouveau_fence_chan *fctx = chan->fence;
-	struct drm_device *dev = chan->dev;
+	struct drm_device *dev = nouveau_drv(chan->drm);
 	struct nouveau_page_flip_state *s;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 
 	if (list_empty(&fctx->flip)) {
-		NV_ERROR(dev, "Unexpected pageflip in channel %d.\n", chan->id);
+		NV_ERROR(dev, "unexpected pageflip\n");
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		return -EINVAL;
 	}
@@ -592,7 +617,7 @@ int
 nouveau_flip_complete(void *data)
 {
 	struct nouveau_channel *chan = data;
-	struct drm_device *dev = chan->dev;
+	struct drm_device *dev = nouveau_drv(chan->drm);
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_page_flip_state state;
 

@@ -13,7 +13,6 @@
 #include "drm_crtc_helper.h"
 #include "nouveau_drv.h"
 #include <nouveau_drm.h>
-#include "nv50_display.h"
 #include "nouveau_connector.h"
 
 #include <linux/vga_switcheroo.h>

@@ -27,10 +27,10 @@
 #ifndef __NOUVEAU_DMA_H__
 #define __NOUVEAU_DMA_H__
 
-#ifndef NOUVEAU_DMA_DEBUG
-#define NOUVEAU_DMA_DEBUG 0
-#endif
+#include "nouveau_bo.h"
+#include "nouveau_chan.h"
 
+int nouveau_dma_wait(struct nouveau_channel *, int slots, int size);
 void nv50_dma_push(struct nouveau_channel *, struct nouveau_bo *,
 		   int delta, int length);
 
@@ -116,12 +116,7 @@ RING_SPACE(struct nouveau_channel *chan, int size)
 static inline void
 OUT_RING(struct nouveau_channel *chan, int data)
 {
-	if (NOUVEAU_DMA_DEBUG) {
-		NV_INFO(chan->dev, "Ch%d/0x%08x: 0x%08x\n",
-			chan->id, chan->dma.cur << 2, data);
-	}
-
-	nouveau_bo_wr32(chan->pushbuf_bo, chan->dma.cur++, data);
+	nouveau_bo_wr32(chan->push.buffer, chan->dma.cur++, data);
 }
 
 extern void
@@ -159,24 +154,19 @@ BEGIN_IMC0(struct nouveau_channel *chan, int subc, int mthd, u16 data)
 
 #define WRITE_PUT(val) do {                                                    \
 	DRM_MEMORYBARRIER();                                                   \
-	nouveau_bo_rd32(chan->pushbuf_bo, 0);                                  \
-	nvchan_wr32(chan, chan->user_put, ((val) << 2) + chan->pushbuf_base);  \
+	nouveau_bo_rd32(chan->push.buffer, 0);                                 \
+	nv_wo32(chan->object, chan->user_put, ((val) << 2) + chan->push.vma.offset);  \
 } while (0)
 
 static inline void
 FIRE_RING(struct nouveau_channel *chan)
 {
-	if (NOUVEAU_DMA_DEBUG) {
-		NV_INFO(chan->dev, "Ch%d/0x%08x: PUSH!\n",
-			chan->id, chan->dma.cur << 2);
-	}
-
 	if (chan->dma.cur == chan->dma.put)
 		return;
 	chan->accel_done = true;
 
 	if (chan->dma.ib_max) {
-		nv50_dma_push(chan, chan->pushbuf_bo, chan->dma.put << 2,
+		nv50_dma_push(chan, chan->push.buffer, chan->dma.put << 2,
 			      (chan->dma.cur - chan->dma.put) << 2);
 	} else {
 		WRITE_PUT(chan->dma.cur);
@@ -190,5 +180,32 @@ WIND_RING(struct nouveau_channel *chan)
 {
 	chan->dma.cur = chan->dma.put;
 }
+
+/* FIFO methods */
+#define NV01_SUBCHAN_OBJECT                                          0x00000000
+#define NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH                          0x00000010
+#define NV84_SUBCHAN_SEMAPHORE_ADDRESS_LOW                           0x00000014
+#define NV84_SUBCHAN_SEMAPHORE_SEQUENCE                              0x00000018
+#define NV84_SUBCHAN_SEMAPHORE_TRIGGER                               0x0000001c
+#define NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_EQUAL                 0x00000001
+#define NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG                    0x00000002
+#define NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_GEQUAL                0x00000004
+#define NVC0_SUBCHAN_SEMAPHORE_TRIGGER_YIELD                         0x00001000
+#define NV84_SUBCHAN_NOTIFY_INTR                                     0x00000020
+#define NV84_SUBCHAN_WRCACHE_FLUSH                                   0x00000024
+#define NV10_SUBCHAN_REF_CNT                                         0x00000050
+#define NVSW_SUBCHAN_PAGE_FLIP                                       0x00000054
+#define NV11_SUBCHAN_DMA_SEMAPHORE                                   0x00000060
+#define NV11_SUBCHAN_SEMAPHORE_OFFSET                                0x00000064
+#define NV11_SUBCHAN_SEMAPHORE_ACQUIRE                               0x00000068
+#define NV11_SUBCHAN_SEMAPHORE_RELEASE                               0x0000006c
+#define NV40_SUBCHAN_YIELD                                           0x00000080
+
+/* NV_SW object class */
+#define NV_SW_DMA_VBLSEM                                             0x0000018c
+#define NV_SW_VBLSEM_OFFSET                                          0x00000400
+#define NV_SW_VBLSEM_RELEASE_VALUE                                   0x00000404
+#define NV_SW_VBLSEM_RELEASE                                         0x00000408
+#define NV_SW_PAGE_FLIP                                              0x00000500
 
 #endif

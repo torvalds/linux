@@ -31,7 +31,6 @@
 #include "nouveau_connector.h"
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
-#include "nouveau_dma.h"
 #include "nouveau_fb.h"
 #include "nouveau_fence.h"
 #include "nv50_display.h"
@@ -1830,15 +1829,7 @@ nvd0_display_intr(struct drm_device *dev)
 		intr &= ~0x00100000;
 	}
 
-	for (i = 0; i < dev->mode_config.num_crtc; i++) {
-		u32 mask = 0x01000000 << i;
-		if (intr & mask) {
-			u32 stat = nv_rd32(dev, 0x6100bc + (i * 0x800));
-			nv_wr32(dev, 0x6100bc + (i * 0x800), stat);
-			intr &= ~mask;
-		}
-	}
-
+	intr &= ~0x0f000000; /* vblank, handled in core */
 	if (intr)
 		NV_INFO(dev, "PDISP: unknown intr 0x%08x\n", intr);
 }

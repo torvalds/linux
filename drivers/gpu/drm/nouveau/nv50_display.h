@@ -33,7 +33,6 @@
 #include "nouveau_dma.h"
 #include "nouveau_reg.h"
 #include "nouveau_crtc.h"
-#include "nouveau_software.h"
 #include "nv50_evo.h"
 
 struct nv50_display_crtc {
@@ -47,7 +46,10 @@ struct nv50_display_crtc {
 
 struct nv50_display {
 	struct nouveau_channel *master;
-	struct nouveau_gpuobj *ntfy;
+
+	struct nouveau_gpuobj *ramin;
+	u32 dmao;
+	u32 hash;
 
 	struct nv50_display_crtc crtc[2];
 

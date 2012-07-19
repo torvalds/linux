@@ -96,6 +96,7 @@ nv04_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	priv->base.create = nv04_vm_create;
+	priv->base.limit = NV04_PDMA_SIZE;
 	priv->base.pgt_bits = 32 - 12;
 	priv->base.spg_shift = 12;
 	priv->base.lpg_shift = 12;

@@ -8,7 +8,6 @@
 
 int  nouveau_device_create_(struct pci_dev *, u64 name, const char *sname,
 			    const char *cfg, const char *dbg, int, void **);
-void nouveau_device_destroy(struct nouveau_device **);
 
 int nv04_identify(struct nouveau_device *);
 int nv10_identify(struct nouveau_device *);

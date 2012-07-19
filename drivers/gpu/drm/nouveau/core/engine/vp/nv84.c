@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Red Hat Inc.
+ * Copyright 2012 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,61 +22,154 @@
  * Authors: Ben Skeggs
  */
 
-#include "drmP.h"
-#include "nouveau_drv.h"
-#include "nouveau_util.h"
-#include <core/ramht.h>
+#include <core/os.h>
+#include <core/class.h>
+#include <core/engctx.h>
 
-/*XXX: This stub is currently used on NV98+ also, as soon as this becomes
- *     more than just an enable/disable stub this needs to be split out to
- *     nv98_vp.c...
- */
+#include <engine/vp.h>
 
-struct nv84_vp_engine {
-	struct nouveau_exec_engine base;
+struct nv84_vp_priv {
+	struct nouveau_vp base;
 };
 
-static int
-nv84_vp_fini(struct drm_device *dev, int engine, bool suspend)
-{
-	if (!(nv_rd32(dev, 0x000200) & 0x00020000))
-		return 0;
+struct nv84_vp_chan {
+	struct nouveau_vp_chan base;
+};
 
-	nv_mask(dev, 0x000200, 0x00020000, 0x00000000);
-	return 0;
-}
+/*******************************************************************************
+ * VP object classes
+ ******************************************************************************/
+
+static struct nouveau_oclass
+nv84_vp_sclass[] = {
+	{},
+};
+
+/*******************************************************************************
+ * PVP context
+ ******************************************************************************/
 
 static int
-nv84_vp_init(struct drm_device *dev, int engine)
+nv84_vp_context_ctor(struct nouveau_object *parent,
+		     struct nouveau_object *engine,
+		     struct nouveau_oclass *oclass, void *data, u32 size,
+		     struct nouveau_object **pobject)
 {
-	nv_mask(dev, 0x000200, 0x00020000, 0x00000000);
-	nv_mask(dev, 0x000200, 0x00020000, 0x00020000);
+	struct nv84_vp_chan *priv;
+	int ret;
+
+	ret = nouveau_vp_context_create(parent, engine, oclass, NULL,
+					0, 0, 0, &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
 static void
-nv84_vp_destroy(struct drm_device *dev, int engine)
+nv84_vp_context_dtor(struct nouveau_object *object)
 {
-	struct nv84_vp_engine *pvp = nv_engine(dev, engine);
-
-	NVOBJ_ENGINE_DEL(dev, VP);
-
-	kfree(pvp);
+	struct nv84_vp_chan *priv = (void *)object;
+	nouveau_vp_context_destroy(&priv->base);
 }
 
-int
-nv84_vp_create(struct drm_device *dev)
+static int
+nv84_vp_context_init(struct nouveau_object *object)
 {
-	struct nv84_vp_engine *pvp;
+	struct nv84_vp_chan *priv = (void *)object;
+	int ret;
 
-	pvp = kzalloc(sizeof(*pvp), GFP_KERNEL);
-	if (!pvp)
-		return -ENOMEM;
+	ret = nouveau_vp_context_init(&priv->base);
+	if (ret)
+		return ret;
 
-	pvp->base.destroy = nv84_vp_destroy;
-	pvp->base.init = nv84_vp_init;
-	pvp->base.fini = nv84_vp_fini;
-
-	NVOBJ_ENGINE_ADD(dev, VP, &pvp->base);
 	return 0;
 }
+
+static int
+nv84_vp_context_fini(struct nouveau_object *object, bool suspend)
+{
+	struct nv84_vp_chan *priv = (void *)object;
+	return nouveau_vp_context_fini(&priv->base, suspend);
+}
+
+static struct nouveau_oclass
+nv84_vp_cclass = {
+	.handle = NV_ENGCTX(VP, 0x84),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv84_vp_context_ctor,
+		.dtor = nv84_vp_context_dtor,
+		.init = nv84_vp_context_init,
+		.fini = nv84_vp_context_fini,
+		.rd32 = _nouveau_vp_context_rd32,
+		.wr32 = _nouveau_vp_context_wr32,
+	},
+};
+
+/*******************************************************************************
+ * PVP engine/subdev functions
+ ******************************************************************************/
+
+static void
+nv84_vp_intr(struct nouveau_subdev *subdev)
+{
+}
+
+static int
+nv84_vp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+	     struct nouveau_oclass *oclass, void *data, u32 size,
+	     struct nouveau_object **pobject)
+{
+	struct nv84_vp_priv *priv;
+	int ret;
+
+	ret = nouveau_vp_create(parent, engine, oclass, &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
+
+	nv_subdev(priv)->unit = 0x01020000;
+	nv_subdev(priv)->intr = nv84_vp_intr;
+	nv_engine(priv)->cclass = &nv84_vp_cclass;
+	nv_engine(priv)->sclass = nv84_vp_sclass;
+	return 0;
+}
+
+static void
+nv84_vp_dtor(struct nouveau_object *object)
+{
+	struct nv84_vp_priv *priv = (void *)object;
+	nouveau_vp_destroy(&priv->base);
+}
+
+static int
+nv84_vp_init(struct nouveau_object *object)
+{
+	struct nv84_vp_priv *priv = (void *)object;
+	int ret;
+
+	ret = nouveau_vp_init(&priv->base);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int
+nv84_vp_fini(struct nouveau_object *object, bool suspend)
+{
+	struct nv84_vp_priv *priv = (void *)object;
+	return nouveau_vp_fini(&priv->base, suspend);
+}
+
+struct nouveau_oclass
+nv84_vp_oclass = {
+	.handle = NV_ENGINE(VP, 0x84),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv84_vp_ctor,
+		.dtor = nv84_vp_dtor,
+		.init = nv84_vp_init,
+		.fini = nv84_vp_fini,
+	},
+};

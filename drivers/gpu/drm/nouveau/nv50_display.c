@@ -31,7 +31,6 @@
 #include "nouveau_connector.h"
 #include "nouveau_fb.h"
 #include "nouveau_fbcon.h"
-#include <core/ramht.h>
 #include "drm_crtc_helper.h"
 #include "nouveau_fence.h"
 
@@ -102,17 +101,17 @@ nv50_display_sync(struct drm_device *dev)
 		BEGIN_NV04(evo, 0, 0x0084, 1);
 		OUT_RING  (evo, 0x00000000);
 
-		nv_wo32(disp->ntfy, 0x000, 0x00000000);
+		nv_wo32(disp->ramin, 0x2000, 0x00000000);
 		FIRE_RING (evo);
 
 		start = nv_timer_read(dev);
 		do {
-			if (nv_ro32(disp->ntfy, 0x000))
+			if (nv_ro32(disp->ramin, 0x2000))
 				return 0;
 		} while (nv_timer_read(dev) - start < 2000000000ULL);
 	}
 
-	return -EBUSY;
+	return 0;
 }
 
 int
@@ -217,7 +216,7 @@ nv50_display_init(struct drm_device *dev)
 		return ret;
 	evo = nv50_display(dev)->master;
 
-	nv_wr32(dev, NV50_PDISPLAY_OBJECTS, (evo->ramin->addr >> 8) | 9);
+	nv_wr32(dev, NV50_PDISPLAY_OBJECTS, (nv50_display(dev)->ramin->addr >> 8) | 9);
 
 	ret = RING_SPACE(evo, 3);
 	if (ret)
@@ -444,7 +443,7 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			if (dev_priv->chipset < 0x84)
 				OUT_RING  (chan, NvSema);
 			else
-				OUT_RING  (chan, chan->vram_handle);
+				OUT_RING  (chan, chan->vram);
 		} else {
 			u64 offset = nvc0_fence_crtc(chan, nv_crtc->index);
 			offset += dispc->sem.offset;
@@ -595,48 +594,6 @@ nv50_display_script_select(struct drm_device *dev, struct dcb_output *dcb,
 	}
 
 	return script;
-}
-
-static void
-nv50_display_vblank_crtc_handler(struct drm_device *dev, int crtc)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_software_priv *psw = nv_engine(dev, NVOBJ_ENGINE_SW);
-	struct nouveau_software_chan *pch, *tmp;
-
-	list_for_each_entry_safe(pch, tmp, &psw->vblank, vblank.list) {
-		if (pch->vblank.head != crtc)
-			continue;
-
-		spin_lock(&psw->peephole_lock);
-		nv_wr32(dev, 0x001704, pch->vblank.channel);
-		nv_wr32(dev, 0x001710, 0x80000000 | pch->vblank.ctxdma);
-		if (dev_priv->chipset == 0x50) {
-			nv_wr32(dev, 0x001570, pch->vblank.offset);
-			nv_wr32(dev, 0x001574, pch->vblank.value);
-		} else {
-			nv_wr32(dev, 0x060010, pch->vblank.offset);
-			nv_wr32(dev, 0x060014, pch->vblank.value);
-		}
-		spin_unlock(&psw->peephole_lock);
-
-		list_del(&pch->vblank.list);
-		drm_vblank_put(dev, crtc);
-	}
-
-	drm_handle_vblank(dev, crtc);
-}
-
-static void
-nv50_display_vblank_handler(struct drm_device *dev, uint32_t intr)
-{
-	if (intr & NV50_PDISPLAY_INTR_1_VBLANK_CRTC_0)
-		nv50_display_vblank_crtc_handler(dev, 0);
-
-	if (intr & NV50_PDISPLAY_INTR_1_VBLANK_CRTC_1)
-		nv50_display_vblank_crtc_handler(dev, 1);
-
-	nv_wr32(dev, NV50_PDISPLAY_INTR_1, NV50_PDISPLAY_INTR_1_VBLANK_CRTC);
 }
 
 static void
@@ -978,8 +935,8 @@ nv50_display_isr(struct drm_device *dev)
 		}
 
 		if (intr1 & NV50_PDISPLAY_INTR_1_VBLANK_CRTC) {
-			nv50_display_vblank_handler(dev, intr1);
 			intr1 &= ~NV50_PDISPLAY_INTR_1_VBLANK_CRTC;
+			delayed |= NV50_PDISPLAY_INTR_1_VBLANK_CRTC;
 		}
 
 		clock = (intr1 & (NV50_PDISPLAY_INTR_1_CLK_UNK10 |

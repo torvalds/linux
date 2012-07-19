@@ -30,6 +30,7 @@
 #include "drm_fb_helper.h"
 
 #include "nouveau_fb.h"
+
 struct nouveau_fbdev {
 	struct drm_fb_helper helper;
 	struct nouveau_framebuffer nouveau_fb;

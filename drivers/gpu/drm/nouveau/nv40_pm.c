@@ -27,7 +27,6 @@
 #include <nouveau_bios.h>
 #include "nouveau_pm.h"
 #include "nouveau_hw.h"
-#include <engine/fifo.h>
 
 #define min2(a,b) ((a) < (b) ? (a) : (b))
 
@@ -259,7 +258,7 @@ nv40_pm_clocks_set(struct drm_device *dev, void *pre_state)
 	if (!nv_wait(dev, 0x003220, 0x00000010, 0x00000000))
 		goto resume;
 	nv_mask(dev, 0x003200, 0x00000001, 0x00000000);
-	nv04_fifo_cache_pull(dev, false);
+	//XXX: nv04_fifo_cache_pull(dev, false);
 
 	if (!nv_wait_cb(dev, nv40_pm_gr_idle, dev))
 		goto resume;

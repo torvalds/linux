@@ -241,6 +241,8 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 		if (!device->subdev[i]) {
 			ret = nouveau_object_ctor(nv_object(device), NULL,
 						  oclass, NULL, i, &subdev);
+			if (ret == -ENODEV)
+				continue;
 			if (ret)
 				return ret;
 
@@ -404,10 +406,26 @@ nouveau_device_sclass[] = {
 	{}
 };
 
+static void
+nouveau_device_dtor(struct nouveau_object *object)
+{
+	struct nouveau_device *device = (void *)object;
+
+	mutex_lock(&nv_devices_mutex);
+	list_del(&device->head);
+	mutex_unlock(&nv_devices_mutex);
+
+	if (device->base.mmio)
+		iounmap(device->base.mmio);
+
+	nouveau_subdev_destroy(&device->base);
+}
+
 static struct nouveau_oclass
 nouveau_device_oclass = {
 	.handle = NV_SUBDEV(DEVICE, 0x00),
 	.ofuncs = &(struct nouveau_ofuncs) {
+		.dtor = nouveau_device_dtor,
 	},
 };
 
@@ -443,19 +461,4 @@ nouveau_device_create_(struct pci_dev *pdev, u64 name, const char *sname,
 done:
 	mutex_unlock(&nv_devices_mutex);
 	return ret;
-}
-
-void
-nouveau_device_destroy(struct nouveau_device **pdevice)
-{
-	struct nouveau_device *device = *pdevice;
-	if (device) {
-		mutex_lock(&nv_devices_mutex);
-		list_del(&device->head);
-		mutex_unlock(&nv_devices_mutex);
-		if (device->base.mmio)
-			iounmap(device->base.mmio);
-		nouveau_subdev_destroy(&device->base);
-	}
-	*pdevice = NULL;
 }

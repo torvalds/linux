@@ -22,15 +22,14 @@
  * Authors: Ben Skeggs
  */
 
-#include "drmP.h"
-#include "nouveau_drv.h"
+#include <engine/fifo.h>
+
+#include "nouveau_drm.h"
 #include "nouveau_dma.h"
-#include <core/ramht.h>
 #include "nouveau_fence.h"
 
 struct nv04_fence_chan {
 	struct nouveau_fence_chan base;
-	atomic_t sequence;
 };
 
 struct nv04_fence_priv {
@@ -57,19 +56,11 @@ nv04_fence_sync(struct nouveau_fence *fence,
 	return -ENODEV;
 }
 
-int
-nv04_fence_mthd(struct nouveau_channel *chan, u32 class, u32 mthd, u32 data)
-{
-	struct nv04_fence_chan *fctx = chan->fence;
-	atomic_set(&fctx->sequence, data);
-	return 0;
-}
-
 static u32
 nv04_fence_read(struct nouveau_channel *chan)
 {
-	struct nv04_fence_chan *fctx = chan->fence;
-	return atomic_read(&fctx->sequence);
+	struct nouveau_fifo_chan *fifo = (void *)chan->object;
+	return atomic_read(&fifo->refcnt);
 }
 
 static void
@@ -87,7 +78,6 @@ nv04_fence_context_new(struct nouveau_channel *chan)
 	struct nv04_fence_chan *fctx = kzalloc(sizeof(*fctx), GFP_KERNEL);
 	if (fctx) {
 		nouveau_fence_context_new(&fctx->base);
-		atomic_set(&fctx->sequence, 0);
 		chan->fence = fctx;
 		return 0;
 	}
@@ -95,23 +85,19 @@ nv04_fence_context_new(struct nouveau_channel *chan)
 }
 
 static void
-nv04_fence_destroy(struct drm_device *dev)
+nv04_fence_destroy(struct nouveau_drm *drm)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nv04_fence_priv *priv = dev_priv->fence.func;
-
-	dev_priv->fence.func = NULL;
+	struct nv04_fence_priv *priv = drm->fence;
+	drm->fence = NULL;
 	kfree(priv);
 }
 
 int
-nv04_fence_create(struct drm_device *dev)
+nv04_fence_create(struct nouveau_drm *drm)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv04_fence_priv *priv;
-	int ret;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = drm->fence = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -121,6 +107,5 @@ nv04_fence_create(struct drm_device *dev)
 	priv->base.emit = nv04_fence_emit;
 	priv->base.sync = nv04_fence_sync;
 	priv->base.read = nv04_fence_read;
-	dev_priv->fence.func = &priv->base;
-	return ret;
+	return 0;
 }

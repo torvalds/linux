@@ -1,4 +1,5 @@
 #include "nouveau_drm.h"
+#include "nouveau_chan.h"
 #include "nouveau_compat.h"
 
 #include <subdev/bios.h>
@@ -13,8 +14,6 @@
 #include <subdev/fb.h>
 #include <subdev/bar.h>
 #include <subdev/vm.h>
-
-void *nouveau_newpriv(struct drm_device *);
 
 int
 nvdrm_gart_init(struct drm_device *dev, u64 *base, u64 *size)
@@ -582,4 +581,29 @@ int
 nvvm_lpg_shift(struct nouveau_vm *vm)
 {
 	return vm->vmm->lpg_shift;
+}
+
+u64 nvgpuobj_addr(struct nouveau_object *object)
+{
+	return nv_gpuobj(object)->addr;
+}
+
+struct drm_device *
+nouveau_drv(void *ptr)
+{
+	struct nouveau_drm *drm = ptr;
+	return drm->dev;
+}
+
+struct nouveau_channel *
+nvdrm_channel(struct drm_device *dev)
+{
+	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	return drm->channel;
+}
+
+struct mutex *
+nvchan_mutex(struct nouveau_channel *chan)
+{
+	return &chan->cli->mutex;
 }
