@@ -424,7 +424,6 @@ static const struct dio200_layout_struct dio200_layouts[] = {
    feel free to suggest moving the variable to the struct comedi_device struct.
  */
 struct dio200_private {
-	struct pci_dev *pci_dev;	/* PCI device */
 	int intr_sd;
 };
 
@@ -1225,7 +1224,7 @@ dio200_subdev_8254_cleanup(struct comedi_device *dev,
 static void dio200_report_attach(struct comedi_device *dev, unsigned int irq)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv = dev->private;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	char tmpbuf[60];
 	int tmplen;
 
@@ -1236,7 +1235,7 @@ static void dio200_report_attach(struct comedi_device *dev, unsigned int irq)
 	else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_DIO200_PCI) &&
 		 thisboard->bustype == pci_bustype)
 		tmplen = scnprintf(tmpbuf, sizeof(tmpbuf),
-				   "(pci %s) ", pci_name(devpriv->pci_dev));
+				   "(pci %s) ", pci_name(pcidev));
 	else
 		tmplen = 0;
 	if (irq)
@@ -1327,11 +1326,11 @@ static int dio200_common_attach(struct comedi_device *dev, unsigned long iobase,
 static int dio200_pci_common_attach(struct comedi_device *dev,
 				    struct pci_dev *pci_dev)
 {
-	struct dio200_private *devpriv = dev->private;
 	unsigned long iobase;
 	int ret;
 
-	devpriv->pci_dev = pci_dev;
+	comedi_set_hw_dev(dev, &pci_dev->dev);
+
 	ret = comedi_pci_enable(pci_dev, DIO200_DRIVER_NAME);
 	if (ret < 0) {
 		dev_err(dev->class_dev,
@@ -1419,7 +1418,7 @@ static int __devinit dio200_attach_pci(struct comedi_device *dev,
 static void dio200_detach(struct comedi_device *dev)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv = dev->private;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct dio200_layout_struct *layout;
 	unsigned n;
 
@@ -1444,19 +1443,13 @@ static void dio200_detach(struct comedi_device *dev)
 			}
 		}
 	}
-	if (devpriv) {
-		if (IS_ENABLED(CONFIG_COMEDI_AMPLC_DIO200_PCI) &&
-		    thisboard->bustype == pci_bustype) {
-			if (devpriv->pci_dev) {
-				if (dev->iobase)
-					comedi_pci_disable(devpriv->pci_dev);
-				pci_dev_put(devpriv->pci_dev);
-			}
-		} else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_DIO200_ISA) &&
-			   thisboard->bustype == isa_bustype) {
-			if (dev->iobase)
-				release_region(dev->iobase, DIO200_IO_SIZE);
-		}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
+	} else {
+		if (dev->iobase)
+			release_region(dev->iobase, DIO200_IO_SIZE);
 	}
 }
 
