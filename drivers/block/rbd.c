@@ -493,8 +493,7 @@ static bool rbd_dev_ondisk_valid(struct rbd_image_header_ondisk *ondisk)
  */
 static int rbd_header_from_disk(struct rbd_image_header *header,
 				 struct rbd_image_header_ondisk *ondisk,
-				 u32 allocated_snaps,
-				 gfp_t gfp_flags)
+				 u32 allocated_snaps)
 {
 	u32 i, snap_count;
 
@@ -507,18 +506,18 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 		return -EINVAL;
 	header->snapc = kmalloc(sizeof(struct ceph_snap_context) +
 				snap_count * sizeof(u64),
-				gfp_flags);
+				GFP_KERNEL);
 	if (!header->snapc)
 		return -ENOMEM;
 
 	header->snap_names_len = le64_to_cpu(ondisk->snap_names_len);
 	if (snap_count) {
 		header->snap_names = kmalloc(header->snap_names_len,
-					     gfp_flags);
+					     GFP_KERNEL);
 		if (!header->snap_names)
 			goto err_snapc;
 		header->snap_sizes = kmalloc(snap_count * sizeof(u64),
-					     gfp_flags);
+					     GFP_KERNEL);
 		if (!header->snap_sizes)
 			goto err_names;
 	} else {
@@ -527,7 +526,7 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	}
 
 	header->object_prefix = kmalloc(sizeof (ondisk->block_name) + 1,
-					gfp_flags);
+					GFP_KERNEL);
 	if (!header->object_prefix)
 		goto err_sizes;
 
@@ -1625,7 +1624,7 @@ static int rbd_read_header(struct rbd_device *rbd_dev,
 		if (rc < 0)
 			goto out_dh;
 
-		rc = rbd_header_from_disk(header, dh, snap_count, GFP_KERNEL);
+		rc = rbd_header_from_disk(header, dh, snap_count);
 		if (rc < 0) {
 			if (rc == -ENXIO)
 				pr_warning("unrecognized header format"
