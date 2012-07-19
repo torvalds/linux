@@ -5652,6 +5652,7 @@ static bool tcp_rcv_fastopen_synack(struct sock *sk, struct sk_buff *synack,
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *data = tcp_write_queue_head(sk);
 	u16 mss = tp->rx_opt.mss_clamp;
+	bool syn_drop;
 
 	if (mss == tp->rx_opt.user_mss) {
 		struct tcp_options_received opt;
@@ -5664,7 +5665,14 @@ static bool tcp_rcv_fastopen_synack(struct sock *sk, struct sk_buff *synack,
 		mss = opt.mss_clamp;
 	}
 
-	tcp_fastopen_cache_set(sk, mss, cookie);
+	/* The SYN-ACK neither has cookie nor acknowledges the data. Presumably
+	 * the remote receives only the retransmitted (regular) SYNs: either
+	 * the original SYN-data or the corresponding SYN-ACK is lost.
+	 */
+	syn_drop = (cookie->len <= 0 && data &&
+		    inet_csk(sk)->icsk_retransmits);
+
+	tcp_fastopen_cache_set(sk, mss, cookie, syn_drop);
 
 	if (data) { /* Retransmit unacked data in SYN */
 		tcp_retransmit_skb(sk, data);

@@ -2860,10 +2860,19 @@ static int tcp_send_syn_data(struct sock *sk, struct sk_buff *syn)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_fastopen_request *fo = tp->fastopen_req;
-	int space, i, err = 0, iovlen = fo->data->msg_iovlen;
+	int syn_loss = 0, space, i, err = 0, iovlen = fo->data->msg_iovlen;
 	struct sk_buff *syn_data = NULL, *data;
+	unsigned long last_syn_loss = 0;
 
-	tcp_fastopen_cache_get(sk, &tp->rx_opt.mss_clamp, &fo->cookie);
+	tcp_fastopen_cache_get(sk, &tp->rx_opt.mss_clamp, &fo->cookie,
+			       &syn_loss, &last_syn_loss);
+	/* Recurring FO SYN losses: revert to regular handshake temporarily */
+	if (syn_loss > 1 &&
+	    time_before(jiffies, last_syn_loss + (60*HZ << syn_loss))) {
+		fo->cookie.len = -1;
+		goto fallback;
+	}
+
 	if (fo->cookie.len <= 0)
 		goto fallback;
 
