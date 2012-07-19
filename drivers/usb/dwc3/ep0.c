@@ -923,29 +923,6 @@ static void __dwc3_ep0_do_control_data(struct dwc3 *dwc,
 	WARN_ON(ret < 0);
 }
 
-static void dwc3_ep0_do_control_data(struct dwc3 *dwc,
-		const struct dwc3_event_depevt *event)
-{
-	struct dwc3_ep		*dep;
-	struct dwc3_request	*req;
-
-	dep = dwc->eps[0];
-
-	if (list_empty(&dep->request_list)) {
-		dev_vdbg(dwc->dev, "pending request for EP0 Data phase\n");
-		dep->flags |= DWC3_EP_PENDING_REQUEST;
-
-		if (event->endpoint_number)
-			dep->flags |= DWC3_EP0_DIR_IN;
-		return;
-	}
-
-	req = next_request(&dep->request_list);
-	dep = dwc->eps[event->endpoint_number];
-
-	__dwc3_ep0_do_control_data(dwc, dep, req);
-}
-
 static int dwc3_ep0_start_control_status(struct dwc3_ep *dep)
 {
 	struct dwc3		*dwc = dep->dwc;
@@ -977,6 +954,24 @@ static void dwc3_ep0_do_control_status(struct dwc3 *dwc,
 	__dwc3_ep0_do_control_status(dwc, dep);
 }
 
+static void dwc3_ep0_end_control_data(struct dwc3 *dwc, struct dwc3_ep *dep)
+{
+	struct dwc3_gadget_ep_cmd_params params;
+	u32			cmd;
+	int			ret;
+
+	if (!dep->resource_index)
+		return;
+
+	cmd = DWC3_DEPCMD_ENDTRANSFER;
+	cmd |= DWC3_DEPCMD_CMDIOC;
+	cmd |= DWC3_DEPCMD_PARAM(dep->resource_index);
+	memset(&params, 0, sizeof(params));
+	ret = dwc3_send_gadget_ep_cmd(dwc, dep->number, cmd, &params);
+	WARN_ON_ONCE(ret);
+	dep->resource_index = 0;
+}
+
 static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 		const struct dwc3_event_depevt *event)
 {
@@ -986,32 +981,24 @@ static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 	case DEPEVT_STATUS_CONTROL_DATA:
 		dev_vdbg(dwc->dev, "Control Data\n");
 
-		dwc->ep0state = EP0_DATA_PHASE;
-
-		if (dwc->ep0_next_event != DWC3_EP0_NRDY_DATA) {
-			dev_vdbg(dwc->dev, "Expected %d got %d\n",
-					dwc->ep0_next_event,
-					DWC3_EP0_NRDY_DATA);
-
-			dwc3_ep0_stall_and_restart(dwc);
-			return;
-		}
-
 		/*
-		 * One of the possible error cases is when Host _does_
-		 * request for Data Phase, but it does so on the wrong
-		 * direction.
+		 * We already have a DATA transfer in the controller's cache,
+		 * if we receive a XferNotReady(DATA) we will ignore it, unless
+		 * it's for the wrong direction.
 		 *
-		 * Here, we already know ep0_next_event is DATA (see above),
-		 * so we only need to check for direction.
+		 * In that case, we must issue END_TRANSFER command to the Data
+		 * Phase we already have started and issue SetStall on the
+		 * control endpoint.
 		 */
 		if (dwc->ep0_expect_in != event->endpoint_number) {
+			struct dwc3_ep	*dep = dwc->eps[dwc->ep0_expect_in];
+
 			dev_vdbg(dwc->dev, "Wrong direction for Data phase\n");
+			dwc3_ep0_end_control_data(dwc, dep);
 			dwc3_ep0_stall_and_restart(dwc);
 			return;
 		}
 
-		dwc3_ep0_do_control_data(dwc, event);
 		break;
 
 	case DEPEVT_STATUS_CONTROL_STATUS:
