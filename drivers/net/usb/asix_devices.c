@@ -201,9 +201,6 @@ static int ax88172_bind(struct usbnet *dev, struct usb_interface *intf)
 	u8 buf[ETH_ALEN];
 	int i;
 	unsigned long gpio_bits = dev->driver_info->data;
-	struct asix_data *data = (struct asix_data *)&dev->data;
-
-	data->eeprom_len = AX88172_EEPROM_LEN;
 
 	usbnet_get_endpoints(dev,intf);
 
@@ -409,11 +406,8 @@ static const struct net_device_ops ax88772_netdev_ops = {
 static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	int ret, embd_phy;
-	struct asix_data *data = (struct asix_data *)&dev->data;
 	u8 buf[ETH_ALEN];
 	u32 phyid;
-
-	data->eeprom_len = AX88772_EEPROM_LEN;
 
 	usbnet_get_endpoints(dev,intf);
 
@@ -767,9 +761,6 @@ static int ax88178_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	int ret;
 	u8 buf[ETH_ALEN];
-	struct asix_data *data = (struct asix_data *)&dev->data;
-
-	data->eeprom_len = AX88772_EEPROM_LEN;
 
 	usbnet_get_endpoints(dev,intf);
 

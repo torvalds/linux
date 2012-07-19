@@ -478,46 +478,51 @@ int asix_set_wol(struct net_device *net, struct ethtool_wolinfo *wolinfo)
 
 int asix_get_eeprom_len(struct net_device *net)
 {
-	struct usbnet *dev = netdev_priv(net);
-	struct asix_data *data = (struct asix_data *)&dev->data;
-
-	return data->eeprom_len;
+	return AX_EEPROM_LEN;
 }
 
 int asix_get_eeprom(struct net_device *net, struct ethtool_eeprom *eeprom,
 		    u8 *data)
 {
 	struct usbnet *dev = netdev_priv(net);
-	__le16 *ebuf = (__le16 *)data;
+	u16 *eeprom_buff;
+	int first_word, last_word;
 	int i;
 
-	/* Crude hack to ensure that we don't overwrite memory
-	 * if an odd length is supplied
-	 */
-	if (eeprom->len % 2)
+	if (eeprom->len == 0)
 		return -EINVAL;
 
 	eeprom->magic = AX_EEPROM_MAGIC;
 
+	first_word = eeprom->offset >> 1;
+	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
+
+	eeprom_buff = kmalloc(sizeof(u16) * (last_word - first_word + 1),
+			      GFP_KERNEL);
+	if (!eeprom_buff)
+		return -ENOMEM;
+
 	/* ax8817x returns 2 bytes from eeprom on read */
-	for (i=0; i < eeprom->len / 2; i++) {
-		if (asix_read_cmd(dev, AX_CMD_READ_EEPROM,
-			eeprom->offset + i, 0, 2, &ebuf[i]) < 0)
-			return -EINVAL;
+	for (i = first_word; i <= last_word; i++) {
+		if (asix_read_cmd(dev, AX_CMD_READ_EEPROM, i, 0, 2,
+				  &(eeprom_buff[i - first_word])) < 0) {
+			kfree(eeprom_buff);
+			return -EIO;
+		}
 	}
+
+	memcpy(data, (u8 *)eeprom_buff + (eeprom->offset & 1), eeprom->len);
+	kfree(eeprom_buff);
 	return 0;
 }
 
 void asix_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *info)
 {
-	struct usbnet *dev = netdev_priv(net);
-	struct asix_data *data = (struct asix_data *)&dev->data;
-
 	/* Inherit standard device info */
 	usbnet_get_drvinfo(net, info);
 	strncpy (info->driver, DRIVER_NAME, sizeof info->driver);
 	strncpy (info->version, DRIVER_VERSION, sizeof info->version);
-	info->eedump_len = data->eeprom_len;
+	info->eedump_len = AX_EEPROM_LEN;
 }
 
 int asix_set_mac_address(struct net_device *net, void *p)

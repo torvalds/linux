@@ -228,11 +228,8 @@ err:
 static int ax88172a_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	int ret;
-	struct asix_data *data = (struct asix_data *)&dev->data;
 	u8 buf[ETH_ALEN];
 	struct ax88172a_private *priv;
-
-	data->eeprom_len = AX88772_EEPROM_LEN;
 
 	usbnet_get_endpoints(dev, intf);
 

@@ -156,8 +156,7 @@
 #define AX_GPIO_RSE		0x80	/* Reload serial EEPROM */
 
 #define AX_EEPROM_MAGIC		0xdeadbeef
-#define AX88172_EEPROM_LEN	0x40
-#define AX88772_EEPROM_LEN	0xff
+#define AX_EEPROM_LEN		0x200
 
 /* This structure cannot exceed sizeof(unsigned long [5]) AKA 20 bytes */
 struct asix_data {
@@ -165,7 +164,7 @@ struct asix_data {
 	u8 mac_addr[ETH_ALEN];
 	u8 phymode;
 	u8 ledmode;
-	u8 eeprom_len;
+	u8 res;
 };
 
 int asix_read_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
