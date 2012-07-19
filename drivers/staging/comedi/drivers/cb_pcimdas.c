@@ -59,7 +59,6 @@ See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
 #define BADR0_SIZE 2		/* ?? */
 #define BADR2_SIZE 6
 #define BADR3_SIZE 16
-#define BADR4_SIZE 4
 
 /* DAC Offsets */
 #define ADC_TRIG 0
@@ -140,7 +139,6 @@ struct cb_pcimdas_private {
 	unsigned long BADR0;
 	unsigned long BADR2;
 	unsigned long BADR3;
-	unsigned long BADR4;
 
 	/* Used for AO readback */
 	unsigned int ao_readback[2];
@@ -204,6 +202,7 @@ static int cb_pcimdas_attach(struct comedi_device *dev,
 {
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
+	unsigned long iobase_8255;
 	int ret;
 
 /*
@@ -236,7 +235,7 @@ static int cb_pcimdas_attach(struct comedi_device *dev,
 	devpriv->BADR0 = pci_resource_start(devpriv->pci_dev, 0);
 	devpriv->BADR2 = pci_resource_start(devpriv->pci_dev, 2);
 	devpriv->BADR3 = pci_resource_start(devpriv->pci_dev, 3);
-	devpriv->BADR4 = pci_resource_start(devpriv->pci_dev, 4);
+	iobase_8255 = pci_resource_start(devpriv->pci_dev, 4);
 
 /* Dont support IRQ yet */
 /*  get irq */
@@ -280,7 +279,7 @@ static int cb_pcimdas_attach(struct comedi_device *dev,
 	s = dev->subdevices + 2;
 	/* digital i/o subdevice */
 	if (thisboard->has_dio)
-		subdev_8255_init(dev, s, NULL, devpriv->BADR4);
+		subdev_8255_init(dev, s, NULL, iobase_8255);
 	else
 		s->type = COMEDI_SUBD_UNUSED;
 
