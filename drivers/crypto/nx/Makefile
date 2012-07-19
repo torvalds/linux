@@ -1,4 +1,4 @@
-obj-$(CONFIG_CRYPTO_DEV_NX) += nx-crypto.o
+obj-$(CONFIG_CRYPTO_DEV_NX_ENCRYPT) += nx-crypto.o
 nx-crypto-objs := nx.o \
 		  nx_debugfs.o \
 		  nx-aes-cbc.o \
