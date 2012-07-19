@@ -1336,24 +1336,21 @@ static int pci1710_reset(struct comedi_device *dev)
 static struct pci_dev *pci1710_find_pci_dev(struct comedi_device *dev,
 					    struct comedi_devconfig *it)
 {
-	struct pci_dev *pcidev;
-	int opt_bus, opt_slot;
-	const char *errstr;
-	unsigned char pci_bus, pci_slot, pci_func;
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
+	int board_index = this_board - boardtypes;
 	int i;
-	int board_index;
-	unsigned int irq;
-	unsigned long iobase;
 
-	opt_bus = it->options[0];
-	opt_slot = it->options[1];
+	for_each_pci_dev(pcidev) {
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+			    slot != PCI_SLOT(pcidev->devfn))
+				continue;
+		}
+		if (pcidev->vendor != PCI_VENDOR_ID_ADVANTECH)
+			continue;
 
-	/* Look for matching PCI device */
-	errstr = "not found!";
-	pcidev = NULL;
-	board_index = this_board - boardtypes;
-	while (NULL != (pcidev = pci_get_device(PCI_VENDOR_ID_ADVANTECH,
-						PCI_ANY_ID, pcidev))) {
 		if (strcmp(this_board->name, DRV_NAME) == 0) {
 			for (i = 0; i < ARRAY_SIZE(boardtypes); ++i) {
 				if (pcidev->device == boardtypes[i].device_id) {
@@ -1368,47 +1365,21 @@ static struct pci_dev *pci1710_find_pci_dev(struct comedi_device *dev,
 				continue;
 		}
 
-		/* Found matching vendor/device. */
-		if (opt_bus || opt_slot) {
-			/* Check bus/slot. */
-			if (opt_bus != pcidev->bus->number
-			    || opt_slot != PCI_SLOT(pcidev->devfn))
-				continue;	/* no match */
-		}
 		/*
 		 * Look for device that isn't in use.
 		 * Enable PCI device and request regions.
 		 */
 		if (comedi_pci_enable(pcidev, DRV_NAME)) {
-			errstr =
-			    "failed to enable PCI device and request regions!";
 			continue;
 		}
 		/*  fixup board_ptr in case we were using the dummy entry with the driver name */
 		dev->board_ptr = &boardtypes[board_index];
-		break;
+		return pcidev;
 	}
-
-	if (!pcidev) {
-		if (opt_bus || opt_slot) {
-			dev_err(dev->class_dev, "- Card at b:s %d:%d %s\n",
-				opt_bus, opt_slot, errstr);
-		} else {
-			dev_err(dev->class_dev, "- Card %s\n", errstr);
-		}
-		return NULL;
-	}
-
-	pci_bus = pcidev->bus->number;
-	pci_slot = PCI_SLOT(pcidev->devfn);
-	pci_func = PCI_FUNC(pcidev->devfn);
-	irq = pcidev->irq;
-	iobase = pci_resource_start(pcidev, 2);
-
-	dev_dbg(dev->class_dev, "b:s:f=%d:%d:%d, io=0x%4lx\n",
-		pci_bus, pci_slot, pci_func, iobase);
-
-	return pcidev;
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
+	return NULL;
 }
 
 static int pci1710_attach(struct comedi_device *dev,
