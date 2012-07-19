@@ -250,12 +250,6 @@ static int cb_pcimdas_attach(struct comedi_device *dev,
 	devpriv->BADR3 = pci_resource_start(devpriv->pci_dev, 3);
 	devpriv->BADR4 = pci_resource_start(devpriv->pci_dev, 4);
 
-	dev_dbg(dev->class_dev, "devpriv->BADR0 = 0x%lx\n", devpriv->BADR0);
-	dev_dbg(dev->class_dev, "devpriv->BADR1 = 0x%lx\n", devpriv->BADR1);
-	dev_dbg(dev->class_dev, "devpriv->BADR2 = 0x%lx\n", devpriv->BADR2);
-	dev_dbg(dev->class_dev, "devpriv->BADR3 = 0x%lx\n", devpriv->BADR3);
-	dev_dbg(dev->class_dev, "devpriv->BADR4 = 0x%lx\n", devpriv->BADR4);
-
 /* Dont support IRQ yet */
 /*  get irq */
 /* if(request_irq(devpriv->pci_dev->irq, cb_pcimdas_interrupt, IRQF_SHARED, "cb_pcimdas", dev )) */
