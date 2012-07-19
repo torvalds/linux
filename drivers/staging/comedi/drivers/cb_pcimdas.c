@@ -134,8 +134,6 @@ static const struct cb_pcimdas_board cb_pcimdas_boards[] = {
  * struct.
  */
 struct cb_pcimdas_private {
-	int data;
-
 	/*  would be useful for a PCI device */
 	struct pci_dev *pci_dev;
 
@@ -148,13 +146,6 @@ struct cb_pcimdas_private {
 
 	/* Used for AO readback */
 	unsigned int ao_readback[2];
-
-	/*  Used for DIO */
-	unsigned short int port_a;	/*  copy of BADR4+0 */
-	unsigned short int port_b;	/*  copy of BADR4+1 */
-	unsigned short int port_c;	/*  copy of BADR4+2 */
-	unsigned short int dio_mode;	/*  copy of BADR4+3 */
-
 };
 
 /*
