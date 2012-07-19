@@ -688,7 +688,7 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 
 	net = dev_net(skb_dst(skb)->dev);
 	arg.tos = ip_hdr(skb)->tos;
-	ip_send_unicast_reply(net->ipv4.tcp_sock, skb, ip_hdr(skb)->saddr,
+	ip_send_unicast_reply(net, skb, ip_hdr(skb)->saddr,
 			      ip_hdr(skb)->daddr, &arg, arg.iov[0].iov_len);
 
 	TCP_INC_STATS_BH(net, TCP_MIB_OUTSEGS);
@@ -771,7 +771,7 @@ static void tcp_v4_send_ack(struct sk_buff *skb, u32 seq, u32 ack,
 	if (oif)
 		arg.bound_dev_if = oif;
 	arg.tos = tos;
-	ip_send_unicast_reply(net->ipv4.tcp_sock, skb, ip_hdr(skb)->saddr,
+	ip_send_unicast_reply(net, skb, ip_hdr(skb)->saddr,
 			      ip_hdr(skb)->daddr, &arg, arg.iov[0].iov_len);
 
 	TCP_INC_STATS_BH(net, TCP_MIB_OUTSEGS);
@@ -2624,13 +2624,11 @@ EXPORT_SYMBOL(tcp_prot);
 
 static int __net_init tcp_sk_init(struct net *net)
 {
-	return inet_ctl_sock_create(&net->ipv4.tcp_sock,
-				    PF_INET, SOCK_RAW, IPPROTO_TCP, net);
+	return 0;
 }
 
 static void __net_exit tcp_sk_exit(struct net *net)
 {
-	inet_ctl_sock_destroy(net->ipv4.tcp_sock);
 }
 
 static void __net_exit tcp_sk_exit_batch(struct list_head *net_exit_list)

@@ -1463,20 +1463,33 @@ static int ip_reply_glue_bits(void *dptr, char *to, int offset,
 
 /*
  *	Generic function to send a packet as reply to another packet.
- *	Used to send TCP resets so far.
+ *	Used to send some TCP resets/acks so far.
  *
- *	Should run single threaded per socket because it uses the sock
- *     	structure to pass arguments.
+ *	Use a fake percpu inet socket to avoid false sharing and contention.
  */
-void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb, __be32 daddr,
+static DEFINE_PER_CPU(struct inet_sock, unicast_sock) = {
+	.sk = {
+		.__sk_common = {
+			.skc_refcnt = ATOMIC_INIT(1),
+		},
+		.sk_wmem_alloc	= ATOMIC_INIT(1),
+		.sk_allocation	= GFP_ATOMIC,
+		.sk_flags	= (1UL << SOCK_USE_WRITE_QUEUE),
+	},
+	.pmtudisc = IP_PMTUDISC_WANT,
+};
+
+void ip_send_unicast_reply(struct net *net, struct sk_buff *skb, __be32 daddr,
 			   __be32 saddr, const struct ip_reply_arg *arg,
 			   unsigned int len)
 {
-	struct inet_sock *inet = inet_sk(sk);
 	struct ip_options_data replyopts;
 	struct ipcm_cookie ipc;
 	struct flowi4 fl4;
 	struct rtable *rt = skb_rtable(skb);
+	struct sk_buff *nskb;
+	struct sock *sk;
+	struct inet_sock *inet;
 
 	if (ip_options_echo(&replyopts.opt.opt, skb))
 		return;
@@ -1494,38 +1507,39 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb, __be32 daddr,
 
 	flowi4_init_output(&fl4, arg->bound_dev_if, 0,
 			   RT_TOS(arg->tos),
-			   RT_SCOPE_UNIVERSE, sk->sk_protocol,
+			   RT_SCOPE_UNIVERSE, ip_hdr(skb)->protocol,
 			   ip_reply_arg_flowi_flags(arg),
 			   daddr, saddr,
 			   tcp_hdr(skb)->source, tcp_hdr(skb)->dest);
 	security_skb_classify_flow(skb, flowi4_to_flowi(&fl4));
-	rt = ip_route_output_key(sock_net(sk), &fl4);
+	rt = ip_route_output_key(net, &fl4);
 	if (IS_ERR(rt))
 		return;
 
-	/* And let IP do all the hard work.
+	inet = &get_cpu_var(unicast_sock);
 
-	   This chunk is not reenterable, hence spinlock.
-	   Note that it uses the fact, that this function is called
-	   with locally disabled BH and that sk cannot be already spinlocked.
-	 */
-	bh_lock_sock(sk);
 	inet->tos = arg->tos;
+	sk = &inet->sk;
 	sk->sk_priority = skb->priority;
 	sk->sk_protocol = ip_hdr(skb)->protocol;
 	sk->sk_bound_dev_if = arg->bound_dev_if;
+	sock_net_set(sk, net);
+	__skb_queue_head_init(&sk->sk_write_queue);
+	sk->sk_sndbuf = sysctl_wmem_default;
 	ip_append_data(sk, &fl4, ip_reply_glue_bits, arg->iov->iov_base, len, 0,
 		       &ipc, &rt, MSG_DONTWAIT);
-	if ((skb = skb_peek(&sk->sk_write_queue)) != NULL) {
+	nskb = skb_peek(&sk->sk_write_queue);
+	if (nskb) {
 		if (arg->csumoffset >= 0)
-			*((__sum16 *)skb_transport_header(skb) +
-			  arg->csumoffset) = csum_fold(csum_add(skb->csum,
+			*((__sum16 *)skb_transport_header(nskb) +
+			  arg->csumoffset) = csum_fold(csum_add(nskb->csum,
 								arg->csum));
-		skb->ip_summed = CHECKSUM_NONE;
+		nskb->ip_summed = CHECKSUM_NONE;
+		skb_set_queue_mapping(nskb, skb_get_queue_mapping(skb));
 		ip_push_pending_frames(sk, &fl4);
 	}
 
-	bh_unlock_sock(sk);
+	put_cpu_var(unicast_sock);
 
 	ip_rt_put(rt);
 }
