@@ -36,41 +36,6 @@
 #include "qib.h"
 #include "qib_mad.h"
 
-/**
- * qib_parse_ushort - parse an unsigned short value in an arbitrary base
- * @str: the string containing the number
- * @valp: where to put the result
- *
- * Returns the number of bytes consumed, or negative value on error.
- */
-static int qib_parse_ushort(const char *str, unsigned short *valp)
-{
-	unsigned long val;
-	char *end;
-	int ret;
-
-	if (!isdigit(str[0])) {
-		ret = -EINVAL;
-		goto bail;
-	}
-
-	val = simple_strtoul(str, &end, 0);
-
-	if (val > 0xffff) {
-		ret = -EINVAL;
-		goto bail;
-	}
-
-	*valp = val;
-
-	ret = end + 1 - str;
-	if (ret == 0)
-		ret = -EINVAL;
-
-bail:
-	return ret;
-}
-
 /* start of per-port functions */
 /*
  * Get/Set heartbeat enable. OR of 1=enabled, 2=auto
@@ -92,7 +57,11 @@ static ssize_t store_hrtbt_enb(struct qib_pportdata *ppd, const char *buf,
 	int ret;
 	u16 val;
 
-	ret = qib_parse_ushort(buf, &val);
+	ret = kstrtou16(buf, 0, &val);
+	if (ret) {
+		qib_dev_err(dd, "attempt to set invalid Heartbeat enable\n");
+		return ret;
+	}
 
 	/*
 	 * Set the "intentional" heartbeat enable per either of
@@ -101,10 +70,7 @@ static ssize_t store_hrtbt_enb(struct qib_pportdata *ppd, const char *buf,
 	 * because entering loopback mode overrides it and automatically
 	 * disables heartbeat.
 	 */
-	if (ret >= 0)
-		ret = dd->f_set_ib_cfg(ppd, QIB_IB_CFG_HRTBT, val);
-	if (ret < 0)
-		qib_dev_err(dd, "attempt to set invalid Heartbeat enable\n");
+	ret = dd->f_set_ib_cfg(ppd, QIB_IB_CFG_HRTBT, val);
 	return ret < 0 ? ret : count;
 }
 
@@ -128,12 +94,14 @@ static ssize_t store_led_override(struct qib_pportdata *ppd, const char *buf,
 	int ret;
 	u16 val;
 
-	ret = qib_parse_ushort(buf, &val);
-	if (ret > 0)
-		qib_set_led_override(ppd, val);
-	else
+	ret = kstrtou16(buf, 0, &val);
+	if (ret) {
 		qib_dev_err(dd, "attempt to set invalid LED override\n");
-	return ret < 0 ? ret : count;
+		return ret;
+	}
+
+	qib_set_led_override(ppd, val);
+	return count;
 }
 
 static ssize_t show_status(struct qib_pportdata *ppd, char *buf)
@@ -501,12 +469,12 @@ static ssize_t diagc_attr_store(struct kobject *kobj, struct attribute *attr,
 	struct qib_pportdata *ppd =
 		container_of(kobj, struct qib_pportdata, diagc_kobj);
 	struct qib_ibport *qibp = &ppd->ibport_data;
-	char *endp;
-	long val = simple_strtol(buf, &endp, 0);
+	u32 val;
+	int ret;
 
-	if (val < 0 || endp == buf)
-		return -EINVAL;
-
+	ret = kstrtou32(buf, 0, &val);
+	if (ret)
+		return ret;
 	*(u32 *)((char *) qibp + dattr->counter) = val;
 	return size;
 }
@@ -739,8 +707,9 @@ int qib_create_port_files(struct ib_device *ibdev, u8 port_num,
 	int ret;
 
 	if (!port_num || port_num > dd->num_pports) {
-		qib_dev_err(dd, "Skipping infiniband class with "
-			    "invalid port %u\n", port_num);
+		qib_dev_err(dd,
+			"Skipping infiniband class with invalid port %u\n",
+			port_num);
 		ret = -ENODEV;
 		goto bail;
 	}
@@ -749,8 +718,9 @@ int qib_create_port_files(struct ib_device *ibdev, u8 port_num,
 	ret = kobject_init_and_add(&ppd->pport_kobj, &qib_port_ktype, kobj,
 				   "linkcontrol");
 	if (ret) {
-		qib_dev_err(dd, "Skipping linkcontrol sysfs info, "
-			    "(err %d) port %u\n", ret, port_num);
+		qib_dev_err(dd,
+			"Skipping linkcontrol sysfs info, (err %d) port %u\n",
+			ret, port_num);
 		goto bail;
 	}
 	kobject_uevent(&ppd->pport_kobj, KOBJ_ADD);
@@ -758,8 +728,9 @@ int qib_create_port_files(struct ib_device *ibdev, u8 port_num,
 	ret = kobject_init_and_add(&ppd->sl2vl_kobj, &qib_sl2vl_ktype, kobj,
 				   "sl2vl");
 	if (ret) {
-		qib_dev_err(dd, "Skipping sl2vl sysfs info, "
-			    "(err %d) port %u\n", ret, port_num);
+		qib_dev_err(dd,
+			"Skipping sl2vl sysfs info, (err %d) port %u\n",
+			ret, port_num);
 		goto bail_link;
 	}
 	kobject_uevent(&ppd->sl2vl_kobj, KOBJ_ADD);
@@ -767,8 +738,9 @@ int qib_create_port_files(struct ib_device *ibdev, u8 port_num,
 	ret = kobject_init_and_add(&ppd->diagc_kobj, &qib_diagc_ktype, kobj,
 				   "diag_counters");
 	if (ret) {
-		qib_dev_err(dd, "Skipping diag_counters sysfs info, "
-			    "(err %d) port %u\n", ret, port_num);
+		qib_dev_err(dd,
+			"Skipping diag_counters sysfs info, (err %d) port %u\n",
+			ret, port_num);
 		goto bail_sl;
 	}
 	kobject_uevent(&ppd->diagc_kobj, KOBJ_ADD);
