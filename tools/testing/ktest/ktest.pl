@@ -173,6 +173,7 @@ my $bisect_check;
 
 my $config_bisect;
 my $config_bisect_type;
+my $config_bisect_check;
 
 my $patchcheck_type;
 my $patchcheck_start;
@@ -283,6 +284,7 @@ my %option_map = (
 
     "CONFIG_BISECT"		=> \$config_bisect,
     "CONFIG_BISECT_TYPE"	=> \$config_bisect_type,
+    "CONFIG_BISECT_CHECK"	=> \$config_bisect_check,
 
     "PATCHCHECK_TYPE"		=> \$patchcheck_type,
     "PATCHCHECK_START"		=> \$patchcheck_start,
@@ -2743,6 +2745,18 @@ sub config_bisect {
 	}
     }
     my $ret;
+
+    if (defined($config_bisect_check) && $config_bisect_check) {
+	doprint " Checking to make sure bad config with min config fails\n";
+	create_config keys %config_list;
+	$ret = run_config_bisect_test $config_bisect_type;
+	if ($ret) {
+	    doprint " FAILED! Bad config with min config boots fine\n";
+	    return -1;
+	}
+	doprint " Bad config with min config fails as expected\n";
+    }
+
     do {
 	$ret = run_config_bisect;
     } while (!$ret);
