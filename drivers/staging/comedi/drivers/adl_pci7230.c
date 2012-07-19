@@ -42,12 +42,6 @@ Configuration Options:
 
 #define PCI_DEVICE_ID_PCI7230 0x7230
 
-struct adl_pci7230_private {
-	int data;
-};
-
-#define devpriv ((struct adl_pci7230_private *)dev->private)
-
 static int adl_pci7230_do_insn_bits(struct comedi_device *dev,
 	struct comedi_subdevice *s,
 	struct comedi_insn *insn,
@@ -107,9 +101,6 @@ static int adl_pci7230_attach(struct comedi_device *dev,
 	printk(KERN_INFO "comedi%d: adl_pci7230\n", dev->minor);
 
 	dev->board_name = "pci7230";
-
-	if (alloc_private(dev, sizeof(struct adl_pci7230_private)) < 0)
-		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
