@@ -152,7 +152,6 @@ static const struct pci1723_board boardtypes[] = {
 struct pci1723_private {
 	int valid;		/* card is usable; */
 
-	struct pci_dev *pcidev;
 	unsigned char da_range[8];	/* D/A output range for each channel */
 
 	short ao_data[8];	/* data output buffer */
@@ -315,6 +314,7 @@ static struct pci_dev *pci1723_find_pci_dev(struct comedi_device *dev,
 static int pci1723_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
 
@@ -327,15 +327,16 @@ static int pci1723_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	}
 
-	devpriv->pcidev = pci1723_find_pci_dev(dev, it);
-	if (!devpriv->pcidev)
+	pcidev = pci1723_find_pci_dev(dev, it);
+	if (!pcidev)
 		return -EIO;
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
-	ret = comedi_pci_enable(devpriv->pcidev, "adv_pci1723");
+	ret = comedi_pci_enable(pcidev, "adv_pci1723");
 	if (ret)
 		return ret;
 
-	dev->iobase = pci_resource_start(devpriv->pcidev, 2);
+	dev->iobase = pci_resource_start(pcidev, 2);
 
 	dev->board_name = this_board->name;
 
@@ -410,14 +411,16 @@ static int pci1723_attach(struct comedi_device *dev,
 
 static void pci1723_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
 	if (dev->private) {
 		if (devpriv->valid)
 			pci1723_reset(dev);
-		if (devpriv->pcidev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pcidev);
-			pci_dev_put(devpriv->pcidev);
-		}
+	}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
