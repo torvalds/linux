@@ -813,14 +813,15 @@ static irqreturn_t smb347_interrupt(int irq, void *data)
 	 * If we reached the termination current the battery is charged.
 	 * Disable charging to ACK the interrupt and update status.
 	 */
-	if (irqstat_c & (IRQSTAT_C_TERMINATION_IRQ | IRQSTAT_C_TAPER_IRQ)) {
-		if (irqstat_c & IRQSTAT_C_TERMINATION_STAT) {
-			smb347_charging_disable(smb);
-			power_supply_changed(&smb->battery);
-		}
-
+	if (irqstat_c & (IRQSTAT_C_TERMINATION_IRQ |
+			 IRQSTAT_C_TERMINATION_STAT)) {
+		smb347_charging_disable(smb);
+		power_supply_changed(&smb->battery);
 		ret = IRQ_HANDLED;
 	}
+
+	if (irqstat_c & IRQSTAT_C_TAPER_IRQ)
+		ret = IRQ_HANDLED;
 
 	/*
 	 * If we got an under voltage interrupt it means that AC/USB input
