@@ -122,6 +122,8 @@ asmlinkage __cpuinit void start_secondary(void)
 
 	notify_cpu_starting(cpu);
 
+	set_cpu_online(cpu, true);
+
 	set_cpu_sibling_map(cpu);
 
 	cpu_set(cpu, cpu_callin_map);
@@ -196,8 +198,6 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	 */
 	while (!cpu_isset(cpu, cpu_callin_map))
 		udelay(100);
-
-	set_cpu_online(cpu, true);
 
 	return 0;
 }
