@@ -393,11 +393,11 @@ static struct regulator_ops mc13892_gpo_regulator_ops = {
 	.get_voltage = mc13xxx_fixed_regulator_get_voltage,
 };
 
-static int mc13892_sw_regulator_get_voltage(struct regulator_dev *rdev)
+static int mc13892_sw_regulator_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct mc13xxx_regulator_priv *priv = rdev_get_drvdata(rdev);
 	int ret, id = rdev_get_id(rdev);
-	unsigned int val, hi;
+	unsigned int val;
 
 	dev_dbg(rdev_get_dev(rdev), "%s id: %d\n", __func__, id);
 
@@ -408,16 +408,10 @@ static int mc13892_sw_regulator_get_voltage(struct regulator_dev *rdev)
 	if (ret)
 		return ret;
 
-	hi  = val & MC13892_SWITCHERS0_SWxHI;
 	val = (val & mc13892_regulators[id].vsel_mask)
 		>> mc13892_regulators[id].vsel_shift;
 
 	dev_dbg(rdev_get_dev(rdev), "%s id: %d val: %d\n", __func__, id, val);
-
-	if (hi)
-		val = (25000 * val) + 1100000;
-	else
-		val = (25000 * val) + 600000;
 
 	return val;
 }
@@ -453,7 +447,7 @@ static int mc13892_sw_regulator_set_voltage_sel(struct regulator_dev *rdev,
 static struct regulator_ops mc13892_sw_regulator_ops = {
 	.list_voltage = regulator_list_voltage_table,
 	.set_voltage_sel = mc13892_sw_regulator_set_voltage_sel,
-	.get_voltage = mc13892_sw_regulator_get_voltage,
+	.get_voltage_sel = mc13892_sw_regulator_get_voltage_sel,
 };
 
 static int mc13892_vcam_set_mode(struct regulator_dev *rdev, unsigned int mode)
