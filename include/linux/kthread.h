@@ -49,8 +49,6 @@ extern int tsk_fork_get_node(struct task_struct *tsk);
  * can be queued and flushed using queue/flush_kthread_work()
  * respectively.  Queued kthread_works are processed by a kthread
  * running kthread_worker_fn().
- *
- * A kthread_work can't be freed while it is executing.
  */
 struct kthread_work;
 typedef void (*kthread_work_func_t)(struct kthread_work *work);
@@ -59,15 +57,14 @@ struct kthread_worker {
 	spinlock_t		lock;
 	struct list_head	work_list;
 	struct task_struct	*task;
+	struct kthread_work	*current_work;
 };
 
 struct kthread_work {
 	struct list_head	node;
 	kthread_work_func_t	func;
 	wait_queue_head_t	done;
-	atomic_t		flushing;
-	int			queue_seq;
-	int			done_seq;
+	struct kthread_worker	*worker;
 };
 
 #define KTHREAD_WORKER_INIT(worker)	{				\
@@ -79,7 +76,6 @@ struct kthread_work {
 	.node = LIST_HEAD_INIT((work).node),				\
 	.func = (fn),							\
 	.done = __WAIT_QUEUE_HEAD_INITIALIZER((work).done),		\
-	.flushing = ATOMIC_INIT(0),					\
 	}
 
 #define DEFINE_KTHREAD_WORKER(worker)					\
