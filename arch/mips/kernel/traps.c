@@ -1502,6 +1502,7 @@ extern void flush_tlb_handlers(void);
  * Timer interrupt
  */
 int cp0_compare_irq;
+EXPORT_SYMBOL_GPL(cp0_compare_irq);
 int cp0_compare_irq_shift;
 
 /*
