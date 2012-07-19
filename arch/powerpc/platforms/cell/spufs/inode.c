@@ -186,10 +186,13 @@ static void spufs_prune_dir(struct dentry *dir)
 static int spufs_rmdir(struct inode *parent, struct dentry *dir)
 {
 	/* remove all entries */
+	int res;
 	spufs_prune_dir(dir);
 	d_drop(dir);
-
-	return simple_rmdir(parent, dir);
+	res = simple_rmdir(parent, dir);
+	/* We have to give up the mm_struct */
+	spu_forget(SPUFS_I(dir->d_inode)->i_ctx);
+	return res;
 }
 
 static int spufs_fill_dir(struct dentry *dir,
@@ -244,9 +247,6 @@ static int spufs_dir_close(struct inode *inode, struct file *file)
 	ret = spufs_rmdir(parent, dir);
 	mutex_unlock(&parent->i_mutex);
 	WARN_ON(ret);
-
-	/* We have to give up the mm_struct */
-	spu_forget(ctx);
 
 	return dcache_dir_close(inode, file);
 }
@@ -497,7 +497,6 @@ spufs_create_context(struct inode *inode, struct dentry *dentry,
 		if (affinity)
 			mutex_unlock(&gang->aff_mutex);
 		mutex_unlock(&inode->i_mutex);
-		spu_forget(SPUFS_I(dentry->d_inode)->i_ctx);
 		goto out;
 	}
 
