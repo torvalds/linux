@@ -7,6 +7,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/tcp.h>
+#include <linux/hash.h>
 
 #include <net/inet_connection_sock.h>
 #include <net/net_namespace.h>
@@ -228,10 +229,8 @@ static struct tcp_metrics_block *__tcp_get_metrics_req(struct request_sock *req,
 		return NULL;
 	}
 
-	hash ^= (hash >> 24) ^ (hash >> 16) ^ (hash >> 8);
-
 	net = dev_net(dst->dev);
-	hash &= net->ipv4.tcp_metrics_hash_mask;
+	hash = hash_32(hash, net->ipv4.tcp_metrics_hash_log);
 
 	for (tm = rcu_dereference(net->ipv4.tcp_metrics_hash[hash].chain); tm;
 	     tm = rcu_dereference(tm->tcpm_next)) {
@@ -265,10 +264,8 @@ static struct tcp_metrics_block *__tcp_get_metrics_tw(struct inet_timewait_sock 
 		return NULL;
 	}
 
-	hash ^= (hash >> 24) ^ (hash >> 16) ^ (hash >> 8);
-
 	net = twsk_net(tw);
-	hash &= net->ipv4.tcp_metrics_hash_mask;
+	hash = hash_32(hash, net->ipv4.tcp_metrics_hash_log);
 
 	for (tm = rcu_dereference(net->ipv4.tcp_metrics_hash[hash].chain); tm;
 	     tm = rcu_dereference(tm->tcpm_next)) {
@@ -302,10 +299,8 @@ static struct tcp_metrics_block *tcp_get_metrics(struct sock *sk,
 		return NULL;
 	}
 
-	hash ^= (hash >> 24) ^ (hash >> 16) ^ (hash >> 8);
-
 	net = dev_net(dst->dev);
-	hash &= net->ipv4.tcp_metrics_hash_mask;
+	hash = hash_32(hash, net->ipv4.tcp_metrics_hash_log);
 
 	tm = __tcp_get_metrics(&addr, net, hash);
 	reclaim = false;
@@ -694,7 +689,7 @@ void tcp_fastopen_cache_set(struct sock *sk, u16 mss,
 	rcu_read_unlock();
 }
 
-static unsigned long tcpmhash_entries;
+static unsigned int tcpmhash_entries;
 static int __init set_tcpmhash_entries(char *str)
 {
 	ssize_t ret;
@@ -702,7 +697,7 @@ static int __init set_tcpmhash_entries(char *str)
 	if (!str)
 		return 0;
 
-	ret = kstrtoul(str, 0, &tcpmhash_entries);
+	ret = kstrtouint(str, 0, &tcpmhash_entries);
 	if (ret)
 		return 0;
 
@@ -712,7 +707,8 @@ __setup("tcpmhash_entries=", set_tcpmhash_entries);
 
 static int __net_init tcp_net_metrics_init(struct net *net)
 {
-	int slots, size;
+	size_t size;
+	unsigned int slots;
 
 	slots = tcpmhash_entries;
 	if (!slots) {
@@ -722,13 +718,12 @@ static int __net_init tcp_net_metrics_init(struct net *net)
 			slots = 8 * 1024;
 	}
 
-	size = slots * sizeof(struct tcpm_hash_bucket);
+	net->ipv4.tcp_metrics_hash_log = order_base_2(slots);
+	size = sizeof(struct tcpm_hash_bucket) << net->ipv4.tcp_metrics_hash_log;
 
 	net->ipv4.tcp_metrics_hash = kzalloc(size, GFP_KERNEL);
 	if (!net->ipv4.tcp_metrics_hash)
 		return -ENOMEM;
-
-	net->ipv4.tcp_metrics_hash_mask = (slots - 1);
 
 	return 0;
 }
