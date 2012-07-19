@@ -1579,6 +1579,43 @@ bool kvm_vcpu_yield_to(struct kvm_vcpu *target)
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_yield_to);
 
+#ifdef CONFIG_HAVE_KVM_CPU_RELAX_INTERCEPT
+/*
+ * Helper that checks whether a VCPU is eligible for directed yield.
+ * Most eligible candidate to yield is decided by following heuristics:
+ *
+ *  (a) VCPU which has not done pl-exit or cpu relax intercepted recently
+ *  (preempted lock holder), indicated by @in_spin_loop.
+ *  Set at the beiginning and cleared at the end of interception/PLE handler.
+ *
+ *  (b) VCPU which has done pl-exit/ cpu relax intercepted but did not get
+ *  chance last time (mostly it has become eligible now since we have probably
+ *  yielded to lockholder in last iteration. This is done by toggling
+ *  @dy_eligible each time a VCPU checked for eligibility.)
+ *
+ *  Yielding to a recently pl-exited/cpu relax intercepted VCPU before yielding
+ *  to preempted lock-holder could result in wrong VCPU selection and CPU
+ *  burning. Giving priority for a potential lock-holder increases lock
+ *  progress.
+ *
+ *  Since algorithm is based on heuristics, accessing another VCPU data without
+ *  locking does not harm. It may result in trying to yield to  same VCPU, fail
+ *  and continue with next VCPU and so on.
+ */
+bool kvm_vcpu_eligible_for_directed_yield(struct kvm_vcpu *vcpu)
+{
+	bool eligible;
+
+	eligible = !vcpu->spin_loop.in_spin_loop ||
+			(vcpu->spin_loop.in_spin_loop &&
+			 vcpu->spin_loop.dy_eligible);
+
+	if (vcpu->spin_loop.in_spin_loop)
+		kvm_vcpu_set_dy_eligible(vcpu, !vcpu->spin_loop.dy_eligible);
+
+	return eligible;
+}
+#endif
 void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 {
 	struct kvm *kvm = me->kvm;
@@ -1607,6 +1644,8 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 				continue;
 			if (waitqueue_active(&vcpu->wq))
 				continue;
+			if (!kvm_vcpu_eligible_for_directed_yield(vcpu))
+				continue;
 			if (kvm_vcpu_yield_to(vcpu)) {
 				kvm->last_boosted_vcpu = i;
 				yielded = 1;
@@ -1615,6 +1654,9 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 		}
 	}
 	kvm_vcpu_set_in_spin_loop(me, false);
+
+	/* Ensure vcpu is not eligible during next spinloop */
+	kvm_vcpu_set_dy_eligible(me, false);
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_on_spin);
 
