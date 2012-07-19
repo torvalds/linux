@@ -96,9 +96,6 @@ static const struct pcidio_board pcidio_boards[] = {
 struct pcidio_private {
 	int data;		/*  currently unused */
 
-	/* would be useful for a PCI device */
-	struct pci_dev *pci_dev;
-
 	/* used for DO readback, currently unused */
 	unsigned int do_readback[4];	/* up to 4 unsigned int suffice to hold 96 bits for PCI-DIO96 */
 
@@ -143,6 +140,7 @@ static struct pci_dev *pcidio_find_pci_dev(struct comedi_device *dev,
 
 static int pcidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct pci_dev *pcidev;
 	int i;
 	int ret;
 
@@ -153,9 +151,10 @@ static int pcidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (alloc_private(dev, sizeof(struct pcidio_private)) < 0)
 		return -ENOMEM;
 
-	devpriv->pci_dev = pcidio_find_pci_dev(dev, it);
-	if (!devpriv->pci_dev)
+	pcidev = pcidio_find_pci_dev(dev, it);
+	if (!pcidev)
 		return -EIO;
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
 /*
  * Initialize dev->board_name.  Note that we can use the "thisboard"
@@ -163,12 +162,12 @@ static int pcidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  */
 	dev->board_name = thisboard->name;
 
-	if (comedi_pci_enable(devpriv->pci_dev, thisboard->name))
+	if (comedi_pci_enable(pcidev, thisboard->name))
 		return -EIO;
 
 	devpriv->dio_reg_base
 	    =
-	    pci_resource_start(devpriv->pci_dev, thisboard->dioregs_badrindex);
+	    pci_resource_start(pcidev, thisboard->dioregs_badrindex);
 
 	ret = comedi_alloc_subdevices(dev, thisboard->n_8255);
 	if (ret)
@@ -186,12 +185,12 @@ static int pcidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void pcidio_detach(struct comedi_device *dev)
 {
-	if (devpriv) {
-		if (devpriv->pci_dev) {
-			if (devpriv->dio_reg_base)
-				comedi_pci_disable(devpriv->pci_dev);
-			pci_dev_put(devpriv->pci_dev);
-		}
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	if (pcidev) {
+		if (devpriv->dio_reg_base)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 	if (dev->subdevices) {
 		int i;
