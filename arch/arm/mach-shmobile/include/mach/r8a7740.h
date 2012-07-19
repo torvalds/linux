@@ -19,6 +19,8 @@
 #ifndef __ASM_R8A7740_H__
 #define __ASM_R8A7740_H__
 
+#include <mach/pm-rmobile.h>
+
 /*
  * MD_CKx pin
  */
@@ -139,7 +141,7 @@ enum {
 	GPIO_FN_DBGMD10,	GPIO_FN_DBGMD11,	GPIO_FN_DBGMD20,
 	GPIO_FN_DBGMD21,
 
-	/* FSI */
+	/* FSI-A */
 	GPIO_FN_FSIAISLD_PORT0,		/* FSIAISLD Port 0/5 */
 	GPIO_FN_FSIAISLD_PORT5,
 	GPIO_FN_FSIASPDIF_PORT9,	/* FSIASPDIF Port 9/18 */
@@ -149,6 +151,9 @@ enum {
 	GPIO_FN_FSIAOSLD,	GPIO_FN_FSIAOMC,
 	GPIO_FN_FSIACK,		GPIO_FN_FSIAILR,
 	GPIO_FN_FSIAIBT,
+
+	/* FSI-B */
+	GPIO_FN_FSIBCK,
 
 	/* FMSI */
 	GPIO_FN_FMSISLD_PORT1, /* FMSISLD Port 1/6 */
@@ -565,6 +570,10 @@ enum {
 	GPIO_FN_RESETP_PULLUP,
 	GPIO_FN_RESETP_PLAIN,
 
+	/* HDMI */
+	GPIO_FN_HDMI_HPD,
+	GPIO_FN_HDMI_CEC,
+
 	/* SDENC */
 	GPIO_FN_SDENC_CPG,
 	GPIO_FN_SDENC_DV_CLKI,
@@ -580,5 +589,27 @@ enum {
 	GPIO_FN_TRACEAUD_FROM_LCDC0,
 	GPIO_FN_TRACEAUD_FROM_MEMC,
 };
+
+/* DMA slave IDs */
+enum {
+	SHDMA_SLAVE_INVALID,
+	SHDMA_SLAVE_SDHI0_RX,
+	SHDMA_SLAVE_SDHI0_TX,
+	SHDMA_SLAVE_SDHI1_RX,
+	SHDMA_SLAVE_SDHI1_TX,
+	SHDMA_SLAVE_SDHI2_RX,
+	SHDMA_SLAVE_SDHI2_TX,
+	SHDMA_SLAVE_FSIA_RX,
+	SHDMA_SLAVE_FSIA_TX,
+	SHDMA_SLAVE_FSIB_TX,
+	SHDMA_SLAVE_USBHS_TX,
+	SHDMA_SLAVE_USBHS_RX,
+};
+
+#ifdef CONFIG_PM
+extern struct rmobile_pm_domain r8a7740_pd_a4s;
+extern struct rmobile_pm_domain r8a7740_pd_a3sp;
+extern struct rmobile_pm_domain r8a7740_pd_a4lc;
+#endif /* CONFIG_PM */
 
 #endif /* __ASM_R8A7740_H__ */

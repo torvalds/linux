@@ -587,6 +587,7 @@ static void __init eva_init(void)
 	eva_clock_init();
 
 	r8a7740_pinmux_init();
+	r8a7740_meram_workaround();
 
 	/* SCIFA1 */
 	gpio_request(GPIO_FN_SCIFA1_RXD, NULL);
@@ -779,6 +780,7 @@ DT_MACHINE_START(ARMADILLO800EVA_DT, "armadillo800eva")
 	.init_irq	= r8a7740_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= eva_init,
+	.init_late	= shmobile_init_late,
 	.timer		= &shmobile_timer,
 	.dt_compat	= eva_boards_compat_dt,
 MACHINE_END
