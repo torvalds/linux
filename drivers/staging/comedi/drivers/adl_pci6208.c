@@ -73,7 +73,6 @@ static const struct pci6208_board pci6208_boards[] = {
 };
 
 struct pci6208_private {
-	struct pci_dev *pci_dev;
 	unsigned int ao_readback[PCI6208_MAX_AO_CHANNELS];
 };
 
@@ -200,6 +199,7 @@ static int pci6208_attach(struct comedi_device *dev,
 {
 	const struct pci6208_board *thisboard;
 	struct pci6208_private *devpriv;
+	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret;
 
@@ -208,20 +208,21 @@ static int pci6208_attach(struct comedi_device *dev,
 		return ret;
 	devpriv = dev->private;
 
-	devpriv->pci_dev = pci6208_find_device(dev, it);
-	if (!devpriv->pci_dev)
+	pcidev = pci6208_find_device(dev, it);
+	if (!pcidev)
 		return -EIO;
+	comedi_set_hw_dev(dev, &pcidev->dev);
 	thisboard = comedi_board(dev);
 
 	dev->board_name = thisboard->name;
 
-	ret = comedi_pci_enable(devpriv->pci_dev, dev->driver->driver_name);
+	ret = comedi_pci_enable(pcidev, dev->driver->driver_name);
 	if (ret) {
 		dev_err(dev->class_dev,
 			"Failed to enable PCI device and request regions\n");
 		return ret;
 	}
-	dev->iobase = pci_resource_start(devpriv->pci_dev, 2);
+	dev->iobase = pci_resource_start(pcidev, 2);
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
@@ -258,12 +259,12 @@ static int pci6208_attach(struct comedi_device *dev,
 
 static void pci6208_detach(struct comedi_device *dev)
 {
-	struct pci6208_private *devpriv = dev->private;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
-	if (devpriv && devpriv->pci_dev) {
+	if (pcidev) {
 		if (dev->iobase)
-			comedi_pci_disable(devpriv->pci_dev);
-		pci_dev_put(devpriv->pci_dev);
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
