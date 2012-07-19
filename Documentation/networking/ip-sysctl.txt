@@ -468,6 +468,17 @@ tcp_syncookies - BOOLEAN
 	SYN flood warnings in logs not being really flooded, your server
 	is seriously misconfigured.
 
+tcp_fastopen - INTEGER
+	Enable TCP Fast Open feature (draft-ietf-tcpm-fastopen) to send data
+	in the opening SYN packet. To use this feature, the client application
+	must not use connect(). Instead, it should use sendmsg() or sendto()
+	with MSG_FASTOPEN flag which performs a TCP handshake automatically.
+
+	The values (bitmap) are:
+	1: Enables sending data in the opening SYN on the client
+
+	Default: 0
+
 tcp_syn_retries - INTEGER
 	Number of times initial SYNs for an active TCP connection attempt
 	will be retransmitted. Should not be higher than 255. Default value
