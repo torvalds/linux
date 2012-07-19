@@ -100,10 +100,7 @@ static const struct boardtype boardtypes[] = {
 };
 
 struct dyna_pci10xx_private {
-	struct pci_dev *pci_dev;	/*  ptr to PCI device */
 	struct mutex mutex;
-
-	/* device base address registers */
 	unsigned long BADR3;
 };
 
@@ -273,7 +270,7 @@ static int dyna_pci10xx_attach(struct comedi_device *dev,
 	pcidev = dyna_pci10xx_find_pci_dev(dev, it);
 	if (!pcidev)
 		return -EIO;
-	devpriv->pci_dev = pcidev;
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
 	dev->board_name = thisboard->name;
 	dev->irq = 0;
@@ -344,9 +341,12 @@ static int dyna_pci10xx_attach(struct comedi_device *dev,
 
 static void dyna_pci10xx_detach(struct comedi_device *dev)
 {
-	if (devpriv && devpriv->pci_dev) {
-		comedi_pci_disable(devpriv->pci_dev);
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	if (devpriv)
 		mutex_destroy(&devpriv->mutex);
+	if (pcidev) {
+		comedi_pci_disable(pcidev);
 	}
 }
 
