@@ -188,14 +188,15 @@ void kvm_pic_update_irq(struct kvm_pic *s)
 	pic_unlock(s);
 }
 
-int kvm_pic_set_irq(void *opaque, int irq, int level)
+int kvm_pic_set_irq(struct kvm_pic *s, int irq, int irq_source_id, int level)
 {
-	struct kvm_pic *s = opaque;
 	int ret = -1;
 
 	pic_lock(s);
 	if (irq >= 0 && irq < PIC_NUM_PINS) {
-		ret = pic_set_irq1(&s->pics[irq >> 3], irq & 7, level);
+		int irq_level = __kvm_irq_line_state(&s->irq_states[irq],
+						     irq_source_id, level);
+		ret = pic_set_irq1(&s->pics[irq >> 3], irq & 7, irq_level);
 		pic_update_irq(s);
 		trace_kvm_pic_set_irq(irq >> 3, irq & 7, s->pics[irq >> 3].elcr,
 				      s->pics[irq >> 3].imr, ret == 0);
@@ -203,6 +204,16 @@ int kvm_pic_set_irq(void *opaque, int irq, int level)
 	pic_unlock(s);
 
 	return ret;
+}
+
+void kvm_pic_clear_all(struct kvm_pic *s, int irq_source_id)
+{
+	int i;
+
+	pic_lock(s);
+	for (i = 0; i < PIC_NUM_PINS; i++)
+		__clear_bit(irq_source_id, &s->irq_states[i]);
+	pic_unlock(s);
 }
 
 /*

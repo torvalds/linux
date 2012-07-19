@@ -191,7 +191,8 @@ static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 	return kvm_irq_delivery_to_apic(ioapic->kvm, NULL, &irqe);
 }
 
-int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level)
+int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int irq_source_id,
+		       int level)
 {
 	u32 old_irr;
 	u32 mask = 1 << irq;
@@ -201,9 +202,11 @@ int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level)
 	spin_lock(&ioapic->lock);
 	old_irr = ioapic->irr;
 	if (irq >= 0 && irq < IOAPIC_NUM_PINS) {
+		int irq_level = __kvm_irq_line_state(&ioapic->irq_states[irq],
+						     irq_source_id, level);
 		entry = ioapic->redirtbl[irq];
-		level ^= entry.fields.polarity;
-		if (!level)
+		irq_level ^= entry.fields.polarity;
+		if (!irq_level)
 			ioapic->irr &= ~mask;
 		else {
 			int edge = (entry.fields.trig_mode == IOAPIC_EDGE_TRIG);
@@ -219,6 +222,16 @@ int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level)
 	spin_unlock(&ioapic->lock);
 
 	return ret;
+}
+
+void kvm_ioapic_clear_all(struct kvm_ioapic *ioapic, int irq_source_id)
+{
+	int i;
+
+	spin_lock(&ioapic->lock);
+	for (i = 0; i < KVM_IOAPIC_NUM_PINS; i++)
+		__clear_bit(irq_source_id, &ioapic->irq_states[i]);
+	spin_unlock(&ioapic->lock);
 }
 
 static void __kvm_ioapic_update_eoi(struct kvm_ioapic *ioapic, int vector,
