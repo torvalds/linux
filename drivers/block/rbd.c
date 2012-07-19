@@ -537,6 +537,7 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 
 	atomic_set(&header->snapc->nref, 1);
 	header->snap_seq = le64_to_cpu(ondisk->snap_seq);
+	header->snapc->seq = le64_to_cpu(ondisk->snap_seq);
 	header->snapc->num_snaps = snap_count;
 	header->total_snaps = snap_count;
 
@@ -1685,14 +1686,7 @@ static int rbd_header_add_snap(struct rbd_device *rbd_dev,
 
 	kfree(data);
 
-	if (ret < 0)
-		return ret;
-
-	down_write(&rbd_dev->header_rwsem);
-	rbd_dev->header.snapc->seq = new_snapid;
-	up_write(&rbd_dev->header_rwsem);
-
-	return 0;
+	return ret < 0 ? ret : 0;
 bad:
 	return -ERANGE;
 }
