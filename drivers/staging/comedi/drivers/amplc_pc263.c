@@ -93,15 +93,6 @@ static const struct pc263_board pc263_boards[] = {
 #endif
 };
 
-/* this structure is for data unique to this hardware driver.  If
-   several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the struct comedi_device struct.
-*/
-struct pc263_private {
-	/* PCI device. */
-	struct pci_dev *pci_dev;
-};
-
 /*
  * This function looks for a board matching the supplied PCI device.
  */
@@ -193,7 +184,7 @@ static int pc263_do_insn_bits(struct comedi_device *dev,
 static void pc263_report_attach(struct comedi_device *dev)
 {
 	const struct pc263_board *thisboard = comedi_board(dev);
-	struct pc263_private *devpriv = dev->private;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	char tmpbuf[40];
 
 	if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_ISA) &&
@@ -202,7 +193,7 @@ static void pc263_report_attach(struct comedi_device *dev)
 	else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI) &&
 		 thisboard->bustype == pci_bustype)
 		snprintf(tmpbuf, sizeof(tmpbuf), "(pci %s) ",
-			 pci_name(devpriv->pci_dev));
+			 pci_name(pcidev));
 	else
 		tmpbuf[0] = '\0';
 	dev_info(dev->class_dev, "%s %sattached\n", dev->board_name, tmpbuf);
@@ -239,11 +230,11 @@ static int pc263_common_attach(struct comedi_device *dev, unsigned long iobase)
 static int pc263_pci_common_attach(struct comedi_device *dev,
 				   struct pci_dev *pci_dev)
 {
-	struct pc263_private *devpriv = dev->private;
 	unsigned long iobase;
 	int ret;
 
-	devpriv->pci_dev = pci_dev;
+	comedi_set_hw_dev(dev, &pci_dev->dev);
+
 	ret = comedi_pci_enable(pci_dev, PC263_DRIVER_NAME);
 	if (ret < 0) {
 		dev_err(dev->class_dev,
@@ -279,11 +270,6 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		   thisboard->bustype == pci_bustype) {
 		struct pci_dev *pci_dev;
 
-		ret = alloc_private(dev, sizeof(struct pc263_private));
-		if (ret < 0) {
-			dev_err(dev->class_dev, "error! out of memory!\n");
-			return ret;
-		}
 		pci_dev = pc263_find_pci_dev(dev, it);
 		if (!pci_dev)
 			return -EIO;
@@ -302,18 +288,11 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static int __devinit pc263_attach_pci(struct comedi_device *dev,
 				      struct pci_dev *pci_dev)
 {
-	int ret;
-
 	if (!IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI))
 		return -EINVAL;
 
 	dev_info(dev->class_dev, PC263_DRIVER_NAME ": attach pci %s\n",
 		 pci_name(pci_dev));
-	ret = alloc_private(dev, sizeof(struct pc263_private));
-	if (ret < 0) {
-		dev_err(dev->class_dev, "error! out of memory!\n");
-		return ret;
-	}
 	dev->board_ptr = pc263_find_pci_board(pci_dev);
 	if (dev->board_ptr == NULL) {
 		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
@@ -324,14 +303,13 @@ static int __devinit pc263_attach_pci(struct comedi_device *dev,
 
 static void pc263_detach(struct comedi_device *dev)
 {
-	struct pc263_private *devpriv = dev->private;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
-	if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI) && devpriv &&
-	    devpriv->pci_dev) {
+	if (pcidev) {
 		if (dev->iobase)
-			comedi_pci_disable(devpriv->pci_dev);
-		pci_dev_put(devpriv->pci_dev);
-	} else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_ISA)) {
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
+	} else {
 		if (dev->iobase)
 			release_region(dev->iobase, PC263_IO_SIZE);
 	}
