@@ -1899,11 +1899,12 @@ int ath6kl_wmi_disconnect_cmd(struct wmi *wmi, u8 if_idx)
  * ath6kl_wmi_begin_scan_cmd instead. The new function supports P2P
  * mgmt operations using station interface.
  */
-int ath6kl_wmi_startscan_cmd(struct wmi *wmi, u8 if_idx,
-			     enum wmi_scan_type scan_type,
-			     u32 force_fgscan, u32 is_legacy,
-			     u32 home_dwell_time, u32 force_scan_interval,
-			     s8 num_chan, u16 *ch_list)
+static int ath6kl_wmi_startscan_cmd(struct wmi *wmi, u8 if_idx,
+				    enum wmi_scan_type scan_type,
+				    u32 force_fgscan, u32 is_legacy,
+				    u32 home_dwell_time,
+				    u32 force_scan_interval,
+				    s8 num_chan, u16 *ch_list)
 {
 	struct sk_buff *skb;
 	struct wmi_start_scan_cmd *sc;
@@ -1942,6 +1943,11 @@ int ath6kl_wmi_startscan_cmd(struct wmi *wmi, u8 if_idx,
 	return ret;
 }
 
+/*
+ * beginscan supports (compared to old startscan) P2P mgmt operations using
+ * station interface, send additional information like supported rates to
+ * advertise and xmit rates for probe requests
+ */
 int ath6kl_wmi_beginscan_cmd(struct wmi *wmi, u8 if_idx,
 			     enum wmi_scan_type scan_type,
 			     u32 force_fgscan, u32 is_legacy,
@@ -1956,6 +1962,15 @@ int ath6kl_wmi_beginscan_cmd(struct wmi *wmi, u8 if_idx,
 	struct ath6kl *ar = wmi->parent_dev;
 	int num_rates;
 	u32 ratemask;
+
+	if (!test_bit(ATH6KL_FW_CAPABILITY_STA_P2PDEV_DUPLEX,
+		      ar->fw_capabilities)) {
+		return ath6kl_wmi_startscan_cmd(wmi, if_idx,
+						scan_type, force_fgscan,
+						is_legacy, home_dwell_time,
+						force_scan_interval,
+						num_chan, ch_list);
+	}
 
 	size = sizeof(struct wmi_begin_scan_cmd);
 

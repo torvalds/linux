@@ -1031,30 +1031,15 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy,
 
 	vif->scan_req = request;
 
-	if (test_bit(ATH6KL_FW_CAPABILITY_STA_P2PDEV_DUPLEX,
-		     ar->fw_capabilities)) {
-		/*
-		 * If capable of doing P2P mgmt operations using
-		 * station interface, send additional information like
-		 * supported rates to advertise and xmit rates for
-		 * probe requests
-		 */
-		ret = ath6kl_wmi_beginscan_cmd(ar->wmi, vif->fw_vif_idx,
-						WMI_LONG_SCAN, force_fg_scan,
-						false, 0,
-						ATH6KL_FG_SCAN_INTERVAL,
-						n_channels, channels,
-						request->no_cck,
-						request->rates);
-	} else {
-		ret = ath6kl_wmi_startscan_cmd(ar->wmi, vif->fw_vif_idx,
-						WMI_LONG_SCAN, force_fg_scan,
-						false, 0,
-						ATH6KL_FG_SCAN_INTERVAL,
-						n_channels, channels);
-	}
+	ret = ath6kl_wmi_beginscan_cmd(ar->wmi, vif->fw_vif_idx,
+				       WMI_LONG_SCAN, force_fg_scan,
+				       false, 0,
+				       ATH6KL_FG_SCAN_INTERVAL,
+				       n_channels, channels,
+				       request->no_cck,
+				       request->rates);
 	if (ret) {
-		ath6kl_err("wmi_startscan_cmd failed\n");
+		ath6kl_err("failed to start scan: %d\n", ret);
 		vif->scan_req = NULL;
 	}
 

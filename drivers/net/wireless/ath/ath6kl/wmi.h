@@ -2547,11 +2547,6 @@ int ath6kl_wmi_connect_cmd(struct wmi *wmi, u8 if_idx,
 int ath6kl_wmi_reconnect_cmd(struct wmi *wmi, u8 if_idx, u8 *bssid,
 			     u16 channel);
 int ath6kl_wmi_disconnect_cmd(struct wmi *wmi, u8 if_idx);
-int ath6kl_wmi_startscan_cmd(struct wmi *wmi, u8 if_idx,
-			     enum wmi_scan_type scan_type,
-			     u32 force_fgscan, u32 is_legacy,
-			     u32 home_dwell_time, u32 force_scan_interval,
-			     s8 num_chan, u16 *ch_list);
 
 int ath6kl_wmi_beginscan_cmd(struct wmi *wmi, u8 if_idx,
 			     enum wmi_scan_type scan_type,
