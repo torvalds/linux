@@ -1169,7 +1169,6 @@ static int rbd_req_read(struct request *rq,
  * Request sync osd read
  */
 static int rbd_req_sync_read(struct rbd_device *rbd_dev,
-			  struct ceph_snap_context *snapc,
 			  u64 snapid,
 			  const char *object_name,
 			  u64 ofs, u64 len,
@@ -1619,7 +1618,7 @@ static int rbd_read_header(struct rbd_device *rbd_dev,
 			return -ENOMEM;
 
 		rc = rbd_req_sync_read(rbd_dev,
-				       NULL, CEPH_NOSNAP,
+				       CEPH_NOSNAP,
 				       rbd_dev->header_name,
 				       0, len,
 				       (char *)dh, &ver);
