@@ -1055,43 +1055,31 @@ static struct pci_dev *pci_dio_find_pci_dev(struct comedi_device *dev,
 					    struct comedi_devconfig *it)
 {
 	struct pci_dev *pcidev = NULL;
-	unsigned long iobase;
+	int bus = it->options[0];
+	int slot = it->options[1];
 	int i;
 
 	for_each_pci_dev(pcidev) {
-		/*  loop through cards supported by this driver */
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+			    slot != PCI_SLOT(pcidev->devfn))
+				continue;
+		}
+		if (pci_is_enabled(pcidev))
+			continue;
 		for (i = 0; i < ARRAY_SIZE(boardtypes); ++i) {
 			if (boardtypes[i].vendor_id != pcidev->vendor)
 				continue;
 			if (boardtypes[i].device_id != pcidev->device)
 				continue;
-			/*  was a particular bus/slot requested? */
-			if (it->options[0] || it->options[1]) {
-				/*  are we on the wrong bus/slot? */
-				if (pcidev->bus->number != it->options[0] ||
-				    PCI_SLOT(pcidev->devfn) != it->options[1]) {
-					continue;
-				}
-			}
-			if (pci_is_enabled(pcidev))
-				continue;
 			dev->board_ptr = boardtypes + i;
-			break;
+			return pcidev;
 		}
-		if (dev->board_ptr)
-			break;
 	}
-
-	if (!dev->board_ptr) {
-		dev_err(dev->class_dev,
-			"Error: Requested type of the card was not found!\n");
-		return NULL;
-	}
-	iobase = pci_resource_start(devpriv->pcidev, this_board->main_pci_region);
-	dev_dbg(dev->class_dev, "b:s:f=%d:%d:%d, io=0x%4lx\n",
-		pcidev->bus->number, PCI_SLOT(pcidev->devfn),
-		PCI_FUNC(pcidev->devfn), iobase);
-	return pcidev;
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
+	return NULL;
 }
 
 static int pci_dio_attach(struct comedi_device *dev,
