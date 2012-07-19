@@ -231,8 +231,6 @@ static const struct me_board me_boards[] = {
 	 }
 };
 
-#define me_board_nbr (sizeof(me_boards)/sizeof(struct me_board))
-
 /* Private data structure */
 struct me_private_data {
 	struct pci_dev *pci_device;
@@ -613,49 +611,34 @@ static int me_reset(struct comedi_device *dev)
 static struct pci_dev *me_find_pci_dev(struct comedi_device *dev,
 				       struct comedi_devconfig *it)
 {
-	struct pci_dev *pci_device = NULL;
+	const struct me_board *board;
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
 	int i;
 
-	/* Probe the device to determine what device in the series it is. */
-	for_each_pci_dev(pci_device) {
-		if (pci_device->vendor == PCI_VENDOR_ID_MEILHAUS) {
-			for (i = 0; i < me_board_nbr; i++) {
-				if (me_boards[i].device_id ==
-				    pci_device->device) {
-					/*
-					 * was a particular bus/slot requested?
-					 */
-					if ((it->options[0] != 0)
-					    || (it->options[1] != 0)) {
-						/*
-						 * are we on the wrong bus/slot?
-						 */
-						if (pci_device->bus->number !=
-						    it->options[0]
-						    ||
-						    PCI_SLOT(pci_device->devfn)
-						    != it->options[1]) {
-							continue;
-						}
-					}
+	for_each_pci_dev(pcidev) {
+		if (bus || slot) {
+			if (pcidev->bus->number != bus ||
+			    PCI_SLOT(pcidev->devfn) != slot)
+				continue;
+		}
+		if (pcidev->vendor != PCI_VENDOR_ID_MEILHAUS)
+			continue;
 
-					dev->board_ptr = me_boards + i;
-					goto found;
-				}
-			}
+		for (i = 0; i < ARRAY_SIZE(me_boards); i++) {
+			board = &me_boards[i];
+			if (board->device_id != pcidev->device)
+				continue;
+
+			dev->board_ptr = board;
+			return pcidev;
 		}
 	}
-
-	printk(KERN_ERR
-	       "comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
-	       dev->minor, it->options[0], it->options[1]);
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
 	return NULL;
-
-found:
-	printk(KERN_INFO "comedi%d: found %s at PCI bus %d, slot %d\n",
-	       dev->minor, me_boards[i].name,
-	       pci_device->bus->number, PCI_SLOT(pci_device->devfn));
-	return pci_device;
 }
 
 static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
