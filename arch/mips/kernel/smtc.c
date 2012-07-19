@@ -322,7 +322,7 @@ int __init smtc_build_cpu_map(int start_cpu_slot)
 
 /*
  * Common setup before any secondaries are started
- * Make sure all CPU's are in a sensible state before we boot any of the
+ * Make sure all CPUs are in a sensible state before we boot any of the
  * secondaries.
  *
  * For MIPS MT "SMTC" operation, we set up all TCs, spread as evenly
@@ -340,12 +340,12 @@ static void smtc_tc_setup(int vpe, int tc, int cpu)
 	/*
 	 * TCContext gets an offset from the base of the IPIQ array
 	 * to be used in low-level code to detect the presence of
-	 * an active IPI queue
+	 * an active IPI queue.
 	 */
 	write_tc_c0_tccontext((sizeof(struct smtc_ipi_q) * cpu) << 16);
 	/* Bind tc to vpe */
 	write_tc_c0_tcbind(vpe);
-	/* In general, all TCs should have the same cpu_data indications */
+	/* In general, all TCs should have the same cpu_data indications. */
 	memcpy(&cpu_data[cpu], &cpu_data[0], sizeof(struct cpuinfo_mips));
 	/* For 34Kf, start with TC/CPU 0 as sole owner of single FPU context */
 	if (cpu_data[0].cputype == CPU_34K ||
@@ -358,8 +358,8 @@ static void smtc_tc_setup(int vpe, int tc, int cpu)
 }
 
 /*
- * Tweak to get Count registes in as close a sync as possible.
- * Value seems good for 34K-class cores.
+ * Tweak to get Count registes in as close a sync as possible.  The
+ * value seems good for 34K-class cores.
  */
 
 #define CP0_SKEW 8
