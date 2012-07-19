@@ -1907,7 +1907,7 @@ static void rt_bind_exception(struct rtable *rt, struct fib_nh *nh, __be32 daddr
 		if (fnhe->fnhe_daddr == daddr) {
 			if (fnhe->fnhe_pmtu) {
 				unsigned long expires = fnhe->fnhe_expires;
-				unsigned long diff = jiffies - expires;
+				unsigned long diff = expires - jiffies;
 
 				if (time_before(jiffies, expires)) {
 					rt->rt_pmtu = fnhe->fnhe_pmtu;
