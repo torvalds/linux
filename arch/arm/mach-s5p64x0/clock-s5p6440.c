@@ -227,13 +227,13 @@ static struct clk init_clocks_off[] = {
 		.ctrlbit	= (1 << 17),
 	}, {
 		.name		= "spi",
-		.devname	= "s3c64xx-spi.0",
+		.devname	= "s5p64x0-spi.0",
 		.parent		= &clk_pclk_low.clk,
 		.enable		= s5p64x0_pclk_ctrl,
 		.ctrlbit	= (1 << 21),
 	}, {
 		.name		= "spi",
-		.devname	= "s3c64xx-spi.1",
+		.devname	= "s5p64x0-spi.1",
 		.parent		= &clk_pclk_low.clk,
 		.enable		= s5p64x0_pclk_ctrl,
 		.ctrlbit	= (1 << 22),
@@ -467,7 +467,7 @@ static struct clksrc_clk clk_sclk_uclk = {
 static struct clksrc_clk clk_sclk_spi0 = {
 	.clk	= {
 		.name		= "sclk_spi",
-		.devname	= "s3c64xx-spi.0",
+		.devname	= "s5p64x0-spi.0",
 		.ctrlbit	= (1 << 20),
 		.enable		= s5p64x0_sclk_ctrl,
 	},
@@ -479,7 +479,7 @@ static struct clksrc_clk clk_sclk_spi0 = {
 static struct clksrc_clk clk_sclk_spi1 = {
 	.clk	= {
 		.name		= "sclk_spi",
-		.devname	= "s3c64xx-spi.1",
+		.devname	= "s5p64x0-spi.1",
 		.ctrlbit	= (1 << 21),
 		.enable		= s5p64x0_sclk_ctrl,
 	},
@@ -519,8 +519,8 @@ static struct clk_lookup s5p6440_clk_lookup[] = {
 	CLKDEV_INIT(NULL, "clk_uart_baud2", &clk_pclk_low.clk),
 	CLKDEV_INIT(NULL, "clk_uart_baud3", &clk_sclk_uclk.clk),
 	CLKDEV_INIT(NULL, "spi_busclk0", &clk_p),
-	CLKDEV_INIT("s3c64xx-spi.0", "spi_busclk1", &clk_sclk_spi0.clk),
-	CLKDEV_INIT("s3c64xx-spi.1", "spi_busclk1", &clk_sclk_spi1.clk),
+	CLKDEV_INIT("s5p64x0-spi.0", "spi_busclk1", &clk_sclk_spi0.clk),
+	CLKDEV_INIT("s5p64x0-spi.1", "spi_busclk1", &clk_sclk_spi1.clk),
 	CLKDEV_INIT("s3c-sdhci.0", "mmc_busclk.2", &clk_sclk_mmc0.clk),
 	CLKDEV_INIT("s3c-sdhci.1", "mmc_busclk.2", &clk_sclk_mmc1.clk),
 	CLKDEV_INIT("s3c-sdhci.2", "mmc_busclk.2", &clk_sclk_mmc2.clk),
