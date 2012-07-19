@@ -125,49 +125,35 @@ static int cnt_rinsn(struct comedi_device *dev,
 static struct pci_dev *cnt_find_pci_dev(struct comedi_device *dev,
 					struct comedi_devconfig *it)
 {
-	struct cnt_board_struct *board;
-	struct pci_dev *pci_device = NULL;
+	const struct cnt_board_struct *board;
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
 	int i;
 
 	/* Probe the device to determine what device in the series it is. */
-	for_each_pci_dev(pci_device) {
-		if (pci_device->vendor == PCI_VENDOR_ID_KOLTER) {
-			for (i = 0; i < cnt_board_nbr; i++) {
-				if (cnt_boards[i].device_id ==
-				    pci_device->device) {
-					/* was a particular bus/slot requested? */
-					if ((it->options[0] != 0)
-					    || (it->options[1] != 0)) {
-						/* are we on the wrong bus/slot? */
-						if (pci_device->bus->number !=
-						    it->options[0]
-						    ||
-						    PCI_SLOT(pci_device->devfn)
-						    != it->options[1]) {
-							continue;
-						}
-					}
+	for_each_pci_dev(pcidev) {
+		if (bus || slot) {
+			if (pcidev->bus->number != bus ||
+			    PCI_SLOT(pcidev->devfn) != slot)
+				continue;
+		}
+		if (pcidev->vendor != PCI_VENDOR_ID_KOLTER)
+			continue;
 
-					dev->board_ptr = cnt_boards + i;
-					board =
-					    (struct cnt_board_struct *)
-					    dev->board_ptr;
-					goto found;
-				}
-			}
+		for (i = 0; i < cnt_board_nbr; i++) {
+			board = &cnt_boards[i];
+			if (board->device_id != pcidev->device)
+				continue;
+
+			dev->board_ptr = board;
+			return pcidev;
 		}
 	}
-	printk(KERN_WARNING
-	       "comedi%d: no supported board found! (req. bus/slot: %d/%d)\n",
-	       dev->minor, it->options[0], it->options[1]);
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
 	return NULL;
-
-found:
-	printk(KERN_INFO
-	       "comedi%d: found %s at PCI bus %d, slot %d\n", dev->minor,
-	       board->name, pci_device->bus->number,
-	       PCI_SLOT(pci_device->devfn));
-	return pci_device;
 }
 
 static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
