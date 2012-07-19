@@ -248,7 +248,6 @@ static const struct boardtype boardtypes[] = {
 };
 
 struct pci1710_private {
-	struct pci_dev *pcidev;	/*  ptr to PCI device */
 	char valid;		/*  card is usable */
 	char neverending_ai;	/*  we do unlimited AI */
 	unsigned int CntrlReg;	/*  Control register */
@@ -1378,6 +1377,7 @@ static struct pci_dev *pci1710_find_pci_dev(struct comedi_device *dev,
 static int pci1710_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
 	unsigned int irq;
@@ -1388,16 +1388,17 @@ static int pci1710_attach(struct comedi_device *dev,
 	if (ret < 0)
 		return -ENOMEM;
 
-	devpriv->pcidev = pci1710_find_pci_dev(dev, it);
-	if (!devpriv->pcidev)
+	pcidev = pci1710_find_pci_dev(dev, it);
+	if (!pcidev)
 		return -EIO;
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
-	ret = comedi_pci_enable(devpriv->pcidev, DRV_NAME);
+	ret = comedi_pci_enable(pcidev, DRV_NAME);
 	if (ret)
 		return ret;
 
-	dev->iobase = pci_resource_start(devpriv->pcidev, 2);
-	irq = devpriv->pcidev->irq;
+	dev->iobase = pci_resource_start(pcidev, 2);
+	irq = pcidev->irq;
 
 	dev->board_name = this_board->name;
 
@@ -1532,16 +1533,18 @@ static int pci1710_attach(struct comedi_device *dev,
 
 static void pci1710_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
 	if (dev->private) {
 		if (devpriv->valid)
 			pci1710_reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
-		if (devpriv->pcidev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pcidev);
-			pci_dev_put(devpriv->pcidev);
-		}
+	}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
