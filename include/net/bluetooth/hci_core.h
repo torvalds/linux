@@ -115,12 +115,6 @@ struct oob_data {
 	u8 randomizer[16];
 };
 
-struct adv_entry {
-	struct list_head list;
-	bdaddr_t bdaddr;
-	u8 bdaddr_type;
-};
-
 struct le_scan_params {
 	u8 type;
 	u16 interval;
