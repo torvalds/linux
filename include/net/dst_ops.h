@@ -8,6 +8,7 @@ struct dst_entry;
 struct kmem_cachep;
 struct net_device;
 struct sk_buff;
+struct sock;
 
 struct dst_ops {
 	unsigned short		family;
