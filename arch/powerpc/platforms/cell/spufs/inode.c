@@ -450,28 +450,24 @@ spufs_create_context(struct inode *inode, struct dentry *dentry,
 	struct spu_context *neighbor;
 	struct path path = {.mnt = mnt, .dentry = dentry};
 
-	ret = -EPERM;
 	if ((flags & SPU_CREATE_NOSCHED) &&
 	    !capable(CAP_SYS_NICE))
-		goto out_unlock;
+		return -EPERM;
 
-	ret = -EINVAL;
 	if ((flags & (SPU_CREATE_NOSCHED | SPU_CREATE_ISOLATE))
 	    == SPU_CREATE_ISOLATE)
-		goto out_unlock;
+		return -EINVAL;
 
-	ret = -ENODEV;
 	if ((flags & SPU_CREATE_ISOLATE) && !isolated_loader)
-		goto out_unlock;
+		return -ENODEV;
 
 	gang = NULL;
 	neighbor = NULL;
 	affinity = flags & (SPU_CREATE_AFFINITY_MEM | SPU_CREATE_AFFINITY_SPU);
 	if (affinity) {
 		gang = SPUFS_I(inode)->i_gang;
-		ret = -EINVAL;
 		if (!gang)
-			goto out_unlock;
+			return -EINVAL;
 		mutex_lock(&gang->aff_mutex);
 		neighbor = spufs_assert_affinity(flags, gang, aff_filp);
 		if (IS_ERR(neighbor)) {
@@ -498,9 +494,6 @@ spufs_create_context(struct inode *inode, struct dentry *dentry,
 out_aff_unlock:
 	if (affinity)
 		mutex_unlock(&gang->aff_mutex);
-out_unlock:
-	mutex_unlock(&inode->i_mutex);
-	dput(dentry);
 	return ret;
 }
 
@@ -573,18 +566,13 @@ static int spufs_create_gang(struct inode *inode,
 	int ret;
 
 	ret = spufs_mkgang(inode, dentry, mode & S_IRWXUGO);
-	if (ret)
-		goto out;
-
-	ret = spufs_gang_open(&path);
-	if (ret < 0) {
-		int err = simple_rmdir(inode, dentry);
-		WARN_ON(err);
+	if (!ret) {
+		ret = spufs_gang_open(&path);
+		if (ret < 0) {
+			int err = simple_rmdir(inode, dentry);
+			WARN_ON(err);
+		}
 	}
-
-out:
-	mutex_unlock(&inode->i_mutex);
-	dput(dentry);
 	return ret;
 }
 
@@ -623,7 +611,6 @@ long spufs_create(struct path *path, struct dentry *dentry,
 					    filp);
 	if (ret >= 0)
 		fsnotify_mkdir(path->dentry->d_inode, dentry);
-	return ret;
 
 out:
 	mutex_unlock(&path->dentry->d_inode->i_mutex);
