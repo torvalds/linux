@@ -59,9 +59,6 @@ static const struct contec_board contec_boards[] = {
 
 struct contec_private {
 	int data;
-
-	struct pci_dev *pci_dev;
-
 };
 
 #define devpriv ((struct contec_private *)dev->private)
@@ -143,7 +140,7 @@ static int contec_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	pcidev = contec_find_pci_dev(dev, it);
 	if (!pcidev)
 		return -EIO;
-	devpriv->pci_dev = pcidev;
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
 	if (comedi_pci_enable(pcidev, "contec_pci_dio")) {
 		printk("error enabling PCI device and request regions!\n");
@@ -176,10 +173,12 @@ static int contec_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void contec_detach(struct comedi_device *dev)
 {
-	if (devpriv && devpriv->pci_dev) {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	if (pcidev) {
 		if (dev->iobase)
-			comedi_pci_disable(devpriv->pci_dev);
-		pci_dev_put(devpriv->pci_dev);
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
