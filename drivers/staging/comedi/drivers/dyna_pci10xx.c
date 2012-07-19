@@ -104,7 +104,7 @@ struct dyna_pci10xx_private {
 	struct mutex mutex;
 
 	/* device base address registers */
-	unsigned long BADR0, BADR1, BADR2, BADR3, BADR4, BADR5;
+	unsigned long BADR2, BADR3;
 };
 
 #define thisboard ((const struct boardtype *)dev->board_ptr)
@@ -288,13 +288,8 @@ static int dyna_pci10xx_attach(struct comedi_device *dev,
 
 	printk(KERN_INFO "comedi: dyna_pci10xx: device found!\n");
 
-	/* initialize device base address registers */
-	devpriv->BADR0 = pci_resource_start(pcidev, 0);
-	devpriv->BADR1 = pci_resource_start(pcidev, 1);
 	devpriv->BADR2 = pci_resource_start(pcidev, 2);
 	devpriv->BADR3 = pci_resource_start(pcidev, 3);
-	devpriv->BADR4 = pci_resource_start(pcidev, 4);
-	devpriv->BADR5 = pci_resource_start(pcidev, 5);
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
