@@ -1423,6 +1423,7 @@ config CPU_SB1
 config CPU_CAVIUM_OCTEON
 	bool "Cavium Octeon processor"
 	depends on SYS_HAS_CPU_CAVIUM_OCTEON
+	select ARCH_SPARSEMEM_ENABLE
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_SMP
