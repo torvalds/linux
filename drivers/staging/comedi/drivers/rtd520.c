@@ -312,7 +312,6 @@ struct rtdPrivate {
 
 	/* PCI device info */
 	struct pci_dev *pci_dev;
-	int got_regions;	/* non-zero if PCI regions owned */
 
 	/* channel list info */
 	/* chanBipolar tracks whether a channel is bipolar (and needs +2048) */
@@ -1623,7 +1622,6 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct rtdPrivate *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
-	resource_size_t physLas0;	/* configuration */
 	resource_size_t physLas1;	/* data area */
 	resource_size_t physLcfg;	/* PLX9080 */
 #ifdef USE_DMA
@@ -1658,18 +1656,17 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		printk(KERN_INFO "Failed to enable PCI device and request regions.\n");
 		return ret;
 	}
-	devpriv->got_regions = 1;
 
 	/*
 	 * Initialize base addresses
 	 */
 	/* Get the physical address from PCI config */
-	physLas0 = pci_resource_start(devpriv->pci_dev, LAS0_PCIINDEX);
+	dev->iobase = pci_resource_start(devpriv->pci_dev, LAS0_PCIINDEX);
 	physLas1 = pci_resource_start(devpriv->pci_dev, LAS1_PCIINDEX);
 	physLcfg = pci_resource_start(devpriv->pci_dev, LCFG_PCIINDEX);
 	/* Now have the kernel map this into memory */
 	/* ASSUME page aligned */
-	devpriv->las0 = ioremap_nocache(physLas0, LAS0_PCISIZE);
+	devpriv->las0 = ioremap_nocache(dev->iobase, LAS0_PCISIZE);
 	devpriv->las1 = ioremap_nocache(physLas1, LAS1_PCISIZE);
 	devpriv->lcfg = ioremap_nocache(physLcfg, LCFG_PCISIZE);
 
@@ -2000,7 +1997,7 @@ static void rtd_detach(struct comedi_device *dev)
 		if (devpriv->lcfg)
 			iounmap(devpriv->lcfg);
 		if (devpriv->pci_dev) {
-			if (devpriv->got_regions)
+			if (dev->iobase)
 				comedi_pci_disable(devpriv->pci_dev);
 			pci_dev_put(devpriv->pci_dev);
 		}
