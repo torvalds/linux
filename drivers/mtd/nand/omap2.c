@@ -347,7 +347,7 @@ static void omap_nand_dma_callback(void *data)
 }
 
 /*
- * omap_nand_dma_transfer: configer and start dma transfer
+ * omap_nand_dma_transfer: configure and start dma transfer
  * @mtd: MTD device structure
  * @addr: virtual address in RAM of source/destination
  * @len: number of data bytes to be transferred
@@ -463,7 +463,7 @@ static void omap_write_buf_dma_pref(struct mtd_info *mtd,
 }
 
 /*
- * omap_nand_irq - GMPC irq handler
+ * omap_nand_irq - GPMC irq handler
  * @this_irq: gpmc irq number
  * @dev: omap_nand_info structure pointer is passed here
  */
@@ -1205,8 +1205,8 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 
 	/*
 	 * If RDY/BSY line is connected to OMAP then use the omap ready
-	 * funcrtion and the generic nand_wait function which reads the status
-	 * register after monitoring the RDY/BSY line.Otherwise use a standard
+	 * function and the generic nand_wait function which reads the status
+	 * register after monitoring the RDY/BSY line. Otherwise use a standard
 	 * chip delay which is slightly more than tR (AC Timing) of the NAND
 	 * device and read status register until you get a failure or success
 	 */
@@ -1287,7 +1287,7 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 
 	info->nand.verify_buf = omap_verify_buf;
 
-	/* selsect the ecc type */
+	/* select the ecc type */
 	if (pdata->ecc_opt == OMAP_ECC_HAMMING_CODE_DEFAULT)
 		info->nand.ecc.mode = NAND_ECC_SOFT;
 	else if ((pdata->ecc_opt == OMAP_ECC_HAMMING_CODE_HW) ||
