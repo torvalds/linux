@@ -317,7 +317,6 @@ struct daqboard2000_private {
 	enum {
 		card_daqboard_2000
 	} card;
-	struct pci_dev *pci_dev;
 	void *daq;
 	void *plx;
 	unsigned int ao_readback[2];
@@ -751,7 +750,7 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	pcidev = daqboard2000_find_pci_dev(dev, it);
 	if (!pcidev)
 		return -EIO;
-	devpriv->pci_dev = pcidev;
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
 	result = comedi_pci_enable(pcidev, "daqboard2000");
 	if (result < 0) {
@@ -833,6 +832,8 @@ out:
 
 static void daqboard2000_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
 	if (dev->irq)
@@ -842,11 +843,11 @@ static void daqboard2000_detach(struct comedi_device *dev)
 			iounmap(devpriv->daq);
 		if (devpriv->plx)
 			iounmap(devpriv->plx);
-		if (devpriv->pci_dev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pci_dev);
-			pci_dev_put(devpriv->pci_dev);
-		}
+	}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
