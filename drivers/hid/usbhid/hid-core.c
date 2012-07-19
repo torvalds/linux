@@ -84,7 +84,7 @@ static int hid_start_in(struct hid_device *hid)
 	spin_lock_irqsave(&usbhid->lock, flags);
 	if (hid->open > 0 &&
 			!test_bit(HID_DISCONNECTED, &usbhid->iofl) &&
-			!test_bit(HID_REPORTED_IDLE, &usbhid->iofl) &&
+			!test_bit(HID_SUSPENDED, &usbhid->iofl) &&
 			!test_and_set_bit(HID_IN_RUNNING, &usbhid->iofl)) {
 		rc = usb_submit_urb(usbhid->urbin, GFP_ATOMIC);
 		if (rc != 0) {
@@ -222,7 +222,7 @@ static int usbhid_restart_out_queue(struct usbhid_device *usbhid)
 		 * If still suspended, don't submit.  Submission will
 		 * occur if/when resume drains the queue.
 		 */
-		if (test_bit(HID_REPORTED_IDLE, &usbhid->iofl)) {
+		if (test_bit(HID_SUSPENDED, &usbhid->iofl)) {
 			usb_autopm_put_interface_no_suspend(usbhid->intf);
 			return r;
 		}
@@ -260,7 +260,7 @@ static int usbhid_restart_ctrl_queue(struct usbhid_device *usbhid)
 		 * If still suspended, don't submit.  Submission will
 		 * occur if/when resume drains the queue.
 		 */
-		if (test_bit(HID_REPORTED_IDLE, &usbhid->iofl)) {
+		if (test_bit(HID_SUSPENDED, &usbhid->iofl)) {
 			usb_autopm_put_interface_no_suspend(usbhid->intf);
 			return r;
 		}
@@ -1475,7 +1475,7 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 		    && !test_bit(HID_KEYS_PRESSED, &usbhid->iofl)
 		    && (!usbhid->ledcount || ignoreled))
 		{
-			set_bit(HID_REPORTED_IDLE, &usbhid->iofl);
+			set_bit(HID_SUSPENDED, &usbhid->iofl);
 			spin_unlock_irq(&usbhid->lock);
 			if (hid->driver && hid->driver->suspend) {
 				status = hid->driver->suspend(hid, message);
@@ -1495,7 +1495,7 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 				return status;
 		}
 		spin_lock_irq(&usbhid->lock);
-		set_bit(HID_REPORTED_IDLE, &usbhid->iofl);
+		set_bit(HID_SUSPENDED, &usbhid->iofl);
 		spin_unlock_irq(&usbhid->lock);
 		if (usbhid_wait_io(hid) < 0)
 			return -EIO;
@@ -1525,7 +1525,7 @@ static int hid_resume(struct usb_interface *intf)
 	if (!test_bit(HID_STARTED, &usbhid->iofl))
 		return 0;
 
-	clear_bit(HID_REPORTED_IDLE, &usbhid->iofl);
+	clear_bit(HID_SUSPENDED, &usbhid->iofl);
 	usbhid_mark_busy(usbhid);
 
 	if (test_bit(HID_CLEAR_HALT, &usbhid->iofl) ||
@@ -1552,7 +1552,7 @@ static int hid_reset_resume(struct usb_interface *intf)
 	struct usbhid_device *usbhid = hid->driver_data;
 	int status;
 
-	clear_bit(HID_REPORTED_IDLE, &usbhid->iofl);
+	clear_bit(HID_SUSPENDED, &usbhid->iofl);
 	status = hid_post_reset(intf);
 	if (status >= 0 && hid->driver && hid->driver->reset_resume) {
 		int ret = hid->driver->reset_resume(hid);
