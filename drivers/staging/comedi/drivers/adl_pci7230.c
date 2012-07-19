@@ -44,7 +44,6 @@ Configuration Options:
 
 struct adl_pci7230_private {
 	int data;
-	struct pci_dev *pci_dev;
 };
 
 #define devpriv ((struct adl_pci7230_private *)dev->private)
@@ -102,6 +101,7 @@ static int adl_pci7230_attach(struct comedi_device *dev,
 	struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
+	struct pci_dev *pcidev;
 	int ret;
 
 	printk(KERN_INFO "comedi%d: adl_pci7230\n", dev->minor);
@@ -115,16 +115,17 @@ static int adl_pci7230_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv->pci_dev = adl_pci7230_find_pci(dev, it);
-	if (!devpriv->pci_dev)
+	pcidev = adl_pci7230_find_pci(dev, it);
+	if (!pcidev)
 		return -EIO;
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
-	if (comedi_pci_enable(devpriv->pci_dev, "adl_pci7230") < 0) {
+	if (comedi_pci_enable(pcidev, "adl_pci7230") < 0) {
 		printk(KERN_ERR "comedi%d: Failed to enable PCI device and request regions\n",
 			dev->minor);
 		return -EIO;
 	}
-	dev->iobase = pci_resource_start(devpriv->pci_dev, 2);
+	dev->iobase = pci_resource_start(pcidev, 2);
 	printk(KERN_DEBUG "comedi: base addr %4lx\n", dev->iobase);
 
 	s = dev->subdevices + 0;
@@ -152,10 +153,12 @@ static int adl_pci7230_attach(struct comedi_device *dev,
 
 static void adl_pci7230_detach(struct comedi_device *dev)
 {
-	if (devpriv && devpriv->pci_dev) {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	if (pcidev) {
 		if (dev->iobase)
-			comedi_pci_disable(devpriv->pci_dev);
-		pci_dev_put(devpriv->pci_dev);
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
