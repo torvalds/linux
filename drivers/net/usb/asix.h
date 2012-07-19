@@ -208,6 +208,8 @@ int asix_set_wol(struct net_device *net, struct ethtool_wolinfo *wolinfo);
 int asix_get_eeprom_len(struct net_device *net);
 int asix_get_eeprom(struct net_device *net, struct ethtool_eeprom *eeprom,
 		    u8 *data);
+int asix_set_eeprom(struct net_device *net, struct ethtool_eeprom *eeprom,
+		    u8 *data);
 
 void asix_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *info);
 

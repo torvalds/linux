@@ -194,6 +194,7 @@ static const struct ethtool_ops ax88172a_ethtool_ops = {
 	.set_wol		= asix_set_wol,
 	.get_eeprom_len		= asix_get_eeprom_len,
 	.get_eeprom		= asix_get_eeprom,
+	.set_eeprom		= asix_set_eeprom,
 	.get_settings		= ax88172a_get_settings,
 	.set_settings		= ax88172a_set_settings,
 	.nway_reset		= ax88172a_nway_reset,
