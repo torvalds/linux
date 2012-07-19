@@ -610,23 +610,11 @@ static int me_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static struct pci_dev *me_find_pci_dev(struct comedi_device *dev,
+				       struct comedi_devconfig *it)
 {
 	struct pci_dev *pci_device = NULL;
-	struct comedi_subdevice *subdevice;
-	struct me_board *board;
-	resource_size_t plx_regbase_tmp;
-	unsigned long plx_regbase_size_tmp;
-	resource_size_t me_regbase_tmp;
-	unsigned long me_regbase_size_tmp;
-	resource_size_t swap_regbase_tmp;
-	unsigned long swap_regbase_size_tmp;
-	resource_size_t regbase_tmp;
-	int result, error, i;
-
-	/* Allocate private memory */
-	if (alloc_private(dev, sizeof(struct me_private_data)) < 0)
-		return -ENOMEM;
+	int i;
 
 	/* Probe the device to determine what device in the series it is. */
 	for_each_pci_dev(pci_device) {
@@ -652,9 +640,6 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 					}
 
 					dev->board_ptr = me_boards + i;
-					board =
-					    (struct me_board *)dev->board_ptr;
-					dev_private->pci_device = pci_device;
 					goto found;
 				}
 			}
@@ -664,12 +649,38 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk(KERN_ERR
 	       "comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
 	       dev->minor, it->options[0], it->options[1]);
-	return -EIO;
+	return NULL;
 
 found:
 	printk(KERN_INFO "comedi%d: found %s at PCI bus %d, slot %d\n",
 	       dev->minor, me_boards[i].name,
 	       pci_device->bus->number, PCI_SLOT(pci_device->devfn));
+	return pci_device;
+}
+
+static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+{
+	struct pci_dev *pci_device;
+	struct comedi_subdevice *subdevice;
+	struct me_board *board;
+	resource_size_t plx_regbase_tmp;
+	unsigned long plx_regbase_size_tmp;
+	resource_size_t me_regbase_tmp;
+	unsigned long me_regbase_size_tmp;
+	resource_size_t swap_regbase_tmp;
+	unsigned long swap_regbase_size_tmp;
+	resource_size_t regbase_tmp;
+	int result, error;
+
+	/* Allocate private memory */
+	if (alloc_private(dev, sizeof(struct me_private_data)) < 0)
+		return -ENOMEM;
+
+	pci_device = me_find_pci_dev(dev, it);
+	if (!pci_device)
+		return -EIO;
+	dev_private->pci_device = pci_device;
+	board = (struct me_board *)dev->board_ptr;
 
 	/* Enable PCI device and request PCI regions */
 	if (comedi_pci_enable(pci_device, ME_DRIVER_NAME) < 0) {
