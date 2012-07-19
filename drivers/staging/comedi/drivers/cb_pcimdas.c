@@ -56,7 +56,6 @@ See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
 /* Registers for the PCIM-DAS1602/16 */
 
 /* sizes of io regions (bytes) */
-#define BADR0_SIZE 2		/* ?? */
 #define BADR3_SIZE 16
 
 /* DAC Offsets */
@@ -135,7 +134,6 @@ struct cb_pcimdas_private {
 	struct pci_dev *pci_dev;
 
 	/* base addresses */
-	unsigned long BADR0;
 	unsigned long BADR3;
 
 	/* Used for AO readback */
@@ -230,7 +228,6 @@ static int cb_pcimdas_attach(struct comedi_device *dev,
 		return -EIO;
 	}
 
-	devpriv->BADR0 = pci_resource_start(devpriv->pci_dev, 0);
 	dev->iobase = pci_resource_start(devpriv->pci_dev, 2);
 	devpriv->BADR3 = pci_resource_start(devpriv->pci_dev, 3);
 	iobase_8255 = pci_resource_start(devpriv->pci_dev, 4);
@@ -290,7 +287,7 @@ static void cb_pcimdas_detach(struct comedi_device *dev)
 		free_irq(dev->irq, dev);
 	if (devpriv) {
 		if (devpriv->pci_dev) {
-			if (devpriv->BADR0)
+			if (dev->iobase)
 				comedi_pci_disable(devpriv->pci_dev);
 			pci_dev_put(devpriv->pci_dev);
 		}
