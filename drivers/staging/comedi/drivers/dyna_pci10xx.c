@@ -45,8 +45,6 @@
 
 #define READ_TIMEOUT 50
 
-static DEFINE_MUTEX(start_stop_sem);
-
 static const struct comedi_lrange range_pci1050_ai = { 3, {
 							  BIP_RANGE(10),
 							  BIP_RANGE(5),
@@ -267,20 +265,15 @@ static int dyna_pci10xx_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	mutex_lock(&start_stop_sem);
-
 	if (alloc_private(dev, sizeof(struct dyna_pci10xx_private)) < 0) {
 		printk(KERN_ERR "comedi: dyna_pci10xx: "
 			"failed to allocate memory!\n");
-		mutex_unlock(&start_stop_sem);
 		return -ENOMEM;
 	}
 
 	pcidev = dyna_pci10xx_find_pci_dev(dev, it);
-	if (!pcidev) {
-		mutex_unlock(&start_stop_sem);
+	if (!pcidev)
 		return -EIO;
-	}
 	devpriv->pci_dev = pcidev;
 
 	dev->board_name = thisboard->name;
@@ -289,7 +282,6 @@ static int dyna_pci10xx_attach(struct comedi_device *dev,
 	if (comedi_pci_enable(pcidev, DRV_NAME)) {
 		printk(KERN_ERR "comedi: dyna_pci10xx: "
 			"failed to enable PCI device and request regions!");
-		mutex_unlock(&start_stop_sem);
 		return -EIO;
 	}
 
@@ -306,10 +298,8 @@ static int dyna_pci10xx_attach(struct comedi_device *dev,
 	devpriv->BADR5 = pci_resource_start(pcidev, 5);
 
 	ret = comedi_alloc_subdevices(dev, 4);
-	if (ret) {
-		mutex_unlock(&start_stop_sem);
+	if (ret)
 		return ret;
-	}
 
 	/* analog input */
 	s = dev->subdevices + 0;
@@ -353,7 +343,6 @@ static int dyna_pci10xx_attach(struct comedi_device *dev,
 	s->insn_bits = dyna_pci10xx_do_insn_bits;
 
 	devpriv->valid = 1;
-	mutex_unlock(&start_stop_sem);
 
 	printk(KERN_INFO "comedi: dyna_pci10xx: %s - device setup completed!\n",
 		thisboard->name);
