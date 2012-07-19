@@ -382,8 +382,6 @@ static const struct dio_boardtype boardtypes[] = {
 };
 
 struct pci_dio_private {
-	struct pci_dio_private *prev;	/*  previous private struct */
-	struct pci_dio_private *next;	/*  next private struct */
 	struct pci_dev *pcidev;	/*  pointer to board's pci_dev */
 	char valid;		/*  card is usable */
 	char GlobalIrqEnabled;	/*  1= any IRQ source is enabled */
@@ -403,8 +401,6 @@ struct pci_dio_private {
 	unsigned short IDIFiltrLow[8];	/*  IDI's filter value low signal */
 	unsigned short IDIFiltrHigh[8];	/*  IDI's filter value high signal */
 };
-
-static struct pci_dio_private *pci_priv;	/* list of allocated cards */
 
 #define devpriv ((struct pci_dio_private *)dev->private)
 #define this_board ((const struct dio_boardtype *)dev->board_ptr)
@@ -1055,38 +1051,12 @@ static int pci_dio_add_8254(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-*/
-static int CheckAndAllocCard(struct comedi_device *dev,
-			     struct comedi_devconfig *it,
-			     struct pci_dev *pcidev)
-{
-	struct pci_dio_private *pr, *prev;
-
-	for (pr = pci_priv, prev = NULL; pr != NULL; prev = pr, pr = pr->next) {
-		if (pr->pcidev == pcidev)
-			return 0; /* this card is used, look for another */
-
-	}
-
-	if (prev) {
-		devpriv->prev = prev;
-		prev->next = devpriv;
-	} else {
-		pci_priv = devpriv;
-	}
-
-	return 1;
-}
-
 static struct pci_dev *pci_dio_find_pci_dev(struct comedi_device *dev,
 					    struct comedi_devconfig *it)
 {
 	struct pci_dev *pcidev = NULL;
 	unsigned long iobase;
 	int i;
-	int ret;
 
 	for_each_pci_dev(pcidev) {
 		/*  loop through cards supported by this driver */
@@ -1103,8 +1073,7 @@ static struct pci_dev *pci_dio_find_pci_dev(struct comedi_device *dev,
 					continue;
 				}
 			}
-			ret = CheckAndAllocCard(dev, it, pcidev);
-			if (ret != 1)
+			if (pci_is_enabled(pcidev))
 				continue;
 			dev->board_ptr = boardtypes + i;
 			break;
@@ -1260,12 +1229,6 @@ static void pci_dio_detach(struct comedi_device *dev)
 				comedi_pci_disable(devpriv->pcidev);
 			pci_dev_put(devpriv->pcidev);
 		}
-		if (devpriv->prev)
-			devpriv->prev->next = devpriv->next;
-		else
-			pci_priv = devpriv->next;
-		if (devpriv->next)
-			devpriv->next->prev = devpriv->prev;
 	}
 }
 
