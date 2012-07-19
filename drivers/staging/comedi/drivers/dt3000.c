@@ -250,7 +250,6 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 struct dt3k_private {
 
 	struct pci_dev *pci_dev;
-	resource_size_t phys_addr;
 	void __iomem *io_addr;
 	unsigned int lock;
 	unsigned int ao_readback[2];
@@ -824,8 +823,8 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret < 0)
 		return ret;
 
-	devpriv->phys_addr = pci_resource_start(pcidev, 0);
-	devpriv->io_addr = ioremap(devpriv->phys_addr, DT3000_SIZE);
+	dev->iobase = pci_resource_start(pcidev, 0);
+	devpriv->io_addr = ioremap(dev->iobase, DT3000_SIZE);
 	if (!devpriv->io_addr)
 		return -ENOMEM;
 
@@ -905,7 +904,7 @@ static void dt3000_detach(struct comedi_device *dev)
 		free_irq(dev->irq, dev);
 	if (devpriv) {
 		if (devpriv->pci_dev) {
-			if (devpriv->phys_addr)
+			if (dev->iobase)
 				comedi_pci_disable(devpriv->pci_dev);
 			pci_dev_put(devpriv->pci_dev);
 		}
