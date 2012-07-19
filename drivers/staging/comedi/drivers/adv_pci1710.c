@@ -1333,28 +1333,20 @@ static int pci1710_reset(struct comedi_device *dev)
 	DPRINTK("adv_pci1710 EDBG: END: pci1710_reset(...)\n");
 }
 
-static int pci1710_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static struct pci_dev *pci1710_find_pci_dev(struct comedi_device *dev,
+					    struct comedi_devconfig *it)
 {
-	struct comedi_subdevice *s;
-	int ret, subdev, n_subdevices;
-	unsigned int irq;
-	unsigned long iobase;
 	struct pci_dev *pcidev;
 	int opt_bus, opt_slot;
 	const char *errstr;
 	unsigned char pci_bus, pci_slot, pci_func;
 	int i;
 	int board_index;
-
-	dev_info(dev->class_dev, DRV_NAME ": attach\n");
+	unsigned int irq;
+	unsigned long iobase;
 
 	opt_bus = it->options[0];
 	opt_slot = it->options[1];
-
-	ret = alloc_private(dev, sizeof(struct pci1710_private));
-	if (ret < 0)
-		return -ENOMEM;
 
 	/* Look for matching PCI device */
 	errstr = "not found!";
@@ -1404,7 +1396,7 @@ static int pci1710_attach(struct comedi_device *dev,
 		} else {
 			dev_err(dev->class_dev, "- Card %s\n", errstr);
 		}
-		return -EIO;
+		return NULL;
 	}
 
 	pci_bus = pcidev->bus->number;
@@ -1416,10 +1408,30 @@ static int pci1710_attach(struct comedi_device *dev,
 	dev_dbg(dev->class_dev, "b:s:f=%d:%d:%d, io=0x%4lx\n",
 		pci_bus, pci_slot, pci_func, iobase);
 
-	dev->iobase = iobase;
+	return pcidev;
+}
+
+static int pci1710_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
+{
+	struct comedi_subdevice *s;
+	int ret, subdev, n_subdevices;
+	unsigned int irq;
+
+	dev_info(dev->class_dev, DRV_NAME ": attach\n");
+
+	ret = alloc_private(dev, sizeof(struct pci1710_private));
+	if (ret < 0)
+		return -ENOMEM;
+
+	devpriv->pcidev = pci1710_find_pci_dev(dev, it);
+	if (!devpriv->pcidev)
+		return -EIO;
+
+	dev->iobase = pci_resource_start(devpriv->pcidev, 2);
+	irq = devpriv->pcidev->irq;
 
 	dev->board_name = this_board->name;
-	devpriv->pcidev = pcidev;
 
 	n_subdevices = 0;
 	if (this_board->n_aichan)
