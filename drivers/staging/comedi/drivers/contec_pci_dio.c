@@ -57,12 +57,6 @@ static const struct contec_board contec_boards[] = {
 
 #define thisboard ((const struct contec_board *)dev->board_ptr)
 
-struct contec_private {
-	int data;
-};
-
-#define devpriv ((struct contec_private *)dev->private)
-
 static int contec_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
@@ -129,9 +123,6 @@ static int contec_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk("comedi%d: contec: ", dev->minor);
 
 	dev->board_name = thisboard->name;
-
-	if (alloc_private(dev, sizeof(struct contec_private)) < 0)
-		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
