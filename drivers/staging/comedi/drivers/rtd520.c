@@ -310,9 +310,6 @@ struct rtdPrivate {
 	int transCount;		/* # to transfer data. 0->1/2FIFO */
 	int flags;		/* flag event modes */
 
-	/* PCI device info */
-	struct pci_dev *pci_dev;
-
 	/* channel list info */
 	/* chanBipolar tracks whether a channel is bipolar (and needs +2048) */
 	unsigned char chanBipolar[RTD_MAX_CHANLIST / 8];	/* bit array */
@@ -1620,6 +1617,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {				/* board name and options flags */
 	const struct rtdBoard *thisboard;
 	struct rtdPrivate *devpriv;
+	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret;
 	resource_size_t physLas1;	/* data area */
@@ -1644,14 +1642,15 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 	devpriv = dev->private;
 
-	devpriv->pci_dev = rtd_find_pci(dev, it);
-	if (!devpriv->pci_dev)
+	pcidev = rtd_find_pci(dev, it);
+	if (!pcidev)
 		return -EIO;
+	comedi_set_hw_dev(dev, &pcidev->dev);
 	thisboard = comedi_board(dev);
 
 	dev->board_name = thisboard->name;
 
-	ret = comedi_pci_enable(devpriv->pci_dev, DRV_NAME);
+	ret = comedi_pci_enable(pcidev, DRV_NAME);
 	if (ret < 0) {
 		printk(KERN_INFO "Failed to enable PCI device and request regions.\n");
 		return ret;
@@ -1661,9 +1660,9 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	 * Initialize base addresses
 	 */
 	/* Get the physical address from PCI config */
-	dev->iobase = pci_resource_start(devpriv->pci_dev, LAS0_PCIINDEX);
-	physLas1 = pci_resource_start(devpriv->pci_dev, LAS1_PCIINDEX);
-	physLcfg = pci_resource_start(devpriv->pci_dev, LCFG_PCIINDEX);
+	dev->iobase = pci_resource_start(pcidev, LAS0_PCIINDEX);
+	physLas1 = pci_resource_start(pcidev, LAS1_PCIINDEX);
+	physLcfg = pci_resource_start(pcidev, LCFG_PCIINDEX);
 	/* Now have the kernel map this into memory */
 	/* ASSUME page aligned */
 	devpriv->las0 = ioremap_nocache(dev->iobase, LAS0_PCISIZE);
@@ -1678,16 +1677,16 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		u16 revision;
 		/*uint32_t epld_version; */
 
-		pci_read_config_word(devpriv->pci_dev, PCI_REVISION_ID,
+		pci_read_config_word(pcidev, PCI_REVISION_ID,
 				     &revision);
 		DPRINTK("%s: PCI revision %d.\n", dev->board_name, revision);
 
-		pci_read_config_byte(devpriv->pci_dev,
+		pci_read_config_byte(pcidev,
 				     PCI_LATENCY_TIMER, &pci_latency);
 		if (pci_latency < 32) {
 			printk(KERN_INFO "%s: PCI latency changed from %d to %d\n",
 			       dev->board_name, pci_latency, 32);
-			pci_write_config_byte(devpriv->pci_dev,
+			pci_write_config_byte(pcidev,
 					      PCI_LATENCY_TIMER, 32);
 		} else {
 			DPRINTK("rtd520: PCI latency = %d\n", pci_latency);
@@ -1790,15 +1789,15 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* TODO: set user out source ??? */
 
 	/* check if our interrupt is available and get it */
-	ret = request_irq(devpriv->pci_dev->irq, rtd_interrupt,
+	ret = request_irq(pcidev->irq, rtd_interrupt,
 			  IRQF_SHARED, DRV_NAME, dev);
 
 	if (ret < 0) {
 		printk("Could not get interrupt! (%u)\n",
-		       devpriv->pci_dev->irq);
+		       pcidev->irq);
 		return ret;
 	}
-	dev->irq = devpriv->pci_dev->irq;
+	dev->irq = pcidev->irq;
 	printk(KERN_INFO "( irq=%u )", dev->irq);
 
 	ret = rtd520_probe_fifo_depth(dev);
@@ -1820,7 +1819,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		for (index = 0; index < DMA_CHAIN_COUNT; index++) {
 			devpriv->dma0Buff[index] =
-			    pci_alloc_consistent(devpriv->pci_dev,
+			    pci_alloc_consistent(pcidev,
 						 sizeof(u16) *
 						 devpriv->fifoLen / 2,
 						 &devpriv->
@@ -1840,7 +1839,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		 * ordering?)
 		 */
 		devpriv->dma0Chain =
-		    pci_alloc_consistent(devpriv->pci_dev,
+		    pci_alloc_consistent(pcidev,
 					 sizeof(struct plx_dma_desc) *
 					 DMA_CHAIN_COUNT,
 					 &devpriv->dma0ChainPhysAddr);
@@ -1891,6 +1890,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static void rtd_detach(struct comedi_device *dev)
 {
 	struct rtdPrivate *devpriv = dev->private;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 #ifdef USE_DMA
 	int index;
 #endif
@@ -1921,7 +1921,7 @@ static void rtd_detach(struct comedi_device *dev)
 		/* release DMA */
 		for (index = 0; index < DMA_CHAIN_COUNT; index++) {
 			if (NULL != devpriv->dma0Buff[index]) {
-				pci_free_consistent(devpriv->pci_dev,
+				pci_free_consistent(pcidev,
 						    sizeof(u16) *
 						    devpriv->fifoLen / 2,
 						    devpriv->dma0Buff[index],
@@ -1931,7 +1931,7 @@ static void rtd_detach(struct comedi_device *dev)
 			}
 		}
 		if (NULL != devpriv->dma0Chain) {
-			pci_free_consistent(devpriv->pci_dev,
+			pci_free_consistent(pcidev,
 					    sizeof(struct plx_dma_desc) *
 					    DMA_CHAIN_COUNT, devpriv->dma0Chain,
 					    devpriv->dma0ChainPhysAddr);
@@ -1950,11 +1950,11 @@ static void rtd_detach(struct comedi_device *dev)
 			iounmap(devpriv->las1);
 		if (devpriv->lcfg)
 			iounmap(devpriv->lcfg);
-		if (devpriv->pci_dev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pci_dev);
-			pci_dev_put(devpriv->pci_dev);
-		}
+	}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
