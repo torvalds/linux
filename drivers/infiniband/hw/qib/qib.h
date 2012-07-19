@@ -1,8 +1,8 @@
 #ifndef _QIB_KERNEL_H
 #define _QIB_KERNEL_H
 /*
- * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
- * All rights reserved.
+ * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -544,6 +544,7 @@ struct qib_pportdata {
 
 	/* read mostly */
 	struct qib_sdma_desc *sdma_descq;
+	struct workqueue_struct *qib_wq;
 	struct qib_sdma_state sdma_state;
 	dma_addr_t       sdma_descq_phys;
 	volatile __le64 *sdma_head_dma; /* DMA'ed by chip */
@@ -1266,6 +1267,11 @@ int qib_sdma_verbs_send(struct qib_pportdata *, struct qib_sge_state *,
 			u32, struct qib_verbs_txreq *);
 /* ppd->sdma_lock should be locked before calling this. */
 int qib_sdma_make_progress(struct qib_pportdata *dd);
+
+static inline int qib_sdma_empty(const struct qib_pportdata *ppd)
+{
+	return ppd->sdma_descq_added == ppd->sdma_descq_removed;
+}
 
 /* must be called under qib_sdma_lock */
 static inline u16 qib_sdma_descq_freecnt(const struct qib_pportdata *ppd)

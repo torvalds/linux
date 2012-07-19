@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
- * All rights reserved.
+ * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -210,6 +210,8 @@ void qib_init_pportdata(struct qib_pportdata *ppd, struct qib_devdata *dd,
 	init_timer(&ppd->symerr_clear_timer);
 	ppd->symerr_clear_timer.function = qib_clear_symerror_on_linkup;
 	ppd->symerr_clear_timer.data = (unsigned long)ppd;
+
+	ppd->qib_wq = NULL;
 }
 
 static int init_pioavailregs(struct qib_devdata *dd)
@@ -480,6 +482,42 @@ static void init_piobuf_state(struct qib_devdata *dd)
 	qib_chg_pioavailkernel(dd, 0, dd->piobcnt2k + dd->piobcnt4k,
 			       TXCHK_CHG_TYPE_KERN, NULL);
 	dd->f_initvl15_bufs(dd);
+}
+
+/**
+ * qib_create_workqueues - create per port workqueues
+ * @dd: the qlogic_ib device
+ */
+static int qib_create_workqueues(struct qib_devdata *dd)
+{
+	int pidx;
+	struct qib_pportdata *ppd;
+
+	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
+		ppd = dd->pport + pidx;
+		if (!ppd->qib_wq) {
+			char wq_name[8]; /* 3 + 2 + 1 + 1 + 1 */
+			snprintf(wq_name, sizeof(wq_name), "qib%d_%d",
+				dd->unit, pidx);
+			ppd->qib_wq =
+				create_singlethread_workqueue(wq_name);
+			if (!ppd->qib_wq)
+				goto wq_error;
+		}
+	}
+	return 0;
+wq_error:
+	pr_err(
+	 QIB_DRV_NAME ": create_singlethread_workqueue failed for port %d\n",
+	 pidx + 1);
+	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
+		ppd = dd->pport + pidx;
+		if (ppd->qib_wq) {
+			destroy_workqueue(ppd->qib_wq);
+			ppd->qib_wq = NULL;
+		}
+	}
+	return -ENOMEM;
 }
 
 /**
@@ -764,6 +802,11 @@ static void qib_shutdown_device(struct qib_devdata *dd)
 		 * We can't count on interrupts since we are stopping.
 		 */
 		dd->f_quiet_serdes(ppd);
+
+		if (ppd->qib_wq) {
+			destroy_workqueue(ppd->qib_wq);
+			ppd->qib_wq = NULL;
+		}
 	}
 
 	qib_update_eeprom_log(dd);
@@ -1248,6 +1291,10 @@ static int __devinit qib_init_one(struct pci_dev *pdev,
 		ret = PTR_ERR(dd);
 	if (ret)
 		goto bail; /* error already printed */
+
+	ret = qib_create_workqueues(dd);
+	if (ret)
+		goto bail;
 
 	/* do the generic initialization */
 	initfail = qib_init(dd, 0);
