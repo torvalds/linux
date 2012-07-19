@@ -56,6 +56,8 @@ static bool last_is_spk = false;	// need modify.
 #endif
 
 static struct snd_soc_codec *rt5631_codec;
+struct delayed_work rt5631_delay_cap; //bard 7-16
+EXPORT_SYMBOL(rt5631_delay_cap); //bard 7-16
 static const u16 rt5631_reg[0x80];
 static int timesofbclk = 32;
 bool isPlaybackon = false, isCaptureon = false;
@@ -274,7 +276,25 @@ static int rt5631_reg_init(struct snd_soc_codec *codec)
 
 	return 0;
 }
+//bard 7-16 s
+void rt5631_adc_on(void)
+{
+	int val;
 
+	val = snd_soc_read(rt5631_codec,RT5631_ADC_REC_MIXER);
+	snd_soc_write(rt5631_codec,RT5631_ADC_REC_MIXER,0xf0f0);
+
+	snd_soc_update_bits(rt5631_codec, RT5631_PWR_MANAG_ADD1,
+		PWR_ADC_L_CLK | PWR_ADC_R_CLK, 0);
+	snd_soc_update_bits(rt5631_codec, RT5631_PWR_MANAG_ADD1,
+		PWR_ADC_L_CLK | PWR_ADC_R_CLK,
+		PWR_ADC_L_CLK | PWR_ADC_R_CLK);
+	snd_soc_write(rt5631_codec,RT5631_ADC_REC_MIXER,val);
+	snd_soc_update_bits(rt5631_codec, RT5631_ADC_CTRL_1,
+				RT_L_MUTE|RT_R_MUTE,0x0);
+
+}
+//bard 7-16 e
 static const char *rt5631_spol_source_sel[] = {
 	"SPOLMIX", "MONOIN_RX", "VDAC", "DACL"};
 static const char *rt5631_spor_source_sel[] = {
@@ -1984,7 +2004,9 @@ static int rt5631_probe(struct snd_soc_codec *codec)
 
 	INIT_WORK(&spk_work, spk_work_handler);
 #endif
-
+//bard 7-16 s
+	INIT_DELAYED_WORK(&rt5631_delay_cap,rt5631_adc_on);
+//bard 7-16 e
 	snd_soc_add_controls(codec, rt5631_snd_controls,
 		ARRAY_SIZE(rt5631_snd_controls));
 	rt5631_add_widgets(codec);

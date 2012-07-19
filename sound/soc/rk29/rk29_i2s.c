@@ -254,6 +254,11 @@ static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on, bool stopI2S)
 		}
 
 	  flag_i2s_rx = 1;
+#if (CONFIG_SND_SOC_RT5631)
+//bard 7-16 s
+		schedule_delayed_work(&rt5631_delay_cap,HZ/4);
+//bard 7-16 e
+#endif
 	}
 	else
 	{

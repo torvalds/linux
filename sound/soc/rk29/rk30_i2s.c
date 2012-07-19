@@ -46,7 +46,7 @@
 
 #define pheadi2s  ((pI2S_REG)(i2s->regs))
 
-#define MAX_I2S         3
+#define MAX_I2S          3
 
 struct rk29_i2s_info {
 	struct device	*dev;
@@ -164,6 +164,7 @@ static void rockchip_snd_txctrl(struct rk29_i2s_info *i2s, int on, bool stopI2S)
 	} 
 }
 
+
 static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on, bool stopI2S)
 {
 	u32 opr,xfer;
@@ -196,6 +197,11 @@ static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on, bool stopI2S)
 		}
 
 	  flag_i2s_rx = 1;
+#if (CONFIG_SND_SOC_RT5631)
+//bard 7-16 s
+		schedule_delayed_work(&rt5631_delay_cap,HZ/4);
+//bard 7-16 e
+#endif
 	}
 	else
 	{
