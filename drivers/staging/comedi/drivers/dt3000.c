@@ -248,8 +248,6 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 #define DT3000_CHANNEL_MODE_DI		1
 
 struct dt3k_private {
-
-	struct pci_dev *pci_dev;
 	void __iomem *io_addr;
 	unsigned int lock;
 	unsigned int ao_readback[2];
@@ -817,7 +815,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	pcidev = dt3000_find_pci_dev(dev, it);
 	if (!pcidev)
 		return -EIO;
-	devpriv->pci_dev = pcidev;
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
 	ret = comedi_pci_enable(pcidev, "dt3000");
 	if (ret < 0)
@@ -900,16 +898,18 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void dt3000_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (devpriv) {
-		if (devpriv->pci_dev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pci_dev);
-			pci_dev_put(devpriv->pci_dev);
-		}
 		if (devpriv->io_addr)
 			iounmap(devpriv->io_addr);
+	}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
