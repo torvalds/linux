@@ -2893,6 +2893,14 @@ out:
 }
 EXPORT_SYMBOL(kern_path_create);
 
+void done_path_create(struct path *path, struct dentry *dentry)
+{
+	dput(dentry);
+	mutex_unlock(&path->dentry->d_inode->i_mutex);
+	path_put(path);
+}
+EXPORT_SYMBOL(done_path_create);
+
 struct dentry *user_path_create(int dfd, const char __user *pathname, struct path *path, int is_dir)
 {
 	char *tmp = getname(pathname);
@@ -2989,9 +2997,7 @@ SYSCALL_DEFINE4(mknodat, int, dfd, const char __user *, filename, umode_t, mode,
 out_drop_write:
 	mnt_drop_write(path.mnt);
 out_dput:
-	dput(dentry);
-	mutex_unlock(&path.dentry->d_inode->i_mutex);
-	path_put(&path);
+	done_path_create(&path, dentry);
 
 	return error;
 }
@@ -3048,9 +3054,7 @@ SYSCALL_DEFINE3(mkdirat, int, dfd, const char __user *, pathname, umode_t, mode)
 out_drop_write:
 	mnt_drop_write(path.mnt);
 out_dput:
-	dput(dentry);
-	mutex_unlock(&path.dentry->d_inode->i_mutex);
-	path_put(&path);
+	done_path_create(&path, dentry);
 	return error;
 }
 
@@ -3334,9 +3338,7 @@ SYSCALL_DEFINE3(symlinkat, const char __user *, oldname,
 out_drop_write:
 	mnt_drop_write(path.mnt);
 out_dput:
-	dput(dentry);
-	mutex_unlock(&path.dentry->d_inode->i_mutex);
-	path_put(&path);
+	done_path_create(&path, dentry);
 out_putname:
 	putname(from);
 	return error;
@@ -3446,9 +3448,7 @@ SYSCALL_DEFINE5(linkat, int, olddfd, const char __user *, oldname,
 out_drop_write:
 	mnt_drop_write(new_path.mnt);
 out_dput:
-	dput(new_dentry);
-	mutex_unlock(&new_path.dentry->d_inode->i_mutex);
-	path_put(&new_path);
+	done_path_create(&new_path, new_dentry);
 out:
 	path_put(&old_path);
 

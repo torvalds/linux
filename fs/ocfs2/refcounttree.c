@@ -4477,9 +4477,7 @@ int ocfs2_reflink_ioctl(struct inode *inode,
 				  new_dentry, preserve);
 	mnt_drop_write(new_path.mnt);
 out_dput:
-	dput(new_dentry);
-	mutex_unlock(&new_path.dentry->d_inode->i_mutex);
-	path_put(&new_path);
+	done_path_create(&new_path, new_dentry);
 out:
 	path_put(&old_path);
 
