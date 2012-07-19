@@ -316,7 +316,7 @@ send_rsp:
 static inline int a2mp_cmd_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 			       struct a2mp_cmd *hdr)
 {
-	BT_DBG("ident %d code %d", hdr->ident, hdr->code);
+	BT_DBG("ident %d code 0x%2.2x", hdr->ident, hdr->code);
 
 	skb_pull(skb, le16_to_cpu(hdr->len));
 	return 0;
@@ -335,7 +335,7 @@ static int a2mp_chan_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 		struct a2mp_cmd *hdr = (void *) skb->data;
 		u16 len = le16_to_cpu(hdr->len);
 
-		BT_DBG("code 0x%02x id %d len %d", hdr->code, hdr->ident, len);
+		BT_DBG("code 0x%2.2x id %d len %u", hdr->code, hdr->ident, len);
 
 		skb_pull(skb, sizeof(*hdr));
 
