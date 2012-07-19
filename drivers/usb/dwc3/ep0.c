@@ -164,10 +164,13 @@ static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 	 * handle it here.
 	 */
 	if (dwc->delayed_status) {
+		unsigned	direction;
+
+		direction = !dwc->ep0_expect_in;
 		dwc->delayed_status = false;
 
 		if (dwc->ep0state == EP0_STATUS_PHASE)
-			__dwc3_ep0_do_control_status(dwc, dwc->eps[1]);
+			__dwc3_ep0_do_control_status(dwc, dwc->eps[direction]);
 		else
 			dev_dbg(dwc->dev, "too early for delayed status\n");
 
