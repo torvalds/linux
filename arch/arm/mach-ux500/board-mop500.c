@@ -25,6 +25,7 @@
 #include <linux/mfd/tc3589x.h>
 #include <linux/mfd/tps6105x.h>
 #include <linux/mfd/abx500/ab8500-gpio.h>
+#include <linux/mfd/abx500/ab8500-codec.h>
 #include <linux/leds-lp5521.h>
 #include <linux/input.h>
 #include <linux/smsc911x.h>
@@ -95,6 +96,18 @@ static struct ab8500_gpio_platform_data ab8500_gpio_pdata = {
 	 */
 	.config_reg		= {0x00, 0x1E, 0x80, 0x01,
 					0x7A, 0x00, 0x00},
+};
+
+/* ab8500-codec */
+static struct ab8500_codec_platform_data ab8500_codec_pdata = {
+	.amics =  {
+		.mic1_type = AMIC_TYPE_DIFFERENTIAL,
+		.mic2_type = AMIC_TYPE_DIFFERENTIAL,
+		.mic1a_micbias = AMIC_MICBIAS_VAMIC1,
+		.mic1b_micbias = AMIC_MICBIAS_VAMIC1,
+		.mic2_micbias = AMIC_MICBIAS_VAMIC2
+	},
+	.ear_cmv = EAR_CMV_0_95V
 };
 
 static struct gpio_keys_button snowball_key_array[] = {
@@ -195,6 +208,7 @@ static struct ab8500_platform_data ab8500_platdata = {
 	.regulator	= ab8500_regulators,
 	.num_regulator	= ARRAY_SIZE(ab8500_regulators),
 	.gpio		= &ab8500_gpio_pdata,
+	.codec		= &ab8500_codec_pdata,
 };
 
 static struct resource ab8500_resources[] = {

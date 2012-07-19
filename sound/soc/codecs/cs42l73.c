@@ -1362,11 +1362,11 @@ static __devinit int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 
 	i2c_set_clientdata(i2c_client, cs42l73);
 
-	cs42l73->regmap = regmap_init_i2c(i2c_client, &cs42l73_regmap);
+	cs42l73->regmap = devm_regmap_init_i2c(i2c_client, &cs42l73_regmap);
 	if (IS_ERR(cs42l73->regmap)) {
 		ret = PTR_ERR(cs42l73->regmap);
 		dev_err(&i2c_client->dev, "regmap_init() failed: %d\n", ret);
-		goto err;
+		return ret;
 	}
 	/* initialize codec */
 	ret = regmap_read(cs42l73->regmap, CS42L73_DEVID_AB, &reg);
@@ -1384,13 +1384,13 @@ static __devinit int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 		dev_err(&i2c_client->dev,
 			"CS42L73 Device ID (%X). Expected %X\n",
 			devid, CS42L73_DEVID);
-		goto err_regmap;
+		return ret;
 	}
 
 	ret = regmap_read(cs42l73->regmap, CS42L73_REVID, &reg);
 	if (ret < 0) {
 		dev_err(&i2c_client->dev, "Get Revision ID failed\n");
-		goto err_regmap;
+		return ret;;
 	}
 
 	dev_info(&i2c_client->dev,
@@ -1402,23 +1402,13 @@ static __devinit int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 			&soc_codec_dev_cs42l73, cs42l73_dai,
 			ARRAY_SIZE(cs42l73_dai));
 	if (ret < 0)
-		goto err_regmap;
+		return ret;
 	return 0;
-
-err_regmap:
-	regmap_exit(cs42l73->regmap);
-
-err:
-	return ret;
 }
 
 static __devexit int cs42l73_i2c_remove(struct i2c_client *client)
 {
-	struct cs42l73_private *cs42l73 = i2c_get_clientdata(client);
-
 	snd_soc_unregister_codec(&client->dev);
-	regmap_exit(cs42l73->regmap);
-
 	return 0;
 }
 

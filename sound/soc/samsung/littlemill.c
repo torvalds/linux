@@ -211,6 +211,11 @@ static int bbclk_ev(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static const struct snd_kcontrol_new controls[] = {
+	SOC_DAPM_PIN_SWITCH("WM1250 Input"),
+	SOC_DAPM_PIN_SWITCH("WM1250 Output"),
+};
+
 static struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 
@@ -282,6 +287,8 @@ static struct snd_soc_card littlemill = {
 	.set_bias_level = littlemill_set_bias_level,
 	.set_bias_level_post = littlemill_set_bias_level_post,
 
+	.controls = controls,
+	.num_controls = ARRAY_SIZE(controls),
 	.dapm_widgets = widgets,
 	.num_dapm_widgets = ARRAY_SIZE(widgets),
 	.dapm_routes = audio_paths,

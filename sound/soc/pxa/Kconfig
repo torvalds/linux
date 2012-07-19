@@ -8,6 +8,15 @@ config SND_PXA2XX_SOC
 	  the PXA2xx AC97, I2S or SSP interface. You will also need
 	  to select the audio interfaces to support below.
 
+config SND_MMP_SOC
+	bool "Soc Audio for Marvell MMP chips"
+	depends on ARCH_MMP
+	select SND_SOC_DMAENGINE_PCM
+	select SND_ARM
+	help
+	  Say Y if you want to add support for codecs attached to
+	  the MMP SSPA interface.
+
 config SND_PXA2XX_AC97
 	tristate
 	select SND_AC97_CODEC
@@ -25,6 +34,9 @@ config SND_PXA2XX_SOC_I2S
 config SND_PXA_SOC_SSP
 	tristate
 	select PXA_SSP
+
+config SND_MMP_SOC_SSPA
+	tristate
 
 config SND_PXA2XX_SOC_CORGI
 	tristate "SoC Audio support for Sharp Zaurus SL-C7x0"
@@ -138,6 +150,26 @@ config SND_SOC_TAVOREVB3
 	  Say Y if you want to add support for SoC audio on the
 	  Marvell Saarb reference platform.
 
+config SND_PXA910_SOC
+	tristate "SoC Audio for Marvell PXA910 chip"
+	depends on ARCH_MMP && SND
+	select SND_PCM
+	help
+	  Say Y if you want to add support for SoC audio on the
+	  Marvell PXA910 reference platform.
+
+config SND_SOC_TTC_DKB
+	bool "SoC Audio support for TTC DKB"
+	depends on SND_PXA910_SOC && MACH_TTC_DKB
+	select PXA_SSP
+	select SND_PXA_SOC_SSP
+	select SND_MMP_SOC
+	select MFD_88PM860X
+	select SND_SOC_88PM860X
+	help
+	  Say Y if you want to add support for SoC audio on TTC DKB
+
+
 config SND_SOC_ZYLONITE
 	tristate "SoC Audio support for Marvell Zylonite"
 	depends on SND_PXA2XX_SOC && MACH_ZYLONITE
@@ -194,3 +226,13 @@ config SND_PXA2XX_SOC_IMOTE2
        help
          Say Y if you want to add support for SoC audio on the
 	 IMote 2.
+
+config SND_MMP_SOC_BROWNSTONE
+	tristate "SoC Audio support for Marvell Brownstone"
+	depends on SND_MMP_SOC && MACH_BROWNSTONE
+	select SND_MMP_SOC_SSPA
+	select MFD_WM8994
+	select SND_SOC_WM8994
+	help
+	  Say Y if you want to add support for SoC audio on the
+	  Marvell Brownstone reference platform.

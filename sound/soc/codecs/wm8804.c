@@ -1,7 +1,7 @@
 /*
  * wm8804.c  --  WM8804 S/PDIF transceiver driver
  *
- * Copyright 2010 Wolfson Microelectronics plc
+ * Copyright 2010-11 Wolfson Microelectronics plc
  *
  * Author: Dimitris Papastamos <dp@opensource.wolfsonmicro.com>
  *
