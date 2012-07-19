@@ -78,28 +78,30 @@ nv84_fence_sync(struct nouveau_fence *fence,
 static u32
 nv84_fence_read(struct nouveau_channel *chan)
 {
-	struct nv84_fence_priv *priv = nv_engine(chan->dev, NVOBJ_ENGINE_FENCE);
+	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
+	struct nv84_fence_priv *priv = dev_priv->fence.func;
 	return nv_ro32(priv->mem, chan->id * 16);
 }
 
 static void
-nv84_fence_context_del(struct nouveau_channel *chan, int engine)
+nv84_fence_context_del(struct nouveau_channel *chan)
 {
-	struct nv84_fence_chan *fctx = chan->engctx[engine];
+	struct nv84_fence_chan *fctx = chan->fence;
 	nouveau_fence_context_del(&fctx->base);
-	chan->engctx[engine] = NULL;
+	chan->fence = NULL;
 	kfree(fctx);
 }
 
 static int
-nv84_fence_context_new(struct nouveau_channel *chan, int engine)
+nv84_fence_context_new(struct nouveau_channel *chan)
 {
-	struct nv84_fence_priv *priv = nv_engine(chan->dev, engine);
+	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
+	struct nv84_fence_priv *priv = dev_priv->fence.func;
 	struct nv84_fence_chan *fctx;
 	struct nouveau_gpuobj *obj;
 	int ret;
 
-	fctx = chan->engctx[engine] = kzalloc(sizeof(*fctx), GFP_KERNEL);
+	fctx = chan->fence = kzalloc(sizeof(*fctx), GFP_KERNEL);
 	if (!fctx)
 		return -ENOMEM;
 
@@ -116,30 +118,18 @@ nv84_fence_context_new(struct nouveau_channel *chan, int engine)
 	}
 
 	if (ret)
-		nv84_fence_context_del(chan, engine);
+		nv84_fence_context_del(chan);
 	return ret;
 }
 
-static int
-nv84_fence_fini(struct drm_device *dev, int engine, bool suspend)
-{
-	return 0;
-}
-
-static int
-nv84_fence_init(struct drm_device *dev, int engine)
-{
-	return 0;
-}
-
 static void
-nv84_fence_destroy(struct drm_device *dev, int engine)
+nv84_fence_destroy(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nv84_fence_priv *priv = nv_engine(dev, engine);
+	struct nv84_fence_priv *priv = dev_priv->fence.func;
 
 	nouveau_gpuobj_ref(NULL, &priv->mem);
-	dev_priv->eng[engine] = NULL;
+	dev_priv->fence.func = NULL;
 	kfree(priv);
 }
 
@@ -155,15 +145,13 @@ nv84_fence_create(struct drm_device *dev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->base.engine.destroy = nv84_fence_destroy;
-	priv->base.engine.init = nv84_fence_init;
-	priv->base.engine.fini = nv84_fence_fini;
-	priv->base.engine.context_new = nv84_fence_context_new;
-	priv->base.engine.context_del = nv84_fence_context_del;
+	priv->base.dtor = nv84_fence_destroy;
+	priv->base.context_new = nv84_fence_context_new;
+	priv->base.context_del = nv84_fence_context_del;
 	priv->base.emit = nv84_fence_emit;
 	priv->base.sync = nv84_fence_sync;
 	priv->base.read = nv84_fence_read;
-	dev_priv->eng[NVOBJ_ENGINE_FENCE] = &priv->base.engine;
+	dev_priv->fence.func = priv;
 
 	ret = nouveau_gpuobj_new(dev, NULL, 16 * pfifo->channels,
 				 0x1000, 0, &priv->mem);
@@ -172,6 +160,6 @@ nv84_fence_create(struct drm_device *dev)
 
 out:
 	if (ret)
-		nv84_fence_destroy(dev, NVOBJ_ENGINE_FENCE);
+		nv84_fence_destroy(dev);
 	return ret;
 }

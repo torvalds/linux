@@ -32,11 +32,15 @@ struct nouveau_fence_chan {
 };
 
 struct nouveau_fence_priv {
-	struct nouveau_exec_engine engine;
-	int (*emit)(struct nouveau_fence *);
-	int (*sync)(struct nouveau_fence *, struct nouveau_channel *,
-		    struct nouveau_channel *);
-	u32 (*read)(struct nouveau_channel *);
+	void (*dtor)(struct drm_device *);
+	bool (*suspend)(struct drm_device *);
+	void (*resume)(struct drm_device *);
+	int  (*context_new)(struct nouveau_channel *);
+	void (*context_del)(struct nouveau_channel *);
+	int  (*emit)(struct nouveau_fence *);
+	int  (*sync)(struct nouveau_fence *, struct nouveau_channel *,
+		     struct nouveau_channel *);
+	u32  (*read)(struct nouveau_channel *);
 };
 
 void nouveau_fence_context_new(struct nouveau_fence_chan *);

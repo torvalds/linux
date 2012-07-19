@@ -133,7 +133,6 @@ enum nouveau_flags {
 #define NVOBJ_ENGINE_BSP	6
 #define NVOBJ_ENGINE_VP		7
 #define NVOBJ_ENGINE_FIFO	14
-#define NVOBJ_ENGINE_FENCE	15
 #define NVOBJ_ENGINE_NR		16
 #define NVOBJ_ENGINE_DISPLAY	(NVOBJ_ENGINE_NR + 0) /*XXX*/
 
@@ -189,6 +188,7 @@ struct nouveau_channel {
 
 	/* Execution engine contexts */
 	void *engctx[NVOBJ_ENGINE_NR];
+	void *fence;
 
 	/* NV50 VM */
 	struct nouveau_vm     *vm;
@@ -448,6 +448,7 @@ struct drm_nouveau_private {
 	u32 crystal;
 
 	struct nouveau_exec_engine *eng[NVOBJ_ENGINE_NR];
+
 	struct list_head classes;
 
 	struct nouveau_bo *vga_ram;
@@ -467,6 +468,7 @@ struct drm_nouveau_private {
 	} ttm;
 
 	struct {
+		void *func;
 		spinlock_t lock;
 		struct drm_mm heap;
 		struct nouveau_bo *bo;

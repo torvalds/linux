@@ -62,8 +62,9 @@ void
 nouveau_fence_update(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
-	struct nouveau_fence_priv *priv = nv_engine(dev, NVOBJ_ENGINE_FENCE);
-	struct nouveau_fence_chan *fctx = chan->engctx[NVOBJ_ENGINE_FENCE];
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fence_priv *priv = dev_priv->fence.func;
+	struct nouveau_fence_chan *fctx = chan->fence;
 	struct nouveau_fence *fence, *fnext;
 
 	spin_lock(&fctx->lock);
@@ -84,8 +85,9 @@ int
 nouveau_fence_emit(struct nouveau_fence *fence, struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
-	struct nouveau_fence_priv *priv = nv_engine(dev, NVOBJ_ENGINE_FENCE);
-	struct nouveau_fence_chan *fctx = chan->engctx[NVOBJ_ENGINE_FENCE];
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fence_priv *priv = dev_priv->fence.func;
+	struct nouveau_fence_chan *fctx = chan->fence;
 	int ret;
 
 	fence->channel  = chan;
@@ -148,7 +150,8 @@ int
 nouveau_fence_sync(struct nouveau_fence *fence, struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
-	struct nouveau_fence_priv *priv = nv_engine(dev, NVOBJ_ENGINE_FENCE);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fence_priv *priv = dev_priv->fence.func;
 	struct nouveau_channel *prev;
 	int ret = 0;
 
@@ -193,7 +196,7 @@ nouveau_fence_new(struct nouveau_channel *chan, struct nouveau_fence **pfence)
 	struct nouveau_fence *fence;
 	int ret = 0;
 
-	if (unlikely(!chan->engctx[NVOBJ_ENGINE_FENCE]))
+	if (unlikely(!chan->fence))
 		return -ENODEV;
 
 	fence = kzalloc(sizeof(*fence), GFP_KERNEL);

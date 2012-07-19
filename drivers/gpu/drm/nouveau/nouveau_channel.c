@@ -124,9 +124,9 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 		      struct drm_file *file_priv,
 		      uint32_t vram_handle, uint32_t gart_handle)
 {
-	struct nouveau_exec_engine *fence = nv_engine(dev, NVOBJ_ENGINE_FENCE);
-	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
+	struct nouveau_fence_priv *fence = dev_priv->fence.func;
 	struct nouveau_fpriv *fpriv = nouveau_fpriv(file_priv);
 	struct nouveau_channel *chan;
 	unsigned long flags;
@@ -234,7 +234,7 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 
 	FIRE_RING(chan);
 
-	ret = fence->context_new(chan, NVOBJ_ENGINE_FENCE);
+	ret = fence->context_new(chan);
 	if (ret) {
 		nouveau_channel_put(&chan);
 		return ret;
@@ -289,6 +289,7 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	struct nouveau_channel *chan = *pchan;
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fence_priv *fence = dev_priv->fence.func;
 	unsigned long flags;
 	int i;
 
@@ -310,6 +311,9 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 		if (chan->engctx[i])
 			dev_priv->eng[i]->context_del(chan, i);
 	}
+
+	if (chan->fence)
+		fence->context_del(chan);
 
 	/* aside from its resources, the channel should now be dead,
 	 * remove it from the channel list
