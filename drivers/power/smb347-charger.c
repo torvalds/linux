@@ -323,6 +323,7 @@ static int smb347_charging_set(struct smb347_charger *smb, bool enable)
 	int ret = 0;
 
 	if (smb->pdata->enable_control != SMB347_CHG_ENABLE_SW) {
+		smb->charging_enabled = enable;
 		dev_dbg(&smb->client->dev,
 			"charging enable/disable in SW disabled\n");
 		return 0;
@@ -1214,12 +1215,49 @@ static int smb347_battery_get_property(struct power_supply *psy,
 		val->intval = pdata->battery_info.charge_full_design;
 		break;
 
+	case POWER_SUPPLY_PROP_CHARGE_ENABLED:
+		val->intval = smb->charging_enabled;
+		break;
+
 	case POWER_SUPPLY_PROP_MODEL_NAME:
 		val->strval = pdata->battery_info.name;
 		break;
 
 	default:
 		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int smb347_battery_set_property(struct power_supply *psy,
+				       enum power_supply_property prop,
+				       const union power_supply_propval *val)
+{
+	int ret = -EINVAL;
+	struct smb347_charger *smb =
+		container_of(psy, struct smb347_charger, battery);
+
+	switch (prop) {
+	case POWER_SUPPLY_PROP_CHARGE_ENABLED:
+		ret = smb347_charging_set(smb, val->intval);
+		break;
+
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static int smb347_battery_property_is_writeable(struct power_supply *psy,
+						enum power_supply_property prop)
+{
+	switch (prop) {
+	case POWER_SUPPLY_PROP_CHARGE_ENABLED:
+		return 1;
+	default:
+		break;
 	}
 
 	return 0;
@@ -1234,6 +1272,7 @@ static enum power_supply_property smb347_battery_properties[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	POWER_SUPPLY_PROP_CHARGE_ENABLED,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 };
 
@@ -1346,6 +1385,8 @@ static int smb347_probe(struct i2c_client *client,
 	smb->battery.name = "smb347-battery";
 	smb->battery.type = POWER_SUPPLY_TYPE_BATTERY;
 	smb->battery.get_property = smb347_battery_get_property;
+	smb->battery.set_property = smb347_battery_set_property;
+	smb->battery.property_is_writeable = smb347_battery_property_is_writeable;
 	smb->battery.properties = smb347_battery_properties;
 	smb->battery.num_properties = ARRAY_SIZE(smb347_battery_properties);
 
