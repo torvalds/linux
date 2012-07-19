@@ -53,6 +53,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -2553,8 +2555,8 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 			  "Cannot alloc memory for Packet Status Ring\n");
 		return -ENOMEM;
 	}
-	printk(KERN_INFO "Packet Status Ring %lx\n",
-	    (unsigned long) rx_ring->ps_ring_physaddr);
+	pr_info("Packet Status Ring %llx\n",
+		(unsigned long long) rx_ring->ps_ring_physaddr);
 
 	/*
 	 * NOTE : dma_alloc_coherent(), used above to alloc DMA regions,
@@ -2574,7 +2576,7 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 		return -ENOMEM;
 	}
 	rx_ring->num_rfd = NIC_DEFAULT_NUM_RFD;
-	printk(KERN_INFO "PRS %lx\n", (unsigned long)rx_ring->rx_status_bus);
+	pr_info("PRS %llx\n", (unsigned long long)rx_ring->rx_status_bus);
 
 	/* Recv
 	 * kmem_cache_create initializes a lookaside list. After successful
@@ -5180,8 +5182,8 @@ static int et131x_set_mac_addr(struct net_device *netdev, void *new_mac)
 
 	memcpy(netdev->dev_addr, address->sa_data, netdev->addr_len);
 
-	printk(KERN_INFO "%s: Setting MAC address to %pM\n",
-			netdev->name, netdev->dev_addr);
+	netdev_info(netdev, "Setting MAC address to %pM\n",
+		    netdev->dev_addr);
 
 	/* Free Rx DMA memory */
 	et131x_adapter_memory_free(adapter);
