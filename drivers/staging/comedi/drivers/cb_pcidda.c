@@ -255,27 +255,11 @@ static unsigned int cb_pcidda_read_eeprom(struct comedi_device *dev,
 static void cb_pcidda_calibrate(struct comedi_device *dev, unsigned int channel,
 				unsigned int range);
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.
- */
-static int cb_pcidda_attach(struct comedi_device *dev,
-			    struct comedi_devconfig *it)
+static struct pci_dev *cb_pcidda_find_pci_dev(struct comedi_device *dev,
+					      struct comedi_devconfig *it)
 {
-	struct comedi_subdevice *s;
 	struct pci_dev *pcidev = NULL;
 	int index;
-	int ret;
-
-/*
- * Allocate the private structure area.
- */
-	if (alloc_private(dev, sizeof(struct cb_pcidda_private)) < 0)
-		return -ENOMEM;
-
-/*
- * Probe the device to determine what device in the series it is.
- */
 
 	for_each_pci_dev(pcidev) {
 		if (pcidev->vendor == PCI_VENDOR_ID_CB) {
@@ -288,22 +272,42 @@ static int cb_pcidda_attach(struct comedi_device *dev,
 			for (index = 0; index < ARRAY_SIZE(cb_pcidda_boards); index++) {
 				if (cb_pcidda_boards[index].device_id ==
 				    pcidev->device) {
-					goto found;
+					dev->board_ptr = cb_pcidda_boards + index;
+					dev_dbg(dev->class_dev,
+						"Found %s at requested position\n",
+						thisboard->name);
+					return pcidev;
 				}
 			}
 		}
 	}
-	if (!pcidev) {
-		dev_err(dev->class_dev,
-			"Not a ComputerBoards/MeasurementComputing card on requested position\n");
+	dev_err(dev->class_dev,
+		"Not a ComputerBoards/MeasurementComputing card on requested position\n");
+	return NULL;
+}
+
+/*
+ * Attach is called by the Comedi core to configure the driver
+ * for a particular board.
+ */
+static int cb_pcidda_attach(struct comedi_device *dev,
+			    struct comedi_devconfig *it)
+{
+	struct pci_dev *pcidev;
+	struct comedi_subdevice *s;
+	int index;
+	int ret;
+
+/*
+ * Allocate the private structure area.
+ */
+	if (alloc_private(dev, sizeof(struct cb_pcidda_private)) < 0)
+		return -ENOMEM;
+
+	pcidev = cb_pcidda_find_pci_dev(dev, it);
+	if (!pcidev)
 		return -EIO;
-	}
-found:
 	devpriv->pci_dev = pcidev;
-	dev->board_ptr = cb_pcidda_boards + index;
-	/*  "thisboard" macro can be used from here. */
-	dev_dbg(dev->class_dev, "Found %s at requested position\n",
-		thisboard->name);
 
 	/*
 	 * Enable PCI device and request regions.
