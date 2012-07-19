@@ -25,6 +25,7 @@
 #include <linux/regset.h>
 #include <linux/audit.h>
 #include <linux/tracehook.h>
+#include <linux/unistd.h>
 
 #include <asm/pgtable.h>
 #include <asm/traps.h>
@@ -940,7 +941,12 @@ static int ptrace_syscall_trace(struct pt_regs *regs, int scno,
 
 asmlinkage int syscall_trace_enter(struct pt_regs *regs, int scno)
 {
-	int ret = ptrace_syscall_trace(regs, scno, PTRACE_SYSCALL_ENTER);
+	int ret;
+
+	if (test_and_clear_thread_flag(TIF_SYSCALL_RESTARTSYS))
+		scno = __NR_restart_syscall - __NR_SYSCALL_BASE;
+
+	ret = ptrace_syscall_trace(regs, scno, PTRACE_SYSCALL_ENTER);
 	audit_syscall_entry(AUDIT_ARCH_ARM, scno, regs->ARM_r0, regs->ARM_r1,
 			    regs->ARM_r2, regs->ARM_r3);
 	return ret;
