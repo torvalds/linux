@@ -1676,10 +1676,6 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv->las0 || !devpriv->las1 || !devpriv->lcfg)
 		return -ENOMEM;
 
-
-	DPRINTK("%s: LAS0=%llx, LAS1=%llx, CFG=%llx.\n", dev->board_name,
-		(unsigned long long)physLas0, (unsigned long long)physLas1,
-		(unsigned long long)physLcfg);
 	{			/* The RTD driver does this */
 		unsigned char pci_latency;
 		u16 revision;
