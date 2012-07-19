@@ -64,15 +64,6 @@ static const struct cnt_board_struct cnt_boards[] = {
 
 #define cnt_board_nbr (sizeof(cnt_boards)/sizeof(struct cnt_board_struct))
 
-/*-- device private structure -----------------------------------------------*/
-
-struct cnt_device_private {
-
-	struct pci_dev *pcidev;
-};
-
-#define devpriv ((struct cnt_device_private *)dev->private)
-
 /*-- counter write ----------------------------------------------------------*/
 
 /* This should be used only for resetting the counters; maybe it is better
@@ -164,15 +155,10 @@ static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned long io_base;
 	int error;
 
-	/* allocate device private structure */
-	error = alloc_private(dev, sizeof(struct cnt_device_private));
-	if (error < 0)
-		return error;
-
 	pcidev = cnt_find_pci_dev(dev, it);
 	if (!pcidev)
 		return -EIO;
-	devpriv->pcidev = pcidev;
+	comedi_set_hw_dev(dev, &pcidev->dev);
 	board = comedi_board(dev);
 
 	dev->board_name = board->name;
@@ -219,10 +205,12 @@ static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void cnt_detach(struct comedi_device *dev)
 {
-	if (devpriv && devpriv->pcidev) {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	if (pcidev) {
 		if (dev->iobase)
-			comedi_pci_disable(devpriv->pcidev);
-		pci_dev_put(devpriv->pcidev);
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
