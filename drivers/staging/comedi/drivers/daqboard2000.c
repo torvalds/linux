@@ -318,7 +318,7 @@ struct daqboard2000_private {
 		card_daqboard_2000
 	} card;
 	void *daq;
-	void *plx;
+	void __iomem *plx;
 	unsigned int ao_readback[2];
 };
 
