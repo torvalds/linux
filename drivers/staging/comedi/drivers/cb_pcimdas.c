@@ -175,30 +175,11 @@ static int cb_pcimdas_ao_rinsn(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data);
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
-static int cb_pcimdas_attach(struct comedi_device *dev,
-			     struct comedi_devconfig *it)
+static struct pci_dev *cb_pcimdas_find_pci_dev(struct comedi_device *dev,
+					       struct comedi_devconfig *it)
 {
-	struct comedi_subdevice *s;
 	struct pci_dev *pcidev = NULL;
 	int index;
-	int ret;
-	/* int i; */
-
-/*
- * Allocate the private structure area.
- */
-	if (alloc_private(dev, sizeof(struct cb_pcimdas_private)) < 0)
-		return -ENOMEM;
-
-/*
- * Probe the device to determine what device in the series it is.
- */
 
 	for_each_pci_dev(pcidev) {
 		/*  is it not a computer boards card? */
@@ -217,21 +198,43 @@ static int cb_pcimdas_attach(struct comedi_device *dev,
 					continue;
 				}
 			}
-			devpriv->pci_dev = pcidev;
 			dev->board_ptr = cb_pcimdas_boards + index;
-			goto found;
+			dev_dbg(dev->class_dev,
+				"Found %s on bus %i, slot %i\n",
+				cb_pcimdas_boards[index].name,
+				pcidev->bus->number,
+				PCI_SLOT(pcidev->devfn));
+			return pcidev;
 		}
 	}
-
 	dev_err(dev->class_dev,
 		"No supported ComputerBoards/MeasurementComputing card found on requested position\n");
-	return -EIO;
+	return NULL;
+}
 
-found:
+/*
+ * Attach is called by the Comedi core to configure the driver
+ * for a particular board.  If you specified a board_name array
+ * in the driver structure, dev->board_ptr contains that
+ * address.
+ */
+static int cb_pcimdas_attach(struct comedi_device *dev,
+			     struct comedi_devconfig *it)
+{
+	struct pci_dev *pcidev;
+	struct comedi_subdevice *s;
+	int ret;
 
-	dev_dbg(dev->class_dev, "Found %s on bus %i, slot %i\n",
-		cb_pcimdas_boards[index].name, pcidev->bus->number,
-		PCI_SLOT(pcidev->devfn));
+/*
+ * Allocate the private structure area.
+ */
+	if (alloc_private(dev, sizeof(struct cb_pcimdas_private)) < 0)
+		return -ENOMEM;
+
+	pcidev = cb_pcimdas_find_pci_dev(dev, it);
+	if (!pcidev)
+		return -EIO;
+	devpriv->pci_dev = pcidev;
 
 	/*  Warn about non-tested features */
 	switch (thisboard->device_id) {
