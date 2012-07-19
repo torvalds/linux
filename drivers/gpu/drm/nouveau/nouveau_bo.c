@@ -36,9 +36,114 @@
 #include <core/mm.h>
 #include "nouveau_fence.h"
 #include <core/ramht.h>
+#include <engine/fifo.h>
 
 #include <linux/log2.h>
 #include <linux/slab.h>
+
+/*
+ * NV10-NV40 tiling helpers
+ */
+
+static void
+nv10_bo_update_tile_region(struct drm_device *dev,
+			    struct nouveau_tile_reg *tilereg, uint32_t addr,
+			    uint32_t size, uint32_t pitch, uint32_t flags)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	int i = tilereg - dev_priv->tile.reg, j;
+	struct nouveau_fb_tile *tile = nvfb_tile(dev, i);
+	unsigned long save;
+
+	nouveau_fence_unref(&tilereg->fence);
+
+	if (tile->pitch)
+		nvfb_tile_fini(dev, i);
+
+	if (pitch)
+		nvfb_tile_init(dev, i, addr, size, pitch, flags);
+
+	spin_lock_irqsave(&dev_priv->context_switch_lock, save);
+	nv_wr32(dev, NV03_PFIFO_CACHES, 0);
+	nv04_fifo_cache_pull(dev, false);
+
+	nouveau_wait_for_idle(dev);
+
+	nvfb_tile_prog(dev, i);
+	for (j = 0; j < NVOBJ_ENGINE_NR; j++) {
+		if (dev_priv->eng[j] && dev_priv->eng[j]->set_tile_region)
+			dev_priv->eng[j]->set_tile_region(dev, i);
+	}
+
+	nv04_fifo_cache_pull(dev, true);
+	nv_wr32(dev, NV03_PFIFO_CACHES, 1);
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, save);
+}
+
+static struct nouveau_tile_reg *
+nv10_bo_get_tile_region(struct drm_device *dev, int i)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
+
+	spin_lock(&dev_priv->tile.lock);
+
+	if (!tile->used &&
+	    (!tile->fence || nouveau_fence_done(tile->fence)))
+		tile->used = true;
+	else
+		tile = NULL;
+
+	spin_unlock(&dev_priv->tile.lock);
+	return tile;
+}
+
+static void
+nv10_bo_put_tile_region(struct drm_device *dev, struct nouveau_tile_reg *tile,
+			 struct nouveau_fence *fence)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	if (tile) {
+		spin_lock(&dev_priv->tile.lock);
+		if (fence) {
+			/* Mark it as pending. */
+			tile->fence = fence;
+			nouveau_fence_ref(fence);
+		}
+
+		tile->used = false;
+		spin_unlock(&dev_priv->tile.lock);
+	}
+}
+
+static struct nouveau_tile_reg *
+nv10_bo_set_tiling(struct drm_device *dev, uint32_t addr, uint32_t size,
+		    uint32_t pitch, uint32_t flags)
+{
+	struct nouveau_tile_reg *tile, *found = NULL;
+	int i;
+
+	for (i = 0; i < nvfb_tile_nr(dev); i++) {
+		tile = nv10_bo_get_tile_region(dev, i);
+
+		if (pitch && !found) {
+			found = tile;
+			continue;
+
+		} else if (tile && nvfb_tile(dev, i)->pitch) {
+			/* Kill an unused tile region. */
+			nv10_bo_update_tile_region(dev, tile, 0, 0, 0, 0);
+		}
+
+		nv10_bo_put_tile_region(dev, tile, NULL);
+	}
+
+	if (found)
+		nv10_bo_update_tile_region(dev, found, addr, size,
+					    pitch, flags);
+	return found;
+}
 
 static void
 nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
@@ -50,7 +155,7 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 	if (unlikely(nvbo->gem))
 		DRM_ERROR("bo %p still attached to GEM object\n", bo);
 
-	nv10_mem_put_tile_region(dev, nvbo->tile, NULL);
+	nv10_bo_put_tile_region(dev, nvbo->tile, NULL);
 	kfree(nvbo);
 }
 
@@ -1075,7 +1180,7 @@ nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem,
 		return 0;
 
 	if (dev_priv->card_type >= NV_10) {
-		*new_tile = nv10_mem_set_tiling(dev, offset, new_mem->size,
+		*new_tile = nv10_bo_set_tiling(dev, offset, new_mem->size,
 						nvbo->tile_mode,
 						nvbo->tile_flags);
 	}
@@ -1091,7 +1196,7 @@ nouveau_bo_vm_cleanup(struct ttm_buffer_object *bo,
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
 	struct drm_device *dev = dev_priv->dev;
 
-	nv10_mem_put_tile_region(dev, *old_tile, bo->sync_obj);
+	nv10_bo_put_tile_region(dev, *old_tile, bo->sync_obj);
 	*old_tile = new_tile;
 }
 

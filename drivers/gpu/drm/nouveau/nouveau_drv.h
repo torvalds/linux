@@ -596,12 +596,6 @@ extern int  nouveau_mem_timing_calc(struct drm_device *, u32 freq,
 extern void nouveau_mem_timing_read(struct drm_device *,
 				    struct nouveau_pm_memtiming *);
 extern int nouveau_mem_vbios_type(struct drm_device *);
-extern struct nouveau_tile_reg *nv10_mem_set_tiling(
-	struct drm_device *dev, uint32_t addr, uint32_t size,
-	uint32_t pitch, uint32_t flags);
-extern void nv10_mem_put_tile_region(struct drm_device *dev,
-				     struct nouveau_tile_reg *tile,
-				     struct nouveau_fence *fence);
 extern const struct ttm_mem_type_manager_func nouveau_vram_manager;
 extern const struct ttm_mem_type_manager_func nouveau_gart_manager;
 extern const struct ttm_mem_type_manager_func nv04_gart_manager;
