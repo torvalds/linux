@@ -95,7 +95,9 @@ static int nop_set_host(struct usb_otg *otg, struct usb_bus *host)
 
 static int __devinit nop_usb_xceiv_probe(struct platform_device *pdev)
 {
+	struct nop_usb_xceiv_platform_data *pdata = pdev->dev.platform_data;
 	struct nop_usb_xceiv	*nop;
+	enum usb_phy_type	type = USB_PHY_TYPE_USB2;
 	int err;
 
 	nop = kzalloc(sizeof *nop, GFP_KERNEL);
@@ -108,6 +110,9 @@ static int __devinit nop_usb_xceiv_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	if (pdata)
+		type = pdata->type;
+
 	nop->dev		= &pdev->dev;
 	nop->phy.dev		= nop->dev;
 	nop->phy.label		= "nop-xceiv";
@@ -118,7 +123,7 @@ static int __devinit nop_usb_xceiv_probe(struct platform_device *pdev)
 	nop->phy.otg->set_host		= nop_set_host;
 	nop->phy.otg->set_peripheral	= nop_set_peripheral;
 
-	err = usb_add_phy(&nop->phy, USB_PHY_TYPE_USB2);
+	err = usb_add_phy(&nop->phy, type);
 	if (err) {
 		dev_err(&pdev->dev, "can't register transceiver, err: %d\n",
 			err);
