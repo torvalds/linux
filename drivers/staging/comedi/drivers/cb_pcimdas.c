@@ -57,7 +57,6 @@ See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
 
 /* sizes of io regions (bytes) */
 #define BADR0_SIZE 2		/* ?? */
-#define BADR2_SIZE 6
 #define BADR3_SIZE 16
 
 /* DAC Offsets */
@@ -137,7 +136,6 @@ struct cb_pcimdas_private {
 
 	/* base addresses */
 	unsigned long BADR0;
-	unsigned long BADR2;
 	unsigned long BADR3;
 
 	/* Used for AO readback */
@@ -233,7 +231,7 @@ static int cb_pcimdas_attach(struct comedi_device *dev,
 	}
 
 	devpriv->BADR0 = pci_resource_start(devpriv->pci_dev, 0);
-	devpriv->BADR2 = pci_resource_start(devpriv->pci_dev, 2);
+	dev->iobase = pci_resource_start(devpriv->pci_dev, 2);
 	devpriv->BADR3 = pci_resource_start(devpriv->pci_dev, 3);
 	iobase_8255 = pci_resource_start(devpriv->pci_dev, 4);
 
@@ -344,7 +342,7 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
-		outw(0, devpriv->BADR2 + 0);
+		outw(0, dev->iobase + 0);
 
 #define TIMEOUT 1000		/* typically takes 5 loops on a lightly loaded Pentium 100MHz, */
 		/* this is likely to be 100 loops on a 2GHz machine, so set 1000 as the limit. */
@@ -360,7 +358,7 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 			return -ETIMEDOUT;
 		}
 		/* read data */
-		d = inw(devpriv->BADR2 + 0);
+		d = inw(dev->iobase + 0);
 
 		/* mangle the data as necessary */
 		/* d ^= 1<<(thisboard->ai_bits-1); // 16 bit data from ADC, so no mangle needed. */
@@ -384,10 +382,10 @@ static int cb_pcimdas_ao_winsn(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		switch (chan) {
 		case 0:
-			outw(data[i] & 0x0FFF, devpriv->BADR2 + DAC0_OFFSET);
+			outw(data[i] & 0x0FFF, dev->iobase + DAC0_OFFSET);
 			break;
 		case 1:
-			outw(data[i] & 0x0FFF, devpriv->BADR2 + DAC1_OFFSET);
+			outw(data[i] & 0x0FFF, dev->iobase + DAC1_OFFSET);
 			break;
 		default:
 			return -1;
