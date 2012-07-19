@@ -122,18 +122,12 @@ static int cnt_rinsn(struct comedi_device *dev,
 	return 1;
 }
 
-static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static struct pci_dev *cnt_find_pci_dev(struct comedi_device *dev,
+					struct comedi_devconfig *it)
 {
-	struct comedi_subdevice *subdevice;
-	struct pci_dev *pci_device = NULL;
 	struct cnt_board_struct *board;
-	unsigned long io_base;
-	int error, i;
-
-	/* allocate device private structure */
-	error = alloc_private(dev, sizeof(struct cnt_device_private));
-	if (error < 0)
-		return error;
+	struct pci_dev *pci_device = NULL;
+	int i;
 
 	/* Probe the device to determine what device in the series it is. */
 	for_each_pci_dev(pci_device) {
@@ -166,14 +160,35 @@ static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk(KERN_WARNING
 	       "comedi%d: no supported board found! (req. bus/slot: %d/%d)\n",
 	       dev->minor, it->options[0], it->options[1]);
-	return -EIO;
+	return NULL;
 
 found:
 	printk(KERN_INFO
 	       "comedi%d: found %s at PCI bus %d, slot %d\n", dev->minor,
 	       board->name, pci_device->bus->number,
 	       PCI_SLOT(pci_device->devfn));
+	return pci_device;
+}
+
+static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+{
+	struct pci_dev *pci_device;
+	struct comedi_subdevice *subdevice;
+	struct cnt_board_struct *board;
+	unsigned long io_base;
+	int error;
+
+	/* allocate device private structure */
+	error = alloc_private(dev, sizeof(struct cnt_device_private));
+	if (error < 0)
+		return error;
+
+	pci_device = cnt_find_pci_dev(dev, it);
+	if (!pci_device)
+		return -EIO;
 	devpriv->pcidev = pci_device;
+	board = (struct cnt_board_struct *)dev->board_ptr;
+
 	dev->board_name = board->name;
 
 	/* enable PCI device and request regions */
