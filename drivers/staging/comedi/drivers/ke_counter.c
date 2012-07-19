@@ -62,8 +62,6 @@ static const struct cnt_board_struct cnt_boards[] = {
 	 .cnt_bits = 24}
 };
 
-#define cnt_board_nbr (sizeof(cnt_boards)/sizeof(struct cnt_board_struct))
-
 /*-- counter write ----------------------------------------------------------*/
 
 /* This should be used only for resetting the counters; maybe it is better
@@ -132,7 +130,7 @@ static struct pci_dev *cnt_find_pci_dev(struct comedi_device *dev,
 		if (pcidev->vendor != PCI_VENDOR_ID_KOLTER)
 			continue;
 
-		for (i = 0; i < cnt_board_nbr; i++) {
+		for (i = 0; i < ARRAY_SIZE(cnt_boards); i++) {
 			board = &cnt_boards[i];
 			if (board->device_id != pcidev->device)
 				continue;
