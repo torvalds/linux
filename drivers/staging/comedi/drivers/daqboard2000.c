@@ -120,8 +120,10 @@ Configuration options:
 
 #include "8255.h"
 
-#define DAQBOARD2000_SUBSYSTEM_IDS2 	0x00021616	/* Daqboard/2000 - 2 Dacs */
-#define DAQBOARD2000_SUBSYSTEM_IDS4 	0x00041616	/* Daqboard/2000 - 4 Dacs */
+#define PCI_VENDOR_ID_IOTECH		0x1616
+
+#define DAQBOARD2000_SUBSYSTEM_IDS2 	0x0002	/* Daqboard/2000 - 2 Dacs */
+#define DAQBOARD2000_SUBSYSTEM_IDS4 	0x0004	/* Daqboard/2000 - 4 Dacs */
 
 #define DAQBOARD2000_DAQ_SIZE 		0x1002
 #define DAQBOARD2000_PLX_SIZE 		0x100
@@ -709,47 +711,29 @@ static struct pci_dev *daqboard2000_find_pci_dev(struct comedi_device *dev,
 	struct pci_dev *pcidev = NULL;
 	int bus = it->options[0];
 	int slot = it->options[1];
+	int i;
 
-	for (pcidev = pci_get_device(0x1616, 0x0409, NULL);
-	     pcidev != NULL; pcidev = pci_get_device(0x1616, 0x0409, pcidev)) {
+	for_each_pci_dev(pcidev) {
 		if (bus || slot) {
-			/* requested particular bus/slot */
-			if (pcidev->bus->number != bus ||
-			    PCI_SLOT(pcidev->devfn) != slot) {
+			if (bus != pcidev->bus->number ||
+			    slot != PCI_SLOT(pcidev->devfn))
 				continue;
-			}
 		}
-		break;		/* found one */
-	}
-	if (!pcidev) {
-		if (bus || slot)
-			dev_err(dev->class_dev,
-				"no daqboard2000 found at bus/slot: %d/%d\n",
-				bus, slot);
-		else
-			dev_err(dev->class_dev, "no daqboard2000 found\n");
-		return NULL;
-	} else {
-		u32 id;
-		int i;
+		if (pcidev->vendor != PCI_VENDOR_ID_IOTECH ||
+		    pcidev->device != 0x0409)
+			continue;
 
-		id = ((u32) pcidev->
-		      subsystem_device << 16) | pcidev->subsystem_vendor;
 		for (i = 0; i < ARRAY_SIZE(boardtypes); i++) {
-			if (boardtypes[i].id == id) {
-				dev_dbg(dev->class_dev, "%s\n",
-					boardtypes[i].name);
-				dev->board_ptr = boardtypes + i;
-			}
+			if (boardtypes[i].id != pcidev->subsystem_device)
+				continue;
+			dev->board_ptr = boardtypes + i;
+			return pcidev;
 		}
-		if (!dev->board_ptr) {
-			printk
-			    (" unknown subsystem id %08x (pretend it is an ids2)",
-			     id);
-			dev->board_ptr = boardtypes;
-		}
-		return pcidev;
 	}
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
+	return NULL;
 }
 
 static int daqboard2000_attach(struct comedi_device *dev,
@@ -886,7 +870,7 @@ static void __devexit daqboard2000_pci_remove(struct pci_dev *dev)
 }
 
 static DEFINE_PCI_DEVICE_TABLE(daqboard2000_pci_table) = {
-	{ PCI_DEVICE(0x1616, 0x0409) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_IOTECH, 0x0409) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, daqboard2000_pci_table);
