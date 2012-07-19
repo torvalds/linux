@@ -327,6 +327,10 @@ static int ea_remove_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 {
 	int error;
 
+	error = gfs2_rindex_update(GFS2_SB(&ip->i_inode));
+	if (error)
+		return error;
+
 	error = gfs2_quota_hold(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
 	if (error)
 		goto out_alloc;
@@ -709,6 +713,10 @@ static int ea_alloc_skeleton(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 {
 	struct buffer_head *dibh;
 	int error;
+
+	error = gfs2_rindex_update(GFS2_SB(&ip->i_inode));
+	if (error)
+		return error;
 
 	error = gfs2_quota_lock_check(ip);
 	if (error)
@@ -1482,6 +1490,10 @@ out_gunlock:
 int gfs2_ea_dealloc(struct gfs2_inode *ip)
 {
 	int error;
+
+	error = gfs2_rindex_update(GFS2_SB(&ip->i_inode));
+	if (error)
+		return error;
 
 	error = gfs2_quota_hold(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
 	if (error)

@@ -1420,6 +1420,10 @@ static int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 		return -EIO;
 	}
 
+	error = gfs2_rindex_update(sdp);
+	if (error)
+		return error;
+
 	error = gfs2_quota_hold(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
 	if (error)
 		return error;
@@ -1550,6 +1554,9 @@ out_truncate:
 
 out_unlock:
 	/* Error path for case 1 */
+	if (gfs2_rs_active(ip->i_res))
+		gfs2_rs_deltree(ip->i_res);
+
 	if (test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags))
 		gfs2_glock_dq(&ip->i_iopen_gh);
 	gfs2_holder_uninit(&ip->i_iopen_gh);

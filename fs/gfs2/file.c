@@ -383,6 +383,9 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (ret)
 		return ret;
 
+	atomic_set(&ip->i_res->rs_sizehint,
+		   PAGE_CACHE_SIZE / sdp->sd_sb.sb_bsize);
+
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	ret = gfs2_glock_nq(&gh);
 	if (ret)
@@ -571,21 +574,14 @@ fail:
 
 static int gfs2_release(struct inode *inode, struct file *file)
 {
-	struct gfs2_sbd *sdp = inode->i_sb->s_fs_info;
-	struct gfs2_file *fp;
 	struct gfs2_inode *ip = GFS2_I(inode);
 
-	fp = file->private_data;
+	kfree(file->private_data);
 	file->private_data = NULL;
 
-	if ((file->f_mode & FMODE_WRITE) && ip->i_res &&
+	if ((file->f_mode & FMODE_WRITE) &&
 	    (atomic_read(&inode->i_writecount) == 1))
 		gfs2_rs_delete(ip);
-
-	if (gfs2_assert_warn(sdp, fp))
-		return -EIO;
-
-	kfree(fp);
 
 	return 0;
 }
@@ -662,14 +658,18 @@ static ssize_t gfs2_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 				   unsigned long nr_segs, loff_t pos)
 {
 	struct file *file = iocb->ki_filp;
+	size_t writesize = iov_length(iov, nr_segs);
 	struct dentry *dentry = file->f_dentry;
 	struct gfs2_inode *ip = GFS2_I(dentry->d_inode);
+	struct gfs2_sbd *sdp;
 	int ret;
 
+	sdp = GFS2_SB(file->f_mapping->host);
 	ret = gfs2_rs_alloc(ip);
 	if (ret)
 		return ret;
 
+	atomic_set(&ip->i_res->rs_sizehint, writesize / sdp->sd_sb.sb_bsize);
 	if (file->f_flags & O_APPEND) {
 		struct gfs2_holder gh;
 
@@ -795,6 +795,8 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset,
 	if (unlikely(error))
 		goto out_uninit;
 
+	atomic_set(&ip->i_res->rs_sizehint, len / sdp->sd_sb.sb_bsize);
+
 	while (len > 0) {
 		if (len < bytes)
 			bytes = len;
@@ -803,10 +805,6 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset,
 			offset += bytes;
 			continue;
 		}
-		error = gfs2_rindex_update(sdp);
-		if (error)
-			goto out_unlock;
-
 		error = gfs2_quota_lock_check(ip);
 		if (error)
 			goto out_unlock;
