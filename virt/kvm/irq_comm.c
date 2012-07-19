@@ -343,11 +343,11 @@ static int setup_routing_entry(struct kvm_irq_routing_table *rt,
 		switch (ue->u.irqchip.irqchip) {
 		case KVM_IRQCHIP_PIC_MASTER:
 			e->set = kvm_set_pic_irq;
-			max_pin = 16;
+			max_pin = PIC_NUM_PINS;
 			break;
 		case KVM_IRQCHIP_PIC_SLAVE:
 			e->set = kvm_set_pic_irq;
-			max_pin = 16;
+			max_pin = PIC_NUM_PINS;
 			delta = 8;
 			break;
 		case KVM_IRQCHIP_IOAPIC:
