@@ -492,20 +492,14 @@ spufs_create_context(struct inode *inode, struct dentry *dentry,
 	}
 
 	ret = spufs_context_open(&path);
-	if (ret < 0) {
+	if (ret < 0)
 		WARN_ON(spufs_rmdir(inode, dentry));
-		if (affinity)
-			mutex_unlock(&gang->aff_mutex);
-		mutex_unlock(&inode->i_mutex);
-		goto out;
-	}
 
 out_aff_unlock:
 	if (affinity)
 		mutex_unlock(&gang->aff_mutex);
 out_unlock:
 	mutex_unlock(&inode->i_mutex);
-out:
 	dput(dentry);
 	return ret;
 }
