@@ -47,12 +47,6 @@ Configuration Options:
 
 #define PCI_DEVICE_ID_PCI7296 0x7296
 
-struct adl_pci7296_private {
-	int data;
-};
-
-#define devpriv ((struct adl_pci7296_private *)dev->private)
-
 static struct pci_dev *adl_pci7296_find_pci(struct comedi_device *dev,
 					    struct comedi_devconfig *it)
 {
@@ -88,9 +82,6 @@ static int adl_pci7296_attach(struct comedi_device *dev,
 	printk(KERN_INFO "comedi%d: attach adl_pci7432\n", dev->minor);
 
 	dev->board_name = "pci7432";
-
-	if (alloc_private(dev, sizeof(struct adl_pci7296_private)) < 0)
-		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
