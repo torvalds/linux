@@ -97,9 +97,32 @@ static int contec_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int contec_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static struct pci_dev *contec_find_pci_dev(struct comedi_device *dev,
+					   struct comedi_devconfig *it)
 {
 	struct pci_dev *pcidev = NULL;
+
+	for_each_pci_dev(pcidev) {
+		if (pcidev->vendor == PCI_VENDOR_ID_CONTEC &&
+		    pcidev->device == PCI_DEVICE_ID_PIO1616L) {
+			if (it->options[0] || it->options[1]) {
+				/* Check bus and slot. */
+				if (it->options[0] != pcidev->bus->number ||
+				    it->options[1] != PCI_SLOT(pcidev->devfn)) {
+					continue;
+				}
+			}
+			dev->board_ptr = contec_boards + 0;
+			return pcidev;
+		}
+	}
+	printk("card not present!\n");
+	return NULL;
+}
+
+static int contec_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+{
+	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret;
 
@@ -114,53 +137,38 @@ static int contec_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	for_each_pci_dev(pcidev) {
-		if (pcidev->vendor == PCI_VENDOR_ID_CONTEC &&
-		    pcidev->device == PCI_DEVICE_ID_PIO1616L) {
-			if (it->options[0] || it->options[1]) {
-				/* Check bus and slot. */
-				if (it->options[0] != pcidev->bus->number ||
-				    it->options[1] != PCI_SLOT(pcidev->devfn)) {
-					continue;
-				}
-			}
-			devpriv->pci_dev = pcidev;
-			if (comedi_pci_enable(pcidev, "contec_pci_dio")) {
-				printk
-				    ("error enabling PCI device and request regions!\n");
-				return -EIO;
-			}
-			dev->iobase = pci_resource_start(pcidev, 0);
-			printk(" base addr %lx ", dev->iobase);
+	pcidev = contec_find_pci_dev(dev, it);
+	if (!pcidev)
+		return -EIO;
+	devpriv->pci_dev = pcidev;
 
-			dev->board_ptr = contec_boards + 0;
-
-			s = dev->subdevices + 0;
-
-			s->type = COMEDI_SUBD_DI;
-			s->subdev_flags = SDF_READABLE;
-			s->n_chan = 16;
-			s->maxdata = 1;
-			s->range_table = &range_digital;
-			s->insn_bits = contec_di_insn_bits;
-
-			s = dev->subdevices + 1;
-			s->type = COMEDI_SUBD_DO;
-			s->subdev_flags = SDF_WRITABLE;
-			s->n_chan = 16;
-			s->maxdata = 1;
-			s->range_table = &range_digital;
-			s->insn_bits = contec_do_insn_bits;
-
-			printk("attached\n");
-
-			return 1;
-		}
+	if (comedi_pci_enable(pcidev, "contec_pci_dio")) {
+		printk("error enabling PCI device and request regions!\n");
+		return -EIO;
 	}
+	dev->iobase = pci_resource_start(pcidev, 0);
+	printk(" base addr %lx ", dev->iobase);
 
-	printk("card not present!\n");
+	s = dev->subdevices + 0;
 
-	return -EIO;
+	s->type = COMEDI_SUBD_DI;
+	s->subdev_flags = SDF_READABLE;
+	s->n_chan = 16;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_bits = contec_di_insn_bits;
+
+	s = dev->subdevices + 1;
+	s->type = COMEDI_SUBD_DO;
+	s->subdev_flags = SDF_WRITABLE;
+	s->n_chan = 16;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_bits = contec_do_insn_bits;
+
+	printk("attached\n");
+
+	return 1;
 }
 
 static void contec_detach(struct comedi_device *dev)
