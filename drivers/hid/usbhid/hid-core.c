@@ -435,16 +435,6 @@ static int hid_submit_ctrl(struct hid_device *hid)
  * Output interrupt completion handler.
  */
 
-static int irq_out_pump_restart(struct hid_device *hid)
-{
-	struct usbhid_device *usbhid = hid->driver_data;
-
-	if (usbhid->outhead != usbhid->outtail)
-		return hid_submit_out(hid);
-	else
-		return -1;
-}
-
 static void hid_irq_out(struct urb *urb)
 {
 	struct hid_device *hid = urb->context;
@@ -469,15 +459,17 @@ static void hid_irq_out(struct urb *urb)
 
 	spin_lock_irqsave(&usbhid->lock, flags);
 
-	if (unplug)
+	if (unplug) {
 		usbhid->outtail = usbhid->outhead;
-	else
+	} else {
 		usbhid->outtail = (usbhid->outtail + 1) & (HID_OUTPUT_FIFO_SIZE - 1);
 
-	if (!irq_out_pump_restart(hid)) {
-		/* Successfully submitted next urb in queue */
-		spin_unlock_irqrestore(&usbhid->lock, flags);
-		return;
+		if (usbhid->outhead != usbhid->outtail &&
+				hid_submit_out(hid) == 0) {
+			/* Successfully submitted next urb in queue */
+			spin_unlock_irqrestore(&usbhid->lock, flags);
+			return;
+		}
 	}
 
 	clear_bit(HID_OUT_RUNNING, &usbhid->iofl);
@@ -489,15 +481,6 @@ static void hid_irq_out(struct urb *urb)
 /*
  * Control pipe completion handler.
  */
-static int ctrl_pump_restart(struct hid_device *hid)
-{
-	struct usbhid_device *usbhid = hid->driver_data;
-
-	if (usbhid->ctrlhead != usbhid->ctrltail)
-		return hid_submit_ctrl(hid);
-	else
-		return -1;
-}
 
 static void hid_ctrl(struct urb *urb)
 {
@@ -526,15 +509,17 @@ static void hid_ctrl(struct urb *urb)
 		hid_warn(urb->dev, "ctrl urb status %d received\n", status);
 	}
 
-	if (unplug)
+	if (unplug) {
 		usbhid->ctrltail = usbhid->ctrlhead;
-	else
+	} else {
 		usbhid->ctrltail = (usbhid->ctrltail + 1) & (HID_CONTROL_FIFO_SIZE - 1);
 
-	if (!ctrl_pump_restart(hid)) {
-		/* Successfully submitted next urb in queue */
-		spin_unlock(&usbhid->lock);
-		return;
+		if (usbhid->ctrlhead != usbhid->ctrltail &&
+				hid_submit_ctrl(hid) == 0) {
+			/* Successfully submitted next urb in queue */
+			spin_unlock(&usbhid->lock);
+			return;
+		}
 	}
 
 	clear_bit(HID_CTRL_RUNNING, &usbhid->iofl);
