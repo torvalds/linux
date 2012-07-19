@@ -241,8 +241,9 @@ void __init mips_pcibios_init(void)
 		return;
 	}
 
-	if (controller->io_resource->start < 0x00001000UL)	/* FIXME */
-		controller->io_resource->start = 0x00001000UL;
+	/* Change start address to avoid conflicts with ACPI and SMB devices */
+	if (controller->io_resource->start < 0x00002000UL)
+		controller->io_resource->start = 0x00002000UL;
 
 	iomem_resource.end &= 0xfffffffffULL;			/* 64 GB */
 	ioport_resource.end = controller->io_resource->end;
