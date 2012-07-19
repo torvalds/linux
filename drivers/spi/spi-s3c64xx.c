@@ -896,9 +896,9 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 	if (!spi_get_ctldata(spi)) {
 		err = gpio_request(cs->line, dev_name(&spi->dev));
 		if (err) {
-			dev_err(&spi->dev, "request for slave select gpio "
-					"line [%d] failed\n", cs->line);
-			err = -EBUSY;
+			dev_err(&spi->dev,
+				"Failed to get /CS gpio [%d]: %d\n",
+				cs->line, err);
 			goto err_gpio_req;
 		}
 		spi_set_ctldata(spi, cs);
@@ -1116,7 +1116,8 @@ static int s3c64xx_spi_parse_dt_gpio(struct s3c64xx_spi_driver_data *sdd)
 
 		ret = gpio_request(gpio, "spi-bus");
 		if (ret) {
-			dev_err(dev, "gpio [%d] request failed\n", gpio);
+			dev_err(dev, "gpio [%d] request failed: %d\n",
+				gpio, ret);
 			goto free_gpio;
 		}
 	}
