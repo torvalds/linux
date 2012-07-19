@@ -1718,8 +1718,6 @@ static int __rbd_refresh_header(struct rbd_device *rbd_dev)
 {
 	int ret;
 	struct rbd_image_header h;
-	u64 snap_seq;
-	int follow_seq = 0;
 
 	ret = rbd_read_header(rbd_dev, &h);
 	if (ret < 0)
@@ -1734,13 +1732,6 @@ static int __rbd_refresh_header(struct rbd_device *rbd_dev)
 		dout("setting size to %llu sectors", (unsigned long long) size);
 		set_capacity(rbd_dev->disk, size);
 	}
-
-	snap_seq = rbd_dev->header.snapc->seq;
-	if (rbd_dev->header.total_snaps &&
-	    rbd_dev->header.snapc->snaps[0] == snap_seq)
-		/* pointing at the head, will need to follow that
-		   if head moves */
-		follow_seq = 1;
 
 	/* rbd_dev->header.object_prefix shouldn't change */
 	kfree(rbd_dev->header.snap_sizes);
@@ -1758,11 +1749,6 @@ static int __rbd_refresh_header(struct rbd_device *rbd_dev)
 	/* Free the extra copy of the object prefix */
 	WARN_ON(strcmp(rbd_dev->header.object_prefix, h.object_prefix));
 	kfree(h.object_prefix);
-
-	if (follow_seq)
-		rbd_dev->header.snapc->seq = rbd_dev->header.snapc->snaps[0];
-	else
-		rbd_dev->header.snapc->seq = snap_seq;
 
 	ret = __rbd_init_snaps_header(rbd_dev);
 
