@@ -132,6 +132,9 @@ static void show_backtrace(struct task_struct *task, const struct pt_regs *regs)
 	unsigned long ra = regs->regs[31];
 	unsigned long pc = regs->cp0_epc;
 
+	if (!task)
+		task = current;
+
 	if (raw_show_trace || !__kernel_text_address(pc)) {
 		show_raw_backtrace(sp);
 		return;
