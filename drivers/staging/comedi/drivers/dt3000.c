@@ -159,7 +159,6 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 	 },
 };
 
-#define n_dt3k_boards sizeof(dt3k_boardtypes)/sizeof(struct dt3k_boardtype)
 #define this_board ((const struct dt3k_boardtype *)dev->board_ptr)
 
 #define DT3000_SIZE		(4*0x1000)
@@ -797,87 +796,65 @@ static int setup_pci(struct comedi_device *dev)
 	return 0;
 }
 
-static struct pci_dev *dt_pci_find_device(struct pci_dev *from, int *board)
+static struct pci_dev *dt3000_find_pci_dev(struct comedi_device *dev,
+					   struct comedi_devconfig *it)
 {
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
 	int i;
 
-	for (from = pci_get_device(PCI_VENDOR_ID_DT, PCI_ANY_ID, from);
-	     from != NULL;
-	     from = pci_get_device(PCI_VENDOR_ID_DT, PCI_ANY_ID, from)) {
-		for (i = 0; i < n_dt3k_boards; i++) {
-			if (from->device == dt3k_boardtypes[i].device_id) {
-				*board = i;
-				return from;
-			}
+	for_each_pci_dev(pcidev) {
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+			    slot != PCI_SLOT(pcidev->devfn))
+				continue;
 		}
-		printk
-		    ("unknown Data Translation PCI device found with device_id=0x%04x\n",
-		     from->device);
-	}
-	*board = -1;
-	return from;
-}
-
-static int dt_pci_probe(struct comedi_device *dev, int bus, int slot)
-{
-	int board;
-	int ret;
-	struct pci_dev *pcidev;
-
-	pcidev = NULL;
-	while ((pcidev = dt_pci_find_device(pcidev, &board)) != NULL) {
-		if ((bus == 0 && slot == 0) ||
-		    (pcidev->bus->number == bus &&
-		     PCI_SLOT(pcidev->devfn) == slot)) {
-			break;
+		if (pcidev->vendor != PCI_VENDOR_ID_DT)
+			continue;
+		for (i = 0; i < ARRAY_SIZE(dt3k_boardtypes); i++) {
+			if (dt3k_boardtypes[i].device_id != pcidev->device)
+				continue;
+			dev->board_ptr = dt3k_boardtypes + i;
+			return pcidev;
 		}
 	}
-	devpriv->pci_dev = pcidev;
-
-	if (board >= 0)
-		dev->board_ptr = dt3k_boardtypes + board;
-
-	if (!devpriv->pci_dev)
-		return 0;
-
-	ret = setup_pci(dev);
-	if (ret < 0)
-		return ret;
-
-	return 1;
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
+	return NULL;
 }
 
 static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
-	int bus, slot;
 	int ret = 0;
 
 	dev_dbg(dev->class_dev, "dt3000:\n");
-	bus = it->options[0];
-	slot = it->options[1];
 
 	ret = alloc_private(dev, sizeof(struct dt3k_private));
 	if (ret < 0)
 		return ret;
 
-	ret = dt_pci_probe(dev, bus, slot);
+	pcidev = dt3000_find_pci_dev(dev, it);
+	if (!pcidev)
+		return -EIO;
+	devpriv->pci_dev = pcidev;
+
+	ret = setup_pci(dev);
 	if (ret < 0)
 		return ret;
-	if (ret == 0) {
-		dev_warn(dev->class_dev, "no DT board found\n");
-		return -ENODEV;
-	}
 
 	dev->board_name = this_board->name;
 
-	if (request_irq(devpriv->pci_dev->irq, dt3k_interrupt, IRQF_SHARED,
+	if (request_irq(pcidev->irq, dt3k_interrupt, IRQF_SHARED,
 			"dt3000", dev)) {
 		dev_err(dev->class_dev, "unable to allocate IRQ %u\n",
-			devpriv->pci_dev->irq);
+			pcidev->irq);
 		return -EINVAL;
 	}
-	dev->irq = devpriv->pci_dev->irq;
+	dev->irq = pcidev->irq;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
