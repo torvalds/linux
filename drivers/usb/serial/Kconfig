@@ -661,4 +661,12 @@ config USB_SERIAL_DEBUG
 	  To compile this driver as a module, choose M here: the
 	  module will be called usb-debug.
 
+config USB_SERIAL_USI 
+ tristate "USB USI Serial driver" 
+ help 
+   Say Y here if you have a USI WCDMA modem that's connected to USB. 
+ 
+   To compile this driver as a module, choose M here: the module will be called 
+   module will be called option. 
+
 endif # USB_SERIAL
