@@ -104,7 +104,7 @@ struct dyna_pci10xx_private {
 	struct mutex mutex;
 
 	/* device base address registers */
-	unsigned long BADR2, BADR3;
+	unsigned long BADR3;
 };
 
 #define thisboard ((const struct boardtype *)dev->board_ptr)
@@ -132,11 +132,11 @@ static int dyna_pci10xx_insn_read_ai(struct comedi_device *dev,
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
 		smp_mb();
-		outw_p(0x0000 + range + chan, devpriv->BADR2 + 2);
+		outw_p(0x0000 + range + chan, dev->iobase + 2);
 		udelay(10);
 		/* read data */
 		for (counter = 0; counter < READ_TIMEOUT; counter++) {
-			d = inw_p(devpriv->BADR2);
+			d = inw_p(dev->iobase);
 
 			/* check if read is successful if the EOC bit is set */
 			if (d & (1 << 15))
@@ -172,7 +172,7 @@ static int dyna_pci10xx_insn_write_ao(struct comedi_device *dev,
 	for (n = 0; n < insn->n; n++) {
 		smp_mb();
 		/* trigger conversion and write data */
-		outw_p(data[n], devpriv->BADR2);
+		outw_p(data[n], dev->iobase);
 		udelay(10);
 	}
 	mutex_unlock(&devpriv->mutex);
@@ -288,7 +288,7 @@ static int dyna_pci10xx_attach(struct comedi_device *dev,
 
 	printk(KERN_INFO "comedi: dyna_pci10xx: device found!\n");
 
-	devpriv->BADR2 = pci_resource_start(pcidev, 2);
+	dev->iobase = pci_resource_start(pcidev, 2);
 	devpriv->BADR3 = pci_resource_start(pcidev, 3);
 
 	ret = comedi_alloc_subdevices(dev, 4);
