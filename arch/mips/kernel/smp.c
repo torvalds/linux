@@ -130,6 +130,11 @@ asmlinkage __cpuinit void start_secondary(void)
 
 	synchronise_count_slave();
 
+	/*
+	 * irq will be enabled in ->smp_finish(), enabling it too early
+	 * is dangerous.
+	 */
+	WARN_ON_ONCE(!irqs_disabled());
 	mp_ops->smp_finish();
 
 	cpu_idle();
