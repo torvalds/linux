@@ -1256,50 +1256,42 @@ static const struct pci224_board
  * This function looks for a PCI device matching the requested board name,
  * bus and slot.
  */
-static struct pci_dev *
-pci224_find_pci(struct comedi_device *dev, int bus, int slot)
+static struct pci_dev *pci224_find_pci_dev(struct comedi_device *dev,
+					   struct comedi_devconfig *it)
 {
 	const struct pci224_board *thisboard = comedi_board(dev);
 	struct pci_dev *pci_dev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
 
-	/* Look for matching PCI device. */
-	for (pci_dev = pci_get_device(PCI_VENDOR_ID_AMPLICON, PCI_ANY_ID, NULL);
-	     pci_dev != NULL;
-	     pci_dev = pci_get_device(PCI_VENDOR_ID_AMPLICON, PCI_ANY_ID,
-				      pci_dev)) {
-		/* If bus/slot specified, check them. */
+	for_each_pci_dev(pci_dev) {
 		if (bus || slot) {
-			if (bus != pci_dev->bus->number
-			    || slot != PCI_SLOT(pci_dev->devfn))
+			if (bus != pci_dev->bus->number ||
+			    slot != PCI_SLOT(pci_dev->devfn))
 				continue;
 		}
+		if (pci_dev->vendor != PCI_VENDOR_ID_AMPLICON)
+			continue;
+
 		if (thisboard->model == any_model) {
 			/* Match any supported model. */
 			const struct pci224_board *board_ptr;
+
 			board_ptr = pci224_find_pci_board(pci_dev);
 			if (board_ptr == NULL)
 				continue;
 			/* Change board_ptr to matched board. */
 			dev->board_ptr = board_ptr;
-			thisboard = comedi_board(dev);
 		} else {
 			/* Match specific model name. */
 			if (thisboard->devid != pci_dev->device)
 				continue;
 		}
-
-		/* Found a match. */
 		return pci_dev;
 	}
-	/* No match found. */
-	if (bus || slot) {
-		dev_err(dev->class_dev,
-			"error! no %s found at pci %02x:%02x!\n",
-			thisboard->name, bus, slot);
-	} else {
-		dev_err(dev->class_dev, "error! no %s found!\n",
-			thisboard->name);
-	}
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
 	return NULL;
 }
 
@@ -1474,21 +1466,18 @@ static int pci224_attach_common(struct comedi_device *dev,
 static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pci_dev *pci_dev;
-	int bus, slot;
 	int ret;
 
 	dev_info(dev->class_dev, DRIVER_NAME ": attach\n");
 
-	bus = it->options[0];
-	slot = it->options[1];
 	ret = alloc_private(dev, sizeof(struct pci224_private));
 	if (ret < 0) {
 		dev_err(dev->class_dev, "error! out of memory!\n");
 		return ret;
 	}
 
-	pci_dev = pci224_find_pci(dev, bus, slot);
-	if (pci_dev == NULL)
+	pci_dev = pci224_find_pci_dev(dev, it);
+	if (!pci_dev)
 		return -EIO;
 
 	return pci224_attach_common(dev, pci_dev, it->options);
