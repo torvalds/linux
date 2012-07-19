@@ -207,7 +207,8 @@ static int usbhid_restart_out_queue(struct usbhid_device *usbhid)
 	int kicked;
 	int r;
 
-	if (!hid)
+	if (!hid || test_bit(HID_RESET_PENDING, &usbhid->iofl) ||
+			test_bit(HID_SUSPENDED, &usbhid->iofl))
 		return 0;
 
 	if ((kicked = (usbhid->outhead != usbhid->outtail))) {
@@ -245,7 +246,8 @@ static int usbhid_restart_ctrl_queue(struct usbhid_device *usbhid)
 	int r;
 
 	WARN_ON(hid == NULL);
-	if (!hid)
+	if (!hid || test_bit(HID_RESET_PENDING, &usbhid->iofl) ||
+			test_bit(HID_SUSPENDED, &usbhid->iofl))
 		return 0;
 
 	if ((kicked = (usbhid->ctrlhead != usbhid->ctrltail))) {
