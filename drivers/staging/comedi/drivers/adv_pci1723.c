@@ -302,11 +302,7 @@ static struct pci_dev *pci1723_find_pci_dev(struct comedi_device *dev,
 		}
 		if (pcidev->vendor != PCI_VENDOR_ID_ADVANTECH)
 			continue;
-		/*
-		 * Look for device that isn't in use.
-		 * Enable PCI device and request regions.
-		 */
-		if (comedi_pci_enable(pcidev, "adv_pci1723"))
+		if (pci_is_enabled(pcidev))
 			continue;
 		return pcidev;
 	}
@@ -334,6 +330,10 @@ static int pci1723_attach(struct comedi_device *dev,
 	devpriv->pcidev = pci1723_find_pci_dev(dev, it);
 	if (!devpriv->pcidev)
 		return -EIO;
+
+	ret = comedi_pci_enable(devpriv->pcidev, "adv_pci1723");
+	if (ret)
+		return ret;
 
 	dev->iobase = pci_resource_start(devpriv->pcidev, 2);
 
