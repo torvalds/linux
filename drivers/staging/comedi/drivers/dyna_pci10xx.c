@@ -101,7 +101,6 @@ static const struct boardtype boardtypes[] = {
 
 struct dyna_pci10xx_private {
 	struct pci_dev *pci_dev;	/*  ptr to PCI device */
-	char valid;			/*  card is usable */
 	struct mutex mutex;
 
 	/* device base address registers */
@@ -341,8 +340,6 @@ static int dyna_pci10xx_attach(struct comedi_device *dev,
 	s->len_chanlist = thisboard->do_chans;
 	s->state = 0;
 	s->insn_bits = dyna_pci10xx_do_insn_bits;
-
-	devpriv->valid = 1;
 
 	printk(KERN_INFO "comedi: dyna_pci10xx: %s - device setup completed!\n",
 		thisboard->name);
