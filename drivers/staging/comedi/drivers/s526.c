@@ -206,15 +206,7 @@ static const struct s526_board s526_boards[] = {
    struct.
 */
 struct s526_private {
-
-	int data;
-
-	/* would be useful for a PCI device */
-	struct pci_dev *pci_dev;
-
-	/* Used for AO readback */
 	unsigned int ao_readback[2];
-
 	struct s526GPCTConfig s526_gpct_config[4];
 	unsigned short s526_ai_config;
 };
