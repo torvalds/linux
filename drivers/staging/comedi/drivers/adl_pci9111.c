@@ -338,7 +338,6 @@ static const struct pci9111_board pci9111_boards[] = {
 /*  Private data structure */
 
 struct pci9111_private_data {
-	struct pci_dev *pci_device;
 	unsigned long io_range;	/*  PCI6503 io range */
 
 	unsigned long lcr_io_base; /* Local configuration register base
@@ -1247,6 +1246,7 @@ static struct pci_dev *pci9111_find_pci(struct comedi_device *dev,
 static int pci9111_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct pci_dev *pcidev;
 	struct comedi_subdevice *subdevice;
 	unsigned long io_base, io_range, lcr_io_base, lcr_io_range;
 	int error;
@@ -1259,9 +1259,10 @@ static int pci9111_attach(struct comedi_device *dev,
 	printk(KERN_ERR "comedi%d: " PCI9111_DRIVER_NAME " driver\n",
 								dev->minor);
 
-	dev_private->pci_device = pci9111_find_pci(dev, it);
-	if (!dev_private->pci_device)
+	pcidev = pci9111_find_pci(dev, it);
+	if (!pcidev)
 		return -EIO;
+	comedi_set_hw_dev(dev, &pcidev->dev);
 	board = (struct pci9111_board *)dev->board_ptr;
 
 	/*  TODO: Warn about non-tested boards. */
@@ -1269,15 +1270,15 @@ static int pci9111_attach(struct comedi_device *dev,
 	/*  Read local configuration register base address
 	 *  [PCI_BASE_ADDRESS #1]. */
 
-	lcr_io_base = pci_resource_start(dev_private->pci_device, 1);
-	lcr_io_range = pci_resource_len(dev_private->pci_device, 1);
+	lcr_io_base = pci_resource_start(pcidev, 1);
+	lcr_io_range = pci_resource_len(pcidev, 1);
 
 	printk
 	    ("comedi%d: local configuration registers at address 0x%4lx [0x%4lx]\n",
 	     dev->minor, lcr_io_base, lcr_io_range);
 
 	/*  Enable PCI device and request regions */
-	if (comedi_pci_enable(dev_private->pci_device, PCI9111_DRIVER_NAME) < 0) {
+	if (comedi_pci_enable(pcidev, PCI9111_DRIVER_NAME) < 0) {
 		printk
 		    ("comedi%d: Failed to enable PCI device and request regions\n",
 		     dev->minor);
@@ -1285,8 +1286,8 @@ static int pci9111_attach(struct comedi_device *dev,
 	}
 	/*  Read PCI6308 register base address [PCI_BASE_ADDRESS #2]. */
 
-	io_base = pci_resource_start(dev_private->pci_device, 2);
-	io_range = pci_resource_len(dev_private->pci_device, 2);
+	io_base = pci_resource_start(pcidev, 2);
+	io_range = pci_resource_len(pcidev, 2);
 
 	printk(KERN_ERR "comedi%d: 6503 registers at address 0x%4lx [0x%4lx]\n",
 	       dev->minor, io_base, io_range);
@@ -1303,8 +1304,8 @@ static int pci9111_attach(struct comedi_device *dev,
 	/*  Irq setup */
 
 	dev->irq = 0;
-	if (dev_private->pci_device->irq > 0) {
-		dev->irq = dev_private->pci_device->irq;
+	if (pcidev->irq > 0) {
+		dev->irq = pcidev->irq;
 
 		if (request_irq(dev->irq, pci9111_interrupt,
 				IRQF_SHARED, PCI9111_DRIVER_NAME, dev) != 0) {
@@ -1374,16 +1375,18 @@ static int pci9111_attach(struct comedi_device *dev,
 
 static void pci9111_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
 	if (dev->private != NULL) {
 		if (dev_private->is_valid)
 			pci9111_reset(dev);
 	}
 	if (dev->irq != 0)
 		free_irq(dev->irq, dev);
-	if (dev_private != NULL && dev_private->pci_device != NULL) {
+	if (pcidev) {
 		if (dev->iobase)
-			comedi_pci_disable(dev_private->pci_device);
-		pci_dev_put(dev_private->pci_device);
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
