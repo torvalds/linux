@@ -929,11 +929,13 @@ static bool reg_request_cell_base(struct regulatory_request *request)
 
 bool reg_last_request_cell_base(void)
 {
+	bool val;
 	assert_cfg80211_lock();
 
 	mutex_lock(&reg_mutex);
-	return reg_request_cell_base(last_request);
+	val = reg_request_cell_base(last_request);
 	mutex_unlock(&reg_mutex);
+	return val;
 }
 
 #ifdef CONFIG_CFG80211_CERTIFICATION_ONUS
