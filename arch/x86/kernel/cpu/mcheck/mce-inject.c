@@ -78,6 +78,7 @@ static void raise_exception(struct mce *m, struct pt_regs *pregs)
 }
 
 static cpumask_var_t mce_inject_cpumask;
+static DEFINE_MUTEX(mce_inject_mutex);
 
 static int mce_raise_notify(unsigned int cmd, struct pt_regs *regs)
 {
@@ -229,7 +230,10 @@ static ssize_t mce_write(struct file *filp, const char __user *ubuf,
 	 * so do it a jiffie or two later everywhere.
 	 */
 	schedule_timeout(2);
+
+	mutex_lock(&mce_inject_mutex);
 	raise_mce(&m);
+	mutex_unlock(&mce_inject_mutex);
 	return usize;
 }
 
