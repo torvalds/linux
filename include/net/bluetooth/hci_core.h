@@ -581,8 +581,7 @@ void hci_conn_put_device(struct hci_conn *conn);
 
 static inline void hci_conn_hold(struct hci_conn *conn)
 {
-	BT_DBG("hcon %p refcnt %d -> %d", conn, atomic_read(&conn->refcnt),
-	       atomic_read(&conn->refcnt) + 1);
+	BT_DBG("hcon %p orig refcnt %d", conn, atomic_read(&conn->refcnt));
 
 	atomic_inc(&conn->refcnt);
 	cancel_delayed_work(&conn->disc_work);
@@ -590,8 +589,7 @@ static inline void hci_conn_hold(struct hci_conn *conn)
 
 static inline void hci_conn_put(struct hci_conn *conn)
 {
-	BT_DBG("hcon %p refcnt %d -> %d", conn, atomic_read(&conn->refcnt),
-	       atomic_read(&conn->refcnt) - 1);
+	BT_DBG("hcon %p orig refcnt %d", conn, atomic_read(&conn->refcnt));
 
 	if (atomic_dec_and_test(&conn->refcnt)) {
 		unsigned long timeo;
