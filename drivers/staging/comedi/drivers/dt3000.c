@@ -774,28 +774,6 @@ static int dt3k_mem_insn_read(struct comedi_device *dev,
 	return i;
 }
 
-static int setup_pci(struct comedi_device *dev)
-{
-	resource_size_t addr;
-	int ret;
-
-	ret = comedi_pci_enable(devpriv->pci_dev, "dt3000");
-	if (ret < 0)
-		return ret;
-
-	addr = pci_resource_start(devpriv->pci_dev, 0);
-	devpriv->phys_addr = addr;
-	devpriv->io_addr = ioremap(devpriv->phys_addr, DT3000_SIZE);
-	if (!devpriv->io_addr)
-		return -ENOMEM;
-#if DEBUG
-	printk("0x%08llx mapped to %p, ",
-	       (unsigned long long)devpriv->phys_addr, devpriv->io_addr);
-#endif
-
-	return 0;
-}
-
 static struct pci_dev *dt3000_find_pci_dev(struct comedi_device *dev,
 					   struct comedi_devconfig *it)
 {
@@ -842,9 +820,14 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EIO;
 	devpriv->pci_dev = pcidev;
 
-	ret = setup_pci(dev);
+	ret = comedi_pci_enable(pcidev, "dt3000");
 	if (ret < 0)
 		return ret;
+
+	devpriv->phys_addr = pci_resource_start(pcidev, 0);
+	devpriv->io_addr = ioremap(devpriv->phys_addr, DT3000_SIZE);
+	if (!devpriv->io_addr)
+		return -ENOMEM;
 
 	dev->board_name = this_board->name;
 
