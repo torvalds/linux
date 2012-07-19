@@ -400,8 +400,9 @@ static struct pci_driver cs5535audio_driver = {
 	.probe = snd_cs5535audio_probe,
 	.remove = __devexit_p(snd_cs5535audio_remove),
 #ifdef CONFIG_PM
-	.suspend = snd_cs5535audio_suspend,
-	.resume = snd_cs5535audio_resume,
+	.driver = {
+		.pm = &snd_cs5535audio_pm,
+	},
 #endif
 };
 

@@ -26,7 +26,7 @@
 #include <linux/time.h>
 #include <linux/module.h>
 #include <sound/core.h>
-#include <sound/trident.h>
+#include "trident.h"
 #include <sound/initval.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, <audio@tridentmicro.com>");
@@ -178,8 +178,9 @@ static struct pci_driver trident_driver = {
 	.probe = snd_trident_probe,
 	.remove = __devexit_p(snd_trident_remove),
 #ifdef CONFIG_PM
-	.suspend = snd_trident_suspend,
-	.resume = snd_trident_resume,
+	.driver = {
+		.pm = &snd_trident_pm,
+	},
 #endif
 };
 

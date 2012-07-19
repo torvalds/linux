@@ -260,7 +260,7 @@ static int vxp_suspend(struct pcmcia_device *link)
 	snd_printdd(KERN_DEBUG "SUSPEND\n");
 	if (chip) {
 		snd_printdd(KERN_DEBUG "snd_vx_suspend calling\n");
-		snd_vx_suspend(chip, PMSG_SUSPEND);
+		snd_vx_suspend(chip);
 	}
 
 	return 0;

@@ -32,7 +32,7 @@
 #include <sound/control.h>
 #include <sound/info.h>
 #include <sound/asoundef.h>
-#include <sound/cs46xx.h>
+#include "cs46xx.h"
 
 #include "cs46xx_lib.h"
 #include "dsp_spos.h"

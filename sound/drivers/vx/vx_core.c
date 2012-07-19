@@ -725,7 +725,7 @@ EXPORT_SYMBOL(snd_vx_dsp_load);
 /*
  * suspend
  */
-int snd_vx_suspend(struct vx_core *chip, pm_message_t state)
+int snd_vx_suspend(struct vx_core *chip)
 {
 	unsigned int i;
 

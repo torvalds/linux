@@ -554,7 +554,7 @@ static int conexant_build_controls(struct hda_codec *codec)
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-static int conexant_suspend(struct hda_codec *codec, pm_message_t state)
+static int conexant_suspend(struct hda_codec *codec)
 {
 	snd_hda_shutup_pins(codec);
 	return 0;

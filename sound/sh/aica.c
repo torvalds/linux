@@ -654,7 +654,9 @@ static struct platform_driver snd_aica_driver = {
 	.probe = snd_aica_probe,
 	.remove = __devexit_p(snd_aica_remove),
 	.driver = {
-		   .name = SND_AICA_DRIVER},
+		.name = SND_AICA_DRIVER,
+		.owner	= THIS_MODULE,
+	},
 };
 
 static int __init aica_init(void)

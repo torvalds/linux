@@ -2624,9 +2624,10 @@ static int snd_intel8x0_free(struct intel8x0 *chip)
 /*
  * power management
  */
-static int intel8x0_suspend(struct pci_dev *pci, pm_message_t state)
+static int intel8x0_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct intel8x0 *chip = card->private_data;
 	int i;
 
@@ -2658,13 +2659,14 @@ static int intel8x0_suspend(struct pci_dev *pci, pm_message_t state)
 	/* The call below may disable built-in speaker on some laptops
 	 * after S2RAM.  So, don't touch it.
 	 */
-	/* pci_set_power_state(pci, pci_choose_state(pci, state)); */
+	/* pci_set_power_state(pci, PCI_D3hot); */
 	return 0;
 }
 
-static int intel8x0_resume(struct pci_dev *pci)
+static int intel8x0_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct intel8x0 *chip = card->private_data;
 	int i;
 
@@ -2734,6 +2736,11 @@ static int intel8x0_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(intel8x0_pm, intel8x0_suspend, intel8x0_resume);
+#define INTEL8X0_PM_OPS	&intel8x0_pm
+#else
+#define INTEL8X0_PM_OPS	NULL
 #endif /* CONFIG_PM */
 
 #define INTEL8X0_TESTBUF_SIZE	32768	/* enough large for one shot */
@@ -3343,10 +3350,9 @@ static struct pci_driver intel8x0_driver = {
 	.id_table = snd_intel8x0_ids,
 	.probe = snd_intel8x0_probe,
 	.remove = __devexit_p(snd_intel8x0_remove),
-#ifdef CONFIG_PM
-	.suspend = intel8x0_suspend,
-	.resume = intel8x0_resume,
-#endif
+	.driver = {
+		.pm = INTEL8X0_PM_OPS,
+	},
 };
 
 module_pci_driver(intel8x0_driver);

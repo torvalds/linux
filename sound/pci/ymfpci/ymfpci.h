@@ -22,10 +22,10 @@
  *
  */
 
-#include "pcm.h"
-#include "rawmidi.h"
-#include "ac97_codec.h"
-#include "timer.h"
+#include <sound/pcm.h>
+#include <sound/rawmidi.h>
+#include <sound/ac97_codec.h>
+#include <sound/timer.h>
 #include <linux/gameport.h>
 
 /*
@@ -377,8 +377,7 @@ int snd_ymfpci_create(struct snd_card *card,
 		      struct snd_ymfpci ** rcodec);
 void snd_ymfpci_free_gameport(struct snd_ymfpci *chip);
 
-int snd_ymfpci_suspend(struct pci_dev *pci, pm_message_t state);
-int snd_ymfpci_resume(struct pci_dev *pci);
+extern const struct dev_pm_ops snd_ymfpci_pm;
 
 int snd_ymfpci_pcm(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm);
 int snd_ymfpci_pcm2(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm);

@@ -995,7 +995,8 @@ static struct platform_driver snd_serial_driver = {
 	.probe		= snd_serial_probe,
 	.remove		= __devexit_p( snd_serial_remove),
 	.driver		= {
-		.name	= SND_SERIAL_DRIVER
+		.name	= SND_SERIAL_DRIVER,
+		.owner	= THIS_MODULE,
 	},
 };
 

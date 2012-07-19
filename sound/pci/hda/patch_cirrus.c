@@ -1892,7 +1892,7 @@ static int cs421x_parse_auto_config(struct hda_codec *codec)
 	Manage PDREF, when transitioning to D3hot
 	(DAC,ADC) -> D3, PDREF=1, AFG->D3
 */
-static int cs421x_suspend(struct hda_codec *codec, pm_message_t state)
+static int cs421x_suspend(struct hda_codec *codec)
 {
 	struct cs_spec *spec = codec->spec;
 	unsigned int coef;

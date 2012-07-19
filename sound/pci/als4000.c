@@ -988,9 +988,10 @@ static void __devexit snd_card_als4000_remove(struct pci_dev *pci)
 }
 
 #ifdef CONFIG_PM
-static int snd_als4000_suspend(struct pci_dev *pci, pm_message_t state)
+static int snd_als4000_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_card_als4000 *acard = card->private_data;
 	struct snd_sb *chip = acard->chip;
 
@@ -1001,13 +1002,14 @@ static int snd_als4000_suspend(struct pci_dev *pci, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int snd_als4000_resume(struct pci_dev *pci)
+static int snd_als4000_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_card_als4000 *acard = card->private_data;
 	struct snd_sb *chip = acard->chip;
 
@@ -1033,18 +1035,21 @@ static int snd_als4000_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
-#endif /* CONFIG_PM */
 
+static SIMPLE_DEV_PM_OPS(snd_als4000_pm, snd_als4000_suspend, snd_als4000_resume);
+#define SND_ALS4000_PM_OPS	&snd_als4000_pm
+#else
+#define SND_ALS4000_PM_OPS	NULL
+#endif /* CONFIG_PM */
 
 static struct pci_driver als4000_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_als4000_ids,
 	.probe = snd_card_als4000_probe,
 	.remove = __devexit_p(snd_card_als4000_remove),
-#ifdef CONFIG_PM
-	.suspend = snd_als4000_suspend,
-	.resume = snd_als4000_resume,
-#endif
+	.driver = {
+		.pm = SND_ALS4000_PM_OPS,
+	},
 };
 
 module_pci_driver(als4000_driver);
