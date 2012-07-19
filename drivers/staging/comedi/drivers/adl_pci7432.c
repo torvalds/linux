@@ -42,12 +42,6 @@ Configuration Options:
 
 #define PCI_DEVICE_ID_PCI7432 0x7432
 
-struct adl_pci7432_private {
-	int data;
-};
-
-#define devpriv ((struct adl_pci7432_private *)dev->private)
-
 static int adl_pci7432_do_insn_bits(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
 				    struct comedi_insn *insn,
@@ -116,9 +110,6 @@ static int adl_pci7432_attach(struct comedi_device *dev,
 	printk(KERN_INFO "comedi%d: attach adl_pci7432\n", dev->minor);
 
 	dev->board_name = "pci7432";
-
-	if (alloc_private(dev, sizeof(struct adl_pci7432_private)) < 0)
-		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
