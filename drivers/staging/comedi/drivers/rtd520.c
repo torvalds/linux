@@ -1886,52 +1886,6 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk("\ncomedi%d: rtd520 driver attached.\n", dev->minor);
 
 	return 1;
-
-#if 0
-	/* hit an error, clean up memory and return ret */
-/* rtd_attach_die_error: */
-#ifdef USE_DMA
-	for (index = 0; index < DMA_CHAIN_COUNT; index++) {
-		if (NULL != devpriv->dma0Buff[index]) {	/* free buffer memory */
-			pci_free_consistent(devpriv->pci_dev,
-					    sizeof(u16) * devpriv->fifoLen / 2,
-					    devpriv->dma0Buff[index],
-					    devpriv->dma0BuffPhysAddr[index]);
-			devpriv->dma0Buff[index] = NULL;
-		}
-	}
-	if (NULL != devpriv->dma0Chain) {
-		pci_free_consistent(devpriv->pci_dev,
-				    sizeof(struct plx_dma_desc)
-				    * DMA_CHAIN_COUNT,
-				    devpriv->dma0Chain,
-				    devpriv->dma0ChainPhysAddr);
-		devpriv->dma0Chain = NULL;
-	}
-#endif /* USE_DMA */
-	/* subdevices and priv are freed by the core */
-	if (dev->irq) {
-		writel(readl(devpriv->lcfg + LCFG_ITCSR) &
-			~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E),
-			devpriv->lcfg + LCFG_ITCSR);
-		free_irq(dev->irq, dev);
-	}
-
-	/* release all regions that were allocated */
-	if (devpriv->las0)
-		iounmap(devpriv->las0);
-
-	if (devpriv->las1)
-		iounmap(devpriv->las1);
-
-	if (devpriv->lcfg)
-		iounmap(devpriv->lcfg);
-
-	if (devpriv->pci_dev)
-		pci_dev_put(devpriv->pci_dev);
-
-	return ret;
-#endif
 }
 
 static void rtd_detach(struct comedi_device *dev)
