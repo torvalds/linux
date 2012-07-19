@@ -1692,11 +1692,10 @@ bad:
 static void __rbd_remove_all_snaps(struct rbd_device *rbd_dev)
 {
 	struct rbd_snap *snap;
+	struct rbd_snap *next;
 
-	while (!list_empty(&rbd_dev->snaps)) {
-		snap = list_first_entry(&rbd_dev->snaps, struct rbd_snap, node);
+	list_for_each_entry_safe(snap, next, &rbd_dev->snaps, node)
 		__rbd_remove_snap_dev(rbd_dev, snap);
-	}
 }
 
 /*
