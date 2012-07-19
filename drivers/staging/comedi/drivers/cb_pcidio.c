@@ -90,23 +90,6 @@ static const struct pcidio_board pcidio_boards[] = {
  */
 #define thisboard ((const struct pcidio_board *)dev->board_ptr)
 
-/* this structure is for data unique to this hardware driver.  If
-   several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the struct comedi_device struct.  */
-struct pcidio_private {
-	int data;		/*  currently unused */
-
-	/* used for DO readback, currently unused */
-	unsigned int do_readback[4];	/* up to 4 unsigned int suffice to hold 96 bits for PCI-DIO96 */
-
-};
-
-/*
- * most drivers define the following macro to make it easy to
- * access the private structure.
- */
-#define devpriv ((struct pcidio_private *)dev->private)
-
 static struct pci_dev *pcidio_find_pci_dev(struct comedi_device *dev,
 					   struct comedi_devconfig *it)
 {
@@ -142,13 +125,6 @@ static int pcidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct pci_dev *pcidev;
 	int i;
 	int ret;
-
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_private(dev, sizeof(struct pcidio_private)) < 0)
-		return -ENOMEM;
 
 	pcidev = pcidio_find_pci_dev(dev, it);
 	if (!pcidev)
