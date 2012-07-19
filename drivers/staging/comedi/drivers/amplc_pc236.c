@@ -155,49 +155,42 @@ static const struct pc236_board *pc236_find_pci_board(struct pci_dev *pci_dev)
  * This function looks for a PCI device matching the requested board name,
  * bus and slot.
  */
-static struct pci_dev *
-pc236_find_pci(struct comedi_device *dev, int bus, int slot)
+static struct pci_dev *pc236_find_pci_dev(struct comedi_device *dev,
+					  struct comedi_devconfig *it)
 {
 	const struct pc236_board *thisboard = comedi_board(dev);
 	struct pci_dev *pci_dev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
 
-	/* Look for matching PCI device. */
-	for (pci_dev = pci_get_device(PCI_VENDOR_ID_AMPLICON, PCI_ANY_ID, NULL);
-	     pci_dev != NULL;
-	     pci_dev = pci_get_device(PCI_VENDOR_ID_AMPLICON,
-				      PCI_ANY_ID, pci_dev)) {
-		/* If bus/slot specified, check them. */
+	for_each_pci_dev(pci_dev) {
 		if (bus || slot) {
-			if (bus != pci_dev->bus->number
-			    || slot != PCI_SLOT(pci_dev->devfn))
+			if (bus != pci_dev->bus->number ||
+			    slot != PCI_SLOT(pci_dev->devfn))
 				continue;
 		}
+		if (pci_dev->vendor != PCI_VENDOR_ID_AMPLICON)
+			continue;
+
 		if (thisboard->model == anypci_model) {
 			/* Wildcard board matches any supported PCI board. */
 			const struct pc236_board *foundboard;
+
 			foundboard = pc236_find_pci_board(pci_dev);
 			if (foundboard == NULL)
 				continue;
 			/* Replace wildcard board_ptr. */
-			dev->board_ptr = thisboard = foundboard;
+			dev->board_ptr = foundboard;
 		} else {
 			/* Match specific model name. */
 			if (pci_dev->device != thisboard->devid)
 				continue;
 		}
-
-		/* Found a match. */
 		return pci_dev;
 	}
-	/* No match found. */
-	if (bus || slot) {
-		dev_err(dev->class_dev,
-			"error! no %s found at pci %02x:%02x!\n",
-			thisboard->name, bus, slot);
-	} else {
-		dev_err(dev->class_dev, "error! no %s found!\n",
-			thisboard->name);
-	}
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
 	return NULL;
 }
 
@@ -536,12 +529,10 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return pc236_common_attach(dev, iobase, irq, 0);
 	} else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI) &&
 		   thisboard->bustype == pci_bustype) {
-		int bus = it->options[0];
-		int slot = it->options[1];
 		struct pci_dev *pci_dev;
 
-		pci_dev = pc236_find_pci(dev, bus, slot);
-		if (pci_dev == NULL)
+		pci_dev = pc236_find_pci_dev(dev, it);
+		if (!pci_dev)
 			return -EIO;
 		return pc236_pci_common_attach(dev, pci_dev);
 	} else {
