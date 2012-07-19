@@ -82,7 +82,6 @@ struct rbd_image_header {
 	__u8 comp_type;
 	struct ceph_snap_context *snapc;
 	size_t snap_names_len;
-	u64 snap_seq;
 	u32 total_snaps;
 
 	char *snap_names;
@@ -536,7 +535,6 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	header->comp_type = ondisk->options.comp_type;
 
 	atomic_set(&header->snapc->nref, 1);
-	header->snap_seq = le64_to_cpu(ondisk->snap_seq);
 	header->snapc->seq = le64_to_cpu(ondisk->snap_seq);
 	header->snapc->num_snaps = snap_count;
 	header->total_snaps = snap_count;
