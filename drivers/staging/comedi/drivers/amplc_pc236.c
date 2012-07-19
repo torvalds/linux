@@ -131,8 +131,6 @@ static const struct pc236_board pc236_boards[] = {
    feel free to suggest moving the variable to the struct comedi_device struct.
  */
 struct pc236_private {
-	/* PCI device */
-	struct pci_dev *pci_dev;
 	unsigned long lcr_iobase; /* PLX PCI9052 config registers in PCIBAR1 */
 	int enable_irq;
 };
@@ -412,6 +410,7 @@ static irqreturn_t pc236_interrupt(int irq, void *d)
 static void pc236_report_attach(struct comedi_device *dev, unsigned int irq)
 {
 	const struct pc236_board *thisboard = comedi_board(dev);
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	char tmpbuf[60];
 	int tmplen;
 
@@ -421,10 +420,8 @@ static void pc236_report_attach(struct comedi_device *dev, unsigned int irq)
 				   "(base %#lx) ", dev->iobase);
 	else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI) &&
 		 thisboard->bustype == pci_bustype) {
-		struct pc236_private *devpriv = dev->private;
-		struct pci_dev *pci_dev = devpriv->pci_dev;
 		tmplen = scnprintf(tmpbuf, sizeof(tmpbuf),
-				   "(pci %s) ", pci_name(pci_dev));
+				   "(pci %s) ", pci_name(pcidev));
 	} else
 		tmplen = 0;
 	if (irq)
@@ -489,7 +486,8 @@ static int pc236_pci_common_attach(struct comedi_device *dev,
 	unsigned long iobase;
 	int ret;
 
-	devpriv->pci_dev = pci_dev;
+	comedi_set_hw_dev(dev, &pci_dev->dev);
+
 	ret = comedi_pci_enable(pci_dev, PC236_DRIVER_NAME);
 	if (ret < 0) {
 		dev_err(dev->class_dev,
@@ -573,6 +571,7 @@ static int __devinit pc236_attach_pci(struct comedi_device *dev,
 static void pc236_detach(struct comedi_device *dev)
 {
 	struct pc236_private *devpriv = dev->private;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
 	if (devpriv)
 		pc236_intr_disable(dev);
@@ -580,16 +579,13 @@ static void pc236_detach(struct comedi_device *dev)
 		free_irq(dev->irq, dev);
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 0);
-	if (devpriv) {
-		if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI) &&
-		    devpriv->pci_dev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pci_dev);
-			pci_dev_put(devpriv->pci_dev);
-		} else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_ISA)) {
-			if (dev->iobase)
-				release_region(dev->iobase, PC236_IO_SIZE);
-		}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
+	} else {
+		if (dev->iobase)
+			release_region(dev->iobase, PC236_IO_SIZE);
 	}
 }
 
