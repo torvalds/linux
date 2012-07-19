@@ -424,15 +424,6 @@ char * __init xen_memory_setup(void)
 	e820_add_region(ISA_START_ADDRESS, ISA_END_ADDRESS - ISA_START_ADDRESS,
 			E820_RESERVED);
 
-	/*
-	 * Reserve Xen bits:
-	 *  - mfn_list
-	 *  - xen_start_info
-	 * See comment above "struct start_info" in <xen/interface/xen.h>
-	 */
-	memblock_reserve(__pa(xen_start_info->mfn_list),
-			 xen_start_info->pt_base - xen_start_info->mfn_list);
-
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 
 	return "Xen";
