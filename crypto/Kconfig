@@ -1039,6 +1039,15 @@ config CRYPTO_LZO
 	help
 	  This is the LZO algorithm.
 
+config CRYPTO_842
+	tristate "842 compression algorithm"
+	depends on CRYPTO_DEV_NX_COMPRESS
+	# 842 uses lzo if the hardware becomes unavailable
+	select LZO_COMPRESS
+	select LZO_DECOMPRESS
+	help
+	  This is the 842 algorithm.
+
 comment "Random Number Generation"
 
 config CRYPTO_ANSI_CPRNG
