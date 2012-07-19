@@ -77,6 +77,11 @@ my $output_config;
 my $test_type;
 my $build_type;
 my $build_options;
+my $final_post_ktest;
+my $pre_ktest;
+my $post_ktest;
+my $pre_test;
+my $post_test;
 my $pre_build;
 my $post_build;
 my $pre_build_die;
@@ -197,6 +202,10 @@ my %option_map = (
     "OUTPUT_DIR"		=> \$outputdir,
     "BUILD_DIR"			=> \$builddir,
     "TEST_TYPE"			=> \$test_type,
+    "PRE_KTEST"			=> \$pre_ktest,
+    "POST_KTEST"		=> \$post_ktest,
+    "PRE_TEST"			=> \$pre_test,
+    "POST_TEST"			=> \$post_test,
     "BUILD_TYPE"		=> \$build_type,
     "BUILD_OPTIONS"		=> \$build_options,
     "PRE_BUILD"			=> \$pre_build,
@@ -1273,6 +1282,10 @@ sub save_logs {
 
 sub fail {
 
+	if (defined($post_test)) {
+		run_command $post_test;
+	}
+
 	if ($die_on_failure) {
 		dodie @_;
 	}
@@ -1936,6 +1949,10 @@ sub halt {
 
 sub success {
     my ($i) = @_;
+
+    if (defined($post_test)) {
+	run_command $post_test;
+    }
 
     $successes++;
 
@@ -3518,6 +3535,18 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
     $start_minconfig_defined = 1;
 
+    # The first test may override the PRE_KTEST option
+    if (defined($pre_ktest) && $i == 1) {
+	doprint "\n";
+	run_command $pre_ktest;
+    }
+
+    # Any test can override the POST_KTEST option
+    # The last test takes precedence.
+    if (defined($post_ktest)) {
+	$final_post_ktest = $post_ktest;
+    }
+
     if (!defined($start_minconfig)) {
 	$start_minconfig_defined = 0;
 	$start_minconfig = $minconfig;
@@ -3571,6 +3600,10 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
     doprint "\n\n";
     doprint "RUNNING TEST $i of $opt{NUM_TESTS} with option $test_type $run_type$installme\n\n";
+
+    if (defined($pre_test)) {
+	run_command $pre_test;
+    }
 
     unlink $dmesg;
     unlink $buildlog;
@@ -3635,6 +3668,10 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     }
 
     success $i;
+}
+
+if (defined($final_post_ktest)) {
+    run_command $final_post_ktest;
 }
 
 if ($opt{"POWEROFF_ON_SUCCESS"}) {
