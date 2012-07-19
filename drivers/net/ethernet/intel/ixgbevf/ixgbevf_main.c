@@ -193,6 +193,9 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
 	unsigned int i, eop, count = 0;
 	unsigned int total_bytes = 0, total_packets = 0;
 
+	if (test_bit(__IXGBEVF_DOWN, &adapter->state))
+		return true;
+
 	i = tx_ring->next_to_clean;
 	eop = tx_ring->tx_buffer_info[i].next_to_watch;
 	eop_desc = IXGBEVF_TX_DESC(tx_ring, eop);
