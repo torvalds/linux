@@ -36,6 +36,14 @@
 			compatible = "arm,cortex-a9";
 			reg = <0>;
 			next-level-cache = <&L2>;
+			operating-points = <
+				/* kHz    uV */
+				792000  1100000
+				396000  950000
+				198000  850000
+			>;
+			clock-latency = <61036>; /* two CLK32 periods */
+			cpu0-supply = <&reg_cpu>;
 		};
 
 		cpu@1 {
@@ -447,7 +455,7 @@
 					anatop-max-voltage = <2750000>;
 				};
 
-				regulator-vddcore@140 {
+				reg_cpu: regulator-vddcore@140 {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "cpu";
 					regulator-min-microvolt = <725000>;
