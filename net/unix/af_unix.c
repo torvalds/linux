@@ -876,15 +876,11 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		 */
 		mode = S_IFSOCK |
 		       (SOCK_INODE(sock)->i_mode & ~current_umask());
-		err = mnt_want_write(path.mnt);
-		if (err)
-			goto out_mknod_dput;
 		err = security_path_mknod(&path, dentry, mode, 0);
 		if (err)
 			goto out_mknod_drop_write;
 		err = vfs_mknod(path.dentry->d_inode, dentry, mode, 0);
 out_mknod_drop_write:
-		mnt_drop_write(path.mnt);
 		if (err)
 			goto out_mknod_dput;
 		mntget(path.mnt);

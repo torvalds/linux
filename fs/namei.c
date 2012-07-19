@@ -2865,10 +2865,11 @@ struct dentry *kern_path_create(int dfd, const char *pathname, struct path *path
 	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
 	dentry = lookup_hash(&nd);
 	if (IS_ERR(dentry))
-		goto fail;
+		goto unlock;
 
+	error = -EEXIST;
 	if (dentry->d_inode)
-		goto eexist;
+		goto fail;
 	/*
 	 * Special case - lookup gave negative, but... we had foo/bar/
 	 * From the vfs_mknod() POV we just have a negative dentry -
@@ -2876,16 +2877,18 @@ struct dentry *kern_path_create(int dfd, const char *pathname, struct path *path
 	 * been asking for (non-existent) directory. -ENOENT for you.
 	 */
 	if (unlikely(!is_dir && nd.last.name[nd.last.len])) {
-		dput(dentry);
-		dentry = ERR_PTR(-ENOENT);
+		error = -ENOENT;
 		goto fail;
 	}
+	error = mnt_want_write(nd.path.mnt);
+	if (error)
+		goto fail;
 	*path = nd.path;
 	return dentry;
-eexist:
-	dput(dentry);
-	dentry = ERR_PTR(-EEXIST);
 fail:
+	dput(dentry);
+	dentry = ERR_PTR(error);
+unlock:
 	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
 out:
 	path_put(&nd.path);
@@ -2897,6 +2900,7 @@ void done_path_create(struct path *path, struct dentry *dentry)
 {
 	dput(dentry);
 	mutex_unlock(&path->dentry->d_inode->i_mutex);
+	mnt_drop_write(path->mnt);
 	path_put(path);
 }
 EXPORT_SYMBOL(done_path_create);
@@ -2974,12 +2978,9 @@ SYSCALL_DEFINE4(mknodat, int, dfd, const char __user *, filename, umode_t, mode,
 
 	if (!IS_POSIXACL(path.dentry->d_inode))
 		mode &= ~current_umask();
-	error = mnt_want_write(path.mnt);
-	if (error)
-		goto out_dput;
 	error = security_path_mknod(&path, dentry, mode, dev);
 	if (error)
-		goto out_drop_write;
+		goto out;
 	switch (mode & S_IFMT) {
 		case 0: case S_IFREG:
 			error = vfs_create(path.dentry->d_inode,dentry,mode,true);
@@ -2992,11 +2993,8 @@ SYSCALL_DEFINE4(mknodat, int, dfd, const char __user *, filename, umode_t, mode,
 			error = vfs_mknod(path.dentry->d_inode,dentry,mode,0);
 			break;
 	}
-out_drop_write:
-	mnt_drop_write(path.mnt);
-out_dput:
+out:
 	done_path_create(&path, dentry);
-
 	return error;
 }
 
@@ -3042,16 +3040,9 @@ SYSCALL_DEFINE3(mkdirat, int, dfd, const char __user *, pathname, umode_t, mode)
 
 	if (!IS_POSIXACL(path.dentry->d_inode))
 		mode &= ~current_umask();
-	error = mnt_want_write(path.mnt);
-	if (error)
-		goto out_dput;
 	error = security_path_mkdir(&path, dentry, mode);
-	if (error)
-		goto out_drop_write;
-	error = vfs_mkdir(path.dentry->d_inode, dentry, mode);
-out_drop_write:
-	mnt_drop_write(path.mnt);
-out_dput:
+	if (!error)
+		error = vfs_mkdir(path.dentry->d_inode, dentry, mode);
 	done_path_create(&path, dentry);
 	return error;
 }
@@ -3326,16 +3317,9 @@ SYSCALL_DEFINE3(symlinkat, const char __user *, oldname,
 	if (IS_ERR(dentry))
 		goto out_putname;
 
-	error = mnt_want_write(path.mnt);
-	if (error)
-		goto out_dput;
 	error = security_path_symlink(&path, dentry, from);
-	if (error)
-		goto out_drop_write;
-	error = vfs_symlink(path.dentry->d_inode, dentry, from);
-out_drop_write:
-	mnt_drop_write(path.mnt);
-out_dput:
+	if (!error)
+		error = vfs_symlink(path.dentry->d_inode, dentry, from);
 	done_path_create(&path, dentry);
 out_putname:
 	putname(from);
@@ -3436,15 +3420,10 @@ SYSCALL_DEFINE5(linkat, int, olddfd, const char __user *, oldname,
 	error = -EXDEV;
 	if (old_path.mnt != new_path.mnt)
 		goto out_dput;
-	error = mnt_want_write(new_path.mnt);
-	if (error)
-		goto out_dput;
 	error = security_path_link(old_path.dentry, &new_path, new_dentry);
 	if (error)
-		goto out_drop_write;
+		goto out_dput;
 	error = vfs_link(old_path.dentry, new_path.dentry->d_inode, new_dentry);
-out_drop_write:
-	mnt_drop_write(new_path.mnt);
 out_dput:
 	done_path_create(&new_path, new_dentry);
 out:
