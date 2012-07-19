@@ -233,55 +233,31 @@ static struct pci_dev *dyna_pci10xx_find_pci_dev(struct comedi_device *dev,
 						 struct comedi_devconfig *it)
 {
 	struct pci_dev *pcidev = NULL;
-	int opt_bus = it->options[0];
-	int opt_slot = it->options[1];
-	int board_index;
+	int bus = it->options[0];
+	int slot = it->options[1];
 	int i;
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pcidev != NULL;
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-
-		board_index = -1;
-		for (i = 0; i < ARRAY_SIZE(boardtypes); ++i) {
-			if ((pcidev->vendor == PCI_VENDOR_ID_DYNALOG) &&
-				(pcidev->device == boardtypes[i].device_id)) {
-					board_index = i;
-					break;
-				}
+	for_each_pci_dev(pcidev) {
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+			    slot != PCI_SLOT(pcidev->devfn))
+				continue;
 		}
-		if (board_index < 0)
+		if (pcidev->vendor != PCI_VENDOR_ID_DYNALOG)
 			continue;
 
-		/* Found matching vendor/device. */
-		if (opt_bus || opt_slot) {
-			/* Check bus/slot. */
-			if (opt_bus != pcidev->bus->number
-			    || opt_slot != PCI_SLOT(pcidev->devfn))
-				continue;	/* no match */
-		}
+		for (i = 0; i < ARRAY_SIZE(boardtypes); ++i) {
+			if (pcidev->device != boardtypes[i].device_id)
+				continue;
 
-		goto found;
+			dev->board_ptr = &boardtypes[i];
+			return pcidev;
+		}
 	}
-	printk(KERN_ERR "comedi: dyna_pci10xx: no supported device found!\n");
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
 	return NULL;
-
-found:
-
-	if (!pcidev) {
-		if (opt_bus || opt_slot) {
-			printk(KERN_ERR "comedi: dyna_pci10xx: "
-				"invalid PCI device at b:s %d:%d\n",
-				opt_bus, opt_slot);
-		} else {
-			printk(KERN_ERR "comedi: dyna_pci10xx: "
-				"invalid PCI device\n");
-		}
-		return NULL;
-	}
-
-	dev->board_ptr = &boardtypes[board_index];
-	return pcidev;
 }
 
 static int dyna_pci10xx_attach(struct comedi_device *dev,
