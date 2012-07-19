@@ -202,8 +202,7 @@ static ssize_t rbd_snap_add(struct device *dev,
 			    struct device_attribute *attr,
 			    const char *buf,
 			    size_t count);
-static void __rbd_remove_snap_dev(struct rbd_device *rbd_dev,
-				  struct rbd_snap *snap);
+static void __rbd_remove_snap_dev(struct rbd_snap *snap);
 
 static ssize_t rbd_add(struct bus_type *bus, const char *buf,
 		       size_t count);
@@ -1702,7 +1701,7 @@ static void __rbd_remove_all_snaps(struct rbd_device *rbd_dev)
 	struct rbd_snap *next;
 
 	list_for_each_entry_safe(snap, next, &rbd_dev->snaps, node)
-		__rbd_remove_snap_dev(rbd_dev, snap);
+		__rbd_remove_snap_dev(snap);
 }
 
 /*
@@ -2010,15 +2009,13 @@ static struct device_type rbd_snap_device_type = {
 	.release	= rbd_snap_dev_release,
 };
 
-static void __rbd_remove_snap_dev(struct rbd_device *rbd_dev,
-				  struct rbd_snap *snap)
+static void __rbd_remove_snap_dev(struct rbd_snap *snap)
 {
 	list_del(&snap->node);
 	device_unregister(&snap->dev);
 }
 
-static int rbd_register_snap_dev(struct rbd_device *rbd_dev,
-				  struct rbd_snap *snap,
+static int rbd_register_snap_dev(struct rbd_snap *snap,
 				  struct device *parent)
 {
 	struct device *dev = &snap->dev;
@@ -2045,8 +2042,7 @@ static int __rbd_add_snap_dev(struct rbd_device *rbd_dev,
 	snap->size = rbd_dev->header.snap_sizes[i];
 	snap->id = rbd_dev->header.snapc->snaps[i];
 	if (device_is_registered(&rbd_dev->dev)) {
-		ret = rbd_register_snap_dev(rbd_dev, snap,
-					     &rbd_dev->dev);
+		ret = rbd_register_snap_dev(snap, &rbd_dev->dev);
 		if (ret < 0)
 			goto err;
 	}
@@ -2111,7 +2107,7 @@ static int __rbd_init_snaps_header(struct rbd_device *rbd_dev)
 			 */
 			if (rbd_dev->snap_id == old_snap->id)
 				rbd_dev->snap_exists = false;
-			__rbd_remove_snap_dev(rbd_dev, old_snap);
+			__rbd_remove_snap_dev(old_snap);
 			continue;
 		}
 		if (old_snap->id == cur_id) {
@@ -2175,8 +2171,7 @@ static int rbd_bus_add_dev(struct rbd_device *rbd_dev)
 		goto out;
 
 	list_for_each_entry(snap, &rbd_dev->snaps, node) {
-		ret = rbd_register_snap_dev(rbd_dev, snap,
-					     &rbd_dev->dev);
+		ret = rbd_register_snap_dev(snap, &rbd_dev->dev);
 		if (ret < 0)
 			break;
 	}
