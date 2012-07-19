@@ -15,7 +15,6 @@
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
-#include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/reboot.h>
