@@ -1408,6 +1408,8 @@ static void hci_check_pending_name(struct hci_dev *hdev, struct hci_conn *conn,
 		e->name_state = NAME_KNOWN;
 		mgmt_remote_name(hdev, bdaddr, ACL_LINK, 0x00,
 				 e->data.rssi, name, name_len);
+	} else {
+		e->name_state = NAME_NOT_KNOWN;
 	}
 
 	if (hci_resolve_next_name(hdev))
