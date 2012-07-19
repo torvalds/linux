@@ -287,28 +287,17 @@ static int pci1723_dio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int pci1723_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static struct pci_dev *pci1723_find_pci_dev(struct comedi_device *dev,
+					    struct comedi_devconfig *it)
 {
-	struct comedi_subdevice *s;
-	int ret, subdev, n_subdevices;
 	struct pci_dev *pcidev;
 	unsigned int iobase;
 	unsigned char pci_bus, pci_slot, pci_func;
 	int opt_bus, opt_slot;
 	const char *errstr;
 
-	printk(KERN_ERR "comedi%d: adv_pci1723: board=%s",
-						dev->minor, this_board->name);
-
 	opt_bus = it->options[0];
 	opt_slot = it->options[1];
-
-	ret = alloc_private(dev, sizeof(struct pci1723_private));
-	if (ret < 0) {
-		printk(" - Allocation failed!\n");
-		return -ENOMEM;
-	}
 
 	/* Look for matching PCI device */
 	errstr = "not found!";
@@ -342,7 +331,7 @@ static int pci1723_attach(struct comedi_device *dev,
 		} else {
 			printk(KERN_ERR " - Card %s\n", errstr);
 		}
-		return -EIO;
+		return NULL;
 	}
 
 	pci_bus = pcidev->bus->number;
@@ -353,10 +342,31 @@ static int pci1723_attach(struct comedi_device *dev,
 	printk(KERN_ERR ", b:s:f=%d:%d:%d, io=0x%4x",
 					   pci_bus, pci_slot, pci_func, iobase);
 
-	dev->iobase = iobase;
+	return pcidev;
+}
+
+static int pci1723_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
+{
+	struct comedi_subdevice *s;
+	int ret, subdev, n_subdevices;
+
+	printk(KERN_ERR "comedi%d: adv_pci1723: board=%s",
+						dev->minor, this_board->name);
+
+	ret = alloc_private(dev, sizeof(struct pci1723_private));
+	if (ret < 0) {
+		printk(" - Allocation failed!\n");
+		return -ENOMEM;
+	}
+
+	devpriv->pcidev = pci1723_find_pci_dev(dev, it);
+	if (!devpriv->pcidev)
+		return -EIO;
+
+	dev->iobase = pci_resource_start(devpriv->pcidev, 2);
 
 	dev->board_name = this_board->name;
-	devpriv->pcidev = pcidev;
 
 	n_subdevices = 0;
 
