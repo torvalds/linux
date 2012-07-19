@@ -27,19 +27,6 @@
 #include "dvb_math.h"
 #include "cxd2820r.h"
 
-#define LOG_PREFIX "cxd2820r"
-
-#undef dbg
-#define dbg(f, arg...) \
-	if (cxd2820r_debug) \
-		printk(KERN_INFO   LOG_PREFIX": " f "\n" , ## arg)
-#undef err
-#define err(f, arg...)  printk(KERN_ERR     LOG_PREFIX": " f "\n" , ## arg)
-#undef info
-#define info(f, arg...) printk(KERN_INFO    LOG_PREFIX": " f "\n" , ## arg)
-#undef warn
-#define warn(f, arg...) printk(KERN_WARNING LOG_PREFIX": " f "\n" , ## arg)
-
 struct reg_val_mask {
 	u32 reg;
 	u8  val;
