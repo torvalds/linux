@@ -2458,8 +2458,6 @@ static ssize_t rbd_add(struct bus_type *bus,
 	INIT_LIST_HEAD(&rbd_dev->snaps);
 	init_rwsem(&rbd_dev->header_rwsem);
 
-	init_rwsem(&rbd_dev->header_rwsem);
-
 	/* generate unique id: find highest unique id, add one */
 	rbd_id_get(rbd_dev);
 
