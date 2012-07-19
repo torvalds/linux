@@ -382,7 +382,6 @@ static const struct dio_boardtype boardtypes[] = {
 };
 
 struct pci_dio_private {
-	struct pci_dev *pcidev;	/*  pointer to board's pci_dev */
 	char valid;		/*  card is usable */
 	char GlobalIrqEnabled;	/*  1= any IRQ source is enabled */
 	/*  PCI-1760 specific data */
@@ -1085,6 +1084,7 @@ static struct pci_dev *pci_dio_find_pci_dev(struct comedi_device *dev,
 static int pci_dio_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices, i, j;
 
@@ -1092,18 +1092,18 @@ static int pci_dio_attach(struct comedi_device *dev,
 	if (ret < 0)
 		return -ENOMEM;
 
-	devpriv->pcidev = pci_dio_find_pci_dev(dev, it);
-	if (!devpriv->pcidev)
+	pcidev = pci_dio_find_pci_dev(dev, it);
+	if (!pcidev)
 		return -EIO;
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
-	if (comedi_pci_enable(devpriv->pcidev, dev->driver->driver_name)) {
+	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
 		dev_err(dev->class_dev,
 			"Error: Can't enable PCI device and request regions!\n");
 		return -EIO;
 	}
 
-	dev->iobase = pci_resource_start(devpriv->pcidev,
-					 this_board->main_pci_region);
+	dev->iobase = pci_resource_start(pcidev, this_board->main_pci_region);
 	dev->board_name = this_board->name;
 
 	if (this_board->cardtype == TYPE_PCI1760) {
@@ -1180,6 +1180,7 @@ static int pci_dio_attach(struct comedi_device *dev,
 
 static void pci_dio_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	int i, j;
 	struct comedi_subdevice *s;
 	int subdev;
@@ -1212,11 +1213,11 @@ static void pci_dio_detach(struct comedi_device *dev)
 			s = dev->subdevices + i;
 			s->private = NULL;
 		}
-		if (devpriv->pcidev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pcidev);
-			pci_dev_put(devpriv->pcidev);
-		}
+	}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
