@@ -386,7 +386,8 @@ struct tcp_sock {
 		unused      : 1;
 	u8	repair_queue;
 	u8	do_early_retrans:1,/* Enable RFC5827 early-retransmit  */
-		early_retrans_delayed:1; /* Delayed ER timer installed */
+		early_retrans_delayed:1, /* Delayed ER timer installed */
+		syn_fastopen:1;	/* SYN includes Fast Open option */
 
 /* RTT measurement */
 	u32	srtt;		/* smoothed round trip time << 3	*/
@@ -499,6 +500,9 @@ struct tcp_sock {
 /* TCP MD5 Signature Option information */
 	struct tcp_md5sig_info	__rcu *md5sig_info;
 #endif
+
+/* TCP fastopen related information */
+	struct tcp_fastopen_request *fastopen_req;
 
 	/* When the cookie options are generated and exchanged, then this
 	 * object holds a reference to them (cookie_values->kref).  Also

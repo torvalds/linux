@@ -1289,6 +1289,15 @@ extern int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *, const struct sk_buff 
 extern int tcp_md5_hash_key(struct tcp_md5sig_pool *hp,
 			    const struct tcp_md5sig_key *key);
 
+struct tcp_fastopen_request {
+	/* Fast Open cookie. Size 0 means a cookie request */
+	struct tcp_fastopen_cookie	cookie;
+	struct msghdr			*data;  /* data in MSG_FASTOPEN */
+	u16				copied;	/* queued in tcp_connect() */
+};
+
+void tcp_free_fastopen_req(struct tcp_sock *tp);
+
 /* write queue abstraction */
 static inline void tcp_write_queue_purge(struct sock *sk)
 {
