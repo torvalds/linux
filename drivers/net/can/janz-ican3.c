@@ -907,8 +907,8 @@ static void ican3_handle_msglost(struct ican3_dev *mod, struct ican3_msg *msg)
 	if (skb) {
 		cf->can_id |= CAN_ERR_CRTL;
 		cf->data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
+		stats->rx_over_errors++;
 		stats->rx_errors++;
-		stats->rx_bytes += cf->can_dlc;
 		netif_rx(skb);
 	}
 }
@@ -982,7 +982,6 @@ static int ican3_handle_cevtind(struct ican3_dev *mod, struct ican3_msg *msg)
 
 		dev_dbg(mod->dev, "bus error interrupt\n");
 		mod->can.can_stats.bus_error++;
-		stats->rx_errors++;
 		cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
 
 		switch (ecc & ECC_MASK) {
@@ -1001,8 +1000,12 @@ static int ican3_handle_cevtind(struct ican3_dev *mod, struct ican3_msg *msg)
 			break;
 		}
 
-		if ((ecc & ECC_DIR) == 0)
+		if (!(ecc & ECC_DIR)) {
 			cf->data[2] |= CAN_ERR_PROT_TX;
+			stats->tx_errors++;
+		} else {
+			stats->rx_errors++;
+		}
 
 		cf->data[6] = txerr;
 		cf->data[7] = rxerr;
@@ -1028,8 +1031,6 @@ static int ican3_handle_cevtind(struct ican3_dev *mod, struct ican3_msg *msg)
 	}
 
 	mod->can.state = state;
-	stats->rx_errors++;
-	stats->rx_bytes += cf->can_dlc;
 	netif_rx(skb);
 	return 0;
 }
