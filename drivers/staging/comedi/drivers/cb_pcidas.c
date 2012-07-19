@@ -343,7 +343,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 };
 
 struct cb_pcidas_private {
-	struct pci_dev *pci_dev;
 	/* base addresses */
 	unsigned long s5933_config;
 	unsigned long control_status;
@@ -1545,6 +1544,7 @@ static int cb_pcidas_attach(struct comedi_device *dev,
 {
 	const struct cb_pcidas_board *thisboard;
 	struct cb_pcidas_private *devpriv;
+	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int i;
 	int ret;
@@ -1553,35 +1553,36 @@ static int cb_pcidas_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	devpriv = dev->private;
 
-	devpriv->pci_dev = cb_pcidas_find_pci_device(dev, it);
-	if (!devpriv->pci_dev)
+	pcidev = cb_pcidas_find_pci_device(dev, it);
+	if (!pcidev)
 		return -EIO;
+	comedi_set_hw_dev(dev, &pcidev->dev);
 	thisboard = comedi_board(dev);
 
-	if (comedi_pci_enable(devpriv->pci_dev, dev->driver->driver_name)) {
+	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
 		dev_err(dev->class_dev,
 			"Failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
 
-	devpriv->s5933_config = pci_resource_start(devpriv->pci_dev, 0);
-	devpriv->control_status = pci_resource_start(devpriv->pci_dev, 1);
-	devpriv->adc_fifo = pci_resource_start(devpriv->pci_dev, 2);
-	devpriv->pacer_counter_dio = pci_resource_start(devpriv->pci_dev, 3);
+	devpriv->s5933_config = pci_resource_start(pcidev, 0);
+	devpriv->control_status = pci_resource_start(pcidev, 1);
+	devpriv->adc_fifo = pci_resource_start(pcidev, 2);
+	devpriv->pacer_counter_dio = pci_resource_start(pcidev, 3);
 	if (thisboard->ao_nchan)
-		devpriv->ao_registers = pci_resource_start(devpriv->pci_dev, 4);
+		devpriv->ao_registers = pci_resource_start(pcidev, 4);
 
 	/*  disable and clear interrupts on amcc s5933 */
 	outl(INTCSR_INBOX_INTR_STATUS,
 	     devpriv->s5933_config + AMCC_OP_REG_INTCSR);
 
-	if (request_irq(devpriv->pci_dev->irq, cb_pcidas_interrupt,
+	if (request_irq(pcidev->irq, cb_pcidas_interrupt,
 			IRQF_SHARED, dev->driver->driver_name, dev)) {
 		dev_dbg(dev->class_dev, "unable to allocate irq %d\n",
-			devpriv->pci_dev->irq);
+			pcidev->irq);
 		return -EINVAL;
 	}
-	dev->irq = devpriv->pci_dev->irq;
+	dev->irq = pcidev->irq;
 
 	dev->board_name = thisboard->name;
 
@@ -1703,6 +1704,7 @@ static int cb_pcidas_attach(struct comedi_device *dev,
 static void cb_pcidas_detach(struct comedi_device *dev)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
 	if (devpriv) {
 		if (devpriv->s5933_config) {
@@ -1714,10 +1716,10 @@ static void cb_pcidas_detach(struct comedi_device *dev)
 		free_irq(dev->irq, dev);
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
-	if (devpriv && devpriv->pci_dev) {
+	if (pcidev) {
 		if (devpriv->s5933_config)
-			comedi_pci_disable(devpriv->pci_dev);
-		pci_dev_put(devpriv->pci_dev);
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
