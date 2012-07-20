@@ -429,7 +429,7 @@ typedef u16 CSR_DIALOG_TOKEN;
 
 typedef struct CSR_GENERIC_POINTER
 {
-    CsrUint24        MemoryOffset;
+    u32        MemoryOffset;
     CSR_MEMORY_SPACE MemorySpace;
 } CSR_GENERIC_POINTER;
 

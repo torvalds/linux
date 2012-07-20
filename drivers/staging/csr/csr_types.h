@@ -39,7 +39,6 @@ typedef u8 CsrBool;
 typedef char CsrCharString;
 typedef u8 CsrUtf8String;
 typedef u16 CsrUtf16String;   /* 16-bit UTF16 strings */
-typedef u32 CsrUint24;
 
 /*
  * 64-bit integers

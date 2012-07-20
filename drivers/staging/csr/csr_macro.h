@@ -41,8 +41,8 @@ extern "C" {
     ((u8 *) (ptr))[2] = ((u8) (((uint) >> 16) & 0x000000FF)); \
     ((u8 *) (ptr))[3] = ((u8) (((uint) >> 24) & 0x000000FF))
 #define CSR_GET_UINT16_FROM_BIG_ENDIAN(ptr) (((u16) ((u8 *) (ptr))[1]) | ((u16) ((u8 *) (ptr))[0]) << 8)
-#define CSR_GET_UINT24_FROM_BIG_ENDIAN(ptr) (((CsrUint24) ((u8 *) (ptr))[2]) | \
-                                             ((CsrUint24) ((u8 *) (ptr))[1]) << 8 | ((CsrUint24) ((u8 *) (ptr))[0]) << 16)
+#define CSR_GET_UINT24_FROM_BIG_ENDIAN(ptr) (((u32) ((u8 *) (ptr))[2]) | \
+                                             ((u32) ((u8 *) (ptr))[1]) << 8 | ((u32) ((u8 *) (ptr))[0]) << 16)
 #define CSR_GET_UINT32_FROM_BIG_ENDIAN(ptr) (((u32) ((u8 *) (ptr))[3]) | ((u32) ((u8 *) (ptr))[2]) << 8 | \
                                              ((u32) ((u8 *) (ptr))[1]) << 16 | ((u32) ((u8 *) (ptr))[0]) << 24)
 #define CSR_COPY_UINT16_TO_BIG_ENDIAN(uint, ptr)    ((u8 *) (ptr))[1] = ((u8) ((uint) & 0x00FF)); \
