@@ -108,7 +108,6 @@ static void error(char *m);
  * This is set up by the setup-routine at boot-time
  */
 struct boot_params *real_mode;		/* Pointer to real-mode data */
-static int quiet;
 static int debug;
 
 void *memset(void *s, int c, size_t n);
@@ -294,7 +293,7 @@ static void parse_elf(void *output)
 		return;
 	}
 
-	if (!quiet)
+	if (debug)
 		putstr("Parsing ELF... ");
 
 	phdrs = malloc(sizeof(*phdrs) * ehdr.e_phnum);
@@ -332,8 +331,6 @@ asmlinkage void decompress_kernel(void *rmode, memptr heap,
 {
 	real_mode = rmode;
 
-	if (cmdline_find_option_bool("quiet"))
-		quiet = 1;
 	if (cmdline_find_option_bool("debug"))
 		debug = 1;
 
@@ -369,11 +366,11 @@ asmlinkage void decompress_kernel(void *rmode, memptr heap,
 		error("Wrong destination address");
 #endif
 
-	if (!quiet)
+	if (debug)
 		putstr("\nDecompressing Linux... ");
 	decompress(input_data, input_len, NULL, NULL, output, NULL, error);
 	parse_elf(output);
-	if (!quiet)
+	if (debug)
 		putstr("done.\nBooting the kernel.\n");
 	return;
 }
