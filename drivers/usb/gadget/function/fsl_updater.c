@@ -70,9 +70,11 @@ static u32 count_list(struct list_head *l)
 	u32 count = 0;
 	struct list_head *tmp;
 
+	mutex_lock(&utp_context.lock);
 	list_for_each(tmp, l) {
 		count++;
 	}
+	mutex_unlock(&utp_context.lock);
 
 	return count;
 }
