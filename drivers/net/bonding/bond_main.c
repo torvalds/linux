@@ -395,8 +395,8 @@ int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 	skb->dev = slave_dev;
 
 	BUILD_BUG_ON(sizeof(skb->queue_mapping) !=
-		     sizeof(qdisc_skb_cb(skb)->bond_queue_mapping));
-	skb->queue_mapping = qdisc_skb_cb(skb)->bond_queue_mapping;
+		     sizeof(qdisc_skb_cb(skb)->slave_dev_queue_mapping));
+	skb->queue_mapping = qdisc_skb_cb(skb)->slave_dev_queue_mapping;
 
 	if (unlikely(netpoll_tx_running(slave_dev)))
 		bond_netpoll_send_skb(bond_get_slave_by_dev(bond, slave_dev), skb);
@@ -4184,7 +4184,7 @@ static u16 bond_select_queue(struct net_device *dev, struct sk_buff *skb)
 	/*
 	 * Save the original txq to restore before passing to the driver
 	 */
-	qdisc_skb_cb(skb)->bond_queue_mapping = skb->queue_mapping;
+	qdisc_skb_cb(skb)->slave_dev_queue_mapping = skb->queue_mapping;
 
 	if (unlikely(txq >= dev->real_num_tx_queues)) {
 		do {
@@ -4845,17 +4845,19 @@ static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
 	return 0;
 }
 
-static int bond_get_tx_queues(struct net *net, struct nlattr *tb[])
+static unsigned int bond_get_num_tx_queues(void)
 {
 	return tx_queues;
 }
 
 static struct rtnl_link_ops bond_link_ops __read_mostly = {
-	.kind		= "bond",
-	.priv_size	= sizeof(struct bonding),
-	.setup		= bond_setup,
-	.validate	= bond_validate,
-	.get_tx_queues	= bond_get_tx_queues,
+	.kind			= "bond",
+	.priv_size		= sizeof(struct bonding),
+	.setup			= bond_setup,
+	.validate		= bond_validate,
+	.get_num_tx_queues	= bond_get_num_tx_queues,
+	.get_num_rx_queues	= bond_get_num_tx_queues, /* Use the same number
+							     as for TX queues */
 };
 
 /* Create a new bond based on the specified name and bonding parameters.

@@ -2110,7 +2110,12 @@ static inline int netif_set_real_num_rx_queues(struct net_device *dev,
 static inline int netif_copy_real_num_queues(struct net_device *to_dev,
 					     const struct net_device *from_dev)
 {
-	netif_set_real_num_tx_queues(to_dev, from_dev->real_num_tx_queues);
+	int err;
+
+	err = netif_set_real_num_tx_queues(to_dev,
+					   from_dev->real_num_tx_queues);
+	if (err)
+		return err;
 #ifdef CONFIG_RPS
 	return netif_set_real_num_rx_queues(to_dev,
 					    from_dev->real_num_rx_queues);
