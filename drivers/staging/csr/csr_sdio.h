@@ -52,8 +52,8 @@ extern "C" {
  *----------------------------------------------------------------------------*/
 typedef struct
 {
-    CsrUint16 manfId;       /* Vendor ID to match or CSR_SDIO_ANY_MANF_ID */
-    CsrUint16 cardId;       /* Device ID to match or CSR_SDIO_ANY_CARD_ID */
+    u16 manfId;       /* Vendor ID to match or CSR_SDIO_ANY_MANF_ID */
+    u16 cardId;       /* Device ID to match or CSR_SDIO_ANY_CARD_ID */
     u8  sdioFunction; /* SDIO Function number to match or CSR_SDIO_ANY_SDIO_FUNCTION */
     u8  sdioInterface; /* SDIO Standard Interface Code to match or CSR_SDIO_ANY_SDIO_INTERFACE */
 } CsrSdioFunctionId;
@@ -84,7 +84,7 @@ typedef struct
 typedef struct
 {
     CsrSdioFunctionId sdioId;
-    CsrUint16         blockSize; /* Actual configured block size, or 0 if unconfigured */
+    u16         blockSize; /* Actual configured block size, or 0 if unconfigured */
     CsrUint32         features; /* Bit mask with any of CSR_SDIO_FEATURE_* set */
     void             *device; /* Handle of device containing the function */
     void             *driverData; /* For use by the Function Driver */
@@ -434,7 +434,7 @@ void CsrSdioResumeAcknowledge(CsrSdioFunction *function, CsrResult result);
  *            (after the second operation) is in the valid range.
  *
  *----------------------------------------------------------------------------*/
-CsrResult CsrSdioBlockSizeSet(CsrSdioFunction *function, CsrUint16 blockSize);
+CsrResult CsrSdioBlockSizeSet(CsrSdioFunction *function, u16 blockSize);
 
 /*----------------------------------------------------------------------------*
  *  NAME
@@ -563,10 +563,10 @@ void CsrSdioWrite8Async(CsrSdioFunction *function, CsrUint32 address, u8 data, C
  *            the callback function.
  *
  *----------------------------------------------------------------------------*/
-CsrResult CsrSdioRead16(CsrSdioFunction *function, CsrUint32 address, CsrUint16 *data);
-CsrResult CsrSdioWrite16(CsrSdioFunction *function, CsrUint32 address, CsrUint16 data);
-void CsrSdioRead16Async(CsrSdioFunction *function, CsrUint32 address, CsrUint16 *data, CsrSdioAsyncCallback callback);
-void CsrSdioWrite16Async(CsrSdioFunction *function, CsrUint32 address, CsrUint16 data, CsrSdioAsyncCallback callback);
+CsrResult CsrSdioRead16(CsrSdioFunction *function, CsrUint32 address, u16 *data);
+CsrResult CsrSdioWrite16(CsrSdioFunction *function, CsrUint32 address, u16 data);
+void CsrSdioRead16Async(CsrSdioFunction *function, CsrUint32 address, u16 *data, CsrSdioAsyncCallback callback);
+void CsrSdioWrite16Async(CsrSdioFunction *function, CsrUint32 address, u16 data, CsrSdioAsyncCallback callback);
 
 /*----------------------------------------------------------------------------*
  *  NAME

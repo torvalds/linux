@@ -305,7 +305,7 @@ typedef u8 CsrWifiAcPowersaveMode;
 typedef struct tx_buffered_packets {
     /* List link structure */
     struct list_head q;
-    CsrUint16 interfaceTag;
+    u16 interfaceTag;
     CSR_CLIENT_TAG hostTag;
     CSR_PROCESS_ID leSenderProcessId;
     CSR_TRANSMISSION_CONTROL transmissionControl;
@@ -325,9 +325,9 @@ typedef struct CsrWifiRouterCtrlStaInfo_t {
     CsrUint32 assignedHandle;
     CsrBool wmmOrQosEnabled;
     CsrWifiAcPowersaveMode powersaveMode[MAX_ACCESS_CATOGORY];
-    CsrUint16 maxSpLength;
+    u16 maxSpLength;
     CsrBool uapsdActive;
-    CsrUint16 noOfSpFramesSent;
+    u16 noOfSpFramesSent;
 
     /* Router/Driver database */
 #ifdef CSR_SUPPORT_SME
@@ -338,7 +338,7 @@ typedef struct CsrWifiRouterCtrlStaInfo_t {
     struct netInterface_priv *interfacePriv;
     struct work_struct send_disconnected_ind_task;
     CsrBool activity_flag;
-    CsrUint16 listenIntervalInTus;
+    u16 listenIntervalInTus;
     CSR_CLIENT_TAG nullDataHostTag;
 
     /* Activity timestamps for the station */
@@ -355,7 +355,7 @@ typedef struct CsrWifiRouterCtrlStaInfo_t {
     u8 prevFrmType;
     u8 prevFrmAccessCatogory;
     CsrBool protection;
-    CsrUint16 aid;
+    u16 aid;
     CsrBool txSuspend;
     u8 timSet;
     /* Dont change the value of below macro for SET & RESET */
@@ -366,13 +366,13 @@ typedef struct CsrWifiRouterCtrlStaInfo_t {
 
     CsrBool timRequestPendingFlag;
     u8 updateTimReqQueued;
-    CsrUint16 noOfPktQueued;
+    u16 noOfPktQueued;
 }CsrWifiRouterCtrlStaInfo_t;
 
 #ifdef CSR_SUPPORT_WEXT_AP
 struct CsrWifiSmeApConfig {
     CsrWifiSsid ssid;
-    CsrUint16 channel;
+    u16 channel;
     CsrWifiNmeApCredentials credentials;
     u8 max_connections;
     u8 if_index;
@@ -387,7 +387,7 @@ typedef struct
 {
     u8 *bufptr; /* Signal Primitive */
     bulk_data_param_t data_ptrs; /* Bulk Data pointers */
-    CsrUint16 sig_len;
+    u16 sig_len;
 }rx_buff_struct_t;
 
 typedef struct
@@ -496,7 +496,7 @@ struct unifi_priv {
     u8 allPeerDozing;
     u8 pausedStaHandle[MAX_ACCESS_CATOGORY];
     /* Max packet the driver can queue, irrespective of interface number */
-    CsrUint16 noOfPktQueuedInDriver;
+    u16 noOfPktQueuedInDriver;
 #define CSR_WIFI_DRIVER_SUPPORT_FOR_MAX_PKT_QUEUEING 512
 #define CSR_WIFI_DRIVER_MAX_PKT_QUEUING_THRESHOLD_PER_PEER 64
 #define CSR_WIFI_DRIVER_MINIMUM_BROADCAST_PKT_THRESHOLD 3
@@ -674,7 +674,7 @@ struct unifi_priv {
 };
 
 typedef struct {
-    CsrUint16 queue_length[4];
+    u16 queue_length[4];
     u8 os_queue_paused;
 } unifi_OsQosInfo;
 
@@ -683,21 +683,21 @@ typedef struct {
     CsrBool active;
     bulk_data_param_t bulkdata;
     CSR_SIGNAL signal;
-    CsrUint16 sn;
+    u16 sn;
     CsrTime recv_time;
 } frame_desc_struct;
 
 typedef struct {
     frame_desc_struct *buffer;
-    CsrUint16 wind_size;
-    CsrUint16 occupied_slots;
+    u16 wind_size;
+    u16 occupied_slots;
     struct timer_list timer;
-    CsrUint16 timeout;
-    CsrUint16 expected_sn;
-    CsrUint16 start_sn;
+    u16 timeout;
+    u16 expected_sn;
+    u16 start_sn;
     CsrBool   trigger_ba_after_ssn;
     struct netInterface_priv *interfacePriv;
-    CsrUint16 tID;
+    u16 tID;
     CsrWifiMacAddress macAddress;
     struct work_struct send_ba_err_task;
 } ba_session_rx_struct;
@@ -705,13 +705,13 @@ typedef struct {
 
 typedef struct {
     struct netInterface_priv *interfacePriv;
-    CsrUint16 tID;
+    u16 tID;
     CsrWifiMacAddress macAddress;
 } ba_session_tx_struct;
 
 typedef struct netInterface_priv
 {
-    CsrUint16 InterfaceTag;
+    u16 InterfaceTag;
     struct unifi_priv *privPtr;
     ba_session_tx_struct *ba_session_tx[MAX_SUPPORTED_BA_SESSIONS_TX];
     ba_session_rx_struct *ba_session_rx[MAX_SUPPORTED_BA_SESSIONS_RX];
@@ -770,7 +770,7 @@ typedef struct netInterface_priv
     CsrTime last_inactivity_check;
 
     /*number of multicast or borad cast packets  queued*/
-    CsrUint16 noOfbroadcastPktQueued;
+    u16 noOfbroadcastPktQueued;
 #endif
     /* A list to hold the buffered uncontrolled port packets */
     struct list_head rx_uncontrolled_list;
@@ -895,7 +895,7 @@ unifi_priv_t *uf_alloc_netdevice(CsrSdioFunction *sdio_dev, int bus_id);
 int uf_free_netdevice(unifi_priv_t *priv);
 
 /* Allocating function for other interfaces */
-CsrBool uf_alloc_netdevice_for_other_interfaces(unifi_priv_t *priv, CsrUint16 interfaceTag);
+CsrBool uf_alloc_netdevice_for_other_interfaces(unifi_priv_t *priv, u16 interfaceTag);
 
 /*
  * Firmware download related functions.
@@ -957,8 +957,8 @@ int uf_verify_m4(unifi_priv_t *priv, const unsigned char *packet,
 
 #ifdef CSR_SUPPORT_SME
 CsrBool uf_check_broadcast_bssid(unifi_priv_t *priv, const bulk_data_param_t *bulkdata);
-CsrBool uf_process_pm_bit_for_peer(unifi_priv_t * priv, CsrWifiRouterCtrlStaInfo_t * srcStaInfo,u8 pmBit,CsrUint16 interfaceTag);
-void uf_process_ps_poll(unifi_priv_t *priv,u8* sa,u8* da,u8 pmBit,CsrUint16 interfaceTag);
+CsrBool uf_process_pm_bit_for_peer(unifi_priv_t * priv, CsrWifiRouterCtrlStaInfo_t * srcStaInfo,u8 pmBit,u16 interfaceTag);
+void uf_process_ps_poll(unifi_priv_t *priv,u8* sa,u8* da,u8 pmBit,u16 interfaceTag);
 int uf_ap_process_data_pdu(unifi_priv_t *priv, struct sk_buff *skb,
                    struct ethhdr *ehdr, CsrWifiRouterCtrlStaInfo_t * srcStaInfo,
                    const CSR_SIGNAL *signal,
@@ -967,24 +967,24 @@ int uf_ap_process_data_pdu(unifi_priv_t *priv, struct sk_buff *skb,
 CsrBool uf_is_more_data_for_non_delivery_ac(CsrWifiRouterCtrlStaInfo_t *staRecord);
 void uf_process_wmm_deliver_ac_uapsd (  unifi_priv_t * priv,
                                         CsrWifiRouterCtrlStaInfo_t * srcStaInfo,
-                                        CsrUint16 qosControl,
-                                        CsrUint16 interfaceTag);
+                                        u16 qosControl,
+                                        u16 interfaceTag);
 
 void uf_send_buffered_data_from_ac(unifi_priv_t *priv, CsrWifiRouterCtrlStaInfo_t * staInfo, u8 queue, struct list_head *txList);
 void uf_send_buffered_data_from_delivery_ac(unifi_priv_t *priv, CsrWifiRouterCtrlStaInfo_t * staInfo, u8 queue, struct list_head *txList);
 
 void uf_continue_uapsd(unifi_priv_t *priv, CsrWifiRouterCtrlStaInfo_t * staInfo);
-void uf_send_qos_null(unifi_priv_t * priv,CsrUint16 interfaceTag, const u8 *da,CSR_PRIORITY priority,CsrWifiRouterCtrlStaInfo_t * srcStaInfo);
-void uf_send_nulldata(unifi_priv_t * priv,CsrUint16 interfaceTag, const u8 *da,CSR_PRIORITY priority,CsrWifiRouterCtrlStaInfo_t * srcStaInfo);
+void uf_send_qos_null(unifi_priv_t * priv,u16 interfaceTag, const u8 *da,CSR_PRIORITY priority,CsrWifiRouterCtrlStaInfo_t * srcStaInfo);
+void uf_send_nulldata(unifi_priv_t * priv,u16 interfaceTag, const u8 *da,CSR_PRIORITY priority,CsrWifiRouterCtrlStaInfo_t * srcStaInfo);
 
 
 
 #endif
-CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,  u8 *peerMacAddress, CSR_CLIENT_TAG hostTag, CsrUint16 interfaceTag, CSR_TRANSMISSION_CONTROL transmissionControl, CSR_RATE TransmitRate, CSR_PRIORITY priority, CSR_PROCESS_ID senderId, bulk_data_param_t *bulkdata);
+CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,  u8 *peerMacAddress, CSR_CLIENT_TAG hostTag, u16 interfaceTag, CSR_TRANSMISSION_CONTROL transmissionControl, CSR_RATE TransmitRate, CSR_PRIORITY priority, CSR_PROCESS_ID senderId, bulk_data_param_t *bulkdata);
 void uf_process_ma_vif_availibility_ind(unifi_priv_t *priv,u8 *sigdata, CsrUint32 siglen);
 #ifdef CSR_SUPPORT_SME
 void uf_send_buffered_frames(unifi_priv_t *priv,unifi_TrafficQueue queue);
-int uf_process_station_records_for_sending_data(unifi_priv_t *priv,CsrUint16 interfaceTag,
+int uf_process_station_records_for_sending_data(unifi_priv_t *priv,u16 interfaceTag,
                                                  CsrWifiRouterCtrlStaInfo_t *srcStaInfo,
                                                  CsrWifiRouterCtrlStaInfo_t *dstStaInfo);
 void uf_prepare_send_cfm_list_for_queued_pkts(unifi_priv_t * priv,
@@ -995,9 +995,9 @@ void send_auto_ma_packet_confirm(unifi_priv_t *priv,
                                  struct list_head *buffered_frames_list);
 void uf_flush_list(unifi_priv_t * priv, struct list_head * list);
 tx_buffered_packets_t *dequeue_tx_data_pdu(unifi_priv_t *priv, struct list_head *txList);
-void resume_unicast_buffered_frames(unifi_priv_t *priv, CsrUint16 interfaceTag);
-void update_eosp_to_head_of_broadcast_list_head(unifi_priv_t *priv,CsrUint16 interfaceTag);
-void resume_suspended_uapsd(unifi_priv_t* priv,CsrUint16 interfaceTag);
+void resume_unicast_buffered_frames(unifi_priv_t *priv, u16 interfaceTag);
+void update_eosp_to_head_of_broadcast_list_head(unifi_priv_t *priv,u16 interfaceTag);
+void resume_suspended_uapsd(unifi_priv_t* priv,u16 interfaceTag);
 #endif
 /*
  *      netdev.c
@@ -1028,7 +1028,7 @@ int prepare_and_add_macheader(unifi_priv_t *priv,
                               struct sk_buff *newSkb,
                               CSR_PRIORITY priority,
                               bulk_data_param_t *bulkdata,
-                              CsrUint16 interfaceTag,
+                              u16 interfaceTag,
                               const u8 *daddr,
                               const u8 *saddr,
                               CsrBool protection);
@@ -1038,7 +1038,7 @@ get_packet_priority(unifi_priv_t *priv, struct sk_buff *skb, const struct ethhdr
 void
 unifi_frame_ma_packet_req(unifi_priv_t *priv, CSR_PRIORITY priority,
                           CSR_RATE TransmitRate, CSR_CLIENT_TAG hostTag,
-                          CsrUint16 interfaceTag, CSR_TRANSMISSION_CONTROL transmissionControl,
+                          u16 interfaceTag, CSR_TRANSMISSION_CONTROL transmissionControl,
                           CSR_PROCESS_ID leSenderProcessId, u8 *peerMacAddress,
                           CSR_SIGNAL *signal);
 
@@ -1053,40 +1053,40 @@ unifi_frame_ma_packet_req(unifi_priv_t *priv, CSR_PRIORITY priority,
 /* handle is 6 bits to accomodate in senderId LSB (only 64 station can be associated) */
 #define CSR_WIFI_BROADCAST_OR_MULTICAST_HANDLE 0x3F
 
-void update_tim(unifi_priv_t * priv, CsrUint16 aid, u8 setTim, CsrUint16 interfaceTag, CsrUint32 handle);
-void uf_handle_tim_cfm(unifi_priv_t *priv, CSR_MLME_SET_TIM_CONFIRM *cfm, CsrUint16 senderProcessId);
+void update_tim(unifi_priv_t * priv, u16 aid, u8 setTim, u16 interfaceTag, CsrUint32 handle);
+void uf_handle_tim_cfm(unifi_priv_t *priv, CSR_MLME_SET_TIM_CONFIRM *cfm, u16 senderProcessId);
 
 /* Clear the Peer station Record, in case of wifioff/unexpected card removal */
-void CsrWifiRouterCtrlInterfaceReset(unifi_priv_t *priv, CsrUint16 interfaceTag);
+void CsrWifiRouterCtrlInterfaceReset(unifi_priv_t *priv, u16 interfaceTag);
 
 void scroll_ba_window(unifi_priv_t *priv,
                       netInterface_priv_t *interfacePriv,
                       ba_session_rx_struct *ba_session,
-                      CsrUint16 sn);
+                      u16 sn);
 
 CsrBool blockack_session_stop(unifi_priv_t *priv,
-                              CsrUint16 interfaceTag,
+                              u16 interfaceTag,
                               CsrWifiRouterCtrlBlockAckRole role,
-                              CsrUint16 tID,
+                              u16 tID,
                               CsrWifiMacAddress macAddress);
 #ifdef CSR_SUPPORT_SME
 /* Fetch the protection information from interface Mode */
-s8 uf_get_protection_bit_from_interfacemode(unifi_priv_t *priv, CsrUint16 interfaceTag, const u8 *daddr);
+s8 uf_get_protection_bit_from_interfacemode(unifi_priv_t *priv, u16 interfaceTag, const u8 *daddr);
 #endif
 
 /* Fetch the station record handler from data base for matching Mac address */
 #ifdef CSR_SUPPORT_SME
 CsrWifiRouterCtrlStaInfo_t *CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(unifi_priv_t *priv,
                                                                                 const u8 *peerMacAddress,
-                                                                                CsrUint16 interfaceTag);
+                                                                                u16 interfaceTag);
 
 /* Fetch the station record handler from data base for matching handle */
 CsrWifiRouterCtrlStaInfo_t * CsrWifiRouterCtrlGetStationRecordFromHandle(unifi_priv_t *priv,
                                                                  CsrUint32 handle,
-                                                                 CsrUint16 interfaceTag);
+                                                                 u16 interfaceTag);
 
-void uf_update_sta_activity(unifi_priv_t *priv, CsrUint16 interfaceTag, const u8 *peerMacAddress);
-void uf_process_ma_pkt_cfm_for_ap(unifi_priv_t *priv,CsrUint16 interfaceTag, const CSR_MA_PACKET_CONFIRM *pkt_cfm);
+void uf_update_sta_activity(unifi_priv_t *priv, u16 interfaceTag, const u8 *peerMacAddress);
+void uf_process_ma_pkt_cfm_for_ap(unifi_priv_t *priv,u16 interfaceTag, const CSR_MA_PACKET_CONFIRM *pkt_cfm);
 #endif
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
 int uf_install_qdisc(struct net_device *dev);
@@ -1094,9 +1094,9 @@ int uf_install_qdisc(struct net_device *dev);
 
 void uf_resume_data_plane(unifi_priv_t *priv, int queue,
                           CsrWifiMacAddress peer_address,
-                          CsrUint16 interfaceTag);
+                          u16 interfaceTag);
 void uf_free_pending_rx_packets(unifi_priv_t *priv, int queue,
-        CsrWifiMacAddress peer_address,CsrUint16 interfaceTag);
+        CsrWifiMacAddress peer_address,u16 interfaceTag);
 
 int uf_register_netdev(unifi_priv_t *priv, int numOfInterface);
 void uf_unregister_netdev(unifi_priv_t *priv);
@@ -1104,11 +1104,11 @@ void uf_unregister_netdev(unifi_priv_t *priv);
 void uf_net_get_name(struct net_device *dev, char *name, int len);
 
 void uf_send_queue_info(unifi_priv_t *priv);
-CsrUint16 uf_get_vif_identifier(CsrWifiRouterCtrlMode mode, CsrUint16 tag);
+u16 uf_get_vif_identifier(CsrWifiRouterCtrlMode mode, u16 tag);
 
 void uf_process_rx_pending_queue(unifi_priv_t *priv, int queue,
                                  CsrWifiMacAddress source_address,
-                                 int indicate, CsrUint16 interfaceTag);
+                                 int indicate, u16 interfaceTag);
 
 #ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
 int uf_register_hip_offline_debug(unifi_priv_t *priv);

@@ -133,8 +133,8 @@ enum chip_helper_fixed_registers
 /* Address-value pairs for defining initialisation values */
 struct chip_helper_init_values
 {
-    CsrUint16 addr;
-    CsrUint16 value;
+    u16 addr;
+    u16 value;
 };
 
 /* A block of data that should be written to the device */
@@ -142,7 +142,7 @@ struct chip_helper_reset_values
 {
     CsrUint32        gp_address;
     CsrUint32        len;
-    const CsrUint16 *data;
+    const u16 *data;
 };
 
 /*
@@ -164,11 +164,11 @@ ChipDescript* ChipHelper_Null(void);
    FF9A is the old GBL_CHIP_VERSION register.  If the high
    eight bits are zero then the chip is a new (BC7 +) one
    and FE81 is the _new_ GBL_CHIP_VERSION register. */
-ChipDescript* ChipHelper_GetVersionAny(CsrUint16 from_FF9A, CsrUint16 from_FE81);
+ChipDescript* ChipHelper_GetVersionAny(u16 from_FF9A, u16 from_FE81);
 
 /* The chip is a UniFi, but we don't know which type
    The parameter is the value of UNIFI_GBL_CHIP_VERSION (0xFE81) */
-ChipDescript* ChipHelper_GetVersionUniFi(CsrUint16 version);
+ChipDescript* ChipHelper_GetVersionUniFi(u16 version);
 
 /* This gets the version from the SDIO device id.  This only
    gives quite a coarse grained version, so we should update once
@@ -180,7 +180,7 @@ ChipDescript* ChipHelper_GetVersionSdio(u8 sdio_version);
    then "version" is read from FE81.  If we don't know if we're pre
    or post BC7 then we should use "GetVersionAny". */
 ChipDescript* ChipHelper_GetVersionBlueCore(enum chip_helper_bluecore_age age,
-                                            CsrUint16                     version);
+                                            u16                     version);
 
 /* The main functions of this class are built with an X macro.  This
    means we can generate the C and C++ versions from the same source
@@ -198,52 +198,52 @@ ChipDescript* ChipHelper_GetVersionBlueCore(enum chip_helper_bluecore_age age,
 #define CHIP_HELPER_LIST(m)                                             \
     CHIP_HELPER_DEF0(m, (const CsrCharString *, FriendlyName, friendly_name))     \
     CHIP_HELPER_DEF0(m, (const CsrCharString *, MarketingName, marketing_name))  \
-    CHIP_HELPER_DEF0(m, (CsrUint16, DBG_EMU_CMD, regs->dbg_emu_cmd))       \
-    CHIP_HELPER_DEF0(m, (CsrUint16, DBG_HOST_PROC_SELECT, regs->host.dbg_proc_select)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, DBG_HOST_STOP_STATUS, regs->host.dbg_stop_status)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, HOST_WINDOW1_PAGE, regs->host.window1_page)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, HOST_WINDOW2_PAGE, regs->host.window2_page)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, HOST_WINDOW3_PAGE, regs->host.window3_page)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, HOST_IO_LOG_ADDR, regs->host.io_log_addr)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, DBG_SPI_PROC_SELECT, regs->spi.dbg_proc_select)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, DBG_SPI_STOP_STATUS, regs->spi.dbg_stop_status)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, SPI_WINDOW1_PAGE, regs->spi.window1_page)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, SPI_WINDOW2_PAGE, regs->spi.window2_page)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, SPI_WINDOW3_PAGE, regs->spi.window3_page)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, SPI_IO_LOG_ADDR, regs->spi.io_log_addr)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, DBG_RESET, regs->dbg_reset))           \
-    CHIP_HELPER_DEF0(m, (CsrUint16, DBG_RESET_VALUE, regs->dbg_reset_value)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, DBG_RESET_WARN, regs->dbg_reset_warn)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, DBG_RESET_WARN_VALUE, regs->dbg_reset_warn_value)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, DBG_RESET_RESULT, regs->dbg_reset_result)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, WATCHDOG_DISABLE, regs->watchdog_disable)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, PROC_PC_SNOOP, regs->proc_pc_snoop))   \
-    CHIP_HELPER_DEF0(m, (CsrUint16, GBL_CHIP_VERSION, regs->gbl_chip_version)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, GBL_MISC_ENABLES, regs->gbl_misc_enables)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, XAP_PCH, regs->xap_pch))               \
-    CHIP_HELPER_DEF0(m, (CsrUint16, XAP_PCL, regs->xap_pcl))               \
-    CHIP_HELPER_DEF0(m, (CsrUint16, MAILBOX0, regs->mailbox0))             \
-    CHIP_HELPER_DEF0(m, (CsrUint16, MAILBOX1, regs->mailbox1))             \
-    CHIP_HELPER_DEF0(m, (CsrUint16, MAILBOX2, regs->mailbox2))             \
-    CHIP_HELPER_DEF0(m, (CsrUint16, MAILBOX3, regs->mailbox3))             \
-    CHIP_HELPER_DEF0(m, (CsrUint16, SDIO_HIP_HANDSHAKE, regs->sdio_hip_handshake))   \
-    CHIP_HELPER_DEF0(m, (CsrUint16, SDIO_HOST_INT, regs->sdio_host_int))   \
-    CHIP_HELPER_DEF0(m, (CsrUint16, COEX_STATUS, regs->coex_status))       \
-    CHIP_HELPER_DEF0(m, (CsrUint16, SHARED_IO_INTERRUPT, regs->shared_io_interrupt)) \
+    CHIP_HELPER_DEF0(m, (u16, DBG_EMU_CMD, regs->dbg_emu_cmd))       \
+    CHIP_HELPER_DEF0(m, (u16, DBG_HOST_PROC_SELECT, regs->host.dbg_proc_select)) \
+    CHIP_HELPER_DEF0(m, (u16, DBG_HOST_STOP_STATUS, regs->host.dbg_stop_status)) \
+    CHIP_HELPER_DEF0(m, (u16, HOST_WINDOW1_PAGE, regs->host.window1_page)) \
+    CHIP_HELPER_DEF0(m, (u16, HOST_WINDOW2_PAGE, regs->host.window2_page)) \
+    CHIP_HELPER_DEF0(m, (u16, HOST_WINDOW3_PAGE, regs->host.window3_page)) \
+    CHIP_HELPER_DEF0(m, (u16, HOST_IO_LOG_ADDR, regs->host.io_log_addr)) \
+    CHIP_HELPER_DEF0(m, (u16, DBG_SPI_PROC_SELECT, regs->spi.dbg_proc_select)) \
+    CHIP_HELPER_DEF0(m, (u16, DBG_SPI_STOP_STATUS, regs->spi.dbg_stop_status)) \
+    CHIP_HELPER_DEF0(m, (u16, SPI_WINDOW1_PAGE, regs->spi.window1_page)) \
+    CHIP_HELPER_DEF0(m, (u16, SPI_WINDOW2_PAGE, regs->spi.window2_page)) \
+    CHIP_HELPER_DEF0(m, (u16, SPI_WINDOW3_PAGE, regs->spi.window3_page)) \
+    CHIP_HELPER_DEF0(m, (u16, SPI_IO_LOG_ADDR, regs->spi.io_log_addr)) \
+    CHIP_HELPER_DEF0(m, (u16, DBG_RESET, regs->dbg_reset))           \
+    CHIP_HELPER_DEF0(m, (u16, DBG_RESET_VALUE, regs->dbg_reset_value)) \
+    CHIP_HELPER_DEF0(m, (u16, DBG_RESET_WARN, regs->dbg_reset_warn)) \
+    CHIP_HELPER_DEF0(m, (u16, DBG_RESET_WARN_VALUE, regs->dbg_reset_warn_value)) \
+    CHIP_HELPER_DEF0(m, (u16, DBG_RESET_RESULT, regs->dbg_reset_result)) \
+    CHIP_HELPER_DEF0(m, (u16, WATCHDOG_DISABLE, regs->watchdog_disable)) \
+    CHIP_HELPER_DEF0(m, (u16, PROC_PC_SNOOP, regs->proc_pc_snoop))   \
+    CHIP_HELPER_DEF0(m, (u16, GBL_CHIP_VERSION, regs->gbl_chip_version)) \
+    CHIP_HELPER_DEF0(m, (u16, GBL_MISC_ENABLES, regs->gbl_misc_enables)) \
+    CHIP_HELPER_DEF0(m, (u16, XAP_PCH, regs->xap_pch))               \
+    CHIP_HELPER_DEF0(m, (u16, XAP_PCL, regs->xap_pcl))               \
+    CHIP_HELPER_DEF0(m, (u16, MAILBOX0, regs->mailbox0))             \
+    CHIP_HELPER_DEF0(m, (u16, MAILBOX1, regs->mailbox1))             \
+    CHIP_HELPER_DEF0(m, (u16, MAILBOX2, regs->mailbox2))             \
+    CHIP_HELPER_DEF0(m, (u16, MAILBOX3, regs->mailbox3))             \
+    CHIP_HELPER_DEF0(m, (u16, SDIO_HIP_HANDSHAKE, regs->sdio_hip_handshake))   \
+    CHIP_HELPER_DEF0(m, (u16, SDIO_HOST_INT, regs->sdio_host_int))   \
+    CHIP_HELPER_DEF0(m, (u16, COEX_STATUS, regs->coex_status))       \
+    CHIP_HELPER_DEF0(m, (u16, SHARED_IO_INTERRUPT, regs->shared_io_interrupt)) \
     CHIP_HELPER_DEF0(m, (CsrUint32, PROGRAM_MEMORY_RAM_OFFSET, prog_offset.ram)) \
     CHIP_HELPER_DEF0(m, (CsrUint32, PROGRAM_MEMORY_ROM_OFFSET, prog_offset.rom)) \
     CHIP_HELPER_DEF0(m, (CsrUint32, PROGRAM_MEMORY_FLASH_OFFSET, prog_offset.flash)) \
     CHIP_HELPER_DEF0(m, (CsrUint32, PROGRAM_MEMORY_EXT_SRAM_OFFSET, prog_offset.ext_sram)) \
-    CHIP_HELPER_DEF0(m, (CsrUint16, DATA_MEMORY_RAM_OFFSET, data_offset.ram)) \
+    CHIP_HELPER_DEF0(m, (u16, DATA_MEMORY_RAM_OFFSET, data_offset.ram)) \
     CHIP_HELPER_DEF0(m, (CsrInt32, HasFlash, bools.has_flash))              \
     CHIP_HELPER_DEF0(m, (CsrInt32, HasExtSram, bools.has_ext_sram))         \
     CHIP_HELPER_DEF0(m, (CsrInt32, HasRom, bools.has_rom))                  \
     CHIP_HELPER_DEF0(m, (CsrInt32, HasBt, bools.has_bt))                    \
     CHIP_HELPER_DEF0(m, (CsrInt32, HasWLan, bools.has_wlan))                \
-    CHIP_HELPER_DEF1(m, (CsrUint16, WINDOW_ADDRESS, enum chip_helper_window_index, window)) \
-    CHIP_HELPER_DEF1(m, (CsrUint16, WINDOW_SIZE, enum chip_helper_window_index, window)) \
-    CHIP_HELPER_DEF1(m, (CsrUint16, MapAddress_SPI2HOST, CsrUint16, addr))          \
-    CHIP_HELPER_DEF1(m, (CsrUint16, MapAddress_HOST2SPI, CsrUint16, addr))          \
+    CHIP_HELPER_DEF1(m, (u16, WINDOW_ADDRESS, enum chip_helper_window_index, window)) \
+    CHIP_HELPER_DEF1(m, (u16, WINDOW_SIZE, enum chip_helper_window_index, window)) \
+    CHIP_HELPER_DEF1(m, (u16, MapAddress_SPI2HOST, u16, addr))          \
+    CHIP_HELPER_DEF1(m, (u16, MapAddress_HOST2SPI, u16, addr))          \
     CHIP_HELPER_DEF1(m, (CsrUint32, ClockStartupSequence, const struct chip_helper_init_values **, val)) \
     CHIP_HELPER_DEF1(m, (CsrUint32, HostResetSequence, const struct chip_helper_reset_values **, val))
 
@@ -406,7 +406,7 @@ CsrInt32 ChipHelper_DecodeWindow(ChipDescript *chip_help,
                                  enum chip_helper_window_index window,
                                  enum chip_helper_window_type type,
                                  CsrUint32 offset,
-                                 CsrUint16 *page, CsrUint16 *addr, CsrUint32 *len);
+                                 u16 *page, u16 *addr, CsrUint32 *len);
 
 #ifdef __cplusplus
 /* Close the extern "C" */
@@ -429,7 +429,7 @@ public:
     /* The default constructor assume a BC7 / UF105x series chip
        and that the number given is the value of UNIFI_GBL_CHIP_VERSION
        (0xFE81) */
-    ChipHelper(CsrUint16 version);
+    ChipHelper(u16 version);
 
     /* This returns the C interface magic token from a C++ instance. */
     ChipDescript* GetDescript() const
@@ -442,9 +442,9 @@ public:
     void ClearVersion();
 
     /* Load this class with data for a specific chip. */
-    void GetVersionAny(CsrUint16 from_FF9A, CsrUint16 from_FE81);
-    void GetVersionUniFi(CsrUint16 version);
-    void GetVersionBlueCore(chip_helper_bluecore_age age, CsrUint16 version);
+    void GetVersionAny(u16 from_FF9A, u16 from_FE81);
+    void GetVersionUniFi(u16 version);
+    void GetVersionBlueCore(chip_helper_bluecore_age age, u16 version);
     void GetVersionSdio(u8 sdio_version);
 
     /* Helpers to build the definitions of the member functions. */
@@ -460,7 +460,7 @@ public:
     CsrInt32 DecodeWindow(chip_helper_window_index window,
                           chip_helper_window_type type,
                           CsrUint32 offset,
-                          CsrUint16 &page, CsrUint16 &addr, CsrUint32 &len) const;
+                          u16 &page, u16 &addr, CsrUint32 &len) const;
 
 private:
     ChipDescript *m_desc;

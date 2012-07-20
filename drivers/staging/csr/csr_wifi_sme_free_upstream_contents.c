@@ -25,7 +25,7 @@
  *      eventClass: only the value CSR_WIFI_SME_PRIM will be handled
  *      message:    the message to free
  *----------------------------------------------------------------------------*/
-void CsrWifiSmeFreeUpstreamMessageContents(CsrUint16 eventClass, void *message)
+void CsrWifiSmeFreeUpstreamMessageContents(u16 eventClass, void *message)
 {
     if (eventClass != CSR_WIFI_SME_PRIM)
     {
@@ -161,7 +161,7 @@ void CsrWifiSmeFreeUpstreamMessageContents(CsrUint16 eventClass, void *message)
             {
                 case CSR_WIFI_SME_P2P_ROLE_GO:
                 {
-                    CsrUint16 i4;
+                    u16 i4;
                     for (i4 = 0; i4 < p->result.deviceInfo.groupInfo.p2pClientInfoCount; i4++)
                     {
                         CsrPmemFree(p->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secDeviceType);
@@ -184,7 +184,7 @@ void CsrWifiSmeFreeUpstreamMessageContents(CsrUint16 eventClass, void *message)
         {
             CsrWifiSmeScanResultsGetCfm *p = (CsrWifiSmeScanResultsGetCfm *)message;
             {
-                CsrUint16 i1;
+                u16 i1;
                 for (i1 = 0; i1 < p->scanResultsCount; i1++)
                 {
                     CsrPmemFree(p->scanResults[i1].informationElements);
@@ -193,7 +193,7 @@ void CsrWifiSmeFreeUpstreamMessageContents(CsrUint16 eventClass, void *message)
                     {
                         case CSR_WIFI_SME_P2P_ROLE_GO:
                         {
-                            CsrUint16 i4;
+                            u16 i4;
                             for (i4 = 0; i4 < p->scanResults[i1].deviceInfo.groupInfo.p2pClientInfoCount; i4++)
                             {
                                 CsrPmemFree(p->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secDeviceType);

@@ -30,7 +30,7 @@ extern "C" {
 typedef struct CsrWifiFsmEvent
 {
     CsrPrim     type;
-    CsrUint16   primtype;
+    u16   primtype;
     CsrSchedQid destination;
     CsrSchedQid source;
 

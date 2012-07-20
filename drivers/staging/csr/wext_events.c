@@ -217,10 +217,10 @@ _send_michaelmicfailure_event(struct net_device *dev,
 
 void
 wext_send_michaelmicfailure_event(unifi_priv_t *priv,
-                                  CsrUint16 count,
+                                  u16 count,
                                   CsrWifiMacAddress address,
                                   CsrWifiSmeKeyType keyType,
-                                  CsrUint16 interfaceTag)
+                                  u16 interfaceTag)
 {
     unsigned char tsc[8] = {0};
 
@@ -238,7 +238,7 @@ wext_send_michaelmicfailure_event(unifi_priv_t *priv,
 } /* wext_send_michaelmicfailure_event() */
 
 void
-wext_send_pmkid_candidate_event(unifi_priv_t *priv, CsrWifiMacAddress bssid, CsrBool preauth_allowed, CsrUint16 interfaceTag)
+wext_send_pmkid_candidate_event(unifi_priv_t *priv, CsrWifiMacAddress bssid, CsrBool preauth_allowed, u16 interfaceTag)
 {
 #if WIRELESS_EXT > 17
     union iwreq_data wrqu;

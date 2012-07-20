@@ -31,7 +31,7 @@ extern "C" {
 /*------------------------------------------------------------------*/
 /* Endian conversion */
 /*------------------------------------------------------------------*/
-#define CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr)        (((CsrUint16) ((u8 *) (ptr))[0]) | ((CsrUint16) ((u8 *) (ptr))[1]) << 8)
+#define CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr)        (((u16) ((u8 *) (ptr))[0]) | ((u16) ((u8 *) (ptr))[1]) << 8)
 #define CSR_GET_UINT32_FROM_LITTLE_ENDIAN(ptr)        (((CsrUint32) ((u8 *) (ptr))[0]) | ((CsrUint32) ((u8 *) (ptr))[1]) << 8 | \
                                                        ((CsrUint32) ((u8 *) (ptr))[2]) << 16 | ((CsrUint32) ((u8 *) (ptr))[3]) << 24)
 #define CSR_COPY_UINT16_TO_LITTLE_ENDIAN(uint, ptr)    ((u8 *) (ptr))[0] = ((u8) ((uint) & 0x00FF)); \
@@ -40,7 +40,7 @@ extern "C" {
     ((u8 *) (ptr))[1] = ((u8) (((uint) >> 8) & 0x000000FF)); \
     ((u8 *) (ptr))[2] = ((u8) (((uint) >> 16) & 0x000000FF)); \
     ((u8 *) (ptr))[3] = ((u8) (((uint) >> 24) & 0x000000FF))
-#define CSR_GET_UINT16_FROM_BIG_ENDIAN(ptr) (((CsrUint16) ((u8 *) (ptr))[1]) | ((CsrUint16) ((u8 *) (ptr))[0]) << 8)
+#define CSR_GET_UINT16_FROM_BIG_ENDIAN(ptr) (((u16) ((u8 *) (ptr))[1]) | ((u16) ((u8 *) (ptr))[0]) << 8)
 #define CSR_GET_UINT24_FROM_BIG_ENDIAN(ptr) (((CsrUint24) ((u8 *) (ptr))[2]) | \
                                              ((CsrUint24) ((u8 *) (ptr))[1]) << 8 | ((CsrUint24) ((u8 *) (ptr))[0]) << 16)
 #define CSR_GET_UINT32_FROM_BIG_ENDIAN(ptr) (((CsrUint32) ((u8 *) (ptr))[3]) | ((CsrUint32) ((u8 *) (ptr))[2]) << 8 | \
@@ -66,8 +66,8 @@ extern "C" {
     (output) = ((u8) (input));(input) += 2
 
 #define CSR_CONVERT_16_FROM_XAP(output, input) \
-    (output) = (CsrUint16) ((((CsrUint16) (input)[1]) << 8) | \
-                            ((CsrUint16) (input)[0]));(input) += 2
+    (output) = (u16) ((((u16) (input)[1]) << 8) | \
+                            ((u16) (input)[0]));(input) += 2
 
 #define CSR_CONVERT_32_FROM_XAP(output, input) \
     (output) = (((CsrUint32) (input)[1]) << 24) | \

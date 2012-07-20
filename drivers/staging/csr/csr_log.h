@@ -96,7 +96,7 @@ CsrBool CsrLogTaskIsFiltered(CsrSchedQid taskId, CsrLogLevelTask level);
 
 typedef struct
 {
-    CsrUint16            primitiveType;
+    u16            primitiveType;
     const CsrCharString *primitiveName;
     CsrMsgConvMsgEntry  *messageConv; /* Private - do not use */
 } CsrLogPrimitiveInformation;
@@ -112,7 +112,7 @@ typedef struct
 /*  Tech logging */
 /*---------------------------------*/
 typedef u8 bitmask8_t;
-typedef CsrUint16 bitmask16_t;
+typedef u16 bitmask16_t;
 typedef CsrUint32 bitmask32_t;
 
 #ifdef CSR_LOG_ENABLE
@@ -175,7 +175,7 @@ void CsrLogSchedStart(u8 thread_id);
 void CsrLogSchedStop(u8 thread_id);
 
 void CsrLogInitTask(u8 thread_id, CsrSchedQid tskid, const CsrCharString *tskName);
-void CsrLogDeinitTask(CsrUint16 task_id);
+void CsrLogDeinitTask(u16 task_id);
 
 void CsrLogActivate(CsrSchedQid tskid);
 void CsrLogDeactivate(CsrSchedQid tskid);
@@ -188,14 +188,14 @@ void CsrLogMessagePut(CsrUint32 line,
     CsrSchedQid src_task_id,
     CsrSchedQid dst_taskid,
     CsrSchedMsgId msg_id,
-    CsrUint16 prim_type,
+    u16 prim_type,
     const void *msg);
 
 void CsrLogMessageGet(CsrSchedQid src_task_id,
     CsrSchedQid dst_taskid,
     CsrBool get_res,
     CsrSchedMsgId msg_id,
-    CsrUint16 prim_type,
+    u16 prim_type,
     const void *msg);
 
 void CsrLogTimedEventIn(CsrUint32 line,
@@ -203,7 +203,7 @@ void CsrLogTimedEventIn(CsrUint32 line,
     CsrSchedQid task_id,
     CsrSchedTid tid,
     CsrTime requested_delay,
-    CsrUint16 fniarg,
+    u16 fniarg,
     const void *fnvarg);
 
 void CsrLogTimedEventFire(CsrSchedQid task_id,
@@ -227,18 +227,18 @@ void CsrLogBgintSet(CsrSchedBgint irq);
 void CsrLogBgintServiceStart(CsrSchedBgint irq);
 void CsrLogBgintServiceDone(CsrSchedBgint irq);
 
-void CsrLogExceptionStateEvent(CsrUint16 prim_type,
+void CsrLogExceptionStateEvent(u16 prim_type,
     CsrPrim msg_type,
-    CsrUint16 state,
+    u16 state,
     CsrUint32 line,
     const CsrCharString *file);
-void CsrLogExceptionGeneral(CsrUint16 prim_type,
-    CsrUint16 state,
+void CsrLogExceptionGeneral(u16 prim_type,
+    u16 state,
     const CsrCharString *text,
     CsrUint32 line,
     const CsrCharString *file);
-void CsrLogExceptionWarning(CsrUint16 prim_type,
-    CsrUint16 state,
+void CsrLogExceptionWarning(u16 prim_type,
+    u16 state,
     const CsrCharString *text,
     CsrUint32 line,
     const CsrCharString *file);

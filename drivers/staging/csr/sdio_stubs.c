@@ -38,7 +38,7 @@ CsrResult __attribute__((weak)) CsrSdioHardReset(CsrSdioFunction *function)
 }
 
 CsrResult __attribute__((weak)) CsrSdioBlockSizeSet(CsrSdioFunction *function,
-                                                   CsrUint16 blockSize)
+                                                   u16 blockSize)
 {
     return CSR_RESULT_SUCCESS;
 }

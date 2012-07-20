@@ -16,7 +16,7 @@
 extern "C" {
 #endif
 
-typedef CsrUint16 CsrResult;
+typedef u16 CsrResult;
 #define CSR_RESULT_SUCCESS  ((CsrResult) 0x0000)
 #define CSR_RESULT_FAILURE  ((CsrResult) 0xFFFF)
 

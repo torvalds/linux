@@ -34,8 +34,8 @@ extern "C" {
 struct VMEQ
 {
     CsrUint32 addr;
-    CsrUint16 mask;
-    CsrUint16 value;
+    u16 mask;
+    u16 value;
 };
 
 struct VAND

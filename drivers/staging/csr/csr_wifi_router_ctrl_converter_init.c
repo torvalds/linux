@@ -90,11 +90,11 @@ static CsrMsgConvMsgEntry csrwifirouterctrl_conv_lut[] = {
     { 0, NULL, NULL, NULL, NULL },
 };
 
-CsrMsgConvMsgEntry* CsrWifiRouterCtrlConverterLookup(CsrMsgConvMsgEntry *ce, CsrUint16 msgType)
+CsrMsgConvMsgEntry* CsrWifiRouterCtrlConverterLookup(CsrMsgConvMsgEntry *ce, u16 msgType)
 {
     if (msgType & CSR_PRIM_UPSTREAM)
     {
-        CsrUint16 idx = (msgType & ~CSR_PRIM_UPSTREAM) + CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_COUNT;
+        u16 idx = (msgType & ~CSR_PRIM_UPSTREAM) + CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_COUNT;
         if (idx < (CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_COUNT + CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_COUNT) &&
             csrwifirouterctrl_conv_lut[idx].msgType == msgType)
         {

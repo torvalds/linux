@@ -27,11 +27,11 @@ u8 CsrBitCountDense(CsrUint32 n);
 /* Base conversion */
 /*------------------------------------------------------------------*/
 CsrBool CsrHexStrToUint8(const CsrCharString *string, u8 *returnValue);
-CsrBool CsrHexStrToUint16(const CsrCharString *string, CsrUint16 *returnValue);
+CsrBool CsrHexStrToUint16(const CsrCharString *string, u16 *returnValue);
 CsrBool CsrHexStrToUint32(const CsrCharString *string, CsrUint32 *returnValue);
 CsrUint32 CsrPow(CsrUint32 base, CsrUint32 exponent);
 void CsrIntToBase10(CsrInt32 number, CsrCharString *str);
-void CsrUInt16ToHex(CsrUint16 number, CsrCharString *str);
+void CsrUInt16ToHex(u16 number, CsrCharString *str);
 void CsrUInt32ToHex(CsrUint32 number, CsrCharString *str);
 
 /*------------------------------------------------------------------*/

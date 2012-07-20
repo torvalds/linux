@@ -249,7 +249,7 @@ sme_native_log_event(ul_client_t *pcli,
     if (r == 0) {
         signal_len = SigGetSize(&signal);
     } else {
-        CsrUint16 receiver_id = CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sig_packed) + sizeof(CsrUint16)) & 0xFF00;
+        u16 receiver_id = CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sig_packed) + sizeof(u16)) & 0xFF00;
 
         /* The control indications are 1 byte, pass them to client. */
         if (sig_len == 1) {

@@ -43,7 +43,7 @@ typedef CsrUint32 CsrTime;
 typedef struct
 {
     CsrUint32 sec;
-    CsrUint16 msec;
+    u16 msec;
 } CsrTimeUtc;
 
 

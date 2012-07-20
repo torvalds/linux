@@ -29,7 +29,7 @@ static const struct sig_name Unifi_bulkcmd_names[] = {
     {  15, "Padding" }
 };
 
-const CsrCharString* lookup_bulkcmd_name(CsrUint16 id)
+const CsrCharString* lookup_bulkcmd_name(u16 id)
 {
     if (id < 9)
     {

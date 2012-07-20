@@ -97,8 +97,8 @@ static enum ta_frame_identity ta_detect_protocol(card_t *card, CsrWifiRouterCtrl
                                                  const u8 *sta_macaddr)
 {
     ta_data_t *tad = &card->ta_sampling;
-    CsrUint16 proto;
-    CsrUint16 source_port, dest_port;
+    u16 proto;
+    u16 source_port, dest_port;
     CsrWifiMacAddress srcAddress;
     CsrUint32 snap_hdr, oui_hdr;
 
@@ -347,7 +347,7 @@ void unifi_ta_sample(card_t                            *card,
                      const u8                    *saddr,
                      const u8                    *sta_macaddr,
                      CsrUint32                          timestamp,
-                     CsrUint16                          rate)
+                     u16                          rate)
 {
     ta_data_t *tad = &card->ta_sampling;
     enum ta_frame_identity identity;
@@ -530,7 +530,7 @@ CsrResult unifi_ta_configure(card_t                               *card,
  */
 void unifi_ta_classification(card_t                      *card,
                              CsrWifiRouterCtrlTrafficType traffic_type,
-                             CsrUint16                    period)
+                             u16                    period)
 {
     unifi_trace(card->ospriv, UDBG3,
                 "Changed current ta classification to: %d\n", traffic_type);

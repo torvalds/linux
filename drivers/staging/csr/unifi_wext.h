@@ -58,9 +58,9 @@ void wext_send_assoc_event(unifi_priv_t *priv, unsigned char *bssid,
                            unsigned char *scan_ie, unsigned int scan_ie_len);
 void wext_send_disassoc_event(unifi_priv_t *priv);
 void wext_send_michaelmicfailure_event(unifi_priv_t *priv,
-                                       CsrUint16 count, CsrWifiMacAddress address,
-                                       CsrWifiSmeKeyType keyType, CsrUint16 interfaceTag);
-void wext_send_pmkid_candidate_event(unifi_priv_t *priv, CsrWifiMacAddress bssid, CsrBool preauth_allowed, CsrUint16 interfaceTag);
+                                       u16 count, CsrWifiMacAddress address,
+                                       CsrWifiSmeKeyType keyType, u16 interfaceTag);
+void wext_send_pmkid_candidate_event(unifi_priv_t *priv, CsrWifiMacAddress bssid, CsrBool preauth_allowed, u16 interfaceTag);
 void wext_send_started_event(unifi_priv_t *priv);
 
 

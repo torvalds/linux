@@ -25,7 +25,7 @@
  *      eventClass: only the value CSR_WIFI_ROUTER_PRIM will be handled
  *      message:    the message to free
  *----------------------------------------------------------------------------*/
-void CsrWifiRouterFreeDownstreamMessageContents(CsrUint16 eventClass, void *message)
+void CsrWifiRouterFreeDownstreamMessageContents(u16 eventClass, void *message)
 {
     if (eventClass != CSR_WIFI_ROUTER_PRIM)
     {

@@ -148,7 +148,7 @@ typedef struct _bulk_data_desc
 /* Structure of an entry in the Symbol Look Up Table (SLUT). */
 typedef struct _symbol
 {
-    CsrUint16 id;
+    u16 id;
     CsrUint32 obj;
 } symbol_t;
 
@@ -194,10 +194,10 @@ typedef struct _bulk_data_param
  */
 typedef struct _card_info
 {
-    CsrUint16 chip_id;
-    CsrUint16 chip_version;
+    u16 chip_id;
+    u16 chip_version;
     CsrUint32 fw_build;
-    CsrUint16 fw_hip_version;
+    u16 fw_hip_version;
     CsrUint32 sdio_block_size;
 } card_info_t;
 
@@ -514,7 +514,7 @@ void unifi_ta_sample(card_t                            *card,
                      const u8                    *saddr,
                      const u8                    *sta_macaddr,
                      CsrUint32                          timestamp,
-                     CsrUint16                          rate);
+                     u16                          rate);
 
 /**
  * Notify the HIP core lib for a detected Traffic Classification.
@@ -530,7 +530,7 @@ void unifi_ta_sample(card_t                            *card,
  */
 void unifi_ta_classification(card_t                      *card,
                              CsrWifiRouterCtrlTrafficType traffic_type,
-                             CsrUint16                    period);
+                             u16                    period);
 
 #endif
 /**
@@ -545,9 +545,9 @@ void unifi_ta_classification(card_t                      *card,
 CsrResult unifi_card_hard_reset(card_t *card);
 
 
-CsrResult unifi_card_readn(card_t *card, CsrUint32 unifi_addr, void *pdata, CsrUint16 len);
-CsrResult unifi_card_read16(card_t *card, CsrUint32 unifi_addr, CsrUint16 *pdata);
-CsrResult unifi_card_write16(card_t *card, CsrUint32 unifi_addr, CsrUint16 data);
+CsrResult unifi_card_readn(card_t *card, CsrUint32 unifi_addr, void *pdata, u16 len);
+CsrResult unifi_card_read16(card_t *card, CsrUint32 unifi_addr, u16 *pdata);
+CsrResult unifi_card_write16(card_t *card, CsrUint32 unifi_addr, u16 data);
 
 
 enum unifi_dbg_processors_select
@@ -660,15 +660,15 @@ void unifi_receive_event(void *ospriv,
  * @ingroup upperedge
  */
 CsrResult unifi_reque_ma_packet_request(void *ospriv, CsrUint32 host_tag,
-                                        CsrUint16 status,
+                                        u16 status,
                                         bulk_data_desc_t *bulkDataDesc);
 
 #endif
 typedef struct
 {
-    CsrUint16 free_fh_sig_queue_slots[UNIFI_NO_OF_TX_QS];
-    CsrUint16 free_fh_bulkdata_slots;
-    CsrUint16 free_fh_fw_slots;
+    u16 free_fh_sig_queue_slots[UNIFI_NO_OF_TX_QS];
+    u16 free_fh_bulkdata_slots;
+    u16 free_fh_fw_slots;
 } unifi_HipQosInfo;
 
 void unifi_get_hip_qos_info(card_t *card, unifi_HipQosInfo *hipqosinfo);
@@ -859,20 +859,20 @@ void unifi_request_max_sdio_clock(card_t *card);
 
 
 /* Functions to lookup bulk data command names. */
-const CsrCharString* lookup_bulkcmd_name(CsrUint16 id);
+const CsrCharString* lookup_bulkcmd_name(u16 id);
 
 /* Function to log HIP's global debug buffer */
 #ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
 void unifi_debug_buf_dump(void);
 void unifi_debug_log_to_buf(const CsrCharString *fmt, ...);
-void unifi_debug_hex_to_buf(const CsrCharString *buff, CsrUint16 length);
+void unifi_debug_hex_to_buf(const CsrCharString *buff, u16 length);
 #endif
 
 /* Mini-coredump utility functions */
 CsrResult unifi_coredump_get_value(card_t *card, struct unifi_coredump_req *req);
 CsrResult unifi_coredump_capture(card_t *card, struct unifi_coredump_req *req);
 CsrResult unifi_coredump_request_at_next_reset(card_t *card, s8 enable);
-CsrResult unifi_coredump_init(card_t *card, CsrUint16 num_dump_buffers);
+CsrResult unifi_coredump_init(card_t *card, u16 num_dump_buffers);
 void unifi_coredump_free(card_t *card);
 
 #ifdef __cplusplus

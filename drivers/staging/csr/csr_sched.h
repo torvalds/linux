@@ -20,10 +20,10 @@ extern "C" {
 typedef CsrUint32 CsrSchedIdentifier;
 
 /* A task identifier */
-typedef CsrUint16 CsrSchedTaskId;
+typedef u16 CsrSchedTaskId;
 
 /* A queue identifier */
-typedef CsrUint16 CsrSchedQid;
+typedef u16 CsrSchedQid;
 #define CSR_SCHED_QID_INVALID     ((CsrSchedQid) 0xFFFF)
 
 /* A message identifier */
@@ -50,7 +50,7 @@ typedef void (*schedEntryFunction_t)(void **inst);
 /*
  * Background interrupt definitions
  */
-typedef CsrUint16 CsrSchedBgint;
+typedef u16 CsrSchedBgint;
 #define CSR_SCHED_BGINT_INVALID ((CsrSchedBgint) 0xFFFF)
 
 typedef void (*CsrSchedBgintHandler)(void *);
@@ -133,14 +133,14 @@ void CsrSchedBgintSet(CsrSchedBgint bgint);
  *----------------------------------------------------------------------------*/
 #if defined(CSR_LOG_ENABLE) && defined(CSR_LOG_INCLUDE_FILE_NAME_AND_LINE_NUMBER)
 void CsrSchedMessagePutStringLog(CsrSchedQid q,
-    CsrUint16 mi,
+    u16 mi,
     void *mv,
     CsrUint32 line,
     const CsrCharString *file);
 #define CsrSchedMessagePut(q, mi, mv) CsrSchedMessagePutStringLog((q), (mi), (mv), __LINE__, __FILE__)
 #else
 void CsrSchedMessagePut(CsrSchedQid q,
-    CsrUint16 mi,
+    u16 mi,
     void *mv);
 #endif
 
@@ -164,14 +164,14 @@ void CsrSchedMessagePut(CsrSchedQid q,
  *
  *----------------------------------------------------------------------------*/
 #if defined(CSR_LOG_ENABLE) && defined(CSR_LOG_INCLUDE_FILE_NAME_AND_LINE_NUMBER)
-void CsrSchedMessageBroadcastStringLog(CsrUint16 mi,
+void CsrSchedMessageBroadcastStringLog(u16 mi,
     void *(*msg_build_func)(void *),
     void *msg_build_ptr,
     CsrUint32 line,
     const CsrCharString *file);
 #define CsrSchedMessageBroadcast(mi, fn, ptr) CsrSchedMessageBroadcastStringLog((mi), (fn), (ptr), __LINE__, __FILE__)
 #else
-void CsrSchedMessageBroadcast(CsrUint16 mi,
+void CsrSchedMessageBroadcast(u16 mi,
     void *(*msg_build_func)(void *),
     void *msg_build_ptr);
 #endif
@@ -182,7 +182,7 @@ void CsrSchedMessageBroadcast(CsrUint16 mi,
  *
  *  DESCRIPTION
  *      Obtains a message from the message queue belonging to the calling task.
- *      The message consists of one or both of a CsrUint16 and a void *.
+ *      The message consists of one or both of a u16 and a void *.
  *
  *  RETURNS
  *      CsrBool - TRUE if a message has been obtained from the queue, else FALSE.
@@ -193,7 +193,7 @@ void CsrSchedMessageBroadcast(CsrUint16 mi,
  *      them message is discarded.
  *
  *----------------------------------------------------------------------------*/
-CsrBool CsrSchedMessageGet(CsrUint16 *pmi, void **pmv);
+CsrBool CsrSchedMessageGet(u16 *pmi, void **pmv);
 
 /*----------------------------------------------------------------------------*
  *  NAME
@@ -219,16 +219,16 @@ CsrBool CsrSchedMessageGet(CsrUint16 *pmi, void **pmv);
  *----------------------------------------------------------------------------*/
 #if defined(CSR_LOG_ENABLE) && defined(CSR_LOG_INCLUDE_FILE_NAME_AND_LINE_NUMBER)
 CsrSchedTid CsrSchedTimerSetStringLog(CsrTime delay,
-    void (*fn)(CsrUint16 mi, void *mv),
-    CsrUint16 fniarg,
+    void (*fn)(u16 mi, void *mv),
+    u16 fniarg,
     void *fnvarg,
     CsrUint32 line,
     const CsrCharString *file);
 #define CsrSchedTimerSet(d, fn, fni, fnv) CsrSchedTimerSetStringLog((d), (fn), (fni), (fnv), __LINE__, __FILE__)
 #else
 CsrSchedTid CsrSchedTimerSet(CsrTime delay,
-    void (*fn)(CsrUint16 mi, void *mv),
-    CsrUint16 fniarg,
+    void (*fn)(u16 mi, void *mv),
+    u16 fniarg,
     void *fnvarg);
 #endif
 
@@ -246,14 +246,14 @@ CsrSchedTid CsrSchedTimerSet(CsrTime delay,
  *----------------------------------------------------------------------------*/
 #if defined(CSR_LOG_ENABLE) && defined(CSR_LOG_INCLUDE_FILE_NAME_AND_LINE_NUMBER)
 CsrBool CsrSchedTimerCancelStringLog(CsrSchedTid eventid,
-    CsrUint16 *pmi,
+    u16 *pmi,
     void **pmv,
     CsrUint32 line,
     const CsrCharString *file);
 #define CsrSchedTimerCancel(e, pmi, pmv) CsrSchedTimerCancelStringLog((e), (pmi), (pmv), __LINE__, __FILE__)
 #else
 CsrBool CsrSchedTimerCancel(CsrSchedTid eventid,
-    CsrUint16 *pmi,
+    u16 *pmi,
     void **pmv);
 #endif
 

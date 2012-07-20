@@ -64,7 +64,7 @@ void send_auto_ma_packet_confirm(unifi_priv_t *priv,
 
     CSR_SIGNAL unpacked_signal;
     u8 sigbuf[UNIFI_PACKED_SIGBUF_SIZE];
-    CsrUint16 packed_siglen;
+    u16 packed_siglen;
 
 
     list_for_each_safe(listHead, placeHolder, buffered_frames_list)
@@ -279,7 +279,7 @@ void CsrWifiRouterCtrlHipReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     void *dest;
     CsrResult csrResult;
     CSR_SIGNAL *signal;
-    CsrUint16 interfaceTag = 0;
+    u16 interfaceTag = 0;
     CSR_MA_PACKET_REQUEST *req;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
 
@@ -301,7 +301,7 @@ void CsrWifiRouterCtrlHipReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     signal = (CSR_SIGNAL *)hipreq->mlmeCommand;
 
     unifi_trace(priv, UDBG4, "CsrWifiRouterCtrlHipReqHandler: 0x04%X ---->\n",
-                *((CsrUint16*)hipreq->mlmeCommand));
+                *((u16*)hipreq->mlmeCommand));
 
     /* Construct the signal. */
     signal_ptr = (u8*)hipreq->mlmeCommand;
@@ -348,7 +348,7 @@ void CsrWifiRouterCtrlHipReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     }
 
     unifi_trace(priv, UDBG3, "SME SEND: Signal 0x%.4X \n",
-                *((CsrUint16*)signal_ptr));
+                *((u16*)signal_ptr));
     if (signal->SignalPrimitiveHeader.SignalId == CSR_MA_PACKET_REQUEST_ID)
     {
         CSR_SIGNAL unpacked_signal;
@@ -387,7 +387,7 @@ void CsrWifiRouterCtrlHipReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     if (r) {
         unifi_error(priv,
                     "CsrWifiRouterCtrlHipReqHandler: Failed to send signal (0x%.4X - %u)\n",
-                    *((CsrUint16*)signal_ptr), r);
+                    *((u16*)signal_ptr), r);
         CsrWifiRouterCtrlWifiOffIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0,CSR_WIFI_SME_CONTROL_INDICATION_ERROR);
     }
 
@@ -396,7 +396,7 @@ void CsrWifiRouterCtrlHipReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 
 #ifdef CSR_WIFI_SEND_GRATUITOUS_ARP
 static void
-uf_send_gratuitous_arp(unifi_priv_t *priv, CsrUint16 interfaceTag)
+uf_send_gratuitous_arp(unifi_priv_t *priv, u16 interfaceTag)
 {
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
     CSR_PRIORITY priority;
@@ -504,7 +504,7 @@ configure_data_port(unifi_priv_t *priv,
         CsrWifiRouterCtrlPortAction port_action,
         const CsrWifiMacAddress *macAddress,
         const int queue,
-        CsrUint16 interfaceTag)
+        u16 interfaceTag)
 {
     const u8 broadcast_mac_address[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
     unifi_port_config_t *port;
@@ -1354,7 +1354,7 @@ void CsrWifiRouterCtrlTrafficClassificationReqHandler(void* drvpriv, CsrWifiFsmE
 static int
 _sys_packet_req(unifi_priv_t *priv, const CSR_SIGNAL *signal,
         u8 subscriptionHandle,
-        CsrUint16 frameLength, u8 *frame,
+        u16 frameLength, u8 *frame,
         int proto)
 {
     int r;
@@ -1364,7 +1364,7 @@ _sys_packet_req(unifi_priv_t *priv, const CSR_SIGNAL *signal,
     struct sk_buff *skb, *newSkb = NULL;
     CsrWifiMacAddress peerMacAddress;
     CsrResult csrResult;
-    CsrUint16 interfaceTag = req.VirtualInterfaceIdentifier & 0xff;
+    u16 interfaceTag = req.VirtualInterfaceIdentifier & 0xff;
     CsrBool eapolStore = FALSE;
     s8 protection = 0;
     netInterface_priv_t *interfacePriv;
@@ -1498,12 +1498,12 @@ void CsrWifiRouterMaPacketReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     unifi_priv_t *priv = (unifi_priv_t*)drvpriv;
     CsrWifiRouterMaPacketReq* mareq = (CsrWifiRouterMaPacketReq*)msg;
     llc_snap_hdr_t *snap;
-    CsrUint16 snap_protocol;
+    u16 snap_protocol;
     CSR_SIGNAL signal;
     CSR_MA_PACKET_REQUEST *req = &signal.u.MaPacketRequest;
     CsrWifiRouterCtrlPortAction controlPortaction;
     u8 *daddr, *saddr;
-    CsrUint16 interfaceTag = mareq->interfaceTag & 0x00ff;
+    u16 interfaceTag = mareq->interfaceTag & 0x00ff;
     int queue;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
 
@@ -1638,7 +1638,7 @@ void CsrWifiRouterCtrlM4TransmitReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 }
 
 /* reset the station records when the mode is set as CSR_WIFI_ROUTER_CTRL_MODE_NONE */
-static void CsrWifiRouterCtrlResetStationRecordList(unifi_priv_t *priv, CsrUint16 interfaceTag)
+static void CsrWifiRouterCtrlResetStationRecordList(unifi_priv_t *priv, u16 interfaceTag)
 {
     u8 i,j;
     CsrWifiRouterCtrlStaInfo_t *staInfo=NULL;
@@ -1723,7 +1723,7 @@ static void CsrWifiRouterCtrlResetStationRecordList(unifi_priv_t *priv, CsrUint1
     }
 }
 
-void CsrWifiRouterCtrlInterfaceReset(unifi_priv_t *priv, CsrUint16 interfaceTag)
+void CsrWifiRouterCtrlInterfaceReset(unifi_priv_t *priv, u16 interfaceTag)
 {
     netInterface_priv_t *interfacePriv;
 
@@ -2409,7 +2409,7 @@ void uf_send_disconnected_ind_wq(struct work_struct *work)
 
     CsrWifiRouterCtrlStaInfo_t *staInfo = container_of(work, CsrWifiRouterCtrlStaInfo_t, send_disconnected_ind_task);
     unifi_priv_t *priv;
-    CsrUint16 interfaceTag;
+    u16 interfaceTag;
     struct list_head send_cfm_list;
     u8 j;
 
@@ -2611,9 +2611,9 @@ static void ba_session_terminate_timer_func(unsigned long data)
 
 
 CsrBool blockack_session_stop(unifi_priv_t *priv,
-                                     CsrUint16 interfaceTag,
+                                     u16 interfaceTag,
                                      CsrWifiRouterCtrlBlockAckRole role,
-                                     CsrUint16 tID,
+                                     u16 tID,
                                      CsrWifiMacAddress macAddress)
 {
     netInterface_priv_t *interfacePriv;
@@ -2731,12 +2731,12 @@ void CsrWifiRouterCtrlBlockAckDisableReqHandler(void* drvpriv, CsrWifiFsmEvent* 
 
 
 CsrBool blockack_session_start(unifi_priv_t *priv,
-                               CsrUint16 interfaceTag,
-                               CsrUint16 tID,
-                               CsrUint16 timeout,
+                               u16 interfaceTag,
+                               u16 tID,
+                               u16 timeout,
                                CsrWifiRouterCtrlBlockAckRole role,
-                               CsrUint16 wind_size,
-                               CsrUint16 start_sn,
+                               u16 wind_size,
+                               u16 start_sn,
                                CsrWifiMacAddress macAddress
                               )
 {

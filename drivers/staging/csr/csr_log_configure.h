@@ -57,7 +57,7 @@ typedef CsrUint32 CsrLogLevelText;
 #define CSR_LOG_LEVEL_TEXT_ALL       ((CsrLogLevelText) 0xFFFF)
 
 /* The log text interface is used by both scheduler tasks and components outside the scheduler context.
- * Therefore a CsrLogTextTaskId is introduced. It is effectively considered as two CsrUint16's. The lower
+ * Therefore a CsrLogTextTaskId is introduced. It is effectively considered as two u16's. The lower
  * 16 bits corresponds one2one with the scheduler queueId's (CsrSchedQid) and as such these bits can not be used
  * by components outside scheduler tasks. The upper 16 bits are allocated for use of components outside the
  * scheduler like drivers etc. Components in this range is defined independently by each technology. To avoid
@@ -78,7 +78,7 @@ void CsrLogLevelTextSetTask(CsrLogTextTaskId taskId, CsrLogLevelText warningLeve
 /* Set the text logging level for a given tasks subOrigin */
 /* This function can be used as a complement to CsrLogLevelTextSetAll() and CsrLogLevelTextSetTask() to add more _or_ less log from a given
  * subOrigin within a task than what is set generally with CsrLogLevelTextSetAll() _or_ CsrLogLevelTextSetTask(). */
-void CsrLogLevelTextSetTaskSubOrigin(CsrLogTextTaskId taskId, CsrUint16 subOrigin, CsrLogLevelText warningLevelMask);
+void CsrLogLevelTextSetTaskSubOrigin(CsrLogTextTaskId taskId, u16 subOrigin, CsrLogLevelText warningLevelMask);
 
 /*******************************************************************************
 

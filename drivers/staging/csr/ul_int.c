@@ -418,7 +418,7 @@ ul_send_signal_unpacked(unifi_priv_t *priv, CSR_SIGNAL *sigptr,
                         bulk_data_param_t *bulkdata)
 {
     u8 sigbuf[UNIFI_PACKED_SIGBUF_SIZE];
-    CsrUint16 packed_siglen;
+    u16 packed_siglen;
     CsrResult csrResult;
     unsigned long lock_flags;
     int r;

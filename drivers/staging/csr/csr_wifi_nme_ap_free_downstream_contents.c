@@ -25,7 +25,7 @@
  *      eventClass: only the value CSR_WIFI_NME_AP_PRIM will be handled
  *      message:    the message to free
  *----------------------------------------------------------------------------*/
-void CsrWifiNmeApFreeDownstreamMessageContents(CsrUint16 eventClass, void *message)
+void CsrWifiNmeApFreeDownstreamMessageContents(u16 eventClass, void *message)
 {
     if (eventClass != CSR_WIFI_NME_AP_PRIM)
     {
@@ -65,7 +65,7 @@ void CsrWifiNmeApFreeDownstreamMessageContents(CsrUint16 eventClass, void *messa
                     break;
             }
             {
-                CsrUint16 i3;
+                u16 i3;
                 for (i3 = 0; i3 < p->p2pGoParam.operatingChanList.channelEntryListCount; i3++)
                 {
                     CsrPmemFree(p->p2pGoParam.operatingChanList.channelEntryList[i3].operatingChannel);

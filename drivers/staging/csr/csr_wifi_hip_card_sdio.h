@@ -115,25 +115,25 @@ typedef struct
      * indicate incompatible changes. The LSB gives the minor revision number,
      * used to indicate changes that maintain backwards compatibility.
      */
-    CsrUint16 version;
+    u16 version;
 
     /*
      * offset from the start of the shared data memory to the SD IO
      * control structure.
      */
-    CsrUint16 sdio_ctrl_offset;
+    u16 sdio_ctrl_offset;
 
     /* Buffer handle of the from-host signal queue */
-    CsrUint16 fromhost_sigbuf_handle;
+    u16 fromhost_sigbuf_handle;
 
     /* Buffer handle of the to-host signal queue */
-    CsrUint16 tohost_sigbuf_handle;
+    u16 tohost_sigbuf_handle;
 
     /*
      * Maximum number of signal primitive or bulk data command fragments that may be
      * pending in the to-hw signal queue.
      */
-    CsrUint16 num_fromhost_sig_frags;
+    u16 num_fromhost_sig_frags;
 
     /*
      * Number of signal primitive or bulk data command fragments that must be pending
@@ -145,42 +145,42 @@ typedef struct
      * Note that the hw may place more signals in the to-host signal queue
      * than indicated by this field.
      */
-    CsrUint16 num_tohost_sig_frags;
+    u16 num_tohost_sig_frags;
 
     /*
      * Number of to-hw bulk data slots. Slots are numbered from 0 (zero) to
      * one less than the value in this field
      */
-    CsrUint16 num_fromhost_data_slots;
+    u16 num_fromhost_data_slots;
 
     /*
      * Number of frm-hw bulk data slots. Slots are numbered from 0 (zero) to
      * one less than the value in this field
      */
-    CsrUint16 num_tohost_data_slots;
+    u16 num_tohost_data_slots;
 
     /*
      * Size of the bulk data slots (2 octets)
      * The size of the bulk data slots in octets. This will usually be
      * the size of the largest MSDU. The value should always be even.
      */
-    CsrUint16 data_slot_size;
+    u16 data_slot_size;
 
     /*
      * Indicates that the host has finished the initialisation sequence.
      * Initialised to 0x0000 by the firmware, and set to 0x0001 by us.
      */
-    CsrUint16 initialised;
+    u16 initialised;
 
     /* Added by protocol version 0x0001 */
     CsrUint32 overlay_size;
 
     /* Added by protocol version 0x0300 */
-    CsrUint16 data_slot_round;
-    CsrUint16 sig_frag_size;
+    u16 data_slot_round;
+    u16 sig_frag_size;
 
     /* Added by protocol version 0x0500 */
-    CsrUint16 tohost_signal_padding;
+    u16 tohost_signal_padding;
 } sdio_config_data_t;
 
 /*
@@ -200,10 +200,10 @@ typedef struct
 /* Structure for a bulk data transfer command */
 typedef struct
 {
-    CsrUint16 cmd_and_len;   /* bits 12-15 cmd, bits 0-11 len */
-    CsrUint16 data_slot;     /* slot number, perhaps OR'd with SLOT_DIR_TO_HOST */
-    CsrUint16 offset;
-    CsrUint16 buffer_handle;
+    u16 cmd_and_len;   /* bits 12-15 cmd, bits 0-11 len */
+    u16 data_slot;     /* slot number, perhaps OR'd with SLOT_DIR_TO_HOST */
+    u16 offset;
+    u16 buffer_handle;
 } bulk_data_cmd_t;
 
 
@@ -249,7 +249,7 @@ typedef struct card_signal
     u8 sigbuf[UNIFI_PACKED_SIGBUF_SIZE];
 
     /* Length of the SIGNAL inside sigbuf */
-    CsrUint16 signal_length;
+    u16 signal_length;
 
     bulk_data_desc_t bulkdata[UNIFI_MAX_DATA_REFERENCES];
 } card_signal_t;
@@ -264,10 +264,10 @@ typedef struct
     card_signal_t *q_body;
 
     /* Num elements in queue (capacity is one less than this!) */
-    CsrUint16 q_length;
+    u16 q_length;
 
-    CsrUint16 q_wr_ptr;
-    CsrUint16 q_rd_ptr;
+    u16 q_wr_ptr;
+    u16 q_rd_ptr;
 
     CsrCharString name[UNIFI_QUEUE_NAME_MAX_LENGTH];
 } q_t;
@@ -283,9 +283,9 @@ typedef struct
  */
 typedef struct
 {
-    CsrUint16 from_host_used_slots[UNIFI_NO_OF_TX_QS];
-    CsrUint16 from_host_max_slots[UNIFI_NO_OF_TX_QS];
-    CsrUint16 from_host_reserved_slots[UNIFI_NO_OF_TX_QS];
+    u16 from_host_used_slots[UNIFI_NO_OF_TX_QS];
+    u16 from_host_max_slots[UNIFI_NO_OF_TX_QS];
+    u16 from_host_reserved_slots[UNIFI_NO_OF_TX_QS];
 
     /* Parameters to determine if a queue was active.
        If number of packets sent is greater than the threshold
@@ -293,11 +293,11 @@ typedef struct
        re reservation is done, it is important not to keep this
        value too low */
     /* Packets sent during this interval */
-    CsrUint16 packets_txed[UNIFI_NO_OF_TX_QS];
-    CsrUint16 total_packets_txed;
+    u16 packets_txed[UNIFI_NO_OF_TX_QS];
+    u16 total_packets_txed;
 
     /* Number of packets to see if slots need to be reassigned */
-    CsrUint16 packets_interval;
+    u16 packets_interval;
 
     /* Once a queue reaches a stable state, avoid processing */
     CsrBool queue_stable[UNIFI_NO_OF_TX_QS];
@@ -311,7 +311,7 @@ typedef struct
  *  params:
  *      const q_t *q
  *  returns:
- *      CsrUint16
+ *      u16
  */
 #define CSR_WIFI_HIP_Q_SLOTS_USED(q)     \
     (((q)->q_wr_ptr - (q)->q_rd_ptr < 0)? \
@@ -321,7 +321,7 @@ typedef struct
  *  params:
  *      const q_t *q
  *  returns:
- *      CsrUint16
+ *      u16
  */
 #define CSR_WIFI_HIP_Q_SLOTS_FREE(q)     \
     ((q)->q_length - CSR_WIFI_HIP_Q_SLOTS_USED((q)) - 1)
@@ -329,7 +329,7 @@ typedef struct
 /* Return slot signal data pointer
  *  params:
  *      const q_t *q
- *      CsrUint16 slot
+ *      u16 slot
  *  returns:
  *      card_signal_t *
  */
@@ -340,7 +340,7 @@ typedef struct
  *  params:
  *      const q_t *q
  *  returns:
- *      CsrUint16 slot offset
+ *      u16 slot offset
  */
 #define CSR_WIFI_HIP_Q_NEXT_R_SLOT(q)    \
     ((q)->q_rd_ptr)
@@ -349,7 +349,7 @@ typedef struct
  *  params:
  *      const q_t *q
  *  returns:
- *      CsrUint16 slot offset
+ *      u16 slot offset
  */
 #define CSR_WIFI_HIP_Q_NEXT_W_SLOT(q)    \
     ((q)->q_wr_ptr)
@@ -357,9 +357,9 @@ typedef struct
 /* Return updated queue pointer wrapped around its length
  *  params:
  *      const q_t *q
- *      CsrUint16 x     amount to add to queue pointer
+ *      u16 x     amount to add to queue pointer
  *  returns:
- *      CsrUint16 wrapped queue pointer
+ *      u16 wrapped queue pointer
  */
 #define CSR_WIFI_HIP_Q_WRAP(q, x)    \
     ((((x) >= (q)->q_length)?((x) % (q)->q_length) : (x)))
@@ -415,10 +415,10 @@ struct card
     CsrCharString build_id_string[128];
 
     /* Retrieve from SDIO driver. */
-    CsrUint16 chip_id;
+    u16 chip_id;
 
     /* Read from GBL_CHIP_VERSION. */
-    CsrUint16 chip_version;
+    u16 chip_version;
 
     /* From the SDIO driver (probably 1) */
     u8 function;
@@ -443,7 +443,7 @@ struct card
 #define card_tx_q_unpause(card, q)   (card->tx_q_paused_flag[q] = 0)
 #define card_tx_q_pause(card, q)   (card->tx_q_paused_flag[q] = 1)
 
-    CsrUint16 tx_q_paused_flag[UNIFI_TRAFFIC_Q_MAX + 1 + UNIFI_NO_OF_TX_QS]; /* defensive more than big enough */
+    u16 tx_q_paused_flag[UNIFI_TRAFFIC_Q_MAX + 1 + UNIFI_NO_OF_TX_QS]; /* defensive more than big enough */
 
     /* UDI callback for logging UniFi interactions */
     udi_func_t udi_hook;
@@ -507,8 +507,8 @@ struct card
     {
         u8 *buf;     /* buffer area */
         u8 *ptr;     /* current pos */
-        CsrUint16 count;   /* signal count */
-        CsrUint16 bufsize;
+        u16 count;   /* signal count */
+        u16 bufsize;
     } fh_buffer;
     struct sigbuf th_buffer;
 
@@ -563,7 +563,7 @@ struct card
     u8 memory_resources_allocated;
 
     /* UniFi SDIO I/O Block size. */
-    CsrUint16 sdio_io_block_size;
+    u16 sdio_io_block_size;
 
     /* Pad transfer sizes to SDIO block boundaries */
     CsrBool sdio_io_block_pad;
@@ -621,14 +621,14 @@ struct card
     /* Historic firmware panic codes */
     CsrUint32 panic_data_phy_addr;
     CsrUint32 panic_data_mac_addr;
-    CsrUint16 last_phy_panic_code;
-    CsrUint16 last_phy_panic_arg;
-    CsrUint16 last_mac_panic_code;
-    CsrUint16 last_mac_panic_arg;
+    u16 last_phy_panic_code;
+    u16 last_phy_panic_arg;
+    u16 last_mac_panic_code;
+    u16 last_mac_panic_arg;
 #ifdef CSR_PRE_ALLOC_NET_DATA
     bulk_data_desc_t bulk_data_desc_list[BULK_DATA_PRE_ALLOC_NUM];
-    CsrUint16        prealloc_netdata_r;
-    CsrUint16        prealloc_netdata_w;
+    u16        prealloc_netdata_r;
+    u16        prealloc_netdata_w;
 #endif
 }; /* struct card */
 
@@ -659,10 +659,10 @@ bulk_data_desc_t* card_find_data_slot(card_t *card, CsrInt16 slot);
 
 CsrResult unifi_read32(card_t *card, CsrUint32 unifi_addr, CsrUint32 *pdata);
 CsrResult unifi_readnz(card_t *card, CsrUint32 unifi_addr,
-                       void *pdata, CsrUint16 len);
+                       void *pdata, u16 len);
 CsrInt32 unifi_read_shared_count(card_t *card, CsrUint32 addr);
 
-CsrResult unifi_writen(card_t *card, CsrUint32 unifi_addr, void *pdata, CsrUint16 len);
+CsrResult unifi_writen(card_t *card, CsrUint32 unifi_addr, void *pdata, u16 len);
 
 CsrResult unifi_bulk_rw(card_t *card, CsrUint32 handle,
                         void *pdata, CsrUint32 len, CsrInt16 direction);
@@ -676,12 +676,12 @@ CsrResult unifi_write_8_or_16(card_t *card, CsrUint32 unifi_addr, u8 data);
 CsrResult unifi_read_direct_8_or_16(card_t *card, CsrUint32 addr, u8 *pdata);
 CsrResult unifi_write_direct_8_or_16(card_t *card, CsrUint32 addr, u8 data);
 
-CsrResult unifi_read_direct16(card_t *card, CsrUint32 addr, CsrUint16 *pdata);
+CsrResult unifi_read_direct16(card_t *card, CsrUint32 addr, u16 *pdata);
 CsrResult unifi_read_direct32(card_t *card, CsrUint32 addr, CsrUint32 *pdata);
-CsrResult unifi_read_directn(card_t *card, CsrUint32 addr, void *pdata, CsrUint16 len);
+CsrResult unifi_read_directn(card_t *card, CsrUint32 addr, void *pdata, u16 len);
 
-CsrResult unifi_write_direct16(card_t *card, CsrUint32 addr, CsrUint16 data);
-CsrResult unifi_write_directn(card_t *card, CsrUint32 addr, void *pdata, CsrUint16 len);
+CsrResult unifi_write_direct16(card_t *card, CsrUint32 addr, u16 data);
+CsrResult unifi_write_directn(card_t *card, CsrUint32 addr, void *pdata, u16 len);
 
 CsrResult sdio_read_f0(card_t *card, CsrUint32 addr, u8 *pdata);
 CsrResult sdio_write_f0(card_t *card, CsrUint32 addr, u8 data);
@@ -692,8 +692,8 @@ void prealloc_netdata_free(card_t *card);
 CsrResult prealloc_netdata_alloc(card_t *card);
 #endif
 /* For diagnostic use */
-void dump(void *mem, CsrUint16 len);
-void dump16(void *mem, CsrUint16 len);
+void dump(void *mem, u16 len);
+void dump16(void *mem, u16 len);
 
 #ifdef __cplusplus
 }

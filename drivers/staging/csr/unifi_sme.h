@@ -77,16 +77,16 @@ typedef struct {
 
 
     /* SME's reply to a scan request */
-    CsrUint16 reply_scan_results_count;
+    u16 reply_scan_results_count;
     CsrWifiSmeScanResult* reply_scan_results;
 
 } sme_reply_t;
 
 
 typedef struct {
-    CsrUint16 appHandle;
+    u16 appHandle;
     CsrWifiRouterEncapsulation encapsulation;
-    CsrUint16 protocol;
+    u16 protocol;
     u8 oui[3];
     u8 in_use;
 } sme_ma_unidata_ind_filter_t;
@@ -95,11 +95,11 @@ typedef struct {
 CsrWifiRouterCtrlPortAction uf_sme_port_state(unifi_priv_t *priv,
                                           unsigned char *address,
                                           int queue,
-                                          CsrUint16 interfaceTag);
+                                          u16 interfaceTag);
 unifi_port_cfg_t *uf_sme_port_config_handle(unifi_priv_t *priv,
                                             unsigned char *address,
                                             int queue,
-                                            CsrUint16 interfaceTag);
+                                            u16 interfaceTag);
 
 
 
@@ -210,8 +210,8 @@ int sme_mgt_mib_get(unifi_priv_t *priv,
 int sme_mgt_mib_set(unifi_priv_t *priv,
                     unsigned char *varbind, int length);
 #ifdef CSR_SUPPORT_WEXT_AP
-int sme_ap_start(unifi_priv_t *priv,CsrUint16 interface_tag,CsrWifiSmeApConfig_t *ap_config);
-int sme_ap_stop(unifi_priv_t *priv,CsrUint16 interface_tag);
+int sme_ap_start(unifi_priv_t *priv,u16 interface_tag,CsrWifiSmeApConfig_t *ap_config);
+int sme_ap_stop(unifi_priv_t *priv,u16 interface_tag);
 int sme_ap_config(unifi_priv_t *priv,CsrWifiSmeApMacConfig *ap_mac_config, CsrWifiNmeApConfig *group_security_config);
 int uf_configure_supported_rates(u8 * supportedRates, u8 phySupportedBitmap);
 #endif

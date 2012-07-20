@@ -1295,7 +1295,7 @@ unifi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
       case UNIFI_INIT_NETDEV:
         {
             /* get the proper interfaceTagId */
-            CsrUint16 interfaceTag=0;
+            u16 interfaceTag=0;
             netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
 
             dev = priv->netdev[interfaceTag];
@@ -1483,14 +1483,14 @@ unifi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
                 break;
             }
 
-            pcli->snap_filter.protocols = CsrPmemAlloc(snap_filter.count * sizeof(CsrUint16));
+            pcli->snap_filter.protocols = CsrPmemAlloc(snap_filter.count * sizeof(u16));
             if (!pcli->snap_filter.protocols) {
                 r = -ENOMEM;
                 goto out;
             }
             if (copy_from_user((void*)pcli->snap_filter.protocols,
                                (void*)snap_filter.protocols,
-                               snap_filter.count * sizeof(CsrUint16)))
+                               snap_filter.count * sizeof(u16)))
             {
                 CsrPmemFree(pcli->snap_filter.protocols);
                 r = -EFAULT;
@@ -1805,16 +1805,16 @@ udi_log_event(ul_client_t *pcli,
         {
             int timestamp = jiffies_to_msecs(jiffies);
             unifi_debug_log_to_buf("T:");
-            unifi_debug_log_to_buf("%04X%04X ", *(((CsrUint16*)&timestamp) + 1),
-                                   *(CsrUint16*)&timestamp);
+            unifi_debug_log_to_buf("%04X%04X ", *(((u16*)&timestamp) + 1),
+                                   *(u16*)&timestamp);
         }
 
         /* Add signal */
         unifi_debug_log_to_buf("S%s:%04X R:%04X D:%04X ",
                                dir ? "T" : "F",
-                               *(CsrUint16*)signal,
-                               *(CsrUint16*)(signal + 2),
-                               *(CsrUint16*)(signal + 4));
+                               *(u16*)signal,
+                               *(u16*)(signal + 2),
+                               *(u16*)(signal + 4));
         unifi_debug_hex_to_buf(signal + 6, signal_len - 6);
 
         /* Add bulk data (assume 1 bulk data per signal) */

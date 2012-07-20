@@ -28,8 +28,8 @@ CsrUtf16String *CsrUtf82Utf16String(const CsrUtf8String *utf8String);
 CsrUtf16String *CsrUtf16StrCpy(CsrUtf16String *target, const CsrUtf16String *source);
 CsrUtf16String *CsrUtf16StringDuplicate(const CsrUtf16String *source);
 
-CsrUint16 CsrUtf16StrICmp(const CsrUtf16String *string1, const CsrUtf16String *string2);
-CsrUint16 CsrUtf16StrNICmp(const CsrUtf16String *string1, const CsrUtf16String *string2, CsrUint32 count);
+u16 CsrUtf16StrICmp(const CsrUtf16String *string1, const CsrUtf16String *string2);
+u16 CsrUtf16StrNICmp(const CsrUtf16String *string1, const CsrUtf16String *string2, CsrUint32 count);
 
 CsrUtf16String *CsrUtf16MemCpy(CsrUtf16String *dest, const CsrUtf16String *src, CsrUint32 count);
 CsrUtf16String *CsrUtf16ConcatenateTexts(const CsrUtf16String *inputText1, const CsrUtf16String *inputText2,

@@ -25,7 +25,7 @@ extern "C" {
 
 /* Common macros for NME and SME to be used temporarily until SoftMAC changes are made */
 #define CSR_WIFI_NUM_INTERFACES        (u8)0x1
-#define CSR_WIFI_INTERFACE_IN_USE      (CsrUint16)0x0
+#define CSR_WIFI_INTERFACE_IN_USE      (u16)0x0
 
 /* This is used at places where interface Id isn't available*/
 #define CSR_WIFI_INTERFACE_ZERO        0
@@ -37,14 +37,14 @@ extern "C" {
 
 /* Extract the Interface Id from the event */
 #define CsrWifiVifUtilsGetVifTagFromEvent(msg) \
-    ((CsrUint16) * ((CsrUint16 *) ((u8 *) (msg) + sizeof(CsrWifiFsmEvent))))
+    ((u16) * ((u16 *) ((u8 *) (msg) + sizeof(CsrWifiFsmEvent))))
 
 /* The HPI Vif combines the type and the interface id */
 #define CsrWifiVifUtilsGetVifTagFromHipEvent(msg) \
     ((msg)->virtualInterfaceIdentifier & 0x00FF)
 
 #define CsrWifiVifUtilsPackHipEventVif(type, interfaceId) \
-    ((CsrUint16)((interfaceId) | ((type) << 8)))
+    ((u16)((interfaceId) | ((type) << 8)))
 
 
 /* TYPES DEFINITIONS ********************************************************/
@@ -60,7 +60,7 @@ extern "C" {
  *
  * @param[in] u8 : interface capability bitmap
  * @param[in] u8* : pointer to the array of current interface modes
- * @param[in] CsrUint16 : interfaceTag
+ * @param[in] u16 : interfaceTag
  * @param[in] CsrWifiInterfaceMode : mode
  *
  * @return
@@ -68,7 +68,7 @@ extern "C" {
  */
 extern CsrBool CsrWifiVifUtilsCheckCompatibility(u8             interfaceCapability,
                                                  u8            *currentInterfaceModes,
-                                                 CsrUint16            interfaceTag,
+                                                 u16            interfaceTag,
                                                  CsrWifiInterfaceMode mode);
 
 /**
@@ -77,12 +77,12 @@ extern CsrBool CsrWifiVifUtilsCheckCompatibility(u8             interfaceCapabil
  *     NOTE: Only checks that the interface is supported, no checks are made to
  *     determine whether a supported interface may be made active.
  *
- * @param[in] CsrUint16 : interfaceTag
+ * @param[in] u16 : interfaceTag
  *
  * @return
  *     CsrBool : returns true if the interface is supported, otherwise false.
  */
-extern CsrBool CsrWifiVifUtilsIsSupported(CsrUint16 interfaceTag);
+extern CsrBool CsrWifiVifUtilsIsSupported(u16 interfaceTag);
 
 #ifdef CSR_LOG_ENABLE
 /**

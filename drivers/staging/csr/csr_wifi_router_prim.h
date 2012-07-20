@@ -116,7 +116,7 @@ typedef CsrUint32 CsrWifiRouterOui;
                    - See IEEE 802.11 Standard
 
 *******************************************************************************/
-typedef CsrUint16 CsrWifiRouterPriority;
+typedef u16 CsrWifiRouterPriority;
 #define CSR_WIFI_ROUTER_PRIORITY_QOS_UP0      ((CsrWifiRouterPriority) 0x0000)
 #define CSR_WIFI_ROUTER_PRIORITY_QOS_UP1      ((CsrWifiRouterPriority) 0x0001)
 #define CSR_WIFI_ROUTER_PRIORITY_QOS_UP2      ((CsrWifiRouterPriority) 0x0002)
@@ -180,9 +180,9 @@ typedef CsrUint16 CsrWifiRouterPriority;
 typedef struct
 {
     CsrWifiFsmEvent            common;
-    CsrUint16                  interfaceTag;
+    u16                  interfaceTag;
     CsrWifiRouterEncapsulation encapsulation;
-    CsrUint16                  protocol;
+    u16                  protocol;
     CsrUint32                  oui;
 } CsrWifiRouterMaPacketSubscribeReq;
 
@@ -203,7 +203,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
     u8        subscriptionHandle;
 } CsrWifiRouterMaPacketUnsubscribeReq;
 
@@ -242,9 +242,9 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent                common;
-    CsrUint16                      interfaceTag;
+    u16                      interfaceTag;
     u8                       subscriptionHandle;
-    CsrUint16                      frameLength;
+    u16                      frameLength;
     u8                      *frame;
     CsrWifiRouterFrameFreeFunction freeFunction;
     CsrWifiRouterPriority          priority;
@@ -271,7 +271,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
     u8        subscriptionHandle;
     CsrResult       result;
 } CsrWifiRouterMaPacketRes;
@@ -304,7 +304,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent       common;
-    CsrUint16             interfaceTag;
+    u16             interfaceTag;
     CsrUint32             hostTag;
     CsrWifiRouterPriority priority;
     CsrWifiMacAddress     peerMacAddress;
@@ -331,10 +331,10 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
     u8        subscriptionHandle;
     CsrResult       status;
-    CsrUint16       allocOffset;
+    u16       allocOffset;
 } CsrWifiRouterMaPacketSubscribeCfm;
 
 /*******************************************************************************
@@ -355,7 +355,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
     CsrResult       status;
 } CsrWifiRouterMaPacketUnsubscribeCfm;
 
@@ -379,10 +379,10 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
     CsrResult       result;
     CsrUint32       hostTag;
-    CsrUint16       rate;
+    u16       rate;
 } CsrWifiRouterMaPacketCfm;
 
 /*******************************************************************************
@@ -410,15 +410,15 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent                common;
-    CsrUint16                      interfaceTag;
+    u16                      interfaceTag;
     u8                       subscriptionHandle;
     CsrResult                      result;
-    CsrUint16                      frameLength;
+    u16                      frameLength;
     u8                      *frame;
     CsrWifiRouterFrameFreeFunction freeFunction;
     CsrInt16                       rssi;
     CsrInt16                       snr;
-    CsrUint16                      rate;
+    u16                      rate;
 } CsrWifiRouterMaPacketInd;
 
 

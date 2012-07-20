@@ -71,7 +71,7 @@ extern "C" {
 
 CsrInt32 get_packed_struct_size(const u8 *buf);
 CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig);
-CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, CsrUint16 *sig_len);
+CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len);
 
 #ifdef __cplusplus
 }

@@ -18,7 +18,7 @@
 
 static CsrMsgConvEntry *converter;
 
-CsrMsgConvPrimEntry *CsrMsgConvFind(CsrUint16 primType)
+CsrMsgConvPrimEntry *CsrMsgConvFind(u16 primType)
 {
     CsrMsgConvPrimEntry *ptr = NULL;
 
@@ -41,7 +41,7 @@ CsrMsgConvPrimEntry *CsrMsgConvFind(CsrUint16 primType)
     return ptr;
 }
 
-static const CsrMsgConvMsgEntry *find_msg_converter(CsrMsgConvPrimEntry *ptr, CsrUint16 msgType)
+static const CsrMsgConvMsgEntry *find_msg_converter(CsrMsgConvPrimEntry *ptr, u16 msgType)
 {
     const CsrMsgConvMsgEntry *cv = ptr->conv;
     if (ptr->lookupFunc)
@@ -71,7 +71,7 @@ static const CsrMsgConvMsgEntry *find_msg_converter(CsrMsgConvPrimEntry *ptr, Cs
     return cv;
 }
 
-static void *deserialize_data(CsrUint16 primType,
+static void *deserialize_data(u16 primType,
     CsrSize length,
     u8 *data)
 {
@@ -83,7 +83,7 @@ static void *deserialize_data(CsrUint16 primType,
     if (ptr)
     {
         const CsrMsgConvMsgEntry *cv;
-        CsrUint16 msgId = 0;
+        u16 msgId = 0;
         CsrSize offset = 0;
         CsrUint16Des(&msgId, data, &offset);
 
@@ -105,7 +105,7 @@ static void *deserialize_data(CsrUint16 primType,
     return ret;
 }
 
-static CsrSize sizeof_message(CsrUint16 primType, void *msg)
+static CsrSize sizeof_message(u16 primType, void *msg)
 {
     CsrMsgConvPrimEntry *ptr = CsrMsgConvFind(primType);
     CsrSize ret;
@@ -113,7 +113,7 @@ static CsrSize sizeof_message(CsrUint16 primType, void *msg)
     if (ptr)
     {
         const CsrMsgConvMsgEntry *cv;
-        CsrUint16 msgId = *(CsrUint16 *) msg;
+        u16 msgId = *(u16 *) msg;
 
         cv = find_msg_converter(ptr, msgId);
         if (cv)
@@ -133,7 +133,7 @@ static CsrSize sizeof_message(CsrUint16 primType, void *msg)
     return ret;
 }
 
-static CsrBool free_message(CsrUint16 primType, u8 *data)
+static CsrBool free_message(u16 primType, u8 *data)
 {
     CsrMsgConvPrimEntry *ptr;
     CsrBool ret;
@@ -143,7 +143,7 @@ static CsrBool free_message(CsrUint16 primType, u8 *data)
     if (ptr)
     {
         const CsrMsgConvMsgEntry *cv;
-        CsrUint16 msgId = *(CsrUint16 *) data;
+        u16 msgId = *(u16 *) data;
 
         cv = find_msg_converter(ptr, msgId);
         if (cv)
@@ -164,7 +164,7 @@ static CsrBool free_message(CsrUint16 primType, u8 *data)
     return ret;
 }
 
-static u8 *serialize_message(CsrUint16 primType,
+static u8 *serialize_message(u16 primType,
     void *msg,
     CsrSize *length,
     u8 *buffer)
@@ -180,7 +180,7 @@ static u8 *serialize_message(CsrUint16 primType,
     {
         const CsrMsgConvMsgEntry *cv;
 
-        cv = find_msg_converter(ptr, *(CsrUint16 *) msg);
+        cv = find_msg_converter(ptr, *(u16 *) msg);
         if (cv)
         {
             ret = cv->serFunc(buffer, length, msg);
@@ -198,12 +198,12 @@ static u8 *serialize_message(CsrUint16 primType,
     return ret;
 }
 
-CsrSize CsrMsgConvSizeof(CsrUint16 primType, void *msg)
+CsrSize CsrMsgConvSizeof(u16 primType, void *msg)
 {
     return sizeof_message(primType, msg);
 }
 
-u8 *CsrMsgConvSerialize(u8 *buffer, CsrSize maxBufferOffset, CsrSize *offset, CsrUint16 primType, void *msg)
+u8 *CsrMsgConvSerialize(u8 *buffer, CsrSize maxBufferOffset, CsrSize *offset, u16 primType, void *msg)
 {
     if (converter)
     {
@@ -221,7 +221,7 @@ u8 *CsrMsgConvSerialize(u8 *buffer, CsrSize maxBufferOffset, CsrSize *offset, Cs
 }
 
 /* Insert profile converter at head of converter list. */
-void CsrMsgConvInsert(CsrUint16 primType, const CsrMsgConvMsgEntry *ce)
+void CsrMsgConvInsert(u16 primType, const CsrMsgConvMsgEntry *ce)
 {
     CsrMsgConvPrimEntry *pc;
     pc = CsrMsgConvFind(primType);
@@ -242,7 +242,7 @@ void CsrMsgConvInsert(CsrUint16 primType, const CsrMsgConvMsgEntry *ce)
 }
 EXPORT_SYMBOL_GPL(CsrMsgConvInsert);
 
-CsrMsgConvMsgEntry *CsrMsgConvFindEntry(CsrUint16 primType, CsrUint16 msgType)
+CsrMsgConvMsgEntry *CsrMsgConvFindEntry(u16 primType, u16 msgType)
 {
     CsrMsgConvPrimEntry *ptr = CsrMsgConvFind(primType);
     if (ptr)
@@ -253,18 +253,18 @@ CsrMsgConvMsgEntry *CsrMsgConvFindEntry(CsrUint16 primType, CsrUint16 msgType)
 }
 EXPORT_SYMBOL_GPL(CsrMsgConvFindEntry);
 
-CsrMsgConvMsgEntry *CsrMsgConvFindEntryByMsg(CsrUint16 primType, const void *msg)
+CsrMsgConvMsgEntry *CsrMsgConvFindEntryByMsg(u16 primType, const void *msg)
 {
     CsrMsgConvPrimEntry *ptr = CsrMsgConvFind(primType);
     if (ptr && msg)
     {
-        CsrUint16 msgType = *((CsrUint16 *) msg);
+        u16 msgType = *((u16 *) msg);
         return (CsrMsgConvMsgEntry *) find_msg_converter(ptr, msgType);
     }
     return NULL;
 }
 
-void CsrMsgConvCustomLookupRegister(CsrUint16 primType, CsrMsgCustomLookupFunc *lookupFunc)
+void CsrMsgConvCustomLookupRegister(u16 primType, CsrMsgCustomLookupFunc *lookupFunc)
 {
     CsrMsgConvPrimEntry *ptr = CsrMsgConvFind(primType);
     if (ptr)

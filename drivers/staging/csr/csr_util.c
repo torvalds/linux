@@ -55,7 +55,7 @@ u8 CsrBitCountDense(CsrUint32 n)
 /*------------------------------------------------------------------*/
 CsrBool CsrHexStrToUint8(const CsrCharString *string, u8 *returnValue)
 {
-    CsrUint16 currentIndex = 0;
+    u16 currentIndex = 0;
     *returnValue = 0;
     if ((string[currentIndex] == '0') && (CSR_TOUPPER(string[currentIndex + 1]) == 'X'))
     {
@@ -77,9 +77,9 @@ CsrBool CsrHexStrToUint8(const CsrCharString *string, u8 *returnValue)
     return FALSE;
 }
 
-CsrBool CsrHexStrToUint16(const CsrCharString *string, CsrUint16 *returnValue)
+CsrBool CsrHexStrToUint16(const CsrCharString *string, u16 *returnValue)
 {
-    CsrUint16 currentIndex = 0;
+    u16 currentIndex = 0;
     *returnValue = 0;
     if ((string[currentIndex] == '0') && (CSR_TOUPPER(string[currentIndex + 1]) == 'X'))
     {
@@ -89,7 +89,7 @@ CsrBool CsrHexStrToUint16(const CsrCharString *string, CsrUint16 *returnValue)
     {
         while (((string[currentIndex] >= '0') && (string[currentIndex] <= '9')) || ((CSR_TOUPPER(string[currentIndex]) >= 'A') && (CSR_TOUPPER(string[currentIndex]) <= 'F')))
         {
-            *returnValue = (CsrUint16) (*returnValue * 16 + (((string[currentIndex] >= '0') && (string[currentIndex] <= '9')) ? string[currentIndex] - '0' : CSR_TOUPPER(string[currentIndex]) - 'A' + 10));
+            *returnValue = (u16) (*returnValue * 16 + (((string[currentIndex] >= '0') && (string[currentIndex] <= '9')) ? string[currentIndex] - '0' : CSR_TOUPPER(string[currentIndex]) - 'A' + 10));
             currentIndex++;
             if (currentIndex >= 4)
             {
@@ -103,7 +103,7 @@ CsrBool CsrHexStrToUint16(const CsrCharString *string, CsrUint16 *returnValue)
 
 CsrBool CsrHexStrToUint32(const CsrCharString *string, CsrUint32 *returnValue)
 {
-    CsrUint16 currentIndex = 0;
+    u16 currentIndex = 0;
     *returnValue = 0;
     if ((string[currentIndex] == '0') && (CSR_TOUPPER(string[currentIndex + 1]) == 'X'))
     {
@@ -190,14 +190,14 @@ void CsrIntToBase10(CsrInt32 number, CsrCharString *str)
     CsrStrCpy(str, res);
 }
 
-void CsrUInt16ToHex(CsrUint16 number, CsrCharString *str)
+void CsrUInt16ToHex(u16 number, CsrCharString *str)
 {
-    CsrUint16 index;
-    CsrUint16 currentValue;
+    u16 index;
+    u16 currentValue;
 
     for (index = 0; index < 4; index++)
     {
-        currentValue = (CsrUint16) (number & 0x000F);
+        currentValue = (u16) (number & 0x000F);
         number >>= 4;
         str[3 - index] = (char) (currentValue > 9 ? currentValue + 55 : currentValue + '0');
     }
@@ -206,7 +206,7 @@ void CsrUInt16ToHex(CsrUint16 number, CsrCharString *str)
 
 void CsrUInt32ToHex(CsrUint32 number, CsrCharString *str)
 {
-    CsrUint16 index;
+    u16 index;
     CsrUint32 currentValue;
 
     for (index = 0; index < 8; index++)
@@ -334,7 +334,7 @@ CsrUint32 CsrStrToInt(const CsrCharString *str)
     digit = 1;
 
     /* Start from the string end */
-    for (i = (CsrUint16) (CsrStrLen(str) - 1); i >= 0; i--)
+    for (i = (u16) (CsrStrLen(str) - 1); i >= 0; i--)
     {
         /* Only convert numbers */
         if ((str[i] >= '0') && (str[i] <= '9'))

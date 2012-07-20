@@ -46,7 +46,7 @@ extern "C" {
 
 /* Panic interface used by technologies */
 /* DEPRECATED - replaced by csr_log_text.h */
-void CsrPanic(u8 tech, CsrUint16 reason, const char *p);
+void CsrPanic(u8 tech, u16 reason, const char *p);
 
 #ifdef __cplusplus
 }

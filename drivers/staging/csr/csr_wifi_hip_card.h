@@ -68,7 +68,7 @@ CsrResult CardIntEnabled(card_t *card, CsrBool *enabled);
 /*****************************************************************************
  * CardGetDataSlotSize
  */
-CsrUint16 CardGetDataSlotSize(card_t *card);
+u16 CardGetDataSlotSize(card_t *card);
 
 /*****************************************************************************
  * CardWriteBulkData -
@@ -93,9 +93,9 @@ void CardClearFromHostDataSlotWithoutFreeingBulkData(card_t *card, const CsrInt1
 /*****************************************************************************
  * CardGetFreeFromHostDataSlots -
  */
-CsrUint16 CardGetFreeFromHostDataSlots(card_t *card);
+u16 CardGetFreeFromHostDataSlots(card_t *card);
 
-CsrUint16 CardAreAllFromHostDataSlotsEmpty(card_t *card);
+u16 CardAreAllFromHostDataSlotsEmpty(card_t *card);
 
 CsrResult card_start_processor(card_t *card, enum unifi_dbg_processors_select which);
 
@@ -112,7 +112,7 @@ CsrResult ConvertCsrSdioToCsrHipResult(card_t *card, CsrResult csrResult);
 #ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
 void unifi_debug_log_to_buf(const CsrCharString *fmt, ...);
 void unifi_debug_string_to_buf(const CsrCharString *str);
-void unifi_debug_hex_to_buf(const CsrCharString *buff, CsrUint16 length);
+void unifi_debug_hex_to_buf(const CsrCharString *buff, u16 length);
 #endif
 
 

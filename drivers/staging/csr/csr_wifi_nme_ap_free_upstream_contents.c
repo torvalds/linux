@@ -25,7 +25,7 @@
  *      eventClass: only the value CSR_WIFI_NME_AP_PRIM will be handled
  *      message:    the message to free
  *----------------------------------------------------------------------------*/
-void CsrWifiNmeApFreeUpstreamMessageContents(CsrUint16 eventClass, void *message)
+void CsrWifiNmeApFreeUpstreamMessageContents(u16 eventClass, void *message)
 {
     if (eventClass != CSR_WIFI_NME_AP_PRIM)
     {

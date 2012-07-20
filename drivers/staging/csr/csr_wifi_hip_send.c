@@ -104,7 +104,7 @@ static CsrResult send_signal(card_t *card, const u8 *sigptr, CsrUint32 siglen,
                              const bulk_data_param_t *bulkdata,
                              q_t *sigq, CsrUint32 priority_q, CsrUint32 run_bh)
 {
-    CsrUint16 i, data_slot_size;
+    u16 i, data_slot_size;
     card_signal_t *csptr;
     CsrInt16 qe;
     CsrResult r;
@@ -128,7 +128,7 @@ static CsrResult send_signal(card_t *card, const u8 *sigptr, CsrUint32 siglen,
     csptr = CSR_WIFI_HIP_Q_SLOT_DATA(sigq, qe);
 
     /* Make up the card_signal struct */
-    csptr->signal_length = (CsrUint16)siglen;
+    csptr->signal_length = (u16)siglen;
     CsrMemCpy((void *)csptr->sigbuf, (void *)sigptr, siglen);
 
     for (i = 0; i < UNIFI_MAX_DATA_REFERENCES; ++i)
@@ -307,7 +307,7 @@ CsrResult unifi_send_signal(card_t *card, const u8 *sigptr, CsrUint32 siglen,
                             const bulk_data_param_t *bulkdata)
 {
     q_t *sig_soft_q;
-    CsrUint16 signal_id;
+    u16 signal_id;
     CsrResult r;
     CsrUint32 run_bh;
     CsrUint32 priority_q;
@@ -328,7 +328,7 @@ CsrResult unifi_send_signal(card_t *card, const u8 *sigptr, CsrUint32 siglen,
      */
     if (signal_id == CSR_MA_PACKET_REQUEST_ID)
     {
-        CsrUint16 frame_priority;
+        u16 frame_priority;
 
         if (card->periodic_wake_mode == UNIFI_PERIODIC_WAKE_HOST_ENABLED)
         {
@@ -386,7 +386,7 @@ CsrResult unifi_send_signal(card_t *card, const u8 *sigptr, CsrUint32 siglen,
 CsrResult unifi_send_resources_available(card_t *card, const u8 *sigptr)
 {
     q_t *sig_soft_q;
-    CsrUint16 signal_id = GET_SIGNAL_ID(sigptr);
+    u16 signal_id = GET_SIGNAL_ID(sigptr);
 
     /*
      * If the signal is a CSR_MA_PACKET_REQUEST ,
@@ -394,7 +394,7 @@ CsrResult unifi_send_resources_available(card_t *card, const u8 *sigptr)
      */
     if (signal_id == CSR_MA_PACKET_REQUEST_ID)
     {
-        CsrUint16 frame_priority;
+        u16 frame_priority;
         CsrUint32 priority_q;
 
         /* Map the frame priority to a traffic queue index. */

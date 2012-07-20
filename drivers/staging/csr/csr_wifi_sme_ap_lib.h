@@ -43,7 +43,7 @@ extern "C" {
  *  PARAMETERS
  *      Deallocates the resources in a CSR_WIFI_SME_AP upstream message
  *----------------------------------------------------------------------------*/
-void CsrWifiSmeApFreeUpstreamMessageContents(CsrUint16 eventClass, void *message);
+void CsrWifiSmeApFreeUpstreamMessageContents(u16 eventClass, void *message);
 
 /*----------------------------------------------------------------------------*
  *  CsrWifiSmeApFreeDownstreamMessageContents
@@ -55,7 +55,7 @@ void CsrWifiSmeApFreeUpstreamMessageContents(CsrUint16 eventClass, void *message
  *  PARAMETERS
  *      Deallocates the resources in a CSR_WIFI_SME_AP downstream message
  *----------------------------------------------------------------------------*/
-void CsrWifiSmeApFreeDownstreamMessageContents(CsrUint16 eventClass, void *message);
+void CsrWifiSmeApFreeDownstreamMessageContents(u16 eventClass, void *message);
 
 /*----------------------------------------------------------------------------*
  * Enum to string functions
@@ -525,7 +525,7 @@ extern const CsrCharString *CsrWifiSmeApDownstreamPrimNames[CSR_WIFI_SME_AP_PRIM
     msg__->secIeLength = (secIeLength__); \
     msg__->secIe = (secIe__); \
     msg__->groupKeyId = (groupKeyId__); \
-    CsrMemCpy(msg__->seqNumber, (seqNumber__), sizeof(CsrUint16) * 8);
+    CsrMemCpy(msg__->seqNumber, (seqNumber__), sizeof(u16) * 8);
 
 #define CsrWifiSmeApStaNotifyIndSendTo(dst__, src__, interfaceTag__, mediaStatus__, peerMacAddress__, peerDeviceAddress__, disassocReason__, deauthReason__, WpsRegistration__, secIeLength__, secIe__, groupKeyId__, seqNumber__) \
     { \

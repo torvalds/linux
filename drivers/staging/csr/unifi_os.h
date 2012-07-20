@@ -90,11 +90,11 @@ extern int unifi_debug;
     } while (0)
 
 
-void unifi_dump(void *ospriv, int lvl, const char *msg, void *mem, CsrUint16 len);
-void dump(void *mem, CsrUint16 len);
-void dump16(void *mem, CsrUint16 len);
+void unifi_dump(void *ospriv, int lvl, const char *msg, void *mem, u16 len);
+void dump(void *mem, u16 len);
+void dump16(void *mem, u16 len);
 #ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
-void dump_str(void *mem, CsrUint16 len);
+void dump_str(void *mem, u16 len);
 #endif /* CSR_WIFI_HIP_DEBUG_OFFLINE */
 
 void unifi_error(void* ospriv, const char *fmt, ...);
@@ -113,11 +113,11 @@ void unifi_trace(void* ospriv, int level, const char *fmt, ...);
 
 #define ASSERT(cond)
 
-static inline void unifi_dump(void *ospriv, int lvl, const char *msg, void *mem, CsrUint16 len) {}
-static inline void dump(void *mem, CsrUint16 len) {}
-static inline void dump16(void *mem, CsrUint16 len) {}
+static inline void unifi_dump(void *ospriv, int lvl, const char *msg, void *mem, u16 len) {}
+static inline void dump(void *mem, u16 len) {}
+static inline void dump16(void *mem, u16 len) {}
 #ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
-static inline void dump_str(void *mem, CsrUint16 len) {}
+static inline void dump_str(void *mem, u16 len) {}
 #endif /* CSR_WIFI_HIP_DEBUG_OFFLINE */
 
 void unifi_error_nop(void* ospriv, const char *fmt, ...);

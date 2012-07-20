@@ -161,7 +161,7 @@ typedef u8 CsrWifiSmeAmpStatus;
                    - For future use.
 
 *******************************************************************************/
-typedef CsrUint16 CsrWifiSmeAuthMode;
+typedef u16 CsrWifiSmeAuthMode;
 #define CSR_WIFI_SME_AUTH_MODE_80211_OPEN      ((CsrWifiSmeAuthMode) 0x0001)
 #define CSR_WIFI_SME_AUTH_MODE_80211_SHARED    ((CsrWifiSmeAuthMode) 0x0002)
 #define CSR_WIFI_SME_AUTH_MODE_8021X_WPA       ((CsrWifiSmeAuthMode) 0x0004)
@@ -368,7 +368,7 @@ typedef u8 CsrWifiSmeD3AutoScanMode;
                    - Selects SMS4 for broadcast messages
 
 *******************************************************************************/
-typedef CsrUint16 CsrWifiSmeEncryption;
+typedef u16 CsrWifiSmeEncryption;
 #define CSR_WIFI_SME_ENCRYPTION_CIPHER_NONE              ((CsrWifiSmeEncryption) 0x0000)
 #define CSR_WIFI_SME_ENCRYPTION_CIPHER_PAIRWISE_WEP40    ((CsrWifiSmeEncryption) 0x0001)
 #define CSR_WIFI_SME_ENCRYPTION_CIPHER_PAIRWISE_WEP104   ((CsrWifiSmeEncryption) 0x0002)
@@ -525,7 +525,7 @@ typedef u8 CsrWifiSmeHostPowerMode;
                    - See IEEE 802.11 Standard
 
 *******************************************************************************/
-typedef CsrUint16 CsrWifiSmeIEEE80211Reason;
+typedef u16 CsrWifiSmeIEEE80211Reason;
 #define CSR_WIFI_SME_IEEE80211_REASON_SUCCESS                                   ((CsrWifiSmeIEEE80211Reason) 0x0000)
 #define CSR_WIFI_SME_IEEE80211_REASON_UNSPECIFIED_REASON                        ((CsrWifiSmeIEEE80211Reason) 0x0001)
 #define CSR_WIFI_SME_IEEE80211_REASON_AUTHENTICATION_NOT_VALID                  ((CsrWifiSmeIEEE80211Reason) 0x0002)
@@ -712,7 +712,7 @@ typedef CsrUint16 CsrWifiSmeIEEE80211Reason;
                    - See IEEE 802.11 Standard
 
 *******************************************************************************/
-typedef CsrUint16 CsrWifiSmeIEEE80211Result;
+typedef u16 CsrWifiSmeIEEE80211Result;
 #define CSR_WIFI_SME_IEEE80211_RESULT_SUCCESS                                          ((CsrWifiSmeIEEE80211Result) 0x0000)
 #define CSR_WIFI_SME_IEEE80211_RESULT_UNSPECIFIED_FAILURE                              ((CsrWifiSmeIEEE80211Result) 0x0001)
 #define CSR_WIFI_SME_IEEE80211_RESULT_REFUSED_CAPABILITIES_MISMATCH                    ((CsrWifiSmeIEEE80211Result) 0x000a)
@@ -1534,7 +1534,7 @@ typedef u8 CsrWifiSmeWmmQosInfo;
                    - Physical Display : Attached to the device
 
 *******************************************************************************/
-typedef CsrUint16 CsrWifiSmeWpsConfigType;
+typedef u16 CsrWifiSmeWpsConfigType;
 #define CSR_WIFI_WPS_CONFIG_LABEL              ((CsrWifiSmeWpsConfigType) 0x0004)
 #define CSR_WIFI_WPS_CONFIG_DISPLAY            ((CsrWifiSmeWpsConfigType) 0x0008)
 #define CSR_WIFI_WPS_CONFIG_EXT_NFC            ((CsrWifiSmeWpsConfigType) 0x0010)
@@ -1806,7 +1806,7 @@ typedef u8 CsrWifiSmeWpsDeviceSubCategory;
                                       negotiation procedure
 
 *******************************************************************************/
-typedef CsrUint16 CsrWifiSmeWpsDpid;
+typedef u16 CsrWifiSmeWpsDpid;
 #define CSR_WIFI_SME_WPS_DPID_PIN         ((CsrWifiSmeWpsDpid) 0x0000)
 #define CSR_WIFI_SME_WPS_DPID_USER        ((CsrWifiSmeWpsDpid) 0x0001)
 #define CSR_WIFI_SME_WPS_DPID_MACHINE     ((CsrWifiSmeWpsDpid) 0x0002)
@@ -1842,7 +1842,7 @@ typedef u8 CsrWifiSmeWpsRegistration;
     Mask type for use with the values defined by CsrWifiSmeAuthMode
 
 *******************************************************************************/
-typedef CsrUint16 CsrWifiSmeAuthModeMask;
+typedef u16 CsrWifiSmeAuthModeMask;
 /*******************************************************************************
 
   NAME
@@ -1852,7 +1852,7 @@ typedef CsrUint16 CsrWifiSmeAuthModeMask;
     Mask type for use with the values defined by CsrWifiSmeEncryption
 
 *******************************************************************************/
-typedef CsrUint16 CsrWifiSmeEncryptionMask;
+typedef u16 CsrWifiSmeEncryptionMask;
 /*******************************************************************************
 
   NAME
@@ -1922,7 +1922,7 @@ typedef u8 CsrWifiSmeWmmQosInfoMask;
     Mask type for use with the values defined by CsrWifiSmeWpsConfigType
 
 *******************************************************************************/
-typedef CsrUint16 CsrWifiSmeWpsConfigTypeMask;
+typedef u16 CsrWifiSmeWpsConfigTypeMask;
 
 
 /*******************************************************************************
@@ -1944,10 +1944,10 @@ typedef CsrUint16 CsrWifiSmeWpsConfigTypeMask;
 *******************************************************************************/
 typedef struct
 {
-    CsrUint16 atimWindowTu;
-    CsrUint16 beaconPeriodTu;
-    CsrUint16 joinOnlyAttempts;
-    CsrUint16 joinAttemptIntervalMs;
+    u16 atimWindowTu;
+    u16 beaconPeriodTu;
+    u16 joinOnlyAttempts;
+    u16 joinAttemptIntervalMs;
 } CsrWifiSmeAdHocConfig;
 
 /*******************************************************************************
@@ -1966,8 +1966,8 @@ typedef struct
 typedef struct
 {
     u8  listenChannel;
-    CsrUint16 availabilityDuration;
-    CsrUint16 avalabilityPeriod;
+    u16 availabilityDuration;
+    u16 avalabilityPeriod;
 } CsrWifiSmeAvailabilityConfig;
 
 /*******************************************************************************
@@ -2039,18 +2039,18 @@ typedef struct
 {
     CsrBool   coexEnableSchemeManagement;
     CsrBool   coexPeriodicWakeHost;
-    CsrUint16 coexTrafficBurstyLatencyMs;
-    CsrUint16 coexTrafficContinuousLatencyMs;
-    CsrUint16 coexObexBlackoutDurationMs;
-    CsrUint16 coexObexBlackoutPeriodMs;
-    CsrUint16 coexA2dpBrBlackoutDurationMs;
-    CsrUint16 coexA2dpBrBlackoutPeriodMs;
-    CsrUint16 coexA2dpEdrBlackoutDurationMs;
-    CsrUint16 coexA2dpEdrBlackoutPeriodMs;
-    CsrUint16 coexPagingBlackoutDurationMs;
-    CsrUint16 coexPagingBlackoutPeriodMs;
-    CsrUint16 coexInquiryBlackoutDurationMs;
-    CsrUint16 coexInquiryBlackoutPeriodMs;
+    u16 coexTrafficBurstyLatencyMs;
+    u16 coexTrafficContinuousLatencyMs;
+    u16 coexObexBlackoutDurationMs;
+    u16 coexObexBlackoutPeriodMs;
+    u16 coexA2dpBrBlackoutDurationMs;
+    u16 coexA2dpBrBlackoutPeriodMs;
+    u16 coexA2dpEdrBlackoutDurationMs;
+    u16 coexA2dpEdrBlackoutPeriodMs;
+    u16 coexPagingBlackoutDurationMs;
+    u16 coexPagingBlackoutPeriodMs;
+    u16 coexInquiryBlackoutDurationMs;
+    u16 coexInquiryBlackoutPeriodMs;
 } CsrWifiSmeCoexConfig;
 
 /*******************************************************************************
@@ -2167,7 +2167,7 @@ typedef struct
 *******************************************************************************/
 typedef struct
 {
-    CsrUint16 length;
+    u16 length;
     u8 *data;
 } CsrWifiSmeDataBlock;
 
@@ -2233,9 +2233,9 @@ typedef struct
 {
     CsrBool   unifiFixMaxTxDataRate;
     u8  unifiFixTxDataRate;
-    CsrUint16 dot11RtsThreshold;
-    CsrUint16 dot11FragmentationThreshold;
-    CsrUint16 dot11CurrentTxPowerLevel;
+    u16 dot11RtsThreshold;
+    u16 dot11FragmentationThreshold;
+    u16 dot11CurrentTxPowerLevel;
 } CsrWifiSmeMibConfig;
 
 /*******************************************************************************
@@ -2255,8 +2255,8 @@ typedef struct
 typedef struct
 {
     u8  listenChannel;
-    CsrUint16 availabilityDuration;
-    CsrUint16 avalabilityPeriod;
+    u16 availabilityDuration;
+    u16 avalabilityPeriod;
 } CsrWifiSmeP2pProfileIdentity;
 
 /*******************************************************************************
@@ -2402,12 +2402,12 @@ typedef struct
 *******************************************************************************/
 typedef struct
 {
-    CsrUint16 intervalSeconds;
-    CsrUint16 validitySeconds;
-    CsrUint16 minActiveChannelTimeTu;
-    CsrUint16 maxActiveChannelTimeTu;
-    CsrUint16 minPassiveChannelTimeTu;
-    CsrUint16 maxPassiveChannelTimeTu;
+    u16 intervalSeconds;
+    u16 validitySeconds;
+    u16 minActiveChannelTimeTu;
+    u16 maxActiveChannelTimeTu;
+    u16 minPassiveChannelTimeTu;
+    u16 maxPassiveChannelTimeTu;
 } CsrWifiSmeScanConfigData;
 
 /*******************************************************************************
@@ -2488,7 +2488,7 @@ typedef struct
     u8  cwMin;
     u8  cwMax;
     u8  aifs;
-    CsrUint16 txopLimit;
+    u16 txopLimit;
     CsrBool   admissionControlMandatory;
 } CsrWifiSmeWmmAcParams;
 
@@ -2542,9 +2542,9 @@ typedef struct
 *******************************************************************************/
 typedef struct
 {
-    CsrUint16 version;
-    CsrUint16 configMethods;
-    CsrUint16 devicePassworId;
+    u16 version;
+    u16 configMethods;
+    u16 devicePassworId;
 } CsrWifiSmeWpsInfo;
 
 /*******************************************************************************
@@ -2598,10 +2598,10 @@ typedef struct
 {
     CsrBool                  hasTrafficData;
     CsrWifiSmeTrafficType    currentTrafficType;
-    CsrUint16                currentPeriodMs;
+    u16                currentPeriodMs;
     CsrWifiSmePowerSaveLevel currentPowerSave;
-    CsrUint16                currentCoexPeriodMs;
-    CsrUint16                currentCoexLatencyMs;
+    u16                currentCoexPeriodMs;
+    u16                currentCoexLatencyMs;
     CsrBool                  hasBtDevice;
     CsrUint32                currentBlackoutDurationUs;
     CsrUint32                currentBlackoutPeriodUs;
@@ -2674,7 +2674,7 @@ typedef struct
     CsrWifiSme80211PrivacyMode privacyMode;
     CsrWifiSmeAuthModeMask     authModeMask;
     CsrWifiSmeEncryptionMask   encryptionModeMask;
-    CsrUint16                  mlmeAssociateReqInformationElementsLength;
+    u16                  mlmeAssociateReqInformationElementsLength;
     u8                  *mlmeAssociateReqInformationElements;
     CsrWifiSmeWmmQosInfoMask   wmmQosInfo;
     CsrBool                    adhocJoinOnly;
@@ -2749,31 +2749,31 @@ typedef struct
     CsrWifiMacAddress          bssid;
     CsrWifiSme80211NetworkType networkType80211;
     u8                   channelNumber;
-    CsrUint16                  channelFrequency;
+    u16                  channelFrequency;
     CsrWifiSmeAuthMode         authMode;
     CsrWifiSmeEncryption       pairwiseCipher;
     CsrWifiSmeEncryption       groupCipher;
     CsrWifiSmeRadioIF          ifIndex;
-    CsrUint16                  atimWindowTu;
-    CsrUint16                  beaconPeriodTu;
+    u16                  atimWindowTu;
+    u16                  beaconPeriodTu;
     CsrBool                    reassociation;
-    CsrUint16                  beaconFrameLength;
+    u16                  beaconFrameLength;
     u8                  *beaconFrame;
-    CsrUint16                  associationReqFrameLength;
+    u16                  associationReqFrameLength;
     u8                  *associationReqFrame;
-    CsrUint16                  associationRspFrameLength;
+    u16                  associationRspFrameLength;
     u8                  *associationRspFrame;
-    CsrUint16                  assocScanInfoElementsLength;
+    u16                  assocScanInfoElementsLength;
     u8                  *assocScanInfoElements;
-    CsrUint16                  assocReqCapabilities;
-    CsrUint16                  assocReqListenIntervalTu;
+    u16                  assocReqCapabilities;
+    u16                  assocReqListenIntervalTu;
     CsrWifiMacAddress          assocReqApAddress;
-    CsrUint16                  assocReqInfoElementsLength;
+    u16                  assocReqInfoElementsLength;
     u8                  *assocReqInfoElements;
     CsrWifiSmeIEEE80211Result  assocRspResult;
-    CsrUint16                  assocRspCapabilityInfo;
-    CsrUint16                  assocRspAssociationId;
-    CsrUint16                  assocRspInfoElementsLength;
+    u16                  assocRspCapabilityInfo;
+    u16                  assocRspAssociationId;
+    u16                  assocRspInfoElementsLength;
     u8                  *assocRspInfoElements;
 } CsrWifiSmeConnectionInfo;
 
@@ -2890,7 +2890,7 @@ typedef struct
 typedef struct
 {
     CsrWifiSmeHostPowerMode powerMode;
-    CsrUint16               applicationDataPeriodMs;
+    u16               applicationDataPeriodMs;
 } CsrWifiSmeHostConfig;
 
 /*******************************************************************************
@@ -2926,7 +2926,7 @@ typedef struct
     CsrWifiSmeKeyType keyType;
     u8          keyIndex;
     CsrBool           wepTxKey;
-    CsrUint16         keyRsc[8];
+    u16         keyRsc[8];
     CsrBool           authenticator;
     CsrWifiMacAddress address;
     u8          keyLength;
@@ -3000,7 +3000,7 @@ typedef struct
 typedef struct
 {
     CsrWifiSmePowerSaveLevel powerSaveLevel;
-    CsrUint16                listenIntervalTu;
+    u16                listenIntervalTu;
     CsrBool                  rxDtims;
     CsrWifiSmeD3AutoScanMode d3AutoScanMode;
     u8                 clientTrafficWindow;
@@ -3042,7 +3042,7 @@ typedef struct
     CsrBool                   disableSmoothRoaming;
     CsrBool                   disableRoamScans;
     u8                  reconnectLimit;
-    CsrUint16                 reconnectLimitIntervalMs;
+    u16                 reconnectLimitIntervalMs;
     CsrWifiSmeScanConfigData  roamScanCfg[3];
 } CsrWifiSmeRoamingConfig;
 
@@ -3086,14 +3086,14 @@ typedef struct
 {
     CsrWifiSmeScanConfigData scanCfg[4];
     CsrBool                  disableAutonomousScans;
-    CsrUint16                maxResults;
+    u16                maxResults;
     s8                  highRssiThreshold;
     s8                  lowRssiThreshold;
     s8                  deltaRssiThreshold;
     s8                  highSnrThreshold;
     s8                  lowSnrThreshold;
     s8                  deltaSnrThreshold;
-    CsrUint16                passiveChannelListCount;
+    u16                passiveChannelListCount;
     u8                *passiveChannelList;
 } CsrWifiSmeScanConfig;
 
@@ -3144,15 +3144,15 @@ typedef struct
     CsrInt16                 rssi;
     CsrInt16                 snr;
     CsrWifiSmeRadioIF        ifIndex;
-    CsrUint16                beaconPeriodTu;
+    u16                beaconPeriodTu;
     CsrWifiSmeTsfTime        timeStamp;
     CsrWifiSmeTsfTime        localTime;
-    CsrUint16                channelFrequency;
-    CsrUint16                capabilityInformation;
+    u16                channelFrequency;
+    u16                capabilityInformation;
     u8                 channelNumber;
     CsrWifiSmeBasicUsability usability;
     CsrWifiSmeBssType        bssType;
-    CsrUint16                informationElementsLength;
+    u16                informationElementsLength;
     u8                *informationElements;
     CsrWifiSmeP2pRole        p2pDeviceRole;
     union {
@@ -3562,7 +3562,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent      common;
-    CsrUint16            interfaceTag;
+    u16            interfaceTag;
     CsrWifiSmeListAction action;
     u8             setAddressCount;
     CsrWifiMacAddress   *setAddresses;
@@ -3606,7 +3606,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       calibrationDataLength;
+    u16       calibrationDataLength;
     u8       *calibrationData;
 } CsrWifiSmeCalibrationDataSetReq;
 
@@ -3627,7 +3627,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
 } CsrWifiSmeCcxConfigGetReq;
 
 /*******************************************************************************
@@ -3648,7 +3648,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent     common;
-    CsrUint16           interfaceTag;
+    u16           interfaceTag;
     CsrWifiSmeCcxConfig ccxConfig;
 } CsrWifiSmeCcxConfigSetReq;
 
@@ -3758,7 +3758,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent            common;
-    CsrUint16                  interfaceTag;
+    u16                  interfaceTag;
     CsrWifiSmeConnectionConfig connectionConfig;
 } CsrWifiSmeConnectReq;
 
@@ -3778,7 +3778,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
 } CsrWifiSmeConnectionConfigGetReq;
 
 /*******************************************************************************
@@ -3797,7 +3797,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
 } CsrWifiSmeConnectionInfoGetReq;
 
 /*******************************************************************************
@@ -3816,7 +3816,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
 } CsrWifiSmeConnectionStatsGetReq;
 
 /*******************************************************************************
@@ -3853,7 +3853,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
 } CsrWifiSmeDisconnectReq;
 
 /*******************************************************************************
@@ -3894,7 +3894,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
 } CsrWifiSmeHostConfigGetReq;
 
 /*******************************************************************************
@@ -3916,7 +3916,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent      common;
-    CsrUint16            interfaceTag;
+    u16            interfaceTag;
     CsrWifiSmeHostConfig hostConfig;
 } CsrWifiSmeHostConfigSetReq;
 
@@ -3943,7 +3943,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent      common;
-    CsrUint16            interfaceTag;
+    u16            interfaceTag;
     CsrWifiSmeListAction action;
     CsrWifiSmeKey        key;
 } CsrWifiSmeKeyReq;
@@ -3964,7 +3964,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
 } CsrWifiSmeLinkQualityGetReq;
 
 /*******************************************************************************
@@ -4023,7 +4023,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       mibAttributeLength;
+    u16       mibAttributeLength;
     u8       *mibAttribute;
 } CsrWifiSmeMibGetNextReq;
 
@@ -4046,7 +4046,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       mibAttributeLength;
+    u16       mibAttributeLength;
     u8       *mibAttribute;
 } CsrWifiSmeMibGetReq;
 
@@ -4077,7 +4077,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       mibAttributeLength;
+    u16       mibAttributeLength;
     u8       *mibAttribute;
 } CsrWifiSmeMibSetReq;
 
@@ -4107,7 +4107,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent      common;
-    CsrUint16            interfaceTag;
+    u16            interfaceTag;
     CsrWifiSmeListAction action;
     u8             setAddressesCount;
     CsrWifiMacAddress   *setAddresses;
@@ -4157,8 +4157,8 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent            common;
-    CsrUint16                  interfaceTag;
-    CsrUint16                  filterLength;
+    u16                  interfaceTag;
+    u16                  filterLength;
     u8                  *filter;
     CsrWifiSmePacketFilterMode mode;
     CsrWifiIp4Address          arpFilterAddress;
@@ -4209,7 +4209,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent      common;
-    CsrUint16            interfaceTag;
+    u16            interfaceTag;
     CsrWifiSmeListAction action;
     u8             setPmkidsCount;
     CsrWifiSmePmkid     *setPmkids;
@@ -4284,7 +4284,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
 } CsrWifiSmeRoamingConfigGetReq;
 
 /*******************************************************************************
@@ -4304,7 +4304,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent         common;
-    CsrUint16               interfaceTag;
+    u16               interfaceTag;
     CsrWifiSmeRoamingConfig roamingConfig;
 } CsrWifiSmeRoamingConfigSetReq;
 
@@ -4404,9 +4404,9 @@ typedef struct
     CsrBool            forceScan;
     CsrWifiSmeBssType  bssType;
     CsrWifiSmeScanType scanType;
-    CsrUint16          channelListCount;
+    u16          channelListCount;
     u8          *channelList;
-    CsrUint16          probeIeLength;
+    u16          probeIeLength;
     u8          *probeIe;
 } CsrWifiSmeScanFullReq;
 
@@ -4471,7 +4471,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
 } CsrWifiSmeSmeStaConfigGetReq;
 
 /*******************************************************************************
@@ -4491,7 +4491,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent     common;
-    CsrUint16           interfaceTag;
+    u16           interfaceTag;
     CsrWifiSmeStaConfig smeConfig;
 } CsrWifiSmeSmeStaConfigSetReq;
 
@@ -4558,14 +4558,14 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent         common;
-    CsrUint16               interfaceTag;
+    u16               interfaceTag;
     CsrWifiSmeListAction    action;
     CsrUint32               transactionId;
     CsrBool                 strict;
     CsrWifiSmeTspecCtrlMask ctrlMask;
-    CsrUint16               tspecLength;
+    u16               tspecLength;
     u8               *tspec;
-    CsrUint16               tclasLength;
+    u16               tclasLength;
     u8               *tclas;
 } CsrWifiSmeTspecReq;
 
@@ -4631,7 +4631,7 @@ typedef struct
 {
     CsrWifiFsmEvent      common;
     CsrWifiMacAddress    address;
-    CsrUint16            mibFilesCount;
+    u16            mibFilesCount;
     CsrWifiSmeDataBlock *mibFiles;
 } CsrWifiSmeWifiFlightmodeReq;
 
@@ -4691,7 +4691,7 @@ typedef struct
 {
     CsrWifiFsmEvent      common;
     CsrWifiMacAddress    address;
-    CsrUint16            mibFilesCount;
+    u16            mibFilesCount;
     CsrWifiSmeDataBlock *mibFiles;
 } CsrWifiSmeWifiOnReq;
 
@@ -4922,7 +4922,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent           common;
-    CsrUint16                 interfaceTag;
+    u16                 interfaceTag;
     CsrResult                 status;
     CsrWifiSmeConnectionInfo  connectionInfo;
     CsrWifiSmeIEEE80211Reason deauthReason;
@@ -4947,7 +4947,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent   common;
-    CsrUint16         interfaceTag;
+    u16         interfaceTag;
     CsrWifiMacAddress address;
     CsrWifiSsid       ssid;
 } CsrWifiSmeAssociationStartInd;
@@ -4977,7 +4977,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent      common;
-    CsrUint16            interfaceTag;
+    u16            interfaceTag;
     CsrResult            status;
     CsrWifiSmeListAction action;
     u8             getAddressCount;
@@ -5005,7 +5005,7 @@ typedef struct
 {
     CsrWifiFsmEvent common;
     CsrResult       status;
-    CsrUint16       calibrationDataLength;
+    u16       calibrationDataLength;
     u8       *calibrationData;
 } CsrWifiSmeCalibrationDataGetCfm;
 
@@ -5046,7 +5046,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent     common;
-    CsrUint16           interfaceTag;
+    u16           interfaceTag;
     CsrResult           status;
     CsrWifiSmeCcxConfig ccxConfig;
 } CsrWifiSmeCcxConfigGetCfm;
@@ -5068,7 +5068,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
     CsrResult       status;
 } CsrWifiSmeCcxConfigSetCfm;
 
@@ -5154,7 +5154,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
     CsrResult       status;
 } CsrWifiSmeConnectCfm;
 
@@ -5176,7 +5176,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent            common;
-    CsrUint16                  interfaceTag;
+    u16                  interfaceTag;
     CsrResult                  status;
     CsrWifiSmeConnectionConfig connectionConfig;
 } CsrWifiSmeConnectionConfigGetCfm;
@@ -5199,7 +5199,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent          common;
-    CsrUint16                interfaceTag;
+    u16                interfaceTag;
     CsrResult                status;
     CsrWifiSmeConnectionInfo connectionInfo;
 } CsrWifiSmeConnectionInfoGetCfm;
@@ -5228,7 +5228,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent       common;
-    CsrUint16             interfaceTag;
+    u16             interfaceTag;
     CsrWifiSmeLinkQuality linkQuality;
 } CsrWifiSmeConnectionQualityInd;
 
@@ -5250,7 +5250,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent           common;
-    CsrUint16                 interfaceTag;
+    u16                 interfaceTag;
     CsrResult                 status;
     CsrWifiSmeConnectionStats connectionStats;
 } CsrWifiSmeConnectionStatsGetCfm;
@@ -5296,7 +5296,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
     CsrResult       status;
 } CsrWifiSmeDisconnectCfm;
 
@@ -5338,7 +5338,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent      common;
-    CsrUint16            interfaceTag;
+    u16            interfaceTag;
     CsrResult            status;
     CsrWifiSmeHostConfig hostConfig;
 } CsrWifiSmeHostConfigGetCfm;
@@ -5360,7 +5360,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
     CsrResult       status;
 } CsrWifiSmeHostConfigSetCfm;
 
@@ -5407,7 +5407,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent      common;
-    CsrUint16            interfaceTag;
+    u16            interfaceTag;
     CsrResult            status;
     CsrWifiSmeListAction action;
     CsrWifiSmeKeyType    keyType;
@@ -5432,7 +5432,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent       common;
-    CsrUint16             interfaceTag;
+    u16             interfaceTag;
     CsrResult             status;
     CsrWifiSmeLinkQuality linkQuality;
 } CsrWifiSmeLinkQualityGetCfm;
@@ -5467,7 +5467,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent           common;
-    CsrUint16                 interfaceTag;
+    u16                 interfaceTag;
     CsrWifiSmeMediaStatus     mediaStatus;
     CsrWifiSmeConnectionInfo  connectionInfo;
     CsrWifiSmeIEEE80211Reason disassocReason;
@@ -5534,7 +5534,7 @@ typedef struct
 {
     CsrWifiFsmEvent common;
     CsrResult       status;
-    CsrUint16       mibAttributeLength;
+    u16       mibAttributeLength;
     u8       *mibAttribute;
 } CsrWifiSmeMibGetCfm;
 
@@ -5561,7 +5561,7 @@ typedef struct
 {
     CsrWifiFsmEvent common;
     CsrResult       status;
-    CsrUint16       mibAttributeLength;
+    u16       mibAttributeLength;
     u8       *mibAttribute;
 } CsrWifiSmeMibGetNextCfm;
 
@@ -5607,9 +5607,9 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent   common;
-    CsrUint16         interfaceTag;
+    u16         interfaceTag;
     CsrBool           secondFailure;
-    CsrUint16         count;
+    u16         count;
     CsrWifiMacAddress address;
     CsrWifiSmeKeyType keyType;
 } CsrWifiSmeMicFailureInd;
@@ -5638,7 +5638,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent      common;
-    CsrUint16            interfaceTag;
+    u16            interfaceTag;
     CsrResult            status;
     CsrWifiSmeListAction action;
     u8             getAddressesCount;
@@ -5662,7 +5662,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
     CsrResult       status;
 } CsrWifiSmePacketFilterSetCfm;
 
@@ -5708,7 +5708,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent           common;
-    CsrUint16                 interfaceTag;
+    u16                 interfaceTag;
     u8                  pmkidCandidatesCount;
     CsrWifiSmePmkidCandidate *pmkidCandidates;
 } CsrWifiSmePmkidCandidateListInd;
@@ -5737,7 +5737,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent      common;
-    CsrUint16            interfaceTag;
+    u16            interfaceTag;
     CsrResult            status;
     CsrWifiSmeListAction action;
     u8             getPmkidsCount;
@@ -5827,7 +5827,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
     CsrResult       status;
 } CsrWifiSmeRoamCompleteInd;
 
@@ -5867,7 +5867,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent           common;
-    CsrUint16                 interfaceTag;
+    u16                 interfaceTag;
     CsrWifiSmeRoamReason      roamReason;
     CsrWifiSmeIEEE80211Reason reason80211;
 } CsrWifiSmeRoamStartInd;
@@ -5890,7 +5890,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent         common;
-    CsrUint16               interfaceTag;
+    u16               interfaceTag;
     CsrResult               status;
     CsrWifiSmeRoamingConfig roamingConfig;
 } CsrWifiSmeRoamingConfigGetCfm;
@@ -5912,7 +5912,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
     CsrResult       status;
 } CsrWifiSmeRoamingConfigSetCfm;
 
@@ -6036,7 +6036,7 @@ typedef struct
 {
     CsrWifiFsmEvent       common;
     CsrResult             status;
-    CsrUint16             scanResultsCount;
+    u16             scanResultsCount;
     CsrWifiSmeScanResult *scanResults;
 } CsrWifiSmeScanResultsGetCfm;
 
@@ -6058,7 +6058,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent     common;
-    CsrUint16           interfaceTag;
+    u16           interfaceTag;
     CsrResult           status;
     CsrWifiSmeStaConfig smeConfig;
 } CsrWifiSmeSmeStaConfigGetCfm;
@@ -6080,7 +6080,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
     CsrResult       status;
 } CsrWifiSmeSmeStaConfigSetCfm;
 
@@ -6128,10 +6128,10 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent           common;
-    CsrUint16                 interfaceTag;
+    u16                 interfaceTag;
     CsrUint32                 transactionId;
     CsrWifiSmeTspecResultCode tspecResultCode;
-    CsrUint16                 tspecLength;
+    u16                 tspecLength;
     u8                 *tspec;
 } CsrWifiSmeTspecInd;
 
@@ -6158,11 +6158,11 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent           common;
-    CsrUint16                 interfaceTag;
+    u16                 interfaceTag;
     CsrResult                 status;
     CsrUint32                 transactionId;
     CsrWifiSmeTspecResultCode tspecResultCode;
-    CsrUint16                 tspecLength;
+    u16                 tspecLength;
     u8                 *tspec;
 } CsrWifiSmeTspecCfm;
 
@@ -6399,7 +6399,7 @@ typedef struct
 {
     CsrWifiFsmEvent common;
     CsrResult       status;
-    CsrUint16       numInterfaces;
+    u16       numInterfaces;
     u8        capBitmap[2];
 } CsrWifiSmeInterfaceCapabilityGetCfm;
 
@@ -6487,7 +6487,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent     common;
-    CsrUint16           interfaceTag;
+    u16           interfaceTag;
     CsrWifiSmeAmpStatus ampStatus;
 } CsrWifiSmeAmpStatusChangeInd;
 

@@ -66,7 +66,7 @@ typedef void (*CsrWifiFsmExternalWakupCallbackPtr)(void *context);
  * @return
  *   CsrWifiFsmContext* fsm context
  */
-extern CsrWifiFsmContext* CsrWifiFsmInit(void *applicationContext, void *externalContext, CsrUint16 maxProcesses, CsrLogTextTaskId loggingTaskId);
+extern CsrWifiFsmContext* CsrWifiFsmInit(void *applicationContext, void *externalContext, u16 maxProcesses, CsrLogTextTaskId loggingTaskId);
 
 /**
  * @brief
@@ -143,7 +143,7 @@ extern CsrUint32 CsrWifiFsmExecute(CsrWifiFsmContext *context);
  * @return
  *   void
  */
-extern void CsrWifiFsmSendEventExternal(CsrWifiFsmContext *context, CsrWifiFsmEvent *event, CsrUint16 source, CsrUint16 destination, CsrPrim primtype, CsrUint16 id);
+extern void CsrWifiFsmSendEventExternal(CsrWifiFsmContext *context, CsrWifiFsmEvent *event, u16 source, u16 destination, CsrPrim primtype, u16 id);
 
 /**
  * @brief
@@ -202,7 +202,7 @@ extern CsrUint32 CsrWifiFsmGetNextTimeout(CsrWifiFsmContext *context);
  * @return
  *   void
  */
-extern void CsrWifiFsmFastForward(CsrWifiFsmContext *context, CsrUint16 ms);
+extern void CsrWifiFsmFastForward(CsrWifiFsmContext *context, u16 ms);
 
 /**
  * @brief

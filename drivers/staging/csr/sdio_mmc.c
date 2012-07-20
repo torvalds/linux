@@ -180,7 +180,7 @@ CsrSdioWrite8(CsrSdioFunction *function, CsrUint32 address, u8 data)
 } /* CsrSdioWrite8() */
 
 CsrResult
-CsrSdioRead16(CsrSdioFunction *function, CsrUint32 address, CsrUint16 *data)
+CsrSdioRead16(CsrSdioFunction *function, CsrUint32 address, u16 *data)
 {
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int err;
@@ -207,7 +207,7 @@ CsrSdioRead16(CsrSdioFunction *function, CsrUint32 address, CsrUint16 *data)
 
 
 CsrResult
-CsrSdioWrite16(CsrSdioFunction *function, CsrUint32 address, CsrUint16 data)
+CsrSdioWrite16(CsrSdioFunction *function, CsrUint32 address, u16 data)
 {
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int err;
@@ -716,7 +716,7 @@ sdio_set_block_size_ignore_first_error(struct sdio_func *func, unsigned blksz)
 }
 
 CsrResult
-CsrSdioBlockSizeSet(CsrSdioFunction *function, CsrUint16 blockSize)
+CsrSdioBlockSizeSet(CsrSdioFunction *function, u16 blockSize)
 {
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int r = 0;

@@ -75,7 +75,7 @@ static const CsrUint32 offsetsFromUtf8[4] =
 *********************************************************************************/
 CsrUtf16String *CsrUint32ToUtf16String(CsrUint32 number)
 {
-    CsrUint16 count, noOfDigits;
+    u16 count, noOfDigits;
     CsrUtf16String *output;
     CsrUint32 tempNumber;
 
@@ -115,10 +115,10 @@ CsrUtf16String *CsrUint32ToUtf16String(CsrUint32 number)
 *********************************************************************************/
 CsrUint32 CsrUtf16StringToUint32(const CsrUtf16String *unicodeString)
 {
-    CsrUint16 numLen, count;
+    u16 numLen, count;
     CsrUint32 newNumber = 0;
 
-    numLen = (CsrUint16) CsrUtf16StrLen(unicodeString);
+    numLen = (u16) CsrUtf16StrLen(unicodeString);
 
     if ((numLen > 10) || (numLen == 0) || (unicodeString == NULL)) /*CSRMAX number is 4.294.967.295 */
     {
@@ -673,15 +673,15 @@ CsrUtf16String *CsrUtf82Utf16String(const CsrUtf8String *utf8String)
 
             ch -= offsetsFromUtf8[extraBytes2Read];
 
-            if (ch <= 0xFFFF) /* Character can be encoded in one CsrUint16 */
+            if (ch <= 0xFFFF) /* Character can be encoded in one u16 */
             {
-                *dest++ = (CsrUint16) ch;
+                *dest++ = (u16) ch;
             }
-            else /* The character needs two CsrUint16 */
+            else /* The character needs two u16 */
             {
                 ch -= UNI_HALF_BASE;
-                *dest++ = (CsrUint16) ((ch >> UNI_HALF_SHIFT) | UNI_SUR_HIGH_START);
-                *dest++ = (CsrUint16) ((ch & 0x03FF) | UNI_SUR_LOW_START);
+                *dest++ = (u16) ((ch >> UNI_HALF_SHIFT) | UNI_SUR_HIGH_START);
+                *dest++ = (u16) ((ch & 0x03FF) | UNI_SUR_LOW_START);
             }
         }
     }
@@ -753,7 +753,7 @@ CsrUtf16String *CsrUtf16StringDuplicate(const CsrUtf16String *source)
 *   Output:         0: if the strings are identical.
 *
 *********************************************************************************/
-CsrUint16 CsrUtf16StrICmp(const CsrUtf16String *string1, const CsrUtf16String *string2)
+u16 CsrUtf16StrICmp(const CsrUtf16String *string1, const CsrUtf16String *string2)
 {
     while (*string1 || *string2)
     {
@@ -781,7 +781,7 @@ CsrUint16 CsrUtf16StrICmp(const CsrUtf16String *string1, const CsrUtf16String *s
 *   Output:         0: if the strings are identical.
 *
 *********************************************************************************/
-CsrUint16 CsrUtf16StrNICmp(const CsrUtf16String *string1, const CsrUtf16String *string2, CsrUint32 count)
+u16 CsrUtf16StrNICmp(const CsrUtf16String *string1, const CsrUtf16String *string2, CsrUint32 count)
 {
     while ((*string1 || *string2) && count--)
     {

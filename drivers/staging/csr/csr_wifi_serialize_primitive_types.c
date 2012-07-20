@@ -30,9 +30,9 @@ void CsrUint24Des(CsrUint32 *v, u8 *buffer, CsrSize *offset)
 
 
 /* Big endian :e.g WSC, TCLAS */
-void CsrUint16DesBigEndian(CsrUint16 *v, u8 *buffer, CsrSize *offset)
+void CsrUint16DesBigEndian(u16 *v, u8 *buffer, CsrSize *offset)
 {
-    CsrUint16 val;
+    u16 val;
 
     val = (buffer[(*offset)] << 8) | (buffer[(*offset) + 1]);
     *offset += 2;
@@ -79,7 +79,7 @@ void CsrUint24Ser(u8 *ptr, CsrSize *len, CsrUint32 v)
 
 
 /* Big endian :e.g WSC, TCLAS */
-void CsrUint16SerBigEndian(u8 *ptr, CsrSize *len, CsrUint16 v)
+void CsrUint16SerBigEndian(u8 *ptr, CsrSize *len, u16 v)
 {
     ptr[(*len)] = (u8)((v & 0xff00) >> 8);
     ptr[(*len) + 1] = (u8)((v & 0x00ff));

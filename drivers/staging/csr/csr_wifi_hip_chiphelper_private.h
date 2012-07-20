@@ -47,11 +47,11 @@ struct val_array_t
     const struct chip_helper_init_values *vals;
 };
 
-/* Just a (counted) CsrUint16 array */
+/* Just a (counted) u16 array */
 struct data_array_t
 {
     CsrUint32        len;
-    const CsrUint16 *vals;
+    const u16 *vals;
 };
 
 struct reset_prog_t
@@ -64,7 +64,7 @@ struct reset_prog_t
    different host transports. */
 struct chip_map_address_t
 {
-    CsrUint16 spi, host;
+    u16 spi, host;
 };
 
 struct map_array_t
@@ -75,38 +75,38 @@ struct map_array_t
 
 struct chip_device_regs_per_transport_t
 {
-    CsrUint16 dbg_proc_select;
-    CsrUint16 dbg_stop_status;
-    CsrUint16 window1_page;    /* PROG_PMEM1 or GW1 */
-    CsrUint16 window2_page;    /* PROG_PMEM2 or GW2 */
-    CsrUint16 window3_page;    /* SHARED or GW3 */
-    CsrUint16 io_log_addr;
+    u16 dbg_proc_select;
+    u16 dbg_stop_status;
+    u16 window1_page;    /* PROG_PMEM1 or GW1 */
+    u16 window2_page;    /* PROG_PMEM2 or GW2 */
+    u16 window3_page;    /* SHARED or GW3 */
+    u16 io_log_addr;
 };
 
 struct chip_device_regs_t
 {
-    CsrUint16                               gbl_chip_version;
-    CsrUint16                               gbl_misc_enables;
-    CsrUint16                               dbg_emu_cmd;
+    u16                               gbl_chip_version;
+    u16                               gbl_misc_enables;
+    u16                               dbg_emu_cmd;
     struct chip_device_regs_per_transport_t host;
     struct chip_device_regs_per_transport_t spi;
-    CsrUint16                               dbg_reset;
-    CsrUint16                               dbg_reset_value;
-    CsrUint16                               dbg_reset_warn;
-    CsrUint16                               dbg_reset_warn_value;
-    CsrUint16                               dbg_reset_result;
-    CsrUint16                               xap_pch;
-    CsrUint16                               xap_pcl;
-    CsrUint16                               proc_pc_snoop;
-    CsrUint16                               watchdog_disable;
-    CsrUint16                               mailbox0;
-    CsrUint16                               mailbox1;
-    CsrUint16                               mailbox2;
-    CsrUint16                               mailbox3;
-    CsrUint16                               sdio_host_int;
-    CsrUint16                               shared_io_interrupt;
-    CsrUint16                               sdio_hip_handshake;
-    CsrUint16                               coex_status; /* Allows WAPI detection */
+    u16                               dbg_reset;
+    u16                               dbg_reset_value;
+    u16                               dbg_reset_warn;
+    u16                               dbg_reset_warn_value;
+    u16                               dbg_reset_result;
+    u16                               xap_pch;
+    u16                               xap_pcl;
+    u16                               proc_pc_snoop;
+    u16                               watchdog_disable;
+    u16                               mailbox0;
+    u16                               mailbox1;
+    u16                               mailbox2;
+    u16                               mailbox3;
+    u16                               sdio_host_int;
+    u16                               shared_io_interrupt;
+    u16                               sdio_hip_handshake;
+    u16                               coex_status; /* Allows WAPI detection */
 };
 
 /* If allowed is false then this window does not provide this
@@ -119,7 +119,7 @@ struct window_shift_info_t
 {
     CsrInt32  allowed;
     CsrUint32 page_shift;
-    CsrUint16 page_offset;
+    u16 page_offset;
 };
 
 /* Each window has an address and size.  These are obvious.  It then
@@ -129,9 +129,9 @@ struct window_shift_info_t
    are unusable. */
 struct window_info_t
 {
-    CsrUint16                         address;
-    CsrUint16                         size;
-    CsrUint16                         blocked;
+    u16                         address;
+    u16                         size;
+    u16                         blocked;
     const struct window_shift_info_t *mode;
 };
 
@@ -141,8 +141,8 @@ struct window_info_t
 struct chip_version_t
 {
     CsrInt32  pre_bc7;
-    CsrUint16 mask;
-    CsrUint16 result;
+    u16 mask;
+    u16 result;
     u8  sdio;
 };
 
@@ -193,7 +193,7 @@ struct chip_device_desc_t
     /* The offsets into the data address space of interesting things. */
     struct
     {
-        CsrUint16 ram;
+        u16 ram;
         /* maybe add shared / page tables? */
     } data_offset;
 

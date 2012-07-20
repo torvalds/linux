@@ -54,9 +54,9 @@ typedef struct CsrWifiFsmEventList
 typedef struct CsrWifiFsmTimerId
 {
     CsrPrim     type;
-    CsrUint16   primtype;
+    u16   primtype;
     CsrSchedQid destination;
-    CsrUint16   uniqueid;
+    u16   uniqueid;
 } CsrWifiFsmTimerId;
 
 /**
@@ -71,7 +71,7 @@ typedef struct CsrWifiFsmTimerId
 typedef struct CsrWifiFsmTimer
 {
     CsrPrim     type;
-    CsrUint16   primtype;
+    u16   primtype;
     CsrSchedQid destination;
     CsrSchedQid source;
 
@@ -109,7 +109,7 @@ typedef struct CsrWifiFsmTimerList
 {
     CsrWifiFsmTimer *first;
     CsrWifiFsmTimer *last;
-    CsrUint16        nexttimerid;
+    u16        nexttimerid;
 } CsrWifiFsmTimerList;
 
 /**
@@ -171,9 +171,9 @@ typedef void (*CsrWifiFsmProcResetFnPtr)(CsrWifiFsmContext *context);
  * @param[in]    context : External context
  *
  * @return
- *   CsrUint16 a valid destination OR CSR_WIFI_FSM_ENV
+ *   u16 a valid destination OR CSR_WIFI_FSM_ENV
  */
-typedef CsrUint16 (*CsrWifiFsmDestLookupCallbackPtr)(void *context, const CsrWifiFsmEvent *event);
+typedef u16 (*CsrWifiFsmDestLookupCallbackPtr)(void *context, const CsrWifiFsmEvent *event);
 
 
 #ifdef CSR_WIFI_FSM_DUMP_ENABLE
@@ -223,7 +223,7 @@ typedef struct
     const CsrBool               saveAll;
     const CsrWifiFsmEventEntry *eventEntryArray; /* array of transition function pointers for state */
 #ifdef CSR_LOG_ENABLE
-    CsrUint16            stateNumber;
+    u16            stateNumber;
     const CsrCharString *stateName;
 #endif
 } CsrWifiFsmTableEntry;
@@ -237,7 +237,7 @@ typedef struct
  */
 typedef struct
 {
-    CsrUint16                   numStates;         /* number of states    */
+    u16                   numStates;         /* number of states    */
     const CsrWifiFsmTableEntry *aStateEventMatrix; /* state event matrix  */
 } CsrWifiFsmTransitionFunctionTable;
 
@@ -271,12 +271,12 @@ typedef struct
  */
 typedef struct
 {
-    CsrUint16                 transitionNumber;
+    u16                 transitionNumber;
     CsrWifiFsmEvent           event;
-    CsrUint16                 fromState;
-    CsrUint16                 toState;
+    u16                 fromState;
+    u16                 toState;
     CsrWifiFsmTransitionFnPtr transitionFn;
-    CsrUint16                 transitionCount; /* number consecutive of times this transition was seen */
+    u16                 transitionCount; /* number consecutive of times this transition was seen */
 #ifdef CSR_LOG_ENABLE
     const CsrCharString *transitionName;
 #endif
@@ -288,7 +288,7 @@ typedef struct
  */
 typedef struct
 {
-    CsrUint16                  numTransitions;
+    u16                  numTransitions;
     CsrWifiFsmTransitionRecord records[CSR_WIFI_FSM_MAX_TRANSITION_HISTORY];
 } CsrWifiFsmTransitionRecords;
 #endif
@@ -304,8 +304,8 @@ typedef struct
 typedef struct
 {
     const CsrWifiFsmProcessStateMachine *fsmInfo;         /* state machine info that is constant regardless of context */
-    CsrUint16                            instanceId;      /* Runtime process id */
-    CsrUint16                            state;           /* Current state */
+    u16                            instanceId;      /* Runtime process id */
+    u16                            state;           /* Current state */
     void                                *params;          /* Instance user data */
     CsrWifiFsmEventList                  savedEventQueue; /* The saved event queue */
     struct CsrWifiFsmInstanceEntry      *subFsm;          /* Sub Fsm instance data */
@@ -358,7 +358,7 @@ typedef void (*CsrWifiFsmOnTransitionFnPtr)(void *extContext, const CsrWifiFsmEv
  * @return
  *   void
  */
-typedef void (*CsrWifiFsmOnStateChangeFnPtr)(void *extContext, CsrUint16 nextstate);
+typedef void (*CsrWifiFsmOnStateChangeFnPtr)(void *extContext, u16 nextstate);
 
 /**
  * @brief
@@ -394,8 +394,8 @@ struct CsrWifiFsmContext
     CsrBool                            useTempSaveList;       /* Should the temp save list be used            */
     CsrWifiFsmEventList                tempSaveList;          /* The temp save event queue                    */
     CsrWifiFsmEvent                   *eventForwardedOrSaved; /* The event that was forwarded or Saved        */
-    CsrUint16                          maxProcesses;          /* Size of instanceArray                        */
-    CsrUint16                          numProcesses;          /* Current number allocated in instanceArray    */
+    u16                          maxProcesses;          /* Size of instanceArray                        */
+    u16                          numProcesses;          /* Current number allocated in instanceArray    */
     CsrWifiFsmInstanceEntry           *instanceArray;         /* Array of processes for this component        */
     CsrWifiFsmInstanceEntry           *ownerInstance;         /* The Process that owns currentInstance (SubFsm support) */
     CsrWifiFsmInstanceEntry           *currentInstance;       /* Current Process that is executing            */
@@ -429,7 +429,7 @@ struct CsrWifiFsmContext
     CsrWifiFsmOnEventFnPtr       onInvalidCallback;    /* Invalid event Callback                       */
 #endif
 #ifdef CSR_WIFI_FSM_DUMP_ENABLE
-    CsrUint16 masterTransitionNumber;                  /* Increments on every transition              */
+    u16 masterTransitionNumber;                  /* Increments on every transition              */
 #endif
 };
 

@@ -42,7 +42,7 @@ typedef struct ta_l4stats
 typedef struct ta_data
 {
     /* Current packet filter configuration */
-    CsrUint16 packet_filter;
+    u16 packet_filter;
 
     /* Current packet custom filter configuration */
     CsrWifiRouterCtrlTrafficFilter custom_filter;

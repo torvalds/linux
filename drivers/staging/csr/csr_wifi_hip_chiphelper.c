@@ -58,10 +58,10 @@ static const struct chip_helper_init_values init_vals_v22_v23[] = {
       { 0x????, 0x???? }*/
 };
 
-static const CsrUint16 reset_program_a_v1_or_v2[] = {
+static const u16 reset_program_a_v1_or_v2[] = {
     0x0000
 };
-static const CsrUint16 reset_program_b_v1_or_v2[] = {
+static const u16 reset_program_b_v1_or_v2[] = {
     0x0010, 0xFE00, 0xA021, 0xFF00, 0x8111, 0x0009, 0x0CA4, 0x0114,
     0x0280, 0x04F8, 0xFE00, 0x6F25, 0x06E0, 0x0010, 0xFC00, 0x0121,
     0xFC00, 0x0225, 0xFE00, 0x7125, 0xFE00, 0x6D11, 0x03F0, 0xFE00,
@@ -591,7 +591,7 @@ ChipDescript* ChipHelper_GetVersionSdio(u8 sdio_ver)
 }
 
 
-ChipDescript* ChipHelper_GetVersionAny(CsrUint16 from_FF9A, CsrUint16 from_FE81)
+ChipDescript* ChipHelper_GetVersionAny(u16 from_FF9A, u16 from_FE81)
 {
     CsrUint32 i;
 
@@ -624,7 +624,7 @@ ChipDescript* ChipHelper_GetVersionAny(CsrUint16 from_FF9A, CsrUint16 from_FE81)
 }
 
 
-ChipDescript* ChipHelper_GetVersionUniFi(CsrUint16 ver)
+ChipDescript* ChipHelper_GetVersionUniFi(u16 ver)
 {
     return ChipHelper_GetVersionAny(0x0000, ver);
 }
@@ -636,7 +636,7 @@ ChipDescript *ChipHelper_Null(void)
 }
 
 
-ChipDescript* ChipHelper_GetVersionBlueCore(enum chip_helper_bluecore_age bc_age, CsrUint16 version)
+ChipDescript* ChipHelper_GetVersionBlueCore(enum chip_helper_bluecore_age bc_age, u16 version)
 {
     if (bc_age == chip_helper_bluecore_pre_bc7)
     {
@@ -664,7 +664,7 @@ CHIP_HELPER_LIST(C_DEF)
 /*
  * Map register addresses between HOST and SPI access.
  */
-CsrUint16 ChipHelper_MapAddress_SPI2HOST(ChipDescript *chip_help, CsrUint16 addr)
+u16 ChipHelper_MapAddress_SPI2HOST(ChipDescript *chip_help, u16 addr)
 {
     CsrUint32 i;
     for (i = 0; i < chip_help->map.len; i++)
@@ -678,7 +678,7 @@ CsrUint16 ChipHelper_MapAddress_SPI2HOST(ChipDescript *chip_help, CsrUint16 addr
 }
 
 
-CsrUint16 ChipHelper_MapAddress_HOST2SPI(ChipDescript *chip_help, CsrUint16 addr)
+u16 ChipHelper_MapAddress_HOST2SPI(ChipDescript *chip_help, u16 addr)
 {
     CsrUint32 i;
     for (i = 0; i < chip_help->map.len; i++)
@@ -698,7 +698,7 @@ CsrUint16 ChipHelper_MapAddress_HOST2SPI(ChipDescript *chip_help, CsrUint16 addr
    start is unusable because something else is cluttering up
    the address map then that is taken into account and this
    function returns that address justt past that. */
-CsrUint16 ChipHelper_WINDOW_ADDRESS(ChipDescript                 *chip_help,
+u16 ChipHelper_WINDOW_ADDRESS(ChipDescript                 *chip_help,
                                     enum chip_helper_window_index window)
 {
     if (window < CHIP_HELPER_WINDOW_COUNT &&
@@ -711,7 +711,7 @@ CsrUint16 ChipHelper_WINDOW_ADDRESS(ChipDescript                 *chip_help,
 
 
 /* This returns the size of the window minus any blocked section */
-CsrUint16 ChipHelper_WINDOW_SIZE(ChipDescript                 *chip_help,
+u16 ChipHelper_WINDOW_SIZE(ChipDescript                 *chip_help,
                                  enum chip_helper_window_index window)
 {
     if (window < CHIP_HELPER_WINDOW_COUNT &&
@@ -747,11 +747,11 @@ CsrInt32 ChipHelper_DecodeWindow(ChipDescript *chip_help,
                                  enum chip_helper_window_index window,
                                  enum chip_helper_window_type type,
                                  CsrUint32 offset,
-                                 CsrUint16 *page, CsrUint16 *addr, CsrUint32 *len)
+                                 u16 *page, u16 *addr, CsrUint32 *len)
 {
     const struct window_info_t *win;
     const struct window_shift_info_t *mode;
-    CsrUint16 of, pg;
+    u16 of, pg;
 
     if (window >= CHIP_HELPER_WINDOW_COUNT)
     {
@@ -774,8 +774,8 @@ CsrInt32 ChipHelper_DecodeWindow(ChipDescript *chip_help,
         return FALSE;
     }
 
-    pg = (CsrUint16)(offset >> mode->page_shift) + mode->page_offset;
-    of = (CsrUint16)(offset & ((1 << mode->page_shift) - 1));
+    pg = (u16)(offset >> mode->page_shift) + mode->page_offset;
+    of = (u16)(offset & ((1 << mode->page_shift) - 1));
     /* If 'blocked' is zero this does nothing, else decrease
        the page register and increase the offset until we aren't
        in the blocked region of the window. */

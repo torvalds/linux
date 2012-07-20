@@ -553,7 +553,7 @@ uf_alloc_netdevice(CsrSdioFunction *sdio_dev, int bus_id)
  * ---------------------------------------------------------------------------
  */
 CsrBool
-uf_alloc_netdevice_for_other_interfaces(unifi_priv_t *priv, CsrUint16 interfaceTag)
+uf_alloc_netdevice_for_other_interfaces(unifi_priv_t *priv, u16 interfaceTag)
 {
     struct net_device *dev;
     netInterface_priv_t *interfacePriv;
@@ -1080,7 +1080,7 @@ skb_add_llc_snap(struct net_device *dev, struct sk_buff *skb, int proto)
 #ifdef CSR_SUPPORT_SME
 static int
 _identify_sme_ma_pkt_ind(unifi_priv_t *priv,
-                         const s8 *oui, CsrUint16 protocol,
+                         const s8 *oui, u16 protocol,
                          const CSR_SIGNAL *signal,
                          bulk_data_param_t *bulkdata,
                          const unsigned char *daddr,
@@ -1322,7 +1322,7 @@ skb_80211_to_ether(unifi_priv_t *priv, struct sk_buff *skb,
 } /* skb_80211_to_ether() */
 
 
-static CsrWifiRouterCtrlPortAction verify_port(unifi_priv_t *priv, unsigned char *address, int queue, CsrUint16 interfaceTag)
+static CsrWifiRouterCtrlPortAction verify_port(unifi_priv_t *priv, unsigned char *address, int queue, u16 interfaceTag)
 {
 #ifdef CSR_NATIVE_LINUX
 #ifdef CSR_SUPPORT_WEXT
@@ -1368,12 +1368,12 @@ static CsrWifiRouterCtrlPortAction verify_port(unifi_priv_t *priv, unsigned char
 int prepare_and_add_macheader(unifi_priv_t *priv, struct sk_buff *skb, struct sk_buff *newSkb,
                               CSR_PRIORITY priority,
                               bulk_data_param_t *bulkdata,
-                              CsrUint16 interfaceTag,
+                              u16 interfaceTag,
                               const u8 *daddr,
                               const u8 *saddr,
                               CsrBool protection)
 {
-    CsrUint16 fc = 0;
+    u16 fc = 0;
     u8 qc = 0;
     u8 macHeaderLengthInBytes = MAC_HEADER_SIZE, *bufPtr = NULL;
     bulk_data_param_t data_ptrs;
@@ -1649,12 +1649,12 @@ static int
 send_ma_pkt_request(unifi_priv_t *priv, struct sk_buff *skb, const struct ethhdr *ehdr, CSR_PRIORITY priority)
 {
     int r;
-    CsrUint16 i;
+    u16 i;
     CsrBool eapolStore = FALSE;
     struct sk_buff *newSkb = NULL;
     bulk_data_param_t bulkdata;
     const int proto = ntohs(ehdr->h_proto);
-    CsrUint16 interfaceTag;
+    u16 interfaceTag;
     CsrWifiMacAddress peerAddress;
     CSR_TRANSMISSION_CONTROL transmissionControl = CSR_NO_CONFIRM_REQUIRED;
     s8 protection;
@@ -2150,7 +2150,7 @@ unifi_restart_xmit(void *ospriv, unifi_TrafficQueue queue)
 
 
 static void
-indicate_rx_skb(unifi_priv_t *priv, CsrUint16 ifTag, u8* dst_a, u8* src_a, struct sk_buff *skb, CSR_SIGNAL *signal,
+indicate_rx_skb(unifi_priv_t *priv, u16 ifTag, u8* dst_a, u8* src_a, struct sk_buff *skb, CSR_SIGNAL *signal,
                 bulk_data_param_t *bulkdata)
 {
     int r, sr = 0;
@@ -2250,7 +2250,7 @@ indicate_rx_skb(unifi_priv_t *priv, CsrUint16 ifTag, u8* dst_a, u8* src_a, struc
 void
 uf_process_rx_pending_queue(unifi_priv_t *priv, int queue,
                             CsrWifiMacAddress source_address,
-                            int indicate, CsrUint16 interfaceTag)
+                            int indicate, u16 interfaceTag)
 {
     rx_buffered_packets_t *rx_q_item;
     struct list_head *rx_list;
@@ -2325,7 +2325,7 @@ uf_process_rx_pending_queue(unifi_priv_t *priv, int queue,
 void
 uf_resume_data_plane(unifi_priv_t *priv, int queue,
                      CsrWifiMacAddress peer_address,
-                     CsrUint16 interfaceTag)
+                     u16 interfaceTag)
 {
 #ifdef CSR_SUPPORT_WEXT
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
@@ -2363,7 +2363,7 @@ uf_resume_data_plane(unifi_priv_t *priv, int queue,
 } /* uf_resume_data_plane() */
 
 
-void uf_free_pending_rx_packets(unifi_priv_t *priv, int queue, CsrWifiMacAddress peer_address,CsrUint16 interfaceTag)
+void uf_free_pending_rx_packets(unifi_priv_t *priv, int queue, CsrWifiMacAddress peer_address,u16 interfaceTag)
 {
     uf_process_rx_pending_queue(priv, queue, peer_address, 0,interfaceTag);
 
@@ -2387,7 +2387,7 @@ void uf_free_pending_rx_packets(unifi_priv_t *priv, int queue, CsrWifiMacAddress
 static void
 unifi_rx(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_data_param_t *bulkdata)
 {
-    CsrUint16 interfaceTag;
+    u16 interfaceTag;
     bulk_data_desc_t *pData;
     const CSR_MA_PACKET_INDICATION *pkt_ind = &signal->u.MaPacketIndication;
     struct sk_buff *skb;
@@ -2398,7 +2398,7 @@ unifi_rx(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_data_param_t *bulkdata)
 
     u8 da[ETH_ALEN], sa[ETH_ALEN];
     u8 toDs, fromDs, frameType, macHeaderLengthInBytes = MAC_HEADER_SIZE;
-    CsrUint16 frameControl;
+    u16 frameControl;
     netInterface_priv_t *interfacePriv;
     struct ethhdr ehdr;
 
@@ -2676,7 +2676,7 @@ unifi_rx(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_data_param_t *bulkdata)
 
 static void process_ma_packet_cfm(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_data_param_t *bulkdata)
 {
-    CsrUint16 interfaceTag;
+    u16 interfaceTag;
     const CSR_MA_PACKET_CONFIRM *pkt_cfm = &signal->u.MaPacketConfirm;
     netInterface_priv_t *interfacePriv;
 
@@ -2732,11 +2732,11 @@ static void process_ma_packet_cfm(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
  */
 static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_data_param_t *bulkdata)
 {
-    CsrUint16 interfaceTag;
+    u16 interfaceTag;
     bulk_data_desc_t *pData;
     CSR_MA_PACKET_INDICATION *pkt_ind = (CSR_MA_PACKET_INDICATION*)&signal->u.MaPacketIndication;
     struct sk_buff *skb;
-    CsrUint16 frameControl;
+    u16 frameControl;
     netInterface_priv_t *interfacePriv;
     u8 da[ETH_ALEN], sa[ETH_ALEN];
     u8 *bssid = NULL, *ba_addr = NULL;
@@ -2748,7 +2748,7 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
     CsrBool powerSaveChanged = FALSE;
     u8 pmBit = 0;
     CsrWifiRouterCtrlStaInfo_t *srcStaInfo = NULL;
-    CsrUint16 qosControl;
+    u16 qosControl;
 
 #endif
 
@@ -2820,7 +2820,7 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
     frameType = ((frameControl & 0x000C) >> 2);
 
     unifi_trace(priv, UDBG3, "Rx Frame Type: %d sn: %d\n",frameType,
-         (le16_to_cpu(*((CsrUint16*)(bulkdata->d[0].os_data_ptr + IEEE802_11_SEQUENCE_CONTROL_OFFSET))) >> 4) & 0xfff);
+         (le16_to_cpu(*((u16*)(bulkdata->d[0].os_data_ptr + IEEE802_11_SEQUENCE_CONTROL_OFFSET))) >> 4) & 0xfff);
     if(frameType == IEEE802_11_FRAMETYPE_CONTROL){
 #ifdef CSR_SUPPORT_SME
         unifi_trace(priv, UDBG6, "%s: Received Control Frame\n", __FUNCTION__);
@@ -2929,7 +2929,7 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
                         frame_desc_struct frame_desc;
                         frame_desc.bulkdata = *bulkdata;
                         frame_desc.signal = *signal;
-                        frame_desc.sn = (le16_to_cpu(*((CsrUint16*)(bulkdata->d[0].os_data_ptr + IEEE802_11_SEQUENCE_CONTROL_OFFSET))) >> 4) & 0xfff;
+                        frame_desc.sn = (le16_to_cpu(*((u16*)(bulkdata->d[0].os_data_ptr + IEEE802_11_SEQUENCE_CONTROL_OFFSET))) >> 4) & 0xfff;
                         frame_desc.active = TRUE;
                         unifi_trace(priv, UDBG6, "%s: calling process_ba_frame (session=%d)\n", __FUNCTION__, ba_session_idx);
                         process_ba_frame(priv, interfacePriv, ba_session, &frame_desc);
@@ -3626,10 +3626,10 @@ static void
     bulk_data_param_t subframe_bulkdata;
     u8 *dot11_hdr_ptr = (u8*)bulkdata->d[0].os_data_ptr;
     CsrResult csrResult;
-    CsrUint16 frameControl;
+    u16 frameControl;
     u8 *qos_control_ptr;
 
-    frameControl = le16_to_cpu(*((CsrUint16*)dot11_hdr_ptr));
+    frameControl = le16_to_cpu(*((u16*)dot11_hdr_ptr));
     qos_control_ptr = dot11_hdr_ptr + (((frameControl & IEEE802_11_FC_TO_DS_MASK) && (frameControl & IEEE802_11_FC_FROM_DS_MASK))?30: 24);
     if(!(*qos_control_ptr & IEEE802_11_QC_A_MSDU_PRESENT)) {
         unifi_trace(priv, UDBG6, "%s: calling unifi_rx()", __FUNCTION__);
@@ -3712,10 +3712,10 @@ static void add_frame_to_ba_complete(unifi_priv_t *priv,
 static void update_expected_sn(unifi_priv_t *priv,
                           netInterface_priv_t *interfacePriv,
                           ba_session_rx_struct *ba_session,
-                          CsrUint16 sn)
+                          u16 sn)
 {
     int i, j;
-    CsrUint16 gap;
+    u16 gap;
 
     gap = (sn - ba_session->expected_sn) & 0xFFF;
     unifi_trace(priv, UDBG6, "%s: proccess the frames up to new_expected_sn = %d gap = %d\n", __FUNCTION__, sn, gap);
@@ -3754,7 +3754,7 @@ static void complete_ready_sequence(unifi_priv_t *priv,
 void scroll_ba_window(unifi_priv_t *priv,
                                 netInterface_priv_t *interfacePriv,
                                 ba_session_rx_struct *ba_session,
-                                CsrUint16 sn)
+                                u16 sn)
 {
     if(((sn - ba_session->expected_sn) & 0xFFF) <= 2048) {
         update_expected_sn(priv, interfacePriv, ba_session, sn);
@@ -3766,10 +3766,10 @@ void scroll_ba_window(unifi_priv_t *priv,
 static int consume_frame_or_get_buffer_index(unifi_priv_t *priv,
                                             netInterface_priv_t *interfacePriv,
                                             ba_session_rx_struct *ba_session,
-                                            CsrUint16 sn,
+                                            u16 sn,
                                             frame_desc_struct *frame_desc) {
     int i;
-    CsrUint16 sn_temp;
+    u16 sn_temp;
 
     if(((sn - ba_session->expected_sn) & 0xFFF) <= 2048) {
 
@@ -3781,7 +3781,7 @@ static int consume_frame_or_get_buffer_index(unifi_priv_t *priv,
         sn_temp = ba_session->expected_sn + ba_session->wind_size;
         unifi_trace(priv, UDBG6, "%s: new frame: sn=%d\n", __FUNCTION__, sn);
         if(!(((sn - sn_temp) & 0xFFF) > 2048)) {
-            CsrUint16 new_expected_sn;
+            u16 new_expected_sn;
             unifi_trace(priv, UDBG6, "%s: frame is out of window\n", __FUNCTION__);
             sn_temp = (sn - ba_session->wind_size) & 0xFFF;
             new_expected_sn = (sn_temp + 1) & 0xFFF;
@@ -3822,7 +3822,7 @@ static void process_ba_frame(unifi_priv_t *priv,
                                              frame_desc_struct *frame_desc)
 {
     int i;
-    CsrUint16 sn = frame_desc->sn;
+    u16 sn = frame_desc->sn;
 
     if (ba_session->timeout) {
         mod_timer(&ba_session->timer, (jiffies + usecs_to_jiffies((ba_session->timeout) * 1024)));
@@ -3868,7 +3868,7 @@ static void check_ba_frame_age_timeout( unifi_priv_t *priv,
     CsrTime now;
     CsrTime age;
     u8 i, j;
-    CsrUint16 sn_temp;
+    u16 sn_temp;
 
     /* gap is started at 1 because we have buffered frames and
      * hence a minimum gap of 1 exists
@@ -3941,7 +3941,7 @@ static void check_ba_frame_age_timeout( unifi_priv_t *priv,
 
 static void process_ma_packet_error_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_data_param_t *bulkdata)
 {
-    CsrUint16 interfaceTag;
+    u16 interfaceTag;
     const CSR_MA_PACKET_ERROR_INDICATION *pkt_err_ind = &signal->u.MaPacketErrorIndication;
     netInterface_priv_t *interfacePriv;
     ba_session_rx_struct *ba_session;

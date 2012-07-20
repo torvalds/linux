@@ -64,10 +64,10 @@ void CsrWifiRouterTransportDeinit(unifi_priv_t *priv)
 void CsrWifiRouterTransportRecv(unifi_priv_t *priv, u8* buffer, CsrSize bufferLength)
 {
     CsrMsgConvMsgEntry* msgEntry;
-    CsrUint16 primType;
+    u16 primType;
     CsrSchedQid src;
     CsrSchedQid dest;
-    CsrUint16 msgType;
+    u16 msgType;
     CsrSize offset = 0;
     CsrWifiFsmEvent* msg;
 
@@ -96,13 +96,13 @@ void CsrWifiRouterTransportRecv(unifi_priv_t *priv, u8* buffer, CsrSize bufferLe
 
         if (req.dataRef1Length)
         {
-            CsrUint16 dr1Offset = (bufferLength - req.dataRef2Length) - req.dataRef1Length;
+            u16 dr1Offset = (bufferLength - req.dataRef2Length) - req.dataRef1Length;
             req.dataRef1 = &buffer[dr1Offset];
         }
 
         if (req.dataRef2Length)
         {
-            CsrUint16 dr2Offset = bufferLength - req.dataRef2Length;
+            u16 dr2Offset = bufferLength - req.dataRef2Length;
             req.dataRef2 = &buffer[dr2Offset];
         }
 
@@ -159,7 +159,7 @@ void CsrWifiRouterTransportRecv(unifi_priv_t *priv, u8* buffer, CsrSize bufferLe
     CsrPmemFree(msg);
 }
 
-static void CsrWifiRouterTransportSerialiseAndSend(CsrUint16 primType, void* msg)
+static void CsrWifiRouterTransportSerialiseAndSend(u16 primType, void* msg)
 {
     CsrWifiFsmEvent* evt = (CsrWifiFsmEvent*)msg;
     CsrMsgConvMsgEntry* msgEntry;
@@ -198,9 +198,9 @@ static void CsrWifiRouterTransportSerialiseAndSend(CsrUint16 primType, void* msg
 }
 
 #if defined(CSR_LOG_ENABLE) && defined(CSR_LOG_INCLUDE_FILE_NAME_AND_LINE_NUMBER)
-void CsrSchedMessagePutStringLog(CsrSchedQid q, CsrUint16 mi, void *mv, CsrUint32 line, CsrCharString *file)
+void CsrSchedMessagePutStringLog(CsrSchedQid q, u16 mi, void *mv, CsrUint32 line, CsrCharString *file)
 #else
-void CsrSchedMessagePut(CsrSchedQid q, CsrUint16 mi, void *mv)
+void CsrSchedMessagePut(CsrSchedQid q, u16 mi, void *mv)
 #endif
 {
     CsrWifiFsmEvent* evt = (CsrWifiFsmEvent*)mv;

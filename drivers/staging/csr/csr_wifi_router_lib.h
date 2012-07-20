@@ -39,7 +39,7 @@ extern "C" {
  *  PARAMETERS
  *      Deallocates the resources in a CSR_WIFI_ROUTER upstream message
  *----------------------------------------------------------------------------*/
-void CsrWifiRouterFreeUpstreamMessageContents(CsrUint16 eventClass, void *message);
+void CsrWifiRouterFreeUpstreamMessageContents(u16 eventClass, void *message);
 
 /*----------------------------------------------------------------------------*
  *  CsrWifiRouterFreeDownstreamMessageContents
@@ -51,7 +51,7 @@ void CsrWifiRouterFreeUpstreamMessageContents(CsrUint16 eventClass, void *messag
  *  PARAMETERS
  *      Deallocates the resources in a CSR_WIFI_ROUTER downstream message
  *----------------------------------------------------------------------------*/
-void CsrWifiRouterFreeDownstreamMessageContents(CsrUint16 eventClass, void *message);
+void CsrWifiRouterFreeDownstreamMessageContents(u16 eventClass, void *message);
 
 /*----------------------------------------------------------------------------*
  * Enum to string functions

@@ -37,11 +37,11 @@ static CsrMsgConvMsgEntry csrwifirouter_conv_lut[] = {
     { 0, NULL, NULL, NULL, NULL },
 };
 
-CsrMsgConvMsgEntry* CsrWifiRouterConverterLookup(CsrMsgConvMsgEntry *ce, CsrUint16 msgType)
+CsrMsgConvMsgEntry* CsrWifiRouterConverterLookup(CsrMsgConvMsgEntry *ce, u16 msgType)
 {
     if (msgType & CSR_PRIM_UPSTREAM)
     {
-        CsrUint16 idx = (msgType & ~CSR_PRIM_UPSTREAM) + CSR_WIFI_ROUTER_PRIM_DOWNSTREAM_COUNT;
+        u16 idx = (msgType & ~CSR_PRIM_UPSTREAM) + CSR_WIFI_ROUTER_PRIM_DOWNSTREAM_COUNT;
         if (idx < (CSR_WIFI_ROUTER_PRIM_UPSTREAM_COUNT + CSR_WIFI_ROUTER_PRIM_DOWNSTREAM_COUNT) &&
             csrwifirouter_conv_lut[idx].msgType == msgType)
         {

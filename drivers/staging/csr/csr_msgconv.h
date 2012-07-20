@@ -28,7 +28,7 @@ typedef void *(CsrMsgDeserializeFunc)(u8 *buffer, CsrSize length);
 /* Converter entry for one message type */
 typedef struct CsrMsgConvMsgEntry
 {
-    CsrUint16              msgType;
+    u16              msgType;
     CsrMsgSizeofFunc      *sizeofFunc;
     CsrMsgSerializeFunc   *serFunc;
     CsrMsgDeserializeFunc *deserFunc;
@@ -36,12 +36,12 @@ typedef struct CsrMsgConvMsgEntry
 } CsrMsgConvMsgEntry;
 
 /* Optional lookup function */
-typedef CsrMsgConvMsgEntry *(CsrMsgCustomLookupFunc)(CsrMsgConvMsgEntry *ce, CsrUint16 msgType);
+typedef CsrMsgConvMsgEntry *(CsrMsgCustomLookupFunc)(CsrMsgConvMsgEntry *ce, u16 msgType);
 
 /* All converter entries for one specific primitive */
 typedef struct CsrMsgConvPrimEntry
 {
-    CsrUint16                   primType;
+    u16                   primType;
     const CsrMsgConvMsgEntry   *conv;
     CsrMsgCustomLookupFunc     *lookupFunc;
     struct CsrMsgConvPrimEntry *next;
@@ -50,21 +50,21 @@ typedef struct CsrMsgConvPrimEntry
 typedef struct
 {
     CsrMsgConvPrimEntry *profile_converters;
-    void *(*deserialize_data)(CsrUint16 primType, CsrSize length, u8 * data);
-    CsrBool (*free_message)(CsrUint16 primType, u8 *data);
-    CsrSize (*sizeof_message)(CsrUint16 primType, void *msg);
-    u8 *(*serialize_message)(CsrUint16 primType, void *msg,
+    void *(*deserialize_data)(u16 primType, CsrSize length, u8 * data);
+    CsrBool (*free_message)(u16 primType, u8 *data);
+    CsrSize (*sizeof_message)(u16 primType, void *msg);
+    u8 *(*serialize_message)(u16 primType, void *msg,
                                    CsrSize * length,
                                    u8 * buffer);
 } CsrMsgConvEntry;
 
-CsrSize CsrMsgConvSizeof(CsrUint16 primType, void *msg);
-u8 *CsrMsgConvSerialize(u8 *buffer, CsrSize maxBufferOffset, CsrSize *offset, CsrUint16 primType, void *msg);
-void CsrMsgConvCustomLookupRegister(CsrUint16 primType, CsrMsgCustomLookupFunc *lookupFunc);
-void CsrMsgConvInsert(CsrUint16 primType, const CsrMsgConvMsgEntry *ce);
-CsrMsgConvPrimEntry *CsrMsgConvFind(CsrUint16 primType);
-CsrMsgConvMsgEntry *CsrMsgConvFindEntry(CsrUint16 primType, CsrUint16 msgType);
-CsrMsgConvMsgEntry *CsrMsgConvFindEntryByMsg(CsrUint16 primType, const void *msg);
+CsrSize CsrMsgConvSizeof(u16 primType, void *msg);
+u8 *CsrMsgConvSerialize(u8 *buffer, CsrSize maxBufferOffset, CsrSize *offset, u16 primType, void *msg);
+void CsrMsgConvCustomLookupRegister(u16 primType, CsrMsgCustomLookupFunc *lookupFunc);
+void CsrMsgConvInsert(u16 primType, const CsrMsgConvMsgEntry *ce);
+CsrMsgConvPrimEntry *CsrMsgConvFind(u16 primType);
+CsrMsgConvMsgEntry *CsrMsgConvFindEntry(u16 primType, u16 msgType);
+CsrMsgConvMsgEntry *CsrMsgConvFindEntryByMsg(u16 primType, const void *msg);
 CsrMsgConvEntry *CsrMsgConvGet(void);
 CsrMsgConvEntry *CsrMsgConvInit(void);
 #ifdef ENABLE_SHUTDOWN
@@ -79,7 +79,7 @@ CsrUint32 CsrUtf16StringSerLen(const CsrUtf16String *str);
 
 /* Prototypes for primitive type serializers */
 void CsrUint8Ser(u8 *buffer, CsrSize *offset, u8 value);
-void CsrUint16Ser(u8 *buffer, CsrSize *offset, CsrUint16 value);
+void CsrUint16Ser(u8 *buffer, CsrSize *offset, u16 value);
 void CsrUint32Ser(u8 *buffer, CsrSize *offset, CsrUint32 value);
 void CsrMemCpySer(u8 *buffer, CsrSize *offset, const void *value, CsrSize length);
 void CsrCharStringSer(u8 *buffer, CsrSize *offset, const CsrCharString *value);
@@ -89,7 +89,7 @@ void CsrVoidPtrSer(u8 *buffer, CsrSize *offset, void *ptr);
 void CsrSizeSer(u8 *buffer, CsrSize *offset, CsrSize value);
 
 void CsrUint8Des(u8 *value, u8 *buffer, CsrSize *offset);
-void CsrUint16Des(CsrUint16 *value, u8 *buffer, CsrSize *offset);
+void CsrUint16Des(u16 *value, u8 *buffer, CsrSize *offset);
 void CsrUint32Des(CsrUint32 *value, u8 *buffer, CsrSize *offset);
 void CsrMemCpyDes(void *value, u8 *buffer, CsrSize *offset, CsrSize length);
 void CsrCharStringDes(CsrCharString **value, u8 *buffer, CsrSize *offset);

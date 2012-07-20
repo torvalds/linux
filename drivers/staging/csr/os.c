@@ -370,7 +370,7 @@ unifi_trace_nop(void* ospriv, int level, const char *fmt, ...)
 
 /* Memory dump with level filter controlled by unifi_debug */
 void
-unifi_dump(void *ospriv, int level, const char *msg, void *mem, CsrUint16 len)
+unifi_dump(void *ospriv, int level, const char *msg, void *mem, u16 len)
 {
     unifi_priv_t *priv = (unifi_priv_t*) ospriv;
 
@@ -400,7 +400,7 @@ unifi_dump(void *ospriv, int level, const char *msg, void *mem, CsrUint16 len)
 
 /* Memory dump that appears all the time, use sparingly */
 void
-dump(void *mem, CsrUint16 len)
+dump(void *mem, u16 len)
 {
     int i, col = 0;
     unsigned char *pdata = (unsigned char *)mem;
@@ -430,7 +430,7 @@ dump(void *mem, CsrUint16 len)
 
 
 void
-dump16(void *mem, CsrUint16 len)
+dump16(void *mem, u16 len)
 {
     int i, col=0;
     unsigned short *p = (unsigned short *)mem;
@@ -457,7 +457,7 @@ dump16(void *mem, CsrUint16 len)
 
 #ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
 void
-dump_str(void *mem, CsrUint16 len)
+dump_str(void *mem, u16 len)
 {
     int i, col = 0;
     unsigned char *pdata = (unsigned char *)mem;

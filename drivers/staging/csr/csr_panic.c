@@ -15,7 +15,7 @@
 #include "csr_types.h"
 #include "csr_panic.h"
 
-void CsrPanic(u8 tech, CsrUint16 reason, const char *p)
+void CsrPanic(u8 tech, u16 reason, const char *p)
 {
     BUG_ON(1);
 }

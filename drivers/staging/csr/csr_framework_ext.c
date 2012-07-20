@@ -138,7 +138,7 @@ CsrResult CsrMutexUnlock(CsrMutexHandle *mutexHandle)
  *      void
  *
  *----------------------------------------------------------------------------*/
-void CsrThreadSleep(CsrUint16 sleepTimeInMs)
+void CsrThreadSleep(u16 sleepTimeInMs)
 {
     unsigned long t;
 

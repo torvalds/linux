@@ -25,7 +25,7 @@
  *      eventClass: only the value CSR_WIFI_SME_PRIM will be handled
  *      message:    the message to free
  *----------------------------------------------------------------------------*/
-void CsrWifiSmeFreeDownstreamMessageContents(CsrUint16 eventClass, void *message)
+void CsrWifiSmeFreeDownstreamMessageContents(u16 eventClass, void *message)
 {
     if (eventClass != CSR_WIFI_SME_PRIM)
     {
@@ -132,7 +132,7 @@ void CsrWifiSmeFreeDownstreamMessageContents(CsrUint16 eventClass, void *message
         {
             CsrWifiSmeWifiFlightmodeReq *p = (CsrWifiSmeWifiFlightmodeReq *)message;
             {
-                CsrUint16 i1;
+                u16 i1;
                 for (i1 = 0; i1 < p->mibFilesCount; i1++)
                 {
                     CsrPmemFree(p->mibFiles[i1].data);
@@ -147,7 +147,7 @@ void CsrWifiSmeFreeDownstreamMessageContents(CsrUint16 eventClass, void *message
         {
             CsrWifiSmeWifiOnReq *p = (CsrWifiSmeWifiOnReq *)message;
             {
-                CsrUint16 i1;
+                u16 i1;
                 for (i1 = 0; i1 < p->mibFilesCount; i1++)
                 {
                     CsrPmemFree(p->mibFiles[i1].data);

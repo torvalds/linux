@@ -205,9 +205,9 @@ typedef struct {
 
 typedef struct {
     /* Number of 16-bit ints in the protocols array */
-    CsrUint16 count;
+    u16 count;
     /* List of protocol ids to pass */
-    CsrUint16 *protocols;
+    u16 *protocols;
 } unifiio_snap_filter_t;
 
 
@@ -312,20 +312,20 @@ typedef struct uf_cfg_ap_config
 {
     u8    phySupportedBitmap;
     u8    channel;
-    CsrUint16   beaconInterval;
+    u16   beaconInterval;
     u8    dtimPeriod;
     CsrBool     wmmEnabled;
     u8    shortSlotTimeEnabled;
-    CsrUint16   groupkeyTimeout;
+    u16   groupkeyTimeout;
     CsrBool     strictGtkRekeyEnabled;
-    CsrUint16   gmkTimeout;
-    CsrUint16   responseTimeout;
+    u16   gmkTimeout;
+    u16   responseTimeout;
     u8    retransLimit;
     u8    rxStbc;
     CsrBool     rifsModeAllowed;
     u8    dualCtsProtection;
     u8    ctsProtectionType;
-    CsrUint16   maxListenInterval;
+    u16   maxListenInterval;
 }uf_cfg_ap_config_t;
 
 typedef struct tcpic_clsfr

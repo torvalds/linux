@@ -727,7 +727,7 @@ iwprivsapstop(struct net_device *dev, struct iw_request_info *info,
     netInterface_priv_t *interfacePriv = (netInterface_priv_t *)netdev_priv(dev);
     unifi_priv_t *priv = interfacePriv->privPtr;
     int r;
-    CsrUint16 interface_tag = interfacePriv->InterfaceTag;
+    u16 interface_tag = interfacePriv->InterfaceTag;
 
     unifi_trace(priv, UDBG1, "iwprivsapstop\n" );
     r = sme_ap_stop(priv,interface_tag);
@@ -766,7 +766,7 @@ iwprivsstackstop(struct net_device *dev, struct iw_request_info *info,
     netInterface_priv_t *interfacePriv = (netInterface_priv_t *)netdev_priv(dev);
     unifi_priv_t *priv = interfacePriv->privPtr;
     int r = 0;
-    CsrUint16 interface_tag = interfacePriv->InterfaceTag;
+    u16 interface_tag = interfacePriv->InterfaceTag;
 
     unifi_trace(priv, UDBG1, "iwprivsstackstop\n" );
 

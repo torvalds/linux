@@ -114,7 +114,7 @@ sme_log_event(ul_client_t *pcli,
         }
         if (unpacked_signal.SignalPrimitiveHeader.SignalId == CSR_MA_PACKET_INDICATION_ID)
         {
-            CsrUint16 frmCtrl;
+            u16 frmCtrl;
             CsrBool unicastPdu = TRUE;
             u8 *macHdrLocation;
             u8 *raddr = NULL, *taddr = NULL;
@@ -147,7 +147,7 @@ sme_log_event(ul_client_t *pcli,
                 if(ind->ReceptionStatus == CSR_RX_SUCCESS)
                 {
                     u8 pmBit = (frmCtrl & 0x1000)?0x01:0x00;
-                    CsrUint16 interfaceTag = (ind->VirtualInterfaceIdentifier & 0xff);
+                    u16 interfaceTag = (ind->VirtualInterfaceIdentifier & 0xff);
                     CsrWifiRouterCtrlStaInfo_t *srcStaInfo =  CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(priv,taddr,interfaceTag);
                     if((srcStaInfo != NULL) && (uf_check_broadcast_bssid(priv, bulkdata)== FALSE))
                     {
@@ -163,7 +163,7 @@ sme_log_event(ul_client_t *pcli,
         if (unpacked_signal.SignalPrimitiveHeader.SignalId == CSR_MA_PACKET_CONFIRM_ID)
         {
             CSR_MA_PACKET_CONFIRM *cfm = &unpacked_signal.u.MaPacketConfirm;
-            CsrUint16 interfaceTag = (cfm->VirtualInterfaceIdentifier & 0xff);
+            u16 interfaceTag = (cfm->VirtualInterfaceIdentifier & 0xff);
             netInterface_priv_t *interfacePriv;
             CSR_MA_PACKET_REQUEST *req;
             CsrWifiMacAddress peerMacAddress;
@@ -212,7 +212,7 @@ sme_log_event(ul_client_t *pcli,
 #endif
                 /* If EAPOL was requested via router APIs then send cfm else ignore*/
                 if((cfm->HostTag & 0x80000000) != CSR_WIFI_EAPOL_M4_HOST_TAG) {
-                    CsrWifiRouterMaPacketCfmSend((CsrUint16)signal[2],
+                    CsrWifiRouterMaPacketCfmSend((u16)signal[2],
                         cfm->VirtualInterfaceIdentifier,
                         result,
                         (cfm->HostTag & 0x3fffffff), cfm->Rate);
@@ -268,7 +268,7 @@ sme_log_event(ul_client_t *pcli,
  * ---------------------------------------------------------------------------
  */
 CsrWifiRouterCtrlPortAction
-uf_sme_port_state(unifi_priv_t *priv, unsigned char *address, int queue, CsrUint16 interfaceTag)
+uf_sme_port_state(unifi_priv_t *priv, unsigned char *address, int queue, u16 interfaceTag)
 {
     int i;
     unifi_port_config_t *port;
@@ -332,7 +332,7 @@ uf_sme_port_state(unifi_priv_t *priv, unsigned char *address, int queue, CsrUint
  * ---------------------------------------------------------------------------
  */
 unifi_port_cfg_t*
-uf_sme_port_config_handle(unifi_priv_t *priv, unsigned char *address, int queue, CsrUint16 interfaceTag)
+uf_sme_port_config_handle(unifi_priv_t *priv, unsigned char *address, int queue, u16 interfaceTag)
 {
     int i;
     unifi_port_config_t *port;
@@ -387,7 +387,7 @@ uf_multicast_list_wq(struct work_struct *work)
     unifi_priv_t *priv = container_of(work, unifi_priv_t,
             multicast_list_task);
     int i;
-    CsrUint16 interfaceTag = 0;
+    u16 interfaceTag = 0;
     CsrWifiMacAddress* multicast_address_list = NULL;
     int mc_count;
     u8 *mc_list;
@@ -867,7 +867,7 @@ int unifi_cfg_get_info(unifi_priv_t *priv, unsigned char *arg)
             break;
         case UNIFI_CFG_GET_INSTANCE:
             {
-                CsrUint16 InterfaceId=0;
+                u16 InterfaceId=0;
                 uf_net_get_name(priv->netdev[InterfaceId], &inst_name[0], sizeof(inst_name));
 
                 /* Copy the info to the out buffer */
@@ -1054,7 +1054,7 @@ uf_ta_ind_wq(struct work_struct *work)
 {
     struct ta_ind *ind = container_of(work, struct ta_ind, task);
     unifi_priv_t *priv = container_of(ind, unifi_priv_t, ta_ind_work);
-    CsrUint16 interfaceTag = 0;
+    u16 interfaceTag = 0;
 
 
     CsrWifiRouterCtrlTrafficProtocolIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0,
@@ -1091,7 +1091,7 @@ uf_ta_sample_ind_wq(struct work_struct *work)
 {
     struct ta_sample_ind *ind = container_of(work, struct ta_sample_ind, task);
     unifi_priv_t *priv = container_of(ind, unifi_priv_t, ta_sample_ind_work);
-    CsrUint16 interfaceTag = 0;
+    u16 interfaceTag = 0;
 
      unifi_trace(priv, UDBG5, "rxtcp %d txtcp %d rxudp %d txudp %d prio %d\n",
         priv->rxTcpThroughput,
@@ -1152,7 +1152,7 @@ void
 uf_send_m4_ready_wq(struct work_struct *work)
 {
     netInterface_priv_t *InterfacePriv = container_of(work, netInterface_priv_t, send_m4_ready_task);
-    CsrUint16 iface = InterfacePriv->InterfaceTag;
+    u16 iface = InterfacePriv->InterfaceTag;
     unifi_priv_t *priv = InterfacePriv->privPtr;
     CSR_MA_PACKET_REQUEST *req = &InterfacePriv->m4_signal.u.MaPacketRequest;
     CsrWifiMacAddress peer;
@@ -1195,7 +1195,7 @@ uf_send_m4_ready_wq(struct work_struct *work)
 void uf_send_pkt_to_encrypt(struct work_struct *work)
 {
     netInterface_priv_t *interfacePriv = container_of(work, netInterface_priv_t, send_pkt_to_encrypt);
-    CsrUint16 interfaceTag = interfacePriv->InterfaceTag;
+    u16 interfaceTag = interfacePriv->InterfaceTag;
     unifi_priv_t *priv = interfacePriv->privPtr;
 
     CsrUint32 pktBulkDataLength;

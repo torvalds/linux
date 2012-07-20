@@ -333,7 +333,7 @@ register_unifi_sdio(CsrSdioFunction *sdio_dev, int bus_id, struct device *dev)
     Unifi_netdev_instances[bus_id * CSR_WIFI_NUM_INTERFACES] = netdev_priv(priv->netdev[0]);
 
     /* Initialise the mini-coredump capture buffers */
-    csrResult = unifi_coredump_init(priv->card, (CsrUint16)coredump_max);
+    csrResult = unifi_coredump_init(priv->card, (u16)coredump_max);
     if (csrResult != CSR_RESULT_SUCCESS) {
         unifi_error(priv, "Couldn't allocate mini-coredump buffers\n");
     }

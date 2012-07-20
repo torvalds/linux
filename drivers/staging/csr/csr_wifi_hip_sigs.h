@@ -22,13 +22,13 @@ extern "C" {
 
 typedef CsrInt16 csr_place_holding_type;
 
-typedef CsrUint16 CSR_ASSOCIATION_ID;
+typedef u16 CSR_ASSOCIATION_ID;
 
-typedef CsrUint16 CSR_AUTONOMOUS_SCAN_ID;
+typedef u16 CSR_AUTONOMOUS_SCAN_ID;
 
-typedef CsrUint16 CSR_BEACON_PERIODS;
+typedef u16 CSR_BEACON_PERIODS;
 
-typedef CsrUint16 CSR_BLACKOUT_ID;
+typedef u16 CSR_BLACKOUT_ID;
 
 typedef enum CSR_BLACKOUT_SOURCE
 {
@@ -57,9 +57,9 @@ typedef enum CSR_BOOT_LOADER_OPERATION
     CSR_BOOT_LOADER_IMAGE_3                       = 0x13
 } CSR_BOOT_LOADER_OPERATION;
 
-typedef CsrUint16 CSR_CAPABILITY_INFORMATION;
+typedef u16 CSR_CAPABILITY_INFORMATION;
 
-typedef CsrUint16 CSR_CHANNEL_STARTING_FACTOR;
+typedef u16 CSR_CHANNEL_STARTING_FACTOR;
 
 typedef CsrUint32 CSR_CIPHER_SUITE_SELECTOR;
 
@@ -142,11 +142,11 @@ typedef enum CSR_MEMORY_SPACE
     CSR_BT_PROCESSOR_ROM                          = 0x32
 } CSR_MEMORY_SPACE;
 
-typedef CsrUint16 CSR_MICROSECONDS16;
+typedef u16 CSR_MICROSECONDS16;
 
 typedef CsrUint32 CSR_MICROSECONDS32;
 
-typedef CsrUint16 CSR_NATURAL16;
+typedef u16 CSR_NATURAL16;
 
 typedef enum CSR_PS_SCHEME
 {
@@ -161,7 +161,7 @@ typedef enum CSR_PACKET_FILTER_MODE
     CSR_PFM_OPT_IN                                = 0x0003
 } CSR_PACKET_FILTER_MODE;
 
-typedef CsrUint16 CSR_PERIODIC_ID;
+typedef u16 CSR_PERIODIC_ID;
 
 typedef enum CSR_PERIODIC_SCHEDULING_MODE
 {
@@ -344,9 +344,9 @@ typedef enum CSR_SIGNAL_ID
     CSR_DEBUG_GENERIC_INDICATION_ID               = 0x080b
 } CSR_SIGNAL_ID;
 
-typedef CsrUint16 CSR_SIMPLE_POINTER;
+typedef u16 CSR_SIMPLE_POINTER;
 
-typedef CsrUint16 CSR_STARTING_SEQUENCE_NUMBER;
+typedef u16 CSR_STARTING_SEQUENCE_NUMBER;
 
 typedef enum CSR_SYMBOL_ID
 {
@@ -377,7 +377,7 @@ typedef struct CSR_TSF_TIME
     u8 x[8];
 } CSR_TSF_TIME;
 
-typedef CsrUint16 CSR_TIME_UNITS;
+typedef u16 CSR_TIME_UNITS;
 
 typedef enum CSR_TRANSMISSION_CONTROL
 {
@@ -405,9 +405,9 @@ typedef enum CSR_TRANSMISSION_STATUS
     CSR_TX_REJECTED_DTIM_STARTED                  = 0x0010
 } CSR_TRANSMISSION_STATUS;
 
-typedef CsrUint16 CSR_TRIGGER_ID;
+typedef u16 CSR_TRIGGER_ID;
 
-typedef CsrUint16 CSR_TRIGGERED_ID;
+typedef u16 CSR_TRIGGERED_ID;
 
 typedef enum CSR_HIP_VERSIONS
 {
@@ -415,17 +415,17 @@ typedef enum CSR_HIP_VERSIONS
     CSR_HIP_VERSION                               = 0x0900
 } CSR_HIP_VERSIONS;
 
-typedef CsrUint16 CSR_BUFFER_HANDLE;
+typedef u16 CSR_BUFFER_HANDLE;
 
-typedef CsrUint16 CSR_CHANNEL_NUMBER;
+typedef u16 CSR_CHANNEL_NUMBER;
 
 typedef struct CSR_DATA_REFERENCE
 {
-    CsrUint16 SlotNumber;
-    CsrUint16 DataLength;
+    u16 SlotNumber;
+    u16 DataLength;
 } CSR_DATAREF;
 
-typedef CsrUint16 CSR_DIALOG_TOKEN;
+typedef u16 CSR_DIALOG_TOKEN;
 
 typedef struct CSR_GENERIC_POINTER
 {
@@ -574,11 +574,11 @@ typedef struct CSR_MLME_STOP_MEASURE_REQUEST
     CSR_DIALOG_TOKEN DialogToken;
 } CSR_MLME_STOP_MEASURE_REQUEST;
 
-typedef CsrUint16 CSR_PROCESS_ID;
+typedef u16 CSR_PROCESS_ID;
 
-typedef CsrUint16 CSR_RATE;
+typedef u16 CSR_RATE;
 
-typedef CsrUint16 CSR_SEQUENCE_NUMBER;
+typedef u16 CSR_SEQUENCE_NUMBER;
 
 typedef struct CSR_SIGNAL_PRIMITIVE_HEADER
 {
@@ -587,9 +587,9 @@ typedef struct CSR_SIGNAL_PRIMITIVE_HEADER
     CSR_PROCESS_ID SenderProcessId;
 } CSR_SIGNAL_PRIMITIVE_HEADER;
 
-typedef CsrUint16 CSR_TRAFFIC_WINDOW;
+typedef u16 CSR_TRAFFIC_WINDOW;
 
-typedef CsrUint16 CSR_VIF_IDENTIFIER;
+typedef u16 CSR_VIF_IDENTIFIER;
 
 typedef struct CSR_DEBUG_GENERIC_CONFIRM
 {
@@ -1416,7 +1416,7 @@ typedef struct CSR_SIGNAL_PRIMITIVE
 
 #define SIG_FILTER_SIZE 6
 
-CsrUint32 SigGetFilterPos(CsrUint16 aSigID);
+CsrUint32 SigGetFilterPos(u16 aSigID);
 
 #ifdef __cplusplus
 }

@@ -52,7 +52,7 @@ static CsrResult do_patch_convert_download(card_t *card,
 static CsrResult _find_in_slut(card_t *card, symbol_t *psym, CsrUint32 *pslut)
 {
     CsrUint32 slut_address;
-    CsrUint16 finger_print;
+    u16 finger_print;
     CsrResult r;
     CsrResult csrResult;
 
@@ -121,7 +121,7 @@ static CsrResult _find_in_slut(card_t *card, symbol_t *psym, CsrUint32 *pslut)
 
     while (1)
     {
-        CsrUint16 id;
+        u16 id;
         CsrUint32 obj;
 
         r = unifi_card_read16(card, slut_address, &id);
@@ -500,7 +500,7 @@ void* unifi_dl_fw_read_start(card_t *card, s8 is_fw)
 static CsrResult safe_read_shared_location(card_t *card, CsrUint32 address, u8 *pdata)
 {
     CsrResult r;
-    CsrUint16 limit = 1000;
+    u16 limit = 1000;
     u8 b, b2;
 
     *pdata = 0;
@@ -662,7 +662,7 @@ static CsrResult send_ptdl_to_unifi(card_t *card, void *dlpriv,
     CsrInt32 data_len;
     CsrUint32 write_len;
     CsrResult r;
-    const CsrUint16 buf_size = 2 * 1024;
+    const u16 buf_size = 2 * 1024;
 
     offset = ptdl->dl_offset;
     data_len = ptdl->dl_size;
@@ -757,8 +757,8 @@ static CsrResult do_patch_download(card_t *card, void *dlpriv, xbv1_t *pfwinfo, 
 {
     CsrResult r;
     CsrInt32 i;
-    CsrUint16 loader_version;
-    CsrUint16 handle;
+    u16 loader_version;
+    u16 handle;
     CsrUint32 total_bytes;
 
     /*
@@ -795,7 +795,7 @@ static CsrResult do_patch_download(card_t *card, void *dlpriv, xbv1_t *pfwinfo, 
     if (card->loader_led_mask)
     {
         r = unifi_card_write16(card, boot_ctrl_addr + 2,
-                               (CsrUint16)card->loader_led_mask);
+                               (u16)card->loader_led_mask);
         if (r != CSR_RESULT_SUCCESS)
         {
             unifi_error(card->ospriv, "Patch download: Failed to write LED mask\n");

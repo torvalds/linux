@@ -98,7 +98,7 @@ struct ul_client {
     CSR_SIGNAL* reply_signal;
     bulk_data_t* reply_bulkdata[UNIFI_MAX_DATA_REFERENCES];
 
-    CsrUint16 signal_filter[SIG_FILTER_SIZE];
+    u16 signal_filter[SIG_FILTER_SIZE];
 
 
     /* ------------------------------------------------------------------- */

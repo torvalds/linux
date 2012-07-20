@@ -38,7 +38,7 @@
 CsrInt32 get_packed_struct_size(const u8 *buf)
 {
     CsrInt32 size = 0;
-    CsrUint16 sig_id;
+    u16 sig_id;
 
     sig_id = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(buf);
 
@@ -2984,7 +2984,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
  *      CSR_WIFI_HIP_RESULT_INVALID_VALUE if the ID of signal was not recognised.
  * ---------------------------------------------------------------------------
  */
-CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, CsrUint16 *sig_len)
+CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
 {
     CsrInt16 index = 0;
 

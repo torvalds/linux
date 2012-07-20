@@ -19,7 +19,7 @@ int
 uf_verify_m4(unifi_priv_t *priv, const unsigned char *packet, unsigned int length)
 {
     const unsigned char *p = packet;
-    CsrUint16 keyinfo;
+    u16 keyinfo;
 
 
     if (length < (4 + 5 + 8 + 32 + 16 + 8 + 8 + 16 + 1 + 8)) {

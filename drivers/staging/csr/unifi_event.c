@@ -97,7 +97,7 @@ static CsrBool check_routing_pkt_data_ind(unifi_priv_t *priv,
         CsrBool *freeBulkData,
         netInterface_priv_t *interfacePriv)
 {
-    CsrUint16  frmCtrl, receptionStatus, frmCtrlSubType;
+    u16  frmCtrl, receptionStatus, frmCtrlSubType;
     u8 *macHdrLocation;
     u8 interfaceTag;
     CsrBool isDataFrame;
@@ -112,7 +112,7 @@ static CsrBool check_routing_pkt_data_ind(unifi_priv_t *priv,
     CsrBool isWapiUnicastPkt = FALSE;
 
 #ifdef CSR_WIFI_SECURITY_WAPI_QOSCTRL_MIC_WORKAROUND
-    CsrUint16 qosControl;
+    u16 qosControl;
 #endif
 
     u8 llcSnapHeaderOffset = 0;
@@ -467,7 +467,7 @@ unifi_process_receive_event(void *ospriv,
                    #define CSR_MA_PACKET_INDICATION_RECEPTION_STATUS_OFFSET    sizeof(CSR_SIGNAL_PRIMITIVE_HEADER) + 22
                    netInterface_priv_t *interfacePriv;
                    u8 interfaceTag;
-                   CsrUint16 receptionStatus = CSR_RX_SUCCESS;
+                   u16 receptionStatus = CSR_RX_SUCCESS;
 
                    /* Pull out interface tag from virtual interface identifier */
                    interfaceTag = (CSR_GET_UINT16_FROM_LITTLE_ENDIAN(sigdata + CSR_MA_PACKET_INDICATION_INTERFACETAG_OFFSET)) & 0xff;
@@ -489,7 +489,7 @@ unifi_process_receive_event(void *ospriv,
                        CSR_SIGNAL signal;
                        u8 *destAddr;
                        CsrResult res;
-                       CsrUint16 interfaceTag = 0;
+                       u16 interfaceTag = 0;
                        CsrBool isMcastPkt = TRUE;
 
                        unifi_trace(priv, UDBG6, "Received a WAPI data packet when the Unicast/Multicast filter is set\n");

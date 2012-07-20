@@ -223,7 +223,7 @@ unifi_ta_indicate_protocol(void *ospriv,
 
     if (CSR_WIFI_ROUTER_CTRL_PROTOCOL_DIRECTION_RX == direction)
     {
-        CsrUint16 interfaceTag = 0;
+        u16 interfaceTag = 0;
         CsrWifiRouterCtrlTrafficProtocolIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0,
                 interfaceTag,
                 packet_type,

@@ -222,7 +222,7 @@ _sme_wait_for_reply(unifi_priv_t *priv,
 #ifdef CSR_SUPPORT_WEXT
 int sme_mgt_wifi_on(unifi_priv_t *priv)
 {
-    CsrUint16 numElements;
+    u16 numElements;
     CsrWifiSmeDataBlock* dataList;
 #ifdef CSR_SUPPORT_WEXT_AP
     int r;
@@ -350,7 +350,7 @@ int sme_mgt_scan_full(unifi_priv_t *priv,
                               is_active,
                               CSR_WIFI_SME_BSS_TYPE_ANY_BSS,
                               CSR_WIFI_SME_SCAN_TYPE_ALL,
-                              (CsrUint16)num_channels, channel_list,
+                              (u16)num_channels, channel_list,
                               0, NULL);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_LONG_TIMEOUT);
@@ -372,7 +372,7 @@ int sme_mgt_scan_results_get_async(unifi_priv_t *priv,
         char *scan_results,
         long scan_results_len)
 {
-    CsrUint16 scan_result_list_count;
+    u16 scan_result_list_count;
     CsrWifiSmeScanResult *scan_result_list;
     CsrWifiSmeScanResult *scan_result;
     int r;
@@ -1443,7 +1443,7 @@ int sme_sys_resume(unifi_priv_t *priv)
 }
 
 #ifdef CSR_SUPPORT_WEXT_AP
-int sme_ap_stop(unifi_priv_t *priv,CsrUint16 interface_tag)
+int sme_ap_stop(unifi_priv_t *priv,u16 interface_tag)
 {
     int r;
 
@@ -1471,7 +1471,7 @@ int sme_ap_stop(unifi_priv_t *priv,CsrUint16 interface_tag)
 
 }
 
-int sme_ap_start(unifi_priv_t *priv,CsrUint16 interface_tag,
+int sme_ap_start(unifi_priv_t *priv,u16 interface_tag,
                  CsrWifiSmeApConfig_t * ap_config)
 {
     int r;

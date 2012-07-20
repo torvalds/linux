@@ -47,14 +47,14 @@ static CsrResult handle_host_protocol(card_t *card, CsrBool *processed_something
 
 static CsrResult flush_fh_buffer(card_t *card);
 
-static CsrResult check_fh_sig_slots(card_t *card, CsrUint16 needed, CsrInt32 *space);
+static CsrResult check_fh_sig_slots(card_t *card, u16 needed, CsrInt32 *space);
 
 static CsrResult read_to_host_signals(card_t *card, CsrInt32 *processed);
 static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed);
 
 static CsrResult process_bulk_data_command(card_t *card,
                                            const u8 *cmdptr,
-                                           CsrInt16 cmd, CsrUint16 len);
+                                           CsrInt16 cmd, u16 len);
 static CsrResult process_clear_slot_command(card_t         *card,
                                             const u8 *cmdptr);
 static CsrResult process_fh_cmd_queue(card_t *card, CsrInt32 *processed);
@@ -143,14 +143,14 @@ void unifi_debug_log_to_buf(const CsrCharString *fmt, ...)
  *
  * ---------------------------------------------------------------------------
  */
-void unifi_debug_hex_to_buf(const CsrCharString *buff, CsrUint16 length)
+void unifi_debug_hex_to_buf(const CsrCharString *buff, u16 length)
 {
     CsrCharString s[5];
-    CsrUint16 i;
+    u16 i;
 
     for (i = 0; i < length; i = i + 2)
     {
-        CsrUInt16ToHex(*((CsrUint16 *)(buff + i)), s);
+        CsrUInt16ToHex(*((u16 *)(buff + i)), s);
         unifi_debug_string_to_buf(s);
     }
 }
@@ -361,7 +361,7 @@ CsrResult unifi_bh(card_t *card, CsrUint32 *remaining)
     CsrBool pending;
     CsrInt32 iostate, j;
     const enum unifi_low_power_mode low_power_mode = card->low_power_mode;
-    CsrUint16 data_slots_used = 0;
+    u16 data_slots_used = 0;
 
 
     /* Process request to raise the maximum SDIO clock */
@@ -1029,7 +1029,7 @@ static CsrResult read_to_host_signals(card_t *card, CsrInt32 *processed)
     }
 
     card->th_buffer.ptr += unread_bytes;
-    card->th_buffer.count += (CsrUint16)unread_chunks;
+    card->th_buffer.count += (u16)unread_chunks;
 
     *processed = 1;
 
@@ -1150,10 +1150,10 @@ static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
     u8 *bufptr;
     bulk_data_param_t data_ptrs;
     CsrInt16 cmd;
-    CsrUint16 sig_len;
+    u16 sig_len;
     CsrInt16 i;
-    CsrUint16 chunks_in_buf;
-    CsrUint16 bytes_transferred = 0;
+    u16 chunks_in_buf;
+    u16 bytes_transferred = 0;
     CsrResult r = CSR_RESULT_SUCCESS;
 
     *processed = 0;
@@ -1205,14 +1205,14 @@ static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
          */
         if (cmd == SDIO_CMD_SIGNAL)
         {
-            chunks_in_buf = GET_CHUNKS_FOR(card->config_data.sig_frag_size, (CsrUint16)(sig_len + 2));
+            chunks_in_buf = GET_CHUNKS_FOR(card->config_data.sig_frag_size, (u16)(sig_len + 2));
         }
         else
         {
             chunks_in_buf = 1;
         }
 
-        if (chunks_in_buf > (CsrUint16)pending)
+        if (chunks_in_buf > (u16)pending)
         {
             unifi_error(card->ospriv, "incomplete signal (0x%x?): need %d chunks, got %d\n",
                         GET_SIGNAL_ID(bufptr + 2),
@@ -1235,7 +1235,7 @@ static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
                 for (i = 0; i < UNIFI_MAX_DATA_REFERENCES; i++)
                 {
                     /* Retrieve dataRefs[i].DataLength */
-                    CsrUint16 data_len = GET_PACKED_DATAREF_LEN(bufptr + 2, i);
+                    u16 data_len = GET_PACKED_DATAREF_LEN(bufptr + 2, i);
 
                     /*
                      * The bulk data length in the signal can not be greater than
@@ -1316,7 +1316,7 @@ static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
                 {
                     /* Get host tag and transmission status */
                     CsrUint32 host_tag = GET_PACKED_MA_PACKET_CONFIRM_HOST_TAG(bufptr + 2);
-                    CsrUint16 status = GET_PACKED_MA_PACKET_CONFIRM_TRANSMISSION_STATUS(bufptr + 2);
+                    u16 status = GET_PACKED_MA_PACKET_CONFIRM_TRANSMISSION_STATUS(bufptr + 2);
 
                     unifi_trace(card->ospriv, UDBG4, "process_to_host_signals signal ID=%x host Tag=%x status=%x\n",
                                 GET_SIGNAL_ID(bufptr + 2), host_tag, status);
@@ -1327,7 +1327,7 @@ static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
 
                     if (status && (card->fh_slot_host_tag_record))
                     {
-                        CsrUint16 num_fh_slots = card->config_data.num_fromhost_data_slots;
+                        u16 num_fh_slots = card->config_data.num_fromhost_data_slots;
 
                         /* search through the list of slot records and match with host tag
                          * If a slot is not yet cleared then clear the slot from here
@@ -1545,7 +1545,7 @@ static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
  */
 static CsrResult process_clear_slot_command(card_t *card, const u8 *cmdptr)
 {
-    CsrUint16 data_slot;
+    u16 data_slot;
     CsrInt16 slot;
 
     data_slot = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(cmdptr + SIZEOF_UINT16);
@@ -1619,7 +1619,7 @@ static CsrResult process_clear_slot_command(card_t *card, const u8 *cmdptr)
  * ---------------------------------------------------------------------------
  */
 static CsrResult process_bulk_data_command(card_t *card, const u8 *cmdptr,
-                                           CsrInt16 cmd, CsrUint16 len)
+                                           CsrInt16 cmd, u16 len)
 {
     bulk_data_desc_t *bdslot;
 #ifdef CSR_WIFI_ALIGNMENT_WORKAROUND
@@ -1839,7 +1839,7 @@ static CsrResult process_bulk_data_command(card_t *card, const u8 *cmdptr,
  *      CSR_RESULT_SUCCESS, otherwise CSR error code on error.
  * ---------------------------------------------------------------------------
  */
-static CsrResult check_fh_sig_slots(card_t *card, CsrUint16 needed, CsrInt32 *space_fh)
+static CsrResult check_fh_sig_slots(card_t *card, u16 needed, CsrInt32 *space_fh)
 {
     CsrUint32 count_fhw;
     CsrUint32 occupied_fh, slots_fh;
@@ -1885,8 +1885,8 @@ static CsrResult check_fh_sig_slots(card_t *card, CsrUint16 needed, CsrInt32 *sp
 */
 #define ROUND_UP_NEEDED_CHUNKS(_card, _needed_chunks) \
     { \
-        CsrUint16 _chunks_per_block; \
-        CsrUint16 _chunks_in_last_block; \
+        u16 _chunks_per_block; \
+        u16 _chunks_in_last_block; \
  \
         if (_card->sdio_io_block_pad) \
         { \
@@ -1902,7 +1902,7 @@ static CsrResult check_fh_sig_slots(card_t *card, CsrUint16 needed, CsrInt32 *sp
 
 #define ROUND_UP_SPACE_CHUNKS(_card, _space_chunks) \
     { \
-        CsrUint16 _chunks_per_block; \
+        u16 _chunks_per_block; \
  \
         if (_card->sdio_io_block_pad) \
         { \
@@ -1945,11 +1945,11 @@ static CsrResult process_fh_cmd_queue(card_t *card, CsrInt32 *processed)
     q_t *sigq = &card->fh_command_queue;
 
     CsrResult r;
-    CsrUint16 pending_sigs;
-    CsrUint16 pending_chunks;
-    CsrUint16 needed_chunks;
+    u16 pending_sigs;
+    u16 pending_chunks;
+    u16 needed_chunks;
     CsrInt32 space_chunks;
-    CsrUint16 q_index;
+    u16 q_index;
 
     *processed = 0;
 
@@ -1973,7 +1973,7 @@ static CsrResult process_fh_cmd_queue(card_t *card, CsrInt32 *processed)
          * Note that GET_CHUNKS_FOR() needs the size of the packed
          * (wire-formatted) structure
          */
-        pending_chunks += GET_CHUNKS_FOR(card->config_data.sig_frag_size, (CsrUint16)(csptr->signal_length + 2));
+        pending_chunks += GET_CHUNKS_FOR(card->config_data.sig_frag_size, (u16)(csptr->signal_length + 2));
     }
 
     /*
@@ -2003,7 +2003,7 @@ static CsrResult process_fh_cmd_queue(card_t *card, CsrInt32 *processed)
      * Coalesce as many from-host signals as possible
      * into a single block and write using a single CMD53
      */
-    if (needed_chunks > (CsrUint16)space_chunks)
+    if (needed_chunks > (u16)space_chunks)
     {
         /* Round up to the block size if necessary */
         ROUND_UP_SPACE_CHUNKS(card, space_chunks);
@@ -2012,7 +2012,7 @@ static CsrResult process_fh_cmd_queue(card_t *card, CsrInt32 *processed)
          * If the f/w has less free chunks than those already pending
          * return immediately.
          */
-        if ((CsrUint16)space_chunks <= card->fh_buffer.count)
+        if ((u16)space_chunks <= card->fh_buffer.count)
         {
             /*
              * No room in UniFi for any signals after the buffered bulk
@@ -2023,17 +2023,17 @@ static CsrResult process_fh_cmd_queue(card_t *card, CsrInt32 *processed)
             card->generate_interrupt = 1;
             return CSR_RESULT_SUCCESS;
         }
-        pending_chunks = (CsrUint16)(space_chunks - card->fh_buffer.count);
+        pending_chunks = (u16)(space_chunks - card->fh_buffer.count);
     }
 
     while (pending_sigs-- && pending_chunks > 0)
     {
         card_signal_t *csptr;
         CsrInt16 i;
-        CsrUint16 sig_chunks, total_length, free_chunks_in_fh_buffer;
+        u16 sig_chunks, total_length, free_chunks_in_fh_buffer;
         bulk_data_param_t bulkdata;
         u8 *packed_sigptr;
-        CsrUint16 signal_length = 0;
+        u16 signal_length = 0;
 
         /* Retrieve the entry at the head of the queue */
         q_index = CSR_WIFI_HIP_Q_NEXT_R_SLOT(sigq);
@@ -2051,15 +2051,15 @@ static CsrResult process_fh_cmd_queue(card_t *card, CsrInt32 *processed)
         }
 
         /* Need space for 2-byte SDIO protocol header + signal */
-        sig_chunks = GET_CHUNKS_FOR(card->config_data.sig_frag_size, (CsrUint16)(signal_length + 2));
+        sig_chunks = GET_CHUNKS_FOR(card->config_data.sig_frag_size, (u16)(signal_length + 2));
 
         free_chunks_in_fh_buffer = GET_CHUNKS_FOR(card->config_data.sig_frag_size,
-                                                  (CsrUint16)((card->fh_buffer.buf + UNIFI_FH_BUF_SIZE) - card->fh_buffer.ptr));
+                                                  (u16)((card->fh_buffer.buf + UNIFI_FH_BUF_SIZE) - card->fh_buffer.ptr));
         if (free_chunks_in_fh_buffer < sig_chunks)
         {
             /* No more room */
             unifi_notice(card->ospriv, "proc_fh_cmd_q: no room in fh buffer for 0x%.4X, deferring\n",
-                         (CsrUint16)(GET_SIGNAL_ID(csptr->sigbuf)));
+                         (u16)(GET_SIGNAL_ID(csptr->sigbuf)));
             break;
         }
 
@@ -2069,7 +2069,7 @@ static CsrResult process_fh_cmd_queue(card_t *card, CsrInt32 *processed)
         if (CSR_RESULT_FAILURE == CardWriteBulkData(card, csptr, UNIFI_TRAFFIC_Q_MLME))
         {
             unifi_notice(card->ospriv, "proc_fh_cmd_q: no fh data slots for 0x%.4X, deferring\n",
-                         (CsrUint16)(GET_SIGNAL_ID(csptr->sigbuf)));
+                         (u16)(GET_SIGNAL_ID(csptr->sigbuf)));
             break;
         }
 
@@ -2175,13 +2175,13 @@ static CsrResult process_fh_traffic_queue(card_t *card, CsrInt32 *processed)
     CsrResult r;
     CsrInt16 n = 0;
     CsrInt32 q_no;
-    CsrUint16 pending_sigs = 0;
-    CsrUint16 pending_chunks = 0;
-    CsrUint16 needed_chunks;
+    u16 pending_sigs = 0;
+    u16 pending_chunks = 0;
+    u16 needed_chunks;
     CsrInt32 space_chunks;
-    CsrUint16 q_index;
+    u16 q_index;
     CsrUint32 host_tag = 0;
-    CsrUint16 slot_num = 0;
+    u16 slot_num = 0;
 
     *processed = 0;
 
@@ -2203,7 +2203,7 @@ static CsrResult process_fh_traffic_queue(card_t *card, CsrInt32 *processed)
              * Note that GET_CHUNKS_FOR() needs the size of the packed
              * (wire-formatted) structure
              */
-            pending_chunks += GET_CHUNKS_FOR(card->config_data.sig_frag_size, (CsrUint16)(csptr->signal_length + 2));
+            pending_chunks += GET_CHUNKS_FOR(card->config_data.sig_frag_size, (u16)(csptr->signal_length + 2));
         }
     }
 
@@ -2240,12 +2240,12 @@ static CsrResult process_fh_traffic_queue(card_t *card, CsrInt32 *processed)
 
     /* Coalesce as many from-host signals as possible
        into a single block and write using a single CMD53 */
-    if (needed_chunks > (CsrUint16)space_chunks)
+    if (needed_chunks > (u16)space_chunks)
     {
         /* Round up to the block size if necessary */
         ROUND_UP_SPACE_CHUNKS(card, space_chunks);
 
-        if ((CsrUint16)space_chunks <= card->fh_buffer.count)
+        if ((u16)space_chunks <= card->fh_buffer.count)
         {
             /*
              * No room in UniFi for any signals after the buffered bulk
@@ -2257,7 +2257,7 @@ static CsrResult process_fh_traffic_queue(card_t *card, CsrInt32 *processed)
             return 0;
         }
 
-        pending_chunks = (CsrUint16)space_chunks - card->fh_buffer.count;
+        pending_chunks = (u16)space_chunks - card->fh_buffer.count;
     }
 
     q_no = UNIFI_NO_OF_TX_QS - 1;
@@ -2271,10 +2271,10 @@ static CsrResult process_fh_traffic_queue(card_t *card, CsrInt32 *processed)
     do
     {
         card_signal_t *csptr;
-        CsrUint16 sig_chunks, total_length, free_chunks_in_fh_buffer;
+        u16 sig_chunks, total_length, free_chunks_in_fh_buffer;
         bulk_data_param_t bulkdata;
         u8 *packed_sigptr;
-        CsrUint16 signal_length = 0;
+        u16 signal_length = 0;
 
         /* if this queue is empty go to next one. */
         if (CSR_WIFI_HIP_Q_SLOTS_USED(&sigq[q_no]) == 0)
@@ -2299,9 +2299,9 @@ static CsrResult process_fh_traffic_queue(card_t *card, CsrInt32 *processed)
         }
 
         /* Need space for 2-byte SDIO protocol header + signal */
-        sig_chunks = GET_CHUNKS_FOR(card->config_data.sig_frag_size, (CsrUint16)(signal_length + 2));
+        sig_chunks = GET_CHUNKS_FOR(card->config_data.sig_frag_size, (u16)(signal_length + 2));
         free_chunks_in_fh_buffer = GET_CHUNKS_FOR(card->config_data.sig_frag_size,
-                                                  (CsrUint16)((card->fh_buffer.buf + UNIFI_FH_BUF_SIZE) - card->fh_buffer.ptr));
+                                                  (u16)((card->fh_buffer.buf + UNIFI_FH_BUF_SIZE) - card->fh_buffer.ptr));
         if (free_chunks_in_fh_buffer < sig_chunks)
         {
             /* No more room */
@@ -2444,12 +2444,12 @@ static CsrResult process_fh_traffic_queue(card_t *card, CsrInt32 *processed)
 static CsrResult flush_fh_buffer(card_t *card)
 {
     CsrResult r;
-    CsrUint16 len;
-    CsrUint16 sig_units;
-    CsrUint16 data_round;
-    CsrUint16 chunks_in_last_block;
-    CsrUint16 padding_chunks;
-    CsrUint16 i;
+    u16 len;
+    u16 sig_units;
+    u16 data_round;
+    u16 chunks_in_last_block;
+    u16 padding_chunks;
+    u16 i;
 
     len = card->fh_buffer.ptr - card->fh_buffer.buf;
 

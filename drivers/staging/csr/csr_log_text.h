@@ -19,13 +19,13 @@ extern "C" {
 
 typedef struct CsrLogSubOrigin
 {
-    CsrUint16            subOriginNumber;  /* Id of the given SubOrigin */
+    u16            subOriginNumber;  /* Id of the given SubOrigin */
     const CsrCharString *subOriginName;    /* Prefix Text for this SubOrigin */
 } CsrLogSubOrigin;
 
 /* Register a task which is going to use the CSR_LOG_TEXT_XXX interface */
 #ifdef CSR_LOG_ENABLE
-void CsrLogTextRegister(CsrLogTextTaskId taskId, const CsrCharString *taskName, CsrUint16 subOriginsLength, const CsrLogSubOrigin *subOrigins);
+void CsrLogTextRegister(CsrLogTextTaskId taskId, const CsrCharString *taskName, u16 subOriginsLength, const CsrLogSubOrigin *subOrigins);
 #else
 #define CsrLogTextRegister(taskId, taskName, subOriginsLength, subOrigins)
 #endif
@@ -33,8 +33,8 @@ void CsrLogTextRegister(CsrLogTextTaskId taskId, const CsrCharString *taskName, 
 /* CRITICAL: Conditions that are threatening to the integrity/stability of the
    system as a whole. */
 #if defined(CSR_LOG_ENABLE) && !defined(CSR_LOG_LEVEL_TEXT_CRITICAL_DISABLE)
-void CsrLogTextCritical(CsrLogTextTaskId taskId, CsrUint16 subOrigin, const CsrCharString *formatString, ...);
-void CsrLogTextBufferCritical(CsrLogTextTaskId taskId, CsrUint16 subOrigin, CsrSize bufferLength, const void *buffer, const CsrCharString *formatString, ...);
+void CsrLogTextCritical(CsrLogTextTaskId taskId, u16 subOrigin, const CsrCharString *formatString, ...);
+void CsrLogTextBufferCritical(CsrLogTextTaskId taskId, u16 subOrigin, CsrSize bufferLength, const void *buffer, const CsrCharString *formatString, ...);
 #define CSR_LOG_TEXT_CRITICAL(taskId_subOrigin_formatString_varargs) CsrLogTextCritical taskId_subOrigin_formatString_varargs
 #define CSR_LOG_TEXT_CONDITIONAL_CRITICAL(condition, logtextargs) {if (condition) {CSR_LOG_TEXT_CRITICAL(logtextargs);}}
 #define CSR_LOG_TEXT_BUFFER_CRITICAL(taskId_subOrigin_length_buffer_formatString_varargs) CsrLogTextBufferCritical taskId_subOrigin_length_buffer_formatString_varargs
@@ -49,8 +49,8 @@ void CsrLogTextBufferCritical(CsrLogTextTaskId taskId, CsrUint16 subOrigin, CsrS
 /* ERROR: Malfunction of a component rendering it unable to operate correctly,
    causing lack of functionality but not loss of system integrity/stability. */
 #if defined(CSR_LOG_ENABLE) && !defined(CSR_LOG_LEVEL_TEXT_ERROR_DISABLE)
-void CsrLogTextError(CsrLogTextTaskId taskId, CsrUint16 subOrigin, const CsrCharString *formatString, ...);
-void CsrLogTextBufferError(CsrLogTextTaskId taskId, CsrUint16 subOrigin, CsrSize bufferLength, const void *buffer, const CsrCharString *formatString, ...);
+void CsrLogTextError(CsrLogTextTaskId taskId, u16 subOrigin, const CsrCharString *formatString, ...);
+void CsrLogTextBufferError(CsrLogTextTaskId taskId, u16 subOrigin, CsrSize bufferLength, const void *buffer, const CsrCharString *formatString, ...);
 #define CSR_LOG_TEXT_ERROR(taskId_subOrigin_formatString_varargs) CsrLogTextError taskId_subOrigin_formatString_varargs
 #define CSR_LOG_TEXT_CONDITIONAL_ERROR(condition, logtextargs) {if (condition) {CSR_LOG_TEXT_ERROR(logtextargs);}}
 #define CSR_LOG_TEXT_BUFFER_ERROR(taskId_subOrigin_length_buffer_formatString_varargs) CsrLogTextBufferError taskId_subOrigin_length_buffer_formatString_varargs
@@ -66,8 +66,8 @@ void CsrLogTextBufferError(CsrLogTextTaskId taskId, CsrUint16 subOrigin, CsrSize
    or violations of specifications, where the result of such deviations does not
    lead to malfunction of the component. */
 #if defined(CSR_LOG_ENABLE) && !defined(CSR_LOG_LEVEL_TEXT_WARNING_DISABLE)
-void CsrLogTextWarning(CsrLogTextTaskId taskId, CsrUint16 subOrigin, const CsrCharString *formatString, ...);
-void CsrLogTextBufferWarning(CsrLogTextTaskId taskId, CsrUint16 subOrigin, CsrSize bufferLength, const void *buffer, const CsrCharString *formatString, ...);
+void CsrLogTextWarning(CsrLogTextTaskId taskId, u16 subOrigin, const CsrCharString *formatString, ...);
+void CsrLogTextBufferWarning(CsrLogTextTaskId taskId, u16 subOrigin, CsrSize bufferLength, const void *buffer, const CsrCharString *formatString, ...);
 #define CSR_LOG_TEXT_WARNING(taskId_subOrigin_formatString_varargs) CsrLogTextWarning taskId_subOrigin_formatString_varargs
 #define CSR_LOG_TEXT_CONDITIONAL_WARNING(condition, logtextargs) {if (condition) {CSR_LOG_TEXT_WARNING(logtextargs);}}
 #define CSR_LOG_TEXT_BUFFER_WARNING(taskId_subOrigin_length_buffer_formatString_varargs) CsrLogTextBufferWarning taskId_subOrigin_length_buffer_formatString_varargs
@@ -82,8 +82,8 @@ void CsrLogTextBufferWarning(CsrLogTextTaskId taskId, CsrUint16 subOrigin, CsrSi
 /* INFO: Important events that may aid in determining the conditions under which
    the more severe conditions are encountered. */
 #if defined(CSR_LOG_ENABLE) && !defined(CSR_LOG_LEVEL_TEXT_INFO_DISABLE)
-void CsrLogTextInfo(CsrLogTextTaskId taskId, CsrUint16 subOrigin, const CsrCharString *formatString, ...);
-void CsrLogTextBufferInfo(CsrLogTextTaskId taskId, CsrUint16 subOrigin, CsrSize bufferLength, const void *buffer, const CsrCharString *formatString, ...);
+void CsrLogTextInfo(CsrLogTextTaskId taskId, u16 subOrigin, const CsrCharString *formatString, ...);
+void CsrLogTextBufferInfo(CsrLogTextTaskId taskId, u16 subOrigin, CsrSize bufferLength, const void *buffer, const CsrCharString *formatString, ...);
 #define CSR_LOG_TEXT_INFO(taskId_subOrigin_formatString_varargs) CsrLogTextInfo taskId_subOrigin_formatString_varargs
 #define CSR_LOG_TEXT_CONDITIONAL_INFO(condition, logtextargs) {if (condition) {CSR_LOG_TEXT_INFO(logtextargs);}}
 #define CSR_LOG_TEXT_BUFFER_INFO(taskId_subOrigin_length_buffer_formatString_varargs) CsrLogTextBufferInfo taskId_subOrigin_length_buffer_formatString_varargs
@@ -97,8 +97,8 @@ void CsrLogTextBufferInfo(CsrLogTextTaskId taskId, CsrUint16 subOrigin, CsrSize 
 
 /* DEBUG: Similar to INFO, but dedicated to events that occur more frequently. */
 #if defined(CSR_LOG_ENABLE) && !defined(CSR_LOG_LEVEL_TEXT_DEBUG_DISABLE)
-void CsrLogTextDebug(CsrLogTextTaskId taskId, CsrUint16 subOrigin, const CsrCharString *formatString, ...);
-void CsrLogTextBufferDebug(CsrLogTextTaskId taskId, CsrUint16 subOrigin, CsrSize bufferLength, const void *buffer, const CsrCharString *formatString, ...);
+void CsrLogTextDebug(CsrLogTextTaskId taskId, u16 subOrigin, const CsrCharString *formatString, ...);
+void CsrLogTextBufferDebug(CsrLogTextTaskId taskId, u16 subOrigin, CsrSize bufferLength, const void *buffer, const CsrCharString *formatString, ...);
 #define CSR_LOG_TEXT_DEBUG(taskId_subOrigin_formatString_varargs) CsrLogTextDebug taskId_subOrigin_formatString_varargs
 #define CSR_LOG_TEXT_CONDITIONAL_DEBUG(condition, logtextargs) {if (condition) {CSR_LOG_TEXT_DEBUG(logtextargs);}}
 #define CSR_LOG_TEXT_BUFFER_DEBUG(taskId_subOrigin_length_buffer_formatString_varargs) CsrLogTextBufferDebug taskId_subOrigin_length_buffer_formatString_varargs

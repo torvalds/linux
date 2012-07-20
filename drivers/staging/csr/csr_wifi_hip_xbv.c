@@ -99,7 +99,7 @@ static CsrInt32 xbv_push(xbv1_t *fwinfo, xbv_stack_t *stack,
                          xbv_container new_cont, CsrUint32 ioff);
 
 static CsrUint32 write_uint16(void *buf, const CsrUint32 offset,
-                              const CsrUint16 val);
+                              const u16 val);
 static CsrUint32 write_uint32(void *buf, const CsrUint32 offset,
                               const CsrUint32 val);
 static CsrUint32 write_bytes(void *buf, const CsrUint32 offset,
@@ -109,7 +109,7 @@ static CsrUint32 write_tag(void *buf, const CsrUint32 offset,
 static CsrUint32 write_chunk(void *buf, const CsrUint32 offset,
                              const CsrCharString *tag_str,
                              const CsrUint32 payload_len);
-static CsrUint16 calc_checksum(void *buf, const CsrUint32 offset,
+static u16 calc_checksum(void *buf, const CsrUint32 offset,
                                const CsrUint32 bytes_len);
 static CsrUint32 calc_patch_size(const xbv1_t *fwinfo);
 
@@ -118,7 +118,7 @@ static CsrUint32 write_xbv_header(void *buf, const CsrUint32 offset,
 static CsrUint32 write_ptch_header(void *buf, const CsrUint32 offset,
                                    const CsrUint32 fw_id);
 static CsrUint32 write_patchcmd(void *buf, const CsrUint32 offset,
-                                const CsrUint32 dst_genaddr, const CsrUint16 len);
+                                const CsrUint32 dst_genaddr, const u16 len);
 static CsrUint32 write_reset_ptdl(void *buf, const CsrUint32 offset,
                                   const xbv1_t *fwinfo, CsrUint32 fw_id);
 static CsrUint32 write_fwdl_to_ptdl(void *buf, const CsrUint32 offset,
@@ -361,8 +361,8 @@ CsrResult xbv1_parse(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwin
 
             /* Fill in the VMEQ */
             vmeq->addr = temp[0];
-            vmeq->mask = (CsrUint16)temp[1];
-            vmeq->value = (CsrUint16)temp[2];
+            vmeq->mask = (u16)temp[1];
+            vmeq->value = (u16)temp[2];
         }
         else if (TAG_EQ(tag.t_name, "FWID"))
         {
@@ -568,19 +568,19 @@ static CsrInt32 read_uint(card_t *card, ct_t *ct, CsrUint32 *u, CsrUint32 len)
 } /* read_uint() */
 
 
-static CsrUint32 write_uint16(void *buf, const CsrUint32 offset, const CsrUint16 val)
+static CsrUint32 write_uint16(void *buf, const CsrUint32 offset, const u16 val)
 {
     u8 *dst = (u8 *)buf + offset;
     *dst++ = (u8)(val & 0xff); /* LSB first */
     *dst = (u8)(val >> 8);
-    return sizeof(CsrUint16);
+    return sizeof(u16);
 }
 
 
 static CsrUint32 write_uint32(void *buf, const CsrUint32 offset, const CsrUint32 val)
 {
-    (void)write_uint16(buf, offset + 0, (CsrUint16)(val & 0xffff));
-    (void)write_uint16(buf, offset + 2, (CsrUint16)(val >> 16));
+    (void)write_uint16(buf, offset + 0, (u16)(val & 0xffff));
+    (void)write_uint16(buf, offset + 2, (u16)(val >> 16));
     return sizeof(CsrUint32);
 }
 
@@ -616,18 +616,18 @@ static CsrUint32 write_chunk(void *buf, const CsrUint32 offset, const CsrCharStr
 }
 
 
-static CsrUint16 calc_checksum(void *buf, const CsrUint32 offset, const CsrUint32 bytes_len)
+static u16 calc_checksum(void *buf, const CsrUint32 offset, const CsrUint32 bytes_len)
 {
     CsrUint32 i;
     u8 *src = (u8 *)buf + offset;
-    CsrUint16 sum = 0;
-    CsrUint16 val;
+    u16 sum = 0;
+    u16 val;
 
     for (i = 0; i < bytes_len / 2; i++)
     {
         /* Contents copied to file is LE, host might not be */
-        val = (CsrUint16) * src++;         /* LSB */
-        val += (CsrUint16)(*src++) << 8;   /* MSB */
+        val = (u16) * src++;         /* LSB */
+        val += (u16)(*src++) << 8;   /* MSB */
         sum += val;
     }
 
@@ -711,11 +711,11 @@ static CsrUint32 write_ptch_header(void *buf, const CsrUint32 offset, const CsrU
 #define UF_MEMPUT_MAC  0x0000
 #define UF_MEMPUT_PHY  0x1000
 
-static CsrUint32 write_patchcmd(void *buf, const CsrUint32 offset, const CsrUint32 dst_genaddr, const CsrUint16 len)
+static CsrUint32 write_patchcmd(void *buf, const CsrUint32 offset, const CsrUint32 dst_genaddr, const u16 len)
 {
     CsrUint32 written = 0;
     CsrUint32 region = (dst_genaddr >> 28);
-    CsrUint16 cmd_and_len = UF_MEMPUT_MAC;
+    u16 cmd_and_len = UF_MEMPUT_MAC;
 
     if (region == UF_REGION_PHY)
     {
@@ -731,8 +731,8 @@ static CsrUint32 write_patchcmd(void *buf, const CsrUint32 offset, const CsrUint
     written += write_uint16(buf, offset + written, cmd_and_len);
 
     /* Write the destination generic address */
-    written += write_uint16(buf, offset + written, (CsrUint16)(dst_genaddr >> 16));
-    written += write_uint16(buf, offset + written, (CsrUint16)(dst_genaddr & 0xffff));
+    written += write_uint16(buf, offset + written, (u16)(dst_genaddr >> 16));
+    written += write_uint16(buf, offset + written, (u16)(dst_genaddr & 0xffff));
 
     /* The data payload should be appended to the command */
     return written;
@@ -748,7 +748,7 @@ static CsrUint32 write_fwdl_to_ptdl(void *buf, const CsrUint32 offset, fwreadfn_
     CsrUint32 left = fwdl->dl_size;      /* Bytes left in this fwdl */
     CsrUint32 dl_addr = fwdl->dl_addr;   /* Target address of fwdl image on XAP */
     CsrUint32 dl_offs = fwdl->dl_offset; /* Offset of fwdl image data in source */
-    CsrUint16 csum;
+    u16 csum;
     CsrUint32 csum_start_offs;           /* first offset to include in checksum */
     CsrUint32 sec_data_len;              /* section data byte count */
     CsrUint32 sec_len;                   /* section data + header byte count */
@@ -768,15 +768,15 @@ static CsrUint32 write_fwdl_to_ptdl(void *buf, const CsrUint32 offset, fwreadfn_
         csum_start_offs = offset + written;
 
         /* Patch-chunk header: fw_id. Note that this is in XAP word order */
-        written += write_uint16(buf, offset + written, (CsrUint16)(fw_id >> 16));
-        written += write_uint16(buf, offset + written, (CsrUint16)(fw_id & 0xffff));
+        written += write_uint16(buf, offset + written, (u16)(fw_id >> 16));
+        written += write_uint16(buf, offset + written, (u16)(fw_id & 0xffff));
 
         /* Patch-chunk header: section length in uint16s */
-        written += write_uint16(buf, offset + written, (CsrUint16)(sec_len / 2));
+        written += write_uint16(buf, offset + written, (u16)(sec_len / 2));
 
 
         /* Write the appropriate patch command for the data's destination ptr */
-        written += write_patchcmd(buf, offset + written, dl_addr, (CsrUint16)(sec_data_len / 2));
+        written += write_patchcmd(buf, offset + written, dl_addr, (u16)(sec_data_len / 2));
 
         /* Write the data itself (limited to the max chunk length) */
         if (readfn(NULL, (void *)dlpriv, dl_offs, fw_buf, sec_data_len) < 0)
@@ -789,7 +789,7 @@ static CsrUint32 write_fwdl_to_ptdl(void *buf, const CsrUint32 offset, fwreadfn_
                                fw_buf,
                                sec_data_len);
 
-        /* CsrUint16 checksum calculated over data written */
+        /* u16 checksum calculated over data written */
         csum = calc_checksum(buf, csum_start_offs, written - (csum_start_offs - offset));
         written += write_uint16(buf, offset + written, csum);
 
@@ -813,7 +813,7 @@ static CsrUint32 write_fwdl_to_ptdl(void *buf, const CsrUint32 offset, fwreadfn_
 static CsrUint32 write_reset_ptdl(void *buf, const CsrUint32 offset, const xbv1_t *fwinfo, CsrUint32 fw_id)
 {
     CsrUint32 written = 0;
-    CsrUint16 csum;
+    u16 csum;
     CsrUint32 csum_start_offs;                 /* first offset to include in checksum */
     CsrUint32 sec_len;                         /* section data + header byte count */
 
@@ -826,11 +826,11 @@ static CsrUint32 write_reset_ptdl(void *buf, const CsrUint32 offset, const xbv1_
     csum_start_offs = offset + written;
 
     /* Patch-chunk header: fw_id. Note that this is in XAP word order */
-    written += write_uint16(buf, offset + written, (CsrUint16)(fw_id >> 16));
-    written += write_uint16(buf, offset + written, (CsrUint16)(fw_id & 0xffff));
+    written += write_uint16(buf, offset + written, (u16)(fw_id >> 16));
+    written += write_uint16(buf, offset + written, (u16)(fw_id & 0xffff));
 
     /* Patch-chunk header: section length in uint16s */
-    written += write_uint16(buf, offset + written, (CsrUint16)(sec_len / 2));
+    written += write_uint16(buf, offset + written, (u16)(sec_len / 2));
 
     /*
      * Restart addresses to be executed on subsequent loader restart command.
@@ -846,7 +846,7 @@ static CsrUint32 write_reset_ptdl(void *buf, const CsrUint32 offset, const xbv1_
     written += write_uint16(buf, offset + written, (UF_PHY_START_VEC >> 16));
     written += write_uint16(buf, offset + written, (UF_PHY_START_VEC & 0xffff));
 
-    /* CsrUint16 checksum calculated over data written */
+    /* u16 checksum calculated over data written */
     csum = calc_checksum(buf, csum_start_offs, written - (csum_start_offs - offset));
     written += write_uint16(buf, offset + written, csum);
 
@@ -936,7 +936,7 @@ CsrInt32 xbv1_read_slut(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *f
             return -1;
         }
 
-        slut[count].id  = (CsrUint16)id;
+        slut[count].id  = (u16)id;
         slut[count].obj = obj;
         count++;
     }

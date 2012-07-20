@@ -545,7 +545,7 @@ free_fw:
 
 int unifi_putest_coredump_prepare(unifi_priv_t *priv, unsigned char *arg)
 {
-    CsrUint16 data_u16;
+    u16 data_u16;
     CsrInt32 i;
     CsrResult r;
 

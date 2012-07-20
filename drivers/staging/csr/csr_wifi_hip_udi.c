@@ -45,7 +45,7 @@ CsrInt32 unifi_print_status(card_t *card, CsrCharString *str, CsrInt32 *remain)
 {
     CsrCharString *p = str;
     sdio_config_data_t *cfg;
-    CsrUint16 i, n;
+    u16 i, n;
     CsrInt32 remaining = *remain;
     CsrInt32 written;
 #ifdef CSR_UNSAFE_SDIO_ACCESS
@@ -65,7 +65,7 @@ CsrInt32 unifi_print_status(card_t *card, CsrCharString *str, CsrInt32 *remain)
 
     i = n = 0;
     written = CsrSnprintf(p, remaining, "Chip ID %u\n",
-                          (CsrUint16)card->chip_id);
+                          (u16)card->chip_id);
     UNIFI_SNPRINTF_RET(p, remaining, written);
     written = CsrSnprintf(p, remaining, "Chip Version %04X\n",
                           card->chip_version);
@@ -107,7 +107,7 @@ CsrInt32 unifi_print_status(card_t *card, CsrCharString *str, CsrInt32 *remain)
 
     /* Added by protocol version 0x0001 */
     written = CsrSnprintf(p, remaining, "overlay_size              %u\n",
-                          (CsrUint16)cfg->overlay_size);
+                          (u16)cfg->overlay_size);
     UNIFI_SNPRINTF_RET(p, remaining, written);
 
     /* Added by protocol version 0x0300 */
@@ -134,16 +134,16 @@ CsrInt32 unifi_print_status(card_t *card, CsrCharString *str, CsrInt32 *remain)
     UNIFI_SNPRINTF_RET(p, remaining, written);
 
     written = CsrSnprintf(p, remaining, "fhsr: %u\n",
-                          (CsrUint16)card->from_host_signals_r);
+                          (u16)card->from_host_signals_r);
     UNIFI_SNPRINTF_RET(p, remaining, written);
     written = CsrSnprintf(p, remaining, "fhsw: %u\n",
-                          (CsrUint16)card->from_host_signals_w);
+                          (u16)card->from_host_signals_w);
     UNIFI_SNPRINTF_RET(p, remaining, written);
     written = CsrSnprintf(p, remaining, "thsr: %u\n",
-                          (CsrUint16)card->to_host_signals_r);
+                          (u16)card->to_host_signals_r);
     UNIFI_SNPRINTF_RET(p, remaining, written);
     written = CsrSnprintf(p, remaining, "thsw: %u\n",
-                          (CsrUint16)card->to_host_signals_w);
+                          (u16)card->to_host_signals_w);
     UNIFI_SNPRINTF_RET(p, remaining, written);
     written = CsrSnprintf(p, remaining,
                           "fh buffer contains: %u signals, %u bytes\n",
@@ -189,7 +189,7 @@ CsrInt32 unifi_print_status(card_t *card, CsrCharString *str, CsrInt32 *remain)
     for (i = 0; i < n && card->from_host_data; i++)
     {
         written = CsrSnprintf(p, remaining, " %u",
-                              (CsrUint16)card->from_host_data[i].bd.data_length);
+                              (u16)card->from_host_data[i].bd.data_length);
         UNIFI_SNPRINTF_RET(p, remaining, written);
     }
     written = CsrSnprintf(p, remaining, "\n");
@@ -201,7 +201,7 @@ CsrInt32 unifi_print_status(card_t *card, CsrCharString *str, CsrInt32 *remain)
     for (i = 0; i < n && card->to_host_data; i++)
     {
         written = CsrSnprintf(p, remaining, " %u",
-                              (CsrUint16)card->to_host_data[i].data_length);
+                              (u16)card->to_host_data[i].data_length);
         UNIFI_SNPRINTF_RET(p, remaining, written);
     }
 

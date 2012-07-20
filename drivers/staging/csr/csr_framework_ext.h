@@ -27,13 +27,13 @@ extern "C" {
 #define CSR_FE_RESULT_NO_MORE_THREADS   ((CsrResult) 0x0006)
 
 /* Thread priorities */
-#define CSR_THREAD_PRIORITY_HIGHEST     ((CsrUint16) 0)
-#define CSR_THREAD_PRIORITY_HIGH        ((CsrUint16) 1)
-#define CSR_THREAD_PRIORITY_NORMAL      ((CsrUint16) 2)
-#define CSR_THREAD_PRIORITY_LOW         ((CsrUint16) 3)
-#define CSR_THREAD_PRIORITY_LOWEST      ((CsrUint16) 4)
+#define CSR_THREAD_PRIORITY_HIGHEST     ((u16) 0)
+#define CSR_THREAD_PRIORITY_HIGH        ((u16) 1)
+#define CSR_THREAD_PRIORITY_NORMAL      ((u16) 2)
+#define CSR_THREAD_PRIORITY_LOW         ((u16) 3)
+#define CSR_THREAD_PRIORITY_LOWEST      ((u16) 4)
 
-#define CSR_EVENT_WAIT_INFINITE         ((CsrUint16) 0xFFFF)
+#define CSR_EVENT_WAIT_INFINITE         ((u16) 0xFFFF)
 
 /*----------------------------------------------------------------------------*
  *  NAME
@@ -66,7 +66,7 @@ CsrResult CsrEventCreate(CsrEventHandle *eventHandle);
  *          CSR_FE_RESULT_INVALID_POINTER      in case the eventBits pointer is invalid
  *
  *----------------------------------------------------------------------------*/
-CsrResult CsrEventWait(CsrEventHandle *eventHandle, CsrUint16 timeoutInMs, CsrUint32 *eventBits);
+CsrResult CsrEventWait(CsrEventHandle *eventHandle, u16 timeoutInMs, CsrUint32 *eventBits);
 
 /*----------------------------------------------------------------------------*
  *  NAME
@@ -195,7 +195,7 @@ void CsrGlobalMutexUnlock(void);
  *
  *----------------------------------------------------------------------------*/
 CsrResult CsrThreadCreate(void (*threadFunction)(void *pointer), void *pointer,
-    CsrUint32 stackSize, CsrUint16 priority,
+    CsrUint32 stackSize, u16 priority,
     const CsrCharString *threadName, CsrThreadHandle *threadHandle);
 
 /*----------------------------------------------------------------------------*
@@ -240,7 +240,7 @@ CsrResult CsrThreadEqual(CsrThreadHandle *threadHandle1, CsrThreadHandle *thread
  *      void
  *
  *----------------------------------------------------------------------------*/
-void CsrThreadSleep(CsrUint16 sleepTimeInMs);
+void CsrThreadSleep(u16 sleepTimeInMs);
 
 #ifndef CSR_PMEM_DEBUG_ENABLE
 /*----------------------------------------------------------------------------*

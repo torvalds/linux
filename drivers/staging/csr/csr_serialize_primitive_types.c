@@ -23,7 +23,7 @@ void CsrUint8Des(u8 *value, u8 *buffer, CsrSize *offset)
 }
 EXPORT_SYMBOL_GPL(CsrUint8Des);
 
-void CsrUint16Des(CsrUint16 *value, u8 *buffer, CsrSize *offset)
+void CsrUint16Des(u16 *value, u8 *buffer, CsrSize *offset)
 {
     *value = (buffer[*offset + 0] << 0) |
              (buffer[*offset + 1] << 8);
@@ -95,7 +95,7 @@ void CsrUint8Ser(u8 *buffer, CsrSize *offset, u8 value)
 }
 EXPORT_SYMBOL_GPL(CsrUint8Ser);
 
-void CsrUint16Ser(u8 *buffer, CsrSize *offset, CsrUint16 value)
+void CsrUint16Ser(u8 *buffer, CsrSize *offset, u16 value)
 {
     buffer[*offset + 0] = (u8) ((value >> 0) & 0xFF);
     buffer[*offset + 1] = (u8) ((value >> 8) & 0xFF);
@@ -150,7 +150,7 @@ void CsrUtf16StringSer(u8 *buffer, CsrSize *offset, const CsrUtf16String *value)
 
         for (i = 0; i < length; i++)
         {
-            CsrUint16Ser(buffer, offset, (CsrUint16) value[i]);
+            CsrUint16Ser(buffer, offset, (u16) value[i]);
         }
     }
     else

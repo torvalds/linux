@@ -77,10 +77,10 @@ typedef u8 CsrWifiNmeApPersCredentialType;
 *******************************************************************************/
 typedef struct
 {
-    CsrUint16 apGroupkeyTimeout;
+    u16 apGroupkeyTimeout;
     CsrBool   apStrictGtkRekey;
-    CsrUint16 apGmkTimeout;
-    CsrUint16 apResponseTimeout;
+    u16 apGmkTimeout;
+    u16 apResponseTimeout;
     u8  apRetransLimit;
 } CsrWifiNmeApConfig;
 
@@ -222,7 +222,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent         common;
-    CsrUint16               interfaceTag;
+    u16               interfaceTag;
     CsrWifiSmeWpsDpid       selectedDevicePasswordId;
     CsrWifiSmeWpsConfigType selectedConfigMethod;
     u8                pin[8];
@@ -254,7 +254,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent         common;
-    CsrUint16               interfaceTag;
+    u16               interfaceTag;
     CsrWifiSmeApType        apType;
     CsrBool                 cloakSsid;
     CsrWifiSsid             ssid;
@@ -282,7 +282,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
 } CsrWifiNmeApStopReq;
 
 /*******************************************************************************
@@ -332,7 +332,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent   common;
-    CsrUint16         interfaceTag;
+    u16         interfaceTag;
     CsrWifiMacAddress staMacAddress;
     CsrBool           keepBlocking;
 } CsrWifiNmeApStaRemoveReq;
@@ -373,7 +373,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
     CsrResult       status;
 } CsrWifiNmeApWpsRegisterCfm;
 
@@ -395,7 +395,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
     CsrResult       status;
     CsrWifiSsid     ssid;
 } CsrWifiNmeApStartCfm;
@@ -419,7 +419,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint16       interfaceTag;
+    u16       interfaceTag;
     CsrResult       status;
 } CsrWifiNmeApStopCfm;
 
@@ -443,7 +443,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent  common;
-    CsrUint16        interfaceTag;
+    u16        interfaceTag;
     CsrWifiSmeApType apType;
     CsrResult        status;
 } CsrWifiNmeApStopInd;
@@ -488,7 +488,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent       common;
-    CsrUint16             interfaceTag;
+    u16             interfaceTag;
     CsrWifiSmeMediaStatus mediaStatus;
     CsrWifiMacAddress     peerMacAddress;
     CsrWifiMacAddress     peerDeviceAddress;

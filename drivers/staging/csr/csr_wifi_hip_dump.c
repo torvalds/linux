@@ -38,12 +38,12 @@
 /* Mini-coredump state */
 typedef struct coredump_buf
 {
-    CsrUint16  count;                       /* serial number of dump */
+    u16  count;                       /* serial number of dump */
     CsrTime    timestamp;                   /* host's system time at capture */
     CsrInt16   requestor;                   /* request: 0=auto dump, 1=manual */
-    CsrUint16  chip_ver;
+    u16  chip_ver;
     CsrUint32  fw_ver;
-    CsrUint16 *zone[HIP_CDUMP_NUM_ZONES];
+    u16 *zone[HIP_CDUMP_NUM_ZONES];
 
     struct coredump_buf *next;              /* circular list */
     struct coredump_buf *prev;              /* circular list */
@@ -55,16 +55,16 @@ struct coredump_zone
     unifi_coredump_space_t           space;  /* XAP memory space this zone covers */
     enum unifi_dbg_processors_select cpu;    /* XAP CPU core selector */
     CsrUint32                        gp;     /* Generic Pointer to memory zone on XAP */
-    CsrUint16                        offset; /* 16-bit XAP word offset of zone in memory space */
-    CsrUint16                        length; /* Length of zone in XAP words */
+    u16                        offset; /* 16-bit XAP word offset of zone in memory space */
+    u16                        length; /* Length of zone in XAP words */
 };
 
 static CsrResult unifi_coredump_from_sdio(card_t *card, coredump_buffer *dump_buf);
 static CsrResult unifi_coredump_read_zones(card_t *card, coredump_buffer *dump_buf);
-static CsrResult unifi_coredump_read_zone(card_t *card, CsrUint16 *zone,
+static CsrResult unifi_coredump_read_zone(card_t *card, u16 *zone,
                                           const struct coredump_zone *def);
 static CsrInt32 get_value_from_coredump(const coredump_buffer *dump,
-                                        const unifi_coredump_space_t space, const CsrUint16 offset);
+                                        const unifi_coredump_space_t space, const u16 offset);
 
 /* Table of chip memory zones we capture on mini-coredump */
 static const struct coredump_zone zonedef_table[HIP_CDUMP_NUM_ZONES] = {
@@ -190,7 +190,7 @@ CsrResult unifi_coredump_handle_request(card_t *card)
 CsrResult unifi_coredump_capture(card_t *card, struct unifi_coredump_req *req)
 {
     CsrResult r = CSR_RESULT_SUCCESS;
-    static CsrUint16 dump_seq_no = 1;
+    static u16 dump_seq_no = 1;
     CsrTime time_of_capture;
 
     func_enter();
@@ -295,10 +295,10 @@ done:
  */
 static CsrInt32 get_value_from_coredump(const coredump_buffer       *coreDump,
                                         const unifi_coredump_space_t space,
-                                        const CsrUint16              offset_in_space)
+                                        const u16              offset_in_space)
 {
     CsrInt32 r = -1;
-    CsrUint16 offset_in_zone;
+    u16 offset_in_zone;
     CsrUint32 zone_end_offset;
     CsrInt32 i;
     const struct coredump_zone *def = &zonedef_table[0];
@@ -430,7 +430,7 @@ CsrResult unifi_coredump_get_value(card_t *card, struct unifi_coredump_req *req)
                 req->index, find_dump->count, i);
 
     /* Find the appropriate entry in the buffer */
-    req->value = get_value_from_coredump(find_dump, req->space, (CsrUint16)req->offset);
+    req->value = get_value_from_coredump(find_dump, req->space, (u16)req->offset);
     if (req->value < 0)
     {
         r = CSR_WIFI_HIP_RESULT_RANGE;     /* Un-captured register */
@@ -476,7 +476,7 @@ done:
  *      It is assumed that the caller has already stopped the XAPs
  * ---------------------------------------------------------------------------
  */
-static CsrResult unifi_coredump_read_zone(card_t *card, CsrUint16 *zonebuf, const struct coredump_zone *def)
+static CsrResult unifi_coredump_read_zone(card_t *card, u16 *zonebuf, const struct coredump_zone *def)
 {
     CsrResult r;
 
@@ -508,7 +508,7 @@ static CsrResult unifi_coredump_read_zone(card_t *card, CsrUint16 *zonebuf, cons
                 def->space, def->offset, def->length, def->gp, def->cpu);
 
     /* Read on-chip RAM (byte-wise) */
-    r = unifi_card_readn(card, def->gp, zonebuf, (CsrUint16)(def->length * 2));
+    r = unifi_card_readn(card, def->gp, zonebuf, (u16)(def->length * 2));
     if (r == CSR_WIFI_HIP_RESULT_NO_DEVICE)
     {
         goto done;
@@ -585,7 +585,7 @@ static CsrResult unifi_coredump_read_zones(card_t *card, coredump_buffer *dump_b
  */
 static CsrResult unifi_coredump_from_sdio(card_t *card, coredump_buffer *dump_buf)
 {
-    CsrUint16 val;
+    u16 val;
     CsrResult r;
     CsrUint32 sdio_addr;
 
@@ -661,7 +661,7 @@ static
 coredump_buffer* new_coredump_node(void *ospriv, coredump_buffer *prevnode)
 {
     coredump_buffer *newnode = NULL;
-    CsrUint16 *newzone = NULL;
+    u16 *newzone = NULL;
     CsrInt32 i;
     CsrUint32 zone_size;
 
@@ -676,8 +676,8 @@ coredump_buffer* new_coredump_node(void *ospriv, coredump_buffer *prevnode)
     /* Allocate chip memory zone capture buffers */
     for (i = 0; i < HIP_CDUMP_NUM_ZONES; i++)
     {
-        zone_size = sizeof(CsrUint16) * zonedef_table[i].length;
-        newzone = (CsrUint16 *)CsrMemAlloc(zone_size);
+        zone_size = sizeof(u16) * zonedef_table[i].length;
+        newzone = (u16 *)CsrMemAlloc(zone_size);
         newnode->zone[i] = newzone;
         if (newzone != NULL)
         {
@@ -738,7 +738,7 @@ coredump_buffer* new_coredump_node(void *ospriv, coredump_buffer *prevnode)
  *      free for capturing.
  * ---------------------------------------------------------------------------
  */
-CsrResult unifi_coredump_init(card_t *card, CsrUint16 num_dump_buffers)
+CsrResult unifi_coredump_init(card_t *card, u16 num_dump_buffers)
 {
 #ifndef UNIFI_DISABLE_COREDUMP
     void *ospriv = card->ospriv;
