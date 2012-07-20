@@ -171,7 +171,7 @@ int smp_request_message_ipi(int virq, int msg)
 	}
 #endif
 	err = request_irq(virq, smp_ipi_action[msg],
-			  IRQF_PERCPU | IRQF_NO_THREAD,
+			  IRQF_PERCPU | IRQF_NO_THREAD | IRQF_NO_SUSPEND,
 			  smp_ipi_name[msg], 0);
 	WARN(err < 0, "unable to request_irq %d for %s (rc %d)\n",
 		virq, smp_ipi_name[msg], err);
