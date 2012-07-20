@@ -26,11 +26,11 @@
 CsrTime CsrTimeGet(CsrTime *high)
 {
     struct timespec ts;
-    CsrUint64 time;
+    u64 time;
     CsrTime low;
 
     ts = current_kernel_time();
-    time = (CsrUint64) ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
+    time = (u64) ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
 
     if (high != NULL)
     {
@@ -46,10 +46,10 @@ EXPORT_SYMBOL_GPL(CsrTimeGet);
 void CsrTimeUtcGet(CsrTimeUtc *tod, CsrTime *low, CsrTime *high)
 {
     struct timespec ts;
-    CsrUint64 time;
+    u64 time;
 
     ts = current_kernel_time();
-    time = (CsrUint64) ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
+    time = (u64) ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
 
     if (high != NULL)
     {
