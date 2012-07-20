@@ -17,6 +17,7 @@
  *
  * ---------------------------------------------------------------------------
  */
+#include <linux/slab.h>
 #include "csr_wifi_hip_unifi.h"
 #include "csr_wifi_hip_unifiversion.h"
 #include "csr_wifi_hip_card.h"
@@ -270,7 +271,7 @@ static CsrResult do_patch_convert_download(card_t *card, void *dlpriv, xbv1_t *p
         /* Download the patch */
         unifi_info(card->ospriv, "Downloading converted f/w as patch\n");
         r = unifi_dl_patch(card, desc, sym.obj);
-        CsrMemFree(pfw);
+        kfree(pfw);
         unifi_fw_close_buffer(card->ospriv, desc);
 
         if (r != CSR_RESULT_SUCCESS)
@@ -347,7 +348,7 @@ CsrResult unifi_dl_firmware(card_t *card, void *dlpriv)
     {
         unifi_error(card->ospriv, "File type is %s, expected firmware.\n",
                     fwinfo->mode == xbv_patch?"patch" : "unknown");
-        CsrMemFree(fwinfo);
+        kfree(fwinfo);
         return CSR_WIFI_HIP_RESULT_INVALID_VALUE;
     }
 
@@ -372,7 +373,7 @@ CsrResult unifi_dl_firmware(card_t *card, void *dlpriv)
         r = CSR_WIFI_HIP_RESULT_INVALID_VALUE;
     }
 
-    CsrMemFree(fwinfo);
+    kfree(fwinfo);
     func_exit_r(r);
     return r;
 } /* unifi_dl_firmware() */
@@ -426,7 +427,7 @@ CsrResult unifi_dl_patch(card_t *card, void *dlpriv, u32 boot_ctrl)
     r = xbv1_parse(card, unifi_fw_read, dlpriv, fwinfo);
     if (r != CSR_RESULT_SUCCESS || fwinfo->mode != xbv_patch)
     {
-        CsrMemFree(fwinfo);
+        kfree(fwinfo);
         unifi_error(card->ospriv, "Failed to read in patch file\n");
         func_exit();
         return CSR_WIFI_HIP_RESULT_INVALID_VALUE;
@@ -441,7 +442,7 @@ CsrResult unifi_dl_patch(card_t *card, void *dlpriv, u32 boot_ctrl)
     {
         unifi_error(card->ospriv, "Wrong patch file for chip (chip = %lu, file = %lu)\n",
                     card->build_id, fwinfo->build_id);
-        CsrMemFree(fwinfo);
+        kfree(fwinfo);
 #ifndef CSR_WIFI_IGNORE_PATCH_VERSION_MISMATCH
         func_exit();
         return CSR_WIFI_HIP_RESULT_INVALID_VALUE;
@@ -458,7 +459,7 @@ CsrResult unifi_dl_patch(card_t *card, void *dlpriv, u32 boot_ctrl)
         unifi_error(card->ospriv, "Failed to patch image\n");
     }
 
-    CsrMemFree(fwinfo);
+    kfree(fwinfo);
 
     func_exit_r(r);
     return r;
@@ -720,7 +721,7 @@ static CsrResult send_ptdl_to_unifi(card_t *card, void *dlpriv,
         }
     }
 
-    CsrMemFreeDma(buf);
+    kfree(buf);
 
     if (r != CSR_RESULT_SUCCESS && r != CSR_WIFI_HIP_RESULT_NO_DEVICE)
     {

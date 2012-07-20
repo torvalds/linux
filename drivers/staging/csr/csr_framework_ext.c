@@ -196,23 +196,6 @@ EXPORT_SYMBOL_GPL(CsrMemAlloc);
 
 /*----------------------------------------------------------------------------*
  *  NAME
- *      CsrMemFree
- *
- *  DESCRIPTION
- *      Free dynamic allocated memory.
- *
- *  RETURNS
- *      void
- *
- *----------------------------------------------------------------------------*/
-void CsrMemFree(void *pointer)
-{
-    kfree(pointer);
-}
-EXPORT_SYMBOL_GPL(CsrMemFree);
-
-/*----------------------------------------------------------------------------*
- *  NAME
  *      CsrMemAllocDma
  *
  *  DESCRIPTION
@@ -228,20 +211,3 @@ void *CsrMemAllocDma(size_t size)
     return kmalloc(size, GFP_KERNEL | GFP_DMA);
 }
 EXPORT_SYMBOL_GPL(CsrMemAllocDma);
-
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrMemFreeDma
- *
- *  DESCRIPTION
- *      Free DMA capable dynamic allocated memory.
- *
- *  RETURNS
- *      void
- *
- *----------------------------------------------------------------------------*/
-void CsrMemFreeDma(void *pointer)
-{
-    kfree(pointer);
-}
-EXPORT_SYMBOL_GPL(CsrMemFreeDma);

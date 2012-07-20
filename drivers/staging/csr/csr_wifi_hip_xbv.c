@@ -19,6 +19,7 @@
  *
  * ---------------------------------------------------------------------------
  */
+#include <linux/slab.h>
 
 #ifdef CSR_WIFI_XBV_TEST
 /* Standalone test harness */
@@ -959,7 +960,7 @@ s32 xbv1_read_slut(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwinfo
  *
  *  Returns:
  *      Pointer to firmware image, or NULL on error. Caller must free this
- *      buffer via CsrMemFree() once it's finished with.
+ *      buffer via kfree() once it's finished with.
  *
  *  Notes:
  *      The input fw_buf should have been checked via xbv1_parse prior to
@@ -1021,7 +1022,7 @@ void* xbv_to_patch(card_t *card, fwreadfn_t readfn,
     patch_buf = (void *)CsrMemAlloc(patch_buf_size);
     if (!patch_buf)
     {
-        CsrMemFree(rdbuf);
+        kfree(rdbuf);
         unifi_error(NULL, "Can't malloc buffer for patch conversion\n");
         return NULL;
     }
@@ -1067,7 +1068,7 @@ void* xbv_to_patch(card_t *card, fwreadfn_t readfn,
     {
         *size = patch_offs;
     }
-    CsrMemFree(rdbuf);
+    kfree(rdbuf);
 
     return patch_buf;
 }

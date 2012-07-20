@@ -1817,7 +1817,7 @@ static CsrResult process_bulk_data_command(card_t *card, const u8 *cmdptr,
         /* moving this check before we clear host data slot */
         if ((len != 0) && (dir == UNIFI_SDIO_WRITE) && (((ptrdiff_t)bdslot->os_data_ptr + offset) & 3))
         {
-            CsrMemFreeDma(host_bulk_data_slot);
+            kfree(host_bulk_data_slot);
         }
 #endif
 

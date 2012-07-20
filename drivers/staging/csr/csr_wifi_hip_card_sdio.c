@@ -21,6 +21,7 @@
  *
  * ---------------------------------------------------------------------------
  */
+#include <linux/slab.h>
 #include "csr_wifi_hip_unifi.h"
 #include "csr_wifi_hip_conversions.h"
 #include "csr_wifi_hip_unifiversion.h"
@@ -1793,37 +1794,22 @@ static void card_free_memory_resources(card_t *card)
     unifi_cancel_pending_signals(card);
 
 
-    if (card->to_host_data)
-    {
-        CsrMemFree(card->to_host_data);
-        card->to_host_data = NULL;
-    }
+    kfree(card->to_host_data);
+    card->to_host_data = NULL;
 
-    if (card->from_host_data)
-    {
-        CsrMemFree(card->from_host_data);
-        card->from_host_data = NULL;
-    }
+    kfree(card->from_host_data);
+    card->from_host_data = NULL;
 
     /* free the memory for slot host tag mapping array */
-    if (card->fh_slot_host_tag_record)
-    {
-        CsrMemFree(card->fh_slot_host_tag_record);
-        card->fh_slot_host_tag_record = NULL;
-    }
+    kfree(card->fh_slot_host_tag_record);
+    card->fh_slot_host_tag_record = NULL;
 
-    if (card->fh_buffer.buf)
-    {
-        CsrMemFreeDma(card->fh_buffer.buf);
-    }
+    kfree(card->fh_buffer.buf);
     card->fh_buffer.ptr = card->fh_buffer.buf = NULL;
     card->fh_buffer.bufsize = 0;
     card->fh_buffer.count = 0;
 
-    if (card->th_buffer.buf)
-    {
-        CsrMemFreeDma(card->th_buffer.buf);
-    }
+    kfree(card->th_buffer.buf);
     card->th_buffer.ptr = card->th_buffer.buf = NULL;
     card->th_buffer.bufsize = 0;
     card->th_buffer.count = 0;
@@ -1984,7 +1970,7 @@ void unifi_free_card(card_t *card)
         unifi_coredump_free(card); /* free anyway to prevent memory leak */
     }
 
-    CsrMemFree(card);
+    kfree(card);
 
     func_exit();
 } /* unifi_free_card() */

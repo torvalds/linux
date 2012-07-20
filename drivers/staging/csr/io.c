@@ -107,7 +107,7 @@ static CsrResult signal_buffer_init(unifi_priv_t * priv, int size)
              for(j=0;j<i;j++)
              {
                  priv->rxSignalBuffer.rx_buff[j].sig_len=0;
-                 CsrMemFree(priv->rxSignalBuffer.rx_buff[j].bufptr);
+                 kfree(priv->rxSignalBuffer.rx_buff[j].bufptr);
                  priv->rxSignalBuffer.rx_buff[j].bufptr = NULL;
              }
              func_exit();
@@ -126,7 +126,7 @@ static void signal_buffer_free(unifi_priv_t * priv, int size)
     for(i=0; i<size; i++)
     {
          priv->rxSignalBuffer.rx_buff[i].sig_len=0;
-         CsrMemFree(priv->rxSignalBuffer.rx_buff[i].bufptr);
+         kfree(priv->rxSignalBuffer.rx_buff[i].bufptr);
          priv->rxSignalBuffer.rx_buff[i].bufptr = NULL;
     }
 }

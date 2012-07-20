@@ -285,19 +285,6 @@ void *CsrMemCalloc(size_t numberOfElements, size_t elementSize);
 
 /*----------------------------------------------------------------------------*
  *  NAME
- *      CsrMemFree
- *
- *  DESCRIPTION
- *      Free dynamic allocated memory.
- *
- *  RETURNS
- *      void
- *
- *----------------------------------------------------------------------------*/
-void CsrMemFree(void *pointer);
-
-/*----------------------------------------------------------------------------*
- *  NAME
  *      CsrMemAllocDma
  *
  *  DESCRIPTION
@@ -317,18 +304,6 @@ void *CsrMemAllocDma(size_t size);
 #endif
 
 
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrMemFreeDma
- *
- *  DESCRIPTION
- *      Free dynamic memory allocated by CsrMemAllocDma.
- *
- *  RETURNS
- *      void
- *
- *----------------------------------------------------------------------------*/
-void CsrMemFreeDma(void *pointer);
 #else
 
 #include "csr_pmem.h"
@@ -337,11 +312,7 @@ void CsrMemFreeDma(void *pointer);
 
 #define CsrMemCalloc(numberOfElements, elementSize) CsrPmemDebugAlloc((numberOfElements * elementSize), CSR_PMEM_DEBUG_TYPE_MEM_CALLOC, __FILE__, __LINE__)
 
-#define CsrMemFree(ptr) CsrPmemDebugFree(ptr,CSR_PMEM_DEBUG_TYPE_MEM_ALLOC,  __FILE__, __LINE__)
-
 #define CsrMemAllocDma(size) CsrPmemDebugAlloc(size, CSR_PMEM_DEBUG_TYPE_MEM_ALLOC_DMA, __FILE__, __LINE__)
-
-#define CsrMemFreeDma(ptr) CsrPmemDebugFree(ptr, CSR_PMEM_DEBUG_TYPE_MEM_ALLOC_DMA, __FILE__, __LINE__)
 
 #endif
 

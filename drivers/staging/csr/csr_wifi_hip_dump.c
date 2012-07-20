@@ -17,6 +17,7 @@
  *
  * ---------------------------------------------------------------------------
  */
+#include <linux/slab.h>
 #include "csr_wifi_hip_unifi.h"
 #include "csr_wifi_hip_unifiversion.h"
 #include "csr_wifi_hip_card.h"
@@ -696,7 +697,7 @@ coredump_buffer* new_coredump_node(void *ospriv, coredump_buffer *prevnode)
     {
         for (i = 0; newnode->zone[i] != NULL; i++)
         {
-            CsrMemFree(newnode->zone[i]);
+            kfree(newnode->zone[i]);
             newnode->zone[i] = NULL;
         }
     }
@@ -844,11 +845,8 @@ void unifi_coredump_free(card_t *card)
         /* Free payload zones */
         for (j = 0; j < HIP_CDUMP_NUM_ZONES; j++)
         {
-            if (node->zone[j] != NULL)
-            {
-                CsrMemFree(node->zone[j]);
-                node->zone[j] = NULL;
-            }
+            kfree(node->zone[j]);
+            node->zone[j] = NULL;
         }
 
         /* Detach */
@@ -856,7 +854,7 @@ void unifi_coredump_free(card_t *card)
         node = node->next;
 
         /* Free header */
-        CsrMemFree(del_node);
+        kfree(del_node);
         i++;
     } while ((node != NULL) && (node != card->dump_buf));
 
