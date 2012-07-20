@@ -519,14 +519,8 @@ void ceph_con_close(struct ceph_connection *con)
 	reset_connection(con);
 	con->peer_global_seq = 0;
 	cancel_delayed_work(&con->work);
+	con_close_socket(con);
 	mutex_unlock(&con->mutex);
-
-	/*
-	 * We cannot close the socket directly from here because the
-	 * work threads use it without holding the mutex.  Instead, let
-	 * con_work() do it.
-	 */
-	queue_con(con);
 }
 EXPORT_SYMBOL(ceph_con_close);
 
