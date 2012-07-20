@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include "map.h"
 #include "thread.h"
+#include "strlist.h"
 
 const char *map_type__name[MAP__NR_TYPES] = {
 	[MAP__FUNCTION] = "Functions",
@@ -695,7 +696,15 @@ struct machine *machines__findnew(struct rb_root *self, pid_t pid)
 	    (symbol_conf.guestmount)) {
 		sprintf(path, "%s/%d", symbol_conf.guestmount, pid);
 		if (access(path, R_OK)) {
-			pr_err("Can't access file %s\n", path);
+			static struct strlist *seen;
+
+			if (!seen)
+				seen = strlist__new(true, NULL);
+
+			if (!strlist__has_entry(seen, path)) {
+				pr_err("Can't access file %s\n", path);
+				strlist__add(seen, path);
+			}
 			machine = NULL;
 			goto out;
 		}
