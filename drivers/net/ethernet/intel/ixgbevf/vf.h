@@ -137,6 +137,8 @@ struct ixgbe_hw {
 
 	u8  revision_id;
 	bool adapter_stopped;
+
+	int api_version;
 };
 
 struct ixgbevf_hw_stats {
@@ -171,5 +173,6 @@ struct ixgbevf_info {
 };
 
 void ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size);
+int ixgbevf_negotiate_api_version(struct ixgbe_hw *hw, int api);
 #endif /* __IXGBE_VF_H__ */
 

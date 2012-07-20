@@ -76,12 +76,29 @@
 /* bits 23:16 are used for exra info for certain messages */
 #define IXGBE_VT_MSGINFO_MASK     (0xFF << IXGBE_VT_MSGINFO_SHIFT)
 
+/* definitions to support mailbox API version negotiation */
+
+/*
+ * each element denotes a version of the API; existing numbers may not
+ * change; any additions must go at the end
+ */
+enum ixgbe_pfvf_api_rev {
+	ixgbe_mbox_api_10,	/* API version 1.0, linux/freebsd VF driver */
+	ixgbe_mbox_api_20,	/* API version 2.0, solaris Phase1 VF driver */
+	/* This value should always be last */
+	ixgbe_mbox_api_unknown,	/* indicates that API version is not known */
+};
+
+/* mailbox API, legacy requests */
 #define IXGBE_VF_RESET            0x01 /* VF requests reset */
 #define IXGBE_VF_SET_MAC_ADDR     0x02 /* VF requests PF to set MAC addr */
 #define IXGBE_VF_SET_MULTICAST    0x03 /* VF requests PF to set MC addr */
 #define IXGBE_VF_SET_VLAN         0x04 /* VF requests PF to set VLAN */
-#define IXGBE_VF_SET_LPE          0x05 /* VF requests PF to set VMOLR.LPE */
-#define IXGBE_VF_SET_MACVLAN      0x06 /* VF requests PF for unicast filter */
+
+/* mailbox API, version 1.0 VF requests */
+#define IXGBE_VF_SET_LPE	0x05 /* VF requests PF to set VMOLR.LPE */
+#define IXGBE_VF_SET_MACVLAN	0x06 /* VF requests PF for unicast filter */
+#define IXGBE_VF_API_NEGOTIATE	0x08 /* negotiate API version */
 
 /* length of permanent address message returned from PF */
 #define IXGBE_VF_PERMADDR_MSG_LEN 4

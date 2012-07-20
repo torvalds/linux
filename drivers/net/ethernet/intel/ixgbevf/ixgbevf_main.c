@@ -1334,6 +1334,25 @@ static void ixgbevf_init_last_counter_stats(struct ixgbevf_adapter *adapter)
 	adapter->stats.base_vfmprc = adapter->stats.last_vfmprc;
 }
 
+static void ixgbevf_negotiate_api(struct ixgbevf_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int api[] = { ixgbe_mbox_api_10,
+		      ixgbe_mbox_api_unknown };
+	int err = 0, idx = 0;
+
+	spin_lock(&adapter->mbx_lock);
+
+	while (api[idx] != ixgbe_mbox_api_unknown) {
+		err = ixgbevf_negotiate_api_version(hw, api[idx]);
+		if (!err)
+			break;
+		idx++;
+	}
+
+	spin_unlock(&adapter->mbx_lock);
+}
+
 static void ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -1398,6 +1417,8 @@ static void ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 void ixgbevf_up(struct ixgbevf_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
+
+	ixgbevf_negotiate_api(adapter);
 
 	ixgbevf_configure(adapter);
 
@@ -2387,6 +2408,8 @@ static int ixgbevf_open(struct net_device *netdev)
 			goto err_setup_reset;
 		}
 	}
+
+	ixgbevf_negotiate_api(adapter);
 
 	/* allocate transmit descriptors */
 	err = ixgbevf_setup_all_tx_resources(adapter);
