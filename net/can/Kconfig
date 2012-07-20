@@ -20,7 +20,7 @@ if CAN
 
 config CAN_RAW
 	tristate "Raw CAN Protocol (raw access with CAN-ID filtering)"
-	default N
+	default y
 	---help---
 	  The raw CAN protocol option offers access to the CAN bus via
 	  the BSD socket API. You probably want to use the raw socket in
@@ -30,7 +30,7 @@ config CAN_RAW
 
 config CAN_BCM
 	tristate "Broadcast Manager CAN Protocol (with content filtering)"
-	default N
+	default y
 	---help---
 	  The Broadcast Manager offers content filtering, timeout monitoring,
 	  sending of RTR frames, and cyclic CAN messages without permanent user
@@ -42,7 +42,7 @@ config CAN_BCM
 
 config CAN_GW
 	tristate "CAN Gateway/Router (with netlink configuration)"
-	default N
+	default y
 	---help---
 	  The CAN Gateway/Router is used to route (and modify) CAN frames.
 	  It is based on the PF_CAN core infrastructure for msg filtering and
