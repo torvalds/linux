@@ -427,8 +427,22 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
 
 	/* prepare clk in hw_param, enable in trigger */
 	clk_prepare(saif->clk);
-	if (saif != master_saif)
+	if (saif != master_saif) {
+		/*
+		* Set an initial clock rate for the saif internal logic to work
+		* properly. This is important when working in EXTMASTER mode
+		* that uses the other saif's BITCLK&LRCLK but it still needs a
+		* basic clock which should be fast enough for the internal
+		* logic.
+		*/
+		clk_enable(saif->clk);
+		ret = clk_set_rate(saif->clk, 24000000);
+		clk_disable(saif->clk);
+		if (ret)
+			return ret;
+
 		clk_prepare(master_saif->clk);
+	}
 
 	scr = __raw_readl(saif->base + SAIF_CTRL);
 
