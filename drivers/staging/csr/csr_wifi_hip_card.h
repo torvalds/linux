@@ -79,7 +79,7 @@ CsrResult CardWriteBulkData(card_t *card, card_signal_t *csptr, unifi_TrafficQue
 /*****************************************************************************
  * CardClearFromHostDataSlot -
  */
-void CardClearFromHostDataSlot(card_t *card, const CsrInt16 aSlotNum);
+void CardClearFromHostDataSlot(card_t *card, const s16 aSlotNum);
 
 #ifdef CSR_WIFI_REQUEUE_PACKET_TO_HAL
 /*****************************************************************************
@@ -87,7 +87,7 @@ void CardClearFromHostDataSlot(card_t *card, const CsrInt16 aSlotNum);
  * without freeing the bulk data
  */
 
-void CardClearFromHostDataSlotWithoutFreeingBulkData(card_t *card, const CsrInt16 aSlotNum);
+void CardClearFromHostDataSlotWithoutFreeingBulkData(card_t *card, const s16 aSlotNum);
 #endif
 
 /*****************************************************************************

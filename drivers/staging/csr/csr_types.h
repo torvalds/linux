@@ -36,7 +36,6 @@ typedef ptrdiff_t CsrIntptr;    /* intptr_t is not defined in kernel. Use the eq
 typedef uint32_t CsrUint32;
 
 /* Signed fixed width types */
-typedef int16_t CsrInt16;
 typedef int32_t CsrInt32;
 
 /* Boolean */

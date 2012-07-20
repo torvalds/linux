@@ -98,7 +98,7 @@ typedef struct
 
     /* F/W download image, possibly more than one part */
     struct FWDL fwdl[MAX_FWDL];
-    CsrInt16    num_fwdl;
+    s16    num_fwdl;
 
     /* F/W overlay image, add r not used */
     struct FWOV fwov;
@@ -108,7 +108,7 @@ typedef struct
     CsrUint32 build_id;
 
     struct PTDL ptdl[MAX_PTDL];
-    CsrInt16    num_ptdl;
+    s16    num_ptdl;
 }  xbv1_t;
 
 

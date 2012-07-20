@@ -12,7 +12,7 @@
 
 struct sig_name
 {
-    CsrInt16             id;
+    s16             id;
     const CsrCharString *name;
 };
 

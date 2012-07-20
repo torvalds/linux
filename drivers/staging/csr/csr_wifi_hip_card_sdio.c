@@ -512,7 +512,7 @@ static CsrResult unifi_hip_init(card_t *card)
 static void _build_sdio_config_data(sdio_config_data_t *cfg_data,
                                     const u8     *cfg_data_buf)
 {
-    CsrInt16 offset = 0;
+    s16 offset = 0;
 
     cfg_data->version = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(cfg_data_buf + offset);
     offset += SIZEOF_UINT16;
@@ -606,8 +606,8 @@ static CsrResult card_hw_init(card_t *card)
     u8 cfg_data_buf[SDIO_CONFIG_DATA_SIZE];
     CsrResult r;
     void *dlpriv;
-    CsrInt16 major, minor;
-    CsrInt16 search_4slut_again;
+    s16 major, minor;
+    s16 search_4slut_again;
     CsrResult csrResult;
 
     func_enter();
@@ -1000,7 +1000,7 @@ static CsrResult card_hw_init(card_t *card)
  */
 static CsrResult card_wait_for_unifi_to_reset(card_t *card)
 {
-    CsrInt16 i;
+    s16 i;
     CsrResult r;
     u8 io_enable;
     CsrResult csrResult;
@@ -1052,7 +1052,7 @@ static CsrResult card_wait_for_unifi_to_reset(card_t *card)
         if (r == CSR_RESULT_SUCCESS)
         {
             u16 mbox2;
-            CsrInt16 enabled = io_enable & (1 << card->function);
+            s16 enabled = io_enable & (1 << card->function);
 
             if (!enabled)
             {
@@ -1132,7 +1132,7 @@ static CsrResult card_wait_for_unifi_to_reset(card_t *card)
  */
 static CsrResult card_wait_for_unifi_to_disable(card_t *card)
 {
-    CsrInt16 i;
+    s16 i;
     CsrResult r;
     u8 io_enable;
     CsrResult csrResult;
@@ -1178,7 +1178,7 @@ static CsrResult card_wait_for_unifi_to_disable(card_t *card)
         }
         if (csrResult == CSR_RESULT_SUCCESS)
         {
-            CsrInt16 enabled = io_enable & (1 << card->function);
+            s16 enabled = io_enable & (1 << card->function);
             r = CSR_RESULT_SUCCESS;
             if (!enabled)
             {
@@ -1605,7 +1605,7 @@ void unifi_read_panic(card_t *card)
  */
 static CsrResult card_allocate_memory_resources(card_t *card)
 {
-    CsrInt16 n, i, k, r;
+    s16 n, i, k, r;
     sdio_config_data_t *cfg_data;
 
     func_enter();
@@ -1837,7 +1837,7 @@ static void card_free_memory_resources(card_t *card)
 
 static void card_init_soft_queues(card_t *card)
 {
-    CsrInt16 i;
+    s16 i;
 
     func_enter();
 
@@ -1876,7 +1876,7 @@ static void card_init_soft_queues(card_t *card)
  */
 void unifi_cancel_pending_signals(card_t *card)
 {
-    CsrInt16 i, n, r;
+    s16 i, n, r;
     func_enter();
 
     unifi_trace(card->ospriv, UDBG1, "Canceling pending signals.\n");
@@ -2059,7 +2059,7 @@ static CsrResult card_init_slots(card_t *card)
             func_exit_r(r);
             return r;
         }
-        card->from_host_signals_w = (CsrInt16)s;
+        card->from_host_signals_w = (s16)s;
 
         /* Get the to-host-signals-written count */
         r = unifi_card_read16(card, card->sdio_ctrl_addr + 6, &s);
@@ -2073,7 +2073,7 @@ static CsrResult card_init_slots(card_t *card)
             func_exit_r(r);
             return r;
         }
-        card->to_host_signals_r = (CsrInt16)s;
+        card->to_host_signals_r = (s16)s;
     }
 
     /* Set Initialised flag. */
@@ -2350,7 +2350,7 @@ static void CardCheckDynamicReservation(card_t *card, unifi_TrafficQueue queue)
  *      None.
  * ---------------------------------------------------------------------------
  */
-void CardClearFromHostDataSlot(card_t *card, const CsrInt16 slot)
+void CardClearFromHostDataSlot(card_t *card, const s16 slot)
 {
     u8 queue = card->from_host_data[slot].queue;
     const void *os_data_ptr = card->from_host_data[slot].bd.os_data_ptr;
@@ -2417,7 +2417,7 @@ void CardClearFromHostDataSlot(card_t *card, const CsrInt16 slot)
  *      None.
  * ---------------------------------------------------------------------------
  */
-void CardClearFromHostDataSlotWithoutFreeingBulkData(card_t *card, const CsrInt16 slot)
+void CardClearFromHostDataSlotWithoutFreeingBulkData(card_t *card, const s16 slot)
 {
     u8 queue = card->from_host_data[slot].queue;
 
@@ -3405,7 +3405,7 @@ CsrResult CardWriteBulkData(card_t *card, card_signal_t *csptr, unifi_TrafficQue
     u16 i, slots[UNIFI_MAX_DATA_REFERENCES], j = 0;
     u8 *packed_sigptr, num_slots_required = 0;
     bulk_data_desc_t *bulkdata = csptr->bulkdata;
-    CsrInt16 h, nslots;
+    s16 h, nslots;
 
     func_enter();
 
@@ -3562,9 +3562,9 @@ CsrResult CardWriteBulkData(card_t *card, card_signal_t *csptr, unifi_TrafficQue
  *      Pointer to entry in bulk_data_slot array.
  * ---------------------------------------------------------------------------
  */
-bulk_data_desc_t* card_find_data_slot(card_t *card, CsrInt16 slot)
+bulk_data_desc_t* card_find_data_slot(card_t *card, s16 slot)
 {
-    CsrInt16 sn;
+    s16 sn;
     bulk_data_desc_t *bd;
 
     sn = slot & 0x7FFF;
@@ -3705,7 +3705,7 @@ CsrResult unifi_card_stop_processor(card_t *card, enum unifi_dbg_processors_sele
 {
     CsrResult r = CSR_RESULT_SUCCESS;
     u8 status;
-    CsrInt16 retry = 100;
+    s16 retry = 100;
 
     while (retry--)
     {
@@ -4103,7 +4103,7 @@ CsrResult unifi_check_io_status(card_t *card, CsrInt32 *status)
 void unifi_get_hip_qos_info(card_t *card, unifi_HipQosInfo *hipqosinfo)
 {
     CsrInt32 count_fhr;
-    CsrInt16 t;
+    s16 t;
     CsrUint32 occupied_fh;
 
     q_t *sigq;

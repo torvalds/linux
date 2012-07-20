@@ -416,8 +416,8 @@ typedef struct
     u16                      frameLength;
     u8                      *frame;
     CsrWifiRouterFrameFreeFunction freeFunction;
-    CsrInt16                       rssi;
-    CsrInt16                       snr;
+    s16                       rssi;
+    s16                       snr;
     u16                      rate;
 } CsrWifiRouterMaPacketInd;
 

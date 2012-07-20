@@ -271,7 +271,7 @@ static enum ta_frame_identity ta_detect_protocol(card_t *card, CsrWifiRouterCtrl
 
 static void tas_reset_data(ta_data_t *tad)
 {
-    CsrInt16 i;
+    s16 i;
 
     for (i = 0; i < (TA_INTERVALS_NUM + 1); i++)
     {

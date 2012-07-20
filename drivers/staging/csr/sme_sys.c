@@ -3095,7 +3095,7 @@ void CsrWifiRouterCtrlWapiRxPktReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 
         memcpy((void*)bulkdata.d[0].os_data_ptr, req->data, req->dataLength);
 
-        receiver_id = CSR_GET_UINT16_FROM_LITTLE_ENDIAN((req->signal) + sizeof(CsrInt16)) & 0xFFF0;
+        receiver_id = CSR_GET_UINT16_FROM_LITTLE_ENDIAN((req->signal) + sizeof(s16)) & 0xFFF0;
         client_id = (receiver_id & 0x0F00) >> UDI_SENDER_ID_SHIFT;
 
         client = &priv->ul_clients[client_id];

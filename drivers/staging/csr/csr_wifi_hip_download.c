@@ -562,7 +562,7 @@ static CsrResult safe_read_shared_location(card_t *card, CsrUint32 address, u8 *
 CsrResult unifi_do_loader_op(card_t *card, CsrUint32 op_addr, u8 opcode)
 {
     CsrResult r;
-    CsrInt16 op_retries;
+    s16 op_retries;
 
     unifi_trace(card->ospriv, UDBG4, "Loader cmd 0x%0x -> 0x%08x\n", opcode, op_addr);
 

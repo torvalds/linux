@@ -2986,7 +2986,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
  */
 CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
 {
-    CsrInt16 index = 0;
+    s16 index = 0;
 
     CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->SignalPrimitiveHeader.SignalId, ptr + index);
     index += SIZEOF_UINT16;

@@ -1012,10 +1012,10 @@ CsrSize CsrWifiSmeRoamingConfigSetReqSizeof(void *msg)
         u16 i2;
         for (i2 = 0; i2 < 3; i2++)
         {
-            bufferSize += 2; /* CsrInt16 primitive->roamingConfig.roamingBands[i2].rssiHighThreshold */
-            bufferSize += 2; /* CsrInt16 primitive->roamingConfig.roamingBands[i2].rssiLowThreshold */
-            bufferSize += 2; /* CsrInt16 primitive->roamingConfig.roamingBands[i2].snrHighThreshold */
-            bufferSize += 2; /* CsrInt16 primitive->roamingConfig.roamingBands[i2].snrLowThreshold */
+            bufferSize += 2; /* s16 primitive->roamingConfig.roamingBands[i2].rssiHighThreshold */
+            bufferSize += 2; /* s16 primitive->roamingConfig.roamingBands[i2].rssiLowThreshold */
+            bufferSize += 2; /* s16 primitive->roamingConfig.roamingBands[i2].snrHighThreshold */
+            bufferSize += 2; /* s16 primitive->roamingConfig.roamingBands[i2].snrLowThreshold */
         }
     }
     bufferSize += 1;         /* CsrBool primitive->roamingConfig.disableSmoothRoaming */
@@ -2957,8 +2957,8 @@ CsrSize CsrWifiSmeConnectionQualityIndSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 9) */
     bufferSize += 2; /* u16 primitive->interfaceTag */
-    bufferSize += 2; /* CsrInt16 primitive->linkQuality.unifiRssi */
-    bufferSize += 2; /* CsrInt16 primitive->linkQuality.unifiSnr */
+    bufferSize += 2; /* s16 primitive->linkQuality.unifiRssi */
+    bufferSize += 2; /* s16 primitive->linkQuality.unifiSnr */
     return bufferSize;
 }
 
@@ -3303,8 +3303,8 @@ CsrSize CsrWifiSmeLinkQualityGetCfmSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 11) */
     bufferSize += 2; /* u16 primitive->interfaceTag */
     bufferSize += 2; /* CsrResult primitive->status */
-    bufferSize += 2; /* CsrInt16 primitive->linkQuality.unifiRssi */
-    bufferSize += 2; /* CsrInt16 primitive->linkQuality.unifiSnr */
+    bufferSize += 2; /* s16 primitive->linkQuality.unifiRssi */
+    bufferSize += 2; /* s16 primitive->linkQuality.unifiSnr */
     return bufferSize;
 }
 
@@ -4252,10 +4252,10 @@ CsrSize CsrWifiSmeRoamingConfigGetCfmSizeof(void *msg)
         u16 i2;
         for (i2 = 0; i2 < 3; i2++)
         {
-            bufferSize += 2; /* CsrInt16 primitive->roamingConfig.roamingBands[i2].rssiHighThreshold */
-            bufferSize += 2; /* CsrInt16 primitive->roamingConfig.roamingBands[i2].rssiLowThreshold */
-            bufferSize += 2; /* CsrInt16 primitive->roamingConfig.roamingBands[i2].snrHighThreshold */
-            bufferSize += 2; /* CsrInt16 primitive->roamingConfig.roamingBands[i2].snrLowThreshold */
+            bufferSize += 2; /* s16 primitive->roamingConfig.roamingBands[i2].rssiHighThreshold */
+            bufferSize += 2; /* s16 primitive->roamingConfig.roamingBands[i2].rssiLowThreshold */
+            bufferSize += 2; /* s16 primitive->roamingConfig.roamingBands[i2].snrHighThreshold */
+            bufferSize += 2; /* s16 primitive->roamingConfig.roamingBands[i2].snrLowThreshold */
         }
     }
     bufferSize += 1;         /* CsrBool primitive->roamingConfig.disableSmoothRoaming */
@@ -4519,8 +4519,8 @@ CsrSize CsrWifiSmeScanResultIndSizeof(void *msg)
     bufferSize += 32;                                          /* u8 primitive->result.ssid.ssid[32] */
     bufferSize += 1;                                           /* u8 primitive->result.ssid.length */
     bufferSize += 6;                                           /* u8 primitive->result.bssid.a[6] */
-    bufferSize += 2;                                           /* CsrInt16 primitive->result.rssi */
-    bufferSize += 2;                                           /* CsrInt16 primitive->result.snr */
+    bufferSize += 2;                                           /* s16 primitive->result.rssi */
+    bufferSize += 2;                                           /* s16 primitive->result.snr */
     bufferSize += 1;                                           /* CsrWifiSmeRadioIF primitive->result.ifIndex */
     bufferSize += 2;                                           /* u16 primitive->result.beaconPeriodTu */
     bufferSize += 8;                                           /* u8 primitive->result.timeStamp.data[8] */
@@ -4818,8 +4818,8 @@ CsrSize CsrWifiSmeScanResultsGetCfmSizeof(void *msg)
             bufferSize += 32;                                                   /* u8 primitive->scanResults[i1].ssid.ssid[32] */
             bufferSize += 1;                                                    /* u8 primitive->scanResults[i1].ssid.length */
             bufferSize += 6;                                                    /* u8 primitive->scanResults[i1].bssid.a[6] */
-            bufferSize += 2;                                                    /* CsrInt16 primitive->scanResults[i1].rssi */
-            bufferSize += 2;                                                    /* CsrInt16 primitive->scanResults[i1].snr */
+            bufferSize += 2;                                                    /* s16 primitive->scanResults[i1].rssi */
+            bufferSize += 2;                                                    /* s16 primitive->scanResults[i1].snr */
             bufferSize += 1;                                                    /* CsrWifiSmeRadioIF primitive->scanResults[i1].ifIndex */
             bufferSize += 2;                                                    /* u16 primitive->scanResults[i1].beaconPeriodTu */
             bufferSize += 8;                                                    /* u8 primitive->scanResults[i1].timeStamp.data[8] */

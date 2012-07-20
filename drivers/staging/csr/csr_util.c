@@ -326,7 +326,7 @@ CsrCharString *CsrStrNCpyZero(CsrCharString *dest,
 /* Convert string with base 10 to integer */
 CsrUint32 CsrStrToInt(const CsrCharString *str)
 {
-    CsrInt16 i;
+    s16 i;
     CsrUint32 res;
     CsrUint32 digit;
 

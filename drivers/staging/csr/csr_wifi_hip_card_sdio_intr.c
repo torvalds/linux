@@ -54,7 +54,7 @@ static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed);
 
 static CsrResult process_bulk_data_command(card_t *card,
                                            const u8 *cmdptr,
-                                           CsrInt16 cmd, u16 len);
+                                           s16 cmd, u16 len);
 static CsrResult process_clear_slot_command(card_t         *card,
                                             const u8 *cmdptr);
 static CsrResult process_fh_cmd_queue(card_t *card, CsrInt32 *processed);
@@ -63,7 +63,7 @@ static void restart_packet_flow(card_t *card);
 static CsrResult process_clock_request(card_t *card);
 
 #ifdef CSR_WIFI_HIP_NOISY
-CsrInt16 dump_fh_buf = 0;
+s16 dump_fh_buf = 0;
 #endif /* CSR_WIFI_HIP_NOISY */
 
 #ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
@@ -1054,7 +1054,7 @@ static CsrResult read_to_host_signals(card_t *card, CsrInt32 *processed)
  *      CSR_RESULT_SUCCESS on success or CSR error code
  * ---------------------------------------------------------------------------
  */
-static CsrResult update_to_host_signals_r(card_t *card, CsrInt16 pending)
+static CsrResult update_to_host_signals_r(card_t *card, s16 pending)
 {
     CsrResult r;
 
@@ -1100,7 +1100,7 @@ static CsrResult update_to_host_signals_r(card_t *card, CsrInt16 pending)
  */
 static void read_unpack_cmd(const u8 *ptr, bulk_data_cmd_t *bulk_data_cmd)
 {
-    CsrInt16 index = 0;
+    s16 index = 0;
     bulk_data_cmd->cmd_and_len = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
     index += SIZEOF_UINT16;
     bulk_data_cmd->data_slot = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
@@ -1145,13 +1145,13 @@ static void read_unpack_cmd(const u8 *ptr, bulk_data_cmd_t *bulk_data_cmd)
  */
 static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
 {
-    CsrInt16 pending;
-    CsrInt16 remaining;
+    s16 pending;
+    s16 remaining;
     u8 *bufptr;
     bulk_data_param_t data_ptrs;
-    CsrInt16 cmd;
+    s16 cmd;
     u16 sig_len;
-    CsrInt16 i;
+    s16 i;
     u16 chunks_in_buf;
     u16 bytes_transferred = 0;
     CsrResult r = CSR_RESULT_SUCCESS;
@@ -1177,7 +1177,7 @@ static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
 
     while (pending > 0)
     {
-        CsrInt16 f_flush_count = 0;
+        s16 f_flush_count = 0;
 
         /*
          * Command and length are common to signal and bulk data msgs.
@@ -1257,7 +1257,7 @@ static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
                     if (data_len != 0)
                     {
                     /* Retrieve dataRefs[i].SlotNumber */
-                        CsrInt16 slot = GET_PACKED_DATAREF_SLOT(bufptr + 2, i);
+                        s16 slot = GET_PACKED_DATAREF_SLOT(bufptr + 2, i);
 
                         if (slot >= card->config_data.num_tohost_data_slots)
                         {
@@ -1372,7 +1372,7 @@ static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
                 /* The slot is only valid if the length is non-zero. */
                     if (GET_PACKED_DATAREF_LEN(bufptr + 2, i) != 0)
                     {
-                        CsrInt16 slot = GET_PACKED_DATAREF_SLOT(bufptr + 2, i);
+                        s16 slot = GET_PACKED_DATAREF_SLOT(bufptr + 2, i);
                         if (slot < card->config_data.num_tohost_data_slots)
                         {
                             UNIFI_INIT_BULK_DATA(&card->to_host_data[slot]);
@@ -1546,7 +1546,7 @@ static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
 static CsrResult process_clear_slot_command(card_t *card, const u8 *cmdptr)
 {
     u16 data_slot;
-    CsrInt16 slot;
+    s16 slot;
 
     data_slot = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(cmdptr + SIZEOF_UINT16);
 
@@ -1619,16 +1619,16 @@ static CsrResult process_clear_slot_command(card_t *card, const u8 *cmdptr)
  * ---------------------------------------------------------------------------
  */
 static CsrResult process_bulk_data_command(card_t *card, const u8 *cmdptr,
-                                           CsrInt16 cmd, u16 len)
+                                           s16 cmd, u16 len)
 {
     bulk_data_desc_t *bdslot;
 #ifdef CSR_WIFI_ALIGNMENT_WORKAROUND
     u8 *host_bulk_data_slot;
 #endif
     bulk_data_cmd_t bdcmd;
-    CsrInt16 offset;
-    CsrInt16 slot;
-    CsrInt16 dir;
+    s16 offset;
+    s16 slot;
+    s16 dir;
     CsrResult r;
 
     read_unpack_cmd(cmdptr, &bdcmd);
@@ -2029,7 +2029,7 @@ static CsrResult process_fh_cmd_queue(card_t *card, CsrInt32 *processed)
     while (pending_sigs-- && pending_chunks > 0)
     {
         card_signal_t *csptr;
-        CsrInt16 i;
+        s16 i;
         u16 sig_chunks, total_length, free_chunks_in_fh_buffer;
         bulk_data_param_t bulkdata;
         u8 *packed_sigptr;
@@ -2173,7 +2173,7 @@ static CsrResult process_fh_traffic_queue(card_t *card, CsrInt32 *processed)
     q_t *sigq = card->fh_traffic_queue;
 
     CsrResult r;
-    CsrInt16 n = 0;
+    s16 n = 0;
     CsrInt32 q_no;
     u16 pending_sigs = 0;
     u16 pending_chunks = 0;

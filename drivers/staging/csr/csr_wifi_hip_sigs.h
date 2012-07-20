@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-typedef CsrInt16 csr_place_holding_type;
+typedef s16 csr_place_holding_type;
 
 typedef u16 CSR_ASSOCIATION_ID;
 
@@ -71,7 +71,7 @@ typedef enum CSR_CONNECTION_STATUS
     CSR_CONNECTED_AWAKE                           = 0x0001
 } CSR_CONNECTION_STATUS;
 
-typedef CsrInt16 CSR_DECIBELS;
+typedef s16 CSR_DECIBELS;
 
 typedef enum CSR_DIRECTION
 {
@@ -542,7 +542,7 @@ typedef struct CSR_MLME_RESET_REQUEST
     CSR_DATAREF    Dummydataref1;
     CSR_DATAREF    Dummydataref2;
     CSR_MACADDRESS StaAddress;
-    CsrInt16       SetDefaultMib;
+    s16       SetDefaultMib;
 } CSR_MLME_RESET_REQUEST;
 
 typedef struct CSR_MLME_SET_CONFIRM
@@ -582,7 +582,7 @@ typedef u16 CSR_SEQUENCE_NUMBER;
 
 typedef struct CSR_SIGNAL_PRIMITIVE_HEADER
 {
-    CsrInt16       SignalId;
+    s16       SignalId;
     CSR_PROCESS_ID ReceiverProcessId;
     CSR_PROCESS_ID SenderProcessId;
 } CSR_SIGNAL_PRIMITIVE_HEADER;
@@ -685,7 +685,7 @@ typedef struct CSR_MA_VIF_AVAILABILITY_INDICATION
     CSR_DATAREF        Dummydataref1;
     CSR_DATAREF        Dummydataref2;
     CSR_VIF_IDENTIFIER VirtualInterfaceIdentifier;
-    CsrInt16           Multicast;
+    s16           Multicast;
 } CSR_MA_VIF_AVAILABILITY_INDICATION;
 
 typedef struct CSR_MA_VIF_AVAILABILITY_RESPONSE
@@ -776,7 +776,7 @@ typedef struct CSR_MLME_ADD_PERIODIC_REQUEST
     CSR_PERIODIC_ID              PeriodicId;
     CSR_MICROSECONDS32           MaximumLatency;
     CSR_PERIODIC_SCHEDULING_MODE PeriodicSchedulingMode;
-    CsrInt16                     WakeHost;
+    s16                     WakeHost;
     CSR_PRIORITY                 UserPriority;
 } CSR_MLME_ADD_PERIODIC_REQUEST;
 
@@ -1108,7 +1108,7 @@ typedef struct CSR_MLME_PAUSE_AUTONOMOUS_SCAN_REQUEST
     CSR_DATAREF            Dummydataref2;
     CSR_VIF_IDENTIFIER     VirtualInterfaceIdentifier;
     CSR_AUTONOMOUS_SCAN_ID AutonomousScanId;
-    CsrInt16               Pause;
+    s16               Pause;
 } CSR_MLME_PAUSE_AUTONOMOUS_SCAN_REQUEST;
 
 typedef struct CSR_MLME_POWERMGT_CONFIRM
@@ -1125,7 +1125,7 @@ typedef struct CSR_MLME_POWERMGT_REQUEST
     CSR_DATAREF               Dummydataref2;
     CSR_VIF_IDENTIFIER        VirtualInterfaceIdentifier;
     CSR_POWER_MANAGEMENT_MODE PowerManagementMode;
-    CsrInt16                  ReceiveDtims;
+    s16                  ReceiveDtims;
     CSR_BEACON_PERIODS        ListenInterval;
     CSR_TRAFFIC_WINDOW        TrafficWindow;
 } CSR_MLME_POWERMGT_REQUEST;
@@ -1229,7 +1229,7 @@ typedef struct CSR_MLME_SET_TIM_REQUEST
     CSR_DATAREF        Dummydataref2;
     CSR_VIF_IDENTIFIER VirtualInterfaceIdentifier;
     CSR_ASSOCIATION_ID AssociationId;
-    CsrInt16           TimValue;
+    s16           TimValue;
 } CSR_MLME_SET_TIM_REQUEST;
 
 typedef struct CSR_MLME_SM_START_CONFIRM

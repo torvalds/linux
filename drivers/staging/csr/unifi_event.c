@@ -373,24 +373,24 @@ unifi_process_receive_event(void *ospriv,
     unifi_priv_t *priv = (unifi_priv_t*)ospriv;
     int i, receiver_id;
     int client_id;
-    CsrInt16 signal_id;
+    s16 signal_id;
     CsrBool pktIndToSme = FALSE, freeBulkData = FALSE;
 
     func_enter();
 
     unifi_trace(priv, UDBG5, "unifi_process_receive_event: "
                 "%04x %04x %04x %04x %04x %04x %04x %04x (%d)\n",
-                CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(CsrInt16)*0) & 0xFFFF,
-                CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(CsrInt16)*1) & 0xFFFF,
-                CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(CsrInt16)*2) & 0xFFFF,
-                CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(CsrInt16)*3) & 0xFFFF,
-                CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(CsrInt16)*4) & 0xFFFF,
-                CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(CsrInt16)*5) & 0xFFFF,
-                CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(CsrInt16)*6) & 0xFFFF,
-                CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(CsrInt16)*7) & 0xFFFF,
+                CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*0) & 0xFFFF,
+                CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*1) & 0xFFFF,
+                CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*2) & 0xFFFF,
+                CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*3) & 0xFFFF,
+                CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*4) & 0xFFFF,
+                CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*5) & 0xFFFF,
+                CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*6) & 0xFFFF,
+                CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*7) & 0xFFFF,
                 siglen);
 
-    receiver_id = CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(CsrInt16)) & 0xFF00;
+    receiver_id = CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)) & 0xFF00;
     client_id = (receiver_id & 0x0F00) >> UDI_SENDER_ID_SHIFT;
     signal_id = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(sigdata);
 
@@ -659,14 +659,14 @@ unifi_receive_event(void *ospriv,
 
     unifi_trace(priv, UDBG5, "unifi_receive_event: "
             "%04x %04x %04x %04x %04x %04x %04x %04x (%d)\n",
-            CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(CsrInt16)*0) & 0xFFFF,
-            CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(CsrInt16)*1) & 0xFFFF,
-            CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(CsrInt16)*2) & 0xFFFF,
-            CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(CsrInt16)*3) & 0xFFFF,
-            CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(CsrInt16)*4) & 0xFFFF,
-            CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(CsrInt16)*5) & 0xFFFF,
-            CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(CsrInt16)*6) & 0xFFFF,
-            CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(CsrInt16)*7) & 0xFFFF, siglen);
+            CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*0) & 0xFFFF,
+            CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*1) & 0xFFFF,
+            CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*2) & 0xFFFF,
+            CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*3) & 0xFFFF,
+            CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*4) & 0xFFFF,
+            CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*5) & 0xFFFF,
+            CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*6) & 0xFFFF,
+            CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*7) & 0xFFFF, siglen);
     if(signal_buffer_is_full(priv)) {
         unifi_error(priv,"TO HOST signal queue FULL dropping the PDU\n");
         for (i = 0; i < UNIFI_MAX_DATA_REFERENCES; i++) {

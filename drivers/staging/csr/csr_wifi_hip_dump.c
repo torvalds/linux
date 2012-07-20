@@ -40,7 +40,7 @@ typedef struct coredump_buf
 {
     u16  count;                       /* serial number of dump */
     CsrTime    timestamp;                   /* host's system time at capture */
-    CsrInt16   requestor;                   /* request: 0=auto dump, 1=manual */
+    s16   requestor;                   /* request: 0=auto dump, 1=manual */
     u16  chip_ver;
     CsrUint32  fw_ver;
     u16 *zone[HIP_CDUMP_NUM_ZONES];
@@ -827,8 +827,8 @@ void unifi_coredump_free(card_t *card)
 {
     void *ospriv = card->ospriv;
     coredump_buffer *node, *del_node;
-    CsrInt16 i = 0;
-    CsrInt16 j;
+    s16 i = 0;
+    s16 j;
 
     func_enter();
     unifi_trace(ospriv, UDBG2, "Core dump de-configured\n");

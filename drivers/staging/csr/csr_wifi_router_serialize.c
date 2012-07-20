@@ -354,8 +354,8 @@ CsrSize CsrWifiRouterMaPacketIndSizeof(void *msg)
     bufferSize += 2;                      /* u16 primitive->frameLength */
     bufferSize += primitive->frameLength; /* u8 primitive->frame */
     bufferSize += 4;                      /* CsrWifiRouterFrameFreeFunction primitive->freeFunction */
-    bufferSize += 2;                      /* CsrInt16 primitive->rssi */
-    bufferSize += 2;                      /* CsrInt16 primitive->snr */
+    bufferSize += 2;                      /* s16 primitive->rssi */
+    bufferSize += 2;                      /* s16 primitive->snr */
     bufferSize += 2;                      /* u16 primitive->rate */
     return bufferSize;
 }

@@ -492,7 +492,7 @@ static CsrInt32 xbv_push(xbv1_t *fwinfo, xbv_stack_t *stack,
 static CsrUint32 xbv2uint(u8 *ptr, CsrInt32 len)
 {
     CsrUint32 u = 0;
-    CsrInt16 i;
+    s16 i;
 
     for (i = 0; i < len; i++)
     {
@@ -642,7 +642,7 @@ static u16 calc_checksum(void *buf, const CsrUint32 offset, const CsrUint32 byte
 
 static CsrUint32 calc_patch_size(const xbv1_t *fwinfo)
 {
-    CsrInt16 i;
+    s16 i;
     CsrUint32 size = 0;
 
     /*
@@ -744,7 +744,7 @@ static CsrUint32 write_fwdl_to_ptdl(void *buf, const CsrUint32 offset, fwreadfn_
                                     const CsrUint32 fw_id, void *fw_buf)
 {
     CsrUint32 written = 0;
-    CsrInt16 chunks = 0;
+    s16 chunks = 0;
     CsrUint32 left = fwdl->dl_size;      /* Bytes left in this fwdl */
     CsrUint32 dl_addr = fwdl->dl_addr;   /* Target address of fwdl image on XAP */
     CsrUint32 dl_offs = fwdl->dl_offset; /* Offset of fwdl image data in source */
@@ -873,7 +873,7 @@ static CsrUint32 write_reset_ptdl(void *buf, const CsrUint32 offset, const xbv1_
 CsrInt32 xbv1_read_slut(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwinfo,
                         symbol_t *slut, CsrUint32 slut_len)
 {
-    CsrInt16 i;
+    s16 i;
     CsrInt32 offset;
     CsrUint32 magic;
     CsrUint32 count = 0;
@@ -974,7 +974,7 @@ void* xbv_to_patch(card_t *card, fwreadfn_t readfn,
     void *patch_buf = NULL;
     CsrUint32 patch_buf_size;
     CsrUint32 payload_offs = 0;           /* Start of XBV payload */
-    CsrInt16 i;
+    s16 i;
     CsrUint32 patch_offs = 0;
     CsrUint32 list_len_offs = 0;          /* Offset of PTDL LIST length parameter */
     CsrUint32 ptdl_start_offs = 0;        /* Offset of first PTDL chunk */

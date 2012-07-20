@@ -2204,8 +2204,8 @@ typedef struct
 *******************************************************************************/
 typedef struct
 {
-    CsrInt16 unifiRssi;
-    CsrInt16 unifiSnr;
+    s16 unifiRssi;
+    s16 unifiSnr;
 } CsrWifiSmeLinkQuality;
 
 /*******************************************************************************
@@ -2366,10 +2366,10 @@ typedef struct
 *******************************************************************************/
 typedef struct
 {
-    CsrInt16 rssiHighThreshold;
-    CsrInt16 rssiLowThreshold;
-    CsrInt16 snrHighThreshold;
-    CsrInt16 snrLowThreshold;
+    s16 rssiHighThreshold;
+    s16 rssiLowThreshold;
+    s16 snrHighThreshold;
+    s16 snrLowThreshold;
 } CsrWifiSmeRoamingBandData;
 
 /*******************************************************************************
@@ -3141,8 +3141,8 @@ typedef struct
 {
     CsrWifiSsid              ssid;
     CsrWifiMacAddress        bssid;
-    CsrInt16                 rssi;
-    CsrInt16                 snr;
+    s16                 rssi;
+    s16                 snr;
     CsrWifiSmeRadioIF        ifIndex;
     u16                beaconPeriodTu;
     CsrWifiSmeTsfTime        timeStamp;

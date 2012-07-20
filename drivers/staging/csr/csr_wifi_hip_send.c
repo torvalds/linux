@@ -106,9 +106,9 @@ static CsrResult send_signal(card_t *card, const u8 *sigptr, CsrUint32 siglen,
 {
     u16 i, data_slot_size;
     card_signal_t *csptr;
-    CsrInt16 qe;
+    s16 qe;
     CsrResult r;
-    CsrInt16 debug_print = 0;
+    s16 debug_print = 0;
 
     data_slot_size = CardGetDataSlotSize(card);
 

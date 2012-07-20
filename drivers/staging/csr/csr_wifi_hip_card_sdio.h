@@ -532,7 +532,7 @@ struct card
      * This is an optimisation that starts searching at a more likely point
      * than the beginning.
      */
-    CsrInt16 from_host_data_head;
+    s16 from_host_data_head;
 
     /* Dynamic slot allocation for queues */
     card_dynamic_slot_t dynamic_slot_data;
@@ -577,7 +577,7 @@ struct card
 #endif
 
     /* Auto-coredump */
-    CsrInt16             request_coredump_on_reset; /* request coredump on next reset */
+    s16             request_coredump_on_reset; /* request coredump on next reset */
     struct coredump_buf *dump_buf;                  /* root node */
     struct coredump_buf *dump_next_write;           /* node to fill at next dump */
     struct coredump_buf *dump_cur_read;             /* valid node to read, or NULL */
@@ -654,7 +654,7 @@ CsrResult unifi_set_host_state(card_t *card, enum unifi_host_state state);
 
 CsrResult unifi_set_proc_select(card_t *card, enum unifi_dbg_processors_select select);
 CsrInt32 card_read_signal_counts(card_t *card);
-bulk_data_desc_t* card_find_data_slot(card_t *card, CsrInt16 slot);
+bulk_data_desc_t* card_find_data_slot(card_t *card, s16 slot);
 
 
 CsrResult unifi_read32(card_t *card, CsrUint32 unifi_addr, CsrUint32 *pdata);
@@ -665,9 +665,9 @@ CsrInt32 unifi_read_shared_count(card_t *card, CsrUint32 addr);
 CsrResult unifi_writen(card_t *card, CsrUint32 unifi_addr, void *pdata, u16 len);
 
 CsrResult unifi_bulk_rw(card_t *card, CsrUint32 handle,
-                        void *pdata, CsrUint32 len, CsrInt16 direction);
+                        void *pdata, CsrUint32 len, s16 direction);
 CsrResult unifi_bulk_rw_noretry(card_t *card, CsrUint32 handle,
-                                void *pdata, CsrUint32 len, CsrInt16 direction);
+                                void *pdata, CsrUint32 len, s16 direction);
 #define UNIFI_SDIO_READ       0
 #define UNIFI_SDIO_WRITE      1
 

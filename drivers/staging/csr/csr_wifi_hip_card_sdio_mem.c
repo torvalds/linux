@@ -53,11 +53,11 @@
  *      CSR_RESULT_FAILURE     an SDIO error occurred
  * ---------------------------------------------------------------------------
  */
-static CsrResult retrying_read8(card_t *card, CsrInt16 funcnum, CsrUint32 addr, u8 *pdata)
+static CsrResult retrying_read8(card_t *card, s16 funcnum, CsrUint32 addr, u8 *pdata)
 {
     CsrSdioFunction *sdio = card->sdio_if;
     CsrResult r = CSR_RESULT_SUCCESS;
-    CsrInt16 retries;
+    s16 retries;
     CsrResult csrResult = CSR_RESULT_SUCCESS;
 
     retries = 0;
@@ -128,11 +128,11 @@ static CsrResult retrying_read8(card_t *card, CsrInt16 funcnum, CsrUint32 addr, 
 } /* retrying_read8() */
 
 
-static CsrResult retrying_write8(card_t *card, CsrInt16 funcnum, CsrUint32 addr, u8 data)
+static CsrResult retrying_write8(card_t *card, s16 funcnum, CsrUint32 addr, u8 data)
 {
     CsrSdioFunction *sdio = card->sdio_if;
     CsrResult r = CSR_RESULT_SUCCESS;
-    CsrInt16 retries;
+    s16 retries;
     CsrResult csrResult = CSR_RESULT_SUCCESS;
 
     retries = 0;
@@ -201,12 +201,12 @@ static CsrResult retrying_write8(card_t *card, CsrInt16 funcnum, CsrUint32 addr,
 } /* retrying_write8() */
 
 
-static CsrResult retrying_read16(card_t *card, CsrInt16 funcnum,
+static CsrResult retrying_read16(card_t *card, s16 funcnum,
                                  CsrUint32 addr, u16 *pdata)
 {
     CsrSdioFunction *sdio = card->sdio_if;
     CsrResult r = CSR_RESULT_SUCCESS;
-    CsrInt16 retries;
+    s16 retries;
     CsrResult csrResult = CSR_RESULT_SUCCESS;
 
     retries = 0;
@@ -262,12 +262,12 @@ static CsrResult retrying_read16(card_t *card, CsrInt16 funcnum,
 } /* retrying_read16() */
 
 
-static CsrResult retrying_write16(card_t *card, CsrInt16 funcnum,
+static CsrResult retrying_write16(card_t *card, s16 funcnum,
                                   CsrUint32 addr, u16 data)
 {
     CsrSdioFunction *sdio = card->sdio_if;
     CsrResult r = CSR_RESULT_SUCCESS;
-    CsrInt16 retries;
+    s16 retries;
     CsrResult csrResult = CSR_RESULT_SUCCESS;
 
     retries = 0;
@@ -668,10 +668,10 @@ CsrResult unifi_write_directn(card_t *card, CsrUint32 addr, void *pdata, u16 len
 {
     CsrResult r;
     u8 *cptr;
-    CsrInt16 signed_len;
+    s16 signed_len;
 
     cptr = (u8 *)pdata;
-    signed_len = (CsrInt16)len;
+    signed_len = (s16)len;
     while (signed_len > 0)
     {
         /* This is UniFi-1 specific code. CSPI not supported so 8-bit write allowed */
@@ -1399,9 +1399,9 @@ CsrResult unifi_writen(card_t *card, CsrUint32 unifi_addr, void *pdata, u16 len)
 } /* unifi_writen() */
 
 
-static CsrResult csr_sdio_block_rw(card_t *card, CsrInt16 funcnum,
+static CsrResult csr_sdio_block_rw(card_t *card, s16 funcnum,
                                    CsrUint32 addr, u8 *pdata,
-                                   u16 count, CsrInt16 dir_is_write)
+                                   u16 count, s16 dir_is_write)
 {
     CsrResult csrResult;
 
@@ -1473,7 +1473,7 @@ static CsrResult csr_sdio_block_rw(card_t *card, CsrInt16 funcnum,
  * ---------------------------------------------------------------------------
  */
 CsrResult unifi_bulk_rw(card_t *card, CsrUint32 handle, void *pdata,
-                        CsrUint32 len, CsrInt16 direction)
+                        CsrUint32 len, s16 direction)
 {
 #define CMD53_RETRIES 3
     /*
@@ -1486,15 +1486,15 @@ CsrResult unifi_bulk_rw(card_t *card, CsrUint32 handle, void *pdata,
 #define REWIND_DELAY            1     /* msec or 50usecs */
     CsrResult csrResult;              /* SDIO error code */
     CsrResult r = CSR_RESULT_SUCCESS; /* HIP error code */
-    CsrInt16 retries = CMD53_RETRIES;
-    CsrInt16 stat_retries;
+    s16 retries = CMD53_RETRIES;
+    s16 stat_retries;
     u8 stat;
-    CsrInt16 dump_read;
+    s16 dump_read;
 #ifdef UNIFI_DEBUG
     u8 *pdata_lsb = ((u8 *)&pdata) + card->lsb;
 #endif
 #ifdef CSR_WIFI_MAKE_FAKE_CMD53_ERRORS
-    static CsrInt16 fake_error;
+    static s16 fake_error;
 #endif
 
     dump_read = 0;
@@ -1587,7 +1587,7 @@ CsrResult unifi_bulk_rw(card_t *card, CsrUint32 handle, void *pdata,
 
         unifi_trace(card->ospriv, UDBG4,
                     "Error in a CMD53 transfer, retrying (h:%d,l:%u)...\n",
-                    (CsrInt16)handle & 0xff, len);
+                    (s16)handle & 0xff, len);
 
         /* The transfer failed, rewind and try again */
         r = unifi_write_8_or_16(card, card->sdio_ctrl_addr + 8,
@@ -1694,7 +1694,7 @@ CsrResult unifi_bulk_rw(card_t *card, CsrUint32 handle, void *pdata,
  * ---------------------------------------------------------------------------
  */
 CsrResult unifi_bulk_rw_noretry(card_t *card, CsrUint32 handle, void *pdata,
-                                CsrUint32 len, CsrInt16 direction)
+                                CsrUint32 len, s16 direction)
 {
     CsrResult csrResult;
 
