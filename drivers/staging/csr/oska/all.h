@@ -41,7 +41,6 @@
  *
  * There are additional modules that are not included in <oska/all.h>.
  *
- *   - \ref io "Memory mapped I/O" <oska/io.h>
  *   - \ref refcount "Reference Counting" <oska/refcount.h>
  *   - \ref list "Linked lists" <oska/list.h>
  *   - \ref trace "Tracing messages" <oska/trace.h>
