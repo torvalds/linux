@@ -16,27 +16,27 @@
 extern "C" {
 #endif
 
-CsrUtf16String *CsrUint32ToUtf16String(u32 number);
+u16 *CsrUint32ToUtf16String(u32 number);
 
-u32 CsrUtf16StringToUint32(const CsrUtf16String *unicodeString);
-u32 CsrUtf16StrLen(const CsrUtf16String *unicodeString);
+u32 CsrUtf16StringToUint32(const u16 *unicodeString);
+u32 CsrUtf16StrLen(const u16 *unicodeString);
 
-CsrUtf8String *CsrUtf16String2Utf8(const CsrUtf16String *source);
+CsrUtf8String *CsrUtf16String2Utf8(const u16 *source);
 
-CsrUtf16String *CsrUtf82Utf16String(const CsrUtf8String *utf8String);
+u16 *CsrUtf82Utf16String(const CsrUtf8String *utf8String);
 
-CsrUtf16String *CsrUtf16StrCpy(CsrUtf16String *target, const CsrUtf16String *source);
-CsrUtf16String *CsrUtf16StringDuplicate(const CsrUtf16String *source);
+u16 *CsrUtf16StrCpy(u16 *target, const u16 *source);
+u16 *CsrUtf16StringDuplicate(const u16 *source);
 
-u16 CsrUtf16StrICmp(const CsrUtf16String *string1, const CsrUtf16String *string2);
-u16 CsrUtf16StrNICmp(const CsrUtf16String *string1, const CsrUtf16String *string2, u32 count);
+u16 CsrUtf16StrICmp(const u16 *string1, const u16 *string2);
+u16 CsrUtf16StrNICmp(const u16 *string1, const u16 *string2, u32 count);
 
-CsrUtf16String *CsrUtf16MemCpy(CsrUtf16String *dest, const CsrUtf16String *src, u32 count);
-CsrUtf16String *CsrUtf16ConcatenateTexts(const CsrUtf16String *inputText1, const CsrUtf16String *inputText2,
-    const CsrUtf16String *inputText3, const CsrUtf16String *inputText4);
+u16 *CsrUtf16MemCpy(u16 *dest, const u16 *src, u32 count);
+u16 *CsrUtf16ConcatenateTexts(const u16 *inputText1, const u16 *inputText2,
+    const u16 *inputText3, const u16 *inputText4);
 
-CsrUtf16String *CsrUtf16String2XML(CsrUtf16String *str);
-CsrUtf16String *CsrXML2Utf16String(CsrUtf16String *str);
+u16 *CsrUtf16String2XML(u16 *str);
+u16 *CsrXML2Utf16String(u16 *str);
 
 s32 CsrUtf8StrCmp(const CsrUtf8String *string1, const CsrUtf8String *string2);
 s32 CsrUtf8StrNCmp(const CsrUtf8String *string1, const CsrUtf8String *string2, CsrSize count);
@@ -180,8 +180,8 @@ CsrSize CsrConverterUcs2ByteStrLen(const CsrUcs2String *str);
 u8 *CsrUcs2ByteString2Utf8(const CsrUcs2String *ucs2String);
 CsrUcs2String *CsrUtf82Ucs2ByteString(const u8 *utf8String);
 
-u8 *CsrUtf16String2Ucs2ByteString(const CsrUtf16String *source);
-CsrUtf16String *CsrUcs2ByteString2Utf16String(const u8 *source);
+u8 *CsrUtf16String2Ucs2ByteString(const u16 *source);
+u16 *CsrUcs2ByteString2Utf16String(const u8 *source);
 
 #ifdef __cplusplus
 }

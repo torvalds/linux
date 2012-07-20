@@ -73,10 +73,10 @@ static const u32 offsetsFromUtf8[4] =
 *   Output:         A string of UTF-16 characters.
 *
 *********************************************************************************/
-CsrUtf16String *CsrUint32ToUtf16String(u32 number)
+u16 *CsrUint32ToUtf16String(u32 number)
 {
     u16 count, noOfDigits;
-    CsrUtf16String *output;
+    u16 *output;
     u32 tempNumber;
 
     /* calculate the number of digits in the output */
@@ -88,12 +88,12 @@ CsrUtf16String *CsrUint32ToUtf16String(u32 number)
         noOfDigits++;
     }
 
-    output = (CsrUtf16String *) CsrPmemAlloc(sizeof(CsrUtf16String) * (noOfDigits + 1)); /*add space for 0-termination*/
+    output = (u16 *) CsrPmemAlloc(sizeof(u16) * (noOfDigits + 1)); /*add space for 0-termination*/
 
     tempNumber = number;
     for (count = noOfDigits; count > 0; count--)
     {
-        output[count - 1] = (CsrUtf16String) ((tempNumber % 10) + '0');
+        output[count - 1] = (u16) ((tempNumber % 10) + '0');
         tempNumber = tempNumber / 10;
     }
     output[noOfDigits] = '\0';
@@ -113,7 +113,7 @@ CsrUtf16String *CsrUint32ToUtf16String(u32 number)
 *   Output:         32 bit number.
 *
 *********************************************************************************/
-u32 CsrUtf16StringToUint32(const CsrUtf16String *unicodeString)
+u32 CsrUtf16StringToUint32(const u16 *unicodeString)
 {
     u16 numLen, count;
     u32 newNumber = 0;
@@ -127,7 +127,7 @@ u32 CsrUtf16StringToUint32(const CsrUtf16String *unicodeString)
 
     for (count = 0; count < numLen; count++)
     {
-        CsrUtf16String input = unicodeString[count];
+        u16 input = unicodeString[count];
         if ((input < 0x30) || (input > 0x39) || ((newNumber == 0x19999999) && (input > 0x35)) || (newNumber > 0x19999999)) /* chars are present or number is too large now causing number to get to large when *10 */
         {
             return 0;
@@ -150,9 +150,9 @@ u32 CsrUtf16StringToUint32(const CsrUtf16String *unicodeString)
 *   Output:         A pointer to an unicoded string.
 *
 *********************************************************************************/
-CsrUtf16String *CsrUtf16MemCpy(CsrUtf16String *dest, const CsrUtf16String *src, u32 count)
+u16 *CsrUtf16MemCpy(u16 *dest, const u16 *src, u32 count)
 {
-    return CsrMemCpy((u8 *) dest, (u8 *) src, count * sizeof(CsrUtf16String));
+    return CsrMemCpy((u8 *) dest, (u8 *) src, count * sizeof(u16));
 }
 
 /********************************************************************************
@@ -167,10 +167,10 @@ CsrUtf16String *CsrUtf16MemCpy(CsrUtf16String *dest, const CsrUtf16String *src, 
 *   Output:         A new unicoded string (UTF-16) containing the combined strings.
 *
 *********************************************************************************/
-CsrUtf16String *CsrUtf16ConcatenateTexts(const CsrUtf16String *inputText1, const CsrUtf16String *inputText2,
-    const CsrUtf16String *inputText3, const CsrUtf16String *inputText4)
+u16 *CsrUtf16ConcatenateTexts(const u16 *inputText1, const u16 *inputText2,
+    const u16 *inputText3, const u16 *inputText4)
 {
-    CsrUtf16String *outputText;
+    u16 *outputText;
     u32 textLen, textLen1, textLen2, textLen3, textLen4;
 
     textLen1 = CsrUtf16StrLen(inputText1);
@@ -185,7 +185,7 @@ CsrUtf16String *CsrUtf16ConcatenateTexts(const CsrUtf16String *inputText1, const
         return NULL;
     }
 
-    outputText = (CsrUtf16String *) CsrPmemAlloc((textLen + 1) * sizeof(CsrUtf16String)); /* add space for 0-termination*/
+    outputText = (u16 *) CsrPmemAlloc((textLen + 1) * sizeof(u16)); /* add space for 0-termination*/
 
 
     if (inputText1 != NULL)
@@ -225,7 +225,7 @@ CsrUtf16String *CsrUtf16ConcatenateTexts(const CsrUtf16String *inputText1, const
 *   Output:         The number of 16 bit elements in the string.
 *
 *********************************************************************************/
-u32 CsrUtf16StrLen(const CsrUtf16String *unicodeString)
+u32 CsrUtf16StrLen(const u16 *unicodeString)
 {
     u32 length;
 
@@ -253,7 +253,7 @@ u32 CsrUtf16StrLen(const CsrUtf16String *unicodeString)
 *   Output:         0-terminated string of byte oriented UTF8 coded characters.
 *
 *********************************************************************************/
-CsrUtf8String *CsrUtf16String2Utf8(const CsrUtf16String *source)
+CsrUtf8String *CsrUtf16String2Utf8(const u16 *source)
 {
     CsrUtf8String *dest, *destStart = NULL;
     u32 i;
@@ -562,12 +562,12 @@ static CsrBool isLegalUtf8(const CsrUtf8String *codeUnit, u32 length)
 *   Output:         0-terminated string of UTF-16 characters.
 *
 *********************************************************************************/
-CsrUtf16String *CsrUtf82Utf16String(const CsrUtf8String *utf8String)
+u16 *CsrUtf82Utf16String(const CsrUtf8String *utf8String)
 {
     CsrSize i, length = 0;
     CsrSize sourceLength;
-    CsrUtf16String *dest = NULL;
-    CsrUtf16String *destStart = NULL;
+    u16 *dest = NULL;
+    u16 *destStart = NULL;
     s8 extraBytes2Read;
 
     if (!utf8String)
@@ -610,7 +610,7 @@ CsrUtf16String *CsrUtf82Utf16String(const CsrUtf8String *utf8String)
     }
 
     /* Create space for the null terminated character */
-    dest = (CsrUtf16String *) CsrPmemAlloc((1 + length) * sizeof(CsrUtf16String));
+    dest = (u16 *) CsrPmemAlloc((1 + length) * sizeof(u16));
     destStart = dest;
 
     for (i = 0; i < sourceLength; i++)
@@ -703,11 +703,11 @@ CsrUtf16String *CsrUtf82Utf16String(const CsrUtf8String *utf8String)
 *   Output:         0-terminated UTF-16 string.
 *
 *********************************************************************************/
-CsrUtf16String *CsrUtf16StrCpy(CsrUtf16String *target, const CsrUtf16String *source)
+u16 *CsrUtf16StrCpy(u16 *target, const u16 *source)
 {
     if (source) /* if source is not NULL*/
     {
-        CsrMemCpy(target, source, (CsrUtf16StrLen(source) + 1) * sizeof(CsrUtf16String));
+        CsrMemCpy(target, source, (CsrUtf16StrLen(source) + 1) * sizeof(u16));
         return target;
     }
     else
@@ -728,15 +728,15 @@ CsrUtf16String *CsrUtf16StrCpy(CsrUtf16String *target, const CsrUtf16String *sou
 *   Output:         Allocated variable0-terminated UTF-16 string.
 *
 *********************************************************************************/
-CsrUtf16String *CsrUtf16StringDuplicate(const CsrUtf16String *source)
+u16 *CsrUtf16StringDuplicate(const u16 *source)
 {
-    CsrUtf16String *target = NULL;
+    u16 *target = NULL;
     u32 length;
 
     if (source) /* if source is not NULL*/
     {
-        length = (CsrUtf16StrLen(source) + 1) * sizeof(CsrUtf16String);
-        target = (CsrUtf16String *) CsrPmemAlloc(length);
+        length = (CsrUtf16StrLen(source) + 1) * sizeof(u16);
+        target = (u16 *) CsrPmemAlloc(length);
         CsrMemCpy(target, source, length);
     }
     return target;
@@ -753,7 +753,7 @@ CsrUtf16String *CsrUtf16StringDuplicate(const CsrUtf16String *source)
 *   Output:         0: if the strings are identical.
 *
 *********************************************************************************/
-u16 CsrUtf16StrICmp(const CsrUtf16String *string1, const CsrUtf16String *string2)
+u16 CsrUtf16StrICmp(const u16 *string1, const u16 *string2)
 {
     while (*string1 || *string2)
     {
@@ -781,7 +781,7 @@ u16 CsrUtf16StrICmp(const CsrUtf16String *string1, const CsrUtf16String *string2
 *   Output:         0: if the strings are identical.
 *
 *********************************************************************************/
-u16 CsrUtf16StrNICmp(const CsrUtf16String *string1, const CsrUtf16String *string2, u32 count)
+u16 CsrUtf16StrNICmp(const u16 *string1, const u16 *string2, u32 count)
 {
     while ((*string1 || *string2) && count--)
     {
@@ -809,11 +809,11 @@ u16 CsrUtf16StrNICmp(const CsrUtf16String *string1, const CsrUtf16String *string
 *   Output:         A new unicoded string (UTF-16) containing the converted output.
 *
 *********************************************************************************/
-CsrUtf16String *CsrUtf16String2XML(CsrUtf16String *str)
+u16 *CsrUtf16String2XML(u16 *str)
 {
-    CsrUtf16String *scanString;
-    CsrUtf16String *outputString = NULL;
-    CsrUtf16String *resultString = str;
+    u16 *scanString;
+    u16 *outputString = NULL;
+    u16 *resultString = str;
     u32 stringLength = 0;
     CsrBool encodeChars = FALSE;
 
@@ -844,7 +844,7 @@ CsrUtf16String *CsrUtf16String2XML(CsrUtf16String *str)
 
         if (encodeChars)
         {
-            resultString = outputString = CsrPmemAlloc(stringLength * sizeof(CsrUtf16String));
+            resultString = outputString = CsrPmemAlloc(stringLength * sizeof(u16));
 
             scanString = str;
 
@@ -902,11 +902,11 @@ CsrUtf16String *CsrUtf16String2XML(CsrUtf16String *str)
 *   Output:         A new unicoded pointer containing the decoded output.
 *
 *********************************************************************************/
-CsrUtf16String *CsrXML2Utf16String(CsrUtf16String *str)
+u16 *CsrXML2Utf16String(u16 *str)
 {
-    CsrUtf16String *scanString;
-    CsrUtf16String *outputString = NULL;
-    CsrUtf16String *resultString = str;
+    u16 *scanString;
+    u16 *outputString = NULL;
+    u16 *resultString = str;
     u32 stringLength = 0;
     CsrBool encodeChars = FALSE;
 
@@ -915,31 +915,31 @@ CsrUtf16String *CsrXML2Utf16String(CsrUtf16String *str)
     {
         while (*scanString)
         {
-            if (*scanString == (CsrUtf16String) L'&')
+            if (*scanString == (u16) L'&')
             {
                 scanString++;
 
-                if (!CsrUtf16StrNICmp(scanString, (CsrUtf16String *) L"AMP;", 4))
+                if (!CsrUtf16StrNICmp(scanString, (u16 *) L"AMP;", 4))
                 {
                     scanString += 3;
                     encodeChars = TRUE;
                 }
-                else if (!CsrUtf16StrNICmp(scanString, (CsrUtf16String *) L"LT;", 3))
+                else if (!CsrUtf16StrNICmp(scanString, (u16 *) L"LT;", 3))
                 {
                     scanString += 2;
                     encodeChars = TRUE;
                 }
-                else if (!CsrUtf16StrNICmp(scanString, (CsrUtf16String *) L"GT;", 3))
+                else if (!CsrUtf16StrNICmp(scanString, (u16 *) L"GT;", 3))
                 {
                     scanString += 2;
                     encodeChars = TRUE;
                 }
-                if (!CsrUtf16StrNICmp(scanString, (CsrUtf16String *) L"APOS;", 5))
+                if (!CsrUtf16StrNICmp(scanString, (u16 *) L"APOS;", 5))
                 {
                     scanString += 4;
                     encodeChars = TRUE;
                 }
-                if (!CsrUtf16StrNICmp(scanString, (CsrUtf16String *) L"QUOT;", 5))
+                if (!CsrUtf16StrNICmp(scanString, (u16 *) L"QUOT;", 5))
                 {
                     scanString += 4;
                     encodeChars = TRUE;
@@ -958,7 +958,7 @@ CsrUtf16String *CsrXML2Utf16String(CsrUtf16String *str)
 
         if (encodeChars)
         {
-            resultString = outputString = CsrPmemAlloc(stringLength * sizeof(CsrUtf16String));
+            resultString = outputString = CsrPmemAlloc(stringLength * sizeof(u16));
 
             scanString = str;
 
@@ -968,27 +968,27 @@ CsrUtf16String *CsrXML2Utf16String(CsrUtf16String *str)
                 {
                     scanString++;
 
-                    if (!CsrUtf16StrNICmp(scanString, (CsrUtf16String *) L"AMP;", 4))
+                    if (!CsrUtf16StrNICmp(scanString, (u16 *) L"AMP;", 4))
                     {
                         *outputString++ = L'&';
                         scanString += 3;
                     }
-                    else if (!CsrUtf16StrNICmp(scanString, (CsrUtf16String *) L"LT;", 3))
+                    else if (!CsrUtf16StrNICmp(scanString, (u16 *) L"LT;", 3))
                     {
                         *outputString++ = L'<';
                         scanString += 2;
                     }
-                    else if (!CsrUtf16StrNICmp(scanString, (CsrUtf16String *) L"GT;", 3))
+                    else if (!CsrUtf16StrNICmp(scanString, (u16 *) L"GT;", 3))
                     {
                         *outputString++ = L'>';
                         scanString += 2;
                     }
-                    else if (!CsrUtf16StrNICmp(scanString, (CsrUtf16String *) L"APOS;", 5))
+                    else if (!CsrUtf16StrNICmp(scanString, (u16 *) L"APOS;", 5))
                     {
                         *outputString++ = L'\'';
                         scanString += 4;
                     }
-                    else if (!CsrUtf16StrNICmp(scanString, (CsrUtf16String *) L"QUOT;", 5))
+                    else if (!CsrUtf16StrNICmp(scanString, (u16 *) L"QUOT;", 5))
                     {
                         *outputString++ = L'\"';
                         scanString += 4;

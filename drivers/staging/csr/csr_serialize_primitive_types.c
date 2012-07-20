@@ -61,7 +61,7 @@ void CsrUtf8StringDes(CsrUtf8String **value, u8 *buffer, CsrSize *offset)
     *offset += CsrStrLen((CsrCharString *) *value) + 1;
 }
 
-void CsrUtf16StringDes(CsrUtf16String **value, u8 *buffer, CsrSize *offset)
+void CsrUtf16StringDes(u16 **value, u8 *buffer, CsrSize *offset)
 {
     u32 length, i;
 
@@ -139,7 +139,7 @@ void CsrUtf8StringSer(u8 *buffer, CsrSize *offset, const CsrUtf8String *value)
     CsrCharStringSer(buffer, offset, (CsrCharString *) value);
 }
 
-void CsrUtf16StringSer(u8 *buffer, CsrSize *offset, const CsrUtf16String *value)
+void CsrUtf16StringSer(u8 *buffer, CsrSize *offset, const u16 *value)
 {
     if (value)
     {
@@ -197,7 +197,7 @@ u32 CsrUtf8StringSerLen(const CsrUtf8String *str)
     }
 }
 
-u32 CsrUtf16StringSerLen(const CsrUtf16String *str)
+u32 CsrUtf16StringSerLen(const u16 *str)
 {
     if (str)
     {
