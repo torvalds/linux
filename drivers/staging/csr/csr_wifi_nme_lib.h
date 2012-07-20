@@ -100,7 +100,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeConnectionStatusGetReqCreate(msg__, dst__, src__, interfaceTag__) \
-    msg__ = (CsrWifiNmeConnectionStatusGetReq *) CsrPmemAlloc(sizeof(CsrWifiNmeConnectionStatusGetReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeConnectionStatusGetReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_CONNECTION_STATUS_GET_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__);
 
@@ -131,7 +131,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeConnectionStatusGetCfmCreate(msg__, dst__, src__, interfaceTag__, status__, connectionStatus__) \
-    msg__ = (CsrWifiNmeConnectionStatusGetCfm *) CsrPmemAlloc(sizeof(CsrWifiNmeConnectionStatusGetCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeConnectionStatusGetCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_CONNECTION_STATUS_GET_CFM, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->status = (status__); \
@@ -164,7 +164,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeEventMaskSetReqCreate(msg__, dst__, src__, indMask__) \
-    msg__ = (CsrWifiNmeEventMaskSetReq *) CsrPmemAlloc(sizeof(CsrWifiNmeEventMaskSetReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeEventMaskSetReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_EVENT_MASK_SET_REQ, dst__, src__); \
     msg__->indMask = (indMask__);
 
@@ -193,7 +193,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeEventMaskSetCfmCreate(msg__, dst__, src__, status__) \
-    msg__ = (CsrWifiNmeEventMaskSetCfm *) CsrPmemAlloc(sizeof(CsrWifiNmeEventMaskSetCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeEventMaskSetCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_EVENT_MASK_SET_CFM, dst__, src__); \
     msg__->status = (status__);
 
@@ -224,7 +224,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeProfileConnectReqCreate(msg__, dst__, src__, interfaceTag__, profileIdentity__) \
-    msg__ = (CsrWifiNmeProfileConnectReq *) CsrPmemAlloc(sizeof(CsrWifiNmeProfileConnectReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeProfileConnectReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_PROFILE_CONNECT_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->profileIdentity = (profileIdentity__);
@@ -269,7 +269,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeProfileConnectCfmCreate(msg__, dst__, src__, interfaceTag__, status__, connectAttemptsCount__, connectAttempts__) \
-    msg__ = (CsrWifiNmeProfileConnectCfm *) CsrPmemAlloc(sizeof(CsrWifiNmeProfileConnectCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeProfileConnectCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_PROFILE_CONNECT_CFM, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->status = (status__); \
@@ -300,7 +300,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeProfileDeleteAllReqCreate(msg__, dst__, src__) \
-    msg__ = (CsrWifiNmeProfileDeleteAllReq *) CsrPmemAlloc(sizeof(CsrWifiNmeProfileDeleteAllReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeProfileDeleteAllReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_PROFILE_DELETE_ALL_REQ, dst__, src__);
 
 #define CsrWifiNmeProfileDeleteAllReqSendTo(dst__, src__) \
@@ -329,7 +329,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeProfileDeleteAllCfmCreate(msg__, dst__, src__, status__) \
-    msg__ = (CsrWifiNmeProfileDeleteAllCfm *) CsrPmemAlloc(sizeof(CsrWifiNmeProfileDeleteAllCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeProfileDeleteAllCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_PROFILE_DELETE_ALL_CFM, dst__, src__); \
     msg__->status = (status__);
 
@@ -358,7 +358,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeProfileDeleteReqCreate(msg__, dst__, src__, profileIdentity__) \
-    msg__ = (CsrWifiNmeProfileDeleteReq *) CsrPmemAlloc(sizeof(CsrWifiNmeProfileDeleteReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeProfileDeleteReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_PROFILE_DELETE_REQ, dst__, src__); \
     msg__->profileIdentity = (profileIdentity__);
 
@@ -387,7 +387,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeProfileDeleteCfmCreate(msg__, dst__, src__, status__) \
-    msg__ = (CsrWifiNmeProfileDeleteCfm *) CsrPmemAlloc(sizeof(CsrWifiNmeProfileDeleteCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeProfileDeleteCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_PROFILE_DELETE_CFM, dst__, src__); \
     msg__->status = (status__);
 
@@ -427,7 +427,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeProfileDisconnectIndCreate(msg__, dst__, src__, interfaceTag__, connectAttemptsCount__, connectAttempts__) \
-    msg__ = (CsrWifiNmeProfileDisconnectInd *) CsrPmemAlloc(sizeof(CsrWifiNmeProfileDisconnectInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeProfileDisconnectInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_PROFILE_DISCONNECT_IND, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->connectAttemptsCount = (connectAttemptsCount__); \
@@ -469,7 +469,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeProfileOrderSetReqCreate(msg__, dst__, src__, interfaceTag__, profileIdentitysCount__, profileIdentitys__) \
-    msg__ = (CsrWifiNmeProfileOrderSetReq *) CsrPmemAlloc(sizeof(CsrWifiNmeProfileOrderSetReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeProfileOrderSetReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_PROFILE_ORDER_SET_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->profileIdentitysCount = (profileIdentitysCount__); \
@@ -501,7 +501,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeProfileOrderSetCfmCreate(msg__, dst__, src__, interfaceTag__, status__) \
-    msg__ = (CsrWifiNmeProfileOrderSetCfm *) CsrPmemAlloc(sizeof(CsrWifiNmeProfileOrderSetCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeProfileOrderSetCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_PROFILE_ORDER_SET_CFM, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->status = (status__);
@@ -535,7 +535,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeProfileSetReqCreate(msg__, dst__, src__, profile__) \
-    msg__ = (CsrWifiNmeProfileSetReq *) CsrPmemAlloc(sizeof(CsrWifiNmeProfileSetReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeProfileSetReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_PROFILE_SET_REQ, dst__, src__); \
     msg__->profile = (profile__);
 
@@ -568,7 +568,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeProfileSetCfmCreate(msg__, dst__, src__, status__) \
-    msg__ = (CsrWifiNmeProfileSetCfm *) CsrPmemAlloc(sizeof(CsrWifiNmeProfileSetCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeProfileSetCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_PROFILE_SET_CFM, dst__, src__); \
     msg__->status = (status__);
 
@@ -603,7 +603,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeProfileUpdateIndCreate(msg__, dst__, src__, interfaceTag__, profile__) \
-    msg__ = (CsrWifiNmeProfileUpdateInd *) CsrPmemAlloc(sizeof(CsrWifiNmeProfileUpdateInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeProfileUpdateInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_PROFILE_UPDATE_IND, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->profile = (profile__);
@@ -642,7 +642,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeSimGsmAuthIndCreate(msg__, dst__, src__, randsLength__, rands__) \
-    msg__ = (CsrWifiNmeSimGsmAuthInd *) CsrPmemAlloc(sizeof(CsrWifiNmeSimGsmAuthInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeSimGsmAuthInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_SIM_GSM_AUTH_IND, dst__, src__); \
     msg__->randsLength = (randsLength__); \
     msg__->rands = (rands__);
@@ -682,7 +682,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeSimGsmAuthResCreate(msg__, dst__, src__, status__, kcsLength__, kcs__, sresLength__, sres__) \
-    msg__ = (CsrWifiNmeSimGsmAuthRes *) CsrPmemAlloc(sizeof(CsrWifiNmeSimGsmAuthRes)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeSimGsmAuthRes), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_SIM_GSM_AUTH_RES, dst__, src__); \
     msg__->status = (status__); \
     msg__->kcsLength = (kcsLength__); \
@@ -719,7 +719,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeSimImsiGetIndCreate(msg__, dst__, src__) \
-    msg__ = (CsrWifiNmeSimImsiGetInd *) CsrPmemAlloc(sizeof(CsrWifiNmeSimImsiGetInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeSimImsiGetInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_SIM_IMSI_GET_IND, dst__, src__);
 
 #define CsrWifiNmeSimImsiGetIndSendTo(dst__, src__) \
@@ -748,7 +748,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeSimImsiGetResCreate(msg__, dst__, src__, status__, imsi__, cardType__) \
-    msg__ = (CsrWifiNmeSimImsiGetRes *) CsrPmemAlloc(sizeof(CsrWifiNmeSimImsiGetRes)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeSimImsiGetRes), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_SIM_IMSI_GET_RES, dst__, src__); \
     msg__->status = (status__); \
     msg__->imsi = (imsi__); \
@@ -787,7 +787,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeSimUmtsAuthIndCreate(msg__, dst__, src__, rand__, autn__) \
-    msg__ = (CsrWifiNmeSimUmtsAuthInd *) CsrPmemAlloc(sizeof(CsrWifiNmeSimUmtsAuthInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeSimUmtsAuthInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_SIM_UMTS_AUTH_IND, dst__, src__); \
     memcpy(msg__->rand, (rand__), sizeof(u8) * 16); \
     memcpy(msg__->autn, (autn__), sizeof(u8) * 16);
@@ -834,7 +834,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeSimUmtsAuthResCreate(msg__, dst__, src__, status__, result__, umtsCipherKey__, umtsIntegrityKey__, resParameterLength__, resParameter__, auts__) \
-    msg__ = (CsrWifiNmeSimUmtsAuthRes *) CsrPmemAlloc(sizeof(CsrWifiNmeSimUmtsAuthRes)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeSimUmtsAuthRes), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_SIM_UMTS_AUTH_RES, dst__, src__); \
     msg__->status = (status__); \
     msg__->result = (result__); \
@@ -870,7 +870,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeWpsCancelReqCreate(msg__, dst__, src__, interfaceTag__) \
-    msg__ = (CsrWifiNmeWpsCancelReq *) CsrPmemAlloc(sizeof(CsrWifiNmeWpsCancelReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeWpsCancelReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_WPS_CANCEL_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__);
 
@@ -899,7 +899,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeWpsCancelCfmCreate(msg__, dst__, src__, interfaceTag__, status__) \
-    msg__ = (CsrWifiNmeWpsCancelCfm *) CsrPmemAlloc(sizeof(CsrWifiNmeWpsCancelCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeWpsCancelCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_WPS_CANCEL_CFM, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->status = (status__);
@@ -935,7 +935,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeWpsCfmCreate(msg__, dst__, src__, interfaceTag__, status__, profile__) \
-    msg__ = (CsrWifiNmeWpsCfm *) CsrPmemAlloc(sizeof(CsrWifiNmeWpsCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeWpsCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_WPS_CFM, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->status = (status__); \
@@ -966,7 +966,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeWpsConfigSetReqCreate(msg__, dst__, src__, wpsConfig__) \
-    msg__ = (CsrWifiNmeWpsConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiNmeWpsConfigSetReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeWpsConfigSetReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_WPS_CONFIG_SET_REQ, dst__, src__); \
     msg__->wpsConfig = (wpsConfig__);
 
@@ -994,7 +994,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeWpsConfigSetCfmCreate(msg__, dst__, src__, status__) \
-    msg__ = (CsrWifiNmeWpsConfigSetCfm *) CsrPmemAlloc(sizeof(CsrWifiNmeWpsConfigSetCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeWpsConfigSetCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_WPS_CONFIG_SET_CFM, dst__, src__); \
     msg__->status = (status__);
 
@@ -1030,7 +1030,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 *******************************************************************************/
 #define CsrWifiNmeWpsReqCreate(msg__, dst__, src__, interfaceTag__, pin__, ssid__, bssid__) \
-    msg__ = (CsrWifiNmeWpsReq *) CsrPmemAlloc(sizeof(CsrWifiNmeWpsReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiNmeWpsReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_WPS_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     memcpy(msg__->pin, (pin__), sizeof(u8) * 8); \

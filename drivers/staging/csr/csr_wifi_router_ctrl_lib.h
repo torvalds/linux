@@ -101,7 +101,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlBlockAckDisableReqCreate(msg__, dst__, src__, interfaceTag__, clientData__, macAddress__, trafficStreamID__, role__) \
-    msg__ = (CsrWifiRouterCtrlBlockAckDisableReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlBlockAckDisableReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlBlockAckDisableReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_BLOCK_ACK_DISABLE_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->clientData = (clientData__); \
@@ -134,7 +134,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlBlockAckDisableCfmCreate(msg__, dst__, src__, clientData__, interfaceTag__, status__) \
-    msg__ = (CsrWifiRouterCtrlBlockAckDisableCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlBlockAckDisableCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlBlockAckDisableCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_BLOCK_ACK_DISABLE_CFM, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -170,7 +170,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlBlockAckEnableReqCreate(msg__, dst__, src__, interfaceTag__, clientData__, macAddress__, trafficStreamID__, role__, bufferSize__, timeout__, ssn__) \
-    msg__ = (CsrWifiRouterCtrlBlockAckEnableReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlBlockAckEnableReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlBlockAckEnableReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_BLOCK_ACK_ENABLE_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->clientData = (clientData__); \
@@ -206,7 +206,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlBlockAckEnableCfmCreate(msg__, dst__, src__, clientData__, interfaceTag__, status__) \
-    msg__ = (CsrWifiRouterCtrlBlockAckEnableCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlBlockAckEnableCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlBlockAckEnableCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_BLOCK_ACK_ENABLE_CFM, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -239,7 +239,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlBlockAckErrorIndCreate(msg__, dst__, src__, clientData__, interfaceTag__, trafficStreamID__, peerMacAddress__, status__) \
-    msg__ = (CsrWifiRouterCtrlBlockAckErrorInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlBlockAckErrorInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlBlockAckErrorInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_BLOCK_ACK_ERROR_IND, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -270,7 +270,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlCapabilitiesReqCreate(msg__, dst__, src__, clientData__) \
-    msg__ = (CsrWifiRouterCtrlCapabilitiesReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlCapabilitiesReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlCapabilitiesReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_CAPABILITIES_REQ, dst__, src__); \
     msg__->clientData = (clientData__);
 
@@ -301,7 +301,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlCapabilitiesCfmCreate(msg__, dst__, src__, clientData__, commandQueueSize__, trafficQueueSize__) \
-    msg__ = (CsrWifiRouterCtrlCapabilitiesCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlCapabilitiesCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlCapabilitiesCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_CAPABILITIES_CFM, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->commandQueueSize = (commandQueueSize__); \
@@ -332,7 +332,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlConfigurePowerModeReqCreate(msg__, dst__, src__, clientData__, mode__, wakeHost__) \
-    msg__ = (CsrWifiRouterCtrlConfigurePowerModeReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlConfigurePowerModeReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlConfigurePowerModeReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_CONFIGURE_POWER_MODE_REQ, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->mode = (mode__); \
@@ -364,7 +364,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlConnectedIndCreate(msg__, dst__, src__, clientData__, interfaceTag__, peerMacAddress__, peerStatus__) \
-    msg__ = (CsrWifiRouterCtrlConnectedInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlConnectedInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlConnectedInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_CONNECTED_IND, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -400,7 +400,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlHipReqCreate(msg__, dst__, src__, mlmeCommandLength__, mlmeCommand__, dataRef1Length__, dataRef1__, dataRef2Length__, dataRef2__) \
-    msg__ = (CsrWifiRouterCtrlHipReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlHipReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlHipReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_HIP_REQ, dst__, src__); \
     msg__->mlmeCommandLength = (mlmeCommandLength__); \
     msg__->mlmeCommand = (mlmeCommand__); \
@@ -438,7 +438,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlHipIndCreate(msg__, dst__, src__, mlmeCommandLength__, mlmeCommand__, dataRef1Length__, dataRef1__, dataRef2Length__, dataRef2__) \
-    msg__ = (CsrWifiRouterCtrlHipInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlHipInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlHipInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_HIP_IND, dst__, src__); \
     msg__->mlmeCommandLength = (mlmeCommandLength__); \
     msg__->mlmeCommand = (mlmeCommand__); \
@@ -472,7 +472,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlM4ReadyToSendIndCreate(msg__, dst__, src__, clientData__, interfaceTag__, peerMacAddress__) \
-    msg__ = (CsrWifiRouterCtrlM4ReadyToSendInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlM4ReadyToSendInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlM4ReadyToSendInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_M4_READY_TO_SEND_IND, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -502,7 +502,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlM4TransmitReqCreate(msg__, dst__, src__, interfaceTag__, clientData__) \
-    msg__ = (CsrWifiRouterCtrlM4TransmitReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlM4TransmitReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlM4TransmitReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_M4_TRANSMIT_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->clientData = (clientData__);
@@ -533,7 +533,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlM4TransmittedIndCreate(msg__, dst__, src__, clientData__, interfaceTag__, peerMacAddress__, status__) \
-    msg__ = (CsrWifiRouterCtrlM4TransmittedInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlM4TransmittedInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlM4TransmittedInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_M4_TRANSMITTED_IND, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -565,7 +565,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlMediaStatusReqCreate(msg__, dst__, src__, interfaceTag__, clientData__, mediaStatus__) \
-    msg__ = (CsrWifiRouterCtrlMediaStatusReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlMediaStatusReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlMediaStatusReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_MEDIA_STATUS_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->clientData = (clientData__); \
@@ -597,7 +597,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlMicFailureIndCreate(msg__, dst__, src__, clientData__, interfaceTag__, peerMacAddress__, unicastPdu__) \
-    msg__ = (CsrWifiRouterCtrlMicFailureInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlMicFailureInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlMicFailureInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_MIC_FAILURE_IND, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -638,7 +638,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlModeSetReqCreate(msg__, dst__, src__, interfaceTag__, clientData__, mode__, bssid__, protection__, intraBssDistEnabled__) \
-    msg__ = (CsrWifiRouterCtrlModeSetReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlModeSetReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlModeSetReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_MODE_SET_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->clientData = (clientData__); \
@@ -673,7 +673,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlModeSetCfmCreate(msg__, dst__, src__, clientData__, interfaceTag__, mode__, status__) \
-    msg__ = (CsrWifiRouterCtrlModeSetCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlModeSetCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlModeSetCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_MODE_SET_CFM, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -707,7 +707,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlMulticastAddressIndCreate(msg__, dst__, src__, clientData__, interfaceTag__, action__, setAddressesCount__, setAddresses__) \
-    msg__ = (CsrWifiRouterCtrlMulticastAddressInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlMulticastAddressInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlMulticastAddressInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_MULTICAST_ADDRESS_IND, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -742,7 +742,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlMulticastAddressResCreate(msg__, dst__, src__, interfaceTag__, clientData__, status__, action__, getAddressesCount__, getAddresses__) \
-    msg__ = (CsrWifiRouterCtrlMulticastAddressRes *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlMulticastAddressRes)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlMulticastAddressRes), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_MULTICAST_ADDRESS_RES, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->clientData = (clientData__); \
@@ -778,7 +778,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlPeerAddReqCreate(msg__, dst__, src__, interfaceTag__, clientData__, peerMacAddress__, associationId__, staInfo__) \
-    msg__ = (CsrWifiRouterCtrlPeerAddReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlPeerAddReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlPeerAddReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_PEER_ADD_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->clientData = (clientData__); \
@@ -813,7 +813,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlPeerAddCfmCreate(msg__, dst__, src__, clientData__, interfaceTag__, peerMacAddress__, peerRecordHandle__, status__) \
-    msg__ = (CsrWifiRouterCtrlPeerAddCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlPeerAddCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlPeerAddCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_PEER_ADD_CFM, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -846,7 +846,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlPeerDelReqCreate(msg__, dst__, src__, interfaceTag__, clientData__, peerRecordHandle__) \
-    msg__ = (CsrWifiRouterCtrlPeerDelReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlPeerDelReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlPeerDelReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_PEER_DEL_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->clientData = (clientData__); \
@@ -877,7 +877,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlPeerDelCfmCreate(msg__, dst__, src__, clientData__, interfaceTag__, status__) \
-    msg__ = (CsrWifiRouterCtrlPeerDelCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlPeerDelCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlPeerDelCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_PEER_DEL_CFM, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -909,7 +909,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlPeerUpdateReqCreate(msg__, dst__, src__, interfaceTag__, clientData__, peerRecordHandle__, powersaveMode__) \
-    msg__ = (CsrWifiRouterCtrlPeerUpdateReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlPeerUpdateReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlPeerUpdateReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_PEER_UPDATE_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->clientData = (clientData__); \
@@ -941,7 +941,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlPeerUpdateCfmCreate(msg__, dst__, src__, clientData__, interfaceTag__, status__) \
-    msg__ = (CsrWifiRouterCtrlPeerUpdateCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlPeerUpdateCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlPeerUpdateCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_PEER_UPDATE_CFM, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -975,7 +975,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlPortConfigureReqCreate(msg__, dst__, src__, interfaceTag__, clientData__, uncontrolledPortAction__, controlledPortAction__, macAddress__, setProtection__) \
-    msg__ = (CsrWifiRouterCtrlPortConfigureReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlPortConfigureReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlPortConfigureReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_PORT_CONFIGURE_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->clientData = (clientData__); \
@@ -1010,7 +1010,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlPortConfigureCfmCreate(msg__, dst__, src__, clientData__, interfaceTag__, status__, macAddress__) \
-    msg__ = (CsrWifiRouterCtrlPortConfigureCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlPortConfigureCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlPortConfigureCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_PORT_CONFIGURE_CFM, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -1043,7 +1043,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlQosControlReqCreate(msg__, dst__, src__, interfaceTag__, clientData__, control__, queueConfig__) \
-    msg__ = (CsrWifiRouterCtrlQosControlReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlQosControlReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlQosControlReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_QOS_CONTROL_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->clientData = (clientData__); \
@@ -1073,7 +1073,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlRawSdioDeinitialiseReqCreate(msg__, dst__, src__, clientData__) \
-    msg__ = (CsrWifiRouterCtrlRawSdioDeinitialiseReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlRawSdioDeinitialiseReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlRawSdioDeinitialiseReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_RAW_SDIO_DEINITIALISE_REQ, dst__, src__); \
     msg__->clientData = (clientData__);
 
@@ -1101,7 +1101,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlRawSdioDeinitialiseCfmCreate(msg__, dst__, src__, clientData__, result__) \
-    msg__ = (CsrWifiRouterCtrlRawSdioDeinitialiseCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlRawSdioDeinitialiseCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlRawSdioDeinitialiseCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_RAW_SDIO_DEINITIALISE_CFM, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->result = (result__);
@@ -1129,7 +1129,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlRawSdioInitialiseReqCreate(msg__, dst__, src__, clientData__) \
-    msg__ = (CsrWifiRouterCtrlRawSdioInitialiseReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlRawSdioInitialiseReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlRawSdioInitialiseReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_RAW_SDIO_INITIALISE_REQ, dst__, src__); \
     msg__->clientData = (clientData__);
 
@@ -1165,7 +1165,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlRawSdioInitialiseCfmCreate(msg__, dst__, src__, clientData__, result__, byteRead__, byteWrite__, firmwareDownload__, reset__, coreDumpPrepare__, byteBlockRead__, gpRead16__, gpWrite16__) \
-    msg__ = (CsrWifiRouterCtrlRawSdioInitialiseCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlRawSdioInitialiseCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlRawSdioInitialiseCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_RAW_SDIO_INITIALISE_CFM, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->result = (result__); \
@@ -1202,7 +1202,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlResumeIndCreate(msg__, dst__, src__, clientData__, powerMaintained__) \
-    msg__ = (CsrWifiRouterCtrlResumeInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlResumeInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlResumeInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_RESUME_IND, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->powerMaintained = (powerMaintained__);
@@ -1230,7 +1230,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlResumeResCreate(msg__, dst__, src__, clientData__, status__) \
-    msg__ = (CsrWifiRouterCtrlResumeRes *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlResumeRes)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlResumeRes), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_RESUME_RES, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->status = (status__);
@@ -1260,7 +1260,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlStaInactiveIndCreate(msg__, dst__, src__, clientData__, interfaceTag__, staAddress__) \
-    msg__ = (CsrWifiRouterCtrlStaInactiveInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlStaInactiveInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlStaInactiveInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_STA_INACTIVE_IND, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -1291,7 +1291,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlSuspendIndCreate(msg__, dst__, src__, clientData__, hardSuspend__, d3Suspend__) \
-    msg__ = (CsrWifiRouterCtrlSuspendInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlSuspendInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlSuspendInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_SUSPEND_IND, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->hardSuspend = (hardSuspend__); \
@@ -1320,7 +1320,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlSuspendResCreate(msg__, dst__, src__, clientData__, status__) \
-    msg__ = (CsrWifiRouterCtrlSuspendRes *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlSuspendRes)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlSuspendRes), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_SUSPEND_RES, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->status = (status__);
@@ -1351,7 +1351,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlTclasAddReqCreate(msg__, dst__, src__, interfaceTag__, clientData__, tclasLength__, tclas__) \
-    msg__ = (CsrWifiRouterCtrlTclasAddReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlTclasAddReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlTclasAddReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_TCLAS_ADD_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->clientData = (clientData__); \
@@ -1383,7 +1383,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlTclasAddCfmCreate(msg__, dst__, src__, clientData__, interfaceTag__, status__) \
-    msg__ = (CsrWifiRouterCtrlTclasAddCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlTclasAddCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlTclasAddCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_TCLAS_ADD_CFM, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -1415,7 +1415,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlTclasDelReqCreate(msg__, dst__, src__, interfaceTag__, clientData__, tclasLength__, tclas__) \
-    msg__ = (CsrWifiRouterCtrlTclasDelReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlTclasDelReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlTclasDelReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_TCLAS_DEL_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->clientData = (clientData__); \
@@ -1447,7 +1447,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlTclasDelCfmCreate(msg__, dst__, src__, clientData__, interfaceTag__, status__) \
-    msg__ = (CsrWifiRouterCtrlTclasDelCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlTclasDelCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlTclasDelCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_TCLAS_DEL_CFM, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -1479,7 +1479,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlTrafficClassificationReqCreate(msg__, dst__, src__, interfaceTag__, clientData__, trafficType__, period__) \
-    msg__ = (CsrWifiRouterCtrlTrafficClassificationReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlTrafficClassificationReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlTrafficClassificationReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_TRAFFIC_CLASSIFICATION_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->clientData = (clientData__); \
@@ -1512,7 +1512,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlTrafficConfigReqCreate(msg__, dst__, src__, interfaceTag__, clientData__, trafficConfigType__, config__) \
-    msg__ = (CsrWifiRouterCtrlTrafficConfigReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlTrafficConfigReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlTrafficConfigReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_TRAFFIC_CONFIG_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->clientData = (clientData__); \
@@ -1546,7 +1546,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlTrafficProtocolIndCreate(msg__, dst__, src__, clientData__, interfaceTag__, packetType__, direction__, srcAddress__) \
-    msg__ = (CsrWifiRouterCtrlTrafficProtocolInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlTrafficProtocolInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlTrafficProtocolInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_TRAFFIC_PROTOCOL_IND, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -1579,7 +1579,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlTrafficSampleIndCreate(msg__, dst__, src__, clientData__, interfaceTag__, stats__) \
-    msg__ = (CsrWifiRouterCtrlTrafficSampleInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlTrafficSampleInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlTrafficSampleInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_TRAFFIC_SAMPLE_IND, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -1610,7 +1610,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlUnexpectedFrameIndCreate(msg__, dst__, src__, clientData__, interfaceTag__, peerMacAddress__) \
-    msg__ = (CsrWifiRouterCtrlUnexpectedFrameInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlUnexpectedFrameInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlUnexpectedFrameInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_UNEXPECTED_FRAME_IND, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -1640,7 +1640,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlWapiFilterReqCreate(msg__, dst__, src__, interfaceTag__, isWapiConnected__) \
-    msg__ = (CsrWifiRouterCtrlWapiFilterReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWapiFilterReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlWapiFilterReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WAPI_FILTER_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->isWapiConnected = (isWapiConnected__);
@@ -1669,7 +1669,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlWapiMulticastFilterReqCreate(msg__, dst__, src__, interfaceTag__, status__) \
-    msg__ = (CsrWifiRouterCtrlWapiMulticastFilterReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWapiMulticastFilterReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlWapiMulticastFilterReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WAPI_MULTICAST_FILTER_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->status = (status__);
@@ -1702,7 +1702,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlWapiRxMicCheckIndCreate(msg__, dst__, src__, clientData__, interfaceTag__, signalLength__, signal__, dataLength__, data__) \
-    msg__ = (CsrWifiRouterCtrlWapiRxMicCheckInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWapiRxMicCheckInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlWapiRxMicCheckInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WAPI_RX_MIC_CHECK_IND, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -1738,7 +1738,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlWapiRxPktReqCreate(msg__, dst__, src__, interfaceTag__, signalLength__, signal__, dataLength__, data__) \
-    msg__ = (CsrWifiRouterCtrlWapiRxPktReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWapiRxPktReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlWapiRxPktReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WAPI_RX_PKT_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->signalLength = (signalLength__); \
@@ -1770,7 +1770,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlWapiUnicastFilterReqCreate(msg__, dst__, src__, interfaceTag__, status__) \
-    msg__ = (CsrWifiRouterCtrlWapiUnicastFilterReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWapiUnicastFilterReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlWapiUnicastFilterReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WAPI_UNICAST_FILTER_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->status = (status__);
@@ -1801,7 +1801,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlWapiUnicastTxEncryptIndCreate(msg__, dst__, src__, clientData__, interfaceTag__, dataLength__, data__) \
-    msg__ = (CsrWifiRouterCtrlWapiUnicastTxEncryptInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWapiUnicastTxEncryptInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlWapiUnicastTxEncryptInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WAPI_UNICAST_TX_ENCRYPT_IND, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
@@ -1833,7 +1833,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlWapiUnicastTxPktReqCreate(msg__, dst__, src__, interfaceTag__, dataLength__, data__) \
-    msg__ = (CsrWifiRouterCtrlWapiUnicastTxPktReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWapiUnicastTxPktReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlWapiUnicastTxPktReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WAPI_UNICAST_TX_PKT_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->dataLength = (dataLength__); \
@@ -1862,7 +1862,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlWifiOffReqCreate(msg__, dst__, src__, clientData__) \
-    msg__ = (CsrWifiRouterCtrlWifiOffReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWifiOffReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlWifiOffReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WIFI_OFF_REQ, dst__, src__); \
     msg__->clientData = (clientData__);
 
@@ -1890,7 +1890,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlWifiOffIndCreate(msg__, dst__, src__, clientData__, controlIndication__) \
-    msg__ = (CsrWifiRouterCtrlWifiOffInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWifiOffInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlWifiOffInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WIFI_OFF_IND, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->controlIndication = (controlIndication__);
@@ -1917,7 +1917,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlWifiOffResCreate(msg__, dst__, src__, clientData__) \
-    msg__ = (CsrWifiRouterCtrlWifiOffRes *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWifiOffRes)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlWifiOffRes), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WIFI_OFF_RES, dst__, src__); \
     msg__->clientData = (clientData__);
 
@@ -1944,7 +1944,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlWifiOffCfmCreate(msg__, dst__, src__, clientData__) \
-    msg__ = (CsrWifiRouterCtrlWifiOffCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWifiOffCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlWifiOffCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WIFI_OFF_CFM, dst__, src__); \
     msg__->clientData = (clientData__);
 
@@ -1973,7 +1973,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlWifiOnReqCreate(msg__, dst__, src__, clientData__, dataLength__, data__) \
-    msg__ = (CsrWifiRouterCtrlWifiOnReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWifiOnReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlWifiOnReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WIFI_ON_REQ, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->dataLength = (dataLength__); \
@@ -2004,7 +2004,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlWifiOnIndCreate(msg__, dst__, src__, clientData__, status__, versions__) \
-    msg__ = (CsrWifiRouterCtrlWifiOnInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWifiOnInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlWifiOnInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WIFI_ON_IND, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->status = (status__); \
@@ -2037,7 +2037,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlWifiOnResCreate(msg__, dst__, src__, clientData__, status__, numInterfaceAddress__, stationMacAddress__, smeVersions__, scheduledInterrupt__) \
-    msg__ = (CsrWifiRouterCtrlWifiOnRes *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWifiOnRes)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlWifiOnRes), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WIFI_ON_RES, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->status = (status__); \
@@ -2070,7 +2070,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 *******************************************************************************/
 #define CsrWifiRouterCtrlWifiOnCfmCreate(msg__, dst__, src__, clientData__, status__) \
-    msg__ = (CsrWifiRouterCtrlWifiOnCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWifiOnCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterCtrlWifiOnCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WIFI_ON_CFM, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->status = (status__);

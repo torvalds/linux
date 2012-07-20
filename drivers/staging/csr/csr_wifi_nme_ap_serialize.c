@@ -152,7 +152,7 @@ u8* CsrWifiNmeApConfigSetReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiNmeApConfigSetReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiNmeApConfigSetReq *primitive = (CsrWifiNmeApConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiNmeApConfigSetReq));
+    CsrWifiNmeApConfigSetReq *primitive = kmalloc(sizeof(CsrWifiNmeApConfigSetReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -199,7 +199,7 @@ void* CsrWifiNmeApConfigSetReqDes(u8 *buffer, size_t length)
     primitive->apMacConfig.macAddressList = NULL;
     if (primitive->apMacConfig.macAddressListCount)
     {
-        primitive->apMacConfig.macAddressList = (CsrWifiMacAddress *)CsrPmemAlloc(sizeof(CsrWifiMacAddress) * primitive->apMacConfig.macAddressListCount);
+        primitive->apMacConfig.macAddressList = kmalloc(sizeof(CsrWifiMacAddress) * primitive->apMacConfig.macAddressListCount, GFP_KERNEL);
     }
     {
         u16 i2;
@@ -255,7 +255,7 @@ u8* CsrWifiNmeApWpsRegisterReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiNmeApWpsRegisterReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiNmeApWpsRegisterReq *primitive = (CsrWifiNmeApWpsRegisterReq *) CsrPmemAlloc(sizeof(CsrWifiNmeApWpsRegisterReq));
+    CsrWifiNmeApWpsRegisterReq *primitive = kmalloc(sizeof(CsrWifiNmeApWpsRegisterReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -447,7 +447,7 @@ u8* CsrWifiNmeApStartReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiNmeApStartReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiNmeApStartReq *primitive = (CsrWifiNmeApStartReq *) CsrPmemAlloc(sizeof(CsrWifiNmeApStartReq));
+    CsrWifiNmeApStartReq *primitive = kmalloc(sizeof(CsrWifiNmeApStartReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -518,7 +518,7 @@ void* CsrWifiNmeApStartReqDes(u8 *buffer, size_t length)
     primitive->p2pGoParam.operatingChanList.channelEntryList = NULL;
     if (primitive->p2pGoParam.operatingChanList.channelEntryListCount)
     {
-        primitive->p2pGoParam.operatingChanList.channelEntryList = (CsrWifiSmeApP2pOperatingChanEntry *)CsrPmemAlloc(sizeof(CsrWifiSmeApP2pOperatingChanEntry) * primitive->p2pGoParam.operatingChanList.channelEntryListCount);
+        primitive->p2pGoParam.operatingChanList.channelEntryList = kmalloc(sizeof(CsrWifiSmeApP2pOperatingChanEntry) * primitive->p2pGoParam.operatingChanList.channelEntryListCount, GFP_KERNEL);
     }
     {
         u16 i3;
@@ -528,7 +528,7 @@ void* CsrWifiNmeApStartReqDes(u8 *buffer, size_t length)
             CsrUint8Des((u8 *) &primitive->p2pGoParam.operatingChanList.channelEntryList[i3].operatingChannelCount, buffer, &offset);
             if (primitive->p2pGoParam.operatingChanList.channelEntryList[i3].operatingChannelCount)
             {
-                primitive->p2pGoParam.operatingChanList.channelEntryList[i3].operatingChannel = (u8 *)CsrPmemAlloc(primitive->p2pGoParam.operatingChanList.channelEntryList[i3].operatingChannelCount);
+                primitive->p2pGoParam.operatingChanList.channelEntryList[i3].operatingChannel = kmalloc(primitive->p2pGoParam.operatingChanList.channelEntryList[i3].operatingChannelCount, GFP_KERNEL);
                 CsrMemCpyDes(primitive->p2pGoParam.operatingChanList.channelEntryList[i3].operatingChannel, buffer, &offset, ((u16) (primitive->p2pGoParam.operatingChanList.channelEntryList[i3].operatingChannelCount)));
             }
             else
@@ -641,7 +641,7 @@ u8* CsrWifiNmeApWmmParamUpdateReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiNmeApWmmParamUpdateReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiNmeApWmmParamUpdateReq *primitive = (CsrWifiNmeApWmmParamUpdateReq *) CsrPmemAlloc(sizeof(CsrWifiNmeApWmmParamUpdateReq));
+    CsrWifiNmeApWmmParamUpdateReq *primitive = kmalloc(sizeof(CsrWifiNmeApWmmParamUpdateReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -699,7 +699,7 @@ u8* CsrWifiNmeApStaRemoveReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiNmeApStaRemoveReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiNmeApStaRemoveReq *primitive = (CsrWifiNmeApStaRemoveReq *) CsrPmemAlloc(sizeof(CsrWifiNmeApStaRemoveReq));
+    CsrWifiNmeApStaRemoveReq *primitive = kmalloc(sizeof(CsrWifiNmeApStaRemoveReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -736,7 +736,7 @@ u8* CsrWifiNmeApWpsRegisterCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiNmeApWpsRegisterCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiNmeApWpsRegisterCfm *primitive = (CsrWifiNmeApWpsRegisterCfm *) CsrPmemAlloc(sizeof(CsrWifiNmeApWpsRegisterCfm));
+    CsrWifiNmeApWpsRegisterCfm *primitive = kmalloc(sizeof(CsrWifiNmeApWpsRegisterCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -776,7 +776,7 @@ u8* CsrWifiNmeApStartCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiNmeApStartCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiNmeApStartCfm *primitive = (CsrWifiNmeApStartCfm *) CsrPmemAlloc(sizeof(CsrWifiNmeApStartCfm));
+    CsrWifiNmeApStartCfm *primitive = kmalloc(sizeof(CsrWifiNmeApStartCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -814,7 +814,7 @@ u8* CsrWifiNmeApStopCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiNmeApStopCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiNmeApStopCfm *primitive = (CsrWifiNmeApStopCfm *) CsrPmemAlloc(sizeof(CsrWifiNmeApStopCfm));
+    CsrWifiNmeApStopCfm *primitive = kmalloc(sizeof(CsrWifiNmeApStopCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -852,7 +852,7 @@ u8* CsrWifiNmeApStopIndSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiNmeApStopIndDes(u8 *buffer, size_t length)
 {
-    CsrWifiNmeApStopInd *primitive = (CsrWifiNmeApStopInd *) CsrPmemAlloc(sizeof(CsrWifiNmeApStopInd));
+    CsrWifiNmeApStopInd *primitive = kmalloc(sizeof(CsrWifiNmeApStopInd), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -893,7 +893,7 @@ u8* CsrWifiNmeApStationIndSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiNmeApStationIndDes(u8 *buffer, size_t length)
 {
-    CsrWifiNmeApStationInd *primitive = (CsrWifiNmeApStationInd *) CsrPmemAlloc(sizeof(CsrWifiNmeApStationInd));
+    CsrWifiNmeApStationInd *primitive = kmalloc(sizeof(CsrWifiNmeApStationInd), GFP_KERNEL);
     size_t offset;
     offset = 0;
 

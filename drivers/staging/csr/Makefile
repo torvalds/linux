@@ -69,7 +69,6 @@ csr_wifi-y :=	bh.o				\
 csr_helper-y :=	csr_time.o			\
 		csr_util.o			\
 		csr_framework_ext.o		\
-		csr_pmem.o			\
 		csr_wifi_serialize_primitive_types.o	\
 		csr_serialize_primitive_types.o	\
 		csr_utf16.o			\

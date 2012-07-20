@@ -1655,7 +1655,7 @@ static CsrResult card_allocate_memory_resources(card_t *card)
 
     /*
      * Allocate memory for the from-host and to-host bulk data slots.
-     * This is done as separate CsrPmemAllocs because lots of smaller
+     * This is done as separate kmallocs because lots of smaller
      * allocations are more likely to succeed than one huge one.
      */
 

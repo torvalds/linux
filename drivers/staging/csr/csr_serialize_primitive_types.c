@@ -9,6 +9,7 @@
 *****************************************************************************/
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include "csr_prim_defs.h"
 #include "csr_msgconv.h"
 #include "csr_macro.h"
@@ -66,7 +67,7 @@ void CsrUtf16StringDes(u16 **value, u8 *buffer, size_t *offset)
 
     CsrUint32Des(&length, buffer, offset);
 
-    *value = CsrPmemAlloc(length * sizeof(**value));
+    *value = kmalloc(length * sizeof(**value), GFP_KERNEL);
     for (i = 0; i < length; i++)
     {
         CsrUint16Des(&(*value)[i], buffer, offset);
@@ -224,7 +225,7 @@ u8 *CsrEventSer(u8 *ptr, size_t *len, void *msg)
 
 void *CsrEventDes(u8 *buffer, size_t length)
 {
-    CsrEvent *primitive = (CsrEvent *) CsrPmemAlloc(sizeof(CsrEvent));
+    CsrEvent *primitive = kmalloc(sizeof(CsrEvent), GFP_KERNEL);
     size_t offset = 0;
     CsrUint16Des(&primitive->type, buffer, &offset);
 
@@ -247,7 +248,7 @@ u8 *CsrEventCsrUint8Ser(u8 *ptr, size_t *len, void *msg)
 
 void *CsrEventCsrUint8Des(u8 *buffer, size_t length)
 {
-    CsrEventCsrUint8 *primitive = (CsrEventCsrUint8 *) CsrPmemAlloc(sizeof(CsrEventCsrUint8));
+    CsrEventCsrUint8 *primitive = kmalloc(sizeof(CsrEventCsrUint8), GFP_KERNEL);
 
     size_t offset = 0;
     CsrUint16Des(&primitive->type, buffer, &offset);
@@ -272,7 +273,7 @@ u8 *CsrEventCsrUint16Ser(u8 *ptr, size_t *len, void *msg)
 
 void *CsrEventCsrUint16Des(u8 *buffer, size_t length)
 {
-    CsrEventCsrUint16 *primitive = (CsrEventCsrUint16 *) CsrPmemAlloc(sizeof(CsrEventCsrUint16));
+    CsrEventCsrUint16 *primitive = kmalloc(sizeof(CsrEventCsrUint16), GFP_KERNEL);
 
     size_t offset = 0;
     CsrUint16Des(&primitive->type, buffer, &offset);
@@ -297,7 +298,7 @@ u8 *CsrEventCsrUint32Ser(u8 *ptr, size_t *len, void *msg)
 
 void *CsrEventCsrUint32Des(u8 *buffer, size_t length)
 {
-    CsrEventCsrUint32 *primitive = (CsrEventCsrUint32 *) CsrPmemAlloc(sizeof(CsrEventCsrUint32));
+    CsrEventCsrUint32 *primitive = kmalloc(sizeof(CsrEventCsrUint32), GFP_KERNEL);
 
     size_t offset = 0;
     CsrUint16Des(&primitive->type, buffer, &offset);
@@ -323,7 +324,7 @@ u8 *CsrEventCsrUint16CsrUint8Ser(u8 *ptr, size_t *len, void *msg)
 
 void *CsrEventCsrUint16CsrUint8Des(u8 *buffer, size_t length)
 {
-    CsrEventCsrUint16CsrUint8 *primitive = (CsrEventCsrUint16CsrUint8 *) CsrPmemAlloc(sizeof(CsrEventCsrUint16CsrUint8));
+    CsrEventCsrUint16CsrUint8 *primitive = kmalloc(sizeof(CsrEventCsrUint16CsrUint8), GFP_KERNEL);
 
     size_t offset = 0;
     CsrUint16Des(&primitive->type, buffer, &offset);
@@ -350,7 +351,7 @@ u8 *CsrEventCsrUint16CsrUint16Ser(u8 *ptr, size_t *len, void *msg)
 
 void *CsrEventCsrUint16CsrUint16Des(u8 *buffer, size_t length)
 {
-    CsrEventCsrUint16CsrUint16 *primitive = (CsrEventCsrUint16CsrUint16 *) CsrPmemAlloc(sizeof(CsrEventCsrUint16CsrUint16));
+    CsrEventCsrUint16CsrUint16 *primitive = kmalloc(sizeof(CsrEventCsrUint16CsrUint16), GFP_KERNEL);
 
     size_t offset = 0;
     CsrUint16Des(&primitive->type, buffer, &offset);
@@ -377,7 +378,7 @@ u8 *CsrEventCsrUint16CsrUint32Ser(u8 *ptr, size_t *len, void *msg)
 
 void *CsrEventCsrUint16CsrUint32Des(u8 *buffer, size_t length)
 {
-    CsrEventCsrUint16CsrUint32 *primitive = (CsrEventCsrUint16CsrUint32 *) CsrPmemAlloc(sizeof(CsrEventCsrUint16CsrUint32));
+    CsrEventCsrUint16CsrUint32 *primitive = kmalloc(sizeof(CsrEventCsrUint16CsrUint32), GFP_KERNEL);
 
     size_t offset = 0;
     CsrUint16Des(&primitive->type, buffer, &offset);
@@ -405,7 +406,7 @@ u8 *CsrEventCsrUint16CsrCharStringSer(u8 *ptr, size_t *len, void *msg)
 
 void *CsrEventCsrUint16CsrCharStringDes(u8 *buffer, size_t length)
 {
-    CsrEventCsrUint16CsrCharString *primitive = (CsrEventCsrUint16CsrCharString *) CsrPmemAlloc(sizeof(CsrEventCsrUint16CsrCharString));
+    CsrEventCsrUint16CsrCharString *primitive = kmalloc(sizeof(CsrEventCsrUint16CsrCharString), GFP_KERNEL);
 
     size_t offset = 0;
     CsrUint16Des(&primitive->type, buffer, &offset);
@@ -432,7 +433,7 @@ u8 *CsrEventCsrUint32CsrUint16Ser(u8 *ptr, size_t *len, void *msg)
 
 void *CsrEventCsrUint32CsrUint16Des(u8 *buffer, size_t length)
 {
-    CsrEventCsrUint32CsrUint16 *primitive = (CsrEventCsrUint32CsrUint16 *) CsrPmemAlloc(sizeof(CsrEventCsrUint32CsrUint16));
+    CsrEventCsrUint32CsrUint16 *primitive = kmalloc(sizeof(CsrEventCsrUint32CsrUint16), GFP_KERNEL);
 
     size_t offset = 0;
     CsrUint16Des(&primitive->type, buffer, &offset);
@@ -460,7 +461,7 @@ u8 *CsrEventCsrUint32CsrCharStringSer(u8 *ptr, size_t *len, void *msg)
 
 void *CsrEventCsrUint32CsrCharStringDes(u8 *buffer, size_t length)
 {
-    CsrEventCsrUint32CsrCharString *primitive = (CsrEventCsrUint32CsrCharString *) CsrPmemAlloc(sizeof(CsrEventCsrUint32CsrCharString));
+    CsrEventCsrUint32CsrCharString *primitive = kmalloc(sizeof(CsrEventCsrUint32CsrCharString), GFP_KERNEL);
 
     size_t offset = 0;
     CsrUint16Des(&primitive->type, buffer, &offset);

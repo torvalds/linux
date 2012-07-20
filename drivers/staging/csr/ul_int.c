@@ -105,15 +105,14 @@ ul_register_client(unifi_priv_t *priv, unsigned int configuration,
             ul_clients[id].configuration = configuration;
 
             /* Allocate memory for the reply signal.. */
-            ul_clients[id].reply_signal = (CSR_SIGNAL*) CsrPmemAlloc(sizeof(CSR_SIGNAL));
+            ul_clients[id].reply_signal = kmalloc(sizeof(CSR_SIGNAL), GFP_KERNEL);
             if (ul_clients[id].reply_signal == NULL) {
                 unifi_error(priv, "Failed to allocate reply signal for client.\n");
                 return NULL;
             }
             /* .. and the bulk data of the reply signal. */
             for (ref = 0; ref < UNIFI_MAX_DATA_REFERENCES; ref ++) {
-                ul_clients[id].reply_bulkdata[ref] =
-                        (bulk_data_t*) CsrPmemAlloc(sizeof(bulk_data_t));
+                ul_clients[id].reply_bulkdata[ref] = kmalloc(sizeof(bulk_data_t), GFP_KERNEL);
                 /* If allocation fails, free allocated memory. */
                 if (ul_clients[id].reply_bulkdata[ref] == NULL) {
                     for (; ref > 0; ref --) {

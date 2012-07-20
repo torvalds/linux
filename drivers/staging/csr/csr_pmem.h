@@ -17,36 +17,6 @@
 extern "C" {
 #endif
 
-#ifndef CSR_PMEM_DEBUG_ENABLE
-/*****************************************************************************
-
-    NAME
-        CsrPmemAlloc
-
-    DESCRIPTION
-        This function will allocate a contiguous block of memory of at least
-        the specified size in bytes and return a pointer to the allocated
-        memory. This function is not allowed to return NULL. A size of 0 is a
-        valid request, and a unique and valid (not NULL) pointer must be
-        returned in this case.
-
-    PARAMETERS
-        size - Size of memory requested. Note that a size of 0 is valid.
-
-    RETURNS
-        Pointer to allocated memory.
-
-*****************************************************************************/
-#ifdef CSR_PMEM_DEBUG
-void *CsrPmemAllocDebug(size_t size,
-    const char *file, u32 line);
-#define CsrPmemAlloc(sz) CsrPmemAllocDebug((sz), __FILE__, __LINE__)
-#else
-void *CsrPmemAlloc(size_t size);
-#endif
-
-#endif
-
 /*****************************************************************************
 
     NAME
@@ -114,7 +84,6 @@ typedef void (CsrPmemDebugOnFree)(void *ptr, void *userptr, CsrPmemDebugAllocTyp
 void CsrPmemDebugInstallHooks(u8 headSize, u8 endSize, CsrPmemDebugOnAlloc *onAllocCallback, CsrPmemDebugOnFree *onFreeCallback);
 
 void *CsrPmemDebugAlloc(size_t size, CsrPmemDebugAllocType type, const char* file, u32 line);
-#define CsrPmemAlloc(size) CsrPmemDebugAlloc(size, CSR_PMEM_DEBUG_TYPE_PMEM_ALLOC, __FILE__, __LINE__)
 
 void CsrPmemDebugFree(void *ptr, CsrPmemDebugAllocType type, const char* file, u32 line);
 

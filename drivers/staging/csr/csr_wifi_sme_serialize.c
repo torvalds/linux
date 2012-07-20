@@ -53,7 +53,7 @@ u8* CsrWifiSmeAdhocConfigSetReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeAdhocConfigSetReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeAdhocConfigSetReq *primitive = (CsrWifiSmeAdhocConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeAdhocConfigSetReq));
+    CsrWifiSmeAdhocConfigSetReq *primitive = kmalloc(sizeof(CsrWifiSmeAdhocConfigSetReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -108,7 +108,7 @@ u8* CsrWifiSmeBlacklistReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeBlacklistReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeBlacklistReq *primitive = (CsrWifiSmeBlacklistReq *) CsrPmemAlloc(sizeof(CsrWifiSmeBlacklistReq));
+    CsrWifiSmeBlacklistReq *primitive = kmalloc(sizeof(CsrWifiSmeBlacklistReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -119,7 +119,7 @@ void* CsrWifiSmeBlacklistReqDes(u8 *buffer, size_t length)
     primitive->setAddresses = NULL;
     if (primitive->setAddressCount)
     {
-        primitive->setAddresses = (CsrWifiMacAddress *)CsrPmemAlloc(sizeof(CsrWifiMacAddress) * primitive->setAddressCount);
+        primitive->setAddresses = kmalloc(sizeof(CsrWifiMacAddress) * primitive->setAddressCount, GFP_KERNEL);
     }
     {
         u16 i1;
@@ -169,7 +169,7 @@ u8* CsrWifiSmeCalibrationDataSetReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeCalibrationDataSetReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeCalibrationDataSetReq *primitive = (CsrWifiSmeCalibrationDataSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeCalibrationDataSetReq));
+    CsrWifiSmeCalibrationDataSetReq *primitive = kmalloc(sizeof(CsrWifiSmeCalibrationDataSetReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -177,7 +177,7 @@ void* CsrWifiSmeCalibrationDataSetReqDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->calibrationDataLength, buffer, &offset);
     if (primitive->calibrationDataLength)
     {
-        primitive->calibrationData = (u8 *)CsrPmemAlloc(primitive->calibrationDataLength);
+        primitive->calibrationData = kmalloc(primitive->calibrationDataLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->calibrationData, buffer, &offset, ((u16) (primitive->calibrationDataLength)));
     }
     else
@@ -227,7 +227,7 @@ u8* CsrWifiSmeCcxConfigSetReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeCcxConfigSetReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeCcxConfigSetReq *primitive = (CsrWifiSmeCcxConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeCcxConfigSetReq));
+    CsrWifiSmeCcxConfigSetReq *primitive = kmalloc(sizeof(CsrWifiSmeCcxConfigSetReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -290,7 +290,7 @@ u8* CsrWifiSmeCoexConfigSetReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeCoexConfigSetReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeCoexConfigSetReq *primitive = (CsrWifiSmeCoexConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeCoexConfigSetReq));
+    CsrWifiSmeCoexConfigSetReq *primitive = kmalloc(sizeof(CsrWifiSmeCoexConfigSetReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -366,7 +366,7 @@ u8* CsrWifiSmeConnectReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeConnectReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeConnectReq *primitive = (CsrWifiSmeConnectReq *) CsrPmemAlloc(sizeof(CsrWifiSmeConnectReq));
+    CsrWifiSmeConnectReq *primitive = kmalloc(sizeof(CsrWifiSmeConnectReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -383,7 +383,7 @@ void* CsrWifiSmeConnectReqDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionConfig.mlmeAssociateReqInformationElementsLength, buffer, &offset);
     if (primitive->connectionConfig.mlmeAssociateReqInformationElementsLength)
     {
-        primitive->connectionConfig.mlmeAssociateReqInformationElements = (u8 *)CsrPmemAlloc(primitive->connectionConfig.mlmeAssociateReqInformationElementsLength);
+        primitive->connectionConfig.mlmeAssociateReqInformationElements = kmalloc(primitive->connectionConfig.mlmeAssociateReqInformationElementsLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionConfig.mlmeAssociateReqInformationElements, buffer, &offset, ((u16) (primitive->connectionConfig.mlmeAssociateReqInformationElementsLength)));
     }
     else
@@ -432,7 +432,7 @@ u8* CsrWifiSmeHostConfigSetReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeHostConfigSetReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeHostConfigSetReq *primitive = (CsrWifiSmeHostConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeHostConfigSetReq));
+    CsrWifiSmeHostConfigSetReq *primitive = kmalloc(sizeof(CsrWifiSmeHostConfigSetReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -497,7 +497,7 @@ u8* CsrWifiSmeKeyReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeKeyReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeKeyReq *primitive = (CsrWifiSmeKeyReq *) CsrPmemAlloc(sizeof(CsrWifiSmeKeyReq));
+    CsrWifiSmeKeyReq *primitive = kmalloc(sizeof(CsrWifiSmeKeyReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -553,7 +553,7 @@ u8* CsrWifiSmeMibConfigSetReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeMibConfigSetReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeMibConfigSetReq *primitive = (CsrWifiSmeMibConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeMibConfigSetReq));
+    CsrWifiSmeMibConfigSetReq *primitive = kmalloc(sizeof(CsrWifiSmeMibConfigSetReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -596,7 +596,7 @@ u8* CsrWifiSmeMibGetNextReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeMibGetNextReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeMibGetNextReq *primitive = (CsrWifiSmeMibGetNextReq *) CsrPmemAlloc(sizeof(CsrWifiSmeMibGetNextReq));
+    CsrWifiSmeMibGetNextReq *primitive = kmalloc(sizeof(CsrWifiSmeMibGetNextReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -604,7 +604,7 @@ void* CsrWifiSmeMibGetNextReqDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->mibAttributeLength, buffer, &offset);
     if (primitive->mibAttributeLength)
     {
-        primitive->mibAttribute = (u8 *)CsrPmemAlloc(primitive->mibAttributeLength);
+        primitive->mibAttribute = kmalloc(primitive->mibAttributeLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->mibAttribute, buffer, &offset, ((u16) (primitive->mibAttributeLength)));
     }
     else
@@ -652,7 +652,7 @@ u8* CsrWifiSmeMibGetReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeMibGetReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeMibGetReq *primitive = (CsrWifiSmeMibGetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeMibGetReq));
+    CsrWifiSmeMibGetReq *primitive = kmalloc(sizeof(CsrWifiSmeMibGetReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -660,7 +660,7 @@ void* CsrWifiSmeMibGetReqDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->mibAttributeLength, buffer, &offset);
     if (primitive->mibAttributeLength)
     {
-        primitive->mibAttribute = (u8 *)CsrPmemAlloc(primitive->mibAttributeLength);
+        primitive->mibAttribute = kmalloc(primitive->mibAttributeLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->mibAttribute, buffer, &offset, ((u16) (primitive->mibAttributeLength)));
     }
     else
@@ -708,7 +708,7 @@ u8* CsrWifiSmeMibSetReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeMibSetReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeMibSetReq *primitive = (CsrWifiSmeMibSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeMibSetReq));
+    CsrWifiSmeMibSetReq *primitive = kmalloc(sizeof(CsrWifiSmeMibSetReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -716,7 +716,7 @@ void* CsrWifiSmeMibSetReqDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->mibAttributeLength, buffer, &offset);
     if (primitive->mibAttributeLength)
     {
-        primitive->mibAttribute = (u8 *)CsrPmemAlloc(primitive->mibAttributeLength);
+        primitive->mibAttribute = kmalloc(primitive->mibAttributeLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->mibAttribute, buffer, &offset, ((u16) (primitive->mibAttributeLength)));
     }
     else
@@ -777,7 +777,7 @@ u8* CsrWifiSmeMulticastAddressReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeMulticastAddressReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeMulticastAddressReq *primitive = (CsrWifiSmeMulticastAddressReq *) CsrPmemAlloc(sizeof(CsrWifiSmeMulticastAddressReq));
+    CsrWifiSmeMulticastAddressReq *primitive = kmalloc(sizeof(CsrWifiSmeMulticastAddressReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -788,7 +788,7 @@ void* CsrWifiSmeMulticastAddressReqDes(u8 *buffer, size_t length)
     primitive->setAddresses = NULL;
     if (primitive->setAddressesCount)
     {
-        primitive->setAddresses = (CsrWifiMacAddress *)CsrPmemAlloc(sizeof(CsrWifiMacAddress) * primitive->setAddressesCount);
+        primitive->setAddresses = kmalloc(sizeof(CsrWifiMacAddress) * primitive->setAddressesCount, GFP_KERNEL);
     }
     {
         u16 i1;
@@ -844,7 +844,7 @@ u8* CsrWifiSmePacketFilterSetReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmePacketFilterSetReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmePacketFilterSetReq *primitive = (CsrWifiSmePacketFilterSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmePacketFilterSetReq));
+    CsrWifiSmePacketFilterSetReq *primitive = kmalloc(sizeof(CsrWifiSmePacketFilterSetReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -853,7 +853,7 @@ void* CsrWifiSmePacketFilterSetReqDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->filterLength, buffer, &offset);
     if (primitive->filterLength)
     {
-        primitive->filter = (u8 *)CsrPmemAlloc(primitive->filterLength);
+        primitive->filter = kmalloc(primitive->filterLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->filter, buffer, &offset, ((u16) (primitive->filterLength)));
     }
     else
@@ -918,7 +918,7 @@ u8* CsrWifiSmePmkidReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmePmkidReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmePmkidReq *primitive = (CsrWifiSmePmkidReq *) CsrPmemAlloc(sizeof(CsrWifiSmePmkidReq));
+    CsrWifiSmePmkidReq *primitive = kmalloc(sizeof(CsrWifiSmePmkidReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -929,7 +929,7 @@ void* CsrWifiSmePmkidReqDes(u8 *buffer, size_t length)
     primitive->setPmkids = NULL;
     if (primitive->setPmkidsCount)
     {
-        primitive->setPmkids = (CsrWifiSmePmkid *)CsrPmemAlloc(sizeof(CsrWifiSmePmkid) * primitive->setPmkidsCount);
+        primitive->setPmkids = kmalloc(sizeof(CsrWifiSmePmkid) * primitive->setPmkidsCount, GFP_KERNEL);
     }
     {
         u16 i1;
@@ -986,7 +986,7 @@ u8* CsrWifiSmePowerConfigSetReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmePowerConfigSetReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmePowerConfigSetReq *primitive = (CsrWifiSmePowerConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmePowerConfigSetReq));
+    CsrWifiSmePowerConfigSetReq *primitive = kmalloc(sizeof(CsrWifiSmePowerConfigSetReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -1077,7 +1077,7 @@ u8* CsrWifiSmeRoamingConfigSetReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeRoamingConfigSetReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeRoamingConfigSetReq *primitive = (CsrWifiSmeRoamingConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeRoamingConfigSetReq));
+    CsrWifiSmeRoamingConfigSetReq *primitive = kmalloc(sizeof(CsrWifiSmeRoamingConfigSetReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -1182,7 +1182,7 @@ u8* CsrWifiSmeScanConfigSetReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeScanConfigSetReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeScanConfigSetReq *primitive = (CsrWifiSmeScanConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeScanConfigSetReq));
+    CsrWifiSmeScanConfigSetReq *primitive = kmalloc(sizeof(CsrWifiSmeScanConfigSetReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -1210,7 +1210,7 @@ void* CsrWifiSmeScanConfigSetReqDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->scanConfig.passiveChannelListCount, buffer, &offset);
     if (primitive->scanConfig.passiveChannelListCount)
     {
-        primitive->scanConfig.passiveChannelList = (u8 *)CsrPmemAlloc(primitive->scanConfig.passiveChannelListCount);
+        primitive->scanConfig.passiveChannelList = kmalloc(primitive->scanConfig.passiveChannelListCount, GFP_KERNEL);
         CsrMemCpyDes(primitive->scanConfig.passiveChannelList, buffer, &offset, ((u16) (primitive->scanConfig.passiveChannelListCount)));
     }
     else
@@ -1291,7 +1291,7 @@ u8* CsrWifiSmeScanFullReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeScanFullReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeScanFullReq *primitive = (CsrWifiSmeScanFullReq *) CsrPmemAlloc(sizeof(CsrWifiSmeScanFullReq));
+    CsrWifiSmeScanFullReq *primitive = kmalloc(sizeof(CsrWifiSmeScanFullReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -1300,7 +1300,7 @@ void* CsrWifiSmeScanFullReqDes(u8 *buffer, size_t length)
     primitive->ssid = NULL;
     if (primitive->ssidCount)
     {
-        primitive->ssid = (CsrWifiSsid *)CsrPmemAlloc(sizeof(CsrWifiSsid) * primitive->ssidCount);
+        primitive->ssid = kmalloc(sizeof(CsrWifiSsid) * primitive->ssidCount, GFP_KERNEL);
     }
     {
         u16 i1;
@@ -1317,7 +1317,7 @@ void* CsrWifiSmeScanFullReqDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->channelListCount, buffer, &offset);
     if (primitive->channelListCount)
     {
-        primitive->channelList = (u8 *)CsrPmemAlloc(primitive->channelListCount);
+        primitive->channelList = kmalloc(primitive->channelListCount, GFP_KERNEL);
         CsrMemCpyDes(primitive->channelList, buffer, &offset, ((u16) (primitive->channelListCount)));
     }
     else
@@ -1327,7 +1327,7 @@ void* CsrWifiSmeScanFullReqDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->probeIeLength, buffer, &offset);
     if (primitive->probeIeLength)
     {
-        primitive->probeIe = (u8 *)CsrPmemAlloc(primitive->probeIeLength);
+        primitive->probeIe = kmalloc(primitive->probeIeLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->probeIe, buffer, &offset, ((u16) (primitive->probeIeLength)));
     }
     else
@@ -1383,7 +1383,7 @@ u8* CsrWifiSmeSmeStaConfigSetReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeSmeStaConfigSetReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeSmeStaConfigSetReq *primitive = (CsrWifiSmeSmeStaConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeSmeStaConfigSetReq));
+    CsrWifiSmeSmeStaConfigSetReq *primitive = kmalloc(sizeof(CsrWifiSmeSmeStaConfigSetReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -1445,7 +1445,7 @@ u8* CsrWifiSmeTspecReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeTspecReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeTspecReq *primitive = (CsrWifiSmeTspecReq *) CsrPmemAlloc(sizeof(CsrWifiSmeTspecReq));
+    CsrWifiSmeTspecReq *primitive = kmalloc(sizeof(CsrWifiSmeTspecReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -1458,7 +1458,7 @@ void* CsrWifiSmeTspecReqDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->tspecLength, buffer, &offset);
     if (primitive->tspecLength)
     {
-        primitive->tspec = (u8 *)CsrPmemAlloc(primitive->tspecLength);
+        primitive->tspec = kmalloc(primitive->tspecLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->tspec, buffer, &offset, ((u16) (primitive->tspecLength)));
     }
     else
@@ -1468,7 +1468,7 @@ void* CsrWifiSmeTspecReqDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->tclasLength, buffer, &offset);
     if (primitive->tclasLength)
     {
-        primitive->tclas = (u8 *)CsrPmemAlloc(primitive->tclasLength);
+        primitive->tclas = kmalloc(primitive->tclasLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->tclas, buffer, &offset, ((u16) (primitive->tclasLength)));
     }
     else
@@ -1533,7 +1533,7 @@ u8* CsrWifiSmeWifiFlightmodeReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeWifiFlightmodeReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeWifiFlightmodeReq *primitive = (CsrWifiSmeWifiFlightmodeReq *) CsrPmemAlloc(sizeof(CsrWifiSmeWifiFlightmodeReq));
+    CsrWifiSmeWifiFlightmodeReq *primitive = kmalloc(sizeof(CsrWifiSmeWifiFlightmodeReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -1543,7 +1543,7 @@ void* CsrWifiSmeWifiFlightmodeReqDes(u8 *buffer, size_t length)
     primitive->mibFiles = NULL;
     if (primitive->mibFilesCount)
     {
-        primitive->mibFiles = (CsrWifiSmeDataBlock *)CsrPmemAlloc(sizeof(CsrWifiSmeDataBlock) * primitive->mibFilesCount);
+        primitive->mibFiles = kmalloc(sizeof(CsrWifiSmeDataBlock) * primitive->mibFilesCount, GFP_KERNEL);
     }
     {
         u16 i1;
@@ -1552,7 +1552,7 @@ void* CsrWifiSmeWifiFlightmodeReqDes(u8 *buffer, size_t length)
             CsrUint16Des((u16 *) &primitive->mibFiles[i1].length, buffer, &offset);
             if (primitive->mibFiles[i1].length)
             {
-                primitive->mibFiles[i1].data = (u8 *)CsrPmemAlloc(primitive->mibFiles[i1].length);
+                primitive->mibFiles[i1].data = kmalloc(primitive->mibFiles[i1].length, GFP_KERNEL);
                 CsrMemCpyDes(primitive->mibFiles[i1].data, buffer, &offset, ((u16) (primitive->mibFiles[i1].length)));
             }
             else
@@ -1625,7 +1625,7 @@ u8* CsrWifiSmeWifiOnReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeWifiOnReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeWifiOnReq *primitive = (CsrWifiSmeWifiOnReq *) CsrPmemAlloc(sizeof(CsrWifiSmeWifiOnReq));
+    CsrWifiSmeWifiOnReq *primitive = kmalloc(sizeof(CsrWifiSmeWifiOnReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -1635,7 +1635,7 @@ void* CsrWifiSmeWifiOnReqDes(u8 *buffer, size_t length)
     primitive->mibFiles = NULL;
     if (primitive->mibFilesCount)
     {
-        primitive->mibFiles = (CsrWifiSmeDataBlock *)CsrPmemAlloc(sizeof(CsrWifiSmeDataBlock) * primitive->mibFilesCount);
+        primitive->mibFiles = kmalloc(sizeof(CsrWifiSmeDataBlock) * primitive->mibFilesCount, GFP_KERNEL);
     }
     {
         u16 i1;
@@ -1644,7 +1644,7 @@ void* CsrWifiSmeWifiOnReqDes(u8 *buffer, size_t length)
             CsrUint16Des((u16 *) &primitive->mibFiles[i1].length, buffer, &offset);
             if (primitive->mibFiles[i1].length)
             {
-                primitive->mibFiles[i1].data = (u8 *)CsrPmemAlloc(primitive->mibFiles[i1].length);
+                primitive->mibFiles[i1].data = kmalloc(primitive->mibFiles[i1].length, GFP_KERNEL);
                 CsrMemCpyDes(primitive->mibFiles[i1].data, buffer, &offset, ((u16) (primitive->mibFiles[i1].length)));
             }
             else
@@ -1712,7 +1712,7 @@ u8* CsrWifiSmeCloakedSsidsSetReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeCloakedSsidsSetReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeCloakedSsidsSetReq *primitive = (CsrWifiSmeCloakedSsidsSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeCloakedSsidsSetReq));
+    CsrWifiSmeCloakedSsidsSetReq *primitive = kmalloc(sizeof(CsrWifiSmeCloakedSsidsSetReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -1721,7 +1721,7 @@ void* CsrWifiSmeCloakedSsidsSetReqDes(u8 *buffer, size_t length)
     primitive->cloakedSsids.cloakedSsids = NULL;
     if (primitive->cloakedSsids.cloakedSsidsCount)
     {
-        primitive->cloakedSsids.cloakedSsids = (CsrWifiSsid *)CsrPmemAlloc(sizeof(CsrWifiSsid) * primitive->cloakedSsids.cloakedSsidsCount);
+        primitive->cloakedSsids.cloakedSsids = kmalloc(sizeof(CsrWifiSsid) * primitive->cloakedSsids.cloakedSsidsCount, GFP_KERNEL);
     }
     {
         u16 i2;
@@ -1772,7 +1772,7 @@ u8* CsrWifiSmeSmeCommonConfigSetReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeSmeCommonConfigSetReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeSmeCommonConfigSetReq *primitive = (CsrWifiSmeSmeCommonConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeSmeCommonConfigSetReq));
+    CsrWifiSmeSmeCommonConfigSetReq *primitive = kmalloc(sizeof(CsrWifiSmeSmeCommonConfigSetReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -1853,7 +1853,7 @@ u8* CsrWifiSmeWpsConfigurationReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeWpsConfigurationReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeWpsConfigurationReq *primitive = (CsrWifiSmeWpsConfigurationReq *) CsrPmemAlloc(sizeof(CsrWifiSmeWpsConfigurationReq));
+    CsrWifiSmeWpsConfigurationReq *primitive = kmalloc(sizeof(CsrWifiSmeWpsConfigurationReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -1874,7 +1874,7 @@ void* CsrWifiSmeWpsConfigurationReqDes(u8 *buffer, size_t length)
     primitive->wpsConfig.secondaryDeviceType = NULL;
     if (primitive->wpsConfig.secondaryDeviceTypeCount)
     {
-        primitive->wpsConfig.secondaryDeviceType = (CsrWifiSmeWpsDeviceType *)CsrPmemAlloc(sizeof(CsrWifiSmeWpsDeviceType) * primitive->wpsConfig.secondaryDeviceTypeCount);
+        primitive->wpsConfig.secondaryDeviceType = kmalloc(sizeof(CsrWifiSmeWpsDeviceType) * primitive->wpsConfig.secondaryDeviceTypeCount, GFP_KERNEL);
     }
     {
         u16 i2;
@@ -1927,7 +1927,7 @@ u8* CsrWifiSmeSetReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeSetReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeSetReq *primitive = (CsrWifiSmeSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeSetReq));
+    CsrWifiSmeSetReq *primitive = kmalloc(sizeof(CsrWifiSmeSetReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -1935,7 +1935,7 @@ void* CsrWifiSmeSetReqDes(u8 *buffer, size_t length)
     CsrUint32Des((u32 *) &primitive->dataLength, buffer, &offset);
     if (primitive->dataLength)
     {
-        primitive->data = (u8 *)CsrPmemAlloc(primitive->dataLength);
+        primitive->data = kmalloc(primitive->dataLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->data, buffer, &offset, ((u16) (primitive->dataLength)));
     }
     else
@@ -1985,7 +1985,7 @@ u8* CsrWifiSmeAdhocConfigGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeAdhocConfigGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeAdhocConfigGetCfm *primitive = (CsrWifiSmeAdhocConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeAdhocConfigGetCfm));
+    CsrWifiSmeAdhocConfigGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeAdhocConfigGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -2107,7 +2107,7 @@ u8* CsrWifiSmeAssociationCompleteIndSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeAssociationCompleteIndDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeAssociationCompleteInd *primitive = (CsrWifiSmeAssociationCompleteInd *) CsrPmemAlloc(sizeof(CsrWifiSmeAssociationCompleteInd));
+    CsrWifiSmeAssociationCompleteInd *primitive = kmalloc(sizeof(CsrWifiSmeAssociationCompleteInd), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -2130,7 +2130,7 @@ void* CsrWifiSmeAssociationCompleteIndDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionInfo.beaconFrameLength, buffer, &offset);
     if (primitive->connectionInfo.beaconFrameLength)
     {
-        primitive->connectionInfo.beaconFrame = (u8 *)CsrPmemAlloc(primitive->connectionInfo.beaconFrameLength);
+        primitive->connectionInfo.beaconFrame = kmalloc(primitive->connectionInfo.beaconFrameLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionInfo.beaconFrame, buffer, &offset, ((u16) (primitive->connectionInfo.beaconFrameLength)));
     }
     else
@@ -2140,7 +2140,7 @@ void* CsrWifiSmeAssociationCompleteIndDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionInfo.associationReqFrameLength, buffer, &offset);
     if (primitive->connectionInfo.associationReqFrameLength)
     {
-        primitive->connectionInfo.associationReqFrame = (u8 *)CsrPmemAlloc(primitive->connectionInfo.associationReqFrameLength);
+        primitive->connectionInfo.associationReqFrame = kmalloc(primitive->connectionInfo.associationReqFrameLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionInfo.associationReqFrame, buffer, &offset, ((u16) (primitive->connectionInfo.associationReqFrameLength)));
     }
     else
@@ -2150,7 +2150,7 @@ void* CsrWifiSmeAssociationCompleteIndDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionInfo.associationRspFrameLength, buffer, &offset);
     if (primitive->connectionInfo.associationRspFrameLength)
     {
-        primitive->connectionInfo.associationRspFrame = (u8 *)CsrPmemAlloc(primitive->connectionInfo.associationRspFrameLength);
+        primitive->connectionInfo.associationRspFrame = kmalloc(primitive->connectionInfo.associationRspFrameLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionInfo.associationRspFrame, buffer, &offset, ((u16) (primitive->connectionInfo.associationRspFrameLength)));
     }
     else
@@ -2160,7 +2160,7 @@ void* CsrWifiSmeAssociationCompleteIndDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionInfo.assocScanInfoElementsLength, buffer, &offset);
     if (primitive->connectionInfo.assocScanInfoElementsLength)
     {
-        primitive->connectionInfo.assocScanInfoElements = (u8 *)CsrPmemAlloc(primitive->connectionInfo.assocScanInfoElementsLength);
+        primitive->connectionInfo.assocScanInfoElements = kmalloc(primitive->connectionInfo.assocScanInfoElementsLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionInfo.assocScanInfoElements, buffer, &offset, ((u16) (primitive->connectionInfo.assocScanInfoElementsLength)));
     }
     else
@@ -2173,7 +2173,7 @@ void* CsrWifiSmeAssociationCompleteIndDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionInfo.assocReqInfoElementsLength, buffer, &offset);
     if (primitive->connectionInfo.assocReqInfoElementsLength)
     {
-        primitive->connectionInfo.assocReqInfoElements = (u8 *)CsrPmemAlloc(primitive->connectionInfo.assocReqInfoElementsLength);
+        primitive->connectionInfo.assocReqInfoElements = kmalloc(primitive->connectionInfo.assocReqInfoElementsLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionInfo.assocReqInfoElements, buffer, &offset, ((u16) (primitive->connectionInfo.assocReqInfoElementsLength)));
     }
     else
@@ -2186,7 +2186,7 @@ void* CsrWifiSmeAssociationCompleteIndDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionInfo.assocRspInfoElementsLength, buffer, &offset);
     if (primitive->connectionInfo.assocRspInfoElementsLength)
     {
-        primitive->connectionInfo.assocRspInfoElements = (u8 *)CsrPmemAlloc(primitive->connectionInfo.assocRspInfoElementsLength);
+        primitive->connectionInfo.assocRspInfoElements = kmalloc(primitive->connectionInfo.assocRspInfoElementsLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionInfo.assocRspInfoElements, buffer, &offset, ((u16) (primitive->connectionInfo.assocRspInfoElementsLength)));
     }
     else
@@ -2240,7 +2240,7 @@ u8* CsrWifiSmeAssociationStartIndSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeAssociationStartIndDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeAssociationStartInd *primitive = (CsrWifiSmeAssociationStartInd *) CsrPmemAlloc(sizeof(CsrWifiSmeAssociationStartInd));
+    CsrWifiSmeAssociationStartInd *primitive = kmalloc(sizeof(CsrWifiSmeAssociationStartInd), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -2297,7 +2297,7 @@ u8* CsrWifiSmeBlacklistCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeBlacklistCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeBlacklistCfm *primitive = (CsrWifiSmeBlacklistCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeBlacklistCfm));
+    CsrWifiSmeBlacklistCfm *primitive = kmalloc(sizeof(CsrWifiSmeBlacklistCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -2309,7 +2309,7 @@ void* CsrWifiSmeBlacklistCfmDes(u8 *buffer, size_t length)
     primitive->getAddresses = NULL;
     if (primitive->getAddressCount)
     {
-        primitive->getAddresses = (CsrWifiMacAddress *)CsrPmemAlloc(sizeof(CsrWifiMacAddress) * primitive->getAddressCount);
+        primitive->getAddresses = kmalloc(sizeof(CsrWifiMacAddress) * primitive->getAddressCount, GFP_KERNEL);
     }
     {
         u16 i1;
@@ -2361,7 +2361,7 @@ u8* CsrWifiSmeCalibrationDataGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeCalibrationDataGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeCalibrationDataGetCfm *primitive = (CsrWifiSmeCalibrationDataGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeCalibrationDataGetCfm));
+    CsrWifiSmeCalibrationDataGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeCalibrationDataGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -2370,7 +2370,7 @@ void* CsrWifiSmeCalibrationDataGetCfmDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->calibrationDataLength, buffer, &offset);
     if (primitive->calibrationDataLength)
     {
-        primitive->calibrationData = (u8 *)CsrPmemAlloc(primitive->calibrationDataLength);
+        primitive->calibrationData = kmalloc(primitive->calibrationDataLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->calibrationData, buffer, &offset, ((u16) (primitive->calibrationDataLength)));
     }
     else
@@ -2422,7 +2422,7 @@ u8* CsrWifiSmeCcxConfigGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeCcxConfigGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeCcxConfigGetCfm *primitive = (CsrWifiSmeCcxConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeCcxConfigGetCfm));
+    CsrWifiSmeCcxConfigGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeCcxConfigGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -2462,7 +2462,7 @@ u8* CsrWifiSmeCcxConfigSetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeCcxConfigSetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeCcxConfigSetCfm *primitive = (CsrWifiSmeCcxConfigSetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeCcxConfigSetCfm));
+    CsrWifiSmeCcxConfigSetCfm *primitive = kmalloc(sizeof(CsrWifiSmeCcxConfigSetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -2524,7 +2524,7 @@ u8* CsrWifiSmeCoexConfigGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeCoexConfigGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeCoexConfigGetCfm *primitive = (CsrWifiSmeCoexConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeCoexConfigGetCfm));
+    CsrWifiSmeCoexConfigGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeCoexConfigGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -2591,7 +2591,7 @@ u8* CsrWifiSmeCoexInfoGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeCoexInfoGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeCoexInfoGetCfm *primitive = (CsrWifiSmeCoexInfoGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeCoexInfoGetCfm));
+    CsrWifiSmeCoexInfoGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeCoexInfoGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -2636,7 +2636,7 @@ u8* CsrWifiSmeConnectCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeConnectCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeConnectCfm *primitive = (CsrWifiSmeConnectCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeConnectCfm));
+    CsrWifiSmeConnectCfm *primitive = kmalloc(sizeof(CsrWifiSmeConnectCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -2702,7 +2702,7 @@ u8* CsrWifiSmeConnectionConfigGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeConnectionConfigGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeConnectionConfigGetCfm *primitive = (CsrWifiSmeConnectionConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeConnectionConfigGetCfm));
+    CsrWifiSmeConnectionConfigGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeConnectionConfigGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -2720,7 +2720,7 @@ void* CsrWifiSmeConnectionConfigGetCfmDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionConfig.mlmeAssociateReqInformationElementsLength, buffer, &offset);
     if (primitive->connectionConfig.mlmeAssociateReqInformationElementsLength)
     {
-        primitive->connectionConfig.mlmeAssociateReqInformationElements = (u8 *)CsrPmemAlloc(primitive->connectionConfig.mlmeAssociateReqInformationElementsLength);
+        primitive->connectionConfig.mlmeAssociateReqInformationElements = kmalloc(primitive->connectionConfig.mlmeAssociateReqInformationElementsLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionConfig.mlmeAssociateReqInformationElements, buffer, &offset, ((u16) (primitive->connectionConfig.mlmeAssociateReqInformationElementsLength)));
     }
     else
@@ -2848,7 +2848,7 @@ u8* CsrWifiSmeConnectionInfoGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeConnectionInfoGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeConnectionInfoGetCfm *primitive = (CsrWifiSmeConnectionInfoGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeConnectionInfoGetCfm));
+    CsrWifiSmeConnectionInfoGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeConnectionInfoGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -2871,7 +2871,7 @@ void* CsrWifiSmeConnectionInfoGetCfmDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionInfo.beaconFrameLength, buffer, &offset);
     if (primitive->connectionInfo.beaconFrameLength)
     {
-        primitive->connectionInfo.beaconFrame = (u8 *)CsrPmemAlloc(primitive->connectionInfo.beaconFrameLength);
+        primitive->connectionInfo.beaconFrame = kmalloc(primitive->connectionInfo.beaconFrameLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionInfo.beaconFrame, buffer, &offset, ((u16) (primitive->connectionInfo.beaconFrameLength)));
     }
     else
@@ -2881,7 +2881,7 @@ void* CsrWifiSmeConnectionInfoGetCfmDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionInfo.associationReqFrameLength, buffer, &offset);
     if (primitive->connectionInfo.associationReqFrameLength)
     {
-        primitive->connectionInfo.associationReqFrame = (u8 *)CsrPmemAlloc(primitive->connectionInfo.associationReqFrameLength);
+        primitive->connectionInfo.associationReqFrame = kmalloc(primitive->connectionInfo.associationReqFrameLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionInfo.associationReqFrame, buffer, &offset, ((u16) (primitive->connectionInfo.associationReqFrameLength)));
     }
     else
@@ -2891,7 +2891,7 @@ void* CsrWifiSmeConnectionInfoGetCfmDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionInfo.associationRspFrameLength, buffer, &offset);
     if (primitive->connectionInfo.associationRspFrameLength)
     {
-        primitive->connectionInfo.associationRspFrame = (u8 *)CsrPmemAlloc(primitive->connectionInfo.associationRspFrameLength);
+        primitive->connectionInfo.associationRspFrame = kmalloc(primitive->connectionInfo.associationRspFrameLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionInfo.associationRspFrame, buffer, &offset, ((u16) (primitive->connectionInfo.associationRspFrameLength)));
     }
     else
@@ -2901,7 +2901,7 @@ void* CsrWifiSmeConnectionInfoGetCfmDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionInfo.assocScanInfoElementsLength, buffer, &offset);
     if (primitive->connectionInfo.assocScanInfoElementsLength)
     {
-        primitive->connectionInfo.assocScanInfoElements = (u8 *)CsrPmemAlloc(primitive->connectionInfo.assocScanInfoElementsLength);
+        primitive->connectionInfo.assocScanInfoElements = kmalloc(primitive->connectionInfo.assocScanInfoElementsLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionInfo.assocScanInfoElements, buffer, &offset, ((u16) (primitive->connectionInfo.assocScanInfoElementsLength)));
     }
     else
@@ -2914,7 +2914,7 @@ void* CsrWifiSmeConnectionInfoGetCfmDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionInfo.assocReqInfoElementsLength, buffer, &offset);
     if (primitive->connectionInfo.assocReqInfoElementsLength)
     {
-        primitive->connectionInfo.assocReqInfoElements = (u8 *)CsrPmemAlloc(primitive->connectionInfo.assocReqInfoElementsLength);
+        primitive->connectionInfo.assocReqInfoElements = kmalloc(primitive->connectionInfo.assocReqInfoElementsLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionInfo.assocReqInfoElements, buffer, &offset, ((u16) (primitive->connectionInfo.assocReqInfoElementsLength)));
     }
     else
@@ -2927,7 +2927,7 @@ void* CsrWifiSmeConnectionInfoGetCfmDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionInfo.assocRspInfoElementsLength, buffer, &offset);
     if (primitive->connectionInfo.assocRspInfoElementsLength)
     {
-        primitive->connectionInfo.assocRspInfoElements = (u8 *)CsrPmemAlloc(primitive->connectionInfo.assocRspInfoElementsLength);
+        primitive->connectionInfo.assocRspInfoElements = kmalloc(primitive->connectionInfo.assocRspInfoElementsLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionInfo.assocRspInfoElements, buffer, &offset, ((u16) (primitive->connectionInfo.assocRspInfoElementsLength)));
     }
     else
@@ -2978,7 +2978,7 @@ u8* CsrWifiSmeConnectionQualityIndSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeConnectionQualityIndDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeConnectionQualityInd *primitive = (CsrWifiSmeConnectionQualityInd *) CsrPmemAlloc(sizeof(CsrWifiSmeConnectionQualityInd));
+    CsrWifiSmeConnectionQualityInd *primitive = kmalloc(sizeof(CsrWifiSmeConnectionQualityInd), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -3065,7 +3065,7 @@ u8* CsrWifiSmeConnectionStatsGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeConnectionStatsGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeConnectionStatsGetCfm *primitive = (CsrWifiSmeConnectionStatsGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeConnectionStatsGetCfm));
+    CsrWifiSmeConnectionStatsGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeConnectionStatsGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -3126,7 +3126,7 @@ u8* CsrWifiSmeDisconnectCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeDisconnectCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeDisconnectCfm *primitive = (CsrWifiSmeDisconnectCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeDisconnectCfm));
+    CsrWifiSmeDisconnectCfm *primitive = kmalloc(sizeof(CsrWifiSmeDisconnectCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -3166,7 +3166,7 @@ u8* CsrWifiSmeHostConfigGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeHostConfigGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeHostConfigGetCfm *primitive = (CsrWifiSmeHostConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeHostConfigGetCfm));
+    CsrWifiSmeHostConfigGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeHostConfigGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -3204,7 +3204,7 @@ u8* CsrWifiSmeHostConfigSetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeHostConfigSetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeHostConfigSetCfm *primitive = (CsrWifiSmeHostConfigSetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeHostConfigSetCfm));
+    CsrWifiSmeHostConfigSetCfm *primitive = kmalloc(sizeof(CsrWifiSmeHostConfigSetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -3240,7 +3240,7 @@ u8* CsrWifiSmeIbssStationIndSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeIbssStationIndDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeIbssStationInd *primitive = (CsrWifiSmeIbssStationInd *) CsrPmemAlloc(sizeof(CsrWifiSmeIbssStationInd));
+    CsrWifiSmeIbssStationInd *primitive = kmalloc(sizeof(CsrWifiSmeIbssStationInd), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -3282,7 +3282,7 @@ u8* CsrWifiSmeKeyCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeKeyCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeKeyCfm *primitive = (CsrWifiSmeKeyCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeKeyCfm));
+    CsrWifiSmeKeyCfm *primitive = kmalloc(sizeof(CsrWifiSmeKeyCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -3325,7 +3325,7 @@ u8* CsrWifiSmeLinkQualityGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeLinkQualityGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeLinkQualityGetCfm *primitive = (CsrWifiSmeLinkQualityGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeLinkQualityGetCfm));
+    CsrWifiSmeLinkQualityGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeLinkQualityGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -3448,7 +3448,7 @@ u8* CsrWifiSmeMediaStatusIndSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeMediaStatusIndDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeMediaStatusInd *primitive = (CsrWifiSmeMediaStatusInd *) CsrPmemAlloc(sizeof(CsrWifiSmeMediaStatusInd));
+    CsrWifiSmeMediaStatusInd *primitive = kmalloc(sizeof(CsrWifiSmeMediaStatusInd), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -3471,7 +3471,7 @@ void* CsrWifiSmeMediaStatusIndDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionInfo.beaconFrameLength, buffer, &offset);
     if (primitive->connectionInfo.beaconFrameLength)
     {
-        primitive->connectionInfo.beaconFrame = (u8 *)CsrPmemAlloc(primitive->connectionInfo.beaconFrameLength);
+        primitive->connectionInfo.beaconFrame = kmalloc(primitive->connectionInfo.beaconFrameLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionInfo.beaconFrame, buffer, &offset, ((u16) (primitive->connectionInfo.beaconFrameLength)));
     }
     else
@@ -3481,7 +3481,7 @@ void* CsrWifiSmeMediaStatusIndDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionInfo.associationReqFrameLength, buffer, &offset);
     if (primitive->connectionInfo.associationReqFrameLength)
     {
-        primitive->connectionInfo.associationReqFrame = (u8 *)CsrPmemAlloc(primitive->connectionInfo.associationReqFrameLength);
+        primitive->connectionInfo.associationReqFrame = kmalloc(primitive->connectionInfo.associationReqFrameLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionInfo.associationReqFrame, buffer, &offset, ((u16) (primitive->connectionInfo.associationReqFrameLength)));
     }
     else
@@ -3491,7 +3491,7 @@ void* CsrWifiSmeMediaStatusIndDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionInfo.associationRspFrameLength, buffer, &offset);
     if (primitive->connectionInfo.associationRspFrameLength)
     {
-        primitive->connectionInfo.associationRspFrame = (u8 *)CsrPmemAlloc(primitive->connectionInfo.associationRspFrameLength);
+        primitive->connectionInfo.associationRspFrame = kmalloc(primitive->connectionInfo.associationRspFrameLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionInfo.associationRspFrame, buffer, &offset, ((u16) (primitive->connectionInfo.associationRspFrameLength)));
     }
     else
@@ -3501,7 +3501,7 @@ void* CsrWifiSmeMediaStatusIndDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionInfo.assocScanInfoElementsLength, buffer, &offset);
     if (primitive->connectionInfo.assocScanInfoElementsLength)
     {
-        primitive->connectionInfo.assocScanInfoElements = (u8 *)CsrPmemAlloc(primitive->connectionInfo.assocScanInfoElementsLength);
+        primitive->connectionInfo.assocScanInfoElements = kmalloc(primitive->connectionInfo.assocScanInfoElementsLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionInfo.assocScanInfoElements, buffer, &offset, ((u16) (primitive->connectionInfo.assocScanInfoElementsLength)));
     }
     else
@@ -3514,7 +3514,7 @@ void* CsrWifiSmeMediaStatusIndDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionInfo.assocReqInfoElementsLength, buffer, &offset);
     if (primitive->connectionInfo.assocReqInfoElementsLength)
     {
-        primitive->connectionInfo.assocReqInfoElements = (u8 *)CsrPmemAlloc(primitive->connectionInfo.assocReqInfoElementsLength);
+        primitive->connectionInfo.assocReqInfoElements = kmalloc(primitive->connectionInfo.assocReqInfoElementsLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionInfo.assocReqInfoElements, buffer, &offset, ((u16) (primitive->connectionInfo.assocReqInfoElementsLength)));
     }
     else
@@ -3527,7 +3527,7 @@ void* CsrWifiSmeMediaStatusIndDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->connectionInfo.assocRspInfoElementsLength, buffer, &offset);
     if (primitive->connectionInfo.assocRspInfoElementsLength)
     {
-        primitive->connectionInfo.assocRspInfoElements = (u8 *)CsrPmemAlloc(primitive->connectionInfo.assocRspInfoElementsLength);
+        primitive->connectionInfo.assocRspInfoElements = kmalloc(primitive->connectionInfo.assocRspInfoElementsLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->connectionInfo.assocRspInfoElements, buffer, &offset, ((u16) (primitive->connectionInfo.assocRspInfoElementsLength)));
     }
     else
@@ -3586,7 +3586,7 @@ u8* CsrWifiSmeMibConfigGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeMibConfigGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeMibConfigGetCfm *primitive = (CsrWifiSmeMibConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeMibConfigGetCfm));
+    CsrWifiSmeMibConfigGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeMibConfigGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -3632,7 +3632,7 @@ u8* CsrWifiSmeMibGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeMibGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeMibGetCfm *primitive = (CsrWifiSmeMibGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeMibGetCfm));
+    CsrWifiSmeMibGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeMibGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -3641,7 +3641,7 @@ void* CsrWifiSmeMibGetCfmDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->mibAttributeLength, buffer, &offset);
     if (primitive->mibAttributeLength)
     {
-        primitive->mibAttribute = (u8 *)CsrPmemAlloc(primitive->mibAttributeLength);
+        primitive->mibAttribute = kmalloc(primitive->mibAttributeLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->mibAttribute, buffer, &offset, ((u16) (primitive->mibAttributeLength)));
     }
     else
@@ -3691,7 +3691,7 @@ u8* CsrWifiSmeMibGetNextCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeMibGetNextCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeMibGetNextCfm *primitive = (CsrWifiSmeMibGetNextCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeMibGetNextCfm));
+    CsrWifiSmeMibGetNextCfm *primitive = kmalloc(sizeof(CsrWifiSmeMibGetNextCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -3700,7 +3700,7 @@ void* CsrWifiSmeMibGetNextCfmDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->mibAttributeLength, buffer, &offset);
     if (primitive->mibAttributeLength)
     {
-        primitive->mibAttribute = (u8 *)CsrPmemAlloc(primitive->mibAttributeLength);
+        primitive->mibAttribute = kmalloc(primitive->mibAttributeLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->mibAttribute, buffer, &offset, ((u16) (primitive->mibAttributeLength)));
     }
     else
@@ -3750,7 +3750,7 @@ u8* CsrWifiSmeMicFailureIndSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeMicFailureIndDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeMicFailureInd *primitive = (CsrWifiSmeMicFailureInd *) CsrPmemAlloc(sizeof(CsrWifiSmeMicFailureInd));
+    CsrWifiSmeMicFailureInd *primitive = kmalloc(sizeof(CsrWifiSmeMicFailureInd), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -3808,7 +3808,7 @@ u8* CsrWifiSmeMulticastAddressCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeMulticastAddressCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeMulticastAddressCfm *primitive = (CsrWifiSmeMulticastAddressCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeMulticastAddressCfm));
+    CsrWifiSmeMulticastAddressCfm *primitive = kmalloc(sizeof(CsrWifiSmeMulticastAddressCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -3820,7 +3820,7 @@ void* CsrWifiSmeMulticastAddressCfmDes(u8 *buffer, size_t length)
     primitive->getAddresses = NULL;
     if (primitive->getAddressesCount)
     {
-        primitive->getAddresses = (CsrWifiMacAddress *)CsrPmemAlloc(sizeof(CsrWifiMacAddress) * primitive->getAddressesCount);
+        primitive->getAddresses = kmalloc(sizeof(CsrWifiMacAddress) * primitive->getAddressesCount, GFP_KERNEL);
     }
     {
         u16 i1;
@@ -3866,7 +3866,7 @@ u8* CsrWifiSmePacketFilterSetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmePacketFilterSetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmePacketFilterSetCfm *primitive = (CsrWifiSmePacketFilterSetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmePacketFilterSetCfm));
+    CsrWifiSmePacketFilterSetCfm *primitive = kmalloc(sizeof(CsrWifiSmePacketFilterSetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -3902,7 +3902,7 @@ u8* CsrWifiSmePermanentMacAddressGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmePermanentMacAddressGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmePermanentMacAddressGetCfm *primitive = (CsrWifiSmePermanentMacAddressGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmePermanentMacAddressGetCfm));
+    CsrWifiSmePermanentMacAddressGetCfm *primitive = kmalloc(sizeof(CsrWifiSmePermanentMacAddressGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -3955,7 +3955,7 @@ u8* CsrWifiSmePmkidCandidateListIndSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmePmkidCandidateListIndDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmePmkidCandidateListInd *primitive = (CsrWifiSmePmkidCandidateListInd *) CsrPmemAlloc(sizeof(CsrWifiSmePmkidCandidateListInd));
+    CsrWifiSmePmkidCandidateListInd *primitive = kmalloc(sizeof(CsrWifiSmePmkidCandidateListInd), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -3965,7 +3965,7 @@ void* CsrWifiSmePmkidCandidateListIndDes(u8 *buffer, size_t length)
     primitive->pmkidCandidates = NULL;
     if (primitive->pmkidCandidatesCount)
     {
-        primitive->pmkidCandidates = (CsrWifiSmePmkidCandidate *)CsrPmemAlloc(sizeof(CsrWifiSmePmkidCandidate) * primitive->pmkidCandidatesCount);
+        primitive->pmkidCandidates = kmalloc(sizeof(CsrWifiSmePmkidCandidate) * primitive->pmkidCandidatesCount, GFP_KERNEL);
     }
     {
         u16 i1;
@@ -4033,7 +4033,7 @@ u8* CsrWifiSmePmkidCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmePmkidCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmePmkidCfm *primitive = (CsrWifiSmePmkidCfm *) CsrPmemAlloc(sizeof(CsrWifiSmePmkidCfm));
+    CsrWifiSmePmkidCfm *primitive = kmalloc(sizeof(CsrWifiSmePmkidCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -4045,7 +4045,7 @@ void* CsrWifiSmePmkidCfmDes(u8 *buffer, size_t length)
     primitive->getPmkids = NULL;
     if (primitive->getPmkidsCount)
     {
-        primitive->getPmkids = (CsrWifiSmePmkid *)CsrPmemAlloc(sizeof(CsrWifiSmePmkid) * primitive->getPmkidsCount);
+        primitive->getPmkids = kmalloc(sizeof(CsrWifiSmePmkid) * primitive->getPmkidsCount, GFP_KERNEL);
     }
     {
         u16 i1;
@@ -4104,7 +4104,7 @@ u8* CsrWifiSmePowerConfigGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmePowerConfigGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmePowerConfigGetCfm *primitive = (CsrWifiSmePowerConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmePowerConfigGetCfm));
+    CsrWifiSmePowerConfigGetCfm *primitive = kmalloc(sizeof(CsrWifiSmePowerConfigGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -4152,7 +4152,7 @@ u8* CsrWifiSmeRegulatoryDomainInfoGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeRegulatoryDomainInfoGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeRegulatoryDomainInfoGetCfm *primitive = (CsrWifiSmeRegulatoryDomainInfoGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeRegulatoryDomainInfoGetCfm));
+    CsrWifiSmeRegulatoryDomainInfoGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeRegulatoryDomainInfoGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -4191,7 +4191,7 @@ u8* CsrWifiSmeRoamCompleteIndSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeRoamCompleteIndDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeRoamCompleteInd *primitive = (CsrWifiSmeRoamCompleteInd *) CsrPmemAlloc(sizeof(CsrWifiSmeRoamCompleteInd));
+    CsrWifiSmeRoamCompleteInd *primitive = kmalloc(sizeof(CsrWifiSmeRoamCompleteInd), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -4229,7 +4229,7 @@ u8* CsrWifiSmeRoamStartIndSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeRoamStartIndDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeRoamStartInd *primitive = (CsrWifiSmeRoamStartInd *) CsrPmemAlloc(sizeof(CsrWifiSmeRoamStartInd));
+    CsrWifiSmeRoamStartInd *primitive = kmalloc(sizeof(CsrWifiSmeRoamStartInd), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -4318,7 +4318,7 @@ u8* CsrWifiSmeRoamingConfigGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeRoamingConfigGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeRoamingConfigGetCfm *primitive = (CsrWifiSmeRoamingConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeRoamingConfigGetCfm));
+    CsrWifiSmeRoamingConfigGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeRoamingConfigGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -4380,7 +4380,7 @@ u8* CsrWifiSmeRoamingConfigSetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeRoamingConfigSetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeRoamingConfigSetCfm *primitive = (CsrWifiSmeRoamingConfigSetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeRoamingConfigSetCfm));
+    CsrWifiSmeRoamingConfigSetCfm *primitive = kmalloc(sizeof(CsrWifiSmeRoamingConfigSetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -4462,7 +4462,7 @@ u8* CsrWifiSmeScanConfigGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeScanConfigGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeScanConfigGetCfm *primitive = (CsrWifiSmeScanConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeScanConfigGetCfm));
+    CsrWifiSmeScanConfigGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeScanConfigGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -4491,7 +4491,7 @@ void* CsrWifiSmeScanConfigGetCfmDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->scanConfig.passiveChannelListCount, buffer, &offset);
     if (primitive->scanConfig.passiveChannelListCount)
     {
-        primitive->scanConfig.passiveChannelList = (u8 *)CsrPmemAlloc(primitive->scanConfig.passiveChannelListCount);
+        primitive->scanConfig.passiveChannelList = kmalloc(primitive->scanConfig.passiveChannelListCount, GFP_KERNEL);
         CsrMemCpyDes(primitive->scanConfig.passiveChannelList, buffer, &offset, ((u16) (primitive->scanConfig.passiveChannelListCount)));
     }
     else
@@ -4675,7 +4675,7 @@ u8* CsrWifiSmeScanResultIndSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeScanResultIndDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeScanResultInd *primitive = (CsrWifiSmeScanResultInd *) CsrPmemAlloc(sizeof(CsrWifiSmeScanResultInd));
+    CsrWifiSmeScanResultInd *primitive = kmalloc(sizeof(CsrWifiSmeScanResultInd), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -4697,7 +4697,7 @@ void* CsrWifiSmeScanResultIndDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->result.informationElementsLength, buffer, &offset);
     if (primitive->result.informationElementsLength)
     {
-        primitive->result.informationElements = (u8 *)CsrPmemAlloc(primitive->result.informationElementsLength);
+        primitive->result.informationElements = kmalloc(primitive->result.informationElementsLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->result.informationElements, buffer, &offset, ((u16) (primitive->result.informationElementsLength)));
     }
     else
@@ -4717,7 +4717,7 @@ void* CsrWifiSmeScanResultIndDes(u8 *buffer, size_t length)
             primitive->result.deviceInfo.groupInfo.p2PClientInfo = NULL;
             if (primitive->result.deviceInfo.groupInfo.p2pClientInfoCount)
             {
-                primitive->result.deviceInfo.groupInfo.p2PClientInfo = (CsrWifiSmeP2pClientInfoType *)CsrPmemAlloc(sizeof(CsrWifiSmeP2pClientInfoType) * primitive->result.deviceInfo.groupInfo.p2pClientInfoCount);
+                primitive->result.deviceInfo.groupInfo.p2PClientInfo = kmalloc(sizeof(CsrWifiSmeP2pClientInfoType) * primitive->result.deviceInfo.groupInfo.p2pClientInfoCount, GFP_KERNEL);
             }
             {
                 u16 i4;
@@ -4732,7 +4732,7 @@ void* CsrWifiSmeScanResultIndDes(u8 *buffer, size_t length)
                     primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secDeviceType = NULL;
                     if (primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount)
                     {
-                        primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secDeviceType = (CsrWifiSmeWpsDeviceType *)CsrPmemAlloc(sizeof(CsrWifiSmeWpsDeviceType) * primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount);
+                        primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secDeviceType = kmalloc(sizeof(CsrWifiSmeWpsDeviceType) * primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount, GFP_KERNEL);
                     }
                     {
                         u16 i6;
@@ -4758,7 +4758,7 @@ void* CsrWifiSmeScanResultIndDes(u8 *buffer, size_t length)
             primitive->result.deviceInfo.standalonedevInfo.secDeviceType = NULL;
             if (primitive->result.deviceInfo.standalonedevInfo.secondaryDeviceTypeCount)
             {
-                primitive->result.deviceInfo.standalonedevInfo.secDeviceType = (CsrWifiSmeWpsDeviceType *)CsrPmemAlloc(sizeof(CsrWifiSmeWpsDeviceType) * primitive->result.deviceInfo.standalonedevInfo.secondaryDeviceTypeCount);
+                primitive->result.deviceInfo.standalonedevInfo.secDeviceType = kmalloc(sizeof(CsrWifiSmeWpsDeviceType) * primitive->result.deviceInfo.standalonedevInfo.secondaryDeviceTypeCount, GFP_KERNEL);
             }
             {
                 u16 i4;
@@ -4984,7 +4984,7 @@ u8* CsrWifiSmeScanResultsGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeScanResultsGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeScanResultsGetCfm *primitive = (CsrWifiSmeScanResultsGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeScanResultsGetCfm));
+    CsrWifiSmeScanResultsGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeScanResultsGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -4994,7 +4994,7 @@ void* CsrWifiSmeScanResultsGetCfmDes(u8 *buffer, size_t length)
     primitive->scanResults = NULL;
     if (primitive->scanResultsCount)
     {
-        primitive->scanResults = (CsrWifiSmeScanResult *)CsrPmemAlloc(sizeof(CsrWifiSmeScanResult) * primitive->scanResultsCount);
+        primitive->scanResults = kmalloc(sizeof(CsrWifiSmeScanResult) * primitive->scanResultsCount, GFP_KERNEL);
     }
     {
         u16 i1;
@@ -5017,7 +5017,7 @@ void* CsrWifiSmeScanResultsGetCfmDes(u8 *buffer, size_t length)
             CsrUint16Des((u16 *) &primitive->scanResults[i1].informationElementsLength, buffer, &offset);
             if (primitive->scanResults[i1].informationElementsLength)
             {
-                primitive->scanResults[i1].informationElements = (u8 *)CsrPmemAlloc(primitive->scanResults[i1].informationElementsLength);
+                primitive->scanResults[i1].informationElements = kmalloc(primitive->scanResults[i1].informationElementsLength, GFP_KERNEL);
                 CsrMemCpyDes(primitive->scanResults[i1].informationElements, buffer, &offset, ((u16) (primitive->scanResults[i1].informationElementsLength)));
             }
             else
@@ -5037,7 +5037,7 @@ void* CsrWifiSmeScanResultsGetCfmDes(u8 *buffer, size_t length)
                     primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo = NULL;
                     if (primitive->scanResults[i1].deviceInfo.groupInfo.p2pClientInfoCount)
                     {
-                        primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo = (CsrWifiSmeP2pClientInfoType *)CsrPmemAlloc(sizeof(CsrWifiSmeP2pClientInfoType) * primitive->scanResults[i1].deviceInfo.groupInfo.p2pClientInfoCount);
+                        primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo = kmalloc(sizeof(CsrWifiSmeP2pClientInfoType) * primitive->scanResults[i1].deviceInfo.groupInfo.p2pClientInfoCount, GFP_KERNEL);
                     }
                     {
                         u16 i4;
@@ -5052,7 +5052,7 @@ void* CsrWifiSmeScanResultsGetCfmDes(u8 *buffer, size_t length)
                             primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secDeviceType = NULL;
                             if (primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount)
                             {
-                                primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secDeviceType = (CsrWifiSmeWpsDeviceType *)CsrPmemAlloc(sizeof(CsrWifiSmeWpsDeviceType) * primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount);
+                                primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secDeviceType = kmalloc(sizeof(CsrWifiSmeWpsDeviceType) * primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount, GFP_KERNEL);
                             }
                             {
                                 u16 i6;
@@ -5078,7 +5078,7 @@ void* CsrWifiSmeScanResultsGetCfmDes(u8 *buffer, size_t length)
                     primitive->scanResults[i1].deviceInfo.standalonedevInfo.secDeviceType = NULL;
                     if (primitive->scanResults[i1].deviceInfo.standalonedevInfo.secondaryDeviceTypeCount)
                     {
-                        primitive->scanResults[i1].deviceInfo.standalonedevInfo.secDeviceType = (CsrWifiSmeWpsDeviceType *)CsrPmemAlloc(sizeof(CsrWifiSmeWpsDeviceType) * primitive->scanResults[i1].deviceInfo.standalonedevInfo.secondaryDeviceTypeCount);
+                        primitive->scanResults[i1].deviceInfo.standalonedevInfo.secDeviceType = kmalloc(sizeof(CsrWifiSmeWpsDeviceType) * primitive->scanResults[i1].deviceInfo.standalonedevInfo.secondaryDeviceTypeCount, GFP_KERNEL);
                     }
                     {
                         u16 i4;
@@ -5169,7 +5169,7 @@ u8* CsrWifiSmeSmeStaConfigGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeSmeStaConfigGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeSmeStaConfigGetCfm *primitive = (CsrWifiSmeSmeStaConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeSmeStaConfigGetCfm));
+    CsrWifiSmeSmeStaConfigGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeSmeStaConfigGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -5211,7 +5211,7 @@ u8* CsrWifiSmeSmeStaConfigSetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeSmeStaConfigSetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeSmeStaConfigSetCfm *primitive = (CsrWifiSmeSmeStaConfigSetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeSmeStaConfigSetCfm));
+    CsrWifiSmeSmeStaConfigSetCfm *primitive = kmalloc(sizeof(CsrWifiSmeSmeStaConfigSetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -5259,7 +5259,7 @@ u8* CsrWifiSmeStationMacAddressGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeStationMacAddressGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeStationMacAddressGetCfm *primitive = (CsrWifiSmeStationMacAddressGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeStationMacAddressGetCfm));
+    CsrWifiSmeStationMacAddressGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeStationMacAddressGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -5311,7 +5311,7 @@ u8* CsrWifiSmeTspecIndSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeTspecIndDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeTspecInd *primitive = (CsrWifiSmeTspecInd *) CsrPmemAlloc(sizeof(CsrWifiSmeTspecInd));
+    CsrWifiSmeTspecInd *primitive = kmalloc(sizeof(CsrWifiSmeTspecInd), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -5322,7 +5322,7 @@ void* CsrWifiSmeTspecIndDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->tspecLength, buffer, &offset);
     if (primitive->tspecLength)
     {
-        primitive->tspec = (u8 *)CsrPmemAlloc(primitive->tspecLength);
+        primitive->tspec = kmalloc(primitive->tspecLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->tspec, buffer, &offset, ((u16) (primitive->tspecLength)));
     }
     else
@@ -5378,7 +5378,7 @@ u8* CsrWifiSmeTspecCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeTspecCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeTspecCfm *primitive = (CsrWifiSmeTspecCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeTspecCfm));
+    CsrWifiSmeTspecCfm *primitive = kmalloc(sizeof(CsrWifiSmeTspecCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -5390,7 +5390,7 @@ void* CsrWifiSmeTspecCfmDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->tspecLength, buffer, &offset);
     if (primitive->tspecLength)
     {
-        primitive->tspec = (u8 *)CsrPmemAlloc(primitive->tspecLength);
+        primitive->tspec = kmalloc(primitive->tspecLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->tspec, buffer, &offset, ((u16) (primitive->tspecLength)));
     }
     else
@@ -5451,7 +5451,7 @@ u8* CsrWifiSmeVersionsGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeVersionsGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeVersionsGetCfm *primitive = (CsrWifiSmeVersionsGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeVersionsGetCfm));
+    CsrWifiSmeVersionsGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeVersionsGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -5521,7 +5521,7 @@ u8* CsrWifiSmeCloakedSsidsGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeCloakedSsidsGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeCloakedSsidsGetCfm *primitive = (CsrWifiSmeCloakedSsidsGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeCloakedSsidsGetCfm));
+    CsrWifiSmeCloakedSsidsGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeCloakedSsidsGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -5531,7 +5531,7 @@ void* CsrWifiSmeCloakedSsidsGetCfmDes(u8 *buffer, size_t length)
     primitive->cloakedSsids.cloakedSsids = NULL;
     if (primitive->cloakedSsids.cloakedSsidsCount)
     {
-        primitive->cloakedSsids.cloakedSsids = (CsrWifiSsid *)CsrPmemAlloc(sizeof(CsrWifiSsid) * primitive->cloakedSsids.cloakedSsidsCount);
+        primitive->cloakedSsids.cloakedSsids = kmalloc(sizeof(CsrWifiSsid) * primitive->cloakedSsids.cloakedSsidsCount, GFP_KERNEL);
     }
     {
         u16 i2;
@@ -5576,7 +5576,7 @@ u8* CsrWifiSmeWifiOnIndSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeWifiOnIndDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeWifiOnInd *primitive = (CsrWifiSmeWifiOnInd *) CsrPmemAlloc(sizeof(CsrWifiSmeWifiOnInd));
+    CsrWifiSmeWifiOnInd *primitive = kmalloc(sizeof(CsrWifiSmeWifiOnInd), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -5617,7 +5617,7 @@ u8* CsrWifiSmeSmeCommonConfigGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeSmeCommonConfigGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeSmeCommonConfigGetCfm *primitive = (CsrWifiSmeSmeCommonConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeSmeCommonConfigGetCfm));
+    CsrWifiSmeSmeCommonConfigGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeSmeCommonConfigGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -5658,7 +5658,7 @@ u8* CsrWifiSmeInterfaceCapabilityGetCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeInterfaceCapabilityGetCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeInterfaceCapabilityGetCfm *primitive = (CsrWifiSmeInterfaceCapabilityGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeInterfaceCapabilityGetCfm));
+    CsrWifiSmeInterfaceCapabilityGetCfm *primitive = kmalloc(sizeof(CsrWifiSmeInterfaceCapabilityGetCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -5694,7 +5694,7 @@ u8* CsrWifiSmeErrorIndSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeErrorIndDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeErrorInd *primitive = (CsrWifiSmeErrorInd *) CsrPmemAlloc(sizeof(CsrWifiSmeErrorInd));
+    CsrWifiSmeErrorInd *primitive = kmalloc(sizeof(CsrWifiSmeErrorInd), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -5736,7 +5736,7 @@ u8* CsrWifiSmeInfoIndSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeInfoIndDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeInfoInd *primitive = (CsrWifiSmeInfoInd *) CsrPmemAlloc(sizeof(CsrWifiSmeInfoInd));
+    CsrWifiSmeInfoInd *primitive = kmalloc(sizeof(CsrWifiSmeInfoInd), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -5783,7 +5783,7 @@ u8* CsrWifiSmeCoreDumpIndSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiSmeCoreDumpIndDes(u8 *buffer, size_t length)
 {
-    CsrWifiSmeCoreDumpInd *primitive = (CsrWifiSmeCoreDumpInd *) CsrPmemAlloc(sizeof(CsrWifiSmeCoreDumpInd));
+    CsrWifiSmeCoreDumpInd *primitive = kmalloc(sizeof(CsrWifiSmeCoreDumpInd), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -5791,7 +5791,7 @@ void* CsrWifiSmeCoreDumpIndDes(u8 *buffer, size_t length)
     CsrUint32Des((u32 *) &primitive->dataLength, buffer, &offset);
     if (primitive->dataLength)
     {
-        primitive->data = (u8 *)CsrPmemAlloc(primitive->dataLength);
+        primitive->data = kmalloc(primitive->dataLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->data, buffer, &offset, ((u16) (primitive->dataLength)));
     }
     else

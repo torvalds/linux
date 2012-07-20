@@ -233,7 +233,7 @@ void CsrMsgConvInsert(u16 primType, const CsrMsgConvMsgEntry *ce)
     }
     else
     {
-        pc = CsrPmemAlloc(sizeof(*pc));
+        pc = kmalloc(sizeof(*pc), GFP_KERNEL);
         pc->primType = primType;
         pc->conv = ce;
         pc->lookupFunc = NULL;
@@ -279,7 +279,7 @@ CsrMsgConvEntry *CsrMsgConvInit(void)
 {
     if (!converter)
     {
-        converter = (CsrMsgConvEntry *) CsrPmemAlloc(sizeof(CsrMsgConvEntry));
+        converter = kmalloc(sizeof(CsrMsgConvEntry), GFP_KERNEL);
 
         converter->profile_converters = NULL;
         converter->free_message = free_message;

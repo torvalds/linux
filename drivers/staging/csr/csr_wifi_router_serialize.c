@@ -52,7 +52,7 @@ u8* CsrWifiRouterMaPacketSubscribeReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiRouterMaPacketSubscribeReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiRouterMaPacketSubscribeReq *primitive = (CsrWifiRouterMaPacketSubscribeReq *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketSubscribeReq));
+    CsrWifiRouterMaPacketSubscribeReq *primitive = kmalloc(sizeof(CsrWifiRouterMaPacketSubscribeReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -106,7 +106,7 @@ u8* CsrWifiRouterMaPacketReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiRouterMaPacketReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiRouterMaPacketReq *primitive = (CsrWifiRouterMaPacketReq *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketReq));
+    CsrWifiRouterMaPacketReq *primitive = kmalloc(sizeof(CsrWifiRouterMaPacketReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -116,7 +116,7 @@ void* CsrWifiRouterMaPacketReqDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->frameLength, buffer, &offset);
     if (primitive->frameLength)
     {
-        primitive->frame = (u8 *)CsrPmemAlloc(primitive->frameLength);
+        primitive->frame = kmalloc(primitive->frameLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->frame, buffer, &offset, ((u16) (primitive->frameLength)));
     }
     else
@@ -167,7 +167,7 @@ u8* CsrWifiRouterMaPacketResSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiRouterMaPacketResDes(u8 *buffer, size_t length)
 {
-    CsrWifiRouterMaPacketRes *primitive = (CsrWifiRouterMaPacketRes *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketRes));
+    CsrWifiRouterMaPacketRes *primitive = kmalloc(sizeof(CsrWifiRouterMaPacketRes), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -208,7 +208,7 @@ u8* CsrWifiRouterMaPacketCancelReqSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiRouterMaPacketCancelReqDes(u8 *buffer, size_t length)
 {
-    CsrWifiRouterMaPacketCancelReq *primitive = (CsrWifiRouterMaPacketCancelReq *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketCancelReq));
+    CsrWifiRouterMaPacketCancelReq *primitive = kmalloc(sizeof(CsrWifiRouterMaPacketCancelReq), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -250,7 +250,7 @@ u8* CsrWifiRouterMaPacketSubscribeCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiRouterMaPacketSubscribeCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiRouterMaPacketSubscribeCfm *primitive = (CsrWifiRouterMaPacketSubscribeCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketSubscribeCfm));
+    CsrWifiRouterMaPacketSubscribeCfm *primitive = kmalloc(sizeof(CsrWifiRouterMaPacketSubscribeCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -288,7 +288,7 @@ u8* CsrWifiRouterMaPacketUnsubscribeCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiRouterMaPacketUnsubscribeCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiRouterMaPacketUnsubscribeCfm *primitive = (CsrWifiRouterMaPacketUnsubscribeCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketUnsubscribeCfm));
+    CsrWifiRouterMaPacketUnsubscribeCfm *primitive = kmalloc(sizeof(CsrWifiRouterMaPacketUnsubscribeCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -328,7 +328,7 @@ u8* CsrWifiRouterMaPacketCfmSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiRouterMaPacketCfmDes(u8 *buffer, size_t length)
 {
-    CsrWifiRouterMaPacketCfm *primitive = (CsrWifiRouterMaPacketCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketCfm));
+    CsrWifiRouterMaPacketCfm *primitive = kmalloc(sizeof(CsrWifiRouterMaPacketCfm), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -384,7 +384,7 @@ u8* CsrWifiRouterMaPacketIndSer(u8 *ptr, size_t *len, void *msg)
 
 void* CsrWifiRouterMaPacketIndDes(u8 *buffer, size_t length)
 {
-    CsrWifiRouterMaPacketInd *primitive = (CsrWifiRouterMaPacketInd *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketInd));
+    CsrWifiRouterMaPacketInd *primitive = kmalloc(sizeof(CsrWifiRouterMaPacketInd), GFP_KERNEL);
     size_t offset;
     offset = 0;
 
@@ -395,7 +395,7 @@ void* CsrWifiRouterMaPacketIndDes(u8 *buffer, size_t length)
     CsrUint16Des((u16 *) &primitive->frameLength, buffer, &offset);
     if (primitive->frameLength)
     {
-        primitive->frame = (u8 *)CsrPmemAlloc(primitive->frameLength);
+        primitive->frame = kmalloc(primitive->frameLength, GFP_KERNEL);
         CsrMemCpyDes(primitive->frame, buffer, &offset, ((u16) (primitive->frameLength)));
     }
     else

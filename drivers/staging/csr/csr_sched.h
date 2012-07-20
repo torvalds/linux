@@ -120,9 +120,9 @@ void CsrSchedBgintSet(CsrSchedBgint bgint);
  *      be null.
  *
  *  NOTE
- *      If "mv" is not null then it will typically be a chunk of CsrPmemAlloc()ed
+ *      If "mv" is not null then it will typically be a chunk of kmalloc()ed
  *      memory, though there is no need for it to be so. Tasks should normally
- *      obey the convention that when a message built with CsrPmemAlloc()ed memory
+ *      obey the convention that when a message built with kmalloc()ed memory
  *      is given to CsrSchedMessagePut() then ownership of the memory is ceded to the
  *      scheduler - and eventually to the recipient task. I.e., the receiver of
  *      the message will be expected to kfree() the message storage.

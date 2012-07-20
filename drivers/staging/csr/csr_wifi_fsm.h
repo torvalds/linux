@@ -160,7 +160,7 @@ extern void CsrWifiFsmSendEventExternal(CsrWifiFsmContext *context, CsrWifiFsmEv
  */
 #define CsrWifiFsmSendAlienEventExternal(_context, _alienEvent, _source, _destination, _primtype, _id) \
     { \
-        CsrWifiFsmAlienEvent *_evt = (CsrWifiFsmAlienEvent *)CsrPmemAlloc(sizeof(CsrWifiFsmAlienEvent)); \
+        CsrWifiFsmAlienEvent *_evt = kmalloc(sizeof(CsrWifiFsmAlienEvent), GFP_KERNEL); \
         _evt->alienEvent = _alienEvent; \
         CsrWifiFsmSendEventExternal(_context, (CsrWifiFsmEvent *)_evt, _source, _destination, _primtype, _id); \
     }

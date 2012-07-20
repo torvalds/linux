@@ -1483,7 +1483,7 @@ unifi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
                 break;
             }
 
-            pcli->snap_filter.protocols = CsrPmemAlloc(snap_filter.count * sizeof(u16));
+            pcli->snap_filter.protocols = kmalloc(snap_filter.count * sizeof(u16), GFP_KERNEL);
             if (!pcli->snap_filter.protocols) {
                 r = -ENOMEM;
                 goto out;

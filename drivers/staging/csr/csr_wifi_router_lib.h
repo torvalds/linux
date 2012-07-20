@@ -99,7 +99,7 @@ extern const char *CsrWifiRouterDownstreamPrimNames[CSR_WIFI_ROUTER_PRIM_DOWNSTR
 
 *******************************************************************************/
 #define CsrWifiRouterMaPacketCancelReqCreate(msg__, dst__, src__, interfaceTag__, hostTag__, priority__, peerMacAddress__) \
-    msg__ = (CsrWifiRouterMaPacketCancelReq *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketCancelReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterMaPacketCancelReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_PRIM, CSR_WIFI_ROUTER_MA_PACKET_CANCEL_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->hostTag = (hostTag__); \
@@ -149,7 +149,7 @@ extern const char *CsrWifiRouterDownstreamPrimNames[CSR_WIFI_ROUTER_PRIM_DOWNSTR
 
 *******************************************************************************/
 #define CsrWifiRouterMaPacketReqCreate(msg__, dst__, src__, interfaceTag__, subscriptionHandle__, frameLength__, frame__, freeFunction__, priority__, hostTag__, cfmRequested__) \
-    msg__ = (CsrWifiRouterMaPacketReq *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterMaPacketReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_PRIM, CSR_WIFI_ROUTER_MA_PACKET_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->subscriptionHandle = (subscriptionHandle__); \
@@ -193,7 +193,7 @@ extern const char *CsrWifiRouterDownstreamPrimNames[CSR_WIFI_ROUTER_PRIM_DOWNSTR
 
 *******************************************************************************/
 #define CsrWifiRouterMaPacketIndCreate(msg__, dst__, src__, interfaceTag__, subscriptionHandle__, result__, frameLength__, frame__, freeFunction__, rssi__, snr__, rate__) \
-    msg__ = (CsrWifiRouterMaPacketInd *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketInd)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterMaPacketInd), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_PRIM, CSR_WIFI_ROUTER_MA_PACKET_IND, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->subscriptionHandle = (subscriptionHandle__); \
@@ -231,7 +231,7 @@ extern const char *CsrWifiRouterDownstreamPrimNames[CSR_WIFI_ROUTER_PRIM_DOWNSTR
 
 *******************************************************************************/
 #define CsrWifiRouterMaPacketResCreate(msg__, dst__, src__, interfaceTag__, subscriptionHandle__, result__) \
-    msg__ = (CsrWifiRouterMaPacketRes *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketRes)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterMaPacketRes), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_PRIM, CSR_WIFI_ROUTER_MA_PACKET_RES, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->subscriptionHandle = (subscriptionHandle__); \
@@ -265,7 +265,7 @@ extern const char *CsrWifiRouterDownstreamPrimNames[CSR_WIFI_ROUTER_PRIM_DOWNSTR
 
 *******************************************************************************/
 #define CsrWifiRouterMaPacketCfmCreate(msg__, dst__, src__, interfaceTag__, result__, hostTag__, rate__) \
-    msg__ = (CsrWifiRouterMaPacketCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterMaPacketCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_PRIM, CSR_WIFI_ROUTER_MA_PACKET_CFM, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->result = (result__); \
@@ -306,7 +306,7 @@ extern const char *CsrWifiRouterDownstreamPrimNames[CSR_WIFI_ROUTER_PRIM_DOWNSTR
 
 *******************************************************************************/
 #define CsrWifiRouterMaPacketSubscribeReqCreate(msg__, dst__, src__, interfaceTag__, encapsulation__, protocol__, oui__) \
-    msg__ = (CsrWifiRouterMaPacketSubscribeReq *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketSubscribeReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterMaPacketSubscribeReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_PRIM, CSR_WIFI_ROUTER_MA_PACKET_SUBSCRIBE_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->encapsulation = (encapsulation__); \
@@ -342,7 +342,7 @@ extern const char *CsrWifiRouterDownstreamPrimNames[CSR_WIFI_ROUTER_PRIM_DOWNSTR
 
 *******************************************************************************/
 #define CsrWifiRouterMaPacketSubscribeCfmCreate(msg__, dst__, src__, interfaceTag__, subscriptionHandle__, status__, allocOffset__) \
-    msg__ = (CsrWifiRouterMaPacketSubscribeCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketSubscribeCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterMaPacketSubscribeCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_PRIM, CSR_WIFI_ROUTER_MA_PACKET_SUBSCRIBE_CFM, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->subscriptionHandle = (subscriptionHandle__); \
@@ -374,7 +374,7 @@ extern const char *CsrWifiRouterDownstreamPrimNames[CSR_WIFI_ROUTER_PRIM_DOWNSTR
 
 *******************************************************************************/
 #define CsrWifiRouterMaPacketUnsubscribeReqCreate(msg__, dst__, src__, interfaceTag__, subscriptionHandle__) \
-    msg__ = (CsrWifiRouterMaPacketUnsubscribeReq *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketUnsubscribeReq)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterMaPacketUnsubscribeReq), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_PRIM, CSR_WIFI_ROUTER_MA_PACKET_UNSUBSCRIBE_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->subscriptionHandle = (subscriptionHandle__);
@@ -405,7 +405,7 @@ extern const char *CsrWifiRouterDownstreamPrimNames[CSR_WIFI_ROUTER_PRIM_DOWNSTR
 
 *******************************************************************************/
 #define CsrWifiRouterMaPacketUnsubscribeCfmCreate(msg__, dst__, src__, interfaceTag__, status__) \
-    msg__ = (CsrWifiRouterMaPacketUnsubscribeCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketUnsubscribeCfm)); \
+    msg__ = kmalloc(sizeof(CsrWifiRouterMaPacketUnsubscribeCfm), GFP_KERNEL); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_PRIM, CSR_WIFI_ROUTER_MA_PACKET_UNSUBSCRIBE_CFM, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->status = (status__);

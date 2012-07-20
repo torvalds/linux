@@ -9,6 +9,7 @@
 *****************************************************************************/
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include "csr_pmem.h"
 #include "csr_macro.h"
 #include "csr_msgconv.h"
@@ -125,7 +126,7 @@ EXPORT_SYMBOL_GPL(CsrWifiEventSer);
 
 void* CsrWifiEventDes(u8 *buffer, size_t length)
 {
-    CsrWifiFsmEvent *primitive = (CsrWifiFsmEvent *) CsrPmemAlloc(sizeof(CsrWifiFsmEvent));
+    CsrWifiFsmEvent *primitive = kmalloc(sizeof(CsrWifiFsmEvent), GFP_KERNEL);
     size_t offset = 0;
     CsrUint16Des(&primitive->type, buffer, &offset);
 
@@ -152,7 +153,7 @@ EXPORT_SYMBOL_GPL(CsrWifiEventCsrUint8Ser);
 
 void* CsrWifiEventCsrUint8Des(u8 *buffer, size_t length)
 {
-    CsrWifiEventCsrUint8 *primitive = (CsrWifiEventCsrUint8 *) CsrPmemAlloc(sizeof(CsrWifiEventCsrUint8));
+    CsrWifiEventCsrUint8 *primitive = kmalloc(sizeof(CsrWifiEventCsrUint8), GFP_KERNEL);
 
     size_t offset = 0;
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -182,7 +183,7 @@ EXPORT_SYMBOL_GPL(CsrWifiEventCsrUint16Ser);
 
 void* CsrWifiEventCsrUint16Des(u8 *buffer, size_t length)
 {
-    CsrWifiEventCsrUint16 *primitive = (CsrWifiEventCsrUint16 *) CsrPmemAlloc(sizeof(CsrWifiEventCsrUint16));
+    CsrWifiEventCsrUint16 *primitive = kmalloc(sizeof(CsrWifiEventCsrUint16), GFP_KERNEL);
 
     size_t offset = 0;
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -212,7 +213,7 @@ EXPORT_SYMBOL_GPL(CsrWifiEventCsrUint32Ser);
 
 void* CsrWifiEventCsrUint32Des(u8 *buffer, size_t length)
 {
-    CsrWifiEventCsrUint32 *primitive = (CsrWifiEventCsrUint32 *) CsrPmemAlloc(sizeof(CsrWifiEventCsrUint32));
+    CsrWifiEventCsrUint32 *primitive = kmalloc(sizeof(CsrWifiEventCsrUint32), GFP_KERNEL);
 
     size_t offset = 0;
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -242,7 +243,7 @@ EXPORT_SYMBOL_GPL(CsrWifiEventCsrUint16CsrUint8Ser);
 
 void* CsrWifiEventCsrUint16CsrUint8Des(u8 *buffer, size_t length)
 {
-    CsrWifiEventCsrUint16CsrUint8 *primitive = (CsrWifiEventCsrUint16CsrUint8 *) CsrPmemAlloc(sizeof(CsrWifiEventCsrUint16CsrUint8));
+    CsrWifiEventCsrUint16CsrUint8 *primitive = kmalloc(sizeof(CsrWifiEventCsrUint16CsrUint8), GFP_KERNEL);
 
     size_t offset = 0;
     CsrUint16Des(&primitive->common.type, buffer, &offset);

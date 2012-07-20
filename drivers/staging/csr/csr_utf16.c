@@ -88,7 +88,7 @@ u16 *CsrUint32ToUtf16String(u32 number)
         noOfDigits++;
     }
 
-    output = (u16 *) CsrPmemAlloc(sizeof(u16) * (noOfDigits + 1)); /*add space for 0-termination*/
+    output = kmalloc(sizeof(u16) * (noOfDigits + 1), GFP_KERNEL); /*add space for 0-termination*/
 
     tempNumber = number;
     for (count = noOfDigits; count > 0; count--)
@@ -185,7 +185,7 @@ u16 *CsrUtf16ConcatenateTexts(const u16 *inputText1, const u16 *inputText2,
         return NULL;
     }
 
-    outputText = (u16 *) CsrPmemAlloc((textLen + 1) * sizeof(u16)); /* add space for 0-termination*/
+    outputText = kmalloc((textLen + 1) * sizeof(u16), GFP_KERNEL); /* add space for 0-termination*/
 
 
     if (inputText1 != NULL)
@@ -320,7 +320,7 @@ u8 *CsrUtf16String2Utf8(const u16 *source)
         }
     }
 
-    dest = CsrPmemAlloc(length);
+    dest = kmalloc(length, GFP_KERNEL);
     destStart = dest;
 
     for (i = 0; i < sourceLength; i++)
@@ -610,7 +610,7 @@ u16 *CsrUtf82Utf16String(const u8 *utf8String)
     }
 
     /* Create space for the null terminated character */
-    dest = (u16 *) CsrPmemAlloc((1 + length) * sizeof(u16));
+    dest = kmalloc((1 + length) * sizeof(u16), GFP_KERNEL);
     destStart = dest;
 
     for (i = 0; i < sourceLength; i++)
@@ -736,7 +736,7 @@ u16 *CsrUtf16StringDuplicate(const u16 *source)
     if (source) /* if source is not NULL*/
     {
         length = (CsrUtf16StrLen(source) + 1) * sizeof(u16);
-        target = (u16 *) CsrPmemAlloc(length);
+        target = kmalloc(length, GFP_KERNEL);
         memcpy(target, source, length);
     }
     return target;
@@ -844,7 +844,7 @@ u16 *CsrUtf16String2XML(u16 *str)
 
         if (encodeChars)
         {
-            resultString = outputString = CsrPmemAlloc(stringLength * sizeof(u16));
+            resultString = outputString = kmalloc(stringLength * sizeof(u16), GFP_KERNEL);
 
             scanString = str;
 
@@ -958,7 +958,7 @@ u16 *CsrXML2Utf16String(u16 *str)
 
         if (encodeChars)
         {
-            resultString = outputString = CsrPmemAlloc(stringLength * sizeof(u16));
+            resultString = outputString = kmalloc(stringLength * sizeof(u16), GFP_KERNEL);
 
             scanString = str;
 

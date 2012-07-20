@@ -489,7 +489,7 @@ int unifi_putest_dl_fw_buff(unifi_priv_t *priv, unsigned char *arg)
     }
 
     /* Buffer for kernel copy of the f/w image */
-    fw_buf = CsrPmemAlloc(fw_length);
+    fw_buf = kmalloc(fw_length, GFP_KERNEL);
     if (!fw_buf) {
         unifi_error(priv, "unifi_putest_dl_fw_buff: malloc fail\n");
         return -ENOMEM;

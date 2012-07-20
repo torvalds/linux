@@ -411,7 +411,7 @@ uf_multicast_list_wq(struct work_struct *work)
      * Allocate a new list, need to free it later
      * in unifi_mgt_multicast_address_cfm().
      */
-    multicast_address_list = CsrPmemAlloc(mc_count * sizeof(CsrWifiMacAddress));
+    multicast_address_list = kmalloc(mc_count * sizeof(CsrWifiMacAddress), GFP_KERNEL);
 
     if (multicast_address_list == NULL) {
         return;
@@ -590,7 +590,7 @@ int unifi_cfg_packet_filters(unifi_priv_t *priv, unsigned char *arg)
         priv->packet_filters.tclas_ies_length += sizeof(tclas_t);
     }
     if (priv->packet_filters.tclas_ies_length > 0) {
-        priv->filter_tclas_ies = CsrPmemAlloc(priv->packet_filters.tclas_ies_length);
+        priv->filter_tclas_ies = kmalloc(priv->packet_filters.tclas_ies_length, GFP_KERNEL);
         if (priv->filter_tclas_ies == NULL) {
             return -ENOMEM;
         }
@@ -671,7 +671,7 @@ int unifi_cfg_wmm_addts(unifi_priv_t *priv, unsigned char *arg)
     unifi_trace(priv, UDBG4, "addts: tid = 0x%x ie_length = %d\n",
             addts_tid, addts_ie_length);
 
-    addts_ie = CsrPmemAlloc(addts_ie_length);
+    addts_ie = kmalloc(addts_ie_length, GFP_KERNEL);
     if (addts_ie == NULL) {
         unifi_error(priv,
                 "unifi_cfg_wmm_addts: Failed to malloc %d bytes for addts_ie buffer\n",
@@ -1209,7 +1209,7 @@ void uf_send_pkt_to_encrypt(struct work_struct *work)
         pktBulkDataLength = interfacePriv->wapi_unicast_bulk_data.data_length;
 
         if (pktBulkDataLength > 0) {
-		    pktBulkData = (u8 *)CsrPmemAlloc(pktBulkDataLength);
+		    pktBulkData = kmalloc(pktBulkDataLength, GFP_KERNEL);
 		    memset(pktBulkData, 0, pktBulkDataLength);
 	    } else {
 		    unifi_error(priv, "uf_send_pkt_to_encrypt() : invalid buffer\n");

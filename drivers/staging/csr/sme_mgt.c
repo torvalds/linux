@@ -141,7 +141,7 @@ void CsrWifiSmeScanResultsGetCfmHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     }
 
     /* Take a Copy of the scan Results :-) */
-    scanCopy = CsrPmemAlloc(bytesRequired);
+    scanCopy = kmalloc(bytesRequired, GFP_KERNEL);
     memcpy(scanCopy, cfm->scanResults, sizeof(CsrWifiSmeScanResult) * cfm->scanResultsCount);
 
     /* Take a Copy of the Info Elements AND update the scan result pointers */

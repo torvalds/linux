@@ -180,7 +180,7 @@ static void CsrWifiRouterTransportSerialiseAndSend(u16 primType, void* msg)
 
     msgSize = 6 + (msgEntry->sizeofFunc)((void*)msg);
 
-    encodeBuffer = CsrPmemAlloc(msgSize);
+    encodeBuffer = kmalloc(msgSize, GFP_KERNEL);
 
     /* Encode PrimType */
     CsrUint16Ser(encodeBuffer, &encodeBufferLen, primType);
