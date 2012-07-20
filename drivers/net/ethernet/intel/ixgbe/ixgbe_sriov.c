@@ -208,6 +208,17 @@ void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 	u32 vmdctl;
 	int i;
 
+	/* set num VFs to 0 to prevent access to vfinfo */
+	adapter->num_vfs = 0;
+
+	/* free VF control structures */
+	kfree(adapter->vfinfo);
+	adapter->vfinfo = NULL;
+
+	/* free macvlan list */
+	kfree(adapter->mv_list);
+	adapter->mv_list = NULL;
+
 #ifdef CONFIG_PCI_IOV
 	/* disable iov and allow time for transactions to clear */
 	pci_disable_sriov(adapter->pdev);
@@ -225,6 +236,11 @@ void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(hw, IXGBE_VT_CTL, vmdctl);
 	IXGBE_WRITE_FLUSH(hw);
 
+	/* Disable VMDq flag so device will be set in VM mode */
+	if (adapter->ring_feature[RING_F_VMDQ].limit == 1)
+		adapter->flags &= ~IXGBE_FLAG_VMDQ_ENABLED;
+	adapter->ring_feature[RING_F_VMDQ].offset = 0;
+
 	/* take a breather then clean up driver data */
 	msleep(100);
 
@@ -233,11 +249,7 @@ void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 		if (adapter->vfinfo[i].vfdev)
 			pci_dev_put(adapter->vfinfo[i].vfdev);
 	}
-	kfree(adapter->vfinfo);
-	kfree(adapter->mv_list);
-	adapter->vfinfo = NULL;
 
-	adapter->num_vfs = 0;
 	adapter->flags &= ~IXGBE_FLAG_SRIOV_ENABLED;
 }
 
