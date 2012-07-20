@@ -21,13 +21,14 @@ ALC267/268
 ==========
   inv-dmic	Inverted internal mic workaround
 
-ALC269
+ALC269/270/275/276/280/282
 ======
   laptop-amic	Laptops with analog-mic input
   laptop-dmic	Laptops with digital-mic input
   alc269-dmic	Enable ALC269(VA) digital mic workaround
   alc271-dmic	Enable ALC271X digital mic workaround
   inv-dmic	Inverted internal mic workaround
+  lenovo-dock   Enables docking station I/O for some Lenovos
 
 ALC662/663/272
 ==============
