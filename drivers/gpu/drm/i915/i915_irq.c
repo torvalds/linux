@@ -495,7 +495,6 @@ static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
 	 */
 
 	spin_lock_irqsave(&dev_priv->rps_lock, flags);
-	WARN(dev_priv->pm_iir & pm_iir, "Missed a PM interrupt\n");
 	dev_priv->pm_iir |= pm_iir;
 	I915_WRITE(GEN6_PMIMR, dev_priv->pm_iir);
 	POSTING_READ(GEN6_PMIMR);

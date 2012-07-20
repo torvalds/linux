@@ -517,8 +517,8 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 		int bad_sectors;
 
 		int disk = start_disk + i;
-		if (disk >= conf->raid_disks)
-			disk -= conf->raid_disks;
+		if (disk >= conf->raid_disks * 2)
+			disk -= conf->raid_disks * 2;
 
 		rdev = rcu_dereference(conf->mirrors[disk].rdev);
 		if (r1_bio->bios[disk] == IO_BLOCKED
@@ -883,7 +883,6 @@ static void make_request(struct mddev *mddev, struct bio * bio)
 	const unsigned long do_sync = (bio->bi_rw & REQ_SYNC);
 	const unsigned long do_flush_fua = (bio->bi_rw & (REQ_FLUSH | REQ_FUA));
 	struct md_rdev *blocked_rdev;
-	int plugged;
 	int first_clone;
 	int sectors_handled;
 	int max_sectors;
@@ -1034,7 +1033,6 @@ read_again:
 	 * the bad blocks.  Each set of writes gets it's own r1bio
 	 * with a set of bios attached.
 	 */
-	plugged = mddev_check_plugged(mddev);
 
 	disks = conf->raid_disks * 2;
  retry_write:
@@ -1191,6 +1189,8 @@ read_again:
 		bio_list_add(&conf->pending_bio_list, mbio);
 		conf->pending_count++;
 		spin_unlock_irqrestore(&conf->device_lock, flags);
+		if (!mddev_check_plugged(mddev))
+			md_wakeup_thread(mddev->thread);
 	}
 	/* Mustn't call r1_bio_write_done before this next test,
 	 * as it could result in the bio being freed.
@@ -1213,9 +1213,6 @@ read_again:
 
 	/* In case raid1d snuck in to freeze_array */
 	wake_up(&conf->wait_barrier);
-
-	if (do_sync || !bitmap || !plugged)
-		md_wakeup_thread(mddev->thread);
 }
 
 static void status(struct seq_file *seq, struct mddev *mddev)
@@ -2488,9 +2485,10 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr, int *skipp
 	 */
 	if (test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery)) {
 		atomic_set(&r1_bio->remaining, read_targets);
-		for (i = 0; i < conf->raid_disks * 2; i++) {
+		for (i = 0; i < conf->raid_disks * 2 && read_targets; i++) {
 			bio = r1_bio->bios[i];
 			if (bio->bi_end_io == end_sync_read) {
+				read_targets--;
 				md_sync_acct(bio->bi_bdev, nr_sectors);
 				generic_make_request(bio);
 			}
@@ -2621,7 +2619,7 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 		goto abort;
 	}
 	err = -ENOMEM;
-	conf->thread = md_register_thread(raid1d, mddev, NULL);
+	conf->thread = md_register_thread(raid1d, mddev, "raid1");
 	if (!conf->thread) {
 		printk(KERN_ERR
 		       "md/raid1:%s: couldn't allocate thread\n",

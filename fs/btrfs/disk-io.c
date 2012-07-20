@@ -2354,11 +2354,16 @@ retry_root_backup:
 				  BTRFS_CSUM_TREE_OBJECTID, csum_root);
 	if (ret)
 		goto recovery_tree_root;
-
 	csum_root->track_dirty = 1;
 
 	fs_info->generation = generation;
 	fs_info->last_trans_committed = generation;
+
+	ret = btrfs_recover_balance(fs_info);
+	if (ret) {
+		printk(KERN_WARNING "btrfs: failed to recover balance\n");
+		goto fail_block_groups;
+	}
 
 	ret = btrfs_init_dev_stats(fs_info);
 	if (ret) {
@@ -2485,20 +2490,23 @@ retry_root_backup:
 		goto fail_trans_kthread;
 	}
 
-	if (!(sb->s_flags & MS_RDONLY)) {
-		down_read(&fs_info->cleanup_work_sem);
-		err = btrfs_orphan_cleanup(fs_info->fs_root);
-		if (!err)
-			err = btrfs_orphan_cleanup(fs_info->tree_root);
+	if (sb->s_flags & MS_RDONLY)
+		return 0;
+
+	down_read(&fs_info->cleanup_work_sem);
+	if ((ret = btrfs_orphan_cleanup(fs_info->fs_root)) ||
+	    (ret = btrfs_orphan_cleanup(fs_info->tree_root))) {
 		up_read(&fs_info->cleanup_work_sem);
+		close_ctree(tree_root);
+		return ret;
+	}
+	up_read(&fs_info->cleanup_work_sem);
 
-		if (!err)
-			err = btrfs_recover_balance(fs_info->tree_root);
-
-		if (err) {
-			close_ctree(tree_root);
-			return err;
-		}
+	ret = btrfs_resume_balance_async(fs_info);
+	if (ret) {
+		printk(KERN_WARNING "btrfs: failed to resume balance\n");
+		close_ctree(tree_root);
+		return ret;
 	}
 
 	return 0;

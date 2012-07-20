@@ -298,6 +298,7 @@ int radeon_gem_mmap_ioctl(struct drm_device *dev, void *data,
 int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *filp)
 {
+	struct radeon_device *rdev = dev->dev_private;
 	struct drm_radeon_gem_busy *args = data;
 	struct drm_gem_object *gobj;
 	struct radeon_bo *robj;
@@ -323,13 +324,14 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 		break;
 	}
 	drm_gem_object_unreference_unlocked(gobj);
-	r = radeon_gem_handle_lockup(robj->rdev, r);
+	r = radeon_gem_handle_lockup(rdev, r);
 	return r;
 }
 
 int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *filp)
 {
+	struct radeon_device *rdev = dev->dev_private;
 	struct drm_radeon_gem_wait_idle *args = data;
 	struct drm_gem_object *gobj;
 	struct radeon_bo *robj;
@@ -342,10 +344,10 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 	robj = gem_to_radeon_bo(gobj);
 	r = radeon_bo_wait(robj, NULL, false);
 	/* callback hw specific functions if any */
-	if (robj->rdev->asic->ioctl_wait_idle)
-		robj->rdev->asic->ioctl_wait_idle(robj->rdev, robj);
+	if (rdev->asic->ioctl_wait_idle)
+		robj->rdev->asic->ioctl_wait_idle(rdev, robj);
 	drm_gem_object_unreference_unlocked(gobj);
-	r = radeon_gem_handle_lockup(robj->rdev, r);
+	r = radeon_gem_handle_lockup(rdev, r);
 	return r;
 }
 
