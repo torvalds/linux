@@ -371,14 +371,26 @@ static s32 ixgbe_set_vf_lpe(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 					     IXGBE_FCOE_JUMBO_FRAME_SIZE);
 
 #endif /* CONFIG_FCOE */
-		/*
-		 * If the PF or VF are running w/ jumbo frames enabled we
-		 * need to shut down the VF Rx path as we cannot support
-		 * jumbo frames on legacy VFs
-		 */
-		if ((pf_max_frame > ETH_FRAME_LEN) ||
-		    (max_frame > (ETH_FRAME_LEN + ETH_FCS_LEN)))
-			err = -EINVAL;
+		switch (adapter->vfinfo[vf].vf_api) {
+		case ixgbe_mbox_api_11:
+			/*
+			 * Version 1.1 supports jumbo frames on VFs if PF has
+			 * jumbo frames enabled which means legacy VFs are
+			 * disabled
+			 */
+			if (pf_max_frame > ETH_FRAME_LEN)
+				break;
+		default:
+			/*
+			 * If the PF or VF are running w/ jumbo frames enabled
+			 * we need to shut down the VF Rx path as we cannot
+			 * support jumbo frames on legacy VFs
+			 */
+			if ((pf_max_frame > ETH_FRAME_LEN) ||
+			    (max_frame > (ETH_FRAME_LEN + ETH_FCS_LEN)))
+				err = -EINVAL;
+			break;
+		}
 
 		/* determine VF receive enable location */
 		vf_shift = vf % 32;
@@ -740,6 +752,7 @@ static int ixgbe_negotiate_vf_api(struct ixgbe_adapter *adapter,
 
 	switch (api) {
 	case ixgbe_mbox_api_10:
+	case ixgbe_mbox_api_11:
 		adapter->vfinfo[vf].vf_api = api;
 		return 0;
 	default:
