@@ -459,27 +459,6 @@ static struct regulator_desc lp8788_buck_desc[] = {
 	},
 };
 
-static int lp8788_set_default_dvs_ctrl_mode(struct lp8788 *lp,
-					enum lp8788_buck_id id)
-{
-	u8 mask, val;
-
-	switch (id) {
-	case BUCK1:
-		mask = LP8788_BUCK1_DVS_SEL_M;
-		val  = LP8788_BUCK1_DVS_I2C;
-		break;
-	case BUCK2:
-		mask = LP8788_BUCK2_DVS_SEL_M;
-		val  = LP8788_BUCK2_DVS_I2C;
-		break;
-	default:
-		return 0;
-	}
-
-	return lp8788_update_bits(lp, LP8788_BUCK_DVS_SEL, mask, val);
-}
-
 static int _gpio_request(struct lp8788_buck *buck, int gpio, char *name)
 {
 	struct device *dev = buck->lp->dev;
@@ -530,6 +509,7 @@ static int lp8788_init_dvs(struct lp8788_buck *buck, enum lp8788_buck_id id)
 	struct lp8788_platform_data *pdata = buck->lp->pdata;
 	u8 mask[] = { LP8788_BUCK1_DVS_SEL_M, LP8788_BUCK2_DVS_SEL_M };
 	u8 val[]  = { LP8788_BUCK1_DVS_PIN, LP8788_BUCK2_DVS_PIN };
+	u8 default_dvs_mode[] = { LP8788_BUCK1_DVS_I2C, LP8788_BUCK2_DVS_I2C };
 
 	/* no dvs for buck3, 4 */
 	if (id == BUCK3 || id == BUCK4)
@@ -550,7 +530,8 @@ static int lp8788_init_dvs(struct lp8788_buck *buck, enum lp8788_buck_id id)
 				val[id]);
 
 set_default_dvs_mode:
-	return lp8788_set_default_dvs_ctrl_mode(buck->lp, id);
+	return lp8788_update_bits(buck->lp, LP8788_BUCK_DVS_SEL, mask[id],
+				  default_dvs_mode[id]);
 }
 
 static __devinit int lp8788_buck_probe(struct platform_device *pdev)
