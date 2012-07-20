@@ -2453,21 +2453,19 @@ static void clear_standby(struct ceph_connection *con)
  */
 void ceph_con_send(struct ceph_connection *con, struct ceph_msg *msg)
 {
+	/* set src+dst */
+	msg->hdr.src = con->msgr->inst.name;
+	BUG_ON(msg->front.iov_len != le32_to_cpu(msg->hdr.front_len));
+	msg->needs_out_seq = true;
+
+	mutex_lock(&con->mutex);
+
 	if (test_bit(CLOSED, &con->state)) {
 		dout("con_send %p closed, dropping %p\n", con, msg);
 		ceph_msg_put(msg);
+		mutex_unlock(&con->mutex);
 		return;
 	}
-
-	/* set src+dst */
-	msg->hdr.src = con->msgr->inst.name;
-
-	BUG_ON(msg->front.iov_len != le32_to_cpu(msg->hdr.front_len));
-
-	msg->needs_out_seq = true;
-
-	/* queue */
-	mutex_lock(&con->mutex);
 
 	BUG_ON(msg->con != NULL);
 	msg->con = con->ops->get(con);
