@@ -46,18 +46,6 @@ struct SCN2681 {
 
 };
 
-#if 0
-struct mc146818 {
-
-	unsigned int second1:4, second2:4, alarm_second1:4, alarm_second2:4,
-		     minute1:4, minute2:4, alarm_minute1:4, alarm_minute2:4;
-	unsigned int hours1:4, hours2:4, alarm_hours1:4, alarm_hours2:4,
-		     day_of_week1:4, day_of_week2:4, day_of_month1:4, day_of_month2:4;
-	unsigned int month1:4, month2:4, year1:4, year2:4, :16;
-
-};
-#endif
-
 struct mc146818 {
         unsigned char second, alarm_second;
         unsigned char minute, alarm_minute;
