@@ -78,7 +78,7 @@ int s5p_mfc_alloc_and_load_firmware(struct s5p_mfc_dev *dev)
 	}
 	dev->bank1 = s5p_mfc_bitproc_phys;
 	b_base = vb2_dma_contig_memops.alloc(
-		dev->alloc_ctx[MFC_BANK2_ALLOC_CTX], 1 << MFC_BANK2_ALIGN_ORDER);
+		dev->alloc_ctx[MFC_BANK2_ALLOC_CTX], 1 << MFC_BASE_ALIGN_ORDER);
 	if (IS_ERR(b_base)) {
 		vb2_dma_contig_memops.put(s5p_mfc_bitproc_buf);
 		s5p_mfc_bitproc_phys = 0;
