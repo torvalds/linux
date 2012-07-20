@@ -21,10 +21,11 @@ ALC267/268
 ==========
   N/A
 
-ALC269
+ALC269/270/275/276/280/282
 ======
   laptop-amic	Laptops with analog-mic input
   laptop-dmic	Laptops with digital-mic input
+  lenovo-dock   Enables docking station I/O for some Lenovos
 
 ALC662/663/272
 ==============
