@@ -954,7 +954,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *objects,
 		i915_gem_object_move_to_active(obj, ring, seqno);
 		if (obj->base.write_domain) {
 			obj->dirty = 1;
-			obj->pending_gpu_write = true;
+			obj->last_write_seqno = seqno;
 			list_move_tail(&obj->gpu_write_list,
 				       &ring->gpu_write_list);
 			if (obj->pin_count) /* check for potential scanout */

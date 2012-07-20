@@ -950,7 +950,8 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 {
 	err->size = obj->base.size;
 	err->name = obj->base.name;
-	err->seqno = obj->last_rendering_seqno;
+	err->rseqno = obj->last_read_seqno;
+	err->wseqno = obj->last_write_seqno;
 	err->gtt_offset = obj->gtt_offset;
 	err->read_domains = obj->base.read_domains;
 	err->write_domain = obj->base.write_domain;
@@ -1045,7 +1046,7 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 		if (obj->ring != ring)
 			continue;
 
-		if (i915_seqno_passed(seqno, obj->last_rendering_seqno))
+		if (i915_seqno_passed(seqno, obj->last_read_seqno))
 			continue;
 
 		if ((obj->base.read_domains & I915_GEM_DOMAIN_COMMAND) == 0)

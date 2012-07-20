@@ -221,7 +221,7 @@ struct drm_i915_error_state {
 	struct drm_i915_error_buffer {
 		u32 size;
 		u32 name;
-		u32 seqno;
+		u32 rseqno, wseqno;
 		u32 gtt_offset;
 		u32 read_domains;
 		u32 write_domain;
@@ -895,12 +895,6 @@ struct drm_i915_gem_object {
 	unsigned int dirty:1;
 
 	/**
-	 * This is set if the object has been written to since the last
-	 * GPU flush.
-	 */
-	unsigned int pending_gpu_write:1;
-
-	/**
 	 * Fence register bits (if any) for this object.  Will be set
 	 * as needed when mapped into the GTT.
 	 * Protected by dev->struct_mutex.
@@ -992,7 +986,8 @@ struct drm_i915_gem_object {
 	struct intel_ring_buffer *ring;
 
 	/** Breadcrumb of last rendering to the buffer. */
-	uint32_t last_rendering_seqno;
+	uint32_t last_read_seqno;
+	uint32_t last_write_seqno;
 	/** Breadcrumb of last fenced GPU access to the buffer. */
 	uint32_t last_fenced_seqno;
 
@@ -1291,7 +1286,6 @@ void i915_gem_lastclose(struct drm_device *dev);
 int i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj,
 				  gfp_t gfpmask);
 int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
-int __must_check i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj);
 int i915_gem_object_sync(struct drm_i915_gem_object *obj,
 			 struct intel_ring_buffer *to);
 void i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,

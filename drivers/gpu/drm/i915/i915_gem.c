@@ -1441,7 +1441,7 @@ i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
 	list_move_tail(&obj->mm_list, &dev_priv->mm.active_list);
 	list_move_tail(&obj->ring_list, &ring->active_list);
 
-	obj->last_rendering_seqno = seqno;
+	obj->last_read_seqno = seqno;
 
 	if (obj->fenced_gpu_access) {
 		obj->last_fenced_seqno = seqno;
@@ -1461,7 +1461,8 @@ static void
 i915_gem_object_move_off_active(struct drm_i915_gem_object *obj)
 {
 	list_del_init(&obj->ring_list);
-	obj->last_rendering_seqno = 0;
+	obj->last_read_seqno = 0;
+	obj->last_write_seqno = 0;
 	obj->last_fenced_seqno = 0;
 }
 
@@ -1493,7 +1494,6 @@ i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
 	obj->fenced_gpu_access = false;
 
 	obj->active = 0;
-	obj->pending_gpu_write = false;
 	drm_gem_object_unreference(&obj->base);
 
 	WARN_ON(i915_verify_lists(dev));
@@ -1812,7 +1812,7 @@ i915_gem_retire_requests_ring(struct intel_ring_buffer *ring)
 				      struct drm_i915_gem_object,
 				      ring_list);
 
-		if (!i915_seqno_passed(seqno, obj->last_rendering_seqno))
+		if (!i915_seqno_passed(seqno, obj->last_read_seqno))
 			break;
 
 		if (obj->base.write_domain != 0)
@@ -2036,9 +2036,11 @@ i915_wait_seqno(struct intel_ring_buffer *ring, uint32_t seqno)
  * Ensures that all rendering to the object has completed and the object is
  * safe to unbind from the GTT or access from the CPU.
  */
-int
-i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj)
+static __must_check int
+i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
+			       bool readonly)
 {
+	u32 seqno;
 	int ret;
 
 	/* This function only exists to support waiting for existing rendering,
@@ -2049,13 +2051,27 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj)
 	/* If there is rendering queued on the buffer being evicted, wait for
 	 * it.
 	 */
-	if (obj->active) {
-		ret = i915_wait_seqno(obj->ring, obj->last_rendering_seqno);
-		if (ret)
-			return ret;
-		i915_gem_retire_requests_ring(obj->ring);
+	if (readonly)
+		seqno = obj->last_write_seqno;
+	else
+		seqno = obj->last_read_seqno;
+	if (seqno == 0)
+		return 0;
+
+	ret = i915_wait_seqno(obj->ring, seqno);
+	if (ret)
+		return ret;
+
+	/* Manually manage the write flush as we may have not yet retired
+	 * the buffer.
+	 */
+	if (obj->last_write_seqno &&
+	    i915_seqno_passed(seqno, obj->last_write_seqno)) {
+		obj->last_write_seqno = 0;
+		obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
 	}
 
+	i915_gem_retire_requests_ring(obj->ring);
 	return 0;
 }
 
@@ -2074,10 +2090,10 @@ i915_gem_object_flush_active(struct drm_i915_gem_object *obj)
 		if (ret)
 			return ret;
 
-		ret = i915_gem_check_olr(obj->ring,
-					 obj->last_rendering_seqno);
+		ret = i915_gem_check_olr(obj->ring, obj->last_read_seqno);
 		if (ret)
 			return ret;
+
 		i915_gem_retire_requests_ring(obj->ring);
 	}
 
@@ -2137,7 +2153,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		goto out;
 
 	if (obj->active) {
-		seqno = obj->last_rendering_seqno;
+		seqno = obj->last_read_seqno;
 		ring = obj->ring;
 	}
 
@@ -2192,11 +2208,11 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 		return 0;
 
 	if (to == NULL || !i915_semaphore_is_enabled(obj->base.dev))
-		return i915_gem_object_wait_rendering(obj);
+		return i915_gem_object_wait_rendering(obj, false);
 
 	idx = intel_ring_sync_index(from, to);
 
-	seqno = obj->last_rendering_seqno;
+	seqno = obj->last_read_seqno;
 	if (seqno <= from->sync_seqno[idx])
 		return 0;
 
@@ -2940,11 +2956,9 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	if (ret)
 		return ret;
 
-	if (obj->pending_gpu_write || write) {
-		ret = i915_gem_object_wait_rendering(obj);
-		if (ret)
-			return ret;
-	}
+	ret = i915_gem_object_wait_rendering(obj, !write);
+	if (ret)
+		return ret;
 
 	i915_gem_object_flush_cpu_write_domain(obj);
 
@@ -3115,7 +3129,7 @@ i915_gem_object_finish_gpu(struct drm_i915_gem_object *obj)
 			return ret;
 	}
 
-	ret = i915_gem_object_wait_rendering(obj);
+	ret = i915_gem_object_wait_rendering(obj, false);
 	if (ret)
 		return ret;
 
@@ -3143,11 +3157,9 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 	if (ret)
 		return ret;
 
-	if (write || obj->pending_gpu_write) {
-		ret = i915_gem_object_wait_rendering(obj);
-		if (ret)
-			return ret;
-	}
+	ret = i915_gem_object_wait_rendering(obj, !write);
+	if (ret)
+		return ret;
 
 	i915_gem_object_flush_gtt_write_domain(obj);
 

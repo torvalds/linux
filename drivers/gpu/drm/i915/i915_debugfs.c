@@ -121,14 +121,15 @@ static const char *cache_level_str(int type)
 static void
 describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
-	seq_printf(m, "%p: %s%s %8zdKiB %04x %04x %d %d%s%s%s",
+	seq_printf(m, "%p: %s%s %8zdKiB %04x %04x %d %d %d%s%s%s",
 		   &obj->base,
 		   get_pin_flag(obj),
 		   get_tiling_flag(obj),
 		   obj->base.size / 1024,
 		   obj->base.read_domains,
 		   obj->base.write_domain,
-		   obj->last_rendering_seqno,
+		   obj->last_read_seqno,
+		   obj->last_write_seqno,
 		   obj->last_fenced_seqno,
 		   cache_level_str(obj->cache_level),
 		   obj->dirty ? " dirty" : "",
@@ -630,12 +631,12 @@ static void print_error_buffers(struct seq_file *m,
 	seq_printf(m, "%s [%d]:\n", name, count);
 
 	while (count--) {
-		seq_printf(m, "  %08x %8u %04x %04x %08x%s%s%s%s%s%s%s",
+		seq_printf(m, "  %08x %8u %04x %04x %x %x%s%s%s%s%s%s%s",
 			   err->gtt_offset,
 			   err->size,
 			   err->read_domains,
 			   err->write_domain,
-			   err->seqno,
+			   err->rseqno, err->wseqno,
 			   pin_flag(err->pinned),
 			   tiling_flag(err->tiling),
 			   dirty_flag(err->dirty),
