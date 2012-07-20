@@ -118,7 +118,7 @@ essentially like this, ignoring metadata:
 Naively, to add VLAN support, it makes sense to add a new "vlan" flow
 key attribute to contain the VLAN tag, then continue to decode the
 encapsulated headers beyond the VLAN tag using the existing field
-definitions.  With this change, an TCP packet in VLAN 10 would have a
+definitions.  With this change, a TCP packet in VLAN 10 would have a
 flow key much like this:
 
     eth(...), vlan(vid=10, pcp=0), eth_type(0x0800), ip(proto=6, ...), tcp(...)
