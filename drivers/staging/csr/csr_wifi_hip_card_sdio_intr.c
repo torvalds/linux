@@ -128,6 +128,22 @@ void unifi_debug_log_to_buf(const char *fmt, ...)
 } /* unifi_debug_log_to_buf() */
 
 
+/* Convert signed 32 bit (or less) integer to string */
+static void CsrUInt16ToHex(u16 number, char *str)
+{
+    u16 index;
+    u16 currentValue;
+
+    for (index = 0; index < 4; index++)
+    {
+        currentValue = (u16) (number & 0x000F);
+        number >>= 4;
+        str[3 - index] = (char) (currentValue > 9 ? currentValue + 55 : currentValue + '0');
+    }
+    str[4] = '\0';
+}
+
+
 /*
  * ---------------------------------------------------------------------------
  *  unifi_debug_hex_to_buf

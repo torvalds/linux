@@ -18,11 +18,6 @@ extern "C" {
 #include <linux/types.h>
 #include "csr_macro.h"
 
-/*------------------------------------------------------------------*/
-/* Base conversion */
-/*------------------------------------------------------------------*/
-void CsrUInt16ToHex(u16 number, char *str);
-
 #define CsrOffsetOf(st, m)  ((size_t) & ((st *) 0)->m)
 
 #ifdef __cplusplus
