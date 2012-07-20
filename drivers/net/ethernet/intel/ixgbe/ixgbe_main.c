@@ -5903,9 +5903,12 @@ static void ixgbe_tx_csum(struct ixgbe_ring *tx_ring,
 	u32 type_tucmd = 0;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
-		if (!(first->tx_flags & IXGBE_TX_FLAGS_HW_VLAN) &&
-		    !(first->tx_flags & IXGBE_TX_FLAGS_TXSW))
-			return;
+		if (!(first->tx_flags & IXGBE_TX_FLAGS_HW_VLAN)) {
+			if (unlikely(skb->no_fcs))
+				first->tx_flags |= IXGBE_TX_FLAGS_NO_IFCS;
+			if (!(first->tx_flags & IXGBE_TX_FLAGS_TXSW))
+				return;
+		}
 	} else {
 		u8 l4_hdr = 0;
 		switch (first->protocol) {
@@ -5967,7 +5970,6 @@ static __le32 ixgbe_tx_cmd_type(u32 tx_flags)
 {
 	/* set type for advanced descriptor with frame checksum insertion */
 	__le32 cmd_type = cpu_to_le32(IXGBE_ADVTXD_DTYP_DATA |
-				      IXGBE_ADVTXD_DCMD_IFCS |
 				      IXGBE_ADVTXD_DCMD_DEXT);
 
 	/* set HW vlan bit if vlan is present */
@@ -5986,6 +5988,10 @@ static __le32 ixgbe_tx_cmd_type(u32 tx_flags)
 	if (tx_flags & IXGBE_TX_FLAGS_TSO)
 #endif
 		cmd_type |= cpu_to_le32(IXGBE_ADVTXD_DCMD_TSE);
+
+	/* insert frame checksum */
+	if (!(tx_flags & IXGBE_TX_FLAGS_NO_IFCS))
+		cmd_type |= cpu_to_le32(IXGBE_ADVTXD_DCMD_IFCS);
 
 	return cmd_type;
 }
@@ -6092,8 +6098,6 @@ static void ixgbe_tx_map(struct ixgbe_ring *tx_ring,
 		if (likely(!data_len))
 			break;
 
-		if (unlikely(skb->no_fcs))
-			cmd_type &= ~(cpu_to_le32(IXGBE_ADVTXD_DCMD_IFCS));
 		tx_desc->read.cmd_type_len = cmd_type | cpu_to_le32(size);
 
 		i++;
