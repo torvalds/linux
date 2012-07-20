@@ -149,35 +149,6 @@ EXPORT_SYMBOL_GPL(CsrThreadSleep);
 
 /*----------------------------------------------------------------------------*
  *  NAME
- *      CsrMemCalloc
- *
- *  DESCRIPTION
- *      Allocate dynamic memory of a given size calculated as the
- *      numberOfElements times the elementSize.
- *
- *  RETURNS
- *      Pointer to allocated memory, or NULL in case of failure.
- *      Allocated memory is zero initialised.
- *
- *----------------------------------------------------------------------------*/
-void *CsrMemCalloc(size_t numberOfElements, size_t elementSize)
-{
-    void *buf;
-    size_t size;
-
-    size = numberOfElements * elementSize;
-
-    buf = kmalloc(size, GFP_KERNEL);
-    if (buf != NULL)
-    {
-        memset(buf, 0, size);
-    }
-
-    return buf;
-}
-
-/*----------------------------------------------------------------------------*
- *  NAME
  *      CsrMemAllocDma
  *
  *  DESCRIPTION

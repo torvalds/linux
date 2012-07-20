@@ -244,27 +244,6 @@ void CsrThreadSleep(u16 sleepTimeInMs);
 #ifndef CSR_PMEM_DEBUG_ENABLE
 /*----------------------------------------------------------------------------*
  *  NAME
- *      CsrMemCalloc
- *
- *  DESCRIPTION
- *      Allocate dynamic memory of a given size calculated as the
- *      numberOfElements times the elementSize.
- *
- *  RETURNS
- *      Pointer to allocated memory, or NULL in case of failure.
- *      Allocated memory is zero initialised.
- *
- *----------------------------------------------------------------------------*/
-#ifdef CSR_MEM_DEBUG
-void *CsrMemCallocDebug(size_t numberOfElements, size_t elementSize,
-    const char *file, u32 line);
-#define CsrMemCalloc(cnt, sz) CsrMemAllocDebug((cnt), (sz), __FILE__, __LINE__)
-#else
-void *CsrMemCalloc(size_t numberOfElements, size_t elementSize);
-#endif
-
-/*----------------------------------------------------------------------------*
- *  NAME
  *      CsrMemAllocDma
  *
  *  DESCRIPTION
@@ -287,8 +266,6 @@ void *CsrMemAllocDma(size_t size);
 #else
 
 #include "csr_pmem.h"
-
-#define CsrMemCalloc(numberOfElements, elementSize) CsrPmemDebugAlloc((numberOfElements * elementSize), CSR_PMEM_DEBUG_TYPE_MEM_CALLOC, __FILE__, __LINE__)
 
 #define CsrMemAllocDma(size) CsrPmemDebugAlloc(size, CSR_PMEM_DEBUG_TYPE_MEM_ALLOC_DMA, __FILE__, __LINE__)
 
