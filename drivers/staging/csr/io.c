@@ -99,7 +99,7 @@ static CsrResult signal_buffer_init(unifi_priv_t * priv, int size)
     for(i=0; i<size; i++)
     {
          priv->rxSignalBuffer.rx_buff[i].sig_len=0;
-         priv->rxSignalBuffer.rx_buff[i].bufptr = CsrMemAlloc(UNIFI_PACKED_SIGBUF_SIZE);
+         priv->rxSignalBuffer.rx_buff[i].bufptr = kmalloc(UNIFI_PACKED_SIGBUF_SIZE, GFP_KERNEL);
          if (priv->rxSignalBuffer.rx_buff[i].bufptr == NULL)
          {
              int j;

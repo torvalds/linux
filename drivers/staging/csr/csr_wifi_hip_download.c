@@ -327,7 +327,7 @@ CsrResult unifi_dl_firmware(card_t *card, void *dlpriv)
 
     func_enter();
 
-    fwinfo = CsrMemAlloc(sizeof(xbv1_t));
+    fwinfo = kmalloc(sizeof(xbv1_t), GFP_KERNEL);
     if (fwinfo == NULL)
     {
         unifi_error(card->ospriv, "Failed to allocate memory for firmware\n");
@@ -409,7 +409,7 @@ CsrResult unifi_dl_patch(card_t *card, void *dlpriv, u32 boot_ctrl)
 
     unifi_info(card->ospriv, "unifi_dl_patch %p %08x\n", dlpriv, boot_ctrl);
 
-    fwinfo = CsrMemAlloc(sizeof(xbv1_t));
+    fwinfo = kmalloc(sizeof(xbv1_t), GFP_KERNEL);
     if (fwinfo == NULL)
     {
         unifi_error(card->ospriv, "Failed to allocate memory for patches\n");

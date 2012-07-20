@@ -178,24 +178,6 @@ void *CsrMemCalloc(size_t numberOfElements, size_t elementSize)
 
 /*----------------------------------------------------------------------------*
  *  NAME
- *      CsrMemAlloc
- *
- *  DESCRIPTION
- *      Allocate dynamic memory of a given size.
- *
- *  RETURNS
- *      Pointer to allocated memory, or NULL in case of failure.
- *      Allocated memory is not initialised.
- *
- *----------------------------------------------------------------------------*/
-void *CsrMemAlloc(size_t size)
-{
-    return kmalloc(size, GFP_KERNEL);
-}
-EXPORT_SYMBOL_GPL(CsrMemAlloc);
-
-/*----------------------------------------------------------------------------*
- *  NAME
  *      CsrMemAllocDma
  *
  *  DESCRIPTION

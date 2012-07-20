@@ -994,7 +994,7 @@ void* xbv_to_patch(card_t *card, fwreadfn_t readfn,
     }
 
     /* Pre-allocate read buffer for chunk conversion */
-    rdbuf = CsrMemAlloc(PTDL_MAX_SIZE);
+    rdbuf = kmalloc(PTDL_MAX_SIZE, GFP_KERNEL);
     if (!rdbuf)
     {
         unifi_error(card, "Couldn't alloc conversion buffer\n");
@@ -1019,7 +1019,7 @@ void* xbv_to_patch(card_t *card, fwreadfn_t readfn,
      */
     patch_buf_size = calc_patch_size(fwinfo);
 
-    patch_buf = (void *)CsrMemAlloc(patch_buf_size);
+    patch_buf = kmalloc(patch_buf_size, GFP_KERNEL);
     if (!patch_buf)
     {
         kfree(rdbuf);

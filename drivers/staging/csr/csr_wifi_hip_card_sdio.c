@@ -73,13 +73,11 @@ card_t* unifi_alloc_card(CsrSdioFunction *sdio, void *ospriv)
     func_enter();
 
 
-    card = (card_t *)CsrMemAlloc(sizeof(card_t));
+    card = kzalloc(sizeof(card_t), GFP_KERNEL);
     if (card == NULL)
     {
         return NULL;
     }
-    memset(card, 0, sizeof(card_t));
-
 
     card->sdio_if = sdio;
     card->ospriv  = ospriv;
@@ -1665,8 +1663,7 @@ static CsrResult card_allocate_memory_resources(card_t *card)
     n = cfg_data->num_fromhost_data_slots;
 
     unifi_trace(card->ospriv, UDBG3, "Alloc from-host resources, %d slots.\n", n);
-    card->from_host_data =
-        (slot_desc_t *)CsrMemAlloc(n * sizeof(slot_desc_t));
+    card->from_host_data = kmalloc(n * sizeof(slot_desc_t), GFP_KERNEL);
     if (card->from_host_data == NULL)
     {
         unifi_error(card->ospriv, "Failed to allocate memory for F-H bulk data array\n");
@@ -1681,8 +1678,7 @@ static CsrResult card_allocate_memory_resources(card_t *card)
     }
 
     /* Allocate memory for the array used for slot host tag mapping */
-    card->fh_slot_host_tag_record =
-        (u32 *)CsrMemAlloc(n * sizeof(u32));
+    card->fh_slot_host_tag_record = kmalloc(n * sizeof(u32), GFP_KERNEL);
 
     if (card->fh_slot_host_tag_record == NULL)
     {
@@ -1702,8 +1698,7 @@ static CsrResult card_allocate_memory_resources(card_t *card)
     n = cfg_data->num_tohost_data_slots;
 
     unifi_trace(card->ospriv, UDBG3, "Alloc to-host resources, %d slots.\n", n);
-    card->to_host_data =
-        (bulk_data_desc_t *)CsrMemAlloc(n * sizeof(bulk_data_desc_t));
+    card->to_host_data = kmalloc(n * sizeof(bulk_data_desc_t), GFP_KERNEL);
     if (card->to_host_data == NULL)
     {
         unifi_error(card->ospriv, "Failed to allocate memory for T-H bulk data array\n");

@@ -667,24 +667,19 @@ coredump_buffer* new_coredump_node(void *ospriv, coredump_buffer *prevnode)
     u32 zone_size;
 
     /* Allocate node header */
-    newnode = (coredump_buffer *)CsrMemAlloc(sizeof(coredump_buffer));
+    newnode = kzalloc(sizeof(coredump_buffer), GFP_KERNEL);
     if (newnode == NULL)
     {
         return NULL;
     }
-    memset(newnode, 0, sizeof(coredump_buffer));
 
     /* Allocate chip memory zone capture buffers */
     for (i = 0; i < HIP_CDUMP_NUM_ZONES; i++)
     {
         zone_size = sizeof(u16) * zonedef_table[i].length;
-        newzone = (u16 *)CsrMemAlloc(zone_size);
+        newzone = kzalloc(zone_size, GFP_KERNEL);
         newnode->zone[i] = newzone;
-        if (newzone != NULL)
-        {
-            memset(newzone, 0, zone_size);
-        }
-        else
+        if (newzone == NULL)
         {
             unifi_error(ospriv, "Out of memory on coredump zone %d (%d words)\n",
                         i, zonedef_table[i].length);
