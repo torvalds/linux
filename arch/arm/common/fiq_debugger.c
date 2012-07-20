@@ -81,6 +81,10 @@ struct fiq_debugger_state {
 	atomic_t unhandled_fiq_count;
 	bool in_fiq;
 
+	struct work_struct work;
+	spinlock_t work_lock;
+	char work_cmd[DEBUG_MAX];
+
 #ifdef CONFIG_FIQ_DEBUGGER_CONSOLE
 	struct console console;
 	struct tty_struct *tty;
@@ -557,6 +561,53 @@ static void do_kgdb(struct fiq_debugger_state *state)
 }
 #endif
 
+static void debug_schedule_work(struct fiq_debugger_state *state, char *cmd)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&state->work_lock, flags);
+	if (state->work_cmd[0] != '\0') {
+		debug_printf(state, "work command processor busy\n");
+		spin_unlock_irqrestore(&state->work_lock, flags);
+		return;
+	}
+
+	strlcpy(state->work_cmd, cmd, sizeof(state->work_cmd));
+	spin_unlock_irqrestore(&state->work_lock, flags);
+
+	schedule_work(&state->work);
+}
+
+static void debug_work(struct work_struct *work)
+{
+	struct fiq_debugger_state *state;
+	char work_cmd[DEBUG_MAX];
+	char *cmd;
+	unsigned long flags;
+
+	state = container_of(work, struct fiq_debugger_state, work);
+
+	spin_lock_irqsave(&state->work_lock, flags);
+
+	strlcpy(work_cmd, state->work_cmd, sizeof(work_cmd));
+	state->work_cmd[0] = '\0';
+
+	spin_unlock_irqrestore(&state->work_lock, flags);
+
+	cmd = work_cmd;
+	if (!strncmp(cmd, "reboot", 6)) {
+		cmd += 6;
+		while (*cmd == ' ')
+			cmd++;
+		if (cmd != '\0')
+			kernel_restart(cmd);
+		else
+			kernel_restart(NULL);
+	} else {
+		debug_printf(state, "unknown work command '%s'\n", work_cmd);
+	}
+}
+
 /* This function CANNOT be called in FIQ context */
 static void debug_irq_exec(struct fiq_debugger_state *state, char *cmd)
 {
@@ -570,6 +621,8 @@ static void debug_irq_exec(struct fiq_debugger_state *state, char *cmd)
 	if (!strcmp(cmd, "kgdb"))
 		do_kgdb(state);
 #endif
+	if (!strncmp(cmd, "reboot", 6))
+		debug_schedule_work(state, cmd);
 }
 
 static void debug_help(struct fiq_debugger_state *state)
@@ -579,7 +632,8 @@ static void debug_help(struct fiq_debugger_state *state)
 				" regs          Register dump\n"
 				" allregs       Extended Register dump\n"
 				" bt            Stack trace\n"
-				" reboot        Reboot\n"
+				" reboot [<c>]  Reboot with command <c>\n"
+				" reset [<c>]   Hard reset with command <c>\n"
 				" irqs          Interupt status\n"
 				" kmsg          Kernel log\n"
 				" version       Kernel version\n");
@@ -630,16 +684,16 @@ static bool debug_fiq_exec(struct fiq_debugger_state *state,
 		dump_allregs(state, regs);
 	} else if (!strcmp(cmd, "bt")) {
 		dump_stacktrace(state, (struct pt_regs *)regs, 100, svc_sp);
-	} else if (!strncmp(cmd, "reboot", 6)) {
-		cmd += 6;
+	} else if (!strncmp(cmd, "reset", 5)) {
+		cmd += 5;
 		while (*cmd == ' ')
 			cmd++;
 		if (*cmd) {
 			char tmp_cmd[32];
 			strlcpy(tmp_cmd, cmd, sizeof(tmp_cmd));
-			kernel_restart(tmp_cmd);
+			machine_restart(tmp_cmd);
 		} else {
-			kernel_restart(NULL);
+			machine_restart(NULL);
 		}
 	} else if (!strcmp(cmd, "irqs")) {
 		dump_irqs(state);
@@ -1188,6 +1242,9 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 	state->uart_irq = uart_irq;
 	state->signal_irq = platform_get_irq_byname(pdev, "signal");
 	state->wakeup_irq = platform_get_irq_byname(pdev, "wakeup");
+
+	INIT_WORK(&state->work, debug_work);
+	spin_lock_init(&state->work_lock);
 
 	platform_set_drvdata(pdev, state);
 
