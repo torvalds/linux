@@ -259,6 +259,17 @@
 #define		SDMA0					(1 << 10)
 #define		SDMA1					(1 << 11)
 
+/* 0x6b04, 0x7704, 0x10304, 0x10f04, 0x11b04, 0x12704 */
+#define	LB_MEMORY_CTRL					0x6b04
+#define		LB_MEMORY_SIZE(x)			((x) << 0)
+#define		LB_MEMORY_CONFIG(x)			((x) << 20)
+
+#define	DPG_WATERMARK_MASK_CONTROL			0x6cc8
+#       define LATENCY_WATERMARK_MASK(x)		((x) << 8)
+#define	DPG_PIPE_LATENCY_CONTROL			0x6ccc
+#       define LATENCY_LOW_WATERMARK(x)			((x) << 0)
+#       define LATENCY_HIGH_WATERMARK(x)		((x) << 16)
+
 /* 0x6b24, 0x7724, 0x10324, 0x10f24, 0x11b24, 0x12724 */
 #define LB_VLINE_STATUS                                 0x6b24
 #       define VLINE_OCCURRED                           (1 << 0)

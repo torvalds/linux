@@ -5017,3 +5017,540 @@ void cik_fini(struct radeon_device *rdev)
 	kfree(rdev->bios);
 	rdev->bios = NULL;
 }
+
+/* display watermark setup */
+/**
+ * dce8_line_buffer_adjust - Set up the line buffer
+ *
+ * @rdev: radeon_device pointer
+ * @radeon_crtc: the selected display controller
+ * @mode: the current display mode on the selected display
+ * controller
+ *
+ * Setup up the line buffer allocation for
+ * the selected display controller (CIK).
+ * Returns the line buffer size in pixels.
+ */
+static u32 dce8_line_buffer_adjust(struct radeon_device *rdev,
+				   struct radeon_crtc *radeon_crtc,
+				   struct drm_display_mode *mode)
+{
+	u32 tmp;
+
+	/*
+	 * Line Buffer Setup
+	 * There are 6 line buffers, one for each display controllers.
+	 * There are 3 partitions per LB. Select the number of partitions
+	 * to enable based on the display width.  For display widths larger
+	 * than 4096, you need use to use 2 display controllers and combine
+	 * them using the stereo blender.
+	 */
+	if (radeon_crtc->base.enabled && mode) {
+		if (mode->crtc_hdisplay < 1920)
+			tmp = 1;
+		else if (mode->crtc_hdisplay < 2560)
+			tmp = 2;
+		else if (mode->crtc_hdisplay < 4096)
+			tmp = 0;
+		else {
+			DRM_DEBUG_KMS("Mode too big for LB!\n");
+			tmp = 0;
+		}
+	} else
+		tmp = 1;
+
+	WREG32(LB_MEMORY_CTRL + radeon_crtc->crtc_offset,
+	       LB_MEMORY_CONFIG(tmp) | LB_MEMORY_SIZE(0x6B0));
+
+	if (radeon_crtc->base.enabled && mode) {
+		switch (tmp) {
+		case 0:
+		default:
+			return 4096 * 2;
+		case 1:
+			return 1920 * 2;
+		case 2:
+			return 2560 * 2;
+		}
+	}
+
+	/* controller not enabled, so no lb used */
+	return 0;
+}
+
+/**
+ * cik_get_number_of_dram_channels - get the number of dram channels
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Look up the number of video ram channels (CIK).
+ * Used for display watermark bandwidth calculations
+ * Returns the number of dram channels
+ */
+static u32 cik_get_number_of_dram_channels(struct radeon_device *rdev)
+{
+	u32 tmp = RREG32(MC_SHARED_CHMAP);
+
+	switch ((tmp & NOOFCHAN_MASK) >> NOOFCHAN_SHIFT) {
+	case 0:
+	default:
+		return 1;
+	case 1:
+		return 2;
+	case 2:
+		return 4;
+	case 3:
+		return 8;
+	case 4:
+		return 3;
+	case 5:
+		return 6;
+	case 6:
+		return 10;
+	case 7:
+		return 12;
+	case 8:
+		return 16;
+	}
+}
+
+struct dce8_wm_params {
+	u32 dram_channels; /* number of dram channels */
+	u32 yclk;          /* bandwidth per dram data pin in kHz */
+	u32 sclk;          /* engine clock in kHz */
+	u32 disp_clk;      /* display clock in kHz */
+	u32 src_width;     /* viewport width */
+	u32 active_time;   /* active display time in ns */
+	u32 blank_time;    /* blank time in ns */
+	bool interlaced;    /* mode is interlaced */
+	fixed20_12 vsc;    /* vertical scale ratio */
+	u32 num_heads;     /* number of active crtcs */
+	u32 bytes_per_pixel; /* bytes per pixel display + overlay */
+	u32 lb_size;       /* line buffer allocated to pipe */
+	u32 vtaps;         /* vertical scaler taps */
+};
+
+/**
+ * dce8_dram_bandwidth - get the dram bandwidth
+ *
+ * @wm: watermark calculation data
+ *
+ * Calculate the raw dram bandwidth (CIK).
+ * Used for display watermark bandwidth calculations
+ * Returns the dram bandwidth in MBytes/s
+ */
+static u32 dce8_dram_bandwidth(struct dce8_wm_params *wm)
+{
+	/* Calculate raw DRAM Bandwidth */
+	fixed20_12 dram_efficiency; /* 0.7 */
+	fixed20_12 yclk, dram_channels, bandwidth;
+	fixed20_12 a;
+
+	a.full = dfixed_const(1000);
+	yclk.full = dfixed_const(wm->yclk);
+	yclk.full = dfixed_div(yclk, a);
+	dram_channels.full = dfixed_const(wm->dram_channels * 4);
+	a.full = dfixed_const(10);
+	dram_efficiency.full = dfixed_const(7);
+	dram_efficiency.full = dfixed_div(dram_efficiency, a);
+	bandwidth.full = dfixed_mul(dram_channels, yclk);
+	bandwidth.full = dfixed_mul(bandwidth, dram_efficiency);
+
+	return dfixed_trunc(bandwidth);
+}
+
+/**
+ * dce8_dram_bandwidth_for_display - get the dram bandwidth for display
+ *
+ * @wm: watermark calculation data
+ *
+ * Calculate the dram bandwidth used for display (CIK).
+ * Used for display watermark bandwidth calculations
+ * Returns the dram bandwidth for display in MBytes/s
+ */
+static u32 dce8_dram_bandwidth_for_display(struct dce8_wm_params *wm)
+{
+	/* Calculate DRAM Bandwidth and the part allocated to display. */
+	fixed20_12 disp_dram_allocation; /* 0.3 to 0.7 */
+	fixed20_12 yclk, dram_channels, bandwidth;
+	fixed20_12 a;
+
+	a.full = dfixed_const(1000);
+	yclk.full = dfixed_const(wm->yclk);
+	yclk.full = dfixed_div(yclk, a);
+	dram_channels.full = dfixed_const(wm->dram_channels * 4);
+	a.full = dfixed_const(10);
+	disp_dram_allocation.full = dfixed_const(3); /* XXX worse case value 0.3 */
+	disp_dram_allocation.full = dfixed_div(disp_dram_allocation, a);
+	bandwidth.full = dfixed_mul(dram_channels, yclk);
+	bandwidth.full = dfixed_mul(bandwidth, disp_dram_allocation);
+
+	return dfixed_trunc(bandwidth);
+}
+
+/**
+ * dce8_data_return_bandwidth - get the data return bandwidth
+ *
+ * @wm: watermark calculation data
+ *
+ * Calculate the data return bandwidth used for display (CIK).
+ * Used for display watermark bandwidth calculations
+ * Returns the data return bandwidth in MBytes/s
+ */
+static u32 dce8_data_return_bandwidth(struct dce8_wm_params *wm)
+{
+	/* Calculate the display Data return Bandwidth */
+	fixed20_12 return_efficiency; /* 0.8 */
+	fixed20_12 sclk, bandwidth;
+	fixed20_12 a;
+
+	a.full = dfixed_const(1000);
+	sclk.full = dfixed_const(wm->sclk);
+	sclk.full = dfixed_div(sclk, a);
+	a.full = dfixed_const(10);
+	return_efficiency.full = dfixed_const(8);
+	return_efficiency.full = dfixed_div(return_efficiency, a);
+	a.full = dfixed_const(32);
+	bandwidth.full = dfixed_mul(a, sclk);
+	bandwidth.full = dfixed_mul(bandwidth, return_efficiency);
+
+	return dfixed_trunc(bandwidth);
+}
+
+/**
+ * dce8_dmif_request_bandwidth - get the dmif bandwidth
+ *
+ * @wm: watermark calculation data
+ *
+ * Calculate the dmif bandwidth used for display (CIK).
+ * Used for display watermark bandwidth calculations
+ * Returns the dmif bandwidth in MBytes/s
+ */
+static u32 dce8_dmif_request_bandwidth(struct dce8_wm_params *wm)
+{
+	/* Calculate the DMIF Request Bandwidth */
+	fixed20_12 disp_clk_request_efficiency; /* 0.8 */
+	fixed20_12 disp_clk, bandwidth;
+	fixed20_12 a, b;
+
+	a.full = dfixed_const(1000);
+	disp_clk.full = dfixed_const(wm->disp_clk);
+	disp_clk.full = dfixed_div(disp_clk, a);
+	a.full = dfixed_const(32);
+	b.full = dfixed_mul(a, disp_clk);
+
+	a.full = dfixed_const(10);
+	disp_clk_request_efficiency.full = dfixed_const(8);
+	disp_clk_request_efficiency.full = dfixed_div(disp_clk_request_efficiency, a);
+
+	bandwidth.full = dfixed_mul(b, disp_clk_request_efficiency);
+
+	return dfixed_trunc(bandwidth);
+}
+
+/**
+ * dce8_available_bandwidth - get the min available bandwidth
+ *
+ * @wm: watermark calculation data
+ *
+ * Calculate the min available bandwidth used for display (CIK).
+ * Used for display watermark bandwidth calculations
+ * Returns the min available bandwidth in MBytes/s
+ */
+static u32 dce8_available_bandwidth(struct dce8_wm_params *wm)
+{
+	/* Calculate the Available bandwidth. Display can use this temporarily but not in average. */
+	u32 dram_bandwidth = dce8_dram_bandwidth(wm);
+	u32 data_return_bandwidth = dce8_data_return_bandwidth(wm);
+	u32 dmif_req_bandwidth = dce8_dmif_request_bandwidth(wm);
+
+	return min(dram_bandwidth, min(data_return_bandwidth, dmif_req_bandwidth));
+}
+
+/**
+ * dce8_average_bandwidth - get the average available bandwidth
+ *
+ * @wm: watermark calculation data
+ *
+ * Calculate the average available bandwidth used for display (CIK).
+ * Used for display watermark bandwidth calculations
+ * Returns the average available bandwidth in MBytes/s
+ */
+static u32 dce8_average_bandwidth(struct dce8_wm_params *wm)
+{
+	/* Calculate the display mode Average Bandwidth
+	 * DisplayMode should contain the source and destination dimensions,
+	 * timing, etc.
+	 */
+	fixed20_12 bpp;
+	fixed20_12 line_time;
+	fixed20_12 src_width;
+	fixed20_12 bandwidth;
+	fixed20_12 a;
+
+	a.full = dfixed_const(1000);
+	line_time.full = dfixed_const(wm->active_time + wm->blank_time);
+	line_time.full = dfixed_div(line_time, a);
+	bpp.full = dfixed_const(wm->bytes_per_pixel);
+	src_width.full = dfixed_const(wm->src_width);
+	bandwidth.full = dfixed_mul(src_width, bpp);
+	bandwidth.full = dfixed_mul(bandwidth, wm->vsc);
+	bandwidth.full = dfixed_div(bandwidth, line_time);
+
+	return dfixed_trunc(bandwidth);
+}
+
+/**
+ * dce8_latency_watermark - get the latency watermark
+ *
+ * @wm: watermark calculation data
+ *
+ * Calculate the latency watermark (CIK).
+ * Used for display watermark bandwidth calculations
+ * Returns the latency watermark in ns
+ */
+static u32 dce8_latency_watermark(struct dce8_wm_params *wm)
+{
+	/* First calculate the latency in ns */
+	u32 mc_latency = 2000; /* 2000 ns. */
+	u32 available_bandwidth = dce8_available_bandwidth(wm);
+	u32 worst_chunk_return_time = (512 * 8 * 1000) / available_bandwidth;
+	u32 cursor_line_pair_return_time = (128 * 4 * 1000) / available_bandwidth;
+	u32 dc_latency = 40000000 / wm->disp_clk; /* dc pipe latency */
+	u32 other_heads_data_return_time = ((wm->num_heads + 1) * worst_chunk_return_time) +
+		(wm->num_heads * cursor_line_pair_return_time);
+	u32 latency = mc_latency + other_heads_data_return_time + dc_latency;
+	u32 max_src_lines_per_dst_line, lb_fill_bw, line_fill_time;
+	u32 tmp, dmif_size = 12288;
+	fixed20_12 a, b, c;
+
+	if (wm->num_heads == 0)
+		return 0;
+
+	a.full = dfixed_const(2);
+	b.full = dfixed_const(1);
+	if ((wm->vsc.full > a.full) ||
+	    ((wm->vsc.full > b.full) && (wm->vtaps >= 3)) ||
+	    (wm->vtaps >= 5) ||
+	    ((wm->vsc.full >= a.full) && wm->interlaced))
+		max_src_lines_per_dst_line = 4;
+	else
+		max_src_lines_per_dst_line = 2;
+
+	a.full = dfixed_const(available_bandwidth);
+	b.full = dfixed_const(wm->num_heads);
+	a.full = dfixed_div(a, b);
+
+	b.full = dfixed_const(mc_latency + 512);
+	c.full = dfixed_const(wm->disp_clk);
+	b.full = dfixed_div(b, c);
+
+	c.full = dfixed_const(dmif_size);
+	b.full = dfixed_div(c, b);
+
+	tmp = min(dfixed_trunc(a), dfixed_trunc(b));
+
+	b.full = dfixed_const(1000);
+	c.full = dfixed_const(wm->disp_clk);
+	b.full = dfixed_div(c, b);
+	c.full = dfixed_const(wm->bytes_per_pixel);
+	b.full = dfixed_mul(b, c);
+
+	lb_fill_bw = min(tmp, dfixed_trunc(b));
+
+	a.full = dfixed_const(max_src_lines_per_dst_line * wm->src_width * wm->bytes_per_pixel);
+	b.full = dfixed_const(1000);
+	c.full = dfixed_const(lb_fill_bw);
+	b.full = dfixed_div(c, b);
+	a.full = dfixed_div(a, b);
+	line_fill_time = dfixed_trunc(a);
+
+	if (line_fill_time < wm->active_time)
+		return latency;
+	else
+		return latency + (line_fill_time - wm->active_time);
+
+}
+
+/**
+ * dce8_average_bandwidth_vs_dram_bandwidth_for_display - check
+ * average and available dram bandwidth
+ *
+ * @wm: watermark calculation data
+ *
+ * Check if the display average bandwidth fits in the display
+ * dram bandwidth (CIK).
+ * Used for display watermark bandwidth calculations
+ * Returns true if the display fits, false if not.
+ */
+static bool dce8_average_bandwidth_vs_dram_bandwidth_for_display(struct dce8_wm_params *wm)
+{
+	if (dce8_average_bandwidth(wm) <=
+	    (dce8_dram_bandwidth_for_display(wm) / wm->num_heads))
+		return true;
+	else
+		return false;
+}
+
+/**
+ * dce8_average_bandwidth_vs_available_bandwidth - check
+ * average and available bandwidth
+ *
+ * @wm: watermark calculation data
+ *
+ * Check if the display average bandwidth fits in the display
+ * available bandwidth (CIK).
+ * Used for display watermark bandwidth calculations
+ * Returns true if the display fits, false if not.
+ */
+static bool dce8_average_bandwidth_vs_available_bandwidth(struct dce8_wm_params *wm)
+{
+	if (dce8_average_bandwidth(wm) <=
+	    (dce8_available_bandwidth(wm) / wm->num_heads))
+		return true;
+	else
+		return false;
+}
+
+/**
+ * dce8_check_latency_hiding - check latency hiding
+ *
+ * @wm: watermark calculation data
+ *
+ * Check latency hiding (CIK).
+ * Used for display watermark bandwidth calculations
+ * Returns true if the display fits, false if not.
+ */
+static bool dce8_check_latency_hiding(struct dce8_wm_params *wm)
+{
+	u32 lb_partitions = wm->lb_size / wm->src_width;
+	u32 line_time = wm->active_time + wm->blank_time;
+	u32 latency_tolerant_lines;
+	u32 latency_hiding;
+	fixed20_12 a;
+
+	a.full = dfixed_const(1);
+	if (wm->vsc.full > a.full)
+		latency_tolerant_lines = 1;
+	else {
+		if (lb_partitions <= (wm->vtaps + 1))
+			latency_tolerant_lines = 1;
+		else
+			latency_tolerant_lines = 2;
+	}
+
+	latency_hiding = (latency_tolerant_lines * line_time + wm->blank_time);
+
+	if (dce8_latency_watermark(wm) <= latency_hiding)
+		return true;
+	else
+		return false;
+}
+
+/**
+ * dce8_program_watermarks - program display watermarks
+ *
+ * @rdev: radeon_device pointer
+ * @radeon_crtc: the selected display controller
+ * @lb_size: line buffer size
+ * @num_heads: number of display controllers in use
+ *
+ * Calculate and program the display watermarks for the
+ * selected display controller (CIK).
+ */
+static void dce8_program_watermarks(struct radeon_device *rdev,
+				    struct radeon_crtc *radeon_crtc,
+				    u32 lb_size, u32 num_heads)
+{
+	struct drm_display_mode *mode = &radeon_crtc->base.mode;
+	struct dce8_wm_params wm;
+	u32 pixel_period;
+	u32 line_time = 0;
+	u32 latency_watermark_a = 0, latency_watermark_b = 0;
+	u32 tmp, wm_mask;
+
+	if (radeon_crtc->base.enabled && num_heads && mode) {
+		pixel_period = 1000000 / (u32)mode->clock;
+		line_time = min((u32)mode->crtc_htotal * pixel_period, (u32)65535);
+
+		wm.yclk = rdev->pm.current_mclk * 10;
+		wm.sclk = rdev->pm.current_sclk * 10;
+		wm.disp_clk = mode->clock;
+		wm.src_width = mode->crtc_hdisplay;
+		wm.active_time = mode->crtc_hdisplay * pixel_period;
+		wm.blank_time = line_time - wm.active_time;
+		wm.interlaced = false;
+		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+			wm.interlaced = true;
+		wm.vsc = radeon_crtc->vsc;
+		wm.vtaps = 1;
+		if (radeon_crtc->rmx_type != RMX_OFF)
+			wm.vtaps = 2;
+		wm.bytes_per_pixel = 4; /* XXX: get this from fb config */
+		wm.lb_size = lb_size;
+		wm.dram_channels = cik_get_number_of_dram_channels(rdev);
+		wm.num_heads = num_heads;
+
+		/* set for high clocks */
+		latency_watermark_a = min(dce8_latency_watermark(&wm), (u32)65535);
+		/* set for low clocks */
+		/* wm.yclk = low clk; wm.sclk = low clk */
+		latency_watermark_b = min(dce8_latency_watermark(&wm), (u32)65535);
+
+		/* possibly force display priority to high */
+		/* should really do this at mode validation time... */
+		if (!dce8_average_bandwidth_vs_dram_bandwidth_for_display(&wm) ||
+		    !dce8_average_bandwidth_vs_available_bandwidth(&wm) ||
+		    !dce8_check_latency_hiding(&wm) ||
+		    (rdev->disp_priority == 2)) {
+			DRM_DEBUG_KMS("force priority to high\n");
+		}
+	}
+
+	/* select wm A */
+	wm_mask = RREG32(DPG_WATERMARK_MASK_CONTROL + radeon_crtc->crtc_offset);
+	tmp = wm_mask;
+	tmp &= ~LATENCY_WATERMARK_MASK(3);
+	tmp |= LATENCY_WATERMARK_MASK(1);
+	WREG32(DPG_WATERMARK_MASK_CONTROL + radeon_crtc->crtc_offset, tmp);
+	WREG32(DPG_PIPE_LATENCY_CONTROL + radeon_crtc->crtc_offset,
+	       (LATENCY_LOW_WATERMARK(latency_watermark_a) |
+		LATENCY_HIGH_WATERMARK(line_time)));
+	/* select wm B */
+	tmp = RREG32(DPG_WATERMARK_MASK_CONTROL + radeon_crtc->crtc_offset);
+	tmp &= ~LATENCY_WATERMARK_MASK(3);
+	tmp |= LATENCY_WATERMARK_MASK(2);
+	WREG32(DPG_WATERMARK_MASK_CONTROL + radeon_crtc->crtc_offset, tmp);
+	WREG32(DPG_PIPE_LATENCY_CONTROL + radeon_crtc->crtc_offset,
+	       (LATENCY_LOW_WATERMARK(latency_watermark_b) |
+		LATENCY_HIGH_WATERMARK(line_time)));
+	/* restore original selection */
+	WREG32(DPG_WATERMARK_MASK_CONTROL + radeon_crtc->crtc_offset, wm_mask);
+}
+
+/**
+ * dce8_bandwidth_update - program display watermarks
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Calculate and program the display watermarks and line
+ * buffer allocation (CIK).
+ */
+void dce8_bandwidth_update(struct radeon_device *rdev)
+{
+	struct drm_display_mode *mode = NULL;
+	u32 num_heads = 0, lb_size;
+	int i;
+
+	radeon_update_display_priority(rdev);
+
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (rdev->mode_info.crtcs[i]->base.enabled)
+			num_heads++;
+	}
+	for (i = 0; i < rdev->num_crtc; i++) {
+		mode = &rdev->mode_info.crtcs[i]->base.mode;
+		lb_size = dce8_line_buffer_adjust(rdev, rdev->mode_info.crtcs[i], mode);
+		dce8_program_watermarks(rdev, rdev->mode_info.crtcs[i], lb_size, num_heads);
+	}
+}
