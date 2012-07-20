@@ -8,9 +8,7 @@
  */
 
 #include <stddef.h>
-
 #include "list.h"
-#include "util.h"
 
 /**
  * Initialize an empty list.
@@ -37,8 +35,6 @@ int os_list_empty(struct os_list *list)
 static void os_list_add(struct os_list_node *prev, struct os_list_node *new,
                         struct os_list_node *next)
 {
-    OS_ASSERT(new->next == NULL && new->prev == NULL);
-
     next->prev = new;
     new->next  = next;
     new->prev  = prev;
