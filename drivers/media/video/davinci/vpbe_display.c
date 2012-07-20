@@ -1083,7 +1083,7 @@ vpbe_display_s_dv_preset(struct file *file, void *priv,
 	}
 
 	/* Set the given standard in the encoder */
-	if (NULL != vpbe_dev->ops.s_dv_preset)
+	if (!vpbe_dev->ops.s_dv_preset)
 		return -EINVAL;
 
 	ret = vpbe_dev->ops.s_dv_preset(vpbe_dev, preset);
