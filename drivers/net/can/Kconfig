@@ -1,9 +1,7 @@
 menu "CAN Device Drivers"
-	depends on CAN
 
 config CAN_VCAN
 	tristate "Virtual Local CAN Interface (vcan)"
-	depends on CAN
 	---help---
 	  Similar to the network loopback devices, vcan offers a
 	  virtual local CAN interface.
@@ -13,7 +11,6 @@ config CAN_VCAN
 
 config CAN_SLCAN
 	tristate "Serial / USB serial CAN Adaptors (slcan)"
-	depends on CAN
 	---help---
 	  CAN driver for several 'low cost' CAN interfaces that are attached
 	  via serial lines or via USB-to-serial adapters using the LAWICEL
@@ -33,7 +30,6 @@ config CAN_SLCAN
 
 config CAN_DEV
 	tristate "Platform CAN drivers with Netlink support"
-	depends on CAN
 	default y
 	---help---
 	  Enables the common framework for platform CAN drivers with Netlink
@@ -133,7 +129,6 @@ source "drivers/net/can/softing/Kconfig"
 
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"
-	depends on CAN
 	---help---
 	  Say Y here if you want the CAN device drivers to produce a bunch of
 	  debug messages to the system log.  Select this if you are having
