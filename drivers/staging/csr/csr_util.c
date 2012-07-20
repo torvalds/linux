@@ -58,21 +58,6 @@ s32 CsrVsnprintf(char *string, size_t count, const char *format, va_list args)
 }
 EXPORT_SYMBOL_GPL(CsrVsnprintf);
 
-char *CsrStrDup(const char *string)
-{
-    char *copy;
-    u32 len;
-
-    copy = NULL;
-    if (string != NULL)
-    {
-        len = CsrStrLen(string) + 1;
-        copy = CsrPmemAlloc(len);
-        CsrMemCpy(copy, string, len);
-    }
-    return copy;
-}
-
 MODULE_DESCRIPTION("CSR Operating System Kernel Abstraction");
 MODULE_AUTHOR("Cambridge Silicon Radio Ltd.");
 MODULE_LICENSE("GPL and additional rights");

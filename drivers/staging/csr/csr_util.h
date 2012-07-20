@@ -35,11 +35,6 @@ size_t CsrStrLen(const char *string);
 #endif /* !CSR_USE_STDC_LIB */
 s32 CsrVsnprintf(char *string, size_t count, const char *format, va_list args);
 
-/*------------------------------------------------------------------*/
-/* Non-standard utility functions */
-/*------------------------------------------------------------------*/
-char *CsrStrDup(const char *string);
-
 #define CsrOffsetOf(st, m)  ((size_t) & ((st *) 0)->m)
 
 #ifdef __cplusplus

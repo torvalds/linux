@@ -1053,8 +1053,3 @@ u8 *CsrUtf8StrTruncate(u8 *target, size_t count)
 
     return target;
 }
-
-u8 *CsrUtf8StrDup(const u8 *source)
-{
-    return (u8 *) CsrStrDup((const char *) source);
-}

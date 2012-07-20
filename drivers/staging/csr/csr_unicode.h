@@ -64,26 +64,6 @@ u32 CsrUtf8StringLengthInBytes(const u8 *string);
 *******************************************************************************/
 u8 *CsrUtf8StrTruncate(u8 *target, size_t count);
 
-/*******************************************************************************
-
-    NAME
-        CsrUtf8StrDup
-
-    DESCRIPTION
-        This function will allocate memory and copy the source string into the
-        allocated memory, which is then returned as a duplicate of the original
-        string. The memory returned must be freed by calling CsrPmemFree when
-        the duplicate is no longer needed.
-
-    PARAMETERS
-        source - UTF-8 string to be duplicated.
-
-    RETURNS
-        Returns a duplicate of source.
-
-*******************************************************************************/
-u8 *CsrUtf8StrDup(const u8 *source);
-
 /*
  * UCS2
  *

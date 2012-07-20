@@ -49,14 +49,14 @@ EXPORT_SYMBOL_GPL(CsrMemCpyDes);
 
 void CsrCharStringDes(char **value, u8 *buffer, size_t *offset)
 {
-    *value = CsrStrDup((char *) &buffer[*offset]);
+    *value = kstrdup((char *) &buffer[*offset], GFP_KERNEL);
     *offset += CsrStrLen(*value) + 1;
 }
 EXPORT_SYMBOL_GPL(CsrCharStringDes);
 
 void CsrUtf8StringDes(u8 **value, u8 *buffer, size_t *offset)
 {
-    *value = (u8 *) CsrStrDup((char *) &buffer[*offset]);
+    *value = (u8 *)kstrdup((char *) &buffer[*offset], GFP_KERNEL);
     *offset += CsrStrLen((char *) *value) + 1;
 }
 
