@@ -566,6 +566,7 @@ config ARCH_LPC32XX
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
 	select USE_OF
+	select HAVE_PWM
 	help
 	  Support for the NXP LPC32XX family of processors
 
