@@ -55,9 +55,9 @@ void CsrCharStringDes(CsrCharString **value, u8 *buffer, CsrSize *offset)
 }
 EXPORT_SYMBOL_GPL(CsrCharStringDes);
 
-void CsrUtf8StringDes(CsrUtf8String **value, u8 *buffer, CsrSize *offset)
+void CsrUtf8StringDes(u8 **value, u8 *buffer, CsrSize *offset)
 {
-    *value = (CsrUtf8String *) CsrStrDup((CsrCharString *) &buffer[*offset]);
+    *value = (u8 *) CsrStrDup((CsrCharString *) &buffer[*offset]);
     *offset += CsrStrLen((CsrCharString *) *value) + 1;
 }
 
@@ -134,7 +134,7 @@ void CsrCharStringSer(u8 *buffer, CsrSize *offset, const CsrCharString *value)
 }
 EXPORT_SYMBOL_GPL(CsrCharStringSer);
 
-void CsrUtf8StringSer(u8 *buffer, CsrSize *offset, const CsrUtf8String *value)
+void CsrUtf8StringSer(u8 *buffer, CsrSize *offset, const u8 *value)
 {
     CsrCharStringSer(buffer, offset, (CsrCharString *) value);
 }
@@ -185,7 +185,7 @@ u32 CsrCharStringSerLen(const CsrCharString *str)
     }
 }
 
-u32 CsrUtf8StringSerLen(const CsrUtf8String *str)
+u32 CsrUtf8StringSerLen(const u8 *str)
 {
     if (str)
     {

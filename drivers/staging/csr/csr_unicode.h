@@ -21,9 +21,9 @@ u16 *CsrUint32ToUtf16String(u32 number);
 u32 CsrUtf16StringToUint32(const u16 *unicodeString);
 u32 CsrUtf16StrLen(const u16 *unicodeString);
 
-CsrUtf8String *CsrUtf16String2Utf8(const u16 *source);
+u8 *CsrUtf16String2Utf8(const u16 *source);
 
-u16 *CsrUtf82Utf16String(const CsrUtf8String *utf8String);
+u16 *CsrUtf82Utf16String(const u8 *utf8String);
 
 u16 *CsrUtf16StrCpy(u16 *target, const u16 *source);
 u16 *CsrUtf16StringDuplicate(const u16 *source);
@@ -38,9 +38,9 @@ u16 *CsrUtf16ConcatenateTexts(const u16 *inputText1, const u16 *inputText2,
 u16 *CsrUtf16String2XML(u16 *str);
 u16 *CsrXML2Utf16String(u16 *str);
 
-s32 CsrUtf8StrCmp(const CsrUtf8String *string1, const CsrUtf8String *string2);
-s32 CsrUtf8StrNCmp(const CsrUtf8String *string1, const CsrUtf8String *string2, CsrSize count);
-u32 CsrUtf8StringLengthInBytes(const CsrUtf8String *string);
+s32 CsrUtf8StrCmp(const u8 *string1, const u8 *string2);
+s32 CsrUtf8StrNCmp(const u8 *string1, const u8 *string2, CsrSize count);
+u32 CsrUtf8StringLengthInBytes(const u8 *string);
 
 /*******************************************************************************
 
@@ -66,7 +66,7 @@ u32 CsrUtf8StringLengthInBytes(const CsrUtf8String *string);
         Returns target
 
 *******************************************************************************/
-CsrUtf8String *CsrUtf8StrTruncate(CsrUtf8String *target, CsrSize count);
+u8 *CsrUtf8StrTruncate(u8 *target, CsrSize count);
 
 /*******************************************************************************
 
@@ -90,7 +90,7 @@ CsrUtf8String *CsrUtf8StrTruncate(CsrUtf8String *target, CsrSize count);
         Returns target
 
 *******************************************************************************/
-CsrUtf8String *CsrUtf8StrCpy(CsrUtf8String *target, const CsrUtf8String *source);
+u8 *CsrUtf8StrCpy(u8 *target, const u8 *source);
 
 /*******************************************************************************
 
@@ -116,7 +116,7 @@ CsrUtf8String *CsrUtf8StrCpy(CsrUtf8String *target, const CsrUtf8String *source)
         Returns target
 
 *******************************************************************************/
-CsrUtf8String *CsrUtf8StrNCpy(CsrUtf8String *target, const CsrUtf8String *source, CsrSize count);
+u8 *CsrUtf8StrNCpy(u8 *target, const u8 *source, CsrSize count);
 
 /*******************************************************************************
 
@@ -143,7 +143,7 @@ CsrUtf8String *CsrUtf8StrNCpy(CsrUtf8String *target, const CsrUtf8String *source
         Returns target
 
 *******************************************************************************/
-CsrUtf8String *CsrUtf8StrNCpyZero(CsrUtf8String *target, const CsrUtf8String *source, CsrSize count);
+u8 *CsrUtf8StrNCpyZero(u8 *target, const u8 *source, CsrSize count);
 
 /*******************************************************************************
 
@@ -163,9 +163,9 @@ CsrUtf8String *CsrUtf8StrNCpyZero(CsrUtf8String *target, const CsrUtf8String *so
         Returns a duplicate of source.
 
 *******************************************************************************/
-CsrUtf8String *CsrUtf8StrDup(const CsrUtf8String *source);
+u8 *CsrUtf8StrDup(const u8 *source);
 
-CsrUtf8String *CsrUtf8StringConcatenateTexts(const CsrUtf8String *inputText1, const CsrUtf8String *inputText2, const CsrUtf8String *inputText3, const CsrUtf8String *inputText4);
+u8 *CsrUtf8StringConcatenateTexts(const u8 *inputText1, const u8 *inputText2, const u8 *inputText3, const u8 *inputText4);
 
 /*
  * UCS2

@@ -253,9 +253,9 @@ u32 CsrUtf16StrLen(const u16 *unicodeString)
 *   Output:         0-terminated string of byte oriented UTF8 coded characters.
 *
 *********************************************************************************/
-CsrUtf8String *CsrUtf16String2Utf8(const u16 *source)
+u8 *CsrUtf16String2Utf8(const u16 *source)
 {
-    CsrUtf8String *dest, *destStart = NULL;
+    u8 *dest, *destStart = NULL;
     u32 i;
     u32 ch;
     u32 length;
@@ -463,9 +463,9 @@ CsrUtf8String *CsrUtf16String2Utf8(const u16 *source)
         TRUE if the given code unit is legal.
 
 *****************************************************************************/
-static CsrBool isLegalUtf8(const CsrUtf8String *codeUnit, u32 length)
+static CsrBool isLegalUtf8(const u8 *codeUnit, u32 length)
 {
-    const CsrUtf8String *srcPtr = codeUnit + length;
+    const u8 *srcPtr = codeUnit + length;
     u8 byte;
 
     switch (length) /* Everything falls through except case 1 */
@@ -562,7 +562,7 @@ static CsrBool isLegalUtf8(const CsrUtf8String *codeUnit, u32 length)
 *   Output:         0-terminated string of UTF-16 characters.
 *
 *********************************************************************************/
-u16 *CsrUtf82Utf16String(const CsrUtf8String *utf8String)
+u16 *CsrUtf82Utf16String(const u8 *utf8String)
 {
     CsrSize i, length = 0;
     CsrSize sourceLength;
@@ -1016,17 +1016,17 @@ u16 *CsrXML2Utf16String(u16 *str)
     return resultString;
 }
 
-s32 CsrUtf8StrCmp(const CsrUtf8String *string1, const CsrUtf8String *string2)
+s32 CsrUtf8StrCmp(const u8 *string1, const u8 *string2)
 {
     return CsrStrCmp((const CsrCharString *) string1, (const CsrCharString *) string2);
 }
 
-s32 CsrUtf8StrNCmp(const CsrUtf8String *string1, const CsrUtf8String *string2, CsrSize count)
+s32 CsrUtf8StrNCmp(const u8 *string1, const u8 *string2, CsrSize count)
 {
     return CsrStrNCmp((const CsrCharString *) string1, (const CsrCharString *) string2, count);
 }
 
-u32 CsrUtf8StringLengthInBytes(const CsrUtf8String *string)
+u32 CsrUtf8StringLengthInBytes(const u8 *string)
 {
     CsrSize length = 0;
     if (string)
@@ -1036,12 +1036,12 @@ u32 CsrUtf8StringLengthInBytes(const CsrUtf8String *string)
     return (u32) length;
 }
 
-CsrUtf8String *CsrUtf8StrCpy(CsrUtf8String *target, const CsrUtf8String *source)
+u8 *CsrUtf8StrCpy(u8 *target, const u8 *source)
 {
-    return (CsrUtf8String *) CsrStrCpy((CsrCharString *) target, (const CsrCharString *) source);
+    return (u8 *) CsrStrCpy((CsrCharString *) target, (const CsrCharString *) source);
 }
 
-CsrUtf8String *CsrUtf8StrTruncate(CsrUtf8String *target, CsrSize count)
+u8 *CsrUtf8StrTruncate(u8 *target, CsrSize count)
 {
     CsrSize lastByte = count - 1;
 
@@ -1070,12 +1070,12 @@ CsrUtf8String *CsrUtf8StrTruncate(CsrUtf8String *target, CsrSize count)
     return target;
 }
 
-CsrUtf8String *CsrUtf8StrNCpy(CsrUtf8String *target, const CsrUtf8String *source, CsrSize count)
+u8 *CsrUtf8StrNCpy(u8 *target, const u8 *source, CsrSize count)
 {
-    return (CsrUtf8String *) CsrStrNCpy((CsrCharString *) target, (const CsrCharString *) source, count);
+    return (u8 *) CsrStrNCpy((CsrCharString *) target, (const CsrCharString *) source, count);
 }
 
-CsrUtf8String *CsrUtf8StrNCpyZero(CsrUtf8String *target, const CsrUtf8String *source, CsrSize count)
+u8 *CsrUtf8StrNCpyZero(u8 *target, const u8 *source, CsrSize count)
 {
     CsrStrNCpy((CsrCharString *) target, (const CsrCharString *) source, count);
     if (target[count - 1] != '\0')
@@ -1085,14 +1085,14 @@ CsrUtf8String *CsrUtf8StrNCpyZero(CsrUtf8String *target, const CsrUtf8String *so
     return target;
 }
 
-CsrUtf8String *CsrUtf8StrDup(const CsrUtf8String *source)
+u8 *CsrUtf8StrDup(const u8 *source)
 {
-    return (CsrUtf8String *) CsrStrDup((const CsrCharString *) source);
+    return (u8 *) CsrStrDup((const CsrCharString *) source);
 }
 
-CsrUtf8String *CsrUtf8StringConcatenateTexts(const CsrUtf8String *inputText1, const CsrUtf8String *inputText2, const CsrUtf8String *inputText3, const CsrUtf8String *inputText4)
+u8 *CsrUtf8StringConcatenateTexts(const u8 *inputText1, const u8 *inputText2, const u8 *inputText3, const u8 *inputText4)
 {
-    CsrUtf8String *outputText;
+    u8 *outputText;
     u32 textLen, textLen1, textLen2, textLen3, textLen4;
 
     textLen1 = CsrUtf8StringLengthInBytes(inputText1);
@@ -1107,7 +1107,7 @@ CsrUtf8String *CsrUtf8StringConcatenateTexts(const CsrUtf8String *inputText1, co
         return NULL;
     }
 
-    outputText = (CsrUtf8String *) CsrPmemAlloc((textLen + 1) * sizeof(CsrUtf8String)); /* add space for 0-termination*/
+    outputText = (u8 *) CsrPmemAlloc((textLen + 1) * sizeof(u8)); /* add space for 0-termination*/
 
 
     if (inputText1 != NULL)

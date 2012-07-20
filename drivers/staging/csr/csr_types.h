@@ -37,7 +37,6 @@ typedef u8 CsrBool;
 
 /* String types */
 typedef char CsrCharString;
-typedef u8 CsrUtf8String;
 
 /*
  * 64-bit integers
