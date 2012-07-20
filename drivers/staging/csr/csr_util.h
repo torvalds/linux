@@ -31,7 +31,6 @@ void CsrUInt16ToHex(u16 number, char *str);
 #define CsrMemMove memmove
 #define CsrStrCpy strcpy
 #define CsrStrNCpy strncpy
-#define CsrMemCmp(s1, s2, n) ((s32) memcmp((s1), (s2), (n)))
 #define CsrStrCmp(s1, s2) ((s32) strcmp((s1), (s2)))
 #define CsrStrNCmp(s1, s2, n) ((s32) strncmp((s1), (s2), (n)))
 #define CsrStrChr strchr
@@ -41,7 +40,6 @@ void *CsrMemCpy(void *dest, const void *src, size_t count);
 void *CsrMemMove(void *dest, const void *src, size_t count);
 char *CsrStrCpy(char *dest, const char *src);
 char *CsrStrNCpy(char *dest, const char *src, size_t count);
-s32 CsrMemCmp(const void *buf1, const void *buf2, size_t count);
 s32 CsrStrCmp(const char *string1, const char *string2);
 s32 CsrStrNCmp(const char *string1, const char *string2, size_t count);
 char *CsrStrChr(const char *string, char c);

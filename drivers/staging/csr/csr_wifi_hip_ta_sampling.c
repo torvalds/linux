@@ -257,7 +257,7 @@ static enum ta_frame_identity ta_detect_protocol(card_t *card, CsrWifiRouterCtrl
     else if (tad->packet_filter & CSR_WIFI_ROUTER_CTRL_TRAFFIC_PACKET_TYPE_AIRONET)
     {
         /* detect Aironet frames */
-        if (!CsrMemCmp(data->os_data_ptr + 3, aironet_snap, 5))
+        if (!memcmp(data->os_data_ptr + 3, aironet_snap, 5))
         {
             UNIFI_MAC_ADDRESS_COPY(srcAddress.a, saddr);
             unifi_ta_indicate_protocol(card->ospriv, CSR_WIFI_ROUTER_CTRL_TRAFFIC_PACKET_TYPE_AIRONET,
