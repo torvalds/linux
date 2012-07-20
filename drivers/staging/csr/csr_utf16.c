@@ -573,7 +573,7 @@ u16 *CsrUtf82Utf16String(const u8 *utf8String)
     {
         return NULL;
     }
-    sourceLength = CsrStrLen((char *) utf8String);
+    sourceLength = strlen((char *)utf8String);
 
     for (i = 0; i < sourceLength; i++)
     {
@@ -1020,7 +1020,7 @@ u32 CsrUtf8StringLengthInBytes(const u8 *string)
     size_t length = 0;
     if (string)
     {
-        length = CsrStrLen((const char *) string);
+        length = strlen((const char *)string);
     }
     return (u32) length;
 }

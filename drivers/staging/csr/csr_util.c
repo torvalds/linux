@@ -44,14 +44,6 @@ void *CsrMemCpy(void *dest, const void *src, size_t count)
 EXPORT_SYMBOL_GPL(CsrMemCpy);
 #endif
 
-#ifndef CSR_USE_STDC_LIB
-size_t CsrStrLen(const char *string)
-{
-    return strlen(string);
-}
-EXPORT_SYMBOL_GPL(CsrStrLen);
-#endif
-
 MODULE_DESCRIPTION("CSR Operating System Kernel Abstraction");
 MODULE_AUTHOR("Cambridge Silicon Radio Ltd.");
 MODULE_LICENSE("GPL and additional rights");

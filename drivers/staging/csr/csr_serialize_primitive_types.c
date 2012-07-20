@@ -50,14 +50,14 @@ EXPORT_SYMBOL_GPL(CsrMemCpyDes);
 void CsrCharStringDes(char **value, u8 *buffer, size_t *offset)
 {
     *value = kstrdup((char *) &buffer[*offset], GFP_KERNEL);
-    *offset += CsrStrLen(*value) + 1;
+    *offset += strlen(*value) + 1;
 }
 EXPORT_SYMBOL_GPL(CsrCharStringDes);
 
 void CsrUtf8StringDes(u8 **value, u8 *buffer, size_t *offset)
 {
     *value = (u8 *)kstrdup((char *) &buffer[*offset], GFP_KERNEL);
-    *offset += CsrStrLen((char *) *value) + 1;
+    *offset += strlen((char *) *value) + 1;
 }
 
 void CsrUtf16StringDes(u16 **value, u8 *buffer, size_t *offset)
@@ -124,7 +124,7 @@ void CsrCharStringSer(u8 *buffer, size_t *offset, const char *value)
     if (value)
     {
         strcpy(((char *) &buffer[*offset]), value);
-        *offset += CsrStrLen(value) + 1;
+        *offset += strlen(value) + 1;
     }
     else
     {
@@ -176,7 +176,7 @@ u32 CsrCharStringSerLen(const char *str)
 {
     if (str)
     {
-        return (u32) (CsrStrLen(str) + sizeof(*str));
+        return (u32)(strlen(str) + sizeof(*str));
     }
     else
     {
@@ -188,7 +188,7 @@ u32 CsrUtf8StringSerLen(const u8 *str)
 {
     if (str)
     {
-        return (u32) (CsrStrLen((char *) str) + sizeof(*str));
+        return (u32)(strlen((char *) str) + sizeof(*str));
     }
     else
     {
@@ -390,7 +390,7 @@ void *CsrEventCsrUint16CsrUint32Des(u8 *buffer, size_t length)
 size_t CsrEventCsrUint16CsrCharStringSizeof(void *msg)
 {
     CsrEventCsrUint16CsrCharString *primitive = (CsrEventCsrUint16CsrCharString *) msg;
-    return 4 + CsrStrLen(primitive->value2) + 1;
+    return 4 + strlen(primitive->value2) + 1;
 }
 
 u8 *CsrEventCsrUint16CsrCharStringSer(u8 *ptr, size_t *len, void *msg)
@@ -445,7 +445,7 @@ void *CsrEventCsrUint32CsrUint16Des(u8 *buffer, size_t length)
 size_t CsrEventCsrUint32CsrCharStringSizeof(void *msg)
 {
     CsrEventCsrUint32CsrCharString *primitive = (CsrEventCsrUint32CsrCharString *) msg;
-    return 6 + CsrStrLen(primitive->value2) + 1;
+    return 6 + strlen(primitive->value2) + 1;
 }
 
 u8 *CsrEventCsrUint32CsrCharStringSer(u8 *ptr, size_t *len, void *msg)

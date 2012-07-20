@@ -9,7 +9,7 @@
 *****************************************************************************/
 
 /* Note: this is an auto-generated file. */
-
+#include <linux/string.h>
 #include "csr_pmem.h"
 #include "csr_msgconv.h"
 #include "csr_unicode.h"
@@ -732,7 +732,7 @@ size_t CsrWifiRouterCtrlWifiOnResSizeof(void *msg)
         }
     }
     bufferSize += 4;                                                                                    /* u32 primitive->smeVersions.firmwarePatch */
-    bufferSize += (primitive->smeVersions.smeBuild?CsrStrLen(primitive->smeVersions.smeBuild) : 0) + 1; /* char* primitive->smeVersions.smeBuild (0 byte len + 1 for NULL Term) */
+    bufferSize += (primitive->smeVersions.smeBuild ? strlen(primitive->smeVersions.smeBuild) : 0) + 1;  /* char* primitive->smeVersions.smeBuild (0 byte len + 1 for NULL Term) */
     bufferSize += 4;                                                                                    /* u32 primitive->smeVersions.smeHip */
     bufferSize += 1;                                                                                    /* u8 primitive->scheduledInterrupt */
     return bufferSize;
@@ -1793,7 +1793,7 @@ size_t CsrWifiRouterCtrlWifiOnIndSizeof(void *msg)
     bufferSize += 4;                                                                                    /* u32 primitive->versions.chipVersion */
     bufferSize += 4;                                                                                    /* u32 primitive->versions.firmwareBuild */
     bufferSize += 4;                                                                                    /* u32 primitive->versions.firmwareHip */
-    bufferSize += (primitive->versions.routerBuild?CsrStrLen(primitive->versions.routerBuild) : 0) + 1; /* char* primitive->versions.routerBuild (0 byte len + 1 for NULL Term) */
+    bufferSize += (primitive->versions.routerBuild ? strlen(primitive->versions.routerBuild) : 0) + 1;  /* char* primitive->versions.routerBuild (0 byte len + 1 for NULL Term) */
     bufferSize += 4;                                                                                    /* u32 primitive->versions.routerHip */
     return bufferSize;
 }

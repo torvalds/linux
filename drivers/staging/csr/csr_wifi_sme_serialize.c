@@ -9,7 +9,7 @@
 *****************************************************************************/
 
 /* Note: this is an auto-generated file. */
-
+#include <linux/string.h>
 #include "csr_pmem.h"
 #include "csr_msgconv.h"
 #include "csr_unicode.h"
@@ -5421,9 +5421,9 @@ size_t CsrWifiSmeVersionsGetCfmSizeof(void *msg)
     bufferSize += 4;                                                                                    /* u32 primitive->versions.firmwareBuild */
     bufferSize += 4;                                                                                    /* u32 primitive->versions.firmwarePatch */
     bufferSize += 4;                                                                                    /* u32 primitive->versions.firmwareHip */
-    bufferSize += (primitive->versions.routerBuild?CsrStrLen(primitive->versions.routerBuild) : 0) + 1; /* char* primitive->versions.routerBuild (0 byte len + 1 for NULL Term) */
+    bufferSize += (primitive->versions.routerBuild ? strlen(primitive->versions.routerBuild) : 0) + 1;  /* char* primitive->versions.routerBuild (0 byte len + 1 for NULL Term) */
     bufferSize += 4;                                                                                    /* u32 primitive->versions.routerHip */
-    bufferSize += (primitive->versions.smeBuild?CsrStrLen(primitive->versions.smeBuild) : 0) + 1;       /* char* primitive->versions.smeBuild (0 byte len + 1 for NULL Term) */
+    bufferSize += (primitive->versions.smeBuild ? strlen(primitive->versions.smeBuild) : 0) + 1;        /* char* primitive->versions.smeBuild (0 byte len + 1 for NULL Term) */
     bufferSize += 4;                                                                                    /* u32 primitive->versions.smeHip */
     return bufferSize;
 }
@@ -5676,7 +5676,7 @@ size_t CsrWifiSmeErrorIndSizeof(void *msg)
     size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 3) */
-    bufferSize += (primitive->errorMessage?CsrStrLen(primitive->errorMessage) : 0) + 1; /* char* primitive->errorMessage (0 byte len + 1 for NULL Term) */
+    bufferSize += (primitive->errorMessage ? strlen(primitive->errorMessage) : 0) + 1; /* char* primitive->errorMessage (0 byte len + 1 for NULL Term) */
     return bufferSize;
 }
 
@@ -5718,7 +5718,7 @@ size_t CsrWifiSmeInfoIndSizeof(void *msg)
     size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 3) */
-    bufferSize += (primitive->infoMessage?CsrStrLen(primitive->infoMessage) : 0) + 1; /* char* primitive->infoMessage (0 byte len + 1 for NULL Term) */
+    bufferSize += (primitive->infoMessage ? strlen(primitive->infoMessage) : 0) + 1; /* char* primitive->infoMessage (0 byte len + 1 for NULL Term) */
     return bufferSize;
 }
 

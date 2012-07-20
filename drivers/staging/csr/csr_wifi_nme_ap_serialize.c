@@ -9,7 +9,7 @@
 *****************************************************************************/
 
 /* Note: this is an auto-generated file. */
-
+#include <linux/string.h>
 #include "csr_pmem.h"
 #include "csr_msgconv.h"
 #include "csr_unicode.h"
@@ -324,7 +324,7 @@ size_t CsrWifiNmeApStartReqSizeof(void *msg)
                     break;
                 case CSR_WIFI_NME_AP_CREDENTIAL_TYPE_PASSPHRASE:
                     bufferSize += 2;                                                                                                                                                                                                                      /* u16 primitive->apCredentials.nmeAuthType.authTypePersonal.authPers_credentials.passphrase.encryptionMode */
-                    bufferSize += (primitive->apCredentials.nmeAuthType.authTypePersonal.authPers_credentials.passphrase.passphrase?CsrStrLen(primitive->apCredentials.nmeAuthType.authTypePersonal.authPers_credentials.passphrase.passphrase) : 0) + 1; /* char* primitive->apCredentials.nmeAuthType.authTypePersonal.authPers_credentials.passphrase.passphrase (0 byte len + 1 for NULL Term) */
+                    bufferSize += (primitive->apCredentials.nmeAuthType.authTypePersonal.authPers_credentials.passphrase.passphrase ? strlen(primitive->apCredentials.nmeAuthType.authTypePersonal.authPers_credentials.passphrase.passphrase) : 0) + 1; /* char* primitive->apCredentials.nmeAuthType.authTypePersonal.authPers_credentials.passphrase.passphrase (0 byte len + 1 for NULL Term) */
                     break;
                 default:
                     break;

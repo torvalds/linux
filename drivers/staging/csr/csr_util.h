@@ -28,10 +28,8 @@ void CsrUInt16ToHex(u16 number, char *str);
 /*------------------------------------------------------------------*/
 #ifdef CSR_USE_STDC_LIB
 #define CsrMemCpy memcpy
-#define CsrStrLen strlen
 #else /* !CSR_USE_STDC_LIB */
 void *CsrMemCpy(void *dest, const void *src, size_t count);
-size_t CsrStrLen(const char *string);
 #endif /* !CSR_USE_STDC_LIB */
 
 #define CsrOffsetOf(st, m)  ((size_t) & ((st *) 0)->m)
