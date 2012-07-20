@@ -1518,6 +1518,11 @@ W:	http://blackfin.uclinux.org/
 S:	Supported
 F:	drivers/i2c/busses/i2c-bfin-twi.c
 
+BLINKM RGB LED DRIVER
+M:	Jan-Simon Moeller <jansimon.moeller@gmx.de>
+S:	Maintained
+F:	drivers/leds/leds-blinkm.c
+
 BLOCK LAYER
 M:	Jens Axboe <axboe@kernel.dk>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/axboe/linux-block.git

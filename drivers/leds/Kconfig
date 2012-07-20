@@ -430,6 +430,14 @@ config LEDS_OT200
 	  This option enables support for the LEDs on the Bachmann OT200.
 	  Say Y to enable LEDs on the Bachmann OT200.
 
+config LEDS_BLINKM
+	tristate "LED support for the BlinkM I2C RGB LED"
+	depends on LEDS_CLASS
+	depends on I2C
+	help
+	  This option enables support for the BlinkM RGB LED connected
+	  through I2C. Say Y to enable support for the BlinkM LED.
+
 config LEDS_TRIGGERS
 	bool "LED Trigger support"
 	depends on LEDS_CLASS
