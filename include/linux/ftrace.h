@@ -220,6 +220,10 @@ extern void ftrace_stub(unsigned long a0, unsigned long a1,
  */
 #define register_ftrace_function(ops) ({ 0; })
 #define unregister_ftrace_function(ops) ({ 0; })
+static inline int ftrace_nr_registered_ops(void)
+{
+	return 0;
+}
 static inline void clear_ftrace_function(void) { }
 static inline void ftrace_kill(void) { }
 static inline void ftrace_stop(void) { }
@@ -274,6 +278,8 @@ unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops);
 extern void unregister_ftrace_function_probe_all(char *glob);
 
 extern int ftrace_text_reserved(void *start, void *end);
+
+extern int ftrace_nr_registered_ops(void);
 
 /*
  * The dyn_ftrace record's flags field is split into two parts.

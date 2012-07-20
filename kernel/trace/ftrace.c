@@ -111,6 +111,27 @@ static void ftrace_ops_no_ops(unsigned long ip, unsigned long parent_ip);
 #define ftrace_ops_list_func ((ftrace_func_t)ftrace_ops_no_ops)
 #endif
 
+/**
+ * ftrace_nr_registered_ops - return number of ops registered
+ *
+ * Returns the number of ftrace_ops registered and tracing functions
+ */
+int ftrace_nr_registered_ops(void)
+{
+	struct ftrace_ops *ops;
+	int cnt = 0;
+
+	mutex_lock(&ftrace_lock);
+
+	for (ops = ftrace_ops_list;
+	     ops != &ftrace_list_end; ops = ops->next)
+		cnt++;
+
+	mutex_unlock(&ftrace_lock);
+
+	return cnt;
+}
+
 /*
  * Traverse the ftrace_global_list, invoking all entries.  The reason that we
  * can use rcu_dereference_raw() is that elements removed from this list
