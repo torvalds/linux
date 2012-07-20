@@ -300,6 +300,8 @@ static struct {
 	struct regulator *vdda_dac_reg;
 
 	struct clk	*tv_dac_clk;
+
+	struct omap_video_timings timings;
 } venc;
 
 static inline void venc_write_reg(int idx, u32 val)
@@ -432,7 +434,7 @@ static int venc_power_on(struct omap_dss_device *dssdev)
 		goto err0;
 
 	venc_reset();
-	venc_write_config(venc_timings_to_config(&dssdev->panel.timings));
+	venc_write_config(venc_timings_to_config(&venc.timings));
 
 	dss_set_venc_output(dssdev->phy.venc.type);
 	dss_set_dac_pwrdn_bgz(1);
@@ -449,7 +451,7 @@ static int venc_power_on(struct omap_dss_device *dssdev)
 
 	venc_write_reg(VENC_OUTPUT_CONTROL, l);
 
-	dss_mgr_set_timings(dssdev->manager, &dssdev->panel.timings);
+	dss_mgr_set_timings(dssdev->manager, &venc.timings);
 
 	r = regulator_enable(venc.vdda_dac_reg);
 	if (r)
@@ -556,10 +558,10 @@ void omapdss_venc_set_timings(struct omap_dss_device *dssdev,
 	mutex_lock(&venc.venc_lock);
 
 	/* Reset WSS data when the TV standard changes. */
-	if (memcmp(&dssdev->panel.timings, timings, sizeof(*timings)))
+	if (memcmp(&venc.timings, timings, sizeof(*timings)))
 		venc.wss_data = 0;
 
-	dssdev->panel.timings = *timings;
+	venc.timings = *timings;
 
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
 		int r;
@@ -606,7 +608,7 @@ int omapdss_venc_set_wss(struct omap_dss_device *dssdev, u32 wss)
 
 	mutex_lock(&venc.venc_lock);
 
-	config = venc_timings_to_config(&dssdev->panel.timings);
+	config = venc_timings_to_config(&venc.timings);
 
 	/* Invert due to VENC_L21_WC_CTL:INV=1 */
 	venc.wss_data = (wss ^ 0xfffff) << 8;

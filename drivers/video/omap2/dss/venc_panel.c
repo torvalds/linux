@@ -127,6 +127,8 @@ static int venc_panel_enable(struct omap_dss_device *dssdev)
 		goto err;
 	}
 
+	omapdss_venc_set_timings(dssdev, &dssdev->panel.timings);
+
 	r = omapdss_venc_display_enable(dssdev);
 	if (r)
 		goto err;
@@ -183,6 +185,7 @@ static void venc_panel_set_timings(struct omap_dss_device *dssdev,
 	mutex_lock(&venc_panel.lock);
 
 	omapdss_venc_set_timings(dssdev, timings);
+	dssdev->panel.timings = *timings;
 
 	mutex_unlock(&venc_panel.lock);
 }
