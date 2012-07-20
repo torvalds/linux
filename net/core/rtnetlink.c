@@ -771,6 +771,8 @@ static noinline size_t if_nlmsg_size(const struct net_device *dev,
 	       + nla_total_size(4) /* IFLA_LINK */
 	       + nla_total_size(4) /* IFLA_MASTER */
 	       + nla_total_size(4) /* IFLA_PROMISCUITY */
+	       + nla_total_size(4) /* IFLA_NUM_TX_QUEUES */
+	       + nla_total_size(4) /* IFLA_NUM_RX_QUEUES */
 	       + nla_total_size(1) /* IFLA_OPERSTATE */
 	       + nla_total_size(1) /* IFLA_LINKMODE */
 	       + nla_total_size(ext_filter_mask
@@ -889,6 +891,8 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 	    nla_put_u32(skb, IFLA_MTU, dev->mtu) ||
 	    nla_put_u32(skb, IFLA_GROUP, dev->group) ||
 	    nla_put_u32(skb, IFLA_PROMISCUITY, dev->promiscuity) ||
+	    nla_put_u32(skb, IFLA_NUM_TX_QUEUES, dev->num_tx_queues) ||
+	    nla_put_u32(skb, IFLA_NUM_RX_QUEUES, dev->num_rx_queues) ||
 	    (dev->ifindex != dev->iflink &&
 	     nla_put_u32(skb, IFLA_LINK, dev->iflink)) ||
 	    (dev->master &&
@@ -1106,6 +1110,8 @@ const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_AF_SPEC]		= { .type = NLA_NESTED },
 	[IFLA_EXT_MASK]		= { .type = NLA_U32 },
 	[IFLA_PROMISCUITY]	= { .type = NLA_U32 },
+	[IFLA_NUM_TX_QUEUES]	= { .type = NLA_U32 },
+	[IFLA_NUM_RX_QUEUES]	= { .type = NLA_U32 },
 };
 EXPORT_SYMBOL(ifla_policy);
 
@@ -1627,9 +1633,14 @@ struct net_device *rtnl_create_link(struct net *src_net, struct net *net,
 	unsigned int num_tx_queues = 1;
 	unsigned int num_rx_queues = 1;
 
-	if (ops->get_num_tx_queues)
+	if (tb[IFLA_NUM_TX_QUEUES])
+		num_tx_queues = nla_get_u32(tb[IFLA_NUM_TX_QUEUES]);
+	else if (ops->get_num_tx_queues)
 		num_tx_queues = ops->get_num_tx_queues();
-	if (ops->get_num_rx_queues)
+
+	if (tb[IFLA_NUM_RX_QUEUES])
+		num_rx_queues = nla_get_u32(tb[IFLA_NUM_RX_QUEUES]);
+	else if (ops->get_num_rx_queues)
 		num_rx_queues = ops->get_num_rx_queues();
 
 	err = -ENOMEM;
