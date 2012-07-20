@@ -1750,7 +1750,7 @@ static CsrResult process_bulk_data_command(card_t *card, const u8 *cmdptr,
             return -1;
         }
 
-        CsrMemCpy((void *)host_bulk_data_slot,
+        memcpy((void *)host_bulk_data_slot,
                   (void *)(bdslot->os_data_ptr + offset), len);
 
         r = unifi_bulk_rw(card,
@@ -2104,7 +2104,7 @@ static CsrResult process_fh_cmd_queue(card_t *card, s32 *processed)
         card->fh_buffer.ptr[1] =
             (u8)(((signal_length >> 8) & 0xf) | (SDIO_CMD_SIGNAL << 4));
 
-        CsrMemCpy(card->fh_buffer.ptr + 2, packed_sigptr, signal_length);
+        memcpy(card->fh_buffer.ptr + 2, packed_sigptr, signal_length);
         memset(card->fh_buffer.ptr + 2 + signal_length, 0,
                   total_length - (2 + signal_length));
 
@@ -2382,7 +2382,7 @@ static CsrResult process_fh_traffic_queue(card_t *card, s32 *processed)
         card->fh_buffer.ptr[1] =
             (u8)(((signal_length >> 8) & 0xf) | (SDIO_CMD_SIGNAL << 4));
 
-        CsrMemCpy(card->fh_buffer.ptr + 2, packed_sigptr, signal_length);
+        memcpy(card->fh_buffer.ptr + 2, packed_sigptr, signal_length);
         memset(card->fh_buffer.ptr + 2 + signal_length, 0,
                   total_length - (2 + signal_length));
 

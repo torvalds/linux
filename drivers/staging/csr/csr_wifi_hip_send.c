@@ -129,7 +129,7 @@ static CsrResult send_signal(card_t *card, const u8 *sigptr, u32 siglen,
 
     /* Make up the card_signal struct */
     csptr->signal_length = (u16)siglen;
-    CsrMemCpy((void *)csptr->sigbuf, (void *)sigptr, siglen);
+    memcpy((void *)csptr->sigbuf, (void *)sigptr, siglen);
 
     for (i = 0; i < UNIFI_MAX_DATA_REFERENCES; ++i)
     {

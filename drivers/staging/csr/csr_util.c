@@ -33,17 +33,6 @@ void CsrUInt16ToHex(u16 number, char *str)
     str[4] = '\0';
 }
 
-/*------------------------------------------------------------------*/
-/*  String */
-/*------------------------------------------------------------------*/
-#ifndef CSR_USE_STDC_LIB
-void *CsrMemCpy(void *dest, const void *src, size_t count)
-{
-    return memcpy(dest, src, count);
-}
-EXPORT_SYMBOL_GPL(CsrMemCpy);
-#endif
-
 MODULE_DESCRIPTION("CSR Operating System Kernel Abstraction");
 MODULE_AUTHOR("Cambridge Silicon Radio Ltd.");
 MODULE_LICENSE("GPL and additional rights");

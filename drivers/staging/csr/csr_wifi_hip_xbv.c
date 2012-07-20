@@ -522,7 +522,7 @@ static s32 read_tag(card_t *card, ct_t *ct, tag_t *tag)
     }
 
     /* get section tag */
-    CsrMemCpy(tag->t_name, buf, 4);
+    memcpy(tag->t_name, buf, 4);
 
     /* get section length */
     tag->t_len = xbv2uint(buf + 4, 4);
@@ -601,7 +601,7 @@ static u32 write_bytes(void *buf, const u32 offset, const u8 *data, const u32 le
 static u32 write_tag(void *buf, const u32 offset, const char *tag_str)
 {
     u8 *dst = (u8 *)buf + offset;
-    CsrMemCpy(dst, tag_str, 4);
+    memcpy(dst, tag_str, 4);
     return 4;
 }
 

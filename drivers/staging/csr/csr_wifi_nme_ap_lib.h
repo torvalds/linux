@@ -404,8 +404,8 @@ extern const char *CsrWifiNmeApDownstreamPrimNames[CSR_WIFI_NME_AP_PRIM_DOWNSTRE
 #define CsrWifiNmeApWmmParamUpdateReqCreate(msg__, dst__, src__, wmmApParams__, wmmApBcParams__) \
     msg__ = (CsrWifiNmeApWmmParamUpdateReq *) CsrPmemAlloc(sizeof(CsrWifiNmeApWmmParamUpdateReq)); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_AP_PRIM, CSR_WIFI_NME_AP_WMM_PARAM_UPDATE_REQ, dst__, src__); \
-    CsrMemCpy(msg__->wmmApParams, (wmmApParams__), sizeof(CsrWifiSmeWmmAcParams) * 4); \
-    CsrMemCpy(msg__->wmmApBcParams, (wmmApBcParams__), sizeof(CsrWifiSmeWmmAcParams) * 4);
+    memcpy(msg__->wmmApParams, (wmmApParams__), sizeof(CsrWifiSmeWmmAcParams) * 4); \
+    memcpy(msg__->wmmApBcParams, (wmmApBcParams__), sizeof(CsrWifiSmeWmmAcParams) * 4);
 
 #define CsrWifiNmeApWmmParamUpdateReqSendTo(dst__, src__, wmmApParams__, wmmApBcParams__) \
     { \
@@ -474,7 +474,7 @@ extern const char *CsrWifiNmeApDownstreamPrimNames[CSR_WIFI_NME_AP_PRIM_DOWNSTRE
     msg__->interfaceTag = (interfaceTag__); \
     msg__->selectedDevicePasswordId = (selectedDevicePasswordId__); \
     msg__->selectedConfigMethod = (selectedConfigMethod__); \
-    CsrMemCpy(msg__->pin, (pin__), sizeof(u8) * 8);
+    memcpy(msg__->pin, (pin__), sizeof(u8) * 8);
 
 #define CsrWifiNmeApWpsRegisterReqSendTo(dst__, src__, interfaceTag__, selectedDevicePasswordId__, selectedConfigMethod__, pin__) \
     { \

@@ -1808,7 +1808,7 @@ extern const char *CsrWifiSmeDownstreamPrimNames[CSR_WIFI_SME_PRIM_DOWNSTREAM_CO
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_SME_PRIM, CSR_WIFI_SME_INTERFACE_CAPABILITY_GET_CFM, dst__, src__); \
     msg__->status = (status__); \
     msg__->numInterfaces = (numInterfaces__); \
-    CsrMemCpy(msg__->capBitmap, (capBitmap__), sizeof(u8) * 2);
+    memcpy(msg__->capBitmap, (capBitmap__), sizeof(u8) * 2);
 
 #define CsrWifiSmeInterfaceCapabilityGetCfmSendTo(dst__, src__, status__, numInterfaces__, capBitmap__) \
     { \
@@ -3751,7 +3751,7 @@ extern const char *CsrWifiSmeDownstreamPrimNames[CSR_WIFI_SME_PRIM_DOWNSTREAM_CO
     msg__ = (CsrWifiSmeStationMacAddressGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeStationMacAddressGetCfm)); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_SME_PRIM, CSR_WIFI_SME_STATION_MAC_ADDRESS_GET_CFM, dst__, src__); \
     msg__->status = (status__); \
-    CsrMemCpy(msg__->stationMacAddress, (stationMacAddress__), sizeof(CsrWifiMacAddress) * 2);
+    memcpy(msg__->stationMacAddress, (stationMacAddress__), sizeof(CsrWifiMacAddress) * 2);
 
 #define CsrWifiSmeStationMacAddressGetCfmSendTo(dst__, src__, status__, stationMacAddress__) \
     { \

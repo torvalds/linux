@@ -2042,7 +2042,7 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
     msg__->clientData = (clientData__); \
     msg__->status = (status__); \
     msg__->numInterfaceAddress = (numInterfaceAddress__); \
-    CsrMemCpy(msg__->stationMacAddress, (stationMacAddress__), sizeof(CsrWifiMacAddress) * 2); \
+    memcpy(msg__->stationMacAddress, (stationMacAddress__), sizeof(CsrWifiMacAddress) * 2); \
     msg__->smeVersions = (smeVersions__); \
     msg__->scheduledInterrupt = (scheduledInterrupt__);
 

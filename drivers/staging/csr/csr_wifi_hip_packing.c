@@ -1321,7 +1321,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeStopAggregationConfirm.VirtualInterfaceIdentifier = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MlmeStopAggregationConfirm.PeerQstaAddress.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeStopAggregationConfirm.PeerQstaAddress.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             sig->u.MlmeStopAggregationConfirm.UserPriority = (CSR_PRIORITY) CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
@@ -1428,7 +1428,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MaPacketIndication.VirtualInterfaceIdentifier = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MaPacketIndication.LocalTime.x, &ptr[index], 64 / 8);
+            memcpy(sig->u.MaPacketIndication.LocalTime.x, &ptr[index], 64 / 8);
             index += 64 / 8;
             sig->u.MaPacketIndication.Ifindex = (CSR_IFINTERFACE) CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
@@ -1473,7 +1473,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeConnectedIndication.ConnectionStatus = (CSR_CONNECTION_STATUS) CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MlmeConnectedIndication.PeerMacAddress.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeConnectedIndication.PeerMacAddress.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             break;
 #endif
@@ -1593,7 +1593,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeStartAggregationRequest.VirtualInterfaceIdentifier = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MlmeStartAggregationRequest.PeerQstaAddress.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeStartAggregationRequest.PeerQstaAddress.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             sig->u.MlmeStartAggregationRequest.UserPriority = (CSR_PRIORITY) CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
@@ -1617,7 +1617,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeHlSyncRequest.Dummydataref2.DataLength = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MlmeHlSyncRequest.GroupAddress.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeHlSyncRequest.GroupAddress.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             break;
 #endif
@@ -1705,7 +1705,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeResetRequest.Dummydataref2.DataLength = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MlmeResetRequest.StaAddress.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeResetRequest.StaAddress.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             sig->u.MlmeResetRequest.SetDefaultMib = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
@@ -1793,7 +1793,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeConnectStatusRequest.ConnectionStatus = (CSR_CONNECTION_STATUS) CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MlmeConnectStatusRequest.StaAddress.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeConnectStatusRequest.StaAddress.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             sig->u.MlmeConnectStatusRequest.AssociationId = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
@@ -2010,7 +2010,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT32;
             sig->u.MaPacketRequest.Priority = (CSR_PRIORITY) CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MaPacketRequest.Ra.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MaPacketRequest.Ra.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             sig->u.MaPacketRequest.TransmissionControl = (CSR_TRANSMISSION_CONTROL) CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
@@ -2033,7 +2033,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeModifyBssParameterRequest.CapabilityInformation = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MlmeModifyBssParameterRequest.Bssid.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeModifyBssParameterRequest.Bssid.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             sig->u.MlmeModifyBssParameterRequest.RtsThreshold = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
@@ -2081,7 +2081,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeHlSyncCancelRequest.Dummydataref2.DataLength = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MlmeHlSyncCancelRequest.GroupAddress.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeHlSyncCancelRequest.GroupAddress.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             break;
 #endif
@@ -2151,7 +2151,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeGetKeySequenceRequest.KeyType = (CSR_KEY_TYPE) CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MlmeGetKeySequenceRequest.Address.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeGetKeySequenceRequest.Address.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             break;
 #endif
@@ -2171,7 +2171,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeSetChannelRequest.Channel = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MlmeSetChannelRequest.Address.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeSetChannelRequest.Address.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             sig->u.MlmeSetChannelRequest.AvailabilityDuration = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
@@ -2223,7 +2223,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeAutonomousScanLossIndication.VirtualInterfaceIdentifier = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MlmeAutonomousScanLossIndication.Bssid.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeAutonomousScanLossIndication.Bssid.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             break;
 #endif
@@ -2337,7 +2337,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeStopAggregationRequest.VirtualInterfaceIdentifier = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MlmeStopAggregationRequest.PeerQstaAddress.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeStopAggregationRequest.PeerQstaAddress.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             sig->u.MlmeStopAggregationRequest.UserPriority = (CSR_PRIORITY) CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
@@ -2387,7 +2387,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT32;
             sig->u.MlmeAddBlackoutRequest.BlackoutDuration = CSR_GET_UINT32_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT32;
-            CsrMemCpy(sig->u.MlmeAddBlackoutRequest.PeerStaAddress.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeAddBlackoutRequest.PeerStaAddress.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             sig->u.MlmeAddBlackoutRequest.BlackoutCount = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
@@ -2409,7 +2409,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeDeletekeysRequest.KeyType = (CSR_KEY_TYPE) CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MlmeDeletekeysRequest.Address.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeDeletekeysRequest.Address.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             break;
 #endif
@@ -2437,7 +2437,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeHlSyncConfirm.Dummydataref2.DataLength = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MlmeHlSyncConfirm.GroupAddress.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeHlSyncConfirm.GroupAddress.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             sig->u.MlmeHlSyncConfirm.ResultCode = (CSR_RESULT_CODE) CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
@@ -2499,9 +2499,9 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeSmStartRequest.Channel = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MlmeSmStartRequest.InterfaceAddress.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeSmStartRequest.InterfaceAddress.x, &ptr[index], 48 / 8);
             index += 48 / 8;
-            CsrMemCpy(sig->u.MlmeSmStartRequest.Bssid.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeSmStartRequest.Bssid.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             sig->u.MlmeSmStartRequest.BeaconPeriod = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
@@ -2579,7 +2579,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeSetkeysRequest.KeyType = (CSR_KEY_TYPE) CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MlmeSetkeysRequest.Address.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeSetkeysRequest.Address.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             sig->u.MlmeSetkeysRequest.SequenceNumber[0] = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
@@ -2597,7 +2597,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeSetkeysRequest.SequenceNumber[7] = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(&sig->u.MlmeSetkeysRequest.CipherSuiteSelector, &ptr[index], 32 / 8);
+            memcpy(&sig->u.MlmeSetkeysRequest.CipherSuiteSelector, &ptr[index], 32 / 8);
             index += 32 / 8;
             break;
 #endif
@@ -2664,7 +2664,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MaPacketErrorIndication.VirtualInterfaceIdentifier = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MaPacketErrorIndication.PeerQstaAddress.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MaPacketErrorIndication.PeerQstaAddress.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             sig->u.MaPacketErrorIndication.UserPriority = (CSR_PRIORITY) CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
@@ -2829,7 +2829,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeBlockackErrorIndication.ResultCode = (CSR_REASON_CODE) CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MlmeBlockackErrorIndication.PeerQstaAddress.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeBlockackErrorIndication.PeerQstaAddress.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             break;
 #endif
@@ -2875,7 +2875,7 @@ CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
             index += SIZEOF_UINT16;
             sig->u.MlmeStartAggregationConfirm.VirtualInterfaceIdentifier = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(sig->u.MlmeStartAggregationConfirm.PeerQstaAddress.x, &ptr[index], 48 / 8);
+            memcpy(sig->u.MlmeStartAggregationConfirm.PeerQstaAddress.x, &ptr[index], 48 / 8);
             index += 48 / 8;
             sig->u.MlmeStartAggregationConfirm.UserPriority = (CSR_PRIORITY) CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
             index += SIZEOF_UINT16;
@@ -3157,7 +3157,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeStopAggregationConfirm.VirtualInterfaceIdentifier, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MlmeStopAggregationConfirm.PeerQstaAddress.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeStopAggregationConfirm.PeerQstaAddress.x, 48 / 8);
             index += 48 / 8;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeStopAggregationConfirm.UserPriority, ptr + index);
             index += SIZEOF_UINT16;
@@ -3264,7 +3264,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MaPacketIndication.VirtualInterfaceIdentifier, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MaPacketIndication.LocalTime.x, 64 / 8);
+            memcpy(ptr + index, sig->u.MaPacketIndication.LocalTime.x, 64 / 8);
             index += 64 / 8;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MaPacketIndication.Ifindex, ptr + index);
             index += SIZEOF_UINT16;
@@ -3309,7 +3309,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeConnectedIndication.ConnectionStatus, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MlmeConnectedIndication.PeerMacAddress.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeConnectedIndication.PeerMacAddress.x, 48 / 8);
             index += 48 / 8;
             break;
 #endif
@@ -3429,7 +3429,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeStartAggregationRequest.VirtualInterfaceIdentifier, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MlmeStartAggregationRequest.PeerQstaAddress.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeStartAggregationRequest.PeerQstaAddress.x, 48 / 8);
             index += 48 / 8;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeStartAggregationRequest.UserPriority, ptr + index);
             index += SIZEOF_UINT16;
@@ -3453,7 +3453,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeHlSyncRequest.Dummydataref2.DataLength, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MlmeHlSyncRequest.GroupAddress.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeHlSyncRequest.GroupAddress.x, 48 / 8);
             index += 48 / 8;
             break;
 #endif
@@ -3541,7 +3541,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeResetRequest.Dummydataref2.DataLength, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MlmeResetRequest.StaAddress.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeResetRequest.StaAddress.x, 48 / 8);
             index += 48 / 8;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeResetRequest.SetDefaultMib, ptr + index);
             index += SIZEOF_UINT16;
@@ -3629,7 +3629,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeConnectStatusRequest.ConnectionStatus, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MlmeConnectStatusRequest.StaAddress.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeConnectStatusRequest.StaAddress.x, 48 / 8);
             index += 48 / 8;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeConnectStatusRequest.AssociationId, ptr + index);
             index += SIZEOF_UINT16;
@@ -3846,7 +3846,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT32;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MaPacketRequest.Priority, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MaPacketRequest.Ra.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MaPacketRequest.Ra.x, 48 / 8);
             index += 48 / 8;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MaPacketRequest.TransmissionControl, ptr + index);
             index += SIZEOF_UINT16;
@@ -3869,7 +3869,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeModifyBssParameterRequest.CapabilityInformation, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MlmeModifyBssParameterRequest.Bssid.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeModifyBssParameterRequest.Bssid.x, 48 / 8);
             index += 48 / 8;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeModifyBssParameterRequest.RtsThreshold, ptr + index);
             index += SIZEOF_UINT16;
@@ -3917,7 +3917,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeHlSyncCancelRequest.Dummydataref2.DataLength, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MlmeHlSyncCancelRequest.GroupAddress.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeHlSyncCancelRequest.GroupAddress.x, 48 / 8);
             index += 48 / 8;
             break;
 #endif
@@ -3987,7 +3987,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeGetKeySequenceRequest.KeyType, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MlmeGetKeySequenceRequest.Address.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeGetKeySequenceRequest.Address.x, 48 / 8);
             index += 48 / 8;
             break;
 #endif
@@ -4007,7 +4007,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeSetChannelRequest.Channel, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MlmeSetChannelRequest.Address.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeSetChannelRequest.Address.x, 48 / 8);
             index += 48 / 8;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeSetChannelRequest.AvailabilityDuration, ptr + index);
             index += SIZEOF_UINT16;
@@ -4059,7 +4059,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeAutonomousScanLossIndication.VirtualInterfaceIdentifier, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MlmeAutonomousScanLossIndication.Bssid.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeAutonomousScanLossIndication.Bssid.x, 48 / 8);
             index += 48 / 8;
             break;
 #endif
@@ -4173,7 +4173,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeStopAggregationRequest.VirtualInterfaceIdentifier, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MlmeStopAggregationRequest.PeerQstaAddress.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeStopAggregationRequest.PeerQstaAddress.x, 48 / 8);
             index += 48 / 8;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeStopAggregationRequest.UserPriority, ptr + index);
             index += SIZEOF_UINT16;
@@ -4223,7 +4223,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT32;
             CSR_COPY_UINT32_TO_LITTLE_ENDIAN(sig->u.MlmeAddBlackoutRequest.BlackoutDuration, ptr + index);
             index += SIZEOF_UINT32;
-            CsrMemCpy(ptr + index, sig->u.MlmeAddBlackoutRequest.PeerStaAddress.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeAddBlackoutRequest.PeerStaAddress.x, 48 / 8);
             index += 48 / 8;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeAddBlackoutRequest.BlackoutCount, ptr + index);
             index += SIZEOF_UINT16;
@@ -4245,7 +4245,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeDeletekeysRequest.KeyType, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MlmeDeletekeysRequest.Address.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeDeletekeysRequest.Address.x, 48 / 8);
             index += 48 / 8;
             break;
 #endif
@@ -4273,7 +4273,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeHlSyncConfirm.Dummydataref2.DataLength, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MlmeHlSyncConfirm.GroupAddress.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeHlSyncConfirm.GroupAddress.x, 48 / 8);
             index += 48 / 8;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeHlSyncConfirm.ResultCode, ptr + index);
             index += SIZEOF_UINT16;
@@ -4335,9 +4335,9 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeSmStartRequest.Channel, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MlmeSmStartRequest.InterfaceAddress.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeSmStartRequest.InterfaceAddress.x, 48 / 8);
             index += 48 / 8;
-            CsrMemCpy(ptr + index, sig->u.MlmeSmStartRequest.Bssid.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeSmStartRequest.Bssid.x, 48 / 8);
             index += 48 / 8;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeSmStartRequest.BeaconPeriod, ptr + index);
             index += SIZEOF_UINT16;
@@ -4415,7 +4415,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeSetkeysRequest.KeyType, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MlmeSetkeysRequest.Address.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeSetkeysRequest.Address.x, 48 / 8);
             index += 48 / 8;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeSetkeysRequest.SequenceNumber[0], ptr + index);
             index += SIZEOF_UINT16;
@@ -4433,7 +4433,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeSetkeysRequest.SequenceNumber[7], ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, &sig->u.MlmeSetkeysRequest.CipherSuiteSelector, 32 / 8);
+            memcpy(ptr + index, &sig->u.MlmeSetkeysRequest.CipherSuiteSelector, 32 / 8);
             index += 32 / 8;
             break;
 #endif
@@ -4500,7 +4500,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MaPacketErrorIndication.VirtualInterfaceIdentifier, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MaPacketErrorIndication.PeerQstaAddress.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MaPacketErrorIndication.PeerQstaAddress.x, 48 / 8);
             index += 48 / 8;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MaPacketErrorIndication.UserPriority, ptr + index);
             index += SIZEOF_UINT16;
@@ -4665,7 +4665,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeBlockackErrorIndication.ResultCode, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MlmeBlockackErrorIndication.PeerQstaAddress.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeBlockackErrorIndication.PeerQstaAddress.x, 48 / 8);
             index += 48 / 8;
             break;
 #endif
@@ -4711,7 +4711,7 @@ CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len)
             index += SIZEOF_UINT16;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeStartAggregationConfirm.VirtualInterfaceIdentifier, ptr + index);
             index += SIZEOF_UINT16;
-            CsrMemCpy(ptr + index, sig->u.MlmeStartAggregationConfirm.PeerQstaAddress.x, 48 / 8);
+            memcpy(ptr + index, sig->u.MlmeStartAggregationConfirm.PeerQstaAddress.x, 48 / 8);
             index += 48 / 8;
             CSR_COPY_UINT16_TO_LITTLE_ENDIAN(sig->u.MlmeStartAggregationConfirm.UserPriority, ptr + index);
             index += SIZEOF_UINT16;

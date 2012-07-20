@@ -149,7 +149,7 @@ void CsrWifiSmeScanResultsGetCfmHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     for (i = 0; i < cfm->scanResultsCount; ++i)
     {
         CsrWifiSmeScanResult *scan_result = &scanCopy[i];
-        CsrMemCpy(current_buff, scan_result->informationElements, scan_result->informationElementsLength);
+        memcpy(current_buff, scan_result->informationElements, scan_result->informationElementsLength);
         scan_result->informationElements = current_buff;
         current_buff += scan_result->informationElementsLength;
     }

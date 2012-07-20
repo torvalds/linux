@@ -524,7 +524,7 @@ extern const char *CsrWifiSmeApDownstreamPrimNames[CSR_WIFI_SME_AP_PRIM_DOWNSTRE
     msg__->secIeLength = (secIeLength__); \
     msg__->secIe = (secIe__); \
     msg__->groupKeyId = (groupKeyId__); \
-    CsrMemCpy(msg__->seqNumber, (seqNumber__), sizeof(u16) * 8);
+    memcpy(msg__->seqNumber, (seqNumber__), sizeof(u16) * 8);
 
 #define CsrWifiSmeApStaNotifyIndSendTo(dst__, src__, interfaceTag__, mediaStatus__, peerMacAddress__, peerDeviceAddress__, disassocReason__, deauthReason__, WpsRegistration__, secIeLength__, secIe__, groupKeyId__, seqNumber__) \
     { \
@@ -556,8 +556,8 @@ extern const char *CsrWifiSmeApDownstreamPrimNames[CSR_WIFI_SME_AP_PRIM_DOWNSTRE
     msg__ = (CsrWifiSmeApWmmParamUpdateReq *) CsrPmemAlloc(sizeof(CsrWifiSmeApWmmParamUpdateReq)); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_SME_AP_PRIM, CSR_WIFI_SME_AP_WMM_PARAM_UPDATE_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
-    CsrMemCpy(msg__->wmmApParams, (wmmApParams__), sizeof(CsrWifiSmeWmmAcParams) * 4); \
-    CsrMemCpy(msg__->wmmApBcParams, (wmmApBcParams__), sizeof(CsrWifiSmeWmmAcParams) * 4);
+    memcpy(msg__->wmmApParams, (wmmApParams__), sizeof(CsrWifiSmeWmmAcParams) * 4); \
+    memcpy(msg__->wmmApBcParams, (wmmApBcParams__), sizeof(CsrWifiSmeWmmAcParams) * 4);
 
 #define CsrWifiSmeApWmmParamUpdateReqSendTo(dst__, src__, interfaceTag__, wmmApParams__, wmmApBcParams__) \
     { \

@@ -23,15 +23,6 @@ extern "C" {
 /*------------------------------------------------------------------*/
 void CsrUInt16ToHex(u16 number, char *str);
 
-/*------------------------------------------------------------------*/
-/* Standard C Library functions */
-/*------------------------------------------------------------------*/
-#ifdef CSR_USE_STDC_LIB
-#define CsrMemCpy memcpy
-#else /* !CSR_USE_STDC_LIB */
-void *CsrMemCpy(void *dest, const void *src, size_t count);
-#endif /* !CSR_USE_STDC_LIB */
-
 #define CsrOffsetOf(st, m)  ((size_t) & ((st *) 0)->m)
 
 #ifdef __cplusplus

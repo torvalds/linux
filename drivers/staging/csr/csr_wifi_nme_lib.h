@@ -789,8 +789,8 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 #define CsrWifiNmeSimUmtsAuthIndCreate(msg__, dst__, src__, rand__, autn__) \
     msg__ = (CsrWifiNmeSimUmtsAuthInd *) CsrPmemAlloc(sizeof(CsrWifiNmeSimUmtsAuthInd)); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_SIM_UMTS_AUTH_IND, dst__, src__); \
-    CsrMemCpy(msg__->rand, (rand__), sizeof(u8) * 16); \
-    CsrMemCpy(msg__->autn, (autn__), sizeof(u8) * 16);
+    memcpy(msg__->rand, (rand__), sizeof(u8) * 16); \
+    memcpy(msg__->autn, (autn__), sizeof(u8) * 16);
 
 #define CsrWifiNmeSimUmtsAuthIndSendTo(dst__, src__, rand__, autn__) \
     { \
@@ -838,11 +838,11 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_SIM_UMTS_AUTH_RES, dst__, src__); \
     msg__->status = (status__); \
     msg__->result = (result__); \
-    CsrMemCpy(msg__->umtsCipherKey, (umtsCipherKey__), sizeof(u8) * 16); \
-    CsrMemCpy(msg__->umtsIntegrityKey, (umtsIntegrityKey__), sizeof(u8) * 16); \
+    memcpy(msg__->umtsCipherKey, (umtsCipherKey__), sizeof(u8) * 16); \
+    memcpy(msg__->umtsIntegrityKey, (umtsIntegrityKey__), sizeof(u8) * 16); \
     msg__->resParameterLength = (resParameterLength__); \
     msg__->resParameter = (resParameter__); \
-    CsrMemCpy(msg__->auts, (auts__), sizeof(u8) * 14);
+    memcpy(msg__->auts, (auts__), sizeof(u8) * 14);
 
 #define CsrWifiNmeSimUmtsAuthResSendTo(dst__, src__, status__, result__, umtsCipherKey__, umtsIntegrityKey__, resParameterLength__, resParameter__, auts__) \
     { \
@@ -1033,7 +1033,7 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
     msg__ = (CsrWifiNmeWpsReq *) CsrPmemAlloc(sizeof(CsrWifiNmeWpsReq)); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_NME_PRIM, CSR_WIFI_NME_WPS_REQ, dst__, src__); \
     msg__->interfaceTag = (interfaceTag__); \
-    CsrMemCpy(msg__->pin, (pin__), sizeof(u8) * 8); \
+    memcpy(msg__->pin, (pin__), sizeof(u8) * 8); \
     msg__->ssid = (ssid__); \
     msg__->bssid = (bssid__);
 

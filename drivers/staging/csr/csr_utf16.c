@@ -151,7 +151,7 @@ u32 CsrUtf16StringToUint32(const u16 *unicodeString)
 *********************************************************************************/
 u16 *CsrUtf16MemCpy(u16 *dest, const u16 *src, u32 count)
 {
-    return CsrMemCpy((u8 *) dest, (u8 *) src, count * sizeof(u16));
+    return memcpy((u8 *) dest, (u8 *) src, count * sizeof(u16));
 }
 
 /********************************************************************************
@@ -706,7 +706,7 @@ u16 *CsrUtf16StrCpy(u16 *target, const u16 *source)
 {
     if (source) /* if source is not NULL*/
     {
-        CsrMemCpy(target, source, (CsrUtf16StrLen(source) + 1) * sizeof(u16));
+        memcpy(target, source, (CsrUtf16StrLen(source) + 1) * sizeof(u16));
         return target;
     }
     else
@@ -736,7 +736,7 @@ u16 *CsrUtf16StringDuplicate(const u16 *source)
     {
         length = (CsrUtf16StrLen(source) + 1) * sizeof(u16);
         target = (u16 *) CsrPmemAlloc(length);
-        CsrMemCpy(target, source, length);
+        memcpy(target, source, length);
     }
     return target;
 }

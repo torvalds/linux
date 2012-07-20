@@ -130,7 +130,7 @@ sme_log_event(ul_client_t *pcli,
             raddr = macHdrLocation + MAC_HEADER_ADDR1_OFFSET;
             taddr = macHdrLocation + MAC_HEADER_ADDR2_OFFSET;
 
-            CsrMemCpy(peerMacAddress.a, taddr, ETH_ALEN);
+            memcpy(peerMacAddress.a, taddr, ETH_ALEN);
 
             if(ind->ReceptionStatus == CSR_MICHAEL_MIC_ERROR)
             {
@@ -1218,7 +1218,7 @@ void uf_send_pkt_to_encrypt(struct work_struct *work)
 
         spin_lock_irqsave(&priv->wapi_lock, flags);
         /* Copy over the MA PKT REQ bulk data */
-        CsrMemCpy(pktBulkData, (u8*)interfacePriv->wapi_unicast_bulk_data.os_data_ptr, pktBulkDataLength);
+        memcpy(pktBulkData, (u8*)interfacePriv->wapi_unicast_bulk_data.os_data_ptr, pktBulkDataLength);
         /* Free any bulk data buffers allocated for the WAPI Data pkt */
         unifi_net_data_free(priv, &interfacePriv->wapi_unicast_bulk_data);
         interfacePriv->wapi_unicast_bulk_data.net_buf_length = 0;

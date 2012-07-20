@@ -42,7 +42,7 @@ EXPORT_SYMBOL_GPL(CsrUint32Des);
 
 void CsrMemCpyDes(void *value, u8 *buffer, size_t *offset, size_t length)
 {
-    CsrMemCpy(value, &buffer[*offset], length);
+    memcpy(value, &buffer[*offset], length);
     *offset += length;
 }
 EXPORT_SYMBOL_GPL(CsrMemCpyDes);
@@ -114,7 +114,7 @@ EXPORT_SYMBOL_GPL(CsrUint32Ser);
 
 void CsrMemCpySer(u8 *buffer, size_t *offset, const void *value, size_t length)
 {
-    CsrMemCpy(&buffer[*offset], value, length);
+    memcpy(&buffer[*offset], value, length);
     *offset += length;
 }
 EXPORT_SYMBOL_GPL(CsrMemCpySer);
