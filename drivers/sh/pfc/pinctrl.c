@@ -7,7 +7,9 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-#define pr_fmt(fmt) "sh_pfc " KBUILD_MODNAME ": " fmt
+#define DRV_NAME "pinctrl-sh_pfc"
+
+#define pr_fmt(fmt) DRV_NAME " " KBUILD_MODNAME ": " fmt
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -265,12 +267,12 @@ static struct pinconf_ops sh_pfc_pinconf_ops = {
 };
 
 static struct pinctrl_gpio_range sh_pfc_gpio_range = {
-	.name		= KBUILD_MODNAME,
+	.name		= DRV_NAME,
 	.id		= 0,
 };
 
 static struct pinctrl_desc sh_pfc_pinctrl_desc = {
-	.name		= KBUILD_MODNAME,
+	.name		= DRV_NAME,
 	.owner		= THIS_MODULE,
 	.pctlops	= &sh_pfc_pinctrl_ops,
 	.pmxops		= &sh_pfc_pinmux_ops,
@@ -448,13 +450,13 @@ static struct platform_driver sh_pfc_pinctrl_driver = {
 	.probe		= sh_pfc_pinctrl_probe,
 	.remove		= __devexit_p(sh_pfc_pinctrl_remove),
 	.driver		= {
-		.name	= KBUILD_MODNAME,
+		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
 	},
 };
 
 static struct platform_device sh_pfc_pinctrl_device = {
-	.name		= KBUILD_MODNAME,
+	.name		= DRV_NAME,
 	.id		= -1,
 };
 
