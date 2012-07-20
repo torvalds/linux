@@ -123,7 +123,7 @@ void CsrCharStringSer(u8 *buffer, size_t *offset, const char *value)
 {
     if (value)
     {
-        CsrStrCpy(((char *) &buffer[*offset]), value);
+        strcpy(((char *) &buffer[*offset]), value);
         *offset += CsrStrLen(value) + 1;
     }
     else

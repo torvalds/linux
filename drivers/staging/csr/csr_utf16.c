@@ -1035,11 +1035,6 @@ u32 CsrUtf8StringLengthInBytes(const u8 *string)
     return (u32) length;
 }
 
-u8 *CsrUtf8StrCpy(u8 *target, const u8 *source)
-{
-    return (u8 *) CsrStrCpy((char *) target, (const char *) source);
-}
-
 u8 *CsrUtf8StrTruncate(u8 *target, size_t count)
 {
     size_t lastByte = count - 1;

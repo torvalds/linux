@@ -69,30 +69,6 @@ u8 *CsrUtf8StrTruncate(u8 *target, size_t count);
 /*******************************************************************************
 
     NAME
-        CsrUtf8StrCpy
-
-    DESCRIPTION
-        Copies the null terminated UTF-8 string pointed at by source into the
-        memory pointed at by target, including the terminating null character.
-
-        To avoid overflows, the size of the memory pointed at by target shall be
-        long enough to contain the same UTF-8 string as source (including the
-        terminating null character), and should not overlap in memory with
-        source.
-
-    PARAMETERS
-        target - Pointer to the target memory where the content is to be copied.
-        source - UTF-8 string to be copied.
-
-    RETURNS
-        Returns target
-
-*******************************************************************************/
-u8 *CsrUtf8StrCpy(u8 *target, const u8 *source);
-
-/*******************************************************************************
-
-    NAME
         CsrUtf8StrNCpy
 
     DESCRIPTION
