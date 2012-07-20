@@ -543,6 +543,116 @@ out:
 # define trace_selftest_function_recursion() ({ 0; })
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
+static enum {
+	TRACE_SELFTEST_REGS_START,
+	TRACE_SELFTEST_REGS_FOUND,
+	TRACE_SELFTEST_REGS_NOT_FOUND,
+} trace_selftest_regs_stat;
+
+static void trace_selftest_test_regs_func(unsigned long ip,
+					  unsigned long pip,
+					  struct ftrace_ops *op,
+					  struct pt_regs *pt_regs)
+{
+	if (pt_regs)
+		trace_selftest_regs_stat = TRACE_SELFTEST_REGS_FOUND;
+	else
+		trace_selftest_regs_stat = TRACE_SELFTEST_REGS_NOT_FOUND;
+}
+
+static struct ftrace_ops test_regs_probe = {
+	.func		= trace_selftest_test_regs_func,
+	.flags		= FTRACE_OPS_FL_RECURSION_SAFE | FTRACE_OPS_FL_SAVE_REGS,
+};
+
+static int
+trace_selftest_function_regs(void)
+{
+	int save_ftrace_enabled = ftrace_enabled;
+	int save_tracer_enabled = tracer_enabled;
+	char *func_name;
+	int len;
+	int ret;
+	int supported = 0;
+
+#ifdef ARCH_SUPPORTS_FTRACE_SAVE_REGS
+	supported = 1;
+#endif
+
+	/* The previous test PASSED */
+	pr_cont("PASSED\n");
+	pr_info("Testing ftrace regs%s: ",
+		!supported ? "(no arch support)" : "");
+
+	/* enable tracing, and record the filter function */
+	ftrace_enabled = 1;
+	tracer_enabled = 1;
+
+	/* Handle PPC64 '.' name */
+	func_name = "*" __stringify(DYN_FTRACE_TEST_NAME);
+	len = strlen(func_name);
+
+	ret = ftrace_set_filter(&test_regs_probe, func_name, len, 1);
+	/*
+	 * If DYNAMIC_FTRACE is not set, then we just trace all functions.
+	 * This test really doesn't care.
+	 */
+	if (ret && ret != -ENODEV) {
+		pr_cont("*Could not set filter* ");
+		goto out;
+	}
+
+	ret = register_ftrace_function(&test_regs_probe);
+	/*
+	 * Now if the arch does not support passing regs, then this should
+	 * have failed.
+	 */
+	if (!supported) {
+		if (!ret) {
+			pr_cont("*registered save-regs without arch support* ");
+			goto out;
+		}
+		test_regs_probe.flags |= FTRACE_OPS_FL_SAVE_REGS_IF_SUPPORTED;
+		ret = register_ftrace_function(&test_regs_probe);
+	}
+	if (ret) {
+		pr_cont("*could not register callback* ");
+		goto out;
+	}
+
+
+	DYN_FTRACE_TEST_NAME();
+
+	unregister_ftrace_function(&test_regs_probe);
+
+	ret = -1;
+
+	switch (trace_selftest_regs_stat) {
+	case TRACE_SELFTEST_REGS_START:
+		pr_cont("*callback never called* ");
+		goto out;
+
+	case TRACE_SELFTEST_REGS_FOUND:
+		if (supported)
+			break;
+		pr_cont("*callback received regs without arch support* ");
+		goto out;
+
+	case TRACE_SELFTEST_REGS_NOT_FOUND:
+		if (!supported)
+			break;
+		pr_cont("*callback received NULL regs* ");
+		goto out;
+	}
+
+	ret = 0;
+out:
+	ftrace_enabled = save_ftrace_enabled;
+	tracer_enabled = save_tracer_enabled;
+
+	return ret;
+}
+
 /*
  * Simple verification test of ftrace function tracer.
  * Enable ftrace, sleep 1/10 second, and then read the trace
@@ -592,6 +702,10 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 		goto out;
 
 	ret = trace_selftest_function_recursion();
+	if (ret)
+		goto out;
+
+	ret = trace_selftest_function_regs();
  out:
 	ftrace_enabled = save_ftrace_enabled;
 	tracer_enabled = save_tracer_enabled;
