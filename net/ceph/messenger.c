@@ -2330,21 +2330,22 @@ fault:
  */
 static void ceph_fault(struct ceph_connection *con)
 {
+	mutex_lock(&con->mutex);
+
 	pr_err("%s%lld %s %s\n", ENTITY_NAME(con->peer_name),
 	       ceph_pr_addr(&con->peer_addr.in_addr), con->error_msg);
 	dout("fault %p state %lu to peer %s\n",
 	     con, con->state, ceph_pr_addr(&con->peer_addr.in_addr));
 
-	if (test_bit(LOSSYTX, &con->flags)) {
-		dout("fault on LOSSYTX channel\n");
-		goto out;
-	}
-
-	mutex_lock(&con->mutex);
 	if (test_bit(CLOSED, &con->state))
 		goto out_unlock;
 
 	con_close_socket(con);
+
+	if (test_bit(LOSSYTX, &con->flags)) {
+		dout("fault on LOSSYTX channel\n");
+		goto out_unlock;
+	}
 
 	if (con->in_msg) {
 		BUG_ON(con->in_msg->con != con);
@@ -2392,7 +2393,6 @@ static void ceph_fault(struct ceph_connection *con)
 
 out_unlock:
 	mutex_unlock(&con->mutex);
-out:
 	/*
 	 * in case we faulted due to authentication, invalidate our
 	 * current tickets so that we can get new ones.
