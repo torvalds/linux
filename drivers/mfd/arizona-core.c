@@ -223,6 +223,8 @@ static int arizona_runtime_resume(struct device *dev)
 	struct arizona *arizona = dev_get_drvdata(dev);
 	int ret;
 
+	dev_dbg(arizona->dev, "Leaving AoD mode\n");
+
 	ret = regulator_enable(arizona->dcvdd);
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to enable DCVDD: %d\n", ret);
@@ -245,6 +247,8 @@ static int arizona_runtime_resume(struct device *dev)
 static int arizona_runtime_suspend(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
+
+	dev_dbg(arizona->dev, "Entering AoD mode\n");
 
 	regulator_disable(arizona->dcvdd);
 	regcache_cache_only(arizona->regmap, true);
