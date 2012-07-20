@@ -11,7 +11,7 @@
 *****************************************************************************/
 
 #include <linux/types.h>
-#include "csr_util.h"
+#include "csr_macro.h"
 
 #ifdef __cplusplus
 extern "C" {

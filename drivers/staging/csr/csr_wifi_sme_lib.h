@@ -15,7 +15,7 @@
 
 #include "csr_pmem.h"
 #include "csr_sched.h"
-#include "csr_util.h"
+#include "csr_macro.h"
 #include "csr_msg_transport.h"
 
 #include "csr_wifi_lib.h"

@@ -12,8 +12,7 @@
 
 #include "csr_msgconv.h"
 #include "csr_pmem.h"
-#include "csr_util.h"
-
+#include "csr_macro.h"
 
 #ifdef CSR_LOG_ENABLE
 #include "csr_log.h"

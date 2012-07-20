@@ -10,7 +10,7 @@
 
 #include <linux/module.h>
 #include "csr_pmem.h"
-#include "csr_util.h"
+#include "csr_macro.h"
 #include "csr_msgconv.h"
 #include "csr_wifi_msgconv.h"
 #include "csr_wifi_lib.h"

@@ -14,7 +14,7 @@
 #include "csr_panic.h"
 #include "csr_sched.h"
 #include "csr_msgconv.h"
-#include "csr_util.h"
+#include "csr_macro.h"
 
 static CsrMsgConvEntry *converter;
 

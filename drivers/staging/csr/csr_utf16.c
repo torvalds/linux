@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include "csr_pmem.h"
 #include "csr_unicode.h"
-#include "csr_util.h"
+#include "csr_macro.h"
 
 #define UNI_SUR_HIGH_START   ((u32) 0xD800)
 #define UNI_SUR_HIGH_END     ((u32) 0xDBFF)
