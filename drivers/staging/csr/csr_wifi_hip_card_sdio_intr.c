@@ -1740,7 +1740,7 @@ static CsrResult process_bulk_data_command(card_t *card, const u8 *cmdptr,
     /* if os_data_ptr is not 4-byte aligned, then allocate a new buffer and copy data
     to new buffer to ensure the address passed to unifi_bulk_rw is 4-byte aligned */
 
-    if (len != 0 && (dir == UNIFI_SDIO_WRITE) && (((CsrIntptr)bdslot->os_data_ptr + offset) & 3))
+    if (len != 0 && (dir == UNIFI_SDIO_WRITE) && (((ptrdiff_t)bdslot->os_data_ptr + offset) & 3))
     {
         host_bulk_data_slot = CsrMemAllocDma(len);
 
@@ -1799,7 +1799,7 @@ static CsrResult process_bulk_data_command(card_t *card, const u8 *cmdptr,
 
 #ifdef CSR_WIFI_ALIGNMENT_WORKAROUND
         /* moving this check before we clear host data slot */
-        if ((len != 0) && (dir == UNIFI_SDIO_WRITE) && (((CsrIntptr)bdslot->os_data_ptr + offset) & 3))
+        if ((len != 0) && (dir == UNIFI_SDIO_WRITE) && (((ptrdiff_t)bdslot->os_data_ptr + offset) & 3))
         {
             CsrMemFreeDma(host_bulk_data_slot);
         }
