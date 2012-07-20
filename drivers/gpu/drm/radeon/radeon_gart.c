@@ -31,7 +31,37 @@
 #include "radeon_reg.h"
 
 /*
+ * GART
+ * The GART (Graphics Aperture Remapping Table) is an aperture
+ * in the GPU's address space.  System pages can be mapped into
+ * the aperture and look like contiguous pages from the GPU's
+ * perspective.  A page table maps the pages in the aperture
+ * to the actual backing pages in system memory.
+ *
+ * Radeon GPUs support both an internal GART, as described above,
+ * and AGP.  AGP works similarly, but the GART table is configured
+ * and maintained by the northbridge rather than the driver.
+ * Radeon hw has a separate AGP aperture that is programmed to
+ * point to the AGP aperture provided by the northbridge and the
+ * requests are passed through to the northbridge aperture.
+ * Both AGP and internal GART can be used at the same time, however
+ * that is not currently supported by the driver.
+ *
+ * This file handles the common internal GART management.
+ */
+
+/*
  * Common GART table functions.
+ */
+/**
+ * radeon_gart_table_ram_alloc - allocate system ram for gart page table
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Allocate system memory for GART page table
+ * (r1xx-r3xx, non-pcie r4xx, rs400).  These asics require the
+ * gart table to be in system memory.
+ * Returns 0 for success, -ENOMEM for failure.
  */
 int radeon_gart_table_ram_alloc(struct radeon_device *rdev)
 {
@@ -54,6 +84,15 @@ int radeon_gart_table_ram_alloc(struct radeon_device *rdev)
 	return 0;
 }
 
+/**
+ * radeon_gart_table_ram_free - free system ram for gart page table
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Free system memory for GART page table
+ * (r1xx-r3xx, non-pcie r4xx, rs400).  These asics require the
+ * gart table to be in system memory.
+ */
 void radeon_gart_table_ram_free(struct radeon_device *rdev)
 {
 	if (rdev->gart.ptr == NULL) {
@@ -73,6 +112,16 @@ void radeon_gart_table_ram_free(struct radeon_device *rdev)
 	rdev->gart.table_addr = 0;
 }
 
+/**
+ * radeon_gart_table_vram_alloc - allocate vram for gart page table
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Allocate video memory for GART page table
+ * (pcie r4xx, r5xx+).  These asics require the
+ * gart table to be in video memory.
+ * Returns 0 for success, error for failure.
+ */
 int radeon_gart_table_vram_alloc(struct radeon_device *rdev)
 {
 	int r;
@@ -88,6 +137,16 @@ int radeon_gart_table_vram_alloc(struct radeon_device *rdev)
 	return 0;
 }
 
+/**
+ * radeon_gart_table_vram_pin - pin gart page table in vram
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Pin the GART page table in vram so it will not be moved
+ * by the memory manager (pcie r4xx, r5xx+).  These asics require the
+ * gart table to be in video memory.
+ * Returns 0 for success, error for failure.
+ */
 int radeon_gart_table_vram_pin(struct radeon_device *rdev)
 {
 	uint64_t gpu_addr;
@@ -110,6 +169,14 @@ int radeon_gart_table_vram_pin(struct radeon_device *rdev)
 	return r;
 }
 
+/**
+ * radeon_gart_table_vram_unpin - unpin gart page table in vram
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Unpin the GART page table in vram (pcie r4xx, r5xx+).
+ * These asics require the gart table to be in video memory.
+ */
 void radeon_gart_table_vram_unpin(struct radeon_device *rdev)
 {
 	int r;
@@ -126,6 +193,15 @@ void radeon_gart_table_vram_unpin(struct radeon_device *rdev)
 	}
 }
 
+/**
+ * radeon_gart_table_vram_free - free gart page table vram
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Free the video memory used for the GART page table
+ * (pcie r4xx, r5xx+).  These asics require the gart table to
+ * be in video memory.
+ */
 void radeon_gart_table_vram_free(struct radeon_device *rdev)
 {
 	if (rdev->gart.robj == NULL) {
@@ -135,11 +211,18 @@ void radeon_gart_table_vram_free(struct radeon_device *rdev)
 	radeon_bo_unref(&rdev->gart.robj);
 }
 
-
-
-
 /*
  * Common gart functions.
+ */
+/**
+ * radeon_gart_unbind - unbind pages from the gart page table
+ *
+ * @rdev: radeon_device pointer
+ * @offset: offset into the GPU's gart aperture
+ * @pages: number of pages to unbind
+ *
+ * Unbinds the requested pages from the gart page table and
+ * replaces them with the dummy page (all asics).
  */
 void radeon_gart_unbind(struct radeon_device *rdev, unsigned offset,
 			int pages)
@@ -172,6 +255,19 @@ void radeon_gart_unbind(struct radeon_device *rdev, unsigned offset,
 	radeon_gart_tlb_flush(rdev);
 }
 
+/**
+ * radeon_gart_bind - bind pages into the gart page table
+ *
+ * @rdev: radeon_device pointer
+ * @offset: offset into the GPU's gart aperture
+ * @pages: number of pages to bind
+ * @pagelist: pages to bind
+ * @dma_addr: DMA addresses of pages
+ *
+ * Binds the requested pages to the gart page table
+ * (all asics).
+ * Returns 0 for success, -EINVAL for failure.
+ */
 int radeon_gart_bind(struct radeon_device *rdev, unsigned offset,
 		     int pages, struct page **pagelist, dma_addr_t *dma_addr)
 {
@@ -203,6 +299,14 @@ int radeon_gart_bind(struct radeon_device *rdev, unsigned offset,
 	return 0;
 }
 
+/**
+ * radeon_gart_restore - bind all pages in the gart page table
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Binds all pages in the gart page table (all asics).
+ * Used to rebuild the gart table on device startup or resume.
+ */
 void radeon_gart_restore(struct radeon_device *rdev)
 {
 	int i, j, t;
@@ -222,6 +326,14 @@ void radeon_gart_restore(struct radeon_device *rdev)
 	radeon_gart_tlb_flush(rdev);
 }
 
+/**
+ * radeon_gart_init - init the driver info for managing the gart
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Allocate the dummy page and init the gart driver info (all asics).
+ * Returns 0 for success, error for failure.
+ */
 int radeon_gart_init(struct radeon_device *rdev)
 {
 	int r, i;
@@ -262,6 +374,13 @@ int radeon_gart_init(struct radeon_device *rdev)
 	return 0;
 }
 
+/**
+ * radeon_gart_fini - tear down the driver info for managing the gart
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Tear down the gart driver info and free the dummy page (all asics).
+ */
 void radeon_gart_fini(struct radeon_device *rdev)
 {
 	if (rdev->gart.pages && rdev->gart.pages_addr && rdev->gart.ready) {
@@ -278,11 +397,39 @@ void radeon_gart_fini(struct radeon_device *rdev)
 }
 
 /*
+ * GPUVM
+ * GPUVM is similar to the legacy gart on older asics, however
+ * rather than there being a single global gart table
+ * for the entire GPU, there are multiple VM page tables active
+ * at any given time.  The VM page tables can contain a mix
+ * vram pages and system memory pages and system memory pages
+ * can be mapped as snooped (cached system pages) or unsnooped
+ * (uncached system pages).
+ * Each VM has an ID associated with it and there is a page table
+ * associated with each VMID.  When execting a command buffer,
+ * the kernel tells the the ring what VMID to use for that command
+ * buffer.  VMIDs are allocated dynamically as commands are submitted.
+ * The userspace drivers maintain their own address space and the kernel
+ * sets up their pages tables accordingly when they submit their
+ * command buffers and a VMID is assigned.
+ * Cayman/Trinity support up to 8 active VMs at any given time;
+ * SI supports 16.
+ */
+
+/*
  * vm helpers
  *
  * TODO bind a default page at vm initialization for default address
  */
 
+/**
+ * radeon_vm_manager_init - init the vm manager
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Init the vm manager (cayman+).
+ * Returns 0 for success, error for failure.
+ */
 int radeon_vm_manager_init(struct radeon_device *rdev)
 {
 	struct radeon_vm *vm;
@@ -337,6 +484,16 @@ int radeon_vm_manager_init(struct radeon_device *rdev)
 }
 
 /* global mutex must be lock */
+/**
+ * radeon_vm_unbind_locked - unbind a specific vm
+ *
+ * @rdev: radeon_device pointer
+ * @vm: vm to unbind
+ *
+ * Unbind the requested vm (cayman+).
+ * Wait for use of the VM to finish, then unbind the page table,
+ * and free the page table memory.
+ */
 static void radeon_vm_unbind_locked(struct radeon_device *rdev,
 				    struct radeon_vm *vm)
 {
@@ -376,6 +533,13 @@ static void radeon_vm_unbind_locked(struct radeon_device *rdev,
 	}
 }
 
+/**
+ * radeon_vm_manager_fini - tear down the vm manager
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Tear down the VM manager (cayman+).
+ */
 void radeon_vm_manager_fini(struct radeon_device *rdev)
 {
 	struct radeon_vm *vm, *tmp;
@@ -397,6 +561,14 @@ void radeon_vm_manager_fini(struct radeon_device *rdev)
 }
 
 /* global mutex must be locked */
+/**
+ * radeon_vm_unbind - locked version of unbind
+ *
+ * @rdev: radeon_device pointer
+ * @vm: vm to unbind
+ *
+ * Locked version that wraps radeon_vm_unbind_locked (cayman+).
+ */
 void radeon_vm_unbind(struct radeon_device *rdev, struct radeon_vm *vm)
 {
 	mutex_lock(&vm->mutex);
@@ -405,6 +577,18 @@ void radeon_vm_unbind(struct radeon_device *rdev, struct radeon_vm *vm)
 }
 
 /* global and local mutex must be locked */
+/**
+ * radeon_vm_bind - bind a page table to a VMID
+ *
+ * @rdev: radeon_device pointer
+ * @vm: vm to bind
+ *
+ * Bind the requested vm (cayman+).
+ * Suballocate memory for the page table, allocate a VMID
+ * and bind the page table to it, and finally start to populate
+ * the page table.
+ * Returns 0 for success, error for failure.
+ */
 int radeon_vm_bind(struct radeon_device *rdev, struct radeon_vm *vm)
 {
 	struct radeon_vm *vm_evict;
@@ -467,6 +651,20 @@ retry_id:
 }
 
 /* object have to be reserved */
+/**
+ * radeon_vm_bo_add - add a bo to a specific vm
+ *
+ * @rdev: radeon_device pointer
+ * @vm: requested vm
+ * @bo: radeon buffer object
+ * @offset: requested offset of the buffer in the VM address space
+ * @flags: attributes of pages (read/write/valid/etc.)
+ *
+ * Add @bo into the requested vm (cayman+).
+ * Add @bo to the list of bos associated with the vm and validate
+ * the offset requested within the vm address space.
+ * Returns 0 for success, error for failure.
+ */
 int radeon_vm_bo_add(struct radeon_device *rdev,
 		     struct radeon_vm *vm,
 		     struct radeon_bo *bo,
@@ -544,6 +742,17 @@ int radeon_vm_bo_add(struct radeon_device *rdev,
 	return 0;
 }
 
+/**
+ * radeon_vm_get_addr - get the physical address of the page
+ *
+ * @rdev: radeon_device pointer
+ * @mem: ttm mem
+ * @pfn: pfn
+ *
+ * Look up the physical address of the page that the pte resolves
+ * to (cayman+).
+ * Returns the physical address of the page.
+ */
 static u64 radeon_vm_get_addr(struct radeon_device *rdev,
 			      struct ttm_mem_reg *mem,
 			      unsigned pfn)
@@ -573,6 +782,17 @@ static u64 radeon_vm_get_addr(struct radeon_device *rdev,
 }
 
 /* object have to be reserved & global and local mutex must be locked */
+/**
+ * radeon_vm_bo_update_pte - map a bo into the vm page table
+ *
+ * @rdev: radeon_device pointer
+ * @vm: requested vm
+ * @bo: radeon buffer object
+ * @mem: ttm mem
+ *
+ * Fill in the page table entries for @bo (cayman+).
+ * Returns 0 for success, -EINVAL for failure.
+ */
 int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 			    struct radeon_vm *vm,
 			    struct radeon_bo *bo,
@@ -621,6 +841,18 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 }
 
 /* object have to be reserved */
+/**
+ * radeon_vm_bo_rmv - remove a bo to a specific vm
+ *
+ * @rdev: radeon_device pointer
+ * @vm: requested vm
+ * @bo: radeon buffer object
+ *
+ * Remove @bo from the requested vm (cayman+).
+ * Remove @bo from the list of bos associated with the vm and
+ * remove the ptes for @bo in the page table.
+ * Returns 0 for success.
+ */
 int radeon_vm_bo_rmv(struct radeon_device *rdev,
 		     struct radeon_vm *vm,
 		     struct radeon_bo *bo)
@@ -643,6 +875,15 @@ int radeon_vm_bo_rmv(struct radeon_device *rdev,
 	return 0;
 }
 
+/**
+ * radeon_vm_bo_invalidate - mark the bo as invalid
+ *
+ * @rdev: radeon_device pointer
+ * @vm: requested vm
+ * @bo: radeon buffer object
+ *
+ * Mark @bo as invalid (cayman+).
+ */
 void radeon_vm_bo_invalidate(struct radeon_device *rdev,
 			     struct radeon_bo *bo)
 {
@@ -654,6 +895,17 @@ void radeon_vm_bo_invalidate(struct radeon_device *rdev,
 	}
 }
 
+/**
+ * radeon_vm_init - initialize a vm instance
+ *
+ * @rdev: radeon_device pointer
+ * @vm: requested vm
+ *
+ * Init @vm (cayman+).
+ * Map the IB pool and any other shared objects into the VM
+ * by default as it's used by all VMs.
+ * Returns 0 for success, error for failure.
+ */
 int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 {
 	int r;
@@ -672,6 +924,15 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 	return r;
 }
 
+/**
+ * radeon_vm_init - tear down a vm instance
+ *
+ * @rdev: radeon_device pointer
+ * @vm: requested vm
+ *
+ * Tear down @vm (cayman+).
+ * Unbind the VM and remove all bos from the vm bo list
+ */
 void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 {
 	struct radeon_bo_va *bo_va, *tmp;

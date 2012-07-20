@@ -99,6 +99,14 @@ void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev)
 	}
 }
 
+/**
+ * dce4_wait_for_vblank - vblank wait asic callback.
+ *
+ * @rdev: radeon_device pointer
+ * @crtc: crtc to wait for vblank on
+ *
+ * Wait for vblank on the requested crtc (evergreen+).
+ */
 void dce4_wait_for_vblank(struct radeon_device *rdev, int crtc)
 {
 	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc];
@@ -118,18 +126,49 @@ void dce4_wait_for_vblank(struct radeon_device *rdev, int crtc)
 	}
 }
 
+/**
+ * radeon_irq_kms_pflip_irq_get - pre-pageflip callback.
+ *
+ * @rdev: radeon_device pointer
+ * @crtc: crtc to prepare for pageflip on
+ *
+ * Pre-pageflip callback (evergreen+).
+ * Enables the pageflip irq (vblank irq).
+ */
 void evergreen_pre_page_flip(struct radeon_device *rdev, int crtc)
 {
 	/* enable the pflip int */
 	radeon_irq_kms_pflip_irq_get(rdev, crtc);
 }
 
+/**
+ * evergreen_post_page_flip - pos-pageflip callback.
+ *
+ * @rdev: radeon_device pointer
+ * @crtc: crtc to cleanup pageflip on
+ *
+ * Post-pageflip callback (evergreen+).
+ * Disables the pageflip irq (vblank irq).
+ */
 void evergreen_post_page_flip(struct radeon_device *rdev, int crtc)
 {
 	/* disable the pflip int */
 	radeon_irq_kms_pflip_irq_put(rdev, crtc);
 }
 
+/**
+ * evergreen_page_flip - pageflip callback.
+ *
+ * @rdev: radeon_device pointer
+ * @crtc_id: crtc to cleanup pageflip on
+ * @crtc_base: new address of the crtc (GPU MC address)
+ *
+ * Does the actual pageflip (evergreen+).
+ * During vblank we take the crtc lock and wait for the update_pending
+ * bit to go high, when it does, we release the lock, and allow the
+ * double buffered update to take place.
+ * Returns the current update pending status.
+ */
 u32 evergreen_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 {
 	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];
@@ -214,6 +253,15 @@ int sumo_get_temp(struct radeon_device *rdev)
 	return actual_temp * 1000;
 }
 
+/**
+ * sumo_pm_init_profile - Initialize power profiles callback.
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Initialize the power states used in profile mode
+ * (sumo, trinity, SI).
+ * Used for profile mode only.
+ */
 void sumo_pm_init_profile(struct radeon_device *rdev)
 {
 	int idx;
@@ -265,6 +313,14 @@ void sumo_pm_init_profile(struct radeon_device *rdev)
 		rdev->pm.power_state[idx].num_clock_modes - 1;
 }
 
+/**
+ * evergreen_pm_misc - set additional pm hw parameters callback.
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Set non-clock parameters associated with a power state
+ * (voltage, etc.) (evergreen+).
+ */
 void evergreen_pm_misc(struct radeon_device *rdev)
 {
 	int req_ps_idx = rdev->pm.requested_power_state_index;
@@ -292,6 +348,13 @@ void evergreen_pm_misc(struct radeon_device *rdev)
 	}
 }
 
+/**
+ * evergreen_pm_prepare - pre-power state change callback.
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Prepare for a power state change (evergreen+).
+ */
 void evergreen_pm_prepare(struct radeon_device *rdev)
 {
 	struct drm_device *ddev = rdev->ddev;
@@ -310,6 +373,13 @@ void evergreen_pm_prepare(struct radeon_device *rdev)
 	}
 }
 
+/**
+ * evergreen_pm_finish - post-power state change callback.
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Clean up after a power state change (evergreen+).
+ */
 void evergreen_pm_finish(struct radeon_device *rdev)
 {
 	struct drm_device *ddev = rdev->ddev;
@@ -328,6 +398,15 @@ void evergreen_pm_finish(struct radeon_device *rdev)
 	}
 }
 
+/**
+ * evergreen_hpd_sense - hpd sense callback.
+ *
+ * @rdev: radeon_device pointer
+ * @hpd: hpd (hotplug detect) pin
+ *
+ * Checks if a digital monitor is connected (evergreen+).
+ * Returns true if connected, false if not connected.
+ */
 bool evergreen_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd)
 {
 	bool connected = false;
@@ -364,6 +443,14 @@ bool evergreen_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd)
 	return connected;
 }
 
+/**
+ * evergreen_hpd_set_polarity - hpd set polarity callback.
+ *
+ * @rdev: radeon_device pointer
+ * @hpd: hpd (hotplug detect) pin
+ *
+ * Set the polarity of the hpd pin (evergreen+).
+ */
 void evergreen_hpd_set_polarity(struct radeon_device *rdev,
 				enum radeon_hpd_id hpd)
 {
@@ -424,6 +511,14 @@ void evergreen_hpd_set_polarity(struct radeon_device *rdev,
 	}
 }
 
+/**
+ * evergreen_hpd_init - hpd setup callback.
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Setup the hpd pins used by the card (evergreen+).
+ * Enable the pin, set the polarity, and enable the hpd interrupts.
+ */
 void evergreen_hpd_init(struct radeon_device *rdev)
 {
 	struct drm_device *dev = rdev->ddev;
@@ -462,6 +557,14 @@ void evergreen_hpd_init(struct radeon_device *rdev)
 	radeon_irq_kms_enable_hpd(rdev, enabled);
 }
 
+/**
+ * evergreen_hpd_fini - hpd tear down callback.
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Tear down the hpd pins used by the card (evergreen+).
+ * Disable the hpd interrupts.
+ */
 void evergreen_hpd_fini(struct radeon_device *rdev)
 {
 	struct drm_device *dev = rdev->ddev;
@@ -925,6 +1028,14 @@ static void evergreen_program_watermarks(struct radeon_device *rdev,
 
 }
 
+/**
+ * evergreen_bandwidth_update - update display watermarks callback.
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Update the display watermarks based on the requested mode(s)
+ * (evergreen+).
+ */
 void evergreen_bandwidth_update(struct radeon_device *rdev)
 {
 	struct drm_display_mode *mode0 = NULL;
@@ -948,6 +1059,15 @@ void evergreen_bandwidth_update(struct radeon_device *rdev)
 	}
 }
 
+/**
+ * evergreen_mc_wait_for_idle - wait for MC idle callback.
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Wait for the MC (memory controller) to be idle.
+ * (evergreen+).
+ * Returns 0 if the MC is idle, -1 if not.
+ */
 int evergreen_mc_wait_for_idle(struct radeon_device *rdev)
 {
 	unsigned i;
@@ -1364,17 +1484,25 @@ void evergreen_mc_program(struct radeon_device *rdev)
 void evergreen_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	struct radeon_ring *ring = &rdev->ring[ib->ring];
+	u32 next_rptr;
 
 	/* set to DX10/11 mode */
 	radeon_ring_write(ring, PACKET3(PACKET3_MODE_CONTROL, 0));
 	radeon_ring_write(ring, 1);
 
 	if (ring->rptr_save_reg) {
-		uint32_t next_rptr = ring->wptr + 3 + 4;
+		next_rptr = ring->wptr + 3 + 4;
 		radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
 		radeon_ring_write(ring, ((ring->rptr_save_reg - 
 					  PACKET3_SET_CONFIG_REG_START) >> 2));
 		radeon_ring_write(ring, next_rptr);
+	} else if (rdev->wb.enabled) {
+		next_rptr = ring->wptr + 5 + 4;
+		radeon_ring_write(ring, PACKET3(PACKET3_MEM_WRITE, 3));
+		radeon_ring_write(ring, ring->next_rptr_gpu_addr & 0xfffffffc);
+		radeon_ring_write(ring, (upper_32_bits(ring->next_rptr_gpu_addr) & 0xff) | (1 << 18));
+		radeon_ring_write(ring, next_rptr);
+		radeon_ring_write(ring, 0);
 	}
 
 	radeon_ring_write(ring, PACKET3(PACKET3_INDIRECT_BUFFER, 2));

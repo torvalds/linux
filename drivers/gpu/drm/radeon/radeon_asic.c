@@ -40,6 +40,16 @@
 /*
  * Registers accessors functions.
  */
+/**
+ * radeon_invalid_rreg - dummy reg read function
+ *
+ * @rdev: radeon device pointer
+ * @reg: offset of register
+ *
+ * Dummy register read function.  Used for register blocks
+ * that certain asics don't have (all asics).
+ * Returns the value in the register.
+ */
 static uint32_t radeon_invalid_rreg(struct radeon_device *rdev, uint32_t reg)
 {
 	DRM_ERROR("Invalid callback to read register 0x%04X\n", reg);
@@ -47,6 +57,16 @@ static uint32_t radeon_invalid_rreg(struct radeon_device *rdev, uint32_t reg)
 	return 0;
 }
 
+/**
+ * radeon_invalid_wreg - dummy reg write function
+ *
+ * @rdev: radeon device pointer
+ * @reg: offset of register
+ * @v: value to write to the register
+ *
+ * Dummy register read function.  Used for register blocks
+ * that certain asics don't have (all asics).
+ */
 static void radeon_invalid_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 {
 	DRM_ERROR("Invalid callback to write register 0x%04X with 0x%08X\n",
@@ -54,6 +74,14 @@ static void radeon_invalid_wreg(struct radeon_device *rdev, uint32_t reg, uint32
 	BUG_ON(1);
 }
 
+/**
+ * radeon_register_accessor_init - sets up the register accessor callbacks
+ *
+ * @rdev: radeon device pointer
+ *
+ * Sets up the register accessor callbacks for various register
+ * apertures.  Not all asics have all apertures (all asics).
+ */
 static void radeon_register_accessor_init(struct radeon_device *rdev)
 {
 	rdev->mc_rreg = &radeon_invalid_rreg;
@@ -102,6 +130,14 @@ static void radeon_register_accessor_init(struct radeon_device *rdev)
 
 
 /* helper to disable agp */
+/**
+ * radeon_agp_disable - AGP disable helper function
+ *
+ * @rdev: radeon device pointer
+ *
+ * Removes AGP flags and changes the gart callbacks on AGP
+ * cards when using the internal gart rather than AGP (all asics).
+ */
 void radeon_agp_disable(struct radeon_device *rdev)
 {
 	rdev->flags &= ~RADEON_IS_AGP;
@@ -1608,6 +1644,16 @@ static struct radeon_asic si_asic = {
 	},
 };
 
+/**
+ * radeon_asic_init - register asic specific callbacks
+ *
+ * @rdev: radeon device pointer
+ *
+ * Registers the appropriate asic specific callbacks for each
+ * chip family.  Also sets other asics specific info like the number
+ * of crtcs and the register aperture accessors (all asics).
+ * Returns 0 for success.
+ */
 int radeon_asic_init(struct radeon_device *rdev)
 {
 	radeon_register_accessor_init(rdev);

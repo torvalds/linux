@@ -362,7 +362,7 @@ struct radeon_bo_list {
  * alignment).
  */
 struct radeon_sa_manager {
-	spinlock_t		lock;
+	wait_queue_head_t	wq;
 	struct radeon_bo	*bo;
 	struct list_head	*hole;
 	struct list_head	flist[RADEON_NUM_RINGS];
@@ -623,6 +623,8 @@ struct radeon_ring {
 	unsigned		rptr_offs;
 	unsigned		rptr_reg;
 	unsigned		rptr_save_reg;
+	u64			next_rptr_gpu_addr;
+	volatile u32		*next_rptr_cpu_addr;
 	unsigned		wptr;
 	unsigned		wptr_old;
 	unsigned		wptr_reg;
@@ -638,6 +640,7 @@ struct radeon_ring {
 	u32			ptr_reg_shift;
 	u32			ptr_reg_mask;
 	u32			nop;
+	u32			idx;
 };
 
 /*
@@ -751,12 +754,14 @@ struct si_rlc {
 int radeon_ib_get(struct radeon_device *rdev, int ring,
 		  struct radeon_ib *ib, unsigned size);
 void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib);
-int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib);
+int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
+		       struct radeon_ib *const_ib);
 int radeon_ib_pool_init(struct radeon_device *rdev);
 void radeon_ib_pool_fini(struct radeon_device *rdev);
 int radeon_ib_ring_tests(struct radeon_device *rdev);
 /* Ring access between begin & end cannot sleep */
-int radeon_ring_index(struct radeon_device *rdev, struct radeon_ring *cp);
+bool radeon_ring_supports_scratch_reg(struct radeon_device *rdev,
+				      struct radeon_ring *ring);
 void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_ring *cp);
 int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *cp, unsigned ndw);
 int radeon_ring_lock(struct radeon_device *rdev, struct radeon_ring *cp, unsigned ndw);
@@ -870,6 +875,7 @@ struct radeon_wb {
 };
 
 #define RADEON_WB_SCRATCH_OFFSET 0
+#define RADEON_WB_RING0_NEXT_RPTR 256
 #define RADEON_WB_CP_RPTR_OFFSET 1024
 #define RADEON_WB_CP1_RPTR_OFFSET 1280
 #define RADEON_WB_CP2_RPTR_OFFSET 1536

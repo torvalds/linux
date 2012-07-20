@@ -35,10 +35,28 @@
 #include "atom.h"
 
 /*
- * IB.
+ * IB
+ * IBs (Indirect Buffers) and areas of GPU accessible memory where
+ * commands are stored.  You can put a pointer to the IB in the
+ * command ring and the hw will fetch the commands from the IB
+ * and execute them.  Generally userspace acceleration drivers
+ * produce command buffers which are send to the kernel and
+ * put in IBs for execution by the requested ring.
  */
 int radeon_debugfs_sa_init(struct radeon_device *rdev);
 
+/**
+ * radeon_ib_get - request an IB (Indirect Buffer)
+ *
+ * @rdev: radeon_device pointer
+ * @ring: ring index the IB is associated with
+ * @ib: IB object returned
+ * @size: requested IB size
+ *
+ * Request an IB (all asics).  IBs are allocated using the
+ * suballocator.
+ * Returns 0 on success, error on failure.
+ */
 int radeon_ib_get(struct radeon_device *rdev, int ring,
 		  struct radeon_ib *ib, unsigned size)
 {
@@ -67,6 +85,14 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 	return 0;
 }
 
+/**
+ * radeon_ib_free - free an IB (Indirect Buffer)
+ *
+ * @rdev: radeon_device pointer
+ * @ib: IB object to free
+ *
+ * Free an IB (all asics).
+ */
 void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	radeon_semaphore_free(rdev, &ib->semaphore, ib->fence);
@@ -74,7 +100,28 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib)
 	radeon_fence_unref(&ib->fence);
 }
 
-int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
+/**
+ * radeon_ib_schedule - schedule an IB (Indirect Buffer) on the ring
+ *
+ * @rdev: radeon_device pointer
+ * @ib: IB object to schedule
+ * @const_ib: Const IB to schedule (SI only)
+ *
+ * Schedule an IB on the associated ring (all asics).
+ * Returns 0 on success, error on failure.
+ *
+ * On SI, there are two parallel engines fed from the primary ring,
+ * the CE (Constant Engine) and the DE (Drawing Engine).  Since
+ * resource descriptors have moved to memory, the CE allows you to
+ * prime the caches while the DE is updating register state so that
+ * the resource descriptors will be already in cache when the draw is
+ * processed.  To accomplish this, the userspace driver submits two
+ * IBs, one for the CE and one for the DE.  If there is a CE IB (called
+ * a CONST_IB), it will be put on the ring prior to the DE IB.  Prior
+ * to SI there was just a DE IB.
+ */
+int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
+		       struct radeon_ib *const_ib)
 {
 	struct radeon_ring *ring = &rdev->ring[ib->ring];
 	bool need_sync = false;
@@ -105,6 +152,10 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
 	if (!need_sync) {
 		radeon_semaphore_free(rdev, &ib->semaphore, NULL);
 	}
+	if (const_ib) {
+		radeon_ring_ib_execute(rdev, const_ib->ring, const_ib);
+		radeon_semaphore_free(rdev, &const_ib->semaphore, NULL);
+	}
 	radeon_ring_ib_execute(rdev, ib->ring, ib);
 	r = radeon_fence_emit(rdev, &ib->fence, ib->ring);
 	if (r) {
@@ -112,10 +163,22 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
 		radeon_ring_unlock_undo(rdev, ring);
 		return r;
 	}
+	if (const_ib) {
+		const_ib->fence = radeon_fence_ref(ib->fence);
+	}
 	radeon_ring_unlock_commit(rdev, ring);
 	return 0;
 }
 
+/**
+ * radeon_ib_pool_init - Init the IB (Indirect Buffer) pool
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Initialize the suballocator to manage a pool of memory
+ * for use as IBs (all asics).
+ * Returns 0 on success, error on failure.
+ */
 int radeon_ib_pool_init(struct radeon_device *rdev)
 {
 	int r;
@@ -142,6 +205,14 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 	return 0;
 }
 
+/**
+ * radeon_ib_pool_fini - Free the IB (Indirect Buffer) pool
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Tear down the suballocator managing the pool of memory
+ * for use as IBs (all asics).
+ */
 void radeon_ib_pool_fini(struct radeon_device *rdev)
 {
 	if (rdev->ib_pool_ready) {
@@ -151,6 +222,16 @@ void radeon_ib_pool_fini(struct radeon_device *rdev)
 	}
 }
 
+/**
+ * radeon_ib_ring_tests - test IBs on the rings
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Test an IB (Indirect Buffer) on each ring.
+ * If the test fails, disable the ring.
+ * Returns 0 on success, error if the primary GFX ring
+ * IB test fails.
+ */
 int radeon_ib_ring_tests(struct radeon_device *rdev)
 {
 	unsigned i;
@@ -182,10 +263,28 @@ int radeon_ib_ring_tests(struct radeon_device *rdev)
 }
 
 /*
- * Ring.
+ * Rings
+ * Most engines on the GPU are fed via ring buffers.  Ring
+ * buffers are areas of GPU accessible memory that the host
+ * writes commands into and the GPU reads commands out of.
+ * There is a rptr (read pointer) that determines where the
+ * GPU is currently reading, and a wptr (write pointer)
+ * which determines where the host has written.  When the
+ * pointers are equal, the ring is idle.  When the host
+ * writes commands to the ring buffer, it increments the
+ * wptr.  The GPU then starts fetching commands and executes
+ * them until the pointers are equal again.
  */
 int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ring *ring);
 
+/**
+ * radeon_ring_write - write a value to the ring
+ *
+ * @ring: radeon_ring structure holding ring information
+ * @v: dword (dw) value to write
+ *
+ * Write a value to the requested ring buffer (all asics).
+ */
 void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 {
 #if DRM_DEBUG_CODE
@@ -199,21 +298,37 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 	ring->ring_free_dw--;
 }
 
-int radeon_ring_index(struct radeon_device *rdev, struct radeon_ring *ring)
+/**
+ * radeon_ring_supports_scratch_reg - check if the ring supports
+ * writing to scratch registers
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon_ring structure holding ring information
+ *
+ * Check if a specific ring supports writing to scratch registers (all asics).
+ * Returns true if the ring supports writing to scratch regs, false if not.
+ */
+bool radeon_ring_supports_scratch_reg(struct radeon_device *rdev,
+				      struct radeon_ring *ring)
 {
-	/* r1xx-r5xx only has CP ring */
-	if (rdev->family < CHIP_R600)
-		return RADEON_RING_TYPE_GFX_INDEX;
-
-	if (rdev->family >= CHIP_CAYMAN) {
-		if (ring == &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX])
-			return CAYMAN_RING_TYPE_CP1_INDEX;
-		else if (ring == &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX])
-			return CAYMAN_RING_TYPE_CP2_INDEX;
+	switch (ring->idx) {
+	case RADEON_RING_TYPE_GFX_INDEX:
+	case CAYMAN_RING_TYPE_CP1_INDEX:
+	case CAYMAN_RING_TYPE_CP2_INDEX:
+		return true;
+	default:
+		return false;
 	}
-	return RADEON_RING_TYPE_GFX_INDEX;
 }
 
+/**
+ * radeon_ring_free_size - update the free size
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon_ring structure holding ring information
+ *
+ * Update the free dw slots in the ring buffer (all asics).
+ */
 void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	u32 rptr;
@@ -232,7 +347,16 @@ void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_ring *ring)
 	}
 }
 
-
+/**
+ * radeon_ring_alloc - allocate space on the ring buffer
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon_ring structure holding ring information
+ * @ndw: number of dwords to allocate in the ring buffer
+ *
+ * Allocate @ndw dwords in the ring buffer (all asics).
+ * Returns 0 on success, error on failure.
+ */
 int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *ring, unsigned ndw)
 {
 	int r;
@@ -245,7 +369,7 @@ int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *ring, unsi
 		if (ndw < ring->ring_free_dw) {
 			break;
 		}
-		r = radeon_fence_wait_next_locked(rdev, radeon_ring_index(rdev, ring));
+		r = radeon_fence_wait_next_locked(rdev, ring->idx);
 		if (r)
 			return r;
 	}
@@ -254,6 +378,17 @@ int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *ring, unsi
 	return 0;
 }
 
+/**
+ * radeon_ring_lock - lock the ring and allocate space on it
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon_ring structure holding ring information
+ * @ndw: number of dwords to allocate in the ring buffer
+ *
+ * Lock the ring and allocate @ndw dwords in the ring buffer
+ * (all asics).
+ * Returns 0 on success, error on failure.
+ */
 int radeon_ring_lock(struct radeon_device *rdev, struct radeon_ring *ring, unsigned ndw)
 {
 	int r;
@@ -267,6 +402,16 @@ int radeon_ring_lock(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 	return 0;
 }
 
+/**
+ * radeon_ring_commit - tell the GPU to execute the new
+ * commands on the ring buffer
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon_ring structure holding ring information
+ *
+ * Update the wptr (write pointer) to tell the GPU to
+ * execute new commands on the ring buffer (all asics).
+ */
 void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	/* We pad to match fetch size */
@@ -278,23 +423,55 @@ void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *ring)
 	(void)RREG32(ring->wptr_reg);
 }
 
+/**
+ * radeon_ring_unlock_commit - tell the GPU to execute the new
+ * commands on the ring buffer and unlock it
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon_ring structure holding ring information
+ *
+ * Call radeon_ring_commit() then unlock the ring (all asics).
+ */
 void radeon_ring_unlock_commit(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	radeon_ring_commit(rdev, ring);
 	mutex_unlock(&rdev->ring_lock);
 }
 
+/**
+ * radeon_ring_undo - reset the wptr
+ *
+ * @ring: radeon_ring structure holding ring information
+ *
+ * Reset the driver's copy of the wtpr (all asics).
+ */
 void radeon_ring_undo(struct radeon_ring *ring)
 {
 	ring->wptr = ring->wptr_old;
 }
 
+/**
+ * radeon_ring_unlock_undo - reset the wptr and unlock the ring
+ *
+ * @ring: radeon_ring structure holding ring information
+ *
+ * Call radeon_ring_undo() then unlock the ring (all asics).
+ */
 void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	radeon_ring_undo(ring);
 	mutex_unlock(&rdev->ring_lock);
 }
 
+/**
+ * radeon_ring_force_activity - add some nop packets to the ring
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon_ring structure holding ring information
+ *
+ * Add some nop packets to the ring to force activity (all asics).
+ * Used for lockup detection to see if the rptr is advancing.
+ */
 void radeon_ring_force_activity(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	int r;
@@ -309,6 +486,13 @@ void radeon_ring_force_activity(struct radeon_device *rdev, struct radeon_ring *
 	}
 }
 
+/**
+ * radeon_ring_force_activity - update lockup variables
+ *
+ * @ring: radeon_ring structure holding ring information
+ *
+ * Update the last rptr value and timestamp (all asics).
+ */
 void radeon_ring_lockup_update(struct radeon_ring *ring)
 {
 	ring->last_rptr = ring->rptr;
@@ -374,25 +558,33 @@ unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring
 			    uint32_t **data)
 {
 	unsigned size, ptr, i;
-	int ridx = radeon_ring_index(rdev, ring);
 
 	/* just in case lock the ring */
 	mutex_lock(&rdev->ring_lock);
 	*data = NULL;
 
-	if (ring->ring_obj == NULL || !ring->rptr_save_reg) {
+	if (ring->ring_obj == NULL) {
 		mutex_unlock(&rdev->ring_lock);
 		return 0;
 	}
 
 	/* it doesn't make sense to save anything if all fences are signaled */
-	if (!radeon_fence_count_emitted(rdev, ridx)) {
+	if (!radeon_fence_count_emitted(rdev, ring->idx)) {
 		mutex_unlock(&rdev->ring_lock);
 		return 0;
 	}
 
 	/* calculate the number of dw on the ring */
-	ptr = RREG32(ring->rptr_save_reg);
+	if (ring->rptr_save_reg)
+		ptr = RREG32(ring->rptr_save_reg);
+	else if (rdev->wb.enabled)
+		ptr = le32_to_cpu(*ring->next_rptr_cpu_addr);
+	else {
+		/* no way to read back the next rptr */
+		mutex_unlock(&rdev->ring_lock);
+		return 0;
+	}
+
 	size = ring->wptr + (ring->ring_size / 4);
 	size -= ptr;
 	size &= ring->ptr_mask;
@@ -444,6 +636,22 @@ int radeon_ring_restore(struct radeon_device *rdev, struct radeon_ring *ring,
 	return 0;
 }
 
+/**
+ * radeon_ring_init - init driver ring struct.
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon_ring structure holding ring information
+ * @ring_size: size of the ring
+ * @rptr_offs: offset of the rptr writeback location in the WB buffer
+ * @rptr_reg: MMIO offset of the rptr register
+ * @wptr_reg: MMIO offset of the wptr register
+ * @ptr_reg_shift: bit offset of the rptr/wptr values
+ * @ptr_reg_mask: bit mask of the rptr/wptr values
+ * @nop: nop packet for this ring
+ *
+ * Initialize the driver information for the selected ring (all asics).
+ * Returns 0 on success, error on failure.
+ */
 int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsigned ring_size,
 		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg,
 		     u32 ptr_reg_shift, u32 ptr_reg_mask, u32 nop)
@@ -486,12 +694,25 @@ int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 	}
 	ring->ptr_mask = (ring->ring_size / 4) - 1;
 	ring->ring_free_dw = ring->ring_size / 4;
+	if (rdev->wb.enabled) {
+		u32 index = RADEON_WB_RING0_NEXT_RPTR + (ring->idx * 4);
+		ring->next_rptr_gpu_addr = rdev->wb.gpu_addr + index;
+		ring->next_rptr_cpu_addr = &rdev->wb.wb[index/4];
+	}
 	if (radeon_debugfs_ring_init(rdev, ring)) {
 		DRM_ERROR("Failed to register debugfs file for rings !\n");
 	}
 	return 0;
 }
 
+/**
+ * radeon_ring_fini - tear down the driver ring struct.
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon_ring structure holding ring information
+ *
+ * Tear down the driver information for the selected ring (all asics).
+ */
 void radeon_ring_fini(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	int r;
