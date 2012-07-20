@@ -70,6 +70,8 @@ struct rknand_info {
     int emmc_clk_power_save_en;
     char *pdmaBuf;
     void (*nand_timing_config)(unsigned long AHBnKHz);
+    void (*rknand_suspend)(void);
+    void (*rknand_resume)(void);
     int reserved[20];
 };
 

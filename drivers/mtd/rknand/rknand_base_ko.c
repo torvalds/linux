@@ -23,10 +23,11 @@
 //#include "api_flash.h"
 #include "rknand_base.h"
 #include <linux/clk.h>
+#include <linux/cpufreq.h>
 
 #define DRIVER_NAME	"rk29xxnand"
 
-const char rknand_base_version[] = "rknand_base.c version: 4.34 20120401";
+const char rknand_base_version[] = "rknand_base.c version: 4.38 20120717";
 #define NAND_DEBUG_LEVEL0 0
 #define NAND_DEBUG_LEVEL1 1
 #define NAND_DEBUG_LEVEL2 2
@@ -67,10 +68,23 @@ static char grknand_trac_buf[MAX_TRAC_BUFFER_SIZE];
 static char *ptrac_buf = grknand_trac_buf;
 void trac_log(long lba,int len, int mod)
 {
+	unsigned long long t;
+    unsigned long nanosec_rem;
+    t = cpu_clock(UINT_MAX);
+    nanosec_rem = do_div(t, 1000000000);
     if(mod)
-        ptrac_buf += sprintf(ptrac_buf,"W %d %d \n",lba,len);
+        ptrac_buf += sprintf(ptrac_buf,"[%5lu.%06lu] W %d %d \n",(unsigned long) t, nanosec_rem / 1000,lba,len);
     else
-        ptrac_buf += sprintf(ptrac_buf,"R %d %d \n",lba,len);
+        ptrac_buf += sprintf(ptrac_buf,"[%5lu.%06lu] R %d %d \n",(unsigned long) t, nanosec_rem / 1000,lba,len);
+}
+
+void trac_logs(char *s)
+{
+	unsigned long long t;
+    unsigned long nanosec_rem;
+    t = cpu_clock(UINT_MAX);
+    nanosec_rem = do_div(t, 1000000000);
+	ptrac_buf += sprintf(ptrac_buf,"[%5lu.%06lu] %s\n",(unsigned long) t, nanosec_rem / 1000,s);
 }
 
 static int rkNand_trac_read(char *page, char **start, off_t off, int count, int *eof,
@@ -80,7 +94,7 @@ static int rkNand_trac_read(char *page, char **start, off_t off, int count, int 
 	int len;
 
 	 len = ptrac_buf - grknand_trac_buf - off;
-     printk("rkNand_trac_read: page=%x,off=%x,count=%x ,len=%x \n",(int)page,(int)off,count,len);
+     //printk("rkNand_trac_read: page=%x,off=%x,count=%x ,len=%x \n",(int)page,(int)off,count,len);
 
 	if (len < 0)
 		len = 0;
@@ -321,7 +335,7 @@ static int rknand_nand_timing_cfg(void)
         if(gpNandInfo->nand_timing_config)
         {
             nandc_clk_rate = newclk;
-            gpNandInfo->nand_timing_config( nandc_clk_rate / 1000); // KHz
+            //gpNandInfo->nand_timing_config( nandc_clk_rate / 1000); // KHz
         }
 	}
 	return 0;
@@ -493,12 +507,16 @@ exit_free:
 static int rknand_suspend(struct platform_device *pdev, pm_message_t state)
 {
     gpNandInfo->rknand.rknand_schedule_enable = 0;
+    if(gpNandInfo->rknand_suspend)
+        gpNandInfo->rknand_suspend();  
 	NAND_DEBUG(NAND_DEBUG_LEVEL0,"rknand_suspend: \n");
 	return 0;
 }
 
 static int rknand_resume(struct platform_device *pdev)
 {
+    if(gpNandInfo->rknand_resume)
+       gpNandInfo->rknand_resume();  
     gpNandInfo->rknand.rknand_schedule_enable = 1;
 	NAND_DEBUG(NAND_DEBUG_LEVEL0,"rknand_resume: \n");
 	return 0;
