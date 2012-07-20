@@ -837,6 +837,13 @@ struct tsq_tasklet {
 };
 static DEFINE_PER_CPU(struct tsq_tasklet, tsq_tasklet);
 
+static void tcp_tsq_handler(struct sock *sk)
+{
+	if ((1 << sk->sk_state) &
+	    (TCPF_ESTABLISHED | TCPF_FIN_WAIT1 | TCPF_CLOSING |
+	     TCPF_CLOSE_WAIT  | TCPF_LAST_ACK))
+		tcp_write_xmit(sk, tcp_current_mss(sk), 0, 0, GFP_ATOMIC);
+}
 /*
  * One tasklest per cpu tries to send more skbs.
  * We run in tasklet context but need to disable irqs when
@@ -864,16 +871,10 @@ static void tcp_tasklet_func(unsigned long data)
 		bh_lock_sock(sk);
 
 		if (!sock_owned_by_user(sk)) {
-			if ((1 << sk->sk_state) &
-			    (TCPF_ESTABLISHED | TCPF_FIN_WAIT1 |
-			     TCPF_CLOSING | TCPF_CLOSE_WAIT | TCPF_LAST_ACK))
-				tcp_write_xmit(sk,
-					       tcp_current_mss(sk),
-					       0, 0,
-					       GFP_ATOMIC);
+			tcp_tsq_handler(sk);
 		} else {
 			/* defer the work to tcp_release_cb() */
-			set_bit(TSQ_OWNED, &tp->tsq_flags);
+			set_bit(TCP_TSQ_DEFERRED, &tp->tsq_flags);
 		}
 		bh_unlock_sock(sk);
 
@@ -882,6 +883,9 @@ static void tcp_tasklet_func(unsigned long data)
 	}
 }
 
+#define TCP_DEFERRED_ALL ((1UL << TCP_TSQ_DEFERRED) |		\
+			  (1UL << TCP_WRITE_TIMER_DEFERRED) |	\
+			  (1UL << TCP_DELACK_TIMER_DEFERRED))
 /**
  * tcp_release_cb - tcp release_sock() callback
  * @sk: socket
@@ -892,16 +896,24 @@ static void tcp_tasklet_func(unsigned long data)
 void tcp_release_cb(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	unsigned long flags, nflags;
 
-	if (test_and_clear_bit(TSQ_OWNED, &tp->tsq_flags)) {
-		if ((1 << sk->sk_state) &
-		    (TCPF_ESTABLISHED | TCPF_FIN_WAIT1 |
-		     TCPF_CLOSING | TCPF_CLOSE_WAIT | TCPF_LAST_ACK))
-			tcp_write_xmit(sk,
-				       tcp_current_mss(sk),
-				       0, 0,
-				       GFP_ATOMIC);
-	}
+	/* perform an atomic operation only if at least one flag is set */
+	do {
+		flags = tp->tsq_flags;
+		if (!(flags & TCP_DEFERRED_ALL))
+			return;
+		nflags = flags & ~TCP_DEFERRED_ALL;
+	} while (cmpxchg(&tp->tsq_flags, flags, nflags) != flags);
+
+	if (flags & (1UL << TCP_TSQ_DEFERRED))
+		tcp_tsq_handler(sk);
+
+	if (flags & (1UL << TCP_WRITE_TIMER_DEFERRED))
+		tcp_write_timer_handler(sk);
+
+	if (flags & (1UL << TCP_DELACK_TIMER_DEFERRED))
+		tcp_delack_timer_handler(sk);
 }
 EXPORT_SYMBOL(tcp_release_cb);
 

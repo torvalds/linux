@@ -515,7 +515,9 @@ struct tcp_sock {
 enum tsq_flags {
 	TSQ_THROTTLED,
 	TSQ_QUEUED,
-	TSQ_OWNED, /* tcp_tasklet_func() found socket was locked */
+	TCP_TSQ_DEFERRED,	   /* tcp_tasklet_func() found socket was owned */
+	TCP_WRITE_TIMER_DEFERRED,  /* tcp_write_timer() found socket was owned */
+	TCP_DELACK_TIMER_DEFERRED, /* tcp_delack_timer() found socket was owned */
 };
 
 static inline struct tcp_sock *tcp_sk(const struct sock *sk)
