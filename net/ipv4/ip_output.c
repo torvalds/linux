@@ -1476,7 +1476,8 @@ static DEFINE_PER_CPU(struct inet_sock, unicast_sock) = {
 		.sk_allocation	= GFP_ATOMIC,
 		.sk_flags	= (1UL << SOCK_USE_WRITE_QUEUE),
 	},
-	.pmtudisc = IP_PMTUDISC_WANT,
+	.pmtudisc	= IP_PMTUDISC_WANT,
+	.uc_ttl		= -1,
 };
 
 void ip_send_unicast_reply(struct net *net, struct sk_buff *skb, __be32 daddr,
