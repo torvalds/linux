@@ -161,7 +161,7 @@ EXPORT_SYMBOL_GPL(CsrThreadSleep);
  *      Allocated memory is zero initialised.
  *
  *----------------------------------------------------------------------------*/
-void *CsrMemCalloc(CsrSize numberOfElements, CsrSize elementSize)
+void *CsrMemCalloc(size_t numberOfElements, size_t elementSize)
 {
     void *buf;
     size_t size;
@@ -189,7 +189,7 @@ void *CsrMemCalloc(CsrSize numberOfElements, CsrSize elementSize)
  *      Allocated memory is not initialised.
  *
  *----------------------------------------------------------------------------*/
-void *CsrMemAlloc(CsrSize size)
+void *CsrMemAlloc(size_t size)
 {
     return kmalloc(size, GFP_KERNEL);
 }
@@ -224,7 +224,7 @@ EXPORT_SYMBOL_GPL(CsrMemFree);
  *      Allocated memory is not initialised.
  *
  *----------------------------------------------------------------------------*/
-void *CsrMemAllocDma(CsrSize size)
+void *CsrMemAllocDma(size_t size)
 {
     return kmalloc(size, GFP_KERNEL | GFP_DMA);
 }

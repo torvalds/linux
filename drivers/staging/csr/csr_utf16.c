@@ -564,8 +564,8 @@ static u8 isLegalUtf8(const u8 *codeUnit, u32 length)
 *********************************************************************************/
 u16 *CsrUtf82Utf16String(const u8 *utf8String)
 {
-    CsrSize i, length = 0;
-    CsrSize sourceLength;
+    size_t i, length = 0;
+    size_t sourceLength;
     u16 *dest = NULL;
     u16 *destStart = NULL;
     s8 extraBytes2Read;
@@ -1021,14 +1021,14 @@ s32 CsrUtf8StrCmp(const u8 *string1, const u8 *string2)
     return CsrStrCmp((const char *) string1, (const char *) string2);
 }
 
-s32 CsrUtf8StrNCmp(const u8 *string1, const u8 *string2, CsrSize count)
+s32 CsrUtf8StrNCmp(const u8 *string1, const u8 *string2, size_t count)
 {
     return CsrStrNCmp((const char *) string1, (const char *) string2, count);
 }
 
 u32 CsrUtf8StringLengthInBytes(const u8 *string)
 {
-    CsrSize length = 0;
+    size_t length = 0;
     if (string)
     {
         length = CsrStrLen((const char *) string);
@@ -1041,9 +1041,9 @@ u8 *CsrUtf8StrCpy(u8 *target, const u8 *source)
     return (u8 *) CsrStrCpy((char *) target, (const char *) source);
 }
 
-u8 *CsrUtf8StrTruncate(u8 *target, CsrSize count)
+u8 *CsrUtf8StrTruncate(u8 *target, size_t count)
 {
-    CsrSize lastByte = count - 1;
+    size_t lastByte = count - 1;
 
     target[count] = '\0';
 
@@ -1070,12 +1070,12 @@ u8 *CsrUtf8StrTruncate(u8 *target, CsrSize count)
     return target;
 }
 
-u8 *CsrUtf8StrNCpy(u8 *target, const u8 *source, CsrSize count)
+u8 *CsrUtf8StrNCpy(u8 *target, const u8 *source, size_t count)
 {
     return (u8 *) CsrStrNCpy((char *) target, (const char *) source, count);
 }
 
-u8 *CsrUtf8StrNCpyZero(u8 *target, const u8 *source, CsrSize count)
+u8 *CsrUtf8StrNCpyZero(u8 *target, const u8 *source, size_t count)
 {
     CsrStrNCpy((char *) target, (const char *) source, count);
     if (target[count - 1] != '\0')

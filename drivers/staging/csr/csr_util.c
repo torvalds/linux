@@ -222,31 +222,31 @@ void CsrUInt32ToHex(u32 number, char *str)
 /*  String */
 /*------------------------------------------------------------------*/
 #ifndef CSR_USE_STDC_LIB
-void *CsrMemCpy(void *dest, const void *src, CsrSize count)
+void *CsrMemCpy(void *dest, const void *src, size_t count)
 {
     return memcpy(dest, src, count);
 }
 EXPORT_SYMBOL_GPL(CsrMemCpy);
 
-void *CsrMemSet(void *dest, u8 c, CsrSize count)
+void *CsrMemSet(void *dest, u8 c, size_t count)
 {
     return memset(dest, c, count);
 }
 EXPORT_SYMBOL_GPL(CsrMemSet);
 
-void *CsrMemMove(void *dest, const void *src, CsrSize count)
+void *CsrMemMove(void *dest, const void *src, size_t count)
 {
     return memmove(dest, src, count);
 }
 EXPORT_SYMBOL_GPL(CsrMemMove);
 
-s32 CsrMemCmp(const void *buf1, const void *buf2, CsrSize count)
+s32 CsrMemCmp(const void *buf1, const void *buf2, size_t count)
 {
     return memcmp(buf1, buf2, count);
 }
 EXPORT_SYMBOL_GPL(CsrMemCmp);
 
-void *CsrMemDup(const void *buf1, CsrSize count)
+void *CsrMemDup(const void *buf1, size_t count)
 {
     void *buf2 = NULL;
 
@@ -266,7 +266,7 @@ char *CsrStrCpy(char *dest, const char *src)
     return strcpy(dest, src);
 }
 
-char *CsrStrNCpy(char *dest, const char *src, CsrSize count)
+char *CsrStrNCpy(char *dest, const char *src, size_t count)
 {
     return strncpy(dest, src, count);
 }
@@ -276,7 +276,7 @@ char *CsrStrCat(char *dest, const char *src)
     return strcat(dest, src);
 }
 
-char *CsrStrNCat(char *dest, const char *src, CsrSize count)
+char *CsrStrNCat(char *dest, const char *src, size_t count)
 {
     return strncat(dest, src, count);
 }
@@ -286,7 +286,7 @@ char *CsrStrStr(const char *string1, const char *string2)
     return strstr(string1, string2);
 }
 
-CsrSize CsrStrLen(const char *string)
+size_t CsrStrLen(const char *string)
 {
     return strlen(string);
 }
@@ -297,7 +297,7 @@ s32 CsrStrCmp(const char *string1, const char *string2)
     return strcmp(string1, string2);
 }
 
-s32 CsrStrNCmp(const char *string1, const char *string2, CsrSize count)
+s32 CsrStrNCmp(const char *string1, const char *string2, size_t count)
 {
     return strncmp(string1, string2, count);
 }
@@ -308,7 +308,7 @@ char *CsrStrChr(const char *string, char c)
 }
 #endif
 
-s32 CsrVsnprintf(char *string, CsrSize count, const char *format, va_list args)
+s32 CsrVsnprintf(char *string, size_t count, const char *format, va_list args)
 {
     return vsnprintf(string, count, format, args);
 }
@@ -316,7 +316,7 @@ EXPORT_SYMBOL_GPL(CsrVsnprintf);
 
 char *CsrStrNCpyZero(char *dest,
     const char *src,
-    CsrSize count)
+    size_t count)
 {
     CsrStrNCpy(dest, src, count - 1);
     dest[count - 1] = '\0';
@@ -364,7 +364,7 @@ char *CsrStrDup(const char *string)
 
 int CsrStrNICmp(const char *string1,
     const char *string2,
-    CsrSize count)
+    size_t count)
 {
     u32 index;
     int returnValue = 0;

@@ -24,9 +24,9 @@ void CsrWifiRouterPfree(void *ptr)
 }
 
 
-CsrSize CsrWifiRouterMaPacketSubscribeReqSizeof(void *msg)
+size_t CsrWifiRouterMaPacketSubscribeReqSizeof(void *msg)
 {
-    CsrSize bufferSize = 2;
+    size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 12) */
     bufferSize += 2; /* u16 primitive->interfaceTag */
@@ -37,7 +37,7 @@ CsrSize CsrWifiRouterMaPacketSubscribeReqSizeof(void *msg)
 }
 
 
-u8* CsrWifiRouterMaPacketSubscribeReqSer(u8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiRouterMaPacketSubscribeReqSer(u8 *ptr, size_t *len, void *msg)
 {
     CsrWifiRouterMaPacketSubscribeReq *primitive = (CsrWifiRouterMaPacketSubscribeReq *)msg;
     *len = 0;
@@ -50,10 +50,10 @@ u8* CsrWifiRouterMaPacketSubscribeReqSer(u8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiRouterMaPacketSubscribeReqDes(u8 *buffer, CsrSize length)
+void* CsrWifiRouterMaPacketSubscribeReqDes(u8 *buffer, size_t length)
 {
     CsrWifiRouterMaPacketSubscribeReq *primitive = (CsrWifiRouterMaPacketSubscribeReq *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketSubscribeReq));
-    CsrSize offset;
+    size_t offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -66,10 +66,10 @@ void* CsrWifiRouterMaPacketSubscribeReqDes(u8 *buffer, CsrSize length)
 }
 
 
-CsrSize CsrWifiRouterMaPacketReqSizeof(void *msg)
+size_t CsrWifiRouterMaPacketReqSizeof(void *msg)
 {
     CsrWifiRouterMaPacketReq *primitive = (CsrWifiRouterMaPacketReq *) msg;
-    CsrSize bufferSize = 2;
+    size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 20) */
     bufferSize += 2;                      /* u16 primitive->interfaceTag */
@@ -84,7 +84,7 @@ CsrSize CsrWifiRouterMaPacketReqSizeof(void *msg)
 }
 
 
-u8* CsrWifiRouterMaPacketReqSer(u8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiRouterMaPacketReqSer(u8 *ptr, size_t *len, void *msg)
 {
     CsrWifiRouterMaPacketReq *primitive = (CsrWifiRouterMaPacketReq *)msg;
     *len = 0;
@@ -104,10 +104,10 @@ u8* CsrWifiRouterMaPacketReqSer(u8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiRouterMaPacketReqDes(u8 *buffer, CsrSize length)
+void* CsrWifiRouterMaPacketReqDes(u8 *buffer, size_t length)
 {
     CsrWifiRouterMaPacketReq *primitive = (CsrWifiRouterMaPacketReq *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketReq));
-    CsrSize offset;
+    size_t offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -141,9 +141,9 @@ void CsrWifiRouterMaPacketReqSerFree(void *voidPrimitivePointer)
 }
 
 
-CsrSize CsrWifiRouterMaPacketResSizeof(void *msg)
+size_t CsrWifiRouterMaPacketResSizeof(void *msg)
 {
-    CsrSize bufferSize = 2;
+    size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 8) */
     bufferSize += 2; /* u16 primitive->interfaceTag */
@@ -153,7 +153,7 @@ CsrSize CsrWifiRouterMaPacketResSizeof(void *msg)
 }
 
 
-u8* CsrWifiRouterMaPacketResSer(u8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiRouterMaPacketResSer(u8 *ptr, size_t *len, void *msg)
 {
     CsrWifiRouterMaPacketRes *primitive = (CsrWifiRouterMaPacketRes *)msg;
     *len = 0;
@@ -165,10 +165,10 @@ u8* CsrWifiRouterMaPacketResSer(u8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiRouterMaPacketResDes(u8 *buffer, CsrSize length)
+void* CsrWifiRouterMaPacketResDes(u8 *buffer, size_t length)
 {
     CsrWifiRouterMaPacketRes *primitive = (CsrWifiRouterMaPacketRes *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketRes));
-    CsrSize offset;
+    size_t offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -180,9 +180,9 @@ void* CsrWifiRouterMaPacketResDes(u8 *buffer, CsrSize length)
 }
 
 
-CsrSize CsrWifiRouterMaPacketCancelReqSizeof(void *msg)
+size_t CsrWifiRouterMaPacketCancelReqSizeof(void *msg)
 {
-    CsrSize bufferSize = 2;
+    size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 17) */
     bufferSize += 2; /* u16 primitive->interfaceTag */
@@ -193,7 +193,7 @@ CsrSize CsrWifiRouterMaPacketCancelReqSizeof(void *msg)
 }
 
 
-u8* CsrWifiRouterMaPacketCancelReqSer(u8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiRouterMaPacketCancelReqSer(u8 *ptr, size_t *len, void *msg)
 {
     CsrWifiRouterMaPacketCancelReq *primitive = (CsrWifiRouterMaPacketCancelReq *)msg;
     *len = 0;
@@ -206,10 +206,10 @@ u8* CsrWifiRouterMaPacketCancelReqSer(u8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiRouterMaPacketCancelReqDes(u8 *buffer, CsrSize length)
+void* CsrWifiRouterMaPacketCancelReqDes(u8 *buffer, size_t length)
 {
     CsrWifiRouterMaPacketCancelReq *primitive = (CsrWifiRouterMaPacketCancelReq *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketCancelReq));
-    CsrSize offset;
+    size_t offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -222,9 +222,9 @@ void* CsrWifiRouterMaPacketCancelReqDes(u8 *buffer, CsrSize length)
 }
 
 
-CsrSize CsrWifiRouterMaPacketSubscribeCfmSizeof(void *msg)
+size_t CsrWifiRouterMaPacketSubscribeCfmSizeof(void *msg)
 {
-    CsrSize bufferSize = 2;
+    size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 10) */
     bufferSize += 2; /* u16 primitive->interfaceTag */
@@ -235,7 +235,7 @@ CsrSize CsrWifiRouterMaPacketSubscribeCfmSizeof(void *msg)
 }
 
 
-u8* CsrWifiRouterMaPacketSubscribeCfmSer(u8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiRouterMaPacketSubscribeCfmSer(u8 *ptr, size_t *len, void *msg)
 {
     CsrWifiRouterMaPacketSubscribeCfm *primitive = (CsrWifiRouterMaPacketSubscribeCfm *)msg;
     *len = 0;
@@ -248,10 +248,10 @@ u8* CsrWifiRouterMaPacketSubscribeCfmSer(u8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiRouterMaPacketSubscribeCfmDes(u8 *buffer, CsrSize length)
+void* CsrWifiRouterMaPacketSubscribeCfmDes(u8 *buffer, size_t length)
 {
     CsrWifiRouterMaPacketSubscribeCfm *primitive = (CsrWifiRouterMaPacketSubscribeCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketSubscribeCfm));
-    CsrSize offset;
+    size_t offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -264,9 +264,9 @@ void* CsrWifiRouterMaPacketSubscribeCfmDes(u8 *buffer, CsrSize length)
 }
 
 
-CsrSize CsrWifiRouterMaPacketUnsubscribeCfmSizeof(void *msg)
+size_t CsrWifiRouterMaPacketUnsubscribeCfmSizeof(void *msg)
 {
-    CsrSize bufferSize = 2;
+    size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 7) */
     bufferSize += 2; /* u16 primitive->interfaceTag */
@@ -275,7 +275,7 @@ CsrSize CsrWifiRouterMaPacketUnsubscribeCfmSizeof(void *msg)
 }
 
 
-u8* CsrWifiRouterMaPacketUnsubscribeCfmSer(u8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiRouterMaPacketUnsubscribeCfmSer(u8 *ptr, size_t *len, void *msg)
 {
     CsrWifiRouterMaPacketUnsubscribeCfm *primitive = (CsrWifiRouterMaPacketUnsubscribeCfm *)msg;
     *len = 0;
@@ -286,10 +286,10 @@ u8* CsrWifiRouterMaPacketUnsubscribeCfmSer(u8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiRouterMaPacketUnsubscribeCfmDes(u8 *buffer, CsrSize length)
+void* CsrWifiRouterMaPacketUnsubscribeCfmDes(u8 *buffer, size_t length)
 {
     CsrWifiRouterMaPacketUnsubscribeCfm *primitive = (CsrWifiRouterMaPacketUnsubscribeCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketUnsubscribeCfm));
-    CsrSize offset;
+    size_t offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -300,9 +300,9 @@ void* CsrWifiRouterMaPacketUnsubscribeCfmDes(u8 *buffer, CsrSize length)
 }
 
 
-CsrSize CsrWifiRouterMaPacketCfmSizeof(void *msg)
+size_t CsrWifiRouterMaPacketCfmSizeof(void *msg)
 {
-    CsrSize bufferSize = 2;
+    size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 13) */
     bufferSize += 2; /* u16 primitive->interfaceTag */
@@ -313,7 +313,7 @@ CsrSize CsrWifiRouterMaPacketCfmSizeof(void *msg)
 }
 
 
-u8* CsrWifiRouterMaPacketCfmSer(u8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiRouterMaPacketCfmSer(u8 *ptr, size_t *len, void *msg)
 {
     CsrWifiRouterMaPacketCfm *primitive = (CsrWifiRouterMaPacketCfm *)msg;
     *len = 0;
@@ -326,10 +326,10 @@ u8* CsrWifiRouterMaPacketCfmSer(u8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiRouterMaPacketCfmDes(u8 *buffer, CsrSize length)
+void* CsrWifiRouterMaPacketCfmDes(u8 *buffer, size_t length)
 {
     CsrWifiRouterMaPacketCfm *primitive = (CsrWifiRouterMaPacketCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketCfm));
-    CsrSize offset;
+    size_t offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -342,10 +342,10 @@ void* CsrWifiRouterMaPacketCfmDes(u8 *buffer, CsrSize length)
 }
 
 
-CsrSize CsrWifiRouterMaPacketIndSizeof(void *msg)
+size_t CsrWifiRouterMaPacketIndSizeof(void *msg)
 {
     CsrWifiRouterMaPacketInd *primitive = (CsrWifiRouterMaPacketInd *) msg;
-    CsrSize bufferSize = 2;
+    size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 21) */
     bufferSize += 2;                      /* u16 primitive->interfaceTag */
@@ -361,7 +361,7 @@ CsrSize CsrWifiRouterMaPacketIndSizeof(void *msg)
 }
 
 
-u8* CsrWifiRouterMaPacketIndSer(u8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiRouterMaPacketIndSer(u8 *ptr, size_t *len, void *msg)
 {
     CsrWifiRouterMaPacketInd *primitive = (CsrWifiRouterMaPacketInd *)msg;
     *len = 0;
@@ -382,10 +382,10 @@ u8* CsrWifiRouterMaPacketIndSer(u8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiRouterMaPacketIndDes(u8 *buffer, CsrSize length)
+void* CsrWifiRouterMaPacketIndDes(u8 *buffer, size_t length)
 {
     CsrWifiRouterMaPacketInd *primitive = (CsrWifiRouterMaPacketInd *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketInd));
-    CsrSize offset;
+    size_t offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);

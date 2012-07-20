@@ -39,7 +39,7 @@ u16 *CsrUtf16String2XML(u16 *str);
 u16 *CsrXML2Utf16String(u16 *str);
 
 s32 CsrUtf8StrCmp(const u8 *string1, const u8 *string2);
-s32 CsrUtf8StrNCmp(const u8 *string1, const u8 *string2, CsrSize count);
+s32 CsrUtf8StrNCmp(const u8 *string1, const u8 *string2, size_t count);
 u32 CsrUtf8StringLengthInBytes(const u8 *string);
 
 /*******************************************************************************
@@ -66,7 +66,7 @@ u32 CsrUtf8StringLengthInBytes(const u8 *string);
         Returns target
 
 *******************************************************************************/
-u8 *CsrUtf8StrTruncate(u8 *target, CsrSize count);
+u8 *CsrUtf8StrTruncate(u8 *target, size_t count);
 
 /*******************************************************************************
 
@@ -116,7 +116,7 @@ u8 *CsrUtf8StrCpy(u8 *target, const u8 *source);
         Returns target
 
 *******************************************************************************/
-u8 *CsrUtf8StrNCpy(u8 *target, const u8 *source, CsrSize count);
+u8 *CsrUtf8StrNCpy(u8 *target, const u8 *source, size_t count);
 
 /*******************************************************************************
 
@@ -143,7 +143,7 @@ u8 *CsrUtf8StrNCpy(u8 *target, const u8 *source, CsrSize count);
         Returns target
 
 *******************************************************************************/
-u8 *CsrUtf8StrNCpyZero(u8 *target, const u8 *source, CsrSize count);
+u8 *CsrUtf8StrNCpyZero(u8 *target, const u8 *source, size_t count);
 
 /*******************************************************************************
 
@@ -174,8 +174,8 @@ u8 *CsrUtf8StringConcatenateTexts(const u8 *inputText1, const u8 *inputText2, co
  */
 typedef u8 CsrUcs2String;
 
-CsrSize CsrUcs2ByteStrLen(const CsrUcs2String *ucs2String);
-CsrSize CsrConverterUcs2ByteStrLen(const CsrUcs2String *str);
+size_t CsrUcs2ByteStrLen(const CsrUcs2String *ucs2String);
+size_t CsrConverterUcs2ByteStrLen(const CsrUcs2String *str);
 
 u8 *CsrUcs2ByteString2Utf8(const CsrUcs2String *ucs2String);
 CsrUcs2String *CsrUtf82Ucs2ByteString(const u8 *utf8String);

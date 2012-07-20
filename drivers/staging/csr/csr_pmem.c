@@ -24,7 +24,7 @@
 #include "csr_panic.h"
 #include "csr_pmem.h"
 
-void *CsrPmemAlloc(CsrSize size)
+void *CsrPmemAlloc(size_t size)
 {
     void *ret;
 

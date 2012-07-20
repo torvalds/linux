@@ -27,7 +27,6 @@ extern "C" {
 #define TRUE (1)
 
 /* Basic types */
-typedef size_t CsrSize;         /* Return type of sizeof (ISO/IEC 9899:1990 7.1.6) */
 typedef ptrdiff_t CsrPtrdiff;   /* Type of the result of subtracting two pointers (ISO/IEC 9899:1990 7.1.6) */
 typedef uintptr_t CsrUintptr;   /* Unsigned integer large enough to hold any pointer (ISO/IEC 9899:1999 7.18.1.4) */
 typedef ptrdiff_t CsrIntptr;    /* intptr_t is not defined in kernel. Use the equivalent ptrdiff_t. */

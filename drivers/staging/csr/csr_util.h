@@ -52,30 +52,30 @@ void CsrUInt32ToHex(u32 number, char *str);
 #define CsrMemSet memset
 #define CsrStrLen strlen
 #else /* !CSR_USE_STDC_LIB */
-void *CsrMemCpy(void *dest, const void *src, CsrSize count);
-void *CsrMemMove(void *dest, const void *src, CsrSize count);
+void *CsrMemCpy(void *dest, const void *src, size_t count);
+void *CsrMemMove(void *dest, const void *src, size_t count);
 char *CsrStrCpy(char *dest, const char *src);
-char *CsrStrNCpy(char *dest, const char *src, CsrSize count);
+char *CsrStrNCpy(char *dest, const char *src, size_t count);
 char *CsrStrCat(char *dest, const char *src);
-char *CsrStrNCat(char *dest, const char *src, CsrSize count);
-s32 CsrMemCmp(const void *buf1, const void *buf2, CsrSize count);
+char *CsrStrNCat(char *dest, const char *src, size_t count);
+s32 CsrMemCmp(const void *buf1, const void *buf2, size_t count);
 s32 CsrStrCmp(const char *string1, const char *string2);
-s32 CsrStrNCmp(const char *string1, const char *string2, CsrSize count);
+s32 CsrStrNCmp(const char *string1, const char *string2, size_t count);
 char *CsrStrChr(const char *string, char c);
 char *CsrStrStr(const char *string1, const char *string2);
-void *CsrMemSet(void *dest, u8 c, CsrSize count);
-CsrSize CsrStrLen(const char *string);
+void *CsrMemSet(void *dest, u8 c, size_t count);
+size_t CsrStrLen(const char *string);
 #endif /* !CSR_USE_STDC_LIB */
-s32 CsrVsnprintf(char *string, CsrSize count, const char *format, va_list args);
+s32 CsrVsnprintf(char *string, size_t count, const char *format, va_list args);
 
 /*------------------------------------------------------------------*/
 /* Non-standard utility functions */
 /*------------------------------------------------------------------*/
-void *CsrMemDup(const void *buf1, CsrSize count);
-int CsrStrNICmp(const char *string1, const char *string2, CsrSize count);
+void *CsrMemDup(const void *buf1, size_t count);
+int CsrStrNICmp(const char *string1, const char *string2, size_t count);
 char *CsrStrDup(const char *string);
 u32 CsrStrToInt(const char *string);
-char *CsrStrNCpyZero(char *dest, const char *src, CsrSize count);
+char *CsrStrNCpyZero(char *dest, const char *src, size_t count);
 
 /*------------------------------------------------------------------*/
 /* Filename */
@@ -86,7 +86,7 @@ const char *CsrGetBaseName(const char *file);
 /* Misc */
 /*------------------------------------------------------------------*/
 u8 CsrIsSpace(u8 c);
-#define CsrOffsetOf(st, m)  ((CsrSize) & ((st *) 0)->m)
+#define CsrOffsetOf(st, m)  ((size_t) & ((st *) 0)->m)
 
 #ifdef __cplusplus
 }

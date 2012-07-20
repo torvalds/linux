@@ -256,11 +256,11 @@ void CsrThreadSleep(u16 sleepTimeInMs);
  *
  *----------------------------------------------------------------------------*/
 #ifdef CSR_MEM_DEBUG
-void *CsrMemAllocDebug(CsrSize size,
+void *CsrMemAllocDebug(size_t size,
     const char *file, u32 line);
 #define CsrMemAlloc(sz) CsrMemAllocDebug((sz), __FILE__, __LINE__)
 #else
-void *CsrMemAlloc(CsrSize size);
+void *CsrMemAlloc(size_t size);
 #endif
 
 /*----------------------------------------------------------------------------*
@@ -277,11 +277,11 @@ void *CsrMemAlloc(CsrSize size);
  *
  *----------------------------------------------------------------------------*/
 #ifdef CSR_MEM_DEBUG
-void *CsrMemCallocDebug(CsrSize numberOfElements, CsrSize elementSize,
+void *CsrMemCallocDebug(size_t numberOfElements, size_t elementSize,
     const char *file, u32 line);
 #define CsrMemCalloc(cnt, sz) CsrMemAllocDebug((cnt), (sz), __FILE__, __LINE__)
 #else
-void *CsrMemCalloc(CsrSize numberOfElements, CsrSize elementSize);
+void *CsrMemCalloc(size_t numberOfElements, size_t elementSize);
 #endif
 
 /*----------------------------------------------------------------------------*
@@ -310,11 +310,11 @@ void CsrMemFree(void *pointer);
  *
  *----------------------------------------------------------------------------*/
 #ifdef CSR_MEM_DEBUG
-void *CsrMemAllocDmaDebug(CsrSize size,
+void *CsrMemAllocDmaDebug(size_t size,
     const char *file, u32 line);
 #define CsrMemAllocDma(sz) CsrMemAllocDmaDebug((sz), __FILE__, __LINE__)
 #else
-void *CsrMemAllocDma(CsrSize size);
+void *CsrMemAllocDma(size_t size);
 #endif
 
 

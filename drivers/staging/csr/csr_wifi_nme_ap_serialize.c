@@ -26,10 +26,10 @@ void CsrWifiNmeApPfree(void *ptr)
 }
 
 
-CsrSize CsrWifiNmeApConfigSetReqSizeof(void *msg)
+size_t CsrWifiNmeApConfigSetReqSizeof(void *msg)
 {
     CsrWifiNmeApConfigSetReq *primitive = (CsrWifiNmeApConfigSetReq *) msg;
-    CsrSize bufferSize = 2;
+    size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 104) */
     bufferSize += 2;  /* u16 primitive->apConfig.apGroupkeyTimeout */
@@ -88,7 +88,7 @@ CsrSize CsrWifiNmeApConfigSetReqSizeof(void *msg)
 }
 
 
-u8* CsrWifiNmeApConfigSetReqSer(u8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiNmeApConfigSetReqSer(u8 *ptr, size_t *len, void *msg)
 {
     CsrWifiNmeApConfigSetReq *primitive = (CsrWifiNmeApConfigSetReq *)msg;
     *len = 0;
@@ -149,10 +149,10 @@ u8* CsrWifiNmeApConfigSetReqSer(u8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiNmeApConfigSetReqDes(u8 *buffer, CsrSize length)
+void* CsrWifiNmeApConfigSetReqDes(u8 *buffer, size_t length)
 {
     CsrWifiNmeApConfigSetReq *primitive = (CsrWifiNmeApConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiNmeApConfigSetReq));
-    CsrSize offset;
+    size_t offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -226,9 +226,9 @@ void CsrWifiNmeApConfigSetReqSerFree(void *voidPrimitivePointer)
 }
 
 
-CsrSize CsrWifiNmeApWpsRegisterReqSizeof(void *msg)
+size_t CsrWifiNmeApWpsRegisterReqSizeof(void *msg)
 {
-    CsrSize bufferSize = 2;
+    size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 17) */
     bufferSize += 2; /* u16 primitive->interfaceTag */
@@ -239,7 +239,7 @@ CsrSize CsrWifiNmeApWpsRegisterReqSizeof(void *msg)
 }
 
 
-u8* CsrWifiNmeApWpsRegisterReqSer(u8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiNmeApWpsRegisterReqSer(u8 *ptr, size_t *len, void *msg)
 {
     CsrWifiNmeApWpsRegisterReq *primitive = (CsrWifiNmeApWpsRegisterReq *)msg;
     *len = 0;
@@ -252,10 +252,10 @@ u8* CsrWifiNmeApWpsRegisterReqSer(u8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiNmeApWpsRegisterReqDes(u8 *buffer, CsrSize length)
+void* CsrWifiNmeApWpsRegisterReqDes(u8 *buffer, size_t length)
 {
     CsrWifiNmeApWpsRegisterReq *primitive = (CsrWifiNmeApWpsRegisterReq *) CsrPmemAlloc(sizeof(CsrWifiNmeApWpsRegisterReq));
-    CsrSize offset;
+    size_t offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -268,10 +268,10 @@ void* CsrWifiNmeApWpsRegisterReqDes(u8 *buffer, CsrSize length)
 }
 
 
-CsrSize CsrWifiNmeApStartReqSizeof(void *msg)
+size_t CsrWifiNmeApStartReqSizeof(void *msg)
 {
     CsrWifiNmeApStartReq *primitive = (CsrWifiNmeApStartReq *) msg;
-    CsrSize bufferSize = 2;
+    size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 112) */
     bufferSize += 2;  /* u16 primitive->interfaceTag */
@@ -355,7 +355,7 @@ CsrSize CsrWifiNmeApStartReqSizeof(void *msg)
 }
 
 
-u8* CsrWifiNmeApStartReqSer(u8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiNmeApStartReqSer(u8 *ptr, size_t *len, void *msg)
 {
     CsrWifiNmeApStartReq *primitive = (CsrWifiNmeApStartReq *)msg;
     *len = 0;
@@ -444,10 +444,10 @@ u8* CsrWifiNmeApStartReqSer(u8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiNmeApStartReqDes(u8 *buffer, CsrSize length)
+void* CsrWifiNmeApStartReqDes(u8 *buffer, size_t length)
 {
     CsrWifiNmeApStartReq *primitive = (CsrWifiNmeApStartReq *) CsrPmemAlloc(sizeof(CsrWifiNmeApStartReq));
-    CsrSize offset;
+    size_t offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -576,9 +576,9 @@ void CsrWifiNmeApStartReqSerFree(void *voidPrimitivePointer)
 }
 
 
-CsrSize CsrWifiNmeApWmmParamUpdateReqSizeof(void *msg)
+size_t CsrWifiNmeApWmmParamUpdateReqSizeof(void *msg)
 {
-    CsrSize bufferSize = 2;
+    size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 51) */
     {
@@ -607,7 +607,7 @@ CsrSize CsrWifiNmeApWmmParamUpdateReqSizeof(void *msg)
 }
 
 
-u8* CsrWifiNmeApWmmParamUpdateReqSer(u8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiNmeApWmmParamUpdateReqSer(u8 *ptr, size_t *len, void *msg)
 {
     CsrWifiNmeApWmmParamUpdateReq *primitive = (CsrWifiNmeApWmmParamUpdateReq *)msg;
     *len = 0;
@@ -638,10 +638,10 @@ u8* CsrWifiNmeApWmmParamUpdateReqSer(u8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiNmeApWmmParamUpdateReqDes(u8 *buffer, CsrSize length)
+void* CsrWifiNmeApWmmParamUpdateReqDes(u8 *buffer, size_t length)
 {
     CsrWifiNmeApWmmParamUpdateReq *primitive = (CsrWifiNmeApWmmParamUpdateReq *) CsrPmemAlloc(sizeof(CsrWifiNmeApWmmParamUpdateReq));
-    CsrSize offset;
+    size_t offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -672,9 +672,9 @@ void* CsrWifiNmeApWmmParamUpdateReqDes(u8 *buffer, CsrSize length)
 }
 
 
-CsrSize CsrWifiNmeApStaRemoveReqSizeof(void *msg)
+size_t CsrWifiNmeApStaRemoveReqSizeof(void *msg)
 {
-    CsrSize bufferSize = 2;
+    size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 12) */
     bufferSize += 2; /* u16 primitive->interfaceTag */
@@ -684,7 +684,7 @@ CsrSize CsrWifiNmeApStaRemoveReqSizeof(void *msg)
 }
 
 
-u8* CsrWifiNmeApStaRemoveReqSer(u8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiNmeApStaRemoveReqSer(u8 *ptr, size_t *len, void *msg)
 {
     CsrWifiNmeApStaRemoveReq *primitive = (CsrWifiNmeApStaRemoveReq *)msg;
     *len = 0;
@@ -696,10 +696,10 @@ u8* CsrWifiNmeApStaRemoveReqSer(u8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiNmeApStaRemoveReqDes(u8 *buffer, CsrSize length)
+void* CsrWifiNmeApStaRemoveReqDes(u8 *buffer, size_t length)
 {
     CsrWifiNmeApStaRemoveReq *primitive = (CsrWifiNmeApStaRemoveReq *) CsrPmemAlloc(sizeof(CsrWifiNmeApStaRemoveReq));
-    CsrSize offset;
+    size_t offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -711,9 +711,9 @@ void* CsrWifiNmeApStaRemoveReqDes(u8 *buffer, CsrSize length)
 }
 
 
-CsrSize CsrWifiNmeApWpsRegisterCfmSizeof(void *msg)
+size_t CsrWifiNmeApWpsRegisterCfmSizeof(void *msg)
 {
-    CsrSize bufferSize = 2;
+    size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 7) */
     bufferSize += 2; /* u16 primitive->interfaceTag */
@@ -722,7 +722,7 @@ CsrSize CsrWifiNmeApWpsRegisterCfmSizeof(void *msg)
 }
 
 
-u8* CsrWifiNmeApWpsRegisterCfmSer(u8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiNmeApWpsRegisterCfmSer(u8 *ptr, size_t *len, void *msg)
 {
     CsrWifiNmeApWpsRegisterCfm *primitive = (CsrWifiNmeApWpsRegisterCfm *)msg;
     *len = 0;
@@ -733,10 +733,10 @@ u8* CsrWifiNmeApWpsRegisterCfmSer(u8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiNmeApWpsRegisterCfmDes(u8 *buffer, CsrSize length)
+void* CsrWifiNmeApWpsRegisterCfmDes(u8 *buffer, size_t length)
 {
     CsrWifiNmeApWpsRegisterCfm *primitive = (CsrWifiNmeApWpsRegisterCfm *) CsrPmemAlloc(sizeof(CsrWifiNmeApWpsRegisterCfm));
-    CsrSize offset;
+    size_t offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -747,9 +747,9 @@ void* CsrWifiNmeApWpsRegisterCfmDes(u8 *buffer, CsrSize length)
 }
 
 
-CsrSize CsrWifiNmeApStartCfmSizeof(void *msg)
+size_t CsrWifiNmeApStartCfmSizeof(void *msg)
 {
-    CsrSize bufferSize = 2;
+    size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 40) */
     bufferSize += 2;  /* u16 primitive->interfaceTag */
@@ -760,7 +760,7 @@ CsrSize CsrWifiNmeApStartCfmSizeof(void *msg)
 }
 
 
-u8* CsrWifiNmeApStartCfmSer(u8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiNmeApStartCfmSer(u8 *ptr, size_t *len, void *msg)
 {
     CsrWifiNmeApStartCfm *primitive = (CsrWifiNmeApStartCfm *)msg;
     *len = 0;
@@ -773,10 +773,10 @@ u8* CsrWifiNmeApStartCfmSer(u8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiNmeApStartCfmDes(u8 *buffer, CsrSize length)
+void* CsrWifiNmeApStartCfmDes(u8 *buffer, size_t length)
 {
     CsrWifiNmeApStartCfm *primitive = (CsrWifiNmeApStartCfm *) CsrPmemAlloc(sizeof(CsrWifiNmeApStartCfm));
-    CsrSize offset;
+    size_t offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -789,9 +789,9 @@ void* CsrWifiNmeApStartCfmDes(u8 *buffer, CsrSize length)
 }
 
 
-CsrSize CsrWifiNmeApStopCfmSizeof(void *msg)
+size_t CsrWifiNmeApStopCfmSizeof(void *msg)
 {
-    CsrSize bufferSize = 2;
+    size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 7) */
     bufferSize += 2; /* u16 primitive->interfaceTag */
@@ -800,7 +800,7 @@ CsrSize CsrWifiNmeApStopCfmSizeof(void *msg)
 }
 
 
-u8* CsrWifiNmeApStopCfmSer(u8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiNmeApStopCfmSer(u8 *ptr, size_t *len, void *msg)
 {
     CsrWifiNmeApStopCfm *primitive = (CsrWifiNmeApStopCfm *)msg;
     *len = 0;
@@ -811,10 +811,10 @@ u8* CsrWifiNmeApStopCfmSer(u8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiNmeApStopCfmDes(u8 *buffer, CsrSize length)
+void* CsrWifiNmeApStopCfmDes(u8 *buffer, size_t length)
 {
     CsrWifiNmeApStopCfm *primitive = (CsrWifiNmeApStopCfm *) CsrPmemAlloc(sizeof(CsrWifiNmeApStopCfm));
-    CsrSize offset;
+    size_t offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -825,9 +825,9 @@ void* CsrWifiNmeApStopCfmDes(u8 *buffer, CsrSize length)
 }
 
 
-CsrSize CsrWifiNmeApStopIndSizeof(void *msg)
+size_t CsrWifiNmeApStopIndSizeof(void *msg)
 {
-    CsrSize bufferSize = 2;
+    size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 8) */
     bufferSize += 2; /* u16 primitive->interfaceTag */
@@ -837,7 +837,7 @@ CsrSize CsrWifiNmeApStopIndSizeof(void *msg)
 }
 
 
-u8* CsrWifiNmeApStopIndSer(u8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiNmeApStopIndSer(u8 *ptr, size_t *len, void *msg)
 {
     CsrWifiNmeApStopInd *primitive = (CsrWifiNmeApStopInd *)msg;
     *len = 0;
@@ -849,10 +849,10 @@ u8* CsrWifiNmeApStopIndSer(u8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiNmeApStopIndDes(u8 *buffer, CsrSize length)
+void* CsrWifiNmeApStopIndDes(u8 *buffer, size_t length)
 {
     CsrWifiNmeApStopInd *primitive = (CsrWifiNmeApStopInd *) CsrPmemAlloc(sizeof(CsrWifiNmeApStopInd));
-    CsrSize offset;
+    size_t offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
@@ -864,9 +864,9 @@ void* CsrWifiNmeApStopIndDes(u8 *buffer, CsrSize length)
 }
 
 
-CsrSize CsrWifiNmeApStationIndSizeof(void *msg)
+size_t CsrWifiNmeApStationIndSizeof(void *msg)
 {
-    CsrSize bufferSize = 2;
+    size_t bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 18) */
     bufferSize += 2; /* u16 primitive->interfaceTag */
@@ -877,7 +877,7 @@ CsrSize CsrWifiNmeApStationIndSizeof(void *msg)
 }
 
 
-u8* CsrWifiNmeApStationIndSer(u8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiNmeApStationIndSer(u8 *ptr, size_t *len, void *msg)
 {
     CsrWifiNmeApStationInd *primitive = (CsrWifiNmeApStationInd *)msg;
     *len = 0;
@@ -890,10 +890,10 @@ u8* CsrWifiNmeApStationIndSer(u8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiNmeApStationIndDes(u8 *buffer, CsrSize length)
+void* CsrWifiNmeApStationIndDes(u8 *buffer, size_t length)
 {
     CsrWifiNmeApStationInd *primitive = (CsrWifiNmeApStationInd *) CsrPmemAlloc(sizeof(CsrWifiNmeApStationInd));
-    CsrSize offset;
+    size_t offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);

@@ -12,7 +12,7 @@
 #include "csr_formatted_io.h"
 #include "csr_util.h"
 
-s32 CsrSnprintf(char *dest, CsrSize n, const char *fmt, ...)
+s32 CsrSnprintf(char *dest, size_t n, const char *fmt, ...)
 {
     s32 r;
     va_list args;

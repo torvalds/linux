@@ -61,14 +61,14 @@ void CsrWifiRouterTransportDeinit(unifi_priv_t *priv)
     }
 }
 
-void CsrWifiRouterTransportRecv(unifi_priv_t *priv, u8* buffer, CsrSize bufferLength)
+void CsrWifiRouterTransportRecv(unifi_priv_t *priv, u8* buffer, size_t bufferLength)
 {
     CsrMsgConvMsgEntry* msgEntry;
     u16 primType;
     CsrSchedQid src;
     CsrSchedQid dest;
     u16 msgType;
-    CsrSize offset = 0;
+    size_t offset = 0;
     CsrWifiFsmEvent* msg;
 
     /* Decode the prim and message type */
@@ -163,9 +163,9 @@ static void CsrWifiRouterTransportSerialiseAndSend(u16 primType, void* msg)
 {
     CsrWifiFsmEvent* evt = (CsrWifiFsmEvent*)msg;
     CsrMsgConvMsgEntry* msgEntry;
-    CsrSize msgSize;
-    CsrSize encodeBufferLen = 0;
-    CsrSize offset = 0;
+    size_t msgSize;
+    size_t encodeBufferLen = 0;
+    size_t offset = 0;
     u8* encodeBuffer;
 
     unifi_trace(drvpriv, UDBG4, "CsrWifiRouterTransportSerialiseAndSend: primType=0x%.4X, msgType=0x%.4X\n",
