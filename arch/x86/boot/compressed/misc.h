@@ -43,7 +43,17 @@ int cmdline_find_option(const char *option, char *buffer, int bufsize);
 int cmdline_find_option_bool(const char *option);
 
 /* early_serial_console.c */
+#ifdef CONFIG_EARLY_PRINTK
+
 extern int early_serial_base;
 void console_init(void);
+
+#else
+
+static const int early_serial_base;
+static inline void console_init(void)
+{ }
+
+#endif
 
 #endif
