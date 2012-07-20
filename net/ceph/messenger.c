@@ -2441,12 +2441,10 @@ static void clear_standby(struct ceph_connection *con)
 {
 	/* come back from STANDBY? */
 	if (test_and_clear_bit(STANDBY, &con->state)) {
-		mutex_lock(&con->mutex);
 		dout("clear_standby %p and ++connect_seq\n", con);
 		con->connect_seq++;
 		WARN_ON(test_bit(WRITE_PENDING, &con->flags));
 		WARN_ON(test_bit(KEEPALIVE_PENDING, &con->flags));
-		mutex_unlock(&con->mutex);
 	}
 }
 
@@ -2483,11 +2481,12 @@ void ceph_con_send(struct ceph_connection *con, struct ceph_msg *msg)
 	     le32_to_cpu(msg->hdr.front_len),
 	     le32_to_cpu(msg->hdr.middle_len),
 	     le32_to_cpu(msg->hdr.data_len));
+
+	clear_standby(con);
 	mutex_unlock(&con->mutex);
 
 	/* if there wasn't anything waiting to send before, queue
 	 * new work */
-	clear_standby(con);
 	if (test_and_set_bit(WRITE_PENDING, &con->flags) == 0)
 		queue_con(con);
 }
@@ -2574,7 +2573,9 @@ void ceph_msg_revoke_incoming(struct ceph_msg *msg)
 void ceph_con_keepalive(struct ceph_connection *con)
 {
 	dout("con_keepalive %p\n", con);
+	mutex_lock(&con->mutex);
 	clear_standby(con);
+	mutex_unlock(&con->mutex);
 	if (test_and_set_bit(KEEPALIVE_PENDING, &con->flags) == 0 &&
 	    test_and_set_bit(WRITE_PENDING, &con->flags) == 0)
 		queue_con(con);
