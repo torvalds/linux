@@ -394,8 +394,13 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *cpu_dai)
 {
 	struct mxs_saif *saif = snd_soc_dai_get_drvdata(cpu_dai);
+	struct mxs_saif *master_saif;
 	u32 scr, stat;
 	int ret;
+
+	master_saif = mxs_saif_get_master(saif);
+	if (!master_saif)
+		return -EINVAL;
 
 	/* mclk should already be set */
 	if (!saif->mclk && saif->mclk_in_use) {
@@ -419,6 +424,11 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
 		dev_err(cpu_dai->dev, "unable to get proper clk\n");
 		return ret;
 	}
+
+	/* prepare clk in hw_param, enable in trigger */
+	clk_prepare(saif->clk);
+	if (saif != master_saif)
+		clk_prepare(master_saif->clk);
 
 	scr = __raw_readl(saif->base + SAIF_CTRL);
 
