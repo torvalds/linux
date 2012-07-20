@@ -2564,8 +2564,15 @@ int machine__create_kernel_maps(struct machine *machine)
 	    __machine__create_kernel_maps(machine, kernel) < 0)
 		return -1;
 
-	if (symbol_conf.use_modules && machine__create_modules(machine) < 0)
-		pr_debug("Problems creating module maps, continuing anyway...\n");
+	if (symbol_conf.use_modules && machine__create_modules(machine) < 0) {
+		if (machine__is_host(machine))
+			pr_debug("Problems creating module maps, "
+				 "continuing anyway...\n");
+		else
+			pr_debug("Problems creating module maps for guest %d, "
+				 "continuing anyway...\n", machine->pid);
+	}
+
 	/*
 	 * Now that we have all the maps created, just set the ->end of them:
 	 */
