@@ -786,17 +786,27 @@ static int ov9740_g_chip_ident(struct v4l2_subdev *sd,
 
 static int ov9740_s_power(struct v4l2_subdev *sd, int on)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	struct ov9740_priv *priv = to_ov9740(sd);
-
-	if (!priv->current_enable)
-		return 0;
+	int ret;
 
 	if (on) {
-		ov9740_s_fmt(sd, &priv->current_mf);
-		ov9740_s_stream(sd, priv->current_enable);
+		ret = soc_camera_power_on(&client->dev, icl);
+		if (ret < 0)
+			return ret;
+
+		if (priv->current_enable) {
+			ov9740_s_fmt(sd, &priv->current_mf);
+			ov9740_s_stream(sd, 1);
+		}
 	} else {
-		ov9740_s_stream(sd, 0);
-		priv->current_enable = true;
+		if (priv->current_enable) {
+			ov9740_s_stream(sd, 0);
+			priv->current_enable = true;
+		}
+
+		soc_camera_power_off(&client->dev, icl);
 	}
 
 	return 0;

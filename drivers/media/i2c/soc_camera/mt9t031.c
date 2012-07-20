@@ -616,12 +616,19 @@ static struct device_type mt9t031_dev_type = {
 static int mt9t031_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	struct video_device *vdev = soc_camera_i2c_to_vdev(client);
+	int ret;
 
-	if (on)
+	if (on) {
+		ret = soc_camera_power_on(&client->dev, icl);
+		if (ret < 0)
+			return ret;
 		vdev->dev.type = &mt9t031_dev_type;
-	else
+	} else {
 		vdev->dev.type = NULL;
+		soc_camera_power_off(&client->dev, icl);
+	}
 
 	return 0;
 }

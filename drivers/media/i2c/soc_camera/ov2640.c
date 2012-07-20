@@ -742,6 +742,14 @@ static int ov2640_s_register(struct v4l2_subdev *sd,
 }
 #endif
 
+static int ov2640_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+
+	return soc_camera_set_power(&client->dev, icl, on);
+}
+
 /* Select the nearest higher resolution for capture */
 static const struct ov2640_win_size *ov2640_select_win(u32 *width, u32 *height)
 {
@@ -988,6 +996,7 @@ static struct v4l2_subdev_core_ops ov2640_subdev_core_ops = {
 	.g_register	= ov2640_g_register,
 	.s_register	= ov2640_s_register,
 #endif
+	.s_power	= ov2640_s_power,
 };
 
 static int ov2640_g_mbus_config(struct v4l2_subdev *sd,

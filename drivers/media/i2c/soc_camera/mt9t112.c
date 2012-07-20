@@ -776,12 +776,21 @@ static int mt9t112_s_register(struct v4l2_subdev *sd,
 }
 #endif
 
+static int mt9t112_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+
+	return soc_camera_set_power(&client->dev, icl, on);
+}
+
 static struct v4l2_subdev_core_ops mt9t112_subdev_core_ops = {
 	.g_chip_ident	= mt9t112_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= mt9t112_g_register,
 	.s_register	= mt9t112_s_register,
 #endif
+	.s_power	= mt9t112_s_power,
 };
 
 

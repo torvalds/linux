@@ -50,71 +50,76 @@ static LIST_HEAD(hosts);
 static LIST_HEAD(devices);
 static DEFINE_MUTEX(list_lock);		/* Protects the list of hosts */
 
-static int soc_camera_power_on(struct soc_camera_device *icd,
-			       struct soc_camera_link *icl)
+int soc_camera_power_on(struct device *dev, struct soc_camera_link *icl)
 {
-	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	int ret = regulator_bulk_enable(icl->num_regulators,
 					icl->regulators);
 	if (ret < 0) {
-		dev_err(icd->pdev, "Cannot enable regulators\n");
+		dev_err(dev, "Cannot enable regulators\n");
 		return ret;
 	}
 
 	if (icl->power) {
-		ret = icl->power(icd->control, 1);
+		ret = icl->power(dev, 1);
 		if (ret < 0) {
-			dev_err(icd->pdev,
+			dev_err(dev,
 				"Platform failed to power-on the camera.\n");
-			goto elinkpwr;
+			regulator_bulk_disable(icl->num_regulators,
+					       icl->regulators);
 		}
 	}
 
-	ret = v4l2_subdev_call(sd, core, s_power, 1);
-	if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
-		goto esdpwr;
-
-	return 0;
-
-esdpwr:
-	if (icl->power)
-		icl->power(icd->control, 0);
-elinkpwr:
-	regulator_bulk_disable(icl->num_regulators,
-			       icl->regulators);
 	return ret;
 }
+EXPORT_SYMBOL(soc_camera_power_on);
 
-static int soc_camera_power_off(struct soc_camera_device *icd,
-				struct soc_camera_link *icl)
+int soc_camera_power_off(struct device *dev, struct soc_camera_link *icl)
 {
-	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	int ret = 0;
 	int err;
 
-	err = v4l2_subdev_call(sd, core, s_power, 0);
-	if (err < 0 && err != -ENOIOCTLCMD && err != -ENODEV) {
-		dev_err(icd->pdev, "Subdev failed to power-off the camera.\n");
-		ret = err;
-	}
-
 	if (icl->power) {
-		err = icl->power(icd->control, 0);
+		err = icl->power(dev, 0);
 		if (err < 0) {
-			dev_err(icd->pdev,
+			dev_err(dev,
 				"Platform failed to power-off the camera.\n");
-			ret = ret ? : err;
+			ret = err;
 		}
 	}
 
 	err = regulator_bulk_disable(icl->num_regulators,
 				     icl->regulators);
 	if (err < 0) {
-		dev_err(icd->pdev, "Cannot disable regulators\n");
+		dev_err(dev, "Cannot disable regulators\n");
 		ret = ret ? : err;
 	}
 
 	return ret;
+}
+EXPORT_SYMBOL(soc_camera_power_off);
+
+static int __soc_camera_power_on(struct soc_camera_device *icd)
+{
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	int ret;
+
+	ret = v4l2_subdev_call(sd, core, s_power, 1);
+	if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
+		return ret;
+
+	return 0;
+}
+
+static int __soc_camera_power_off(struct soc_camera_device *icd)
+{
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	int ret;
+
+	ret = v4l2_subdev_call(sd, core, s_power, 0);
+	if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
+		return ret;
+
+	return 0;
 }
 
 const struct soc_camera_format_xlate *soc_camera_xlate_by_fourcc(
@@ -551,7 +556,7 @@ static int soc_camera_open(struct file *file)
 			goto eiciadd;
 		}
 
-		ret = soc_camera_power_on(icd, icl);
+		ret = __soc_camera_power_on(icd);
 		if (ret < 0)
 			goto epower;
 
@@ -594,7 +599,7 @@ einitvb:
 esfmt:
 	pm_runtime_disable(&icd->vdev->dev);
 eresume:
-	soc_camera_power_off(icd, icl);
+	__soc_camera_power_off(icd);
 epower:
 	ici->ops->remove(icd);
 eiciadd:
@@ -614,8 +619,6 @@ static int soc_camera_close(struct file *file)
 	mutex_lock(&icd->video_lock);
 	icd->use_count--;
 	if (!icd->use_count) {
-		struct soc_camera_link *icl = to_soc_camera_link(icd);
-
 		pm_runtime_suspend(&icd->vdev->dev);
 		pm_runtime_disable(&icd->vdev->dev);
 
@@ -623,7 +626,7 @@ static int soc_camera_close(struct file *file)
 			vb2_queue_release(&icd->vb2_vidq);
 		ici->ops->remove(icd);
 
-		soc_camera_power_off(icd, icl);
+		__soc_camera_power_off(icd);
 	}
 
 	if (icd->streamer == file)
@@ -1088,8 +1091,14 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 	 * subdevice has not been initialised yet. We'll have to call it once
 	 * again after initialisation, even though it shouldn't be needed, we
 	 * don't do any IO here.
+	 *
+	 * The device pointer passed to soc_camera_power_on(), and ultimately to
+	 * the platform callback, should be the subdev physical device. However,
+	 * we have no way to retrieve a pointer to that device here. This isn't
+	 * a real issue, as no platform currently uses the device pointer, and
+	 * this soc_camera_power_on() call will be removed in the next commit.
 	 */
-	ret = soc_camera_power_on(icd, icl);
+	ret = soc_camera_power_on(icd->pdev, icl);
 	if (ret < 0)
 		goto epower;
 
@@ -1162,7 +1171,7 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 
 	ici->ops->remove(icd);
 
-	soc_camera_power_off(icd, icl);
+	__soc_camera_power_off(icd);
 
 	mutex_unlock(&icd->video_lock);
 
@@ -1184,7 +1193,7 @@ eadddev:
 	video_device_release(icd->vdev);
 	icd->vdev = NULL;
 evdc:
-	soc_camera_power_off(icd, icl);
+	__soc_camera_power_off(icd);
 epower:
 	ici->ops->remove(icd);
 eadd:

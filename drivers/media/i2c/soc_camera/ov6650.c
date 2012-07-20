@@ -432,6 +432,14 @@ static int ov6650_set_register(struct v4l2_subdev *sd,
 }
 #endif
 
+static int ov6650_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+
+	return soc_camera_set_power(&client->dev, icl, on);
+}
+
 static int ov6650_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -866,6 +874,7 @@ static struct v4l2_subdev_core_ops ov6650_core_ops = {
 	.g_register		= ov6650_get_register,
 	.s_register		= ov6650_set_register,
 #endif
+	.s_power		= ov6650_s_power,
 };
 
 /* Request bus settings on camera side */

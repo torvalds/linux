@@ -377,6 +377,14 @@ static int mt9m001_s_register(struct v4l2_subdev *sd,
 }
 #endif
 
+static int mt9m001_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+
+	return soc_camera_set_power(&client->dev, icl, on);
+}
+
 static int mt9m001_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct mt9m001 *mt9m001 = container_of(ctrl->handler,
@@ -566,6 +574,7 @@ static struct v4l2_subdev_core_ops mt9m001_subdev_core_ops = {
 	.g_register	= mt9m001_g_register,
 	.s_register	= mt9m001_s_register,
 #endif
+	.s_power	= mt9m001_s_power,
 };
 
 static int mt9m001_enum_fmt(struct v4l2_subdev *sd, unsigned int index,

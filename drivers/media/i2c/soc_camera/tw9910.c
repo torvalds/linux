@@ -566,6 +566,14 @@ static int tw9910_s_register(struct v4l2_subdev *sd,
 }
 #endif
 
+static int tw9910_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+
+	return soc_camera_set_power(&client->dev, icl, on);
+}
+
 static int tw9910_set_frame(struct v4l2_subdev *sd, u32 *width, u32 *height)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -814,6 +822,7 @@ static struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {
 	.g_register	= tw9910_g_register,
 	.s_register	= tw9910_s_register,
 #endif
+	.s_power	= tw9910_s_power,
 };
 
 static int tw9910_enum_fmt(struct v4l2_subdev *sd, unsigned int index,

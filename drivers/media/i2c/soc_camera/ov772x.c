@@ -683,6 +683,14 @@ static int ov772x_s_register(struct v4l2_subdev *sd,
 }
 #endif
 
+static int ov772x_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+
+	return soc_camera_set_power(&client->dev, icl, on);
+}
+
 static const struct ov772x_win_size *ov772x_select_win(u32 width, u32 height)
 {
 	__u32 diff;
@@ -996,6 +1004,7 @@ static struct v4l2_subdev_core_ops ov772x_subdev_core_ops = {
 	.g_register	= ov772x_g_register,
 	.s_register	= ov772x_s_register,
 #endif
+	.s_power	= ov772x_s_power,
 };
 
 static int ov772x_enum_fmt(struct v4l2_subdev *sd, unsigned int index,

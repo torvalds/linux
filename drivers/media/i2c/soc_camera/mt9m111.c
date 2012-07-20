@@ -831,10 +831,37 @@ static int mt9m111_video_probe(struct i2c_client *client)
 	return v4l2_ctrl_handler_setup(&mt9m111->hdl);
 }
 
+static int mt9m111_power_on(struct mt9m111 *mt9m111)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&mt9m111->subdev);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	int ret;
+
+	ret = soc_camera_power_on(&client->dev, icl);
+	if (ret < 0)
+		return ret;
+
+	ret = mt9m111_resume(mt9m111);
+	if (ret < 0) {
+		dev_err(&client->dev, "Failed to resume the sensor: %d\n", ret);
+		soc_camera_power_off(&client->dev, icl);
+	}
+
+	return ret;
+}
+
+static void mt9m111_power_off(struct mt9m111 *mt9m111)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&mt9m111->subdev);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+
+	mt9m111_suspend(mt9m111);
+	soc_camera_power_off(&client->dev, icl);
+}
+
 static int mt9m111_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct mt9m111 *mt9m111 = container_of(sd, struct mt9m111, subdev);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
 	mutex_lock(&mt9m111->power_lock);
@@ -844,23 +871,18 @@ static int mt9m111_s_power(struct v4l2_subdev *sd, int on)
 	 * update the power state.
 	 */
 	if (mt9m111->power_count == !on) {
-		if (on) {
-			ret = mt9m111_resume(mt9m111);
-			if (ret) {
-				dev_err(&client->dev,
-					"Failed to resume the sensor: %d\n", ret);
-				goto out;
-			}
-		} else {
-			mt9m111_suspend(mt9m111);
-		}
+		if (on)
+			ret = mt9m111_power_on(mt9m111);
+		else
+			mt9m111_power_off(mt9m111);
 	}
 
-	/* Update the power count. */
-	mt9m111->power_count += on ? 1 : -1;
-	WARN_ON(mt9m111->power_count < 0);
+	if (!ret) {
+		/* Update the power count. */
+		mt9m111->power_count += on ? 1 : -1;
+		WARN_ON(mt9m111->power_count < 0);
+	}
 
-out:
 	mutex_unlock(&mt9m111->power_lock);
 	return ret;
 }

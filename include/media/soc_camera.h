@@ -254,6 +254,16 @@ unsigned long soc_camera_apply_sensor_flags(struct soc_camera_link *icl,
 unsigned long soc_camera_apply_board_flags(struct soc_camera_link *icl,
 					   const struct v4l2_mbus_config *cfg);
 
+int soc_camera_power_on(struct device *dev, struct soc_camera_link *icl);
+int soc_camera_power_off(struct device *dev, struct soc_camera_link *icl);
+
+static inline int soc_camera_set_power(struct device *dev,
+				       struct soc_camera_link *icl, bool on)
+{
+	return on ? soc_camera_power_on(dev, icl)
+		  : soc_camera_power_off(dev, icl);
+}
+
 /* This is only temporary here - until v4l2-subdev begins to link to video_device */
 #include <linux/i2c.h>
 static inline struct video_device *soc_camera_i2c_to_vdev(const struct i2c_client *client)

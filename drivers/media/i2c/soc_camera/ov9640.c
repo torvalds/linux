@@ -333,6 +333,14 @@ static int ov9640_set_register(struct v4l2_subdev *sd,
 }
 #endif
 
+static int ov9640_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+
+	return soc_camera_set_power(&client->dev, icl, on);
+}
+
 /* select nearest higher resolution for capture */
 static void ov9640_res_roundup(u32 *width, u32 *height)
 {
@@ -632,7 +640,7 @@ static struct v4l2_subdev_core_ops ov9640_core_ops = {
 	.g_register		= ov9640_get_register,
 	.s_register		= ov9640_set_register,
 #endif
-
+	.s_power		= ov9640_s_power,
 };
 
 /* Request bus settings on camera side */
