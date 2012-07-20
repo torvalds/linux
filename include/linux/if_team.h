@@ -14,6 +14,7 @@
 #ifdef __KERNEL__
 
 #include <linux/netpoll.h>
+#include <net/sch_generic.h>
 
 struct team_pcpu_stats {
 	u64			rx_packets;
@@ -98,6 +99,10 @@ static inline void team_netpoll_send_skb(struct team_port *port,
 static inline int team_dev_queue_xmit(struct team *team, struct team_port *port,
 				      struct sk_buff *skb)
 {
+	BUILD_BUG_ON(sizeof(skb->queue_mapping) !=
+		     sizeof(qdisc_skb_cb(skb)->slave_dev_queue_mapping));
+	skb_set_queue_mapping(skb, qdisc_skb_cb(skb)->slave_dev_queue_mapping);
+
 	skb->dev = port->dev;
 	if (unlikely(netpoll_tx_running(port->dev))) {
 		team_netpoll_send_skb(port, skb);
@@ -235,6 +240,9 @@ extern void team_options_unregister(struct team *team,
 				    size_t option_count);
 extern int team_mode_register(const struct team_mode *mode);
 extern void team_mode_unregister(const struct team_mode *mode);
+
+#define TEAM_DEFAULT_NUM_TX_QUEUES 16
+#define TEAM_DEFAULT_NUM_RX_QUEUES 16
 
 #endif /* __KERNEL__ */
 

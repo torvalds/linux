@@ -27,6 +27,7 @@
 #include <net/rtnetlink.h>
 #include <net/genetlink.h>
 #include <net/netlink.h>
+#include <net/sch_generic.h>
 #include <linux/if_team.h>
 
 #define DRV_NAME "team"
@@ -1121,6 +1122,22 @@ static const struct team_option team_options[] = {
 	},
 };
 
+static struct lock_class_key team_netdev_xmit_lock_key;
+static struct lock_class_key team_netdev_addr_lock_key;
+
+static void team_set_lockdep_class_one(struct net_device *dev,
+				       struct netdev_queue *txq,
+				       void *unused)
+{
+	lockdep_set_class(&txq->_xmit_lock, &team_netdev_xmit_lock_key);
+}
+
+static void team_set_lockdep_class(struct net_device *dev)
+{
+	lockdep_set_class(&dev->addr_list_lock, &team_netdev_addr_lock_key);
+	netdev_for_each_tx_queue(dev, team_set_lockdep_class_one, NULL);
+}
+
 static int team_init(struct net_device *dev)
 {
 	struct team *team = netdev_priv(dev);
@@ -1147,6 +1164,8 @@ static int team_init(struct net_device *dev)
 	if (err)
 		goto err_options_register;
 	netif_carrier_off(dev);
+
+	team_set_lockdep_class(dev);
 
 	return 0;
 
@@ -1214,6 +1233,29 @@ static netdev_tx_t team_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	return NETDEV_TX_OK;
+}
+
+static u16 team_select_queue(struct net_device *dev, struct sk_buff *skb)
+{
+	/*
+	 * This helper function exists to help dev_pick_tx get the correct
+	 * destination queue.  Using a helper function skips a call to
+	 * skb_tx_hash and will put the skbs in the queue we expect on their
+	 * way down to the team driver.
+	 */
+	u16 txq = skb_rx_queue_recorded(skb) ? skb_get_rx_queue(skb) : 0;
+
+	/*
+	 * Save the original txq to restore before passing to the driver
+	 */
+	qdisc_skb_cb(skb)->slave_dev_queue_mapping = skb->queue_mapping;
+
+	if (unlikely(txq >= dev->real_num_tx_queues)) {
+		do {
+			txq -= dev->real_num_tx_queues;
+		} while (txq >= dev->real_num_tx_queues);
+	}
+	return txq;
 }
 
 static void team_change_rx_flags(struct net_device *dev, int change)
@@ -1469,6 +1511,7 @@ static const struct net_device_ops team_netdev_ops = {
 	.ndo_open		= team_open,
 	.ndo_stop		= team_close,
 	.ndo_start_xmit		= team_xmit,
+	.ndo_select_queue	= team_select_queue,
 	.ndo_change_rx_flags	= team_change_rx_flags,
 	.ndo_set_rx_mode	= team_set_rx_mode,
 	.ndo_set_mac_address	= team_set_mac_address,
@@ -1543,12 +1586,24 @@ static int team_validate(struct nlattr *tb[], struct nlattr *data[])
 	return 0;
 }
 
+static unsigned int team_get_num_tx_queues(void)
+{
+	return TEAM_DEFAULT_NUM_TX_QUEUES;
+}
+
+static unsigned int team_get_num_rx_queues(void)
+{
+	return TEAM_DEFAULT_NUM_RX_QUEUES;
+}
+
 static struct rtnl_link_ops team_link_ops __read_mostly = {
-	.kind		= DRV_NAME,
-	.priv_size	= sizeof(struct team),
-	.setup		= team_setup,
-	.newlink	= team_newlink,
-	.validate	= team_validate,
+	.kind			= DRV_NAME,
+	.priv_size		= sizeof(struct team),
+	.setup			= team_setup,
+	.newlink		= team_newlink,
+	.validate		= team_validate,
+	.get_num_tx_queues	= team_get_num_tx_queues,
+	.get_num_rx_queues	= team_get_num_rx_queues,
 };
 
 
