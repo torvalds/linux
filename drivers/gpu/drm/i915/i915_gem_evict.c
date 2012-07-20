@@ -93,23 +93,6 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 
 	/* Now merge in the soon-to-be-expired objects... */
 	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
-		/* Does the object require an outstanding flush? */
-		if (obj->base.write_domain)
-			continue;
-
-		if (mark_free(obj, &unwind_list))
-			goto found;
-	}
-
-	/* Finally add anything with a pending flush (in order of retirement) */
-	list_for_each_entry(obj, &dev_priv->mm.flushing_list, mm_list) {
-		if (mark_free(obj, &unwind_list))
-			goto found;
-	}
-	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
-		if (!obj->base.write_domain)
-			continue;
-
 		if (mark_free(obj, &unwind_list))
 			goto found;
 	}
@@ -172,7 +155,6 @@ i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only)
 	int ret;
 
 	lists_empty = (list_empty(&dev_priv->mm.inactive_list) &&
-		       list_empty(&dev_priv->mm.flushing_list) &&
 		       list_empty(&dev_priv->mm.active_list));
 	if (lists_empty)
 		return -ENOSPC;
@@ -188,8 +170,6 @@ i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only)
 		return ret;
 
 	i915_gem_retire_requests(dev);
-
-	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
 
 	/* Having flushed everything, unbind() should never raise an error */
 	list_for_each_entry_safe(obj, next,

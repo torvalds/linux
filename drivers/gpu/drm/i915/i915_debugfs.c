@@ -44,7 +44,6 @@
 
 enum {
 	ACTIVE_LIST,
-	FLUSHING_LIST,
 	INACTIVE_LIST,
 	PINNED_LIST,
 };
@@ -178,10 +177,6 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 		seq_printf(m, "Inactive:\n");
 		head = &dev_priv->mm.inactive_list;
 		break;
-	case FLUSHING_LIST:
-		seq_printf(m, "Flushing:\n");
-		head = &dev_priv->mm.flushing_list;
-		break;
 	default:
 		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
@@ -239,7 +234,6 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 
 	size = count = mappable_size = mappable_count = 0;
 	count_objects(&dev_priv->mm.active_list, mm_list);
-	count_objects(&dev_priv->mm.flushing_list, mm_list);
 	seq_printf(m, "  %u [%u] active objects, %zu [%zu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
@@ -2007,7 +2001,6 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_gtt", i915_gem_gtt_info, 0},
 	{"i915_gem_pinned", i915_gem_gtt_info, 0, (void *) PINNED_LIST},
 	{"i915_gem_active", i915_gem_object_list_info, 0, (void *) ACTIVE_LIST},
-	{"i915_gem_flushing", i915_gem_object_list_info, 0, (void *) FLUSHING_LIST},
 	{"i915_gem_inactive", i915_gem_object_list_info, 0, (void *) INACTIVE_LIST},
 	{"i915_gem_pageflip", i915_gem_pageflip_info, 0},
 	{"i915_gem_request", i915_gem_request_info, 0},

@@ -696,17 +696,6 @@ typedef struct drm_i915_private {
 		struct list_head active_list;
 
 		/**
-		 * List of objects which are not in the ringbuffer but which
-		 * still have a write_domain which needs to be flushed before
-		 * unbinding.
-		 *
-		 * last_rendering_seqno is 0 while an object is in this list.
-		 *
-		 * A reference is held on the buffer while on this list.
-		 */
-		struct list_head flushing_list;
-
-		/**
 		 * LRU list of objects which are not in the ringbuffer and
 		 * are ready to unbind, but are still in the GTT.
 		 *
@@ -873,7 +862,7 @@ struct drm_i915_gem_object {
 	struct drm_mm_node *gtt_space;
 	struct list_head gtt_list;
 
-	/** This object's place on the active/flushing/inactive lists */
+	/** This object's place on the active/inactive lists */
 	struct list_head ring_list;
 	struct list_head mm_list;
 	/** This object's place on GPU write list */
@@ -882,9 +871,9 @@ struct drm_i915_gem_object {
 	struct list_head exec_list;
 
 	/**
-	 * This is set if the object is on the active or flushing lists
-	 * (has pending rendering), and is not set if it's on inactive (ready
-	 * to be unbound).
+	 * This is set if the object is on the active lists (has pending
+	 * rendering and so a non-zero seqno), and is not set if it i s on
+	 * inactive (ready to be unbound) list.
 	 */
 	unsigned int active:1;
 
