@@ -121,7 +121,7 @@ void unifi_debug_log_to_buf(const char *fmt, ...)
     va_list args;
 
     va_start(args, fmt);
-    CsrVsnprintf(s, DEBUG_BUFFER_SIZE, fmt, args);
+    vsnprintf(s, DEBUG_BUFFER_SIZE, fmt, args);
     va_end(args);
 
     unifi_debug_string_to_buf(s);

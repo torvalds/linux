@@ -33,7 +33,6 @@ void CsrUInt16ToHex(u16 number, char *str);
 void *CsrMemCpy(void *dest, const void *src, size_t count);
 size_t CsrStrLen(const char *string);
 #endif /* !CSR_USE_STDC_LIB */
-s32 CsrVsnprintf(char *string, size_t count, const char *format, va_list args);
 
 #define CsrOffsetOf(st, m)  ((size_t) & ((st *) 0)->m)
 

@@ -52,12 +52,6 @@ size_t CsrStrLen(const char *string)
 EXPORT_SYMBOL_GPL(CsrStrLen);
 #endif
 
-s32 CsrVsnprintf(char *string, size_t count, const char *format, va_list args)
-{
-    return vsnprintf(string, count, format, args);
-}
-EXPORT_SYMBOL_GPL(CsrVsnprintf);
-
 MODULE_DESCRIPTION("CSR Operating System Kernel Abstraction");
 MODULE_AUTHOR("Cambridge Silicon Radio Ltd.");
 MODULE_LICENSE("GPL and additional rights");
