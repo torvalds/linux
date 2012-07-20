@@ -24,10 +24,19 @@
 
 /* misc.c */
 extern struct boot_params *real_mode;		/* Pointer to real-mode data */
-void __putstr(int error, const char *s);
-#define putstr(__x)  __putstr(0, __x)
-#define error_putstr(__x)  __putstr(1, __x)
-#define puts(__x)  __putstr(0, __x)
+void __putstr(const char *s);
+#define error_putstr(__x)  __putstr(__x)
+
+#ifdef CONFIG_X86_VERBOSE_BOOTUP
+
+#define debug_putstr(__x)  __putstr(__x)
+
+#else
+
+static inline void debug_putstr(const char *s)
+{ }
+
+#endif
 
 /* cmdline.c */
 int cmdline_find_option(const char *option, char *buffer, int bufsize);

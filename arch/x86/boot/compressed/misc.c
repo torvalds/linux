@@ -169,15 +169,11 @@ static void serial_putchar(int ch)
 	outb(ch, early_serial_base + TXR);
 }
 
-void __putstr(int error, const char *s)
+void __putstr(const char *s)
 {
 	int x, y, pos;
 	char c;
 
-#ifndef CONFIG_X86_VERBOSE_BOOTUP
-	if (!error)
-		return;
-#endif
 	if (early_serial_base) {
 		const char *str = s;
 		while (*str) {
@@ -221,12 +217,6 @@ void __putstr(int error, const char *s)
 	outb(0xff & (pos >> 9), vidport+1);
 	outb(15, vidport);
 	outb(0xff & (pos >> 1), vidport+1);
-}
-
-static void debug_putstr(const char *s)
-{
-	if (debug)
-		putstr(s);
 }
 
 void *memset(void *s, int c, size_t n)
