@@ -234,6 +234,9 @@ void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
 	struct musb *musb = hw_ep->musb;
 	void __iomem *fifo = hw_ep->fifo;
 
+	if (unlikely(len == 0))
+		return;
+
 	prefetch((u8 *)src);
 
 	dev_dbg(musb->controller, "%cX ep%d fifo %p count %d buf %p\n",
@@ -275,6 +278,9 @@ void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 {
 	struct musb *musb = hw_ep->musb;
 	void __iomem *fifo = hw_ep->fifo;
+
+	if (unlikely(len == 0))
+		return;
 
 	dev_dbg(musb->controller, "%cX ep%d fifo %p count %d buf %p\n",
 			'R', hw_ep->epnum, fifo, len, dst);
