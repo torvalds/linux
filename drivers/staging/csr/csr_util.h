@@ -9,19 +9,8 @@
             on the license terms.
 
 *****************************************************************************/
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include "csr_macro.h"
-
-#define CsrOffsetOf(st, m)  ((size_t) & ((st *) 0)->m)
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
