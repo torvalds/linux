@@ -1,6 +1,4 @@
 /*
- * arch/s390/kernel/dis.c
- *
  * Disassemble s390 instructions.
  *
  * Copyright IBM Corp. 2007

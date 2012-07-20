@@ -1,6 +1,4 @@
 /*
- *  include/asm-s390/signal.h
- *
  *  S390 version
  *
  *  Derived from "include/asm-i386/signal.h"

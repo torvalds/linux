@@ -1,7 +1,7 @@
 /*
  * definition for store system information stsi
  *
- * Copyright IBM Corp. 2001,2008
+ * Copyright IBM Corp. 2001, 2008
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (version 2 only)

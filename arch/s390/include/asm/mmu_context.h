@@ -1,6 +1,4 @@
 /*
- *  include/asm-s390/mmu_context.h
- *
  *  S390 version
  *
  *  Derived from "include/asm-i386/mmu_context.h"

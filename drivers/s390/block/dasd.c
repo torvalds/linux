@@ -1,5 +1,4 @@
 /*
- * File...........: linux/drivers/s390/block/dasd.c
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  *		    Carsten Otte <Cotte@de.ibm.com>
@@ -52,7 +51,7 @@ void dasd_int_handler(struct ccw_device *, unsigned long, struct irb *);
 
 MODULE_AUTHOR("Holger Smolinski <Holger.Smolinski@de.ibm.com>");
 MODULE_DESCRIPTION("Linux on S/390 DASD device driver,"
-		   " Copyright 2000 IBM Corporation");
+		   " Copyright IBM Corp. 2000");
 MODULE_SUPPORTED_DEVICE("dasd");
 MODULE_LICENSE("GPL");
 

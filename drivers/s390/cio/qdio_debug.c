@@ -1,7 +1,5 @@
 /*
- *  drivers/s390/cio/qdio_debug.c
- *
- *  Copyright IBM Corp. 2008,2009
+ *  Copyright IBM Corp. 2008, 2009
  *
  *  Author: Jan Glauber (jang@linux.vnet.ibm.com)
  */

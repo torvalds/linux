@@ -1,8 +1,6 @@
 /*
- *  arch/s390x/kernel/linux32.c
- *
  *  S390 version
- *    Copyright (C) 2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 2000
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
  *               Gerhard Tonn (ton@de.ibm.com)   
  *               Thomas Spatzier (tspat@de.ibm.com)

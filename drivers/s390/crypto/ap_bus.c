@@ -1,7 +1,5 @@
 /*
- * linux/drivers/s390/crypto/ap_bus.c
- *
- * Copyright (C) 2006 IBM Corporation
+ * Copyright IBM Corp. 2006
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  *	      Ralph Wuerthner <rwuerthn@de.ibm.com>
@@ -70,7 +68,7 @@ static int ap_select_domain(void);
  */
 MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("Adjunct Processor Bus driver, "
-		   "Copyright 2006 IBM Corporation");
+		   "Copyright IBM Corp. 2006");
 MODULE_LICENSE("GPL");
 
 /*

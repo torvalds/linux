@@ -1,5 +1,4 @@
 /*
- *  drivers/s390/char/tape_3590.c
  *    tape device discipline for 3590 tapes.
  *
  *    Copyright IBM Corp. 2001, 2009

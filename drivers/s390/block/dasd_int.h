@@ -1,5 +1,4 @@
 /*
- * File...........: linux/drivers/s390/block/dasd_int.h
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>

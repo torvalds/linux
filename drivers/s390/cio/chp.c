@@ -1,7 +1,5 @@
 /*
- *  drivers/s390/cio/chp.c
- *
- *    Copyright IBM Corp. 1999,2010
+ *    Copyright IBM Corp. 1999, 2010
  *    Author(s): Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Arnd Bergmann (arndb@de.ibm.com)
  *		 Peter Oberparleiter <peter.oberparleiter@de.ibm.com>

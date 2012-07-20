@@ -1,6 +1,4 @@
 /*
- *  include/asm-s390/posix_types.h
- *
  *  S390 version
  *
  */

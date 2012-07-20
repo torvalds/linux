@@ -1,5 +1,5 @@
 /*
- * asm-s390/kvm_para.h - definition for paravirtual devices on s390
+ * definition for paravirtual devices on s390
  *
  * Copyright IBM Corp. 2008
  *

@@ -1,6 +1,4 @@
 /*
- *  drivers/s390/net/qeth_core_mpc.c
- *
  *    Copyright IBM Corp. 2007
  *    Author(s): Frank Pavlic <fpavlic@de.ibm.com>,
  *		 Thomas Spatzier <tspat@de.ibm.com>,

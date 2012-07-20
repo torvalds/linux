@@ -1,8 +1,6 @@
 /*
- *  arch/s390/math-emu/math.c
- *
  *  S390 version
- *    Copyright (C) 1999-2001 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999, 2001
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
  *
  * 'math.c' emulates IEEE instructions on a S390 processor

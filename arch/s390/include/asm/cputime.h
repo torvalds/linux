@@ -1,7 +1,5 @@
 /*
- *  include/asm-s390/cputime.h
- *
- *  (C) Copyright IBM Corp. 2004
+ *  Copyright IBM Corp. 2004
  *
  *  Author: Martin Schwidefsky <schwidefsky@de.ibm.com>
  */

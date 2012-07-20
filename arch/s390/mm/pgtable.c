@@ -1,5 +1,5 @@
 /*
- *    Copyright IBM Corp. 2007,2011
+ *    Copyright IBM Corp. 2007, 2011
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 

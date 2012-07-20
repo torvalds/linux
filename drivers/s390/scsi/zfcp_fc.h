@@ -4,7 +4,7 @@
  * Fibre Channel related definitions and inline functions for the zfcp
  * device driver
  *
- * Copyright IBM Corporation 2009
+ * Copyright IBM Corp. 2009
  */
 
 #ifndef ZFCP_FC_H

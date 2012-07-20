@@ -1,9 +1,8 @@
 /*
- *  drivers/s390/char/tape_char.c
  *    character device frontend for tape device driver
  *
  *  S390 and zSeries version
- *    Copyright IBM Corp. 2001,2006
+ *    Copyright IBM Corp. 2001, 2006
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *		 Michael Holzheu <holzheu@de.ibm.com>
  *		 Tuan Ngo-Anh <ngoanh@de.ibm.com>

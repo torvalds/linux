@@ -1,8 +1,6 @@
 /*
- *  arch/s390/kernel/setup.c
- *
  *  S390 version
- *    Copyright (C) IBM Corp. 1999,2012
+ *    Copyright IBM Corp. 1999, 2012
  *    Author(s): Hartmut Penner (hp@de.ibm.com),
  *               Martin Schwidefsky (schwidefsky@de.ibm.com)
  *

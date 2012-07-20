@@ -1,5 +1,4 @@
 /*
- *  arch/s390/hypfs/inode.c
  *    Hypervisor filesystem for Linux on s390.
  *
  *    Copyright IBM Corp. 2006, 2008

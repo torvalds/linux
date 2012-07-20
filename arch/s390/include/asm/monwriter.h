@@ -1,7 +1,5 @@
 /*
- * include/asm-s390/monwriter.h
- *
- * Copyright (C) IBM Corp. 2006
+ * Copyright IBM Corp. 2006
  * Character device driver for writing z/VM APPLDATA monitor records
  * Version 1.0
  * Author(s): Melissa Howland <melissah@us.ibm.com>

@@ -1,7 +1,4 @@
 /*
- *  include/asm-s390/cio.h
- *  include/asm-s390x/cio.h
- *
  * Common interface for I/O on S/390
  */
 #ifndef _ASM_S390_CIO_H_

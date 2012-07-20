@@ -1,7 +1,5 @@
 /*
- * arch/s390/kernel/relocate_kernel64.S
- *
- * (C) Copyright IBM Corp. 2005
+ * Copyright IBM Corp. 2005
  *
  * Author(s): Rolf Adelsberger,
  *	      Heiko Carstens <heiko.carstens@de.ibm.com>

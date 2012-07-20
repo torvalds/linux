@@ -1,5 +1,4 @@
 /*
- * drivers/s390/char/vmlogrdr.c
  *	character device driver for reading z/VM system service records
  *
  *

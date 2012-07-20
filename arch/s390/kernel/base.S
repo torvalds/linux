@@ -1,7 +1,7 @@
 /*
  *  arch/s390/kernel/base.S
  *
- *    Copyright IBM Corp. 2006,2007
+ *    Copyright IBM Corp. 2006, 2007
  *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  *		 Michael Holzheu <holzheu@de.ibm.com>
  */

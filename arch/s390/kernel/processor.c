@@ -1,6 +1,4 @@
 /*
- *  arch/s390/kernel/processor.c
- *
  *  Copyright IBM Corp. 2008
  *  Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  */

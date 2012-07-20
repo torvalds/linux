@@ -1,6 +1,4 @@
 /*
- *  include/asm-s390/resource.h
- *
  *  S390 version
  *
  *  Derived from "include/asm-i386/resources.h"

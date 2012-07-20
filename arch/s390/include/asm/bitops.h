@@ -1,17 +1,15 @@
-#ifndef _S390_BITOPS_H
-#define _S390_BITOPS_H
-
 /*
- *  include/asm-s390/bitops.h
- *
  *  S390 version
- *    Copyright (C) 1999 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  *
  *  Derived from "include/asm-i386/bitops.h"
  *    Copyright (C) 1992, Linus Torvalds
  *
  */
+
+#ifndef _S390_BITOPS_H
+#define _S390_BITOPS_H
 
 #ifndef _LINUX_BITOPS_H
 #error only <linux/bitops.h> can be included directly

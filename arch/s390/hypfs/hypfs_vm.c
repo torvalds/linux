@@ -1,7 +1,7 @@
 /*
  *    Hypervisor filesystem for Linux on s390. z/VM implementation.
  *
- *    Copyright (C) IBM Corp. 2006
+ *    Copyright IBM Corp. 2006
  *    Author(s): Michael Holzheu <holzheu@de.ibm.com>
  */
 

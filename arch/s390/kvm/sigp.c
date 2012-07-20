@@ -1,7 +1,7 @@
 /*
- * sigp.c - handlinge interprocessor communication
+ * handling interprocessor communication
  *
- * Copyright IBM Corp. 2008,2009
+ * Copyright IBM Corp. 2008, 2009
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (version 2 only)

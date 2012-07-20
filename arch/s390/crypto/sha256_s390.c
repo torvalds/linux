@@ -4,7 +4,7 @@
  * s390 implementation of the SHA256 and SHA224 Secure Hash Algorithm.
  *
  * s390 Version:
- *   Copyright IBM Corp. 2005,2011
+ *   Copyright IBM Corp. 2005, 2011
  *   Author(s): Jan Glauber (jang@de.ibm.com)
  *
  * This program is free software; you can redistribute it and/or modify it

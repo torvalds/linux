@@ -1,10 +1,8 @@
 /*
- *  arch/s390/lib/uaccess_std.c
- *
  *  Standard user space access functions based on mvcp/mvcs and doing
  *  interesting things in the secondary space mode.
  *
- *    Copyright (C) IBM Corp. 2006
+ *    Copyright IBM Corp. 2006
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
  *		 Gerald Schaefer (gerald.schaefer@de.ibm.com)
  */

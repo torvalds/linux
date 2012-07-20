@@ -1,8 +1,6 @@
 /*
- *  arch/s390/kernel/reipl.S
- *
  *  S390 version
- *    Copyright (C) 2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 2000
  *    Author(s): Holger Smolinski (Holger.Smolinski@de.ibm.com)
  */
 

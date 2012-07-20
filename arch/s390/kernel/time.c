@@ -1,5 +1,4 @@
 /*
- *  arch/s390/kernel/time.c
  *    Time of day based timer functions.
  *
  *  S390 version

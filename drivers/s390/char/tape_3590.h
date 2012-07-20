@@ -1,8 +1,7 @@
 /*
- *  drivers/s390/char/tape_3590.h
  *    tape device discipline for 3590 tapes.
  *
- *    Copyright IBM Corp. 2001,2006
+ *    Copyright IBM Corp. 2001, 2006
  *    Author(s): Stefan Bader <shbader@de.ibm.com>
  *		 Michael Holzheu <holzheu@de.ibm.com>
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>

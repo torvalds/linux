@@ -1,7 +1,7 @@
 /*
  *    Precise Delay Loops for S390
  *
- *    Copyright IBM Corp. 1999,2008
+ *    Copyright IBM Corp. 1999, 2008
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>,
  *		 Heiko Carstens <heiko.carstens@de.ibm.com>,
  */

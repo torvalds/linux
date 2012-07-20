@@ -1,7 +1,7 @@
 /*
  * This file handles the architecture dependent parts of process handling.
  *
- *    Copyright IBM Corp. 1999,2009
+ *    Copyright IBM Corp. 1999, 2009
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>,
  *		 Hartmut Penner <hp@de.ibm.com>,
  *		 Denis Joseph Barrow,
