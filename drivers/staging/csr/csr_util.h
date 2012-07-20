@@ -18,21 +18,21 @@ extern "C" {
 #include "csr_macro.h"
 
 /*------------------------------------------------------------------*/
-/* Bits - intended to operate on CsrUint32 values */
+/* Bits - intended to operate on u32 values */
 /*------------------------------------------------------------------*/
-u8 CsrBitCountSparse(CsrUint32 n);
-u8 CsrBitCountDense(CsrUint32 n);
+u8 CsrBitCountSparse(u32 n);
+u8 CsrBitCountDense(u32 n);
 
 /*------------------------------------------------------------------*/
 /* Base conversion */
 /*------------------------------------------------------------------*/
 CsrBool CsrHexStrToUint8(const CsrCharString *string, u8 *returnValue);
 CsrBool CsrHexStrToUint16(const CsrCharString *string, u16 *returnValue);
-CsrBool CsrHexStrToUint32(const CsrCharString *string, CsrUint32 *returnValue);
-CsrUint32 CsrPow(CsrUint32 base, CsrUint32 exponent);
+CsrBool CsrHexStrToUint32(const CsrCharString *string, u32 *returnValue);
+u32 CsrPow(u32 base, u32 exponent);
 void CsrIntToBase10(CsrInt32 number, CsrCharString *str);
 void CsrUInt16ToHex(u16 number, CsrCharString *str);
-void CsrUInt32ToHex(CsrUint32 number, CsrCharString *str);
+void CsrUInt32ToHex(u32 number, CsrCharString *str);
 
 /*------------------------------------------------------------------*/
 /* Standard C Library functions */
@@ -74,7 +74,7 @@ CsrInt32 CsrVsnprintf(CsrCharString *string, CsrSize count, const CsrCharString 
 void *CsrMemDup(const void *buf1, CsrSize count);
 int CsrStrNICmp(const CsrCharString *string1, const CsrCharString *string2, CsrSize count);
 CsrCharString *CsrStrDup(const CsrCharString *string);
-CsrUint32 CsrStrToInt(const CsrCharString *string);
+u32 CsrStrToInt(const CsrCharString *string);
 CsrCharString *CsrStrNCpyZero(CsrCharString *dest, const CsrCharString *src, CsrSize count);
 
 /*------------------------------------------------------------------*/

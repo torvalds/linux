@@ -43,20 +43,20 @@ extern "C" {
 /* Address value pairs */
 struct val_array_t
 {
-    CsrUint32                             len;
+    u32                             len;
     const struct chip_helper_init_values *vals;
 };
 
 /* Just a (counted) u16 array */
 struct data_array_t
 {
-    CsrUint32        len;
+    u32        len;
     const u16 *vals;
 };
 
 struct reset_prog_t
 {
-    CsrUint32                              len;
+    u32                              len;
     const struct chip_helper_reset_values *vals;
 };
 
@@ -69,7 +69,7 @@ struct chip_map_address_t
 
 struct map_array_t
 {
-    CsrUint32                        len;
+    u32                        len;
     const struct chip_map_address_t *vals;
 };
 
@@ -118,7 +118,7 @@ struct chip_device_regs_t
 struct window_shift_info_t
 {
     CsrInt32  allowed;
-    CsrUint32 page_shift;
+    u32 page_shift;
     u16 page_offset;
 };
 
@@ -167,11 +167,11 @@ struct chip_device_desc_t
     /* Some misc. info on the chip */
     struct
     {
-        CsrUint32 has_flash     : 1;
-        CsrUint32 has_ext_sram  : 1;
-        CsrUint32 has_rom       : 1;
-        CsrUint32 has_bt        : 1;
-        CsrUint32 has_wlan      : 1;
+        u32 has_flash     : 1;
+        u32 has_ext_sram  : 1;
+        u32 has_rom       : 1;
+        u32 has_bt        : 1;
+        u32 has_wlan      : 1;
     } bools;
 
     /* This table is used to remap register addresses depending on what
@@ -184,10 +184,10 @@ struct chip_device_desc_t
        The RAM offset is probably the most useful. */
     struct
     {
-        CsrUint32 ram;
-        CsrUint32 rom;
-        CsrUint32 flash;
-        CsrUint32 ext_sram;
+        u32 ram;
+        u32 rom;
+        u32 flash;
+        u32 ext_sram;
     } prog_offset;
 
     /* The offsets into the data address space of interesting things. */

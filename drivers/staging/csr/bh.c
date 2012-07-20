@@ -227,7 +227,7 @@ bh_thread_function(void *arg)
     unifi_priv_t *priv = (unifi_priv_t*)arg;
     CsrResult csrResult;
     long ret;
-    CsrUint32 timeout, t;
+    u32 timeout, t;
     struct uf_thread *this_thread;
 
     unifi_trace(priv, UDBG2, "bh_thread_function starting\n");

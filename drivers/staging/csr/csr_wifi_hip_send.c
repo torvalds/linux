@@ -100,9 +100,9 @@ CSR_PRIORITY unifi_get_default_downgrade_priority(unifi_TrafficQueue queue)
  *      Calls unifi_pause_xmit() when the last slots are used.
  * ---------------------------------------------------------------------------
  */
-static CsrResult send_signal(card_t *card, const u8 *sigptr, CsrUint32 siglen,
+static CsrResult send_signal(card_t *card, const u8 *sigptr, u32 siglen,
                              const bulk_data_param_t *bulkdata,
-                             q_t *sigq, CsrUint32 priority_q, CsrUint32 run_bh)
+                             q_t *sigq, u32 priority_q, u32 run_bh)
 {
     u16 i, data_slot_size;
     card_signal_t *csptr;
@@ -135,7 +135,7 @@ static CsrResult send_signal(card_t *card, const u8 *sigptr, CsrUint32 siglen,
     {
         if ((bulkdata != NULL) && (bulkdata->d[i].data_length != 0))
         {
-            CsrUint32 datalen = bulkdata->d[i].data_length;
+            u32 datalen = bulkdata->d[i].data_length;
 
             /* Make sure data will fit in a bulk data slot */
             if (bulkdata->d[i].os_data_ptr == NULL)
@@ -303,14 +303,14 @@ static CsrResult send_signal(card_t *card, const u8 *sigptr, CsrUint32 siglen,
  *      to the device. Signals are constructed using the UniFi packed structures.
  * ---------------------------------------------------------------------------
  */
-CsrResult unifi_send_signal(card_t *card, const u8 *sigptr, CsrUint32 siglen,
+CsrResult unifi_send_signal(card_t *card, const u8 *sigptr, u32 siglen,
                             const bulk_data_param_t *bulkdata)
 {
     q_t *sig_soft_q;
     u16 signal_id;
     CsrResult r;
-    CsrUint32 run_bh;
-    CsrUint32 priority_q;
+    u32 run_bh;
+    u32 priority_q;
 
     /* A NULL signal pointer is a request to check if UniFi is responsive */
     if (sigptr == NULL)
@@ -395,7 +395,7 @@ CsrResult unifi_send_resources_available(card_t *card, const u8 *sigptr)
     if (signal_id == CSR_MA_PACKET_REQUEST_ID)
     {
         u16 frame_priority;
-        CsrUint32 priority_q;
+        u32 priority_q;
 
         /* Map the frame priority to a traffic queue index. */
         frame_priority = GET_PACKED_MA_PACKET_REQUEST_FRAME_PRIORITY(sigptr);

@@ -42,7 +42,7 @@ typedef struct coredump_buf
     CsrTime    timestamp;                   /* host's system time at capture */
     s16   requestor;                   /* request: 0=auto dump, 1=manual */
     u16  chip_ver;
-    CsrUint32  fw_ver;
+    u32  fw_ver;
     u16 *zone[HIP_CDUMP_NUM_ZONES];
 
     struct coredump_buf *next;              /* circular list */
@@ -54,7 +54,7 @@ struct coredump_zone
 {
     unifi_coredump_space_t           space;  /* XAP memory space this zone covers */
     enum unifi_dbg_processors_select cpu;    /* XAP CPU core selector */
-    CsrUint32                        gp;     /* Generic Pointer to memory zone on XAP */
+    u32                        gp;     /* Generic Pointer to memory zone on XAP */
     u16                        offset; /* 16-bit XAP word offset of zone in memory space */
     u16                        length; /* Length of zone in XAP words */
 };
@@ -299,7 +299,7 @@ static CsrInt32 get_value_from_coredump(const coredump_buffer       *coreDump,
 {
     CsrInt32 r = -1;
     u16 offset_in_zone;
-    CsrUint32 zone_end_offset;
+    u32 zone_end_offset;
     CsrInt32 i;
     const struct coredump_zone *def = &zonedef_table[0];
 
@@ -587,7 +587,7 @@ static CsrResult unifi_coredump_from_sdio(card_t *card, coredump_buffer *dump_bu
 {
     u16 val;
     CsrResult r;
-    CsrUint32 sdio_addr;
+    u32 sdio_addr;
 
     func_enter();
 
@@ -663,7 +663,7 @@ coredump_buffer* new_coredump_node(void *ospriv, coredump_buffer *prevnode)
     coredump_buffer *newnode = NULL;
     u16 *newzone = NULL;
     CsrInt32 i;
-    CsrUint32 zone_size;
+    u32 zone_size;
 
     /* Allocate node header */
     newnode = (coredump_buffer *)CsrMemAlloc(sizeof(coredump_buffer));
@@ -744,7 +744,7 @@ CsrResult unifi_coredump_init(card_t *card, u16 num_dump_buffers)
     void *ospriv = card->ospriv;
     coredump_buffer *prev = NULL;
     coredump_buffer *newnode = NULL;
-    CsrUint32 i = 0;
+    u32 i = 0;
 #endif
 
     func_enter();

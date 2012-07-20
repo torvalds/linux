@@ -173,7 +173,7 @@ typedef struct
     u16 initialised;
 
     /* Added by protocol version 0x0001 */
-    CsrUint32 overlay_size;
+    u32 overlay_size;
 
     /* Added by protocol version 0x0300 */
     u16 data_slot_round;
@@ -407,11 +407,11 @@ struct card
      * array is indexed by slot numbers and each index stores
      * information of the last host tag it was used for
      */
-    CsrUint32 *fh_slot_host_tag_record;
+    u32 *fh_slot_host_tag_record;
 
 
     /* Info read from Symbol Table during probe */
-    CsrUint32     build_id;
+    u32     build_id;
     CsrCharString build_id_string[128];
 
     /* Retrieve from SDIO driver. */
@@ -455,7 +455,7 @@ struct card
     u8 request_max_clock;
 
     /* Last SDIO clock frequency set */
-    CsrUint32 sdio_clock_speed;
+    u32 sdio_clock_speed;
 
     /*
      * Current host state (copy of value in IOABORT register and
@@ -518,7 +518,7 @@ struct card
      * SHARED_IO_INTERRUPT register.
      * Flag to say we need to generate an interrupt at end of processing.
      */
-    CsrUint32 unifi_interrupt_seq;
+    u32 unifi_interrupt_seq;
     u8  generate_interrupt;
 
 
@@ -548,17 +548,17 @@ struct card
     sdio_config_data_t config_data;
 
     /* SDIO address of the Initialised flag and Control Data struct */
-    CsrUint32 init_flag_addr;
-    CsrUint32 sdio_ctrl_addr;
+    u32 init_flag_addr;
+    u32 sdio_ctrl_addr;
 
     /* The last value written to the Shared Data Memory Page register */
-    CsrUint32 proc_select;
-    CsrUint32 dmem_page;
-    CsrUint32 pmem_page;
+    u32 proc_select;
+    u32 dmem_page;
+    u32 pmem_page;
 
     /* SDIO traffic counters limited to 32 bits for Synergy compatibility */
-    CsrUint32 sdio_bytes_read;
-    CsrUint32 sdio_bytes_written;
+    u32 sdio_bytes_read;
+    u32 sdio_bytes_written;
 
     u8 memory_resources_allocated;
 
@@ -585,42 +585,42 @@ struct card
 #ifdef CSR_WIFI_HIP_DATA_PLANE_PROFILE
     struct cmd_profile
     {
-        CsrUint32 cmd52_count;
-        CsrUint32 cmd53_count;
-        CsrUint32 tx_count;
-        CsrUint32 tx_cfm_count;
-        CsrUint32 rx_count;
-        CsrUint32 bh_count;
-        CsrUint32 process_count;
-        CsrUint32 protocol_count;
+        u32 cmd52_count;
+        u32 cmd53_count;
+        u32 tx_count;
+        u32 tx_cfm_count;
+        u32 rx_count;
+        u32 bh_count;
+        u32 process_count;
+        u32 protocol_count;
 
-        CsrUint32 cmd52_f0_r_count;
-        CsrUint32 cmd52_f0_w_count;
-        CsrUint32 cmd52_r8or16_count;
-        CsrUint32 cmd52_w8or16_count;
-        CsrUint32 cmd52_r16_count;
-        CsrUint32 cmd52_w16_count;
-        CsrUint32 cmd52_r32_count;
+        u32 cmd52_f0_r_count;
+        u32 cmd52_f0_w_count;
+        u32 cmd52_r8or16_count;
+        u32 cmd52_w8or16_count;
+        u32 cmd52_r16_count;
+        u32 cmd52_w16_count;
+        u32 cmd52_r32_count;
 
-        CsrUint32 sdio_cmd_signal;
-        CsrUint32 sdio_cmd_clear_slot;
-        CsrUint32 sdio_cmd_to_host;
-        CsrUint32 sdio_cmd_from_host;
-        CsrUint32 sdio_cmd_from_host_and_clear;
+        u32 sdio_cmd_signal;
+        u32 sdio_cmd_clear_slot;
+        u32 sdio_cmd_to_host;
+        u32 sdio_cmd_from_host;
+        u32 sdio_cmd_from_host_and_clear;
     } hip_prof;
     struct cmd_profile cmd_prof;
 #endif
 
     /* Interrupt processing mode flags */
-    CsrUint32 intmode;
+    u32 intmode;
 
 #ifdef UNIFI_DEBUG
     u8 lsb;
 #endif
 
     /* Historic firmware panic codes */
-    CsrUint32 panic_data_phy_addr;
-    CsrUint32 panic_data_mac_addr;
+    u32 panic_data_phy_addr;
+    u32 panic_data_mac_addr;
     u16 last_phy_panic_code;
     u16 last_phy_panic_arg;
     u16 last_mac_panic_code;
@@ -657,34 +657,34 @@ CsrInt32 card_read_signal_counts(card_t *card);
 bulk_data_desc_t* card_find_data_slot(card_t *card, s16 slot);
 
 
-CsrResult unifi_read32(card_t *card, CsrUint32 unifi_addr, CsrUint32 *pdata);
-CsrResult unifi_readnz(card_t *card, CsrUint32 unifi_addr,
+CsrResult unifi_read32(card_t *card, u32 unifi_addr, u32 *pdata);
+CsrResult unifi_readnz(card_t *card, u32 unifi_addr,
                        void *pdata, u16 len);
-CsrInt32 unifi_read_shared_count(card_t *card, CsrUint32 addr);
+CsrInt32 unifi_read_shared_count(card_t *card, u32 addr);
 
-CsrResult unifi_writen(card_t *card, CsrUint32 unifi_addr, void *pdata, u16 len);
+CsrResult unifi_writen(card_t *card, u32 unifi_addr, void *pdata, u16 len);
 
-CsrResult unifi_bulk_rw(card_t *card, CsrUint32 handle,
-                        void *pdata, CsrUint32 len, s16 direction);
-CsrResult unifi_bulk_rw_noretry(card_t *card, CsrUint32 handle,
-                                void *pdata, CsrUint32 len, s16 direction);
+CsrResult unifi_bulk_rw(card_t *card, u32 handle,
+                        void *pdata, u32 len, s16 direction);
+CsrResult unifi_bulk_rw_noretry(card_t *card, u32 handle,
+                                void *pdata, u32 len, s16 direction);
 #define UNIFI_SDIO_READ       0
 #define UNIFI_SDIO_WRITE      1
 
-CsrResult unifi_read_8_or_16(card_t *card, CsrUint32 unifi_addr, u8 *pdata);
-CsrResult unifi_write_8_or_16(card_t *card, CsrUint32 unifi_addr, u8 data);
-CsrResult unifi_read_direct_8_or_16(card_t *card, CsrUint32 addr, u8 *pdata);
-CsrResult unifi_write_direct_8_or_16(card_t *card, CsrUint32 addr, u8 data);
+CsrResult unifi_read_8_or_16(card_t *card, u32 unifi_addr, u8 *pdata);
+CsrResult unifi_write_8_or_16(card_t *card, u32 unifi_addr, u8 data);
+CsrResult unifi_read_direct_8_or_16(card_t *card, u32 addr, u8 *pdata);
+CsrResult unifi_write_direct_8_or_16(card_t *card, u32 addr, u8 data);
 
-CsrResult unifi_read_direct16(card_t *card, CsrUint32 addr, u16 *pdata);
-CsrResult unifi_read_direct32(card_t *card, CsrUint32 addr, CsrUint32 *pdata);
-CsrResult unifi_read_directn(card_t *card, CsrUint32 addr, void *pdata, u16 len);
+CsrResult unifi_read_direct16(card_t *card, u32 addr, u16 *pdata);
+CsrResult unifi_read_direct32(card_t *card, u32 addr, u32 *pdata);
+CsrResult unifi_read_directn(card_t *card, u32 addr, void *pdata, u16 len);
 
-CsrResult unifi_write_direct16(card_t *card, CsrUint32 addr, u16 data);
-CsrResult unifi_write_directn(card_t *card, CsrUint32 addr, void *pdata, u16 len);
+CsrResult unifi_write_direct16(card_t *card, u32 addr, u16 data);
+CsrResult unifi_write_directn(card_t *card, u32 addr, void *pdata, u16 len);
 
-CsrResult sdio_read_f0(card_t *card, CsrUint32 addr, u8 *pdata);
-CsrResult sdio_write_f0(card_t *card, CsrUint32 addr, u8 data);
+CsrResult sdio_read_f0(card_t *card, u32 addr, u8 *pdata);
+CsrResult sdio_write_f0(card_t *card, u32 addr, u8 data);
 
 void unifi_read_panic(card_t *card);
 #ifdef CSR_PRE_ALLOC_NET_DATA

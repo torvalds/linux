@@ -79,7 +79,7 @@ typedef struct CsrWifiFsmTimer
     struct CsrWifiFsmTimer *next;
 
     CsrWifiFsmTimerId timerid;
-    CsrUint32         timeoutTimeMs;
+    u32         timeoutTimeMs;
 } CsrWifiFsmTimer;
 
 
@@ -202,7 +202,7 @@ typedef void (*CsrWifiFsmDumpFnPtr)(CsrWifiFsmContext *context, void *fsmData);
  */
 typedef struct
 {
-    CsrUint32                 eventid;
+    u32                 eventid;
     CsrWifiFsmTransitionFnPtr transition;
 #ifdef CSR_LOG_ENABLE
     const CsrCharString *transitionName;
@@ -253,7 +253,7 @@ typedef struct
 typedef struct
 {
     const CsrCharString                    *processName;
-    const CsrUint32                         processId;
+    const u32                         processId;
     const CsrWifiFsmTransitionFunctionTable transitionTable;
     const CsrWifiFsmTableEntry              unhandledTransitions;
     const CsrWifiFsmTableEntry              ignoreFunctions;
@@ -389,7 +389,7 @@ struct CsrWifiFsmContext
 #ifdef CSR_WIFI_FSM_MUTEX_ENABLE
     CsrMutexHandle externalEventQueueLock;                    /* The external event queue mutex               */
 #endif
-    CsrUint32                          timeOffset;            /* Amount to adjust the TimeOfDayMs by          */
+    u32                          timeOffset;            /* Amount to adjust the TimeOfDayMs by          */
     CsrWifiFsmTimerList                timerQueue;            /* The internal timer queue                     */
     CsrBool                            useTempSaveList;       /* Should the temp save list be used            */
     CsrWifiFsmEventList                tempSaveList;          /* The temp save event queue                    */
@@ -409,7 +409,7 @@ struct CsrWifiFsmContext
 
 #ifndef CSR_WIFI_FSM_SCHEDULER_DISABLED
     CsrSchedTid schedTimerId;                                 /* Scheduler TimerId for use in Scheduler Tasks */
-    CsrUint32   schedTimerNexttimeoutMs;                      /* Next timeout time for the current timer      */
+    u32   schedTimerNexttimeoutMs;                      /* Next timeout time for the current timer      */
 #endif
 
 #ifdef CSR_WIFI_FSM_MUTEX_ENABLE

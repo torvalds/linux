@@ -336,7 +336,7 @@ typedef u16 CsrWifiNmeEncryption;
                    - Used to register for all available indications
 
 *******************************************************************************/
-typedef CsrUint32 CsrWifiNmeIndications;
+typedef u32 CsrWifiNmeIndications;
 #define CSR_WIFI_NME_INDICATIONS_IND_AP_STATION           ((CsrWifiNmeIndications) 0x00100000)
 #define CSR_WIFI_NME_INDICATIONS_IND_AP_STOP              ((CsrWifiNmeIndications) 0x00200000)
 #define CSR_WIFI_NME_INDICATIONS_IND_SIM_UMTS_AUTH        ((CsrWifiNmeIndications) 0x01000000)
@@ -489,7 +489,7 @@ typedef u16 CsrWifiNmeEncryptionMask;
     Mask type for use with the values defined by CsrWifiNmeIndications
 
 *******************************************************************************/
-typedef CsrUint32 CsrWifiNmeIndicationsMask;
+typedef u32 CsrWifiNmeIndicationsMask;
 /*******************************************************************************
 
   NAME
@@ -501,7 +501,7 @@ typedef CsrUint32 CsrWifiNmeIndicationsMask;
     specific indications
 
 *******************************************************************************/
-typedef CsrUint32 CsrWifiNmeNmeIndicationsMask;
+typedef u32 CsrWifiNmeNmeIndicationsMask;
 /*******************************************************************************
 
   NAME
@@ -594,11 +594,11 @@ typedef struct
 *******************************************************************************/
 typedef struct
 {
-    CsrUint32 certificateLength;
+    u32 certificateLength;
     u8 *certificate;
     u16 privateKeyLength;
     u8 *privateKey;
-    CsrUint32 caCertificateLength;
+    u32 caCertificateLength;
     u8 *caCertificate;
 } CsrWifiNmeWapiCredentials;
 
@@ -711,17 +711,17 @@ typedef struct
     CsrCharString           *userName;
     CsrCharString           *userPassword;
     CsrCharString           *authServerUserIdentity;
-    CsrUint32                clientCertificateLength;
+    u32                clientCertificateLength;
     u8                *clientCertificate;
-    CsrUint32                certificateAuthorityCertificateLength;
+    u32                certificateAuthorityCertificateLength;
     u8                *certificateAuthorityCertificate;
     u16                privateKeyLength;
     u8                *privateKey;
     CsrCharString           *privateKeyPassword;
-    CsrUint32                sessionLength;
+    u32                sessionLength;
     u8                *session;
     CsrBool                  allowPacProvisioning;
-    CsrUint32                pacLength;
+    u32                pacLength;
     u8                *pac;
     CsrCharString           *pacPassword;
 } CsrWifiNmeEapCredentials;

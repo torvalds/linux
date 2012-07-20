@@ -16,9 +16,9 @@
 #include "csr_wifi_msgconv.h"
 #include "csr_wifi_lib.h"
 
-void CsrUint24Des(CsrUint32 *v, u8 *buffer, CsrSize *offset)
+void CsrUint24Des(u32 *v, u8 *buffer, CsrSize *offset)
 {
-    CsrUint32 val;
+    u32 val;
 
     val = ((buffer[(*offset) + 2] << 16) |
            (buffer[(*offset) + 1] << 8) |
@@ -41,9 +41,9 @@ void CsrUint16DesBigEndian(u16 *v, u8 *buffer, CsrSize *offset)
 }
 
 
-void CsrUint24DesBigEndian(CsrUint32 *v, u8 *buffer, CsrSize *offset)
+void CsrUint24DesBigEndian(u32 *v, u8 *buffer, CsrSize *offset)
 {
-    CsrUint32 val;
+    u32 val;
 
     val = ((buffer[(*offset)] << 16) |
            (buffer[(*offset) + 1] << 8) |
@@ -54,9 +54,9 @@ void CsrUint24DesBigEndian(CsrUint32 *v, u8 *buffer, CsrSize *offset)
 }
 
 
-void CsrUint32DesBigEndian(CsrUint32 *v, u8 *buffer, CsrSize *offset)
+void CsrUint32DesBigEndian(u32 *v, u8 *buffer, CsrSize *offset)
 {
-    CsrUint32 val;
+    u32 val;
 
     val = ((buffer[(*offset)] << 24) |
            (buffer[(*offset) + 1] << 16) |
@@ -68,7 +68,7 @@ void CsrUint32DesBigEndian(CsrUint32 *v, u8 *buffer, CsrSize *offset)
 }
 
 
-void CsrUint24Ser(u8 *ptr, CsrSize *len, CsrUint32 v)
+void CsrUint24Ser(u8 *ptr, CsrSize *len, u32 v)
 {
     ptr[(*len) + 2] = (u8)((v & 0x00ff0000) >> 16);
     ptr[(*len) + 1] = (u8)((v & 0x0000ff00) >> 8);
@@ -88,7 +88,7 @@ void CsrUint16SerBigEndian(u8 *ptr, CsrSize *len, u16 v)
 }
 
 
-void CsrUint32SerBigEndian(u8 *ptr, CsrSize *len, CsrUint32 v)
+void CsrUint32SerBigEndian(u8 *ptr, CsrSize *len, u32 v)
 {
     ptr[(*len)] = (u8)((v & 0xff000000) >> 24);
     ptr[(*len) + 1] = (u8)((v & 0x00ff0000) >> 16);
@@ -99,7 +99,7 @@ void CsrUint32SerBigEndian(u8 *ptr, CsrSize *len, CsrUint32 v)
 }
 
 
-void CsrUint24SerBigEndian(u8 *ptr, CsrSize *len, CsrUint32 v)
+void CsrUint24SerBigEndian(u8 *ptr, CsrSize *len, u32 v)
 {
     ptr[(*len)] = (u8)((v & 0x00ff0000) >> 16);
     ptr[(*len) + 1] = (u8)((v & 0x0000ff00) >> 8);

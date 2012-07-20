@@ -67,7 +67,7 @@ static CsrResult unifi_read_chip_version(card_t *card);
 card_t* unifi_alloc_card(CsrSdioFunction *sdio, void *ospriv)
 {
     card_t *card;
-    CsrUint32 i;
+    u32 i;
 
     func_enter();
 
@@ -86,9 +86,9 @@ card_t* unifi_alloc_card(CsrSdioFunction *sdio, void *ospriv)
     card->unifi_interrupt_seq = 1;
 
     /* Make these invalid. */
-    card->proc_select = (CsrUint32)(-1);
-    card->dmem_page = (CsrUint32)(-1);
-    card->pmem_page = (CsrUint32)(-1);
+    card->proc_select = (u32)(-1);
+    card->dmem_page = (u32)(-1);
+    card->pmem_page = (u32)(-1);
 
     card->bh_reason_host = 0;
     card->bh_reason_unifi = 0;
@@ -137,7 +137,7 @@ card_t* unifi_alloc_card(CsrSdioFunction *sdio, void *ospriv)
      * warnings when casting pointer types, e.g. on 64-bit systems.
      */
     {
-        CsrUint32 val = 0x01234567;
+        u32 val = 0x01234567;
 
         if (*((u8 *)&val) == 0x01)
         {
@@ -288,9 +288,9 @@ CsrResult unifi_init(card_t *card)
      * The page registers will be maintained by unifi_read...() and
      * unifi_write...().
      */
-    card->proc_select = (CsrUint32)(-1);
-    card->dmem_page = (CsrUint32)(-1);
-    card->pmem_page = (CsrUint32)(-1);
+    card->proc_select = (u32)(-1);
+    card->dmem_page = (u32)(-1);
+    card->pmem_page = (u32)(-1);
     r = unifi_write_direct16(card, ChipHelper_HOST_WINDOW3_PAGE(card->helper) * 2, 0);
     if (r == CSR_WIFI_HIP_RESULT_NO_DEVICE)
     {
@@ -598,7 +598,7 @@ static void _build_sdio_config_data(sdio_config_data_t *cfg_data,
  */
 static CsrResult card_hw_init(card_t *card)
 {
-    CsrUint32 slut_address;
+    u32 slut_address;
     u16 initialised;
     u16 finger_print;
     symbol_t slut;
@@ -692,7 +692,7 @@ static CsrResult card_hw_init(card_t *card)
         while (!search_4slut_again)
         {
             u16 s;
-            CsrUint32 l;
+            u32 l;
 
             r = unifi_card_read16(card, slut_address, &s);
             if (r != CSR_RESULT_SUCCESS)
@@ -810,7 +810,7 @@ static CsrResult card_hw_init(card_t *card)
 
                 case CSR_SLT_BUILD_ID_NUMBER:
                 {
-                    CsrUint32 n;
+                    u32 n;
                     r = unifi_read32(card, slut.obj, &n);
                     if (r == CSR_WIFI_HIP_RESULT_NO_DEVICE)
                     {
@@ -1233,7 +1233,7 @@ static CsrResult card_wait_for_unifi_to_disable(card_t *card)
  *      CSR_RESULT_SUCCESS on success, CSR error code on failure.
  * ---------------------------------------------------------------------------
  */
-CsrResult card_wait_for_firmware_to_start(card_t *card, CsrUint32 *paddr)
+CsrResult card_wait_for_firmware_to_start(card_t *card, u32 *paddr)
 {
     CsrInt32 i;
     u16 mbox0, mbox1;
@@ -1335,7 +1335,7 @@ CsrResult card_wait_for_firmware_to_start(card_t *card, CsrUint32 *paddr)
         return r;
     }
 
-    *paddr = (((CsrUint32)mbox1 << 16) | mbox0);
+    *paddr = (((u32)mbox1 << 16) | mbox0);
 
     func_exit();
     return CSR_RESULT_SUCCESS;
@@ -1681,7 +1681,7 @@ static CsrResult card_allocate_memory_resources(card_t *card)
 
     /* Allocate memory for the array used for slot host tag mapping */
     card->fh_slot_host_tag_record =
-        (CsrUint32 *)CsrMemAlloc(n * sizeof(CsrUint32));
+        (u32 *)CsrMemAlloc(n * sizeof(u32));
 
     if (card->fh_slot_host_tag_record == NULL)
     {
@@ -2640,7 +2640,7 @@ static CsrResult unifi_prepare_hw(card_t *card)
 
 static CsrResult unifi_read_chip_version(card_t *card)
 {
-    CsrUint32 gbl_chip_version;
+    u32 gbl_chip_version;
     CsrResult r;
     u16 ver;
 
@@ -3025,14 +3025,14 @@ CsrResult unifi_card_hard_reset(card_t *card)
 {
     CsrResult r;
     const struct chip_helper_reset_values *init_data;
-    CsrUint32 chunks;
+    u32 chunks;
 
     func_enter();
 
     /* Clear cache of page registers */
-    card->proc_select = (CsrUint32)(-1);
-    card->dmem_page = (CsrUint32)(-1);
-    card->pmem_page = (CsrUint32)(-1);
+    card->proc_select = (u32)(-1);
+    card->dmem_page = (u32)(-1);
+    card->pmem_page = (u32)(-1);
 
     /*
      * We need to have a valid card->helper before we use software hard reset.
@@ -3665,7 +3665,7 @@ static CsrResult firmware_present_in_flash(card_t *card)
 static void bootstrap_chip_hw(card_t *card)
 {
     const struct chip_helper_init_values *vals;
-    CsrUint32 i, len;
+    u32 i, len;
     void *sdio = card->sdio_if;
     CsrResult csrResult;
 
@@ -3816,7 +3816,7 @@ CsrResult card_start_processor(card_t *card, enum unifi_dbg_processors_select wh
  *      None
  * ---------------------------------------------------------------------------
  */
-void unifi_set_interrupt_mode(card_t *card, CsrUint32 mode)
+void unifi_set_interrupt_mode(card_t *card, u32 mode)
 {
     if (mode == CSR_WIFI_INTMODE_RUN_BH_ONCE)
     {
@@ -4104,7 +4104,7 @@ void unifi_get_hip_qos_info(card_t *card, unifi_HipQosInfo *hipqosinfo)
 {
     CsrInt32 count_fhr;
     s16 t;
-    CsrUint32 occupied_fh;
+    u32 occupied_fh;
 
     q_t *sigq;
     u16 nslots, i;

@@ -27,7 +27,7 @@ extern "C" {
         reference, usually associated with system startup.
 
 *******************************************************************************/
-typedef CsrUint32 CsrTime;
+typedef u32 CsrTime;
 
 
 /*******************************************************************************
@@ -42,7 +42,7 @@ typedef CsrUint32 CsrTime;
 *******************************************************************************/
 typedef struct
 {
-    CsrUint32 sec;
+    u32 sec;
     u16 msec;
 } CsrTimeUtc;
 

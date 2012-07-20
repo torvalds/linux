@@ -140,16 +140,16 @@ typedef enum
 typedef struct _bulk_data_desc
 {
     const u8 *os_data_ptr;
-    CsrUint32       data_length;
+    u32       data_length;
     const void     *os_net_buf_ptr;
-    CsrUint32       net_buf_length;
+    u32       net_buf_length;
 } bulk_data_desc_t;
 
 /* Structure of an entry in the Symbol Look Up Table (SLUT). */
 typedef struct _symbol
 {
     u16 id;
-    CsrUint32 obj;
+    u32 obj;
 } symbol_t;
 
 /*
@@ -196,9 +196,9 @@ typedef struct _card_info
 {
     u16 chip_id;
     u16 chip_version;
-    CsrUint32 fw_build;
+    u32 fw_build;
     u16 fw_hip_version;
-    CsrUint32 sdio_block_size;
+    u32 sdio_block_size;
 } card_info_t;
 
 
@@ -225,14 +225,14 @@ typedef struct unifi_coredump_req
     /* From user */
     CsrInt32               index;       /* 0=newest, -1=oldest */
     unifi_coredump_space_t space;       /* memory space */
-    CsrUint32              offset;      /* register offset in space */
+    u32              offset;      /* register offset in space */
     /* From driver */
-    CsrUint32 drv_build;                /* Driver build id */
-    CsrUint32 chip_ver;                 /* Chip version */
-    CsrUint32 fw_ver;                   /* Firmware version */
+    u32 drv_build;                /* Driver build id */
+    u32 chip_ver;                 /* Chip version */
+    u32 fw_ver;                   /* Firmware version */
     CsrInt32  requestor;                /* Requestor: 0=auto dump, 1=manual */
     CsrTime   timestamp;                /* time of capture by driver */
-    CsrUint32 serial;                   /* capture serial number */
+    u32 serial;                   /* capture serial number */
     CsrInt32  value;                    /* register value */
 } unifi_coredump_req_t;                 /* mini-coredumped reg value request */
 
@@ -325,7 +325,7 @@ void unifi_cancel_pending_signals(card_t *card);
  * @ingroup upperedge
  */
 CsrResult unifi_send_signal(card_t *card, const u8 *sigptr,
-                            CsrUint32 siglen,
+                            u32 siglen,
                             const bulk_data_param_t *bulkdata);
 
 /**
@@ -398,7 +398,7 @@ CsrResult unifi_check_io_status(card_t *card, CsrInt32 *status);
  *
  * @ingroup upperedge
  */
-CsrResult unifi_bh(card_t *card, CsrUint32 *remaining);
+CsrResult unifi_bh(card_t *card, u32 *remaining);
 
 
 /**
@@ -513,7 +513,7 @@ void unifi_ta_sample(card_t                            *card,
                      const bulk_data_desc_t            *data,
                      const u8                    *saddr,
                      const u8                    *sta_macaddr,
-                     CsrUint32                          timestamp,
+                     u32                          timestamp,
                      u16                          rate);
 
 /**
@@ -545,9 +545,9 @@ void unifi_ta_classification(card_t                      *card,
 CsrResult unifi_card_hard_reset(card_t *card);
 
 
-CsrResult unifi_card_readn(card_t *card, CsrUint32 unifi_addr, void *pdata, u16 len);
-CsrResult unifi_card_read16(card_t *card, CsrUint32 unifi_addr, u16 *pdata);
-CsrResult unifi_card_write16(card_t *card, CsrUint32 unifi_addr, u16 data);
+CsrResult unifi_card_readn(card_t *card, u32 unifi_addr, void *pdata, u16 len);
+CsrResult unifi_card_read16(card_t *card, u32 unifi_addr, u16 *pdata);
+CsrResult unifi_card_write16(card_t *card, u32 unifi_addr, u16 data);
 
 
 enum unifi_dbg_processors_select
@@ -643,7 +643,7 @@ CsrResult unifi_run_bh(void *ospriv);
  * @ingroup upperedge
  */
 void unifi_receive_event(void *ospriv,
-                         u8 *sigdata, CsrUint32 siglen,
+                         u8 *sigdata, u32 siglen,
                          const bulk_data_param_t *bulkdata);
 
 #ifdef CSR_WIFI_REQUEUE_PACKET_TO_HAL
@@ -659,7 +659,7 @@ void unifi_receive_event(void *ospriv,
  *
  * @ingroup upperedge
  */
-CsrResult unifi_reque_ma_packet_request(void *ospriv, CsrUint32 host_tag,
+CsrResult unifi_reque_ma_packet_request(void *ospriv, u32 host_tag,
                                         u16 status,
                                         bulk_data_desc_t *bulkDataDesc);
 
@@ -719,7 +719,7 @@ void* unifi_fw_read_start(void *ospriv, s8 is_fw, const card_info_t *info);
  *
  * @ingroup upperedge
  */
-CsrInt32 unifi_fw_read(void *ospriv, void *arg, CsrUint32 offset, void *buf, CsrUint32 len);
+CsrInt32 unifi_fw_read(void *ospriv, void *arg, u32 offset, void *buf, u32 len);
 
 /**
  *
@@ -746,7 +746,7 @@ void unifi_fw_read_stop(void *ospriv, void *dlpriv);
  *
  * @ingroup upperedge
  */
-void* unifi_fw_open_buffer(void *ospriv, void *fwbuf, CsrUint32 len);
+void* unifi_fw_open_buffer(void *ospriv, void *fwbuf, u32 len);
 
 /**
  *
@@ -806,10 +806,10 @@ void unifi_ta_indicate_protocol(void                              *ospriv,
  */
 void unifi_ta_indicate_sampling(void *ospriv, CsrWifiRouterCtrlTrafficStats *stats);
 void unifi_ta_indicate_l4stats(void     *ospriv,
-                               CsrUint32 rxTcpThroughput,
-                               CsrUint32 txTcpThroughput,
-                               CsrUint32 rxUdpThroughput,
-                               CsrUint32 txUdpThroughput);
+                               u32 rxTcpThroughput,
+                               u32 txTcpThroughput,
+                               u32 rxUdpThroughput,
+                               u32 txUdpThroughput);
 #endif
 
 void unifi_rx_queue_flush(void *ospriv);
@@ -849,7 +849,7 @@ CsrResult unifi_capture_panic(card_t *card);
 #define CSR_WIFI_INTMODE_DEFAULT        0
 #define CSR_WIFI_INTMODE_RUN_BH_ONCE    1       /* Run BH once per interrupt */
 
-void unifi_set_interrupt_mode(card_t *card, CsrUint32 mode);
+void unifi_set_interrupt_mode(card_t *card, u32 mode);
 
 /*
  * unifi_request_max_clock() requests that max SDIO clock speed is set at the

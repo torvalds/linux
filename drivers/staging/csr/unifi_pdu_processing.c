@@ -33,14 +33,14 @@ static void _update_buffered_pkt_params_after_alignment(unifi_priv_t *priv, bulk
                                                         tx_buffered_packets_t* buffered_pkt)
 {
     struct sk_buff *skb ;
-    CsrUint32 align_offset;
+    u32 align_offset;
 
     if (priv == NULL || bulkdata == NULL || buffered_pkt == NULL){
         return;
     }
 
     skb = (struct sk_buff*)bulkdata->d[0].os_net_buf_ptr;
-    align_offset = (CsrUint32)(long)(bulkdata->d[0].os_data_ptr) & (CSR_WIFI_ALIGN_BYTES-1);
+    align_offset = (u32)(long)(bulkdata->d[0].os_data_ptr) & (CSR_WIFI_ALIGN_BYTES-1);
     if(align_offset){
         skb_pull(skb,align_offset);
     }
@@ -448,7 +448,7 @@ CsrResult enque_tx_data_pdu(unifi_priv_t *priv, bulk_data_param_t *bulkdata,
 }
 
 #ifdef CSR_WIFI_REQUEUE_PACKET_TO_HAL
-CsrResult unifi_reque_ma_packet_request (void *ospriv, CsrUint32 host_tag,
+CsrResult unifi_reque_ma_packet_request (void *ospriv, u32 host_tag,
                                          u16 txStatus, bulk_data_desc_t *bulkDataDesc)
 {
     CsrResult status = CSR_RESULT_SUCCESS;
@@ -859,7 +859,7 @@ void uf_handle_tim_cfm(unifi_priv_t *priv, CSR_MLME_SET_TIM_CONFIRM *cfm, u16 re
  *
  * ---------------------------------------------------------------------------
  */
-void update_tim(unifi_priv_t * priv, u16 aid, u8 setTim, u16 interfaceTag, CsrUint32 handle)
+void update_tim(unifi_priv_t * priv, u16 aid, u8 setTim, u16 interfaceTag, u32 handle)
 {
     CSR_SIGNAL signal;
     CsrInt32 r;
@@ -868,7 +868,7 @@ void update_tim(unifi_priv_t * priv, u16 aid, u8 setTim, u16 interfaceTag, CsrUi
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
     u8 senderIdLsb = 0;
     CsrWifiRouterCtrlStaInfo_t *staRecord = NULL;
-    CsrUint32 oldTimSetStatus = 0, timSetStatus = 0;
+    u32 oldTimSetStatus = 0, timSetStatus = 0;
 
     unifi_trace(priv, UDBG5, "entering the update_tim routine\n");
 
@@ -1661,13 +1661,13 @@ CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,
     CsrWifiPacketType pktType;
     int frameType = 0;
     CsrBool queuePacketDozing = FALSE;
-    CsrUint32 priority_q;
+    u32 priority_q;
     u16 frmCtrl;
     struct list_head * list = NULL; /* List to which buffered PDUs are to be enqueued*/
     CsrBool setBcTim=FALSE;
     netInterface_priv_t *interfacePriv;
     CsrBool requeueOnSamePos = FALSE;
-    CsrUint32 handle = 0xFFFFFFFF;
+    u32 handle = 0xFFFFFFFF;
     unsigned long lock_flags;
 
 	unifi_trace(priv, UDBG5,
@@ -2025,7 +2025,7 @@ u8 send_multicast_frames(unifi_priv_t *priv, u16 interfaceTag)
     u8 pduSent =0;
     unsigned long lock_flags;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
-    CsrUint32 hostTag = 0xffffffff;
+    u32 hostTag = 0xffffffff;
 
     func_enter();
     if(!isRouterBufferEnabled(priv,UNIFI_TRAFFIC_Q_VO)) {
@@ -2116,7 +2116,7 @@ u8 send_multicast_frames(unifi_priv_t *priv, u16 interfaceTag)
 }
 #endif
 void uf_process_ma_vif_availibility_ind(unifi_priv_t *priv,u8 *sigdata,
-                                        CsrUint32 siglen)
+                                        u32 siglen)
 {
 #ifdef CSR_SUPPORT_SME
     CSR_SIGNAL signal;
@@ -2409,7 +2409,7 @@ void uf_send_buffered_data_from_ac(unifi_priv_t *priv,
 void uf_send_buffered_frames(unifi_priv_t *priv,unifi_TrafficQueue q)
 {
     u16 interfaceTag = GET_ACTIVE_INTERFACE_TAG(priv);
-    CsrUint32 startIndex=0,endIndex=0;
+    u32 startIndex=0,endIndex=0;
     CsrWifiRouterCtrlStaInfo_t * staInfo = NULL;
     u8 queue;
     CsrBool moreData = FALSE;
@@ -2769,7 +2769,7 @@ void uf_send_qos_null(unifi_priv_t * priv,u16 interfaceTag, const u8 *da,CSR_PRI
     CSR_TRANSMISSION_CONTROL transmissionControl = (TRANSMISSION_CONTROL_EOSP_MASK | TRANSMISSION_CONTROL_TRIGGER_MASK);
     int r;
     CSR_SIGNAL signal;
-    CsrUint32 priority_q;
+    u32 priority_q;
     CSR_RATE transmitRate = 0;
 
 
@@ -2840,7 +2840,7 @@ void uf_send_nulldata(unifi_priv_t * priv,u16 interfaceTag, const u8 *da,CSR_PRI
     CSR_TRANSMISSION_CONTROL transmissionControl = 0;
     int r;
     CSR_SIGNAL signal;
-    CsrUint32 priority_q;
+    u32 priority_q;
     CSR_RATE transmitRate = 0;
     CSR_MA_PACKET_REQUEST *req = &signal.u.MaPacketRequest;
     unsigned long lock_flags;
@@ -3481,7 +3481,7 @@ CsrWifiRouterCtrlStaInfo_t *CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(
 }
 /* generic function to get the station record handler from the handle */
 CsrWifiRouterCtrlStaInfo_t * CsrWifiRouterCtrlGetStationRecordFromHandle(unifi_priv_t *priv,
-                                                                 CsrUint32 handle,
+                                                                 u32 handle,
                                                                  u16 interfaceTag)
 {
     netInterface_priv_t *interfacePriv;
@@ -3497,7 +3497,7 @@ CsrWifiRouterCtrlStaInfo_t * CsrWifiRouterCtrlGetStationRecordFromHandle(unifi_p
 /* Function to do inactivity */
 void uf_check_inactivity(unifi_priv_t *priv, u16 interfaceTag, CsrTime currentTime)
 {
-    CsrUint32 i;
+    u32 i;
     CsrWifiRouterCtrlStaInfo_t *staInfo;
     CsrTime elapsedTime;    /* Time in microseconds */
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
@@ -3523,7 +3523,7 @@ void uf_check_inactivity(unifi_priv_t *priv, u16 interfaceTag, CsrTime currentTi
 
         elapsedTime = (currentTime >= staInfo->lastActivity)?
                 (currentTime - staInfo->lastActivity):
-                (~((CsrUint32)0) - staInfo->lastActivity + currentTime);
+                (~((u32)0) - staInfo->lastActivity + currentTime);
         spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
 
         if (elapsedTime > MAX_INACTIVITY_INTERVAL) {
@@ -3578,7 +3578,7 @@ void uf_update_sta_activity(unifi_priv_t *priv, u16 interfaceTag, const u8 *peer
      * 64 bit handling */
     elapsedTime = (currentTime >= interfacePriv->last_inactivity_check)?
                     (currentTime - interfacePriv->last_inactivity_check):
-                    (~((CsrUint32)0) - interfacePriv->last_inactivity_check + currentTime);
+                    (~((u32)0) - interfacePriv->last_inactivity_check + currentTime);
 
     spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
 

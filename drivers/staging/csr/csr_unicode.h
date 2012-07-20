@@ -16,10 +16,10 @@
 extern "C" {
 #endif
 
-CsrUtf16String *CsrUint32ToUtf16String(CsrUint32 number);
+CsrUtf16String *CsrUint32ToUtf16String(u32 number);
 
-CsrUint32 CsrUtf16StringToUint32(const CsrUtf16String *unicodeString);
-CsrUint32 CsrUtf16StrLen(const CsrUtf16String *unicodeString);
+u32 CsrUtf16StringToUint32(const CsrUtf16String *unicodeString);
+u32 CsrUtf16StrLen(const CsrUtf16String *unicodeString);
 
 CsrUtf8String *CsrUtf16String2Utf8(const CsrUtf16String *source);
 
@@ -29,9 +29,9 @@ CsrUtf16String *CsrUtf16StrCpy(CsrUtf16String *target, const CsrUtf16String *sou
 CsrUtf16String *CsrUtf16StringDuplicate(const CsrUtf16String *source);
 
 u16 CsrUtf16StrICmp(const CsrUtf16String *string1, const CsrUtf16String *string2);
-u16 CsrUtf16StrNICmp(const CsrUtf16String *string1, const CsrUtf16String *string2, CsrUint32 count);
+u16 CsrUtf16StrNICmp(const CsrUtf16String *string1, const CsrUtf16String *string2, u32 count);
 
-CsrUtf16String *CsrUtf16MemCpy(CsrUtf16String *dest, const CsrUtf16String *src, CsrUint32 count);
+CsrUtf16String *CsrUtf16MemCpy(CsrUtf16String *dest, const CsrUtf16String *src, u32 count);
 CsrUtf16String *CsrUtf16ConcatenateTexts(const CsrUtf16String *inputText1, const CsrUtf16String *inputText2,
     const CsrUtf16String *inputText3, const CsrUtf16String *inputText4);
 
@@ -40,7 +40,7 @@ CsrUtf16String *CsrXML2Utf16String(CsrUtf16String *str);
 
 CsrInt32 CsrUtf8StrCmp(const CsrUtf8String *string1, const CsrUtf8String *string2);
 CsrInt32 CsrUtf8StrNCmp(const CsrUtf8String *string1, const CsrUtf8String *string2, CsrSize count);
-CsrUint32 CsrUtf8StringLengthInBytes(const CsrUtf8String *string);
+u32 CsrUtf8StringLengthInBytes(const CsrUtf8String *string);
 
 /*******************************************************************************
 

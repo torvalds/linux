@@ -144,7 +144,7 @@ csr_io_rw_direct(struct mmc_card *card, int write, uint8_t fn,
 
 
 CsrResult
-CsrSdioRead8(CsrSdioFunction *function, CsrUint32 address, u8 *data)
+CsrSdioRead8(CsrSdioFunction *function, u32 address, u8 *data)
 {
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int err = 0;
@@ -162,7 +162,7 @@ CsrSdioRead8(CsrSdioFunction *function, CsrUint32 address, u8 *data)
 } /* CsrSdioRead8() */
 
 CsrResult
-CsrSdioWrite8(CsrSdioFunction *function, CsrUint32 address, u8 data)
+CsrSdioWrite8(CsrSdioFunction *function, u32 address, u8 data)
 {
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int err = 0;
@@ -180,7 +180,7 @@ CsrSdioWrite8(CsrSdioFunction *function, CsrUint32 address, u8 data)
 } /* CsrSdioWrite8() */
 
 CsrResult
-CsrSdioRead16(CsrSdioFunction *function, CsrUint32 address, u16 *data)
+CsrSdioRead16(CsrSdioFunction *function, u32 address, u16 *data)
 {
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int err;
@@ -207,7 +207,7 @@ CsrSdioRead16(CsrSdioFunction *function, CsrUint32 address, u16 *data)
 
 
 CsrResult
-CsrSdioWrite16(CsrSdioFunction *function, CsrUint32 address, u16 data)
+CsrSdioWrite16(CsrSdioFunction *function, u32 address, u16 data)
 {
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int err;
@@ -234,7 +234,7 @@ CsrSdioWrite16(CsrSdioFunction *function, CsrUint32 address, u16 data)
 
 
 CsrResult
-CsrSdioF0Read8(CsrSdioFunction *function, CsrUint32 address, u8 *data)
+CsrSdioF0Read8(CsrSdioFunction *function, u32 address, u8 *data)
 {
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int err = 0;
@@ -256,7 +256,7 @@ CsrSdioF0Read8(CsrSdioFunction *function, CsrUint32 address, u8 *data)
 } /* CsrSdioF0Read8() */
 
 CsrResult
-CsrSdioF0Write8(CsrSdioFunction *function, CsrUint32 address, u8 data)
+CsrSdioF0Write8(CsrSdioFunction *function, u32 address, u8 data)
 {
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int err = 0;
@@ -279,7 +279,7 @@ CsrSdioF0Write8(CsrSdioFunction *function, CsrUint32 address, u8 data)
 
 
 CsrResult
-CsrSdioRead(CsrSdioFunction *function, CsrUint32 address, void *data, CsrUint32 length)
+CsrSdioRead(CsrSdioFunction *function, u32 address, void *data, u32 length)
 {
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int err;
@@ -297,7 +297,7 @@ CsrSdioRead(CsrSdioFunction *function, CsrUint32 address, void *data, CsrUint32 
 } /* CsrSdioRead() */
 
 CsrResult
-CsrSdioWrite(CsrSdioFunction *function, CsrUint32 address, const void *data, CsrUint32 length)
+CsrSdioWrite(CsrSdioFunction *function, u32 address, const void *data, u32 length)
 {
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int err;
@@ -404,14 +404,14 @@ csr_sdio_disable_hs(struct mmc_card *card)
  * ---------------------------------------------------------------------------
  */
 CsrResult
-CsrSdioMaxBusClockFrequencySet(CsrSdioFunction *function, CsrUint32 maxFrequency)
+CsrSdioMaxBusClockFrequencySet(CsrSdioFunction *function, u32 maxFrequency)
 {
     struct sdio_func *func = (struct sdio_func *)function->priv;
     struct mmc_host *host = func->card->host;
     struct mmc_ios *ios = &host->ios;
     unsigned int max_hz;
     int err;
-	CsrUint32 max_khz = maxFrequency/1000;
+	u32 max_khz = maxFrequency/1000;
 
     if (!max_khz || max_khz > sdio_clock) {
         max_khz = sdio_clock;

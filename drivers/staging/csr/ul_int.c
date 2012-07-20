@@ -213,7 +213,7 @@ ul_deregister_client(ul_client_t *ul_client)
  */
 void
 logging_handler(void *ospriv,
-                u8 *sigdata, CsrUint32 signal_len,
+                u8 *sigdata, u32 signal_len,
                 const bulk_data_param_t *bulkdata,
                 enum udi_log_direction direction)
 {
@@ -340,7 +340,7 @@ _align_bulk_data_buffers(unifi_priv_t *priv, u8 *signal,
         * The following complex casting is in place in order to eliminate 64-bit compilation warning
         * "cast to/from pointer from/to integer of different size"
         */
-        CsrUint32 align_offset = (CsrUint32)(long)(bulkdata->d[i].os_data_ptr) & (CSR_WIFI_ALIGN_BYTES-1);
+        u32 align_offset = (u32)(long)(bulkdata->d[i].os_data_ptr) & (CSR_WIFI_ALIGN_BYTES-1);
         if (align_offset)
         {
             skb = (struct sk_buff*)bulkdata->d[i].os_net_buf_ptr;

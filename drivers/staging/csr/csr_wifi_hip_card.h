@@ -99,11 +99,11 @@ u16 CardAreAllFromHostDataSlotsEmpty(card_t *card);
 
 CsrResult card_start_processor(card_t *card, enum unifi_dbg_processors_select which);
 
-CsrResult card_wait_for_firmware_to_start(card_t *card, CsrUint32 *paddr);
+CsrResult card_wait_for_firmware_to_start(card_t *card, u32 *paddr);
 
 CsrResult unifi_dl_firmware(card_t *card, void *arg);
-CsrResult unifi_dl_patch(card_t *card, void *arg, CsrUint32 boot_ctrl);
-CsrResult unifi_do_loader_op(card_t *card, CsrUint32 op_addr, u8 opcode);
+CsrResult unifi_dl_patch(card_t *card, void *arg, u32 boot_ctrl);
+CsrResult unifi_do_loader_op(card_t *card, u32 op_addr, u8 opcode);
 void* unifi_dl_fw_read_start(card_t *card, s8 is_fw);
 
 CsrResult unifi_coredump_handle_request(card_t *card);

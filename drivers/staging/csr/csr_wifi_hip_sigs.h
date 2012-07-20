@@ -61,9 +61,9 @@ typedef u16 CSR_CAPABILITY_INFORMATION;
 
 typedef u16 CSR_CHANNEL_STARTING_FACTOR;
 
-typedef CsrUint32 CSR_CIPHER_SUITE_SELECTOR;
+typedef u32 CSR_CIPHER_SUITE_SELECTOR;
 
-typedef CsrUint32 CSR_CLIENT_TAG;
+typedef u32 CSR_CLIENT_TAG;
 
 typedef enum CSR_CONNECTION_STATUS
 {
@@ -89,7 +89,7 @@ typedef enum CSR_FRAME_TYPE
     CSR_PROBE_REQUEST                             = 0x0004
 } CSR_FRAME_TYPE;
 
-typedef CsrUint32 CSR_IPV4_ADDRESS;
+typedef u32 CSR_IPV4_ADDRESS;
 
 typedef enum CSR_IFINTERFACE
 {
@@ -144,7 +144,7 @@ typedef enum CSR_MEMORY_SPACE
 
 typedef u16 CSR_MICROSECONDS16;
 
-typedef CsrUint32 CSR_MICROSECONDS32;
+typedef u32 CSR_MICROSECONDS32;
 
 typedef u16 CSR_NATURAL16;
 
@@ -1416,7 +1416,7 @@ typedef struct CSR_SIGNAL_PRIMITIVE
 
 #define SIG_FILTER_SIZE 6
 
-CsrUint32 SigGetFilterPos(u16 aSigID);
+u32 SigGetFilterPos(u16 aSigID);
 
 #ifdef __cplusplus
 }

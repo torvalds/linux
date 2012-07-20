@@ -25,7 +25,7 @@
 #undef CSR_WIFI_IGNORE_PATCH_VERSION_MISMATCH
 
 static CsrResult do_patch_download(card_t *card, void *dlpriv,
-                                   xbv1_t *pfwinfo, CsrUint32 boot_ctrl_addr);
+                                   xbv1_t *pfwinfo, u32 boot_ctrl_addr);
 
 static CsrResult do_patch_convert_download(card_t *card,
                                            void *dlpriv, xbv1_t *pfwinfo);
@@ -49,9 +49,9 @@ static CsrResult do_patch_convert_download(card_t *card,
  *      CSR_WIFI_HIP_RESULT_NOT_FOUND if not found
  * ---------------------------------------------------------------------------
  */
-static CsrResult _find_in_slut(card_t *card, symbol_t *psym, CsrUint32 *pslut)
+static CsrResult _find_in_slut(card_t *card, symbol_t *psym, u32 *pslut)
 {
-    CsrUint32 slut_address;
+    u32 slut_address;
     u16 finger_print;
     CsrResult r;
     CsrResult csrResult;
@@ -122,7 +122,7 @@ static CsrResult _find_in_slut(card_t *card, symbol_t *psym, CsrUint32 *pslut)
     while (1)
     {
         u16 id;
-        CsrUint32 obj;
+        u32 obj;
 
         r = unifi_card_read16(card, slut_address, &id);
         if (r != CSR_RESULT_SUCCESS)
@@ -186,9 +186,9 @@ static CsrResult _find_in_slut(card_t *card, symbol_t *psym, CsrUint32 *pslut)
 static CsrResult do_patch_convert_download(card_t *card, void *dlpriv, xbv1_t *pfwinfo)
 {
     CsrResult r;
-    CsrUint32 slut_base = 0xffffffff;
+    u32 slut_base = 0xffffffff;
     void *pfw;
-    CsrUint32 psize;
+    u32 psize;
     symbol_t sym;
 
     /* Reset the chip to guarantee that the ROM loader is running */
@@ -203,7 +203,7 @@ static CsrResult do_patch_convert_download(card_t *card, void *dlpriv, xbv1_t *p
     /* If no unifi_helper is running, the firmware version must be read */
     if (card->build_id == 0)
     {
-        CsrUint32 ver = 0;
+        u32 ver = 0;
         sym.id = CSR_SLT_BUILD_ID_NUMBER;
         sym.obj = 0; /* To be updated by _find_in_slut() */
 
@@ -399,7 +399,7 @@ CsrResult unifi_dl_firmware(card_t *card, void *dlpriv)
  *      This ends up telling UniFi to restart.
  * ---------------------------------------------------------------------------
  */
-CsrResult unifi_dl_patch(card_t *card, void *dlpriv, CsrUint32 boot_ctrl)
+CsrResult unifi_dl_patch(card_t *card, void *dlpriv, u32 boot_ctrl)
 {
     xbv1_t *fwinfo;
     CsrResult r;
@@ -497,7 +497,7 @@ void* unifi_dl_fw_read_start(card_t *card, s8 is_fw)
  *      CSR_RESULT_SUCCESS on success, CSR error code on failure
  * ---------------------------------------------------------------------------
  */
-static CsrResult safe_read_shared_location(card_t *card, CsrUint32 address, u8 *pdata)
+static CsrResult safe_read_shared_location(card_t *card, u32 address, u8 *pdata)
 {
     CsrResult r;
     u16 limit = 1000;
@@ -559,7 +559,7 @@ static CsrResult safe_read_shared_location(card_t *card, CsrUint32 address, u8 *
 #define OPERATION_TIMEOUT_LOOPS (100)  /* when OPERATION_TIMEOUT_DELAY==1, (500) otherwise */
 #define OPERATION_TIMEOUT_DELAY 1      /* msec, or 200usecs */
 
-CsrResult unifi_do_loader_op(card_t *card, CsrUint32 op_addr, u8 opcode)
+CsrResult unifi_do_loader_op(card_t *card, u32 op_addr, u8 opcode)
 {
     CsrResult r;
     s16 op_retries;
@@ -654,13 +654,13 @@ CsrResult unifi_do_loader_op(card_t *card, CsrUint32 op_addr, u8 opcode)
  * ---------------------------------------------------------------------------
  */
 static CsrResult send_ptdl_to_unifi(card_t *card, void *dlpriv,
-                                    const struct PTDL *ptdl, CsrUint32 handle,
-                                    CsrUint32 op_addr)
+                                    const struct PTDL *ptdl, u32 handle,
+                                    u32 op_addr)
 {
-    CsrUint32 offset;
+    u32 offset;
     u8 *buf;
     CsrInt32 data_len;
-    CsrUint32 write_len;
+    u32 write_len;
     CsrResult r;
     const u16 buf_size = 2 * 1024;
 
@@ -753,13 +753,13 @@ static CsrResult send_ptdl_to_unifi(card_t *card, void *dlpriv,
  *      CSR_WIFI_HIP_RESULT_INVALID_VALUE for a bad laoader version number
  * ---------------------------------------------------------------------------
  */
-static CsrResult do_patch_download(card_t *card, void *dlpriv, xbv1_t *pfwinfo, CsrUint32 boot_ctrl_addr)
+static CsrResult do_patch_download(card_t *card, void *dlpriv, xbv1_t *pfwinfo, u32 boot_ctrl_addr)
 {
     CsrResult r;
     CsrInt32 i;
     u16 loader_version;
     u16 handle;
-    CsrUint32 total_bytes;
+    u32 total_bytes;
 
     /*
      * Read info from the SDIO Loader Control Data Structure

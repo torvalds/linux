@@ -27,7 +27,7 @@ extern "C" {
 /*----------------------------------------------------*/
 /*  Filtering on environment specific log levels      */
 /*----------------------------------------------------*/
-typedef CsrUint32 CsrLogLevelEnvironment;
+typedef u32 CsrLogLevelEnvironment;
 #define CSR_LOG_LEVEL_ENVIRONMENT_OFF          ((CsrLogLevelEnvironment) 0x00000000) /* No environment data/events are logged */
 #define CSR_LOG_LEVEL_ENVIRONMENT_BCI_ACL      ((CsrLogLevelEnvironment) 0x00000001) /* BlueCore Channel Interface HCI Acl data are logged */
 #define CSR_LOG_LEVEL_ENVIRONMENT_BCI_HCI      ((CsrLogLevelEnvironment) 0x00000002) /* BlueCore Channel Interface HCI Cmd/Evt data are logged */
@@ -47,7 +47,7 @@ typedef CsrUint32 CsrLogLevelEnvironment;
 /*----------------------------------------------------*/
 /*  Filtering on task specific log levels             */
 /*----------------------------------------------------*/
-typedef CsrUint32 CsrLogLevelTask;
+typedef u32 CsrLogLevelTask;
 #define CSR_LOG_LEVEL_TASK_OFF                 ((CsrLogLevelTask) 0x00000000) /* No events are logged for this task */
 #define CSR_LOG_LEVEL_TASK_TEXT                ((CsrLogLevelTask) 0x00000001) /* Text strings printed by a task are logged NB: This bit does not affect the CSR_LOG_TEXT_LEVEL interface. This has to be configured separately */
 #define CSR_LOG_LEVEL_TASK_TEXT_LOC            ((CsrLogLevelTask) 0x00000002) /* The locaction where the text string call occured are logged. NB: This is a supplement to CSR_LOG_LEVEL_TASK_TEXT, it has no effect without it */
@@ -104,7 +104,7 @@ typedef struct
 typedef struct
 {
     const CsrCharString        *techVer;
-    CsrUint32                   primitiveInfoCount;
+    u32                   primitiveInfoCount;
     CsrLogPrimitiveInformation *primitiveInfo;
 } CsrLogTechInformation;
 
@@ -113,7 +113,7 @@ typedef struct
 /*---------------------------------*/
 typedef u8 bitmask8_t;
 typedef u16 bitmask16_t;
-typedef CsrUint32 bitmask32_t;
+typedef u32 bitmask32_t;
 
 #ifdef CSR_LOG_ENABLE
 #ifdef CSR_LOG_INCLUDE_FILE_NAME_AND_LINE_NUMBER
@@ -141,7 +141,7 @@ typedef CsrUint32 bitmask32_t;
 
 /* DEPRECATED - replaced by csr_log_text.h */
 void CsrLogTaskText(const CsrCharString *text,
-    CsrUint32 line,
+    u32 line,
     const CsrCharString *file);
 
 #define CSR_LOG_STATE_TRANSITION_MASK_FSM_NAME          (0x001)
@@ -154,15 +154,15 @@ void CsrLogTaskText(const CsrCharString *text,
 
 /* DEPRECATED - replaced by csr_log_text.h */
 void CsrLogStateTransition(bitmask16_t mask,
-    CsrUint32 identifier,
+    u32 identifier,
     const CsrCharString *fsm_name,
-    CsrUint32 prev_state,
+    u32 prev_state,
     const CsrCharString *prev_state_str,
-    CsrUint32 in_event,
+    u32 in_event,
     const CsrCharString *in_event_str,
-    CsrUint32 next_state,
+    u32 next_state,
     const CsrCharString *next_state_str,
-    CsrUint32 line,
+    u32 line,
     const CsrCharString *file);
 
 /*---------------------------------*/
@@ -183,7 +183,7 @@ void CsrLogDeactivate(CsrSchedQid tskid);
 #define SYNERGY_SERIALIZER_TYPE_DUMP    (0x000)
 #define SYNERGY_SERIALIZER_TYPE_SER     (0x001)
 
-void CsrLogMessagePut(CsrUint32 line,
+void CsrLogMessagePut(u32 line,
     const CsrCharString *file,
     CsrSchedQid src_task_id,
     CsrSchedQid dst_taskid,
@@ -198,7 +198,7 @@ void CsrLogMessageGet(CsrSchedQid src_task_id,
     u16 prim_type,
     const void *msg);
 
-void CsrLogTimedEventIn(CsrUint32 line,
+void CsrLogTimedEventIn(u32 line,
     const CsrCharString *file,
     CsrSchedQid task_id,
     CsrSchedTid tid,
@@ -212,7 +212,7 @@ void CsrLogTimedEventFire(CsrSchedQid task_id,
 void CsrLogTimedEventDone(CsrSchedQid task_id,
     CsrSchedTid tid);
 
-void CsrLogTimedEventCancel(CsrUint32 line,
+void CsrLogTimedEventCancel(u32 line,
     const CsrCharString *file,
     CsrSchedQid task_id,
     CsrSchedTid tid,
@@ -230,17 +230,17 @@ void CsrLogBgintServiceDone(CsrSchedBgint irq);
 void CsrLogExceptionStateEvent(u16 prim_type,
     CsrPrim msg_type,
     u16 state,
-    CsrUint32 line,
+    u32 line,
     const CsrCharString *file);
 void CsrLogExceptionGeneral(u16 prim_type,
     u16 state,
     const CsrCharString *text,
-    CsrUint32 line,
+    u32 line,
     const CsrCharString *file);
 void CsrLogExceptionWarning(u16 prim_type,
     u16 state,
     const CsrCharString *text,
-    CsrUint32 line,
+    u32 line,
     const CsrCharString *file);
 
 #ifdef __cplusplus

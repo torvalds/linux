@@ -49,7 +49,7 @@ struct CsrEvent
 {
     pthread_cond_t  event;
     pthread_mutex_t mutex;
-    CsrUint32       eventBits;
+    u32       eventBits;
 };
 
 typedef struct CsrEvent CsrEventHandle;

@@ -458,7 +458,7 @@ static int decode_parameter_from_string(unifi_priv_t* priv, char **str_ptr,
                                         void  *dst, int param_max_len)
 {
     u8 int_str[7] = "0";
-    CsrUint32 param_str_len;
+    u32 param_str_len;
     u8  *param_str_begin,*param_str_end;
     u8  *orig_str = *str_ptr;
 
@@ -480,7 +480,7 @@ static int decode_parameter_from_string(unifi_priv_t* priv, char **str_ptr,
         switch (param_type) {
             case PARAM_TYPE_INT:
             {
-                CsrUint32 *pdst_int = dst,num =0;
+                u32 *pdst_int = dst,num =0;
                 int i,j=0;
                 if (param_str_len > sizeof(int_str)) {
                     param_str_len = sizeof(int_str);

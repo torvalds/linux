@@ -28,14 +28,14 @@ extern "C" {
 
 typedef CsrPrim CsrWifiRouterCtrlPrim;
 
-typedef CsrResult (*CsrWifiRouterCtrlRawSdioByteWrite)(u8 func, CsrUint32 address, u8 data);
-typedef CsrResult (*CsrWifiRouterCtrlRawSdioByteRead)(u8 func, CsrUint32 address, u8 *pdata);
-typedef CsrResult (*CsrWifiRouterCtrlRawSdioFirmwareDownload)(CsrUint32 length, const u8 *pdata);
+typedef CsrResult (*CsrWifiRouterCtrlRawSdioByteWrite)(u8 func, u32 address, u8 data);
+typedef CsrResult (*CsrWifiRouterCtrlRawSdioByteRead)(u8 func, u32 address, u8 *pdata);
+typedef CsrResult (*CsrWifiRouterCtrlRawSdioFirmwareDownload)(u32 length, const u8 *pdata);
 typedef CsrResult (*CsrWifiRouterCtrlRawSdioReset)(void);
 typedef CsrResult (*CsrWifiRouterCtrlRawSdioCoreDumpPrepare)(CsrBool suspendSme);
-typedef CsrResult (*CsrWifiRouterCtrlRawSdioByteBlockRead)(u8 func, CsrUint32 address, u8 *pdata, CsrUint32 length);
-typedef CsrResult (*CsrWifiRouterCtrlRawSdioGpRead16)(u8 func, CsrUint32 address, u16 *pdata);
-typedef CsrResult (*CsrWifiRouterCtrlRawSdioGpWrite16)(u8 func, CsrUint32 address, u16 data);
+typedef CsrResult (*CsrWifiRouterCtrlRawSdioByteBlockRead)(u8 func, u32 address, u8 *pdata, u32 length);
+typedef CsrResult (*CsrWifiRouterCtrlRawSdioGpRead16)(u8 func, u32 address, u16 *pdata);
+typedef CsrResult (*CsrWifiRouterCtrlRawSdioGpWrite16)(u8 func, u32 address, u16 data);
 
 /*******************************************************************************
 
@@ -410,7 +410,7 @@ typedef u8 CsrWifiRouterCtrlTrafficType;
   DESCRIPTION
 
 *******************************************************************************/
-typedef CsrUint32 CsrWifiRouterCtrlPeerRecordHandle;
+typedef u32 CsrWifiRouterCtrlPeerRecordHandle;
 /*******************************************************************************
 
   NAME
@@ -467,9 +467,9 @@ typedef u8 CsrWifiRouterCtrlTrafficStreamId;
 *******************************************************************************/
 typedef struct
 {
-    CsrUint32      firmwarePatch;
+    u32      firmwarePatch;
     CsrCharString *smeBuild;
-    CsrUint32      smeHip;
+    u32      smeHip;
 } CsrWifiRouterCtrlSmeVersions;
 
 /*******************************************************************************
@@ -510,10 +510,10 @@ typedef struct
 *******************************************************************************/
 typedef struct
 {
-    CsrUint32 etherType;
+    u32 etherType;
     u8  ipType;
-    CsrUint32 udpSourcePort;
-    CsrUint32 udpDestPort;
+    u32 udpSourcePort;
+    u32 udpDestPort;
 } CsrWifiRouterCtrlTrafficFilter;
 
 /*******************************************************************************
@@ -534,11 +534,11 @@ typedef struct
 *******************************************************************************/
 typedef struct
 {
-    CsrUint32 rxMeanRate;
-    CsrUint32 rxFramesNum;
-    CsrUint32 txFramesNum;
-    CsrUint32 rxBytesCount;
-    CsrUint32 txBytesCount;
+    u32 rxMeanRate;
+    u32 rxFramesNum;
+    u32 txFramesNum;
+    u32 rxBytesCount;
+    u32 txBytesCount;
     u8  intervals[11];
 } CsrWifiRouterCtrlTrafficStats;
 
@@ -560,12 +560,12 @@ typedef struct
 *******************************************************************************/
 typedef struct
 {
-    CsrUint32      chipId;
-    CsrUint32      chipVersion;
-    CsrUint32      firmwareBuild;
-    CsrUint32      firmwareHip;
+    u32      chipId;
+    u32      chipVersion;
+    u32      firmwareBuild;
+    u32      firmwareHip;
     CsrCharString *routerBuild;
-    CsrUint32      routerHip;
+    u32      routerHip;
 } CsrWifiRouterCtrlVersions;
 
 /*******************************************************************************
@@ -1044,7 +1044,7 @@ typedef struct
 {
     CsrWifiFsmEvent                common;
     CsrWifiRouterCtrlRequestorInfo clientData;
-    CsrUint32                      dataLength;
+    u32                      dataLength;
     u8                      *data;
 } CsrWifiRouterCtrlWifiOnReq;
 

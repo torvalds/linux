@@ -17,7 +17,7 @@ extern "C" {
 #endif
 
 /* An identifier issued by the scheduler. */
-typedef CsrUint32 CsrSchedIdentifier;
+typedef u32 CsrSchedIdentifier;
 
 /* A task identifier */
 typedef u16 CsrSchedTaskId;
@@ -135,7 +135,7 @@ void CsrSchedBgintSet(CsrSchedBgint bgint);
 void CsrSchedMessagePutStringLog(CsrSchedQid q,
     u16 mi,
     void *mv,
-    CsrUint32 line,
+    u32 line,
     const CsrCharString *file);
 #define CsrSchedMessagePut(q, mi, mv) CsrSchedMessagePutStringLog((q), (mi), (mv), __LINE__, __FILE__)
 #else
@@ -167,7 +167,7 @@ void CsrSchedMessagePut(CsrSchedQid q,
 void CsrSchedMessageBroadcastStringLog(u16 mi,
     void *(*msg_build_func)(void *),
     void *msg_build_ptr,
-    CsrUint32 line,
+    u32 line,
     const CsrCharString *file);
 #define CsrSchedMessageBroadcast(mi, fn, ptr) CsrSchedMessageBroadcastStringLog((mi), (fn), (ptr), __LINE__, __FILE__)
 #else
@@ -222,7 +222,7 @@ CsrSchedTid CsrSchedTimerSetStringLog(CsrTime delay,
     void (*fn)(u16 mi, void *mv),
     u16 fniarg,
     void *fnvarg,
-    CsrUint32 line,
+    u32 line,
     const CsrCharString *file);
 #define CsrSchedTimerSet(d, fn, fni, fnv) CsrSchedTimerSetStringLog((d), (fn), (fni), (fnv), __LINE__, __FILE__)
 #else
@@ -248,7 +248,7 @@ CsrSchedTid CsrSchedTimerSet(CsrTime delay,
 CsrBool CsrSchedTimerCancelStringLog(CsrSchedTid eventid,
     u16 *pmi,
     void **pmv,
-    CsrUint32 line,
+    u32 line,
     const CsrCharString *file);
 #define CsrSchedTimerCancel(e, pmi, pmv) CsrSchedTimerCancelStringLog((e), (pmi), (pmv), __LINE__, __FILE__)
 #else

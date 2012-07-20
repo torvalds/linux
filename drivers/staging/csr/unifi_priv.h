@@ -322,7 +322,7 @@ typedef struct CsrWifiRouterCtrlStaInfo_t {
 
     /* Sme sends these parameters */
     CsrWifiMacAddress peerMacAddress;
-    CsrUint32 assignedHandle;
+    u32 assignedHandle;
     CsrBool wmmOrQosEnabled;
     CsrWifiAcPowersaveMode powersaveMode[MAX_ACCESS_CATOGORY];
     u16 maxSpLength;
@@ -648,10 +648,10 @@ struct unifi_priv {
 
 #endif
 
-    CsrUint32 rxTcpThroughput;
-    CsrUint32 txTcpThroughput;
-    CsrUint32 rxUdpThroughput;
-    CsrUint32 txUdpThroughput;
+    u32 rxTcpThroughput;
+    u32 txTcpThroughput;
+    u32 rxUdpThroughput;
+    u32 txUdpThroughput;
 
 #ifdef CSR_WIFI_SECURITY_WAPI_ENABLE
     /*Set if multicast KeyID = 1*/
@@ -749,7 +749,7 @@ typedef struct netInterface_priv
     u8 mc_list[UNIFI_MAX_MULTICAST_ADDRESSES*ETH_ALEN];
     /* The multicast addresses count that the thread needs to set. */
     int mc_list_count;
-    CsrUint32 tag;
+    u32 tag;
 #ifdef CSR_SUPPORT_SME
     /* (un)controlled port configuration */
     unifi_port_config_t controlled_data_port;
@@ -791,7 +791,7 @@ typedef struct netInterface_priv
     CSR_CLIENT_TAG m4_hostTag;
     CsrBool dtimActive;
     CsrBool intraBssEnabled;
-    CsrUint32 multicastPduHostTag; /* Used to set the tim after getting
+    u32 multicastPduHostTag; /* Used to set the tim after getting
        a confirm for it */
     CsrBool bcTimSet;
     CsrBool bcTimSetReqPendingFlag;
@@ -981,7 +981,7 @@ void uf_send_nulldata(unifi_priv_t * priv,u16 interfaceTag, const u8 *da,CSR_PRI
 
 #endif
 CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,  u8 *peerMacAddress, CSR_CLIENT_TAG hostTag, u16 interfaceTag, CSR_TRANSMISSION_CONTROL transmissionControl, CSR_RATE TransmitRate, CSR_PRIORITY priority, CSR_PROCESS_ID senderId, bulk_data_param_t *bulkdata);
-void uf_process_ma_vif_availibility_ind(unifi_priv_t *priv,u8 *sigdata, CsrUint32 siglen);
+void uf_process_ma_vif_availibility_ind(unifi_priv_t *priv,u8 *sigdata, u32 siglen);
 #ifdef CSR_SUPPORT_SME
 void uf_send_buffered_frames(unifi_priv_t *priv,unifi_TrafficQueue queue);
 int uf_process_station_records_for_sending_data(unifi_priv_t *priv,u16 interfaceTag,
@@ -1053,7 +1053,7 @@ unifi_frame_ma_packet_req(unifi_priv_t *priv, CSR_PRIORITY priority,
 /* handle is 6 bits to accomodate in senderId LSB (only 64 station can be associated) */
 #define CSR_WIFI_BROADCAST_OR_MULTICAST_HANDLE 0x3F
 
-void update_tim(unifi_priv_t * priv, u16 aid, u8 setTim, u16 interfaceTag, CsrUint32 handle);
+void update_tim(unifi_priv_t * priv, u16 aid, u8 setTim, u16 interfaceTag, u32 handle);
 void uf_handle_tim_cfm(unifi_priv_t *priv, CSR_MLME_SET_TIM_CONFIRM *cfm, u16 senderProcessId);
 
 /* Clear the Peer station Record, in case of wifioff/unexpected card removal */
@@ -1082,7 +1082,7 @@ CsrWifiRouterCtrlStaInfo_t *CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(
 
 /* Fetch the station record handler from data base for matching handle */
 CsrWifiRouterCtrlStaInfo_t * CsrWifiRouterCtrlGetStationRecordFromHandle(unifi_priv_t *priv,
-                                                                 CsrUint32 handle,
+                                                                 u32 handle,
                                                                  u16 interfaceTag);
 
 void uf_update_sta_activity(unifi_priv_t *priv, u16 interfaceTag, const u8 *peerMacAddress);

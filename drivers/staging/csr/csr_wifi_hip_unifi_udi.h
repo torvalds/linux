@@ -38,7 +38,7 @@ enum udi_log_direction
 };
 
 typedef void (*udi_func_t)(void *ospriv, u8 *sigdata,
-                           CsrUint32 signal_len,
+                           u32 signal_len,
                            const bulk_data_param_t *bulkdata,
                            enum udi_log_direction dir);
 

@@ -944,7 +944,7 @@ CsrInt32 SigGetDataRefs(CSR_SIGNAL *aSignal, CSR_DATAREF **aDataRef)
 }
 
 
-CsrUint32 SigGetFilterPos(u16 aSigID)
+u32 SigGetFilterPos(u16 aSigID)
 {
     switch (aSigID)
     {

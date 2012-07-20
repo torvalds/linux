@@ -140,7 +140,7 @@ unifi_fw_read_stop(void *ospriv, void *dlpriv)
  * ---------------------------------------------------------------------------
  */
 void *
-unifi_fw_open_buffer(void *ospriv, void *fwbuf, CsrUint32 len)
+unifi_fw_open_buffer(void *ospriv, void *fwbuf, u32 len)
 {
     unifi_priv_t *priv = (unifi_priv_t*)ospriv;
     func_enter();
@@ -197,7 +197,7 @@ void unifi_fw_close_buffer(void *ospriv, void *fwbuf)
  * ---------------------------------------------------------------------------
  */
 CsrInt32
-unifi_fw_read(void *ospriv, void *arg, CsrUint32 offset, void *buf, CsrUint32 len)
+unifi_fw_read(void *ospriv, void *arg, u32 offset, void *buf, u32 len)
 {
     const struct dlpriv *dlpriv = arg;
 

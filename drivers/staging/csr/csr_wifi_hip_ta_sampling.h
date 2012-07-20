@@ -29,10 +29,10 @@ extern "C" {
 
 typedef struct ta_l4stats
 {
-    CsrUint32 rxTcpBytesCount;
-    CsrUint32 txTcpBytesCount;
-    CsrUint32 rxUdpBytesCount;
-    CsrUint32 txUdpBytesCount;
+    u32 rxTcpBytesCount;
+    u32 txTcpBytesCount;
+    u32 rxUdpBytesCount;
+    u32 txUdpBytesCount;
 } ta_l4stats_t;
 
 /*
@@ -48,10 +48,10 @@ typedef struct ta_data
     CsrWifiRouterCtrlTrafficFilter custom_filter;
 
     /* The timestamp of the last tx packet processed. */
-    CsrUint32 tx_last_ts;
+    u32 tx_last_ts;
 
     /* The timestamp of the last packet processed. */
-    CsrUint32 last_indication_time;
+    u32 last_indication_time;
 
     /* Statistics */
     CsrWifiRouterCtrlTrafficStats stats;
@@ -60,7 +60,7 @@ typedef struct ta_data
     CsrWifiRouterCtrlTrafficType traffic_type;
 
     /* Sum of packet rx rates for this interval used to calculate mean */
-    CsrUint32    rx_sum_rate;
+    u32    rx_sum_rate;
     ta_l4stats_t ta_l4stats;
 } ta_data_t;
 

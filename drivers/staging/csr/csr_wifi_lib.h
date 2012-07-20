@@ -76,7 +76,7 @@ CsrWifiEventCsrUint16* CsrWifiEventCsrUint16_struct(u16 primtype, u16 msgtype, C
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint32       value;
+    u32       value;
 } CsrWifiEventCsrUint32;
 
 /*----------------------------------------------------------------------------*
@@ -87,7 +87,7 @@ typedef struct
  *      Allocates and fills in a message with the signature CsrWifiEventCsrUint32
  *
  *----------------------------------------------------------------------------*/
-CsrWifiEventCsrUint32* CsrWifiEventCsrUint32_struct(u16 primtype, u16 msgtype, CsrSchedQid dst, CsrSchedQid src, CsrUint32 value);
+CsrWifiEventCsrUint32* CsrWifiEventCsrUint32_struct(u16 primtype, u16 msgtype, CsrSchedQid dst, CsrSchedQid src, u32 value);
 
 typedef struct
 {

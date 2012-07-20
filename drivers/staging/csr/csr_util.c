@@ -21,7 +21,7 @@
 /*------------------------------------------------------------------*/
 
 /* Time proportional with the number of 1's */
-u8 CsrBitCountSparse(CsrUint32 n)
+u8 CsrBitCountSparse(u32 n)
 {
     u8 count = 0;
 
@@ -35,11 +35,11 @@ u8 CsrBitCountSparse(CsrUint32 n)
 }
 
 /* Time proportional with the number of 0's */
-u8 CsrBitCountDense(CsrUint32 n)
+u8 CsrBitCountDense(u32 n)
 {
-    u8 count = 8 * sizeof(CsrUint32);
+    u8 count = 8 * sizeof(u32);
 
-    n ^= (CsrUint32) (-1);
+    n ^= (u32) (-1);
 
     while (n)
     {
@@ -101,7 +101,7 @@ CsrBool CsrHexStrToUint16(const CsrCharString *string, u16 *returnValue)
     return FALSE;
 }
 
-CsrBool CsrHexStrToUint32(const CsrCharString *string, CsrUint32 *returnValue)
+CsrBool CsrHexStrToUint32(const CsrCharString *string, u32 *returnValue)
 {
     u16 currentIndex = 0;
     *returnValue = 0;
@@ -125,7 +125,7 @@ CsrBool CsrHexStrToUint32(const CsrCharString *string, CsrUint32 *returnValue)
     return FALSE;
 }
 
-CsrUint32 CsrPow(CsrUint32 base, CsrUint32 exponent)
+u32 CsrPow(u32 base, u32 exponent)
 {
     if (exponent == 0)
     {
@@ -133,7 +133,7 @@ CsrUint32 CsrPow(CsrUint32 base, CsrUint32 exponent)
     }
     else
     {
-        CsrUint32 i, t = base;
+        u32 i, t = base;
 
         for (i = 1; i < exponent; i++)
         {
@@ -204,14 +204,14 @@ void CsrUInt16ToHex(u16 number, CsrCharString *str)
     str[4] = '\0';
 }
 
-void CsrUInt32ToHex(CsrUint32 number, CsrCharString *str)
+void CsrUInt32ToHex(u32 number, CsrCharString *str)
 {
     u16 index;
-    CsrUint32 currentValue;
+    u32 currentValue;
 
     for (index = 0; index < 8; index++)
     {
-        currentValue = (CsrUint32) (number & 0x0000000F);
+        currentValue = (u32) (number & 0x0000000F);
         number >>= 4;
         str[7 - index] = (char) (currentValue > 9 ? currentValue + 55 : currentValue + '0');
     }
@@ -324,11 +324,11 @@ CsrCharString *CsrStrNCpyZero(CsrCharString *dest,
 }
 
 /* Convert string with base 10 to integer */
-CsrUint32 CsrStrToInt(const CsrCharString *str)
+u32 CsrStrToInt(const CsrCharString *str)
 {
     s16 i;
-    CsrUint32 res;
-    CsrUint32 digit;
+    u32 res;
+    u32 digit;
 
     res = 0;
     digit = 1;
@@ -350,7 +350,7 @@ CsrUint32 CsrStrToInt(const CsrCharString *str)
 CsrCharString *CsrStrDup(const CsrCharString *string)
 {
     CsrCharString *copy;
-    CsrUint32 len;
+    u32 len;
 
     copy = NULL;
     if (string != NULL)
@@ -366,7 +366,7 @@ int CsrStrNICmp(const CsrCharString *string1,
     const CsrCharString *string2,
     CsrSize count)
 {
-    CsrUint32 index;
+    u32 index;
     int returnValue = 0;
 
     for (index = 0; index < count; index++)

@@ -31,7 +31,7 @@ void CsrUint16Des(u16 *value, u8 *buffer, CsrSize *offset)
 }
 EXPORT_SYMBOL_GPL(CsrUint16Des);
 
-void CsrUint32Des(CsrUint32 *value, u8 *buffer, CsrSize *offset)
+void CsrUint32Des(u32 *value, u8 *buffer, CsrSize *offset)
 {
     *value = (buffer[*offset + 0] << 0) |
              (buffer[*offset + 1] << 8) |
@@ -63,7 +63,7 @@ void CsrUtf8StringDes(CsrUtf8String **value, u8 *buffer, CsrSize *offset)
 
 void CsrUtf16StringDes(CsrUtf16String **value, u8 *buffer, CsrSize *offset)
 {
-    CsrUint32 length, i;
+    u32 length, i;
 
     CsrUint32Des(&length, buffer, offset);
 
@@ -103,7 +103,7 @@ void CsrUint16Ser(u8 *buffer, CsrSize *offset, u16 value)
 }
 EXPORT_SYMBOL_GPL(CsrUint16Ser);
 
-void CsrUint32Ser(u8 *buffer, CsrSize *offset, CsrUint32 value)
+void CsrUint32Ser(u8 *buffer, CsrSize *offset, u32 value)
 {
     buffer[*offset + 0] = (u8) ((value >> 0) & 0xFF);
     buffer[*offset + 1] = (u8) ((value >> 8) & 0xFF);
@@ -143,8 +143,8 @@ void CsrUtf16StringSer(u8 *buffer, CsrSize *offset, const CsrUtf16String *value)
 {
     if (value)
     {
-        CsrUint32 length = CsrUtf16StrLen(value) + 1;
-        CsrUint32 i;
+        u32 length = CsrUtf16StrLen(value) + 1;
+        u32 i;
 
         CsrUint32Ser(buffer, offset, length);
 
@@ -173,11 +173,11 @@ void CsrVoidPtrSer(u8 *buffer, CsrSize *offset, void *ptr)
     CsrSizeSer(buffer, offset, (CsrSize) ptr);
 }
 
-CsrUint32 CsrCharStringSerLen(const CsrCharString *str)
+u32 CsrCharStringSerLen(const CsrCharString *str)
 {
     if (str)
     {
-        return (CsrUint32) (CsrStrLen(str) + sizeof(*str));
+        return (u32) (CsrStrLen(str) + sizeof(*str));
     }
     else
     {
@@ -185,11 +185,11 @@ CsrUint32 CsrCharStringSerLen(const CsrCharString *str)
     }
 }
 
-CsrUint32 CsrUtf8StringSerLen(const CsrUtf8String *str)
+u32 CsrUtf8StringSerLen(const CsrUtf8String *str)
 {
     if (str)
     {
-        return (CsrUint32) (CsrStrLen((CsrCharString *) str) + sizeof(*str));
+        return (u32) (CsrStrLen((CsrCharString *) str) + sizeof(*str));
     }
     else
     {
@@ -197,16 +197,16 @@ CsrUint32 CsrUtf8StringSerLen(const CsrUtf8String *str)
     }
 }
 
-CsrUint32 CsrUtf16StringSerLen(const CsrUtf16String *str)
+u32 CsrUtf16StringSerLen(const CsrUtf16String *str)
 {
     if (str)
     {
         /* We always write down the length of the string */
-        return sizeof(CsrUint32) + (CsrUtf16StrLen(str) + 1) * sizeof(*str);
+        return sizeof(u32) + (CsrUtf16StrLen(str) + 1) * sizeof(*str);
     }
     else
     {
-        return sizeof(CsrUint32);
+        return sizeof(u32);
     }
 }
 

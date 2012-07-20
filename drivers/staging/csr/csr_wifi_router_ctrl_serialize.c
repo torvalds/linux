@@ -611,10 +611,10 @@ CsrSize CsrWifiRouterCtrlTrafficConfigReqSizeof(void *msg)
     bufferSize += 2; /* CsrWifiRouterCtrlRequestorInfo primitive->clientData */
     bufferSize += 2; /* CsrWifiRouterCtrlTrafficConfigType primitive->trafficConfigType */
     bufferSize += 2; /* u16 primitive->config.packetFilter */
-    bufferSize += 4; /* CsrUint32 primitive->config.customFilter.etherType */
+    bufferSize += 4; /* u32 primitive->config.customFilter.etherType */
     bufferSize += 1; /* u8 primitive->config.customFilter.ipType */
-    bufferSize += 4; /* CsrUint32 primitive->config.customFilter.udpSourcePort */
-    bufferSize += 4; /* CsrUint32 primitive->config.customFilter.udpDestPort */
+    bufferSize += 4; /* u32 primitive->config.customFilter.udpSourcePort */
+    bufferSize += 4; /* u32 primitive->config.customFilter.udpDestPort */
     return bufferSize;
 }
 
@@ -628,10 +628,10 @@ u8* CsrWifiRouterCtrlTrafficConfigReqSer(u8 *ptr, CsrSize *len, void *msg)
     CsrUint16Ser(ptr, len, (u16) primitive->clientData);
     CsrUint16Ser(ptr, len, (u16) primitive->trafficConfigType);
     CsrUint16Ser(ptr, len, (u16) primitive->config.packetFilter);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->config.customFilter.etherType);
+    CsrUint32Ser(ptr, len, (u32) primitive->config.customFilter.etherType);
     CsrUint8Ser(ptr, len, (u8) primitive->config.customFilter.ipType);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->config.customFilter.udpSourcePort);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->config.customFilter.udpDestPort);
+    CsrUint32Ser(ptr, len, (u32) primitive->config.customFilter.udpSourcePort);
+    CsrUint32Ser(ptr, len, (u32) primitive->config.customFilter.udpDestPort);
     return(ptr);
 }
 
@@ -647,10 +647,10 @@ void* CsrWifiRouterCtrlTrafficConfigReqDes(u8 *buffer, CsrSize length)
     CsrUint16Des((u16 *) &primitive->clientData, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->trafficConfigType, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->config.packetFilter, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->config.customFilter.etherType, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->config.customFilter.etherType, buffer, &offset);
     CsrUint8Des((u8 *) &primitive->config.customFilter.ipType, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->config.customFilter.udpSourcePort, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->config.customFilter.udpDestPort, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->config.customFilter.udpSourcePort, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->config.customFilter.udpDestPort, buffer, &offset);
 
     return primitive;
 }
@@ -663,7 +663,7 @@ CsrSize CsrWifiRouterCtrlWifiOnReqSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 10) */
     bufferSize += 2;                     /* CsrWifiRouterCtrlRequestorInfo primitive->clientData */
-    bufferSize += 4;                     /* CsrUint32 primitive->dataLength */
+    bufferSize += 4;                     /* u32 primitive->dataLength */
     bufferSize += primitive->dataLength; /* u8 primitive->data */
     return bufferSize;
 }
@@ -675,7 +675,7 @@ u8* CsrWifiRouterCtrlWifiOnReqSer(u8 *ptr, CsrSize *len, void *msg)
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (u16) primitive->clientData);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->dataLength);
+    CsrUint32Ser(ptr, len, (u32) primitive->dataLength);
     if (primitive->dataLength)
     {
         CsrMemCpySer(ptr, len, (const void *) primitive->data, ((u16) (primitive->dataLength)));
@@ -692,7 +692,7 @@ void* CsrWifiRouterCtrlWifiOnReqDes(u8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->clientData, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->dataLength, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->dataLength, buffer, &offset);
     if (primitive->dataLength)
     {
         primitive->data = (u8 *)CsrPmemAlloc(primitive->dataLength);
@@ -731,9 +731,9 @@ CsrSize CsrWifiRouterCtrlWifiOnResSizeof(void *msg)
             bufferSize += 6;                                                                            /* u8 primitive->stationMacAddress[i1].a[6] */
         }
     }
-    bufferSize += 4;                                                                                    /* CsrUint32 primitive->smeVersions.firmwarePatch */
+    bufferSize += 4;                                                                                    /* u32 primitive->smeVersions.firmwarePatch */
     bufferSize += (primitive->smeVersions.smeBuild?CsrStrLen(primitive->smeVersions.smeBuild) : 0) + 1; /* CsrCharString* primitive->smeVersions.smeBuild (0 byte len + 1 for NULL Term) */
-    bufferSize += 4;                                                                                    /* CsrUint32 primitive->smeVersions.smeHip */
+    bufferSize += 4;                                                                                    /* u32 primitive->smeVersions.smeHip */
     bufferSize += 1;                                                                                    /* CsrBool primitive->scheduledInterrupt */
     return bufferSize;
 }
@@ -754,9 +754,9 @@ u8* CsrWifiRouterCtrlWifiOnResSer(u8 *ptr, CsrSize *len, void *msg)
             CsrMemCpySer(ptr, len, (const void *) primitive->stationMacAddress[i1].a, ((u16) (6)));
         }
     }
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->smeVersions.firmwarePatch);
+    CsrUint32Ser(ptr, len, (u32) primitive->smeVersions.firmwarePatch);
     CsrCharStringSer(ptr, len, primitive->smeVersions.smeBuild);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->smeVersions.smeHip);
+    CsrUint32Ser(ptr, len, (u32) primitive->smeVersions.smeHip);
     CsrUint8Ser(ptr, len, (u8) primitive->scheduledInterrupt);
     return(ptr);
 }
@@ -779,9 +779,9 @@ void* CsrWifiRouterCtrlWifiOnResDes(u8 *buffer, CsrSize length)
             CsrMemCpyDes(primitive->stationMacAddress[i1].a, buffer, &offset, ((u16) (6)));
         }
     }
-    CsrUint32Des((CsrUint32 *) &primitive->smeVersions.firmwarePatch, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->smeVersions.firmwarePatch, buffer, &offset);
     CsrCharStringDes(&primitive->smeVersions.smeBuild, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->smeVersions.smeHip, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->smeVersions.smeHip, buffer, &offset);
     CsrUint8Des((u8 *) &primitive->scheduledInterrupt, buffer, &offset);
 
     return primitive;
@@ -953,7 +953,7 @@ u8* CsrWifiRouterCtrlPeerDelReqSer(u8 *ptr, CsrSize *len, void *msg)
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (u16) primitive->interfaceTag);
     CsrUint16Ser(ptr, len, (u16) primitive->clientData);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->peerRecordHandle);
+    CsrUint32Ser(ptr, len, (u32) primitive->peerRecordHandle);
     return(ptr);
 }
 
@@ -967,7 +967,7 @@ void* CsrWifiRouterCtrlPeerDelReqDes(u8 *buffer, CsrSize length)
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->interfaceTag, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->clientData, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->peerRecordHandle, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->peerRecordHandle, buffer, &offset);
 
     return primitive;
 }
@@ -993,7 +993,7 @@ u8* CsrWifiRouterCtrlPeerUpdateReqSer(u8 *ptr, CsrSize *len, void *msg)
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (u16) primitive->interfaceTag);
     CsrUint16Ser(ptr, len, (u16) primitive->clientData);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->peerRecordHandle);
+    CsrUint32Ser(ptr, len, (u32) primitive->peerRecordHandle);
     CsrUint16Ser(ptr, len, (u16) primitive->powersaveMode);
     return(ptr);
 }
@@ -1008,7 +1008,7 @@ void* CsrWifiRouterCtrlPeerUpdateReqDes(u8 *buffer, CsrSize length)
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->interfaceTag, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->clientData, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->peerRecordHandle, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->peerRecordHandle, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->powersaveMode, buffer, &offset);
 
     return primitive;
@@ -1734,11 +1734,11 @@ CsrSize CsrWifiRouterCtrlTrafficSampleIndSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 38) */
     bufferSize += 2;  /* CsrWifiRouterCtrlRequestorInfo primitive->clientData */
     bufferSize += 2;  /* u16 primitive->interfaceTag */
-    bufferSize += 4;  /* CsrUint32 primitive->stats.rxMeanRate */
-    bufferSize += 4;  /* CsrUint32 primitive->stats.rxFramesNum */
-    bufferSize += 4;  /* CsrUint32 primitive->stats.txFramesNum */
-    bufferSize += 4;  /* CsrUint32 primitive->stats.rxBytesCount */
-    bufferSize += 4;  /* CsrUint32 primitive->stats.txBytesCount */
+    bufferSize += 4;  /* u32 primitive->stats.rxMeanRate */
+    bufferSize += 4;  /* u32 primitive->stats.rxFramesNum */
+    bufferSize += 4;  /* u32 primitive->stats.txFramesNum */
+    bufferSize += 4;  /* u32 primitive->stats.rxBytesCount */
+    bufferSize += 4;  /* u32 primitive->stats.txBytesCount */
     bufferSize += 11; /* u8 primitive->stats.intervals[11] */
     return bufferSize;
 }
@@ -1751,11 +1751,11 @@ u8* CsrWifiRouterCtrlTrafficSampleIndSer(u8 *ptr, CsrSize *len, void *msg)
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (u16) primitive->clientData);
     CsrUint16Ser(ptr, len, (u16) primitive->interfaceTag);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->stats.rxMeanRate);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->stats.rxFramesNum);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->stats.txFramesNum);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->stats.rxBytesCount);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->stats.txBytesCount);
+    CsrUint32Ser(ptr, len, (u32) primitive->stats.rxMeanRate);
+    CsrUint32Ser(ptr, len, (u32) primitive->stats.rxFramesNum);
+    CsrUint32Ser(ptr, len, (u32) primitive->stats.txFramesNum);
+    CsrUint32Ser(ptr, len, (u32) primitive->stats.rxBytesCount);
+    CsrUint32Ser(ptr, len, (u32) primitive->stats.txBytesCount);
     CsrMemCpySer(ptr, len, (const void *) primitive->stats.intervals, ((u16) (11)));
     return(ptr);
 }
@@ -1770,11 +1770,11 @@ void* CsrWifiRouterCtrlTrafficSampleIndDes(u8 *buffer, CsrSize length)
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->clientData, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->stats.rxMeanRate, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->stats.rxFramesNum, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->stats.txFramesNum, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->stats.rxBytesCount, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->stats.txBytesCount, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->stats.rxMeanRate, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->stats.rxFramesNum, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->stats.txFramesNum, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->stats.rxBytesCount, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->stats.txBytesCount, buffer, &offset);
     CsrMemCpyDes(primitive->stats.intervals, buffer, &offset, ((u16) (11)));
 
     return primitive;
@@ -1789,12 +1789,12 @@ CsrSize CsrWifiRouterCtrlWifiOnIndSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 27) */
     bufferSize += 2;                                                                                    /* CsrWifiRouterCtrlRequestorInfo primitive->clientData */
     bufferSize += 2;                                                                                    /* CsrResult primitive->status */
-    bufferSize += 4;                                                                                    /* CsrUint32 primitive->versions.chipId */
-    bufferSize += 4;                                                                                    /* CsrUint32 primitive->versions.chipVersion */
-    bufferSize += 4;                                                                                    /* CsrUint32 primitive->versions.firmwareBuild */
-    bufferSize += 4;                                                                                    /* CsrUint32 primitive->versions.firmwareHip */
+    bufferSize += 4;                                                                                    /* u32 primitive->versions.chipId */
+    bufferSize += 4;                                                                                    /* u32 primitive->versions.chipVersion */
+    bufferSize += 4;                                                                                    /* u32 primitive->versions.firmwareBuild */
+    bufferSize += 4;                                                                                    /* u32 primitive->versions.firmwareHip */
     bufferSize += (primitive->versions.routerBuild?CsrStrLen(primitive->versions.routerBuild) : 0) + 1; /* CsrCharString* primitive->versions.routerBuild (0 byte len + 1 for NULL Term) */
-    bufferSize += 4;                                                                                    /* CsrUint32 primitive->versions.routerHip */
+    bufferSize += 4;                                                                                    /* u32 primitive->versions.routerHip */
     return bufferSize;
 }
 
@@ -1806,12 +1806,12 @@ u8* CsrWifiRouterCtrlWifiOnIndSer(u8 *ptr, CsrSize *len, void *msg)
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (u16) primitive->clientData);
     CsrUint16Ser(ptr, len, (u16) primitive->status);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->versions.chipId);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->versions.chipVersion);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->versions.firmwareBuild);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->versions.firmwareHip);
+    CsrUint32Ser(ptr, len, (u32) primitive->versions.chipId);
+    CsrUint32Ser(ptr, len, (u32) primitive->versions.chipVersion);
+    CsrUint32Ser(ptr, len, (u32) primitive->versions.firmwareBuild);
+    CsrUint32Ser(ptr, len, (u32) primitive->versions.firmwareHip);
     CsrCharStringSer(ptr, len, primitive->versions.routerBuild);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->versions.routerHip);
+    CsrUint32Ser(ptr, len, (u32) primitive->versions.routerHip);
     return(ptr);
 }
 
@@ -1825,12 +1825,12 @@ void* CsrWifiRouterCtrlWifiOnIndDes(u8 *buffer, CsrSize length)
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->clientData, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->status, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->versions.chipId, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->versions.chipVersion, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->versions.firmwareBuild, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->versions.firmwareHip, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->versions.chipId, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->versions.chipVersion, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->versions.firmwareBuild, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->versions.firmwareHip, buffer, &offset);
     CsrCharStringDes(&primitive->versions.routerBuild, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->versions.routerHip, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->versions.routerHip, buffer, &offset);
 
     return primitive;
 }
@@ -2067,7 +2067,7 @@ u8* CsrWifiRouterCtrlPeerAddCfmSer(u8 *ptr, CsrSize *len, void *msg)
     CsrUint16Ser(ptr, len, (u16) primitive->clientData);
     CsrUint16Ser(ptr, len, (u16) primitive->interfaceTag);
     CsrMemCpySer(ptr, len, (const void *) primitive->peerMacAddress.a, ((u16) (6)));
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->peerRecordHandle);
+    CsrUint32Ser(ptr, len, (u32) primitive->peerRecordHandle);
     CsrUint16Ser(ptr, len, (u16) primitive->status);
     return(ptr);
 }
@@ -2083,7 +2083,7 @@ void* CsrWifiRouterCtrlPeerAddCfmDes(u8 *buffer, CsrSize length)
     CsrUint16Des((u16 *) &primitive->clientData, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->interfaceTag, buffer, &offset);
     CsrMemCpyDes(primitive->peerMacAddress.a, buffer, &offset, ((u16) (6)));
-    CsrUint32Des((CsrUint32 *) &primitive->peerRecordHandle, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->peerRecordHandle, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->status, buffer, &offset);
 
     return primitive;

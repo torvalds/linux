@@ -3619,9 +3619,9 @@ static struct notifier_block uf_netdev_notifier = {
 static void
         process_amsdu(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_data_param_t *bulkdata)
 {
-    CsrUint32 offset;
-    CsrUint32 length = bulkdata->d[0].data_length;
-    CsrUint32 subframe_length, subframe_body_length, dot11_hdr_size;
+    u32 offset;
+    u32 length = bulkdata->d[0].data_length;
+    u32 subframe_length, subframe_body_length, dot11_hdr_size;
     u8 *ptr;
     bulk_data_param_t subframe_bulkdata;
     u8 *dot11_hdr_ptr = (u8*)bulkdata->d[0].os_data_ptr;

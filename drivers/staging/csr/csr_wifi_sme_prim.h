@@ -829,7 +829,7 @@ typedef u16 CsrWifiSmeIEEE80211Result;
                    - Used to register for all available indications
 
 *******************************************************************************/
-typedef CsrUint32 CsrWifiSmeIndications;
+typedef u32 CsrWifiSmeIndications;
 #define CSR_WIFI_SME_INDICATIONS_NONE                  ((CsrWifiSmeIndications) 0x00000000)
 #define CSR_WIFI_SME_INDICATIONS_WIFIOFF               ((CsrWifiSmeIndications) 0x00000001)
 #define CSR_WIFI_SME_INDICATIONS_SCANRESULT            ((CsrWifiSmeIndications) 0x00000002)
@@ -1862,7 +1862,7 @@ typedef u16 CsrWifiSmeEncryptionMask;
     Mask type for use with the values defined by CsrWifiSmeIndications
 
 *******************************************************************************/
-typedef CsrUint32 CsrWifiSmeIndicationsMask;
+typedef u32 CsrWifiSmeIndicationsMask;
 /*******************************************************************************
 
   NAME
@@ -2127,29 +2127,29 @@ typedef struct
 {
     u8  unifiTxDataRate;
     u8  unifiRxDataRate;
-    CsrUint32 dot11RetryCount;
-    CsrUint32 dot11MultipleRetryCount;
-    CsrUint32 dot11AckFailureCount;
-    CsrUint32 dot11FrameDuplicateCount;
-    CsrUint32 dot11FcsErrorCount;
-    CsrUint32 dot11RtsSuccessCount;
-    CsrUint32 dot11RtsFailureCount;
-    CsrUint32 dot11FailedCount;
-    CsrUint32 dot11TransmittedFragmentCount;
-    CsrUint32 dot11TransmittedFrameCount;
-    CsrUint32 dot11WepExcludedCount;
-    CsrUint32 dot11WepIcvErrorCount;
-    CsrUint32 dot11WepUndecryptableCount;
-    CsrUint32 dot11MulticastReceivedFrameCount;
-    CsrUint32 dot11MulticastTransmittedFrameCount;
-    CsrUint32 dot11ReceivedFragmentCount;
-    CsrUint32 dot11Rsna4WayHandshakeFailures;
-    CsrUint32 dot11RsnaTkipCounterMeasuresInvoked;
-    CsrUint32 dot11RsnaStatsTkipLocalMicFailures;
-    CsrUint32 dot11RsnaStatsTkipReplays;
-    CsrUint32 dot11RsnaStatsTkipIcvErrors;
-    CsrUint32 dot11RsnaStatsCcmpReplays;
-    CsrUint32 dot11RsnaStatsCcmpDecryptErrors;
+    u32 dot11RetryCount;
+    u32 dot11MultipleRetryCount;
+    u32 dot11AckFailureCount;
+    u32 dot11FrameDuplicateCount;
+    u32 dot11FcsErrorCount;
+    u32 dot11RtsSuccessCount;
+    u32 dot11RtsFailureCount;
+    u32 dot11FailedCount;
+    u32 dot11TransmittedFragmentCount;
+    u32 dot11TransmittedFrameCount;
+    u32 dot11WepExcludedCount;
+    u32 dot11WepIcvErrorCount;
+    u32 dot11WepUndecryptableCount;
+    u32 dot11MulticastReceivedFrameCount;
+    u32 dot11MulticastTransmittedFrameCount;
+    u32 dot11ReceivedFragmentCount;
+    u32 dot11Rsna4WayHandshakeFailures;
+    u32 dot11RsnaTkipCounterMeasuresInvoked;
+    u32 dot11RsnaStatsTkipLocalMicFailures;
+    u32 dot11RsnaStatsTkipReplays;
+    u32 dot11RsnaStatsTkipIcvErrors;
+    u32 dot11RsnaStatsCcmpReplays;
+    u32 dot11RsnaStatsCcmpDecryptErrors;
 } CsrWifiSmeConnectionStats;
 
 /*******************************************************************************
@@ -2450,15 +2450,15 @@ typedef struct
 *******************************************************************************/
 typedef struct
 {
-    CsrUint32      chipId;
-    CsrUint32      chipVersion;
-    CsrUint32      firmwareBuild;
-    CsrUint32      firmwarePatch;
-    CsrUint32      firmwareHip;
+    u32      chipId;
+    u32      chipVersion;
+    u32      firmwareBuild;
+    u32      firmwarePatch;
+    u32      firmwareHip;
     CsrCharString *routerBuild;
-    CsrUint32      routerHip;
+    u32      routerHip;
     CsrCharString *smeBuild;
-    CsrUint32      smeHip;
+    u32      smeHip;
 } CsrWifiSmeVersions;
 
 /*******************************************************************************
@@ -2603,8 +2603,8 @@ typedef struct
     u16                currentCoexPeriodMs;
     u16                currentCoexLatencyMs;
     CsrBool                  hasBtDevice;
-    CsrUint32                currentBlackoutDurationUs;
-    CsrUint32                currentBlackoutPeriodUs;
+    u32                currentBlackoutDurationUs;
+    u32                currentBlackoutPeriodUs;
     CsrWifiSmeCoexScheme     currentCoexScheme;
 } CsrWifiSmeCoexInfo;
 
@@ -4560,7 +4560,7 @@ typedef struct
     CsrWifiFsmEvent         common;
     u16               interfaceTag;
     CsrWifiSmeListAction    action;
-    CsrUint32               transactionId;
+    u32               transactionId;
     CsrBool                 strict;
     CsrWifiSmeTspecCtrlMask ctrlMask;
     u16               tspecLength;
@@ -4830,7 +4830,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint32       dataLength;
+    u32       dataLength;
     u8       *data;
 } CsrWifiSmeSetReq;
 
@@ -6129,7 +6129,7 @@ typedef struct
 {
     CsrWifiFsmEvent           common;
     u16                 interfaceTag;
-    CsrUint32                 transactionId;
+    u32                 transactionId;
     CsrWifiSmeTspecResultCode tspecResultCode;
     u16                 tspecLength;
     u8                 *tspec;
@@ -6160,7 +6160,7 @@ typedef struct
     CsrWifiFsmEvent           common;
     u16                 interfaceTag;
     CsrResult                 status;
-    CsrUint32                 transactionId;
+    u32                 transactionId;
     CsrWifiSmeTspecResultCode tspecResultCode;
     u16                 tspecLength;
     u8                 *tspec;
@@ -6465,7 +6465,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint32       dataLength;
+    u32       dataLength;
     u8       *data;
 } CsrWifiSmeCoreDumpInd;
 

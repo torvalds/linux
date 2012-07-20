@@ -1318,7 +1318,7 @@ unifi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
             /* Apply scheduled interrupt mode, if requested by module param */
             if (run_bh_once != -1) {
-                unifi_set_interrupt_mode(priv->card, (CsrUint32)run_bh_once);
+                unifi_set_interrupt_mode(priv->card, (u32)run_bh_once);
             }
 
             priv->init_progress = UNIFI_INIT_COMPLETED;
@@ -1703,7 +1703,7 @@ unifi_poll(struct file *filp, poll_table *wait)
 static void
 udi_set_log_filter(ul_client_t *pcli, unifiio_filter_t *udi_filter)
 {
-    CsrUint32 filter_pos;
+    u32 filter_pos;
     int i;
 
     if (udi_filter->action == UfSigFil_AllOn)
@@ -1781,7 +1781,7 @@ udi_log_event(ul_client_t *pcli,
     int i;
     int total_len;
     udi_msg_t *msgptr;
-    CsrUint32 filter_pos;
+    u32 filter_pos;
 #ifdef OMNICLI_LINUX_EXTRA_LOG
     static volatile unsigned int printk_cpu = UINT_MAX;
     unsigned long long t;

@@ -45,7 +45,7 @@ void CsrLogLevelTaskSetSpecific(CsrSchedQid taskId, CsrLogLevelTask taskLogLevel
 /*--------------------------------------------*/
 /*  Filtering on log text warning levels      */
 /*--------------------------------------------*/
-typedef CsrUint32 CsrLogLevelText;
+typedef u32 CsrLogLevelText;
 #define CSR_LOG_LEVEL_TEXT_OFF       ((CsrLogLevelText) 0x0000)
 
 #define CSR_LOG_LEVEL_TEXT_CRITICAL  ((CsrLogLevelText) 0x0001)
@@ -64,7 +64,7 @@ typedef CsrUint32 CsrLogLevelText;
  * clashes the technologies are only allowed to assign values within the same restrictive range as allies to
  * primitive identifiers. eg. for the framework components outside the scheduler is only allowed to assign
  * taskId's in the range 0x0600xxxx to 0x06FFxxxx. And so on for other technologies. */
-typedef CsrUint32 CsrLogTextTaskId;
+typedef u32 CsrLogTextTaskId;
 
 /* Set the text logging level for all Tasks */
 /* This function call takes precedence over all previous calls to CsrLogLevelTextSetTask() and CsrLogLevelTextSetTaskSubOrigin() */

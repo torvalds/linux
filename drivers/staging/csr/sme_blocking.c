@@ -1299,7 +1299,7 @@ int sme_mgt_packet_filter_set(unifi_priv_t *priv)
 }
 
 int sme_mgt_tspec(unifi_priv_t *priv, CsrWifiSmeListAction action,
-        CsrUint32 tid, CsrWifiSmeDataBlock *tspec, CsrWifiSmeDataBlock *tclas)
+        u32 tid, CsrWifiSmeDataBlock *tspec, CsrWifiSmeDataBlock *tclas)
 {
     int r;
 

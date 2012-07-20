@@ -122,9 +122,9 @@ extern void CsrWifiFsmShutdown(CsrWifiFsmContext *context);
  * @param[in]    context  : FSM context
  *
  * @return
- *   CsrUint32    Time in ms until next timeout or 0xFFFFFFFF for no timer set
+ *   u32    Time in ms until next timeout or 0xFFFFFFFF for no timer set
  */
-extern CsrUint32 CsrWifiFsmExecute(CsrWifiFsmContext *context);
+extern u32 CsrWifiFsmExecute(CsrWifiFsmContext *context);
 
 /**
  * @brief
@@ -174,9 +174,9 @@ extern void CsrWifiFsmSendEventExternal(CsrWifiFsmContext *context, CsrWifiFsmEv
  * @param[in]    context   : FSM context
  *
  * @return
- *   CsrUint32 32 bit ms tick
+ *   u32 32 bit ms tick
  */
-extern CsrUint32 CsrWifiFsmGetTimeOfDayMs(CsrWifiFsmContext *context);
+extern u32 CsrWifiFsmGetTimeOfDayMs(CsrWifiFsmContext *context);
 
 /**
  * @brief
@@ -188,9 +188,9 @@ extern CsrUint32 CsrWifiFsmGetTimeOfDayMs(CsrWifiFsmContext *context);
  * @param[in]    context    : FSM context
  *
  * @return
- *   CsrUint32    Time in ms until next timeout or 0xFFFFFFFF for no timer set
+ *   u32    Time in ms until next timeout or 0xFFFFFFFF for no timer set
  */
-extern CsrUint32 CsrWifiFsmGetNextTimeout(CsrWifiFsmContext *context);
+extern u32 CsrWifiFsmGetNextTimeout(CsrWifiFsmContext *context);
 
 /**
  * @brief
@@ -217,7 +217,7 @@ extern void CsrWifiFsmFastForward(CsrWifiFsmContext *context, u16 ms);
  * @return
  *   void
  */
-extern void CsrWifiFsmTestAdvanceTime(CsrWifiFsmContext *context, CsrUint32 ms);
+extern void CsrWifiFsmTestAdvanceTime(CsrWifiFsmContext *context, u32 ms);
 
 /**
  * @brief

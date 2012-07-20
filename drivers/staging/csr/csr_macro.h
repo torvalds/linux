@@ -17,7 +17,7 @@ extern "C" {
 #endif
 
 /*------------------------------------------------------------------*/
-/* Bits - intended to operate on CsrUint32 values */
+/* Bits - intended to operate on u32 values */
 /*------------------------------------------------------------------*/
 #define CSR_MASK_IS_SET(val, mask) (((val) & (mask)) == (mask))
 #define CSR_MASK_IS_UNSET(val, mask) ((((val) & (mask)) ^ mask) == (mask))
@@ -32,8 +32,8 @@ extern "C" {
 /* Endian conversion */
 /*------------------------------------------------------------------*/
 #define CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr)        (((u16) ((u8 *) (ptr))[0]) | ((u16) ((u8 *) (ptr))[1]) << 8)
-#define CSR_GET_UINT32_FROM_LITTLE_ENDIAN(ptr)        (((CsrUint32) ((u8 *) (ptr))[0]) | ((CsrUint32) ((u8 *) (ptr))[1]) << 8 | \
-                                                       ((CsrUint32) ((u8 *) (ptr))[2]) << 16 | ((CsrUint32) ((u8 *) (ptr))[3]) << 24)
+#define CSR_GET_UINT32_FROM_LITTLE_ENDIAN(ptr)        (((u32) ((u8 *) (ptr))[0]) | ((u32) ((u8 *) (ptr))[1]) << 8 | \
+                                                       ((u32) ((u8 *) (ptr))[2]) << 16 | ((u32) ((u8 *) (ptr))[3]) << 24)
 #define CSR_COPY_UINT16_TO_LITTLE_ENDIAN(uint, ptr)    ((u8 *) (ptr))[0] = ((u8) ((uint) & 0x00FF)); \
     ((u8 *) (ptr))[1] = ((u8) ((uint) >> 8))
 #define CSR_COPY_UINT32_TO_LITTLE_ENDIAN(uint, ptr)    ((u8 *) (ptr))[0] = ((u8) ((uint) & 0x000000FF)); \
@@ -43,8 +43,8 @@ extern "C" {
 #define CSR_GET_UINT16_FROM_BIG_ENDIAN(ptr) (((u16) ((u8 *) (ptr))[1]) | ((u16) ((u8 *) (ptr))[0]) << 8)
 #define CSR_GET_UINT24_FROM_BIG_ENDIAN(ptr) (((CsrUint24) ((u8 *) (ptr))[2]) | \
                                              ((CsrUint24) ((u8 *) (ptr))[1]) << 8 | ((CsrUint24) ((u8 *) (ptr))[0]) << 16)
-#define CSR_GET_UINT32_FROM_BIG_ENDIAN(ptr) (((CsrUint32) ((u8 *) (ptr))[3]) | ((CsrUint32) ((u8 *) (ptr))[2]) << 8 | \
-                                             ((CsrUint32) ((u8 *) (ptr))[1]) << 16 | ((CsrUint32) ((u8 *) (ptr))[0]) << 24)
+#define CSR_GET_UINT32_FROM_BIG_ENDIAN(ptr) (((u32) ((u8 *) (ptr))[3]) | ((u32) ((u8 *) (ptr))[2]) << 8 | \
+                                             ((u32) ((u8 *) (ptr))[1]) << 16 | ((u32) ((u8 *) (ptr))[0]) << 24)
 #define CSR_COPY_UINT16_TO_BIG_ENDIAN(uint, ptr)    ((u8 *) (ptr))[1] = ((u8) ((uint) & 0x00FF)); \
     ((u8 *) (ptr))[0] = ((u8) ((uint) >> 8))
 #define CSR_COPY_UINT24_TO_BIG_ENDIAN(uint, ptr)    ((u8 *) (ptr))[2] = ((u8) ((uint) & 0x000000FF)); \
@@ -70,10 +70,10 @@ extern "C" {
                             ((u16) (input)[0]));(input) += 2
 
 #define CSR_CONVERT_32_FROM_XAP(output, input) \
-    (output) = (((CsrUint32) (input)[1]) << 24) | \
-               (((CsrUint32) (input)[0]) << 16) | \
-               (((CsrUint32) (input)[3]) << 8) | \
-               ((CsrUint32) (input)[2]);input += 4
+    (output) = (((u32) (input)[1]) << 24) | \
+               (((u32) (input)[0]) << 16) | \
+               (((u32) (input)[3]) << 8) | \
+               ((u32) (input)[2]);input += 4
 
 #define CSR_ADD_UINT8_TO_XAP(output, input) \
     (output)[0] = (input);  \

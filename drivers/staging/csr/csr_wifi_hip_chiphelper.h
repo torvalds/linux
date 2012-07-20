@@ -140,8 +140,8 @@ struct chip_helper_init_values
 /* A block of data that should be written to the device */
 struct chip_helper_reset_values
 {
-    CsrUint32        gp_address;
-    CsrUint32        len;
+    u32        gp_address;
+    u32        len;
     const u16 *data;
 };
 
@@ -230,10 +230,10 @@ ChipDescript* ChipHelper_GetVersionBlueCore(enum chip_helper_bluecore_age age,
     CHIP_HELPER_DEF0(m, (u16, SDIO_HOST_INT, regs->sdio_host_int))   \
     CHIP_HELPER_DEF0(m, (u16, COEX_STATUS, regs->coex_status))       \
     CHIP_HELPER_DEF0(m, (u16, SHARED_IO_INTERRUPT, regs->shared_io_interrupt)) \
-    CHIP_HELPER_DEF0(m, (CsrUint32, PROGRAM_MEMORY_RAM_OFFSET, prog_offset.ram)) \
-    CHIP_HELPER_DEF0(m, (CsrUint32, PROGRAM_MEMORY_ROM_OFFSET, prog_offset.rom)) \
-    CHIP_HELPER_DEF0(m, (CsrUint32, PROGRAM_MEMORY_FLASH_OFFSET, prog_offset.flash)) \
-    CHIP_HELPER_DEF0(m, (CsrUint32, PROGRAM_MEMORY_EXT_SRAM_OFFSET, prog_offset.ext_sram)) \
+    CHIP_HELPER_DEF0(m, (u32, PROGRAM_MEMORY_RAM_OFFSET, prog_offset.ram)) \
+    CHIP_HELPER_DEF0(m, (u32, PROGRAM_MEMORY_ROM_OFFSET, prog_offset.rom)) \
+    CHIP_HELPER_DEF0(m, (u32, PROGRAM_MEMORY_FLASH_OFFSET, prog_offset.flash)) \
+    CHIP_HELPER_DEF0(m, (u32, PROGRAM_MEMORY_EXT_SRAM_OFFSET, prog_offset.ext_sram)) \
     CHIP_HELPER_DEF0(m, (u16, DATA_MEMORY_RAM_OFFSET, data_offset.ram)) \
     CHIP_HELPER_DEF0(m, (CsrInt32, HasFlash, bools.has_flash))              \
     CHIP_HELPER_DEF0(m, (CsrInt32, HasExtSram, bools.has_ext_sram))         \
@@ -244,8 +244,8 @@ ChipDescript* ChipHelper_GetVersionBlueCore(enum chip_helper_bluecore_age age,
     CHIP_HELPER_DEF1(m, (u16, WINDOW_SIZE, enum chip_helper_window_index, window)) \
     CHIP_HELPER_DEF1(m, (u16, MapAddress_SPI2HOST, u16, addr))          \
     CHIP_HELPER_DEF1(m, (u16, MapAddress_HOST2SPI, u16, addr))          \
-    CHIP_HELPER_DEF1(m, (CsrUint32, ClockStartupSequence, const struct chip_helper_init_values **, val)) \
-    CHIP_HELPER_DEF1(m, (CsrUint32, HostResetSequence, const struct chip_helper_reset_values **, val))
+    CHIP_HELPER_DEF1(m, (u32, ClockStartupSequence, const struct chip_helper_init_values **, val)) \
+    CHIP_HELPER_DEF1(m, (u32, HostResetSequence, const struct chip_helper_reset_values **, val))
 
 /* Some magic to help the expansion */
 #define CHIP_HELPER_DEF0(a, b) \
@@ -405,8 +405,8 @@ CHIP_HELPER_LIST(C_DEC)
 CsrInt32 ChipHelper_DecodeWindow(ChipDescript *chip_help,
                                  enum chip_helper_window_index window,
                                  enum chip_helper_window_type type,
-                                 CsrUint32 offset,
-                                 u16 *page, u16 *addr, CsrUint32 *len);
+                                 u32 offset,
+                                 u16 *page, u16 *addr, u32 *len);
 
 #ifdef __cplusplus
 /* Close the extern "C" */
@@ -459,8 +459,8 @@ public:
     /* The DecodeWindow function, see the description of the C version. */
     CsrInt32 DecodeWindow(chip_helper_window_index window,
                           chip_helper_window_type type,
-                          CsrUint32 offset,
-                          u16 &page, u16 &addr, CsrUint32 &len) const;
+                          u32 offset,
+                          u16 &page, u16 &addr, u32 &len) const;
 
 private:
     ChipDescript *m_desc;

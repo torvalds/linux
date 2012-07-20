@@ -212,7 +212,7 @@ CsrResult prealloc_netdata_alloc(card_t *card)
 }
 
 
-static CsrResult prealloc_netdata_get(card_t *card, bulk_data_desc_t *bulk_data_slot, CsrUint32 size)
+static CsrResult prealloc_netdata_get(card_t *card, bulk_data_desc_t *bulk_data_slot, u32 size)
 {
     CsrResult r;
 
@@ -354,7 +354,7 @@ CsrResult unifi_force_low_power_mode(card_t *card)
  *      CSR_RESULT_SUCCESS on success or a CSR error code.
  * ---------------------------------------------------------------------------
  */
-CsrResult unifi_bh(card_t *card, CsrUint32 *remaining)
+CsrResult unifi_bh(card_t *card, u32 *remaining)
 {
     CsrResult r;
     CsrResult csrResult;
@@ -1315,7 +1315,7 @@ static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
                 if (GET_SIGNAL_ID(bufptr + 2) == CSR_MA_PACKET_CONFIRM_ID)
                 {
                     /* Get host tag and transmission status */
-                    CsrUint32 host_tag = GET_PACKED_MA_PACKET_CONFIRM_HOST_TAG(bufptr + 2);
+                    u32 host_tag = GET_PACKED_MA_PACKET_CONFIRM_HOST_TAG(bufptr + 2);
                     u16 status = GET_PACKED_MA_PACKET_CONFIRM_TRANSMISSION_STATUS(bufptr + 2);
 
                     unifi_trace(card->ospriv, UDBG4, "process_to_host_signals signal ID=%x host Tag=%x status=%x\n",
@@ -1841,8 +1841,8 @@ static CsrResult process_bulk_data_command(card_t *card, const u8 *cmdptr,
  */
 static CsrResult check_fh_sig_slots(card_t *card, u16 needed, CsrInt32 *space_fh)
 {
-    CsrUint32 count_fhw;
-    CsrUint32 occupied_fh, slots_fh;
+    u32 count_fhw;
+    u32 occupied_fh, slots_fh;
     CsrInt32 count_fhr;
 
     count_fhw = card->from_host_signals_w;
@@ -2180,7 +2180,7 @@ static CsrResult process_fh_traffic_queue(card_t *card, CsrInt32 *processed)
     u16 needed_chunks;
     CsrInt32 space_chunks;
     u16 q_index;
-    CsrUint32 host_tag = 0;
+    u32 host_tag = 0;
     u16 slot_num = 0;
 
     *processed = 0;

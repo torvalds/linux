@@ -22,15 +22,15 @@ extern "C" {
 
 
 void CsrUint16SerBigEndian(u8 *ptr, CsrSize *len, u16 v);
-void CsrUint24SerBigEndian(u8 *ptr, CsrSize *len, CsrUint32 v);
-void CsrUint32SerBigEndian(u8 *ptr, CsrSize *len, CsrUint32 v);
+void CsrUint24SerBigEndian(u8 *ptr, CsrSize *len, u32 v);
+void CsrUint32SerBigEndian(u8 *ptr, CsrSize *len, u32 v);
 
 void CsrUint16DesBigEndian(u16 *v, u8 *buffer, CsrSize *offset);
-void CsrUint24DesBigEndian(CsrUint32 *v, u8 *buffer, CsrSize *offset);
-void CsrUint32DesBigEndian(CsrUint32 *v, u8 *buffer, CsrSize *offset);
+void CsrUint24DesBigEndian(u32 *v, u8 *buffer, CsrSize *offset);
+void CsrUint32DesBigEndian(u32 *v, u8 *buffer, CsrSize *offset);
 
-void CsrUint24Ser(u8 *ptr, CsrSize *len, CsrUint32 v);
-void CsrUint24Des(CsrUint32 *v, u8 *buffer, CsrSize *offset);
+void CsrUint24Ser(u8 *ptr, CsrSize *len, u32 v);
+void CsrUint24Des(u32 *v, u8 *buffer, CsrSize *offset);
 
 
 CsrSize CsrWifiEventSizeof(void *msg);

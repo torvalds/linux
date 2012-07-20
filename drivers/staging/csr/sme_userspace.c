@@ -297,10 +297,10 @@ unifi_ta_indicate_sampling(void *ospriv, CsrWifiRouterCtrlTrafficStats *stats)
  */
 void
 unifi_ta_indicate_l4stats(void *ospriv,
-                          CsrUint32 rxTcpThroughput,
-                          CsrUint32 txTcpThroughput,
-                          CsrUint32 rxUdpThroughput,
-                          CsrUint32 txUdpThroughput)
+                          u32 rxTcpThroughput,
+                          u32 txTcpThroughput,
+                          u32 rxUdpThroughput,
+                          u32 txUdpThroughput)
 {
     unifi_priv_t *priv = (unifi_priv_t*)ospriv;
 

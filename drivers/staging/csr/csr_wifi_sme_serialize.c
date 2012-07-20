@@ -1407,7 +1407,7 @@ CsrSize CsrWifiSmeTspecReqSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 18) */
     bufferSize += 2;                      /* u16 primitive->interfaceTag */
     bufferSize += 1;                      /* CsrWifiSmeListAction primitive->action */
-    bufferSize += 4;                      /* CsrUint32 primitive->transactionId */
+    bufferSize += 4;                      /* u32 primitive->transactionId */
     bufferSize += 1;                      /* CsrBool primitive->strict */
     bufferSize += 1;                      /* CsrWifiSmeTspecCtrlMask primitive->ctrlMask */
     bufferSize += 2;                      /* u16 primitive->tspecLength */
@@ -1425,7 +1425,7 @@ u8* CsrWifiSmeTspecReqSer(u8 *ptr, CsrSize *len, void *msg)
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (u16) primitive->interfaceTag);
     CsrUint8Ser(ptr, len, (u8) primitive->action);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->transactionId);
+    CsrUint32Ser(ptr, len, (u32) primitive->transactionId);
     CsrUint8Ser(ptr, len, (u8) primitive->strict);
     CsrUint8Ser(ptr, len, (u8) primitive->ctrlMask);
     CsrUint16Ser(ptr, len, (u16) primitive->tspecLength);
@@ -1451,7 +1451,7 @@ void* CsrWifiSmeTspecReqDes(u8 *buffer, CsrSize length)
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->interfaceTag, buffer, &offset);
     CsrUint8Des((u8 *) &primitive->action, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->transactionId, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->transactionId, buffer, &offset);
     CsrUint8Des((u8 *) &primitive->strict, buffer, &offset);
     CsrUint8Des((u8 *) &primitive->ctrlMask, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->tspecLength, buffer, &offset);
@@ -1904,7 +1904,7 @@ CsrSize CsrWifiSmeSetReqSizeof(void *msg)
     CsrSize bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 8) */
-    bufferSize += 4;                     /* CsrUint32 primitive->dataLength */
+    bufferSize += 4;                     /* u32 primitive->dataLength */
     bufferSize += primitive->dataLength; /* u8 primitive->data */
     return bufferSize;
 }
@@ -1915,7 +1915,7 @@ u8* CsrWifiSmeSetReqSer(u8 *ptr, CsrSize *len, void *msg)
     CsrWifiSmeSetReq *primitive = (CsrWifiSmeSetReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->dataLength);
+    CsrUint32Ser(ptr, len, (u32) primitive->dataLength);
     if (primitive->dataLength)
     {
         CsrMemCpySer(ptr, len, (const void *) primitive->data, ((u16) (primitive->dataLength)));
@@ -1931,7 +1931,7 @@ void* CsrWifiSmeSetReqDes(u8 *buffer, CsrSize length)
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->dataLength, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->dataLength, buffer, &offset);
     if (primitive->dataLength)
     {
         primitive->data = (u8 *)CsrPmemAlloc(primitive->dataLength);
@@ -2561,8 +2561,8 @@ CsrSize CsrWifiSmeCoexInfoGetCfmSizeof(void *msg)
     bufferSize += 2; /* u16 primitive->coexInfo.currentCoexPeriodMs */
     bufferSize += 2; /* u16 primitive->coexInfo.currentCoexLatencyMs */
     bufferSize += 1; /* CsrBool primitive->coexInfo.hasBtDevice */
-    bufferSize += 4; /* CsrUint32 primitive->coexInfo.currentBlackoutDurationUs */
-    bufferSize += 4; /* CsrUint32 primitive->coexInfo.currentBlackoutPeriodUs */
+    bufferSize += 4; /* u32 primitive->coexInfo.currentBlackoutDurationUs */
+    bufferSize += 4; /* u32 primitive->coexInfo.currentBlackoutPeriodUs */
     bufferSize += 1; /* CsrWifiSmeCoexScheme primitive->coexInfo.currentCoexScheme */
     return bufferSize;
 }
@@ -2581,8 +2581,8 @@ u8* CsrWifiSmeCoexInfoGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
     CsrUint16Ser(ptr, len, (u16) primitive->coexInfo.currentCoexPeriodMs);
     CsrUint16Ser(ptr, len, (u16) primitive->coexInfo.currentCoexLatencyMs);
     CsrUint8Ser(ptr, len, (u8) primitive->coexInfo.hasBtDevice);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->coexInfo.currentBlackoutDurationUs);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->coexInfo.currentBlackoutPeriodUs);
+    CsrUint32Ser(ptr, len, (u32) primitive->coexInfo.currentBlackoutDurationUs);
+    CsrUint32Ser(ptr, len, (u32) primitive->coexInfo.currentBlackoutPeriodUs);
     CsrUint8Ser(ptr, len, (u8) primitive->coexInfo.currentCoexScheme);
     return(ptr);
 }
@@ -2603,8 +2603,8 @@ void* CsrWifiSmeCoexInfoGetCfmDes(u8 *buffer, CsrSize length)
     CsrUint16Des((u16 *) &primitive->coexInfo.currentCoexPeriodMs, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->coexInfo.currentCoexLatencyMs, buffer, &offset);
     CsrUint8Des((u8 *) &primitive->coexInfo.hasBtDevice, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->coexInfo.currentBlackoutDurationUs, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->coexInfo.currentBlackoutPeriodUs, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->coexInfo.currentBlackoutDurationUs, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->coexInfo.currentBlackoutPeriodUs, buffer, &offset);
     CsrUint8Des((u8 *) &primitive->coexInfo.currentCoexScheme, buffer, &offset);
 
     return primitive;
@@ -2999,29 +2999,29 @@ CsrSize CsrWifiSmeConnectionStatsGetCfmSizeof(void *msg)
     bufferSize += 2; /* CsrResult primitive->status */
     bufferSize += 1; /* u8 primitive->connectionStats.unifiTxDataRate */
     bufferSize += 1; /* u8 primitive->connectionStats.unifiRxDataRate */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11RetryCount */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11MultipleRetryCount */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11AckFailureCount */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11FrameDuplicateCount */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11FcsErrorCount */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11RtsSuccessCount */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11RtsFailureCount */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11FailedCount */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11TransmittedFragmentCount */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11TransmittedFrameCount */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11WepExcludedCount */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11WepIcvErrorCount */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11WepUndecryptableCount */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11MulticastReceivedFrameCount */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11MulticastTransmittedFrameCount */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11ReceivedFragmentCount */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11Rsna4WayHandshakeFailures */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11RsnaTkipCounterMeasuresInvoked */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11RsnaStatsTkipLocalMicFailures */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11RsnaStatsTkipReplays */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11RsnaStatsTkipIcvErrors */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11RsnaStatsCcmpReplays */
-    bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11RsnaStatsCcmpDecryptErrors */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11RetryCount */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11MultipleRetryCount */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11AckFailureCount */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11FrameDuplicateCount */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11FcsErrorCount */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11RtsSuccessCount */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11RtsFailureCount */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11FailedCount */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11TransmittedFragmentCount */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11TransmittedFrameCount */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11WepExcludedCount */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11WepIcvErrorCount */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11WepUndecryptableCount */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11MulticastReceivedFrameCount */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11MulticastTransmittedFrameCount */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11ReceivedFragmentCount */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11Rsna4WayHandshakeFailures */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11RsnaTkipCounterMeasuresInvoked */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11RsnaStatsTkipLocalMicFailures */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11RsnaStatsTkipReplays */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11RsnaStatsTkipIcvErrors */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11RsnaStatsCcmpReplays */
+    bufferSize += 4; /* u32 primitive->connectionStats.dot11RsnaStatsCcmpDecryptErrors */
     return bufferSize;
 }
 
@@ -3035,29 +3035,29 @@ u8* CsrWifiSmeConnectionStatsGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
     CsrUint16Ser(ptr, len, (u16) primitive->status);
     CsrUint8Ser(ptr, len, (u8) primitive->connectionStats.unifiTxDataRate);
     CsrUint8Ser(ptr, len, (u8) primitive->connectionStats.unifiRxDataRate);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11RetryCount);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11MultipleRetryCount);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11AckFailureCount);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11FrameDuplicateCount);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11FcsErrorCount);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11RtsSuccessCount);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11RtsFailureCount);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11FailedCount);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11TransmittedFragmentCount);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11TransmittedFrameCount);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11WepExcludedCount);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11WepIcvErrorCount);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11WepUndecryptableCount);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11MulticastReceivedFrameCount);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11MulticastTransmittedFrameCount);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11ReceivedFragmentCount);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11Rsna4WayHandshakeFailures);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11RsnaTkipCounterMeasuresInvoked);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11RsnaStatsTkipLocalMicFailures);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11RsnaStatsTkipReplays);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11RsnaStatsTkipIcvErrors);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11RsnaStatsCcmpReplays);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11RsnaStatsCcmpDecryptErrors);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11RetryCount);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11MultipleRetryCount);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11AckFailureCount);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11FrameDuplicateCount);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11FcsErrorCount);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11RtsSuccessCount);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11RtsFailureCount);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11FailedCount);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11TransmittedFragmentCount);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11TransmittedFrameCount);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11WepExcludedCount);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11WepIcvErrorCount);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11WepUndecryptableCount);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11MulticastReceivedFrameCount);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11MulticastTransmittedFrameCount);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11ReceivedFragmentCount);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11Rsna4WayHandshakeFailures);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11RsnaTkipCounterMeasuresInvoked);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11RsnaStatsTkipLocalMicFailures);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11RsnaStatsTkipReplays);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11RsnaStatsTkipIcvErrors);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11RsnaStatsCcmpReplays);
+    CsrUint32Ser(ptr, len, (u32) primitive->connectionStats.dot11RsnaStatsCcmpDecryptErrors);
     return(ptr);
 }
 
@@ -3073,29 +3073,29 @@ void* CsrWifiSmeConnectionStatsGetCfmDes(u8 *buffer, CsrSize length)
     CsrUint16Des((u16 *) &primitive->status, buffer, &offset);
     CsrUint8Des((u8 *) &primitive->connectionStats.unifiTxDataRate, buffer, &offset);
     CsrUint8Des((u8 *) &primitive->connectionStats.unifiRxDataRate, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11RetryCount, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11MultipleRetryCount, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11AckFailureCount, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11FrameDuplicateCount, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11FcsErrorCount, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11RtsSuccessCount, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11RtsFailureCount, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11FailedCount, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11TransmittedFragmentCount, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11TransmittedFrameCount, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11WepExcludedCount, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11WepIcvErrorCount, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11WepUndecryptableCount, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11MulticastReceivedFrameCount, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11MulticastTransmittedFrameCount, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11ReceivedFragmentCount, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11Rsna4WayHandshakeFailures, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11RsnaTkipCounterMeasuresInvoked, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11RsnaStatsTkipLocalMicFailures, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11RsnaStatsTkipReplays, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11RsnaStatsTkipIcvErrors, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11RsnaStatsCcmpReplays, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11RsnaStatsCcmpDecryptErrors, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11RetryCount, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11MultipleRetryCount, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11AckFailureCount, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11FrameDuplicateCount, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11FcsErrorCount, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11RtsSuccessCount, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11RtsFailureCount, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11FailedCount, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11TransmittedFragmentCount, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11TransmittedFrameCount, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11WepExcludedCount, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11WepIcvErrorCount, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11WepUndecryptableCount, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11MulticastReceivedFrameCount, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11MulticastTransmittedFrameCount, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11ReceivedFragmentCount, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11Rsna4WayHandshakeFailures, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11RsnaTkipCounterMeasuresInvoked, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11RsnaStatsTkipLocalMicFailures, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11RsnaStatsTkipReplays, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11RsnaStatsTkipIcvErrors, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11RsnaStatsCcmpReplays, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->connectionStats.dot11RsnaStatsCcmpDecryptErrors, buffer, &offset);
 
     return primitive;
 }
@@ -5283,7 +5283,7 @@ CsrSize CsrWifiSmeTspecIndSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 13) */
     bufferSize += 2;                      /* u16 primitive->interfaceTag */
-    bufferSize += 4;                      /* CsrUint32 primitive->transactionId */
+    bufferSize += 4;                      /* u32 primitive->transactionId */
     bufferSize += 1;                      /* CsrWifiSmeTspecResultCode primitive->tspecResultCode */
     bufferSize += 2;                      /* u16 primitive->tspecLength */
     bufferSize += primitive->tspecLength; /* u8 primitive->tspec */
@@ -5297,7 +5297,7 @@ u8* CsrWifiSmeTspecIndSer(u8 *ptr, CsrSize *len, void *msg)
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (u16) primitive->interfaceTag);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->transactionId);
+    CsrUint32Ser(ptr, len, (u32) primitive->transactionId);
     CsrUint8Ser(ptr, len, (u8) primitive->tspecResultCode);
     CsrUint16Ser(ptr, len, (u16) primitive->tspecLength);
     if (primitive->tspecLength)
@@ -5316,7 +5316,7 @@ void* CsrWifiSmeTspecIndDes(u8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->transactionId, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->transactionId, buffer, &offset);
     CsrUint8Des((u8 *) &primitive->tspecResultCode, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->tspecLength, buffer, &offset);
     if (primitive->tspecLength)
@@ -5349,7 +5349,7 @@ CsrSize CsrWifiSmeTspecCfmSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 15) */
     bufferSize += 2;                      /* u16 primitive->interfaceTag */
     bufferSize += 2;                      /* CsrResult primitive->status */
-    bufferSize += 4;                      /* CsrUint32 primitive->transactionId */
+    bufferSize += 4;                      /* u32 primitive->transactionId */
     bufferSize += 1;                      /* CsrWifiSmeTspecResultCode primitive->tspecResultCode */
     bufferSize += 2;                      /* u16 primitive->tspecLength */
     bufferSize += primitive->tspecLength; /* u8 primitive->tspec */
@@ -5364,7 +5364,7 @@ u8* CsrWifiSmeTspecCfmSer(u8 *ptr, CsrSize *len, void *msg)
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (u16) primitive->interfaceTag);
     CsrUint16Ser(ptr, len, (u16) primitive->status);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->transactionId);
+    CsrUint32Ser(ptr, len, (u32) primitive->transactionId);
     CsrUint8Ser(ptr, len, (u8) primitive->tspecResultCode);
     CsrUint16Ser(ptr, len, (u16) primitive->tspecLength);
     if (primitive->tspecLength)
@@ -5384,7 +5384,7 @@ void* CsrWifiSmeTspecCfmDes(u8 *buffer, CsrSize length)
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->interfaceTag, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->status, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->transactionId, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->transactionId, buffer, &offset);
     CsrUint8Des((u8 *) &primitive->tspecResultCode, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->tspecLength, buffer, &offset);
     if (primitive->tspecLength)
@@ -5416,15 +5416,15 @@ CsrSize CsrWifiSmeVersionsGetCfmSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 33) */
     bufferSize += 2;                                                                                    /* CsrResult primitive->status */
-    bufferSize += 4;                                                                                    /* CsrUint32 primitive->versions.chipId */
-    bufferSize += 4;                                                                                    /* CsrUint32 primitive->versions.chipVersion */
-    bufferSize += 4;                                                                                    /* CsrUint32 primitive->versions.firmwareBuild */
-    bufferSize += 4;                                                                                    /* CsrUint32 primitive->versions.firmwarePatch */
-    bufferSize += 4;                                                                                    /* CsrUint32 primitive->versions.firmwareHip */
+    bufferSize += 4;                                                                                    /* u32 primitive->versions.chipId */
+    bufferSize += 4;                                                                                    /* u32 primitive->versions.chipVersion */
+    bufferSize += 4;                                                                                    /* u32 primitive->versions.firmwareBuild */
+    bufferSize += 4;                                                                                    /* u32 primitive->versions.firmwarePatch */
+    bufferSize += 4;                                                                                    /* u32 primitive->versions.firmwareHip */
     bufferSize += (primitive->versions.routerBuild?CsrStrLen(primitive->versions.routerBuild) : 0) + 1; /* CsrCharString* primitive->versions.routerBuild (0 byte len + 1 for NULL Term) */
-    bufferSize += 4;                                                                                    /* CsrUint32 primitive->versions.routerHip */
+    bufferSize += 4;                                                                                    /* u32 primitive->versions.routerHip */
     bufferSize += (primitive->versions.smeBuild?CsrStrLen(primitive->versions.smeBuild) : 0) + 1;       /* CsrCharString* primitive->versions.smeBuild (0 byte len + 1 for NULL Term) */
-    bufferSize += 4;                                                                                    /* CsrUint32 primitive->versions.smeHip */
+    bufferSize += 4;                                                                                    /* u32 primitive->versions.smeHip */
     return bufferSize;
 }
 
@@ -5435,15 +5435,15 @@ u8* CsrWifiSmeVersionsGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (u16) primitive->status);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->versions.chipId);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->versions.chipVersion);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->versions.firmwareBuild);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->versions.firmwarePatch);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->versions.firmwareHip);
+    CsrUint32Ser(ptr, len, (u32) primitive->versions.chipId);
+    CsrUint32Ser(ptr, len, (u32) primitive->versions.chipVersion);
+    CsrUint32Ser(ptr, len, (u32) primitive->versions.firmwareBuild);
+    CsrUint32Ser(ptr, len, (u32) primitive->versions.firmwarePatch);
+    CsrUint32Ser(ptr, len, (u32) primitive->versions.firmwareHip);
     CsrCharStringSer(ptr, len, primitive->versions.routerBuild);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->versions.routerHip);
+    CsrUint32Ser(ptr, len, (u32) primitive->versions.routerHip);
     CsrCharStringSer(ptr, len, primitive->versions.smeBuild);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->versions.smeHip);
+    CsrUint32Ser(ptr, len, (u32) primitive->versions.smeHip);
     return(ptr);
 }
 
@@ -5456,15 +5456,15 @@ void* CsrWifiSmeVersionsGetCfmDes(u8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((u16 *) &primitive->status, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->versions.chipId, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->versions.chipVersion, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->versions.firmwareBuild, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->versions.firmwarePatch, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->versions.firmwareHip, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->versions.chipId, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->versions.chipVersion, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->versions.firmwareBuild, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->versions.firmwarePatch, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->versions.firmwareHip, buffer, &offset);
     CsrCharStringDes(&primitive->versions.routerBuild, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->versions.routerHip, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->versions.routerHip, buffer, &offset);
     CsrCharStringDes(&primitive->versions.smeBuild, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->versions.smeHip, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->versions.smeHip, buffer, &offset);
 
     return primitive;
 }
@@ -5760,7 +5760,7 @@ CsrSize CsrWifiSmeCoreDumpIndSizeof(void *msg)
     CsrSize bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 8) */
-    bufferSize += 4;                     /* CsrUint32 primitive->dataLength */
+    bufferSize += 4;                     /* u32 primitive->dataLength */
     bufferSize += primitive->dataLength; /* u8 primitive->data */
     return bufferSize;
 }
@@ -5771,7 +5771,7 @@ u8* CsrWifiSmeCoreDumpIndSer(u8 *ptr, CsrSize *len, void *msg)
     CsrWifiSmeCoreDumpInd *primitive = (CsrWifiSmeCoreDumpInd *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
-    CsrUint32Ser(ptr, len, (CsrUint32) primitive->dataLength);
+    CsrUint32Ser(ptr, len, (u32) primitive->dataLength);
     if (primitive->dataLength)
     {
         CsrMemCpySer(ptr, len, (const void *) primitive->data, ((u16) (primitive->dataLength)));
@@ -5787,7 +5787,7 @@ void* CsrWifiSmeCoreDumpIndDes(u8 *buffer, CsrSize length)
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
-    CsrUint32Des((CsrUint32 *) &primitive->dataLength, buffer, &offset);
+    CsrUint32Des((u32 *) &primitive->dataLength, buffer, &offset);
     if (primitive->dataLength)
     {
         primitive->data = (u8 *)CsrPmemAlloc(primitive->dataLength);

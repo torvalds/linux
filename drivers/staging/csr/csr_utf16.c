@@ -13,15 +13,15 @@
 #include "csr_unicode.h"
 #include "csr_util.h"
 
-#define UNI_SUR_HIGH_START   ((CsrUint32) 0xD800)
-#define UNI_SUR_HIGH_END     ((CsrUint32) 0xDBFF)
-#define UNI_SUR_LOW_START    ((CsrUint32) 0xDC00)
-#define UNI_SUR_LOW_END      ((CsrUint32) 0xDFFF)
-#define UNI_REPLACEMENT_CHAR ((CsrUint32) 0xFFFD)
+#define UNI_SUR_HIGH_START   ((u32) 0xD800)
+#define UNI_SUR_HIGH_END     ((u32) 0xDBFF)
+#define UNI_SUR_LOW_START    ((u32) 0xDC00)
+#define UNI_SUR_LOW_END      ((u32) 0xDFFF)
+#define UNI_REPLACEMENT_CHAR ((u32) 0xFFFD)
 #define UNI_HALF_SHIFT       ((u8) 10)  /* used for shifting by 10 bits */
-#define UNI_HALF_BASE        ((CsrUint32) 0x00010000)
-#define UNI_BYTEMASK         ((CsrUint32) 0xBF)
-#define UNI_BYTEMARK         ((CsrUint32) 0x80)
+#define UNI_HALF_BASE        ((u32) 0x00010000)
+#define UNI_BYTEMASK         ((u32) 0xBF)
+#define UNI_BYTEMARK         ((u32) 0x80)
 
 #define CAPITAL(x)    ((x >= 'a') && (x <= 'z') ? ((x) & 0x00DF) : (x))
 
@@ -55,8 +55,8 @@ static const s8 trailingBytesForUtf8[256] =
     2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,                      /* 0xE0 - 0xFF */
 };
 
-/* Values to be substracted from a CsrUint32 when converting from UTF8 to UTF16 */
-static const CsrUint32 offsetsFromUtf8[4] =
+/* Values to be substracted from a u32 when converting from UTF8 to UTF16 */
+static const u32 offsetsFromUtf8[4] =
 {
     0x00000000, 0x00003080, 0x000E2080, 0x03C82080
 };
@@ -73,11 +73,11 @@ static const CsrUint32 offsetsFromUtf8[4] =
 *   Output:         A string of UTF-16 characters.
 *
 *********************************************************************************/
-CsrUtf16String *CsrUint32ToUtf16String(CsrUint32 number)
+CsrUtf16String *CsrUint32ToUtf16String(u32 number)
 {
     u16 count, noOfDigits;
     CsrUtf16String *output;
-    CsrUint32 tempNumber;
+    u32 tempNumber;
 
     /* calculate the number of digits in the output */
     tempNumber = number;
@@ -113,10 +113,10 @@ CsrUtf16String *CsrUint32ToUtf16String(CsrUint32 number)
 *   Output:         32 bit number.
 *
 *********************************************************************************/
-CsrUint32 CsrUtf16StringToUint32(const CsrUtf16String *unicodeString)
+u32 CsrUtf16StringToUint32(const CsrUtf16String *unicodeString)
 {
     u16 numLen, count;
-    CsrUint32 newNumber = 0;
+    u32 newNumber = 0;
 
     numLen = (u16) CsrUtf16StrLen(unicodeString);
 
@@ -150,7 +150,7 @@ CsrUint32 CsrUtf16StringToUint32(const CsrUtf16String *unicodeString)
 *   Output:         A pointer to an unicoded string.
 *
 *********************************************************************************/
-CsrUtf16String *CsrUtf16MemCpy(CsrUtf16String *dest, const CsrUtf16String *src, CsrUint32 count)
+CsrUtf16String *CsrUtf16MemCpy(CsrUtf16String *dest, const CsrUtf16String *src, u32 count)
 {
     return CsrMemCpy((u8 *) dest, (u8 *) src, count * sizeof(CsrUtf16String));
 }
@@ -171,7 +171,7 @@ CsrUtf16String *CsrUtf16ConcatenateTexts(const CsrUtf16String *inputText1, const
     const CsrUtf16String *inputText3, const CsrUtf16String *inputText4)
 {
     CsrUtf16String *outputText;
-    CsrUint32 textLen, textLen1, textLen2, textLen3, textLen4;
+    u32 textLen, textLen1, textLen2, textLen3, textLen4;
 
     textLen1 = CsrUtf16StrLen(inputText1);
     textLen2 = CsrUtf16StrLen(inputText2);
@@ -225,9 +225,9 @@ CsrUtf16String *CsrUtf16ConcatenateTexts(const CsrUtf16String *inputText1, const
 *   Output:         The number of 16 bit elements in the string.
 *
 *********************************************************************************/
-CsrUint32 CsrUtf16StrLen(const CsrUtf16String *unicodeString)
+u32 CsrUtf16StrLen(const CsrUtf16String *unicodeString)
 {
-    CsrUint32 length;
+    u32 length;
 
     length = 0;
     if (unicodeString != NULL)
@@ -256,10 +256,10 @@ CsrUint32 CsrUtf16StrLen(const CsrUtf16String *unicodeString)
 CsrUtf8String *CsrUtf16String2Utf8(const CsrUtf16String *source)
 {
     CsrUtf8String *dest, *destStart = NULL;
-    CsrUint32 i;
-    CsrUint32 ch;
-    CsrUint32 length;
-    CsrUint32 sourceLength;
+    u32 i;
+    u32 ch;
+    u32 length;
+    u32 sourceLength;
     u8 bytes;
     CsrBool appendNull = FALSE;
 
@@ -280,7 +280,7 @@ CsrUtf8String *CsrUtf16String2Utf8(const CsrUtf16String *source)
         {
             if (i + 1 < sourceLength) /* The low surrogate is in the source */
             {
-                CsrUint32 ch2 = source[++i];
+                u32 ch2 = source[++i];
                 if ((ch2 >= UNI_SUR_LOW_START) && (ch2 <= UNI_SUR_LOW_END)) /* And it is a legal low surrogate */
                 {
                     length += 4;
@@ -330,7 +330,7 @@ CsrUtf8String *CsrUtf16String2Utf8(const CsrUtf16String *source)
         {
             if (i + 1 < sourceLength) /* The low surrogate is in the source */
             {
-                CsrUint32 ch2 = source[++i];
+                u32 ch2 = source[++i];
                 if ((ch2 >= UNI_SUR_LOW_START) && (ch2 <= UNI_SUR_LOW_END)) /* And it is a legal low surrogate, convert to UTF-32 */
                 {
                     ch = ((ch - UNI_SUR_HIGH_START) << UNI_HALF_SHIFT) + (ch2 - UNI_SUR_LOW_START) + UNI_HALF_BASE;
@@ -356,19 +356,19 @@ CsrUtf8String *CsrUtf16String2Utf8(const CsrUtf16String *source)
         }
 
         /* Figure out how many bytes that are required */
-        if (ch < (CsrUint32) 0x80)
+        if (ch < (u32) 0x80)
         {
             bytes = 1;
         }
-        else if (ch < (CsrUint32) 0x800)
+        else if (ch < (u32) 0x800)
         {
             bytes = 2;
         }
-        else if (ch < (CsrUint32) 0x10000)
+        else if (ch < (u32) 0x10000)
         {
             bytes = 3;
         }
-        else if (ch < (CsrUint32) 0x110000)
+        else if (ch < (u32) 0x110000)
         {
             bytes = 4;
         }
@@ -463,7 +463,7 @@ CsrUtf8String *CsrUtf16String2Utf8(const CsrUtf16String *source)
         TRUE if the given code unit is legal.
 
 *****************************************************************************/
-static CsrBool isLegalUtf8(const CsrUtf8String *codeUnit, CsrUint32 length)
+static CsrBool isLegalUtf8(const CsrUtf8String *codeUnit, u32 length)
 {
     const CsrUtf8String *srcPtr = codeUnit + length;
     u8 byte;
@@ -633,9 +633,9 @@ CsrUtf16String *CsrUtf82Utf16String(const CsrUtf8String *utf8String)
         {
             *dest++ = UNI_REPLACEMENT_CHAR;
         }
-        else /* It is legal, convert the character to an CsrUint32 */
+        else /* It is legal, convert the character to an u32 */
         {
-            CsrUint32 ch = 0;
+            u32 ch = 0;
 
             switch (extraBytes2Read) /* Everything falls through */
             {
@@ -731,7 +731,7 @@ CsrUtf16String *CsrUtf16StrCpy(CsrUtf16String *target, const CsrUtf16String *sou
 CsrUtf16String *CsrUtf16StringDuplicate(const CsrUtf16String *source)
 {
     CsrUtf16String *target = NULL;
-    CsrUint32 length;
+    u32 length;
 
     if (source) /* if source is not NULL*/
     {
@@ -781,7 +781,7 @@ u16 CsrUtf16StrICmp(const CsrUtf16String *string1, const CsrUtf16String *string2
 *   Output:         0: if the strings are identical.
 *
 *********************************************************************************/
-u16 CsrUtf16StrNICmp(const CsrUtf16String *string1, const CsrUtf16String *string2, CsrUint32 count)
+u16 CsrUtf16StrNICmp(const CsrUtf16String *string1, const CsrUtf16String *string2, u32 count)
 {
     while ((*string1 || *string2) && count--)
     {
@@ -814,7 +814,7 @@ CsrUtf16String *CsrUtf16String2XML(CsrUtf16String *str)
     CsrUtf16String *scanString;
     CsrUtf16String *outputString = NULL;
     CsrUtf16String *resultString = str;
-    CsrUint32 stringLength = 0;
+    u32 stringLength = 0;
     CsrBool encodeChars = FALSE;
 
     scanString = str;
@@ -907,7 +907,7 @@ CsrUtf16String *CsrXML2Utf16String(CsrUtf16String *str)
     CsrUtf16String *scanString;
     CsrUtf16String *outputString = NULL;
     CsrUtf16String *resultString = str;
-    CsrUint32 stringLength = 0;
+    u32 stringLength = 0;
     CsrBool encodeChars = FALSE;
 
     scanString = str;
@@ -1026,14 +1026,14 @@ CsrInt32 CsrUtf8StrNCmp(const CsrUtf8String *string1, const CsrUtf8String *strin
     return CsrStrNCmp((const CsrCharString *) string1, (const CsrCharString *) string2, count);
 }
 
-CsrUint32 CsrUtf8StringLengthInBytes(const CsrUtf8String *string)
+u32 CsrUtf8StringLengthInBytes(const CsrUtf8String *string)
 {
     CsrSize length = 0;
     if (string)
     {
         length = CsrStrLen((const CsrCharString *) string);
     }
-    return (CsrUint32) length;
+    return (u32) length;
 }
 
 CsrUtf8String *CsrUtf8StrCpy(CsrUtf8String *target, const CsrUtf8String *source)
@@ -1093,7 +1093,7 @@ CsrUtf8String *CsrUtf8StrDup(const CsrUtf8String *source)
 CsrUtf8String *CsrUtf8StringConcatenateTexts(const CsrUtf8String *inputText1, const CsrUtf8String *inputText2, const CsrUtf8String *inputText3, const CsrUtf8String *inputText4)
 {
     CsrUtf8String *outputText;
-    CsrUint32 textLen, textLen1, textLen2, textLen3, textLen4;
+    u32 textLen, textLen1, textLen2, textLen3, textLen4;
 
     textLen1 = CsrUtf8StringLengthInBytes(inputText1);
     textLen2 = CsrUtf8StringLengthInBytes(inputText2);

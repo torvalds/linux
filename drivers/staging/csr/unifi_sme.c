@@ -648,7 +648,7 @@ int unifi_cfg_wmm_qos_info(unifi_priv_t *priv, unsigned char *arg)
 
 int unifi_cfg_wmm_addts(unifi_priv_t *priv, unsigned char *arg)
 {
-    CsrUint32 addts_tid;
+    u32 addts_tid;
     u8 addts_ie_length;
     u8 *addts_ie;
     u8 *addts_params;
@@ -657,12 +657,12 @@ int unifi_cfg_wmm_addts(unifi_priv_t *priv, unsigned char *arg)
     int rc;
 
     addts_params = (u8*)(((unifi_cfg_command_t*)arg) + 1);
-    if (get_user(addts_tid, (CsrUint32*)addts_params)) {
+    if (get_user(addts_tid, (u32*)addts_params)) {
         unifi_error(priv, "unifi_cfg_wmm_addts: Failed to get the argument\n");
         return -EFAULT;
     }
 
-    addts_params += sizeof(CsrUint32);
+    addts_params += sizeof(u32);
     if (get_user(addts_ie_length, (u8*)addts_params)) {
         unifi_error(priv, "unifi_cfg_wmm_addts: Failed to get the argument\n");
         return -EFAULT;
@@ -702,14 +702,14 @@ int unifi_cfg_wmm_addts(unifi_priv_t *priv, unsigned char *arg)
 
 int unifi_cfg_wmm_delts(unifi_priv_t *priv, unsigned char *arg)
 {
-    CsrUint32 delts_tid;
+    u32 delts_tid;
     u8 *delts_params;
     CsrWifiSmeDataBlock tspec;
     CsrWifiSmeDataBlock tclas;
     int rc;
 
     delts_params = (u8*)(((unifi_cfg_command_t*)arg) + 1);
-    if (get_user(delts_tid, (CsrUint32*)delts_params)) {
+    if (get_user(delts_tid, (u32*)delts_params)) {
         unifi_error(priv, "unifi_cfg_wmm_delts: Failed to get the argument\n");
         return -EFAULT;
     }
@@ -1198,7 +1198,7 @@ void uf_send_pkt_to_encrypt(struct work_struct *work)
     u16 interfaceTag = interfacePriv->InterfaceTag;
     unifi_priv_t *priv = interfacePriv->privPtr;
 
-    CsrUint32 pktBulkDataLength;
+    u32 pktBulkDataLength;
     u8 *pktBulkData;
     unsigned long flags;
 

@@ -1093,7 +1093,7 @@ void CsrWifiRouterCtrlWifiOnResHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     if (res->status == CSR_RESULT_SUCCESS)
     {
         int i; /* used as a loop counter */
-        CsrUint32 intmode = CSR_WIFI_INTMODE_DEFAULT;
+        u32 intmode = CSR_WIFI_INTMODE_DEFAULT;
 #ifdef CSR_WIFI_SPLIT_PATCH
         CsrBool switching_ap_fw = FALSE;
 #endif
@@ -1147,7 +1147,7 @@ void CsrWifiRouterCtrlWifiOnResHandler(void* drvpriv, CsrWifiFsmEvent* msg)
          * but let module param override.
          */
         if (run_bh_once != -1) {
-            intmode = (CsrUint32)run_bh_once;
+            intmode = (u32)run_bh_once;
         } else if (res->scheduledInterrupt) {
             intmode = CSR_WIFI_INTMODE_RUN_BH_ONCE;
         }
@@ -2098,7 +2098,7 @@ void CsrWifiRouterCtrlPeerDelReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 }
 
 /* Add the new station to the station record data base */
-static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *req,CsrUint32 *handle)
+static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *req,u32 *handle)
 {
     u8 i, powerModeTemp = 0;
     CsrBool freeSlotFound = FALSE;
@@ -2479,7 +2479,7 @@ void CsrWifiRouterCtrlPeerAddReqHandler(void* drvpriv,CsrWifiFsmEvent* msg)
     CsrWifiRouterCtrlPeerAddReq* req = (CsrWifiRouterCtrlPeerAddReq*)msg;
     CsrResult status = CSR_RESULT_SUCCESS;
     unifi_priv_t *priv = (unifi_priv_t*)drvpriv;
-    CsrUint32 handle = 0;
+    u32 handle = 0;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[req->interfaceTag];
 
     unifi_trace(priv, UDBG2, "entering CsrWifiRouterCtrlPeerAddReqHandler \n");

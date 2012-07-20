@@ -166,7 +166,7 @@ int sme_mgt_sme_config_get(unifi_priv_t *priv, CsrWifiSmeStaConfig *staConfig, C
 int sme_mgt_coex_info_get(unifi_priv_t *priv, CsrWifiSmeCoexInfo *coexInfo);
 int sme_mgt_packet_filter_set(unifi_priv_t *priv);
 int sme_mgt_tspec(unifi_priv_t *priv, CsrWifiSmeListAction action,
-                  CsrUint32 tid, CsrWifiSmeDataBlock *tspec, CsrWifiSmeDataBlock *tclas);
+                  u32 tid, CsrWifiSmeDataBlock *tspec, CsrWifiSmeDataBlock *tclas);
 
 #ifdef CSR_SUPPORT_WEXT
 /*

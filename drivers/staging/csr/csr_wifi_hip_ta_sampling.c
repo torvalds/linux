@@ -100,16 +100,16 @@ static enum ta_frame_identity ta_detect_protocol(card_t *card, CsrWifiRouterCtrl
     u16 proto;
     u16 source_port, dest_port;
     CsrWifiMacAddress srcAddress;
-    CsrUint32 snap_hdr, oui_hdr;
+    u32 snap_hdr, oui_hdr;
 
     if (data->data_length < TA_LLC_HEADER_SIZE)
     {
         return TA_FRAME_UNKNOWN;
     }
 
-    snap_hdr = (((CsrUint32)data->os_data_ptr[0]) << 24) |
-               (((CsrUint32)data->os_data_ptr[1]) << 16) |
-               (((CsrUint32)data->os_data_ptr[2]) << 8);
+    snap_hdr = (((u32)data->os_data_ptr[0]) << 24) |
+               (((u32)data->os_data_ptr[1]) << 16) |
+               (((u32)data->os_data_ptr[2]) << 8);
     if (snap_hdr != snap_802_2)
     {
         return TA_FRAME_UNKNOWN;
@@ -122,9 +122,9 @@ static enum ta_frame_identity ta_detect_protocol(card_t *card, CsrWifiRouterCtrl
          */
     }
 
-    oui_hdr = (((CsrUint32)data->os_data_ptr[3]) << 24) |
-              (((CsrUint32)data->os_data_ptr[4]) << 16) |
-              (((CsrUint32)data->os_data_ptr[5]) << 8);
+    oui_hdr = (((u32)data->os_data_ptr[3]) << 24) |
+              (((u32)data->os_data_ptr[4]) << 16) |
+              (((u32)data->os_data_ptr[5]) << 8);
     if ((oui_hdr == oui_rfc1042) || (oui_hdr == oui_8021h))
     {
         proto = (data->os_data_ptr[TA_ETHERNET_TYPE_OFFSET] * 256) +
@@ -346,12 +346,12 @@ void unifi_ta_sample(card_t                            *card,
                      const bulk_data_desc_t            *data,
                      const u8                    *saddr,
                      const u8                    *sta_macaddr,
-                     CsrUint32                          timestamp,
+                     u32                          timestamp,
                      u16                          rate)
 {
     ta_data_t *tad = &card->ta_sampling;
     enum ta_frame_identity identity;
-    CsrUint32 time_delta;
+    u32 time_delta;
 
 
 
@@ -387,8 +387,8 @@ void unifi_ta_sample(card_t                            *card,
              */
             if (tad->stats.txFramesNum < TA_MAX_INTERVALS_IN_C1)
             {
-                CsrUint32 interval;
-                CsrUint32 index_in_intervals;
+                u32 interval;
+                u32 index_in_intervals;
 
                 interval = timestamp - tad->tx_last_ts;
                 tad->tx_last_ts = timestamp;
@@ -423,7 +423,7 @@ void unifi_ta_sample(card_t                            *card,
          * rxFramesNum can be flashed in tas_reset_data() by another thread.
          * Use a temp to avoid division by zero.
          */
-        CsrUint32 temp_rxFramesNum;
+        u32 temp_rxFramesNum;
         temp_rxFramesNum = tad->stats.rxFramesNum;
 
         /* Calculate this interval's mean frame Rx rate from the sum */
@@ -442,10 +442,10 @@ void unifi_ta_sample(card_t                            *card,
          */
         if (tad->packet_filter & CSR_WIFI_ROUTER_CTRL_TRAFFIC_PACKET_TYPE_CUSTOM)
         {
-            CsrUint32 rxTcpThroughput = tad->ta_l4stats.rxTcpBytesCount / time_delta;
-            CsrUint32 txTcpThroughput = tad->ta_l4stats.txTcpBytesCount / time_delta;
-            CsrUint32 rxUdpThroughput = tad->ta_l4stats.rxUdpBytesCount / time_delta;
-            CsrUint32 txUdpThroughput = tad->ta_l4stats.txUdpBytesCount / time_delta;
+            u32 rxTcpThroughput = tad->ta_l4stats.rxTcpBytesCount / time_delta;
+            u32 txTcpThroughput = tad->ta_l4stats.txTcpBytesCount / time_delta;
+            u32 rxUdpThroughput = tad->ta_l4stats.rxUdpBytesCount / time_delta;
+            u32 txUdpThroughput = tad->ta_l4stats.txUdpBytesCount / time_delta;
 
             unifi_ta_indicate_l4stats(card->ospriv,
                                       rxTcpThroughput,

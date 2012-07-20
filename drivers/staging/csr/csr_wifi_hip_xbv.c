@@ -53,7 +53,7 @@ typedef struct
 typedef struct
 {
     CsrCharString t_name[4];
-    CsrUint32     t_len;
+    u32     t_len;
 } tag_t;
 
 
@@ -86,44 +86,44 @@ typedef struct
         xbv_container container;
         CsrInt32      ioffset_end;
     } s[XBV_STACK_SIZE];
-    CsrUint32 ptr;
+    u32 ptr;
 } xbv_stack_t;
 
 static CsrInt32 read_tag(card_t *card, ct_t *ct, tag_t *tag);
-static CsrInt32 read_bytes(card_t *card, ct_t *ct, void *buf, CsrUint32 len);
-static CsrInt32 read_uint(card_t *card, ct_t *ct, CsrUint32 *u, CsrUint32 len);
+static CsrInt32 read_bytes(card_t *card, ct_t *ct, void *buf, u32 len);
+static CsrInt32 read_uint(card_t *card, ct_t *ct, u32 *u, u32 len);
 static CsrInt32 xbv_check(xbv1_t *fwinfo, const xbv_stack_t *stack,
                           xbv_mode new_mode, xbv_container old_cont);
 static CsrInt32 xbv_push(xbv1_t *fwinfo, xbv_stack_t *stack,
                          xbv_mode new_mode, xbv_container old_cont,
-                         xbv_container new_cont, CsrUint32 ioff);
+                         xbv_container new_cont, u32 ioff);
 
-static CsrUint32 write_uint16(void *buf, const CsrUint32 offset,
+static u32 write_uint16(void *buf, const u32 offset,
                               const u16 val);
-static CsrUint32 write_uint32(void *buf, const CsrUint32 offset,
-                              const CsrUint32 val);
-static CsrUint32 write_bytes(void *buf, const CsrUint32 offset,
-                             const u8 *data, const CsrUint32 len);
-static CsrUint32 write_tag(void *buf, const CsrUint32 offset,
+static u32 write_uint32(void *buf, const u32 offset,
+                              const u32 val);
+static u32 write_bytes(void *buf, const u32 offset,
+                             const u8 *data, const u32 len);
+static u32 write_tag(void *buf, const u32 offset,
                            const CsrCharString *tag_str);
-static CsrUint32 write_chunk(void *buf, const CsrUint32 offset,
+static u32 write_chunk(void *buf, const u32 offset,
                              const CsrCharString *tag_str,
-                             const CsrUint32 payload_len);
-static u16 calc_checksum(void *buf, const CsrUint32 offset,
-                               const CsrUint32 bytes_len);
-static CsrUint32 calc_patch_size(const xbv1_t *fwinfo);
+                             const u32 payload_len);
+static u16 calc_checksum(void *buf, const u32 offset,
+                               const u32 bytes_len);
+static u32 calc_patch_size(const xbv1_t *fwinfo);
 
-static CsrUint32 write_xbv_header(void *buf, const CsrUint32 offset,
-                                  const CsrUint32 file_payload_length);
-static CsrUint32 write_ptch_header(void *buf, const CsrUint32 offset,
-                                   const CsrUint32 fw_id);
-static CsrUint32 write_patchcmd(void *buf, const CsrUint32 offset,
-                                const CsrUint32 dst_genaddr, const u16 len);
-static CsrUint32 write_reset_ptdl(void *buf, const CsrUint32 offset,
-                                  const xbv1_t *fwinfo, CsrUint32 fw_id);
-static CsrUint32 write_fwdl_to_ptdl(void *buf, const CsrUint32 offset,
+static u32 write_xbv_header(void *buf, const u32 offset,
+                                  const u32 file_payload_length);
+static u32 write_ptch_header(void *buf, const u32 offset,
+                                   const u32 fw_id);
+static u32 write_patchcmd(void *buf, const u32 offset,
+                                const u32 dst_genaddr, const u16 len);
+static u32 write_reset_ptdl(void *buf, const u32 offset,
+                                  const xbv1_t *fwinfo, u32 fw_id);
+static u32 write_fwdl_to_ptdl(void *buf, const u32 offset,
                                     fwreadfn_t readfn, const struct FWDL *fwdl,
-                                    const void *fw_buf, const CsrUint32 fw_id,
+                                    const void *fw_buf, const u32 fw_id,
                                     void *rdbuf);
 
 /*
@@ -210,7 +210,7 @@ CsrResult xbv1_parse(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwin
         /* File format version */
         if (TAG_EQ(tag.t_name, "VERF"))
         {
-            CsrUint32 version;
+            u32 version;
 
             if (xbv_check(fwinfo, &stack, xbv_unknown, xbv_xbv1) ||
                 (tag.t_len != 2) ||
@@ -228,7 +228,7 @@ CsrResult xbv1_parse(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwin
         else if (TAG_EQ(tag.t_name, "LIST"))
         {
             CsrCharString name[4];
-            CsrUint32 list_end;
+            u32 list_end;
 
             list_end = ct.ioffset + tag.t_len;
 
@@ -287,7 +287,7 @@ CsrResult xbv1_parse(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwin
         }
         else if (TAG_EQ(tag.t_name, "SLTP"))
         {
-            CsrUint32 addr;
+            u32 addr;
 
             if (xbv_check(fwinfo, &stack, xbv_firmware, xbv_fw) ||
                 (tag.t_len != 4) ||
@@ -301,7 +301,7 @@ CsrResult xbv1_parse(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwin
         }
         else if (TAG_EQ(tag.t_name, "FWDL"))
         {
-            CsrUint32 addr;
+            u32 addr;
             struct FWDL *fwdl;
 
             if (xbv_check(fwinfo, &stack, xbv_firmware, xbv_fw) ||
@@ -335,7 +335,7 @@ CsrResult xbv1_parse(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwin
         }
         else if (TAG_EQ(tag.t_name, "VMEQ"))
         {
-            CsrUint32 temp[3];
+            u32 temp[3];
             struct VAND *vand;
             struct VMEQ *vmeq;
 
@@ -366,7 +366,7 @@ CsrResult xbv1_parse(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwin
         }
         else if (TAG_EQ(tag.t_name, "FWID"))
         {
-            CsrUint32 build_id;
+            u32 build_id;
 
             if (xbv_check(fwinfo, &stack, xbv_patch, xbv_ptch) ||
                 (tag.t_len != 4) ||
@@ -467,7 +467,7 @@ static CsrInt32 xbv_check(xbv1_t *fwinfo, const xbv_stack_t *stack,
 /* Make checks as above and then enter a new list */
 static CsrInt32 xbv_push(xbv1_t *fwinfo, xbv_stack_t *stack,
                          xbv_mode new_mode, xbv_container old_cont,
-                         xbv_container new_cont, CsrUint32 new_ioff)
+                         xbv_container new_cont, u32 new_ioff)
 {
     if (xbv_check(fwinfo, stack, new_mode, old_cont))
     {
@@ -489,14 +489,14 @@ static CsrInt32 xbv_push(xbv1_t *fwinfo, xbv_stack_t *stack,
 }
 
 
-static CsrUint32 xbv2uint(u8 *ptr, CsrInt32 len)
+static u32 xbv2uint(u8 *ptr, CsrInt32 len)
 {
-    CsrUint32 u = 0;
+    u32 u = 0;
     s16 i;
 
     for (i = 0; i < len; i++)
     {
-        CsrUint32 b;
+        u32 b;
         b = ptr[i];
         u += b << (i * 8);
     }
@@ -533,7 +533,7 @@ static CsrInt32 read_tag(card_t *card, ct_t *ct, tag_t *tag)
 } /* read_tag() */
 
 
-static CsrInt32 read_bytes(card_t *card, ct_t *ct, void *buf, CsrUint32 len)
+static CsrInt32 read_bytes(card_t *card, ct_t *ct, void *buf, u32 len)
 {
     /* read the tag value */
     if ((*ct->iread)(card->ospriv, ct->dlpriv, ct->ioffset, buf, len) != (CsrInt32)len)
@@ -547,7 +547,7 @@ static CsrInt32 read_bytes(card_t *card, ct_t *ct, void *buf, CsrUint32 len)
 } /* read_bytes() */
 
 
-static CsrInt32 read_uint(card_t *card, ct_t *ct, CsrUint32 *u, CsrUint32 len)
+static CsrInt32 read_uint(card_t *card, ct_t *ct, u32 *u, u32 len)
 {
     u8 buf[4];
 
@@ -568,7 +568,7 @@ static CsrInt32 read_uint(card_t *card, ct_t *ct, CsrUint32 *u, CsrUint32 len)
 } /* read_uint() */
 
 
-static CsrUint32 write_uint16(void *buf, const CsrUint32 offset, const u16 val)
+static u32 write_uint16(void *buf, const u32 offset, const u16 val)
 {
     u8 *dst = (u8 *)buf + offset;
     *dst++ = (u8)(val & 0xff); /* LSB first */
@@ -577,17 +577,17 @@ static CsrUint32 write_uint16(void *buf, const CsrUint32 offset, const u16 val)
 }
 
 
-static CsrUint32 write_uint32(void *buf, const CsrUint32 offset, const CsrUint32 val)
+static u32 write_uint32(void *buf, const u32 offset, const u32 val)
 {
     (void)write_uint16(buf, offset + 0, (u16)(val & 0xffff));
     (void)write_uint16(buf, offset + 2, (u16)(val >> 16));
-    return sizeof(CsrUint32);
+    return sizeof(u32);
 }
 
 
-static CsrUint32 write_bytes(void *buf, const CsrUint32 offset, const u8 *data, const CsrUint32 len)
+static u32 write_bytes(void *buf, const u32 offset, const u8 *data, const u32 len)
 {
-    CsrUint32 i;
+    u32 i;
     u8 *dst = (u8 *)buf + offset;
 
     for (i = 0; i < len; i++)
@@ -598,7 +598,7 @@ static CsrUint32 write_bytes(void *buf, const CsrUint32 offset, const u8 *data, 
 }
 
 
-static CsrUint32 write_tag(void *buf, const CsrUint32 offset, const CsrCharString *tag_str)
+static u32 write_tag(void *buf, const u32 offset, const CsrCharString *tag_str)
 {
     u8 *dst = (u8 *)buf + offset;
     CsrMemCpy(dst, tag_str, 4);
@@ -606,19 +606,19 @@ static CsrUint32 write_tag(void *buf, const CsrUint32 offset, const CsrCharStrin
 }
 
 
-static CsrUint32 write_chunk(void *buf, const CsrUint32 offset, const CsrCharString *tag_str, const CsrUint32 payload_len)
+static u32 write_chunk(void *buf, const u32 offset, const CsrCharString *tag_str, const u32 payload_len)
 {
-    CsrUint32 written = 0;
+    u32 written = 0;
     written += write_tag(buf, offset, tag_str);
-    written += write_uint32(buf, written + offset, (CsrUint32)payload_len);
+    written += write_uint32(buf, written + offset, (u32)payload_len);
 
     return written;
 }
 
 
-static u16 calc_checksum(void *buf, const CsrUint32 offset, const CsrUint32 bytes_len)
+static u16 calc_checksum(void *buf, const u32 offset, const u32 bytes_len)
 {
-    CsrUint32 i;
+    u32 i;
     u8 *src = (u8 *)buf + offset;
     u16 sum = 0;
     u16 val;
@@ -640,10 +640,10 @@ static u16 calc_checksum(void *buf, const CsrUint32 offset, const CsrUint32 byte
 
 #define PTDL_RESET_DATA_SIZE  20  /* Size of reset vectors PTDL */
 
-static CsrUint32 calc_patch_size(const xbv1_t *fwinfo)
+static u32 calc_patch_size(const xbv1_t *fwinfo)
 {
     s16 i;
-    CsrUint32 size = 0;
+    u32 size = 0;
 
     /*
      * Work out how big an equivalent patch format file must be for this image.
@@ -673,9 +673,9 @@ static CsrUint32 calc_patch_size(const xbv1_t *fwinfo)
 }
 
 
-static CsrUint32 write_xbv_header(void *buf, const CsrUint32 offset, const CsrUint32 file_payload_length)
+static u32 write_xbv_header(void *buf, const u32 offset, const u32 file_payload_length)
 {
-    CsrUint32 written = 0;
+    u32 written = 0;
 
     /* The length value given to the XBV chunk is the length of all subsequent
      * contents of the file, excluding the 8 byte size of the XBV1 header itself
@@ -690,9 +690,9 @@ static CsrUint32 write_xbv_header(void *buf, const CsrUint32 offset, const CsrUi
 }
 
 
-static CsrUint32 write_ptch_header(void *buf, const CsrUint32 offset, const CsrUint32 fw_id)
+static u32 write_ptch_header(void *buf, const u32 offset, const u32 fw_id)
 {
-    CsrUint32 written = 0;
+    u32 written = 0;
 
     /* LIST is written with a zero length, to be updated later */
     written += write_chunk(buf, offset + written, (CsrCharString *)"LIST", 0);
@@ -711,10 +711,10 @@ static CsrUint32 write_ptch_header(void *buf, const CsrUint32 offset, const CsrU
 #define UF_MEMPUT_MAC  0x0000
 #define UF_MEMPUT_PHY  0x1000
 
-static CsrUint32 write_patchcmd(void *buf, const CsrUint32 offset, const CsrUint32 dst_genaddr, const u16 len)
+static u32 write_patchcmd(void *buf, const u32 offset, const u32 dst_genaddr, const u16 len)
 {
-    CsrUint32 written = 0;
-    CsrUint32 region = (dst_genaddr >> 28);
+    u32 written = 0;
+    u32 region = (dst_genaddr >> 28);
     u16 cmd_and_len = UF_MEMPUT_MAC;
 
     if (region == UF_REGION_PHY)
@@ -739,19 +739,19 @@ static CsrUint32 write_patchcmd(void *buf, const CsrUint32 offset, const CsrUint
 }
 
 
-static CsrUint32 write_fwdl_to_ptdl(void *buf, const CsrUint32 offset, fwreadfn_t readfn,
+static u32 write_fwdl_to_ptdl(void *buf, const u32 offset, fwreadfn_t readfn,
                                     const struct FWDL *fwdl, const void *dlpriv,
-                                    const CsrUint32 fw_id, void *fw_buf)
+                                    const u32 fw_id, void *fw_buf)
 {
-    CsrUint32 written = 0;
+    u32 written = 0;
     s16 chunks = 0;
-    CsrUint32 left = fwdl->dl_size;      /* Bytes left in this fwdl */
-    CsrUint32 dl_addr = fwdl->dl_addr;   /* Target address of fwdl image on XAP */
-    CsrUint32 dl_offs = fwdl->dl_offset; /* Offset of fwdl image data in source */
+    u32 left = fwdl->dl_size;      /* Bytes left in this fwdl */
+    u32 dl_addr = fwdl->dl_addr;   /* Target address of fwdl image on XAP */
+    u32 dl_offs = fwdl->dl_offset; /* Offset of fwdl image data in source */
     u16 csum;
-    CsrUint32 csum_start_offs;           /* first offset to include in checksum */
-    CsrUint32 sec_data_len;              /* section data byte count */
-    CsrUint32 sec_len;                   /* section data + header byte count */
+    u32 csum_start_offs;           /* first offset to include in checksum */
+    u32 sec_data_len;              /* section data byte count */
+    u32 sec_len;                   /* section data + header byte count */
 
     /* FWDL maps to one or more PTDLs, as max size for a PTDL is 1K words */
     while (left)
@@ -810,12 +810,12 @@ static CsrUint32 write_fwdl_to_ptdl(void *buf, const CsrUint32 offset, fwreadfn_
 #define UF_MAC_START_CMD    0x6000        /* MAC "Set start address" command */
 #define UF_PHY_START_CMD    0x7000        /* PHY "Set start address" command */
 
-static CsrUint32 write_reset_ptdl(void *buf, const CsrUint32 offset, const xbv1_t *fwinfo, CsrUint32 fw_id)
+static u32 write_reset_ptdl(void *buf, const u32 offset, const xbv1_t *fwinfo, u32 fw_id)
 {
-    CsrUint32 written = 0;
+    u32 written = 0;
     u16 csum;
-    CsrUint32 csum_start_offs;                 /* first offset to include in checksum */
-    CsrUint32 sec_len;                         /* section data + header byte count */
+    u32 csum_start_offs;                 /* first offset to include in checksum */
+    u32 sec_len;                         /* section data + header byte count */
 
     sec_len = SEC_CMD_LEN + PTDL_VEC_HDR_SIZE; /* Total section byte length */
 
@@ -871,12 +871,12 @@ static CsrUint32 write_reset_ptdl(void *buf, const CsrUint32 offset, const xbv1_
  * ---------------------------------------------------------------------------
  */
 CsrInt32 xbv1_read_slut(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwinfo,
-                        symbol_t *slut, CsrUint32 slut_len)
+                        symbol_t *slut, u32 slut_len)
 {
     s16 i;
     CsrInt32 offset;
-    CsrUint32 magic;
-    CsrUint32 count = 0;
+    u32 magic;
+    u32 count = 0;
     ct_t ct;
 
     if (fwinfo->mode != xbv_firmware)
@@ -916,7 +916,7 @@ CsrInt32 xbv1_read_slut(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *f
 
     while (count < slut_len)
     {
-        CsrUint32 id, obj;
+        u32 id, obj;
 
         /* Read Symbol Id */
         if (read_uint(card, &ct, &id, 2))
@@ -969,16 +969,16 @@ CsrInt32 xbv1_read_slut(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *f
 #define PTCH_LIST_SIZE 16         /* sizeof PTCH+FWID chunk in LIST header */
 
 void* xbv_to_patch(card_t *card, fwreadfn_t readfn,
-                   const void *fw_buf, const xbv1_t *fwinfo, CsrUint32 *size)
+                   const void *fw_buf, const xbv1_t *fwinfo, u32 *size)
 {
     void *patch_buf = NULL;
-    CsrUint32 patch_buf_size;
-    CsrUint32 payload_offs = 0;           /* Start of XBV payload */
+    u32 patch_buf_size;
+    u32 payload_offs = 0;           /* Start of XBV payload */
     s16 i;
-    CsrUint32 patch_offs = 0;
-    CsrUint32 list_len_offs = 0;          /* Offset of PTDL LIST length parameter */
-    CsrUint32 ptdl_start_offs = 0;        /* Offset of first PTDL chunk */
-    CsrUint32 fw_id;
+    u32 patch_offs = 0;
+    u32 list_len_offs = 0;          /* Offset of PTDL LIST length parameter */
+    u32 ptdl_start_offs = 0;        /* Offset of first PTDL chunk */
+    u32 fw_id;
     void *rdbuf;
 
     if (!fw_buf || !fwinfo || !card)

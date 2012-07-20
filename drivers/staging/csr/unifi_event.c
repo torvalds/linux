@@ -367,7 +367,7 @@ static CsrBool check_routing_pkt_data_ind(unifi_priv_t *priv,
  */
 static void
 unifi_process_receive_event(void *ospriv,
-                            u8 *sigdata, CsrUint32 siglen,
+                            u8 *sigdata, u32 siglen,
                             const bulk_data_param_t *bulkdata)
 {
     unifi_priv_t *priv = (unifi_priv_t*)ospriv;
@@ -647,7 +647,7 @@ void rx_wq_handler(struct work_struct *work)
  */
 void
 unifi_receive_event(void *ospriv,
-                    u8 *sigdata, CsrUint32 siglen,
+                    u8 *sigdata, u32 siglen,
                     const bulk_data_param_t *bulkdata)
 {
 #ifdef CSR_WIFI_RX_PATH_SPLIT

@@ -577,7 +577,7 @@ static const struct chip_device_desc_t *chip_ver_to_desc[] =
 
 ChipDescript* ChipHelper_GetVersionSdio(u8 sdio_ver)
 {
-    CsrUint32 i;
+    u32 i;
 
     for (i = 0; i < nelem(chip_ver_to_desc); i++)
     {
@@ -593,7 +593,7 @@ ChipDescript* ChipHelper_GetVersionSdio(u8 sdio_ver)
 
 ChipDescript* ChipHelper_GetVersionAny(u16 from_FF9A, u16 from_FE81)
 {
-    CsrUint32 i;
+    u32 i;
 
     if ((from_FF9A & 0xFF00) != 0)
     {
@@ -666,7 +666,7 @@ CHIP_HELPER_LIST(C_DEF)
  */
 u16 ChipHelper_MapAddress_SPI2HOST(ChipDescript *chip_help, u16 addr)
 {
-    CsrUint32 i;
+    u32 i;
     for (i = 0; i < chip_help->map.len; i++)
     {
         if (chip_help->map.vals[i].spi == addr)
@@ -680,7 +680,7 @@ u16 ChipHelper_MapAddress_SPI2HOST(ChipDescript *chip_help, u16 addr)
 
 u16 ChipHelper_MapAddress_HOST2SPI(ChipDescript *chip_help, u16 addr)
 {
-    CsrUint32 i;
+    u32 i;
     for (i = 0; i < chip_help->map.len; i++)
     {
         if (chip_help->map.vals[i].host == addr)
@@ -725,7 +725,7 @@ u16 ChipHelper_WINDOW_SIZE(ChipDescript                 *chip_help,
 
 /* Get the register writes we should do to make sure that
    the chip is running with most clocks on. */
-CsrUint32 ChipHelper_ClockStartupSequence(ChipDescript                          *chip_help,
+u32 ChipHelper_ClockStartupSequence(ChipDescript                          *chip_help,
                                           const struct chip_helper_init_values **val)
 {
     *val = chip_help->init.vals;
@@ -734,7 +734,7 @@ CsrUint32 ChipHelper_ClockStartupSequence(ChipDescript                          
 
 
 /* Get the set of values tat we should write to the chip to perform a reset. */
-CsrUint32 ChipHelper_HostResetSequence(ChipDescript                           *chip_help,
+u32 ChipHelper_HostResetSequence(ChipDescript                           *chip_help,
                                        const struct chip_helper_reset_values **val)
 {
     *val = chip_help->reset_prog.vals;
@@ -746,8 +746,8 @@ CsrUint32 ChipHelper_HostResetSequence(ChipDescript                           *c
 CsrInt32 ChipHelper_DecodeWindow(ChipDescript *chip_help,
                                  enum chip_helper_window_index window,
                                  enum chip_helper_window_type type,
-                                 CsrUint32 offset,
-                                 u16 *page, u16 *addr, CsrUint32 *len)
+                                 u32 offset,
+                                 u16 *page, u16 *addr, u32 *len)
 {
     const struct window_info_t *win;
     const struct window_shift_info_t *mode;

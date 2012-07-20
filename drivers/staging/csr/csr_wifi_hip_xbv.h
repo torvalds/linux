@@ -33,39 +33,39 @@ extern "C" {
 
 struct VMEQ
 {
-    CsrUint32 addr;
+    u32 addr;
     u16 mask;
     u16 value;
 };
 
 struct VAND
 {
-    CsrUint32 first;
-    CsrUint32 count;
+    u32 first;
+    u32 count;
 };
 
 struct VERS
 {
-    CsrUint32 num_vand;
+    u32 num_vand;
 };
 
 struct FWDL
 {
-    CsrUint32 dl_addr;
-    CsrUint32 dl_size;
-    CsrUint32 dl_offset;
+    u32 dl_addr;
+    u32 dl_size;
+    u32 dl_offset;
 };
 
 struct FWOV
 {
-    CsrUint32 dl_size;
-    CsrUint32 dl_offset;
+    u32 dl_size;
+    u32 dl_offset;
 };
 
 struct PTDL
 {
-    CsrUint32 dl_size;
-    CsrUint32 dl_offset;
+    u32 dl_size;
+    u32 dl_offset;
 };
 
 #define MAX_VMEQ 64
@@ -90,11 +90,11 @@ typedef struct
     /* Parts of a Firmware XBV1 */
 
     struct VMEQ vmeq[MAX_VMEQ];
-    CsrUint32   num_vmeq;
+    u32   num_vmeq;
     struct VAND vand[MAX_VAND];
     struct VERS vers;
 
-    CsrUint32 slut_addr;
+    u32 slut_addr;
 
     /* F/W download image, possibly more than one part */
     struct FWDL fwdl[MAX_FWDL];
@@ -105,20 +105,20 @@ typedef struct
 
     /* Parts of a Patch XBV1 */
 
-    CsrUint32 build_id;
+    u32 build_id;
 
     struct PTDL ptdl[MAX_PTDL];
     s16    num_ptdl;
 }  xbv1_t;
 
 
-typedef CsrInt32 (*fwreadfn_t)(void *ospriv, void *dlpriv, CsrUint32 offset, void *buf, CsrUint32 len);
+typedef CsrInt32 (*fwreadfn_t)(void *ospriv, void *dlpriv, u32 offset, void *buf, u32 len);
 
 CsrResult xbv1_parse(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwinfo);
 CsrInt32 xbv1_read_slut(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwinfo,
-                        symbol_t *slut, CsrUint32 slut_len);
+                        symbol_t *slut, u32 slut_len);
 void* xbv_to_patch(card_t *card, fwreadfn_t readfn, const void *fw_buf, const xbv1_t *fwinfo,
-                   CsrUint32 *size);
+                   u32 *size);
 
 #ifdef __cplusplus
 }

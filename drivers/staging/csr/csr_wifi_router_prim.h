@@ -81,7 +81,7 @@ typedef u8 CsrWifiRouterEncapsulation;
     CSR_WIFI_ROUTER_OUI_BT       -
 
 *******************************************************************************/
-typedef CsrUint32 CsrWifiRouterOui;
+typedef u32 CsrWifiRouterOui;
 #define CSR_WIFI_ROUTER_OUI_RFC_1042   ((CsrWifiRouterOui) 0x000000)
 #define CSR_WIFI_ROUTER_OUI_BT         ((CsrWifiRouterOui) 0x001958)
 
@@ -183,7 +183,7 @@ typedef struct
     u16                  interfaceTag;
     CsrWifiRouterEncapsulation encapsulation;
     u16                  protocol;
-    CsrUint32                  oui;
+    u32                  oui;
 } CsrWifiRouterMaPacketSubscribeReq;
 
 /*******************************************************************************
@@ -248,7 +248,7 @@ typedef struct
     u8                      *frame;
     CsrWifiRouterFrameFreeFunction freeFunction;
     CsrWifiRouterPriority          priority;
-    CsrUint32                      hostTag;
+    u32                      hostTag;
     CsrBool                        cfmRequested;
 } CsrWifiRouterMaPacketReq;
 
@@ -305,7 +305,7 @@ typedef struct
 {
     CsrWifiFsmEvent       common;
     u16             interfaceTag;
-    CsrUint32             hostTag;
+    u32             hostTag;
     CsrWifiRouterPriority priority;
     CsrWifiMacAddress     peerMacAddress;
 } CsrWifiRouterMaPacketCancelReq;
@@ -381,7 +381,7 @@ typedef struct
     CsrWifiFsmEvent common;
     u16       interfaceTag;
     CsrResult       result;
-    CsrUint32       hostTag;
+    u32       hostTag;
     u16       rate;
 } CsrWifiRouterMaPacketCfm;
 

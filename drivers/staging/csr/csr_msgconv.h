@@ -73,14 +73,14 @@ void CsrMsgConvDeinit(void);
 
 /* SHOULD BE INTERNAL TO FRAMEWORK AKA DEPRECATED */
 
-CsrUint32 CsrCharStringSerLen(const CsrCharString *str);
-CsrUint32 CsrUtf8StringSerLen(const CsrUtf8String *str);
-CsrUint32 CsrUtf16StringSerLen(const CsrUtf16String *str);
+u32 CsrCharStringSerLen(const CsrCharString *str);
+u32 CsrUtf8StringSerLen(const CsrUtf8String *str);
+u32 CsrUtf16StringSerLen(const CsrUtf16String *str);
 
 /* Prototypes for primitive type serializers */
 void CsrUint8Ser(u8 *buffer, CsrSize *offset, u8 value);
 void CsrUint16Ser(u8 *buffer, CsrSize *offset, u16 value);
-void CsrUint32Ser(u8 *buffer, CsrSize *offset, CsrUint32 value);
+void CsrUint32Ser(u8 *buffer, CsrSize *offset, u32 value);
 void CsrMemCpySer(u8 *buffer, CsrSize *offset, const void *value, CsrSize length);
 void CsrCharStringSer(u8 *buffer, CsrSize *offset, const CsrCharString *value);
 void CsrUtf8StringSer(u8 *buffer, CsrSize *offset, const CsrUtf8String *value);
@@ -90,7 +90,7 @@ void CsrSizeSer(u8 *buffer, CsrSize *offset, CsrSize value);
 
 void CsrUint8Des(u8 *value, u8 *buffer, CsrSize *offset);
 void CsrUint16Des(u16 *value, u8 *buffer, CsrSize *offset);
-void CsrUint32Des(CsrUint32 *value, u8 *buffer, CsrSize *offset);
+void CsrUint32Des(u32 *value, u8 *buffer, CsrSize *offset);
 void CsrMemCpyDes(void *value, u8 *buffer, CsrSize *offset, CsrSize length);
 void CsrCharStringDes(CsrCharString **value, u8 *buffer, CsrSize *offset);
 void CsrUtf8StringDes(CsrUtf8String **value, u8 *buffer, CsrSize *offset);
