@@ -384,7 +384,7 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 		return ret;
 
 	atomic_set(&ip->i_res->rs_sizehint,
-		   PAGE_CACHE_SIZE / sdp->sd_sb.sb_bsize);
+		   PAGE_CACHE_SIZE >> sdp->sd_sb.sb_bsize_shift);
 
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	ret = gfs2_glock_nq(&gh);
@@ -669,7 +669,7 @@ static ssize_t gfs2_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	if (ret)
 		return ret;
 
-	atomic_set(&ip->i_res->rs_sizehint, writesize / sdp->sd_sb.sb_bsize);
+	atomic_set(&ip->i_res->rs_sizehint, writesize >> sdp->sd_sb.sb_bsize_shift);
 	if (file->f_flags & O_APPEND) {
 		struct gfs2_holder gh;
 
@@ -795,7 +795,7 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset,
 	if (unlikely(error))
 		goto out_uninit;
 
-	atomic_set(&ip->i_res->rs_sizehint, len / sdp->sd_sb.sb_bsize);
+	atomic_set(&ip->i_res->rs_sizehint, len >> sdp->sd_sb.sb_bsize_shift);
 
 	while (len > 0) {
 		if (len < bytes)
