@@ -28,7 +28,6 @@ void CsrUInt16ToHex(u16 number, char *str);
 /*------------------------------------------------------------------*/
 #ifdef CSR_USE_STDC_LIB
 #define CsrMemCpy memcpy
-#define CsrMemMove memmove
 #define CsrStrCpy strcpy
 #define CsrStrNCpy strncpy
 #define CsrStrCmp(s1, s2) ((s32) strcmp((s1), (s2)))
@@ -37,7 +36,6 @@ void CsrUInt16ToHex(u16 number, char *str);
 #define CsrStrLen strlen
 #else /* !CSR_USE_STDC_LIB */
 void *CsrMemCpy(void *dest, const void *src, size_t count);
-void *CsrMemMove(void *dest, const void *src, size_t count);
 char *CsrStrCpy(char *dest, const char *src);
 char *CsrStrNCpy(char *dest, const char *src, size_t count);
 s32 CsrStrCmp(const char *string1, const char *string2);

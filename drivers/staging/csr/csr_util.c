@@ -42,12 +42,6 @@ void *CsrMemCpy(void *dest, const void *src, size_t count)
     return memcpy(dest, src, count);
 }
 EXPORT_SYMBOL_GPL(CsrMemCpy);
-
-void *CsrMemMove(void *dest, const void *src, size_t count)
-{
-    return memmove(dest, src, count);
-}
-EXPORT_SYMBOL_GPL(CsrMemMove);
 #endif
 
 #ifndef CSR_USE_STDC_LIB
