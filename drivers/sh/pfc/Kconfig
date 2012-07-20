@@ -17,7 +17,6 @@ config PINCTRL_SH_PFC
 	select PINCTRL
 	select PINMUX
 	select PINCONF
-	select GENERIC_PINCONF
 
 config GPIO_SH_PFC
 	tristate "SuperH PFC GPIO support"

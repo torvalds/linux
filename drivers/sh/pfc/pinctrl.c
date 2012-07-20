@@ -65,10 +65,17 @@ static int sh_pfc_get_group_pins(struct pinctrl_dev *pctldev, unsigned group,
 	return 0;
 }
 
+static void sh_pfc_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
+				unsigned offset)
+{
+	seq_printf(s, "%s", DRV_NAME);
+}
+
 static struct pinctrl_ops sh_pfc_pinctrl_ops = {
 	.get_groups_count	= sh_pfc_get_groups_count,
 	.get_group_name		= sh_pfc_get_group_name,
 	.get_group_pins		= sh_pfc_get_group_pins,
+	.pin_dbg_show		= sh_pfc_pin_dbg_show,
 };
 
 static int sh_pfc_get_functions_count(struct pinctrl_dev *pctldev)
@@ -123,6 +130,59 @@ static inline int sh_pfc_config_function(struct sh_pfc *pfc, unsigned offset)
 
 	return 0;
 }
+
+static int sh_pfc_reconfig_pin(struct sh_pfc *pfc, unsigned offset,
+			       int new_type)
+{
+	unsigned long flags;
+	int pinmux_type;
+	int ret = -EINVAL;
+
+	spin_lock_irqsave(&pfc->lock, flags);
+
+	pinmux_type = pfc->gpios[offset].flags & PINMUX_FLAG_TYPE;
+
+	/*
+	 * See if the present config needs to first be de-configured.
+	 */
+	switch (pinmux_type) {
+	case PINMUX_TYPE_GPIO:
+		break;
+	case PINMUX_TYPE_OUTPUT:
+	case PINMUX_TYPE_INPUT:
+	case PINMUX_TYPE_INPUT_PULLUP:
+	case PINMUX_TYPE_INPUT_PULLDOWN:
+		sh_pfc_config_gpio(pfc, offset, pinmux_type, GPIO_CFG_FREE);
+		break;
+	default:
+		goto err;
+	}
+
+	/*
+	 * Dry run
+	 */
+	if (sh_pfc_config_gpio(pfc, offset, new_type,
+			       GPIO_CFG_DRYRUN) != 0)
+		goto err;
+
+	/*
+	 * Request
+	 */
+	if (sh_pfc_config_gpio(pfc, offset, new_type,
+			       GPIO_CFG_REQ) != 0)
+		goto err;
+
+	pfc->gpios[offset].flags &= ~PINMUX_FLAG_TYPE;
+	pfc->gpios[offset].flags |= new_type;
+
+	ret = 0;
+
+err:
+	spin_unlock_irqrestore(&pfc->lock, flags);
+
+	return ret;
+}
+
 
 static int sh_pfc_gpio_request_enable(struct pinctrl_dev *pctldev,
 				      struct pinctrl_gpio_range *range,
@@ -185,49 +245,9 @@ static int sh_pfc_gpio_set_direction(struct pinctrl_dev *pctldev,
 				     unsigned offset, bool input)
 {
 	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
-	struct sh_pfc *pfc = pmx->pfc;
-	unsigned long flags;
-	int pinmux_type, new_pinmux_type;
-	int ret = -EINVAL;
+	int type = input ? PINMUX_TYPE_INPUT : PINMUX_TYPE_OUTPUT;
 
-	new_pinmux_type = input ? PINMUX_TYPE_INPUT : PINMUX_TYPE_OUTPUT;
-
-	spin_lock_irqsave(&pfc->lock, flags);
-
-	pinmux_type = pfc->gpios[offset].flags & PINMUX_FLAG_TYPE;
-
-	switch (pinmux_type) {
-	case PINMUX_TYPE_GPIO:
-		break;
-	case PINMUX_TYPE_OUTPUT:
-	case PINMUX_TYPE_INPUT:
-	case PINMUX_TYPE_INPUT_PULLUP:
-	case PINMUX_TYPE_INPUT_PULLDOWN:
-		sh_pfc_config_gpio(pfc, offset, pinmux_type, GPIO_CFG_FREE);
-		break;
-	default:
-		goto err;
-	}
-
-	if (sh_pfc_config_gpio(pfc, offset,
-			       new_pinmux_type,
-			       GPIO_CFG_DRYRUN) != 0)
-		goto err;
-
-	if (sh_pfc_config_gpio(pfc, offset,
-			       new_pinmux_type,
-			       GPIO_CFG_REQ) != 0)
-		BUG();
-
-	pfc->gpios[offset].flags &= ~PINMUX_FLAG_TYPE;
-	pfc->gpios[offset].flags |= new_pinmux_type;
-
-	ret = 0;
-
-err:
-	spin_unlock_irqrestore(&pfc->lock, flags);
-
-	return ret;
+	return sh_pfc_reconfig_pin(pmx->pfc, offset, type);
 }
 
 static struct pinmux_ops sh_pfc_pinmux_ops = {
@@ -244,26 +264,53 @@ static struct pinmux_ops sh_pfc_pinmux_ops = {
 static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned pin,
 			      unsigned long *config)
 {
-	enum pin_config_param param = (enum pin_config_param)(*config);
+	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
+	struct sh_pfc *pfc = pmx->pfc;
 
-	switch (param) {
-	default:
-		break;
-	}
+	*config = pfc->gpios[pin].flags & PINMUX_FLAG_TYPE;
 
-	return -ENOTSUPP;
+	return 0;
 }
 
 static int sh_pfc_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 			      unsigned long config)
 {
-	return -EINVAL;
+	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
+	struct sh_pfc *pfc = pmx->pfc;
+
+	/* Validate the new type */
+	if (config >= PINMUX_FLAG_TYPE)
+		return -EINVAL;
+
+	return sh_pfc_reconfig_pin(pmx->pfc, pin, config);
+}
+
+static void sh_pfc_pinconf_dbg_show(struct pinctrl_dev *pctldev,
+				    struct seq_file *s, unsigned pin)
+{
+	const char *pinmux_type_str[] = {
+		[PINMUX_TYPE_NONE]		= "none",
+		[PINMUX_TYPE_FUNCTION]		= "function",
+		[PINMUX_TYPE_GPIO]		= "gpio",
+		[PINMUX_TYPE_OUTPUT]		= "output",
+		[PINMUX_TYPE_INPUT]		= "input",
+		[PINMUX_TYPE_INPUT_PULLUP]	= "input bias pull up",
+		[PINMUX_TYPE_INPUT_PULLDOWN]	= "input bias pull down",
+	};
+	unsigned long config;
+	int rc;
+
+	rc = sh_pfc_pinconf_get(pctldev, pin, &config);
+	if (unlikely(rc != 0))
+		return;
+
+	seq_printf(s, " %s", pinmux_type_str[config]);
 }
 
 static struct pinconf_ops sh_pfc_pinconf_ops = {
-	.is_generic		= true,
 	.pin_config_get		= sh_pfc_pinconf_get,
 	.pin_config_set		= sh_pfc_pinconf_set,
+	.pin_config_dbg_show	= sh_pfc_pinconf_dbg_show,
 };
 
 static struct pinctrl_gpio_range sh_pfc_gpio_range = {
