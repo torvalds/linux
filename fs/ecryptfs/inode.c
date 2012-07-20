@@ -318,21 +318,20 @@ static int ecryptfs_lookup_interpose(struct dentry *dentry,
 	struct vfsmount *lower_mnt;
 	int rc = 0;
 
-	lower_mnt = mntget(ecryptfs_dentry_to_lower_mnt(dentry->d_parent));
-	fsstack_copy_attr_atime(dir_inode, lower_dentry->d_parent->d_inode);
-	BUG_ON(!lower_dentry->d_count);
-
 	dentry_info = kmem_cache_alloc(ecryptfs_dentry_info_cache, GFP_KERNEL);
-	ecryptfs_set_dentry_private(dentry, dentry_info);
 	if (!dentry_info) {
 		printk(KERN_ERR "%s: Out of memory whilst attempting "
 		       "to allocate ecryptfs_dentry_info struct\n",
 			__func__);
 		dput(lower_dentry);
-		mntput(lower_mnt);
-		d_drop(dentry);
 		return -ENOMEM;
 	}
+
+	lower_mnt = mntget(ecryptfs_dentry_to_lower_mnt(dentry->d_parent));
+	fsstack_copy_attr_atime(dir_inode, lower_dentry->d_parent->d_inode);
+	BUG_ON(!lower_dentry->d_count);
+
+	ecryptfs_set_dentry_private(dentry, dentry_info);
 	ecryptfs_set_dentry_lower(dentry, lower_dentry);
 	ecryptfs_set_dentry_lower_mnt(dentry, lower_mnt);
 
