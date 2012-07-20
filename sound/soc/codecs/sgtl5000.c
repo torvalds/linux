@@ -1357,8 +1357,6 @@ static int sgtl5000_probe(struct snd_soc_codec *codec)
 	if (ret)
 		goto err;
 
-	snd_soc_dapm_new_widgets(&codec->dapm);
-
 	return 0;
 
 err:
