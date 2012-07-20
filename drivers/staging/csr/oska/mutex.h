@@ -11,8 +11,8 @@
 
 #include <linux/kernel.h>
 #include <linux/mutex.h>
+#include <linux/semaphore.h>
 
-#include "kernel-compat.h"
 
 /* Real mutexes were only added to 2.6.16 so use semaphores
    instead. */
