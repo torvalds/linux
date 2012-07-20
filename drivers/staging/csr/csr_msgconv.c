@@ -133,10 +133,10 @@ static CsrSize sizeof_message(u16 primType, void *msg)
     return ret;
 }
 
-static CsrBool free_message(u16 primType, u8 *data)
+static u8 free_message(u16 primType, u8 *data)
 {
     CsrMsgConvPrimEntry *ptr;
-    CsrBool ret;
+    u8 ret;
 
     ptr = CsrMsgConvFind(primType);
 

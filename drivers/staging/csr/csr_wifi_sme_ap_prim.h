@@ -248,12 +248,12 @@ typedef u16 CsrWifiSmeApWapiCapabilitiesMask;
 *******************************************************************************/
 typedef struct
 {
-    CsrBool  greenfieldSupported;
-    CsrBool  shortGi20MHz;
+    u8  greenfieldSupported;
+    u8  shortGi20MHz;
     u8 rxStbc;
-    CsrBool  rifsModeAllowed;
+    u8  rifsModeAllowed;
     u8 htProtection;
-    CsrBool  dualCtsProtection;
+    u8  dualCtsProtection;
 } CsrWifiSmeApHtParams;
 
 /*******************************************************************************
@@ -389,9 +389,9 @@ typedef struct
     u8                    supportedRatesCount;
     u8                    supportedRates[20];
     CsrWifiSmePreambleType      preamble;
-    CsrBool                     shortSlotTimeEnabled;
+    u8                     shortSlotTimeEnabled;
     CsrWifiSmeCtsProtectionType ctsProtectionType;
-    CsrBool                     wmmEnabled;
+    u8                     wmmEnabled;
     CsrWifiSmeWmmAcParams       wmmApParams[4];
     CsrWifiSmeWmmAcParams       wmmApBcParams[4];
     CsrWifiSmeApAccessType      accessType;
@@ -435,10 +435,10 @@ typedef struct
 {
     CsrWifiSmeP2pGroupCapabilityMask groupCapability;
     CsrWifiSmeApP2pOperatingChanList operatingChanList;
-    CsrBool                          opPsEnabled;
+    u8                          opPsEnabled;
     u8                         ctWindow;
     CsrWifiSmeP2pNoaConfigMethod     noaConfigMethod;
-    CsrBool                          allowNoaWithNonP2pDevices;
+    u8                          allowNoaWithNonP2pDevices;
 } CsrWifiSmeApP2pGoConfig;
 
 /*******************************************************************************
@@ -481,7 +481,7 @@ typedef struct
 typedef struct
 {
     CsrWifiSmeApCredentials apCredentials;
-    CsrBool                 wpsEnabled;
+    u8                 wpsEnabled;
 } CsrWifiSmeApSecConfig;
 
 
@@ -553,7 +553,7 @@ typedef struct
     u16               interfaceTag;
     u8                initialPresence;
     CsrWifiSmeApType        apType;
-    CsrBool                 cloakSsid;
+    u8                 cloakSsid;
     CsrWifiSsid             ssid;
     CsrWifiSmeRadioIF       ifIndex;
     u8                channel;
@@ -675,7 +675,7 @@ typedef struct
     CsrWifiSmeIEEE80211Reason deauthReason;
     CsrWifiSmeIEEE80211Reason disassocReason;
     CsrWifiMacAddress         peerMacaddress;
-    CsrBool                   keepBlocking;
+    u8                   keepBlocking;
 } CsrWifiSmeApStaDisconnectReq;
 
 /*******************************************************************************

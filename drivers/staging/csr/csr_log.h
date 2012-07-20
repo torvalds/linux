@@ -71,9 +71,9 @@ typedef u32 CsrLogLevelTask;
 /* The bit masks between here are reserved for future usage */
 #define CSR_LOG_LEVEL_TASK_ALL                 ((CsrLogLevelTask) 0xFFFFFFFF & ~(CSR_LOG_LEVEL_TASK_PRIM_ONLY_TYPE | CSR_LOG_LEVEL_TASK_PRIM_APPLY_LIMIT)) /* All info possible to log for a task are logged. WARNING: By using this define the application also accepts future possible task data/events in the logs */
 
-CsrBool CsrLogEnvironmentIsFiltered(CsrLogLevelEnvironment level);
+u8 CsrLogEnvironmentIsFiltered(CsrLogLevelEnvironment level);
 CsrLogLevelTask CsrLogTaskFilterGet(CsrSchedQid taskId);
-CsrBool CsrLogTaskIsFiltered(CsrSchedQid taskId, CsrLogLevelTask level);
+u8 CsrLogTaskIsFiltered(CsrSchedQid taskId, CsrLogLevelTask level);
 
 /*
  * Logging stuff
@@ -193,7 +193,7 @@ void CsrLogMessagePut(u32 line,
 
 void CsrLogMessageGet(CsrSchedQid src_task_id,
     CsrSchedQid dst_taskid,
-    CsrBool get_res,
+    u8 get_res,
     CsrSchedMsgId msg_id,
     u16 prim_type,
     const void *msg);
@@ -216,7 +216,7 @@ void CsrLogTimedEventCancel(u32 line,
     const char *file,
     CsrSchedQid task_id,
     CsrSchedTid tid,
-    CsrBool cancel_res);
+    u8 cancel_res);
 
 void CsrLogBgintRegister(u8 thread_id,
     CsrSchedBgint irq,

@@ -323,10 +323,10 @@ typedef struct CsrWifiRouterCtrlStaInfo_t {
     /* Sme sends these parameters */
     CsrWifiMacAddress peerMacAddress;
     u32 assignedHandle;
-    CsrBool wmmOrQosEnabled;
+    u8 wmmOrQosEnabled;
     CsrWifiAcPowersaveMode powersaveMode[MAX_ACCESS_CATOGORY];
     u16 maxSpLength;
-    CsrBool uapsdActive;
+    u8 uapsdActive;
     u16 noOfSpFramesSent;
 
     /* Router/Driver database */
@@ -337,7 +337,7 @@ typedef struct CsrWifiRouterCtrlStaInfo_t {
     /* Inactivity feature parameters */
     struct netInterface_priv *interfacePriv;
     struct work_struct send_disconnected_ind_task;
-    CsrBool activity_flag;
+    u8 activity_flag;
     u16 listenIntervalInTus;
     CSR_CLIENT_TAG nullDataHostTag;
 
@@ -345,7 +345,7 @@ typedef struct CsrWifiRouterCtrlStaInfo_t {
     CsrTime lastActivity;
 
     /* during m/c transmission sp suspended */
-    CsrBool uspSuspend;
+    u8 uspSuspend;
     CSR_PRIORITY triggerFramePriority;
 #endif
     CsrWifiRouterCtrlPeerStatus currentPeerState;
@@ -354,9 +354,9 @@ typedef struct CsrWifiRouterCtrlStaInfo_t {
     u8 spStatus;
     u8 prevFrmType;
     u8 prevFrmAccessCatogory;
-    CsrBool protection;
+    u8 protection;
     u16 aid;
-    CsrBool txSuspend;
+    u8 txSuspend;
     u8 timSet;
     /* Dont change the value of below macro for SET & RESET */
 #define CSR_WIFI_TIM_RESET       0
@@ -364,7 +364,7 @@ typedef struct CsrWifiRouterCtrlStaInfo_t {
 #define CSR_WIFI_TIM_RESETTING   2
 #define CSR_WIFI_TIM_SETTING     3
 
-    CsrBool timRequestPendingFlag;
+    u8 timRequestPendingFlag;
     u8 updateTimReqQueued;
     u16 noOfPktQueued;
 }CsrWifiRouterCtrlStaInfo_t;
@@ -501,7 +501,7 @@ struct unifi_priv {
 #define CSR_WIFI_DRIVER_MAX_PKT_QUEUING_THRESHOLD_PER_PEER 64
 #define CSR_WIFI_DRIVER_MINIMUM_BROADCAST_PKT_THRESHOLD 3
 
-    CsrBool routerBufferEnable[MAX_ACCESS_CATOGORY];
+    u8 routerBufferEnable[MAX_ACCESS_CATOGORY];
     /* lock to protect stainfo members and priv members*/
     spinlock_t staRecord_lock;
 #endif
@@ -616,7 +616,7 @@ struct unifi_priv {
 
     int ptest_mode;     /* Set when in production test mode */
     int coredump_mode;  /* Set when SME has requested a coredump */
-    CsrBool wol_suspend; /* Set when suspending with UniFi powered */
+    u8 wol_suspend; /* Set when suspending with UniFi powered */
 
 #define UF_UNCONTROLLED_PORT_Q      0
 #define UF_CONTROLLED_PORT_Q        1
@@ -660,7 +660,7 @@ struct unifi_priv {
     u8 wapi_unicast_filter;
     u8 wapi_unicast_queued_pkt_filter;
 #ifdef CSR_WIFI_SECURITY_WAPI_QOSCTRL_MIC_WORKAROUND
-    CsrBool  isWapiConnection;
+    u8  isWapiConnection;
 #endif
 #endif
 
@@ -668,7 +668,7 @@ struct unifi_priv {
     CsrWifiRouterCtrlModeSetReq pending_mode_set;
 #endif
 
-    CsrBool cmanrTestMode;
+    u8 cmanrTestMode;
     CSR_RATE cmanrTestModeTransmitRate;
 
 };
@@ -680,7 +680,7 @@ typedef struct {
 
 
 typedef struct {
-    CsrBool active;
+    u8 active;
     bulk_data_param_t bulkdata;
     CSR_SIGNAL signal;
     u16 sn;
@@ -695,7 +695,7 @@ typedef struct {
     u16 timeout;
     u16 expected_sn;
     u16 start_sn;
-    CsrBool   trigger_ba_after_ssn;
+    u8   trigger_ba_after_ssn;
     struct netInterface_priv *interfacePriv;
     u16 tID;
     CsrWifiMacAddress macAddress;
@@ -724,7 +724,7 @@ typedef struct netInterface_priv
 #endif
     struct net_device_stats stats;
     u8 interfaceMode;
-    CsrBool protect;
+    u8 protect;
     CsrWifiMacAddress bssid;
     /*
     * Flag to reflect state of CONNECTED indication signal.
@@ -739,9 +739,9 @@ typedef struct netInterface_priv
     } connected;
 #ifdef CSR_SUPPORT_WEXT
     /* Tracks when we are waiting for a netdevice state change callback */
-    CsrBool wait_netdev_change;
+    u8 wait_netdev_change;
     /* True if we have successfully registered for netdev callbacks */
-    CsrBool netdev_callback_registered;
+    u8 netdev_callback_registered;
 #endif /* CSR_SUPPORT_WEXT */
     unsigned int netdev_registered;
 #define UNIFI_MAX_MULTICAST_ADDRESSES 10
@@ -764,7 +764,7 @@ typedef struct netInterface_priv
 
     /* Timer for detecting station inactivity */
     struct timer_list sta_activity_check_timer;
-    CsrBool sta_activity_check_enabled;
+    u8 sta_activity_check_enabled;
 
     /* Timestamp when the last inactivity check was done */
     CsrTime last_inactivity_check;
@@ -787,15 +787,15 @@ typedef struct netInterface_priv
 #endif
 
     /* This should be removed and m4_hostTag should be used for checking*/
-    CsrBool m4_sent;
+    u8 m4_sent;
     CSR_CLIENT_TAG m4_hostTag;
-    CsrBool dtimActive;
-    CsrBool intraBssEnabled;
+    u8 dtimActive;
+    u8 intraBssEnabled;
     u32 multicastPduHostTag; /* Used to set the tim after getting
        a confirm for it */
-    CsrBool bcTimSet;
-    CsrBool bcTimSetReqPendingFlag;
-    CsrBool bcTimSetReqQueued;
+    u8 bcTimSet;
+    u8 bcTimSetReqPendingFlag;
+    u8 bcTimSetReqQueued;
 } netInterface_priv_t;
 
 #ifndef ALLOW_Q_PAUSE
@@ -895,7 +895,7 @@ unifi_priv_t *uf_alloc_netdevice(CsrSdioFunction *sdio_dev, int bus_id);
 int uf_free_netdevice(unifi_priv_t *priv);
 
 /* Allocating function for other interfaces */
-CsrBool uf_alloc_netdevice_for_other_interfaces(unifi_priv_t *priv, u16 interfaceTag);
+u8 uf_alloc_netdevice_for_other_interfaces(unifi_priv_t *priv, u16 interfaceTag);
 
 /*
  * Firmware download related functions.
@@ -956,15 +956,15 @@ int uf_verify_m4(unifi_priv_t *priv, const unsigned char *packet,
         unsigned int length);
 
 #ifdef CSR_SUPPORT_SME
-CsrBool uf_check_broadcast_bssid(unifi_priv_t *priv, const bulk_data_param_t *bulkdata);
-CsrBool uf_process_pm_bit_for_peer(unifi_priv_t * priv, CsrWifiRouterCtrlStaInfo_t * srcStaInfo,u8 pmBit,u16 interfaceTag);
+u8 uf_check_broadcast_bssid(unifi_priv_t *priv, const bulk_data_param_t *bulkdata);
+u8 uf_process_pm_bit_for_peer(unifi_priv_t * priv, CsrWifiRouterCtrlStaInfo_t * srcStaInfo,u8 pmBit,u16 interfaceTag);
 void uf_process_ps_poll(unifi_priv_t *priv,u8* sa,u8* da,u8 pmBit,u16 interfaceTag);
 int uf_ap_process_data_pdu(unifi_priv_t *priv, struct sk_buff *skb,
                    struct ethhdr *ehdr, CsrWifiRouterCtrlStaInfo_t * srcStaInfo,
                    const CSR_SIGNAL *signal,
                    bulk_data_param_t *bulkdata,
                    u8 macHeaderLengthInBytes);
-CsrBool uf_is_more_data_for_non_delivery_ac(CsrWifiRouterCtrlStaInfo_t *staRecord);
+u8 uf_is_more_data_for_non_delivery_ac(CsrWifiRouterCtrlStaInfo_t *staRecord);
 void uf_process_wmm_deliver_ac_uapsd (  unifi_priv_t * priv,
                                         CsrWifiRouterCtrlStaInfo_t * srcStaInfo,
                                         u16 qosControl,
@@ -1031,7 +1031,7 @@ int prepare_and_add_macheader(unifi_priv_t *priv,
                               u16 interfaceTag,
                               const u8 *daddr,
                               const u8 *saddr,
-                              CsrBool protection);
+                              u8 protection);
 CSR_PRIORITY
 get_packet_priority(unifi_priv_t *priv, struct sk_buff *skb, const struct ethhdr *ehdr, netInterface_priv_t *interfacePriv);
 
@@ -1064,7 +1064,7 @@ void scroll_ba_window(unifi_priv_t *priv,
                       ba_session_rx_struct *ba_session,
                       u16 sn);
 
-CsrBool blockack_session_stop(unifi_priv_t *priv,
+u8 blockack_session_stop(unifi_priv_t *priv,
                               u16 interfaceTag,
                               CsrWifiRouterCtrlBlockAckRole role,
                               u16 tID,

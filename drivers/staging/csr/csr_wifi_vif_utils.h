@@ -64,9 +64,9 @@ extern "C" {
  * @param[in] CsrWifiInterfaceMode : mode
  *
  * @return
- *     CsrBool : returns true if the interface is allowed to operate in the mode otherwise false.
+ *     u8 : returns true if the interface is allowed to operate in the mode otherwise false.
  */
-extern CsrBool CsrWifiVifUtilsCheckCompatibility(u8             interfaceCapability,
+extern u8 CsrWifiVifUtilsCheckCompatibility(u8             interfaceCapability,
                                                  u8            *currentInterfaceModes,
                                                  u16            interfaceTag,
                                                  CsrWifiInterfaceMode mode);
@@ -80,9 +80,9 @@ extern CsrBool CsrWifiVifUtilsCheckCompatibility(u8             interfaceCapabil
  * @param[in] u16 : interfaceTag
  *
  * @return
- *     CsrBool : returns true if the interface is supported, otherwise false.
+ *     u8 : returns true if the interface is supported, otherwise false.
  */
-extern CsrBool CsrWifiVifUtilsIsSupported(u16 interfaceTag);
+extern u8 CsrWifiVifUtilsIsSupported(u16 interfaceTag);
 
 #ifdef CSR_LOG_ENABLE
 /**

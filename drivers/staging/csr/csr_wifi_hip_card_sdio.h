@@ -300,7 +300,7 @@ typedef struct
     u16 packets_interval;
 
     /* Once a queue reaches a stable state, avoid processing */
-    CsrBool queue_stable[UNIFI_NO_OF_TX_QS];
+    u8 queue_stable[UNIFI_NO_OF_TX_QS];
 } card_dynamic_slot_t;
 
 
@@ -566,7 +566,7 @@ struct card
     u16 sdio_io_block_size;
 
     /* Pad transfer sizes to SDIO block boundaries */
-    CsrBool sdio_io_block_pad;
+    u8 sdio_io_block_pad;
 
     /* Read from the XBV */
     struct FWOV fwov;

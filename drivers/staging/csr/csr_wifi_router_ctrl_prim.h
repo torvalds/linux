@@ -32,7 +32,7 @@ typedef CsrResult (*CsrWifiRouterCtrlRawSdioByteWrite)(u8 func, u32 address, u8 
 typedef CsrResult (*CsrWifiRouterCtrlRawSdioByteRead)(u8 func, u32 address, u8 *pdata);
 typedef CsrResult (*CsrWifiRouterCtrlRawSdioFirmwareDownload)(u32 length, const u8 *pdata);
 typedef CsrResult (*CsrWifiRouterCtrlRawSdioReset)(void);
-typedef CsrResult (*CsrWifiRouterCtrlRawSdioCoreDumpPrepare)(CsrBool suspendSme);
+typedef CsrResult (*CsrWifiRouterCtrlRawSdioCoreDumpPrepare)(u8 suspendSme);
 typedef CsrResult (*CsrWifiRouterCtrlRawSdioByteBlockRead)(u8 func, u32 address, u8 *pdata, u32 length);
 typedef CsrResult (*CsrWifiRouterCtrlRawSdioGpRead16)(u8 func, u32 address, u16 *pdata);
 typedef CsrResult (*CsrWifiRouterCtrlRawSdioGpWrite16)(u8 func, u32 address, u16 data);
@@ -488,7 +488,7 @@ typedef struct
 *******************************************************************************/
 typedef struct
 {
-    CsrBool                            wmmOrQosEnabled;
+    u8                            wmmOrQosEnabled;
     CsrWifiRouterCtrlPowersaveTypeMask powersaveMode;
     u8                           maxSpLength;
     u16                          listenIntervalInTus;
@@ -684,7 +684,7 @@ typedef struct
     CsrWifiFsmEvent                common;
     CsrWifiRouterCtrlRequestorInfo clientData;
     CsrWifiRouterCtrlLowPowerMode  mode;
-    CsrBool                        wakeHost;
+    u8                        wakeHost;
 } CsrWifiRouterCtrlConfigurePowerModeReq;
 
 /*******************************************************************************
@@ -791,7 +791,7 @@ typedef struct
     CsrWifiRouterCtrlPortAction    uncontrolledPortAction;
     CsrWifiRouterCtrlPortAction    controlledPortAction;
     CsrWifiMacAddress              macAddress;
-    CsrBool                        setProtection;
+    u8                        setProtection;
 } CsrWifiRouterCtrlPortConfigureReq;
 
 /*******************************************************************************
@@ -1073,7 +1073,7 @@ typedef struct
     u16                      numInterfaceAddress;
     CsrWifiMacAddress              stationMacAddress[2];
     CsrWifiRouterCtrlSmeVersions   smeVersions;
-    CsrBool                        scheduledInterrupt;
+    u8                        scheduledInterrupt;
 } CsrWifiRouterCtrlWifiOnRes;
 
 /*******************************************************************************
@@ -1126,8 +1126,8 @@ typedef struct
     CsrWifiRouterCtrlRequestorInfo clientData;
     CsrWifiRouterCtrlMode          mode;
     CsrWifiMacAddress              bssid;
-    CsrBool                        protection;
-    CsrBool                        intraBssDistEnabled;
+    u8                        protection;
+    u8                        intraBssDistEnabled;
 } CsrWifiRouterCtrlModeSetReq;
 
 /*******************************************************************************
@@ -1383,7 +1383,7 @@ typedef struct
 {
     CsrWifiFsmEvent common;
     u16       interfaceTag;
-    CsrBool         isWapiConnected;
+    u8         isWapiConnected;
 } CsrWifiRouterCtrlWapiFilterReq;
 
 /*******************************************************************************
@@ -1482,7 +1482,7 @@ typedef struct
 {
     CsrWifiFsmEvent                common;
     CsrWifiRouterCtrlRequestorInfo clientData;
-    CsrBool                        powerMaintained;
+    u8                        powerMaintained;
 } CsrWifiRouterCtrlResumeInd;
 
 /*******************************************************************************
@@ -1503,8 +1503,8 @@ typedef struct
 {
     CsrWifiFsmEvent                common;
     CsrWifiRouterCtrlRequestorInfo clientData;
-    CsrBool                        hardSuspend;
-    CsrBool                        d3Suspend;
+    u8                        hardSuspend;
+    u8                        d3Suspend;
 } CsrWifiRouterCtrlSuspendInd;
 
 /*******************************************************************************
@@ -1802,7 +1802,7 @@ typedef struct
     CsrWifiRouterCtrlRequestorInfo clientData;
     u16                      interfaceTag;
     CsrWifiMacAddress              peerMacAddress;
-    CsrBool                        unicastPdu;
+    u8                        unicastPdu;
 } CsrWifiRouterCtrlMicFailureInd;
 
 /*******************************************************************************

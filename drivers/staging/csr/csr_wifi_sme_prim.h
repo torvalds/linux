@@ -1988,9 +1988,9 @@ typedef struct
 typedef struct
 {
     u8 keepAliveTimeMs;
-    CsrBool  apRoamingEnabled;
+    u8  apRoamingEnabled;
     u8 measurementsMask;
-    CsrBool  ccxRadioMgtEnabled;
+    u8  ccxRadioMgtEnabled;
 } CsrWifiSmeCcxConfig;
 
 /*******************************************************************************
@@ -2037,8 +2037,8 @@ typedef struct
 *******************************************************************************/
 typedef struct
 {
-    CsrBool   coexEnableSchemeManagement;
-    CsrBool   coexPeriodicWakeHost;
+    u8   coexEnableSchemeManagement;
+    u8   coexPeriodicWakeHost;
     u16 coexTrafficBurstyLatencyMs;
     u16 coexTrafficContinuousLatencyMs;
     u16 coexObexBlackoutDurationMs;
@@ -2231,7 +2231,7 @@ typedef struct
 *******************************************************************************/
 typedef struct
 {
-    CsrBool   unifiFixMaxTxDataRate;
+    u8   unifiFixMaxTxDataRate;
     u8  unifiFixTxDataRate;
     u16 dot11RtsThreshold;
     u16 dot11FragmentationThreshold;
@@ -2294,7 +2294,7 @@ typedef struct
 typedef struct
 {
     CsrWifiMacAddress bssid;
-    CsrBool           preAuthAllowed;
+    u8           preAuthAllowed;
 } CsrWifiSmePmkidCandidate;
 
 /*******************************************************************************
@@ -2339,8 +2339,8 @@ typedef struct
 *******************************************************************************/
 typedef struct
 {
-    CsrBool                    dot11MultiDomainCapabilityImplemented;
-    CsrBool                    dot11MultiDomainCapabilityEnabled;
+    u8                    dot11MultiDomainCapabilityImplemented;
+    u8                    dot11MultiDomainCapabilityEnabled;
     CsrWifiSmeRegulatoryDomain currentRegulatoryDomain;
     u8                   currentCountryCode[2];
 } CsrWifiSmeRegulatoryDomainInfo;
@@ -2489,7 +2489,7 @@ typedef struct
     u8  cwMax;
     u8  aifs;
     u16 txopLimit;
-    CsrBool   admissionControlMandatory;
+    u8   admissionControlMandatory;
 } CsrWifiSmeWmmAcParams;
 
 /*******************************************************************************
@@ -2523,7 +2523,7 @@ typedef struct
 *******************************************************************************/
 typedef struct
 {
-    CsrBool  spportWps;
+    u8  spportWps;
     u8 deviceType;
 } CsrWifiSmeWpsDeviceTypeCommon;
 
@@ -2596,13 +2596,13 @@ typedef struct
 *******************************************************************************/
 typedef struct
 {
-    CsrBool                  hasTrafficData;
+    u8                  hasTrafficData;
     CsrWifiSmeTrafficType    currentTrafficType;
     u16                currentPeriodMs;
     CsrWifiSmePowerSaveLevel currentPowerSave;
     u16                currentCoexPeriodMs;
     u16                currentCoexLatencyMs;
-    CsrBool                  hasBtDevice;
+    u8                  hasBtDevice;
     u32                currentBlackoutDurationUs;
     u32                currentBlackoutPeriodUs;
     CsrWifiSmeCoexScheme     currentCoexScheme;
@@ -2677,7 +2677,7 @@ typedef struct
     u16                  mlmeAssociateReqInformationElementsLength;
     u8                  *mlmeAssociateReqInformationElements;
     CsrWifiSmeWmmQosInfoMask   wmmQosInfo;
-    CsrBool                    adhocJoinOnly;
+    u8                    adhocJoinOnly;
     u8                   adhocChannel;
 } CsrWifiSmeConnectionConfig;
 
@@ -2756,7 +2756,7 @@ typedef struct
     CsrWifiSmeRadioIF          ifIndex;
     u16                  atimWindowTu;
     u16                  beaconPeriodTu;
-    CsrBool                    reassociation;
+    u8                    reassociation;
     u16                  beaconFrameLength;
     u8                  *beaconFrame;
     u16                  associationReqFrameLength;
@@ -2800,7 +2800,7 @@ typedef struct
     CsrWifiSme80211dTrustLevel        trustLevel;
     u8                          countryCode[2];
     CsrWifiSmeFirmwareDriverInterface firmwareDriverInterface;
-    CsrBool                           enableStrictDraftN;
+    u8                           enableStrictDraftN;
 } CsrWifiSmeDeviceConfig;
 
 /*******************************************************************************
@@ -2925,9 +2925,9 @@ typedef struct
 {
     CsrWifiSmeKeyType keyType;
     u8          keyIndex;
-    CsrBool           wepTxKey;
+    u8           wepTxKey;
     u16         keyRsc[8];
-    CsrBool           authenticator;
+    u8           authenticator;
     CsrWifiMacAddress address;
     u8          keyLength;
     u8          key[32];
@@ -3001,11 +3001,11 @@ typedef struct
 {
     CsrWifiSmePowerSaveLevel powerSaveLevel;
     u16                listenIntervalTu;
-    CsrBool                  rxDtims;
+    u8                  rxDtims;
     CsrWifiSmeD3AutoScanMode d3AutoScanMode;
     u8                 clientTrafficWindow;
-    CsrBool                  opportunisticPowerSave;
-    CsrBool                  noticeOfAbsence;
+    u8                  opportunisticPowerSave;
+    u8                  noticeOfAbsence;
 } CsrWifiSmePowerConfig;
 
 /*******************************************************************************
@@ -3039,8 +3039,8 @@ typedef struct
 typedef struct
 {
     CsrWifiSmeRoamingBandData roamingBands[3];
-    CsrBool                   disableSmoothRoaming;
-    CsrBool                   disableRoamScans;
+    u8                   disableSmoothRoaming;
+    u8                   disableRoamScans;
     u8                  reconnectLimit;
     u16                 reconnectLimitIntervalMs;
     CsrWifiSmeScanConfigData  roamScanCfg[3];
@@ -3085,7 +3085,7 @@ typedef struct
 typedef struct
 {
     CsrWifiSmeScanConfigData scanCfg[4];
-    CsrBool                  disableAutonomousScans;
+    u8                  disableAutonomousScans;
     u16                maxResults;
     s8                  highRssiThreshold;
     s8                  lowRssiThreshold;
@@ -3193,8 +3193,8 @@ typedef struct
     u8              connectionQualitySnrChangeTrigger;
     CsrWifiSmeWmmModeMask wmmModeMask;
     CsrWifiSmeRadioIF     ifIndex;
-    CsrBool               allowUnicastUseGroupCipher;
-    CsrBool               enableOpportunisticKeyCaching;
+    u8               allowUnicastUseGroupCipher;
+    u8               enableOpportunisticKeyCaching;
 } CsrWifiSmeStaConfig;
 
 /*******************************************************************************
@@ -4401,7 +4401,7 @@ typedef struct
     u8           ssidCount;
     CsrWifiSsid       *ssid;
     CsrWifiMacAddress  bssid;
-    CsrBool            forceScan;
+    u8            forceScan;
     CsrWifiSmeBssType  bssType;
     CsrWifiSmeScanType scanType;
     u16          channelListCount;
@@ -4561,7 +4561,7 @@ typedef struct
     u16               interfaceTag;
     CsrWifiSmeListAction    action;
     u32               transactionId;
-    CsrBool                 strict;
+    u8                 strict;
     CsrWifiSmeTspecCtrlMask ctrlMask;
     u16               tspecLength;
     u8               *tspec;
@@ -5383,7 +5383,7 @@ typedef struct
 {
     CsrWifiFsmEvent   common;
     CsrWifiMacAddress address;
-    CsrBool           isconnected;
+    u8           isconnected;
 } CsrWifiSmeIbssStationInd;
 
 /*******************************************************************************
@@ -5608,7 +5608,7 @@ typedef struct
 {
     CsrWifiFsmEvent   common;
     u16         interfaceTag;
-    CsrBool           secondFailure;
+    u8           secondFailure;
     u16         count;
     CsrWifiMacAddress address;
     CsrWifiSmeKeyType keyType;

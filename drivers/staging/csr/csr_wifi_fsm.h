@@ -226,9 +226,9 @@ extern void CsrWifiFsmTestAdvanceTime(CsrWifiFsmContext *context, u32 ms);
  * @param[in]    context    : FSM context
  *
  * @return
- *   CsrBool returns TRUE if there are events for the FSM to process
+ *   u8 returns TRUE if there are events for the FSM to process
  */
-extern CsrBool CsrWifiFsmHasEvents(CsrWifiFsmContext *context);
+extern u8 CsrWifiFsmHasEvents(CsrWifiFsmContext *context);
 
 /**
  * @brief

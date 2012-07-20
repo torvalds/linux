@@ -26,9 +26,9 @@ u8 CsrBitCountDense(u32 n);
 /*------------------------------------------------------------------*/
 /* Base conversion */
 /*------------------------------------------------------------------*/
-CsrBool CsrHexStrToUint8(const char *string, u8 *returnValue);
-CsrBool CsrHexStrToUint16(const char *string, u16 *returnValue);
-CsrBool CsrHexStrToUint32(const char *string, u32 *returnValue);
+u8 CsrHexStrToUint8(const char *string, u8 *returnValue);
+u8 CsrHexStrToUint16(const char *string, u16 *returnValue);
+u8 CsrHexStrToUint32(const char *string, u32 *returnValue);
 u32 CsrPow(u32 base, u32 exponent);
 void CsrIntToBase10(s32 number, char *str);
 void CsrUInt16ToHex(u16 number, char *str);
@@ -85,7 +85,7 @@ const char *CsrGetBaseName(const char *file);
 /*------------------------------------------------------------------*/
 /* Misc */
 /*------------------------------------------------------------------*/
-CsrBool CsrIsSpace(u8 c);
+u8 CsrIsSpace(u8 c);
 #define CsrOffsetOf(st, m)  ((CsrSize) & ((st *) 0)->m)
 
 #ifdef __cplusplus

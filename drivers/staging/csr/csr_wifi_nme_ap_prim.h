@@ -78,7 +78,7 @@ typedef u8 CsrWifiNmeApPersCredentialType;
 typedef struct
 {
     u16 apGroupkeyTimeout;
-    CsrBool   apStrictGtkRekey;
+    u8   apStrictGtkRekey;
     u16 apGmkTimeout;
     u16 apResponseTimeout;
     u8  apRetransLimit;
@@ -256,14 +256,14 @@ typedef struct
     CsrWifiFsmEvent         common;
     u16               interfaceTag;
     CsrWifiSmeApType        apType;
-    CsrBool                 cloakSsid;
+    u8                 cloakSsid;
     CsrWifiSsid             ssid;
     CsrWifiSmeRadioIF       ifIndex;
     u8                channel;
     CsrWifiNmeApCredentials apCredentials;
     u8                maxConnections;
     CsrWifiSmeApP2pGoConfig p2pGoParam;
-    CsrBool                 wpsEnabled;
+    u8                 wpsEnabled;
 } CsrWifiNmeApStartReq;
 
 /*******************************************************************************
@@ -334,7 +334,7 @@ typedef struct
     CsrWifiFsmEvent   common;
     u16         interfaceTag;
     CsrWifiMacAddress staMacAddress;
-    CsrBool           keepBlocking;
+    u8           keepBlocking;
 } CsrWifiNmeApStaRemoveReq;
 
 /*******************************************************************************

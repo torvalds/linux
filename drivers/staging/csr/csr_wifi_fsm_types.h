@@ -220,7 +220,7 @@ typedef struct
 typedef struct
 {
     const u8              numEntries;
-    const CsrBool               saveAll;
+    const u8               saveAll;
     const CsrWifiFsmEventEntry *eventEntryArray; /* array of transition function pointers for state */
 #ifdef CSR_LOG_ENABLE
     u16            stateNumber;
@@ -391,7 +391,7 @@ struct CsrWifiFsmContext
 #endif
     u32                          timeOffset;            /* Amount to adjust the TimeOfDayMs by          */
     CsrWifiFsmTimerList                timerQueue;            /* The internal timer queue                     */
-    CsrBool                            useTempSaveList;       /* Should the temp save list be used            */
+    u8                            useTempSaveList;       /* Should the temp save list be used            */
     CsrWifiFsmEventList                tempSaveList;          /* The temp save event queue                    */
     CsrWifiFsmEvent                   *eventForwardedOrSaved; /* The event that was forwarded or Saved        */
     u16                          maxProcesses;          /* Size of instanceArray                        */

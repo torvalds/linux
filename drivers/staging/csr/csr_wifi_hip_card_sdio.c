@@ -3261,7 +3261,7 @@ CsrResult CardDisableInt(card_t *card)
  *      CSR_RESULT_FAILURE            if an SDIO error occurred,
  * ---------------------------------------------------------------------------
  */
-CsrResult CardPendingInt(card_t *card, CsrBool *pintr)
+CsrResult CardPendingInt(card_t *card, u8 *pintr)
 {
     CsrResult r;
     u8 pending;
@@ -3303,7 +3303,7 @@ CsrResult CardPendingInt(card_t *card, CsrBool *pintr)
 CsrResult CardClearInt(card_t *card)
 {
     CsrResult r;
-    CsrBool intr;
+    u8 intr;
 
     if (card->chip_id > SDIO_CARD_ID_UNIFI_2)
     {
@@ -3361,7 +3361,7 @@ CsrResult CardClearInt(card_t *card)
  *      CSR_RESULT_FAILURE            if an SDIO error occurred,
  * ---------------------------------------------------------------------------
  */
-CsrResult CardIntEnabled(card_t *card, CsrBool *enabled)
+CsrResult CardIntEnabled(card_t *card, u8 *enabled)
 {
     CsrResult r;
     u8 int_enable;
@@ -4036,7 +4036,7 @@ CsrResult unifi_check_io_status(card_t *card, s32 *status)
 {
     u8 io_en;
     CsrResult r;
-    CsrBool pending;
+    u8 pending;
 
     *status = 0;
 

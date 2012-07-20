@@ -185,7 +185,7 @@ void CsrSchedMessageBroadcast(u16 mi,
  *      The message consists of one or both of a u16 and a void *.
  *
  *  RETURNS
- *      CsrBool - TRUE if a message has been obtained from the queue, else FALSE.
+ *      u8 - TRUE if a message has been obtained from the queue, else FALSE.
  *      If a message is taken from the queue, then "*pmi" and "*pmv" are set to
  *      the "mi" and "mv" passed to CsrSchedMessagePut() respectively.
  *
@@ -193,7 +193,7 @@ void CsrSchedMessageBroadcast(u16 mi,
  *      them message is discarded.
  *
  *----------------------------------------------------------------------------*/
-CsrBool CsrSchedMessageGet(u16 *pmi, void **pmv);
+u8 CsrSchedMessageGet(u16 *pmi, void **pmv);
 
 /*----------------------------------------------------------------------------*
  *  NAME
@@ -241,18 +241,18 @@ CsrSchedTid CsrSchedTimerSet(CsrTime delay,
  *      occurring.
  *
  *  RETURNS
- *      CsrBool - TRUE if cancelled, FALSE if the event has already occurred.
+ *      u8 - TRUE if cancelled, FALSE if the event has already occurred.
  *
  *----------------------------------------------------------------------------*/
 #if defined(CSR_LOG_ENABLE) && defined(CSR_LOG_INCLUDE_FILE_NAME_AND_LINE_NUMBER)
-CsrBool CsrSchedTimerCancelStringLog(CsrSchedTid eventid,
+u8 CsrSchedTimerCancelStringLog(CsrSchedTid eventid,
     u16 *pmi,
     void **pmv,
     u32 line,
     const char *file);
 #define CsrSchedTimerCancel(e, pmi, pmv) CsrSchedTimerCancelStringLog((e), (pmi), (pmv), __LINE__, __FILE__)
 #else
-CsrBool CsrSchedTimerCancel(CsrSchedTid eventid,
+u8 CsrSchedTimerCancel(CsrSchedTid eventid,
     u16 *pmi,
     void **pmv);
 #endif

@@ -296,7 +296,7 @@ uf_run_unifihelper(unifi_priv_t *priv)
 } /* uf_run_unifihelper() */
 
 #ifdef CSR_WIFI_SPLIT_PATCH
-static CsrBool is_ap_mode(unifi_priv_t *priv)
+static u8 is_ap_mode(unifi_priv_t *priv)
 {
     if (priv == NULL || priv->interfacePriv[0] == NULL)
     {

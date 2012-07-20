@@ -23,7 +23,7 @@ extern "C" {
 #define CSR_MASK_IS_UNSET(val, mask) ((((val) & (mask)) ^ mask) == (mask))
 #define CSR_MASK_SET(val, mask)    ((val) |= (mask))
 #define CSR_MASK_UNSET(val, mask)  ((val) = ((val) ^ (mask)) & (val)) /* Unsets the bits in val that are set in mask */
-#define CSR_BIT_IS_SET(val, bit)   ((CsrBool) ((((val) & (1UL << (bit))) != 0)))
+#define CSR_BIT_IS_SET(val, bit)   ((u8) ((((val) & (1UL << (bit))) != 0)))
 #define CSR_BIT_SET(val, bit)      ((val) |= (1UL << (bit)))
 #define CSR_BIT_UNSET(val, bit)    ((val) &= ~(1UL << (bit)))
 #define CSR_BIT_TOGGLE(val, bit)   ((val) ^= (1UL << (bit)))

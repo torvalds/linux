@@ -53,7 +53,7 @@ u8 CsrBitCountDense(u32 n)
 /*------------------------------------------------------------------*/
 /* Base conversion */
 /*------------------------------------------------------------------*/
-CsrBool CsrHexStrToUint8(const char *string, u8 *returnValue)
+u8 CsrHexStrToUint8(const char *string, u8 *returnValue)
 {
     u16 currentIndex = 0;
     *returnValue = 0;
@@ -77,7 +77,7 @@ CsrBool CsrHexStrToUint8(const char *string, u8 *returnValue)
     return FALSE;
 }
 
-CsrBool CsrHexStrToUint16(const char *string, u16 *returnValue)
+u8 CsrHexStrToUint16(const char *string, u16 *returnValue)
 {
     u16 currentIndex = 0;
     *returnValue = 0;
@@ -101,7 +101,7 @@ CsrBool CsrHexStrToUint16(const char *string, u16 *returnValue)
     return FALSE;
 }
 
-CsrBool CsrHexStrToUint32(const char *string, u32 *returnValue)
+u8 CsrHexStrToUint32(const char *string, u32 *returnValue)
 {
     u16 currentIndex = 0;
     *returnValue = 0;
@@ -150,7 +150,7 @@ void CsrIntToBase10(s32 number, char *str)
     s32 digit;
     u8 index;
     char res[I2B10_MAX];
-    CsrBool foundDigit = FALSE;
+    u8 foundDigit = FALSE;
 
     for (digit = 0; digit < I2B10_MAX; digit++)
     {
@@ -423,7 +423,7 @@ const char *CsrGetBaseName(const char *file)
 /*------------------------------------------------------------------*/
 /* Misc */
 /*------------------------------------------------------------------*/
-CsrBool CsrIsSpace(u8 c)
+u8 CsrIsSpace(u8 c)
 {
     switch (c)
     {

@@ -51,7 +51,7 @@ typedef struct
 {
     CsrMsgConvPrimEntry *profile_converters;
     void *(*deserialize_data)(u16 primType, CsrSize length, u8 * data);
-    CsrBool (*free_message)(u16 primType, u8 *data);
+    u8 (*free_message)(u16 primType, u8 *data);
     CsrSize (*sizeof_message)(u16 primType, void *msg);
     u8 *(*serialize_message)(u16 primType, void *msg,
                                    CsrSize * length,

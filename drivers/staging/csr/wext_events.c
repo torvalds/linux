@@ -238,7 +238,7 @@ wext_send_michaelmicfailure_event(unifi_priv_t *priv,
 } /* wext_send_michaelmicfailure_event() */
 
 void
-wext_send_pmkid_candidate_event(unifi_priv_t *priv, CsrWifiMacAddress bssid, CsrBool preauth_allowed, u16 interfaceTag)
+wext_send_pmkid_candidate_event(unifi_priv_t *priv, CsrWifiMacAddress bssid, u8 preauth_allowed, u16 interfaceTag)
 {
 #if WIRELESS_EXT > 17
     union iwreq_data wrqu;

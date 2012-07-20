@@ -203,9 +203,9 @@ CsrSize CsrWifiSmeCcxConfigSetReqSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 9) */
     bufferSize += 2; /* u16 primitive->interfaceTag */
     bufferSize += 1; /* u8 primitive->ccxConfig.keepAliveTimeMs */
-    bufferSize += 1; /* CsrBool primitive->ccxConfig.apRoamingEnabled */
+    bufferSize += 1; /* u8 primitive->ccxConfig.apRoamingEnabled */
     bufferSize += 1; /* u8 primitive->ccxConfig.measurementsMask */
-    bufferSize += 1; /* CsrBool primitive->ccxConfig.ccxRadioMgtEnabled */
+    bufferSize += 1; /* u8 primitive->ccxConfig.ccxRadioMgtEnabled */
     return bufferSize;
 }
 
@@ -246,8 +246,8 @@ CsrSize CsrWifiSmeCoexConfigSetReqSizeof(void *msg)
     CsrSize bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 29) */
-    bufferSize += 1; /* CsrBool primitive->coexConfig.coexEnableSchemeManagement */
-    bufferSize += 1; /* CsrBool primitive->coexConfig.coexPeriodicWakeHost */
+    bufferSize += 1; /* u8 primitive->coexConfig.coexEnableSchemeManagement */
+    bufferSize += 1; /* u8 primitive->coexConfig.coexPeriodicWakeHost */
     bufferSize += 2; /* u16 primitive->coexConfig.coexTrafficBurstyLatencyMs */
     bufferSize += 2; /* u16 primitive->coexConfig.coexTrafficContinuousLatencyMs */
     bufferSize += 2; /* u16 primitive->coexConfig.coexObexBlackoutDurationMs */
@@ -331,7 +331,7 @@ CsrSize CsrWifiSmeConnectReqSizeof(void *msg)
     bufferSize += 2;                                                                     /* u16 primitive->connectionConfig.mlmeAssociateReqInformationElementsLength */
     bufferSize += primitive->connectionConfig.mlmeAssociateReqInformationElementsLength; /* u8 primitive->connectionConfig.mlmeAssociateReqInformationElements */
     bufferSize += 1;                                                                     /* CsrWifiSmeWmmQosInfoMask primitive->connectionConfig.wmmQosInfo */
-    bufferSize += 1;                                                                     /* CsrBool primitive->connectionConfig.adhocJoinOnly */
+    bufferSize += 1;                                                                     /* u8 primitive->connectionConfig.adhocJoinOnly */
     bufferSize += 1;                                                                     /* u8 primitive->connectionConfig.adhocChannel */
     return bufferSize;
 }
@@ -453,7 +453,7 @@ CsrSize CsrWifiSmeKeyReqSizeof(void *msg)
     bufferSize += 1; /* CsrWifiSmeListAction primitive->action */
     bufferSize += 1; /* CsrWifiSmeKeyType primitive->key.keyType */
     bufferSize += 1; /* u8 primitive->key.keyIndex */
-    bufferSize += 1; /* CsrBool primitive->key.wepTxKey */
+    bufferSize += 1; /* u8 primitive->key.wepTxKey */
     {
         u16 i2;
         for (i2 = 0; i2 < 8; i2++)
@@ -461,7 +461,7 @@ CsrSize CsrWifiSmeKeyReqSizeof(void *msg)
             bufferSize += 2; /* u16 primitive->key.keyRsc[8] */
         }
     }
-    bufferSize += 1;         /* CsrBool primitive->key.authenticator */
+    bufferSize += 1;         /* u8 primitive->key.authenticator */
     bufferSize += 6;         /* u8 primitive->key.address.a[6] */
     bufferSize += 1;         /* u8 primitive->key.keyLength */
     bufferSize += 32;        /* u8 primitive->key.key[32] */
@@ -527,7 +527,7 @@ CsrSize CsrWifiSmeMibConfigSetReqSizeof(void *msg)
     CsrSize bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 11) */
-    bufferSize += 1; /* CsrBool primitive->mibConfig.unifiFixMaxTxDataRate */
+    bufferSize += 1; /* u8 primitive->mibConfig.unifiFixMaxTxDataRate */
     bufferSize += 1; /* u8 primitive->mibConfig.unifiFixTxDataRate */
     bufferSize += 2; /* u16 primitive->mibConfig.dot11RtsThreshold */
     bufferSize += 2; /* u16 primitive->mibConfig.dot11FragmentationThreshold */
@@ -958,11 +958,11 @@ CsrSize CsrWifiSmePowerConfigSetReqSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 11) */
     bufferSize += 1; /* CsrWifiSmePowerSaveLevel primitive->powerConfig.powerSaveLevel */
     bufferSize += 2; /* u16 primitive->powerConfig.listenIntervalTu */
-    bufferSize += 1; /* CsrBool primitive->powerConfig.rxDtims */
+    bufferSize += 1; /* u8 primitive->powerConfig.rxDtims */
     bufferSize += 1; /* CsrWifiSmeD3AutoScanMode primitive->powerConfig.d3AutoScanMode */
     bufferSize += 1; /* u8 primitive->powerConfig.clientTrafficWindow */
-    bufferSize += 1; /* CsrBool primitive->powerConfig.opportunisticPowerSave */
-    bufferSize += 1; /* CsrBool primitive->powerConfig.noticeOfAbsence */
+    bufferSize += 1; /* u8 primitive->powerConfig.opportunisticPowerSave */
+    bufferSize += 1; /* u8 primitive->powerConfig.noticeOfAbsence */
     return bufferSize;
 }
 
@@ -1018,8 +1018,8 @@ CsrSize CsrWifiSmeRoamingConfigSetReqSizeof(void *msg)
             bufferSize += 2; /* s16 primitive->roamingConfig.roamingBands[i2].snrLowThreshold */
         }
     }
-    bufferSize += 1;         /* CsrBool primitive->roamingConfig.disableSmoothRoaming */
-    bufferSize += 1;         /* CsrBool primitive->roamingConfig.disableRoamScans */
+    bufferSize += 1;         /* u8 primitive->roamingConfig.disableSmoothRoaming */
+    bufferSize += 1;         /* u8 primitive->roamingConfig.disableRoamScans */
     bufferSize += 1;         /* u8 primitive->roamingConfig.reconnectLimit */
     bufferSize += 2;         /* u16 primitive->roamingConfig.reconnectLimitIntervalMs */
     {
@@ -1131,7 +1131,7 @@ CsrSize CsrWifiSmeScanConfigSetReqSizeof(void *msg)
             bufferSize += 2;                                     /* u16 primitive->scanConfig.scanCfg[i2].maxPassiveChannelTimeTu */
         }
     }
-    bufferSize += 1;                                             /* CsrBool primitive->scanConfig.disableAutonomousScans */
+    bufferSize += 1;                                             /* u8 primitive->scanConfig.disableAutonomousScans */
     bufferSize += 2;                                             /* u16 primitive->scanConfig.maxResults */
     bufferSize += 1;                                             /* s8 primitive->scanConfig.highRssiThreshold */
     bufferSize += 1;                                             /* s8 primitive->scanConfig.lowRssiThreshold */
@@ -1245,7 +1245,7 @@ CsrSize CsrWifiSmeScanFullReqSizeof(void *msg)
         }
     }
     bufferSize += 6;                           /* u8 primitive->bssid.a[6] */
-    bufferSize += 1;                           /* CsrBool primitive->forceScan */
+    bufferSize += 1;                           /* u8 primitive->forceScan */
     bufferSize += 1;                           /* CsrWifiSmeBssType primitive->bssType */
     bufferSize += 1;                           /* CsrWifiSmeScanType primitive->scanType */
     bufferSize += 2;                           /* u16 primitive->channelListCount */
@@ -1358,8 +1358,8 @@ CsrSize CsrWifiSmeSmeStaConfigSetReqSizeof(void *msg)
     bufferSize += 1; /* u8 primitive->smeConfig.connectionQualitySnrChangeTrigger */
     bufferSize += 1; /* CsrWifiSmeWmmModeMask primitive->smeConfig.wmmModeMask */
     bufferSize += 1; /* CsrWifiSmeRadioIF primitive->smeConfig.ifIndex */
-    bufferSize += 1; /* CsrBool primitive->smeConfig.allowUnicastUseGroupCipher */
-    bufferSize += 1; /* CsrBool primitive->smeConfig.enableOpportunisticKeyCaching */
+    bufferSize += 1; /* u8 primitive->smeConfig.allowUnicastUseGroupCipher */
+    bufferSize += 1; /* u8 primitive->smeConfig.enableOpportunisticKeyCaching */
     return bufferSize;
 }
 
@@ -1408,7 +1408,7 @@ CsrSize CsrWifiSmeTspecReqSizeof(void *msg)
     bufferSize += 2;                      /* u16 primitive->interfaceTag */
     bufferSize += 1;                      /* CsrWifiSmeListAction primitive->action */
     bufferSize += 4;                      /* u32 primitive->transactionId */
-    bufferSize += 1;                      /* CsrBool primitive->strict */
+    bufferSize += 1;                      /* u8 primitive->strict */
     bufferSize += 1;                      /* CsrWifiSmeTspecCtrlMask primitive->ctrlMask */
     bufferSize += 2;                      /* u16 primitive->tspecLength */
     bufferSize += primitive->tspecLength; /* u8 primitive->tspec */
@@ -1751,7 +1751,7 @@ CsrSize CsrWifiSmeSmeCommonConfigSetReqSizeof(void *msg)
     bufferSize += 1; /* CsrWifiSme80211dTrustLevel primitive->deviceConfig.trustLevel */
     bufferSize += 2; /* u8 primitive->deviceConfig.countryCode[2] */
     bufferSize += 1; /* CsrWifiSmeFirmwareDriverInterface primitive->deviceConfig.firmwareDriverInterface */
-    bufferSize += 1; /* CsrBool primitive->deviceConfig.enableStrictDraftN */
+    bufferSize += 1; /* u8 primitive->deviceConfig.enableStrictDraftN */
     return bufferSize;
 }
 
@@ -2019,7 +2019,7 @@ CsrSize CsrWifiSmeAssociationCompleteIndSizeof(void *msg)
     bufferSize += 1;                                                     /* CsrWifiSmeRadioIF primitive->connectionInfo.ifIndex */
     bufferSize += 2;                                                     /* u16 primitive->connectionInfo.atimWindowTu */
     bufferSize += 2;                                                     /* u16 primitive->connectionInfo.beaconPeriodTu */
-    bufferSize += 1;                                                     /* CsrBool primitive->connectionInfo.reassociation */
+    bufferSize += 1;                                                     /* u8 primitive->connectionInfo.reassociation */
     bufferSize += 2;                                                     /* u16 primitive->connectionInfo.beaconFrameLength */
     bufferSize += primitive->connectionInfo.beaconFrameLength;           /* u8 primitive->connectionInfo.beaconFrame */
     bufferSize += 2;                                                     /* u16 primitive->connectionInfo.associationReqFrameLength */
@@ -2397,9 +2397,9 @@ CsrSize CsrWifiSmeCcxConfigGetCfmSizeof(void *msg)
     bufferSize += 2; /* u16 primitive->interfaceTag */
     bufferSize += 2; /* CsrResult primitive->status */
     bufferSize += 1; /* u8 primitive->ccxConfig.keepAliveTimeMs */
-    bufferSize += 1; /* CsrBool primitive->ccxConfig.apRoamingEnabled */
+    bufferSize += 1; /* u8 primitive->ccxConfig.apRoamingEnabled */
     bufferSize += 1; /* u8 primitive->ccxConfig.measurementsMask */
-    bufferSize += 1; /* CsrBool primitive->ccxConfig.ccxRadioMgtEnabled */
+    bufferSize += 1; /* u8 primitive->ccxConfig.ccxRadioMgtEnabled */
     return bufferSize;
 }
 
@@ -2479,8 +2479,8 @@ CsrSize CsrWifiSmeCoexConfigGetCfmSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 31) */
     bufferSize += 2; /* CsrResult primitive->status */
-    bufferSize += 1; /* CsrBool primitive->coexConfig.coexEnableSchemeManagement */
-    bufferSize += 1; /* CsrBool primitive->coexConfig.coexPeriodicWakeHost */
+    bufferSize += 1; /* u8 primitive->coexConfig.coexEnableSchemeManagement */
+    bufferSize += 1; /* u8 primitive->coexConfig.coexPeriodicWakeHost */
     bufferSize += 2; /* u16 primitive->coexConfig.coexTrafficBurstyLatencyMs */
     bufferSize += 2; /* u16 primitive->coexConfig.coexTrafficContinuousLatencyMs */
     bufferSize += 2; /* u16 primitive->coexConfig.coexObexBlackoutDurationMs */
@@ -2554,13 +2554,13 @@ CsrSize CsrWifiSmeCoexInfoGetCfmSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 24) */
     bufferSize += 2; /* CsrResult primitive->status */
-    bufferSize += 1; /* CsrBool primitive->coexInfo.hasTrafficData */
+    bufferSize += 1; /* u8 primitive->coexInfo.hasTrafficData */
     bufferSize += 1; /* CsrWifiSmeTrafficType primitive->coexInfo.currentTrafficType */
     bufferSize += 2; /* u16 primitive->coexInfo.currentPeriodMs */
     bufferSize += 1; /* CsrWifiSmePowerSaveLevel primitive->coexInfo.currentPowerSave */
     bufferSize += 2; /* u16 primitive->coexInfo.currentCoexPeriodMs */
     bufferSize += 2; /* u16 primitive->coexInfo.currentCoexLatencyMs */
-    bufferSize += 1; /* CsrBool primitive->coexInfo.hasBtDevice */
+    bufferSize += 1; /* u8 primitive->coexInfo.hasBtDevice */
     bufferSize += 4; /* u32 primitive->coexInfo.currentBlackoutDurationUs */
     bufferSize += 4; /* u32 primitive->coexInfo.currentBlackoutPeriodUs */
     bufferSize += 1; /* CsrWifiSmeCoexScheme primitive->coexInfo.currentCoexScheme */
@@ -2666,7 +2666,7 @@ CsrSize CsrWifiSmeConnectionConfigGetCfmSizeof(void *msg)
     bufferSize += 2;                                                                     /* u16 primitive->connectionConfig.mlmeAssociateReqInformationElementsLength */
     bufferSize += primitive->connectionConfig.mlmeAssociateReqInformationElementsLength; /* u8 primitive->connectionConfig.mlmeAssociateReqInformationElements */
     bufferSize += 1;                                                                     /* CsrWifiSmeWmmQosInfoMask primitive->connectionConfig.wmmQosInfo */
-    bufferSize += 1;                                                                     /* CsrBool primitive->connectionConfig.adhocJoinOnly */
+    bufferSize += 1;                                                                     /* u8 primitive->connectionConfig.adhocJoinOnly */
     bufferSize += 1;                                                                     /* u8 primitive->connectionConfig.adhocChannel */
     return bufferSize;
 }
@@ -2762,7 +2762,7 @@ CsrSize CsrWifiSmeConnectionInfoGetCfmSizeof(void *msg)
     bufferSize += 1;                                                     /* CsrWifiSmeRadioIF primitive->connectionInfo.ifIndex */
     bufferSize += 2;                                                     /* u16 primitive->connectionInfo.atimWindowTu */
     bufferSize += 2;                                                     /* u16 primitive->connectionInfo.beaconPeriodTu */
-    bufferSize += 1;                                                     /* CsrBool primitive->connectionInfo.reassociation */
+    bufferSize += 1;                                                     /* u8 primitive->connectionInfo.reassociation */
     bufferSize += 2;                                                     /* u16 primitive->connectionInfo.beaconFrameLength */
     bufferSize += primitive->connectionInfo.beaconFrameLength;           /* u8 primitive->connectionInfo.beaconFrame */
     bufferSize += 2;                                                     /* u16 primitive->connectionInfo.associationReqFrameLength */
@@ -3221,7 +3221,7 @@ CsrSize CsrWifiSmeIbssStationIndSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 10) */
     bufferSize += 6; /* u8 primitive->address.a[6] */
-    bufferSize += 1; /* CsrBool primitive->isconnected */
+    bufferSize += 1; /* u8 primitive->isconnected */
     return bufferSize;
 }
 
@@ -3358,7 +3358,7 @@ CsrSize CsrWifiSmeMediaStatusIndSizeof(void *msg)
     bufferSize += 1;                                                     /* CsrWifiSmeRadioIF primitive->connectionInfo.ifIndex */
     bufferSize += 2;                                                     /* u16 primitive->connectionInfo.atimWindowTu */
     bufferSize += 2;                                                     /* u16 primitive->connectionInfo.beaconPeriodTu */
-    bufferSize += 1;                                                     /* CsrBool primitive->connectionInfo.reassociation */
+    bufferSize += 1;                                                     /* u8 primitive->connectionInfo.reassociation */
     bufferSize += 2;                                                     /* u16 primitive->connectionInfo.beaconFrameLength */
     bufferSize += primitive->connectionInfo.beaconFrameLength;           /* u8 primitive->connectionInfo.beaconFrame */
     bufferSize += 2;                                                     /* u16 primitive->connectionInfo.associationReqFrameLength */
@@ -3559,7 +3559,7 @@ CsrSize CsrWifiSmeMibConfigGetCfmSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 13) */
     bufferSize += 2; /* CsrResult primitive->status */
-    bufferSize += 1; /* CsrBool primitive->mibConfig.unifiFixMaxTxDataRate */
+    bufferSize += 1; /* u8 primitive->mibConfig.unifiFixMaxTxDataRate */
     bufferSize += 1; /* u8 primitive->mibConfig.unifiFixTxDataRate */
     bufferSize += 2; /* u16 primitive->mibConfig.dot11RtsThreshold */
     bufferSize += 2; /* u16 primitive->mibConfig.dot11FragmentationThreshold */
@@ -3725,7 +3725,7 @@ CsrSize CsrWifiSmeMicFailureIndSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 15) */
     bufferSize += 2; /* u16 primitive->interfaceTag */
-    bufferSize += 1; /* CsrBool primitive->secondFailure */
+    bufferSize += 1; /* u8 primitive->secondFailure */
     bufferSize += 2; /* u16 primitive->count */
     bufferSize += 6; /* u8 primitive->address.a[6] */
     bufferSize += 1; /* CsrWifiSmeKeyType primitive->keyType */
@@ -3926,7 +3926,7 @@ CsrSize CsrWifiSmePmkidCandidateListIndSizeof(void *msg)
         for (i1 = 0; i1 < primitive->pmkidCandidatesCount; i1++)
         {
             bufferSize += 6; /* u8 primitive->pmkidCandidates[i1].bssid.a[6] */
-            bufferSize += 1; /* CsrBool primitive->pmkidCandidates[i1].preAuthAllowed */
+            bufferSize += 1; /* u8 primitive->pmkidCandidates[i1].preAuthAllowed */
         }
     }
     return bufferSize;
@@ -4075,11 +4075,11 @@ CsrSize CsrWifiSmePowerConfigGetCfmSizeof(void *msg)
     bufferSize += 2; /* CsrResult primitive->status */
     bufferSize += 1; /* CsrWifiSmePowerSaveLevel primitive->powerConfig.powerSaveLevel */
     bufferSize += 2; /* u16 primitive->powerConfig.listenIntervalTu */
-    bufferSize += 1; /* CsrBool primitive->powerConfig.rxDtims */
+    bufferSize += 1; /* u8 primitive->powerConfig.rxDtims */
     bufferSize += 1; /* CsrWifiSmeD3AutoScanMode primitive->powerConfig.d3AutoScanMode */
     bufferSize += 1; /* u8 primitive->powerConfig.clientTrafficWindow */
-    bufferSize += 1; /* CsrBool primitive->powerConfig.opportunisticPowerSave */
-    bufferSize += 1; /* CsrBool primitive->powerConfig.noticeOfAbsence */
+    bufferSize += 1; /* u8 primitive->powerConfig.opportunisticPowerSave */
+    bufferSize += 1; /* u8 primitive->powerConfig.noticeOfAbsence */
     return bufferSize;
 }
 
@@ -4127,8 +4127,8 @@ CsrSize CsrWifiSmeRegulatoryDomainInfoGetCfmSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 10) */
     bufferSize += 2; /* CsrResult primitive->status */
-    bufferSize += 1; /* CsrBool primitive->regDomInfo.dot11MultiDomainCapabilityImplemented */
-    bufferSize += 1; /* CsrBool primitive->regDomInfo.dot11MultiDomainCapabilityEnabled */
+    bufferSize += 1; /* u8 primitive->regDomInfo.dot11MultiDomainCapabilityImplemented */
+    bufferSize += 1; /* u8 primitive->regDomInfo.dot11MultiDomainCapabilityEnabled */
     bufferSize += 1; /* CsrWifiSmeRegulatoryDomain primitive->regDomInfo.currentRegulatoryDomain */
     bufferSize += 2; /* u8 primitive->regDomInfo.currentCountryCode[2] */
     return bufferSize;
@@ -4258,8 +4258,8 @@ CsrSize CsrWifiSmeRoamingConfigGetCfmSizeof(void *msg)
             bufferSize += 2; /* s16 primitive->roamingConfig.roamingBands[i2].snrLowThreshold */
         }
     }
-    bufferSize += 1;         /* CsrBool primitive->roamingConfig.disableSmoothRoaming */
-    bufferSize += 1;         /* CsrBool primitive->roamingConfig.disableRoamScans */
+    bufferSize += 1;         /* u8 primitive->roamingConfig.disableSmoothRoaming */
+    bufferSize += 1;         /* u8 primitive->roamingConfig.disableRoamScans */
     bufferSize += 1;         /* u8 primitive->roamingConfig.reconnectLimit */
     bufferSize += 2;         /* u16 primitive->roamingConfig.reconnectLimitIntervalMs */
     {
@@ -4410,7 +4410,7 @@ CsrSize CsrWifiSmeScanConfigGetCfmSizeof(void *msg)
             bufferSize += 2;                                     /* u16 primitive->scanConfig.scanCfg[i2].maxPassiveChannelTimeTu */
         }
     }
-    bufferSize += 1;                                             /* CsrBool primitive->scanConfig.disableAutonomousScans */
+    bufferSize += 1;                                             /* u8 primitive->scanConfig.disableAutonomousScans */
     bufferSize += 2;                                             /* u16 primitive->scanConfig.maxResults */
     bufferSize += 1;                                             /* s8 primitive->scanConfig.highRssiThreshold */
     bufferSize += 1;                                             /* s8 primitive->scanConfig.lowRssiThreshold */
@@ -5143,8 +5143,8 @@ CsrSize CsrWifiSmeSmeStaConfigGetCfmSizeof(void *msg)
     bufferSize += 1; /* u8 primitive->smeConfig.connectionQualitySnrChangeTrigger */
     bufferSize += 1; /* CsrWifiSmeWmmModeMask primitive->smeConfig.wmmModeMask */
     bufferSize += 1; /* CsrWifiSmeRadioIF primitive->smeConfig.ifIndex */
-    bufferSize += 1; /* CsrBool primitive->smeConfig.allowUnicastUseGroupCipher */
-    bufferSize += 1; /* CsrBool primitive->smeConfig.enableOpportunisticKeyCaching */
+    bufferSize += 1; /* u8 primitive->smeConfig.allowUnicastUseGroupCipher */
+    bufferSize += 1; /* u8 primitive->smeConfig.enableOpportunisticKeyCaching */
     return bufferSize;
 }
 
@@ -5595,7 +5595,7 @@ CsrSize CsrWifiSmeSmeCommonConfigGetCfmSizeof(void *msg)
     bufferSize += 1; /* CsrWifiSme80211dTrustLevel primitive->deviceConfig.trustLevel */
     bufferSize += 2; /* u8 primitive->deviceConfig.countryCode[2] */
     bufferSize += 1; /* CsrWifiSmeFirmwareDriverInterface primitive->deviceConfig.firmwareDriverInterface */
-    bufferSize += 1; /* CsrBool primitive->deviceConfig.enableStrictDraftN */
+    bufferSize += 1; /* u8 primitive->deviceConfig.enableStrictDraftN */
     return bufferSize;
 }
 

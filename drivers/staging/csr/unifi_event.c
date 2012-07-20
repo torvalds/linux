@@ -91,25 +91,25 @@ static void send_to_client(unifi_priv_t *priv, ul_client_t *client,
  *      FALSE if the packet is for the driver or network stack
  * ---------------------------------------------------------------------------
  */
-static CsrBool check_routing_pkt_data_ind(unifi_priv_t *priv,
+static u8 check_routing_pkt_data_ind(unifi_priv_t *priv,
         u8 *sigdata,
         const bulk_data_param_t* bulkdata,
-        CsrBool *freeBulkData,
+        u8 *freeBulkData,
         netInterface_priv_t *interfacePriv)
 {
     u16  frmCtrl, receptionStatus, frmCtrlSubType;
     u8 *macHdrLocation;
     u8 interfaceTag;
-    CsrBool isDataFrame;
-    CsrBool isProtocolVerInvalid = FALSE;
-    CsrBool isDataFrameSubTypeNoData = FALSE;
+    u8 isDataFrame;
+    u8 isProtocolVerInvalid = FALSE;
+    u8 isDataFrameSubTypeNoData = FALSE;
 
 #ifdef CSR_WIFI_SECURITY_WAPI_ENABLE
     static const u8 wapiProtocolIdSNAPHeader[] = {0x88,0xb4};
     static const u8 wapiProtocolIdSNAPHeaderOffset = 6;
     u8 *destAddr;
     u8 *srcAddr;
-    CsrBool isWapiUnicastPkt = FALSE;
+    u8 isWapiUnicastPkt = FALSE;
 
 #ifdef CSR_WIFI_SECURITY_WAPI_QOSCTRL_MIC_WORKAROUND
     u16 qosControl;
@@ -374,7 +374,7 @@ unifi_process_receive_event(void *ospriv,
     int i, receiver_id;
     int client_id;
     s16 signal_id;
-    CsrBool pktIndToSme = FALSE, freeBulkData = FALSE;
+    u8 pktIndToSme = FALSE, freeBulkData = FALSE;
 
     func_enter();
 
@@ -490,7 +490,7 @@ unifi_process_receive_event(void *ospriv,
                        u8 *destAddr;
                        CsrResult res;
                        u16 interfaceTag = 0;
-                       CsrBool isMcastPkt = TRUE;
+                       u8 isMcastPkt = TRUE;
 
                        unifi_trace(priv, UDBG6, "Received a WAPI data packet when the Unicast/Multicast filter is set\n");
                        res = read_unpack_signal(sigdata, &signal);
@@ -578,7 +578,7 @@ unifi_process_receive_event(void *ospriv,
 
 
 #ifdef CSR_WIFI_RX_PATH_SPLIT
-static CsrBool signal_buffer_is_full(unifi_priv_t* priv)
+static u8 signal_buffer_is_full(unifi_priv_t* priv)
 {
     return (((priv->rxSignalBuffer.writePointer + 1)% priv->rxSignalBuffer.size) == (priv->rxSignalBuffer.readPointer));
 }

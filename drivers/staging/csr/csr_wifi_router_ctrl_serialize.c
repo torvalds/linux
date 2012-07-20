@@ -31,7 +31,7 @@ CsrSize CsrWifiRouterCtrlConfigurePowerModeReqSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 8) */
     bufferSize += 2; /* CsrWifiRouterCtrlRequestorInfo primitive->clientData */
     bufferSize += 2; /* CsrWifiRouterCtrlLowPowerMode primitive->mode */
-    bufferSize += 1; /* CsrBool primitive->wakeHost */
+    bufferSize += 1; /* u8 primitive->wakeHost */
     return bufferSize;
 }
 
@@ -284,7 +284,7 @@ CsrSize CsrWifiRouterCtrlPortConfigureReqSizeof(void *msg)
     bufferSize += 2; /* CsrWifiRouterCtrlPortAction primitive->uncontrolledPortAction */
     bufferSize += 2; /* CsrWifiRouterCtrlPortAction primitive->controlledPortAction */
     bufferSize += 6; /* u8 primitive->macAddress.a[6] */
-    bufferSize += 1; /* CsrBool primitive->setProtection */
+    bufferSize += 1; /* u8 primitive->setProtection */
     return bufferSize;
 }
 
@@ -734,7 +734,7 @@ CsrSize CsrWifiRouterCtrlWifiOnResSizeof(void *msg)
     bufferSize += 4;                                                                                    /* u32 primitive->smeVersions.firmwarePatch */
     bufferSize += (primitive->smeVersions.smeBuild?CsrStrLen(primitive->smeVersions.smeBuild) : 0) + 1; /* char* primitive->smeVersions.smeBuild (0 byte len + 1 for NULL Term) */
     bufferSize += 4;                                                                                    /* u32 primitive->smeVersions.smeHip */
-    bufferSize += 1;                                                                                    /* CsrBool primitive->scheduledInterrupt */
+    bufferSize += 1;                                                                                    /* u8 primitive->scheduledInterrupt */
     return bufferSize;
 }
 
@@ -841,8 +841,8 @@ CsrSize CsrWifiRouterCtrlModeSetReqSizeof(void *msg)
     bufferSize += 2; /* CsrWifiRouterCtrlRequestorInfo primitive->clientData */
     bufferSize += 1; /* CsrWifiRouterCtrlMode primitive->mode */
     bufferSize += 6; /* u8 primitive->bssid.a[6] */
-    bufferSize += 1; /* CsrBool primitive->protection */
-    bufferSize += 1; /* CsrBool primitive->intraBssDistEnabled */
+    bufferSize += 1; /* u8 primitive->protection */
+    bufferSize += 1; /* u8 primitive->intraBssDistEnabled */
     return bufferSize;
 }
 
@@ -889,7 +889,7 @@ CsrSize CsrWifiRouterCtrlPeerAddReqSizeof(void *msg)
     bufferSize += 2; /* CsrWifiRouterCtrlRequestorInfo primitive->clientData */
     bufferSize += 6; /* u8 primitive->peerMacAddress.a[6] */
     bufferSize += 2; /* u16 primitive->associationId */
-    bufferSize += 1; /* CsrBool primitive->staInfo.wmmOrQosEnabled */
+    bufferSize += 1; /* u8 primitive->staInfo.wmmOrQosEnabled */
     bufferSize += 2; /* CsrWifiRouterCtrlPowersaveTypeMask primitive->staInfo.powersaveMode */
     bufferSize += 1; /* u8 primitive->staInfo.maxSpLength */
     bufferSize += 2; /* u16 primitive->staInfo.listenIntervalInTus */
@@ -1467,8 +1467,8 @@ CsrSize CsrWifiRouterCtrlSuspendIndSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 7) */
     bufferSize += 2; /* CsrWifiRouterCtrlRequestorInfo primitive->clientData */
-    bufferSize += 1; /* CsrBool primitive->hardSuspend */
-    bufferSize += 1; /* CsrBool primitive->d3Suspend */
+    bufferSize += 1; /* u8 primitive->hardSuspend */
+    bufferSize += 1; /* u8 primitive->d3Suspend */
     return bufferSize;
 }
 
@@ -1969,7 +1969,7 @@ CsrSize CsrWifiRouterCtrlMicFailureIndSizeof(void *msg)
     bufferSize += 2; /* CsrWifiRouterCtrlRequestorInfo primitive->clientData */
     bufferSize += 2; /* u16 primitive->interfaceTag */
     bufferSize += 6; /* u8 primitive->peerMacAddress.a[6] */
-    bufferSize += 1; /* CsrBool primitive->unicastPdu */
+    bufferSize += 1; /* u8 primitive->unicastPdu */
     return bufferSize;
 }
 

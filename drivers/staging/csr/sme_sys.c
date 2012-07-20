@@ -1095,7 +1095,7 @@ void CsrWifiRouterCtrlWifiOnResHandler(void* drvpriv, CsrWifiFsmEvent* msg)
         int i; /* used as a loop counter */
         u32 intmode = CSR_WIFI_INTMODE_DEFAULT;
 #ifdef CSR_WIFI_SPLIT_PATCH
-        CsrBool switching_ap_fw = FALSE;
+        u8 switching_ap_fw = FALSE;
 #endif
         /* Register the UniFi device with the OS network manager */
         unifi_trace(priv, UDBG3, "Card Init Completed Successfully\n");
@@ -1365,7 +1365,7 @@ _sys_packet_req(unifi_priv_t *priv, const CSR_SIGNAL *signal,
     CsrWifiMacAddress peerMacAddress;
     CsrResult csrResult;
     u16 interfaceTag = req.VirtualInterfaceIdentifier & 0xff;
-    CsrBool eapolStore = FALSE;
+    u8 eapolStore = FALSE;
     s8 protection = 0;
     netInterface_priv_t *interfacePriv;
     unsigned long flags;
@@ -2101,7 +2101,7 @@ void CsrWifiRouterCtrlPeerDelReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *req,u32 *handle)
 {
     u8 i, powerModeTemp = 0;
-    CsrBool freeSlotFound = FALSE;
+    u8 freeSlotFound = FALSE;
     CsrWifiRouterCtrlStaInfo_t *newRecord = NULL;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[req->interfaceTag];
     CsrTime currentTime, currentTimeHi;
@@ -2610,7 +2610,7 @@ static void ba_session_terminate_timer_func(unsigned long data)
 }
 
 
-CsrBool blockack_session_stop(unifi_priv_t *priv,
+u8 blockack_session_stop(unifi_priv_t *priv,
                                      u16 interfaceTag,
                                      CsrWifiRouterCtrlBlockAckRole role,
                                      u16 tID,
@@ -2708,7 +2708,7 @@ CsrBool blockack_session_stop(unifi_priv_t *priv,
 void CsrWifiRouterCtrlBlockAckDisableReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 {
     CsrWifiRouterCtrlBlockAckDisableReq* req = (CsrWifiRouterCtrlBlockAckDisableReq*)msg;
-    CsrBool r;
+    u8 r;
     unifi_priv_t *priv = (unifi_priv_t*)drvpriv;
 
     unifi_trace(priv, UDBG6, "%s: in ok\n", __FUNCTION__);
@@ -2730,7 +2730,7 @@ void CsrWifiRouterCtrlBlockAckDisableReqHandler(void* drvpriv, CsrWifiFsmEvent* 
 }
 
 
-CsrBool blockack_session_start(unifi_priv_t *priv,
+u8 blockack_session_start(unifi_priv_t *priv,
                                u16 interfaceTag,
                                u16 tID,
                                u16 timeout,
@@ -2946,7 +2946,7 @@ CsrBool blockack_session_start(unifi_priv_t *priv,
 void CsrWifiRouterCtrlBlockAckEnableReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 {
     CsrWifiRouterCtrlBlockAckEnableReq* req = (CsrWifiRouterCtrlBlockAckEnableReq*)msg;
-    CsrBool r;
+    u8 r;
     unifi_priv_t *priv = (unifi_priv_t*)drvpriv;
 
     unifi_trace(priv, UDBG6, ">>%s\n", __FUNCTION__);

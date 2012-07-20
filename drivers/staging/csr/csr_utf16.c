@@ -261,7 +261,7 @@ u8 *CsrUtf16String2Utf8(const u16 *source)
     u32 length;
     u32 sourceLength;
     u8 bytes;
-    CsrBool appendNull = FALSE;
+    u8 appendNull = FALSE;
 
     u8 firstByteMark[5] = {0x00, 0x00, 0xC0, 0xE0, 0xF0};
 
@@ -463,7 +463,7 @@ u8 *CsrUtf16String2Utf8(const u16 *source)
         TRUE if the given code unit is legal.
 
 *****************************************************************************/
-static CsrBool isLegalUtf8(const u8 *codeUnit, u32 length)
+static u8 isLegalUtf8(const u8 *codeUnit, u32 length)
 {
     const u8 *srcPtr = codeUnit + length;
     u8 byte;
@@ -815,7 +815,7 @@ u16 *CsrUtf16String2XML(u16 *str)
     u16 *outputString = NULL;
     u16 *resultString = str;
     u32 stringLength = 0;
-    CsrBool encodeChars = FALSE;
+    u8 encodeChars = FALSE;
 
     scanString = str;
     if (scanString)
@@ -908,7 +908,7 @@ u16 *CsrXML2Utf16String(u16 *str)
     u16 *outputString = NULL;
     u16 *resultString = str;
     u32 stringLength = 0;
-    CsrBool encodeChars = FALSE;
+    u8 encodeChars = FALSE;
 
     scanString = str;
     if (scanString)

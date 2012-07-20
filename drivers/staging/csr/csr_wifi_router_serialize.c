@@ -79,7 +79,7 @@ CsrSize CsrWifiRouterMaPacketReqSizeof(void *msg)
     bufferSize += 4;                      /* CsrWifiRouterFrameFreeFunction primitive->freeFunction */
     bufferSize += 2;                      /* CsrWifiRouterPriority primitive->priority */
     bufferSize += 4;                      /* u32 primitive->hostTag */
-    bufferSize += 1;                      /* CsrBool primitive->cfmRequested */
+    bufferSize += 1;                      /* u8 primitive->cfmRequested */
     return bufferSize;
 }
 

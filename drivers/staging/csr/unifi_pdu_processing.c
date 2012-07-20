@@ -129,7 +129,7 @@ unifi_frame_ma_packet_req(unifi_priv_t *priv, CSR_PRIORITY priority,
 
 static
 int frame_and_send_queued_pdu(unifi_priv_t* priv,tx_buffered_packets_t* buffered_pkt,
-            CsrWifiRouterCtrlStaInfo_t *staRecord,CsrBool moreData , CsrBool eosp)
+            CsrWifiRouterCtrlStaInfo_t *staRecord,u8 moreData , u8 eosp)
 {
 
     CSR_SIGNAL signal;
@@ -300,7 +300,7 @@ void verify_and_accomodate_tx_packet(unifi_priv_t *priv)
     struct list_head *listHead, *list;
     struct list_head *placeHolder;
     u8 i, j,eospFramedeleted=0;
-    CsrBool thresholdExcedeDueToBroadcast = TRUE;
+    u8 thresholdExcedeDueToBroadcast = TRUE;
     /* it will be made it interface Specific in the future when multi interfaces are supported ,
     right now interface 0 is considered */
     netInterface_priv_t *interfacePriv = priv->interfacePriv[0];
@@ -385,7 +385,7 @@ void verify_and_accomodate_tx_packet(unifi_priv_t *priv)
 static
 CsrResult enque_tx_data_pdu(unifi_priv_t *priv, bulk_data_param_t *bulkdata,
                             struct list_head *list, CSR_SIGNAL *signal,
-                            CsrBool requeueOnSamePos)
+                            u8 requeueOnSamePos)
 {
 
     /* queue the tx data packets on to appropriate queue */
@@ -754,7 +754,7 @@ void uf_handle_tim_cfm(unifi_priv_t *priv, CSR_MLME_SET_TIM_CONFIRM *cfm, u16 re
              * If failure crosses this Limit, we have to take a call to FIX
              */
             if (retryCount > UNIFI_MAX_RETRY_LIMIT) {
-                CsrBool moreData = FALSE;
+                u8 moreData = FALSE;
                 retryCount = 0;
                 /* Because of continuos traffic in fh_cmd_q the tim set request is failing (exceeding retry limit)
                  * but if we didn't synchronize our timSet varible state with firmware then it can cause below issues
@@ -959,7 +959,7 @@ void process_peer_active_transition(unifi_priv_t * priv,
                                     u16 interfaceTag)
 {
     int r,i;
-    CsrBool spaceAvail[4] = {TRUE,TRUE,TRUE,TRUE};
+    u8 spaceAvail[4] = {TRUE,TRUE,TRUE,TRUE};
     tx_buffered_packets_t * buffered_pkt = NULL;
     unsigned long lock_flags;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
@@ -1514,8 +1514,8 @@ uf_ap_process_data_pdu(unifi_priv_t *priv, struct sk_buff *skb,
     struct sk_buff *newSkb = NULL;
     /* pointer to skb or private skb created using skb_copy() */
     struct sk_buff *skbPtr = skb;
-    CsrBool sendToNetdev = FALSE;
-    CsrBool qosDestination = FALSE;
+    u8 sendToNetdev = FALSE;
+    u8 qosDestination = FALSE;
     CSR_PRIORITY priority = CSR_CONTENTION;
     CsrWifiRouterCtrlStaInfo_t *dstStaInfo = NULL;
     netInterface_priv_t *interfacePriv;
@@ -1660,13 +1660,13 @@ CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,
     const u8 *macHdrLocation =  bulkdata->d[0].os_data_ptr;
     CsrWifiPacketType pktType;
     int frameType = 0;
-    CsrBool queuePacketDozing = FALSE;
+    u8 queuePacketDozing = FALSE;
     u32 priority_q;
     u16 frmCtrl;
     struct list_head * list = NULL; /* List to which buffered PDUs are to be enqueued*/
-    CsrBool setBcTim=FALSE;
+    u8 setBcTim=FALSE;
     netInterface_priv_t *interfacePriv;
-    CsrBool requeueOnSamePos = FALSE;
+    u8 requeueOnSamePos = FALSE;
     u32 handle = 0xFFFFFFFF;
     unsigned long lock_flags;
 
@@ -2021,7 +2021,7 @@ u8 send_multicast_frames(unifi_priv_t *priv, u16 interfaceTag)
 {
     int r;
     tx_buffered_packets_t * buffered_pkt = NULL;
-    CsrBool moreData = FALSE;
+    u8 moreData = FALSE;
     u8 pduSent =0;
     unsigned long lock_flags;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
@@ -2203,7 +2203,7 @@ void uf_process_ma_vif_availibility_ind(unifi_priv_t *priv,u8 *sigdata,
 
 #define  GET_ACTIVE_INTERFACE_TAG(priv) 0
 
-static CsrBool uf_is_more_data_for_delivery_ac(unifi_priv_t *priv, CsrWifiRouterCtrlStaInfo_t *staRecord)
+static u8 uf_is_more_data_for_delivery_ac(unifi_priv_t *priv, CsrWifiRouterCtrlStaInfo_t *staRecord)
 {
     s8 i;
 
@@ -2221,7 +2221,7 @@ static CsrBool uf_is_more_data_for_delivery_ac(unifi_priv_t *priv, CsrWifiRouter
     return FALSE;
 }
 
-static CsrBool uf_is_more_data_for_usp_delivery(unifi_priv_t *priv, CsrWifiRouterCtrlStaInfo_t *staRecord, unifi_TrafficQueue queue)
+static u8 uf_is_more_data_for_usp_delivery(unifi_priv_t *priv, CsrWifiRouterCtrlStaInfo_t *staRecord, unifi_TrafficQueue queue)
 {
     s8 i;
 
@@ -2268,9 +2268,9 @@ void uf_send_buffered_data_from_delivery_ac(unifi_priv_t *priv,
     u16 interfaceTag = GET_ACTIVE_INTERFACE_TAG(priv);
     tx_buffered_packets_t * buffered_pkt = NULL;
     unsigned long lock_flags;
-    CsrBool eosp=FALSE;
+    u8 eosp=FALSE;
     s8 r =0;
-    CsrBool moreData = FALSE;
+    u8 moreData = FALSE;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
 
     unifi_trace(priv, UDBG2, "++uf_send_buffered_data_from_delivery_ac, active=%x\n", staInfo->uapsdActive);
@@ -2368,8 +2368,8 @@ void uf_send_buffered_data_from_ac(unifi_priv_t *priv,
 {
     tx_buffered_packets_t * buffered_pkt = NULL;
     unsigned long lock_flags;
-    CsrBool eosp=FALSE;
-    CsrBool moreData = FALSE;
+    u8 eosp=FALSE;
+    u8 moreData = FALSE;
     s8 r =0;
 
     func_enter();
@@ -2412,7 +2412,7 @@ void uf_send_buffered_frames(unifi_priv_t *priv,unifi_TrafficQueue q)
     u32 startIndex=0,endIndex=0;
     CsrWifiRouterCtrlStaInfo_t * staInfo = NULL;
     u8 queue;
-    CsrBool moreData = FALSE;
+    u8 moreData = FALSE;
 
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
 
@@ -2549,7 +2549,7 @@ void uf_send_buffered_frames(unifi_priv_t *priv,unifi_TrafficQueue q)
 }
 
 
-CsrBool uf_is_more_data_for_non_delivery_ac(CsrWifiRouterCtrlStaInfo_t *staRecord)
+u8 uf_is_more_data_for_non_delivery_ac(CsrWifiRouterCtrlStaInfo_t *staRecord)
 {
     u8 i;
 
@@ -2916,7 +2916,7 @@ void uf_send_nulldata(unifi_priv_t * priv,u16 interfaceTag, const u8 *da,CSR_PRI
     return;
 }
 
-CsrBool uf_check_broadcast_bssid(unifi_priv_t *priv, const bulk_data_param_t *bulkdata)
+u8 uf_check_broadcast_bssid(unifi_priv_t *priv, const bulk_data_param_t *bulkdata)
 {
     u8 *bssid = NULL;
     static const CsrWifiMacAddress broadcast_address = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
@@ -2957,11 +2957,11 @@ CsrBool uf_check_broadcast_bssid(unifi_priv_t *priv, const bulk_data_param_t *bu
 }
 
 
-CsrBool uf_process_pm_bit_for_peer(unifi_priv_t * priv, CsrWifiRouterCtrlStaInfo_t * srcStaInfo,
+u8 uf_process_pm_bit_for_peer(unifi_priv_t * priv, CsrWifiRouterCtrlStaInfo_t * srcStaInfo,
                                 u8 pmBit,u16 interfaceTag)
 {
-    CsrBool moreData = FALSE;
-    CsrBool powerSaveChanged = FALSE;
+    u8 moreData = FALSE;
+    u8 powerSaveChanged = FALSE;
     unsigned long lock_flags;
 
     unifi_trace(priv, UDBG3, "entering uf_process_pm_bit_for_peer\n");
@@ -3060,7 +3060,7 @@ void uf_process_ps_poll(unifi_priv_t *priv,u8* sa,u8* da,u8 pmBit,u16 interfaceT
     CsrWifiMacAddress peerMacAddress;
     unsigned long lock_flags;
     s8 r =0;
-    CsrBool moreData = FALSE;
+    u8 moreData = FALSE;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
 
     unifi_trace(priv, UDBG3, "entering uf_process_ps_poll\n");
@@ -3594,7 +3594,7 @@ void resume_unicast_buffered_frames(unifi_priv_t *priv, u16 interfaceTag)
    u8 i;
    int j;
    tx_buffered_packets_t * buffered_pkt = NULL;
-   CsrBool hipslotFree[4] = {TRUE,TRUE,TRUE,TRUE};
+   u8 hipslotFree[4] = {TRUE,TRUE,TRUE,TRUE};
    int r;
    unsigned long lock_flags;
 

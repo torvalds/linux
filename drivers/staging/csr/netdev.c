@@ -552,7 +552,7 @@ uf_alloc_netdevice(CsrSdioFunction *sdio_dev, int bus_id)
  *      and should be freed by freeing the net_device pointer.
  * ---------------------------------------------------------------------------
  */
-CsrBool
+u8
 uf_alloc_netdevice_for_other_interfaces(unifi_priv_t *priv, u16 interfaceTag)
 {
     struct net_device *dev;
@@ -1371,7 +1371,7 @@ int prepare_and_add_macheader(unifi_priv_t *priv, struct sk_buff *skb, struct sk
                               u16 interfaceTag,
                               const u8 *daddr,
                               const u8 *saddr,
-                              CsrBool protection)
+                              u8 protection)
 {
     u16 fc = 0;
     u8 qc = 0;
@@ -1382,7 +1382,7 @@ int prepare_and_add_macheader(unifi_priv_t *priv, struct sk_buff *skb, struct sk
     u8 direction = 0;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
     u8 *addressOne;
-    CsrBool bQosNull = false;
+    u8 bQosNull = false;
 
     if (skb == NULL) {
         unifi_error(priv,"prepare_and_add_macheader: Invalid SKB reference\n");
@@ -1650,7 +1650,7 @@ send_ma_pkt_request(unifi_priv_t *priv, struct sk_buff *skb, const struct ethhdr
 {
     int r;
     u16 i;
-    CsrBool eapolStore = FALSE;
+    u8 eapolStore = FALSE;
     struct sk_buff *newSkb = NULL;
     bulk_data_param_t bulkdata;
     const int proto = ntohs(ehdr->h_proto);
@@ -2745,7 +2745,7 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
 
 #ifdef CSR_SUPPORT_SME
     u8 dataFrameType = 0;
-    CsrBool powerSaveChanged = FALSE;
+    u8 powerSaveChanged = FALSE;
     u8 pmBit = 0;
     CsrWifiRouterCtrlStaInfo_t *srcStaInfo = NULL;
     u16 qosControl;

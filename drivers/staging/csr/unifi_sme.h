@@ -27,7 +27,7 @@ typedef int unifi_data_port_action;
 typedef struct unifi_port_cfg
 {
     /* TRUE if this port entry is allocated */
-    CsrBool in_use;
+    u8 in_use;
     CsrWifiRouterCtrlPortAction port_action;
     CsrWifiMacAddress mac_address;
 } unifi_port_cfg_t;

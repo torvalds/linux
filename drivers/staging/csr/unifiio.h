@@ -314,15 +314,15 @@ typedef struct uf_cfg_ap_config
     u8    channel;
     u16   beaconInterval;
     u8    dtimPeriod;
-    CsrBool     wmmEnabled;
+    u8     wmmEnabled;
     u8    shortSlotTimeEnabled;
     u16   groupkeyTimeout;
-    CsrBool     strictGtkRekeyEnabled;
+    u8     strictGtkRekeyEnabled;
     u16   gmkTimeout;
     u16   responseTimeout;
     u8    retransLimit;
     u8    rxStbc;
-    CsrBool     rifsModeAllowed;
+    u8     rifsModeAllowed;
     u8    dualCtsProtection;
     u8    ctsProtectionType;
     u16   maxListenInterval;

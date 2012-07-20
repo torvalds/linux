@@ -720,7 +720,7 @@ typedef struct
     char           *privateKeyPassword;
     u32                sessionLength;
     u8                *session;
-    CsrBool                  allowPacProvisioning;
+    u8                  allowPacProvisioning;
     u32                pacLength;
     u8                *pac;
     char           *pacPassword;
@@ -896,7 +896,7 @@ typedef struct
     CsrWifiNmeBssType         bssType;
     u8                  channelNo;
     u8                  ccxOptionsMask;
-    CsrBool                   cloakedSsid;
+    u8                   cloakedSsid;
     CsrWifiNmeCredentials     credentials;
 } CsrWifiNmeProfile;
 

@@ -43,7 +43,7 @@
 
 
 static CsrResult process_bh(card_t *card);
-static CsrResult handle_host_protocol(card_t *card, CsrBool *processed_something);
+static CsrResult handle_host_protocol(card_t *card, u8 *processed_something);
 
 static CsrResult flush_fh_buffer(card_t *card);
 
@@ -358,7 +358,7 @@ CsrResult unifi_bh(card_t *card, u32 *remaining)
 {
     CsrResult r;
     CsrResult csrResult;
-    CsrBool pending;
+    u8 pending;
     s32 iostate, j;
     const enum unifi_low_power_mode low_power_mode = card->low_power_mode;
     u16 data_slots_used = 0;
@@ -700,7 +700,7 @@ static CsrResult process_clock_request(card_t *card)
 static CsrResult process_bh(card_t *card)
 {
     CsrResult r;
-    CsrBool more;
+    u8 more;
     more = FALSE;
 
     /* Process the reasons (interrupt, signals) */
@@ -842,7 +842,7 @@ static CsrResult process_bh(card_t *card)
  *      CSR_RESULT_SUCCESS on success or CSR error code.
  * ---------------------------------------------------------------------------
  */
-static CsrResult handle_host_protocol(card_t *card, CsrBool *processed_something)
+static CsrResult handle_host_protocol(card_t *card, u8 *processed_something)
 {
     CsrResult r;
     s32 done;

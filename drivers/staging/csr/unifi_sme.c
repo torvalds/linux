@@ -115,7 +115,7 @@ sme_log_event(ul_client_t *pcli,
         if (unpacked_signal.SignalPrimitiveHeader.SignalId == CSR_MA_PACKET_INDICATION_ID)
         {
             u16 frmCtrl;
-            CsrBool unicastPdu = TRUE;
+            u8 unicastPdu = TRUE;
             u8 *macHdrLocation;
             u8 *raddr = NULL, *taddr = NULL;
             CsrWifiMacAddress peerMacAddress;
@@ -727,7 +727,7 @@ int unifi_cfg_wmm_delts(unifi_priv_t *priv, unsigned char *arg)
 
 int unifi_cfg_strict_draft_n(unifi_priv_t *priv, unsigned char *arg)
 {
-    CsrBool strict_draft_n;
+    u8 strict_draft_n;
     u8 *strict_draft_n_params;
     int rc;
 
@@ -735,7 +735,7 @@ int unifi_cfg_strict_draft_n(unifi_priv_t *priv, unsigned char *arg)
     CsrWifiSmeDeviceConfig  deviceConfig;
 
     strict_draft_n_params = (u8*)(((unifi_cfg_command_t*)arg) + 1);
-    if (get_user(strict_draft_n, (CsrBool*)strict_draft_n_params)) {
+    if (get_user(strict_draft_n, (u8*)strict_draft_n_params)) {
         unifi_error(priv, "unifi_cfg_strict_draft_n: Failed to get the argument\n");
         return -EFAULT;
     }
@@ -763,7 +763,7 @@ int unifi_cfg_strict_draft_n(unifi_priv_t *priv, unsigned char *arg)
 
 int unifi_cfg_enable_okc(unifi_priv_t *priv, unsigned char *arg)
 {
-    CsrBool enable_okc;
+    u8 enable_okc;
     u8 *enable_okc_params;
     int rc;
 
@@ -771,7 +771,7 @@ int unifi_cfg_enable_okc(unifi_priv_t *priv, unsigned char *arg)
     CsrWifiSmeDeviceConfig deviceConfig;
 
     enable_okc_params = (u8*)(((unifi_cfg_command_t*)arg) + 1);
-    if (get_user(enable_okc, (CsrBool*)enable_okc_params)) {
+    if (get_user(enable_okc, (u8*)enable_okc_params)) {
         unifi_error(priv, "unifi_cfg_enable_okc: Failed to get the argument\n");
         return -EFAULT;
     }
@@ -914,7 +914,7 @@ int
  uf_configure_supported_rates(u8 * supportedRates, u8 phySupportedBitmap)
 {
     int i=0;
-    CsrBool b=FALSE, g = FALSE, n = FALSE;
+    u8 b=FALSE, g = FALSE, n = FALSE;
     b = phySupportedBitmap & CSR_WIFI_SME_AP_PHY_SUPPORT_B;
     n = phySupportedBitmap & CSR_WIFI_SME_AP_PHY_SUPPORT_N;
     g = phySupportedBitmap & CSR_WIFI_SME_AP_PHY_SUPPORT_G;

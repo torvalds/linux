@@ -321,7 +321,7 @@ int sme_mgt_scan_full(unifi_priv_t *priv,
         unsigned char *channel_list)
 {
     CsrWifiMacAddress bcastAddress = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }};
-    CsrBool is_active = (num_channels > 0) ? TRUE : FALSE;
+    u8 is_active = (num_channels > 0) ? TRUE : FALSE;
     int r;
 
     if (priv->smepriv == NULL) {

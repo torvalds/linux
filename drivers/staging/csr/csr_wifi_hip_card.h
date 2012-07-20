@@ -43,7 +43,7 @@ CsrResult CardGenInt(card_t *card);
 /*****************************************************************************
  * CardPendingInt -
  */
-CsrResult CardPendingInt(card_t *card, CsrBool *pintr);
+CsrResult CardPendingInt(card_t *card, u8 *pintr);
 
 /*****************************************************************************
  * CardDisableInt -
@@ -63,7 +63,7 @@ void CardDisable(card_t *card);
 /*****************************************************************************
  * CardIntEnabled -
  */
-CsrResult CardIntEnabled(card_t *card, CsrBool *enabled);
+CsrResult CardIntEnabled(card_t *card, u8 *enabled);
 
 /*****************************************************************************
  * CardGetDataSlotSize

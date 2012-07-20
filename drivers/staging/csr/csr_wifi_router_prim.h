@@ -249,7 +249,7 @@ typedef struct
     CsrWifiRouterFrameFreeFunction freeFunction;
     CsrWifiRouterPriority          priority;
     u32                      hostTag;
-    CsrBool                        cfmRequested;
+    u8                        cfmRequested;
 } CsrWifiRouterMaPacketReq;
 
 /*******************************************************************************

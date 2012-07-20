@@ -33,7 +33,7 @@ CsrSize CsrWifiNmeApConfigSetReqSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 104) */
     bufferSize += 2;  /* u16 primitive->apConfig.apGroupkeyTimeout */
-    bufferSize += 1;  /* CsrBool primitive->apConfig.apStrictGtkRekey */
+    bufferSize += 1;  /* u8 primitive->apConfig.apStrictGtkRekey */
     bufferSize += 2;  /* u16 primitive->apConfig.apGmkTimeout */
     bufferSize += 2;  /* u16 primitive->apConfig.apResponseTimeout */
     bufferSize += 1;  /* u8 primitive->apConfig.apRetransLimit */
@@ -44,9 +44,9 @@ CsrSize CsrWifiNmeApConfigSetReqSizeof(void *msg)
     bufferSize += 1;  /* u8 primitive->apMacConfig.supportedRatesCount */
     bufferSize += 20; /* u8 primitive->apMacConfig.supportedRates[20] */
     bufferSize += 1;  /* CsrWifiSmePreambleType primitive->apMacConfig.preamble */
-    bufferSize += 1;  /* CsrBool primitive->apMacConfig.shortSlotTimeEnabled */
+    bufferSize += 1;  /* u8 primitive->apMacConfig.shortSlotTimeEnabled */
     bufferSize += 1;  /* CsrWifiSmeCtsProtectionType primitive->apMacConfig.ctsProtectionType */
-    bufferSize += 1;  /* CsrBool primitive->apMacConfig.wmmEnabled */
+    bufferSize += 1;  /* u8 primitive->apMacConfig.wmmEnabled */
     {
         u16 i2;
         for (i2 = 0; i2 < 4; i2++)
@@ -55,7 +55,7 @@ CsrSize CsrWifiNmeApConfigSetReqSizeof(void *msg)
             bufferSize += 1; /* u8 primitive->apMacConfig.wmmApParams[i2].cwMax */
             bufferSize += 1; /* u8 primitive->apMacConfig.wmmApParams[i2].aifs */
             bufferSize += 2; /* u16 primitive->apMacConfig.wmmApParams[i2].txopLimit */
-            bufferSize += 1; /* CsrBool primitive->apMacConfig.wmmApParams[i2].admissionControlMandatory */
+            bufferSize += 1; /* u8 primitive->apMacConfig.wmmApParams[i2].admissionControlMandatory */
         }
     }
     {
@@ -66,7 +66,7 @@ CsrSize CsrWifiNmeApConfigSetReqSizeof(void *msg)
             bufferSize += 1; /* u8 primitive->apMacConfig.wmmApBcParams[i2].cwMax */
             bufferSize += 1; /* u8 primitive->apMacConfig.wmmApBcParams[i2].aifs */
             bufferSize += 2; /* u16 primitive->apMacConfig.wmmApBcParams[i2].txopLimit */
-            bufferSize += 1; /* CsrBool primitive->apMacConfig.wmmApBcParams[i2].admissionControlMandatory */
+            bufferSize += 1; /* u8 primitive->apMacConfig.wmmApBcParams[i2].admissionControlMandatory */
         }
     }
     bufferSize += 1;         /* CsrWifiSmeApAccessType primitive->apMacConfig.accessType */
@@ -78,12 +78,12 @@ CsrSize CsrWifiNmeApConfigSetReqSizeof(void *msg)
             bufferSize += 6; /* u8 primitive->apMacConfig.macAddressList[i2].a[6] */
         }
     }
-    bufferSize += 1;         /* CsrBool primitive->apMacConfig.apHtParams.greenfieldSupported */
-    bufferSize += 1;         /* CsrBool primitive->apMacConfig.apHtParams.shortGi20MHz */
+    bufferSize += 1;         /* u8 primitive->apMacConfig.apHtParams.greenfieldSupported */
+    bufferSize += 1;         /* u8 primitive->apMacConfig.apHtParams.shortGi20MHz */
     bufferSize += 1;         /* u8 primitive->apMacConfig.apHtParams.rxStbc */
-    bufferSize += 1;         /* CsrBool primitive->apMacConfig.apHtParams.rifsModeAllowed */
+    bufferSize += 1;         /* u8 primitive->apMacConfig.apHtParams.rifsModeAllowed */
     bufferSize += 1;         /* u8 primitive->apMacConfig.apHtParams.htProtection */
-    bufferSize += 1;         /* CsrBool primitive->apMacConfig.apHtParams.dualCtsProtection */
+    bufferSize += 1;         /* u8 primitive->apMacConfig.apHtParams.dualCtsProtection */
     return bufferSize;
 }
 
@@ -276,7 +276,7 @@ CsrSize CsrWifiNmeApStartReqSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 112) */
     bufferSize += 2;  /* u16 primitive->interfaceTag */
     bufferSize += 1;  /* CsrWifiSmeApType primitive->apType */
-    bufferSize += 1;  /* CsrBool primitive->cloakSsid */
+    bufferSize += 1;  /* u8 primitive->cloakSsid */
     bufferSize += 32; /* u8 primitive->ssid.ssid[32] */
     bufferSize += 1;  /* u8 primitive->ssid.length */
     bufferSize += 1;  /* CsrWifiSmeRadioIF primitive->ifIndex */
@@ -346,11 +346,11 @@ CsrSize CsrWifiNmeApStartReqSizeof(void *msg)
             bufferSize += primitive->p2pGoParam.operatingChanList.channelEntryList[i3].operatingChannelCount; /* u8 primitive->p2pGoParam.operatingChanList.channelEntryList[i3].operatingChannel */
         }
     }
-    bufferSize += 1;                                                                                          /* CsrBool primitive->p2pGoParam.opPsEnabled */
+    bufferSize += 1;                                                                                          /* u8 primitive->p2pGoParam.opPsEnabled */
     bufferSize += 1;                                                                                          /* u8 primitive->p2pGoParam.ctWindow */
     bufferSize += 1;                                                                                          /* CsrWifiSmeP2pNoaConfigMethod primitive->p2pGoParam.noaConfigMethod */
-    bufferSize += 1;                                                                                          /* CsrBool primitive->p2pGoParam.allowNoaWithNonP2pDevices */
-    bufferSize += 1;                                                                                          /* CsrBool primitive->wpsEnabled */
+    bufferSize += 1;                                                                                          /* u8 primitive->p2pGoParam.allowNoaWithNonP2pDevices */
+    bufferSize += 1;                                                                                          /* u8 primitive->wpsEnabled */
     return bufferSize;
 }
 
@@ -589,7 +589,7 @@ CsrSize CsrWifiNmeApWmmParamUpdateReqSizeof(void *msg)
             bufferSize += 1; /* u8 primitive->wmmApParams[i1].cwMax */
             bufferSize += 1; /* u8 primitive->wmmApParams[i1].aifs */
             bufferSize += 2; /* u16 primitive->wmmApParams[i1].txopLimit */
-            bufferSize += 1; /* CsrBool primitive->wmmApParams[i1].admissionControlMandatory */
+            bufferSize += 1; /* u8 primitive->wmmApParams[i1].admissionControlMandatory */
         }
     }
     {
@@ -600,7 +600,7 @@ CsrSize CsrWifiNmeApWmmParamUpdateReqSizeof(void *msg)
             bufferSize += 1; /* u8 primitive->wmmApBcParams[i1].cwMax */
             bufferSize += 1; /* u8 primitive->wmmApBcParams[i1].aifs */
             bufferSize += 2; /* u16 primitive->wmmApBcParams[i1].txopLimit */
-            bufferSize += 1; /* CsrBool primitive->wmmApBcParams[i1].admissionControlMandatory */
+            bufferSize += 1; /* u8 primitive->wmmApBcParams[i1].admissionControlMandatory */
         }
     }
     return bufferSize;
@@ -679,7 +679,7 @@ CsrSize CsrWifiNmeApStaRemoveReqSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 12) */
     bufferSize += 2; /* u16 primitive->interfaceTag */
     bufferSize += 6; /* u8 primitive->staMacAddress.a[6] */
-    bufferSize += 1; /* CsrBool primitive->keepBlocking */
+    bufferSize += 1; /* u8 primitive->keepBlocking */
     return bufferSize;
 }
 
