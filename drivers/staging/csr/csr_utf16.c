@@ -1015,11 +1015,6 @@ u16 *CsrXML2Utf16String(u16 *str)
     return resultString;
 }
 
-s32 CsrUtf8StrCmp(const u8 *string1, const u8 *string2)
-{
-    return CsrStrCmp((const char *) string1, (const char *) string2);
-}
-
 s32 CsrUtf8StrNCmp(const u8 *string1, const u8 *string2, size_t count)
 {
     return CsrStrNCmp((const char *) string1, (const char *) string2, count);
