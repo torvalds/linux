@@ -60,6 +60,7 @@ snd-soc-wm8776-objs := wm8776.o
 snd-soc-wm8804-objs := wm8804.o
 snd-soc-wm8900-objs := wm8900.o
 snd-soc-rt5621-objs := rt5621.o
+snd-soc-rt5623-objs := rt5623.o
 snd-soc-rt5631-objs := rt5631.o
 snd-soc-rt5625-objs := rt5625.o
 snd-soc-cs42l52-objs := cs42l52.o
@@ -89,6 +90,7 @@ snd-soc-wm-hubs-objs := wm_hubs.o
 snd-soc-rk1000-objs := rk1000_codec.o
 snd-soc-jz4740-codec-objs := jz4740.o
 snd-soc-rk610-objs := rk610_codec.o
+snd-soc-rt3261-objs := rt3261.o rt3261-dsp.o rt3261_ioctl.o rt_codec_ioctl.o
 
 # Amp
 snd-soc-lm4857-objs := lm4857.o
@@ -96,7 +98,7 @@ snd-soc-max9877-objs := max9877.o
 snd-soc-tpa6130a2-objs := tpa6130a2.o
 snd-soc-wm2000-objs := wm2000.o
 snd-soc-wm9090-objs := wm9090.o
-
+obj-$(CONFIG_SND_SOC_RT3261)    += snd-soc-rt3261.o
 obj-$(CONFIG_SND_SOC_88PM860X)	+= snd-soc-88pm860x.o
 obj-$(CONFIG_SND_SOC_AC97_CODEC)	+= snd-soc-ac97.o
 obj-$(CONFIG_SND_SOC_AD1836)	+= snd-soc-ad1836.o
@@ -160,6 +162,7 @@ obj-$(CONFIG_SND_SOC_WM8776)	+= snd-soc-wm8776.o
 obj-$(CONFIG_SND_SOC_WM8804)	+= snd-soc-wm8804.o
 obj-$(CONFIG_SND_SOC_WM8900)	+= snd-soc-wm8900.o
 obj-$(CONFIG_SND_SOC_RT5621)	+= snd-soc-rt5621.o
+obj-$(CONFIG_SND_SOC_RT5623)	+= snd-soc-rt5623.o
 obj-$(CONFIG_SND_SOC_RT5631)	+= snd-soc-rt5631.o
 obj-$(CONFIG_SND_SOC_RT5625)	+= snd-soc-rt5625.o
 obj-$(CONFIG_SND_SOC_CS42L52)	+= snd-soc-cs42l52.o
