@@ -246,7 +246,7 @@ typedef struct
  */
 typedef struct card_signal
 {
-    CsrUint8 sigbuf[UNIFI_PACKED_SIGBUF_SIZE];
+    u8 sigbuf[UNIFI_PACKED_SIGBUF_SIZE];
 
     /* Length of the SIGNAL inside sigbuf */
     CsrUint16 signal_length;
@@ -421,7 +421,7 @@ struct card
     CsrUint16 chip_version;
 
     /* From the SDIO driver (probably 1) */
-    CsrUint8 function;
+    u8 function;
 
     /* This is sused to get the register addresses and things. */
     ChipDescript *helper;
@@ -448,11 +448,11 @@ struct card
     /* UDI callback for logging UniFi interactions */
     udi_func_t udi_hook;
 
-    CsrUint8 bh_reason_host;
-    CsrUint8 bh_reason_unifi;
+    u8 bh_reason_host;
+    u8 bh_reason_unifi;
 
     /* SDIO clock speed request from OS layer */
-    CsrUint8 request_max_clock;
+    u8 request_max_clock;
 
     /* Last SDIO clock frequency set */
     CsrUint32 sdio_clock_speed;
@@ -505,8 +505,8 @@ struct card
 #define UNIFI_FH_BUF_SIZE 1024
     struct sigbuf
     {
-        CsrUint8 *buf;     /* buffer area */
-        CsrUint8 *ptr;     /* current pos */
+        u8 *buf;     /* buffer area */
+        u8 *ptr;     /* current pos */
         CsrUint16 count;   /* signal count */
         CsrUint16 bufsize;
     } fh_buffer;
@@ -519,7 +519,7 @@ struct card
      * Flag to say we need to generate an interrupt at end of processing.
      */
     CsrUint32 unifi_interrupt_seq;
-    CsrUint8  generate_interrupt;
+    u8  generate_interrupt;
 
 
     /* Pointers to the bulk data slots */
@@ -560,7 +560,7 @@ struct card
     CsrUint32 sdio_bytes_read;
     CsrUint32 sdio_bytes_written;
 
-    CsrUint8 memory_resources_allocated;
+    u8 memory_resources_allocated;
 
     /* UniFi SDIO I/O Block size. */
     CsrUint16 sdio_io_block_size;
@@ -615,7 +615,7 @@ struct card
     CsrUint32 intmode;
 
 #ifdef UNIFI_DEBUG
-    CsrUint8 lsb;
+    u8 lsb;
 #endif
 
     /* Historic firmware panic codes */
@@ -671,10 +671,10 @@ CsrResult unifi_bulk_rw_noretry(card_t *card, CsrUint32 handle,
 #define UNIFI_SDIO_READ       0
 #define UNIFI_SDIO_WRITE      1
 
-CsrResult unifi_read_8_or_16(card_t *card, CsrUint32 unifi_addr, CsrUint8 *pdata);
-CsrResult unifi_write_8_or_16(card_t *card, CsrUint32 unifi_addr, CsrUint8 data);
-CsrResult unifi_read_direct_8_or_16(card_t *card, CsrUint32 addr, CsrUint8 *pdata);
-CsrResult unifi_write_direct_8_or_16(card_t *card, CsrUint32 addr, CsrUint8 data);
+CsrResult unifi_read_8_or_16(card_t *card, CsrUint32 unifi_addr, u8 *pdata);
+CsrResult unifi_write_8_or_16(card_t *card, CsrUint32 unifi_addr, u8 data);
+CsrResult unifi_read_direct_8_or_16(card_t *card, CsrUint32 addr, u8 *pdata);
+CsrResult unifi_write_direct_8_or_16(card_t *card, CsrUint32 addr, u8 data);
 
 CsrResult unifi_read_direct16(card_t *card, CsrUint32 addr, CsrUint16 *pdata);
 CsrResult unifi_read_direct32(card_t *card, CsrUint32 addr, CsrUint32 *pdata);
@@ -683,8 +683,8 @@ CsrResult unifi_read_directn(card_t *card, CsrUint32 addr, void *pdata, CsrUint1
 CsrResult unifi_write_direct16(card_t *card, CsrUint32 addr, CsrUint16 data);
 CsrResult unifi_write_directn(card_t *card, CsrUint32 addr, void *pdata, CsrUint16 len);
 
-CsrResult sdio_read_f0(card_t *card, CsrUint32 addr, CsrUint8 *pdata);
-CsrResult sdio_write_f0(card_t *card, CsrUint32 addr, CsrUint8 data);
+CsrResult sdio_read_f0(card_t *card, CsrUint32 addr, u8 *pdata);
+CsrResult sdio_write_f0(card_t *card, CsrUint32 addr, u8 data);
 
 void unifi_read_panic(card_t *card);
 #ifdef CSR_PRE_ALLOC_NET_DATA

@@ -100,7 +100,7 @@ CSR_PRIORITY unifi_get_default_downgrade_priority(unifi_TrafficQueue queue)
  *      Calls unifi_pause_xmit() when the last slots are used.
  * ---------------------------------------------------------------------------
  */
-static CsrResult send_signal(card_t *card, const CsrUint8 *sigptr, CsrUint32 siglen,
+static CsrResult send_signal(card_t *card, const u8 *sigptr, CsrUint32 siglen,
                              const bulk_data_param_t *bulkdata,
                              q_t *sigq, CsrUint32 priority_q, CsrUint32 run_bh)
 {
@@ -156,8 +156,8 @@ static CsrResult send_signal(card_t *card, const CsrUint8 *sigptr, CsrUint32 sig
                     debug_print++;
                 }
                 /* Store the bulk data info in the soft queue. */
-                csptr->bulkdata[i].os_data_ptr = (CsrUint8 *)bulkdata->d[i].os_data_ptr;
-                csptr->bulkdata[i].os_net_buf_ptr = (CsrUint8 *)bulkdata->d[i].os_net_buf_ptr;
+                csptr->bulkdata[i].os_data_ptr = (u8 *)bulkdata->d[i].os_data_ptr;
+                csptr->bulkdata[i].os_net_buf_ptr = (u8 *)bulkdata->d[i].os_net_buf_ptr;
                 csptr->bulkdata[i].net_buf_length = bulkdata->d[i].net_buf_length;
                 csptr->bulkdata[i].data_length = datalen;
             }
@@ -170,7 +170,7 @@ static CsrResult send_signal(card_t *card, const CsrUint8 *sigptr, CsrUint32 sig
 
     if (debug_print)
     {
-        const CsrUint8 *sig = sigptr;
+        const u8 *sig = sigptr;
 
         unifi_error(card->ospriv, "Signal(%d): %02x %02x %02x %02x %02x %02x %02x %02x"
                     " %02x %02x %02x %02x %02x %02x %02x %02x\n",
@@ -303,7 +303,7 @@ static CsrResult send_signal(card_t *card, const CsrUint8 *sigptr, CsrUint32 sig
  *      to the device. Signals are constructed using the UniFi packed structures.
  * ---------------------------------------------------------------------------
  */
-CsrResult unifi_send_signal(card_t *card, const CsrUint8 *sigptr, CsrUint32 siglen,
+CsrResult unifi_send_signal(card_t *card, const u8 *sigptr, CsrUint32 siglen,
                             const bulk_data_param_t *bulkdata)
 {
     q_t *sig_soft_q;
@@ -383,7 +383,7 @@ CsrResult unifi_send_signal(card_t *card, const CsrUint8 *sigptr, CsrUint32 sigl
  *  Notes:
  * ---------------------------------------------------------------------------
  */
-CsrResult unifi_send_resources_available(card_t *card, const CsrUint8 *sigptr)
+CsrResult unifi_send_resources_available(card_t *card, const u8 *sigptr)
 {
     q_t *sig_soft_q;
     CsrUint16 signal_id = GET_SIGNAL_ID(sigptr);

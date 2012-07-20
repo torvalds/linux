@@ -219,7 +219,7 @@ typedef struct
  */
 typedef struct
 {
-    const CsrUint8              numEntries;
+    const u8              numEntries;
     const CsrBool               saveAll;
     const CsrWifiFsmEventEntry *eventEntryArray; /* array of transition function pointers for state */
 #ifdef CSR_LOG_ENABLE

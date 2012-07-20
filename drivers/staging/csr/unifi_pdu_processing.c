@@ -56,15 +56,15 @@ void
 unifi_frame_ma_packet_req(unifi_priv_t *priv, CSR_PRIORITY priority,
                           CSR_RATE TransmitRate, CSR_CLIENT_TAG hostTag,
                           CsrUint16 interfaceTag, CSR_TRANSMISSION_CONTROL transmissionControl,
-                          CSR_PROCESS_ID leSenderProcessId, CsrUint8 *peerMacAddress,
+                          CSR_PROCESS_ID leSenderProcessId, u8 *peerMacAddress,
                           CSR_SIGNAL *signal)
 {
 
     CSR_MA_PACKET_REQUEST *req = &signal->u.MaPacketRequest;
     netInterface_priv_t *interfacePriv;
-    CsrUint8 ba_session_idx = 0;
+    u8 ba_session_idx = 0;
     ba_session_tx_struct *ba_session = NULL;
-    CsrUint8 *ba_addr = NULL;
+    u8 *ba_addr = NULL;
 
     interfacePriv = priv->interfacePriv[interfaceTag];
 
@@ -135,8 +135,8 @@ int frame_and_send_queued_pdu(unifi_priv_t* priv,tx_buffered_packets_t* buffered
     CSR_SIGNAL signal;
     bulk_data_param_t bulkdata;
     int result;
-    CsrUint8 toDs, fromDs, macHeaderLengthInBytes = MAC_HEADER_SIZE;
-    CsrUint8 *qc;
+    u8 toDs, fromDs, macHeaderLengthInBytes = MAC_HEADER_SIZE;
+    u8 *qc;
     CsrUint16 *fc = (CsrUint16*)(buffered_pkt->bulkdata.os_data_ptr);
     unsigned long lock_flags;
     unifi_trace(priv, UDBG3, "frame_and_send_queued_pdu with moreData: %d , EOSP: %d\n",moreData,eosp);
@@ -180,9 +180,9 @@ int frame_and_send_queued_pdu(unifi_priv_t* priv,tx_buffered_packets_t* buffered
                 /* If order bit set then HT control field is the part of MAC header */
                 if (*fc & cpu_to_le16(IEEE80211_FC_ORDER_MASK)) {
                     macHeaderLengthInBytes += HT_CONTROL_HEADER_SIZE;
-                    qc = (CsrUint8*)(buffered_pkt->bulkdata.os_data_ptr + (macHeaderLengthInBytes-6));
+                    qc = (u8*)(buffered_pkt->bulkdata.os_data_ptr + (macHeaderLengthInBytes-6));
                 } else {
-                    qc = (CsrUint8*)(buffered_pkt->bulkdata.os_data_ptr + (macHeaderLengthInBytes-2));
+                    qc = (u8*)(buffered_pkt->bulkdata.os_data_ptr + (macHeaderLengthInBytes-2));
                 }
                 *qc = eosp ? *qc | (1 << 4) : *qc & (~(1 << 4));
                 break;
@@ -299,7 +299,7 @@ void verify_and_accomodate_tx_packet(unifi_priv_t *priv)
     unsigned long lock_flags;
     struct list_head *listHead, *list;
     struct list_head *placeHolder;
-    CsrUint8 i, j,eospFramedeleted=0;
+    u8 i, j,eospFramedeleted=0;
     CsrBool thresholdExcedeDueToBroadcast = TRUE;
     /* it will be made it interface Specific in the future when multi interfaces are supported ,
     right now interface 0 is considered */
@@ -477,7 +477,7 @@ CsrResult unifi_reque_ma_packet_request (void *ospriv, CsrUint32 host_tag,
     unifi_trace(priv, UDBG6, "unifi_reque_ma_packet_request: host_tag = 0x%x\n", host_tag);
 
     staRecord = CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(priv,
-                                                                    (((CsrUint8 *) bulkDataDesc->os_data_ptr) + 4),
+                                                                    (((u8 *) bulkDataDesc->os_data_ptr) + 4),
                                                                     interfaceTag);
     if (NULL == staRecord) {
         unifi_trace(priv, UDBG5, "unifi_reque_ma_packet_request: Invalid STA record \n");
@@ -532,7 +532,7 @@ CsrResult unifi_reque_ma_packet_request (void *ospriv, CsrUint32 host_tag,
         /* Extract the Packet priority */
         if (TRUE == staRecord->wmmOrQosEnabled) {
             CsrUint16 qosControl = 0;
-            CsrUint8  dataFrameType = 0;
+            u8  dataFrameType = 0;
 
             dataFrameType =((frameControl & IEEE80211_FC_SUBTYPE_MASK) >> 4);
 
@@ -603,9 +603,9 @@ CsrResult unifi_reque_ma_packet_request (void *ospriv, CsrUint32 host_tag,
 }
 #endif
 
-static void is_all_ac_deliver_enabled_and_moredata(CsrWifiRouterCtrlStaInfo_t *staRecord, CsrUint8 *allDeliveryEnabled, CsrUint8 *dataAvailable)
+static void is_all_ac_deliver_enabled_and_moredata(CsrWifiRouterCtrlStaInfo_t *staRecord, u8 *allDeliveryEnabled, u8 *dataAvailable)
 {
-    CsrUint8 i;
+    u8 i;
     *allDeliveryEnabled = TRUE;
     for (i = 0 ;i < MAX_ACCESS_CATOGORY; i++) {
         if (!IS_DELIVERY_ENABLED(staRecord->powersaveMode[i])) {
@@ -637,15 +637,15 @@ static void is_all_ac_deliver_enabled_and_moredata(CsrWifiRouterCtrlStaInfo_t *s
  */
 void uf_handle_tim_cfm(unifi_priv_t *priv, CSR_MLME_SET_TIM_CONFIRM *cfm, CsrUint16 receiverProcessId)
 {
-    CsrUint8 handle = CSR_WIFI_GET_STATION_HANDLE_FROM_RECEIVER_ID(receiverProcessId);
-    CsrUint8 timSetStatus = CSR_WIFI_GET_TIMSET_STATE_FROM_RECEIVER_ID(receiverProcessId);
+    u8 handle = CSR_WIFI_GET_STATION_HANDLE_FROM_RECEIVER_ID(receiverProcessId);
+    u8 timSetStatus = CSR_WIFI_GET_TIMSET_STATE_FROM_RECEIVER_ID(receiverProcessId);
     CsrUint16 interfaceTag = (cfm->VirtualInterfaceIdentifier & 0xff);
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
     CsrWifiRouterCtrlStaInfo_t *staRecord = NULL;
     /* This variable holds what TIM value we wanted to set in firmware */
     CsrUint16 timSetValue = 0;
     /* Irrespective of interface the count maintained */
-    static CsrUint8 retryCount = 0;
+    static u8 retryCount = 0;
     unsigned long lock_flags;
     unifi_trace(priv, UDBG3, "entering %s, handle = %x, timSetStatus = %x\n", __FUNCTION__, handle, timSetStatus);
 
@@ -774,7 +774,7 @@ void uf_handle_tim_cfm(unifi_priv_t *priv, CSR_MLME_SET_TIM_CONFIRM *cfm, CsrUin
                                 !list_empty(&staRecord->mgtFrames));
                     } else {
                         /* Peer is QSTA */
-                        CsrUint8 allDeliveryEnabled = 0, dataAvailable = 0;
+                        u8 allDeliveryEnabled = 0, dataAvailable = 0;
                         /* Check if all AC's are Delivery Enabled */
                         is_all_ac_deliver_enabled_and_moredata(staRecord, &allDeliveryEnabled, &dataAvailable);
                         /*check for more data in non-delivery enabled queues*/
@@ -859,14 +859,14 @@ void uf_handle_tim_cfm(unifi_priv_t *priv, CSR_MLME_SET_TIM_CONFIRM *cfm, CsrUin
  *
  * ---------------------------------------------------------------------------
  */
-void update_tim(unifi_priv_t * priv, CsrUint16 aid, CsrUint8 setTim, CsrUint16 interfaceTag, CsrUint32 handle)
+void update_tim(unifi_priv_t * priv, CsrUint16 aid, u8 setTim, CsrUint16 interfaceTag, CsrUint32 handle)
 {
     CSR_SIGNAL signal;
     CsrInt32 r;
     CSR_MLME_SET_TIM_REQUEST *req = &signal.u.MlmeSetTimRequest;
     bulk_data_param_t *bulkdata = NULL;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
-    CsrUint8 senderIdLsb = 0;
+    u8 senderIdLsb = 0;
     CsrWifiRouterCtrlStaInfo_t *staRecord = NULL;
     CsrUint32 oldTimSetStatus = 0, timSetStatus = 0;
 
@@ -998,7 +998,7 @@ void process_peer_active_transition(unifi_priv_t * priv,
             spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
             list_add(&buffered_pkt->q, &staRecord->mgtFrames);
             spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
-            priv->pausedStaHandle[3]=(CsrUint8)(staRecord->assignedHandle);
+            priv->pausedStaHandle[3]=(u8)(staRecord->assignedHandle);
             spaceAvail[3] = FALSE;
             break;
         } else {
@@ -1040,7 +1040,7 @@ void process_peer_active_transition(unifi_priv_t * priv,
                spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
                list_add(&buffered_pkt->q, &staRecord->dataPdu[i]);
                spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
-               priv->pausedStaHandle[i]=(CsrUint8)(staRecord->assignedHandle);
+               priv->pausedStaHandle[i]=(u8)(staRecord->assignedHandle);
                break;
            } else {
               if(r){
@@ -1075,7 +1075,7 @@ void process_peer_active_transition(unifi_priv_t * priv,
 void uf_process_ma_pkt_cfm_for_ap(unifi_priv_t *priv,CsrUint16 interfaceTag, const CSR_MA_PACKET_CONFIRM *pkt_cfm)
 {
     netInterface_priv_t *interfacePriv;
-    CsrUint8 i;
+    u8 i;
     CsrWifiRouterCtrlStaInfo_t *staRecord = NULL;
     interfacePriv = priv->interfacePriv[interfaceTag];
 
@@ -1148,7 +1148,7 @@ void uf_process_ma_pkt_cfm_for_ap(unifi_priv_t *priv,CsrUint16 interfaceTag, con
                 if (inactive_time >= STA_INACTIVE_TIMEOUT_VAL)
                 {
                     struct list_head send_cfm_list;
-                    CsrUint8 j;
+                    u8 j;
 
                     /* The SME/NME may be waiting for confirmation for requested frames to this station.
                      * Though this is --VERY UNLIKELY-- in case of station in active mode. But still as a
@@ -1256,17 +1256,17 @@ CsrUint16 uf_get_vif_identifier (CsrWifiRouterCtrlMode mode, CsrUint16 tag)
 static int update_macheader(unifi_priv_t *priv, struct sk_buff *skb,
                             struct sk_buff *newSkb, CSR_PRIORITY *priority,
                             bulk_data_param_t *bulkdata, CsrUint16 interfaceTag,
-                            CsrUint8 macHeaderLengthInBytes,
-                            CsrUint8 qosDestination)
+                            u8 macHeaderLengthInBytes,
+                            u8 qosDestination)
 {
 
     CsrUint16 *fc = NULL;
-    CsrUint8 direction = 0, toDs, fromDs;
-    CsrUint8 *bufPtr = NULL;
-    CsrUint8 sa[ETH_ALEN], da[ETH_ALEN];
+    u8 direction = 0, toDs, fromDs;
+    u8 *bufPtr = NULL;
+    u8 sa[ETH_ALEN], da[ETH_ALEN];
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
     int headroom;
-    CsrUint8 macHeaderBuf[IEEE802_11_DATA_FRAME_MAC_HEADER_SIZE] = {0};
+    u8 macHeaderBuf[IEEE802_11_DATA_FRAME_MAC_HEADER_SIZE] = {0};
 
     unifi_trace(priv, UDBG5, "entering the update_macheader function\n");
 
@@ -1348,7 +1348,7 @@ static int update_macheader(unifi_priv_t *priv, struct sk_buff *skb,
                     unifi_trace(priv, UDBG1, " sufficient headroom not there to push updated mac header \n");
                     return -1;
                 }
-                bufPtr = (CsrUint8 *) skb_push(skb, macHeaderLengthInBytes);
+                bufPtr = (u8 *) skb_push(skb, macHeaderLengthInBytes);
 
                 /*  update bulk data os_data_ptr */
                 bulkdata->d[0].os_data_ptr = skb->data;
@@ -1357,11 +1357,11 @@ static int update_macheader(unifi_priv_t *priv, struct sk_buff *skb,
 
             } else {
                 /* pointing to QOS control field */
-                CsrUint8 qc;
+                u8 qc;
                 if (*fc & cpu_to_le16(IEEE80211_FC_ORDER_MASK)) {
-                    qc = *((CsrUint8*)(macHeaderBuf + (macHeaderLengthInBytes - 4 - 2)));
+                    qc = *((u8*)(macHeaderBuf + (macHeaderLengthInBytes - 4 - 2)));
                 } else {
-                    qc = *((CsrUint8*)(macHeaderBuf + (macHeaderLengthInBytes - 2)));
+                    qc = *((u8*)(macHeaderBuf + (macHeaderLengthInBytes - 2)));
                 }
 
                 if ((qc & IEEE802_11_QC_TID_MASK) > 7) {
@@ -1376,7 +1376,7 @@ static int update_macheader(unifi_priv_t *priv, struct sk_buff *skb,
                     unifi_trace(priv, UDBG3, " sufficient headroom not there to push updated mac header \n");
                     return -1;
                 }
-                bufPtr = (CsrUint8 *) skb_push(skb, macHeaderLengthInBytes);
+                bufPtr = (u8 *) skb_push(skb, macHeaderLengthInBytes);
             }
             break;
         default:
@@ -1386,7 +1386,7 @@ static int update_macheader(unifi_priv_t *priv, struct sk_buff *skb,
                 unifi_trace(priv, UDBG5, "normal Data packet, NO QOS \n");
 
                 if (qosDestination) {
-                    CsrUint8 qc = 0;
+                    u8 qc = 0;
                     unifi_trace(priv, UDBG3, "destination is QOS station \n");
 
                     /* Set Ma-Packet.req UP to UP0 */
@@ -1428,13 +1428,13 @@ static int update_macheader(unifi_priv_t *priv, struct sk_buff *skb,
                         bulkdata->d[0].os_net_buf_ptr = (unsigned char*)newSkb;
                         bulkdata->d[0].data_length = newSkb->len;
 
-                        bufPtr = (CsrUint8*)data_ptrs.d[0].os_data_ptr;
+                        bufPtr = (u8*)data_ptrs.d[0].os_data_ptr;
 
                         /* The old skb will not be used again */
                         kfree_skb(skb);
                     } else {
                         /* skb headroom is sufficient to append Macheader */
-                        bufPtr = (CsrUint8*)skb_push(skb, macHeaderLengthInBytes);
+                        bufPtr = (u8*)skb_push(skb, macHeaderLengthInBytes);
                         bulkdata->d[0].os_data_ptr = skb->data;
                         bulkdata->d[0].os_net_buf_ptr = (unsigned char*)skb;
                         bulkdata->d[0].data_length = skb->len;
@@ -1458,13 +1458,13 @@ static int update_macheader(unifi_priv_t *priv, struct sk_buff *skb,
                         bulkdata->d[0].os_net_buf_ptr = (unsigned char*)newSkb;
                         bulkdata->d[0].data_length = newSkb->len;
 
-                        bufPtr = (CsrUint8*)data_ptrs.d[0].os_data_ptr;
+                        bufPtr = (u8*)data_ptrs.d[0].os_data_ptr;
 
                         /* The old skb will not be used again */
                         kfree_skb(skb);
                     } else {
                         /* skb headroom is sufficient to append Macheader */
-                        bufPtr = (CsrUint8*)skb_push(skb, macHeaderLengthInBytes);
+                        bufPtr = (u8*)skb_push(skb, macHeaderLengthInBytes);
                         bulkdata->d[0].os_data_ptr = skb->data;
                         bulkdata->d[0].os_net_buf_ptr = (unsigned char*)skb;
                         bulkdata->d[0].data_length = skb->len;
@@ -1507,7 +1507,7 @@ uf_ap_process_data_pdu(unifi_priv_t *priv, struct sk_buff *skb,
                        struct ethhdr *ehdr, CsrWifiRouterCtrlStaInfo_t * srcStaInfo,
                        const CSR_SIGNAL *signal,
                        bulk_data_param_t *bulkdata,
-                       CsrUint8 macHeaderLengthInBytes)
+                       u8 macHeaderLengthInBytes)
 {
     const CSR_MA_PACKET_INDICATION *ind = &(signal->u.MaPacketIndication);
     CsrUint16 interfaceTag = (ind->VirtualInterfaceIdentifier & 0x00ff);
@@ -1643,7 +1643,7 @@ uf_ap_process_data_pdu(unifi_priv_t *priv, struct sk_buff *skb,
 #endif
 
 CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,
-                                   CsrUint8 *peerMacAddress,
+                                   u8 *peerMacAddress,
                                    CSR_CLIENT_TAG hostTag,
                                    CsrUint16 interfaceTag,
                                    CSR_TRANSMISSION_CONTROL transmissionControl,
@@ -1657,7 +1657,7 @@ CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,
     int result;
 #ifdef CSR_SUPPORT_SME
    CsrWifiRouterCtrlStaInfo_t *staRecord = NULL;
-    const CsrUint8 *macHdrLocation =  bulkdata->d[0].os_data_ptr;
+    const u8 *macHdrLocation =  bulkdata->d[0].os_data_ptr;
     CsrWifiPacketType pktType;
     int frameType = 0;
     CsrBool queuePacketDozing = FALSE;
@@ -1800,7 +1800,7 @@ CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,
                                 list = &staRecord->mgtFrames;
                                 requeueOnSamePos = TRUE;
                                 unifi_trace(priv, UDBG1, "(ENOSPC) Sending MgtFrames Failed handle = %d so buffering\n",staRecord->assignedHandle);
-                                priv->pausedStaHandle[0]=(CsrUint8)(staRecord->assignedHandle);
+                                priv->pausedStaHandle[0]=(u8)(staRecord->assignedHandle);
                             } else if (result) {
                                 status = CSR_RESULT_FAILURE;
                             }
@@ -1847,7 +1847,7 @@ CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,
                             unifi_trace(priv, UDBG1, "(ENOSPC) Sending Unicast DataPDU to queue %d Failed so buffering\n",priority_q);
                             requeueOnSamePos = TRUE;
                             list = &staRecord->dataPdu[priority_q];
-                            priv->pausedStaHandle[priority_q]=(CsrUint8)(staRecord->assignedHandle);
+                            priv->pausedStaHandle[priority_q]=(u8)(staRecord->assignedHandle);
                             if(!isRouterBufferEnabled(priv,priority_q)) {
                                 unifi_error(priv,"Buffering Not enabled for queue %d \n",priority_q);
                             }
@@ -1928,7 +1928,7 @@ CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,
                 }
             } else {
                 /* Check for non delivery enable(i.e trigger enable), all delivery enable & legacy AC for TIM update in firmware */
-                CsrUint8 allDeliveryEnabled = 0, dataAvailable = 0;
+                u8 allDeliveryEnabled = 0, dataAvailable = 0;
                 /* Check if all AC's are Delivery Enabled */
                 is_all_ac_deliver_enabled_and_moredata(staRecord, &allDeliveryEnabled, &dataAvailable);
                 if (uf_is_more_data_for_non_delivery_ac(staRecord) || (allDeliveryEnabled && dataAvailable)
@@ -1976,7 +1976,7 @@ CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,
 }
 
 #ifdef CSR_SUPPORT_SME
-CsrInt8 uf_get_protection_bit_from_interfacemode(unifi_priv_t *priv, CsrUint16 interfaceTag, const CsrUint8 *daddr)
+CsrInt8 uf_get_protection_bit_from_interfacemode(unifi_priv_t *priv, CsrUint16 interfaceTag, const u8 *daddr)
 {
     CsrInt8 protection = 0;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
@@ -2017,12 +2017,12 @@ CsrInt8 uf_get_protection_bit_from_interfacemode(unifi_priv_t *priv, CsrUint16 i
 }
 #endif
 #ifdef CSR_SUPPORT_SME
-CsrUint8 send_multicast_frames(unifi_priv_t *priv, CsrUint16 interfaceTag)
+u8 send_multicast_frames(unifi_priv_t *priv, CsrUint16 interfaceTag)
 {
     int r;
     tx_buffered_packets_t * buffered_pkt = NULL;
     CsrBool moreData = FALSE;
-    CsrUint8 pduSent =0;
+    u8 pduSent =0;
     unsigned long lock_flags;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
     CsrUint32 hostTag = 0xffffffff;
@@ -2115,7 +2115,7 @@ CsrUint8 send_multicast_frames(unifi_priv_t *priv, CsrUint16 interfaceTag)
     return pduSent;
 }
 #endif
-void uf_process_ma_vif_availibility_ind(unifi_priv_t *priv,CsrUint8 *sigdata,
+void uf_process_ma_vif_availibility_ind(unifi_priv_t *priv,u8 *sigdata,
                                         CsrUint32 siglen)
 {
 #ifdef CSR_SUPPORT_SME
@@ -2123,7 +2123,7 @@ void uf_process_ma_vif_availibility_ind(unifi_priv_t *priv,CsrUint8 *sigdata,
     CSR_MA_VIF_AVAILABILITY_INDICATION *ind;
     int r;
     CsrUint16 interfaceTag;
-    CsrUint8 pduSent =0;
+    u8 pduSent =0;
     CSR_RESULT_CODE resultCode = CSR_RC_SUCCESS;
     netInterface_priv_t *interfacePriv;
 
@@ -2261,7 +2261,7 @@ static CsrBool uf_is_more_data_for_usp_delivery(unifi_priv_t *priv, CsrWifiRoute
  */
 void uf_send_buffered_data_from_delivery_ac(unifi_priv_t *priv,
                                             CsrWifiRouterCtrlStaInfo_t * staInfo,
-                                            CsrUint8 queue,
+                                            u8 queue,
                                             struct list_head *txList)
 {
 
@@ -2337,7 +2337,7 @@ void uf_send_buffered_data_from_delivery_ac(unifi_priv_t *priv,
             spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
             list_add(&buffered_pkt->q,txList);
             spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
-            priv->pausedStaHandle[queue]=(CsrUint8)(staInfo->assignedHandle);
+            priv->pausedStaHandle[queue]=(u8)(staInfo->assignedHandle);
             break;
         } else {
             if(r){
@@ -2363,7 +2363,7 @@ void uf_send_buffered_data_from_delivery_ac(unifi_priv_t *priv,
 
 void uf_send_buffered_data_from_ac(unifi_priv_t *priv,
                                    CsrWifiRouterCtrlStaInfo_t * staInfo,
-                                   CsrUint8 queue,
+                                   u8 queue,
                                    struct list_head *txList)
 {
     tx_buffered_packets_t * buffered_pkt = NULL;
@@ -2390,7 +2390,7 @@ void uf_send_buffered_data_from_ac(unifi_priv_t *priv,
            list_add(&buffered_pkt->q,txList);
            spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
            if(staInfo != NULL){
-              priv->pausedStaHandle[queue]=(CsrUint8)(staInfo->assignedHandle);
+              priv->pausedStaHandle[queue]=(u8)(staInfo->assignedHandle);
            }
            unifi_trace(priv,UDBG3," uf_send_buffered_data_from_ac: PDU sending failed .. no space for queue %d \n",queue);
            } else {
@@ -2411,7 +2411,7 @@ void uf_send_buffered_frames(unifi_priv_t *priv,unifi_TrafficQueue q)
     CsrUint16 interfaceTag = GET_ACTIVE_INTERFACE_TAG(priv);
     CsrUint32 startIndex=0,endIndex=0;
     CsrWifiRouterCtrlStaInfo_t * staInfo = NULL;
-    CsrUint8 queue;
+    u8 queue;
     CsrBool moreData = FALSE;
 
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
@@ -2551,7 +2551,7 @@ void uf_send_buffered_frames(unifi_priv_t *priv,unifi_TrafficQueue q)
 
 CsrBool uf_is_more_data_for_non_delivery_ac(CsrWifiRouterCtrlStaInfo_t *staRecord)
 {
-    CsrUint8 i;
+    u8 i;
 
     for(i=0;i<=3;i++)
     {
@@ -2640,7 +2640,7 @@ static void uf_handle_uspframes_delivery(unifi_priv_t * priv, CsrWifiRouterCtrlS
 {
 
     CsrInt8 i;
-    CsrUint8 allDeliveryEnabled = 0, dataAvailable = 0;
+    u8 allDeliveryEnabled = 0, dataAvailable = 0;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
     unsigned long lock_flags;
 
@@ -2720,7 +2720,7 @@ static void uf_handle_uspframes_delivery(unifi_priv_t * priv, CsrWifiRouterCtrlS
     is_all_ac_deliver_enabled_and_moredata(staInfo, &allDeliveryEnabled, &dataAvailable);
     if ((allDeliveryEnabled && !dataAvailable)) {
         if ((staInfo->timSet != CSR_WIFI_TIM_RESET) || (staInfo->timSet != CSR_WIFI_TIM_RESETTING)) {
-            staInfo->updateTimReqQueued = (CsrUint8) CSR_WIFI_TIM_RESET;
+            staInfo->updateTimReqQueued = (u8) CSR_WIFI_TIM_RESET;
             unifi_trace(priv, UDBG4, " --uf_handle_uspframes_delivery, UAPSD timset\n");
             if (!staInfo->timRequestPendingFlag) {
                 update_tim(priv, staInfo->aid, 0, interfaceTag, staInfo->assignedHandle);
@@ -2759,7 +2759,7 @@ void uf_process_wmm_deliver_ac_uapsd(unifi_priv_t * priv,
 }
 
 
-void uf_send_qos_null(unifi_priv_t * priv,CsrUint16 interfaceTag, const CsrUint8 *da,CSR_PRIORITY priority,CsrWifiRouterCtrlStaInfo_t * srcStaInfo)
+void uf_send_qos_null(unifi_priv_t * priv,CsrUint16 interfaceTag, const u8 *da,CSR_PRIORITY priority,CsrWifiRouterCtrlStaInfo_t * srcStaInfo)
 {
     bulk_data_param_t bulkdata;
     CsrResult csrResult;
@@ -2798,7 +2798,7 @@ void uf_send_qos_null(unifi_priv_t * priv,CsrUint16 interfaceTag, const CsrUint8
         unifi_net_data_free(priv, &bulkdata.d[0]);
         return;
     }
-    memcpy(peerAddress.a, ((CsrUint8 *) bulkdata.d[0].os_data_ptr) + 4, ETH_ALEN);
+    memcpy(peerAddress.a, ((u8 *) bulkdata.d[0].os_data_ptr) + 4, ETH_ALEN);
     /* convert priority to queue */
     priority_q = unifi_frame_priority_to_queue((CSR_PRIORITY) priority);
 
@@ -2830,7 +2830,7 @@ void uf_send_qos_null(unifi_priv_t * priv,CsrUint16 interfaceTag, const CsrUint8
     return;
 
 }
-void uf_send_nulldata(unifi_priv_t * priv,CsrUint16 interfaceTag, const CsrUint8 *da,CSR_PRIORITY priority,CsrWifiRouterCtrlStaInfo_t * srcStaInfo)
+void uf_send_nulldata(unifi_priv_t * priv,CsrUint16 interfaceTag, const u8 *da,CSR_PRIORITY priority,CsrWifiRouterCtrlStaInfo_t * srcStaInfo)
 {
     bulk_data_param_t bulkdata;
     CsrResult csrResult;
@@ -2868,7 +2868,7 @@ void uf_send_nulldata(unifi_priv_t * priv,CsrUint16 interfaceTag, const CsrUint8
         unifi_net_data_free(priv, &bulkdata.d[0]);
         return;
     }
-    memcpy(peerAddress.a, ((CsrUint8 *) bulkdata.d[0].os_data_ptr) + 4, ETH_ALEN);
+    memcpy(peerAddress.a, ((u8 *) bulkdata.d[0].os_data_ptr) + 4, ETH_ALEN);
     /* convert priority to queue */
     priority_q = unifi_frame_priority_to_queue((CSR_PRIORITY) priority);
     transmissionControl &= ~(CSR_NO_CONFIRM_REQUIRED);
@@ -2918,9 +2918,9 @@ void uf_send_nulldata(unifi_priv_t * priv,CsrUint16 interfaceTag, const CsrUint8
 
 CsrBool uf_check_broadcast_bssid(unifi_priv_t *priv, const bulk_data_param_t *bulkdata)
 {
-    CsrUint8 *bssid = NULL;
+    u8 *bssid = NULL;
     static const CsrWifiMacAddress broadcast_address = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-    CsrUint8 toDs, fromDs;
+    u8 toDs, fromDs;
 
     toDs = (((bulkdata->d[0].os_data_ptr)[1]) & 0x01) ? 1 : 0;
     fromDs =(((bulkdata->d[0].os_data_ptr)[1]) & 0x02) ? 1 : 0;
@@ -2933,17 +2933,17 @@ CsrBool uf_check_broadcast_bssid(unifi_priv_t *priv, const bulk_data_param_t *bu
     else if((toDs == 0) && (fromDs ==0))
     {
         /* BSSID is Address 3 */
-        bssid = (CsrUint8 *) (bulkdata->d[0].os_data_ptr + 4 + (2 * ETH_ALEN));
+        bssid = (u8 *) (bulkdata->d[0].os_data_ptr + 4 + (2 * ETH_ALEN));
     }
     else if(toDs)
     {
         /* BSSID is Address 1 */
-        bssid = (CsrUint8 *) (bulkdata->d[0].os_data_ptr + 4);
+        bssid = (u8 *) (bulkdata->d[0].os_data_ptr + 4);
     }
     else if(fromDs)
     {
         /* BSSID is Address 2 */
-        bssid = (CsrUint8 *) (bulkdata->d[0].os_data_ptr + 4 + ETH_ALEN);
+        bssid = (u8 *) (bulkdata->d[0].os_data_ptr + 4 + ETH_ALEN);
     }
 
     if (memcmp(broadcast_address.a, bssid, ETH_ALEN)== 0)
@@ -2958,7 +2958,7 @@ CsrBool uf_check_broadcast_bssid(unifi_priv_t *priv, const bulk_data_param_t *bu
 
 
 CsrBool uf_process_pm_bit_for_peer(unifi_priv_t * priv, CsrWifiRouterCtrlStaInfo_t * srcStaInfo,
-                                CsrUint8 pmBit,CsrUint16 interfaceTag)
+                                u8 pmBit,CsrUint16 interfaceTag)
 {
     CsrBool moreData = FALSE;
     CsrBool powerSaveChanged = FALSE;
@@ -3023,7 +3023,7 @@ CsrBool uf_process_pm_bit_for_peer(unifi_priv_t * priv, CsrWifiRouterCtrlStaInfo
 
             }
         } else {
-            CsrUint8 allDeliveryEnabled = 0, dataAvailable = 0;
+            u8 allDeliveryEnabled = 0, dataAvailable = 0;
             unifi_trace(priv, UDBG5, "Qos in AP Mode\n");
             /* Check if all AC's are Delivery Enabled */
             is_all_ac_deliver_enabled_and_moredata(srcStaInfo, &allDeliveryEnabled, &dataAvailable);
@@ -3052,7 +3052,7 @@ CsrBool uf_process_pm_bit_for_peer(unifi_priv_t * priv, CsrWifiRouterCtrlStaInfo
 
 
 
-void uf_process_ps_poll(unifi_priv_t *priv,CsrUint8* sa,CsrUint8* da,CsrUint8 pmBit,CsrUint16 interfaceTag)
+void uf_process_ps_poll(unifi_priv_t *priv,u8* sa,u8* da,u8 pmBit,CsrUint16 interfaceTag)
 {
     CsrWifiRouterCtrlStaInfo_t *staRecord =
     CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(priv, sa, interfaceTag);
@@ -3105,7 +3105,7 @@ void uf_process_ps_poll(unifi_priv_t *priv,CsrUint8* sa,CsrUint8* da,CsrUint8 pm
                 list_add(&buffered_pkt->q, &staRecord->mgtFrames);
                 spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
                 unifi_trace(priv, UDBG1, "(ENOSPC) PS-POLL received : PDU sending failed \n");
-                priv->pausedStaHandle[3]=(CsrUint8)(staRecord->assignedHandle);
+                priv->pausedStaHandle[3]=(u8)(staRecord->assignedHandle);
             } else {
                 if(r){
                     unifi_trace (priv, UDBG1, " HIP validation failure : PDU sending failed \n");
@@ -3127,7 +3127,7 @@ void uf_process_ps_poll(unifi_priv_t *priv,CsrUint8* sa,CsrUint8* da,CsrUint8 pm
                 spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
                 list_add(&buffered_pkt->q, &staRecord->dataPdu[UNIFI_TRAFFIC_Q_VO]);
                 spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
-                priv->pausedStaHandle[3]=(CsrUint8)(staRecord->assignedHandle);
+                priv->pausedStaHandle[3]=(u8)(staRecord->assignedHandle);
                 unifi_trace(priv, UDBG1, "(ENOSPC) PS-POLL received : PDU sending failed \n");
             } else {
                 if(r){
@@ -3149,7 +3149,7 @@ void uf_process_ps_poll(unifi_priv_t *priv,CsrUint8* sa,CsrUint8* da,CsrUint8 pm
                 spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
                 list_add(&buffered_pkt->q, &staRecord->dataPdu[UNIFI_TRAFFIC_Q_CONTENTION]);
                 spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
-                priv->pausedStaHandle[0]=(CsrUint8)(staRecord->assignedHandle);
+                priv->pausedStaHandle[0]=(u8)(staRecord->assignedHandle);
                 unifi_trace(priv, UDBG1, "(ENOSPC) PS-POLL received : PDU sending failed \n");
             } else {
                 if(r){
@@ -3183,7 +3183,7 @@ void uf_process_ps_poll(unifi_priv_t *priv,CsrUint8* sa,CsrUint8* da,CsrUint8 pm
         }
     } else {
 
-        CsrUint8 allDeliveryEnabled = 0, dataAvailable = 0;
+        u8 allDeliveryEnabled = 0, dataAvailable = 0;
         unifi_trace(priv, UDBG3,"Qos Support station.Processing PS-Poll\n");
 
         /*Send Data From Management Frames*/
@@ -3218,7 +3218,7 @@ void uf_process_ps_poll(unifi_priv_t *priv,CsrUint8* sa,CsrUint8* da,CsrUint8 pm
                         spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
                         list_add(&buffered_pkt->q, &staRecord->mgtFrames);
                         spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
-                        priv->pausedStaHandle[0]=(CsrUint8)(staRecord->assignedHandle);
+                        priv->pausedStaHandle[0]=(u8)(staRecord->assignedHandle);
                         unifi_trace(priv, UDBG1, "(ENOSPC) PS-POLL received : PDU sending failed \n");
                     } else {
                         if(r){
@@ -3253,7 +3253,7 @@ void uf_process_ps_poll(unifi_priv_t *priv,CsrUint8* sa,CsrUint8* da,CsrUint8 pm
                             spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
                             list_add(&buffered_pkt->q, &staRecord->dataPdu[i]);
                             spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
-                            priv->pausedStaHandle[0]=(CsrUint8)(staRecord->assignedHandle);
+                            priv->pausedStaHandle[0]=(u8)(staRecord->assignedHandle);
                             unifi_trace(priv, UDBG1, "(ENOSPC) PS-POLL received : PDU sending failed \n");
                         } else {
                             if(r) {
@@ -3447,10 +3447,10 @@ tx_buffered_packets_t *dequeue_tx_data_pdu(unifi_priv_t *priv, struct list_head 
 }
 /* generic function to get the station record handler */
 CsrWifiRouterCtrlStaInfo_t *CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(unifi_priv_t *priv,
-        const CsrUint8 *peerMacAddress,
+        const u8 *peerMacAddress,
         CsrUint16 interfaceTag)
 {
-    CsrUint8 i;
+    u8 i;
     netInterface_priv_t *interfacePriv;
     unsigned long lock_flags;
 
@@ -3527,7 +3527,7 @@ void uf_check_inactivity(unifi_priv_t *priv, CsrUint16 interfaceTag, CsrTime cur
         spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
 
         if (elapsedTime > MAX_INACTIVITY_INTERVAL) {
-            memcpy((CsrUint8*)&peerMacAddress, (CsrUint8*)&staInfo->peerMacAddress, sizeof(CsrWifiMacAddress));
+            memcpy((u8*)&peerMacAddress, (u8*)&staInfo->peerMacAddress, sizeof(CsrWifiMacAddress));
 
             /* Indicate inactivity for the station */
             unifi_trace(priv, UDBG3, "Station %x:%x:%x:%x:%x:%x inactive since %xus\n sending Inactive Ind\n",
@@ -3544,7 +3544,7 @@ void uf_check_inactivity(unifi_priv_t *priv, CsrUint16 interfaceTag, CsrTime cur
 }
 
 /* Function to update activity of a station */
-void uf_update_sta_activity(unifi_priv_t *priv, CsrUint16 interfaceTag, const CsrUint8 *peerMacAddress)
+void uf_update_sta_activity(unifi_priv_t *priv, CsrUint16 interfaceTag, const u8 *peerMacAddress)
 {
     CsrTime elapsedTime, currentTime;    /* Time in microseconds */
     CsrTime timeHi;         /* Not used - Time in microseconds */
@@ -3591,7 +3591,7 @@ void resume_unicast_buffered_frames(unifi_priv_t *priv, CsrUint16 interfaceTag)
 {
 
    netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
-   CsrUint8 i;
+   u8 i;
    int j;
    tx_buffered_packets_t * buffered_pkt = NULL;
    CsrBool hipslotFree[4] = {TRUE,TRUE,TRUE,TRUE};
@@ -3635,7 +3635,7 @@ void resume_unicast_buffered_frames(unifi_priv_t *priv, CsrUint16 interfaceTag)
                   spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
                   list_add(&buffered_pkt->q, &staInfo->mgtFrames);
                   spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
-                  priv->pausedStaHandle[3]=(CsrUint8)(staInfo->assignedHandle);
+                  priv->pausedStaHandle[3]=(u8)(staInfo->assignedHandle);
                   hipslotFree[3] = FALSE;
                   break;
               } else {
@@ -3660,7 +3660,7 @@ void resume_unicast_buffered_frames(unifi_priv_t *priv, CsrUint16 interfaceTag)
                      spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
                      list_add(&buffered_pkt->q, &staInfo->dataPdu[j]);
                      spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
-                     priv->pausedStaHandle[j]=(CsrUint8)(staInfo->assignedHandle);
+                     priv->pausedStaHandle[j]=(u8)(staInfo->assignedHandle);
                      hipslotFree[j]=FALSE;
                      break;
                  } else {
@@ -3721,7 +3721,7 @@ void update_eosp_to_head_of_broadcast_list_head(unifi_priv_t *priv,CsrUint16 int
 void resume_suspended_uapsd(unifi_priv_t* priv,CsrUint16 interfaceTag)
 {
 
-   CsrUint8 startIndex;
+   u8 startIndex;
    CsrWifiRouterCtrlStaInfo_t * staInfo = NULL;
     unsigned long lock_flags;
 

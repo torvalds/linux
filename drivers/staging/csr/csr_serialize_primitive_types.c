@@ -16,14 +16,14 @@
 #include "csr_pmem.h"
 #include "csr_lib.h"
 
-void CsrUint8Des(CsrUint8 *value, CsrUint8 *buffer, CsrSize *offset)
+void CsrUint8Des(u8 *value, u8 *buffer, CsrSize *offset)
 {
     *value = buffer[*offset];
     *offset += sizeof(*value);
 }
 EXPORT_SYMBOL_GPL(CsrUint8Des);
 
-void CsrUint16Des(CsrUint16 *value, CsrUint8 *buffer, CsrSize *offset)
+void CsrUint16Des(CsrUint16 *value, u8 *buffer, CsrSize *offset)
 {
     *value = (buffer[*offset + 0] << 0) |
              (buffer[*offset + 1] << 8);
@@ -31,7 +31,7 @@ void CsrUint16Des(CsrUint16 *value, CsrUint8 *buffer, CsrSize *offset)
 }
 EXPORT_SYMBOL_GPL(CsrUint16Des);
 
-void CsrUint32Des(CsrUint32 *value, CsrUint8 *buffer, CsrSize *offset)
+void CsrUint32Des(CsrUint32 *value, u8 *buffer, CsrSize *offset)
 {
     *value = (buffer[*offset + 0] << 0) |
              (buffer[*offset + 1] << 8) |
@@ -41,27 +41,27 @@ void CsrUint32Des(CsrUint32 *value, CsrUint8 *buffer, CsrSize *offset)
 }
 EXPORT_SYMBOL_GPL(CsrUint32Des);
 
-void CsrMemCpyDes(void *value, CsrUint8 *buffer, CsrSize *offset, CsrSize length)
+void CsrMemCpyDes(void *value, u8 *buffer, CsrSize *offset, CsrSize length)
 {
     CsrMemCpy(value, &buffer[*offset], length);
     *offset += length;
 }
 EXPORT_SYMBOL_GPL(CsrMemCpyDes);
 
-void CsrCharStringDes(CsrCharString **value, CsrUint8 *buffer, CsrSize *offset)
+void CsrCharStringDes(CsrCharString **value, u8 *buffer, CsrSize *offset)
 {
     *value = CsrStrDup((CsrCharString *) &buffer[*offset]);
     *offset += CsrStrLen(*value) + 1;
 }
 EXPORT_SYMBOL_GPL(CsrCharStringDes);
 
-void CsrUtf8StringDes(CsrUtf8String **value, CsrUint8 *buffer, CsrSize *offset)
+void CsrUtf8StringDes(CsrUtf8String **value, u8 *buffer, CsrSize *offset)
 {
     *value = (CsrUtf8String *) CsrStrDup((CsrCharString *) &buffer[*offset]);
     *offset += CsrStrLen((CsrCharString *) *value) + 1;
 }
 
-void CsrUtf16StringDes(CsrUtf16String **value, CsrUint8 *buffer, CsrSize *offset)
+void CsrUtf16StringDes(CsrUtf16String **value, u8 *buffer, CsrSize *offset)
 {
     CsrUint32 length, i;
 
@@ -74,7 +74,7 @@ void CsrUtf16StringDes(CsrUtf16String **value, CsrUint8 *buffer, CsrSize *offset
     }
 }
 
-void CsrSizeDes(CsrSize *value, CsrUint8 *buffer, CsrSize *offset)
+void CsrSizeDes(CsrSize *value, u8 *buffer, CsrSize *offset)
 {
     *value = (buffer[*offset + 0] << 0) |
              (buffer[*offset + 1] << 8) |
@@ -83,44 +83,44 @@ void CsrSizeDes(CsrSize *value, CsrUint8 *buffer, CsrSize *offset)
     *offset += sizeof(*value);
 }
 
-void CsrVoidPtrDes(void **value, CsrUint8 *buffer, CsrSize *offset)
+void CsrVoidPtrDes(void **value, u8 *buffer, CsrSize *offset)
 {
     CsrSizeDes((CsrSize *) value, buffer, offset);
 }
 
-void CsrUint8Ser(CsrUint8 *buffer, CsrSize *offset, CsrUint8 value)
+void CsrUint8Ser(u8 *buffer, CsrSize *offset, u8 value)
 {
     buffer[*offset] = value;
     *offset += sizeof(value);
 }
 EXPORT_SYMBOL_GPL(CsrUint8Ser);
 
-void CsrUint16Ser(CsrUint8 *buffer, CsrSize *offset, CsrUint16 value)
+void CsrUint16Ser(u8 *buffer, CsrSize *offset, CsrUint16 value)
 {
-    buffer[*offset + 0] = (CsrUint8) ((value >> 0) & 0xFF);
-    buffer[*offset + 1] = (CsrUint8) ((value >> 8) & 0xFF);
+    buffer[*offset + 0] = (u8) ((value >> 0) & 0xFF);
+    buffer[*offset + 1] = (u8) ((value >> 8) & 0xFF);
     *offset += sizeof(value);
 }
 EXPORT_SYMBOL_GPL(CsrUint16Ser);
 
-void CsrUint32Ser(CsrUint8 *buffer, CsrSize *offset, CsrUint32 value)
+void CsrUint32Ser(u8 *buffer, CsrSize *offset, CsrUint32 value)
 {
-    buffer[*offset + 0] = (CsrUint8) ((value >> 0) & 0xFF);
-    buffer[*offset + 1] = (CsrUint8) ((value >> 8) & 0xFF);
-    buffer[*offset + 2] = (CsrUint8) ((value >> 16) & 0xFF);
-    buffer[*offset + 3] = (CsrUint8) ((value >> 24) & 0xFF);
+    buffer[*offset + 0] = (u8) ((value >> 0) & 0xFF);
+    buffer[*offset + 1] = (u8) ((value >> 8) & 0xFF);
+    buffer[*offset + 2] = (u8) ((value >> 16) & 0xFF);
+    buffer[*offset + 3] = (u8) ((value >> 24) & 0xFF);
     *offset += sizeof(value);
 }
 EXPORT_SYMBOL_GPL(CsrUint32Ser);
 
-void CsrMemCpySer(CsrUint8 *buffer, CsrSize *offset, const void *value, CsrSize length)
+void CsrMemCpySer(u8 *buffer, CsrSize *offset, const void *value, CsrSize length)
 {
     CsrMemCpy(&buffer[*offset], value, length);
     *offset += length;
 }
 EXPORT_SYMBOL_GPL(CsrMemCpySer);
 
-void CsrCharStringSer(CsrUint8 *buffer, CsrSize *offset, const CsrCharString *value)
+void CsrCharStringSer(u8 *buffer, CsrSize *offset, const CsrCharString *value)
 {
     if (value)
     {
@@ -134,12 +134,12 @@ void CsrCharStringSer(CsrUint8 *buffer, CsrSize *offset, const CsrCharString *va
 }
 EXPORT_SYMBOL_GPL(CsrCharStringSer);
 
-void CsrUtf8StringSer(CsrUint8 *buffer, CsrSize *offset, const CsrUtf8String *value)
+void CsrUtf8StringSer(u8 *buffer, CsrSize *offset, const CsrUtf8String *value)
 {
     CsrCharStringSer(buffer, offset, (CsrCharString *) value);
 }
 
-void CsrUtf16StringSer(CsrUint8 *buffer, CsrSize *offset, const CsrUtf16String *value)
+void CsrUtf16StringSer(u8 *buffer, CsrSize *offset, const CsrUtf16String *value)
 {
     if (value)
     {
@@ -159,16 +159,16 @@ void CsrUtf16StringSer(CsrUint8 *buffer, CsrSize *offset, const CsrUtf16String *
     }
 }
 
-void CsrSizeSer(CsrUint8 *buffer, CsrSize *offset, CsrSize value)
+void CsrSizeSer(u8 *buffer, CsrSize *offset, CsrSize value)
 {
-    buffer[*offset + 0] = (CsrUint8) ((value >> 0) & 0xFF);
-    buffer[*offset + 1] = (CsrUint8) ((value >> 8) & 0xFF);
-    buffer[*offset + 2] = (CsrUint8) ((value >> 16) & 0xFF);
-    buffer[*offset + 3] = (CsrUint8) ((value >> 24) & 0xFF);
+    buffer[*offset + 0] = (u8) ((value >> 0) & 0xFF);
+    buffer[*offset + 1] = (u8) ((value >> 8) & 0xFF);
+    buffer[*offset + 2] = (u8) ((value >> 16) & 0xFF);
+    buffer[*offset + 3] = (u8) ((value >> 24) & 0xFF);
     *offset += sizeof(value);
 }
 
-void CsrVoidPtrSer(CsrUint8 *buffer, CsrSize *offset, void *ptr)
+void CsrVoidPtrSer(u8 *buffer, CsrSize *offset, void *ptr)
 {
     CsrSizeSer(buffer, offset, (CsrSize) ptr);
 }
@@ -215,7 +215,7 @@ CsrSize CsrEventSizeof(void *msg)
     return 2;
 }
 
-CsrUint8 *CsrEventSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8 *CsrEventSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrEvent *primitive = (CsrEvent *) msg;
     *len = 0;
@@ -223,7 +223,7 @@ CsrUint8 *CsrEventSer(CsrUint8 *ptr, CsrSize *len, void *msg)
     return ptr;
 }
 
-void *CsrEventDes(CsrUint8 *buffer, CsrSize length)
+void *CsrEventDes(u8 *buffer, CsrSize length)
 {
     CsrEvent *primitive = (CsrEvent *) CsrPmemAlloc(sizeof(CsrEvent));
     CsrSize offset = 0;
@@ -237,7 +237,7 @@ CsrSize CsrEventCsrUint8Sizeof(void *msg)
     return 3;
 }
 
-CsrUint8 *CsrEventCsrUint8Ser(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8 *CsrEventCsrUint8Ser(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrEventCsrUint8 *primitive = (CsrEventCsrUint8 *) msg;
     *len = 0;
@@ -246,7 +246,7 @@ CsrUint8 *CsrEventCsrUint8Ser(CsrUint8 *ptr, CsrSize *len, void *msg)
     return ptr;
 }
 
-void *CsrEventCsrUint8Des(CsrUint8 *buffer, CsrSize length)
+void *CsrEventCsrUint8Des(u8 *buffer, CsrSize length)
 {
     CsrEventCsrUint8 *primitive = (CsrEventCsrUint8 *) CsrPmemAlloc(sizeof(CsrEventCsrUint8));
 
@@ -262,7 +262,7 @@ CsrSize CsrEventCsrUint16Sizeof(void *msg)
     return 4;
 }
 
-CsrUint8 *CsrEventCsrUint16Ser(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8 *CsrEventCsrUint16Ser(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrEventCsrUint16 *primitive = (CsrEventCsrUint16 *) msg;
     *len = 0;
@@ -271,7 +271,7 @@ CsrUint8 *CsrEventCsrUint16Ser(CsrUint8 *ptr, CsrSize *len, void *msg)
     return ptr;
 }
 
-void *CsrEventCsrUint16Des(CsrUint8 *buffer, CsrSize length)
+void *CsrEventCsrUint16Des(u8 *buffer, CsrSize length)
 {
     CsrEventCsrUint16 *primitive = (CsrEventCsrUint16 *) CsrPmemAlloc(sizeof(CsrEventCsrUint16));
 
@@ -287,7 +287,7 @@ CsrSize CsrEventCsrUint32Sizeof(void *msg)
     return 6;
 }
 
-CsrUint8 *CsrEventCsrUint32Ser(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8 *CsrEventCsrUint32Ser(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrEventCsrUint32 *primitive = (CsrEventCsrUint32 *) msg;
     *len = 0;
@@ -296,7 +296,7 @@ CsrUint8 *CsrEventCsrUint32Ser(CsrUint8 *ptr, CsrSize *len, void *msg)
     return ptr;
 }
 
-void *CsrEventCsrUint32Des(CsrUint8 *buffer, CsrSize length)
+void *CsrEventCsrUint32Des(u8 *buffer, CsrSize length)
 {
     CsrEventCsrUint32 *primitive = (CsrEventCsrUint32 *) CsrPmemAlloc(sizeof(CsrEventCsrUint32));
 
@@ -312,7 +312,7 @@ CsrSize CsrEventCsrUint16CsrUint8Sizeof(void *msg)
     return 5;
 }
 
-CsrUint8 *CsrEventCsrUint16CsrUint8Ser(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8 *CsrEventCsrUint16CsrUint8Ser(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrEventCsrUint16CsrUint8 *primitive = (CsrEventCsrUint16CsrUint8 *) msg;
     *len = 0;
@@ -322,7 +322,7 @@ CsrUint8 *CsrEventCsrUint16CsrUint8Ser(CsrUint8 *ptr, CsrSize *len, void *msg)
     return ptr;
 }
 
-void *CsrEventCsrUint16CsrUint8Des(CsrUint8 *buffer, CsrSize length)
+void *CsrEventCsrUint16CsrUint8Des(u8 *buffer, CsrSize length)
 {
     CsrEventCsrUint16CsrUint8 *primitive = (CsrEventCsrUint16CsrUint8 *) CsrPmemAlloc(sizeof(CsrEventCsrUint16CsrUint8));
 
@@ -339,7 +339,7 @@ CsrSize CsrEventCsrUint16CsrUint16Sizeof(void *msg)
     return 6;
 }
 
-CsrUint8 *CsrEventCsrUint16CsrUint16Ser(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8 *CsrEventCsrUint16CsrUint16Ser(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrEventCsrUint16CsrUint16 *primitive = (CsrEventCsrUint16CsrUint16 *) msg;
     *len = 0;
@@ -349,7 +349,7 @@ CsrUint8 *CsrEventCsrUint16CsrUint16Ser(CsrUint8 *ptr, CsrSize *len, void *msg)
     return ptr;
 }
 
-void *CsrEventCsrUint16CsrUint16Des(CsrUint8 *buffer, CsrSize length)
+void *CsrEventCsrUint16CsrUint16Des(u8 *buffer, CsrSize length)
 {
     CsrEventCsrUint16CsrUint16 *primitive = (CsrEventCsrUint16CsrUint16 *) CsrPmemAlloc(sizeof(CsrEventCsrUint16CsrUint16));
 
@@ -366,7 +366,7 @@ CsrSize CsrEventCsrUint16CsrUint32Sizeof(void *msg)
     return 8;
 }
 
-CsrUint8 *CsrEventCsrUint16CsrUint32Ser(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8 *CsrEventCsrUint16CsrUint32Ser(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrEventCsrUint16CsrUint32 *primitive = (CsrEventCsrUint16CsrUint32 *) msg;
     *len = 0;
@@ -376,7 +376,7 @@ CsrUint8 *CsrEventCsrUint16CsrUint32Ser(CsrUint8 *ptr, CsrSize *len, void *msg)
     return ptr;
 }
 
-void *CsrEventCsrUint16CsrUint32Des(CsrUint8 *buffer, CsrSize length)
+void *CsrEventCsrUint16CsrUint32Des(u8 *buffer, CsrSize length)
 {
     CsrEventCsrUint16CsrUint32 *primitive = (CsrEventCsrUint16CsrUint32 *) CsrPmemAlloc(sizeof(CsrEventCsrUint16CsrUint32));
 
@@ -394,7 +394,7 @@ CsrSize CsrEventCsrUint16CsrCharStringSizeof(void *msg)
     return 4 + CsrStrLen(primitive->value2) + 1;
 }
 
-CsrUint8 *CsrEventCsrUint16CsrCharStringSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8 *CsrEventCsrUint16CsrCharStringSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrEventCsrUint16CsrCharString *primitive = (CsrEventCsrUint16CsrCharString *) msg;
     *len = 0;
@@ -404,7 +404,7 @@ CsrUint8 *CsrEventCsrUint16CsrCharStringSer(CsrUint8 *ptr, CsrSize *len, void *m
     return ptr;
 }
 
-void *CsrEventCsrUint16CsrCharStringDes(CsrUint8 *buffer, CsrSize length)
+void *CsrEventCsrUint16CsrCharStringDes(u8 *buffer, CsrSize length)
 {
     CsrEventCsrUint16CsrCharString *primitive = (CsrEventCsrUint16CsrCharString *) CsrPmemAlloc(sizeof(CsrEventCsrUint16CsrCharString));
 
@@ -421,7 +421,7 @@ CsrSize CsrEventCsrUint32CsrUint16Sizeof(void *msg)
     return 8;
 }
 
-CsrUint8 *CsrEventCsrUint32CsrUint16Ser(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8 *CsrEventCsrUint32CsrUint16Ser(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrEventCsrUint32CsrUint16 *primitive = (CsrEventCsrUint32CsrUint16 *) msg;
     *len = 0;
@@ -431,7 +431,7 @@ CsrUint8 *CsrEventCsrUint32CsrUint16Ser(CsrUint8 *ptr, CsrSize *len, void *msg)
     return ptr;
 }
 
-void *CsrEventCsrUint32CsrUint16Des(CsrUint8 *buffer, CsrSize length)
+void *CsrEventCsrUint32CsrUint16Des(u8 *buffer, CsrSize length)
 {
     CsrEventCsrUint32CsrUint16 *primitive = (CsrEventCsrUint32CsrUint16 *) CsrPmemAlloc(sizeof(CsrEventCsrUint32CsrUint16));
 
@@ -449,7 +449,7 @@ CsrSize CsrEventCsrUint32CsrCharStringSizeof(void *msg)
     return 6 + CsrStrLen(primitive->value2) + 1;
 }
 
-CsrUint8 *CsrEventCsrUint32CsrCharStringSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8 *CsrEventCsrUint32CsrCharStringSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrEventCsrUint32CsrCharString *primitive = (CsrEventCsrUint32CsrCharString *) msg;
     *len = 0;
@@ -459,7 +459,7 @@ CsrUint8 *CsrEventCsrUint32CsrCharStringSer(CsrUint8 *ptr, CsrSize *len, void *m
     return ptr;
 }
 
-void *CsrEventCsrUint32CsrCharStringDes(CsrUint8 *buffer, CsrSize length)
+void *CsrEventCsrUint32CsrCharStringDes(u8 *buffer, CsrSize length)
 {
     CsrEventCsrUint32CsrCharString *primitive = (CsrEventCsrUint32CsrCharString *) CsrPmemAlloc(sizeof(CsrEventCsrUint32CsrCharString));
 

@@ -111,7 +111,7 @@ typedef struct
 /*---------------------------------*/
 /*  Tech logging */
 /*---------------------------------*/
-typedef CsrUint8 bitmask8_t;
+typedef u8 bitmask8_t;
 typedef CsrUint16 bitmask16_t;
 typedef CsrUint32 bitmask32_t;
 
@@ -168,13 +168,13 @@ void CsrLogStateTransition(bitmask16_t mask,
 /*---------------------------------*/
 /*  BSP logging */
 /*---------------------------------*/
-void CsrLogSchedInit(CsrUint8 thread_id);
-void CsrLogSchedDeinit(CsrUint8 thread_id);
+void CsrLogSchedInit(u8 thread_id);
+void CsrLogSchedDeinit(u8 thread_id);
 
-void CsrLogSchedStart(CsrUint8 thread_id);
-void CsrLogSchedStop(CsrUint8 thread_id);
+void CsrLogSchedStart(u8 thread_id);
+void CsrLogSchedStop(u8 thread_id);
 
-void CsrLogInitTask(CsrUint8 thread_id, CsrSchedQid tskid, const CsrCharString *tskName);
+void CsrLogInitTask(u8 thread_id, CsrSchedQid tskid, const CsrCharString *tskName);
 void CsrLogDeinitTask(CsrUint16 task_id);
 
 void CsrLogActivate(CsrSchedQid tskid);
@@ -218,7 +218,7 @@ void CsrLogTimedEventCancel(CsrUint32 line,
     CsrSchedTid tid,
     CsrBool cancel_res);
 
-void CsrLogBgintRegister(CsrUint8 thread_id,
+void CsrLogBgintRegister(u8 thread_id,
     CsrSchedBgint irq,
     const CsrCharString *callback,
     const void *ptr);

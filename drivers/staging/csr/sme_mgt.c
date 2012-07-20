@@ -126,7 +126,7 @@ void CsrWifiSmeScanResultsGetCfmHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     CsrWifiSmeScanResultsGetCfm* cfm = (CsrWifiSmeScanResultsGetCfm*)msg;
     int bytesRequired = cfm->scanResultsCount * sizeof(CsrWifiSmeScanResult);
     int i;
-    CsrUint8* current_buff;
+    u8* current_buff;
     CsrWifiSmeScanResult* scanCopy;
 
     if (priv == NULL) {
@@ -145,7 +145,7 @@ void CsrWifiSmeScanResultsGetCfmHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     memcpy(scanCopy, cfm->scanResults, sizeof(CsrWifiSmeScanResult) * cfm->scanResultsCount);
 
     /* Take a Copy of the Info Elements AND update the scan result pointers */
-    current_buff = (CsrUint8*)&scanCopy[cfm->scanResultsCount];
+    current_buff = (u8*)&scanCopy[cfm->scanResultsCount];
     for (i = 0; i < cfm->scanResultsCount; ++i)
     {
         CsrWifiSmeScanResult *scan_result = &scanCopy[i];

@@ -497,11 +497,11 @@ void* unifi_dl_fw_read_start(card_t *card, CsrInt8 is_fw)
  *      CSR_RESULT_SUCCESS on success, CSR error code on failure
  * ---------------------------------------------------------------------------
  */
-static CsrResult safe_read_shared_location(card_t *card, CsrUint32 address, CsrUint8 *pdata)
+static CsrResult safe_read_shared_location(card_t *card, CsrUint32 address, u8 *pdata)
 {
     CsrResult r;
     CsrUint16 limit = 1000;
-    CsrUint8 b, b2;
+    u8 b, b2;
 
     *pdata = 0;
 
@@ -559,7 +559,7 @@ static CsrResult safe_read_shared_location(card_t *card, CsrUint32 address, CsrU
 #define OPERATION_TIMEOUT_LOOPS (100)  /* when OPERATION_TIMEOUT_DELAY==1, (500) otherwise */
 #define OPERATION_TIMEOUT_DELAY 1      /* msec, or 200usecs */
 
-CsrResult unifi_do_loader_op(card_t *card, CsrUint32 op_addr, CsrUint8 opcode)
+CsrResult unifi_do_loader_op(card_t *card, CsrUint32 op_addr, u8 opcode)
 {
     CsrResult r;
     CsrInt16 op_retries;
@@ -580,7 +580,7 @@ CsrResult unifi_do_loader_op(card_t *card, CsrUint32 op_addr, CsrUint8 opcode)
     r = CSR_RESULT_SUCCESS;
     while (1)
     {
-        CsrUint8 op;
+        u8 op;
 
         /*
          * Read the memory location until two successive reads give
@@ -658,7 +658,7 @@ static CsrResult send_ptdl_to_unifi(card_t *card, void *dlpriv,
                                     CsrUint32 op_addr)
 {
     CsrUint32 offset;
-    CsrUint8 *buf;
+    u8 *buf;
     CsrInt32 data_len;
     CsrUint32 write_len;
     CsrResult r;

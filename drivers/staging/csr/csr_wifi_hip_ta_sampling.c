@@ -72,7 +72,7 @@ enum ta_frame_identity
 #define snap_802_2                  0xAAAA0300
 #define oui_rfc1042                 0x00000000
 #define oui_8021h                   0x0000f800
-static const CsrUint8 aironet_snap[5] = { 0x00, 0x40, 0x96, 0x00, 0x00 };
+static const u8 aironet_snap[5] = { 0x00, 0x40, 0x96, 0x00, 0x00 };
 
 
 /*
@@ -93,8 +93,8 @@ static const CsrUint8 aironet_snap[5] = { 0x00, 0x40, 0x96, 0x00, 0x00 };
  */
 static enum ta_frame_identity ta_detect_protocol(card_t *card, CsrWifiRouterCtrlProtocolDirection direction,
                                                  const bulk_data_desc_t *data,
-                                                 const CsrUint8 *saddr,
-                                                 const CsrUint8 *sta_macaddr)
+                                                 const u8 *saddr,
+                                                 const u8 *sta_macaddr)
 {
     ta_data_t *tad = &card->ta_sampling;
     CsrUint16 proto;
@@ -138,7 +138,7 @@ static enum ta_frame_identity ta_detect_protocol(card_t *card, CsrWifiRouterCtrl
                 if (tad->packet_filter & CSR_WIFI_ROUTER_CTRL_TRAFFIC_PACKET_TYPE_CUSTOM)
                 {
                     ta_l4stats_t *ta_l4stats = &tad->ta_l4stats;
-                    CsrUint8 l4proto = data->os_data_ptr[TA_IP_TYPE_OFFSET];
+                    u8 l4proto = data->os_data_ptr[TA_IP_TYPE_OFFSET];
 
                     if (l4proto == TA_IP_TYPE_TCP)
                     {
@@ -344,8 +344,8 @@ void unifi_ta_sampling_init(card_t *card)
 void unifi_ta_sample(card_t                            *card,
                      CsrWifiRouterCtrlProtocolDirection direction,
                      const bulk_data_desc_t            *data,
-                     const CsrUint8                    *saddr,
-                     const CsrUint8                    *sta_macaddr,
+                     const u8                    *saddr,
+                     const u8                    *sta_macaddr,
                      CsrUint32                          timestamp,
                      CsrUint16                          rate)
 {

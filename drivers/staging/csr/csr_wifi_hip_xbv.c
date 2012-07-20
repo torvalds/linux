@@ -103,7 +103,7 @@ static CsrUint32 write_uint16(void *buf, const CsrUint32 offset,
 static CsrUint32 write_uint32(void *buf, const CsrUint32 offset,
                               const CsrUint32 val);
 static CsrUint32 write_bytes(void *buf, const CsrUint32 offset,
-                             const CsrUint8 *data, const CsrUint32 len);
+                             const u8 *data, const CsrUint32 len);
 static CsrUint32 write_tag(void *buf, const CsrUint32 offset,
                            const CsrCharString *tag_str);
 static CsrUint32 write_chunk(void *buf, const CsrUint32 offset,
@@ -489,7 +489,7 @@ static CsrInt32 xbv_push(xbv1_t *fwinfo, xbv_stack_t *stack,
 }
 
 
-static CsrUint32 xbv2uint(CsrUint8 *ptr, CsrInt32 len)
+static CsrUint32 xbv2uint(u8 *ptr, CsrInt32 len)
 {
     CsrUint32 u = 0;
     CsrInt16 i;
@@ -506,7 +506,7 @@ static CsrUint32 xbv2uint(CsrUint8 *ptr, CsrInt32 len)
 
 static CsrInt32 read_tag(card_t *card, ct_t *ct, tag_t *tag)
 {
-    CsrUint8 buf[8];
+    u8 buf[8];
     CsrInt32 n;
 
     n = (*ct->iread)(card->ospriv, ct->dlpriv, ct->ioffset, buf, 8);
@@ -549,7 +549,7 @@ static CsrInt32 read_bytes(card_t *card, ct_t *ct, void *buf, CsrUint32 len)
 
 static CsrInt32 read_uint(card_t *card, ct_t *ct, CsrUint32 *u, CsrUint32 len)
 {
-    CsrUint8 buf[4];
+    u8 buf[4];
 
     /* Integer cannot be more than 4 bytes */
     if (len > 4)
@@ -570,9 +570,9 @@ static CsrInt32 read_uint(card_t *card, ct_t *ct, CsrUint32 *u, CsrUint32 len)
 
 static CsrUint32 write_uint16(void *buf, const CsrUint32 offset, const CsrUint16 val)
 {
-    CsrUint8 *dst = (CsrUint8 *)buf + offset;
-    *dst++ = (CsrUint8)(val & 0xff); /* LSB first */
-    *dst = (CsrUint8)(val >> 8);
+    u8 *dst = (u8 *)buf + offset;
+    *dst++ = (u8)(val & 0xff); /* LSB first */
+    *dst = (u8)(val >> 8);
     return sizeof(CsrUint16);
 }
 
@@ -585,14 +585,14 @@ static CsrUint32 write_uint32(void *buf, const CsrUint32 offset, const CsrUint32
 }
 
 
-static CsrUint32 write_bytes(void *buf, const CsrUint32 offset, const CsrUint8 *data, const CsrUint32 len)
+static CsrUint32 write_bytes(void *buf, const CsrUint32 offset, const u8 *data, const CsrUint32 len)
 {
     CsrUint32 i;
-    CsrUint8 *dst = (CsrUint8 *)buf + offset;
+    u8 *dst = (u8 *)buf + offset;
 
     for (i = 0; i < len; i++)
     {
-        *dst++ = *((CsrUint8 *)data + i);
+        *dst++ = *((u8 *)data + i);
     }
     return len;
 }
@@ -600,7 +600,7 @@ static CsrUint32 write_bytes(void *buf, const CsrUint32 offset, const CsrUint8 *
 
 static CsrUint32 write_tag(void *buf, const CsrUint32 offset, const CsrCharString *tag_str)
 {
-    CsrUint8 *dst = (CsrUint8 *)buf + offset;
+    u8 *dst = (u8 *)buf + offset;
     CsrMemCpy(dst, tag_str, 4);
     return 4;
 }
@@ -619,7 +619,7 @@ static CsrUint32 write_chunk(void *buf, const CsrUint32 offset, const CsrCharStr
 static CsrUint16 calc_checksum(void *buf, const CsrUint32 offset, const CsrUint32 bytes_len)
 {
     CsrUint32 i;
-    CsrUint8 *src = (CsrUint8 *)buf + offset;
+    u8 *src = (u8 *)buf + offset;
     CsrUint16 sum = 0;
     CsrUint16 val;
 

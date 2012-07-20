@@ -48,7 +48,7 @@ typedef CsrPrim CsrWifiSmeApPrim;
     CSR_WIFI_AP_ACCESS_TYPE_DENY  - Disallow if MAC address is from the list
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiSmeApAccessType;
+typedef u8 CsrWifiSmeApAccessType;
 #define CSR_WIFI_AP_ACCESS_TYPE_NONE    ((CsrWifiSmeApAccessType) 0x00)
 #define CSR_WIFI_AP_ACCESS_TYPE_ALLOW   ((CsrWifiSmeApAccessType) 0x01)
 #define CSR_WIFI_AP_ACCESS_TYPE_DENY    ((CsrWifiSmeApAccessType) 0x02)
@@ -67,7 +67,7 @@ typedef CsrUint8 CsrWifiSmeApAccessType;
     CSR_WIFI_SME_AUTH_WAPIPSK     - WAPI-PSK Support
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiSmeApAuthSupport;
+typedef u8 CsrWifiSmeApAuthSupport;
 #define CSR_WIFI_SME_RSN_AUTH_WPAPSK    ((CsrWifiSmeApAuthSupport) 0x01)
 #define CSR_WIFI_SME_RSN_AUTH_WPA2PSK   ((CsrWifiSmeApAuthSupport) 0x02)
 #define CSR_WIFI_SME_AUTH_WAPIPSK       ((CsrWifiSmeApAuthSupport) 0x04)
@@ -90,7 +90,7 @@ typedef CsrUint8 CsrWifiSmeApAuthSupport;
                    - WEP authentication. This can be either open or shared key
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiSmeApAuthType;
+typedef u8 CsrWifiSmeApAuthType;
 #define CSR_WIFI_SME_AP_AUTH_TYPE_OPEN_SYSTEM   ((CsrWifiSmeApAuthType) 0x00)
 #define CSR_WIFI_SME_AP_AUTH_TYPE_PERSONAL      ((CsrWifiSmeApAuthType) 0x01)
 #define CSR_WIFI_SME_AP_AUTH_TYPE_WEP           ((CsrWifiSmeApAuthType) 0x02)
@@ -108,7 +108,7 @@ typedef CsrUint8 CsrWifiSmeApAuthType;
     CSR_WIFI_AP_DIRECTION_ORIGINATOR - Originator
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiSmeApDirection;
+typedef u8 CsrWifiSmeApDirection;
 #define CSR_WIFI_AP_DIRECTION_RECEIPIENT   ((CsrWifiSmeApDirection) 0x00)
 #define CSR_WIFI_AP_DIRECTION_ORIGINATOR   ((CsrWifiSmeApDirection) 0x01)
 
@@ -128,7 +128,7 @@ typedef CsrUint8 CsrWifiSmeApDirection;
     CSR_WIFI_SME_AP_PHY_SUPPORT_N - 802.11n
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiSmeApPhySupport;
+typedef u8 CsrWifiSmeApPhySupport;
 #define CSR_WIFI_SME_AP_PHY_SUPPORT_A   ((CsrWifiSmeApPhySupport) 0x01)
 #define CSR_WIFI_SME_AP_PHY_SUPPORT_B   ((CsrWifiSmeApPhySupport) 0x02)
 #define CSR_WIFI_SME_AP_PHY_SUPPORT_G   ((CsrWifiSmeApPhySupport) 0x04)
@@ -147,7 +147,7 @@ typedef CsrUint8 CsrWifiSmeApPhySupport;
     CSR_WIFI_AP_TYPE_P2P    - P2P Group Owner(GO)
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiSmeApType;
+typedef u8 CsrWifiSmeApType;
 #define CSR_WIFI_AP_TYPE_LEGACY   ((CsrWifiSmeApType) 0x00)
 #define CSR_WIFI_AP_TYPE_P2P      ((CsrWifiSmeApType) 0x01)
 
@@ -161,7 +161,7 @@ typedef CsrUint8 CsrWifiSmeApType;
     See CsrWifiSmeApAuthSupport for bit definitions
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiSmeApAuthSupportMask;
+typedef u8 CsrWifiSmeApAuthSupportMask;
 /*******************************************************************************
 
   NAME
@@ -171,7 +171,7 @@ typedef CsrUint8 CsrWifiSmeApAuthSupportMask;
     Mask type for use with the values defined by CsrWifiSmeApPhySupport
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiSmeApPhySupportMask;
+typedef u8 CsrWifiSmeApPhySupportMask;
 /*******************************************************************************
 
   NAME
@@ -250,9 +250,9 @@ typedef struct
 {
     CsrBool  greenfieldSupported;
     CsrBool  shortGi20MHz;
-    CsrUint8 rxStbc;
+    u8 rxStbc;
     CsrBool  rifsModeAllowed;
-    CsrUint8 htProtection;
+    u8 htProtection;
     CsrBool  dualCtsProtection;
 } CsrWifiSmeApHtParams;
 
@@ -271,9 +271,9 @@ typedef struct
 *******************************************************************************/
 typedef struct
 {
-    CsrUint8  operatingClass;
-    CsrUint8  operatingChannelCount;
-    CsrUint8 *operatingChannel;
+    u8  operatingClass;
+    u8  operatingChannelCount;
+    u8 *operatingChannel;
 } CsrWifiSmeApP2pOperatingChanEntry;
 
 /*******************************************************************************
@@ -292,8 +292,8 @@ typedef struct
 *******************************************************************************/
 typedef struct
 {
-    CsrUint8                           country[3];
-    CsrUint8                           channelEntryListCount;
+    u8                           country[3];
+    u8                           channelEntryListCount;
     CsrWifiSmeApP2pOperatingChanEntry *channelEntryList;
 } CsrWifiSmeApP2pOperatingChanList;
 
@@ -337,7 +337,7 @@ typedef struct
 typedef struct
 {
     CsrWifiMacAddress     peerMacAddress;
-    CsrUint8              tid;
+    u8              tid;
     CsrWifiSmeApDirection direction;
 } CsrWifiSmeApBaSession;
 
@@ -384,10 +384,10 @@ typedef struct
 {
     CsrWifiSmeApPhySupportMask  phySupportedBitmap;
     CsrUint16                   beaconInterval;
-    CsrUint8                    dtimPeriod;
+    u8                    dtimPeriod;
     CsrUint16                   maxListenInterval;
-    CsrUint8                    supportedRatesCount;
-    CsrUint8                    supportedRates[20];
+    u8                    supportedRatesCount;
+    u8                    supportedRates[20];
     CsrWifiSmePreambleType      preamble;
     CsrBool                     shortSlotTimeEnabled;
     CsrWifiSmeCtsProtectionType ctsProtectionType;
@@ -395,7 +395,7 @@ typedef struct
     CsrWifiSmeWmmAcParams       wmmApParams[4];
     CsrWifiSmeWmmAcParams       wmmApBcParams[4];
     CsrWifiSmeApAccessType      accessType;
-    CsrUint8                    macAddressListCount;
+    u8                    macAddressListCount;
     CsrWifiMacAddress          *macAddressList;
     CsrWifiSmeApHtParams        apHtParams;
 } CsrWifiSmeApMacConfig;
@@ -436,7 +436,7 @@ typedef struct
     CsrWifiSmeP2pGroupCapabilityMask groupCapability;
     CsrWifiSmeApP2pOperatingChanList operatingChanList;
     CsrBool                          opPsEnabled;
-    CsrUint8                         ctWindow;
+    u8                         ctWindow;
     CsrWifiSmeP2pNoaConfigMethod     noaConfigMethod;
     CsrBool                          allowNoaWithNonP2pDevices;
 } CsrWifiSmeApP2pGoConfig;
@@ -551,13 +551,13 @@ typedef struct
 {
     CsrWifiFsmEvent         common;
     CsrUint16               interfaceTag;
-    CsrUint8                initialPresence;
+    u8                initialPresence;
     CsrWifiSmeApType        apType;
     CsrBool                 cloakSsid;
     CsrWifiSsid             ssid;
     CsrWifiSmeRadioIF       ifIndex;
-    CsrUint8                channel;
-    CsrUint8                maxConnections;
+    u8                channel;
+    u8                maxConnections;
     CsrWifiSmeApSecConfig   apCredentials;
     CsrWifiSmeApMacConfig   smeApConfig;
     CsrWifiSmeApP2pGoConfig p2pGoParam;
@@ -764,7 +764,7 @@ typedef struct
     CsrUint16       interfaceTag;
     CsrResult       status;
     CsrUint16       secIeLength;
-    CsrUint8       *secIe;
+    u8       *secIe;
 } CsrWifiSmeApBeaconingStartCfm;
 
 /*******************************************************************************
@@ -822,9 +822,9 @@ typedef struct
     CsrWifiSmeIEEE80211Reason disassocReason;
     CsrWifiSmeIEEE80211Reason deauthReason;
     CsrWifiSmeWpsRegistration WpsRegistration;
-    CsrUint8                  secIeLength;
-    CsrUint8                 *secIe;
-    CsrUint8                  groupKeyId;
+    u8                  secIeLength;
+    u8                 *secIe;
+    u8                  groupKeyId;
     CsrUint16                 seqNumber[8];
 } CsrWifiSmeApStaNotifyInd;
 

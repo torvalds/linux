@@ -102,7 +102,7 @@ void CsrPmemFree(void *ptr);
  *----------------------------------------------------------------------------*/
 #ifdef CSR_PMEM_DEBUG_ENABLE
 
-typedef CsrUint8 CsrPmemDebugAllocType;
+typedef u8 CsrPmemDebugAllocType;
 #define CSR_PMEM_DEBUG_TYPE_PMEM_ALLOC    1
 #define CSR_PMEM_DEBUG_TYPE_MEM_ALLOC     2
 #define CSR_PMEM_DEBUG_TYPE_MEM_CALLOC    3
@@ -125,7 +125,7 @@ typedef void (CsrPmemDebugOnFree)(void *ptr, void *userptr, CsrPmemDebugAllocTyp
  *      void
  *
  *----------------------------------------------------------------------------*/
-void CsrPmemDebugInstallHooks(CsrUint8 headSize, CsrUint8 endSize, CsrPmemDebugOnAlloc *onAllocCallback, CsrPmemDebugOnFree *onFreeCallback);
+void CsrPmemDebugInstallHooks(u8 headSize, u8 endSize, CsrPmemDebugOnAlloc *onAllocCallback, CsrPmemDebugOnFree *onFreeCallback);
 
 void *CsrPmemDebugAlloc(CsrSize size, CsrPmemDebugAllocType type, const CsrCharString* file, CsrUint32 line);
 #define CsrPmemAlloc(size) CsrPmemDebugAlloc(size, CSR_PMEM_DEBUG_TYPE_PMEM_ALLOC, __FILE__, __LINE__)

@@ -212,7 +212,7 @@ typedef struct {
 
 
 
-typedef CsrUint8 unifi_putest_command_t;
+typedef u8 unifi_putest_command_t;
 
 #define UNIFI_PUTEST_START 0
 #define UNIFI_PUTEST_STOP 1
@@ -310,21 +310,21 @@ typedef struct uf_cfg_bcast_packet_filter
 
 typedef struct uf_cfg_ap_config
 {
-    CsrUint8    phySupportedBitmap;
-    CsrUint8    channel;
+    u8    phySupportedBitmap;
+    u8    channel;
     CsrUint16   beaconInterval;
-    CsrUint8    dtimPeriod;
+    u8    dtimPeriod;
     CsrBool     wmmEnabled;
-    CsrUint8    shortSlotTimeEnabled;
+    u8    shortSlotTimeEnabled;
     CsrUint16   groupkeyTimeout;
     CsrBool     strictGtkRekeyEnabled;
     CsrUint16   gmkTimeout;
     CsrUint16   responseTimeout;
-    CsrUint8    retransLimit;
-    CsrUint8    rxStbc;
+    u8    retransLimit;
+    u8    rxStbc;
     CsrBool     rifsModeAllowed;
-    CsrUint8    dualCtsProtection;
-    CsrUint8    ctsProtectionType;
+    u8    dualCtsProtection;
+    u8    ctsProtectionType;
     CsrUint16   maxListenInterval;
 }uf_cfg_ap_config_t;
 
@@ -358,14 +358,14 @@ typedef struct tclas {
 /* WAPI Key */
 typedef struct
 {
-    CsrUint8                          unicastKey;
+    u8                          unicastKey;
     /* If non zero, then unicast key otherwise group key */
-    CsrUint8                          keyIndex;
-    CsrUint8                          keyRsc[16];
-    CsrUint8                          authenticator;
+    u8                          keyIndex;
+    u8                          keyRsc[16];
+    u8                          authenticator;
     /* If non zero, then authenticator otherwise supplicant */
-    CsrUint8                          address[6];
-    CsrUint8                          key[32];
+    u8                          address[6];
+    u8                          key[32];
 } unifiio_wapi_key_t;
 
 /* Values describing XAP memory regions captured by the mini-coredump system */

@@ -21,25 +21,25 @@ extern "C" {
 /* MAC address */
 typedef struct
 {
-    CsrUint8 a[6];
+    u8 a[6];
 } CsrWifiMacAddress;
 
 /* IPv4 address */
 typedef struct
 {
-    CsrUint8 a[4];
+    u8 a[4];
 } CsrWifiIp4Address;
 
 /* IPv6 address */
 typedef struct
 {
-    CsrUint8 a[16];
+    u8 a[16];
 } CsrWifiIp6Address;
 
 typedef struct
 {
-    CsrUint8 ssid[32];
-    CsrUint8 length;
+    u8 ssid[32];
+    u8 length;
 } CsrWifiSsid;
 
 /*******************************************************************************

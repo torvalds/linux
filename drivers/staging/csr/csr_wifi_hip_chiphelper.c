@@ -575,7 +575,7 @@ static const struct chip_device_desc_t *chip_ver_to_desc[] =
     &hyd_wlan_subsys_desc_v1
 };
 
-ChipDescript* ChipHelper_GetVersionSdio(CsrUint8 sdio_ver)
+ChipDescript* ChipHelper_GetVersionSdio(u8 sdio_ver)
 {
     CsrUint32 i;
 

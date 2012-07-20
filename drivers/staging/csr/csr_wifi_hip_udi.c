@@ -55,7 +55,7 @@ CsrInt32 unifi_print_status(card_t *card, CsrCharString *str, CsrInt32 *remain)
         "AWAKE", "DROWSY", "TORPID"
     };
     #define SHARED_READ_RETRY_LIMIT 10
-    CsrUint8 b;
+    u8 b;
 #endif
 
     if (remaining <= 0)

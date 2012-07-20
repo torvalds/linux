@@ -143,7 +143,7 @@ struct chip_version_t
     CsrInt32  pre_bc7;
     CsrUint16 mask;
     CsrUint16 result;
-    CsrUint8  sdio;
+    u8  sdio;
 };
 
 struct chip_device_desc_t

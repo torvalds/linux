@@ -37,7 +37,7 @@ CsrSize CsrWifiSmeAdhocConfigSetReqSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeAdhocConfigSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeAdhocConfigSetReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeAdhocConfigSetReq *primitive = (CsrWifiSmeAdhocConfigSetReq *)msg;
     *len = 0;
@@ -50,7 +50,7 @@ CsrUint8* CsrWifiSmeAdhocConfigSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeAdhocConfigSetReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeAdhocConfigSetReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeAdhocConfigSetReq *primitive = (CsrWifiSmeAdhocConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeAdhocConfigSetReq));
     CsrSize offset;
@@ -74,26 +74,26 @@ CsrSize CsrWifiSmeBlacklistReqSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 13) */
     bufferSize += 2; /* CsrUint16 primitive->interfaceTag */
     bufferSize += 1; /* CsrWifiSmeListAction primitive->action */
-    bufferSize += 1; /* CsrUint8 primitive->setAddressCount */
+    bufferSize += 1; /* u8 primitive->setAddressCount */
     {
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->setAddressCount; i1++)
         {
-            bufferSize += 6; /* CsrUint8 primitive->setAddresses[i1].a[6] */
+            bufferSize += 6; /* u8 primitive->setAddresses[i1].a[6] */
         }
     }
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeBlacklistReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeBlacklistReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeBlacklistReq *primitive = (CsrWifiSmeBlacklistReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->action);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->setAddressCount);
+    CsrUint8Ser(ptr, len, (u8) primitive->action);
+    CsrUint8Ser(ptr, len, (u8) primitive->setAddressCount);
     {
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->setAddressCount; i1++)
@@ -105,7 +105,7 @@ CsrUint8* CsrWifiSmeBlacklistReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeBlacklistReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeBlacklistReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeBlacklistReq *primitive = (CsrWifiSmeBlacklistReq *) CsrPmemAlloc(sizeof(CsrWifiSmeBlacklistReq));
     CsrSize offset;
@@ -113,8 +113,8 @@ void* CsrWifiSmeBlacklistReqDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->action, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->setAddressCount, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->action, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->setAddressCount, buffer, &offset);
     primitive->setAddresses = NULL;
     if (primitive->setAddressCount)
     {
@@ -147,12 +147,12 @@ CsrSize CsrWifiSmeCalibrationDataSetReqSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 6) */
     bufferSize += 2;                                /* CsrUint16 primitive->calibrationDataLength */
-    bufferSize += primitive->calibrationDataLength; /* CsrUint8 primitive->calibrationData */
+    bufferSize += primitive->calibrationDataLength; /* u8 primitive->calibrationData */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeCalibrationDataSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeCalibrationDataSetReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeCalibrationDataSetReq *primitive = (CsrWifiSmeCalibrationDataSetReq *)msg;
     *len = 0;
@@ -166,7 +166,7 @@ CsrUint8* CsrWifiSmeCalibrationDataSetReqSer(CsrUint8 *ptr, CsrSize *len, void *
 }
 
 
-void* CsrWifiSmeCalibrationDataSetReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeCalibrationDataSetReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeCalibrationDataSetReq *primitive = (CsrWifiSmeCalibrationDataSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeCalibrationDataSetReq));
     CsrSize offset;
@@ -176,7 +176,7 @@ void* CsrWifiSmeCalibrationDataSetReqDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->calibrationDataLength, buffer, &offset);
     if (primitive->calibrationDataLength)
     {
-        primitive->calibrationData = (CsrUint8 *)CsrPmemAlloc(primitive->calibrationDataLength);
+        primitive->calibrationData = (u8 *)CsrPmemAlloc(primitive->calibrationDataLength);
         CsrMemCpyDes(primitive->calibrationData, buffer, &offset, ((CsrUint16) (primitive->calibrationDataLength)));
     }
     else
@@ -202,29 +202,29 @@ CsrSize CsrWifiSmeCcxConfigSetReqSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 9) */
     bufferSize += 2; /* CsrUint16 primitive->interfaceTag */
-    bufferSize += 1; /* CsrUint8 primitive->ccxConfig.keepAliveTimeMs */
+    bufferSize += 1; /* u8 primitive->ccxConfig.keepAliveTimeMs */
     bufferSize += 1; /* CsrBool primitive->ccxConfig.apRoamingEnabled */
-    bufferSize += 1; /* CsrUint8 primitive->ccxConfig.measurementsMask */
+    bufferSize += 1; /* u8 primitive->ccxConfig.measurementsMask */
     bufferSize += 1; /* CsrBool primitive->ccxConfig.ccxRadioMgtEnabled */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeCcxConfigSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeCcxConfigSetReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeCcxConfigSetReq *primitive = (CsrWifiSmeCcxConfigSetReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->ccxConfig.keepAliveTimeMs);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->ccxConfig.apRoamingEnabled);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->ccxConfig.measurementsMask);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->ccxConfig.ccxRadioMgtEnabled);
+    CsrUint8Ser(ptr, len, (u8) primitive->ccxConfig.keepAliveTimeMs);
+    CsrUint8Ser(ptr, len, (u8) primitive->ccxConfig.apRoamingEnabled);
+    CsrUint8Ser(ptr, len, (u8) primitive->ccxConfig.measurementsMask);
+    CsrUint8Ser(ptr, len, (u8) primitive->ccxConfig.ccxRadioMgtEnabled);
     return(ptr);
 }
 
 
-void* CsrWifiSmeCcxConfigSetReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeCcxConfigSetReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeCcxConfigSetReq *primitive = (CsrWifiSmeCcxConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeCcxConfigSetReq));
     CsrSize offset;
@@ -232,10 +232,10 @@ void* CsrWifiSmeCcxConfigSetReqDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->ccxConfig.keepAliveTimeMs, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->ccxConfig.apRoamingEnabled, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->ccxConfig.measurementsMask, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->ccxConfig.ccxRadioMgtEnabled, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->ccxConfig.keepAliveTimeMs, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->ccxConfig.apRoamingEnabled, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->ccxConfig.measurementsMask, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->ccxConfig.ccxRadioMgtEnabled, buffer, &offset);
 
     return primitive;
 }
@@ -264,13 +264,13 @@ CsrSize CsrWifiSmeCoexConfigSetReqSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeCoexConfigSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeCoexConfigSetReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeCoexConfigSetReq *primitive = (CsrWifiSmeCoexConfigSetReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->coexConfig.coexEnableSchemeManagement);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->coexConfig.coexPeriodicWakeHost);
+    CsrUint8Ser(ptr, len, (u8) primitive->coexConfig.coexEnableSchemeManagement);
+    CsrUint8Ser(ptr, len, (u8) primitive->coexConfig.coexPeriodicWakeHost);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->coexConfig.coexTrafficBurstyLatencyMs);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->coexConfig.coexTrafficContinuousLatencyMs);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->coexConfig.coexObexBlackoutDurationMs);
@@ -287,15 +287,15 @@ CsrUint8* CsrWifiSmeCoexConfigSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeCoexConfigSetReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeCoexConfigSetReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeCoexConfigSetReq *primitive = (CsrWifiSmeCoexConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeCoexConfigSetReq));
     CsrSize offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->coexConfig.coexEnableSchemeManagement, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->coexConfig.coexPeriodicWakeHost, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->coexConfig.coexEnableSchemeManagement, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->coexConfig.coexPeriodicWakeHost, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->coexConfig.coexTrafficBurstyLatencyMs, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->coexConfig.coexTrafficContinuousLatencyMs, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->coexConfig.coexObexBlackoutDurationMs, buffer, &offset);
@@ -320,35 +320,35 @@ CsrSize CsrWifiSmeConnectReqSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 57) */
     bufferSize += 2;                                                                     /* CsrUint16 primitive->interfaceTag */
-    bufferSize += 32;                                                                    /* CsrUint8 primitive->connectionConfig.ssid.ssid[32] */
-    bufferSize += 1;                                                                     /* CsrUint8 primitive->connectionConfig.ssid.length */
-    bufferSize += 6;                                                                     /* CsrUint8 primitive->connectionConfig.bssid.a[6] */
+    bufferSize += 32;                                                                    /* u8 primitive->connectionConfig.ssid.ssid[32] */
+    bufferSize += 1;                                                                     /* u8 primitive->connectionConfig.ssid.length */
+    bufferSize += 6;                                                                     /* u8 primitive->connectionConfig.bssid.a[6] */
     bufferSize += 1;                                                                     /* CsrWifiSmeBssType primitive->connectionConfig.bssType */
     bufferSize += 1;                                                                     /* CsrWifiSmeRadioIF primitive->connectionConfig.ifIndex */
     bufferSize += 1;                                                                     /* CsrWifiSme80211PrivacyMode primitive->connectionConfig.privacyMode */
     bufferSize += 2;                                                                     /* CsrWifiSmeAuthModeMask primitive->connectionConfig.authModeMask */
     bufferSize += 2;                                                                     /* CsrWifiSmeEncryptionMask primitive->connectionConfig.encryptionModeMask */
     bufferSize += 2;                                                                     /* CsrUint16 primitive->connectionConfig.mlmeAssociateReqInformationElementsLength */
-    bufferSize += primitive->connectionConfig.mlmeAssociateReqInformationElementsLength; /* CsrUint8 primitive->connectionConfig.mlmeAssociateReqInformationElements */
+    bufferSize += primitive->connectionConfig.mlmeAssociateReqInformationElementsLength; /* u8 primitive->connectionConfig.mlmeAssociateReqInformationElements */
     bufferSize += 1;                                                                     /* CsrWifiSmeWmmQosInfoMask primitive->connectionConfig.wmmQosInfo */
     bufferSize += 1;                                                                     /* CsrBool primitive->connectionConfig.adhocJoinOnly */
-    bufferSize += 1;                                                                     /* CsrUint8 primitive->connectionConfig.adhocChannel */
+    bufferSize += 1;                                                                     /* u8 primitive->connectionConfig.adhocChannel */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeConnectReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeConnectReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeConnectReq *primitive = (CsrWifiSmeConnectReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
     CsrMemCpySer(ptr, len, (const void *) primitive->connectionConfig.ssid.ssid, ((CsrUint16) (32)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionConfig.ssid.length);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionConfig.ssid.length);
     CsrMemCpySer(ptr, len, (const void *) primitive->connectionConfig.bssid.a, ((CsrUint16) (6)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionConfig.bssType);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionConfig.ifIndex);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionConfig.privacyMode);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionConfig.bssType);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionConfig.ifIndex);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionConfig.privacyMode);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionConfig.authModeMask);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionConfig.encryptionModeMask);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionConfig.mlmeAssociateReqInformationElementsLength);
@@ -356,14 +356,14 @@ CsrUint8* CsrWifiSmeConnectReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
     {
         CsrMemCpySer(ptr, len, (const void *) primitive->connectionConfig.mlmeAssociateReqInformationElements, ((CsrUint16) (primitive->connectionConfig.mlmeAssociateReqInformationElementsLength)));
     }
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionConfig.wmmQosInfo);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionConfig.adhocJoinOnly);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionConfig.adhocChannel);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionConfig.wmmQosInfo);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionConfig.adhocJoinOnly);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionConfig.adhocChannel);
     return(ptr);
 }
 
 
-void* CsrWifiSmeConnectReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeConnectReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeConnectReq *primitive = (CsrWifiSmeConnectReq *) CsrPmemAlloc(sizeof(CsrWifiSmeConnectReq));
     CsrSize offset;
@@ -372,26 +372,26 @@ void* CsrWifiSmeConnectReqDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
     CsrMemCpyDes(primitive->connectionConfig.ssid.ssid, buffer, &offset, ((CsrUint16) (32)));
-    CsrUint8Des((CsrUint8 *) &primitive->connectionConfig.ssid.length, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionConfig.ssid.length, buffer, &offset);
     CsrMemCpyDes(primitive->connectionConfig.bssid.a, buffer, &offset, ((CsrUint16) (6)));
-    CsrUint8Des((CsrUint8 *) &primitive->connectionConfig.bssType, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionConfig.ifIndex, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionConfig.privacyMode, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionConfig.bssType, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionConfig.ifIndex, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionConfig.privacyMode, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionConfig.authModeMask, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionConfig.encryptionModeMask, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionConfig.mlmeAssociateReqInformationElementsLength, buffer, &offset);
     if (primitive->connectionConfig.mlmeAssociateReqInformationElementsLength)
     {
-        primitive->connectionConfig.mlmeAssociateReqInformationElements = (CsrUint8 *)CsrPmemAlloc(primitive->connectionConfig.mlmeAssociateReqInformationElementsLength);
+        primitive->connectionConfig.mlmeAssociateReqInformationElements = (u8 *)CsrPmemAlloc(primitive->connectionConfig.mlmeAssociateReqInformationElementsLength);
         CsrMemCpyDes(primitive->connectionConfig.mlmeAssociateReqInformationElements, buffer, &offset, ((CsrUint16) (primitive->connectionConfig.mlmeAssociateReqInformationElementsLength)));
     }
     else
     {
         primitive->connectionConfig.mlmeAssociateReqInformationElements = NULL;
     }
-    CsrUint8Des((CsrUint8 *) &primitive->connectionConfig.wmmQosInfo, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionConfig.adhocJoinOnly, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionConfig.adhocChannel, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionConfig.wmmQosInfo, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionConfig.adhocJoinOnly, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionConfig.adhocChannel, buffer, &offset);
 
     return primitive;
 }
@@ -417,19 +417,19 @@ CsrSize CsrWifiSmeHostConfigSetReqSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeHostConfigSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeHostConfigSetReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeHostConfigSetReq *primitive = (CsrWifiSmeHostConfigSetReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->hostConfig.powerMode);
+    CsrUint8Ser(ptr, len, (u8) primitive->hostConfig.powerMode);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->hostConfig.applicationDataPeriodMs);
     return(ptr);
 }
 
 
-void* CsrWifiSmeHostConfigSetReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeHostConfigSetReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeHostConfigSetReq *primitive = (CsrWifiSmeHostConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeHostConfigSetReq));
     CsrSize offset;
@@ -437,7 +437,7 @@ void* CsrWifiSmeHostConfigSetReqDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->hostConfig.powerMode, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->hostConfig.powerMode, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->hostConfig.applicationDataPeriodMs, buffer, &offset);
 
     return primitive;
@@ -452,7 +452,7 @@ CsrSize CsrWifiSmeKeyReqSizeof(void *msg)
     bufferSize += 2; /* CsrUint16 primitive->interfaceTag */
     bufferSize += 1; /* CsrWifiSmeListAction primitive->action */
     bufferSize += 1; /* CsrWifiSmeKeyType primitive->key.keyType */
-    bufferSize += 1; /* CsrUint8 primitive->key.keyIndex */
+    bufferSize += 1; /* u8 primitive->key.keyIndex */
     bufferSize += 1; /* CsrBool primitive->key.wepTxKey */
     {
         CsrUint16 i2;
@@ -462,23 +462,23 @@ CsrSize CsrWifiSmeKeyReqSizeof(void *msg)
         }
     }
     bufferSize += 1;         /* CsrBool primitive->key.authenticator */
-    bufferSize += 6;         /* CsrUint8 primitive->key.address.a[6] */
-    bufferSize += 1;         /* CsrUint8 primitive->key.keyLength */
-    bufferSize += 32;        /* CsrUint8 primitive->key.key[32] */
+    bufferSize += 6;         /* u8 primitive->key.address.a[6] */
+    bufferSize += 1;         /* u8 primitive->key.keyLength */
+    bufferSize += 32;        /* u8 primitive->key.key[32] */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeKeyReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeKeyReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeKeyReq *primitive = (CsrWifiSmeKeyReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->action);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->key.keyType);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->key.keyIndex);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->key.wepTxKey);
+    CsrUint8Ser(ptr, len, (u8) primitive->action);
+    CsrUint8Ser(ptr, len, (u8) primitive->key.keyType);
+    CsrUint8Ser(ptr, len, (u8) primitive->key.keyIndex);
+    CsrUint8Ser(ptr, len, (u8) primitive->key.wepTxKey);
     {
         CsrUint16 i2;
         for (i2 = 0; i2 < 8; i2++)
@@ -486,15 +486,15 @@ CsrUint8* CsrWifiSmeKeyReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
             CsrUint16Ser(ptr, len, (CsrUint16) primitive->key.keyRsc[i2]);
         }
     }
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->key.authenticator);
+    CsrUint8Ser(ptr, len, (u8) primitive->key.authenticator);
     CsrMemCpySer(ptr, len, (const void *) primitive->key.address.a, ((CsrUint16) (6)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->key.keyLength);
+    CsrUint8Ser(ptr, len, (u8) primitive->key.keyLength);
     CsrMemCpySer(ptr, len, (const void *) primitive->key.key, ((CsrUint16) (32)));
     return(ptr);
 }
 
 
-void* CsrWifiSmeKeyReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeKeyReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeKeyReq *primitive = (CsrWifiSmeKeyReq *) CsrPmemAlloc(sizeof(CsrWifiSmeKeyReq));
     CsrSize offset;
@@ -502,10 +502,10 @@ void* CsrWifiSmeKeyReqDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->action, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->key.keyType, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->key.keyIndex, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->key.wepTxKey, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->action, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->key.keyType, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->key.keyIndex, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->key.wepTxKey, buffer, &offset);
     {
         CsrUint16 i2;
         for (i2 = 0; i2 < 8; i2++)
@@ -513,9 +513,9 @@ void* CsrWifiSmeKeyReqDes(CsrUint8 *buffer, CsrSize length)
             CsrUint16Des((CsrUint16 *) &primitive->key.keyRsc[i2], buffer, &offset);
         }
     }
-    CsrUint8Des((CsrUint8 *) &primitive->key.authenticator, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->key.authenticator, buffer, &offset);
     CsrMemCpyDes(primitive->key.address.a, buffer, &offset, ((CsrUint16) (6)));
-    CsrUint8Des((CsrUint8 *) &primitive->key.keyLength, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->key.keyLength, buffer, &offset);
     CsrMemCpyDes(primitive->key.key, buffer, &offset, ((CsrUint16) (32)));
 
     return primitive;
@@ -528,7 +528,7 @@ CsrSize CsrWifiSmeMibConfigSetReqSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 11) */
     bufferSize += 1; /* CsrBool primitive->mibConfig.unifiFixMaxTxDataRate */
-    bufferSize += 1; /* CsrUint8 primitive->mibConfig.unifiFixTxDataRate */
+    bufferSize += 1; /* u8 primitive->mibConfig.unifiFixTxDataRate */
     bufferSize += 2; /* CsrUint16 primitive->mibConfig.dot11RtsThreshold */
     bufferSize += 2; /* CsrUint16 primitive->mibConfig.dot11FragmentationThreshold */
     bufferSize += 2; /* CsrUint16 primitive->mibConfig.dot11CurrentTxPowerLevel */
@@ -536,13 +536,13 @@ CsrSize CsrWifiSmeMibConfigSetReqSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeMibConfigSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeMibConfigSetReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeMibConfigSetReq *primitive = (CsrWifiSmeMibConfigSetReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->mibConfig.unifiFixMaxTxDataRate);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->mibConfig.unifiFixTxDataRate);
+    CsrUint8Ser(ptr, len, (u8) primitive->mibConfig.unifiFixMaxTxDataRate);
+    CsrUint8Ser(ptr, len, (u8) primitive->mibConfig.unifiFixTxDataRate);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->mibConfig.dot11RtsThreshold);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->mibConfig.dot11FragmentationThreshold);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->mibConfig.dot11CurrentTxPowerLevel);
@@ -550,15 +550,15 @@ CsrUint8* CsrWifiSmeMibConfigSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeMibConfigSetReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeMibConfigSetReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeMibConfigSetReq *primitive = (CsrWifiSmeMibConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeMibConfigSetReq));
     CsrSize offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->mibConfig.unifiFixMaxTxDataRate, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->mibConfig.unifiFixTxDataRate, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->mibConfig.unifiFixMaxTxDataRate, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->mibConfig.unifiFixTxDataRate, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->mibConfig.dot11RtsThreshold, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->mibConfig.dot11FragmentationThreshold, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->mibConfig.dot11CurrentTxPowerLevel, buffer, &offset);
@@ -574,12 +574,12 @@ CsrSize CsrWifiSmeMibGetNextReqSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 6) */
     bufferSize += 2;                             /* CsrUint16 primitive->mibAttributeLength */
-    bufferSize += primitive->mibAttributeLength; /* CsrUint8 primitive->mibAttribute */
+    bufferSize += primitive->mibAttributeLength; /* u8 primitive->mibAttribute */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeMibGetNextReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeMibGetNextReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeMibGetNextReq *primitive = (CsrWifiSmeMibGetNextReq *)msg;
     *len = 0;
@@ -593,7 +593,7 @@ CsrUint8* CsrWifiSmeMibGetNextReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeMibGetNextReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeMibGetNextReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeMibGetNextReq *primitive = (CsrWifiSmeMibGetNextReq *) CsrPmemAlloc(sizeof(CsrWifiSmeMibGetNextReq));
     CsrSize offset;
@@ -603,7 +603,7 @@ void* CsrWifiSmeMibGetNextReqDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->mibAttributeLength, buffer, &offset);
     if (primitive->mibAttributeLength)
     {
-        primitive->mibAttribute = (CsrUint8 *)CsrPmemAlloc(primitive->mibAttributeLength);
+        primitive->mibAttribute = (u8 *)CsrPmemAlloc(primitive->mibAttributeLength);
         CsrMemCpyDes(primitive->mibAttribute, buffer, &offset, ((CsrUint16) (primitive->mibAttributeLength)));
     }
     else
@@ -630,12 +630,12 @@ CsrSize CsrWifiSmeMibGetReqSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 6) */
     bufferSize += 2;                             /* CsrUint16 primitive->mibAttributeLength */
-    bufferSize += primitive->mibAttributeLength; /* CsrUint8 primitive->mibAttribute */
+    bufferSize += primitive->mibAttributeLength; /* u8 primitive->mibAttribute */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeMibGetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeMibGetReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeMibGetReq *primitive = (CsrWifiSmeMibGetReq *)msg;
     *len = 0;
@@ -649,7 +649,7 @@ CsrUint8* CsrWifiSmeMibGetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeMibGetReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeMibGetReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeMibGetReq *primitive = (CsrWifiSmeMibGetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeMibGetReq));
     CsrSize offset;
@@ -659,7 +659,7 @@ void* CsrWifiSmeMibGetReqDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->mibAttributeLength, buffer, &offset);
     if (primitive->mibAttributeLength)
     {
-        primitive->mibAttribute = (CsrUint8 *)CsrPmemAlloc(primitive->mibAttributeLength);
+        primitive->mibAttribute = (u8 *)CsrPmemAlloc(primitive->mibAttributeLength);
         CsrMemCpyDes(primitive->mibAttribute, buffer, &offset, ((CsrUint16) (primitive->mibAttributeLength)));
     }
     else
@@ -686,12 +686,12 @@ CsrSize CsrWifiSmeMibSetReqSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 6) */
     bufferSize += 2;                             /* CsrUint16 primitive->mibAttributeLength */
-    bufferSize += primitive->mibAttributeLength; /* CsrUint8 primitive->mibAttribute */
+    bufferSize += primitive->mibAttributeLength; /* u8 primitive->mibAttribute */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeMibSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeMibSetReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeMibSetReq *primitive = (CsrWifiSmeMibSetReq *)msg;
     *len = 0;
@@ -705,7 +705,7 @@ CsrUint8* CsrWifiSmeMibSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeMibSetReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeMibSetReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeMibSetReq *primitive = (CsrWifiSmeMibSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeMibSetReq));
     CsrSize offset;
@@ -715,7 +715,7 @@ void* CsrWifiSmeMibSetReqDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->mibAttributeLength, buffer, &offset);
     if (primitive->mibAttributeLength)
     {
-        primitive->mibAttribute = (CsrUint8 *)CsrPmemAlloc(primitive->mibAttributeLength);
+        primitive->mibAttribute = (u8 *)CsrPmemAlloc(primitive->mibAttributeLength);
         CsrMemCpyDes(primitive->mibAttribute, buffer, &offset, ((CsrUint16) (primitive->mibAttributeLength)));
     }
     else
@@ -743,26 +743,26 @@ CsrSize CsrWifiSmeMulticastAddressReqSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 13) */
     bufferSize += 2; /* CsrUint16 primitive->interfaceTag */
     bufferSize += 1; /* CsrWifiSmeListAction primitive->action */
-    bufferSize += 1; /* CsrUint8 primitive->setAddressesCount */
+    bufferSize += 1; /* u8 primitive->setAddressesCount */
     {
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->setAddressesCount; i1++)
         {
-            bufferSize += 6; /* CsrUint8 primitive->setAddresses[i1].a[6] */
+            bufferSize += 6; /* u8 primitive->setAddresses[i1].a[6] */
         }
     }
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeMulticastAddressReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeMulticastAddressReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeMulticastAddressReq *primitive = (CsrWifiSmeMulticastAddressReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->action);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->setAddressesCount);
+    CsrUint8Ser(ptr, len, (u8) primitive->action);
+    CsrUint8Ser(ptr, len, (u8) primitive->setAddressesCount);
     {
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->setAddressesCount; i1++)
@@ -774,7 +774,7 @@ CsrUint8* CsrWifiSmeMulticastAddressReqSer(CsrUint8 *ptr, CsrSize *len, void *ms
 }
 
 
-void* CsrWifiSmeMulticastAddressReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeMulticastAddressReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeMulticastAddressReq *primitive = (CsrWifiSmeMulticastAddressReq *) CsrPmemAlloc(sizeof(CsrWifiSmeMulticastAddressReq));
     CsrSize offset;
@@ -782,8 +782,8 @@ void* CsrWifiSmeMulticastAddressReqDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->action, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->setAddressesCount, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->action, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->setAddressesCount, buffer, &offset);
     primitive->setAddresses = NULL;
     if (primitive->setAddressesCount)
     {
@@ -817,14 +817,14 @@ CsrSize CsrWifiSmePacketFilterSetReqSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 13) */
     bufferSize += 2;                       /* CsrUint16 primitive->interfaceTag */
     bufferSize += 2;                       /* CsrUint16 primitive->filterLength */
-    bufferSize += primitive->filterLength; /* CsrUint8 primitive->filter */
+    bufferSize += primitive->filterLength; /* u8 primitive->filter */
     bufferSize += 1;                       /* CsrWifiSmePacketFilterMode primitive->mode */
-    bufferSize += 4;                       /* CsrUint8 primitive->arpFilterAddress.a[4] */
+    bufferSize += 4;                       /* u8 primitive->arpFilterAddress.a[4] */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmePacketFilterSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmePacketFilterSetReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmePacketFilterSetReq *primitive = (CsrWifiSmePacketFilterSetReq *)msg;
     *len = 0;
@@ -835,13 +835,13 @@ CsrUint8* CsrWifiSmePacketFilterSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg
     {
         CsrMemCpySer(ptr, len, (const void *) primitive->filter, ((CsrUint16) (primitive->filterLength)));
     }
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->mode);
+    CsrUint8Ser(ptr, len, (u8) primitive->mode);
     CsrMemCpySer(ptr, len, (const void *) primitive->arpFilterAddress.a, ((CsrUint16) (4)));
     return(ptr);
 }
 
 
-void* CsrWifiSmePacketFilterSetReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmePacketFilterSetReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmePacketFilterSetReq *primitive = (CsrWifiSmePacketFilterSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmePacketFilterSetReq));
     CsrSize offset;
@@ -852,14 +852,14 @@ void* CsrWifiSmePacketFilterSetReqDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->filterLength, buffer, &offset);
     if (primitive->filterLength)
     {
-        primitive->filter = (CsrUint8 *)CsrPmemAlloc(primitive->filterLength);
+        primitive->filter = (u8 *)CsrPmemAlloc(primitive->filterLength);
         CsrMemCpyDes(primitive->filter, buffer, &offset, ((CsrUint16) (primitive->filterLength)));
     }
     else
     {
         primitive->filter = NULL;
     }
-    CsrUint8Des((CsrUint8 *) &primitive->mode, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->mode, buffer, &offset);
     CsrMemCpyDes(primitive->arpFilterAddress.a, buffer, &offset, ((CsrUint16) (4)));
 
     return primitive;
@@ -882,27 +882,27 @@ CsrSize CsrWifiSmePmkidReqSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 29) */
     bufferSize += 2; /* CsrUint16 primitive->interfaceTag */
     bufferSize += 1; /* CsrWifiSmeListAction primitive->action */
-    bufferSize += 1; /* CsrUint8 primitive->setPmkidsCount */
+    bufferSize += 1; /* u8 primitive->setPmkidsCount */
     {
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->setPmkidsCount; i1++)
         {
-            bufferSize += 6;  /* CsrUint8 primitive->setPmkids[i1].bssid.a[6] */
-            bufferSize += 16; /* CsrUint8 primitive->setPmkids[i1].pmkid[16] */
+            bufferSize += 6;  /* u8 primitive->setPmkids[i1].bssid.a[6] */
+            bufferSize += 16; /* u8 primitive->setPmkids[i1].pmkid[16] */
         }
     }
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmePmkidReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmePmkidReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmePmkidReq *primitive = (CsrWifiSmePmkidReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->action);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->setPmkidsCount);
+    CsrUint8Ser(ptr, len, (u8) primitive->action);
+    CsrUint8Ser(ptr, len, (u8) primitive->setPmkidsCount);
     {
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->setPmkidsCount; i1++)
@@ -915,7 +915,7 @@ CsrUint8* CsrWifiSmePmkidReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmePmkidReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmePmkidReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmePmkidReq *primitive = (CsrWifiSmePmkidReq *) CsrPmemAlloc(sizeof(CsrWifiSmePmkidReq));
     CsrSize offset;
@@ -923,8 +923,8 @@ void* CsrWifiSmePmkidReqDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->action, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->setPmkidsCount, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->action, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->setPmkidsCount, buffer, &offset);
     primitive->setPmkids = NULL;
     if (primitive->setPmkidsCount)
     {
@@ -960,43 +960,43 @@ CsrSize CsrWifiSmePowerConfigSetReqSizeof(void *msg)
     bufferSize += 2; /* CsrUint16 primitive->powerConfig.listenIntervalTu */
     bufferSize += 1; /* CsrBool primitive->powerConfig.rxDtims */
     bufferSize += 1; /* CsrWifiSmeD3AutoScanMode primitive->powerConfig.d3AutoScanMode */
-    bufferSize += 1; /* CsrUint8 primitive->powerConfig.clientTrafficWindow */
+    bufferSize += 1; /* u8 primitive->powerConfig.clientTrafficWindow */
     bufferSize += 1; /* CsrBool primitive->powerConfig.opportunisticPowerSave */
     bufferSize += 1; /* CsrBool primitive->powerConfig.noticeOfAbsence */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmePowerConfigSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmePowerConfigSetReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmePowerConfigSetReq *primitive = (CsrWifiSmePowerConfigSetReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->powerConfig.powerSaveLevel);
+    CsrUint8Ser(ptr, len, (u8) primitive->powerConfig.powerSaveLevel);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->powerConfig.listenIntervalTu);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->powerConfig.rxDtims);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->powerConfig.d3AutoScanMode);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->powerConfig.clientTrafficWindow);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->powerConfig.opportunisticPowerSave);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->powerConfig.noticeOfAbsence);
+    CsrUint8Ser(ptr, len, (u8) primitive->powerConfig.rxDtims);
+    CsrUint8Ser(ptr, len, (u8) primitive->powerConfig.d3AutoScanMode);
+    CsrUint8Ser(ptr, len, (u8) primitive->powerConfig.clientTrafficWindow);
+    CsrUint8Ser(ptr, len, (u8) primitive->powerConfig.opportunisticPowerSave);
+    CsrUint8Ser(ptr, len, (u8) primitive->powerConfig.noticeOfAbsence);
     return(ptr);
 }
 
 
-void* CsrWifiSmePowerConfigSetReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmePowerConfigSetReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmePowerConfigSetReq *primitive = (CsrWifiSmePowerConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmePowerConfigSetReq));
     CsrSize offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->powerConfig.powerSaveLevel, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->powerConfig.powerSaveLevel, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->powerConfig.listenIntervalTu, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->powerConfig.rxDtims, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->powerConfig.d3AutoScanMode, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->powerConfig.clientTrafficWindow, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->powerConfig.opportunisticPowerSave, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->powerConfig.noticeOfAbsence, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->powerConfig.rxDtims, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->powerConfig.d3AutoScanMode, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->powerConfig.clientTrafficWindow, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->powerConfig.opportunisticPowerSave, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->powerConfig.noticeOfAbsence, buffer, &offset);
 
     return primitive;
 }
@@ -1020,7 +1020,7 @@ CsrSize CsrWifiSmeRoamingConfigSetReqSizeof(void *msg)
     }
     bufferSize += 1;         /* CsrBool primitive->roamingConfig.disableSmoothRoaming */
     bufferSize += 1;         /* CsrBool primitive->roamingConfig.disableRoamScans */
-    bufferSize += 1;         /* CsrUint8 primitive->roamingConfig.reconnectLimit */
+    bufferSize += 1;         /* u8 primitive->roamingConfig.reconnectLimit */
     bufferSize += 2;         /* CsrUint16 primitive->roamingConfig.reconnectLimitIntervalMs */
     {
         CsrUint16 i2;
@@ -1038,7 +1038,7 @@ CsrSize CsrWifiSmeRoamingConfigSetReqSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeRoamingConfigSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeRoamingConfigSetReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeRoamingConfigSetReq *primitive = (CsrWifiSmeRoamingConfigSetReq *)msg;
     *len = 0;
@@ -1054,9 +1054,9 @@ CsrUint8* CsrWifiSmeRoamingConfigSetReqSer(CsrUint8 *ptr, CsrSize *len, void *ms
             CsrUint16Ser(ptr, len, (CsrUint16) primitive->roamingConfig.roamingBands[i2].snrLowThreshold);
         }
     }
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->roamingConfig.disableSmoothRoaming);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->roamingConfig.disableRoamScans);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->roamingConfig.reconnectLimit);
+    CsrUint8Ser(ptr, len, (u8) primitive->roamingConfig.disableSmoothRoaming);
+    CsrUint8Ser(ptr, len, (u8) primitive->roamingConfig.disableRoamScans);
+    CsrUint8Ser(ptr, len, (u8) primitive->roamingConfig.reconnectLimit);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->roamingConfig.reconnectLimitIntervalMs);
     {
         CsrUint16 i2;
@@ -1074,7 +1074,7 @@ CsrUint8* CsrWifiSmeRoamingConfigSetReqSer(CsrUint8 *ptr, CsrSize *len, void *ms
 }
 
 
-void* CsrWifiSmeRoamingConfigSetReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeRoamingConfigSetReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeRoamingConfigSetReq *primitive = (CsrWifiSmeRoamingConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeRoamingConfigSetReq));
     CsrSize offset;
@@ -1092,9 +1092,9 @@ void* CsrWifiSmeRoamingConfigSetReqDes(CsrUint8 *buffer, CsrSize length)
             CsrUint16Des((CsrUint16 *) &primitive->roamingConfig.roamingBands[i2].snrLowThreshold, buffer, &offset);
         }
     }
-    CsrUint8Des((CsrUint8 *) &primitive->roamingConfig.disableSmoothRoaming, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->roamingConfig.disableRoamScans, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->roamingConfig.reconnectLimit, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->roamingConfig.disableSmoothRoaming, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->roamingConfig.disableRoamScans, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->roamingConfig.reconnectLimit, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->roamingConfig.reconnectLimitIntervalMs, buffer, &offset);
     {
         CsrUint16 i2;
@@ -1140,12 +1140,12 @@ CsrSize CsrWifiSmeScanConfigSetReqSizeof(void *msg)
     bufferSize += 1;                                             /* CsrInt8 primitive->scanConfig.lowSnrThreshold */
     bufferSize += 1;                                             /* CsrInt8 primitive->scanConfig.deltaSnrThreshold */
     bufferSize += 2;                                             /* CsrUint16 primitive->scanConfig.passiveChannelListCount */
-    bufferSize += primitive->scanConfig.passiveChannelListCount; /* CsrUint8 primitive->scanConfig.passiveChannelList */
+    bufferSize += primitive->scanConfig.passiveChannelListCount; /* u8 primitive->scanConfig.passiveChannelList */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeScanConfigSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeScanConfigSetReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeScanConfigSetReq *primitive = (CsrWifiSmeScanConfigSetReq *)msg;
     *len = 0;
@@ -1162,14 +1162,14 @@ CsrUint8* CsrWifiSmeScanConfigSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
             CsrUint16Ser(ptr, len, (CsrUint16) primitive->scanConfig.scanCfg[i2].maxPassiveChannelTimeTu);
         }
     }
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanConfig.disableAutonomousScans);
+    CsrUint8Ser(ptr, len, (u8) primitive->scanConfig.disableAutonomousScans);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->scanConfig.maxResults);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanConfig.highRssiThreshold);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanConfig.lowRssiThreshold);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanConfig.deltaRssiThreshold);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanConfig.highSnrThreshold);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanConfig.lowSnrThreshold);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanConfig.deltaSnrThreshold);
+    CsrUint8Ser(ptr, len, (u8) primitive->scanConfig.highRssiThreshold);
+    CsrUint8Ser(ptr, len, (u8) primitive->scanConfig.lowRssiThreshold);
+    CsrUint8Ser(ptr, len, (u8) primitive->scanConfig.deltaRssiThreshold);
+    CsrUint8Ser(ptr, len, (u8) primitive->scanConfig.highSnrThreshold);
+    CsrUint8Ser(ptr, len, (u8) primitive->scanConfig.lowSnrThreshold);
+    CsrUint8Ser(ptr, len, (u8) primitive->scanConfig.deltaSnrThreshold);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->scanConfig.passiveChannelListCount);
     if (primitive->scanConfig.passiveChannelListCount)
     {
@@ -1179,7 +1179,7 @@ CsrUint8* CsrWifiSmeScanConfigSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeScanConfigSetReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeScanConfigSetReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeScanConfigSetReq *primitive = (CsrWifiSmeScanConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeScanConfigSetReq));
     CsrSize offset;
@@ -1198,18 +1198,18 @@ void* CsrWifiSmeScanConfigSetReqDes(CsrUint8 *buffer, CsrSize length)
             CsrUint16Des((CsrUint16 *) &primitive->scanConfig.scanCfg[i2].maxPassiveChannelTimeTu, buffer, &offset);
         }
     }
-    CsrUint8Des((CsrUint8 *) &primitive->scanConfig.disableAutonomousScans, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->scanConfig.disableAutonomousScans, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->scanConfig.maxResults, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->scanConfig.highRssiThreshold, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->scanConfig.lowRssiThreshold, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->scanConfig.deltaRssiThreshold, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->scanConfig.highSnrThreshold, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->scanConfig.lowSnrThreshold, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->scanConfig.deltaSnrThreshold, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->scanConfig.highRssiThreshold, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->scanConfig.lowRssiThreshold, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->scanConfig.deltaRssiThreshold, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->scanConfig.highSnrThreshold, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->scanConfig.lowSnrThreshold, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->scanConfig.deltaSnrThreshold, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->scanConfig.passiveChannelListCount, buffer, &offset);
     if (primitive->scanConfig.passiveChannelListCount)
     {
-        primitive->scanConfig.passiveChannelList = (CsrUint8 *)CsrPmemAlloc(primitive->scanConfig.passiveChannelListCount);
+        primitive->scanConfig.passiveChannelList = (u8 *)CsrPmemAlloc(primitive->scanConfig.passiveChannelListCount);
         CsrMemCpyDes(primitive->scanConfig.passiveChannelList, buffer, &offset, ((CsrUint16) (primitive->scanConfig.passiveChannelListCount)));
     }
     else
@@ -1235,45 +1235,45 @@ CsrSize CsrWifiSmeScanFullReqSizeof(void *msg)
     CsrSize bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 52) */
-    bufferSize += 1; /* CsrUint8 primitive->ssidCount */
+    bufferSize += 1; /* u8 primitive->ssidCount */
     {
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->ssidCount; i1++)
         {
-            bufferSize += 32;                  /* CsrUint8 primitive->ssid[i1].ssid[32] */
-            bufferSize += 1;                   /* CsrUint8 primitive->ssid[i1].length */
+            bufferSize += 32;                  /* u8 primitive->ssid[i1].ssid[32] */
+            bufferSize += 1;                   /* u8 primitive->ssid[i1].length */
         }
     }
-    bufferSize += 6;                           /* CsrUint8 primitive->bssid.a[6] */
+    bufferSize += 6;                           /* u8 primitive->bssid.a[6] */
     bufferSize += 1;                           /* CsrBool primitive->forceScan */
     bufferSize += 1;                           /* CsrWifiSmeBssType primitive->bssType */
     bufferSize += 1;                           /* CsrWifiSmeScanType primitive->scanType */
     bufferSize += 2;                           /* CsrUint16 primitive->channelListCount */
-    bufferSize += primitive->channelListCount; /* CsrUint8 primitive->channelList */
+    bufferSize += primitive->channelListCount; /* u8 primitive->channelList */
     bufferSize += 2;                           /* CsrUint16 primitive->probeIeLength */
-    bufferSize += primitive->probeIeLength;    /* CsrUint8 primitive->probeIe */
+    bufferSize += primitive->probeIeLength;    /* u8 primitive->probeIe */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeScanFullReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeScanFullReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeScanFullReq *primitive = (CsrWifiSmeScanFullReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->ssidCount);
+    CsrUint8Ser(ptr, len, (u8) primitive->ssidCount);
     {
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->ssidCount; i1++)
         {
             CsrMemCpySer(ptr, len, (const void *) primitive->ssid[i1].ssid, ((CsrUint16) (32)));
-            CsrUint8Ser(ptr, len, (CsrUint8) primitive->ssid[i1].length);
+            CsrUint8Ser(ptr, len, (u8) primitive->ssid[i1].length);
         }
     }
     CsrMemCpySer(ptr, len, (const void *) primitive->bssid.a, ((CsrUint16) (6)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->forceScan);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->bssType);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanType);
+    CsrUint8Ser(ptr, len, (u8) primitive->forceScan);
+    CsrUint8Ser(ptr, len, (u8) primitive->bssType);
+    CsrUint8Ser(ptr, len, (u8) primitive->scanType);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->channelListCount);
     if (primitive->channelListCount)
     {
@@ -1288,14 +1288,14 @@ CsrUint8* CsrWifiSmeScanFullReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeScanFullReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeScanFullReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeScanFullReq *primitive = (CsrWifiSmeScanFullReq *) CsrPmemAlloc(sizeof(CsrWifiSmeScanFullReq));
     CsrSize offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->ssidCount, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->ssidCount, buffer, &offset);
     primitive->ssid = NULL;
     if (primitive->ssidCount)
     {
@@ -1306,17 +1306,17 @@ void* CsrWifiSmeScanFullReqDes(CsrUint8 *buffer, CsrSize length)
         for (i1 = 0; i1 < primitive->ssidCount; i1++)
         {
             CsrMemCpyDes(primitive->ssid[i1].ssid, buffer, &offset, ((CsrUint16) (32)));
-            CsrUint8Des((CsrUint8 *) &primitive->ssid[i1].length, buffer, &offset);
+            CsrUint8Des((u8 *) &primitive->ssid[i1].length, buffer, &offset);
         }
     }
     CsrMemCpyDes(primitive->bssid.a, buffer, &offset, ((CsrUint16) (6)));
-    CsrUint8Des((CsrUint8 *) &primitive->forceScan, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->bssType, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->scanType, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->forceScan, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->bssType, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->scanType, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->channelListCount, buffer, &offset);
     if (primitive->channelListCount)
     {
-        primitive->channelList = (CsrUint8 *)CsrPmemAlloc(primitive->channelListCount);
+        primitive->channelList = (u8 *)CsrPmemAlloc(primitive->channelListCount);
         CsrMemCpyDes(primitive->channelList, buffer, &offset, ((CsrUint16) (primitive->channelListCount)));
     }
     else
@@ -1326,7 +1326,7 @@ void* CsrWifiSmeScanFullReqDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->probeIeLength, buffer, &offset);
     if (primitive->probeIeLength)
     {
-        primitive->probeIe = (CsrUint8 *)CsrPmemAlloc(primitive->probeIeLength);
+        primitive->probeIe = (u8 *)CsrPmemAlloc(primitive->probeIeLength);
         CsrMemCpyDes(primitive->probeIe, buffer, &offset, ((CsrUint16) (primitive->probeIeLength)));
     }
     else
@@ -1354,8 +1354,8 @@ CsrSize CsrWifiSmeSmeStaConfigSetReqSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 11) */
     bufferSize += 2; /* CsrUint16 primitive->interfaceTag */
-    bufferSize += 1; /* CsrUint8 primitive->smeConfig.connectionQualityRssiChangeTrigger */
-    bufferSize += 1; /* CsrUint8 primitive->smeConfig.connectionQualitySnrChangeTrigger */
+    bufferSize += 1; /* u8 primitive->smeConfig.connectionQualityRssiChangeTrigger */
+    bufferSize += 1; /* u8 primitive->smeConfig.connectionQualitySnrChangeTrigger */
     bufferSize += 1; /* CsrWifiSmeWmmModeMask primitive->smeConfig.wmmModeMask */
     bufferSize += 1; /* CsrWifiSmeRadioIF primitive->smeConfig.ifIndex */
     bufferSize += 1; /* CsrBool primitive->smeConfig.allowUnicastUseGroupCipher */
@@ -1364,23 +1364,23 @@ CsrSize CsrWifiSmeSmeStaConfigSetReqSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeSmeStaConfigSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeSmeStaConfigSetReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeSmeStaConfigSetReq *primitive = (CsrWifiSmeSmeStaConfigSetReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->smeConfig.connectionQualityRssiChangeTrigger);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->smeConfig.connectionQualitySnrChangeTrigger);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->smeConfig.wmmModeMask);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->smeConfig.ifIndex);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->smeConfig.allowUnicastUseGroupCipher);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->smeConfig.enableOpportunisticKeyCaching);
+    CsrUint8Ser(ptr, len, (u8) primitive->smeConfig.connectionQualityRssiChangeTrigger);
+    CsrUint8Ser(ptr, len, (u8) primitive->smeConfig.connectionQualitySnrChangeTrigger);
+    CsrUint8Ser(ptr, len, (u8) primitive->smeConfig.wmmModeMask);
+    CsrUint8Ser(ptr, len, (u8) primitive->smeConfig.ifIndex);
+    CsrUint8Ser(ptr, len, (u8) primitive->smeConfig.allowUnicastUseGroupCipher);
+    CsrUint8Ser(ptr, len, (u8) primitive->smeConfig.enableOpportunisticKeyCaching);
     return(ptr);
 }
 
 
-void* CsrWifiSmeSmeStaConfigSetReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeSmeStaConfigSetReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeSmeStaConfigSetReq *primitive = (CsrWifiSmeSmeStaConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeSmeStaConfigSetReq));
     CsrSize offset;
@@ -1388,12 +1388,12 @@ void* CsrWifiSmeSmeStaConfigSetReqDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->smeConfig.connectionQualityRssiChangeTrigger, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->smeConfig.connectionQualitySnrChangeTrigger, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->smeConfig.wmmModeMask, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->smeConfig.ifIndex, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->smeConfig.allowUnicastUseGroupCipher, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->smeConfig.enableOpportunisticKeyCaching, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->smeConfig.connectionQualityRssiChangeTrigger, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->smeConfig.connectionQualitySnrChangeTrigger, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->smeConfig.wmmModeMask, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->smeConfig.ifIndex, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->smeConfig.allowUnicastUseGroupCipher, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->smeConfig.enableOpportunisticKeyCaching, buffer, &offset);
 
     return primitive;
 }
@@ -1411,23 +1411,23 @@ CsrSize CsrWifiSmeTspecReqSizeof(void *msg)
     bufferSize += 1;                      /* CsrBool primitive->strict */
     bufferSize += 1;                      /* CsrWifiSmeTspecCtrlMask primitive->ctrlMask */
     bufferSize += 2;                      /* CsrUint16 primitive->tspecLength */
-    bufferSize += primitive->tspecLength; /* CsrUint8 primitive->tspec */
+    bufferSize += primitive->tspecLength; /* u8 primitive->tspec */
     bufferSize += 2;                      /* CsrUint16 primitive->tclasLength */
-    bufferSize += primitive->tclasLength; /* CsrUint8 primitive->tclas */
+    bufferSize += primitive->tclasLength; /* u8 primitive->tclas */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeTspecReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeTspecReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeTspecReq *primitive = (CsrWifiSmeTspecReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->action);
+    CsrUint8Ser(ptr, len, (u8) primitive->action);
     CsrUint32Ser(ptr, len, (CsrUint32) primitive->transactionId);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->strict);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->ctrlMask);
+    CsrUint8Ser(ptr, len, (u8) primitive->strict);
+    CsrUint8Ser(ptr, len, (u8) primitive->ctrlMask);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->tspecLength);
     if (primitive->tspecLength)
     {
@@ -1442,7 +1442,7 @@ CsrUint8* CsrWifiSmeTspecReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeTspecReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeTspecReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeTspecReq *primitive = (CsrWifiSmeTspecReq *) CsrPmemAlloc(sizeof(CsrWifiSmeTspecReq));
     CsrSize offset;
@@ -1450,14 +1450,14 @@ void* CsrWifiSmeTspecReqDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->action, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->action, buffer, &offset);
     CsrUint32Des((CsrUint32 *) &primitive->transactionId, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->strict, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->ctrlMask, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->strict, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->ctrlMask, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->tspecLength, buffer, &offset);
     if (primitive->tspecLength)
     {
-        primitive->tspec = (CsrUint8 *)CsrPmemAlloc(primitive->tspecLength);
+        primitive->tspec = (u8 *)CsrPmemAlloc(primitive->tspecLength);
         CsrMemCpyDes(primitive->tspec, buffer, &offset, ((CsrUint16) (primitive->tspecLength)));
     }
     else
@@ -1467,7 +1467,7 @@ void* CsrWifiSmeTspecReqDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->tclasLength, buffer, &offset);
     if (primitive->tclasLength)
     {
-        primitive->tclas = (CsrUint8 *)CsrPmemAlloc(primitive->tclasLength);
+        primitive->tclas = (u8 *)CsrPmemAlloc(primitive->tclasLength);
         CsrMemCpyDes(primitive->tclas, buffer, &offset, ((CsrUint16) (primitive->tclasLength)));
     }
     else
@@ -1494,21 +1494,21 @@ CsrSize CsrWifiSmeWifiFlightmodeReqSizeof(void *msg)
     CsrSize bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 14) */
-    bufferSize += 6; /* CsrUint8 primitive->address.a[6] */
+    bufferSize += 6; /* u8 primitive->address.a[6] */
     bufferSize += 2; /* CsrUint16 primitive->mibFilesCount */
     {
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->mibFilesCount; i1++)
         {
             bufferSize += 2;                              /* CsrUint16 primitive->mibFiles[i1].length */
-            bufferSize += primitive->mibFiles[i1].length; /* CsrUint8 primitive->mibFiles[i1].data */
+            bufferSize += primitive->mibFiles[i1].length; /* u8 primitive->mibFiles[i1].data */
         }
     }
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeWifiFlightmodeReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeWifiFlightmodeReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeWifiFlightmodeReq *primitive = (CsrWifiSmeWifiFlightmodeReq *)msg;
     *len = 0;
@@ -1530,7 +1530,7 @@ CsrUint8* CsrWifiSmeWifiFlightmodeReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeWifiFlightmodeReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeWifiFlightmodeReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeWifiFlightmodeReq *primitive = (CsrWifiSmeWifiFlightmodeReq *) CsrPmemAlloc(sizeof(CsrWifiSmeWifiFlightmodeReq));
     CsrSize offset;
@@ -1551,7 +1551,7 @@ void* CsrWifiSmeWifiFlightmodeReqDes(CsrUint8 *buffer, CsrSize length)
             CsrUint16Des((CsrUint16 *) &primitive->mibFiles[i1].length, buffer, &offset);
             if (primitive->mibFiles[i1].length)
             {
-                primitive->mibFiles[i1].data = (CsrUint8 *)CsrPmemAlloc(primitive->mibFiles[i1].length);
+                primitive->mibFiles[i1].data = (u8 *)CsrPmemAlloc(primitive->mibFiles[i1].length);
                 CsrMemCpyDes(primitive->mibFiles[i1].data, buffer, &offset, ((CsrUint16) (primitive->mibFiles[i1].length)));
             }
             else
@@ -1586,21 +1586,21 @@ CsrSize CsrWifiSmeWifiOnReqSizeof(void *msg)
     CsrSize bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 14) */
-    bufferSize += 6; /* CsrUint8 primitive->address.a[6] */
+    bufferSize += 6; /* u8 primitive->address.a[6] */
     bufferSize += 2; /* CsrUint16 primitive->mibFilesCount */
     {
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->mibFilesCount; i1++)
         {
             bufferSize += 2;                              /* CsrUint16 primitive->mibFiles[i1].length */
-            bufferSize += primitive->mibFiles[i1].length; /* CsrUint8 primitive->mibFiles[i1].data */
+            bufferSize += primitive->mibFiles[i1].length; /* u8 primitive->mibFiles[i1].data */
         }
     }
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeWifiOnReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeWifiOnReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeWifiOnReq *primitive = (CsrWifiSmeWifiOnReq *)msg;
     *len = 0;
@@ -1622,7 +1622,7 @@ CsrUint8* CsrWifiSmeWifiOnReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeWifiOnReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeWifiOnReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeWifiOnReq *primitive = (CsrWifiSmeWifiOnReq *) CsrPmemAlloc(sizeof(CsrWifiSmeWifiOnReq));
     CsrSize offset;
@@ -1643,7 +1643,7 @@ void* CsrWifiSmeWifiOnReqDes(CsrUint8 *buffer, CsrSize length)
             CsrUint16Des((CsrUint16 *) &primitive->mibFiles[i1].length, buffer, &offset);
             if (primitive->mibFiles[i1].length)
             {
-                primitive->mibFiles[i1].data = (CsrUint8 *)CsrPmemAlloc(primitive->mibFiles[i1].length);
+                primitive->mibFiles[i1].data = (u8 *)CsrPmemAlloc(primitive->mibFiles[i1].length);
                 CsrMemCpyDes(primitive->mibFiles[i1].data, buffer, &offset, ((CsrUint16) (primitive->mibFiles[i1].length)));
             }
             else
@@ -1678,45 +1678,45 @@ CsrSize CsrWifiSmeCloakedSsidsSetReqSizeof(void *msg)
     CsrSize bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 37) */
-    bufferSize += 1; /* CsrUint8 primitive->cloakedSsids.cloakedSsidsCount */
+    bufferSize += 1; /* u8 primitive->cloakedSsids.cloakedSsidsCount */
     {
         CsrUint16 i2;
         for (i2 = 0; i2 < primitive->cloakedSsids.cloakedSsidsCount; i2++)
         {
-            bufferSize += 32; /* CsrUint8 primitive->cloakedSsids.cloakedSsids[i2].ssid[32] */
-            bufferSize += 1;  /* CsrUint8 primitive->cloakedSsids.cloakedSsids[i2].length */
+            bufferSize += 32; /* u8 primitive->cloakedSsids.cloakedSsids[i2].ssid[32] */
+            bufferSize += 1;  /* u8 primitive->cloakedSsids.cloakedSsids[i2].length */
         }
     }
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeCloakedSsidsSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeCloakedSsidsSetReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeCloakedSsidsSetReq *primitive = (CsrWifiSmeCloakedSsidsSetReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->cloakedSsids.cloakedSsidsCount);
+    CsrUint8Ser(ptr, len, (u8) primitive->cloakedSsids.cloakedSsidsCount);
     {
         CsrUint16 i2;
         for (i2 = 0; i2 < primitive->cloakedSsids.cloakedSsidsCount; i2++)
         {
             CsrMemCpySer(ptr, len, (const void *) primitive->cloakedSsids.cloakedSsids[i2].ssid, ((CsrUint16) (32)));
-            CsrUint8Ser(ptr, len, (CsrUint8) primitive->cloakedSsids.cloakedSsids[i2].length);
+            CsrUint8Ser(ptr, len, (u8) primitive->cloakedSsids.cloakedSsids[i2].length);
         }
     }
     return(ptr);
 }
 
 
-void* CsrWifiSmeCloakedSsidsSetReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeCloakedSsidsSetReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeCloakedSsidsSetReq *primitive = (CsrWifiSmeCloakedSsidsSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeCloakedSsidsSetReq));
     CsrSize offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->cloakedSsids.cloakedSsidsCount, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->cloakedSsids.cloakedSsidsCount, buffer, &offset);
     primitive->cloakedSsids.cloakedSsids = NULL;
     if (primitive->cloakedSsids.cloakedSsidsCount)
     {
@@ -1727,7 +1727,7 @@ void* CsrWifiSmeCloakedSsidsSetReqDes(CsrUint8 *buffer, CsrSize length)
         for (i2 = 0; i2 < primitive->cloakedSsids.cloakedSsidsCount; i2++)
         {
             CsrMemCpyDes(primitive->cloakedSsids.cloakedSsids[i2].ssid, buffer, &offset, ((CsrUint16) (32)));
-            CsrUint8Des((CsrUint8 *) &primitive->cloakedSsids.cloakedSsids[i2].length, buffer, &offset);
+            CsrUint8Des((u8 *) &primitive->cloakedSsids.cloakedSsids[i2].length, buffer, &offset);
         }
     }
 
@@ -1749,37 +1749,37 @@ CsrSize CsrWifiSmeSmeCommonConfigSetReqSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 8) */
     bufferSize += 1; /* CsrWifiSme80211dTrustLevel primitive->deviceConfig.trustLevel */
-    bufferSize += 2; /* CsrUint8 primitive->deviceConfig.countryCode[2] */
+    bufferSize += 2; /* u8 primitive->deviceConfig.countryCode[2] */
     bufferSize += 1; /* CsrWifiSmeFirmwareDriverInterface primitive->deviceConfig.firmwareDriverInterface */
     bufferSize += 1; /* CsrBool primitive->deviceConfig.enableStrictDraftN */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeSmeCommonConfigSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeSmeCommonConfigSetReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeSmeCommonConfigSetReq *primitive = (CsrWifiSmeSmeCommonConfigSetReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->deviceConfig.trustLevel);
+    CsrUint8Ser(ptr, len, (u8) primitive->deviceConfig.trustLevel);
     CsrMemCpySer(ptr, len, (const void *) primitive->deviceConfig.countryCode, ((CsrUint16) (2)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->deviceConfig.firmwareDriverInterface);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->deviceConfig.enableStrictDraftN);
+    CsrUint8Ser(ptr, len, (u8) primitive->deviceConfig.firmwareDriverInterface);
+    CsrUint8Ser(ptr, len, (u8) primitive->deviceConfig.enableStrictDraftN);
     return(ptr);
 }
 
 
-void* CsrWifiSmeSmeCommonConfigSetReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeSmeCommonConfigSetReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeSmeCommonConfigSetReq *primitive = (CsrWifiSmeSmeCommonConfigSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeSmeCommonConfigSetReq));
     CsrSize offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->deviceConfig.trustLevel, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->deviceConfig.trustLevel, buffer, &offset);
     CsrMemCpyDes(primitive->deviceConfig.countryCode, buffer, &offset, ((CsrUint16) (2)));
-    CsrUint8Des((CsrUint8 *) &primitive->deviceConfig.firmwareDriverInterface, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->deviceConfig.enableStrictDraftN, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->deviceConfig.firmwareDriverInterface, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->deviceConfig.enableStrictDraftN, buffer, &offset);
 
     return primitive;
 }
@@ -1791,51 +1791,51 @@ CsrSize CsrWifiSmeWpsConfigurationReqSizeof(void *msg)
     CsrSize bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 240) */
-    bufferSize += 1;  /* CsrUint8 primitive->wpsConfig.wpsVersion */
-    bufferSize += 16; /* CsrUint8 primitive->wpsConfig.uuid[16] */
-    bufferSize += 32; /* CsrUint8 primitive->wpsConfig.deviceName[32] */
-    bufferSize += 1;  /* CsrUint8 primitive->wpsConfig.deviceNameLength */
-    bufferSize += 64; /* CsrUint8 primitive->wpsConfig.manufacturer[64] */
-    bufferSize += 1;  /* CsrUint8 primitive->wpsConfig.manufacturerLength */
-    bufferSize += 32; /* CsrUint8 primitive->wpsConfig.modelName[32] */
-    bufferSize += 1;  /* CsrUint8 primitive->wpsConfig.modelNameLength */
-    bufferSize += 32; /* CsrUint8 primitive->wpsConfig.modelNumber[32] */
-    bufferSize += 1;  /* CsrUint8 primitive->wpsConfig.modelNumberLength */
-    bufferSize += 32; /* CsrUint8 primitive->wpsConfig.serialNumber[32] */
-    bufferSize += 8;  /* CsrUint8 primitive->wpsConfig.primDeviceType.deviceDetails[8] */
-    bufferSize += 1;  /* CsrUint8 primitive->wpsConfig.secondaryDeviceTypeCount */
+    bufferSize += 1;  /* u8 primitive->wpsConfig.wpsVersion */
+    bufferSize += 16; /* u8 primitive->wpsConfig.uuid[16] */
+    bufferSize += 32; /* u8 primitive->wpsConfig.deviceName[32] */
+    bufferSize += 1;  /* u8 primitive->wpsConfig.deviceNameLength */
+    bufferSize += 64; /* u8 primitive->wpsConfig.manufacturer[64] */
+    bufferSize += 1;  /* u8 primitive->wpsConfig.manufacturerLength */
+    bufferSize += 32; /* u8 primitive->wpsConfig.modelName[32] */
+    bufferSize += 1;  /* u8 primitive->wpsConfig.modelNameLength */
+    bufferSize += 32; /* u8 primitive->wpsConfig.modelNumber[32] */
+    bufferSize += 1;  /* u8 primitive->wpsConfig.modelNumberLength */
+    bufferSize += 32; /* u8 primitive->wpsConfig.serialNumber[32] */
+    bufferSize += 8;  /* u8 primitive->wpsConfig.primDeviceType.deviceDetails[8] */
+    bufferSize += 1;  /* u8 primitive->wpsConfig.secondaryDeviceTypeCount */
     {
         CsrUint16 i2;
         for (i2 = 0; i2 < primitive->wpsConfig.secondaryDeviceTypeCount; i2++)
         {
-            bufferSize += 8; /* CsrUint8 primitive->wpsConfig.secondaryDeviceType[i2].deviceDetails[8] */
+            bufferSize += 8; /* u8 primitive->wpsConfig.secondaryDeviceType[i2].deviceDetails[8] */
         }
     }
     bufferSize += 2;         /* CsrWifiSmeWpsConfigTypeMask primitive->wpsConfig.configMethods */
-    bufferSize += 1;         /* CsrUint8 primitive->wpsConfig.rfBands */
-    bufferSize += 4;         /* CsrUint8 primitive->wpsConfig.osVersion[4] */
+    bufferSize += 1;         /* u8 primitive->wpsConfig.rfBands */
+    bufferSize += 4;         /* u8 primitive->wpsConfig.osVersion[4] */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeWpsConfigurationReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeWpsConfigurationReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeWpsConfigurationReq *primitive = (CsrWifiSmeWpsConfigurationReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->wpsConfig.wpsVersion);
+    CsrUint8Ser(ptr, len, (u8) primitive->wpsConfig.wpsVersion);
     CsrMemCpySer(ptr, len, (const void *) primitive->wpsConfig.uuid, ((CsrUint16) (16)));
     CsrMemCpySer(ptr, len, (const void *) primitive->wpsConfig.deviceName, ((CsrUint16) (32)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->wpsConfig.deviceNameLength);
+    CsrUint8Ser(ptr, len, (u8) primitive->wpsConfig.deviceNameLength);
     CsrMemCpySer(ptr, len, (const void *) primitive->wpsConfig.manufacturer, ((CsrUint16) (64)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->wpsConfig.manufacturerLength);
+    CsrUint8Ser(ptr, len, (u8) primitive->wpsConfig.manufacturerLength);
     CsrMemCpySer(ptr, len, (const void *) primitive->wpsConfig.modelName, ((CsrUint16) (32)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->wpsConfig.modelNameLength);
+    CsrUint8Ser(ptr, len, (u8) primitive->wpsConfig.modelNameLength);
     CsrMemCpySer(ptr, len, (const void *) primitive->wpsConfig.modelNumber, ((CsrUint16) (32)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->wpsConfig.modelNumberLength);
+    CsrUint8Ser(ptr, len, (u8) primitive->wpsConfig.modelNumberLength);
     CsrMemCpySer(ptr, len, (const void *) primitive->wpsConfig.serialNumber, ((CsrUint16) (32)));
     CsrMemCpySer(ptr, len, (const void *) primitive->wpsConfig.primDeviceType.deviceDetails, ((CsrUint16) (8)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->wpsConfig.secondaryDeviceTypeCount);
+    CsrUint8Ser(ptr, len, (u8) primitive->wpsConfig.secondaryDeviceTypeCount);
     {
         CsrUint16 i2;
         for (i2 = 0; i2 < primitive->wpsConfig.secondaryDeviceTypeCount; i2++)
@@ -1844,32 +1844,32 @@ CsrUint8* CsrWifiSmeWpsConfigurationReqSer(CsrUint8 *ptr, CsrSize *len, void *ms
         }
     }
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->wpsConfig.configMethods);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->wpsConfig.rfBands);
+    CsrUint8Ser(ptr, len, (u8) primitive->wpsConfig.rfBands);
     CsrMemCpySer(ptr, len, (const void *) primitive->wpsConfig.osVersion, ((CsrUint16) (4)));
     return(ptr);
 }
 
 
-void* CsrWifiSmeWpsConfigurationReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeWpsConfigurationReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeWpsConfigurationReq *primitive = (CsrWifiSmeWpsConfigurationReq *) CsrPmemAlloc(sizeof(CsrWifiSmeWpsConfigurationReq));
     CsrSize offset;
     offset = 0;
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->wpsConfig.wpsVersion, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->wpsConfig.wpsVersion, buffer, &offset);
     CsrMemCpyDes(primitive->wpsConfig.uuid, buffer, &offset, ((CsrUint16) (16)));
     CsrMemCpyDes(primitive->wpsConfig.deviceName, buffer, &offset, ((CsrUint16) (32)));
-    CsrUint8Des((CsrUint8 *) &primitive->wpsConfig.deviceNameLength, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->wpsConfig.deviceNameLength, buffer, &offset);
     CsrMemCpyDes(primitive->wpsConfig.manufacturer, buffer, &offset, ((CsrUint16) (64)));
-    CsrUint8Des((CsrUint8 *) &primitive->wpsConfig.manufacturerLength, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->wpsConfig.manufacturerLength, buffer, &offset);
     CsrMemCpyDes(primitive->wpsConfig.modelName, buffer, &offset, ((CsrUint16) (32)));
-    CsrUint8Des((CsrUint8 *) &primitive->wpsConfig.modelNameLength, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->wpsConfig.modelNameLength, buffer, &offset);
     CsrMemCpyDes(primitive->wpsConfig.modelNumber, buffer, &offset, ((CsrUint16) (32)));
-    CsrUint8Des((CsrUint8 *) &primitive->wpsConfig.modelNumberLength, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->wpsConfig.modelNumberLength, buffer, &offset);
     CsrMemCpyDes(primitive->wpsConfig.serialNumber, buffer, &offset, ((CsrUint16) (32)));
     CsrMemCpyDes(primitive->wpsConfig.primDeviceType.deviceDetails, buffer, &offset, ((CsrUint16) (8)));
-    CsrUint8Des((CsrUint8 *) &primitive->wpsConfig.secondaryDeviceTypeCount, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->wpsConfig.secondaryDeviceTypeCount, buffer, &offset);
     primitive->wpsConfig.secondaryDeviceType = NULL;
     if (primitive->wpsConfig.secondaryDeviceTypeCount)
     {
@@ -1883,7 +1883,7 @@ void* CsrWifiSmeWpsConfigurationReqDes(CsrUint8 *buffer, CsrSize length)
         }
     }
     CsrUint16Des((CsrUint16 *) &primitive->wpsConfig.configMethods, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->wpsConfig.rfBands, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->wpsConfig.rfBands, buffer, &offset);
     CsrMemCpyDes(primitive->wpsConfig.osVersion, buffer, &offset, ((CsrUint16) (4)));
 
     return primitive;
@@ -1905,12 +1905,12 @@ CsrSize CsrWifiSmeSetReqSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 8) */
     bufferSize += 4;                     /* CsrUint32 primitive->dataLength */
-    bufferSize += primitive->dataLength; /* CsrUint8 primitive->data */
+    bufferSize += primitive->dataLength; /* u8 primitive->data */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeSetReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeSetReq *primitive = (CsrWifiSmeSetReq *)msg;
     *len = 0;
@@ -1924,7 +1924,7 @@ CsrUint8* CsrWifiSmeSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeSetReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeSetReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeSetReq *primitive = (CsrWifiSmeSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeSetReq));
     CsrSize offset;
@@ -1934,7 +1934,7 @@ void* CsrWifiSmeSetReqDes(CsrUint8 *buffer, CsrSize length)
     CsrUint32Des((CsrUint32 *) &primitive->dataLength, buffer, &offset);
     if (primitive->dataLength)
     {
-        primitive->data = (CsrUint8 *)CsrPmemAlloc(primitive->dataLength);
+        primitive->data = (u8 *)CsrPmemAlloc(primitive->dataLength);
         CsrMemCpyDes(primitive->data, buffer, &offset, ((CsrUint16) (primitive->dataLength)));
     }
     else
@@ -1968,7 +1968,7 @@ CsrSize CsrWifiSmeAdhocConfigGetCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeAdhocConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeAdhocConfigGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeAdhocConfigGetCfm *primitive = (CsrWifiSmeAdhocConfigGetCfm *)msg;
     *len = 0;
@@ -1982,7 +1982,7 @@ CsrUint8* CsrWifiSmeAdhocConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeAdhocConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeAdhocConfigGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeAdhocConfigGetCfm *primitive = (CsrWifiSmeAdhocConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeAdhocConfigGetCfm));
     CsrSize offset;
@@ -2007,11 +2007,11 @@ CsrSize CsrWifiSmeAssociationCompleteIndSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 98) */
     bufferSize += 2;                                                     /* CsrUint16 primitive->interfaceTag */
     bufferSize += 2;                                                     /* CsrResult primitive->status */
-    bufferSize += 32;                                                    /* CsrUint8 primitive->connectionInfo.ssid.ssid[32] */
-    bufferSize += 1;                                                     /* CsrUint8 primitive->connectionInfo.ssid.length */
-    bufferSize += 6;                                                     /* CsrUint8 primitive->connectionInfo.bssid.a[6] */
+    bufferSize += 32;                                                    /* u8 primitive->connectionInfo.ssid.ssid[32] */
+    bufferSize += 1;                                                     /* u8 primitive->connectionInfo.ssid.length */
+    bufferSize += 6;                                                     /* u8 primitive->connectionInfo.bssid.a[6] */
     bufferSize += 1;                                                     /* CsrWifiSme80211NetworkType primitive->connectionInfo.networkType80211 */
-    bufferSize += 1;                                                     /* CsrUint8 primitive->connectionInfo.channelNumber */
+    bufferSize += 1;                                                     /* u8 primitive->connectionInfo.channelNumber */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.channelFrequency */
     bufferSize += 2;                                                     /* CsrWifiSmeAuthMode primitive->connectionInfo.authMode */
     bufferSize += 2;                                                     /* CsrWifiSmeEncryption primitive->connectionInfo.pairwiseCipher */
@@ -2021,29 +2021,29 @@ CsrSize CsrWifiSmeAssociationCompleteIndSizeof(void *msg)
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.beaconPeriodTu */
     bufferSize += 1;                                                     /* CsrBool primitive->connectionInfo.reassociation */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.beaconFrameLength */
-    bufferSize += primitive->connectionInfo.beaconFrameLength;           /* CsrUint8 primitive->connectionInfo.beaconFrame */
+    bufferSize += primitive->connectionInfo.beaconFrameLength;           /* u8 primitive->connectionInfo.beaconFrame */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.associationReqFrameLength */
-    bufferSize += primitive->connectionInfo.associationReqFrameLength;   /* CsrUint8 primitive->connectionInfo.associationReqFrame */
+    bufferSize += primitive->connectionInfo.associationReqFrameLength;   /* u8 primitive->connectionInfo.associationReqFrame */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.associationRspFrameLength */
-    bufferSize += primitive->connectionInfo.associationRspFrameLength;   /* CsrUint8 primitive->connectionInfo.associationRspFrame */
+    bufferSize += primitive->connectionInfo.associationRspFrameLength;   /* u8 primitive->connectionInfo.associationRspFrame */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocScanInfoElementsLength */
-    bufferSize += primitive->connectionInfo.assocScanInfoElementsLength; /* CsrUint8 primitive->connectionInfo.assocScanInfoElements */
+    bufferSize += primitive->connectionInfo.assocScanInfoElementsLength; /* u8 primitive->connectionInfo.assocScanInfoElements */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocReqCapabilities */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocReqListenIntervalTu */
-    bufferSize += 6;                                                     /* CsrUint8 primitive->connectionInfo.assocReqApAddress.a[6] */
+    bufferSize += 6;                                                     /* u8 primitive->connectionInfo.assocReqApAddress.a[6] */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocReqInfoElementsLength */
-    bufferSize += primitive->connectionInfo.assocReqInfoElementsLength;  /* CsrUint8 primitive->connectionInfo.assocReqInfoElements */
+    bufferSize += primitive->connectionInfo.assocReqInfoElementsLength;  /* u8 primitive->connectionInfo.assocReqInfoElements */
     bufferSize += 2;                                                     /* CsrWifiSmeIEEE80211Result primitive->connectionInfo.assocRspResult */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocRspCapabilityInfo */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocRspAssociationId */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocRspInfoElementsLength */
-    bufferSize += primitive->connectionInfo.assocRspInfoElementsLength;  /* CsrUint8 primitive->connectionInfo.assocRspInfoElements */
+    bufferSize += primitive->connectionInfo.assocRspInfoElementsLength;  /* u8 primitive->connectionInfo.assocRspInfoElements */
     bufferSize += 2;                                                     /* CsrWifiSmeIEEE80211Reason primitive->deauthReason */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeAssociationCompleteIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeAssociationCompleteIndSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeAssociationCompleteInd *primitive = (CsrWifiSmeAssociationCompleteInd *)msg;
     *len = 0;
@@ -2051,18 +2051,18 @@ CsrUint8* CsrWifiSmeAssociationCompleteIndSer(CsrUint8 *ptr, CsrSize *len, void 
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
     CsrMemCpySer(ptr, len, (const void *) primitive->connectionInfo.ssid.ssid, ((CsrUint16) (32)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionInfo.ssid.length);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionInfo.ssid.length);
     CsrMemCpySer(ptr, len, (const void *) primitive->connectionInfo.bssid.a, ((CsrUint16) (6)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionInfo.networkType80211);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionInfo.channelNumber);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionInfo.networkType80211);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionInfo.channelNumber);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.channelFrequency);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.authMode);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.pairwiseCipher);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.groupCipher);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionInfo.ifIndex);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionInfo.ifIndex);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.atimWindowTu);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.beaconPeriodTu);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionInfo.reassociation);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionInfo.reassociation);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.beaconFrameLength);
     if (primitive->connectionInfo.beaconFrameLength)
     {
@@ -2104,7 +2104,7 @@ CsrUint8* CsrWifiSmeAssociationCompleteIndSer(CsrUint8 *ptr, CsrSize *len, void 
 }
 
 
-void* CsrWifiSmeAssociationCompleteIndDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeAssociationCompleteIndDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeAssociationCompleteInd *primitive = (CsrWifiSmeAssociationCompleteInd *) CsrPmemAlloc(sizeof(CsrWifiSmeAssociationCompleteInd));
     CsrSize offset;
@@ -2114,22 +2114,22 @@ void* CsrWifiSmeAssociationCompleteIndDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
     CsrMemCpyDes(primitive->connectionInfo.ssid.ssid, buffer, &offset, ((CsrUint16) (32)));
-    CsrUint8Des((CsrUint8 *) &primitive->connectionInfo.ssid.length, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionInfo.ssid.length, buffer, &offset);
     CsrMemCpyDes(primitive->connectionInfo.bssid.a, buffer, &offset, ((CsrUint16) (6)));
-    CsrUint8Des((CsrUint8 *) &primitive->connectionInfo.networkType80211, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionInfo.channelNumber, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionInfo.networkType80211, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionInfo.channelNumber, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.channelFrequency, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.authMode, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.pairwiseCipher, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.groupCipher, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionInfo.ifIndex, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionInfo.ifIndex, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.atimWindowTu, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.beaconPeriodTu, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionInfo.reassociation, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionInfo.reassociation, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.beaconFrameLength, buffer, &offset);
     if (primitive->connectionInfo.beaconFrameLength)
     {
-        primitive->connectionInfo.beaconFrame = (CsrUint8 *)CsrPmemAlloc(primitive->connectionInfo.beaconFrameLength);
+        primitive->connectionInfo.beaconFrame = (u8 *)CsrPmemAlloc(primitive->connectionInfo.beaconFrameLength);
         CsrMemCpyDes(primitive->connectionInfo.beaconFrame, buffer, &offset, ((CsrUint16) (primitive->connectionInfo.beaconFrameLength)));
     }
     else
@@ -2139,7 +2139,7 @@ void* CsrWifiSmeAssociationCompleteIndDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.associationReqFrameLength, buffer, &offset);
     if (primitive->connectionInfo.associationReqFrameLength)
     {
-        primitive->connectionInfo.associationReqFrame = (CsrUint8 *)CsrPmemAlloc(primitive->connectionInfo.associationReqFrameLength);
+        primitive->connectionInfo.associationReqFrame = (u8 *)CsrPmemAlloc(primitive->connectionInfo.associationReqFrameLength);
         CsrMemCpyDes(primitive->connectionInfo.associationReqFrame, buffer, &offset, ((CsrUint16) (primitive->connectionInfo.associationReqFrameLength)));
     }
     else
@@ -2149,7 +2149,7 @@ void* CsrWifiSmeAssociationCompleteIndDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.associationRspFrameLength, buffer, &offset);
     if (primitive->connectionInfo.associationRspFrameLength)
     {
-        primitive->connectionInfo.associationRspFrame = (CsrUint8 *)CsrPmemAlloc(primitive->connectionInfo.associationRspFrameLength);
+        primitive->connectionInfo.associationRspFrame = (u8 *)CsrPmemAlloc(primitive->connectionInfo.associationRspFrameLength);
         CsrMemCpyDes(primitive->connectionInfo.associationRspFrame, buffer, &offset, ((CsrUint16) (primitive->connectionInfo.associationRspFrameLength)));
     }
     else
@@ -2159,7 +2159,7 @@ void* CsrWifiSmeAssociationCompleteIndDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.assocScanInfoElementsLength, buffer, &offset);
     if (primitive->connectionInfo.assocScanInfoElementsLength)
     {
-        primitive->connectionInfo.assocScanInfoElements = (CsrUint8 *)CsrPmemAlloc(primitive->connectionInfo.assocScanInfoElementsLength);
+        primitive->connectionInfo.assocScanInfoElements = (u8 *)CsrPmemAlloc(primitive->connectionInfo.assocScanInfoElementsLength);
         CsrMemCpyDes(primitive->connectionInfo.assocScanInfoElements, buffer, &offset, ((CsrUint16) (primitive->connectionInfo.assocScanInfoElementsLength)));
     }
     else
@@ -2172,7 +2172,7 @@ void* CsrWifiSmeAssociationCompleteIndDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.assocReqInfoElementsLength, buffer, &offset);
     if (primitive->connectionInfo.assocReqInfoElementsLength)
     {
-        primitive->connectionInfo.assocReqInfoElements = (CsrUint8 *)CsrPmemAlloc(primitive->connectionInfo.assocReqInfoElementsLength);
+        primitive->connectionInfo.assocReqInfoElements = (u8 *)CsrPmemAlloc(primitive->connectionInfo.assocReqInfoElementsLength);
         CsrMemCpyDes(primitive->connectionInfo.assocReqInfoElements, buffer, &offset, ((CsrUint16) (primitive->connectionInfo.assocReqInfoElementsLength)));
     }
     else
@@ -2185,7 +2185,7 @@ void* CsrWifiSmeAssociationCompleteIndDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.assocRspInfoElementsLength, buffer, &offset);
     if (primitive->connectionInfo.assocRspInfoElementsLength)
     {
-        primitive->connectionInfo.assocRspInfoElements = (CsrUint8 *)CsrPmemAlloc(primitive->connectionInfo.assocRspInfoElementsLength);
+        primitive->connectionInfo.assocRspInfoElements = (u8 *)CsrPmemAlloc(primitive->connectionInfo.assocRspInfoElementsLength);
         CsrMemCpyDes(primitive->connectionInfo.assocRspInfoElements, buffer, &offset, ((CsrUint16) (primitive->connectionInfo.assocRspInfoElementsLength)));
     }
     else
@@ -2217,14 +2217,14 @@ CsrSize CsrWifiSmeAssociationStartIndSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 44) */
     bufferSize += 2;  /* CsrUint16 primitive->interfaceTag */
-    bufferSize += 6;  /* CsrUint8 primitive->address.a[6] */
-    bufferSize += 32; /* CsrUint8 primitive->ssid.ssid[32] */
-    bufferSize += 1;  /* CsrUint8 primitive->ssid.length */
+    bufferSize += 6;  /* u8 primitive->address.a[6] */
+    bufferSize += 32; /* u8 primitive->ssid.ssid[32] */
+    bufferSize += 1;  /* u8 primitive->ssid.length */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeAssociationStartIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeAssociationStartIndSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeAssociationStartInd *primitive = (CsrWifiSmeAssociationStartInd *)msg;
     *len = 0;
@@ -2232,12 +2232,12 @@ CsrUint8* CsrWifiSmeAssociationStartIndSer(CsrUint8 *ptr, CsrSize *len, void *ms
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
     CsrMemCpySer(ptr, len, (const void *) primitive->address.a, ((CsrUint16) (6)));
     CsrMemCpySer(ptr, len, (const void *) primitive->ssid.ssid, ((CsrUint16) (32)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->ssid.length);
+    CsrUint8Ser(ptr, len, (u8) primitive->ssid.length);
     return(ptr);
 }
 
 
-void* CsrWifiSmeAssociationStartIndDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeAssociationStartIndDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeAssociationStartInd *primitive = (CsrWifiSmeAssociationStartInd *) CsrPmemAlloc(sizeof(CsrWifiSmeAssociationStartInd));
     CsrSize offset;
@@ -2247,7 +2247,7 @@ void* CsrWifiSmeAssociationStartIndDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
     CsrMemCpyDes(primitive->address.a, buffer, &offset, ((CsrUint16) (6)));
     CsrMemCpyDes(primitive->ssid.ssid, buffer, &offset, ((CsrUint16) (32)));
-    CsrUint8Des((CsrUint8 *) &primitive->ssid.length, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->ssid.length, buffer, &offset);
 
     return primitive;
 }
@@ -2262,27 +2262,27 @@ CsrSize CsrWifiSmeBlacklistCfmSizeof(void *msg)
     bufferSize += 2; /* CsrUint16 primitive->interfaceTag */
     bufferSize += 2; /* CsrResult primitive->status */
     bufferSize += 1; /* CsrWifiSmeListAction primitive->action */
-    bufferSize += 1; /* CsrUint8 primitive->getAddressCount */
+    bufferSize += 1; /* u8 primitive->getAddressCount */
     {
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->getAddressCount; i1++)
         {
-            bufferSize += 6; /* CsrUint8 primitive->getAddresses[i1].a[6] */
+            bufferSize += 6; /* u8 primitive->getAddresses[i1].a[6] */
         }
     }
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeBlacklistCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeBlacklistCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeBlacklistCfm *primitive = (CsrWifiSmeBlacklistCfm *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->action);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->getAddressCount);
+    CsrUint8Ser(ptr, len, (u8) primitive->action);
+    CsrUint8Ser(ptr, len, (u8) primitive->getAddressCount);
     {
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->getAddressCount; i1++)
@@ -2294,7 +2294,7 @@ CsrUint8* CsrWifiSmeBlacklistCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeBlacklistCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeBlacklistCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeBlacklistCfm *primitive = (CsrWifiSmeBlacklistCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeBlacklistCfm));
     CsrSize offset;
@@ -2303,8 +2303,8 @@ void* CsrWifiSmeBlacklistCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->action, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->getAddressCount, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->action, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->getAddressCount, buffer, &offset);
     primitive->getAddresses = NULL;
     if (primitive->getAddressCount)
     {
@@ -2338,12 +2338,12 @@ CsrSize CsrWifiSmeCalibrationDataGetCfmSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 8) */
     bufferSize += 2;                                /* CsrResult primitive->status */
     bufferSize += 2;                                /* CsrUint16 primitive->calibrationDataLength */
-    bufferSize += primitive->calibrationDataLength; /* CsrUint8 primitive->calibrationData */
+    bufferSize += primitive->calibrationDataLength; /* u8 primitive->calibrationData */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeCalibrationDataGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeCalibrationDataGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeCalibrationDataGetCfm *primitive = (CsrWifiSmeCalibrationDataGetCfm *)msg;
     *len = 0;
@@ -2358,7 +2358,7 @@ CsrUint8* CsrWifiSmeCalibrationDataGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *
 }
 
 
-void* CsrWifiSmeCalibrationDataGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeCalibrationDataGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeCalibrationDataGetCfm *primitive = (CsrWifiSmeCalibrationDataGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeCalibrationDataGetCfm));
     CsrSize offset;
@@ -2369,7 +2369,7 @@ void* CsrWifiSmeCalibrationDataGetCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->calibrationDataLength, buffer, &offset);
     if (primitive->calibrationDataLength)
     {
-        primitive->calibrationData = (CsrUint8 *)CsrPmemAlloc(primitive->calibrationDataLength);
+        primitive->calibrationData = (u8 *)CsrPmemAlloc(primitive->calibrationDataLength);
         CsrMemCpyDes(primitive->calibrationData, buffer, &offset, ((CsrUint16) (primitive->calibrationDataLength)));
     }
     else
@@ -2396,30 +2396,30 @@ CsrSize CsrWifiSmeCcxConfigGetCfmSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 11) */
     bufferSize += 2; /* CsrUint16 primitive->interfaceTag */
     bufferSize += 2; /* CsrResult primitive->status */
-    bufferSize += 1; /* CsrUint8 primitive->ccxConfig.keepAliveTimeMs */
+    bufferSize += 1; /* u8 primitive->ccxConfig.keepAliveTimeMs */
     bufferSize += 1; /* CsrBool primitive->ccxConfig.apRoamingEnabled */
-    bufferSize += 1; /* CsrUint8 primitive->ccxConfig.measurementsMask */
+    bufferSize += 1; /* u8 primitive->ccxConfig.measurementsMask */
     bufferSize += 1; /* CsrBool primitive->ccxConfig.ccxRadioMgtEnabled */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeCcxConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeCcxConfigGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeCcxConfigGetCfm *primitive = (CsrWifiSmeCcxConfigGetCfm *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->ccxConfig.keepAliveTimeMs);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->ccxConfig.apRoamingEnabled);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->ccxConfig.measurementsMask);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->ccxConfig.ccxRadioMgtEnabled);
+    CsrUint8Ser(ptr, len, (u8) primitive->ccxConfig.keepAliveTimeMs);
+    CsrUint8Ser(ptr, len, (u8) primitive->ccxConfig.apRoamingEnabled);
+    CsrUint8Ser(ptr, len, (u8) primitive->ccxConfig.measurementsMask);
+    CsrUint8Ser(ptr, len, (u8) primitive->ccxConfig.ccxRadioMgtEnabled);
     return(ptr);
 }
 
 
-void* CsrWifiSmeCcxConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeCcxConfigGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeCcxConfigGetCfm *primitive = (CsrWifiSmeCcxConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeCcxConfigGetCfm));
     CsrSize offset;
@@ -2428,10 +2428,10 @@ void* CsrWifiSmeCcxConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->ccxConfig.keepAliveTimeMs, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->ccxConfig.apRoamingEnabled, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->ccxConfig.measurementsMask, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->ccxConfig.ccxRadioMgtEnabled, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->ccxConfig.keepAliveTimeMs, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->ccxConfig.apRoamingEnabled, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->ccxConfig.measurementsMask, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->ccxConfig.ccxRadioMgtEnabled, buffer, &offset);
 
     return primitive;
 }
@@ -2448,7 +2448,7 @@ CsrSize CsrWifiSmeCcxConfigSetCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeCcxConfigSetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeCcxConfigSetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeCcxConfigSetCfm *primitive = (CsrWifiSmeCcxConfigSetCfm *)msg;
     *len = 0;
@@ -2459,7 +2459,7 @@ CsrUint8* CsrWifiSmeCcxConfigSetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeCcxConfigSetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeCcxConfigSetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeCcxConfigSetCfm *primitive = (CsrWifiSmeCcxConfigSetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeCcxConfigSetCfm));
     CsrSize offset;
@@ -2497,14 +2497,14 @@ CsrSize CsrWifiSmeCoexConfigGetCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeCoexConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeCoexConfigGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeCoexConfigGetCfm *primitive = (CsrWifiSmeCoexConfigGetCfm *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->coexConfig.coexEnableSchemeManagement);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->coexConfig.coexPeriodicWakeHost);
+    CsrUint8Ser(ptr, len, (u8) primitive->coexConfig.coexEnableSchemeManagement);
+    CsrUint8Ser(ptr, len, (u8) primitive->coexConfig.coexPeriodicWakeHost);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->coexConfig.coexTrafficBurstyLatencyMs);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->coexConfig.coexTrafficContinuousLatencyMs);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->coexConfig.coexObexBlackoutDurationMs);
@@ -2521,7 +2521,7 @@ CsrUint8* CsrWifiSmeCoexConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeCoexConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeCoexConfigGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeCoexConfigGetCfm *primitive = (CsrWifiSmeCoexConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeCoexConfigGetCfm));
     CsrSize offset;
@@ -2529,8 +2529,8 @@ void* CsrWifiSmeCoexConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->coexConfig.coexEnableSchemeManagement, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->coexConfig.coexPeriodicWakeHost, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->coexConfig.coexEnableSchemeManagement, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->coexConfig.coexPeriodicWakeHost, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->coexConfig.coexTrafficBurstyLatencyMs, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->coexConfig.coexTrafficContinuousLatencyMs, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->coexConfig.coexObexBlackoutDurationMs, buffer, &offset);
@@ -2568,27 +2568,27 @@ CsrSize CsrWifiSmeCoexInfoGetCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeCoexInfoGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeCoexInfoGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeCoexInfoGetCfm *primitive = (CsrWifiSmeCoexInfoGetCfm *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->coexInfo.hasTrafficData);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->coexInfo.currentTrafficType);
+    CsrUint8Ser(ptr, len, (u8) primitive->coexInfo.hasTrafficData);
+    CsrUint8Ser(ptr, len, (u8) primitive->coexInfo.currentTrafficType);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->coexInfo.currentPeriodMs);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->coexInfo.currentPowerSave);
+    CsrUint8Ser(ptr, len, (u8) primitive->coexInfo.currentPowerSave);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->coexInfo.currentCoexPeriodMs);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->coexInfo.currentCoexLatencyMs);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->coexInfo.hasBtDevice);
+    CsrUint8Ser(ptr, len, (u8) primitive->coexInfo.hasBtDevice);
     CsrUint32Ser(ptr, len, (CsrUint32) primitive->coexInfo.currentBlackoutDurationUs);
     CsrUint32Ser(ptr, len, (CsrUint32) primitive->coexInfo.currentBlackoutPeriodUs);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->coexInfo.currentCoexScheme);
+    CsrUint8Ser(ptr, len, (u8) primitive->coexInfo.currentCoexScheme);
     return(ptr);
 }
 
 
-void* CsrWifiSmeCoexInfoGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeCoexInfoGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeCoexInfoGetCfm *primitive = (CsrWifiSmeCoexInfoGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeCoexInfoGetCfm));
     CsrSize offset;
@@ -2596,16 +2596,16 @@ void* CsrWifiSmeCoexInfoGetCfmDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->coexInfo.hasTrafficData, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->coexInfo.currentTrafficType, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->coexInfo.hasTrafficData, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->coexInfo.currentTrafficType, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->coexInfo.currentPeriodMs, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->coexInfo.currentPowerSave, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->coexInfo.currentPowerSave, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->coexInfo.currentCoexPeriodMs, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->coexInfo.currentCoexLatencyMs, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->coexInfo.hasBtDevice, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->coexInfo.hasBtDevice, buffer, &offset);
     CsrUint32Des((CsrUint32 *) &primitive->coexInfo.currentBlackoutDurationUs, buffer, &offset);
     CsrUint32Des((CsrUint32 *) &primitive->coexInfo.currentBlackoutPeriodUs, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->coexInfo.currentCoexScheme, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->coexInfo.currentCoexScheme, buffer, &offset);
 
     return primitive;
 }
@@ -2622,7 +2622,7 @@ CsrSize CsrWifiSmeConnectCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeConnectCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeConnectCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeConnectCfm *primitive = (CsrWifiSmeConnectCfm *)msg;
     *len = 0;
@@ -2633,7 +2633,7 @@ CsrUint8* CsrWifiSmeConnectCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeConnectCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeConnectCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeConnectCfm *primitive = (CsrWifiSmeConnectCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeConnectCfm));
     CsrSize offset;
@@ -2655,24 +2655,24 @@ CsrSize CsrWifiSmeConnectionConfigGetCfmSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 59) */
     bufferSize += 2;                                                                     /* CsrUint16 primitive->interfaceTag */
     bufferSize += 2;                                                                     /* CsrResult primitive->status */
-    bufferSize += 32;                                                                    /* CsrUint8 primitive->connectionConfig.ssid.ssid[32] */
-    bufferSize += 1;                                                                     /* CsrUint8 primitive->connectionConfig.ssid.length */
-    bufferSize += 6;                                                                     /* CsrUint8 primitive->connectionConfig.bssid.a[6] */
+    bufferSize += 32;                                                                    /* u8 primitive->connectionConfig.ssid.ssid[32] */
+    bufferSize += 1;                                                                     /* u8 primitive->connectionConfig.ssid.length */
+    bufferSize += 6;                                                                     /* u8 primitive->connectionConfig.bssid.a[6] */
     bufferSize += 1;                                                                     /* CsrWifiSmeBssType primitive->connectionConfig.bssType */
     bufferSize += 1;                                                                     /* CsrWifiSmeRadioIF primitive->connectionConfig.ifIndex */
     bufferSize += 1;                                                                     /* CsrWifiSme80211PrivacyMode primitive->connectionConfig.privacyMode */
     bufferSize += 2;                                                                     /* CsrWifiSmeAuthModeMask primitive->connectionConfig.authModeMask */
     bufferSize += 2;                                                                     /* CsrWifiSmeEncryptionMask primitive->connectionConfig.encryptionModeMask */
     bufferSize += 2;                                                                     /* CsrUint16 primitive->connectionConfig.mlmeAssociateReqInformationElementsLength */
-    bufferSize += primitive->connectionConfig.mlmeAssociateReqInformationElementsLength; /* CsrUint8 primitive->connectionConfig.mlmeAssociateReqInformationElements */
+    bufferSize += primitive->connectionConfig.mlmeAssociateReqInformationElementsLength; /* u8 primitive->connectionConfig.mlmeAssociateReqInformationElements */
     bufferSize += 1;                                                                     /* CsrWifiSmeWmmQosInfoMask primitive->connectionConfig.wmmQosInfo */
     bufferSize += 1;                                                                     /* CsrBool primitive->connectionConfig.adhocJoinOnly */
-    bufferSize += 1;                                                                     /* CsrUint8 primitive->connectionConfig.adhocChannel */
+    bufferSize += 1;                                                                     /* u8 primitive->connectionConfig.adhocChannel */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeConnectionConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeConnectionConfigGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeConnectionConfigGetCfm *primitive = (CsrWifiSmeConnectionConfigGetCfm *)msg;
     *len = 0;
@@ -2680,11 +2680,11 @@ CsrUint8* CsrWifiSmeConnectionConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void 
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
     CsrMemCpySer(ptr, len, (const void *) primitive->connectionConfig.ssid.ssid, ((CsrUint16) (32)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionConfig.ssid.length);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionConfig.ssid.length);
     CsrMemCpySer(ptr, len, (const void *) primitive->connectionConfig.bssid.a, ((CsrUint16) (6)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionConfig.bssType);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionConfig.ifIndex);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionConfig.privacyMode);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionConfig.bssType);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionConfig.ifIndex);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionConfig.privacyMode);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionConfig.authModeMask);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionConfig.encryptionModeMask);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionConfig.mlmeAssociateReqInformationElementsLength);
@@ -2692,14 +2692,14 @@ CsrUint8* CsrWifiSmeConnectionConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void 
     {
         CsrMemCpySer(ptr, len, (const void *) primitive->connectionConfig.mlmeAssociateReqInformationElements, ((CsrUint16) (primitive->connectionConfig.mlmeAssociateReqInformationElementsLength)));
     }
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionConfig.wmmQosInfo);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionConfig.adhocJoinOnly);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionConfig.adhocChannel);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionConfig.wmmQosInfo);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionConfig.adhocJoinOnly);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionConfig.adhocChannel);
     return(ptr);
 }
 
 
-void* CsrWifiSmeConnectionConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeConnectionConfigGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeConnectionConfigGetCfm *primitive = (CsrWifiSmeConnectionConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeConnectionConfigGetCfm));
     CsrSize offset;
@@ -2709,26 +2709,26 @@ void* CsrWifiSmeConnectionConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
     CsrMemCpyDes(primitive->connectionConfig.ssid.ssid, buffer, &offset, ((CsrUint16) (32)));
-    CsrUint8Des((CsrUint8 *) &primitive->connectionConfig.ssid.length, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionConfig.ssid.length, buffer, &offset);
     CsrMemCpyDes(primitive->connectionConfig.bssid.a, buffer, &offset, ((CsrUint16) (6)));
-    CsrUint8Des((CsrUint8 *) &primitive->connectionConfig.bssType, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionConfig.ifIndex, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionConfig.privacyMode, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionConfig.bssType, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionConfig.ifIndex, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionConfig.privacyMode, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionConfig.authModeMask, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionConfig.encryptionModeMask, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionConfig.mlmeAssociateReqInformationElementsLength, buffer, &offset);
     if (primitive->connectionConfig.mlmeAssociateReqInformationElementsLength)
     {
-        primitive->connectionConfig.mlmeAssociateReqInformationElements = (CsrUint8 *)CsrPmemAlloc(primitive->connectionConfig.mlmeAssociateReqInformationElementsLength);
+        primitive->connectionConfig.mlmeAssociateReqInformationElements = (u8 *)CsrPmemAlloc(primitive->connectionConfig.mlmeAssociateReqInformationElementsLength);
         CsrMemCpyDes(primitive->connectionConfig.mlmeAssociateReqInformationElements, buffer, &offset, ((CsrUint16) (primitive->connectionConfig.mlmeAssociateReqInformationElementsLength)));
     }
     else
     {
         primitive->connectionConfig.mlmeAssociateReqInformationElements = NULL;
     }
-    CsrUint8Des((CsrUint8 *) &primitive->connectionConfig.wmmQosInfo, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionConfig.adhocJoinOnly, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionConfig.adhocChannel, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionConfig.wmmQosInfo, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionConfig.adhocJoinOnly, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionConfig.adhocChannel, buffer, &offset);
 
     return primitive;
 }
@@ -2750,11 +2750,11 @@ CsrSize CsrWifiSmeConnectionInfoGetCfmSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 96) */
     bufferSize += 2;                                                     /* CsrUint16 primitive->interfaceTag */
     bufferSize += 2;                                                     /* CsrResult primitive->status */
-    bufferSize += 32;                                                    /* CsrUint8 primitive->connectionInfo.ssid.ssid[32] */
-    bufferSize += 1;                                                     /* CsrUint8 primitive->connectionInfo.ssid.length */
-    bufferSize += 6;                                                     /* CsrUint8 primitive->connectionInfo.bssid.a[6] */
+    bufferSize += 32;                                                    /* u8 primitive->connectionInfo.ssid.ssid[32] */
+    bufferSize += 1;                                                     /* u8 primitive->connectionInfo.ssid.length */
+    bufferSize += 6;                                                     /* u8 primitive->connectionInfo.bssid.a[6] */
     bufferSize += 1;                                                     /* CsrWifiSme80211NetworkType primitive->connectionInfo.networkType80211 */
-    bufferSize += 1;                                                     /* CsrUint8 primitive->connectionInfo.channelNumber */
+    bufferSize += 1;                                                     /* u8 primitive->connectionInfo.channelNumber */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.channelFrequency */
     bufferSize += 2;                                                     /* CsrWifiSmeAuthMode primitive->connectionInfo.authMode */
     bufferSize += 2;                                                     /* CsrWifiSmeEncryption primitive->connectionInfo.pairwiseCipher */
@@ -2764,28 +2764,28 @@ CsrSize CsrWifiSmeConnectionInfoGetCfmSizeof(void *msg)
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.beaconPeriodTu */
     bufferSize += 1;                                                     /* CsrBool primitive->connectionInfo.reassociation */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.beaconFrameLength */
-    bufferSize += primitive->connectionInfo.beaconFrameLength;           /* CsrUint8 primitive->connectionInfo.beaconFrame */
+    bufferSize += primitive->connectionInfo.beaconFrameLength;           /* u8 primitive->connectionInfo.beaconFrame */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.associationReqFrameLength */
-    bufferSize += primitive->connectionInfo.associationReqFrameLength;   /* CsrUint8 primitive->connectionInfo.associationReqFrame */
+    bufferSize += primitive->connectionInfo.associationReqFrameLength;   /* u8 primitive->connectionInfo.associationReqFrame */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.associationRspFrameLength */
-    bufferSize += primitive->connectionInfo.associationRspFrameLength;   /* CsrUint8 primitive->connectionInfo.associationRspFrame */
+    bufferSize += primitive->connectionInfo.associationRspFrameLength;   /* u8 primitive->connectionInfo.associationRspFrame */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocScanInfoElementsLength */
-    bufferSize += primitive->connectionInfo.assocScanInfoElementsLength; /* CsrUint8 primitive->connectionInfo.assocScanInfoElements */
+    bufferSize += primitive->connectionInfo.assocScanInfoElementsLength; /* u8 primitive->connectionInfo.assocScanInfoElements */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocReqCapabilities */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocReqListenIntervalTu */
-    bufferSize += 6;                                                     /* CsrUint8 primitive->connectionInfo.assocReqApAddress.a[6] */
+    bufferSize += 6;                                                     /* u8 primitive->connectionInfo.assocReqApAddress.a[6] */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocReqInfoElementsLength */
-    bufferSize += primitive->connectionInfo.assocReqInfoElementsLength;  /* CsrUint8 primitive->connectionInfo.assocReqInfoElements */
+    bufferSize += primitive->connectionInfo.assocReqInfoElementsLength;  /* u8 primitive->connectionInfo.assocReqInfoElements */
     bufferSize += 2;                                                     /* CsrWifiSmeIEEE80211Result primitive->connectionInfo.assocRspResult */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocRspCapabilityInfo */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocRspAssociationId */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocRspInfoElementsLength */
-    bufferSize += primitive->connectionInfo.assocRspInfoElementsLength;  /* CsrUint8 primitive->connectionInfo.assocRspInfoElements */
+    bufferSize += primitive->connectionInfo.assocRspInfoElementsLength;  /* u8 primitive->connectionInfo.assocRspInfoElements */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeConnectionInfoGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeConnectionInfoGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeConnectionInfoGetCfm *primitive = (CsrWifiSmeConnectionInfoGetCfm *)msg;
     *len = 0;
@@ -2793,18 +2793,18 @@ CsrUint8* CsrWifiSmeConnectionInfoGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *m
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
     CsrMemCpySer(ptr, len, (const void *) primitive->connectionInfo.ssid.ssid, ((CsrUint16) (32)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionInfo.ssid.length);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionInfo.ssid.length);
     CsrMemCpySer(ptr, len, (const void *) primitive->connectionInfo.bssid.a, ((CsrUint16) (6)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionInfo.networkType80211);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionInfo.channelNumber);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionInfo.networkType80211);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionInfo.channelNumber);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.channelFrequency);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.authMode);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.pairwiseCipher);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.groupCipher);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionInfo.ifIndex);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionInfo.ifIndex);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.atimWindowTu);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.beaconPeriodTu);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionInfo.reassociation);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionInfo.reassociation);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.beaconFrameLength);
     if (primitive->connectionInfo.beaconFrameLength)
     {
@@ -2845,7 +2845,7 @@ CsrUint8* CsrWifiSmeConnectionInfoGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *m
 }
 
 
-void* CsrWifiSmeConnectionInfoGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeConnectionInfoGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeConnectionInfoGetCfm *primitive = (CsrWifiSmeConnectionInfoGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeConnectionInfoGetCfm));
     CsrSize offset;
@@ -2855,22 +2855,22 @@ void* CsrWifiSmeConnectionInfoGetCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
     CsrMemCpyDes(primitive->connectionInfo.ssid.ssid, buffer, &offset, ((CsrUint16) (32)));
-    CsrUint8Des((CsrUint8 *) &primitive->connectionInfo.ssid.length, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionInfo.ssid.length, buffer, &offset);
     CsrMemCpyDes(primitive->connectionInfo.bssid.a, buffer, &offset, ((CsrUint16) (6)));
-    CsrUint8Des((CsrUint8 *) &primitive->connectionInfo.networkType80211, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionInfo.channelNumber, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionInfo.networkType80211, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionInfo.channelNumber, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.channelFrequency, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.authMode, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.pairwiseCipher, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.groupCipher, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionInfo.ifIndex, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionInfo.ifIndex, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.atimWindowTu, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.beaconPeriodTu, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionInfo.reassociation, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionInfo.reassociation, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.beaconFrameLength, buffer, &offset);
     if (primitive->connectionInfo.beaconFrameLength)
     {
-        primitive->connectionInfo.beaconFrame = (CsrUint8 *)CsrPmemAlloc(primitive->connectionInfo.beaconFrameLength);
+        primitive->connectionInfo.beaconFrame = (u8 *)CsrPmemAlloc(primitive->connectionInfo.beaconFrameLength);
         CsrMemCpyDes(primitive->connectionInfo.beaconFrame, buffer, &offset, ((CsrUint16) (primitive->connectionInfo.beaconFrameLength)));
     }
     else
@@ -2880,7 +2880,7 @@ void* CsrWifiSmeConnectionInfoGetCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.associationReqFrameLength, buffer, &offset);
     if (primitive->connectionInfo.associationReqFrameLength)
     {
-        primitive->connectionInfo.associationReqFrame = (CsrUint8 *)CsrPmemAlloc(primitive->connectionInfo.associationReqFrameLength);
+        primitive->connectionInfo.associationReqFrame = (u8 *)CsrPmemAlloc(primitive->connectionInfo.associationReqFrameLength);
         CsrMemCpyDes(primitive->connectionInfo.associationReqFrame, buffer, &offset, ((CsrUint16) (primitive->connectionInfo.associationReqFrameLength)));
     }
     else
@@ -2890,7 +2890,7 @@ void* CsrWifiSmeConnectionInfoGetCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.associationRspFrameLength, buffer, &offset);
     if (primitive->connectionInfo.associationRspFrameLength)
     {
-        primitive->connectionInfo.associationRspFrame = (CsrUint8 *)CsrPmemAlloc(primitive->connectionInfo.associationRspFrameLength);
+        primitive->connectionInfo.associationRspFrame = (u8 *)CsrPmemAlloc(primitive->connectionInfo.associationRspFrameLength);
         CsrMemCpyDes(primitive->connectionInfo.associationRspFrame, buffer, &offset, ((CsrUint16) (primitive->connectionInfo.associationRspFrameLength)));
     }
     else
@@ -2900,7 +2900,7 @@ void* CsrWifiSmeConnectionInfoGetCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.assocScanInfoElementsLength, buffer, &offset);
     if (primitive->connectionInfo.assocScanInfoElementsLength)
     {
-        primitive->connectionInfo.assocScanInfoElements = (CsrUint8 *)CsrPmemAlloc(primitive->connectionInfo.assocScanInfoElementsLength);
+        primitive->connectionInfo.assocScanInfoElements = (u8 *)CsrPmemAlloc(primitive->connectionInfo.assocScanInfoElementsLength);
         CsrMemCpyDes(primitive->connectionInfo.assocScanInfoElements, buffer, &offset, ((CsrUint16) (primitive->connectionInfo.assocScanInfoElementsLength)));
     }
     else
@@ -2913,7 +2913,7 @@ void* CsrWifiSmeConnectionInfoGetCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.assocReqInfoElementsLength, buffer, &offset);
     if (primitive->connectionInfo.assocReqInfoElementsLength)
     {
-        primitive->connectionInfo.assocReqInfoElements = (CsrUint8 *)CsrPmemAlloc(primitive->connectionInfo.assocReqInfoElementsLength);
+        primitive->connectionInfo.assocReqInfoElements = (u8 *)CsrPmemAlloc(primitive->connectionInfo.assocReqInfoElementsLength);
         CsrMemCpyDes(primitive->connectionInfo.assocReqInfoElements, buffer, &offset, ((CsrUint16) (primitive->connectionInfo.assocReqInfoElementsLength)));
     }
     else
@@ -2926,7 +2926,7 @@ void* CsrWifiSmeConnectionInfoGetCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.assocRspInfoElementsLength, buffer, &offset);
     if (primitive->connectionInfo.assocRspInfoElementsLength)
     {
-        primitive->connectionInfo.assocRspInfoElements = (CsrUint8 *)CsrPmemAlloc(primitive->connectionInfo.assocRspInfoElementsLength);
+        primitive->connectionInfo.assocRspInfoElements = (u8 *)CsrPmemAlloc(primitive->connectionInfo.assocRspInfoElementsLength);
         CsrMemCpyDes(primitive->connectionInfo.assocRspInfoElements, buffer, &offset, ((CsrUint16) (primitive->connectionInfo.assocRspInfoElementsLength)));
     }
     else
@@ -2963,7 +2963,7 @@ CsrSize CsrWifiSmeConnectionQualityIndSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeConnectionQualityIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeConnectionQualityIndSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeConnectionQualityInd *primitive = (CsrWifiSmeConnectionQualityInd *)msg;
     *len = 0;
@@ -2975,7 +2975,7 @@ CsrUint8* CsrWifiSmeConnectionQualityIndSer(CsrUint8 *ptr, CsrSize *len, void *m
 }
 
 
-void* CsrWifiSmeConnectionQualityIndDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeConnectionQualityIndDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeConnectionQualityInd *primitive = (CsrWifiSmeConnectionQualityInd *) CsrPmemAlloc(sizeof(CsrWifiSmeConnectionQualityInd));
     CsrSize offset;
@@ -2997,8 +2997,8 @@ CsrSize CsrWifiSmeConnectionStatsGetCfmSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 101) */
     bufferSize += 2; /* CsrUint16 primitive->interfaceTag */
     bufferSize += 2; /* CsrResult primitive->status */
-    bufferSize += 1; /* CsrUint8 primitive->connectionStats.unifiTxDataRate */
-    bufferSize += 1; /* CsrUint8 primitive->connectionStats.unifiRxDataRate */
+    bufferSize += 1; /* u8 primitive->connectionStats.unifiTxDataRate */
+    bufferSize += 1; /* u8 primitive->connectionStats.unifiRxDataRate */
     bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11RetryCount */
     bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11MultipleRetryCount */
     bufferSize += 4; /* CsrUint32 primitive->connectionStats.dot11AckFailureCount */
@@ -3026,15 +3026,15 @@ CsrSize CsrWifiSmeConnectionStatsGetCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeConnectionStatsGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeConnectionStatsGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeConnectionStatsGetCfm *primitive = (CsrWifiSmeConnectionStatsGetCfm *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionStats.unifiTxDataRate);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionStats.unifiRxDataRate);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionStats.unifiTxDataRate);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionStats.unifiRxDataRate);
     CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11RetryCount);
     CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11MultipleRetryCount);
     CsrUint32Ser(ptr, len, (CsrUint32) primitive->connectionStats.dot11AckFailureCount);
@@ -3062,7 +3062,7 @@ CsrUint8* CsrWifiSmeConnectionStatsGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *
 }
 
 
-void* CsrWifiSmeConnectionStatsGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeConnectionStatsGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeConnectionStatsGetCfm *primitive = (CsrWifiSmeConnectionStatsGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeConnectionStatsGetCfm));
     CsrSize offset;
@@ -3071,8 +3071,8 @@ void* CsrWifiSmeConnectionStatsGetCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionStats.unifiTxDataRate, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionStats.unifiRxDataRate, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionStats.unifiTxDataRate, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionStats.unifiRxDataRate, buffer, &offset);
     CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11RetryCount, buffer, &offset);
     CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11MultipleRetryCount, buffer, &offset);
     CsrUint32Des((CsrUint32 *) &primitive->connectionStats.dot11AckFailureCount, buffer, &offset);
@@ -3112,7 +3112,7 @@ CsrSize CsrWifiSmeDisconnectCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeDisconnectCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeDisconnectCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeDisconnectCfm *primitive = (CsrWifiSmeDisconnectCfm *)msg;
     *len = 0;
@@ -3123,7 +3123,7 @@ CsrUint8* CsrWifiSmeDisconnectCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeDisconnectCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeDisconnectCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeDisconnectCfm *primitive = (CsrWifiSmeDisconnectCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeDisconnectCfm));
     CsrSize offset;
@@ -3150,20 +3150,20 @@ CsrSize CsrWifiSmeHostConfigGetCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeHostConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeHostConfigGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeHostConfigGetCfm *primitive = (CsrWifiSmeHostConfigGetCfm *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->hostConfig.powerMode);
+    CsrUint8Ser(ptr, len, (u8) primitive->hostConfig.powerMode);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->hostConfig.applicationDataPeriodMs);
     return(ptr);
 }
 
 
-void* CsrWifiSmeHostConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeHostConfigGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeHostConfigGetCfm *primitive = (CsrWifiSmeHostConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeHostConfigGetCfm));
     CsrSize offset;
@@ -3172,7 +3172,7 @@ void* CsrWifiSmeHostConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->hostConfig.powerMode, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->hostConfig.powerMode, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->hostConfig.applicationDataPeriodMs, buffer, &offset);
 
     return primitive;
@@ -3190,7 +3190,7 @@ CsrSize CsrWifiSmeHostConfigSetCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeHostConfigSetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeHostConfigSetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeHostConfigSetCfm *primitive = (CsrWifiSmeHostConfigSetCfm *)msg;
     *len = 0;
@@ -3201,7 +3201,7 @@ CsrUint8* CsrWifiSmeHostConfigSetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeHostConfigSetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeHostConfigSetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeHostConfigSetCfm *primitive = (CsrWifiSmeHostConfigSetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeHostConfigSetCfm));
     CsrSize offset;
@@ -3220,24 +3220,24 @@ CsrSize CsrWifiSmeIbssStationIndSizeof(void *msg)
     CsrSize bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 10) */
-    bufferSize += 6; /* CsrUint8 primitive->address.a[6] */
+    bufferSize += 6; /* u8 primitive->address.a[6] */
     bufferSize += 1; /* CsrBool primitive->isconnected */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeIbssStationIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeIbssStationIndSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeIbssStationInd *primitive = (CsrWifiSmeIbssStationInd *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrMemCpySer(ptr, len, (const void *) primitive->address.a, ((CsrUint16) (6)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->isconnected);
+    CsrUint8Ser(ptr, len, (u8) primitive->isconnected);
     return(ptr);
 }
 
 
-void* CsrWifiSmeIbssStationIndDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeIbssStationIndDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeIbssStationInd *primitive = (CsrWifiSmeIbssStationInd *) CsrPmemAlloc(sizeof(CsrWifiSmeIbssStationInd));
     CsrSize offset;
@@ -3245,7 +3245,7 @@ void* CsrWifiSmeIbssStationIndDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrMemCpyDes(primitive->address.a, buffer, &offset, ((CsrUint16) (6)));
-    CsrUint8Des((CsrUint8 *) &primitive->isconnected, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->isconnected, buffer, &offset);
 
     return primitive;
 }
@@ -3260,26 +3260,26 @@ CsrSize CsrWifiSmeKeyCfmSizeof(void *msg)
     bufferSize += 2; /* CsrResult primitive->status */
     bufferSize += 1; /* CsrWifiSmeListAction primitive->action */
     bufferSize += 1; /* CsrWifiSmeKeyType primitive->keyType */
-    bufferSize += 6; /* CsrUint8 primitive->peerMacAddress.a[6] */
+    bufferSize += 6; /* u8 primitive->peerMacAddress.a[6] */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeKeyCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeKeyCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeKeyCfm *primitive = (CsrWifiSmeKeyCfm *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->action);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->keyType);
+    CsrUint8Ser(ptr, len, (u8) primitive->action);
+    CsrUint8Ser(ptr, len, (u8) primitive->keyType);
     CsrMemCpySer(ptr, len, (const void *) primitive->peerMacAddress.a, ((CsrUint16) (6)));
     return(ptr);
 }
 
 
-void* CsrWifiSmeKeyCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeKeyCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeKeyCfm *primitive = (CsrWifiSmeKeyCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeKeyCfm));
     CsrSize offset;
@@ -3288,8 +3288,8 @@ void* CsrWifiSmeKeyCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->action, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->keyType, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->action, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->keyType, buffer, &offset);
     CsrMemCpyDes(primitive->peerMacAddress.a, buffer, &offset, ((CsrUint16) (6)));
 
     return primitive;
@@ -3309,7 +3309,7 @@ CsrSize CsrWifiSmeLinkQualityGetCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeLinkQualityGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeLinkQualityGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeLinkQualityGetCfm *primitive = (CsrWifiSmeLinkQualityGetCfm *)msg;
     *len = 0;
@@ -3322,7 +3322,7 @@ CsrUint8* CsrWifiSmeLinkQualityGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeLinkQualityGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeLinkQualityGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeLinkQualityGetCfm *primitive = (CsrWifiSmeLinkQualityGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeLinkQualityGetCfm));
     CsrSize offset;
@@ -3346,11 +3346,11 @@ CsrSize CsrWifiSmeMediaStatusIndSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 99) */
     bufferSize += 2;                                                     /* CsrUint16 primitive->interfaceTag */
     bufferSize += 1;                                                     /* CsrWifiSmeMediaStatus primitive->mediaStatus */
-    bufferSize += 32;                                                    /* CsrUint8 primitive->connectionInfo.ssid.ssid[32] */
-    bufferSize += 1;                                                     /* CsrUint8 primitive->connectionInfo.ssid.length */
-    bufferSize += 6;                                                     /* CsrUint8 primitive->connectionInfo.bssid.a[6] */
+    bufferSize += 32;                                                    /* u8 primitive->connectionInfo.ssid.ssid[32] */
+    bufferSize += 1;                                                     /* u8 primitive->connectionInfo.ssid.length */
+    bufferSize += 6;                                                     /* u8 primitive->connectionInfo.bssid.a[6] */
     bufferSize += 1;                                                     /* CsrWifiSme80211NetworkType primitive->connectionInfo.networkType80211 */
-    bufferSize += 1;                                                     /* CsrUint8 primitive->connectionInfo.channelNumber */
+    bufferSize += 1;                                                     /* u8 primitive->connectionInfo.channelNumber */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.channelFrequency */
     bufferSize += 2;                                                     /* CsrWifiSmeAuthMode primitive->connectionInfo.authMode */
     bufferSize += 2;                                                     /* CsrWifiSmeEncryption primitive->connectionInfo.pairwiseCipher */
@@ -3360,49 +3360,49 @@ CsrSize CsrWifiSmeMediaStatusIndSizeof(void *msg)
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.beaconPeriodTu */
     bufferSize += 1;                                                     /* CsrBool primitive->connectionInfo.reassociation */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.beaconFrameLength */
-    bufferSize += primitive->connectionInfo.beaconFrameLength;           /* CsrUint8 primitive->connectionInfo.beaconFrame */
+    bufferSize += primitive->connectionInfo.beaconFrameLength;           /* u8 primitive->connectionInfo.beaconFrame */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.associationReqFrameLength */
-    bufferSize += primitive->connectionInfo.associationReqFrameLength;   /* CsrUint8 primitive->connectionInfo.associationReqFrame */
+    bufferSize += primitive->connectionInfo.associationReqFrameLength;   /* u8 primitive->connectionInfo.associationReqFrame */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.associationRspFrameLength */
-    bufferSize += primitive->connectionInfo.associationRspFrameLength;   /* CsrUint8 primitive->connectionInfo.associationRspFrame */
+    bufferSize += primitive->connectionInfo.associationRspFrameLength;   /* u8 primitive->connectionInfo.associationRspFrame */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocScanInfoElementsLength */
-    bufferSize += primitive->connectionInfo.assocScanInfoElementsLength; /* CsrUint8 primitive->connectionInfo.assocScanInfoElements */
+    bufferSize += primitive->connectionInfo.assocScanInfoElementsLength; /* u8 primitive->connectionInfo.assocScanInfoElements */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocReqCapabilities */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocReqListenIntervalTu */
-    bufferSize += 6;                                                     /* CsrUint8 primitive->connectionInfo.assocReqApAddress.a[6] */
+    bufferSize += 6;                                                     /* u8 primitive->connectionInfo.assocReqApAddress.a[6] */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocReqInfoElementsLength */
-    bufferSize += primitive->connectionInfo.assocReqInfoElementsLength;  /* CsrUint8 primitive->connectionInfo.assocReqInfoElements */
+    bufferSize += primitive->connectionInfo.assocReqInfoElementsLength;  /* u8 primitive->connectionInfo.assocReqInfoElements */
     bufferSize += 2;                                                     /* CsrWifiSmeIEEE80211Result primitive->connectionInfo.assocRspResult */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocRspCapabilityInfo */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocRspAssociationId */
     bufferSize += 2;                                                     /* CsrUint16 primitive->connectionInfo.assocRspInfoElementsLength */
-    bufferSize += primitive->connectionInfo.assocRspInfoElementsLength;  /* CsrUint8 primitive->connectionInfo.assocRspInfoElements */
+    bufferSize += primitive->connectionInfo.assocRspInfoElementsLength;  /* u8 primitive->connectionInfo.assocRspInfoElements */
     bufferSize += 2;                                                     /* CsrWifiSmeIEEE80211Reason primitive->disassocReason */
     bufferSize += 2;                                                     /* CsrWifiSmeIEEE80211Reason primitive->deauthReason */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeMediaStatusIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeMediaStatusIndSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeMediaStatusInd *primitive = (CsrWifiSmeMediaStatusInd *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->mediaStatus);
+    CsrUint8Ser(ptr, len, (u8) primitive->mediaStatus);
     CsrMemCpySer(ptr, len, (const void *) primitive->connectionInfo.ssid.ssid, ((CsrUint16) (32)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionInfo.ssid.length);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionInfo.ssid.length);
     CsrMemCpySer(ptr, len, (const void *) primitive->connectionInfo.bssid.a, ((CsrUint16) (6)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionInfo.networkType80211);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionInfo.channelNumber);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionInfo.networkType80211);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionInfo.channelNumber);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.channelFrequency);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.authMode);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.pairwiseCipher);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.groupCipher);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionInfo.ifIndex);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionInfo.ifIndex);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.atimWindowTu);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.beaconPeriodTu);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->connectionInfo.reassociation);
+    CsrUint8Ser(ptr, len, (u8) primitive->connectionInfo.reassociation);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->connectionInfo.beaconFrameLength);
     if (primitive->connectionInfo.beaconFrameLength)
     {
@@ -3445,7 +3445,7 @@ CsrUint8* CsrWifiSmeMediaStatusIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeMediaStatusIndDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeMediaStatusIndDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeMediaStatusInd *primitive = (CsrWifiSmeMediaStatusInd *) CsrPmemAlloc(sizeof(CsrWifiSmeMediaStatusInd));
     CsrSize offset;
@@ -3453,24 +3453,24 @@ void* CsrWifiSmeMediaStatusIndDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->mediaStatus, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->mediaStatus, buffer, &offset);
     CsrMemCpyDes(primitive->connectionInfo.ssid.ssid, buffer, &offset, ((CsrUint16) (32)));
-    CsrUint8Des((CsrUint8 *) &primitive->connectionInfo.ssid.length, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionInfo.ssid.length, buffer, &offset);
     CsrMemCpyDes(primitive->connectionInfo.bssid.a, buffer, &offset, ((CsrUint16) (6)));
-    CsrUint8Des((CsrUint8 *) &primitive->connectionInfo.networkType80211, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionInfo.channelNumber, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionInfo.networkType80211, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionInfo.channelNumber, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.channelFrequency, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.authMode, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.pairwiseCipher, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.groupCipher, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionInfo.ifIndex, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionInfo.ifIndex, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.atimWindowTu, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.beaconPeriodTu, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->connectionInfo.reassociation, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->connectionInfo.reassociation, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.beaconFrameLength, buffer, &offset);
     if (primitive->connectionInfo.beaconFrameLength)
     {
-        primitive->connectionInfo.beaconFrame = (CsrUint8 *)CsrPmemAlloc(primitive->connectionInfo.beaconFrameLength);
+        primitive->connectionInfo.beaconFrame = (u8 *)CsrPmemAlloc(primitive->connectionInfo.beaconFrameLength);
         CsrMemCpyDes(primitive->connectionInfo.beaconFrame, buffer, &offset, ((CsrUint16) (primitive->connectionInfo.beaconFrameLength)));
     }
     else
@@ -3480,7 +3480,7 @@ void* CsrWifiSmeMediaStatusIndDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.associationReqFrameLength, buffer, &offset);
     if (primitive->connectionInfo.associationReqFrameLength)
     {
-        primitive->connectionInfo.associationReqFrame = (CsrUint8 *)CsrPmemAlloc(primitive->connectionInfo.associationReqFrameLength);
+        primitive->connectionInfo.associationReqFrame = (u8 *)CsrPmemAlloc(primitive->connectionInfo.associationReqFrameLength);
         CsrMemCpyDes(primitive->connectionInfo.associationReqFrame, buffer, &offset, ((CsrUint16) (primitive->connectionInfo.associationReqFrameLength)));
     }
     else
@@ -3490,7 +3490,7 @@ void* CsrWifiSmeMediaStatusIndDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.associationRspFrameLength, buffer, &offset);
     if (primitive->connectionInfo.associationRspFrameLength)
     {
-        primitive->connectionInfo.associationRspFrame = (CsrUint8 *)CsrPmemAlloc(primitive->connectionInfo.associationRspFrameLength);
+        primitive->connectionInfo.associationRspFrame = (u8 *)CsrPmemAlloc(primitive->connectionInfo.associationRspFrameLength);
         CsrMemCpyDes(primitive->connectionInfo.associationRspFrame, buffer, &offset, ((CsrUint16) (primitive->connectionInfo.associationRspFrameLength)));
     }
     else
@@ -3500,7 +3500,7 @@ void* CsrWifiSmeMediaStatusIndDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.assocScanInfoElementsLength, buffer, &offset);
     if (primitive->connectionInfo.assocScanInfoElementsLength)
     {
-        primitive->connectionInfo.assocScanInfoElements = (CsrUint8 *)CsrPmemAlloc(primitive->connectionInfo.assocScanInfoElementsLength);
+        primitive->connectionInfo.assocScanInfoElements = (u8 *)CsrPmemAlloc(primitive->connectionInfo.assocScanInfoElementsLength);
         CsrMemCpyDes(primitive->connectionInfo.assocScanInfoElements, buffer, &offset, ((CsrUint16) (primitive->connectionInfo.assocScanInfoElementsLength)));
     }
     else
@@ -3513,7 +3513,7 @@ void* CsrWifiSmeMediaStatusIndDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.assocReqInfoElementsLength, buffer, &offset);
     if (primitive->connectionInfo.assocReqInfoElementsLength)
     {
-        primitive->connectionInfo.assocReqInfoElements = (CsrUint8 *)CsrPmemAlloc(primitive->connectionInfo.assocReqInfoElementsLength);
+        primitive->connectionInfo.assocReqInfoElements = (u8 *)CsrPmemAlloc(primitive->connectionInfo.assocReqInfoElementsLength);
         CsrMemCpyDes(primitive->connectionInfo.assocReqInfoElements, buffer, &offset, ((CsrUint16) (primitive->connectionInfo.assocReqInfoElementsLength)));
     }
     else
@@ -3526,7 +3526,7 @@ void* CsrWifiSmeMediaStatusIndDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->connectionInfo.assocRspInfoElementsLength, buffer, &offset);
     if (primitive->connectionInfo.assocRspInfoElementsLength)
     {
-        primitive->connectionInfo.assocRspInfoElements = (CsrUint8 *)CsrPmemAlloc(primitive->connectionInfo.assocRspInfoElementsLength);
+        primitive->connectionInfo.assocRspInfoElements = (u8 *)CsrPmemAlloc(primitive->connectionInfo.assocRspInfoElementsLength);
         CsrMemCpyDes(primitive->connectionInfo.assocRspInfoElements, buffer, &offset, ((CsrUint16) (primitive->connectionInfo.assocRspInfoElementsLength)));
     }
     else
@@ -3560,7 +3560,7 @@ CsrSize CsrWifiSmeMibConfigGetCfmSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 13) */
     bufferSize += 2; /* CsrResult primitive->status */
     bufferSize += 1; /* CsrBool primitive->mibConfig.unifiFixMaxTxDataRate */
-    bufferSize += 1; /* CsrUint8 primitive->mibConfig.unifiFixTxDataRate */
+    bufferSize += 1; /* u8 primitive->mibConfig.unifiFixTxDataRate */
     bufferSize += 2; /* CsrUint16 primitive->mibConfig.dot11RtsThreshold */
     bufferSize += 2; /* CsrUint16 primitive->mibConfig.dot11FragmentationThreshold */
     bufferSize += 2; /* CsrUint16 primitive->mibConfig.dot11CurrentTxPowerLevel */
@@ -3568,14 +3568,14 @@ CsrSize CsrWifiSmeMibConfigGetCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeMibConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeMibConfigGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeMibConfigGetCfm *primitive = (CsrWifiSmeMibConfigGetCfm *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->mibConfig.unifiFixMaxTxDataRate);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->mibConfig.unifiFixTxDataRate);
+    CsrUint8Ser(ptr, len, (u8) primitive->mibConfig.unifiFixMaxTxDataRate);
+    CsrUint8Ser(ptr, len, (u8) primitive->mibConfig.unifiFixTxDataRate);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->mibConfig.dot11RtsThreshold);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->mibConfig.dot11FragmentationThreshold);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->mibConfig.dot11CurrentTxPowerLevel);
@@ -3583,7 +3583,7 @@ CsrUint8* CsrWifiSmeMibConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeMibConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeMibConfigGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeMibConfigGetCfm *primitive = (CsrWifiSmeMibConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeMibConfigGetCfm));
     CsrSize offset;
@@ -3591,8 +3591,8 @@ void* CsrWifiSmeMibConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->mibConfig.unifiFixMaxTxDataRate, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->mibConfig.unifiFixTxDataRate, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->mibConfig.unifiFixMaxTxDataRate, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->mibConfig.unifiFixTxDataRate, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->mibConfig.dot11RtsThreshold, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->mibConfig.dot11FragmentationThreshold, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->mibConfig.dot11CurrentTxPowerLevel, buffer, &offset);
@@ -3609,12 +3609,12 @@ CsrSize CsrWifiSmeMibGetCfmSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 8) */
     bufferSize += 2;                             /* CsrResult primitive->status */
     bufferSize += 2;                             /* CsrUint16 primitive->mibAttributeLength */
-    bufferSize += primitive->mibAttributeLength; /* CsrUint8 primitive->mibAttribute */
+    bufferSize += primitive->mibAttributeLength; /* u8 primitive->mibAttribute */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeMibGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeMibGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeMibGetCfm *primitive = (CsrWifiSmeMibGetCfm *)msg;
     *len = 0;
@@ -3629,7 +3629,7 @@ CsrUint8* CsrWifiSmeMibGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeMibGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeMibGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeMibGetCfm *primitive = (CsrWifiSmeMibGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeMibGetCfm));
     CsrSize offset;
@@ -3640,7 +3640,7 @@ void* CsrWifiSmeMibGetCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->mibAttributeLength, buffer, &offset);
     if (primitive->mibAttributeLength)
     {
-        primitive->mibAttribute = (CsrUint8 *)CsrPmemAlloc(primitive->mibAttributeLength);
+        primitive->mibAttribute = (u8 *)CsrPmemAlloc(primitive->mibAttributeLength);
         CsrMemCpyDes(primitive->mibAttribute, buffer, &offset, ((CsrUint16) (primitive->mibAttributeLength)));
     }
     else
@@ -3668,12 +3668,12 @@ CsrSize CsrWifiSmeMibGetNextCfmSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 8) */
     bufferSize += 2;                             /* CsrResult primitive->status */
     bufferSize += 2;                             /* CsrUint16 primitive->mibAttributeLength */
-    bufferSize += primitive->mibAttributeLength; /* CsrUint8 primitive->mibAttribute */
+    bufferSize += primitive->mibAttributeLength; /* u8 primitive->mibAttribute */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeMibGetNextCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeMibGetNextCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeMibGetNextCfm *primitive = (CsrWifiSmeMibGetNextCfm *)msg;
     *len = 0;
@@ -3688,7 +3688,7 @@ CsrUint8* CsrWifiSmeMibGetNextCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeMibGetNextCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeMibGetNextCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeMibGetNextCfm *primitive = (CsrWifiSmeMibGetNextCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeMibGetNextCfm));
     CsrSize offset;
@@ -3699,7 +3699,7 @@ void* CsrWifiSmeMibGetNextCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->mibAttributeLength, buffer, &offset);
     if (primitive->mibAttributeLength)
     {
-        primitive->mibAttribute = (CsrUint8 *)CsrPmemAlloc(primitive->mibAttributeLength);
+        primitive->mibAttribute = (u8 *)CsrPmemAlloc(primitive->mibAttributeLength);
         CsrMemCpyDes(primitive->mibAttribute, buffer, &offset, ((CsrUint16) (primitive->mibAttributeLength)));
     }
     else
@@ -3727,27 +3727,27 @@ CsrSize CsrWifiSmeMicFailureIndSizeof(void *msg)
     bufferSize += 2; /* CsrUint16 primitive->interfaceTag */
     bufferSize += 1; /* CsrBool primitive->secondFailure */
     bufferSize += 2; /* CsrUint16 primitive->count */
-    bufferSize += 6; /* CsrUint8 primitive->address.a[6] */
+    bufferSize += 6; /* u8 primitive->address.a[6] */
     bufferSize += 1; /* CsrWifiSmeKeyType primitive->keyType */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeMicFailureIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeMicFailureIndSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeMicFailureInd *primitive = (CsrWifiSmeMicFailureInd *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->secondFailure);
+    CsrUint8Ser(ptr, len, (u8) primitive->secondFailure);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->count);
     CsrMemCpySer(ptr, len, (const void *) primitive->address.a, ((CsrUint16) (6)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->keyType);
+    CsrUint8Ser(ptr, len, (u8) primitive->keyType);
     return(ptr);
 }
 
 
-void* CsrWifiSmeMicFailureIndDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeMicFailureIndDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeMicFailureInd *primitive = (CsrWifiSmeMicFailureInd *) CsrPmemAlloc(sizeof(CsrWifiSmeMicFailureInd));
     CsrSize offset;
@@ -3755,10 +3755,10 @@ void* CsrWifiSmeMicFailureIndDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->secondFailure, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->secondFailure, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->count, buffer, &offset);
     CsrMemCpyDes(primitive->address.a, buffer, &offset, ((CsrUint16) (6)));
-    CsrUint8Des((CsrUint8 *) &primitive->keyType, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->keyType, buffer, &offset);
 
     return primitive;
 }
@@ -3773,27 +3773,27 @@ CsrSize CsrWifiSmeMulticastAddressCfmSizeof(void *msg)
     bufferSize += 2; /* CsrUint16 primitive->interfaceTag */
     bufferSize += 2; /* CsrResult primitive->status */
     bufferSize += 1; /* CsrWifiSmeListAction primitive->action */
-    bufferSize += 1; /* CsrUint8 primitive->getAddressesCount */
+    bufferSize += 1; /* u8 primitive->getAddressesCount */
     {
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->getAddressesCount; i1++)
         {
-            bufferSize += 6; /* CsrUint8 primitive->getAddresses[i1].a[6] */
+            bufferSize += 6; /* u8 primitive->getAddresses[i1].a[6] */
         }
     }
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeMulticastAddressCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeMulticastAddressCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeMulticastAddressCfm *primitive = (CsrWifiSmeMulticastAddressCfm *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->action);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->getAddressesCount);
+    CsrUint8Ser(ptr, len, (u8) primitive->action);
+    CsrUint8Ser(ptr, len, (u8) primitive->getAddressesCount);
     {
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->getAddressesCount; i1++)
@@ -3805,7 +3805,7 @@ CsrUint8* CsrWifiSmeMulticastAddressCfmSer(CsrUint8 *ptr, CsrSize *len, void *ms
 }
 
 
-void* CsrWifiSmeMulticastAddressCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeMulticastAddressCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeMulticastAddressCfm *primitive = (CsrWifiSmeMulticastAddressCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeMulticastAddressCfm));
     CsrSize offset;
@@ -3814,8 +3814,8 @@ void* CsrWifiSmeMulticastAddressCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->action, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->getAddressesCount, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->action, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->getAddressesCount, buffer, &offset);
     primitive->getAddresses = NULL;
     if (primitive->getAddressesCount)
     {
@@ -3852,7 +3852,7 @@ CsrSize CsrWifiSmePacketFilterSetCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmePacketFilterSetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmePacketFilterSetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmePacketFilterSetCfm *primitive = (CsrWifiSmePacketFilterSetCfm *)msg;
     *len = 0;
@@ -3863,7 +3863,7 @@ CsrUint8* CsrWifiSmePacketFilterSetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg
 }
 
 
-void* CsrWifiSmePacketFilterSetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmePacketFilterSetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmePacketFilterSetCfm *primitive = (CsrWifiSmePacketFilterSetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmePacketFilterSetCfm));
     CsrSize offset;
@@ -3883,12 +3883,12 @@ CsrSize CsrWifiSmePermanentMacAddressGetCfmSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 11) */
     bufferSize += 2; /* CsrResult primitive->status */
-    bufferSize += 6; /* CsrUint8 primitive->permanentMacAddress.a[6] */
+    bufferSize += 6; /* u8 primitive->permanentMacAddress.a[6] */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmePermanentMacAddressGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmePermanentMacAddressGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmePermanentMacAddressGetCfm *primitive = (CsrWifiSmePermanentMacAddressGetCfm *)msg;
     *len = 0;
@@ -3899,7 +3899,7 @@ CsrUint8* CsrWifiSmePermanentMacAddressGetCfmSer(CsrUint8 *ptr, CsrSize *len, vo
 }
 
 
-void* CsrWifiSmePermanentMacAddressGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmePermanentMacAddressGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmePermanentMacAddressGetCfm *primitive = (CsrWifiSmePermanentMacAddressGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmePermanentMacAddressGetCfm));
     CsrSize offset;
@@ -3920,12 +3920,12 @@ CsrSize CsrWifiSmePmkidCandidateListIndSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 13) */
     bufferSize += 2; /* CsrUint16 primitive->interfaceTag */
-    bufferSize += 1; /* CsrUint8 primitive->pmkidCandidatesCount */
+    bufferSize += 1; /* u8 primitive->pmkidCandidatesCount */
     {
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->pmkidCandidatesCount; i1++)
         {
-            bufferSize += 6; /* CsrUint8 primitive->pmkidCandidates[i1].bssid.a[6] */
+            bufferSize += 6; /* u8 primitive->pmkidCandidates[i1].bssid.a[6] */
             bufferSize += 1; /* CsrBool primitive->pmkidCandidates[i1].preAuthAllowed */
         }
     }
@@ -3933,26 +3933,26 @@ CsrSize CsrWifiSmePmkidCandidateListIndSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmePmkidCandidateListIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmePmkidCandidateListIndSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmePmkidCandidateListInd *primitive = (CsrWifiSmePmkidCandidateListInd *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->pmkidCandidatesCount);
+    CsrUint8Ser(ptr, len, (u8) primitive->pmkidCandidatesCount);
     {
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->pmkidCandidatesCount; i1++)
         {
             CsrMemCpySer(ptr, len, (const void *) primitive->pmkidCandidates[i1].bssid.a, ((CsrUint16) (6)));
-            CsrUint8Ser(ptr, len, (CsrUint8) primitive->pmkidCandidates[i1].preAuthAllowed);
+            CsrUint8Ser(ptr, len, (u8) primitive->pmkidCandidates[i1].preAuthAllowed);
         }
     }
     return(ptr);
 }
 
 
-void* CsrWifiSmePmkidCandidateListIndDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmePmkidCandidateListIndDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmePmkidCandidateListInd *primitive = (CsrWifiSmePmkidCandidateListInd *) CsrPmemAlloc(sizeof(CsrWifiSmePmkidCandidateListInd));
     CsrSize offset;
@@ -3960,7 +3960,7 @@ void* CsrWifiSmePmkidCandidateListIndDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->pmkidCandidatesCount, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->pmkidCandidatesCount, buffer, &offset);
     primitive->pmkidCandidates = NULL;
     if (primitive->pmkidCandidatesCount)
     {
@@ -3971,7 +3971,7 @@ void* CsrWifiSmePmkidCandidateListIndDes(CsrUint8 *buffer, CsrSize length)
         for (i1 = 0; i1 < primitive->pmkidCandidatesCount; i1++)
         {
             CsrMemCpyDes(primitive->pmkidCandidates[i1].bssid.a, buffer, &offset, ((CsrUint16) (6)));
-            CsrUint8Des((CsrUint8 *) &primitive->pmkidCandidates[i1].preAuthAllowed, buffer, &offset);
+            CsrUint8Des((u8 *) &primitive->pmkidCandidates[i1].preAuthAllowed, buffer, &offset);
         }
     }
 
@@ -3996,28 +3996,28 @@ CsrSize CsrWifiSmePmkidCfmSizeof(void *msg)
     bufferSize += 2; /* CsrUint16 primitive->interfaceTag */
     bufferSize += 2; /* CsrResult primitive->status */
     bufferSize += 1; /* CsrWifiSmeListAction primitive->action */
-    bufferSize += 1; /* CsrUint8 primitive->getPmkidsCount */
+    bufferSize += 1; /* u8 primitive->getPmkidsCount */
     {
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->getPmkidsCount; i1++)
         {
-            bufferSize += 6;  /* CsrUint8 primitive->getPmkids[i1].bssid.a[6] */
-            bufferSize += 16; /* CsrUint8 primitive->getPmkids[i1].pmkid[16] */
+            bufferSize += 6;  /* u8 primitive->getPmkids[i1].bssid.a[6] */
+            bufferSize += 16; /* u8 primitive->getPmkids[i1].pmkid[16] */
         }
     }
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmePmkidCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmePmkidCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmePmkidCfm *primitive = (CsrWifiSmePmkidCfm *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->action);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->getPmkidsCount);
+    CsrUint8Ser(ptr, len, (u8) primitive->action);
+    CsrUint8Ser(ptr, len, (u8) primitive->getPmkidsCount);
     {
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->getPmkidsCount; i1++)
@@ -4030,7 +4030,7 @@ CsrUint8* CsrWifiSmePmkidCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmePmkidCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmePmkidCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmePmkidCfm *primitive = (CsrWifiSmePmkidCfm *) CsrPmemAlloc(sizeof(CsrWifiSmePmkidCfm));
     CsrSize offset;
@@ -4039,8 +4039,8 @@ void* CsrWifiSmePmkidCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->action, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->getPmkidsCount, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->action, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->getPmkidsCount, buffer, &offset);
     primitive->getPmkids = NULL;
     if (primitive->getPmkidsCount)
     {
@@ -4077,31 +4077,31 @@ CsrSize CsrWifiSmePowerConfigGetCfmSizeof(void *msg)
     bufferSize += 2; /* CsrUint16 primitive->powerConfig.listenIntervalTu */
     bufferSize += 1; /* CsrBool primitive->powerConfig.rxDtims */
     bufferSize += 1; /* CsrWifiSmeD3AutoScanMode primitive->powerConfig.d3AutoScanMode */
-    bufferSize += 1; /* CsrUint8 primitive->powerConfig.clientTrafficWindow */
+    bufferSize += 1; /* u8 primitive->powerConfig.clientTrafficWindow */
     bufferSize += 1; /* CsrBool primitive->powerConfig.opportunisticPowerSave */
     bufferSize += 1; /* CsrBool primitive->powerConfig.noticeOfAbsence */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmePowerConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmePowerConfigGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmePowerConfigGetCfm *primitive = (CsrWifiSmePowerConfigGetCfm *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->powerConfig.powerSaveLevel);
+    CsrUint8Ser(ptr, len, (u8) primitive->powerConfig.powerSaveLevel);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->powerConfig.listenIntervalTu);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->powerConfig.rxDtims);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->powerConfig.d3AutoScanMode);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->powerConfig.clientTrafficWindow);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->powerConfig.opportunisticPowerSave);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->powerConfig.noticeOfAbsence);
+    CsrUint8Ser(ptr, len, (u8) primitive->powerConfig.rxDtims);
+    CsrUint8Ser(ptr, len, (u8) primitive->powerConfig.d3AutoScanMode);
+    CsrUint8Ser(ptr, len, (u8) primitive->powerConfig.clientTrafficWindow);
+    CsrUint8Ser(ptr, len, (u8) primitive->powerConfig.opportunisticPowerSave);
+    CsrUint8Ser(ptr, len, (u8) primitive->powerConfig.noticeOfAbsence);
     return(ptr);
 }
 
 
-void* CsrWifiSmePowerConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmePowerConfigGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmePowerConfigGetCfm *primitive = (CsrWifiSmePowerConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmePowerConfigGetCfm));
     CsrSize offset;
@@ -4109,13 +4109,13 @@ void* CsrWifiSmePowerConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->powerConfig.powerSaveLevel, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->powerConfig.powerSaveLevel, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->powerConfig.listenIntervalTu, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->powerConfig.rxDtims, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->powerConfig.d3AutoScanMode, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->powerConfig.clientTrafficWindow, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->powerConfig.opportunisticPowerSave, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->powerConfig.noticeOfAbsence, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->powerConfig.rxDtims, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->powerConfig.d3AutoScanMode, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->powerConfig.clientTrafficWindow, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->powerConfig.opportunisticPowerSave, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->powerConfig.noticeOfAbsence, buffer, &offset);
 
     return primitive;
 }
@@ -4130,26 +4130,26 @@ CsrSize CsrWifiSmeRegulatoryDomainInfoGetCfmSizeof(void *msg)
     bufferSize += 1; /* CsrBool primitive->regDomInfo.dot11MultiDomainCapabilityImplemented */
     bufferSize += 1; /* CsrBool primitive->regDomInfo.dot11MultiDomainCapabilityEnabled */
     bufferSize += 1; /* CsrWifiSmeRegulatoryDomain primitive->regDomInfo.currentRegulatoryDomain */
-    bufferSize += 2; /* CsrUint8 primitive->regDomInfo.currentCountryCode[2] */
+    bufferSize += 2; /* u8 primitive->regDomInfo.currentCountryCode[2] */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeRegulatoryDomainInfoGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeRegulatoryDomainInfoGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeRegulatoryDomainInfoGetCfm *primitive = (CsrWifiSmeRegulatoryDomainInfoGetCfm *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->regDomInfo.dot11MultiDomainCapabilityImplemented);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->regDomInfo.dot11MultiDomainCapabilityEnabled);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->regDomInfo.currentRegulatoryDomain);
+    CsrUint8Ser(ptr, len, (u8) primitive->regDomInfo.dot11MultiDomainCapabilityImplemented);
+    CsrUint8Ser(ptr, len, (u8) primitive->regDomInfo.dot11MultiDomainCapabilityEnabled);
+    CsrUint8Ser(ptr, len, (u8) primitive->regDomInfo.currentRegulatoryDomain);
     CsrMemCpySer(ptr, len, (const void *) primitive->regDomInfo.currentCountryCode, ((CsrUint16) (2)));
     return(ptr);
 }
 
 
-void* CsrWifiSmeRegulatoryDomainInfoGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeRegulatoryDomainInfoGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeRegulatoryDomainInfoGetCfm *primitive = (CsrWifiSmeRegulatoryDomainInfoGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeRegulatoryDomainInfoGetCfm));
     CsrSize offset;
@@ -4157,9 +4157,9 @@ void* CsrWifiSmeRegulatoryDomainInfoGetCfmDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->regDomInfo.dot11MultiDomainCapabilityImplemented, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->regDomInfo.dot11MultiDomainCapabilityEnabled, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->regDomInfo.currentRegulatoryDomain, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->regDomInfo.dot11MultiDomainCapabilityImplemented, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->regDomInfo.dot11MultiDomainCapabilityEnabled, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->regDomInfo.currentRegulatoryDomain, buffer, &offset);
     CsrMemCpyDes(primitive->regDomInfo.currentCountryCode, buffer, &offset, ((CsrUint16) (2)));
 
     return primitive;
@@ -4177,7 +4177,7 @@ CsrSize CsrWifiSmeRoamCompleteIndSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeRoamCompleteIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeRoamCompleteIndSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeRoamCompleteInd *primitive = (CsrWifiSmeRoamCompleteInd *)msg;
     *len = 0;
@@ -4188,7 +4188,7 @@ CsrUint8* CsrWifiSmeRoamCompleteIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeRoamCompleteIndDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeRoamCompleteIndDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeRoamCompleteInd *primitive = (CsrWifiSmeRoamCompleteInd *) CsrPmemAlloc(sizeof(CsrWifiSmeRoamCompleteInd));
     CsrSize offset;
@@ -4214,19 +4214,19 @@ CsrSize CsrWifiSmeRoamStartIndSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeRoamStartIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeRoamStartIndSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeRoamStartInd *primitive = (CsrWifiSmeRoamStartInd *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->roamReason);
+    CsrUint8Ser(ptr, len, (u8) primitive->roamReason);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->reason80211);
     return(ptr);
 }
 
 
-void* CsrWifiSmeRoamStartIndDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeRoamStartIndDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeRoamStartInd *primitive = (CsrWifiSmeRoamStartInd *) CsrPmemAlloc(sizeof(CsrWifiSmeRoamStartInd));
     CsrSize offset;
@@ -4234,7 +4234,7 @@ void* CsrWifiSmeRoamStartIndDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->roamReason, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->roamReason, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->reason80211, buffer, &offset);
 
     return primitive;
@@ -4260,7 +4260,7 @@ CsrSize CsrWifiSmeRoamingConfigGetCfmSizeof(void *msg)
     }
     bufferSize += 1;         /* CsrBool primitive->roamingConfig.disableSmoothRoaming */
     bufferSize += 1;         /* CsrBool primitive->roamingConfig.disableRoamScans */
-    bufferSize += 1;         /* CsrUint8 primitive->roamingConfig.reconnectLimit */
+    bufferSize += 1;         /* u8 primitive->roamingConfig.reconnectLimit */
     bufferSize += 2;         /* CsrUint16 primitive->roamingConfig.reconnectLimitIntervalMs */
     {
         CsrUint16 i2;
@@ -4278,7 +4278,7 @@ CsrSize CsrWifiSmeRoamingConfigGetCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeRoamingConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeRoamingConfigGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeRoamingConfigGetCfm *primitive = (CsrWifiSmeRoamingConfigGetCfm *)msg;
     *len = 0;
@@ -4295,9 +4295,9 @@ CsrUint8* CsrWifiSmeRoamingConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *ms
             CsrUint16Ser(ptr, len, (CsrUint16) primitive->roamingConfig.roamingBands[i2].snrLowThreshold);
         }
     }
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->roamingConfig.disableSmoothRoaming);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->roamingConfig.disableRoamScans);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->roamingConfig.reconnectLimit);
+    CsrUint8Ser(ptr, len, (u8) primitive->roamingConfig.disableSmoothRoaming);
+    CsrUint8Ser(ptr, len, (u8) primitive->roamingConfig.disableRoamScans);
+    CsrUint8Ser(ptr, len, (u8) primitive->roamingConfig.reconnectLimit);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->roamingConfig.reconnectLimitIntervalMs);
     {
         CsrUint16 i2;
@@ -4315,7 +4315,7 @@ CsrUint8* CsrWifiSmeRoamingConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *ms
 }
 
 
-void* CsrWifiSmeRoamingConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeRoamingConfigGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeRoamingConfigGetCfm *primitive = (CsrWifiSmeRoamingConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeRoamingConfigGetCfm));
     CsrSize offset;
@@ -4334,9 +4334,9 @@ void* CsrWifiSmeRoamingConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
             CsrUint16Des((CsrUint16 *) &primitive->roamingConfig.roamingBands[i2].snrLowThreshold, buffer, &offset);
         }
     }
-    CsrUint8Des((CsrUint8 *) &primitive->roamingConfig.disableSmoothRoaming, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->roamingConfig.disableRoamScans, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->roamingConfig.reconnectLimit, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->roamingConfig.disableSmoothRoaming, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->roamingConfig.disableRoamScans, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->roamingConfig.reconnectLimit, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->roamingConfig.reconnectLimitIntervalMs, buffer, &offset);
     {
         CsrUint16 i2;
@@ -4366,7 +4366,7 @@ CsrSize CsrWifiSmeRoamingConfigSetCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeRoamingConfigSetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeRoamingConfigSetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeRoamingConfigSetCfm *primitive = (CsrWifiSmeRoamingConfigSetCfm *)msg;
     *len = 0;
@@ -4377,7 +4377,7 @@ CsrUint8* CsrWifiSmeRoamingConfigSetCfmSer(CsrUint8 *ptr, CsrSize *len, void *ms
 }
 
 
-void* CsrWifiSmeRoamingConfigSetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeRoamingConfigSetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeRoamingConfigSetCfm *primitive = (CsrWifiSmeRoamingConfigSetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeRoamingConfigSetCfm));
     CsrSize offset;
@@ -4419,12 +4419,12 @@ CsrSize CsrWifiSmeScanConfigGetCfmSizeof(void *msg)
     bufferSize += 1;                                             /* CsrInt8 primitive->scanConfig.lowSnrThreshold */
     bufferSize += 1;                                             /* CsrInt8 primitive->scanConfig.deltaSnrThreshold */
     bufferSize += 2;                                             /* CsrUint16 primitive->scanConfig.passiveChannelListCount */
-    bufferSize += primitive->scanConfig.passiveChannelListCount; /* CsrUint8 primitive->scanConfig.passiveChannelList */
+    bufferSize += primitive->scanConfig.passiveChannelListCount; /* u8 primitive->scanConfig.passiveChannelList */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeScanConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeScanConfigGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeScanConfigGetCfm *primitive = (CsrWifiSmeScanConfigGetCfm *)msg;
     *len = 0;
@@ -4442,14 +4442,14 @@ CsrUint8* CsrWifiSmeScanConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
             CsrUint16Ser(ptr, len, (CsrUint16) primitive->scanConfig.scanCfg[i2].maxPassiveChannelTimeTu);
         }
     }
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanConfig.disableAutonomousScans);
+    CsrUint8Ser(ptr, len, (u8) primitive->scanConfig.disableAutonomousScans);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->scanConfig.maxResults);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanConfig.highRssiThreshold);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanConfig.lowRssiThreshold);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanConfig.deltaRssiThreshold);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanConfig.highSnrThreshold);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanConfig.lowSnrThreshold);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanConfig.deltaSnrThreshold);
+    CsrUint8Ser(ptr, len, (u8) primitive->scanConfig.highRssiThreshold);
+    CsrUint8Ser(ptr, len, (u8) primitive->scanConfig.lowRssiThreshold);
+    CsrUint8Ser(ptr, len, (u8) primitive->scanConfig.deltaRssiThreshold);
+    CsrUint8Ser(ptr, len, (u8) primitive->scanConfig.highSnrThreshold);
+    CsrUint8Ser(ptr, len, (u8) primitive->scanConfig.lowSnrThreshold);
+    CsrUint8Ser(ptr, len, (u8) primitive->scanConfig.deltaSnrThreshold);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->scanConfig.passiveChannelListCount);
     if (primitive->scanConfig.passiveChannelListCount)
     {
@@ -4459,7 +4459,7 @@ CsrUint8* CsrWifiSmeScanConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeScanConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeScanConfigGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeScanConfigGetCfm *primitive = (CsrWifiSmeScanConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeScanConfigGetCfm));
     CsrSize offset;
@@ -4479,18 +4479,18 @@ void* CsrWifiSmeScanConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
             CsrUint16Des((CsrUint16 *) &primitive->scanConfig.scanCfg[i2].maxPassiveChannelTimeTu, buffer, &offset);
         }
     }
-    CsrUint8Des((CsrUint8 *) &primitive->scanConfig.disableAutonomousScans, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->scanConfig.disableAutonomousScans, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->scanConfig.maxResults, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->scanConfig.highRssiThreshold, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->scanConfig.lowRssiThreshold, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->scanConfig.deltaRssiThreshold, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->scanConfig.highSnrThreshold, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->scanConfig.lowSnrThreshold, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->scanConfig.deltaSnrThreshold, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->scanConfig.highRssiThreshold, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->scanConfig.lowRssiThreshold, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->scanConfig.deltaRssiThreshold, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->scanConfig.highSnrThreshold, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->scanConfig.lowSnrThreshold, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->scanConfig.deltaSnrThreshold, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->scanConfig.passiveChannelListCount, buffer, &offset);
     if (primitive->scanConfig.passiveChannelListCount)
     {
-        primitive->scanConfig.passiveChannelList = (CsrUint8 *)CsrPmemAlloc(primitive->scanConfig.passiveChannelListCount);
+        primitive->scanConfig.passiveChannelList = (u8 *)CsrPmemAlloc(primitive->scanConfig.passiveChannelListCount);
         CsrMemCpyDes(primitive->scanConfig.passiveChannelList, buffer, &offset, ((CsrUint16) (primitive->scanConfig.passiveChannelListCount)));
     }
     else
@@ -4516,72 +4516,72 @@ CsrSize CsrWifiSmeScanResultIndSizeof(void *msg)
     CsrSize bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 149) */
-    bufferSize += 32;                                          /* CsrUint8 primitive->result.ssid.ssid[32] */
-    bufferSize += 1;                                           /* CsrUint8 primitive->result.ssid.length */
-    bufferSize += 6;                                           /* CsrUint8 primitive->result.bssid.a[6] */
+    bufferSize += 32;                                          /* u8 primitive->result.ssid.ssid[32] */
+    bufferSize += 1;                                           /* u8 primitive->result.ssid.length */
+    bufferSize += 6;                                           /* u8 primitive->result.bssid.a[6] */
     bufferSize += 2;                                           /* CsrInt16 primitive->result.rssi */
     bufferSize += 2;                                           /* CsrInt16 primitive->result.snr */
     bufferSize += 1;                                           /* CsrWifiSmeRadioIF primitive->result.ifIndex */
     bufferSize += 2;                                           /* CsrUint16 primitive->result.beaconPeriodTu */
-    bufferSize += 8;                                           /* CsrUint8 primitive->result.timeStamp.data[8] */
-    bufferSize += 8;                                           /* CsrUint8 primitive->result.localTime.data[8] */
+    bufferSize += 8;                                           /* u8 primitive->result.timeStamp.data[8] */
+    bufferSize += 8;                                           /* u8 primitive->result.localTime.data[8] */
     bufferSize += 2;                                           /* CsrUint16 primitive->result.channelFrequency */
     bufferSize += 2;                                           /* CsrUint16 primitive->result.capabilityInformation */
-    bufferSize += 1;                                           /* CsrUint8 primitive->result.channelNumber */
+    bufferSize += 1;                                           /* u8 primitive->result.channelNumber */
     bufferSize += 1;                                           /* CsrWifiSmeBasicUsability primitive->result.usability */
     bufferSize += 1;                                           /* CsrWifiSmeBssType primitive->result.bssType */
     bufferSize += 2;                                           /* CsrUint16 primitive->result.informationElementsLength */
-    bufferSize += primitive->result.informationElementsLength; /* CsrUint8 primitive->result.informationElements */
+    bufferSize += primitive->result.informationElementsLength; /* u8 primitive->result.informationElements */
     bufferSize += 1;                                           /* CsrWifiSmeP2pRole primitive->result.p2pDeviceRole */
     switch (primitive->result.p2pDeviceRole)
     {
         case CSR_WIFI_SME_P2P_ROLE_CLI:
-            bufferSize += 1; /* CsrUint8 primitive->result.deviceInfo.reservedCli.empty */
+            bufferSize += 1; /* u8 primitive->result.deviceInfo.reservedCli.empty */
             break;
         case CSR_WIFI_SME_P2P_ROLE_GO:
             bufferSize += 1; /* CsrWifiSmeP2pGroupCapabilityMask primitive->result.deviceInfo.groupInfo.groupCapability */
-            bufferSize += 6; /* CsrUint8 primitive->result.deviceInfo.groupInfo.p2pDeviceAddress.a[6] */
-            bufferSize += 1; /* CsrUint8 primitive->result.deviceInfo.groupInfo.p2pClientInfoCount */
+            bufferSize += 6; /* u8 primitive->result.deviceInfo.groupInfo.p2pDeviceAddress.a[6] */
+            bufferSize += 1; /* u8 primitive->result.deviceInfo.groupInfo.p2pClientInfoCount */
             {
                 CsrUint16 i4;
                 for (i4 = 0; i4 < primitive->result.deviceInfo.groupInfo.p2pClientInfoCount; i4++)
                 {
-                    bufferSize += 6; /* CsrUint8 primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].p2PClientInterfaceAddress.a[6] */
-                    bufferSize += 6; /* CsrUint8 primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceAddress.a[6] */
+                    bufferSize += 6; /* u8 primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].p2PClientInterfaceAddress.a[6] */
+                    bufferSize += 6; /* u8 primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceAddress.a[6] */
                     bufferSize += 2; /* CsrWifiSmeWpsConfigTypeMask primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.configMethods */
                     bufferSize += 1; /* CsrWifiSmeP2pCapabilityMask primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.p2PDeviceCap */
-                    bufferSize += 8; /* CsrUint8 primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.primDeviceType.deviceDetails[8] */
-                    bufferSize += 1; /* CsrUint8 primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount */
+                    bufferSize += 8; /* u8 primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.primDeviceType.deviceDetails[8] */
+                    bufferSize += 1; /* u8 primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount */
                     {
                         CsrUint16 i6;
                         for (i6 = 0; i6 < primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount; i6++)
                         {
-                            bufferSize += 8; /* CsrUint8 primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secDeviceType[i6].deviceDetails[8] */
+                            bufferSize += 8; /* u8 primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secDeviceType[i6].deviceDetails[8] */
                         }
                     }
-                    bufferSize += 32;        /* CsrUint8 primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceName[32] */
-                    bufferSize += 1;         /* CsrUint8 primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceNameLength */
+                    bufferSize += 32;        /* u8 primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceName[32] */
+                    bufferSize += 1;         /* u8 primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceNameLength */
                 }
             }
             break;
         case CSR_WIFI_SME_P2P_ROLE_NONE:
-            bufferSize += 1; /* CsrUint8 primitive->result.deviceInfo.reservedNone.empty */
+            bufferSize += 1; /* u8 primitive->result.deviceInfo.reservedNone.empty */
             break;
         case CSR_WIFI_SME_P2P_ROLE_STANDALONE:
-            bufferSize += 6; /* CsrUint8 primitive->result.deviceInfo.standalonedevInfo.deviceAddress.a[6] */
+            bufferSize += 6; /* u8 primitive->result.deviceInfo.standalonedevInfo.deviceAddress.a[6] */
             bufferSize += 2; /* CsrWifiSmeWpsConfigTypeMask primitive->result.deviceInfo.standalonedevInfo.configMethods */
             bufferSize += 1; /* CsrWifiSmeP2pCapabilityMask primitive->result.deviceInfo.standalonedevInfo.p2PDeviceCap */
-            bufferSize += 8; /* CsrUint8 primitive->result.deviceInfo.standalonedevInfo.primDeviceType.deviceDetails[8] */
-            bufferSize += 1; /* CsrUint8 primitive->result.deviceInfo.standalonedevInfo.secondaryDeviceTypeCount */
+            bufferSize += 8; /* u8 primitive->result.deviceInfo.standalonedevInfo.primDeviceType.deviceDetails[8] */
+            bufferSize += 1; /* u8 primitive->result.deviceInfo.standalonedevInfo.secondaryDeviceTypeCount */
             {
                 CsrUint16 i4;
                 for (i4 = 0; i4 < primitive->result.deviceInfo.standalonedevInfo.secondaryDeviceTypeCount; i4++)
                 {
-                    bufferSize += 8; /* CsrUint8 primitive->result.deviceInfo.standalonedevInfo.secDeviceType[i4].deviceDetails[8] */
+                    bufferSize += 8; /* u8 primitive->result.deviceInfo.standalonedevInfo.secDeviceType[i4].deviceDetails[8] */
                 }
             }
-            bufferSize += 32;        /* CsrUint8 primitive->result.deviceInfo.standalonedevInfo.deviceName[32] */
-            bufferSize += 1;         /* CsrUint8 primitive->result.deviceInfo.standalonedevInfo.deviceNameLength */
+            bufferSize += 32;        /* u8 primitive->result.deviceInfo.standalonedevInfo.deviceName[32] */
+            bufferSize += 1;         /* u8 primitive->result.deviceInfo.standalonedevInfo.deviceNameLength */
             break;
         default:
             break;
@@ -4590,40 +4590,40 @@ CsrSize CsrWifiSmeScanResultIndSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeScanResultIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeScanResultIndSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeScanResultInd *primitive = (CsrWifiSmeScanResultInd *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrMemCpySer(ptr, len, (const void *) primitive->result.ssid.ssid, ((CsrUint16) (32)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->result.ssid.length);
+    CsrUint8Ser(ptr, len, (u8) primitive->result.ssid.length);
     CsrMemCpySer(ptr, len, (const void *) primitive->result.bssid.a, ((CsrUint16) (6)));
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->result.rssi);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->result.snr);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->result.ifIndex);
+    CsrUint8Ser(ptr, len, (u8) primitive->result.ifIndex);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->result.beaconPeriodTu);
     CsrMemCpySer(ptr, len, (const void *) primitive->result.timeStamp.data, ((CsrUint16) (8)));
     CsrMemCpySer(ptr, len, (const void *) primitive->result.localTime.data, ((CsrUint16) (8)));
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->result.channelFrequency);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->result.capabilityInformation);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->result.channelNumber);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->result.usability);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->result.bssType);
+    CsrUint8Ser(ptr, len, (u8) primitive->result.channelNumber);
+    CsrUint8Ser(ptr, len, (u8) primitive->result.usability);
+    CsrUint8Ser(ptr, len, (u8) primitive->result.bssType);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->result.informationElementsLength);
     if (primitive->result.informationElementsLength)
     {
         CsrMemCpySer(ptr, len, (const void *) primitive->result.informationElements, ((CsrUint16) (primitive->result.informationElementsLength)));
     }
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->result.p2pDeviceRole);
+    CsrUint8Ser(ptr, len, (u8) primitive->result.p2pDeviceRole);
     switch (primitive->result.p2pDeviceRole)
     {
         case CSR_WIFI_SME_P2P_ROLE_CLI:
-            CsrUint8Ser(ptr, len, (CsrUint8) primitive->result.deviceInfo.reservedCli.empty);
+            CsrUint8Ser(ptr, len, (u8) primitive->result.deviceInfo.reservedCli.empty);
             break;
         case CSR_WIFI_SME_P2P_ROLE_GO:
-            CsrUint8Ser(ptr, len, (CsrUint8) primitive->result.deviceInfo.groupInfo.groupCapability);
+            CsrUint8Ser(ptr, len, (u8) primitive->result.deviceInfo.groupInfo.groupCapability);
             CsrMemCpySer(ptr, len, (const void *) primitive->result.deviceInfo.groupInfo.p2pDeviceAddress.a, ((CsrUint16) (6)));
-            CsrUint8Ser(ptr, len, (CsrUint8) primitive->result.deviceInfo.groupInfo.p2pClientInfoCount);
+            CsrUint8Ser(ptr, len, (u8) primitive->result.deviceInfo.groupInfo.p2pClientInfoCount);
             {
                 CsrUint16 i4;
                 for (i4 = 0; i4 < primitive->result.deviceInfo.groupInfo.p2pClientInfoCount; i4++)
@@ -4631,9 +4631,9 @@ CsrUint8* CsrWifiSmeScanResultIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
                     CsrMemCpySer(ptr, len, (const void *) primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].p2PClientInterfaceAddress.a, ((CsrUint16) (6)));
                     CsrMemCpySer(ptr, len, (const void *) primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceAddress.a, ((CsrUint16) (6)));
                     CsrUint16Ser(ptr, len, (CsrUint16) primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.configMethods);
-                    CsrUint8Ser(ptr, len, (CsrUint8) primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.p2PDeviceCap);
+                    CsrUint8Ser(ptr, len, (u8) primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.p2PDeviceCap);
                     CsrMemCpySer(ptr, len, (const void *) primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.primDeviceType.deviceDetails, ((CsrUint16) (8)));
-                    CsrUint8Ser(ptr, len, (CsrUint8) primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount);
+                    CsrUint8Ser(ptr, len, (u8) primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount);
                     {
                         CsrUint16 i6;
                         for (i6 = 0; i6 < primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount; i6++)
@@ -4642,19 +4642,19 @@ CsrUint8* CsrWifiSmeScanResultIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
                         }
                     }
                     CsrMemCpySer(ptr, len, (const void *) primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceName, ((CsrUint16) (32)));
-                    CsrUint8Ser(ptr, len, (CsrUint8) primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceNameLength);
+                    CsrUint8Ser(ptr, len, (u8) primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceNameLength);
                 }
             }
             break;
         case CSR_WIFI_SME_P2P_ROLE_NONE:
-            CsrUint8Ser(ptr, len, (CsrUint8) primitive->result.deviceInfo.reservedNone.empty);
+            CsrUint8Ser(ptr, len, (u8) primitive->result.deviceInfo.reservedNone.empty);
             break;
         case CSR_WIFI_SME_P2P_ROLE_STANDALONE:
             CsrMemCpySer(ptr, len, (const void *) primitive->result.deviceInfo.standalonedevInfo.deviceAddress.a, ((CsrUint16) (6)));
             CsrUint16Ser(ptr, len, (CsrUint16) primitive->result.deviceInfo.standalonedevInfo.configMethods);
-            CsrUint8Ser(ptr, len, (CsrUint8) primitive->result.deviceInfo.standalonedevInfo.p2PDeviceCap);
+            CsrUint8Ser(ptr, len, (u8) primitive->result.deviceInfo.standalonedevInfo.p2PDeviceCap);
             CsrMemCpySer(ptr, len, (const void *) primitive->result.deviceInfo.standalonedevInfo.primDeviceType.deviceDetails, ((CsrUint16) (8)));
-            CsrUint8Ser(ptr, len, (CsrUint8) primitive->result.deviceInfo.standalonedevInfo.secondaryDeviceTypeCount);
+            CsrUint8Ser(ptr, len, (u8) primitive->result.deviceInfo.standalonedevInfo.secondaryDeviceTypeCount);
             {
                 CsrUint16 i4;
                 for (i4 = 0; i4 < primitive->result.deviceInfo.standalonedevInfo.secondaryDeviceTypeCount; i4++)
@@ -4663,7 +4663,7 @@ CsrUint8* CsrWifiSmeScanResultIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
                 }
             }
             CsrMemCpySer(ptr, len, (const void *) primitive->result.deviceInfo.standalonedevInfo.deviceName, ((CsrUint16) (32)));
-            CsrUint8Ser(ptr, len, (CsrUint8) primitive->result.deviceInfo.standalonedevInfo.deviceNameLength);
+            CsrUint8Ser(ptr, len, (u8) primitive->result.deviceInfo.standalonedevInfo.deviceNameLength);
             break;
         default:
             break;
@@ -4672,7 +4672,7 @@ CsrUint8* CsrWifiSmeScanResultIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeScanResultIndDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeScanResultIndDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeScanResultInd *primitive = (CsrWifiSmeScanResultInd *) CsrPmemAlloc(sizeof(CsrWifiSmeScanResultInd));
     CsrSize offset;
@@ -4680,39 +4680,39 @@ void* CsrWifiSmeScanResultIndDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrMemCpyDes(primitive->result.ssid.ssid, buffer, &offset, ((CsrUint16) (32)));
-    CsrUint8Des((CsrUint8 *) &primitive->result.ssid.length, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->result.ssid.length, buffer, &offset);
     CsrMemCpyDes(primitive->result.bssid.a, buffer, &offset, ((CsrUint16) (6)));
     CsrUint16Des((CsrUint16 *) &primitive->result.rssi, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->result.snr, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->result.ifIndex, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->result.ifIndex, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->result.beaconPeriodTu, buffer, &offset);
     CsrMemCpyDes(primitive->result.timeStamp.data, buffer, &offset, ((CsrUint16) (8)));
     CsrMemCpyDes(primitive->result.localTime.data, buffer, &offset, ((CsrUint16) (8)));
     CsrUint16Des((CsrUint16 *) &primitive->result.channelFrequency, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->result.capabilityInformation, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->result.channelNumber, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->result.usability, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->result.bssType, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->result.channelNumber, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->result.usability, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->result.bssType, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->result.informationElementsLength, buffer, &offset);
     if (primitive->result.informationElementsLength)
     {
-        primitive->result.informationElements = (CsrUint8 *)CsrPmemAlloc(primitive->result.informationElementsLength);
+        primitive->result.informationElements = (u8 *)CsrPmemAlloc(primitive->result.informationElementsLength);
         CsrMemCpyDes(primitive->result.informationElements, buffer, &offset, ((CsrUint16) (primitive->result.informationElementsLength)));
     }
     else
     {
         primitive->result.informationElements = NULL;
     }
-    CsrUint8Des((CsrUint8 *) &primitive->result.p2pDeviceRole, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->result.p2pDeviceRole, buffer, &offset);
     switch (primitive->result.p2pDeviceRole)
     {
         case CSR_WIFI_SME_P2P_ROLE_CLI:
-            CsrUint8Des((CsrUint8 *) &primitive->result.deviceInfo.reservedCli.empty, buffer, &offset);
+            CsrUint8Des((u8 *) &primitive->result.deviceInfo.reservedCli.empty, buffer, &offset);
             break;
         case CSR_WIFI_SME_P2P_ROLE_GO:
-            CsrUint8Des((CsrUint8 *) &primitive->result.deviceInfo.groupInfo.groupCapability, buffer, &offset);
+            CsrUint8Des((u8 *) &primitive->result.deviceInfo.groupInfo.groupCapability, buffer, &offset);
             CsrMemCpyDes(primitive->result.deviceInfo.groupInfo.p2pDeviceAddress.a, buffer, &offset, ((CsrUint16) (6)));
-            CsrUint8Des((CsrUint8 *) &primitive->result.deviceInfo.groupInfo.p2pClientInfoCount, buffer, &offset);
+            CsrUint8Des((u8 *) &primitive->result.deviceInfo.groupInfo.p2pClientInfoCount, buffer, &offset);
             primitive->result.deviceInfo.groupInfo.p2PClientInfo = NULL;
             if (primitive->result.deviceInfo.groupInfo.p2pClientInfoCount)
             {
@@ -4725,9 +4725,9 @@ void* CsrWifiSmeScanResultIndDes(CsrUint8 *buffer, CsrSize length)
                     CsrMemCpyDes(primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].p2PClientInterfaceAddress.a, buffer, &offset, ((CsrUint16) (6)));
                     CsrMemCpyDes(primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceAddress.a, buffer, &offset, ((CsrUint16) (6)));
                     CsrUint16Des((CsrUint16 *) &primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.configMethods, buffer, &offset);
-                    CsrUint8Des((CsrUint8 *) &primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.p2PDeviceCap, buffer, &offset);
+                    CsrUint8Des((u8 *) &primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.p2PDeviceCap, buffer, &offset);
                     CsrMemCpyDes(primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.primDeviceType.deviceDetails, buffer, &offset, ((CsrUint16) (8)));
-                    CsrUint8Des((CsrUint8 *) &primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount, buffer, &offset);
+                    CsrUint8Des((u8 *) &primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount, buffer, &offset);
                     primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secDeviceType = NULL;
                     if (primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount)
                     {
@@ -4741,19 +4741,19 @@ void* CsrWifiSmeScanResultIndDes(CsrUint8 *buffer, CsrSize length)
                         }
                     }
                     CsrMemCpyDes(primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceName, buffer, &offset, ((CsrUint16) (32)));
-                    CsrUint8Des((CsrUint8 *) &primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceNameLength, buffer, &offset);
+                    CsrUint8Des((u8 *) &primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceNameLength, buffer, &offset);
                 }
             }
             break;
         case CSR_WIFI_SME_P2P_ROLE_NONE:
-            CsrUint8Des((CsrUint8 *) &primitive->result.deviceInfo.reservedNone.empty, buffer, &offset);
+            CsrUint8Des((u8 *) &primitive->result.deviceInfo.reservedNone.empty, buffer, &offset);
             break;
         case CSR_WIFI_SME_P2P_ROLE_STANDALONE:
             CsrMemCpyDes(primitive->result.deviceInfo.standalonedevInfo.deviceAddress.a, buffer, &offset, ((CsrUint16) (6)));
             CsrUint16Des((CsrUint16 *) &primitive->result.deviceInfo.standalonedevInfo.configMethods, buffer, &offset);
-            CsrUint8Des((CsrUint8 *) &primitive->result.deviceInfo.standalonedevInfo.p2PDeviceCap, buffer, &offset);
+            CsrUint8Des((u8 *) &primitive->result.deviceInfo.standalonedevInfo.p2PDeviceCap, buffer, &offset);
             CsrMemCpyDes(primitive->result.deviceInfo.standalonedevInfo.primDeviceType.deviceDetails, buffer, &offset, ((CsrUint16) (8)));
-            CsrUint8Des((CsrUint8 *) &primitive->result.deviceInfo.standalonedevInfo.secondaryDeviceTypeCount, buffer, &offset);
+            CsrUint8Des((u8 *) &primitive->result.deviceInfo.standalonedevInfo.secondaryDeviceTypeCount, buffer, &offset);
             primitive->result.deviceInfo.standalonedevInfo.secDeviceType = NULL;
             if (primitive->result.deviceInfo.standalonedevInfo.secondaryDeviceTypeCount)
             {
@@ -4767,7 +4767,7 @@ void* CsrWifiSmeScanResultIndDes(CsrUint8 *buffer, CsrSize length)
                 }
             }
             CsrMemCpyDes(primitive->result.deviceInfo.standalonedevInfo.deviceName, buffer, &offset, ((CsrUint16) (32)));
-            CsrUint8Des((CsrUint8 *) &primitive->result.deviceInfo.standalonedevInfo.deviceNameLength, buffer, &offset);
+            CsrUint8Des((u8 *) &primitive->result.deviceInfo.standalonedevInfo.deviceNameLength, buffer, &offset);
             break;
         default:
             break;
@@ -4815,72 +4815,72 @@ CsrSize CsrWifiSmeScanResultsGetCfmSizeof(void *msg)
         CsrUint16 i1;
         for (i1 = 0; i1 < primitive->scanResultsCount; i1++)
         {
-            bufferSize += 32;                                                   /* CsrUint8 primitive->scanResults[i1].ssid.ssid[32] */
-            bufferSize += 1;                                                    /* CsrUint8 primitive->scanResults[i1].ssid.length */
-            bufferSize += 6;                                                    /* CsrUint8 primitive->scanResults[i1].bssid.a[6] */
+            bufferSize += 32;                                                   /* u8 primitive->scanResults[i1].ssid.ssid[32] */
+            bufferSize += 1;                                                    /* u8 primitive->scanResults[i1].ssid.length */
+            bufferSize += 6;                                                    /* u8 primitive->scanResults[i1].bssid.a[6] */
             bufferSize += 2;                                                    /* CsrInt16 primitive->scanResults[i1].rssi */
             bufferSize += 2;                                                    /* CsrInt16 primitive->scanResults[i1].snr */
             bufferSize += 1;                                                    /* CsrWifiSmeRadioIF primitive->scanResults[i1].ifIndex */
             bufferSize += 2;                                                    /* CsrUint16 primitive->scanResults[i1].beaconPeriodTu */
-            bufferSize += 8;                                                    /* CsrUint8 primitive->scanResults[i1].timeStamp.data[8] */
-            bufferSize += 8;                                                    /* CsrUint8 primitive->scanResults[i1].localTime.data[8] */
+            bufferSize += 8;                                                    /* u8 primitive->scanResults[i1].timeStamp.data[8] */
+            bufferSize += 8;                                                    /* u8 primitive->scanResults[i1].localTime.data[8] */
             bufferSize += 2;                                                    /* CsrUint16 primitive->scanResults[i1].channelFrequency */
             bufferSize += 2;                                                    /* CsrUint16 primitive->scanResults[i1].capabilityInformation */
-            bufferSize += 1;                                                    /* CsrUint8 primitive->scanResults[i1].channelNumber */
+            bufferSize += 1;                                                    /* u8 primitive->scanResults[i1].channelNumber */
             bufferSize += 1;                                                    /* CsrWifiSmeBasicUsability primitive->scanResults[i1].usability */
             bufferSize += 1;                                                    /* CsrWifiSmeBssType primitive->scanResults[i1].bssType */
             bufferSize += 2;                                                    /* CsrUint16 primitive->scanResults[i1].informationElementsLength */
-            bufferSize += primitive->scanResults[i1].informationElementsLength; /* CsrUint8 primitive->scanResults[i1].informationElements */
+            bufferSize += primitive->scanResults[i1].informationElementsLength; /* u8 primitive->scanResults[i1].informationElements */
             bufferSize += 1;                                                    /* CsrWifiSmeP2pRole primitive->scanResults[i1].p2pDeviceRole */
             switch (primitive->scanResults[i1].p2pDeviceRole)
             {
                 case CSR_WIFI_SME_P2P_ROLE_CLI:
-                    bufferSize += 1; /* CsrUint8 primitive->scanResults[i1].deviceInfo.reservedCli.empty */
+                    bufferSize += 1; /* u8 primitive->scanResults[i1].deviceInfo.reservedCli.empty */
                     break;
                 case CSR_WIFI_SME_P2P_ROLE_GO:
                     bufferSize += 1; /* CsrWifiSmeP2pGroupCapabilityMask primitive->scanResults[i1].deviceInfo.groupInfo.groupCapability */
-                    bufferSize += 6; /* CsrUint8 primitive->scanResults[i1].deviceInfo.groupInfo.p2pDeviceAddress.a[6] */
-                    bufferSize += 1; /* CsrUint8 primitive->scanResults[i1].deviceInfo.groupInfo.p2pClientInfoCount */
+                    bufferSize += 6; /* u8 primitive->scanResults[i1].deviceInfo.groupInfo.p2pDeviceAddress.a[6] */
+                    bufferSize += 1; /* u8 primitive->scanResults[i1].deviceInfo.groupInfo.p2pClientInfoCount */
                     {
                         CsrUint16 i4;
                         for (i4 = 0; i4 < primitive->scanResults[i1].deviceInfo.groupInfo.p2pClientInfoCount; i4++)
                         {
-                            bufferSize += 6; /* CsrUint8 primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].p2PClientInterfaceAddress.a[6] */
-                            bufferSize += 6; /* CsrUint8 primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceAddress.a[6] */
+                            bufferSize += 6; /* u8 primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].p2PClientInterfaceAddress.a[6] */
+                            bufferSize += 6; /* u8 primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceAddress.a[6] */
                             bufferSize += 2; /* CsrWifiSmeWpsConfigTypeMask primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.configMethods */
                             bufferSize += 1; /* CsrWifiSmeP2pCapabilityMask primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.p2PDeviceCap */
-                            bufferSize += 8; /* CsrUint8 primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.primDeviceType.deviceDetails[8] */
-                            bufferSize += 1; /* CsrUint8 primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount */
+                            bufferSize += 8; /* u8 primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.primDeviceType.deviceDetails[8] */
+                            bufferSize += 1; /* u8 primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount */
                             {
                                 CsrUint16 i6;
                                 for (i6 = 0; i6 < primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount; i6++)
                                 {
-                                    bufferSize += 8; /* CsrUint8 primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secDeviceType[i6].deviceDetails[8] */
+                                    bufferSize += 8; /* u8 primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secDeviceType[i6].deviceDetails[8] */
                                 }
                             }
-                            bufferSize += 32;        /* CsrUint8 primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceName[32] */
-                            bufferSize += 1;         /* CsrUint8 primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceNameLength */
+                            bufferSize += 32;        /* u8 primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceName[32] */
+                            bufferSize += 1;         /* u8 primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceNameLength */
                         }
                     }
                     break;
                 case CSR_WIFI_SME_P2P_ROLE_NONE:
-                    bufferSize += 1; /* CsrUint8 primitive->scanResults[i1].deviceInfo.reservedNone.empty */
+                    bufferSize += 1; /* u8 primitive->scanResults[i1].deviceInfo.reservedNone.empty */
                     break;
                 case CSR_WIFI_SME_P2P_ROLE_STANDALONE:
-                    bufferSize += 6; /* CsrUint8 primitive->scanResults[i1].deviceInfo.standalonedevInfo.deviceAddress.a[6] */
+                    bufferSize += 6; /* u8 primitive->scanResults[i1].deviceInfo.standalonedevInfo.deviceAddress.a[6] */
                     bufferSize += 2; /* CsrWifiSmeWpsConfigTypeMask primitive->scanResults[i1].deviceInfo.standalonedevInfo.configMethods */
                     bufferSize += 1; /* CsrWifiSmeP2pCapabilityMask primitive->scanResults[i1].deviceInfo.standalonedevInfo.p2PDeviceCap */
-                    bufferSize += 8; /* CsrUint8 primitive->scanResults[i1].deviceInfo.standalonedevInfo.primDeviceType.deviceDetails[8] */
-                    bufferSize += 1; /* CsrUint8 primitive->scanResults[i1].deviceInfo.standalonedevInfo.secondaryDeviceTypeCount */
+                    bufferSize += 8; /* u8 primitive->scanResults[i1].deviceInfo.standalonedevInfo.primDeviceType.deviceDetails[8] */
+                    bufferSize += 1; /* u8 primitive->scanResults[i1].deviceInfo.standalonedevInfo.secondaryDeviceTypeCount */
                     {
                         CsrUint16 i4;
                         for (i4 = 0; i4 < primitive->scanResults[i1].deviceInfo.standalonedevInfo.secondaryDeviceTypeCount; i4++)
                         {
-                            bufferSize += 8; /* CsrUint8 primitive->scanResults[i1].deviceInfo.standalonedevInfo.secDeviceType[i4].deviceDetails[8] */
+                            bufferSize += 8; /* u8 primitive->scanResults[i1].deviceInfo.standalonedevInfo.secDeviceType[i4].deviceDetails[8] */
                         }
                     }
-                    bufferSize += 32;        /* CsrUint8 primitive->scanResults[i1].deviceInfo.standalonedevInfo.deviceName[32] */
-                    bufferSize += 1;         /* CsrUint8 primitive->scanResults[i1].deviceInfo.standalonedevInfo.deviceNameLength */
+                    bufferSize += 32;        /* u8 primitive->scanResults[i1].deviceInfo.standalonedevInfo.deviceName[32] */
+                    bufferSize += 1;         /* u8 primitive->scanResults[i1].deviceInfo.standalonedevInfo.deviceNameLength */
                     break;
                 default:
                     break;
@@ -4891,7 +4891,7 @@ CsrSize CsrWifiSmeScanResultsGetCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeScanResultsGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeScanResultsGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeScanResultsGetCfm *primitive = (CsrWifiSmeScanResultsGetCfm *)msg;
     *len = 0;
@@ -4903,34 +4903,34 @@ CsrUint8* CsrWifiSmeScanResultsGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
         for (i1 = 0; i1 < primitive->scanResultsCount; i1++)
         {
             CsrMemCpySer(ptr, len, (const void *) primitive->scanResults[i1].ssid.ssid, ((CsrUint16) (32)));
-            CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanResults[i1].ssid.length);
+            CsrUint8Ser(ptr, len, (u8) primitive->scanResults[i1].ssid.length);
             CsrMemCpySer(ptr, len, (const void *) primitive->scanResults[i1].bssid.a, ((CsrUint16) (6)));
             CsrUint16Ser(ptr, len, (CsrUint16) primitive->scanResults[i1].rssi);
             CsrUint16Ser(ptr, len, (CsrUint16) primitive->scanResults[i1].snr);
-            CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanResults[i1].ifIndex);
+            CsrUint8Ser(ptr, len, (u8) primitive->scanResults[i1].ifIndex);
             CsrUint16Ser(ptr, len, (CsrUint16) primitive->scanResults[i1].beaconPeriodTu);
             CsrMemCpySer(ptr, len, (const void *) primitive->scanResults[i1].timeStamp.data, ((CsrUint16) (8)));
             CsrMemCpySer(ptr, len, (const void *) primitive->scanResults[i1].localTime.data, ((CsrUint16) (8)));
             CsrUint16Ser(ptr, len, (CsrUint16) primitive->scanResults[i1].channelFrequency);
             CsrUint16Ser(ptr, len, (CsrUint16) primitive->scanResults[i1].capabilityInformation);
-            CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanResults[i1].channelNumber);
-            CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanResults[i1].usability);
-            CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanResults[i1].bssType);
+            CsrUint8Ser(ptr, len, (u8) primitive->scanResults[i1].channelNumber);
+            CsrUint8Ser(ptr, len, (u8) primitive->scanResults[i1].usability);
+            CsrUint8Ser(ptr, len, (u8) primitive->scanResults[i1].bssType);
             CsrUint16Ser(ptr, len, (CsrUint16) primitive->scanResults[i1].informationElementsLength);
             if (primitive->scanResults[i1].informationElementsLength)
             {
                 CsrMemCpySer(ptr, len, (const void *) primitive->scanResults[i1].informationElements, ((CsrUint16) (primitive->scanResults[i1].informationElementsLength)));
             }
-            CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanResults[i1].p2pDeviceRole);
+            CsrUint8Ser(ptr, len, (u8) primitive->scanResults[i1].p2pDeviceRole);
             switch (primitive->scanResults[i1].p2pDeviceRole)
             {
                 case CSR_WIFI_SME_P2P_ROLE_CLI:
-                    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanResults[i1].deviceInfo.reservedCli.empty);
+                    CsrUint8Ser(ptr, len, (u8) primitive->scanResults[i1].deviceInfo.reservedCli.empty);
                     break;
                 case CSR_WIFI_SME_P2P_ROLE_GO:
-                    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanResults[i1].deviceInfo.groupInfo.groupCapability);
+                    CsrUint8Ser(ptr, len, (u8) primitive->scanResults[i1].deviceInfo.groupInfo.groupCapability);
                     CsrMemCpySer(ptr, len, (const void *) primitive->scanResults[i1].deviceInfo.groupInfo.p2pDeviceAddress.a, ((CsrUint16) (6)));
-                    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanResults[i1].deviceInfo.groupInfo.p2pClientInfoCount);
+                    CsrUint8Ser(ptr, len, (u8) primitive->scanResults[i1].deviceInfo.groupInfo.p2pClientInfoCount);
                     {
                         CsrUint16 i4;
                         for (i4 = 0; i4 < primitive->scanResults[i1].deviceInfo.groupInfo.p2pClientInfoCount; i4++)
@@ -4938,9 +4938,9 @@ CsrUint8* CsrWifiSmeScanResultsGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
                             CsrMemCpySer(ptr, len, (const void *) primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].p2PClientInterfaceAddress.a, ((CsrUint16) (6)));
                             CsrMemCpySer(ptr, len, (const void *) primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceAddress.a, ((CsrUint16) (6)));
                             CsrUint16Ser(ptr, len, (CsrUint16) primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.configMethods);
-                            CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.p2PDeviceCap);
+                            CsrUint8Ser(ptr, len, (u8) primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.p2PDeviceCap);
                             CsrMemCpySer(ptr, len, (const void *) primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.primDeviceType.deviceDetails, ((CsrUint16) (8)));
-                            CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount);
+                            CsrUint8Ser(ptr, len, (u8) primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount);
                             {
                                 CsrUint16 i6;
                                 for (i6 = 0; i6 < primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount; i6++)
@@ -4949,19 +4949,19 @@ CsrUint8* CsrWifiSmeScanResultsGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
                                 }
                             }
                             CsrMemCpySer(ptr, len, (const void *) primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceName, ((CsrUint16) (32)));
-                            CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceNameLength);
+                            CsrUint8Ser(ptr, len, (u8) primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceNameLength);
                         }
                     }
                     break;
                 case CSR_WIFI_SME_P2P_ROLE_NONE:
-                    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanResults[i1].deviceInfo.reservedNone.empty);
+                    CsrUint8Ser(ptr, len, (u8) primitive->scanResults[i1].deviceInfo.reservedNone.empty);
                     break;
                 case CSR_WIFI_SME_P2P_ROLE_STANDALONE:
                     CsrMemCpySer(ptr, len, (const void *) primitive->scanResults[i1].deviceInfo.standalonedevInfo.deviceAddress.a, ((CsrUint16) (6)));
                     CsrUint16Ser(ptr, len, (CsrUint16) primitive->scanResults[i1].deviceInfo.standalonedevInfo.configMethods);
-                    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanResults[i1].deviceInfo.standalonedevInfo.p2PDeviceCap);
+                    CsrUint8Ser(ptr, len, (u8) primitive->scanResults[i1].deviceInfo.standalonedevInfo.p2PDeviceCap);
                     CsrMemCpySer(ptr, len, (const void *) primitive->scanResults[i1].deviceInfo.standalonedevInfo.primDeviceType.deviceDetails, ((CsrUint16) (8)));
-                    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanResults[i1].deviceInfo.standalonedevInfo.secondaryDeviceTypeCount);
+                    CsrUint8Ser(ptr, len, (u8) primitive->scanResults[i1].deviceInfo.standalonedevInfo.secondaryDeviceTypeCount);
                     {
                         CsrUint16 i4;
                         for (i4 = 0; i4 < primitive->scanResults[i1].deviceInfo.standalonedevInfo.secondaryDeviceTypeCount; i4++)
@@ -4970,7 +4970,7 @@ CsrUint8* CsrWifiSmeScanResultsGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
                         }
                     }
                     CsrMemCpySer(ptr, len, (const void *) primitive->scanResults[i1].deviceInfo.standalonedevInfo.deviceName, ((CsrUint16) (32)));
-                    CsrUint8Ser(ptr, len, (CsrUint8) primitive->scanResults[i1].deviceInfo.standalonedevInfo.deviceNameLength);
+                    CsrUint8Ser(ptr, len, (u8) primitive->scanResults[i1].deviceInfo.standalonedevInfo.deviceNameLength);
                     break;
                 default:
                     break;
@@ -4981,7 +4981,7 @@ CsrUint8* CsrWifiSmeScanResultsGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeScanResultsGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeScanResultsGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeScanResultsGetCfm *primitive = (CsrWifiSmeScanResultsGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeScanResultsGetCfm));
     CsrSize offset;
@@ -5000,39 +5000,39 @@ void* CsrWifiSmeScanResultsGetCfmDes(CsrUint8 *buffer, CsrSize length)
         for (i1 = 0; i1 < primitive->scanResultsCount; i1++)
         {
             CsrMemCpyDes(primitive->scanResults[i1].ssid.ssid, buffer, &offset, ((CsrUint16) (32)));
-            CsrUint8Des((CsrUint8 *) &primitive->scanResults[i1].ssid.length, buffer, &offset);
+            CsrUint8Des((u8 *) &primitive->scanResults[i1].ssid.length, buffer, &offset);
             CsrMemCpyDes(primitive->scanResults[i1].bssid.a, buffer, &offset, ((CsrUint16) (6)));
             CsrUint16Des((CsrUint16 *) &primitive->scanResults[i1].rssi, buffer, &offset);
             CsrUint16Des((CsrUint16 *) &primitive->scanResults[i1].snr, buffer, &offset);
-            CsrUint8Des((CsrUint8 *) &primitive->scanResults[i1].ifIndex, buffer, &offset);
+            CsrUint8Des((u8 *) &primitive->scanResults[i1].ifIndex, buffer, &offset);
             CsrUint16Des((CsrUint16 *) &primitive->scanResults[i1].beaconPeriodTu, buffer, &offset);
             CsrMemCpyDes(primitive->scanResults[i1].timeStamp.data, buffer, &offset, ((CsrUint16) (8)));
             CsrMemCpyDes(primitive->scanResults[i1].localTime.data, buffer, &offset, ((CsrUint16) (8)));
             CsrUint16Des((CsrUint16 *) &primitive->scanResults[i1].channelFrequency, buffer, &offset);
             CsrUint16Des((CsrUint16 *) &primitive->scanResults[i1].capabilityInformation, buffer, &offset);
-            CsrUint8Des((CsrUint8 *) &primitive->scanResults[i1].channelNumber, buffer, &offset);
-            CsrUint8Des((CsrUint8 *) &primitive->scanResults[i1].usability, buffer, &offset);
-            CsrUint8Des((CsrUint8 *) &primitive->scanResults[i1].bssType, buffer, &offset);
+            CsrUint8Des((u8 *) &primitive->scanResults[i1].channelNumber, buffer, &offset);
+            CsrUint8Des((u8 *) &primitive->scanResults[i1].usability, buffer, &offset);
+            CsrUint8Des((u8 *) &primitive->scanResults[i1].bssType, buffer, &offset);
             CsrUint16Des((CsrUint16 *) &primitive->scanResults[i1].informationElementsLength, buffer, &offset);
             if (primitive->scanResults[i1].informationElementsLength)
             {
-                primitive->scanResults[i1].informationElements = (CsrUint8 *)CsrPmemAlloc(primitive->scanResults[i1].informationElementsLength);
+                primitive->scanResults[i1].informationElements = (u8 *)CsrPmemAlloc(primitive->scanResults[i1].informationElementsLength);
                 CsrMemCpyDes(primitive->scanResults[i1].informationElements, buffer, &offset, ((CsrUint16) (primitive->scanResults[i1].informationElementsLength)));
             }
             else
             {
                 primitive->scanResults[i1].informationElements = NULL;
             }
-            CsrUint8Des((CsrUint8 *) &primitive->scanResults[i1].p2pDeviceRole, buffer, &offset);
+            CsrUint8Des((u8 *) &primitive->scanResults[i1].p2pDeviceRole, buffer, &offset);
             switch (primitive->scanResults[i1].p2pDeviceRole)
             {
                 case CSR_WIFI_SME_P2P_ROLE_CLI:
-                    CsrUint8Des((CsrUint8 *) &primitive->scanResults[i1].deviceInfo.reservedCli.empty, buffer, &offset);
+                    CsrUint8Des((u8 *) &primitive->scanResults[i1].deviceInfo.reservedCli.empty, buffer, &offset);
                     break;
                 case CSR_WIFI_SME_P2P_ROLE_GO:
-                    CsrUint8Des((CsrUint8 *) &primitive->scanResults[i1].deviceInfo.groupInfo.groupCapability, buffer, &offset);
+                    CsrUint8Des((u8 *) &primitive->scanResults[i1].deviceInfo.groupInfo.groupCapability, buffer, &offset);
                     CsrMemCpyDes(primitive->scanResults[i1].deviceInfo.groupInfo.p2pDeviceAddress.a, buffer, &offset, ((CsrUint16) (6)));
-                    CsrUint8Des((CsrUint8 *) &primitive->scanResults[i1].deviceInfo.groupInfo.p2pClientInfoCount, buffer, &offset);
+                    CsrUint8Des((u8 *) &primitive->scanResults[i1].deviceInfo.groupInfo.p2pClientInfoCount, buffer, &offset);
                     primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo = NULL;
                     if (primitive->scanResults[i1].deviceInfo.groupInfo.p2pClientInfoCount)
                     {
@@ -5045,9 +5045,9 @@ void* CsrWifiSmeScanResultsGetCfmDes(CsrUint8 *buffer, CsrSize length)
                             CsrMemCpyDes(primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].p2PClientInterfaceAddress.a, buffer, &offset, ((CsrUint16) (6)));
                             CsrMemCpyDes(primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceAddress.a, buffer, &offset, ((CsrUint16) (6)));
                             CsrUint16Des((CsrUint16 *) &primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.configMethods, buffer, &offset);
-                            CsrUint8Des((CsrUint8 *) &primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.p2PDeviceCap, buffer, &offset);
+                            CsrUint8Des((u8 *) &primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.p2PDeviceCap, buffer, &offset);
                             CsrMemCpyDes(primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.primDeviceType.deviceDetails, buffer, &offset, ((CsrUint16) (8)));
-                            CsrUint8Des((CsrUint8 *) &primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount, buffer, &offset);
+                            CsrUint8Des((u8 *) &primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount, buffer, &offset);
                             primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secDeviceType = NULL;
                             if (primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secondaryDeviceTypeCount)
                             {
@@ -5061,19 +5061,19 @@ void* CsrWifiSmeScanResultsGetCfmDes(CsrUint8 *buffer, CsrSize length)
                                 }
                             }
                             CsrMemCpyDes(primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceName, buffer, &offset, ((CsrUint16) (32)));
-                            CsrUint8Des((CsrUint8 *) &primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceNameLength, buffer, &offset);
+                            CsrUint8Des((u8 *) &primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.deviceNameLength, buffer, &offset);
                         }
                     }
                     break;
                 case CSR_WIFI_SME_P2P_ROLE_NONE:
-                    CsrUint8Des((CsrUint8 *) &primitive->scanResults[i1].deviceInfo.reservedNone.empty, buffer, &offset);
+                    CsrUint8Des((u8 *) &primitive->scanResults[i1].deviceInfo.reservedNone.empty, buffer, &offset);
                     break;
                 case CSR_WIFI_SME_P2P_ROLE_STANDALONE:
                     CsrMemCpyDes(primitive->scanResults[i1].deviceInfo.standalonedevInfo.deviceAddress.a, buffer, &offset, ((CsrUint16) (6)));
                     CsrUint16Des((CsrUint16 *) &primitive->scanResults[i1].deviceInfo.standalonedevInfo.configMethods, buffer, &offset);
-                    CsrUint8Des((CsrUint8 *) &primitive->scanResults[i1].deviceInfo.standalonedevInfo.p2PDeviceCap, buffer, &offset);
+                    CsrUint8Des((u8 *) &primitive->scanResults[i1].deviceInfo.standalonedevInfo.p2PDeviceCap, buffer, &offset);
                     CsrMemCpyDes(primitive->scanResults[i1].deviceInfo.standalonedevInfo.primDeviceType.deviceDetails, buffer, &offset, ((CsrUint16) (8)));
-                    CsrUint8Des((CsrUint8 *) &primitive->scanResults[i1].deviceInfo.standalonedevInfo.secondaryDeviceTypeCount, buffer, &offset);
+                    CsrUint8Des((u8 *) &primitive->scanResults[i1].deviceInfo.standalonedevInfo.secondaryDeviceTypeCount, buffer, &offset);
                     primitive->scanResults[i1].deviceInfo.standalonedevInfo.secDeviceType = NULL;
                     if (primitive->scanResults[i1].deviceInfo.standalonedevInfo.secondaryDeviceTypeCount)
                     {
@@ -5087,7 +5087,7 @@ void* CsrWifiSmeScanResultsGetCfmDes(CsrUint8 *buffer, CsrSize length)
                         }
                     }
                     CsrMemCpyDes(primitive->scanResults[i1].deviceInfo.standalonedevInfo.deviceName, buffer, &offset, ((CsrUint16) (32)));
-                    CsrUint8Des((CsrUint8 *) &primitive->scanResults[i1].deviceInfo.standalonedevInfo.deviceNameLength, buffer, &offset);
+                    CsrUint8Des((u8 *) &primitive->scanResults[i1].deviceInfo.standalonedevInfo.deviceNameLength, buffer, &offset);
                     break;
                 default:
                     break;
@@ -5139,8 +5139,8 @@ CsrSize CsrWifiSmeSmeStaConfigGetCfmSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 13) */
     bufferSize += 2; /* CsrUint16 primitive->interfaceTag */
     bufferSize += 2; /* CsrResult primitive->status */
-    bufferSize += 1; /* CsrUint8 primitive->smeConfig.connectionQualityRssiChangeTrigger */
-    bufferSize += 1; /* CsrUint8 primitive->smeConfig.connectionQualitySnrChangeTrigger */
+    bufferSize += 1; /* u8 primitive->smeConfig.connectionQualityRssiChangeTrigger */
+    bufferSize += 1; /* u8 primitive->smeConfig.connectionQualitySnrChangeTrigger */
     bufferSize += 1; /* CsrWifiSmeWmmModeMask primitive->smeConfig.wmmModeMask */
     bufferSize += 1; /* CsrWifiSmeRadioIF primitive->smeConfig.ifIndex */
     bufferSize += 1; /* CsrBool primitive->smeConfig.allowUnicastUseGroupCipher */
@@ -5149,24 +5149,24 @@ CsrSize CsrWifiSmeSmeStaConfigGetCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeSmeStaConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeSmeStaConfigGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeSmeStaConfigGetCfm *primitive = (CsrWifiSmeSmeStaConfigGetCfm *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->smeConfig.connectionQualityRssiChangeTrigger);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->smeConfig.connectionQualitySnrChangeTrigger);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->smeConfig.wmmModeMask);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->smeConfig.ifIndex);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->smeConfig.allowUnicastUseGroupCipher);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->smeConfig.enableOpportunisticKeyCaching);
+    CsrUint8Ser(ptr, len, (u8) primitive->smeConfig.connectionQualityRssiChangeTrigger);
+    CsrUint8Ser(ptr, len, (u8) primitive->smeConfig.connectionQualitySnrChangeTrigger);
+    CsrUint8Ser(ptr, len, (u8) primitive->smeConfig.wmmModeMask);
+    CsrUint8Ser(ptr, len, (u8) primitive->smeConfig.ifIndex);
+    CsrUint8Ser(ptr, len, (u8) primitive->smeConfig.allowUnicastUseGroupCipher);
+    CsrUint8Ser(ptr, len, (u8) primitive->smeConfig.enableOpportunisticKeyCaching);
     return(ptr);
 }
 
 
-void* CsrWifiSmeSmeStaConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeSmeStaConfigGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeSmeStaConfigGetCfm *primitive = (CsrWifiSmeSmeStaConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeSmeStaConfigGetCfm));
     CsrSize offset;
@@ -5175,12 +5175,12 @@ void* CsrWifiSmeSmeStaConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->smeConfig.connectionQualityRssiChangeTrigger, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->smeConfig.connectionQualitySnrChangeTrigger, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->smeConfig.wmmModeMask, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->smeConfig.ifIndex, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->smeConfig.allowUnicastUseGroupCipher, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->smeConfig.enableOpportunisticKeyCaching, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->smeConfig.connectionQualityRssiChangeTrigger, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->smeConfig.connectionQualitySnrChangeTrigger, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->smeConfig.wmmModeMask, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->smeConfig.ifIndex, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->smeConfig.allowUnicastUseGroupCipher, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->smeConfig.enableOpportunisticKeyCaching, buffer, &offset);
 
     return primitive;
 }
@@ -5197,7 +5197,7 @@ CsrSize CsrWifiSmeSmeStaConfigSetCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeSmeStaConfigSetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeSmeStaConfigSetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeSmeStaConfigSetCfm *primitive = (CsrWifiSmeSmeStaConfigSetCfm *)msg;
     *len = 0;
@@ -5208,7 +5208,7 @@ CsrUint8* CsrWifiSmeSmeStaConfigSetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg
 }
 
 
-void* CsrWifiSmeSmeStaConfigSetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeSmeStaConfigSetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeSmeStaConfigSetCfm *primitive = (CsrWifiSmeSmeStaConfigSetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeSmeStaConfigSetCfm));
     CsrSize offset;
@@ -5232,14 +5232,14 @@ CsrSize CsrWifiSmeStationMacAddressGetCfmSizeof(void *msg)
         CsrUint16 i1;
         for (i1 = 0; i1 < 2; i1++)
         {
-            bufferSize += 6; /* CsrUint8 primitive->stationMacAddress[i1].a[6] */
+            bufferSize += 6; /* u8 primitive->stationMacAddress[i1].a[6] */
         }
     }
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeStationMacAddressGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeStationMacAddressGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeStationMacAddressGetCfm *primitive = (CsrWifiSmeStationMacAddressGetCfm *)msg;
     *len = 0;
@@ -5256,7 +5256,7 @@ CsrUint8* CsrWifiSmeStationMacAddressGetCfmSer(CsrUint8 *ptr, CsrSize *len, void
 }
 
 
-void* CsrWifiSmeStationMacAddressGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeStationMacAddressGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeStationMacAddressGetCfm *primitive = (CsrWifiSmeStationMacAddressGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeStationMacAddressGetCfm));
     CsrSize offset;
@@ -5286,19 +5286,19 @@ CsrSize CsrWifiSmeTspecIndSizeof(void *msg)
     bufferSize += 4;                      /* CsrUint32 primitive->transactionId */
     bufferSize += 1;                      /* CsrWifiSmeTspecResultCode primitive->tspecResultCode */
     bufferSize += 2;                      /* CsrUint16 primitive->tspecLength */
-    bufferSize += primitive->tspecLength; /* CsrUint8 primitive->tspec */
+    bufferSize += primitive->tspecLength; /* u8 primitive->tspec */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeTspecIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeTspecIndSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeTspecInd *primitive = (CsrWifiSmeTspecInd *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
     CsrUint32Ser(ptr, len, (CsrUint32) primitive->transactionId);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->tspecResultCode);
+    CsrUint8Ser(ptr, len, (u8) primitive->tspecResultCode);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->tspecLength);
     if (primitive->tspecLength)
     {
@@ -5308,7 +5308,7 @@ CsrUint8* CsrWifiSmeTspecIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeTspecIndDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeTspecIndDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeTspecInd *primitive = (CsrWifiSmeTspecInd *) CsrPmemAlloc(sizeof(CsrWifiSmeTspecInd));
     CsrSize offset;
@@ -5317,11 +5317,11 @@ void* CsrWifiSmeTspecIndDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
     CsrUint32Des((CsrUint32 *) &primitive->transactionId, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->tspecResultCode, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->tspecResultCode, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->tspecLength, buffer, &offset);
     if (primitive->tspecLength)
     {
-        primitive->tspec = (CsrUint8 *)CsrPmemAlloc(primitive->tspecLength);
+        primitive->tspec = (u8 *)CsrPmemAlloc(primitive->tspecLength);
         CsrMemCpyDes(primitive->tspec, buffer, &offset, ((CsrUint16) (primitive->tspecLength)));
     }
     else
@@ -5352,12 +5352,12 @@ CsrSize CsrWifiSmeTspecCfmSizeof(void *msg)
     bufferSize += 4;                      /* CsrUint32 primitive->transactionId */
     bufferSize += 1;                      /* CsrWifiSmeTspecResultCode primitive->tspecResultCode */
     bufferSize += 2;                      /* CsrUint16 primitive->tspecLength */
-    bufferSize += primitive->tspecLength; /* CsrUint8 primitive->tspec */
+    bufferSize += primitive->tspecLength; /* u8 primitive->tspec */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeTspecCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeTspecCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeTspecCfm *primitive = (CsrWifiSmeTspecCfm *)msg;
     *len = 0;
@@ -5365,7 +5365,7 @@ CsrUint8* CsrWifiSmeTspecCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
     CsrUint32Ser(ptr, len, (CsrUint32) primitive->transactionId);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->tspecResultCode);
+    CsrUint8Ser(ptr, len, (u8) primitive->tspecResultCode);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->tspecLength);
     if (primitive->tspecLength)
     {
@@ -5375,7 +5375,7 @@ CsrUint8* CsrWifiSmeTspecCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeTspecCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeTspecCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeTspecCfm *primitive = (CsrWifiSmeTspecCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeTspecCfm));
     CsrSize offset;
@@ -5385,11 +5385,11 @@ void* CsrWifiSmeTspecCfmDes(CsrUint8 *buffer, CsrSize length)
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
     CsrUint32Des((CsrUint32 *) &primitive->transactionId, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->tspecResultCode, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->tspecResultCode, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->tspecLength, buffer, &offset);
     if (primitive->tspecLength)
     {
-        primitive->tspec = (CsrUint8 *)CsrPmemAlloc(primitive->tspecLength);
+        primitive->tspec = (u8 *)CsrPmemAlloc(primitive->tspecLength);
         CsrMemCpyDes(primitive->tspec, buffer, &offset, ((CsrUint16) (primitive->tspecLength)));
     }
     else
@@ -5429,7 +5429,7 @@ CsrSize CsrWifiSmeVersionsGetCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeVersionsGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeVersionsGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeVersionsGetCfm *primitive = (CsrWifiSmeVersionsGetCfm *)msg;
     *len = 0;
@@ -5448,7 +5448,7 @@ CsrUint8* CsrWifiSmeVersionsGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeVersionsGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeVersionsGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeVersionsGetCfm *primitive = (CsrWifiSmeVersionsGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeVersionsGetCfm));
     CsrSize offset;
@@ -5486,39 +5486,39 @@ CsrSize CsrWifiSmeCloakedSsidsGetCfmSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 39) */
     bufferSize += 2; /* CsrResult primitive->status */
-    bufferSize += 1; /* CsrUint8 primitive->cloakedSsids.cloakedSsidsCount */
+    bufferSize += 1; /* u8 primitive->cloakedSsids.cloakedSsidsCount */
     {
         CsrUint16 i2;
         for (i2 = 0; i2 < primitive->cloakedSsids.cloakedSsidsCount; i2++)
         {
-            bufferSize += 32; /* CsrUint8 primitive->cloakedSsids.cloakedSsids[i2].ssid[32] */
-            bufferSize += 1;  /* CsrUint8 primitive->cloakedSsids.cloakedSsids[i2].length */
+            bufferSize += 32; /* u8 primitive->cloakedSsids.cloakedSsids[i2].ssid[32] */
+            bufferSize += 1;  /* u8 primitive->cloakedSsids.cloakedSsids[i2].length */
         }
     }
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeCloakedSsidsGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeCloakedSsidsGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeCloakedSsidsGetCfm *primitive = (CsrWifiSmeCloakedSsidsGetCfm *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->cloakedSsids.cloakedSsidsCount);
+    CsrUint8Ser(ptr, len, (u8) primitive->cloakedSsids.cloakedSsidsCount);
     {
         CsrUint16 i2;
         for (i2 = 0; i2 < primitive->cloakedSsids.cloakedSsidsCount; i2++)
         {
             CsrMemCpySer(ptr, len, (const void *) primitive->cloakedSsids.cloakedSsids[i2].ssid, ((CsrUint16) (32)));
-            CsrUint8Ser(ptr, len, (CsrUint8) primitive->cloakedSsids.cloakedSsids[i2].length);
+            CsrUint8Ser(ptr, len, (u8) primitive->cloakedSsids.cloakedSsids[i2].length);
         }
     }
     return(ptr);
 }
 
 
-void* CsrWifiSmeCloakedSsidsGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeCloakedSsidsGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeCloakedSsidsGetCfm *primitive = (CsrWifiSmeCloakedSsidsGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeCloakedSsidsGetCfm));
     CsrSize offset;
@@ -5526,7 +5526,7 @@ void* CsrWifiSmeCloakedSsidsGetCfmDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->cloakedSsids.cloakedSsidsCount, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->cloakedSsids.cloakedSsidsCount, buffer, &offset);
     primitive->cloakedSsids.cloakedSsids = NULL;
     if (primitive->cloakedSsids.cloakedSsidsCount)
     {
@@ -5537,7 +5537,7 @@ void* CsrWifiSmeCloakedSsidsGetCfmDes(CsrUint8 *buffer, CsrSize length)
         for (i2 = 0; i2 < primitive->cloakedSsids.cloakedSsidsCount; i2++)
         {
             CsrMemCpyDes(primitive->cloakedSsids.cloakedSsids[i2].ssid, buffer, &offset, ((CsrUint16) (32)));
-            CsrUint8Des((CsrUint8 *) &primitive->cloakedSsids.cloakedSsids[i2].length, buffer, &offset);
+            CsrUint8Des((u8 *) &primitive->cloakedSsids.cloakedSsids[i2].length, buffer, &offset);
         }
     }
 
@@ -5558,12 +5558,12 @@ CsrSize CsrWifiSmeWifiOnIndSizeof(void *msg)
     CsrSize bufferSize = 2;
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 9) */
-    bufferSize += 6; /* CsrUint8 primitive->address.a[6] */
+    bufferSize += 6; /* u8 primitive->address.a[6] */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeWifiOnIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeWifiOnIndSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeWifiOnInd *primitive = (CsrWifiSmeWifiOnInd *)msg;
     *len = 0;
@@ -5573,7 +5573,7 @@ CsrUint8* CsrWifiSmeWifiOnIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeWifiOnIndDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeWifiOnIndDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeWifiOnInd *primitive = (CsrWifiSmeWifiOnInd *) CsrPmemAlloc(sizeof(CsrWifiSmeWifiOnInd));
     CsrSize offset;
@@ -5593,28 +5593,28 @@ CsrSize CsrWifiSmeSmeCommonConfigGetCfmSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 10) */
     bufferSize += 2; /* CsrResult primitive->status */
     bufferSize += 1; /* CsrWifiSme80211dTrustLevel primitive->deviceConfig.trustLevel */
-    bufferSize += 2; /* CsrUint8 primitive->deviceConfig.countryCode[2] */
+    bufferSize += 2; /* u8 primitive->deviceConfig.countryCode[2] */
     bufferSize += 1; /* CsrWifiSmeFirmwareDriverInterface primitive->deviceConfig.firmwareDriverInterface */
     bufferSize += 1; /* CsrBool primitive->deviceConfig.enableStrictDraftN */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeSmeCommonConfigGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeSmeCommonConfigGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeSmeCommonConfigGetCfm *primitive = (CsrWifiSmeSmeCommonConfigGetCfm *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->deviceConfig.trustLevel);
+    CsrUint8Ser(ptr, len, (u8) primitive->deviceConfig.trustLevel);
     CsrMemCpySer(ptr, len, (const void *) primitive->deviceConfig.countryCode, ((CsrUint16) (2)));
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->deviceConfig.firmwareDriverInterface);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->deviceConfig.enableStrictDraftN);
+    CsrUint8Ser(ptr, len, (u8) primitive->deviceConfig.firmwareDriverInterface);
+    CsrUint8Ser(ptr, len, (u8) primitive->deviceConfig.enableStrictDraftN);
     return(ptr);
 }
 
 
-void* CsrWifiSmeSmeCommonConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeSmeCommonConfigGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeSmeCommonConfigGetCfm *primitive = (CsrWifiSmeSmeCommonConfigGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeSmeCommonConfigGetCfm));
     CsrSize offset;
@@ -5622,10 +5622,10 @@ void* CsrWifiSmeSmeCommonConfigGetCfmDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->deviceConfig.trustLevel, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->deviceConfig.trustLevel, buffer, &offset);
     CsrMemCpyDes(primitive->deviceConfig.countryCode, buffer, &offset, ((CsrUint16) (2)));
-    CsrUint8Des((CsrUint8 *) &primitive->deviceConfig.firmwareDriverInterface, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->deviceConfig.enableStrictDraftN, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->deviceConfig.firmwareDriverInterface, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->deviceConfig.enableStrictDraftN, buffer, &offset);
 
     return primitive;
 }
@@ -5638,12 +5638,12 @@ CsrSize CsrWifiSmeInterfaceCapabilityGetCfmSizeof(void *msg)
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 9) */
     bufferSize += 2; /* CsrResult primitive->status */
     bufferSize += 2; /* CsrUint16 primitive->numInterfaces */
-    bufferSize += 2; /* CsrUint8 primitive->capBitmap[2] */
+    bufferSize += 2; /* u8 primitive->capBitmap[2] */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeInterfaceCapabilityGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeInterfaceCapabilityGetCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeInterfaceCapabilityGetCfm *primitive = (CsrWifiSmeInterfaceCapabilityGetCfm *)msg;
     *len = 0;
@@ -5655,7 +5655,7 @@ CsrUint8* CsrWifiSmeInterfaceCapabilityGetCfmSer(CsrUint8 *ptr, CsrSize *len, vo
 }
 
 
-void* CsrWifiSmeInterfaceCapabilityGetCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeInterfaceCapabilityGetCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeInterfaceCapabilityGetCfm *primitive = (CsrWifiSmeInterfaceCapabilityGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeInterfaceCapabilityGetCfm));
     CsrSize offset;
@@ -5681,7 +5681,7 @@ CsrSize CsrWifiSmeErrorIndSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeErrorIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeErrorIndSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeErrorInd *primitive = (CsrWifiSmeErrorInd *)msg;
     *len = 0;
@@ -5691,7 +5691,7 @@ CsrUint8* CsrWifiSmeErrorIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeErrorIndDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeErrorIndDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeErrorInd *primitive = (CsrWifiSmeErrorInd *) CsrPmemAlloc(sizeof(CsrWifiSmeErrorInd));
     CsrSize offset;
@@ -5723,7 +5723,7 @@ CsrSize CsrWifiSmeInfoIndSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiSmeInfoIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeInfoIndSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeInfoInd *primitive = (CsrWifiSmeInfoInd *)msg;
     *len = 0;
@@ -5733,7 +5733,7 @@ CsrUint8* CsrWifiSmeInfoIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeInfoIndDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeInfoIndDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeInfoInd *primitive = (CsrWifiSmeInfoInd *) CsrPmemAlloc(sizeof(CsrWifiSmeInfoInd));
     CsrSize offset;
@@ -5761,12 +5761,12 @@ CsrSize CsrWifiSmeCoreDumpIndSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 8) */
     bufferSize += 4;                     /* CsrUint32 primitive->dataLength */
-    bufferSize += primitive->dataLength; /* CsrUint8 primitive->data */
+    bufferSize += primitive->dataLength; /* u8 primitive->data */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiSmeCoreDumpIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiSmeCoreDumpIndSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiSmeCoreDumpInd *primitive = (CsrWifiSmeCoreDumpInd *)msg;
     *len = 0;
@@ -5780,7 +5780,7 @@ CsrUint8* CsrWifiSmeCoreDumpIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiSmeCoreDumpIndDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiSmeCoreDumpIndDes(u8 *buffer, CsrSize length)
 {
     CsrWifiSmeCoreDumpInd *primitive = (CsrWifiSmeCoreDumpInd *) CsrPmemAlloc(sizeof(CsrWifiSmeCoreDumpInd));
     CsrSize offset;
@@ -5790,7 +5790,7 @@ void* CsrWifiSmeCoreDumpIndDes(CsrUint8 *buffer, CsrSize length)
     CsrUint32Des((CsrUint32 *) &primitive->dataLength, buffer, &offset);
     if (primitive->dataLength)
     {
-        primitive->data = (CsrUint8 *)CsrPmemAlloc(primitive->dataLength);
+        primitive->data = (u8 *)CsrPmemAlloc(primitive->dataLength);
         CsrMemCpyDes(primitive->data, buffer, &offset, ((CsrUint16) (primitive->dataLength)));
     }
     else

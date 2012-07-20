@@ -20,13 +20,13 @@ extern "C" {
 /*------------------------------------------------------------------*/
 /* Bits - intended to operate on CsrUint32 values */
 /*------------------------------------------------------------------*/
-CsrUint8 CsrBitCountSparse(CsrUint32 n);
-CsrUint8 CsrBitCountDense(CsrUint32 n);
+u8 CsrBitCountSparse(CsrUint32 n);
+u8 CsrBitCountDense(CsrUint32 n);
 
 /*------------------------------------------------------------------*/
 /* Base conversion */
 /*------------------------------------------------------------------*/
-CsrBool CsrHexStrToUint8(const CsrCharString *string, CsrUint8 *returnValue);
+CsrBool CsrHexStrToUint8(const CsrCharString *string, u8 *returnValue);
 CsrBool CsrHexStrToUint16(const CsrCharString *string, CsrUint16 *returnValue);
 CsrBool CsrHexStrToUint32(const CsrCharString *string, CsrUint32 *returnValue);
 CsrUint32 CsrPow(CsrUint32 base, CsrUint32 exponent);
@@ -63,7 +63,7 @@ CsrInt32 CsrStrCmp(const CsrCharString *string1, const CsrCharString *string2);
 CsrInt32 CsrStrNCmp(const CsrCharString *string1, const CsrCharString *string2, CsrSize count);
 CsrCharString *CsrStrChr(const CsrCharString *string, CsrCharString c);
 CsrCharString *CsrStrStr(const CsrCharString *string1, const CsrCharString *string2);
-void *CsrMemSet(void *dest, CsrUint8 c, CsrSize count);
+void *CsrMemSet(void *dest, u8 c, CsrSize count);
 CsrSize CsrStrLen(const CsrCharString *string);
 #endif /* !CSR_USE_STDC_LIB */
 CsrInt32 CsrVsnprintf(CsrCharString *string, CsrSize count, const CsrCharString *format, va_list args);
@@ -85,7 +85,7 @@ const CsrCharString *CsrGetBaseName(const CsrCharString *file);
 /*------------------------------------------------------------------*/
 /* Misc */
 /*------------------------------------------------------------------*/
-CsrBool CsrIsSpace(CsrUint8 c);
+CsrBool CsrIsSpace(u8 c);
 #define CsrOffsetOf(st, m)  ((CsrSize) & ((st *) 0)->m)
 
 #ifdef __cplusplus

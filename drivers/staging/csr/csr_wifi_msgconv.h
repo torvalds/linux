@@ -21,37 +21,37 @@ extern "C" {
 #endif
 
 
-void CsrUint16SerBigEndian(CsrUint8 *ptr, CsrSize *len, CsrUint16 v);
-void CsrUint24SerBigEndian(CsrUint8 *ptr, CsrSize *len, CsrUint32 v);
-void CsrUint32SerBigEndian(CsrUint8 *ptr, CsrSize *len, CsrUint32 v);
+void CsrUint16SerBigEndian(u8 *ptr, CsrSize *len, CsrUint16 v);
+void CsrUint24SerBigEndian(u8 *ptr, CsrSize *len, CsrUint32 v);
+void CsrUint32SerBigEndian(u8 *ptr, CsrSize *len, CsrUint32 v);
 
-void CsrUint16DesBigEndian(CsrUint16 *v, CsrUint8 *buffer, CsrSize *offset);
-void CsrUint24DesBigEndian(CsrUint32 *v, CsrUint8 *buffer, CsrSize *offset);
-void CsrUint32DesBigEndian(CsrUint32 *v, CsrUint8 *buffer, CsrSize *offset);
+void CsrUint16DesBigEndian(CsrUint16 *v, u8 *buffer, CsrSize *offset);
+void CsrUint24DesBigEndian(CsrUint32 *v, u8 *buffer, CsrSize *offset);
+void CsrUint32DesBigEndian(CsrUint32 *v, u8 *buffer, CsrSize *offset);
 
-void CsrUint24Ser(CsrUint8 *ptr, CsrSize *len, CsrUint32 v);
-void CsrUint24Des(CsrUint32 *v, CsrUint8 *buffer, CsrSize *offset);
+void CsrUint24Ser(u8 *ptr, CsrSize *len, CsrUint32 v);
+void CsrUint24Des(CsrUint32 *v, u8 *buffer, CsrSize *offset);
 
 
 CsrSize CsrWifiEventSizeof(void *msg);
-CsrUint8* CsrWifiEventSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-void* CsrWifiEventDes(CsrUint8 *buffer, CsrSize length);
+u8* CsrWifiEventSer(u8 *ptr, CsrSize *len, void *msg);
+void* CsrWifiEventDes(u8 *buffer, CsrSize length);
 
 CsrSize CsrWifiEventCsrUint8Sizeof(void *msg);
-CsrUint8* CsrWifiEventCsrUint8Ser(CsrUint8 *ptr, CsrSize *len, void *msg);
-void* CsrWifiEventCsrUint8Des(CsrUint8 *buffer, CsrSize length);
+u8* CsrWifiEventCsrUint8Ser(u8 *ptr, CsrSize *len, void *msg);
+void* CsrWifiEventCsrUint8Des(u8 *buffer, CsrSize length);
 
 CsrSize CsrWifiEventCsrUint16Sizeof(void *msg);
-CsrUint8* CsrWifiEventCsrUint16Ser(CsrUint8 *ptr, CsrSize *len, void *msg);
-void* CsrWifiEventCsrUint16Des(CsrUint8 *buffer, CsrSize length);
+u8* CsrWifiEventCsrUint16Ser(u8 *ptr, CsrSize *len, void *msg);
+void* CsrWifiEventCsrUint16Des(u8 *buffer, CsrSize length);
 
 CsrSize CsrWifiEventCsrUint32Sizeof(void *msg);
-CsrUint8* CsrWifiEventCsrUint32Ser(CsrUint8 *ptr, CsrSize *len, void *msg);
-void* CsrWifiEventCsrUint32Des(CsrUint8 *buffer, CsrSize length);
+u8* CsrWifiEventCsrUint32Ser(u8 *ptr, CsrSize *len, void *msg);
+void* CsrWifiEventCsrUint32Des(u8 *buffer, CsrSize length);
 
 CsrSize CsrWifiEventCsrUint16CsrUint8Sizeof(void *msg);
-CsrUint8* CsrWifiEventCsrUint16CsrUint8Ser(CsrUint8 *ptr, CsrSize *len, void *msg);
-void* CsrWifiEventCsrUint16CsrUint8Des(CsrUint8 *buffer, CsrSize length);
+u8* CsrWifiEventCsrUint16CsrUint8Ser(u8 *ptr, CsrSize *len, void *msg);
+void* CsrWifiEventCsrUint16CsrUint8Des(u8 *buffer, CsrSize length);
 
 #ifdef __cplusplus
 }

@@ -101,7 +101,7 @@ typedef CsrUint16 CsrWifiNmeAuthMode;
                    - P2P mode of operation.
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiNmeBssType;
+typedef u8 CsrWifiNmeBssType;
 #define CSR_WIFI_NME_BSS_TYPE_INFRASTRUCTURE   ((CsrWifiNmeBssType) 0x00)
 #define CSR_WIFI_NME_BSS_TYPE_ADHOC            ((CsrWifiNmeBssType) 0x01)
 #define CSR_WIFI_NME_BSS_TYPE_RESERVED         ((CsrWifiNmeBssType) 0x02)
@@ -120,7 +120,7 @@ typedef CsrUint8 CsrWifiNmeBssType;
     CSR_WIFI_NME_CCX_OPTION_CCKM - CCX option cckm is set.
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiNmeCcxOptionsMask;
+typedef u8 CsrWifiNmeCcxOptionsMask;
 #define CSR_WIFI_NME_CCX_OPTION_NONE   ((CsrWifiNmeCcxOptionsMask) 0x00)
 #define CSR_WIFI_NME_CCX_OPTION_CCKM   ((CsrWifiNmeCcxOptionsMask) 0x01)
 
@@ -137,7 +137,7 @@ typedef CsrUint8 CsrWifiNmeCcxOptionsMask;
     CSR_WIFI_PIN_ENTRY_ENTER_PIN   -
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiNmeConfigAction;
+typedef u8 CsrWifiNmeConfigAction;
 #define CSR_WIFI_PIN_ENTRY_PUSH_BUTTON   ((CsrWifiNmeConfigAction) 0x00)
 #define CSR_WIFI_PIN_ENTRY_DISPLAY_PIN   ((CsrWifiNmeConfigAction) 0x01)
 #define CSR_WIFI_PIN_ENTRY_ENTER_PIN     ((CsrWifiNmeConfigAction) 0x02)
@@ -163,7 +163,7 @@ typedef CsrUint8 CsrWifiNmeConfigAction;
                    - NME is in the process of disconnecting.
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiNmeConnectionStatus;
+typedef u8 CsrWifiNmeConnectionStatus;
 #define CSR_WIFI_NME_CONNECTION_STATUS_CONNECTION_STATUS_DISCONNECTED     ((CsrWifiNmeConnectionStatus) 0x00)
 #define CSR_WIFI_NME_CONNECTION_STATUS_CONNECTION_STATUS_CONNECTING       ((CsrWifiNmeConnectionStatus) 0x01)
 #define CSR_WIFI_NME_CONNECTION_STATUS_CONNECTION_STATUS_AUTHENTICATING   ((CsrWifiNmeConnectionStatus) 0x02)
@@ -363,7 +363,7 @@ typedef CsrUint32 CsrWifiNmeIndications;
                    - Unknown Security Error.
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiNmeSecError;
+typedef u8 CsrWifiNmeSecError;
 #define CSR_WIFI_NME_SEC_ERROR_SEC_ERROR_UNKNOWN   ((CsrWifiNmeSecError) 0x00)
 
 /*******************************************************************************
@@ -384,7 +384,7 @@ typedef CsrUint8 CsrWifiNmeSecError;
                                       UMTS and GSM authentications.
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiNmeSimCardType;
+typedef u8 CsrWifiNmeSimCardType;
 #define CSR_WIFI_NME_SIM_CARD_TYPE_2G     ((CsrWifiNmeSimCardType) 0x01)
 #define CSR_WIFI_NME_SIM_CARD_TYPE_3G     ((CsrWifiNmeSimCardType) 0x02)
 #define CSR_WIFI_NME_SIM_CARD_TYPE_2G3G   ((CsrWifiNmeSimCardType) 0x03)
@@ -413,7 +413,7 @@ typedef CsrUint8 CsrWifiNmeSimCardType;
                      aborted.
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiNmeUmtsAuthResult;
+typedef u8 CsrWifiNmeUmtsAuthResult;
 #define CSR_WIFI_NME_UMTS_AUTH_RESULT_SUCCESS     ((CsrWifiNmeUmtsAuthResult) 0x00)
 #define CSR_WIFI_NME_UMTS_AUTH_RESULT_SYNC_FAIL   ((CsrWifiNmeUmtsAuthResult) 0x01)
 #define CSR_WIFI_NME_UMTS_AUTH_RESULT_REJECT      ((CsrWifiNmeUmtsAuthResult) 0x02)
@@ -449,7 +449,7 @@ typedef CsrUint8 CsrWifiNmeUmtsAuthResult;
                    - WMM AP may deliver a maximum of 6 buffered frames per USP.
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiNmeWmmQosInfo;
+typedef u8 CsrWifiNmeWmmQosInfo;
 #define CSR_WIFI_NME_WMM_QOS_INFO_AC_MAX_SP_ALL    ((CsrWifiNmeWmmQosInfo) 0x00)
 #define CSR_WIFI_NME_WMM_QOS_INFO_AC_VO            ((CsrWifiNmeWmmQosInfo) 0x01)
 #define CSR_WIFI_NME_WMM_QOS_INFO_AC_VI            ((CsrWifiNmeWmmQosInfo) 0x02)
@@ -511,7 +511,7 @@ typedef CsrUint32 CsrWifiNmeNmeIndicationsMask;
     Mask type for use with the values defined by CsrWifiNmeWmmQosInfo
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiNmeWmmQosInfoMask;
+typedef u8 CsrWifiNmeWmmQosInfoMask;
 
 
 /*******************************************************************************
@@ -528,7 +528,7 @@ typedef CsrUint8 CsrWifiNmeWmmQosInfoMask;
 *******************************************************************************/
 typedef struct
 {
-    CsrUint8 empty;
+    u8 empty;
 } CsrWifiNmeEmpty;
 
 /*******************************************************************************
@@ -566,7 +566,7 @@ typedef struct
 typedef struct
 {
     CsrUint16 encryptionMode;
-    CsrUint8  psk[32];
+    u8  psk[32];
 } CsrWifiNmePsk;
 
 /*******************************************************************************
@@ -595,11 +595,11 @@ typedef struct
 typedef struct
 {
     CsrUint32 certificateLength;
-    CsrUint8 *certificate;
+    u8 *certificate;
     CsrUint16 privateKeyLength;
-    CsrUint8 *privateKey;
+    u8 *privateKey;
     CsrUint32 caCertificateLength;
-    CsrUint8 *caCertificate;
+    u8 *caCertificate;
 } CsrWifiNmeWapiCredentials;
 
 /*******************************************************************************
@@ -712,17 +712,17 @@ typedef struct
     CsrCharString           *userPassword;
     CsrCharString           *authServerUserIdentity;
     CsrUint32                clientCertificateLength;
-    CsrUint8                *clientCertificate;
+    u8                *clientCertificate;
     CsrUint32                certificateAuthorityCertificateLength;
-    CsrUint8                *certificateAuthorityCertificate;
+    u8                *certificateAuthorityCertificate;
     CsrUint16                privateKeyLength;
-    CsrUint8                *privateKey;
+    u8                *privateKey;
     CsrCharString           *privateKeyPassword;
     CsrUint32                sessionLength;
-    CsrUint8                *session;
+    u8                *session;
     CsrBool                  allowPacProvisioning;
     CsrUint32                pacLength;
-    CsrUint8                *pac;
+    u8                *pac;
     CsrCharString           *pacPassword;
 } CsrWifiNmeEapCredentials;
 
@@ -744,7 +744,7 @@ typedef struct
 {
     CsrWifiMacAddress                p2pDeviceId;
     CsrWifiSmeP2pGroupCapabilityMask groupCapabilityMask;
-    CsrUint8                         groupOwnerIntent;
+    u8                         groupOwnerIntent;
 } CsrWifiNmePeerConfig;
 
 /*******************************************************************************
@@ -790,11 +790,11 @@ typedef struct
 typedef struct
 {
     CsrWifiSmeAuthModeMask wepAuthType;
-    CsrUint8               selectedWepKey;
-    CsrUint8               key1[13];
-    CsrUint8               key2[13];
-    CsrUint8               key3[13];
-    CsrUint8               key4[13];
+    u8               selectedWepKey;
+    u8               key1[13];
+    u8               key2[13];
+    u8               key3[13];
+    u8               key4[13];
 } CsrWifiNmeWep128Keys;
 
 /*******************************************************************************
@@ -819,11 +819,11 @@ typedef struct
 typedef struct
 {
     CsrWifiSmeAuthModeMask wepAuthType;
-    CsrUint8               selectedWepKey;
-    CsrUint8               key1[5];
-    CsrUint8               key2[5];
-    CsrUint8               key3[5];
-    CsrUint8               key4[5];
+    u8               selectedWepKey;
+    u8               key1[5];
+    u8               key2[5];
+    u8               key3[5];
+    u8               key4[5];
 } CsrWifiNmeWep64Keys;
 
 /*******************************************************************************
@@ -894,8 +894,8 @@ typedef struct
     CsrWifiNmeProfileIdentity profileIdentity;
     CsrWifiNmeWmmQosInfoMask  wmmQosInfoMask;
     CsrWifiNmeBssType         bssType;
-    CsrUint8                  channelNo;
-    CsrUint8                  ccxOptionsMask;
+    u8                  channelNo;
+    u8                  ccxOptionsMask;
     CsrBool                   cloakedSsid;
     CsrWifiNmeCredentials     credentials;
 } CsrWifiNmeProfile;
@@ -1036,7 +1036,7 @@ typedef struct
 {
     CsrWifiFsmEvent            common;
     CsrUint16                  interfaceTag;
-    CsrUint8                   profileIdentitysCount;
+    u8                   profileIdentitysCount;
     CsrWifiNmeProfileIdentity *profileIdentitys;
 } CsrWifiNmeProfileOrderSetReq;
 
@@ -1088,7 +1088,7 @@ typedef struct
 {
     CsrWifiFsmEvent   common;
     CsrUint16         interfaceTag;
-    CsrUint8          pin[8];
+    u8          pin[8];
     CsrWifiSsid       ssid;
     CsrWifiMacAddress bssid;
 } CsrWifiNmeWpsReq;
@@ -1186,10 +1186,10 @@ typedef struct
 {
     CsrWifiFsmEvent common;
     CsrResult       status;
-    CsrUint8        kcsLength;
-    CsrUint8       *kcs;
-    CsrUint8        sresLength;
-    CsrUint8       *sres;
+    u8        kcsLength;
+    u8       *kcs;
+    u8        sresLength;
+    u8       *sres;
 } CsrWifiNmeSimGsmAuthRes;
 
 /*******************************************************************************
@@ -1229,11 +1229,11 @@ typedef struct
     CsrWifiFsmEvent          common;
     CsrResult                status;
     CsrWifiNmeUmtsAuthResult result;
-    CsrUint8                 umtsCipherKey[16];
-    CsrUint8                 umtsIntegrityKey[16];
-    CsrUint8                 resParameterLength;
-    CsrUint8                *resParameter;
-    CsrUint8                 auts[14];
+    u8                 umtsCipherKey[16];
+    u8                 umtsIntegrityKey[16];
+    u8                 resParameterLength;
+    u8                *resParameter;
+    u8                 auts[14];
 } CsrWifiNmeSimUmtsAuthRes;
 
 /*******************************************************************************
@@ -1399,7 +1399,7 @@ typedef struct
     CsrWifiFsmEvent           common;
     CsrUint16                 interfaceTag;
     CsrResult                 status;
-    CsrUint8                  connectAttemptsCount;
+    u8                  connectAttemptsCount;
     CsrWifiNmeConnectAttempt *connectAttempts;
 } CsrWifiNmeProfileConnectCfm;
 
@@ -1532,7 +1532,7 @@ typedef struct
 {
     CsrWifiFsmEvent           common;
     CsrUint16                 interfaceTag;
-    CsrUint8                  connectAttemptsCount;
+    u8                  connectAttemptsCount;
     CsrWifiNmeConnectAttempt *connectAttempts;
 } CsrWifiNmeProfileDisconnectInd;
 
@@ -1585,8 +1585,8 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint8        randsLength;
-    CsrUint8       *rands;
+    u8        randsLength;
+    u8       *rands;
 } CsrWifiNmeSimGsmAuthInd;
 
 /*******************************************************************************
@@ -1614,8 +1614,8 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint8        rand[16];
-    CsrUint8        autn[16];
+    u8        rand[16];
+    u8        autn[16];
 } CsrWifiNmeSimUmtsAuthInd;
 
 /*******************************************************************************

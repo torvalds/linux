@@ -144,7 +144,7 @@ csr_io_rw_direct(struct mmc_card *card, int write, uint8_t fn,
 
 
 CsrResult
-CsrSdioRead8(CsrSdioFunction *function, CsrUint32 address, CsrUint8 *data)
+CsrSdioRead8(CsrSdioFunction *function, CsrUint32 address, u8 *data)
 {
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int err = 0;
@@ -162,7 +162,7 @@ CsrSdioRead8(CsrSdioFunction *function, CsrUint32 address, CsrUint8 *data)
 } /* CsrSdioRead8() */
 
 CsrResult
-CsrSdioWrite8(CsrSdioFunction *function, CsrUint32 address, CsrUint8 data)
+CsrSdioWrite8(CsrSdioFunction *function, CsrUint32 address, u8 data)
 {
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int err = 0;
@@ -234,7 +234,7 @@ CsrSdioWrite16(CsrSdioFunction *function, CsrUint32 address, CsrUint16 data)
 
 
 CsrResult
-CsrSdioF0Read8(CsrSdioFunction *function, CsrUint32 address, CsrUint8 *data)
+CsrSdioF0Read8(CsrSdioFunction *function, CsrUint32 address, u8 *data)
 {
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int err = 0;
@@ -256,7 +256,7 @@ CsrSdioF0Read8(CsrSdioFunction *function, CsrUint32 address, CsrUint8 *data)
 } /* CsrSdioF0Read8() */
 
 CsrResult
-CsrSdioF0Write8(CsrSdioFunction *function, CsrUint32 address, CsrUint8 data)
+CsrSdioF0Write8(CsrSdioFunction *function, CsrUint32 address, u8 data)
 {
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int err = 0;

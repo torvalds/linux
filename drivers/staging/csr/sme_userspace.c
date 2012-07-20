@@ -119,7 +119,7 @@ void
 uf_sme_deinit(unifi_priv_t *priv)
 {
     int i,j;
-    CsrUint8 ba_session_idx;
+    u8 ba_session_idx;
     ba_session_rx_struct *ba_session_rx = NULL;
     ba_session_tx_struct *ba_session_tx = NULL;
     CsrWifiRouterCtrlStaInfo_t *staInfo = NULL;

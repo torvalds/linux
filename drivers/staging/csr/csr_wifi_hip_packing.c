@@ -35,7 +35,7 @@
  *      This is useful for stepping past the signal to the object in the buffer.
  * ---------------------------------------------------------------------------
  */
-CsrInt32 get_packed_struct_size(const CsrUint8 *buf)
+CsrInt32 get_packed_struct_size(const u8 *buf)
 {
     CsrInt32 size = 0;
     CsrUint16 sig_id;
@@ -1148,7 +1148,7 @@ CsrInt32 get_packed_struct_size(const CsrUint8 *buf)
  *      CSR_WIFI_HIP_RESULT_INVALID_VALUE if the ID of signal was not recognised.
  * ---------------------------------------------------------------------------
  */
-CsrResult read_unpack_signal(const CsrUint8 *ptr, CSR_SIGNAL *sig)
+CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
 {
     CsrInt32 index = 0;
 
@@ -2984,7 +2984,7 @@ CsrResult read_unpack_signal(const CsrUint8 *ptr, CSR_SIGNAL *sig)
  *      CSR_WIFI_HIP_RESULT_INVALID_VALUE if the ID of signal was not recognised.
  * ---------------------------------------------------------------------------
  */
-CsrResult write_pack(const CSR_SIGNAL *sig, CsrUint8 *ptr, CsrUint16 *sig_len)
+CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, CsrUint16 *sig_len)
 {
     CsrInt16 index = 0;
 

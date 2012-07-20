@@ -475,7 +475,7 @@ extern const CsrCharString *CsrWifiNmeApDownstreamPrimNames[CSR_WIFI_NME_AP_PRIM
     msg__->interfaceTag = (interfaceTag__); \
     msg__->selectedDevicePasswordId = (selectedDevicePasswordId__); \
     msg__->selectedConfigMethod = (selectedConfigMethod__); \
-    CsrMemCpy(msg__->pin, (pin__), sizeof(CsrUint8) * 8);
+    CsrMemCpy(msg__->pin, (pin__), sizeof(u8) * 8);
 
 #define CsrWifiNmeApWpsRegisterReqSendTo(dst__, src__, interfaceTag__, selectedDevicePasswordId__, selectedConfigMethod__, pin__) \
     { \

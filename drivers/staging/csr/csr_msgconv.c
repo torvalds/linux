@@ -73,10 +73,10 @@ static const CsrMsgConvMsgEntry *find_msg_converter(CsrMsgConvPrimEntry *ptr, Cs
 
 static void *deserialize_data(CsrUint16 primType,
     CsrSize length,
-    CsrUint8 *data)
+    u8 *data)
 {
     CsrMsgConvPrimEntry *ptr;
-    CsrUint8 *ret;
+    u8 *ret;
 
     ptr = CsrMsgConvFind(primType);
 
@@ -133,7 +133,7 @@ static CsrSize sizeof_message(CsrUint16 primType, void *msg)
     return ret;
 }
 
-static CsrBool free_message(CsrUint16 primType, CsrUint8 *data)
+static CsrBool free_message(CsrUint16 primType, u8 *data)
 {
     CsrMsgConvPrimEntry *ptr;
     CsrBool ret;
@@ -164,13 +164,13 @@ static CsrBool free_message(CsrUint16 primType, CsrUint8 *data)
     return ret;
 }
 
-static CsrUint8 *serialize_message(CsrUint16 primType,
+static u8 *serialize_message(CsrUint16 primType,
     void *msg,
     CsrSize *length,
-    CsrUint8 *buffer)
+    u8 *buffer)
 {
     CsrMsgConvPrimEntry *ptr;
-    CsrUint8 *ret;
+    u8 *ret;
 
     ptr = CsrMsgConvFind(primType);
 
@@ -203,13 +203,13 @@ CsrSize CsrMsgConvSizeof(CsrUint16 primType, void *msg)
     return sizeof_message(primType, msg);
 }
 
-CsrUint8 *CsrMsgConvSerialize(CsrUint8 *buffer, CsrSize maxBufferOffset, CsrSize *offset, CsrUint16 primType, void *msg)
+u8 *CsrMsgConvSerialize(u8 *buffer, CsrSize maxBufferOffset, CsrSize *offset, CsrUint16 primType, void *msg)
 {
     if (converter)
     {
         CsrSize serializedLength;
-        CsrUint8 *bufSerialized;
-        CsrUint8 *bufOffset = &buffer[*offset];
+        u8 *bufSerialized;
+        u8 *bufOffset = &buffer[*offset];
         bufSerialized = converter->serialize_message(primType, msg, &serializedLength, bufOffset);
         *offset += serializedLength;
         return bufSerialized;

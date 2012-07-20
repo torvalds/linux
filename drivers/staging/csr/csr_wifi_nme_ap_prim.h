@@ -53,7 +53,7 @@ typedef CsrPrim CsrWifiNmeApPrim;
                    - Use the specified passphrase as credential
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiNmeApPersCredentialType;
+typedef u8 CsrWifiNmeApPersCredentialType;
 #define CSR_WIFI_NME_AP_CREDENTIAL_TYPE_PSK          ((CsrWifiNmeApPersCredentialType) 0x00)
 #define CSR_WIFI_NME_AP_CREDENTIAL_TYPE_PASSPHRASE   ((CsrWifiNmeApPersCredentialType) 0x01)
 
@@ -81,7 +81,7 @@ typedef struct
     CsrBool   apStrictGtkRekey;
     CsrUint16 apGmkTimeout;
     CsrUint16 apResponseTimeout;
-    CsrUint8  apRetransLimit;
+    u8  apRetransLimit;
 } CsrWifiNmeApConfig;
 
 /*******************************************************************************
@@ -225,7 +225,7 @@ typedef struct
     CsrUint16               interfaceTag;
     CsrWifiSmeWpsDpid       selectedDevicePasswordId;
     CsrWifiSmeWpsConfigType selectedConfigMethod;
-    CsrUint8                pin[8];
+    u8                pin[8];
 } CsrWifiNmeApWpsRegisterReq;
 
 /*******************************************************************************
@@ -259,9 +259,9 @@ typedef struct
     CsrBool                 cloakSsid;
     CsrWifiSsid             ssid;
     CsrWifiSmeRadioIF       ifIndex;
-    CsrUint8                channel;
+    u8                channel;
     CsrWifiNmeApCredentials apCredentials;
-    CsrUint8                maxConnections;
+    u8                maxConnections;
     CsrWifiSmeApP2pGoConfig p2pGoParam;
     CsrBool                 wpsEnabled;
 } CsrWifiNmeApStartReq;

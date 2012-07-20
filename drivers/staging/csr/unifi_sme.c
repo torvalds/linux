@@ -116,13 +116,13 @@ sme_log_event(ul_client_t *pcli,
         {
             CsrUint16 frmCtrl;
             CsrBool unicastPdu = TRUE;
-            CsrUint8 *macHdrLocation;
-            CsrUint8 *raddr = NULL, *taddr = NULL;
+            u8 *macHdrLocation;
+            u8 *raddr = NULL, *taddr = NULL;
             CsrWifiMacAddress peerMacAddress;
             /* Check if we need to send CsrWifiRouterCtrlMicFailureInd*/
             CSR_MA_PACKET_INDICATION *ind = &unpacked_signal.u.MaPacketIndication;
 
-            macHdrLocation = (CsrUint8 *) bulkdata->d[0].os_data_ptr;
+            macHdrLocation = (u8 *) bulkdata->d[0].os_data_ptr;
             /* Fetch the frame control value from  mac header */
             frmCtrl = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(macHdrLocation);
 
@@ -146,7 +146,7 @@ sme_log_event(ul_client_t *pcli,
             {
                 if(ind->ReceptionStatus == CSR_RX_SUCCESS)
                 {
-                    CsrUint8 pmBit = (frmCtrl & 0x1000)?0x01:0x00;
+                    u8 pmBit = (frmCtrl & 0x1000)?0x01:0x00;
                     CsrUint16 interfaceTag = (ind->VirtualInterfaceIdentifier & 0xff);
                     CsrWifiRouterCtrlStaInfo_t *srcStaInfo =  CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(priv,taddr,interfaceTag);
                     if((srcStaInfo != NULL) && (uf_check_broadcast_bssid(priv, bulkdata)== FALSE))
@@ -226,11 +226,11 @@ sme_log_event(ul_client_t *pcli,
     }
 
     mlmeCommand.length = signal_len;
-    mlmeCommand.data = (CsrUint8*)signal;
+    mlmeCommand.data = (u8*)signal;
 
     dataref1.length = bulkdata->d[0].data_length;
     if (dataref1.length > 0) {
-        dataref1.data = (CsrUint8 *) bulkdata->d[0].os_data_ptr;
+        dataref1.data = (u8 *) bulkdata->d[0].os_data_ptr;
     } else
     {
         dataref1.data = NULL;
@@ -238,7 +238,7 @@ sme_log_event(ul_client_t *pcli,
 
     dataref2.length = bulkdata->d[1].data_length;
     if (dataref2.length > 0) {
-        dataref2.data = (CsrUint8 *) bulkdata->d[1].os_data_ptr;
+        dataref2.data = (u8 *) bulkdata->d[1].os_data_ptr;
     } else
     {
         dataref2.data = NULL;
@@ -615,10 +615,10 @@ int unifi_cfg_packet_filters(unifi_priv_t *priv, unsigned char *arg)
         dhcp_tclas->user_priority = 0;
         dhcp_tclas->tcp_ip_cls_fr.cls_fr_type = 1;
         dhcp_tclas->tcp_ip_cls_fr.version = 4;
-        ((CsrUint8*)(&dhcp_tclas->tcp_ip_cls_fr.source_port))[0] = 0x00;
-        ((CsrUint8*)(&dhcp_tclas->tcp_ip_cls_fr.source_port))[1] = 0x44;
-        ((CsrUint8*)(&dhcp_tclas->tcp_ip_cls_fr.dest_port))[0] = 0x00;
-        ((CsrUint8*)(&dhcp_tclas->tcp_ip_cls_fr.dest_port))[1] = 0x43;
+        ((u8*)(&dhcp_tclas->tcp_ip_cls_fr.source_port))[0] = 0x00;
+        ((u8*)(&dhcp_tclas->tcp_ip_cls_fr.source_port))[1] = 0x44;
+        ((u8*)(&dhcp_tclas->tcp_ip_cls_fr.dest_port))[0] = 0x00;
+        ((u8*)(&dhcp_tclas->tcp_ip_cls_fr.dest_port))[1] = 0x43;
         dhcp_tclas->tcp_ip_cls_fr.protocol = 0x11;
         dhcp_tclas->tcp_ip_cls_fr.cls_fr_mask = 0x58; //bits: 3,4,6
     }
@@ -631,10 +631,10 @@ int unifi_cfg_packet_filters(unifi_priv_t *priv, unsigned char *arg)
 
 int unifi_cfg_wmm_qos_info(unifi_priv_t *priv, unsigned char *arg)
 {
-    CsrUint8 wmm_qos_info;
+    u8 wmm_qos_info;
     int rc = 0;
 
-    if (get_user(wmm_qos_info, (CsrUint8*)(((unifi_cfg_command_t*)arg) + 1))) {
+    if (get_user(wmm_qos_info, (u8*)(((unifi_cfg_command_t*)arg) + 1))) {
         unifi_error(priv, "UNIFI_CFG: Failed to get the argument\n");
         return -EFAULT;
     }
@@ -649,21 +649,21 @@ int unifi_cfg_wmm_qos_info(unifi_priv_t *priv, unsigned char *arg)
 int unifi_cfg_wmm_addts(unifi_priv_t *priv, unsigned char *arg)
 {
     CsrUint32 addts_tid;
-    CsrUint8 addts_ie_length;
-    CsrUint8 *addts_ie;
-    CsrUint8 *addts_params;
+    u8 addts_ie_length;
+    u8 *addts_ie;
+    u8 *addts_params;
     CsrWifiSmeDataBlock tspec;
     CsrWifiSmeDataBlock tclas;
     int rc;
 
-    addts_params = (CsrUint8*)(((unifi_cfg_command_t*)arg) + 1);
+    addts_params = (u8*)(((unifi_cfg_command_t*)arg) + 1);
     if (get_user(addts_tid, (CsrUint32*)addts_params)) {
         unifi_error(priv, "unifi_cfg_wmm_addts: Failed to get the argument\n");
         return -EFAULT;
     }
 
     addts_params += sizeof(CsrUint32);
-    if (get_user(addts_ie_length, (CsrUint8*)addts_params)) {
+    if (get_user(addts_ie_length, (u8*)addts_params)) {
         unifi_error(priv, "unifi_cfg_wmm_addts: Failed to get the argument\n");
         return -EFAULT;
     }
@@ -679,7 +679,7 @@ int unifi_cfg_wmm_addts(unifi_priv_t *priv, unsigned char *arg)
         return -ENOMEM;
     }
 
-    addts_params += sizeof(CsrUint8);
+    addts_params += sizeof(u8);
     rc = copy_from_user(addts_ie, addts_params, addts_ie_length);
     if (rc) {
         unifi_error(priv, "unifi_cfg_wmm_addts: Failed to get the addts buffer\n");
@@ -703,12 +703,12 @@ int unifi_cfg_wmm_addts(unifi_priv_t *priv, unsigned char *arg)
 int unifi_cfg_wmm_delts(unifi_priv_t *priv, unsigned char *arg)
 {
     CsrUint32 delts_tid;
-    CsrUint8 *delts_params;
+    u8 *delts_params;
     CsrWifiSmeDataBlock tspec;
     CsrWifiSmeDataBlock tclas;
     int rc;
 
-    delts_params = (CsrUint8*)(((unifi_cfg_command_t*)arg) + 1);
+    delts_params = (u8*)(((unifi_cfg_command_t*)arg) + 1);
     if (get_user(delts_tid, (CsrUint32*)delts_params)) {
         unifi_error(priv, "unifi_cfg_wmm_delts: Failed to get the argument\n");
         return -EFAULT;
@@ -728,13 +728,13 @@ int unifi_cfg_wmm_delts(unifi_priv_t *priv, unsigned char *arg)
 int unifi_cfg_strict_draft_n(unifi_priv_t *priv, unsigned char *arg)
 {
     CsrBool strict_draft_n;
-    CsrUint8 *strict_draft_n_params;
+    u8 *strict_draft_n_params;
     int rc;
 
     CsrWifiSmeStaConfig  staConfig;
     CsrWifiSmeDeviceConfig  deviceConfig;
 
-    strict_draft_n_params = (CsrUint8*)(((unifi_cfg_command_t*)arg) + 1);
+    strict_draft_n_params = (u8*)(((unifi_cfg_command_t*)arg) + 1);
     if (get_user(strict_draft_n, (CsrBool*)strict_draft_n_params)) {
         unifi_error(priv, "unifi_cfg_strict_draft_n: Failed to get the argument\n");
         return -EFAULT;
@@ -764,13 +764,13 @@ int unifi_cfg_strict_draft_n(unifi_priv_t *priv, unsigned char *arg)
 int unifi_cfg_enable_okc(unifi_priv_t *priv, unsigned char *arg)
 {
     CsrBool enable_okc;
-    CsrUint8 *enable_okc_params;
+    u8 *enable_okc_params;
     int rc;
 
     CsrWifiSmeStaConfig staConfig;
     CsrWifiSmeDeviceConfig deviceConfig;
 
-    enable_okc_params = (CsrUint8*)(((unifi_cfg_command_t*)arg) + 1);
+    enable_okc_params = (u8*)(((unifi_cfg_command_t*)arg) + 1);
     if (get_user(enable_okc, (CsrBool*)enable_okc_params)) {
         unifi_error(priv, "unifi_cfg_enable_okc: Failed to get the argument\n");
         return -EFAULT;
@@ -911,7 +911,7 @@ int unifi_cfg_get_info(unifi_priv_t *priv, unsigned char *arg)
 }
 #ifdef CSR_SUPPORT_WEXT_AP
 int
- uf_configure_supported_rates(CsrUint8 * supportedRates, CsrUint8 phySupportedBitmap)
+ uf_configure_supported_rates(u8 * supportedRates, u8 phySupportedBitmap)
 {
     int i=0;
     CsrBool b=FALSE, g = FALSE, n = FALSE;
@@ -1199,7 +1199,7 @@ void uf_send_pkt_to_encrypt(struct work_struct *work)
     unifi_priv_t *priv = interfacePriv->privPtr;
 
     CsrUint32 pktBulkDataLength;
-    CsrUint8 *pktBulkData;
+    u8 *pktBulkData;
     unsigned long flags;
 
     if (interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_STA) {
@@ -1209,7 +1209,7 @@ void uf_send_pkt_to_encrypt(struct work_struct *work)
         pktBulkDataLength = interfacePriv->wapi_unicast_bulk_data.data_length;
 
         if (pktBulkDataLength > 0) {
-		    pktBulkData = (CsrUint8 *)CsrPmemAlloc(pktBulkDataLength);
+		    pktBulkData = (u8 *)CsrPmemAlloc(pktBulkDataLength);
 		    CsrMemSet(pktBulkData, 0, pktBulkDataLength);
 	    } else {
 		    unifi_error(priv, "uf_send_pkt_to_encrypt() : invalid buffer\n");
@@ -1218,7 +1218,7 @@ void uf_send_pkt_to_encrypt(struct work_struct *work)
 
         spin_lock_irqsave(&priv->wapi_lock, flags);
         /* Copy over the MA PKT REQ bulk data */
-        CsrMemCpy(pktBulkData, (CsrUint8*)interfacePriv->wapi_unicast_bulk_data.os_data_ptr, pktBulkDataLength);
+        CsrMemCpy(pktBulkData, (u8*)interfacePriv->wapi_unicast_bulk_data.os_data_ptr, pktBulkDataLength);
         /* Free any bulk data buffers allocated for the WAPI Data pkt */
         unifi_net_data_free(priv, &interfacePriv->wapi_unicast_bulk_data);
         interfacePriv->wapi_unicast_bulk_data.net_buf_length = 0;

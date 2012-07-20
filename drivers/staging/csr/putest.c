@@ -24,15 +24,15 @@
 int unifi_putest_cmd52_read(unifi_priv_t *priv, unsigned char *arg)
 {
     struct unifi_putest_cmd52 cmd52_params;
-    CsrUint8 *arg_pos;
+    u8 *arg_pos;
     unsigned int cmd_param_size;
     int r;
     CsrResult csrResult;
     unsigned char ret_buffer[32];
-    CsrUint8 *ret_buffer_pos;
-    CsrUint8 retries;
+    u8 *ret_buffer_pos;
+    u8 retries;
 
-    arg_pos = (CsrUint8*)(((unifi_putest_command_t*)arg) + 1);
+    arg_pos = (u8*)(((unifi_putest_command_t*)arg) + 1);
     if (get_user(cmd_param_size, (int*)arg_pos)) {
         unifi_error(priv,
                     "unifi_putest_cmd52_read: Failed to get the argument\n");
@@ -77,7 +77,7 @@ int unifi_putest_cmd52_read(unifi_priv_t *priv, unsigned char *arg)
 
     /* Copy the info to the out buffer */
     *(unifi_putest_command_t*)ret_buffer = UNIFI_PUTEST_CMD52_READ;
-    ret_buffer_pos = (CsrUint8*)(((unifi_putest_command_t*)ret_buffer) + 1);
+    ret_buffer_pos = (u8*)(((unifi_putest_command_t*)ret_buffer) + 1);
     *(unsigned int*)ret_buffer_pos = sizeof(struct unifi_putest_cmd52);
     ret_buffer_pos += sizeof(unsigned int);
     memcpy(ret_buffer_pos, &cmd52_params, sizeof(struct unifi_putest_cmd52));
@@ -99,12 +99,12 @@ int unifi_putest_cmd52_read(unifi_priv_t *priv, unsigned char *arg)
 int unifi_putest_cmd52_write(unifi_priv_t *priv, unsigned char *arg)
 {
     struct unifi_putest_cmd52 cmd52_params;
-    CsrUint8 *arg_pos;
+    u8 *arg_pos;
     unsigned int cmd_param_size;
     CsrResult csrResult;
-    CsrUint8 retries;
+    u8 retries;
 
-    arg_pos = (CsrUint8*)(((unifi_putest_command_t*)arg) + 1);
+    arg_pos = (u8*)(((unifi_putest_command_t*)arg) + 1);
     if (get_user(cmd_param_size, (int*)arg_pos)) {
         unifi_error(priv,
                     "unifi_putest_cmd52_write: Failed to get the argument\n");
@@ -152,14 +152,14 @@ int unifi_putest_cmd52_write(unifi_priv_t *priv, unsigned char *arg)
 int unifi_putest_gp_read16(unifi_priv_t *priv, unsigned char *arg)
 {
     struct unifi_putest_gp_rw16 gp_r16_params;
-    CsrUint8 *arg_pos;
+    u8 *arg_pos;
     unsigned int cmd_param_size;
     int r;
     CsrResult csrResult;
     unsigned char ret_buffer[32];
-    CsrUint8 *ret_buffer_pos;
+    u8 *ret_buffer_pos;
 
-    arg_pos = (CsrUint8*)(((unifi_putest_command_t*)arg) + 1);
+    arg_pos = (u8*)(((unifi_putest_command_t*)arg) + 1);
     if (get_user(cmd_param_size, (int*)arg_pos)) {
         unifi_error(priv,
                     "unifi_putest_gp_read16: Failed to get the argument\n");
@@ -193,7 +193,7 @@ int unifi_putest_gp_read16(unifi_priv_t *priv, unsigned char *arg)
 
     /* Copy the info to the out buffer */
     *(unifi_putest_command_t*)ret_buffer = UNIFI_PUTEST_GP_READ16;
-    ret_buffer_pos = (CsrUint8*)(((unifi_putest_command_t*)ret_buffer) + 1);
+    ret_buffer_pos = (u8*)(((unifi_putest_command_t*)ret_buffer) + 1);
     *(unsigned int*)ret_buffer_pos = sizeof(struct unifi_putest_gp_rw16);
     ret_buffer_pos += sizeof(unsigned int);
     memcpy(ret_buffer_pos, &gp_r16_params, sizeof(struct unifi_putest_gp_rw16));
@@ -214,11 +214,11 @@ int unifi_putest_gp_read16(unifi_priv_t *priv, unsigned char *arg)
 int unifi_putest_gp_write16(unifi_priv_t *priv, unsigned char *arg)
 {
     struct unifi_putest_gp_rw16 gp_w16_params;
-    CsrUint8 *arg_pos;
+    u8 *arg_pos;
     unsigned int cmd_param_size;
     CsrResult csrResult;
 
-    arg_pos = (CsrUint8*)(((unifi_putest_command_t*)arg) + 1);
+    arg_pos = (u8*)(((unifi_putest_command_t*)arg) + 1);
     if (get_user(cmd_param_size, (int*)arg_pos)) {
         unifi_error(priv,
                     "unifi_putest_gp_write16: Failed to get the argument\n");
@@ -629,12 +629,12 @@ int unifi_putest_coredump_prepare(unifi_priv_t *priv, unsigned char *arg)
 int unifi_putest_cmd52_block_read(unifi_priv_t *priv, unsigned char *arg)
 {
     struct unifi_putest_block_cmd52_r block_cmd52;
-    CsrUint8 *arg_pos;
+    u8 *arg_pos;
     unsigned int cmd_param_size;
     CsrResult r;
-    CsrUint8 *block_local_buffer;
+    u8 *block_local_buffer;
 
-    arg_pos = (CsrUint8*)(((unifi_putest_command_t*)arg) + 1);
+    arg_pos = (u8*)(((unifi_putest_command_t*)arg) + 1);
     if (get_user(cmd_param_size, (int*)arg_pos)) {
         unifi_error(priv,
                     "cmd52r_block: Failed to get the argument\n");

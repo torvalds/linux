@@ -33,7 +33,6 @@ typedef uintptr_t CsrUintptr;   /* Unsigned integer large enough to hold any poi
 typedef ptrdiff_t CsrIntptr;    /* intptr_t is not defined in kernel. Use the equivalent ptrdiff_t. */
 
 /* Unsigned fixed width types */
-typedef uint8_t CsrUint8;
 typedef uint16_t CsrUint16;
 typedef uint32_t CsrUint32;
 
@@ -43,11 +42,11 @@ typedef int16_t CsrInt16;
 typedef int32_t CsrInt32;
 
 /* Boolean */
-typedef CsrUint8 CsrBool;
+typedef u8 CsrBool;
 
 /* String types */
 typedef char CsrCharString;
-typedef CsrUint8 CsrUtf8String;
+typedef u8 CsrUtf8String;
 typedef CsrUint16 CsrUtf16String;   /* 16-bit UTF16 strings */
 typedef CsrUint32 CsrUint24;
 

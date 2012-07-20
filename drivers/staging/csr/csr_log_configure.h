@@ -20,7 +20,7 @@ extern "C" {
 /*---------------------------------*/
 /* Log init/deinit                 */
 /*---------------------------------*/
-void CsrLogInit(CsrUint8 size);
+void CsrLogInit(u8 size);
 void CsrLogDeinit(void);
 
 /*---------------------------------*/

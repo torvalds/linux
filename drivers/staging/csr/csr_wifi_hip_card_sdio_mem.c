@@ -53,7 +53,7 @@
  *      CSR_RESULT_FAILURE     an SDIO error occurred
  * ---------------------------------------------------------------------------
  */
-static CsrResult retrying_read8(card_t *card, CsrInt16 funcnum, CsrUint32 addr, CsrUint8 *pdata)
+static CsrResult retrying_read8(card_t *card, CsrInt16 funcnum, CsrUint32 addr, u8 *pdata)
 {
     CsrSdioFunction *sdio = card->sdio_if;
     CsrResult r = CSR_RESULT_SUCCESS;
@@ -128,7 +128,7 @@ static CsrResult retrying_read8(card_t *card, CsrInt16 funcnum, CsrUint32 addr, 
 } /* retrying_read8() */
 
 
-static CsrResult retrying_write8(card_t *card, CsrInt16 funcnum, CsrUint32 addr, CsrUint8 data)
+static CsrResult retrying_write8(card_t *card, CsrInt16 funcnum, CsrUint32 addr, u8 data)
 {
     CsrSdioFunction *sdio = card->sdio_if;
     CsrResult r = CSR_RESULT_SUCCESS;
@@ -338,7 +338,7 @@ static CsrResult retrying_write16(card_t *card, CsrInt16 funcnum,
  *      CSR_RESULT_FAILURE     an SDIO error occurred
  * ---------------------------------------------------------------------------
  */
-CsrResult sdio_read_f0(card_t *card, CsrUint32 addr, CsrUint8 *pdata)
+CsrResult sdio_read_f0(card_t *card, CsrUint32 addr, u8 *pdata)
 {
 #if defined (CSR_WIFI_HIP_DEBUG_OFFLINE) && defined (CSR_WIFI_HIP_DATA_PLANE_PROFILE)
     card->cmd_prof.cmd52_f0_r_count++;
@@ -364,7 +364,7 @@ CsrResult sdio_read_f0(card_t *card, CsrUint32 addr, CsrUint8 *pdata)
  *      CSR_RESULT_FAILURE     an SDIO error occurred
  * ---------------------------------------------------------------------------
  */
-CsrResult sdio_write_f0(card_t *card, CsrUint32 addr, CsrUint8 data)
+CsrResult sdio_write_f0(card_t *card, CsrUint32 addr, u8 data)
 {
 #if defined (CSR_WIFI_HIP_DEBUG_OFFLINE) && defined (CSR_WIFI_HIP_DATA_PLANE_PROFILE)
     card->cmd_prof.cmd52_f0_w_count++;
@@ -388,14 +388,14 @@ CsrResult sdio_write_f0(card_t *card, CsrUint32 addr, CsrUint8 data)
  *      CSR_RESULT_SUCCESS on success, non-zero error code on error:
  * ---------------------------------------------------------------------------
  */
-CsrResult unifi_read_direct_8_or_16(card_t *card, CsrUint32 addr, CsrUint8 *pdata)
+CsrResult unifi_read_direct_8_or_16(card_t *card, CsrUint32 addr, u8 *pdata)
 {
 #ifdef CSR_WIFI_TRANSPORT_CSPI
     CsrUint16 w;
     CsrResult r;
 
     r = retrying_read16(card, card->function, addr, &w);
-    *pdata = (CsrUint8)(w & 0xFF);
+    *pdata = (u8)(w & 0xFF);
     return r;
 #else
     return retrying_read8(card, card->function, addr, pdata);
@@ -423,7 +423,7 @@ CsrResult unifi_read_direct_8_or_16(card_t *card, CsrUint32 addr, CsrUint8 *pdat
  *      to memory until the preceding even address is written.
  * ---------------------------------------------------------------------------
  */
-CsrResult unifi_write_direct_8_or_16(card_t *card, CsrUint32 addr, CsrUint8 data)
+CsrResult unifi_write_direct_8_or_16(card_t *card, CsrUint32 addr, u8 data)
 {
     if (addr & 1)
     {
@@ -568,12 +568,12 @@ static CsrResult unifi_read_directn_match(card_t *card, CsrUint32 addr, void *pd
 {
     CsrResult r;
     CsrUint32 i;
-    CsrUint8 *cptr;
+    u8 *cptr;
     CsrUint16 w;
 
     *num = 0;
 
-    cptr = (CsrUint8 *)pdata;
+    cptr = (u8 *)pdata;
     for (i = 0; i < len; i += 2)
     {
         r = retrying_read16(card, card->function, addr, &w);
@@ -582,7 +582,7 @@ static CsrResult unifi_read_directn_match(card_t *card, CsrUint32 addr, void *pd
             return r;
         }
 
-        *cptr++ = ((CsrUint8)w & 0xFF);
+        *cptr++ = ((u8)w & 0xFF);
         if ((m >= 0) && (((CsrInt8)w & 0xFF) == m))
         {
             break;
@@ -594,7 +594,7 @@ static CsrResult unifi_read_directn_match(card_t *card, CsrUint32 addr, void *pd
             break;
         }
 
-        *cptr++ = ((CsrUint8)(w >> 8) & 0xFF);
+        *cptr++ = ((u8)(w >> 8) & 0xFF);
         if ((m >= 0) && (((CsrInt8)(w >> 8) & 0xFF) == m))
         {
             break;
@@ -603,7 +603,7 @@ static CsrResult unifi_read_directn_match(card_t *card, CsrUint32 addr, void *pd
         addr += 2;
     }
 
-    *num = (CsrInt32)(cptr - (CsrUint8 *)pdata);
+    *num = (CsrInt32)(cptr - (u8 *)pdata);
     return CSR_RESULT_SUCCESS;
 }
 
@@ -667,10 +667,10 @@ CsrResult unifi_read_directn(card_t *card, CsrUint32 addr, void *pdata, CsrUint1
 CsrResult unifi_write_directn(card_t *card, CsrUint32 addr, void *pdata, CsrUint16 len)
 {
     CsrResult r;
-    CsrUint8 *cptr;
+    u8 *cptr;
     CsrInt16 signed_len;
 
-    cptr = (CsrUint8 *)pdata;
+    cptr = (u8 *)pdata;
     signed_len = (CsrInt16)len;
     while (signed_len > 0)
     {
@@ -1022,7 +1022,7 @@ CsrResult unifi_set_proc_select(card_t *card, enum unifi_dbg_processors_select s
     {
         r = unifi_write_direct16(card,
                                  ChipHelper_DBG_HOST_PROC_SELECT(card->helper) * 2,
-                                 (CsrUint8)select);
+                                 (u8)select);
         if (r == CSR_WIFI_HIP_RESULT_NO_DEVICE)
         {
             return r;
@@ -1059,7 +1059,7 @@ CsrResult unifi_set_proc_select(card_t *card, enum unifi_dbg_processors_select s
  * CSR_WIFI_HIP_RESULT_INVALID_VALUE a bad generic pointer was specified
  * ---------------------------------------------------------------------------
  */
-CsrResult unifi_read_8_or_16(card_t *card, CsrUint32 unifi_addr, CsrUint8 *pdata)
+CsrResult unifi_read_8_or_16(card_t *card, CsrUint32 unifi_addr, u8 *pdata)
 {
     CsrUint32 sdio_addr;
     CsrResult r;
@@ -1078,7 +1078,7 @@ CsrResult unifi_read_8_or_16(card_t *card, CsrUint32 unifi_addr, CsrUint8 *pdata
 #endif
 #ifdef CSR_WIFI_TRANSPORT_CSPI
     r = retrying_read16(card, card->function, sdio_addr, &w);
-    *pdata = (CsrUint8)(w & 0xFF);
+    *pdata = (u8)(w & 0xFF);
     return r;
 #else
     return retrying_read8(card, card->function, sdio_addr, pdata);
@@ -1110,7 +1110,7 @@ CsrResult unifi_read_8_or_16(card_t *card, CsrUint32 unifi_addr, CsrUint8 *pdata
  * write with the previously cached odd byte.
  * ---------------------------------------------------------------------------
  */
-CsrResult unifi_write_8_or_16(card_t *card, CsrUint32 unifi_addr, CsrUint8 data)
+CsrResult unifi_write_8_or_16(card_t *card, CsrUint32 unifi_addr, u8 data)
 {
     CsrUint32 sdio_addr;
     CsrResult r;
@@ -1325,7 +1325,7 @@ CsrResult unifi_readnz(card_t *card, CsrUint32 unifi_addr, void *pdata, CsrUint1
  */
 CsrInt32 unifi_read_shared_count(card_t *card, CsrUint32 addr)
 {
-    CsrUint8 b;
+    u8 b;
     /* I've increased this count, because I have seen cases where
      * there were three reads in a row with the top bit set.  I'm not
      * sure why this might have happened, but I can't see a problem
@@ -1400,7 +1400,7 @@ CsrResult unifi_writen(card_t *card, CsrUint32 unifi_addr, void *pdata, CsrUint1
 
 
 static CsrResult csr_sdio_block_rw(card_t *card, CsrInt16 funcnum,
-                                   CsrUint32 addr, CsrUint8 *pdata,
+                                   CsrUint32 addr, u8 *pdata,
                                    CsrUint16 count, CsrInt16 dir_is_write)
 {
     CsrResult csrResult;
@@ -1488,10 +1488,10 @@ CsrResult unifi_bulk_rw(card_t *card, CsrUint32 handle, void *pdata,
     CsrResult r = CSR_RESULT_SUCCESS; /* HIP error code */
     CsrInt16 retries = CMD53_RETRIES;
     CsrInt16 stat_retries;
-    CsrUint8 stat;
+    u8 stat;
     CsrInt16 dump_read;
 #ifdef UNIFI_DEBUG
-    CsrUint8 *pdata_lsb = ((CsrUint8 *)&pdata) + card->lsb;
+    u8 *pdata_lsb = ((u8 *)&pdata) + card->lsb;
 #endif
 #ifdef CSR_WIFI_MAKE_FAKE_CMD53_ERRORS
     static CsrInt16 fake_error;
@@ -1529,7 +1529,7 @@ CsrResult unifi_bulk_rw(card_t *card, CsrUint32 handle, void *pdata,
     while (1)
     {
         csrResult = csr_sdio_block_rw(card, card->function, handle,
-                                      (CsrUint8 *)pdata, (CsrUint16)len,
+                                      (u8 *)pdata, (CsrUint16)len,
                                       direction);
         if (csrResult == CSR_SDIO_RESULT_NO_DEVICE)
         {
@@ -1591,7 +1591,7 @@ CsrResult unifi_bulk_rw(card_t *card, CsrUint32 handle, void *pdata,
 
         /* The transfer failed, rewind and try again */
         r = unifi_write_8_or_16(card, card->sdio_ctrl_addr + 8,
-                                (CsrUint8)(handle & 0xff));
+                                (u8)(handle & 0xff));
         if (r == CSR_WIFI_HIP_RESULT_NO_DEVICE)
         {
             return r;
@@ -1699,7 +1699,7 @@ CsrResult unifi_bulk_rw_noretry(card_t *card, CsrUint32 handle, void *pdata,
     CsrResult csrResult;
 
     csrResult = csr_sdio_block_rw(card, card->function, handle,
-                                  (CsrUint8 *)pdata, (CsrUint16)len, direction);
+                                  (u8 *)pdata, (CsrUint16)len, direction);
     if (csrResult != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "Block %s failed\n",

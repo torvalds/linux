@@ -21,9 +21,9 @@
 /*------------------------------------------------------------------*/
 
 /* Time proportional with the number of 1's */
-CsrUint8 CsrBitCountSparse(CsrUint32 n)
+u8 CsrBitCountSparse(CsrUint32 n)
 {
-    CsrUint8 count = 0;
+    u8 count = 0;
 
     while (n)
     {
@@ -35,9 +35,9 @@ CsrUint8 CsrBitCountSparse(CsrUint32 n)
 }
 
 /* Time proportional with the number of 0's */
-CsrUint8 CsrBitCountDense(CsrUint32 n)
+u8 CsrBitCountDense(CsrUint32 n)
 {
-    CsrUint8 count = 8 * sizeof(CsrUint32);
+    u8 count = 8 * sizeof(CsrUint32);
 
     n ^= (CsrUint32) (-1);
 
@@ -53,7 +53,7 @@ CsrUint8 CsrBitCountDense(CsrUint32 n)
 /*------------------------------------------------------------------*/
 /* Base conversion */
 /*------------------------------------------------------------------*/
-CsrBool CsrHexStrToUint8(const CsrCharString *string, CsrUint8 *returnValue)
+CsrBool CsrHexStrToUint8(const CsrCharString *string, u8 *returnValue)
 {
     CsrUint16 currentIndex = 0;
     *returnValue = 0;
@@ -65,7 +65,7 @@ CsrBool CsrHexStrToUint8(const CsrCharString *string, CsrUint8 *returnValue)
     {
         while (((string[currentIndex] >= '0') && (string[currentIndex] <= '9')) || ((CSR_TOUPPER(string[currentIndex]) >= 'A') && (CSR_TOUPPER(string[currentIndex]) <= 'F')))
         {
-            *returnValue = (CsrUint8) (*returnValue * 16 + (((string[currentIndex] >= '0') && (string[currentIndex] <= '9')) ? string[currentIndex] - '0' : CSR_TOUPPER(string[currentIndex]) - 'A' + 10));
+            *returnValue = (u8) (*returnValue * 16 + (((string[currentIndex] >= '0') && (string[currentIndex] <= '9')) ? string[currentIndex] - '0' : CSR_TOUPPER(string[currentIndex]) - 'A' + 10));
             currentIndex++;
             if (currentIndex >= 2)
             {
@@ -148,7 +148,7 @@ CsrUint32 CsrPow(CsrUint32 base, CsrUint32 exponent)
 void CsrIntToBase10(CsrInt32 number, CsrCharString *str)
 {
     CsrInt32 digit;
-    CsrUint8 index;
+    u8 index;
     CsrCharString res[I2B10_MAX];
     CsrBool foundDigit = FALSE;
 
@@ -228,7 +228,7 @@ void *CsrMemCpy(void *dest, const void *src, CsrSize count)
 }
 EXPORT_SYMBOL_GPL(CsrMemCpy);
 
-void *CsrMemSet(void *dest, CsrUint8 c, CsrSize count)
+void *CsrMemSet(void *dest, u8 c, CsrSize count)
 {
     return memset(dest, c, count);
 }
@@ -423,7 +423,7 @@ const CsrCharString *CsrGetBaseName(const CsrCharString *file)
 /*------------------------------------------------------------------*/
 /* Misc */
 /*------------------------------------------------------------------*/
-CsrBool CsrIsSpace(CsrUint8 c)
+CsrBool CsrIsSpace(u8 c)
 {
     switch (c)
     {

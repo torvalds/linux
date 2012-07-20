@@ -92,33 +92,33 @@ static void send_to_client(unifi_priv_t *priv, ul_client_t *client,
  * ---------------------------------------------------------------------------
  */
 static CsrBool check_routing_pkt_data_ind(unifi_priv_t *priv,
-        CsrUint8 *sigdata,
+        u8 *sigdata,
         const bulk_data_param_t* bulkdata,
         CsrBool *freeBulkData,
         netInterface_priv_t *interfacePriv)
 {
     CsrUint16  frmCtrl, receptionStatus, frmCtrlSubType;
-    CsrUint8 *macHdrLocation;
-    CsrUint8 interfaceTag;
+    u8 *macHdrLocation;
+    u8 interfaceTag;
     CsrBool isDataFrame;
     CsrBool isProtocolVerInvalid = FALSE;
     CsrBool isDataFrameSubTypeNoData = FALSE;
 
 #ifdef CSR_WIFI_SECURITY_WAPI_ENABLE
-    static const CsrUint8 wapiProtocolIdSNAPHeader[] = {0x88,0xb4};
-    static const CsrUint8 wapiProtocolIdSNAPHeaderOffset = 6;
-    CsrUint8 *destAddr;
-    CsrUint8 *srcAddr;
+    static const u8 wapiProtocolIdSNAPHeader[] = {0x88,0xb4};
+    static const u8 wapiProtocolIdSNAPHeaderOffset = 6;
+    u8 *destAddr;
+    u8 *srcAddr;
     CsrBool isWapiUnicastPkt = FALSE;
 
 #ifdef CSR_WIFI_SECURITY_WAPI_QOSCTRL_MIC_WORKAROUND
     CsrUint16 qosControl;
 #endif
 
-    CsrUint8 llcSnapHeaderOffset = 0;
+    u8 llcSnapHeaderOffset = 0;
 
-    destAddr = (CsrUint8 *) bulkdata->d[0].os_data_ptr + MAC_HEADER_ADDR1_OFFSET;
-    srcAddr  = (CsrUint8 *) bulkdata->d[0].os_data_ptr + MAC_HEADER_ADDR2_OFFSET;
+    destAddr = (u8 *) bulkdata->d[0].os_data_ptr + MAC_HEADER_ADDR1_OFFSET;
+    srcAddr  = (u8 *) bulkdata->d[0].os_data_ptr + MAC_HEADER_ADDR2_OFFSET;
 
     /*Individual/Group bit - Bit 0 of first byte*/
     isWapiUnicastPkt = (!(destAddr[0] & 0x01)) ? TRUE : FALSE;
@@ -129,7 +129,7 @@ static CsrBool check_routing_pkt_data_ind(unifi_priv_t *priv,
     *freeBulkData = FALSE;
 
     /* Fetch the MAC header location from  MA_PKT_IND packet */
-    macHdrLocation = (CsrUint8 *) bulkdata->d[0].os_data_ptr;
+    macHdrLocation = (u8 *) bulkdata->d[0].os_data_ptr;
     /* Fetch the Frame Control value from  MAC header */
     frmCtrl = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(macHdrLocation);
 
@@ -286,7 +286,7 @@ static CsrBool check_routing_pkt_data_ind(unifi_priv_t *priv,
         if (llcSnapHeaderOffset > 0) {
         	/* QoS data or Data */
             unifi_trace(priv, UDBG6, "check_routing_pkt_data_ind(): SNAP header found & its offset %d\n",llcSnapHeaderOffset);
-            if (memcmp((CsrUint8 *)(bulkdata->d[0].os_data_ptr+llcSnapHeaderOffset+wapiProtocolIdSNAPHeaderOffset),
+            if (memcmp((u8 *)(bulkdata->d[0].os_data_ptr+llcSnapHeaderOffset+wapiProtocolIdSNAPHeaderOffset),
                        wapiProtocolIdSNAPHeader,sizeof(wapiProtocolIdSNAPHeader))) {
 
             	unifi_trace(priv, UDBG6, "check_routing_pkt_data_ind(): This is a data & NOT a WAI protocol packet\n");
@@ -310,8 +310,8 @@ static CsrBool check_routing_pkt_data_ind(unifi_priv_t *priv,
             if((interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_P2P)&&\
                ((CSR_WIFI_80211_GET_FRAME_SUBTYPE(macHdrLocation)) == CSR_WIFI_80211_FRAME_SUBTYPE_BEACON)){
 
-                CsrUint8 *pSsid, *pSsidLen;
-                static CsrUint8 P2PWildCardSsid[CSR_WIFI_P2P_WILDCARD_SSID_LENGTH] = {'D', 'I', 'R', 'E', 'C', 'T', '-'};
+                u8 *pSsid, *pSsidLen;
+                static u8 P2PWildCardSsid[CSR_WIFI_P2P_WILDCARD_SSID_LENGTH] = {'D', 'I', 'R', 'E', 'C', 'T', '-'};
 
                 pSsidLen = macHdrLocation + MAC_HEADER_SIZE + CSR_WIFI_BEACON_FIXED_LENGTH;
                 pSsid = pSsidLen + 2;
@@ -367,7 +367,7 @@ static CsrBool check_routing_pkt_data_ind(unifi_priv_t *priv,
  */
 static void
 unifi_process_receive_event(void *ospriv,
-                            CsrUint8 *sigdata, CsrUint32 siglen,
+                            u8 *sigdata, CsrUint32 siglen,
                             const bulk_data_param_t *bulkdata)
 {
     unifi_priv_t *priv = (unifi_priv_t*)ospriv;
@@ -400,7 +400,7 @@ unifi_process_receive_event(void *ospriv,
     if (signal_id == CSR_MA_PACKET_INDICATION_ID)
     {
 #define CSR_MA_PACKET_INDICATION_INTERFACETAG_OFFSET    14
-        CsrUint8 interfaceTag;
+        u8 interfaceTag;
         netInterface_priv_t *interfacePriv;
 
         /* Pull out interface tag from virtual interface identifier */
@@ -411,9 +411,9 @@ unifi_process_receive_event(void *ospriv,
 #ifdef CSR_SUPPORT_SME
         if (interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_IBSS)
         {
-            CsrUint8 *saddr;
+            u8 *saddr;
             /* Fetch the source address from  mac header */
-            saddr = (CsrUint8 *) bulkdata->d[0].os_data_ptr + MAC_HEADER_ADDR2_OFFSET;
+            saddr = (u8 *) bulkdata->d[0].os_data_ptr + MAC_HEADER_ADDR2_OFFSET;
             unifi_trace(priv, UDBG5,
                                     "Updating sta activity in IBSS interfaceTag %x Src Addr %x:%x:%x:%x:%x:%x\n",
                                     interfaceTag, saddr[0], saddr[1], saddr[2], saddr[3], saddr[4], saddr[5]);
@@ -466,7 +466,7 @@ unifi_process_receive_event(void *ospriv,
 #if (defined(CSR_SUPPORT_SME) && defined(CSR_WIFI_SECURITY_WAPI_ENABLE))
                    #define CSR_MA_PACKET_INDICATION_RECEPTION_STATUS_OFFSET    sizeof(CSR_SIGNAL_PRIMITIVE_HEADER) + 22
                    netInterface_priv_t *interfacePriv;
-                   CsrUint8 interfaceTag;
+                   u8 interfaceTag;
                    CsrUint16 receptionStatus = CSR_RX_SUCCESS;
 
                    /* Pull out interface tag from virtual interface identifier */
@@ -487,7 +487,7 @@ unifi_process_receive_event(void *ospriv,
                        ))
                    {
                        CSR_SIGNAL signal;
-                       CsrUint8 *destAddr;
+                       u8 *destAddr;
                        CsrResult res;
                        CsrUint16 interfaceTag = 0;
                        CsrBool isMcastPkt = TRUE;
@@ -501,7 +501,7 @@ unifi_process_receive_event(void *ospriv,
                        }
 
                        /* Check if the type of MPDU and the respective filter status*/
-                       destAddr = (CsrUint8 *) bulkdata->d[0].os_data_ptr + MAC_HEADER_ADDR1_OFFSET;
+                       destAddr = (u8 *) bulkdata->d[0].os_data_ptr + MAC_HEADER_ADDR1_OFFSET;
                        isMcastPkt = (destAddr[0] & 0x01) ? TRUE : FALSE;
                        unifi_trace(priv, UDBG6,
                                    "1.MPDU type: (%s), 2.Multicast filter: (%s), 3. Unicast filter: (%s)\n",
@@ -516,7 +516,7 @@ unifi_process_receive_event(void *ospriv,
                           )
                         {
                             unifi_trace(priv, UDBG4, "Sending the WAPI MPDU for MIC check\n");
-                            CsrWifiRouterCtrlWapiRxMicCheckIndSend(priv->CSR_WIFI_SME_IFACEQUEUE, 0, interfaceTag, siglen, sigdata, bulkdata->d[0].data_length, (CsrUint8*)bulkdata->d[0].os_data_ptr);
+                            CsrWifiRouterCtrlWapiRxMicCheckIndSend(priv->CSR_WIFI_SME_IFACEQUEUE, 0, interfaceTag, siglen, sigdata, bulkdata->d[0].data_length, (u8*)bulkdata->d[0].os_data_ptr);
 
                             for (i = 0; i < UNIFI_MAX_DATA_REFERENCES; i++) {
                                 if (bulkdata->d[i].data_length != 0) {
@@ -591,7 +591,7 @@ void unifi_rx_queue_flush(void *ospriv)
     unifi_trace(priv, UDBG4, "rx_wq_handler: RdPtr = %d WritePtr =  %d\n",
                 priv->rxSignalBuffer.readPointer,priv->rxSignalBuffer.writePointer);
     if(priv != NULL) {
-        CsrUint8 readPointer = priv->rxSignalBuffer.readPointer;
+        u8 readPointer = priv->rxSignalBuffer.readPointer;
         while (readPointer != priv->rxSignalBuffer.writePointer)
         {
              rx_buff_struct_t *buf = &priv->rxSignalBuffer.rx_buff[readPointer];
@@ -647,12 +647,12 @@ void rx_wq_handler(struct work_struct *work)
  */
 void
 unifi_receive_event(void *ospriv,
-                    CsrUint8 *sigdata, CsrUint32 siglen,
+                    u8 *sigdata, CsrUint32 siglen,
                     const bulk_data_param_t *bulkdata)
 {
 #ifdef CSR_WIFI_RX_PATH_SPLIT
     unifi_priv_t *priv = (unifi_priv_t*)ospriv;
-    CsrUint8 writePointer;
+    u8 writePointer;
     int i;
     rx_buff_struct_t * rx_buff;
     func_enter();

@@ -53,10 +53,10 @@ static CsrResult read_to_host_signals(card_t *card, CsrInt32 *processed);
 static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed);
 
 static CsrResult process_bulk_data_command(card_t *card,
-                                           const CsrUint8 *cmdptr,
+                                           const u8 *cmdptr,
                                            CsrInt16 cmd, CsrUint16 len);
 static CsrResult process_clear_slot_command(card_t         *card,
-                                            const CsrUint8 *cmdptr);
+                                            const u8 *cmdptr);
 static CsrResult process_fh_cmd_queue(card_t *card, CsrInt32 *processed);
 static CsrResult process_fh_traffic_queue(card_t *card, CsrInt32 *processed);
 static void restart_packet_flow(card_t *card);
@@ -408,7 +408,7 @@ CsrResult unifi_bh(card_t *card, CsrUint32 *remaining)
          */
         if (card->host_state == UNIFI_HOST_STATE_DROWSY || card->host_state == UNIFI_HOST_STATE_TORPID)
         {
-            CsrUint8 reason_unifi;
+            u8 reason_unifi;
 
             /*
              * An interrupt may occur while or after we cache the reason.
@@ -1064,7 +1064,7 @@ static CsrResult update_to_host_signals_r(card_t *card, CsrInt16 pending)
 
     /* Update the count of signals read */
     r = unifi_write_8_or_16(card, card->sdio_ctrl_addr + 6,
-                            (CsrUint8)card->to_host_signals_r);
+                            (u8)card->to_host_signals_r);
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "Failed to update to-host signals read\n");
@@ -1098,7 +1098,7 @@ static CsrResult update_to_host_signals_r(card_t *card, CsrInt16 pending)
  *      None.
  * ---------------------------------------------------------------------------
  */
-static void read_unpack_cmd(const CsrUint8 *ptr, bulk_data_cmd_t *bulk_data_cmd)
+static void read_unpack_cmd(const u8 *ptr, bulk_data_cmd_t *bulk_data_cmd)
 {
     CsrInt16 index = 0;
     bulk_data_cmd->cmd_and_len = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
@@ -1147,7 +1147,7 @@ static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
 {
     CsrInt16 pending;
     CsrInt16 remaining;
-    CsrUint8 *bufptr;
+    u8 *bufptr;
     bulk_data_param_t data_ptrs;
     CsrInt16 cmd;
     CsrUint16 sig_len;
@@ -1512,8 +1512,8 @@ static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
     if (remaining > 0)
     {
         /* Use a safe copy because source and destination may overlap */
-        CsrUint8 *d = card->th_buffer.buf;
-        CsrUint8 *s = bufptr;
+        u8 *d = card->th_buffer.buf;
+        u8 *s = bufptr;
         CsrInt32 n = remaining;
         while (n--)
         {
@@ -1543,7 +1543,7 @@ static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
  *      0 on success, CSR error code on error
  * ---------------------------------------------------------------------------
  */
-static CsrResult process_clear_slot_command(card_t *card, const CsrUint8 *cmdptr)
+static CsrResult process_clear_slot_command(card_t *card, const u8 *cmdptr)
 {
     CsrUint16 data_slot;
     CsrInt16 slot;
@@ -1618,12 +1618,12 @@ static CsrResult process_clear_slot_command(card_t *card, const CsrUint8 *cmdptr
  *      CSR_RESULT_SUCCESS on success, CSR error code on error
  * ---------------------------------------------------------------------------
  */
-static CsrResult process_bulk_data_command(card_t *card, const CsrUint8 *cmdptr,
+static CsrResult process_bulk_data_command(card_t *card, const u8 *cmdptr,
                                            CsrInt16 cmd, CsrUint16 len)
 {
     bulk_data_desc_t *bdslot;
 #ifdef CSR_WIFI_ALIGNMENT_WORKAROUND
-    CsrUint8 *host_bulk_data_slot;
+    u8 *host_bulk_data_slot;
 #endif
     bulk_data_cmd_t bdcmd;
     CsrInt16 offset;
@@ -2032,7 +2032,7 @@ static CsrResult process_fh_cmd_queue(card_t *card, CsrInt32 *processed)
         CsrInt16 i;
         CsrUint16 sig_chunks, total_length, free_chunks_in_fh_buffer;
         bulk_data_param_t bulkdata;
-        CsrUint8 *packed_sigptr;
+        u8 *packed_sigptr;
         CsrUint16 signal_length = 0;
 
         /* Retrieve the entry at the head of the queue */
@@ -2100,9 +2100,9 @@ static CsrResult process_fh_cmd_queue(card_t *card, CsrInt32 *processed)
         /* Append packed signal to F-H buffer */
         total_length = sig_chunks * card->config_data.sig_frag_size;
 
-        card->fh_buffer.ptr[0] = (CsrUint8)(signal_length & 0xff);
+        card->fh_buffer.ptr[0] = (u8)(signal_length & 0xff);
         card->fh_buffer.ptr[1] =
-            (CsrUint8)(((signal_length >> 8) & 0xf) | (SDIO_CMD_SIGNAL << 4));
+            (u8)(((signal_length >> 8) & 0xf) | (SDIO_CMD_SIGNAL << 4));
 
         CsrMemCpy(card->fh_buffer.ptr + 2, packed_sigptr, signal_length);
         CsrMemSet(card->fh_buffer.ptr + 2 + signal_length, 0,
@@ -2273,7 +2273,7 @@ static CsrResult process_fh_traffic_queue(card_t *card, CsrInt32 *processed)
         card_signal_t *csptr;
         CsrUint16 sig_chunks, total_length, free_chunks_in_fh_buffer;
         bulk_data_param_t bulkdata;
-        CsrUint8 *packed_sigptr;
+        u8 *packed_sigptr;
         CsrUint16 signal_length = 0;
 
         /* if this queue is empty go to next one. */
@@ -2378,9 +2378,9 @@ static CsrResult process_fh_traffic_queue(card_t *card, CsrInt32 *processed)
         /* Append packed signal to F-H buffer */
         total_length = sig_chunks * card->config_data.sig_frag_size;
 
-        card->fh_buffer.ptr[0] = (CsrUint8)(signal_length & 0xff);
+        card->fh_buffer.ptr[0] = (u8)(signal_length & 0xff);
         card->fh_buffer.ptr[1] =
-            (CsrUint8)(((signal_length >> 8) & 0xf) | (SDIO_CMD_SIGNAL << 4));
+            (u8)(((signal_length >> 8) & 0xf) | (SDIO_CMD_SIGNAL << 4));
 
         CsrMemCpy(card->fh_buffer.ptr + 2, packed_sigptr, signal_length);
         CsrMemSet(card->fh_buffer.ptr + 2 + signal_length, 0,
@@ -2516,7 +2516,7 @@ static CsrResult flush_fh_buffer(card_t *card)
     card->from_host_signals_w =
         (card->from_host_signals_w + card->fh_buffer.count) % 128u;
     r = unifi_write_8_or_16(card, card->sdio_ctrl_addr + 0,
-                            (CsrUint8)card->from_host_signals_w);
+                            (u8)card->from_host_signals_w);
     if (r != CSR_RESULT_SUCCESS)
     {
         unifi_error(card->ospriv, "Failed to write fh signal count %u with error %d\n",
@@ -2556,7 +2556,7 @@ static CsrResult flush_fh_buffer(card_t *card)
  */
 static void restart_packet_flow(card_t *card)
 {
-    CsrUint8 q;
+    u8 q;
 
     /*
      * We only look at the fh_traffic_queue, because that is where packets from

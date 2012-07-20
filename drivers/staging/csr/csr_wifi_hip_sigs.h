@@ -113,7 +113,7 @@ typedef enum CSR_LOADER_OPERATION
 
 typedef struct CSR_MAC_ADDRESS
 {
-    CsrUint8 x[6];
+    u8 x[6];
 } CSR_MACADDRESS;
 
 typedef enum CSR_MIB_STATUS
@@ -374,7 +374,7 @@ typedef enum CSR_SYMBOL_ID
 
 typedef struct CSR_TSF_TIME
 {
-    CsrUint8 x[8];
+    u8 x[8];
 } CSR_TSF_TIME;
 
 typedef CsrUint16 CSR_TIME_UNITS;

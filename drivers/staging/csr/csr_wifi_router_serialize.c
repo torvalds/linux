@@ -37,20 +37,20 @@ CsrSize CsrWifiRouterMaPacketSubscribeReqSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiRouterMaPacketSubscribeReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiRouterMaPacketSubscribeReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiRouterMaPacketSubscribeReq *primitive = (CsrWifiRouterMaPacketSubscribeReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->encapsulation);
+    CsrUint8Ser(ptr, len, (u8) primitive->encapsulation);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->protocol);
     CsrUint32Ser(ptr, len, (CsrUint32) primitive->oui);
     return(ptr);
 }
 
 
-void* CsrWifiRouterMaPacketSubscribeReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiRouterMaPacketSubscribeReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiRouterMaPacketSubscribeReq *primitive = (CsrWifiRouterMaPacketSubscribeReq *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketSubscribeReq));
     CsrSize offset;
@@ -58,7 +58,7 @@ void* CsrWifiRouterMaPacketSubscribeReqDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->encapsulation, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->encapsulation, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->protocol, buffer, &offset);
     CsrUint32Des((CsrUint32 *) &primitive->oui, buffer, &offset);
 
@@ -73,9 +73,9 @@ CsrSize CsrWifiRouterMaPacketReqSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 20) */
     bufferSize += 2;                      /* CsrUint16 primitive->interfaceTag */
-    bufferSize += 1;                      /* CsrUint8 primitive->subscriptionHandle */
+    bufferSize += 1;                      /* u8 primitive->subscriptionHandle */
     bufferSize += 2;                      /* CsrUint16 primitive->frameLength */
-    bufferSize += primitive->frameLength; /* CsrUint8 primitive->frame */
+    bufferSize += primitive->frameLength; /* u8 primitive->frame */
     bufferSize += 4;                      /* CsrWifiRouterFrameFreeFunction primitive->freeFunction */
     bufferSize += 2;                      /* CsrWifiRouterPriority primitive->priority */
     bufferSize += 4;                      /* CsrUint32 primitive->hostTag */
@@ -84,13 +84,13 @@ CsrSize CsrWifiRouterMaPacketReqSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiRouterMaPacketReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiRouterMaPacketReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiRouterMaPacketReq *primitive = (CsrWifiRouterMaPacketReq *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->subscriptionHandle);
+    CsrUint8Ser(ptr, len, (u8) primitive->subscriptionHandle);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->frameLength);
     if (primitive->frameLength)
     {
@@ -99,12 +99,12 @@ CsrUint8* CsrWifiRouterMaPacketReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
     CsrUint32Ser(ptr, len, 0); /* Special for Function Pointers... primitive->freeFunction */
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->priority);
     CsrUint32Ser(ptr, len, (CsrUint32) primitive->hostTag);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->cfmRequested);
+    CsrUint8Ser(ptr, len, (u8) primitive->cfmRequested);
     return(ptr);
 }
 
 
-void* CsrWifiRouterMaPacketReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiRouterMaPacketReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiRouterMaPacketReq *primitive = (CsrWifiRouterMaPacketReq *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketReq));
     CsrSize offset;
@@ -112,11 +112,11 @@ void* CsrWifiRouterMaPacketReqDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->subscriptionHandle, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->subscriptionHandle, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->frameLength, buffer, &offset);
     if (primitive->frameLength)
     {
-        primitive->frame = (CsrUint8 *)CsrPmemAlloc(primitive->frameLength);
+        primitive->frame = (u8 *)CsrPmemAlloc(primitive->frameLength);
         CsrMemCpyDes(primitive->frame, buffer, &offset, ((CsrUint16) (primitive->frameLength)));
     }
     else
@@ -127,7 +127,7 @@ void* CsrWifiRouterMaPacketReqDes(CsrUint8 *buffer, CsrSize length)
     offset += 4;
     CsrUint16Des((CsrUint16 *) &primitive->priority, buffer, &offset);
     CsrUint32Des((CsrUint32 *) &primitive->hostTag, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->cfmRequested, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->cfmRequested, buffer, &offset);
 
     return primitive;
 }
@@ -147,25 +147,25 @@ CsrSize CsrWifiRouterMaPacketResSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 8) */
     bufferSize += 2; /* CsrUint16 primitive->interfaceTag */
-    bufferSize += 1; /* CsrUint8 primitive->subscriptionHandle */
+    bufferSize += 1; /* u8 primitive->subscriptionHandle */
     bufferSize += 2; /* CsrResult primitive->result */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiRouterMaPacketResSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiRouterMaPacketResSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiRouterMaPacketRes *primitive = (CsrWifiRouterMaPacketRes *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->subscriptionHandle);
+    CsrUint8Ser(ptr, len, (u8) primitive->subscriptionHandle);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->result);
     return(ptr);
 }
 
 
-void* CsrWifiRouterMaPacketResDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiRouterMaPacketResDes(u8 *buffer, CsrSize length)
 {
     CsrWifiRouterMaPacketRes *primitive = (CsrWifiRouterMaPacketRes *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketRes));
     CsrSize offset;
@@ -173,7 +173,7 @@ void* CsrWifiRouterMaPacketResDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->subscriptionHandle, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->subscriptionHandle, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->result, buffer, &offset);
 
     return primitive;
@@ -188,12 +188,12 @@ CsrSize CsrWifiRouterMaPacketCancelReqSizeof(void *msg)
     bufferSize += 2; /* CsrUint16 primitive->interfaceTag */
     bufferSize += 4; /* CsrUint32 primitive->hostTag */
     bufferSize += 2; /* CsrWifiRouterPriority primitive->priority */
-    bufferSize += 6; /* CsrUint8 primitive->peerMacAddress.a[6] */
+    bufferSize += 6; /* u8 primitive->peerMacAddress.a[6] */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiRouterMaPacketCancelReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiRouterMaPacketCancelReqSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiRouterMaPacketCancelReq *primitive = (CsrWifiRouterMaPacketCancelReq *)msg;
     *len = 0;
@@ -206,7 +206,7 @@ CsrUint8* CsrWifiRouterMaPacketCancelReqSer(CsrUint8 *ptr, CsrSize *len, void *m
 }
 
 
-void* CsrWifiRouterMaPacketCancelReqDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiRouterMaPacketCancelReqDes(u8 *buffer, CsrSize length)
 {
     CsrWifiRouterMaPacketCancelReq *primitive = (CsrWifiRouterMaPacketCancelReq *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketCancelReq));
     CsrSize offset;
@@ -228,27 +228,27 @@ CsrSize CsrWifiRouterMaPacketSubscribeCfmSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 10) */
     bufferSize += 2; /* CsrUint16 primitive->interfaceTag */
-    bufferSize += 1; /* CsrUint8 primitive->subscriptionHandle */
+    bufferSize += 1; /* u8 primitive->subscriptionHandle */
     bufferSize += 2; /* CsrResult primitive->status */
     bufferSize += 2; /* CsrUint16 primitive->allocOffset */
     return bufferSize;
 }
 
 
-CsrUint8* CsrWifiRouterMaPacketSubscribeCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiRouterMaPacketSubscribeCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiRouterMaPacketSubscribeCfm *primitive = (CsrWifiRouterMaPacketSubscribeCfm *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->subscriptionHandle);
+    CsrUint8Ser(ptr, len, (u8) primitive->subscriptionHandle);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->status);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->allocOffset);
     return(ptr);
 }
 
 
-void* CsrWifiRouterMaPacketSubscribeCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiRouterMaPacketSubscribeCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiRouterMaPacketSubscribeCfm *primitive = (CsrWifiRouterMaPacketSubscribeCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketSubscribeCfm));
     CsrSize offset;
@@ -256,7 +256,7 @@ void* CsrWifiRouterMaPacketSubscribeCfmDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->subscriptionHandle, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->subscriptionHandle, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->status, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->allocOffset, buffer, &offset);
 
@@ -275,7 +275,7 @@ CsrSize CsrWifiRouterMaPacketUnsubscribeCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiRouterMaPacketUnsubscribeCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiRouterMaPacketUnsubscribeCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiRouterMaPacketUnsubscribeCfm *primitive = (CsrWifiRouterMaPacketUnsubscribeCfm *)msg;
     *len = 0;
@@ -286,7 +286,7 @@ CsrUint8* CsrWifiRouterMaPacketUnsubscribeCfmSer(CsrUint8 *ptr, CsrSize *len, vo
 }
 
 
-void* CsrWifiRouterMaPacketUnsubscribeCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiRouterMaPacketUnsubscribeCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiRouterMaPacketUnsubscribeCfm *primitive = (CsrWifiRouterMaPacketUnsubscribeCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketUnsubscribeCfm));
     CsrSize offset;
@@ -313,7 +313,7 @@ CsrSize CsrWifiRouterMaPacketCfmSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiRouterMaPacketCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiRouterMaPacketCfmSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiRouterMaPacketCfm *primitive = (CsrWifiRouterMaPacketCfm *)msg;
     *len = 0;
@@ -326,7 +326,7 @@ CsrUint8* CsrWifiRouterMaPacketCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiRouterMaPacketCfmDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiRouterMaPacketCfmDes(u8 *buffer, CsrSize length)
 {
     CsrWifiRouterMaPacketCfm *primitive = (CsrWifiRouterMaPacketCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketCfm));
     CsrSize offset;
@@ -349,10 +349,10 @@ CsrSize CsrWifiRouterMaPacketIndSizeof(void *msg)
 
     /* Calculate the Size of the Serialised Data. Could be more efficient (Try 21) */
     bufferSize += 2;                      /* CsrUint16 primitive->interfaceTag */
-    bufferSize += 1;                      /* CsrUint8 primitive->subscriptionHandle */
+    bufferSize += 1;                      /* u8 primitive->subscriptionHandle */
     bufferSize += 2;                      /* CsrResult primitive->result */
     bufferSize += 2;                      /* CsrUint16 primitive->frameLength */
-    bufferSize += primitive->frameLength; /* CsrUint8 primitive->frame */
+    bufferSize += primitive->frameLength; /* u8 primitive->frame */
     bufferSize += 4;                      /* CsrWifiRouterFrameFreeFunction primitive->freeFunction */
     bufferSize += 2;                      /* CsrInt16 primitive->rssi */
     bufferSize += 2;                      /* CsrInt16 primitive->snr */
@@ -361,13 +361,13 @@ CsrSize CsrWifiRouterMaPacketIndSizeof(void *msg)
 }
 
 
-CsrUint8* CsrWifiRouterMaPacketIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+u8* CsrWifiRouterMaPacketIndSer(u8 *ptr, CsrSize *len, void *msg)
 {
     CsrWifiRouterMaPacketInd *primitive = (CsrWifiRouterMaPacketInd *)msg;
     *len = 0;
     CsrUint16Ser(ptr, len, primitive->common.type);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->interfaceTag);
-    CsrUint8Ser(ptr, len, (CsrUint8) primitive->subscriptionHandle);
+    CsrUint8Ser(ptr, len, (u8) primitive->subscriptionHandle);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->result);
     CsrUint16Ser(ptr, len, (CsrUint16) primitive->frameLength);
     if (primitive->frameLength)
@@ -382,7 +382,7 @@ CsrUint8* CsrWifiRouterMaPacketIndSer(CsrUint8 *ptr, CsrSize *len, void *msg)
 }
 
 
-void* CsrWifiRouterMaPacketIndDes(CsrUint8 *buffer, CsrSize length)
+void* CsrWifiRouterMaPacketIndDes(u8 *buffer, CsrSize length)
 {
     CsrWifiRouterMaPacketInd *primitive = (CsrWifiRouterMaPacketInd *) CsrPmemAlloc(sizeof(CsrWifiRouterMaPacketInd));
     CsrSize offset;
@@ -390,12 +390,12 @@ void* CsrWifiRouterMaPacketIndDes(CsrUint8 *buffer, CsrSize length)
 
     CsrUint16Des(&primitive->common.type, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->interfaceTag, buffer, &offset);
-    CsrUint8Des((CsrUint8 *) &primitive->subscriptionHandle, buffer, &offset);
+    CsrUint8Des((u8 *) &primitive->subscriptionHandle, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->result, buffer, &offset);
     CsrUint16Des((CsrUint16 *) &primitive->frameLength, buffer, &offset);
     if (primitive->frameLength)
     {
-        primitive->frame = (CsrUint8 *)CsrPmemAlloc(primitive->frameLength);
+        primitive->frame = (u8 *)CsrPmemAlloc(primitive->frameLength);
         CsrMemCpyDes(primitive->frame, buffer, &offset, ((CsrUint16) (primitive->frameLength)));
     }
     else

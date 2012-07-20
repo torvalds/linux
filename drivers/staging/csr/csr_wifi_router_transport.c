@@ -61,7 +61,7 @@ void CsrWifiRouterTransportDeinit(unifi_priv_t *priv)
     }
 }
 
-void CsrWifiRouterTransportRecv(unifi_priv_t *priv, CsrUint8* buffer, CsrSize bufferLength)
+void CsrWifiRouterTransportRecv(unifi_priv_t *priv, u8* buffer, CsrSize bufferLength)
 {
     CsrMsgConvMsgEntry* msgEntry;
     CsrUint16 primType;
@@ -166,7 +166,7 @@ static void CsrWifiRouterTransportSerialiseAndSend(CsrUint16 primType, void* msg
     CsrSize msgSize;
     CsrSize encodeBufferLen = 0;
     CsrSize offset = 0;
-    CsrUint8* encodeBuffer;
+    u8* encodeBuffer;
 
     unifi_trace(drvpriv, UDBG4, "CsrWifiRouterTransportSerialiseAndSend: primType=0x%.4X, msgType=0x%.4X\n",
                 primType, evt->type);

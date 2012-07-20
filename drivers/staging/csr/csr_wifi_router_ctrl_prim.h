@@ -28,14 +28,14 @@ extern "C" {
 
 typedef CsrPrim CsrWifiRouterCtrlPrim;
 
-typedef CsrResult (*CsrWifiRouterCtrlRawSdioByteWrite)(CsrUint8 func, CsrUint32 address, CsrUint8 data);
-typedef CsrResult (*CsrWifiRouterCtrlRawSdioByteRead)(CsrUint8 func, CsrUint32 address, CsrUint8 *pdata);
-typedef CsrResult (*CsrWifiRouterCtrlRawSdioFirmwareDownload)(CsrUint32 length, const CsrUint8 *pdata);
+typedef CsrResult (*CsrWifiRouterCtrlRawSdioByteWrite)(u8 func, CsrUint32 address, u8 data);
+typedef CsrResult (*CsrWifiRouterCtrlRawSdioByteRead)(u8 func, CsrUint32 address, u8 *pdata);
+typedef CsrResult (*CsrWifiRouterCtrlRawSdioFirmwareDownload)(CsrUint32 length, const u8 *pdata);
 typedef CsrResult (*CsrWifiRouterCtrlRawSdioReset)(void);
 typedef CsrResult (*CsrWifiRouterCtrlRawSdioCoreDumpPrepare)(CsrBool suspendSme);
-typedef CsrResult (*CsrWifiRouterCtrlRawSdioByteBlockRead)(CsrUint8 func, CsrUint32 address, CsrUint8 *pdata, CsrUint32 length);
-typedef CsrResult (*CsrWifiRouterCtrlRawSdioGpRead16)(CsrUint8 func, CsrUint32 address, CsrUint16 *pdata);
-typedef CsrResult (*CsrWifiRouterCtrlRawSdioGpWrite16)(CsrUint8 func, CsrUint32 address, CsrUint16 data);
+typedef CsrResult (*CsrWifiRouterCtrlRawSdioByteBlockRead)(u8 func, CsrUint32 address, u8 *pdata, CsrUint32 length);
+typedef CsrResult (*CsrWifiRouterCtrlRawSdioGpRead16)(u8 func, CsrUint32 address, CsrUint16 *pdata);
+typedef CsrResult (*CsrWifiRouterCtrlRawSdioGpWrite16)(u8 func, CsrUint32 address, CsrUint16 data);
 
 /*******************************************************************************
 
@@ -51,7 +51,7 @@ typedef CsrResult (*CsrWifiRouterCtrlRawSdioGpWrite16)(CsrUint8 func, CsrUint32 
                    -
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiRouterCtrlBlockAckRole;
+typedef u8 CsrWifiRouterCtrlBlockAckRole;
 #define CSR_WIFI_ROUTER_CTRL_BLOCK_ACK_ORIGINATOR   ((CsrWifiRouterCtrlBlockAckRole) 0x00)
 #define CSR_WIFI_ROUTER_CTRL_BLOCK_ACK_RECIPIENT    ((CsrWifiRouterCtrlBlockAckRole) 0x01)
 
@@ -71,7 +71,7 @@ typedef CsrUint8 CsrWifiRouterCtrlBlockAckRole;
                    -
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiRouterCtrlControlIndication;
+typedef u8 CsrWifiRouterCtrlControlIndication;
 #define CSR_WIFI_ROUTER_CTRL_CONTROL_INDICATION_ERROR            ((CsrWifiRouterCtrlControlIndication) 0x01)
 #define CSR_WIFI_ROUTER_CTRL_CONTROL_INDICATION_EXIT             ((CsrWifiRouterCtrlControlIndication) 0x02)
 #define CSR_WIFI_ROUTER_CTRL_CONTROL_INDICATION_USER_REQUESTED   ((CsrWifiRouterCtrlControlIndication) 0x03)
@@ -94,7 +94,7 @@ typedef CsrUint8 CsrWifiRouterCtrlControlIndication;
                    -
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiRouterCtrlListAction;
+typedef u8 CsrWifiRouterCtrlListAction;
 #define CSR_WIFI_ROUTER_CTRL_LIST_ACTION_GET      ((CsrWifiRouterCtrlListAction) 0x00)
 #define CSR_WIFI_ROUTER_CTRL_LIST_ACTION_ADD      ((CsrWifiRouterCtrlListAction) 0x01)
 #define CSR_WIFI_ROUTER_CTRL_LIST_ACTION_REMOVE   ((CsrWifiRouterCtrlListAction) 0x02)
@@ -132,7 +132,7 @@ typedef CsrUint16 CsrWifiRouterCtrlLowPowerMode;
                    -
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiRouterCtrlMediaStatus;
+typedef u8 CsrWifiRouterCtrlMediaStatus;
 #define CSR_WIFI_ROUTER_CTRL_MEDIA_STATUS_CONNECTED      ((CsrWifiRouterCtrlMediaStatus) 0x00)
 #define CSR_WIFI_ROUTER_CTRL_MEDIA_STATUS_DISCONNECTED   ((CsrWifiRouterCtrlMediaStatus) 0x01)
 
@@ -155,7 +155,7 @@ typedef CsrUint8 CsrWifiRouterCtrlMediaStatus;
     CSR_WIFI_ROUTER_CTRL_MODE_P2PCLI  -
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiRouterCtrlMode;
+typedef u8 CsrWifiRouterCtrlMode;
 #define CSR_WIFI_ROUTER_CTRL_MODE_NONE      ((CsrWifiRouterCtrlMode) 0x00)
 #define CSR_WIFI_ROUTER_CTRL_MODE_IBSS      ((CsrWifiRouterCtrlMode) 0x01)
 #define CSR_WIFI_ROUTER_CTRL_MODE_STA       ((CsrWifiRouterCtrlMode) 0x02)
@@ -182,7 +182,7 @@ typedef CsrUint8 CsrWifiRouterCtrlMode;
                    -
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiRouterCtrlPeerStatus;
+typedef u8 CsrWifiRouterCtrlPeerStatus;
 #define CSR_WIFI_ROUTER_CTRL_PEER_CONNECTED_ACTIVE       ((CsrWifiRouterCtrlPeerStatus) 0x00)
 #define CSR_WIFI_ROUTER_CTRL_PEER_CONNECTED_POWER_SAVE   ((CsrWifiRouterCtrlPeerStatus) 0x01)
 #define CSR_WIFI_ROUTER_CTRL_PEER_DISCONNECTED           ((CsrWifiRouterCtrlPeerStatus) 0x02)
@@ -314,7 +314,7 @@ typedef CsrUint16 CsrWifiRouterCtrlQoSControl;
                    -
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiRouterCtrlQueueConfig;
+typedef u8 CsrWifiRouterCtrlQueueConfig;
 #define CSR_WIFI_ROUTER_CTRL_QUEUE_BE_ENABLE   ((CsrWifiRouterCtrlQueueConfig) 0x01)
 #define CSR_WIFI_ROUTER_CTRL_QUEUE_BK_ENABLE   ((CsrWifiRouterCtrlQueueConfig) 0x02)
 #define CSR_WIFI_ROUTER_CTRL_QUEUE_VI_ENABLE   ((CsrWifiRouterCtrlQueueConfig) 0x04)
@@ -395,7 +395,7 @@ typedef CsrUint16 CsrWifiRouterCtrlTrafficPacketType;
                    -
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiRouterCtrlTrafficType;
+typedef u8 CsrWifiRouterCtrlTrafficType;
 #define CSR_WIFI_ROUTER_CTRL_TRAFFIC_TYPE_OCCASIONAL   ((CsrWifiRouterCtrlTrafficType) 0x00)
 #define CSR_WIFI_ROUTER_CTRL_TRAFFIC_TYPE_BURSTY       ((CsrWifiRouterCtrlTrafficType) 0x01)
 #define CSR_WIFI_ROUTER_CTRL_TRAFFIC_TYPE_PERIODIC     ((CsrWifiRouterCtrlTrafficType) 0x02)
@@ -431,7 +431,7 @@ typedef CsrUint16 CsrWifiRouterCtrlPowersaveTypeMask;
     Mask type for use with the values defined by CsrWifiRouterCtrlQueueConfig
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiRouterCtrlQueueConfigMask;
+typedef u8 CsrWifiRouterCtrlQueueConfigMask;
 /*******************************************************************************
 
   NAME
@@ -449,7 +449,7 @@ typedef CsrUint16 CsrWifiRouterCtrlRequestorInfo;
   DESCRIPTION
 
 *******************************************************************************/
-typedef CsrUint8 CsrWifiRouterCtrlTrafficStreamId;
+typedef u8 CsrWifiRouterCtrlTrafficStreamId;
 
 
 /*******************************************************************************
@@ -490,7 +490,7 @@ typedef struct
 {
     CsrBool                            wmmOrQosEnabled;
     CsrWifiRouterCtrlPowersaveTypeMask powersaveMode;
-    CsrUint8                           maxSpLength;
+    u8                           maxSpLength;
     CsrUint16                          listenIntervalInTus;
 } CsrWifiRouterCtrlStaInfo;
 
@@ -511,7 +511,7 @@ typedef struct
 typedef struct
 {
     CsrUint32 etherType;
-    CsrUint8  ipType;
+    u8  ipType;
     CsrUint32 udpSourcePort;
     CsrUint32 udpDestPort;
 } CsrWifiRouterCtrlTrafficFilter;
@@ -539,7 +539,7 @@ typedef struct
     CsrUint32 txFramesNum;
     CsrUint32 rxBytesCount;
     CsrUint32 txBytesCount;
-    CsrUint8  intervals[11];
+    u8  intervals[11];
 } CsrWifiRouterCtrlTrafficStats;
 
 /*******************************************************************************
@@ -709,11 +709,11 @@ typedef struct
 {
     CsrWifiFsmEvent common;
     CsrUint16       mlmeCommandLength;
-    CsrUint8       *mlmeCommand;
+    u8       *mlmeCommand;
     CsrUint16       dataRef1Length;
-    CsrUint8       *dataRef1;
+    u8       *dataRef1;
     CsrUint16       dataRef2Length;
-    CsrUint8       *dataRef2;
+    u8       *dataRef2;
 } CsrWifiRouterCtrlHipReq;
 
 /*******************************************************************************
@@ -762,7 +762,7 @@ typedef struct
     CsrWifiRouterCtrlRequestorInfo clientData;
     CsrResult                      status;
     CsrWifiRouterCtrlListAction    action;
-    CsrUint8                       getAddressesCount;
+    u8                       getAddressesCount;
     CsrWifiMacAddress             *getAddresses;
 } CsrWifiRouterCtrlMulticastAddressRes;
 
@@ -859,7 +859,7 @@ typedef struct
     CsrUint16                      interfaceTag;
     CsrWifiRouterCtrlRequestorInfo clientData;
     CsrUint16                      tclasLength;
-    CsrUint8                      *tclas;
+    u8                      *tclas;
 } CsrWifiRouterCtrlTclasAddReq;
 
 /*******************************************************************************
@@ -939,7 +939,7 @@ typedef struct
     CsrUint16                      interfaceTag;
     CsrWifiRouterCtrlRequestorInfo clientData;
     CsrUint16                      tclasLength;
-    CsrUint8                      *tclas;
+    u8                      *tclas;
 } CsrWifiRouterCtrlTclasDelReq;
 
 /*******************************************************************************
@@ -1045,7 +1045,7 @@ typedef struct
     CsrWifiFsmEvent                common;
     CsrWifiRouterCtrlRequestorInfo clientData;
     CsrUint32                      dataLength;
-    CsrUint8                      *data;
+    u8                      *data;
 } CsrWifiRouterCtrlWifiOnReq;
 
 /*******************************************************************************
@@ -1299,9 +1299,9 @@ typedef struct
     CsrWifiFsmEvent common;
     CsrUint16       interfaceTag;
     CsrUint16       signalLength;
-    CsrUint8       *signal;
+    u8       *signal;
     CsrUint16       dataLength;
-    CsrUint8       *data;
+    u8       *data;
 } CsrWifiRouterCtrlWapiRxPktReq;
 
 /*******************************************************************************
@@ -1321,7 +1321,7 @@ typedef struct
 {
     CsrWifiFsmEvent common;
     CsrUint16       interfaceTag;
-    CsrUint8        status;
+    u8        status;
 } CsrWifiRouterCtrlWapiMulticastFilterReq;
 
 /*******************************************************************************
@@ -1341,7 +1341,7 @@ typedef struct
 {
     CsrWifiFsmEvent common;
     CsrUint16       interfaceTag;
-    CsrUint8        status;
+    u8        status;
 } CsrWifiRouterCtrlWapiUnicastFilterReq;
 
 /*******************************************************************************
@@ -1363,7 +1363,7 @@ typedef struct
     CsrWifiFsmEvent common;
     CsrUint16       interfaceTag;
     CsrUint16       dataLength;
-    CsrUint8       *data;
+    u8       *data;
 } CsrWifiRouterCtrlWapiUnicastTxPktReq;
 
 /*******************************************************************************
@@ -1408,11 +1408,11 @@ typedef struct
 {
     CsrWifiFsmEvent common;
     CsrUint16       mlmeCommandLength;
-    CsrUint8       *mlmeCommand;
+    u8       *mlmeCommand;
     CsrUint16       dataRef1Length;
-    CsrUint8       *dataRef1;
+    u8       *dataRef1;
     CsrUint16       dataRef2Length;
-    CsrUint8       *dataRef2;
+    u8       *dataRef2;
 } CsrWifiRouterCtrlHipInd;
 
 /*******************************************************************************
@@ -1437,7 +1437,7 @@ typedef struct
     CsrWifiRouterCtrlRequestorInfo clientData;
     CsrUint16                      interfaceTag;
     CsrWifiRouterCtrlListAction    action;
-    CsrUint8                       setAddressesCount;
+    u8                       setAddressesCount;
     CsrWifiMacAddress             *setAddresses;
 } CsrWifiRouterCtrlMulticastAddressInd;
 
@@ -2060,9 +2060,9 @@ typedef struct
     CsrWifiRouterCtrlRequestorInfo clientData;
     CsrUint16                      interfaceTag;
     CsrUint16                      signalLength;
-    CsrUint8                      *signal;
+    u8                      *signal;
     CsrUint16                      dataLength;
-    CsrUint8                      *data;
+    u8                      *data;
 } CsrWifiRouterCtrlWapiRxMicCheckInd;
 
 /*******************************************************************************
@@ -2110,7 +2110,7 @@ typedef struct
     CsrWifiRouterCtrlRequestorInfo clientData;
     CsrUint16                      interfaceTag;
     CsrUint16                      dataLength;
-    CsrUint8                      *data;
+    u8                      *data;
 } CsrWifiRouterCtrlWapiUnicastTxEncryptInd;
 
 

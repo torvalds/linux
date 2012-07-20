@@ -913,7 +913,7 @@ get_packet_priority(unifi_priv_t *priv, struct sk_buff *skb, const struct ethhdr
     CSR_PRIORITY priority = CSR_CONTENTION;
     const int proto = ntohs(ehdr->h_proto);
 
-    CsrUint8 interfaceMode = interfacePriv->interfaceMode;
+    u8 interfaceMode = interfacePriv->interfaceMode;
 
     func_enter();
 
@@ -1088,7 +1088,7 @@ _identify_sme_ma_pkt_ind(unifi_priv_t *priv,
 {
     CSR_MA_PACKET_INDICATION *pkt_ind = (CSR_MA_PACKET_INDICATION*)&signal->u.MaPacketIndication;
     int r;
-    CsrUint8 i;
+    u8 i;
 
     unifi_trace(priv, UDBG5,
             "_identify_sme_ma_pkt_ind -->\n");
@@ -1141,7 +1141,7 @@ _identify_sme_ma_pkt_ind(unifi_priv_t *priv,
                             i,
                             pkt_ind->ReceptionStatus,
                             bulkdata->d[0].data_length,
-                            (CsrUint8*)bulkdata->d[0].os_data_ptr,
+                            (u8*)bulkdata->d[0].os_data_ptr,
                             NULL,
                             pkt_ind->Rssi,
                             pkt_ind->Snr,
@@ -1369,19 +1369,19 @@ int prepare_and_add_macheader(unifi_priv_t *priv, struct sk_buff *skb, struct sk
                               CSR_PRIORITY priority,
                               bulk_data_param_t *bulkdata,
                               CsrUint16 interfaceTag,
-                              const CsrUint8 *daddr,
-                              const CsrUint8 *saddr,
+                              const u8 *daddr,
+                              const u8 *saddr,
                               CsrBool protection)
 {
     CsrUint16 fc = 0;
-    CsrUint8 qc = 0;
-    CsrUint8 macHeaderLengthInBytes = MAC_HEADER_SIZE, *bufPtr = NULL;
+    u8 qc = 0;
+    u8 macHeaderLengthInBytes = MAC_HEADER_SIZE, *bufPtr = NULL;
     bulk_data_param_t data_ptrs;
     CsrResult csrResult;
     int headroom =0;
-    CsrUint8 direction = 0;
+    u8 direction = 0;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
-    CsrUint8 *addressOne;
+    u8 *addressOne;
     CsrBool bQosNull = false;
 
     if (skb == NULL) {
@@ -1478,14 +1478,14 @@ int prepare_and_add_macheader(unifi_priv_t *priv, struct sk_buff *skb, struct sk
         bulkdata->d[0].os_net_buf_ptr = (unsigned char*)newSkb;
         bulkdata->d[0].data_length = newSkb->len;
 
-        bufPtr = (CsrUint8*)data_ptrs.d[0].os_data_ptr;
+        bufPtr = (u8*)data_ptrs.d[0].os_data_ptr;
 
         /* The old skb will not be used again */
             kfree_skb(skb);
     } else {
 
         /* headroom has sufficient size, so will get proper pointer */
-        bufPtr = (CsrUint8*)skb_push(skb, macHeaderLengthInBytes);
+        bufPtr = (u8*)skb_push(skb, macHeaderLengthInBytes);
         bulkdata->d[0].os_data_ptr = skb->data;
         bulkdata->d[0].os_net_buf_ptr = (unsigned char*)skb;
         bulkdata->d[0].data_length = skb->len;
@@ -1753,7 +1753,7 @@ send_ma_pkt_request(unifi_priv_t *priv, struct sk_buff *skb, const struct ethhdr
      * the Address 1 field of 802.11 Mac header here 4 is: (sizeof(framecontrol) + sizeof (durationID))
      * which is address 1 field
      */
-    memcpy(peerAddress.a, ((CsrUint8 *) bulkdata.d[0].os_data_ptr) + 4, ETH_ALEN);
+    memcpy(peerAddress.a, ((u8 *) bulkdata.d[0].os_data_ptr) + 4, ETH_ALEN);
 
     unifi_trace(priv, UDBG5, "RA[0]=%x, RA[1]=%x, RA[2]=%x, RA[3]=%x, RA[4]=%x, RA[5]=%x\n",
                 peerAddress.a[0],peerAddress.a[1], peerAddress.a[2], peerAddress.a[3],
@@ -1792,7 +1792,7 @@ send_ma_pkt_request(unifi_priv_t *priv, struct sk_buff *skb, const struct ethhdr
             req->TransmitRate = 0;
             req->HostTag = CSR_WIFI_EAPOL_M4_HOST_TAG;
             /* RA address matching with address 1 of Mac header */
-            memcpy(req->Ra.x, ((CsrUint8 *) bulkdata.d[0].os_data_ptr) + 4, ETH_ALEN);
+            memcpy(req->Ra.x, ((u8 *) bulkdata.d[0].os_data_ptr) + 4, ETH_ALEN);
 
             spin_lock(&priv->m4_lock);
             /* Store the M4-PACKET.req for later */
@@ -1841,7 +1841,7 @@ send_ma_pkt_request(unifi_priv_t *priv, struct sk_buff *skb, const struct ethhdr
         req->TransmitRate = (CSR_RATE) 0; /* rate selected by firmware */
         req->HostTag = 0xffffffff;        /* Ask for a new HostTag */
         /* RA address matching with address 1 of Mac header */
-        memcpy(req->Ra.x, ((CsrUint8 *) bulkdata.d[0].os_data_ptr) + 4, ETH_ALEN);
+        memcpy(req->Ra.x, ((u8 *) bulkdata.d[0].os_data_ptr) + 4, ETH_ALEN);
 
         /* Store the M4-PACKET.req for later */
         spin_lock(&priv->wapi_lock);
@@ -2150,7 +2150,7 @@ unifi_restart_xmit(void *ospriv, unifi_TrafficQueue queue)
 
 
 static void
-indicate_rx_skb(unifi_priv_t *priv, CsrUint16 ifTag, CsrUint8* dst_a, CsrUint8* src_a, struct sk_buff *skb, CSR_SIGNAL *signal,
+indicate_rx_skb(unifi_priv_t *priv, CsrUint16 ifTag, u8* dst_a, u8* src_a, struct sk_buff *skb, CSR_SIGNAL *signal,
                 bulk_data_param_t *bulkdata)
 {
     int r, sr = 0;
@@ -2392,12 +2392,12 @@ unifi_rx(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_data_param_t *bulkdata)
     const CSR_MA_PACKET_INDICATION *pkt_ind = &signal->u.MaPacketIndication;
     struct sk_buff *skb;
     CsrWifiRouterCtrlPortAction port_action;
-    CsrUint8 dataFrameType;
+    u8 dataFrameType;
     int proto;
     int queue;
 
-    CsrUint8 da[ETH_ALEN], sa[ETH_ALEN];
-    CsrUint8 toDs, fromDs, frameType, macHeaderLengthInBytes = MAC_HEADER_SIZE;
+    u8 da[ETH_ALEN], sa[ETH_ALEN];
+    u8 toDs, fromDs, frameType, macHeaderLengthInBytes = MAC_HEADER_SIZE;
     CsrUint16 frameControl;
     netInterface_priv_t *interfacePriv;
     struct ethhdr ehdr;
@@ -2738,15 +2738,15 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
     struct sk_buff *skb;
     CsrUint16 frameControl;
     netInterface_priv_t *interfacePriv;
-    CsrUint8 da[ETH_ALEN], sa[ETH_ALEN];
-    CsrUint8 *bssid = NULL, *ba_addr = NULL;
-    CsrUint8 toDs, fromDs, frameType;
-    CsrUint8 i =0;
+    u8 da[ETH_ALEN], sa[ETH_ALEN];
+    u8 *bssid = NULL, *ba_addr = NULL;
+    u8 toDs, fromDs, frameType;
+    u8 i =0;
 
 #ifdef CSR_SUPPORT_SME
-    CsrUint8 dataFrameType = 0;
+    u8 dataFrameType = 0;
     CsrBool powerSaveChanged = FALSE;
-    CsrUint8 pmBit = 0;
+    u8 pmBit = 0;
     CsrWifiRouterCtrlStaInfo_t *srcStaInfo = NULL;
     CsrUint16 qosControl;
 
@@ -2812,7 +2812,7 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
     }
     else
     {
-        bssid = (CsrUint8 *) (skb->data + 4 + 12 - (fromDs * 6) - (toDs * 12));
+        bssid = (u8 *) (skb->data + 4 + 12 - (fromDs * 6) - (toDs * 12));
     }
 
     pData = &bulkdata->d[0];
@@ -2827,7 +2827,7 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
 
         if((frameControl & 0x00f0) == 0x00A0){
             /* This is a PS-POLL request */
-            CsrUint8 pmBit = (frameControl & 0x1000)?0x01:0x00;
+            u8 pmBit = (frameControl & 0x1000)?0x01:0x00;
             unifi_trace(priv, UDBG6, "%s: Received PS-POLL Frame\n", __FUNCTION__);
 
             uf_process_ps_poll(priv,sa,da,pmBit,interfaceTag);
@@ -2908,10 +2908,10 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
 #endif
 
     if( ((frameControl & 0x00f0) >> 4) == QOS_DATA) {
-        CsrUint8 *qos_control_ptr = (CsrUint8*)bulkdata->d[0].os_data_ptr + (((frameControl & IEEE802_11_FC_TO_DS_MASK) && (frameControl & IEEE802_11_FC_FROM_DS_MASK))?30: 24);
+        u8 *qos_control_ptr = (u8*)bulkdata->d[0].os_data_ptr + (((frameControl & IEEE802_11_FC_TO_DS_MASK) && (frameControl & IEEE802_11_FC_FROM_DS_MASK))?30: 24);
         int tID = *qos_control_ptr & IEEE802_11_QC_TID_MASK; /* using ls octet of qos control */
         ba_session_rx_struct *ba_session;
-        CsrUint8 ba_session_idx = 0;
+        u8 ba_session_idx = 0;
         /* Get the BA originator address */
         if(interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_AP ||
            interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_P2PGO){
@@ -3622,12 +3622,12 @@ static void
     CsrUint32 offset;
     CsrUint32 length = bulkdata->d[0].data_length;
     CsrUint32 subframe_length, subframe_body_length, dot11_hdr_size;
-    CsrUint8 *ptr;
+    u8 *ptr;
     bulk_data_param_t subframe_bulkdata;
-    CsrUint8 *dot11_hdr_ptr = (CsrUint8*)bulkdata->d[0].os_data_ptr;
+    u8 *dot11_hdr_ptr = (u8*)bulkdata->d[0].os_data_ptr;
     CsrResult csrResult;
     CsrUint16 frameControl;
-    CsrUint8 *qos_control_ptr;
+    u8 *qos_control_ptr;
 
     frameControl = le16_to_cpu(*((CsrUint16*)dot11_hdr_ptr));
     qos_control_ptr = dot11_hdr_ptr + (((frameControl & IEEE802_11_FC_TO_DS_MASK) && (frameControl & IEEE802_11_FC_FROM_DS_MASK))?30: 24);
@@ -3657,20 +3657,20 @@ static void
             break;
         }
 
-        memcpy((CsrUint8*)subframe_bulkdata.d[0].os_data_ptr, dot11_hdr_ptr, dot11_hdr_size);
+        memcpy((u8*)subframe_bulkdata.d[0].os_data_ptr, dot11_hdr_ptr, dot11_hdr_size);
 
 
         /* When to DS=0 and from DS=0, address 3 will already have BSSID so no need to re-program */
         if ((frameControl & IEEE802_11_FC_TO_DS_MASK) && !(frameControl & IEEE802_11_FC_FROM_DS_MASK)){
-                memcpy((CsrUint8*)subframe_bulkdata.d[0].os_data_ptr + IEEE802_11_ADDR3_OFFSET, ((struct ethhdr*)ptr)->h_dest, ETH_ALEN);
+                memcpy((u8*)subframe_bulkdata.d[0].os_data_ptr + IEEE802_11_ADDR3_OFFSET, ((struct ethhdr*)ptr)->h_dest, ETH_ALEN);
         }
         else if (!(frameControl & IEEE802_11_FC_TO_DS_MASK) && (frameControl & IEEE802_11_FC_FROM_DS_MASK)){
-                memcpy((CsrUint8*)subframe_bulkdata.d[0].os_data_ptr + IEEE802_11_ADDR3_OFFSET,
+                memcpy((u8*)subframe_bulkdata.d[0].os_data_ptr + IEEE802_11_ADDR3_OFFSET,
                          ((struct ethhdr*)ptr)->h_source,
                            ETH_ALEN);
         }
 
-        memcpy((CsrUint8*)subframe_bulkdata.d[0].os_data_ptr + dot11_hdr_size,
+        memcpy((u8*)subframe_bulkdata.d[0].os_data_ptr + dot11_hdr_size,
                 ptr + sizeof(struct ethhdr),
                              subframe_body_length);
         unifi_trace(priv, UDBG6, "%s: calling unifi_rx. length = %d subframe_length = %d\n", __FUNCTION__, length, subframe_length);
@@ -3845,7 +3845,7 @@ static void process_ba_frame(unifi_priv_t *priv,
 static void process_ba_complete(unifi_priv_t *priv, netInterface_priv_t *interfacePriv)
 {
     frame_desc_struct *frame_desc;
-    CsrUint8 i;
+    u8 i;
 
     for(i = 0; i < interfacePriv->ba_complete_index; i++) {
         frame_desc = &interfacePriv->ba_complete[i];
@@ -3867,13 +3867,13 @@ static void check_ba_frame_age_timeout( unifi_priv_t *priv,
 {
     CsrTime now;
     CsrTime age;
-    CsrUint8 i, j;
+    u8 i, j;
     CsrUint16 sn_temp;
 
     /* gap is started at 1 because we have buffered frames and
      * hence a minimum gap of 1 exists
      */
-    CsrUint8 gap=1;
+    u8 gap=1;
 
     now = CsrTimeGet(NULL);
 
@@ -3945,7 +3945,7 @@ static void process_ma_packet_error_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, 
     const CSR_MA_PACKET_ERROR_INDICATION *pkt_err_ind = &signal->u.MaPacketErrorIndication;
     netInterface_priv_t *interfacePriv;
     ba_session_rx_struct *ba_session;
-    CsrUint8 ba_session_idx = 0;
+    u8 ba_session_idx = 0;
     CSR_PRIORITY        UserPriority;
     CSR_SEQUENCE_NUMBER sn;
 

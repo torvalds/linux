@@ -63,7 +63,7 @@ void send_auto_ma_packet_confirm(unifi_priv_t *priv,
     int client_id;
 
     CSR_SIGNAL unpacked_signal;
-    CsrUint8 sigbuf[UNIFI_PACKED_SIGBUF_SIZE];
+    u8 sigbuf[UNIFI_PACKED_SIGBUF_SIZE];
     CsrUint16 packed_siglen;
 
 
@@ -111,7 +111,7 @@ void send_auto_ma_packet_confirm(unifi_priv_t *priv,
 
                 CsrWifiRouterCtrlHipIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,
                                             packed_siglen,
-                                            (CsrUint8 *)sigbuf,
+                                            (u8 *)sigbuf,
                                             0, NULL,
                                             0, NULL);
             }
@@ -406,7 +406,7 @@ uf_send_gratuitous_arp(unifi_priv_t *priv, CsrUint16 interfaceTag)
     struct sk_buff *skb, *newSkb = NULL;
     CsrInt8 protection;
     int r;
-    static const CsrUint8 arp_req[36] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00,
+    static const u8 arp_req[36] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00,
                                          0x08, 0x06, 0x00, 0x01, 0x08, 0x00, 0x06, 0x04, 0x00, 0x01,
                                          0x00, 0x02, 0x5f, 0x20, 0x2f, 0x02,
                                          0xc0, 0xa8, 0x00, 0x02,
@@ -506,7 +506,7 @@ configure_data_port(unifi_priv_t *priv,
         const int queue,
         CsrUint16 interfaceTag)
 {
-    const CsrUint8 broadcast_mac_address[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    const u8 broadcast_mac_address[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
     unifi_port_config_t *port;
     netInterface_priv_t *interfacePriv;
     int i;
@@ -686,7 +686,7 @@ void CsrWifiRouterCtrlPortConfigureReqHandler(void* drvpriv, CsrWifiFsmEvent* ms
         case CSR_WIFI_ROUTER_CTRL_MODE_AP:
         case CSR_WIFI_ROUTER_CTRL_MODE_P2PGO:
             {
-                CsrUint8 i;
+                u8 i;
                 CsrWifiRouterCtrlStaInfo_t *staRecord;
                 /* Ifscontrolled port is open means, The peer has been added to station record
                  * so that the protection corresponding to the peer is valid in this req
@@ -1212,7 +1212,7 @@ void CsrWifiRouterMaPacketSubscribeReqHandler(void* drvpriv, CsrWifiFsmEvent* ms
 {
     unifi_priv_t *priv = (unifi_priv_t*)drvpriv;
     CsrWifiRouterMaPacketSubscribeReq* req = (CsrWifiRouterMaPacketSubscribeReq*)msg;
-    CsrUint8 i;
+    u8 i;
     CsrResult result;
 
     if (priv == NULL) {
@@ -1232,9 +1232,9 @@ void CsrWifiRouterMaPacketSubscribeReqHandler(void* drvpriv, CsrWifiFsmEvent* ms
             priv->sme_unidata_ind_filters[i].encapsulation = req->encapsulation;
             priv->sme_unidata_ind_filters[i].protocol = req->protocol;
 
-            priv->sme_unidata_ind_filters[i].oui[2] = (CsrUint8)  (req->oui        & 0xFF);
-            priv->sme_unidata_ind_filters[i].oui[1] = (CsrUint8) ((req->oui >>  8) & 0xFF);
-            priv->sme_unidata_ind_filters[i].oui[0] = (CsrUint8) ((req->oui >> 16) & 0xFF);
+            priv->sme_unidata_ind_filters[i].oui[2] = (u8)  (req->oui        & 0xFF);
+            priv->sme_unidata_ind_filters[i].oui[1] = (u8) ((req->oui >>  8) & 0xFF);
+            priv->sme_unidata_ind_filters[i].oui[0] = (u8) ((req->oui >> 16) & 0xFF);
 
             result = CSR_RESULT_SUCCESS;
             break;
@@ -1353,8 +1353,8 @@ void CsrWifiRouterCtrlTrafficClassificationReqHandler(void* drvpriv, CsrWifiFsmE
 
 static int
 _sys_packet_req(unifi_priv_t *priv, const CSR_SIGNAL *signal,
-        CsrUint8 subscriptionHandle,
-        CsrUint16 frameLength, CsrUint8 *frame,
+        u8 subscriptionHandle,
+        CsrUint16 frameLength, u8 *frame,
         int proto)
 {
     int r;
@@ -1502,7 +1502,7 @@ void CsrWifiRouterMaPacketReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     CSR_SIGNAL signal;
     CSR_MA_PACKET_REQUEST *req = &signal.u.MaPacketRequest;
     CsrWifiRouterCtrlPortAction controlPortaction;
-    CsrUint8 *daddr, *saddr;
+    u8 *daddr, *saddr;
     CsrUint16 interfaceTag = mareq->interfaceTag & 0x00ff;
     int queue;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
@@ -1640,7 +1640,7 @@ void CsrWifiRouterCtrlM4TransmitReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 /* reset the station records when the mode is set as CSR_WIFI_ROUTER_CTRL_MODE_NONE */
 static void CsrWifiRouterCtrlResetStationRecordList(unifi_priv_t *priv, CsrUint16 interfaceTag)
 {
-    CsrUint8 i,j;
+    u8 i,j;
     CsrWifiRouterCtrlStaInfo_t *staInfo=NULL;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
     unsigned long lock_flags;
@@ -1798,7 +1798,7 @@ void CsrWifiRouterCtrlModeSetReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     {
         netInterface_priv_t *interfacePriv = priv->interfacePriv[req->interfaceTag];
 #ifdef CSR_WIFI_SPLIT_PATCH
-        CsrUint8 old_mode = interfacePriv->interfaceMode;
+        u8 old_mode = interfacePriv->interfaceMode;
 #endif
         unifi_trace(priv, UDBG1, "CsrWifiRouterCtrlModeSetReqHandler: interfacePriv->interfaceMode = %d\n",
                 interfacePriv->interfaceMode);
@@ -1914,13 +1914,13 @@ void CsrWifiRouterMaPacketResHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 /* delete the station record from the station record data base */
 static int peer_delete_record(unifi_priv_t *priv, CsrWifiRouterCtrlPeerDelReq *req)
 {
-    CsrUint8 j;
+    u8 j;
     CsrWifiRouterCtrlStaInfo_t *staInfo = NULL;
     unifi_port_config_t *controlledPort;
     unifi_port_config_t *unControlledPort;
     netInterface_priv_t *interfacePriv;
 
-    CsrUint8 ba_session_idx = 0;
+    u8 ba_session_idx = 0;
     ba_session_rx_struct *ba_session_rx = NULL;
     ba_session_tx_struct *ba_session_tx = NULL;
 
@@ -2100,7 +2100,7 @@ void CsrWifiRouterCtrlPeerDelReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 /* Add the new station to the station record data base */
 static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *req,CsrUint32 *handle)
 {
-    CsrUint8 i, powerModeTemp = 0;
+    u8 i, powerModeTemp = 0;
     CsrBool freeSlotFound = FALSE;
     CsrWifiRouterCtrlStaInfo_t *newRecord = NULL;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[req->interfaceTag];
@@ -2157,7 +2157,7 @@ static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *r
             newRecord->assignedHandle = i;
 
              /* copy power save mode of all access catagory (Trigger/Delivery/both enabled/disabled) */
-            powerModeTemp = (CsrUint8) ((req->staInfo.powersaveMode >> 4) & 0xff);
+            powerModeTemp = (u8) ((req->staInfo.powersaveMode >> 4) & 0xff);
 
             if(!(req->staInfo.powersaveMode & 0x0001))
                 newRecord->powersaveMode[UNIFI_TRAFFIC_Q_BK]= CSR_WIFI_AC_LEGACY_POWER_SAVE;
@@ -2180,7 +2180,7 @@ static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *r
                newRecord->powersaveMode[UNIFI_TRAFFIC_Q_VO]= ((powerModeTemp & 0xC0)>> 6);
 
             {
-                CsrUint8 k;
+                u8 k;
                 for(k=0; k< MAX_ACCESS_CATOGORY ;k++)
                     unifi_trace(priv, UDBG2, "peer_add_new_record: WMM : %d ,AC %d, powersaveMode %x \n",
                             req->staInfo.wmmOrQosEnabled,k,newRecord->powersaveMode[k]);
@@ -2191,7 +2191,7 @@ static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *r
 
             /* Initialize the mgtFrames & data Pdu list */
             {
-                CsrUint8 j;
+                u8 j;
                 INIT_LIST_HEAD(&newRecord->mgtFrames);
                 for(j = 0; j < MAX_ACCESS_CATOGORY; j++) {
                     INIT_LIST_HEAD(&newRecord->dataPdu[j]);
@@ -2297,7 +2297,7 @@ static void check_inactivity_timer_expire_func(unsigned long data)
 {
     struct unifi_priv *priv;
     CsrWifiRouterCtrlStaInfo_t *sta_record = NULL;
-    CsrUint8 i = 0;
+    u8 i = 0;
     CsrTime now;
     CsrTime inactive_time;
     netInterface_priv_t *interfacePriv = (netInterface_priv_t *) data;
@@ -2411,7 +2411,7 @@ void uf_send_disconnected_ind_wq(struct work_struct *work)
     unifi_priv_t *priv;
     CsrUint16 interfaceTag;
     struct list_head send_cfm_list;
-    CsrUint8 j;
+    u8 j;
 
     func_enter();
 
@@ -2619,7 +2619,7 @@ CsrBool blockack_session_stop(unifi_priv_t *priv,
     netInterface_priv_t *interfacePriv;
     ba_session_rx_struct *ba_session_rx = NULL;
     ba_session_tx_struct *ba_session_tx = NULL;
-    CsrUint8 ba_session_idx = 0;
+    u8 ba_session_idx = 0;
     int i;
 
     if (interfaceTag >= CSR_WIFI_NUM_INTERFACES) {
@@ -2743,7 +2743,7 @@ CsrBool blockack_session_start(unifi_priv_t *priv,
     netInterface_priv_t *interfacePriv;
     ba_session_rx_struct *ba_session_rx = NULL;
     ba_session_tx_struct *ba_session_tx = NULL;
-    CsrUint8 ba_session_idx = 0;
+    u8 ba_session_idx = 0;
 
 
     if (interfaceTag >= CSR_WIFI_NUM_INTERFACES) {
@@ -3132,9 +3132,9 @@ void CsrWifiRouterCtrlWapiUnicastTxPktReqHandler(void* drvpriv, CsrWifiFsmEvent*
     CsrWifiRouterCtrlWapiUnicastTxPktReq *req 	= (CsrWifiRouterCtrlWapiUnicastTxPktReq*) msg;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[req->interfaceTag];
     bulk_data_param_t bulkdata;
-    CsrUint8 macHeaderLengthInBytes = MAC_HEADER_SIZE;
+    u8 macHeaderLengthInBytes = MAC_HEADER_SIZE;
     /*KeyID, Reserved, PN, MIC*/
-    CsrUint8 appendedCryptoFields = 1 + 1 + 16 + 16;
+    u8 appendedCryptoFields = 1 + 1 + 16 + 16;
     CsrResult result;
     /* Retrieve the MA PACKET REQ fields from the Signal retained from send_ma_pkt_request() */
     CSR_MA_PACKET_REQUEST *storedSignalMAPktReq = &interfacePriv->wapi_unicast_ma_pkt_sig.u.MaPacketRequest;

@@ -18,7 +18,7 @@
 #define UNI_SUR_LOW_START    ((CsrUint32) 0xDC00)
 #define UNI_SUR_LOW_END      ((CsrUint32) 0xDFFF)
 #define UNI_REPLACEMENT_CHAR ((CsrUint32) 0xFFFD)
-#define UNI_HALF_SHIFT       ((CsrUint8) 10)  /* used for shifting by 10 bits */
+#define UNI_HALF_SHIFT       ((u8) 10)  /* used for shifting by 10 bits */
 #define UNI_HALF_BASE        ((CsrUint32) 0x00010000)
 #define UNI_BYTEMASK         ((CsrUint32) 0xBF)
 #define UNI_BYTEMARK         ((CsrUint32) 0x80)
@@ -152,7 +152,7 @@ CsrUint32 CsrUtf16StringToUint32(const CsrUtf16String *unicodeString)
 *********************************************************************************/
 CsrUtf16String *CsrUtf16MemCpy(CsrUtf16String *dest, const CsrUtf16String *src, CsrUint32 count)
 {
-    return CsrMemCpy((CsrUint8 *) dest, (CsrUint8 *) src, count * sizeof(CsrUtf16String));
+    return CsrMemCpy((u8 *) dest, (u8 *) src, count * sizeof(CsrUtf16String));
 }
 
 /********************************************************************************
@@ -260,10 +260,10 @@ CsrUtf8String *CsrUtf16String2Utf8(const CsrUtf16String *source)
     CsrUint32 ch;
     CsrUint32 length;
     CsrUint32 sourceLength;
-    CsrUint8 bytes;
+    u8 bytes;
     CsrBool appendNull = FALSE;
 
-    CsrUint8 firstByteMark[5] = {0x00, 0x00, 0xC0, 0xE0, 0xF0};
+    u8 firstByteMark[5] = {0x00, 0x00, 0xC0, 0xE0, 0xF0};
 
     if (!source)
     {
@@ -384,25 +384,25 @@ CsrUtf8String *CsrUtf16String2Utf8(const CsrUtf16String *source)
         {
             case 4:
             {
-                *--dest = (CsrUint8) ((ch | UNI_BYTEMARK) & UNI_BYTEMASK);
+                *--dest = (u8) ((ch | UNI_BYTEMARK) & UNI_BYTEMASK);
                 ch >>= 6;
             }
             /* FALLTHROUGH */
             case 3:
             {
-                *--dest = (CsrUint8) ((ch | UNI_BYTEMARK) & UNI_BYTEMASK);
+                *--dest = (u8) ((ch | UNI_BYTEMARK) & UNI_BYTEMASK);
                 ch >>= 6;
             }
             /* FALLTHROUGH */
             case 2:
             {
-                *--dest = (CsrUint8) ((ch | UNI_BYTEMARK) & UNI_BYTEMASK);
+                *--dest = (u8) ((ch | UNI_BYTEMARK) & UNI_BYTEMASK);
                 ch >>= 6;
             }
             /* FALLTHROUGH */
             case 1:
             {
-                *--dest = (CsrUint8) (ch | firstByteMark[bytes]);
+                *--dest = (u8) (ch | firstByteMark[bytes]);
             }
             /* FALLTHROUGH */
             default:
@@ -466,7 +466,7 @@ CsrUtf8String *CsrUtf16String2Utf8(const CsrUtf16String *source)
 static CsrBool isLegalUtf8(const CsrUtf8String *codeUnit, CsrUint32 length)
 {
     const CsrUtf8String *srcPtr = codeUnit + length;
-    CsrUint8 byte;
+    u8 byte;
 
     switch (length) /* Everything falls through except case 1 */
     {

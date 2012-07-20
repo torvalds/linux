@@ -173,7 +173,7 @@ ChipDescript* ChipHelper_GetVersionUniFi(CsrUint16 version);
 /* This gets the version from the SDIO device id.  This only
    gives quite a coarse grained version, so we should update once
    we hav access to the function N registers. */
-ChipDescript* ChipHelper_GetVersionSdio(CsrUint8 sdio_version);
+ChipDescript* ChipHelper_GetVersionSdio(u8 sdio_version);
 
 /* The chip is some sort of BlueCore.  If "age" is "pre_bc7" then
    "version" is what was read from FF9A.  If "age" is bc7_or_later
@@ -445,7 +445,7 @@ public:
     void GetVersionAny(CsrUint16 from_FF9A, CsrUint16 from_FE81);
     void GetVersionUniFi(CsrUint16 version);
     void GetVersionBlueCore(chip_helper_bluecore_age age, CsrUint16 version);
-    void GetVersionSdio(CsrUint8 sdio_version);
+    void GetVersionSdio(u8 sdio_version);
 
     /* Helpers to build the definitions of the member functions. */
 #define CHIP_HELPER_DEF0_CPP_DEC(ret_type, name, info)    \

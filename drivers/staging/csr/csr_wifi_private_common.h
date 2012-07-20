@@ -72,7 +72,7 @@ extern "C" {
 
 
 /* Common structure for NME and SME to maintain Interface mode*/
-typedef CsrUint8 CsrWifiInterfaceMode;
+typedef u8 CsrWifiInterfaceMode;
 #define  CSR_WIFI_MODE_NONE                             ((CsrWifiInterfaceMode) 0xFF)
 #define  CSR_WIFI_MODE_STA                              ((CsrWifiInterfaceMode) 0x00)
 #define  CSR_WIFI_MODE_AP                               ((CsrWifiInterfaceMode) 0x01)

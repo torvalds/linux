@@ -139,7 +139,7 @@ card_t* unifi_alloc_card(CsrSdioFunction *sdio, void *ospriv)
     {
         CsrUint32 val = 0x01234567;
 
-        if (*((CsrUint8 *)&val) == 0x01)
+        if (*((u8 *)&val) == 0x01)
         {
             card->lsb = sizeof(void *) - 1;     /* BE */
         }
@@ -510,7 +510,7 @@ static CsrResult unifi_hip_init(card_t *card)
  * ---------------------------------------------------------------------------
  */
 static void _build_sdio_config_data(sdio_config_data_t *cfg_data,
-                                    const CsrUint8     *cfg_data_buf)
+                                    const u8     *cfg_data_buf)
 {
     CsrInt16 offset = 0;
 
@@ -603,7 +603,7 @@ static CsrResult card_hw_init(card_t *card)
     CsrUint16 finger_print;
     symbol_t slut;
     sdio_config_data_t *cfg_data;
-    CsrUint8 cfg_data_buf[SDIO_CONFIG_DATA_SIZE];
+    u8 cfg_data_buf[SDIO_CONFIG_DATA_SIZE];
     CsrResult r;
     void *dlpriv;
     CsrInt16 major, minor;
@@ -1002,7 +1002,7 @@ static CsrResult card_wait_for_unifi_to_reset(card_t *card)
 {
     CsrInt16 i;
     CsrResult r;
-    CsrUint8 io_enable;
+    u8 io_enable;
     CsrResult csrResult;
 
     func_enter();
@@ -1134,7 +1134,7 @@ static CsrResult card_wait_for_unifi_to_disable(card_t *card)
 {
     CsrInt16 i;
     CsrResult r;
-    CsrUint8 io_enable;
+    u8 io_enable;
     CsrResult csrResult;
 
     func_enter();
@@ -2006,7 +2006,7 @@ void unifi_free_card(card_t *card)
 static CsrResult card_init_slots(card_t *card)
 {
     CsrResult r;
-    CsrUint8 i;
+    u8 i;
 
     func_enter();
 
@@ -2170,7 +2170,7 @@ CsrResult unifi_remove_udi_hook(card_t *card, udi_func_t udi_fn)
 
 static void CardReassignDynamicReservation(card_t *card)
 {
-    CsrUint8 i;
+    u8 i;
 
     func_enter();
 
@@ -2352,7 +2352,7 @@ static void CardCheckDynamicReservation(card_t *card, unifi_TrafficQueue queue)
  */
 void CardClearFromHostDataSlot(card_t *card, const CsrInt16 slot)
 {
-    CsrUint8 queue = card->from_host_data[slot].queue;
+    u8 queue = card->from_host_data[slot].queue;
     const void *os_data_ptr = card->from_host_data[slot].bd.os_data_ptr;
 
     func_enter();
@@ -2419,7 +2419,7 @@ void CardClearFromHostDataSlot(card_t *card, const CsrInt16 slot)
  */
 void CardClearFromHostDataSlotWithoutFreeingBulkData(card_t *card, const CsrInt16 slot)
 {
-    CsrUint8 queue = card->from_host_data[slot].queue;
+    u8 queue = card->from_host_data[slot].queue;
 
     /* Initialise the from_host data slot so it can be re-used,
      * Set length field in from_host_data array to 0.
@@ -2538,7 +2538,7 @@ static CsrResult unifi_identify_hw(card_t *card)
      * Setup the chip helper so that we can access the registers (and
      * also tell what sub-type of HIP we should use).
      */
-    card->helper = ChipHelper_GetVersionSdio((CsrUint8)card->chip_id);
+    card->helper = ChipHelper_GetVersionSdio((u8)card->chip_id);
     if (!card->helper)
     {
         unifi_error(card->ospriv, "Null ChipHelper\n");
@@ -3121,13 +3121,13 @@ CsrResult CardGenInt(card_t *card)
     if (card->chip_id > SDIO_CARD_ID_UNIFI_2)
     {
         r = sdio_write_f0(card, SDIO_CSR_FROM_HOST_SCRATCH0,
-                          (CsrUint8)card->unifi_interrupt_seq);
+                          (u8)card->unifi_interrupt_seq);
     }
     else
     {
         r = unifi_write_direct_8_or_16(card,
                                        ChipHelper_SHARED_IO_INTERRUPT(card->helper) * 2,
-                                       (CsrUint8)card->unifi_interrupt_seq);
+                                       (u8)card->unifi_interrupt_seq);
     }
     if (r == CSR_WIFI_HIP_RESULT_NO_DEVICE)
     {
@@ -3165,7 +3165,7 @@ CsrResult CardGenInt(card_t *card)
 CsrResult CardEnableInt(card_t *card)
 {
     CsrResult r;
-    CsrUint8 int_enable;
+    u8 int_enable;
 
     r = sdio_read_f0(card, SDIO_INT_ENABLE, &int_enable);
     if (r == CSR_WIFI_HIP_RESULT_NO_DEVICE)
@@ -3213,7 +3213,7 @@ CsrResult CardEnableInt(card_t *card)
 CsrResult CardDisableInt(card_t *card)
 {
     CsrResult r;
-    CsrUint8 int_enable;
+    u8 int_enable;
 
     r = sdio_read_f0(card, SDIO_INT_ENABLE, &int_enable);
     if (r == CSR_WIFI_HIP_RESULT_NO_DEVICE)
@@ -3264,7 +3264,7 @@ CsrResult CardDisableInt(card_t *card)
 CsrResult CardPendingInt(card_t *card, CsrBool *pintr)
 {
     CsrResult r;
-    CsrUint8 pending;
+    u8 pending;
 
     *pintr = FALSE;
 
@@ -3364,7 +3364,7 @@ CsrResult CardClearInt(card_t *card)
 CsrResult CardIntEnabled(card_t *card, CsrBool *enabled)
 {
     CsrResult r;
-    CsrUint8 int_enable;
+    u8 int_enable;
 
     r = sdio_read_f0(card, SDIO_INT_ENABLE, &int_enable);
     if (r == CSR_WIFI_HIP_RESULT_NO_DEVICE)
@@ -3403,7 +3403,7 @@ CsrResult CardIntEnabled(card_t *card, CsrBool *enabled)
 CsrResult CardWriteBulkData(card_t *card, card_signal_t *csptr, unifi_TrafficQueue queue)
 {
     CsrUint16 i, slots[UNIFI_MAX_DATA_REFERENCES], j = 0;
-    CsrUint8 *packed_sigptr, num_slots_required = 0;
+    u8 *packed_sigptr, num_slots_required = 0;
     bulk_data_desc_t *bulkdata = csptr->bulkdata;
     CsrInt16 h, nslots;
 
@@ -3704,7 +3704,7 @@ static void bootstrap_chip_hw(card_t *card)
 CsrResult unifi_card_stop_processor(card_t *card, enum unifi_dbg_processors_select which)
 {
     CsrResult r = CSR_RESULT_SUCCESS;
-    CsrUint8 status;
+    u8 status;
     CsrInt16 retry = 100;
 
     while (retry--)
@@ -3903,10 +3903,10 @@ CsrResult unifi_set_host_state(card_t *card, enum unifi_host_state state)
     static const CsrCharString *const states[] = {
         "AWAKE", "DROWSY", "TORPID"
     };
-    static const CsrUint8 state_csr_host_wakeup[] = {
+    static const u8 state_csr_host_wakeup[] = {
         1, 3, 0
     };
-    static const CsrUint8 state_io_abort[] = {
+    static const u8 state_io_abort[] = {
         0, 2, 3
     };
 
@@ -3922,7 +3922,7 @@ CsrResult unifi_set_host_state(card_t *card, enum unifi_host_state state)
     if (card->chip_id > SDIO_CARD_ID_UNIFI_2)
     {
         r = sdio_write_f0(card, SDIO_CSR_HOST_WAKEUP,
-                          (CsrUint8)((card->function << 4) | state_csr_host_wakeup[state]));
+                          (u8)((card->function << 4) | state_csr_host_wakeup[state]));
     }
     else
     {
@@ -4034,7 +4034,7 @@ void unifi_card_info(card_t *card, card_info_t *card_info)
  */
 CsrResult unifi_check_io_status(card_t *card, CsrInt32 *status)
 {
-    CsrUint8 io_en;
+    u8 io_en;
     CsrResult r;
     CsrBool pending;
 

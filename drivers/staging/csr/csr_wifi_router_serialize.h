@@ -25,8 +25,8 @@ extern "C" {
 
 extern void CsrWifiRouterPfree(void *ptr);
 
-extern CsrUint8* CsrWifiRouterMaPacketSubscribeReqSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiRouterMaPacketSubscribeReqDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiRouterMaPacketSubscribeReqSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiRouterMaPacketSubscribeReqDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiRouterMaPacketSubscribeReqSizeof(void *msg);
 #define CsrWifiRouterMaPacketSubscribeReqSerFree CsrWifiRouterPfree
 
@@ -35,38 +35,38 @@ extern CsrSize CsrWifiRouterMaPacketSubscribeReqSizeof(void *msg);
 #define CsrWifiRouterMaPacketUnsubscribeReqSizeof CsrWifiEventCsrUint16CsrUint8Sizeof
 #define CsrWifiRouterMaPacketUnsubscribeReqSerFree CsrWifiRouterPfree
 
-extern CsrUint8* CsrWifiRouterMaPacketReqSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiRouterMaPacketReqDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiRouterMaPacketReqSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiRouterMaPacketReqDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiRouterMaPacketReqSizeof(void *msg);
 extern void CsrWifiRouterMaPacketReqSerFree(void *msg);
 
-extern CsrUint8* CsrWifiRouterMaPacketResSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiRouterMaPacketResDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiRouterMaPacketResSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiRouterMaPacketResDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiRouterMaPacketResSizeof(void *msg);
 #define CsrWifiRouterMaPacketResSerFree CsrWifiRouterPfree
 
-extern CsrUint8* CsrWifiRouterMaPacketCancelReqSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiRouterMaPacketCancelReqDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiRouterMaPacketCancelReqSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiRouterMaPacketCancelReqDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiRouterMaPacketCancelReqSizeof(void *msg);
 #define CsrWifiRouterMaPacketCancelReqSerFree CsrWifiRouterPfree
 
-extern CsrUint8* CsrWifiRouterMaPacketSubscribeCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiRouterMaPacketSubscribeCfmDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiRouterMaPacketSubscribeCfmSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiRouterMaPacketSubscribeCfmDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiRouterMaPacketSubscribeCfmSizeof(void *msg);
 #define CsrWifiRouterMaPacketSubscribeCfmSerFree CsrWifiRouterPfree
 
-extern CsrUint8* CsrWifiRouterMaPacketUnsubscribeCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiRouterMaPacketUnsubscribeCfmDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiRouterMaPacketUnsubscribeCfmSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiRouterMaPacketUnsubscribeCfmDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiRouterMaPacketUnsubscribeCfmSizeof(void *msg);
 #define CsrWifiRouterMaPacketUnsubscribeCfmSerFree CsrWifiRouterPfree
 
-extern CsrUint8* CsrWifiRouterMaPacketCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiRouterMaPacketCfmDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiRouterMaPacketCfmSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiRouterMaPacketCfmDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiRouterMaPacketCfmSizeof(void *msg);
 #define CsrWifiRouterMaPacketCfmSerFree CsrWifiRouterPfree
 
-extern CsrUint8* CsrWifiRouterMaPacketIndSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiRouterMaPacketIndDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiRouterMaPacketIndSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiRouterMaPacketIndDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiRouterMaPacketIndSizeof(void *msg);
 extern void CsrWifiRouterMaPacketIndSerFree(void *msg);
 

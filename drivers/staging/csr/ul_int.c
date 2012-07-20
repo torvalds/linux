@@ -213,7 +213,7 @@ ul_deregister_client(ul_client_t *ul_client)
  */
 void
 logging_handler(void *ospriv,
-                CsrUint8 *sigdata, CsrUint32 signal_len,
+                u8 *sigdata, CsrUint32 signal_len,
                 const bulk_data_param_t *bulkdata,
                 enum udi_log_direction direction)
 {
@@ -285,7 +285,7 @@ ul_log_config_ind(unifi_priv_t *priv, u8 *conf_param, int len)
     bulkdata.d[0].data_length = 0;
     bulkdata.d[1].data_length = 0;
 
-    sme_native_log_event(priv->sme_cli, conf_param, sizeof(CsrUint8),
+    sme_native_log_event(priv->sme_cli, conf_param, sizeof(u8),
                          &bulkdata, UDI_CONFIG_IND);
 
 #endif /* CSR_SUPPORT_SME */
@@ -324,7 +324,7 @@ free_bulkdata_buffers(unifi_priv_t *priv, bulk_data_param_t *bulkdata)
 } /* free_bulkdata_buffers */
 
 static int
-_align_bulk_data_buffers(unifi_priv_t *priv, CsrUint8 *signal,
+_align_bulk_data_buffers(unifi_priv_t *priv, u8 *signal,
                          bulk_data_param_t *bulkdata)
 {
     unsigned int i;
@@ -417,7 +417,7 @@ int
 ul_send_signal_unpacked(unifi_priv_t *priv, CSR_SIGNAL *sigptr,
                         bulk_data_param_t *bulkdata)
 {
-    CsrUint8 sigbuf[UNIFI_PACKED_SIGBUF_SIZE];
+    u8 sigbuf[UNIFI_PACKED_SIGBUF_SIZE];
     CsrUint16 packed_siglen;
     CsrResult csrResult;
     unsigned long lock_flags;
@@ -504,7 +504,7 @@ ul_send_signal_raw(unifi_priv_t *priv, unsigned char *sigptr, int siglen,
      * Make sure that the signal is updated with the bulk data
      * alignment for DMA.
      */
-    r = _align_bulk_data_buffers(priv, (CsrUint8*)sigptr, bulkdata);
+    r = _align_bulk_data_buffers(priv, (u8*)sigptr, bulkdata);
     if (r) {
         return r;
     }

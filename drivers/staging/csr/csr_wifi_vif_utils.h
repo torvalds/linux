@@ -24,7 +24,7 @@ extern "C" {
 /* MACROS *******************************************************************/
 
 /* Common macros for NME and SME to be used temporarily until SoftMAC changes are made */
-#define CSR_WIFI_NUM_INTERFACES        (CsrUint8)0x1
+#define CSR_WIFI_NUM_INTERFACES        (u8)0x1
 #define CSR_WIFI_INTERFACE_IN_USE      (CsrUint16)0x0
 
 /* This is used at places where interface Id isn't available*/
@@ -37,7 +37,7 @@ extern "C" {
 
 /* Extract the Interface Id from the event */
 #define CsrWifiVifUtilsGetVifTagFromEvent(msg) \
-    ((CsrUint16) * ((CsrUint16 *) ((CsrUint8 *) (msg) + sizeof(CsrWifiFsmEvent))))
+    ((CsrUint16) * ((CsrUint16 *) ((u8 *) (msg) + sizeof(CsrWifiFsmEvent))))
 
 /* The HPI Vif combines the type and the interface id */
 #define CsrWifiVifUtilsGetVifTagFromHipEvent(msg) \
@@ -58,16 +58,16 @@ extern "C" {
  *     First checks if the mode is supported capability bitmap of the interface.
  *     If this succeeds, then checks if running this mode on this interface is allowed.
  *
- * @param[in] CsrUint8 : interface capability bitmap
- * @param[in] CsrUint8* : pointer to the array of current interface modes
+ * @param[in] u8 : interface capability bitmap
+ * @param[in] u8* : pointer to the array of current interface modes
  * @param[in] CsrUint16 : interfaceTag
  * @param[in] CsrWifiInterfaceMode : mode
  *
  * @return
  *     CsrBool : returns true if the interface is allowed to operate in the mode otherwise false.
  */
-extern CsrBool CsrWifiVifUtilsCheckCompatibility(CsrUint8             interfaceCapability,
-                                                 CsrUint8            *currentInterfaceModes,
+extern CsrBool CsrWifiVifUtilsCheckCompatibility(u8             interfaceCapability,
+                                                 u8            *currentInterfaceModes,
                                                  CsrUint16            interfaceTag,
                                                  CsrWifiInterfaceMode mode);
 

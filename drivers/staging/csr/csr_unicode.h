@@ -172,16 +172,16 @@ CsrUtf8String *CsrUtf8StringConcatenateTexts(const CsrUtf8String *inputText1, co
  *
  * D-13157
  */
-typedef CsrUint8 CsrUcs2String;
+typedef u8 CsrUcs2String;
 
 CsrSize CsrUcs2ByteStrLen(const CsrUcs2String *ucs2String);
 CsrSize CsrConverterUcs2ByteStrLen(const CsrUcs2String *str);
 
-CsrUint8 *CsrUcs2ByteString2Utf8(const CsrUcs2String *ucs2String);
-CsrUcs2String *CsrUtf82Ucs2ByteString(const CsrUint8 *utf8String);
+u8 *CsrUcs2ByteString2Utf8(const CsrUcs2String *ucs2String);
+CsrUcs2String *CsrUtf82Ucs2ByteString(const u8 *utf8String);
 
-CsrUint8 *CsrUtf16String2Ucs2ByteString(const CsrUtf16String *source);
-CsrUtf16String *CsrUcs2ByteString2Utf16String(const CsrUint8 *source);
+u8 *CsrUtf16String2Ucs2ByteString(const CsrUtf16String *source);
+CsrUtf16String *CsrUcs2ByteString2Utf16String(const u8 *source);
 
 #ifdef __cplusplus
 }

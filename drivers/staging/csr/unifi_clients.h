@@ -49,7 +49,7 @@ typedef void (*udi_event_t)(ul_client_t *client,
                             int dir);
 
 void logging_handler(void *ospriv,
-                     CsrUint8 *sigdata, CsrUint32 signal_len,
+                     u8 *sigdata, CsrUint32 signal_len,
                      const bulk_data_param_t *bulkdata,
                      enum udi_log_direction direction);
 

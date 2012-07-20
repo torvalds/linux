@@ -87,8 +87,8 @@ typedef struct {
     CsrUint16 appHandle;
     CsrWifiRouterEncapsulation encapsulation;
     CsrUint16 protocol;
-    CsrUint8 oui[3];
-    CsrUint8 in_use;
+    u8 oui[3];
+    u8 in_use;
 } sme_ma_unidata_ind_filter_t;
 
 
@@ -213,7 +213,7 @@ int sme_mgt_mib_set(unifi_priv_t *priv,
 int sme_ap_start(unifi_priv_t *priv,CsrUint16 interface_tag,CsrWifiSmeApConfig_t *ap_config);
 int sme_ap_stop(unifi_priv_t *priv,CsrUint16 interface_tag);
 int sme_ap_config(unifi_priv_t *priv,CsrWifiSmeApMacConfig *ap_mac_config, CsrWifiNmeApConfig *group_security_config);
-int uf_configure_supported_rates(CsrUint8 * supportedRates, CsrUint8 phySupportedBitmap);
+int uf_configure_supported_rates(u8 * supportedRates, u8 phySupportedBitmap);
 #endif
 int unifi_translate_scan(struct net_device *dev,
                          struct iw_request_info *info,

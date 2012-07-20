@@ -457,10 +457,10 @@ static int decode_parameter_from_string(unifi_priv_t* priv, char **str_ptr,
                                         const char *token, int param_type,
                                         void  *dst, int param_max_len)
 {
-    CsrUint8 int_str[7] = "0";
+    u8 int_str[7] = "0";
     CsrUint32 param_str_len;
-    CsrUint8  *param_str_begin,*param_str_end;
-    CsrUint8  *orig_str = *str_ptr;
+    u8  *param_str_begin,*param_str_end;
+    u8  *orig_str = *str_ptr;
 
     if (!strncmp(*str_ptr, token, strlen(token))) {
         strsep(str_ptr, "=,");
@@ -616,7 +616,7 @@ static int store_ap_config_from_string( unifi_priv_t * priv,char *param_str)
         int i,j=0;
         CsrWifiNmeApAuthPers *pers =
                             ((CsrWifiNmeApAuthPers *)&(ap_config->credentials.nmeAuthType.authTypePersonal));
-        CsrUint8 *psk = pers->authPers_credentials.psk.psk;
+        u8 *psk = pers->authPers_credentials.psk.psk;
 
         unifi_trace(priv,UDBG2,"store_ap_config_from_string: security WPA2");
         if(ret) {
@@ -797,7 +797,7 @@ static int
 iwprivsconfwapi(struct net_device *dev, struct iw_request_info *info,
         union iwreq_data *wrqu, char *extra)
 {
-    CsrUint8 enable;
+    u8 enable;
     netInterface_priv_t *interfacePriv = (netInterface_priv_t *)netdev_priv(dev);
     unifi_priv_t *priv = interfacePriv->privPtr;
     func_enter();
@@ -811,7 +811,7 @@ iwprivsconfwapi(struct net_device *dev, struct iw_request_info *info,
        return -EPERM;
     }
 
-    enable = *(CsrUint8*)(extra);
+    enable = *(u8*)(extra);
 
     if (enable) {
         priv->connection_config.authModeMask = CSR_WIFI_SME_AUTH_MODE_80211_OPEN;
@@ -1255,7 +1255,7 @@ unifi_giwap(struct net_device *dev, struct iw_request_info *info,
     unifi_priv_t *priv = interfacePriv->privPtr;
     CsrWifiSmeConnectionInfo connectionInfo;
     int r = 0;
-    CsrUint8 *bssid;
+    u8 *bssid;
 
     func_enter();
 

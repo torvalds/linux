@@ -29,13 +29,13 @@ extern "C" {
 
 extern void CsrWifiNmePfree(void *ptr);
 
-extern CsrUint8* CsrWifiNmeProfileSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiNmeProfileSetReqDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiNmeProfileSetReqSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiNmeProfileSetReqDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiNmeProfileSetReqSizeof(void *msg);
 extern void CsrWifiNmeProfileSetReqSerFree(void *msg);
 
-extern CsrUint8* CsrWifiNmeProfileDeleteReqSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiNmeProfileDeleteReqDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiNmeProfileDeleteReqSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiNmeProfileDeleteReqDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiNmeProfileDeleteReqSizeof(void *msg);
 #define CsrWifiNmeProfileDeleteReqSerFree CsrWifiNmePfree
 
@@ -44,18 +44,18 @@ extern CsrSize CsrWifiNmeProfileDeleteReqSizeof(void *msg);
 #define CsrWifiNmeProfileDeleteAllReqSizeof CsrWifiEventSizeof
 #define CsrWifiNmeProfileDeleteAllReqSerFree CsrWifiNmePfree
 
-extern CsrUint8* CsrWifiNmeProfileOrderSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiNmeProfileOrderSetReqDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiNmeProfileOrderSetReqSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiNmeProfileOrderSetReqDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiNmeProfileOrderSetReqSizeof(void *msg);
 extern void CsrWifiNmeProfileOrderSetReqSerFree(void *msg);
 
-extern CsrUint8* CsrWifiNmeProfileConnectReqSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiNmeProfileConnectReqDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiNmeProfileConnectReqSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiNmeProfileConnectReqDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiNmeProfileConnectReqSizeof(void *msg);
 #define CsrWifiNmeProfileConnectReqSerFree CsrWifiNmePfree
 
-extern CsrUint8* CsrWifiNmeWpsReqSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiNmeWpsReqDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiNmeWpsReqSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiNmeWpsReqDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiNmeWpsReqSizeof(void *msg);
 #define CsrWifiNmeWpsReqSerFree CsrWifiNmePfree
 
@@ -69,23 +69,23 @@ extern CsrSize CsrWifiNmeWpsReqSizeof(void *msg);
 #define CsrWifiNmeConnectionStatusGetReqSizeof CsrWifiEventCsrUint16Sizeof
 #define CsrWifiNmeConnectionStatusGetReqSerFree CsrWifiNmePfree
 
-extern CsrUint8* CsrWifiNmeSimImsiGetResSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiNmeSimImsiGetResDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiNmeSimImsiGetResSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiNmeSimImsiGetResDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiNmeSimImsiGetResSizeof(void *msg);
 extern void CsrWifiNmeSimImsiGetResSerFree(void *msg);
 
-extern CsrUint8* CsrWifiNmeSimGsmAuthResSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiNmeSimGsmAuthResDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiNmeSimGsmAuthResSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiNmeSimGsmAuthResDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiNmeSimGsmAuthResSizeof(void *msg);
 extern void CsrWifiNmeSimGsmAuthResSerFree(void *msg);
 
-extern CsrUint8* CsrWifiNmeSimUmtsAuthResSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiNmeSimUmtsAuthResDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiNmeSimUmtsAuthResSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiNmeSimUmtsAuthResDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiNmeSimUmtsAuthResSizeof(void *msg);
 extern void CsrWifiNmeSimUmtsAuthResSerFree(void *msg);
 
-extern CsrUint8* CsrWifiNmeWpsConfigSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiNmeWpsConfigSetReqDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiNmeWpsConfigSetReqSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiNmeWpsConfigSetReqDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiNmeWpsConfigSetReqSizeof(void *msg);
 extern void CsrWifiNmeWpsConfigSetReqSerFree(void *msg);
 
@@ -109,38 +109,38 @@ extern void CsrWifiNmeWpsConfigSetReqSerFree(void *msg);
 #define CsrWifiNmeProfileDeleteAllCfmSizeof CsrWifiEventCsrUint16Sizeof
 #define CsrWifiNmeProfileDeleteAllCfmSerFree CsrWifiNmePfree
 
-extern CsrUint8* CsrWifiNmeProfileOrderSetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiNmeProfileOrderSetCfmDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiNmeProfileOrderSetCfmSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiNmeProfileOrderSetCfmDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiNmeProfileOrderSetCfmSizeof(void *msg);
 #define CsrWifiNmeProfileOrderSetCfmSerFree CsrWifiNmePfree
 
-extern CsrUint8* CsrWifiNmeProfileConnectCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiNmeProfileConnectCfmDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiNmeProfileConnectCfmSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiNmeProfileConnectCfmDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiNmeProfileConnectCfmSizeof(void *msg);
 extern void CsrWifiNmeProfileConnectCfmSerFree(void *msg);
 
-extern CsrUint8* CsrWifiNmeWpsCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiNmeWpsCfmDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiNmeWpsCfmSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiNmeWpsCfmDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiNmeWpsCfmSizeof(void *msg);
 extern void CsrWifiNmeWpsCfmSerFree(void *msg);
 
-extern CsrUint8* CsrWifiNmeWpsCancelCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiNmeWpsCancelCfmDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiNmeWpsCancelCfmSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiNmeWpsCancelCfmDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiNmeWpsCancelCfmSizeof(void *msg);
 #define CsrWifiNmeWpsCancelCfmSerFree CsrWifiNmePfree
 
-extern CsrUint8* CsrWifiNmeConnectionStatusGetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiNmeConnectionStatusGetCfmDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiNmeConnectionStatusGetCfmSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiNmeConnectionStatusGetCfmDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiNmeConnectionStatusGetCfmSizeof(void *msg);
 #define CsrWifiNmeConnectionStatusGetCfmSerFree CsrWifiNmePfree
 
-extern CsrUint8* CsrWifiNmeProfileUpdateIndSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiNmeProfileUpdateIndDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiNmeProfileUpdateIndSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiNmeProfileUpdateIndDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiNmeProfileUpdateIndSizeof(void *msg);
 extern void CsrWifiNmeProfileUpdateIndSerFree(void *msg);
 
-extern CsrUint8* CsrWifiNmeProfileDisconnectIndSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiNmeProfileDisconnectIndDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiNmeProfileDisconnectIndSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiNmeProfileDisconnectIndDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiNmeProfileDisconnectIndSizeof(void *msg);
 extern void CsrWifiNmeProfileDisconnectIndSerFree(void *msg);
 
@@ -149,13 +149,13 @@ extern void CsrWifiNmeProfileDisconnectIndSerFree(void *msg);
 #define CsrWifiNmeSimImsiGetIndSizeof CsrWifiEventSizeof
 #define CsrWifiNmeSimImsiGetIndSerFree CsrWifiNmePfree
 
-extern CsrUint8* CsrWifiNmeSimGsmAuthIndSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiNmeSimGsmAuthIndDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiNmeSimGsmAuthIndSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiNmeSimGsmAuthIndDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiNmeSimGsmAuthIndSizeof(void *msg);
 extern void CsrWifiNmeSimGsmAuthIndSerFree(void *msg);
 
-extern CsrUint8* CsrWifiNmeSimUmtsAuthIndSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiNmeSimUmtsAuthIndDes(CsrUint8 *buffer, CsrSize len);
+extern u8* CsrWifiNmeSimUmtsAuthIndSer(u8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiNmeSimUmtsAuthIndDes(u8 *buffer, CsrSize len);
 extern CsrSize CsrWifiNmeSimUmtsAuthIndSizeof(void *msg);
 #define CsrWifiNmeSimUmtsAuthIndSerFree CsrWifiNmePfree
 

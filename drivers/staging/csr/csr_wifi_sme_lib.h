@@ -1809,7 +1809,7 @@ extern const CsrCharString *CsrWifiSmeDownstreamPrimNames[CSR_WIFI_SME_PRIM_DOWN
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_SME_PRIM, CSR_WIFI_SME_INTERFACE_CAPABILITY_GET_CFM, dst__, src__); \
     msg__->status = (status__); \
     msg__->numInterfaces = (numInterfaces__); \
-    CsrMemCpy(msg__->capBitmap, (capBitmap__), sizeof(CsrUint8) * 2);
+    CsrMemCpy(msg__->capBitmap, (capBitmap__), sizeof(u8) * 2);
 
 #define CsrWifiSmeInterfaceCapabilityGetCfmSendTo(dst__, src__, status__, numInterfaces__, capBitmap__) \
     { \

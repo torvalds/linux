@@ -139,7 +139,7 @@ typedef enum
  */
 typedef struct _bulk_data_desc
 {
-    const CsrUint8 *os_data_ptr;
+    const u8 *os_data_ptr;
     CsrUint32       data_length;
     const void     *os_net_buf_ptr;
     CsrUint32       net_buf_length;
@@ -324,7 +324,7 @@ void unifi_cancel_pending_signals(card_t *card);
  *
  * @ingroup upperedge
  */
-CsrResult unifi_send_signal(card_t *card, const CsrUint8 *sigptr,
+CsrResult unifi_send_signal(card_t *card, const u8 *sigptr,
                             CsrUint32 siglen,
                             const bulk_data_param_t *bulkdata);
 
@@ -343,7 +343,7 @@ CsrResult unifi_send_signal(card_t *card, const CsrUint8 *sigptr,
  *
  * @ingroup upperedge
  */
-CsrResult unifi_send_resources_available(card_t *card, const CsrUint8 *sigptr);
+CsrResult unifi_send_resources_available(card_t *card, const u8 *sigptr);
 
 /**
  *
@@ -511,8 +511,8 @@ CsrResult unifi_ta_configure(card_t                               *card,
 void unifi_ta_sample(card_t                            *card,
                      CsrWifiRouterCtrlProtocolDirection direction,
                      const bulk_data_desc_t            *data,
-                     const CsrUint8                    *saddr,
-                     const CsrUint8                    *sta_macaddr,
+                     const u8                    *saddr,
+                     const u8                    *sta_macaddr,
                      CsrUint32                          timestamp,
                      CsrUint16                          rate);
 
@@ -643,7 +643,7 @@ CsrResult unifi_run_bh(void *ospriv);
  * @ingroup upperedge
  */
 void unifi_receive_event(void *ospriv,
-                         CsrUint8 *sigdata, CsrUint32 siglen,
+                         u8 *sigdata, CsrUint32 siglen,
                          const bulk_data_param_t *bulkdata);
 
 #ifdef CSR_WIFI_REQUEUE_PACKET_TO_HAL

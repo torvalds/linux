@@ -44,7 +44,7 @@ CsrWifiFsmEvent* CsrWifiEvent_struct(CsrUint16 primtype, CsrUint16 msgtype, CsrS
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrUint8        value;
+    u8        value;
 } CsrWifiEventCsrUint8;
 
 /*----------------------------------------------------------------------------*
@@ -55,7 +55,7 @@ typedef struct
  *      Allocates and fills in a message with the signature CsrWifiEventCsrUint8
  *
  *----------------------------------------------------------------------------*/
-CsrWifiEventCsrUint8* CsrWifiEventCsrUint8_struct(CsrUint16 primtype, CsrUint16 msgtype, CsrSchedQid dst, CsrSchedQid src, CsrUint8 value);
+CsrWifiEventCsrUint8* CsrWifiEventCsrUint8_struct(CsrUint16 primtype, CsrUint16 msgtype, CsrSchedQid dst, CsrSchedQid src, u8 value);
 
 typedef struct
 {
@@ -93,7 +93,7 @@ typedef struct
 {
     CsrWifiFsmEvent common;
     CsrUint16       value16;
-    CsrUint8        value8;
+    u8        value8;
 } CsrWifiEventCsrUint16CsrUint8;
 
 /*----------------------------------------------------------------------------*
@@ -104,7 +104,7 @@ typedef struct
  *      Allocates and fills in a message with the signature CsrWifiEventCsrUint16CsrUint8
  *
  *----------------------------------------------------------------------------*/
-CsrWifiEventCsrUint16CsrUint8* CsrWifiEventCsrUint16CsrUint8_struct(CsrUint16 primtype, CsrUint16 msgtype, CsrSchedQid dst, CsrSchedQid src, CsrUint16 value16, CsrUint8 value8);
+CsrWifiEventCsrUint16CsrUint8* CsrWifiEventCsrUint16CsrUint8_struct(CsrUint16 primtype, CsrUint16 msgtype, CsrSchedQid dst, CsrSchedQid src, CsrUint16 value16, u8 value8);
 
 #ifdef __cplusplus
 }
