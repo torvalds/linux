@@ -1612,21 +1612,45 @@ static bool ixgbe_add_rx_frag(struct ixgbe_ring *rx_ring,
 {
 	struct page *page = rx_buffer->page;
 	unsigned int size = le16_to_cpu(rx_desc->wb.upper.length);
+#if (PAGE_SIZE < 8192)
 	unsigned int truesize = ixgbe_rx_bufsz(rx_ring);
+#else
+	unsigned int truesize = ALIGN(size, L1_CACHE_BYTES);
+	unsigned int last_offset = ixgbe_rx_pg_size(rx_ring) -
+				   ixgbe_rx_bufsz(rx_ring);
+#endif
 
 	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
 			rx_buffer->page_offset, size, truesize);
 
-	/* if we are only owner of page and it is local we can reuse it */
-	if (unlikely(page_count(page) != 1) ||
-	    unlikely(page_to_nid(page) != numa_node_id()))
+	/* avoid re-using remote pages */
+	if (unlikely(page_to_nid(page) != numa_node_id()))
+		return false;
+
+#if (PAGE_SIZE < 8192)
+	/* if we are only owner of page we can reuse it */
+	if (unlikely(page_count(page) != 1))
 		return false;
 
 	/* flip page offset to other buffer */
 	rx_buffer->page_offset ^= truesize;
 
+	/*
+	 * since we are the only owner of the page and we need to
+	 * increment it, just set the value to 2 in order to avoid
+	 * an unecessary locked operation
+	 */
+	atomic_set(&page->_count, 2);
+#else
+	/* move offset up to the next cache line */
+	rx_buffer->page_offset += truesize;
+
+	if (rx_buffer->page_offset > last_offset)
+		return false;
+
 	/* bump ref count on page before it is given to the stack */
 	get_page(page);
+#endif
 
 	return true;
 }
@@ -2863,11 +2887,7 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter,
 	srrctl = IXGBE_RX_HDR_SIZE << IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT;
 
 	/* configure the packet buffer length */
-#if PAGE_SIZE > IXGBE_MAX_RXBUFFER
-	srrctl |= IXGBE_MAX_RXBUFFER >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
-#else
 	srrctl |= ixgbe_rx_bufsz(rx_ring) >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
-#endif
 
 	/* configure descriptor type */
 	srrctl |= IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF;
@@ -2975,13 +2995,7 @@ static void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter,
 	 * total size of max desc * buf_len is not greater
 	 * than 65536
 	 */
-#if (PAGE_SIZE <= 8192)
 	rscctrl |= IXGBE_RSCCTL_MAXDESC_16;
-#elif (PAGE_SIZE <= 16384)
-	rscctrl |= IXGBE_RSCCTL_MAXDESC_8;
-#else
-	rscctrl |= IXGBE_RSCCTL_MAXDESC_4;
-#endif
 	IXGBE_WRITE_REG(hw, IXGBE_RSCCTL(reg_idx), rscctrl);
 }
 

@@ -78,6 +78,9 @@
 
 /* Supported Rx Buffer Sizes */
 #define IXGBE_RXBUFFER_256    256  /* Used for skb receive header */
+#define IXGBE_RXBUFFER_2K    2048
+#define IXGBE_RXBUFFER_3K    3072
+#define IXGBE_RXBUFFER_4K    4096
 #define IXGBE_MAX_RXBUFFER  16384  /* largest size for a single descriptor */
 
 /*
@@ -293,16 +296,25 @@ struct ixgbe_ring_feature {
  * this is twice the size of a half page we need to double the page order
  * for FCoE enabled Rx queues.
  */
-#if defined(IXGBE_FCOE) && (PAGE_SIZE < 8192)
+static inline unsigned int ixgbe_rx_bufsz(struct ixgbe_ring *ring)
+{
+#ifdef IXGBE_FCOE
+	if (test_bit(__IXGBE_RX_FCOE, &ring->state))
+		return (PAGE_SIZE < 8192) ? IXGBE_RXBUFFER_4K :
+					    IXGBE_RXBUFFER_3K;
+#endif
+	return IXGBE_RXBUFFER_2K;
+}
+
 static inline unsigned int ixgbe_rx_pg_order(struct ixgbe_ring *ring)
 {
-	return test_bit(__IXGBE_RX_FCOE, &ring->state) ? 1 : 0;
-}
-#else
-#define ixgbe_rx_pg_order(_ring) 0
+#ifdef IXGBE_FCOE
+	if (test_bit(__IXGBE_RX_FCOE, &ring->state))
+		return (PAGE_SIZE < 8192) ? 1 : 0;
 #endif
+	return 0;
+}
 #define ixgbe_rx_pg_size(_ring) (PAGE_SIZE << ixgbe_rx_pg_order(_ring))
-#define ixgbe_rx_bufsz(_ring) ((PAGE_SIZE / 2) << ixgbe_rx_pg_order(_ring))
 
 struct ixgbe_ring_container {
 	struct ixgbe_ring *ring;	/* pointer to linked list of rings */
