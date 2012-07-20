@@ -654,6 +654,7 @@ static int do_dentry_open(struct file *f,
 	if (unlikely(f->f_flags & O_PATH))
 		f->f_mode = FMODE_PATH;
 
+	path_get(&f->f_path);
 	inode = f->f_path.dentry->d_inode;
 	if (f->f_mode & FMODE_WRITE) {
 		error = __get_file_write_access(inode, f->f_path.mnt);
@@ -739,9 +740,7 @@ int finish_open(struct file *file, struct dentry *dentry,
 	int error;
 	BUG_ON(*opened & FILE_OPENED); /* once it's opened, it's opened */
 
-	mntget(file->f_path.mnt);
-	file->f_path.dentry = dget(dentry);
-
+	file->f_path.dentry = dentry;
 	error = do_dentry_open(file, open, current_cred());
 	if (!error)
 		*opened |= FILE_OPENED;
@@ -784,7 +783,6 @@ struct file *dentry_open(const struct path *path, int flags,
 
 	f->f_flags = flags;
 	f->f_path = *path;
-	path_get(&f->f_path);
 	error = do_dentry_open(f, NULL, cred);
 	if (!error) {
 		error = open_check_o_direct(f);
