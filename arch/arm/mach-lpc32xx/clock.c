@@ -607,6 +607,19 @@ static struct clk clk_dma = {
 	.get_rate	= local_return_parent_rate,
 };
 
+static struct clk clk_pwm = {
+	.parent		= &clk_pclk,
+	.enable		= local_onoff_enable,
+	.enable_reg	= LPC32XX_CLKPWR_PWM_CLK_CTRL,
+	.enable_mask	= LPC32XX_CLKPWR_PWMCLK_PWM1CLK_EN |
+			  LPC32XX_CLKPWR_PWMCLK_PWM1SEL_PCLK |
+			  LPC32XX_CLKPWR_PWMCLK_PWM1_DIV(1) |
+			  LPC32XX_CLKPWR_PWMCLK_PWM2CLK_EN |
+			  LPC32XX_CLKPWR_PWMCLK_PWM2SEL_PCLK |
+			  LPC32XX_CLKPWR_PWMCLK_PWM2_DIV(1),
+	.get_rate	= local_return_parent_rate,
+};
+
 static struct clk clk_uart3 = {
 	.parent		= &clk_pclk,
 	.enable		= local_onoff_enable,
@@ -1188,6 +1201,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_INIT(NULL, "vfp9_ck", &clk_vfp9),
 	CLKDEV_INIT("pl08xdmac", NULL, &clk_dma),
 	CLKDEV_INIT("4003c000.watchdog", NULL, &clk_wdt),
+	CLKDEV_INIT("4005c000.pwm", NULL, &clk_pwm),
 	CLKDEV_INIT(NULL, "uart3_ck", &clk_uart3),
 	CLKDEV_INIT(NULL, "uart4_ck", &clk_uart4),
 	CLKDEV_INIT(NULL, "uart5_ck", &clk_uart5),
