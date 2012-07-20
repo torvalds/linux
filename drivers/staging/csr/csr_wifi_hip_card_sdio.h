@@ -269,7 +269,7 @@ typedef struct
     u16 q_wr_ptr;
     u16 q_rd_ptr;
 
-    CsrCharString name[UNIFI_QUEUE_NAME_MAX_LENGTH];
+    char name[UNIFI_QUEUE_NAME_MAX_LENGTH];
 } q_t;
 
 
@@ -412,7 +412,7 @@ struct card
 
     /* Info read from Symbol Table during probe */
     u32     build_id;
-    CsrCharString build_id_string[128];
+    char build_id_string[128];
 
     /* Retrieve from SDIO driver. */
     u16 chip_id;

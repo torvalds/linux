@@ -56,23 +56,23 @@ void CsrWifiRouterFreeDownstreamMessageContents(u16 eventClass, void *message);
 /*----------------------------------------------------------------------------*
  * Enum to string functions
  *----------------------------------------------------------------------------*/
-const CsrCharString* CsrWifiRouterAppTypeToString(CsrWifiRouterAppType value);
-const CsrCharString* CsrWifiRouterEncapsulationToString(CsrWifiRouterEncapsulation value);
-const CsrCharString* CsrWifiRouterOuiToString(CsrWifiRouterOui value);
-const CsrCharString* CsrWifiRouterPriorityToString(CsrWifiRouterPriority value);
+const char* CsrWifiRouterAppTypeToString(CsrWifiRouterAppType value);
+const char* CsrWifiRouterEncapsulationToString(CsrWifiRouterEncapsulation value);
+const char* CsrWifiRouterOuiToString(CsrWifiRouterOui value);
+const char* CsrWifiRouterPriorityToString(CsrWifiRouterPriority value);
 
 
 /*----------------------------------------------------------------------------*
  * CsrPrim Type toString function.
  * Converts a message type to the String name of the Message
  *----------------------------------------------------------------------------*/
-const CsrCharString* CsrWifiRouterPrimTypeToString(CsrPrim msgType);
+const char* CsrWifiRouterPrimTypeToString(CsrPrim msgType);
 
 /*----------------------------------------------------------------------------*
  * Lookup arrays for PrimType name Strings
  *----------------------------------------------------------------------------*/
-extern const CsrCharString *CsrWifiRouterUpstreamPrimNames[CSR_WIFI_ROUTER_PRIM_UPSTREAM_COUNT];
-extern const CsrCharString *CsrWifiRouterDownstreamPrimNames[CSR_WIFI_ROUTER_PRIM_DOWNSTREAM_COUNT];
+extern const char *CsrWifiRouterUpstreamPrimNames[CSR_WIFI_ROUTER_PRIM_UPSTREAM_COUNT];
+extern const char *CsrWifiRouterDownstreamPrimNames[CSR_WIFI_ROUTER_PRIM_DOWNSTREAM_COUNT];
 
 /*******************************************************************************
 

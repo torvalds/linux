@@ -51,7 +51,7 @@ CsrResult unifi_remove_udi_hook(card_t *card, udi_func_t udi_fn);
  * This is used in the linux /proc interface and might be useful
  * in other systems.
  */
-s32 unifi_print_status(card_t *card, CsrCharString *str, s32 *remain);
+s32 unifi_print_status(card_t *card, char *str, s32 *remain);
 
 #define UNIFI_SNPRINTF_RET(buf_p, remain, written)                  \
     do {                                                            \

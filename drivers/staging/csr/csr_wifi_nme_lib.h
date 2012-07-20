@@ -60,32 +60,32 @@ void CsrWifiNmeFreeDownstreamMessageContents(u16 eventClass, void *message);
 /*----------------------------------------------------------------------------*
  * Enum to string functions
  *----------------------------------------------------------------------------*/
-const CsrCharString* CsrWifiNmeAuthModeToString(CsrWifiNmeAuthMode value);
-const CsrCharString* CsrWifiNmeBssTypeToString(CsrWifiNmeBssType value);
-const CsrCharString* CsrWifiNmeCcxOptionsMaskToString(CsrWifiNmeCcxOptionsMask value);
-const CsrCharString* CsrWifiNmeConfigActionToString(CsrWifiNmeConfigAction value);
-const CsrCharString* CsrWifiNmeConnectionStatusToString(CsrWifiNmeConnectionStatus value);
-const CsrCharString* CsrWifiNmeCredentialTypeToString(CsrWifiNmeCredentialType value);
-const CsrCharString* CsrWifiNmeEapMethodToString(CsrWifiNmeEapMethod value);
-const CsrCharString* CsrWifiNmeEncryptionToString(CsrWifiNmeEncryption value);
-const CsrCharString* CsrWifiNmeIndicationsToString(CsrWifiNmeIndications value);
-const CsrCharString* CsrWifiNmeSecErrorToString(CsrWifiNmeSecError value);
-const CsrCharString* CsrWifiNmeSimCardTypeToString(CsrWifiNmeSimCardType value);
-const CsrCharString* CsrWifiNmeUmtsAuthResultToString(CsrWifiNmeUmtsAuthResult value);
-const CsrCharString* CsrWifiNmeWmmQosInfoToString(CsrWifiNmeWmmQosInfo value);
+const char* CsrWifiNmeAuthModeToString(CsrWifiNmeAuthMode value);
+const char* CsrWifiNmeBssTypeToString(CsrWifiNmeBssType value);
+const char* CsrWifiNmeCcxOptionsMaskToString(CsrWifiNmeCcxOptionsMask value);
+const char* CsrWifiNmeConfigActionToString(CsrWifiNmeConfigAction value);
+const char* CsrWifiNmeConnectionStatusToString(CsrWifiNmeConnectionStatus value);
+const char* CsrWifiNmeCredentialTypeToString(CsrWifiNmeCredentialType value);
+const char* CsrWifiNmeEapMethodToString(CsrWifiNmeEapMethod value);
+const char* CsrWifiNmeEncryptionToString(CsrWifiNmeEncryption value);
+const char* CsrWifiNmeIndicationsToString(CsrWifiNmeIndications value);
+const char* CsrWifiNmeSecErrorToString(CsrWifiNmeSecError value);
+const char* CsrWifiNmeSimCardTypeToString(CsrWifiNmeSimCardType value);
+const char* CsrWifiNmeUmtsAuthResultToString(CsrWifiNmeUmtsAuthResult value);
+const char* CsrWifiNmeWmmQosInfoToString(CsrWifiNmeWmmQosInfo value);
 
 
 /*----------------------------------------------------------------------------*
  * CsrPrim Type toString function.
  * Converts a message type to the String name of the Message
  *----------------------------------------------------------------------------*/
-const CsrCharString* CsrWifiNmePrimTypeToString(CsrPrim msgType);
+const char* CsrWifiNmePrimTypeToString(CsrPrim msgType);
 
 /*----------------------------------------------------------------------------*
  * Lookup arrays for PrimType name Strings
  *----------------------------------------------------------------------------*/
-extern const CsrCharString *CsrWifiNmeUpstreamPrimNames[CSR_WIFI_NME_PRIM_UPSTREAM_COUNT];
-extern const CsrCharString *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_COUNT];
+extern const char *CsrWifiNmeUpstreamPrimNames[CSR_WIFI_NME_PRIM_UPSTREAM_COUNT];
+extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_COUNT];
 
 /*******************************************************************************
 

@@ -2455,9 +2455,9 @@ typedef struct
     u32      firmwareBuild;
     u32      firmwarePatch;
     u32      firmwareHip;
-    CsrCharString *routerBuild;
+    char *routerBuild;
     u32      routerHip;
-    CsrCharString *smeBuild;
+    char *smeBuild;
     u32      smeHip;
 } CsrWifiSmeVersions;
 
@@ -6419,7 +6419,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrCharString  *errorMessage;
+    char  *errorMessage;
 } CsrWifiSmeErrorInd;
 
 /*******************************************************************************
@@ -6439,7 +6439,7 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
-    CsrCharString  *infoMessage;
+    char  *infoMessage;
 } CsrWifiSmeInfoInd;
 
 /*******************************************************************************

@@ -198,7 +198,7 @@ static void CsrWifiRouterTransportSerialiseAndSend(u16 primType, void* msg)
 }
 
 #if defined(CSR_LOG_ENABLE) && defined(CSR_LOG_INCLUDE_FILE_NAME_AND_LINE_NUMBER)
-void CsrSchedMessagePutStringLog(CsrSchedQid q, u16 mi, void *mv, u32 line, CsrCharString *file)
+void CsrSchedMessagePutStringLog(CsrSchedQid q, u16 mi, void *mv, u32 line, char *file)
 #else
 void CsrSchedMessagePut(CsrSchedQid q, u16 mi, void *mv)
 #endif

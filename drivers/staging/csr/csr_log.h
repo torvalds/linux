@@ -86,7 +86,7 @@ CsrBool CsrLogTaskIsFiltered(CsrSchedQid taskId, CsrLogLevelTask level);
     do {                                                \
         if (!(cond))                                    \
         {                                               \
-            CsrCharString *panic_arg = "[" __FILE__ ":" CSR_LOG_STRINGIFY(__LINE__) "] - " CSR_LOG_STRINGIFY(cond); \
+            char *panic_arg = "[" __FILE__ ":" CSR_LOG_STRINGIFY(__LINE__) "] - " CSR_LOG_STRINGIFY(cond); \
             CsrPanic(CSR_TECH_FW, CSR_PANIC_FW_ASSERTION_FAIL, panic_arg); \
         }                                               \
     } while (0)
@@ -97,13 +97,13 @@ CsrBool CsrLogTaskIsFiltered(CsrSchedQid taskId, CsrLogLevelTask level);
 typedef struct
 {
     u16            primitiveType;
-    const CsrCharString *primitiveName;
+    const char *primitiveName;
     CsrMsgConvMsgEntry  *messageConv; /* Private - do not use */
 } CsrLogPrimitiveInformation;
 
 typedef struct
 {
-    const CsrCharString        *techVer;
+    const char        *techVer;
     u32                   primitiveInfoCount;
     CsrLogPrimitiveInformation *primitiveInfo;
 } CsrLogTechInformation;
@@ -140,9 +140,9 @@ typedef u32 bitmask32_t;
 #endif
 
 /* DEPRECATED - replaced by csr_log_text.h */
-void CsrLogTaskText(const CsrCharString *text,
+void CsrLogTaskText(const char *text,
     u32 line,
-    const CsrCharString *file);
+    const char *file);
 
 #define CSR_LOG_STATE_TRANSITION_MASK_FSM_NAME          (0x001)
 #define CSR_LOG_STATE_TRANSITION_MASK_NEXT_STATE        (0x002)
@@ -155,15 +155,15 @@ void CsrLogTaskText(const CsrCharString *text,
 /* DEPRECATED - replaced by csr_log_text.h */
 void CsrLogStateTransition(bitmask16_t mask,
     u32 identifier,
-    const CsrCharString *fsm_name,
+    const char *fsm_name,
     u32 prev_state,
-    const CsrCharString *prev_state_str,
+    const char *prev_state_str,
     u32 in_event,
-    const CsrCharString *in_event_str,
+    const char *in_event_str,
     u32 next_state,
-    const CsrCharString *next_state_str,
+    const char *next_state_str,
     u32 line,
-    const CsrCharString *file);
+    const char *file);
 
 /*---------------------------------*/
 /*  BSP logging */
@@ -174,7 +174,7 @@ void CsrLogSchedDeinit(u8 thread_id);
 void CsrLogSchedStart(u8 thread_id);
 void CsrLogSchedStop(u8 thread_id);
 
-void CsrLogInitTask(u8 thread_id, CsrSchedQid tskid, const CsrCharString *tskName);
+void CsrLogInitTask(u8 thread_id, CsrSchedQid tskid, const char *tskName);
 void CsrLogDeinitTask(u16 task_id);
 
 void CsrLogActivate(CsrSchedQid tskid);
@@ -184,7 +184,7 @@ void CsrLogDeactivate(CsrSchedQid tskid);
 #define SYNERGY_SERIALIZER_TYPE_SER     (0x001)
 
 void CsrLogMessagePut(u32 line,
-    const CsrCharString *file,
+    const char *file,
     CsrSchedQid src_task_id,
     CsrSchedQid dst_taskid,
     CsrSchedMsgId msg_id,
@@ -199,7 +199,7 @@ void CsrLogMessageGet(CsrSchedQid src_task_id,
     const void *msg);
 
 void CsrLogTimedEventIn(u32 line,
-    const CsrCharString *file,
+    const char *file,
     CsrSchedQid task_id,
     CsrSchedTid tid,
     CsrTime requested_delay,
@@ -213,14 +213,14 @@ void CsrLogTimedEventDone(CsrSchedQid task_id,
     CsrSchedTid tid);
 
 void CsrLogTimedEventCancel(u32 line,
-    const CsrCharString *file,
+    const char *file,
     CsrSchedQid task_id,
     CsrSchedTid tid,
     CsrBool cancel_res);
 
 void CsrLogBgintRegister(u8 thread_id,
     CsrSchedBgint irq,
-    const CsrCharString *callback,
+    const char *callback,
     const void *ptr);
 void CsrLogBgintUnregister(CsrSchedBgint irq);
 void CsrLogBgintSet(CsrSchedBgint irq);
@@ -231,17 +231,17 @@ void CsrLogExceptionStateEvent(u16 prim_type,
     CsrPrim msg_type,
     u16 state,
     u32 line,
-    const CsrCharString *file);
+    const char *file);
 void CsrLogExceptionGeneral(u16 prim_type,
     u16 state,
-    const CsrCharString *text,
+    const char *text,
     u32 line,
-    const CsrCharString *file);
+    const char *file);
 void CsrLogExceptionWarning(u16 prim_type,
     u16 state,
-    const CsrCharString *text,
+    const char *text,
     u32 line,
-    const CsrCharString *file);
+    const char *file);
 
 #ifdef __cplusplus
 }

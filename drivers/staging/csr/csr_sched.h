@@ -76,7 +76,7 @@ typedef void (*CsrSchedBgintHandler)(void *);
  *----------------------------------------------------------------------------*/
 CsrSchedBgint CsrSchedBgintReg(CsrSchedBgintHandler cb,
     void *context,
-    const CsrCharString *id);
+    const char *id);
 
 /*----------------------------------------------------------------------------*
  *  NAME
@@ -136,7 +136,7 @@ void CsrSchedMessagePutStringLog(CsrSchedQid q,
     u16 mi,
     void *mv,
     u32 line,
-    const CsrCharString *file);
+    const char *file);
 #define CsrSchedMessagePut(q, mi, mv) CsrSchedMessagePutStringLog((q), (mi), (mv), __LINE__, __FILE__)
 #else
 void CsrSchedMessagePut(CsrSchedQid q,
@@ -168,7 +168,7 @@ void CsrSchedMessageBroadcastStringLog(u16 mi,
     void *(*msg_build_func)(void *),
     void *msg_build_ptr,
     u32 line,
-    const CsrCharString *file);
+    const char *file);
 #define CsrSchedMessageBroadcast(mi, fn, ptr) CsrSchedMessageBroadcastStringLog((mi), (fn), (ptr), __LINE__, __FILE__)
 #else
 void CsrSchedMessageBroadcast(u16 mi,
@@ -223,7 +223,7 @@ CsrSchedTid CsrSchedTimerSetStringLog(CsrTime delay,
     u16 fniarg,
     void *fnvarg,
     u32 line,
-    const CsrCharString *file);
+    const char *file);
 #define CsrSchedTimerSet(d, fn, fni, fnv) CsrSchedTimerSetStringLog((d), (fn), (fni), (fnv), __LINE__, __FILE__)
 #else
 CsrSchedTid CsrSchedTimerSet(CsrTime delay,
@@ -249,7 +249,7 @@ CsrBool CsrSchedTimerCancelStringLog(CsrSchedTid eventid,
     u16 *pmi,
     void **pmv,
     u32 line,
-    const CsrCharString *file);
+    const char *file);
 #define CsrSchedTimerCancel(e, pmi, pmv) CsrSchedTimerCancelStringLog((e), (pmi), (pmv), __LINE__, __FILE__)
 #else
 CsrBool CsrSchedTimerCancel(CsrSchedTid eventid,
@@ -279,10 +279,10 @@ CsrSchedQid CsrSchedTaskQueueGet(void);
  *      Return the queue identifier for the currently running queue
  *
  *  RETURNS
- *      CsrCharString - The current task queue identifier, or 0xFFFF if not available.
+ *      char - The current task queue identifier, or 0xFFFF if not available.
  *
  *----------------------------------------------------------------------------*/
-CsrCharString* CsrSchedTaskNameGet(CsrSchedQid );
+char* CsrSchedTaskNameGet(CsrSchedQid );
 
 
 #ifdef __cplusplus

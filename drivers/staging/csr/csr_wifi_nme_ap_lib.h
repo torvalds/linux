@@ -63,20 +63,20 @@ void CsrWifiNmeApFreeDownstreamMessageContents(u16 eventClass, void *message);
 /*----------------------------------------------------------------------------*
  * Enum to string functions
  *----------------------------------------------------------------------------*/
-const CsrCharString* CsrWifiNmeApPersCredentialTypeToString(CsrWifiNmeApPersCredentialType value);
+const char* CsrWifiNmeApPersCredentialTypeToString(CsrWifiNmeApPersCredentialType value);
 
 
 /*----------------------------------------------------------------------------*
  * CsrPrim Type toString function.
  * Converts a message type to the String name of the Message
  *----------------------------------------------------------------------------*/
-const CsrCharString* CsrWifiNmeApPrimTypeToString(CsrPrim msgType);
+const char* CsrWifiNmeApPrimTypeToString(CsrPrim msgType);
 
 /*----------------------------------------------------------------------------*
  * Lookup arrays for PrimType name Strings
  *----------------------------------------------------------------------------*/
-extern const CsrCharString *CsrWifiNmeApUpstreamPrimNames[CSR_WIFI_NME_AP_PRIM_UPSTREAM_COUNT];
-extern const CsrCharString *CsrWifiNmeApDownstreamPrimNames[CSR_WIFI_NME_AP_PRIM_DOWNSTREAM_COUNT];
+extern const char *CsrWifiNmeApUpstreamPrimNames[CSR_WIFI_NME_AP_PRIM_UPSTREAM_COUNT];
+extern const char *CsrWifiNmeApDownstreamPrimNames[CSR_WIFI_NME_AP_PRIM_DOWNSTREAM_COUNT];
 
 /*******************************************************************************
 

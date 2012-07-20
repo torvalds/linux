@@ -56,34 +56,34 @@ void CsrWifiRouterCtrlFreeDownstreamMessageContents(u16 eventClass, void *messag
 /*----------------------------------------------------------------------------*
  * Enum to string functions
  *----------------------------------------------------------------------------*/
-const CsrCharString* CsrWifiRouterCtrlBlockAckRoleToString(CsrWifiRouterCtrlBlockAckRole value);
-const CsrCharString* CsrWifiRouterCtrlControlIndicationToString(CsrWifiRouterCtrlControlIndication value);
-const CsrCharString* CsrWifiRouterCtrlListActionToString(CsrWifiRouterCtrlListAction value);
-const CsrCharString* CsrWifiRouterCtrlLowPowerModeToString(CsrWifiRouterCtrlLowPowerMode value);
-const CsrCharString* CsrWifiRouterCtrlMediaStatusToString(CsrWifiRouterCtrlMediaStatus value);
-const CsrCharString* CsrWifiRouterCtrlModeToString(CsrWifiRouterCtrlMode value);
-const CsrCharString* CsrWifiRouterCtrlPeerStatusToString(CsrWifiRouterCtrlPeerStatus value);
-const CsrCharString* CsrWifiRouterCtrlPortActionToString(CsrWifiRouterCtrlPortAction value);
-const CsrCharString* CsrWifiRouterCtrlPowersaveTypeToString(CsrWifiRouterCtrlPowersaveType value);
-const CsrCharString* CsrWifiRouterCtrlProtocolDirectionToString(CsrWifiRouterCtrlProtocolDirection value);
-const CsrCharString* CsrWifiRouterCtrlQoSControlToString(CsrWifiRouterCtrlQoSControl value);
-const CsrCharString* CsrWifiRouterCtrlQueueConfigToString(CsrWifiRouterCtrlQueueConfig value);
-const CsrCharString* CsrWifiRouterCtrlTrafficConfigTypeToString(CsrWifiRouterCtrlTrafficConfigType value);
-const CsrCharString* CsrWifiRouterCtrlTrafficPacketTypeToString(CsrWifiRouterCtrlTrafficPacketType value);
-const CsrCharString* CsrWifiRouterCtrlTrafficTypeToString(CsrWifiRouterCtrlTrafficType value);
+const char* CsrWifiRouterCtrlBlockAckRoleToString(CsrWifiRouterCtrlBlockAckRole value);
+const char* CsrWifiRouterCtrlControlIndicationToString(CsrWifiRouterCtrlControlIndication value);
+const char* CsrWifiRouterCtrlListActionToString(CsrWifiRouterCtrlListAction value);
+const char* CsrWifiRouterCtrlLowPowerModeToString(CsrWifiRouterCtrlLowPowerMode value);
+const char* CsrWifiRouterCtrlMediaStatusToString(CsrWifiRouterCtrlMediaStatus value);
+const char* CsrWifiRouterCtrlModeToString(CsrWifiRouterCtrlMode value);
+const char* CsrWifiRouterCtrlPeerStatusToString(CsrWifiRouterCtrlPeerStatus value);
+const char* CsrWifiRouterCtrlPortActionToString(CsrWifiRouterCtrlPortAction value);
+const char* CsrWifiRouterCtrlPowersaveTypeToString(CsrWifiRouterCtrlPowersaveType value);
+const char* CsrWifiRouterCtrlProtocolDirectionToString(CsrWifiRouterCtrlProtocolDirection value);
+const char* CsrWifiRouterCtrlQoSControlToString(CsrWifiRouterCtrlQoSControl value);
+const char* CsrWifiRouterCtrlQueueConfigToString(CsrWifiRouterCtrlQueueConfig value);
+const char* CsrWifiRouterCtrlTrafficConfigTypeToString(CsrWifiRouterCtrlTrafficConfigType value);
+const char* CsrWifiRouterCtrlTrafficPacketTypeToString(CsrWifiRouterCtrlTrafficPacketType value);
+const char* CsrWifiRouterCtrlTrafficTypeToString(CsrWifiRouterCtrlTrafficType value);
 
 
 /*----------------------------------------------------------------------------*
  * CsrPrim Type toString function.
  * Converts a message type to the String name of the Message
  *----------------------------------------------------------------------------*/
-const CsrCharString* CsrWifiRouterCtrlPrimTypeToString(CsrPrim msgType);
+const char* CsrWifiRouterCtrlPrimTypeToString(CsrPrim msgType);
 
 /*----------------------------------------------------------------------------*
  * Lookup arrays for PrimType name Strings
  *----------------------------------------------------------------------------*/
-extern const CsrCharString *CsrWifiRouterCtrlUpstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_COUNT];
-extern const CsrCharString *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_COUNT];
+extern const char *CsrWifiRouterCtrlUpstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_COUNT];
+extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_COUNT];
 
 /*******************************************************************************
 

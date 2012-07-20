@@ -13,7 +13,7 @@
 struct sig_name
 {
     s16             id;
-    const CsrCharString *name;
+    const char *name;
 };
 
 static const struct sig_name Unifi_bulkcmd_names[] = {
@@ -29,7 +29,7 @@ static const struct sig_name Unifi_bulkcmd_names[] = {
     {  15, "Padding" }
 };
 
-const CsrCharString* lookup_bulkcmd_name(u16 id)
+const char* lookup_bulkcmd_name(u16 id)
 {
     if (id < 9)
     {

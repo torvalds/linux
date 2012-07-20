@@ -110,9 +110,9 @@ CsrResult unifi_coredump_handle_request(card_t *card);
 
 CsrResult ConvertCsrSdioToCsrHipResult(card_t *card, CsrResult csrResult);
 #ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
-void unifi_debug_log_to_buf(const CsrCharString *fmt, ...);
-void unifi_debug_string_to_buf(const CsrCharString *str);
-void unifi_debug_hex_to_buf(const CsrCharString *buff, u16 length);
+void unifi_debug_log_to_buf(const char *fmt, ...);
+void unifi_debug_string_to_buf(const char *str);
+void unifi_debug_hex_to_buf(const char *buff, u16 length);
 #endif
 
 

@@ -35,9 +35,6 @@ typedef ptrdiff_t CsrIntptr;    /* intptr_t is not defined in kernel. Use the eq
 /* Boolean */
 typedef u8 CsrBool;
 
-/* String types */
-typedef char CsrCharString;
-
 /*
  * 64-bit integers
  *

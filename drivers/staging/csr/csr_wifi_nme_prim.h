@@ -547,7 +547,7 @@ typedef struct
 typedef struct
 {
     u16      encryptionMode;
-    CsrCharString *passphrase;
+    char *passphrase;
 } CsrWifiNmePassphrase;
 
 /*******************************************************************************
@@ -708,22 +708,22 @@ typedef struct
     CsrWifiNmeEapMethodMask  eapMethodMask;
     CsrWifiSmeAuthModeMask   authMode;
     CsrWifiNmeEncryptionMask encryptionMode;
-    CsrCharString           *userName;
-    CsrCharString           *userPassword;
-    CsrCharString           *authServerUserIdentity;
+    char           *userName;
+    char           *userPassword;
+    char           *authServerUserIdentity;
     u32                clientCertificateLength;
     u8                *clientCertificate;
     u32                certificateAuthorityCertificateLength;
     u8                *certificateAuthorityCertificate;
     u16                privateKeyLength;
     u8                *privateKey;
-    CsrCharString           *privateKeyPassword;
+    char           *privateKeyPassword;
     u32                sessionLength;
     u8                *session;
     CsrBool                  allowPacProvisioning;
     u32                pacLength;
     u8                *pac;
-    CsrCharString           *pacPassword;
+    char           *pacPassword;
 } CsrWifiNmeEapCredentials;
 
 /*******************************************************************************
@@ -1153,7 +1153,7 @@ typedef struct
 {
     CsrWifiFsmEvent       common;
     CsrResult             status;
-    CsrCharString        *imsi;
+    char        *imsi;
     CsrWifiNmeSimCardType cardType;
 } CsrWifiNmeSimImsiGetRes;
 

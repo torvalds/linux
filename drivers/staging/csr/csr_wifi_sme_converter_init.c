@@ -189,7 +189,7 @@ void CsrWifiSmeConverterInit(void)
 #ifdef CSR_LOG_ENABLE
 static const CsrLogPrimitiveInformation csrwifisme_conv_info = {
     CSR_WIFI_SME_PRIM,
-    (CsrCharString *)"CSR_WIFI_SME_PRIM",
+    (char *)"CSR_WIFI_SME_PRIM",
     csrwifisme_conv_lut
 };
 const CsrLogPrimitiveInformation* CsrWifiSmeTechInfoGet(void)

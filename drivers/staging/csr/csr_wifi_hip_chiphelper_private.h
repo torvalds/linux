@@ -151,9 +151,9 @@ struct chip_device_desc_t
     struct chip_version_t chip_version;
 
     /* This is a text string that a human might find useful (BC02, UF105x) */
-    const CsrCharString *friendly_name;
+    const char *friendly_name;
     /* This is what we show to customers */
-    const CsrCharString *marketing_name;
+    const char *marketing_name;
 
     /* Initialisation values to write following a reset */
     struct val_array_t init;

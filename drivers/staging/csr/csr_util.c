@@ -53,7 +53,7 @@ u8 CsrBitCountDense(u32 n)
 /*------------------------------------------------------------------*/
 /* Base conversion */
 /*------------------------------------------------------------------*/
-CsrBool CsrHexStrToUint8(const CsrCharString *string, u8 *returnValue)
+CsrBool CsrHexStrToUint8(const char *string, u8 *returnValue)
 {
     u16 currentIndex = 0;
     *returnValue = 0;
@@ -77,7 +77,7 @@ CsrBool CsrHexStrToUint8(const CsrCharString *string, u8 *returnValue)
     return FALSE;
 }
 
-CsrBool CsrHexStrToUint16(const CsrCharString *string, u16 *returnValue)
+CsrBool CsrHexStrToUint16(const char *string, u16 *returnValue)
 {
     u16 currentIndex = 0;
     *returnValue = 0;
@@ -101,7 +101,7 @@ CsrBool CsrHexStrToUint16(const CsrCharString *string, u16 *returnValue)
     return FALSE;
 }
 
-CsrBool CsrHexStrToUint32(const CsrCharString *string, u32 *returnValue)
+CsrBool CsrHexStrToUint32(const char *string, u32 *returnValue)
 {
     u16 currentIndex = 0;
     *returnValue = 0;
@@ -145,11 +145,11 @@ u32 CsrPow(u32 base, u32 exponent)
 
 /* Convert signed 32 bit (or less) integer to string */
 #define I2B10_MAX 12
-void CsrIntToBase10(s32 number, CsrCharString *str)
+void CsrIntToBase10(s32 number, char *str)
 {
     s32 digit;
     u8 index;
-    CsrCharString res[I2B10_MAX];
+    char res[I2B10_MAX];
     CsrBool foundDigit = FALSE;
 
     for (digit = 0; digit < I2B10_MAX; digit++)
@@ -190,7 +190,7 @@ void CsrIntToBase10(s32 number, CsrCharString *str)
     CsrStrCpy(str, res);
 }
 
-void CsrUInt16ToHex(u16 number, CsrCharString *str)
+void CsrUInt16ToHex(u16 number, char *str)
 {
     u16 index;
     u16 currentValue;
@@ -204,7 +204,7 @@ void CsrUInt16ToHex(u16 number, CsrCharString *str)
     str[4] = '\0';
 }
 
-void CsrUInt32ToHex(u32 number, CsrCharString *str)
+void CsrUInt32ToHex(u32 number, char *str)
 {
     u16 index;
     u32 currentValue;
@@ -261,61 +261,61 @@ void *CsrMemDup(const void *buf1, CsrSize count)
 #endif
 
 #ifndef CSR_USE_STDC_LIB
-CsrCharString *CsrStrCpy(CsrCharString *dest, const CsrCharString *src)
+char *CsrStrCpy(char *dest, const char *src)
 {
     return strcpy(dest, src);
 }
 
-CsrCharString *CsrStrNCpy(CsrCharString *dest, const CsrCharString *src, CsrSize count)
+char *CsrStrNCpy(char *dest, const char *src, CsrSize count)
 {
     return strncpy(dest, src, count);
 }
 
-CsrCharString *CsrStrCat(CsrCharString *dest, const CsrCharString *src)
+char *CsrStrCat(char *dest, const char *src)
 {
     return strcat(dest, src);
 }
 
-CsrCharString *CsrStrNCat(CsrCharString *dest, const CsrCharString *src, CsrSize count)
+char *CsrStrNCat(char *dest, const char *src, CsrSize count)
 {
     return strncat(dest, src, count);
 }
 
-CsrCharString *CsrStrStr(const CsrCharString *string1, const CsrCharString *string2)
+char *CsrStrStr(const char *string1, const char *string2)
 {
     return strstr(string1, string2);
 }
 
-CsrSize CsrStrLen(const CsrCharString *string)
+CsrSize CsrStrLen(const char *string)
 {
     return strlen(string);
 }
 EXPORT_SYMBOL_GPL(CsrStrLen);
 
-s32 CsrStrCmp(const CsrCharString *string1, const CsrCharString *string2)
+s32 CsrStrCmp(const char *string1, const char *string2)
 {
     return strcmp(string1, string2);
 }
 
-s32 CsrStrNCmp(const CsrCharString *string1, const CsrCharString *string2, CsrSize count)
+s32 CsrStrNCmp(const char *string1, const char *string2, CsrSize count)
 {
     return strncmp(string1, string2, count);
 }
 
-CsrCharString *CsrStrChr(const CsrCharString *string, CsrCharString c)
+char *CsrStrChr(const char *string, char c)
 {
     return strchr(string, c);
 }
 #endif
 
-s32 CsrVsnprintf(CsrCharString *string, CsrSize count, const CsrCharString *format, va_list args)
+s32 CsrVsnprintf(char *string, CsrSize count, const char *format, va_list args)
 {
     return vsnprintf(string, count, format, args);
 }
 EXPORT_SYMBOL_GPL(CsrVsnprintf);
 
-CsrCharString *CsrStrNCpyZero(CsrCharString *dest,
-    const CsrCharString *src,
+char *CsrStrNCpyZero(char *dest,
+    const char *src,
     CsrSize count)
 {
     CsrStrNCpy(dest, src, count - 1);
@@ -324,7 +324,7 @@ CsrCharString *CsrStrNCpyZero(CsrCharString *dest,
 }
 
 /* Convert string with base 10 to integer */
-u32 CsrStrToInt(const CsrCharString *str)
+u32 CsrStrToInt(const char *str)
 {
     s16 i;
     u32 res;
@@ -347,9 +347,9 @@ u32 CsrStrToInt(const CsrCharString *str)
     return res;
 }
 
-CsrCharString *CsrStrDup(const CsrCharString *string)
+char *CsrStrDup(const char *string)
 {
-    CsrCharString *copy;
+    char *copy;
     u32 len;
 
     copy = NULL;
@@ -362,8 +362,8 @@ CsrCharString *CsrStrDup(const CsrCharString *string)
     return copy;
 }
 
-int CsrStrNICmp(const CsrCharString *string1,
-    const CsrCharString *string2,
+int CsrStrNICmp(const char *string1,
+    const char *string2,
     CsrSize count)
 {
     u32 index;
@@ -391,10 +391,10 @@ int CsrStrNICmp(const CsrCharString *string1,
     return returnValue;
 }
 
-const CsrCharString *CsrGetBaseName(const CsrCharString *file)
+const char *CsrGetBaseName(const char *file)
 {
-    const CsrCharString *pch;
-    static const CsrCharString dotDir[] = ".";
+    const char *pch;
+    static const char dotDir[] = ".";
 
     if (!file)
     {

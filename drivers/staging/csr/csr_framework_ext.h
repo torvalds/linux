@@ -196,7 +196,7 @@ void CsrGlobalMutexUnlock(void);
  *----------------------------------------------------------------------------*/
 CsrResult CsrThreadCreate(void (*threadFunction)(void *pointer), void *pointer,
     u32 stackSize, u16 priority,
-    const CsrCharString *threadName, CsrThreadHandle *threadHandle);
+    const char *threadName, CsrThreadHandle *threadHandle);
 
 /*----------------------------------------------------------------------------*
  *  NAME
@@ -257,7 +257,7 @@ void CsrThreadSleep(u16 sleepTimeInMs);
  *----------------------------------------------------------------------------*/
 #ifdef CSR_MEM_DEBUG
 void *CsrMemAllocDebug(CsrSize size,
-    const CsrCharString *file, u32 line);
+    const char *file, u32 line);
 #define CsrMemAlloc(sz) CsrMemAllocDebug((sz), __FILE__, __LINE__)
 #else
 void *CsrMemAlloc(CsrSize size);
@@ -278,7 +278,7 @@ void *CsrMemAlloc(CsrSize size);
  *----------------------------------------------------------------------------*/
 #ifdef CSR_MEM_DEBUG
 void *CsrMemCallocDebug(CsrSize numberOfElements, CsrSize elementSize,
-    const CsrCharString *file, u32 line);
+    const char *file, u32 line);
 #define CsrMemCalloc(cnt, sz) CsrMemAllocDebug((cnt), (sz), __FILE__, __LINE__)
 #else
 void *CsrMemCalloc(CsrSize numberOfElements, CsrSize elementSize);
@@ -311,7 +311,7 @@ void CsrMemFree(void *pointer);
  *----------------------------------------------------------------------------*/
 #ifdef CSR_MEM_DEBUG
 void *CsrMemAllocDmaDebug(CsrSize size,
-    const CsrCharString *file, u32 line);
+    const char *file, u32 line);
 #define CsrMemAllocDma(sz) CsrMemAllocDmaDebug((sz), __FILE__, __LINE__)
 #else
 void *CsrMemAllocDma(CsrSize size);

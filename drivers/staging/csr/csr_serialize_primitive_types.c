@@ -48,17 +48,17 @@ void CsrMemCpyDes(void *value, u8 *buffer, CsrSize *offset, CsrSize length)
 }
 EXPORT_SYMBOL_GPL(CsrMemCpyDes);
 
-void CsrCharStringDes(CsrCharString **value, u8 *buffer, CsrSize *offset)
+void CsrCharStringDes(char **value, u8 *buffer, CsrSize *offset)
 {
-    *value = CsrStrDup((CsrCharString *) &buffer[*offset]);
+    *value = CsrStrDup((char *) &buffer[*offset]);
     *offset += CsrStrLen(*value) + 1;
 }
 EXPORT_SYMBOL_GPL(CsrCharStringDes);
 
 void CsrUtf8StringDes(u8 **value, u8 *buffer, CsrSize *offset)
 {
-    *value = (u8 *) CsrStrDup((CsrCharString *) &buffer[*offset]);
-    *offset += CsrStrLen((CsrCharString *) *value) + 1;
+    *value = (u8 *) CsrStrDup((char *) &buffer[*offset]);
+    *offset += CsrStrLen((char *) *value) + 1;
 }
 
 void CsrUtf16StringDes(u16 **value, u8 *buffer, CsrSize *offset)
@@ -120,11 +120,11 @@ void CsrMemCpySer(u8 *buffer, CsrSize *offset, const void *value, CsrSize length
 }
 EXPORT_SYMBOL_GPL(CsrMemCpySer);
 
-void CsrCharStringSer(u8 *buffer, CsrSize *offset, const CsrCharString *value)
+void CsrCharStringSer(u8 *buffer, CsrSize *offset, const char *value)
 {
     if (value)
     {
-        CsrStrCpy(((CsrCharString *) &buffer[*offset]), value);
+        CsrStrCpy(((char *) &buffer[*offset]), value);
         *offset += CsrStrLen(value) + 1;
     }
     else
@@ -136,7 +136,7 @@ EXPORT_SYMBOL_GPL(CsrCharStringSer);
 
 void CsrUtf8StringSer(u8 *buffer, CsrSize *offset, const u8 *value)
 {
-    CsrCharStringSer(buffer, offset, (CsrCharString *) value);
+    CsrCharStringSer(buffer, offset, (char *) value);
 }
 
 void CsrUtf16StringSer(u8 *buffer, CsrSize *offset, const u16 *value)
@@ -173,7 +173,7 @@ void CsrVoidPtrSer(u8 *buffer, CsrSize *offset, void *ptr)
     CsrSizeSer(buffer, offset, (CsrSize) ptr);
 }
 
-u32 CsrCharStringSerLen(const CsrCharString *str)
+u32 CsrCharStringSerLen(const char *str)
 {
     if (str)
     {
@@ -189,7 +189,7 @@ u32 CsrUtf8StringSerLen(const u8 *str)
 {
     if (str)
     {
-        return (u32) (CsrStrLen((CsrCharString *) str) + sizeof(*str));
+        return (u32) (CsrStrLen((char *) str) + sizeof(*str));
     }
     else
     {

@@ -124,8 +124,8 @@ void CsrLogLevelTextSetTaskSubOrigin(CsrLogTextTaskId taskId, u16 subOrigin, Csr
             sub origin(s).
 
 *******************************************************************************/
-void CsrLogLevelTextSet(const CsrCharString *originName,
-    const CsrCharString *subOriginName,
+void CsrLogLevelTextSet(const char *originName,
+    const char *subOriginName,
     CsrLogLevelText warningLevelMask);
 
 #ifdef __cplusplus

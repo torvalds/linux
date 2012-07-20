@@ -205,7 +205,7 @@ typedef struct
     u32                 eventid;
     CsrWifiFsmTransitionFnPtr transition;
 #ifdef CSR_LOG_ENABLE
-    const CsrCharString *transitionName;
+    const char *transitionName;
 #endif
 } CsrWifiFsmEventEntry;
 
@@ -224,7 +224,7 @@ typedef struct
     const CsrWifiFsmEventEntry *eventEntryArray; /* array of transition function pointers for state */
 #ifdef CSR_LOG_ENABLE
     u16            stateNumber;
-    const CsrCharString *stateName;
+    const char *stateName;
 #endif
 } CsrWifiFsmTableEntry;
 
@@ -252,7 +252,7 @@ typedef struct
  */
 typedef struct
 {
-    const CsrCharString                    *processName;
+    const char                    *processName;
     const u32                         processId;
     const CsrWifiFsmTransitionFunctionTable transitionTable;
     const CsrWifiFsmTableEntry              unhandledTransitions;
@@ -278,7 +278,7 @@ typedef struct
     CsrWifiFsmTransitionFnPtr transitionFn;
     u16                 transitionCount; /* number consecutive of times this transition was seen */
 #ifdef CSR_LOG_ENABLE
-    const CsrCharString *transitionName;
+    const char *transitionName;
 #endif
 } CsrWifiFsmTransitionRecord;
 

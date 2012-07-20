@@ -66,63 +66,63 @@ void CsrWifiSmeFreeDownstreamMessageContents(u16 eventClass, void *message);
 /*----------------------------------------------------------------------------*
  * Enum to string functions
  *----------------------------------------------------------------------------*/
-const CsrCharString* CsrWifiSme80211NetworkTypeToString(CsrWifiSme80211NetworkType value);
-const CsrCharString* CsrWifiSme80211PrivacyModeToString(CsrWifiSme80211PrivacyMode value);
-const CsrCharString* CsrWifiSme80211dTrustLevelToString(CsrWifiSme80211dTrustLevel value);
-const CsrCharString* CsrWifiSmeAmpStatusToString(CsrWifiSmeAmpStatus value);
-const CsrCharString* CsrWifiSmeAuthModeToString(CsrWifiSmeAuthMode value);
-const CsrCharString* CsrWifiSmeBasicUsabilityToString(CsrWifiSmeBasicUsability value);
-const CsrCharString* CsrWifiSmeBssTypeToString(CsrWifiSmeBssType value);
-const CsrCharString* CsrWifiSmeCoexSchemeToString(CsrWifiSmeCoexScheme value);
-const CsrCharString* CsrWifiSmeControlIndicationToString(CsrWifiSmeControlIndication value);
-const CsrCharString* CsrWifiSmeCtsProtectionTypeToString(CsrWifiSmeCtsProtectionType value);
-const CsrCharString* CsrWifiSmeD3AutoScanModeToString(CsrWifiSmeD3AutoScanMode value);
-const CsrCharString* CsrWifiSmeEncryptionToString(CsrWifiSmeEncryption value);
-const CsrCharString* CsrWifiSmeFirmwareDriverInterfaceToString(CsrWifiSmeFirmwareDriverInterface value);
-const CsrCharString* CsrWifiSmeHostPowerModeToString(CsrWifiSmeHostPowerMode value);
-const CsrCharString* CsrWifiSmeIEEE80211ReasonToString(CsrWifiSmeIEEE80211Reason value);
-const CsrCharString* CsrWifiSmeIEEE80211ResultToString(CsrWifiSmeIEEE80211Result value);
-const CsrCharString* CsrWifiSmeIndicationsToString(CsrWifiSmeIndications value);
-const CsrCharString* CsrWifiSmeKeyTypeToString(CsrWifiSmeKeyType value);
-const CsrCharString* CsrWifiSmeListActionToString(CsrWifiSmeListAction value);
-const CsrCharString* CsrWifiSmeMediaStatusToString(CsrWifiSmeMediaStatus value);
-const CsrCharString* CsrWifiSmeP2pCapabilityToString(CsrWifiSmeP2pCapability value);
-const CsrCharString* CsrWifiSmeP2pGroupCapabilityToString(CsrWifiSmeP2pGroupCapability value);
-const CsrCharString* CsrWifiSmeP2pNoaConfigMethodToString(CsrWifiSmeP2pNoaConfigMethod value);
-const CsrCharString* CsrWifiSmeP2pRoleToString(CsrWifiSmeP2pRole value);
-const CsrCharString* CsrWifiSmeP2pStatusToString(CsrWifiSmeP2pStatus value);
-const CsrCharString* CsrWifiSmePacketFilterModeToString(CsrWifiSmePacketFilterMode value);
-const CsrCharString* CsrWifiSmePowerSaveLevelToString(CsrWifiSmePowerSaveLevel value);
-const CsrCharString* CsrWifiSmePreambleTypeToString(CsrWifiSmePreambleType value);
-const CsrCharString* CsrWifiSmeRadioIFToString(CsrWifiSmeRadioIF value);
-const CsrCharString* CsrWifiSmeRegulatoryDomainToString(CsrWifiSmeRegulatoryDomain value);
-const CsrCharString* CsrWifiSmeRoamReasonToString(CsrWifiSmeRoamReason value);
-const CsrCharString* CsrWifiSmeScanTypeToString(CsrWifiSmeScanType value);
-const CsrCharString* CsrWifiSmeTrafficTypeToString(CsrWifiSmeTrafficType value);
-const CsrCharString* CsrWifiSmeTspecCtrlToString(CsrWifiSmeTspecCtrl value);
-const CsrCharString* CsrWifiSmeTspecResultCodeToString(CsrWifiSmeTspecResultCode value);
-const CsrCharString* CsrWifiSmeWepAuthModeToString(CsrWifiSmeWepAuthMode value);
-const CsrCharString* CsrWifiSmeWepCredentialTypeToString(CsrWifiSmeWepCredentialType value);
-const CsrCharString* CsrWifiSmeWmmModeToString(CsrWifiSmeWmmMode value);
-const CsrCharString* CsrWifiSmeWmmQosInfoToString(CsrWifiSmeWmmQosInfo value);
-const CsrCharString* CsrWifiSmeWpsConfigTypeToString(CsrWifiSmeWpsConfigType value);
-const CsrCharString* CsrWifiSmeWpsDeviceCategoryToString(CsrWifiSmeWpsDeviceCategory value);
-const CsrCharString* CsrWifiSmeWpsDeviceSubCategoryToString(CsrWifiSmeWpsDeviceSubCategory value);
-const CsrCharString* CsrWifiSmeWpsDpidToString(CsrWifiSmeWpsDpid value);
-const CsrCharString* CsrWifiSmeWpsRegistrationToString(CsrWifiSmeWpsRegistration value);
+const char* CsrWifiSme80211NetworkTypeToString(CsrWifiSme80211NetworkType value);
+const char* CsrWifiSme80211PrivacyModeToString(CsrWifiSme80211PrivacyMode value);
+const char* CsrWifiSme80211dTrustLevelToString(CsrWifiSme80211dTrustLevel value);
+const char* CsrWifiSmeAmpStatusToString(CsrWifiSmeAmpStatus value);
+const char* CsrWifiSmeAuthModeToString(CsrWifiSmeAuthMode value);
+const char* CsrWifiSmeBasicUsabilityToString(CsrWifiSmeBasicUsability value);
+const char* CsrWifiSmeBssTypeToString(CsrWifiSmeBssType value);
+const char* CsrWifiSmeCoexSchemeToString(CsrWifiSmeCoexScheme value);
+const char* CsrWifiSmeControlIndicationToString(CsrWifiSmeControlIndication value);
+const char* CsrWifiSmeCtsProtectionTypeToString(CsrWifiSmeCtsProtectionType value);
+const char* CsrWifiSmeD3AutoScanModeToString(CsrWifiSmeD3AutoScanMode value);
+const char* CsrWifiSmeEncryptionToString(CsrWifiSmeEncryption value);
+const char* CsrWifiSmeFirmwareDriverInterfaceToString(CsrWifiSmeFirmwareDriverInterface value);
+const char* CsrWifiSmeHostPowerModeToString(CsrWifiSmeHostPowerMode value);
+const char* CsrWifiSmeIEEE80211ReasonToString(CsrWifiSmeIEEE80211Reason value);
+const char* CsrWifiSmeIEEE80211ResultToString(CsrWifiSmeIEEE80211Result value);
+const char* CsrWifiSmeIndicationsToString(CsrWifiSmeIndications value);
+const char* CsrWifiSmeKeyTypeToString(CsrWifiSmeKeyType value);
+const char* CsrWifiSmeListActionToString(CsrWifiSmeListAction value);
+const char* CsrWifiSmeMediaStatusToString(CsrWifiSmeMediaStatus value);
+const char* CsrWifiSmeP2pCapabilityToString(CsrWifiSmeP2pCapability value);
+const char* CsrWifiSmeP2pGroupCapabilityToString(CsrWifiSmeP2pGroupCapability value);
+const char* CsrWifiSmeP2pNoaConfigMethodToString(CsrWifiSmeP2pNoaConfigMethod value);
+const char* CsrWifiSmeP2pRoleToString(CsrWifiSmeP2pRole value);
+const char* CsrWifiSmeP2pStatusToString(CsrWifiSmeP2pStatus value);
+const char* CsrWifiSmePacketFilterModeToString(CsrWifiSmePacketFilterMode value);
+const char* CsrWifiSmePowerSaveLevelToString(CsrWifiSmePowerSaveLevel value);
+const char* CsrWifiSmePreambleTypeToString(CsrWifiSmePreambleType value);
+const char* CsrWifiSmeRadioIFToString(CsrWifiSmeRadioIF value);
+const char* CsrWifiSmeRegulatoryDomainToString(CsrWifiSmeRegulatoryDomain value);
+const char* CsrWifiSmeRoamReasonToString(CsrWifiSmeRoamReason value);
+const char* CsrWifiSmeScanTypeToString(CsrWifiSmeScanType value);
+const char* CsrWifiSmeTrafficTypeToString(CsrWifiSmeTrafficType value);
+const char* CsrWifiSmeTspecCtrlToString(CsrWifiSmeTspecCtrl value);
+const char* CsrWifiSmeTspecResultCodeToString(CsrWifiSmeTspecResultCode value);
+const char* CsrWifiSmeWepAuthModeToString(CsrWifiSmeWepAuthMode value);
+const char* CsrWifiSmeWepCredentialTypeToString(CsrWifiSmeWepCredentialType value);
+const char* CsrWifiSmeWmmModeToString(CsrWifiSmeWmmMode value);
+const char* CsrWifiSmeWmmQosInfoToString(CsrWifiSmeWmmQosInfo value);
+const char* CsrWifiSmeWpsConfigTypeToString(CsrWifiSmeWpsConfigType value);
+const char* CsrWifiSmeWpsDeviceCategoryToString(CsrWifiSmeWpsDeviceCategory value);
+const char* CsrWifiSmeWpsDeviceSubCategoryToString(CsrWifiSmeWpsDeviceSubCategory value);
+const char* CsrWifiSmeWpsDpidToString(CsrWifiSmeWpsDpid value);
+const char* CsrWifiSmeWpsRegistrationToString(CsrWifiSmeWpsRegistration value);
 
 
 /*----------------------------------------------------------------------------*
  * CsrPrim Type toString function.
  * Converts a message type to the String name of the Message
  *----------------------------------------------------------------------------*/
-const CsrCharString* CsrWifiSmePrimTypeToString(CsrPrim msgType);
+const char* CsrWifiSmePrimTypeToString(CsrPrim msgType);
 
 /*----------------------------------------------------------------------------*
  * Lookup arrays for PrimType name Strings
  *----------------------------------------------------------------------------*/
-extern const CsrCharString *CsrWifiSmeUpstreamPrimNames[CSR_WIFI_SME_PRIM_UPSTREAM_COUNT];
-extern const CsrCharString *CsrWifiSmeDownstreamPrimNames[CSR_WIFI_SME_PRIM_DOWNSTREAM_COUNT];
+extern const char *CsrWifiSmeUpstreamPrimNames[CSR_WIFI_SME_PRIM_UPSTREAM_COUNT];
+extern const char *CsrWifiSmeDownstreamPrimNames[CSR_WIFI_SME_PRIM_DOWNSTREAM_COUNT];
 
 /*******************************************************************************
 

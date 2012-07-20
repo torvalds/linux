@@ -26,13 +26,13 @@ u8 CsrBitCountDense(u32 n);
 /*------------------------------------------------------------------*/
 /* Base conversion */
 /*------------------------------------------------------------------*/
-CsrBool CsrHexStrToUint8(const CsrCharString *string, u8 *returnValue);
-CsrBool CsrHexStrToUint16(const CsrCharString *string, u16 *returnValue);
-CsrBool CsrHexStrToUint32(const CsrCharString *string, u32 *returnValue);
+CsrBool CsrHexStrToUint8(const char *string, u8 *returnValue);
+CsrBool CsrHexStrToUint16(const char *string, u16 *returnValue);
+CsrBool CsrHexStrToUint32(const char *string, u32 *returnValue);
 u32 CsrPow(u32 base, u32 exponent);
-void CsrIntToBase10(s32 number, CsrCharString *str);
-void CsrUInt16ToHex(u16 number, CsrCharString *str);
-void CsrUInt32ToHex(u32 number, CsrCharString *str);
+void CsrIntToBase10(s32 number, char *str);
+void CsrUInt16ToHex(u16 number, char *str);
+void CsrUInt32ToHex(u32 number, char *str);
 
 /*------------------------------------------------------------------*/
 /* Standard C Library functions */
@@ -54,33 +54,33 @@ void CsrUInt32ToHex(u32 number, CsrCharString *str);
 #else /* !CSR_USE_STDC_LIB */
 void *CsrMemCpy(void *dest, const void *src, CsrSize count);
 void *CsrMemMove(void *dest, const void *src, CsrSize count);
-CsrCharString *CsrStrCpy(CsrCharString *dest, const CsrCharString *src);
-CsrCharString *CsrStrNCpy(CsrCharString *dest, const CsrCharString *src, CsrSize count);
-CsrCharString *CsrStrCat(CsrCharString *dest, const CsrCharString *src);
-CsrCharString *CsrStrNCat(CsrCharString *dest, const CsrCharString *src, CsrSize count);
+char *CsrStrCpy(char *dest, const char *src);
+char *CsrStrNCpy(char *dest, const char *src, CsrSize count);
+char *CsrStrCat(char *dest, const char *src);
+char *CsrStrNCat(char *dest, const char *src, CsrSize count);
 s32 CsrMemCmp(const void *buf1, const void *buf2, CsrSize count);
-s32 CsrStrCmp(const CsrCharString *string1, const CsrCharString *string2);
-s32 CsrStrNCmp(const CsrCharString *string1, const CsrCharString *string2, CsrSize count);
-CsrCharString *CsrStrChr(const CsrCharString *string, CsrCharString c);
-CsrCharString *CsrStrStr(const CsrCharString *string1, const CsrCharString *string2);
+s32 CsrStrCmp(const char *string1, const char *string2);
+s32 CsrStrNCmp(const char *string1, const char *string2, CsrSize count);
+char *CsrStrChr(const char *string, char c);
+char *CsrStrStr(const char *string1, const char *string2);
 void *CsrMemSet(void *dest, u8 c, CsrSize count);
-CsrSize CsrStrLen(const CsrCharString *string);
+CsrSize CsrStrLen(const char *string);
 #endif /* !CSR_USE_STDC_LIB */
-s32 CsrVsnprintf(CsrCharString *string, CsrSize count, const CsrCharString *format, va_list args);
+s32 CsrVsnprintf(char *string, CsrSize count, const char *format, va_list args);
 
 /*------------------------------------------------------------------*/
 /* Non-standard utility functions */
 /*------------------------------------------------------------------*/
 void *CsrMemDup(const void *buf1, CsrSize count);
-int CsrStrNICmp(const CsrCharString *string1, const CsrCharString *string2, CsrSize count);
-CsrCharString *CsrStrDup(const CsrCharString *string);
-u32 CsrStrToInt(const CsrCharString *string);
-CsrCharString *CsrStrNCpyZero(CsrCharString *dest, const CsrCharString *src, CsrSize count);
+int CsrStrNICmp(const char *string1, const char *string2, CsrSize count);
+char *CsrStrDup(const char *string);
+u32 CsrStrToInt(const char *string);
+char *CsrStrNCpyZero(char *dest, const char *src, CsrSize count);
 
 /*------------------------------------------------------------------*/
 /* Filename */
 /*------------------------------------------------------------------*/
-const CsrCharString *CsrGetBaseName(const CsrCharString *file);
+const char *CsrGetBaseName(const char *file);
 
 /*------------------------------------------------------------------*/
 /* Misc */

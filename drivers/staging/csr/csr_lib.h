@@ -119,7 +119,7 @@ typedef struct
 {
     CsrPrim        type;
     u16      value1;
-    CsrCharString *value2;
+    char *value2;
 } CsrEventCsrUint16CsrCharString;
 
 /*----------------------------------------------------------------------------*
@@ -130,7 +130,7 @@ typedef struct
  *      Allocates and fills in a message with the signature CsrEventCsrUint16CsrCharString
  *
  *----------------------------------------------------------------------------*/
-CsrEventCsrUint16CsrCharString *CsrEventCsrUint16CsrCharString_struct(u16 primtype, u16 msgtype, u16 value1, CsrCharString *value2);
+CsrEventCsrUint16CsrCharString *CsrEventCsrUint16CsrCharString_struct(u16 primtype, u16 msgtype, u16 value1, char *value2);
 
 typedef struct
 {
@@ -169,7 +169,7 @@ typedef struct
 {
     CsrPrim        type;
     u32      value1;
-    CsrCharString *value2;
+    char *value2;
 } CsrEventCsrUint32CsrCharString;
 
 /*----------------------------------------------------------------------------*
@@ -180,7 +180,7 @@ typedef struct
  *      Allocates and fills in a message with the signature CsrEventCsrUint32CsrCharString
  *
  *----------------------------------------------------------------------------*/
-CsrEventCsrUint32CsrCharString *CsrEventCsrUint32CsrCharString_struct(u16 primtype, u16 msgtype, u32 value1, CsrCharString *value2);
+CsrEventCsrUint32CsrCharString *CsrEventCsrUint32CsrCharString_struct(u16 primtype, u16 msgtype, u32 value1, char *value2);
 
 #ifdef __cplusplus
 }

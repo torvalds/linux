@@ -52,7 +52,7 @@ typedef struct
 /* Struct to represent a TLV field */
 typedef struct
 {
-    CsrCharString t_name[4];
+    char t_name[4];
     u32     t_len;
 } tag_t;
 
@@ -105,9 +105,9 @@ static u32 write_uint32(void *buf, const u32 offset,
 static u32 write_bytes(void *buf, const u32 offset,
                              const u8 *data, const u32 len);
 static u32 write_tag(void *buf, const u32 offset,
-                           const CsrCharString *tag_str);
+                           const char *tag_str);
 static u32 write_chunk(void *buf, const u32 offset,
-                             const CsrCharString *tag_str,
+                             const char *tag_str,
                              const u32 payload_len);
 static u16 calc_checksum(void *buf, const u32 offset,
                                const u32 bytes_len);
@@ -227,7 +227,7 @@ CsrResult xbv1_parse(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwin
         }
         else if (TAG_EQ(tag.t_name, "LIST"))
         {
-            CsrCharString name[4];
+            char name[4];
             u32 list_end;
 
             list_end = ct.ioffset + tag.t_len;
@@ -598,7 +598,7 @@ static u32 write_bytes(void *buf, const u32 offset, const u8 *data, const u32 le
 }
 
 
-static u32 write_tag(void *buf, const u32 offset, const CsrCharString *tag_str)
+static u32 write_tag(void *buf, const u32 offset, const char *tag_str)
 {
     u8 *dst = (u8 *)buf + offset;
     CsrMemCpy(dst, tag_str, 4);
@@ -606,7 +606,7 @@ static u32 write_tag(void *buf, const u32 offset, const CsrCharString *tag_str)
 }
 
 
-static u32 write_chunk(void *buf, const u32 offset, const CsrCharString *tag_str, const u32 payload_len)
+static u32 write_chunk(void *buf, const u32 offset, const char *tag_str, const u32 payload_len)
 {
     u32 written = 0;
     written += write_tag(buf, offset, tag_str);
@@ -681,9 +681,9 @@ static u32 write_xbv_header(void *buf, const u32 offset, const u32 file_payload_
      * contents of the file, excluding the 8 byte size of the XBV1 header itself
      * (The added 6 bytes thus accounts for the size of the VERF)
      */
-    written += write_chunk(buf, offset + written, (CsrCharString *)"XBV1", file_payload_length + 6);
+    written += write_chunk(buf, offset + written, (char *)"XBV1", file_payload_length + 6);
 
-    written += write_chunk(buf, offset + written, (CsrCharString *)"VERF", 2);
+    written += write_chunk(buf, offset + written, (char *)"VERF", 2);
     written += write_uint16(buf,  offset + written, 0);      /* File version */
 
     return written;
@@ -695,10 +695,10 @@ static u32 write_ptch_header(void *buf, const u32 offset, const u32 fw_id)
     u32 written = 0;
 
     /* LIST is written with a zero length, to be updated later */
-    written += write_chunk(buf, offset + written, (CsrCharString *)"LIST", 0);
-    written += write_tag(buf, offset + written, (CsrCharString *)"PTCH");        /* List type */
+    written += write_chunk(buf, offset + written, (char *)"LIST", 0);
+    written += write_tag(buf, offset + written, (char *)"PTCH");        /* List type */
 
-    written += write_chunk(buf, offset + written, (CsrCharString *)"FWID", 4);
+    written += write_chunk(buf, offset + written, (char *)"FWID", 4);
     written += write_uint32(buf, offset + written, fw_id);
 
 
@@ -761,7 +761,7 @@ static u32 write_fwdl_to_ptdl(void *buf, const u32 offset, fwreadfn_t readfn,
         sec_len = sec_data_len + PTDL_HDR_SIZE;
 
         /* Write PTDL header + entire PTDL size */
-        written += write_chunk(buf, offset + written, (CsrCharString *)"PTDL", sec_len);
+        written += write_chunk(buf, offset + written, (char *)"PTDL", sec_len);
         /* bug digest implies 4 bytes of padding here, but that seems wrong */
 
         /* Checksum starts here */
@@ -820,7 +820,7 @@ static u32 write_reset_ptdl(void *buf, const u32 offset, const xbv1_t *fwinfo, u
     sec_len = SEC_CMD_LEN + PTDL_VEC_HDR_SIZE; /* Total section byte length */
 
     /* Write PTDL header + entire PTDL size */
-    written += write_chunk(buf, offset + written, (CsrCharString *)"PTDL", sec_len);
+    written += write_chunk(buf, offset + written, (char *)"PTDL", sec_len);
 
     /* Checksum starts here */
     csum_start_offs = offset + written;

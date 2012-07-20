@@ -41,9 +41,9 @@
  *      None.
  * ---------------------------------------------------------------------------
  */
-s32 unifi_print_status(card_t *card, CsrCharString *str, s32 *remain)
+s32 unifi_print_status(card_t *card, char *str, s32 *remain)
 {
-    CsrCharString *p = str;
+    char *p = str;
     sdio_config_data_t *cfg;
     u16 i, n;
     s32 remaining = *remain;
@@ -51,7 +51,7 @@ s32 unifi_print_status(card_t *card, CsrCharString *str, s32 *remain)
 #ifdef CSR_UNSAFE_SDIO_ACCESS
     s32 iostate;
     CsrResult r;
-    static const CsrCharString *const states[] = {
+    static const char *const states[] = {
         "AWAKE", "DROWSY", "TORPID"
     };
     #define SHARED_READ_RETRY_LIMIT 10

@@ -196,8 +196,8 @@ ChipDescript* ChipHelper_GetVersionBlueCore(enum chip_helper_bluecore_age age,
    parameter is the name of the parameter. The bodies of these
    functions are hand written. */
 #define CHIP_HELPER_LIST(m)                                             \
-    CHIP_HELPER_DEF0(m, (const CsrCharString *, FriendlyName, friendly_name))     \
-    CHIP_HELPER_DEF0(m, (const CsrCharString *, MarketingName, marketing_name))  \
+    CHIP_HELPER_DEF0(m, (const char *, FriendlyName, friendly_name))     \
+    CHIP_HELPER_DEF0(m, (const char *, MarketingName, marketing_name))  \
     CHIP_HELPER_DEF0(m, (u16, DBG_EMU_CMD, regs->dbg_emu_cmd))       \
     CHIP_HELPER_DEF0(m, (u16, DBG_HOST_PROC_SELECT, regs->host.dbg_proc_select)) \
     CHIP_HELPER_DEF0(m, (u16, DBG_HOST_STOP_STATUS, regs->host.dbg_stop_status)) \

@@ -836,7 +836,7 @@ void CsrWifiRouterCtrlWifiOnReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     versions.chipVersion = priv->card_info.chip_version;
     versions.firmwareBuild = priv->card_info.fw_build;
     versions.firmwareHip = priv->card_info.fw_hip_version;
-    versions.routerBuild = (CsrCharString*)CSR_WIFI_VERSION;
+    versions.routerBuild = (char*)CSR_WIFI_VERSION;
     versions.routerHip = (UNIFI_HIP_MAJOR_VERSION << 8) | UNIFI_HIP_MINOR_VERSION;
 
     CsrWifiRouterCtrlWifiOnIndSend(msg->source, 0, CSR_RESULT_SUCCESS, versions);
@@ -1852,7 +1852,7 @@ void CsrWifiRouterCtrlModeSetReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
             versions.chipVersion = priv->card_info.chip_version;
             versions.firmwareBuild = priv->card_info.fw_build;
             versions.firmwareHip = priv->card_info.fw_hip_version;
-            versions.routerBuild = (CsrCharString*)CSR_WIFI_VERSION;
+            versions.routerBuild = (char*)CSR_WIFI_VERSION;
             versions.routerHip = (UNIFI_HIP_MAJOR_VERSION << 8) | UNIFI_HIP_MINOR_VERSION;
 
             /* Now that new firmware is running, send a WifiOnInd to the NME. This will

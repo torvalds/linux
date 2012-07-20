@@ -3900,7 +3900,7 @@ CsrResult unifi_set_host_state(card_t *card, enum unifi_host_state state)
 {
     CsrResult r = CSR_RESULT_SUCCESS;
     CsrResult csrResult;
-    static const CsrCharString *const states[] = {
+    static const char *const states[] = {
         "AWAKE", "DROWSY", "TORPID"
     };
     static const u8 state_csr_host_wakeup[] = {

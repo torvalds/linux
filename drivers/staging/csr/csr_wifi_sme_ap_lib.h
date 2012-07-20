@@ -60,25 +60,25 @@ void CsrWifiSmeApFreeDownstreamMessageContents(u16 eventClass, void *message);
 /*----------------------------------------------------------------------------*
  * Enum to string functions
  *----------------------------------------------------------------------------*/
-const CsrCharString* CsrWifiSmeApAccessTypeToString(CsrWifiSmeApAccessType value);
-const CsrCharString* CsrWifiSmeApAuthSupportToString(CsrWifiSmeApAuthSupport value);
-const CsrCharString* CsrWifiSmeApAuthTypeToString(CsrWifiSmeApAuthType value);
-const CsrCharString* CsrWifiSmeApDirectionToString(CsrWifiSmeApDirection value);
-const CsrCharString* CsrWifiSmeApPhySupportToString(CsrWifiSmeApPhySupport value);
-const CsrCharString* CsrWifiSmeApTypeToString(CsrWifiSmeApType value);
+const char* CsrWifiSmeApAccessTypeToString(CsrWifiSmeApAccessType value);
+const char* CsrWifiSmeApAuthSupportToString(CsrWifiSmeApAuthSupport value);
+const char* CsrWifiSmeApAuthTypeToString(CsrWifiSmeApAuthType value);
+const char* CsrWifiSmeApDirectionToString(CsrWifiSmeApDirection value);
+const char* CsrWifiSmeApPhySupportToString(CsrWifiSmeApPhySupport value);
+const char* CsrWifiSmeApTypeToString(CsrWifiSmeApType value);
 
 
 /*----------------------------------------------------------------------------*
  * CsrPrim Type toString function.
  * Converts a message type to the String name of the Message
  *----------------------------------------------------------------------------*/
-const CsrCharString* CsrWifiSmeApPrimTypeToString(CsrPrim msgType);
+const char* CsrWifiSmeApPrimTypeToString(CsrPrim msgType);
 
 /*----------------------------------------------------------------------------*
  * Lookup arrays for PrimType name Strings
  *----------------------------------------------------------------------------*/
-extern const CsrCharString *CsrWifiSmeApUpstreamPrimNames[CSR_WIFI_SME_AP_PRIM_UPSTREAM_COUNT];
-extern const CsrCharString *CsrWifiSmeApDownstreamPrimNames[CSR_WIFI_SME_AP_PRIM_DOWNSTREAM_COUNT];
+extern const char *CsrWifiSmeApUpstreamPrimNames[CSR_WIFI_SME_AP_PRIM_UPSTREAM_COUNT];
+extern const char *CsrWifiSmeApDownstreamPrimNames[CSR_WIFI_SME_AP_PRIM_DOWNSTREAM_COUNT];
 
 /*******************************************************************************
 

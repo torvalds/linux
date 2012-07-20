@@ -468,7 +468,7 @@ typedef u8 CsrWifiRouterCtrlTrafficStreamId;
 typedef struct
 {
     u32      firmwarePatch;
-    CsrCharString *smeBuild;
+    char *smeBuild;
     u32      smeHip;
 } CsrWifiRouterCtrlSmeVersions;
 
@@ -564,7 +564,7 @@ typedef struct
     u32      chipVersion;
     u32      firmwareBuild;
     u32      firmwareHip;
-    CsrCharString *routerBuild;
+    char *routerBuild;
     u32      routerHip;
 } CsrWifiRouterCtrlVersions;
 

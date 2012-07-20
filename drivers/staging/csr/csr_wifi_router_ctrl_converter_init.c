@@ -123,7 +123,7 @@ void CsrWifiRouterCtrlConverterInit(void)
 #ifdef CSR_LOG_ENABLE
 static const CsrLogPrimitiveInformation csrwifirouterctrl_conv_info = {
     CSR_WIFI_ROUTER_CTRL_PRIM,
-    (CsrCharString *)"CSR_WIFI_ROUTER_CTRL_PRIM",
+    (char *)"CSR_WIFI_ROUTER_CTRL_PRIM",
     csrwifirouterctrl_conv_lut
 };
 const CsrLogPrimitiveInformation* CsrWifiRouterCtrlTechInfoGet(void)

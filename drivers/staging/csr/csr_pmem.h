@@ -39,7 +39,7 @@ extern "C" {
 *****************************************************************************/
 #ifdef CSR_PMEM_DEBUG
 void *CsrPmemAllocDebug(CsrSize size,
-    const CsrCharString *file, u32 line);
+    const char *file, u32 line);
 #define CsrPmemAlloc(sz) CsrPmemAllocDebug((sz), __FILE__, __LINE__)
 #else
 void *CsrPmemAlloc(CsrSize size);
@@ -108,8 +108,8 @@ typedef u8 CsrPmemDebugAllocType;
 #define CSR_PMEM_DEBUG_TYPE_MEM_CALLOC    3
 #define CSR_PMEM_DEBUG_TYPE_MEM_ALLOC_DMA 4
 
-typedef void (CsrPmemDebugOnAlloc)(void *ptr, void *userptr, CsrSize size, CsrPmemDebugAllocType type, const CsrCharString* file, u32 line);
-typedef void (CsrPmemDebugOnFree)(void *ptr, void *userptr, CsrPmemDebugAllocType type, const CsrCharString* file, u32 line);
+typedef void (CsrPmemDebugOnAlloc)(void *ptr, void *userptr, CsrSize size, CsrPmemDebugAllocType type, const char* file, u32 line);
+typedef void (CsrPmemDebugOnFree)(void *ptr, void *userptr, CsrPmemDebugAllocType type, const char* file, u32 line);
 
 /*----------------------------------------------------------------------------*
  *  NAME
@@ -127,10 +127,10 @@ typedef void (CsrPmemDebugOnFree)(void *ptr, void *userptr, CsrPmemDebugAllocTyp
  *----------------------------------------------------------------------------*/
 void CsrPmemDebugInstallHooks(u8 headSize, u8 endSize, CsrPmemDebugOnAlloc *onAllocCallback, CsrPmemDebugOnFree *onFreeCallback);
 
-void *CsrPmemDebugAlloc(CsrSize size, CsrPmemDebugAllocType type, const CsrCharString* file, u32 line);
+void *CsrPmemDebugAlloc(CsrSize size, CsrPmemDebugAllocType type, const char* file, u32 line);
 #define CsrPmemAlloc(size) CsrPmemDebugAlloc(size, CSR_PMEM_DEBUG_TYPE_PMEM_ALLOC, __FILE__, __LINE__)
 
-void CsrPmemDebugFree(void *ptr, CsrPmemDebugAllocType type, const CsrCharString* file, u32 line);
+void CsrPmemDebugFree(void *ptr, CsrPmemDebugAllocType type, const char* file, u32 line);
 #define CsrPmemFree(ptr) CsrPmemDebugFree(ptr, CSR_PMEM_DEBUG_TYPE_PMEM_ALLOC, __FILE__, __LINE__)
 
 #endif

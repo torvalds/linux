@@ -16,7 +16,7 @@ extern "C" {
 
 #include "csr_types.h"
 
-s32 CsrSnprintf(CsrCharString *dest, CsrSize n, const CsrCharString *fmt, ...);
+s32 CsrSnprintf(char *dest, CsrSize n, const char *fmt, ...);
 
 #ifdef __cplusplus
 }

@@ -81,11 +81,11 @@ s16 dump_fh_buf = 0;
  */
 
 #define UNIFI_DEBUG_GBUFFER_SIZE       8192
-static CsrCharString unifi_debug_output[UNIFI_DEBUG_GBUFFER_SIZE];
-static CsrCharString *unifi_dbgbuf_ptr = unifi_debug_output;
-static CsrCharString *unifi_dbgbuf_start = unifi_debug_output;
+static char unifi_debug_output[UNIFI_DEBUG_GBUFFER_SIZE];
+static char *unifi_dbgbuf_ptr = unifi_debug_output;
+static char *unifi_dbgbuf_start = unifi_debug_output;
 
-static void append_char(CsrCharString c)
+static void append_char(char c)
 {
     /* write char and advance pointer */
     *unifi_dbgbuf_ptr++ = c;
@@ -97,9 +97,9 @@ static void append_char(CsrCharString c)
 } /* append_char() */
 
 
-void unifi_debug_string_to_buf(const CsrCharString *str)
+void unifi_debug_string_to_buf(const char *str)
 {
-    const CsrCharString *p = str;
+    const char *p = str;
     while (*p)
     {
         append_char(*p);
@@ -114,10 +114,10 @@ void unifi_debug_string_to_buf(const CsrCharString *str)
 }
 
 
-void unifi_debug_log_to_buf(const CsrCharString *fmt, ...)
+void unifi_debug_log_to_buf(const char *fmt, ...)
 {
 #define DEBUG_BUFFER_SIZE       80
-    static CsrCharString s[DEBUG_BUFFER_SIZE];
+    static char s[DEBUG_BUFFER_SIZE];
     va_list args;
 
     va_start(args, fmt);
@@ -143,9 +143,9 @@ void unifi_debug_log_to_buf(const CsrCharString *fmt, ...)
  *
  * ---------------------------------------------------------------------------
  */
-void unifi_debug_hex_to_buf(const CsrCharString *buff, u16 length)
+void unifi_debug_hex_to_buf(const char *buff, u16 length)
 {
-    CsrCharString s[5];
+    char s[5];
     u16 i;
 
     for (i = 0; i < length; i = i + 2)

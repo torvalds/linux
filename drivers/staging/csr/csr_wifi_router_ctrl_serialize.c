@@ -732,7 +732,7 @@ CsrSize CsrWifiRouterCtrlWifiOnResSizeof(void *msg)
         }
     }
     bufferSize += 4;                                                                                    /* u32 primitive->smeVersions.firmwarePatch */
-    bufferSize += (primitive->smeVersions.smeBuild?CsrStrLen(primitive->smeVersions.smeBuild) : 0) + 1; /* CsrCharString* primitive->smeVersions.smeBuild (0 byte len + 1 for NULL Term) */
+    bufferSize += (primitive->smeVersions.smeBuild?CsrStrLen(primitive->smeVersions.smeBuild) : 0) + 1; /* char* primitive->smeVersions.smeBuild (0 byte len + 1 for NULL Term) */
     bufferSize += 4;                                                                                    /* u32 primitive->smeVersions.smeHip */
     bufferSize += 1;                                                                                    /* CsrBool primitive->scheduledInterrupt */
     return bufferSize;
@@ -1793,7 +1793,7 @@ CsrSize CsrWifiRouterCtrlWifiOnIndSizeof(void *msg)
     bufferSize += 4;                                                                                    /* u32 primitive->versions.chipVersion */
     bufferSize += 4;                                                                                    /* u32 primitive->versions.firmwareBuild */
     bufferSize += 4;                                                                                    /* u32 primitive->versions.firmwareHip */
-    bufferSize += (primitive->versions.routerBuild?CsrStrLen(primitive->versions.routerBuild) : 0) + 1; /* CsrCharString* primitive->versions.routerBuild (0 byte len + 1 for NULL Term) */
+    bufferSize += (primitive->versions.routerBuild?CsrStrLen(primitive->versions.routerBuild) : 0) + 1; /* char* primitive->versions.routerBuild (0 byte len + 1 for NULL Term) */
     bufferSize += 4;                                                                                    /* u32 primitive->versions.routerHip */
     return bufferSize;
 }

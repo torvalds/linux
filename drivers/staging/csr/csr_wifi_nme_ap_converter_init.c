@@ -76,7 +76,7 @@ void CsrWifiNmeApConverterInit(void)
 #ifdef CSR_LOG_ENABLE
 static const CsrLogPrimitiveInformation csrwifinmeap_conv_info = {
     CSR_WIFI_NME_AP_PRIM,
-    (CsrCharString *)"CSR_WIFI_NME_AP_PRIM",
+    (char *)"CSR_WIFI_NME_AP_PRIM",
     csrwifinmeap_conv_lut
 };
 const CsrLogPrimitiveInformation* CsrWifiNmeApTechInfoGet(void)

@@ -859,13 +859,13 @@ void unifi_request_max_sdio_clock(card_t *card);
 
 
 /* Functions to lookup bulk data command names. */
-const CsrCharString* lookup_bulkcmd_name(u16 id);
+const char* lookup_bulkcmd_name(u16 id);
 
 /* Function to log HIP's global debug buffer */
 #ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
 void unifi_debug_buf_dump(void);
-void unifi_debug_log_to_buf(const CsrCharString *fmt, ...);
-void unifi_debug_hex_to_buf(const CsrCharString *buff, u16 length);
+void unifi_debug_log_to_buf(const char *fmt, ...);
+void unifi_debug_hex_to_buf(const char *buff, u16 length);
 #endif
 
 /* Mini-coredump utility functions */
