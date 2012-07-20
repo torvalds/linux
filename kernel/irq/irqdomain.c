@@ -415,7 +415,7 @@ int irq_domain_associate_many(struct irq_domain *domain, unsigned int irq_base,
 {
 	unsigned int virq = irq_base;
 	irq_hw_number_t hwirq = hwirq_base;
-	int i;
+	int i, ret;
 
 	pr_debug("%s(%s, irqbase=%i, hwbase=%i, count=%i)\n", __func__,
 		of_node_full_name(domain->of_node), irq_base, (int)hwirq_base, count);
@@ -436,11 +436,16 @@ int irq_domain_associate_many(struct irq_domain *domain, unsigned int irq_base,
 
 		irq_data->hwirq = hwirq;
 		irq_data->domain = domain;
-		if (domain->ops->map && domain->ops->map(domain, virq, hwirq)) {
-			pr_err("irq-%i==>hwirq-0x%lx mapping failed\n", virq, hwirq);
-			irq_data->domain = NULL;
-			irq_data->hwirq = 0;
-			goto err_unmap;
+		if (domain->ops->map) {
+			ret = domain->ops->map(domain, virq, hwirq);
+			if (ret != 0) {
+				pr_err("irq-%i==>hwirq-0x%lx mapping failed: %d\n",
+				       virq, hwirq, ret);
+				WARN_ON(1);
+				irq_data->domain = NULL;
+				irq_data->hwirq = 0;
+				goto err_unmap;
+			}
 		}
 
 		switch (domain->revmap_type) {
