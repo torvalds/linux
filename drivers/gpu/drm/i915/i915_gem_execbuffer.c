@@ -972,16 +972,11 @@ i915_gem_execbuffer_retire_commands(struct drm_device *dev,
 				    struct drm_file *file,
 				    struct intel_ring_buffer *ring)
 {
-	struct drm_i915_gem_request *request;
-
 	/* Unconditionally force add_request to emit a full flush. */
 	ring->gpu_caches_dirty = true;
 
 	/* Add a breadcrumb for the completion of the batch buffer */
-	request = kzalloc(sizeof(*request), GFP_KERNEL);
-	if (request == NULL || i915_add_request(ring, file, request)) {
-		kfree(request);
-	}
+	(void)i915_add_request(ring, file, NULL);
 }
 
 static int

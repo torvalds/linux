@@ -1597,7 +1597,12 @@ i915_add_request(struct intel_ring_buffer *ring,
 		ring->gpu_caches_dirty = false;
 	}
 
-	BUG_ON(request == NULL);
+	if (request == NULL) {
+		request = kmalloc(sizeof(*request), GFP_KERNEL);
+		if (request == NULL)
+			return -ENOMEM;
+	}
+
 	seqno = i915_gem_next_request_seqno(ring);
 
 	/* Record the position of the start of the request so that
@@ -1608,8 +1613,10 @@ i915_add_request(struct intel_ring_buffer *ring,
 	request_ring_position = intel_ring_get_tail(ring);
 
 	ret = ring->add_request(ring, &seqno);
-	if (ret)
-	    return ret;
+	if (ret) {
+		kfree(request);
+		return ret;
+	}
 
 	trace_i915_gem_request_add(ring, seqno);
 
@@ -1619,6 +1626,7 @@ i915_add_request(struct intel_ring_buffer *ring,
 	request->emitted_jiffies = jiffies;
 	was_empty = list_empty(&ring->request_list);
 	list_add_tail(&request->list, &ring->request_list);
+	request->file_priv = NULL;
 
 	if (file) {
 		struct drm_i915_file_private *file_priv = file->driver_priv;
@@ -1859,14 +1867,8 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	 */
 	idle = true;
 	for_each_ring(ring, dev_priv, i) {
-		if (ring->gpu_caches_dirty) {
-			struct drm_i915_gem_request *request;
-
-			request = kzalloc(sizeof(*request), GFP_KERNEL);
-			if (request == NULL ||
-			    i915_add_request(ring, NULL, request))
-			    kfree(request);
-		}
+		if (ring->gpu_caches_dirty)
+			i915_add_request(ring, NULL, NULL);
 
 		idle &= list_empty(&ring->request_list);
 	}
@@ -1913,25 +1915,13 @@ i915_gem_check_wedge(struct drm_i915_private *dev_priv,
 static int
 i915_gem_check_olr(struct intel_ring_buffer *ring, u32 seqno)
 {
-	int ret = 0;
+	int ret;
 
 	BUG_ON(!mutex_is_locked(&ring->dev->struct_mutex));
 
-	if (seqno == ring->outstanding_lazy_request) {
-		struct drm_i915_gem_request *request;
-
-		request = kzalloc(sizeof(*request), GFP_KERNEL);
-		if (request == NULL)
-			return -ENOMEM;
-
-		ret = i915_add_request(ring, NULL, request);
-		if (ret) {
-			kfree(request);
-			return ret;
-		}
-
-		BUG_ON(seqno != request->seqno);
-	}
+	ret = 0;
+	if (seqno == ring->outstanding_lazy_request)
+		ret = i915_add_request(ring, NULL, NULL);
 
 	return ret;
 }
