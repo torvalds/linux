@@ -1564,3 +1564,41 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 
 	return intel_init_ring_buffer(dev, ring);
 }
+
+int
+intel_ring_flush_all_caches(struct intel_ring_buffer *ring)
+{
+	int ret;
+
+	if (!ring->gpu_caches_dirty)
+		return 0;
+
+	ret = ring->flush(ring, 0, I915_GEM_GPU_DOMAINS);
+	if (ret)
+		return ret;
+
+	trace_i915_gem_ring_flush(ring, 0, I915_GEM_GPU_DOMAINS);
+
+	ring->gpu_caches_dirty = false;
+	return 0;
+}
+
+int
+intel_ring_invalidate_all_caches(struct intel_ring_buffer *ring)
+{
+	uint32_t flush_domains;
+	int ret;
+
+	flush_domains = 0;
+	if (ring->gpu_caches_dirty)
+		flush_domains = I915_GEM_GPU_DOMAINS;
+
+	ret = ring->flush(ring, I915_GEM_GPU_DOMAINS, flush_domains);
+	if (ret)
+		return ret;
+
+	trace_i915_gem_ring_flush(ring, I915_GEM_GPU_DOMAINS, flush_domains);
+
+	ring->gpu_caches_dirty = false;
+	return 0;
+}

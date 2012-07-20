@@ -195,6 +195,8 @@ static inline void intel_ring_emit(struct intel_ring_buffer *ring,
 void intel_ring_advance(struct intel_ring_buffer *ring);
 
 u32 intel_ring_get_seqno(struct intel_ring_buffer *ring);
+int intel_ring_flush_all_caches(struct intel_ring_buffer *ring);
+int intel_ring_invalidate_all_caches(struct intel_ring_buffer *ring);
 
 int intel_init_render_ring_buffer(struct drm_device *dev);
 int intel_init_bsd_ring_buffer(struct drm_device *dev);

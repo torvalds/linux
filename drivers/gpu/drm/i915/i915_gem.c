@@ -1549,13 +1549,9 @@ i915_add_request(struct intel_ring_buffer *ring,
 	 * is that the flush _must_ happen before the next request, no matter
 	 * what.
 	 */
-	if (ring->gpu_caches_dirty) {
-		ret = i915_gem_flush_ring(ring, 0, I915_GEM_GPU_DOMAINS);
-		if (ret)
-			return ret;
-
-		ring->gpu_caches_dirty = false;
-	}
+	ret = intel_ring_flush_all_caches(ring);
+	if (ret)
+		return ret;
 
 	if (request == NULL) {
 		request = kmalloc(sizeof(*request), GFP_KERNEL);
@@ -2252,25 +2248,6 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 		i915_gem_object_truncate(obj);
 
 	return ret;
-}
-
-int
-i915_gem_flush_ring(struct intel_ring_buffer *ring,
-		    uint32_t invalidate_domains,
-		    uint32_t flush_domains)
-{
-	int ret;
-
-	if (((invalidate_domains | flush_domains) & I915_GEM_GPU_DOMAINS) == 0)
-		return 0;
-
-	trace_i915_gem_ring_flush(ring, invalidate_domains, flush_domains);
-
-	ret = ring->flush(ring, invalidate_domains, flush_domains);
-	if (ret)
-		return ret;
-
-	return 0;
 }
 
 static int i915_ring_idle(struct intel_ring_buffer *ring)
