@@ -36,7 +36,6 @@ u16 *CsrUtf16ConcatenateTexts(const u16 *inputText1, const u16 *inputText2,
 u16 *CsrUtf16String2XML(u16 *str);
 u16 *CsrXML2Utf16String(u16 *str);
 
-s32 CsrUtf8StrNCmp(const u8 *string1, const u8 *string2, size_t count);
 u32 CsrUtf8StringLengthInBytes(const u8 *string);
 
 /*******************************************************************************

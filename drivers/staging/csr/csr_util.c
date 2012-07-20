@@ -51,11 +51,6 @@ size_t CsrStrLen(const char *string)
 }
 EXPORT_SYMBOL_GPL(CsrStrLen);
 
-s32 CsrStrNCmp(const char *string1, const char *string2, size_t count)
-{
-    return strncmp(string1, string2, count);
-}
-
 char *CsrStrChr(const char *string, char c)
 {
     return strchr(string, c);
