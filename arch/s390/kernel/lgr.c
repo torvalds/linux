@@ -45,7 +45,7 @@ struct lgr_info {
 /*
  * LGR globals
  */
-static void *lgr_page;
+static char lgr_page[PAGE_SIZE] __aligned(PAGE_SIZE);
 static struct lgr_info lgr_info_last;
 static struct lgr_info lgr_info_cur;
 static struct debug_info *lgr_dbf;
@@ -74,7 +74,7 @@ static void cpascii(char *dst, char *src, int size)
  */
 static void lgr_stsi_1_1_1(struct lgr_info *lgr_info)
 {
-	struct sysinfo_1_1_1 *si = lgr_page;
+	struct sysinfo_1_1_1 *si = (void *) lgr_page;
 
 	if (stsi(si, 1, 1, 1) == -ENOSYS)
 		return;
@@ -91,7 +91,7 @@ static void lgr_stsi_1_1_1(struct lgr_info *lgr_info)
  */
 static void lgr_stsi_2_2_2(struct lgr_info *lgr_info)
 {
-	struct sysinfo_2_2_2 *si = lgr_page;
+	struct sysinfo_2_2_2 *si = (void *) lgr_page;
 
 	if (stsi(si, 2, 2, 2) == -ENOSYS)
 		return;
@@ -105,7 +105,7 @@ static void lgr_stsi_2_2_2(struct lgr_info *lgr_info)
  */
 static void lgr_stsi_3_2_2(struct lgr_info *lgr_info)
 {
-	struct sysinfo_3_2_2 *si = lgr_page;
+	struct sysinfo_3_2_2 *si = (void *) lgr_page;
 	int i;
 
 	if (stsi(si, 3, 2, 2) == -ENOSYS)
@@ -183,14 +183,9 @@ static void lgr_timer_set(void)
  */
 static int __init lgr_init(void)
 {
-	lgr_page = (void *) __get_free_pages(GFP_KERNEL, 0);
-	if (!lgr_page)
-		return -ENOMEM;
 	lgr_dbf = debug_register("lgr", 1, 1, sizeof(struct lgr_info));
-	if (!lgr_dbf) {
-		free_page((unsigned long) lgr_page);
+	if (!lgr_dbf)
 		return -ENOMEM;
-	}
 	debug_register_view(lgr_dbf, &debug_hex_ascii_view);
 	lgr_info_get(&lgr_info_last);
 	debug_event(lgr_dbf, 1, &lgr_info_last, sizeof(lgr_info_last));
