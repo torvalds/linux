@@ -44,7 +44,7 @@
  */
 static struct xlog_ticket *
 xlog_cil_ticket_alloc(
-	struct log	*log)
+	struct xlog	*log)
 {
 	struct xlog_ticket *tic;
 
@@ -72,7 +72,7 @@ xlog_cil_ticket_alloc(
  */
 void
 xlog_cil_init_post_recovery(
-	struct log	*log)
+	struct xlog	*log)
 {
 	log->l_cilp->xc_ctx->ticket = xlog_cil_ticket_alloc(log);
 	log->l_cilp->xc_ctx->sequence = 1;
@@ -182,7 +182,7 @@ xlog_cil_prepare_log_vecs(
  */
 STATIC void
 xfs_cil_prepare_item(
-	struct log		*log,
+	struct xlog		*log,
 	struct xfs_log_vec	*lv,
 	int			*len,
 	int			*diff_iovecs)
@@ -231,7 +231,7 @@ xfs_cil_prepare_item(
  */
 static void
 xlog_cil_insert_items(
-	struct log		*log,
+	struct xlog		*log,
 	struct xfs_log_vec	*log_vector,
 	struct xlog_ticket	*ticket)
 {
@@ -373,7 +373,7 @@ xlog_cil_committed(
  */
 STATIC int
 xlog_cil_push(
-	struct log		*log)
+	struct xlog		*log)
 {
 	struct xfs_cil		*cil = log->l_cilp;
 	struct xfs_log_vec	*lv;
@@ -601,7 +601,7 @@ xlog_cil_push_work(
  */
 static void
 xlog_cil_push_background(
-	struct log	*log)
+	struct xlog	*log)
 {
 	struct xfs_cil	*cil = log->l_cilp;
 
@@ -629,7 +629,7 @@ xlog_cil_push_background(
 
 static void
 xlog_cil_push_foreground(
-	struct log	*log,
+	struct xlog	*log,
 	xfs_lsn_t	push_seq)
 {
 	struct xfs_cil	*cil = log->l_cilp;
@@ -683,7 +683,7 @@ xfs_log_commit_cil(
 	xfs_lsn_t		*commit_lsn,
 	int			flags)
 {
-	struct log		*log = mp->m_log;
+	struct xlog		*log = mp->m_log;
 	int			log_flags = 0;
 	struct xfs_log_vec	*log_vector;
 
@@ -754,7 +754,7 @@ xfs_log_commit_cil(
  */
 xfs_lsn_t
 xlog_cil_force_lsn(
-	struct log	*log,
+	struct xlog	*log,
 	xfs_lsn_t	sequence)
 {
 	struct xfs_cil		*cil = log->l_cilp;
@@ -833,7 +833,7 @@ xfs_log_item_in_current_chkpt(
  */
 int
 xlog_cil_init(
-	struct log	*log)
+	struct xlog	*log)
 {
 	struct xfs_cil	*cil;
 	struct xfs_cil_ctx *ctx;
@@ -869,7 +869,7 @@ xlog_cil_init(
 
 void
 xlog_cil_destroy(
-	struct log	*log)
+	struct xlog	*log)
 {
 	if (log->l_cilp->xc_ctx) {
 		if (log->l_cilp->xc_ctx->ticket)

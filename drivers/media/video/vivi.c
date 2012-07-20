@@ -1149,10 +1149,14 @@ static ssize_t
 vivi_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
 	struct vivi_dev *dev = video_drvdata(file);
+	int err;
 
 	dprintk(dev, 1, "read called\n");
-	return vb2_read(&dev->vb_vidq, data, count, ppos,
+	mutex_lock(&dev->mutex);
+	err = vb2_read(&dev->vb_vidq, data, count, ppos,
 		       file->f_flags & O_NONBLOCK);
+	mutex_unlock(&dev->mutex);
+	return err;
 }
 
 static unsigned int

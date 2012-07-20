@@ -1438,7 +1438,27 @@ static int nmk_pmx_enable(struct pinctrl_dev *pctldev, unsigned function,
 
 	dev_dbg(npct->dev, "enable group %s, %u pins\n", g->name, g->npins);
 
-	/* Handle this special glitch on altfunction C */
+	/*
+	 * If we're setting altfunc C by setting both AFSLA and AFSLB to 1,
+	 * we may pass through an undesired state. In this case we take
+	 * some extra care.
+	 *
+	 * Safe sequence used to switch IOs between GPIO and Alternate-C mode:
+	 *  - Save SLPM registers (since we have a shadow register in the
+	 *    nmk_chip we're using that as backup)
+	 *  - Set SLPM=0 for the IOs you want to switch and others to 1
+	 *  - Configure the GPIO registers for the IOs that are being switched
+	 *  - Set IOFORCE=1
+	 *  - Modify the AFLSA/B registers for the IOs that are being switched
+	 *  - Set IOFORCE=0
+	 *  - Restore SLPM registers
+	 *  - Any spurious wake up event during switch sequence to be ignored
+	 *    and cleared
+	 *
+	 * We REALLY need to save ALL slpm registers, because the external
+	 * IOFORCE will switch *all* ports to their sleepmode setting to as
+	 * to avoid glitches. (Not just one port!)
+	 */
 	glitch = (g->altsetting == NMK_GPIO_ALT_C);
 
 	if (glitch) {

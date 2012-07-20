@@ -2292,6 +2292,13 @@ static int process_reserve_metadata_snap_mesg(unsigned argc, char **argv, struct
 	if (r)
 		return r;
 
+	r = dm_pool_commit_metadata(pool->pmd);
+	if (r) {
+		DMERR("%s: dm_pool_commit_metadata() failed, error = %d",
+		      __func__, r);
+		return r;
+	}
+
 	r = dm_pool_reserve_metadata_snap(pool->pmd);
 	if (r)
 		DMWARN("reserve_metadata_snap message failed.");

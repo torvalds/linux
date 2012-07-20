@@ -159,6 +159,7 @@ static struct clk __init *clk_register_gate_fn(struct device *dev,
 	gate_fn->gate.flags = clk_gate_flags;
 	gate_fn->gate.lock = lock;
 	gate_fn->gate.hw.init = &init;
+	gate_fn->fn = fn;
 
 	/* ops is the gate ops, but with our disable function */
 	if (clk_gate_fn_ops.disable != clk_gate_fn_disable) {

@@ -11,6 +11,7 @@
 #ifndef __SH_PFC_H
 #define __SH_PFC_H
 
+#include <linux/stringify.h>
 #include <asm-generic/gpio.h>
 
 typedef unsigned short pinmux_enum_t;
@@ -37,10 +38,11 @@ enum {
 struct pinmux_gpio {
 	pinmux_enum_t enum_id;
 	pinmux_flag_t flags;
+	const char *name;
 };
 
 #define PINMUX_GPIO(gpio, data_or_mark) \
-	[gpio] = { .enum_id = data_or_mark, .flags = PINMUX_TYPE_NONE }
+	[gpio] = { .name = __stringify(gpio), .enum_id = data_or_mark, .flags = PINMUX_TYPE_NONE }
 
 #define PINMUX_DATA(data_or_mark, ids...) data_or_mark, ids, 0
 
@@ -127,10 +129,13 @@ struct sh_pfc {
 /* XXX compat for now */
 #define pinmux_info sh_pfc
 
-/* drivers/sh/pfc-gpio.c */
+/* drivers/sh/pfc/gpio.c */
 int sh_pfc_register_gpiochip(struct sh_pfc *pfc);
 
-/* drivers/sh/pfc.c */
+/* drivers/sh/pfc/pinctrl.c */
+int sh_pfc_register_pinctrl(struct sh_pfc *pfc);
+
+/* drivers/sh/pfc/core.c */
 int register_sh_pfc(struct sh_pfc *pfc);
 
 int sh_pfc_read_bit(struct pinmux_data_reg *dr, unsigned long in_pos);
@@ -142,8 +147,6 @@ int sh_pfc_gpio_to_enum(struct sh_pfc *pfc, unsigned gpio, int pos,
 			pinmux_enum_t *enum_idp);
 int sh_pfc_config_gpio(struct sh_pfc *pfc, unsigned gpio, int pinmux_type,
 		       int cfg_mode);
-int sh_pfc_set_direction(struct sh_pfc *pfc, unsigned gpio,
-			 int new_pinmux_type);
 
 /* xxx */
 static inline int register_pinmux(struct pinmux_info *pip)
