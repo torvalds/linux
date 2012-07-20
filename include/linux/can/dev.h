@@ -33,7 +33,7 @@ struct can_priv {
 	struct can_device_stats can_stats;
 
 	struct can_bittiming bittiming;
-	struct can_bittiming_const *bittiming_const;
+	const struct can_bittiming_const *bittiming_const;
 	struct can_clock clock;
 
 	enum can_state state;
