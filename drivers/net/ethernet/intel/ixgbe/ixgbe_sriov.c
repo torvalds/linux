@@ -255,8 +255,11 @@ void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 }
 
 static int ixgbe_set_vf_multicasts(struct ixgbe_adapter *adapter,
-				   int entries, u16 *hash_list, u32 vf)
+				   u32 *msgbuf, u32 vf)
 {
+	int entries = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK)
+		       >> IXGBE_VT_MSGINFO_SHIFT;
+	u16 *hash_list = (u16 *)&msgbuf[1];
 	struct vf_data_storage *vfinfo = &adapter->vfinfo[vf];
 	struct ixgbe_hw *hw = &adapter->hw;
 	int i;
@@ -557,20 +560,31 @@ int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask)
 	return 0;
 }
 
-static inline void ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
+static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 reg;
+	unsigned char *vf_mac = adapter->vfinfo[vf].vf_mac_addresses;
+	u32 reg, msgbuf[4];
 	u32 reg_offset, vf_shift;
+	u8 *addr = (u8 *)(&msgbuf[1]);
+
+	e_info(probe, "VF Reset msg received from vf %d\n", vf);
+
+	/* reset the filters for the device */
+	ixgbe_vf_reset_event(adapter, vf);
+
+	/* set vf mac address */
+	ixgbe_set_vf_mac(adapter, vf, vf_mac);
 
 	vf_shift = vf % 32;
 	reg_offset = vf / 32;
 
-	/* enable transmit and receive for vf */
+	/* enable transmit for vf */
 	reg = IXGBE_READ_REG(hw, IXGBE_VFTE(reg_offset));
 	reg |= 1 << vf_shift;
 	IXGBE_WRITE_REG(hw, IXGBE_VFTE(reg_offset), reg);
 
+	/* enable receive for vf */
 	reg = IXGBE_READ_REG(hw, IXGBE_VFRE(reg_offset));
 	reg |= 1 << vf_shift;
 	/*
@@ -592,12 +606,115 @@ static inline void ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 	}
 	IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset), reg);
 
+	/* enable VF mailbox for further messages */
+	adapter->vfinfo[vf].clear_to_send = true;
+
 	/* Enable counting of spoofed packets in the SSVPC register */
 	reg = IXGBE_READ_REG(hw, IXGBE_VMECM(reg_offset));
 	reg |= (1 << vf_shift);
 	IXGBE_WRITE_REG(hw, IXGBE_VMECM(reg_offset), reg);
 
-	ixgbe_vf_reset_event(adapter, vf);
+	/* reply to reset with ack and vf mac address */
+	msgbuf[0] = IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_ACK;
+	memcpy(addr, vf_mac, ETH_ALEN);
+
+	/*
+	 * Piggyback the multicast filter type so VF can compute the
+	 * correct vectors
+	 */
+	msgbuf[3] = hw->mac.mc_filter_type;
+	ixgbe_write_mbx(hw, msgbuf, IXGBE_VF_PERMADDR_MSG_LEN, vf);
+
+	return 0;
+}
+
+static int ixgbe_set_vf_mac_addr(struct ixgbe_adapter *adapter,
+				 u32 *msgbuf, u32 vf)
+{
+	u8 *new_mac = ((u8 *)(&msgbuf[1]));
+
+	if (!is_valid_ether_addr(new_mac)) {
+		e_warn(drv, "VF %d attempted to set invalid mac\n", vf);
+		return -1;
+	}
+
+	if (adapter->vfinfo[vf].pf_set_mac &&
+	    memcmp(adapter->vfinfo[vf].vf_mac_addresses, new_mac,
+		   ETH_ALEN)) {
+		e_warn(drv,
+		       "VF %d attempted to override administratively set MAC address\n"
+		       "Reload the VF driver to resume operations\n",
+		       vf);
+		return -1;
+	}
+
+	return ixgbe_set_vf_mac(adapter, vf, new_mac);
+}
+
+static int ixgbe_set_vf_vlan_msg(struct ixgbe_adapter *adapter,
+				 u32 *msgbuf, u32 vf)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int add = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK) >> IXGBE_VT_MSGINFO_SHIFT;
+	int vid = (msgbuf[1] & IXGBE_VLVF_VLANID_MASK);
+	int err;
+
+	if (adapter->vfinfo[vf].pf_vlan) {
+		e_warn(drv,
+		       "VF %d attempted to override administratively set VLAN configuration\n"
+		       "Reload the VF driver to resume operations\n",
+		       vf);
+		return -1;
+	}
+
+	if (add)
+		adapter->vfinfo[vf].vlan_count++;
+	else if (adapter->vfinfo[vf].vlan_count)
+		adapter->vfinfo[vf].vlan_count--;
+
+	err = ixgbe_set_vf_vlan(adapter, add, vid, vf);
+	if (!err && adapter->vfinfo[vf].spoofchk_enabled)
+		hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
+
+	return err;
+}
+
+static int ixgbe_set_vf_macvlan_msg(struct ixgbe_adapter *adapter,
+				    u32 *msgbuf, u32 vf)
+{
+	u8 *new_mac = ((u8 *)(&msgbuf[1]));
+	int index = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK) >>
+		    IXGBE_VT_MSGINFO_SHIFT;
+	int err;
+
+	if (adapter->vfinfo[vf].pf_set_mac && index > 0) {
+		e_warn(drv,
+		       "VF %d requested MACVLAN filter but is administratively denied\n",
+		       vf);
+		return -1;
+	}
+
+	/* An non-zero index indicates the VF is setting a filter */
+	if (index) {
+		if (!is_valid_ether_addr(new_mac)) {
+			e_warn(drv, "VF %d attempted to set invalid mac\n", vf);
+			return -1;
+		}
+
+		/*
+		 * If the VF is allowed to set MAC filters then turn off
+		 * anti-spoofing to avoid false positives.
+		 */
+		if (adapter->vfinfo[vf].spoofchk_enabled)
+			ixgbe_ndo_set_vf_spoofchk(adapter->netdev, vf, false);
+	}
+
+	err = ixgbe_set_vf_macvlan(adapter, vf, index, new_mac);
+	if (err == -ENOSPC)
+		e_warn(drv,
+		       "VF %d has requested a MACVLAN filter but there is no space for it\n",
+		       vf);
+	return err;
 }
 
 static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
@@ -606,10 +723,6 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 	u32 msgbuf[IXGBE_VFMAILBOX_SIZE];
 	struct ixgbe_hw *hw = &adapter->hw;
 	s32 retval;
-	int entries;
-	u16 *hash_list;
-	int add, vid, index;
-	u8 *new_mac;
 
 	retval = ixgbe_read_mbx(hw, msgbuf, mbx_size, vf);
 
@@ -630,33 +743,8 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 	 * allowed to start any configuration.
 	 */
 
-	if (msgbuf[0] == IXGBE_VF_RESET) {
-		unsigned char *vf_mac = adapter->vfinfo[vf].vf_mac_addresses;
-		new_mac = (u8 *)(&msgbuf[1]);
-		e_info(probe, "VF Reset msg received from vf %d\n", vf);
-		adapter->vfinfo[vf].clear_to_send = false;
-		ixgbe_vf_reset_msg(adapter, vf);
-		adapter->vfinfo[vf].clear_to_send = true;
-
-		if (is_valid_ether_addr(new_mac) &&
-		    !adapter->vfinfo[vf].pf_set_mac)
-			ixgbe_set_vf_mac(adapter, vf, vf_mac);
-		else
-			ixgbe_set_vf_mac(adapter,
-				 vf, adapter->vfinfo[vf].vf_mac_addresses);
-
-		/* reply to reset with ack and vf mac address */
-		msgbuf[0] = IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_ACK;
-		memcpy(new_mac, vf_mac, ETH_ALEN);
-		/*
-		 * Piggyback the multicast filter type so VF can compute the
-		 * correct vectors
-		 */
-		msgbuf[3] = hw->mac.mc_filter_type;
-		ixgbe_write_mbx(hw, msgbuf, IXGBE_VF_PERMADDR_MSG_LEN, vf);
-
-		return retval;
-	}
+	if (msgbuf[0] == IXGBE_VF_RESET)
+		return ixgbe_vf_reset_msg(adapter, vf);
 
 	if (!adapter->vfinfo[vf].clear_to_send) {
 		msgbuf[0] |= IXGBE_VT_MSGTYPE_NACK;
@@ -666,70 +754,19 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 
 	switch ((msgbuf[0] & 0xFFFF)) {
 	case IXGBE_VF_SET_MAC_ADDR:
-		new_mac = ((u8 *)(&msgbuf[1]));
-		if (is_valid_ether_addr(new_mac) &&
-		    !adapter->vfinfo[vf].pf_set_mac) {
-			ixgbe_set_vf_mac(adapter, vf, new_mac);
-		} else if (memcmp(adapter->vfinfo[vf].vf_mac_addresses,
-				  new_mac, ETH_ALEN)) {
-			e_warn(drv, "VF %d attempted to override "
-			       "administratively set MAC address\nReload "
-			       "the VF driver to resume operations\n", vf);
-			retval = -1;
-		}
+		retval = ixgbe_set_vf_mac_addr(adapter, msgbuf, vf);
 		break;
 	case IXGBE_VF_SET_MULTICAST:
-		entries = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK)
-		          >> IXGBE_VT_MSGINFO_SHIFT;
-		hash_list = (u16 *)&msgbuf[1];
-		retval = ixgbe_set_vf_multicasts(adapter, entries,
-		                                 hash_list, vf);
+		retval = ixgbe_set_vf_multicasts(adapter, msgbuf, vf);
+		break;
+	case IXGBE_VF_SET_VLAN:
+		retval = ixgbe_set_vf_vlan_msg(adapter, msgbuf, vf);
 		break;
 	case IXGBE_VF_SET_LPE:
 		retval = ixgbe_set_vf_lpe(adapter, msgbuf, vf);
 		break;
-	case IXGBE_VF_SET_VLAN:
-		add = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK)
-		      >> IXGBE_VT_MSGINFO_SHIFT;
-		vid = (msgbuf[1] & IXGBE_VLVF_VLANID_MASK);
-		if (adapter->vfinfo[vf].pf_vlan) {
-			e_warn(drv, "VF %d attempted to override "
-			       "administratively set VLAN configuration\n"
-			       "Reload the VF driver to resume operations\n",
-			       vf);
-			retval = -1;
-		} else {
-			if (add)
-				adapter->vfinfo[vf].vlan_count++;
-			else if (adapter->vfinfo[vf].vlan_count)
-				adapter->vfinfo[vf].vlan_count--;
-			retval = ixgbe_set_vf_vlan(adapter, add, vid, vf);
-			if (!retval && adapter->vfinfo[vf].spoofchk_enabled)
-				hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
-		}
-		break;
 	case IXGBE_VF_SET_MACVLAN:
-		index = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK) >>
-			IXGBE_VT_MSGINFO_SHIFT;
-		if (adapter->vfinfo[vf].pf_set_mac && index > 0) {
-			e_warn(drv, "VF %d requested MACVLAN filter but is "
-				    "administratively denied\n", vf);
-			retval = -1;
-			break;
-		}
-		/*
-		 * If the VF is allowed to set MAC filters then turn off
-		 * anti-spoofing to avoid false positives.  An index
-		 * greater than 0 will indicate the VF is setting a
-		 * macvlan MAC filter.
-		 */
-		if (index > 0 && adapter->vfinfo[vf].spoofchk_enabled)
-			ixgbe_ndo_set_vf_spoofchk(adapter->netdev, vf, false);
-		retval = ixgbe_set_vf_macvlan(adapter, vf, index,
-					      (unsigned char *)(&msgbuf[1]));
-		if (retval == -ENOSPC)
-			e_warn(drv, "VF %d has requested a MACVLAN filter "
-				    "but there is no space for it\n", vf);
+		retval = ixgbe_set_vf_macvlan_msg(adapter, msgbuf, vf);
 		break;
 	default:
 		e_err(drv, "Unhandled Msg %8.8x\n", msgbuf[0]);
