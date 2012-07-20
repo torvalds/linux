@@ -2105,7 +2105,7 @@ static CsrResult process_fh_cmd_queue(card_t *card, s32 *processed)
             (u8)(((signal_length >> 8) & 0xf) | (SDIO_CMD_SIGNAL << 4));
 
         CsrMemCpy(card->fh_buffer.ptr + 2, packed_sigptr, signal_length);
-        CsrMemSet(card->fh_buffer.ptr + 2 + signal_length, 0,
+        memset(card->fh_buffer.ptr + 2 + signal_length, 0,
                   total_length - (2 + signal_length));
 
 #ifdef CSR_WIFI_HIP_NOISY
@@ -2383,7 +2383,7 @@ static CsrResult process_fh_traffic_queue(card_t *card, s32 *processed)
             (u8)(((signal_length >> 8) & 0xf) | (SDIO_CMD_SIGNAL << 4));
 
         CsrMemCpy(card->fh_buffer.ptr + 2, packed_sigptr, signal_length);
-        CsrMemSet(card->fh_buffer.ptr + 2 + signal_length, 0,
+        memset(card->fh_buffer.ptr + 2 + signal_length, 0,
                   total_length - (2 + signal_length));
 
 #ifdef CSR_WIFI_HIP_NOISY
@@ -2485,7 +2485,7 @@ static CsrResult flush_fh_buffer(card_t *card)
             {
                 padding_chunks = (data_round / sig_units) - chunks_in_last_block;
 
-                CsrMemSet(card->fh_buffer.ptr, 0, padding_chunks * sig_units);
+                memset(card->fh_buffer.ptr, 0, padding_chunks * sig_units);
                 for (i = 0; i < padding_chunks; i++)
                 {
                     card->fh_buffer.ptr[1] = SDIO_CMD_PADDING << 4;

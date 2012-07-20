@@ -77,7 +77,7 @@ card_t* unifi_alloc_card(CsrSdioFunction *sdio, void *ospriv)
     {
         return NULL;
     }
-    CsrMemSet(card, 0, sizeof(card_t));
+    memset(card, 0, sizeof(card_t));
 
 
     card->sdio_if = sdio;
@@ -2090,7 +2090,7 @@ static CsrResult card_init_slots(card_t *card)
     }
 
     /* Dynamic queue reservation */
-    CsrMemSet(&card->dynamic_slot_data, 0, sizeof(card_dynamic_slot_t));
+    memset(&card->dynamic_slot_data, 0, sizeof(card_dynamic_slot_t));
 
     for (i = 0; i < UNIFI_NO_OF_TX_QS; i++)
     {
@@ -4109,7 +4109,7 @@ void unifi_get_hip_qos_info(card_t *card, unifi_HipQosInfo *hipqosinfo)
     q_t *sigq;
     u16 nslots, i;
 
-    CsrMemSet(hipqosinfo, 0, sizeof(unifi_HipQosInfo));
+    memset(hipqosinfo, 0, sizeof(unifi_HipQosInfo));
 
     nslots = card->config_data.num_fromhost_data_slots;
 

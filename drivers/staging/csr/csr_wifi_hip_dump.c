@@ -671,7 +671,7 @@ coredump_buffer* new_coredump_node(void *ospriv, coredump_buffer *prevnode)
     {
         return NULL;
     }
-    CsrMemSet(newnode, 0, sizeof(coredump_buffer));
+    memset(newnode, 0, sizeof(coredump_buffer));
 
     /* Allocate chip memory zone capture buffers */
     for (i = 0; i < HIP_CDUMP_NUM_ZONES; i++)
@@ -681,7 +681,7 @@ coredump_buffer* new_coredump_node(void *ospriv, coredump_buffer *prevnode)
         newnode->zone[i] = newzone;
         if (newzone != NULL)
         {
-            CsrMemSet(newzone, 0, zone_size);
+            memset(newzone, 0, zone_size);
         }
         else
         {

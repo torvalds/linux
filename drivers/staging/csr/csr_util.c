@@ -43,12 +43,6 @@ void *CsrMemCpy(void *dest, const void *src, size_t count)
 }
 EXPORT_SYMBOL_GPL(CsrMemCpy);
 
-void *CsrMemSet(void *dest, u8 c, size_t count)
-{
-    return memset(dest, c, count);
-}
-EXPORT_SYMBOL_GPL(CsrMemSet);
-
 void *CsrMemMove(void *dest, const void *src, size_t count)
 {
     return memmove(dest, src, count);

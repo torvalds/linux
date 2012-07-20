@@ -1210,7 +1210,7 @@ void uf_send_pkt_to_encrypt(struct work_struct *work)
 
         if (pktBulkDataLength > 0) {
 		    pktBulkData = (u8 *)CsrPmemAlloc(pktBulkDataLength);
-		    CsrMemSet(pktBulkData, 0, pktBulkDataLength);
+		    memset(pktBulkData, 0, pktBulkDataLength);
 	    } else {
 		    unifi_error(priv, "uf_send_pkt_to_encrypt() : invalid buffer\n");
 		    return;

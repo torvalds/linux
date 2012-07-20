@@ -166,7 +166,7 @@ CsrResult xbv1_parse(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwin
     ct.ioffset = 0;
     ct.iread = readfn;
 
-    CsrMemSet(fwinfo, 0, sizeof(xbv1_t));
+    memset(fwinfo, 0, sizeof(xbv1_t));
     fwinfo->mode = xbv_unknown;
 
     /* File must start with XBV1 triplet */
@@ -1026,7 +1026,7 @@ void* xbv_to_patch(card_t *card, fwreadfn_t readfn,
         return NULL;
     }
 
-    CsrMemSet(patch_buf, 0xdd, patch_buf_size);
+    memset(patch_buf, 0xdd, patch_buf_size);
 
     /* Write XBV + VERF headers */
     patch_offs += write_xbv_header(patch_buf, patch_offs, 0);

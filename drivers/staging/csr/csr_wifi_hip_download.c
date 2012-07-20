@@ -697,7 +697,7 @@ static CsrResult send_ptdl_to_unifi(card_t *card, void *dlpriv,
 
             /* Zero out the rest of the buffer (This isn't needed, but it
              * makes debugging things later much easier). */
-            CsrMemSet(buf + data_len, 0, write_len - data_len);
+            memset(buf + data_len, 0, write_len - data_len);
         }
         else
         {
