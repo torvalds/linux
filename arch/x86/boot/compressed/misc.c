@@ -108,7 +108,6 @@ static void error(char *m);
  * This is set up by the setup-routine at boot-time
  */
 struct boot_params *real_mode;		/* Pointer to real-mode data */
-static int debug;
 
 void *memset(void *s, int c, size_t n);
 void *memcpy(void *dest, const void *src, size_t n);
@@ -325,9 +324,6 @@ asmlinkage void decompress_kernel(void *rmode, memptr heap,
 				  unsigned char *output)
 {
 	real_mode = rmode;
-
-	if (cmdline_find_option_bool("debug"))
-		debug = 1;
 
 	if (real_mode->screen_info.orig_video_mode == 7) {
 		vidmem = (char *) 0xb0000;
