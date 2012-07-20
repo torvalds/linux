@@ -165,8 +165,8 @@ static int usb_console_setup(struct console *co, char *options)
 		}
 
 		if (serial->type->set_termios) {
-			tty->termios->c_cflag = cflag;
-			tty_termios_encode_baud_rate(tty->termios, baud, baud);
+			tty->termios.c_cflag = cflag;
+			tty_termios_encode_baud_rate(&tty->termios, baud, baud);
 			memset(&dummy, 0, sizeof(struct ktermios));
 			serial->type->set_termios(tty, port, &dummy);
 
