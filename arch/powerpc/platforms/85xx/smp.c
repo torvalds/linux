@@ -31,8 +31,6 @@
 #include <sysdev/mpic.h>
 #include "smp.h"
 
-extern void __early_start(void);
-
 struct epapr_spin_table {
 	u32	addr_h;
 	u32	addr_l;
@@ -100,15 +98,45 @@ static void mpc85xx_take_timebase(void)
 	local_irq_restore(flags);
 }
 
-static int __init
-smp_85xx_kick_cpu(int nr)
+#ifdef CONFIG_HOTPLUG_CPU
+static void __cpuinit smp_85xx_mach_cpu_die(void)
+{
+	unsigned int cpu = smp_processor_id();
+	u32 tmp;
+
+	local_irq_disable();
+	idle_task_exit();
+	generic_set_cpu_dead(cpu);
+	mb();
+
+	mtspr(SPRN_TCR, 0);
+
+	__flush_disable_L1();
+	tmp = (mfspr(SPRN_HID0) & ~(HID0_DOZE|HID0_SLEEP)) | HID0_NAP;
+	mtspr(SPRN_HID0, tmp);
+	isync();
+
+	/* Enter NAP mode. */
+	tmp = mfmsr();
+	tmp |= MSR_WE;
+	mb();
+	mtmsr(tmp);
+	isync();
+
+	while (1)
+		;
+}
+#endif
+
+static int __cpuinit smp_85xx_kick_cpu(int nr)
 {
 	unsigned long flags;
 	const u64 *cpu_rel_addr;
 	__iomem struct epapr_spin_table *spin_table;
 	struct device_node *np;
-	int n = 0, hw_cpu = get_hard_smp_processor_id(nr);
+	int hw_cpu = get_hard_smp_processor_id(nr);
 	int ioremappable;
+	int ret = 0;
 
 	WARN_ON(nr < 0 || nr >= NR_CPUS);
 	WARN_ON(hw_cpu < 0 || hw_cpu >= NR_CPUS);
@@ -139,9 +167,34 @@ smp_85xx_kick_cpu(int nr)
 		spin_table = phys_to_virt(*cpu_rel_addr);
 
 	local_irq_save(flags);
-
-	out_be32(&spin_table->pir, hw_cpu);
 #ifdef CONFIG_PPC32
+#ifdef CONFIG_HOTPLUG_CPU
+	/* Corresponding to generic_set_cpu_dead() */
+	generic_set_cpu_up(nr);
+
+	if (system_state == SYSTEM_RUNNING) {
+		out_be32(&spin_table->addr_l, 0);
+
+		/*
+		 * We don't set the BPTR register here since it already points
+		 * to the boot page properly.
+		 */
+		mpic_reset_core(hw_cpu);
+
+		/* wait until core is ready... */
+		if (!spin_event_timeout(in_be32(&spin_table->addr_l) == 1,
+						10000, 100)) {
+			pr_err("%s: timeout waiting for core %d to reset\n",
+							__func__, hw_cpu);
+			ret = -ENOENT;
+			goto out;
+		}
+
+		/*  clear the acknowledge status */
+		__secondary_hold_acknowledge = -1;
+	}
+#endif
+	out_be32(&spin_table->pir, hw_cpu);
 	out_be32(&spin_table->addr_l, __pa(__early_start));
 
 	if (!ioremappable)
@@ -149,11 +202,18 @@ smp_85xx_kick_cpu(int nr)
 			(ulong)spin_table + sizeof(struct epapr_spin_table));
 
 	/* Wait a bit for the CPU to ack. */
-	while ((__secondary_hold_acknowledge != hw_cpu) && (++n < 1000))
-		mdelay(1);
+	if (!spin_event_timeout(__secondary_hold_acknowledge == hw_cpu,
+					10000, 100)) {
+		pr_err("%s: timeout waiting for core %d to ack\n",
+						__func__, hw_cpu);
+		ret = -ENOENT;
+		goto out;
+	}
+out:
 #else
 	smp_generic_kick_cpu(nr);
 
+	out_be32(&spin_table->pir, hw_cpu);
 	out_be64((u64 *)(&spin_table->addr_h),
 	  __pa((u64)*((unsigned long long *)generic_secondary_smp_init)));
 
@@ -167,13 +227,15 @@ smp_85xx_kick_cpu(int nr)
 	if (ioremappable)
 		iounmap(spin_table);
 
-	pr_debug("waited %d msecs for CPU #%d.\n", n, nr);
-
-	return 0;
+	return ret;
 }
 
 struct smp_ops_t smp_85xx_ops = {
 	.kick_cpu = smp_85xx_kick_cpu,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_disable	= generic_cpu_disable,
+	.cpu_die	= generic_cpu_die,
+#endif
 #ifdef CONFIG_KEXEC
 	.give_timebase	= smp_generic_give_timebase,
 	.take_timebase	= smp_generic_take_timebase,
@@ -277,8 +339,7 @@ static void mpc85xx_smp_machine_kexec(struct kimage *image)
 }
 #endif /* CONFIG_KEXEC */
 
-static void __init
-smp_85xx_setup_cpu(int cpu_nr)
+static void __cpuinit smp_85xx_setup_cpu(int cpu_nr)
 {
 	if (smp_85xx_ops.probe == smp_mpic_probe)
 		mpic_setup_this_cpu();
@@ -329,6 +390,9 @@ void __init mpc85xx_smp_init(void)
 		}
 		smp_85xx_ops.give_timebase = mpc85xx_give_timebase;
 		smp_85xx_ops.take_timebase = mpc85xx_take_timebase;
+#ifdef CONFIG_HOTPLUG_CPU
+		ppc_md.cpu_die = smp_85xx_mach_cpu_die;
+#endif
 	}
 
 	smp_ops = &smp_85xx_ops;
