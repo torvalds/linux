@@ -138,7 +138,7 @@ int rtl_send_smps_action(struct ieee80211_hw *hw,
 		enum ieee80211_smps_mode smps);
 u8 *rtl_find_ie(u8 *data, unsigned int len, u8 ie);
 void rtl_recognize_peer(struct ieee80211_hw *hw, u8 *data, unsigned int len);
-u8 rtl_tid_to_ac(struct ieee80211_hw *hw, u8 tid);
+u8 rtl_tid_to_ac(u8 tid);
 extern struct attribute_group rtl_attribute_group;
 int rtlwifi_rate_mapping(struct ieee80211_hw *hw,
 			 bool isht, u8 desc_rate, bool first_ampdu);

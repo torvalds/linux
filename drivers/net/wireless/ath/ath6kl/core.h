@@ -589,6 +589,11 @@ struct ath6kl_vif {
 	struct list_head mc_filter;
 };
 
+static inline struct ath6kl_vif *ath6kl_vif_from_wdev(struct wireless_dev *wdev)
+{
+	return container_of(wdev, struct ath6kl_vif, wdev);
+}
+
 #define WOW_LIST_ID		0
 #define WOW_HOST_REQ_DELAY	500 /* ms */
 

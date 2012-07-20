@@ -265,6 +265,8 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 			bt_cmd_v2.tx_prio_boost = 0;
 			bt_cmd_v2.rx_prio_boost = 0;
 		} else {
+			/* older version only has 8 bits */
+			WARN_ON(priv->cfg->bt_params->bt_prio_boost & ~0xFF);
 			bt_cmd_v1.prio_boost =
 				priv->cfg->bt_params->bt_prio_boost;
 			bt_cmd_v1.tx_prio_boost = 0;

@@ -47,11 +47,11 @@ struct cfg80211_registered_device {
 	/* wiphy index, internal only */
 	int wiphy_idx;
 
-	/* associate netdev list */
+	/* associated wireless interfaces */
 	struct mutex devlist_mtx;
 	/* protected by devlist_mtx or RCU */
-	struct list_head netdev_list;
-	int devlist_generation;
+	struct list_head wdev_list;
+	int devlist_generation, wdev_id;
 	int opencount; /* also protected by devlist_mtx */
 	wait_queue_head_t dev_wait;
 
@@ -60,9 +60,6 @@ struct cfg80211_registered_device {
 	/* protected by RTNL only */
 	int num_running_ifaces;
 	int num_running_monitor_ifaces;
-
-	struct ieee80211_channel *monitor_channel;
-	enum nl80211_channel_type monitor_channel_type;
 
 	/* BSSes/scanning */
 	spinlock_t bss_lock;
@@ -372,7 +369,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_pid,
 void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlpid);
 void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev);
 int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
-			  struct net_device *dev,
+			  struct wireless_dev *wdev,
 			  struct ieee80211_channel *chan, bool offchan,
 			  enum nl80211_channel_type channel_type,
 			  bool channel_type_valid, unsigned int wait,
@@ -463,8 +460,7 @@ cfg80211_can_use_chan(struct cfg80211_registered_device *rdev,
 }
 
 void
-cfg80211_get_chan_state(struct cfg80211_registered_device *rdev,
-		        struct wireless_dev *wdev,
+cfg80211_get_chan_state(struct wireless_dev *wdev,
 		        struct ieee80211_channel **chan,
 		        enum cfg80211_chan_mode *chanmode);
 

@@ -112,7 +112,7 @@ static const struct iwl_bt_params iwl2030_bt_params = {
 	.advanced_bt_coexist = true,
 	.agg_time_limit = BT_AGG_THRESHOLD_DEF,
 	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
-	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT,
+	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT32,
 	.bt_sco_disable = true,
 	.bt_session_2 = true,
 };

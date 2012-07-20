@@ -587,18 +587,24 @@ void hci_conn_put_device(struct hci_conn *conn);
 
 static inline void hci_conn_hold(struct hci_conn *conn)
 {
+	BT_DBG("hcon %p refcnt %d -> %d", conn, atomic_read(&conn->refcnt),
+	       atomic_read(&conn->refcnt) + 1);
+
 	atomic_inc(&conn->refcnt);
 	cancel_delayed_work(&conn->disc_work);
 }
 
 static inline void hci_conn_put(struct hci_conn *conn)
 {
+	BT_DBG("hcon %p refcnt %d -> %d", conn, atomic_read(&conn->refcnt),
+	       atomic_read(&conn->refcnt) - 1);
+
 	if (atomic_dec_and_test(&conn->refcnt)) {
 		unsigned long timeo;
 		if (conn->type == ACL_LINK || conn->type == LE_LINK) {
 			del_timer(&conn->idle_timer);
 			if (conn->state == BT_CONNECTED) {
-				timeo = msecs_to_jiffies(conn->disc_timeout);
+				timeo = conn->disc_timeout;
 				if (!conn->out)
 					timeo *= 2;
 			} else {

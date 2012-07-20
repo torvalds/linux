@@ -19,6 +19,9 @@
 #include "ath9k.h"
 #include "btcoex.h"
 
+static void ath9k_set_assoc_state(struct ath_softc *sc,
+				  struct ieee80211_vif *vif);
+
 u8 ath9k_parse_mpdudensity(u8 mpdudensity)
 {
 	/*
@@ -167,8 +170,6 @@ static void ath_cancel_work(struct ath_softc *sc)
 
 static void ath_restart_work(struct ath_softc *sc)
 {
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-
 	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 
 	if (AR_SREV_9340(sc->sc_ah) || AR_SREV_9485(sc->sc_ah) ||
@@ -177,21 +178,18 @@ static void ath_restart_work(struct ath_softc *sc)
 				     msecs_to_jiffies(ATH_PLL_WORK_INTERVAL));
 
 	ath_start_rx_poll(sc, 3);
-
-	if (!common->disable_ani)
-		ath_start_ani(common);
+	ath_start_ani(sc);
 }
 
 static bool ath_prepare_reset(struct ath_softc *sc, bool retry_tx, bool flush)
 {
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
 	bool ret = true;
 
 	ieee80211_stop_queues(sc->hw);
 
 	sc->hw_busy_count = 0;
-	del_timer_sync(&common->ani.timer);
+	ath_stop_ani(sc);
 	del_timer_sync(&sc->rx_poll_timer);
 
 	ath9k_debug_samp_bb_mac(sc);
@@ -236,7 +234,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 		if (!test_bit(SC_OP_BEACONS, &sc->sc_flags))
 			goto work;
 
-		ath_set_beacon(sc);
+		ath9k_set_beacon(sc);
 
 		if (ah->opmode == NL80211_IFTYPE_STATION &&
 		    test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags)) {
@@ -365,6 +363,7 @@ void ath9k_tasklet(unsigned long data)
 	struct ath_softc *sc = (struct ath_softc *)data;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
+	enum ath_reset_type type;
 	unsigned long flags;
 	u32 status = sc->intrstatus;
 	u32 rxmask;
@@ -374,18 +373,13 @@ void ath9k_tasklet(unsigned long data)
 
 	if ((status & ATH9K_INT_FATAL) ||
 	    (status & ATH9K_INT_BB_WATCHDOG)) {
-#ifdef CONFIG_ATH9K_DEBUGFS
-		enum ath_reset_type type;
 
 		if (status & ATH9K_INT_FATAL)
 			type = RESET_TYPE_FATAL_INT;
 		else
 			type = RESET_TYPE_BB_WATCHDOG;
 
-		RESET_STAT_INC(sc, type);
-#endif
-		set_bit(SC_OP_HW_RESET, &sc->sc_flags);
-		ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
+		ath9k_queue_reset(sc, type);
 		goto out;
 	}
 
@@ -493,6 +487,17 @@ irqreturn_t ath_isr(int irq, void *dev)
 	if (status & SCHED_INTR)
 		sched = true;
 
+#ifdef CONFIG_PM_SLEEP
+	if (status & ATH9K_INT_BMISS) {
+		if (atomic_read(&sc->wow_sleep_proc_intr) == 0) {
+			ath_dbg(common, ANY, "during WoW we got a BMISS\n");
+			atomic_inc(&sc->wow_got_bmiss_intr);
+			atomic_dec(&sc->wow_sleep_proc_intr);
+		}
+	ath_dbg(common, INTERRUPT, "beacon miss interrupt\n");
+	}
+#endif
+
 	/*
 	 * If a FATAL or RXORN interrupt is received, we have to reset the
 	 * chip immediately.
@@ -573,6 +578,15 @@ static int ath_reset(struct ath_softc *sc, bool retry_tx)
 	ath9k_ps_restore(sc);
 
 	return r;
+}
+
+void ath9k_queue_reset(struct ath_softc *sc, enum ath_reset_type type)
+{
+#ifdef CONFIG_ATH9K_DEBUGFS
+	RESET_STAT_INC(sc, type);
+#endif
+	set_bit(SC_OP_HW_RESET, &sc->sc_flags);
+	ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 }
 
 void ath_reset_work(struct work_struct *work)
@@ -841,16 +855,6 @@ bool ath9k_uses_beacons(int type)
 	}
 }
 
-static void ath9k_reclaim_beacon(struct ath_softc *sc,
-				 struct ieee80211_vif *vif)
-{
-	struct ath_vif *avp = (void *)vif->drv_priv;
-
-	ath9k_set_beaconing_status(sc, false);
-	ath_beacon_return(sc, avp);
-	ath9k_set_beaconing_status(sc, true);
-}
-
 static void ath9k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 {
 	struct ath9k_vif_iter_data *iter_data = data;
@@ -880,6 +884,18 @@ static void ath9k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	default:
 		break;
 	}
+}
+
+static void ath9k_sta_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct ath_softc *sc = data;
+	struct ath_vif *avp = (void *)vif->drv_priv;
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	if (avp->primary_sta_vif)
+		ath9k_set_assoc_state(sc, vif);
 }
 
 /* Called with sc->mutex held. */
@@ -915,21 +931,18 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_vif_iter_data iter_data;
+	enum nl80211_iftype old_opmode = ah->opmode;
 
 	ath9k_calculate_iter_data(hw, vif, &iter_data);
 
-	/* Set BSSID mask. */
 	memcpy(common->bssidmask, iter_data.mask, ETH_ALEN);
 	ath_hw_setbssidmask(common);
 
-	/* Set op-mode & TSF */
 	if (iter_data.naps > 0) {
-		ath9k_hw_set_tsfadjust(ah, 1);
-		set_bit(SC_OP_TSF_RESET, &sc->sc_flags);
+		ath9k_hw_set_tsfadjust(ah, true);
 		ah->opmode = NL80211_IFTYPE_AP;
 	} else {
-		ath9k_hw_set_tsfadjust(ah, 0);
-		clear_bit(SC_OP_TSF_RESET, &sc->sc_flags);
+		ath9k_hw_set_tsfadjust(ah, false);
 
 		if (iter_data.nmeshes)
 			ah->opmode = NL80211_IFTYPE_MESH_POINT;
@@ -941,9 +954,8 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 			ah->opmode = NL80211_IFTYPE_STATION;
 	}
 
-	/*
-	 * Enable MIB interrupts when there are hardware phy counters.
-	 */
+	ath9k_hw_setopmode(ah);
+
 	if ((iter_data.nstations + iter_data.nadhocs + iter_data.nmeshes) > 0)
 		ah->imask |= ATH9K_INT_TSFOOR;
 	else
@@ -951,34 +963,15 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 
 	ath9k_hw_set_interrupts(ah);
 
-	/* Set up ANI */
-	if (iter_data.naps > 0) {
-		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
-
-		if (!common->disable_ani) {
-			set_bit(SC_OP_ANI_RUN, &sc->sc_flags);
-			ath_start_ani(common);
-		}
-
-	} else {
-		clear_bit(SC_OP_ANI_RUN, &sc->sc_flags);
-		del_timer_sync(&common->ani.timer);
-	}
-}
-
-/* Called with sc->mutex held, vif counts set up properly. */
-static void ath9k_do_vif_add_setup(struct ieee80211_hw *hw,
-				   struct ieee80211_vif *vif)
-{
-	struct ath_softc *sc = hw->priv;
-
-	ath9k_calculate_summary_state(hw, vif);
-
-	if (ath9k_uses_beacons(vif->type)) {
-		/* Reserve a beacon slot for the vif */
-		ath9k_set_beaconing_status(sc, false);
-		ath_beacon_alloc(sc, vif);
-		ath9k_set_beaconing_status(sc, true);
+	/*
+	 * If we are changing the opmode to STATION,
+	 * a beacon sync needs to be done.
+	 */
+	if (ah->opmode == NL80211_IFTYPE_STATION &&
+	    old_opmode == NL80211_IFTYPE_AP &&
+	    test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags)) {
+		ieee80211_iterate_active_interfaces_atomic(sc->hw,
+						   ath9k_sta_vif_iter, sc);
 	}
 }
 
@@ -1021,7 +1014,10 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 
 	sc->nvifs++;
 
-	ath9k_do_vif_add_setup(hw, vif);
+	ath9k_calculate_summary_state(hw, vif);
+	if (ath9k_uses_beacons(vif->type))
+		ath9k_beacon_assign_slot(sc, vif);
+
 out:
 	mutex_unlock(&sc->mutex);
 	ath9k_ps_restore(sc);
@@ -1038,6 +1034,7 @@ static int ath9k_change_interface(struct ieee80211_hw *hw,
 	int ret = 0;
 
 	ath_dbg(common, CONFIG, "Change Interface\n");
+
 	mutex_lock(&sc->mutex);
 	ath9k_ps_wakeup(sc);
 
@@ -1050,15 +1047,16 @@ static int ath9k_change_interface(struct ieee80211_hw *hw,
 		}
 	}
 
-	/* Clean up old vif stuff */
 	if (ath9k_uses_beacons(vif->type))
-		ath9k_reclaim_beacon(sc, vif);
+		ath9k_beacon_remove_slot(sc, vif);
 
-	/* Add new settings */
 	vif->type = new_type;
 	vif->p2p = p2p;
 
-	ath9k_do_vif_add_setup(hw, vif);
+	ath9k_calculate_summary_state(hw, vif);
+	if (ath9k_uses_beacons(vif->type))
+		ath9k_beacon_assign_slot(sc, vif);
+
 out:
 	ath9k_ps_restore(sc);
 	mutex_unlock(&sc->mutex);
@@ -1078,9 +1076,8 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 
 	sc->nvifs--;
 
-	/* Reclaim beacon resources */
 	if (ath9k_uses_beacons(vif->type))
-		ath9k_reclaim_beacon(sc, vif);
+		ath9k_beacon_remove_slot(sc, vif);
 
 	ath9k_calculate_summary_state(hw, NULL);
 
@@ -1377,20 +1374,17 @@ static int ath9k_conf_tx(struct ieee80211_hw *hw,
 	qi.tqi_aifs = params->aifs;
 	qi.tqi_cwmin = params->cw_min;
 	qi.tqi_cwmax = params->cw_max;
-	qi.tqi_burstTime = params->txop;
+	qi.tqi_burstTime = params->txop * 32;
 
 	ath_dbg(common, CONFIG,
 		"Configure tx [queue/halq] [%d/%d], aifs: %d, cw_min: %d, cw_max: %d, txop: %d\n",
 		queue, txq->axq_qnum, params->aifs, params->cw_min,
 		params->cw_max, params->txop);
 
+	ath_update_max_aggr_framelen(sc, queue, qi.tqi_burstTime);
 	ret = ath_txq_update(sc, txq->axq_qnum, &qi);
 	if (ret)
 		ath_err(common, "TXQ Update failed\n");
-
-	if (sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC)
-		if (queue == WME_AC_BE && !ret)
-			ath_beaconq_config(sc);
 
 	mutex_unlock(&sc->mutex);
 	ath9k_ps_restore(sc);
@@ -1460,86 +1454,53 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 
 	return ret;
 }
-static void ath9k_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+
+static void ath9k_set_assoc_state(struct ath_softc *sc,
+				  struct ieee80211_vif *vif)
 {
-	struct ath_softc *sc = data;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 	struct ath_vif *avp = (void *)vif->drv_priv;
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 	unsigned long flags;
+
+	set_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags);
+	avp->primary_sta_vif = true;
+
 	/*
-	 * Skip iteration if primary station vif's bss info
-	 * was not changed
+	 * Set the AID, BSSID and do beacon-sync only when
+	 * the HW opmode is STATION.
+	 *
+	 * But the primary bit is set above in any case.
 	 */
-	if (test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags))
-		return;
-
-	if (bss_conf->assoc) {
-		set_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags);
-		avp->primary_sta_vif = true;
-		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
-		common->curaid = bss_conf->aid;
-		ath9k_hw_write_associd(sc->sc_ah);
-		ath_dbg(common, CONFIG, "Bss Info ASSOC %d, bssid: %pM\n",
-			bss_conf->aid, common->curbssid);
-		ath_beacon_config(sc, vif);
-		/*
-		 * Request a re-configuration of Beacon related timers
-		 * on the receipt of the first Beacon frame (i.e.,
-		 * after time sync with the AP).
-		 */
-		spin_lock_irqsave(&sc->sc_pm_lock, flags);
-		sc->ps_flags |= PS_BEACON_SYNC | PS_WAIT_FOR_BEACON;
-		spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
-
-		/* Reset rssi stats */
-		sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
-		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
-
-		ath_start_rx_poll(sc, 3);
-
-		if (!common->disable_ani) {
-			set_bit(SC_OP_ANI_RUN, &sc->sc_flags);
-			ath_start_ani(common);
-		}
-
-	}
-}
-
-static void ath9k_config_bss(struct ath_softc *sc, struct ieee80211_vif *vif)
-{
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
-	struct ath_vif *avp = (void *)vif->drv_priv;
-
 	if (sc->sc_ah->opmode != NL80211_IFTYPE_STATION)
 		return;
 
-	/* Reconfigure bss info */
-	if (avp->primary_sta_vif && !bss_conf->assoc) {
-		ath_dbg(common, CONFIG, "Bss Info DISASSOC %d, bssid %pM\n",
-			common->curaid, common->curbssid);
-		clear_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags);
-		clear_bit(SC_OP_BEACONS, &sc->sc_flags);
-		avp->primary_sta_vif = false;
-		memset(common->curbssid, 0, ETH_ALEN);
-		common->curaid = 0;
-	}
+	memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
+	common->curaid = bss_conf->aid;
+	ath9k_hw_write_associd(sc->sc_ah);
 
-	ieee80211_iterate_active_interfaces_atomic(
-			sc->hw, ath9k_bss_iter, sc);
+	sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
+	sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
-	/*
-	 * None of station vifs are associated.
-	 * Clear bssid & aid
-	 */
-	if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags)) {
-		ath9k_hw_write_associd(sc->sc_ah);
-		clear_bit(SC_OP_ANI_RUN, &sc->sc_flags);
-		del_timer_sync(&common->ani.timer);
-		del_timer_sync(&sc->rx_poll_timer);
-		memset(&sc->caldata, 0, sizeof(sc->caldata));
-	}
+	spin_lock_irqsave(&sc->sc_pm_lock, flags);
+	sc->ps_flags |= PS_BEACON_SYNC | PS_WAIT_FOR_BEACON;
+	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
+
+	ath_dbg(common, CONFIG,
+		"Primary Station interface: %pM, BSSID: %pM\n",
+		vif->addr, common->curbssid);
+}
+
+static void ath9k_bss_assoc_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct ath_softc *sc = data;
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+
+	if (test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags))
+		return;
+
+	if (bss_conf->assoc)
+		ath9k_set_assoc_state(sc, vif);
 }
 
 static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
@@ -1547,6 +1508,11 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 				   struct ieee80211_bss_conf *bss_conf,
 				   u32 changed)
 {
+#define CHECK_ANI				\
+	(BSS_CHANGED_ASSOC |			\
+	 BSS_CHANGED_IBSS |			\
+	 BSS_CHANGED_BEACON_ENABLED)
+
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -1557,53 +1523,41 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	mutex_lock(&sc->mutex);
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		ath9k_config_bss(sc, vif);
+		ath_dbg(common, CONFIG, "BSSID %pM Changed ASSOC %d\n",
+			bss_conf->bssid, bss_conf->assoc);
 
-		ath_dbg(common, CONFIG, "BSSID: %pM aid: 0x%x\n",
-			common->curbssid, common->curaid);
-	}
+		if (avp->primary_sta_vif && !bss_conf->assoc) {
+			clear_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags);
+			avp->primary_sta_vif = false;
 
-	if (changed & BSS_CHANGED_IBSS) {
-		/* There can be only one vif available */
-		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
-		common->curaid = bss_conf->aid;
-		ath9k_hw_write_associd(sc->sc_ah);
+			if (ah->opmode == NL80211_IFTYPE_STATION)
+				clear_bit(SC_OP_BEACONS, &sc->sc_flags);
+		}
 
-		if (bss_conf->ibss_joined) {
-			sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
+		ieee80211_iterate_active_interfaces_atomic(sc->hw,
+						   ath9k_bss_assoc_iter, sc);
 
-			if (!common->disable_ani) {
-				set_bit(SC_OP_ANI_RUN, &sc->sc_flags);
-				ath_start_ani(common);
-			}
-
-		} else {
-			clear_bit(SC_OP_ANI_RUN, &sc->sc_flags);
-			del_timer_sync(&common->ani.timer);
-			del_timer_sync(&sc->rx_poll_timer);
+		if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags) &&
+		    ah->opmode == NL80211_IFTYPE_STATION) {
+			memset(common->curbssid, 0, ETH_ALEN);
+			common->curaid = 0;
+			ath9k_hw_write_associd(sc->sc_ah);
 		}
 	}
 
-	/*
-	 * In case of AP mode, the HW TSF has to be reset
-	 * when the beacon interval changes.
-	 */
-	if ((changed & BSS_CHANGED_BEACON_INT) &&
-	    (vif->type == NL80211_IFTYPE_AP))
-		set_bit(SC_OP_TSF_RESET, &sc->sc_flags);
+	if (changed & BSS_CHANGED_IBSS) {
+		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
+		common->curaid = bss_conf->aid;
+		ath9k_hw_write_associd(sc->sc_ah);
+	}
 
-	/* Configure beaconing (AP, IBSS, MESH) */
-	if (ath9k_uses_beacons(vif->type) &&
-	    ((changed & BSS_CHANGED_BEACON) ||
-	     (changed & BSS_CHANGED_BEACON_ENABLED) ||
-	     (changed & BSS_CHANGED_BEACON_INT))) {
-		ath9k_set_beaconing_status(sc, false);
-		if (bss_conf->enable_beacon)
-			ath_beacon_alloc(sc, vif);
-		else
-			avp->is_bslot_active = false;
-		ath_beacon_config(sc, vif);
-		ath9k_set_beaconing_status(sc, true);
+	if ((changed & BSS_CHANGED_BEACON_ENABLED) ||
+	    (changed & BSS_CHANGED_BEACON_INT)) {
+		if (ah->opmode == NL80211_IFTYPE_AP &&
+		    bss_conf->enable_beacon)
+			ath9k_set_tsfadjust(sc, vif);
+		if (ath9k_allow_beacon_config(sc, vif))
+			ath9k_beacon_config(sc, vif, changed);
 	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
@@ -1625,8 +1579,13 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		}
 	}
 
+	if (changed & CHECK_ANI)
+		ath_check_ani(sc);
+
 	mutex_unlock(&sc->mutex);
 	ath9k_ps_restore(sc);
+
+#undef CHECK_ANI
 }
 
 static u64 ath9k_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
@@ -1855,9 +1814,10 @@ static int ath9k_tx_last_beacon(struct ieee80211_hw *hw)
 	if (!vif)
 		return 0;
 
-	avp = (void *)vif->drv_priv;
-	if (!avp->is_bslot_active)
+	if (!vif->bss_conf.enable_beacon)
 		return 0;
+
+	avp = (void *)vif->drv_priv;
 
 	if (!sc->beacon.tx_processed && !edma) {
 		tasklet_disable(&sc->bcon_tasklet);
@@ -1912,12 +1872,29 @@ static u32 fill_chainmask(u32 cap, u32 new)
 	return filled;
 }
 
+static bool validate_antenna_mask(struct ath_hw *ah, u32 val)
+{
+	switch (val & 0x7) {
+	case 0x1:
+	case 0x3:
+	case 0x7:
+		return true;
+	case 0x2:
+		return (ah->caps.rx_chainmask == 1);
+	default:
+		return false;
+	}
+}
+
 static int ath9k_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 
-	if (!rx_ant || !tx_ant)
+	if (ah->caps.rx_chainmask != 1)
+		rx_ant |= tx_ant;
+
+	if (!validate_antenna_mask(ah, rx_ant) || !tx_ant)
 		return -EINVAL;
 
 	sc->ant_rx = rx_ant;
@@ -2075,6 +2052,362 @@ static void ath9k_get_et_stats(struct ieee80211_hw *hw,
 #endif
 
 
+#ifdef CONFIG_PM_SLEEP
+
+static void ath9k_wow_map_triggers(struct ath_softc *sc,
+				   struct cfg80211_wowlan *wowlan,
+				   u32 *wow_triggers)
+{
+	if (wowlan->disconnect)
+		*wow_triggers |= AH_WOW_LINK_CHANGE |
+				 AH_WOW_BEACON_MISS;
+	if (wowlan->magic_pkt)
+		*wow_triggers |= AH_WOW_MAGIC_PATTERN_EN;
+
+	if (wowlan->n_patterns)
+		*wow_triggers |= AH_WOW_USER_PATTERN_EN;
+
+	sc->wow_enabled = *wow_triggers;
+
+}
+
+static void ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_hw_capabilities *pcaps = &ah->caps;
+	int pattern_count = 0;
+	int i, byte_cnt;
+	u8 dis_deauth_pattern[MAX_PATTERN_SIZE];
+	u8 dis_deauth_mask[MAX_PATTERN_SIZE];
+
+	memset(dis_deauth_pattern, 0, MAX_PATTERN_SIZE);
+	memset(dis_deauth_mask, 0, MAX_PATTERN_SIZE);
+
+	/*
+	 * Create Dissassociate / Deauthenticate packet filter
+	 *
+	 *     2 bytes        2 byte    6 bytes   6 bytes  6 bytes
+	 *  +--------------+----------+---------+--------+--------+----
+	 *  + Frame Control+ Duration +   DA    +  SA    +  BSSID +
+	 *  +--------------+----------+---------+--------+--------+----
+	 *
+	 * The above is the management frame format for disassociate/
+	 * deauthenticate pattern, from this we need to match the first byte
+	 * of 'Frame Control' and DA, SA, and BSSID fields
+	 * (skipping 2nd byte of FC and Duration feild.
+	 *
+	 * Disassociate pattern
+	 * --------------------
+	 * Frame control = 00 00 1010
+	 * DA, SA, BSSID = x:x:x:x:x:x
+	 * Pattern will be A0000000 | x:x:x:x:x:x | x:x:x:x:x:x
+	 *			    | x:x:x:x:x:x  -- 22 bytes
+	 *
+	 * Deauthenticate pattern
+	 * ----------------------
+	 * Frame control = 00 00 1100
+	 * DA, SA, BSSID = x:x:x:x:x:x
+	 * Pattern will be C0000000 | x:x:x:x:x:x | x:x:x:x:x:x
+	 *			    | x:x:x:x:x:x  -- 22 bytes
+	 */
+
+	/* Create Disassociate Pattern first */
+
+	byte_cnt = 0;
+
+	/* Fill out the mask with all FF's */
+
+	for (i = 0; i < MAX_PATTERN_MASK_SIZE; i++)
+		dis_deauth_mask[i] = 0xff;
+
+	/* copy the first byte of frame control field */
+	dis_deauth_pattern[byte_cnt] = 0xa0;
+	byte_cnt++;
+
+	/* skip 2nd byte of frame control and Duration field */
+	byte_cnt += 3;
+
+	/*
+	 * need not match the destination mac address, it can be a broadcast
+	 * mac address or an unicast to this station
+	 */
+	byte_cnt += 6;
+
+	/* copy the source mac address */
+	memcpy((dis_deauth_pattern + byte_cnt), common->curbssid, ETH_ALEN);
+
+	byte_cnt += 6;
+
+	/* copy the bssid, its same as the source mac address */
+
+	memcpy((dis_deauth_pattern + byte_cnt), common->curbssid, ETH_ALEN);
+
+	/* Create Disassociate pattern mask */
+
+	if (pcaps->hw_caps & ATH9K_HW_WOW_PATTERN_MATCH_EXACT) {
+
+		if (pcaps->hw_caps & ATH9K_HW_WOW_PATTERN_MATCH_DWORD) {
+			/*
+			 * for AR9280, because of hardware limitation, the
+			 * first 4 bytes have to be matched for all patterns.
+			 * the mask for disassociation and de-auth pattern
+			 * matching need to enable the first 4 bytes.
+			 * also the duration field needs to be filled.
+			 */
+			dis_deauth_mask[0] = 0xf0;
+
+			/*
+			 * fill in duration field
+			 FIXME: what is the exact value ?
+			 */
+			dis_deauth_pattern[2] = 0xff;
+			dis_deauth_pattern[3] = 0xff;
+		} else {
+			dis_deauth_mask[0] = 0xfe;
+		}
+
+		dis_deauth_mask[1] = 0x03;
+		dis_deauth_mask[2] = 0xc0;
+	} else {
+		dis_deauth_mask[0] = 0xef;
+		dis_deauth_mask[1] = 0x3f;
+		dis_deauth_mask[2] = 0x00;
+		dis_deauth_mask[3] = 0xfc;
+	}
+
+	ath_dbg(common, WOW, "Adding disassoc/deauth patterns for WoW\n");
+
+	ath9k_hw_wow_apply_pattern(ah, dis_deauth_pattern, dis_deauth_mask,
+				   pattern_count, byte_cnt);
+
+	pattern_count++;
+	/*
+	 * for de-authenticate pattern, only the first byte of the frame
+	 * control field gets changed from 0xA0 to 0xC0
+	 */
+	dis_deauth_pattern[0] = 0xC0;
+
+	ath9k_hw_wow_apply_pattern(ah, dis_deauth_pattern, dis_deauth_mask,
+				   pattern_count, byte_cnt);
+
+}
+
+static void ath9k_wow_add_pattern(struct ath_softc *sc,
+				  struct cfg80211_wowlan *wowlan)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath9k_wow_pattern *wow_pattern = NULL;
+	struct cfg80211_wowlan_trig_pkt_pattern *patterns = wowlan->patterns;
+	int mask_len;
+	s8 i = 0;
+
+	if (!wowlan->n_patterns)
+		return;
+
+	/*
+	 * Add the new user configured patterns
+	 */
+	for (i = 0; i < wowlan->n_patterns; i++) {
+
+		wow_pattern = kzalloc(sizeof(*wow_pattern), GFP_KERNEL);
+
+		if (!wow_pattern)
+			return;
+
+		/*
+		 * TODO: convert the generic user space pattern to
+		 * appropriate chip specific/802.11 pattern.
+		 */
+
+		mask_len = DIV_ROUND_UP(wowlan->patterns[i].pattern_len, 8);
+		memset(wow_pattern->pattern_bytes, 0, MAX_PATTERN_SIZE);
+		memset(wow_pattern->mask_bytes, 0, MAX_PATTERN_SIZE);
+		memcpy(wow_pattern->pattern_bytes, patterns[i].pattern,
+		       patterns[i].pattern_len);
+		memcpy(wow_pattern->mask_bytes, patterns[i].mask, mask_len);
+		wow_pattern->pattern_len = patterns[i].pattern_len;
+
+		/*
+		 * just need to take care of deauth and disssoc pattern,
+		 * make sure we don't overwrite them.
+		 */
+
+		ath9k_hw_wow_apply_pattern(ah, wow_pattern->pattern_bytes,
+					   wow_pattern->mask_bytes,
+					   i + 2,
+					   wow_pattern->pattern_len);
+		kfree(wow_pattern);
+
+	}
+
+}
+
+static int ath9k_suspend(struct ieee80211_hw *hw,
+			 struct cfg80211_wowlan *wowlan)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	u32 wow_triggers_enabled = 0;
+	int ret = 0;
+
+	mutex_lock(&sc->mutex);
+
+	ath_cancel_work(sc);
+	del_timer_sync(&common->ani.timer);
+	del_timer_sync(&sc->rx_poll_timer);
+
+	if (test_bit(SC_OP_INVALID, &sc->sc_flags)) {
+		ath_dbg(common, ANY, "Device not present\n");
+		ret = -EINVAL;
+		goto fail_wow;
+	}
+
+	if (WARN_ON(!wowlan)) {
+		ath_dbg(common, WOW, "None of the WoW triggers enabled\n");
+		ret = -EINVAL;
+		goto fail_wow;
+	}
+
+	if (!device_can_wakeup(sc->dev)) {
+		ath_dbg(common, WOW, "device_can_wakeup failed, WoW is not enabled\n");
+		ret = 1;
+		goto fail_wow;
+	}
+
+	/*
+	 * none of the sta vifs are associated
+	 * and we are not currently handling multivif
+	 * cases, for instance we have to seperately
+	 * configure 'keep alive frame' for each
+	 * STA.
+	 */
+
+	if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags)) {
+		ath_dbg(common, WOW, "None of the STA vifs are associated\n");
+		ret = 1;
+		goto fail_wow;
+	}
+
+	if (sc->nvifs > 1) {
+		ath_dbg(common, WOW, "WoW for multivif is not yet supported\n");
+		ret = 1;
+		goto fail_wow;
+	}
+
+	ath9k_wow_map_triggers(sc, wowlan, &wow_triggers_enabled);
+
+	ath_dbg(common, WOW, "WoW triggers enabled 0x%x\n",
+		wow_triggers_enabled);
+
+	ath9k_ps_wakeup(sc);
+
+	ath9k_stop_btcoex(sc);
+
+	/*
+	 * Enable wake up on recieving disassoc/deauth
+	 * frame by default.
+	 */
+	ath9k_wow_add_disassoc_deauth_pattern(sc);
+
+	if (wow_triggers_enabled & AH_WOW_USER_PATTERN_EN)
+		ath9k_wow_add_pattern(sc, wowlan);
+
+	spin_lock_bh(&sc->sc_pcu_lock);
+	/*
+	 * To avoid false wake, we enable beacon miss interrupt only
+	 * when we go to sleep. We save the current interrupt mask
+	 * so we can restore it after the system wakes up
+	 */
+	sc->wow_intr_before_sleep = ah->imask;
+	ah->imask &= ~ATH9K_INT_GLOBAL;
+	ath9k_hw_disable_interrupts(ah);
+	ah->imask = ATH9K_INT_BMISS | ATH9K_INT_GLOBAL;
+	ath9k_hw_set_interrupts(ah);
+	ath9k_hw_enable_interrupts(ah);
+
+	spin_unlock_bh(&sc->sc_pcu_lock);
+
+	/*
+	 * we can now sync irq and kill any running tasklets, since we already
+	 * disabled interrupts and not holding a spin lock
+	 */
+	synchronize_irq(sc->irq);
+	tasklet_kill(&sc->intr_tq);
+
+	ath9k_hw_wow_enable(ah, wow_triggers_enabled);
+
+	ath9k_ps_restore(sc);
+	ath_dbg(common, ANY, "WoW enabled in ath9k\n");
+	atomic_inc(&sc->wow_sleep_proc_intr);
+
+fail_wow:
+	mutex_unlock(&sc->mutex);
+	return ret;
+}
+
+static int ath9k_resume(struct ieee80211_hw *hw)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	u32 wow_status;
+
+	mutex_lock(&sc->mutex);
+
+	ath9k_ps_wakeup(sc);
+
+	spin_lock_bh(&sc->sc_pcu_lock);
+
+	ath9k_hw_disable_interrupts(ah);
+	ah->imask = sc->wow_intr_before_sleep;
+	ath9k_hw_set_interrupts(ah);
+	ath9k_hw_enable_interrupts(ah);
+
+	spin_unlock_bh(&sc->sc_pcu_lock);
+
+	wow_status = ath9k_hw_wow_wakeup(ah);
+
+	if (atomic_read(&sc->wow_got_bmiss_intr) == 0) {
+		/*
+		 * some devices may not pick beacon miss
+		 * as the reason they woke up so we add
+		 * that here for that shortcoming.
+		 */
+		wow_status |= AH_WOW_BEACON_MISS;
+		atomic_dec(&sc->wow_got_bmiss_intr);
+		ath_dbg(common, ANY, "Beacon miss interrupt picked up during WoW sleep\n");
+	}
+
+	atomic_dec(&sc->wow_sleep_proc_intr);
+
+	if (wow_status) {
+		ath_dbg(common, ANY, "Waking up due to WoW triggers %s with WoW status = %x\n",
+			ath9k_hw_wow_event_to_string(wow_status), wow_status);
+	}
+
+	ath_restart_work(sc);
+	ath9k_start_btcoex(sc);
+
+	ath9k_ps_restore(sc);
+	mutex_unlock(&sc->mutex);
+
+	return 0;
+}
+
+static void ath9k_set_wakeup(struct ieee80211_hw *hw, bool enabled)
+{
+	struct ath_softc *sc = hw->priv;
+
+	mutex_lock(&sc->mutex);
+	device_init_wakeup(sc->dev, 1);
+	device_set_wakeup_enable(sc->dev, enabled);
+	mutex_unlock(&sc->mutex);
+}
+
+#endif
+
 struct ieee80211_ops ath9k_ops = {
 	.tx 		    = ath9k_tx,
 	.start 		    = ath9k_start,
@@ -2103,6 +2436,12 @@ struct ieee80211_ops ath9k_ops = {
 	.get_stats	    = ath9k_get_stats,
 	.set_antenna	    = ath9k_set_antenna,
 	.get_antenna	    = ath9k_get_antenna,
+
+#ifdef CONFIG_PM_SLEEP
+	.suspend	    = ath9k_suspend,
+	.resume		    = ath9k_resume,
+	.set_wakeup	    = ath9k_set_wakeup,
+#endif
 
 #ifdef CONFIG_ATH9K_DEBUGFS
 	.get_et_sset_count  = ath9k_get_et_sset_count,

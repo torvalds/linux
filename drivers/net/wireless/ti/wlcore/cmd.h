@@ -192,7 +192,7 @@ enum cmd_templ {
 #define WL1271_COMMAND_TIMEOUT     2000
 #define WL1271_CMD_TEMPL_DFLT_SIZE 252
 #define WL1271_CMD_TEMPL_MAX_SIZE  512
-#define WL1271_EVENT_TIMEOUT       1000
+#define WL1271_EVENT_TIMEOUT       1500
 
 struct wl1271_cmd_header {
 	__le16 id;

@@ -2080,7 +2080,6 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 {
 	struct iwl_trans_pcie *trans_pcie;
 	struct iwl_trans *trans;
-	char cmd_pool_name[100];
 	u16 pci_cmd;
 	int err;
 
@@ -2178,12 +2177,12 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	init_waitqueue_head(&trans->wait_command_queue);
 	spin_lock_init(&trans->reg_lock);
 
-	snprintf(cmd_pool_name, sizeof(cmd_pool_name), "iwl_cmd_pool:%s",
-		 dev_name(trans->dev));
+	snprintf(trans->dev_cmd_pool_name, sizeof(trans->dev_cmd_pool_name),
+		 "iwl_cmd_pool:%s", dev_name(trans->dev));
 
 	trans->dev_cmd_headroom = 0;
 	trans->dev_cmd_pool =
-		kmem_cache_create(cmd_pool_name,
+		kmem_cache_create(trans->dev_cmd_pool_name,
 				  sizeof(struct iwl_device_cmd)
 				  + trans->dev_cmd_headroom,
 				  sizeof(void *),

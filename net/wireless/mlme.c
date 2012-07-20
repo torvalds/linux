@@ -567,29 +567,28 @@ void cfg80211_mlme_down(struct cfg80211_registered_device *rdev,
 	}
 }
 
-void cfg80211_ready_on_channel(struct net_device *dev, u64 cookie,
+void cfg80211_ready_on_channel(struct wireless_dev *wdev, u64 cookie,
 			       struct ieee80211_channel *chan,
 			       enum nl80211_channel_type channel_type,
 			       unsigned int duration, gfp_t gfp)
 {
-	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
+	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
-	nl80211_send_remain_on_channel(rdev, dev, cookie, chan, channel_type,
+	nl80211_send_remain_on_channel(rdev, wdev, cookie, chan, channel_type,
 				       duration, gfp);
 }
 EXPORT_SYMBOL(cfg80211_ready_on_channel);
 
-void cfg80211_remain_on_channel_expired(struct net_device *dev,
-					u64 cookie,
+void cfg80211_remain_on_channel_expired(struct wireless_dev *wdev, u64 cookie,
 					struct ieee80211_channel *chan,
 					enum nl80211_channel_type channel_type,
 					gfp_t gfp)
 {
-	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
+	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
-	nl80211_send_remain_on_channel_cancel(rdev, dev, cookie, chan,
+	nl80211_send_remain_on_channel_cancel(rdev, wdev, cookie, chan,
 					      channel_type, gfp);
 }
 EXPORT_SYMBOL(cfg80211_remain_on_channel_expired);
@@ -678,8 +677,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_pid,
 	list_add(&nreg->list, &wdev->mgmt_registrations);
 
 	if (rdev->ops->mgmt_frame_register)
-		rdev->ops->mgmt_frame_register(wiphy, wdev->netdev,
-					       frame_type, true);
+		rdev->ops->mgmt_frame_register(wiphy, wdev, frame_type, true);
 
  out:
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
@@ -702,7 +700,7 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlpid)
 		if (rdev->ops->mgmt_frame_register) {
 			u16 frame_type = le16_to_cpu(reg->frame_type);
 
-			rdev->ops->mgmt_frame_register(wiphy, wdev->netdev,
+			rdev->ops->mgmt_frame_register(wiphy, wdev,
 						       frame_type, false);
 		}
 
@@ -731,14 +729,14 @@ void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev)
 }
 
 int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
-			  struct net_device *dev,
+			  struct wireless_dev *wdev,
 			  struct ieee80211_channel *chan, bool offchan,
 			  enum nl80211_channel_type channel_type,
 			  bool channel_type_valid, unsigned int wait,
 			  const u8 *buf, size_t len, bool no_cck,
 			  bool dont_wait_for_ack, u64 *cookie)
 {
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct net_device *dev = wdev->netdev;
 	const struct ieee80211_mgmt *mgmt;
 	u16 stype;
 
@@ -825,16 +823,15 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 		return -EINVAL;
 
 	/* Transmit the Action frame as requested by user space */
-	return rdev->ops->mgmt_tx(&rdev->wiphy, dev, chan, offchan,
+	return rdev->ops->mgmt_tx(&rdev->wiphy, wdev, chan, offchan,
 				  channel_type, channel_type_valid,
 				  wait, buf, len, no_cck, dont_wait_for_ack,
 				  cookie);
 }
 
-bool cfg80211_rx_mgmt(struct net_device *dev, int freq, int sig_mbm,
+bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_mbm,
 		      const u8 *buf, size_t len, gfp_t gfp)
 {
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 	struct cfg80211_mgmt_registration *reg;
@@ -871,7 +868,7 @@ bool cfg80211_rx_mgmt(struct net_device *dev, int freq, int sig_mbm,
 		/* found match! */
 
 		/* Indicate the received Action frame to user space */
-		if (nl80211_send_mgmt(rdev, dev, reg->nlpid,
+		if (nl80211_send_mgmt(rdev, wdev, reg->nlpid,
 				      freq, sig_mbm,
 				      buf, len, gfp))
 			continue;
@@ -886,15 +883,14 @@ bool cfg80211_rx_mgmt(struct net_device *dev, int freq, int sig_mbm,
 }
 EXPORT_SYMBOL(cfg80211_rx_mgmt);
 
-void cfg80211_mgmt_tx_status(struct net_device *dev, u64 cookie,
+void cfg80211_mgmt_tx_status(struct wireless_dev *wdev, u64 cookie,
 			     const u8 *buf, size_t len, bool ack, gfp_t gfp)
 {
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
 	/* Indicate TX status of the Action frame to user space */
-	nl80211_send_mgmt_tx_status(rdev, dev, cookie, buf, len, ack, gfp);
+	nl80211_send_mgmt_tx_status(rdev, wdev, cookie, buf, len, ack, gfp);
 }
 EXPORT_SYMBOL(cfg80211_mgmt_tx_status);
 
@@ -922,6 +918,19 @@ void cfg80211_cqm_pktloss_notify(struct net_device *dev,
 	nl80211_send_cqm_pktloss_notify(rdev, dev, peer, num_packets, gfp);
 }
 EXPORT_SYMBOL(cfg80211_cqm_pktloss_notify);
+
+void cfg80211_cqm_txe_notify(struct net_device *dev,
+			     const u8 *peer, u32 num_packets,
+			     u32 rate, u32 intvl, gfp_t gfp)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	nl80211_send_cqm_txe_notify(rdev, dev, peer, num_packets,
+				    rate, intvl, gfp);
+}
+EXPORT_SYMBOL(cfg80211_cqm_txe_notify);
 
 void cfg80211_gtk_rekey_notify(struct net_device *dev, const u8 *bssid,
 			       const u8 *replay_ctr, gfp_t gfp)

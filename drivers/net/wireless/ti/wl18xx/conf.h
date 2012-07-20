@@ -23,7 +23,7 @@
 #define __WL18XX_CONF_H__
 
 #define WL18XX_CONF_MAGIC	0x10e100ca
-#define WL18XX_CONF_VERSION	(WLCORE_CONF_VERSION | 0x0002)
+#define WL18XX_CONF_VERSION	(WLCORE_CONF_VERSION | 0x0003)
 #define WL18XX_CONF_MASK	0x0000ffff
 #define WL18XX_CONF_SIZE	(WLCORE_CONF_SIZE + \
 				 sizeof(struct wl18xx_priv_conf))
@@ -84,7 +84,26 @@ struct wl18xx_mac_and_phy_params {
 	u8 padding[1];
 } __packed;
 
+enum wl18xx_ht_mode {
+	/* Default - use MIMO, fallback to SISO20 */
+	HT_MODE_DEFAULT = 0,
+
+	/* Wide - use SISO40 */
+	HT_MODE_WIDE = 1,
+
+	/* Use SISO20 */
+	HT_MODE_SISO20 = 2,
+};
+
+struct wl18xx_ht_settings {
+	/* DEFAULT / WIDE / SISO20 */
+	u8 mode;
+} __packed;
+
 struct wl18xx_priv_conf {
+	/* Module params structures */
+	struct wl18xx_ht_settings ht;
+
 	/* this structure is copied wholesale to FW */
 	struct wl18xx_mac_and_phy_params phy;
 } __packed;

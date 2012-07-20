@@ -344,7 +344,6 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->adhoc_awake_period = 0;
 	memset(&adapter->arp_filter, 0, sizeof(adapter->arp_filter));
 	adapter->arp_filter_size = 0;
-	adapter->channel_type = NL80211_CHAN_HT20;
 	adapter->max_mgmt_ie_index = MAX_MGMT_IE_INDEX;
 }
 

@@ -129,8 +129,12 @@ static int wl1271_tm_cmd_test(struct wl1271 *wl, struct nlattr *tb[])
 			goto out_sleep;
 		}
 
-		if (nla_put(skb, WL1271_TM_ATTR_DATA, buf_len, buf))
-			goto nla_put_failure;
+		if (nla_put(skb, WL1271_TM_ATTR_DATA, buf_len, buf)) {
+			kfree_skb(skb);
+			ret = -EMSGSIZE;
+			goto out_sleep;
+		}
+
 		ret = cfg80211_testmode_reply(skb);
 		if (ret < 0)
 			goto out_sleep;
@@ -142,11 +146,6 @@ out:
 	mutex_unlock(&wl->mutex);
 
 	return ret;
-
-nla_put_failure:
-	kfree_skb(skb);
-	ret = -EMSGSIZE;
-	goto out_sleep;
 }
 
 static int wl1271_tm_cmd_interrogate(struct wl1271 *wl, struct nlattr *tb[])
@@ -192,8 +191,12 @@ static int wl1271_tm_cmd_interrogate(struct wl1271 *wl, struct nlattr *tb[])
 		goto out_free;
 	}
 
-	if (nla_put(skb, WL1271_TM_ATTR_DATA, sizeof(*cmd), cmd))
-		goto nla_put_failure;
+	if (nla_put(skb, WL1271_TM_ATTR_DATA, sizeof(*cmd), cmd)) {
+		kfree_skb(skb);
+		ret = -EMSGSIZE;
+		goto out_free;
+	}
+
 	ret = cfg80211_testmode_reply(skb);
 	if (ret < 0)
 		goto out_free;
@@ -206,11 +209,6 @@ out:
 	mutex_unlock(&wl->mutex);
 
 	return ret;
-
-nla_put_failure:
-	kfree_skb(skb);
-	ret = -EMSGSIZE;
-	goto out_free;
 }
 
 static int wl1271_tm_cmd_configure(struct wl1271 *wl, struct nlattr *tb[])
@@ -245,6 +243,43 @@ static int wl1271_tm_cmd_configure(struct wl1271 *wl, struct nlattr *tb[])
 	return 0;
 }
 
+static int wl1271_tm_detect_fem(struct wl1271 *wl, struct nlattr *tb[])
+{
+	/* return FEM type */
+	int ret, len;
+	struct sk_buff *skb;
+
+	ret = wl1271_plt_start(wl, PLT_FEM_DETECT);
+	if (ret < 0)
+		goto out;
+
+	mutex_lock(&wl->mutex);
+
+	len = nla_total_size(sizeof(wl->fem_manuf));
+	skb = cfg80211_testmode_alloc_reply_skb(wl->hw->wiphy, len);
+	if (!skb) {
+		ret = -ENOMEM;
+		goto out_mutex;
+	}
+
+	if (nla_put(skb, WL1271_TM_ATTR_DATA, sizeof(wl->fem_manuf),
+					      &wl->fem_manuf)) {
+		kfree_skb(skb);
+		ret = -EMSGSIZE;
+		goto out_mutex;
+	}
+
+	ret = cfg80211_testmode_reply(skb);
+
+out_mutex:
+	mutex_unlock(&wl->mutex);
+
+	/* We always stop plt after DETECT mode */
+	wl1271_plt_stop(wl);
+out:
+	return ret;
+}
+
 static int wl1271_tm_cmd_set_plt_mode(struct wl1271 *wl, struct nlattr *tb[])
 {
 	u32 val;
@@ -258,11 +293,14 @@ static int wl1271_tm_cmd_set_plt_mode(struct wl1271 *wl, struct nlattr *tb[])
 	val = nla_get_u32(tb[WL1271_TM_ATTR_PLT_MODE]);
 
 	switch (val) {
-	case 0:
+	case PLT_OFF:
 		ret = wl1271_plt_stop(wl);
 		break;
-	case 1:
-		ret = wl1271_plt_start(wl);
+	case PLT_ON:
+		ret = wl1271_plt_start(wl, PLT_ON);
+		break;
+	case PLT_FEM_DETECT:
+		ret = wl1271_tm_detect_fem(wl, tb);
 		break;
 	default:
 		ret = -EINVAL;
@@ -303,8 +341,12 @@ static int wl12xx_tm_cmd_get_mac(struct wl1271 *wl, struct nlattr *tb[])
 		goto out;
 	}
 
-	if (nla_put(skb, WL1271_TM_ATTR_DATA, ETH_ALEN, mac_addr))
-		goto nla_put_failure;
+	if (nla_put(skb, WL1271_TM_ATTR_DATA, ETH_ALEN, mac_addr)) {
+		kfree_skb(skb);
+		ret = -EMSGSIZE;
+		goto out;
+	}
+
 	ret = cfg80211_testmode_reply(skb);
 	if (ret < 0)
 		goto out;
@@ -312,11 +354,6 @@ static int wl12xx_tm_cmd_get_mac(struct wl1271 *wl, struct nlattr *tb[])
 out:
 	mutex_unlock(&wl->mutex);
 	return ret;
-
-nla_put_failure:
-	kfree_skb(skb);
-	ret = -EMSGSIZE;
-	goto out;
 }
 
 int wl1271_tm_cmd(struct ieee80211_hw *hw, void *data, int len)

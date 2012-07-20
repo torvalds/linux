@@ -1111,7 +1111,7 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 
 	if ((priv->ah->opmode == NL80211_IFTYPE_AP) &&
 	    !test_bit(OP_ANI_RUNNING, &priv->op_flags)) {
-		ath9k_hw_set_tsfadjust(priv->ah, 1);
+		ath9k_hw_set_tsfadjust(priv->ah, true);
 		ath9k_htc_start_ani(priv);
 	}
 
@@ -1351,7 +1351,7 @@ static int ath9k_htc_conf_tx(struct ieee80211_hw *hw,
 	qi.tqi_aifs = params->aifs;
 	qi.tqi_cwmin = params->cw_min;
 	qi.tqi_cwmax = params->cw_max;
-	qi.tqi_burstTime = params->txop;
+	qi.tqi_burstTime = params->txop * 32;
 
 	qnum = get_hw_qnum(queue, priv->hwq_map);
 

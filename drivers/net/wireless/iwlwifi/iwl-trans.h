@@ -458,6 +458,7 @@ struct iwl_trans {
 	/* The following fields are internal only */
 	struct kmem_cache *dev_cmd_pool;
 	size_t dev_cmd_headroom;
+	char dev_cmd_pool_name[50];
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */

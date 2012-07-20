@@ -1339,6 +1339,14 @@ static int wl12xx_hw_init(struct wl1271 *wl)
 		ret = wl128x_cmd_general_parms(wl);
 		if (ret < 0)
 			goto out;
+
+		/*
+		 * If we are in calibrator based auto detect then we got the FEM nr
+		 * in wl->fem_manuf. No need to continue further
+		 */
+		if (wl->plt_mode == PLT_FEM_DETECT)
+			goto out;
+
 		ret = wl128x_cmd_radio_parms(wl);
 		if (ret < 0)
 			goto out;
@@ -1355,6 +1363,14 @@ static int wl12xx_hw_init(struct wl1271 *wl)
 		ret = wl1271_cmd_general_parms(wl);
 		if (ret < 0)
 			goto out;
+
+		/*
+		 * If we are in calibrator based auto detect then we got the FEM nr
+		 * in wl->fem_manuf. No need to continue further
+		 */
+		if (wl->plt_mode == PLT_FEM_DETECT)
+			goto out;
+
 		ret = wl1271_cmd_radio_parms(wl);
 		if (ret < 0)
 			goto out;
@@ -1499,6 +1515,13 @@ static int wl12xx_plt_init(struct wl1271 *wl)
 	ret = wl->ops->hw_init(wl);
 	if (ret < 0)
 		goto out_irq_disable;
+
+	/*
+	 * If we are in calibrator based auto detect then we got the FEM nr
+	 * in wl->fem_manuf. No need to continue further
+	 */
+	if (wl->plt_mode == PLT_FEM_DETECT)
+		goto out;
 
 	ret = wl1271_acx_init_mem_config(wl);
 	if (ret < 0)

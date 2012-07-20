@@ -82,7 +82,6 @@ int cfg80211_set_monitor_channel(struct cfg80211_registered_device *rdev,
 				 int freq, enum nl80211_channel_type chantype)
 {
 	struct ieee80211_channel *chan;
-	int err;
 
 	if (!rdev->ops->set_monitor_channel)
 		return -EOPNOTSUPP;
@@ -93,25 +92,17 @@ int cfg80211_set_monitor_channel(struct cfg80211_registered_device *rdev,
 	if (!chan)
 		return -EINVAL;
 
-	err = rdev->ops->set_monitor_channel(&rdev->wiphy, chan, chantype);
-	if (!err) {
-		rdev->monitor_channel = chan;
-		rdev->monitor_channel_type = chantype;
-	}
-
-	return err;
+	return rdev->ops->set_monitor_channel(&rdev->wiphy, chan, chantype);
 }
 
 void
-cfg80211_get_chan_state(struct cfg80211_registered_device *rdev,
-		        struct wireless_dev *wdev,
+cfg80211_get_chan_state(struct wireless_dev *wdev,
 		        struct ieee80211_channel **chan,
 		        enum cfg80211_chan_mode *chanmode)
 {
 	*chan = NULL;
 	*chanmode = CHAN_MODE_UNDEFINED;
 
-	ASSERT_RDEV_LOCK(rdev);
 	ASSERT_WDEV_LOCK(wdev);
 
 	if (!netif_running(wdev->netdev))
@@ -136,9 +127,16 @@ cfg80211_get_chan_state(struct cfg80211_registered_device *rdev,
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
+		if (wdev->beacon_interval) {
+			*chan = wdev->channel;
+			*chanmode = CHAN_MODE_SHARED;
+		}
+		return;
 	case NL80211_IFTYPE_MESH_POINT:
-		*chan = wdev->channel;
-		*chanmode = CHAN_MODE_SHARED;
+		if (wdev->mesh_id_len) {
+			*chan = wdev->channel;
+			*chanmode = CHAN_MODE_SHARED;
+		}
 		return;
 	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_AP_VLAN:

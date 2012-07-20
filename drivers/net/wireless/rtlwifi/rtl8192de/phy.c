@@ -3345,21 +3345,21 @@ void rtl92d_phy_config_macphymode_info(struct ieee80211_hw *hw)
 	switch (rtlhal->macphymode) {
 	case DUALMAC_SINGLEPHY:
 		rtlphy->rf_type = RF_2T2R;
-		rtlhal->version |= CHIP_92D_SINGLEPHY;
+		rtlhal->version |= RF_TYPE_2T2R;
 		rtlhal->bandset = BAND_ON_BOTH;
 		rtlhal->current_bandtype = BAND_ON_2_4G;
 		break;
 
 	case SINGLEMAC_SINGLEPHY:
 		rtlphy->rf_type = RF_2T2R;
-		rtlhal->version |= CHIP_92D_SINGLEPHY;
+		rtlhal->version |= RF_TYPE_2T2R;
 		rtlhal->bandset = BAND_ON_BOTH;
 		rtlhal->current_bandtype = BAND_ON_2_4G;
 		break;
 
 	case DUALMAC_DUALPHY:
 		rtlphy->rf_type = RF_1T1R;
-		rtlhal->version &= (~CHIP_92D_SINGLEPHY);
+		rtlhal->version &= RF_TYPE_1T1R;
 		/* Now we let MAC0 run on 5G band. */
 		if (rtlhal->interfaceindex == 0) {
 			rtlhal->bandset = BAND_ON_5G;

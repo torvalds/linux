@@ -1064,10 +1064,17 @@ out:
 	return ret;
 }
 
-int wl1271_plt_start(struct wl1271 *wl)
+int wl1271_plt_start(struct wl1271 *wl, const enum plt_mode plt_mode)
 {
 	int retries = WL1271_BOOT_RETRIES;
 	struct wiphy *wiphy = wl->hw->wiphy;
+
+	static const char* const PLT_MODE[] = {
+		"PLT_OFF",
+		"PLT_ON",
+		"PLT_FEM_DETECT"
+	};
+
 	int ret;
 
 	mutex_lock(&wl->mutex);
@@ -1081,6 +1088,10 @@ int wl1271_plt_start(struct wl1271 *wl)
 		goto out;
 	}
 
+	/* Indicate to lower levels that we are now in PLT mode */
+	wl->plt = true;
+	wl->plt_mode = plt_mode;
+
 	while (retries) {
 		retries--;
 		ret = wl12xx_chip_wakeup(wl, true);
@@ -1091,9 +1102,9 @@ int wl1271_plt_start(struct wl1271 *wl)
 		if (ret < 0)
 			goto power_off;
 
-		wl->plt = true;
 		wl->state = WL1271_STATE_ON;
-		wl1271_notice("firmware booted in PLT mode (%s)",
+		wl1271_notice("firmware booted in PLT mode %s (%s)",
+			      PLT_MODE[plt_mode],
 			      wl->chip.fw_ver_str);
 
 		/* update hw/fw version info in wiphy struct */
@@ -1106,6 +1117,9 @@ int wl1271_plt_start(struct wl1271 *wl)
 power_off:
 		wl1271_power_off(wl);
 	}
+
+	wl->plt = false;
+	wl->plt_mode = PLT_OFF;
 
 	wl1271_error("firmware boot in PLT mode failed despite %d retries",
 		     WL1271_BOOT_RETRIES);
@@ -1159,6 +1173,7 @@ int wl1271_plt_stop(struct wl1271 *wl)
 	wl->sleep_auth = WL1271_PSM_ILLEGAL;
 	wl->state = WL1271_STATE_OFF;
 	wl->plt = false;
+	wl->plt_mode = PLT_OFF;
 	wl->rx_counter = 0;
 	mutex_unlock(&wl->mutex);
 
@@ -1585,6 +1600,12 @@ static int wl1271_configure_suspend_sta(struct wl1271 *wl,
 	if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
 		goto out;
 
+	if ((wl->conf.conn.suspend_wake_up_event ==
+	     wl->conf.conn.wake_up_event) &&
+	    (wl->conf.conn.suspend_listen_interval ==
+	     wl->conf.conn.listen_interval))
+		goto out;
+
 	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
@@ -1646,6 +1667,13 @@ static void wl1271_configure_resume(struct wl1271 *wl,
 	bool is_sta = wlvif->bss_type == BSS_TYPE_STA_BSS;
 
 	if ((!is_ap) && (!is_sta))
+		return;
+
+	if (is_sta &&
+	    ((wl->conf.conn.suspend_wake_up_event ==
+	      wl->conf.conn.wake_up_event) &&
+	     (wl->conf.conn.suspend_listen_interval ==
+	      wl->conf.conn.listen_interval)))
 		return;
 
 	ret = wl1271_ps_elp_wakeup(wl);
@@ -2364,7 +2392,14 @@ deinit:
 	else
 		wl->sta_count--;
 
-	/* Last AP, have more stations. Configure according to STA. */
+	/*
+	 * Last AP, have more stations. Configure sleep auth according to STA.
+	 * Don't do thin on unintended recovery.
+	 */
+	if (test_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags) &&
+	    !test_bit(WL1271_FLAG_INTENDED_FW_RECOVERY, &wl->flags))
+		goto unlock;
+
 	if (wl->ap_count == 0 && is_ap && wl->sta_count) {
 		u8 sta_auth = wl->conf.conn.sta_sleep_auth;
 		/* Configure for power according to debugfs */
@@ -2378,6 +2413,7 @@ deinit:
 			wl1271_acx_sleep_auth(wl, WL1271_PSM_ELP);
 	}
 
+unlock:
 	mutex_unlock(&wl->mutex);
 
 	del_timer_sync(&wlvif->rx_streaming_timer);

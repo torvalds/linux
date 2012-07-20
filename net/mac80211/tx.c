@@ -523,7 +523,7 @@ ieee80211_tx_h_check_control_port_protocol(struct ieee80211_tx_data *tx)
 static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 {
-	struct ieee80211_key *key = NULL;
+	struct ieee80211_key *key;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
 
@@ -542,16 +542,23 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 	else if (!is_multicast_ether_addr(hdr->addr1) &&
 		 (key = rcu_dereference(tx->sdata->default_unicast_key)))
 		tx->key = key;
-	else if (tx->sdata->drop_unencrypted &&
-		 (tx->skb->protocol != tx->sdata->control_port_protocol) &&
-		 !(info->flags & IEEE80211_TX_CTL_INJECTED) &&
-		 (!ieee80211_is_robust_mgmt_frame(hdr) ||
-		  (ieee80211_is_action(hdr->frame_control) &&
-		   tx->sta && test_sta_flag(tx->sta, WLAN_STA_MFP)))) {
+	else if (info->flags & IEEE80211_TX_CTL_INJECTED)
+		tx->key = NULL;
+	else if (!tx->sdata->drop_unencrypted)
+		tx->key = NULL;
+	else if (tx->skb->protocol == tx->sdata->control_port_protocol)
+		tx->key = NULL;
+	else if (ieee80211_is_robust_mgmt_frame(hdr) &&
+		 !(ieee80211_is_action(hdr->frame_control) &&
+		   tx->sta && test_sta_flag(tx->sta, WLAN_STA_MFP)))
+		tx->key = NULL;
+	else if (ieee80211_is_mgmt(hdr->frame_control) &&
+		 !ieee80211_is_robust_mgmt_frame(hdr))
+		tx->key = NULL;
+	else {
 		I802_DEBUG_INC(tx->local->tx_handlers_drop_unencrypted);
 		return TX_DROP;
-	} else
-		tx->key = NULL;
+	}
 
 	if (tx->key) {
 		bool skip_hw = false;
@@ -1817,6 +1824,9 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 					/* RA TA mDA mSA AE:DA SA */
 					mesh_da = mppath->mpp;
 					is_mesh_mcast = 0;
+				} else if (mpath) {
+					mesh_da = mpath->dst;
+					is_mesh_mcast = 0;
 				} else {
 					/* DA TA mSA AE:SA */
 					mesh_da = bcast;
@@ -2714,7 +2724,7 @@ EXPORT_SYMBOL(ieee80211_get_buffered_bc);
 void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
 			  struct sk_buff *skb, int tid)
 {
-	int ac = ieee802_1d_to_ac[tid];
+	int ac = ieee802_1d_to_ac[tid & 7];
 
 	skb_set_mac_header(skb, 0);
 	skb_set_network_header(skb, 0);

@@ -297,6 +297,8 @@ struct ath_tx {
 	struct ath_txq txq[ATH9K_NUM_TX_QUEUES];
 	struct ath_descdma txdma;
 	struct ath_txq *txq_map[WME_NUM_AC];
+	u32 txq_max_pending[WME_NUM_AC];
+	u16 max_aggr_framelen[WME_NUM_AC][4][32];
 };
 
 struct ath_rx_edma {
@@ -341,6 +343,7 @@ int ath_tx_init(struct ath_softc *sc, int nbufs);
 void ath_tx_cleanup(struct ath_softc *sc);
 int ath_txq_update(struct ath_softc *sc, int qnum,
 		   struct ath9k_tx_queue_info *q);
+void ath_update_max_aggr_framelen(struct ath_softc *sc, int queue, int txop);
 int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 		 struct ath_tx_control *txctl);
 void ath_tx_tasklet(struct ath_softc *sc);
@@ -360,7 +363,7 @@ void ath_tx_aggr_sleep(struct ieee80211_sta *sta, struct ath_softc *sc,
 
 struct ath_vif {
 	int av_bslot;
-	bool is_bslot_active, primary_sta_vif;
+	bool primary_sta_vif;
 	__le64 tsf_adjust; /* TSF adjustment for staggered beacons */
 	struct ath_buf *av_bcbuf;
 };
@@ -386,6 +389,7 @@ struct ath_beacon_config {
 	u16 dtim_period;
 	u16 bmiss_timeout;
 	u8 dtim_count;
+	bool enable_beacon;
 };
 
 struct ath_beacon {
@@ -397,7 +401,6 @@ struct ath_beacon {
 
 	u32 beaconq;
 	u32 bmisscnt;
-	u32 ast_be_xmit;
 	u32 bc_tstamp;
 	struct ieee80211_vif *bslot[ATH_BCBUF];
 	int slottime;
@@ -411,12 +414,14 @@ struct ath_beacon {
 	bool tx_last;
 };
 
-void ath_beacon_tasklet(unsigned long data);
-void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif);
-int ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_vif *vif);
-void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp);
-int ath_beaconq_config(struct ath_softc *sc);
-void ath_set_beacon(struct ath_softc *sc);
+void ath9k_beacon_tasklet(unsigned long data);
+bool ath9k_allow_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif);
+void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif,
+			 u32 changed);
+void ath9k_beacon_assign_slot(struct ath_softc *sc, struct ieee80211_vif *vif);
+void ath9k_beacon_remove_slot(struct ath_softc *sc, struct ieee80211_vif *vif);
+void ath9k_set_tsfadjust(struct ath_softc *sc, struct ieee80211_vif *vif);
+void ath9k_set_beacon(struct ath_softc *sc);
 void ath9k_set_beaconing_status(struct ath_softc *sc, bool status);
 
 /*******************/
@@ -442,9 +447,12 @@ void ath_rx_poll(unsigned long data);
 void ath_start_rx_poll(struct ath_softc *sc, u8 nbeacon);
 void ath_paprd_calibrate(struct work_struct *work);
 void ath_ani_calibrate(unsigned long data);
-void ath_start_ani(struct ath_common *common);
+void ath_start_ani(struct ath_softc *sc);
+void ath_stop_ani(struct ath_softc *sc);
+void ath_check_ani(struct ath_softc *sc);
 int ath_update_survey_stats(struct ath_softc *sc);
 void ath_update_survey_nf(struct ath_softc *sc, int channel);
+void ath9k_queue_reset(struct ath_softc *sc, enum ath_reset_type type);
 
 /**********/
 /* BTCOEX */
@@ -509,6 +517,12 @@ static inline void ath9k_btcoex_stop_gen_timer(struct ath_softc *sc)
 {
 }
 #endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
+
+struct ath9k_wow_pattern {
+	u8 pattern_bytes[MAX_PATTERN_SIZE];
+	u8 mask_bytes[MAX_PATTERN_SIZE];
+	u32 pattern_len;
+};
 
 /********************/
 /*   LED Control    */
@@ -613,7 +627,6 @@ enum sc_op_flags {
 	SC_OP_INVALID,
 	SC_OP_BEACONS,
 	SC_OP_RXFLUSH,
-	SC_OP_TSF_RESET,
 	SC_OP_ANI_RUN,
 	SC_OP_PRIM_STA_VIF,
 	SC_OP_HW_RESET,
@@ -711,6 +724,13 @@ struct ath_softc {
 	struct ath_ant_comb ant_comb;
 	u8 ant_tx, ant_rx;
 	struct dfs_pattern_detector *dfs_detector;
+	u32 wow_enabled;
+
+#ifdef CONFIG_PM_SLEEP
+	atomic_t wow_got_bmiss_intr;
+	atomic_t wow_sleep_proc_intr; /* in the middle of WoW sleep ? */
+	u32 wow_intr_before_sleep;
+#endif
 };
 
 void ath9k_tasklet(unsigned long data);

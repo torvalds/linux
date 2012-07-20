@@ -309,7 +309,6 @@ static void if_usb_disconnect(struct usb_interface *intf)
 	cardp->surprise_removed = 1;
 
 	if (priv) {
-		priv->surpriseremoved = 1;
 		lbs_stop_card(priv);
 		lbs_remove_card(priv);
 	}

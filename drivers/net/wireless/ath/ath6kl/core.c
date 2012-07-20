@@ -56,7 +56,7 @@ EXPORT_SYMBOL(ath6kl_core_rx_complete);
 int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 {
 	struct ath6kl_bmi_target_info targ_info;
-	struct net_device *ndev;
+	struct wireless_dev *wdev;
 	int ret = 0, i;
 
 	switch (htc_type) {
@@ -187,12 +187,12 @@ int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 	rtnl_lock();
 
 	/* Add an initial station interface */
-	ndev = ath6kl_interface_add(ar, "wlan%d", NL80211_IFTYPE_STATION, 0,
+	wdev = ath6kl_interface_add(ar, "wlan%d", NL80211_IFTYPE_STATION, 0,
 				    INFRA_NETWORK);
 
 	rtnl_unlock();
 
-	if (!ndev) {
+	if (!wdev) {
 		ath6kl_err("Failed to instantiate a network device\n");
 		ret = -ENOMEM;
 		wiphy_unregister(ar->wiphy);
@@ -200,7 +200,7 @@ int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 	}
 
 	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: name=%s dev=0x%p, ar=0x%p\n",
-		   __func__, ndev->name, ndev, ar);
+		   __func__, wdev->netdev->name, wdev->netdev, ar);
 
 	return ret;
 

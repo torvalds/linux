@@ -49,6 +49,7 @@ struct lbs_private {
 	bool wiphy_registered;
 	struct cfg80211_scan_request *scan_req;
 	u8 assoc_bss[ETH_ALEN];
+	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
 	u8 disassoc_reason;
 
 	/* Mesh */

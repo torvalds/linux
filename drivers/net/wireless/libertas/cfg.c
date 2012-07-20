@@ -805,7 +805,6 @@ void lbs_scan_done(struct lbs_private *priv)
 }
 
 static int lbs_cfg_scan(struct wiphy *wiphy,
-	struct net_device *dev,
 	struct cfg80211_scan_request *request)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
@@ -2181,13 +2180,15 @@ int lbs_reg_notifier(struct wiphy *wiphy,
 		struct regulatory_request *request)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
-	int ret;
+	int ret = 0;
 
 	lbs_deb_enter_args(LBS_DEB_CFG80211, "cfg80211 regulatory domain "
 			"callback for domain %c%c\n", request->alpha2[0],
 			request->alpha2[1]);
 
-	ret = lbs_set_11d_domain_info(priv, request, wiphy->bands);
+	memcpy(priv->country_code, request->alpha2, sizeof(request->alpha2));
+	if (lbs_iface_active(priv))
+		ret = lbs_set_11d_domain_info(priv);
 
 	lbs_deb_leave(LBS_DEB_CFG80211);
 	return ret;

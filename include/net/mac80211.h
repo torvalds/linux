@@ -233,8 +233,10 @@ enum ieee80211_rssi_event {
  *	valid in station mode only while @assoc is true and if also
  *	requested by %IEEE80211_HW_NEED_DTIM_PERIOD (cf. also hw conf
  *	@ps_dtim_period)
- * @last_tsf: last beacon's/probe response's TSF timestamp (could be old
+ * @sync_tsf: last beacon's/probe response's TSF timestamp (could be old
  *	as it may have been received during scanning long ago)
+ * @sync_device_ts: the device timestamp corresponding to the sync_tsf,
+ *	the driver/device can use this to calculate synchronisation
  * @beacon_int: beacon interval
  * @assoc_capability: capabilities taken from assoc resp
  * @basic_rates: bitmap of basic rates, each bit stands for an
@@ -281,7 +283,8 @@ struct ieee80211_bss_conf {
 	u8 dtim_period;
 	u16 beacon_int;
 	u16 assoc_capability;
-	u64 last_tsf;
+	u64 sync_tsf;
+	u32 sync_device_ts;
 	u32 basic_rates;
 	int mcast_rate[IEEE80211_NUM_BANDS];
 	u16 ht_operation_mode;
@@ -696,6 +699,8 @@ enum mac80211_rx_flags {
  *
  * @mactime: value in microseconds of the 64-bit Time Synchronization Function
  * 	(TSF) timer when the first data symbol (MPDU) arrived at the hardware.
+ * @device_timestamp: arbitrary timestamp for the device, mac80211 doesn't use
+ *	it but can store it and pass it back to the driver for synchronisation
  * @band: the active band when this frame was received
  * @freq: frequency the radio was tuned to when receiving this frame, in MHz
  * @signal: signal strength when receiving this frame, either in dBm, in dB or
@@ -709,13 +714,14 @@ enum mac80211_rx_flags {
  */
 struct ieee80211_rx_status {
 	u64 mactime;
-	enum ieee80211_band band;
-	int freq;
-	int signal;
-	int antenna;
-	int rate_idx;
-	int flag;
-	unsigned int rx_flags;
+	u32 device_timestamp;
+	u16 flag;
+	u16 freq;
+	u8 rate_idx;
+	u8 rx_flags;
+	u8 band;
+	u8 antenna;
+	s8 signal;
 };
 
 /**
@@ -3590,22 +3596,6 @@ void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success);
  */
 void ieee80211_request_smps(struct ieee80211_vif *vif,
 			    enum ieee80211_smps_mode smps_mode);
-
-/**
- * ieee80211_key_removed - disable hw acceleration for key
- * @key_conf: The key hw acceleration should be disabled for
- *
- * This allows drivers to indicate that the given key has been
- * removed from hardware acceleration, due to a new key that
- * was added. Don't use this if the key can continue to be used
- * for TX, if the key restriction is on RX only it is permitted
- * to keep the key for TX only and not call this function.
- *
- * Due to locking constraints, it may only be called during
- * @set_key. This function must be allowed to sleep, and the
- * key it tries to disable may still be used until it returns.
- */
-void ieee80211_key_removed(struct ieee80211_key_conf *key_conf);
 
 /**
  * ieee80211_ready_on_channel - notification of remain-on-channel start

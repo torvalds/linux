@@ -480,7 +480,7 @@ static void _rtl_pci_tx_chk_waitq(struct ieee80211_hw *hw)
 
 	/* we juse use em for BE/BK/VI/VO */
 	for (tid = 7; tid >= 0; tid--) {
-		u8 hw_queue = ac_to_hwq[rtl_tid_to_ac(hw, tid)];
+		u8 hw_queue = ac_to_hwq[rtl_tid_to_ac(tid)];
 		struct rtl8192_tx_ring *ring = &rtlpci->tx_ring[hw_queue];
 		while (!mac->act_scanning &&
 		       rtlpriv->psc.rfpwr_state == ERFON) {

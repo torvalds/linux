@@ -225,12 +225,6 @@ struct mwifiex_ds_encrypt_key {
 	u8 wapi_rxpn[WAPI_RXPN_LEN];
 };
 
-struct mwifiex_rate_cfg {
-	u32 action;
-	u32 is_rate_auto;
-	u32 rate;
-};
-
 struct mwifiex_power_cfg {
 	u32 is_power_auto;
 	u32 power_level;

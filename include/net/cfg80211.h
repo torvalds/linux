@@ -999,7 +999,7 @@ struct cfg80211_ssid {
  * @ie_len: length of ie in octets
  * @rates: bitmap of rates to advertise for each band
  * @wiphy: the wiphy this was for
- * @dev: the interface
+ * @wdev: the wireless device to scan for
  * @aborted: (internal) scan request was notified as aborted
  * @no_cck: used to send probe requests at non CCK rate in 2GHz band
  */
@@ -1012,9 +1012,10 @@ struct cfg80211_scan_request {
 
 	u32 rates[IEEE80211_NUM_BANDS];
 
+	struct wireless_dev *wdev;
+
 	/* internal */
 	struct wiphy *wiphy;
-	struct net_device *dev;
 	bool aborted;
 	bool no_cck;
 
@@ -1435,10 +1436,10 @@ struct cfg80211_gtk_rekey_data {
  *
  * @add_virtual_intf: create a new virtual interface with the given name,
  *	must set the struct wireless_dev's iftype. Beware: You must create
- *	the new netdev in the wiphy's network namespace! Returns the netdev,
- *	or an ERR_PTR.
+ *	the new netdev in the wiphy's network namespace! Returns the struct
+ *	wireless_dev, or an ERR_PTR.
  *
- * @del_virtual_intf: remove the virtual interface determined by ifindex.
+ * @del_virtual_intf: remove the virtual interface
  *
  * @change_virtual_intf: change type/configuration of virtual interface,
  *	keep the struct wireless_dev's iftype updated.
@@ -1503,8 +1504,6 @@ struct cfg80211_gtk_rekey_data {
  *	interfaces are active this callback should reject the configuration.
  *	If no interfaces are active or the device is down, the channel should
  *	be stored for when a monitor interface becomes active.
- * @set_monitor_enabled: Notify driver that there are only monitor
- *	interfaces running.
  *
  * @scan: Request to do a scan. If returning zero, the scan request is given
  *	the driver, and will be valid until passed to cfg80211_scan_done().
@@ -1574,6 +1573,8 @@ struct cfg80211_gtk_rekey_data {
  * @set_power_mgmt: Configure WLAN power management. A timeout value of -1
  *	allows the driver to adjust the dynamic ps timeout value.
  * @set_cqm_rssi_config: Configure connection quality monitor RSSI threshold.
+ * @set_cqm_txe_config: Configure connection quality monitor TX error
+ *	thresholds.
  * @sched_scan_start: Tell the driver to start a scheduled scan.
  * @sched_scan_stop: Tell the driver to stop an ongoing scheduled
  *	scan.  The driver_initiated flag specifies whether the driver
@@ -1611,18 +1612,23 @@ struct cfg80211_gtk_rekey_data {
  * @get_et_strings:  Ethtool API to get a set of strings to describe stats
  *	and perhaps other supported types of ethtool data-sets.
  *	See @ethtool_ops.get_strings
+ *
+ * @get_channel: Get the current operating channel for the virtual interface.
+ *	For monitor interfaces, it should return %NULL unless there's a single
+ *	current monitoring channel.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
 	int	(*resume)(struct wiphy *wiphy);
 	void	(*set_wakeup)(struct wiphy *wiphy, bool enabled);
 
-	struct net_device * (*add_virtual_intf)(struct wiphy *wiphy,
-						char *name,
-						enum nl80211_iftype type,
-						u32 *flags,
-						struct vif_params *params);
-	int	(*del_virtual_intf)(struct wiphy *wiphy, struct net_device *dev);
+	struct wireless_dev * (*add_virtual_intf)(struct wiphy *wiphy,
+						  char *name,
+						  enum nl80211_iftype type,
+						  u32 *flags,
+						  struct vif_params *params);
+	int	(*del_virtual_intf)(struct wiphy *wiphy,
+				    struct wireless_dev *wdev);
 	int	(*change_virtual_intf)(struct wiphy *wiphy,
 				       struct net_device *dev,
 				       enum nl80211_iftype type, u32 *flags,
@@ -1699,7 +1705,7 @@ struct cfg80211_ops {
 				       struct ieee80211_channel *chan,
 				       enum nl80211_channel_type channel_type);
 
-	int	(*scan)(struct wiphy *wiphy, struct net_device *dev,
+	int	(*scan)(struct wiphy *wiphy,
 			struct cfg80211_scan_request *request);
 
 	int	(*auth)(struct wiphy *wiphy, struct net_device *dev,
@@ -1753,23 +1759,23 @@ struct cfg80211_ops {
 	int	(*flush_pmksa)(struct wiphy *wiphy, struct net_device *netdev);
 
 	int	(*remain_on_channel)(struct wiphy *wiphy,
-				     struct net_device *dev,
+				     struct wireless_dev *wdev,
 				     struct ieee80211_channel *chan,
 				     enum nl80211_channel_type channel_type,
 				     unsigned int duration,
 				     u64 *cookie);
 	int	(*cancel_remain_on_channel)(struct wiphy *wiphy,
-					    struct net_device *dev,
+					    struct wireless_dev *wdev,
 					    u64 cookie);
 
-	int	(*mgmt_tx)(struct wiphy *wiphy, struct net_device *dev,
+	int	(*mgmt_tx)(struct wiphy *wiphy, struct wireless_dev *wdev,
 			  struct ieee80211_channel *chan, bool offchan,
 			  enum nl80211_channel_type channel_type,
 			  bool channel_type_valid, unsigned int wait,
 			  const u8 *buf, size_t len, bool no_cck,
 			  bool dont_wait_for_ack, u64 *cookie);
 	int	(*mgmt_tx_cancel_wait)(struct wiphy *wiphy,
-				       struct net_device *dev,
+				       struct wireless_dev *wdev,
 				       u64 cookie);
 
 	int	(*set_power_mgmt)(struct wiphy *wiphy, struct net_device *dev,
@@ -1779,8 +1785,12 @@ struct cfg80211_ops {
 				       struct net_device *dev,
 				       s32 rssi_thold, u32 rssi_hyst);
 
+	int	(*set_cqm_txe_config)(struct wiphy *wiphy,
+				      struct net_device *dev,
+				      u32 rate, u32 pkts, u32 intvl);
+
 	void	(*mgmt_frame_register)(struct wiphy *wiphy,
-				       struct net_device *dev,
+				       struct wireless_dev *wdev,
 				       u16 frame_type, bool reg);
 
 	int	(*set_antenna)(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant);
@@ -1818,7 +1828,10 @@ struct cfg80211_ops {
 	void	(*get_et_strings)(struct wiphy *wiphy, struct net_device *dev,
 				  u32 sset, u8 *data);
 
-	void (*set_monitor_enabled)(struct wiphy *wiphy, bool enabled);
+	struct ieee80211_channel *
+		(*get_channel)(struct wiphy *wiphy,
+			       struct wireless_dev *wdev,
+			       enum nl80211_channel_type *type);
 };
 
 /*
@@ -2341,17 +2354,25 @@ struct cfg80211_internal_bss;
 struct cfg80211_cached_keys;
 
 /**
- * struct wireless_dev - wireless per-netdev state
+ * struct wireless_dev - wireless device state
  *
- * This structure must be allocated by the driver/stack
- * that uses the ieee80211_ptr field in struct net_device
- * (this is intentional so it can be allocated along with
- * the netdev.)
+ * For netdevs, this structure must be allocated by the driver
+ * that uses the ieee80211_ptr field in struct net_device (this
+ * is intentional so it can be allocated along with the netdev.)
+ * It need not be registered then as netdev registration will
+ * be intercepted by cfg80211 to see the new wireless device.
+ *
+ * For non-netdev uses, it must also be allocated by the driver
+ * in response to the cfg80211 callbacks that require it, as
+ * there's no netdev registration in that case it may not be
+ * allocated outside of callback operations that return it.
  *
  * @wiphy: pointer to hardware description
  * @iftype: interface type
  * @list: (private) Used to collect the interfaces
- * @netdev: (private) Used to reference back to the netdev
+ * @netdev: (private) Used to reference back to the netdev, may be %NULL
+ * @identifier: (private) Identifier used in nl80211 to identify this
+ *	wireless device if it has no netdev
  * @current_bss: (private) Used by the internal configuration code
  * @channel: (private) Used by the internal configuration code to track
  *	the user-set AP, monitor and WDS channel
@@ -2382,6 +2403,8 @@ struct wireless_dev {
 	/* the remainder of this struct should be private to cfg80211 */
 	struct list_head list;
 	struct net_device *netdev;
+
+	u32 identifier;
 
 	struct list_head mgmt_registrations;
 	spinlock_t mgmt_registrations_lock;
@@ -3269,7 +3292,7 @@ void cfg80211_disconnected(struct net_device *dev, u16 reason,
 
 /**
  * cfg80211_ready_on_channel - notification of remain_on_channel start
- * @dev: network device
+ * @wdev: wireless device
  * @cookie: the request cookie
  * @chan: The current channel (from remain_on_channel request)
  * @channel_type: Channel type
@@ -3277,21 +3300,20 @@ void cfg80211_disconnected(struct net_device *dev, u16 reason,
  *	channel
  * @gfp: allocation flags
  */
-void cfg80211_ready_on_channel(struct net_device *dev, u64 cookie,
+void cfg80211_ready_on_channel(struct wireless_dev *wdev, u64 cookie,
 			       struct ieee80211_channel *chan,
 			       enum nl80211_channel_type channel_type,
 			       unsigned int duration, gfp_t gfp);
 
 /**
  * cfg80211_remain_on_channel_expired - remain_on_channel duration expired
- * @dev: network device
+ * @wdev: wireless device
  * @cookie: the request cookie
  * @chan: The current channel (from remain_on_channel request)
  * @channel_type: Channel type
  * @gfp: allocation flags
  */
-void cfg80211_remain_on_channel_expired(struct net_device *dev,
-					u64 cookie,
+void cfg80211_remain_on_channel_expired(struct wireless_dev *wdev, u64 cookie,
 					struct ieee80211_channel *chan,
 					enum nl80211_channel_type channel_type,
 					gfp_t gfp);
@@ -3319,7 +3341,7 @@ void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp);
 
 /**
  * cfg80211_rx_mgmt - notification of received, unprocessed management frame
- * @dev: network device
+ * @wdev: wireless device receiving the frame
  * @freq: Frequency on which the frame was received in MHz
  * @sig_dbm: signal strength in mBm, or 0 if unknown
  * @buf: Management frame (header + body)
@@ -3334,12 +3356,12 @@ void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp);
  * This function is called whenever an Action frame is received for a station
  * mode interface, but is not processed in kernel.
  */
-bool cfg80211_rx_mgmt(struct net_device *dev, int freq, int sig_dbm,
+bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_dbm,
 		      const u8 *buf, size_t len, gfp_t gfp);
 
 /**
  * cfg80211_mgmt_tx_status - notification of TX status for management frame
- * @dev: network device
+ * @wdev: wireless device receiving the frame
  * @cookie: Cookie returned by cfg80211_ops::mgmt_tx()
  * @buf: Management frame (header + body)
  * @len: length of the frame data
@@ -3350,7 +3372,7 @@ bool cfg80211_rx_mgmt(struct net_device *dev, int freq, int sig_dbm,
  * transmitted with cfg80211_ops::mgmt_tx() to report the TX status of the
  * transmission attempt.
  */
-void cfg80211_mgmt_tx_status(struct net_device *dev, u64 cookie,
+void cfg80211_mgmt_tx_status(struct wireless_dev *wdev, u64 cookie,
 			     const u8 *buf, size_t len, bool ack, gfp_t gfp);
 
 
@@ -3378,6 +3400,21 @@ void cfg80211_cqm_rssi_notify(struct net_device *dev,
  */
 void cfg80211_cqm_pktloss_notify(struct net_device *dev,
 				 const u8 *peer, u32 num_packets, gfp_t gfp);
+
+/**
+ * cfg80211_cqm_txe_notify - TX error rate event
+ * @dev: network device
+ * @peer: peer's MAC address
+ * @num_packets: how many packets were lost
+ * @rate: % of packets which failed transmission
+ * @intvl: interval (in s) over which the TX failure threshold was breached.
+ * @gfp: context flags
+ *
+ * Notify userspace when configured % TX failures over number of packets in a
+ * given interval is exceeded.
+ */
+void cfg80211_cqm_txe_notify(struct net_device *dev, const u8 *peer,
+			     u32 num_packets, u32 rate, u32 intvl, gfp_t gfp);
 
 /**
  * cfg80211_gtk_rekey_notify - notify userspace about driver rekeying

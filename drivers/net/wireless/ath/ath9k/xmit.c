@@ -29,6 +29,8 @@
 #define HT_LTF(_ns)             (4 * (_ns))
 #define SYMBOL_TIME(_ns)        ((_ns) << 2) /* ns * 4 us */
 #define SYMBOL_TIME_HALFGI(_ns) (((_ns) * 18 + 4) / 5)  /* ns * 3.6 us */
+#define TIME_SYMBOLS(t)         ((t) >> 2)
+#define TIME_SYMBOLS_HALFGI(t)  (((t) * 5 - 4) / 18)
 #define NUM_SYMBOLS_PER_USEC(_usec) (_usec >> 2)
 #define NUM_SYMBOLS_PER_USEC_HALFGI(_usec) (((_usec*5)-4)/18)
 
@@ -72,33 +74,6 @@ enum {
 	MCS_HT20_SGI,
 	MCS_HT40,
 	MCS_HT40_SGI,
-};
-
-static int ath_max_4ms_framelen[4][32] = {
-	[MCS_HT20] = {
-		3212,  6432,  9648,  12864,  19300,  25736,  28952,  32172,
-		6424,  12852, 19280, 25708,  38568,  51424,  57852,  64280,
-		9628,  19260, 28896, 38528,  57792,  65532,  65532,  65532,
-		12828, 25656, 38488, 51320,  65532,  65532,  65532,  65532,
-	},
-	[MCS_HT20_SGI] = {
-		3572,  7144,  10720,  14296,  21444,  28596,  32172,  35744,
-		7140,  14284, 21428,  28568,  42856,  57144,  64288,  65532,
-		10700, 21408, 32112,  42816,  64228,  65532,  65532,  65532,
-		14256, 28516, 42780,  57040,  65532,  65532,  65532,  65532,
-	},
-	[MCS_HT40] = {
-		6680,  13360,  20044,  26724,  40092,  53456,  60140,  65532,
-		13348, 26700,  40052,  53400,  65532,  65532,  65532,  65532,
-		20004, 40008,  60016,  65532,  65532,  65532,  65532,  65532,
-		26644, 53292,  65532,  65532,  65532,  65532,  65532,  65532,
-	},
-	[MCS_HT40_SGI] = {
-		7420,  14844,  22272,  29696,  44544,  59396,  65532,  65532,
-		14832, 29668,  44504,  59340,  65532,  65532,  65532,  65532,
-		22232, 44464,  65532,  65532,  65532,  65532,  65532,  65532,
-		29616, 59232,  65532,  65532,  65532,  65532,  65532,  65532,
-	}
 };
 
 /*********************/
@@ -614,10 +589,8 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 
 	rcu_read_unlock();
 
-	if (needreset) {
-		RESET_STAT_INC(sc, RESET_TYPE_TX_ERROR);
-		ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
-	}
+	if (needreset)
+		ath9k_queue_reset(sc, RESET_TYPE_TX_ERROR);
 }
 
 static bool ath_lookup_legacy(struct ath_buf *bf)
@@ -650,6 +623,7 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 	struct ieee80211_tx_rate *rates;
 	u32 max_4ms_framelen, frmlen;
 	u16 aggr_limit, bt_aggr_limit, legacy = 0;
+	int q = tid->ac->txq->mac80211_qnum;
 	int i;
 
 	skb = bf->bf_mpdu;
@@ -658,8 +632,7 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 
 	/*
 	 * Find the lowest frame length among the rate series that will have a
-	 * 4ms transmit duration.
-	 * TODO - TXOP limit needs to be considered.
+	 * 4ms (or TXOP limited) transmit duration.
 	 */
 	max_4ms_framelen = ATH_AMPDU_LIMIT_MAX;
 
@@ -682,7 +655,7 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 		if (rates[i].flags & IEEE80211_TX_RC_SHORT_GI)
 			modeidx++;
 
-		frmlen = ath_max_4ms_framelen[modeidx][rates[i].idx];
+		frmlen = sc->tx.max_aggr_framelen[q][modeidx][rates[i].idx];
 		max_4ms_framelen = min(max_4ms_framelen, frmlen);
 	}
 
@@ -927,6 +900,44 @@ static u32 ath_pkt_duration(struct ath_softc *sc, u8 rix, int pktlen,
 	duration += L_STF + L_LTF + L_SIG + HT_SIG + HT_STF + HT_LTF(streams);
 
 	return duration;
+}
+
+static int ath_max_framelen(int usec, int mcs, bool ht40, bool sgi)
+{
+	int streams = HT_RC_2_STREAMS(mcs);
+	int symbols, bits;
+	int bytes = 0;
+
+	symbols = sgi ? TIME_SYMBOLS_HALFGI(usec) : TIME_SYMBOLS(usec);
+	bits = symbols * bits_per_symbol[mcs % 8][ht40] * streams;
+	bits -= OFDM_PLCP_BITS;
+	bytes = bits / 8;
+	bytes -= L_STF + L_LTF + L_SIG + HT_SIG + HT_STF + HT_LTF(streams);
+	if (bytes > 65532)
+		bytes = 65532;
+
+	return bytes;
+}
+
+void ath_update_max_aggr_framelen(struct ath_softc *sc, int queue, int txop)
+{
+	u16 *cur_ht20, *cur_ht20_sgi, *cur_ht40, *cur_ht40_sgi;
+	int mcs;
+
+	/* 4ms is the default (and maximum) duration */
+	if (!txop || txop > 4096)
+		txop = 4096;
+
+	cur_ht20 = sc->tx.max_aggr_framelen[queue][MCS_HT20];
+	cur_ht20_sgi = sc->tx.max_aggr_framelen[queue][MCS_HT20_SGI];
+	cur_ht40 = sc->tx.max_aggr_framelen[queue][MCS_HT40];
+	cur_ht40_sgi = sc->tx.max_aggr_framelen[queue][MCS_HT40_SGI];
+	for (mcs = 0; mcs < 32; mcs++) {
+		cur_ht20[mcs] = ath_max_framelen(txop, mcs, false, false);
+		cur_ht20_sgi[mcs] = ath_max_framelen(txop, mcs, false, true);
+		cur_ht40[mcs] = ath_max_framelen(txop, mcs, true, false);
+		cur_ht40_sgi[mcs] = ath_max_framelen(txop, mcs, true, true);
+	}
 }
 
 static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
@@ -1403,16 +1414,6 @@ int ath_txq_update(struct ath_softc *sc, int qnum,
 	int error = 0;
 	struct ath9k_tx_queue_info qi;
 
-	if (qnum == sc->beacon.beaconq) {
-		/*
-		 * XXX: for beacon queue, we just save the parameter.
-		 * It will be picked up by ath_beaconq_config when
-		 * it's necessary.
-		 */
-		sc->beacon.beacon_qi = *qinfo;
-		return 0;
-	}
-
 	BUG_ON(sc->tx.txq[qnum].axq_qnum != qnum);
 
 	ath9k_hw_get_txq_props(ah, qnum, &qi);
@@ -1586,7 +1587,8 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 	struct ath_atx_ac *ac, *ac_tmp, *last_ac;
 	struct ath_atx_tid *tid, *last_tid;
 
-	if (work_pending(&sc->hw_reset_work) || list_empty(&txq->axq_acq) ||
+	if (test_bit(SC_OP_HW_RESET, &sc->sc_flags) ||
+	    list_empty(&txq->axq_acq) ||
 	    txq->axq_ampdu_depth >= ATH_AGGR_MIN_QDEPTH)
 		return;
 
@@ -1988,7 +1990,8 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	ath_txq_lock(sc, txq);
 	if (txq == sc->tx.txq_map[q] &&
-	    ++txq->pending_frames > ATH_MAX_QDEPTH && !txq->stopped) {
+	    ++txq->pending_frames > sc->tx.txq_max_pending[q] &&
+	    !txq->stopped) {
 		ieee80211_stop_queue(sc->hw, q);
 		txq->stopped = true;
 	}
@@ -2047,7 +2050,8 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 		if (WARN_ON(--txq->pending_frames < 0))
 			txq->pending_frames = 0;
 
-		if (txq->stopped && txq->pending_frames < ATH_MAX_QDEPTH) {
+		if (txq->stopped &&
+		    txq->pending_frames < sc->tx.txq_max_pending[q]) {
 			ieee80211_wake_queue(sc->hw, q);
 			txq->stopped = false;
 		}
@@ -2191,7 +2195,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 
 	ath_txq_lock(sc, txq);
 	for (;;) {
-		if (work_pending(&sc->hw_reset_work))
+		if (test_bit(SC_OP_HW_RESET, &sc->sc_flags))
 			break;
 
 		if (list_empty(&txq->axq_q)) {
@@ -2274,7 +2278,7 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 	int status;
 
 	for (;;) {
-		if (work_pending(&sc->hw_reset_work))
+		if (test_bit(SC_OP_HW_RESET, &sc->sc_flags))
 			break;
 
 		status = ath9k_hw_txprocdesc(ah, NULL, (void *)&ts);

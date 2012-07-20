@@ -306,22 +306,24 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		rate_idx = 0;
 	else if (wlvif->bss_type != BSS_TYPE_AP_BSS) {
 		/*
-		 * if the packets are destined for AP (have a STA entry)
+		 * if the packets are data packets
 		 * send them with AP rate policies (EAPOLs are an exception),
 		 * otherwise use default basic rates
 		 */
-		if (control->flags & IEEE80211_TX_CTL_NO_CCK_RATE)
-			rate_idx = wlvif->sta.p2p_rate_idx;
-		else if (skb->protocol == cpu_to_be16(ETH_P_PAE))
+		if (skb->protocol == cpu_to_be16(ETH_P_PAE))
 			rate_idx = wlvif->sta.basic_rate_idx;
-		else if (control->control.sta)
+		else if (control->flags & IEEE80211_TX_CTL_NO_CCK_RATE)
+			rate_idx = wlvif->sta.p2p_rate_idx;
+		else if (ieee80211_is_data(frame_control))
 			rate_idx = wlvif->sta.ap_rate_idx;
 		else
 			rate_idx = wlvif->sta.basic_rate_idx;
 	} else {
 		if (hlid == wlvif->ap.global_hlid)
 			rate_idx = wlvif->ap.mgmt_rate_idx;
-		else if (hlid == wlvif->ap.bcast_hlid)
+		else if (hlid == wlvif->ap.bcast_hlid ||
+			 skb->protocol == cpu_to_be16(ETH_P_PAE))
+			/* send AP bcast and EAPOLs using the min basic rate */
 			rate_idx = wlvif->ap.bcast_rate_idx;
 		else
 			rate_idx = wlvif->ap.ucast_rate_idx[ac];

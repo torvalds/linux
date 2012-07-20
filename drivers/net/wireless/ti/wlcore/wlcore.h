@@ -156,6 +156,8 @@ struct wl1271 {
 	enum wl1271_state state;
 	enum wl12xx_fw_type fw_type;
 	bool plt;
+	enum plt_mode plt_mode;
+	u8 fem_manuf;
 	u8 last_vif_count;
 	struct mutex mutex;
 

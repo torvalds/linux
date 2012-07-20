@@ -745,40 +745,6 @@ static int mwifiex_cmd_802_11d_domain_info(struct mwifiex_private *priv,
 }
 
 /*
- * This function prepares command to set/get RF channel.
- *
- * Preparation includes -
- *      - Setting command ID, action and proper size
- *      - Setting RF type and current RF channel (for SET only)
- *      - Ensuring correct endian-ness
- */
-static int mwifiex_cmd_802_11_rf_channel(struct mwifiex_private *priv,
-					 struct host_cmd_ds_command *cmd,
-					 u16 cmd_action, u16 *channel)
-{
-	struct host_cmd_ds_802_11_rf_channel *rf_chan =
-		&cmd->params.rf_channel;
-	uint16_t rf_type = le16_to_cpu(rf_chan->rf_type);
-
-	cmd->command = cpu_to_le16(HostCmd_CMD_802_11_RF_CHANNEL);
-	cmd->size = cpu_to_le16(sizeof(struct host_cmd_ds_802_11_rf_channel)
-				+ S_DS_GEN);
-
-	if (cmd_action == HostCmd_ACT_GEN_SET) {
-		if ((priv->adapter->adhoc_start_band & BAND_A) ||
-		    (priv->adapter->adhoc_start_band & BAND_AN))
-			rf_chan->rf_type =
-				cpu_to_le16(HostCmd_SCAN_RADIO_TYPE_A);
-
-		rf_type = le16_to_cpu(rf_chan->rf_type);
-		SET_SECONDARYCHAN(rf_type, priv->adapter->sec_chan_offset);
-		rf_chan->current_channel = cpu_to_le16(*channel);
-	}
-	rf_chan->action = cpu_to_le16(cmd_action);
-	return 0;
-}
-
-/*
  * This function prepares command to set/get IBSS coalescing status.
  *
  * Preparation includes -
@@ -1168,10 +1134,6 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 			cpu_to_le16(sizeof(struct host_cmd_ds_version_ext) +
 				    S_DS_GEN);
 		ret = 0;
-		break;
-	case HostCmd_CMD_802_11_RF_CHANNEL:
-		ret = mwifiex_cmd_802_11_rf_channel(priv, cmd_ptr, cmd_action,
-						    data_buf);
 		break;
 	case HostCmd_CMD_FUNC_INIT:
 		if (priv->adapter->hw_status == MWIFIEX_HW_STATUS_RESET)

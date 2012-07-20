@@ -306,7 +306,8 @@ TRACE_EVENT(drv_bss_info_changed,
 		__field(u8, dtimper)
 		__field(u16, bcnint)
 		__field(u16, assoc_cap)
-		__field(u64, timestamp)
+		__field(u64, sync_tsf)
+		__field(u32, sync_device_ts)
 		__field(u32, basic_rates)
 		__field(u32, changed)
 		__field(bool, enable_beacon)
@@ -325,7 +326,8 @@ TRACE_EVENT(drv_bss_info_changed,
 		__entry->dtimper = info->dtim_period;
 		__entry->bcnint = info->beacon_int;
 		__entry->assoc_cap = info->assoc_capability;
-		__entry->timestamp = info->last_tsf;
+		__entry->sync_tsf = info->sync_tsf;
+		__entry->sync_device_ts = info->sync_device_ts;
 		__entry->basic_rates = info->basic_rates;
 		__entry->enable_beacon = info->enable_beacon;
 		__entry->ht_operation_mode = info->ht_operation_mode;

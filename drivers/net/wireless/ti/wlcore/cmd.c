@@ -497,6 +497,7 @@ int wl12xx_cmd_role_stop_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	struct wl12xx_cmd_role_stop *cmd;
 	int ret;
+	bool timeout = false;
 
 	if (WARN_ON(wlvif->sta.hlid == WL12XX_INVALID_LINK_ID))
 		return -EINVAL;
@@ -518,6 +519,17 @@ int wl12xx_cmd_role_stop_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		wl1271_error("failed to initiate cmd role stop sta");
 		goto out_free;
 	}
+
+	/*
+	 * Sometimes the firmware doesn't send this event, so we just
+	 * time out without failing.  Queue recovery for other
+	 * failures.
+	 */
+	ret = wl1271_cmd_wait_for_event_or_timeout(wl,
+						   ROLE_STOP_COMPLETE_EVENT_ID,
+						   &timeout);
+	if (ret)
+		wl12xx_queue_recovery_work(wl);
 
 	wl12xx_free_link(wl, wlvif, &wlvif->sta.hlid);
 

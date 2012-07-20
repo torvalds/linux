@@ -138,7 +138,7 @@ static int orinoco_change_vif(struct wiphy *wiphy, struct net_device *dev,
 	return err;
 }
 
-static int orinoco_scan(struct wiphy *wiphy, struct net_device *dev,
+static int orinoco_scan(struct wiphy *wiphy,
 			struct cfg80211_scan_request *request)
 {
 	struct orinoco_private *priv = wiphy_priv(wiphy);

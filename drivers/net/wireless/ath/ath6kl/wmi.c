@@ -474,7 +474,7 @@ static int ath6kl_wmi_remain_on_chnl_event_rx(struct wmi *wmi, u8 *datap,
 		return -EINVAL;
 	}
 	id = vif->last_roc_id;
-	cfg80211_ready_on_channel(vif->ndev, id, chan, NL80211_CHAN_NO_HT,
+	cfg80211_ready_on_channel(&vif->wdev, id, chan, NL80211_CHAN_NO_HT,
 				  dur, GFP_ATOMIC);
 
 	return 0;
@@ -513,7 +513,7 @@ static int ath6kl_wmi_cancel_remain_on_chnl_event_rx(struct wmi *wmi,
 	else
 		id = vif->last_roc_id; /* timeout on uncanceled r-o-c */
 	vif->last_cancel_roc_id = 0;
-	cfg80211_remain_on_channel_expired(vif->ndev, id, chan,
+	cfg80211_remain_on_channel_expired(&vif->wdev, id, chan,
 					   NL80211_CHAN_NO_HT, GFP_ATOMIC);
 
 	return 0;
@@ -533,7 +533,7 @@ static int ath6kl_wmi_tx_status_event_rx(struct wmi *wmi, u8 *datap, int len,
 	ath6kl_dbg(ATH6KL_DBG_WMI, "tx_status: id=%x ack_status=%u\n",
 		   id, ev->ack_status);
 	if (wmi->last_mgmt_tx_frame) {
-		cfg80211_mgmt_tx_status(vif->ndev, id,
+		cfg80211_mgmt_tx_status(&vif->wdev, id,
 					wmi->last_mgmt_tx_frame,
 					wmi->last_mgmt_tx_frame_len,
 					!!ev->ack_status, GFP_ATOMIC);
@@ -568,7 +568,7 @@ static int ath6kl_wmi_rx_probe_req_event_rx(struct wmi *wmi, u8 *datap, int len,
 		   dlen, freq, vif->probe_req_report);
 
 	if (vif->probe_req_report || vif->nw_type == AP_NETWORK)
-		cfg80211_rx_mgmt(vif->ndev, freq, 0,
+		cfg80211_rx_mgmt(&vif->wdev, freq, 0,
 				 ev->data, dlen, GFP_ATOMIC);
 
 	return 0;
@@ -608,7 +608,7 @@ static int ath6kl_wmi_rx_action_event_rx(struct wmi *wmi, u8 *datap, int len,
 		return -EINVAL;
 	}
 	ath6kl_dbg(ATH6KL_DBG_WMI, "rx_action: len=%u freq=%u\n", dlen, freq);
-	cfg80211_rx_mgmt(vif->ndev, freq, 0,
+	cfg80211_rx_mgmt(&vif->wdev, freq, 0,
 			 ev->data, dlen, GFP_ATOMIC);
 
 	return 0;

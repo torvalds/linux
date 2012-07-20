@@ -206,10 +206,9 @@ static ssize_t write_file_disable_ani(struct file *file,
 
 	if (disable_ani) {
 		clear_bit(SC_OP_ANI_RUN, &sc->sc_flags);
-		del_timer_sync(&common->ani.timer);
+		ath_stop_ani(sc);
 	} else {
-		set_bit(SC_OP_ANI_RUN, &sc->sc_flags);
-		ath_start_ani(common);
+		ath_check_ani(sc);
 	}
 
 	return count;
@@ -1556,6 +1555,14 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    &fops_interrupt);
 	debugfs_create_file("xmit", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_xmit);
+	debugfs_create_u32("qlen_bk", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+			   &sc->tx.txq_max_pending[WME_AC_BK]);
+	debugfs_create_u32("qlen_be", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+			   &sc->tx.txq_max_pending[WME_AC_BE]);
+	debugfs_create_u32("qlen_vi", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+			   &sc->tx.txq_max_pending[WME_AC_VI]);
+	debugfs_create_u32("qlen_vo", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+			   &sc->tx.txq_max_pending[WME_AC_VO]);
 	debugfs_create_file("stations", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_stations);
 	debugfs_create_file("misc", S_IRUSR, sc->debug.debugfs_phy, sc,
