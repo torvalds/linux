@@ -25,8 +25,8 @@
 #include <linux/module.h>
 #include <asm/io.h>
 #include <asm/processor.h>
+#include <asm/vtimer.h>
 #include <asm/irq.h>
-#include <asm/timer.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
 #include <asm/switch_to.h>

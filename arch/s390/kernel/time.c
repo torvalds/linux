@@ -44,7 +44,7 @@
 #include <asm/vdso.h>
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
-#include <asm/timer.h>
+#include <asm/vtimer.h>
 #include <asm/etr.h>
 #include <asm/cio.h>
 #include "entry.h"

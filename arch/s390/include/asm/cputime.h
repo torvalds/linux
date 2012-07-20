@@ -168,9 +168,11 @@ struct s390_idle_data {
 	int nohz_delay;
 	unsigned int sequence;
 	unsigned long long idle_count;
-	unsigned long long idle_enter;
-	unsigned long long idle_exit;
 	unsigned long long idle_time;
+	unsigned long long clock_idle_enter;
+	unsigned long long clock_idle_exit;
+	unsigned long long timer_idle_enter;
+	unsigned long long timer_idle_exit;
 };
 
 DECLARE_PER_CPU(struct s390_idle_data, s390_idle);
