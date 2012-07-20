@@ -390,15 +390,15 @@ static int tpci200_register(struct tpci200_board *tpci200)
 
 	/* Map internal tpci200 driver user space */
 	tpci200->info->interface_regs =
-		ioremap(pci_resource_start(tpci200->info->pdev,
+		ioremap_nocache(pci_resource_start(tpci200->info->pdev,
 					   TPCI200_IP_INTERFACE_BAR),
 			TPCI200_IFACE_SIZE);
 	tpci200->info->ioidint_space =
-		ioremap(pci_resource_start(tpci200->info->pdev,
+		ioremap_nocache(pci_resource_start(tpci200->info->pdev,
 					   TPCI200_IO_ID_INT_SPACES_BAR),
 			TPCI200_IOIDINT_SIZE);
 	tpci200->info->mem8_space =
-		ioremap(pci_resource_start(tpci200->info->pdev,
+		ioremap_nocache(pci_resource_start(tpci200->info->pdev,
 					   TPCI200_MEM8_SPACE_BAR),
 			TPCI200_MEM8_SIZE);
 
@@ -677,7 +677,7 @@ static int tpci200_slot_map_space(struct ipack_device *dev,
 
 	virt_addr_space->size = size_to_map;
 	virt_addr_space->address =
-		ioremap((unsigned long)phys_address, size_to_map);
+		ioremap_nocache((unsigned long)phys_address, size_to_map);
 
 out_unlock:
 	mutex_unlock(&tpci200->mutex);
