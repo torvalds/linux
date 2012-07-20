@@ -51,7 +51,7 @@ typedef volatile struct tagLCDC_REG
 	unsigned int WIN1_SCL_FACTOR_CBR;     //0x70 Win1 YRGB scaling factor setting
 	unsigned int WIN1_SCL_OFFSET;         //0x74 Win1 Cbr scaling start point offset
 	unsigned int WIN2_MST;		 		  //0x78 win2 memort start address
-	unsigned int WIM2_VIR;				  //0x7c win2 virtual stride
+	unsigned int WIN2_VIR;				  //0x7c win2 virtual stride
 	unsigned int WIN2_DSP_INFO;           //0x80 Win2 display width/height on panel
 	unsigned int WIN2_DSP_ST;             //0x84 Win2 display start point on panel
 	unsigned int HWC_MST;                 //0x88 HWC memory start address

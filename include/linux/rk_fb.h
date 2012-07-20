@@ -25,7 +25,7 @@
 
 #define RK30_MAX_LCDC_SUPPORT	4
 #define RK30_MAX_LAYER_SUPPORT	4
-#define RK_MAX_FB_SUPPORT     4
+#define RK_MAX_FB_SUPPORT       8
 
 
 

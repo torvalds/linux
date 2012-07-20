@@ -310,6 +310,19 @@ static int win1_open(struct rk30_lcdc_device *lcdc_dev,bool open)
 	return 0;
 }
 
+static int win2_open(struct rk30_lcdc_device *lcdc_dev,bool open)
+{
+	spin_lock(&lcdc_dev->reg_lock);
+	if(likely(lcdc_dev->clk_on))
+	{
+		LcdMskReg(lcdc_dev, SYS_CTRL1, m_W2_EN, v_W2_EN(open));
+		LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
+		lcdc_dev->driver.layer_par[1]->state = open;
+	}
+	spin_unlock(&lcdc_dev->reg_lock);
+	printk(KERN_INFO "lcdc%d win2 %s\n",lcdc_dev->id,open?"open":"closed");
+	return 0;
+}
 
 static int rk30_lcdc_blank(struct rk_lcdc_device_driver*lcdc_drv,int layer_id,int blank_mode)
 {
@@ -374,6 +387,25 @@ static  int win1_display(struct rk30_lcdc_device *lcdc_dev,struct layer_par *par
 		LcdWrReg(lcdc_dev, WIN1_YRGB_MST, y_addr);
 	    	LcdWrReg(lcdc_dev, WIN1_CBR_MST, uv_addr);
 		LCDC_REG_CFG_DONE();
+	}
+	spin_unlock(&lcdc_dev->reg_lock);
+	
+	return 0;
+}
+
+static  int win2_display(struct rk30_lcdc_device *lcdc_dev,struct layer_par *par )
+{
+	u32 y_addr;
+	u32 uv_addr;
+	y_addr = par->smem_start + par->y_offset;
+    	uv_addr = par->cbr_start + par->c_offset;
+	DBG(2,KERN_INFO "lcdc%d>>%s>>y_addr:0x%x>>uv_addr:0x%x\n",lcdc_dev->id,__func__,y_addr,uv_addr);
+	
+	spin_lock(&lcdc_dev->reg_lock);
+	if(likely(lcdc_dev->clk_on))
+	{
+		LcdWrReg(lcdc_dev, WIN2_MST, y_addr);
+		LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01); 
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 	
@@ -540,6 +572,65 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
     return 0;
 }
 
+static int win2_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
+	struct layer_par *par )
+{
+	u32 xact, yact, xvir, yvir, xpos, ypos;
+	u32 ScaleYrgbX = 0x1000;
+	u32 ScaleYrgbY = 0x1000;
+	u32 ScaleCbrX = 0x1000;
+	u32 ScaleCbrY = 0x1000;
+	
+	xact = par->xact;			
+	yact = par->yact;
+	xvir = par->xvir;		
+	yvir = par->yvir;
+	xpos = par->xpos+screen->left_margin + screen->hsync_len;
+	ypos = par->ypos+screen->upper_margin + screen->vsync_len;
+	
+	ScaleYrgbX = CalScale(xact, par->xsize);
+	ScaleYrgbY = CalScale(yact, par->ysize);
+	DBG(1,"%s for lcdc%d>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n",
+		__func__,lcdc_dev->id,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
+
+	
+	spin_lock(&lcdc_dev->reg_lock);
+	if(likely(lcdc_dev->clk_on))
+	{
+
+		LcdMskReg(lcdc_dev,SYS_CTRL1, m_W2_FORMAT, v_W2_FORMAT(par->format));
+		LcdWrReg(lcdc_dev, WIN2_DSP_ST,v_DSP_STX(xpos) | v_DSP_STY(ypos));
+		LcdWrReg(lcdc_dev, WIN2_DSP_INFO,v_DSP_WIDTH(par->xsize) | v_DSP_HEIGHT(par->ysize));
+		// enable win1 color key and set the color to black(rgb=0)
+		LcdMskReg(lcdc_dev, WIN2_COLOR_KEY_CTRL, m_COLORKEY_EN | m_KEYCOLOR,v_COLORKEY_EN(1) | v_KEYCOLOR(0));
+		switch(par->format)
+	    	{
+		        case ARGB888:
+				LcdWrReg(lcdc_dev, WIN2_VIR,v_ARGB888_VIRWIDTH(xvir));
+				//LcdMskReg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
+				break;
+		        case RGB888:  //rgb888
+				LcdWrReg(lcdc_dev, WIN2_VIR,v_RGB888_VIRWIDTH(xvir));
+				// LcdMskReg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
+				break;
+		        case RGB565:  //rgb565
+				LcdWrReg(lcdc_dev, WIN2_VIR,v_RGB565_VIRWIDTH(xvir));
+				break;
+		        case YUV422:
+		        case YUV420:   
+				LcdWrReg(lcdc_dev, WIN2_VIR,v_YUV_VIRWIDTH(xvir));
+				break;
+		        default:
+				LcdWrReg(lcdc_dev, WIN2_VIR,v_RGB888_VIRWIDTH(xvir));
+				break;
+	    	}
+		
+		LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01); 
+	}
+	spin_unlock(&lcdc_dev->reg_lock);
+    return 0;
+}
+
 static int rk30_lcdc_open(struct rk_lcdc_device_driver *dev_drv,int layer_id,bool open)
 {
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
@@ -550,6 +641,10 @@ static int rk30_lcdc_open(struct rk_lcdc_device_driver *dev_drv,int layer_id,boo
 	else if(layer_id == 1)
 	{
 		win1_open(lcdc_dev,open);
+	}
+	else if(layer_id == 2)
+	{
+		win2_open(lcdc_dev,open);
 	}
 
 	return 0;
@@ -574,6 +669,11 @@ static int rk30_lcdc_set_par(struct rk_lcdc_device_driver *dev_drv,int layer_id)
 	{
 		par = dev_drv->layer_par[1];
         	win1_set_par(lcdc_dev,screen,par);
+	}
+	else if(layer_id == 2)
+	{
+		par = dev_drv->layer_par[2];
+        	win2_set_par(lcdc_dev,screen,par);
 	}
 	
 	return 0;
@@ -600,6 +700,11 @@ int rk30_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 	{
 		par = dev_drv->layer_par[1];
         	win1_display(lcdc_dev,par);
+	}
+	else if(layer_id == 2)
+	{
+		par = dev_drv->layer_par[2];
+        	win2_display(lcdc_dev,par);
 	}
 	if((dev_drv->first_frame))  //this is the first frame of the system ,enable frame start interrupt
 	{
@@ -855,6 +960,11 @@ static struct layer_par lcdc_layer[] = {
 	[1] = {
 		.name  		= "win1",
 		.id		= 1,
+		.support_3d	= false,
+	},
+	[2] = {
+		.name  		= "win2",
+		.id		= 2,
 		.support_3d	= false,
 	},
 };
