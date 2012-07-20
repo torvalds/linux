@@ -1470,7 +1470,7 @@ int rk29_sdmmc_reset_controller(struct rk29_sdmmc *host)
     /* reset */
 #if defined(CONFIG_ARCH_RK29)     
     rk29_sdmmc_write(host->regs, SDMMC_CTRL,(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET ));
-#elif defined(CONFIG_ARCH_RK30)
+#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
     rk29_sdmmc_write(host->regs, SDMMC_CTRL,(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
 #endif
     timeOut = 1000;
@@ -3605,7 +3605,7 @@ static void rk29_sdmmc_sdcard_resume(struct rk29_sdmmc *host)
 	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);
 }
 
-#elif defined(CONFIG_ARCH_RK30)
+#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
 static irqreturn_t det_keys_isr(int irq, void *dev_id)
 {
 	struct rk29_sdmmc *host = dev_id;
