@@ -469,6 +469,9 @@ static inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
 	ixgbe_set_rx_mode(adapter->netdev);
 
 	hw->mac.ops.clear_rar(hw, rar_entry);
+
+	/* reset VF api back to unknown */
+	adapter->vfinfo[vf].vf_api = ixgbe_mbox_api_10;
 }
 
 static int ixgbe_set_vf_mac(struct ixgbe_adapter *adapter,
@@ -717,6 +720,24 @@ static int ixgbe_set_vf_macvlan_msg(struct ixgbe_adapter *adapter,
 	return err;
 }
 
+static int ixgbe_negotiate_vf_api(struct ixgbe_adapter *adapter,
+				  u32 *msgbuf, u32 vf)
+{
+	int api = msgbuf[1];
+
+	switch (api) {
+	case ixgbe_mbox_api_10:
+		adapter->vfinfo[vf].vf_api = api;
+		return 0;
+	default:
+		break;
+	}
+
+	e_info(drv, "VF %d requested invalid api version %u\n", vf, api);
+
+	return -1;
+}
+
 static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 {
 	u32 mbx_size = IXGBE_VFMAILBOX_SIZE;
@@ -738,14 +759,13 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 	/* flush the ack before we write any messages back */
 	IXGBE_WRITE_FLUSH(hw);
 
+	if (msgbuf[0] == IXGBE_VF_RESET)
+		return ixgbe_vf_reset_msg(adapter, vf);
+
 	/*
 	 * until the vf completes a virtual function reset it should not be
 	 * allowed to start any configuration.
 	 */
-
-	if (msgbuf[0] == IXGBE_VF_RESET)
-		return ixgbe_vf_reset_msg(adapter, vf);
-
 	if (!adapter->vfinfo[vf].clear_to_send) {
 		msgbuf[0] |= IXGBE_VT_MSGTYPE_NACK;
 		ixgbe_write_mbx(hw, msgbuf, 1, vf);
@@ -768,6 +788,9 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 	case IXGBE_VF_SET_MACVLAN:
 		retval = ixgbe_set_vf_macvlan_msg(adapter, msgbuf, vf);
 		break;
+	case IXGBE_VF_API_NEGOTIATE:
+		retval = ixgbe_negotiate_vf_api(adapter, msgbuf, vf);
+		break;
 	default:
 		e_err(drv, "Unhandled Msg %8.8x\n", msgbuf[0]);
 		retval = IXGBE_ERR_MBX;
@@ -782,7 +805,7 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 
 	msgbuf[0] |= IXGBE_VT_MSGTYPE_CTS;
 
-	ixgbe_write_mbx(hw, msgbuf, 1, vf);
+	ixgbe_write_mbx(hw, msgbuf, mbx_size, vf);
 
 	return retval;
 }
