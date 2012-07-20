@@ -217,7 +217,6 @@ struct esd_usb2_net_priv {
 	struct usb_anchor tx_submitted;
 	struct esd_tx_urb_context tx_contexts[MAX_TX_URBS];
 
-	int open_time;
 	struct esd_usb2 *usb2;
 	struct net_device *netdev;
 	int index;
@@ -695,8 +694,6 @@ static int esd_usb2_open(struct net_device *netdev)
 		return err;
 	}
 
-	priv->open_time = jiffies;
-
 	netif_start_queue(netdev);
 
 	return 0;
@@ -864,8 +861,6 @@ static int esd_usb2_close(struct net_device *netdev)
 
 	close_candev(netdev);
 
-	priv->open_time = 0;
-
 	return 0;
 }
 
@@ -941,11 +936,6 @@ static int esd_usb2_get_berr_counter(const struct net_device *netdev,
 
 static int esd_usb2_set_mode(struct net_device *netdev, enum can_mode mode)
 {
-	struct esd_usb2_net_priv *priv = netdev_priv(netdev);
-
-	if (!priv->open_time)
-		return -EINVAL;
-
 	switch (mode) {
 	case CAN_MODE_START:
 		netif_wake_queue(netdev);
