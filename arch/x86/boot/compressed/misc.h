@@ -26,6 +26,7 @@
 extern struct boot_params *real_mode;		/* Pointer to real-mode data */
 void __putstr(int error, const char *s);
 #define putstr(__x)  __putstr(0, __x)
+#define error_putstr(__x)  __putstr(1, __x)
 #define puts(__x)  __putstr(0, __x)
 
 /* cmdline.c */
