@@ -10,6 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include "csr_pmem.h"
 #include "csr_panic.h"
 #include "csr_sched.h"
@@ -312,11 +313,11 @@ void CsrMsgConvDeinit(void)
     {
         CsrMsgConvPrimEntry *s_next;
         s_next = s->next;
-        CsrPmemFree(s);
+        kfree(s);
         s = s_next;
     }
 
-    CsrPmemFree(converter);
+    kfree(converter);
     converter = NULL;
 }
 EXPORT_SYMBOL_GPL(CsrMsgConvDeinit);

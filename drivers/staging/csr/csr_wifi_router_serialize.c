@@ -9,7 +9,7 @@
 *****************************************************************************/
 
 /* Note: this is an auto-generated file. */
-
+#include <linux/slab.h>
 #include "csr_pmem.h"
 #include "csr_msgconv.h"
 #include "csr_unicode.h"
@@ -20,7 +20,7 @@
 
 void CsrWifiRouterPfree(void *ptr)
 {
-    CsrPmemFree(ptr);
+    kfree(ptr);
 }
 
 
@@ -136,8 +136,8 @@ void* CsrWifiRouterMaPacketReqDes(u8 *buffer, size_t length)
 void CsrWifiRouterMaPacketReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiRouterMaPacketReq *primitive = (CsrWifiRouterMaPacketReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->frame);
-    CsrPmemFree(primitive);
+    kfree(primitive->frame);
+    kfree(primitive);
 }
 
 
@@ -415,8 +415,8 @@ void* CsrWifiRouterMaPacketIndDes(u8 *buffer, size_t length)
 void CsrWifiRouterMaPacketIndSerFree(void *voidPrimitivePointer)
 {
     CsrWifiRouterMaPacketInd *primitive = (CsrWifiRouterMaPacketInd *) voidPrimitivePointer;
-    CsrPmemFree(primitive->frame);
-    CsrPmemFree(primitive);
+    kfree(primitive->frame);
+    kfree(primitive);
 }
 
 

@@ -10,6 +10,7 @@
 
 /* Note: this is an auto-generated file. */
 #include <linux/string.h>
+#include <linux/slab.h>
 #include "csr_pmem.h"
 #include "csr_msgconv.h"
 #include "csr_unicode.h"
@@ -20,7 +21,7 @@
 
 void CsrWifiSmePfree(void *ptr)
 {
-    CsrPmemFree(ptr);
+    kfree(ptr);
 }
 
 
@@ -135,8 +136,8 @@ void* CsrWifiSmeBlacklistReqDes(u8 *buffer, size_t length)
 void CsrWifiSmeBlacklistReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeBlacklistReq *primitive = (CsrWifiSmeBlacklistReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->setAddresses);
-    CsrPmemFree(primitive);
+    kfree(primitive->setAddresses);
+    kfree(primitive);
 }
 
 
@@ -191,8 +192,8 @@ void* CsrWifiSmeCalibrationDataSetReqDes(u8 *buffer, size_t length)
 void CsrWifiSmeCalibrationDataSetReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeCalibrationDataSetReq *primitive = (CsrWifiSmeCalibrationDataSetReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->calibrationData);
-    CsrPmemFree(primitive);
+    kfree(primitive->calibrationData);
+    kfree(primitive);
 }
 
 
@@ -400,8 +401,8 @@ void* CsrWifiSmeConnectReqDes(u8 *buffer, size_t length)
 void CsrWifiSmeConnectReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeConnectReq *primitive = (CsrWifiSmeConnectReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->connectionConfig.mlmeAssociateReqInformationElements);
-    CsrPmemFree(primitive);
+    kfree(primitive->connectionConfig.mlmeAssociateReqInformationElements);
+    kfree(primitive);
 }
 
 
@@ -618,8 +619,8 @@ void* CsrWifiSmeMibGetNextReqDes(u8 *buffer, size_t length)
 void CsrWifiSmeMibGetNextReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeMibGetNextReq *primitive = (CsrWifiSmeMibGetNextReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->mibAttribute);
-    CsrPmemFree(primitive);
+    kfree(primitive->mibAttribute);
+    kfree(primitive);
 }
 
 
@@ -674,8 +675,8 @@ void* CsrWifiSmeMibGetReqDes(u8 *buffer, size_t length)
 void CsrWifiSmeMibGetReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeMibGetReq *primitive = (CsrWifiSmeMibGetReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->mibAttribute);
-    CsrPmemFree(primitive);
+    kfree(primitive->mibAttribute);
+    kfree(primitive);
 }
 
 
@@ -730,8 +731,8 @@ void* CsrWifiSmeMibSetReqDes(u8 *buffer, size_t length)
 void CsrWifiSmeMibSetReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeMibSetReq *primitive = (CsrWifiSmeMibSetReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->mibAttribute);
-    CsrPmemFree(primitive);
+    kfree(primitive->mibAttribute);
+    kfree(primitive);
 }
 
 
@@ -804,8 +805,8 @@ void* CsrWifiSmeMulticastAddressReqDes(u8 *buffer, size_t length)
 void CsrWifiSmeMulticastAddressReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeMulticastAddressReq *primitive = (CsrWifiSmeMulticastAddressReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->setAddresses);
-    CsrPmemFree(primitive);
+    kfree(primitive->setAddresses);
+    kfree(primitive);
 }
 
 
@@ -869,8 +870,8 @@ void* CsrWifiSmePacketFilterSetReqDes(u8 *buffer, size_t length)
 void CsrWifiSmePacketFilterSetReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmePacketFilterSetReq *primitive = (CsrWifiSmePacketFilterSetReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->filter);
-    CsrPmemFree(primitive);
+    kfree(primitive->filter);
+    kfree(primitive);
 }
 
 
@@ -946,8 +947,8 @@ void* CsrWifiSmePmkidReqDes(u8 *buffer, size_t length)
 void CsrWifiSmePmkidReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmePmkidReq *primitive = (CsrWifiSmePmkidReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->setPmkids);
-    CsrPmemFree(primitive);
+    kfree(primitive->setPmkids);
+    kfree(primitive);
 }
 
 
@@ -1224,8 +1225,8 @@ void* CsrWifiSmeScanConfigSetReqDes(u8 *buffer, size_t length)
 void CsrWifiSmeScanConfigSetReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeScanConfigSetReq *primitive = (CsrWifiSmeScanConfigSetReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->scanConfig.passiveChannelList);
-    CsrPmemFree(primitive);
+    kfree(primitive->scanConfig.passiveChannelList);
+    kfree(primitive);
 }
 
 
@@ -1341,10 +1342,10 @@ void* CsrWifiSmeScanFullReqDes(u8 *buffer, size_t length)
 void CsrWifiSmeScanFullReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeScanFullReq *primitive = (CsrWifiSmeScanFullReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->ssid);
-    CsrPmemFree(primitive->channelList);
-    CsrPmemFree(primitive->probeIe);
-    CsrPmemFree(primitive);
+    kfree(primitive->ssid);
+    kfree(primitive->channelList);
+    kfree(primitive->probeIe);
+    kfree(primitive);
 }
 
 
@@ -1482,9 +1483,9 @@ void* CsrWifiSmeTspecReqDes(u8 *buffer, size_t length)
 void CsrWifiSmeTspecReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeTspecReq *primitive = (CsrWifiSmeTspecReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->tspec);
-    CsrPmemFree(primitive->tclas);
-    CsrPmemFree(primitive);
+    kfree(primitive->tspec);
+    kfree(primitive->tclas);
+    kfree(primitive);
 }
 
 
@@ -1572,11 +1573,11 @@ void CsrWifiSmeWifiFlightmodeReqSerFree(void *voidPrimitivePointer)
         u16 i1;
         for (i1 = 0; i1 < primitive->mibFilesCount; i1++)
         {
-            CsrPmemFree(primitive->mibFiles[i1].data);
+            kfree(primitive->mibFiles[i1].data);
         }
     }
-    CsrPmemFree(primitive->mibFiles);
-    CsrPmemFree(primitive);
+    kfree(primitive->mibFiles);
+    kfree(primitive);
 }
 
 
@@ -1664,11 +1665,11 @@ void CsrWifiSmeWifiOnReqSerFree(void *voidPrimitivePointer)
         u16 i1;
         for (i1 = 0; i1 < primitive->mibFilesCount; i1++)
         {
-            CsrPmemFree(primitive->mibFiles[i1].data);
+            kfree(primitive->mibFiles[i1].data);
         }
     }
-    CsrPmemFree(primitive->mibFiles);
-    CsrPmemFree(primitive);
+    kfree(primitive->mibFiles);
+    kfree(primitive);
 }
 
 
@@ -1738,8 +1739,8 @@ void* CsrWifiSmeCloakedSsidsSetReqDes(u8 *buffer, size_t length)
 void CsrWifiSmeCloakedSsidsSetReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeCloakedSsidsSetReq *primitive = (CsrWifiSmeCloakedSsidsSetReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->cloakedSsids.cloakedSsids);
-    CsrPmemFree(primitive);
+    kfree(primitive->cloakedSsids.cloakedSsids);
+    kfree(primitive);
 }
 
 
@@ -1893,8 +1894,8 @@ void* CsrWifiSmeWpsConfigurationReqDes(u8 *buffer, size_t length)
 void CsrWifiSmeWpsConfigurationReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeWpsConfigurationReq *primitive = (CsrWifiSmeWpsConfigurationReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->wpsConfig.secondaryDeviceType);
-    CsrPmemFree(primitive);
+    kfree(primitive->wpsConfig.secondaryDeviceType);
+    kfree(primitive);
 }
 
 
@@ -1949,8 +1950,8 @@ void* CsrWifiSmeSetReqDes(u8 *buffer, size_t length)
 void CsrWifiSmeSetReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeSetReq *primitive = (CsrWifiSmeSetReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->data);
-    CsrPmemFree(primitive);
+    kfree(primitive->data);
+    kfree(primitive);
 }
 
 
@@ -2201,13 +2202,13 @@ void* CsrWifiSmeAssociationCompleteIndDes(u8 *buffer, size_t length)
 void CsrWifiSmeAssociationCompleteIndSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeAssociationCompleteInd *primitive = (CsrWifiSmeAssociationCompleteInd *) voidPrimitivePointer;
-    CsrPmemFree(primitive->connectionInfo.beaconFrame);
-    CsrPmemFree(primitive->connectionInfo.associationReqFrame);
-    CsrPmemFree(primitive->connectionInfo.associationRspFrame);
-    CsrPmemFree(primitive->connectionInfo.assocScanInfoElements);
-    CsrPmemFree(primitive->connectionInfo.assocReqInfoElements);
-    CsrPmemFree(primitive->connectionInfo.assocRspInfoElements);
-    CsrPmemFree(primitive);
+    kfree(primitive->connectionInfo.beaconFrame);
+    kfree(primitive->connectionInfo.associationReqFrame);
+    kfree(primitive->connectionInfo.associationRspFrame);
+    kfree(primitive->connectionInfo.assocScanInfoElements);
+    kfree(primitive->connectionInfo.assocReqInfoElements);
+    kfree(primitive->connectionInfo.assocRspInfoElements);
+    kfree(primitive);
 }
 
 
@@ -2325,8 +2326,8 @@ void* CsrWifiSmeBlacklistCfmDes(u8 *buffer, size_t length)
 void CsrWifiSmeBlacklistCfmSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeBlacklistCfm *primitive = (CsrWifiSmeBlacklistCfm *) voidPrimitivePointer;
-    CsrPmemFree(primitive->getAddresses);
-    CsrPmemFree(primitive);
+    kfree(primitive->getAddresses);
+    kfree(primitive);
 }
 
 
@@ -2384,8 +2385,8 @@ void* CsrWifiSmeCalibrationDataGetCfmDes(u8 *buffer, size_t length)
 void CsrWifiSmeCalibrationDataGetCfmSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeCalibrationDataGetCfm *primitive = (CsrWifiSmeCalibrationDataGetCfm *) voidPrimitivePointer;
-    CsrPmemFree(primitive->calibrationData);
-    CsrPmemFree(primitive);
+    kfree(primitive->calibrationData);
+    kfree(primitive);
 }
 
 
@@ -2737,8 +2738,8 @@ void* CsrWifiSmeConnectionConfigGetCfmDes(u8 *buffer, size_t length)
 void CsrWifiSmeConnectionConfigGetCfmSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeConnectionConfigGetCfm *primitive = (CsrWifiSmeConnectionConfigGetCfm *) voidPrimitivePointer;
-    CsrPmemFree(primitive->connectionConfig.mlmeAssociateReqInformationElements);
-    CsrPmemFree(primitive);
+    kfree(primitive->connectionConfig.mlmeAssociateReqInformationElements);
+    kfree(primitive);
 }
 
 
@@ -2941,13 +2942,13 @@ void* CsrWifiSmeConnectionInfoGetCfmDes(u8 *buffer, size_t length)
 void CsrWifiSmeConnectionInfoGetCfmSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeConnectionInfoGetCfm *primitive = (CsrWifiSmeConnectionInfoGetCfm *) voidPrimitivePointer;
-    CsrPmemFree(primitive->connectionInfo.beaconFrame);
-    CsrPmemFree(primitive->connectionInfo.associationReqFrame);
-    CsrPmemFree(primitive->connectionInfo.associationRspFrame);
-    CsrPmemFree(primitive->connectionInfo.assocScanInfoElements);
-    CsrPmemFree(primitive->connectionInfo.assocReqInfoElements);
-    CsrPmemFree(primitive->connectionInfo.assocRspInfoElements);
-    CsrPmemFree(primitive);
+    kfree(primitive->connectionInfo.beaconFrame);
+    kfree(primitive->connectionInfo.associationReqFrame);
+    kfree(primitive->connectionInfo.associationRspFrame);
+    kfree(primitive->connectionInfo.assocScanInfoElements);
+    kfree(primitive->connectionInfo.assocReqInfoElements);
+    kfree(primitive->connectionInfo.assocRspInfoElements);
+    kfree(primitive);
 }
 
 
@@ -3543,13 +3544,13 @@ void* CsrWifiSmeMediaStatusIndDes(u8 *buffer, size_t length)
 void CsrWifiSmeMediaStatusIndSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeMediaStatusInd *primitive = (CsrWifiSmeMediaStatusInd *) voidPrimitivePointer;
-    CsrPmemFree(primitive->connectionInfo.beaconFrame);
-    CsrPmemFree(primitive->connectionInfo.associationReqFrame);
-    CsrPmemFree(primitive->connectionInfo.associationRspFrame);
-    CsrPmemFree(primitive->connectionInfo.assocScanInfoElements);
-    CsrPmemFree(primitive->connectionInfo.assocReqInfoElements);
-    CsrPmemFree(primitive->connectionInfo.assocRspInfoElements);
-    CsrPmemFree(primitive);
+    kfree(primitive->connectionInfo.beaconFrame);
+    kfree(primitive->connectionInfo.associationReqFrame);
+    kfree(primitive->connectionInfo.associationRspFrame);
+    kfree(primitive->connectionInfo.assocScanInfoElements);
+    kfree(primitive->connectionInfo.assocReqInfoElements);
+    kfree(primitive->connectionInfo.assocRspInfoElements);
+    kfree(primitive);
 }
 
 
@@ -3655,8 +3656,8 @@ void* CsrWifiSmeMibGetCfmDes(u8 *buffer, size_t length)
 void CsrWifiSmeMibGetCfmSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeMibGetCfm *primitive = (CsrWifiSmeMibGetCfm *) voidPrimitivePointer;
-    CsrPmemFree(primitive->mibAttribute);
-    CsrPmemFree(primitive);
+    kfree(primitive->mibAttribute);
+    kfree(primitive);
 }
 
 
@@ -3714,8 +3715,8 @@ void* CsrWifiSmeMibGetNextCfmDes(u8 *buffer, size_t length)
 void CsrWifiSmeMibGetNextCfmSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeMibGetNextCfm *primitive = (CsrWifiSmeMibGetNextCfm *) voidPrimitivePointer;
-    CsrPmemFree(primitive->mibAttribute);
-    CsrPmemFree(primitive);
+    kfree(primitive->mibAttribute);
+    kfree(primitive);
 }
 
 
@@ -3836,8 +3837,8 @@ void* CsrWifiSmeMulticastAddressCfmDes(u8 *buffer, size_t length)
 void CsrWifiSmeMulticastAddressCfmSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeMulticastAddressCfm *primitive = (CsrWifiSmeMulticastAddressCfm *) voidPrimitivePointer;
-    CsrPmemFree(primitive->getAddresses);
-    CsrPmemFree(primitive);
+    kfree(primitive->getAddresses);
+    kfree(primitive);
 }
 
 
@@ -3982,8 +3983,8 @@ void* CsrWifiSmePmkidCandidateListIndDes(u8 *buffer, size_t length)
 void CsrWifiSmePmkidCandidateListIndSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmePmkidCandidateListInd *primitive = (CsrWifiSmePmkidCandidateListInd *) voidPrimitivePointer;
-    CsrPmemFree(primitive->pmkidCandidates);
-    CsrPmemFree(primitive);
+    kfree(primitive->pmkidCandidates);
+    kfree(primitive);
 }
 
 
@@ -4062,8 +4063,8 @@ void* CsrWifiSmePmkidCfmDes(u8 *buffer, size_t length)
 void CsrWifiSmePmkidCfmSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmePmkidCfm *primitive = (CsrWifiSmePmkidCfm *) voidPrimitivePointer;
-    CsrPmemFree(primitive->getPmkids);
-    CsrPmemFree(primitive);
+    kfree(primitive->getPmkids);
+    kfree(primitive);
 }
 
 
@@ -4505,8 +4506,8 @@ void* CsrWifiSmeScanConfigGetCfmDes(u8 *buffer, size_t length)
 void CsrWifiSmeScanConfigGetCfmSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeScanConfigGetCfm *primitive = (CsrWifiSmeScanConfigGetCfm *) voidPrimitivePointer;
-    CsrPmemFree(primitive->scanConfig.passiveChannelList);
-    CsrPmemFree(primitive);
+    kfree(primitive->scanConfig.passiveChannelList);
+    kfree(primitive);
 }
 
 
@@ -4780,7 +4781,7 @@ void* CsrWifiSmeScanResultIndDes(u8 *buffer, size_t length)
 void CsrWifiSmeScanResultIndSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeScanResultInd *primitive = (CsrWifiSmeScanResultInd *) voidPrimitivePointer;
-    CsrPmemFree(primitive->result.informationElements);
+    kfree(primitive->result.informationElements);
     switch (primitive->result.p2pDeviceRole)
     {
         case CSR_WIFI_SME_P2P_ROLE_GO:
@@ -4788,18 +4789,18 @@ void CsrWifiSmeScanResultIndSerFree(void *voidPrimitivePointer)
             u16 i4;
             for (i4 = 0; i4 < primitive->result.deviceInfo.groupInfo.p2pClientInfoCount; i4++)
             {
-                CsrPmemFree(primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secDeviceType);
+                kfree(primitive->result.deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secDeviceType);
             }
         }
-            CsrPmemFree(primitive->result.deviceInfo.groupInfo.p2PClientInfo);
+            kfree(primitive->result.deviceInfo.groupInfo.p2PClientInfo);
             break;
         case CSR_WIFI_SME_P2P_ROLE_STANDALONE:
-            CsrPmemFree(primitive->result.deviceInfo.standalonedevInfo.secDeviceType);
+            kfree(primitive->result.deviceInfo.standalonedevInfo.secDeviceType);
             break;
         default:
             break;
     }
-    CsrPmemFree(primitive);
+    kfree(primitive);
 }
 
 
@@ -5106,7 +5107,7 @@ void CsrWifiSmeScanResultsGetCfmSerFree(void *voidPrimitivePointer)
         u16 i1;
         for (i1 = 0; i1 < primitive->scanResultsCount; i1++)
         {
-            CsrPmemFree(primitive->scanResults[i1].informationElements);
+            kfree(primitive->scanResults[i1].informationElements);
             switch (primitive->scanResults[i1].p2pDeviceRole)
             {
                 case CSR_WIFI_SME_P2P_ROLE_GO:
@@ -5114,21 +5115,21 @@ void CsrWifiSmeScanResultsGetCfmSerFree(void *voidPrimitivePointer)
                     u16 i4;
                     for (i4 = 0; i4 < primitive->scanResults[i1].deviceInfo.groupInfo.p2pClientInfoCount; i4++)
                     {
-                        CsrPmemFree(primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secDeviceType);
+                        kfree(primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo[i4].clientDeviceInfo.secDeviceType);
                     }
                 }
-                    CsrPmemFree(primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo);
+                    kfree(primitive->scanResults[i1].deviceInfo.groupInfo.p2PClientInfo);
                     break;
                 case CSR_WIFI_SME_P2P_ROLE_STANDALONE:
-                    CsrPmemFree(primitive->scanResults[i1].deviceInfo.standalonedevInfo.secDeviceType);
+                    kfree(primitive->scanResults[i1].deviceInfo.standalonedevInfo.secDeviceType);
                     break;
                 default:
                     break;
             }
         }
     }
-    CsrPmemFree(primitive->scanResults);
-    CsrPmemFree(primitive);
+    kfree(primitive->scanResults);
+    kfree(primitive);
 }
 
 
@@ -5336,8 +5337,8 @@ void* CsrWifiSmeTspecIndDes(u8 *buffer, size_t length)
 void CsrWifiSmeTspecIndSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeTspecInd *primitive = (CsrWifiSmeTspecInd *) voidPrimitivePointer;
-    CsrPmemFree(primitive->tspec);
-    CsrPmemFree(primitive);
+    kfree(primitive->tspec);
+    kfree(primitive);
 }
 
 
@@ -5404,8 +5405,8 @@ void* CsrWifiSmeTspecCfmDes(u8 *buffer, size_t length)
 void CsrWifiSmeTspecCfmSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeTspecCfm *primitive = (CsrWifiSmeTspecCfm *) voidPrimitivePointer;
-    CsrPmemFree(primitive->tspec);
-    CsrPmemFree(primitive);
+    kfree(primitive->tspec);
+    kfree(primitive);
 }
 
 
@@ -5473,9 +5474,9 @@ void* CsrWifiSmeVersionsGetCfmDes(u8 *buffer, size_t length)
 void CsrWifiSmeVersionsGetCfmSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeVersionsGetCfm *primitive = (CsrWifiSmeVersionsGetCfm *) voidPrimitivePointer;
-    CsrPmemFree(primitive->versions.routerBuild);
-    CsrPmemFree(primitive->versions.smeBuild);
-    CsrPmemFree(primitive);
+    kfree(primitive->versions.routerBuild);
+    kfree(primitive->versions.smeBuild);
+    kfree(primitive);
 }
 
 
@@ -5548,8 +5549,8 @@ void* CsrWifiSmeCloakedSsidsGetCfmDes(u8 *buffer, size_t length)
 void CsrWifiSmeCloakedSsidsGetCfmSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeCloakedSsidsGetCfm *primitive = (CsrWifiSmeCloakedSsidsGetCfm *) voidPrimitivePointer;
-    CsrPmemFree(primitive->cloakedSsids.cloakedSsids);
-    CsrPmemFree(primitive);
+    kfree(primitive->cloakedSsids.cloakedSsids);
+    kfree(primitive);
 }
 
 
@@ -5707,8 +5708,8 @@ void* CsrWifiSmeErrorIndDes(u8 *buffer, size_t length)
 void CsrWifiSmeErrorIndSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeErrorInd *primitive = (CsrWifiSmeErrorInd *) voidPrimitivePointer;
-    CsrPmemFree(primitive->errorMessage);
-    CsrPmemFree(primitive);
+    kfree(primitive->errorMessage);
+    kfree(primitive);
 }
 
 
@@ -5749,8 +5750,8 @@ void* CsrWifiSmeInfoIndDes(u8 *buffer, size_t length)
 void CsrWifiSmeInfoIndSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeInfoInd *primitive = (CsrWifiSmeInfoInd *) voidPrimitivePointer;
-    CsrPmemFree(primitive->infoMessage);
-    CsrPmemFree(primitive);
+    kfree(primitive->infoMessage);
+    kfree(primitive);
 }
 
 
@@ -5805,8 +5806,8 @@ void* CsrWifiSmeCoreDumpIndDes(u8 *buffer, size_t length)
 void CsrWifiSmeCoreDumpIndSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeCoreDumpInd *primitive = (CsrWifiSmeCoreDumpInd *) voidPrimitivePointer;
-    CsrPmemFree(primitive->data);
-    CsrPmemFree(primitive);
+    kfree(primitive->data);
+    kfree(primitive);
 }
 
 

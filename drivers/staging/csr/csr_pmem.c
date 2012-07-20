@@ -38,14 +38,3 @@ void *CsrPmemAlloc(size_t size)
     return ret;
 }
 EXPORT_SYMBOL_GPL(CsrPmemAlloc);
-
-void CsrPmemFree(void *ptr)
-{
-    if (ptr == NULL)
-    {
-        return;
-    }
-
-    kfree(ptr);
-}
-EXPORT_SYMBOL_GPL(CsrPmemFree);

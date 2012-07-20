@@ -125,7 +125,7 @@ void CsrSchedBgintSet(CsrSchedBgint bgint);
  *      obey the convention that when a message built with CsrPmemAlloc()ed memory
  *      is given to CsrSchedMessagePut() then ownership of the memory is ceded to the
  *      scheduler - and eventually to the recipient task. I.e., the receiver of
- *      the message will be expected to CsrPmemFree() the message storage.
+ *      the message will be expected to kfree() the message storage.
  *
  *  RETURNS
  *      void.

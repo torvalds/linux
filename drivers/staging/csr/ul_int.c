@@ -117,9 +117,9 @@ ul_register_client(unifi_priv_t *priv, unsigned int configuration,
                 /* If allocation fails, free allocated memory. */
                 if (ul_clients[id].reply_bulkdata[ref] == NULL) {
                     for (; ref > 0; ref --) {
-                        CsrPmemFree(ul_clients[id].reply_bulkdata[ref - 1]);
+                        kfree(ul_clients[id].reply_bulkdata[ref - 1]);
                     }
-                    CsrPmemFree(ul_clients[id].reply_signal);
+                    kfree(ul_clients[id].reply_signal);
                     unifi_error(priv, "Failed to allocate bulk data buffers for client.\n");
                     return NULL;
                 }
@@ -164,14 +164,14 @@ ul_deregister_client(ul_client_t *ul_client)
     unifi_trace(priv, UDBG5, "UDI (0x%x) deregistered.\n", ul_client);
 
     /* Free memory allocated for the reply signal and its bulk data. */
-    CsrPmemFree(ul_client->reply_signal);
+    kfree(ul_client->reply_signal);
     for (ref = 0; ref < UNIFI_MAX_DATA_REFERENCES; ref ++) {
-        CsrPmemFree(ul_client->reply_bulkdata[ref]);
+        kfree(ul_client->reply_bulkdata[ref]);
     }
 
     if (ul_client->snap_filter.count) {
         ul_client->snap_filter.count = 0;
-        CsrPmemFree(ul_client->snap_filter.protocols);
+        kfree(ul_client->snap_filter.protocols);
     }
 
     /* Free anything pending on the udi_log list */

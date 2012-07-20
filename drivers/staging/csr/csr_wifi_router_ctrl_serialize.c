@@ -10,6 +10,7 @@
 
 /* Note: this is an auto-generated file. */
 #include <linux/string.h>
+#include <linux/slab.h>
 #include "csr_pmem.h"
 #include "csr_msgconv.h"
 #include "csr_unicode.h"
@@ -20,7 +21,7 @@
 
 void CsrWifiRouterCtrlPfree(void *ptr)
 {
-    CsrPmemFree(ptr);
+    kfree(ptr);
 }
 
 
@@ -148,10 +149,10 @@ void* CsrWifiRouterCtrlHipReqDes(u8 *buffer, size_t length)
 void CsrWifiRouterCtrlHipReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiRouterCtrlHipReq *primitive = (CsrWifiRouterCtrlHipReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->mlmeCommand);
-    CsrPmemFree(primitive->dataRef1);
-    CsrPmemFree(primitive->dataRef2);
-    CsrPmemFree(primitive);
+    kfree(primitive->mlmeCommand);
+    kfree(primitive->dataRef1);
+    kfree(primitive->dataRef2);
+    kfree(primitive);
 }
 
 
@@ -269,8 +270,8 @@ void* CsrWifiRouterCtrlMulticastAddressResDes(u8 *buffer, size_t length)
 void CsrWifiRouterCtrlMulticastAddressResSerFree(void *voidPrimitivePointer)
 {
     CsrWifiRouterCtrlMulticastAddressRes *primitive = (CsrWifiRouterCtrlMulticastAddressRes *) voidPrimitivePointer;
-    CsrPmemFree(primitive->getAddresses);
-    CsrPmemFree(primitive);
+    kfree(primitive->getAddresses);
+    kfree(primitive);
 }
 
 
@@ -457,8 +458,8 @@ void* CsrWifiRouterCtrlTclasAddReqDes(u8 *buffer, size_t length)
 void CsrWifiRouterCtrlTclasAddReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiRouterCtrlTclasAddReq *primitive = (CsrWifiRouterCtrlTclasAddReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->tclas);
-    CsrPmemFree(primitive);
+    kfree(primitive->tclas);
+    kfree(primitive);
 }
 
 
@@ -555,8 +556,8 @@ void* CsrWifiRouterCtrlTclasDelReqDes(u8 *buffer, size_t length)
 void CsrWifiRouterCtrlTclasDelReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiRouterCtrlTclasDelReq *primitive = (CsrWifiRouterCtrlTclasDelReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->tclas);
-    CsrPmemFree(primitive);
+    kfree(primitive->tclas);
+    kfree(primitive);
 }
 
 
@@ -710,8 +711,8 @@ void* CsrWifiRouterCtrlWifiOnReqDes(u8 *buffer, size_t length)
 void CsrWifiRouterCtrlWifiOnReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiRouterCtrlWifiOnReq *primitive = (CsrWifiRouterCtrlWifiOnReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->data);
-    CsrPmemFree(primitive);
+    kfree(primitive->data);
+    kfree(primitive);
 }
 
 
@@ -791,8 +792,8 @@ void* CsrWifiRouterCtrlWifiOnResDes(u8 *buffer, size_t length)
 void CsrWifiRouterCtrlWifiOnResSerFree(void *voidPrimitivePointer)
 {
     CsrWifiRouterCtrlWifiOnRes *primitive = (CsrWifiRouterCtrlWifiOnRes *) voidPrimitivePointer;
-    CsrPmemFree(primitive->smeVersions.smeBuild);
-    CsrPmemFree(primitive);
+    kfree(primitive->smeVersions.smeBuild);
+    kfree(primitive);
 }
 
 
@@ -1185,9 +1186,9 @@ void* CsrWifiRouterCtrlWapiRxPktReqDes(u8 *buffer, size_t length)
 void CsrWifiRouterCtrlWapiRxPktReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiRouterCtrlWapiRxPktReq *primitive = (CsrWifiRouterCtrlWapiRxPktReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->signal);
-    CsrPmemFree(primitive->data);
-    CsrPmemFree(primitive);
+    kfree(primitive->signal);
+    kfree(primitive->data);
+    kfree(primitive);
 }
 
 
@@ -1245,8 +1246,8 @@ void* CsrWifiRouterCtrlWapiUnicastTxPktReqDes(u8 *buffer, size_t length)
 void CsrWifiRouterCtrlWapiUnicastTxPktReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiRouterCtrlWapiUnicastTxPktReq *primitive = (CsrWifiRouterCtrlWapiUnicastTxPktReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->data);
-    CsrPmemFree(primitive);
+    kfree(primitive->data);
+    kfree(primitive);
 }
 
 
@@ -1335,10 +1336,10 @@ void* CsrWifiRouterCtrlHipIndDes(u8 *buffer, size_t length)
 void CsrWifiRouterCtrlHipIndSerFree(void *voidPrimitivePointer)
 {
     CsrWifiRouterCtrlHipInd *primitive = (CsrWifiRouterCtrlHipInd *) voidPrimitivePointer;
-    CsrPmemFree(primitive->mlmeCommand);
-    CsrPmemFree(primitive->dataRef1);
-    CsrPmemFree(primitive->dataRef2);
-    CsrPmemFree(primitive);
+    kfree(primitive->mlmeCommand);
+    kfree(primitive->dataRef1);
+    kfree(primitive->dataRef2);
+    kfree(primitive);
 }
 
 
@@ -1414,8 +1415,8 @@ void* CsrWifiRouterCtrlMulticastAddressIndDes(u8 *buffer, size_t length)
 void CsrWifiRouterCtrlMulticastAddressIndSerFree(void *voidPrimitivePointer)
 {
     CsrWifiRouterCtrlMulticastAddressInd *primitive = (CsrWifiRouterCtrlMulticastAddressInd *) voidPrimitivePointer;
-    CsrPmemFree(primitive->setAddresses);
-    CsrPmemFree(primitive);
+    kfree(primitive->setAddresses);
+    kfree(primitive);
 }
 
 
@@ -1839,8 +1840,8 @@ void* CsrWifiRouterCtrlWifiOnIndDes(u8 *buffer, size_t length)
 void CsrWifiRouterCtrlWifiOnIndSerFree(void *voidPrimitivePointer)
 {
     CsrWifiRouterCtrlWifiOnInd *primitive = (CsrWifiRouterCtrlWifiOnInd *) voidPrimitivePointer;
-    CsrPmemFree(primitive->versions.routerBuild);
-    CsrPmemFree(primitive);
+    kfree(primitive->versions.routerBuild);
+    kfree(primitive);
 }
 
 
@@ -2482,9 +2483,9 @@ void* CsrWifiRouterCtrlWapiRxMicCheckIndDes(u8 *buffer, size_t length)
 void CsrWifiRouterCtrlWapiRxMicCheckIndSerFree(void *voidPrimitivePointer)
 {
     CsrWifiRouterCtrlWapiRxMicCheckInd *primitive = (CsrWifiRouterCtrlWapiRxMicCheckInd *) voidPrimitivePointer;
-    CsrPmemFree(primitive->signal);
-    CsrPmemFree(primitive->data);
-    CsrPmemFree(primitive);
+    kfree(primitive->signal);
+    kfree(primitive->data);
+    kfree(primitive);
 }
 
 
@@ -2587,8 +2588,8 @@ void* CsrWifiRouterCtrlWapiUnicastTxEncryptIndDes(u8 *buffer, size_t length)
 void CsrWifiRouterCtrlWapiUnicastTxEncryptIndSerFree(void *voidPrimitivePointer)
 {
     CsrWifiRouterCtrlWapiUnicastTxEncryptInd *primitive = (CsrWifiRouterCtrlWapiUnicastTxEncryptInd *) voidPrimitivePointer;
-    CsrPmemFree(primitive->data);
-    CsrPmemFree(primitive);
+    kfree(primitive->data);
+    kfree(primitive);
 }
 
 

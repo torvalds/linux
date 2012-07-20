@@ -45,20 +45,6 @@ void *CsrPmemAllocDebug(size_t size,
 void *CsrPmemAlloc(size_t size);
 #endif
 
-
-/*****************************************************************************
-
-    NAME
-        CsrPmemFree
-
-    DESCRIPTION
-        This function will deallocate a previously allocated block of memory.
-
-    PARAMETERS
-        ptr - Pointer to allocated memory.
-
-*****************************************************************************/
-void CsrPmemFree(void *ptr);
 #endif
 
 /*****************************************************************************
@@ -131,7 +117,6 @@ void *CsrPmemDebugAlloc(size_t size, CsrPmemDebugAllocType type, const char* fil
 #define CsrPmemAlloc(size) CsrPmemDebugAlloc(size, CSR_PMEM_DEBUG_TYPE_PMEM_ALLOC, __FILE__, __LINE__)
 
 void CsrPmemDebugFree(void *ptr, CsrPmemDebugAllocType type, const char* file, u32 line);
-#define CsrPmemFree(ptr) CsrPmemDebugFree(ptr, CSR_PMEM_DEBUG_TYPE_PMEM_ALLOC, __FILE__, __LINE__)
 
 #endif
 

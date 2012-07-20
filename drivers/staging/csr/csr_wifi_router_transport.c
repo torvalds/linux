@@ -155,7 +155,7 @@ void CsrWifiRouterTransportRecv(unifi_priv_t *priv, u8* buffer, size_t bufferLen
             unifi_error(priv, "CsrWifiRouterTransportDeserialiseAndSend unhandled prim type 0x%.4X\n", primType);
             break;
     }
-    CsrPmemFree(msg);
+    kfree(msg);
 }
 
 static void CsrWifiRouterTransportSerialiseAndSend(u16 primType, void* msg)
@@ -193,7 +193,7 @@ static void CsrWifiRouterTransportSerialiseAndSend(u16 primType, void* msg)
     uf_sme_queue_message(drvpriv, encodeBuffer, encodeBufferLen);
 
     /* Do not use msgEntry->freeFunc because the memory is owned by the driver */
-    CsrPmemFree(msg);
+    kfree(msg);
 }
 
 #if defined(CSR_LOG_ENABLE) && defined(CSR_LOG_INCLUDE_FILE_NAME_AND_LINE_NUMBER)

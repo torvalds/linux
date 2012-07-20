@@ -415,7 +415,7 @@ int sme_mgt_scan_results_get_async(unifi_priv_t *priv,
                                  scan_result, i+1);
 
         if (r < 0) {
-            CsrPmemFree(scan_result_list);
+            kfree(scan_result_list);
             priv->sme_reply.reply_scan_results_count = 0;
             priv->sme_reply.reply_scan_results = NULL;
             return r;
@@ -429,7 +429,7 @@ int sme_mgt_scan_results_get_async(unifi_priv_t *priv,
      * and invalidate the reply_scan_results to avoid re-using
      * the freed pointers.
      */
-    CsrPmemFree(scan_result_list);
+    kfree(scan_result_list);
     priv->sme_reply.reply_scan_results_count = 0;
     priv->sme_reply.reply_scan_results = NULL;
 

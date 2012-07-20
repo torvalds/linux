@@ -1476,7 +1476,7 @@ unifi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
             if (pcli->snap_filter.count) {
                 pcli->snap_filter.count = 0;
-                CsrPmemFree(pcli->snap_filter.protocols);
+                kfree(pcli->snap_filter.protocols);
             }
 
             if (snap_filter.count == 0) {
@@ -1492,7 +1492,7 @@ unifi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
                                (void*)snap_filter.protocols,
                                snap_filter.count * sizeof(u16)))
             {
-                CsrPmemFree(pcli->snap_filter.protocols);
+                kfree(pcli->snap_filter.protocols);
                 r = -EFAULT;
                 goto out;
             }
@@ -1938,7 +1938,7 @@ uf_sme_queue_message(unifi_priv_t *priv, u8 *buffer, int length)
     if (logptr == NULL) {
         unifi_error(priv, "Failed to allocate %d bytes for an SME message\n",
                     sizeof(udi_log_t) + length);
-                    CsrPmemFree(buffer);
+                    kfree(buffer);
                     return -ENOMEM;
     }
 
@@ -1956,7 +1956,7 @@ uf_sme_queue_message(unifi_priv_t *priv, u8 *buffer, int length)
     down(&udi_mutex);
     if (priv->sme_cli == NULL) {
         kfree(logptr);
-        CsrPmemFree(buffer);
+        kfree(buffer);
         up(&udi_mutex);
         unifi_info(priv, "Message for the SME dropped, SME has gone away\n");
         return 0;
@@ -1971,7 +1971,7 @@ uf_sme_queue_message(unifi_priv_t *priv, u8 *buffer, int length)
     up(&udi_mutex);
 
     /* It is our responsibility to free the buffer allocated in build_packed_*() */
-    CsrPmemFree(buffer);
+    kfree(buffer);
 
     func_exit();
 

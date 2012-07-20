@@ -9,7 +9,7 @@
 *****************************************************************************/
 
 /* Note: this is an auto-generated file. */
-
+#include <linux/slab.h>
 #include "csr_pmem.h"
 #include "csr_wifi_router_prim.h"
 #include "csr_wifi_router_lib.h"
@@ -41,7 +41,7 @@ void CsrWifiRouterFreeDownstreamMessageContents(u16 eventClass, void *message)
         case CSR_WIFI_ROUTER_MA_PACKET_REQ:
         {
             CsrWifiRouterMaPacketReq *p = (CsrWifiRouterMaPacketReq *)message;
-            CsrPmemFree(p->frame);
+            kfree(p->frame);
             p->frame = NULL;
             break;
         }

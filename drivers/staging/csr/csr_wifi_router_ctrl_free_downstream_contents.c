@@ -9,7 +9,7 @@
 *****************************************************************************/
 
 /* Note: this is an auto-generated file. */
-
+#include <linux/slab.h>
 #include "csr_pmem.h"
 #include "csr_wifi_router_ctrl_prim.h"
 #include "csr_wifi_router_ctrl_lib.h"
@@ -41,62 +41,62 @@ void CsrWifiRouterCtrlFreeDownstreamMessageContents(u16 eventClass, void *messag
         case CSR_WIFI_ROUTER_CTRL_HIP_REQ:
         {
             CsrWifiRouterCtrlHipReq *p = (CsrWifiRouterCtrlHipReq *)message;
-            CsrPmemFree(p->mlmeCommand);
+            kfree(p->mlmeCommand);
             p->mlmeCommand = NULL;
-            CsrPmemFree(p->dataRef1);
+            kfree(p->dataRef1);
             p->dataRef1 = NULL;
-            CsrPmemFree(p->dataRef2);
+            kfree(p->dataRef2);
             p->dataRef2 = NULL;
             break;
         }
         case CSR_WIFI_ROUTER_CTRL_MULTICAST_ADDRESS_RES:
         {
             CsrWifiRouterCtrlMulticastAddressRes *p = (CsrWifiRouterCtrlMulticastAddressRes *)message;
-            CsrPmemFree(p->getAddresses);
+            kfree(p->getAddresses);
             p->getAddresses = NULL;
             break;
         }
         case CSR_WIFI_ROUTER_CTRL_TCLAS_ADD_REQ:
         {
             CsrWifiRouterCtrlTclasAddReq *p = (CsrWifiRouterCtrlTclasAddReq *)message;
-            CsrPmemFree(p->tclas);
+            kfree(p->tclas);
             p->tclas = NULL;
             break;
         }
         case CSR_WIFI_ROUTER_CTRL_TCLAS_DEL_REQ:
         {
             CsrWifiRouterCtrlTclasDelReq *p = (CsrWifiRouterCtrlTclasDelReq *)message;
-            CsrPmemFree(p->tclas);
+            kfree(p->tclas);
             p->tclas = NULL;
             break;
         }
         case CSR_WIFI_ROUTER_CTRL_WIFI_ON_REQ:
         {
             CsrWifiRouterCtrlWifiOnReq *p = (CsrWifiRouterCtrlWifiOnReq *)message;
-            CsrPmemFree(p->data);
+            kfree(p->data);
             p->data = NULL;
             break;
         }
         case CSR_WIFI_ROUTER_CTRL_WIFI_ON_RES:
         {
             CsrWifiRouterCtrlWifiOnRes *p = (CsrWifiRouterCtrlWifiOnRes *)message;
-            CsrPmemFree(p->smeVersions.smeBuild);
+            kfree(p->smeVersions.smeBuild);
             p->smeVersions.smeBuild = NULL;
             break;
         }
         case CSR_WIFI_ROUTER_CTRL_WAPI_RX_PKT_REQ:
         {
             CsrWifiRouterCtrlWapiRxPktReq *p = (CsrWifiRouterCtrlWapiRxPktReq *)message;
-            CsrPmemFree(p->signal);
+            kfree(p->signal);
             p->signal = NULL;
-            CsrPmemFree(p->data);
+            kfree(p->data);
             p->data = NULL;
             break;
         }
         case CSR_WIFI_ROUTER_CTRL_WAPI_UNICAST_TX_PKT_REQ:
         {
             CsrWifiRouterCtrlWapiUnicastTxPktReq *p = (CsrWifiRouterCtrlWapiUnicastTxPktReq *)message;
-            CsrPmemFree(p->data);
+            kfree(p->data);
             p->data = NULL;
             break;
         }

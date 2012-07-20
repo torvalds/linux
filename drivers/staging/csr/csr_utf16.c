@@ -8,6 +8,7 @@
 
 *****************************************************************************/
 #include <linux/module.h>
+#include <linux/slab.h>
 #include "csr_pmem.h"
 #include "csr_unicode.h"
 #include "csr_macro.h"
@@ -881,7 +882,7 @@ u16 *CsrUtf16String2XML(u16 *str)
 
             *outputString++ = 0;
 
-            CsrPmemFree(str);
+            kfree(str);
         }
     }
 
@@ -1008,7 +1009,7 @@ u16 *CsrXML2Utf16String(u16 *str)
 
             *outputString++ = 0;
 
-            CsrPmemFree(str);
+            kfree(str);
         }
     }
 

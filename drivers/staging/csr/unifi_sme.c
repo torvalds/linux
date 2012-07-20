@@ -423,7 +423,7 @@ uf_multicast_list_wq(struct work_struct *work)
     }
 
     if (priv->smepriv == NULL) {
-        CsrPmemFree(multicast_address_list);
+        kfree(multicast_address_list);
         return;
     }
 
@@ -433,7 +433,7 @@ uf_multicast_list_wq(struct work_struct *work)
             mc_count, multicast_address_list);
 
     /* The SME will take a copy of the addreses*/
-    CsrPmemFree(multicast_address_list);
+    kfree(multicast_address_list);
 }
 
 
@@ -572,7 +572,7 @@ int unifi_cfg_packet_filters(unifi_priv_t *priv, unsigned char *arg)
 
     /* Free any TCLASs previously allocated */
     if (priv->packet_filters.tclas_ies_length) {
-        CsrPmemFree(priv->filter_tclas_ies);
+        kfree(priv->filter_tclas_ies);
         priv->filter_tclas_ies = NULL;
     }
 
@@ -683,7 +683,7 @@ int unifi_cfg_wmm_addts(unifi_priv_t *priv, unsigned char *arg)
     rc = copy_from_user(addts_ie, addts_params, addts_ie_length);
     if (rc) {
         unifi_error(priv, "unifi_cfg_wmm_addts: Failed to get the addts buffer\n");
-        CsrPmemFree(addts_ie);
+        kfree(addts_ie);
         return -EFAULT;
     }
 
@@ -695,7 +695,7 @@ int unifi_cfg_wmm_addts(unifi_priv_t *priv, unsigned char *arg)
     rc = sme_mgt_tspec(priv, CSR_WIFI_SME_LIST_ACTION_ADD, addts_tid,
             &tspec, &tclas);
 
-    CsrPmemFree(addts_ie);
+    kfree(addts_ie);
     return rc;
 }
 
@@ -1229,7 +1229,7 @@ void uf_send_pkt_to_encrypt(struct work_struct *work)
         CsrWifiRouterCtrlWapiUnicastTxEncryptIndSend(priv->CSR_WIFI_SME_IFACEQUEUE, 0, interfaceTag, pktBulkDataLength, pktBulkData);
         unifi_trace(priv, UDBG1, "WapiUnicastTxEncryptInd sent to SME\n");
 
-        CsrPmemFree(pktBulkData); /* Would have been copied over by the SME Handler */
+        kfree(pktBulkData); /* Would have been copied over by the SME Handler */
 
         func_exit();
     } else {

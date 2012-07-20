@@ -10,6 +10,7 @@
 
 /* Note: this is an auto-generated file. */
 #include <linux/string.h>
+#include <linux/slab.h>
 #include "csr_pmem.h"
 #include "csr_msgconv.h"
 #include "csr_unicode.h"
@@ -22,7 +23,7 @@
 
 void CsrWifiNmeApPfree(void *ptr)
 {
-    CsrPmemFree(ptr);
+    kfree(ptr);
 }
 
 
@@ -221,8 +222,8 @@ void* CsrWifiNmeApConfigSetReqDes(u8 *buffer, size_t length)
 void CsrWifiNmeApConfigSetReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiNmeApConfigSetReq *primitive = (CsrWifiNmeApConfigSetReq *) voidPrimitivePointer;
-    CsrPmemFree(primitive->apMacConfig.macAddressList);
-    CsrPmemFree(primitive);
+    kfree(primitive->apMacConfig.macAddressList);
+    kfree(primitive);
 }
 
 
@@ -555,7 +556,7 @@ void CsrWifiNmeApStartReqSerFree(void *voidPrimitivePointer)
             switch (primitive->apCredentials.nmeAuthType.authTypePersonal.pskOrPassphrase)
             {
                 case CSR_WIFI_NME_AP_CREDENTIAL_TYPE_PASSPHRASE:
-                    CsrPmemFree(primitive->apCredentials.nmeAuthType.authTypePersonal.authPers_credentials.passphrase.passphrase);
+                    kfree(primitive->apCredentials.nmeAuthType.authTypePersonal.authPers_credentials.passphrase.passphrase);
                     break;
                 default:
                     break;
@@ -568,11 +569,11 @@ void CsrWifiNmeApStartReqSerFree(void *voidPrimitivePointer)
         u16 i3;
         for (i3 = 0; i3 < primitive->p2pGoParam.operatingChanList.channelEntryListCount; i3++)
         {
-            CsrPmemFree(primitive->p2pGoParam.operatingChanList.channelEntryList[i3].operatingChannel);
+            kfree(primitive->p2pGoParam.operatingChanList.channelEntryList[i3].operatingChannel);
         }
     }
-    CsrPmemFree(primitive->p2pGoParam.operatingChanList.channelEntryList);
-    CsrPmemFree(primitive);
+    kfree(primitive->p2pGoParam.operatingChanList.channelEntryList);
+    kfree(primitive);
 }
 
 

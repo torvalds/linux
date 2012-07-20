@@ -128,7 +128,7 @@ uf_sme_deinit(unifi_priv_t *priv)
     /* Free any TCLASs previously allocated */
     if (priv->packet_filters.tclas_ies_length) {
         priv->packet_filters.tclas_ies_length = 0;
-        CsrPmemFree(priv->filter_tclas_ies);
+        kfree(priv->filter_tclas_ies);
         priv->filter_tclas_ies = NULL;
     }
 

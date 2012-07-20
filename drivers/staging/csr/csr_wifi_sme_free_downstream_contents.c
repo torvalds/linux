@@ -9,7 +9,7 @@
 *****************************************************************************/
 
 /* Note: this is an auto-generated file. */
-
+#include <linux/slab.h>
 #include "csr_pmem.h"
 #include "csr_wifi_sme_prim.h"
 #include "csr_wifi_sme_lib.h"
@@ -41,90 +41,90 @@ void CsrWifiSmeFreeDownstreamMessageContents(u16 eventClass, void *message)
         case CSR_WIFI_SME_BLACKLIST_REQ:
         {
             CsrWifiSmeBlacklistReq *p = (CsrWifiSmeBlacklistReq *)message;
-            CsrPmemFree(p->setAddresses);
+            kfree(p->setAddresses);
             p->setAddresses = NULL;
             break;
         }
         case CSR_WIFI_SME_CALIBRATION_DATA_SET_REQ:
         {
             CsrWifiSmeCalibrationDataSetReq *p = (CsrWifiSmeCalibrationDataSetReq *)message;
-            CsrPmemFree(p->calibrationData);
+            kfree(p->calibrationData);
             p->calibrationData = NULL;
             break;
         }
         case CSR_WIFI_SME_CONNECT_REQ:
         {
             CsrWifiSmeConnectReq *p = (CsrWifiSmeConnectReq *)message;
-            CsrPmemFree(p->connectionConfig.mlmeAssociateReqInformationElements);
+            kfree(p->connectionConfig.mlmeAssociateReqInformationElements);
             p->connectionConfig.mlmeAssociateReqInformationElements = NULL;
             break;
         }
         case CSR_WIFI_SME_MIB_GET_NEXT_REQ:
         {
             CsrWifiSmeMibGetNextReq *p = (CsrWifiSmeMibGetNextReq *)message;
-            CsrPmemFree(p->mibAttribute);
+            kfree(p->mibAttribute);
             p->mibAttribute = NULL;
             break;
         }
         case CSR_WIFI_SME_MIB_GET_REQ:
         {
             CsrWifiSmeMibGetReq *p = (CsrWifiSmeMibGetReq *)message;
-            CsrPmemFree(p->mibAttribute);
+            kfree(p->mibAttribute);
             p->mibAttribute = NULL;
             break;
         }
         case CSR_WIFI_SME_MIB_SET_REQ:
         {
             CsrWifiSmeMibSetReq *p = (CsrWifiSmeMibSetReq *)message;
-            CsrPmemFree(p->mibAttribute);
+            kfree(p->mibAttribute);
             p->mibAttribute = NULL;
             break;
         }
         case CSR_WIFI_SME_MULTICAST_ADDRESS_REQ:
         {
             CsrWifiSmeMulticastAddressReq *p = (CsrWifiSmeMulticastAddressReq *)message;
-            CsrPmemFree(p->setAddresses);
+            kfree(p->setAddresses);
             p->setAddresses = NULL;
             break;
         }
         case CSR_WIFI_SME_PACKET_FILTER_SET_REQ:
         {
             CsrWifiSmePacketFilterSetReq *p = (CsrWifiSmePacketFilterSetReq *)message;
-            CsrPmemFree(p->filter);
+            kfree(p->filter);
             p->filter = NULL;
             break;
         }
         case CSR_WIFI_SME_PMKID_REQ:
         {
             CsrWifiSmePmkidReq *p = (CsrWifiSmePmkidReq *)message;
-            CsrPmemFree(p->setPmkids);
+            kfree(p->setPmkids);
             p->setPmkids = NULL;
             break;
         }
         case CSR_WIFI_SME_SCAN_CONFIG_SET_REQ:
         {
             CsrWifiSmeScanConfigSetReq *p = (CsrWifiSmeScanConfigSetReq *)message;
-            CsrPmemFree(p->scanConfig.passiveChannelList);
+            kfree(p->scanConfig.passiveChannelList);
             p->scanConfig.passiveChannelList = NULL;
             break;
         }
         case CSR_WIFI_SME_SCAN_FULL_REQ:
         {
             CsrWifiSmeScanFullReq *p = (CsrWifiSmeScanFullReq *)message;
-            CsrPmemFree(p->ssid);
+            kfree(p->ssid);
             p->ssid = NULL;
-            CsrPmemFree(p->channelList);
+            kfree(p->channelList);
             p->channelList = NULL;
-            CsrPmemFree(p->probeIe);
+            kfree(p->probeIe);
             p->probeIe = NULL;
             break;
         }
         case CSR_WIFI_SME_TSPEC_REQ:
         {
             CsrWifiSmeTspecReq *p = (CsrWifiSmeTspecReq *)message;
-            CsrPmemFree(p->tspec);
+            kfree(p->tspec);
             p->tspec = NULL;
-            CsrPmemFree(p->tclas);
+            kfree(p->tclas);
             p->tclas = NULL;
             break;
         }
@@ -135,11 +135,11 @@ void CsrWifiSmeFreeDownstreamMessageContents(u16 eventClass, void *message)
                 u16 i1;
                 for (i1 = 0; i1 < p->mibFilesCount; i1++)
                 {
-                    CsrPmemFree(p->mibFiles[i1].data);
+                    kfree(p->mibFiles[i1].data);
                     p->mibFiles[i1].data = NULL;
                 }
             }
-            CsrPmemFree(p->mibFiles);
+            kfree(p->mibFiles);
             p->mibFiles = NULL;
             break;
         }
@@ -150,32 +150,32 @@ void CsrWifiSmeFreeDownstreamMessageContents(u16 eventClass, void *message)
                 u16 i1;
                 for (i1 = 0; i1 < p->mibFilesCount; i1++)
                 {
-                    CsrPmemFree(p->mibFiles[i1].data);
+                    kfree(p->mibFiles[i1].data);
                     p->mibFiles[i1].data = NULL;
                 }
             }
-            CsrPmemFree(p->mibFiles);
+            kfree(p->mibFiles);
             p->mibFiles = NULL;
             break;
         }
         case CSR_WIFI_SME_CLOAKED_SSIDS_SET_REQ:
         {
             CsrWifiSmeCloakedSsidsSetReq *p = (CsrWifiSmeCloakedSsidsSetReq *)message;
-            CsrPmemFree(p->cloakedSsids.cloakedSsids);
+            kfree(p->cloakedSsids.cloakedSsids);
             p->cloakedSsids.cloakedSsids = NULL;
             break;
         }
         case CSR_WIFI_SME_WPS_CONFIGURATION_REQ:
         {
             CsrWifiSmeWpsConfigurationReq *p = (CsrWifiSmeWpsConfigurationReq *)message;
-            CsrPmemFree(p->wpsConfig.secondaryDeviceType);
+            kfree(p->wpsConfig.secondaryDeviceType);
             p->wpsConfig.secondaryDeviceType = NULL;
             break;
         }
         case CSR_WIFI_SME_SET_REQ:
         {
             CsrWifiSmeSetReq *p = (CsrWifiSmeSetReq *)message;
-            CsrPmemFree(p->data);
+            kfree(p->data);
             p->data = NULL;
             break;
         }

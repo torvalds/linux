@@ -499,7 +499,7 @@ int unifi_putest_dl_fw_buff(unifi_priv_t *priv, unsigned char *arg)
     fw_user_ptr = ((unsigned char*)arg) + sizeof(unifi_putest_command_t) + sizeof(unsigned int);
     if (copy_from_user(fw_buf, (void*)fw_user_ptr, fw_length)) {
         unifi_error(priv, "unifi_putest_dl_fw_buff: Failed to get the buffer\n");
-        CsrPmemFree(fw_buf);
+        kfree(fw_buf);
         return -EFAULT;
     }
 
@@ -537,7 +537,7 @@ int unifi_putest_dl_fw_buff(unifi_priv_t *priv, unsigned char *arg)
 free_fw:
     /* Finished with the putest f/w, so restore the station f/w */
     priv->fw_sta = temp_fw_sta;
-    CsrPmemFree(fw_buf);
+    kfree(fw_buf);
 
     return CsrHipResultToStatus(csrResult);
 }
