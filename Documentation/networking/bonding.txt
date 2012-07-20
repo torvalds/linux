@@ -1210,7 +1210,7 @@ options, you may wish to use the "max_bonds" module parameter,
 documented above.
 
 	To create multiple bonding devices with differing options, it is
-preferrable to use bonding parameters exported by sysfs, documented in the
+preferable to use bonding parameters exported by sysfs, documented in the
 section below.
 
 	For versions of bonding without sysfs support, the only means to
@@ -1950,7 +1950,7 @@ access to fail over to.  Additionally, the bonding load balance modes
 support link monitoring of their members, so if individual links fail,
 the load will be rebalanced across the remaining devices.
 
-	See Section 13, "Configuring Bonding for Maximum Throughput"
+	See Section 12, "Configuring Bonding for Maximum Throughput"
 for information on configuring bonding with one peer device.
 
 11.2 High Availability in a Multiple Switch Topology
@@ -2620,7 +2620,7 @@ be found at:
 
 https://lists.sourceforge.net/lists/listinfo/bonding-devel
 
-	Discussions regarding the developpement of the bonding driver take place
+	Discussions regarding the development of the bonding driver take place
 on the main Linux network mailing list, hosted at vger.kernel.org. The list
 address is:
 
