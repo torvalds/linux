@@ -729,3 +729,16 @@ char *machine__mmap_name(struct machine *self, char *bf, size_t size)
 
 	return bf;
 }
+
+void machines__set_id_hdr_size(struct rb_root *machines, u16 id_hdr_size)
+{
+	struct rb_node *node;
+	struct machine *machine;
+
+	for (node = rb_first(machines); node; node = rb_next(node)) {
+		machine = rb_entry(node, struct machine, rb_node);
+		machine->id_hdr_size = id_hdr_size;
+	}
+
+	return;
+}
