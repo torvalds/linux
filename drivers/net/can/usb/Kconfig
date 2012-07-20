@@ -1,5 +1,5 @@
 menu "CAN USB interfaces"
-	depends on USB && CAN_DEV
+	depends on USB
 
 config CAN_EMS_USB
 	tristate "EMS CPC-USB/ARM7 CAN/USB interface"

@@ -36,9 +36,10 @@ config CAN_DEV
 	  support. This is the standard library for CAN drivers.
 	  If unsure, say Y.
 
+if CAN_DEV
+
 config CAN_CALC_BITTIMING
 	bool "CAN bit-timing calculation"
-	depends on CAN_DEV
 	default y
 	---help---
 	  If enabled, CAN bit-timing parameters will be calculated for the
@@ -52,13 +53,13 @@ config CAN_CALC_BITTIMING
 
 config CAN_AT91
 	tristate "Atmel AT91 onchip CAN controller"
-	depends on CAN_DEV && (ARCH_AT91SAM9263 || ARCH_AT91SAM9X5)
+	depends on ARCH_AT91SAM9263 || ARCH_AT91SAM9X5
 	---help---
 	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263
 	  and AT91SAM9X5 processors.
 
 config CAN_TI_HECC
-	depends on CAN_DEV && ARCH_OMAP3
+	depends on ARCH_OMAP3
 	tristate "TI High End CAN Controller"
 	---help---
 	  Driver for TI HECC (High End CAN Controller) module found on many
@@ -66,12 +67,12 @@ config CAN_TI_HECC
 
 config CAN_MCP251X
 	tristate "Microchip MCP251x SPI CAN controllers"
-	depends on CAN_DEV && SPI && HAS_DMA
+	depends on SPI && HAS_DMA
 	---help---
 	  Driver for the Microchip MCP251x SPI CAN controllers.
 
 config CAN_BFIN
-	depends on CAN_DEV && (BF534 || BF536 || BF537 || BF538 || BF539 || BF54x)
+	depends on BF534 || BF536 || BF537 || BF538 || BF539 || BF54x
 	tristate "Analog Devices Blackfin on-chip CAN"
 	---help---
 	  Driver for the Analog Devices Blackfin on-chip CAN controllers
@@ -81,7 +82,7 @@ config CAN_BFIN
 
 config CAN_JANZ_ICAN3
 	tristate "Janz VMOD-ICAN3 Intelligent CAN controller"
-	depends on CAN_DEV && MFD_JANZ_CMODIO
+	depends on MFD_JANZ_CMODIO
 	---help---
 	  Driver for Janz VMOD-ICAN3 Intelligent CAN controller module, which
 	  connects to a MODULbus carrier board.
@@ -94,13 +95,13 @@ config HAVE_CAN_FLEXCAN
 
 config CAN_FLEXCAN
 	tristate "Support for Freescale FLEXCAN based chips"
-	depends on CAN_DEV && HAVE_CAN_FLEXCAN
+	depends on HAVE_CAN_FLEXCAN
 	---help---
 	  Say Y here if you want to support for Freescale FlexCAN.
 
 config PCH_CAN
 	tristate "Intel EG20T PCH CAN controller"
-	depends on CAN_DEV && PCI
+	depends on PCI
 	---help---
 	  This driver is for PCH CAN of Topcliff (Intel EG20T PCH) which
 	  is an IOH for x86 embedded processor (Intel Atom E6xx series).
@@ -108,7 +109,7 @@ config PCH_CAN
 
 config CAN_GRCAN
 	tristate "Aeroflex Gaisler GRCAN and GRHCAN CAN devices"
-	depends on CAN_DEV && OF
+	depends on OF
 	---help---
 	  Say Y here if you want to use Aeroflex Gaisler GRCAN or GRHCAN.
 	  Note that the driver supports little endian, even though little
@@ -126,6 +127,8 @@ source "drivers/net/can/cc770/Kconfig"
 source "drivers/net/can/usb/Kconfig"
 
 source "drivers/net/can/softing/Kconfig"
+
+endif
 
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"
