@@ -25,6 +25,8 @@
 #include <net/sock.h>
 #include <net/netprio_cgroup.h>
 
+#include <linux/fdtable.h>
+
 #define PRIOIDX_SZ 128
 
 static unsigned long prioidx_map[PRIOIDX_SZ];
@@ -272,6 +274,56 @@ out_free_devname:
 	return ret;
 }
 
+void net_prio_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
+{
+	struct task_struct *p;
+	char *tmp = kzalloc(sizeof(char) * PATH_MAX, GFP_KERNEL);
+
+	if (!tmp) {
+		pr_warn("Unable to attach cgrp due to alloc failure!\n");
+		return;
+	}
+
+	cgroup_taskset_for_each(p, cgrp, tset) {
+		unsigned int fd;
+		struct fdtable *fdt;
+		struct files_struct *files;
+
+		task_lock(p);
+		files = p->files;
+		if (!files) {
+			task_unlock(p);
+			continue;
+		}
+
+		rcu_read_lock();
+		fdt = files_fdtable(files);
+		for (fd = 0; fd < fdt->max_fds; fd++) {
+			char *path;
+			struct file *file;
+			struct socket *sock;
+			unsigned long s;
+			int rv, err = 0;
+
+			file = fcheck_files(files, fd);
+			if (!file)
+				continue;
+
+			path = d_path(&file->f_path, tmp, PAGE_SIZE);
+			rv = sscanf(path, "socket:[%lu]", &s);
+			if (rv <= 0)
+				continue;
+
+			sock = sock_from_file(file, &err);
+			if (!err)
+				sock_update_netprioidx(sock->sk, p);
+		}
+		rcu_read_unlock();
+		task_unlock(p);
+	}
+	kfree(tmp);
+}
+
 static struct cftype ss_files[] = {
 	{
 		.name = "prioidx",
@@ -289,6 +341,7 @@ struct cgroup_subsys net_prio_subsys = {
 	.name		= "net_prio",
 	.create		= cgrp_create,
 	.destroy	= cgrp_destroy,
+	.attach		= net_prio_attach,
 #ifdef CONFIG_NETPRIO_CGROUP
 	.subsys_id	= net_prio_subsys_id,
 #endif

@@ -1180,12 +1180,12 @@ void sock_update_classid(struct sock *sk)
 }
 EXPORT_SYMBOL(sock_update_classid);
 
-void sock_update_netprioidx(struct sock *sk)
+void sock_update_netprioidx(struct sock *sk, struct task_struct *task)
 {
 	if (in_interrupt())
 		return;
 
-	sk->sk_cgrp_prioidx = task_netprioidx(current);
+	sk->sk_cgrp_prioidx = task_netprioidx(task);
 }
 EXPORT_SYMBOL_GPL(sock_update_netprioidx);
 #endif
@@ -1215,7 +1215,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		atomic_set(&sk->sk_wmem_alloc, 1);
 
 		sock_update_classid(sk);
-		sock_update_netprioidx(sk);
+		sock_update_netprioidx(sk, current);
 	}
 
 	return sk;
