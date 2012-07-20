@@ -28,11 +28,9 @@ void CsrUInt16ToHex(u16 number, char *str);
 /*------------------------------------------------------------------*/
 #ifdef CSR_USE_STDC_LIB
 #define CsrMemCpy memcpy
-#define CsrStrChr strchr
 #define CsrStrLen strlen
 #else /* !CSR_USE_STDC_LIB */
 void *CsrMemCpy(void *dest, const void *src, size_t count);
-char *CsrStrChr(const char *string, char c);
 size_t CsrStrLen(const char *string);
 #endif /* !CSR_USE_STDC_LIB */
 s32 CsrVsnprintf(char *string, size_t count, const char *format, va_list args);

@@ -50,11 +50,6 @@ size_t CsrStrLen(const char *string)
     return strlen(string);
 }
 EXPORT_SYMBOL_GPL(CsrStrLen);
-
-char *CsrStrChr(const char *string, char c)
-{
-    return strchr(string, c);
-}
 #endif
 
 s32 CsrVsnprintf(char *string, size_t count, const char *format, va_list args)
