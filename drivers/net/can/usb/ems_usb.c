@@ -245,7 +245,6 @@ struct ems_tx_urb_context {
 
 struct ems_usb {
 	struct can_priv can; /* must be the first member */
-	int open_time;
 
 	struct sk_buff *echo_skb[MAX_TX_URBS];
 
@@ -728,7 +727,6 @@ static int ems_usb_open(struct net_device *netdev)
 		return err;
 	}
 
-	dev->open_time = jiffies;
 
 	netif_start_queue(netdev);
 
@@ -878,8 +876,6 @@ static int ems_usb_close(struct net_device *netdev)
 
 	close_candev(netdev);
 
-	dev->open_time = 0;
-
 	return 0;
 }
 
@@ -904,9 +900,6 @@ static const struct can_bittiming_const ems_usb_bittiming_const = {
 static int ems_usb_set_mode(struct net_device *netdev, enum can_mode mode)
 {
 	struct ems_usb *dev = netdev_priv(netdev);
-
-	if (!dev->open_time)
-		return -EINVAL;
 
 	switch (mode) {
 	case CAN_MODE_START:
