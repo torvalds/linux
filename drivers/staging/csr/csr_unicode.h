@@ -69,59 +69,6 @@ u8 *CsrUtf8StrTruncate(u8 *target, size_t count);
 /*******************************************************************************
 
     NAME
-        CsrUtf8StrNCpy
-
-    DESCRIPTION
-        Copies the first count bytes of source to target. If the end of the
-        source UTF-8 string (which is signaled by a null-character) is found
-        before count bytes have been copied, target is padded with null
-        characters until a total of count bytes have been written to it.
-
-        No null-character is implicitly appended to the end of target, so target
-        will only be null-terminated if the length of the UTF-8 string in source
-        is less than count.
-
-    PARAMETERS
-        target - Pointer to the target memory where the content is to be copied.
-        source - UTF-8 string to be copied.
-        count - Maximum number of bytes to be written to target.
-
-    RETURNS
-        Returns target
-
-*******************************************************************************/
-u8 *CsrUtf8StrNCpy(u8 *target, const u8 *source, size_t count);
-
-/*******************************************************************************
-
-    NAME
-        CsrUtf8StrNCpyZero
-
-    DESCRIPTION
-        Equivalent to CsrUtf8StrNCpy, but if the length of source is equal to or
-        greater than count the target string is truncated on a UTF-8 character
-        boundary by writing a null character somewhere in the range
-        target[count - 4]:target[count - 1], leaving the target string
-        unconditionally null terminated in all cases.
-
-        Please note that if the length of source is shorter than count, no
-        truncation will be applied, and the target string will be a one to one
-        copy of source.
-
-    PARAMETERS
-        target - Pointer to the target memory where the content is to be copied.
-        source - UTF-8 string to be copied.
-        count - Maximum number of bytes to be written to target.
-
-    RETURNS
-        Returns target
-
-*******************************************************************************/
-u8 *CsrUtf8StrNCpyZero(u8 *target, const u8 *source, size_t count);
-
-/*******************************************************************************
-
-    NAME
         CsrUtf8StrDup
 
     DESCRIPTION
@@ -138,8 +85,6 @@ u8 *CsrUtf8StrNCpyZero(u8 *target, const u8 *source, size_t count);
 
 *******************************************************************************/
 u8 *CsrUtf8StrDup(const u8 *source);
-
-u8 *CsrUtf8StringConcatenateTexts(const u8 *inputText1, const u8 *inputText2, const u8 *inputText3, const u8 *inputText4);
 
 /*
  * UCS2

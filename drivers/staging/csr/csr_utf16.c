@@ -1064,67 +1064,7 @@ u8 *CsrUtf8StrTruncate(u8 *target, size_t count)
     return target;
 }
 
-u8 *CsrUtf8StrNCpy(u8 *target, const u8 *source, size_t count)
-{
-    return (u8 *) CsrStrNCpy((char *) target, (const char *) source, count);
-}
-
-u8 *CsrUtf8StrNCpyZero(u8 *target, const u8 *source, size_t count)
-{
-    CsrStrNCpy((char *) target, (const char *) source, count);
-    if (target[count - 1] != '\0')
-    {
-        CsrUtf8StrTruncate(target, count - 1);
-    }
-    return target;
-}
-
 u8 *CsrUtf8StrDup(const u8 *source)
 {
     return (u8 *) CsrStrDup((const char *) source);
-}
-
-u8 *CsrUtf8StringConcatenateTexts(const u8 *inputText1, const u8 *inputText2, const u8 *inputText3, const u8 *inputText4)
-{
-    u8 *outputText;
-    u32 textLen, textLen1, textLen2, textLen3, textLen4;
-
-    textLen1 = CsrUtf8StringLengthInBytes(inputText1);
-    textLen2 = CsrUtf8StringLengthInBytes(inputText2);
-    textLen3 = CsrUtf8StringLengthInBytes(inputText3);
-    textLen4 = CsrUtf8StringLengthInBytes(inputText4);
-
-    textLen = textLen1 + textLen2 + textLen3 + textLen4;
-
-    if (textLen == 0) /*stop here is all lengths are 0*/
-    {
-        return NULL;
-    }
-
-    outputText = (u8 *) CsrPmemAlloc((textLen + 1) * sizeof(u8)); /* add space for 0-termination*/
-
-
-    if (inputText1 != NULL)
-    {
-        CsrUtf8StrNCpy(outputText, inputText1, textLen1);
-    }
-
-    if (inputText2 != NULL)
-    {
-        CsrUtf8StrNCpy(&(outputText[textLen1]), inputText2, textLen2);
-    }
-
-    if (inputText3 != NULL)
-    {
-        CsrUtf8StrNCpy(&(outputText[textLen1 + textLen2]), inputText3, textLen3);
-    }
-
-    if (inputText4 != NULL)
-    {
-        CsrUtf8StrNCpy(&(outputText[textLen1 + textLen2 + textLen3]), inputText4, textLen4);
-    }
-
-    outputText[textLen] = '\0';
-
-    return outputText;
 }

@@ -45,11 +45,6 @@ EXPORT_SYMBOL_GPL(CsrMemCpy);
 #endif
 
 #ifndef CSR_USE_STDC_LIB
-char *CsrStrNCpy(char *dest, const char *src, size_t count)
-{
-    return strncpy(dest, src, count);
-}
-
 size_t CsrStrLen(const char *string)
 {
     return strlen(string);
