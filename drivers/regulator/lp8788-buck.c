@@ -69,6 +69,9 @@
 #define PIN_HIGH			1
 #define ENABLE_TIME_USEC		32
 
+#define BUCK_FPWM_MASK(x)		(1 << (x))
+#define BUCK_FPWM_SHIFT(x)		(x)
+
 enum lp8788_dvs_state {
 	DVS_LOW  = GPIOF_OUT_INIT_LOW,
 	DVS_HIGH = GPIOF_OUT_INIT_HIGH,
@@ -86,15 +89,9 @@ enum lp8788_buck_id {
 	BUCK4,
 };
 
-struct lp8788_pwm_map {
-	u8 mask;
-	u8 shift;
-};
-
 struct lp8788_buck {
 	struct lp8788 *lp;
 	struct regulator_dev *regulator;
-	struct lp8788_pwm_map *pmap;
 	void *dvs;
 };
 
@@ -104,29 +101,6 @@ static const int lp8788_buck_vtbl[] = {
 	1150000, 1200000, 1250000, 1300000, 1350000, 1400000, 1450000, 1500000,
 	1550000, 1600000, 1650000, 1700000, 1750000, 1800000, 1850000, 1900000,
 	1950000, 2000000,
-};
-
-/* buck pwm mode selection : used for set/get_mode in regulator ops
- * @forced pwm : fast mode
- * @auto pwm   : normal mode
- */
-static struct lp8788_pwm_map buck_pmap[] = {
-	[BUCK1] = {
-		.mask = LP8788_FPWM_BUCK1_M,
-		.shift = LP8788_FPWM_BUCK1_S,
-	},
-	[BUCK2] = {
-		.mask = LP8788_FPWM_BUCK2_M,
-		.shift = LP8788_FPWM_BUCK2_S,
-	},
-	[BUCK3] = {
-		.mask = LP8788_FPWM_BUCK3_M,
-		.shift = LP8788_FPWM_BUCK3_S,
-	},
-	[BUCK4] = {
-		.mask = LP8788_FPWM_BUCK4_M,
-		.shift = LP8788_FPWM_BUCK4_S,
-	},
 };
 
 static const u8 buck1_vout_addr[] = {
@@ -347,41 +321,37 @@ static int lp8788_buck_enable_time(struct regulator_dev *rdev)
 static int lp8788_buck_set_mode(struct regulator_dev *rdev, unsigned int mode)
 {
 	struct lp8788_buck *buck = rdev_get_drvdata(rdev);
-	struct lp8788_pwm_map *pmap = buck->pmap;
-	u8 val;
+	enum lp8788_buck_id id = rdev_get_id(rdev);
+	u8 mask, val;
 
-	if (!pmap)
-		return -EINVAL;
-
+	mask = BUCK_FPWM_MASK(id);
 	switch (mode) {
 	case REGULATOR_MODE_FAST:
-		val = LP8788_FORCE_PWM << pmap->shift;
+		val = LP8788_FORCE_PWM << BUCK_FPWM_SHIFT(id);
 		break;
 	case REGULATOR_MODE_NORMAL:
-		val = LP8788_AUTO_PWM << pmap->shift;
+		val = LP8788_AUTO_PWM << BUCK_FPWM_SHIFT(id);
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return lp8788_update_bits(buck->lp, LP8788_BUCK_PWM, pmap->mask, val);
+	return lp8788_update_bits(buck->lp, LP8788_BUCK_PWM, mask, val);
 }
 
 static unsigned int lp8788_buck_get_mode(struct regulator_dev *rdev)
 {
 	struct lp8788_buck *buck = rdev_get_drvdata(rdev);
-	struct lp8788_pwm_map *pmap = buck->pmap;
+	enum lp8788_buck_id id = rdev_get_id(rdev);
 	u8 val;
 	int ret;
-
-	if (!pmap)
-		return -EINVAL;
 
 	ret = lp8788_read_byte(buck->lp, LP8788_BUCK_PWM, &val);
 	if (ret)
 		return ret;
 
-	return val & pmap->mask ? REGULATOR_MODE_FAST : REGULATOR_MODE_NORMAL;
+	return val & BUCK_FPWM_MASK(id) ?
+				REGULATOR_MODE_FAST : REGULATOR_MODE_NORMAL;
 }
 
 static struct regulator_ops lp8788_buck12_ops = {
@@ -548,7 +518,6 @@ static __devinit int lp8788_buck_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	buck->lp = lp;
-	buck->pmap = &buck_pmap[id];
 
 	ret = lp8788_init_dvs(buck, id);
 	if (ret)
