@@ -183,7 +183,7 @@ static int get_matching_microcode(int cpu, const u8 *ucode_ptr,
 	memset(patch, 0, PAGE_SIZE);
 
 	/* all looks ok, get the binary patch */
-	get_ucode_data(patch, ucode_ptr + SECTION_HDR_SIZE, actual_size);
+	memcpy(patch, ucode_ptr + SECTION_HDR_SIZE, actual_size);
 
 	return actual_size;
 }
@@ -238,7 +238,7 @@ static int install_equiv_cpu_table(const u8 *buf)
 		return -ENOMEM;
 	}
 
-	get_ucode_data(equiv_cpu_table, buf + CONTAINER_HDR_SZ, size);
+	memcpy(equiv_cpu_table, buf + CONTAINER_HDR_SZ, size);
 
 	/* add header length */
 	return size + CONTAINER_HDR_SZ;
