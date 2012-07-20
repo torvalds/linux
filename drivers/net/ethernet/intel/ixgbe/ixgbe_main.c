@@ -1458,6 +1458,36 @@ static bool ixgbe_is_non_eop(struct ixgbe_ring *rx_ring,
 }
 
 /**
+ * ixgbe_dma_sync_frag - perform DMA sync for first frag of SKB
+ * @rx_ring: rx descriptor ring packet is being transacted on
+ * @skb: pointer to current skb being updated
+ *
+ * This function provides a basic DMA sync up for the first fragment of an
+ * skb.  The reason for doing this is that the first fragment cannot be
+ * unmapped until we have reached the end of packet descriptor for a buffer
+ * chain.
+ */
+static void ixgbe_dma_sync_frag(struct ixgbe_ring *rx_ring,
+				struct sk_buff *skb)
+{
+	/* if the page was released unmap it, else just sync our portion */
+	if (unlikely(IXGBE_CB(skb)->page_released)) {
+		dma_unmap_page(rx_ring->dev, IXGBE_CB(skb)->dma,
+			       ixgbe_rx_pg_size(rx_ring), DMA_FROM_DEVICE);
+		IXGBE_CB(skb)->page_released = false;
+	} else {
+		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[0];
+
+		dma_sync_single_range_for_cpu(rx_ring->dev,
+					      IXGBE_CB(skb)->dma,
+					      frag->page_offset,
+					      ixgbe_rx_bufsz(rx_ring),
+					      DMA_FROM_DEVICE);
+	}
+	IXGBE_CB(skb)->dma = 0;
+}
+
+/**
  * ixgbe_cleanup_headers - Correct corrupted or empty headers
  * @rx_ring: rx descriptor ring packet is being transacted on
  * @rx_desc: pointer to the EOP Rx descriptor
@@ -1483,20 +1513,6 @@ static bool ixgbe_cleanup_headers(struct ixgbe_ring *rx_ring,
 	struct net_device *netdev = rx_ring->netdev;
 	unsigned char *va;
 	unsigned int pull_len;
-
-	/* if the page was released unmap it, else just sync our portion */
-	if (unlikely(IXGBE_CB(skb)->page_released)) {
-		dma_unmap_page(rx_ring->dev, IXGBE_CB(skb)->dma,
-			       ixgbe_rx_pg_size(rx_ring), DMA_FROM_DEVICE);
-		IXGBE_CB(skb)->page_released = false;
-	} else {
-		dma_sync_single_range_for_cpu(rx_ring->dev,
-					      IXGBE_CB(skb)->dma,
-					      frag->page_offset,
-					      ixgbe_rx_bufsz(rx_ring),
-					      DMA_FROM_DEVICE);
-	}
-	IXGBE_CB(skb)->dma = 0;
 
 	/* verify that the packet does not have any known errors */
 	if (unlikely(ixgbe_test_staterr(rx_desc,
@@ -1742,8 +1758,16 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			 * after the writeback.  Only unmap it when EOP is
 			 * reached
 			 */
+			if (likely(ixgbe_test_staterr(rx_desc,
+						      IXGBE_RXD_STAT_EOP)))
+				goto dma_sync;
+
 			IXGBE_CB(skb)->dma = rx_buffer->dma;
 		} else {
+			if (ixgbe_test_staterr(rx_desc, IXGBE_RXD_STAT_EOP))
+				ixgbe_dma_sync_frag(rx_ring, skb);
+
+dma_sync:
 			/* we are reusing so sync this buffer for CPU use */
 			dma_sync_single_range_for_cpu(rx_ring->dev,
 						      rx_buffer->dma,
