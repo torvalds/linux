@@ -1,5 +1,4 @@
-#include "rk30_hdmi.h"
-#include "rk30_hdmi_hw.h"
+#include "rk_hdmi.h"
 #include "../../edid.h"
 
 #define hdmi_edid_error(fmt, ...) \
@@ -374,7 +373,7 @@ int hdmi_sys_parse_edid(struct hdmi* hdmi)
 	}
 	// Read base block edid.
 	memset(buff, 0 , HDMI_EDID_BLOCK_SIZE);
-	rc = rk30_hdmi_read_edid(0, buff);
+	rc = hdmi->read_edid(0, buff);
 	if(rc)
 	{
 		dev_err(hdmi->dev, "[HDMI] read edid base block error\n");
@@ -389,7 +388,7 @@ int hdmi_sys_parse_edid(struct hdmi* hdmi)
 	for(i = 1; i < extendblock + 1; i++)
 	{
 		memset(buff, 0 , HDMI_EDID_BLOCK_SIZE);
-		rc = rk30_hdmi_read_edid(i, buff);
+		rc = hdmi->read_edid(i, buff);
 		if(rc)
 		{
 			printk("[HDMI] read edid block %d error\n", i);	

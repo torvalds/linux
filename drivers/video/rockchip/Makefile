@@ -4,4 +4,4 @@ obj-$(CONFIG_LCDC_RK30) += chips/rk30_lcdc.o
 obj-$(CONFIG_LCDC_RK2928) += chips/rk2928_lcdc.o
 obj-$(CONFIG_LCDC_RK31) += chips/rk31_lcdc.o 
 obj-$(CONFIG_RGA_RK30) += rga/
-obj-$(CONFIG_HDMI_RK30) += hdmi/
+obj-$(CONFIG_RK_HDMI) += hdmi/

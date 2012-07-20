@@ -60,15 +60,6 @@ enum {
 };
 #define m_AUDIO_SAMPLE_RATE		0xF0
 #define v_AUDIO_SAMPLE_RATE(n)	(n << 4)
-enum {
-	VIDEO_INPUT_RGB_YCBCR_444 = 0,
-	VIDEO_INPUT_YCBCR422,
-	VIDEO_INPUT_YCBCR422_EMBEDDED_SYNC,
-	VIDEO_INPUT_2X_CLOCK,
-	VIDEO_INPUT_2X_CLOCK_EMBEDDED_SYNC,
-	VIDEO_INPUT_RGB444_DDR,
-	VIDEO_INPUT_YCBCR422_DDR
-};
 #define m_INPUT_VIDEO_MODE			(7 << 1)
 #define v_INPUT_VIDEO_MODE(n)		(n << 1)
 enum {
@@ -84,11 +75,7 @@ enum {
 
 /* HDMI_VIDEO_CTRL1 */
 #define VIDEO_CTRL1	0x58
-enum {
-	VIDEO_OUTPUT_RGB444 = 0,
-	VIDEO_OUTPUT_YCBCR444,
-	VIDEO_OUTPUT_YCBCR422
-};
+
 #define m_VIDEO_OUTPUT_MODE		(0x3 << 6)
 #define v_VIDEO_OUTPUT_MODE(n)	(n << 6)
 enum {
@@ -105,10 +92,6 @@ enum {
 };
 #define m_VIDEO_EMBEDDED_SYNC_LOCATION		(3 << 2)
 #define VIDEO_EMBEDDED_SYNC_LOCATION(n)		(n << 2)
-enum {
-	VIDEO_INPUT_COLOR_RGB = 0,
-	VIDEO_INPUT_COLOR_YCBCR
-};
 #define m_VIDEO_INPUT_COLOR_MODE			(1 << 0)
 
 /* DEEP_COLOR_MODE */
@@ -416,14 +399,7 @@ enum {
 	temp = __raw_readl(hdmi->regbase + addr) & (0xFF - (msk)) ; \
 	__raw_writel(temp | ( (val) & (msk) ),  hdmi->regbase + addr); 
 
-/* RK30 HDMI Video Configure Parameters */
-struct rk30_hdmi_video_para {
-	int vic;
-	int input_mode;		//input video data interface
-	int input_color;	//input video color mode
-	int output_mode;	//output hdmi or dvi
-	int output_color;	//output video color mode
-};
+
 
 /* Color Space Convertion Mode */
 enum {
@@ -439,7 +415,7 @@ extern int rk30_hdmi_initial(void);
 extern int rk30_hdmi_detect_hotplug(void);
 extern int rk30_hdmi_read_edid(int block, unsigned char *buff);
 extern int rk30_hdmi_removed(void);
-extern int rk30_hdmi_config_video(struct rk30_hdmi_video_para *vpara);
+extern int rk30_hdmi_config_video(struct hdmi_video_para *vpara);
 extern int rk30_hdmi_config_audio(struct hdmi_audio *audio);
 extern void rk30_hdmi_control_output(int enable);
 

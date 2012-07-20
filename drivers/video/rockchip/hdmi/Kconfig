@@ -1,23 +1,9 @@
-menuconfig HDMI_RK30
-        bool "RK30 HDMI support"
-        depends on LCDC_RK30
-        select FB_MODE_HELPERS
-        help
-           Support rk30 hdmi if you say y here
+menu "RK_HDMI"
+config RK_HDMI
+       bool "RK_HDMI support"
+       
+if RK_HDMI
+source "drivers/video/rockchip/hdmi/chips/Kconfig"
+endif
 
-config HDMI_RK30_CTL_CODEC
-		bool "Mute Codec When HDMI Actived"
-		depends on HDMI_RK30
-		default n
-		help
-			If you say y heres, Codec will be mute when hdmi inserted,
-			and unmute when removed. 
-
-config HDMI_RK30_DEBUG
-		bool "RK30 HDMI Debugging"
-        depends on HDMI_RK30 && LCDC_RK30
-        default n
-		help
-		  Enableds verbose debugging the the HDMI drivers
-
-source "drivers/video/rockchip/hdmi/hdcp/Kconfig"
+endmenu

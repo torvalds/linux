@@ -2,7 +2,7 @@
 #include <linux/string.h>
 #include <linux/display-sys.h>
 #include <linux/interrupt.h>
-#include "rk30_hdmi.h"
+#include "rk_hdmi.h"
 
 static int hdmi_get_enable(struct rk_display_device *device)
 {

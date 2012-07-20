@@ -1,7 +1,6 @@
 #include <linux/console.h>
-#include "rk30_hdmi.h"
-#include "rk30_hdmi_hw.h"
 #include<linux/rk_fb.h>
+#include "rk_hdmi.h"
 
 #define OUT_TYPE		SCREEN_HDMI
 #define OUT_FACE		OUT_P888

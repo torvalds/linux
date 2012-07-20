@@ -522,6 +522,28 @@ static void __init rk2928_init_spim(void)
 	platform_device_register(&rk29xx_device_spi0m);
 #endif
 }
+
+#ifdef CONFIG_HDMI_RK2928
+static struct resource resource_hdmi[] = {
+	[0] = {
+		.start = RK2928_HDMI_PHYS,
+		.end   = RK2928_HDMI_PHYS + RK2928_HDMI_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_HDMI,
+		.end   = IRQ_HDMI,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device device_hdmi = {
+	.name				= "rk2928-hdmi",
+	.id					= -1,
+	.num_resources		= ARRAY_SIZE(resource_hdmi),
+	.resource			= resource_hdmi,
+};
+#endif
 #ifdef CONFIG_RGA_RK30
 static struct resource resource_rga[] = {
 	[0] = {

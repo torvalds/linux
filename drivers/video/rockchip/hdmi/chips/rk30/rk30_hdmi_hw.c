@@ -14,6 +14,14 @@ static inline void delay100us(void)
 int rk30_hdmi_initial(void)
 {
 	int rc = HDMI_ERROR_SUCESS;
+
+	hdmi->pwr_mode = PWR_SAVE_MODE_A;
+	hdmi->hdmi_removed = rk30_hdmi_removed ;
+	hdmi->control_output = rk30_hdmi_control_output;
+	hdmi->config_video = rk30_hdmi_config_video;
+	hdmi->config_audio = rk30_hdmi_config_audio;
+	hdmi->detect_hotplug = rk30_hdmi_detect_hotplug;
+	hdmi->read_edid = rk30_hdmi_read_edid;
 	// internal hclk = hdmi_hclk/20
 	HDMIWrReg(0x800, HDMI_INTERANL_CLK_DIV);
 	
@@ -292,7 +300,7 @@ static char coeff_csc[][24] = {
 	
 };
 
-static void rk30_hdmi_config_csc(struct rk30_hdmi_video_para *vpara)
+static void rk30_hdmi_config_csc(struct hdmi_video_para *vpara)
 {
 	int i, mode;
 	char *coeff = NULL;
@@ -339,7 +347,7 @@ static void rk30_hdmi_config_csc(struct rk30_hdmi_video_para *vpara)
 	HDMIWrReg(AV_CTRL2, v_CSC_ENABLE(1));
 }
 
-int rk30_hdmi_config_video(struct rk30_hdmi_video_para *vpara)
+int rk30_hdmi_config_video(struct hdmi_video_para *vpara)
 {
 	int value;
 	struct fb_videomode *mode;
@@ -548,9 +556,10 @@ void rk30_hdmi_control_output(int enable)
 {
 	hdmi_dbg(hdmi->dev, "[%s] %d\n", __FUNCTION__, enable);
 	if(enable == 0) {
-		HDMIWrReg(VIDEO_SETTING2, 0x03);
+		HDMIWrReg(AV_MUTE, v_AUDIO_MUTE(1) | v_VIDEO_MUTE(1));
 	}
 	else {
+		HDMIWrReg(VIDEO_SETTING2, 0x03);
 		if(hdmi->pwr_mode == PWR_SAVE_MODE_B) {
 			//  Switch to power save mode_d
 			rk30_hdmi_set_pwr_mode(PWR_SAVE_MODE_D);
