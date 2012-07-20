@@ -9,7 +9,6 @@ csr_wifi-y :=	bh.o				\
 		data_tx.o			\
 		drv.o				\
 		firmware.o			\
-		indications.o			\
 		inet.o				\
 		init_hw.o			\
 		io.o				\
