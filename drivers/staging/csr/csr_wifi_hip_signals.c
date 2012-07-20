@@ -17,7 +17,7 @@
 
 #include "csr_wifi_hip_unifi.h"
 
-CsrInt32 SigGetSize(const CSR_SIGNAL *aSignal)
+s32 SigGetSize(const CSR_SIGNAL *aSignal)
 {
     switch (aSignal->SignalPrimitiveHeader.SignalId)
     {
@@ -383,9 +383,9 @@ CsrInt32 SigGetSize(const CSR_SIGNAL *aSignal)
 }
 
 
-CsrInt32 SigGetDataRefs(CSR_SIGNAL *aSignal, CSR_DATAREF **aDataRef)
+s32 SigGetDataRefs(CSR_SIGNAL *aSignal, CSR_DATAREF **aDataRef)
 {
-    CsrInt32 numRefs = 0;
+    s32 numRefs = 0;
 
     switch (aSignal->SignalPrimitiveHeader.SignalId)
     {

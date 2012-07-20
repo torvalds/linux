@@ -116,7 +116,7 @@ extern "C" {
  * RETURNS:
  *   The number of data-refs in the signal.
  */
-CsrInt32 SigGetDataRefs(CSR_SIGNAL *aSignal, CSR_DATAREF **aDataRef);
+s32 SigGetDataRefs(CSR_SIGNAL *aSignal, CSR_DATAREF **aDataRef);
 
 /******************************************************************************
  * SigGetSize - Retrieve the size (in bytes) of a given signal.
@@ -127,7 +127,7 @@ CsrInt32 SigGetDataRefs(CSR_SIGNAL *aSignal, CSR_DATAREF **aDataRef);
  * RETURNS:
  *   The size (in bytes) of the given signal.
  */
-CsrInt32 SigGetSize(const CSR_SIGNAL *aSignal);
+s32 SigGetSize(const CSR_SIGNAL *aSignal);
 
 #ifdef __cplusplus
 }

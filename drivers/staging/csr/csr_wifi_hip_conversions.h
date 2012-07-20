@@ -69,7 +69,7 @@ extern "C" {
     CSR_GET_UINT16_FROM_LITTLE_ENDIAN(((_buf) + SIZEOF_SIGNAL_HEADER + UNIFI_MAX_DATA_REFERENCES * SIZEOF_DATAREF + 2))
 
 
-CsrInt32 get_packed_struct_size(const u8 *buf);
+s32 get_packed_struct_size(const u8 *buf);
 CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig);
 CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len);
 

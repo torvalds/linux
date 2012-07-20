@@ -431,7 +431,7 @@ struct card
      * We assume these are connected to LEDs. The main firmware gets
      * the mask from a MIB entry.
      */
-    CsrInt32 loader_led_mask;
+    s32 loader_led_mask;
 
     /*
      * Support for flow control. When the from-host queue of signals
@@ -490,10 +490,10 @@ struct card
      * These are the modulo-256 count of signals written to or read from UniFi
      * The value is incremented for every signal.
      */
-    CsrInt32 from_host_signals_w;
-    CsrInt32 from_host_signals_r;
-    CsrInt32 to_host_signals_r;
-    CsrInt32 to_host_signals_w;
+    s32 from_host_signals_w;
+    s32 from_host_signals_r;
+    s32 to_host_signals_r;
+    s32 to_host_signals_w;
 
 
     /* Should specify buffer size as a number of signals */
@@ -653,14 +653,14 @@ CsrResult unifi_set_host_state(card_t *card, enum unifi_host_state state);
 
 
 CsrResult unifi_set_proc_select(card_t *card, enum unifi_dbg_processors_select select);
-CsrInt32 card_read_signal_counts(card_t *card);
+s32 card_read_signal_counts(card_t *card);
 bulk_data_desc_t* card_find_data_slot(card_t *card, s16 slot);
 
 
 CsrResult unifi_read32(card_t *card, u32 unifi_addr, u32 *pdata);
 CsrResult unifi_readnz(card_t *card, u32 unifi_addr,
                        void *pdata, u16 len);
-CsrInt32 unifi_read_shared_count(card_t *card, u32 addr);
+s32 unifi_read_shared_count(card_t *card, u32 addr);
 
 CsrResult unifi_writen(card_t *card, u32 unifi_addr, void *pdata, u16 len);
 

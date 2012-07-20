@@ -235,11 +235,11 @@ ChipDescript* ChipHelper_GetVersionBlueCore(enum chip_helper_bluecore_age age,
     CHIP_HELPER_DEF0(m, (u32, PROGRAM_MEMORY_FLASH_OFFSET, prog_offset.flash)) \
     CHIP_HELPER_DEF0(m, (u32, PROGRAM_MEMORY_EXT_SRAM_OFFSET, prog_offset.ext_sram)) \
     CHIP_HELPER_DEF0(m, (u16, DATA_MEMORY_RAM_OFFSET, data_offset.ram)) \
-    CHIP_HELPER_DEF0(m, (CsrInt32, HasFlash, bools.has_flash))              \
-    CHIP_HELPER_DEF0(m, (CsrInt32, HasExtSram, bools.has_ext_sram))         \
-    CHIP_HELPER_DEF0(m, (CsrInt32, HasRom, bools.has_rom))                  \
-    CHIP_HELPER_DEF0(m, (CsrInt32, HasBt, bools.has_bt))                    \
-    CHIP_HELPER_DEF0(m, (CsrInt32, HasWLan, bools.has_wlan))                \
+    CHIP_HELPER_DEF0(m, (s32, HasFlash, bools.has_flash))              \
+    CHIP_HELPER_DEF0(m, (s32, HasExtSram, bools.has_ext_sram))         \
+    CHIP_HELPER_DEF0(m, (s32, HasRom, bools.has_rom))                  \
+    CHIP_HELPER_DEF0(m, (s32, HasBt, bools.has_bt))                    \
+    CHIP_HELPER_DEF0(m, (s32, HasWLan, bools.has_wlan))                \
     CHIP_HELPER_DEF1(m, (u16, WINDOW_ADDRESS, enum chip_helper_window_index, window)) \
     CHIP_HELPER_DEF1(m, (u16, WINDOW_SIZE, enum chip_helper_window_index, window)) \
     CHIP_HELPER_DEF1(m, (u16, MapAddress_SPI2HOST, u16, addr))          \
@@ -402,7 +402,7 @@ CHIP_HELPER_LIST(C_DEC)
    address in the XAPs 16 address map to read from.  'len'
    is the length that we can read without having to change
    the page registers. */
-CsrInt32 ChipHelper_DecodeWindow(ChipDescript *chip_help,
+s32 ChipHelper_DecodeWindow(ChipDescript *chip_help,
                                  enum chip_helper_window_index window,
                                  enum chip_helper_window_type type,
                                  u32 offset,
@@ -457,7 +457,7 @@ public:
 
 
     /* The DecodeWindow function, see the description of the C version. */
-    CsrInt32 DecodeWindow(chip_helper_window_index window,
+    s32 DecodeWindow(chip_helper_window_index window,
                           chip_helper_window_type type,
                           u32 offset,
                           u16 &page, u16 &addr, u32 &len) const;

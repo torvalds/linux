@@ -131,7 +131,7 @@ void CsrTimeUtcGet(CsrTimeUtc *tod, CsrTime *low, CsrTime *high);
  *      CsrTime - "t1" - "t2".
  *
  *----------------------------------------------------------------------------*/
-#define CsrTimeSub(t1, t2)    ((CsrInt32) (t1) - (CsrInt32) (t2))
+#define CsrTimeSub(t1, t2)    ((s32) (t1) - (s32) (t2))
 
 /*----------------------------------------------------------------------------*
  *  NAME

@@ -63,7 +63,7 @@ static CsrResult unifi_coredump_from_sdio(card_t *card, coredump_buffer *dump_bu
 static CsrResult unifi_coredump_read_zones(card_t *card, coredump_buffer *dump_buf);
 static CsrResult unifi_coredump_read_zone(card_t *card, u16 *zone,
                                           const struct coredump_zone *def);
-static CsrInt32 get_value_from_coredump(const coredump_buffer *dump,
+static s32 get_value_from_coredump(const coredump_buffer *dump,
                                         const unifi_coredump_space_t space, const u16 offset);
 
 /* Table of chip memory zones we capture on mini-coredump */
@@ -293,14 +293,14 @@ done:
  *  Notes:
  * ---------------------------------------------------------------------------
  */
-static CsrInt32 get_value_from_coredump(const coredump_buffer       *coreDump,
+static s32 get_value_from_coredump(const coredump_buffer       *coreDump,
                                         const unifi_coredump_space_t space,
                                         const u16              offset_in_space)
 {
-    CsrInt32 r = -1;
+    s32 r = -1;
     u16 offset_in_zone;
     u32 zone_end_offset;
-    CsrInt32 i;
+    s32 i;
     const struct coredump_zone *def = &zonedef_table[0];
 
     /* Search zone def table for a match with the requested memory space */
@@ -316,7 +316,7 @@ static CsrInt32 get_value_from_coredump(const coredump_buffer       *coreDump,
             {
                 /* Calculate the offset of data within the zone buffer */
                 offset_in_zone = offset_in_space - def->offset;
-                r = (CsrInt32) * (coreDump->zone[i] + offset_in_zone);
+                r = (s32) * (coreDump->zone[i] + offset_in_zone);
 
                 unifi_trace(NULL, UDBG6,
                             "sp %d, offs 0x%04x = 0x%04x (in z%d 0x%04x->0x%04x)\n",
@@ -354,7 +354,7 @@ static CsrInt32 get_value_from_coredump(const coredump_buffer       *coreDump,
 CsrResult unifi_coredump_get_value(card_t *card, struct unifi_coredump_req *req)
 {
     CsrResult r;
-    CsrInt32 i = 0;
+    s32 i = 0;
     coredump_buffer *find_dump = NULL;
 
     func_enter();
@@ -548,7 +548,7 @@ done:
 static CsrResult unifi_coredump_read_zones(card_t *card, coredump_buffer *dump_buf)
 {
     CsrResult r = CSR_RESULT_SUCCESS;
-    CsrInt32 i;
+    s32 i;
 
     func_enter();
 
@@ -662,7 +662,7 @@ coredump_buffer* new_coredump_node(void *ospriv, coredump_buffer *prevnode)
 {
     coredump_buffer *newnode = NULL;
     u16 *newzone = NULL;
-    CsrInt32 i;
+    s32 i;
     u32 zone_size;
 
     /* Allocate node header */

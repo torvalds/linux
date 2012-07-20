@@ -38,8 +38,8 @@ CsrUtf16String *CsrUtf16ConcatenateTexts(const CsrUtf16String *inputText1, const
 CsrUtf16String *CsrUtf16String2XML(CsrUtf16String *str);
 CsrUtf16String *CsrXML2Utf16String(CsrUtf16String *str);
 
-CsrInt32 CsrUtf8StrCmp(const CsrUtf8String *string1, const CsrUtf8String *string2);
-CsrInt32 CsrUtf8StrNCmp(const CsrUtf8String *string1, const CsrUtf8String *string2, CsrSize count);
+s32 CsrUtf8StrCmp(const CsrUtf8String *string1, const CsrUtf8String *string2);
+s32 CsrUtf8StrNCmp(const CsrUtf8String *string1, const CsrUtf8String *string2, CsrSize count);
 u32 CsrUtf8StringLengthInBytes(const CsrUtf8String *string);
 
 /*******************************************************************************

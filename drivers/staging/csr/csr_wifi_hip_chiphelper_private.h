@@ -117,7 +117,7 @@ struct chip_device_regs_t
    written to the page register. */
 struct window_shift_info_t
 {
-    CsrInt32  allowed;
+    s32  allowed;
     u32 page_shift;
     u16 page_offset;
 };
@@ -140,7 +140,7 @@ struct window_info_t
    address of GBL_CHIP_VERSION is FF9A, else its FE81. */
 struct chip_version_t
 {
-    CsrInt32  pre_bc7;
+    s32  pre_bc7;
     u16 mask;
     u16 result;
     u8  sdio;

@@ -168,7 +168,7 @@ card_t* unifi_alloc_card(CsrSdioFunction *sdio, void *ospriv)
  *      CSR_RESULT_SUCCESS if successful
  * ---------------------------------------------------------------------------
  */
-CsrResult unifi_init_card(card_t *card, CsrInt32 led_mask)
+CsrResult unifi_init_card(card_t *card, s32 led_mask)
 {
     CsrResult r;
 
@@ -359,7 +359,7 @@ CsrResult unifi_init(card_t *card)
  *      CsrResult error code on failure.
  * ---------------------------------------------------------------------------
  */
-CsrResult unifi_download(card_t *card, CsrInt32 led_mask)
+CsrResult unifi_download(card_t *card, s32 led_mask)
 {
     CsrResult r;
     void *dlpriv;
@@ -1235,7 +1235,7 @@ static CsrResult card_wait_for_unifi_to_disable(card_t *card)
  */
 CsrResult card_wait_for_firmware_to_start(card_t *card, u32 *paddr)
 {
-    CsrInt32 i;
+    s32 i;
     u16 mbox0, mbox1;
     CsrResult r;
 
@@ -1403,7 +1403,7 @@ CsrResult unifi_capture_panic(card_t *card)
 static CsrResult card_access_panic(card_t *card)
 {
     u16 data_u16 = 0;
-    CsrInt32 i;
+    s32 i;
     CsrResult r, sr;
 
     func_enter();
@@ -2221,7 +2221,7 @@ static void CardCheckDynamicReservation(card_t *card, unifi_TrafficQueue queue)
 {
     u16 q_len, active_queues = 0, excess_queue_slots, div_extra_slots,
               queue_fair_share, reserved_slots = 0, q, excess_need_queues = 0, unmovable_slots = 0;
-    CsrInt32 i;
+    s32 i;
     q_t *sigq;
     u16 num_data_slots = card->config_data.num_fromhost_data_slots - UNIFI_RESERVED_COMMAND_SLOTS;
 
@@ -2246,11 +2246,11 @@ static void CardCheckDynamicReservation(card_t *card, unifi_TrafficQueue queue)
 
     for (i = 0; i < UNIFI_NO_OF_TX_QS; i++)
     {
-        if (i != (CsrInt32)queue)
+        if (i != (s32)queue)
         {
             reserved_slots += card->dynamic_slot_data.from_host_reserved_slots[i];
         }
-        if ((i == (CsrInt32)queue) || (card->dynamic_slot_data.from_host_reserved_slots[i] > 0))
+        if ((i == (s32)queue) || (card->dynamic_slot_data.from_host_reserved_slots[i] > 0))
         {
             active_queues++;
         }
@@ -4032,7 +4032,7 @@ void unifi_card_info(card_t *card, card_info_t *card_info)
  *      CSR_RESULT_SUCCESS if OK, or CSR error
  * ---------------------------------------------------------------------------
  */
-CsrResult unifi_check_io_status(card_t *card, CsrInt32 *status)
+CsrResult unifi_check_io_status(card_t *card, s32 *status)
 {
     u8 io_en;
     CsrResult r;
@@ -4053,7 +4053,7 @@ CsrResult unifi_check_io_status(card_t *card, CsrInt32 *status)
 
     if ((io_en & (1 << card->function)) == 0)
     {
-        CsrInt32 fw_count;
+        s32 fw_count;
         *status = 1;
         unifi_error(card->ospriv, "UniFi has spontaneously reset.\n");
 
@@ -4102,7 +4102,7 @@ CsrResult unifi_check_io_status(card_t *card, CsrInt32 *status)
 
 void unifi_get_hip_qos_info(card_t *card, unifi_HipQosInfo *hipqosinfo)
 {
-    CsrInt32 count_fhr;
+    s32 count_fhr;
     s16 t;
     u32 occupied_fh;
 

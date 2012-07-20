@@ -546,7 +546,7 @@ free_fw:
 int unifi_putest_coredump_prepare(unifi_priv_t *priv, unsigned char *arg)
 {
     u16 data_u16;
-    CsrInt32 i;
+    s32 i;
     CsrResult r;
 
     unifi_info(priv, "Preparing for SDIO coredump\n");

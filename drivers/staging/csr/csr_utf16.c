@@ -1016,12 +1016,12 @@ CsrUtf16String *CsrXML2Utf16String(CsrUtf16String *str)
     return resultString;
 }
 
-CsrInt32 CsrUtf8StrCmp(const CsrUtf8String *string1, const CsrUtf8String *string2)
+s32 CsrUtf8StrCmp(const CsrUtf8String *string1, const CsrUtf8String *string2)
 {
     return CsrStrCmp((const CsrCharString *) string1, (const CsrCharString *) string2);
 }
 
-CsrInt32 CsrUtf8StrNCmp(const CsrUtf8String *string1, const CsrUtf8String *string2, CsrSize count)
+s32 CsrUtf8StrNCmp(const CsrUtf8String *string1, const CsrUtf8String *string2, CsrSize count)
 {
     return CsrStrNCmp((const CsrCharString *) string1, (const CsrCharString *) string2, count);
 }

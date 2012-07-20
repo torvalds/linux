@@ -887,8 +887,8 @@ uf_read_proc(char *page, char **start, off_t offset, int count,
     unifi_priv_t *priv;
     int actual_amount_to_copy;
     char *p, *orig_p;
-    CsrInt32 remain = UNIFI_DEBUG_TXT_BUFFER;
-    CsrInt32 written;
+    s32 remain = UNIFI_DEBUG_TXT_BUFFER;
+    s32 written;
     int i;
 
     /*

@@ -818,7 +818,7 @@ typedef struct netInterface_priv
 #define UNLOCK_DRIVER(_p)       (void)(_p); /* as nothing */
 #endif /* USE_DRIVER_LOCK */
 
-CsrInt32 CsrHipResultToStatus(CsrResult csrResult);
+s32 CsrHipResultToStatus(CsrResult csrResult);
 
 
 /*

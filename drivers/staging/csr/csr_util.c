@@ -145,9 +145,9 @@ u32 CsrPow(u32 base, u32 exponent)
 
 /* Convert signed 32 bit (or less) integer to string */
 #define I2B10_MAX 12
-void CsrIntToBase10(CsrInt32 number, CsrCharString *str)
+void CsrIntToBase10(s32 number, CsrCharString *str)
 {
-    CsrInt32 digit;
+    s32 digit;
     u8 index;
     CsrCharString res[I2B10_MAX];
     CsrBool foundDigit = FALSE;
@@ -240,7 +240,7 @@ void *CsrMemMove(void *dest, const void *src, CsrSize count)
 }
 EXPORT_SYMBOL_GPL(CsrMemMove);
 
-CsrInt32 CsrMemCmp(const void *buf1, const void *buf2, CsrSize count)
+s32 CsrMemCmp(const void *buf1, const void *buf2, CsrSize count)
 {
     return memcmp(buf1, buf2, count);
 }
@@ -292,12 +292,12 @@ CsrSize CsrStrLen(const CsrCharString *string)
 }
 EXPORT_SYMBOL_GPL(CsrStrLen);
 
-CsrInt32 CsrStrCmp(const CsrCharString *string1, const CsrCharString *string2)
+s32 CsrStrCmp(const CsrCharString *string1, const CsrCharString *string2)
 {
     return strcmp(string1, string2);
 }
 
-CsrInt32 CsrStrNCmp(const CsrCharString *string1, const CsrCharString *string2, CsrSize count)
+s32 CsrStrNCmp(const CsrCharString *string1, const CsrCharString *string2, CsrSize count)
 {
     return strncmp(string1, string2, count);
 }
@@ -308,7 +308,7 @@ CsrCharString *CsrStrChr(const CsrCharString *string, CsrCharString c)
 }
 #endif
 
-CsrInt32 CsrVsnprintf(CsrCharString *string, CsrSize count, const CsrCharString *format, va_list args)
+s32 CsrVsnprintf(CsrCharString *string, CsrSize count, const CsrCharString *format, va_list args)
 {
     return vsnprintf(string, count, format, args);
 }

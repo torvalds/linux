@@ -45,7 +45,7 @@
 typedef struct
 {
     void      *dlpriv;
-    CsrInt32   ioffset;
+    s32   ioffset;
     fwreadfn_t iread;
 } ct_t;
 
@@ -84,17 +84,17 @@ typedef struct
     struct
     {
         xbv_container container;
-        CsrInt32      ioffset_end;
+        s32      ioffset_end;
     } s[XBV_STACK_SIZE];
     u32 ptr;
 } xbv_stack_t;
 
-static CsrInt32 read_tag(card_t *card, ct_t *ct, tag_t *tag);
-static CsrInt32 read_bytes(card_t *card, ct_t *ct, void *buf, u32 len);
-static CsrInt32 read_uint(card_t *card, ct_t *ct, u32 *u, u32 len);
-static CsrInt32 xbv_check(xbv1_t *fwinfo, const xbv_stack_t *stack,
+static s32 read_tag(card_t *card, ct_t *ct, tag_t *tag);
+static s32 read_bytes(card_t *card, ct_t *ct, void *buf, u32 len);
+static s32 read_uint(card_t *card, ct_t *ct, u32 *u, u32 len);
+static s32 xbv_check(xbv1_t *fwinfo, const xbv_stack_t *stack,
                           xbv_mode new_mode, xbv_container old_cont);
-static CsrInt32 xbv_push(xbv1_t *fwinfo, xbv_stack_t *stack,
+static s32 xbv_push(xbv1_t *fwinfo, xbv_stack_t *stack,
                          xbv_mode new_mode, xbv_container old_cont,
                          xbv_container new_cont, u32 ioff);
 
@@ -191,7 +191,7 @@ CsrResult xbv1_parse(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwin
     /* Now scan the file */
     while (1)
     {
-        CsrInt32 n;
+        s32 n;
 
         n = read_tag(card, &ct, &tag);
         if (n < 0)
@@ -437,7 +437,7 @@ CsrResult xbv1_parse(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwin
 
 /* Check the the XBV file is of a consistant sort (either firmware or
  * patch) and that we are in the correct containing list type. */
-static CsrInt32 xbv_check(xbv1_t *fwinfo, const xbv_stack_t *stack,
+static s32 xbv_check(xbv1_t *fwinfo, const xbv_stack_t *stack,
                           xbv_mode new_mode, xbv_container old_cont)
 {
     /* If the new file mode is unknown the current packet could be in
@@ -465,7 +465,7 @@ static CsrInt32 xbv_check(xbv1_t *fwinfo, const xbv_stack_t *stack,
 
 
 /* Make checks as above and then enter a new list */
-static CsrInt32 xbv_push(xbv1_t *fwinfo, xbv_stack_t *stack,
+static s32 xbv_push(xbv1_t *fwinfo, xbv_stack_t *stack,
                          xbv_mode new_mode, xbv_container old_cont,
                          xbv_container new_cont, u32 new_ioff)
 {
@@ -489,7 +489,7 @@ static CsrInt32 xbv_push(xbv1_t *fwinfo, xbv_stack_t *stack,
 }
 
 
-static u32 xbv2uint(u8 *ptr, CsrInt32 len)
+static u32 xbv2uint(u8 *ptr, s32 len)
 {
     u32 u = 0;
     s16 i;
@@ -504,10 +504,10 @@ static u32 xbv2uint(u8 *ptr, CsrInt32 len)
 }
 
 
-static CsrInt32 read_tag(card_t *card, ct_t *ct, tag_t *tag)
+static s32 read_tag(card_t *card, ct_t *ct, tag_t *tag)
 {
     u8 buf[8];
-    CsrInt32 n;
+    s32 n;
 
     n = (*ct->iread)(card->ospriv, ct->dlpriv, ct->ioffset, buf, 8);
     if (n <= 0)
@@ -533,10 +533,10 @@ static CsrInt32 read_tag(card_t *card, ct_t *ct, tag_t *tag)
 } /* read_tag() */
 
 
-static CsrInt32 read_bytes(card_t *card, ct_t *ct, void *buf, u32 len)
+static s32 read_bytes(card_t *card, ct_t *ct, void *buf, u32 len)
 {
     /* read the tag value */
-    if ((*ct->iread)(card->ospriv, ct->dlpriv, ct->ioffset, buf, len) != (CsrInt32)len)
+    if ((*ct->iread)(card->ospriv, ct->dlpriv, ct->ioffset, buf, len) != (s32)len)
     {
         return -1;
     }
@@ -547,7 +547,7 @@ static CsrInt32 read_bytes(card_t *card, ct_t *ct, void *buf, u32 len)
 } /* read_bytes() */
 
 
-static CsrInt32 read_uint(card_t *card, ct_t *ct, u32 *u, u32 len)
+static s32 read_uint(card_t *card, ct_t *ct, u32 *u, u32 len)
 {
     u8 buf[4];
 
@@ -870,11 +870,11 @@ static u32 write_reset_ptdl(void *buf, const u32 offset, const xbv1_t *fwinfo, u
  *      Number of SLUT entries in the f/w, or -1 if the image was corrupt.
  * ---------------------------------------------------------------------------
  */
-CsrInt32 xbv1_read_slut(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwinfo,
+s32 xbv1_read_slut(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwinfo,
                         symbol_t *slut, u32 slut_len)
 {
     s16 i;
-    CsrInt32 offset;
+    s32 offset;
     u32 magic;
     u32 count = 0;
     ct_t ct;

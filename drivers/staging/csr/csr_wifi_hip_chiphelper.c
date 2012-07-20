@@ -743,7 +743,7 @@ u32 ChipHelper_HostResetSequence(ChipDescript                           *chip_he
 
 
 /* Decode a windowed access to the chip. */
-CsrInt32 ChipHelper_DecodeWindow(ChipDescript *chip_help,
+s32 ChipHelper_DecodeWindow(ChipDescript *chip_help,
                                  enum chip_helper_window_index window,
                                  enum chip_helper_window_type type,
                                  u32 offset,

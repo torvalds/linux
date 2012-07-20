@@ -603,7 +603,7 @@ static CsrResult unifi_read_directn_match(card_t *card, u32 addr, void *pdata, u
         addr += 2;
     }
 
-    *num = (CsrInt32)(cptr - (u8 *)pdata);
+    *num = (s32)(cptr - (u8 *)pdata);
     return CSR_RESULT_SUCCESS;
 }
 
@@ -747,7 +747,7 @@ static CsrResult set_dmem_page(card_t *card, u32 dmem_addr, u32 *paddr)
         card->dmem_page = page;
     }
 
-    *paddr = ((CsrInt32)addr * 2) + (dmem_addr & 1);
+    *paddr = ((s32)addr * 2) + (dmem_addr & 1);
 
     return CSR_RESULT_SUCCESS;
 } /* set_dmem_page() */
@@ -787,7 +787,7 @@ static CsrResult set_pmem_page(card_t *card, u32 pmem_addr,
         card->pmem_page = page;
     }
 
-    *paddr = ((CsrInt32)addr * 2) + (pmem_addr & 1);
+    *paddr = ((s32)addr * 2) + (pmem_addr & 1);
 
     return CSR_RESULT_SUCCESS;
 } /* set_pmem_page() */
@@ -816,7 +816,7 @@ static CsrResult set_pmem_page(card_t *card, u32 pmem_addr,
  */
 static CsrResult set_page(card_t *card, u32 generic_addr, u32 *paddr)
 {
-    CsrInt32 space;
+    s32 space;
     u32 addr;
     CsrResult r = CSR_RESULT_SUCCESS;
 
@@ -1323,7 +1323,7 @@ CsrResult unifi_readnz(card_t *card, u32 unifi_addr, void *pdata, u16 len)
  *      Value read from memory (0-127) or -1 on error
  * ---------------------------------------------------------------------------
  */
-CsrInt32 unifi_read_shared_count(card_t *card, u32 addr)
+s32 unifi_read_shared_count(card_t *card, u32 addr)
 {
     u8 b;
     /* I've increased this count, because I have seen cases where
@@ -1332,7 +1332,7 @@ CsrInt32 unifi_read_shared_count(card_t *card, u32 addr)
      * with increasing this limit.  It's better to take a while to
      * recover than to fail. */
 #define SHARED_READ_RETRY_LIMIT 10
-    CsrInt32 i;
+    s32 i;
 
     /*
      * Get the to-host-signals-written count.
@@ -1355,7 +1355,7 @@ CsrInt32 unifi_read_shared_count(card_t *card, u32 addr)
              * This avoids a race between driver read and firmware write of the
              * word, the value we need is in the lower 8 bits anway.
              */
-            return (CsrInt32)(b & 0xff);
+            return (s32)(b & 0xff);
         }
     }
 

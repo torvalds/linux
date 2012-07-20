@@ -223,17 +223,17 @@ typedef enum unifi_coredump_space
 typedef struct unifi_coredump_req
 {
     /* From user */
-    CsrInt32               index;       /* 0=newest, -1=oldest */
+    s32               index;       /* 0=newest, -1=oldest */
     unifi_coredump_space_t space;       /* memory space */
     u32              offset;      /* register offset in space */
     /* From driver */
     u32 drv_build;                /* Driver build id */
     u32 chip_ver;                 /* Chip version */
     u32 fw_ver;                   /* Firmware version */
-    CsrInt32  requestor;                /* Requestor: 0=auto dump, 1=manual */
+    s32  requestor;                /* Requestor: 0=auto dump, 1=manual */
     CsrTime   timestamp;                /* time of capture by driver */
     u32 serial;                   /* capture serial number */
-    CsrInt32  value;                    /* register value */
+    s32  value;                    /* register value */
 } unifi_coredump_req_t;                 /* mini-coredumped reg value request */
 
 
@@ -276,7 +276,7 @@ card_t* unifi_alloc_card(CsrSdioFunction *sdiopriv, void *ospriv);
  *
  * @ingroup upperedge
  */
-CsrResult unifi_init_card(card_t *card, CsrInt32 led_mask);
+CsrResult unifi_init_card(card_t *card, s32 led_mask);
 
 /**
  *
@@ -374,7 +374,7 @@ void unifi_card_info(card_t *card, card_info_t *card_info);
  *
  * @ingroup upperedge
  */
-CsrResult unifi_check_io_status(card_t *card, CsrInt32 *status);
+CsrResult unifi_check_io_status(card_t *card, s32 *status);
 
 
 /**
@@ -719,7 +719,7 @@ void* unifi_fw_read_start(void *ospriv, s8 is_fw, const card_info_t *info);
  *
  * @ingroup upperedge
  */
-CsrInt32 unifi_fw_read(void *ospriv, void *arg, u32 offset, void *buf, u32 len);
+s32 unifi_fw_read(void *ospriv, void *arg, u32 offset, void *buf, u32 len);
 
 /**
  *
@@ -834,7 +834,7 @@ void unifi_sdio_interrupt_handler(card_t *card);
  * that excludes HIP initialization.
  */
 CsrResult unifi_init(card_t *card);
-CsrResult unifi_download(card_t *card, CsrInt32 led_mask);
+CsrResult unifi_download(card_t *card, s32 led_mask);
 
 /*
  * unifi_start_processors() ensures both on-chip processors are running

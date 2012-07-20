@@ -659,7 +659,7 @@ static CsrResult send_ptdl_to_unifi(card_t *card, void *dlpriv,
 {
     u32 offset;
     u8 *buf;
-    CsrInt32 data_len;
+    s32 data_len;
     u32 write_len;
     CsrResult r;
     const u16 buf_size = 2 * 1024;
@@ -756,7 +756,7 @@ static CsrResult send_ptdl_to_unifi(card_t *card, void *dlpriv,
 static CsrResult do_patch_download(card_t *card, void *dlpriv, xbv1_t *pfwinfo, u32 boot_ctrl_addr)
 {
     CsrResult r;
-    CsrInt32 i;
+    s32 i;
     u16 loader_version;
     u16 handle;
     u32 total_bytes;

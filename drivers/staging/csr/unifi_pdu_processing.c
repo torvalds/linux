@@ -862,7 +862,7 @@ void uf_handle_tim_cfm(unifi_priv_t *priv, CSR_MLME_SET_TIM_CONFIRM *cfm, u16 re
 void update_tim(unifi_priv_t * priv, u16 aid, u8 setTim, u16 interfaceTag, u32 handle)
 {
     CSR_SIGNAL signal;
-    CsrInt32 r;
+    s32 r;
     CSR_MLME_SET_TIM_REQUEST *req = &signal.u.MlmeSetTimRequest;
     bulk_data_param_t *bulkdata = NULL;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];

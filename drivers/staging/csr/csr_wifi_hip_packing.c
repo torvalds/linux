@@ -35,9 +35,9 @@
  *      This is useful for stepping past the signal to the object in the buffer.
  * ---------------------------------------------------------------------------
  */
-CsrInt32 get_packed_struct_size(const u8 *buf)
+s32 get_packed_struct_size(const u8 *buf)
 {
-    CsrInt32 size = 0;
+    s32 size = 0;
     u16 sig_id;
 
     sig_id = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(buf);
@@ -1150,7 +1150,7 @@ CsrInt32 get_packed_struct_size(const u8 *buf)
  */
 CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig)
 {
-    CsrInt32 index = 0;
+    s32 index = 0;
 
     sig->SignalPrimitiveHeader.SignalId = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(ptr + index);
     index += SIZEOF_UINT16;

@@ -196,7 +196,7 @@ void unifi_fw_close_buffer(void *ospriv, void *fwbuf)
  *      The number of bytes read from the firmware image, or -ve on error
  * ---------------------------------------------------------------------------
  */
-CsrInt32
+s32
 unifi_fw_read(void *ospriv, void *arg, u32 offset, void *buf, u32 len)
 {
     const struct dlpriv *dlpriv = arg;

@@ -112,10 +112,10 @@ typedef struct
 }  xbv1_t;
 
 
-typedef CsrInt32 (*fwreadfn_t)(void *ospriv, void *dlpriv, u32 offset, void *buf, u32 len);
+typedef s32 (*fwreadfn_t)(void *ospriv, void *dlpriv, u32 offset, void *buf, u32 len);
 
 CsrResult xbv1_parse(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwinfo);
-CsrInt32 xbv1_read_slut(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwinfo,
+s32 xbv1_read_slut(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwinfo,
                         symbol_t *slut, u32 slut_len);
 void* xbv_to_patch(card_t *card, fwreadfn_t readfn, const void *fw_buf, const xbv1_t *fwinfo,
                    u32 *size);

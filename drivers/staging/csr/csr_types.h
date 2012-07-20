@@ -32,9 +32,6 @@ typedef ptrdiff_t CsrPtrdiff;   /* Type of the result of subtracting two pointer
 typedef uintptr_t CsrUintptr;   /* Unsigned integer large enough to hold any pointer (ISO/IEC 9899:1999 7.18.1.4) */
 typedef ptrdiff_t CsrIntptr;    /* intptr_t is not defined in kernel. Use the equivalent ptrdiff_t. */
 
-/* Signed fixed width types */
-typedef int32_t CsrInt32;
-
 /* Boolean */
 typedef u8 CsrBool;
 

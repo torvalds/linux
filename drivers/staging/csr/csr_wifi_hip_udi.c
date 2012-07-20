@@ -41,15 +41,15 @@
  *      None.
  * ---------------------------------------------------------------------------
  */
-CsrInt32 unifi_print_status(card_t *card, CsrCharString *str, CsrInt32 *remain)
+s32 unifi_print_status(card_t *card, CsrCharString *str, s32 *remain)
 {
     CsrCharString *p = str;
     sdio_config_data_t *cfg;
     u16 i, n;
-    CsrInt32 remaining = *remain;
-    CsrInt32 written;
+    s32 remaining = *remain;
+    s32 written;
 #ifdef CSR_UNSAFE_SDIO_ACCESS
-    CsrInt32 iostate;
+    s32 iostate;
     CsrResult r;
     static const CsrCharString *const states[] = {
         "AWAKE", "DROWSY", "TORPID"

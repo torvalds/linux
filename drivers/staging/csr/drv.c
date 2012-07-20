@@ -130,9 +130,9 @@ DEFINE_SEMAPHORE(udi_mutex);
 DECLARE_MUTEX(udi_mutex);
 #endif
 
-CsrInt32 CsrHipResultToStatus(CsrResult csrResult)
+s32 CsrHipResultToStatus(CsrResult csrResult)
 {
-    CsrInt32 r = -EIO;
+    s32 r = -EIO;
 
     switch (csrResult)
     {

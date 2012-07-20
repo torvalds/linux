@@ -47,18 +47,18 @@ static CsrResult handle_host_protocol(card_t *card, CsrBool *processed_something
 
 static CsrResult flush_fh_buffer(card_t *card);
 
-static CsrResult check_fh_sig_slots(card_t *card, u16 needed, CsrInt32 *space);
+static CsrResult check_fh_sig_slots(card_t *card, u16 needed, s32 *space);
 
-static CsrResult read_to_host_signals(card_t *card, CsrInt32 *processed);
-static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed);
+static CsrResult read_to_host_signals(card_t *card, s32 *processed);
+static CsrResult process_to_host_signals(card_t *card, s32 *processed);
 
 static CsrResult process_bulk_data_command(card_t *card,
                                            const u8 *cmdptr,
                                            s16 cmd, u16 len);
 static CsrResult process_clear_slot_command(card_t         *card,
                                             const u8 *cmdptr);
-static CsrResult process_fh_cmd_queue(card_t *card, CsrInt32 *processed);
-static CsrResult process_fh_traffic_queue(card_t *card, CsrInt32 *processed);
+static CsrResult process_fh_cmd_queue(card_t *card, s32 *processed);
+static CsrResult process_fh_traffic_queue(card_t *card, s32 *processed);
 static void restart_packet_flow(card_t *card);
 static CsrResult process_clock_request(card_t *card);
 
@@ -158,7 +158,7 @@ void unifi_debug_hex_to_buf(const CsrCharString *buff, u16 length)
 
 void unifi_debug_buf_dump(void)
 {
-    CsrInt32 offset = unifi_dbgbuf_ptr - unifi_debug_output;
+    s32 offset = unifi_dbgbuf_ptr - unifi_debug_output;
 
     unifi_error(NULL, "HIP debug buffer offset=%d\n", offset);
     dump_str(unifi_debug_output + offset, UNIFI_DEBUG_GBUFFER_SIZE - offset);
@@ -359,7 +359,7 @@ CsrResult unifi_bh(card_t *card, u32 *remaining)
     CsrResult r;
     CsrResult csrResult;
     CsrBool pending;
-    CsrInt32 iostate, j;
+    s32 iostate, j;
     const enum unifi_low_power_mode low_power_mode = card->low_power_mode;
     u16 data_slots_used = 0;
 
@@ -845,7 +845,7 @@ static CsrResult process_bh(card_t *card)
 static CsrResult handle_host_protocol(card_t *card, CsrBool *processed_something)
 {
     CsrResult r;
-    CsrInt32 done;
+    s32 done;
 
     *processed_something = FALSE;
 
@@ -982,10 +982,10 @@ static CsrResult handle_host_protocol(card_t *card, CsrBool *processed_something
  *      CSR error code if an error occurred.
  * ---------------------------------------------------------------------------
  */
-static CsrResult read_to_host_signals(card_t *card, CsrInt32 *processed)
+static CsrResult read_to_host_signals(card_t *card, s32 *processed)
 {
-    CsrInt32 count_thw, count_thr;
-    CsrInt32 unread_chunks, unread_bytes;
+    s32 count_thw, count_thr;
+    s32 unread_chunks, unread_bytes;
     CsrResult r;
 
     *processed = 0;
@@ -1143,7 +1143,7 @@ static void read_unpack_cmd(const u8 *ptr, bulk_data_cmd_t *bulk_data_cmd)
  *      indicate all data, as we have read it from the device.
  * ---------------------------------------------------------------------------
  */
-static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
+static CsrResult process_to_host_signals(card_t *card, s32 *processed)
 {
     s16 pending;
     s16 remaining;
@@ -1514,7 +1514,7 @@ static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
         /* Use a safe copy because source and destination may overlap */
         u8 *d = card->th_buffer.buf;
         u8 *s = bufptr;
-        CsrInt32 n = remaining;
+        s32 n = remaining;
         while (n--)
         {
             *d++ = *s++;
@@ -1839,11 +1839,11 @@ static CsrResult process_bulk_data_command(card_t *card, const u8 *cmdptr,
  *      CSR_RESULT_SUCCESS, otherwise CSR error code on error.
  * ---------------------------------------------------------------------------
  */
-static CsrResult check_fh_sig_slots(card_t *card, u16 needed, CsrInt32 *space_fh)
+static CsrResult check_fh_sig_slots(card_t *card, u16 needed, s32 *space_fh)
 {
     u32 count_fhw;
     u32 occupied_fh, slots_fh;
-    CsrInt32 count_fhr;
+    s32 count_fhr;
 
     count_fhw = card->from_host_signals_w;
     count_fhr = card->from_host_signals_r;
@@ -1940,7 +1940,7 @@ static CsrResult check_fh_sig_slots(card_t *card, u16 needed, CsrInt32 *space_fh
  *      structure that describes the queue to make the distiction.
  * ---------------------------------------------------------------------------
  */
-static CsrResult process_fh_cmd_queue(card_t *card, CsrInt32 *processed)
+static CsrResult process_fh_cmd_queue(card_t *card, s32 *processed)
 {
     q_t *sigq = &card->fh_command_queue;
 
@@ -1948,7 +1948,7 @@ static CsrResult process_fh_cmd_queue(card_t *card, CsrInt32 *processed)
     u16 pending_sigs;
     u16 pending_chunks;
     u16 needed_chunks;
-    CsrInt32 space_chunks;
+    s32 space_chunks;
     u16 q_index;
 
     *processed = 0;
@@ -2168,17 +2168,17 @@ static CsrResult process_fh_cmd_queue(card_t *card, CsrInt32 *processed)
  *      and any UDI clients interspersed.
  * ---------------------------------------------------------------------------
  */
-static CsrResult process_fh_traffic_queue(card_t *card, CsrInt32 *processed)
+static CsrResult process_fh_traffic_queue(card_t *card, s32 *processed)
 {
     q_t *sigq = card->fh_traffic_queue;
 
     CsrResult r;
     s16 n = 0;
-    CsrInt32 q_no;
+    s32 q_no;
     u16 pending_sigs = 0;
     u16 pending_chunks = 0;
     u16 needed_chunks;
-    CsrInt32 space_chunks;
+    s32 space_chunks;
     u16 q_index;
     u32 host_tag = 0;
     u16 slot_num = 0;
