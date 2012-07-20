@@ -413,6 +413,7 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 
 		obj->base.pending_read_domains = 0;
 		obj->base.pending_write_domain = 0;
+		obj->pending_fenced_gpu_access = false;
 	}
 	list_splice(&ordered_objects, objects);
 
