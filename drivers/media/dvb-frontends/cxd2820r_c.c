@@ -50,11 +50,6 @@ int cxd2820r_set_frontend_c(struct dvb_frontend *fe)
 	dev_dbg(&priv->i2c->dev, "%s: frequency=%d symbol_rate=%d\n", __func__,
 			c->frequency, c->symbol_rate);
 
-	/* update GPIOs */
-	ret = cxd2820r_gpio(fe);
-	if (ret)
-		goto error;
-
 	/* program tuner */
 	if (fe->ops.tuner_ops.set_params)
 		fe->ops.tuner_ops.set_params(fe);

@@ -168,29 +168,14 @@ int cxd2820r_wr_reg_mask(struct cxd2820r_priv *priv, u32 reg, u8 val,
 	return cxd2820r_wr_reg(priv, reg, val);
 }
 
-int cxd2820r_gpio(struct dvb_frontend *fe)
+int cxd2820r_gpio(struct dvb_frontend *fe, u8 *gpio)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	int ret, i;
-	u8 *gpio, tmp0, tmp1;
+	u8 tmp0, tmp1;
 
 	dev_dbg(&priv->i2c->dev, "%s: delsys=%d\n", __func__,
 			fe->dtv_property_cache.delivery_system);
-
-	switch (fe->dtv_property_cache.delivery_system) {
-	case SYS_DVBT:
-		gpio = priv->cfg.gpio_dvbt;
-		break;
-	case SYS_DVBT2:
-		gpio = priv->cfg.gpio_dvbt2;
-		break;
-	case SYS_DVBC_ANNEX_AC:
-		gpio = priv->cfg.gpio_dvbc;
-		break;
-	default:
-		ret = -EINVAL;
-		goto error;
-	}
 
 	/* update GPIOs only when needed */
 	if (!memcmp(gpio, priv->gpio, sizeof(priv->gpio)))
@@ -582,9 +567,19 @@ static int cxd2820r_get_frontend_algo(struct dvb_frontend *fe)
 static void cxd2820r_release(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
+	int ret;
 
 	dev_dbg(&priv->i2c->dev, "%s\n", __func__);
 
+#ifdef CONFIG_GPIOLIB
+	/* remove GPIOs */
+	if (priv->gpio_chip.label) {
+		ret = gpiochip_remove(&priv->gpio_chip);
+		if (ret)
+			dev_err(&priv->i2c->dev, "%s: gpiochip_remove() " \
+					"failed=%d\n", KBUILD_MODNAME, ret);
+	}
+#endif
 	kfree(priv);
 	return;
 }
@@ -598,6 +593,49 @@ static int cxd2820r_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	/* Bit 0 of reg 0xdb in bank 0x00 controls I2C repeater */
 	return cxd2820r_wr_reg_mask(priv, 0xdb, enable ? 1 : 0, 0x1);
 }
+
+#ifdef CONFIG_GPIOLIB
+static int cxd2820r_gpio_direction_output(struct gpio_chip *chip, unsigned nr,
+		int val)
+{
+	struct cxd2820r_priv *priv =
+			container_of(chip, struct cxd2820r_priv, gpio_chip);
+	u8 gpio[GPIO_COUNT];
+
+	dev_dbg(&priv->i2c->dev, "%s: nr=%d val=%d\n", __func__, nr, val);
+
+	memcpy(gpio, priv->gpio, sizeof(gpio));
+	gpio[nr] = CXD2820R_GPIO_E | CXD2820R_GPIO_O | (val << 2);
+
+	return cxd2820r_gpio(&priv->fe, gpio);
+}
+
+static void cxd2820r_gpio_set(struct gpio_chip *chip, unsigned nr, int val)
+{
+	struct cxd2820r_priv *priv =
+			container_of(chip, struct cxd2820r_priv, gpio_chip);
+	u8 gpio[GPIO_COUNT];
+
+	dev_dbg(&priv->i2c->dev, "%s: nr=%d val=%d\n", __func__, nr, val);
+
+	memcpy(gpio, priv->gpio, sizeof(gpio));
+	gpio[nr] = CXD2820R_GPIO_E | CXD2820R_GPIO_O | (val << 2);
+
+	(void) cxd2820r_gpio(&priv->fe, gpio);
+
+	return;
+}
+
+static int cxd2820r_gpio_get(struct gpio_chip *chip, unsigned nr)
+{
+	struct cxd2820r_priv *priv =
+			container_of(chip, struct cxd2820r_priv, gpio_chip);
+
+	dev_dbg(&priv->i2c->dev, "%s: nr=%d\n", __func__, nr);
+
+	return (priv->gpio[nr] >> 2) & 0x01;
+}
+#endif
 
 static const struct dvb_frontend_ops cxd2820r_ops = {
 	.delsys = { SYS_DVBT, SYS_DVBT2, SYS_DVBC_ANNEX_A },
@@ -645,15 +683,20 @@ static const struct dvb_frontend_ops cxd2820r_ops = {
 };
 
 struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *cfg,
-		struct i2c_adapter *i2c)
+		struct i2c_adapter *i2c, int *gpio_chip_base
+)
 {
-	struct cxd2820r_priv *priv = NULL;
+	struct cxd2820r_priv *priv;
 	int ret;
 	u8 tmp;
 
 	priv = kzalloc(sizeof (struct cxd2820r_priv), GFP_KERNEL);
-	if (!priv)
+	if (!priv) {
+		ret = -ENOMEM;
+		dev_err(&i2c->dev, "%s: kzalloc() failed\n",
+				KBUILD_MODNAME);
 		goto error;
+	}
 
 	priv->i2c = i2c;
 	memcpy(&priv->cfg, cfg, sizeof (struct cxd2820r_config));
@@ -664,10 +707,35 @@ struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *cfg,
 	if (ret || tmp != 0xe1)
 		goto error;
 
+#ifdef CONFIG_GPIOLIB
+	/* add GPIOs */
+	if (gpio_chip_base) {
+		priv->gpio_chip.label = KBUILD_MODNAME;
+		priv->gpio_chip.dev = &priv->i2c->dev;
+		priv->gpio_chip.owner = THIS_MODULE;
+		priv->gpio_chip.direction_output =
+				cxd2820r_gpio_direction_output;
+		priv->gpio_chip.set = cxd2820r_gpio_set;
+		priv->gpio_chip.get = cxd2820r_gpio_get;
+		priv->gpio_chip.base = -1; /* dynamic allocation */
+		priv->gpio_chip.ngpio = GPIO_COUNT;
+		priv->gpio_chip.can_sleep = 1;
+		ret = gpiochip_add(&priv->gpio_chip);
+		if (ret)
+			goto error;
+
+		dev_dbg(&priv->i2c->dev, "%s: gpio_chip.base=%d\n", __func__,
+				priv->gpio_chip.base);
+
+		*gpio_chip_base = priv->gpio_chip.base;
+	}
+#endif
+
 	memcpy(&priv->fe.ops, &cxd2820r_ops, sizeof (struct dvb_frontend_ops));
 	priv->fe.demodulator_priv = priv;
 	return &priv->fe;
 error:
+	dev_dbg(&i2c->dev, "%s: failed=%d\n", __func__, ret);
 	kfree(priv);
 	return NULL;
 }

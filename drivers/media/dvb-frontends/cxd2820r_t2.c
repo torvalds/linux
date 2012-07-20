@@ -92,11 +92,6 @@ int cxd2820r_set_frontend_t2(struct dvb_frontend *fe)
 		return -EINVAL;
 	}
 
-	/* update GPIOs */
-	ret = cxd2820r_gpio(fe);
-	if (ret)
-		goto error;
-
 	/* program tuner */
 	if (fe->ops.tuner_ops.set_params)
 		fe->ops.tuner_ops.set_params(fe);

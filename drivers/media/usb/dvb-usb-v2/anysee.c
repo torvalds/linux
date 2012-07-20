@@ -874,7 +874,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 
 		/* attach demod */
 		adap->fe[0] = dvb_attach(cxd2820r_attach,
-				&anysee_cxd2820r_config, &d->i2c_adap);
+				&anysee_cxd2820r_config, &d->i2c_adap, NULL);
 
 		state->has_ci = true;
 

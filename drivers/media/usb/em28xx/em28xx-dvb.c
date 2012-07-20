@@ -28,6 +28,7 @@
 #include <media/videobuf-vmalloc.h>
 #include <media/tuner.h>
 #include "tuner-simple.h"
+#include <linux/gpio.h>
 
 #include "lgdt330x.h"
 #include "lgdt3305.h"
@@ -610,11 +611,6 @@ static struct tda10023_config em28xx_tda10023_config = {
 static struct cxd2820r_config em28xx_cxd2820r_config = {
 	.i2c_address = (0xd8 >> 1),
 	.ts_mode = CXD2820R_TS_SERIAL,
-
-	/* enable LNA for DVB-T, DVB-T2 and DVB-C */
-	.gpio_dvbt[0] = CXD2820R_GPIO_E | CXD2820R_GPIO_O | CXD2820R_GPIO_L,
-	.gpio_dvbt2[0] = CXD2820R_GPIO_E | CXD2820R_GPIO_O | CXD2820R_GPIO_L,
-	.gpio_dvbc[0] = CXD2820R_GPIO_E | CXD2820R_GPIO_O | CXD2820R_GPIO_L,
 };
 
 static struct tda18271_config em28xx_cxd2820r_tda18271_config = {
@@ -813,7 +809,7 @@ static void em28xx_unregister_dvb(struct em28xx_dvb *dvb)
 
 static int em28xx_dvb_init(struct em28xx *dev)
 {
-	int result = 0, mfe_shared = 0;
+	int result = 0, mfe_shared = 0, gpio_chip_base;
 	struct em28xx_dvb *dvb;
 
 	if (!dev->board.has_dvb) {
@@ -961,7 +957,8 @@ static int em28xx_dvb_init(struct em28xx *dev)
 	case EM28174_BOARD_PCTV_290E:
 		dvb->fe[0] = dvb_attach(cxd2820r_attach,
 					&em28xx_cxd2820r_config,
-					&dev->i2c_adap);
+					&dev->i2c_adap,
+					&gpio_chip_base);
 		if (dvb->fe[0]) {
 			/* FE 0 attach tuner */
 			if (!dvb_attach(tda18271_attach,
@@ -975,6 +972,16 @@ static int em28xx_dvb_init(struct em28xx *dev)
 				goto out_free;
 			}
 		}
+
+		/* enable LNA for DVB-T, DVB-T2 and DVB-C */
+		result = gpio_request_one(gpio_chip_base, GPIOF_INIT_LOW,
+				"LNA");
+		if (result)
+			em28xx_errdev("gpio request failed %d\n", result);
+		else
+			gpio_free(gpio_chip_base);
+
+		result = 0; /* continue even set LNA fails */
 		break;
 	case EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C:
 	{
