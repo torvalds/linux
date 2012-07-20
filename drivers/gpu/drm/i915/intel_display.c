@@ -3573,7 +3573,7 @@ void intel_encoder_destroy(struct drm_encoder *encoder)
 }
 
 static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
-				  struct drm_display_mode *mode,
+				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = crtc->dev;
