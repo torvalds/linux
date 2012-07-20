@@ -751,6 +751,45 @@ static int ixgbe_negotiate_vf_api(struct ixgbe_adapter *adapter,
 	return -1;
 }
 
+static int ixgbe_get_vf_queues(struct ixgbe_adapter *adapter,
+			       u32 *msgbuf, u32 vf)
+{
+	struct net_device *dev = adapter->netdev;
+	struct ixgbe_ring_feature *vmdq = &adapter->ring_feature[RING_F_VMDQ];
+	unsigned int default_tc = 0;
+	u8 num_tcs = netdev_get_num_tc(dev);
+
+	/* verify the PF is supporting the correct APIs */
+	switch (adapter->vfinfo[vf].vf_api) {
+	case ixgbe_mbox_api_20:
+	case ixgbe_mbox_api_11:
+		break;
+	default:
+		return -1;
+	}
+
+	/* only allow 1 Tx queue for bandwidth limiting */
+	msgbuf[IXGBE_VF_TX_QUEUES] = __ALIGN_MASK(1, ~vmdq->mask);
+	msgbuf[IXGBE_VF_RX_QUEUES] = __ALIGN_MASK(1, ~vmdq->mask);
+
+	/* if TCs > 1 determine which TC belongs to default user priority */
+	if (num_tcs > 1)
+		default_tc = netdev_get_prio_tc_map(dev, adapter->default_up);
+
+	/* notify VF of need for VLAN tag stripping, and correct queue */
+	if (num_tcs)
+		msgbuf[IXGBE_VF_TRANS_VLAN] = num_tcs;
+	else if (adapter->vfinfo[vf].pf_vlan || adapter->vfinfo[vf].pf_qos)
+		msgbuf[IXGBE_VF_TRANS_VLAN] = 1;
+	else
+		msgbuf[IXGBE_VF_TRANS_VLAN] = 0;
+
+	/* notify VF of default queue */
+	msgbuf[IXGBE_VF_DEF_QUEUE] = default_tc;
+
+	return 0;
+}
+
 static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 {
 	u32 mbx_size = IXGBE_VFMAILBOX_SIZE;
@@ -803,6 +842,9 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 		break;
 	case IXGBE_VF_API_NEGOTIATE:
 		retval = ixgbe_negotiate_vf_api(adapter, msgbuf, vf);
+		break;
+	case IXGBE_VF_GET_QUEUES:
+		retval = ixgbe_get_vf_queues(adapter, msgbuf, vf);
 		break;
 	default:
 		e_err(drv, "Unhandled Msg %8.8x\n", msgbuf[0]);
