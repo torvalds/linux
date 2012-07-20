@@ -611,6 +611,7 @@ static struct insn opcode_b2[] = {
 	{ "sie", 0x14, INSTR_S_RD },
 	{ "pc", 0x18, INSTR_S_RD },
 	{ "sac", 0x19, INSTR_S_RD },
+	{ "servc", 0x20, INSTR_RRE_RR },
 	{ "cfc", 0x1a, INSTR_S_RD },
 	{ "ipte", 0x21, INSTR_RRE_RR },
 	{ "ipm", 0x22, INSTR_RRE_R0 },
