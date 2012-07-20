@@ -283,7 +283,7 @@ config LYCHEE_FB_SUN4I
 
 config LYCHEE_FB_UMP_SUN4I
 	bool "Enable FB/UMP Integration"
-	depends on MALI && LYCHEE_FB_SUN4I
+	depends on MALI && LYCHEE_FB_SUN4I=m
 	default y
 
 config LYCHEE_LCD_SUN4I
