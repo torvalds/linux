@@ -43,7 +43,7 @@
 *       F1-F3    80-BF    80-BF    80-BF
 *       F4       80-8F    80-BF    80-BF
 */
-static const CsrInt8 trailingBytesForUtf8[256] =
+static const s8 trailingBytesForUtf8[256] =
 {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                                 /* 0x00 - 0x1F */
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                                 /* 0x20 - 0x3F */
@@ -568,7 +568,7 @@ CsrUtf16String *CsrUtf82Utf16String(const CsrUtf8String *utf8String)
     CsrSize sourceLength;
     CsrUtf16String *dest = NULL;
     CsrUtf16String *destStart = NULL;
-    CsrInt8 extraBytes2Read;
+    s8 extraBytes2Read;
 
     if (!utf8String)
     {

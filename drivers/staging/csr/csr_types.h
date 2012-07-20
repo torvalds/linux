@@ -37,7 +37,6 @@ typedef uint16_t CsrUint16;
 typedef uint32_t CsrUint32;
 
 /* Signed fixed width types */
-typedef int8_t CsrInt8;
 typedef int16_t CsrInt16;
 typedef int32_t CsrInt32;
 

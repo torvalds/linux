@@ -1080,7 +1080,7 @@ skb_add_llc_snap(struct net_device *dev, struct sk_buff *skb, int proto)
 #ifdef CSR_SUPPORT_SME
 static int
 _identify_sme_ma_pkt_ind(unifi_priv_t *priv,
-                         const CsrInt8 *oui, CsrUint16 protocol,
+                         const s8 *oui, CsrUint16 protocol,
                          const CSR_SIGNAL *signal,
                          bulk_data_param_t *bulkdata,
                          const unsigned char *daddr,
@@ -1657,7 +1657,7 @@ send_ma_pkt_request(unifi_priv_t *priv, struct sk_buff *skb, const struct ethhdr
     CsrUint16 interfaceTag;
     CsrWifiMacAddress peerAddress;
     CSR_TRANSMISSION_CONTROL transmissionControl = CSR_NO_CONFIRM_REQUIRED;
-    CsrInt8 protection;
+    s8 protection;
     netInterface_priv_t *interfacePriv = NULL;
     CSR_RATE TransmitRate = (CSR_RATE)0;
 

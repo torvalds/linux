@@ -99,7 +99,7 @@ static const struct coredump_zone zonedef_table[HIP_CDUMP_NUM_ZONES] = {
  *      immediately after that, the mini-coredump can be captured.
  * ---------------------------------------------------------------------------
  */
-CsrResult unifi_coredump_request_at_next_reset(card_t *card, CsrInt8 enable)
+CsrResult unifi_coredump_request_at_next_reset(card_t *card, s8 enable)
 {
     CsrResult r;
 

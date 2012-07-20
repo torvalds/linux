@@ -465,7 +465,7 @@ CsrResult unifi_dl_patch(card_t *card, void *dlpriv, CsrUint32 boot_ctrl)
 } /* unifi_dl_patch() */
 
 
-void* unifi_dl_fw_read_start(card_t *card, CsrInt8 is_fw)
+void* unifi_dl_fw_read_start(card_t *card, s8 is_fw)
 {
     card_info_t card_info;
 

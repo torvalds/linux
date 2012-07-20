@@ -1071,7 +1071,7 @@ CsrBool blockack_session_stop(unifi_priv_t *priv,
                               CsrWifiMacAddress macAddress);
 #ifdef CSR_SUPPORT_SME
 /* Fetch the protection information from interface Mode */
-CsrInt8 uf_get_protection_bit_from_interfacemode(unifi_priv_t *priv, CsrUint16 interfaceTag, const u8 *daddr);
+s8 uf_get_protection_bit_from_interfacemode(unifi_priv_t *priv, CsrUint16 interfaceTag, const u8 *daddr);
 #endif
 
 /* Fetch the station record handler from data base for matching Mac address */

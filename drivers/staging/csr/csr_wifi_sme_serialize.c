@@ -1133,12 +1133,12 @@ CsrSize CsrWifiSmeScanConfigSetReqSizeof(void *msg)
     }
     bufferSize += 1;                                             /* CsrBool primitive->scanConfig.disableAutonomousScans */
     bufferSize += 2;                                             /* CsrUint16 primitive->scanConfig.maxResults */
-    bufferSize += 1;                                             /* CsrInt8 primitive->scanConfig.highRssiThreshold */
-    bufferSize += 1;                                             /* CsrInt8 primitive->scanConfig.lowRssiThreshold */
-    bufferSize += 1;                                             /* CsrInt8 primitive->scanConfig.deltaRssiThreshold */
-    bufferSize += 1;                                             /* CsrInt8 primitive->scanConfig.highSnrThreshold */
-    bufferSize += 1;                                             /* CsrInt8 primitive->scanConfig.lowSnrThreshold */
-    bufferSize += 1;                                             /* CsrInt8 primitive->scanConfig.deltaSnrThreshold */
+    bufferSize += 1;                                             /* s8 primitive->scanConfig.highRssiThreshold */
+    bufferSize += 1;                                             /* s8 primitive->scanConfig.lowRssiThreshold */
+    bufferSize += 1;                                             /* s8 primitive->scanConfig.deltaRssiThreshold */
+    bufferSize += 1;                                             /* s8 primitive->scanConfig.highSnrThreshold */
+    bufferSize += 1;                                             /* s8 primitive->scanConfig.lowSnrThreshold */
+    bufferSize += 1;                                             /* s8 primitive->scanConfig.deltaSnrThreshold */
     bufferSize += 2;                                             /* CsrUint16 primitive->scanConfig.passiveChannelListCount */
     bufferSize += primitive->scanConfig.passiveChannelListCount; /* u8 primitive->scanConfig.passiveChannelList */
     return bufferSize;
@@ -4412,12 +4412,12 @@ CsrSize CsrWifiSmeScanConfigGetCfmSizeof(void *msg)
     }
     bufferSize += 1;                                             /* CsrBool primitive->scanConfig.disableAutonomousScans */
     bufferSize += 2;                                             /* CsrUint16 primitive->scanConfig.maxResults */
-    bufferSize += 1;                                             /* CsrInt8 primitive->scanConfig.highRssiThreshold */
-    bufferSize += 1;                                             /* CsrInt8 primitive->scanConfig.lowRssiThreshold */
-    bufferSize += 1;                                             /* CsrInt8 primitive->scanConfig.deltaRssiThreshold */
-    bufferSize += 1;                                             /* CsrInt8 primitive->scanConfig.highSnrThreshold */
-    bufferSize += 1;                                             /* CsrInt8 primitive->scanConfig.lowSnrThreshold */
-    bufferSize += 1;                                             /* CsrInt8 primitive->scanConfig.deltaSnrThreshold */
+    bufferSize += 1;                                             /* s8 primitive->scanConfig.highRssiThreshold */
+    bufferSize += 1;                                             /* s8 primitive->scanConfig.lowRssiThreshold */
+    bufferSize += 1;                                             /* s8 primitive->scanConfig.deltaRssiThreshold */
+    bufferSize += 1;                                             /* s8 primitive->scanConfig.highSnrThreshold */
+    bufferSize += 1;                                             /* s8 primitive->scanConfig.lowSnrThreshold */
+    bufferSize += 1;                                             /* s8 primitive->scanConfig.deltaSnrThreshold */
     bufferSize += 2;                                             /* CsrUint16 primitive->scanConfig.passiveChannelListCount */
     bufferSize += primitive->scanConfig.passiveChannelListCount; /* u8 primitive->scanConfig.passiveChannelList */
     return bufferSize;

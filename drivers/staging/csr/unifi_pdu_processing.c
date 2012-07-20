@@ -1976,9 +1976,9 @@ CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,
 }
 
 #ifdef CSR_SUPPORT_SME
-CsrInt8 uf_get_protection_bit_from_interfacemode(unifi_priv_t *priv, CsrUint16 interfaceTag, const u8 *daddr)
+s8 uf_get_protection_bit_from_interfacemode(unifi_priv_t *priv, CsrUint16 interfaceTag, const u8 *daddr)
 {
-    CsrInt8 protection = 0;
+    s8 protection = 0;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
 
     switch(interfacePriv->interfaceMode)
@@ -2205,7 +2205,7 @@ void uf_process_ma_vif_availibility_ind(unifi_priv_t *priv,u8 *sigdata,
 
 static CsrBool uf_is_more_data_for_delivery_ac(unifi_priv_t *priv, CsrWifiRouterCtrlStaInfo_t *staRecord)
 {
-    CsrInt8 i;
+    s8 i;
 
     for(i=UNIFI_TRAFFIC_Q_VO; i >= UNIFI_TRAFFIC_Q_BK; i--)
     {
@@ -2223,7 +2223,7 @@ static CsrBool uf_is_more_data_for_delivery_ac(unifi_priv_t *priv, CsrWifiRouter
 
 static CsrBool uf_is_more_data_for_usp_delivery(unifi_priv_t *priv, CsrWifiRouterCtrlStaInfo_t *staRecord, unifi_TrafficQueue queue)
 {
-    CsrInt8 i;
+    s8 i;
 
     for(i = queue; i >= UNIFI_TRAFFIC_Q_BK; i--)
     {
@@ -2269,7 +2269,7 @@ void uf_send_buffered_data_from_delivery_ac(unifi_priv_t *priv,
     tx_buffered_packets_t * buffered_pkt = NULL;
     unsigned long lock_flags;
     CsrBool eosp=FALSE;
-    CsrInt8 r =0;
+    s8 r =0;
     CsrBool moreData = FALSE;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
 
@@ -2370,7 +2370,7 @@ void uf_send_buffered_data_from_ac(unifi_priv_t *priv,
     unsigned long lock_flags;
     CsrBool eosp=FALSE;
     CsrBool moreData = FALSE;
-    CsrInt8 r =0;
+    s8 r =0;
 
     func_enter();
 
@@ -2639,7 +2639,7 @@ int uf_process_station_records_for_sending_data(unifi_priv_t *priv,CsrUint16 int
 static void uf_handle_uspframes_delivery(unifi_priv_t * priv, CsrWifiRouterCtrlStaInfo_t *staInfo, CsrUint16 interfaceTag)
 {
 
-    CsrInt8 i;
+    s8 i;
     u8 allDeliveryEnabled = 0, dataAvailable = 0;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
     unsigned long lock_flags;
@@ -3059,7 +3059,7 @@ void uf_process_ps_poll(unifi_priv_t *priv,u8* sa,u8* da,u8 pmBit,CsrUint16 inte
     tx_buffered_packets_t * buffered_pkt = NULL;
     CsrWifiMacAddress peerMacAddress;
     unsigned long lock_flags;
-    CsrInt8 r =0;
+    s8 r =0;
     CsrBool moreData = FALSE;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
 
@@ -3233,7 +3233,7 @@ void uf_process_ps_poll(unifi_priv_t *priv,u8* sa,u8* da,u8 pmBit,CsrUint16 inte
                 }
 
         } else {
-            CsrInt8 i;
+            s8 i;
             /* We dont have buffered packet in mangement frame queue (1 failed), So proceed with condition 2
              * UNIFI_TRAFFIC_Q_VO -> VI -> BE -> BK
              */

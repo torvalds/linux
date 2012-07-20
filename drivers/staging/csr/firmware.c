@@ -57,7 +57,7 @@
  * ---------------------------------------------------------------------------
  */
 void*
-unifi_fw_read_start(void *ospriv, CsrInt8 is_fw, const card_info_t *info)
+unifi_fw_read_start(void *ospriv, s8 is_fw, const card_info_t *info)
 {
     unifi_priv_t *priv = (unifi_priv_t*)ospriv;
     CSR_UNUSED(info);

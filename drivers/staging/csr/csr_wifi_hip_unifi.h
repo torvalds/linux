@@ -701,7 +701,7 @@ void unifi_get_hip_qos_info(card_t *card, unifi_HipQosInfo *hipqosinfo);
  *
  * @ingroup upperedge
  */
-void* unifi_fw_read_start(void *ospriv, CsrInt8 is_fw, const card_info_t *info);
+void* unifi_fw_read_start(void *ospriv, s8 is_fw, const card_info_t *info);
 
 /**
  *
@@ -871,7 +871,7 @@ void unifi_debug_hex_to_buf(const CsrCharString *buff, CsrUint16 length);
 /* Mini-coredump utility functions */
 CsrResult unifi_coredump_get_value(card_t *card, struct unifi_coredump_req *req);
 CsrResult unifi_coredump_capture(card_t *card, struct unifi_coredump_req *req);
-CsrResult unifi_coredump_request_at_next_reset(card_t *card, CsrInt8 enable);
+CsrResult unifi_coredump_request_at_next_reset(card_t *card, s8 enable);
 CsrResult unifi_coredump_init(card_t *card, CsrUint16 num_dump_buffers);
 void unifi_coredump_free(card_t *card);
 

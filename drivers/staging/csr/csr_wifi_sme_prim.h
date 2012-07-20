@@ -3087,12 +3087,12 @@ typedef struct
     CsrWifiSmeScanConfigData scanCfg[4];
     CsrBool                  disableAutonomousScans;
     CsrUint16                maxResults;
-    CsrInt8                  highRssiThreshold;
-    CsrInt8                  lowRssiThreshold;
-    CsrInt8                  deltaRssiThreshold;
-    CsrInt8                  highSnrThreshold;
-    CsrInt8                  lowSnrThreshold;
-    CsrInt8                  deltaSnrThreshold;
+    s8                  highRssiThreshold;
+    s8                  lowRssiThreshold;
+    s8                  deltaRssiThreshold;
+    s8                  highSnrThreshold;
+    s8                  lowSnrThreshold;
+    s8                  deltaSnrThreshold;
     CsrUint16                passiveChannelListCount;
     u8                *passiveChannelList;
 } CsrWifiSmeScanConfig;

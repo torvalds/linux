@@ -404,7 +404,7 @@ uf_send_gratuitous_arp(unifi_priv_t *priv, CsrUint16 interfaceTag)
     bulk_data_param_t bulkdata;
     CsrResult csrResult;
     struct sk_buff *skb, *newSkb = NULL;
-    CsrInt8 protection;
+    s8 protection;
     int r;
     static const u8 arp_req[36] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00,
                                          0x08, 0x06, 0x00, 0x01, 0x08, 0x00, 0x06, 0x04, 0x00, 0x01,
@@ -1366,7 +1366,7 @@ _sys_packet_req(unifi_priv_t *priv, const CSR_SIGNAL *signal,
     CsrResult csrResult;
     CsrUint16 interfaceTag = req.VirtualInterfaceIdentifier & 0xff;
     CsrBool eapolStore = FALSE;
-    CsrInt8 protection = 0;
+    s8 protection = 0;
     netInterface_priv_t *interfacePriv;
     unsigned long flags;
 

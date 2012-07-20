@@ -564,7 +564,7 @@ CsrResult unifi_read_direct32(card_t *card, CsrUint32 addr, CsrUint32 *pdata)
  *      even address is read.
  * ---------------------------------------------------------------------------
  */
-static CsrResult unifi_read_directn_match(card_t *card, CsrUint32 addr, void *pdata, CsrUint16 len, CsrInt8 m, CsrUint32 *num)
+static CsrResult unifi_read_directn_match(card_t *card, CsrUint32 addr, void *pdata, CsrUint16 len, s8 m, CsrUint32 *num)
 {
     CsrResult r;
     CsrUint32 i;
@@ -583,7 +583,7 @@ static CsrResult unifi_read_directn_match(card_t *card, CsrUint32 addr, void *pd
         }
 
         *cptr++ = ((u8)w & 0xFF);
-        if ((m >= 0) && (((CsrInt8)w & 0xFF) == m))
+        if ((m >= 0) && (((s8)w & 0xFF) == m))
         {
             break;
         }
@@ -595,7 +595,7 @@ static CsrResult unifi_read_directn_match(card_t *card, CsrUint32 addr, void *pd
         }
 
         *cptr++ = ((u8)(w >> 8) & 0xFF);
-        if ((m >= 0) && (((CsrInt8)(w >> 8) & 0xFF) == m))
+        if ((m >= 0) && (((s8)(w >> 8) & 0xFF) == m))
         {
             break;
         }
@@ -1278,7 +1278,7 @@ CsrResult unifi_read32(card_t *card, CsrUint32 unifi_addr, CsrUint32 *pdata)
  *      CSR_WIFI_HIP_RESULT_INVALID_VALUE  a bad generic pointer was specified
  * ---------------------------------------------------------------------------
  */
-CsrResult unifi_readn_match(card_t *card, CsrUint32 unifi_addr, void *pdata, CsrUint16 len, CsrInt8 match)
+CsrResult unifi_readn_match(card_t *card, CsrUint32 unifi_addr, void *pdata, CsrUint16 len, s8 match)
 {
     CsrUint32 sdio_addr;
     CsrResult r;

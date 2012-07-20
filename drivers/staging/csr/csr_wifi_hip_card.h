@@ -104,7 +104,7 @@ CsrResult card_wait_for_firmware_to_start(card_t *card, CsrUint32 *paddr);
 CsrResult unifi_dl_firmware(card_t *card, void *arg);
 CsrResult unifi_dl_patch(card_t *card, void *arg, CsrUint32 boot_ctrl);
 CsrResult unifi_do_loader_op(card_t *card, CsrUint32 op_addr, u8 opcode);
-void* unifi_dl_fw_read_start(card_t *card, CsrInt8 is_fw);
+void* unifi_dl_fw_read_start(card_t *card, s8 is_fw);
 
 CsrResult unifi_coredump_handle_request(card_t *card);
 
