@@ -1487,9 +1487,7 @@ static void ixgbe_pull_tail(struct ixgbe_ring *rx_ring,
 	 * we need the header to contain the greater of either ETH_HLEN or
 	 * 60 bytes if the skb->len is less than 60 for skb_pad.
 	 */
-	pull_len = skb_frag_size(frag);
-	if (pull_len > IXGBE_RX_HDR_SIZE)
-		pull_len = ixgbe_get_headlen(va, IXGBE_RX_HDR_SIZE);
+	pull_len = ixgbe_get_headlen(va, IXGBE_RX_HDR_SIZE);
 
 	/* align pull length to size of long to optimize memcpy performance */
 	skb_copy_to_linear_data(skb, va, ALIGN(pull_len, sizeof(long)));
@@ -1499,17 +1497,6 @@ static void ixgbe_pull_tail(struct ixgbe_ring *rx_ring,
 	frag->page_offset += pull_len;
 	skb->data_len -= pull_len;
 	skb->tail += pull_len;
-
-	/*
-	 * if we sucked the frag empty then we should free it,
-	 * if there are other frags here something is screwed up in hardware
-	 */
-	if (skb_frag_size(frag) == 0) {
-		BUG_ON(skb_shinfo(skb)->nr_frags != 1);
-		skb_shinfo(skb)->nr_frags = 0;
-		__skb_frag_unref(frag);
-		skb->truesize -= ixgbe_rx_bufsz(rx_ring);
-	}
 }
 
 /**
@@ -1575,7 +1562,8 @@ static bool ixgbe_cleanup_headers(struct ixgbe_ring *rx_ring,
 	}
 
 	/* place header in linear portion of buffer */
-	ixgbe_pull_tail(rx_ring, skb);
+	if (skb_is_nonlinear(skb))
+		ixgbe_pull_tail(rx_ring, skb);
 
 #ifdef IXGBE_FCOE
 	/* do not attempt to pad FCoE Frames as this will disrupt DDP */
@@ -1655,6 +1643,20 @@ static bool ixgbe_add_rx_frag(struct ixgbe_ring *rx_ring,
 	unsigned int last_offset = ixgbe_rx_pg_size(rx_ring) -
 				   ixgbe_rx_bufsz(rx_ring);
 #endif
+
+	if ((size <= IXGBE_RX_HDR_SIZE) && !skb_is_nonlinear(skb)) {
+		unsigned char *va = page_address(page) + rx_buffer->page_offset;
+
+		memcpy(__skb_put(skb, size), va, ALIGN(size, sizeof(long)));
+
+		/* we can reuse buffer as-is, just make sure it is local */
+		if (likely(page_to_nid(page) == numa_node_id()))
+			return true;
+
+		/* this page cannot be reused so discard it */
+		put_page(page);
+		return false;
+	}
 
 	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
 			rx_buffer->page_offset, size, truesize);
