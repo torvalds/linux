@@ -718,7 +718,8 @@ static struct pci_dev *daqboard2000_find_pci_dev(struct comedi_device *dev,
 				continue;
 		}
 		if (pcidev->vendor != PCI_VENDOR_ID_IOTECH ||
-		    pcidev->device != 0x0409)
+		    pcidev->device != 0x0409 ||
+		    pcidev->subsystem_device != PCI_VENDOR_ID_IOTECH)
 			continue;
 
 		for (i = 0; i < ARRAY_SIZE(boardtypes); i++) {
