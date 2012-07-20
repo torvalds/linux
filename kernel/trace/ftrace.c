@@ -66,6 +66,7 @@
 
 static struct ftrace_ops ftrace_list_end __read_mostly = {
 	.func		= ftrace_stub,
+	.flags		= FTRACE_OPS_FL_RECURSION_SAFE,
 };
 
 /* ftrace_enabled is a method to turn ftrace on or off */
@@ -221,12 +222,13 @@ static void update_ftrace_function(void)
 
 	/*
 	 * If we are at the end of the list and this ops is
-	 * not dynamic and the arch supports passing ops, then have the
-	 * mcount trampoline call the function directly.
+	 * recursion safe and not dynamic and the arch supports passing ops,
+	 * then have the mcount trampoline call the function directly.
 	 */
 	if (ftrace_ops_list == &ftrace_list_end ||
 	    (ftrace_ops_list->next == &ftrace_list_end &&
 	     !(ftrace_ops_list->flags & FTRACE_OPS_FL_DYNAMIC) &&
+	     (ftrace_ops_list->flags & FTRACE_OPS_FL_RECURSION_SAFE) &&
 	     !FTRACE_FORCE_LIST_FUNC)) {
 		/* Set the ftrace_ops that the arch callback uses */
 		if (ftrace_ops_list == &global_ops)
@@ -867,6 +869,7 @@ static void unregister_ftrace_profiler(void)
 #else
 static struct ftrace_ops ftrace_profile_ops __read_mostly = {
 	.func		= function_profile_call,
+	.flags		= FTRACE_OPS_FL_RECURSION_SAFE,
 };
 
 static int register_ftrace_profiler(void)
@@ -1049,6 +1052,7 @@ static struct ftrace_ops global_ops = {
 	.func			= ftrace_stub,
 	.notrace_hash		= EMPTY_HASH,
 	.filter_hash		= EMPTY_HASH,
+	.flags			= FTRACE_OPS_FL_RECURSION_SAFE,
 };
 
 static DEFINE_MUTEX(ftrace_regex_lock);
@@ -3967,6 +3971,7 @@ void __init ftrace_init(void)
 
 static struct ftrace_ops global_ops = {
 	.func			= ftrace_stub,
+	.flags			= FTRACE_OPS_FL_RECURSION_SAFE,
 };
 
 static int __init ftrace_nodyn_init(void)
@@ -4023,6 +4028,7 @@ ftrace_ops_control_func(unsigned long ip, unsigned long parent_ip,
 
 static struct ftrace_ops control_ops = {
 	.func = ftrace_ops_control_func,
+	.flags = FTRACE_OPS_FL_RECURSION_SAFE,
 };
 
 static inline void
