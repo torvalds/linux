@@ -2473,21 +2473,8 @@ static void i915_gem_object_update_fence(struct drm_i915_gem_object *obj,
 static int
 i915_gem_object_flush_fence(struct drm_i915_gem_object *obj)
 {
-	int ret;
-
-	if (obj->fenced_gpu_access) {
-		if (obj->base.write_domain & I915_GEM_GPU_DOMAINS) {
-			ret = i915_gem_flush_ring(obj->ring,
-						  0, obj->base.write_domain);
-			if (ret)
-				return ret;
-		}
-
-		obj->fenced_gpu_access = false;
-	}
-
 	if (obj->last_fenced_seqno) {
-		ret = i915_wait_seqno(obj->ring, obj->last_fenced_seqno);
+		int ret = i915_wait_seqno(obj->ring, obj->last_fenced_seqno);
 		if (ret)
 			return ret;
 
@@ -2500,6 +2487,7 @@ i915_gem_object_flush_fence(struct drm_i915_gem_object *obj)
 	if (obj->base.read_domains & I915_GEM_DOMAIN_GTT)
 		mb();
 
+	obj->fenced_gpu_access = false;
 	return 0;
 }
 
