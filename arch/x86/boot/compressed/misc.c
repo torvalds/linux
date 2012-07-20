@@ -223,6 +223,12 @@ void __putstr(int error, const char *s)
 	outb(0xff & (pos >> 1), vidport+1);
 }
 
+static void debug_putstr(const char *s)
+{
+	if (debug)
+		putstr(s);
+}
+
 void *memset(void *s, int c, size_t n)
 {
 	int i;
@@ -293,8 +299,7 @@ static void parse_elf(void *output)
 		return;
 	}
 
-	if (debug)
-		putstr("Parsing ELF... ");
+	debug_putstr("Parsing ELF... ");
 
 	phdrs = malloc(sizeof(*phdrs) * ehdr.e_phnum);
 	if (!phdrs)
@@ -346,8 +351,7 @@ asmlinkage void decompress_kernel(void *rmode, memptr heap,
 	cols = real_mode->screen_info.orig_video_cols;
 
 	console_init();
-	if (debug)
-		putstr("early console in decompress_kernel\n");
+	debug_putstr("early console in decompress_kernel\n");
 
 	free_mem_ptr     = heap;	/* Heap */
 	free_mem_end_ptr = heap + BOOT_HEAP_SIZE;
@@ -366,11 +370,9 @@ asmlinkage void decompress_kernel(void *rmode, memptr heap,
 		error("Wrong destination address");
 #endif
 
-	if (debug)
-		putstr("\nDecompressing Linux... ");
+	debug_putstr("\nDecompressing Linux... ");
 	decompress(input_data, input_len, NULL, NULL, output, NULL, error);
 	parse_elf(output);
-	if (debug)
-		putstr("done.\nBooting the kernel.\n");
+	debug_putstr("done.\nBooting the kernel.\n");
 	return;
 }
