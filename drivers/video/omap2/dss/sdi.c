@@ -35,6 +35,7 @@ static struct {
 
 	struct dss_lcd_mgr_config mgr_config;
 	struct omap_video_timings timings;
+	int datapairs;
 } sdi;
 
 static void sdi_config_lcd_manager(struct omap_dss_device *dssdev)
@@ -106,7 +107,8 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 
 	sdi_config_lcd_manager(dssdev);
 
-	dss_sdi_init(dssdev->phy.sdi.datapairs);
+	dss_sdi_init(sdi.datapairs);
+
 	r = dss_sdi_enable();
 	if (r)
 		goto err_sdi_enable;
@@ -163,6 +165,12 @@ void omapdss_sdi_set_timings(struct omap_dss_device *dssdev,
 	}
 }
 EXPORT_SYMBOL(omapdss_sdi_set_timings);
+
+void omapdss_sdi_set_datapairs(struct omap_dss_device *dssdev, int datapairs)
+{
+	sdi.datapairs = datapairs;
+}
+EXPORT_SYMBOL(omapdss_sdi_set_datapairs);
 
 static int __init sdi_init_display(struct omap_dss_device *dssdev)
 {

@@ -144,7 +144,7 @@ static void dss_restore_context(void)
 #undef SR
 #undef RR
 
-void dss_sdi_init(u8 datapairs)
+void dss_sdi_init(int datapairs)
 {
 	u32 l;
 

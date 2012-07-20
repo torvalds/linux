@@ -749,6 +749,7 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev);
 void omapdss_sdi_display_disable(struct omap_dss_device *dssdev);
 void omapdss_sdi_set_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings);
+void omapdss_sdi_set_datapairs(struct omap_dss_device *dssdev, int datapairs);
 
 int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev);
 void omapdss_rfbi_display_disable(struct omap_dss_device *dssdev);

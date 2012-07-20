@@ -601,6 +601,7 @@ static int acx_panel_power_on(struct omap_dss_device *dssdev)
 	mutex_lock(&md->mutex);
 
 	omapdss_sdi_set_timings(dssdev, &dssdev->panel.timings);
+	omapdss_sdi_set_datapairs(dssdev, dssdev->phy.sdi.datapairs);
 
 	r = omapdss_sdi_display_enable(dssdev);
 	if (r) {
