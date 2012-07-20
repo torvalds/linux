@@ -888,6 +888,7 @@ struct netns_ipvs {
 	unsigned int		sysctl_sync_refresh_period;
 	int			sysctl_sync_retries;
 	int			sysctl_nat_icmp_send;
+	int			sysctl_pmtu_disc;
 
 	/* ip_vs_lblc */
 	int			sysctl_lblc_expiration;
@@ -974,6 +975,11 @@ static inline int sysctl_sync_sock_size(struct netns_ipvs *ipvs)
 	return ipvs->sysctl_sync_sock_size;
 }
 
+static inline int sysctl_pmtu_disc(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_pmtu_disc;
+}
+
 #else
 
 static inline int sysctl_sync_threshold(struct netns_ipvs *ipvs)
@@ -1014,6 +1020,11 @@ static inline int sysctl_sync_qlen_max(struct netns_ipvs *ipvs)
 static inline int sysctl_sync_sock_size(struct netns_ipvs *ipvs)
 {
 	return 0;
+}
+
+static inline int sysctl_pmtu_disc(struct netns_ipvs *ipvs)
+{
+	return 1;
 }
 
 #endif
