@@ -865,8 +865,6 @@ struct drm_i915_gem_object {
 	/** This object's place on the active/inactive lists */
 	struct list_head ring_list;
 	struct list_head mm_list;
-	/** This object's place on GPU write list */
-	struct list_head gpu_write_list;
 	/** This object's place in the batchbuffer or on the eviction list */
 	struct list_head exec_list;
 
