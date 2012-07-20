@@ -1758,7 +1758,7 @@ static CsrResult process_bulk_data_command(card_t *card, const u8 *cmdptr,
 
     if (len != 0 && (dir == UNIFI_SDIO_WRITE) && (((ptrdiff_t)bdslot->os_data_ptr + offset) & 3))
     {
-        host_bulk_data_slot = CsrMemAllocDma(len);
+        host_bulk_data_slot = kmalloc(len, GFP_KERNEL);
 
         if (!host_bulk_data_slot)
         {

@@ -241,37 +241,6 @@ CsrResult CsrThreadEqual(CsrThreadHandle *threadHandle1, CsrThreadHandle *thread
  *----------------------------------------------------------------------------*/
 void CsrThreadSleep(u16 sleepTimeInMs);
 
-#ifndef CSR_PMEM_DEBUG_ENABLE
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrMemAllocDma
- *
- *  DESCRIPTION
- *      Allocate dynamic memory suitable for DMA transfers.
- *
- *  RETURNS
- *      Pointer to allocated memory, or NULL in case of failure.
- *      Allocated memory is not initialised.
- *
- *----------------------------------------------------------------------------*/
-#ifdef CSR_MEM_DEBUG
-void *CsrMemAllocDmaDebug(size_t size,
-    const char *file, u32 line);
-#define CsrMemAllocDma(sz) CsrMemAllocDmaDebug((sz), __FILE__, __LINE__)
-#else
-void *CsrMemAllocDma(size_t size);
-#endif
-
-
-#else
-
-#include "csr_pmem.h"
-
-#define CsrMemAllocDma(size) CsrPmemDebugAlloc(size, CSR_PMEM_DEBUG_TYPE_MEM_ALLOC_DMA, __FILE__, __LINE__)
-
-#endif
-
-
 #ifdef __cplusplus
 }
 #endif

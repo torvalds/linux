@@ -1630,7 +1630,7 @@ static CsrResult card_allocate_memory_resources(card_t *card)
     /*
      * Allocate memory for the from-host and to-host signal buffers.
      */
-    card->fh_buffer.buf = CsrMemAllocDma(UNIFI_FH_BUF_SIZE);
+    card->fh_buffer.buf = kmalloc(UNIFI_FH_BUF_SIZE, GFP_KERNEL);
     if (card->fh_buffer.buf == NULL)
     {
         unifi_error(card->ospriv, "Failed to allocate memory for F-H signals\n");
@@ -1641,7 +1641,7 @@ static CsrResult card_allocate_memory_resources(card_t *card)
     card->fh_buffer.ptr = card->fh_buffer.buf;
     card->fh_buffer.count = 0;
 
-    card->th_buffer.buf = CsrMemAllocDma(UNIFI_FH_BUF_SIZE);
+    card->th_buffer.buf = kmalloc(UNIFI_FH_BUF_SIZE, GFP_KERNEL);
     if (card->th_buffer.buf == NULL)
     {
         unifi_error(card->ospriv, "Failed to allocate memory for T-H signals\n");

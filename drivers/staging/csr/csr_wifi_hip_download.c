@@ -675,7 +675,7 @@ static CsrResult send_ptdl_to_unifi(card_t *card, void *dlpriv,
         return CSR_WIFI_HIP_RESULT_INVALID_VALUE;
     }
 
-    buf = CsrMemAllocDma(buf_size);
+    buf = kmalloc(buf_size, GFP_KERNEL);
     if (buf == NULL)
     {
         unifi_error(card->ospriv, "Failed to allocate transfer buffer for firmware download\n");

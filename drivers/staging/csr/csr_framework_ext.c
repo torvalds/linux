@@ -146,21 +146,3 @@ void CsrThreadSleep(u16 sleepTimeInMs)
     schedule_timeout_uninterruptible(t);
 }
 EXPORT_SYMBOL_GPL(CsrThreadSleep);
-
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrMemAllocDma
- *
- *  DESCRIPTION
- *      Allocate DMA capable dynamic memory of a given size.
- *
- *  RETURNS
- *      Pointer to allocated memory, or NULL in case of failure.
- *      Allocated memory is not initialised.
- *
- *----------------------------------------------------------------------------*/
-void *CsrMemAllocDma(size_t size)
-{
-    return kmalloc(size, GFP_KERNEL | GFP_DMA);
-}
-EXPORT_SYMBOL_GPL(CsrMemAllocDma);
