@@ -105,10 +105,10 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 		__flush_tlb();
 }
 
-static inline void flush_tlb_mm_range(struct vm_area_struct *vma,
+static inline void flush_tlb_mm_range(struct mm_struct *mm,
 	   unsigned long start, unsigned long end, unsigned long vmflag)
 {
-	if (vma->vm_mm == current->active_mm)
+	if (mm == current->active_mm)
 		__flush_tlb();
 }
 
