@@ -263,6 +263,7 @@ err:
 static int queue_gso_packets(int dp_ifindex, struct sk_buff *skb,
 			     const struct dp_upcall_info *upcall_info)
 {
+	unsigned short gso_type = skb_shinfo(skb)->gso_type;
 	struct dp_upcall_info later_info;
 	struct sw_flow_key later_key;
 	struct sk_buff *segs, *nskb;
@@ -279,7 +280,7 @@ static int queue_gso_packets(int dp_ifindex, struct sk_buff *skb,
 		if (err)
 			break;
 
-		if (skb == segs && skb_shinfo(skb)->gso_type & SKB_GSO_UDP) {
+		if (skb == segs && gso_type & SKB_GSO_UDP) {
 			/* The initial flow key extracted by ovs_flow_extract()
 			 * in this case is for a first fragment, so we need to
 			 * properly mark later fragments.
