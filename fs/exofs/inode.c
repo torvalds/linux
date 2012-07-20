@@ -574,8 +574,16 @@ static struct page *__r4w_get_page(void *priv, u64 offset, bool *uptodate)
 
 	if (!pcol->that_locked_page ||
 	    (pcol->that_locked_page->index != index)) {
-		struct page *page = find_get_page(pcol->inode->i_mapping, index);
+		struct page *page;
+		loff_t i_size = i_size_read(pcol->inode);
 
+		if (offset >= i_size) {
+			*uptodate = true;
+			EXOFS_DBGMSG("offset >= i_size index=0x%lx\n", index);
+			return ZERO_PAGE(0);
+		}
+
+		page =  find_get_page(pcol->inode->i_mapping, index);
 		if (!page) {
 			page = find_or_create_page(pcol->inode->i_mapping,
 						   index, GFP_NOFS);
@@ -604,12 +612,13 @@ static void __r4w_put_page(void *priv, struct page *page)
 {
 	struct page_collect *pcol = priv;
 
-	if (pcol->that_locked_page != page) {
+	if ((pcol->that_locked_page != page) && (ZERO_PAGE(0) != page)) {
 		EXOFS_DBGMSG("index=0x%lx\n", page->index);
 		page_cache_release(page);
 		return;
 	}
-	EXOFS_DBGMSG("that_locked_page index=0x%lx\n", page->index);
+	EXOFS_DBGMSG("that_locked_page index=0x%lx\n",
+		     ZERO_PAGE(0) == page ? -1 : page->index);
 }
 
 static const struct _ore_r4w_op _r4w_op = {
