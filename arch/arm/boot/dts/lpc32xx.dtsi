@@ -278,6 +278,11 @@
 				status = "disabled";
 			};
 
+			pwm: pwm@4005C000 {
+				compatible = "nxp,lpc3220-pwm";
+				reg = <0x4005C000 0x8>;
+				status = "disabled";
+			};
 		};
 	};
 };
