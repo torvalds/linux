@@ -3077,8 +3077,15 @@ static int lock_extent_buffer_for_io(struct extent_buffer *eb,
 		}
 	}
 
+	/*
+	 * We need to do this to prevent races in people who check if the eb is
+	 * under IO since we can end up having no IO bits set for a short period
+	 * of time.
+	 */
+	spin_lock(&eb->refs_lock);
 	if (test_and_clear_bit(EXTENT_BUFFER_DIRTY, &eb->bflags)) {
 		set_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags);
+		spin_unlock(&eb->refs_lock);
 		btrfs_set_header_flag(eb, BTRFS_HEADER_FLAG_WRITTEN);
 		spin_lock(&fs_info->delalloc_lock);
 		if (fs_info->dirty_metadata_bytes >= eb->len)
@@ -3087,6 +3094,8 @@ static int lock_extent_buffer_for_io(struct extent_buffer *eb,
 			WARN_ON(1);
 		spin_unlock(&fs_info->delalloc_lock);
 		ret = 1;
+	} else {
+		spin_unlock(&eb->refs_lock);
 	}
 
 	btrfs_tree_unlock(eb);
