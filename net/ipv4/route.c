@@ -2909,6 +2909,7 @@ static int rt_fill_info(struct net *net,
 	struct nlmsghdr *nlh;
 	unsigned long expires = 0;
 	u32 error;
+	u32 metrics[RTAX_MAX];
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*r), flags);
 	if (nlh == NULL)
@@ -2953,7 +2954,10 @@ static int rt_fill_info(struct net *net,
 	    nla_put_be32(skb, RTA_GATEWAY, rt->rt_gateway))
 		goto nla_put_failure;
 
-	if (rtnetlink_put_metrics(skb, dst_metrics_ptr(&rt->dst)) < 0)
+	memcpy(metrics, dst_metrics_ptr(&rt->dst), sizeof(metrics));
+	if (rt->rt_pmtu)
+		metrics[RTAX_MTU - 1] = rt->rt_pmtu;
+	if (rtnetlink_put_metrics(skb, metrics) < 0)
 		goto nla_put_failure;
 
 	if (rt->rt_mark &&
