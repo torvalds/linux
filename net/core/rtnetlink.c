@@ -1624,17 +1624,17 @@ struct net_device *rtnl_create_link(struct net *src_net, struct net *net,
 {
 	int err;
 	struct net_device *dev;
-	unsigned int num_queues = 1;
+	unsigned int num_tx_queues = 1;
+	unsigned int num_rx_queues = 1;
 
-	if (ops->get_tx_queues) {
-		err = ops->get_tx_queues(src_net, tb);
-		if (err < 0)
-			goto err;
-		num_queues = err;
-	}
+	if (ops->get_num_tx_queues)
+		num_tx_queues = ops->get_num_tx_queues();
+	if (ops->get_num_rx_queues)
+		num_rx_queues = ops->get_num_rx_queues();
 
 	err = -ENOMEM;
-	dev = alloc_netdev_mq(ops->priv_size, ifname, ops->setup, num_queues);
+	dev = alloc_netdev_mqs(ops->priv_size, ifname, ops->setup,
+			       num_tx_queues, num_rx_queues);
 	if (!dev)
 		goto err;
 
