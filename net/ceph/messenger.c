@@ -2284,15 +2284,15 @@ restart:
 		dout("con_work %p STANDBY\n", con);
 		goto done;
 	}
-	if (test_bit(CLOSED, &con->state)) { /* e.g. if we are replaced */
-		dout("con_work CLOSED\n");
-		con_close_socket(con);
+	if (test_bit(CLOSED, &con->state)) {
+		dout("con_work %p CLOSED\n", con);
+		BUG_ON(con->sock);
 		goto done;
 	}
 	if (test_and_clear_bit(OPENING, &con->state)) {
 		/* reopen w/ new peer */
 		dout("con_work OPENING\n");
-		con_close_socket(con);
+		BUG_ON(con->sock);
 	}
 
 	ret = try_read(con);
