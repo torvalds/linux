@@ -27,10 +27,6 @@
 #define	GPIO0A_I2C1_SCL                 1
 #define	GPIO0A_GPIO0A3                  0
 #define	GPIO0A_I2C1_SDA                 1
-#define	GPIO0A_GPIO0A4                  0
-#define	GPIO0A_I2C2_SCL                 1
-#define	GPIO0A_GPIO0A5                  0
-#define	GPIO0A_I2C2_SDA                 1
 #define	GPIO0A_GPIO0A6                  0
 #define	GPIO0A_I2C3_SCL                 1
 #define	GPIO0A_HDMI_DDCSCL              2
@@ -84,7 +80,7 @@
 #define	GPIO0D_GPIO0D5                  0
 #define	GPIO0D_MMC1_WRPRT               1
 #define	GPIO0D_GPIO0D6                  0
-#define	GPIO0D_MC1_PWREN                1
+#define	GPIO0D_MMC1_PWREN               1
 #define	GPIO0D_GPIO0D7                  0
 #define	GPIO0D_MMC1_BKEPWR              1
 
@@ -95,12 +91,15 @@
 #define	GPIO1A_I2S_SCLK                 1
 #define	GPIO1A_GPIO1A2                  0
 #define	GPIO1A_I2S_LRCKRX               1
+#define	GPIO1A_GPS_CLK                  2
 #define	GPIO1A_GPIO1A3                  0
 #define	GPIO1A_I2S_LRCKTX               1
 #define	GPIO1A_GPIO1A4                  0
 #define	GPIO1A_I2S_SDO                  1
+#define	GPIO1A_GPS_MAG                  2
 #define	GPIO1A_GPIO1A5                  0
 #define	GPIO1A_I2S_SDI                  1
+#define	GPIO1A_GPS_SIGN                 2
 #define	GPIO1A_GPIO1A6                  0
 #define	GPIO1A_MMC1_INTN                1
 #define	GPIO1A_GPIO1A7                  0
@@ -109,21 +108,18 @@
 //gpio1b
 #define	GPIO1B_GPIO1B0                  0
 #define	GPIO1B_SPI_CLK                  1
-#define	GPIO1B_GPS_CLK                  2
+#define	GPIO1B_UART1_CTSN               2
 #define	GPIO1B_GPIO1B1                  0
 #define	GPIO1B_SPI_TXD                  1
 #define	GPIO1B_UART1_SOUT               2
-#define	GPIO1B_GPS_MAG                  3
 #define	GPIO1B_GPIO1B2                  0
 #define	GPIO1B_SPI_RXD                  1
 #define	GPIO1B_UART1_SIN                2
-#define	GPIO1B_GPS_SIGN                 3
 #define	GPIO1B_GPIO1B3                  0
 #define	GPIO1B_SPI_CSN0                 1
 #define	GPIO1B_UART1_RTSN               2
 #define	GPIO1B_GPIO1B4                  0
 #define	GPIO1B_SPI_CSN1                 1
-#define	GPIO1B_UART1_CTSN               2
 #define	GPIO1B_GPIO1B5                  0
 #define	GPIO1B_MMC0_RSTNOUT             1
 #define	GPIO1B_GPIO1B6                  0
@@ -146,8 +142,10 @@
 #define	GPIO1C_MMC0_D3                  1
 #define	GPIO1C_GPIO1C6                  0
 #define	GPIO1C_NAND_CS2                 1
+#define	GPIO1C_EMMC_CMD                 2
 #define	GPIO1C_GPIO1C7                  0
 #define	GPIO1C_NAND_CS3                 1
+#define	GPIO1C_EMMC_RSTNOUT             2
 
 //gpio1d
 #define	GPIO1D_GPIO1D0                  0
@@ -186,13 +184,11 @@
 #define	GPIO2A_NAND_RDN                 1
 #define	GPIO2A_GPIO2A4                  0
 #define	GPIO2A_NAND_RDY                 1
-#define	GPIO2A_EMMC_RSTNOUT             2
 #define	GPIO2A_GPIO2A5                  0
 #define	GPIO2A_NAND_WP                  1
 #define	GPIO2A_EMMC_PWREN               2
 #define	GPIO2A_GPIO2A6                  0
 #define	GPIO2A_NAND_CS0                 1
-#define	GPIO2A_EMMC_CMD                 2
 #define	GPIO2A_GPIO2A7                  0
 #define	GPIO2A_NAND_DPS                 1
 #define	GPIO2A_EMMC_CLKOUT              2
@@ -239,25 +235,31 @@
 #define	GPIO2C_GPIO2C4                  0
 #define	GPIO2C_LCDC0_D18                1
 #define	GPIO2C_LCDC1_D18                2
+#define	GPIO2C_I2C2_SDA                 3
 #define	GPIO2C_GPIO2C5                  0
 #define	GPIO2C_LCDC0_D19                1
 #define	GPIO2C_LCDC1_D19                2
+#define	GPIO2C_I2C2_SCL                 3
 #define	GPIO2C_GPIO2C6                  0
 #define	GPIO2C_LCDC0_D20                1
 #define	GPIO2C_LCDC1_D20                2
+#define	GPIO2C_UART2_SIN                3
 #define	GPIO2C_GPIO2C7                  0
 #define	GPIO2C_LCDC0_D21                1
 #define	GPIO2C_LCDC1_D21                2
+#define	GPIO2C_UART2_SOUT               3
 
 //gpio2d
 #define	GPIO2D_GPIO2D0                  0
-#define	GPIO2D_LCDC0_D23                1
-#define	GPIO2D_LCDC1_D23                2
-#define	GPIO2D_UART2_SOUT               3
+#define	GPIO2D_LCDC0_D22                1
+#define	GPIO2D_LCDC1_D22                2
 #define	GPIO2D_GPIO2D1                  0
 #define	GPIO2D_LCDC0_D23                1
 #define	GPIO2D_LCDC1_D23                2
-#define	GPIO2D_UART2_SIN                3
+
+//gpio3c
+#define	GPIO3C_GPIO3C1                  0
+#define	GPIO3C_OTG_DRVVBUS              1
 
 //gpio3d
 #define	GPIO3D_GPIO3D7                  0
@@ -270,8 +272,6 @@
 #define	GPIO0A1_I2C0_SDA_NAME                           "gpio0a1_i2c0_sda_name"
 #define	GPIO0A2_I2C1_SCL_NAME                           "gpio0a2_i2c1_scl_name"
 #define	GPIO0A3_I2C1_SDA_NAME                           "gpio0a3_i2c1_sda_name"
-#define	GPIO0A4_I2C2_SCL_NAME                           "gpio0a4_i2c2_scl_name"
-#define	GPIO0A5_I2C2_SDA_NAME                           "gpio0a5_i2c2_sda_name"
 #define	GPIO0A6_I2C3_SCL_HDMI_DDCSCL_NAME               "gpio0a6_i2c3_scl_hdmi_ddcscl_name"
 #define	GPIO0A7_I2C3_SDA_HDMI_DDCSDA_NAME               "gpio0a7_i2c3_sda_hdmi_ddcsda_name"
 
@@ -300,25 +300,25 @@
 #define	GPIO0D3_PWM_1_NAME                              "gpio0d3_pwm_1_name"
 #define	GPIO0D4_PWM_2_NAME                              "gpio0d4_pwm_2_name"
 #define	GPIO0D5_MMC1_WRPRT_NAME                         "gpio0d5_mmc1_wrprt_name"
-#define	GPIO0D6_MC1_PWREN_NAME                          "gpio0d6_mc1_pwren_name"
+#define	GPIO0D6_MMC1_PWREN_NAME                         "gpio0d6_mmc1_pwren_name"
 #define	GPIO0D7_MMC1_BKEPWR_NAME                        "gpio0d7_mmc1_bkepwr_name"
 
 //gpio1a
 #define	GPIO1A0_I2S_MCLK_NAME                           "gpio1a0_i2s_mclk_name"
 #define	GPIO1A1_I2S_SCLK_NAME                           "gpio1a1_i2s_sclk_name"
-#define	GPIO1A2_I2S_LRCKRX_NAME                         "gpio1a2_i2s_lrckrx_name"
+#define	GPIO1A2_I2S_LRCKRX_GPS_CLK_NAME                 "gpio1a2_i2s_lrckrx_gps_clk_name"
 #define	GPIO1A3_I2S_LRCKTX_NAME                         "gpio1a3_i2s_lrcktx_name"
-#define	GPIO1A4_I2S_SDO_NAME                            "gpio1a4_i2s_sdo_name"
-#define	GPIO1A5_I2S_SDI_NAME                            "gpio1a5_i2s_sdi_name"
+#define	GPIO1A4_I2S_SDO_GPS_MAG_NAME                    "gpio1a4_i2s_sdo_gps_mag_name"
+#define	GPIO1A5_I2S_SDI_GPS_SIGN_NAME                   "gpio1a5_i2s_sdi_gps_sign_name"
 #define	GPIO1A6_MMC1_INTN_NAME                          "gpio1a6_mmc1_intn_name"
 #define	GPIO1A7_MMC0_WRPRT_NAME                         "gpio1a7_mmc0_wrprt_name"
 
 //gpio1b
-#define	GPIO1B0_SPI_CLK_GPS_CLK_NAME                    "gpio1b0_spi_clk_gps_clk_name"
-#define	GPIO1B1_SPI_TXD_UART1_SOUT_GPS_MAG_NAME         "gpio1b1_spi_txd_uart1_sout_gps_mag_name"
-#define	GPIO1B2_SPI_RXD_UART1_SIN_GPS_SIGN_NAME         "gpio1b2_spi_rxd_uart1_sin_gps_sign_name"
+#define	GPIO1B0_SPI_CLK_UART1_CTSN_NAME                 "gpio1b0_spi_clk_uart1_ctsn_name"
+#define	GPIO1B1_SPI_TXD_UART1_SOUT_NAME                 "gpio1b1_spi_txd_uart1_sout_name"
+#define	GPIO1B2_SPI_RXD_UART1_SIN_NAME                  "gpio1b2_spi_rxd_uart1_sin_name"
 #define	GPIO1B3_SPI_CSN0_UART1_RTSN_NAME                "gpio1b3_spi_csn0_uart1_rtsn_name"
-#define	GPIO1B4_SPI_CSN1_UART1_CTSN_NAME                "gpio1b4_spi_csn1_uart1_ctsn_name"
+#define	GPIO1B4_SPI_CSN1_NAME                           "gpio1b4_spi_csn1_name"
 #define	GPIO1B5_MMC0_RSTNOUT_NAME                       "gpio1b5_mmc0_rstnout_name"
 #define	GPIO1B6_MMC0_PWREN_NAME                         "gpio1b6_mmc0_pwren_name"
 #define	GPIO1B7_MMC0_CMD_NAME                           "gpio1b7_mmc0_cmd_name"
@@ -330,8 +330,8 @@
 #define	GPIO1C3_MMC0_D1_NAME                            "gpio1c3_mmc0_d1_name"
 #define	GPIO1C4_MMC0_D2_NAME                            "gpio1c4_mmc0_d2_name"
 #define	GPIO1C5_MMC0_D3_NAME                            "gpio1c5_mmc0_d3_name"
-#define	GPIO1C6_NAND_CS2_NAME                           "gpio1c6_nand_cs2_name"
-#define	GPIO1C7_NAND_CS3_NAME                           "gpio1c7_nand_cs3_name"
+#define	GPIO1C6_NAND_CS2_EMMC_CMD_NAME                  "gpio1c6_nand_cs2_emmc_cmd_name"
+#define	GPIO1C7_NAND_CS3_EMMC_RSTNOUT_NAME              "gpio1c7_nand_cs3_emmc_rstnout_name"
 
 //gpio1d
 #define	GPIO1D0_NAND_D0_EMMC_D0_NAME                    "gpio1d0_nand_d0_emmc_d0_name"
@@ -348,9 +348,9 @@
 #define	GPIO2A1_NAND_CLE_NAME                           "gpio2a1_nand_cle_name"
 #define	GPIO2A2_NAND_WRN_NAME                           "gpio2a2_nand_wrn_name"
 #define	GPIO2A3_NAND_RDN_NAME                           "gpio2a3_nand_rdn_name"
-#define	GPIO2A4_NAND_RDY_EMMC_RSTNOUT_NAME              "gpio2a4_nand_rdy_emmc_rstnout_name"
+#define	GPIO2A4_NAND_RDY_NAME                           "gpio2a4_nand_rdy_name"
 #define	GPIO2A5_NAND_WP_EMMC_PWREN_NAME                 "gpio2a5_nand_wp_emmc_pwren_name"
-#define	GPIO2A6_NAND_CS0_EMMC_CMD_NAME                  "gpio2a6_nand_cs0_emmc_cmd_name"
+#define	GPIO2A6_NAND_CS0_NAME                           "gpio2a6_nand_cs0_name"
 #define	GPIO2A7_NAND_DPS_EMMC_CLKOUT_NAME               "gpio2a7_nand_dps_emmc_clkout_name"
 
 //gpio2b
@@ -368,14 +368,17 @@
 #define	GPIO2C1_LCDC0_D15_LCDC1_D15_NAME                "gpio2c1_lcdc0_d15_lcdc1_d15_name"
 #define	GPIO2C2_LCDC0_D16_LCDC1_D16_NAME                "gpio2c2_lcdc0_d16_lcdc1_d16_name"
 #define	GPIO2C3_LCDC0_D17_LCDC1_D17_NAME                "gpio2c3_lcdc0_d17_lcdc1_d17_name"
-#define	GPIO2C4_LCDC0_D18_LCDC1_D18_NAME                "gpio2c4_lcdc0_d18_lcdc1_d18_name"
-#define	GPIO2C5_LCDC0_D19_LCDC1_D19_NAME                "gpio2c5_lcdc0_d19_lcdc1_d19_name"
-#define	GPIO2C6_LCDC0_D20_LCDC1_D20_NAME                "gpio2c6_lcdc0_d20_lcdc1_d20_name"
-#define	GPIO2C7_LCDC0_D21_LCDC1_D21_NAME                "gpio2c7_lcdc0_d21_lcdc1_d21_name"
+#define	GPIO2C4_LCDC0_D18_LCDC1_D18_I2C2_SDA_NAME       "gpio2c4_lcdc0_d18_lcdc1_d18_i2c2_sda_name"
+#define	GPIO2C5_LCDC0_D19_LCDC1_D19_I2C2_SCL_NAME       "gpio2c5_lcdc0_d19_lcdc1_d19_i2c2_scl_name"
+#define	GPIO2C6_LCDC0_D20_LCDC1_D20_UART2_SIN_NAME      "gpio2c6_lcdc0_d20_lcdc1_d20_uart2_sin_name"
+#define	GPIO2C7_LCDC0_D21_LCDC1_D21_UART2_SOUT_NAME     "gpio2c7_lcdc0_d21_lcdc1_d21_uart2_sout_name"
 
 //gpio2d
-#define	GPIO2D0_LCDC0_D23_LCDC1_D23_UART2_SOUT_NAME     "gpio2d0_lcdc0_d23_lcdc1_d23_uart2_sout_name"
-#define	GPIO2D1_LCDC0_D23_LCDC1_D23_UART2_SIN_NAME      "gpio2d1_lcdc0_d23_lcdc1_d23_uart2_sin_name"
+#define	GPIO2D0_LCDC0_D22_LCDC1_D22_NAME                "gpio2d0_lcdc0_d22_lcdc1_d22_name"
+#define	GPIO2D1_LCDC0_D23_LCDC1_D23_NAME                "gpio2d1_lcdc0_d23_lcdc1_d23_name"
+
+//gpio3c
+#define	GPIO3C1_OTG_DRVVBUS_NAME                        "gpio3c1_otg_drvvbus_name"
 
 //gpio3d
 #define	GPIO3D7_TESTCLK_OUT_NAME                        "gpio3d7_testclk_out_name"
@@ -399,6 +402,7 @@
 #define      GRF_GPIO2C_IOMUX                     RK2928_GRF_BASE+0x00d0
 #define      GRF_GPIO2D_IOMUX                     RK2928_GRF_BASE+0x00d4
 
+#define      GRF_GPIO3C_IOMUX                     RK2928_GRF_BASE+0x00e0
 #define      GRF_GPIO3D_IOMUX                     RK2928_GRF_BASE+0x00e4
 
 #define      GRF_GPIO0L_PULL                      0x0118
