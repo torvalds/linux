@@ -10,7 +10,6 @@
 
 /* Note: this is an auto-generated file. */
 #include <linux/slab.h>
-#include "csr_pmem.h"
 #include "csr_wifi_router_prim.h"
 #include "csr_wifi_router_lib.h"
 

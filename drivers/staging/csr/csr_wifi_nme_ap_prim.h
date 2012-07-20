@@ -13,6 +13,7 @@
 #ifndef CSR_WIFI_NME_AP_PRIM_H__
 #define CSR_WIFI_NME_AP_PRIM_H__
 
+#include <linux/types.h>
 #include "csr_prim_defs.h"
 #include "csr_sched.h"
 #include "csr_wifi_common.h"

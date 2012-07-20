@@ -13,7 +13,6 @@
 #ifndef CSR_WIFI_NME_LIB_H__
 #define CSR_WIFI_NME_LIB_H__
 
-#include "csr_pmem.h"
 #include "csr_sched.h"
 #include "csr_macro.h"
 #include "csr_msg_transport.h"

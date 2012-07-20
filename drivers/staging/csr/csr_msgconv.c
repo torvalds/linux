@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/slab.h>
-#include "csr_pmem.h"
 #include "csr_panic.h"
 #include "csr_sched.h"
 #include "csr_msgconv.h"

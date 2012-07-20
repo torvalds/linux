@@ -11,7 +11,6 @@
 /* Note: this is an auto-generated file. */
 
 #include "csr_msgconv.h"
-#include "csr_pmem.h"
 #include "csr_macro.h"
 
 

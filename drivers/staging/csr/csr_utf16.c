@@ -9,7 +9,6 @@
 *****************************************************************************/
 #include <linux/module.h>
 #include <linux/slab.h>
-#include "csr_pmem.h"
 #include "csr_unicode.h"
 #include "csr_macro.h"
 

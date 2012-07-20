@@ -15,7 +15,6 @@
 extern "C" {
 #endif
 
-#include "csr_pmem.h"
 #include "csr_prim_defs.h"
 #include "csr_log_text.h"
 #include "csr_wifi_fsm_event.h"

@@ -13,7 +13,6 @@
 #ifndef CSR_WIFI_ROUTER_CTRL_SERIALIZE_H__
 #define CSR_WIFI_ROUTER_CTRL_SERIALIZE_H__
 
-#include "csr_pmem.h"
 #include "csr_wifi_msgconv.h"
 
 #include "csr_wifi_router_ctrl_prim.h"
