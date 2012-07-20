@@ -1722,6 +1722,8 @@ static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
 	/* Poke in other ASIC variants here */
 	if (version == PINCTRL_NMK_DB8500)
 		nmk_pinctrl_db8500_init(&npct->soc);
+	if (version == PINCTRL_NMK_DB8540)
+		nmk_pinctrl_db8540_init(&npct->soc);
 
 	/*
 	 * We need all the GPIO drivers to probe FIRST, or we will not be able
@@ -1772,6 +1774,7 @@ static struct platform_driver nmk_gpio_driver = {
 static const struct platform_device_id nmk_pinctrl_id[] = {
 	{ "pinctrl-stn8815", PINCTRL_NMK_STN8815 },
 	{ "pinctrl-db8500", PINCTRL_NMK_DB8500 },
+	{ "pinctrl-db8540", PINCTRL_NMK_DB8540 },
 };
 
 static struct platform_driver nmk_pinctrl_driver = {

@@ -90,6 +90,10 @@ config PINCTRL_DB8500
 	bool "DB8500 pin controller driver"
 	depends on PINCTRL_NOMADIK && ARCH_U8500
 
+config PINCTRL_DB8540
+	bool "DB8540 pin controller driver"
+	depends on PINCTRL_NOMADIK && ARCH_U8500
+
 config PINCTRL_PXA168
 	bool "PXA168 pin controller driver"
 	depends on ARCH_MMP
