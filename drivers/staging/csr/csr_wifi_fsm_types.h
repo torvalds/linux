@@ -15,7 +15,7 @@
 extern "C" {
 #endif
 
-#include "csr_types.h"
+#include <linux/types.h>
 #include "csr_util.h"
 #include "csr_pmem.h"
 #include "csr_panic.h"

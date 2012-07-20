@@ -95,7 +95,6 @@ extern "C" {
 #define UNIFI_SOFT_TRAFFIC_Q_LENGTH (20 + 1)
 #define UNIFI_SOFT_COMMAND_Q_LENGTH (16 + 1)
 
-#include "csr_types.h"          /* from the synergy porting folder */
 #include "csr_framework_ext.h"  /* from the synergy porting folder */
 #include "csr_sdio.h"           /* from the synergy porting folder */
 #include "csr_pmem.h"           /* from the synergy porting folder */

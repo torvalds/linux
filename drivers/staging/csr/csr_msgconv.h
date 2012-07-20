@@ -11,7 +11,7 @@
 
 *****************************************************************************/
 
-#include "csr_types.h"
+#include <linux/types.h>
 #include "csr_prim_defs.h"
 #include "csr_sched.h"
 #include "csr_unicode.h"

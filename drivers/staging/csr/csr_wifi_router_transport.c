@@ -10,7 +10,6 @@
 
 #include "unifi_priv.h"
 
-#include "csr_types.h"
 #include "csr_sched.h"
 #include "csr_msgconv.h"
 

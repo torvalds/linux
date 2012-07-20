@@ -10,7 +10,6 @@
 
 *****************************************************************************/
 
-#include "csr_types.h"
 #include "csr_result.h"
 #include "csr_framework_ext_types.h"
 

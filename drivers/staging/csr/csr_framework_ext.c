@@ -28,7 +28,6 @@
 
 #include <linux/bitops.h>
 
-#include "csr_types.h"
 #include "csr_framework_ext.h"
 #include "csr_panic.h"
 

@@ -13,7 +13,6 @@
 #ifndef CSR_WIFI_ROUTER_TASK_H__
 #define CSR_WIFI_ROUTER_TASK_H__
 
-#include "csr_types.h"
 #include "csr_sched.h"
 
 #ifdef __cplusplus

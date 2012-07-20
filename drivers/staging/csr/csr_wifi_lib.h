@@ -10,7 +10,6 @@
 #ifndef CSR_WIFI_LIB_H__
 #define CSR_WIFI_LIB_H__
 
-#include "csr_types.h"
 #include "csr_wifi_fsm_event.h"
 
 

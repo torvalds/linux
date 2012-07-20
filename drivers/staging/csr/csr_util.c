@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <stdarg.h>
 
-#include "csr_types.h"
 #include "csr_pmem.h"
 #include "csr_util.h"
 

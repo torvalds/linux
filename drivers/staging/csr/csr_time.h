@@ -10,7 +10,7 @@
 
 *****************************************************************************/
 
-#include "csr_types.h"
+#include <linux/types.h>
 
 #ifdef __cplusplus
 extern "C" {

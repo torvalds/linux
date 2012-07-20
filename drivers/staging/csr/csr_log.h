@@ -10,7 +10,6 @@
 
 *****************************************************************************/
 
-#include "csr_types.h"
 #include "csr_sched.h"
 #include "csr_panic.h"
 #include "csr_prim_defs.h"

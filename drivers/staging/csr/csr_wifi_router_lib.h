@@ -13,7 +13,6 @@
 #ifndef CSR_WIFI_ROUTER_LIB_H__
 #define CSR_WIFI_ROUTER_LIB_H__
 
-#include "csr_types.h"
 #include "csr_pmem.h"
 #include "csr_sched.h"
 #include "csr_util.h"

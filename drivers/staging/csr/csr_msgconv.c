@@ -9,7 +9,7 @@
 *****************************************************************************/
 
 #include <linux/module.h>
-#include "csr_types.h"
+#include <linux/types.h>
 #include "csr_pmem.h"
 #include "csr_panic.h"
 #include "csr_sched.h"

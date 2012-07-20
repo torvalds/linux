@@ -8,7 +8,6 @@
 
 *****************************************************************************/
 #include <linux/module.h>
-#include "csr_types.h"
 #include "csr_pmem.h"
 #include "csr_unicode.h"
 #include "csr_util.h"

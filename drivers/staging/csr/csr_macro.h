@@ -10,11 +10,14 @@
 
 *****************************************************************************/
 
-#include "csr_types.h"
+#include <linux/types.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define FALSE	(0)
+#define TRUE	(1)
 
 /*------------------------------------------------------------------*/
 /* Bits - intended to operate on u32 values */

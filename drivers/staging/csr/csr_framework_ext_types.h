@@ -10,8 +10,6 @@
 
 *****************************************************************************/
 
-#include "csr_types.h"
-
 #ifdef __KERNEL__
 #include <linux/kthread.h>
 #include <linux/semaphore.h>

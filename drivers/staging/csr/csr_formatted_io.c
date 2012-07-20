@@ -8,7 +8,6 @@
 
 *****************************************************************************/
 
-#include "csr_types.h"
 #include "csr_formatted_io.h"
 #include "csr_util.h"
 

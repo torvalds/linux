@@ -24,7 +24,7 @@
 #ifndef __CSR_WIFI_HIP_SIGNALS_H__
 #define __CSR_WIFI_HIP_SIGNALS_H__
 
-#include "csr_types.h"
+#include <linux/types.h>
 #include "csr_wifi_hip_sigs.h"
 
 

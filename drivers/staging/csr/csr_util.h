@@ -14,7 +14,8 @@
 extern "C" {
 #endif
 
-#include "csr_types.h"
+#include <linux/kernel.h>
+#include <linux/types.h>
 #include "csr_macro.h"
 
 /*------------------------------------------------------------------*/

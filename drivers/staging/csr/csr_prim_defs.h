@@ -9,8 +9,6 @@
             on the license terms.
 
 *****************************************************************************/
-#include "csr_types.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif

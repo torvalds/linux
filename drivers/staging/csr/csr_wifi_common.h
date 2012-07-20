@@ -11,7 +11,7 @@
 #ifndef CSR_WIFI_COMMON_H__
 #define CSR_WIFI_COMMON_H__
 
-#include "csr_types.h"
+#include <linux/types.h>
 #include "csr_result.h"
 
 #ifdef __cplusplus

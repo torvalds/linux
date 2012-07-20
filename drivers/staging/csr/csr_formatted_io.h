@@ -14,7 +14,7 @@
 extern "C" {
 #endif
 
-#include "csr_types.h"
+#include <linux/types.h>
 
 s32 CsrSnprintf(char *dest, size_t n, const char *fmt, ...);
 

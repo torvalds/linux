@@ -19,7 +19,6 @@
 #define __UNIFIIO_H__
 
 #include <linux/types.h>
-#include "csr_types.h"
 
 #define UNIFI_GET_UDI_ENABLE    _IOR('u',  1, int)
 #define UNIFI_SET_UDI_ENABLE    _IOW('u',  2, int)

@@ -10,7 +10,7 @@
 
 *****************************************************************************/
 
-#include "csr_types.h"
+#include <linux/types.h>
 #include "csr_util.h"
 
 #ifdef __cplusplus

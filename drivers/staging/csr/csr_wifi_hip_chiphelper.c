@@ -8,7 +8,7 @@
 
 *****************************************************************************/
 
-
+#include "csr_macro.h"
 #include "csr_wifi_hip_chiphelper_private.h"
 
 #ifndef nelem

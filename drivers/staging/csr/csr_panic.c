@@ -12,7 +12,6 @@
 #include <linux/version.h>
 #include <linux/module.h>
 
-#include "csr_types.h"
 #include "csr_panic.h"
 
 void CsrPanic(u8 tech, u16 reason, const char *p)

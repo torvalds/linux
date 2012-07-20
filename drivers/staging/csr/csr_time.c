@@ -20,7 +20,6 @@
 #include <linux/time.h>
 #include <linux/module.h>
 
-#include "csr_types.h"
 #include "csr_time.h"
 
 CsrTime CsrTimeGet(CsrTime *high)

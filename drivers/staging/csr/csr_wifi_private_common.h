@@ -11,8 +11,6 @@
 #ifndef CSR_WIFI_PRIVATE_COMMON_H__
 #define CSR_WIFI_PRIVATE_COMMON_H__
 
-#include "csr_types.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif

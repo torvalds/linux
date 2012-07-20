@@ -13,7 +13,7 @@
 #ifndef CSR_WIFI_NME_TASK_H__
 #define CSR_WIFI_NME_TASK_H__
 
-#include "csr_types.h"
+#include <linux/types.h>
 #include "csr_sched.h"
 
 #ifdef __cplusplus

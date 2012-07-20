@@ -10,7 +10,6 @@
 
 *****************************************************************************/
 
-#include "csr_types.h"
 #include "csr_log_configure.h"
 
 #ifdef __cplusplus

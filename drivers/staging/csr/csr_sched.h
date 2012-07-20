@@ -9,7 +9,7 @@
             on the license terms.
 
 *****************************************************************************/
-#include "csr_types.h"
+#include <linux/types.h>
 #include "csr_time.h"
 
 #ifdef __cplusplus

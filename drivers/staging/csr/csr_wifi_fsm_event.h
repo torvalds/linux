@@ -15,7 +15,6 @@
 extern "C" {
 #endif
 
-#include "csr_types.h"
 #include "csr_prim_defs.h"
 #include "csr_sched.h"
 
