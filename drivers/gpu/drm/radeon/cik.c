@@ -1518,6 +1518,57 @@ static void cik_scratch_init(struct radeon_device *rdev)
 }
 
 /**
+ * cik_ring_test - basic gfx ring test
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon_ring structure holding ring information
+ *
+ * Allocate a scratch register and write to it using the gfx ring (CIK).
+ * Provides a basic gfx ring test to verify that the ring is working.
+ * Used by cik_cp_gfx_resume();
+ * Returns 0 on success, error on failure.
+ */
+int cik_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
+{
+	uint32_t scratch;
+	uint32_t tmp = 0;
+	unsigned i;
+	int r;
+
+	r = radeon_scratch_get(rdev, &scratch);
+	if (r) {
+		DRM_ERROR("radeon: cp failed to get scratch reg (%d).\n", r);
+		return r;
+	}
+	WREG32(scratch, 0xCAFEDEAD);
+	r = radeon_ring_lock(rdev, ring, 3);
+	if (r) {
+		DRM_ERROR("radeon: cp failed to lock ring %d (%d).\n", ring->idx, r);
+		radeon_scratch_free(rdev, scratch);
+		return r;
+	}
+	radeon_ring_write(ring, PACKET3(PACKET3_SET_UCONFIG_REG, 1));
+	radeon_ring_write(ring, ((scratch - PACKET3_SET_UCONFIG_REG_START) >> 2));
+	radeon_ring_write(ring, 0xDEADBEEF);
+	radeon_ring_unlock_commit(rdev, ring);
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		tmp = RREG32(scratch);
+		if (tmp == 0xDEADBEEF)
+			break;
+		DRM_UDELAY(1);
+	}
+	if (i < rdev->usec_timeout) {
+		DRM_INFO("ring test on %d succeeded in %d usecs\n", ring->idx, i);
+	} else {
+		DRM_ERROR("radeon: ring %d test failed (scratch(0x%04X)=0x%08X)\n",
+			  ring->idx, scratch, tmp);
+		r = -EINVAL;
+	}
+	radeon_scratch_free(rdev, scratch);
+	return r;
+}
+
+/**
  * cik_fence_ring_emit - emit a fence on the gfx ring
  *
  * @rdev: radeon_device pointer
@@ -1624,6 +1675,69 @@ void cik_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 			  (ib->gpu_addr & 0xFFFFFFFC));
 	radeon_ring_write(ring, upper_32_bits(ib->gpu_addr) & 0xFFFF);
 	radeon_ring_write(ring, control);
+}
+
+/**
+ * cik_ib_test - basic gfx ring IB test
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon_ring structure holding ring information
+ *
+ * Allocate an IB and execute it on the gfx ring (CIK).
+ * Provides a basic gfx ring test to verify that IBs are working.
+ * Returns 0 on success, error on failure.
+ */
+int cik_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
+{
+	struct radeon_ib ib;
+	uint32_t scratch;
+	uint32_t tmp = 0;
+	unsigned i;
+	int r;
+
+	r = radeon_scratch_get(rdev, &scratch);
+	if (r) {
+		DRM_ERROR("radeon: failed to get scratch reg (%d).\n", r);
+		return r;
+	}
+	WREG32(scratch, 0xCAFEDEAD);
+	r = radeon_ib_get(rdev, ring->idx, &ib, NULL, 256);
+	if (r) {
+		DRM_ERROR("radeon: failed to get ib (%d).\n", r);
+		return r;
+	}
+	ib.ptr[0] = PACKET3(PACKET3_SET_UCONFIG_REG, 1);
+	ib.ptr[1] = ((scratch - PACKET3_SET_UCONFIG_REG_START) >> 2);
+	ib.ptr[2] = 0xDEADBEEF;
+	ib.length_dw = 3;
+	r = radeon_ib_schedule(rdev, &ib, NULL);
+	if (r) {
+		radeon_scratch_free(rdev, scratch);
+		radeon_ib_free(rdev, &ib);
+		DRM_ERROR("radeon: failed to schedule ib (%d).\n", r);
+		return r;
+	}
+	r = radeon_fence_wait(ib.fence, false);
+	if (r) {
+		DRM_ERROR("radeon: fence wait failed (%d).\n", r);
+		return r;
+	}
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		tmp = RREG32(scratch);
+		if (tmp == 0xDEADBEEF)
+			break;
+		DRM_UDELAY(1);
+	}
+	if (i < rdev->usec_timeout) {
+		DRM_INFO("ib test on ring %d succeeded in %u usecs\n", ib.fence->ring, i);
+	} else {
+		DRM_ERROR("radeon: ib test failed (scratch(0x%04X)=0x%08X)\n",
+			  scratch, tmp);
+		r = -EINVAL;
+	}
+	radeon_scratch_free(rdev, scratch);
+	radeon_ib_free(rdev, &ib);
+	return r;
 }
 
 /*
