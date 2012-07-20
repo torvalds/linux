@@ -63,8 +63,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_net.h>
 
-#include <mach/mux.h>
-
 #include <asm/irq.h>
 #include <asm/page.h>
 
