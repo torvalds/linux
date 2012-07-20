@@ -3517,7 +3517,7 @@ static int niu_rbr_fill(struct niu *np, struct rx_ring_info *rp, gfp_t mask)
 	err = 0;
 	while (index < (rp->rbr_table_size - blocks_per_page)) {
 		err = niu_rbr_add_page(np, rp, mask, index);
-		if (err)
+		if (unlikely(err))
 			break;
 
 		index += blocks_per_page;
