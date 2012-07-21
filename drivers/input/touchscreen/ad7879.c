@@ -597,7 +597,7 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 			AD7879_TMR(ts->pen_down_acc_interval);
 
 	err = request_threaded_irq(ts->irq, NULL, ad7879_irq,
-				   IRQF_TRIGGER_FALLING,
+				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				   dev_name(dev), ts);
 	if (err) {
 		dev_err(dev, "irq %d busy?\n", ts->irq);

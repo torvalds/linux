@@ -500,6 +500,8 @@ retry:
 			goto retry;
 		}
 		if (!desc->reslength) { /* zero length read */
+			dev_dbg(&desc->intf->dev, "%s: zero length - clearing WDM_READ\n", __func__);
+			clear_bit(WDM_READ, &desc->flags);
 			spin_unlock_irq(&desc->iuspin);
 			goto retry;
 		}

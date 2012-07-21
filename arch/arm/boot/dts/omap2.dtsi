@@ -44,6 +44,8 @@
 			compatible = "ti,omap2-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
+			ti,intc-size = <96>;
+			reg = <0x480FE000 0x1000>;
 		};
 
 		uart1: serial@4806a000 {

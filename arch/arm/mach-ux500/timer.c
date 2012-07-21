@@ -63,8 +63,10 @@ static void __init ux500_timer_init(void)
 
 	/* TODO: Once MTU has been DT:ed place code above into else. */
 	if (of_have_populated_dt()) {
+#ifdef CONFIG_OF
 		np = of_find_matching_node(NULL, prcmu_timer_of_match);
 		if (!np)
+#endif
 			goto dt_fail;
 
 		tmp_base = of_iomap(np, 0);

@@ -30,6 +30,7 @@
 #include <linux/pci.h>
 #include <linux/usb.h>
 #include <linux/errno.h>
+#include <linux/kconfig.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/fcntl.h>
@@ -981,6 +982,8 @@ void comedi_pci_driver_unregister(struct comedi_driver *comedi_driver,
 }
 EXPORT_SYMBOL_GPL(comedi_pci_driver_unregister);
 
+#if IS_ENABLED(CONFIG_USB)
+
 static int comedi_old_usb_auto_config(struct usb_interface *intf,
 				      struct comedi_driver *driver)
 {
@@ -1043,3 +1046,5 @@ void comedi_usb_driver_unregister(struct comedi_driver *comedi_driver,
 	comedi_driver_unregister(comedi_driver);
 }
 EXPORT_SYMBOL_GPL(comedi_usb_driver_unregister);
+
+#endif

@@ -484,17 +484,22 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 
 	list_for_each_entry_safe(req, tmp, &reqs, wb_list) {
 		if (!nfs_pageio_add_request(&desc, req)) {
+			nfs_list_remove_request(req);
 			nfs_list_add_request(req, &failed);
 			spin_lock(cinfo.lock);
 			dreq->flags = 0;
 			dreq->error = -EIO;
 			spin_unlock(cinfo.lock);
 		}
+		nfs_release_request(req);
 	}
 	nfs_pageio_complete(&desc);
 
-	while (!list_empty(&failed))
+	while (!list_empty(&failed)) {
+		req = nfs_list_entry(failed.next);
+		nfs_list_remove_request(req);
 		nfs_unlock_and_release_request(req);
+	}
 
 	if (put_dreq(dreq))
 		nfs_direct_write_complete(dreq, dreq->inode);

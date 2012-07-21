@@ -1975,6 +1975,8 @@ slave_start:
 	if (err == -EBUSY && (dev->flags & MLX4_FLAG_MSI_X) &&
 	    !mlx4_is_mfunc(dev)) {
 		dev->flags &= ~MLX4_FLAG_MSI_X;
+		dev->caps.num_comp_vectors = 1;
+		dev->caps.comp_pool	   = 0;
 		pci_disable_msix(pdev);
 		err = mlx4_setup_hca(dev);
 	}
