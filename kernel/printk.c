@@ -1192,21 +1192,6 @@ SYSCALL_DEFINE3(syslog, int, type, char __user *, buf, int, len)
 	return do_syslog(type, buf, len, SYSLOG_FROM_CALL);
 }
 
-#ifdef	CONFIG_KGDB_KDB
-/* kdb dmesg command needs access to the syslog buffer.  do_syslog()
- * uses locks so it cannot be used during debugging.  Just tell kdb
- * where the start and end of the physical and logical logs are.  This
- * is equivalent to do_syslog(3).
- */
-void kdb_syslog_data(char *syslog_data[4])
-{
-	syslog_data[0] = log_buf;
-	syslog_data[1] = log_buf + log_buf_len;
-	syslog_data[2] = log_buf + log_first_idx;
-	syslog_data[3] = log_buf + log_next_idx;
-}
-#endif	/* CONFIG_KGDB_KDB */
-
 static bool __read_mostly ignore_loglevel;
 
 static int __init ignore_loglevel_setup(char *str)
