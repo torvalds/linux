@@ -107,16 +107,6 @@ struct ceph_msg_pos {
 #define MAX_DELAY_INTERVAL	(5 * 60 * HZ)
 
 /*
- * ceph_connection flag bits
- */
-
-#define LOSSYTX         0  /* we can close channel or drop messages on errors */
-#define KEEPALIVE_PENDING      3
-#define WRITE_PENDING	4  /* we have data ready to send */
-#define SOCK_CLOSED	11 /* socket state changed to closed */
-#define BACKOFF         15
-
-/*
  * A single connection with another host.
  *
  * We maintain a queue of outgoing messages, and some session state to
