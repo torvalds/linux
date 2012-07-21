@@ -1781,7 +1781,13 @@ void i915_driver_lastclose(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	if (!dev_priv || drm_core_check_feature(dev, DRIVER_MODESET)) {
+	/* On gen6+ we refuse to init without kms enabled, but then the drm core
+	 * goes right around and calls lastclose. Check for this and don't clean
+	 * up anything. */
+	if (!dev_priv)
+		return;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		intel_fb_restore_mode(dev);
 		vga_switcheroo_process_delayed_switch();
 		return;
