@@ -204,6 +204,17 @@ struct platform_device vt8500_device_ehci = {
 	},
 };
 
+static u64 uhci_dma_mask = DMA_BIT_MASK(32);
+
+struct platform_device vt8500_device_uhci = {
+	.name		= "platform-uhci",
+	.id		= 0,
+	.dev		= {
+		.dma_mask	= &uhci_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+};
+
 struct platform_device vt8500_device_ge_rops = {
 	.name		= "wmt_ge_rops",
 	.id		= -1,

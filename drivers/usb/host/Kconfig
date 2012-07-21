@@ -450,7 +450,7 @@ config USB_OHCI_LITTLE_ENDIAN
 
 config USB_UHCI_HCD
 	tristate "UHCI HCD (most Intel and VIA) support"
-	depends on USB && (PCI || SPARC_LEON)
+	depends on USB && (PCI || SPARC_LEON || ARCH_VT8500)
 	---help---
 	  The Universal Host Controller Interface is a standard by Intel for
 	  accessing the USB hardware in the PC (which is also called the USB
@@ -468,7 +468,15 @@ config USB_UHCI_HCD
 config USB_UHCI_SUPPORT_NON_PCI_HC
 	bool
 	depends on USB_UHCI_HCD
-	default y if SPARC_LEON
+	default y if (SPARC_LEON || ARCH_VT8500)
+
+config USB_UHCI_PLATFORM
+	bool "Generic UHCI Platform Driver support"
+	depends on USB_UHCI_SUPPORT_NON_PCI_HC
+	default y if ARCH_VT8500
+	---help---
+	  Enable support for generic UHCI platform devices that require no
+	  additional configuration.
 
 config USB_UHCI_BIG_ENDIAN_MMIO
 	bool

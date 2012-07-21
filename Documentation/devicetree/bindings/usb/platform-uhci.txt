@@ -1,0 +1,12 @@
+Generic Platform UHCI controllers.
+
+Required properties:
+ - compatible: Should be "platform-uhci".
+ - reg: Address range of the uhci registers
+ - interrupts: Should contain the uhci interrupt.
+
+usb: uhci@D8007301 {
+	compatible = "platform-uhci", "usb-uhci";
+	reg = <0xD8007301 0x200>;
+	interrupts = <0>;
+};
