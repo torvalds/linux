@@ -978,7 +978,7 @@ static int xc2028_get_afc(struct dvb_frontend *fe, s32 *afc)
 	/* Get AFC */
 	rc = xc2028_get_reg(priv, XREG_FREQ_ERROR, &afc_reg);
 	if (rc < 0)
-		return rc;
+		goto ret;
 
 	*afc = afc_reg * 15625; /* Hz */
 
