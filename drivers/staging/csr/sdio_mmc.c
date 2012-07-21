@@ -845,19 +845,18 @@ uf_glue_sdio_int_handler(struct sdio_func *func)
  *      Status of the removal.
  * ---------------------------------------------------------------------------
  */
-int
-csr_sdio_linux_remove_irq(CsrSdioFunction *function)
+int csr_sdio_linux_remove_irq(CsrSdioFunction *function)
 {
-    struct sdio_func *func = (struct sdio_func *)function->priv;
-    int r;
+	struct sdio_func *func = (struct sdio_func *)function->priv;
+	int r;
 
-    unifi_trace(NULL, UDBG1, "csr_sdio_linux_remove_irq\n");
+	unifi_trace(NULL, UDBG1, "csr_sdio_linux_remove_irq\n");
 
-    sdio_claim_host(func);
-    r = sdio_release_irq(func);
-    sdio_release_host(func);
+	sdio_claim_host(func);
+	r = sdio_release_irq(func);
+	sdio_release_host(func);
 
-    return r;
+	return r;
 
 } /* csr_sdio_linux_remove_irq() */
 
@@ -876,25 +875,23 @@ csr_sdio_linux_remove_irq(CsrSdioFunction *function)
  *      Status of the removal.
  * ---------------------------------------------------------------------------
  */
-int
-csr_sdio_linux_install_irq(CsrSdioFunction *function)
+int csr_sdio_linux_install_irq(CsrSdioFunction *function)
 {
-    struct sdio_func *func = (struct sdio_func *)function->priv;
-    int r;
+	struct sdio_func *func = (struct sdio_func *)function->priv;
+	int r;
 
-    unifi_trace(NULL, UDBG1, "csr_sdio_linux_install_irq\n");
+	unifi_trace(NULL, UDBG1, "csr_sdio_linux_install_irq\n");
 
-    /* Register our interrupt handle */
-    sdio_claim_host(func);
-    r = sdio_claim_irq(func, uf_glue_sdio_int_handler);
-    sdio_release_host(func);
+	/* Register our interrupt handle */
+	sdio_claim_host(func);
+	r = sdio_claim_irq(func, uf_glue_sdio_int_handler);
+	sdio_release_host(func);
 
-    /* If the interrupt was installed earlier, is fine */
-    if (r == -EBUSY) {
-        r = 0;
-    }
+	/* If the interrupt was installed earlier, is fine */
+	if (r == -EBUSY)
+		r = 0;
 
-    return r;
+	return r;
 } /* csr_sdio_linux_install_irq() */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
