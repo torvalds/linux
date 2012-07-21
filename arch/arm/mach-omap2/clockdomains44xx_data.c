@@ -381,7 +381,7 @@ static struct clockdomain l4_wkup_44xx_clkdm = {
 	.cm_inst	  = OMAP4430_PRM_WKUP_CM_INST,
 	.clkdm_offs	  = OMAP4430_PRM_WKUP_CM_WKUP_CDOFFS,
 	.dep_bit	  = OMAP4430_L4WKUP_STATDEP_SHIFT,
-	.flags		  = CLKDM_CAN_HWSUP,
+	.flags		  = CLKDM_CAN_HWSUP | CLKDM_ACTIVE_WITH_MPU,
 };
 
 static struct clockdomain emu_sys_44xx_clkdm = {
