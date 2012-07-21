@@ -71,6 +71,5 @@ csr_helper-y :=	csr_time.o			\
 		csr_framework_ext.o		\
 		csr_wifi_serialize_primitive_types.o	\
 		csr_serialize_primitive_types.o	\
-		csr_utf16.o			\
 		csr_msgconv.o			\
 		csr_panic.o

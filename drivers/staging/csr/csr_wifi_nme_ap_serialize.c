@@ -12,7 +12,6 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include "csr_msgconv.h"
-#include "csr_unicode.h"
 
 #ifdef CSR_WIFI_NME_ENABLE
 #ifdef CSR_WIFI_AP_ENABLE

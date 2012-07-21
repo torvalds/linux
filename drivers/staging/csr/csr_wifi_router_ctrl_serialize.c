@@ -12,9 +12,6 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include "csr_msgconv.h"
-#include "csr_unicode.h"
-
-
 #include "csr_wifi_router_ctrl_prim.h"
 #include "csr_wifi_router_ctrl_serialize.h"
 

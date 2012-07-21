@@ -15,6 +15,34 @@
 #include "csr_macro.h"
 #include "csr_lib.h"
 
+/********************************************************************************
+*
+*   Name:           CsrUtf16StrLen
+*
+*   Description:    The function returns the number of 16 bit elements present
+*                   in the 0-terminated string.
+*
+*   Input:          0-terminated string of 16 bit unicoded characters.
+*
+*   Output:         The number of 16 bit elements in the string.
+*
+*********************************************************************************/
+static u32 CsrUtf16StrLen(const u16 *unicodeString)
+{
+    u32 length;
+
+    length = 0;
+    if (unicodeString != NULL)
+    {
+        while (*unicodeString)
+        {
+            length++;
+            unicodeString++;
+        }
+    }
+    return length;
+}
+
 void CsrUint8Des(u8 *value, u8 *buffer, size_t *offset)
 {
     *value = buffer[*offset];
