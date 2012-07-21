@@ -528,6 +528,8 @@ void ceph_con_close(struct ceph_connection *con)
 	clear_bit(CON_FLAG_LOSSYTX, &con->flags); /* so we retry next connect */
 	clear_bit(CON_FLAG_KEEPALIVE_PENDING, &con->flags);
 	clear_bit(CON_FLAG_WRITE_PENDING, &con->flags);
+	clear_bit(CON_FLAG_KEEPALIVE_PENDING, &con->flags);
+	clear_bit(CON_FLAG_BACKOFF, &con->flags);
 
 	reset_connection(con);
 	con->peer_global_seq = 0;
