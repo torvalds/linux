@@ -215,17 +215,7 @@ static struct platform_driver __refdata iio_hwmon_driver = {
 	.remove = __devexit_p(iio_hwmon_remove),
 };
 
-static int iio_inkern_init(void)
-{
-	return platform_driver_register(&iio_hwmon_driver);
-}
-module_init(iio_inkern_init);
-
-static void iio_inkern_exit(void)
-{
-	platform_driver_unregister(&iio_hwmon_driver);
-}
-module_exit(iio_inkern_exit);
+module_platform_driver(iio_hwmon_driver);
 
 MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
 MODULE_DESCRIPTION("IIO to hwmon driver");
