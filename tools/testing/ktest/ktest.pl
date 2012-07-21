@@ -3634,6 +3634,8 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
     $iteration = $i;
 
+    undef %force_config;
+
     my $makecmd = set_test_option("MAKE_CMD", $i);
 
     # Load all the options into their mapped variable names
