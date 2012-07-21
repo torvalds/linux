@@ -296,9 +296,6 @@ static void ceph_sock_state_change(struct sock *sk)
 	dout("%s %p state = %lu sk_state = %u\n", __func__,
 	     con, con->state, sk->sk_state);
 
-	if (test_bit(CLOSED, &con->state))
-		return;
-
 	switch (sk->sk_state) {
 	case TCP_CLOSE:
 		dout("%s TCP_CLOSE\n", __func__);
