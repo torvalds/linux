@@ -141,6 +141,15 @@ static ctl_table sctp_table[] = {
 		.extra2		= &int_max
 	},
 	{
+		.procname	= "pf_retrans",
+		.data		= &sctp_pf_retrans,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &int_max
+	},
+	{
 		.procname	= "max_init_retransmits",
 		.data		= &sctp_max_retrans_init,
 		.maxlen		= sizeof(int),

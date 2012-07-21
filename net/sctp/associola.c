@@ -124,6 +124,8 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 * socket values.
 	 */
 	asoc->max_retrans = sp->assocparams.sasoc_asocmaxrxt;
+	asoc->pf_retrans  = sctp_pf_retrans;
+
 	asoc->rto_initial = msecs_to_jiffies(sp->rtoinfo.srto_initial);
 	asoc->rto_max = msecs_to_jiffies(sp->rtoinfo.srto_max);
 	asoc->rto_min = msecs_to_jiffies(sp->rtoinfo.srto_min);
@@ -686,6 +688,9 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	/* Set the path max_retrans.  */
 	peer->pathmaxrxt = asoc->pathmaxrxt;
 
+	/* And the partial failure retrnas threshold */
+	peer->pf_retrans = asoc->pf_retrans;
+
 	/* Initialize the peer's SACK delay timeout based on the
 	 * association configured value.
 	 */
@@ -841,6 +846,7 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 	struct sctp_ulpevent *event;
 	struct sockaddr_storage addr;
 	int spc_state = 0;
+	bool ulp_notify = true;
 
 	/* Record the transition on the transport.  */
 	switch (command) {
@@ -854,6 +860,14 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 			spc_state = SCTP_ADDR_CONFIRMED;
 		else
 			spc_state = SCTP_ADDR_AVAILABLE;
+		/* Don't inform ULP about transition from PF to
+		 * active state and set cwnd to 1, see SCTP
+		 * Quick failover draft section 5.1, point 5
+		 */
+		if (transport->state == SCTP_PF) {
+			ulp_notify = false;
+			transport->cwnd = 1;
+		}
 		transport->state = SCTP_ACTIVE;
 		break;
 
@@ -872,6 +886,11 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 		spc_state = SCTP_ADDR_UNREACHABLE;
 		break;
 
+	case SCTP_TRANSPORT_PF:
+		transport->state = SCTP_PF;
+		ulp_notify = false;
+		break;
+
 	default:
 		return;
 	}
@@ -879,12 +898,15 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 	/* Generate and send a SCTP_PEER_ADDR_CHANGE notification to the
 	 * user.
 	 */
-	memset(&addr, 0, sizeof(struct sockaddr_storage));
-	memcpy(&addr, &transport->ipaddr, transport->af_specific->sockaddr_len);
-	event = sctp_ulpevent_make_peer_addr_change(asoc, &addr,
-				0, spc_state, error, GFP_ATOMIC);
-	if (event)
-		sctp_ulpq_tail_event(&asoc->ulpq, event);
+	if (ulp_notify) {
+		memset(&addr, 0, sizeof(struct sockaddr_storage));
+		memcpy(&addr, &transport->ipaddr,
+		       transport->af_specific->sockaddr_len);
+		event = sctp_ulpevent_make_peer_addr_change(asoc, &addr,
+					0, spc_state, error, GFP_ATOMIC);
+		if (event)
+			sctp_ulpq_tail_event(&asoc->ulpq, event);
+	}
 
 	/* Select new active and retran paths. */
 
@@ -900,7 +922,8 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 			transports) {
 
 		if ((t->state == SCTP_INACTIVE) ||
-		    (t->state == SCTP_UNCONFIRMED))
+		    (t->state == SCTP_UNCONFIRMED) ||
+		    (t->state == SCTP_PF))
 			continue;
 		if (!first || t->last_time_heard > first->last_time_heard) {
 			second = first;
