@@ -224,7 +224,6 @@ enum iscsi_timer_flags_table {
 /* Used for struct iscsi_np->np_flags */
 enum np_flags_table {
 	NPF_IP_NETWORK		= 0x00,
-	NPF_SCTP_STRUCT_FILE	= 0x01 /* Bugfix */
 };
 
 /* Used for struct iscsi_np->np_thread_state */
@@ -504,7 +503,6 @@ struct iscsi_conn {
 	u16			local_port;
 	int			net_size;
 	u32			auth_id;
-#define CONNFLAG_SCTP_STRUCT_FILE			0x01
 	u32			conn_flags;
 	/* Used for iscsi_tx_login_rsp() */
 	u32			login_itt;
