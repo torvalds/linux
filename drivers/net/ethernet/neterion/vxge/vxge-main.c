@@ -3131,12 +3131,12 @@ vxge_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 		u64 packets, bytes, multicast;
 
 		do {
-			start = u64_stats_fetch_begin(&rxstats->syncp);
+			start = u64_stats_fetch_begin_bh(&rxstats->syncp);
 
 			packets   = rxstats->rx_frms;
 			multicast = rxstats->rx_mcast;
 			bytes     = rxstats->rx_bytes;
-		} while (u64_stats_fetch_retry(&rxstats->syncp, start));
+		} while (u64_stats_fetch_retry_bh(&rxstats->syncp, start));
 
 		net_stats->rx_packets += packets;
 		net_stats->rx_bytes += bytes;
@@ -3146,11 +3146,11 @@ vxge_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 		net_stats->rx_dropped += rxstats->rx_dropped;
 
 		do {
-			start = u64_stats_fetch_begin(&txstats->syncp);
+			start = u64_stats_fetch_begin_bh(&txstats->syncp);
 
 			packets = txstats->tx_frms;
 			bytes   = txstats->tx_bytes;
-		} while (u64_stats_fetch_retry(&txstats->syncp, start));
+		} while (u64_stats_fetch_retry_bh(&txstats->syncp, start));
 
 		net_stats->tx_packets += packets;
 		net_stats->tx_bytes += bytes;

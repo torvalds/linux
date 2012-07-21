@@ -63,10 +63,10 @@ static struct rtnl_link_stats64 *dummy_get_stats64(struct net_device *dev,
 
 		dstats = per_cpu_ptr(dev->dstats, i);
 		do {
-			start = u64_stats_fetch_begin(&dstats->syncp);
+			start = u64_stats_fetch_begin_bh(&dstats->syncp);
 			tbytes = dstats->tx_bytes;
 			tpackets = dstats->tx_packets;
-		} while (u64_stats_fetch_retry(&dstats->syncp, start));
+		} while (u64_stats_fetch_retry_bh(&dstats->syncp, start));
 		stats->tx_bytes += tbytes;
 		stats->tx_packets += tpackets;
 	}
