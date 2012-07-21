@@ -613,16 +613,6 @@ static struct platform_driver bridge_driver = {
 #endif
 };
 
-static int __init bridge_init(void)
-{
-	return platform_driver_register(&bridge_driver);
-}
-
-static void __exit bridge_exit(void)
-{
-	platform_driver_unregister(&bridge_driver);
-}
-
 /* To remove all process resources before removing the process from the
  * process context list */
 int drv_remove_all_resources(void *process_ctxt)
@@ -636,6 +626,4 @@ int drv_remove_all_resources(void *process_ctxt)
 	return status;
 }
 
-/* Bridge driver initialization and de-initialization functions */
-module_init(bridge_init);
-module_exit(bridge_exit);
+module_platform_driver(bridge_driver);
