@@ -1462,10 +1462,13 @@ i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	list_move_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
-
 	BUG_ON(obj->base.write_domain & ~I915_GEM_GPU_DOMAINS);
 	BUG_ON(!obj->active);
+
+	if (obj->pin_count) /* are we a framebuffer? */
+		intel_mark_fb_idle(obj);
+
+	list_move_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
 
 	list_del_init(&obj->ring_list);
 	obj->ring = NULL;
@@ -1602,9 +1605,11 @@ i915_add_request(struct intel_ring_buffer *ring,
 				  jiffies +
 				  msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
 		}
-		if (was_empty)
+		if (was_empty) {
 			queue_delayed_work(dev_priv->wq,
 					   &dev_priv->mm.retire_work, HZ);
+			intel_mark_busy(dev_priv->dev);
+		}
 	}
 
 	return 0;
@@ -1810,6 +1815,8 @@ i915_gem_retire_work_handler(struct work_struct *work)
 
 	if (!dev_priv->mm.suspended && !idle)
 		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, HZ);
+	if (idle)
+		intel_mark_idle(dev);
 
 	mutex_unlock(&dev->struct_mutex);
 }

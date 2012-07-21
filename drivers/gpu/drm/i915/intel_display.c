@@ -5860,46 +5860,6 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 	return mode;
 }
 
-#define GPU_IDLE_TIMEOUT 500 /* ms */
-
-/* When this timer fires, we've been idle for awhile */
-static void intel_gpu_idle_timer(unsigned long arg)
-{
-	struct drm_device *dev = (struct drm_device *)arg;
-	drm_i915_private_t *dev_priv = dev->dev_private;
-
-	if (!list_empty(&dev_priv->mm.active_list)) {
-		/* Still processing requests, so just re-arm the timer. */
-		mod_timer(&dev_priv->idle_timer, jiffies +
-			  msecs_to_jiffies(GPU_IDLE_TIMEOUT));
-		return;
-	}
-
-	dev_priv->busy = false;
-	queue_work(dev_priv->wq, &dev_priv->idle_work);
-}
-
-#define CRTC_IDLE_TIMEOUT 1000 /* ms */
-
-static void intel_crtc_idle_timer(unsigned long arg)
-{
-	struct intel_crtc *intel_crtc = (struct intel_crtc *)arg;
-	struct drm_crtc *crtc = &intel_crtc->base;
-	drm_i915_private_t *dev_priv = crtc->dev->dev_private;
-	struct intel_framebuffer *intel_fb;
-
-	intel_fb = to_intel_framebuffer(crtc->fb);
-	if (intel_fb && intel_fb->obj->active) {
-		/* The framebuffer is still being accessed by the GPU. */
-		mod_timer(&intel_crtc->idle_timer, jiffies +
-			  msecs_to_jiffies(CRTC_IDLE_TIMEOUT));
-		return;
-	}
-
-	intel_crtc->busy = false;
-	queue_work(dev_priv->wq, &dev_priv->idle_work);
-}
-
 static void intel_increase_pllclock(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -5929,10 +5889,6 @@ static void intel_increase_pllclock(struct drm_crtc *crtc)
 		if (dpll & DISPLAY_RATE_SELECT_FPA1)
 			DRM_DEBUG_DRIVER("failed to upclock LVDS!\n");
 	}
-
-	/* Schedule downclock */
-	mod_timer(&intel_crtc->idle_timer, jiffies +
-		  msecs_to_jiffies(CRTC_IDLE_TIMEOUT));
 }
 
 static void intel_decrease_pllclock(struct drm_crtc *crtc)
@@ -5971,89 +5927,48 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 
 }
 
-/**
- * intel_idle_update - adjust clocks for idleness
- * @work: work struct
- *
- * Either the GPU or display (or both) went idle.  Check the busy status
- * here and adjust the CRTC and GPU clocks as necessary.
- */
-static void intel_idle_update(struct work_struct *work)
+void intel_mark_busy(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
-						    idle_work);
-	struct drm_device *dev = dev_priv->dev;
+	intel_sanitize_pm(dev);
+	i915_update_gfx_val(dev->dev_private);
+}
+
+void intel_mark_idle(struct drm_device *dev)
+{
+	intel_sanitize_pm(dev);
+}
+
+void intel_mark_fb_busy(struct drm_i915_gem_object *obj)
+{
+	struct drm_device *dev = obj->base.dev;
 	struct drm_crtc *crtc;
-	struct intel_crtc *intel_crtc;
 
 	if (!i915_powersave)
 		return;
 
-	mutex_lock(&dev->struct_mutex);
-
-	i915_update_gfx_val(dev_priv);
-
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		/* Skip inactive CRTCs */
 		if (!crtc->fb)
 			continue;
 
-		intel_crtc = to_intel_crtc(crtc);
-		if (!intel_crtc->busy)
-			intel_decrease_pllclock(crtc);
+		if (to_intel_framebuffer(crtc->fb)->obj == obj)
+			intel_increase_pllclock(crtc);
 	}
-
-
-	mutex_unlock(&dev->struct_mutex);
 }
 
-/**
- * intel_mark_busy - mark the GPU and possibly the display busy
- * @dev: drm device
- * @obj: object we're operating on
- *
- * Callers can use this function to indicate that the GPU is busy processing
- * commands.  If @obj matches one of the CRTC objects (i.e. it's a scanout
- * buffer), we'll also mark the display as busy, so we know to increase its
- * clock frequency.
- */
-void intel_mark_busy(struct drm_device *dev, struct drm_i915_gem_object *obj)
+void intel_mark_fb_idle(struct drm_i915_gem_object *obj)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc = NULL;
-	struct intel_framebuffer *intel_fb;
-	struct intel_crtc *intel_crtc;
+	struct drm_device *dev = obj->base.dev;
+	struct drm_crtc *crtc;
 
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return;
-
-	if (!dev_priv->busy) {
-		intel_sanitize_pm(dev);
-		dev_priv->busy = true;
-	} else
-		mod_timer(&dev_priv->idle_timer, jiffies +
-			  msecs_to_jiffies(GPU_IDLE_TIMEOUT));
-
-	if (obj == NULL)
+	if (!i915_powersave)
 		return;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (!crtc->fb)
 			continue;
 
-		intel_crtc = to_intel_crtc(crtc);
-		intel_fb = to_intel_framebuffer(crtc->fb);
-		if (intel_fb->obj == obj) {
-			if (!intel_crtc->busy) {
-				/* Non-busy -> busy, upclock */
-				intel_increase_pllclock(crtc);
-				intel_crtc->busy = true;
-			} else {
-				/* Busy -> busy, put off timer */
-				mod_timer(&intel_crtc->idle_timer, jiffies +
-					  msecs_to_jiffies(CRTC_IDLE_TIMEOUT));
-			}
-		}
+		if (to_intel_framebuffer(crtc->fb)->obj == obj)
+			intel_decrease_pllclock(crtc);
 	}
 }
 
@@ -6512,7 +6427,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		goto cleanup_pending;
 
 	intel_disable_fbc(dev);
-	intel_mark_busy(dev, obj);
+	intel_mark_fb_busy(obj);
 	mutex_unlock(&dev->struct_mutex);
 
 	trace_i915_flip_request(intel_crtc->plane, obj);
@@ -6678,11 +6593,6 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	}
 
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
-
-	intel_crtc->busy = false;
-
-	setup_timer(&intel_crtc->idle_timer, intel_crtc_idle_timer,
-		    (unsigned long)intel_crtc);
 }
 
 int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
@@ -7265,10 +7175,6 @@ void intel_modeset_init(struct drm_device *dev)
 	/* Just disable it once at startup */
 	i915_disable_vga(dev);
 	intel_setup_outputs(dev);
-
-	INIT_WORK(&dev_priv->idle_work, intel_idle_update);
-	setup_timer(&dev_priv->idle_timer, intel_gpu_idle_timer,
-		    (unsigned long)dev);
 }
 
 void intel_modeset_gem_init(struct drm_device *dev)
@@ -7318,14 +7224,6 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	/* flush any delayed tasks or pending work */
 	flush_scheduled_work();
-
-	/* Shut off idle work before the crtcs get freed. */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		intel_crtc = to_intel_crtc(crtc);
-		del_timer_sync(&intel_crtc->idle_timer);
-	}
-	del_timer_sync(&dev_priv->idle_timer);
-	cancel_work_sync(&dev_priv->idle_work);
 
 	drm_mode_config_cleanup(dev);
 }

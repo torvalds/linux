@@ -785,9 +785,6 @@ typedef struct drm_i915_private {
 	bool lvds_downclock_avail;
 	/* indicates the reduced downclock for LVDS*/
 	int lvds_downclock;
-	struct work_struct idle_work;
-	struct timer_list idle_timer;
-	bool busy;
 	u16 orig_clock;
 	int child_dev_num;
 	struct child_device_config *child_dev;

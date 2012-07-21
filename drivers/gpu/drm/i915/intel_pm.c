@@ -3075,14 +3075,17 @@ EXPORT_SYMBOL_GPL(i915_gpu_lower);
 bool i915_gpu_busy(void)
 {
 	struct drm_i915_private *dev_priv;
+	struct intel_ring_buffer *ring;
 	bool ret = false;
+	int i;
 
 	spin_lock(&mchdev_lock);
 	if (!i915_mch_dev)
 		goto out_unlock;
 	dev_priv = i915_mch_dev;
 
-	ret = dev_priv->busy;
+	for_each_ring(ring, dev_priv, i)
+		ret |= !list_empty(&ring->request_list);
 
 out_unlock:
 	spin_unlock(&mchdev_lock);
