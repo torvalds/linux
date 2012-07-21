@@ -3566,19 +3566,38 @@ int extent_readpages(struct extent_io_tree *tree,
 	struct bio *bio = NULL;
 	unsigned page_idx;
 	unsigned long bio_flags = 0;
+	struct page *pagepool[16];
+	struct page *page;
+	int i = 0;
+	int nr = 0;
 
 	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
-		struct page *page = list_entry(pages->prev, struct page, lru);
+		page = list_entry(pages->prev, struct page, lru);
 
 		prefetchw(&page->flags);
 		list_del(&page->lru);
-		if (!add_to_page_cache_lru(page, mapping,
+		if (add_to_page_cache_lru(page, mapping,
 					page->index, GFP_NOFS)) {
-			__extent_read_full_page(tree, page, get_extent,
-						&bio, 0, &bio_flags);
+			page_cache_release(page);
+			continue;
 		}
-		page_cache_release(page);
+
+		pagepool[nr++] = page;
+		if (nr < ARRAY_SIZE(pagepool))
+			continue;
+		for (i = 0; i < nr; i++) {
+			__extent_read_full_page(tree, pagepool[i], get_extent,
+					&bio, 0, &bio_flags);
+			page_cache_release(pagepool[i]);
+		}
+		nr = 0;
 	}
+	for (i = 0; i < nr; i++) {
+		__extent_read_full_page(tree, pagepool[i], get_extent,
+					&bio, 0, &bio_flags);
+		page_cache_release(pagepool[i]);
+	}
+
 	BUG_ON(!list_empty(pages));
 	if (bio)
 		return submit_one_bio(READ, bio, 0, bio_flags);
