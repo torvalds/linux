@@ -27,3 +27,11 @@ config SPEAR_THERMAL
 	help
 	  Enable this to plug the SPEAr thermal sensor driver into the Linux
 	  thermal framework
+
+config RCAR_THERMAL
+	tristate "Renesas R-Car thermal driver"
+	depends on THERMAL
+	depends on ARCH_SHMOBILE
+	help
+	  Enable this to plug the R-Car thermal sensor driver into the Linux
+	  thermal framework
