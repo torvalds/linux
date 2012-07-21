@@ -402,9 +402,7 @@ int uf_release_firmware_files(unifi_priv_t *priv)
 int uf_release_firmware(unifi_priv_t *priv, struct dlpriv *to_free)
 {
     if (to_free != NULL) {
-        if (to_free->fw_desc != NULL) {
-            release_firmware((const struct firmware *)to_free->fw_desc);
-        }
+        release_firmware((const struct firmware *)to_free->fw_desc);
         to_free->fw_desc = NULL;
         to_free->dl_data = NULL;
         to_free->dl_len = 0;
