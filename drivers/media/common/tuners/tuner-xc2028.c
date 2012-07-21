@@ -756,7 +756,7 @@ retry:
 	 * No need to reload base firmware if it matches and if the tuner
 	 * is not at sleep mode
 	 */
-	if ((priv->state = XC2028_ACTIVE) &&
+	if ((priv->state == XC2028_ACTIVE) &&
 	    (((BASE | new_fw.type) & BASE_TYPES) ==
 	    (priv->cur_fw.type & BASE_TYPES))) {
 		tuner_dbg("BASE firmware not changed.\n");
