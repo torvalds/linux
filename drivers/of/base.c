@@ -511,22 +511,6 @@ out:
 }
 EXPORT_SYMBOL(of_find_node_with_property);
 
-static const struct of_device_id *of_match_compat(const struct of_device_id *matches,
-						  const char *compat)
-{
-	while (matches->name[0] || matches->type[0] || matches->compatible[0]) {
-		const char *cp = matches->compatible;
-		int len = strlen(cp);
-
-		if (len > 0 && of_compat_cmp(compat, cp, len) == 0)
-			return matches;
-
-		matches++;
-	}
-
-	return NULL;
-}
-
 /**
  * of_match_node - Tell if an device_node has a matching of_match structure
  *	@matches:	array of of device match structures to search in
@@ -537,17 +521,8 @@ static const struct of_device_id *of_match_compat(const struct of_device_id *mat
 const struct of_device_id *of_match_node(const struct of_device_id *matches,
 					 const struct device_node *node)
 {
-	struct property *prop;
-	const char *cp;
-
 	if (!matches)
 		return NULL;
-
-	of_property_for_each_string(node, "compatible", prop, cp) {
-		const struct of_device_id *match = of_match_compat(matches, cp);
-		if (match)
-			return match;
-	}
 
 	while (matches->name[0] || matches->type[0] || matches->compatible[0]) {
 		int match = 1;
@@ -557,7 +532,10 @@ const struct of_device_id *of_match_node(const struct of_device_id *matches,
 		if (matches->type[0])
 			match &= node->type
 				&& !strcmp(matches->type, node->type);
-		if (match && !matches->compatible[0])
+		if (matches->compatible[0])
+			match &= of_device_is_compatible(node,
+						matches->compatible);
+		if (match)
 			return matches;
 		matches++;
 	}
