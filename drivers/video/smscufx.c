@@ -1002,7 +1002,7 @@ static int ufx_ops_ioctl(struct fb_info *info, unsigned int cmd,
 	/* TODO: Help propose a standard fb.h ioctl to report mmap damage */
 	if (cmd == UFX_IOCTL_REPORT_DAMAGE) {
 		/* If we have a damage-aware client, turn fb_defio "off"
-		 * To avoid perf imact of unecessary page fault handling.
+		 * To avoid perf imact of unnecessary page fault handling.
 		 * Done by resetting the delay for this fb_info to a very
 		 * long period. Pages will become writable and stay that way.
 		 * Reset to normal value when all clients have closed this fb.
@@ -1466,7 +1466,7 @@ static int ufx_read_edid(struct ufx_data *dev, u8 *edid, int edid_len)
 	/* all FF's in the first 16 bytes indicates nothing is connected */
 	for (i = 0; i < 16; i++) {
 		if (edid[i] != 0xFF) {
-			pr_debug("edid data read succesfully");
+			pr_debug("edid data read successfully");
 			return EDID_LENGTH;
 		}
 	}
