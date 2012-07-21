@@ -2510,6 +2510,57 @@ void kmsg_dump(enum kmsg_dump_reason reason)
 }
 
 /**
+ * kmsg_dump_get_line_nolock - retrieve one kmsg log line (unlocked version)
+ * @dumper: registered kmsg dumper
+ * @syslog: include the "<4>" prefixes
+ * @line: buffer to copy the line to
+ * @size: maximum size of the buffer
+ * @len: length of line placed into buffer
+ *
+ * Start at the beginning of the kmsg buffer, with the oldest kmsg
+ * record, and copy one record into the provided buffer.
+ *
+ * Consecutive calls will return the next available record moving
+ * towards the end of the buffer with the youngest messages.
+ *
+ * A return value of FALSE indicates that there are no more records to
+ * read.
+ *
+ * The function is similar to kmsg_dump_get_line(), but grabs no locks.
+ */
+bool kmsg_dump_get_line_nolock(struct kmsg_dumper *dumper, bool syslog,
+			       char *line, size_t size, size_t *len)
+{
+	struct log *msg;
+	size_t l = 0;
+	bool ret = false;
+
+	if (!dumper->active)
+		goto out;
+
+	if (dumper->cur_seq < log_first_seq) {
+		/* messages are gone, move to first available one */
+		dumper->cur_seq = log_first_seq;
+		dumper->cur_idx = log_first_idx;
+	}
+
+	/* last entry */
+	if (dumper->cur_seq >= log_next_seq)
+		goto out;
+
+	msg = log_from_idx(dumper->cur_idx);
+	l = msg_print_text(msg, 0, syslog, line, size);
+
+	dumper->cur_idx = log_next(dumper->cur_idx);
+	dumper->cur_seq++;
+	ret = true;
+out:
+	if (len)
+		*len = l;
+	return ret;
+}
+
+/**
  * kmsg_dump_get_line - retrieve one kmsg log line
  * @dumper: registered kmsg dumper
  * @syslog: include the "<4>" prefixes
@@ -2530,36 +2581,12 @@ bool kmsg_dump_get_line(struct kmsg_dumper *dumper, bool syslog,
 			char *line, size_t size, size_t *len)
 {
 	unsigned long flags;
-	struct log *msg;
-	size_t l = 0;
-	bool ret = false;
-
-	if (!dumper->active)
-		goto out;
+	bool ret;
 
 	raw_spin_lock_irqsave(&logbuf_lock, flags);
-	if (dumper->cur_seq < log_first_seq) {
-		/* messages are gone, move to first available one */
-		dumper->cur_seq = log_first_seq;
-		dumper->cur_idx = log_first_idx;
-	}
-
-	/* last entry */
-	if (dumper->cur_seq >= log_next_seq) {
-		raw_spin_unlock_irqrestore(&logbuf_lock, flags);
-		goto out;
-	}
-
-	msg = log_from_idx(dumper->cur_idx);
-	l = msg_print_text(msg, 0, syslog, line, size);
-
-	dumper->cur_idx = log_next(dumper->cur_idx);
-	dumper->cur_seq++;
-	ret = true;
+	ret = kmsg_dump_get_line_nolock(dumper, syslog, line, size, len);
 	raw_spin_unlock_irqrestore(&logbuf_lock, flags);
-out:
-	if (len)
-		*len = l;
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(kmsg_dump_get_line);
@@ -2664,6 +2691,24 @@ out:
 EXPORT_SYMBOL_GPL(kmsg_dump_get_buffer);
 
 /**
+ * kmsg_dump_rewind_nolock - reset the interator (unlocked version)
+ * @dumper: registered kmsg dumper
+ *
+ * Reset the dumper's iterator so that kmsg_dump_get_line() and
+ * kmsg_dump_get_buffer() can be called again and used multiple
+ * times within the same dumper.dump() callback.
+ *
+ * The function is similar to kmsg_dump_rewind(), but grabs no locks.
+ */
+void kmsg_dump_rewind_nolock(struct kmsg_dumper *dumper)
+{
+	dumper->cur_seq = clear_seq;
+	dumper->cur_idx = clear_idx;
+	dumper->next_seq = log_next_seq;
+	dumper->next_idx = log_next_idx;
+}
+
+/**
  * kmsg_dump_rewind - reset the interator
  * @dumper: registered kmsg dumper
  *
@@ -2676,10 +2721,7 @@ void kmsg_dump_rewind(struct kmsg_dumper *dumper)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&logbuf_lock, flags);
-	dumper->cur_seq = clear_seq;
-	dumper->cur_idx = clear_idx;
-	dumper->next_seq = log_next_seq;
-	dumper->next_idx = log_next_idx;
+	kmsg_dump_rewind_nolock(dumper);
 	raw_spin_unlock_irqrestore(&logbuf_lock, flags);
 }
 EXPORT_SYMBOL_GPL(kmsg_dump_rewind);
