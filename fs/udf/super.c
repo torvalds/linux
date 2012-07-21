@@ -2000,6 +2000,8 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 			if (!silent)
 				pr_notice("Rescanning with blocksize %d\n",
 					  UDF_DEFAULT_BLOCKSIZE);
+			brelse(sbi->s_lvid_bh);
+			sbi->s_lvid_bh = NULL;
 			uopt.blocksize = UDF_DEFAULT_BLOCKSIZE;
 			ret = udf_load_vrs(sb, &uopt, silent, &fileset);
 		}
