@@ -41,6 +41,7 @@
 
 #include <mach/map.h>
 
+#include <drm/exynos_drm.h>
 #include "common.h"
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
@@ -240,6 +241,26 @@ static struct samsung_keypad_platdata smdk4x12_keypad_data __initdata = {
 	.cols		= 8,
 };
 
+#ifdef CONFIG_DRM_EXYNOS
+static struct exynos_drm_fimd_pdata drm_fimd_pdata = {
+	.panel	= {
+		.timing	= {
+			.left_margin	= 8,
+			.right_margin	= 8,
+			.upper_margin	= 6,
+			.lower_margin	= 6,
+			.hsync_len	= 6,
+			.vsync_len	= 4,
+			.xres		= 480,
+			.yres		= 800,
+		},
+	},
+	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
+	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
+	.default_win	= 0,
+	.bpp		= 32,
+};
+#else
 static struct s3c_fb_pd_win smdk4x12_fb_win0 = {
 	.xres		= 480,
 	.yres		= 800,
@@ -267,6 +288,7 @@ static struct s3c_fb_platdata smdk4x12_lcd_pdata __initdata = {
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
 	.setup_gpio	= exynos4_fimd0_gpio_setup_24bpp,
 };
+#endif
 
 /* USB OTG */
 static struct s3c_hsotg_plat smdk4x12_hsotg_pdata;
@@ -290,13 +312,14 @@ static struct platform_device *smdk4x12_devices[] __initdata = {
 	&s5p_device_mfc,
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
+#ifdef CONFIG_DRM_EXYNOS
+	&exynos_device_drm,
+#endif
 	&samsung_device_keypad,
 };
 
 static void __init smdk4x12_map_io(void)
 {
-	clk_xusbxti.rate = 24000000;
-
 	exynos_init_io(NULL, 0);
 	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(smdk4x12_uartcfgs, ARRAY_SIZE(smdk4x12_uartcfgs));
@@ -334,7 +357,12 @@ static void __init smdk4x12_machine_init(void)
 
 	s3c_hsotg_set_platdata(&smdk4x12_hsotg_pdata);
 
+#ifdef CONFIG_DRM_EXYNOS
+	s5p_device_fimd0.dev.platform_data = &drm_fimd_pdata;
+	exynos4_fimd0_gpio_setup_24bpp();
+#else
 	s5p_fimd0_set_platdata(&smdk4x12_lcd_pdata);
+#endif
 
 	platform_add_devices(smdk4x12_devices, ARRAY_SIZE(smdk4x12_devices));
 }

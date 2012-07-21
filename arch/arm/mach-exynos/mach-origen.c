@@ -9,6 +9,7 @@
 */
 
 #include <linux/serial_core.h>
+#include <linux/leds.h>
 #include <linux/gpio.h>
 #include <linux/mmc/host.h>
 #include <linux/platform_device.h>
@@ -503,6 +504,34 @@ static void __init origen_ohci_init(void)
 /* USB OTG */
 static struct s3c_hsotg_plat origen_hsotg_pdata;
 
+static struct gpio_led origen_gpio_leds[] = {
+	{
+		.name			= "origen::status1",
+		.default_trigger	= "heartbeat",
+		.gpio			= EXYNOS4_GPX1(3),
+		.active_low		= 1,
+	},
+	{
+		.name			= "origen::status2",
+		.default_trigger	= "mmc0",
+		.gpio			= EXYNOS4_GPX1(4),
+		.active_low		= 1,
+	},
+};
+
+static struct gpio_led_platform_data origen_gpio_led_info = {
+	.leds		= origen_gpio_leds,
+	.num_leds	= ARRAY_SIZE(origen_gpio_leds),
+};
+
+static struct platform_device origen_leds_gpio = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &origen_gpio_led_info,
+	},
+};
+
 static struct gpio_keys_button origen_gpio_keys_table[] = {
 	{
 		.code			= KEY_MENU,
@@ -682,6 +711,7 @@ static struct platform_device *origen_devices[] __initdata = {
 	&exynos4_device_ohci,
 	&origen_device_gpiokeys,
 	&origen_lcd_hv070wsa,
+	&origen_leds_gpio,
 	&origen_device_bluetooth,
 };
 
@@ -717,7 +747,7 @@ static void s5p_tv_setup(void)
 static void __init origen_map_io(void)
 {
 	exynos_init_io(NULL, 0);
-	s3c24xx_init_clocks(24000000);
+	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(origen_uartcfgs, ARRAY_SIZE(origen_uartcfgs));
 }
 
@@ -750,7 +780,6 @@ static void __init origen_machine_init(void)
 	origen_ehci_init();
 	origen_ohci_init();
 	s3c_hsotg_set_platdata(&origen_hsotg_pdata);
-	clk_xusbxti.rate = 24000000;
 
 	s5p_tv_setup();
 	s5p_i2c_hdmiphy_set_platdata(NULL);
