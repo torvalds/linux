@@ -41,30 +41,3 @@ CsrTime CsrTimeGet(CsrTime *high)
     return low;
 }
 EXPORT_SYMBOL_GPL(CsrTimeGet);
-
-void CsrTimeUtcGet(CsrTimeUtc *tod, CsrTime *low, CsrTime *high)
-{
-    struct timespec ts;
-    u64 time;
-
-    ts = current_kernel_time();
-    time = (u64) ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
-
-    if (high != NULL)
-    {
-        *high = (CsrTime) ((time >> 32) & 0xFFFFFFFF);
-    }
-
-    if (low != NULL)
-    {
-        *low = (CsrTime) (time & 0xFFFFFFFF);
-    }
-
-    if (tod != NULL)
-    {
-        struct timeval tv;
-        do_gettimeofday(&tv);
-        tod->sec = tv.tv_sec;
-        tod->msec = tv.tv_usec / 1000;
-    }
-}

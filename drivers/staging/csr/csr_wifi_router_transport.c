@@ -50,16 +50,6 @@ void CsrWifiRouterTransportInit(unifi_priv_t *priv)
 #endif
 }
 
-void CsrWifiRouterTransportDeinit(unifi_priv_t *priv)
-{
-    unifi_trace(priv, UDBG1, "CsrWifiRouterTransportDeinit: \n");
-    if (priv == drvpriv)
-    {
-        CsrMsgConvDeinit();
-        drvpriv = NULL;
-    }
-}
-
 void CsrWifiRouterTransportRecv(unifi_priv_t *priv, u8* buffer, size_t bufferLength)
 {
     CsrMsgConvMsgEntry* msgEntry;

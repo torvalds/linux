@@ -75,32 +75,6 @@ typedef struct
 CsrTime CsrTimeGet(CsrTime *high);
 
 
-/*******************************************************************************
-
-    NAME
-        CsrTimeUtcGet
-
-    DESCRIPTION
-        Get the current system wallclock time, and optionally the current system
-        time in a low and a high part as would have been returned by
-        CsrTimeGet.
-
-        Although CsrTimeUtc is expressed in seconds and milliseconds, the actual
-        resolution is platform dependent, and can be less. It is recommended
-        that the resolution is at least 1 second.
-
-    PARAMETERS
-        tod - Pointer to variable that will receive the current system
-              wallclock time.
-        low - The low part of the current system time in microseconds. Passing
-              NULL is valid.
-        high - The high part of the current system time in microseconds. Passing
-               NULL is valid.
-
-*******************************************************************************/
-void CsrTimeUtcGet(CsrTimeUtc *tod, CsrTime *low, CsrTime *high);
-
-
 /*------------------------------------------------------------------*/
 /* CsrTime Macros */
 /*------------------------------------------------------------------*/
@@ -132,71 +106,6 @@ void CsrTimeUtcGet(CsrTimeUtc *tod, CsrTime *low, CsrTime *high);
  *
  *----------------------------------------------------------------------------*/
 #define CsrTimeSub(t1, t2)    ((s32) (t1) - (s32) (t2))
-
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrTimeEq
- *
- *  DESCRIPTION
- *      Compare two time values.
- *
- *  RETURNS
- *      !0 if "t1" equal "t2", else 0.
- *
- *----------------------------------------------------------------------------*/
-#define CsrTimeEq(t1, t2) ((t1) == (t2))
-
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrTimeGt
- *
- *  DESCRIPTION
- *      Compare two time values.
- *
- *  RETURNS
- *      !0 if "t1" is greater than "t2", else 0.
- *
- *----------------------------------------------------------------------------*/
-#define CsrTimeGt(t1, t2) (CsrTimeSub((t1), (t2)) > 0)
-
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrTimeGe
- *
- *  DESCRIPTION
- *      Compare two time values.
- *
- *  RETURNS
- *      !0 if "t1" is greater than, or equal to "t2", else 0.
- *
- *----------------------------------------------------------------------------*/
-#define CsrTimeGe(t1, t2) (CsrTimeSub((t1), (t2)) >= 0)
-
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrTimeLt
- *
- *  DESCRIPTION
- *      Compare two time values.
- *
- *  RETURNS
- *      !0 if "t1" is less than "t2", else 0.
- *
- *----------------------------------------------------------------------------*/
-#define CsrTimeLt(t1, t2) (CsrTimeSub((t1), (t2)) < 0)
-
-/*----------------------------------------------------------------------------*
- *  NAME
- *      CsrTimeLe
- *
- *  DESCRIPTION
- *      Compare two time values.
- *
- *  RETURNS
- *      !0 if "t1" is less than, or equal to "t2", else 0.
- *
- *----------------------------------------------------------------------------*/
-#define CsrTimeLe(t1, t2) (CsrTimeSub((t1), (t2)) <= 0)
 
 #ifdef __cplusplus
 }

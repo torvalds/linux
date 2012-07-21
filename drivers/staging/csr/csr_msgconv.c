@@ -290,35 +290,3 @@ CsrMsgConvEntry *CsrMsgConvInit(void)
     return converter;
 }
 EXPORT_SYMBOL_GPL(CsrMsgConvInit);
-
-CsrMsgConvEntry *CsrMsgConvGet(void)
-{
-    return converter;
-}
-
-#ifdef ENABLE_SHUTDOWN
-void CsrMsgConvDeinit(void)
-{
-    CsrMsgConvPrimEntry *s;
-
-    if (converter == NULL)
-    {
-        return;
-    }
-
-    /* Walk converter list and free elements. */
-    s = converter->profile_converters;
-    while (s)
-    {
-        CsrMsgConvPrimEntry *s_next;
-        s_next = s->next;
-        kfree(s);
-        s = s_next;
-    }
-
-    kfree(converter);
-    converter = NULL;
-}
-EXPORT_SYMBOL_GPL(CsrMsgConvDeinit);
-
-#endif /* ENABLE_SHUTDOWN */
