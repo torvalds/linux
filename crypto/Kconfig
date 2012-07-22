@@ -564,6 +564,8 @@ config CRYPTO_AES_NI_INTEL
 	select CRYPTO_CRYPTD
 	select CRYPTO_ABLK_HELPER_X86
 	select CRYPTO_ALGAPI
+	select CRYPTO_LRW
+	select CRYPTO_XTS
 	help
 	  Use Intel AES-NI instructions for AES algorithm.
 
