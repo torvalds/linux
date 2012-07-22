@@ -33,6 +33,7 @@ nouveau-y += core/subdev/bios/dp.o
 nouveau-y += core/subdev/bios/gpio.o
 nouveau-y += core/subdev/bios/i2c.o
 nouveau-y += core/subdev/bios/init.o
+nouveau-y += core/subdev/bios/mxm.o
 nouveau-y += core/subdev/bios/pll.o
 nouveau-y += core/subdev/clock/nv04.o
 nouveau-y += core/subdev/clock/nv40.o
@@ -83,6 +84,9 @@ nouveau-y += core/subdev/mc/nv44.o
 nouveau-y += core/subdev/mc/nv50.o
 nouveau-y += core/subdev/mc/nv98.o
 nouveau-y += core/subdev/mc/nvc0.o
+nouveau-y += core/subdev/mxm/base.o
+nouveau-y += core/subdev/mxm/mxms.o
+nouveau-y += core/subdev/mxm/nv50.o
 nouveau-y += core/subdev/timer/base.o
 nouveau-y += core/subdev/timer/nv04.o
 nouveau-y += core/subdev/vm/base.o
@@ -172,7 +176,7 @@ nouveau-y += nouveau_drv.o nouveau_state.o nouveau_irq.o
 nouveau-y += nouveau_prime.o
 
 # drm/kms/bios
-nouveau-y += nouveau_mxm.o nouveau_bios.o
+nouveau-y += nouveau_bios.o
 
 # drm/kms/common
 nouveau-y += nouveau_display.o nouveau_connector.o

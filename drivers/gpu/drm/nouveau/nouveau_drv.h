@@ -415,10 +415,6 @@ extern int call_lvds_script(struct drm_device *, struct dcb_output *, int head,
 			    enum LVDS_script, int pxclk);
 bool bios_encoder_match(struct dcb_output *, u32 hash);
 
-/* nouveau_mxm.c */
-int  nouveau_mxm_init(struct drm_device *dev);
-void nouveau_mxm_fini(struct drm_device *dev);
-
 /* nouveau_ttm.c */
 int nouveau_ttm_global_init(struct drm_nouveau_private *);
 void nouveau_ttm_global_release(struct drm_nouveau_private *);

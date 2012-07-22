@@ -2352,10 +2352,6 @@ nouveau_bios_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	ret = nouveau_mxm_init(dev);
-	if (ret)
-		return ret;
-
 	ret = parse_dcb_table(dev, bios);
 	if (ret)
 		return ret;
@@ -2396,5 +2392,4 @@ nouveau_bios_init(struct drm_device *dev)
 void
 nouveau_bios_takedown(struct drm_device *dev)
 {
-	nouveau_mxm_fini(dev);
 }
