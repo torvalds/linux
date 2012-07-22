@@ -54,6 +54,8 @@ void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry);
 int perf_evlist__add_default(struct perf_evlist *evlist);
 int perf_evlist__add_attrs(struct perf_evlist *evlist,
 			   struct perf_event_attr *attrs, size_t nr_attrs);
+int __perf_evlist__add_default_attrs(struct perf_evlist *evlist,
+				     struct perf_event_attr *attrs, size_t nr_attrs);
 int perf_evlist__add_tracepoints(struct perf_evlist *evlist,
 				 const char *tracepoints[], size_t nr_tracepoints);
 int perf_evlist__set_tracepoints_handlers(struct perf_evlist *evlist,
@@ -62,6 +64,8 @@ int perf_evlist__set_tracepoints_handlers(struct perf_evlist *evlist,
 
 #define perf_evlist__add_attrs_array(evlist, array) \
 	perf_evlist__add_attrs(evlist, array, ARRAY_SIZE(array))
+#define perf_evlist__add_default_attrs(evlist, array) \
+	__perf_evlist__add_default_attrs(evlist, array, ARRAY_SIZE(array))
 
 #define perf_evlist__add_tracepoints_array(evlist, array) \
 	perf_evlist__add_tracepoints(evlist, array, ARRAY_SIZE(array))

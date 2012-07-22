@@ -61,6 +61,7 @@ struct ocrdma_dev_attr {
 	u32 max_inline_data;
 	int max_send_sge;
 	int max_recv_sge;
+	int max_srq_sge;
 	int max_mr;
 	u64 max_mr_size;
 	u32 max_num_mr_pbl;
@@ -231,7 +232,6 @@ struct ocrdma_qp_hwq_info {
 	u32 entry_size;
 	u32 max_cnt;
 	u32 max_wqe_idx;
-	u32 free_delta;
 	u16 dbid;		/* qid, where to ring the doorbell. */
 	u32 len;
 	dma_addr_t pa;

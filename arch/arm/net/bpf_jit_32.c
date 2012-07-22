@@ -762,6 +762,11 @@ b_epilogue:
 			update_on_xread(ctx);
 			emit(ARM_MOV_R(r_A, r_X), ctx);
 			break;
+		case BPF_S_ANC_ALU_XOR_X:
+			/* A ^= X */
+			update_on_xread(ctx);
+			emit(ARM_EOR_R(r_A, r_A, r_X), ctx);
+			break;
 		case BPF_S_ANC_PROTOCOL:
 			/* A = ntohs(skb->protocol) */
 			ctx->seen |= SEEN_SKB;

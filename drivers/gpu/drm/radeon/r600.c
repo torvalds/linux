@@ -1839,6 +1839,7 @@ void r600_gpu_init(struct radeon_device *rdev)
 	WREG32(PA_CL_ENHANCE, (CLIP_VTX_REORDER_ENA |
 			       NUM_CLIP_SEQ(3)));
 	WREG32(PA_SC_ENHANCE, FORCE_EOV_MAX_CLK_CNT(4095));
+	WREG32(VC_ENHANCE, 0);
 }
 
 
@@ -2426,6 +2427,12 @@ int r600_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	r = r600_audio_init(rdev);
+	if (r) {
+		DRM_ERROR("radeon: audio init failed\n");
+		return r;
+	}
+
 	return 0;
 }
 
@@ -2459,12 +2466,6 @@ int r600_resume(struct radeon_device *rdev)
 	if (r) {
 		DRM_ERROR("r600 startup failed on resume\n");
 		rdev->accel_working = false;
-		return r;
-	}
-
-	r = r600_audio_init(rdev);
-	if (r) {
-		DRM_ERROR("radeon: audio resume failed\n");
 		return r;
 	}
 
@@ -2577,9 +2578,6 @@ int r600_init(struct radeon_device *rdev)
 		rdev->accel_working = false;
 	}
 
-	r = r600_audio_init(rdev);
-	if (r)
-		return r; /* TODO error handling */
 	return 0;
 }
 

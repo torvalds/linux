@@ -2024,6 +2024,9 @@ int regulator_map_voltage_linear(struct regulator_dev *rdev,
 		return -EINVAL;
 	}
 
+	if (min_uV < rdev->desc->min_uV)
+		min_uV = rdev->desc->min_uV;
+
 	ret = DIV_ROUND_UP(min_uV - rdev->desc->min_uV, rdev->desc->uV_step);
 	if (ret < 0)
 		return ret;
@@ -3462,6 +3465,15 @@ static int __init regulator_init_complete(void)
 	struct regulator_ops *ops;
 	struct regulation_constraints *c;
 	int enabled, ret;
+
+	/*
+	 * Since DT doesn't provide an idiomatic mechanism for
+	 * enabling full constraints and since it's much more natural
+	 * with DT to provide them just assume that a DT enabled
+	 * system has full constraints.
+	 */
+	if (of_have_populated_dt())
+		has_full_constraints = true;
 
 	mutex_lock(&regulator_list_mutex);
 

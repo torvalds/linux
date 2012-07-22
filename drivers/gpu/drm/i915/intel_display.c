@@ -6158,17 +6158,34 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_ring_buffer *ring = &dev_priv->ring[BCS];
+	uint32_t plane_bit = 0;
 	int ret;
 
 	ret = intel_pin_and_fence_fb_obj(dev, obj, ring);
 	if (ret)
 		goto err;
 
+	switch(intel_crtc->plane) {
+	case PLANE_A:
+		plane_bit = MI_DISPLAY_FLIP_IVB_PLANE_A;
+		break;
+	case PLANE_B:
+		plane_bit = MI_DISPLAY_FLIP_IVB_PLANE_B;
+		break;
+	case PLANE_C:
+		plane_bit = MI_DISPLAY_FLIP_IVB_PLANE_C;
+		break;
+	default:
+		WARN_ONCE(1, "unknown plane in flip command\n");
+		ret = -ENODEV;
+		goto err;
+	}
+
 	ret = intel_ring_begin(ring, 4);
 	if (ret)
 		goto err_unpin;
 
-	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 | (intel_crtc->plane << 19));
+	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 | plane_bit);
 	intel_ring_emit(ring, (fb->pitches[0] | obj->tiling_mode));
 	intel_ring_emit(ring, (obj->gtt_offset));
 	intel_ring_emit(ring, (MI_NOOP));
@@ -6541,7 +6558,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(HDMIC) & PORT_DETECTED)
 			intel_hdmi_init(dev, HDMIC);
 
-		if (I915_READ(HDMID) & PORT_DETECTED)
+		if (!dpd_is_edp && I915_READ(HDMID) & PORT_DETECTED)
 			intel_hdmi_init(dev, HDMID);
 
 		if (I915_READ(PCH_DP_C) & DP_DETECTED)
@@ -6904,19 +6921,6 @@ static void i915_disable_vga(struct drm_device *dev)
 	POSTING_READ(vga_reg);
 }
 
-static void ivb_pch_pwm_override(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	/*
-	 * IVB has CPU eDP backlight regs too, set things up to let the
-	 * PCH regs control the backlight
-	 */
-	I915_WRITE(BLC_PWM_CPU_CTL2, PWM_ENABLE);
-	I915_WRITE(BLC_PWM_CPU_CTL, 0);
-	I915_WRITE(BLC_PWM_PCH_CTL1, PWM_ENABLE | (1<<30));
-}
-
 void intel_modeset_init_hw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -6933,9 +6937,6 @@ void intel_modeset_init_hw(struct drm_device *dev)
 		gen6_enable_rps(dev_priv);
 		gen6_update_ring_freq(dev_priv);
 	}
-
-	if (IS_IVYBRIDGE(dev))
-		ivb_pch_pwm_override(dev);
 }
 
 void intel_modeset_init(struct drm_device *dev)

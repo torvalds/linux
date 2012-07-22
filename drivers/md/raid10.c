@@ -3475,6 +3475,7 @@ static int run(struct mddev *mddev)
 
 	rdev_for_each(rdev, mddev) {
 		long long diff;
+		struct request_queue *q;
 
 		disk_idx = rdev->raid_disk;
 		if (disk_idx < 0)
@@ -3493,6 +3494,9 @@ static int run(struct mddev *mddev)
 				goto out_free_conf;
 			disk->rdev = rdev;
 		}
+		q = bdev_get_queue(rdev->bdev);
+		if (q->merge_bvec_fn)
+			mddev->merge_check_needed = 1;
 		diff = (rdev->new_data_offset - rdev->data_offset);
 		if (!mddev->reshape_backwards)
 			diff = -diff;
