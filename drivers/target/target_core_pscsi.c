@@ -35,8 +35,10 @@
 #include <linux/spinlock.h>
 #include <linux/genhd.h>
 #include <linux/cdrom.h>
-#include <linux/file.h>
+#include <linux/ratelimit.h>
 #include <linux/module.h>
+#include <asm/unaligned.h>
+
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
@@ -46,12 +48,14 @@
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
 
+#include "target_core_alua.h"
 #include "target_core_pscsi.h"
 
 #define ISPRINT(a)  ((a >= ' ') && (a <= '~'))
 
 static struct se_subsystem_api pscsi_template;
 
+static int pscsi_execute_cmd(struct se_cmd *cmd);
 static void pscsi_req_done(struct request *, int);
 
 /*	pscsi_attach_hba():
@@ -1019,9 +1023,79 @@ fail:
 	return -ENOMEM;
 }
 
-static int pscsi_execute_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
-		u32 sgl_nents, enum dma_data_direction data_direction)
+/*
+ * Clear a lun set in the cdb if the initiator talking to use spoke
+ * and old standards version, as we can't assume the underlying device
+ * won't choke up on it.
+ */
+static inline void pscsi_clear_cdb_lun(unsigned char *cdb)
 {
+	switch (cdb[0]) {
+	case READ_10: /* SBC - RDProtect */
+	case READ_12: /* SBC - RDProtect */
+	case READ_16: /* SBC - RDProtect */
+	case SEND_DIAGNOSTIC: /* SPC - SELF-TEST Code */
+	case VERIFY: /* SBC - VRProtect */
+	case VERIFY_16: /* SBC - VRProtect */
+	case WRITE_VERIFY: /* SBC - VRProtect */
+	case WRITE_VERIFY_12: /* SBC - VRProtect */
+	case MAINTENANCE_IN: /* SPC - Parameter Data Format for SA RTPG */
+		break;
+	default:
+		cdb[1] &= 0x1f; /* clear logical unit number */
+		break;
+	}
+}
+
+static int pscsi_parse_cdb(struct se_cmd *cmd)
+{
+	unsigned char *cdb = cmd->t_task_cdb;
+	unsigned int dummy_size;
+	int ret;
+
+	if (cmd->se_cmd_flags & SCF_BIDI) {
+		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
+		return -EINVAL;
+	}
+
+	pscsi_clear_cdb_lun(cdb);
+
+	/*
+	 * For REPORT LUNS we always need to emulate the response, for everything
+	 * else the default for pSCSI is to pass the command to the underlying
+	 * LLD / physical hardware.
+	 */
+	switch (cdb[0]) {
+	case REPORT_LUNS:
+		ret = spc_parse_cdb(cmd, &dummy_size);
+		if (ret)
+			return ret;
+		break;
+	case READ_6:
+	case READ_10:
+	case READ_12:
+	case READ_16:
+	case WRITE_6:
+	case WRITE_10:
+	case WRITE_12:
+	case WRITE_16:
+	case WRITE_VERIFY:
+		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
+		/* FALLTHROUGH*/
+	default:
+		cmd->execute_cmd = pscsi_execute_cmd;
+		break;
+	}
+
+	return 0;
+}
+
+static int pscsi_execute_cmd(struct se_cmd *cmd)
+{
+	struct scatterlist *sgl = cmd->t_data_sg;
+	u32 sgl_nents = cmd->t_data_nents;
+	enum dma_data_direction data_direction = cmd->data_direction;
 	struct pscsi_dev_virt *pdv = cmd->se_dev->dev_ptr;
 	struct pscsi_plugin_task *pt;
 	struct request *req;
@@ -1042,7 +1116,7 @@ static int pscsi_execute_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
 	memcpy(pt->pscsi_cdb, cmd->t_task_cdb,
 		scsi_command_size(cmd->t_task_cdb));
 
-	if (cmd->se_cmd_flags & SCF_SCSI_NON_DATA_CDB) {
+	if (!sgl) {
 		req = blk_get_request(pdv->pdv_sd->request_queue,
 				(data_direction == DMA_TO_DEVICE),
 				GFP_KERNEL);
@@ -1188,7 +1262,7 @@ static struct se_subsystem_api pscsi_template = {
 	.create_virtdevice	= pscsi_create_virtdevice,
 	.free_device		= pscsi_free_device,
 	.transport_complete	= pscsi_transport_complete,
-	.execute_cmd		= pscsi_execute_cmd,
+	.parse_cdb		= pscsi_parse_cdb,
 	.check_configfs_dev_params = pscsi_check_configfs_dev_params,
 	.set_configfs_dev_params = pscsi_set_configfs_dev_params,
 	.show_configfs_dev_params = pscsi_show_configfs_dev_params,

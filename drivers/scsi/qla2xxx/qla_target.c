@@ -2643,19 +2643,9 @@ static void qlt_do_work(struct work_struct *work)
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	sess = ha->tgt.tgt_ops->find_sess_by_s_id(vha,
 	    atio->u.isp24.fcp_hdr.s_id);
-	if (sess) {
-		if (unlikely(sess->tearing_down)) {
-			sess = NULL;
-			spin_unlock_irqrestore(&ha->hardware_lock, flags);
-			goto out_term;
-		} else {
-			/*
-			 * Do the extra kref_get() before dropping
-			 * qla_hw_data->hardware_lock.
-			 */
-			kref_get(&sess->se_sess->sess_kref);
-		}
-	}
+	/* Do kref_get() before dropping qla_hw_data->hardware_lock. */
+	if (sess)
+		kref_get(&sess->se_sess->sess_kref);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	if (unlikely(!sess)) {

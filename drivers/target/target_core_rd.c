@@ -284,9 +284,11 @@ static struct rd_dev_sg_table *rd_get_sg_table(struct rd_dev *rd_dev, u32 page)
 	return NULL;
 }
 
-static int rd_execute_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
-		u32 sgl_nents, enum dma_data_direction data_direction)
+static int rd_execute_rw(struct se_cmd *cmd)
 {
+	struct scatterlist *sgl = cmd->t_data_sg;
+	u32 sgl_nents = cmd->t_data_nents;
+	enum dma_data_direction data_direction = cmd->data_direction;
 	struct se_device *se_dev = cmd->se_dev;
 	struct rd_dev *dev = se_dev->dev_ptr;
 	struct rd_dev_sg_table *table;
@@ -460,6 +462,15 @@ static sector_t rd_get_blocks(struct se_device *dev)
 	return blocks_long;
 }
 
+static struct spc_ops rd_spc_ops = {
+	.execute_rw		= rd_execute_rw,
+};
+
+static int rd_parse_cdb(struct se_cmd *cmd)
+{
+	return sbc_parse_cdb(cmd, &rd_spc_ops);
+}
+
 static struct se_subsystem_api rd_mcp_template = {
 	.name			= "rd_mcp",
 	.transport_type		= TRANSPORT_PLUGIN_VHBA_VDEV,
@@ -468,7 +479,7 @@ static struct se_subsystem_api rd_mcp_template = {
 	.allocate_virtdevice	= rd_allocate_virtdevice,
 	.create_virtdevice	= rd_create_virtdevice,
 	.free_device		= rd_free_device,
-	.execute_cmd		= rd_execute_cmd,
+	.parse_cdb		= rd_parse_cdb,
 	.check_configfs_dev_params = rd_check_configfs_dev_params,
 	.set_configfs_dev_params = rd_set_configfs_dev_params,
 	.show_configfs_dev_params = rd_show_configfs_dev_params,

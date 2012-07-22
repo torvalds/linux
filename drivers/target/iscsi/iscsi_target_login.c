@@ -518,7 +518,7 @@ int iscsi_login_post_auth_non_zero_tsih(
 	 * initiator and release the new connection.
 	 */
 	conn_ptr = iscsit_get_conn_from_cid_rcfr(sess, cid);
-	if ((conn_ptr)) {
+	if (conn_ptr) {
 		pr_err("Connection exists with CID %hu for %s,"
 			" performing connection reinstatement.\n",
 			conn_ptr->cid, sess->sess_ops->InitiatorName);
@@ -539,7 +539,7 @@ int iscsi_login_post_auth_non_zero_tsih(
 	if (sess->sess_ops->ErrorRecoveryLevel == 2) {
 		cr = iscsit_get_inactive_connection_recovery_entry(
 				sess, cid);
-		if ((cr)) {
+		if (cr) {
 			pr_debug("Performing implicit logout"
 				" for connection recovery on CID: %hu\n",
 					conn->cid);
@@ -795,22 +795,6 @@ int iscsi_target_setup_login_socket(
 	}
 	np->np_socket = sock;
 	/*
-	 * The SCTP stack needs struct socket->file.
-	 */
-	if ((np->np_network_transport == ISCSI_SCTP_TCP) ||
-	    (np->np_network_transport == ISCSI_SCTP_UDP)) {
-		if (!sock->file) {
-			sock->file = kzalloc(sizeof(struct file), GFP_KERNEL);
-			if (!sock->file) {
-				pr_err("Unable to allocate struct"
-						" file for SCTP\n");
-				ret = -ENOMEM;
-				goto fail;
-			}
-			np->np_flags |= NPF_SCTP_STRUCT_FILE;
-		}
-	}
-	/*
 	 * Setup the np->np_sockaddr from the passed sockaddr setup
 	 * in iscsi_target_configfs.c code..
 	 */
@@ -869,21 +853,15 @@ int iscsi_target_setup_login_socket(
 
 fail:
 	np->np_socket = NULL;
-	if (sock) {
-		if (np->np_flags & NPF_SCTP_STRUCT_FILE) {
-			kfree(sock->file);
-			sock->file = NULL;
-		}
-
+	if (sock)
 		sock_release(sock);
-	}
 	return ret;
 }
 
 static int __iscsi_target_login_thread(struct iscsi_np *np)
 {
 	u8 buffer[ISCSI_HDR_LEN], iscsi_opcode, zero_tsih = 0;
-	int err, ret = 0, set_sctp_conn_flag, stop;
+	int err, ret = 0, stop;
 	struct iscsi_conn *conn = NULL;
 	struct iscsi_login *login;
 	struct iscsi_portal_group *tpg = NULL;
@@ -894,7 +872,6 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	struct sockaddr_in6 sock_in6;
 
 	flush_signals(current);
-	set_sctp_conn_flag = 0;
 	sock = np->np_socket;
 
 	spin_lock_bh(&np->np_thread_lock);
@@ -917,35 +894,12 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 		spin_unlock_bh(&np->np_thread_lock);
 		goto out;
 	}
-	/*
-	 * The SCTP stack needs struct socket->file.
-	 */
-	if ((np->np_network_transport == ISCSI_SCTP_TCP) ||
-	    (np->np_network_transport == ISCSI_SCTP_UDP)) {
-		if (!new_sock->file) {
-			new_sock->file = kzalloc(
-					sizeof(struct file), GFP_KERNEL);
-			if (!new_sock->file) {
-				pr_err("Unable to allocate struct"
-						" file for SCTP\n");
-				sock_release(new_sock);
-				/* Get another socket */
-				return 1;
-			}
-			set_sctp_conn_flag = 1;
-		}
-	}
-
 	iscsi_start_login_thread_timer(np);
 
 	conn = kzalloc(sizeof(struct iscsi_conn), GFP_KERNEL);
 	if (!conn) {
 		pr_err("Could not allocate memory for"
 			" new connection\n");
-		if (set_sctp_conn_flag) {
-			kfree(new_sock->file);
-			new_sock->file = NULL;
-		}
 		sock_release(new_sock);
 		/* Get another socket */
 		return 1;
@@ -954,9 +908,6 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	pr_debug("Moving to TARG_CONN_STATE_FREE.\n");
 	conn->conn_state = TARG_CONN_STATE_FREE;
 	conn->sock = new_sock;
-
-	if (set_sctp_conn_flag)
-		conn->conn_flags |= CONNFLAG_SCTP_STRUCT_FILE;
 
 	pr_debug("Moving to TARG_CONN_STATE_XPT_UP.\n");
 	conn->conn_state = TARG_CONN_STATE_XPT_UP;
@@ -1081,7 +1032,7 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 		goto new_sess_out;
 
 	zero_tsih = (pdu->tsih == 0x0000);
-	if ((zero_tsih)) {
+	if (zero_tsih) {
 		/*
 		 * This is the leading connection of a new session.
 		 * We wait until after authentication to check for
@@ -1205,13 +1156,8 @@ old_sess_out:
 		iscsi_release_param_list(conn->param_list);
 		conn->param_list = NULL;
 	}
-	if (conn->sock) {
-		if (conn->conn_flags & CONNFLAG_SCTP_STRUCT_FILE) {
-			kfree(conn->sock->file);
-			conn->sock->file = NULL;
-		}
+	if (conn->sock)
 		sock_release(conn->sock);
-	}
 	kfree(conn);
 
 	if (tpg) {
