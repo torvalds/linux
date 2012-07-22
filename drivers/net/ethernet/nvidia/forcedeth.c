@@ -5182,6 +5182,7 @@ static const struct ethtool_ops ops = {
 	.get_ethtool_stats = nv_get_ethtool_stats,
 	.get_sset_count = nv_get_sset_count,
 	.self_test = nv_self_test,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 /* The mgmt unit and driver use a semaphore to access the phy during init */
