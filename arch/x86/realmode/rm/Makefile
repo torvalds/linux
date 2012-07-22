@@ -22,7 +22,7 @@ wakeup-objs	+= video-bios.o
 realmode-y			+= header.o
 realmode-y			+= trampoline_$(BITS).o
 realmode-y			+= stack.o
-realmode-$(CONFIG_X86_32)	+= reboot_32.o
+realmode-y			+= reboot.o
 realmode-$(CONFIG_ACPI_SLEEP)	+= $(wakeup-objs)
 
 targets	+= $(realmode-y)

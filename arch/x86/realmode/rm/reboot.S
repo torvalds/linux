@@ -2,6 +2,8 @@
 #include <linux/init.h>
 #include <asm/segment.h>
 #include <asm/page_types.h>
+#include <asm/processor-flags.h>
+#include <asm/msr-index.h>
 #include "realmode.h"
 
 /*
@@ -12,13 +14,35 @@
  * doesn't work with at least one type of 486 motherboard.  It is easy
  * to stop this code working; hence the copious comments.
  *
- * This code is called with the restart type (0 = BIOS, 1 = APM) in %eax.
+ * This code is called with the restart type (0 = BIOS, 1 = APM) in
+ * the primary argument register (%eax for 32 bit, %edi for 64 bit).
  */
 	.section ".text32", "ax"
 	.code32
-
-	.balign	16
 ENTRY(machine_real_restart_asm)
+
+#ifdef CONFIG_X86_64
+	/* Switch to trampoline GDT as it is guaranteed < 4 GiB */
+	movl	$__KERNEL_DS, %eax
+	movl	%eax, %ds
+	lgdtl	pa_tr_gdt
+
+	/* Disable paging to drop us out of long mode */
+	movl	%cr0, %eax
+	andl	$~X86_CR0_PG, %eax
+	movl	%eax, %cr0
+	ljmpl	$__KERNEL32_CS, $pa_machine_real_restart_paging_off
+
+GLOBAL(machine_real_restart_paging_off)
+	xorl	%eax, %eax
+	xorl	%edx, %edx
+	movl	$MSR_EFER, %ecx
+	wrmsr
+
+	movl	%edi, %eax
+	
+#endif /* CONFIG_X86_64 */
+	
 	/* Set up the IDT for real mode. */
 	lidtl	pa_machine_real_restart_idt
 
