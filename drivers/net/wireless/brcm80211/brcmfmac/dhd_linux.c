@@ -1182,7 +1182,7 @@ exit:
 	kfree(buf);
 	/* close file before return */
 	if (fp)
-		filp_close(fp, current->files);
+		filp_close(fp, NULL);
 	/* restore previous address limit */
 	set_fs(old_fs);
 
