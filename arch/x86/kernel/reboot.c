@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
@@ -152,7 +154,8 @@ static int __init set_bios_reboot(const struct dmi_system_id *d)
 {
 	if (reboot_type != BOOT_BIOS) {
 		reboot_type = BOOT_BIOS;
-		printk(KERN_INFO "%s series board detected. Selecting BIOS-method for reboots.\n", d->ident);
+		pr_info("%s series board detected. Selecting %s-method for reboots.\n",
+			"BIOS", d->ident);
 	}
 	return 0;
 }
@@ -207,8 +210,8 @@ static int __init set_pci_reboot(const struct dmi_system_id *d)
 {
 	if (reboot_type != BOOT_CF9) {
 		reboot_type = BOOT_CF9;
-		printk(KERN_INFO "%s series board detected. "
-		       "Selecting PCI-method for reboots.\n", d->ident);
+		pr_info("%s series board detected. Selecting %s-method for reboots.\n",
+			"PCI", d->ident);
 	}
 	return 0;
 }
@@ -217,7 +220,8 @@ static int __init set_kbd_reboot(const struct dmi_system_id *d)
 {
 	if (reboot_type != BOOT_KBD) {
 		reboot_type = BOOT_KBD;
-		printk(KERN_INFO "%s series board detected. Selecting KBD-method for reboot.\n", d->ident);
+		pr_info("%s series board detected. Selecting %s-method for reboot.\n",
+			"KBD", d->ident);
 	}
 	return 0;
 }
@@ -678,7 +682,7 @@ static void __machine_emergency_restart(int emergency)
 
 static void native_machine_restart(char *__unused)
 {
-	printk("machine restart\n");
+	pr_notice("machine restart\n");
 
 	if (!reboot_force)
 		machine_shutdown();

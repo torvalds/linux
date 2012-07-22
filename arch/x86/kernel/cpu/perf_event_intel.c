@@ -5,6 +5,8 @@
  * among events on a single PMU.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/stddef.h>
 #include <linux/types.h>
 #include <linux/init.h>
@@ -1000,7 +1002,7 @@ static void intel_pmu_reset(void)
 
 	local_irq_save(flags);
 
-	printk("clearing PMU state on CPU#%d\n", smp_processor_id());
+	pr_info("clearing PMU state on CPU#%d\n", smp_processor_id());
 
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
 		wrmsrl_safe(x86_pmu_config_addr(idx), 0ull);
@@ -1707,7 +1709,7 @@ static __init void intel_clovertown_quirk(void)
 	 * But taken together it might just make sense to not enable PEBS on
 	 * these chips.
 	 */
-	printk(KERN_WARNING "PEBS disabled due to CPU errata.\n");
+	pr_warn("PEBS disabled due to CPU errata\n");
 	x86_pmu.pebs = 0;
 	x86_pmu.pebs_constraints = NULL;
 }
@@ -1781,8 +1783,8 @@ static __init void intel_arch_events_quirk(void)
 	/* disable event that reported as not presend by cpuid */
 	for_each_set_bit(bit, x86_pmu.events_mask, ARRAY_SIZE(intel_arch_events_map)) {
 		intel_perfmon_event_map[intel_arch_events_map[bit].id] = 0;
-		printk(KERN_WARNING "CPUID marked event: \'%s\' unavailable\n",
-				intel_arch_events_map[bit].name);
+		pr_warn("CPUID marked event: \'%s\' unavailable\n",
+			intel_arch_events_map[bit].name);
 	}
 }
 
@@ -1801,7 +1803,7 @@ static __init void intel_nehalem_quirk(void)
 		intel_perfmon_event_map[PERF_COUNT_HW_BRANCH_MISSES] = 0x7f89;
 		ebx.split.no_branch_misses_retired = 0;
 		x86_pmu.events_maskl = ebx.full;
-		printk(KERN_INFO "CPU erratum AAJ80 worked around\n");
+		pr_info("CPU erratum AAJ80 worked around\n");
 	}
 }
 

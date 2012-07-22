@@ -28,6 +28,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -137,14 +139,14 @@ struct pt_regs *save_v86_state(struct kernel_vm86_regs *regs)
 	local_irq_enable();
 
 	if (!current->thread.vm86_info) {
-		printk("no vm86_info: BAD\n");
+		pr_alert("no vm86_info: BAD\n");
 		do_exit(SIGSEGV);
 	}
 	set_flags(regs->pt.flags, VEFLAGS, X86_EFLAGS_VIF | current->thread.v86mask);
 	tmp = copy_vm86_regs_to_user(&current->thread.vm86_info->regs, regs);
 	tmp += put_user(current->thread.screen_bitmap, &current->thread.vm86_info->screen_bitmap);
 	if (tmp) {
-		printk("vm86: could not access userspace vm86_info\n");
+		pr_alert("could not access userspace vm86_info\n");
 		do_exit(SIGSEGV);
 	}
 

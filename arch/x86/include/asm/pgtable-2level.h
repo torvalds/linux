@@ -2,9 +2,9 @@
 #define _ASM_X86_PGTABLE_2LEVEL_H
 
 #define pte_ERROR(e) \
-	printk("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, (e).pte_low)
+	pr_err("%s:%d: bad pte %08lx\n", __FILE__, __LINE__, (e).pte_low)
 #define pgd_ERROR(e) \
-	printk("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
+	pr_err("%s:%d: bad pgd %08lx\n", __FILE__, __LINE__, pgd_val(e))
 
 /*
  * Certain architectures need to do special things when PTEs

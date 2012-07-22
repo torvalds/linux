@@ -1,4 +1,4 @@
-/*
+ /*
  *	x86 SMP booting functions
  *
  *	(c) 1995 Alan Cox, Building #3 <alan@lxorguk.ukuu.org.uk>
@@ -38,6 +38,8 @@
  *	Ashok Raj		: 	CPU hotplug support
  *	Glauber Costa		:	i386 and x86_64 integration
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/init.h>
 #include <linux/smp.h>
@@ -184,7 +186,7 @@ static void __cpuinit smp_callin(void)
 	 * boards)
 	 */
 
-	pr_debug("CALLIN, before setup_local_APIC().\n");
+	pr_debug("CALLIN, before setup_local_APIC()\n");
 	if (apic->smp_callin_clear_local_apic)
 		apic->smp_callin_clear_local_apic();
 	setup_local_APIC();
@@ -423,17 +425,16 @@ static void impress_friends(void)
 	/*
 	 * Allow the user to impress friends.
 	 */
-	pr_debug("Before bogomips.\n");
+	pr_debug("Before bogomips\n");
 	for_each_possible_cpu(cpu)
 		if (cpumask_test_cpu(cpu, cpu_callout_mask))
 			bogosum += cpu_data(cpu).loops_per_jiffy;
-	printk(KERN_INFO
-		"Total of %d processors activated (%lu.%02lu BogoMIPS).\n",
+	pr_info("Total of %d processors activated (%lu.%02lu BogoMIPS)\n",
 		num_online_cpus(),
 		bogosum/(500000/HZ),
 		(bogosum/(5000/HZ))%100);
 
-	pr_debug("Before bogocount - setting activated=1.\n");
+	pr_debug("Before bogocount - setting activated=1\n");
 }
 
 void __inquire_remote_apic(int apicid)
@@ -443,18 +444,17 @@ void __inquire_remote_apic(int apicid)
 	int timeout;
 	u32 status;
 
-	printk(KERN_INFO "Inquiring remote APIC 0x%x...\n", apicid);
+	pr_info("Inquiring remote APIC 0x%x...\n", apicid);
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
-		printk(KERN_INFO "... APIC 0x%x %s: ", apicid, names[i]);
+		pr_info("... APIC 0x%x %s: ", apicid, names[i]);
 
 		/*
 		 * Wait for idle.
 		 */
 		status = safe_apic_wait_icr_idle();
 		if (status)
-			printk(KERN_CONT
-			       "a previous APIC delivery may have failed\n");
+			pr_cont("a previous APIC delivery may have failed\n");
 
 		apic_icr_write(APIC_DM_REMRD | regs[i], apicid);
 
@@ -467,10 +467,10 @@ void __inquire_remote_apic(int apicid)
 		switch (status) {
 		case APIC_ICR_RR_VALID:
 			status = apic_read(APIC_RRR);
-			printk(KERN_CONT "%08x\n", status);
+			pr_cont("%08x\n", status);
 			break;
 		default:
-			printk(KERN_CONT "failed\n");
+			pr_cont("failed\n");
 		}
 	}
 }
@@ -504,12 +504,12 @@ wakeup_secondary_cpu_via_nmi(int logical_apicid, unsigned long start_eip)
 			apic_write(APIC_ESR, 0);
 		accept_status = (apic_read(APIC_ESR) & 0xEF);
 	}
-	pr_debug("NMI sent.\n");
+	pr_debug("NMI sent\n");
 
 	if (send_status)
-		printk(KERN_ERR "APIC never delivered???\n");
+		pr_err("APIC never delivered???\n");
 	if (accept_status)
-		printk(KERN_ERR "APIC delivery error (%lx).\n", accept_status);
+		pr_err("APIC delivery error (%lx)\n", accept_status);
 
 	return (send_status | accept_status);
 }
@@ -531,7 +531,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 		apic_read(APIC_ESR);
 	}
 
-	pr_debug("Asserting INIT.\n");
+	pr_debug("Asserting INIT\n");
 
 	/*
 	 * Turn INIT on target chip
@@ -547,7 +547,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 
 	mdelay(10);
 
-	pr_debug("Deasserting INIT.\n");
+	pr_debug("Deasserting INIT\n");
 
 	/* Target chip */
 	/* Send IPI */
@@ -580,14 +580,14 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 	/*
 	 * Run STARTUP IPI loop.
 	 */
-	pr_debug("#startup loops: %d.\n", num_starts);
+	pr_debug("#startup loops: %d\n", num_starts);
 
 	for (j = 1; j <= num_starts; j++) {
-		pr_debug("Sending STARTUP #%d.\n", j);
+		pr_debug("Sending STARTUP #%d\n", j);
 		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP.  */
 			apic_write(APIC_ESR, 0);
 		apic_read(APIC_ESR);
-		pr_debug("After apic_write.\n");
+		pr_debug("After apic_write\n");
 
 		/*
 		 * STARTUP IPI
@@ -604,7 +604,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 		 */
 		udelay(300);
 
-		pr_debug("Startup point 1.\n");
+		pr_debug("Startup point 1\n");
 
 		pr_debug("Waiting for send to finish...\n");
 		send_status = safe_apic_wait_icr_idle();
@@ -619,12 +619,12 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 		if (send_status || accept_status)
 			break;
 	}
-	pr_debug("After Startup.\n");
+	pr_debug("After Startup\n");
 
 	if (send_status)
-		printk(KERN_ERR "APIC never delivered???\n");
+		pr_err("APIC never delivered???\n");
 	if (accept_status)
-		printk(KERN_ERR "APIC delivery error (%lx).\n", accept_status);
+		pr_err("APIC delivery error (%lx)\n", accept_status);
 
 	return (send_status | accept_status);
 }
@@ -638,11 +638,11 @@ static void __cpuinit announce_cpu(int cpu, int apicid)
 	if (system_state == SYSTEM_BOOTING) {
 		if (node != current_node) {
 			if (current_node > (-1))
-				pr_cont(" Ok.\n");
+				pr_cont(" OK\n");
 			current_node = node;
 			pr_info("Booting Node %3d, Processors ", node);
 		}
-		pr_cont(" #%d%s", cpu, cpu == (nr_cpu_ids - 1) ? " Ok.\n" : "");
+		pr_cont(" #%d%s", cpu, cpu == (nr_cpu_ids - 1) ? " OK\n" : "");
 		return;
 	} else
 		pr_info("Booting Node %d Processor %d APIC 0x%x\n",
@@ -722,9 +722,9 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 		/*
 		 * allow APs to start initializing.
 		 */
-		pr_debug("Before Callout %d.\n", cpu);
+		pr_debug("Before Callout %d\n", cpu);
 		cpumask_set_cpu(cpu, cpu_callout_mask);
-		pr_debug("After Callout %d.\n", cpu);
+		pr_debug("After Callout %d\n", cpu);
 
 		/*
 		 * Wait 5s total for a response
@@ -752,7 +752,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 				pr_err("CPU%d: Stuck ??\n", cpu);
 			else
 				/* trampoline code not run */
-				pr_err("CPU%d: Not responding.\n", cpu);
+				pr_err("CPU%d: Not responding\n", cpu);
 			if (apic->inquire_remote_apic)
 				apic->inquire_remote_apic(apicid);
 		}
@@ -797,7 +797,7 @@ int __cpuinit native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 	if (apicid == BAD_APICID || apicid == boot_cpu_physical_apicid ||
 	    !physid_isset(apicid, phys_cpu_present_map) ||
 	    !apic->apic_id_valid(apicid)) {
-		printk(KERN_ERR "%s: bad cpu %d\n", __func__, cpu);
+		pr_err("%s: bad cpu %d\n", __func__, cpu);
 		return -EINVAL;
 	}
 
@@ -878,9 +878,8 @@ static int __init smp_sanity_check(unsigned max_cpus)
 		unsigned int cpu;
 		unsigned nr;
 
-		printk(KERN_WARNING
-		       "More than 8 CPUs detected - skipping them.\n"
-		       "Use CONFIG_X86_BIGSMP.\n");
+		pr_warn("More than 8 CPUs detected - skipping them\n"
+			"Use CONFIG_X86_BIGSMP\n");
 
 		nr = 0;
 		for_each_present_cpu(cpu) {
@@ -901,8 +900,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 #endif
 
 	if (!physid_isset(hard_smp_processor_id(), phys_cpu_present_map)) {
-		printk(KERN_WARNING
-			"weird, boot CPU (#%d) not listed by the BIOS.\n",
+		pr_warn("weird, boot CPU (#%d) not listed by the BIOS\n",
 			hard_smp_processor_id());
 
 		physid_set(hard_smp_processor_id(), phys_cpu_present_map);
@@ -914,11 +912,10 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	 */
 	if (!smp_found_config && !acpi_lapic) {
 		preempt_enable();
-		printk(KERN_NOTICE "SMP motherboard not detected.\n");
+		pr_notice("SMP motherboard not detected\n");
 		disable_smp();
 		if (APIC_init_uniprocessor())
-			printk(KERN_NOTICE "Local APIC not detected."
-					   " Using dummy APIC emulation.\n");
+			pr_notice("Local APIC not detected. Using dummy APIC emulation.\n");
 		return -1;
 	}
 
@@ -927,9 +924,8 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	 * CPU too, but we do it for the sake of robustness anyway.
 	 */
 	if (!apic->check_phys_apicid_present(boot_cpu_physical_apicid)) {
-		printk(KERN_NOTICE
-			"weird, boot CPU (#%d) not listed by the BIOS.\n",
-			boot_cpu_physical_apicid);
+		pr_notice("weird, boot CPU (#%d) not listed by the BIOS\n",
+			  boot_cpu_physical_apicid);
 		physid_set(hard_smp_processor_id(), phys_cpu_present_map);
 	}
 	preempt_enable();
@@ -942,8 +938,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 		if (!disable_apic) {
 			pr_err("BIOS bug, local APIC #%d not detected!...\n",
 				boot_cpu_physical_apicid);
-			pr_err("... forcing use of dummy APIC emulation."
-				"(tell your hw vendor)\n");
+			pr_err("... forcing use of dummy APIC emulation (tell your hw vendor)\n");
 		}
 		smpboot_clear_io_apic();
 		disable_ioapic_support();
@@ -956,7 +951,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	 * If SMP should be disabled, then really disable it!
 	 */
 	if (!max_cpus) {
-		printk(KERN_INFO "SMP mode deactivated.\n");
+		pr_info("SMP mode deactivated\n");
 		smpboot_clear_io_apic();
 
 		connect_bsp_APIC();
@@ -1008,7 +1003,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 
 
 	if (smp_sanity_check(max_cpus) < 0) {
-		printk(KERN_INFO "SMP disabled\n");
+		pr_info("SMP disabled\n");
 		disable_smp();
 		goto out;
 	}
@@ -1046,7 +1041,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	 * Set up local APIC timer on boot CPU.
 	 */
 
-	printk(KERN_INFO "CPU%d: ", 0);
+	pr_info("CPU%d: ", 0);
 	print_cpu_info(&cpu_data(0));
 	x86_init.timers.setup_percpu_clockev();
 
@@ -1096,7 +1091,7 @@ void __init native_smp_prepare_boot_cpu(void)
 
 void __init native_smp_cpus_done(unsigned int max_cpus)
 {
-	pr_debug("Boot done.\n");
+	pr_debug("Boot done\n");
 
 	nmi_selftest();
 	impress_friends();
@@ -1157,8 +1152,7 @@ __init void prefill_possible_map(void)
 
 	/* nr_cpu_ids could be reduced via nr_cpus= */
 	if (possible > nr_cpu_ids) {
-		printk(KERN_WARNING
-			"%d Processors exceeds NR_CPUS limit of %d\n",
+		pr_warn("%d Processors exceeds NR_CPUS limit of %d\n",
 			possible, nr_cpu_ids);
 		possible = nr_cpu_ids;
 	}
@@ -1167,13 +1161,12 @@ __init void prefill_possible_map(void)
 	if (!setup_max_cpus)
 #endif
 	if (possible > i) {
-		printk(KERN_WARNING
-			"%d Processors exceeds max_cpus limit of %u\n",
+		pr_warn("%d Processors exceeds max_cpus limit of %u\n",
 			possible, setup_max_cpus);
 		possible = i;
 	}
 
-	printk(KERN_INFO "SMP: Allowing %d CPUs, %d hotplug CPUs\n",
+	pr_info("Allowing %d CPUs, %d hotplug CPUs\n",
 		possible, max_t(int, possible - num_processors, 0));
 
 	for (i = 0; i < possible; i++)

@@ -6,6 +6,9 @@
  *  2000-06-20  Pentium III FXSR, SSE support by Gareth Hughes
  *  2000-2002   x86-64 support by Andi Kleen
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -814,7 +817,7 @@ void signal_fault(struct pt_regs *regs, void __user *frame, char *where)
 		       me->comm, me->pid, where, frame,
 		       regs->ip, regs->sp, regs->orig_ax);
 		print_vma_addr(" in ", regs->ip);
-		printk(KERN_CONT "\n");
+		pr_cont("\n");
 	}
 
 	force_sig(SIGSEGV, me);

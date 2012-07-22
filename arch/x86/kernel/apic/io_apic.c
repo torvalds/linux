@@ -448,8 +448,8 @@ static int __add_pin_to_irq_node(struct irq_cfg *cfg, int node, int apic, int pi
 
 	entry = alloc_irq_pin_list(node);
 	if (!entry) {
-		printk(KERN_ERR "can not alloc irq_pin_list (%d,%d,%d)\n",
-				node, apic, pin);
+		pr_err("can not alloc irq_pin_list (%d,%d,%d)\n",
+		       node, apic, pin);
 		return -ENOMEM;
 	}
 	entry->apic = apic;
@@ -661,7 +661,7 @@ static void clear_IO_APIC_pin(unsigned int apic, unsigned int pin)
 	ioapic_mask_entry(apic, pin);
 	entry = ioapic_read_entry(apic, pin);
 	if (entry.irr)
-		printk(KERN_ERR "Unable to reset IRR for apic: %d, pin :%d\n",
+		pr_err("Unable to reset IRR for apic: %d, pin :%d\n",
 		       mpc_ioapic_id(apic), pin);
 }
 
@@ -895,7 +895,7 @@ static int irq_polarity(int idx)
 		}
 		case 2: /* reserved */
 		{
-			printk(KERN_WARNING "broken BIOS!!\n");
+			pr_warn("broken BIOS!!\n");
 			polarity = 1;
 			break;
 		}
@@ -906,7 +906,7 @@ static int irq_polarity(int idx)
 		}
 		default: /* invalid */
 		{
-			printk(KERN_WARNING "broken BIOS!!\n");
+			pr_warn("broken BIOS!!\n");
 			polarity = 1;
 			break;
 		}
@@ -948,7 +948,7 @@ static int irq_trigger(int idx)
 				}
 				default:
 				{
-					printk(KERN_WARNING "broken BIOS!!\n");
+					pr_warn("broken BIOS!!\n");
 					trigger = 1;
 					break;
 				}
@@ -962,7 +962,7 @@ static int irq_trigger(int idx)
 		}
 		case 2: /* reserved */
 		{
-			printk(KERN_WARNING "broken BIOS!!\n");
+			pr_warn("broken BIOS!!\n");
 			trigger = 1;
 			break;
 		}
@@ -973,7 +973,7 @@ static int irq_trigger(int idx)
 		}
 		default: /* invalid */
 		{
-			printk(KERN_WARNING "broken BIOS!!\n");
+			pr_warn("broken BIOS!!\n");
 			trigger = 0;
 			break;
 		}
@@ -991,7 +991,7 @@ static int pin_2_irq(int idx, int apic, int pin)
 	 * Debugging check, we are in big trouble if this message pops up!
 	 */
 	if (mp_irqs[idx].dstirq != pin)
-		printk(KERN_ERR "broken BIOS or MPTABLE parser, ayiee!!\n");
+		pr_err("broken BIOS or MPTABLE parser, ayiee!!\n");
 
 	if (test_bit(bus, mp_bus_not_pci)) {
 		irq = mp_irqs[idx].srcbusirq;
@@ -1521,7 +1521,6 @@ __apicdebuginit(void) print_IO_APIC(int ioapic_idx)
 		reg_03.raw = io_apic_read(ioapic_idx, 3);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 
-	printk("\n");
 	printk(KERN_DEBUG "IO APIC #%d......\n", mpc_ioapic_id(ioapic_idx));
 	printk(KERN_DEBUG ".... register #00: %08X\n", reg_00.raw);
 	printk(KERN_DEBUG ".......    : physical APIC id: %02X\n", reg_00.bits.ID);
@@ -1578,7 +1577,7 @@ __apicdebuginit(void) print_IO_APIC(int ioapic_idx)
 				i,
 				ir_entry->index
 			);
-			printk("%1d   %1d    %1d    %1d   %1d   "
+			pr_cont("%1d   %1d    %1d    %1d   %1d   "
 				"%1d    %1d     %X    %02X\n",
 				ir_entry->format,
 				ir_entry->mask,
@@ -1598,7 +1597,7 @@ __apicdebuginit(void) print_IO_APIC(int ioapic_idx)
 				i,
 				entry.dest
 			);
-			printk("%1d    %1d    %1d   %1d   %1d    "
+			pr_cont("%1d    %1d    %1d   %1d   %1d    "
 				"%1d    %1d    %02X\n",
 				entry.mask,
 				entry.trigger,
@@ -1651,8 +1650,8 @@ __apicdebuginit(void) print_IO_APICs(void)
 			continue;
 		printk(KERN_DEBUG "IRQ%d ", irq);
 		for_each_irq_pin(entry, cfg->irq_2_pin)
-			printk("-> %d:%d", entry->apic, entry->pin);
-		printk("\n");
+			pr_cont("-> %d:%d", entry->apic, entry->pin);
+		pr_cont("\n");
 	}
 
 	printk(KERN_INFO ".................................... done.\n");
@@ -1665,9 +1664,9 @@ __apicdebuginit(void) print_APIC_field(int base)
 	printk(KERN_DEBUG);
 
 	for (i = 0; i < 8; i++)
-		printk(KERN_CONT "%08x", apic_read(base + i*0x10));
+		pr_cont("%08x", apic_read(base + i*0x10));
 
-	printk(KERN_CONT "\n");
+	pr_cont("\n");
 }
 
 __apicdebuginit(void) print_local_APIC(void *dummy)
@@ -1769,7 +1768,7 @@ __apicdebuginit(void) print_local_APIC(void *dummy)
 			printk(KERN_DEBUG "... APIC EILVT%d: %08x\n", i, v);
 		}
 	}
-	printk("\n");
+	pr_cont("\n");
 }
 
 __apicdebuginit(void) print_local_APICs(int maxcpu)
@@ -2065,7 +2064,7 @@ void __init setup_ioapic_ids_from_mpc_nocheck(void)
 		reg_00.raw = io_apic_read(ioapic_idx, 0);
 		raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 		if (reg_00.bits.ID != mpc_ioapic_id(ioapic_idx))
-			printk("could not set ID!\n");
+			pr_cont("could not set ID!\n");
 		else
 			apic_printk(APIC_VERBOSE, " ok.\n");
 	}
@@ -3563,7 +3562,8 @@ static int __init io_apic_get_unique_id(int ioapic, int apic_id)
 
 		/* Sanity check */
 		if (reg_00.bits.ID != apic_id) {
-			printk("IOAPIC[%d]: Unable to change apic_id!\n", ioapic);
+			pr_err("IOAPIC[%d]: Unable to change apic_id!\n",
+			       ioapic);
 			return -1;
 		}
 	}

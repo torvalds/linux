@@ -514,7 +514,7 @@ static struct notifier_block __refdata mc_cpu_notifier = {
 
 #ifdef MODULE
 /* Autoload on Intel and AMD systems */
-static const struct x86_cpu_id microcode_id[] = {
+static const struct x86_cpu_id __initconst microcode_id[] = {
 #ifdef CONFIG_MICROCODE_INTEL
 	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, },
 #endif
