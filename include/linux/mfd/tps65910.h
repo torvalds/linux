@@ -880,4 +880,10 @@ static inline int tps65910_reg_clear_bits(struct tps65910 *tps65910, u8 reg,
 	return regmap_update_bits(tps65910->regmap, reg, mask, 0);
 }
 
+static inline int tps65910_reg_update_bits(struct tps65910 *tps65910, u8 reg,
+					   u8 mask, u8 val)
+{
+	return regmap_update_bits(tps65910->regmap, reg, mask, val);
+}
+
 #endif /*  __LINUX_MFD_TPS65910_H */

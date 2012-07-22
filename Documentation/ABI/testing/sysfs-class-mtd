@@ -142,13 +142,14 @@ KernelVersion:	3.4
 Contact:	linux-mtd@lists.infradead.org
 Description:
 		This allows the user to examine and adjust the criteria by which
-		mtd returns -EUCLEAN from mtd_read().  If the maximum number of
-		bit errors that were corrected on any single region comprising
-		an ecc step (as reported by the driver) equals or exceeds this
-		value, -EUCLEAN is returned.  Otherwise, absent an error, 0 is
-		returned.  Higher layers (e.g., UBI) use this return code as an
-		indication that an erase block may be degrading and should be
-		scrutinized as a candidate for being marked as bad.
+		mtd returns -EUCLEAN from mtd_read() and mtd_read_oob().  If the
+		maximum number of bit errors that were corrected on any single
+		region comprising an ecc step (as reported by the driver) equals
+		or exceeds this value, -EUCLEAN is returned.  Otherwise, absent
+		an error, 0 is returned.  Higher layers (e.g., UBI) use this
+		return code as an indication that an erase block may be
+		degrading and should be scrutinized as a candidate for being
+		marked as bad.
 
 		The initial value may be specified by the flash device driver.
 		If not, then the default value is ecc_strength.
@@ -167,7 +168,7 @@ Description:
 		block degradation, but high enough to avoid the consequences of
 		a persistent return value of -EUCLEAN on devices where sticky
 		bitflips occur.  Note that if bitflip_threshold exceeds
-		ecc_strength, -EUCLEAN is never returned by mtd_read().
+		ecc_strength, -EUCLEAN is never returned by the read operations.
 		Conversely, if bitflip_threshold is zero, -EUCLEAN is always
 		returned, absent a hard error.
 

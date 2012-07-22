@@ -1147,7 +1147,7 @@ static int mei_pci_resume(struct device *device)
 		err = request_threaded_irq(pdev->irq,
 			NULL,
 			mei_interrupt_thread_handler,
-			0, mei_driver_name, dev);
+			IRQF_ONESHOT, mei_driver_name, dev);
 	else
 		err = request_threaded_irq(pdev->irq,
 			mei_interrupt_quick_handler,

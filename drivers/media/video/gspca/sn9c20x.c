@@ -2070,10 +2070,13 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	set_gamma(gspca_dev, v4l2_ctrl_g_ctrl(sd->gamma));
 	set_redblue(gspca_dev, v4l2_ctrl_g_ctrl(sd->blue),
 			v4l2_ctrl_g_ctrl(sd->red));
-	set_gain(gspca_dev, v4l2_ctrl_g_ctrl(sd->gain));
-	set_exposure(gspca_dev, v4l2_ctrl_g_ctrl(sd->exposure));
-	set_hvflip(gspca_dev, v4l2_ctrl_g_ctrl(sd->hflip),
-			v4l2_ctrl_g_ctrl(sd->vflip));
+	if (sd->gain)
+		set_gain(gspca_dev, v4l2_ctrl_g_ctrl(sd->gain));
+	if (sd->exposure)
+		set_exposure(gspca_dev, v4l2_ctrl_g_ctrl(sd->exposure));
+	if (sd->hflip)
+		set_hvflip(gspca_dev, v4l2_ctrl_g_ctrl(sd->hflip),
+				v4l2_ctrl_g_ctrl(sd->vflip));
 
 	reg_w1(gspca_dev, 0x1007, 0x20);
 	reg_w1(gspca_dev, 0x1061, 0x03);
@@ -2176,7 +2179,7 @@ static void sd_dqcallback(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int avg_lum;
 
-	if (!v4l2_ctrl_g_ctrl(sd->autogain))
+	if (sd->autogain == NULL || !v4l2_ctrl_g_ctrl(sd->autogain))
 		return;
 
 	avg_lum = atomic_read(&sd->avg_lum);

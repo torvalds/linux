@@ -100,13 +100,12 @@ static unsigned int ldo_voltage_value(u8 bits)
 	return 900 + (bits * 100);
 }
 
-static int pcf50633_regulator_set_voltage(struct regulator_dev *rdev,
-					  int min_uV, int max_uV,
-					  unsigned *selector)
+static int pcf50633_regulator_map_voltage(struct regulator_dev *rdev,
+					  int min_uV, int max_uV)
 {
 	struct pcf50633 *pcf;
 	int regulator_id, millivolts;
-	u8 volt_bits, regnr;
+	u8 volt_bits;
 
 	pcf = rdev_get_drvdata(rdev);
 
@@ -116,15 +115,11 @@ static int pcf50633_regulator_set_voltage(struct regulator_dev *rdev,
 
 	millivolts = min_uV / 1000;
 
-	regnr = rdev->desc->vsel_reg;
-
 	switch (regulator_id) {
 	case PCF50633_REGULATOR_AUTO:
 		volt_bits = auto_voltage_bits(millivolts);
 		break;
 	case PCF50633_REGULATOR_DOWN1:
-		volt_bits = down_voltage_bits(millivolts);
-		break;
 	case PCF50633_REGULATOR_DOWN2:
 		volt_bits = down_voltage_bits(millivolts);
 		break;
@@ -142,9 +137,7 @@ static int pcf50633_regulator_set_voltage(struct regulator_dev *rdev,
 		return -EINVAL;
 	}
 
-	*selector = volt_bits;
-
-	return pcf50633_reg_write(pcf, regnr, volt_bits);
+	return volt_bits;
 }
 
 static int pcf50633_regulator_list_voltage(struct regulator_dev *rdev,
@@ -159,8 +152,6 @@ static int pcf50633_regulator_list_voltage(struct regulator_dev *rdev,
 		millivolts = auto_voltage_value(index);
 		break;
 	case PCF50633_REGULATOR_DOWN1:
-		millivolts = down_voltage_value(index);
-		break;
 	case PCF50633_REGULATOR_DOWN2:
 		millivolts = down_voltage_value(index);
 		break;
@@ -182,9 +173,10 @@ static int pcf50633_regulator_list_voltage(struct regulator_dev *rdev,
 }
 
 static struct regulator_ops pcf50633_regulator_ops = {
-	.set_voltage = pcf50633_regulator_set_voltage,
+	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.list_voltage = pcf50633_regulator_list_voltage,
+	.map_voltage = pcf50633_regulator_map_voltage,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,

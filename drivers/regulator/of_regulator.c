@@ -20,7 +20,7 @@ static void of_get_regulation_constraints(struct device_node *np,
 					struct regulator_init_data **init_data)
 {
 	const __be32 *min_uV, *max_uV, *uV_offset;
-	const __be32 *min_uA, *max_uA;
+	const __be32 *min_uA, *max_uA, *ramp_delay;
 	struct regulation_constraints *constraints = &(*init_data)->constraints;
 
 	constraints->name = of_get_property(np, "regulator-name", NULL);
@@ -60,6 +60,10 @@ static void of_get_regulation_constraints(struct device_node *np,
 		constraints->always_on = true;
 	else /* status change should be possible if not always on. */
 		constraints->valid_ops_mask |= REGULATOR_CHANGE_STATUS;
+
+	ramp_delay = of_get_property(np, "regulator-ramp-delay", NULL);
+	if (ramp_delay)
+		constraints->ramp_delay = be32_to_cpu(*ramp_delay);
 }
 
 /**
@@ -88,15 +92,17 @@ struct regulator_init_data *of_get_regulator_init_data(struct device *dev,
 EXPORT_SYMBOL_GPL(of_get_regulator_init_data);
 
 /**
- * of_regulator_match - extract regulator init data
+ * of_regulator_match - extract regulator init data when node
+ * property "regulator-compatible" matches with the regulator name.
  * @dev: device requesting the data
  * @node: parent device node of the regulators
  * @matches: match table for the regulators
  * @num_matches: number of entries in match table
  *
  * This function uses a match table specified by the regulator driver and
- * looks up the corresponding init data in the device tree. Note that the
- * match table is modified in place.
+ * looks up the corresponding init data in the device tree  if
+ * regulator-compatible matches. Note that the match table is modified
+ * in place.
  *
  * Returns the number of matches found or a negative error code on failure.
  */
@@ -106,27 +112,40 @@ int of_regulator_match(struct device *dev, struct device_node *node,
 {
 	unsigned int count = 0;
 	unsigned int i;
+	const char *regulator_comp;
+	struct device_node *child;
 
 	if (!dev || !node)
 		return -EINVAL;
 
-	for (i = 0; i < num_matches; i++) {
-		struct of_regulator_match *match = &matches[i];
-		struct device_node *child;
-
-		child = of_find_node_by_name(node, match->name);
-		if (!child)
-			continue;
-
-		match->init_data = of_get_regulator_init_data(dev, child);
-		if (!match->init_data) {
-			dev_err(dev, "failed to parse DT for regulator %s\n",
+	for_each_child_of_node(node, child) {
+		regulator_comp = of_get_property(child,
+					"regulator-compatible", NULL);
+		if (!regulator_comp) {
+			dev_err(dev, "regulator-compatible is missing for node %s\n",
 				child->name);
-			return -EINVAL;
+			continue;
 		}
+		for (i = 0; i < num_matches; i++) {
+			struct of_regulator_match *match = &matches[i];
+			if (match->of_node)
+				continue;
 
-		match->of_node = child;
-		count++;
+			if (strcmp(match->name, regulator_comp))
+				continue;
+
+			match->init_data =
+				of_get_regulator_init_data(dev, child);
+			if (!match->init_data) {
+				dev_err(dev,
+					"failed to parse DT for regulator %s\n",
+					child->name);
+				return -EINVAL;
+			}
+			match->of_node = child;
+			count++;
+			break;
+		}
 	}
 
 	return count;
