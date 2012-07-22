@@ -103,8 +103,6 @@ void __cpuinit smp_callin(void)
 	if (cheetah_pcache_forced_on)
 		cheetah_enable_pcache();
 
-	local_irq_enable();
-
 	callin_flag = 1;
 	__asm__ __volatile__("membar #Sync\n\t"
 			     "flush  %%g6" : : : "memory");
@@ -124,9 +122,8 @@ void __cpuinit smp_callin(void)
 	while (!cpumask_test_cpu(cpuid, &smp_commenced_mask))
 		rmb();
 
-	ipi_call_lock_irq();
 	set_cpu_online(cpuid, true);
-	ipi_call_unlock_irq();
+	local_irq_enable();
 
 	/* idle thread is expected to have preempt disabled */
 	preempt_disable();
@@ -1308,9 +1305,7 @@ int __cpu_disable(void)
 	mdelay(1);
 	local_irq_disable();
 
-	ipi_call_lock();
 	set_cpu_online(cpu, false);
-	ipi_call_unlock();
 
 	cpu_map_rebuild();
 
