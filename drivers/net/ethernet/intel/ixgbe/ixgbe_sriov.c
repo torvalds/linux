@@ -236,7 +236,7 @@ void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 	if (ixgbe_vfs_are_assigned(adapter)) {
 		e_dev_warn("Unloading driver while VFs are assigned - VFs will not be deallocated\n");
 		return;
-
+	}
 	/* disable iov and allow time for transactions to clear */
 	pci_disable_sriov(adapter->pdev);
 #endif
