@@ -1875,7 +1875,7 @@ struct dentry *kern_path_locked(const char *name, struct path *path)
 		return ERR_PTR(-EINVAL);
 	}
 	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
-	d = lookup_one_len(nd.last.name, nd.path.dentry, nd.last.len);
+	d = __lookup_hash(&nd.last, nd.path.dentry, 0);
 	if (IS_ERR(d)) {
 		mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
 		path_put(&nd.path);
