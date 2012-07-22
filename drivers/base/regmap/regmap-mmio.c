@@ -37,7 +37,7 @@ static int regmap_mmio_gather_write(void *context,
 
 	BUG_ON(reg_size != 4);
 
-	offset = be32_to_cpup(reg);
+	offset = *(u32 *)reg;
 
 	while (val_size) {
 		switch (ctx->val_bytes) {
@@ -45,14 +45,14 @@ static int regmap_mmio_gather_write(void *context,
 			writeb(*(u8 *)val, ctx->regs + offset);
 			break;
 		case 2:
-			writew(be16_to_cpup(val), ctx->regs + offset);
+			writew(*(u16 *)val, ctx->regs + offset);
 			break;
 		case 4:
-			writel(be32_to_cpup(val), ctx->regs + offset);
+			writel(*(u32 *)val, ctx->regs + offset);
 			break;
 #ifdef CONFIG_64BIT
 		case 8:
-			writeq(be64_to_cpup(val), ctx->regs + offset);
+			writeq(*(u64 *)val, ctx->regs + offset);
 			break;
 #endif
 		default:
@@ -83,7 +83,7 @@ static int regmap_mmio_read(void *context,
 
 	BUG_ON(reg_size != 4);
 
-	offset = be32_to_cpup(reg);
+	offset = *(u32 *)reg;
 
 	while (val_size) {
 		switch (ctx->val_bytes) {
@@ -91,14 +91,14 @@ static int regmap_mmio_read(void *context,
 			*(u8 *)val = readb(ctx->regs + offset);
 			break;
 		case 2:
-			*(u16 *)val = cpu_to_be16(readw(ctx->regs + offset));
+			*(u16 *)val = readw(ctx->regs + offset);
 			break;
 		case 4:
-			*(u32 *)val = cpu_to_be32(readl(ctx->regs + offset));
+			*(u32 *)val = readl(ctx->regs + offset);
 			break;
 #ifdef CONFIG_64BIT
 		case 8:
-			*(u64 *)val = cpu_to_be32(readq(ctx->regs + offset));
+			*(u64 *)val = readq(ctx->regs + offset);
 			break;
 #endif
 		default:
@@ -124,9 +124,11 @@ static struct regmap_bus regmap_mmio = {
 	.gather_write = regmap_mmio_gather_write,
 	.read = regmap_mmio_read,
 	.free_context = regmap_mmio_free_context,
+	.reg_format_endian_default = REGMAP_ENDIAN_NATIVE,
+	.val_format_endian_default = REGMAP_ENDIAN_NATIVE,
 };
 
-struct regmap_mmio_context *regmap_mmio_gen_context(void __iomem *regs,
+static struct regmap_mmio_context *regmap_mmio_gen_context(void __iomem *regs,
 					const struct regmap_config *config)
 {
 	struct regmap_mmio_context *ctx;
@@ -162,7 +164,15 @@ struct regmap_mmio_context *regmap_mmio_gen_context(void __iomem *regs,
 	if (config->reg_stride < min_stride)
 		return ERR_PTR(-EINVAL);
 
-	ctx = kzalloc(GFP_KERNEL, sizeof(*ctx));
+	switch (config->reg_format_endian) {
+	case REGMAP_ENDIAN_DEFAULT:
+	case REGMAP_ENDIAN_NATIVE:
+		break;
+	default:
+		return ERR_PTR(-EINVAL);
+	}
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
