@@ -1376,7 +1376,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	mpic->isu_mask = (1 << mpic->isu_shift) - 1;
 
 	mpic->irqhost = irq_domain_add_linear(mpic->node,
-				       last_irq + 1,
+				       intvec_top,
 				       &mpic_host_ops, mpic);
 
 	/*
