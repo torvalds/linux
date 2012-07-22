@@ -182,10 +182,21 @@ enum dso_swap_type {
 	DSO_SWAP__YES,
 };
 
+#define DSO__DATA_CACHE_SIZE 4096
+#define DSO__DATA_CACHE_MASK ~(DSO__DATA_CACHE_SIZE - 1)
+
+struct dso_cache {
+	struct rb_node	rb_node;
+	u64 offset;
+	u64 size;
+	char data[0];
+};
+
 struct dso {
 	struct list_head node;
 	struct rb_root	 symbols[MAP__NR_TYPES];
 	struct rb_root	 symbol_names[MAP__NR_TYPES];
+	struct rb_root	 cache;
 	enum dso_kernel_type	kernel;
 	enum dso_swap_type	needs_swap;
 	enum dso_binary_type	symtab_type;

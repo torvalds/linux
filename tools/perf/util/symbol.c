@@ -29,6 +29,7 @@
 #define NT_GNU_BUILD_ID 3
 #endif
 
+static void dso_cache__free(struct rb_root *root);
 static bool dso__build_id_equal(const struct dso *dso, u8 *build_id);
 static int elf_read_build_id(Elf *elf, void *bf, size_t size);
 static void dsos__add(struct list_head *head, struct dso *dso);
@@ -343,6 +344,7 @@ struct dso *dso__new(const char *name)
 		dso__set_short_name(dso, dso->name);
 		for (i = 0; i < MAP__NR_TYPES; ++i)
 			dso->symbols[i] = dso->symbol_names[i] = RB_ROOT;
+		dso->cache = RB_ROOT;
 		dso->symtab_type = DSO_BINARY_TYPE__NOT_FOUND;
 		dso->data_type   = DSO_BINARY_TYPE__NOT_FOUND;
 		dso->loaded = 0;
@@ -378,6 +380,7 @@ void dso__delete(struct dso *dso)
 		free((char *)dso->short_name);
 	if (dso->lname_alloc)
 		free(dso->long_name);
+	dso_cache__free(&dso->cache);
 	free(dso);
 }
 
@@ -3008,22 +3011,87 @@ int dso__data_fd(struct dso *dso, struct machine *machine)
 	return -EINVAL;
 }
 
-static ssize_t dso_cache_read(struct dso *dso __used, u64 offset __used,
-			      u8 *data __used, ssize_t size __used)
+static void
+dso_cache__free(struct rb_root *root)
 {
-	return -EINVAL;
+	struct rb_node *next = rb_first(root);
+
+	while (next) {
+		struct dso_cache *cache;
+
+		cache = rb_entry(next, struct dso_cache, rb_node);
+		next = rb_next(&cache->rb_node);
+		rb_erase(&cache->rb_node, root);
+		free(cache);
+	}
 }
 
-static int dso_cache_add(struct dso *dso __used, u64 offset __used,
-			 u8 *data __used, ssize_t size __used)
+static struct dso_cache*
+dso_cache__find(struct rb_root *root, u64 offset)
 {
-	return 0;
+	struct rb_node **p = &root->rb_node;
+	struct rb_node *parent = NULL;
+	struct dso_cache *cache;
+
+	while (*p != NULL) {
+		u64 end;
+
+		parent = *p;
+		cache = rb_entry(parent, struct dso_cache, rb_node);
+		end = cache->offset + DSO__DATA_CACHE_SIZE;
+
+		if (offset < cache->offset)
+			p = &(*p)->rb_left;
+		else if (offset >= end)
+			p = &(*p)->rb_right;
+		else
+			return cache;
+	}
+	return NULL;
 }
 
-static ssize_t read_dso_data(struct dso *dso, struct machine *machine,
-		     u64 offset, u8 *data, ssize_t size)
+static void
+dso_cache__insert(struct rb_root *root, struct dso_cache *new)
 {
-	ssize_t rsize = -1;
+	struct rb_node **p = &root->rb_node;
+	struct rb_node *parent = NULL;
+	struct dso_cache *cache;
+	u64 offset = new->offset;
+
+	while (*p != NULL) {
+		u64 end;
+
+		parent = *p;
+		cache = rb_entry(parent, struct dso_cache, rb_node);
+		end = cache->offset + DSO__DATA_CACHE_SIZE;
+
+		if (offset < cache->offset)
+			p = &(*p)->rb_left;
+		else if (offset >= end)
+			p = &(*p)->rb_right;
+	}
+
+	rb_link_node(&new->rb_node, parent, p);
+	rb_insert_color(&new->rb_node, root);
+}
+
+static ssize_t
+dso_cache__memcpy(struct dso_cache *cache, u64 offset,
+		  u8 *data, u64 size)
+{
+	u64 cache_offset = offset - cache->offset;
+	u64 cache_size   = min(cache->size - cache_offset, size);
+
+	memcpy(data, cache->data + cache_offset, cache_size);
+	return cache_size;
+}
+
+static ssize_t
+dso_cache__read(struct dso *dso, struct machine *machine,
+		 u64 offset, u8 *data, ssize_t size)
+{
+	struct dso_cache *cache;
+	ssize_t ret;
 	int fd;
 
 	fd = dso__data_fd(dso, machine);
@@ -3031,28 +3099,78 @@ static ssize_t read_dso_data(struct dso *dso, struct machine *machine,
 		return -1;
 
 	do {
-		if (-1 == lseek(fd, offset, SEEK_SET))
+		u64 cache_offset;
+
+		ret = -ENOMEM;
+
+		cache = zalloc(sizeof(*cache) + DSO__DATA_CACHE_SIZE);
+		if (!cache)
 			break;
 
-		rsize = read(fd, data, size);
-		if (-1 == rsize)
+		cache_offset = offset & DSO__DATA_CACHE_MASK;
+		ret = -EINVAL;
+
+		if (-1 == lseek(fd, cache_offset, SEEK_SET))
 			break;
 
-		if (dso_cache_add(dso, offset, data, size))
-			pr_err("Failed to add data int dso cache.");
+		ret = read(fd, cache->data, DSO__DATA_CACHE_SIZE);
+		if (ret <= 0)
+			break;
+
+		cache->offset = cache_offset;
+		cache->size   = ret;
+		dso_cache__insert(&dso->cache, cache);
+
+		ret = dso_cache__memcpy(cache, offset, data, size);
 
 	} while (0);
 
+	if (ret <= 0)
+		free(cache);
+
 	close(fd);
-	return rsize;
+	return ret;
+}
+
+static ssize_t dso_cache_read(struct dso *dso, struct machine *machine,
+			      u64 offset, u8 *data, ssize_t size)
+{
+	struct dso_cache *cache;
+
+	cache = dso_cache__find(&dso->cache, offset);
+	if (cache)
+		return dso_cache__memcpy(cache, offset, data, size);
+	else
+		return dso_cache__read(dso, machine, offset, data, size);
 }
 
 ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
 			      u64 offset, u8 *data, ssize_t size)
 {
-	if (dso_cache_read(dso, offset, data, size))
-		return read_dso_data(dso, machine, offset, data, size);
-	return 0;
+	ssize_t r = 0;
+	u8 *p = data;
+
+	do {
+		ssize_t ret;
+
+		ret = dso_cache_read(dso, machine, offset, p, size);
+		if (ret < 0)
+			return ret;
+
+		/* Reached EOF, return what we have. */
+		if (!ret)
+			break;
+
+		BUG_ON(ret > size);
+
+		r      += ret;
+		p      += ret;
+		offset += ret;
+		size   -= ret;
+
+	} while (size);
+
+	return r;
 }
 
 ssize_t dso__data_read_addr(struct dso *dso, struct map *map,
