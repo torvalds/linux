@@ -15,6 +15,7 @@
 #include <linux/export.h>
 #include <linux/mutex.h>
 #include <linux/err.h>
+#include <linux/rbtree.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/regmap.h>
@@ -242,6 +243,67 @@ static void dev_get_regmap_release(struct device *dev, void *res)
 	 */
 }
 
+static bool _regmap_range_add(struct regmap *map,
+			      struct regmap_range_node *data)
+{
+	struct rb_root *root = &map->range_tree;
+	struct rb_node **new = &(root->rb_node), *parent = NULL;
+
+	while (*new) {
+		struct regmap_range_node *this =
+			container_of(*new, struct regmap_range_node, node);
+
+		parent = *new;
+		if (data->range_max < this->range_min)
+			new = &((*new)->rb_left);
+		else if (data->range_min > this->range_max)
+			new = &((*new)->rb_right);
+		else
+			return false;
+	}
+
+	rb_link_node(&data->node, parent, new);
+	rb_insert_color(&data->node, root);
+
+	return true;
+}
+
+static struct regmap_range_node *_regmap_range_lookup(struct regmap *map,
+						      unsigned int reg)
+{
+	struct rb_node *node = map->range_tree.rb_node;
+
+	while (node) {
+		struct regmap_range_node *this =
+			container_of(node, struct regmap_range_node, node);
+
+		if (reg < this->range_min)
+			node = node->rb_left;
+		else if (reg > this->range_max)
+			node = node->rb_right;
+		else
+			return this;
+	}
+
+	return NULL;
+}
+
+static void regmap_range_exit(struct regmap *map)
+{
+	struct rb_node *next;
+	struct regmap_range_node *range_node;
+
+	next = rb_first(&map->range_tree);
+	while (next) {
+		range_node = rb_entry(next, struct regmap_range_node, node);
+		next = rb_next(&range_node->node);
+		rb_erase(&range_node->node, &map->range_tree);
+		kfree(range_node);
+	}
+
+	kfree(map->selector_work_buf);
+}
+
 /**
  * regmap_init(): Initialise register map
  *
@@ -262,6 +324,7 @@ struct regmap *regmap_init(struct device *dev,
 	struct regmap *map, **m;
 	int ret = -EINVAL;
 	enum regmap_endian reg_endian, val_endian;
+	int i, j;
 
 	if (!bus || !config)
 		goto err;
@@ -281,11 +344,11 @@ struct regmap *regmap_init(struct device *dev,
 		map->lock = regmap_lock_mutex;
 		map->unlock = regmap_unlock_mutex;
 	}
-	map->format.buf_size = (config->reg_bits + config->val_bits) / 8;
 	map->format.reg_bytes = DIV_ROUND_UP(config->reg_bits, 8);
 	map->format.pad_bytes = config->pad_bits / 8;
 	map->format.val_bytes = DIV_ROUND_UP(config->val_bits, 8);
-	map->format.buf_size += map->format.pad_bytes;
+	map->format.buf_size = DIV_ROUND_UP(config->reg_bits +
+			config->val_bits + config->pad_bits, 8);
 	map->reg_shift = config->pad_bits % 8;
 	if (config->reg_stride)
 		map->reg_stride = config->reg_stride;
@@ -455,26 +518,88 @@ struct regmap *regmap_init(struct device *dev,
 		goto err_map;
 	}
 
-	regmap_debugfs_init(map, config->name);
+	map->range_tree = RB_ROOT;
+	for (i = 0; i < config->n_ranges; i++) {
+		const struct regmap_range_cfg *range_cfg = &config->ranges[i];
+		struct regmap_range_node *new;
+
+		/* Sanity check */
+		if (range_cfg->range_max < range_cfg->range_min ||
+		    range_cfg->range_max > map->max_register ||
+		    range_cfg->selector_reg > map->max_register ||
+		    range_cfg->window_len == 0)
+			goto err_range;
+
+		/* Make sure, that this register range has no selector
+		   or data window within its boundary */
+		for (j = 0; j < config->n_ranges; j++) {
+			unsigned sel_reg = config->ranges[j].selector_reg;
+			unsigned win_min = config->ranges[j].window_start;
+			unsigned win_max = win_min +
+					   config->ranges[j].window_len - 1;
+
+			if (range_cfg->range_min <= sel_reg &&
+			    sel_reg <= range_cfg->range_max) {
+				goto err_range;
+			}
+
+			if (!(win_max < range_cfg->range_min ||
+			      win_min > range_cfg->range_max)) {
+				goto err_range;
+			}
+		}
+
+		new = kzalloc(sizeof(*new), GFP_KERNEL);
+		if (new == NULL) {
+			ret = -ENOMEM;
+			goto err_range;
+		}
+
+		new->range_min = range_cfg->range_min;
+		new->range_max = range_cfg->range_max;
+		new->selector_reg = range_cfg->selector_reg;
+		new->selector_mask = range_cfg->selector_mask;
+		new->selector_shift = range_cfg->selector_shift;
+		new->window_start = range_cfg->window_start;
+		new->window_len = range_cfg->window_len;
+
+		if (_regmap_range_add(map, new) == false) {
+			kfree(new);
+			goto err_range;
+		}
+
+		if (map->selector_work_buf == NULL) {
+			map->selector_work_buf =
+				kzalloc(map->format.buf_size, GFP_KERNEL);
+			if (map->selector_work_buf == NULL) {
+				ret = -ENOMEM;
+				goto err_range;
+			}
+		}
+	}
 
 	ret = regcache_init(map, config);
 	if (ret < 0)
-		goto err_free_workbuf;
+		goto err_range;
+
+	regmap_debugfs_init(map, config->name);
 
 	/* Add a devres resource for dev_get_regmap() */
 	m = devres_alloc(dev_get_regmap_release, sizeof(*m), GFP_KERNEL);
 	if (!m) {
 		ret = -ENOMEM;
-		goto err_cache;
+		goto err_debugfs;
 	}
 	*m = map;
 	devres_add(dev, m);
 
 	return map;
 
-err_cache:
+err_debugfs:
+	regmap_debugfs_exit(map);
 	regcache_exit(map);
-err_free_workbuf:
+err_range:
+	regmap_range_exit(map);
 	kfree(map->work_buf);
 err_map:
 	kfree(map);
@@ -562,6 +687,7 @@ int regmap_reinit_cache(struct regmap *map, const struct regmap_config *config)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(regmap_reinit_cache);
 
 /**
  * regmap_exit(): Free a previously allocated register map
@@ -570,6 +696,7 @@ void regmap_exit(struct regmap *map)
 {
 	regcache_exit(map);
 	regmap_debugfs_exit(map);
+	regmap_range_exit(map);
 	if (map->bus->free_context)
 		map->bus->free_context(map->bus_context);
 	kfree(map->work_buf);
@@ -615,6 +742,57 @@ struct regmap *dev_get_regmap(struct device *dev, const char *name)
 }
 EXPORT_SYMBOL_GPL(dev_get_regmap);
 
+static int _regmap_select_page(struct regmap *map, unsigned int *reg,
+			       unsigned int val_num)
+{
+	struct regmap_range_node *range;
+	void *orig_work_buf;
+	unsigned int win_offset;
+	unsigned int win_page;
+	bool page_chg;
+	int ret;
+
+	range = _regmap_range_lookup(map, *reg);
+	if (range) {
+		win_offset = (*reg - range->range_min) % range->window_len;
+		win_page = (*reg - range->range_min) / range->window_len;
+
+		if (val_num > 1) {
+			/* Bulk write shouldn't cross range boundary */
+			if (*reg + val_num - 1 > range->range_max)
+				return -EINVAL;
+
+			/* ... or single page boundary */
+			if (val_num > range->window_len - win_offset)
+				return -EINVAL;
+		}
+
+		/* It is possible to have selector register inside data window.
+		   In that case, selector register is located on every page and
+		   it needs no page switching, when accessed alone. */
+		if (val_num > 1 ||
+		    range->window_start + win_offset != range->selector_reg) {
+			/* Use separate work_buf during page switching */
+			orig_work_buf = map->work_buf;
+			map->work_buf = map->selector_work_buf;
+
+			ret = _regmap_update_bits(map, range->selector_reg,
+					range->selector_mask,
+					win_page << range->selector_shift,
+					&page_chg);
+
+			map->work_buf = orig_work_buf;
+
+			if (ret < 0)
+				return ret;
+		}
+
+		*reg = range->window_start + win_offset;
+	}
+
+	return 0;
+}
+
 static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 			     const void *val, size_t val_len)
 {
@@ -651,6 +829,10 @@ static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 			return 0;
 		}
 	}
+
+	ret = _regmap_select_page(map, &reg, val_len / map->format.val_bytes);
+	if (ret < 0)
+		return ret;
 
 	map->format.format_reg(map->work_buf, reg, map->reg_shift);
 
@@ -720,6 +902,10 @@ int _regmap_write(struct regmap *map, unsigned int reg,
 	trace_regmap_reg_write(map->dev, reg, val);
 
 	if (map->format.format_write) {
+		ret = _regmap_select_page(map, &reg, 1);
+		if (ret < 0)
+			return ret;
+
 		map->format.format_write(map, reg, val);
 
 		trace_regmap_hw_write_start(map->dev, reg, 1);
@@ -876,6 +1062,10 @@ static int _regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 {
 	u8 *u8 = map->work_buf;
 	int ret;
+
+	ret = _regmap_select_page(map, &reg, val_len / map->format.val_bytes);
+	if (ret < 0)
+		return ret;
 
 	map->format.format_reg(map->work_buf, reg, map->reg_shift);
 
@@ -1082,11 +1272,9 @@ static int _regmap_update_bits(struct regmap *map, unsigned int reg,
 	int ret;
 	unsigned int tmp, orig;
 
-	map->lock(map);
-
 	ret = _regmap_read(map, reg, &orig);
 	if (ret != 0)
-		goto out;
+		return ret;
 
 	tmp = orig & ~mask;
 	tmp |= val & mask;
@@ -1097,9 +1285,6 @@ static int _regmap_update_bits(struct regmap *map, unsigned int reg,
 	} else {
 		*change = false;
 	}
-
-out:
-	map->unlock(map);
 
 	return ret;
 }
@@ -1118,7 +1303,13 @@ int regmap_update_bits(struct regmap *map, unsigned int reg,
 		       unsigned int mask, unsigned int val)
 {
 	bool change;
-	return _regmap_update_bits(map, reg, mask, val, &change);
+	int ret;
+
+	map->lock(map);
+	ret = _regmap_update_bits(map, reg, mask, val, &change);
+	map->unlock(map);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(regmap_update_bits);
 
@@ -1138,7 +1329,12 @@ int regmap_update_bits_check(struct regmap *map, unsigned int reg,
 			     unsigned int mask, unsigned int val,
 			     bool *change)
 {
-	return _regmap_update_bits(map, reg, mask, val, change);
+	int ret;
+
+	map->lock(map);
+	ret = _regmap_update_bits(map, reg, mask, val, change);
+	map->unlock(map);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(regmap_update_bits_check);
 

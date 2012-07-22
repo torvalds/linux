@@ -1561,7 +1561,7 @@ static int fib6_age(struct rt6_info *rt, void *arg)
 				neigh_flags = neigh->flags;
 				neigh_release(neigh);
 			}
-			if (neigh_flags & NTF_ROUTER) {
+			if (!(neigh_flags & NTF_ROUTER)) {
 				RT6_TRACE("purging route %p via non-router but gateway\n",
 					  rt);
 				return -1;

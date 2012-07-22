@@ -1390,6 +1390,8 @@ static void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
 				     union ixgbe_adv_rx_desc *rx_desc,
 				     struct sk_buff *skb)
 {
+	struct net_device *dev = rx_ring->netdev;
+
 	ixgbe_update_rsc_stats(rx_ring, skb);
 
 	ixgbe_rx_hash(rx_ring, rx_desc, skb);
@@ -1401,14 +1403,15 @@ static void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
 		ixgbe_ptp_rx_hwtstamp(rx_ring->q_vector, skb);
 #endif
 
-	if (ixgbe_test_staterr(rx_desc, IXGBE_RXD_STAT_VP)) {
+	if ((dev->features & NETIF_F_HW_VLAN_RX) &&
+	    ixgbe_test_staterr(rx_desc, IXGBE_RXD_STAT_VP)) {
 		u16 vid = le16_to_cpu(rx_desc->wb.upper.vlan);
 		__vlan_hwaccel_put_tag(skb, vid);
 	}
 
 	skb_record_rx_queue(skb, rx_ring->queue_index);
 
-	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
+	skb->protocol = eth_type_trans(skb, dev);
 }
 
 static void ixgbe_rx_skb(struct ixgbe_q_vector *q_vector,
@@ -3606,10 +3609,6 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		netif_set_gso_max_size(adapter->netdev, 32768);
-
-
-	/* Enable VLAN tag insert/strip */
-	adapter->netdev->features |= NETIF_F_HW_VLAN_RX;
 
 	hw->mac.ops.set_vfta(&adapter->hw, 0, 0, true);
 
@@ -6701,11 +6700,6 @@ static netdev_features_t ixgbe_fix_features(struct net_device *netdev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-#ifdef CONFIG_DCB
-	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED)
-		features &= ~NETIF_F_HW_VLAN_RX;
-#endif
-
 	/* return error if RXHASH is being enabled when RSS is not supported */
 	if (!(adapter->flags & IXGBE_FLAG_RSS_ENABLED))
 		features &= ~NETIF_F_RXHASH;
@@ -6717,7 +6711,6 @@ static netdev_features_t ixgbe_fix_features(struct net_device *netdev,
 	/* Turn off LRO if not RSC capable */
 	if (!(adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE))
 		features &= ~NETIF_F_LRO;
-
 
 	return features;
 }
@@ -6765,6 +6758,11 @@ static int ixgbe_set_features(struct net_device *netdev,
 		adapter->flags |= IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
 		need_reset = true;
 	}
+
+	if (features & NETIF_F_HW_VLAN_RX)
+		ixgbe_vlan_strip_enable(adapter);
+	else
+		ixgbe_vlan_strip_disable(adapter);
 
 	if (changed & NETIF_F_RXALL)
 		need_reset = true;

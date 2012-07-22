@@ -14,12 +14,14 @@
  */
 
 #include <linux/list.h>
+#include <linux/rbtree.h>
 
 struct module;
 struct device;
 struct i2c_client;
 struct spi_device;
 struct regmap;
+struct regmap_range_cfg;
 
 /* An enum of all the supported cache types */
 enum regcache_type {
@@ -98,6 +100,9 @@ enum regmap_endian {
  * @val_format_endian: Endianness for formatted register values. If this is
  *                     DEFAULT, the @reg_format_endian_default value from the
  *                     regmap bus is used.
+ *
+ * @ranges: Array of configuration entries for virtual address ranges.
+ * @num_ranges: Number of range configuration entries.
  */
 struct regmap_config {
 	const char *name;
@@ -126,6 +131,40 @@ struct regmap_config {
 
 	enum regmap_endian reg_format_endian;
 	enum regmap_endian val_format_endian;
+
+	const struct regmap_range_cfg *ranges;
+	unsigned int n_ranges;
+};
+
+/**
+ * Configuration for indirectly accessed or paged registers.
+ * Registers, mapped to this virtual range, are accessed in two steps:
+ *     1. page selector register update;
+ *     2. access through data window registers.
+ *
+ * @range_min: Address of the lowest register address in virtual range.
+ * @range_max: Address of the highest register in virtual range.
+ *
+ * @page_sel_reg: Register with selector field.
+ * @page_sel_mask: Bit shift for selector value.
+ * @page_sel_shift: Bit mask for selector value.
+ *
+ * @window_start: Address of first (lowest) register in data window.
+ * @window_len: Number of registers in data window.
+ */
+struct regmap_range_cfg {
+	/* Registers of virtual address range */
+	unsigned int range_min;
+	unsigned int range_max;
+
+	/* Page selector for indirect addressing */
+	unsigned int selector_reg;
+	unsigned int selector_mask;
+	int selector_shift;
+
+	/* Data window (per each page) */
+	unsigned int window_start;
+	unsigned int window_len;
 };
 
 typedef int (*regmap_hw_write)(void *context, const void *data,
@@ -244,6 +283,7 @@ struct regmap_irq {
  * @status_base: Base status register address.
  * @mask_base:   Base mask register address.
  * @ack_base:    Base ack address.  If zero then the chip is clear on read.
+ * @wake_base:   Base address for wake enables.  If zero unsupported.
  * @irq_reg_stride:  Stride to use for chips where registers are not contiguous.
  *
  * @num_regs:    Number of registers in each control bank.
@@ -257,6 +297,7 @@ struct regmap_irq_chip {
 	unsigned int status_base;
 	unsigned int mask_base;
 	unsigned int ack_base;
+	unsigned int wake_base;
 	unsigned int irq_reg_stride;
 
 	int num_regs;

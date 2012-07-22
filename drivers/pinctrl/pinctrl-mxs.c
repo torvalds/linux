@@ -107,8 +107,10 @@ static int mxs_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 		/* Compose group name */
 		group = kzalloc(length, GFP_KERNEL);
-		if (!group)
-			return -ENOMEM;
+		if (!group) {
+			ret = -ENOMEM;
+			goto free;
+		}
 		snprintf(group, length, "%s.%d", np->name, reg);
 		new_map[i].data.mux.group = group;
 		i++;
@@ -118,7 +120,7 @@ static int mxs_dt_node_to_map(struct pinctrl_dev *pctldev,
 		pconfig = kmemdup(&config, sizeof(config), GFP_KERNEL);
 		if (!pconfig) {
 			ret = -ENOMEM;
-			goto free;
+			goto free_group;
 		}
 
 		new_map[i].type = PIN_MAP_TYPE_CONFIGS_GROUP;
@@ -133,6 +135,9 @@ static int mxs_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	return 0;
 
+free_group:
+	if (!purecfg)
+		free(group);
 free:
 	kfree(new_map);
 	return ret;
@@ -511,6 +516,7 @@ int __devinit mxs_pinctrl_probe(struct platform_device *pdev,
 	return 0;
 
 err:
+	platform_set_drvdata(pdev, NULL);
 	iounmap(d->base);
 	return ret;
 }
@@ -520,6 +526,7 @@ int __devexit mxs_pinctrl_remove(struct platform_device *pdev)
 {
 	struct mxs_pinctrl_data *d = platform_get_drvdata(pdev);
 
+	platform_set_drvdata(pdev, NULL);
 	pinctrl_unregister(d->pctl);
 	iounmap(d->base);
 

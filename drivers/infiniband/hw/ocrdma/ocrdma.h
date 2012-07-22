@@ -231,7 +231,6 @@ struct ocrdma_qp_hwq_info {
 	u32 entry_size;
 	u32 max_cnt;
 	u32 max_wqe_idx;
-	u32 free_delta;
 	u16 dbid;		/* qid, where to ring the doorbell. */
 	u32 len;
 	dma_addr_t pa;

@@ -2,6 +2,7 @@
 #define _ASM_GENERIC_BUG_H
 
 #include <linux/compiler.h>
+#include <linux/kernel.h>
 
 #ifdef CONFIG_BUG
 

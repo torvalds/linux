@@ -689,7 +689,6 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 				   struct drm_device *dev, uint32_t handle,
 				   uint64_t *offset)
 {
-	struct exynos_drm_gem_obj *exynos_gem_obj;
 	struct drm_gem_object *obj;
 	int ret = 0;
 
@@ -710,15 +709,13 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 		goto unlock;
 	}
 
-	exynos_gem_obj = to_exynos_gem_obj(obj);
-
-	if (!exynos_gem_obj->base.map_list.map) {
-		ret = drm_gem_create_mmap_offset(&exynos_gem_obj->base);
+	if (!obj->map_list.map) {
+		ret = drm_gem_create_mmap_offset(obj);
 		if (ret)
 			goto out;
 	}
 
-	*offset = (u64)exynos_gem_obj->base.map_list.hash.key << PAGE_SHIFT;
+	*offset = (u64)obj->map_list.hash.key << PAGE_SHIFT;
 	DRM_DEBUG_KMS("offset = 0x%lx\n", (unsigned long)*offset);
 
 out:

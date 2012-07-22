@@ -1397,6 +1397,8 @@ static void rcu_adopt_orphan_cbs(struct rcu_state *rsp)
 	rdp->qlen_lazy += rsp->qlen_lazy;
 	rdp->qlen += rsp->qlen;
 	rdp->n_cbs_adopted += rsp->qlen;
+	if (rsp->qlen_lazy != rsp->qlen)
+		rcu_idle_count_callbacks_posted();
 	rsp->qlen_lazy = 0;
 	rsp->qlen = 0;
 

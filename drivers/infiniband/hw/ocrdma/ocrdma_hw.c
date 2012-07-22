@@ -732,7 +732,7 @@ static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
 		break;
 	case OCRDMA_SRQ_LIMIT_EVENT:
 		ib_evt.element.srq = &qp->srq->ibsrq;
-		ib_evt.event = IB_EVENT_QP_LAST_WQE_REACHED;
+		ib_evt.event = IB_EVENT_SRQ_LIMIT_REACHED;
 		srq_event = 1;
 		qp_event = 0;
 		break;
@@ -1990,19 +1990,12 @@ static void ocrdma_get_create_qp_rsp(struct ocrdma_create_qp_rsp *rsp,
 	max_wqe_allocated = 1 << max_wqe_allocated;
 	max_rqe_allocated = 1 << ((u16)rsp->max_wqe_rqe);
 
-	if (qp->dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
-		qp->sq.free_delta = 0;
-		qp->rq.free_delta = 1;
-	} else
-		qp->sq.free_delta = 1;
-
 	qp->sq.max_cnt = max_wqe_allocated;
 	qp->sq.max_wqe_idx = max_wqe_allocated - 1;
 
 	if (!attrs->srq) {
 		qp->rq.max_cnt = max_rqe_allocated;
 		qp->rq.max_wqe_idx = max_rqe_allocated - 1;
-		qp->rq.free_delta = 1;
 	}
 }
 

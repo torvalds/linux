@@ -4061,7 +4061,7 @@ static void cx_auto_init_digital(struct hda_codec *codec)
 static int cx_auto_init(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
-	/*snd_hda_sequence_write(codec, cx_auto_init_verbs);*/
+	snd_hda_gen_apply_verbs(codec);
 	cx_auto_init_output(codec);
 	cx_auto_init_input(codec);
 	cx_auto_init_digital(codec);

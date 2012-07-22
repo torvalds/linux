@@ -192,6 +192,7 @@ void r600_audio_set_clock(struct drm_encoder *encoder, int clock)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
 	int base_rate = 48000;
 
 	switch (radeon_encoder->encoder_id) {
@@ -217,8 +218,8 @@ void r600_audio_set_clock(struct drm_encoder *encoder, int clock)
 		WREG32(EVERGREEN_AUDIO_PLL1_DIV, clock * 10);
 		WREG32(EVERGREEN_AUDIO_PLL1_UNK, 0x00000071);
 
-		/* Some magic trigger or src sel? */
-		WREG32_P(0x5ac, 0x01, ~0x77);
+		/* Select DTO source */
+		WREG32(0x5ac, radeon_crtc->crtc_id);
 	} else {
 		switch (dig->dig_encoder) {
 		case 0:

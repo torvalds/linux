@@ -57,6 +57,10 @@ void setup_pager(void)
 	}
 	if (!pager)
 		pager = getenv("PAGER");
+	if (!pager) {
+		if (!access("/usr/bin/pager", X_OK))
+			pager = "/usr/bin/pager";
+	}
 	if (!pager)
 		pager = "less";
 	else if (!*pager || !strcmp(pager, "cat"))

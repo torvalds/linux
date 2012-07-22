@@ -94,10 +94,10 @@ bs_die:
 
 	.section ".bsdata", "a"
 bugger_off_msg:
-	.ascii	"Direct booting from floppy is no longer supported.\r\n"
-	.ascii	"Please use a boot loader program instead.\r\n"
+	.ascii	"Direct floppy boot is not supported. "
+	.ascii	"Use a boot loader program instead.\r\n"
 	.ascii	"\n"
-	.ascii	"Remove disk and press any key to reboot . . .\r\n"
+	.ascii	"Remove disk and press any key to reboot ...\r\n"
 	.byte	0
 
 #ifdef CONFIG_EFI_STUB
@@ -111,7 +111,7 @@ coff_header:
 #else
 	.word	0x8664				# x86-64
 #endif
-	.word	2				# nr_sections
+	.word	3				# nr_sections
 	.long	0 				# TimeDateStamp
 	.long	0				# PointerToSymbolTable
 	.long	1				# NumberOfSymbols
@@ -158,8 +158,8 @@ extra_header_fields:
 #else
 	.quad	0				# ImageBase
 #endif
-	.long	0x1000				# SectionAlignment
-	.long	0x200				# FileAlignment
+	.long	0x20				# SectionAlignment
+	.long	0x20				# FileAlignment
 	.word	0				# MajorOperatingSystemVersion
 	.word	0				# MinorOperatingSystemVersion
 	.word	0				# MajorImageVersion
@@ -200,8 +200,10 @@ extra_header_fields:
 
 	# Section table
 section_table:
-	.ascii	".text"
-	.byte	0
+	#
+	# The offset & size fields are filled in by build.c.
+	#
+	.ascii	".setup"
 	.byte	0
 	.byte	0
 	.long	0
@@ -217,9 +219,8 @@ section_table:
 
 	#
 	# The EFI application loader requires a relocation section
-	# because EFI applications must be relocatable. But since
-	# we don't need the loader to fixup any relocs for us, we
-	# just create an empty (zero-length) .reloc section header.
+	# because EFI applications must be relocatable. The .reloc
+	# offset & size fields are filled in by build.c.
 	#
 	.ascii	".reloc"
 	.byte	0
@@ -233,6 +234,25 @@ section_table:
 	.word	0				# NumberOfRelocations
 	.word	0				# NumberOfLineNumbers
 	.long	0x42100040			# Characteristics (section flags)
+
+	#
+	# The offset & size fields are filled in by build.c.
+	#
+	.ascii	".text"
+	.byte	0
+	.byte	0
+	.byte	0
+	.long	0
+	.long	0x0				# startup_{32,64}
+	.long	0				# Size of initialized data
+						# on disk
+	.long	0x0				# startup_{32,64}
+	.long	0				# PointerToRelocations
+	.long	0				# PointerToLineNumbers
+	.word	0				# NumberOfRelocations
+	.word	0				# NumberOfLineNumbers
+	.long	0x60500020			# Characteristics (section flags)
+
 #endif /* CONFIG_EFI_STUB */
 
 	# Kernel attributes; used by setup.  This is part 1 of the

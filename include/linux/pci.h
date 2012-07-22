@@ -176,6 +176,8 @@ enum pci_dev_flags {
 	PCI_DEV_FLAGS_NO_D3 = (__force pci_dev_flags_t) 2,
 	/* Provide indication device is assigned by a Virtual Machine Manager */
 	PCI_DEV_FLAGS_ASSIGNED = (__force pci_dev_flags_t) 4,
+	/* Device causes system crash if in D3 during S3 sleep */
+	PCI_DEV_FLAGS_NO_D3_DURING_SLEEP = (__force pci_dev_flags_t) 8,
 };
 
 enum pci_irq_reroute_variant {

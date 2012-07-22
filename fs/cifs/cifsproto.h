@@ -114,7 +114,6 @@ extern int small_smb_init_no_tc(const int smb_cmd, const int wct,
 				void **request_buf);
 extern int CIFS_SessSetup(unsigned int xid, struct cifs_ses *ses,
 			     const struct nls_table *nls_cp);
-extern __u64 GetNextMid(struct TCP_Server_Info *server);
 extern struct timespec cifs_NTtimeToUnix(__le64 utc_nanoseconds_since_1601);
 extern u64 cifs_UnixTimeToNT(struct timespec);
 extern struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time,

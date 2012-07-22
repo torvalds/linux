@@ -27,7 +27,12 @@ union hmark_ports {
 		__u16	src;
 		__u16	dst;
 	} p16;
+	struct {
+		__be16	src;
+		__be16	dst;
+	} b16;
 	__u32	v32;
+	__be32	b32;
 };
 
 struct xt_hmark_info {
