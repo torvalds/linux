@@ -1,6 +1,8 @@
 #ifndef __NOUVEAU_SOFTWARE_H__
 #define __NOUVEAU_SOFTWARE_H__
 
+#include "nouveau_fence.h"
+
 struct nouveau_software_priv {
 	struct nouveau_exec_engine base;
 	struct list_head vblank;
@@ -8,7 +10,9 @@ struct nouveau_software_priv {
 };
 
 struct nouveau_software_chan {
-	struct list_head flip;
+	int (*flip)(void *data);
+	void *flip_data;
+
 	struct {
 		struct list_head list;
 		u32 channel;
@@ -20,10 +24,11 @@ struct nouveau_software_chan {
 };
 
 static inline void
-nouveau_software_context_new(struct nouveau_software_chan *pch)
+nouveau_software_context_new(struct nouveau_channel *chan,
+			     struct nouveau_software_chan *pch)
 {
-	INIT_LIST_HEAD(&pch->flip);
-	INIT_LIST_HEAD(&pch->vblank.list);
+	pch->flip = nouveau_flip_complete;
+	pch->flip_data = chan;
 }
 
 static inline void
@@ -51,6 +56,5 @@ nouveau_software_class(struct drm_device *dev)
 int nv04_software_create(struct drm_device *);
 int nv50_software_create(struct drm_device *);
 int nvc0_software_create(struct drm_device *);
-u64 nvc0_software_crtc(struct nouveau_channel *, int crtc);
 
 #endif

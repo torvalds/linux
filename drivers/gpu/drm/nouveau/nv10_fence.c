@@ -39,7 +39,7 @@ struct nv10_fence_priv {
 	u32 sequence;
 };
 
-static int
+int
 nv10_fence_emit(struct nouveau_fence *fence)
 {
 	struct nouveau_channel *chan = fence->channel;
@@ -60,7 +60,7 @@ nv10_fence_sync(struct nouveau_fence *fence,
 	return -ENODEV;
 }
 
-static int
+int
 nv17_fence_sync(struct nouveau_fence *fence,
 		struct nouveau_channel *prev, struct nouveau_channel *chan)
 {
@@ -100,13 +100,13 @@ nv17_fence_sync(struct nouveau_fence *fence,
 	return 0;
 }
 
-static u32
+u32
 nv10_fence_read(struct nouveau_channel *chan)
 {
 	return nvchan_rd32(chan, 0x0048);
 }
 
-static void
+void
 nv10_fence_context_del(struct nouveau_channel *chan)
 {
 	struct nv10_fence_chan *fctx = chan->fence;
@@ -148,7 +148,7 @@ nv10_fence_context_new(struct nouveau_channel *chan)
 	return ret;
 }
 
-static void
+void
 nv10_fence_destroy(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;

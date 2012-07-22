@@ -394,7 +394,7 @@ nouveau_card_init(struct drm_device *dev)
 		case NV_40:
 		case NV_50:
 			if (dev_priv->chipset < 0x84)
-				nv10_fence_create(dev);
+				nv50_fence_create(dev);
 			else
 				nv84_fence_create(dev);
 			break;

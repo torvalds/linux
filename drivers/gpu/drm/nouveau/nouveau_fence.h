@@ -27,6 +27,8 @@ void nouveau_fence_update(struct nouveau_channel *);
 
 struct nouveau_fence_chan {
 	struct list_head pending;
+	struct list_head flip;
+
 	spinlock_t lock;
 	u32 sequence;
 };
@@ -49,8 +51,19 @@ void nouveau_fence_context_del(struct nouveau_fence_chan *);
 int nv04_fence_create(struct drm_device *dev);
 int nv04_fence_mthd(struct nouveau_channel *, u32, u32, u32);
 
-int nv10_fence_create(struct drm_device *dev);
+int  nv10_fence_emit(struct nouveau_fence *);
+int  nv17_fence_sync(struct nouveau_fence *, struct nouveau_channel *,
+		     struct nouveau_channel *);
+u32  nv10_fence_read(struct nouveau_channel *);
+void nv10_fence_context_del(struct nouveau_channel *);
+void nv10_fence_destroy(struct drm_device *);
+int  nv10_fence_create(struct drm_device *dev);
+
+int nv50_fence_create(struct drm_device *dev);
 int nv84_fence_create(struct drm_device *dev);
 int nvc0_fence_create(struct drm_device *dev);
+u64 nvc0_fence_crtc(struct nouveau_channel *, int crtc);
+
+int nouveau_flip_complete(void *chan);
 
 #endif

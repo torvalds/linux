@@ -27,6 +27,7 @@
 #include "nouveau_drv.h"
 #include <core/mm.h>
 #include <engine/fifo.h>
+#include "nouveau_software.h"
 
 static void nvc0_fifo_isr(struct drm_device *);
 
@@ -323,8 +324,11 @@ nvc0_fifo_page_flip(struct drm_device *dev, u32 chid)
 	spin_lock_irqsave(&dev_priv->channels.lock, flags);
 	if (likely(chid >= 0 && chid < priv->base.channels)) {
 		chan = dev_priv->channels.ptr[chid];
-		if (likely(chan))
-			ret = nouveau_finish_page_flip(chan, NULL);
+		if (likely(chan)) {
+			struct nouveau_software_chan *swch =
+				chan->engctx[NVOBJ_ENGINE_SW];
+			ret = swch->flip(swch->flip_data);
+		}
 	}
 	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
 	return ret;

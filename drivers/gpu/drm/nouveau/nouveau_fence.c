@@ -54,6 +54,7 @@ nouveau_fence_context_del(struct nouveau_fence_chan *fctx)
 void
 nouveau_fence_context_new(struct nouveau_fence_chan *fctx)
 {
+	INIT_LIST_HEAD(&fctx->flip);
 	INIT_LIST_HEAD(&fctx->pending);
 	spin_lock_init(&fctx->lock);
 }

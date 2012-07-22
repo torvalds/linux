@@ -41,16 +41,8 @@ struct nv04_software_chan {
 static int
 mthd_flip(struct nouveau_channel *chan, u32 class, u32 mthd, u32 data)
 {
-
-	struct nouveau_page_flip_state state;
-
-	if (!nouveau_finish_page_flip(chan, &state)) {
-		nv_set_crtc_base(chan->dev, state.crtc, state.offset +
-				 state.y * state.pitch +
-				 state.x * state.bpp / 8);
-	}
-
-	return 0;
+	struct nv04_software_chan *pch = chan->engctx[NVOBJ_ENGINE_SW];
+	return pch->base.flip(pch->base.flip_data);
 }
 
 static int
@@ -62,7 +54,7 @@ nv04_software_context_new(struct nouveau_channel *chan, int engine)
 	if (!pch)
 		return -ENOMEM;
 
-	nouveau_software_context_new(&pch->base);
+	nouveau_software_context_new(chan, &pch->base);
 	chan->engctx[engine] = pch;
 	return 0;
 }

@@ -27,6 +27,7 @@
 #include "nouveau_drv.h"
 #include <core/mm.h>
 #include <engine/fifo.h>
+#include "nouveau_software.h"
 
 #define NVE0_FIFO_ENGINE_NUM 32
 
@@ -302,8 +303,11 @@ nve0_fifo_page_flip(struct drm_device *dev, u32 chid)
 	spin_lock_irqsave(&dev_priv->channels.lock, flags);
 	if (likely(chid >= 0 && chid < priv->base.channels)) {
 		chan = dev_priv->channels.ptr[chid];
-		if (likely(chan))
-			ret = nouveau_finish_page_flip(chan, NULL);
+		if (likely(chan)) {
+			struct nouveau_software_chan *swch =
+				chan->engctx[NVOBJ_ENGINE_SW];
+			ret = swch->flip(swch->flip_data);
+		}
 	}
 	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
 	return ret;
@@ -315,7 +319,7 @@ nve0_fifo_isr_subfifo_intr(struct drm_device *dev, int unit)
 	u32 stat = nv_rd32(dev, 0x040108 + (unit * 0x2000));
 	u32 addr = nv_rd32(dev, 0x0400c0 + (unit * 0x2000));
 	u32 data = nv_rd32(dev, 0x0400c4 + (unit * 0x2000));
-	u32 chid = nv_rd32(dev, 0x040120 + (unit * 0x2000)) & 0x7f;
+	u32 chid = nv_rd32(dev, 0x040120 + (unit * 0x2000)) & 0xfff;
 	u32 subc = (addr & 0x00070000);
 	u32 mthd = (addr & 0x00003ffc);
 	u32 show = stat;

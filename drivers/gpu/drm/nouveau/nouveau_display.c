@@ -435,7 +435,7 @@ nouveau_page_flip_emit(struct nouveau_channel *chan,
 		       struct nouveau_page_flip_state *s,
 		       struct nouveau_fence **pfence)
 {
-	struct nouveau_software_chan *swch = chan->engctx[NVOBJ_ENGINE_SW];
+	struct nouveau_fence_chan *fctx = chan->fence;
 	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
 	struct drm_device *dev = chan->dev;
 	unsigned long flags;
@@ -443,7 +443,7 @@ nouveau_page_flip_emit(struct nouveau_channel *chan,
 
 	/* Queue it to the pending list */
 	spin_lock_irqsave(&dev->event_lock, flags);
-	list_add_tail(&s->head, &swch->flip);
+	list_add_tail(&s->head, &fctx->flip);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	/* Synchronize with the old framebuffer */
@@ -553,20 +553,20 @@ int
 nouveau_finish_page_flip(struct nouveau_channel *chan,
 			 struct nouveau_page_flip_state *ps)
 {
-	struct nouveau_software_chan *swch = chan->engctx[NVOBJ_ENGINE_SW];
+	struct nouveau_fence_chan *fctx = chan->fence;
 	struct drm_device *dev = chan->dev;
 	struct nouveau_page_flip_state *s;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 
-	if (list_empty(&swch->flip)) {
+	if (list_empty(&fctx->flip)) {
 		NV_ERROR(dev, "Unexpected pageflip in channel %d.\n", chan->id);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		return -EINVAL;
 	}
 
-	s = list_first_entry(&swch->flip, struct nouveau_page_flip_state, head);
+	s = list_first_entry(&fctx->flip, struct nouveau_page_flip_state, head);
 	if (s->event) {
 		struct drm_pending_vblank_event *e = s->event;
 		struct timeval now;
@@ -585,6 +585,25 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 	kfree(s);
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
+	return 0;
+}
+
+int
+nouveau_flip_complete(void *data)
+{
+	struct nouveau_channel *chan = data;
+	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_page_flip_state state;
+
+	if (!nouveau_finish_page_flip(chan, &state)) {
+		if (dev_priv->card_type < NV_50) {
+			nv_set_crtc_base(dev, state.crtc, state.offset +
+					 state.y * state.pitch +
+					 state.x * state.bpp / 8);
+		}
+	}
+
 	return 0;
 }
 

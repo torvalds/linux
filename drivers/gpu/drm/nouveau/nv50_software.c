@@ -88,45 +88,23 @@ mthd_vblsem_release(struct nouveau_channel *chan, u32 class, u32 mthd, u32 data)
 static int
 mthd_flip(struct nouveau_channel *chan, u32 class, u32 mthd, u32 data)
 {
-	nouveau_finish_page_flip(chan, NULL);
-	return 0;
+	struct nv50_software_chan *pch = chan->engctx[NVOBJ_ENGINE_SW];
+	return pch->base.flip(pch->base.flip_data);
 }
 
 static int
 nv50_software_context_new(struct nouveau_channel *chan, int engine)
 {
-	struct nv50_software_priv *psw = nv_engine(chan->dev, NVOBJ_ENGINE_SW);
-	struct nv50_display *pdisp = nv50_display(chan->dev);
 	struct nv50_software_chan *pch;
-	int ret = 0, i;
 
 	pch = kzalloc(sizeof(*pch), GFP_KERNEL);
 	if (!pch)
 		return -ENOMEM;
 
-	nouveau_software_context_new(&pch->base);
+	nouveau_software_context_new(chan, &pch->base);
 	pch->base.vblank.channel = chan->ramin->addr >> 12;
 	chan->engctx[engine] = pch;
-
-	/* dma objects for display sync channel semaphore blocks */
-	for (i = 0; i < chan->dev->mode_config.num_crtc; i++) {
-		struct nv50_display_crtc *dispc = &pdisp->crtc[i];
-		struct nouveau_gpuobj *obj = NULL;
-
-		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
-					     dispc->sem.bo->bo.offset, 0x1000,
-					     NV_MEM_ACCESS_RW,
-					     NV_MEM_TARGET_VRAM, &obj);
-		if (ret)
-			break;
-
-		ret = nouveau_ramht_insert(chan, NvEvoSema0 + i, obj);
-		nouveau_gpuobj_ref(NULL, &obj);
-	}
-
-	if (ret)
-		psw->base.base.context_del(chan, engine);
-	return ret;
+	return 0;
 }
 
 static void

@@ -33,7 +33,7 @@
 #include "nouveau_crtc.h"
 #include "nouveau_dma.h"
 #include "nouveau_fb.h"
-#include "nouveau_software.h"
+#include "nouveau_fence.h"
 #include "nv50_display.h"
 
 #define EVO_DMA_NR 9
@@ -300,7 +300,7 @@ nvd0_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			return ret;
 
 
-		offset  = nvc0_software_crtc(chan, nv_crtc->index);
+		offset  = nvc0_fence_crtc(chan, nv_crtc->index);
 		offset += evo->sem.offset;
 
 		BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);

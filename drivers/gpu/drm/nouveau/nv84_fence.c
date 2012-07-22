@@ -28,6 +28,7 @@
 #include <engine/fifo.h>
 #include <core/ramht.h>
 #include "nouveau_fence.h"
+#include "nv50_display.h"
 
 struct nv84_fence_chan {
 	struct nouveau_fence_chan base;
@@ -99,7 +100,7 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 	struct nv84_fence_priv *priv = dev_priv->fence.func;
 	struct nv84_fence_chan *fctx;
 	struct nouveau_gpuobj *obj;
-	int ret;
+	int ret, i;
 
 	fctx = chan->fence = kzalloc(sizeof(*fctx), GFP_KERNEL);
 	if (!fctx)
@@ -115,6 +116,23 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 		ret = nouveau_ramht_insert(chan, NvSema, obj);
 		nouveau_gpuobj_ref(NULL, &obj);
 		nv_wo32(priv->mem, chan->id * 16, 0x00000000);
+	}
+
+	/* dma objects for display sync channel semaphore blocks */
+	for (i = 0; i < chan->dev->mode_config.num_crtc; i++) {
+		struct nv50_display *pdisp = nv50_display(chan->dev);
+		struct nv50_display_crtc *dispc = &pdisp->crtc[i];
+		struct nouveau_gpuobj *obj = NULL;
+
+		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
+					     dispc->sem.bo->bo.offset, 0x1000,
+					     NV_MEM_ACCESS_RW,
+					     NV_MEM_TARGET_VRAM, &obj);
+		if (ret)
+			break;
+
+		ret = nouveau_ramht_insert(chan, NvEvoSema0 + i, obj);
+		nouveau_gpuobj_ref(NULL, &obj);
 	}
 
 	if (ret)

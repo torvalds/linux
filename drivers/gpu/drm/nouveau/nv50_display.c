@@ -32,8 +32,8 @@
 #include "nouveau_fb.h"
 #include "nouveau_fbcon.h"
 #include <core/ramht.h>
-#include "nouveau_software.h"
 #include "drm_crtc_helper.h"
+#include "nouveau_fence.h"
 
 static void nv50_display_isr(struct drm_device *);
 static void nv50_display_bh(unsigned long);
@@ -446,7 +446,7 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			else
 				OUT_RING  (chan, chan->vram_handle);
 		} else {
-			u64 offset = nvc0_software_crtc(chan, nv_crtc->index);
+			u64 offset = nvc0_fence_crtc(chan, nv_crtc->index);
 			offset += dispc->sem.offset;
 			BEGIN_NVC0(chan, 0, 0x0010, 4);
 			OUT_RING  (chan, upper_32_bits(offset));

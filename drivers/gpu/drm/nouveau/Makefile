@@ -132,7 +132,7 @@ nouveau-y += nouveau_drm.o nouveau_compat.o \
 	     nouveau_mxm.o nouveau_agp.o \
 	     nouveau_abi16.o \
 	     nouveau_bios.o \
-             nv04_fence.o nv10_fence.o nv84_fence.o nvc0_fence.o \
+             nv04_fence.o nv10_fence.o nv50_fence.o nv84_fence.o nvc0_fence.o \
              nv04_software.o nv50_software.o nvc0_software.o \
              nv04_dac.o nv04_dfp.o nv04_tv.o nv17_tv.o nv17_tv_modes.o \
              nv04_crtc.o nv04_display.o nv04_cursor.o \
