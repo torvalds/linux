@@ -654,9 +654,8 @@ static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 	if (!(filp->f_mode & FMODE_WRITE))
 		ro = 1;
 
-	if (filp->f_path.dentry)
-		inode = filp->f_path.dentry->d_inode;
-	if (!inode || (!S_ISREG(inode->i_mode) && !S_ISBLK(inode->i_mode))) {
+	inode = filp->f_path.dentry->d_inode;
+	if ((!S_ISREG(inode->i_mode) && !S_ISBLK(inode->i_mode))) {
 		LINFO(curlun, "invalid file type: %s\n", filename);
 		goto out;
 	}
@@ -665,7 +664,7 @@ static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 	 * If we can't read the file, it's no good.
 	 * If we can't write the file, use it read-only.
 	 */
-	if (!filp->f_op || !(filp->f_op->read || filp->f_op->aio_read)) {
+	if (!(filp->f_op->read || filp->f_op->aio_read)) {
 		LINFO(curlun, "file not readable: %s\n", filename);
 		goto out;
 	}
@@ -707,16 +706,15 @@ static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 		goto out;
 	}
 
-	get_file(filp);
 	curlun->ro = ro;
 	curlun->filp = filp;
 	curlun->file_length = size;
 	curlun->num_sectors = num_sectors;
 	LDBG(curlun, "open backing file: %s\n", filename);
-	rc = 0;
+	return 0;
 
 out:
-	filp_close(filp, current->files);
+	fput(filp);
 	return rc;
 }
 
