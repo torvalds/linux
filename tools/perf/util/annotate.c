@@ -777,7 +777,7 @@ fallback:
 		free_filename = false;
 	}
 
-	if (dso->symtab_type == SYMTAB__KALLSYMS) {
+	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS) {
 		char bf[BUILD_ID_SIZE * 2 + 16] = " with build id ";
 		char *build_id_msg = NULL;
 
