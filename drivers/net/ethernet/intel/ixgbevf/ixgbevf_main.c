@@ -540,6 +540,25 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 	return 0;
 }
 
+/**
+ * ixgbevf_write_eitr - write VTEITR register in hardware specific way
+ * @q_vector: structure containing interrupt and ring information
+ */
+static void ixgbevf_write_eitr(struct ixgbevf_q_vector *q_vector)
+{
+	struct ixgbevf_adapter *adapter = q_vector->adapter;
+	struct ixgbe_hw *hw = &adapter->hw;
+	int v_idx = q_vector->v_idx;
+	u32 itr_reg = q_vector->itr & IXGBE_MAX_EITR;
+
+	/*
+	 * set the WDIS bit to not clear the timer bits and cause an
+	 * immediate assertion of the interrupt
+	 */
+	itr_reg |= IXGBE_EITR_CNT_WDIS;
+
+	IXGBE_WRITE_REG(hw, IXGBE_VTEITR(v_idx), itr_reg);
+}
 
 /**
  * ixgbevf_configure_msix - Configure MSI-X hardware
@@ -660,30 +679,6 @@ static void ixgbevf_update_itr(struct ixgbevf_q_vector *q_vector,
 
 	/* write updated itr to ring container */
 	ring_container->itr = itr_setting;
-}
-
-/**
- * ixgbevf_write_eitr - write VTEITR register in hardware specific way
- * @q_vector: structure containing interrupt and ring information
- *
- * This function is made to be called by ethtool and by the driver
- * when it needs to update VTEITR registers at runtime.  Hardware
- * specific quirks/differences are taken care of here.
- */
-void ixgbevf_write_eitr(struct ixgbevf_q_vector *q_vector)
-{
-	struct ixgbevf_adapter *adapter = q_vector->adapter;
-	struct ixgbe_hw *hw = &adapter->hw;
-	int v_idx = q_vector->v_idx;
-	u32 itr_reg = q_vector->itr & IXGBE_MAX_EITR;
-
-	/*
-	 * set the WDIS bit to not clear the timer bits and cause an
-	 * immediate assertion of the interrupt
-	 */
-	itr_reg |= IXGBE_EITR_CNT_WDIS;
-
-	IXGBE_WRITE_REG(hw, IXGBE_VTEITR(v_idx), itr_reg);
 }
 
 static void ixgbevf_set_itr(struct ixgbevf_q_vector *q_vector)
@@ -1120,9 +1115,14 @@ static int ixgbevf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 
+	spin_lock(&adapter->mbx_lock);
+
 	/* add VID to filter table */
 	if (hw->mac.ops.set_vfta)
 		hw->mac.ops.set_vfta(hw, vid, 0, true);
+
+	spin_unlock(&adapter->mbx_lock);
+
 	set_bit(vid, adapter->active_vlans);
 
 	return 0;
@@ -1133,9 +1133,14 @@ static int ixgbevf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 
+	spin_lock(&adapter->mbx_lock);
+
 	/* remove VID from filter table */
 	if (hw->mac.ops.set_vfta)
 		hw->mac.ops.set_vfta(hw, vid, 0, false);
+
+	spin_unlock(&adapter->mbx_lock);
+
 	clear_bit(vid, adapter->active_vlans);
 
 	return 0;
@@ -1190,11 +1195,15 @@ static void ixgbevf_set_rx_mode(struct net_device *netdev)
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 
+	spin_lock(&adapter->mbx_lock);
+
 	/* reprogram multicast list */
 	if (hw->mac.ops.update_mc_addr_list)
 		hw->mac.ops.update_mc_addr_list(hw, netdev);
 
 	ixgbevf_write_uc_addr_list(netdev);
+
+	spin_unlock(&adapter->mbx_lock);
 }
 
 static void ixgbevf_napi_enable_all(struct ixgbevf_adapter *adapter)
@@ -1339,6 +1348,8 @@ static void ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 
 	ixgbevf_configure_msix(adapter);
 
+	spin_lock(&adapter->mbx_lock);
+
 	if (hw->mac.ops.set_rar) {
 		if (is_valid_ether_addr(hw->mac.addr))
 			hw->mac.ops.set_rar(hw, 0, hw->mac.addr, 0);
@@ -1349,6 +1360,8 @@ static void ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 	msg[0] = IXGBE_VF_SET_LPE;
 	msg[1] = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	hw->mbx.ops.write_posted(hw, msg, 2);
+
+	spin_unlock(&adapter->mbx_lock);
 
 	clear_bit(__IXGBEVF_DOWN, &adapter->state);
 	ixgbevf_napi_enable_all(adapter);
@@ -1562,10 +1575,14 @@ void ixgbevf_reset(struct ixgbevf_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
 
+	spin_lock(&adapter->mbx_lock);
+
 	if (hw->mac.ops.reset_hw(hw))
 		hw_dbg(hw, "PF still resetting\n");
 	else
 		hw->mac.ops.init_hw(hw);
+
+	spin_unlock(&adapter->mbx_lock);
 
 	if (is_valid_ether_addr(adapter->hw.mac.addr)) {
 		memcpy(netdev->dev_addr, adapter->hw.mac.addr,
@@ -1893,6 +1910,9 @@ static int __devinit ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 			adapter->netdev->addr_len);
 	}
 
+	/* lock to protect mailbox accesses */
+	spin_lock_init(&adapter->mbx_lock);
+
 	/* Enable dynamic interrupt throttling rates */
 	adapter->rx_itr_setting = 1;
 	adapter->tx_itr_setting = 1;
@@ -2032,8 +2052,16 @@ static void ixgbevf_watchdog_task(struct work_struct *work)
 	 * no LSC interrupt
 	 */
 	if (hw->mac.ops.check_link) {
-		if ((hw->mac.ops.check_link(hw, &link_speed,
-					    &link_up, false)) != 0) {
+		s32 need_reset;
+
+		spin_lock(&adapter->mbx_lock);
+
+		need_reset = hw->mac.ops.check_link(hw, &link_speed,
+						    &link_up, false);
+
+		spin_unlock(&adapter->mbx_lock);
+
+		if (need_reset) {
 			adapter->link_up = link_up;
 			adapter->link_speed = link_speed;
 			netif_carrier_off(netdev);
@@ -2813,8 +2841,12 @@ static int ixgbevf_set_mac(struct net_device *netdev, void *p)
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	memcpy(hw->mac.addr, addr->sa_data, netdev->addr_len);
 
+	spin_lock(&adapter->mbx_lock);
+
 	if (hw->mac.ops.set_rar)
 		hw->mac.ops.set_rar(hw, 0, hw->mac.addr, 0);
+
+	spin_unlock(&adapter->mbx_lock);
 
 	return 0;
 }
@@ -3152,12 +3184,92 @@ static void __devexit ixgbevf_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
+/**
+ * ixgbevf_io_error_detected - called when PCI error is detected
+ * @pdev: Pointer to PCI device
+ * @state: The current pci connection state
+ *
+ * This function is called after a PCI bus error affecting
+ * this device has been detected.
+ */
+static pci_ers_result_t ixgbevf_io_error_detected(struct pci_dev *pdev,
+						  pci_channel_state_t state)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
+
+	netif_device_detach(netdev);
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	if (netif_running(netdev))
+		ixgbevf_down(adapter);
+
+	pci_disable_device(pdev);
+
+	/* Request a slot slot reset. */
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+/**
+ * ixgbevf_io_slot_reset - called after the pci bus has been reset.
+ * @pdev: Pointer to PCI device
+ *
+ * Restart the card from scratch, as if from a cold-boot. Implementation
+ * resembles the first-half of the ixgbevf_resume routine.
+ */
+static pci_ers_result_t ixgbevf_io_slot_reset(struct pci_dev *pdev)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
+
+	if (pci_enable_device_mem(pdev)) {
+		dev_err(&pdev->dev,
+			"Cannot re-enable PCI device after reset.\n");
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	pci_set_master(pdev);
+
+	ixgbevf_reset(adapter);
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+/**
+ * ixgbevf_io_resume - called when traffic can start flowing again.
+ * @pdev: Pointer to PCI device
+ *
+ * This callback is called when the error recovery driver tells us that
+ * its OK to resume normal operation. Implementation resembles the
+ * second-half of the ixgbevf_resume routine.
+ */
+static void ixgbevf_io_resume(struct pci_dev *pdev)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
+
+	if (netif_running(netdev))
+		ixgbevf_up(adapter);
+
+	netif_device_attach(netdev);
+}
+
+/* PCI Error Recovery (ERS) */
+static struct pci_error_handlers ixgbevf_err_handler = {
+	.error_detected = ixgbevf_io_error_detected,
+	.slot_reset = ixgbevf_io_slot_reset,
+	.resume = ixgbevf_io_resume,
+};
+
 static struct pci_driver ixgbevf_driver = {
 	.name     = ixgbevf_driver_name,
 	.id_table = ixgbevf_pci_tbl,
 	.probe    = ixgbevf_probe,
 	.remove   = __devexit_p(ixgbevf_remove),
 	.shutdown = ixgbevf_shutdown,
+	.err_handler = &ixgbevf_err_handler
 };
 
 /**

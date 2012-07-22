@@ -77,17 +77,18 @@
 #define IXGBE_MAX_FCPAUSE		 0xFFFF
 
 /* Supported Rx Buffer Sizes */
-#define IXGBE_RXBUFFER_512   512    /* Used for packet split */
+#define IXGBE_RXBUFFER_256    256  /* Used for skb receive header */
 #define IXGBE_MAX_RXBUFFER  16384  /* largest size for a single descriptor */
 
 /*
- * NOTE: netdev_alloc_skb reserves up to 64 bytes, NET_IP_ALIGN mans we
- * reserve 2 more, and skb_shared_info adds an additional 384 bytes more,
- * this adds up to 512 bytes of extra data meaning the smallest allocation
- * we could have is 1K.
- * i.e. RXBUFFER_512 --> size-1024 slab
+ * NOTE: netdev_alloc_skb reserves up to 64 bytes, NET_IP_ALIGN means we
+ * reserve 64 more, and skb_shared_info adds an additional 320 bytes more,
+ * this adds up to 448 bytes of extra data.
+ *
+ * Since netdev_alloc_skb now allocates a page fragment we can use a value
+ * of 256 and the resultant skb will have a truesize of 960 or less.
  */
-#define IXGBE_RX_HDR_SIZE IXGBE_RXBUFFER_512
+#define IXGBE_RX_HDR_SIZE IXGBE_RXBUFFER_256
 
 #define MAXIMUM_ETHERNET_VLAN_SIZE (ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
 
@@ -130,7 +131,6 @@ struct vf_data_storage {
 	u16 tx_rate;
 	u16 vlan_count;
 	u8 spoofchk_enabled;
-	struct pci_dev *vfdev;
 };
 
 struct vf_macvlans {

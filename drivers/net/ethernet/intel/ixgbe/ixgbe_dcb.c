@@ -232,18 +232,22 @@ u8 ixgbe_dcb_get_tc_from_up(struct ixgbe_dcb_config *cfg, int direction, u8 up)
 {
 	struct tc_configuration *tc_config = &cfg->tc_config[0];
 	u8 prio_mask = 1 << up;
-	u8 tc;
+	u8 tc = cfg->num_tcs.pg_tcs;
+
+	/* If tc is 0 then DCB is likely not enabled or supported */
+	if (!tc)
+		goto out;
 
 	/*
-	 * Test for TCs 7 through 1 and report the first match we find.  If
+	 * Test from maximum TC to 1 and report the first match we find.  If
 	 * we find no match we can assume that the TC is 0 since the TC must
 	 * be set for all user priorities
 	 */
-	for (tc = MAX_TRAFFIC_CLASS - 1; tc; tc--) {
+	for (tc--; tc; tc--) {
 		if (prio_mask & tc_config[tc].path[direction].up_to_tc_bitmap)
 			break;
 	}
-
+out:
 	return tc;
 }
 

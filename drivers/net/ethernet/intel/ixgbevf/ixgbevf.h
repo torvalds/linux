@@ -249,6 +249,8 @@ struct ixgbevf_adapter {
 	bool link_up;
 
 	struct work_struct watchdog_task;
+
+	spinlock_t mbx_lock;
 };
 
 enum ixbgevf_state_t {
@@ -284,7 +286,6 @@ extern void ixgbevf_free_rx_resources(struct ixgbevf_adapter *,
 extern void ixgbevf_free_tx_resources(struct ixgbevf_adapter *,
 				      struct ixgbevf_ring *);
 extern void ixgbevf_update_stats(struct ixgbevf_adapter *adapter);
-void ixgbevf_write_eitr(struct ixgbevf_q_vector *);
 extern int ethtool_ioctl(struct ifreq *ifr);
 
 extern void ixgbe_napi_add_all(struct ixgbevf_adapter *adapter);

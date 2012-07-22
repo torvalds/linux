@@ -1517,8 +1517,8 @@ static bool ixgbe_cleanup_headers(struct ixgbe_ring *rx_ring,
 	 * 60 bytes if the skb->len is less than 60 for skb_pad.
 	 */
 	pull_len = skb_frag_size(frag);
-	if (pull_len > 256)
-		pull_len = ixgbe_get_headlen(va, pull_len);
+	if (pull_len > IXGBE_RX_HDR_SIZE)
+		pull_len = ixgbe_get_headlen(va, IXGBE_RX_HDR_SIZE);
 
 	/* align pull length to size of long to optimize memcpy performance */
 	skb_copy_to_linear_data(skb, va, ALIGN(pull_len, sizeof(long)));
@@ -2688,8 +2688,7 @@ void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
 		   32;		/* PTHRESH = 32 */
 
 	/* reinitialize flowdirector state */
-	if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) &&
-	    adapter->atr_sample_rate) {
+	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) {
 		ring->atr_sample_rate = adapter->atr_sample_rate;
 		ring->atr_count = 0;
 		set_bit(__IXGBE_TX_FDIR_INIT_DONE, &ring->state);
@@ -3442,14 +3441,18 @@ static int ixgbe_write_uc_addr_list(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	unsigned int rar_entries = IXGBE_MAX_PF_MACVLANS;
+	unsigned int rar_entries = hw->mac.num_rar_entries - 1;
 	int count = 0;
+
+	/* In SR-IOV mode significantly less RAR entries are available */
+	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
+		rar_entries = IXGBE_MAX_PF_MACVLANS - 1;
 
 	/* return ENOMEM indicating insufficient memory for addresses */
 	if (netdev_uc_count(netdev) > rar_entries)
 		return -ENOMEM;
 
-	if (!netdev_uc_empty(netdev) && rar_entries) {
+	if (!netdev_uc_empty(netdev)) {
 		struct netdev_hw_addr *ha;
 		/* return error if we do not support writing to RAR table */
 		if (!hw->mac.ops.set_rar)
@@ -4419,7 +4422,6 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		if (hw->device_id == IXGBE_DEV_ID_82599_T3_LOM)
 			adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_CAPABLE;
 		/* Flow Director hash filters enabled */
-		adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
 		adapter->atr_sample_rate = 20;
 		adapter->ring_feature[RING_F_FDIR].limit =
 							 IXGBE_MAX_FDIR_INDICES;
@@ -4490,6 +4492,12 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	hw->fc.send_xon = true;
 	hw->fc.disable_fc_autoneg = false;
 
+#ifdef CONFIG_PCI_IOV
+	/* assign number of SR-IOV VFs */
+	if (hw->mac.type != ixgbe_mac_82598EB)
+		adapter->num_vfs = (max_vfs > 63) ? 0 : max_vfs;
+
+#endif
 	/* enable itr by default in dynamic mode */
 	adapter->rx_itr_setting = 1;
 	adapter->tx_itr_setting = 1;
@@ -6695,12 +6703,6 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct ixgbe_hw *hw = &adapter->hw;
 
-	/* Multiple traffic classes requires multiple queues */
-	if (!(adapter->flags & IXGBE_FLAG_MSIX_ENABLED)) {
-		e_err(drv, "Enable failed, needs MSI-X\n");
-		return -EINVAL;
-	}
-
 	/* Hardware supports up to 8 traffic classes */
 	if (tc > adapter->dcb_cfg.num_tcs.pg_tcs ||
 	    (hw->mac.type == ixgbe_mac_82598EB &&
@@ -6720,7 +6722,6 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 		ixgbe_set_prio_tc_map(adapter);
 
 		adapter->flags |= IXGBE_FLAG_DCB_ENABLED;
-		adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
 
 		if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
 			adapter->last_lfc_mode = adapter->hw.fc.requested_mode;
@@ -6733,7 +6734,6 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 			adapter->hw.fc.requested_mode = adapter->last_lfc_mode;
 
 		adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
-		adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
 
 		adapter->temp_dcb_cfg.pfc_mode_enable = false;
 		adapter->dcb_cfg.pfc_mode_enable = false;
@@ -6802,20 +6802,40 @@ static int ixgbe_set_features(struct net_device *netdev,
 	 * Check if Flow Director n-tuple support was enabled or disabled.  If
 	 * the state changed, we need to reset.
 	 */
-	if (!(features & NETIF_F_NTUPLE)) {
-		if (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE) {
-			/* turn off Flow Director, set ATR and reset */
-			if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) &&
-			    !(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
-				adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
-			need_reset = true;
-		}
-		adapter->flags &= ~IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
-	} else if (!(adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)) {
+	switch (features & NETIF_F_NTUPLE) {
+	case NETIF_F_NTUPLE:
 		/* turn off ATR, enable perfect filters and reset */
+		if (!(adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
+			need_reset = true;
+
 		adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
 		adapter->flags |= IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
-		need_reset = true;
+		break;
+	default:
+		/* turn off perfect filters, enable ATR and reset */
+		if (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)
+			need_reset = true;
+
+		adapter->flags &= ~IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
+
+		/* We cannot enable ATR if SR-IOV is enabled */
+		if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
+			break;
+
+		/* We cannot enable ATR if we have 2 or more traffic classes */
+		if (netdev_get_num_tc(netdev) > 1)
+			break;
+
+		/* We cannot enable ATR if RSS is disabled */
+		if (adapter->ring_feature[RING_F_RSS].limit <= 1)
+			break;
+
+		/* A sample rate of 0 indicates ATR disabled */
+		if (!adapter->atr_sample_rate)
+			break;
+
+		adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
+		break;
 	}
 
 	if (features & NETIF_F_HW_VLAN_RX)
@@ -6839,7 +6859,10 @@ static int ixgbe_ndo_fdb_add(struct ndmsg *ndm,
 			     u16 flags)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
-	int err = -EOPNOTSUPP;
+	int err;
+
+	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
+		return -EOPNOTSUPP;
 
 	if (ndm->ndm_state & NUD_PERMANENT) {
 		pr_info("%s: FDB only supports static addresses\n",
@@ -6847,13 +6870,17 @@ static int ixgbe_ndo_fdb_add(struct ndmsg *ndm,
 		return -EINVAL;
 	}
 
-	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
-		if (is_unicast_ether_addr(addr))
+	if (is_unicast_ether_addr(addr)) {
+		u32 rar_uc_entries = IXGBE_MAX_PF_MACVLANS;
+
+		if (netdev_uc_count(dev) < rar_uc_entries)
 			err = dev_uc_add_excl(dev, addr);
-		else if (is_multicast_ether_addr(addr))
-			err = dev_mc_add_excl(dev, addr);
 		else
-			err = -EINVAL;
+			err = -ENOMEM;
+	} else if (is_multicast_ether_addr(addr)) {
+		err = dev_mc_add_excl(dev, addr);
+	} else {
+		err = -EINVAL;
 	}
 
 	/* Only return duplicate errors if NLM_F_EXCL is set */
@@ -6942,26 +6969,6 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_fdb_dump		= ixgbe_ndo_fdb_dump,
 };
 
-static void __devinit ixgbe_probe_vf(struct ixgbe_adapter *adapter,
-				     const struct ixgbe_info *ii)
-{
-#ifdef CONFIG_PCI_IOV
-	struct ixgbe_hw *hw = &adapter->hw;
-
-	if (hw->mac.type == ixgbe_mac_82598EB)
-		return;
-
-	/* The 82599 supports up to 64 VFs per physical function
-	 * but this implementation limits allocation to 63 so that
-	 * basic networking resources are still available to the
-	 * physical function.  If the user requests greater thn
-	 * 63 VFs then it is an error - reset to default of zero.
-	 */
-	adapter->num_vfs = (max_vfs > 63) ? 0 : max_vfs;
-	ixgbe_enable_sriov(adapter, ii);
-#endif /* CONFIG_PCI_IOV */
-}
-
 /**
  * ixgbe_wol_supported - Check whether device supports WoL
  * @hw: hw specific details
@@ -6988,6 +6995,7 @@ int ixgbe_wol_supported(struct ixgbe_adapter *adapter, u16 device_id,
 			if (hw->bus.func != 0)
 				break;
 		case IXGBE_SUBDEV_ID_82599_SFP:
+		case IXGBE_SUBDEV_ID_82599_RNDC:
 			is_wol_supported = 1;
 			break;
 		}
@@ -7035,6 +7043,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	int i, err, pci_using_dac;
 	u8 part_str[IXGBE_PBANUM_LENGTH];
 	unsigned int indices = num_possible_cpus();
+	unsigned int dcb_max = 0;
 #ifdef IXGBE_FCOE
 	u16 device_caps;
 #endif
@@ -7084,15 +7093,16 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	pci_save_state(pdev);
 
 #ifdef CONFIG_IXGBE_DCB
-	indices *= MAX_TRAFFIC_CLASS;
+	if (ii->mac == ixgbe_mac_82598EB)
+		dcb_max = min_t(unsigned int, indices * MAX_TRAFFIC_CLASS,
+				IXGBE_MAX_RSS_INDICES);
+	else
+		dcb_max = min_t(unsigned int, indices * MAX_TRAFFIC_CLASS,
+				IXGBE_MAX_FDIR_INDICES);
 #endif
 
 	if (ii->mac == ixgbe_mac_82598EB)
-#ifdef CONFIG_IXGBE_DCB
-		indices = min_t(unsigned int, indices, MAX_TRAFFIC_CLASS * 4);
-#else
 		indices = min_t(unsigned int, indices, IXGBE_MAX_RSS_INDICES);
-#endif
 	else
 		indices = min_t(unsigned int, indices, IXGBE_MAX_FDIR_INDICES);
 
@@ -7100,6 +7110,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	indices += min_t(unsigned int, num_possible_cpus(),
 			 IXGBE_MAX_FCOE_INDICES);
 #endif
+	indices = max_t(unsigned int, dcb_max, indices);
 	netdev = alloc_etherdev_mq(sizeof(struct ixgbe_adapter), indices);
 	if (!netdev) {
 		err = -ENOMEM;
@@ -7206,8 +7217,10 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		goto err_sw_init;
 	}
 
-	ixgbe_probe_vf(adapter, ii);
+#ifdef CONFIG_PCI_IOV
+	ixgbe_enable_sriov(adapter, ii);
 
+#endif
 	netdev->features = NETIF_F_SG |
 			   NETIF_F_IP_CSUM |
 			   NETIF_F_IPV6_CSUM |
@@ -7411,8 +7424,7 @@ err_register:
 	ixgbe_release_hw_control(adapter);
 	ixgbe_clear_interrupt_scheme(adapter);
 err_sw_init:
-	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
-		ixgbe_disable_sriov(adapter);
+	ixgbe_disable_sriov(adapter);
 	adapter->flags2 &= ~IXGBE_FLAG2_SEARCH_FOR_SFP;
 	iounmap(hw->hw_addr);
 err_ioremap:
@@ -7465,13 +7477,7 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	if (netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(netdev);
 
-	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
-		if (!(ixgbe_check_vf_assignment(adapter)))
-			ixgbe_disable_sriov(adapter);
-		else
-			e_dev_warn("Unloading driver while VFs are assigned "
-				   "- VFs will not be deallocated\n");
-	}
+	ixgbe_disable_sriov(adapter);
 
 	ixgbe_clear_interrupt_scheme(adapter);
 
