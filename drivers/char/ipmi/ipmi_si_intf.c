@@ -2503,18 +2503,6 @@ static void __devexit ipmi_pci_remove(struct pci_dev *pdev)
 	cleanup_one_si(info);
 }
 
-#ifdef CONFIG_PM
-static int ipmi_pci_suspend(struct pci_dev *pdev, pm_message_t state)
-{
-	return 0;
-}
-
-static int ipmi_pci_resume(struct pci_dev *pdev)
-{
-	return 0;
-}
-#endif
-
 static struct pci_device_id ipmi_pci_devices[] = {
 	{ PCI_DEVICE(PCI_HP_VENDOR_ID, PCI_MMC_DEVICE_ID) },
 	{ PCI_DEVICE_CLASS(PCI_ERMC_CLASSCODE, PCI_ERMC_CLASSCODE_MASK) },
@@ -2527,10 +2515,6 @@ static struct pci_driver ipmi_pci_driver = {
 	.id_table =     ipmi_pci_devices,
 	.probe =        ipmi_pci_probe,
 	.remove =       __devexit_p(ipmi_pci_remove),
-#ifdef CONFIG_PM
-	.suspend =      ipmi_pci_suspend,
-	.resume =       ipmi_pci_resume,
-#endif
 };
 #endif /* CONFIG_PCI */
 

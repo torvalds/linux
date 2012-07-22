@@ -1661,27 +1661,26 @@ static void ux500_cryp_shutdown(struct platform_device *pdev)
 
 }
 
-static int ux500_cryp_suspend(struct platform_device *pdev, pm_message_t state)
+static int ux500_cryp_suspend(struct device *dev)
 {
 	int ret;
+	struct platform_device *pdev = to_platform_device(dev);
 	struct cryp_device_data *device_data;
 	struct resource *res_irq;
 	struct cryp_ctx *temp_ctx = NULL;
 
-	dev_dbg(&pdev->dev, "[%s]", __func__);
+	dev_dbg(dev, "[%s]", __func__);
 
 	/* Handle state? */
 	device_data = platform_get_drvdata(pdev);
 	if (!device_data) {
-		dev_err(&pdev->dev, "[%s]: platform_get_drvdata() failed!",
-			__func__);
+		dev_err(dev, "[%s]: platform_get_drvdata() failed!", __func__);
 		return -ENOMEM;
 	}
 
 	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res_irq)
-		dev_err(&pdev->dev, "[%s]: IORESOURCE_IRQ, unavailable",
-			__func__);
+		dev_err(dev, "[%s]: IORESOURCE_IRQ, unavailable", __func__);
 	else
 		disable_irq(res_irq->start);
 
@@ -1692,32 +1691,32 @@ static int ux500_cryp_suspend(struct platform_device *pdev, pm_message_t state)
 
 	if (device_data->current_ctx == ++temp_ctx) {
 		if (down_interruptible(&driver_data.device_allocation))
-			dev_dbg(&pdev->dev, "[%s]: down_interruptible() "
-					"failed", __func__);
-		ret = cryp_disable_power(&pdev->dev, device_data, false);
+			dev_dbg(dev, "[%s]: down_interruptible() failed",
+				__func__);
+		ret = cryp_disable_power(dev, device_data, false);
 
 	} else
-		ret = cryp_disable_power(&pdev->dev, device_data, true);
+		ret = cryp_disable_power(dev, device_data, true);
 
 	if (ret)
-		dev_err(&pdev->dev, "[%s]: cryp_disable_power()", __func__);
+		dev_err(dev, "[%s]: cryp_disable_power()", __func__);
 
 	return ret;
 }
 
-static int ux500_cryp_resume(struct platform_device *pdev)
+static int ux500_cryp_resume(struct device *dev)
 {
 	int ret = 0;
+	struct platform_device *pdev = to_platform_device(dev);
 	struct cryp_device_data *device_data;
 	struct resource *res_irq;
 	struct cryp_ctx *temp_ctx = NULL;
 
-	dev_dbg(&pdev->dev, "[%s]", __func__);
+	dev_dbg(dev, "[%s]", __func__);
 
 	device_data = platform_get_drvdata(pdev);
 	if (!device_data) {
-		dev_err(&pdev->dev, "[%s]: platform_get_drvdata() failed!",
-			__func__);
+		dev_err(dev, "[%s]: platform_get_drvdata() failed!", __func__);
 		return -ENOMEM;
 	}
 
@@ -1730,11 +1729,10 @@ static int ux500_cryp_resume(struct platform_device *pdev)
 	if (!device_data->current_ctx)
 		up(&driver_data.device_allocation);
 	else
-		ret = cryp_enable_power(&pdev->dev, device_data, true);
+		ret = cryp_enable_power(dev, device_data, true);
 
 	if (ret)
-		dev_err(&pdev->dev, "[%s]: cryp_enable_power() failed!",
-			__func__);
+		dev_err(dev, "[%s]: cryp_enable_power() failed!", __func__);
 	else {
 		res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 		if (res_irq)
@@ -1744,15 +1742,16 @@ static int ux500_cryp_resume(struct platform_device *pdev)
 	return ret;
 }
 
+static SIMPLE_DEV_PM_OPS(ux500_cryp_pm, ux500_cryp_suspend, ux500_cryp_resume);
+
 static struct platform_driver cryp_driver = {
 	.probe  = ux500_cryp_probe,
 	.remove = ux500_cryp_remove,
 	.shutdown = ux500_cryp_shutdown,
-	.suspend  = ux500_cryp_suspend,
-	.resume   = ux500_cryp_resume,
 	.driver = {
 		.owner = THIS_MODULE,
 		.name  = "cryp1"
+		.pm    = &ux500_cryp_pm,
 	}
 };
 

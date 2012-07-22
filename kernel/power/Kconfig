@@ -175,7 +175,7 @@ config PM_TEST_SUSPEND
 	You probably want to have your system's RTC driver statically
 	linked, ensuring that it's available when this test runs.
 
-config CAN_PM_TRACE
+config PM_SLEEP_DEBUG
 	def_bool y
 	depends on PM_DEBUG && PM_SLEEP
 
@@ -196,7 +196,7 @@ config PM_TRACE
 
 config PM_TRACE_RTC
 	bool "Suspend/resume event tracing"
-	depends on CAN_PM_TRACE
+	depends on PM_SLEEP_DEBUG
 	depends on X86
 	select PM_TRACE
 	---help---
