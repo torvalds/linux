@@ -674,10 +674,10 @@ nv_load_state_ext(struct drm_device *dev, int head,
 		nvWriteVIDEO(dev, NV_PVIDEO_INTR_EN, 0);
 		nvWriteVIDEO(dev, NV_PVIDEO_OFFSET_BUFF(0), 0);
 		nvWriteVIDEO(dev, NV_PVIDEO_OFFSET_BUFF(1), 0);
-		nvWriteVIDEO(dev, NV_PVIDEO_LIMIT(0), dev_priv->fb_available_size - 1);
-		nvWriteVIDEO(dev, NV_PVIDEO_LIMIT(1), dev_priv->fb_available_size - 1);
-		nvWriteVIDEO(dev, NV_PVIDEO_UVPLANE_LIMIT(0), dev_priv->fb_available_size - 1);
-		nvWriteVIDEO(dev, NV_PVIDEO_UVPLANE_LIMIT(1), dev_priv->fb_available_size - 1);
+		nvWriteVIDEO(dev, NV_PVIDEO_LIMIT(0), 0); //dev_priv->fb_available_size - 1);
+		nvWriteVIDEO(dev, NV_PVIDEO_LIMIT(1), 0); //dev_priv->fb_available_size - 1);
+		nvWriteVIDEO(dev, NV_PVIDEO_UVPLANE_LIMIT(0), 0); //dev_priv->fb_available_size - 1);
+		nvWriteVIDEO(dev, NV_PVIDEO_UVPLANE_LIMIT(1), 0); //dev_priv->fb_available_size - 1);
 		nvWriteMC(dev, NV_PBUS_POWERCTRL_2, 0);
 
 		NVWriteCRTC(dev, head, NV_PCRTC_CURSOR_CONFIG, regp->cursor_cfg);

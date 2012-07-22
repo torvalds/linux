@@ -64,14 +64,9 @@ enum blah {
 	NV_MEM_TYPE_GDDR5
 };
 
-#define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
-
 #include <nouveau_drm.h>
 #include "nouveau_reg.h"
 #include <nouveau_bios.h>
-
-struct nouveau_grctx;
-struct nouveau_mem;
 
 #include <subdev/bios/pll.h>
 #include "nouveau_compat.h"
@@ -85,28 +80,14 @@ struct nouveau_mem;
 #define nv50_vm_flush_engine(d,e) \
 	_nv50_vm_flush_engine((d), (e))
 
-#define MAX_NUM_DCB_ENTRIES 16
-
-#define NOUVEAU_MAX_CHANNEL_NR 4096
-
 #include "nouveau_bo.h"
 #include "nouveau_gem.h"
-
-enum nouveau_flags {
-	NV_NFORCE   = 0x10000000,
-	NV_NFORCE2  = 0x20000000
-};
 
 struct nouveau_page_flip_state {
 	struct list_head head;
 	struct drm_pending_vblank_event *event;
 	int crtc, bpp, pitch, x, y;
 	uint64_t offset;
-};
-
-enum nouveau_channel_mutex_class {
-	NOUVEAU_UCHANNEL_MUTEX,
-	NOUVEAU_KCHANNEL_MUTEX
 };
 
 struct nouveau_display_engine {
@@ -306,11 +287,8 @@ enum nouveau_card_type {
 	NV_E0      = 0xe0,
 };
 
-struct nouveau_channel;
-
 struct drm_nouveau_private {
 	struct drm_device *dev;
-	bool noaccel;
 
 	void *newpriv;
 
@@ -318,10 +296,7 @@ struct drm_nouveau_private {
 	enum nouveau_card_type card_type;
 	/* exact chipset, derived from NV_PMC_BOOT_0 */
 	int chipset;
-	int flags;
 	u32 crystal;
-
-	struct nouveau_bo *vga_ram;
 
 	/* interrupt handling */
 	void (*irq_handler[32])(struct drm_device *);
@@ -332,16 +307,8 @@ struct drm_nouveau_private {
 	/* For PFIFO and PGRAPH. */
 	spinlock_t context_switch_lock;
 
-	/* RAMIN configuration, RAMFC, RAMHT and RAMRO offsets */
-	struct nouveau_ramht  *ramht;
-
-	uint64_t fb_available_size;
-	uint64_t fb_mappable_pages;
-	int fb_mtrr;
-
 	struct nvbios vbios;
 	u8 *mxms;
-	struct list_head i2c_ports;
 
 	struct backlight_device *backlight;
 };
@@ -363,9 +330,7 @@ extern char *nouveau_vram_type;
 extern int nouveau_fbpercrtc;
 extern int nouveau_tv_disable;
 extern char *nouveau_tv_norm;
-extern int nouveau_reg_debug;
 extern int nouveau_ignorelid;
-extern int nouveau_noaccel;
 extern int nouveau_force_post;
 extern int nouveau_override_conntype;
 extern char *nouveau_perflvl;
@@ -382,34 +347,13 @@ extern int  nouveau_load(struct drm_device *, unsigned long flags);
 extern int  nouveau_firstopen(struct drm_device *);
 extern void nouveau_lastclose(struct drm_device *);
 extern int  nouveau_unload(struct drm_device *);
-extern bool nouveau_wait_for_idle(struct drm_device *);
 extern int  nouveau_card_init(struct drm_device *);
 
 /* nouveau_mem.c */
-extern int  nouveau_mem_vram_init(struct drm_device *);
-extern void nouveau_mem_vram_fini(struct drm_device *);
-extern int  nouveau_mem_gart_init(struct drm_device *);
-extern void nouveau_mem_gart_fini(struct drm_device *);
-extern void nouveau_mem_close(struct drm_device *);
-extern bool nouveau_mem_flags_valid(struct drm_device *, u32 tile_flags);
 extern int  nouveau_mem_timing_calc(struct drm_device *, u32 freq,
 				    struct nouveau_pm_memtiming *);
 extern void nouveau_mem_timing_read(struct drm_device *,
 				    struct nouveau_pm_memtiming *);
-extern int nouveau_mem_vbios_type(struct drm_device *);
-extern struct nouveau_tile_reg *nv10_mem_set_tiling(
-	struct drm_device *dev, uint32_t addr, uint32_t size,
-	uint32_t pitch, uint32_t flags);
-extern void nv10_mem_put_tile_region(struct drm_device *dev,
-				     struct nouveau_tile_reg *tile,
-				     struct nouveau_fence *fence);
-
-extern int  nouveau_channel_idle(struct nouveau_channel *chan);
-
-/* nouveau_gpuobj.c */
-int  nouveau_gpuobj_map_vm(struct nouveau_gpuobj *gpuobj, struct nouveau_vm *vm,
-			   u32 flags, struct nouveau_vma *vma);
-void nouveau_gpuobj_unmap(struct nouveau_vma *vma);
 
 /* nouveau_irq.c */
 extern int         nouveau_irq_init(struct drm_device *);
@@ -586,26 +530,6 @@ int nouveau_display_dumb_destroy(struct drm_file *, struct drm_device *,
 	}                                                                      \
 } while(0)
 
-/* nouveau_reg_debug bitmask */
-enum {
-	NOUVEAU_REG_DEBUG_MC             = 0x1,
-	NOUVEAU_REG_DEBUG_VIDEO          = 0x2,
-	NOUVEAU_REG_DEBUG_FB             = 0x4,
-	NOUVEAU_REG_DEBUG_EXTDEV         = 0x8,
-	NOUVEAU_REG_DEBUG_CRTC           = 0x10,
-	NOUVEAU_REG_DEBUG_RAMDAC         = 0x20,
-	NOUVEAU_REG_DEBUG_VGACRTC        = 0x40,
-	NOUVEAU_REG_DEBUG_RMVIO          = 0x80,
-	NOUVEAU_REG_DEBUG_VGAATTR        = 0x100,
-	NOUVEAU_REG_DEBUG_EVO            = 0x200,
-	NOUVEAU_REG_DEBUG_AUXCH          = 0x400
-};
-
-#define NV_REG_DEBUG(type, dev, fmt, arg...) do { \
-	if (nouveau_reg_debug & NOUVEAU_REG_DEBUG_##type) \
-		NV_PRINTK(KERN_DEBUG, dev, "%s: " fmt, __func__, ##arg); \
-} while (0)
-
 static inline bool
 nv_two_heads(struct drm_device *dev)
 {
@@ -644,64 +568,5 @@ nv_match_device(struct drm_device *dev, unsigned device,
 		dev->pdev->subsystem_vendor == sub_vendor &&
 		dev->pdev->subsystem_device == sub_device;
 }
-
-/* returns 1 if device is one of the nv4x using the 0x4497 object class,
- * helpful to determine a number of other hardware features
- */
-static inline int
-nv44_graph_class(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-
-	if ((dev_priv->chipset & 0xf0) == 0x60)
-		return 1;
-
-	return !(0x0baf & (1 << (dev_priv->chipset & 0x0f)));
-}
-
-/* memory type/access flags, do not match hardware values */
-#define NV_MEM_ACCESS_RO  1
-#define NV_MEM_ACCESS_WO  2
-#define NV_MEM_ACCESS_RW (NV_MEM_ACCESS_RO | NV_MEM_ACCESS_WO)
-#define NV_MEM_ACCESS_SYS 4
-#define NV_MEM_ACCESS_VM  8
-#define NV_MEM_ACCESS_NOSNOOP 16
-
-#define NV_MEM_TARGET_VRAM        0
-#define NV_MEM_TARGET_PCI         1
-#define NV_MEM_TARGET_PCI_NOSNOOP 2
-#define NV_MEM_TARGET_VM          3
-#define NV_MEM_TARGET_GART        4
-
-#define NV_MEM_TYPE_VM 0x7f
-#define NV_MEM_COMP_VM 0x03
-
-/* FIFO methods */
-#define NV01_SUBCHAN_OBJECT                                          0x00000000
-#define NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH                          0x00000010
-#define NV84_SUBCHAN_SEMAPHORE_ADDRESS_LOW                           0x00000014
-#define NV84_SUBCHAN_SEMAPHORE_SEQUENCE                              0x00000018
-#define NV84_SUBCHAN_SEMAPHORE_TRIGGER                               0x0000001c
-#define NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_EQUAL                 0x00000001
-#define NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG                    0x00000002
-#define NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_GEQUAL                0x00000004
-#define NVC0_SUBCHAN_SEMAPHORE_TRIGGER_YIELD                         0x00001000
-#define NV84_SUBCHAN_NOTIFY_INTR                                     0x00000020
-#define NV84_SUBCHAN_WRCACHE_FLUSH                                   0x00000024
-#define NV10_SUBCHAN_REF_CNT                                         0x00000050
-#define NVSW_SUBCHAN_PAGE_FLIP                                       0x00000054
-#define NV11_SUBCHAN_DMA_SEMAPHORE                                   0x00000060
-#define NV11_SUBCHAN_SEMAPHORE_OFFSET                                0x00000064
-#define NV11_SUBCHAN_SEMAPHORE_ACQUIRE                               0x00000068
-#define NV11_SUBCHAN_SEMAPHORE_RELEASE                               0x0000006c
-#define NV40_SUBCHAN_YIELD                                           0x00000080
-
-/* NV_SW object class */
-#define NV_SW                                                        0x0000506e
-#define NV_SW_DMA_VBLSEM                                             0x0000018c
-#define NV_SW_VBLSEM_OFFSET                                          0x00000400
-#define NV_SW_VBLSEM_RELEASE_VALUE                                   0x00000404
-#define NV_SW_VBLSEM_RELEASE                                         0x00000408
-#define NV_SW_PAGE_FLIP                                              0x00000500
 
 #endif /* __NOUVEAU_DRV_H__ */

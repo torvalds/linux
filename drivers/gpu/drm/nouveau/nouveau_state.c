@@ -350,11 +350,6 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	nouveau_backlight_exit(dev);
 	nouveau_display_destroy(dev);
 
-	if (dev_priv->vga_ram) {
-		nouveau_bo_unpin(dev_priv->vga_ram);
-		nouveau_bo_ref(NULL, &dev_priv->vga_ram);
-	}
-
 	nouveau_bios_takedown(dev);
 	engine->display.late_takedown(dev);
 
@@ -408,8 +403,6 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->newpriv = dev->dev_private;
 	dev->dev_private = dev_priv;
 	dev_priv->dev = dev;
-
-	dev_priv->flags = flags & NOUVEAU_FLAGS;
 
 	NV_DEBUG(dev, "vendor: 0x%X device: 0x%X class: 0x%X\n",
 		 dev->pci_vendor, dev->pci_device, dev->pdev->class);
@@ -483,12 +476,6 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 
 	nouveau_OF_copy_vbios_to_ramin(dev);
 
-	/* Special flags */
-	if (dev->pci_device == 0x01a0)
-		dev_priv->flags |= NV_NFORCE;
-	else if (dev->pci_device == 0x01f0)
-		dev_priv->flags |= NV_NFORCE2;
-
 	/* For kernel modesetting, init card now and bring up fbcon */
 	ret = nouveau_card_init(dev);
 	if (ret)
@@ -518,22 +505,3 @@ int nouveau_unload(struct drm_device *dev)
 	kfree(dev_priv);
 	return 0;
 }
-
-/* Waits for PGRAPH to go completely idle */
-bool nouveau_wait_for_idle(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t mask = ~0;
-
-	if (dev_priv->card_type == NV_40)
-		mask &= ~NV40_PGRAPH_STATUS_SYNC_STALL;
-
-	if (!nv_wait(dev, NV04_PGRAPH_STATUS, mask, 0)) {
-		NV_ERROR(dev, "PGRAPH idle timed out with status 0x%08x\n",
-			 nv_rd32(dev, NV04_PGRAPH_STATUS));
-		return false;
-	}
-
-	return true;
-}
-

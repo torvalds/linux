@@ -61,14 +61,12 @@ static inline uint32_t
 nvReadMC(struct drm_device *dev, uint32_t reg)
 {
 	uint32_t val = nv_rd32(dev, reg);
-	NV_REG_DEBUG(MC, dev, "reg %08x val %08x\n", reg, val);
 	return val;
 }
 
 static inline void
 nvWriteMC(struct drm_device *dev, uint32_t reg, uint32_t val)
 {
-	NV_REG_DEBUG(MC, dev, "reg %08x val %08x\n", reg, val);
 	nv_wr32(dev, reg, val);
 }
 
@@ -76,14 +74,12 @@ static inline uint32_t
 nvReadVIDEO(struct drm_device *dev, uint32_t reg)
 {
 	uint32_t val = nv_rd32(dev, reg);
-	NV_REG_DEBUG(VIDEO, dev, "reg %08x val %08x\n", reg, val);
 	return val;
 }
 
 static inline void
 nvWriteVIDEO(struct drm_device *dev, uint32_t reg, uint32_t val)
 {
-	NV_REG_DEBUG(VIDEO, dev, "reg %08x val %08x\n", reg, val);
 	nv_wr32(dev, reg, val);
 }
 
@@ -91,14 +87,12 @@ static inline uint32_t
 nvReadFB(struct drm_device *dev, uint32_t reg)
 {
 	uint32_t val = nv_rd32(dev, reg);
-	NV_REG_DEBUG(FB, dev, "reg %08x val %08x\n", reg, val);
 	return val;
 }
 
 static inline void
 nvWriteFB(struct drm_device *dev, uint32_t reg, uint32_t val)
 {
-	NV_REG_DEBUG(FB, dev, "reg %08x val %08x\n", reg, val);
 	nv_wr32(dev, reg, val);
 }
 
@@ -106,14 +100,12 @@ static inline uint32_t
 nvReadEXTDEV(struct drm_device *dev, uint32_t reg)
 {
 	uint32_t val = nv_rd32(dev, reg);
-	NV_REG_DEBUG(EXTDEV, dev, "reg %08x val %08x\n", reg, val);
 	return val;
 }
 
 static inline void
 nvWriteEXTDEV(struct drm_device *dev, uint32_t reg, uint32_t val)
 {
-	NV_REG_DEBUG(EXTDEV, dev, "reg %08x val %08x\n", reg, val);
 	nv_wr32(dev, reg, val);
 }
 
@@ -124,7 +116,6 @@ static inline uint32_t NVReadCRTC(struct drm_device *dev,
 	if (head)
 		reg += NV_PCRTC0_SIZE;
 	val = nv_rd32(dev, reg);
-	NV_REG_DEBUG(CRTC, dev, "head %d reg %08x val %08x\n", head, reg, val);
 	return val;
 }
 
@@ -133,7 +124,6 @@ static inline void NVWriteCRTC(struct drm_device *dev,
 {
 	if (head)
 		reg += NV_PCRTC0_SIZE;
-	NV_REG_DEBUG(CRTC, dev, "head %d reg %08x val %08x\n", head, reg, val);
 	nv_wr32(dev, reg, val);
 }
 
@@ -144,8 +134,6 @@ static inline uint32_t NVReadRAMDAC(struct drm_device *dev,
 	if (head)
 		reg += NV_PRAMDAC0_SIZE;
 	val = nv_rd32(dev, reg);
-	NV_REG_DEBUG(RAMDAC, dev, "head %d reg %08x val %08x\n",
-							head, reg, val);
 	return val;
 }
 
@@ -154,8 +142,6 @@ static inline void NVWriteRAMDAC(struct drm_device *dev,
 {
 	if (head)
 		reg += NV_PRAMDAC0_SIZE;
-	NV_REG_DEBUG(RAMDAC, dev, "head %d reg %08x val %08x\n",
-							head, reg, val);
 	nv_wr32(dev, reg, val);
 }
 
@@ -182,8 +168,6 @@ static inline void nv_write_tmds(struct drm_device *dev,
 static inline void NVWriteVgaCrtc(struct drm_device *dev,
 					int head, uint8_t index, uint8_t value)
 {
-	NV_REG_DEBUG(VGACRTC, dev, "head %d index 0x%02x data 0x%02x\n",
-							head, index, value);
 	nv_wr08(dev, NV_PRMCIO_CRX__COLOR + head * NV_PRMCIO_SIZE, index);
 	nv_wr08(dev, NV_PRMCIO_CR__COLOR + head * NV_PRMCIO_SIZE, value);
 }
@@ -194,8 +178,6 @@ static inline uint8_t NVReadVgaCrtc(struct drm_device *dev,
 	uint8_t val;
 	nv_wr08(dev, NV_PRMCIO_CRX__COLOR + head * NV_PRMCIO_SIZE, index);
 	val = nv_rd08(dev, NV_PRMCIO_CR__COLOR + head * NV_PRMCIO_SIZE);
-	NV_REG_DEBUG(VGACRTC, dev, "head %d index 0x%02x data 0x%02x\n",
-							head, index, val);
 	return val;
 }
 
@@ -238,7 +220,6 @@ static inline uint8_t NVReadPRMVIO(struct drm_device *dev,
 		reg += NV_PRMVIO_SIZE;
 
 	val = nv_rd08(dev, reg);
-	NV_REG_DEBUG(RMVIO, dev, "head %d reg %08x val %02x\n", head, reg, val);
 	return val;
 }
 
@@ -252,8 +233,6 @@ static inline void NVWritePRMVIO(struct drm_device *dev,
 	if (head && dev_priv->card_type == NV_40)
 		reg += NV_PRMVIO_SIZE;
 
-	NV_REG_DEBUG(RMVIO, dev, "head %d reg %08x val %02x\n",
-						head, reg, value);
 	nv_wr08(dev, reg, value);
 }
 
@@ -278,8 +257,6 @@ static inline void NVWriteVgaAttr(struct drm_device *dev,
 		index |= 0x20;
 
 	nv_rd08(dev, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
-	NV_REG_DEBUG(VGAATTR, dev, "head %d index 0x%02x data 0x%02x\n",
-							head, index, value);
 	nv_wr08(dev, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE, index);
 	nv_wr08(dev, NV_PRMCIO_AR__WRITE + head * NV_PRMCIO_SIZE, value);
 }
@@ -296,8 +273,6 @@ static inline uint8_t NVReadVgaAttr(struct drm_device *dev,
 	nv_rd08(dev, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
 	nv_wr08(dev, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE, index);
 	val = nv_rd08(dev, NV_PRMCIO_AR__READ + head * NV_PRMCIO_SIZE);
-	NV_REG_DEBUG(VGAATTR, dev, "head %d index 0x%02x data 0x%02x\n",
-							head, index, val);
 	return val;
 }
 

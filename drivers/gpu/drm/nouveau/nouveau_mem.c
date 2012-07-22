@@ -630,26 +630,3 @@ nouveau_mem_exec(struct nouveau_mem_exec_func *exec,
 
 	return 0;
 }
-
-int
-nouveau_mem_vbios_type(struct drm_device *dev)
-{
-	struct bit_entry M;
-	u8 ramcfg = (nv_rd32(dev, 0x101000) & 0x0000003c) >> 2;
-	if (!bit_table(dev, 'M', &M) || M.version != 2 || M.length < 5) {
-		u8 *table = ROMPTR(dev, M.data[3]);
-		if (table && table[0] == 0x10 && ramcfg < table[3]) {
-			u8 *entry = table + table[1] + (ramcfg * table[2]);
-			switch (entry[0] & 0x0f) {
-			case 0: return NV_MEM_TYPE_DDR2;
-			case 1: return NV_MEM_TYPE_DDR3;
-			case 2: return NV_MEM_TYPE_GDDR3;
-			case 3: return NV_MEM_TYPE_GDDR5;
-			default:
-				break;
-			}
-
-		}
-	}
-	return NV_MEM_TYPE_UNKNOWN;
-}
