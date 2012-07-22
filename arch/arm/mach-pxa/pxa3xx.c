@@ -40,6 +40,8 @@
 #define PECR_IE(n)	((1 << ((n) * 2)) << 28)
 #define PECR_IS(n)	((1 << ((n) * 2)) << 29)
 
+extern void __init pxa_dt_irq_init(int (*fn)(struct irq_data *, unsigned int));
+
 static DEFINE_PXA3_CKEN(pxa3xx_ffuart, FFUART, 14857000, 1);
 static DEFINE_PXA3_CKEN(pxa3xx_btuart, BTUART, 14857000, 1);
 static DEFINE_PXA3_CKEN(pxa3xx_stuart, STUART, 14857000, 1);
@@ -382,7 +384,7 @@ static void __init pxa_init_ext_wakeup_irq(int (*fn)(struct irq_data *,
 	pxa_ext_wakeup_chip.irq_set_wake = fn;
 }
 
-void __init pxa3xx_init_irq(void)
+static void __init __pxa3xx_init_irq(void)
 {
 	/* enable CP6 access */
 	u32 value;
@@ -390,8 +392,19 @@ void __init pxa3xx_init_irq(void)
 	value |= (1 << 6);
 	__asm__ __volatile__("mcr p15, 0, %0, c15, c1, 0\n": :"r"(value));
 
-	pxa_init_irq(56, pxa3xx_set_wake);
 	pxa_init_ext_wakeup_irq(pxa3xx_set_wake);
+}
+
+void __init pxa3xx_init_irq(void)
+{
+	__pxa3xx_init_irq();
+	pxa_init_irq(56, pxa3xx_set_wake);
+}
+
+void __init pxa3xx_dt_init_irq(void)
+{
+	__pxa3xx_init_irq();
+	pxa_dt_irq_init(pxa3xx_set_wake);
 }
 
 static struct map_desc pxa3xx_io_desc[] __initdata = {
