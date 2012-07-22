@@ -65,6 +65,14 @@ static enum dso_binary_type binary_type_symtab[] = {
 
 #define DSO_BINARY_TYPE__SYMTAB_CNT sizeof(binary_type_symtab)
 
+static enum dso_binary_type binary_type_data[] = {
+	DSO_BINARY_TYPE__BUILD_ID_CACHE,
+	DSO_BINARY_TYPE__SYSTEM_PATH_DSO,
+	DSO_BINARY_TYPE__NOT_FOUND,
+};
+
+#define DSO_BINARY_TYPE__DATA_CNT sizeof(binary_type_data)
+
 int dso__name_len(const struct dso *dso)
 {
 	if (!dso)
@@ -336,6 +344,7 @@ struct dso *dso__new(const char *name)
 		for (i = 0; i < MAP__NR_TYPES; ++i)
 			dso->symbols[i] = dso->symbol_names[i] = RB_ROOT;
 		dso->symtab_type = DSO_BINARY_TYPE__NOT_FOUND;
+		dso->data_type   = DSO_BINARY_TYPE__NOT_FOUND;
 		dso->loaded = 0;
 		dso->sorted_by_name = 0;
 		dso->has_build_id = 0;
@@ -2952,4 +2961,104 @@ struct map *dso__new_map(const char *name)
 		map = map__new2(0, dso, MAP__FUNCTION);
 
 	return map;
+}
+
+static int open_dso(struct dso *dso, struct machine *machine)
+{
+	char *root_dir = (char *) "";
+	char *name;
+	int fd;
+
+	name = malloc(PATH_MAX);
+	if (!name)
+		return -ENOMEM;
+
+	if (machine)
+		root_dir = machine->root_dir;
+
+	if (dso__binary_type_file(dso, dso->data_type,
+				  root_dir, name, PATH_MAX)) {
+		free(name);
+		return -EINVAL;
+	}
+
+	fd = open(name, O_RDONLY);
+	free(name);
+	return fd;
+}
+
+int dso__data_fd(struct dso *dso, struct machine *machine)
+{
+	int i = 0;
+
+	if (dso->data_type != DSO_BINARY_TYPE__NOT_FOUND)
+		return open_dso(dso, machine);
+
+	do {
+		int fd;
+
+		dso->data_type = binary_type_data[i++];
+
+		fd = open_dso(dso, machine);
+		if (fd >= 0)
+			return fd;
+
+	} while (dso->data_type != DSO_BINARY_TYPE__NOT_FOUND);
+
+	return -EINVAL;
+}
+
+static ssize_t dso_cache_read(struct dso *dso __used, u64 offset __used,
+			      u8 *data __used, ssize_t size __used)
+{
+	return -EINVAL;
+}
+
+static int dso_cache_add(struct dso *dso __used, u64 offset __used,
+			 u8 *data __used, ssize_t size __used)
+{
+	return 0;
+}
+
+static ssize_t read_dso_data(struct dso *dso, struct machine *machine,
+		     u64 offset, u8 *data, ssize_t size)
+{
+	ssize_t rsize = -1;
+	int fd;
+
+	fd = dso__data_fd(dso, machine);
+	if (fd < 0)
+		return -1;
+
+	do {
+		if (-1 == lseek(fd, offset, SEEK_SET))
+			break;
+
+		rsize = read(fd, data, size);
+		if (-1 == rsize)
+			break;
+
+		if (dso_cache_add(dso, offset, data, size))
+			pr_err("Failed to add data int dso cache.");
+
+	} while (0);
+
+	close(fd);
+	return rsize;
+}
+
+ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
+			      u64 offset, u8 *data, ssize_t size)
+{
+	if (dso_cache_read(dso, offset, data, size))
+		return read_dso_data(dso, machine, offset, data, size);
+	return 0;
+}
+
+ssize_t dso__data_read_addr(struct dso *dso, struct map *map,
+			    struct machine *machine, u64 addr,
+			    u8 *data, ssize_t size)
+{
+	u64 offset = map->map_ip(map, addr);
+	return dso__data_read_offset(dso, machine, offset, data, size);
 }
