@@ -11,8 +11,8 @@
 
 static void perf_gtk__signal(int sig)
 {
+	perf_gtk__exit(false);
 	psignal(sig, "perf");
-	gtk_main_quit();
 }
 
 static void perf_gtk__resize_window(GtkWidget *window)
@@ -122,13 +122,59 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists)
 	gtk_container_add(GTK_CONTAINER(window), view);
 }
 
+#ifdef HAVE_GTK_INFO_BAR
+static GtkWidget *perf_gtk__setup_info_bar(void)
+{
+	GtkWidget *info_bar;
+	GtkWidget *label;
+	GtkWidget *content_area;
+
+	info_bar = gtk_info_bar_new();
+	gtk_widget_set_no_show_all(info_bar, TRUE);
+
+	label = gtk_label_new("");
+	gtk_widget_show(label);
+
+	content_area = gtk_info_bar_get_content_area(GTK_INFO_BAR(info_bar));
+	gtk_container_add(GTK_CONTAINER(content_area), label);
+
+	gtk_info_bar_add_button(GTK_INFO_BAR(info_bar), GTK_STOCK_OK,
+				GTK_RESPONSE_OK);
+	g_signal_connect(info_bar, "response",
+			 G_CALLBACK(gtk_widget_hide), NULL);
+
+	pgctx->info_bar = info_bar;
+	pgctx->message_label = label;
+
+	return info_bar;
+}
+#endif
+
+static GtkWidget *perf_gtk__setup_statusbar(void)
+{
+	GtkWidget *stbar;
+	unsigned ctxid;
+
+	stbar = gtk_statusbar_new();
+
+	ctxid = gtk_statusbar_get_context_id(GTK_STATUSBAR(stbar),
+					     "perf report");
+	pgctx->statbar = stbar;
+	pgctx->statbar_ctx_id = ctxid;
+
+	return stbar;
+}
+
 int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 				  const char *help __used,
 				  void (*timer) (void *arg)__used,
 				  void *arg __used, int delay_secs __used)
 {
 	struct perf_evsel *pos;
+	GtkWidget *vbox;
 	GtkWidget *notebook;
+	GtkWidget *info_bar;
+	GtkWidget *statbar;
 	GtkWidget *window;
 
 	signal(SIGSEGV, perf_gtk__signal);
@@ -143,11 +189,17 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 
 	g_signal_connect(window, "delete_event", gtk_main_quit, NULL);
 
+	pgctx = perf_gtk__activate_context(window);
+	if (!pgctx)
+		return -1;
+
+	vbox = gtk_vbox_new(FALSE, 0);
+
 	notebook = gtk_notebook_new();
 
 	list_for_each_entry(pos, &evlist->entries, node) {
 		struct hists *hists = &pos->hists;
-		const char *evname = event_name(pos);
+		const char *evname = perf_evsel__name(pos);
 		GtkWidget *scrolled_window;
 		GtkWidget *tab_label;
 
@@ -164,7 +216,16 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 		gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scrolled_window, tab_label);
 	}
 
-	gtk_container_add(GTK_CONTAINER(window), notebook);
+	gtk_box_pack_start(GTK_BOX(vbox), notebook, TRUE, TRUE, 0);
+
+	info_bar = perf_gtk__setup_info_bar();
+	if (info_bar)
+		gtk_box_pack_start(GTK_BOX(vbox), info_bar, FALSE, FALSE, 0);
+
+	statbar = perf_gtk__setup_statusbar();
+	gtk_box_pack_start(GTK_BOX(vbox), statbar, FALSE, FALSE, 0);
+
+	gtk_container_add(GTK_CONTAINER(window), vbox);
 
 	gtk_widget_show_all(window);
 
@@ -173,6 +234,8 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 	gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
 
 	gtk_main();
+
+	perf_gtk__deactivate_context(&pgctx);
 
 	return 0;
 }

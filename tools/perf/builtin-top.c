@@ -245,7 +245,7 @@ static void perf_top__show_details(struct perf_top *top)
 	if (notes->src == NULL)
 		goto out_unlock;
 
-	printf("Showing %s for %s\n", event_name(top->sym_evsel), symbol->name);
+	printf("Showing %s for %s\n", perf_evsel__name(top->sym_evsel), symbol->name);
 	printf("  Events  Pcnt (>=%d%%)\n", top->sym_pcnt_filter);
 
 	more = symbol__annotate_printf(symbol, he->ms.map, top->sym_evsel->idx,
@@ -408,7 +408,7 @@ static void perf_top__print_mapped_keys(struct perf_top *top)
 	fprintf(stdout, "\t[e]     display entries (lines).           \t(%d)\n", top->print_entries);
 
 	if (top->evlist->nr_entries > 1)
-		fprintf(stdout, "\t[E]     active event counter.              \t(%s)\n", event_name(top->sym_evsel));
+		fprintf(stdout, "\t[E]     active event counter.              \t(%s)\n", perf_evsel__name(top->sym_evsel));
 
 	fprintf(stdout, "\t[f]     profile display filter (count).    \t(%d)\n", top->count_filter);
 
@@ -503,13 +503,13 @@ static void perf_top__handle_keypress(struct perf_top *top, int c)
 				fprintf(stderr, "\nAvailable events:");
 
 				list_for_each_entry(top->sym_evsel, &top->evlist->entries, node)
-					fprintf(stderr, "\n\t%d %s", top->sym_evsel->idx, event_name(top->sym_evsel));
+					fprintf(stderr, "\n\t%d %s", top->sym_evsel->idx, perf_evsel__name(top->sym_evsel));
 
 				prompt_integer(&counter, "Enter details event counter");
 
 				if (counter >= top->evlist->nr_entries) {
 					top->sym_evsel = list_entry(top->evlist->entries.next, struct perf_evsel, node);
-					fprintf(stderr, "Sorry, no such event, using %s.\n", event_name(top->sym_evsel));
+					fprintf(stderr, "Sorry, no such event, using %s.\n", perf_evsel__name(top->sym_evsel));
 					sleep(1);
 					break;
 				}
@@ -774,7 +774,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 
 		if ((sort__has_parent || symbol_conf.use_callchain) &&
 		    sample->callchain) {
-			err = machine__resolve_callchain(machine, evsel, al.thread,
+			err = machine__resolve_callchain(machine, al.thread,
 							 sample->callchain, &parent);
 			if (err)
 				return;
@@ -960,7 +960,7 @@ try_again:
 
 			if (err == ENOENT) {
 				ui__error("The %s event is not supported.\n",
-					    event_name(counter));
+					  perf_evsel__name(counter));
 				goto out_err;
 			} else if (err == EMFILE) {
 				ui__error("Too many events are opened.\n"

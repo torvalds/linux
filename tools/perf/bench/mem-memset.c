@@ -24,21 +24,21 @@
 static const char	*length_str	= "1MB";
 static const char	*routine	= "default";
 static int		iterations	= 1;
-static bool		use_clock;
-static int		clock_fd;
+static bool		use_cycle;
+static int		cycle_fd;
 static bool		only_prefault;
 static bool		no_prefault;
 
 static const struct option options[] = {
 	OPT_STRING('l', "length", &length_str, "1MB",
-		    "Specify length of memory to copy. "
-		    "available unit: B, MB, GB (upper and lower)"),
+		    "Specify length of memory to set. "
+		    "Available units: B, KB, MB, GB and TB (upper and lower)"),
 	OPT_STRING('r', "routine", &routine, "default",
-		    "Specify routine to copy"),
+		    "Specify routine to set"),
 	OPT_INTEGER('i', "iterations", &iterations,
 		    "repeat memset() invocation this number of times"),
-	OPT_BOOLEAN('c', "clock", &use_clock,
-		    "Use CPU clock for measuring"),
+	OPT_BOOLEAN('c', "cycle", &use_cycle,
+		    "Use cycles event instead of gettimeofday() for measuring"),
 	OPT_BOOLEAN('o', "only-prefault", &only_prefault,
 		    "Show only the result with page faults before memset()"),
 	OPT_BOOLEAN('n', "no-prefault", &no_prefault,
@@ -76,27 +76,27 @@ static const char * const bench_mem_memset_usage[] = {
 	NULL
 };
 
-static struct perf_event_attr clock_attr = {
+static struct perf_event_attr cycle_attr = {
 	.type		= PERF_TYPE_HARDWARE,
 	.config		= PERF_COUNT_HW_CPU_CYCLES
 };
 
-static void init_clock(void)
+static void init_cycle(void)
 {
-	clock_fd = sys_perf_event_open(&clock_attr, getpid(), -1, -1, 0);
+	cycle_fd = sys_perf_event_open(&cycle_attr, getpid(), -1, -1, 0);
 
-	if (clock_fd < 0 && errno == ENOSYS)
+	if (cycle_fd < 0 && errno == ENOSYS)
 		die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
 	else
-		BUG_ON(clock_fd < 0);
+		BUG_ON(cycle_fd < 0);
 }
 
-static u64 get_clock(void)
+static u64 get_cycle(void)
 {
 	int ret;
 	u64 clk;
 
-	ret = read(clock_fd, &clk, sizeof(u64));
+	ret = read(cycle_fd, &clk, sizeof(u64));
 	BUG_ON(ret != sizeof(u64));
 
 	return clk;
@@ -115,9 +115,9 @@ static void alloc_mem(void **dst, size_t length)
 		die("memory allocation failed - maybe length is too large?\n");
 }
 
-static u64 do_memset_clock(memset_t fn, size_t len, bool prefault)
+static u64 do_memset_cycle(memset_t fn, size_t len, bool prefault)
 {
-	u64 clock_start = 0ULL, clock_end = 0ULL;
+	u64 cycle_start = 0ULL, cycle_end = 0ULL;
 	void *dst = NULL;
 	int i;
 
@@ -126,13 +126,13 @@ static u64 do_memset_clock(memset_t fn, size_t len, bool prefault)
 	if (prefault)
 		fn(dst, -1, len);
 
-	clock_start = get_clock();
+	cycle_start = get_cycle();
 	for (i = 0; i < iterations; ++i)
 		fn(dst, i, len);
-	clock_end = get_clock();
+	cycle_end = get_cycle();
 
 	free(dst);
-	return clock_end - clock_start;
+	return cycle_end - cycle_start;
 }
 
 static double do_memset_gettimeofday(memset_t fn, size_t len, bool prefault)
@@ -176,17 +176,17 @@ int bench_mem_memset(int argc, const char **argv,
 	int i;
 	size_t len;
 	double result_bps[2];
-	u64 result_clock[2];
+	u64 result_cycle[2];
 
 	argc = parse_options(argc, argv, options,
 			     bench_mem_memset_usage, 0);
 
-	if (use_clock)
-		init_clock();
+	if (use_cycle)
+		init_cycle();
 
 	len = (size_t)perf_atoll((char *)length_str);
 
-	result_clock[0] = result_clock[1] = 0ULL;
+	result_cycle[0] = result_cycle[1] = 0ULL;
 	result_bps[0] = result_bps[1] = 0.0;
 
 	if ((s64)len <= 0) {
@@ -217,11 +217,11 @@ int bench_mem_memset(int argc, const char **argv,
 
 	if (!only_prefault && !no_prefault) {
 		/* show both of results */
-		if (use_clock) {
-			result_clock[0] =
-				do_memset_clock(routines[i].fn, len, false);
-			result_clock[1] =
-				do_memset_clock(routines[i].fn, len, true);
+		if (use_cycle) {
+			result_cycle[0] =
+				do_memset_cycle(routines[i].fn, len, false);
+			result_cycle[1] =
+				do_memset_cycle(routines[i].fn, len, true);
 		} else {
 			result_bps[0] =
 				do_memset_gettimeofday(routines[i].fn,
@@ -231,9 +231,9 @@ int bench_mem_memset(int argc, const char **argv,
 						len, true);
 		}
 	} else {
-		if (use_clock) {
-			result_clock[pf] =
-				do_memset_clock(routines[i].fn,
+		if (use_cycle) {
+			result_cycle[pf] =
+				do_memset_cycle(routines[i].fn,
 						len, only_prefault);
 		} else {
 			result_bps[pf] =
@@ -245,12 +245,12 @@ int bench_mem_memset(int argc, const char **argv,
 	switch (bench_format) {
 	case BENCH_FORMAT_DEFAULT:
 		if (!only_prefault && !no_prefault) {
-			if (use_clock) {
-				printf(" %14lf Clock/Byte\n",
-					(double)result_clock[0]
+			if (use_cycle) {
+				printf(" %14lf Cycle/Byte\n",
+					(double)result_cycle[0]
 					/ (double)len);
-				printf(" %14lf Clock/Byte (with prefault)\n ",
-					(double)result_clock[1]
+				printf(" %14lf Cycle/Byte (with prefault)\n ",
+					(double)result_cycle[1]
 					/ (double)len);
 			} else {
 				print_bps(result_bps[0]);
@@ -259,9 +259,9 @@ int bench_mem_memset(int argc, const char **argv,
 				printf(" (with prefault)\n");
 			}
 		} else {
-			if (use_clock) {
-				printf(" %14lf Clock/Byte",
-					(double)result_clock[pf]
+			if (use_cycle) {
+				printf(" %14lf Cycle/Byte",
+					(double)result_cycle[pf]
 					/ (double)len);
 			} else
 				print_bps(result_bps[pf]);
@@ -271,17 +271,17 @@ int bench_mem_memset(int argc, const char **argv,
 		break;
 	case BENCH_FORMAT_SIMPLE:
 		if (!only_prefault && !no_prefault) {
-			if (use_clock) {
+			if (use_cycle) {
 				printf("%lf %lf\n",
-					(double)result_clock[0] / (double)len,
-					(double)result_clock[1] / (double)len);
+					(double)result_cycle[0] / (double)len,
+					(double)result_cycle[1] / (double)len);
 			} else {
 				printf("%lf %lf\n",
 					result_bps[0], result_bps[1]);
 			}
 		} else {
-			if (use_clock) {
-				printf("%lf\n", (double)result_clock[pf]
+			if (use_cycle) {
+				printf("%lf\n", (double)result_cycle[pf]
 					/ (double)len);
 			} else
 				printf("%lf\n", result_bps[pf]);

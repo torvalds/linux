@@ -313,8 +313,8 @@ struct kvm_pmu {
 	u64 counter_bitmask[2];
 	u64 global_ctrl_mask;
 	u8 version;
-	struct kvm_pmc gp_counters[X86_PMC_MAX_GENERIC];
-	struct kvm_pmc fixed_counters[X86_PMC_MAX_FIXED];
+	struct kvm_pmc gp_counters[INTEL_PMC_MAX_GENERIC];
+	struct kvm_pmc fixed_counters[INTEL_PMC_MAX_FIXED];
 	struct irq_work irq_work;
 	u64 reprogram_pmi;
 };

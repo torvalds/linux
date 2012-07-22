@@ -12,7 +12,7 @@ SYNOPSIS
 
 DESCRIPTION
 -----------
-This 'perf bench' command is general framework for benchmark suites.
+This 'perf bench' command is a general framework for benchmark suites.
 
 COMMON OPTIONS
 --------------
@@ -45,14 +45,20 @@ SUBSYSTEM
 'sched'::
 	Scheduler and IPC mechanisms.
 
+'mem'::
+	Memory access performance.
+
+'all'::
+	All benchmark subsystems.
+
 SUITES FOR 'sched'
 ~~~~~~~~~~~~~~~~~~
 *messaging*::
 Suite for evaluating performance of scheduler and IPC mechanisms.
 Based on hackbench by Rusty Russell.
 
-Options of *pipe*
-^^^^^^^^^^^^^^^^^
+Options of *messaging*
+^^^^^^^^^^^^^^^^^^^^^^
 -p::
 --pipe::
 Use pipe() instead of socketpair()
@@ -114,6 +120,72 @@ Example of *pipe*
                 16.948000 usecs/op
                 59004 ops/sec
 ---------------------
+
+SUITES FOR 'mem'
+~~~~~~~~~~~~~~~~
+*memcpy*::
+Suite for evaluating performance of simple memory copy in various ways.
+
+Options of *memcpy*
+^^^^^^^^^^^^^^^^^^^
+-l::
+--length::
+Specify length of memory to copy (default: 1MB).
+Available units are B, KB, MB, GB and TB (case insensitive).
+
+-r::
+--routine::
+Specify routine to copy (default: default).
+Available routines are depend on the architecture.
+On x86-64, x86-64-unrolled, x86-64-movsq and x86-64-movsb are supported.
+
+-i::
+--iterations::
+Repeat memcpy invocation this number of times.
+
+-c::
+--cycle::
+Use perf's cpu-cycles event instead of gettimeofday syscall.
+
+-o::
+--only-prefault::
+Show only the result with page faults before memcpy.
+
+-n::
+--no-prefault::
+Show only the result without page faults before memcpy.
+
+*memset*::
+Suite for evaluating performance of simple memory set in various ways.
+
+Options of *memset*
+^^^^^^^^^^^^^^^^^^^
+-l::
+--length::
+Specify length of memory to set (default: 1MB).
+Available units are B, KB, MB, GB and TB (case insensitive).
+
+-r::
+--routine::
+Specify routine to set (default: default).
+Available routines are depend on the architecture.
+On x86-64, x86-64-unrolled, x86-64-stosq and x86-64-stosb are supported.
+
+-i::
+--iterations::
+Repeat memset invocation this number of times.
+
+-c::
+--cycle::
+Use perf's cpu-cycles event instead of gettimeofday syscall.
+
+-o::
+--only-prefault::
+Show only the result with page faults before memset.
+
+-n::
+--no-prefault::
+Show only the result without page faults before memset.
 
 SEE ALSO
 --------

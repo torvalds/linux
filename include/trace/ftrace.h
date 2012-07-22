@@ -571,6 +571,7 @@ static inline void ftrace_test_probe_##call(void)			\
 
 #undef __print_flags
 #undef __print_symbolic
+#undef __print_hex
 #undef __get_dynamic_array
 #undef __get_str
 

@@ -33,6 +33,7 @@ struct perf_session {
 	struct machine		host_machine;
 	struct rb_root		machines;
 	struct perf_evlist	*evlist;
+	struct pevent		*pevent;
 	/*
 	 * FIXME: Need to split this up further, we need global
 	 *	  stats + per event stats. 'perf diff' also needs
@@ -151,11 +152,20 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 					    unsigned int type);
 
 void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
-			  struct machine *machine, struct perf_evsel *evsel,
-			  int print_sym, int print_dso, int print_symoffset);
+			  struct machine *machine, int print_sym,
+			  int print_dso, int print_symoffset);
 
 int perf_session__cpu_bitmap(struct perf_session *session,
 			     const char *cpu_list, unsigned long *cpu_bitmap);
 
 void perf_session__fprintf_info(struct perf_session *s, FILE *fp, bool full);
+
+struct perf_evsel_str_handler;
+
+int __perf_session__set_tracepoints_handlers(struct perf_session *session,
+					     const struct perf_evsel_str_handler *assocs,
+					     size_t nr_assocs);
+
+#define perf_session__set_tracepoints_handlers(session, array) \
+	__perf_session__set_tracepoints_handlers(session, array, ARRAY_SIZE(array))
 #endif /* __PERF_SESSION_H */

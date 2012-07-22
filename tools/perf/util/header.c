@@ -641,7 +641,7 @@ static int write_event_desc(int fd, struct perf_header *h __used,
 		/*
 		 * write event string as passed on cmdline
 		 */
-		ret = do_write_string(fd, event_name(attr));
+		ret = do_write_string(fd, perf_evsel__name(attr));
 		if (ret < 0)
 			return ret;
 		/*
@@ -1474,15 +1474,15 @@ out:
 
 static int process_tracing_data(struct perf_file_section *section __unused,
 			      struct perf_header *ph __unused,
-			      int feat __unused, int fd)
+			      int feat __unused, int fd, void *data)
 {
-	trace_report(fd, false);
+	trace_report(fd, data, false);
 	return 0;
 }
 
 static int process_build_id(struct perf_file_section *section,
 			    struct perf_header *ph,
-			    int feat __unused, int fd)
+			    int feat __unused, int fd, void *data __used)
 {
 	if (perf_header__read_build_ids(ph, fd, section->offset, section->size))
 		pr_debug("Failed to read buildids, continuing...\n");
@@ -1493,7 +1493,7 @@ struct feature_ops {
 	int (*write)(int fd, struct perf_header *h, struct perf_evlist *evlist);
 	void (*print)(struct perf_header *h, int fd, FILE *fp);
 	int (*process)(struct perf_file_section *section,
-		       struct perf_header *h, int feat, int fd);
+		       struct perf_header *h, int feat, int fd, void *data);
 	const char *name;
 	bool full_only;
 };
@@ -1988,7 +1988,7 @@ int perf_file_header__read(struct perf_file_header *header,
 
 static int perf_file_section__process(struct perf_file_section *section,
 				      struct perf_header *ph,
-				      int feat, int fd, void *data __used)
+				      int feat, int fd, void *data)
 {
 	if (lseek(fd, section->offset, SEEK_SET) == (off_t)-1) {
 		pr_debug("Failed to lseek to %" PRIu64 " offset for feature "
@@ -2004,7 +2004,7 @@ static int perf_file_section__process(struct perf_file_section *section,
 	if (!feat_ops[feat].process)
 		return 0;
 
-	return feat_ops[feat].process(section, ph, feat, fd);
+	return feat_ops[feat].process(section, ph, feat, fd, data);
 }
 
 static int perf_file_header__read_pipe(struct perf_pipe_file_header *header,
@@ -2093,9 +2093,11 @@ static int read_attr(int fd, struct perf_header *ph,
 	return ret <= 0 ? -1 : 0;
 }
 
-static int perf_evsel__set_tracepoint_name(struct perf_evsel *evsel)
+static int perf_evsel__set_tracepoint_name(struct perf_evsel *evsel,
+					   struct pevent *pevent)
 {
-	struct event_format *event = trace_find_event(evsel->attr.config);
+	struct event_format *event = pevent_find_event(pevent,
+						       evsel->attr.config);
 	char bf[128];
 
 	if (event == NULL)
@@ -2109,13 +2111,14 @@ static int perf_evsel__set_tracepoint_name(struct perf_evsel *evsel)
 	return 0;
 }
 
-static int perf_evlist__set_tracepoint_names(struct perf_evlist *evlist)
+static int perf_evlist__set_tracepoint_names(struct perf_evlist *evlist,
+					     struct pevent *pevent)
 {
 	struct perf_evsel *pos;
 
 	list_for_each_entry(pos, &evlist->entries, node) {
 		if (pos->attr.type == PERF_TYPE_TRACEPOINT &&
-		    perf_evsel__set_tracepoint_name(pos))
+		    perf_evsel__set_tracepoint_name(pos, pevent))
 			return -1;
 	}
 
@@ -2198,12 +2201,12 @@ int perf_session__read_header(struct perf_session *session, int fd)
 		event_count =  f_header.event_types.size / sizeof(struct perf_trace_event_type);
 	}
 
-	perf_header__process_sections(header, fd, NULL,
+	perf_header__process_sections(header, fd, &session->pevent,
 				      perf_file_section__process);
 
 	lseek(fd, header->data_offset, SEEK_SET);
 
-	if (perf_evlist__set_tracepoint_names(session->evlist))
+	if (perf_evlist__set_tracepoint_names(session->evlist, session->pevent))
 		goto out_delete_evlist;
 
 	header->frozen = 1;
@@ -2419,8 +2422,8 @@ int perf_event__process_tracing_data(union perf_event *event,
 	lseek(session->fd, offset + sizeof(struct tracing_data_event),
 	      SEEK_SET);
 
-	size_read = trace_report(session->fd, session->repipe);
-
+	size_read = trace_report(session->fd, &session->pevent,
+				 session->repipe);
 	padding = ALIGN(size_read, sizeof(u64)) - size_read;
 
 	if (read(session->fd, buf, padding) < 0)

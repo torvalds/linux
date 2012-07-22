@@ -317,6 +317,14 @@ struct tracer {
 
 #define TRACE_PIPE_ALL_CPU	-1
 
+static inline struct ring_buffer_iter *
+trace_buffer_iter(struct trace_iterator *iter, int cpu)
+{
+	if (iter->buffer_iter && iter->buffer_iter[cpu])
+		return iter->buffer_iter[cpu];
+	return NULL;
+}
+
 int tracer_init(struct tracer *t, struct trace_array *tr);
 int tracing_is_enabled(void);
 void trace_wake_up(void);
