@@ -150,12 +150,12 @@
 #define MC13892_USB1				50
 #define MC13892_USB1_VUSBEN			(1<<3)
 
-static const int mc13892_vcoincell[] = {
+static const unsigned int mc13892_vcoincell[] = {
 	2500000, 2700000, 2800000, 2900000, 3000000, 3100000,
 	3200000, 3300000,
 };
 
-static const int mc13892_sw1[] = {
+static const unsigned int mc13892_sw1[] = {
 	600000,   625000,  650000,  675000,  700000,  725000,
 	750000,   775000,  800000,  825000,  850000,  875000,
 	900000,   925000,  950000,  975000, 1000000, 1025000,
@@ -164,7 +164,7 @@ static const int mc13892_sw1[] = {
 	1350000, 1375000
 };
 
-static const int mc13892_sw[] = {
+static const unsigned int mc13892_sw[] = {
 	600000,   625000,  650000,  675000,  700000,  725000,
 	750000,   775000,  800000,  825000,  850000,  875000,
 	900000,   925000,  950000,  975000, 1000000, 1025000,
@@ -176,65 +176,65 @@ static const int mc13892_sw[] = {
 	1800000, 1825000, 1850000, 1875000
 };
 
-static const int mc13892_swbst[] = {
+static const unsigned int mc13892_swbst[] = {
 	5000000,
 };
 
-static const int mc13892_viohi[] = {
+static const unsigned int mc13892_viohi[] = {
 	2775000,
 };
 
-static const int mc13892_vpll[] = {
+static const unsigned int mc13892_vpll[] = {
 	1050000, 1250000, 1650000, 1800000,
 };
 
-static const int mc13892_vdig[] = {
+static const unsigned int mc13892_vdig[] = {
 	1050000, 1250000, 1650000, 1800000,
 };
 
-static const int mc13892_vsd[] = {
+static const unsigned int mc13892_vsd[] = {
 	1800000, 2000000, 2600000, 2700000,
 	2800000, 2900000, 3000000, 3150000,
 };
 
-static const int mc13892_vusb2[] = {
+static const unsigned int mc13892_vusb2[] = {
 	2400000, 2600000, 2700000, 2775000,
 };
 
-static const int mc13892_vvideo[] = {
+static const unsigned int mc13892_vvideo[] = {
 	2700000, 2775000, 2500000, 2600000,
 };
 
-static const int mc13892_vaudio[] = {
+static const unsigned int mc13892_vaudio[] = {
 	2300000, 2500000, 2775000, 3000000,
 };
 
-static const int mc13892_vcam[] = {
+static const unsigned int mc13892_vcam[] = {
 	2500000, 2600000, 2750000, 3000000,
 };
 
-static const int mc13892_vgen1[] = {
+static const unsigned int mc13892_vgen1[] = {
 	1200000, 1500000, 2775000, 3150000,
 };
 
-static const int mc13892_vgen2[] = {
+static const unsigned int mc13892_vgen2[] = {
 	1200000, 1500000, 1600000, 1800000,
 	2700000, 2800000, 3000000, 3150000,
 };
 
-static const int mc13892_vgen3[] = {
+static const unsigned int mc13892_vgen3[] = {
 	1800000, 2900000,
 };
 
-static const int mc13892_vusb[] = {
+static const unsigned int mc13892_vusb[] = {
 	3300000,
 };
 
-static const int mc13892_gpo[] = {
+static const unsigned int mc13892_gpo[] = {
 	2750000,
 };
 
-static const int mc13892_pwgtdrv[] = {
+static const unsigned int mc13892_pwgtdrv[] = {
 	5000000,
 };
 
@@ -394,7 +394,7 @@ static struct regulator_ops mc13892_gpo_regulator_ops = {
 	.enable = mc13892_gpo_regulator_enable,
 	.disable = mc13892_gpo_regulator_disable,
 	.is_enabled = mc13892_gpo_regulator_is_enabled,
-	.list_voltage = mc13xxx_regulator_list_voltage,
+	.list_voltage = regulator_list_voltage_table,
 	.set_voltage = mc13xxx_fixed_regulator_set_voltage,
 	.get_voltage = mc13xxx_fixed_regulator_get_voltage,
 };
@@ -436,7 +436,7 @@ static int mc13892_sw_regulator_set_voltage_sel(struct regulator_dev *rdev,
 	u32 valread;
 	int ret;
 
-	value = mc13892_regulators[id].voltages[selector];
+	value = rdev->desc->volt_table[selector];
 
 	mc13xxx_lock(priv->mc13xxx);
 	ret = mc13xxx_reg_read(priv->mc13xxx,
@@ -469,8 +469,7 @@ err:
 }
 
 static struct regulator_ops mc13892_sw_regulator_ops = {
-	.is_enabled = mc13xxx_sw_regulator_is_enabled,
-	.list_voltage = mc13xxx_regulator_list_voltage,
+	.list_voltage = regulator_list_voltage_table,
 	.set_voltage_sel = mc13892_sw_regulator_set_voltage_sel,
 	.get_voltage = mc13892_sw_regulator_get_voltage,
 };
