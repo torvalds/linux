@@ -696,12 +696,14 @@ static u32 __apic_read(struct kvm_lapic *apic, unsigned int offset)
 
 		val = apic_get_tmcct(apic);
 		break;
-
+	case APIC_PROCPRI:
+		apic_update_ppr(apic);
+		val = apic_get_reg(apic, offset);
+		break;
 	case APIC_TASKPRI:
 		report_tpr_access(apic, false);
 		/* fall thru */
 	default:
-		apic_update_ppr(apic);
 		val = apic_get_reg(apic, offset);
 		break;
 	}
