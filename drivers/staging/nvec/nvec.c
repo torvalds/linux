@@ -736,12 +736,14 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 		nvec->gpio = pdata->gpio;
 		nvec->i2c_addr = pdata->i2c_addr;
 	} else if (nvec->dev->of_node) {
-		nvec->gpio = of_get_named_gpio(nvec->dev->of_node, "request-gpios", 0);
+		nvec->gpio = of_get_named_gpio(nvec->dev->of_node,
+					"request-gpios", 0);
 		if (nvec->gpio < 0) {
 			dev_err(&pdev->dev, "no gpio specified");
 			return -ENODEV;
 		}
-		if (of_property_read_u32(nvec->dev->of_node, "slave-addr", &nvec->i2c_addr)) {
+		if (of_property_read_u32(nvec->dev->of_node,
+					"slave-addr", &nvec->i2c_addr)) {
 			dev_err(&pdev->dev, "no i2c address specified");
 			return -ENODEV;
 		}
