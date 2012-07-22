@@ -1089,7 +1089,7 @@ static int omap_hsmmc_switch_opcond(struct omap_hsmmc_host *host, int vdd)
 	/* Disable the clocks */
 	pm_runtime_put_sync(host->dev);
 	if (host->dbclk)
-		clk_disable(host->dbclk);
+		clk_disable_unprepare(host->dbclk);
 
 	/* Turn the power off */
 	ret = mmc_slot(host).set_power(host->dev, host->slot_id, 0, 0);
@@ -1100,7 +1100,7 @@ static int omap_hsmmc_switch_opcond(struct omap_hsmmc_host *host, int vdd)
 					       vdd);
 	pm_runtime_get_sync(host->dev);
 	if (host->dbclk)
-		clk_enable(host->dbclk);
+		clk_prepare_enable(host->dbclk);
 
 	if (ret != 0)
 		goto err;
@@ -1899,7 +1899,7 @@ static int __devinit omap_hsmmc_probe(struct platform_device *pdev)
 	if (IS_ERR(host->dbclk)) {
 		dev_warn(mmc_dev(host->mmc), "Failed to get debounce clk\n");
 		host->dbclk = NULL;
-	} else if (clk_enable(host->dbclk) != 0) {
+	} else if (clk_prepare_enable(host->dbclk) != 0) {
 		dev_warn(mmc_dev(host->mmc), "Failed to enable debounce clk\n");
 		clk_put(host->dbclk);
 		host->dbclk = NULL;
@@ -1931,6 +1931,7 @@ static int __devinit omap_hsmmc_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx");
 	if (!res) {
 		dev_err(mmc_dev(host->mmc), "cannot get DMA TX channel\n");
+		ret = -ENXIO;
 		goto err_irq;
 	}
 	host->dma_line_tx = res->start;
@@ -1938,6 +1939,7 @@ static int __devinit omap_hsmmc_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx");
 	if (!res) {
 		dev_err(mmc_dev(host->mmc), "cannot get DMA RX channel\n");
+		ret = -ENXIO;
 		goto err_irq;
 	}
 	host->dma_line_rx = res->start;
@@ -2023,7 +2025,7 @@ err_irq:
 	pm_runtime_disable(host->dev);
 	clk_put(host->fclk);
 	if (host->dbclk) {
-		clk_disable(host->dbclk);
+		clk_disable_unprepare(host->dbclk);
 		clk_put(host->dbclk);
 	}
 err1:
@@ -2058,7 +2060,7 @@ static int __devexit omap_hsmmc_remove(struct platform_device *pdev)
 	pm_runtime_disable(host->dev);
 	clk_put(host->fclk);
 	if (host->dbclk) {
-		clk_disable(host->dbclk);
+		clk_disable_unprepare(host->dbclk);
 		clk_put(host->dbclk);
 	}
 
@@ -2116,7 +2118,7 @@ static int omap_hsmmc_suspend(struct device *dev)
 	}
 
 	if (host->dbclk)
-		clk_disable(host->dbclk);
+		clk_disable_unprepare(host->dbclk);
 err:
 	pm_runtime_put_sync(host->dev);
 	return ret;
@@ -2137,7 +2139,7 @@ static int omap_hsmmc_resume(struct device *dev)
 	pm_runtime_get_sync(host->dev);
 
 	if (host->dbclk)
-		clk_enable(host->dbclk);
+		clk_prepare_enable(host->dbclk);
 
 	if (!(host->mmc->pm_flags & MMC_PM_KEEP_POWER))
 		omap_hsmmc_conf_bus_power(host);

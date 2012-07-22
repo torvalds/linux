@@ -391,11 +391,17 @@ static int atmci_regs_show(struct seq_file *s, void *v)
 	clk_disable(host->mck);
 	spin_unlock_bh(&host->lock);
 
-	seq_printf(s, "MR:\t0x%08x%s%s CLKDIV=%u\n",
+	seq_printf(s, "MR:\t0x%08x%s%s ",
 			buf[ATMCI_MR / 4],
 			buf[ATMCI_MR / 4] & ATMCI_MR_RDPROOF ? " RDPROOF" : "",
-			buf[ATMCI_MR / 4] & ATMCI_MR_WRPROOF ? " WRPROOF" : "",
-			buf[ATMCI_MR / 4] & 0xff);
+			buf[ATMCI_MR / 4] & ATMCI_MR_WRPROOF ? " WRPROOF" : "");
+	if (host->caps.has_odd_clk_div)
+		seq_printf(s, "{CLKDIV,CLKODD}=%u\n",
+				((buf[ATMCI_MR / 4] & 0xff) << 1)
+				| ((buf[ATMCI_MR / 4] >> 16) & 1));
+	else
+		seq_printf(s, "CLKDIV=%u\n",
+				(buf[ATMCI_MR / 4] & 0xff));
 	seq_printf(s, "DTOR:\t0x%08x\n", buf[ATMCI_DTOR / 4]);
 	seq_printf(s, "SDCR:\t0x%08x\n", buf[ATMCI_SDCR / 4]);
 	seq_printf(s, "ARGR:\t0x%08x\n", buf[ATMCI_ARGR / 4]);
@@ -1685,7 +1691,6 @@ static void atmci_tasklet_func(unsigned long priv)
 
 			dev_dbg(&host->pdev->dev, "FSM: cmd ready\n");
 			host->cmd = NULL;
-			host->data = NULL;
 			data->bytes_xfered = data->blocks * data->blksz;
 			data->error = 0;
 			atmci_command_complete(host, mrq->stop);
@@ -1699,6 +1704,7 @@ static void atmci_tasklet_func(unsigned long priv)
 				atmci_writel(host, ATMCI_IER, ATMCI_NOTBUSY);
 				state = STATE_WAITING_NOTBUSY;
 			}
+			host->data = NULL;
 			break;
 
 		case STATE_END_REQUEST:
