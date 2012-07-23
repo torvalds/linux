@@ -22,9 +22,11 @@ get_bss_sdata(struct ieee80211_sub_if_data *sdata)
 	return sdata;
 }
 
-static inline void drv_tx(struct ieee80211_local *local, struct sk_buff *skb)
+static inline void drv_tx(struct ieee80211_local *local,
+			  struct ieee80211_tx_control *control,
+			  struct sk_buff *skb)
 {
-	local->ops->tx(&local->hw, skb);
+	local->ops->tx(&local->hw, control, skb);
 }
 
 static inline void drv_get_et_strings(struct ieee80211_sub_if_data *sdata,

@@ -280,6 +280,7 @@ struct ath_tx_control {
 	struct ath_txq *txq;
 	struct ath_node *an;
 	u8 paprd;
+	struct ieee80211_sta *sta;
 };
 
 #define ATH_TX_ERROR        0x01

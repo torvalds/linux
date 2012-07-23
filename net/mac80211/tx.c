@@ -1204,6 +1204,7 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 			       struct sk_buff_head *skbs,
 			       bool txpending)
 {
+	struct ieee80211_tx_control control;
 	struct sk_buff *skb, *tmp;
 	unsigned long flags;
 
@@ -1240,10 +1241,10 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 
 		info->control.vif = vif;
-		info->control.sta = sta;
+		control.sta = sta;
 
 		__skb_unlink(skb, skbs);
-		drv_tx(local, skb);
+		drv_tx(local, &control, skb);
 	}
 
 	return true;

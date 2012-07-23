@@ -55,7 +55,8 @@
 \********************/
 
 static void
-ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+ath5k_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
+	 struct sk_buff *skb)
 {
 	struct ath5k_hw *ah = hw->priv;
 	u16 qnum = skb_get_queue_mapping(skb);

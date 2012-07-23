@@ -1726,7 +1726,9 @@ static void at76_mac80211_tx_callback(struct urb *urb)
 	ieee80211_wake_queues(priv->hw);
 }
 
-static void at76_mac80211_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void at76_mac80211_tx(struct ieee80211_hw *hw,
+			     struct ieee80211_tx_control *control,
+			     struct sk_buff *skb)
 {
 	struct at76_priv *priv = hw->priv;
 	struct at76_tx_buffer *tx_buffer = priv->bulk_out_buffer;

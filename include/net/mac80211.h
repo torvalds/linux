@@ -527,9 +527,6 @@ struct ieee80211_tx_rate {
  *  (2) driver internal use (if applicable)
  *  (3) TX status information - driver tells mac80211 what happened
  *
- * The TX control's sta pointer is only valid during the ->tx call,
- * it may be NULL.
- *
  * @flags: transmit info flags, defined above
  * @band: the band to transmit on (use for checking for races)
  * @hw_queue: HW queue to put the frame on, skb_get_queue_mapping() gives the AC
@@ -560,6 +557,7 @@ struct ieee80211_tx_info {
 					struct ieee80211_tx_rate rates[
 						IEEE80211_TX_MAX_RATES];
 					s8 rts_cts_rate_idx;
+					/* 3 bytes free */
 				};
 				/* only needed before rate control */
 				unsigned long jiffies;
@@ -567,7 +565,7 @@ struct ieee80211_tx_info {
 			/* NB: vif can be NULL for injected frames */
 			struct ieee80211_vif *vif;
 			struct ieee80211_key_conf *hw_key;
-			struct ieee80211_sta *sta;
+			/* 8 bytes free */
 		} control;
 		struct {
 			struct ieee80211_tx_rate rates[IEEE80211_TX_MAX_RATES];
@@ -1076,6 +1074,16 @@ struct ieee80211_sta {
  */
 enum sta_notify_cmd {
 	STA_NOTIFY_SLEEP, STA_NOTIFY_AWAKE,
+};
+
+/**
+ * struct ieee80211_tx_control - TX control data
+ *
+ * @sta: station table entry, this sta pointer may be NULL and
+ * 	it is not allowed to copy the pointer, due to RCU.
+ */
+struct ieee80211_tx_control {
+	struct ieee80211_sta *sta;
 };
 
 /**
@@ -2269,7 +2277,9 @@ enum ieee80211_rate_control_changed {
  *	The callback is optional and can (should!) sleep.
  */
 struct ieee80211_ops {
-	void (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
+	void (*tx)(struct ieee80211_hw *hw,
+		   struct ieee80211_tx_control *control,
+		   struct sk_buff *skb);
 	int (*start)(struct ieee80211_hw *hw);
 	void (*stop)(struct ieee80211_hw *hw);
 #ifdef CONFIG_PM

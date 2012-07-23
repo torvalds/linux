@@ -526,7 +526,9 @@ int p54_init_leds(struct p54_common *priv);
 void p54_unregister_leds(struct p54_common *priv);
 
 /* xmit functions */
-void p54_tx_80211(struct ieee80211_hw *dev, struct sk_buff *skb);
+void p54_tx_80211(struct ieee80211_hw *dev,
+		  struct ieee80211_tx_control *control,
+		  struct sk_buff *skb);
 int p54_tx_cancel(struct p54_common *priv, __le32 req_id);
 void p54_tx(struct p54_common *priv, struct sk_buff *skb);
 
