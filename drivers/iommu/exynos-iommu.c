@@ -732,6 +732,10 @@ static int exynos_iommu_domain_init(struct iommu_domain *domain)
 	spin_lock_init(&priv->pgtablelock);
 	INIT_LIST_HEAD(&priv->clients);
 
+	dom->geometry.aperture_start = 0;
+	dom->geometry.aperture_end   = ~0UL;
+	dom->geometry.force_aperture = true;
+
 	domain->priv = priv;
 	return 0;
 

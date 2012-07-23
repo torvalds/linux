@@ -162,7 +162,8 @@ int pci_user_read_config_##size						\
 	if (ret > 0)							\
 		ret = -EINVAL;						\
 	return ret;							\
-}
+}									\
+EXPORT_SYMBOL_GPL(pci_user_read_config_##size);
 
 /* Returns 0 on success, negative values indicate error. */
 #define PCI_USER_WRITE_CONFIG(size,type)				\
@@ -181,7 +182,8 @@ int pci_user_write_config_##size					\
 	if (ret > 0)							\
 		ret = -EINVAL;						\
 	return ret;							\
-}
+}									\
+EXPORT_SYMBOL_GPL(pci_user_write_config_##size);
 
 PCI_USER_READ_CONFIG(byte, u8)
 PCI_USER_READ_CONFIG(word, u16)

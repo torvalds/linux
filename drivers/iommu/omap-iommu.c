@@ -1148,6 +1148,10 @@ static int omap_iommu_domain_init(struct iommu_domain *domain)
 
 	domain->priv = omap_domain;
 
+	domain->geometry.aperture_start = 0;
+	domain->geometry.aperture_end   = (1ULL << 32) - 1;
+	domain->geometry.force_aperture = true;
+
 	return 0;
 
 fail_nomem:
