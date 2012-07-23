@@ -1424,7 +1424,6 @@ static int dn_route_input_slow(struct sk_buff *skb)
 		/* Packet was intra-ethernet, so we know its on-link */
 		if (cb->rt_flags & DN_RT_F_IE) {
 			gateway = cb->src;
-			flags |= RTCF_DIRECTSRC;
 			goto make_route;
 		}
 
@@ -1437,7 +1436,6 @@ static int dn_route_input_slow(struct sk_buff *skb)
 
 		/* Close eyes and pray */
 		gateway = cb->src;
-		flags |= RTCF_DIRECTSRC;
 		goto make_route;
 	default:
 		goto e_inval;
