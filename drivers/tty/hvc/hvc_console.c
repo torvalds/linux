@@ -245,6 +245,20 @@ static void hvc_port_destruct(struct tty_port *port)
 	kfree(hp);
 }
 
+static void hvc_check_console(int index)
+{
+	/* Already enabled, bail out */
+	if (hvc_console.flags & CON_ENABLED)
+		return;
+
+ 	/* If this index is what the user requested, then register
+	 * now (setup won't fail at this point).  It's ok to just
+	 * call register again if previously .setup failed.
+	 */
+	if (index == hvc_console.index)
+		register_console(&hvc_console);
+}
+
 /*
  * hvc_instantiate() is an early console discovery method which locates
  * consoles * prior to the vio subsystem discovering them.  Hotplugged
@@ -275,12 +289,8 @@ int hvc_instantiate(uint32_t vtermno, int index, const struct hv_ops *ops)
 	if (last_hvc < index)
 		last_hvc = index;
 
-	/* if this index is what the user requested, then register
-	 * now (setup won't fail at this point).  It's ok to just
-	 * call register again if previously .setup failed.
-	 */
-	if (index == hvc_console.index)
-		register_console(&hvc_console);
+	/* check if we need to re-register the kernel console */
+	hvc_check_console(index);
 
 	return 0;
 }
@@ -858,9 +868,14 @@ struct hvc_struct *hvc_alloc(uint32_t vtermno, int data,
 		i = ++last_hvc;
 
 	hp->index = i;
+	cons_ops[i] = ops;
+	vtermnos[i] = vtermno;
 
 	list_add_tail(&(hp->next), &hvc_structs);
 	spin_unlock(&hvc_structs_lock);
+
+	/* check if we need to re-register the kernel console */
+	hvc_check_console(i);
 
 	return hp;
 }
@@ -874,8 +889,12 @@ int hvc_remove(struct hvc_struct *hp)
 	tty = tty_port_tty_get(&hp->port);
 
 	spin_lock_irqsave(&hp->lock, flags);
-	if (hp->index < MAX_NR_HVC_CONSOLES)
+	if (hp->index < MAX_NR_HVC_CONSOLES) {
+		console_lock();
 		vtermnos[hp->index] = -1;
+		cons_ops[hp->index] = NULL;
+		console_unlock();
+	}
 
 	/* Don't whack hp->irq because tty_hangup() will need to free the irq. */
 
