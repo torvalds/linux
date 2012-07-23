@@ -492,10 +492,11 @@ static void iwl_tx_queue_free(struct iwl_trans *trans, int txq_id)
 	iwl_tx_queue_unmap(trans, txq_id);
 
 	/* De-alloc array of command/tx buffers */
-
 	if (txq_id == trans_pcie->cmd_queue)
-		for (i = 0; i < txq->q.n_window; i++)
+		for (i = 0; i < txq->q.n_window; i++) {
 			kfree(txq->entries[i].cmd);
+			kfree(txq->entries[i].copy_cmd);
+		}
 
 	/* De-alloc circular buffer of TFDs */
 	if (txq->q.n_bd) {
