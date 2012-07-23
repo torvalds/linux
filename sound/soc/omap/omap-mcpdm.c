@@ -445,9 +445,8 @@ static __devinit int asoc_mcpdm_probe(struct platform_device *pdev)
 {
 	struct omap_mcpdm *mcpdm;
 	struct resource *res;
-	int ret = 0;
 
-	mcpdm = kzalloc(sizeof(struct omap_mcpdm), GFP_KERNEL);
+	mcpdm = devm_kzalloc(&pdev->dev, sizeof(struct omap_mcpdm), GFP_KERNEL);
 	if (!mcpdm)
 		return -ENOMEM;
 
@@ -456,55 +455,30 @@ static __devinit int asoc_mcpdm_probe(struct platform_device *pdev)
 	mutex_init(&mcpdm->mutex);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "no resource\n");
-		goto err_res;
-	}
+	if (res == NULL)
+		return -ENOMEM;
 
-	if (!request_mem_region(res->start, resource_size(res), "McPDM")) {
-		ret = -EBUSY;
-		goto err_res;
-	}
+	if (!devm_request_mem_region(&pdev->dev, res->start,
+				     resource_size(res), "McPDM"))
+		return -EBUSY;
 
-	mcpdm->io_base = ioremap(res->start, resource_size(res));
-	if (!mcpdm->io_base) {
-		ret = -ENOMEM;
-		goto err_iomap;
-	}
+	mcpdm->io_base = devm_ioremap(&pdev->dev, res->start,
+				      resource_size(res));
+	if (!mcpdm->io_base)
+		return -ENOMEM;
 
 	mcpdm->irq = platform_get_irq(pdev, 0);
-	if (mcpdm->irq < 0) {
-		ret = mcpdm->irq;
-		goto err_irq;
-	}
+	if (mcpdm->irq < 0)
+		return mcpdm->irq;
 
 	mcpdm->dev = &pdev->dev;
 
-	ret = snd_soc_register_dai(&pdev->dev, &omap_mcpdm_dai);
-	if (!ret)
-		return 0;
-
-err_irq:
-	iounmap(mcpdm->io_base);
-err_iomap:
-	release_mem_region(res->start, resource_size(res));
-err_res:
-	kfree(mcpdm);
-	return ret;
+	return snd_soc_register_dai(&pdev->dev, &omap_mcpdm_dai);
 }
 
 static int __devexit asoc_mcpdm_remove(struct platform_device *pdev)
 {
-	struct omap_mcpdm *mcpdm = platform_get_drvdata(pdev);
-	struct resource *res;
-
 	snd_soc_unregister_dai(&pdev->dev);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	iounmap(mcpdm->io_base);
-	release_mem_region(res->start, resource_size(res));
-
-	kfree(mcpdm);
 	return 0;
 }
 
