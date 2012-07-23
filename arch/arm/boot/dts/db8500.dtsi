@@ -48,7 +48,7 @@
 		};
 
 		rtc@80154000 {
-			compatible = "stericsson,db8500-rtc";
+			compatible = "arm,rtc-pl031", "arm,primecell";
 			reg = <0x80154000 0x1000>;
 			interrupts = <0 18 0x4>;
 		};
@@ -60,7 +60,7 @@
 			interrupts = <0 119 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <0>;
@@ -73,7 +73,7 @@
 			interrupts = <0 120 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <1>;
@@ -86,7 +86,7 @@
 			interrupts = <0 121 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <2>;
@@ -99,7 +99,7 @@
 			interrupts = <0 122 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <3>;
@@ -112,7 +112,7 @@
 			interrupts = <0 123 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <4>;
@@ -125,7 +125,7 @@
 			interrupts = <0 124 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <5>;
@@ -138,7 +138,7 @@
 			interrupts = <0 125 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <6>;
@@ -151,7 +151,7 @@
 			interrupts = <0 126 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <7>;
@@ -164,7 +164,7 @@
 			interrupts = <0 127 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <8>;
@@ -331,6 +331,63 @@
 				compatible = "stericsson,ab8500";
 				reg = <5>; /* mailbox 5 is i2c */
 				interrupts = <0 40 0x4>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+
+				ab8500-rtc {
+					compatible = "stericsson,ab8500-rtc";
+					interrupts = <17 0x4
+					              18 0x4>;
+					interrupt-names = "60S", "ALARM";
+				};
+
+				ab8500-gpadc {
+					compatible = "stericsson,ab8500-gpadc";
+					interrupts = <32 0x4
+						      39 0x4>;
+					interrupt-names = "HW_CONV_END", "SW_CONV_END";
+					vddadc-supply = <&ab8500_ldo_tvout_reg>;
+				};
+
+				ab8500-usb {
+					compatible = "stericsson,ab8500-usb";
+					interrupts = < 90 0x4
+						       96 0x4
+						       14 0x4
+						       15 0x4
+						       79 0x4
+						       74 0x4
+						       75 0x4>;
+					interrupt-names = "ID_WAKEUP_R",
+							  "ID_WAKEUP_F",
+							  "VBUS_DET_F",
+							  "VBUS_DET_R",
+							  "USB_LINK_STATUS",
+							  "USB_ADP_PROBE_PLUG",
+							  "USB_ADP_PROBE_UNPLUG";
+					vddulpivio18-supply = <&ab8500_ldo_initcore_reg>;
+					v-ape-supply = <&db8500_vape_reg>;
+					musb_1v8-supply = <&db8500_vsmps2_reg>;
+				};
+
+				ab8500-ponkey {
+					compatible = "stericsson,ab8500-ponkey";
+					interrupts = <6 0x4
+						      7 0x4>;
+					interrupt-names = "ONKEY_DBF", "ONKEY_DBR";
+				};
+
+				ab8500-sysctrl {
+					compatible = "stericsson,ab8500-sysctrl";
+				};
+
+				ab8500-pwm {
+					compatible = "stericsson,ab8500-pwm";
+				};
+
+				ab8500-debugfs {
+					compatible = "stericsson,ab8500-debug";
+				};
 
 				ab8500-regulators {
 					compatible = "stericsson,ab8500-regulator";

@@ -9,6 +9,7 @@
 
 /* For NOMADIK_NR_GPIO */
 #include <mach/irqs.h>
+#include <linux/amba/mmci.h>
 
 /* Snowball specific GPIO assignments, this board has no GPIO expander */
 #define SNOWBALL_ACCEL_INT1_GPIO	163
@@ -78,6 +79,8 @@
 
 struct device;
 struct i2c_board_info;
+extern struct mmci_platform_data mop500_sdi0_data;
+extern struct mmci_platform_data mop500_sdi4_data;
 
 extern void mop500_sdi_init(struct device *parent);
 extern void snowball_sdi_init(struct device *parent);

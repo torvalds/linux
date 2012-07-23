@@ -1198,7 +1198,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 		if (!pdata)
 			return -ENOMEM;
 
-		if (of_get_property(np, "supports-sleepmode", NULL))
+		if (of_get_property(np, "st,supports-sleepmode", NULL))
 			pdata->supports_sleepmode = true;
 
 		if (of_property_read_u32(np, "gpio-bank", &dev->id)) {

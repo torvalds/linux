@@ -14,6 +14,9 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <mach/common.h>
 #include <mach/cp_intc.h>
@@ -119,7 +122,7 @@ static const struct irq_domain_ops cp_intc_host_ops = {
 	.xlate = irq_domain_xlate_onetwocell,
 };
 
-int __init __cp_intc_init(struct device_node *node)
+int __init cp_intc_of_init(struct device_node *node, struct device_node *parent)
 {
 	u32 num_irq		= davinci_soc_info.intc_irq_num;
 	u8 *irq_prio		= davinci_soc_info.intc_irq_prios;
@@ -128,7 +131,14 @@ int __init __cp_intc_init(struct device_node *node)
 	int i, irq_base;
 
 	davinci_intc_type = DAVINCI_INTC_TYPE_CP_INTC;
-	davinci_intc_base = ioremap(davinci_soc_info.intc_base, SZ_8K);
+	if (node) {
+		davinci_intc_base = of_iomap(node, 0);
+		if (of_property_read_u32(node, "ti,intc-size", &num_irq))
+			pr_warn("unable to get intc-size, default to %d\n",
+				num_irq);
+	} else {
+		davinci_intc_base = ioremap(davinci_soc_info.intc_base, SZ_8K);
+	}
 	if (WARN_ON(!davinci_intc_base))
 		return -EINVAL;
 
@@ -208,5 +218,5 @@ int __init __cp_intc_init(struct device_node *node)
 
 void __init cp_intc_init(void)
 {
-	__cp_intc_init(NULL);
+	cp_intc_of_init(NULL, NULL);
 }

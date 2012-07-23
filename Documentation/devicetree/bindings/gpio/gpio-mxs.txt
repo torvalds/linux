@@ -13,8 +13,9 @@ Required properties for GPIO node:
 - interrupts : Should be the port interrupt shared by all 32 pins.
 - gpio-controller : Marks the device node as a gpio controller.
 - #gpio-cells : Should be two.  The first cell is the pin number and
-  the second cell is used to specify optional parameters (currently
-  unused).
+  the second cell is used to specify the gpio polarity:
+      0 = active high
+      1 = active low
 - interrupt-controller: Marks the device node as an interrupt controller.
 - #interrupt-cells : Should be 2.  The first cell is the GPIO number.
   The second cell bits[3:0] is used to specify trigger type and level flags:
