@@ -1274,7 +1274,7 @@ int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 	/* reset some values that shouldn't be kept across type changes */
 	sdata->vif.bss_conf.basic_rates =
 		ieee80211_mandatory_rates(sdata->local,
-			sdata->local->hw.conf.channel->band);
+			sdata->local->oper_channel->band);
 	sdata->drop_unencrypted = 0;
 	if (type == NL80211_IFTYPE_STATION)
 		sdata->u.mgd.use_4addr = false;
