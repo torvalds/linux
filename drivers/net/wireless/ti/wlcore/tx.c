@@ -319,8 +319,12 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		if (hlid == wlvif->ap.global_hlid)
 			rate_idx = wlvif->ap.mgmt_rate_idx;
 		else if (hlid == wlvif->ap.bcast_hlid ||
-			 skb->protocol == cpu_to_be16(ETH_P_PAE))
-			/* send AP bcast and EAPOLs using the min basic rate */
+			 skb->protocol == cpu_to_be16(ETH_P_PAE) ||
+			 !ieee80211_is_data(frame_control))
+			/*
+			 * send non-data, bcast and EAPOLs using the
+			 * min basic rate
+			 */
 			rate_idx = wlvif->ap.bcast_rate_idx;
 		else
 			rate_idx = wlvif->ap.ucast_rate_idx[ac];
