@@ -671,18 +671,18 @@ static const struct fsl_usb2_platform_data usbotg_pdata __initconst = {
 	.phy_mode	= FSL_USB2_PHY_ULPI,
 };
 
-static int otg_mode_host;
+static bool otg_mode_host __initdata;
 
 static int __init mx31_3ds_otg_mode(char *options)
 {
 	if (!strcmp(options, "host"))
-		otg_mode_host = 1;
+		otg_mode_host = true;
 	else if (!strcmp(options, "device"))
-		otg_mode_host = 0;
+		otg_mode_host = false;
 	else
 		pr_info("otg_mode neither \"host\" nor \"device\". "
 			"Defaulting to device\n");
-	return 0;
+	return 1;
 }
 __setup("otg_mode=", mx31_3ds_otg_mode);
 
@@ -739,7 +739,7 @@ static void __init mx31_3ds_init(void)
 	if (mxc_expio_init(MX31_CS5_BASE_ADDR, EXPIO_PARENT_INT))
 		printk(KERN_WARNING "Init of the debug board failed, all "
 				    "devices on the debug board are unusable.\n");
-	imx31_add_imx2_wdt(NULL);
+	imx31_add_imx2_wdt();
 	imx31_add_imx_i2c0(&mx31_3ds_i2c0_data);
 	imx31_add_mxc_mmc(0, &sdhc1_pdata);
 

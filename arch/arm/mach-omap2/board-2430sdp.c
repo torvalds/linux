@@ -251,16 +251,6 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 	{}	/* Terminator */
 };
 
-static struct omap_usb_config sdp2430_usb_config __initdata = {
-	.otg		= 1,
-#ifdef  CONFIG_USB_GADGET_OMAP
-	.hmc_mode	= 0x0,
-#elif   defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
-	.hmc_mode	= 0x1,
-#endif
-	.pins[0]	= 3,
-};
-
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
@@ -277,7 +267,6 @@ static void __init omap_2430sdp_init(void)
 	omap_serial_init();
 	omap_sdrc_init(NULL, NULL);
 	omap_hsmmc_init(mmc);
-	omap2_usbfs_init(&sdp2430_usb_config);
 
 	omap_mux_init_signal("usb0hs_stp", OMAP_PULL_ENA | OMAP_PULL_UP);
 	usb_musb_init(NULL);

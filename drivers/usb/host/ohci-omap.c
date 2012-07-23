@@ -20,14 +20,15 @@
 #include <linux/clk.h>
 #include <linux/gpio.h>
 
-#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
 
 #include <plat/mux.h>
-#include <mach/irqs.h>
 #include <plat/fpga.h>
-#include <plat/usb.h>
+
+#include <mach/hardware.h>
+#include <mach/irqs.h>
+#include <mach/usb.h>
 
 
 /* OMAP-1510 OHCI has its own MMU for DMA */

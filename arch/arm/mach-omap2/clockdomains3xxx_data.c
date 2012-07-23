@@ -454,8 +454,6 @@ static struct clkdm_autodep clkdm_am35x_autodeps[] = {
 
 static struct clockdomain *clockdomains_common[] __initdata = {
 	&wkup_common_clkdm,
-	&cm_common_clkdm,
-	&prm_common_clkdm,
 	&neon_clkdm,
 	&core_l3_3xxx_clkdm,
 	&core_l4_3xxx_clkdm,

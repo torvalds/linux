@@ -1093,6 +1093,17 @@ static struct omap_hwmod_class omap3xxx_mcbsp_hwmod_class = {
 	.rev  = MCBSP_CONFIG_TYPE3,
 };
 
+/* McBSP functional clock mapping */
+static struct omap_hwmod_opt_clk mcbsp15_opt_clks[] = {
+	{ .role = "pad_fck", .clk = "mcbsp_clks" },
+	{ .role = "prcm_fck", .clk = "core_96m_fck" },
+};
+
+static struct omap_hwmod_opt_clk mcbsp234_opt_clks[] = {
+	{ .role = "pad_fck", .clk = "mcbsp_clks" },
+	{ .role = "prcm_fck", .clk = "per_96m_fck" },
+};
+
 /* mcbsp1 */
 static struct omap_hwmod_irq_info omap3xxx_mcbsp1_irqs[] = {
 	{ .name = "common", .irq = 16 },
@@ -1116,6 +1127,8 @@ static struct omap_hwmod omap3xxx_mcbsp1_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_MCBSP1_SHIFT,
 		},
 	},
+	.opt_clks	= mcbsp15_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(mcbsp15_opt_clks),
 };
 
 /* mcbsp2 */
@@ -1145,6 +1158,8 @@ static struct omap_hwmod omap3xxx_mcbsp2_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_MCBSP2_SHIFT,
 		},
 	},
+	.opt_clks	= mcbsp234_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(mcbsp234_opt_clks),
 	.dev_attr	= &omap34xx_mcbsp2_dev_attr,
 };
 
@@ -1175,6 +1190,8 @@ static struct omap_hwmod omap3xxx_mcbsp3_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_MCBSP3_SHIFT,
 		},
 	},
+	.opt_clks	= mcbsp234_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(mcbsp234_opt_clks),
 	.dev_attr	= &omap34xx_mcbsp3_dev_attr,
 };
 
@@ -1207,6 +1224,8 @@ static struct omap_hwmod omap3xxx_mcbsp4_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_MCBSP4_SHIFT,
 		},
 	},
+	.opt_clks	= mcbsp234_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(mcbsp234_opt_clks),
 };
 
 /* mcbsp5 */
@@ -1238,6 +1257,8 @@ static struct omap_hwmod omap3xxx_mcbsp5_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_MCBSP5_SHIFT,
 		},
 	},
+	.opt_clks	= mcbsp15_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(mcbsp15_opt_clks),
 };
 
 /* 'mcbsp sidetone' class */
@@ -3403,6 +3424,8 @@ int __init omap3xxx_hwmod_init(void)
 	int r;
 	struct omap_hwmod_ocp_if **h = NULL;
 	unsigned int rev;
+
+	omap_hwmod_init();
 
 	/* Register hwmod links common to all OMAP3 */
 	r = omap_hwmod_register_links(omap3xxx_hwmod_ocp_ifs);

@@ -75,7 +75,7 @@ static struct sys_timer imx27_timer = {
 	.init = imx27_timer_init,
 };
 
-static const char *imx27_dt_board_compat[] __initdata = {
+static const char * const imx27_dt_board_compat[] __initconst = {
 	"fsl,imx27",
 	NULL
 };

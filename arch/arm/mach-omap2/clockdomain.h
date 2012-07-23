@@ -210,7 +210,5 @@ extern struct clkdm_ops omap4_clkdm_operations;
 extern struct clkdm_dep gfx_24xx_wkdeps[];
 extern struct clkdm_dep dsp_24xx_wkdeps[];
 extern struct clockdomain wkup_common_clkdm;
-extern struct clockdomain prm_common_clkdm;
-extern struct clockdomain cm_common_clkdm;
 
 #endif

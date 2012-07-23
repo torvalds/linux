@@ -58,17 +58,9 @@ config SND_SOC_TEGRA_WM8753
 	  Say Y or M here if you want to add support for SoC audio on Tegra
 	  boards using the WM8753 codec, such as Whistler.
 
-config MACH_HAS_SND_SOC_TEGRA_WM8903
-	bool
-	help
-	  Machines that use the SND_SOC_TEGRA_WM8903 driver should select
-	  this config option, in order to allow the user to enable
-	  SND_SOC_TEGRA_WM8903.
-
 config SND_SOC_TEGRA_WM8903
 	tristate "SoC Audio support for Tegra boards using a WM8903 codec"
 	depends on SND_SOC_TEGRA && I2C
-	depends on MACH_HAS_SND_SOC_TEGRA_WM8903
 	select SND_SOC_TEGRA20_I2S if ARCH_TEGRA_2x_SOC
 	select SND_SOC_TEGRA30_I2S if ARCH_TEGRA_3x_SOC
 	select SND_SOC_WM8903
@@ -79,7 +71,7 @@ config SND_SOC_TEGRA_WM8903
 
 config SND_SOC_TEGRA_TRIMSLICE
 	tristate "SoC Audio support for TrimSlice board"
-	depends on SND_SOC_TEGRA && MACH_TRIMSLICE && I2C
+	depends on SND_SOC_TEGRA && I2C
 	select SND_SOC_TEGRA20_I2S if ARCH_TEGRA_2x_SOC
 	select SND_SOC_TLV320AIC23
 	help
