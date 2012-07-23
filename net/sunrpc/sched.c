@@ -300,8 +300,9 @@ EXPORT_SYMBOL_GPL(__rpc_wait_for_completion_task);
 /*
  * Make an RPC task runnable.
  *
- * Note: If the task is ASYNC, this must be called with
- * the spinlock held to protect the wait queue operation.
+ * Note: If the task is ASYNC, and is being made runnable after sitting on an
+ * rpc_wait_queue, this must be called with the queue spinlock held to protect
+ * the wait queue operation.
  */
 static void rpc_make_runnable(struct rpc_task *task)
 {
