@@ -798,7 +798,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	ext4_kvfree(o_group_desc);
 
 	le16_add_cpu(&es->s_reserved_gdt_blocks, -1);
-	err = ext4_handle_dirty_super_now(handle, sb);
+	err = ext4_handle_dirty_super(handle, sb);
 	if (err)
 		ext4_std_error(sb, err);
 

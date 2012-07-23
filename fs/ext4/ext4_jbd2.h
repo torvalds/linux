@@ -219,8 +219,7 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 				 struct buffer_head *bh);
 
 int __ext4_handle_dirty_super(const char *where, unsigned int line,
-			      handle_t *handle, struct super_block *sb,
-			      int now);
+			      handle_t *handle, struct super_block *sb);
 
 #define ext4_journal_get_write_access(handle, bh) \
 	__ext4_journal_get_write_access(__func__, __LINE__, (handle), (bh))
@@ -232,10 +231,8 @@ int __ext4_handle_dirty_super(const char *where, unsigned int line,
 #define ext4_handle_dirty_metadata(handle, inode, bh) \
 	__ext4_handle_dirty_metadata(__func__, __LINE__, (handle), (inode), \
 				     (bh))
-#define ext4_handle_dirty_super_now(handle, sb) \
-	__ext4_handle_dirty_super(__func__, __LINE__, (handle), (sb), 1)
 #define ext4_handle_dirty_super(handle, sb) \
-	__ext4_handle_dirty_super(__func__, __LINE__, (handle), (sb), 0)
+	__ext4_handle_dirty_super(__func__, __LINE__, (handle), (sb))
 
 handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks);
 int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle);

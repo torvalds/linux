@@ -138,8 +138,7 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 }
 
 int __ext4_handle_dirty_super(const char *where, unsigned int line,
-			      handle_t *handle, struct super_block *sb,
-			      int now)
+			      handle_t *handle, struct super_block *sb)
 {
 	struct buffer_head *bh = EXT4_SB(sb)->s_sbh;
 	int err = 0;
