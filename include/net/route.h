@@ -277,7 +277,11 @@ static inline struct rtable *ip_route_newports(struct flowi4 *fl4, struct rtable
 
 static inline int inet_iif(const struct sk_buff *skb)
 {
-	return skb_rtable(skb)->rt_iif;
+	int iif = skb_rtable(skb)->rt_iif;
+
+	if (iif)
+		return iif;
+	return skb->skb_iif;
 }
 
 extern int sysctl_ip_default_ttl;
