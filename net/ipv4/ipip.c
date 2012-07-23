@@ -487,7 +487,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			dev->stats.tx_fifo_errors++;
 			goto tx_error;
 		}
-		dst = rt->rt_gateway;
+		dst = rt_nexthop(rt, old_iph->daddr);
 	}
 
 	rt = ip_route_output_ports(dev_net(dev), &fl4, NULL,

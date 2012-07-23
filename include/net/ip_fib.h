@@ -46,6 +46,7 @@ struct fib_config {
  };
 
 struct fib_info;
+struct rtable;
 
 struct fib_nh_exception {
 	struct fib_nh_exception __rcu	*fnhe_next;
@@ -80,6 +81,8 @@ struct fib_nh {
 	__be32			nh_gw;
 	__be32			nh_saddr;
 	int			nh_saddr_genid;
+	struct rtable		*nh_rth_output;
+	struct rtable		*nh_rth_input;
 	struct fnhe_hash_bucket	*nh_exceptions;
 };
 

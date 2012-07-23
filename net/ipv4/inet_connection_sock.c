@@ -368,8 +368,7 @@ EXPORT_SYMBOL(inet_csk_reset_keepalive_timer);
 
 struct dst_entry *inet_csk_route_req(struct sock *sk,
 				     struct flowi4 *fl4,
-				     const struct request_sock *req,
-				     bool nocache)
+				     const struct request_sock *req)
 {
 	struct rtable *rt;
 	const struct inet_request_sock *ireq = inet_rsk(req);
@@ -377,8 +376,6 @@ struct dst_entry *inet_csk_route_req(struct sock *sk,
 	struct net *net = sock_net(sk);
 	int flags = inet_sk_flowi_flags(sk);
 
-	if (nocache)
-		flags |= FLOWI_FLAG_RT_NOCACHE;
 	flowi4_init_output(fl4, sk->sk_bound_dev_if, sk->sk_mark,
 			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE,
 			   sk->sk_protocol,
@@ -389,7 +386,7 @@ struct dst_entry *inet_csk_route_req(struct sock *sk,
 	rt = ip_route_output_flow(net, fl4, sk);
 	if (IS_ERR(rt))
 		goto no_route;
-	if (opt && opt->opt.is_strictroute && fl4->daddr != rt->rt_gateway)
+	if (opt && opt->opt.is_strictroute && rt->rt_gateway)
 		goto route_err;
 	return &rt->dst;
 
@@ -422,7 +419,7 @@ struct dst_entry *inet_csk_route_child_sock(struct sock *sk,
 	rt = ip_route_output_flow(net, fl4, sk);
 	if (IS_ERR(rt))
 		goto no_route;
-	if (opt && opt->opt.is_strictroute && fl4->daddr != rt->rt_gateway)
+	if (opt && opt->opt.is_strictroute && rt->rt_gateway)
 		goto route_err;
 	return &rt->dst;
 

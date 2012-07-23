@@ -94,7 +94,7 @@ loop:
 			 * But we do not have state "obsoleted, but
 			 * referenced by parent", so it is right.
 			 */
-			if (dst->obsolete > 1)
+			if (dst->obsolete > 0)
 				continue;
 
 			___dst_free(dst);
@@ -202,7 +202,7 @@ static void ___dst_free(struct dst_entry *dst)
 	 */
 	if (dst->dev == NULL || !(dst->dev->flags&IFF_UP))
 		dst->input = dst->output = dst_discard;
-	dst->obsolete = 2;
+	dst->obsolete = DST_OBSOLETE_DEAD;
 }
 
 void __dst_free(struct dst_entry *dst)
