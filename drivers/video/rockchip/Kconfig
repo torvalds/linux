@@ -75,3 +75,4 @@ config THREE_FB_BUFFER
 	   select y if android support three buffer,like Jelly Bean
 source "drivers/video/rockchip/hdmi/Kconfig"
 source "drivers/video/rockchip/rga/Kconfig"
+source "drivers/video/rockchip/lvds/Kconfig"

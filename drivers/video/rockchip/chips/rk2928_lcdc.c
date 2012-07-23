@@ -31,7 +31,7 @@
 #include <asm/div64.h>
 #include <asm/uaccess.h>
 #include "rk2928_lcdc.h"
-
+#include "../lvds/rk_lvds.h"
 
 
 
@@ -68,6 +68,10 @@ static int init_rk2928_lcdc(struct rk_lcdc_device_driver *dev_drv)
     	{
        		printk(KERN_ERR "failed to get lcdc%d clk source\n",lcdc_dev->id);
    	}
+#ifdef CONFIG_RK_LVDS
+	rk_lvds_register(lcdc_dev->screen);
+#endif
+
 	clk_enable(lcdc_dev->pd);
 	clk_enable(lcdc_dev->hclk);  //enable aclk and hclk for register config
 	clk_enable(lcdc_dev->aclk);  
@@ -685,6 +689,9 @@ int rk2928_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 {
 	struct rk2928_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk2928_lcdc_device,driver);
 	
+	if(lcdc_dev->screen->sscreen_set != NULL)
+		lcdc_dev->screen->sscreen_set(lcdc_dev->screen , 0);
+
 	spin_lock(&lcdc_dev->reg_lock);
 	if(likely(lcdc_dev->clk_on))
 	{
@@ -733,6 +740,9 @@ int rk2928_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 	lcdc_dev->clk_on = 1;
 	spin_unlock(&lcdc_dev->reg_lock);
 	
+	if(lcdc_dev->screen->sscreen_set != NULL)
+		lcdc_dev->screen->sscreen_set(lcdc_dev->screen , 1);
+
     	return 0;
 }
 static irqreturn_t rk2928_lcdc_isr(int irq, void *dev_id)
