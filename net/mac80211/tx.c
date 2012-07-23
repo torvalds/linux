@@ -55,7 +55,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 	if (WARN_ON_ONCE(info->control.rates[0].idx < 0))
 		return 0;
 
-	sband = local->hw.wiphy->bands[tx->channel->band];
+	sband = local->hw.wiphy->bands[info->band];
 	txrate = &sband->bitrates[info->control.rates[0].idx];
 
 	erp = txrate->flags & IEEE80211_RATE_ERP_G;
@@ -615,7 +615,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 
 	memset(&txrc, 0, sizeof(txrc));
 
-	sband = tx->local->hw.wiphy->bands[tx->channel->band];
+	sband = tx->local->hw.wiphy->bands[info->band];
 
 	len = min_t(u32, tx->skb->len + FCS_LEN,
 			 tx->local->hw.wiphy->frag_threshold);
@@ -626,13 +626,13 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	txrc.bss_conf = &tx->sdata->vif.bss_conf;
 	txrc.skb = tx->skb;
 	txrc.reported_rate.idx = -1;
-	txrc.rate_idx_mask = tx->sdata->rc_rateidx_mask[tx->channel->band];
+	txrc.rate_idx_mask = tx->sdata->rc_rateidx_mask[info->band];
 	if (txrc.rate_idx_mask == (1 << sband->n_bitrates) - 1)
 		txrc.max_rate_idx = -1;
 	else
 		txrc.max_rate_idx = fls(txrc.rate_idx_mask) - 1;
 	memcpy(txrc.rate_idx_mcs_mask,
-	       tx->sdata->rc_rateidx_mcs_mask[tx->channel->band],
+	       tx->sdata->rc_rateidx_mcs_mask[info->band],
 	       sizeof(txrc.rate_idx_mcs_mask));
 	txrc.bss = (tx->sdata->vif.type == NL80211_IFTYPE_AP ||
 		    tx->sdata->vif.type == NL80211_IFTYPE_MESH_POINT ||
@@ -667,7 +667,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 		 "scanning and associated. Target station: "
 		 "%pM on %d GHz band\n",
 		 tx->sdata->name, hdr->addr1,
-		 tx->channel->band ? 5 : 2))
+		 info->band ? 5 : 2))
 		return TX_DROP;
 
 	/*
@@ -1131,7 +1131,6 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	tx->skb = skb;
 	tx->local = local;
 	tx->sdata = sdata;
-	tx->channel = local->hw.conf.channel;
 	__skb_queue_head_init(&tx->skbs);
 
 	/*
@@ -1400,8 +1399,7 @@ static bool ieee80211_tx(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	tx.channel = local->hw.conf.channel;
-	info->band = tx.channel->band;
+	info->band = local->hw.conf.channel->band;
 
 	/* set up hw_queue value early */
 	if (!(info->flags & IEEE80211_TX_CTL_TX_OFFCHAN) ||
@@ -2710,8 +2708,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 	info = IEEE80211_SKB_CB(skb);
 
 	tx.flags |= IEEE80211_TX_PS_BUFFERED;
-	tx.channel = local->hw.conf.channel;
-	info->band = tx.channel->band;
+	info->band = local->oper_channel->band;
 
 	if (invoke_tx_handlers(&tx))
 		skb = NULL;

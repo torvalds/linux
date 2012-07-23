@@ -193,8 +193,6 @@ struct ieee80211_tx_data {
 	struct sta_info *sta;
 	struct ieee80211_key *key;
 
-	struct ieee80211_channel *channel;
-
 	unsigned int flags;
 };
 
