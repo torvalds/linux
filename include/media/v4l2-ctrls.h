@@ -511,6 +511,29 @@ s32 v4l2_ctrl_g_ctrl(struct v4l2_ctrl *ctrl);
   */
 int v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val);
 
+/** v4l2_ctrl_g_ctrl_int64() - Helper function to get a 64-bit control's value from within a driver.
+  * @ctrl:	The control.
+  *
+  * This returns the control's value safely by going through the control
+  * framework. This function will lock the control's handler, so it cannot be
+  * used from within the &v4l2_ctrl_ops functions.
+  *
+  * This function is for 64-bit integer type controls only.
+  */
+s64 v4l2_ctrl_g_ctrl_int64(struct v4l2_ctrl *ctrl);
+
+/** v4l2_ctrl_s_ctrl_int64() - Helper function to set a 64-bit control's value from within a driver.
+  * @ctrl:	The control.
+  * @val:	The new value.
+  *
+  * This set the control's new value safely by going through the control
+  * framework. This function will lock the control's handler, so it cannot be
+  * used from within the &v4l2_ctrl_ops functions.
+  *
+  * This function is for 64-bit integer type controls only.
+  */
+int v4l2_ctrl_s_ctrl_int64(struct v4l2_ctrl *ctrl, s64 val);
+
 /* Internal helper functions that deal with control events. */
 extern const struct v4l2_subscribed_event_ops v4l2_ctrl_sub_ev_ops;
 void v4l2_ctrl_replace(struct v4l2_event *old, const struct v4l2_event *new);
