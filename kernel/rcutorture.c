@@ -53,10 +53,11 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and Josh Triplett <josh@fre
 
 static int nreaders = -1;	/* # reader threads, defaults to 2*ncpus */
 static int nfakewriters = 4;	/* # fake writer threads */
-static int stat_interval;	/* Interval between stats, in seconds. */
-				/*  Defaults to "only at end of test". */
+static int stat_interval = 60;	/* Interval between stats, in seconds. */
+				/*  Zero means "only at end of test". */
 static bool verbose;		/* Print more debug info. */
-static bool test_no_idle_hz;	/* Test RCU's support for tickless idle CPUs. */
+static bool test_no_idle_hz = true;
+				/* Test RCU support for tickless idle CPUs. */
 static int shuffle_interval = 3; /* Interval between shuffles (in sec)*/
 static int stutter = 5;		/* Start/stop testing interval (in sec) */
 static int irqreader = 1;	/* RCU readers from irq (timers). */
