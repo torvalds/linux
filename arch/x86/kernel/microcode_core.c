@@ -276,19 +276,18 @@ static struct platform_device	*microcode_pdev;
 static int reload_for_cpu(int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+	enum ucode_state ustate;
 	int err = 0;
 
-	if (uci->valid) {
-		enum ucode_state ustate;
+	if (!uci->valid)
+		return err;
 
-		ustate = microcode_ops->request_microcode_fw(cpu, &microcode_pdev->dev);
-		if (ustate == UCODE_OK)
-			apply_microcode_on_target(cpu);
-		else
-			if (ustate == UCODE_ERROR)
-				err = -EINVAL;
-	}
-
+	ustate = microcode_ops->request_microcode_fw(cpu, &microcode_pdev->dev);
+	if (ustate == UCODE_OK)
+		apply_microcode_on_target(cpu);
+	else
+		if (ustate == UCODE_ERROR)
+			err = -EINVAL;
 	return err;
 }
 
