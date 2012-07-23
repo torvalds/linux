@@ -953,18 +953,12 @@ static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 		break;
 
 	case DEPEVT_STATUS_CONTROL_STATUS:
+		if (dwc->ep0_next_event != DWC3_EP0_NRDY_STATUS)
+			return;
+
 		dev_vdbg(dwc->dev, "Control Status\n");
 
 		dwc->ep0state = EP0_STATUS_PHASE;
-
-		if (dwc->ep0_next_event != DWC3_EP0_NRDY_STATUS) {
-			dev_vdbg(dwc->dev, "Expected %d got %d\n",
-					dwc->ep0_next_event,
-					DWC3_EP0_NRDY_STATUS);
-
-			dwc3_ep0_stall_and_restart(dwc);
-			return;
-		}
 
 		if (dwc->delayed_status) {
 			WARN_ON_ONCE(event->endpoint_number != 1);
