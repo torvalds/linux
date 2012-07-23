@@ -688,7 +688,6 @@ void bf609_nor_flash_exit(struct platform_device *dev)
 	peripheral_free_list(pins);
 
 	bfin_write32(SMC_GCTL, 0);
-	return 0;
 }
 
 static struct physmap_flash_data ezkit_flash_data = {

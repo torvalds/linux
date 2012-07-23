@@ -328,7 +328,7 @@ static void bfin_sec_set_priority(unsigned int sec_int_levels, u8 *sec_int_prior
 	hard_local_irq_restore(flags);
 }
 
-static void bfin_sec_raise_irq(unsigned int sid)
+void bfin_sec_raise_irq(unsigned int sid)
 {
 	unsigned long flags = hard_local_irq_save();
 
@@ -434,10 +434,10 @@ void handle_core_fault(unsigned int irq, struct irq_desc *desc)
 		panic("Kernel core hardware error");
 		break;
 	case IRQ_C0_NMI_L1_PARITY_ERR:
-		panic("NMI %d occurs unexpectedly");
+		panic("NMI occurs unexpectedly");
 		break;
 	default:
-		panic("Core 1 fault %d occurs unexpectedly");
+		panic("Core 1 fault occurs unexpectedly");
 	}
 
 	raw_spin_unlock(&desc->lock);
