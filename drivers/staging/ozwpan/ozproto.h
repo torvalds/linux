@@ -14,7 +14,7 @@
 
 /* Converts millisecs to jiffies.
  */
-#define oz_ms_to_jiffies(__x)	(((__x)*1000)/HZ)
+#define oz_ms_to_jiffies(__x)	msecs_to_jiffies(__x)
 
 /* Quantum milliseconds.
  */

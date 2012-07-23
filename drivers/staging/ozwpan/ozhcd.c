@@ -1053,7 +1053,7 @@ int oz_hcd_heartbeat(void *hport)
 		ep = ep_from_link(e);
 		if (ep->credit < 0)
 			continue;
-		ep->credit += (now - ep->last_jiffies);
+		ep->credit += jiffies_to_msecs(now - ep->last_jiffies);
 		if (ep->credit > ep->credit_ceiling)
 			ep->credit = ep->credit_ceiling;
 		oz_event_log(OZ_EVT_EP_CREDIT, ep->ep_num, 0, 0, ep->credit);
@@ -1062,7 +1062,7 @@ int oz_hcd_heartbeat(void *hport)
 			urbl = list_first_entry(&ep->urb_list,
 				struct oz_urb_link, link);
 			urb = urbl->urb;
-			if (ep->credit < urb->number_of_packets)
+			if ((ep->credit + 1) < urb->number_of_packets)
 				break;
 			ep->credit -= urb->number_of_packets;
 			oz_event_log(OZ_EVT_EP_CREDIT, ep->ep_num, 0, 0,
@@ -1105,7 +1105,7 @@ int oz_hcd_heartbeat(void *hport)
 			}
 			continue;
 		}
-		ep->credit += (now - ep->last_jiffies);
+		ep->credit += jiffies_to_msecs(now - ep->last_jiffies);
 		oz_event_log(OZ_EVT_EP_CREDIT, ep->ep_num | USB_DIR_IN,
 			0, 0, ep->credit);
 		ep->last_jiffies = now;
@@ -1117,7 +1117,7 @@ int oz_hcd_heartbeat(void *hport)
 			int len = 0;
 			int copy_len;
 			int i;
-			if (ep->credit < urb->number_of_packets)
+			if ((ep->credit + 1) < urb->number_of_packets)
 				break;
 			if (ep->buffered_units < urb->number_of_packets)
 				break;
