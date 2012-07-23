@@ -1124,14 +1124,17 @@ int udf_setsize(struct inode *inode, loff_t newsize)
 				if (err)
 					return err;
 				down_write(&iinfo->i_data_sem);
-			} else
+			} else {
 				iinfo->i_lenAlloc = newsize;
+				goto set_size;
+			}
 		}
 		err = udf_extend_file(inode, newsize);
 		if (err) {
 			up_write(&iinfo->i_data_sem);
 			return err;
 		}
+set_size:
 		truncate_setsize(inode, newsize);
 		up_write(&iinfo->i_data_sem);
 	} else {
