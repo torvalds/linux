@@ -33,10 +33,10 @@ DEFINE_UNCORE_FORMAT_ATTR(filter_tid, filter_tid, "config1:0-4");
 DEFINE_UNCORE_FORMAT_ATTR(filter_nid, filter_nid, "config1:10-17");
 DEFINE_UNCORE_FORMAT_ATTR(filter_state, filter_state, "config1:18-22");
 DEFINE_UNCORE_FORMAT_ATTR(filter_opc, filter_opc, "config1:23-31");
-DEFINE_UNCORE_FORMAT_ATTR(filter_brand0, filter_brand0, "config1:0-7");
-DEFINE_UNCORE_FORMAT_ATTR(filter_brand1, filter_brand1, "config1:8-15");
-DEFINE_UNCORE_FORMAT_ATTR(filter_brand2, filter_brand2, "config1:16-23");
-DEFINE_UNCORE_FORMAT_ATTR(filter_brand3, filter_brand3, "config1:24-31");
+DEFINE_UNCORE_FORMAT_ATTR(filter_band0, filter_band0, "config1:0-7");
+DEFINE_UNCORE_FORMAT_ATTR(filter_band1, filter_band1, "config1:8-15");
+DEFINE_UNCORE_FORMAT_ATTR(filter_band2, filter_band2, "config1:16-23");
+DEFINE_UNCORE_FORMAT_ATTR(filter_band3, filter_band3, "config1:24-31");
 
 /* Sandy Bridge-EP uncore support */
 static struct intel_uncore_type snbep_uncore_cbox;
@@ -272,10 +272,10 @@ static struct attribute *snbep_uncore_pcu_formats_attr[] = {
 	&format_attr_thresh5.attr,
 	&format_attr_occ_invert.attr,
 	&format_attr_occ_edge.attr,
-	&format_attr_filter_brand0.attr,
-	&format_attr_filter_brand1.attr,
-	&format_attr_filter_brand2.attr,
-	&format_attr_filter_brand3.attr,
+	&format_attr_filter_band0.attr,
+	&format_attr_filter_band1.attr,
+	&format_attr_filter_band2.attr,
+	&format_attr_filter_band3.attr,
 	NULL,
 };
 
