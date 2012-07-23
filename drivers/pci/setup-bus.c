@@ -308,7 +308,7 @@ static void __assign_resources_sorted(struct list_head *head,
 	 * Should not assign requested resources at first.
 	 *   they could be adjacent, so later reassign can not reallocate
 	 *   them one by one in parent resource window.
-	 * Try to assign requested + add_size at begining
+	 * Try to assign requested + add_size at beginning
 	 *  if could do that, could get out early.
 	 *  if could not do that, we still try to assign requested at first,
 	 *    then try to reassign add_size for some resources.
