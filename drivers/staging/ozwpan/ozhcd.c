@@ -933,13 +933,14 @@ void oz_hcd_control_cnf(void *hport, u8 req_id, u8 rcode, u8 *data,
 	} else {
 		int copy_len;
 		oz_trace("VENDOR-CLASS - cnf\n");
-		if (data_len <= urb->transfer_buffer_length)
-			copy_len = data_len;
-		else
-			copy_len = urb->transfer_buffer_length;
-		if (copy_len)
+		if (data_len) {
+			if (data_len <= urb->transfer_buffer_length)
+				copy_len = data_len;
+			else
+				copy_len = urb->transfer_buffer_length;
 			memcpy(urb->transfer_buffer, data, copy_len);
-		urb->actual_length = copy_len;
+			urb->actual_length = copy_len;
+		}
 		oz_complete_urb(hcd, urb, 0, 0);
 	}
 }
@@ -1517,6 +1518,7 @@ static void oz_process_ep0_urb(struct oz_hcd *ozhcd, struct urb *urb,
 		int data_len = 0;
 		if ((setup->bRequestType & USB_DIR_IN) == 0)
 			data_len = wlength;
+		urb->actual_length = data_len;
 		if (oz_usb_control_req(port->hpd, req_id, setup,
 				urb->transfer_buffer, data_len)) {
 			rc = -ENOMEM;
