@@ -417,6 +417,44 @@ static void oz_ep_free(struct oz_port *port, struct oz_endpoint *ep)
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
+void oz_complete_buffered_urb(struct oz_port *port, struct oz_endpoint *ep,
+			struct urb *urb)
+{
+	u8 data_len, available_space, copy_len;
+
+	memcpy(&data_len, &ep->buffer[ep->out_ix], sizeof(u8));
+	if (data_len <= urb->transfer_buffer_length)
+		available_space = data_len;
+	else
+		available_space = urb->transfer_buffer_length;
+
+	if (++ep->out_ix == ep->buffer_size)
+		ep->out_ix = 0;
+	copy_len = ep->buffer_size - ep->out_ix;
+	if (copy_len >= available_space)
+		copy_len = available_space;
+	memcpy(urb->transfer_buffer, &ep->buffer[ep->out_ix], copy_len);
+
+	if (copy_len < available_space) {
+		memcpy((urb->transfer_buffer + copy_len), ep->buffer,
+						(available_space - copy_len));
+		ep->out_ix = available_space - copy_len;
+	} else {
+		ep->out_ix += copy_len;
+	}
+	urb->actual_length = available_space;
+	if (ep->out_ix == ep->buffer_size)
+		ep->out_ix = 0;
+
+	ep->buffered_units--;
+	oz_trace("Trying to give back buffered frame of size=%d\n",
+						available_space);
+	oz_complete_urb(port->ozhcd->hcd, urb, 0, 0);
+}
+
+/*------------------------------------------------------------------------------
+ * Context: softirq
+ */
 static int oz_enqueue_ep_urb(struct oz_port *port, u8 ep_addr, int in_dir,
 			struct urb *urb, u8 req_id)
 {
@@ -452,6 +490,18 @@ static int oz_enqueue_ep_urb(struct oz_port *port, u8 ep_addr, int in_dir,
 		ep = port->in_ep[ep_addr];
 	else
 		ep = port->out_ep[ep_addr];
+
+	/*For interrupt endpoint check for buffered data
+	* & complete urb
+	*/
+	if (((ep->attrib & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT)
+						 && ep->buffered_units > 0) {
+		oz_free_urb_link(urbl);
+		spin_unlock_bh(&port->ozhcd->hcd_lock);
+		oz_complete_buffered_urb(port, ep, urb);
+		return 0;
+	}
+
 	if (ep && port->hpd) {
 		list_add_tail(&urbl->link, &ep->urb_list);
 		if (!in_dir && ep_addr && (ep->credit < 0)) {
@@ -961,6 +1011,9 @@ void oz_hcd_data_ind(void *hport, u8 endpoint, u8 *data, int data_len)
 			urb->actual_length = copy_len;
 			oz_complete_urb(port->ozhcd->hcd, urb, 0, 0);
 			return;
+		} else {
+			oz_trace("buffering frame as URB is not available\n");
+			oz_hcd_buffer_data(ep, data, data_len);
 		}
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
@@ -1167,10 +1220,16 @@ static int oz_build_endpoints_for_interface(struct usb_hcd *hcd,
 		int buffer_size = 0;
 
 		oz_trace("%d bEndpointAddress = %x\n", i, ep_addr);
-		if ((ep_addr & USB_ENDPOINT_DIR_MASK) &&
-			((hep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-			== USB_ENDPOINT_XFER_ISOC)) {
-			buffer_size = 24*1024;
+		if (ep_addr & USB_ENDPOINT_DIR_MASK) {
+			switch (hep->desc.bmAttributes &
+						USB_ENDPOINT_XFERTYPE_MASK) {
+			case USB_ENDPOINT_XFER_ISOC:
+				buffer_size = 24*1024;
+				break;
+			case USB_ENDPOINT_XFER_INT:
+				buffer_size = 128;
+				break;
+			}
 		}
 
 		ep = oz_ep_alloc(mem_flags, buffer_size);
