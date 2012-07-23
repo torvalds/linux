@@ -55,7 +55,7 @@ struct vti_net {
 	struct ip_tunnel __rcu *tunnels_r[HASH_SIZE];
 	struct ip_tunnel __rcu *tunnels_l[HASH_SIZE];
 	struct ip_tunnel __rcu *tunnels_wc[1];
-	struct ip_tunnel **tunnels[4];
+	struct ip_tunnel __rcu **tunnels[4];
 
 	struct net_device *fb_tunnel_dev;
 };
@@ -160,8 +160,8 @@ static struct ip_tunnel *vti_tunnel_lookup(struct net *net,
 	return NULL;
 }
 
-static struct ip_tunnel **__vti_bucket(struct vti_net *ipn,
-				       struct ip_tunnel_parm *parms)
+static struct ip_tunnel __rcu **__vti_bucket(struct vti_net *ipn,
+					     struct ip_tunnel_parm *parms)
 {
 	__be32 remote = parms->iph.daddr;
 	__be32 local = parms->iph.saddr;
@@ -179,8 +179,8 @@ static struct ip_tunnel **__vti_bucket(struct vti_net *ipn,
 	return &ipn->tunnels[prio][h];
 }
 
-static inline struct ip_tunnel **vti_bucket(struct vti_net *ipn,
-					    struct ip_tunnel *t)
+static inline struct ip_tunnel __rcu **vti_bucket(struct vti_net *ipn,
+						  struct ip_tunnel *t)
 {
 	return __vti_bucket(ipn, &t->parms);
 }
