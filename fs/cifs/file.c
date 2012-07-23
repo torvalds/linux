@@ -3169,7 +3169,7 @@ static int cifs_readpage(struct file *file, struct page *page)
 		return rc;
 	}
 
-	cFYI(1, "readpage %p at offset %d 0x%x\n",
+	cFYI(1, "readpage %p at offset %d 0x%x",
 		 page, (int)offset, (int)offset);
 
 	rc = cifs_readpage_worker(file, page, &offset);

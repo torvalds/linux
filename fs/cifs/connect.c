@@ -2412,7 +2412,7 @@ cifs_put_smb_ses(struct cifs_ses *ses)
 	int xid;
 	struct TCP_Server_Info *server = ses->server;
 
-	cFYI(1, "%s: ses_count=%d\n", __func__, ses->ses_count);
+	cFYI(1, "%s: ses_count=%d", __func__, ses->ses_count);
 	spin_lock(&cifs_tcp_ses_lock);
 	if (--ses->ses_count > 0) {
 		spin_unlock(&cifs_tcp_ses_lock);
@@ -2700,7 +2700,7 @@ cifs_put_tcon(struct cifs_tcon *tcon)
 	int xid;
 	struct cifs_ses *ses = tcon->ses;
 
-	cFYI(1, "%s: tc_count=%d\n", __func__, tcon->tc_count);
+	cFYI(1, "%s: tc_count=%d", __func__, tcon->tc_count);
 	spin_lock(&cifs_tcp_ses_lock);
 	if (--tcon->tc_count > 0) {
 		spin_unlock(&cifs_tcp_ses_lock);
@@ -3009,11 +3009,11 @@ bind_socket(struct TCP_Server_Info *server)
 			saddr6 = (struct sockaddr_in6 *)&server->srcaddr;
 			if (saddr6->sin6_family == AF_INET6)
 				cERROR(1, "cifs: "
-				       "Failed to bind to: %pI6c, error: %d\n",
+				       "Failed to bind to: %pI6c, error: %d",
 				       &saddr6->sin6_addr, rc);
 			else
 				cERROR(1, "cifs: "
-				       "Failed to bind to: %pI4, error: %d\n",
+				       "Failed to bind to: %pI4, error: %d",
 				       &saddr4->sin_addr.s_addr, rc);
 		}
 	}
@@ -3304,9 +3304,9 @@ void reset_cifs_unix_caps(int xid, struct cifs_tcon *tcon,
 				cFYI(1, "resetting capabilities failed");
 			} else
 				cERROR(1, "Negotiating Unix capabilities "
-					   "with the server failed.  Consider "
-					   "mounting with the Unix Extensions\n"
-					   "disabled, if problems are found, "
+					   "with the server failed. Consider "
+					   "mounting with the Unix Extensions "
+					   "disabled if problems are found "
 					   "by specifying the nounix mount "
 					   "option.");
 

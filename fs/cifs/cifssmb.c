@@ -4137,7 +4137,7 @@ UnixQFileInfoRetry:
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
 		if (rc || get_bcc(&pSMBr->hdr) < sizeof(FILE_UNIX_BASIC_INFO)) {
-			cERROR(1, "Malformed FILE_UNIX_BASIC_INFO response.\n"
+			cERROR(1, "Malformed FILE_UNIX_BASIC_INFO response. "
 				   "Unix Extensions can be disabled on mount "
 				   "by specifying the nosfu mount option.");
 			rc = -EIO;	/* bad smb */
@@ -4223,7 +4223,7 @@ UnixQPathInfoRetry:
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
 		if (rc || get_bcc(&pSMBr->hdr) < sizeof(FILE_UNIX_BASIC_INFO)) {
-			cERROR(1, "Malformed FILE_UNIX_BASIC_INFO response.\n"
+			cERROR(1, "Malformed FILE_UNIX_BASIC_INFO response. "
 				   "Unix Extensions can be disabled on mount "
 				   "by specifying the nosfu mount option.");
 			rc = -EIO;	/* bad smb */
@@ -4675,7 +4675,7 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 
 	if (*num_of_nodes < 1) {
 		cERROR(1, "num_referrals: must be at least > 0,"
-			"but we get num_referrals = %d\n", *num_of_nodes);
+			"but we get num_referrals = %d", *num_of_nodes);
 		rc = -EINVAL;
 		goto parse_DFS_referrals_exit;
 	}
@@ -4692,14 +4692,14 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 	data_end = (char *)(&(pSMBr->PathConsumed)) +
 				le16_to_cpu(pSMBr->t2.DataCount);
 
-	cFYI(1, "num_referrals: %d dfs flags: 0x%x ...\n",
+	cFYI(1, "num_referrals: %d dfs flags: 0x%x ...",
 			*num_of_nodes,
 			le32_to_cpu(pSMBr->DFSFlags));
 
 	*target_nodes = kzalloc(sizeof(struct dfs_info3_param) *
 			*num_of_nodes, GFP_KERNEL);
 	if (*target_nodes == NULL) {
-		cERROR(1, "Failed to allocate buffer for target_nodes\n");
+		cERROR(1, "Failed to allocate buffer for target_nodes");
 		rc = -ENOMEM;
 		goto parse_DFS_referrals_exit;
 	}
