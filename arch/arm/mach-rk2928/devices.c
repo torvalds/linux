@@ -679,6 +679,24 @@ static void __init rk2928_init_sdmmc(void)
 	platform_device_register(&device_sdmmc1);
 #endif
 }
+
+#ifdef CONFIG_SND_SOC_RK2928
+static struct resource resources_acodec[] = {
+	{
+		.start 	= RK2928_ACODEC_PHYS,
+		.end 	= RK2928_ACODEC_PHYS + RK2928_ACODEC_SIZE - 1,
+		.flags 	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device device_acodec = {
+	.name	= "rk2928-codec",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(resources_acodec),
+	.resource	= resources_acodec,
+};
+#endif
+
 static int __init rk2928_init_devices(void)
 {
 	rk2928_init_dma();
@@ -699,6 +717,9 @@ static int __init rk2928_init_devices(void)
 	rk_serial_debug_init(DEBUG_UART_BASE, IRQ_DEBUG_UART, IRQ_UART_SIGNAL, -1);
 #endif
 	rk2928_init_i2s();
+#ifdef CONFIG_SND_SOC_RK2928
+	platform_device_register(&device_acodec);
+#endif
 	return 0;
 }
 arch_initcall(rk2928_init_devices);
