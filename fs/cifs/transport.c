@@ -361,7 +361,7 @@ cifs_setup_async_request(struct TCP_Server_Info *server, struct kvec *iov,
 	if (mid == NULL)
 		return -ENOMEM;
 
-	rc = cifs_sign_smb2(iov, nvec, server, &mid->sequence_number);
+	rc = cifs_sign_smbv(iov, nvec, server, &mid->sequence_number);
 	if (rc) {
 		DeleteMidQEntry(mid);
 		return rc;
@@ -524,7 +524,7 @@ cifs_setup_request(struct cifs_ses *ses, struct kvec *iov,
 	rc = allocate_mid(ses, hdr, &mid);
 	if (rc)
 		return rc;
-	rc = cifs_sign_smb2(iov, nvec, ses->server, &mid->sequence_number);
+	rc = cifs_sign_smbv(iov, nvec, ses->server, &mid->sequence_number);
 	if (rc)
 		delete_mid(mid);
 	*ret_mid = mid;

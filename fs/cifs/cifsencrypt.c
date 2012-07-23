@@ -99,7 +99,7 @@ static int cifs_calc_signature(const struct kvec *iov, int n_vec,
 }
 
 /* must be called with server->srv_mutex held */
-int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
+int cifs_sign_smbv(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
 		   __u32 *pexpected_response_sequence_number)
 {
 	int rc = 0;
@@ -143,7 +143,7 @@ int cifs_sign_smb(struct smb_hdr *cifs_pdu, struct TCP_Server_Info *server,
 	iov.iov_base = cifs_pdu;
 	iov.iov_len = be32_to_cpu(cifs_pdu->smb_buf_length) + 4;
 
-	return cifs_sign_smb2(&iov, 1, server,
+	return cifs_sign_smbv(&iov, 1, server,
 			      pexpected_response_sequence_number);
 }
 

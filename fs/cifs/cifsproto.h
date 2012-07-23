@@ -399,7 +399,7 @@ extern struct cifs_tcon *tconInfoAlloc(void);
 extern void tconInfoFree(struct cifs_tcon *);
 
 extern int cifs_sign_smb(struct smb_hdr *, struct TCP_Server_Info *, __u32 *);
-extern int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *,
+extern int cifs_sign_smbv(struct kvec *iov, int n_vec, struct TCP_Server_Info *,
 			  __u32 *);
 extern int cifs_verify_signature(struct kvec *iov, unsigned int nr_iov,
 				 struct TCP_Server_Info *server,
