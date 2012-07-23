@@ -30,6 +30,7 @@
 
 static void sync_fence_signal_pt(struct sync_pt *pt);
 static int _sync_pt_has_signaled(struct sync_pt *pt);
+static void sync_fence_free(struct kref *kref);
 
 static LIST_HEAD(sync_timeline_list_head);
 static DEFINE_SPINLOCK(sync_timeline_list_lock);
@@ -113,7 +114,7 @@ static void sync_timeline_remove_pt(struct sync_pt *pt)
 {
 	struct sync_timeline *obj = pt->parent;
 	unsigned long flags;
-	bool needs_freeing;
+	bool needs_freeing = false;
 
 	spin_lock_irqsave(&obj->active_list_lock, flags);
 	if (!list_empty(&pt->active_list))
@@ -121,8 +122,11 @@ static void sync_timeline_remove_pt(struct sync_pt *pt)
 	spin_unlock_irqrestore(&obj->active_list_lock, flags);
 
 	spin_lock_irqsave(&obj->child_list_lock, flags);
-	list_del(&pt->child_list);
-	needs_freeing = obj->destroyed && list_empty(&obj->child_list_head);
+	if (!list_empty(&pt->child_list)) {
+		list_del_init(&pt->child_list);
+		needs_freeing = obj->destroyed &&
+			list_empty(&obj->child_list_head);
+	}
 	spin_unlock_irqrestore(&obj->child_list_lock, flags);
 
 	if (needs_freeing)
@@ -141,18 +145,22 @@ void sync_timeline_signal(struct sync_timeline *obj)
 		struct sync_pt *pt =
 			container_of(pos, struct sync_pt, active_list);
 
-		if (_sync_pt_has_signaled(pt))
-			list_move(pos, &signaled_pts);
+		if (_sync_pt_has_signaled(pt)) {
+			list_del_init(pos);
+			list_add(&pt->signaled_list, &signaled_pts);
+			kref_get(&pt->fence->kref);
+		}
 	}
 
 	spin_unlock_irqrestore(&obj->active_list_lock, flags);
 
 	list_for_each_safe(pos, n, &signaled_pts) {
 		struct sync_pt *pt =
-			container_of(pos, struct sync_pt, active_list);
+			container_of(pos, struct sync_pt, signaled_list);
 
 		list_del_init(pos);
 		sync_fence_signal_pt(pt);
+		kref_put(&pt->fence->kref, sync_fence_free);
 	}
 }
 EXPORT_SYMBOL(sync_timeline_signal);
@@ -253,6 +261,7 @@ static struct sync_fence *sync_fence_alloc(const char *name)
 	if (fence->file == NULL)
 		goto err;
 
+	kref_init(&fence->kref);
 	strlcpy(fence->name, name, sizeof(fence->name));
 
 	INIT_LIST_HEAD(&fence->pt_list_head);
@@ -359,6 +368,16 @@ static int sync_fence_merge_pts(struct sync_fence *dst, struct sync_fence *src)
 	}
 
 	return 0;
+}
+
+static void sync_fence_detach_pts(struct sync_fence *fence)
+{
+	struct list_head *pos, *n;
+
+	list_for_each_safe(pos, n, &fence->pt_list_head) {
+		struct sync_pt *pt = container_of(pos, struct sync_pt, pt_list);
+		sync_timeline_remove_pt(pt);
+	}
 }
 
 static void sync_fence_free_pts(struct sync_fence *fence)
@@ -564,18 +583,37 @@ int sync_fence_wait(struct sync_fence *fence, long timeout)
 }
 EXPORT_SYMBOL(sync_fence_wait);
 
+static void sync_fence_free(struct kref *kref)
+{
+	struct sync_fence *fence = container_of(kref, struct sync_fence, kref);
+
+	sync_fence_free_pts(fence);
+
+	kfree(fence);
+}
+
 static int sync_fence_release(struct inode *inode, struct file *file)
 {
 	struct sync_fence *fence = file->private_data;
 	unsigned long flags;
 
+	/*
+	 * We need to remove all ways to access this fence before droping
+	 * our ref.
+	 *
+	 * start with its membership in the global fence list
+	 */
 	spin_lock_irqsave(&sync_fence_list_lock, flags);
 	list_del(&fence->sync_fence_list);
 	spin_unlock_irqrestore(&sync_fence_list_lock, flags);
 
-	sync_fence_free_pts(fence);
+	/*
+	 * remove its pts from their parents so that sync_timeline_signal()
+	 * can't reference the fence.
+	 */
+	sync_fence_detach_pts(fence);
 
-	kfree(fence);
+	kref_put(&fence->kref, sync_fence_free);
 
 	return 0;
 }
