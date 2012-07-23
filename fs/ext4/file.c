@@ -244,9 +244,21 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 		path.dentry = mnt->mnt_root;
 		cp = d_path(&path, buf, sizeof(buf));
 		if (!IS_ERR(cp)) {
+			handle_t *handle;
+			int err;
+
+			handle = ext4_journal_start_sb(sb, 1);
+			if (IS_ERR(handle))
+				return PTR_ERR(handle);
+			err = ext4_journal_get_write_access(handle, sbi->s_sbh);
+			if (err) {
+				ext4_journal_stop(handle);
+				return err;
+			}
 			strlcpy(sbi->s_es->s_last_mounted, cp,
 				sizeof(sbi->s_es->s_last_mounted));
-			ext4_mark_super_dirty(sb);
+			ext4_handle_dirty_super(handle, sb);
+			ext4_journal_stop(handle);
 		}
 	}
 	/*
