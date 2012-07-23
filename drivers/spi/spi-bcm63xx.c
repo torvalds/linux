@@ -129,7 +129,7 @@ static void bcm63xx_spi_setup_transfer(struct spi_device *spi,
 
 	/* Find the closest clock configuration */
 	for (i = 0; i < SPI_CLK_MASK; i++) {
-		if (hz <= bcm63xx_spi_freq_table[i][0]) {
+		if (hz >= bcm63xx_spi_freq_table[i][0]) {
 			clk_cfg = bcm63xx_spi_freq_table[i][1];
 			break;
 		}
