@@ -1718,7 +1718,7 @@ static void bnx2x_xmac_init(struct link_params *params, u32 max_speed)
 	 * ports of the path
 	 */
 
-	if ((CHIP_NUM(bp) == CHIP_NUM_57840) &&
+	if ((CHIP_NUM(bp) == CHIP_NUM_57840_4_10) &&
 	    (REG_RD(bp, MISC_REG_RESET_REG_2) &
 	     MISC_REGISTERS_RESET_REG_2_XMAC)) {
 		DP(NETIF_MSG_LINK,
