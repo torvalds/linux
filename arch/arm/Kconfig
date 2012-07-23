@@ -260,6 +260,7 @@ config ARCH_INTEGRATOR
 	select ICST
 	select GENERIC_CLOCKEVENTS
 	select PLAT_VERSATILE
+	select PLAT_VERSATILE_CLOCK
 	select PLAT_VERSATILE_FPGA_IRQ
 	select NEED_MACH_IO_H
 	select NEED_MACH_MEMORY_H
@@ -277,6 +278,7 @@ config ARCH_REALVIEW
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PLAT_VERSATILE
+	select PLAT_VERSATILE_CLOCK
 	select PLAT_VERSATILE_CLCD
 	select ARM_TIMER_SP804
 	select GPIO_PL061 if GPIOLIB
@@ -295,6 +297,7 @@ config ARCH_VERSATILE
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select NEED_MACH_IO_H if PCI
 	select PLAT_VERSATILE
+	select PLAT_VERSATILE_CLOCK
 	select PLAT_VERSATILE_CLCD
 	select PLAT_VERSATILE_FPGA_IRQ
 	select ARM_TIMER_SP804
@@ -307,7 +310,7 @@ config ARCH_VEXPRESS
 	select ARM_AMBA
 	select ARM_TIMER_SP804
 	select CLKDEV_LOOKUP
-	select HAVE_MACH_CLKDEV
+	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
 	select HAVE_PATA_PLATFORM
@@ -315,6 +318,7 @@ config ARCH_VEXPRESS
 	select NO_IOPORT
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_CLCD
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	help
 	  This enables support for the ARM Ltd Versatile Express boards.
 
@@ -567,6 +571,7 @@ config ARCH_LPC32XX
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
 	select USE_OF
+	select HAVE_PWM
 	help
 	  Support for the NXP LPC32XX family of processors
 
@@ -913,7 +918,7 @@ config ARCH_NOMADIK
 	select ARM_AMBA
 	select ARM_VIC
 	select CPU_ARM926T
-	select CLKDEV_LOOKUP
+	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
 	select PINCTRL
 	select MIGHT_HAVE_CACHE_L2X0
@@ -1021,8 +1026,6 @@ source "arch/arm/mach-ixp4xx/Kconfig"
 source "arch/arm/mach-kirkwood/Kconfig"
 
 source "arch/arm/mach-ks8695/Kconfig"
-
-source "arch/arm/mach-lpc32xx/Kconfig"
 
 source "arch/arm/mach-msm/Kconfig"
 

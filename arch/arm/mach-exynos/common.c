@@ -540,7 +540,8 @@ static struct irq_domain_ops combiner_irq_domain_ops = {
 	.map	= combiner_irq_domain_map,
 };
 
-void __init combiner_init(void __iomem *combiner_base, struct device_node *np)
+static void __init combiner_init(void __iomem *combiner_base,
+				 struct device_node *np)
 {
 	int i, irq, irq_base;
 	unsigned int max_nr, nr_irq;

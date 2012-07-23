@@ -572,6 +572,7 @@ static void __init mx35_3ds_init(void)
 
 	imx35_add_fec(NULL);
 	imx35_add_imx2_wdt();
+	imx35_add_mxc_rtc();
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	imx35_add_imx_uart0(&uart_pdata);

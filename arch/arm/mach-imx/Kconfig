@@ -73,7 +73,7 @@ config SOC_IMX31
 
 config SOC_IMX35
 	bool
-	select CPU_V6
+	select CPU_V6K
 	select ARCH_MXC_IOMUX_V3
 	select COMMON_CLK
 	select HAVE_EPIT
@@ -588,6 +588,7 @@ config MACH_MX35_3DS
 	select IMX_HAVE_PLATFORM_IPU_CORE
 	select IMX_HAVE_PLATFORM_MXC_EHCI
 	select IMX_HAVE_PLATFORM_MXC_NAND
+	select IMX_HAVE_PLATFORM_MXC_RTC
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 	help
 	  Include support for MX35PDK platform. This includes specific

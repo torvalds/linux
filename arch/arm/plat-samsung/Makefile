@@ -15,8 +15,8 @@ obj-y				+= init.o cpu.o
 obj-$(CONFIG_ARCH_USES_GETTIMEOFFSET)   += time.o
 obj-$(CONFIG_S5P_HRT) 		+= s5p-time.o
 
-obj-y				+= clock.o
-obj-y				+= pwm-clock.o
+obj-$(CONFIG_SAMSUNG_CLOCK)	+= clock.o
+obj-$(CONFIG_SAMSUNG_CLOCK)	+= pwm-clock.o
 
 obj-$(CONFIG_SAMSUNG_CLKSRC)	+= clock-clksrc.o
 obj-$(CONFIG_S5P_CLOCK)		+= s5p-clock.o
