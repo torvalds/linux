@@ -14,6 +14,7 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include "kvm-s390.h"
+#include "trace.h"
 
 static int diag_release_pages(struct kvm_vcpu *vcpu)
 {
@@ -105,6 +106,7 @@ int kvm_s390_handle_diag(struct kvm_vcpu *vcpu)
 {
 	int code = (vcpu->arch.sie_block->ipb & 0xfff0000) >> 16;
 
+	trace_kvm_s390_handle_diag(vcpu, code);
 	switch (code) {
 	case 0x10:
 		return diag_release_pages(vcpu);

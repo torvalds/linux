@@ -32,6 +32,9 @@
 #include "kvm-s390.h"
 #include "gaccess.h"
 
+#define CREATE_TRACE_POINTS
+#include "trace.h"
+
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
@@ -607,18 +610,22 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 	local_irq_enable();
 	VCPU_EVENT(vcpu, 6, "entering sie flags %x",
 		   atomic_read(&vcpu->arch.sie_block->cpuflags));
+	trace_kvm_s390_sie_enter(vcpu,
+				 atomic_read(&vcpu->arch.sie_block->cpuflags));
 	rc = sie64a(vcpu->arch.sie_block, vcpu->run->s.regs.gprs);
 	if (rc) {
 		if (kvm_is_ucontrol(vcpu->kvm)) {
 			rc = SIE_INTERCEPT_UCONTROL;
 		} else {
 			VCPU_EVENT(vcpu, 3, "%s", "fault in sie instruction");
+			trace_kvm_s390_sie_fault(vcpu);
 			kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 			rc = 0;
 		}
 	}
 	VCPU_EVENT(vcpu, 6, "exit sie icptcode %d",
 		   vcpu->arch.sie_block->icptcode);
+	trace_kvm_s390_sie_exit(vcpu, vcpu->arch.sie_block->icptcode);
 	local_irq_disable();
 	kvm_guest_exit();
 	local_irq_enable();
