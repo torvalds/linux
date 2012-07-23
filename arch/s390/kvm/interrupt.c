@@ -19,6 +19,7 @@
 #include <asm/uaccess.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
+#include "trace-s390.h"
 
 static int psw_extint_disabled(struct kvm_vcpu *vcpu)
 {
@@ -130,6 +131,8 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 	case KVM_S390_INT_EMERGENCY:
 		VCPU_EVENT(vcpu, 4, "%s", "interrupt: sigp emerg");
 		vcpu->stat.deliver_emergency_signal++;
+		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, inti->type,
+						 inti->emerg.code, 0);
 		rc = put_guest_u16(vcpu, __LC_EXT_INT_CODE, 0x1201);
 		if (rc == -EFAULT)
 			exception = 1;
@@ -152,6 +155,8 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 	case KVM_S390_INT_EXTERNAL_CALL:
 		VCPU_EVENT(vcpu, 4, "%s", "interrupt: sigp ext call");
 		vcpu->stat.deliver_external_call++;
+		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, inti->type,
+						 inti->extcall.code, 0);
 		rc = put_guest_u16(vcpu, __LC_EXT_INT_CODE, 0x1202);
 		if (rc == -EFAULT)
 			exception = 1;
@@ -175,6 +180,8 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 		VCPU_EVENT(vcpu, 4, "interrupt: sclp parm:%x",
 			   inti->ext.ext_params);
 		vcpu->stat.deliver_service_signal++;
+		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, inti->type,
+						 inti->ext.ext_params, 0);
 		rc = put_guest_u16(vcpu, __LC_EXT_INT_CODE, 0x2401);
 		if (rc == -EFAULT)
 			exception = 1;
@@ -198,6 +205,9 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 		VCPU_EVENT(vcpu, 4, "interrupt: virtio parm:%x,parm64:%llx",
 			   inti->ext.ext_params, inti->ext.ext_params2);
 		vcpu->stat.deliver_virtio_interrupt++;
+		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, inti->type,
+						 inti->ext.ext_params,
+						 inti->ext.ext_params2);
 		rc = put_guest_u16(vcpu, __LC_EXT_INT_CODE, 0x2603);
 		if (rc == -EFAULT)
 			exception = 1;
@@ -229,6 +239,8 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 	case KVM_S390_SIGP_STOP:
 		VCPU_EVENT(vcpu, 4, "%s", "interrupt: cpu stop");
 		vcpu->stat.deliver_stop_signal++;
+		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, inti->type,
+						 0, 0);
 		__set_intercept_indicator(vcpu, inti);
 		break;
 
@@ -236,12 +248,16 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 		VCPU_EVENT(vcpu, 4, "interrupt: set prefix to %x",
 			   inti->prefix.address);
 		vcpu->stat.deliver_prefix_signal++;
+		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, inti->type,
+						 inti->prefix.address, 0);
 		kvm_s390_set_prefix(vcpu, inti->prefix.address);
 		break;
 
 	case KVM_S390_RESTART:
 		VCPU_EVENT(vcpu, 4, "%s", "interrupt: cpu restart");
 		vcpu->stat.deliver_restart_signal++;
+		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, inti->type,
+						 0, 0);
 		rc = copy_to_guest(vcpu, offsetof(struct _lowcore,
 		  restart_old_psw), &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
 		if (rc == -EFAULT)
@@ -259,6 +275,8 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 			   inti->pgm.code,
 			   table[vcpu->arch.sie_block->ipa >> 14]);
 		vcpu->stat.deliver_program_int++;
+		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, inti->type,
+						 inti->pgm.code, 0);
 		rc = put_guest_u16(vcpu, __LC_PGM_INT_CODE, inti->pgm.code);
 		if (rc == -EFAULT)
 			exception = 1;
@@ -515,6 +533,7 @@ int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code)
 	inti->pgm.code = code;
 
 	VCPU_EVENT(vcpu, 3, "inject: program check %d (from kernel)", code);
+	trace_kvm_s390_inject_vcpu(vcpu->vcpu_id, inti->type, code, 0, 1);
 	spin_lock_bh(&li->lock);
 	list_add(&inti->list, &li->list);
 	atomic_set(&li->active, 1);
@@ -556,6 +575,8 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 		kfree(inti);
 		return -EINVAL;
 	}
+	trace_kvm_s390_inject_vm(s390int->type, s390int->parm, s390int->parm64,
+				 2);
 
 	mutex_lock(&kvm->lock);
 	fi = &kvm->arch.float_int;
@@ -621,6 +642,8 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 		kfree(inti);
 		return -EINVAL;
 	}
+	trace_kvm_s390_inject_vcpu(vcpu->vcpu_id, s390int->type, s390int->parm,
+				   s390int->parm64, 2);
 
 	mutex_lock(&vcpu->kvm->lock);
 	li = &vcpu->arch.local_int;

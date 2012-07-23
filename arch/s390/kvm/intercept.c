@@ -20,6 +20,7 @@
 #include "kvm-s390.h"
 #include "gaccess.h"
 #include "trace.h"
+#include "trace-s390.h"
 
 static int handle_lctlg(struct kvm_vcpu *vcpu)
 {
@@ -137,6 +138,8 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 
 	vcpu->stat.exit_stop_request++;
 	spin_lock_bh(&vcpu->arch.local_int.lock);
+
+	trace_kvm_s390_stop_request(vcpu->arch.local_int.action_bits);
 
 	if (vcpu->arch.local_int.action_bits & ACTION_RELOADVCPU_ON_STOP) {
 		vcpu->arch.local_int.action_bits &= ~ACTION_RELOADVCPU_ON_STOP;
