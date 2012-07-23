@@ -894,6 +894,14 @@ ARM/MAGICIAN MACHINE SUPPORT
 M:	Philipp Zabel <philipp.zabel@gmail.com>
 S:	Maintained
 
+ARM/Marvell Armada 370 and Armada XP SOC support
+M:	Jason Cooper <jason@lakedaemon.net>
+M:	Andrew Lunn <andrew@lunn.ch>
+M:	Gregory Clement <gregory.clement@free-electrons.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-mvebu/
+
 ARM/Marvell Dove/Kirkwood/MV78xx0/Orion SOC support
 M:	Jason Cooper <jason@lakedaemon.net>
 M:	Andrew Lunn <andrew@lunn.ch>
@@ -1102,6 +1110,16 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/sh-2.6.git rmobile-l
 S:	Supported
 F:	arch/arm/mach-shmobile/
 F:	drivers/sh/
+
+ARM/SOCFPGA ARCHITECTURE
+M:	Dinh Nguyen <dinguyen@altera.com>
+S:	Maintained
+F:	arch/arm/mach-socfpga/
+
+ARM/SOCFPGA CLOCK FRAMEWORK SUPPORT
+M:	Dinh Nguyen <dinguyen@altera.com>
+S:	Maintained
+F:	drivers/clk/socfpga/
 
 ARM/TECHNOLOGIC SYSTEMS TS7250 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>

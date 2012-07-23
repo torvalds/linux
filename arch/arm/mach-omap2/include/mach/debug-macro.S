@@ -60,12 +60,12 @@ omap_uart_lsr:	.word	0
 		beq	23f			@ configure OMAP2UART3
 		cmp	\rp, #OMAP3UART3	@ only on 34xx
 		beq	33f			@ configure OMAP3UART3
-		cmp	\rp, #OMAP4UART3	@ only on 44xx
-		beq	43f			@ configure OMAP4UART3
+		cmp	\rp, #OMAP4UART3	@ only on 44xx/54xx
+		beq	43f			@ configure OMAP4/5UART3
 		cmp	\rp, #OMAP3UART4	@ only on 36xx
 		beq	34f			@ configure OMAP3UART4
-		cmp	\rp, #OMAP4UART4	@ only on 44xx
-		beq	44f			@ configure OMAP4UART4
+		cmp	\rp, #OMAP4UART4	@ only on 44xx/54xx
+		beq	44f			@ configure OMAP4/5UART4
 		cmp	\rp, #TI81XXUART1	@ ti81Xx UART offsets different
 		beq	81f			@ configure UART1
 		cmp	\rp, #TI81XXUART2	@ ti81Xx UART offsets different

@@ -9,7 +9,7 @@ config ARCH_OMAP2PLUS_TYPICAL
 	select REGULATOR
 	select PM_RUNTIME
 	select VFP
-	select NEON if ARCH_OMAP3 || ARCH_OMAP4
+	select NEON if ARCH_OMAP3 || ARCH_OMAP4 || SOC_OMAP5
 	select SERIAL_OMAP
 	select SERIAL_OMAP_CONSOLE
 	select I2C
@@ -62,6 +62,12 @@ config ARCH_OMAP4
 	select PM_OPP if PM
 	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 	select ARM_CPU_SUSPEND if PM
+
+config SOC_OMAP5
+	bool "TI OMAP5"
+	select CPU_V7
+	select ARM_GIC
+	select HAVE_SMP
 
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2

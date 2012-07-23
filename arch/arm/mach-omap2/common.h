@@ -115,6 +115,14 @@ static inline int omap_mux_late_init(void)
 }
 #endif
 
+#ifdef CONFIG_SOC_OMAP5
+extern void omap5_map_common_io(void);
+#else
+static inline void omap5_map_common_io(void)
+{
+}
+#endif
+
 extern void omap2_init_common_infrastructure(void);
 
 extern struct sys_timer omap2_timer;
@@ -122,6 +130,7 @@ extern struct sys_timer omap3_timer;
 extern struct sys_timer omap3_secure_timer;
 extern struct sys_timer omap3_am33xx_timer;
 extern struct sys_timer omap4_timer;
+extern struct sys_timer omap5_timer;
 
 void omap2420_init_early(void);
 void omap2430_init_early(void);
@@ -134,6 +143,7 @@ void am35xx_init_early(void);
 void ti81xx_init_early(void);
 void am33xx_init_early(void);
 void omap4430_init_early(void);
+void omap5_init_early(void);
 void omap3_init_late(void);	/* Do not use this one */
 void omap4430_init_late(void);
 void omap2420_init_late(void);
@@ -169,6 +179,7 @@ void omap2_set_globals_242x(void);
 void omap2_set_globals_243x(void);
 void omap2_set_globals_3xxx(void);
 void omap2_set_globals_443x(void);
+void omap2_set_globals_5xxx(void);
 void omap2_set_globals_ti81xx(void);
 void omap2_set_globals_am33xx(void);
 
@@ -188,6 +199,7 @@ void omap243x_map_io(void);
 void omap3_map_io(void);
 void am33xx_map_io(void);
 void omap4_map_io(void);
+void omap5_map_io(void);
 void ti81xx_map_io(void);
 void omap_barriers_init(void);
 
@@ -227,6 +239,8 @@ void omap3_intc_prepare_idle(void);
 void omap3_intc_resume_idle(void);
 void omap2_intc_handle_irq(struct pt_regs *regs);
 void omap3_intc_handle_irq(struct pt_regs *regs);
+void omap_intc_of_init(void);
+void omap_gic_of_init(void);
 
 #ifdef CONFIG_CACHE_L2X0
 extern void __iomem *omap4_get_l2cache_base(void);
@@ -234,10 +248,10 @@ extern void __iomem *omap4_get_l2cache_base(void);
 
 struct device_node;
 #ifdef CONFIG_OF
-int __init omap_intc_of_init(struct device_node *node,
+int __init intc_of_init(struct device_node *node,
 			     struct device_node *parent);
 #else
-int __init omap_intc_of_init(struct device_node *node,
+int __init intc_of_init(struct device_node *node,
 			     struct device_node *parent)
 {
 	return 0;
@@ -264,6 +278,7 @@ extern void omap_secondary_startup(void);
 extern u32 omap_modify_auxcoreboot0(u32 set_mask, u32 clear_mask);
 extern void omap_auxcoreboot_addr(u32 cpu_addr);
 extern u32 omap_read_auxcoreboot0(void);
+extern void omap5_secondary_startup(void);
 #endif
 
 #if defined(CONFIG_SMP) && defined(CONFIG_PM)

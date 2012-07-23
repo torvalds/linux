@@ -25,22 +25,11 @@
 #include "common-board-devices.h"
 
 #if !(defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3))
-#define omap_intc_of_init	NULL
+#define intc_of_init	NULL
 #endif
 #ifndef CONFIG_ARCH_OMAP4
 #define gic_of_init		NULL
 #endif
-
-static struct of_device_id irq_match[] __initdata = {
-	{ .compatible = "ti,omap2-intc", .data = omap_intc_of_init, },
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
-	{ }
-};
-
-static void __init omap_init_irq(void)
-{
-	of_irq_init(irq_match);
-}
 
 static struct of_device_id omap_dt_match_table[] __initdata = {
 	{ .compatible = "simple-bus", },
@@ -65,7 +54,7 @@ DT_MACHINE_START(OMAP242X_DT, "Generic OMAP2420 (Flattened Device Tree)")
 	.reserve	= omap_reserve,
 	.map_io		= omap242x_map_io,
 	.init_early	= omap2420_init_early,
-	.init_irq	= omap_init_irq,
+	.init_irq	= omap_intc_of_init,
 	.handle_irq	= omap2_intc_handle_irq,
 	.init_machine	= omap_generic_init,
 	.timer		= &omap2_timer,
@@ -84,7 +73,7 @@ DT_MACHINE_START(OMAP243X_DT, "Generic OMAP2430 (Flattened Device Tree)")
 	.reserve	= omap_reserve,
 	.map_io		= omap243x_map_io,
 	.init_early	= omap2430_init_early,
-	.init_irq	= omap_init_irq,
+	.init_irq	= omap_intc_of_init,
 	.handle_irq	= omap2_intc_handle_irq,
 	.init_machine	= omap_generic_init,
 	.timer		= &omap2_timer,
@@ -103,7 +92,7 @@ DT_MACHINE_START(OMAP3_DT, "Generic OMAP3 (Flattened Device Tree)")
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= omap3430_init_early,
-	.init_irq	= omap_init_irq,
+	.init_irq	= omap_intc_of_init,
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap_generic_init,
 	.timer		= &omap3_timer,
@@ -122,7 +111,7 @@ DT_MACHINE_START(AM33XX_DT, "Generic AM33XX (Flattened Device Tree)")
 	.reserve	= omap_reserve,
 	.map_io		= am33xx_map_io,
 	.init_early	= am33xx_init_early,
-	.init_irq	= omap_init_irq,
+	.init_irq	= omap_intc_of_init,
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap_generic_init,
 	.timer		= &omap3_am33xx_timer,
@@ -140,12 +129,31 @@ DT_MACHINE_START(OMAP4_DT, "Generic OMAP4 (Flattened Device Tree)")
 	.reserve	= omap_reserve,
 	.map_io		= omap4_map_io,
 	.init_early	= omap4430_init_early,
-	.init_irq	= omap_init_irq,
+	.init_irq	= omap_gic_of_init,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= omap_generic_init,
 	.init_late	= omap4430_init_late,
 	.timer		= &omap4_timer,
 	.dt_compat	= omap4_boards_compat,
+	.restart	= omap_prcm_restart,
+MACHINE_END
+#endif
+
+#ifdef CONFIG_SOC_OMAP5
+static const char *omap5_boards_compat[] __initdata = {
+	"ti,omap5",
+	NULL,
+};
+
+DT_MACHINE_START(OMAP5_DT, "Generic OMAP5 (Flattened Device Tree)")
+	.reserve	= omap_reserve,
+	.map_io		= omap5_map_io,
+	.init_early	= omap5_init_early,
+	.init_irq	= omap_gic_of_init,
+	.handle_irq	= gic_handle_irq,
+	.init_machine	= omap_generic_init,
+	.timer		= &omap5_timer,
+	.dt_compat	= omap5_boards_compat,
 	.restart	= omap_prcm_restart,
 MACHINE_END
 #endif

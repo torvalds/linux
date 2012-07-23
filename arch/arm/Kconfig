@@ -250,6 +250,25 @@ choice
 	prompt "ARM system type"
 	default ARCH_VERSATILE
 
+config ARCH_SOCFPGA
+	bool "Altera SOCFPGA family"
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_AMBA
+	select ARM_GIC
+	select CACHE_L2X0
+	select CLKDEV_LOOKUP
+	select COMMON_CLK
+	select CPU_V7
+	select DW_APB_TIMER
+	select DW_APB_TIMER_OF
+	select GENERIC_CLOCKEVENTS
+	select GPIO_PL061 if GPIOLIB
+	select HAVE_ARM_SCU
+	select SPARSE_IRQ
+	select USE_OF
+	help
+	  This enables support for Altera SOCFPGA Cyclone V platform
+
 config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
 	select ARM_AMBA
@@ -536,6 +555,18 @@ config ARCH_IXP4XX
 	select DMABOUNCE if PCI
 	help
 	  Support for Intel's IXP4XX (XScale) family of processors.
+
+config ARCH_MVEBU
+	bool "Marvell SOCs with Device Tree support"
+	select GENERIC_CLOCKEVENTS
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
+	select CLKSRC_MMIO
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+	select COMMON_CLK
+	help
+	  Support for the Marvell SoC Family with device tree support
 
 config ARCH_DOVE
 	bool "Marvell Dove"
@@ -994,6 +1025,8 @@ endchoice
 # Kconfigs may be included either alphabetically (according to the
 # plat- suffix) or along side the corresponding mach-* source.
 #
+source "arch/arm/mach-mvebu/Kconfig"
+
 source "arch/arm/mach-at91/Kconfig"
 
 source "arch/arm/mach-bcmring/Kconfig"
@@ -1586,6 +1619,7 @@ config ARCH_NR_GPIO
 	default 1024 if ARCH_SHMOBILE || ARCH_TEGRA
 	default 355 if ARCH_U8500
 	default 264 if MACH_H4700
+	default 512 if SOC_OMAP5
 	default 0
 	help
 	  Maximum number of GPIOs in the system.

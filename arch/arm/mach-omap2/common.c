@@ -178,3 +178,27 @@ void __init omap4_map_io(void)
 }
 #endif
 
+#if defined(CONFIG_SOC_OMAP5)
+static struct omap_globals omap5_globals = {
+	.class	= OMAP54XX_CLASS,
+	.tap	= OMAP2_L4_IO_ADDRESS(OMAP54XX_SCM_BASE),
+	.ctrl	= OMAP2_L4_IO_ADDRESS(OMAP54XX_SCM_BASE),
+	.ctrl_pad	= OMAP2_L4_IO_ADDRESS(OMAP54XX_CTRL_BASE),
+	.prm	= OMAP2_L4_IO_ADDRESS(OMAP54XX_PRM_BASE),
+	.cm	= OMAP2_L4_IO_ADDRESS(OMAP54XX_CM_CORE_AON_BASE),
+	.cm2	= OMAP2_L4_IO_ADDRESS(OMAP54XX_CM_CORE_BASE),
+	.prcm_mpu = OMAP2_L4_IO_ADDRESS(OMAP54XX_PRCM_MPU_BASE),
+};
+
+void __init omap2_set_globals_5xxx(void)
+{
+	omap2_set_globals_tap(&omap5_globals);
+	omap2_set_globals_control(&omap5_globals);
+	omap2_set_globals_prcm(&omap5_globals);
+}
+
+void __init omap5_map_io(void)
+{
+	omap5_map_common_io();
+}
+#endif

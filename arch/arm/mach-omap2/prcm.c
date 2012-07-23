@@ -160,7 +160,7 @@ void __init omap2_set_globals_prcm(struct omap_globals *omap2_globals)
 	if (omap2_globals->prcm_mpu)
 		prcm_mpu_base = omap2_globals->prcm_mpu;
 
-	if (cpu_is_omap44xx()) {
+	if (cpu_is_omap44xx() || soc_is_omap54xx()) {
 		omap_prm_base_init();
 		omap_cm_base_init();
 	}
