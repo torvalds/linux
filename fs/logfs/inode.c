@@ -389,8 +389,8 @@ static void logfs_put_super(struct super_block *sb)
 {
 	struct logfs_super *super = logfs_super(sb);
 	/* kill the meta-inodes */
-	iput(super->s_master_inode);
 	iput(super->s_segfile_inode);
+	iput(super->s_master_inode);
 	iput(super->s_mapping_inode);
 }
 
