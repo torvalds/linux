@@ -17,6 +17,7 @@
 #include <linux/io.h>
 #include <linux/spi/spi.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/clk.h>
 #include <asm/unaligned.h>
 
@@ -453,6 +454,8 @@ static int __init orion_spi_probe(struct platform_device *pdev)
 	struct orion_spi_info *spi_info;
 	unsigned long tclk_hz;
 	int status = 0;
+	const u32 *iprop;
+	int size;
 
 	spi_info = pdev->dev.platform_data;
 
@@ -464,6 +467,12 @@ static int __init orion_spi_probe(struct platform_device *pdev)
 
 	if (pdev->id != -1)
 		master->bus_num = pdev->id;
+	if (pdev->dev.of_node) {
+		iprop = of_get_property(pdev->dev.of_node, "cell-index",
+					&size);
+		if (iprop && size == sizeof(*iprop))
+			master->bus_num = *iprop;
+	}
 
 	/* we support only mode 0, and no options */
 	master->mode_bits = 0;
@@ -511,6 +520,7 @@ static int __init orion_spi_probe(struct platform_device *pdev)
 	if (orion_spi_reset(spi) < 0)
 		goto out_rel_mem;
 
+	master->dev.of_node = pdev->dev.of_node;
 	status = spi_register_master(master);
 	if (status < 0)
 		goto out_rel_mem;
@@ -552,10 +562,17 @@ static int __exit orion_spi_remove(struct platform_device *pdev)
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
 
+static const struct of_device_id orion_spi_of_match_table[] __devinitdata = {
+	{ .compatible = "marvell,orion-spi", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, orion_spi_of_match_table);
+
 static struct platform_driver orion_spi_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(orion_spi_of_match_table),
 	},
 	.remove		= __exit_p(orion_spi_remove),
 };
