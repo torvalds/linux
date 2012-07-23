@@ -2356,9 +2356,10 @@ CIFSSMBLock(const int xid, struct cifs_tcon *tcon,
 
 int
 CIFSSMBPosixLock(const int xid, struct cifs_tcon *tcon,
-		const __u16 smb_file_id, const __u32 netpid, const int get_flag,
-		const __u64 len, struct file_lock *pLockData,
-		const __u16 lock_type, const bool waitFlag)
+		const __u16 smb_file_id, const __u32 netpid,
+		const loff_t start_offset, const __u64 len,
+		struct file_lock *pLockData, const __u16 lock_type,
+		const bool waitFlag)
 {
 	struct smb_com_transaction2_sfi_req *pSMB  = NULL;
 	struct smb_com_transaction2_sfi_rsp *pSMBr = NULL;
@@ -2371,9 +2372,6 @@ CIFSSMBPosixLock(const int xid, struct cifs_tcon *tcon,
 	struct kvec iov[1];
 
 	cFYI(1, "Posix Lock");
-
-	if (pLockData == NULL)
-		return -EINVAL;
 
 	rc = small_smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB);
 
@@ -2395,7 +2393,7 @@ CIFSSMBPosixLock(const int xid, struct cifs_tcon *tcon,
 	pSMB->MaxDataCount = cpu_to_le16(1000); /* BB find max SMB from sess */
 	pSMB->SetupCount = 1;
 	pSMB->Reserved3 = 0;
-	if (get_flag)
+	if (pLockData)
 		pSMB->SubCommand = cpu_to_le16(TRANS2_QUERY_FILE_INFORMATION);
 	else
 		pSMB->SubCommand = cpu_to_le16(TRANS2_SET_FILE_INFORMATION);
@@ -2417,7 +2415,7 @@ CIFSSMBPosixLock(const int xid, struct cifs_tcon *tcon,
 		pSMB->Timeout = 0;
 
 	parm_data->pid = cpu_to_le32(netpid);
-	parm_data->start = cpu_to_le64(pLockData->fl_start);
+	parm_data->start = cpu_to_le64(start_offset);
 	parm_data->length = cpu_to_le64(len);  /* normalize negative numbers */
 
 	pSMB->DataOffset = cpu_to_le16(offset);
@@ -2441,7 +2439,7 @@ CIFSSMBPosixLock(const int xid, struct cifs_tcon *tcon,
 
 	if (rc) {
 		cFYI(1, "Send error in Posix Lock = %d", rc);
-	} else if (get_flag) {
+	} else if (pLockData) {
 		/* lock structure can be returned on get */
 		__u16 data_offset;
 		__u16 data_count;
