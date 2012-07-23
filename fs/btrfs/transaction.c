@@ -1330,7 +1330,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		spin_unlock(&root->fs_info->trans_lock);
 	}
 
-	if (now < cur_trans->start_time || now - cur_trans->start_time < 1)
+	if (!btrfs_test_opt(root, SSD) &&
+	    (now < cur_trans->start_time || now - cur_trans->start_time < 1))
 		should_grow = 1;
 
 	do {
