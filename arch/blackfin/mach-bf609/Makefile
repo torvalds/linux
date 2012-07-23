@@ -3,4 +3,4 @@
 #
 
 obj-y := dma.o clock.o
-obj-$(CONFIG_PM) += pm.o hibernate.o
+obj-$(CONFIG_PM) += pm.o dpm.o

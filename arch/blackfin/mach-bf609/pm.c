@@ -18,6 +18,7 @@
 #include <asm/pm.h>
 #include <mach/pm.h>
 #include <asm/blackfin.h>
+#include <asm/mem_init.h>
 
 /***********************************************************/
 /*                                                         */
@@ -132,60 +133,30 @@ void bfin_cpu_suspend(void)
 }
 
 __attribute__((l1_text))
-void bfin_deepsleep(unsigned long mask)
-{
-	uint32_t dpm0_ctl;
-
-	bfin_write32(DPM0_WAKE_EN, 0x10);
-	bfin_write32(DPM0_WAKE_POL, 0x10);
-	dpm0_ctl = 0x00000008;
-	bfin_write32(DPM0_CTL, dpm0_ctl);
-	SSYNC();
-	__asm__ __volatile__( \
-			".align 8;" \
-			"idle;" \
-			: : \
-			);
-#ifdef CONFIG_BFIN_PM_WAKEUP_TIME_BENCH
-	__asm__ __volatile__(
-		"R0 = 0;"
-		"CYCLES = R0;"
-		"CYCLES2 = R0;"
-		"R0 = SYSCFG;"
-		"BITSET(R0, 1);"
-		"SYSCFG = R0;"
-		: : : "R0"
-	);
-#endif
-
-}
-
-__attribute__((l1_text))
 void bf609_ddr_sr(void)
 {
-	uint32_t reg;
-
-	reg = bfin_read_DMC0_CTL();
-	reg |= 0x8;
-	bfin_write_DMC0_CTL(reg);
-
-	while (!(bfin_read_DMC0_STAT() & 0x8))
-		continue;
+	dmc_enter_self_refresh();
 }
 
 __attribute__((l1_text))
 void bf609_ddr_sr_exit(void)
 {
-	uint32_t reg;
-	while (!(bfin_read_DMC0_STAT() & 0x1))
-		continue;
+	dmc_exit_self_refresh();
 
-	reg = bfin_read_DMC0_CTL();
-	reg &= ~0x8;
-	bfin_write_DMC0_CTL(reg);
-
-	while ((bfin_read_DMC0_STAT() & 0x8))
+	/* After wake up from deep sleep and exit DDR from self refress mode,
+	 * should wait till CGU PLL is locked.
+	 */
+	while (bfin_read32(CGU0_STAT) & CLKSALGN)
 		continue;
+}
+
+__attribute__((l1_text))
+void bf609_resume_ccbuf(void)
+{
+	bfin_write32(DPM0_CCBF_EN, 3);
+	bfin_write32(DPM0_CTL, 2);
+
+	while ((bfin_read32(DPM0_STAT) & 0xf) != 1);
 }
 
 __attribute__((l1_text))
@@ -208,14 +179,23 @@ void bfin_hibernate_syscontrol(void)
 #else
 # define SIC_SYSIRQ(irq)	((irq) - IVG15)
 #endif
+asmlinkage void enter_deepsleep(void);
+
+__attribute__((l1_text))
+void bfin_deepsleep(unsigned long mask)
+{
+	bfin_write32(DPM0_WAKE_EN, 0x10);
+	bfin_write32(DPM0_WAKE_POL, 0x10);
+	SSYNC();
+	enter_deepsleep();
+}
+
 void bfin_hibernate(unsigned long mask)
 {
 	bfin_write32(DPM0_WAKE_EN, 0x10);
 	bfin_write32(DPM0_WAKE_POL, 0x10);
 	bfin_write32(DPM0_PGCNTR, 0x0000FFFF);
 	bfin_write32(DPM0_HIB_DIS, 0xFFFF);
-
-	printk(KERN_DEBUG "hibernate: restore %x pgcnt %x\n", bfin_read32(DPM0_RESTORE0), bfin_read32(DPM0_PGCNTR));
 
 	bf609_hibernate();
 }
@@ -294,6 +274,7 @@ void bf609_cpu_pm_enter(suspend_state_t state)
 	else {
 		bfin_hibernate(wakeup);
 	}
+
 }
 
 int bf609_cpu_pm_prepare(void)
@@ -320,21 +301,18 @@ static irqreturn_t test_isr(int irq, void *dev_id)
 
 static irqreturn_t dpm0_isr(int irq, void *dev_id)
 {
-	uint32_t wake_stat;
-
-	wake_stat = bfin_read32(DPM0_WAKE_STAT);
-	printk(KERN_DEBUG "enter %s wake stat %08x\n", __func__, wake_stat);
-
-	bfin_write32(DPM0_WAKE_STAT, wake_stat);
+	bfin_write32(DPM0_WAKE_STAT, bfin_read32(DPM0_WAKE_STAT));
+	bfin_write32(CGU0_STAT, bfin_read32(CGU0_STAT));
 	return IRQ_HANDLED;
 }
+#endif
 
 static int __init bf609_init_pm(void)
 {
 	int irq;
 	int error;
 
-#if CONFIG_PM_BFIN_WAKE_PE12
+#ifdef CONFIG_PM_BFIN_WAKE_PE12
 	irq = gpio_to_irq(GPIO_PE12);
 	if (irq < 0) {
 		error = irq;
