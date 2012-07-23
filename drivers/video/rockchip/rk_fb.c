@@ -227,7 +227,9 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 					par2->y_offset = par->y_offset;
 					//memcpy(info2->screen_base+par2->y_offset,info->screen_base+par->y_offset,
 					//	var->xres*var->yres*var->bits_per_pixel>>3);
+					#if !defined(CONFIG_THREE_FB_BUFFER)
 					fb_copy_by_ipp(info2,info,par->y_offset);
+					#endif
 					dev_drv1->pan_display(dev_drv1,layer_id);
 					//queue_delayed_work(inf->workqueue, &inf->delay_work,0);
 				}
@@ -754,6 +756,7 @@ static int rk_request_fb_buffer(struct fb_info *fbi,int fb_id)
 	struct resource *res;
 	struct resource *mem;
 	int ret = 0;
+	struct rk_fb_inf *fb_inf = platform_get_drvdata(g_fb_pdev);
 	switch(fb_id)
 	{
         	case 0:
@@ -782,6 +785,7 @@ static int rk_request_fb_buffer(struct fb_info *fbi,int fb_id)
 	 	#endif
 		    	break;
         	case 2:
+			#if !defined(CONFIG_THREE_FB_BUFFER)
             		res = platform_get_resource_byname(g_fb_pdev, IORESOURCE_MEM, "fb2 buf");
 			if (res == NULL)
 			{
@@ -793,6 +797,11 @@ static int rk_request_fb_buffer(struct fb_info *fbi,int fb_id)
 			mem = request_mem_region(res->start, resource_size(res), g_fb_pdev->name);
 			fbi->screen_base = ioremap(res->start, fbi->fix.smem_len);
 			memset(fbi->screen_base, 0, fbi->fix.smem_len);
+			#else    //three buffer no need to copy
+			fbi->fix.smem_start = fb_inf->fb[0]->fix.smem_start;
+			fbi->fix.smem_len   = fb_inf->fb[0]->fix.smem_len;
+			fbi->screen_base    = fb_inf->fb[0]->screen_base;
+			#endif
 			printk("fb%d:phy:%lx>>vir:%p>>len:0x%x\n",fb_id,
 				fbi->fix.smem_start,fbi->screen_base,fbi->fix.smem_len);
 			break;
