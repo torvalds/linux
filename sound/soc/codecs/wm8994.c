@@ -2102,6 +2102,10 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 	case WM8994_FLL_SRC_LRCLK:
 	case WM8994_FLL_SRC_BCLK:
 		break;
+	case WM8994_FLL_SRC_INTERNAL:
+		freq_in = 12000000;
+		freq_out = 12000000;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -2164,9 +2168,11 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 				    fll.n << WM8994_FLL1_N_SHIFT);
 
 	snd_soc_update_bits(codec, WM8994_FLL1_CONTROL_5 + reg_offset,
-			    WM8958_FLL1_BYP |
+			    WM8994_FLL1_FRC_NCO | WM8958_FLL1_BYP |
 			    WM8994_FLL1_REFCLK_DIV_MASK |
 			    WM8994_FLL1_REFCLK_SRC_MASK,
+			    ((src == WM8994_FLL_SRC_INTERNAL)
+			     << WM8994_FLL1_FRC_NCO_SHIFT) |
 			    (fll.clk_ref_div << WM8994_FLL1_REFCLK_DIV_SHIFT) |
 			    (src - 1));
 
@@ -2192,13 +2198,16 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 			}
 		}
 
+		reg = WM8994_FLL1_ENA;
+
 		if (fll.k)
-			reg = WM8994_FLL1_ENA | WM8994_FLL1_FRAC;
-		else
-			reg = WM8994_FLL1_ENA;
+			reg |= WM8994_FLL1_FRAC;
+		if (src == WM8994_FLL_SRC_INTERNAL)
+			reg |= WM8994_FLL1_OSC_ENA;
+
 		snd_soc_update_bits(codec, WM8994_FLL1_CONTROL_1 + reg_offset,
-				    WM8994_FLL1_ENA | WM8994_FLL1_FRAC,
-				    reg);
+				    WM8994_FLL1_ENA | WM8994_FLL1_OSC_ENA |
+				    WM8994_FLL1_FRAC, reg);
 
 		if (wm8994->fll_locked_irq) {
 			timeout = wait_for_completion_timeout(&wm8994->fll_locked[id],
