@@ -1618,6 +1618,20 @@ int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 
 	if (sk->sk_state == TCP_ESTABLISHED) { /* Fast path */
 		sock_rps_save_rxhash(sk, skb);
+		if (sk->sk_rx_dst) {
+			struct dst_entry *dst = sk->sk_rx_dst;
+			if (dst->ops->check(dst, 0) == NULL) {
+				dst_release(dst);
+				sk->sk_rx_dst = NULL;
+			}
+		}
+		if (unlikely(sk->sk_rx_dst == NULL)) {
+			struct inet_sock *icsk = inet_sk(sk);
+			struct rtable *rt = skb_rtable(skb);
+
+			sk->sk_rx_dst = dst_clone(&rt->dst);
+			icsk->rx_dst_ifindex = inet_iif(skb);
+		}
 		if (tcp_rcv_established(sk, skb, tcp_hdr(skb), skb->len)) {
 			rsk = sk;
 			goto reset;
@@ -1700,14 +1714,12 @@ void tcp_v4_early_demux(struct sk_buff *skb)
 		skb->destructor = sock_edemux;
 		if (sk->sk_state != TCP_TIME_WAIT) {
 			struct dst_entry *dst = sk->sk_rx_dst;
+			struct inet_sock *icsk = inet_sk(sk);
 			if (dst)
 				dst = dst_check(dst, 0);
-			if (dst) {
-				struct rtable *rt = (struct rtable *) dst;
-
-				if (rt->rt_iif == dev->ifindex)
-					skb_dst_set_noref(skb, dst);
-			}
+			if (dst &&
+			    icsk->rx_dst_ifindex == dev->ifindex)
+				skb_dst_set_noref(skb, dst);
 		}
 	}
 }

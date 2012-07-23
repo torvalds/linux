@@ -848,7 +848,7 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 		if (log_martians &&
 		    peer->rate_tokens == ip_rt_redirect_number)
 			net_warn_ratelimited("host %pI4/if%d ignores redirects for %pI4 to %pI4\n",
-					     &ip_hdr(skb)->saddr, rt->rt_iif,
+					     &ip_hdr(skb)->saddr, inet_iif(skb),
 					     &ip_hdr(skb)->daddr, &rt->rt_gateway);
 #endif
 	}

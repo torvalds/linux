@@ -1027,10 +1027,9 @@ e_inval:
 void ipv4_pktinfo_prepare(struct sk_buff *skb)
 {
 	struct in_pktinfo *pktinfo = PKTINFO_SKB_CB(skb);
-	const struct rtable *rt = skb_rtable(skb);
 
-	if (rt) {
-		pktinfo->ipi_ifindex = rt->rt_iif;
+	if (skb_rtable(skb)) {
+		pktinfo->ipi_ifindex = inet_iif(skb);
 		pktinfo->ipi_spec_dst.s_addr = fib_compute_spec_dst(skb);
 	} else {
 		pktinfo->ipi_ifindex = 0;

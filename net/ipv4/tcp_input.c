@@ -5391,18 +5391,6 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	if (sk->sk_rx_dst) {
-		struct dst_entry *dst = sk->sk_rx_dst;
-		if (unlikely(dst->obsolete)) {
-			if (dst->ops->check(dst, 0) == NULL) {
-				dst_release(dst);
-				sk->sk_rx_dst = NULL;
-			}
-		}
-	}
-	if (unlikely(sk->sk_rx_dst == NULL))
-		sk->sk_rx_dst = dst_clone(skb_dst(skb));
-
 	/*
 	 *	Header prediction.
 	 *	The code loosely follows the one in the famous
