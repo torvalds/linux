@@ -93,9 +93,13 @@ static ssize_t
 ext4_file_dio_write(struct kiocb *iocb, const struct iovec *iov,
 		    unsigned long nr_segs, loff_t pos)
 {
-	struct inode *inode = iocb->ki_filp->f_path.dentry->d_inode;
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file->f_mapping->host;
+	struct blk_plug plug;
 	int unaligned_aio = 0;
 	ssize_t ret;
+	int overwrite = 0;
+	size_t length = iov_length(iov, nr_segs);
 
 	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS) &&
 	    !is_sync_kiocb(iocb))
@@ -115,7 +119,50 @@ ext4_file_dio_write(struct kiocb *iocb, const struct iovec *iov,
 		ext4_aiodio_wait(inode);
 	}
 
-	ret = generic_file_aio_write(iocb, iov, nr_segs, pos);
+	BUG_ON(iocb->ki_pos != pos);
+
+	mutex_lock(&inode->i_mutex);
+	blk_start_plug(&plug);
+
+	iocb->private = &overwrite;
+
+	/* check whether we do a DIO overwrite or not */
+	if (ext4_should_dioread_nolock(inode) && !unaligned_aio &&
+	    !file->f_mapping->nrpages && pos + length <= i_size_read(inode)) {
+		struct ext4_map_blocks map;
+		unsigned int blkbits = inode->i_blkbits;
+		int err, len;
+
+		map.m_lblk = pos >> blkbits;
+		map.m_len = (EXT4_BLOCK_ALIGN(pos + length, blkbits) >> blkbits)
+			- map.m_lblk;
+		len = map.m_len;
+
+		err = ext4_map_blocks(NULL, inode, &map, 0);
+		/*
+		 * 'err==len' means that all of blocks has been preallocated no
+		 * matter they are initialized or not.  For excluding
+		 * uninitialized extents, we need to check m_flags.  There are
+		 * two conditions that indicate for initialized extents.
+		 * 1) If we hit extent cache, EXT4_MAP_MAPPED flag is returned;
+		 * 2) If we do a real lookup, non-flags are returned.
+		 * So we should check these two conditions.
+		 */
+		if (err == len && (map.m_flags & EXT4_MAP_MAPPED))
+			overwrite = 1;
+	}
+
+	ret = __generic_file_aio_write(iocb, iov, nr_segs, &iocb->ki_pos);
+	mutex_unlock(&inode->i_mutex);
+
+	if (ret > 0 || ret == -EIOCBQUEUED) {
+		ssize_t err;
+
+		err = generic_write_sync(file, pos, ret);
+		if (err < 0 && ret > 0)
+			ret = err;
+	}
+	blk_finish_plug(&plug);
 
 	if (unaligned_aio)
 		mutex_unlock(ext4_aio_mutex(inode));
