@@ -79,11 +79,6 @@
 #define S3C64XX_SPI_SLAVE_AUTO			(1<<1)
 #define S3C64XX_SPI_SLAVE_SIG_INACT		(1<<0)
 
-#define S3C64XX_SPI_ACT(c) writel(0, (c)->regs + S3C64XX_SPI_SLAVE_SEL)
-
-#define S3C64XX_SPI_DEACT(c) writel(S3C64XX_SPI_SLAVE_SIG_INACT, \
-					(c)->regs + S3C64XX_SPI_SLAVE_SEL)
-
 #define S3C64XX_SPI_INT_TRAILING_EN		(1<<6)
 #define S3C64XX_SPI_INT_RX_OVERRUN_EN		(1<<5)
 #define S3C64XX_SPI_INT_RX_UNDERRUN_EN		(1<<4)
@@ -737,14 +732,15 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 		enable_cs(sdd, spi);
 
 		/* Start the signals */
-		S3C64XX_SPI_ACT(sdd);
+		writel(0, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 
 		spin_unlock_irqrestore(&sdd->lock, flags);
 
 		status = wait_for_xfer(sdd, xfer, use_dma);
 
 		/* Quiese the signals */
-		S3C64XX_SPI_DEACT(sdd);
+		writel(S3C64XX_SPI_SLAVE_SIG_INACT,
+		       sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 
 		if (status) {
 			dev_err(&spi->dev, "I/O Error: "
@@ -894,11 +890,12 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 	}
 
 	if (!spi_get_ctldata(spi)) {
-		err = gpio_request(cs->line, dev_name(&spi->dev));
+		err = gpio_request_one(cs->line, GPIOF_OUT_INIT_HIGH,
+				       dev_name(&spi->dev));
 		if (err) {
-			dev_err(&spi->dev, "request for slave select gpio "
-					"line [%d] failed\n", cs->line);
-			err = -EBUSY;
+			dev_err(&spi->dev,
+				"Failed to get /CS gpio [%d]: %d\n",
+				cs->line, err);
 			goto err_gpio_req;
 		}
 		spi_set_ctldata(spi, cs);
@@ -1031,7 +1028,7 @@ static void s3c64xx_spi_hwinit(struct s3c64xx_spi_driver_data *sdd, int channel)
 
 	sdd->cur_speed = 0;
 
-	S3C64XX_SPI_DEACT(sdd);
+	writel(S3C64XX_SPI_SLAVE_SIG_INACT, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 
 	/* Disable Interrupts - we use Polling if not DMA mode */
 	writel(0, regs + S3C64XX_SPI_INT_EN);
@@ -1116,7 +1113,8 @@ static int s3c64xx_spi_parse_dt_gpio(struct s3c64xx_spi_driver_data *sdd)
 
 		ret = gpio_request(gpio, "spi-bus");
 		if (ret) {
-			dev_err(dev, "gpio [%d] request failed\n", gpio);
+			dev_err(dev, "gpio [%d] request failed: %d\n",
+				gpio, ret);
 			goto free_gpio;
 		}
 	}
@@ -1278,14 +1276,7 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 
-	if (request_mem_region(mem_res->start,
-			resource_size(mem_res), pdev->name) == NULL) {
-		dev_err(&pdev->dev, "Req mem region failed\n");
-		ret = -ENXIO;
-		goto err0;
-	}
-
-	sdd->regs = ioremap(mem_res->start, resource_size(mem_res));
+	sdd->regs = devm_request_and_ioremap(&pdev->dev, mem_res);
 	if (sdd->regs == NULL) {
 		dev_err(&pdev->dev, "Unable to remap IO\n");
 		ret = -ENXIO;
@@ -1379,9 +1370,7 @@ err3:
 	if (!sdd->cntrlr_info->cfg_gpio && pdev->dev.of_node)
 		s3c64xx_spi_dt_gpio_free(sdd);
 err2:
-	iounmap((void *) sdd->regs);
 err1:
-	release_mem_region(mem_res->start, resource_size(mem_res));
 err0:
 	platform_set_drvdata(pdev, NULL);
 	spi_master_put(master);
@@ -1393,7 +1382,6 @@ static int s3c64xx_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = spi_master_get(platform_get_drvdata(pdev));
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
-	struct resource	*mem_res;
 
 	pm_runtime_disable(&pdev->dev);
 
@@ -1411,12 +1399,6 @@ static int s3c64xx_spi_remove(struct platform_device *pdev)
 
 	if (!sdd->cntrlr_info->cfg_gpio && pdev->dev.of_node)
 		s3c64xx_spi_dt_gpio_free(sdd);
-
-	iounmap((void *) sdd->regs);
-
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (mem_res != NULL)
-		release_mem_region(mem_res->start, resource_size(mem_res));
 
 	platform_set_drvdata(pdev, NULL);
 	spi_master_put(master);
