@@ -1267,6 +1267,7 @@ int __devinit host20_hcd_init(struct device *dev)
 	}
     
 #ifdef CONFIG_ARCH_RK30        
+    dwc_otg_hcd->host_setenable = 1;
     dwc_otg_hcd->connect_detect_timer.function = dwc_otg_hcd_connect_detect;
     dwc_otg_hcd->connect_detect_timer.data = (unsigned long)(dwc_otg_hcd);
     init_timer( &dwc_otg_hcd->connect_detect_timer);

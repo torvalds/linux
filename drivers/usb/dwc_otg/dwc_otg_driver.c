@@ -1498,6 +1498,9 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
         dwc_otg_device->core_if->usb_mode = USB_MODE_FORCE_HOST;
 #else 
         dwc_otg_device->core_if->usb_mode = USB_MODE_NORMAL;
+#ifdef CONFIG_DWC_OTG_DEFAULT_DEVICE
+        dwc_otg_device->core_if->usb_mode = USB_MODE_FORCE_DEVICE;
+#endif
 #endif
 
 #endif
@@ -2044,16 +2047,17 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 	 */
 #ifdef CONFIG_ARCH_RK29    
     unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
-#endif
-#ifdef CONFIG_ARCH_RK30
-    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON2);
-#endif
-        
     otgreg = * otg_phy_con1;
     otgreg |= (0x01<<13);    // software control
     otgreg |= (0x01<<14);    // exit suspend.
     otgreg &= ~(0x01<<13);    // software control
     *otg_phy_con1 = otgreg;
+#endif
+#ifdef CONFIG_ARCH_RK30
+    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON2);
+    *otg_phy_con1 = ((0x01<<2)<<16);    // exit suspend.
+#endif
+        
     #if 0
     *otg_phy_con1 |= (0x01<<2);
     *otg_phy_con1 |= (0x01<<3);    // exit suspend.

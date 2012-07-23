@@ -1053,10 +1053,8 @@ static inline void do_gadget_setup( dwc_otg_pcd_t *_pcd,
 	{
 		SPIN_UNLOCK(&_pcd->lock);
 		ret = _pcd->driver->setup(&_pcd->gadget, _ctrl);
-		if(spin_is_locked(&_pcd->lock)){
+		if(spin_is_locked(&_pcd->lock))
 		    DWC_PRINT("%s warning: pcd->lock locked without unlock\n", __func__);
-		    SPIN_UNLOCK(&_pcd->lock);
-		}
 		SPIN_LOCK(&_pcd->lock);
 		if (ret < 0) 
 		{
