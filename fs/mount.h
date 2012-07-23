@@ -22,7 +22,6 @@ struct mount {
 	struct vfsmount mnt;
 #ifdef CONFIG_SMP
 	struct mnt_pcp __percpu *mnt_pcp;
-	atomic_t mnt_longterm;		/* how many of the refs are longterm */
 #else
 	int mnt_count;
 	int mnt_writers;
@@ -49,6 +48,8 @@ struct mount {
 	int mnt_ghosts;
 };
 
+#define MNT_NS_INTERNAL ERR_PTR(-EINVAL) /* distinct from any mnt_namespace */
+
 static inline struct mount *real_mount(struct vfsmount *mnt)
 {
 	return container_of(mnt, struct mount, mnt);
@@ -59,6 +60,12 @@ static inline int mnt_has_parent(struct mount *mnt)
 	return mnt != mnt->mnt_parent;
 }
 
+static inline int is_mounted(struct vfsmount *mnt)
+{
+	/* neither detached nor internal? */
+	return !IS_ERR_OR_NULL(real_mount(mnt));
+}
+
 extern struct mount *__lookup_mnt(struct vfsmount *, struct dentry *, int);
 
 static inline void get_mnt_ns(struct mnt_namespace *ns)
@@ -67,10 +74,12 @@ static inline void get_mnt_ns(struct mnt_namespace *ns)
 }
 
 struct proc_mounts {
-	struct seq_file m; /* must be the first element */
+	struct seq_file m;
 	struct mnt_namespace *ns;
 	struct path root;
 	int (*show)(struct seq_file *, struct vfsmount *);
 };
+
+#define proc_mounts(p) (container_of((p), struct proc_mounts, m))
 
 extern const struct seq_operations mounts_op;

@@ -100,13 +100,13 @@ static void v9fs_dentry_release(struct dentry *dentry)
 	}
 }
 
-static int v9fs_lookup_revalidate(struct dentry *dentry, struct nameidata *nd)
+static int v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	struct p9_fid *fid;
 	struct inode *inode;
 	struct v9fs_inode *v9inode;
 
-	if (nd->flags & LOOKUP_RCU)
+	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	inode = dentry->d_inode;

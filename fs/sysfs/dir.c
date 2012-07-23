@@ -300,15 +300,15 @@ void release_sysfs_dirent(struct sysfs_dirent * sd)
 static int sysfs_dentry_delete(const struct dentry *dentry)
 {
 	struct sysfs_dirent *sd = dentry->d_fsdata;
-	return !!(sd->s_flags & SYSFS_FLAG_REMOVED);
+	return !(sd && !(sd->s_flags & SYSFS_FLAG_REMOVED));
 }
 
-static int sysfs_dentry_revalidate(struct dentry *dentry, struct nameidata *nd)
+static int sysfs_dentry_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	struct sysfs_dirent *sd;
 	int is_dir;
 
-	if (nd->flags & LOOKUP_RCU)
+	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	sd = dentry->d_fsdata;
@@ -355,18 +355,15 @@ out_bad:
 	return 0;
 }
 
-static void sysfs_dentry_iput(struct dentry *dentry, struct inode *inode)
+static void sysfs_dentry_release(struct dentry *dentry)
 {
-	struct sysfs_dirent * sd = dentry->d_fsdata;
-
-	sysfs_put(sd);
-	iput(inode);
+	sysfs_put(dentry->d_fsdata);
 }
 
-static const struct dentry_operations sysfs_dentry_ops = {
+const struct dentry_operations sysfs_dentry_ops = {
 	.d_revalidate	= sysfs_dentry_revalidate,
 	.d_delete	= sysfs_dentry_delete,
-	.d_iput		= sysfs_dentry_iput,
+	.d_release	= sysfs_dentry_release,
 };
 
 struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type)
@@ -764,7 +761,7 @@ int sysfs_create_dir(struct kobject * kobj)
 }
 
 static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
-				struct nameidata *nd)
+				unsigned int flags)
 {
 	struct dentry *ret = NULL;
 	struct dentry *parent = dentry->d_parent;
@@ -786,6 +783,7 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 		ret = ERR_PTR(-ENOENT);
 		goto out_unlock;
 	}
+	dentry->d_fsdata = sysfs_get(sd);
 
 	/* attach dentry and inode */
 	inode = sysfs_get_inode(dir->i_sb, sd);
@@ -795,16 +793,7 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 	}
 
 	/* instantiate and hash dentry */
-	ret = d_find_alias(inode);
-	if (!ret) {
-		d_set_d_op(dentry, &sysfs_dentry_ops);
-		dentry->d_fsdata = sysfs_get(sd);
-		d_add(dentry, inode);
-	} else {
-		d_move(ret, dentry);
-		iput(inode);
-	}
-
+	ret = d_materialise_unique(dentry, inode);
  out_unlock:
 	mutex_unlock(&sysfs_mutex);
 	return ret;

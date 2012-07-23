@@ -25,7 +25,7 @@ static inline void hfsplus_instantiate(struct dentry *dentry,
 
 /* Find the entry inside dir named dentry->d_name */
 static struct dentry *hfsplus_lookup(struct inode *dir, struct dentry *dentry,
-				     struct nameidata *nd)
+				     unsigned int flags)
 {
 	struct inode *inode = NULL;
 	struct hfs_find_data fd;
@@ -316,7 +316,7 @@ static int hfsplus_link(struct dentry *src_dentry, struct inode *dst_dir,
 	inode->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
 	sbi->file_count++;
-	dst_dir->i_sb->s_dirt = 1;
+	hfsplus_mark_mdb_dirty(dst_dir->i_sb);
 out:
 	mutex_unlock(&sbi->vh_mutex);
 	return res;
@@ -465,7 +465,7 @@ out:
 }
 
 static int hfsplus_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-			  struct nameidata *nd)
+			  bool excl)
 {
 	return hfsplus_mknod(dir, dentry, mode, 0);
 }

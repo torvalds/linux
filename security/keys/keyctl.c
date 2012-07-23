@@ -1456,7 +1456,7 @@ long keyctl_session_to_parent(void)
 {
 	struct task_struct *me, *parent;
 	const struct cred *mycred, *pcred;
-	struct task_work *newwork, *oldwork;
+	struct callback_head *newwork, *oldwork;
 	key_ref_t keyring_r;
 	struct cred *cred;
 	int ret;
@@ -1466,19 +1466,17 @@ long keyctl_session_to_parent(void)
 		return PTR_ERR(keyring_r);
 
 	ret = -ENOMEM;
-	newwork = kmalloc(sizeof(struct task_work), GFP_KERNEL);
-	if (!newwork)
-		goto error_keyring;
 
 	/* our parent is going to need a new cred struct, a new tgcred struct
 	 * and new security data, so we allocate them here to prevent ENOMEM in
 	 * our parent */
 	cred = cred_alloc_blank();
 	if (!cred)
-		goto error_newwork;
+		goto error_keyring;
+	newwork = &cred->rcu;
 
 	cred->tgcred->session_keyring = key_ref_to_ptr(keyring_r);
-	init_task_work(newwork, key_change_session_keyring, cred);
+	init_task_work(newwork, key_change_session_keyring);
 
 	me = current;
 	rcu_read_lock();
@@ -1488,6 +1486,7 @@ long keyctl_session_to_parent(void)
 	oldwork = NULL;
 	parent = me->real_parent;
 
+	task_lock(parent);
 	/* the parent mustn't be init and mustn't be a kernel thread */
 	if (parent->pid <= 1 || !parent->mm)
 		goto unlock;
@@ -1531,20 +1530,15 @@ long keyctl_session_to_parent(void)
 	if (!ret)
 		newwork = NULL;
 unlock:
+	task_unlock(parent);
 	write_unlock_irq(&tasklist_lock);
 	rcu_read_unlock();
-	if (oldwork) {
-		put_cred(oldwork->data);
-		kfree(oldwork);
-	}
-	if (newwork) {
-		put_cred(newwork->data);
-		kfree(newwork);
-	}
+	if (oldwork)
+		put_cred(container_of(oldwork, struct cred, rcu));
+	if (newwork)
+		put_cred(cred);
 	return ret;
 
-error_newwork:
-	kfree(newwork);
 error_keyring:
 	key_ref_put(keyring_r);
 	return ret;

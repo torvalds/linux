@@ -601,6 +601,11 @@ static int jfs_sync_fs(struct super_block *sb, int wait)
 
 	/* log == NULL indicates read-only mount */
 	if (log) {
+		/*
+		 * Write quota structures to quota file, sync_blockdev() will
+		 * write them to disk later
+		 */
+		dquot_writeback_dquots(sb, -1);
 		jfs_flush_journal(log, wait);
 		jfs_syncpt(log, 0);
 	}

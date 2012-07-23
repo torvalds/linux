@@ -4247,7 +4247,7 @@ static void btrfs_dentry_release(struct dentry *dentry)
 }
 
 static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
-				   struct nameidata *nd)
+				   unsigned int flags)
 {
 	struct dentry *ret;
 
@@ -4893,7 +4893,7 @@ out_unlock:
 }
 
 static int btrfs_create(struct inode *dir, struct dentry *dentry,
-			umode_t mode, struct nameidata *nd)
+			umode_t mode, bool excl)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
@@ -6987,7 +6987,7 @@ void btrfs_destroy_inode(struct inode *inode)
 	struct btrfs_ordered_extent *ordered;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 
-	WARN_ON(!list_empty(&inode->i_dentry));
+	WARN_ON(!hlist_empty(&inode->i_dentry));
 	WARN_ON(inode->i_data.nrpages);
 	WARN_ON(BTRFS_I(inode)->outstanding_extents);
 	WARN_ON(BTRFS_I(inode)->reserved_extents);

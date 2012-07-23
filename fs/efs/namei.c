@@ -58,7 +58,8 @@ static efs_ino_t efs_find_entry(struct inode *inode, const char *name, int len) 
 	return(0);
 }
 
-struct dentry *efs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd) {
+struct dentry *efs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+{
 	efs_ino_t inodenum;
 	struct inode *inode = NULL;
 
