@@ -3252,12 +3252,8 @@ static void hci_user_passkey_request_evt(struct hci_dev *hdev,
 
 	BT_DBG("%s", hdev->name);
 
-	hci_dev_lock(hdev);
-
 	if (test_bit(HCI_MGMT, &hdev->dev_flags))
 		mgmt_user_passkey_request(hdev, &ev->bdaddr, ACL_LINK, 0);
-
-	hci_dev_unlock(hdev);
 }
 
 static void hci_simple_pair_complete_evt(struct hci_dev *hdev,
