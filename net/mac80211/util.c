@@ -1100,6 +1100,7 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 
 struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 					  u8 *dst, u32 ratemask,
+					  struct ieee80211_channel *chan,
 					  const u8 *ssid, size_t ssid_len,
 					  const u8 *ie, size_t ie_len,
 					  bool directed)
@@ -1109,7 +1110,7 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgmt *mgmt;
 	size_t buf_len;
 	u8 *buf;
-	u8 chan;
+	u8 chan_no;
 
 	/* FIXME: come up with a proper value */
 	buf = kmalloc(200 + ie_len, GFP_KERNEL);
@@ -1122,14 +1123,12 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	 * badly-behaved APs don't respond when this parameter is included.
 	 */
 	if (directed)
-		chan = 0;
+		chan_no = 0;
 	else
-		chan = ieee80211_frequency_to_channel(
-			local->hw.conf.channel->center_freq);
+		chan_no = ieee80211_frequency_to_channel(chan->center_freq);
 
-	buf_len = ieee80211_build_preq_ies(local, buf, ie, ie_len,
-					   local->hw.conf.channel->band,
-					   ratemask, chan);
+	buf_len = ieee80211_build_preq_ies(local, buf, ie, ie_len, chan->band,
+					   ratemask, chan_no);
 
 	skb = ieee80211_probereq_get(&local->hw, &sdata->vif,
 				     ssid, ssid_len,
@@ -1158,7 +1157,9 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 {
 	struct sk_buff *skb;
 
-	skb = ieee80211_build_probe_req(sdata, dst, ratemask, ssid, ssid_len,
+	skb = ieee80211_build_probe_req(sdata, dst, ratemask,
+					sdata->local->hw.conf.channel,
+					ssid, ssid_len,
 					ie, ie_len, directed);
 	if (skb) {
 		if (no_cck)
@@ -1810,7 +1811,8 @@ ieee80211_ht_oper_to_channel_type(struct ieee80211_ht_operation *ht_oper)
 }
 
 int ieee80211_add_srates_ie(struct ieee80211_sub_if_data *sdata,
-			    struct sk_buff *skb, bool need_basic)
+			    struct sk_buff *skb, bool need_basic,
+			    enum ieee80211_band band)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
@@ -1818,7 +1820,7 @@ int ieee80211_add_srates_ie(struct ieee80211_sub_if_data *sdata,
 	u8 i, rates, *pos;
 	u32 basic_rates = sdata->vif.bss_conf.basic_rates;
 
-	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+	sband = local->hw.wiphy->bands[band];
 	rates = sband->n_bitrates;
 	if (rates > 8)
 		rates = 8;
@@ -1841,7 +1843,8 @@ int ieee80211_add_srates_ie(struct ieee80211_sub_if_data *sdata,
 }
 
 int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
-				struct sk_buff *skb, bool need_basic)
+				struct sk_buff *skb, bool need_basic,
+				enum ieee80211_band band)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
@@ -1849,7 +1852,7 @@ int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
 	u8 i, exrates, *pos;
 	u32 basic_rates = sdata->vif.bss_conf.basic_rates;
 
-	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+	sband = local->hw.wiphy->bands[band];
 	exrates = sband->n_bitrates;
 	if (exrates > 8)
 		exrates -= 8;

@@ -1683,7 +1683,9 @@ struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
 		ssid_len = ssid[1];
 
 	skb = ieee80211_build_probe_req(sdata, cbss->bssid,
-					(u32) -1, ssid + 2, ssid_len,
+					(u32) -1,
+					sdata->local->oper_channel,
+					ssid + 2, ssid_len,
 					NULL, 0, true);
 
 	return skb;

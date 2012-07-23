@@ -2655,6 +2655,7 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 			       u16 status_code, struct sk_buff *skb)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_tdls_data *tf;
 
 	tf = (void *)skb_put(skb, offsetof(struct ieee80211_tdls_data, u));
@@ -2674,8 +2675,10 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 		tf->u.setup_req.capability =
 			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
 
-		ieee80211_add_srates_ie(sdata, skb, false);
-		ieee80211_add_ext_srates_ie(sdata, skb, false);
+		ieee80211_add_srates_ie(sdata, skb, false,
+					local->oper_channel->band);
+		ieee80211_add_ext_srates_ie(sdata, skb, false,
+					    local->oper_channel->band);
 		ieee80211_tdls_add_ext_capab(skb);
 		break;
 	case WLAN_TDLS_SETUP_RESPONSE:
@@ -2688,8 +2691,10 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 		tf->u.setup_resp.capability =
 			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
 
-		ieee80211_add_srates_ie(sdata, skb, false);
-		ieee80211_add_ext_srates_ie(sdata, skb, false);
+		ieee80211_add_srates_ie(sdata, skb, false,
+					local->oper_channel->band);
+		ieee80211_add_ext_srates_ie(sdata, skb, false,
+					    local->oper_channel->band);
 		ieee80211_tdls_add_ext_capab(skb);
 		break;
 	case WLAN_TDLS_SETUP_CONFIRM:
@@ -2727,6 +2732,7 @@ ieee80211_prep_tdls_direct(struct wiphy *wiphy, struct net_device *dev,
 			   u16 status_code, struct sk_buff *skb)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_mgmt *mgmt;
 
 	mgmt = (void *)skb_put(skb, 24);
@@ -2749,8 +2755,10 @@ ieee80211_prep_tdls_direct(struct wiphy *wiphy, struct net_device *dev,
 		mgmt->u.action.u.tdls_discover_resp.capability =
 			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
 
-		ieee80211_add_srates_ie(sdata, skb, false);
-		ieee80211_add_ext_srates_ie(sdata, skb, false);
+		ieee80211_add_srates_ie(sdata, skb, false,
+					local->oper_channel->band);
+		ieee80211_add_ext_srates_ie(sdata, skb, false,
+					    local->oper_channel->band);
 		ieee80211_tdls_add_ext_capab(skb);
 		break;
 	default:
