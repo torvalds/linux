@@ -279,9 +279,10 @@ void mei_host_init_iamthif(struct mei_device *dev);
 void mei_allocate_me_clients_storage(struct mei_device *dev);
 
 
-u8 mei_find_me_client_update_filext(struct mei_device *dev,
-				struct mei_cl *priv,
-				const uuid_le *cguid, u8 client_id);
+int mei_me_cl_update_filext(struct mei_device *dev, struct mei_cl *cl,
+			const uuid_le *cguid, u8 host_client_id);
+int mei_me_cl_by_uuid(const struct mei_device *dev, const uuid_le *cuuid);
+int mei_me_cl_by_id(struct mei_device *dev, u8 client_id);
 
 /*
  * MEI IO List Functions
@@ -348,7 +349,6 @@ void mei_run_next_iamthif_cmd(struct mei_device *dev);
 
 void mei_free_cb_private(struct mei_cl_cb *priv_cb);
 
-int mei_find_me_client_index(const struct mei_device *dev, uuid_le cuuid);
 
 /*
  * Register Access Function

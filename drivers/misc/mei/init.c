@@ -522,12 +522,12 @@ void mei_cl_init(struct mei_cl *priv, struct mei_device *dev)
 	priv->dev = dev;
 }
 
-int mei_find_me_client_index(const struct mei_device *dev, uuid_le cuuid)
+int mei_me_cl_by_uuid(const struct mei_device *dev, const uuid_le *cuuid)
 {
-	int i, res = -1;
+	int i, res = -ENOENT;
 
 	for (i = 0; i < dev->me_clients_num; ++i)
-		if (uuid_le_cmp(cuuid,
+		if (uuid_le_cmp(*cuuid,
 				dev->me_clients[i].props.protocol_name) == 0) {
 			res = i;
 			break;
@@ -538,35 +538,35 @@ int mei_find_me_client_index(const struct mei_device *dev, uuid_le cuuid)
 
 
 /**
- * mei_find_me_client_update_filext - searches for ME client guid
+ * mei_me_cl_update_filext - searches for ME client guid
  *                       sets client_id in mei_file_private if found
  * @dev: the device structure
- * @priv: private file structure to set client_id in
- * @cguid: searched guid of ME client
+ * @cl: private file structure to set client_id in
+ * @cuuid: searched uuid of ME client
  * @client_id: id of host client to be set in file private structure
  *
  * returns ME client index
  */
-u8 mei_find_me_client_update_filext(struct mei_device *dev, struct mei_cl *priv,
-				const uuid_le *cguid, u8 client_id)
+int mei_me_cl_update_filext(struct mei_device *dev, struct mei_cl *cl,
+				const uuid_le *cuuid, u8 host_cl_id)
 {
 	int i;
 
-	if (!dev || !priv || !cguid)
-		return 0;
+	if (!dev || !cl || !cuuid)
+		return -EINVAL;
 
 	/* check for valid client id */
-	i = mei_find_me_client_index(dev, *cguid);
+	i = mei_me_cl_by_uuid(dev, cuuid);
 	if (i >= 0) {
-		priv->me_client_id = dev->me_clients[i].client_id;
-		priv->state = MEI_FILE_CONNECTING;
-		priv->host_client_id = client_id;
+		cl->me_client_id = dev->me_clients[i].client_id;
+		cl->state = MEI_FILE_CONNECTING;
+		cl->host_client_id = host_cl_id;
 
-		list_add_tail(&priv->link, &dev->file_list);
+		list_add_tail(&cl->link, &dev->file_list);
 		return (u8)i;
 	}
 
-	return 0;
+	return -ENOENT;
 }
 
 /**
@@ -577,16 +577,16 @@ u8 mei_find_me_client_update_filext(struct mei_device *dev, struct mei_cl *priv,
  */
 void mei_host_init_iamthif(struct mei_device *dev)
 {
-	u8 i;
+	int i;
 	unsigned char *msg_buf;
 
 	mei_cl_init(&dev->iamthif_cl, dev);
 	dev->iamthif_cl.state = MEI_FILE_DISCONNECTED;
 
 	/* find ME amthi client */
-	i = mei_find_me_client_update_filext(dev, &dev->iamthif_cl,
+	i = mei_me_cl_update_filext(dev, &dev->iamthif_cl,
 			    &mei_amthi_guid, MEI_IAMTHIF_HOST_CLIENT_ID);
-	if (dev->iamthif_cl.state != MEI_FILE_CONNECTING) {
+	if (i < 0) {
 		dev_dbg(&dev->pdev->dev, "failed to find iamthif client.\n");
 		return;
 	}

@@ -69,7 +69,7 @@ int mei_wd_host_init(struct mei_device *dev)
 	dev->wd_timeout = AMT_WD_DEFAULT_TIMEOUT;
 
 	/* find ME WD client */
-	mei_find_me_client_update_filext(dev, &dev->wd_cl,
+	mei_me_cl_update_filext(dev, &dev->wd_cl,
 				&mei_wd_guid, MEI_WD_HOST_CLIENT_ID);
 
 	dev_dbg(&dev->pdev->dev, "wd: check client\n");

@@ -393,10 +393,9 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 
 	if ((cl->sm_state & MEI_WD_STATE_INDEPENDENCE_MSG_SENT) == 0) {
 		/* Do not allow to read watchdog client */
-		i = mei_find_me_client_index(dev, mei_wd_guid);
+		i = mei_me_cl_by_uuid(dev, &mei_wd_guid);
 		if (i >= 0) {
 			struct mei_me_client *me_client = &dev->me_clients[i];
-
 			if (cl->me_client_id == me_client->client_id) {
 				rets = -EBADF;
 				goto out;
@@ -620,22 +619,12 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 			rets = -ENODEV;
 			goto unlock_dev;
 		}
-		for (i = 0; i < dev->me_clients_num; i++) {
-			if (dev->me_clients[i].client_id ==
-				dev->iamthif_cl.me_client_id)
-				break;
-		}
-
-		if (WARN_ON(dev->me_clients[i].client_id != cl->me_client_id)) {
+		i = mei_me_cl_by_id(dev, dev->iamthif_cl.me_client_id);
+		if (i < 0) {
 			rets = -ENODEV;
 			goto unlock_dev;
 		}
-		if (i == dev->me_clients_num ||
-		    (dev->me_clients[i].client_id !=
-		      dev->iamthif_cl.me_client_id)) {
-			rets = -ENODEV;
-			goto unlock_dev;
-		} else if (length > dev->me_clients[i].props.max_msg_length ||
+		if (length > dev->me_clients[i].props.max_msg_length ||
 			   length <= 0) {
 			rets = -EMSGSIZE;
 			goto unlock_dev;
@@ -688,16 +677,8 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		    cl->me_client_id);
 		goto unlock_dev;
 	}
-	for (i = 0; i < dev->me_clients_num; i++) {
-		if (dev->me_clients[i].client_id ==
-		    cl->me_client_id)
-			break;
-	}
-	if (WARN_ON(dev->me_clients[i].client_id != cl->me_client_id)) {
-		rets = -ENODEV;
-		goto unlock_dev;
-	}
-	if (i == dev->me_clients_num) {
+	i = mei_me_cl_by_id(dev, cl->me_client_id);
+	if (i < 0) {
 		rets = -ENODEV;
 		goto unlock_dev;
 	}
