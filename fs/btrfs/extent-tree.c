@@ -2581,8 +2581,10 @@ static noinline int check_delayed_ref(struct btrfs_trans_handle *trans,
 
 	node = rb_prev(node);
 	if (node) {
+		int seq = ref->seq;
+
 		ref = rb_entry(node, struct btrfs_delayed_ref_node, rb_node);
-		if (ref->bytenr == bytenr)
+		if (ref->bytenr == bytenr && ref->seq == seq)
 			goto out_unlock;
 	}
 
