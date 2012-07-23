@@ -315,6 +315,23 @@ failure:
 	return err;
 }
 
+static void tcp_v6_mtu_reduced(struct sock *sk)
+{
+	struct dst_entry *dst;
+
+	if ((1 << sk->sk_state) & (TCPF_LISTEN | TCPF_CLOSE))
+		return;
+
+	dst = inet6_csk_update_pmtu(sk, tcp_sk(sk)->mtu_info);
+	if (!dst)
+		return;
+
+	if (inet_csk(sk)->icsk_pmtu_cookie > dst_mtu(dst)) {
+		tcp_sync_mss(sk, dst_mtu(dst));
+		tcp_simple_retransmit(sk);
+	}
+}
+
 static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		u8 type, u8 code, int offset, __be32 info)
 {
@@ -342,7 +359,7 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	}
 
 	bh_lock_sock(sk);
-	if (sock_owned_by_user(sk))
+	if (sock_owned_by_user(sk) && type != ICMPV6_PKT_TOOBIG)
 		NET_INC_STATS_BH(net, LINUX_MIB_LOCKDROPPEDICMPS);
 
 	if (sk->sk_state == TCP_CLOSE)
@@ -371,21 +388,11 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	}
 
 	if (type == ICMPV6_PKT_TOOBIG) {
-		struct dst_entry *dst;
-
-		if (sock_owned_by_user(sk))
-			goto out;
-		if ((1 << sk->sk_state) & (TCPF_LISTEN | TCPF_CLOSE))
-			goto out;
-
-		dst = inet6_csk_update_pmtu(sk, ntohl(info));
-		if (!dst)
-			goto out;
-
-		if (inet_csk(sk)->icsk_pmtu_cookie > dst_mtu(dst)) {
-			tcp_sync_mss(sk, dst_mtu(dst));
-			tcp_simple_retransmit(sk);
-		}
+		tp->mtu_info = ntohl(info);
+		if (!sock_owned_by_user(sk))
+			tcp_v6_mtu_reduced(sk);
+		else
+			set_bit(TCP_MTU_REDUCED_DEFERRED, &tp->tsq_flags);
 		goto out;
 	}
 
@@ -1949,6 +1956,7 @@ struct proto tcpv6_prot = {
 	.sendpage		= tcp_sendpage,
 	.backlog_rcv		= tcp_v6_do_rcv,
 	.release_cb		= tcp_release_cb,
+	.mtu_reduced		= tcp_v6_mtu_reduced,
 	.hash			= tcp_v6_hash,
 	.unhash			= inet_unhash,
 	.get_port		= inet_csk_get_port,

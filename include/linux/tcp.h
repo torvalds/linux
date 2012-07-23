@@ -493,6 +493,9 @@ struct tcp_sock {
 		u32		  probe_seq_start;
 		u32		  probe_seq_end;
 	} mtu_probe;
+	u32	mtu_info; /* We received an ICMP_FRAG_NEEDED / ICMPV6_PKT_TOOBIG
+			   * while socket was owned by user.
+			   */
 
 #ifdef CONFIG_TCP_MD5SIG
 /* TCP AF-Specific parts; only used by MD5 Signature support so far */
@@ -518,6 +521,9 @@ enum tsq_flags {
 	TCP_TSQ_DEFERRED,	   /* tcp_tasklet_func() found socket was owned */
 	TCP_WRITE_TIMER_DEFERRED,  /* tcp_write_timer() found socket was owned */
 	TCP_DELACK_TIMER_DEFERRED, /* tcp_delack_timer() found socket was owned */
+	TCP_MTU_REDUCED_DEFERRED,  /* tcp_v{4|6}_err() could not call
+				    * tcp_v{4|6}_mtu_reduced()
+				    */
 };
 
 static inline struct tcp_sock *tcp_sk(const struct sock *sk)

@@ -275,12 +275,15 @@ failure:
 EXPORT_SYMBOL(tcp_v4_connect);
 
 /*
- * This routine does path mtu discovery as defined in RFC1191.
+ * This routine reacts to ICMP_FRAG_NEEDED mtu indications as defined in RFC1191.
+ * It can be called through tcp_release_cb() if socket was owned by user
+ * at the time tcp_v4_err() was called to handle ICMP message.
  */
-static void do_pmtu_discovery(struct sock *sk, const struct iphdr *iph, u32 mtu)
+static void tcp_v4_mtu_reduced(struct sock *sk)
 {
 	struct dst_entry *dst;
 	struct inet_sock *inet = inet_sk(sk);
+	u32 mtu = tcp_sk(sk)->mtu_info;
 
 	/* We are not interested in TCP_LISTEN and open_requests (SYN-ACKs
 	 * send out by Linux are always <576bytes so they should go through
@@ -373,8 +376,12 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 	bh_lock_sock(sk);
 	/* If too many ICMPs get dropped on busy
 	 * servers this needs to be solved differently.
+	 * We do take care of PMTU discovery (RFC1191) special case :
+	 * we can receive locally generated ICMP messages while socket is held.
 	 */
-	if (sock_owned_by_user(sk))
+	if (sock_owned_by_user(sk) &&
+	    type != ICMP_DEST_UNREACH &&
+	    code != ICMP_FRAG_NEEDED)
 		NET_INC_STATS_BH(net, LINUX_MIB_LOCKDROPPEDICMPS);
 
 	if (sk->sk_state == TCP_CLOSE)
@@ -409,8 +416,11 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 			goto out;
 
 		if (code == ICMP_FRAG_NEEDED) { /* PMTU discovery (RFC1191) */
+			tp->mtu_info = info;
 			if (!sock_owned_by_user(sk))
-				do_pmtu_discovery(sk, iph, info);
+				tcp_v4_mtu_reduced(sk);
+			else
+				set_bit(TCP_MTU_REDUCED_DEFERRED, &tp->tsq_flags);
 			goto out;
 		}
 
@@ -2596,6 +2606,7 @@ struct proto tcp_prot = {
 	.sendpage		= tcp_sendpage,
 	.backlog_rcv		= tcp_v4_do_rcv,
 	.release_cb		= tcp_release_cb,
+	.mtu_reduced		= tcp_v4_mtu_reduced,
 	.hash			= inet_hash,
 	.unhash			= inet_unhash,
 	.get_port		= inet_csk_get_port,
