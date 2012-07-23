@@ -445,8 +445,10 @@ static int conexant_init(struct hda_codec *codec)
 
 static void conexant_free(struct hda_codec *codec)
 {
+	struct conexant_spec *spec = codec->spec;
+	snd_hda_gen_free(&spec->gen);
 	snd_hda_detach_beep_device(codec);
-	kfree(codec->spec);
+	kfree(spec);
 }
 
 static const struct snd_kcontrol_new cxt_capture_mixers[] = {
@@ -4466,6 +4468,7 @@ static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x17aa, 0x21ce, "Lenovo T420", CXT_PINCFG_LENOVO_TP410),
 	SND_PCI_QUIRK(0x17aa, 0x21cf, "Lenovo T520", CXT_PINCFG_LENOVO_TP410),
 	SND_PCI_QUIRK(0x17aa, 0x3975, "Lenovo U300s", CXT_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x17aa, 0x397b, "Lenovo S205", CXT_FIXUP_STEREO_DMIC),
 	{}
 };
 
@@ -4497,6 +4500,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
+	snd_hda_gen_init(&spec->gen);
 
 	switch (codec->vendor_id) {
 	case 0x14f15045:

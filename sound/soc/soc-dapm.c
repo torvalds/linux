@@ -291,9 +291,9 @@ static int snd_soc_dapm_set_bias_level(struct snd_soc_dapm_context *dapm,
 		if (dapm->codec->driver->set_bias_level)
 			ret = dapm->codec->driver->set_bias_level(dapm->codec,
 								  level);
-		else
-			dapm->bias_level = level;
-	}
+	} else
+		dapm->bias_level = level;
+
 	if (ret != 0)
 		goto out;
 
@@ -324,11 +324,10 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 
 		val = soc_widget_read(w, reg);
 		val = (val >> shift) & mask;
+		if (invert)
+			val = max - val;
 
-		if ((invert && !val) || (!invert && val))
-			p->connect = 1;
-		else
-			p->connect = 0;
+		p->connect = !!val;
 	}
 	break;
 	case snd_soc_dapm_mux: {
@@ -3668,9 +3667,12 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_free);
 
 static void soc_dapm_shutdown_codec(struct snd_soc_dapm_context *dapm)
 {
+	struct snd_soc_card *card = dapm->card;
 	struct snd_soc_dapm_widget *w;
 	LIST_HEAD(down_list);
 	int powerdown = 0;
+
+	mutex_lock(&card->dapm_mutex);
 
 	list_for_each_entry(w, &dapm->card->widgets, list) {
 		if (w->dapm != dapm)
@@ -3694,6 +3696,8 @@ static void soc_dapm_shutdown_codec(struct snd_soc_dapm_context *dapm)
 			snd_soc_dapm_set_bias_level(dapm,
 						    SND_SOC_BIAS_STANDBY);
 	}
+
+	mutex_unlock(&card->dapm_mutex);
 }
 
 /*

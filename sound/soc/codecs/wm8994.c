@@ -727,9 +727,6 @@ static void wm1811_jackdet_set_mode(struct snd_soc_codec *codec, u16 mode)
 	if (!wm8994->jackdet || !wm8994->jack_cb)
 		return;
 
-	if (!wm8994->jackdet || !wm8994->jack_cb)
-		return;
-
 	if (wm8994->active_refcount)
 		mode = WM1811_JACKDET_MODE_AUDIO;
 
