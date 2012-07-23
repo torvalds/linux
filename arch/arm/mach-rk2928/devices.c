@@ -620,6 +620,65 @@ static struct platform_device device_keys = {
 	},
 };
 #endif
+
+#ifdef CONFIG_SDMMC0_RK29
+static struct resource resources_sdmmc0[] = {
+	{
+		.start 	= IRQ_SDMMC,
+		.end 	= IRQ_SDMMC,
+		.flags 	= IORESOURCE_IRQ,
+	},
+	{
+		.start 	= RK2928_SDMMC_PHYS,
+		.end 	= RK2928_SDMMC_PHYS + RK2928_SDMMC_SIZE -1,
+		.flags 	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device device_sdmmc0 = {
+	.name		= "rk29_sdmmc",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(resources_sdmmc0),
+	.resource	= resources_sdmmc0,
+	.dev 		= {
+		.platform_data = &default_sdmmc0_data,
+	},
+};
+#endif
+
+#ifdef CONFIG_SDMMC1_RK29
+static struct resource resources_sdmmc1[] = {
+	{
+		.start 	= IRQ_SDIO,
+		.end 	= IRQ_SDIO,
+		.flags 	= IORESOURCE_IRQ,
+	},
+	{
+		.start 	= RK2928_SDIO_PHYS,
+		.end 	= RK2928_SDIO_PHYS + RK2928_SDIO_SIZE - 1,
+		.flags 	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device device_sdmmc1 = {
+	.name		= "rk29_sdmmc",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(resources_sdmmc1),
+	.resource	= resources_sdmmc1,
+	.dev 		= {
+		.platform_data = &default_sdmmc1_data,
+	},
+};
+#endif
+static void __init rk2928_init_sdmmc(void)
+{
+#ifdef CONFIG_SDMMC0_RK29
+	platform_device_register(&device_sdmmc0);
+#endif
+#ifdef CONFIG_SDMMC1_RK29
+	platform_device_register(&device_sdmmc1);
+#endif
+}
 static int __init rk2928_init_devices(void)
 {
 	rk2928_init_dma();
@@ -635,6 +694,7 @@ static int __init rk2928_init_devices(void)
 #ifdef CONFIG_LCDC_RK2928
 	platform_device_register(&device_lcdc);
 #endif
+	rk2928_init_sdmmc();
 #if defined(CONFIG_FIQ_DEBUGGER) && defined(DEBUG_UART_PHYS)
 	rk_serial_debug_init(DEBUG_UART_BASE, IRQ_DEBUG_UART, IRQ_UART_SIGNAL, -1);
 #endif

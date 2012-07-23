@@ -48,7 +48,7 @@
 
 #if defined(CONFIG_ARCH_RK29)
 #define SDMMC_DATA            (0x100)
-#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
+#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31) || defined(CONFIG_ARCH_RK2928)
 #define SDMMC_VERID           (0x06c)   //Version ID register
 #define SDMMC_UHS_REG         (0x074)   //UHS-I register
 #define SDMMC_RST_n           (0x078)   //Hardware reset register
@@ -102,7 +102,7 @@
 /* Interrupt status & mask register defines(base+0x24) */
 #if defined(CONFIG_ARCH_RK29)
 #define SDMMC_INT_SDIO          RK2818_BIT(16)      //SDIO interrupt
-#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
+#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)  || defined(CONFIG_ARCH_RK2928)
 #define SDMMC_INT_SDIO          RK2818_BIT(24)      //SDIO interrupt
 #define SDMMC_INT_UNBUSY        RK2818_BIT(16)      //data no busy interrupt
 #endif
@@ -181,7 +181,7 @@
 #define RX_WMARK          (0xF)        //RX watermark level set to 15
 #define TX_WMARK          (0x10)       //TX watermark level set to 16
 
-#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
+#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)  || defined(CONFIG_ARCH_RK2928)
 #define FIFO_DEPTH        (0x100)       //FIFO depth = 256 word
 #define RX_WMARK_SHIFT    (16)
 #define TX_WMARK_SHIFT    (0)
