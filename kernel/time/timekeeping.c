@@ -108,13 +108,13 @@ static struct timespec tk_xtime(struct timekeeper *tk)
 static void tk_set_xtime(struct timekeeper *tk, const struct timespec *ts)
 {
 	tk->xtime_sec = ts->tv_sec;
-	tk->xtime_nsec = ts->tv_nsec << tk->shift;
+	tk->xtime_nsec = (u64)ts->tv_nsec << tk->shift;
 }
 
 static void tk_xtime_add(struct timekeeper *tk, const struct timespec *ts)
 {
 	tk->xtime_sec += ts->tv_sec;
-	tk->xtime_nsec += ts->tv_nsec << tk->shift;
+	tk->xtime_nsec += (u64)ts->tv_nsec << tk->shift;
 }
 
 /**
