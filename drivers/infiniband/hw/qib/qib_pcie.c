@@ -224,8 +224,9 @@ static void qib_msix_setup(struct qib_devdata *dd, int pos, u32 *msixcnt,
 	}
 do_intx:
 	if (ret) {
-		qib_dev_err(dd, "pci_enable_msix %d vectors failed: %d, "
-			    "falling back to INTx\n", tabsize, ret);
+		qib_dev_err(dd,
+			"pci_enable_msix %d vectors failed: %d, falling back to INTx\n",
+			tabsize, ret);
 		tabsize = 0;
 	}
 	for (i = 0; i < tabsize; i++)
@@ -251,8 +252,9 @@ static int qib_msi_setup(struct qib_devdata *dd, int pos)
 
 	ret = pci_enable_msi(pdev);
 	if (ret)
-		qib_dev_err(dd, "pci_enable_msi failed: %d, "
-			    "interrupts may not work\n", ret);
+		qib_dev_err(dd,
+			"pci_enable_msi failed: %d, interrupts may not work\n",
+			ret);
 	/* continue even if it fails, we may still be OK... */
 
 	pci_read_config_dword(pdev, pos + PCI_MSI_ADDRESS_LO,
@@ -358,8 +360,8 @@ int qib_reinit_intr(struct qib_devdata *dd)
 
 	pos = pci_find_capability(dd->pcidev, PCI_CAP_ID_MSI);
 	if (!pos) {
-		qib_dev_err(dd, "Can't find MSI capability, "
-			    "can't restore MSI settings\n");
+		qib_dev_err(dd,
+			"Can't find MSI capability, can't restore MSI settings\n");
 		ret = 0;
 		/* nothing special for MSIx, just MSI */
 		goto bail;
@@ -471,8 +473,8 @@ void qib_pcie_reenable(struct qib_devdata *dd, u16 cmd, u8 iline, u8 cline)
 	pci_write_config_byte(dd->pcidev, PCI_CACHE_LINE_SIZE, cline);
 	r = pci_enable_device(dd->pcidev);
 	if (r)
-		qib_dev_err(dd, "pci_enable_device failed after "
-			    "reset: %d\n", r);
+		qib_dev_err(dd,
+			"pci_enable_device failed after reset: %d\n", r);
 }
 
 /* code to adjust PCIe capabilities. */
@@ -717,15 +719,16 @@ qib_pci_mmio_enabled(struct pci_dev *pdev)
 		if (words == ~0ULL)
 			ret = PCI_ERS_RESULT_NEED_RESET;
 	}
-	qib_devinfo(pdev, "QIB mmio_enabled function called, "
-		 "read wordscntr %Lx, returning %d\n", words, ret);
+	qib_devinfo(pdev,
+		"QIB mmio_enabled function called, read wordscntr %Lx, returning %d\n",
+		words, ret);
 	return  ret;
 }
 
 static pci_ers_result_t
 qib_pci_slot_reset(struct pci_dev *pdev)
 {
-	qib_devinfo(pdev, "QIB link_reset function called, ignored\n");
+	qib_devinfo(pdev, "QIB slot_reset function called, ignored\n");
 	return PCI_ERS_RESULT_CAN_RECOVER;
 }
 

@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2006, 2007, 2008, 2009 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2012 Intel Corporation. All rights reserved.
+ * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -382,7 +383,7 @@ static int add_cntr_files(struct super_block *sb, struct qib_devdata *dd)
 	ret = create_file(unit, S_IFDIR|S_IRUGO|S_IXUGO, sb->s_root, &dir,
 			  &simple_dir_operations, dd);
 	if (ret) {
-		printk(KERN_ERR "create_file(%s) failed: %d\n", unit, ret);
+		pr_err("create_file(%s) failed: %d\n", unit, ret);
 		goto bail;
 	}
 
@@ -390,21 +391,21 @@ static int add_cntr_files(struct super_block *sb, struct qib_devdata *dd)
 	ret = create_file("counters", S_IFREG|S_IRUGO, dir, &tmp,
 			  &cntr_ops[0], dd);
 	if (ret) {
-		printk(KERN_ERR "create_file(%s/counters) failed: %d\n",
+		pr_err("create_file(%s/counters) failed: %d\n",
 		       unit, ret);
 		goto bail;
 	}
 	ret = create_file("counter_names", S_IFREG|S_IRUGO, dir, &tmp,
 			  &cntr_ops[1], dd);
 	if (ret) {
-		printk(KERN_ERR "create_file(%s/counter_names) failed: %d\n",
+		pr_err("create_file(%s/counter_names) failed: %d\n",
 		       unit, ret);
 		goto bail;
 	}
 	ret = create_file("portcounter_names", S_IFREG|S_IRUGO, dir, &tmp,
 			  &portcntr_ops[0], dd);
 	if (ret) {
-		printk(KERN_ERR "create_file(%s/%s) failed: %d\n",
+		pr_err("create_file(%s/%s) failed: %d\n",
 		       unit, "portcounter_names", ret);
 		goto bail;
 	}
@@ -416,7 +417,7 @@ static int add_cntr_files(struct super_block *sb, struct qib_devdata *dd)
 		ret = create_file(fname, S_IFREG|S_IRUGO, dir, &tmp,
 				  &portcntr_ops[i], dd);
 		if (ret) {
-			printk(KERN_ERR "create_file(%s/%s) failed: %d\n",
+			pr_err("create_file(%s/%s) failed: %d\n",
 				unit, fname, ret);
 			goto bail;
 		}
@@ -426,7 +427,7 @@ static int add_cntr_files(struct super_block *sb, struct qib_devdata *dd)
 		ret = create_file(fname, S_IFREG|S_IRUGO, dir, &tmp,
 				  &qsfp_ops[i - 1], dd);
 		if (ret) {
-			printk(KERN_ERR "create_file(%s/%s) failed: %d\n",
+			pr_err("create_file(%s/%s) failed: %d\n",
 				unit, fname, ret);
 			goto bail;
 		}
@@ -435,7 +436,7 @@ static int add_cntr_files(struct super_block *sb, struct qib_devdata *dd)
 	ret = create_file("flash", S_IFREG|S_IWUSR|S_IRUGO, dir, &tmp,
 			  &flash_ops, dd);
 	if (ret)
-		printk(KERN_ERR "create_file(%s/flash) failed: %d\n",
+		pr_err("create_file(%s/flash) failed: %d\n",
 			unit, ret);
 bail:
 	return ret;
@@ -486,7 +487,7 @@ static int remove_device_files(struct super_block *sb,
 
 	if (IS_ERR(dir)) {
 		ret = PTR_ERR(dir);
-		printk(KERN_ERR "Lookup of %s failed\n", unit);
+		pr_err("Lookup of %s failed\n", unit);
 		goto bail;
 	}
 
@@ -532,7 +533,7 @@ static int qibfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	ret = simple_fill_super(sb, QIBFS_MAGIC, files);
 	if (ret) {
-		printk(KERN_ERR "simple_fill_super failed: %d\n", ret);
+		pr_err("simple_fill_super failed: %d\n", ret);
 		goto bail;
 	}
 

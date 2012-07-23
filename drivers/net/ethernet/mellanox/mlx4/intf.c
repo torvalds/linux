@@ -115,7 +115,8 @@ void mlx4_unregister_interface(struct mlx4_interface *intf)
 }
 EXPORT_SYMBOL_GPL(mlx4_unregister_interface);
 
-void mlx4_dispatch_event(struct mlx4_dev *dev, enum mlx4_dev_event type, int port)
+void mlx4_dispatch_event(struct mlx4_dev *dev, enum mlx4_dev_event type,
+			 unsigned long param)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_device_context *dev_ctx;
@@ -125,7 +126,7 @@ void mlx4_dispatch_event(struct mlx4_dev *dev, enum mlx4_dev_event type, int por
 
 	list_for_each_entry(dev_ctx, &priv->ctx_list, list)
 		if (dev_ctx->intf->event)
-			dev_ctx->intf->event(dev, dev_ctx->context, type, port);
+			dev_ctx->intf->event(dev, dev_ctx->context, type, param);
 
 	spin_unlock_irqrestore(&priv->ctx_lock, flags);
 }
