@@ -186,6 +186,13 @@ config DA850_UI_RMII
 	  NOTE: Please take care while choosing this option, MII PHY will
 	  not be functional if RMII mode is selected.
 
+config DA850_UI_SD_VIDEO_PORT
+	bool "Video Port Interface"
+	help
+	  Say Y if you want to use Video Port Interface (VPIF) on the
+	  DA850/OMAP-L138 EVM. The Video decoders/encoders are found on the
+	  UI daughter card that is supplied with the EVM.
+
 endchoice
 
 config DA850_WL12XX
