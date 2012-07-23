@@ -1391,9 +1391,6 @@ static int __mkroute_input(struct sk_buff *skb,
 		goto cleanup;
 	}
 
-	if (err)
-		flags |= RTCF_DIRECTSRC;
-
 	if (out_dev == in_dev && err &&
 	    (IN_DEV_SHARED_MEDIA(out_dev) ||
 	     inet_addr_onlink(out_dev, saddr, FIB_RES_GW(*res))))
@@ -1416,7 +1413,7 @@ static int __mkroute_input(struct sk_buff *skb,
 
 	do_cache = false;
 	if (res->fi) {
-		if (!(flags & RTCF_DIRECTSRC) && !itag) {
+		if (!itag) {
 			rth = FIB_RES_NH(*res).nh_rth_input;
 			if (rt_cache_valid(rth)) {
 				dst_hold(&rth->dst);
@@ -1558,8 +1555,6 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 					  dev, in_dev, &itag);
 		if (err < 0)
 			goto martian_source_keep_err;
-		if (err)
-			flags |= RTCF_DIRECTSRC;
 		goto local_input;
 	}
 
@@ -1580,8 +1575,6 @@ brd_input:
 					  in_dev, &itag);
 		if (err < 0)
 			goto martian_source_keep_err;
-		if (err)
-			flags |= RTCF_DIRECTSRC;
 	}
 	flags |= RTCF_BROADCAST;
 	res.type = RTN_BROADCAST;
@@ -1590,7 +1583,7 @@ brd_input:
 local_input:
 	do_cache = false;
 	if (res.fi) {
-		if (!(flags & RTCF_DIRECTSRC) && !itag) {
+		if (!itag) {
 			rth = FIB_RES_NH(res).nh_rth_input;
 			if (rt_cache_valid(rth)) {
 				dst_hold(&rth->dst);
