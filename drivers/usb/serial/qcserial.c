@@ -199,43 +199,49 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 
 	/* default to enabling interface */
 	altsetting = 0;
-	switch (ifnum) {
-		/* Composite mode; don't bind to the QMI/net interface as that
-		 * gets handled by other drivers.
-		 */
 
+	/* Composite mode; don't bind to the QMI/net interface as that
+	 * gets handled by other drivers.
+	 */
+
+	if (is_gobi1k) {
 		/* Gobi 1K USB layout:
 		 * 0: serial port (doesn't respond)
 		 * 1: serial port (doesn't respond)
 		 * 2: AT-capable modem port
 		 * 3: QMI/net
-		 *
-		 * Gobi 2K+ USB layout:
+		 */
+		if (ifnum == 2)
+			dev_dbg(dev, "Modem port found\n");
+		else
+			altsetting = -1;
+	} else {
+		/* Gobi 2K+ USB layout:
 		 * 0: QMI/net
 		 * 1: DM/DIAG (use libqcdm from ModemManager for communication)
 		 * 2: AT-capable modem port
 		 * 3: NMEA
 		 */
-
-	case 1:
-		if (is_gobi1k)
+		switch (ifnum) {
+		case 0:
+			/* Don't claim the QMI/net interface */
 			altsetting = -1;
-		else
+			break;
+		case 1:
 			dev_dbg(dev, "Gobi 2K+ DM/DIAG interface found\n");
-		break;
-	case 2:
-		dev_dbg(dev, "Modem port found\n");
-		break;
-	case 3:
-		if (is_gobi1k)
-			altsetting = -1;
-		else
+			break;
+		case 2:
+			dev_dbg(dev, "Modem port found\n");
+			break;
+		case 3:
 			/*
 			 * NMEA (serial line 9600 8N1)
 			 * # echo "\$GPS_START" > /dev/ttyUSBx
 			 * # echo "\$GPS_STOP"  > /dev/ttyUSBx
 			 */
 			dev_dbg(dev, "Gobi 2K+ NMEA GPS interface found\n");
+			break;
+		}
 	}
 
 done:
