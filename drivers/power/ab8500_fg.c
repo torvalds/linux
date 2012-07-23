@@ -1354,9 +1354,6 @@ static void ab8500_fg_check_capacity_limits(struct ab8500_fg *di, bool init)
 			 * algorithm says.
 			 */
 			di->bat_cap.prev_percent = 1;
-			di->bat_cap.permille = 1;
-			di->bat_cap.prev_mah = 1;
-			di->bat_cap.mah = 1;
 			percent = 1;
 
 			changed = true;
@@ -1768,9 +1765,10 @@ static void ab8500_fg_algorithm(struct ab8500_fg *di)
 			ab8500_fg_algorithm_discharging(di);
 	}
 
-	dev_dbg(di->dev, "[FG_DATA] %d %d %d %d %d %d %d %d %d "
+	dev_dbg(di->dev, "[FG_DATA] %d %d %d %d %d %d %d %d %d %d "
 		"%d %d %d %d %d %d %d\n",
 		di->bat_cap.max_mah_design,
+		di->bat_cap.max_mah,
 		di->bat_cap.mah,
 		di->bat_cap.permille,
 		di->bat_cap.level,
