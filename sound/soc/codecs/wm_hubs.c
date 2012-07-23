@@ -243,7 +243,7 @@ static void wm_hubs_read_dc_servo(struct snd_soc_codec *codec,
 /*
  * Startup calibration of the DC servo
  */
-static void calibrate_dc_servo(struct snd_soc_codec *codec)
+static void enable_dc_servo(struct snd_soc_codec *codec)
 {
 	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
 	struct wm_hubs_dcs_cache *cache;
@@ -556,7 +556,7 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 		snd_soc_update_bits(codec, WM8993_DC_SERVO_1,
 				    WM8993_DCS_TIMER_PERIOD_01_MASK, 0);
 
-		calibrate_dc_servo(codec);
+		enable_dc_servo(codec);
 
 		reg |= WM8993_HPOUT1R_OUTP | WM8993_HPOUT1R_RMV_SHORT |
 			WM8993_HPOUT1L_OUTP | WM8993_HPOUT1L_RMV_SHORT;
