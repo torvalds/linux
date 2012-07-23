@@ -107,6 +107,8 @@ static void tcpm_suck_dst(struct tcp_metrics_block *tm, struct dst_entry *dst)
 {
 	u32 val;
 
+	tm->tcpm_stamp = jiffies;
+
 	val = 0;
 	if (dst_metric_locked(dst, RTAX_RTT))
 		val |= 1 << TCP_METRIC_RTT;
@@ -158,7 +160,6 @@ static struct tcp_metrics_block *tcpm_new(struct dst_entry *dst,
 			goto out_unlock;
 	}
 	tm->tcpm_addr = *addr;
-	tm->tcpm_stamp = jiffies;
 
 	tcpm_suck_dst(tm, dst);
 
@@ -621,7 +622,7 @@ bool tcp_tw_remember_stamp(struct inet_timewait_sock *tw)
 
 	rcu_read_lock();
 	tm = __tcp_get_metrics_tw(tw);
-	if (tw) {
+	if (tm) {
 		const struct tcp_timewait_sock *tcptw;
 		struct sock *sk = (struct sock *) tw;
 
