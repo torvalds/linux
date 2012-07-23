@@ -38,6 +38,8 @@
 #define CFG_CURRENT_LIMIT_DC_MASK		0xf0
 #define CFG_CURRENT_LIMIT_DC_SHIFT		4
 #define CFG_CURRENT_LIMIT_USB_MASK		0x0f
+#define CFG_VARIOUS_FUNCTION                    0x02
+#define CFG_INPUT_SOURCE_PRIORITY               BIT(2)
 #define CFG_FLOAT_VOLTAGE			0x03
 #define CFG_FLOAT_VOLTAGE_THRESHOLD_MASK	0xc0
 #define CFG_FLOAT_VOLTAGE_THRESHOLD_SHIFT	6
@@ -995,8 +997,26 @@ static int smb347_mains_set_property(struct power_supply *psy,
 {
 	struct smb347_charger *smb =
 		container_of(psy, struct smb347_charger, mains);
+	int ret;
 
 	switch (prop) {
+	case POWER_SUPPLY_PROP_ONLINE:
+		smb->mains_online = val->intval;
+
+		smb347_set_writable(smb, true);
+
+		ret = smb347_read(smb, CMD_A);
+		if (ret < 0)
+			return -EINVAL;
+
+		ret &= ~CMD_A_SUSPEND_ENABLED;
+		if (val->intval)
+			ret |= CMD_A_SUSPEND_ENABLED;
+
+		ret = smb347_write(smb, CMD_A, ret);
+
+		smb347_set_writable(smb, false);
+		return 0;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		smb->mains_current_limit = val->intval;
 		smb347_hw_init(smb);
@@ -1062,6 +1082,10 @@ static int smb347_usb_set_property(struct power_supply *psy,
 		container_of(psy, struct smb347_charger, usb);
 
 	switch (prop) {
+	case POWER_SUPPLY_PROP_ONLINE:
+		smb->usb_online = val->intval;
+		ret = 0;
+		break;
 	case POWER_SUPPLY_PROP_USB_HC:
 		smb347_set_writable(smb, true);
 		ret = smb347_write(smb, CMD_B, val->intval ?
