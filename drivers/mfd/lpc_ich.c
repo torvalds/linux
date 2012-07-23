@@ -683,6 +683,30 @@ static void __devinit lpc_ich_finalize_cell(struct mfd_cell *cell,
 	cell->pdata_size = sizeof(struct lpc_ich_info);
 }
 
+/*
+ * We don't check for resource conflict globally. There are 2 or 3 independent
+ * GPIO groups and it's enough to have access to one of these to instantiate
+ * the device.
+ */
+static int __devinit lpc_ich_check_conflict_gpio(struct resource *res)
+{
+	int ret;
+	u8 use_gpio = 0;
+
+	if (resource_size(res) >= 0x50 &&
+	    !acpi_check_region(res->start + 0x40, 0x10, "LPC ICH GPIO3"))
+		use_gpio |= 1 << 2;
+
+	if (!acpi_check_region(res->start + 0x30, 0x10, "LPC ICH GPIO2"))
+		use_gpio |= 1 << 1;
+
+	ret = acpi_check_region(res->start + 0x00, 0x30, "LPC ICH GPIO1");
+	if (!ret)
+		use_gpio |= 1 << 0;
+
+	return use_gpio ? use_gpio : ret;
+}
+
 static int __devinit lpc_ich_init_gpio(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
@@ -740,12 +764,13 @@ gpe0_done:
 		break;
 	}
 
-	ret = acpi_check_resource_conflict(res);
-	if (ret) {
+	ret = lpc_ich_check_conflict_gpio(res);
+	if (ret < 0) {
 		/* this isn't necessarily fatal for the GPIO */
 		acpi_conflict = true;
 		goto gpio_done;
 	}
+	lpc_chipset_info[id->driver_data].use_gpio = ret;
 	lpc_ich_enable_gpio_space(dev);
 
 	lpc_ich_finalize_cell(&lpc_ich_cells[LPC_GPIO], id);
