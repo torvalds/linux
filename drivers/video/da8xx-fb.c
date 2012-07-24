@@ -1038,10 +1038,10 @@ static int cfb_blank(int blank, struct fb_info *info)
 	par->blank = blank;
 	switch (blank) {
 	case FB_BLANK_UNBLANK:
+		lcd_enable_raster();
+
 		if (par->panel_power_ctrl)
 			par->panel_power_ctrl(1);
-
-		lcd_enable_raster();
 		break;
 	case FB_BLANK_NORMAL:
 	case FB_BLANK_VSYNC_SUSPEND:
@@ -1422,11 +1422,12 @@ static int fb_resume(struct platform_device *dev)
 	struct da8xx_fb_par *par = info->par;
 
 	console_lock();
+	clk_enable(par->lcdc_clk);
+	lcd_enable_raster();
+
 	if (par->panel_power_ctrl)
 		par->panel_power_ctrl(1);
 
-	clk_enable(par->lcdc_clk);
-	lcd_enable_raster();
 	fb_set_suspend(info, 0);
 	console_unlock();
 
