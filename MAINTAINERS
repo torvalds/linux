@@ -6965,6 +6965,13 @@ S:	Maintained
 F:	Documentation/filesystems/ufs.txt
 F:	fs/ufs/
 
+UHID USERSPACE HID IO DRIVER:
+M:	David Herrmann <dh.herrmann@googlemail.com>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	drivers/hid/uhid.c
+F:	include/linux/uhid.h
+
 ULTRA-WIDEBAND (UWB) SUBSYSTEM:
 L:	linux-usb@vger.kernel.org
 S:	Orphan
