@@ -45,7 +45,7 @@ struct cmpc_accel {
 #define CMPC_ACCEL_HID_V4	"ACCE0001"
 #define CMPC_TABLET_HID		"TBLT0000"
 #define CMPC_IPML_HID	"IPML200"
-#define CMPC_KEYS_HID		"FnBT0000"
+#define CMPC_KEYS_HID		"FNBT0000"
 
 /*
  * Generic input device code.
