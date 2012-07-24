@@ -863,8 +863,14 @@ static int __devinit i801_probe(struct pci_dev *dev,
 		break;
 	}
 
-	/* IRQ processing only tested on CougarPoint PCH */
-	if (dev->device == PCI_DEVICE_ID_INTEL_COUGARPOINT_SMBUS)
+	/* IRQ processing tested on CougarPoint PCH, ICH5, ICH7-M and ICH10 */
+	if (dev->device == PCI_DEVICE_ID_INTEL_COUGARPOINT_SMBUS ||
+	    dev->device == PCI_DEVICE_ID_INTEL_82801EB_3 ||
+	    dev->device == PCI_DEVICE_ID_INTEL_ICH7_17 ||
+	    dev->device == PCI_DEVICE_ID_INTEL_ICH8_5 ||
+	    dev->device == PCI_DEVICE_ID_INTEL_ICH9_6 ||
+	    dev->device == PCI_DEVICE_ID_INTEL_ICH10_4 ||
+	    dev->device == PCI_DEVICE_ID_INTEL_ICH10_5)
 		priv->features |= FEATURE_IRQ;
 
 	/* Disable features on user request */
@@ -918,8 +924,6 @@ static int __devinit i801_probe(struct pci_dev *dev,
 		dev_dbg(&dev->dev, "SMBus using interrupt SMI#\n");
 		/* Disable SMBus interrupt feature if SMBus using SMI# */
 		priv->features &= ~FEATURE_IRQ;
-	} else {
-		dev_dbg(&dev->dev, "SMBus using PCI Interrupt\n");
 	}
 
 	/* Clear special mode bits */
@@ -937,6 +941,7 @@ static int __devinit i801_probe(struct pci_dev *dev,
 				dev->irq, err);
 			goto exit_release;
 		}
+		dev_info(&dev->dev, "SMBus using PCI Interrupt\n");
 	}
 
 	/* set up the sysfs linkage to our parent device */
