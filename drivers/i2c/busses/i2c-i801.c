@@ -104,7 +104,6 @@
 
 /* Other settings */
 #define MAX_RETRIES		400
-#define ENABLE_INT9		0	/* set to 0x01 to enable - untested */
 
 /* I801 command constants */
 #define I801_QUICK		0x00
@@ -271,7 +270,7 @@ static int i801_transaction(struct i801_priv *priv, int xact)
 		return result;
 
 	/* the current contents of SMBHSTCNT can be overwritten, since PEC,
-	 * INTREN, SMBSCMD are passed in xact */
+	 * SMBSCMD are passed in xact */
 	outb_p(xact | SMBHSTCNT_START, SMBHSTCNT(priv));
 
 	/* We will always wait for a fraction of a second! */
@@ -323,7 +322,7 @@ static int i801_block_transaction_by_block(struct i801_priv *priv,
 			outb_p(data->block[i+1], SMBBLKDAT(priv));
 	}
 
-	status = i801_transaction(priv, I801_BLOCK_DATA | ENABLE_INT9 |
+	status = i801_transaction(priv, I801_BLOCK_DATA |
 				  (hwpec ? SMBHSTCNT_PEC_EN : 0));
 	if (status)
 		return status;
@@ -376,7 +375,7 @@ static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
 	for (i = 1; i <= len; i++) {
 		if (i == len && read_write == I2C_SMBUS_READ)
 			smbcmd |= SMBHSTCNT_LAST_BYTE;
-		outb_p(smbcmd | ENABLE_INT9, SMBHSTCNT(priv));
+		outb_p(smbcmd, SMBHSTCNT(priv));
 
 		if (i == 1)
 			outb_p(inb(SMBHSTCNT(priv)) | SMBHSTCNT_START,
@@ -567,7 +566,7 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 		ret = i801_block_transaction(priv, data, read_write, size,
 					     hwpec);
 	else
-		ret = i801_transaction(priv, xact | ENABLE_INT9);
+		ret = i801_transaction(priv, xact);
 
 	/* Some BIOSes don't like it when PEC is enabled at reboot or resume
 	   time, so we forcibly disable it after every transaction. Turn off
