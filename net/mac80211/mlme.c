@@ -610,8 +610,6 @@ static void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 			IEEE80211_SKB_CB(skb)->flags |=
 				IEEE80211_TX_INTFL_DONT_ENCRYPT;
 
-		drv_mgd_prepare_tx(local, sdata);
-
 		ieee80211_tx_skb(sdata, skb);
 	}
 }
@@ -3504,14 +3502,17 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 		   req->bssid, req->reason_code);
 
 	if (ifmgd->associated &&
-	    ether_addr_equal(ifmgd->associated->bssid, req->bssid))
+	    ether_addr_equal(ifmgd->associated->bssid, req->bssid)) {
 		ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DEAUTH,
 				       req->reason_code, true, frame_buf);
-	else
+	} else {
+		drv_mgd_prepare_tx(sdata->local, sdata);
 		ieee80211_send_deauth_disassoc(sdata, req->bssid,
 					       IEEE80211_STYPE_DEAUTH,
 					       req->reason_code, true,
 					       frame_buf);
+	}
+
 	mutex_unlock(&ifmgd->mtx);
 
 	__cfg80211_send_deauth(sdata->dev, frame_buf, DEAUTH_DISASSOC_LEN);
