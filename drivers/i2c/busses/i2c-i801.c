@@ -206,13 +206,17 @@ static int i801_check_pre(struct i801_priv *priv)
 	return 0;
 }
 
-/* Convert the status register to an error code, and clear it. */
-static int i801_check_post(struct i801_priv *priv, int status, int timeout)
+/*
+ * Convert the status register to an error code, and clear it.
+ * Note that status only contains the bits we want to clear, not the
+ * actual register value.
+ */
+static int i801_check_post(struct i801_priv *priv, int status)
 {
 	int result = 0;
 
 	/* If the SMBus is still busy, we give up */
-	if (timeout) {
+	if (unlikely(status < 0)) {
 		dev_err(&priv->pci_dev->dev, "Transaction timeout\n");
 		/* try to stop the current command */
 		dev_dbg(&priv->pci_dev->dev, "Terminating the current operation\n");
@@ -245,25 +249,57 @@ static int i801_check_post(struct i801_priv *priv, int status, int timeout)
 		dev_dbg(&priv->pci_dev->dev, "Lost arbitration\n");
 	}
 
-	if (result) {
-		/* Clear error flags */
-		outb_p(status & STATUS_FLAGS, SMBHSTSTS(priv));
-		status = inb_p(SMBHSTSTS(priv)) & STATUS_FLAGS;
-		if (status) {
-			dev_warn(&priv->pci_dev->dev, "Failed clearing status "
-				 "flags at end of transaction (%02x)\n",
-				 status);
-		}
-	}
+	/* Clear status flags except BYTE_DONE, to be cleared by caller */
+	outb_p(status, SMBHSTSTS(priv));
 
 	return result;
+}
+
+/* Wait for BUSY being cleared and either INTR or an error flag being set */
+static int i801_wait_intr(struct i801_priv *priv)
+{
+	int timeout = 0;
+	int status;
+
+	/* We will always wait for a fraction of a second! */
+	do {
+		usleep_range(250, 500);
+		status = inb_p(SMBHSTSTS(priv));
+	} while (((status & SMBHSTSTS_HOST_BUSY) ||
+		  !(status & (STATUS_ERROR_FLAGS | SMBHSTSTS_INTR))) &&
+		 (timeout++ < MAX_RETRIES));
+
+	if (timeout > MAX_RETRIES) {
+		dev_dbg(&priv->pci_dev->dev, "INTR Timeout!\n");
+		return -ETIMEDOUT;
+	}
+	return status & (STATUS_ERROR_FLAGS | SMBHSTSTS_INTR);
+}
+
+/* Wait for either BYTE_DONE or an error flag being set */
+static int i801_wait_byte_done(struct i801_priv *priv)
+{
+	int timeout = 0;
+	int status;
+
+	/* We will always wait for a fraction of a second! */
+	do {
+		usleep_range(250, 500);
+		status = inb_p(SMBHSTSTS(priv));
+	} while (!(status & (STATUS_ERROR_FLAGS | SMBHSTSTS_BYTE_DONE)) &&
+		 (timeout++ < MAX_RETRIES));
+
+	if (timeout > MAX_RETRIES) {
+		dev_dbg(&priv->pci_dev->dev, "BYTE_DONE Timeout!\n");
+		return -ETIMEDOUT;
+	}
+	return status & STATUS_ERROR_FLAGS;
 }
 
 static int i801_transaction(struct i801_priv *priv, int xact)
 {
 	int status;
 	int result;
-	int timeout = 0;
 
 	result = i801_check_pre(priv);
 	if (result < 0)
@@ -273,36 +309,8 @@ static int i801_transaction(struct i801_priv *priv, int xact)
 	 * SMBSCMD are passed in xact */
 	outb_p(xact | SMBHSTCNT_START, SMBHSTCNT(priv));
 
-	/* We will always wait for a fraction of a second! */
-	do {
-		usleep_range(250, 500);
-		status = inb_p(SMBHSTSTS(priv));
-	} while ((status & SMBHSTSTS_HOST_BUSY) && (timeout++ < MAX_RETRIES));
-
-	result = i801_check_post(priv, status, timeout > MAX_RETRIES);
-	if (result < 0)
-		return result;
-
-	outb_p(SMBHSTSTS_INTR, SMBHSTSTS(priv));
-	return 0;
-}
-
-/* wait for INTR bit as advised by Intel */
-static void i801_wait_hwpec(struct i801_priv *priv)
-{
-	int timeout = 0;
-	int status;
-
-	do {
-		usleep_range(250, 500);
-		status = inb_p(SMBHSTSTS(priv));
-	} while ((!(status & SMBHSTSTS_INTR))
-		 && (timeout++ < MAX_RETRIES));
-
-	if (timeout > MAX_RETRIES)
-		dev_dbg(&priv->pci_dev->dev, "PEC Timeout!\n");
-
-	outb_p(status & STATUS_FLAGS, SMBHSTSTS(priv));
+	status = i801_wait_intr(priv);
+	return i801_check_post(priv, status);
 }
 
 static int i801_block_transaction_by_block(struct i801_priv *priv,
@@ -353,7 +361,6 @@ static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
 	int smbcmd;
 	int status;
 	int result;
-	int timeout;
 
 	result = i801_check_pre(priv);
 	if (result < 0)
@@ -381,17 +388,9 @@ static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
 			outb_p(inb(SMBHSTCNT(priv)) | SMBHSTCNT_START,
 			       SMBHSTCNT(priv));
 
-		/* We will always wait for a fraction of a second! */
-		timeout = 0;
-		do {
-			usleep_range(250, 500);
-			status = inb_p(SMBHSTSTS(priv));
-		} while (!(status & (SMBHSTSTS_BYTE_DONE | STATUS_ERROR_FLAGS))
-			 && (timeout++ < MAX_RETRIES));
-
-		result = i801_check_post(priv, status, timeout > MAX_RETRIES);
-		if (result < 0)
-			return result;
+		status = i801_wait_byte_done(priv);
+		if (status)
+			goto exit;
 
 		if (i == 1 && read_write == I2C_SMBUS_READ
 		 && command != I2C_SMBUS_I2C_BLOCK_DATA) {
@@ -418,10 +417,12 @@ static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
 			outb_p(data->block[i+1], SMBBLKDAT(priv));
 
 		/* signals SMBBLKDAT ready */
-		outb_p(SMBHSTSTS_BYTE_DONE | SMBHSTSTS_INTR, SMBHSTSTS(priv));
+		outb_p(SMBHSTSTS_BYTE_DONE, SMBHSTSTS(priv));
 	}
 
-	return 0;
+	status = i801_wait_intr(priv);
+exit:
+	return i801_check_post(priv, status);
 }
 
 static int i801_set_block_buffer_mode(struct i801_priv *priv)
@@ -475,9 +476,6 @@ static int i801_block_transaction(struct i801_priv *priv,
 		result = i801_block_transaction_byte_by_byte(priv, data,
 							     read_write,
 							     command, hwpec);
-
-	if (result == 0 && hwpec)
-		i801_wait_hwpec(priv);
 
 	if (command == I2C_SMBUS_I2C_BLOCK_DATA
 	 && read_write == I2C_SMBUS_WRITE) {
