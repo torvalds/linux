@@ -92,7 +92,7 @@ static struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
 	return req;
 }
 
-static void drbd_req_destroy(struct kref *kref)
+void drbd_req_destroy(struct kref *kref)
 {
 	struct drbd_request *req = container_of(kref, struct drbd_request, kref);
 	struct drbd_conf *mdev = req->w.mdev;
@@ -152,10 +152,7 @@ static void drbd_req_destroy(struct kref *kref)
 		}
 	}
 
-	if (s & RQ_POSTPONED)
-		drbd_restart_request(req);
-	else
-		mempool_free(req, drbd_request_mempool);
+	mempool_free(req, drbd_request_mempool);
 }
 
 static void wake_all_senders(struct drbd_tconn *tconn) {
@@ -292,10 +289,6 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
 		m->error = ok ? 0 : (error ?: -EIO);
 		m->bio = req->master_bio;
 		req->master_bio = NULL;
-	} else {
-		/* Assert that this will be drbd_req_destroy()ed
-		 * with this very invokation. */
-		D_ASSERT(atomic_read(&req->kref.refcount) == 1);
 	}
 }
 
@@ -320,6 +313,14 @@ static int drbd_req_put_completion_ref(struct drbd_request *req, struct bio_and_
 
 	/* else */
 	drbd_req_complete(req, m);
+
+	if (req->rq_state & RQ_POSTPONED) {
+		/* don't destroy the req object just yet,
+		 * but queue it for retry */
+		drbd_restart_request(req);
+		return 0;
+	}
+
 	return 1;
 }
 

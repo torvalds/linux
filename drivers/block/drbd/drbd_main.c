@@ -2216,12 +2216,25 @@ static void do_retry(struct work_struct *ws)
 		struct drbd_conf *mdev = req->w.mdev;
 		struct bio *bio = req->master_bio;
 		unsigned long start_time = req->start_time;
+		bool expected;
 
-		/* We have exclusive access to this request object.
-		 * If it had not been RQ_POSTPONED, the code path which queued
-		 * it here would have completed and freed it already.
+		expected = 
+			expect(atomic_read(&req->completion_ref) == 0) &&
+			expect(req->rq_state & RQ_POSTPONED) &&
+			expect((req->rq_state & RQ_LOCAL_PENDING) == 0 ||
+				(req->rq_state & RQ_LOCAL_ABORTED) != 0);
+
+		if (!expected)
+			dev_err(DEV, "req=%p completion_ref=%d rq_state=%x\n",
+				req, atomic_read(&req->completion_ref),
+				req->rq_state);
+
+		/* We still need to put one kref associated with the
+		 * "completion_ref" going zero in the code path that queued it
+		 * here.  The request object may still be referenced by a
+		 * frozen local req->private_bio, in case we force-detached.
 		 */
-		mempool_free(req, drbd_request_mempool);
+		kref_put(&req->kref, drbd_req_destroy);
 
 		/* A single suspended or otherwise blocking device may stall
 		 * all others as well.  Fortunately, this code path is to
