@@ -1053,11 +1053,9 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 		      u64 newer_than, unsigned long max_to_defrag)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct btrfs_super_block *disk_super;
 	struct file_ra_state *ra = NULL;
 	unsigned long last_index;
 	u64 isize = i_size_read(inode);
-	u64 features;
 	u64 last_len = 0;
 	u64 skip = 0;
 	u64 defrag_end = 0;
@@ -1244,11 +1242,8 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 		mutex_unlock(&inode->i_mutex);
 	}
 
-	disk_super = root->fs_info->super_copy;
-	features = btrfs_super_incompat_flags(disk_super);
 	if (range->compress_type == BTRFS_COMPRESS_LZO) {
-		features |= BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO;
-		btrfs_set_super_incompat_flags(disk_super, features);
+		btrfs_set_fs_incompat(root->fs_info, COMPRESS_LZO);
 	}
 
 	ret = defrag_count;
@@ -2784,8 +2779,6 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 	struct btrfs_path *path;
 	struct btrfs_key location;
 	struct btrfs_disk_key disk_key;
-	struct btrfs_super_block *disk_super;
-	u64 features;
 	u64 objectid = 0;
 	u64 dir_id;
 
@@ -2836,12 +2829,7 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 	btrfs_free_path(path);
 
-	disk_super = root->fs_info->super_copy;
-	features = btrfs_super_incompat_flags(disk_super);
-	if (!(features & BTRFS_FEATURE_INCOMPAT_DEFAULT_SUBVOL)) {
-		features |= BTRFS_FEATURE_INCOMPAT_DEFAULT_SUBVOL;
-		btrfs_set_super_incompat_flags(disk_super, features);
-	}
+	btrfs_set_fs_incompat(root->fs_info, DEFAULT_SUBVOL);
 	btrfs_end_transaction(trans, root);
 
 	return 0;
