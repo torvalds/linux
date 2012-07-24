@@ -544,20 +544,9 @@ static struct pci_driver piix4_driver = {
 	.remove		= __devexit_p(piix4_remove),
 };
 
-static int __init i2c_piix4_init(void)
-{
-	return pci_register_driver(&piix4_driver);
-}
-
-static void __exit i2c_piix4_exit(void)
-{
-	pci_unregister_driver(&piix4_driver);
-}
+module_pci_driver(piix4_driver);
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl> and "
 		"Philip Edelbrock <phil@netroedge.com>");
 MODULE_DESCRIPTION("PIIX4 SMBus driver");
 MODULE_LICENSE("GPL");
-
-module_init(i2c_piix4_init);
-module_exit(i2c_piix4_exit);
