@@ -184,6 +184,17 @@ static void device_release(struct kobject *kobj)
 	struct device *dev = kobj_to_dev(kobj);
 	struct device_private *p = dev->p;
 
+	/*
+	 * Some platform devices are driven without driver attached
+	 * and managed resources may have been acquired.  Make sure
+	 * all resources are released.
+	 *
+	 * Drivers still can add resources into device after device
+	 * is deleted but alive, so release devres here to avoid
+	 * possible memory leak.
+	 */
+	devres_release_all(dev);
+
 	if (dev->release)
 		dev->release(dev);
 	else if (dev->type && dev->type->release)
@@ -1195,13 +1206,6 @@ void device_del(struct device *dev)
 	device_remove_attrs(dev);
 	bus_remove_device(dev);
 	driver_deferred_probe_del(dev);
-
-	/*
-	 * Some platform devices are driven without driver attached
-	 * and managed resources may have been acquired.  Make sure
-	 * all resources are released.
-	 */
-	devres_release_all(dev);
 
 	/* Notify the platform of the removal, in case they
 	 * need to do anything...
