@@ -713,7 +713,7 @@ static int __devexit tegra_i2c_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int tegra_i2c_suspend_noirq(struct device *dev)
+static int tegra_i2c_suspend(struct device *dev)
 {
 	struct tegra_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 
@@ -724,7 +724,7 @@ static int tegra_i2c_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int tegra_i2c_resume_noirq(struct device *dev)
+static int tegra_i2c_resume(struct device *dev)
 {
 	struct tegra_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 	int ret;
@@ -745,10 +745,7 @@ static int tegra_i2c_resume_noirq(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops tegra_i2c_pm = {
-	.suspend_noirq = tegra_i2c_suspend_noirq,
-	.resume_noirq = tegra_i2c_resume_noirq,
-};
+static SIMPLE_DEV_PM_OPS(tegra_i2c_pm, tegra_i2c_suspend, tegra_i2c_resume);
 #define TEGRA_I2C_PM	(&tegra_i2c_pm)
 #else
 #define TEGRA_I2C_PM	NULL
