@@ -44,13 +44,14 @@ enum mlx4_dev_event {
 	MLX4_DEV_EVENT_PORT_UP,
 	MLX4_DEV_EVENT_PORT_DOWN,
 	MLX4_DEV_EVENT_PORT_REINIT,
+	MLX4_DEV_EVENT_PORT_MGMT_CHANGE,
 };
 
 struct mlx4_interface {
 	void *			(*add)	 (struct mlx4_dev *dev);
 	void			(*remove)(struct mlx4_dev *dev, void *context);
 	void			(*event) (struct mlx4_dev *dev, void *context,
-					  enum mlx4_dev_event event, int port);
+					  enum mlx4_dev_event event, unsigned long param);
 	void *			(*get_dev)(struct mlx4_dev *dev, void *context, u8 port);
 	struct list_head	list;
 	enum mlx4_protocol	protocol;

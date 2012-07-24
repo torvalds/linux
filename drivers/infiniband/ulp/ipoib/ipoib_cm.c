@@ -1376,7 +1376,7 @@ static void ipoib_cm_skb_reap(struct work_struct *work)
 
 		if (skb->protocol == htons(ETH_P_IP))
 			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, htonl(mtu));
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 		else if (skb->protocol == htons(ETH_P_IPV6))
 			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 #endif

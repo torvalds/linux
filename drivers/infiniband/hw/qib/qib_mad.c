@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
- * All rights reserved.
+ * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -49,6 +49,18 @@ static int reply(struct ib_smp *smp)
 	return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
 }
 
+static int reply_failure(struct ib_smp *smp)
+{
+	/*
+	 * The verbs framework will handle the directed/LID route
+	 * packet changes.
+	 */
+	smp->method = IB_MGMT_METHOD_GET_RESP;
+	if (smp->mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)
+		smp->status |= IB_SMP_DIRECTION;
+	return IB_MAD_RESULT_FAILURE | IB_MAD_RESULT_REPLY;
+}
+
 static void qib_send_trap(struct qib_ibport *ibp, void *data, unsigned len)
 {
 	struct ib_mad_send_buf *send_buf;
@@ -90,14 +102,10 @@ static void qib_send_trap(struct qib_ibport *ibp, void *data, unsigned len)
 	if (!ibp->sm_ah) {
 		if (ibp->sm_lid != be16_to_cpu(IB_LID_PERMISSIVE)) {
 			struct ib_ah *ah;
-			struct ib_ah_attr attr;
 
-			memset(&attr, 0, sizeof attr);
-			attr.dlid = ibp->sm_lid;
-			attr.port_num = ppd_from_ibp(ibp)->port;
-			ah = ib_create_ah(ibp->qp0->ibqp.pd, &attr);
+			ah = qib_create_qp0_ah(ibp, ibp->sm_lid);
 			if (IS_ERR(ah))
-				ret = -EINVAL;
+				ret = PTR_ERR(ah);
 			else {
 				send_buf->ah = ah;
 				ibp->sm_ah = to_iah(ah);
@@ -2051,6 +2059,298 @@ bail:
 	return ret;
 }
 
+static int cc_get_classportinfo(struct ib_cc_mad *ccp,
+				struct ib_device *ibdev)
+{
+	struct ib_cc_classportinfo_attr *p =
+		(struct ib_cc_classportinfo_attr *)ccp->mgmt_data;
+
+	memset(ccp->mgmt_data, 0, sizeof(ccp->mgmt_data));
+
+	p->base_version = 1;
+	p->class_version = 1;
+	p->cap_mask = 0;
+
+	/*
+	 * Expected response time is 4.096 usec. * 2^18 == 1.073741824 sec.
+	 */
+	p->resp_time_value = 18;
+
+	return reply((struct ib_smp *) ccp);
+}
+
+static int cc_get_congestion_info(struct ib_cc_mad *ccp,
+				struct ib_device *ibdev, u8 port)
+{
+	struct ib_cc_info_attr *p =
+		(struct ib_cc_info_attr *)ccp->mgmt_data;
+	struct qib_ibport *ibp = to_iport(ibdev, port);
+	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
+
+	memset(ccp->mgmt_data, 0, sizeof(ccp->mgmt_data));
+
+	p->congestion_info = 0;
+	p->control_table_cap = ppd->cc_max_table_entries;
+
+	return reply((struct ib_smp *) ccp);
+}
+
+static int cc_get_congestion_setting(struct ib_cc_mad *ccp,
+				struct ib_device *ibdev, u8 port)
+{
+	int i;
+	struct ib_cc_congestion_setting_attr *p =
+		(struct ib_cc_congestion_setting_attr *)ccp->mgmt_data;
+	struct qib_ibport *ibp = to_iport(ibdev, port);
+	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
+	struct ib_cc_congestion_entry_shadow *entries;
+
+	memset(ccp->mgmt_data, 0, sizeof(ccp->mgmt_data));
+
+	spin_lock(&ppd->cc_shadow_lock);
+
+	entries = ppd->congestion_entries_shadow->entries;
+	p->port_control = cpu_to_be16(
+		ppd->congestion_entries_shadow->port_control);
+	p->control_map = cpu_to_be16(
+		ppd->congestion_entries_shadow->control_map);
+	for (i = 0; i < IB_CC_CCS_ENTRIES; i++) {
+		p->entries[i].ccti_increase = entries[i].ccti_increase;
+		p->entries[i].ccti_timer = cpu_to_be16(entries[i].ccti_timer);
+		p->entries[i].trigger_threshold = entries[i].trigger_threshold;
+		p->entries[i].ccti_min = entries[i].ccti_min;
+	}
+
+	spin_unlock(&ppd->cc_shadow_lock);
+
+	return reply((struct ib_smp *) ccp);
+}
+
+static int cc_get_congestion_control_table(struct ib_cc_mad *ccp,
+				struct ib_device *ibdev, u8 port)
+{
+	struct ib_cc_table_attr *p =
+		(struct ib_cc_table_attr *)ccp->mgmt_data;
+	struct qib_ibport *ibp = to_iport(ibdev, port);
+	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
+	u32 cct_block_index = be32_to_cpu(ccp->attr_mod);
+	u32 max_cct_block;
+	u32 cct_entry;
+	struct ib_cc_table_entry_shadow *entries;
+	int i;
+
+	/* Is the table index more than what is supported? */
+	if (cct_block_index > IB_CC_TABLE_CAP_DEFAULT - 1)
+		goto bail;
+
+	memset(ccp->mgmt_data, 0, sizeof(ccp->mgmt_data));
+
+	spin_lock(&ppd->cc_shadow_lock);
+
+	max_cct_block =
+		(ppd->ccti_entries_shadow->ccti_last_entry + 1)/IB_CCT_ENTRIES;
+	max_cct_block = max_cct_block ? max_cct_block - 1 : 0;
+
+	if (cct_block_index > max_cct_block) {
+		spin_unlock(&ppd->cc_shadow_lock);
+		goto bail;
+	}
+
+	ccp->attr_mod = cpu_to_be32(cct_block_index);
+
+	cct_entry = IB_CCT_ENTRIES * (cct_block_index + 1);
+
+	cct_entry--;
+
+	p->ccti_limit = cpu_to_be16(cct_entry);
+
+	entries = &ppd->ccti_entries_shadow->
+			entries[IB_CCT_ENTRIES * cct_block_index];
+	cct_entry %= IB_CCT_ENTRIES;
+
+	for (i = 0; i <= cct_entry; i++)
+		p->ccti_entries[i].entry = cpu_to_be16(entries[i].entry);
+
+	spin_unlock(&ppd->cc_shadow_lock);
+
+	return reply((struct ib_smp *) ccp);
+
+bail:
+	return reply_failure((struct ib_smp *) ccp);
+}
+
+static int cc_set_congestion_setting(struct ib_cc_mad *ccp,
+				struct ib_device *ibdev, u8 port)
+{
+	struct ib_cc_congestion_setting_attr *p =
+		(struct ib_cc_congestion_setting_attr *)ccp->mgmt_data;
+	struct qib_ibport *ibp = to_iport(ibdev, port);
+	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
+	int i;
+
+	ppd->cc_sl_control_map = be16_to_cpu(p->control_map);
+
+	for (i = 0; i < IB_CC_CCS_ENTRIES; i++) {
+		ppd->congestion_entries[i].ccti_increase =
+			p->entries[i].ccti_increase;
+
+		ppd->congestion_entries[i].ccti_timer =
+			be16_to_cpu(p->entries[i].ccti_timer);
+
+		ppd->congestion_entries[i].trigger_threshold =
+			p->entries[i].trigger_threshold;
+
+		ppd->congestion_entries[i].ccti_min =
+			p->entries[i].ccti_min;
+	}
+
+	return reply((struct ib_smp *) ccp);
+}
+
+static int cc_set_congestion_control_table(struct ib_cc_mad *ccp,
+				struct ib_device *ibdev, u8 port)
+{
+	struct ib_cc_table_attr *p =
+		(struct ib_cc_table_attr *)ccp->mgmt_data;
+	struct qib_ibport *ibp = to_iport(ibdev, port);
+	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
+	u32 cct_block_index = be32_to_cpu(ccp->attr_mod);
+	u32 cct_entry;
+	struct ib_cc_table_entry_shadow *entries;
+	int i;
+
+	/* Is the table index more than what is supported? */
+	if (cct_block_index > IB_CC_TABLE_CAP_DEFAULT - 1)
+		goto bail;
+
+	/* If this packet is the first in the sequence then
+	 * zero the total table entry count.
+	 */
+	if (be16_to_cpu(p->ccti_limit) < IB_CCT_ENTRIES)
+		ppd->total_cct_entry = 0;
+
+	cct_entry = (be16_to_cpu(p->ccti_limit))%IB_CCT_ENTRIES;
+
+	/* ccti_limit is 0 to 63 */
+	ppd->total_cct_entry += (cct_entry + 1);
+
+	if (ppd->total_cct_entry > ppd->cc_supported_table_entries)
+		goto bail;
+
+	ppd->ccti_limit = be16_to_cpu(p->ccti_limit);
+
+	entries = ppd->ccti_entries + (IB_CCT_ENTRIES * cct_block_index);
+
+	for (i = 0; i <= cct_entry; i++)
+		entries[i].entry = be16_to_cpu(p->ccti_entries[i].entry);
+
+	spin_lock(&ppd->cc_shadow_lock);
+
+	ppd->ccti_entries_shadow->ccti_last_entry = ppd->total_cct_entry - 1;
+	memcpy(ppd->ccti_entries_shadow->entries, ppd->ccti_entries,
+		(ppd->total_cct_entry * sizeof(struct ib_cc_table_entry)));
+
+	ppd->congestion_entries_shadow->port_control = IB_CC_CCS_PC_SL_BASED;
+	ppd->congestion_entries_shadow->control_map = ppd->cc_sl_control_map;
+	memcpy(ppd->congestion_entries_shadow->entries, ppd->congestion_entries,
+		IB_CC_CCS_ENTRIES * sizeof(struct ib_cc_congestion_entry));
+
+	spin_unlock(&ppd->cc_shadow_lock);
+
+	return reply((struct ib_smp *) ccp);
+
+bail:
+	return reply_failure((struct ib_smp *) ccp);
+}
+
+static int check_cc_key(struct qib_ibport *ibp,
+			struct ib_cc_mad *ccp, int mad_flags)
+{
+	return 0;
+}
+
+static int process_cc(struct ib_device *ibdev, int mad_flags,
+			u8 port, struct ib_mad *in_mad,
+			struct ib_mad *out_mad)
+{
+	struct ib_cc_mad *ccp = (struct ib_cc_mad *)out_mad;
+	struct qib_ibport *ibp = to_iport(ibdev, port);
+	int ret;
+
+	*out_mad = *in_mad;
+
+	if (ccp->class_version != 2) {
+		ccp->status |= IB_SMP_UNSUP_VERSION;
+		ret = reply((struct ib_smp *)ccp);
+		goto bail;
+	}
+
+	ret = check_cc_key(ibp, ccp, mad_flags);
+	if (ret)
+		goto bail;
+
+	switch (ccp->method) {
+	case IB_MGMT_METHOD_GET:
+		switch (ccp->attr_id) {
+		case IB_CC_ATTR_CLASSPORTINFO:
+			ret = cc_get_classportinfo(ccp, ibdev);
+			goto bail;
+
+		case IB_CC_ATTR_CONGESTION_INFO:
+			ret = cc_get_congestion_info(ccp, ibdev, port);
+			goto bail;
+
+		case IB_CC_ATTR_CA_CONGESTION_SETTING:
+			ret = cc_get_congestion_setting(ccp, ibdev, port);
+			goto bail;
+
+		case IB_CC_ATTR_CONGESTION_CONTROL_TABLE:
+			ret = cc_get_congestion_control_table(ccp, ibdev, port);
+			goto bail;
+
+			/* FALLTHROUGH */
+		default:
+			ccp->status |= IB_SMP_UNSUP_METH_ATTR;
+			ret = reply((struct ib_smp *) ccp);
+			goto bail;
+		}
+
+	case IB_MGMT_METHOD_SET:
+		switch (ccp->attr_id) {
+		case IB_CC_ATTR_CA_CONGESTION_SETTING:
+			ret = cc_set_congestion_setting(ccp, ibdev, port);
+			goto bail;
+
+		case IB_CC_ATTR_CONGESTION_CONTROL_TABLE:
+			ret = cc_set_congestion_control_table(ccp, ibdev, port);
+			goto bail;
+
+			/* FALLTHROUGH */
+		default:
+			ccp->status |= IB_SMP_UNSUP_METH_ATTR;
+			ret = reply((struct ib_smp *) ccp);
+			goto bail;
+		}
+
+	case IB_MGMT_METHOD_GET_RESP:
+		/*
+		 * The ib_mad module will call us to process responses
+		 * before checking for other consumers.
+		 * Just tell the caller to process it normally.
+		 */
+		ret = IB_MAD_RESULT_SUCCESS;
+		goto bail;
+
+	case IB_MGMT_METHOD_TRAP:
+	default:
+		ccp->status |= IB_SMP_UNSUP_METHOD;
+		ret = reply((struct ib_smp *) ccp);
+	}
+
+bail:
+	return ret;
+}
+
 /**
  * qib_process_mad - process an incoming MAD packet
  * @ibdev: the infiniband device this packet came in on
@@ -2075,6 +2375,8 @@ int qib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
 		    struct ib_mad *in_mad, struct ib_mad *out_mad)
 {
 	int ret;
+	struct qib_ibport *ibp = to_iport(ibdev, port);
+	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 
 	switch (in_mad->mad_hdr.mgmt_class) {
 	case IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE:
@@ -2084,6 +2386,15 @@ int qib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
 
 	case IB_MGMT_CLASS_PERF_MGMT:
 		ret = process_perf(ibdev, port, in_mad, out_mad);
+		goto bail;
+
+	case IB_MGMT_CLASS_CONG_MGMT:
+		if (!ppd->congestion_entries_shadow ||
+			 !qib_cc_table_size) {
+			ret = IB_MAD_RESULT_SUCCESS;
+			goto bail;
+		}
+		ret = process_cc(ibdev, mad_flags, port, in_mad, out_mad);
 		goto bail;
 
 	default:
