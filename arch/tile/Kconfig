@@ -3,6 +3,8 @@
 
 config TILE
 	def_bool y
+	select HAVE_DMA_ATTRS
+	select HAVE_DMA_API_DEBUG
 	select HAVE_KVM if !TILEGX
 	select GENERIC_FIND_FIRST_BIT
 	select USE_GENERIC_SMP_HELPERS
@@ -78,6 +80,9 @@ config ARCH_DMA_ADDR_T_64BIT
 
 config NEED_DMA_MAP_STATE
 	def_bool y
+
+config ARCH_HAS_DMA_SET_COHERENT_MASK
+	bool
 
 config LOCKDEP_SUPPORT
 	def_bool y
@@ -212,6 +217,22 @@ config HIGHMEM
 
 	  If unsure, say "true".
 
+config ZONE_DMA
+	def_bool y
+
+config IOMMU_HELPER
+	bool
+
+config NEED_SG_DMA_LENGTH
+	bool
+
+config SWIOTLB
+	bool
+	default TILEGX
+	select IOMMU_HELPER
+	select NEED_SG_DMA_LENGTH
+	select ARCH_HAS_DMA_SET_COHERENT_MASK
+
 # We do not currently support disabling NUMA.
 config NUMA
 	bool # "NUMA Memory Allocation and Scheduler Support"
@@ -345,6 +366,8 @@ config KERNEL_PL
 	  kernel will be built to run at.  Generally you should use
 	  the default value here.
 
+source "arch/tile/gxio/Kconfig"
+
 endmenu  # Tilera-specific configuration
 
 menu "Bus options"
@@ -354,6 +377,9 @@ config PCI
 	default y
 	select PCI_DOMAINS
 	select GENERIC_PCI_IOMAP
+	select TILE_GXIO_TRIO if TILEGX
+	select ARCH_SUPPORTS_MSI if TILEGX
+	select PCI_MSI if TILEGX
 	---help---
 	  Enable PCI root complex support, so PCIe endpoint devices can
 	  be attached to the Tile chip.  Many, but not all, PCI devices
@@ -369,6 +395,22 @@ config NO_IOPORT
 	def_bool !PCI
 
 source "drivers/pci/Kconfig"
+
+config TILE_USB
+	tristate "Tilera USB host adapter support"
+	default y
+	depends on USB
+	depends on TILEGX
+	select TILE_GXIO_USB_HOST
+	---help---
+	  Provides USB host adapter support for the built-in EHCI and OHCI
+	  interfaces on TILE-Gx chips.
+
+# USB OHCI needs the bounce pool since tilegx will often have more
+# than 4GB of memory, but we don't currently use the IOTLB to present
+# a 32-bit address to OHCI.  So we need to use a bounce pool instead.
+config NEED_BOUNCE_POOL
+	def_bool USB_OHCI_HCD
 
 config HOTPLUG
 	bool "Support for hot-pluggable devices"
