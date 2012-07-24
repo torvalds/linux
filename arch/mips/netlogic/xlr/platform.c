@@ -14,6 +14,7 @@
 #include <linux/resource.h>
 #include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
+#include <linux/i2c.h>
 
 #include <asm/netlogic/haldefs.h>
 #include <asm/netlogic/xlr/iomap.h>
@@ -185,4 +186,54 @@ int xls_platform_usb_init(void)
 }
 
 arch_initcall(xls_platform_usb_init);
+#endif
+
+#ifdef CONFIG_I2C
+static struct i2c_board_info nlm_i2c_board_info1[] __initdata = {
+	/* All XLR boards have this RTC and Max6657 Temp Chip */
+	[0] = {
+		.type	= "ds1374",
+		.addr	= 0x68
+	},
+	[1] = {
+		.type	= "lm90",
+		.addr	= 0x4c
+	},
+};
+
+static struct resource i2c_resources[] = {
+	[0] = {
+		.start	= 0,	/* filled at init */
+		.end	= 0,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device nlm_xlr_i2c_1 = {
+	.name           = "xlr-i2cbus",
+	.id             = 1,
+	.num_resources	= 1,
+	.resource	= i2c_resources,
+};
+
+static int __init nlm_i2c_init(void)
+{
+	int err = 0;
+	unsigned int offset;
+
+	/* I2C bus 0 does not have any useful devices, configure only bus 1 */
+	offset = NETLOGIC_IO_I2C_1_OFFSET;
+	nlm_xlr_i2c_1.resource[0].start = CPHYSADDR(nlm_mmio_base(offset));
+	nlm_xlr_i2c_1.resource[0].end = nlm_xlr_i2c_1.resource[0].start + 0xfff;
+
+	platform_device_register(&nlm_xlr_i2c_1);
+
+	err = i2c_register_board_info(1, nlm_i2c_board_info1,
+				ARRAY_SIZE(nlm_i2c_board_info1));
+	if (err < 0)
+		pr_err("nlm-i2c: cannot register board I2C devices\n");
+	return err;
+}
+
+arch_initcall(nlm_i2c_init);
 #endif
