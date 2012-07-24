@@ -9762,9 +9762,8 @@ static int __devinit niu_pci_init_one(struct pci_dev *pdev,
 	union niu_parent_id parent_id;
 	struct net_device *dev;
 	struct niu *np;
-	int err, pos;
+	int err;
 	u64 dma_mask;
-	u16 val16;
 
 	niu_driver_version();
 
@@ -9787,8 +9786,7 @@ static int __devinit niu_pci_init_one(struct pci_dev *pdev,
 		goto err_out_disable_pdev;
 	}
 
-	pos = pci_pcie_cap(pdev);
-	if (pos <= 0) {
+	if (!pci_is_pcie(pdev)) {
 		dev_err(&pdev->dev, "Cannot find PCI Express capability, aborting\n");
 		goto err_out_free_res;
 	}
@@ -9813,14 +9811,11 @@ static int __devinit niu_pci_init_one(struct pci_dev *pdev,
 		goto err_out_free_dev;
 	}
 
-	pci_read_config_word(pdev, pos + PCI_EXP_DEVCTL, &val16);
-	val16 &= ~PCI_EXP_DEVCTL_NOSNOOP_EN;
-	val16 |= (PCI_EXP_DEVCTL_CERE |
-		  PCI_EXP_DEVCTL_NFERE |
-		  PCI_EXP_DEVCTL_FERE |
-		  PCI_EXP_DEVCTL_URRE |
-		  PCI_EXP_DEVCTL_RELAX_EN);
-	pci_write_config_word(pdev, pos + PCI_EXP_DEVCTL, val16);
+	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL,
+		PCI_EXP_DEVCTL_NOSNOOP_EN,
+		PCI_EXP_DEVCTL_CERE | PCI_EXP_DEVCTL_NFERE |
+		PCI_EXP_DEVCTL_FERE | PCI_EXP_DEVCTL_URRE |
+		PCI_EXP_DEVCTL_RELAX_EN);
 
 	dma_mask = DMA_BIT_MASK(44);
 	err = pci_set_dma_mask(pdev, dma_mask);
