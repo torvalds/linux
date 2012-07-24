@@ -12,6 +12,7 @@
 
 #include <linux/kernel_stat.h>
 #include <linux/regset.h>
+#include <linux/compat.h>
 #include <linux/slab.h>
 #include <asm/asm.h>
 #include <asm/cpufeature.h>
@@ -31,7 +32,6 @@ extern user_regset_get_fn fpregs_get, xfpregs_get, fpregs_soft_get,
 				xstateregs_get;
 extern user_regset_set_fn fpregs_set, xfpregs_set, fpregs_soft_set,
 				 xstateregs_set;
-
 
 /*
  * xstateregs_active == fpregs_active. Please refer to the comment
@@ -54,6 +54,22 @@ extern void finit_soft_fpu(struct i387_soft_struct *soft);
 #else
 static inline void finit_soft_fpu(struct i387_soft_struct *soft) {}
 #endif
+
+static inline int is_ia32_compat_frame(void)
+{
+	return config_enabled(CONFIG_IA32_EMULATION) &&
+	       test_thread_flag(TIF_IA32);
+}
+
+static inline int is_ia32_frame(void)
+{
+	return config_enabled(CONFIG_X86_32) || is_ia32_compat_frame();
+}
+
+static inline int is_x32_frame(void)
+{
+	return config_enabled(CONFIG_X86_X32_ABI) && test_thread_flag(TIF_X32);
+}
 
 #define X87_FSW_ES (1 << 7)	/* Exception Summary */
 
@@ -180,6 +196,11 @@ static inline void fpu_fxsave(struct fpu *fpu)
 #endif
 }
 
+int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+			compat_sigset_t *set, struct pt_regs *regs);
+int ia32_setup_frame(int sig, struct k_sigaction *ka,
+		     compat_sigset_t *set, struct pt_regs *regs);
+
 #else  /* CONFIG_X86_32 */
 
 /* perform fxrstor iff the processor has extended states, otherwise frstor */
@@ -203,6 +224,9 @@ static inline void fpu_fxsave(struct fpu *fpu)
 	asm volatile("fxsave %[fx]"
 		     : [fx] "=m" (fpu->state->fxsave));
 }
+
+#define ia32_setup_frame	__setup_frame
+#define ia32_setup_rt_frame	__setup_rt_frame
 
 #endif	/* CONFIG_X86_64 */
 
