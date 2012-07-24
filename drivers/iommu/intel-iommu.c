@@ -661,7 +661,7 @@ static struct intel_iommu *device_to_iommu(int segment, u8 bus, u8 devfn)
 			if (drhd->devices[i] &&
 			    drhd->devices[i]->subordinate &&
 			    drhd->devices[i]->subordinate->number <= bus &&
-			    drhd->devices[i]->subordinate->subordinate >= bus)
+			    drhd->devices[i]->subordinate->busn_res.end >= bus)
 				return drhd->iommu;
 		}
 

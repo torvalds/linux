@@ -532,7 +532,7 @@ iosapic_xlate_pin(struct iosapic_info *isi, struct pci_dev *pcidev)
 		intr_slot = PCI_SLOT(pcidev->devfn);
 	}
 	DBG_IRT("iosapic_xlate_pin:  bus %d slot %d pin %d\n",
-				pcidev->bus->secondary, intr_slot, intr_pin);
+			pcidev->bus->busn_res.start, intr_slot, intr_pin);
 
 	return irt_find_irqline(isi, intr_slot, intr_pin);
 }

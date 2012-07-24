@@ -239,7 +239,7 @@ void __devinit of_scan_pci_bridge(struct pci_dev *dev)
 	}
 
 	bus->primary = dev->bus->number;
-	bus->subordinate = busrange[1];
+	pci_bus_insert_busn_res(bus, busrange[0], busrange[1]);
 	bus->bridge_ctl = 0;
 
 	/* parse ranges property */

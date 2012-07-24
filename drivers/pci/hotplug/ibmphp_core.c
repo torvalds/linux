@@ -775,7 +775,6 @@ static u8 bus_structure_fixup(u8 busno)
 
 static int ibm_configure_device(struct pci_func *func)
 {
-	unsigned char bus;
 	struct pci_bus *child;
 	int num;
 	int flag = 0;	/* this is to make sure we don't double scan the bus,
@@ -805,9 +804,10 @@ static int ibm_configure_device(struct pci_func *func)
 		}
 	}
 	if (!(flag) && (func->dev->hdr_type == PCI_HEADER_TYPE_BRIDGE)) {
-		pci_read_config_byte(func->dev, PCI_SECONDARY_BUS, &bus);
-		child = pci_add_new_bus(func->dev->bus, func->dev, bus);
-		pci_do_scan_bus(child);
+		pci_hp_add_bridge(func->dev);
+		child = func->dev->subordinate;
+		if (child)
+			pci_bus_add_devices(child);
 	}
 
 	return 0;
