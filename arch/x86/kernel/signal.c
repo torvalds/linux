@@ -114,7 +114,7 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 		regs->orig_ax = -1;		/* disable syscall checks */
 
 		get_user_ex(buf, &sc->fpstate);
-		err |= restore_i387_xstate(buf);
+		err |= restore_xstate_sig(buf, config_enabled(CONFIG_X86_32));
 
 		get_user_ex(*pax, &sc->ax);
 	} get_user_catch(err);
@@ -206,7 +206,9 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	     void __user **fpstate)
 {
 	/* Default to using normal stack */
+	unsigned long math_size = 0;
 	unsigned long sp = regs->sp;
+	unsigned long buf_fx = 0;
 	int onsigstack = on_sig_stack(sp);
 
 	/* redzone */
@@ -228,10 +230,8 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	}
 
 	if (used_math()) {
-		sp -= sig_xstate_size;
-#ifdef CONFIG_X86_64
-		sp = round_down(sp, 64);
-#endif /* CONFIG_X86_64 */
+		sp = alloc_mathframe(sp, config_enabled(CONFIG_X86_32),
+				     &buf_fx, &math_size);
 		*fpstate = (void __user *)sp;
 	}
 
@@ -244,8 +244,9 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	if (onsigstack && !likely(on_sig_stack(sp)))
 		return (void __user *)-1L;
 
-	/* save i387 state */
-	if (used_math() && save_i387_xstate(*fpstate) < 0)
+	/* save i387 and extended state */
+	if (used_math() &&
+	    save_xstate_sig(*fpstate, (void __user *)buf_fx, math_size) < 0)
 		return (void __user *)-1L;
 
 	return (void __user *)sp;

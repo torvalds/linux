@@ -1332,9 +1332,6 @@ static const struct user_regset_view user_x86_64_view = {
 #define genregs32_get		genregs_get
 #define genregs32_set		genregs_set
 
-#define user_i387_ia32_struct	user_i387_struct
-#define user32_fxsr_struct	user_fxsr_struct
-
 #endif	/* CONFIG_X86_64 */
 
 #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION

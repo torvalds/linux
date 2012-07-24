@@ -38,9 +38,6 @@ extern u64 xstate_fx_sw_bytes[USER_XSTATE_FX_SW_WORDS];
 extern void xsave_init(void);
 extern void update_regset_xstate_info(unsigned int size, u64 xstate_mask);
 extern int init_fpu(struct task_struct *child);
-extern int check_for_xstate(struct i387_fxsave_struct __user *buf,
-			    void __user *fpstate,
-			    struct _fpx_sw_bytes *sw);
 
 static inline int fpu_xrstor_checking(struct xsave_struct *fx)
 {
@@ -68,8 +65,7 @@ static inline int xsave_user(struct xsave_struct __user *buf)
 	 * Clear the xsave header first, so that reserved fields are
 	 * initialized to zero.
 	 */
-	err = __clear_user(&buf->xsave_hdr,
-			   sizeof(struct xsave_hdr_struct));
+	err = __clear_user(&buf->xsave_hdr, sizeof(buf->xsave_hdr));
 	if (unlikely(err))
 		return -EFAULT;
 

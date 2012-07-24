@@ -22,10 +22,29 @@
 #include <asm/uaccess.h>
 #include <asm/xsave.h>
 
-extern unsigned int sig_xstate_size;
+#ifdef CONFIG_X86_64
+# include <asm/sigcontext32.h>
+# include <asm/user32.h>
+int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+			compat_sigset_t *set, struct pt_regs *regs);
+int ia32_setup_frame(int sig, struct k_sigaction *ka,
+		     compat_sigset_t *set, struct pt_regs *regs);
+#else
+# define user_i387_ia32_struct	user_i387_struct
+# define user32_fxsr_struct	user_fxsr_struct
+# define ia32_setup_frame	__setup_frame
+# define ia32_setup_rt_frame	__setup_rt_frame
+#endif
+
+extern unsigned int mxcsr_feature_mask;
 extern void fpu_init(void);
 
 DECLARE_PER_CPU(struct task_struct *, fpu_owner_task);
+
+extern void convert_from_fxsr(struct user_i387_ia32_struct *env,
+			      struct task_struct *tsk);
+extern void convert_to_fxsr(struct task_struct *tsk,
+			    const struct user_i387_ia32_struct *env);
 
 extern user_regset_active_fn fpregs_active, xfpregs_active;
 extern user_regset_get_fn fpregs_get, xfpregs_get, fpregs_soft_get,
@@ -39,19 +58,11 @@ extern user_regset_set_fn fpregs_set, xfpregs_set, fpregs_soft_set,
  */
 #define xstateregs_active	fpregs_active
 
-extern struct _fpx_sw_bytes fx_sw_reserved;
-#ifdef CONFIG_IA32_EMULATION
-extern unsigned int sig_xstate_ia32_size;
-extern struct _fpx_sw_bytes fx_sw_reserved_ia32;
-struct _fpstate_ia32;
-struct _xstate_ia32;
-extern int save_i387_xstate_ia32(void __user *buf);
-extern int restore_i387_xstate_ia32(void __user *buf);
-#endif
-
 #ifdef CONFIG_MATH_EMULATION
+# define HAVE_HWFP		(boot_cpu_data.hard_math)
 extern void finit_soft_fpu(struct i387_soft_struct *soft);
 #else
+# define HAVE_HWFP		1
 static inline void finit_soft_fpu(struct i387_soft_struct *soft) {}
 #endif
 
@@ -119,17 +130,6 @@ static inline int fsave_user(struct i387_fsave_struct __user *fx)
 
 static inline int fxsave_user(struct i387_fxsave_struct __user *fx)
 {
-	int err;
-
-	/*
-	 * Clear the bytes not touched by the fxsave and reserved
-	 * for the SW usage.
-	 */
-	err = __clear_user(&fx->sw_reserved,
-			   sizeof(struct _fpx_sw_bytes));
-	if (unlikely(err))
-		return -EFAULT;
-
 	if (config_enabled(CONFIG_X86_32))
 		return check_insn(fxsave %[fx], [fx] "=m" (*fx), "m" (*fx));
 	else if (config_enabled(CONFIG_AS_FXSAVEQ))
@@ -189,19 +189,6 @@ static inline void fpu_fxsave(struct fpu *fpu)
 			     : [fx] "R" (&fpu->state->fxsave));
 	}
 }
-#ifdef CONFIG_X86_64
-
-int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
-			compat_sigset_t *set, struct pt_regs *regs);
-int ia32_setup_frame(int sig, struct k_sigaction *ka,
-		     compat_sigset_t *set, struct pt_regs *regs);
-
-#else  /* CONFIG_X86_32 */
-
-#define ia32_setup_frame	__setup_frame
-#define ia32_setup_rt_frame	__setup_rt_frame
-
-#endif	/* CONFIG_X86_64 */
 
 /*
  * These must be called with preempt disabled. Returns
@@ -392,10 +379,28 @@ static inline void switch_fpu_finish(struct task_struct *new, fpu_switch_t fpu)
 /*
  * Signal frame handlers...
  */
-extern int save_i387_xstate(void __user *buf);
-extern int restore_i387_xstate(void __user *buf);
+extern int save_xstate_sig(void __user *buf, void __user *fx, int size);
+extern int __restore_xstate_sig(void __user *buf, void __user *fx, int size);
 
-static inline void __clear_fpu(struct task_struct *tsk)
+static inline int xstate_sigframe_size(void)
+{
+	return use_xsave() ? xstate_size + FP_XSTATE_MAGIC2_SIZE : xstate_size;
+}
+
+static inline int restore_xstate_sig(void __user *buf, int ia32_frame)
+{
+	void __user *buf_fx = buf;
+	int size = xstate_sigframe_size();
+
+	if (ia32_frame && use_fxsr()) {
+		buf_fx = buf + sizeof(struct i387_fsave_struct);
+		size += sizeof(struct i387_fsave_struct);
+	}
+
+	return __restore_xstate_sig(buf, buf_fx, size);
+}
+
+static inline void __drop_fpu(struct task_struct *tsk)
 {
 	if (__thread_has_fpu(tsk)) {
 		/* Ignore delayed exceptions from user space */
@@ -443,11 +448,21 @@ static inline void save_init_fpu(struct task_struct *tsk)
 	preempt_enable();
 }
 
-static inline void clear_fpu(struct task_struct *tsk)
+static inline void stop_fpu_preload(struct task_struct *tsk)
 {
+	tsk->fpu_counter = 0;
+}
+
+static inline void drop_fpu(struct task_struct *tsk)
+{
+	/*
+	 * Forget coprocessor state..
+	 */
+	stop_fpu_preload(tsk);
 	preempt_disable();
-	__clear_fpu(tsk);
+	__drop_fpu(tsk);
 	preempt_enable();
+	clear_used_math();
 }
 
 /*
@@ -510,5 +525,21 @@ static inline void fpu_copy(struct fpu *dst, struct fpu *src)
 }
 
 extern void fpu_finit(struct fpu *fpu);
+
+static inline unsigned long
+alloc_mathframe(unsigned long sp, int ia32_frame, unsigned long *buf_fx,
+		unsigned long *size)
+{
+	unsigned long frame_size = xstate_sigframe_size();
+
+	*buf_fx = sp = round_down(sp - frame_size, 64);
+	if (ia32_frame && use_fxsr()) {
+		frame_size += sizeof(struct i387_fsave_struct);
+		sp -= sizeof(struct i387_fsave_struct);
+	}
+
+	*size = frame_size;
+	return sp;
+}
 
 #endif
