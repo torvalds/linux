@@ -787,6 +787,8 @@ config NLM_XLR_BOARD
 	select ZONE_DMA if 64BIT
 	select SYNC_R4K
 	select SYS_HAS_EARLY_PRINTK
+	select USB_ARCH_HAS_OHCI if USB_SUPPORT
+	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 	help
 	  Support for systems based on Netlogic XLR and XLS processors.
 	  Say Y here if you have a XLR or XLS based board.

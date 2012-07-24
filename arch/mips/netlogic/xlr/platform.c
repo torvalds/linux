@@ -97,3 +97,92 @@ static int __init nlm_uart_init(void)
 }
 
 arch_initcall(nlm_uart_init);
+
+#ifdef CONFIG_USB
+/* Platform USB devices, only on XLS chips */
+static u64 xls_usb_dmamask = ~(u32)0;
+#define USB_PLATFORM_DEV(n, i, irq)					\
+	{								\
+		.name		= n,					\
+		.id		= i,					\
+		.num_resources	= 2,					\
+		.dev		= {					\
+			.dma_mask	= &xls_usb_dmamask,		\
+			.coherent_dma_mask = 0xffffffff,		\
+		},							\
+		.resource	= (struct resource[]) {			\
+			{						\
+				.flags = IORESOURCE_MEM,		\
+			},						\
+			{						\
+				.start	= irq,				\
+				.end	= irq,				\
+				.flags = IORESOURCE_IRQ,		\
+			},						\
+		},							\
+	}
+
+static struct platform_device xls_usb_ehci_device =
+			 USB_PLATFORM_DEV("ehci-xls", 0, PIC_USB_IRQ);
+static struct platform_device xls_usb_ohci_device_0 =
+			 USB_PLATFORM_DEV("ohci-xls-0", 1, PIC_USB_IRQ);
+static struct platform_device xls_usb_ohci_device_1 =
+			 USB_PLATFORM_DEV("ohci-xls-1", 2, PIC_USB_IRQ);
+
+static struct platform_device *xls_platform_devices[] = {
+	&xls_usb_ehci_device,
+	&xls_usb_ohci_device_0,
+	&xls_usb_ohci_device_1,
+};
+
+int xls_platform_usb_init(void)
+{
+	uint64_t usb_mmio, gpio_mmio;
+	unsigned long memres;
+	uint32_t val;
+
+	if (!nlm_chip_is_xls())
+		return 0;
+
+	gpio_mmio = nlm_mmio_base(NETLOGIC_IO_GPIO_OFFSET);
+	usb_mmio  = nlm_mmio_base(NETLOGIC_IO_USB_1_OFFSET);
+
+	/* Clear Rogue Phy INTs */
+	nlm_write_reg(usb_mmio, 49, 0x10000000);
+	/* Enable all interrupts */
+	nlm_write_reg(usb_mmio, 50, 0x1f000000);
+
+	/* Enable ports */
+	nlm_write_reg(usb_mmio,  1, 0x07000500);
+
+	val = nlm_read_reg(gpio_mmio, 21);
+	if (((val >> 22) & 0x01) == 0) {
+		pr_info("Detected USB Device mode - Not supported!\n");
+		nlm_write_reg(usb_mmio,  0, 0x01000000);
+		return 0;
+	}
+
+	pr_info("Detected USB Host mode - Adding XLS USB devices.\n");
+	/* Clear reset, host mode */
+	nlm_write_reg(usb_mmio,  0, 0x02000000);
+
+	/* Memory resource for various XLS usb ports */
+	usb_mmio = nlm_mmio_base(NETLOGIC_IO_USB_0_OFFSET);
+	memres = CPHYSADDR((unsigned long)usb_mmio);
+	xls_usb_ehci_device.resource[0].start = memres;
+	xls_usb_ehci_device.resource[0].end = memres + 0x400 - 1;
+
+	memres += 0x400;
+	xls_usb_ohci_device_0.resource[0].start = memres;
+	xls_usb_ohci_device_0.resource[0].end = memres + 0x400 - 1;
+
+	memres += 0x400;
+	xls_usb_ohci_device_1.resource[0].start = memres;
+	xls_usb_ohci_device_1.resource[0].end = memres + 0x400 - 1;
+
+	return platform_add_devices(xls_platform_devices,
+				ARRAY_SIZE(xls_platform_devices));
+}
+
+arch_initcall(xls_platform_usb_init);
+#endif
