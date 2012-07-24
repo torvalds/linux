@@ -541,7 +541,7 @@ static void hci_setup_event_mask(struct hci_dev *hdev)
 					 * Features Notification */
 	}
 
-	if (hdev->features[4] & LMP_LE)
+	if (lmp_le_capable(hdev))
 		events[7] |= 0x20;	/* LE Meta-Event */
 
 	hci_send_cmd(hdev, HCI_OP_SET_EVENT_MASK, sizeof(events), events);
@@ -746,7 +746,7 @@ static void hci_cc_read_local_ext_features(struct hci_dev *hdev,
 		break;
 	}
 
-	if (test_bit(HCI_INIT, &hdev->flags) && hdev->features[4] & LMP_LE)
+	if (test_bit(HCI_INIT, &hdev->flags) && lmp_le_capable(hdev))
 		hci_set_le_support(hdev);
 
 done:
