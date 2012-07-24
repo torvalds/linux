@@ -1392,26 +1392,17 @@ static int __devinit dw_probe(struct platform_device *pdev)
 
 	size = sizeof(struct dw_dma);
 	size += pdata->nr_channels * sizeof(struct dw_dma_chan);
-	dw = kzalloc(size, GFP_KERNEL);
+	dw = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
 	if (!dw)
 		return -ENOMEM;
 
-	if (!request_mem_region(io->start, DW_REGLEN, pdev->dev.driver->name)) {
-		err = -EBUSY;
-		goto err_kfree;
-	}
+	dw->regs = devm_request_and_ioremap(&pdev->dev, io);
+	if (!dw->regs)
+		return -EBUSY;
 
-	dw->regs = ioremap(io->start, DW_REGLEN);
-	if (!dw->regs) {
-		err = -ENOMEM;
-		goto err_release_r;
-	}
-
-	dw->clk = clk_get(&pdev->dev, "hclk");
-	if (IS_ERR(dw->clk)) {
-		err = PTR_ERR(dw->clk);
-		goto err_clk;
-	}
+	dw->clk = devm_clk_get(&pdev->dev, "hclk");
+	if (IS_ERR(dw->clk))
+		return PTR_ERR(dw->clk);
 	clk_prepare_enable(dw->clk);
 
 	/* Calculate all channel mask before DMA setup */
@@ -1423,9 +1414,10 @@ static int __devinit dw_probe(struct platform_device *pdev)
 	/* disable BLOCK interrupts as well */
 	channel_clear_bit(dw, MASK.BLOCK, dw->all_chan_mask);
 
-	err = request_irq(irq, dw_dma_interrupt, 0, "dw_dmac", dw);
+	err = devm_request_irq(&pdev->dev, irq, dw_dma_interrupt, 0,
+			       "dw_dmac", dw);
 	if (err)
-		goto err_irq;
+		return err;
 
 	platform_set_drvdata(pdev, dw);
 
@@ -1491,30 +1483,16 @@ static int __devinit dw_probe(struct platform_device *pdev)
 	dma_async_device_register(&dw->dma);
 
 	return 0;
-
-err_irq:
-	clk_disable_unprepare(dw->clk);
-	clk_put(dw->clk);
-err_clk:
-	iounmap(dw->regs);
-	dw->regs = NULL;
-err_release_r:
-	release_resource(io);
-err_kfree:
-	kfree(dw);
-	return err;
 }
 
 static int __devexit dw_remove(struct platform_device *pdev)
 {
 	struct dw_dma		*dw = platform_get_drvdata(pdev);
 	struct dw_dma_chan	*dwc, *_dwc;
-	struct resource		*io;
 
 	dw_dma_off(dw);
 	dma_async_device_unregister(&dw->dma);
 
-	free_irq(platform_get_irq(pdev, 0), dw);
 	tasklet_kill(&dw->tasklet);
 
 	list_for_each_entry_safe(dwc, _dwc, &dw->dma.channels,
@@ -1522,17 +1500,6 @@ static int __devexit dw_remove(struct platform_device *pdev)
 		list_del(&dwc->chan.device_node);
 		channel_clear_bit(dw, CH_EN, dwc->mask);
 	}
-
-	clk_disable_unprepare(dw->clk);
-	clk_put(dw->clk);
-
-	iounmap(dw->regs);
-	dw->regs = NULL;
-
-	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(io->start, DW_REGLEN);
-
-	kfree(dw);
 
 	return 0;
 }
