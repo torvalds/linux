@@ -380,7 +380,7 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 	settings |= MGMT_SETTING_DISCOVERABLE;
 	settings |= MGMT_SETTING_PAIRABLE;
 
-	if (hdev->features[6] & LMP_SIMPLE_PAIR)
+	if (lmp_ssp_capable(hdev))
 		settings |= MGMT_SETTING_SSP;
 
 	if (lmp_bredr_capable(hdev)) {
@@ -1121,7 +1121,7 @@ static int set_ssp(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	hci_dev_lock(hdev);
 
-	if (!(hdev->features[6] & LMP_SIMPLE_PAIR)) {
+	if (!lmp_ssp_capable(hdev)) {
 		err = cmd_status(sk, hdev->id, MGMT_OP_SET_SSP,
 				 MGMT_STATUS_NOT_SUPPORTED);
 		goto failed;
@@ -2201,7 +2201,7 @@ static int read_local_oob_data(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	if (!(hdev->features[6] & LMP_SIMPLE_PAIR)) {
+	if (!lmp_ssp_capable(hdev)) {
 		err = cmd_status(sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA,
 				 MGMT_STATUS_NOT_SUPPORTED);
 		goto unlock;

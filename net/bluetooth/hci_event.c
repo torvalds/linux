@@ -528,7 +528,7 @@ static void hci_setup_event_mask(struct hci_dev *hdev)
 	if (hdev->features[7] & LMP_LSTO)
 		events[6] |= 0x80; /* Link Supervision Timeout Changed */
 
-	if (hdev->features[6] & LMP_SIMPLE_PAIR) {
+	if (lmp_ssp_capable(hdev)) {
 		events[6] |= 0x01;	/* IO Capability Request */
 		events[6] |= 0x02;	/* IO Capability Response */
 		events[6] |= 0x04;	/* User Confirmation Request */
