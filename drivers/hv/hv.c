@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/hyperv.h>
+#include <linux/version.h>
 #include <asm/hyperv.h>
 #include "hyperv_vmbus.h"
 
@@ -164,9 +165,11 @@ int hv_init(void)
 
 	max_leaf = query_hypervisor_info();
 
-	/* Write our OS info */
-	wrmsrl(HV_X64_MSR_GUEST_OS_ID, HV_LINUX_GUEST_ID);
-	hv_context.guestid = HV_LINUX_GUEST_ID;
+	/*
+	 * Write our OS ID.
+	 */
+	hv_context.guestid = generate_guest_id(0, LINUX_VERSION_CODE, 0);
+	wrmsrl(HV_X64_MSR_GUEST_OS_ID, hv_context.guestid);
 
 	/* See if the hypercall page is already set */
 	rdmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
