@@ -1017,6 +1017,8 @@ static int smb347_mains_set_property(struct power_supply *psy,
 
 		ret = smb347_write(smb, CMD_A, ret);
 
+		smb347_hw_init(smb);
+
 		smb347_set_writable(smb, false);
 		return 0;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
