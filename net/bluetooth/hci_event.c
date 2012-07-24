@@ -686,7 +686,7 @@ static void hci_cc_read_local_features(struct hci_dev *hdev,
 		hdev->esco_type |= (ESCO_HV3);
 	}
 
-	if (hdev->features[3] & LMP_ESCO)
+	if (lmp_esco_capable(hdev))
 		hdev->esco_type |= (ESCO_EV3);
 
 	if (hdev->features[4] & LMP_EV4)
