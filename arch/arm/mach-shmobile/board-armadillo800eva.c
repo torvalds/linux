@@ -520,10 +520,11 @@ static struct platform_device hdmi_lcdc_device = {
 };
 
 /* GPIO KEY */
-#define GPIO_KEY(c, g, d) { .code = c, .gpio = g, .desc = d, .active_low = 1 }
+#define GPIO_KEY(c, g, d, ...) \
+	{ .code = c, .gpio = g, .desc = d, .active_low = 1, __VA_ARGS__ }
 
 static struct gpio_keys_button gpio_buttons[] = {
-	GPIO_KEY(KEY_POWER,	GPIO_PORT99,	"SW3"),
+	GPIO_KEY(KEY_POWER,	GPIO_PORT99,	"SW3", .wakeup = 1),
 	GPIO_KEY(KEY_BACK,	GPIO_PORT100,	"SW4"),
 	GPIO_KEY(KEY_MENU,	GPIO_PORT97,	"SW5"),
 	GPIO_KEY(KEY_HOME,	GPIO_PORT98,	"SW6"),
