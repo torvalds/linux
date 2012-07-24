@@ -47,6 +47,9 @@
 #define PIC_OHCI_1_IRQ			26
 #define PIC_OHCI_2_IRQ			27
 #define PIC_OHCI_3_IRQ			28
+#define PIC_MMC_IRQ			29
+#define PIC_I2C_0_IRQ			30
+#define PIC_I2C_1_IRQ			31
 
 #ifndef __ASSEMBLY__
 
