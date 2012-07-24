@@ -187,10 +187,12 @@ static int clkout_enable(struct clk *clk)
 	for (i = 0; i < 4; i++) {
 		if (clk->rates[i] == clk->rate) {
 			int shift = 14 - (2 * clk->module);
+			int enable = 7 - clk->module;
 			unsigned int val = ltq_cgu_r32(ifccr);
 
 			val &= ~(3 << shift);
 			val |= i << shift;
+			val |= enable;
 			ltq_cgu_w32(val, ifccr);
 			return 0;
 		}
