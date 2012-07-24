@@ -2122,7 +2122,7 @@ s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr, unsigned short flags,
 	int try;
 	s32 res;
 
-	flags &= I2C_M_TEN | I2C_CLIENT_PEC;
+	flags &= I2C_M_TEN | I2C_CLIENT_PEC | I2C_CLIENT_SCCB;
 
 	if (adapter->algo->smbus_xfer) {
 		i2c_lock_adapter(adapter);
