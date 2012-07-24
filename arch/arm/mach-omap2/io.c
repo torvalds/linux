@@ -38,6 +38,7 @@
 #include "powerdomain.h"
 #include "clockdomain.h"
 #include "common.h"
+#include "clock.h"
 #include "clock2xxx.h"
 #include "clock3xxx.h"
 #include "clock44xx.h"
@@ -522,6 +523,7 @@ void __init am33xx_init_early(void)
 	am33xx_voltagedomains_init();
 	am33xx_powerdomains_init();
 	am33xx_clockdomains_init();
+	am33xx_clk_init();
 }
 #endif
 
