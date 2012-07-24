@@ -1,7 +1,7 @@
 /*
- * P1021 RDB Device Tree Source stub (no addresses or top-level ranges)
+ * P1024 RDB Device Tree Source stub (no addresses or top-level ranges)
  *
- * Copyright 2011 Freescale Semiconductor Inc.
+ * Copyright 2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -73,14 +73,15 @@
 			/* 512KB for u-boot Environment Variables */
 			reg = <0x00f00000 0x00100000>;
 			label = "NOR U-Boot Image";
+			read-only;
 		};
 	};
 
 	nand@1,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "fsl,p1021-fcm-nand",
-			     "fsl,elbc-fcm-nand";
+		compatible = "fsl,p1020-fcm-nand",
+				 "fsl,elbc-fcm-nand";
 		reg = <0x1 0x0 0x40000>;
 
 		partition@0 {
@@ -110,72 +111,65 @@
 		};
 
 		partition@a00000 {
-			/* 7MB for JFFS2 based Root file System */
-			reg = <0x00a00000 0x00700000>;
+			/* 15MB for JFFS2 based Root file System */
+			reg = <0x00a00000 0x00f00000>;
 			label = "NAND JFFS2 Root File System";
 		};
 
-		partition@1100000 {
-			/* 15MB for User Writable Area  */
-			reg = <0x01100000 0x00f00000>;
+		partition@1900000 {
+			/* 7MB for User Writable Area */
+			reg = <0x01900000 0x00700000>;
 			label = "NAND Writable User area";
 		};
-	};
-
-	L2switch@2,0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "vitesse-7385";
-		reg = <0x2 0x0 0x20000>;
 	};
 };
 
 &soc {
-	i2c@3000 {
-		rtc@68 {
-			compatible = "pericom,pt7c4338";
-			reg = <0x68>;
-		};
-	};
-
 	spi@7000 {
 		flash@0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			compatible = "spansion,s25sl12801";
+			compatible = "spansion,m25p80";
 			reg = <0>;
-			spi-max-frequency = <40000000>; /* input clock */
+			spi-max-frequency = <40000000>;
 
-			partition@u-boot {
+			partition@0 {
 				/* 512KB for u-boot Bootloader Image */
 				reg = <0x0 0x00080000>;
-				label = "SPI Flash U-Boot Image";
+				label = "SPI U-Boot Image";
 				read-only;
 			};
 
-			partition@dtb {
+			partition@80000 {
 				/* 512KB for DTB Image */
 				reg = <0x00080000 0x00080000>;
-				label = "SPI Flash DTB Image";
+				label = "SPI DTB Image";
 			};
 
-			partition@kernel {
+			partition@100000 {
 				/* 4MB for Linux Kernel Image */
 				reg = <0x00100000 0x00400000>;
-				label = "SPI Flash Linux Kernel Image";
+				label = "SPI Linux Kernel Image";
 			};
 
-			partition@fs {
+			partition@500000 {
 				/* 4MB for Compressed RFS Image */
 				reg = <0x00500000 0x00400000>;
-				label = "SPI Flash Compressed RFSImage";
+				label = "SPI Compressed RFS Image";
 			};
 
-			partition@jffs-fs {
+			partition@900000 {
 				/* 7MB for JFFS2 based RFS */
 				reg = <0x00900000 0x00700000>;
-				label = "SPI Flash JFFS2 RFS";
+				label = "SPI JFFS2 RFS";
 			};
+		};
+	};
+
+	i2c@3000 {
+		rtc@68 {
+			compatible = "dallas,ds1339";
+			reg = <0x68>;
 		};
 	};
 
@@ -183,54 +177,52 @@
 		phy_type = "ulpi";
 	};
 
+	usb@23000 {
+		status = "disabled";
+	};
+
 	mdio@24000 {
 		phy0: ethernet-phy@0 {
-			interrupt-parent = <&mpic>;
 			interrupts = <3 1 0 0>;
 			reg = <0x0>;
 		};
-
 		phy1: ethernet-phy@1 {
-			interrupt-parent = <&mpic>;
 			interrupts = <2 1 0 0>;
 			reg = <0x1>;
 		};
+		phy2: ethernet-phy@2 {
+			interrupts = <1 1 0 0>;
+			reg = <0x2>;
+		};
+	};
 
+	mdio@25000 {
 		tbi0: tbi-phy@11 {
 			reg = <0x11>;
 			device_type = "tbi-phy";
 		};
 	};
 
-	mdio@25000 {
+	mdio@26000 {
 		tbi1: tbi-phy@11 {
 			reg = <0x11>;
 			device_type = "tbi-phy";
 		};
 	};
 
-	mdio@26000 {
-		tbi2: tbi-phy@11 {
-			reg = <0x11>;
-			device_type = "tbi-phy";
-		};
-	};
-
-	enet0: ethernet@b0000 {
-		fixed-link = <1 1 1000 0 0>;
+	ethernet@b0000 {
+		phy-handle = <&phy2>;
 		phy-connection-type = "rgmii-id";
-
 	};
 
-	enet1: ethernet@b1000 {
+	ethernet@b1000 {
 		phy-handle = <&phy0>;
-		tbi-handle = <&tbi1>;
+		tbi-handle = <&tbi0>;
 		phy-connection-type = "sgmii";
 	};
 
-	enet2: ethernet@b2000 {
+	ethernet@b2000 {
 		phy-handle = <&phy1>;
-		tbi-handle = <&tbi2>;
 		phy-connection-type = "rgmii-id";
 	};
 };

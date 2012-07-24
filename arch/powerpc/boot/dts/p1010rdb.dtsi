@@ -126,9 +126,21 @@
 
 &board_soc {
 	i2c@3000 {
+		eeprom@50 {
+			compatible = "st,24c256";
+			reg = <0x50>;
+		};
+
 		rtc@68 {
 			compatible = "pericom,pt7c4338";
 			reg = <0x68>;
+		};
+	};
+
+	i2c@3100 {
+		eeprom@52 {
+			compatible = "atmel,24c01";
+			reg = <0x52>;
 		};
 	};
 

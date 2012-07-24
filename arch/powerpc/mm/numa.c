@@ -340,6 +340,8 @@ static int __init find_min_common_depth(void)
 				dbg("Using form 1 affinity\n");
 				form1_affinity = 1;
 			}
+
+			of_node_put(chosen);
 		}
 	}
 

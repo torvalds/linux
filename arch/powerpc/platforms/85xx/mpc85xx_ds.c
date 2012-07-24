@@ -114,71 +114,53 @@ void __init mpc85xx_ds_pic_init(void)
 }
 
 #ifdef CONFIG_PCI
-static int primary_phb_addr;
 extern int uli_exclude_device(struct pci_controller *hose,
 				u_char bus, u_char devfn);
+
+static struct device_node *pci_with_uli;
 
 static int mpc85xx_exclude_device(struct pci_controller *hose,
 				   u_char bus, u_char devfn)
 {
-	struct device_node* node;
-	struct resource rsrc;
-
-	node = hose->dn;
-	of_address_to_resource(node, 0, &rsrc);
-
-	if ((rsrc.start & 0xfffff) == primary_phb_addr) {
+	if (hose->dn == pci_with_uli)
 		return uli_exclude_device(hose, bus, devfn);
-	}
 
 	return PCIBIOS_SUCCESSFUL;
 }
 #endif	/* CONFIG_PCI */
+
+static void __init mpc85xx_ds_pci_init(void)
+{
+#ifdef CONFIG_PCI
+	struct device_node *node;
+
+	fsl_pci_init();
+
+	/* See if we have a ULI under the primary */
+
+	node = of_find_node_by_name(NULL, "uli1575");
+	while ((pci_with_uli = of_get_parent(node))) {
+		of_node_put(node);
+		node = pci_with_uli;
+
+		if (pci_with_uli == fsl_pci_primary) {
+			ppc_md.pci_exclude_device = mpc85xx_exclude_device;
+			break;
+		}
+	}
+#endif
+}
 
 /*
  * Setup the architecture
  */
 static void __init mpc85xx_ds_setup_arch(void)
 {
-#ifdef CONFIG_PCI
-	struct device_node *np;
-	struct pci_controller *hose;
-#endif
-	dma_addr_t max = 0xffffffff;
-
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_ds_setup_arch()", 0);
 
-#ifdef CONFIG_PCI
-	for_each_node_by_type(np, "pci") {
-		if (of_device_is_compatible(np, "fsl,mpc8540-pci") ||
-		    of_device_is_compatible(np, "fsl,mpc8548-pcie") ||
-		    of_device_is_compatible(np, "fsl,p2020-pcie")) {
-			struct resource rsrc;
-			of_address_to_resource(np, 0, &rsrc);
-			if ((rsrc.start & 0xfffff) == primary_phb_addr)
-				fsl_add_bridge(np, 1);
-			else
-				fsl_add_bridge(np, 0);
-
-			hose = pci_find_hose_for_OF_device(np);
-			max = min(max, hose->dma_window_base_cur +
-					hose->dma_window_size);
-		}
-	}
-
-	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
-#endif
-
+	mpc85xx_ds_pci_init();
 	mpc85xx_smp_init();
-
-#ifdef CONFIG_SWIOTLB
-	if (memblock_end_of_DRAM() > max) {
-		ppc_swiotlb_enable = 1;
-		set_pci_dma_ops(&swiotlb_dma_ops);
-		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_swiotlb;
-	}
-#endif
 
 	printk("MPC85xx DS board from Freescale Semiconductor\n");
 }
@@ -190,14 +172,7 @@ static int __init mpc8544_ds_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 
-	if (of_flat_dt_is_compatible(root, "MPC8544DS")) {
-#ifdef CONFIG_PCI
-		primary_phb_addr = 0xb000;
-#endif
-		return 1;
-	}
-
-	return 0;
+	return !!of_flat_dt_is_compatible(root, "MPC8544DS");
 }
 
 machine_device_initcall(mpc8544_ds, mpc85xx_common_publish_devices);
@@ -215,14 +190,7 @@ static int __init mpc8572_ds_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 
-	if (of_flat_dt_is_compatible(root, "fsl,MPC8572DS")) {
-#ifdef CONFIG_PCI
-		primary_phb_addr = 0x8000;
-#endif
-		return 1;
-	}
-
-	return 0;
+	return !!of_flat_dt_is_compatible(root, "fsl,MPC8572DS");
 }
 
 /*
@@ -232,14 +200,7 @@ static int __init p2020_ds_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 
-	if (of_flat_dt_is_compatible(root, "fsl,P2020DS")) {
-#ifdef CONFIG_PCI
-		primary_phb_addr = 0x9000;
-#endif
-		return 1;
-	}
-
-	return 0;
+	return !!of_flat_dt_is_compatible(root, "fsl,P2020DS");
 }
 
 define_machine(mpc8544_ds) {

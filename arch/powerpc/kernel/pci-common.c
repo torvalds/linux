@@ -1646,7 +1646,6 @@ void __devinit pcibios_scan_phb(struct pci_controller *hose)
 		pci_free_resource_list(&resources);
 		return;
 	}
-	bus->secondary = hose->first_busno;
 	hose->bus = bus;
 
 	/* Get probe mode and perform scan */

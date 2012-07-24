@@ -302,7 +302,7 @@ static void kvm_patch_ins_wrtee(u32 *inst, u32 rt, int imm_one)
 
 	if (imm_one) {
 		p[kvm_emulate_wrtee_reg_offs] =
-			KVM_INST_LI | __PPC_RT(30) | MSR_EE;
+			KVM_INST_LI | __PPC_RT(R30) | MSR_EE;
 	} else {
 		/* Make clobbered registers work too */
 		switch (get_rt(rt)) {

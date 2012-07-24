@@ -1,7 +1,7 @@
 /*
- * P3060 Silicon/SoC Device Tree Source (pre include)
+ * P1024 RDB 36Bit Physical Address Map Device Tree Source
  *
- * Copyright 2011 Freescale Semiconductor Inc.
+ * Copyright 2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,94 +32,56 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/dts-v1/;
+/include/ "fsl/p1020si-pre.dtsi"
 / {
-	compatible = "fsl,P3060";
-	#address-cells = <2>;
-	#size-cells = <2>;
-	interrupt-parent = <&mpic>;
+	model = "fsl,P1024RDB";
+	compatible = "fsl,P1024RDB";
 
-	aliases {
-		ccsr = &soc;
-		dcsr = &dcsr;
-
-		serial0 = &serial0;
-		serial1 = &serial1;
-		serial2 = &serial2;
-		serial3 = &serial3;
-		pci0 = &pci0;
-		pci1 = &pci1;
-		usb0 = &usb0;
-		usb1 = &usb1;
-		dma0 = &dma0;
-		dma1 = &dma1;
-		msi0 = &msi0;
-		msi1 = &msi1;
-		msi2 = &msi2;
-
-		crypto = &crypto;
-		sec_jr0 = &sec_jr0;
-		sec_jr1 = &sec_jr1;
-		sec_jr2 = &sec_jr2;
-		sec_jr3 = &sec_jr3;
-		rtic_a = &rtic_a;
-		rtic_b = &rtic_b;
-		rtic_c = &rtic_c;
-		rtic_d = &rtic_d;
-		sec_mon = &sec_mon;
+	memory {
+		device_type = "memory";
 	};
 
-	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
+	lbc: localbus@fffe05000 {
+		reg = <0xf 0xffe05000 0 0x1000>;
+		ranges = <0x0 0x0 0xf 0xef000000 0x01000000
+			  0x1 0x0 0xf 0xff800000 0x00040000>;
+	};
 
-		cpu0: PowerPC,e500mc@0 {
-			device_type = "cpu";
-			reg = <0>;
-			next-level-cache = <&L2_0>;
-			L2_0: l2-cache {
-				next-level-cache = <&cpc>;
-			};
+	soc: soc@fffe00000 {
+		ranges = <0x0 0xf 0xffe00000 0x100000>;
+	};
+
+	pci0: pcie@fffe09000 {
+		reg = <0xf 0xffe09000 0 0x1000>;
+		ranges = <0x2000000 0x0 0xe0000000 0xc 0x20000000 0x0 0x20000000
+			  0x1000000 0x0 0x00000000 0xf 0xffc10000 0x0 0x10000>;
+		pcie@0 {
+			ranges = <0x2000000 0x0 0xe0000000
+				  0x2000000 0x0 0xe0000000
+				  0x0 0x20000000
+
+				  0x1000000 0x0 0x0
+				  0x1000000 0x0 0x0
+				  0x0 0x100000>;
 		};
-		cpu1: PowerPC,e500mc@1 {
-			device_type = "cpu";
-			reg = <1>;
-			next-level-cache = <&L2_1>;
-			L2_1: l2-cache {
-				next-level-cache = <&cpc>;
-			};
-		};
-		cpu4: PowerPC,e500mc@4 {
-			device_type = "cpu";
-			reg = <4>;
-			next-level-cache = <&L2_4>;
-			L2_4: l2-cache {
-				next-level-cache = <&cpc>;
-			};
-		};
-		cpu5: PowerPC,e500mc@5 {
-			device_type = "cpu";
-			reg = <5>;
-			next-level-cache = <&L2_5>;
-			L2_5: l2-cache {
-				next-level-cache = <&cpc>;
-			};
-		};
-		cpu6: PowerPC,e500mc@6 {
-			device_type = "cpu";
-			reg = <6>;
-			next-level-cache = <&L2_6>;
-			L2_6: l2-cache {
-				next-level-cache = <&cpc>;
-			};
-		};
-		cpu7: PowerPC,e500mc@7 {
-			device_type = "cpu";
-			reg = <7>;
-			next-level-cache = <&L2_7>;
-			L2_7: l2-cache {
-				next-level-cache = <&cpc>;
-			};
+	};
+
+	pci1: pcie@fffe0a000 {
+		reg = <0xf 0xffe0a000 0 0x1000>;
+		ranges = <0x2000000 0x0 0xe0000000 0xc 0x00000000 0x0 0x20000000
+			  0x1000000 0x0 0x00000000 0xf 0xffc00000 0x0 0x10000>;
+		pcie@0 {
+			reg = <0x0 0x0 0x0 0x0 0x0>;
+			ranges = <0x2000000 0x0 0xe0000000
+				  0x2000000 0x0 0xe0000000
+				  0x0 0x20000000
+
+				  0x1000000 0x0 0x0
+				  0x1000000 0x0 0x0
+				  0x0 0x100000>;
 		};
 	};
 };
+
+/include/ "p1024rdb.dtsi"
+/include/ "fsl/p1020si-post.dtsi"

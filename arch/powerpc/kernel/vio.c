@@ -37,8 +37,6 @@
 #include <asm/page.h>
 #include <asm/hvcall.h>
 
-static struct bus_type vio_bus_type;
-
 static struct vio_dev vio_bus_device  = { /* fake "parent" device */
 	.name = "vio",
 	.type = "",
@@ -625,7 +623,7 @@ struct dma_map_ops vio_dma_mapping_ops = {
  * vio_cmo_set_dev_desired - Set desired entitlement for a device
  *
  * @viodev: struct vio_dev for device to alter
- * @new_desired: new desired entitlement level in bytes
+ * @desired: new desired entitlement level in bytes
  *
  * For use by devices to request a change to their entitlement at runtime or
  * through sysfs.  The desired entitlement level is changed and a balancing
@@ -1262,7 +1260,7 @@ static int vio_bus_remove(struct device *dev)
 
 /**
  * vio_register_driver: - Register a new vio driver
- * @drv:	The vio_driver structure to be registered.
+ * @viodrv:	The vio_driver structure to be registered.
  */
 int __vio_register_driver(struct vio_driver *viodrv, struct module *owner,
 			  const char *mod_name)
@@ -1282,7 +1280,7 @@ EXPORT_SYMBOL(__vio_register_driver);
 
 /**
  * vio_unregister_driver - Remove registration of vio driver.
- * @driver:	The vio_driver struct to be removed form registration
+ * @viodrv:	The vio_driver struct to be removed form registration
  */
 void vio_unregister_driver(struct vio_driver *viodrv)
 {
@@ -1397,21 +1395,27 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	viodev->name = of_node->name;
 	viodev->dev.of_node = of_node_get(of_node);
 
-	if (firmware_has_feature(FW_FEATURE_CMO))
-		vio_cmo_set_dma_ops(viodev);
-	else
-		set_dma_ops(&viodev->dev, &dma_iommu_ops);
-	set_iommu_table_base(&viodev->dev, vio_build_iommu_table(viodev));
 	set_dev_node(&viodev->dev, of_node_to_nid(of_node));
 
 	/* init generic 'struct device' fields: */
 	viodev->dev.parent = &vio_bus_device.dev;
 	viodev->dev.bus = &vio_bus_type;
 	viodev->dev.release = vio_dev_release;
-        /* needed to ensure proper operation of coherent allocations
-         * later, in case driver doesn't set it explicitly */
-        dma_set_mask(&viodev->dev, DMA_BIT_MASK(64));
-        dma_set_coherent_mask(&viodev->dev, DMA_BIT_MASK(64));
+
+	if (of_get_property(viodev->dev.of_node, "ibm,my-dma-window", NULL)) {
+		if (firmware_has_feature(FW_FEATURE_CMO))
+			vio_cmo_set_dma_ops(viodev);
+		else
+			set_dma_ops(&viodev->dev, &dma_iommu_ops);
+
+		set_iommu_table_base(&viodev->dev,
+				     vio_build_iommu_table(viodev));
+
+		/* needed to ensure proper operation of coherent allocations
+		 * later, in case driver doesn't set it explicitly */
+		dma_set_mask(&viodev->dev, DMA_BIT_MASK(64));
+		dma_set_coherent_mask(&viodev->dev, DMA_BIT_MASK(64));
+	}
 
 	/* register with generic device framework */
 	if (device_register(&viodev->dev)) {
@@ -1491,12 +1495,18 @@ static int __init vio_bus_init(void)
 	if (firmware_has_feature(FW_FEATURE_CMO))
 		vio_cmo_bus_init();
 
+	return 0;
+}
+postcore_initcall(vio_bus_init);
+
+static int __init vio_device_init(void)
+{
 	vio_bus_scan_register_devices("vdevice");
 	vio_bus_scan_register_devices("ibm,platform-facilities");
 
 	return 0;
 }
-__initcall(vio_bus_init);
+device_initcall(vio_device_init);
 
 static ssize_t name_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -1568,7 +1578,7 @@ static int vio_hotplug(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-static struct bus_type vio_bus_type = {
+struct bus_type vio_bus_type = {
 	.name = "vio",
 	.dev_attrs = vio_dev_attrs,
 	.uevent = vio_hotplug,
