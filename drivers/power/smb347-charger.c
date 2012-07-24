@@ -22,6 +22,7 @@
 #include <linux/power_supply.h>
 #include <linux/power/smb347-charger.h>
 #include <linux/seq_file.h>
+#include <linux/delay.h>
 
 /*
  * Configuration registers. These are mirrored to volatile RAM and can be
@@ -91,6 +92,7 @@
 #define CMD_A_OTG_ENABLE			BIT(4)
 #define CMD_A_ALLOW_WRITE			BIT(7)
 #define CMD_B					0x31
+#define CMD_B_POR				BIT(7)
 #define CMD_B_USB59_MODE			BIT(1)
 #define CMD_B_HC_MODE				BIT(0)
 #define CMD_C					0x33
@@ -1399,6 +1401,18 @@ static int smb347_probe(struct i2c_client *client,
 			dev_warn(dev, "failed to claim EN GPIO: %d\n", ret);
 		else
 			smb->en_gpio = pdata->en_gpio;
+	}
+
+	ret = smb347_write(smb, CMD_B, CMD_B_POR);
+	if (ret < 0)
+		return ret;
+
+	msleep(20);
+
+	ret = smb347_read(smb, CMD_B);
+	if (ret < 0) {
+		dev_err(dev, "failed read after reset\n");
+		return ret;
 	}
 
 	ret = smb347_hw_init(smb);
