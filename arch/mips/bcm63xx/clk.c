@@ -224,6 +224,18 @@ static struct clk clk_xtm = {
 };
 
 /*
+ * IPsec clock
+ */
+static void ipsec_set(struct clk *clk, int enable)
+{
+	bcm_hwclock_set(CKCTL_6368_IPSEC_EN, enable);
+}
+
+static struct clk clk_ipsec = {
+	.set	= ipsec_set,
+};
+
+/*
  * Internal peripheral clock
  */
 static struct clk clk_periph = {
@@ -280,6 +292,8 @@ struct clk *clk_get(struct device *dev, const char *id)
 		return &clk_periph;
 	if (BCMCPU_IS_6358() && !strcmp(id, "pcm"))
 		return &clk_pcm;
+	if (BCMCPU_IS_6368() && !strcmp(id, "ipsec"))
+		return &clk_ipsec;
 	return ERR_PTR(-ENOENT);
 }
 
