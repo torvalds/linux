@@ -19,6 +19,9 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
 #include <linux/seq_file.h>
@@ -499,6 +502,70 @@ static void atmci_init_debugfs(struct atmel_mci_slot *slot)
 err:
 	dev_err(&mmc->class_dev, "failed to initialize debugfs for slot\n");
 }
+
+#if defined(CONFIG_OF)
+static const struct of_device_id atmci_dt_ids[] = {
+	{ .compatible = "atmel,hsmci" },
+	{ /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(of, atmci_dt_ids);
+
+static struct mci_platform_data __devinit*
+atmci_of_init(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct device_node *cnp;
+	struct mci_platform_data *pdata;
+	u32 slot_id;
+
+	if (!np) {
+		dev_err(&pdev->dev, "device node not found\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		dev_err(&pdev->dev, "could not allocate memory for pdata\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	for_each_child_of_node(np, cnp) {
+		if (of_property_read_u32(cnp, "reg", &slot_id)) {
+			dev_warn(&pdev->dev, "reg property is missing for %s\n",
+				 cnp->full_name);
+			continue;
+		}
+
+		if (slot_id >= ATMCI_MAX_NR_SLOTS) {
+			dev_warn(&pdev->dev, "can't have more than %d slots\n",
+			         ATMCI_MAX_NR_SLOTS);
+			break;
+		}
+
+		if (of_property_read_u32(cnp, "bus-width",
+		                         &pdata->slot[slot_id].bus_width))
+			pdata->slot[slot_id].bus_width = 1;
+
+		pdata->slot[slot_id].detect_pin =
+			of_get_named_gpio(cnp, "cd-gpios", 0);
+
+		pdata->slot[slot_id].detect_is_active_high =
+			of_property_read_bool(cnp, "cd-inverted");
+
+		pdata->slot[slot_id].wp_pin =
+			of_get_named_gpio(cnp, "wp-gpios", 0);
+	}
+
+	return pdata;
+}
+#else /* CONFIG_OF */
+static inline struct mci_platform_data*
+atmci_of_init(struct platform_device *dev)
+{
+	return ERR_PTR(-EINVAL);
+}
+#endif
 
 static inline unsigned int atmci_get_version(struct atmel_mci *host)
 {
@@ -2046,6 +2113,13 @@ static int __init atmci_init_slot(struct atmel_mci *host,
 	slot->sdc_reg = sdc_reg;
 	slot->sdio_irq = sdio_irq;
 
+	dev_dbg(&mmc->class_dev,
+	        "slot[%u]: bus_width=%u, detect_pin=%d, "
+		"detect_is_active_high=%s, wp_pin=%d\n",
+		id, slot_data->bus_width, slot_data->detect_pin,
+		slot_data->detect_is_active_high ? "true" : "false",
+		slot_data->wp_pin);
+
 	mmc->ops = &atmci_ops;
 	mmc->f_min = DIV_ROUND_UP(host->bus_hz, 512);
 	mmc->f_max = host->bus_hz / 2;
@@ -2268,8 +2342,14 @@ static int __init atmci_probe(struct platform_device *pdev)
 	if (!regs)
 		return -ENXIO;
 	pdata = pdev->dev.platform_data;
-	if (!pdata)
-		return -ENXIO;
+	if (!pdata) {
+		pdata = atmci_of_init(pdev);
+		if (IS_ERR(pdata)) {
+			dev_err(&pdev->dev, "platform data not available\n");
+			return PTR_ERR(pdata);
+		}
+	}
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -2487,6 +2567,7 @@ static struct platform_driver atmci_driver = {
 	.driver		= {
 		.name		= "atmel_mci",
 		.pm		= ATMCI_PM_OPS,
+		.of_match_table	= of_match_ptr(atmci_dt_ids),
 	},
 };
 
