@@ -191,6 +191,7 @@ static int print_unex = 1;
 #include <linux/mutex.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/async.h>
 
 /*
  * PS/2 floppies have much slower step rates than regular floppies.
@@ -4122,7 +4123,7 @@ static struct kobject *floppy_find(dev_t dev, int *part, void *data)
 	return get_disk(disks[drive]);
 }
 
-static int __init floppy_init(void)
+static int __init do_floppy_init(void)
 {
 	int i, unit, drive;
 	int err, dr;
@@ -4335,6 +4336,24 @@ out_put_disk:
 		put_disk(disks[dr]);
 	}
 	return err;
+}
+
+#ifndef MODULE
+static __init void floppy_async_init(void *data, async_cookie_t cookie)
+{
+	do_floppy_init();
+}
+#endif
+
+static int __init floppy_init(void)
+{
+#ifdef MODULE
+	return do_floppy_init();
+#else
+	/* Don't hold up the bootup by the floppy initialization */
+	async_schedule(floppy_async_init, NULL);
+	return 0;
+#endif
 }
 
 static const struct io_region {
