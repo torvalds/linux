@@ -63,7 +63,7 @@ struct media_bay_info {
 	int				value_count;
 	int				timer;
 	struct macio_dev		*mdev;
-	struct mb_ops*			ops;
+	const struct mb_ops*		ops;
 	int				index;
 	int				cached_gpio;
 	int				sleeping;
@@ -669,7 +669,7 @@ static int media_bay_resume(struct macio_dev *mdev)
 
 /* Definitions of "ops" structures.
  */
-static struct mb_ops ohare_mb_ops = {
+static const struct mb_ops ohare_mb_ops = {
 	.name		= "Ohare",
 	.content	= ohare_mb_content,
 	.power		= ohare_mb_power,
@@ -678,7 +678,7 @@ static struct mb_ops ohare_mb_ops = {
 	.un_reset_ide	= ohare_mb_un_reset_ide,
 };
 
-static struct mb_ops heathrow_mb_ops = {
+static const struct mb_ops heathrow_mb_ops = {
 	.name		= "Heathrow",
 	.content	= heathrow_mb_content,
 	.power		= heathrow_mb_power,
@@ -687,7 +687,7 @@ static struct mb_ops heathrow_mb_ops = {
 	.un_reset_ide	= heathrow_mb_un_reset_ide,
 };
 
-static struct mb_ops keylargo_mb_ops = {
+static const struct mb_ops keylargo_mb_ops = {
 	.name		= "KeyLargo",
 	.init		= keylargo_mb_init,
 	.content	= keylargo_mb_content,

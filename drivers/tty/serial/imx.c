@@ -206,7 +206,7 @@ struct imx_port {
 	unsigned short		trcv_delay; /* transceiver delay */
 	struct clk		*clk_ipg;
 	struct clk		*clk_per;
-	struct imx_uart_data	*devdata;
+	const struct imx_uart_data *devdata;
 };
 
 struct imx_port_ucrs {
