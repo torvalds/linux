@@ -326,8 +326,11 @@ static int ip_rcv_finish(struct sk_buff *skb)
 
 		rcu_read_lock();
 		ipprot = rcu_dereference(inet_protos[protocol]);
-		if (ipprot && ipprot->early_demux)
+		if (ipprot && ipprot->early_demux) {
 			ipprot->early_demux(skb);
+			/* must reload iph, skb->head might have changed */
+			iph = ip_hdr(skb);
+		}
 		rcu_read_unlock();
 	}
 
