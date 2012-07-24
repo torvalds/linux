@@ -1438,7 +1438,7 @@ static void sw_hcd_ep_program(struct sw_hcd *sw_hcd,
 		    USBC_Writeb(qh->type_reg, USBC_REG_TXTYPE(usbc_base));
 
 			if (can_bulk_split(sw_hcd, qh->type)){
-			    u32 tx_pkt_size = packet_sz | (((hw_ep->max_packet_sz_tx / packet_sz) - 1) << 11);
+			    u32 tx_pkt_size = packet_sz | (((hw_ep->max_packet_sz_tx / packet_sz) - 1) << USBC_BP_TXMAXP_PACKET_COUNT);
 
 			    USBC_Writew(tx_pkt_size, USBC_REG_TXMAXP(usbc_base));
 			}else{
