@@ -3491,7 +3491,7 @@ static void dispc_error_worker(struct work_struct *work)
 					ovl->name);
 			dispc_ovl_enable(ovl->id, false);
 			dispc_mgr_go(ovl->manager->id);
-			mdelay(50);
+			msleep(50);
 		}
 	}
 
@@ -3523,7 +3523,7 @@ static void dispc_error_worker(struct work_struct *work)
 			}
 
 			dispc_mgr_go(mgr->id);
-			mdelay(50);
+			msleep(50);
 
 			if (enable)
 				dssdev->driver->enable(dssdev);
