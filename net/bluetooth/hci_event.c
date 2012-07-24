@@ -627,7 +627,7 @@ static void hci_setup_link_policy(struct hci_dev *hdev)
 		link_policy |= HCI_LP_RSWITCH;
 	if (hdev->features[0] & LMP_HOLD)
 		link_policy |= HCI_LP_HOLD;
-	if (hdev->features[0] & LMP_SNIFF)
+	if (lmp_sniff_capable(hdev))
 		link_policy |= HCI_LP_SNIFF;
 	if (hdev->features[1] & LMP_PARK)
 		link_policy |= HCI_LP_PARK;
