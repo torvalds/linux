@@ -39,6 +39,7 @@
 #include <linux/dma-mapping.h>
 
 #include <linux/mlx4/cmd.h>
+#include <linux/cpu_rmap.h>
 
 #include "mlx4.h"
 #include "fw.h"
@@ -1060,7 +1061,8 @@ int mlx4_test_interrupts(struct mlx4_dev *dev)
 }
 EXPORT_SYMBOL(mlx4_test_interrupts);
 
-int mlx4_assign_eq(struct mlx4_dev *dev, char* name, int * vector)
+int mlx4_assign_eq(struct mlx4_dev *dev, char *name, struct cpu_rmap *rmap,
+		   int *vector)
 {
 
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -1074,6 +1076,14 @@ int mlx4_assign_eq(struct mlx4_dev *dev, char* name, int * vector)
 			snprintf(priv->eq_table.irq_names +
 					vec * MLX4_IRQNAME_SIZE,
 					MLX4_IRQNAME_SIZE, "%s", name);
+#ifdef CONFIG_RFS_ACCEL
+			if (rmap) {
+				err = irq_cpu_rmap_add(rmap,
+						       priv->eq_table.eq[vec].irq);
+				if (err)
+					mlx4_warn(dev, "Failed adding irq rmap\n");
+			}
+#endif
 			err = request_irq(priv->eq_table.eq[vec].irq,
 					  mlx4_msi_x_interrupt, 0,
 					  &priv->eq_table.irq_names[vec<<5],

@@ -21,15 +21,7 @@
  *
  */
 
-#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/types.h>
-#include <linux/sched.h>
-#include <linux/errno.h>
-#include <linux/skbuff.h>
-
 #include <linux/usb.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -1028,7 +1020,7 @@ static int btusb_probe(struct usb_interface *intf,
 	data->isoc = usb_ifnum_to_if(data->udev, 1);
 
 	if (!reset)
-		set_bit(HCI_QUIRK_NO_RESET, &hdev->quirks);
+		set_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
 
 	if (force_scofix || id->driver_info & BTUSB_WRONG_SCO_MTU) {
 		if (!disable_scofix)
@@ -1040,7 +1032,7 @@ static int btusb_probe(struct usb_interface *intf,
 
 	if (id->driver_info & BTUSB_DIGIANSWER) {
 		data->cmdreq_type = USB_TYPE_VENDOR;
-		set_bit(HCI_QUIRK_NO_RESET, &hdev->quirks);
+		set_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
 	}
 
 	if (id->driver_info & BTUSB_CSR) {
@@ -1048,7 +1040,7 @@ static int btusb_probe(struct usb_interface *intf,
 
 		/* Old firmware would otherwise execute USB reset */
 		if (le16_to_cpu(udev->descriptor.bcdDevice) < 0x117)
-			set_bit(HCI_QUIRK_NO_RESET, &hdev->quirks);
+			set_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
 	}
 
 	if (id->driver_info & BTUSB_SNIFFER) {

@@ -527,6 +527,7 @@ int dccp_insert_option_mandatory(struct sk_buff *skb)
  * @val: NN value or SP array (preferred element first) to copy
  * @len: true length of @val in bytes (excluding first element repetition)
  * @repeat_first: whether to copy the first element of @val twice
+ *
  * The last argument is used to construct Confirm options, where the preferred
  * value and the preference list appear separately (RFC 4340, 6.3.1). Preference
  * lists are kept such that the preferred entry is always first, so we only need

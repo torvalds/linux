@@ -212,7 +212,7 @@ static int p9_virtio_cancel(struct p9_client *client, struct p9_req_t *req)
  * this takes a list of pages.
  * @sg: scatter/gather list to pack into
  * @start: which segment of the sg_list to start at
- * @**pdata: a list of pages to add into sg.
+ * @pdata: a list of pages to add into sg.
  * @nr_pages: number of pages to pack into the scatter/gather list
  * @data: data to pack into scatter/gather list
  * @count: amount of data to pack into the scatter/gather list

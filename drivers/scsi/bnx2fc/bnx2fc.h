@@ -59,6 +59,7 @@
 #include "57xx_hsi_bnx2fc.h"
 #include "bnx2fc_debug.h"
 #include "../../net/ethernet/broadcom/cnic_if.h"
+#include  "../../net/ethernet/broadcom/bnx2x/bnx2x_mfw_req.h"
 #include "bnx2fc_constants.h"
 
 #define BNX2FC_NAME		"bnx2fc"
@@ -83,6 +84,8 @@
 
 #define BNX2FC_NUM_MAX_SESS	1024
 #define BNX2FC_NUM_MAX_SESS_LOG	(ilog2(BNX2FC_NUM_MAX_SESS))
+
+#define BNX2FC_MAX_NPIV		256
 
 #define BNX2FC_MAX_OUTSTANDING_CMNDS	2048
 #define BNX2FC_CAN_QUEUE		BNX2FC_MAX_OUTSTANDING_CMNDS
@@ -206,6 +209,7 @@ struct bnx2fc_hba {
 	struct fcoe_statistics_params *stats_buffer;
 	dma_addr_t stats_buf_dma;
 	struct completion stat_req_done;
+	struct fcoe_capabilities fcoe_cap;
 
 	/*destroy handling */
 	struct timer_list destroy_timer;

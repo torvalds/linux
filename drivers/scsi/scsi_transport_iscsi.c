@@ -2936,7 +2936,10 @@ EXPORT_SYMBOL_GPL(iscsi_unregister_transport);
 static __init int iscsi_transport_init(void)
 {
 	int err;
-
+	struct netlink_kernel_cfg cfg = {
+		.groups	= 1,
+		.input	= iscsi_if_rx,
+	};
 	printk(KERN_INFO "Loading iSCSI transport class v%s.\n",
 		ISCSI_TRANSPORT_VERSION);
 
@@ -2966,8 +2969,8 @@ static __init int iscsi_transport_init(void)
 	if (err)
 		goto unregister_conn_class;
 
-	nls = netlink_kernel_create(&init_net, NETLINK_ISCSI, 1, iscsi_if_rx,
-				    NULL, THIS_MODULE);
+	nls = netlink_kernel_create(&init_net, NETLINK_ISCSI,
+				    THIS_MODULE, &cfg);
 	if (!nls) {
 		err = -ENOBUFS;
 		goto unregister_session_class;

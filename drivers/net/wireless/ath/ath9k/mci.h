@@ -130,4 +130,13 @@ void ath_mci_flush_profile(struct ath_mci_profile *mci);
 int ath_mci_setup(struct ath_softc *sc);
 void ath_mci_cleanup(struct ath_softc *sc);
 void ath_mci_intr(struct ath_softc *sc);
-#endif
+
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+void ath_mci_enable(struct ath_softc *sc);
+#else
+static inline void ath_mci_enable(struct ath_softc *sc)
+{
+}
+#endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
+
+#endif /* MCI_H*/

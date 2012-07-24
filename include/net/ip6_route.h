@@ -53,16 +53,25 @@ static inline unsigned int rt6_flags2srcprefs(int flags)
 	return (flags >> 3) & 7;
 }
 
-extern void			rt6_bind_peer(struct rt6_info *rt,
-					      int create);
+extern void rt6_bind_peer(struct rt6_info *rt, int create);
+
+static inline struct inet_peer *__rt6_get_peer(struct rt6_info *rt, int create)
+{
+	if (rt6_has_peer(rt))
+		return rt6_peer_ptr(rt);
+
+	rt6_bind_peer(rt, create);
+	return (rt6_has_peer(rt) ? rt6_peer_ptr(rt) : NULL);
+}
 
 static inline struct inet_peer *rt6_get_peer(struct rt6_info *rt)
 {
-	if (rt->rt6i_peer)
-		return rt->rt6i_peer;
+	return __rt6_get_peer(rt, 0);
+}
 
-	rt6_bind_peer(rt, 0);
-	return rt->rt6i_peer;
+static inline struct inet_peer *rt6_get_peer_create(struct rt6_info *rt)
+{
+	return __rt6_get_peer(rt, 1);
 }
 
 extern void			ip6_route_input(struct sk_buff *skb);
@@ -124,17 +133,12 @@ extern int			rt6_route_rcv(struct net_device *dev,
 					      u8 *opt, int len,
 					      const struct in6_addr *gwaddr);
 
-extern void			rt6_redirect(const struct in6_addr *dest,
-					     const struct in6_addr *src,
-					     const struct in6_addr *saddr,
-					     struct neighbour *neigh,
-					     u8 *lladdr,
-					     int on_link);
-
-extern void			rt6_pmtu_discovery(const struct in6_addr *daddr,
-						   const struct in6_addr *saddr,
-						   struct net_device *dev,
-						   u32 pmtu);
+extern void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu,
+			    int oif, u32 mark);
+extern void ip6_sk_update_pmtu(struct sk_buff *skb, struct sock *sk,
+			       __be32 mtu);
+extern void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark);
+extern void ip6_sk_redirect(struct sk_buff *skb, struct sock *sk);
 
 struct netlink_callback;
 
@@ -154,7 +158,8 @@ extern void rt6_remove_prefsrc(struct inet6_ifaddr *ifp);
  *	Store a destination cache entry in a socket
  */
 static inline void __ip6_dst_store(struct sock *sk, struct dst_entry *dst,
-				   struct in6_addr *daddr, struct in6_addr *saddr)
+				   const struct in6_addr *daddr,
+				   const struct in6_addr *saddr)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct rt6_info *rt = (struct rt6_info *) dst;

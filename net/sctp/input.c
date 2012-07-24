@@ -408,10 +408,10 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 
 	if (t->param_flags & SPP_PMTUD_ENABLE) {
 		/* Update transports view of the MTU */
-		sctp_transport_update_pmtu(t, pmtu);
+		sctp_transport_update_pmtu(sk, t, pmtu);
 
 		/* Update association pmtu. */
-		sctp_assoc_sync_pmtu(asoc);
+		sctp_assoc_sync_pmtu(sk, asoc);
 	}
 
 	/* Retransmit with the new pmtu setting.
@@ -421,6 +421,18 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 	 * would not be fragmented, so it must be re-transmitted fragmented.
 	 */
 	sctp_retransmit(&asoc->outqueue, t, SCTP_RTXR_PMTUD);
+}
+
+void sctp_icmp_redirect(struct sock *sk, struct sctp_transport *t,
+			struct sk_buff *skb)
+{
+	struct dst_entry *dst;
+
+	if (!t)
+		return;
+	dst = sctp_transport_dst_check(t);
+	if (dst)
+		dst->ops->redirect(dst, sk, skb);
 }
 
 /*
@@ -627,6 +639,10 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 			goto out_unlock;
 
 		err = EHOSTUNREACH;
+		break;
+	case ICMP_REDIRECT:
+		sctp_icmp_redirect(sk, transport, skb);
+		err = 0;
 		break;
 	default:
 		goto out_unlock;

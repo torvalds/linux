@@ -41,6 +41,7 @@
 #include <linux/slab.h>
 #include <linux/io-mapping.h>
 #include <linux/delay.h>
+#include <linux/netdevice.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
@@ -90,7 +91,9 @@ module_param_named(log_num_mgm_entry_size,
 MODULE_PARM_DESC(log_num_mgm_entry_size, "log mgm size, that defines the num"
 					 " of qp per mcg, for example:"
 					 " 10 gives 248.range: 9<="
-					 " log_num_mgm_entry_size <= 12");
+					 " log_num_mgm_entry_size <= 12."
+					 " Not in use with device managed"
+					 " flow steering");
 
 #define MLX4_VF                                        (1 << 0)
 
@@ -243,7 +246,6 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.reserved_srqs	     = dev_cap->reserved_srqs;
 	dev->caps.max_sq_desc_sz     = dev_cap->max_sq_desc_sz;
 	dev->caps.max_rq_desc_sz     = dev_cap->max_rq_desc_sz;
-	dev->caps.num_qp_per_mgm     = mlx4_get_qp_per_mgm(dev);
 	/*
 	 * Subtract 1 from the limit because we need to allocate a
 	 * spare CQE so the HCA HW can tell the difference between an
@@ -273,6 +275,28 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.stat_rate_support  = dev_cap->stat_rate_support;
 	dev->caps.max_gso_sz	     = dev_cap->max_gso_sz;
 	dev->caps.max_rss_tbl_sz     = dev_cap->max_rss_tbl_sz;
+
+	if (dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_FS_EN) {
+		dev->caps.steering_mode = MLX4_STEERING_MODE_DEVICE_MANAGED;
+		dev->caps.num_qp_per_mgm = dev_cap->fs_max_num_qp_per_entry;
+		dev->caps.fs_log_max_ucast_qp_range_size =
+			dev_cap->fs_log_max_ucast_qp_range_size;
+	} else {
+		if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER &&
+		    dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER) {
+			dev->caps.steering_mode = MLX4_STEERING_MODE_B0;
+		} else {
+			dev->caps.steering_mode = MLX4_STEERING_MODE_A0;
+
+			if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER ||
+			    dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER)
+				mlx4_warn(dev, "Must have UC_STEER and MC_STEER flags "
+						"set to use B0 steering. Falling back to A0 steering mode.\n");
+		}
+		dev->caps.num_qp_per_mgm = mlx4_get_qp_per_mgm(dev);
+	}
+	mlx4_dbg(dev, "Steering mode is: %s\n",
+		 mlx4_steering_mode_str(dev->caps.steering_mode));
 
 	/* Sense port always allowed on supported devices for ConnectX1 and 2 */
 	if (dev->pdev->device != 0x1003)
@@ -967,9 +991,11 @@ static int mlx4_init_icm(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap,
 	}
 
 	/*
-	 * It's not strictly required, but for simplicity just map the
-	 * whole multicast group table now.  The table isn't very big
-	 * and it's a lot easier than trying to track ref counts.
+	 * For flow steering device managed mode it is required to use
+	 * mlx4_init_icm_table. For B0 steering mode it's not strictly
+	 * required, but for simplicity just map the whole multicast
+	 * group table now.  The table isn't very big and it's a lot
+	 * easier than trying to track ref counts.
 	 */
 	err = mlx4_init_icm_table(dev, &priv->mcg_table.table,
 				  init_hca->mc_base,
@@ -1205,7 +1231,26 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 			goto err_stop_fw;
 		}
 
+		priv->fs_hash_mode = MLX4_FS_L2_HASH;
+
+		switch (priv->fs_hash_mode) {
+		case MLX4_FS_L2_HASH:
+			init_hca.fs_hash_enable_bits = 0;
+			break;
+
+		case MLX4_FS_L2_L3_L4_HASH:
+			/* Enable flow steering with
+			 * udp unicast and tcp unicast
+			 */
+			init_hca.fs_hash_enable_bits =
+				MLX4_FS_UDP_UC_EN | MLX4_FS_TCP_UC_EN;
+			break;
+		}
+
 		profile = default_profile;
+		if (dev->caps.steering_mode ==
+		    MLX4_STEERING_MODE_DEVICE_MANAGED)
+			profile.num_mcg = MLX4_FS_NUM_MCG;
 
 		icm_size = mlx4_make_profile(dev, &profile, &dev_cap,
 					     &init_hca);
@@ -1539,8 +1584,8 @@ static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct msix_entry *entries;
 	int nreq = min_t(int, dev->caps.num_ports *
-			 min_t(int, num_online_cpus() + 1, MAX_MSIX_P_PORT)
-				+ MSIX_LEGACY_SZ, MAX_MSIX);
+			 min_t(int, netif_get_num_default_rss_queues() + 1,
+			       MAX_MSIX_P_PORT) + MSIX_LEGACY_SZ, MAX_MSIX);
 	int err;
 	int i;
 

@@ -710,6 +710,7 @@ EXPORT_SYMBOL_GPL(dccp_rcv_state_process);
 /**
  *  dccp_sample_rtt  -  Validate and finalise computation of RTT sample
  *  @delta:	number of microseconds between packet and acknowledgment
+ *
  *  The routine is kept generic to work in different contexts. It should be
  *  called immediately when the ACK used for the RTT sample arrives.
  */

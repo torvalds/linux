@@ -163,6 +163,7 @@ struct mlx4_ib_qp {
 	u8			state;
 	int			mlx_type;
 	struct list_head	gid_list;
+	struct list_head	steering_rules;
 };
 
 struct mlx4_ib_srq {
