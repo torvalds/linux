@@ -7696,6 +7696,7 @@ typedef struct _ATOM_PPLIB_THERMALCONTROLLER
 #define ATOM_PP_THERMALCONTROLLER_NISLANDS  15
 #define ATOM_PP_THERMALCONTROLLER_SISLANDS  16
 #define ATOM_PP_THERMALCONTROLLER_LM96163   17
+#define ATOM_PP_THERMALCONTROLLER_CISLANDS  18
 
 // Thermal controller 'combo type' to use an external controller for Fan control and an internal controller for thermal.
 // We probably should reserve the bit 0x80 for this use.
@@ -7738,6 +7739,8 @@ typedef struct _ATOM_PPLIB_EXTENDEDHEADER
     // Add extra system parameters here, always adjust size to include all fields.
     USHORT  usVCETableOffset; //points to ATOM_PPLIB_VCE_Table
     USHORT  usUVDTableOffset;   //points to ATOM_PPLIB_UVD_Table
+    USHORT  usSAMUTableOffset;  //points to ATOM_PPLIB_SAMU_Table
+    USHORT  usPPMTableOffset;   //points to ATOM_PPLIB_PPM_Table
 } ATOM_PPLIB_EXTENDEDHEADER;
 
 //// ATOM_PPLIB_POWERPLAYTABLE::ulPlatformCaps
@@ -7759,7 +7762,7 @@ typedef struct _ATOM_PPLIB_EXTENDEDHEADER
 #define ATOM_PP_PLATFORM_CAP_VDDCI_CONTROL 0x8000                   // Does the driver control VDDCI independently from VDDC.
 #define ATOM_PP_PLATFORM_CAP_REGULATOR_HOT 0x00010000               // Enable the 'regulator hot' feature.
 #define ATOM_PP_PLATFORM_CAP_BACO          0x00020000               // Does the driver supports BACO state.
-
+#define ATOM_PP_PLATFORM_CAP_NEW_CAC_VOLTAGE   0x00040000           // Does the driver supports new CAC voltage table.
 
 typedef struct _ATOM_PPLIB_POWERPLAYTABLE
 {
@@ -7820,7 +7823,7 @@ typedef struct _ATOM_PPLIB_POWERPLAYTABLE4
     USHORT                     usVddcDependencyOnMCLKOffset;
     USHORT                     usMaxClockVoltageOnDCOffset;
     USHORT                     usVddcPhaseShedLimitsTableOffset;    // Points to ATOM_PPLIB_PhaseSheddingLimits_Table
-    USHORT                     usReserved;  
+    USHORT                     usMvddDependencyOnMCLKOffset;  
 } ATOM_PPLIB_POWERPLAYTABLE4, *LPATOM_PPLIB_POWERPLAYTABLE4;
 
 typedef struct _ATOM_PPLIB_POWERPLAYTABLE5
@@ -7985,6 +7988,17 @@ typedef struct _ATOM_PPLIB_SI_CLOCK_INFO
 
 } ATOM_PPLIB_SI_CLOCK_INFO;
 
+typedef struct _ATOM_PPLIB_CI_CLOCK_INFO
+{
+      USHORT usEngineClockLow;
+      UCHAR  ucEngineClockHigh;
+
+      USHORT usMemoryClockLow;
+      UCHAR  ucMemoryClockHigh;
+      
+      UCHAR  ucPCIEGen;
+      USHORT usPCIELane;
+} ATOM_PPLIB_CI_CLOCK_INFO;
 
 typedef struct _ATOM_PPLIB_RS780_CLOCK_INFO
 
@@ -8102,8 +8116,8 @@ typedef struct _ATOM_PPLIB_Clock_Voltage_Limit_Table
 
 typedef struct _ATOM_PPLIB_CAC_Leakage_Record
 {
-    USHORT usVddc;  // We use this field for the "fake" standardized VDDC for power calculations                                                  
-    ULONG  ulLeakageValue;
+    USHORT usVddc;  // We use this field for the "fake" standardized VDDC for power calculations; For CI and newer, we use this as the real VDDC value.
+    ULONG  ulLeakageValue;  // For CI and newer we use this as the "fake" standar VDDC value.
 }ATOM_PPLIB_CAC_Leakage_Record;
 
 typedef struct _ATOM_PPLIB_CAC_Leakage_Table
@@ -8217,6 +8231,42 @@ typedef struct _ATOM_PPLIB_UVD_Table
 //    ATOM_PPLIB_UVD_Clock_Voltage_Limit_Table limits;
 //    ATOM_PPLIB_UVD_State_Table states;
 }ATOM_PPLIB_UVD_Table;
+
+
+typedef struct _ATOM_PPLIB_SAMClk_Voltage_Limit_Record
+{
+      USHORT usVoltage;
+      USHORT usSAMClockLow;
+      UCHAR  ucSAMClockHigh;
+}ATOM_PPLIB_SAMClk_Voltage_Limit_Record;
+
+typedef struct _ATOM_PPLIB_SAMClk_Voltage_Limit_Table{
+    UCHAR numEntries;
+    ATOM_PPLIB_SAMClk_Voltage_Limit_Record entries[1];
+}ATOM_PPLIB_SAMClk_Voltage_Limit_Table;
+
+typedef struct _ATOM_PPLIB_SAMU_Table
+{
+      UCHAR revid;
+      ATOM_PPLIB_SAMClk_Voltage_Limit_Table limits;
+}ATOM_PPLIB_SAMU_Table;
+
+#define ATOM_PPM_A_A    1
+#define ATOM_PPM_A_I    2
+typedef struct _ATOM_PPLIB_PPM_Table
+{
+      UCHAR  ucRevId;
+      UCHAR  ucPpmDesign;          //A+I or A+A
+      USHORT usCpuCoreNumber;
+      ULONG  ulPlatformTDP;
+      ULONG  ulSmallACPlatformTDP;
+      ULONG  ulPlatformTDC;
+      ULONG  ulSmallACPlatformTDC;
+      ULONG  ulApuTDP;
+      ULONG  ulDGpuTDP;  
+      ULONG  ulDGpuUlvPower;
+      ULONG  ulTjmax;
+} ATOM_PPLIB_PPM_Table;
 
 /**************************************************************************/
 
