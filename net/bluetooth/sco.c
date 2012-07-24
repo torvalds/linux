@@ -913,7 +913,7 @@ int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	return lm;
 }
 
-int sco_connect_cfm(struct hci_conn *hcon, __u8 status)
+void sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 {
 	BT_DBG("hcon %p bdaddr %s status %d", hcon, batostr(&hcon->dst), status);
 	if (!status) {
@@ -924,16 +924,13 @@ int sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 			sco_conn_ready(conn);
 	} else
 		sco_conn_del(hcon, bt_to_errno(status));
-
-	return 0;
 }
 
-int sco_disconn_cfm(struct hci_conn *hcon, __u8 reason)
+void sco_disconn_cfm(struct hci_conn *hcon, __u8 reason)
 {
 	BT_DBG("hcon %p reason %d", hcon, reason);
 
 	sco_conn_del(hcon, bt_to_errno(reason));
-	return 0;
 }
 
 int sco_recv_scodata(struct hci_conn *hcon, struct sk_buff *skb)
