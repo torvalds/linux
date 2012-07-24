@@ -456,7 +456,7 @@ static int rk_fb_set_par(struct fb_info *info)
 			cblen = crlen = (xvir*yvir);
 			break;
 		default:
-			printk("un supported format:0x%x\n",data_format);
+			printk("%s:un supported format:0x%x\n",__func__,data_format);
 		    return -EINVAL;
 	}
 #else
@@ -498,7 +498,7 @@ static int rk_fb_set_par(struct fb_info *info)
 					par2->yact = par->yact;
 					par2->format = par->format;
 					info2->var.nonstd &= 0xffffff00;
-					info2->var.nonstd |= par->format;
+					info2->var.nonstd |= data_format;
 					dev_drv1->set_par(dev_drv1,layer_id);
 				}
 			}
