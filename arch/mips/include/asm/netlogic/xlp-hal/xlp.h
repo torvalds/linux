@@ -35,8 +35,12 @@
 #ifndef _NLM_HAL_XLP_H
 #define _NLM_HAL_XLP_H
 
-#define PIC_UART_0_IRQ           17
-#define PIC_UART_1_IRQ           18
+#define PIC_UART_0_IRQ			17
+#define PIC_UART_1_IRQ			18
+#define PIC_PCIE_LINK_0_IRQ		19
+#define PIC_PCIE_LINK_1_IRQ		20
+#define PIC_PCIE_LINK_2_IRQ		21
+#define PIC_PCIE_LINK_3_IRQ		22
 
 #ifndef __ASSEMBLY__
 

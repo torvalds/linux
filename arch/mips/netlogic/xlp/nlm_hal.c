@@ -69,6 +69,14 @@ int nlm_irq_to_irt(int irq)
 		return PIC_IRT_UART_0_INDEX;
 	case PIC_UART_1_IRQ:
 		return PIC_IRT_UART_1_INDEX;
+	case PIC_PCIE_LINK_0_IRQ:
+	       return PIC_IRT_PCIE_LINK_0_INDEX;
+	case PIC_PCIE_LINK_1_IRQ:
+	       return PIC_IRT_PCIE_LINK_1_INDEX;
+	case PIC_PCIE_LINK_2_IRQ:
+	       return PIC_IRT_PCIE_LINK_2_INDEX;
+	case PIC_PCIE_LINK_3_IRQ:
+	       return PIC_IRT_PCIE_LINK_3_INDEX;
 	default:
 		return -1;
 	}
@@ -81,6 +89,14 @@ int nlm_irt_to_irq(int irt)
 		return PIC_UART_0_IRQ;
 	case PIC_IRT_UART_1_INDEX:
 		return PIC_UART_1_IRQ;
+	case PIC_IRT_PCIE_LINK_0_INDEX:
+	       return PIC_PCIE_LINK_0_IRQ;
+	case PIC_IRT_PCIE_LINK_1_INDEX:
+	       return PIC_PCIE_LINK_1_IRQ;
+	case PIC_IRT_PCIE_LINK_2_INDEX:
+	       return PIC_PCIE_LINK_2_IRQ;
+	case PIC_IRT_PCIE_LINK_3_INDEX:
+	       return PIC_PCIE_LINK_3_IRQ;
 	default:
 		return -1;
 	}
