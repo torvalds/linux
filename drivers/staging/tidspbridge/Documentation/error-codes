@@ -69,7 +69,7 @@ The error codes used by this driver are:
     Invalid pointer or handler.
 
 [EEXIST]
-    Attempted to create a channel manager  when one already exists.
+    Attempted to create a channel manager when one already exists.
 
 [EINVAL]
     Invalid argument.

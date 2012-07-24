@@ -203,7 +203,7 @@ extern int strm_issue(struct strm_object *stream_obj, u8 * pbuf,
  *      index:         Stream index.
  *      pattr:          Pointer to structure containing attributes to be
  *                      applied to stream. Cannot be NULL.
- *      strmres:     Location to store stream resuorce info handle on output.
+ *      strmres:     Location to store stream resource info handle on output.
  *  Returns:
  *      0:        Success.
  *      -EFAULT:    Invalid hnode.

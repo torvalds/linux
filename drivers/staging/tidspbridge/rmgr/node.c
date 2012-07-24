@@ -1613,7 +1613,7 @@ int node_get_attr(struct node_object *hnode,
 		return -EFAULT;
 
 	hnode_mgr = hnode->node_mgr;
-	/* Enter hnode_mgr critical section (since we're accessing
+	/* Enter hnode_mgr critical section since we're accessing
 	 * data that could be changed by node_change_priority() and
 	 * node_connect(). */
 	mutex_lock(&hnode_mgr->node_mgr_lock);

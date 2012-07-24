@@ -898,7 +898,7 @@ static int add_ovly_info(void *handle, struct dbll_sect_info *sect_info,
 				nldr_obj->ovly_table[i].execute_sects++;
 
 		} else {
-			/* Put in "other" sectins */
+			/* Put in "other" sections */
 			status =
 			    add_ovly_sect(nldr_obj,
 					  &nldr_obj->

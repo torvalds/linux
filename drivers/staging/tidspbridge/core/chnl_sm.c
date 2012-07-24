@@ -20,7 +20,7 @@
  *      The lower edge functions must be implemented by the Bridge driver
  *      writer, and are declared in chnl_sm.h.
  *
- *      Care is taken in this code to prevent simulataneous access to channel
+ *      Care is taken in this code to prevent simultaneous access to channel
  *      queues from
  *      1. Threads.
  *      2. io_dpc(), scheduled from the io_isr() as an event.
@@ -34,7 +34,7 @@
  *  Channel Invariant:
  *      There is an important invariant condition which must be maintained per
  *      channel outside of bridge_chnl_get_ioc() and IO_Dispatch(), violation of
- *      which may cause timeouts and/or failure offunction sync_wait_on_event.
+ *      which may cause timeouts and/or failure of function sync_wait_on_event.
  *      This invariant condition is:
  *
  *          list_empty(&pchnl->io_completions) ==> pchnl->sync_event is reset
@@ -602,7 +602,7 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
 		/*  Since DSPStream_Reclaim() does not take a timeout
 		 *  parameter, we pass the stream's timeout value to
 		 *  bridge_chnl_get_ioc. We cannot determine whether or not
-		 *  we have waited in User mode. Since the stream's timeout
+		 *  we have waited in user mode. Since the stream's timeout
 		 *  value may be non-zero, we still have to set the event.
 		 *  Therefore, this optimization is taken out.
 		 *

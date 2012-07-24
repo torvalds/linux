@@ -328,7 +328,7 @@ static int bridge_brd_read(struct bridge_dev_context *dev_ctxt,
 					   ul_num_bytes, mem_type);
 		return status;
 	}
-	/* copy the data from  DSP memory, */
+	/* copy the data from DSP memory */
 	memcpy(host_buff, (void *)(dsp_base_addr + offset), ul_num_bytes);
 	return status;
 }
@@ -1745,7 +1745,7 @@ static int mem_map_vmalloc(struct bridge_dev_context *dev_context,
 	pa_next = page_to_phys(page[0]);
 	while (!status && (i < num_pages)) {
 		/*
-		 * Reuse pa_next from the previous iteraion to avoid
+		 * Reuse pa_next from the previous iteration to avoid
 		 * an extra va2pa call
 		 */
 		pa_curr = pa_next;
