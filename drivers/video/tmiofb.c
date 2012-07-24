@@ -694,6 +694,10 @@ static int __devinit tmiofb_probe(struct platform_device *dev)
 		dev_err(&dev->dev, "NULL platform data!\n");
 		return -EINVAL;
 	}
+	if (ccr == NULL || lcr == NULL || vram == NULL || irq < 0) {
+		dev_err(&dev->dev, "missing resources\n");
+		return -EINVAL;
+	}
 
 	info = framebuffer_alloc(sizeof(struct tmiofb_par), &dev->dev);
 
