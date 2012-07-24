@@ -379,6 +379,28 @@ int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
 EXPORT_SYMBOL_GPL(pwm_config);
 
 /**
+ * pwm_set_polarity() - configure the polarity of a PWM signal
+ * @pwm: PWM device
+ * @polarity: new polarity of the PWM signal
+ *
+ * Note that the polarity cannot be configured while the PWM device is enabled
+ */
+int pwm_set_polarity(struct pwm_device *pwm, enum pwm_polarity polarity)
+{
+	if (!pwm || !pwm->chip->ops)
+		return -EINVAL;
+
+	if (!pwm->chip->ops->set_polarity)
+		return -ENOSYS;
+
+	if (test_bit(PWMF_ENABLED, &pwm->flags))
+		return -EBUSY;
+
+	return pwm->chip->ops->set_polarity(pwm->chip, pwm, polarity);
+}
+EXPORT_SYMBOL_GPL(pwm_set_polarity);
+
+/**
  * pwm_enable() - start a PWM output toggling
  * @pwm: PWM device
  */
