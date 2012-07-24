@@ -49,71 +49,37 @@ struct max8997_led {
 	struct mutex mutex;
 };
 
-static void max8997_led_clear_mode(struct max8997_led *led,
-			enum max8997_led_mode mode)
-{
-	struct i2c_client *client = led->iodev->i2c;
-	u8 val = 0, mask = 0;
-	int ret;
-
-	switch (mode) {
-	case MAX8997_FLASH_MODE:
-		mask = led->id ?
-		      MAX8997_LED1_FLASH_MASK : MAX8997_LED0_FLASH_MASK;
-		break;
-	case MAX8997_MOVIE_MODE:
-		mask = led->id ?
-		      MAX8997_LED1_MOVIE_MASK : MAX8997_LED0_MOVIE_MASK;
-		break;
-	case MAX8997_FLASH_PIN_CONTROL_MODE:
-		mask = led->id ?
-		      MAX8997_LED1_FLASH_PIN_MASK : MAX8997_LED0_FLASH_PIN_MASK;
-		break;
-	case MAX8997_MOVIE_PIN_CONTROL_MODE:
-		mask = led->id ?
-		      MAX8997_LED1_MOVIE_PIN_MASK : MAX8997_LED0_MOVIE_PIN_MASK;
-		break;
-	default:
-		break;
-	}
-
-	if (mask) {
-		ret = max8997_update_reg(client,
-				MAX8997_REG_LEN_CNTL, val, mask);
-		if (ret)
-			dev_err(led->iodev->dev,
-				"failed to update register(%d)\n", ret);
-	}
-}
-
 static void max8997_led_set_mode(struct max8997_led *led,
 			enum max8997_led_mode mode)
 {
 	int ret;
 	struct i2c_client *client = led->iodev->i2c;
-	u8 mask = 0;
-
-	/* First, clear the previous mode */
-	max8997_led_clear_mode(led, led->led_mode);
+	u8 mask = 0, val;
 
 	switch (mode) {
 	case MAX8997_FLASH_MODE:
-		mask = led->id ?
+		mask = MAX8997_LED1_FLASH_MASK | MAX8997_LED0_FLASH_MASK;
+		val = led->id ?
 		      MAX8997_LED1_FLASH_MASK : MAX8997_LED0_FLASH_MASK;
 		led->cdev.max_brightness = MAX8997_LED_FLASH_MAX_BRIGHTNESS;
 		break;
 	case MAX8997_MOVIE_MODE:
-		mask = led->id ?
+		mask = MAX8997_LED1_MOVIE_MASK | MAX8997_LED0_MOVIE_MASK;
+		val = led->id ?
 		      MAX8997_LED1_MOVIE_MASK : MAX8997_LED0_MOVIE_MASK;
 		led->cdev.max_brightness = MAX8997_LED_MOVIE_MAX_BRIGHTNESS;
 		break;
 	case MAX8997_FLASH_PIN_CONTROL_MODE:
-		mask = led->id ?
+		mask = MAX8997_LED1_FLASH_PIN_MASK |
+		       MAX8997_LED0_FLASH_PIN_MASK;
+		val = led->id ?
 		      MAX8997_LED1_FLASH_PIN_MASK : MAX8997_LED0_FLASH_PIN_MASK;
 		led->cdev.max_brightness = MAX8997_LED_FLASH_MAX_BRIGHTNESS;
 		break;
 	case MAX8997_MOVIE_PIN_CONTROL_MODE:
-		mask = led->id ?
+		mask = MAX8997_LED1_MOVIE_PIN_MASK |
+		       MAX8997_LED0_MOVIE_PIN_MASK;
+		val = led->id ?
 		      MAX8997_LED1_MOVIE_PIN_MASK : MAX8997_LED0_MOVIE_PIN_MASK;
 		led->cdev.max_brightness = MAX8997_LED_MOVIE_MAX_BRIGHTNESS;
 		break;
@@ -123,8 +89,8 @@ static void max8997_led_set_mode(struct max8997_led *led,
 	}
 
 	if (mask) {
-		ret = max8997_update_reg(client,
-				MAX8997_REG_LEN_CNTL, mask, mask);
+		ret = max8997_update_reg(client, MAX8997_REG_LEN_CNTL, val,
+					 mask);
 		if (ret)
 			dev_err(led->iodev->dev,
 				"failed to update register(%d)\n", ret);
