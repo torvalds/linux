@@ -1,11 +1,11 @@
 /*
- * Copyright 2003-2011 NetLogic Microsystems, Inc. (NetLogic). All rights
- * reserved.
+ * Copyright (c) 2003-2012 Broadcom Corporation
+ * All Rights Reserved
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
  * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the NetLogic
+ * COPYING in the main directory of this source tree, or the Broadcom
  * license below:
  *
  * Redistribution and use in source and binary forms, with or without
@@ -19,10 +19,10 @@
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY NETLOGIC ``AS IS'' AND ANY EXPRESS OR
+ * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL NETLOGIC OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL BROADCOM OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
@@ -32,30 +32,33 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _NLM_HAL_XLP_H
-#define _NLM_HAL_XLP_H
+#ifndef __NLM_HAL_USB_H__
+#define __NLM_HAL_USB_H__
 
-#define PIC_UART_0_IRQ			17
-#define PIC_UART_1_IRQ			18
-#define PIC_PCIE_LINK_0_IRQ		19
-#define PIC_PCIE_LINK_1_IRQ		20
-#define PIC_PCIE_LINK_2_IRQ		21
-#define PIC_PCIE_LINK_3_IRQ		22
-#define PIC_EHCI_0_IRQ			23
-#define PIC_EHCI_1_IRQ			24
-#define PIC_OHCI_0_IRQ			25
-#define PIC_OHCI_1_IRQ			26
-#define PIC_OHCI_2_IRQ			27
-#define PIC_OHCI_3_IRQ			28
+#define USB_CTL_0			0x01
+#define USB_PHY_0			0x0A
+#define USB_PHY_RESET			0x01
+#define USB_PHY_PORT_RESET_0		0x10
+#define USB_PHY_PORT_RESET_1		0x20
+#define USB_CONTROLLER_RESET		0x01
+#define USB_INT_STATUS			0x0E
+#define USB_INT_EN			0x0F
+#define USB_PHY_INTERRUPT_EN		0x01
+#define USB_OHCI_INTERRUPT_EN		0x02
+#define USB_OHCI_INTERRUPT1_EN		0x04
+#define USB_OHCI_INTERRUPT2_EN		0x08
+#define USB_CTRL_INTERRUPT_EN		0x10
 
 #ifndef __ASSEMBLY__
 
-/* SMP support functions */
-void xlp_boot_core0_siblings(void);
-void xlp_wakeup_secondary_cpus(void);
+#define nlm_read_usb_reg(b, r)			nlm_read_reg(b, r)
+#define nlm_write_usb_reg(b, r, v)		nlm_write_reg(b, r, v)
+#define nlm_get_usb_pcibase(node, inst)		\
+	nlm_pcicfg_base(XLP_IO_USB_OFFSET(node, inst))
+#define nlm_get_usb_hcd_base(node, inst)	\
+	nlm_xkphys_map_pcibar0(nlm_get_usb_pcibase(node, inst))
+#define nlm_get_usb_regbase(node, inst)		\
+	(nlm_get_usb_pcibase(node, inst) + XLP_IO_PCI_HDRSZ)
 
-void xlp_mmu_init(void);
-void nlm_hal_init(void);
-
-#endif /* !__ASSEMBLY__ */
-#endif /* _ASM_NLM_XLP_H */
+#endif
+#endif /* __NLM_HAL_USB_H__ */
