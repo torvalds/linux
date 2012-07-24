@@ -33,7 +33,7 @@ void genl_unlock(void)
 }
 EXPORT_SYMBOL(genl_unlock);
 
-#ifdef CONFIG_PROVE_LOCKING
+#ifdef CONFIG_LOCKDEP
 int lockdep_genl_is_held(void)
 {
 	return lockdep_is_held(&genl_mutex);
