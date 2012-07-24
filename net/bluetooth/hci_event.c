@@ -513,7 +513,7 @@ static void hci_setup_event_mask(struct hci_dev *hdev)
 	if (hdev->features[3] & LMP_RSSI_INQ)
 		events[4] |= 0x02; /* Inquiry Result with RSSI */
 
-	if (hdev->features[5] & LMP_SNIFF_SUBR)
+	if (lmp_sniffsubr_capable(hdev))
 		events[5] |= 0x20; /* Sniff Subrating */
 
 	if (hdev->features[5] & LMP_PAUSE_ENC)
