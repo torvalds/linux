@@ -609,13 +609,19 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 	case DISCARD_WRITE:
 		/* for discarded conflicting writes of multiple primaries,
 		 * there is no need to keep anything in the tl, potential
-		 * node crashes are covered by the activity log. */
-		mod_rq_state(req, NULL, 0, RQ_NET_DONE);
-		/* fall through */
+		 * node crashes are covered by the activity log.
+		 *
+		 * If this request had been marked as RQ_POSTPONED before,
+		 * it will actually not be discarded, but "restarted",
+		 * resubmitted from the retry worker context. */
+		D_ASSERT(req->rq_state & RQ_NET_PENDING);
+		D_ASSERT(req->rq_state & RQ_EXP_WRITE_ACK);
+		mod_rq_state(req, m, RQ_NET_PENDING, RQ_NET_DONE|RQ_NET_OK);
+		break;
+
 	case WRITE_ACKED_BY_PEER_AND_SIS:
+		req->rq_state |= RQ_NET_SIS;
 	case WRITE_ACKED_BY_PEER:
-		if (what == WRITE_ACKED_BY_PEER_AND_SIS)
-			req->rq_state |= RQ_NET_SIS;
 		D_ASSERT(req->rq_state & RQ_EXP_WRITE_ACK);
 		/* protocol C; successfully written on peer.
 		 * Nothing more to do here.
