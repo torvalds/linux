@@ -238,8 +238,8 @@ static const match_table_t cifs_mount_option_tokens = {
 enum {
 	Opt_sec_krb5, Opt_sec_krb5i, Opt_sec_krb5p,
 	Opt_sec_ntlmsspi, Opt_sec_ntlmssp,
-	Opt_ntlm, Opt_sec_ntlmi, Opt_sec_ntlmv2i,
-	Opt_sec_nontlm, Opt_sec_lanman,
+	Opt_ntlm, Opt_sec_ntlmi, Opt_sec_ntlmv2,
+	Opt_sec_ntlmv2i, Opt_sec_lanman,
 	Opt_sec_none,
 
 	Opt_sec_err
@@ -253,8 +253,9 @@ static const match_table_t cifs_secflavor_tokens = {
 	{ Opt_sec_ntlmssp, "ntlmssp" },
 	{ Opt_ntlm, "ntlm" },
 	{ Opt_sec_ntlmi, "ntlmi" },
+	{ Opt_sec_ntlmv2, "nontlm" },
+	{ Opt_sec_ntlmv2, "ntlmv2" },
 	{ Opt_sec_ntlmv2i, "ntlmv2i" },
-	{ Opt_sec_nontlm, "nontlm" },
 	{ Opt_sec_lanman, "lanman" },
 	{ Opt_sec_none, "none" },
 
@@ -1167,7 +1168,7 @@ static int cifs_parse_security_flavors(char *value,
 	case Opt_sec_ntlmi:
 		vol->secFlg |= CIFSSEC_MAY_NTLM | CIFSSEC_MUST_SIGN;
 		break;
-	case Opt_sec_nontlm:
+	case Opt_sec_ntlmv2:
 		vol->secFlg |= CIFSSEC_MAY_NTLMV2;
 		break;
 	case Opt_sec_ntlmv2i:
