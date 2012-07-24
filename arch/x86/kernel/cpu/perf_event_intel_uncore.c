@@ -18,6 +18,7 @@ static struct event_constraint constraint_empty =
 	EVENT_CONSTRAINT(0, 0, 0);
 
 DEFINE_UNCORE_FORMAT_ATTR(event, event, "config:0-7");
+DEFINE_UNCORE_FORMAT_ATTR(event_ext, event, "config:0-7,21");
 DEFINE_UNCORE_FORMAT_ATTR(umask, umask, "config:8-15");
 DEFINE_UNCORE_FORMAT_ATTR(edge, edge, "config:18");
 DEFINE_UNCORE_FORMAT_ATTR(tid_en, tid_en, "config:19");
@@ -293,6 +294,15 @@ static struct attribute *snbep_uncore_pcu_formats_attr[] = {
 	NULL,
 };
 
+static struct attribute *snbep_uncore_qpi_formats_attr[] = {
+	&format_attr_event_ext.attr,
+	&format_attr_umask.attr,
+	&format_attr_edge.attr,
+	&format_attr_inv.attr,
+	&format_attr_thresh8.attr,
+	NULL,
+};
+
 static struct uncore_event_desc snbep_uncore_imc_events[] = {
 	INTEL_UNCORE_EVENT_DESC(clockticks,      "event=0xff,umask=0x00"),
 	INTEL_UNCORE_EVENT_DESC(cas_count_read,  "event=0x04,umask=0x03"),
@@ -326,6 +336,11 @@ static struct attribute_group snbep_uncore_cbox_format_group = {
 static struct attribute_group snbep_uncore_pcu_format_group = {
 	.name = "format",
 	.attrs = snbep_uncore_pcu_formats_attr,
+};
+
+static struct attribute_group snbep_uncore_qpi_format_group = {
+	.name = "format",
+	.attrs = snbep_uncore_qpi_formats_attr,
 };
 
 static struct intel_uncore_ops snbep_uncore_msr_ops = {
@@ -499,8 +514,13 @@ static struct intel_uncore_type snbep_uncore_qpi = {
 	.num_counters   = 4,
 	.num_boxes	= 2,
 	.perf_ctr_bits	= 48,
+	.perf_ctr	= SNBEP_PCI_PMON_CTR0,
+	.event_ctl	= SNBEP_PCI_PMON_CTL0,
+	.event_mask	= SNBEP_QPI_PCI_PMON_RAW_EVENT_MASK,
+	.box_ctl	= SNBEP_PCI_PMON_BOX_CTL,
+	.ops		= &snbep_uncore_pci_ops,
 	.event_descs	= snbep_uncore_qpi_events,
-	SNBEP_UNCORE_PCI_COMMON_INIT(),
+	.format_group	= &snbep_uncore_qpi_format_group,
 };
 
 
