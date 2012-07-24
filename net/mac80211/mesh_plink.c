@@ -362,6 +362,11 @@ static struct sta_info *mesh_peer_init(struct ieee80211_sub_if_data *sdata,
 
 	spin_lock_bh(&sta->lock);
 	sta->last_rx = jiffies;
+	if (sta->plink_state == NL80211_PLINK_ESTAB) {
+		spin_unlock_bh(&sta->lock);
+		return sta;
+	}
+
 	sta->sta.supp_rates[band] = rates;
 	if (elems->ht_cap_elem &&
 	    sdata->local->_oper_channel_type != NL80211_CHAN_NO_HT)
