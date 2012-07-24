@@ -80,6 +80,38 @@
  * This is the code that will be copied to the reset entry point for
  * XLR and XLP. The XLP cores start here when they are woken up. This
  * is also the NMI entry point.
+ */
+.macro	xlp_flush_l1_dcache
+	li	t0, LSU_DEBUG_DATA0
+	li	t1, LSU_DEBUG_ADDR
+	li	t2, 0		/* index */
+	li 	t3, 0x1000	/* loop count */
+1:
+	sll	v0, t2, 5
+	mtcr	zero, t0
+	ori	v1, v0, 0x3	/* way0 | write_enable | write_active */
+	mtcr	v1, t1
+2:
+	mfcr	v1, t1
+	andi	v1, 0x1		/* wait for write_active == 0 */
+	bnez	v1, 2b
+	nop
+	mtcr	zero, t0
+	ori	v1, v0, 0x7	/* way1 | write_enable | write_active */
+	mtcr	v1, t1
+3:
+	mfcr	v1, t1
+	andi	v1, 0x1		/* wait for write_active == 0 */
+	bnez	v1, 3b
+	nop
+	addi	t2, 1
+	bne	t3, t2, 1b
+	nop
+.endm
+
+/*
+ * The cores can come start when they are woken up. This is also the NMI
+ * entry, so check that first.
  *
  * The data corresponding to reset/NMI is stored at RESET_DATA_PHYS
  * location, this will have the thread mask (used when core is woken up)
@@ -138,6 +170,8 @@ FEXPORT(nlm_reset_entry)
  * a core.
  */
 EXPORT(nlm_boot_siblings)
+	/* core L1D flush before enable threads */
+	xlp_flush_l1_dcache
 	/* Enable hw threads by writing to MAP_THREADMODE of the core */
 	li	t0, CKSEG1ADDR(RESET_DATA_PHYS)
 	lw	t1, BOOT_THREAD_MODE(t0)	/* t1 <- thread mode */
@@ -164,16 +198,13 @@ EXPORT(nlm_boot_siblings)
         li	t0, MMU_SETUP
         li	t1, 0
         mtcr	t1, t0
-	ehb
+	_ehb
 
 2:	beqz	v0, 4f		/* boot cpu (cpuid == 0)? */
 	nop
 
 	/* setup status reg */
-	mfc0	t1, CP0_STATUS
-	li	t0, ST0_BEV
-	or	t1, t0
-	xor	t1, t0
+	move	t1, zero
 #ifdef CONFIG_64BIT
 	ori	t1, ST0_KX
 #endif
@@ -220,6 +251,12 @@ FEXPORT(xlp_boot_core0_siblings)	/* "Master" cpu starts from here */
 
 	__CPUINIT
 NESTED(nlm_boot_secondary_cpus, 16, sp)
+	/* Initialize CP0 Status */
+	move	t1, zero
+#ifdef CONFIG_64BIT
+	ori	t1, ST0_KX
+#endif
+	mtc0	t1, CP0_STATUS
 	PTR_LA	t1, nlm_next_sp
 	PTR_L	sp, 0(t1)
 	PTR_LA	t1, nlm_next_gp
