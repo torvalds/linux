@@ -3579,7 +3579,7 @@ u32 be_get_fw_log_level(struct be_adapter *adapter)
 	if (!status) {
 		cfgs = (struct be_fat_conf_params *)(extfat_cmd.va +
 						sizeof(struct be_cmd_resp_hdr));
-		for (j = 0; j < cfgs->module[0].num_modes; j++) {
+		for (j = 0; j < le32_to_cpu(cfgs->module[0].num_modes); j++) {
 			if (cfgs->module[0].trace_lvl[j].mode == MODE_UART)
 				level = cfgs->module[0].trace_lvl[j].dbg_lvl;
 		}
