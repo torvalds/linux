@@ -1134,7 +1134,7 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 	if (!pdn || !PCI_DN(pdn)) {
 		printk(KERN_WARNING "pci_dma_dev_setup_pSeriesLP: "
 		       "no DMA window found for pci dev=%s dn=%s\n",
-				 pci_name(dev), dn? dn->full_name : "<null>");
+				 pci_name(dev), of_node_full_name(dn));
 		return;
 	}
 	pr_debug("  parent is %s\n", pdn->full_name);
