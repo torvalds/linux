@@ -15,6 +15,30 @@
 /* Clock Control register */
 #define PERF_CKCTL_REG			0x4
 
+#define CKCTL_6328_PHYMIPS_EN		(1 << 0)
+#define CKCTL_6328_ADSL_QPROC_EN	(1 << 1)
+#define CKCTL_6328_ADSL_AFE_EN		(1 << 2)
+#define CKCTL_6328_ADSL_EN		(1 << 3)
+#define CKCTL_6328_MIPS_EN		(1 << 4)
+#define CKCTL_6328_SAR_EN		(1 << 5)
+#define CKCTL_6328_PCM_EN		(1 << 6)
+#define CKCTL_6328_USBD_EN		(1 << 7)
+#define CKCTL_6328_USBH_EN		(1 << 8)
+#define CKCTL_6328_HSSPI_EN		(1 << 9)
+#define CKCTL_6328_PCIE_EN		(1 << 10)
+#define CKCTL_6328_ROBOSW_EN		(1 << 11)
+
+#define CKCTL_6328_ALL_SAFE_EN		(CKCTL_6328_PHYMIPS_EN |	\
+					CKCTL_6328_ADSL_QPROC_EN |	\
+					CKCTL_6328_ADSL_AFE_EN |	\
+					CKCTL_6328_ADSL_EN |		\
+					CKCTL_6328_SAR_EN  |		\
+					CKCTL_6328_PCM_EN  |		\
+					CKCTL_6328_USBD_EN |		\
+					CKCTL_6328_USBH_EN |		\
+					CKCTL_6328_ROBOSW_EN |		\
+					CKCTL_6328_PCIE_EN)
+
 #define CKCTL_6338_ADSLPHY_EN		(1 << 0)
 #define CKCTL_6338_MPI_EN		(1 << 1)
 #define CKCTL_6338_DRAM_EN		(1 << 2)
@@ -119,6 +143,7 @@
 #define SYS_PLL_SOFT_RESET		0x1
 
 /* Interrupt Mask register */
+#define PERF_IRQMASK_6328_REG		0x20
 #define PERF_IRQMASK_6338_REG		0xc
 #define PERF_IRQMASK_6345_REG		0xc
 #define PERF_IRQMASK_6348_REG		0xc
@@ -126,6 +151,7 @@
 #define PERF_IRQMASK_6368_REG		0x20
 
 /* Interrupt Status register */
+#define PERF_IRQSTAT_6328_REG		0x28
 #define PERF_IRQSTAT_6338_REG		0x10
 #define PERF_IRQSTAT_6345_REG		0x10
 #define PERF_IRQSTAT_6348_REG		0x10
@@ -133,6 +159,7 @@
 #define PERF_IRQSTAT_6368_REG		0x28
 
 /* External Interrupt Configuration register */
+#define PERF_EXTIRQ_CFG_REG_6328	0x18
 #define PERF_EXTIRQ_CFG_REG_6338	0x14
 #define PERF_EXTIRQ_CFG_REG_6348	0x14
 #define PERF_EXTIRQ_CFG_REG_6358	0x14
@@ -162,7 +189,20 @@
 
 /* Soft Reset register */
 #define PERF_SOFTRESET_REG		0x28
+#define PERF_SOFTRESET_6328_REG		0x10
 #define PERF_SOFTRESET_6368_REG		0x10
+
+#define SOFTRESET_6328_SPI_MASK		(1 << 0)
+#define SOFTRESET_6328_EPHY_MASK	(1 << 1)
+#define SOFTRESET_6328_SAR_MASK		(1 << 2)
+#define SOFTRESET_6328_ENETSW_MASK	(1 << 3)
+#define SOFTRESET_6328_USBS_MASK	(1 << 4)
+#define SOFTRESET_6328_USBH_MASK	(1 << 5)
+#define SOFTRESET_6328_PCM_MASK		(1 << 6)
+#define SOFTRESET_6328_PCIE_CORE_MASK	(1 << 7)
+#define SOFTRESET_6328_PCIE_MASK	(1 << 8)
+#define SOFTRESET_6328_PCIE_EXT_MASK	(1 << 9)
+#define SOFTRESET_6328_PCIE_HARD_MASK	(1 << 10)
 
 #define SOFTRESET_6338_SPI_MASK		(1 << 0)
 #define SOFTRESET_6338_ENET_MASK	(1 << 2)
@@ -307,6 +347,8 @@
 /* Watchdog reset length register */
 #define WDT_RSTLEN_REG			0x8
 
+/* Watchdog soft reset register (BCM6328 only) */
+#define WDT_SOFTRESET_REG		0xc
 
 /*************************************************************************
  * _REG relative to RSET_UARTx
@@ -933,6 +975,8 @@
  * _REG relative to RSET_DDR
  *************************************************************************/
 
+#define DDR_CSEND_REG			0x8
+
 #define DDR_DMIPSPLLCFG_REG		0x18
 #define DMIPSPLLCFG_M1_SHIFT		0
 #define DMIPSPLLCFG_M1_MASK		(0xff << DMIPSPLLCFG_M1_SHIFT)
@@ -1114,5 +1158,15 @@
 #define SPI_SSOFFTIME_MASK		0x38
 #define SPI_SSOFFTIME_SHIFT		3
 #define SPI_BYTE_SWAP			0x80
+
+/*************************************************************************
+ * _REG relative to RSET_MISC
+ *************************************************************************/
+
+#define MISC_STRAPBUS_6328_REG		0x240
+#define STRAPBUS_6328_FCVO_SHIFT	7
+#define STRAPBUS_6328_FCVO_MASK		(0x1f << STRAPBUS_6328_FCVO_SHIFT)
+#define STRAPBUS_6328_BOOT_SEL_SERIAL	(1 << 28)
+#define STRAPBUS_6328_BOOT_SEL_NAND	(0 << 28)
 
 #endif /* BCM63XX_REGS_H_ */

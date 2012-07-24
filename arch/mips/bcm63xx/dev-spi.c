@@ -87,7 +87,7 @@ int __init bcm63xx_spi_register(void)
 {
 	struct clk *periph_clk;
 
-	if (BCMCPU_IS_6345())
+	if (BCMCPU_IS_6328() || BCMCPU_IS_6345())
 		return -ENODEV;
 
 	periph_clk = clk_get(NULL, "periph");

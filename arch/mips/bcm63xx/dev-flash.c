@@ -60,6 +60,12 @@ static int __init bcm63xx_detect_flash_type(void)
 	u32 val;
 
 	switch (bcm63xx_get_cpu_id()) {
+	case BCM6328_CPU_ID:
+		val = bcm_misc_readl(MISC_STRAPBUS_6328_REG);
+		if (val & STRAPBUS_6328_BOOT_SEL_SERIAL)
+			return BCM63XX_FLASH_TYPE_SERIAL;
+		else
+			return BCM63XX_FLASH_TYPE_NAND;
 	case BCM6338_CPU_ID:
 	case BCM6345_CPU_ID:
 	case BCM6348_CPU_ID:

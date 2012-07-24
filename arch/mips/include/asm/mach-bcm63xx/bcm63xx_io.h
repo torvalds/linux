@@ -91,5 +91,7 @@
 #define bcm_memc_writel(v, o)	bcm_rset_writel(RSET_MEMC, (v), (o))
 #define bcm_ddr_readl(o)	bcm_rset_readl(RSET_DDR, (o))
 #define bcm_ddr_writel(v, o)	bcm_rset_writel(RSET_DDR, (v), (o))
+#define bcm_misc_readl(o)	bcm_rset_readl(RSET_MISC, (o))
+#define bcm_misc_writel(v, o)	bcm_rset_writel(RSET_MISC, (v), (o))
 
 #endif /* ! BCM63XX_IO_H_ */
