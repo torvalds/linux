@@ -81,7 +81,7 @@ struct fault {
 	u16 flags;
 };
 
-struct device_state **state_table;
+static struct device_state **state_table;
 static spinlock_t state_lock;
 
 /* List and lock for all pasid_states */
@@ -681,6 +681,8 @@ int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
 
 	atomic_set(&pasid_state->count, 1);
 	init_waitqueue_head(&pasid_state->wq);
+	spin_lock_init(&pasid_state->lock);
+
 	pasid_state->task         = task;
 	pasid_state->mm           = get_task_mm(task);
 	pasid_state->device_state = dev_state;
