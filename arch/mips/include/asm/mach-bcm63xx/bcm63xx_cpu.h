@@ -122,6 +122,7 @@ enum bcm63xx_regs_set {
 	RSET_USBH_PRIV,
 	RSET_MPI,
 	RSET_PCMCIA,
+	RSET_PCIE,
 	RSET_DSL,
 	RSET_ENET0,
 	RSET_ENET1,
@@ -188,6 +189,7 @@ enum bcm63xx_regs_set {
 #define BCM_6328_USBH_PRIV_BASE		(0xdeadbeef)
 #define BCM_6328_MPI_BASE		(0xdeadbeef)
 #define BCM_6328_PCMCIA_BASE		(0xdeadbeef)
+#define BCM_6328_PCIE_BASE		(0xb0e40000)
 #define BCM_6328_SDRAM_REGS_BASE	(0xdeadbeef)
 #define BCM_6328_DSL_BASE		(0xb0001900)
 #define BCM_6328_UBUS_BASE		(0xdeadbeef)
@@ -232,6 +234,7 @@ enum bcm63xx_regs_set {
 #define BCM_6338_USBH_PRIV_BASE		(0xdeadbeef)
 #define BCM_6338_MPI_BASE		(0xfffe3160)
 #define BCM_6338_PCMCIA_BASE		(0xdeadbeef)
+#define BCM_6338_PCIE_BASE		(0xdeadbeef)
 #define BCM_6338_SDRAM_REGS_BASE	(0xfffe3100)
 #define BCM_6338_DSL_BASE		(0xfffe1000)
 #define BCM_6338_UBUS_BASE		(0xdeadbeef)
@@ -279,6 +282,7 @@ enum bcm63xx_regs_set {
 #define BCM_6345_ENETSW_BASE		(0xdeadbeef)
 #define BCM_6345_PCMCIA_BASE		(0xfffe2028)
 #define BCM_6345_MPI_BASE		(0xfffe2000)
+#define BCM_6345_PCIE_BASE		(0xdeadbeef)
 #define BCM_6345_OHCI0_BASE		(0xfffe2100)
 #define BCM_6345_OHCI_PRIV_BASE		(0xfffe2200)
 #define BCM_6345_USBH_PRIV_BASE		(0xdeadbeef)
@@ -320,6 +324,7 @@ enum bcm63xx_regs_set {
 #define BCM_6348_USBH_PRIV_BASE		(0xdeadbeef)
 #define BCM_6348_MPI_BASE		(0xfffe2000)
 #define BCM_6348_PCMCIA_BASE		(0xfffe2054)
+#define BCM_6348_PCIE_BASE		(0xdeadbeef)
 #define BCM_6348_SDRAM_REGS_BASE	(0xfffe2300)
 #define BCM_6348_M2M_BASE		(0xfffe2800)
 #define BCM_6348_DSL_BASE		(0xfffe3000)
@@ -362,6 +367,7 @@ enum bcm63xx_regs_set {
 #define BCM_6358_USBH_PRIV_BASE		(0xfffe1500)
 #define BCM_6358_MPI_BASE		(0xfffe1000)
 #define BCM_6358_PCMCIA_BASE		(0xfffe1054)
+#define BCM_6358_PCIE_BASE		(0xdeadbeef)
 #define BCM_6358_SDRAM_REGS_BASE	(0xfffe2300)
 #define BCM_6358_M2M_BASE		(0xdeadbeef)
 #define BCM_6358_DSL_BASE		(0xfffe3000)
@@ -405,6 +411,7 @@ enum bcm63xx_regs_set {
 #define BCM_6368_USBH_PRIV_BASE		(0xb0001700)
 #define BCM_6368_MPI_BASE		(0xb0001000)
 #define BCM_6368_PCMCIA_BASE		(0xb0001054)
+#define BCM_6368_PCIE_BASE		(0xdeadbeef)
 #define BCM_6368_SDRAM_REGS_BASE	(0xdeadbeef)
 #define BCM_6368_M2M_BASE		(0xdeadbeef)
 #define BCM_6368_DSL_BASE		(0xdeadbeef)
@@ -453,6 +460,7 @@ extern const unsigned long *bcm63xx_regs_base;
 	__GEN_RSET_BASE(__cpu, USBH_PRIV)				\
 	__GEN_RSET_BASE(__cpu, MPI)					\
 	__GEN_RSET_BASE(__cpu, PCMCIA)					\
+	__GEN_RSET_BASE(__cpu, PCIE)					\
 	__GEN_RSET_BASE(__cpu, DSL)					\
 	__GEN_RSET_BASE(__cpu, ENET0)					\
 	__GEN_RSET_BASE(__cpu, ENET1)					\
@@ -493,6 +501,7 @@ extern const unsigned long *bcm63xx_regs_base;
 	[RSET_USBH_PRIV]	= BCM_## __cpu ##_USBH_PRIV_BASE,	\
 	[RSET_MPI]		= BCM_## __cpu ##_MPI_BASE,		\
 	[RSET_PCMCIA]		= BCM_## __cpu ##_PCMCIA_BASE,		\
+	[RSET_PCIE]		= BCM_## __cpu ##_PCIE_BASE,		\
 	[RSET_DSL]		= BCM_## __cpu ##_DSL_BASE,		\
 	[RSET_ENET0]		= BCM_## __cpu ##_ENET0_BASE,		\
 	[RSET_ENET1]		= BCM_## __cpu ##_ENET1_BASE,		\

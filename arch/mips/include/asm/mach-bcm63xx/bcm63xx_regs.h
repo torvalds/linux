@@ -1162,11 +1162,65 @@
 /*************************************************************************
  * _REG relative to RSET_MISC
  *************************************************************************/
+#define MISC_SERDES_CTRL_REG		0x0
+#define SERDES_PCIE_EN			(1 << 0)
+#define SERDES_PCIE_EXD_EN		(1 << 15)
 
 #define MISC_STRAPBUS_6328_REG		0x240
 #define STRAPBUS_6328_FCVO_SHIFT	7
 #define STRAPBUS_6328_FCVO_MASK		(0x1f << STRAPBUS_6328_FCVO_SHIFT)
 #define STRAPBUS_6328_BOOT_SEL_SERIAL	(1 << 28)
 #define STRAPBUS_6328_BOOT_SEL_NAND	(0 << 28)
+
+/*************************************************************************
+ * _REG relative to RSET_PCIE
+ *************************************************************************/
+
+#define PCIE_CONFIG2_REG		0x408
+#define CONFIG2_BAR1_SIZE_EN		1
+#define CONFIG2_BAR1_SIZE_MASK		0xf
+
+#define PCIE_IDVAL3_REG			0x43c
+#define IDVAL3_CLASS_CODE_MASK		0xffffff
+#define IDVAL3_SUBCLASS_SHIFT		8
+#define IDVAL3_CLASS_SHIFT		16
+
+#define PCIE_DLSTATUS_REG		0x1048
+#define DLSTATUS_PHYLINKUP		(1 << 13)
+
+#define PCIE_BRIDGE_OPT1_REG		0x2820
+#define OPT1_RD_BE_OPT_EN		(1 << 7)
+#define OPT1_RD_REPLY_BE_FIX_EN		(1 << 9)
+#define OPT1_PCIE_BRIDGE_HOLE_DET_EN	(1 << 11)
+#define OPT1_L1_INT_STATUS_MASK_POL	(1 << 12)
+
+#define PCIE_BRIDGE_OPT2_REG		0x2824
+#define OPT2_UBUS_UR_DECODE_DIS		(1 << 2)
+#define OPT2_TX_CREDIT_CHK_EN		(1 << 4)
+#define OPT2_CFG_TYPE1_BD_SEL		(1 << 7)
+#define OPT2_CFG_TYPE1_BUS_NO_SHIFT	16
+#define OPT2_CFG_TYPE1_BUS_NO_MASK	(0xff << OPT2_CFG_TYPE1_BUS_NO_SHIFT)
+
+#define PCIE_BRIDGE_BAR0_BASEMASK_REG	0x2828
+#define PCIE_BRIDGE_BAR1_BASEMASK_REG	0x2830
+#define BASEMASK_REMAP_EN		(1 << 0)
+#define BASEMASK_SWAP_EN		(1 << 1)
+#define BASEMASK_MASK_SHIFT		4
+#define BASEMASK_MASK_MASK		(0xfff << BASEMASK_MASK_SHIFT)
+#define BASEMASK_BASE_SHIFT		20
+#define BASEMASK_BASE_MASK		(0xfff << BASEMASK_BASE_SHIFT)
+
+#define PCIE_BRIDGE_BAR0_REBASE_ADDR_REG 0x282c
+#define PCIE_BRIDGE_BAR1_REBASE_ADDR_REG 0x2834
+#define REBASE_ADDR_BASE_SHIFT		20
+#define REBASE_ADDR_BASE_MASK		(0xfff << REBASE_ADDR_BASE_SHIFT)
+
+#define PCIE_BRIDGE_RC_INT_MASK_REG	0x2854
+#define PCIE_RC_INT_A			(1 << 0)
+#define PCIE_RC_INT_B			(1 << 1)
+#define PCIE_RC_INT_C			(1 << 2)
+#define PCIE_RC_INT_D			(1 << 3)
+
+#define PCIE_DEVICE_OFFSET		0x8000
 
 #endif /* BCM63XX_REGS_H_ */
