@@ -522,7 +522,7 @@ static void hci_setup_event_mask(struct hci_dev *hdev)
 	if (hdev->features[6] & LMP_EXT_INQ)
 		events[5] |= 0x40; /* Extended Inquiry Result */
 
-	if (hdev->features[6] & LMP_NO_FLUSH)
+	if (lmp_no_flush_capable(hdev))
 		events[7] |= 0x01; /* Enhanced Flush Complete */
 
 	if (hdev->features[7] & LMP_LSTO)
