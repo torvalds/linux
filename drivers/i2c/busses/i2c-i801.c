@@ -300,7 +300,7 @@ static void i801_wait_hwpec(struct i801_priv *priv)
 	if (timeout > MAX_RETRIES)
 		dev_dbg(&priv->pci_dev->dev, "PEC Timeout!\n");
 
-	outb_p(status, SMBHSTSTS(priv));
+	outb_p(status & STATUS_FLAGS, SMBHSTSTS(priv));
 }
 
 static int i801_block_transaction_by_block(struct i801_priv *priv,
