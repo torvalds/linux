@@ -414,7 +414,7 @@ static void __USBC_ConfigFifo_TxEp_Default(__u32 usbc_base_addr)
 *
 * Arguments:
 *    hUSB           :  input.  USBC_open_otg获得的句柄, 记录了USBC所需要的一些关键数据
-*    is_double_fifo :  input.  是否使用硬件双fifo
+*    is_double_fifo :  input.  Whether to use hardware dual fifo
 *    fifo_size      :  input.  fifo大小 = 2的fifo_size次方
 *    fifo_addr      :  input.  fifo的起始地址 = fifo_addr * 8
 *
