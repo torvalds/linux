@@ -129,6 +129,7 @@ enum bcm63xx_regs_set {
 	RSET_PCMDMA,
 	RSET_PCMDMAC,
 	RSET_PCMDMAS,
+	RSET_RNG
 };
 
 #define RSET_DSL_LMEM_SIZE		(64 * 1024 * 4)
@@ -152,6 +153,7 @@ enum bcm63xx_regs_set {
 #define RSET_XTMDMA_SIZE		256
 #define RSET_XTMDMAC_SIZE(chans)	(16 * (chans))
 #define RSET_XTMDMAS_SIZE(chans)	(16 * (chans))
+#define RSET_RNG_SIZE			20
 
 /*
  * 6338 register sets base address
@@ -195,6 +197,7 @@ enum bcm63xx_regs_set {
 #define BCM_6338_PCMDMA_BASE		(0xdeadbeef)
 #define BCM_6338_PCMDMAC_BASE		(0xdeadbeef)
 #define BCM_6338_PCMDMAS_BASE		(0xdeadbeef)
+#define BCM_6338_RNG_BASE		(0xdeadbeef)
 
 /*
  * 6345 register sets base address
@@ -238,6 +241,7 @@ enum bcm63xx_regs_set {
 #define BCM_6345_PCMDMA_BASE		(0xdeadbeef)
 #define BCM_6345_PCMDMAC_BASE		(0xdeadbeef)
 #define BCM_6345_PCMDMAS_BASE		(0xdeadbeef)
+#define BCM_6345_RNG_BASE		(0xdeadbeef)
 
 /*
  * 6348 register sets base address
@@ -278,6 +282,7 @@ enum bcm63xx_regs_set {
 #define BCM_6348_PCMDMA_BASE		(0xdeadbeef)
 #define BCM_6348_PCMDMAC_BASE		(0xdeadbeef)
 #define BCM_6348_PCMDMAS_BASE		(0xdeadbeef)
+#define BCM_6348_RNG_BASE		(0xdeadbeef)
 
 /*
  * 6358 register sets base address
@@ -318,6 +323,7 @@ enum bcm63xx_regs_set {
 #define BCM_6358_PCMDMA_BASE		(0xfffe1800)
 #define BCM_6358_PCMDMAC_BASE		(0xfffe1900)
 #define BCM_6358_PCMDMAS_BASE		(0xfffe1a00)
+#define BCM_6358_RNG_BASE		(0xdeadbeef)
 
 
 /*
@@ -359,6 +365,7 @@ enum bcm63xx_regs_set {
 #define BCM_6368_PCMDMA_BASE		(0xb0005800)
 #define BCM_6368_PCMDMAC_BASE		(0xb0005a00)
 #define BCM_6368_PCMDMAS_BASE		(0xb0005c00)
+#define BCM_6368_RNG_BASE		(0xb0004180)
 
 
 extern const unsigned long *bcm63xx_regs_base;
@@ -404,6 +411,7 @@ extern const unsigned long *bcm63xx_regs_base;
 	__GEN_RSET_BASE(__cpu, PCMDMA)					\
 	__GEN_RSET_BASE(__cpu, PCMDMAC)					\
 	__GEN_RSET_BASE(__cpu, PCMDMAS)					\
+	__GEN_RSET_BASE(__cpu, RNG)					\
 	}
 
 #define __GEN_CPU_REGS_TABLE(__cpu)					\
@@ -442,6 +450,7 @@ extern const unsigned long *bcm63xx_regs_base;
 	[RSET_PCMDMA]		= BCM_## __cpu ##_PCMDMA_BASE,		\
 	[RSET_PCMDMAC]		= BCM_## __cpu ##_PCMDMAC_BASE,		\
 	[RSET_PCMDMAS]		= BCM_## __cpu ##_PCMDMAS_BASE,		\
+	[RSET_RNG]		= BCM_## __cpu ##_RNG_BASE,		\
 
 
 static inline unsigned long bcm63xx_regset_address(enum bcm63xx_regs_set set)
