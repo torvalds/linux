@@ -94,17 +94,10 @@ static void bcm63xx_int_cfg_writel(u32 val, u32 reg)
 
 void __iomem *pci_iospace_start;
 
-static int __init bcm63xx_pci_init(void)
+static int __init bcm63xx_register_pci(void)
 {
 	unsigned int mem_size;
 	u32 val;
-
-	if (!BCMCPU_IS_6348() && !BCMCPU_IS_6358() && !BCMCPU_IS_6368())
-		return -ENODEV;
-
-	if (!bcm63xx_pci_enabled)
-		return -ENODEV;
-
 	/*
 	 * configuration  access are  done through  IO space,  remap 4
 	 * first bytes to access it from CPU.
@@ -219,6 +212,22 @@ static int __init bcm63xx_pci_init(void)
 	request_mem_region(BCM_PCI_IO_BASE_PA, BCM_PCI_IO_SIZE,
 			   "bcm63xx PCI IO space");
 	return 0;
+}
+
+
+static int __init bcm63xx_pci_init(void)
+{
+	if (!bcm63xx_pci_enabled)
+		return -ENODEV;
+
+	switch (bcm63xx_get_cpu_id()) {
+	case BCM6348_CPU_ID:
+	case BCM6358_CPU_ID:
+	case BCM6368_CPU_ID:
+		return bcm63xx_register_pci();
+	default:
+		return -ENODEV;
+	}
 }
 
 arch_initcall(bcm63xx_pci_init);
