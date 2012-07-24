@@ -1845,7 +1845,7 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
              dwc_otg_msc_unlock(_pcd);
         }
         /* every 500 ms open usb phy power and start 1 jiffies timer to get vbus */
-        if( _pcd->phy_suspend == 0 ) 
+        else if( _pcd->phy_suspend == 0 ) 
                 /* no vbus detect here , close usb phy  */
              dwc_otg20phy_suspend( 0 );
     }

@@ -339,7 +339,9 @@ struct twl6030_bci_device_info {
 	int           capacitytmp;
 	int           usb_status;
 	int           usb_old_satus;
-	int 	gBatCapacityChargeCnt;
+	int 	 gBatCapacityChargeCnt;
+	int            suspend_capacity;
+	int            resume_status;
 };
 
 static BLOCKING_NOTIFIER_HEAD(notifier_list);
@@ -1709,77 +1711,93 @@ static int  twl6030_batt_vol_to_capacity (struct twl6030_bci_device_info *di)
 
 {
 
-        int i = 0;
-        int capacity = 0;
-        int BatVoltage;
+	int i = 0;
+	int capacity = 0;
+	int BatVoltage;
 
-        struct batt_vol_cal *p;
-        p = batt_table;
+	struct batt_vol_cal *p;
+	p = batt_table;
 
-        BatVoltage = di ->voltage_mV;
+	BatVoltage = di ->voltage_mV;
 
-        if (di->charge_status == POWER_SUPPLY_STATUS_CHARGING){  //charge
-                if(BatVoltage >=  (p[BATT_NUM - 1].charge_vol)){
-                        capacity = 100;
-                }
-                else{
-                        if(BatVoltage <= (p[0].charge_vol)){
-                                capacity = 0;
-                        }
-                        else{
-                                for(i = 0; i < BATT_NUM - 1; i++){
+	if (di->charge_status == POWER_SUPPLY_STATUS_CHARGING){  //charge
+	        if(BatVoltage >=  (p[BATT_NUM - 1].charge_vol)){
+	                capacity = 100;
+	        }
+	        else{
+	                if(BatVoltage <= (p[0].charge_vol)){
+	                        capacity = 0;
+	                }
+	                else{
+	                        for(i = 0; i < BATT_NUM - 1; i++){
 
-                                        if(((p[i].charge_vol) <= BatVoltage) && (BatVoltage < (p[i+1].charge_vol))){
-                                             //   capacity = p[i].disp_cal ;
+	                                if(((p[i].charge_vol) <= BatVoltage) && (BatVoltage < (p[i+1].charge_vol))){
+	                                     //   capacity = p[i].disp_cal ;
 			capacity = i * 10 + ((BatVoltage - p[i].charge_vol) * 10) / (p[i+1] .charge_vol- p[i].charge_vol);
 
 					     
-                                                break;
-                                        }
-                                }
-                        }
-                }
+	                                        break;
+	                                }
+	                        }
+	                }
+	        }
 
-        }
-     else{  //discharge
-                if(BatVoltage >= (p[BATT_NUM - 1].dis_charge_vol)){
-                        capacity = 100;
-                }
-                else{
-                        if(BatVoltage <= (p[0].dis_charge_vol)){
-                                capacity = 0;
-                        }
-                        else{
-                                for(i = 0; i < BATT_NUM - 1; i++){
-                                        if(((p[i].dis_charge_vol) <= BatVoltage) && (BatVoltage < (p[i+1].dis_charge_vol))){
-                                        //        capacity = p[i].disp_cal ;
+	}
+	else{  //discharge
+	        if(BatVoltage >= (p[BATT_NUM - 1].dis_charge_vol)){
+	                capacity = 100;
+	        }
+	        else{
+	                if(BatVoltage <= (p[0].dis_charge_vol)){
+	                        capacity = 0;
+	                }
+	                else{
+	                        for(i = 0; i < BATT_NUM - 1; i++){
+	                                if(((p[i].dis_charge_vol) <= BatVoltage) && (BatVoltage < (p[i+1].dis_charge_vol))){
+	                                //        capacity = p[i].disp_cal ;
 			capacity = i * 10 + ((BatVoltage - p[i].dis_charge_vol) * 10) / (p[i+1] .dis_charge_vol- p[i].dis_charge_vol);
-                                                break;
-                                        }
-                                }
-                        }
+	                                        break;
+	                                }
+	                        }
+	                }
 
-                }
+	        }
 
 
-        }
+	}
 
-        return capacity;
+	return capacity;
 
 }
 
 
                                        
-void twl6030_batt_capacity_samples(struct twl6030_bci_device_info *di)
+static void twl6030_batt_capacity_samples(struct twl6030_bci_device_info *di)
 {
 	int capacity = 0;
 	capacity = twl6030_batt_vol_to_capacity (di);
-	 twl6030battery_current(di);
-	//printk("old-capactiyt == %d, now-capacity == %d , di->charge_status == %d,di->current_uA  = %d\n", di->capacity, capacity, di->charge_status,di->current_uA);
-///////////////////////////////////////////////////////////////////////////////////////////////////////
+	twl6030battery_current(di);
 
+	if( 1 == di->resume_status ){
+		di->resume_status = 0;
+		if  (di->charge_status == POWER_SUPPLY_STATUS_CHARGING){\
+			if (di->suspend_capacity > capacity){
 
-//	capacity = twl6030_batt_vol_to_capacity (di);
+				di->capacity =  di->suspend_capacity;
+			}else{
+				di->capacity = capacity;
+			}	
+		}else{
+			if (di->suspend_capacity > capacity){
+				di->capacity = capacity;
+			}else{
+				di->capacity =  di->suspend_capacity;
+			}	
+		
+		}
+		return;
+		
+	}
 
 	if (di->charge_status == POWER_SUPPLY_STATUS_FULL){
 		if (capacity < di->capacity){
@@ -3176,8 +3194,8 @@ static int __devexit twl6030_bci_battery_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int twl6030_bci_battery_suspend(struct device *dev)
 {
-//	struct platform_device *pdev = to_platform_device(dev);
-//	struct twl6030_bci_device_info *di = platform_get_drvdata(pdev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct twl6030_bci_device_info *di = platform_get_drvdata(pdev);
 	long int events;
 	u8 rd_reg = 0;
 	int ret;
@@ -3194,9 +3212,11 @@ static int twl6030_bci_battery_suspend(struct device *dev)
 	if (ret)
 		goto err;
 
-        //cancel_delayed_work(&di->work);
-	//cancel_delayed_work(&di->twl6030_bci_monitor_work);
+              //cancel_delayed_work(&di->work);
+	 cancel_delayed_work(&di->twl6030_bci_monitor_work);
 	//cancel_delayed_work(&di->twl6030_current_avg_work);
+
+	di->suspend_capacity = di->capacity;
 
 	/* We cannot tolarate a sleep longer than 30 seconds
 	 * while on ac charging we have to reset the BQ watchdog timer.
@@ -3232,12 +3252,13 @@ err:
 
 static int twl6030_bci_battery_resume(struct device *dev)
 {
-//	struct platform_device *pdev = to_platform_device(dev);
-//	struct twl6030_bci_device_info *di = platform_get_drvdata(pdev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct twl6030_bci_device_info *di = platform_get_drvdata(pdev);
 	long int events;
 	u8 rd_reg = 0;
 	int ret;
 
+	di->resume_status =1;
 	ret = twl6030battery_temp_setup(true);
 	if (ret) {
 		pr_err("%s: Temp measurement setup failed (%d)!\n",
@@ -3262,7 +3283,7 @@ static int twl6030_bci_battery_resume(struct device *dev)
 	if (ret)
 		goto err;
 
-	//queue_delayed_work(di->freezable_work, &di->twl6030_bci_monitor_work, 0);
+	queue_delayed_work(di->freezable_work, &di->twl6030_bci_monitor_work, 0);
 	//queue_delayed_work(di->freezable_work, &di->twl6030_current_avg_work, 50);
 	//queue_delayed_work(di->freezable_work, &di->work, di->interval);
 

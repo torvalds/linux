@@ -80,8 +80,10 @@ static struct rt3261_init_reg init_list[] = {
 	{RT3261_PRIV_DATA	, 0x6115},
 	{RT3261_PRIV_INDEX	, 0x0023},//PR23 = 0804'h
 	{RT3261_PRIV_DATA	, 0x0804},
-	{RT3261_SPK_VOL         , 0x8b8b},//SPKMIX -> SPKVOL
-	{RT3261_HP_VOL          , 0x8888},
+	{RT3261_SPK_VOL     , 0x8b8b},//SPKMIX -> SPKVOL
+	{RT3261_HP_VOL      , 0x8888},
+	{RT3261_OUTPUT      , 0x8888},//unmute OUTVOLL/R
+
 };
 #define RT3261_INIT_REG_LEN ARRAY_SIZE(init_list)
 
@@ -216,7 +218,6 @@ static int do_hw_write(struct snd_soc_codec *codec, unsigned int reg,
 static int rt3261_write(struct snd_soc_codec *codec, unsigned int reg,
 		unsigned int value)
 {
-	struct rt3261_priv *rt3261 = snd_soc_codec_get_drvdata(codec);
 	u8 data[3];
 
 	data[0] = reg;
@@ -1080,6 +1081,8 @@ static const struct snd_kcontrol_new rt3261_spk_r_mix[] = {
 static const struct snd_kcontrol_new rt3261_out_l_mix[] = {
 	SOC_DAPM_SINGLE("SPK MIXL Switch", RT3261_OUT_L3_MIXER,
 			RT3261_M_SM_L_OM_L_SFT, 1, 1),
+	SOC_DAPM_SINGLE("BST3 Switch", RT3261_OUT_L3_MIXER,
+			RT3261_M_BST2_OM_L_SFT, 1, 1),
 	SOC_DAPM_SINGLE("BST1 Switch", RT3261_OUT_L3_MIXER,
 			RT3261_M_BST1_OM_L_SFT, 1, 1),
 	SOC_DAPM_SINGLE("INL Switch", RT3261_OUT_L3_MIXER,
@@ -1097,6 +1100,8 @@ static const struct snd_kcontrol_new rt3261_out_l_mix[] = {
 static const struct snd_kcontrol_new rt3261_out_r_mix[] = {
 	SOC_DAPM_SINGLE("SPK MIXR Switch", RT3261_OUT_R3_MIXER,
 			RT3261_M_SM_L_OM_R_SFT, 1, 1),
+	SOC_DAPM_SINGLE("BST3 Switch", RT3261_OUT_R3_MIXER,
+			RT3261_M_BST2_OM_R_SFT, 1, 1),
 	SOC_DAPM_SINGLE("BST2 Switch", RT3261_OUT_R3_MIXER,
 			RT3261_M_BST4_OM_R_SFT, 1, 1),
 	SOC_DAPM_SINGLE("BST1 Switch", RT3261_OUT_R3_MIXER,
@@ -2198,7 +2203,7 @@ static const struct snd_soc_dapm_route rt3261_dapm_routes[] = {
 	{"SPK MIXR", "DAC R2 Switch", "DAC R2"},
 	{"SPK MIXR", "OUT MIXR Switch", "OUT MIXR"},
 
-	{"OUT MIXL", "SPK MIXL Switch", "SPK MIXL"},
+	{"OUT MIXL", "BST3 Switch", "BST3"},
 	{"OUT MIXL", "BST1 Switch", "BST1"},
 	{"OUT MIXL", "INL Switch", "INL VOL"},
 	{"OUT MIXL", "REC MIXL Switch", "RECMIXL"},
@@ -2206,7 +2211,7 @@ static const struct snd_soc_dapm_route rt3261_dapm_routes[] = {
 	{"OUT MIXL", "DAC L2 Switch", "DAC L2"},
 	{"OUT MIXL", "DAC L1 Switch", "DAC L1"},
 
-	{"OUT MIXR", "SPK MIXR Switch", "SPK MIXR"},
+	{"OUT MIXR", "BST3 Switch", "BST3"},
 	{"OUT MIXR", "BST2 Switch", "BST2"},
 	{"OUT MIXR", "BST1 Switch", "BST1"},
 	{"OUT MIXR", "INR Switch", "INR VOL"},
