@@ -1,7 +1,7 @@
 /*
  * wm8962.c  --  WM8962 ALSA SoC Audio driver
  *
- * Copyright 2010 Wolfson Microelectronics plc
+ * Copyright 2010-2 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
@@ -2580,6 +2580,9 @@ static int wm8962_hw_params(struct snd_pcm_substream *substream,
 			    WM8962_SAMPLE_RATE_INT_MODE |
 			    WM8962_SAMPLE_RATE_MASK, adctl3);
 
+	dev_dbg(codec->dev, "hw_params set BCLK %dHz LRCLK %dHz\n",
+		wm8962->bclk, wm8962->lrclk);
+
 	if (codec->dapm.bias_level == SND_SOC_BIAS_ON)
 		wm8962_configure_bclk(codec);
 
@@ -3722,6 +3725,9 @@ static int wm8962_runtime_resume(struct device *dev)
 	}
 
 	regcache_cache_only(wm8962->regmap, false);
+
+	wm8962_reset(wm8962);
+
 	regcache_sync(wm8962->regmap);
 
 	regmap_update_bits(wm8962->regmap, WM8962_ANTI_POP,

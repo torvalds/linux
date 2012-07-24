@@ -247,7 +247,7 @@ struct fsi_priv {
 struct fsi_stream_handler {
 	int (*init)(struct fsi_priv *fsi, struct fsi_stream *io);
 	int (*quit)(struct fsi_priv *fsi, struct fsi_stream *io);
-	int (*probe)(struct fsi_priv *fsi, struct fsi_stream *io);
+	int (*probe)(struct fsi_priv *fsi, struct fsi_stream *io, struct device *dev);
 	int (*transfer)(struct fsi_priv *fsi, struct fsi_stream *io);
 	int (*remove)(struct fsi_priv *fsi, struct fsi_stream *io);
 	void (*start_stop)(struct fsi_priv *fsi, struct fsi_stream *io,
@@ -571,16 +571,16 @@ static int fsi_stream_transfer(struct fsi_stream *io)
 #define fsi_stream_stop(fsi, io)\
 	fsi_stream_handler_call(io, start_stop, fsi, io, 0)
 
-static int fsi_stream_probe(struct fsi_priv *fsi)
+static int fsi_stream_probe(struct fsi_priv *fsi, struct device *dev)
 {
 	struct fsi_stream *io;
 	int ret1, ret2;
 
 	io = &fsi->playback;
-	ret1 = fsi_stream_handler_call(io, probe, fsi, io);
+	ret1 = fsi_stream_handler_call(io, probe, fsi, io, dev);
 
 	io = &fsi->capture;
-	ret2 = fsi_stream_handler_call(io, probe, fsi, io);
+	ret2 = fsi_stream_handler_call(io, probe, fsi, io, dev);
 
 	if (ret1 < 0)
 		return ret1;
@@ -1089,13 +1089,10 @@ static void fsi_dma_do_tasklet(unsigned long data)
 {
 	struct fsi_stream *io = (struct fsi_stream *)data;
 	struct fsi_priv *fsi = fsi_stream_to_priv(io);
-	struct dma_chan *chan;
 	struct snd_soc_dai *dai;
 	struct dma_async_tx_descriptor *desc;
-	struct scatterlist sg;
 	struct snd_pcm_runtime *runtime;
 	enum dma_data_direction dir;
-	dma_cookie_t cookie;
 	int is_play = fsi_stream_is_play(fsi, io);
 	int len;
 	dma_addr_t buf;
@@ -1104,7 +1101,6 @@ static void fsi_dma_do_tasklet(unsigned long data)
 		return;
 
 	dai	= fsi_get_dai(io->substream);
-	chan	= io->chan;
 	runtime	= io->substream->runtime;
 	dir	= is_play ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	len	= samples_to_bytes(runtime, io->period_samples);
@@ -1112,14 +1108,8 @@ static void fsi_dma_do_tasklet(unsigned long data)
 
 	dma_sync_single_for_device(dai->dev, buf, len, dir);
 
-	sg_init_table(&sg, 1);
-	sg_set_page(&sg, pfn_to_page(PFN_DOWN(buf)),
-		    len , offset_in_page(buf));
-	sg_dma_address(&sg) = buf;
-	sg_dma_len(&sg) = len;
-
-	desc = dmaengine_prep_slave_sg(chan, &sg, 1, dir,
-				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	desc = dmaengine_prep_slave_single(io->chan, buf, len, dir,
+					   DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
 		dev_err(dai->dev, "dmaengine_prep_slave_sg() fail\n");
 		return;
@@ -1128,13 +1118,12 @@ static void fsi_dma_do_tasklet(unsigned long data)
 	desc->callback		= fsi_dma_complete;
 	desc->callback_param	= io;
 
-	cookie = desc->tx_submit(desc);
-	if (cookie < 0) {
+	if (dmaengine_submit(desc) < 0) {
 		dev_err(dai->dev, "tx_submit() fail\n");
 		return;
 	}
 
-	dma_async_issue_pending(chan);
+	dma_async_issue_pending(io->chan);
 
 	/*
 	 * FIXME
@@ -1184,7 +1173,7 @@ static void fsi_dma_push_start_stop(struct fsi_priv *fsi, struct fsi_stream *io,
 		fsi_master_mask_set(master, CLK_RST, clk, (enable) ? clk : 0);
 }
 
-static int fsi_dma_probe(struct fsi_priv *fsi, struct fsi_stream *io)
+static int fsi_dma_probe(struct fsi_priv *fsi, struct fsi_stream *io, struct device *dev)
 {
 	dma_cap_mask_t mask;
 
@@ -1192,8 +1181,19 @@ static int fsi_dma_probe(struct fsi_priv *fsi, struct fsi_stream *io)
 	dma_cap_set(DMA_SLAVE, mask);
 
 	io->chan = dma_request_channel(mask, fsi_dma_filter, &io->slave);
-	if (!io->chan)
-		return -EIO;
+	if (!io->chan) {
+
+		/* switch to PIO handler */
+		if (fsi_stream_is_play(fsi, io))
+			fsi->playback.handler	= &fsi_pio_push_handler;
+		else
+			fsi->capture.handler	= &fsi_pio_pop_handler;
+
+		dev_info(dev, "switch handler (dma => pio)\n");
+
+		/* probe again */
+		return fsi_stream_probe(fsi, dev);
+	}
 
 	tasklet_init(&io->tasklet, fsi_dma_do_tasklet, (unsigned long)io);
 
@@ -1683,7 +1683,7 @@ static int fsi_probe(struct platform_device *pdev)
 	master->fsia.master	= master;
 	master->fsia.info	= &info->port_a;
 	fsi_handler_init(&master->fsia);
-	ret = fsi_stream_probe(&master->fsia);
+	ret = fsi_stream_probe(&master->fsia, &pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "FSIA stream probe failed\n");
 		goto exit_iounmap;
@@ -1694,7 +1694,7 @@ static int fsi_probe(struct platform_device *pdev)
 	master->fsib.master	= master;
 	master->fsib.info	= &info->port_b;
 	fsi_handler_init(&master->fsib);
-	ret = fsi_stream_probe(&master->fsib);
+	ret = fsi_stream_probe(&master->fsib, &pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "FSIB stream probe failed\n");
 		goto exit_fsia;

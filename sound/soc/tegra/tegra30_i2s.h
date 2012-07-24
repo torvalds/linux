@@ -236,7 +236,6 @@ struct tegra30_i2s {
 	enum tegra30_ahub_txcif playback_fifo_cif;
 	struct tegra_pcm_dma_params playback_dma_data;
 	struct regmap *regmap;
-	u32 reg_ctrl;
 };
 
 #endif

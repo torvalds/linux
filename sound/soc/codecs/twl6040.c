@@ -553,7 +553,7 @@ static const struct snd_kcontrol_new vibrar_mux_controls =
 
 /* Headset power mode */
 static const char *twl6040_power_mode_texts[] = {
-	"Low-Power", "High-Perfomance",
+	"Low-Power", "High-Performance",
 };
 
 static const struct soc_enum twl6040_power_mode_enum =

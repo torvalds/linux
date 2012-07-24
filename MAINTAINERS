@@ -6765,9 +6765,11 @@ F:	include/linux/tifm.h
 
 TI LM49xxx FAMILY ASoC CODEC DRIVERS
 M:	M R Swami Reddy <mr.swami.reddy@ti.com>
+M:	Vishwas A Deshpande <vishwas.a.deshpande@ti.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 F:	sound/soc/codecs/lm49453*
+F:	sound/soc/codecs/isabelle*
 
 TI TWL4030 SERIES SOC CODEC DRIVER
 M:	Peter Ujfalusi <peter.ujfalusi@ti.com>

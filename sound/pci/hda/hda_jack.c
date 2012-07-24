@@ -127,10 +127,15 @@ void snd_hda_jack_tbl_clear(struct hda_codec *codec)
 static void jack_detect_update(struct hda_codec *codec,
 			       struct hda_jack_tbl *jack)
 {
-	if (jack->jack_dirty || !jack->jack_detect) {
+	if (!jack->jack_dirty)
+		return;
+
+	if (jack->phantom_jack)
+		jack->pin_sense = AC_PINSENSE_PRESENCE;
+	else
 		jack->pin_sense = read_pin_sense(codec, jack->nid);
-		jack->jack_dirty = 0;
-	}
+
+	jack->jack_dirty = 0;
 }
 
 /**
@@ -264,8 +269,8 @@ static void hda_free_jack_priv(struct snd_jack *jack)
  * This assigns a jack-detection kctl to the given pin.  The kcontrol
  * will have the given name and index.
  */
-int snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
-			  const char *name, int idx)
+static int __snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
+			  const char *name, int idx, bool phantom_jack)
 {
 	struct hda_jack_tbl *jack;
 	struct snd_kcontrol *kctl;
@@ -283,47 +288,81 @@ int snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
 	if (err < 0)
 		return err;
 	jack->kctl = kctl;
+	jack->phantom_jack = !!phantom_jack;
+
 	state = snd_hda_jack_detect(codec, nid);
 	snd_kctl_jack_report(codec->bus->card, kctl, state);
 #ifdef CONFIG_SND_HDA_INPUT_JACK
-	jack->type = get_input_jack_type(codec, nid);
-	err = snd_jack_new(codec->bus->card, name, jack->type, &jack->jack);
-	if (err < 0)
-		return err;
-	jack->jack->private_data = jack;
-	jack->jack->private_free = hda_free_jack_priv;
-	snd_jack_report(jack->jack, state ? jack->type : 0);
+	if (!phantom_jack) {
+		jack->type = get_input_jack_type(codec, nid);
+		err = snd_jack_new(codec->bus->card, name, jack->type,
+				   &jack->jack);
+		if (err < 0)
+			return err;
+		jack->jack->private_data = jack;
+		jack->jack->private_free = hda_free_jack_priv;
+		snd_jack_report(jack->jack, state ? jack->type : 0);
+	}
 #endif
 	return 0;
 }
+
+int snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
+			  const char *name, int idx)
+{
+	return __snd_hda_jack_add_kctl(codec, nid, name, idx, false);
+}
 EXPORT_SYMBOL_HDA(snd_hda_jack_add_kctl);
 
+/* get the unique index number for the given kctl name */
+static int get_unique_index(struct hda_codec *codec, const char *name, int idx)
+{
+	struct hda_jack_tbl *jack;
+	int i, len = strlen(name);
+ again:
+	jack = codec->jacktbl.list;
+	for (i = 0; i < codec->jacktbl.used; i++, jack++) {
+		/* jack->kctl.id contains "XXX Jack" name string with index */
+		if (jack->kctl &&
+		    !strncmp(name, jack->kctl->id.name, len) &&
+		    !strcmp(" Jack", jack->kctl->id.name + len) &&
+		    jack->kctl->id.index == idx) {
+			idx++;
+			goto again;
+		}
+	}
+	return idx;
+}
+
 static int add_jack_kctl(struct hda_codec *codec, hda_nid_t nid,
-			 const struct auto_pin_cfg *cfg,
-			 char *lastname, int *lastidx)
+			 const struct auto_pin_cfg *cfg)
 {
 	unsigned int def_conf, conn;
 	char name[44];
 	int idx, err;
+	bool phantom_jack;
 
 	if (!nid)
 		return 0;
-	if (!is_jack_detectable(codec, nid))
-		return 0;
 	def_conf = snd_hda_codec_get_pincfg(codec, nid);
 	conn = get_defcfg_connect(def_conf);
-	if (conn != AC_JACK_PORT_COMPLEX)
+	if (conn == AC_JACK_PORT_NONE)
 		return 0;
+	phantom_jack = (conn != AC_JACK_PORT_COMPLEX) ||
+		       !is_jack_detectable(codec, nid);
 
 	snd_hda_get_pin_label(codec, nid, cfg, name, sizeof(name), &idx);
-	if (!strcmp(name, lastname) && idx == *lastidx)
-		idx++;
-	strncpy(lastname, name, 44);
-	*lastidx = idx;
-	err = snd_hda_jack_add_kctl(codec, nid, name, idx);
+	if (phantom_jack)
+		/* Example final name: "Internal Mic Phantom Jack" */
+		strncat(name, " Phantom", sizeof(name) - strlen(name) - 1);
+	idx = get_unique_index(codec, name, idx);
+	err = __snd_hda_jack_add_kctl(codec, nid, name, idx, phantom_jack);
 	if (err < 0)
 		return err;
-	return snd_hda_jack_detect_enable(codec, nid, 0);
+
+	if (!phantom_jack)
+		return snd_hda_jack_detect_enable(codec, nid, 0);
+	return 0;
 }
 
 /**
@@ -333,42 +372,41 @@ int snd_hda_jack_add_kctls(struct hda_codec *codec,
 			   const struct auto_pin_cfg *cfg)
 {
 	const hda_nid_t *p;
-	int i, err, lastidx = 0;
-	char lastname[44] = "";
+	int i, err;
 
 	for (i = 0, p = cfg->line_out_pins; i < cfg->line_outs; i++, p++) {
-		err = add_jack_kctl(codec, *p, cfg, lastname, &lastidx);
+		err = add_jack_kctl(codec, *p, cfg);
 		if (err < 0)
 			return err;
 	}
 	for (i = 0, p = cfg->hp_pins; i < cfg->hp_outs; i++, p++) {
 		if (*p == *cfg->line_out_pins) /* might be duplicated */
 			break;
-		err = add_jack_kctl(codec, *p, cfg, lastname, &lastidx);
+		err = add_jack_kctl(codec, *p, cfg);
 		if (err < 0)
 			return err;
 	}
 	for (i = 0, p = cfg->speaker_pins; i < cfg->speaker_outs; i++, p++) {
 		if (*p == *cfg->line_out_pins) /* might be duplicated */
 			break;
-		err = add_jack_kctl(codec, *p, cfg, lastname, &lastidx);
+		err = add_jack_kctl(codec, *p, cfg);
 		if (err < 0)
 			return err;
 	}
 	for (i = 0; i < cfg->num_inputs; i++) {
-		err = add_jack_kctl(codec, cfg->inputs[i].pin, cfg, lastname, &lastidx);
+		err = add_jack_kctl(codec, cfg->inputs[i].pin, cfg);
 		if (err < 0)
 			return err;
 	}
 	for (i = 0, p = cfg->dig_out_pins; i < cfg->dig_outs; i++, p++) {
-		err = add_jack_kctl(codec, *p, cfg, lastname, &lastidx);
+		err = add_jack_kctl(codec, *p, cfg);
 		if (err < 0)
 			return err;
 	}
-	err = add_jack_kctl(codec, cfg->dig_in_pin, cfg, lastname, &lastidx);
+	err = add_jack_kctl(codec, cfg->dig_in_pin, cfg);
 	if (err < 0)
 		return err;
-	err = add_jack_kctl(codec, cfg->mono_out_pin, cfg, lastname, &lastidx);
+	err = add_jack_kctl(codec, cfg->mono_out_pin, cfg);
 	if (err < 0)
 		return err;
 	return 0;

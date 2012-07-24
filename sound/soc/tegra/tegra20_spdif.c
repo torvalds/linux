@@ -37,19 +37,6 @@
 
 #define DRV_NAME "tegra20-spdif"
 
-static inline void tegra20_spdif_write(struct tegra20_spdif *spdif, u32 reg,
-					u32 val)
-{
-	regmap_write(spdif->regmap, reg, val);
-}
-
-static inline u32 tegra20_spdif_read(struct tegra20_spdif *spdif, u32 reg)
-{
-	u32 val;
-	regmap_read(spdif->regmap, reg, &val);
-	return val;
-}
-
 static int tegra20_spdif_runtime_suspend(struct device *dev)
 {
 	struct tegra20_spdif *spdif = dev_get_drvdata(dev);
@@ -77,20 +64,23 @@ static int tegra20_spdif_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
-	struct device *dev = substream->pcm->card->dev;
+	struct device *dev = dai->dev;
 	struct tegra20_spdif *spdif = snd_soc_dai_get_drvdata(dai);
+	unsigned int mask, val;
 	int ret, spdifclock;
 
-	spdif->reg_ctrl &= ~TEGRA20_SPDIF_CTRL_PACK;
-	spdif->reg_ctrl &= ~TEGRA20_SPDIF_CTRL_BIT_MODE_MASK;
+	mask = TEGRA20_SPDIF_CTRL_PACK |
+	       TEGRA20_SPDIF_CTRL_BIT_MODE_MASK;
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		spdif->reg_ctrl |= TEGRA20_SPDIF_CTRL_PACK;
-		spdif->reg_ctrl |= TEGRA20_SPDIF_CTRL_BIT_MODE_16BIT;
+		val = TEGRA20_SPDIF_CTRL_PACK |
+		      TEGRA20_SPDIF_CTRL_BIT_MODE_16BIT;
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	regmap_update_bits(spdif->regmap, TEGRA20_SPDIF_CTRL, mask, val);
 
 	switch (params_rate(params)) {
 	case 32000:
@@ -129,14 +119,15 @@ static int tegra20_spdif_hw_params(struct snd_pcm_substream *substream,
 
 static void tegra20_spdif_start_playback(struct tegra20_spdif *spdif)
 {
-	spdif->reg_ctrl |= TEGRA20_SPDIF_CTRL_TX_EN;
-	tegra20_spdif_write(spdif, TEGRA20_SPDIF_CTRL, spdif->reg_ctrl);
+	regmap_update_bits(spdif->regmap, TEGRA20_SPDIF_CTRL,
+			   TEGRA20_SPDIF_CTRL_TX_EN,
+			   TEGRA20_SPDIF_CTRL_TX_EN);
 }
 
 static void tegra20_spdif_stop_playback(struct tegra20_spdif *spdif)
 {
-	spdif->reg_ctrl &= ~TEGRA20_SPDIF_CTRL_TX_EN;
-	tegra20_spdif_write(spdif, TEGRA20_SPDIF_CTRL, spdif->reg_ctrl);
+	regmap_update_bits(spdif->regmap, TEGRA20_SPDIF_CTRL,
+			   TEGRA20_SPDIF_CTRL_TX_EN, 0);
 }
 
 static int tegra20_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -181,6 +172,7 @@ static struct snd_soc_dai_driver tegra20_spdif_dai = {
 	.name = DRV_NAME,
 	.probe = tegra20_spdif_probe,
 	.playback = {
+		.stream_name = "Playback",
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |

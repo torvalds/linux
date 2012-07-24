@@ -2033,9 +2033,10 @@ static void snd_ensoniq_chip_init(struct ensoniq *ensoniq)
 }
 
 #ifdef CONFIG_PM
-static int snd_ensoniq_suspend(struct pci_dev *pci, pm_message_t state)
+static int snd_ensoniq_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct ensoniq *ensoniq = card->private_data;
 	
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
@@ -2058,13 +2059,14 @@ static int snd_ensoniq_suspend(struct pci_dev *pci, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int snd_ensoniq_resume(struct pci_dev *pci)
+static int snd_ensoniq_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct ensoniq *ensoniq = card->private_data;
 
 	pci_set_power_state(pci, PCI_D0);
@@ -2087,8 +2089,12 @@ static int snd_ensoniq_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
-#endif /* CONFIG_PM */
 
+static SIMPLE_DEV_PM_OPS(snd_ensoniq_pm, snd_ensoniq_suspend, snd_ensoniq_resume);
+#define SND_ENSONIQ_PM_OPS	&snd_ensoniq_pm
+#else
+#define SND_ENSONIQ_PM_OPS	NULL
+#endif /* CONFIG_PM */
 
 static int __devinit snd_ensoniq_create(struct snd_card *card,
 				     struct pci_dev *pci,
@@ -2493,10 +2499,9 @@ static struct pci_driver ens137x_driver = {
 	.id_table = snd_audiopci_ids,
 	.probe = snd_audiopci_probe,
 	.remove = __devexit_p(snd_audiopci_remove),
-#ifdef CONFIG_PM
-	.suspend = snd_ensoniq_suspend,
-	.resume = snd_ensoniq_resume,
-#endif
+	.driver = {
+		.pm = SND_ENSONIQ_PM_OPS,
+	},
 };
 	
 module_pci_driver(ens137x_driver);
