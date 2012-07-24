@@ -228,17 +228,21 @@ void __init bcm63xx_cpu_init(void)
 		bcm63xx_irqs = bcm6345_irqs;
 		break;
 	case CPU_BMIPS4350:
-		switch (read_c0_prid() & 0xf0) {
-		case 0x10:
+		if ((read_c0_prid() & 0xf0) == 0x10) {
 			expected_cpu_id = BCM6358_CPU_ID;
 			bcm63xx_regs_base = bcm6358_regs_base;
 			bcm63xx_irqs = bcm6358_irqs;
-			break;
-		case 0x30:
-			expected_cpu_id = BCM6368_CPU_ID;
-			bcm63xx_regs_base = bcm6368_regs_base;
-			bcm63xx_irqs = bcm6368_irqs;
-			break;
+		} else {
+			/* all newer chips have the same chip id location */
+			u16 chip_id = bcm_readw(BCM_6368_PERF_BASE);
+
+			switch (chip_id) {
+			case BCM6368_CPU_ID:
+				expected_cpu_id = BCM6368_CPU_ID;
+				bcm63xx_regs_base = bcm6368_regs_base;
+				bcm63xx_irqs = bcm6368_irqs;
+				break;
+			}
 		}
 		break;
 	}
