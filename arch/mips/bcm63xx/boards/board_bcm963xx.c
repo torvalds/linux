@@ -33,6 +33,48 @@ static unsigned int mac_addr_used;
 static struct board_info board;
 
 /*
+ * known 6328 boards
+ */
+#ifdef CONFIG_BCM63XX_CPU_6328
+static struct board_info __initdata board_96328avng = {
+	.name				= "96328avng",
+	.expected_cpu_id		= 0x6328,
+
+	.has_uart0			= 1,
+	.has_pci			= 1,
+
+	.leds = {
+		{
+			.name		= "96328avng::ppp-fail",
+			.gpio		= 2,
+			.active_low	= 1,
+		},
+		{
+			.name		= "96328avng::power",
+			.gpio		= 4,
+			.active_low	= 1,
+			.default_trigger = "default-on",
+		},
+		{
+			.name		= "96328avng::power-fail",
+			.gpio		= 8,
+			.active_low	= 1,
+		},
+		{
+			.name		= "96328avng::wps",
+			.gpio		= 9,
+			.active_low	= 1,
+		},
+		{
+			.name		= "96328avng::ppp",
+			.gpio		= 11,
+			.active_low	= 1,
+		},
+	},
+};
+#endif
+
+/*
  * known 6338 boards
  */
 #ifdef CONFIG_BCM63XX_CPU_6338
@@ -591,6 +633,9 @@ static struct board_info __initdata board_DWVS0 = {
  * all boards
  */
 static const struct board_info __initdata *bcm963xx_boards[] = {
+#ifdef CONFIG_BCM63XX_CPU_6328
+	&board_96328avng,
+#endif
 #ifdef CONFIG_BCM63XX_CPU_6338
 	&board_96338gw,
 	&board_96338w,
