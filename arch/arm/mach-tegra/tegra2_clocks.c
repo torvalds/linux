@@ -223,7 +223,7 @@ static int clk_div16_get_divider(unsigned long parent_rate, unsigned long rate)
 	if (divider_u16 - 1 < 0)
 		return 0;
 
-	if (divider_u16 - 1 > 255)
+	if (divider_u16 - 1 > 0xFFFF)
 		return -EINVAL;
 
 	return divider_u16 - 1;
