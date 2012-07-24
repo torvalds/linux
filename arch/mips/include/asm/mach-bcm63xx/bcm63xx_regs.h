@@ -507,6 +507,15 @@
 #define GPIO_BASEMODE_6368_MASK		0x7
 /* those bits must be kept as read in gpio basemode register*/
 
+#define GPIO_STRAPBUS_REG		0x40
+#define STRAPBUS_6358_BOOT_SEL_PARALLEL	(1 << 1)
+#define STRAPBUS_6358_BOOT_SEL_SERIAL	(0 << 1)
+#define STRAPBUS_6368_BOOT_SEL_MASK	0x3
+#define STRAPBUS_6368_BOOT_SEL_NAND	0
+#define STRAPBUS_6368_BOOT_SEL_SERIAL	1
+#define STRAPBUS_6368_BOOT_SEL_PARALLEL	3
+
+
 /*************************************************************************
  * _REG relative to RSET_ENET
  *************************************************************************/
