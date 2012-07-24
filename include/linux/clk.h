@@ -86,7 +86,7 @@ int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb);
 /**
  * clk_get - lookup and obtain a reference to a clock producer.
  * @dev: device for clock "consumer"
- * @id: clock comsumer ID
+ * @id: clock consumer ID
  *
  * Returns a struct clk corresponding to the clock producer, or
  * valid IS_ERR() condition containing errno.  The implementation
@@ -103,7 +103,7 @@ struct clk *clk_get(struct device *dev, const char *id);
 /**
  * devm_clk_get - lookup and obtain a managed reference to a clock producer.
  * @dev: device for clock "consumer"
- * @id: clock comsumer ID
+ * @id: clock consumer ID
  *
  * Returns a struct clk corresponding to the clock producer, or
  * valid IS_ERR() condition containing errno.  The implementation

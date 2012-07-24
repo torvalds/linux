@@ -6242,9 +6242,9 @@ F:	Documentation/hwmon/smm665
 F:	drivers/hwmon/smm665.c
 
 SMSC EMC2103 HARDWARE MONITOR DRIVER
-M:	Steve Glendinning <steve.glendinning@smsc.com>
+M:	Steve Glendinning <steve.glendinning@shawell.net>
 L:	lm-sensors@lm-sensors.org
-S:	Supported
+S:	Maintained
 F:	Documentation/hwmon/emc2103
 F:	drivers/hwmon/emc2103.c
 
@@ -6263,22 +6263,22 @@ F:	Documentation/hwmon/smsc47b397
 F:	drivers/hwmon/smsc47b397.c
 
 SMSC911x ETHERNET DRIVER
-M:	Steve Glendinning <steve.glendinning@smsc.com>
+M:	Steve Glendinning <steve.glendinning@shawell.net>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	include/linux/smsc911x.h
 F:	drivers/net/ethernet/smsc/smsc911x.*
 
 SMSC9420 PCI ETHERNET DRIVER
-M:	Steve Glendinning <steve.glendinning@smsc.com>
+M:	Steve Glendinning <steve.glendinning@shawell.net>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/smsc/smsc9420.*
 
 SMSC UFX6000 and UFX7000 USB to VGA DRIVER
-M:	Steve Glendinning <steve.glendinning@smsc.com>
+M:	Steve Glendinning <steve.glendinning@shawell.net>
 L:	linux-fbdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/video/smscufx.c
 
 SN-IA64 (Itanium) SUB-PLATFORM
@@ -7232,9 +7232,9 @@ S:	Supported
 F:	drivers/usb/serial/whiteheat*
 
 USB SMSC95XX ETHERNET DRIVER
-M:	Steve Glendinning <steve.glendinning@smsc.com>
+M:	Steve Glendinning <steve.glendinning@shawell.net>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/usb/smsc95xx.*
 
 USB SN9C1xx DRIVER

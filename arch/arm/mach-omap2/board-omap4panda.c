@@ -106,7 +106,7 @@ static struct platform_device leds_gpio = {
 static struct omap_abe_twl6040_data panda_abe_audio_data = {
 	/* Audio out */
 	.has_hs		= ABE_TWL6040_LEFT | ABE_TWL6040_RIGHT,
-	/* HandsFree through expasion connector */
+	/* HandsFree through expansion connector */
 	.has_hf		= ABE_TWL6040_LEFT | ABE_TWL6040_RIGHT,
 	/* PandaBoard: FM TX, PandaBoardES: can be connected to audio out */
 	.has_aux	= ABE_TWL6040_LEFT | ABE_TWL6040_RIGHT,

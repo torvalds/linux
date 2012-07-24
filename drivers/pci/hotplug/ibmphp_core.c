@@ -760,7 +760,7 @@ static u8 bus_structure_fixup(u8 busno)
 	for (dev->devfn = 0; dev->devfn < 256; dev->devfn += 8) {
 		if (!pci_read_config_word(dev, PCI_VENDOR_ID, &l) &&
 					(l != 0x0000) && (l != 0xffff)) {
-			debug("%s - Inside bus_struture_fixup()\n",
+			debug("%s - Inside bus_structure_fixup()\n",
 							__func__);
 			pci_scan_bus(busno, ibmphp_pci_bus->ops, NULL);
 			break;

@@ -234,7 +234,7 @@ static int write_priomap(struct cgroup *cgrp, struct cftype *cft,
 
 	/*
 	 *Separate the devname from the associated priority
-	 *and advance the priostr poitner to the priority value
+	 *and advance the priostr pointer to the priority value
 	 */
 	*priostr = '\0';
 	priostr++;

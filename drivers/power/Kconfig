@@ -301,7 +301,7 @@ config AB8500_BM
 	bool "AB8500 Battery Management Driver"
 	depends on AB8500_CORE && AB8500_GPADC
 	help
-	  Say Y to include support for AB5500 battery management.
+	  Say Y to include support for AB8500 battery management.
 
 config AB8500_BATTERY_THERM_ON_BATCTRL
 	bool "Thermistor connected on BATCTRL ADC"

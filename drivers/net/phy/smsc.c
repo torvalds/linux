@@ -12,7 +12,7 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  *
- * Support added for SMSC LAN8187 and LAN8700 by steve.glendinning@smsc.com
+ * Support added for SMSC LAN8187 and LAN8700 by steve.glendinning@shawell.net
  *
  */
 

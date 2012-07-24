@@ -317,7 +317,7 @@ static int default_fault_handler(enum exynos_sysmmu_inttype itype,
 	if ((itype >= SYSMMU_FAULTS_NUM) || (itype < SYSMMU_PAGEFAULT))
 		itype = SYSMMU_FAULT_UNKNOWN;
 
-	pr_err("%s occured at 0x%lx(Page table base: 0x%lx)\n",
+	pr_err("%s occurred at 0x%lx(Page table base: 0x%lx)\n",
 			sysmmu_fault_name[itype], fault_addr, pgtable_base);
 
 	ent = section_entry(__va(pgtable_base), fault_addr);
