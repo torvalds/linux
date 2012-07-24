@@ -120,7 +120,7 @@ static bool pcie_pme_from_pci_bridge(struct pci_bus *bus, u8 devfn)
 	if (!dev)
 		return false;
 
-	if (pci_is_pcie(dev) && dev->pcie_type == PCI_EXP_TYPE_PCI_BRIDGE) {
+	if (pci_is_pcie(dev) && pci_pcie_type(dev) == PCI_EXP_TYPE_PCI_BRIDGE) {
 		down_read(&pci_bus_sem);
 		if (pcie_pme_walk_bus(bus))
 			found = true;
@@ -335,13 +335,13 @@ static void pcie_pme_mark_devices(struct pci_dev *port)
 		struct pci_dev *dev;
 
 		/* Check if this is a root port event collector. */
-		if (port->pcie_type != PCI_EXP_TYPE_RC_EC || !bus)
+		if (pci_pcie_type(port) != PCI_EXP_TYPE_RC_EC || !bus)
 			return;
 
 		down_read(&pci_bus_sem);
 		list_for_each_entry(dev, &bus->devices, bus_list)
 			if (pci_is_pcie(dev)
-			    && dev->pcie_type == PCI_EXP_TYPE_RC_END)
+			    && pci_pcie_type(dev) == PCI_EXP_TYPE_RC_END)
 				pcie_pme_set_native(dev, NULL);
 		up_read(&pci_bus_sem);
 	}

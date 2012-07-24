@@ -412,7 +412,7 @@ static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 	 * do ASPM for now.
 	 */
 	list_for_each_entry(child, &linkbus->devices, bus_list) {
-		if (child->pcie_type == PCI_EXP_TYPE_PCI_BRIDGE) {
+		if (pci_pcie_type(child) == PCI_EXP_TYPE_PCI_BRIDGE) {
 			link->aspm_disable = ASPM_STATE_ALL;
 			break;
 		}
@@ -425,8 +425,8 @@ static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 		struct aspm_latency *acceptable =
 			&link->acceptable[PCI_FUNC(child->devfn)];
 
-		if (child->pcie_type != PCI_EXP_TYPE_ENDPOINT &&
-		    child->pcie_type != PCI_EXP_TYPE_LEG_END)
+		if (pci_pcie_type(child) != PCI_EXP_TYPE_ENDPOINT &&
+		    pci_pcie_type(child) != PCI_EXP_TYPE_LEG_END)
 			continue;
 
 		pos = pci_pcie_cap(child);
@@ -552,7 +552,7 @@ static struct pcie_link_state *alloc_pcie_link_state(struct pci_dev *pdev)
 	INIT_LIST_HEAD(&link->children);
 	INIT_LIST_HEAD(&link->link);
 	link->pdev = pdev;
-	if (pdev->pcie_type == PCI_EXP_TYPE_DOWNSTREAM) {
+	if (pci_pcie_type(pdev) == PCI_EXP_TYPE_DOWNSTREAM) {
 		struct pcie_link_state *parent;
 		parent = pdev->bus->parent->self->link_state;
 		if (!parent) {
@@ -585,12 +585,12 @@ void pcie_aspm_init_link_state(struct pci_dev *pdev)
 
 	if (!pci_is_pcie(pdev) || pdev->link_state)
 		return;
-	if (pdev->pcie_type != PCI_EXP_TYPE_ROOT_PORT &&
-	    pdev->pcie_type != PCI_EXP_TYPE_DOWNSTREAM)
+	if (pci_pcie_type(pdev) != PCI_EXP_TYPE_ROOT_PORT &&
+	    pci_pcie_type(pdev) != PCI_EXP_TYPE_DOWNSTREAM)
 		return;
 
 	/* VIA has a strange chipset, root port is under a bridge */
-	if (pdev->pcie_type == PCI_EXP_TYPE_ROOT_PORT &&
+	if (pci_pcie_type(pdev) == PCI_EXP_TYPE_ROOT_PORT &&
 	    pdev->bus->self)
 		return;
 
@@ -647,8 +647,8 @@ static void pcie_update_aspm_capable(struct pcie_link_state *root)
 		if (link->root != root)
 			continue;
 		list_for_each_entry(child, &linkbus->devices, bus_list) {
-			if ((child->pcie_type != PCI_EXP_TYPE_ENDPOINT) &&
-			    (child->pcie_type != PCI_EXP_TYPE_LEG_END))
+			if ((pci_pcie_type(child) != PCI_EXP_TYPE_ENDPOINT) &&
+			    (pci_pcie_type(child) != PCI_EXP_TYPE_LEG_END))
 				continue;
 			pcie_aspm_check_latency(child);
 		}
@@ -663,8 +663,8 @@ void pcie_aspm_exit_link_state(struct pci_dev *pdev)
 
 	if (!pci_is_pcie(pdev) || !parent || !parent->link_state)
 		return;
-	if ((parent->pcie_type != PCI_EXP_TYPE_ROOT_PORT) &&
-	    (parent->pcie_type != PCI_EXP_TYPE_DOWNSTREAM))
+	if ((pci_pcie_type(parent) != PCI_EXP_TYPE_ROOT_PORT) &&
+	    (pci_pcie_type(parent) != PCI_EXP_TYPE_DOWNSTREAM))
 		return;
 
 	down_read(&pci_bus_sem);
@@ -704,8 +704,8 @@ void pcie_aspm_pm_state_change(struct pci_dev *pdev)
 
 	if (aspm_disabled || !pci_is_pcie(pdev) || !link)
 		return;
-	if ((pdev->pcie_type != PCI_EXP_TYPE_ROOT_PORT) &&
-	    (pdev->pcie_type != PCI_EXP_TYPE_DOWNSTREAM))
+	if ((pci_pcie_type(pdev) != PCI_EXP_TYPE_ROOT_PORT) &&
+	    (pci_pcie_type(pdev) != PCI_EXP_TYPE_DOWNSTREAM))
 		return;
 	/*
 	 * Devices changed PM state, we should recheck if latency
@@ -729,8 +729,8 @@ void pcie_aspm_powersave_config_link(struct pci_dev *pdev)
 	if (aspm_policy != POLICY_POWERSAVE)
 		return;
 
-	if ((pdev->pcie_type != PCI_EXP_TYPE_ROOT_PORT) &&
-	    (pdev->pcie_type != PCI_EXP_TYPE_DOWNSTREAM))
+	if ((pci_pcie_type(pdev) != PCI_EXP_TYPE_ROOT_PORT) &&
+	    (pci_pcie_type(pdev) != PCI_EXP_TYPE_DOWNSTREAM))
 		return;
 
 	down_read(&pci_bus_sem);
@@ -757,8 +757,8 @@ static void __pci_disable_link_state(struct pci_dev *pdev, int state, bool sem,
 	if (!pci_is_pcie(pdev))
 		return;
 
-	if (pdev->pcie_type == PCI_EXP_TYPE_ROOT_PORT ||
-	    pdev->pcie_type == PCI_EXP_TYPE_DOWNSTREAM)
+	if (pci_pcie_type(pdev) == PCI_EXP_TYPE_ROOT_PORT ||
+	    pci_pcie_type(pdev) == PCI_EXP_TYPE_DOWNSTREAM)
 		parent = pdev;
 	if (!parent || !parent->link_state)
 		return;
@@ -933,8 +933,8 @@ void pcie_aspm_create_sysfs_dev_files(struct pci_dev *pdev)
 	struct pcie_link_state *link_state = pdev->link_state;
 
 	if (!pci_is_pcie(pdev) ||
-	    (pdev->pcie_type != PCI_EXP_TYPE_ROOT_PORT &&
-	     pdev->pcie_type != PCI_EXP_TYPE_DOWNSTREAM) || !link_state)
+	    (pci_pcie_type(pdev) != PCI_EXP_TYPE_ROOT_PORT &&
+	     pci_pcie_type(pdev) != PCI_EXP_TYPE_DOWNSTREAM) || !link_state)
 		return;
 
 	if (link_state->aspm_support)
@@ -950,8 +950,8 @@ void pcie_aspm_remove_sysfs_dev_files(struct pci_dev *pdev)
 	struct pcie_link_state *link_state = pdev->link_state;
 
 	if (!pci_is_pcie(pdev) ||
-	    (pdev->pcie_type != PCI_EXP_TYPE_ROOT_PORT &&
-	     pdev->pcie_type != PCI_EXP_TYPE_DOWNSTREAM) || !link_state)
+	    (pci_pcie_type(pdev) != PCI_EXP_TYPE_ROOT_PORT &&
+	     pci_pcie_type(pdev) != PCI_EXP_TYPE_DOWNSTREAM) || !link_state)
 		return;
 
 	if (link_state->aspm_support)

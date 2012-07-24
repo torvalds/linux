@@ -41,7 +41,7 @@ pci_find_upstream_pcie_bridge(struct pci_dev *pdev)
 			continue;
 		}
 		/* PCI device should connect to a PCIe bridge */
-		if (pdev->pcie_type != PCI_EXP_TYPE_PCI_BRIDGE) {
+		if (pci_pcie_type(pdev) != PCI_EXP_TYPE_PCI_BRIDGE) {
 			/* Busted hardware? */
 			WARN_ON_ONCE(1);
 			return NULL;

@@ -81,10 +81,11 @@ bool pci_aer_available(void)
 static int set_device_error_reporting(struct pci_dev *dev, void *data)
 {
 	bool enable = *((bool *)data);
+	int type = pci_pcie_type(dev);
 
-	if ((dev->pcie_type == PCI_EXP_TYPE_ROOT_PORT) ||
-	    (dev->pcie_type == PCI_EXP_TYPE_UPSTREAM) ||
-	    (dev->pcie_type == PCI_EXP_TYPE_DOWNSTREAM)) {
+	if ((type == PCI_EXP_TYPE_ROOT_PORT) ||
+	    (type == PCI_EXP_TYPE_UPSTREAM) ||
+	    (type == PCI_EXP_TYPE_DOWNSTREAM)) {
 		if (enable)
 			pci_enable_pcie_error_reporting(dev);
 		else

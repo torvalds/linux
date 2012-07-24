@@ -885,7 +885,7 @@ static struct pci_cap_saved_state *pci_find_saved_cap(
 
 static int pci_save_pcie_state(struct pci_dev *dev)
 {
-	int pos, i = 0;
+	int type, pos, i = 0;
 	struct pci_cap_saved_state *save_state;
 	u16 *cap;
 	u16 flags;
@@ -903,13 +903,14 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 
 	pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &flags);
 
-	if (pcie_cap_has_devctl(dev->pcie_type, flags))
+	type = pci_pcie_type(dev);
+	if (pcie_cap_has_devctl(type, flags))
 		pci_read_config_word(dev, pos + PCI_EXP_DEVCTL, &cap[i++]);
-	if (pcie_cap_has_lnkctl(dev->pcie_type, flags))
+	if (pcie_cap_has_lnkctl(type, flags))
 		pci_read_config_word(dev, pos + PCI_EXP_LNKCTL, &cap[i++]);
-	if (pcie_cap_has_sltctl(dev->pcie_type, flags))
+	if (pcie_cap_has_sltctl(type, flags))
 		pci_read_config_word(dev, pos + PCI_EXP_SLTCTL, &cap[i++]);
-	if (pcie_cap_has_rtctl(dev->pcie_type, flags))
+	if (pcie_cap_has_rtctl(type, flags))
 		pci_read_config_word(dev, pos + PCI_EXP_RTCTL, &cap[i++]);
 
 	pos = pci_pcie_cap2(dev);
@@ -924,7 +925,7 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 
 static void pci_restore_pcie_state(struct pci_dev *dev)
 {
-	int i = 0, pos;
+	int i = 0, pos, type;
 	struct pci_cap_saved_state *save_state;
 	u16 *cap;
 	u16 flags;
@@ -937,13 +938,14 @@ static void pci_restore_pcie_state(struct pci_dev *dev)
 
 	pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &flags);
 
-	if (pcie_cap_has_devctl(dev->pcie_type, flags))
+	type = pci_pcie_type(dev);
+	if (pcie_cap_has_devctl(type, flags))
 		pci_write_config_word(dev, pos + PCI_EXP_DEVCTL, cap[i++]);
-	if (pcie_cap_has_lnkctl(dev->pcie_type, flags))
+	if (pcie_cap_has_lnkctl(type, flags))
 		pci_write_config_word(dev, pos + PCI_EXP_LNKCTL, cap[i++]);
-	if (pcie_cap_has_sltctl(dev->pcie_type, flags))
+	if (pcie_cap_has_sltctl(type, flags))
 		pci_write_config_word(dev, pos + PCI_EXP_SLTCTL, cap[i++]);
-	if (pcie_cap_has_rtctl(dev->pcie_type, flags))
+	if (pcie_cap_has_rtctl(type, flags))
 		pci_write_config_word(dev, pos + PCI_EXP_RTCTL, cap[i++]);
 
 	pos = pci_pcie_cap2(dev);
@@ -2459,8 +2461,8 @@ bool pci_acs_enabled(struct pci_dev *pdev, u16 acs_flags)
 		acs_flags &= (PCI_ACS_RR | PCI_ACS_CR |
 			      PCI_ACS_EC | PCI_ACS_DT);
 
-	if (pdev->pcie_type == PCI_EXP_TYPE_DOWNSTREAM ||
-	    pdev->pcie_type == PCI_EXP_TYPE_ROOT_PORT ||
+	if (pci_pcie_type(pdev) == PCI_EXP_TYPE_DOWNSTREAM ||
+	    pci_pcie_type(pdev) == PCI_EXP_TYPE_ROOT_PORT ||
 	    pdev->multifunction) {
 		pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ACS);
 		if (!pos)

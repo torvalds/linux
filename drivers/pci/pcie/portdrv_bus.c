@@ -38,7 +38,7 @@ static int pcie_port_bus_match(struct device *dev, struct device_driver *drv)
 		return 0;
 
 	if ((driver->port_type != PCIE_ANY_PORT) &&
-	    (driver->port_type != pciedev->port->pcie_type))
+	    (driver->port_type != pci_pcie_type(pciedev->port)))
 		return 0;
 
 	return 1;

@@ -298,7 +298,7 @@ static int get_port_device_capability(struct pci_dev *dev)
 		services |= PCIE_PORT_SERVICE_VC;
 	/* Root ports are capable of generating PME too */
 	if ((cap_mask & PCIE_PORT_SERVICE_PME)
-	    && dev->pcie_type == PCI_EXP_TYPE_ROOT_PORT) {
+	    && pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT) {
 		services |= PCIE_PORT_SERVICE_PME;
 		/*
 		 * Disable PME interrupt on this port in case it's been enabled
@@ -336,7 +336,7 @@ static int pcie_device_init(struct pci_dev *pdev, int service, int irq)
 	device->release = release_pcie_device;	/* callback to free pcie dev */
 	dev_set_name(device, "%s:pcie%02x",
 		     pci_name(pdev),
-		     get_descriptor_id(pdev->pcie_type, service));
+		     get_descriptor_id(pci_pcie_type(pdev), service));
 	device->parent = &pdev->dev;
 	device_enable_async_suspend(device);
 

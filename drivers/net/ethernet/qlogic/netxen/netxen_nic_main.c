@@ -1382,7 +1382,7 @@ static void netxen_mask_aer_correctable(struct netxen_adapter *adapter)
 		adapter->ahw.board_type != NETXEN_BRDTYPE_P3_10G_TP)
 		return;
 
-	if (root->pcie_type != PCI_EXP_TYPE_ROOT_PORT)
+	if (pci_pcie_type(root) != PCI_EXP_TYPE_ROOT_PORT)
 		return;
 
 	aer_pos = pci_find_ext_capability(root, PCI_EXT_CAP_ID_ERR);

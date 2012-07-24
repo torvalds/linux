@@ -288,7 +288,7 @@ static struct pci_dev *pcie_find_root_port(struct pci_dev *dev)
 	while (1) {
 		if (!pci_is_pcie(dev))
 			break;
-		if (dev->pcie_type == PCI_EXP_TYPE_ROOT_PORT)
+		if (pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT)
 			return dev;
 		if (!dev->bus->self)
 			break;

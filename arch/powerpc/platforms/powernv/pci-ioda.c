@@ -855,7 +855,7 @@ static void __devinit pnv_ioda_setup_PEs(struct pci_bus *bus)
 		if (pe == NULL)
 			continue;
 		/* Leaving the PCIe domain ... single PE# */
-		if (dev->pcie_type == PCI_EXP_TYPE_PCI_BRIDGE)
+		if (pci_pcie_type(dev) == PCI_EXP_TYPE_PCI_BRIDGE)
 			pnv_ioda_setup_bus_PE(dev, pe);
 		else if (dev->subordinate)
 			pnv_ioda_setup_PEs(dev->subordinate);

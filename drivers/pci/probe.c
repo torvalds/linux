@@ -1384,9 +1384,9 @@ static int only_one_child(struct pci_bus *bus)
 
 	if (!parent || !pci_is_pcie(parent))
 		return 0;
-	if (parent->pcie_type == PCI_EXP_TYPE_ROOT_PORT)
+	if (pci_pcie_type(parent) == PCI_EXP_TYPE_ROOT_PORT)
 		return 1;
-	if (parent->pcie_type == PCI_EXP_TYPE_DOWNSTREAM &&
+	if (pci_pcie_type(parent) == PCI_EXP_TYPE_DOWNSTREAM &&
 	    !pci_has_flag(PCI_SCAN_ALL_PCIE_DEVS))
 		return 1;
 	return 0;
@@ -1463,7 +1463,7 @@ static int pcie_find_smpss(struct pci_dev *dev, void *data)
 	 */
 	if (dev->is_hotplug_bridge && (!list_is_singular(&dev->bus->devices) ||
 	     (dev->bus->self &&
-	      dev->bus->self->pcie_type != PCI_EXP_TYPE_ROOT_PORT)))
+	      pci_pcie_type(dev->bus->self) != PCI_EXP_TYPE_ROOT_PORT)))
 		*smpss = 0;
 
 	if (*smpss > dev->pcie_mpss)
@@ -1479,7 +1479,8 @@ static void pcie_write_mps(struct pci_dev *dev, int mps)
 	if (pcie_bus_config == PCIE_BUS_PERFORMANCE) {
 		mps = 128 << dev->pcie_mpss;
 
-		if (dev->pcie_type != PCI_EXP_TYPE_ROOT_PORT && dev->bus->self)
+		if (pci_pcie_type(dev) != PCI_EXP_TYPE_ROOT_PORT &&
+		    dev->bus->self)
 			/* For "Performance", the assumption is made that
 			 * downstream communication will never be larger than
 			 * the MRRS.  So, the MPS only needs to be configured
