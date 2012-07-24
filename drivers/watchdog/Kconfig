@@ -279,6 +279,7 @@ config DAVINCI_WATCHDOG
 config ORION_WATCHDOG
 	tristate "Orion watchdog"
 	depends on ARCH_ORION5X || ARCH_KIRKWOOD
+	select WATCHDOG_CORE
 	help
 	  Say Y here if to include support for the watchdog timer
 	  in the Marvell Orion5x and Kirkwood ARM SoCs.
@@ -578,6 +579,7 @@ config INTEL_SCU_WATCHDOG
 config ITCO_WDT
 	tristate "Intel TCO Timer/Watchdog"
 	depends on (X86 || IA64) && PCI
+	select WATCHDOG_CORE
 	select LPC_ICH
 	---help---
 	  Hardware driver for the intel TCO timer based watchdog devices.
