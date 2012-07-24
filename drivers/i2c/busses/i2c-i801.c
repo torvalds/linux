@@ -166,6 +166,13 @@ struct i801_priv {
 	/* isr processing */
 	wait_queue_head_t waitq;
 	u8 status;
+
+	/* Command state used by isr for byte-by-byte block transactions */
+	u8 cmd;
+	bool is_read;
+	int count;
+	int len;
+	u8 *data;
 };
 
 static struct pci_driver i801_driver;
@@ -373,14 +380,60 @@ static int i801_block_transaction_by_block(struct i801_priv *priv,
 	return 0;
 }
 
+static void i801_isr_byte_done(struct i801_priv *priv)
+{
+	if (priv->is_read) {
+		/* For SMBus block reads, length is received with first byte */
+		if (((priv->cmd & 0x1c) == I801_BLOCK_DATA) &&
+		    (priv->count == 0)) {
+			priv->len = inb_p(SMBHSTDAT0(priv));
+			if (priv->len < 1 || priv->len > I2C_SMBUS_BLOCK_MAX) {
+				dev_err(&priv->pci_dev->dev,
+					"Illegal SMBus block read size %d\n",
+					priv->len);
+				/* FIXME: Recover */
+				priv->len = I2C_SMBUS_BLOCK_MAX;
+			} else {
+				dev_dbg(&priv->pci_dev->dev,
+					"SMBus block read size is %d\n",
+					priv->len);
+			}
+			priv->data[-1] = priv->len;
+		}
+
+		/* Read next byte */
+		if (priv->count < priv->len)
+			priv->data[priv->count++] = inb(SMBBLKDAT(priv));
+		else
+			dev_dbg(&priv->pci_dev->dev,
+				"Discarding extra byte on block read\n");
+
+		/* Set LAST_BYTE for last byte of read transaction */
+		if (priv->count == priv->len - 1)
+			outb_p(priv->cmd | SMBHSTCNT_LAST_BYTE,
+			       SMBHSTCNT(priv));
+	} else if (priv->count < priv->len - 1) {
+		/* Write next byte, except for IRQ after last byte */
+		outb_p(priv->data[++priv->count], SMBBLKDAT(priv));
+	}
+
+	/* Clear BYTE_DONE to continue with next byte */
+	outb_p(SMBHSTSTS_BYTE_DONE, SMBHSTSTS(priv));
+}
+
 /*
- * i801 signals transaction completion with one of these interrupts:
- *   INTR - Success
- *   DEV_ERR - Invalid command, NAK or communication timeout
- *   BUS_ERR - SMI# transaction collision
- *   FAILED - transaction was canceled due to a KILL request
- * When any of these occur, update ->status and wake up the waitq.
- * ->status must be cleared before kicking off the next transaction.
+ * There are two kinds of interrupts:
+ *
+ * 1) i801 signals transaction completion with one of these interrupts:
+ *      INTR - Success
+ *      DEV_ERR - Invalid command, NAK or communication timeout
+ *      BUS_ERR - SMI# transaction collision
+ *      FAILED - transaction was canceled due to a KILL request
+ *    When any of these occur, update ->status and wake up the waitq.
+ *    ->status must be cleared before kicking off the next transaction.
+ *
+ * 2) For byte-by-byte (I2C read/write) transactions, one BYTE_DONE interrupt
+ *    occurs for each byte of a byte-by-byte to prepare the next byte.
  */
 static irqreturn_t i801_isr(int irq, void *dev_id)
 {
@@ -396,6 +449,9 @@ static irqreturn_t i801_isr(int irq, void *dev_id)
 	status = inb_p(SMBHSTSTS(priv));
 	if (status != 0x42)
 		dev_dbg(&priv->pci_dev->dev, "irq: status = %02x\n", status);
+
+	if (status & SMBHSTSTS_BYTE_DONE)
+		i801_isr_byte_done(priv);
 
 	/*
 	 * Clear irq sources and report transaction result.
@@ -442,6 +498,21 @@ static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
 		smbcmd = I801_I2C_BLOCK_DATA;
 	else
 		smbcmd = I801_BLOCK_DATA;
+
+	if (priv->features & FEATURE_IRQ) {
+		priv->is_read = (read_write == I2C_SMBUS_READ);
+		if (len == 1 && priv->is_read)
+			smbcmd |= SMBHSTCNT_LAST_BYTE;
+		priv->cmd = smbcmd | SMBHSTCNT_INTREN;
+		priv->len = len;
+		priv->count = 0;
+		priv->data = &data->block[1];
+
+		outb_p(priv->cmd | SMBHSTCNT_START, SMBHSTCNT(priv));
+		wait_event(priv->waitq, (status = priv->status));
+		priv->status = 0;
+		return i801_check_post(priv, status);
+	}
 
 	for (i = 1; i <= len; i++) {
 		if (i == len && read_write == I2C_SMBUS_READ)
