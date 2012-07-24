@@ -258,6 +258,7 @@ struct pci_dev {
 	u8		pcie_mpss:3;	/* PCI-E Max Payload Size Supported */
 	u8		rom_base_reg;	/* which config register controls the ROM */
 	u8		pin;  		/* which interrupt pin this device uses */
+	u16		pcie_flags_reg;	/* cached PCI-E Capabilities Register */
 
 	struct pci_driver *driver;	/* which driver has allocated this device */
 	u64		dma_mask;	/* Mask of the bits of bus address this
@@ -1648,6 +1649,15 @@ static inline int pci_pcie_cap(struct pci_dev *dev)
 static inline bool pci_is_pcie(struct pci_dev *dev)
 {
 	return !!pci_pcie_cap(dev);
+}
+
+/**
+ * pci_pcie_type - get the PCIe device/port type
+ * @dev: PCI device
+ */
+static inline int pci_pcie_type(const struct pci_dev *dev)
+{
+	return (dev->pcie_flags_reg & PCI_EXP_FLAGS_TYPE) >> 4;
 }
 
 void pci_request_acs(void);
