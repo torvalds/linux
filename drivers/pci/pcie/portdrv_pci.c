@@ -64,14 +64,7 @@ __setup("pcie_ports=", pcie_port_setup);
  */
 void pcie_clear_root_pme_status(struct pci_dev *dev)
 {
-	int rtsta_pos;
-	u32 rtsta;
-
-	rtsta_pos = pci_pcie_cap(dev) + PCI_EXP_RTSTA;
-
-	pci_read_config_dword(dev, rtsta_pos, &rtsta);
-	rtsta |= PCI_EXP_RTSTA_PME;
-	pci_write_config_dword(dev, rtsta_pos, rtsta);
+	pcie_capability_set_dword(dev, PCI_EXP_RTSTA, PCI_EXP_RTSTA_PME);
 }
 
 static int pcie_portdrv_restore_config(struct pci_dev *dev)

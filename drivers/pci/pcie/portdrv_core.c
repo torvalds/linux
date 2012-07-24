@@ -246,8 +246,7 @@ static void cleanup_service_irqs(struct pci_dev *dev)
  */
 static int get_port_device_capability(struct pci_dev *dev)
 {
-	int services = 0, pos;
-	u16 reg16;
+	int services = 0;
 	u32 reg32;
 	int cap_mask = 0;
 	int err;
@@ -265,11 +264,9 @@ static int get_port_device_capability(struct pci_dev *dev)
 			return 0;
 	}
 
-	pos = pci_pcie_cap(dev);
-	pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &reg16);
 	/* Hot-Plug Capable */
-	if ((cap_mask & PCIE_PORT_SERVICE_HP) && (reg16 & PCI_EXP_FLAGS_SLOT)) {
-		pci_read_config_dword(dev, pos + PCI_EXP_SLTCAP, &reg32);
+	if (cap_mask & PCIE_PORT_SERVICE_HP) {
+		pcie_capability_read_dword(dev, PCI_EXP_SLTCAP, &reg32);
 		if (reg32 & PCI_EXP_SLTCAP_HPC) {
 			services |= PCIE_PORT_SERVICE_HP;
 			/*
@@ -277,10 +274,8 @@ static int get_port_device_capability(struct pci_dev *dev)
 			 * enabled by the BIOS and the hot-plug service driver
 			 * is not loaded.
 			 */
-			pos += PCI_EXP_SLTCTL;
-			pci_read_config_word(dev, pos, &reg16);
-			reg16 &= ~(PCI_EXP_SLTCTL_CCIE | PCI_EXP_SLTCTL_HPIE);
-			pci_write_config_word(dev, pos, reg16);
+			pcie_capability_clear_word(dev, PCI_EXP_SLTCTL,
+				PCI_EXP_SLTCTL_CCIE | PCI_EXP_SLTCTL_HPIE);
 		}
 	}
 	/* AER capable */
