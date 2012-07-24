@@ -67,7 +67,7 @@
 	li	t2, ~0xe	/* S1RCM */
 	and	t1, t1, t2
 #endif
-	mtcr    t1, t0
+	mtcr	t1, t0
 
 #ifdef XLP_AX_WORKAROUND
 	li	t0, SCHED_DEFEATURE
@@ -195,9 +195,9 @@ EXPORT(nlm_boot_siblings)
 	bnez	v1, 2f
 	nop
 
-        li	t0, MMU_SETUP
-        li	t1, 0
-        mtcr	t1, t0
+	li	t0, MMU_SETUP
+	li	t1, 0
+	mtcr	t1, t0
 	_ehb
 
 2:	beqz	v0, 4f		/* boot cpu (cpuid == 0)? */
