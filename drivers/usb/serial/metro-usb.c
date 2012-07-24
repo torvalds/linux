@@ -136,8 +136,8 @@ static void metrousb_read_int_callback(struct urb *urb)
 
 		/* Force the data to the tty layer. */
 		tty_flip_buffer_push(tty);
-		tty_kref_put(tty);
 	}
+	tty_kref_put(tty);
 
 	/* Set any port variables. */
 	spin_lock_irqsave(&metro_priv->lock, flags);
