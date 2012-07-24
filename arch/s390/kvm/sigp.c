@@ -26,19 +26,23 @@ static int __sigp_sense(struct kvm_vcpu *vcpu, u16 cpu_addr,
 	int rc;
 
 	if (cpu_addr >= KVM_MAX_VCPUS)
-		return 3; /* not operational */
+		return SIGP_CC_NOT_OPERATIONAL;
 
 	spin_lock(&fi->lock);
 	if (fi->local_int[cpu_addr] == NULL)
-		rc = 3; /* not operational */
+		rc = SIGP_CC_NOT_OPERATIONAL;
 	else if (!(atomic_read(fi->local_int[cpu_addr]->cpuflags)
-		  & CPUSTAT_STOPPED)) {
+		   & (CPUSTAT_ECALL_PEND | CPUSTAT_STOPPED)))
+		rc = SIGP_CC_ORDER_CODE_ACCEPTED;
+	else {
 		*reg &= 0xffffffff00000000UL;
-		rc = 1; /* status stored */
-	} else {
-		*reg &= 0xffffffff00000000UL;
-		*reg |= SIGP_STATUS_STOPPED;
-		rc = 1; /* status stored */
+		if (atomic_read(fi->local_int[cpu_addr]->cpuflags)
+		    & CPUSTAT_ECALL_PEND)
+			*reg |= SIGP_STATUS_EXT_CALL_PENDING;
+		if (atomic_read(fi->local_int[cpu_addr]->cpuflags)
+		    & CPUSTAT_STOPPED)
+			*reg |= SIGP_STATUS_STOPPED;
+		rc = SIGP_CC_STATUS_STORED;
 	}
 	spin_unlock(&fi->lock);
 
@@ -54,7 +58,7 @@ static int __sigp_emergency(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	int rc;
 
 	if (cpu_addr >= KVM_MAX_VCPUS)
-		return 3; /* not operational */
+		return SIGP_CC_NOT_OPERATIONAL;
 
 	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
 	if (!inti)
@@ -66,7 +70,7 @@ static int __sigp_emergency(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	spin_lock(&fi->lock);
 	li = fi->local_int[cpu_addr];
 	if (li == NULL) {
-		rc = 3; /* not operational */
+		rc = SIGP_CC_NOT_OPERATIONAL;
 		kfree(inti);
 		goto unlock;
 	}
@@ -77,7 +81,7 @@ static int __sigp_emergency(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	if (waitqueue_active(&li->wq))
 		wake_up_interruptible(&li->wq);
 	spin_unlock_bh(&li->lock);
-	rc = 0; /* order accepted */
+	rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 	VCPU_EVENT(vcpu, 4, "sent sigp emerg to cpu %x", cpu_addr);
 unlock:
 	spin_unlock(&fi->lock);
@@ -92,7 +96,7 @@ static int __sigp_external_call(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	int rc;
 
 	if (cpu_addr >= KVM_MAX_VCPUS)
-		return 3; /* not operational */
+		return SIGP_CC_NOT_OPERATIONAL;
 
 	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
 	if (!inti)
@@ -104,7 +108,7 @@ static int __sigp_external_call(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	spin_lock(&fi->lock);
 	li = fi->local_int[cpu_addr];
 	if (li == NULL) {
-		rc = 3; /* not operational */
+		rc = SIGP_CC_NOT_OPERATIONAL;
 		kfree(inti);
 		goto unlock;
 	}
@@ -115,7 +119,7 @@ static int __sigp_external_call(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	if (waitqueue_active(&li->wq))
 		wake_up_interruptible(&li->wq);
 	spin_unlock_bh(&li->lock);
-	rc = 0; /* order accepted */
+	rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 	VCPU_EVENT(vcpu, 4, "sent sigp ext call to cpu %x", cpu_addr);
 unlock:
 	spin_unlock(&fi->lock);
@@ -143,7 +147,7 @@ static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
 out:
 	spin_unlock_bh(&li->lock);
 
-	return 0; /* order accepted */
+	return SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
 static int __sigp_stop(struct kvm_vcpu *vcpu, u16 cpu_addr, int action)
@@ -153,12 +157,12 @@ static int __sigp_stop(struct kvm_vcpu *vcpu, u16 cpu_addr, int action)
 	int rc;
 
 	if (cpu_addr >= KVM_MAX_VCPUS)
-		return 3; /* not operational */
+		return SIGP_CC_NOT_OPERATIONAL;
 
 	spin_lock(&fi->lock);
 	li = fi->local_int[cpu_addr];
 	if (li == NULL) {
-		rc = 3; /* not operational */
+		rc = SIGP_CC_NOT_OPERATIONAL;
 		goto unlock;
 	}
 
@@ -182,11 +186,11 @@ static int __sigp_set_arch(struct kvm_vcpu *vcpu, u32 parameter)
 
 	switch (parameter & 0xff) {
 	case 0:
-		rc = 3; /* not operational */
+		rc = SIGP_CC_NOT_OPERATIONAL;
 		break;
 	case 1:
 	case 2:
-		rc = 0; /* order accepted */
+		rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 		break;
 	default:
 		rc = -EOPNOTSUPP;
@@ -207,21 +211,23 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 	address = address & 0x7fffe000u;
 	if (copy_from_guest_absolute(vcpu, &tmp, address, 1) ||
 	   copy_from_guest_absolute(vcpu, &tmp, address + PAGE_SIZE, 1)) {
+		*reg &= 0xffffffff00000000UL;
 		*reg |= SIGP_STATUS_INVALID_PARAMETER;
-		return 1; /* invalid parameter */
+		return SIGP_CC_STATUS_STORED;
 	}
 
 	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
 	if (!inti)
-		return 2; /* busy */
+		return SIGP_CC_BUSY;
 
 	spin_lock(&fi->lock);
 	if (cpu_addr < KVM_MAX_VCPUS)
 		li = fi->local_int[cpu_addr];
 
 	if (li == NULL) {
-		rc = 1; /* incorrect state */
-		*reg &= SIGP_STATUS_INCORRECT_STATE;
+		*reg &= 0xffffffff00000000UL;
+		*reg |= SIGP_STATUS_INCORRECT_STATE;
+		rc = SIGP_CC_STATUS_STORED;
 		kfree(inti);
 		goto out_fi;
 	}
@@ -229,8 +235,9 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 	spin_lock_bh(&li->lock);
 	/* cpu must be in stopped state */
 	if (!(atomic_read(li->cpuflags) & CPUSTAT_STOPPED)) {
-		rc = 1; /* incorrect state */
-		*reg &= SIGP_STATUS_INCORRECT_STATE;
+		*reg &= 0xffffffff00000000UL;
+		*reg |= SIGP_STATUS_INCORRECT_STATE;
+		rc = SIGP_CC_STATUS_STORED;
 		kfree(inti);
 		goto out_li;
 	}
@@ -242,7 +249,7 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 	atomic_set(&li->active, 1);
 	if (waitqueue_active(&li->wq))
 		wake_up_interruptible(&li->wq);
-	rc = 0; /* order accepted */
+	rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 
 	VCPU_EVENT(vcpu, 4, "set prefix of cpu %02x to %x", cpu_addr, address);
 out_li:
@@ -259,21 +266,21 @@ static int __sigp_sense_running(struct kvm_vcpu *vcpu, u16 cpu_addr,
 	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
 
 	if (cpu_addr >= KVM_MAX_VCPUS)
-		return 3; /* not operational */
+		return SIGP_CC_NOT_OPERATIONAL;
 
 	spin_lock(&fi->lock);
 	if (fi->local_int[cpu_addr] == NULL)
-		rc = 3; /* not operational */
+		rc = SIGP_CC_NOT_OPERATIONAL;
 	else {
 		if (atomic_read(fi->local_int[cpu_addr]->cpuflags)
 		    & CPUSTAT_RUNNING) {
 			/* running */
-			rc = 1;
+			rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 		} else {
 			/* not running */
 			*reg &= 0xffffffff00000000UL;
 			*reg |= SIGP_STATUS_NOT_RUNNING;
-			rc = 0;
+			rc = SIGP_CC_STATUS_STORED;
 		}
 	}
 	spin_unlock(&fi->lock);
@@ -286,23 +293,23 @@ static int __sigp_sense_running(struct kvm_vcpu *vcpu, u16 cpu_addr,
 
 static int __sigp_restart(struct kvm_vcpu *vcpu, u16 cpu_addr)
 {
-	int rc = 0;
 	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
 	struct kvm_s390_local_interrupt *li;
+	int rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 
 	if (cpu_addr >= KVM_MAX_VCPUS)
-		return 3; /* not operational */
+		return SIGP_CC_NOT_OPERATIONAL;
 
 	spin_lock(&fi->lock);
 	li = fi->local_int[cpu_addr];
 	if (li == NULL) {
-		rc = 3; /* not operational */
+		rc = SIGP_CC_NOT_OPERATIONAL;
 		goto out;
 	}
 
 	spin_lock_bh(&li->lock);
 	if (li->action_bits & ACTION_STOP_ON_STOP)
-		rc = 2; /* busy */
+		rc = SIGP_CC_BUSY;
 	else
 		VCPU_EVENT(vcpu, 4, "sigp restart %x to handle userspace",
 			cpu_addr);
@@ -377,7 +384,7 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 	case SIGP_RESTART:
 		vcpu->stat.instruction_sigp_restart++;
 		rc = __sigp_restart(vcpu, cpu_addr);
-		if (rc == 2) /* busy */
+		if (rc == SIGP_CC_BUSY)
 			break;
 		/* user space must know about restart */
 	default:

@@ -306,7 +306,7 @@ struct kvm {
 	struct hlist_head irq_ack_notifier_list;
 #endif
 
-#ifdef KVM_ARCH_WANT_MMU_NOTIFIER
+#if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
 	struct mmu_notifier mmu_notifier;
 	unsigned long mmu_notifier_seq;
 	long mmu_notifier_count;
@@ -314,13 +314,19 @@ struct kvm {
 	long tlbs_dirty;
 };
 
-/* The guest did something we don't support. */
-#define pr_unimpl(vcpu, fmt, ...)					\
-	pr_err_ratelimited("kvm: %i: cpu%i " fmt,			\
-			   current->tgid, (vcpu)->vcpu_id , ## __VA_ARGS__)
+#define kvm_err(fmt, ...) \
+	pr_err("kvm [%i]: " fmt, task_pid_nr(current), ## __VA_ARGS__)
+#define kvm_info(fmt, ...) \
+	pr_info("kvm [%i]: " fmt, task_pid_nr(current), ## __VA_ARGS__)
+#define kvm_debug(fmt, ...) \
+	pr_debug("kvm [%i]: " fmt, task_pid_nr(current), ## __VA_ARGS__)
+#define kvm_pr_unimpl(fmt, ...) \
+	pr_err_ratelimited("kvm [%i]: " fmt, \
+			   task_tgid_nr(current), ## __VA_ARGS__)
 
-#define kvm_printf(kvm, fmt ...) printk(KERN_DEBUG fmt)
-#define vcpu_printf(vcpu, fmt...) kvm_printf(vcpu->kvm, fmt)
+/* The guest did something we don't support. */
+#define vcpu_unimpl(vcpu, fmt, ...)					\
+	kvm_pr_unimpl("vcpu%i " fmt, (vcpu)->vcpu_id, ## __VA_ARGS__)
 
 static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
 {
@@ -534,6 +540,9 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu);
 int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu);
 
 void kvm_free_physmem(struct kvm *kvm);
+
+void *kvm_kvzalloc(unsigned long size);
+void kvm_kvfree(const void *addr);
 
 #ifndef __KVM_HAVE_ARCH_VM_ALLOC
 static inline struct kvm *kvm_arch_alloc_vm(void)
@@ -771,7 +780,7 @@ struct kvm_stats_debugfs_item {
 extern struct kvm_stats_debugfs_item debugfs_entries[];
 extern struct dentry *kvm_debugfs_dir;
 
-#ifdef KVM_ARCH_WANT_MMU_NOTIFIER
+#if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
 static inline int mmu_notifier_retry(struct kvm_vcpu *vcpu, unsigned long mmu_seq)
 {
 	if (unlikely(vcpu->kvm->mmu_notifier_count))
@@ -793,7 +802,7 @@ static inline int mmu_notifier_retry(struct kvm_vcpu *vcpu, unsigned long mmu_se
 }
 #endif
 
-#ifdef CONFIG_HAVE_KVM_IRQCHIP
+#ifdef KVM_CAP_IRQ_ROUTING
 
 #define KVM_MAX_IRQ_ROUTES 1024
 
