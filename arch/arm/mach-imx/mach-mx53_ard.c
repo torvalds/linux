@@ -267,5 +267,6 @@ MACHINE_START(MX53_ARD, "Freescale MX53 ARD Board")
 	.handle_irq = imx53_handle_irq,
 	.timer = &mx53_ard_timer,
 	.init_machine = mx53_ard_board_init,
+	.init_late	= imx53_init_late,
 	.restart	= mxc_restart,
 MACHINE_END

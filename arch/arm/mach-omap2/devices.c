@@ -27,7 +27,6 @@
 
 #include "iomap.h"
 #include <plat/board.h>
-#include <plat/mmc.h>
 #include <plat/dma.h>
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
@@ -603,112 +602,6 @@ static inline void omap_init_aes(void) { }
 
 /*-------------------------------------------------------------------------*/
 
-#if defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE)
-
-static inline void omap242x_mmc_mux(struct omap_mmc_platform_data
-							*mmc_controller)
-{
-	if ((mmc_controller->slots[0].switch_pin > 0) && \
-		(mmc_controller->slots[0].switch_pin < OMAP_MAX_GPIO_LINES))
-		omap_mux_init_gpio(mmc_controller->slots[0].switch_pin,
-					OMAP_PIN_INPUT_PULLUP);
-	if ((mmc_controller->slots[0].gpio_wp > 0) && \
-		(mmc_controller->slots[0].gpio_wp < OMAP_MAX_GPIO_LINES))
-		omap_mux_init_gpio(mmc_controller->slots[0].gpio_wp,
-					OMAP_PIN_INPUT_PULLUP);
-
-	omap_mux_init_signal("sdmmc_cmd", 0);
-	omap_mux_init_signal("sdmmc_clki", 0);
-	omap_mux_init_signal("sdmmc_clko", 0);
-	omap_mux_init_signal("sdmmc_dat0", 0);
-	omap_mux_init_signal("sdmmc_dat_dir0", 0);
-	omap_mux_init_signal("sdmmc_cmd_dir", 0);
-	if (mmc_controller->slots[0].caps & MMC_CAP_4_BIT_DATA) {
-		omap_mux_init_signal("sdmmc_dat1", 0);
-		omap_mux_init_signal("sdmmc_dat2", 0);
-		omap_mux_init_signal("sdmmc_dat3", 0);
-		omap_mux_init_signal("sdmmc_dat_dir1", 0);
-		omap_mux_init_signal("sdmmc_dat_dir2", 0);
-		omap_mux_init_signal("sdmmc_dat_dir3", 0);
-	}
-
-	/*
-	 * Use internal loop-back in MMC/SDIO Module Input Clock
-	 * selection
-	 */
-	if (mmc_controller->slots[0].internal_clock) {
-		u32 v = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
-		v |= (1 << 24);
-		omap_ctrl_writel(v, OMAP2_CONTROL_DEVCONF0);
-	}
-}
-
-void __init omap242x_init_mmc(struct omap_mmc_platform_data **mmc_data)
-{
-	struct platform_device *pdev;
-	struct omap_hwmod *oh;
-	int id = 0;
-	char *oh_name = "msdi1";
-	char *dev_name = "mmci-omap";
-
-	if (!mmc_data[0]) {
-		pr_err("%s fails: Incomplete platform data\n", __func__);
-		return;
-	}
-
-	omap242x_mmc_mux(mmc_data[0]);
-
-	oh = omap_hwmod_lookup(oh_name);
-	if (!oh) {
-		pr_err("Could not look up %s\n", oh_name);
-		return;
-	}
-	pdev = omap_device_build(dev_name, id, oh, mmc_data[0],
-				 sizeof(struct omap_mmc_platform_data), NULL, 0, 0);
-	if (IS_ERR(pdev))
-		WARN(1, "Can'd build omap_device for %s:%s.\n",
-					dev_name, oh->name);
-}
-
-#endif
-
-/*-------------------------------------------------------------------------*/
-
-#if defined(CONFIG_HDQ_MASTER_OMAP) || defined(CONFIG_HDQ_MASTER_OMAP_MODULE)
-#define OMAP_HDQ_BASE	0x480B2000
-static struct resource omap_hdq_resources[] = {
-	{
-		.start		= OMAP_HDQ_BASE,
-		.end		= OMAP_HDQ_BASE + 0x1C,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= INT_24XX_HDQ_IRQ,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-static struct platform_device omap_hdq_dev = {
-	.name = "omap_hdq",
-	.id = 0,
-	.dev = {
-		.platform_data = NULL,
-	},
-	.num_resources	= ARRAY_SIZE(omap_hdq_resources),
-	.resource	= omap_hdq_resources,
-};
-static inline void omap_hdq_init(void)
-{
-	if (cpu_is_omap2420())
-		return;
-
-	platform_device_register(&omap_hdq_dev);
-}
-#else
-static inline void omap_hdq_init(void) {}
-#endif
-
-/*---------------------------------------------------------------------------*/
-
 #if defined(CONFIG_VIDEO_OMAP2_VOUT) || \
 	defined(CONFIG_VIDEO_OMAP2_VOUT_MODULE)
 #if defined(CONFIG_FB_OMAP2) || defined(CONFIG_FB_OMAP2_MODULE)
@@ -753,7 +646,6 @@ static int __init omap2_init_devices(void)
 		omap_init_mcspi();
 	}
 	omap_init_pmu();
-	omap_hdq_init();
 	omap_init_sti();
 	omap_init_sham();
 	omap_init_aes();

@@ -202,6 +202,10 @@ void __init tzic_init_irq(void __iomem *irqbase)
  * tzic_enable_wake() - enable wakeup interrupt
  *
  * @return			0 if successful; non-zero otherwise
+ *
+ * This function provides an interrupt synchronization point that is required
+ * by tzic enabled platforms before entering imx specific low power modes (ie,
+ * those low power modes beyond the WAIT_CLOCKED basic ARM WFI only mode).
  */
 int tzic_enable_wake(void)
 {

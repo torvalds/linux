@@ -120,6 +120,7 @@ DT_MACHINE_START(IMX53_DT, "Freescale i.MX53 (Device Tree Support)")
 	.handle_irq	= imx53_handle_irq,
 	.timer		= &imx53_timer,
 	.init_machine	= imx53_dt_init,
+	.init_late	= imx53_init_late,
 	.dt_compat	= imx53_dt_board_compat,
 	.restart	= mxc_restart,
 MACHINE_END

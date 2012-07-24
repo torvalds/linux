@@ -153,6 +153,7 @@
 #include "prm44xx.h"
 #include "prminst44xx.h"
 #include "mux.h"
+#include "pm.h"
 
 /* Maximum microseconds to wait for OMAP module to softreset */
 #define MAX_MODULE_SOFTRESET_WAIT	10000
@@ -196,6 +197,9 @@ static LIST_HEAD(omap_hwmod_list);
 
 /* mpu_oh: used to add/remove MPU initiator from sleepdep list */
 static struct omap_hwmod *mpu_oh;
+
+/* io_chain_lock: used to serialize reconfigurations of the I/O chain */
+static DEFINE_SPINLOCK(io_chain_lock);
 
 /*
  * linkspace: ptr to a buffer that struct omap_hwmod_link records are
@@ -1759,6 +1763,32 @@ static int _reset(struct omap_hwmod *oh)
 }
 
 /**
+ * _reconfigure_io_chain - clear any I/O chain wakeups and reconfigure chain
+ *
+ * Call the appropriate PRM function to clear any logged I/O chain
+ * wakeups and to reconfigure the chain.  This apparently needs to be
+ * done upon every mux change.  Since hwmods can be concurrently
+ * enabled and idled, hold a spinlock around the I/O chain
+ * reconfiguration sequence.  No return value.
+ *
+ * XXX When the PRM code is moved to drivers, this function can be removed,
+ * as the PRM infrastructure should abstract this.
+ */
+static void _reconfigure_io_chain(void)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&io_chain_lock, flags);
+
+	if (cpu_is_omap34xx() && omap3_has_io_chain_ctrl())
+		omap3xxx_prm_reconfigure_io_chain();
+	else if (cpu_is_omap44xx())
+		omap44xx_prm_reconfigure_io_chain();
+
+	spin_unlock_irqrestore(&io_chain_lock, flags);
+}
+
+/**
  * _enable - enable an omap_hwmod
  * @oh: struct omap_hwmod *
  *
@@ -1814,8 +1844,10 @@ static int _enable(struct omap_hwmod *oh)
 	/* Mux pins for device runtime if populated */
 	if (oh->mux && (!oh->mux->enabled ||
 			((oh->_state == _HWMOD_STATE_IDLE) &&
-			 oh->mux->pads_dynamic)))
+			 oh->mux->pads_dynamic))) {
 		omap_hwmod_mux(oh->mux, _HWMOD_STATE_ENABLED);
+		_reconfigure_io_chain();
+	}
 
 	_add_initiator_dep(oh, mpu_oh);
 
@@ -1907,8 +1939,10 @@ static int _idle(struct omap_hwmod *oh)
 		clkdm_hwmod_disable(oh->clkdm, oh);
 
 	/* Mux pins for device idle if populated */
-	if (oh->mux && oh->mux->pads_dynamic)
+	if (oh->mux && oh->mux->pads_dynamic) {
 		omap_hwmod_mux(oh->mux, _HWMOD_STATE_IDLE);
+		_reconfigure_io_chain();
+	}
 
 	oh->_state = _HWMOD_STATE_IDLE;
 

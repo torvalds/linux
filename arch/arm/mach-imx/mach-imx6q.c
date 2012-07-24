@@ -12,7 +12,9 @@
 
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/cpuidle.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -24,6 +26,7 @@
 #include <linux/phy.h>
 #include <linux/micrel_phy.h>
 #include <linux/mfd/anatop.h>
+#include <asm/cpuidle.h>
 #include <asm/smp_twd.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/gic.h>
@@ -31,7 +34,9 @@
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
 #include <mach/common.h>
+#include <mach/cpuidle.h>
 #include <mach/hardware.h>
+
 
 void imx6q_restart(char mode, const char *cmd)
 {
@@ -169,6 +174,19 @@ static void __init imx6q_init_machine(void)
 	imx6q_usb_init();
 }
 
+static struct cpuidle_driver imx6q_cpuidle_driver = {
+	.name			= "imx6q_cpuidle",
+	.owner			= THIS_MODULE,
+	.en_core_tk_irqen	= 1,
+	.states[0]		= ARM_CPUIDLE_WFI_STATE,
+	.state_count		= 1,
+};
+
+static void __init imx6q_init_late(void)
+{
+	imx_cpuidle_init(&imx6q_cpuidle_driver);
+}
+
 static void __init imx6q_map_io(void)
 {
 	imx_lluart_map_io();
@@ -213,6 +231,7 @@ DT_MACHINE_START(IMX6Q, "Freescale i.MX6 Quad (Device Tree)")
 	.handle_irq	= imx6q_handle_irq,
 	.timer		= &imx6q_timer,
 	.init_machine	= imx6q_init_machine,
+	.init_late      = imx6q_init_late,
 	.dt_compat	= imx6q_dt_compat,
 	.restart	= imx6q_restart,
 MACHINE_END
