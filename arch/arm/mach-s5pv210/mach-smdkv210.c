@@ -19,6 +19,7 @@
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/pwm_backlight.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
@@ -47,6 +48,7 @@
 #include <plat/backlight.h>
 #include <plat/regs-fb-v4.h>
 #include <plat/mfc.h>
+#include <plat/clock.h>
 
 #include "common.h"
 
@@ -203,6 +205,9 @@ static struct s3c_fb_platdata smdkv210_lcd0_pdata __initdata = {
 	.setup_gpio	= s5pv210_fb_gpio_setup_24bpp,
 };
 
+/* USB OTG */
+static struct s3c_hsotg_plat smdkv210_hsotg_pdata;
+
 static struct platform_device *smdkv210_devices[] __initdata = {
 	&s3c_device_adc,
 	&s3c_device_cfcon,
@@ -216,6 +221,7 @@ static struct platform_device *smdkv210_devices[] __initdata = {
 	&s3c_device_i2c2,
 	&s3c_device_rtc,
 	&s3c_device_ts,
+	&s3c_device_usb_hsotg,
 	&s3c_device_wdt,
 	&s5p_device_fimc0,
 	&s5p_device_fimc1,
@@ -279,7 +285,7 @@ static struct platform_pwm_backlight_data smdkv210_bl_data = {
 static void __init smdkv210_map_io(void)
 {
 	s5pv210_init_io(NULL, 0);
-	s3c24xx_init_clocks(24000000);
+	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(smdkv210_uartcfgs, ARRAY_SIZE(smdkv210_uartcfgs));
 	s5p_set_timer_source(S5P_PWM2, S5P_PWM4);
 }
@@ -313,6 +319,8 @@ static void __init smdkv210_machine_init(void)
 	s3c_fb_set_platdata(&smdkv210_lcd0_pdata);
 
 	samsung_bl_set(&smdkv210_bl_gpio_info, &smdkv210_bl_data);
+
+	s3c_hsotg_set_platdata(&smdkv210_hsotg_pdata);
 
 	platform_add_devices(smdkv210_devices, ARRAY_SIZE(smdkv210_devices));
 }

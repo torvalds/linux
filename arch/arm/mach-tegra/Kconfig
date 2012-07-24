@@ -66,33 +66,11 @@ config MACH_HARMONY
        help
          Support for nVidia Harmony development platform
 
-config MACH_KAEN
-       bool "Kaen board"
-       depends on ARCH_TEGRA_2x_SOC
-       select MACH_SEABOARD
-       help
-         Support for the Kaen version of Seaboard
-
 config MACH_PAZ00
        bool "Paz00 board"
        depends on ARCH_TEGRA_2x_SOC
        help
          Support for the Toshiba AC100/Dynabook AZ netbook
-
-config MACH_SEABOARD
-       bool "Seaboard board"
-       depends on ARCH_TEGRA_2x_SOC
-       help
-         Support for nVidia Seaboard development platform. It will
-	 also be included for some of the derivative boards that
-	 have large similarities with the seaboard design.
-
-config MACH_TEGRA_DT
-	bool "Generic Tegra20 board (FDT support)"
-	depends on ARCH_TEGRA_2x_SOC
-	select USE_OF
-	help
-	  Support for generic NVIDIA Tegra20 boards using Flattened Device Tree
 
 config MACH_TRIMSLICE
        bool "TrimSlice board"
@@ -100,20 +78,6 @@ config MACH_TRIMSLICE
        select TEGRA_PCI
        help
          Support for CompuLab TrimSlice platform
-
-config MACH_WARIO
-       bool "Wario board"
-       depends on ARCH_TEGRA_2x_SOC
-       select MACH_SEABOARD
-       help
-         Support for the Wario version of Seaboard
-
-config MACH_VENTANA
-       bool "Ventana board"
-       depends on ARCH_TEGRA_2x_SOC
-       select MACH_TEGRA_DT
-       help
-         Support for the nVidia Ventana development platform
 
 choice
         prompt "Default low-level debug console UART"

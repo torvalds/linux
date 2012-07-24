@@ -1099,9 +1099,8 @@ static struct platform_device *universal_devices[] __initdata = {
 
 static void __init universal_map_io(void)
 {
-	clk_xusbxti.rate = 24000000;
 	exynos_init_io(NULL, 0);
-	s3c24xx_init_clocks(24000000);
+	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(universal_uartcfgs, ARRAY_SIZE(universal_uartcfgs));
 	s5p_set_timer_source(S5P_PWM2, S5P_PWM4);
 }
