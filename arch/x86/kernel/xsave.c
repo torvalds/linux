@@ -176,8 +176,10 @@ int save_i387_xstate(void __user *buf)
 		else
 			err = fxsave_user(buf);
 
-		if (err)
+		if (unlikely(err)) {
+			__clear_user(buf, xstate_size);
 			return err;
+		}
 		user_fpu_end();
 	} else {
 		sanitize_i387_state(tsk);

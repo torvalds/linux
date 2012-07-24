@@ -97,34 +97,24 @@ static inline void sanitize_i387_state(struct task_struct *tsk)
 	__sanitize_i387_state(tsk);
 }
 
-#ifdef CONFIG_X86_64
-static inline int fxrstor_checking(struct i387_fxsave_struct *fx)
-{
-	int err;
+#define check_insn(insn, output, input...)				\
+({									\
+	int err;							\
+	asm volatile("1:" #insn "\n\t"					\
+		     "2:\n"						\
+		     ".section .fixup,\"ax\"\n"				\
+		     "3:  movl $-1,%[err]\n"				\
+		     "    jmp  2b\n"					\
+		     ".previous\n"					\
+		     _ASM_EXTABLE(1b, 3b)				\
+		     : [err] "=r" (err), output				\
+		     : "0"(0), input);					\
+	err;								\
+})
 
-	/* See comment in fxsave() below. */
-#ifdef CONFIG_AS_FXSAVEQ
-	asm volatile("1:  fxrstorq %[fx]\n\t"
-		     "2:\n"
-		     ".section .fixup,\"ax\"\n"
-		     "3:  movl $-1,%[err]\n"
-		     "    jmp  2b\n"
-		     ".previous\n"
-		     _ASM_EXTABLE(1b, 3b)
-		     : [err] "=r" (err)
-		     : [fx] "m" (*fx), "0" (0));
-#else
-	asm volatile("1:  rex64/fxrstor (%[fx])\n\t"
-		     "2:\n"
-		     ".section .fixup,\"ax\"\n"
-		     "3:  movl $-1,%[err]\n"
-		     "    jmp  2b\n"
-		     ".previous\n"
-		     _ASM_EXTABLE(1b, 3b)
-		     : [err] "=r" (err)
-		     : [fx] "R" (fx), "m" (*fx), "0" (0));
-#endif
-	return err;
+static inline int fsave_user(struct i387_fsave_struct __user *fx)
+{
+	return check_insn(fnsave %[fx]; fwait,  [fx] "=m" (*fx), "m" (*fx));
 }
 
 static inline int fxsave_user(struct i387_fxsave_struct __user *fx)
@@ -140,61 +130,66 @@ static inline int fxsave_user(struct i387_fxsave_struct __user *fx)
 	if (unlikely(err))
 		return -EFAULT;
 
-	/* See comment in fxsave() below. */
-#ifdef CONFIG_AS_FXSAVEQ
-	asm volatile("1:  fxsaveq %[fx]\n\t"
-		     "2:\n"
-		     ".section .fixup,\"ax\"\n"
-		     "3:  movl $-1,%[err]\n"
-		     "    jmp  2b\n"
-		     ".previous\n"
-		     _ASM_EXTABLE(1b, 3b)
-		     : [err] "=r" (err), [fx] "=m" (*fx)
-		     : "0" (0));
-#else
-	asm volatile("1:  rex64/fxsave (%[fx])\n\t"
-		     "2:\n"
-		     ".section .fixup,\"ax\"\n"
-		     "3:  movl $-1,%[err]\n"
-		     "    jmp  2b\n"
-		     ".previous\n"
-		     _ASM_EXTABLE(1b, 3b)
-		     : [err] "=r" (err), "=m" (*fx)
-		     : [fx] "R" (fx), "0" (0));
-#endif
-	if (unlikely(err) &&
-	    __clear_user(fx, sizeof(struct i387_fxsave_struct)))
-		err = -EFAULT;
-	/* No need to clear here because the caller clears USED_MATH */
-	return err;
+	if (config_enabled(CONFIG_X86_32))
+		return check_insn(fxsave %[fx], [fx] "=m" (*fx), "m" (*fx));
+	else if (config_enabled(CONFIG_AS_FXSAVEQ))
+		return check_insn(fxsaveq %[fx], [fx] "=m" (*fx), "m" (*fx));
+
+	/* See comment in fpu_fxsave() below. */
+	return check_insn(rex64/fxsave (%[fx]), "=m" (*fx), [fx] "R" (fx));
+}
+
+static inline int fxrstor_checking(struct i387_fxsave_struct *fx)
+{
+	if (config_enabled(CONFIG_X86_32))
+		return check_insn(fxrstor %[fx], "=m" (*fx), [fx] "m" (*fx));
+	else if (config_enabled(CONFIG_AS_FXSAVEQ))
+		return check_insn(fxrstorq %[fx], "=m" (*fx), [fx] "m" (*fx));
+
+	/* See comment in fpu_fxsave() below. */
+	return check_insn(rex64/fxrstor (%[fx]), "=m" (*fx), [fx] "R" (fx),
+			  "m" (*fx));
+}
+
+static inline int frstor_checking(struct i387_fsave_struct *fx)
+{
+	return check_insn(frstor %[fx], "=m" (*fx), [fx] "m" (*fx));
 }
 
 static inline void fpu_fxsave(struct fpu *fpu)
 {
-	/* Using "rex64; fxsave %0" is broken because, if the memory operand
-	   uses any extended registers for addressing, a second REX prefix
-	   will be generated (to the assembler, rex64 followed by semicolon
-	   is a separate instruction), and hence the 64-bitness is lost. */
-
-#ifdef CONFIG_AS_FXSAVEQ
-	/* Using "fxsaveq %0" would be the ideal choice, but is only supported
-	   starting with gas 2.16. */
-	__asm__ __volatile__("fxsaveq %0"
-			     : "=m" (fpu->state->fxsave));
-#else
-	/* Using, as a workaround, the properly prefixed form below isn't
-	   accepted by any binutils version so far released, complaining that
-	   the same type of prefix is used twice if an extended register is
-	   needed for addressing (fix submitted to mainline 2005-11-21).
-	asm volatile("rex64/fxsave %0"
-		     : "=m" (fpu->state->fxsave));
-	   This, however, we can work around by forcing the compiler to select
-	   an addressing mode that doesn't require extended registers. */
-	asm volatile("rex64/fxsave (%[fx])"
-		     : "=m" (fpu->state->fxsave)
-		     : [fx] "R" (&fpu->state->fxsave));
-#endif
+	if (config_enabled(CONFIG_X86_32))
+		asm volatile( "fxsave %[fx]" : [fx] "=m" (fpu->state->fxsave));
+	else if (config_enabled(CONFIG_AS_FXSAVEQ))
+		asm volatile("fxsaveq %0" : "=m" (fpu->state->fxsave));
+	else {
+		/* Using "rex64; fxsave %0" is broken because, if the memory
+		 * operand uses any extended registers for addressing, a second
+		 * REX prefix will be generated (to the assembler, rex64
+		 * followed by semicolon is a separate instruction), and hence
+		 * the 64-bitness is lost.
+		 *
+		 * Using "fxsaveq %0" would be the ideal choice, but is only
+		 * supported starting with gas 2.16.
+		 *
+		 * Using, as a workaround, the properly prefixed form below
+		 * isn't accepted by any binutils version so far released,
+		 * complaining that the same type of prefix is used twice if
+		 * an extended register is needed for addressing (fix submitted
+		 * to mainline 2005-11-21).
+		 *
+		 *  asm volatile("rex64/fxsave %0" : "=m" (fpu->state->fxsave));
+		 *
+		 * This, however, we can work around by forcing the compiler to
+		 * select an addressing mode that doesn't require extended
+		 * registers.
+		 */
+		asm volatile( "rex64/fxsave (%[fx])"
+			     : "=m" (fpu->state->fxsave)
+			     : [fx] "R" (&fpu->state->fxsave));
+	}
 }
+#ifdef CONFIG_X86_64
 
 int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 			compat_sigset_t *set, struct pt_regs *regs);
@@ -202,28 +197,6 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 		     compat_sigset_t *set, struct pt_regs *regs);
 
 #else  /* CONFIG_X86_32 */
-
-/* perform fxrstor iff the processor has extended states, otherwise frstor */
-static inline int fxrstor_checking(struct i387_fxsave_struct *fx)
-{
-	/*
-	 * The "nop" is needed to make the instructions the same
-	 * length.
-	 */
-	alternative_input(
-		"nop ; frstor %1",
-		"fxrstor %1",
-		X86_FEATURE_FXSR,
-		"m" (*fx));
-
-	return 0;
-}
-
-static inline void fpu_fxsave(struct fpu *fpu)
-{
-	asm volatile("fxsave %[fx]"
-		     : [fx] "=m" (fpu->state->fxsave));
-}
 
 #define ia32_setup_frame	__setup_frame
 #define ia32_setup_rt_frame	__setup_rt_frame
@@ -272,17 +245,14 @@ static inline int __save_init_fpu(struct task_struct *tsk)
 	return fpu_save_init(&tsk->thread.fpu);
 }
 
-static inline int fpu_fxrstor_checking(struct fpu *fpu)
-{
-	return fxrstor_checking(&fpu->state->fxsave);
-}
-
 static inline int fpu_restore_checking(struct fpu *fpu)
 {
 	if (use_xsave())
-		return fpu_xrstor_checking(fpu);
+		return fpu_xrstor_checking(&fpu->state->xsave);
+	else if (use_fxsr())
+		return fxrstor_checking(&fpu->state->fxsave);
 	else
-		return fpu_fxrstor_checking(fpu);
+		return frstor_checking(&fpu->state->fsave);
 }
 
 static inline int restore_fpu_checking(struct task_struct *tsk)

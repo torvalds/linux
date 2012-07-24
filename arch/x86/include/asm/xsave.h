@@ -42,9 +42,8 @@ extern int check_for_xstate(struct i387_fxsave_struct __user *buf,
 			    void __user *fpstate,
 			    struct _fpx_sw_bytes *sw);
 
-static inline int fpu_xrstor_checking(struct fpu *fpu)
+static inline int fpu_xrstor_checking(struct xsave_struct *fx)
 {
-	struct xsave_struct *fx = &fpu->state->xsave;
 	int err;
 
 	asm volatile("1: .byte " REX_PREFIX "0x0f,0xae,0x2f\n\t"
@@ -84,9 +83,6 @@ static inline int xsave_user(struct xsave_struct __user *buf)
 			     : [err] "=r" (err)
 			     : "D" (buf), "a" (-1), "d" (-1), "0" (0)
 			     : "memory");
-	if (unlikely(err) && __clear_user(buf, xstate_size))
-		err = -EFAULT;
-	/* No need to clear here because the caller clears USED_MATH */
 	return err;
 }
 
