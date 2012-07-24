@@ -21,11 +21,12 @@
    Supports:
 	Intel PIIX4, 440MX
 	Serverworks OSB4, CSB5, CSB6, HT-1000, HT-1100
-	ATI IXP200, IXP300, IXP400, SB600, SB700, SB800
+	ATI IXP200, IXP300, IXP400, SB600, SB700/SP5100, SB800
 	AMD Hudson-2
 	SMSC Victory66
 
-   Note: we assume there can only be one device, with one SMBus interface.
+   Note: we assume there can only be one device, with one or more
+   SMBus interfaces.
 */
 
 #include <linux/module.h>
@@ -293,6 +294,46 @@ static int __devinit piix4_setup_sb800(struct pci_dev *PIIX4_dev,
 	return piix4_smba;
 }
 
+static int __devinit piix4_setup_aux(struct pci_dev *PIIX4_dev,
+				const struct pci_device_id *id,
+				unsigned short base_reg_addr)
+{
+	/* Set up auxiliary SMBus controllers found on some
+	 * AMD chipsets e.g. SP5100 (SB700 derivative) */
+
+	unsigned short piix4_smba;
+
+	/* Read address of auxiliary SMBus controller */
+	pci_read_config_word(PIIX4_dev, base_reg_addr, &piix4_smba);
+	if ((piix4_smba & 1) == 0) {
+		dev_dbg(&PIIX4_dev->dev,
+			"Auxiliary SMBus controller not enabled\n");
+		return -ENODEV;
+	}
+
+	piix4_smba &= 0xfff0;
+	if (piix4_smba == 0) {
+		dev_dbg(&PIIX4_dev->dev,
+			"Auxiliary SMBus base address uninitialized\n");
+		return -ENODEV;
+	}
+
+	if (acpi_check_region(piix4_smba, SMBIOSIZE, piix4_driver.name))
+		return -ENODEV;
+
+	if (!request_region(piix4_smba, SMBIOSIZE, piix4_driver.name)) {
+		dev_err(&PIIX4_dev->dev, "Auxiliary SMBus region 0x%x "
+			"already in use!\n", piix4_smba);
+		return -EBUSY;
+	}
+
+	dev_info(&PIIX4_dev->dev,
+		 "Auxiliary SMBus Host Controller at 0x%x\n",
+		 piix4_smba);
+
+	return piix4_smba;
+}
+
 static int piix4_transaction(struct i2c_adapter *piix4_adapter)
 {
 	struct i2c_piix4_adapdata *adapdata = i2c_get_adapdata(piix4_adapter);
@@ -497,6 +538,7 @@ static DEFINE_PCI_DEVICE_TABLE(piix4_ids) = {
 MODULE_DEVICE_TABLE (pci, piix4_ids);
 
 static struct i2c_adapter *piix4_main_adapter;
+static struct i2c_adapter *piix4_aux_adapter;
 
 static int __devinit piix4_add_adapter(struct pci_dev *dev,
 					unsigned short smba,
@@ -560,10 +602,28 @@ static int __devinit piix4_probe(struct pci_dev *dev,
 	else
 		retval = piix4_setup(dev, id);
 
+	/* If no main SMBus found, give up */
 	if (retval < 0)
 		return retval;
 
-	return piix4_add_adapter(dev, retval, &piix4_main_adapter);
+	/* Try to register main SMBus adapter, give up if we can't */
+	retval = piix4_add_adapter(dev, retval, &piix4_main_adapter);
+	if (retval < 0)
+		return retval;
+
+	/* Check for auxiliary SMBus on some AMD chipsets */
+	if (dev->vendor == PCI_VENDOR_ID_ATI &&
+	    dev->device == PCI_DEVICE_ID_ATI_SBX00_SMBUS &&
+	    dev->revision < 0x40) {
+		retval = piix4_setup_aux(dev, id, 0x58);
+		if (retval > 0) {
+			/* Try to add the aux adapter if it exists,
+			 * piix4_add_adapter will clean up if this fails */
+			piix4_add_adapter(dev, retval, &piix4_aux_adapter);
+		}
+	}
+
+	return 0;
 }
 
 static void __devexit piix4_adap_remove(struct i2c_adapter *adap)
@@ -583,6 +643,11 @@ static void __devexit piix4_remove(struct pci_dev *dev)
 	if (piix4_main_adapter) {
 		piix4_adap_remove(piix4_main_adapter);
 		piix4_main_adapter = NULL;
+	}
+
+	if (piix4_aux_adapter) {
+		piix4_adap_remove(piix4_aux_adapter);
+		piix4_aux_adapter = NULL;
 	}
 }
 
