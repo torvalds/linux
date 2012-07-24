@@ -181,6 +181,8 @@ struct tty_struct *alloc_tty_struct(void)
 
 void free_tty_struct(struct tty_struct *tty)
 {
+	if (!tty)
+		return;
 	if (tty->dev)
 		put_device(tty->dev);
 	kfree(tty->write_buf);
