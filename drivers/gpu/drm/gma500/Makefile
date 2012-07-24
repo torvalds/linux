@@ -3,7 +3,7 @@
 #
 ccflags-y += -I$(srctree)/include/drm
 
-gma500_gfx-y += gem_glue.o \
+gma500_gfx-y += \
 	  accel_2d.o \
 	  backlight.o \
 	  framebuffer.o \
