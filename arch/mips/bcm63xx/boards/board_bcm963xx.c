@@ -11,9 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/mtd.h>
-#include <linux/mtd/partitions.h>
-#include <linux/mtd/physmap.h>
 #include <linux/ssb/ssb.h>
 #include <asm/addrspace.h>
 #include <bcm63xx_board.h>
@@ -24,6 +21,7 @@
 #include <bcm63xx_dev_pci.h>
 #include <bcm63xx_dev_enet.h>
 #include <bcm63xx_dev_dsp.h>
+#include <bcm63xx_dev_flash.h>
 #include <bcm63xx_dev_pcmcia.h>
 #include <bcm63xx_dev_spi.h>
 #include <board_bcm963xx.h>
@@ -809,40 +807,6 @@ void __init board_setup(void)
 		panic("unexpected CPU for bcm963xx board");
 }
 
-static struct mtd_partition mtd_partitions[] = {
-	{
-		.name		= "cfe",
-		.offset		= 0x0,
-		.size		= 0x40000,
-	}
-};
-
-static const char *bcm63xx_part_types[] = { "bcm63xxpart", NULL };
-
-static struct physmap_flash_data flash_data = {
-	.width			= 2,
-	.nr_parts		= ARRAY_SIZE(mtd_partitions),
-	.parts			= mtd_partitions,
-	.part_probe_types	= bcm63xx_part_types,
-};
-
-static struct resource mtd_resources[] = {
-	{
-		.start		= 0,	/* filled at runtime */
-		.end		= 0,	/* filled at runtime */
-		.flags		= IORESOURCE_MEM,
-	}
-};
-
-static struct platform_device mtd_dev = {
-	.name			= "physmap-flash",
-	.resource		= mtd_resources,
-	.num_resources		= ARRAY_SIZE(mtd_resources),
-	.dev			= {
-		.platform_data	= &flash_data,
-	},
-};
-
 static struct gpio_led_platform_data bcm63xx_led_data;
 
 static struct platform_device bcm63xx_gpio_leds = {
@@ -856,8 +820,6 @@ static struct platform_device bcm63xx_gpio_leds = {
  */
 int __init board_register_devices(void)
 {
-	u32 val;
-
 	if (board.has_uart0)
 		bcm63xx_uart_register(0);
 
@@ -893,14 +855,7 @@ int __init board_register_devices(void)
 
 	bcm63xx_spi_register();
 
-	/* read base address of boot chip select (0) */
-	val = bcm_mpi_readl(MPI_CSBASE_REG(0));
-	val &= MPI_CSBASE_BASE_MASK;
-
-	mtd_resources[0].start = val;
-	mtd_resources[0].end = 0x1FFFFFFF;
-
-	platform_device_register(&mtd_dev);
+	bcm63xx_flash_register();
 
 	bcm63xx_led_data.num_leds = ARRAY_SIZE(board.leds);
 	bcm63xx_led_data.leds = board.leds;
