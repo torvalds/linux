@@ -1,8 +1,6 @@
 /*
- *  arch/s390/kernel/setup.c
- *
  *  S390 version
- *    Copyright (C) IBM Corp. 1999,2012
+ *    Copyright IBM Corp. 1999, 2012
  *    Author(s): Hartmut Penner (hp@de.ibm.com),
  *               Martin Schwidefsky (schwidefsky@de.ibm.com)
  *
@@ -430,10 +428,11 @@ static void __init setup_lowcore(void)
 	lc->restart_source = -1UL;
 
 	/* Setup absolute zero lowcore */
-	memcpy_absolute(&S390_lowcore.restart_stack, &lc->restart_stack,
-			4 * sizeof(unsigned long));
-	memcpy_absolute(&S390_lowcore.restart_psw, &lc->restart_psw,
-			sizeof(lc->restart_psw));
+	mem_assign_absolute(S390_lowcore.restart_stack, lc->restart_stack);
+	mem_assign_absolute(S390_lowcore.restart_fn, lc->restart_fn);
+	mem_assign_absolute(S390_lowcore.restart_data, lc->restart_data);
+	mem_assign_absolute(S390_lowcore.restart_source, lc->restart_source);
+	mem_assign_absolute(S390_lowcore.restart_psw, lc->restart_psw);
 
 	set_prefix((u32)(unsigned long) lc);
 	lowcore_ptr[0] = lc;
@@ -598,9 +597,7 @@ static void __init setup_memory_end(void)
 static void __init setup_vmcoreinfo(void)
 {
 #ifdef CONFIG_KEXEC
-	unsigned long ptr = paddr_vmcoreinfo_note();
-
-	memcpy_absolute(&S390_lowcore.vmcore_info, &ptr, sizeof(ptr));
+	mem_assign_absolute(S390_lowcore.vmcore_info, paddr_vmcoreinfo_note());
 #endif
 }
 

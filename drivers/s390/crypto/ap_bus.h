@@ -1,7 +1,5 @@
 /*
- * linux/drivers/s390/crypto/ap_bus.h
- *
- * Copyright (C) 2006 IBM Corporation
+ * Copyright IBM Corp. 2006
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  *	      Ralph Wuerthner <rwuerthn@de.ibm.com>

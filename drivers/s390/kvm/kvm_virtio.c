@@ -1,5 +1,5 @@
 /*
- * kvm_virtio.c - virtio for kvm on s390
+ * virtio for kvm on s390
  *
  * Copyright IBM Corp. 2008
  *
