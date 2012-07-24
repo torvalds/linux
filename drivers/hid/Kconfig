@@ -193,10 +193,12 @@ config HID_EZKEY
 	Support for Ezkey BTC 8193 keyboard.
 
 config HID_HOLTEK
-	tristate "Holtek On Line Grip based game controller support"
+	tristate "Holtek HID devices"
 	depends on USB_HID
 	---help---
-	  Say Y here if you have a Holtek On Line Grip based game controller.
+	Support for Holtek based devices:
+	  - Holtek On Line Grip based game controller
+	  - Trust GXT 18 Gaming Keyboard
 
 config HOLTEK_FF
 	bool "Holtek On Line Grip force feedback support"
@@ -260,6 +262,19 @@ config HID_LCPOWER
 	depends on USB_HID
 	---help---
 	Support for LC-Power RC1000MCE RF remote control.
+
+config HID_LENOVO_TPKBD
+	tristate "Lenovo ThinkPad USB Keyboard with TrackPoint"
+	depends on USB_HID
+	select NEW_LEDS
+	select LEDS_CLASS
+	---help---
+	Support for the Lenovo ThinkPad USB Keyboard with TrackPoint.
+
+	Say Y here if you have a Lenovo ThinkPad USB Keyboard with TrackPoint
+	and would like to use device-specific features like changing the
+	sensitivity of the trackpoint, using the microphone mute button or
+	controlling the mute and microphone mute LEDs.
 
 config HID_LOGITECH
 	tristate "Logitech devices" if EXPERT
