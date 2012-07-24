@@ -522,12 +522,8 @@ static int aufs_mmap(struct file *file, struct vm_area_struct *vma)
 	lockdep_on();
 
 	au_vm_file_reset(vma, h_file);
-	/* todo: the locking order between mmap_sem */
-	/*
-         * err = security_mmap_file(h_file, au_prot_conv(vma->vm_flags),
-	 * 			 au_flag_conv(vma->vm_flags));
-         */
-	err = 0;
+	err = security_mmap_file(h_file, au_prot_conv(vma->vm_flags),
+				 au_flag_conv(vma->vm_flags));
 	if (!err)
 		err = h_file->f_op->mmap(h_file, vma);
 	if (unlikely(err))
