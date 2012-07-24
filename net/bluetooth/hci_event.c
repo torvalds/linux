@@ -623,7 +623,7 @@ static void hci_setup_link_policy(struct hci_dev *hdev)
 	struct hci_cp_write_def_link_policy cp;
 	u16 link_policy = 0;
 
-	if (hdev->features[0] & LMP_RSWITCH)
+	if (lmp_rswitch_capable(hdev))
 		link_policy |= HCI_LP_RSWITCH;
 	if (hdev->features[0] & LMP_HOLD)
 		link_policy |= HCI_LP_HOLD;
