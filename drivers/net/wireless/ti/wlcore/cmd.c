@@ -59,6 +59,9 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 	u16 status;
 	u16 poll_count = 0;
 
+	if (WARN_ON(unlikely(wl->state == WLCORE_STATE_RESTARTING)))
+		return -EIO;
+
 	cmd = buf;
 	cmd->id = cpu_to_le16(id);
 	cmd->status = 0;

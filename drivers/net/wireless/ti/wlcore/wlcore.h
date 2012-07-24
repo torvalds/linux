@@ -153,7 +153,7 @@ struct wl1271 {
 
 	spinlock_t wl_lock;
 
-	enum wl1271_state state;
+	enum wlcore_state state;
 	enum wl12xx_fw_type fw_type;
 	bool plt;
 	enum plt_mode plt_mode;

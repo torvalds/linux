@@ -64,7 +64,7 @@ static inline int __must_check wlcore_raw_write(struct wl1271 *wl, int addr,
 		return -EIO;
 
 	ret = wl->if_ops->write(wl->dev, addr, buf, len, fixed);
-	if (ret && wl->state != WL1271_STATE_OFF)
+	if (ret && wl->state != WLCORE_STATE_OFF)
 		set_bit(WL1271_FLAG_IO_FAILED, &wl->flags);
 
 	return ret;
@@ -80,7 +80,7 @@ static inline int __must_check wlcore_raw_read(struct wl1271 *wl, int addr,
 		return -EIO;
 
 	ret = wl->if_ops->read(wl->dev, addr, buf, len, fixed);
-	if (ret && wl->state != WL1271_STATE_OFF)
+	if (ret && wl->state != WLCORE_STATE_OFF)
 		set_bit(WL1271_FLAG_IO_FAILED, &wl->flags);
 
 	return ret;

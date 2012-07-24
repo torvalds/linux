@@ -85,9 +85,10 @@
 
 #define WL1271_AGGR_BUFFER_SIZE (5 * PAGE_SIZE)
 
-enum wl1271_state {
-	WL1271_STATE_OFF,
-	WL1271_STATE_ON,
+enum wlcore_state {
+	WLCORE_STATE_OFF,
+	WLCORE_STATE_RESTARTING,
+	WLCORE_STATE_ON,
 };
 
 enum wl12xx_fw_type {
