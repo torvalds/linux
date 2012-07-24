@@ -1344,6 +1344,7 @@ static struct nvme_ns *nvme_alloc_ns(struct nvme_dev *dev, int nsid,
 	ns->disk = disk;
 	lbaf = id->flbas & 0xf;
 	ns->lba_shift = id->lbaf[lbaf].ds;
+	blk_queue_logical_block_size(ns->queue, 1 << ns->lba_shift);
 
 	disk->major = nvme_major;
 	disk->minors = NVME_MINORS;
