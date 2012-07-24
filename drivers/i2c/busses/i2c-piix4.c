@@ -94,7 +94,6 @@ MODULE_PARM_DESC(force_addr,
 		 "Forcibly enable the PIIX4 at the given address. "
 		 "EXTREMELY DANGEROUS!");
 
-static unsigned short piix4_smba;
 static int srvrworks_csb5_delay;
 static struct pci_driver piix4_driver;
 static struct i2c_adapter piix4_adapter;
@@ -127,10 +126,15 @@ static struct dmi_system_id __devinitdata piix4_dmi_ibm[] = {
 	{ },
 };
 
+struct i2c_piix4_adapdata {
+	unsigned short smba;
+};
+
 static int __devinit piix4_setup(struct pci_dev *PIIX4_dev,
 				const struct pci_device_id *id)
 {
 	unsigned char temp;
+	unsigned short piix4_smba;
 
 	if ((PIIX4_dev->vendor == PCI_VENDOR_ID_SERVERWORKS) &&
 	    (PIIX4_dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB5))
@@ -206,7 +210,6 @@ static int __devinit piix4_setup(struct pci_dev *PIIX4_dev,
 			dev_err(&PIIX4_dev->dev,
 				"Host SMBus controller not enabled!\n");
 			release_region(piix4_smba, SMBIOSIZE);
-			piix4_smba = 0;
 			return -ENODEV;
 		}
 	}
@@ -224,12 +227,13 @@ static int __devinit piix4_setup(struct pci_dev *PIIX4_dev,
 		 "SMBus Host Controller at 0x%x, revision %d\n",
 		 piix4_smba, temp);
 
-	return 0;
+	return piix4_smba;
 }
 
 static int __devinit piix4_setup_sb800(struct pci_dev *PIIX4_dev,
 				const struct pci_device_id *id)
 {
+	unsigned short piix4_smba;
 	unsigned short smba_idx = 0xcd6;
 	u8 smba_en_lo, smba_en_hi, i2ccfg, i2ccfg_offset = 0x10, smb_en = 0x2c;
 
@@ -273,7 +277,6 @@ static int __devinit piix4_setup_sb800(struct pci_dev *PIIX4_dev,
 		dev_err(&PIIX4_dev->dev, "SMBus I2C bus config region "
 			"0x%x already in use!\n", piix4_smba + i2ccfg_offset);
 		release_region(piix4_smba, SMBIOSIZE);
-		piix4_smba = 0;
 		return -EBUSY;
 	}
 	i2ccfg = inb_p(piix4_smba + i2ccfg_offset);
@@ -288,10 +291,10 @@ static int __devinit piix4_setup_sb800(struct pci_dev *PIIX4_dev,
 		 "SMBus Host Controller at 0x%x, revision %d\n",
 		 piix4_smba, i2ccfg >> 4);
 
-	return 0;
+	return piix4_smba;
 }
 
-static int piix4_transaction(void)
+static int piix4_transaction(unsigned short piix4_smba)
 {
 	int temp;
 	int result = 0;
@@ -370,6 +373,8 @@ static s32 piix4_access(struct i2c_adapter * adap, u16 addr,
 		 unsigned short flags, char read_write,
 		 u8 command, int size, union i2c_smbus_data * data)
 {
+	struct i2c_piix4_adapdata *adapdata = i2c_get_adapdata(adap);
+	unsigned short piix4_smba = adapdata->smba;
 	int i, len;
 	int status;
 
@@ -426,7 +431,7 @@ static s32 piix4_access(struct i2c_adapter * adap, u16 addr,
 
 	outb_p((size & 0x1C) + (ENABLE_INT9 & 1), SMBHSTCNT);
 
-	status = piix4_transaction();
+	status = piix4_transaction(piix4_smba);
 	if (status)
 		return status;
 
@@ -472,6 +477,8 @@ static struct i2c_adapter piix4_adapter = {
 	.algo		= &smbus_algorithm,
 };
 
+static struct i2c_piix4_adapdata piix4_adapter_data;
+
 static DEFINE_PCI_DEVICE_TABLE(piix4_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_3) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82443MX_3) },
@@ -510,31 +517,42 @@ static int __devinit piix4_probe(struct pci_dev *dev,
 	else
 		retval = piix4_setup(dev, id);
 
-	if (retval)
+	if (retval < 0)
 		return retval;
+
+	piix4_adapter_data.smba = retval;
 
 	/* set up the sysfs linkage to our parent device */
 	piix4_adapter.dev.parent = &dev->dev;
 
 	snprintf(piix4_adapter.name, sizeof(piix4_adapter.name),
-		"SMBus PIIX4 adapter at %04x", piix4_smba);
+		"SMBus PIIX4 adapter at %04x", piix4_adapter_data.smba);
+
+	i2c_set_adapdata(&piix4_adapter, &piix4_adapter_data);
 
 	if ((retval = i2c_add_adapter(&piix4_adapter))) {
 		dev_err(&dev->dev, "Couldn't register adapter!\n");
-		release_region(piix4_smba, SMBIOSIZE);
-		piix4_smba = 0;
+		release_region(piix4_adapter_data.smba, SMBIOSIZE);
+		piix4_adapter_data.smba = 0;
 	}
 
 	return retval;
 }
 
+static void __devexit piix4_adap_remove(struct i2c_adapter *adap)
+{
+	struct i2c_piix4_adapdata *adapdata = i2c_get_adapdata(adap);
+
+	if (adapdata->smba) {
+		i2c_del_adapter(adap);
+		release_region(adapdata->smba, SMBIOSIZE);
+		adapdata->smba = 0;
+	}
+}
+
 static void __devexit piix4_remove(struct pci_dev *dev)
 {
-	if (piix4_smba) {
-		i2c_del_adapter(&piix4_adapter);
-		release_region(piix4_smba, SMBIOSIZE);
-		piix4_smba = 0;
-	}
+	piix4_adap_remove(&piix4_adapter);
 }
 
 static struct pci_driver piix4_driver = {
