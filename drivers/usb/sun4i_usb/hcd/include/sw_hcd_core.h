@@ -266,7 +266,7 @@ static inline void sw_hcd_set_vbus(struct sw_hcd *sw_hcd, int is_on)
 	}
 }
 
-/* 读取 fifo 的大小 */
+/* Read the size of the fifo */
 static inline int sw_hcd_read_fifosize(struct sw_hcd *sw_hcd, struct sw_hcd_hw_ep *hw_ep, u8 epnum)
 {
 	void *xbase = sw_hcd->mregs;
