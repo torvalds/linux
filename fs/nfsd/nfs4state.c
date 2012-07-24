@@ -1221,7 +1221,7 @@ static bool groups_equal(struct group_info *g1, struct group_info *g2)
 	return true;
 }
 
-static int
+static bool
 same_creds(struct svc_cred *cr1, struct svc_cred *cr2)
 {
 	if ((cr1->cr_flavor != cr2->cr_flavor)
@@ -1233,7 +1233,7 @@ same_creds(struct svc_cred *cr1, struct svc_cred *cr2)
 		return true;
 	if (!cr1->cr_principal || !cr2->cr_principal)
 		return false;
-	return 0 == strcmp(cr1->cr_principal, cr1->cr_principal);
+	return 0 == strcmp(cr1->cr_principal, cr2->cr_principal);
 }
 
 static void gen_clid(struct nfs4_client *clp)
