@@ -26,7 +26,6 @@
 #include <mach/devices-common.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
-#include <mach/irqs.h>
 #include <mach/iomux-v1.h>
 
 /* MX21 memory map definition */

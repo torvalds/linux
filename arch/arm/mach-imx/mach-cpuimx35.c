@@ -71,7 +71,7 @@ static struct i2c_board_info eukrea_cpuimx35_i2c_devices[] = {
 	}, {
 		I2C_BOARD_INFO("tsc2007", 0x48),
 		.platform_data	= &tsc2007_info,
-		.irq		= IMX_GPIO_TO_IRQ(TSC2007_IRQGPIO),
+		/* irq number is run-time assigned */
 	},
 };
 
@@ -172,6 +172,7 @@ static void __init eukrea_cpuimx35_init(void)
 	imx35_add_imx_uart0(&uart_pdata);
 	imx35_add_mxc_nand(&eukrea_cpuimx35_nand_board_info);
 
+	eukrea_cpuimx35_i2c_devices[1].irq = gpio_to_irq(TSC2007_IRQGPIO);
 	i2c_register_board_info(0, eukrea_cpuimx35_i2c_devices,
 			ARRAY_SIZE(eukrea_cpuimx35_i2c_devices));
 	imx35_add_imx_i2c0(&eukrea_cpuimx35_i2c0_data);

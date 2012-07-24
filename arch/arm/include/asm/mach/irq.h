@@ -17,7 +17,7 @@ struct seq_file;
 /*
  * This is internal.  Do not use it.
  */
-extern void init_FIQ(void);
+extern void init_FIQ(int);
 extern int show_fiq_list(struct seq_file *, int);
 
 #ifdef CONFIG_MULTI_IRQ_HANDLER

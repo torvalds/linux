@@ -29,7 +29,6 @@
 #include <mach/hardware.h>
 #include <mach/mx25.h>
 #include <mach/iomux-v3.h>
-#include <mach/irqs.h>
 
 /*
  * This table defines static virtual address mappings for I/O regions.
