@@ -6230,6 +6230,15 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-rcu.git
 F:	include/linux/srcu*
 F:	kernel/srcu*
 
+SMACK SECURITY MODULE
+M:	Casey Schaufler <casey@schaufler-ca.com>
+L:	linux-security-module@vger.kernel.org
+W:	http://schaufler-ca.com
+T:	git git://git.gitorious.org/smack-next/kernel.git
+S:	Maintained
+F:	Documentation/security/Smack.txt
+F:	security/smack/
+
 SMC91x ETHERNET DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
 S:	Odd Fixes
@@ -6862,10 +6871,11 @@ F:	include/linux/shmem_fs.h
 F:	mm/shmem.c
 
 TPM DEVICE DRIVER
-M:	Debora Velarde <debora@linux.vnet.ibm.com>
-M:	Rajiv Andrade <srajiv@linux.vnet.ibm.com>
+M:	Kent Yoder <key@linux.vnet.ibm.com>
+M:	Rajiv Andrade <mail@srajiv.net>
 W:	http://tpmdd.sourceforge.net
-M:	Marcel Selhorst <m.selhorst@sirrix.com>
+M:	Marcel Selhorst <tpmdd@selhorst.net>
+M:	Sirrix AG <tpmdd@sirrix.com>
 W:	http://www.sirrix.com
 L:	tpmdd-devel@lists.sourceforge.net (moderated for non-subscribers)
 S:	Maintained
