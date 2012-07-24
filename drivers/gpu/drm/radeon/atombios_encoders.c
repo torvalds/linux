@@ -487,11 +487,11 @@ static u8 radeon_atom_get_bpc(struct drm_encoder *encoder)
 	}
 }
 
-
 union dvo_encoder_control {
 	ENABLE_EXTERNAL_TMDS_ENCODER_PS_ALLOCATION ext_tmds;
 	DVO_ENCODER_CONTROL_PS_ALLOCATION dvo;
 	DVO_ENCODER_CONTROL_PS_ALLOCATION_V3 dvo_v3;
+	DVO_ENCODER_CONTROL_PS_ALLOCATION_V1_4 dvo_v4;
 };
 
 void
@@ -540,6 +540,13 @@ atombios_dvo_setup(struct drm_encoder *encoder, int action)
 			args.dvo_v3.ucAction = action;
 			args.dvo_v3.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
 			args.dvo_v3.ucDVOConfig = 0; /* XXX */
+			break;
+		case 4:
+			/* DCE8 */
+			args.dvo_v4.ucAction = action;
+			args.dvo_v4.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
+			args.dvo_v4.ucDVOConfig = 0; /* XXX */
+			args.dvo_v4.ucBitPerColor = radeon_atom_get_bpc(encoder);
 			break;
 		default:
 			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
