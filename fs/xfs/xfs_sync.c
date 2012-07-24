@@ -359,6 +359,15 @@ xfs_quiesce_attr(
 	 * added an item to the AIL, thus flush it again.
 	 */
 	xfs_ail_push_all_sync(mp->m_ail);
+
+	/*
+	 * The superblock buffer is uncached and xfsaild_push() will lock and
+	 * set the XBF_ASYNC flag on the buffer. We cannot do xfs_buf_iowait()
+	 * here but a lock on the superblock buffer will block until iodone()
+	 * has completed.
+	 */
+	xfs_buf_lock(mp->m_sb_bp);
+	xfs_buf_unlock(mp->m_sb_bp);
 }
 
 static void
