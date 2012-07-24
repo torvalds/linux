@@ -16,6 +16,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
 #include "internal.h"
@@ -62,6 +63,13 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 	int i, ret;
 	u32 reg;
 
+	if (d->chip->runtime_pm) {
+		ret = pm_runtime_get_sync(map->dev);
+		if (ret < 0)
+			dev_err(map->dev, "IRQ sync failed to resume: %d\n",
+				ret);
+	}
+
 	/*
 	 * If there's been a change in the mask write it back to the
 	 * hardware.  We rely on the use of the regmap core cache to
@@ -76,6 +84,9 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 			dev_err(d->map->dev, "Failed to sync masks in %x\n",
 				reg);
 	}
+
+	if (d->chip->runtime_pm)
+		pm_runtime_put(map->dev);
 
 	/* If we've changed our wakeup count propagate it to the parent */
 	if (d->wake_count < 0)
@@ -147,6 +158,15 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 	bool handled = false;
 	u32 reg;
 
+	if (chip->runtime_pm) {
+		ret = pm_runtime_get_sync(map->dev);
+		if (ret < 0) {
+			dev_err(map->dev, "IRQ thread failed to resume: %d\n",
+				ret);
+			return IRQ_NONE;
+		}
+	}
+
 	/*
 	 * Ignore masked IRQs and ack if we need to; we ack early so
 	 * there is no race between handling and acknowleding the
@@ -162,6 +182,8 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 		if (ret != 0) {
 			dev_err(map->dev, "Failed to read IRQ status: %d\n",
 					ret);
+			if (chip->runtime_pm)
+				pm_runtime_put(map->dev);
 			return IRQ_NONE;
 		}
 
@@ -184,6 +206,9 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 			handled = true;
 		}
 	}
+
+	if (chip->runtime_pm)
+		pm_runtime_put(map->dev);
 
 	if (handled)
 		return IRQ_HANDLED;
