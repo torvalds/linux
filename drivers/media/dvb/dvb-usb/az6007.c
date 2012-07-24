@@ -590,7 +590,7 @@ static int az6007_read_mac_addr(struct dvb_usb_device *d, u8 mac[6])
 	int ret;
 
 	ret = az6007_read(d, AZ6007_READ_DATA, 6, 0, st->data, 6);
-	memcpy(mac, st->data, sizeof(mac));
+	memcpy(mac, st->data, 6);
 
 	if (ret > 0)
 		deb_info("%s: mac is %pM\n", __func__, mac);
