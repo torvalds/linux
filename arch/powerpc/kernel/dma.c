@@ -14,7 +14,6 @@
 #include <linux/pci.h>
 #include <asm/vio.h>
 #include <asm/bug.h>
-#include <asm/abs_addr.h>
 #include <asm/machdep.h>
 
 /*
@@ -50,7 +49,7 @@ void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 		return NULL;
 	ret = page_address(page);
 	memset(ret, 0, size);
-	*dma_handle = virt_to_abs(ret) + get_dma_offset(dev);
+	*dma_handle = __pa(ret) + get_dma_offset(dev);
 
 	return ret;
 #endif
