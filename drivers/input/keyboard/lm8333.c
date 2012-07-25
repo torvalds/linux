@@ -91,7 +91,7 @@ static void lm8333_key_handler(struct lm8333 *lm8333)
 		return;
 	}
 
-	for (i = 0; keys[i] && i < LM8333_FIFO_TRANSFER_SIZE; i++) {
+	for (i = 0; i < LM8333_FIFO_TRANSFER_SIZE && keys[i]; i++) {
 		pressed = keys[i] & 0x80;
 		code = keys[i] & 0x7f;
 

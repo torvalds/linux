@@ -1,9 +1,7 @@
 /*
- * include/asm-s390/vtoc.h
- *
  * This file contains volume label definitions for DASD devices.
  *
- * (C) Copyright IBM Corp. 2005
+ * Copyright IBM Corp. 2005
  *
  * Author(s): Volker Sameske <sameske@de.ibm.com>
  *

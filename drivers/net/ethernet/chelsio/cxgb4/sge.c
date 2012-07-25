@@ -753,7 +753,7 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *q,
 		end = (void *)q->desc + part1;
 	}
 	if ((uintptr_t)end & 8)           /* 0-pad to multiple of 16 */
-		*(u64 *)end = 0;
+		*end = 0;
 }
 
 /**

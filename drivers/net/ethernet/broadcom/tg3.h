@@ -2311,10 +2311,11 @@
 #define  APE_LOCK_REQ_DRIVER		 0x00001000
 #define TG3_APE_LOCK_GRANT		0x004c
 #define  APE_LOCK_GRANT_DRIVER		 0x00001000
-#define TG3_APE_SEG_SIG			0x4000
-#define  APE_SEG_SIG_MAGIC		 0x41504521
 
 /* APE shared memory.  Accessible through BAR1 */
+#define TG3_APE_SHMEM_BASE		0x4000
+#define TG3_APE_SEG_SIG			0x4000
+#define  APE_SEG_SIG_MAGIC		 0x41504521
 #define TG3_APE_FW_STATUS		0x400c
 #define  APE_FW_STATUS_READY		 0x00000100
 #define TG3_APE_FW_FEATURES		0x4010
@@ -2327,6 +2328,8 @@
 #define  APE_FW_VERSION_REVMSK		 0x0000ff00
 #define  APE_FW_VERSION_REVSFT		 8
 #define  APE_FW_VERSION_BLDMSK		 0x000000ff
+#define TG3_APE_SEG_MSG_BUF_OFF		0x401c
+#define TG3_APE_SEG_MSG_BUF_LEN		0x4020
 #define TG3_APE_HOST_SEG_SIG		0x4200
 #define  APE_HOST_SEG_SIG_MAGIC		 0x484f5354
 #define TG3_APE_HOST_SEG_LEN		0x4204
@@ -2353,6 +2356,8 @@
 
 #define  APE_EVENT_STATUS_DRIVER_EVNT	 0x00000010
 #define  APE_EVENT_STATUS_STATE_CHNGE	 0x00000500
+#define  APE_EVENT_STATUS_SCRTCHPD_READ	 0x00001600
+#define  APE_EVENT_STATUS_SCRTCHPD_WRITE 0x00001700
 #define  APE_EVENT_STATUS_STATE_START	 0x00010000
 #define  APE_EVENT_STATUS_STATE_UNLOAD	 0x00020000
 #define  APE_EVENT_STATUS_STATE_WOL	 0x00030000
@@ -2670,6 +2675,40 @@ struct tg3_hw_stats {
 
 	u8				__reserved4[0xb00-0x9c8];
 };
+
+#define TG3_SD_NUM_RECS			3
+#define TG3_OCIR_LEN			(sizeof(struct tg3_ocir))
+#define TG3_OCIR_SIG_MAGIC		0x5253434f
+#define TG3_OCIR_FLAG_ACTIVE		0x00000001
+
+#define TG3_TEMP_CAUTION_OFFSET		0xc8
+#define TG3_TEMP_MAX_OFFSET		0xcc
+#define TG3_TEMP_SENSOR_OFFSET		0xd4
+
+
+struct tg3_ocir {
+	u32				signature;
+	u16				version_flags;
+	u16				refresh_int;
+	u32				refresh_tmr;
+	u32				update_tmr;
+	u32				dst_base_addr;
+	u16				src_hdr_offset;
+	u16				src_hdr_length;
+	u16				src_data_offset;
+	u16				src_data_length;
+	u16				dst_hdr_offset;
+	u16				dst_data_offset;
+	u16				dst_reg_upd_offset;
+	u16				dst_sem_offset;
+	u32				reserved1[2];
+	u32				port0_flags;
+	u32				port1_flags;
+	u32				port2_flags;
+	u32				port3_flags;
+	u32				reserved2[1];
+};
+
 
 /* 'mapping' is superfluous as the chip does not write into
  * the tx/rx post rings so we could just fetch it from there.
@@ -3206,6 +3245,10 @@ struct tg3 {
 	const char			*fw_needed;
 	const struct firmware		*fw;
 	u32				fw_len; /* includes BSS */
+
+#if IS_ENABLED(CONFIG_HWMON)
+	struct device			*hwmon_dev;
+#endif
 };
 
 #endif /* !(_T3_H) */

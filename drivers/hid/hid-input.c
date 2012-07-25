@@ -837,6 +837,15 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		}
 		break;
 
+	case HID_UP_HPVENDOR2:
+		set_bit(EV_REP, input->evbit);
+		switch (usage->hid & HID_USAGE) {
+		case 0x003: map_key_clear(KEY_BRIGHTNESSDOWN);	break;
+		case 0x004: map_key_clear(KEY_BRIGHTNESSUP);	break;
+		default:    goto ignore;
+		}
+		break;
+
 	case HID_UP_MSVENDOR:
 		goto ignore;
 

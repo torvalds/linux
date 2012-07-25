@@ -125,7 +125,7 @@ err_out_req_reg_failed:
 }
 
 /**
- * stmmac_dvr_remove
+ * stmmac_pci_remove
  *
  * @pdev: platform device pointer
  * Description: this function calls the main to free the net resources

@@ -88,13 +88,15 @@ struct sock *netlink_init(int unit, void (*cb)(struct net_device *dev, u16 type,
 						void *msg, int len))
 {
 	struct sock *sock;
+	struct netlink_kernel_cfg cfg = {
+		.input  = netlink_rcv,
+	};
 
 #if !defined(DEFINE_MUTEX)
 	init_MUTEX(&netlink_mutex);
 #endif
 
-	sock = netlink_kernel_create(&init_net, unit, 0, netlink_rcv, NULL,
-					THIS_MODULE);
+	sock = netlink_kernel_create(&init_net, unit, THIS_MODULE, &cfg);
 
 	if (sock)
 		rcv_cb = cb;
@@ -127,8 +129,12 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 	}
 
 	seq++;
-	nlh = NLMSG_PUT(skb, 0, seq, type, len);
-	memcpy(NLMSG_DATA(nlh), msg, len);
+	nlh = nlmsg_put(skb, 0, seq, type, len, 0);
+	if (!nlh) {
+		kfree_skb(skb);
+		return -EMSGSIZE;
+	}
+	memcpy(nlmsg_data(nlh), msg, len);
 
 	NETLINK_CB(skb).pid = 0;
 	NETLINK_CB(skb).dst_group = 0;
@@ -144,7 +150,5 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 		}
 		ret = 0;
 	}
-
-nlmsg_failure:
 	return ret;
 }

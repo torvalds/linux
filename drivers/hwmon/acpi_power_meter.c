@@ -101,7 +101,7 @@ struct acpi_power_meter_resource {
 	unsigned long		sensors_last_updated;
 	struct sensor_device_attribute	sensors[NUM_SENSORS];
 	int			num_sensors;
-	int			trip[2];
+	s64			trip[2];
 	int			num_domain_devices;
 	struct acpi_device	**domain_devices;
 	struct kobject		*holders_dir;
@@ -237,7 +237,7 @@ static ssize_t set_cap(struct device *dev, struct device_attribute *devattr,
 	if (res)
 		return res;
 
-	temp /= 1000;
+	temp = DIV_ROUND_CLOSEST(temp, 1000);
 	if (temp > resource->caps.max_cap || temp < resource->caps.min_cap)
 		return -EINVAL;
 	arg0.integer.value = temp;
@@ -307,9 +307,7 @@ static ssize_t set_trip(struct device *dev, struct device_attribute *devattr,
 	if (res)
 		return res;
 
-	temp /= 1000;
-	if (temp < 0)
-		return -EINVAL;
+	temp = DIV_ROUND_CLOSEST(temp, 1000);
 
 	mutex_lock(&resource->lock);
 	resource->trip[attr->index - 7] = temp;

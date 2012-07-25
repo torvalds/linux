@@ -135,7 +135,7 @@ static u32 ath9k_hw_4k_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 	if (!dump_base_hdr) {
 		len += snprintf(buf + len, size - len,
 				"%20s :\n", "2GHz modal Header");
-		len += ath9k_dump_4k_modal_eeprom(buf, len, size,
+		len = ath9k_dump_4k_modal_eeprom(buf, len, size,
 						  &eep->modalHeader);
 		goto out;
 	}
@@ -188,8 +188,7 @@ static int ath9k_hw_4k_check_eeprom(struct ath_hw *ah)
 {
 #define EEPROM_4K_SIZE (sizeof(struct ar5416_eeprom_4k) / sizeof(u16))
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ar5416_eeprom_4k *eep =
-		(struct ar5416_eeprom_4k *) &ah->eeprom.map4k;
+	struct ar5416_eeprom_4k *eep = &ah->eeprom.map4k;
 	u16 *eepdata, temp, magic, magic2;
 	u32 sum = 0, el;
 	bool need_swap = false;

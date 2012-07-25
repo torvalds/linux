@@ -491,6 +491,7 @@
 #define SPRN_SPRG1	0x111	/* Special Purpose Register General 1 */
 #define SPRN_SPRG2	0x112	/* Special Purpose Register General 2 */
 #define SPRN_SPRG3	0x113	/* Special Purpose Register General 3 */
+#define SPRN_USPRG3	0x103	/* SPRG3 userspace read */
 #define SPRN_SPRG4	0x114	/* Special Purpose Register General 4 */
 #define SPRN_SPRG5	0x115	/* Special Purpose Register General 5 */
 #define SPRN_SPRG6	0x116	/* Special Purpose Register General 6 */
@@ -753,14 +754,14 @@
  * 64-bit server:
  *	- SPRG0 unused (reserved for HV on Power4)
  *	- SPRG2 scratch for exception vectors
- *	- SPRG3 unused (user visible)
+ *	- SPRG3 CPU and NUMA node for VDSO getcpu (user visible)
  *      - HSPRG0 stores PACA in HV mode
  *      - HSPRG1 scratch for "HV" exceptions
  *
  * 64-bit embedded
  *	- SPRG0 generic exception scratch
  *	- SPRG2 TLB exception stack
- *	- SPRG3 unused (user visible)
+ *	- SPRG3 CPU and NUMA node for VDSO getcpu (user visible)
  *	- SPRG4 unused (user visible)
  *	- SPRG6 TLB miss scratch (user visible, sorry !)
  *	- SPRG7 critical exception scratch
@@ -1024,7 +1025,8 @@
 /* Macros for setting and retrieving special purpose registers */
 #ifndef __ASSEMBLY__
 #define mfmsr()		({unsigned long rval; \
-			asm volatile("mfmsr %0" : "=r" (rval)); rval;})
+			asm volatile("mfmsr %0" : "=r" (rval) : \
+						: "memory"); rval;})
 #ifdef CONFIG_PPC_BOOK3S_64
 #define __mtmsrd(v, l)	asm volatile("mtmsrd %0," __stringify(l) \
 				     : : "r" (v) : "memory")

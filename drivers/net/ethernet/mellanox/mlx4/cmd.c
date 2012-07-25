@@ -1080,6 +1080,25 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.verify = NULL,
 		.wrapper = NULL
 	},
+	/* flow steering commands */
+	{
+		.opcode = MLX4_QP_FLOW_STEERING_ATTACH,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = true,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_QP_FLOW_STEERING_ATTACH_wrapper
+	},
+	{
+		.opcode = MLX4_QP_FLOW_STEERING_DETACH,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_QP_FLOW_STEERING_DETACH_wrapper
+	},
 };
 
 static int mlx4_master_process_vhcr(struct mlx4_dev *dev, int slave,

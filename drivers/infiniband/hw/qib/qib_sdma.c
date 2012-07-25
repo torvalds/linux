@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2007, 2008, 2009, 2010 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2012 Intel Corporation. All rights reserved.
+ * Copyright (c) 2007 - 2012 QLogic Corporation. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -276,8 +277,8 @@ static int alloc_sdma(struct qib_pportdata *ppd)
 		GFP_KERNEL);
 
 	if (!ppd->sdma_descq) {
-		qib_dev_err(ppd->dd, "failed to allocate SendDMA descriptor "
-			    "FIFO memory\n");
+		qib_dev_err(ppd->dd,
+			"failed to allocate SendDMA descriptor FIFO memory\n");
 		goto bail;
 	}
 
@@ -285,8 +286,8 @@ static int alloc_sdma(struct qib_pportdata *ppd)
 	ppd->sdma_head_dma = dma_alloc_coherent(&ppd->dd->pcidev->dev,
 		PAGE_SIZE, &ppd->sdma_head_phys, GFP_KERNEL);
 	if (!ppd->sdma_head_dma) {
-		qib_dev_err(ppd->dd, "failed to allocate SendDMA "
-			    "head memory\n");
+		qib_dev_err(ppd->dd,
+			"failed to allocate SendDMA head memory\n");
 		goto cleanup_descq;
 	}
 	ppd->sdma_head_dma[0] = 0;

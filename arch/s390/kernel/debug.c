@@ -1,5 +1,4 @@
 /*
- *  arch/s390/kernel/debug.c
  *   S/390 debug facility
  *
  *    Copyright IBM Corp. 1999, 2012

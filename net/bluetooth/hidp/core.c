@@ -21,27 +21,8 @@
 */
 
 #include <linux/module.h>
-
-#include <linux/types.h>
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/poll.h>
-#include <linux/freezer.h>
-#include <linux/fcntl.h>
-#include <linux/skbuff.h>
-#include <linux/socket.h>
-#include <linux/ioctl.h>
 #include <linux/file.h>
-#include <linux/init.h>
-#include <linux/wait.h>
-#include <linux/mutex.h>
 #include <linux/kthread.h>
-#include <net/sock.h>
-
-#include <linux/input.h>
-#include <linux/hid.h>
 #include <linux/hidraw.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -244,7 +225,8 @@ static void hidp_input_report(struct hidp_session *session, struct sk_buff *skb)
 }
 
 static int __hidp_send_ctrl_message(struct hidp_session *session,
-			unsigned char hdr, unsigned char *data, int size)
+				    unsigned char hdr, unsigned char *data,
+				    int size)
 {
 	struct sk_buff *skb;
 
@@ -268,7 +250,7 @@ static int __hidp_send_ctrl_message(struct hidp_session *session,
 	return 0;
 }
 
-static inline int hidp_send_ctrl_message(struct hidp_session *session,
+static int hidp_send_ctrl_message(struct hidp_session *session,
 			unsigned char hdr, unsigned char *data, int size)
 {
 	int err;
@@ -471,7 +453,7 @@ static void hidp_set_timer(struct hidp_session *session)
 		mod_timer(&session->timer, jiffies + HZ * session->idle_to);
 }
 
-static inline void hidp_del_timer(struct hidp_session *session)
+static void hidp_del_timer(struct hidp_session *session)
 {
 	if (session->idle_to > 0)
 		del_timer(&session->timer);

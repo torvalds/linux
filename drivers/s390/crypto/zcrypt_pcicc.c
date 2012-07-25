@@ -1,9 +1,7 @@
 /*
- *  linux/drivers/s390/crypto/zcrypt_pcicc.c
- *
  *  zcrypt 2.1.0
  *
- *  Copyright (C)  2001, 2006 IBM Corporation
+ *  Copyright IBM Corp. 2001, 2006
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *
@@ -68,7 +66,7 @@ static struct ap_device_id zcrypt_pcicc_ids[] = {
 MODULE_DEVICE_TABLE(ap, zcrypt_pcicc_ids);
 MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("PCICC Cryptographic Coprocessor device driver, "
-		   "Copyright 2001, 2006 IBM Corporation");
+		   "Copyright IBM Corp. 2001, 2006");
 MODULE_LICENSE("GPL");
 
 static int zcrypt_pcicc_probe(struct ap_device *ap_dev);

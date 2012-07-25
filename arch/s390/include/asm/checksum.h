@@ -1,17 +1,15 @@
-#ifndef _S390_CHECKSUM_H
-#define _S390_CHECKSUM_H
-
 /*
- *  include/asm-s390/checksum.h
  *    S390 fast network checksum routines
- *    see also arch/S390/lib/checksum.c
  *
  *  S390 version
- *    Copyright (C) 1999 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999
  *    Author(s): Ulrich Hild        (first version)
  *               Martin Schwidefsky (heavily optimized CKSM version)
  *               D.J. Barrow        (third attempt) 
  */
+
+#ifndef _S390_CHECKSUM_H
+#define _S390_CHECKSUM_H
 
 #include <asm/uaccess.h>
 

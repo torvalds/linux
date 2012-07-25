@@ -90,10 +90,7 @@ static int caifd_refcnt_read(struct caif_device_entry *e)
 /* Allocate new CAIF device. */
 static struct caif_device_entry *caif_device_alloc(struct net_device *dev)
 {
-	struct caif_device_entry_list *caifdevs;
 	struct caif_device_entry *caifd;
-
-	caifdevs = caif_device_list(dev_net(dev));
 
 	caifd = kzalloc(sizeof(*caifd), GFP_KERNEL);
 	if (!caifd)
@@ -131,6 +128,11 @@ void caif_flow_cb(struct sk_buff *skb)
 
 	rcu_read_lock();
 	caifd = caif_get(skb->dev);
+
+	WARN_ON(caifd == NULL);
+	if (caifd == NULL)
+		return;
+
 	caifd_hold(caifd);
 	rcu_read_unlock();
 

@@ -484,7 +484,7 @@ static int rndis_change_virtual_intf(struct wiphy *wiphy,
 					enum nl80211_iftype type, u32 *flags,
 					struct vif_params *params);
 
-static int rndis_scan(struct wiphy *wiphy, struct net_device *dev,
+static int rndis_scan(struct wiphy *wiphy,
 			struct cfg80211_scan_request *request);
 
 static int rndis_set_wiphy_params(struct wiphy *wiphy, u32 changed);
@@ -1941,9 +1941,10 @@ static int rndis_get_tx_power(struct wiphy *wiphy, int *dbm)
 }
 
 #define SCAN_DELAY_JIFFIES (6 * HZ)
-static int rndis_scan(struct wiphy *wiphy, struct net_device *dev,
+static int rndis_scan(struct wiphy *wiphy,
 			struct cfg80211_scan_request *request)
 {
+	struct net_device *dev = request->wdev->netdev;
 	struct usbnet *usbdev = netdev_priv(dev);
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	int ret;

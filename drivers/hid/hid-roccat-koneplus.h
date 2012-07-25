@@ -20,30 +20,9 @@ struct koneplus_talk {
 	uint8_t data[14];
 } __packed;
 
-/*
- * case 1: writes request 80 and reads value 1
- *
- */
-struct koneplus_control {
-	uint8_t command; /* KONEPLUS_COMMAND_CONTROL */
-	/*
-	 * value is profile number in range 0-4 for requesting settings and buttons
-	 * 1 if status ok for requesting status
-	 */
-	uint8_t value;
-	uint8_t request;
-} __attribute__ ((__packed__));
-
 enum koneplus_control_requests {
-	KONEPLUS_CONTROL_REQUEST_STATUS = 0x00,
 	KONEPLUS_CONTROL_REQUEST_PROFILE_SETTINGS = 0x80,
 	KONEPLUS_CONTROL_REQUEST_PROFILE_BUTTONS = 0x90,
-};
-
-enum koneplus_control_values {
-	KONEPLUS_CONTROL_REQUEST_STATUS_OVERLOAD = 0,
-	KONEPLUS_CONTROL_REQUEST_STATUS_OK = 1,
-	KONEPLUS_CONTROL_REQUEST_STATUS_WAIT = 3,
 };
 
 struct koneplus_actual_profile {
@@ -137,7 +116,6 @@ struct koneplus_tcu_image {
 } __attribute__ ((__packed__));
 
 enum koneplus_commands {
-	KONEPLUS_COMMAND_CONTROL = 0x4,
 	KONEPLUS_COMMAND_ACTUAL_PROFILE = 0x5,
 	KONEPLUS_COMMAND_PROFILE_SETTINGS = 0x6,
 	KONEPLUS_COMMAND_PROFILE_BUTTONS = 0x7,

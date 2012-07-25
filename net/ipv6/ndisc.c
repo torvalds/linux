@@ -143,40 +143,6 @@ struct neigh_table nd_tbl = {
 	.gc_thresh3 =	1024,
 };
 
-/* ND options */
-struct ndisc_options {
-	struct nd_opt_hdr *nd_opt_array[__ND_OPT_ARRAY_MAX];
-#ifdef CONFIG_IPV6_ROUTE_INFO
-	struct nd_opt_hdr *nd_opts_ri;
-	struct nd_opt_hdr *nd_opts_ri_end;
-#endif
-	struct nd_opt_hdr *nd_useropts;
-	struct nd_opt_hdr *nd_useropts_end;
-};
-
-#define nd_opts_src_lladdr	nd_opt_array[ND_OPT_SOURCE_LL_ADDR]
-#define nd_opts_tgt_lladdr	nd_opt_array[ND_OPT_TARGET_LL_ADDR]
-#define nd_opts_pi		nd_opt_array[ND_OPT_PREFIX_INFO]
-#define nd_opts_pi_end		nd_opt_array[__ND_OPT_PREFIX_INFO_END]
-#define nd_opts_rh		nd_opt_array[ND_OPT_REDIRECT_HDR]
-#define nd_opts_mtu		nd_opt_array[ND_OPT_MTU]
-
-#define NDISC_OPT_SPACE(len) (((len)+2+7)&~7)
-
-/*
- * Return the padding between the option length and the start of the
- * link addr.  Currently only IP-over-InfiniBand needs this, although
- * if RFC 3831 IPv6-over-Fibre Channel is ever implemented it may
- * also need a pad of 2.
- */
-static int ndisc_addr_option_pad(unsigned short type)
-{
-	switch (type) {
-	case ARPHRD_INFINIBAND: return 2;
-	default:                return 0;
-	}
-}
-
 static inline int ndisc_opt_addr_space(struct net_device *dev)
 {
 	return NDISC_OPT_SPACE(dev->addr_len + ndisc_addr_option_pad(dev->type));
@@ -233,8 +199,8 @@ static struct nd_opt_hdr *ndisc_next_useropt(struct nd_opt_hdr *cur,
 	return cur <= end && ndisc_is_useropt(cur) ? cur : NULL;
 }
 
-static struct ndisc_options *ndisc_parse_options(u8 *opt, int opt_len,
-						 struct ndisc_options *ndopts)
+struct ndisc_options *ndisc_parse_options(u8 *opt, int opt_len,
+					  struct ndisc_options *ndopts)
 {
 	struct nd_opt_hdr *nd_opt = (struct nd_opt_hdr *)opt;
 
@@ -295,17 +261,6 @@ static struct ndisc_options *ndisc_parse_options(u8 *opt, int opt_len,
 		nd_opt = ((void *)nd_opt) + l;
 	}
 	return ndopts;
-}
-
-static inline u8 *ndisc_opt_addr_data(struct nd_opt_hdr *p,
-				      struct net_device *dev)
-{
-	u8 *lladdr = (u8 *)(p + 1);
-	int lladdrlen = p->nd_opt_len << 3;
-	int prepad = ndisc_addr_option_pad(dev->type);
-	if (lladdrlen != NDISC_OPT_SPACE(dev->addr_len + prepad))
-		return NULL;
-	return lladdr + prepad;
 }
 
 int ndisc_mc_map(const struct in6_addr *addr, char *buf, struct net_device *dev, int dir)
@@ -1379,16 +1334,6 @@ out:
 
 static void ndisc_redirect_rcv(struct sk_buff *skb)
 {
-	struct inet6_dev *in6_dev;
-	struct icmp6hdr *icmph;
-	const struct in6_addr *dest;
-	const struct in6_addr *target;	/* new first hop to destination */
-	struct neighbour *neigh;
-	int on_link = 0;
-	struct ndisc_options ndopts;
-	int optlen;
-	u8 *lladdr = NULL;
-
 #ifdef CONFIG_IPV6_NDISC_NODETYPE
 	switch (skb->ndisc_nodetype) {
 	case NDISC_NODETYPE_HOST:
@@ -1405,65 +1350,7 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 		return;
 	}
 
-	optlen = skb->tail - skb->transport_header;
-	optlen -= sizeof(struct icmp6hdr) + 2 * sizeof(struct in6_addr);
-
-	if (optlen < 0) {
-		ND_PRINTK(2, warn, "Redirect: packet too short\n");
-		return;
-	}
-
-	icmph = icmp6_hdr(skb);
-	target = (const struct in6_addr *) (icmph + 1);
-	dest = target + 1;
-
-	if (ipv6_addr_is_multicast(dest)) {
-		ND_PRINTK(2, warn,
-			  "Redirect: destination address is multicast\n");
-		return;
-	}
-
-	if (ipv6_addr_equal(dest, target)) {
-		on_link = 1;
-	} else if (ipv6_addr_type(target) !=
-		   (IPV6_ADDR_UNICAST|IPV6_ADDR_LINKLOCAL)) {
-		ND_PRINTK(2, warn,
-			  "Redirect: target address is not link-local unicast\n");
-		return;
-	}
-
-	in6_dev = __in6_dev_get(skb->dev);
-	if (!in6_dev)
-		return;
-	if (in6_dev->cnf.forwarding || !in6_dev->cnf.accept_redirects)
-		return;
-
-	/* RFC2461 8.1:
-	 *	The IP source address of the Redirect MUST be the same as the current
-	 *	first-hop router for the specified ICMP Destination Address.
-	 */
-
-	if (!ndisc_parse_options((u8*)(dest + 1), optlen, &ndopts)) {
-		ND_PRINTK(2, warn, "Redirect: invalid ND options\n");
-		return;
-	}
-	if (ndopts.nd_opts_tgt_lladdr) {
-		lladdr = ndisc_opt_addr_data(ndopts.nd_opts_tgt_lladdr,
-					     skb->dev);
-		if (!lladdr) {
-			ND_PRINTK(2, warn,
-				  "Redirect: invalid link-layer address length\n");
-			return;
-		}
-	}
-
-	neigh = __neigh_lookup(&nd_tbl, target, skb->dev, 1);
-	if (neigh) {
-		rt6_redirect(dest, &ipv6_hdr(skb)->daddr,
-			     &ipv6_hdr(skb)->saddr, neigh, lladdr,
-			     on_link);
-		neigh_release(neigh);
-	}
+	icmpv6_notify(skb, NDISC_REDIRECT, 0, 0);
 }
 
 void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
@@ -1472,6 +1359,7 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 	struct net *net = dev_net(dev);
 	struct sock *sk = net->ipv6.ndisc_sk;
 	int len = sizeof(struct icmp6hdr) + 2 * sizeof(struct in6_addr);
+	struct inet_peer *peer;
 	struct sk_buff *buff;
 	struct icmp6hdr *icmph;
 	struct in6_addr saddr_buf;
@@ -1485,6 +1373,7 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 	int rd_len;
 	int err;
 	u8 ha_buf[MAX_ADDR_LEN], *ha = NULL;
+	bool ret;
 
 	if (ipv6_get_lladdr(dev, &saddr_buf, IFA_F_TENTATIVE)) {
 		ND_PRINTK(2, warn, "Redirect: no link-local address on %s\n",
@@ -1518,9 +1407,11 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 			  "Redirect: destination is not a neighbour\n");
 		goto release;
 	}
-	if (!rt->rt6i_peer)
-		rt6_bind_peer(rt, 1);
-	if (!inet_peer_xrlim_allow(rt->rt6i_peer, 1*HZ))
+	peer = inet_getpeer_v6(net->ipv6.peers, &rt->rt6i_dst.addr, 1);
+	ret = inet_peer_xrlim_allow(peer, 1*HZ);
+	if (peer)
+		inet_putpeer(peer);
+	if (!ret)
 		goto release;
 
 	if (dev->addr_len) {

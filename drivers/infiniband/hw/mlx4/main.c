@@ -50,7 +50,7 @@
 #include "mlx4_ib.h"
 #include "user.h"
 
-#define DRV_NAME	"mlx4_ib"
+#define DRV_NAME	MLX4_IB_DRV_NAME
 #define DRV_VERSION	"1.0"
 #define DRV_RELDATE	"April 4, 2008"
 
@@ -157,7 +157,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->local_ca_ack_delay  = dev->dev->caps.local_ca_ack_delay;
 	props->atomic_cap	   = dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_ATOMIC ?
 		IB_ATOMIC_HCA : IB_ATOMIC_NONE;
-	props->masked_atomic_cap   = IB_ATOMIC_HCA;
+	props->masked_atomic_cap   = props->atomic_cap;
 	props->max_pkeys	   = dev->dev->caps.pkey_table_len[1];
 	props->max_mcast_grp	   = dev->dev->caps.num_mgms + dev->dev->caps.num_amgms;
 	props->max_mcast_qp_attach = dev->dev->caps.num_qp_per_mgm;
@@ -718,26 +718,53 @@ int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 	return ret;
 }
 
+struct mlx4_ib_steering {
+	struct list_head list;
+	u64 reg_id;
+	union ib_gid gid;
+};
+
 static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 {
 	int err;
 	struct mlx4_ib_dev *mdev = to_mdev(ibqp->device);
 	struct mlx4_ib_qp *mqp = to_mqp(ibqp);
+	u64 reg_id;
+	struct mlx4_ib_steering *ib_steering = NULL;
 
-	err = mlx4_multicast_attach(mdev->dev, &mqp->mqp, gid->raw,
-				    !!(mqp->flags & MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK),
-				    MLX4_PROT_IB_IPV6);
+	if (mdev->dev->caps.steering_mode ==
+	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
+		ib_steering = kmalloc(sizeof(*ib_steering), GFP_KERNEL);
+		if (!ib_steering)
+			return -ENOMEM;
+	}
+
+	err = mlx4_multicast_attach(mdev->dev, &mqp->mqp, gid->raw, mqp->port,
+				    !!(mqp->flags &
+				       MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK),
+				    MLX4_PROT_IB_IPV6, &reg_id);
 	if (err)
-		return err;
+		goto err_malloc;
 
 	err = add_gid_entry(ibqp, gid);
 	if (err)
 		goto err_add;
 
+	if (ib_steering) {
+		memcpy(ib_steering->gid.raw, gid->raw, 16);
+		ib_steering->reg_id = reg_id;
+		mutex_lock(&mqp->mutex);
+		list_add(&ib_steering->list, &mqp->steering_rules);
+		mutex_unlock(&mqp->mutex);
+	}
 	return 0;
 
 err_add:
-	mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw, MLX4_PROT_IB_IPV6);
+	mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw,
+			      MLX4_PROT_IB_IPV6, reg_id);
+err_malloc:
+	kfree(ib_steering);
+
 	return err;
 }
 
@@ -765,9 +792,30 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	u8 mac[6];
 	struct net_device *ndev;
 	struct mlx4_ib_gid_entry *ge;
+	u64 reg_id = 0;
 
-	err = mlx4_multicast_detach(mdev->dev,
-				    &mqp->mqp, gid->raw, MLX4_PROT_IB_IPV6);
+	if (mdev->dev->caps.steering_mode ==
+	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
+		struct mlx4_ib_steering *ib_steering;
+
+		mutex_lock(&mqp->mutex);
+		list_for_each_entry(ib_steering, &mqp->steering_rules, list) {
+			if (!memcmp(ib_steering->gid.raw, gid->raw, 16)) {
+				list_del(&ib_steering->list);
+				break;
+			}
+		}
+		mutex_unlock(&mqp->mutex);
+		if (&ib_steering->list == &mqp->steering_rules) {
+			pr_err("Couldn't find reg_id for mgid. Steering rule is left attached\n");
+			return -EINVAL;
+		}
+		reg_id = ib_steering->reg_id;
+		kfree(ib_steering);
+	}
+
+	err = mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw,
+				    MLX4_PROT_IB_IPV6, reg_id);
 	if (err)
 		return err;
 
@@ -898,7 +946,6 @@ static void update_gids_task(struct work_struct *work)
 	union ib_gid *gids;
 	int err;
 	struct mlx4_dev	*dev = gw->dev->dev;
-	struct ib_event event;
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox)) {
@@ -916,10 +963,7 @@ static void update_gids_task(struct work_struct *work)
 		pr_warn("set port command failed\n");
 	else {
 		memcpy(gw->dev->iboe.gid_table[gw->port - 1], gw->gids, sizeof gw->gids);
-		event.device = &gw->dev->ib_dev;
-		event.element.port_num = gw->port;
-		event.event    = IB_EVENT_GID_CHANGE;
-		ib_dispatch_event(&event);
+		mlx4_ib_dispatch_event(gw->dev, gw->port, IB_EVENT_GID_CHANGE);
 	}
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
@@ -1111,7 +1155,8 @@ static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 			sprintf(name, "mlx4-ib-%d-%d@%s",
 				i, j, dev->pdev->bus->name);
 			/* Set IRQ for specific name (per ring) */
-			if (mlx4_assign_eq(dev, name, &ibdev->eq_table[eq])) {
+			if (mlx4_assign_eq(dev, name, NULL,
+					   &ibdev->eq_table[eq])) {
 				/* Use legacy (same as mlx4_en driver) */
 				pr_warn("Can't allocate EQ %d; reverting to legacy\n", eq);
 				ibdev->eq_table[eq] =
@@ -1383,10 +1428,18 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 }
 
 static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
-			  enum mlx4_dev_event event, int port)
+			  enum mlx4_dev_event event, unsigned long param)
 {
 	struct ib_event ibev;
 	struct mlx4_ib_dev *ibdev = to_mdev((struct ib_device *) ibdev_ptr);
+	struct mlx4_eqe *eqe = NULL;
+	struct ib_event_work *ew;
+	int port = 0;
+
+	if (event == MLX4_DEV_EVENT_PORT_MGMT_CHANGE)
+		eqe = (struct mlx4_eqe *)param;
+	else
+		port = (u8)param;
 
 	if (port > ibdev->num_ports)
 		return;
@@ -1404,6 +1457,19 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 		ibdev->ib_active = false;
 		ibev.event = IB_EVENT_DEVICE_FATAL;
 		break;
+
+	case MLX4_DEV_EVENT_PORT_MGMT_CHANGE:
+		ew = kmalloc(sizeof *ew, GFP_ATOMIC);
+		if (!ew) {
+			pr_err("failed to allocate memory for events work\n");
+			break;
+		}
+
+		INIT_WORK(&ew->work, handle_port_mgmt_change_event);
+		memcpy(&ew->ib_eqe, eqe, sizeof *eqe);
+		ew->ib_dev = ibdev;
+		handle_port_mgmt_change_event(&ew->work);
+		return;
 
 	default:
 		return;
