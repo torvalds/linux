@@ -82,6 +82,7 @@ static int collect_cpu_info_amd(int cpu, struct cpu_signature *csig)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
+	csig->sig = cpuid_eax(0x00000001);
 	csig->rev = c->microcode;
 	pr_info("CPU%d: patch_level=0x%08x\n", cpu, csig->rev);
 
@@ -118,16 +119,15 @@ static unsigned int verify_ucode_size(int cpu, u32 patch_size,
 	return patch_size;
 }
 
-static u16 find_equiv_id(void)
+static u16 find_equiv_id(unsigned int cpu)
 {
-	unsigned int current_cpu_id, i = 0;
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+	int i = 0;
 
 	BUG_ON(equiv_cpu_table == NULL);
 
-	current_cpu_id = cpuid_eax(0x00000001);
-
 	while (equiv_cpu_table[i].installed_cpu != 0) {
-		if (current_cpu_id == equiv_cpu_table[i].installed_cpu)
+		if (uci->cpu_sig.sig == equiv_cpu_table[i].installed_cpu)
 			return equiv_cpu_table[i].equiv_cpu;
 
 		i++;
@@ -150,7 +150,7 @@ static int get_matching_microcode(int cpu, const u8 *ucode_ptr,
 	patch_size = *(u32 *)(ucode_ptr + 4);
 	*current_size = patch_size + SECTION_HDR_SIZE;
 
-	equiv_cpu_id = find_equiv_id();
+	equiv_cpu_id = find_equiv_id(cpu);
 	if (!equiv_cpu_id)
 		return 0;
 
