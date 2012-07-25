@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/syscore_ops.h>
 #include <linux/i2c/pxa-i2c.h>
 
@@ -479,7 +480,8 @@ static int __init pxa3xx_init(void)
 		register_syscore_ops(&pxa3xx_mfp_syscore_ops);
 		register_syscore_ops(&pxa3xx_clock_syscore_ops);
 
-		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
+		if (!of_have_populated_dt())
+			ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	}
 
 	return ret;
