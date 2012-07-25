@@ -2608,9 +2608,10 @@ retry_lookup:
 	}
 
 	/*
-	 * It already exists.
+	 * create/update audit record if it already exists.
 	 */
-	audit_inode(pathname, path->dentry);
+	if (path->dentry->d_inode)
+		audit_inode(pathname, path->dentry);
 
 	/*
 	 * If atomic_open() acquired write access it is dropped now due to
