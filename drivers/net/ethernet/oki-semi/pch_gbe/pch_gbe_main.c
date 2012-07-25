@@ -1988,6 +1988,7 @@ int pch_gbe_up(struct pch_gbe_adapter *adapter)
 void pch_gbe_down(struct pch_gbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
+	struct pci_dev *pdev = adapter->pdev;
 	struct pch_gbe_rx_ring *rx_ring = adapter->rx_ring;
 
 	/* signal that we're down so the interrupt handler does not
@@ -2004,7 +2005,8 @@ void pch_gbe_down(struct pch_gbe_adapter *adapter)
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
 
-	pch_gbe_reset(adapter);
+	if ((pdev->error_state) && (pdev->error_state != pci_channel_io_normal))
+		pch_gbe_reset(adapter);
 	pch_gbe_clean_tx_ring(adapter, adapter->tx_ring);
 	pch_gbe_clean_rx_ring(adapter, adapter->rx_ring);
 
