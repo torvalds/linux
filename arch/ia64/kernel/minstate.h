@@ -4,7 +4,7 @@
 #include "entry.h"
 #include "paravirt_inst.h"
 
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 /* read ar.itc in advance, and use it before leaving bank 0 */
 #define ACCOUNT_GET_STAMP				\
 (pUStk) mov.m r20=ar.itc;

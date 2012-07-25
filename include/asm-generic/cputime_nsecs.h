@@ -26,12 +26,20 @@ typedef u64 __nocast cputime64_t;
  */
 #define cputime_to_jiffies(__ct)	\
 	((__force u64)(__ct) / (NSEC_PER_SEC / HZ))
+#define cputime_to_scaled(__ct)		(__ct)
 #define jiffies_to_cputime(__jif)	\
 	(__force cputime_t)((__jif) * (NSEC_PER_SEC / HZ))
 #define cputime64_to_jiffies64(__ct)	\
 	((__force u64)(__ct) / (NSEC_PER_SEC / HZ))
 #define jiffies64_to_cputime64(__jif)	\
 	(__force cputime64_t)((__jif) * (NSEC_PER_SEC / HZ))
+
+
+/*
+ * Convert cputime <-> nanoseconds
+ */
+#define nsecs_to_cputime(__nsecs)	((__force u64)(__nsecs))
+
 
 /*
  * Convert cputime <-> microseconds

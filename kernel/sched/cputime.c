@@ -3,6 +3,7 @@
 #include <linux/tsacct_kern.h>
 #include <linux/kernel_stat.h>
 #include <linux/static_key.h>
+#include <linux/context_tracking.h>
 #include "sched.h"
 
 
@@ -479,7 +480,9 @@ void vtime_task_switch(struct task_struct *prev)
 	else
 		vtime_account_system(prev);
 
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 	vtime_account_user(prev);
+#endif
 	arch_vtime_task_switch(prev);
 }
 #endif
@@ -495,10 +498,24 @@ void vtime_task_switch(struct task_struct *prev)
 #ifndef __ARCH_HAS_VTIME_ACCOUNT
 void vtime_account(struct task_struct *tsk)
 {
-	if (in_interrupt() || !is_idle_task(tsk))
-		vtime_account_system(tsk);
-	else
-		vtime_account_idle(tsk);
+	if (!in_interrupt()) {
+		/*
+		 * If we interrupted user, context_tracking_in_user()
+		 * is 1 because the context tracking don't hook
+		 * on irq entry/exit. This way we know if
+		 * we need to flush user time on kernel entry.
+		 */
+		if (context_tracking_in_user()) {
+			vtime_account_user(tsk);
+			return;
+		}
+
+		if (is_idle_task(tsk)) {
+			vtime_account_idle(tsk);
+			return;
+		}
+	}
+	vtime_account_system(tsk);
 }
 EXPORT_SYMBOL_GPL(vtime_account);
 #endif /* __ARCH_HAS_VTIME_ACCOUNT */
@@ -583,3 +600,39 @@ void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime
 	cputime_adjust(&cputime, &p->signal->prev_cputime, ut, st);
 }
 #endif
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
+static DEFINE_PER_CPU(unsigned long long, cputime_snap);
+
+static cputime_t get_vtime_delta(void)
+{
+	unsigned long long delta;
+
+	delta = sched_clock() - __this_cpu_read(cputime_snap);
+	__this_cpu_add(cputime_snap, delta);
+
+	/* CHECKME: always safe to convert nsecs to cputime? */
+	return nsecs_to_cputime(delta);
+}
+
+void vtime_account_system(struct task_struct *tsk)
+{
+	cputime_t delta_cpu = get_vtime_delta();
+
+	account_system_time(tsk, irq_count(), delta_cpu, cputime_to_scaled(delta_cpu));
+}
+
+void vtime_account_user(struct task_struct *tsk)
+{
+	cputime_t delta_cpu = get_vtime_delta();
+
+	account_user_time(tsk, delta_cpu, cputime_to_scaled(delta_cpu));
+}
+
+void vtime_account_idle(struct task_struct *tsk)
+{
+	cputime_t delta_cpu = get_vtime_delta();
+
+	account_idle_time(delta_cpu);
+}
+#endif /* CONFIG_VIRT_CPU_ACCOUNTING_GEN */

@@ -326,6 +326,9 @@ source "kernel/time/Kconfig"
 
 menu "CPU/Task time and stats accounting"
 
+config VIRT_CPU_ACCOUNTING
+	bool
+
 choice
 	prompt "Cputime accounting"
 	default TICK_CPU_ACCOUNTING if !PPC64
@@ -342,9 +345,10 @@ config TICK_CPU_ACCOUNTING
 
 	  If unsure, say Y.
 
-config VIRT_CPU_ACCOUNTING
+config VIRT_CPU_ACCOUNTING_NATIVE
 	bool "Deterministic task and CPU time accounting"
 	depends on HAVE_VIRT_CPU_ACCOUNTING
+	select VIRT_CPU_ACCOUNTING
 	help
 	  Select this option to enable more accurate task and CPU time
 	  accounting.  This is done by reading a CPU counter on each
@@ -353,6 +357,23 @@ config VIRT_CPU_ACCOUNTING
 	  small performance impact.  In the case of s390 or IBM POWER > 5,
 	  this also enables accounting of stolen time on logically-partitioned
 	  systems.
+
+config VIRT_CPU_ACCOUNTING_GEN
+	bool "Full dynticks CPU time accounting"
+	depends on HAVE_CONTEXT_TRACKING && 64BIT
+	select VIRT_CPU_ACCOUNTING
+	select CONTEXT_TRACKING
+	help
+	  Select this option to enable task and CPU time accounting on full
+	  dynticks systems. This accounting is implemented by watching every
+	  kernel-user boundaries using the context tracking subsystem.
+	  The accounting is thus performed at the expense of some significant
+	  overhead.
+
+	  For now this is only useful if you are working on the full
+	  dynticks subsystem development.
+
+	  If unsure, say N.
 
 config IRQ_TIME_ACCOUNTING
 	bool "Fine granularity task level IRQ time accounting"
