@@ -37,6 +37,7 @@ struct nfsd_net {
 
 	struct lock_manager nfsd4_manager;
 	bool grace_ended;
+	time_t boot_time;
 };
 
 extern int nfsd_net_id;

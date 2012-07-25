@@ -53,7 +53,6 @@
 /* Globals */
 time_t nfsd4_lease = 90;     /* default lease time */
 time_t nfsd4_grace = 90;
-static time_t boot_time;
 
 #define all_ones {{~0,~0},~0}
 static const stateid_t one_stateid = {
@@ -1056,12 +1055,12 @@ renew_client(struct nfs4_client *clp)
 
 /* SETCLIENTID and SETCLIENTID_CONFIRM Helper functions */
 static int
-STALE_CLIENTID(clientid_t *clid)
+STALE_CLIENTID(clientid_t *clid, struct nfsd_net *nn)
 {
-	if (clid->cl_boot == boot_time)
+	if (clid->cl_boot == nn->boot_time)
 		return 0;
 	dprintk("NFSD stale clientid (%08x/%08x) boot_time %08lx\n",
-		clid->cl_boot, clid->cl_id, boot_time);
+		clid->cl_boot, clid->cl_id, nn->boot_time);
 	return 1;
 }
 
@@ -1242,8 +1241,9 @@ same_creds(struct svc_cred *cr1, struct svc_cred *cr2)
 static void gen_clid(struct nfs4_client *clp)
 {
 	static u32 current_clientid = 1;
+	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
 
-	clp->cl_clientid.cl_boot = boot_time;
+	clp->cl_clientid.cl_boot = nn->boot_time;
 	clp->cl_clientid.cl_id = current_clientid++; 
 }
 
@@ -2226,8 +2226,9 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 	nfs4_verifier confirm = setclientid_confirm->sc_confirm; 
 	clientid_t * clid = &setclientid_confirm->sc_clientid;
 	__be32 status;
+	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
 
-	if (STALE_CLIENTID(clid))
+	if (STALE_CLIENTID(clid, nn))
 		return nfserr_stale_clientid;
 	nfs4_lock_state();
 
@@ -2586,8 +2587,9 @@ nfsd4_process_open1(struct nfsd4_compound_state *cstate,
 	unsigned int strhashval;
 	struct nfs4_openowner *oo = NULL;
 	__be32 status;
+	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
 
-	if (STALE_CLIENTID(&open->op_clientid))
+	if (STALE_CLIENTID(&open->op_clientid, nn))
 		return nfserr_stale_clientid;
 	/*
 	 * In case we need it later, after we've already created the
@@ -3095,12 +3097,13 @@ nfsd4_renew(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 {
 	struct nfs4_client *clp;
 	__be32 status;
+	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
 
 	nfs4_lock_state();
 	dprintk("process_renew(%08x/%08x): starting\n", 
 			clid->cl_boot, clid->cl_id);
 	status = nfserr_stale_clientid;
-	if (STALE_CLIENTID(clid))
+	if (STALE_CLIENTID(clid, nn))
 		goto out;
 	clp = find_confirmed_client(clid);
 	status = nfserr_expired;
@@ -3130,7 +3133,7 @@ nfsd4_end_grace(struct net *net)
 
 	dprintk("NFSD: end of grace period\n");
 	nn->grace_ended = true;
-	nfsd4_record_grace_done(net, boot_time);
+	nfsd4_record_grace_done(net, nn->boot_time);
 	locks_end_grace(&nn->nfsd4_manager);
 	/*
 	 * Now that every NFSv4 client has had the chance to recover and
@@ -3236,9 +3239,9 @@ static inline __be32 nfs4_check_fh(struct svc_fh *fhp, struct nfs4_ol_stateid *s
 }
 
 static int
-STALE_STATEID(stateid_t *stateid)
+STALE_STATEID(stateid_t *stateid, struct nfsd_net *nn)
 {
-	if (stateid->si_opaque.so_clid.cl_boot == boot_time)
+	if (stateid->si_opaque.so_clid.cl_boot == nn->boot_time)
 		return 0;
 	dprintk("NFSD: stale stateid " STATEID_FMT "!\n",
 		STATEID_VAL(stateid));
@@ -3373,10 +3376,11 @@ static __be32 nfsd4_validate_stateid(struct nfs4_client *cl, stateid_t *stateid)
 static __be32 nfsd4_lookup_stateid(stateid_t *stateid, unsigned char typemask, struct nfs4_stid **s)
 {
 	struct nfs4_client *cl;
+	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
 
 	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid))
 		return nfserr_bad_stateid;
-	if (STALE_STATEID(stateid))
+	if (STALE_STATEID(stateid, nn))
 		return nfserr_stale_stateid;
 	cl = find_confirmed_client(&stateid->si_opaque.so_clid);
 	if (!cl)
@@ -4048,6 +4052,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	bool new_state = false;
 	int lkflg;
 	int err;
+	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
 
 	dprintk("NFSD: nfsd4_lock: start=%Ld length=%Ld\n",
 		(long long) lock->lk_offset,
@@ -4074,7 +4079,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				sizeof(clientid_t));
 
 		status = nfserr_stale_clientid;
-		if (STALE_CLIENTID(&lock->lk_new_clientid))
+		if (STALE_CLIENTID(&lock->lk_new_clientid, nn))
 			goto out;
 
 		/* validate and update open stateid and open seqid */
@@ -4208,6 +4213,7 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct file_lock file_lock;
 	struct nfs4_lockowner *lo;
 	__be32 status;
+	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
 
 	if (locks_in_grace(SVC_NET(rqstp)))
 		return nfserr_grace;
@@ -4218,7 +4224,7 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	nfs4_lock_state();
 
 	status = nfserr_stale_clientid;
-	if (!nfsd4_has_session(cstate) && STALE_CLIENTID(&lockt->lt_clientid))
+	if (!nfsd4_has_session(cstate) && STALE_CLIENTID(&lockt->lt_clientid, nn))
 		goto out;
 
 	if ((status = fh_verify(rqstp, &cstate->current_fh, S_IFREG, 0)))
@@ -4367,6 +4373,7 @@ nfsd4_release_lockowner(struct svc_rqst *rqstp,
 	struct list_head matches;
 	unsigned int hashval = ownerstr_hashval(clid->cl_id, owner);
 	__be32 status;
+	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
 
 	dprintk("nfsd4_release_lockowner clientid: (%08x/%08x):\n",
 		clid->cl_boot, clid->cl_id);
@@ -4374,7 +4381,7 @@ nfsd4_release_lockowner(struct svc_rqst *rqstp,
 	/* XXX check for lease expiration */
 
 	status = nfserr_stale_clientid;
-	if (STALE_CLIENTID(clid))
+	if (STALE_CLIENTID(clid, nn))
 		return status;
 
 	nfs4_lock_state();
@@ -4701,7 +4708,7 @@ nfs4_state_start(void)
 	 */
 	get_net(net);
 	nfsd4_client_tracking_init(net);
-	boot_time = get_seconds();
+	nn->boot_time = get_seconds();
 	locks_start_grace(net, &nn->nfsd4_manager);
 	nn->grace_ended = false;
 	printk(KERN_INFO "NFSD: starting %ld-second grace period\n",

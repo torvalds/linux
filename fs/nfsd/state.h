@@ -450,6 +450,7 @@ static inline struct nfs4_ol_stateid *openlockstateid(struct nfs4_stid *s)
 #define WR_STATE	        0x00000020
 
 struct nfsd4_compound_state;
+struct nfsd_net;
 
 extern __be32 nfs4_preprocess_stateid_op(struct net *net,
 		struct nfsd4_compound_state *cstate,
