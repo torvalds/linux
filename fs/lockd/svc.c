@@ -128,8 +128,6 @@ lockd(void *vrqstp)
 {
 	int		err = 0, preverr = 0;
 	struct svc_rqst *rqstp = vrqstp;
-	struct net *net = &init_net;
-	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
 	/* try_to_freeze() is called from svc_recv() */
 	set_freezable();
@@ -142,8 +140,6 @@ lockd(void *vrqstp)
 	if (!nlm_timeout)
 		nlm_timeout = LOCKD_DFLT_TIMEO;
 	nlmsvc_timeout = nlm_timeout * HZ;
-
-	set_grace_period(net);
 
 	/*
 	 * The main request loop. We don't terminate until the last
@@ -190,8 +186,6 @@ lockd(void *vrqstp)
 		svc_process(rqstp);
 	}
 	flush_signals(current);
-	cancel_delayed_work_sync(&ln->grace_period_end);
-	locks_end_grace(&ln->lockd_manager);
 	if (nlmsvc_ops)
 		nlmsvc_invalidate_all();
 	nlm_shutdown_hosts();
@@ -272,6 +266,7 @@ static int lockd_up_net(struct svc_serv *serv, struct net *net)
 	error = make_socks(serv, net);
 	if (error < 0)
 		goto err_socks;
+	set_grace_period(net);
 	dprintk("lockd_up_net: per-net data created; net=%p\n", net);
 	return 0;
 
@@ -289,6 +284,8 @@ static void lockd_down_net(struct svc_serv *serv, struct net *net)
 	if (ln->nlmsvc_users) {
 		if (--ln->nlmsvc_users == 0) {
 			nlm_shutdown_hosts_net(net);
+			cancel_delayed_work_sync(&ln->grace_period_end);
+			locks_end_grace(&ln->lockd_manager);
 			svc_shutdown_net(serv, net);
 			dprintk("lockd_down_net: per-net data destroyed; net=%p\n", net);
 		}
