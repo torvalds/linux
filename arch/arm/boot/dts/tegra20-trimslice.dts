@@ -280,6 +280,7 @@
 	};
 
 	usb@c5004000 {
+		status = "okay";
 		nvidia,phy-reset-gpio = <&gpio 168 0>; /* gpio PV0 */
 	};
 
