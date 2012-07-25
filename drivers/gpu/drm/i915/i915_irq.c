@@ -444,7 +444,7 @@ static void ivybridge_handle_parity_error(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long flags;
 
-	if (!IS_IVYBRIDGE(dev))
+	if (!HAS_L3_GPU_CACHE(dev))
 		return;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
