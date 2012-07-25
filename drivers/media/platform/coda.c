@@ -137,6 +137,7 @@ struct coda_dev {
 	struct list_head	instances;
 	unsigned long		instance_mask;
 	struct delayed_work	timeout;
+	struct completion	done;
 };
 
 struct coda_params {
@@ -731,6 +732,7 @@ static void coda_device_run(void *m2m_priv)
 	/* 1 second timeout in case CODA locks up */
 	schedule_delayed_work(&dev->timeout, HZ);
 
+	INIT_COMPLETION(dev->done);
 	coda_command_async(ctx, CODA_COMMAND_PIC_RUN);
 }
 
@@ -974,6 +976,10 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 	/* Don't start the coda unless both queues are on */
 	if (!(ctx->rawstreamon & ctx->compstreamon))
 		return 0;
+
+	if (coda_isbusy(dev))
+		if (wait_for_completion_interruptible_timeout(&dev->done, HZ) <= 0)
+			return -EBUSY;
 
 	ctx->gopcounter = ctx->params.gop_size - 1;
 
@@ -1229,19 +1235,28 @@ static int coda_stop_streaming(struct vb2_queue *q)
 		ctx->compstreamon = 0;
 	}
 
-	if (!ctx->rawstreamon && !ctx->compstreamon) {
-		cancel_delayed_work(&dev->timeout);
+	/* Don't stop the coda unless both queues are off */
+	if (ctx->rawstreamon || ctx->compstreamon)
+		return 0;
 
-		v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
-			 "%s: sent command 'SEQ_END' to coda\n", __func__);
-		if (coda_command_sync(ctx, CODA_COMMAND_SEQ_END)) {
-			v4l2_err(&ctx->dev->v4l2_dev,
-				 "CODA_COMMAND_SEQ_END failed\n");
-			return -ETIMEDOUT;
+	if (coda_isbusy(dev)) {
+		if (wait_for_completion_interruptible_timeout(&dev->done, HZ) <= 0) {
+			v4l2_warn(&dev->v4l2_dev,
+				  "%s: timeout, sending SEQ_END anyway\n", __func__);
 		}
-
-		coda_free_framebuffers(ctx);
 	}
+
+	cancel_delayed_work(&dev->timeout);
+
+	v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
+		 "%s: sent command 'SEQ_END' to coda\n", __func__);
+	if (coda_command_sync(ctx, CODA_COMMAND_SEQ_END)) {
+		v4l2_err(&dev->v4l2_dev,
+			 "CODA_COMMAND_SEQ_END failed\n");
+		return -ETIMEDOUT;
+	}
+
+	coda_free_framebuffers(ctx);
 
 	return 0;
 }
@@ -1527,6 +1542,8 @@ static irqreturn_t coda_irq_handler(int irq, void *data)
 		return IRQ_NONE;
 	}
 
+	complete(&dev->done);
+
 	src_buf = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
 	dst_buf = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
 
@@ -1581,6 +1598,11 @@ static void coda_timeout(struct work_struct *work)
 	struct coda_ctx *ctx;
 	struct coda_dev *dev = container_of(to_delayed_work(work),
 					    struct coda_dev, timeout);
+
+	if (completion_done(&dev->done))
+		return;
+
+	complete(&dev->done);
 
 	v4l2_err(&dev->v4l2_dev, "CODA PIC_RUN timeout, stopping all streams\n");
 
@@ -1865,6 +1887,8 @@ static int __devinit coda_probe(struct platform_device *pdev)
 	spin_lock_init(&dev->irqlock);
 	INIT_LIST_HEAD(&dev->instances);
 	INIT_DELAYED_WORK(&dev->timeout, coda_timeout);
+	init_completion(&dev->done);
+	complete(&dev->done);
 
 	dev->plat_dev = pdev;
 	dev->clk_per = devm_clk_get(&pdev->dev, "per");
