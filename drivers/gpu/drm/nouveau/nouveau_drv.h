@@ -405,9 +405,6 @@ int nouveau_ttm_mmap(struct file *, struct vm_area_struct *);
 /* nouveau_hdmi.c */
 void nouveau_hdmi_mode_set(struct drm_encoder *, struct drm_display_mode *);
 
-extern long nouveau_compat_ioctl(struct file *file, unsigned int cmd,
-			         unsigned long arg);
-
 /* nvd0_display.c */
 extern int nvd0_display_create(struct drm_device *);
 extern void nvd0_display_destroy(struct drm_device *);
