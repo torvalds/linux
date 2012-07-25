@@ -1269,6 +1269,7 @@ union igp_info {
 	struct _ATOM_INTEGRATED_SYSTEM_INFO_V2 info_2;
 	struct _ATOM_INTEGRATED_SYSTEM_INFO_V6 info_6;
 	struct _ATOM_INTEGRATED_SYSTEM_INFO_V1_7 info_7;
+	struct _ATOM_INTEGRATED_SYSTEM_INFO_V1_8 info_8;
 };
 
 bool radeon_atombios_sideport_present(struct radeon_device *rdev)
@@ -1435,6 +1436,22 @@ static void radeon_atombios_get_igp_ss_overrides(struct radeon_device *rdev,
 			case ASIC_INTERNAL_SS_ON_LVDS:
 				percentage = le16_to_cpu(igp_info->info_7.usLvdsSSPercentage);
 				rate = le16_to_cpu(igp_info->info_7.usLvdsSSpreadRateIn10Hz);
+				break;
+			}
+			break;
+		case 8:
+			switch (id) {
+			case ASIC_INTERNAL_SS_ON_TMDS:
+				percentage = le16_to_cpu(igp_info->info_8.usDVISSPercentage);
+				rate = le16_to_cpu(igp_info->info_8.usDVISSpreadRateIn10Hz);
+				break;
+			case ASIC_INTERNAL_SS_ON_HDMI:
+				percentage = le16_to_cpu(igp_info->info_8.usHDMISSPercentage);
+				rate = le16_to_cpu(igp_info->info_8.usHDMISSpreadRateIn10Hz);
+				break;
+			case ASIC_INTERNAL_SS_ON_LVDS:
+				percentage = le16_to_cpu(igp_info->info_8.usLvdsSSPercentage);
+				rate = le16_to_cpu(igp_info->info_8.usLvdsSSpreadRateIn10Hz);
 				break;
 			}
 			break;
