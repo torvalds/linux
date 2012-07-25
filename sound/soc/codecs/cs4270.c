@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
 #include <linux/of_device.h>
+#include <linux/of_gpio.h>
 
 /*
  * The codec isn't really big-endian or little-endian, since the I2S
@@ -660,8 +661,24 @@ MODULE_DEVICE_TABLE(of, cs4270_of_match);
 static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 	const struct i2c_device_id *id)
 {
+	struct device_node *np = i2c_client->dev.of_node;
 	struct cs4270_private *cs4270;
 	int ret;
+
+	/* See if we have a way to bring the codec out of reset */
+	if (np) {
+		enum of_gpio_flags flags;
+		int gpio = of_get_named_gpio_flags(np, "reset-gpio", 0, &flags);
+
+		if (gpio_is_valid(gpio)) {
+			ret = devm_gpio_request_one(&i2c_client->dev, gpio,
+				     flags & OF_GPIO_ACTIVE_LOW ?
+					GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH,
+				     "cs4270 reset");
+			if (ret < 0)
+				return ret;
+		}
+	}
 
 	/* Verify that we have a CS4270 */
 
