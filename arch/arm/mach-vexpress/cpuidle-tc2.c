@@ -221,6 +221,11 @@ int __init tc2_idle_init(void)
 	struct dentry *idle_debug, *file_debug;
 	struct cpuidle_driver *drv = &tc2_idle_driver;
 
+	if (!vexpress_spc_check_loaded()) {
+		pr_info("TC2 CPUidle not registered because no SPC found\n");
+		return -ENODEV;
+	}
+
 	drv->state_count = (sizeof(tc2_cpuidle_set) /
 				       sizeof(struct cpuidle_state));
 
