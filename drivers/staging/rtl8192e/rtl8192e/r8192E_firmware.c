@@ -265,10 +265,11 @@ bool init_firmware(struct net_device *dev)
 			case FW_SOURCE_IMG_FILE:
 			{
 				if (pfirmware->firmware_buf_size[init_step] == 0) {
-					const char *fw_name[3] = { "RTL8192E/boot.img",
-							   "RTL8192E/main.img",
-							   "RTL8192E/data.img"
-							 };
+					const char *fw_name[3] = {
+							RTL8192E_BOOT_IMG_FW,
+							RTL8192E_MAIN_IMG_FW,
+							RTL8192E_DATA_IMG_FW
+					};
 					const struct firmware	*fw_entry;
 					int rc;
 					rc = request_firmware(&fw_entry,
