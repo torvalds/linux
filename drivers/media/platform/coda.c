@@ -136,6 +136,7 @@ struct coda_dev {
 	struct vb2_alloc_ctx	*alloc_ctx;
 	struct list_head	instances;
 	unsigned long		instance_mask;
+	struct delayed_work	timeout;
 };
 
 struct coda_params {
@@ -727,6 +728,9 @@ static void coda_device_run(void *m2m_priv)
 				CODA7_REG_BIT_AXI_SRAM_USE);
 	}
 
+	/* 1 second timeout in case CODA locks up */
+	schedule_delayed_work(&dev->timeout, HZ);
+
 	coda_command_async(ctx, CODA_COMMAND_PIC_RUN);
 }
 
@@ -1213,6 +1217,7 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 static int coda_stop_streaming(struct vb2_queue *q)
 {
 	struct coda_ctx *ctx = vb2_get_drv_priv(q);
+	struct coda_dev *dev = ctx->dev;
 
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
@@ -1225,6 +1230,8 @@ static int coda_stop_streaming(struct vb2_queue *q)
 	}
 
 	if (!ctx->rawstreamon && !ctx->compstreamon) {
+		cancel_delayed_work(&dev->timeout);
+
 		v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
 			 "%s: sent command 'SEQ_END' to coda\n", __func__);
 		if (coda_command_sync(ctx, CODA_COMMAND_SEQ_END)) {
@@ -1495,6 +1502,8 @@ static irqreturn_t coda_irq_handler(int irq, void *data)
 	u32 wr_ptr, start_ptr;
 	struct coda_ctx *ctx;
 
+	__cancel_delayed_work(&dev->timeout);
+
 	/* read status register to attend the IRQ */
 	coda_read(dev, CODA_REG_BIT_INT_STATUS);
 	coda_write(dev, CODA_REG_BIT_INT_CLEAR_SET,
@@ -1565,6 +1574,22 @@ static irqreturn_t coda_irq_handler(int irq, void *data)
 	v4l2_m2m_job_finish(ctx->dev->m2m_dev, ctx->m2m_ctx);
 
 	return IRQ_HANDLED;
+}
+
+static void coda_timeout(struct work_struct *work)
+{
+	struct coda_ctx *ctx;
+	struct coda_dev *dev = container_of(to_delayed_work(work),
+					    struct coda_dev, timeout);
+
+	v4l2_err(&dev->v4l2_dev, "CODA PIC_RUN timeout, stopping all streams\n");
+
+	mutex_lock(&dev->dev_mutex);
+	list_for_each_entry(ctx, &dev->instances, list) {
+		v4l2_m2m_streamoff(NULL, ctx->m2m_ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
+		v4l2_m2m_streamoff(NULL, ctx->m2m_ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	}
+	mutex_unlock(&dev->dev_mutex);
 }
 
 static u32 coda_supported_firmwares[] = {
@@ -1839,6 +1864,7 @@ static int __devinit coda_probe(struct platform_device *pdev)
 
 	spin_lock_init(&dev->irqlock);
 	INIT_LIST_HEAD(&dev->instances);
+	INIT_DELAYED_WORK(&dev->timeout, coda_timeout);
 
 	dev->plat_dev = pdev;
 	dev->clk_per = devm_clk_get(&pdev->dev, "per");
