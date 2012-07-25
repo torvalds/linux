@@ -1716,9 +1716,11 @@ static int __init nvme_init(void)
 	if (IS_ERR(nvme_thread))
 		return PTR_ERR(nvme_thread);
 
-	nvme_major = register_blkdev(nvme_major, "nvme");
-	if (nvme_major <= 0)
+	result = register_blkdev(nvme_major, "nvme");
+	if (result < 0)
 		goto kill_kthread;
+	else if (result > 0)
+	    nvme_major = result;
 
 	result = pci_register_driver(&nvme_driver);
 	if (result)
