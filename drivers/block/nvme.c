@@ -840,15 +840,15 @@ static int nvme_identify(struct nvme_dev *dev, unsigned nsid, unsigned cns,
 }
 
 static int nvme_get_features(struct nvme_dev *dev, unsigned fid,
-				unsigned dword11, dma_addr_t dma_addr)
+				unsigned nsid, dma_addr_t dma_addr)
 {
 	struct nvme_command c;
 
 	memset(&c, 0, sizeof(c));
 	c.features.opcode = nvme_admin_get_features;
+	c.features.nsid = cpu_to_le32(nsid);
 	c.features.prp1 = cpu_to_le64(dma_addr);
 	c.features.fid = cpu_to_le32(fid);
-	c.features.dword11 = cpu_to_le32(dword11);
 
 	return nvme_submit_admin_cmd(dev, &c, NULL);
 }
