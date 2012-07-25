@@ -18,8 +18,6 @@
 #include <asm/page.h>
 #include <asm/prom.h>
 
-#define phys_to_abs(pa) (pa)
-
 /* Convenience macros */
 #define virt_to_abs(va) __pa(va)
 #define abs_to_virt(aa) __va(aa)
