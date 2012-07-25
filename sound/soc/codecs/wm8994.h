@@ -73,7 +73,6 @@ struct wm8994;
 struct wm8994_priv {
 	struct wm_hubs_data hubs;
 	struct wm8994 *wm8994;
-	struct snd_soc_codec *codec;
 	int sysclk[2];
 	int sysclk_rate[2];
 	int mclk[2];

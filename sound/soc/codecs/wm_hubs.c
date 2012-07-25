@@ -1112,6 +1112,8 @@ int wm_hubs_add_analogue_routes(struct snd_soc_codec *codec,
 	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
+	hubs->codec = codec;
+
 	INIT_LIST_HEAD(&hubs->dcs_cache);
 	init_completion(&hubs->dcs_done);
 
