@@ -550,8 +550,6 @@ static int thermal_get_temp(struct thermal_zone_device *thermal,
 	return 0;
 }
 
-static const char enabled[] = "kernel";
-static const char disabled[] = "user";
 static int thermal_get_mode(struct thermal_zone_device *thermal,
 				enum thermal_device_mode *mode)
 {
@@ -588,8 +586,8 @@ static int thermal_set_mode(struct thermal_zone_device *thermal,
 	if (enable != tz->tz_enabled) {
 		tz->tz_enabled = enable;
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"%s ACPI thermal control\n",
-			tz->tz_enabled ? enabled : disabled));
+			"%s kernel ACPI thermal control\n",
+			tz->tz_enabled ? "Enable" : "Disable"));
 		acpi_thermal_check(tz);
 	}
 	return 0;
