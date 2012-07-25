@@ -566,7 +566,7 @@ static int __devinit omap_hdq_probe(struct platform_device *pdev)
 		goto err_resource;
 	}
 
-	hdq_data->hdq_base = ioremap(res->start, SZ_4K);
+	hdq_data->hdq_base = ioremap(res->start, resource_size(res));
 	if (!hdq_data->hdq_base) {
 		dev_dbg(&pdev->dev, "ioremap failed\n");
 		ret = -EINVAL;
