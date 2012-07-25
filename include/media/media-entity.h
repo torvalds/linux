@@ -46,6 +46,7 @@ struct media_entity_operations {
 	int (*link_setup)(struct media_entity *entity,
 			  const struct media_pad *local,
 			  const struct media_pad *remote, u32 flags);
+	int (*link_validate)(struct media_link *link);
 };
 
 struct media_entity {
@@ -140,8 +141,8 @@ void media_entity_graph_walk_start(struct media_entity_graph *graph,
 		struct media_entity *entity);
 struct media_entity *
 media_entity_graph_walk_next(struct media_entity_graph *graph);
-void media_entity_pipeline_start(struct media_entity *entity,
-		struct media_pipeline *pipe);
+__must_check int media_entity_pipeline_start(struct media_entity *entity,
+					     struct media_pipeline *pipe);
 void media_entity_pipeline_stop(struct media_entity *entity);
 
 #define media_entity_call(entity, operation, args...)			\

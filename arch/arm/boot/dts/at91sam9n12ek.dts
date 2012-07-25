@@ -1,0 +1,84 @@
+/*
+ * at91sam9n12ek.dts - Device Tree file for AT91SAM9N12-EK board
+ *
+ *  Copyright (C) 2012 Atmel,
+ *                2012 Hong Xu <hong.xu@atmel.com>
+ *
+ * Licensed under GPLv2 or later.
+ */
+/dts-v1/;
+/include/ "at91sam9n12.dtsi"
+
+/ {
+	model = "Atmel AT91SAM9N12-EK";
+	compatible = "atmel,at91sam9n12ek", "atmel,at91sam9n12", "atmel,at91sam9";
+
+	chosen {
+		bootargs = "mem=128M console=ttyS0,115200 root=/dev/mtdblock1 rw rootfstype=jffs2";
+	};
+
+	memory {
+		reg = <0x20000000 0x10000000>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		main_clock: clock@0 {
+			compatible = "atmel,osc", "fixed-clock";
+			clock-frequency = <16000000>;
+		};
+	};
+
+	ahb {
+		apb {
+			dbgu: serial@fffff200 {
+				status = "okay";
+			};
+		};
+
+		nand0: nand@40000000 {
+			nand-bus-width = <8>;
+			nand-ecc-mode = "soft";
+			nand-on-flash-bbt;
+			status = "okay";
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		d8 {
+			label = "d8";
+			gpios = <&pioB 4 1>;
+			linux,default-trigger = "mmc0";
+		};
+
+		d9 {
+			label = "d6";
+			gpios = <&pioB 5 1>;
+			linux,default-trigger = "nand-disk";
+		};
+
+		d10 {
+			label = "d7";
+			gpios = <&pioB 6 0>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		enter {
+			label = "Enter";
+			gpios = <&pioB 4 1>;
+			linux,code = <28>;
+			gpio-key,wakeup;
+		};
+	};
+};

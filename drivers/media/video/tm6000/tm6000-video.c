@@ -169,7 +169,6 @@ static inline void get_next_buf(struct tm6000_dmaqueue *dma_q,
 			       struct tm6000_buffer   **buf)
 {
 	struct tm6000_core *dev = container_of(dma_q, struct tm6000_core, vidq);
-	char *outp;
 
 	if (list_empty(&dma_q->active)) {
 		dprintk(dev, V4L2_DEBUG_QUEUE, "No active queue to serve\n");
@@ -179,11 +178,6 @@ static inline void get_next_buf(struct tm6000_dmaqueue *dma_q,
 
 	*buf = list_entry(dma_q->active.next,
 			struct tm6000_buffer, vb.queue);
-
-	/* Cleans up buffer - Useful for testing for frame/URB loss */
-	outp = videobuf_to_vmalloc(&(*buf)->vb);
-
-	return;
 }
 
 /*
@@ -211,7 +205,7 @@ static int copy_streams(u8 *data, unsigned long len,
 {
 	struct tm6000_dmaqueue  *dma_q = urb->context;
 	struct tm6000_core *dev = container_of(dma_q, struct tm6000_core, vidq);
-	u8 *ptr = data, *endp = data+len, c;
+	u8 *ptr = data, *endp = data+len;
 	unsigned long header = 0;
 	int rc = 0;
 	unsigned int cmd, cpysize, pktsize, size, field, block, line, pos = 0;
@@ -264,7 +258,6 @@ static int copy_streams(u8 *data, unsigned long len,
 			}
 
 			/* split the header fields */
-			c = (header >> 24) & 0xff;
 			size = ((header & 0x7e) << 1);
 			if (size > 0)
 				size -= 4;
@@ -889,7 +882,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 
 	strlcpy(cap->driver, "tm6000", sizeof(cap->driver));
 	strlcpy(cap->card, "Trident TVMaster TM5600/6000/6010", sizeof(cap->card));
-	cap->version = TM6000_VERSION;
 	cap->capabilities =	V4L2_CAP_VIDEO_CAPTURE |
 				V4L2_CAP_STREAMING     |
 				V4L2_CAP_AUDIO         |
@@ -1732,6 +1724,10 @@ static struct video_device *vdev_init(struct tm6000_core *dev,
 	vfd->release = video_device_release;
 	vfd->debug = tm6000_debug;
 	vfd->lock = &dev->lock;
+	/* Locking in file operations other than ioctl should be done
+	   by the driver, not the V4L2 core.
+	   This driver needs auditing so that this flag can be removed. */
+	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s", dev->name, type_name);
 

@@ -37,7 +37,7 @@ static inline int dev_is_sata(struct domain_device *dev)
 }
 
 int sas_get_ata_info(struct domain_device *dev, struct ex_phy *phy);
-int sas_ata_init_host_and_port(struct domain_device *found_dev);
+int sas_ata_init(struct domain_device *dev);
 void sas_ata_task_abort(struct sas_task *task);
 void sas_ata_strategy_handler(struct Scsi_Host *shost);
 void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
@@ -52,7 +52,7 @@ static inline int dev_is_sata(struct domain_device *dev)
 {
 	return 0;
 }
-static inline int sas_ata_init_host_and_port(struct domain_device *found_dev)
+static inline int sas_ata_init(struct domain_device *dev)
 {
 	return 0;
 }

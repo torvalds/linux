@@ -51,7 +51,7 @@
 
 static int fddi_header(struct sk_buff *skb, struct net_device *dev,
 		       unsigned short type,
-		       const void *daddr, const void *saddr, unsigned len)
+		       const void *daddr, const void *saddr, unsigned int len)
 {
 	int hl = FDDI_K_SNAP_HLEN;
 	struct fddihdr *fddi;

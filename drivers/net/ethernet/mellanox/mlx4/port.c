@@ -338,13 +338,12 @@ EXPORT_SYMBOL_GPL(__mlx4_unregister_mac);
 void mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 {
 	u64 out_param;
-	int err;
 
 	if (mlx4_is_mfunc(dev)) {
 		set_param_l(&out_param, port);
-		err = mlx4_cmd_imm(dev, mac, &out_param, RES_MAC,
-				   RES_OP_RESERVE_AND_MAP, MLX4_CMD_FREE_RES,
-				   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
+		(void) mlx4_cmd_imm(dev, mac, &out_param, RES_MAC,
+				    RES_OP_RESERVE_AND_MAP, MLX4_CMD_FREE_RES,
+				    MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 		return;
 	}
 	__mlx4_unregister_mac(dev, port, mac);
@@ -698,10 +697,10 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 	if (slave != dev->caps.function)
 		memset(inbox->buf, 0, 256);
 	if (dev->flags & MLX4_FLAG_OLD_PORT_CMDS) {
-		*(u8 *) inbox->buf	   = !!reset_qkey_viols << 6;
+		*(u8 *) inbox->buf	   |= !!reset_qkey_viols << 6;
 		((__be32 *) inbox->buf)[2] = agg_cap_mask;
 	} else {
-		((u8 *) inbox->buf)[3]     = !!reset_qkey_viols;
+		((u8 *) inbox->buf)[3]     |= !!reset_qkey_viols;
 		((__be32 *) inbox->buf)[1] = agg_cap_mask;
 	}
 
@@ -833,6 +832,68 @@ int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 	return err;
 }
 EXPORT_SYMBOL(mlx4_SET_PORT_qpn_calc);
+
+int mlx4_SET_PORT_PRIO2TC(struct mlx4_dev *dev, u8 port, u8 *prio2tc)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	struct mlx4_set_port_prio2tc_context *context;
+	int err;
+	u32 in_mod;
+	int i;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	context = mailbox->buf;
+	memset(context, 0, sizeof *context);
+
+	for (i = 0; i < MLX4_NUM_UP; i += 2)
+		context->prio2tc[i >> 1] = prio2tc[i] << 4 | prio2tc[i + 1];
+
+	in_mod = MLX4_SET_PORT_PRIO2TC << 8 | port;
+	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+EXPORT_SYMBOL(mlx4_SET_PORT_PRIO2TC);
+
+int mlx4_SET_PORT_SCHEDULER(struct mlx4_dev *dev, u8 port, u8 *tc_tx_bw,
+		u8 *pg, u16 *ratelimit)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	struct mlx4_set_port_scheduler_context *context;
+	int err;
+	u32 in_mod;
+	int i;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	context = mailbox->buf;
+	memset(context, 0, sizeof *context);
+
+	for (i = 0; i < MLX4_NUM_TC; i++) {
+		struct mlx4_port_scheduler_tc_cfg_be *tc = &context->tc[i];
+		u16 r = ratelimit && ratelimit[i] ? ratelimit[i] :
+			MLX4_RATELIMIT_DEFAULT;
+
+		tc->pg = htons(pg[i]);
+		tc->bw_precentage = htons(tc_tx_bw[i]);
+
+		tc->max_bw_units = htons(MLX4_RATELIMIT_UNITS);
+		tc->max_bw_value = htons(r);
+	}
+
+	in_mod = MLX4_SET_PORT_SCHEDULER << 8 | port;
+	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+EXPORT_SYMBOL(mlx4_SET_PORT_SCHEDULER);
 
 int mlx4_SET_MCAST_FLTR_wrapper(struct mlx4_dev *dev, int slave,
 				struct mlx4_vhcr *vhcr,

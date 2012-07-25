@@ -336,6 +336,7 @@ static struct usb_driver cdc_subset_driver = {
 	.resume =	usbnet_resume,
 	.disconnect =	usbnet_disconnect,
 	.id_table =	products,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(cdc_subset_driver);

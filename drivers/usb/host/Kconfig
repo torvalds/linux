@@ -65,7 +65,7 @@ config USB_EHCI_HCD
 
 config USB_EHCI_ROOT_HUB_TT
 	bool "Root Hub Transaction Translators"
-	depends on USB_EHCI_HCD
+	depends on USB_EHCI_HCD || USB_CHIPIDEA_HOST
 	---help---
 	  Some EHCI chips have vendor-specific extensions to integrate
 	  transaction translators, so that no OHCI or UHCI companion
@@ -77,7 +77,7 @@ config USB_EHCI_ROOT_HUB_TT
 
 config USB_EHCI_TT_NEWSCHED
 	bool "Improved Transaction Translator scheduling"
-	depends on USB_EHCI_HCD
+	depends on USB_EHCI_HCD || USB_CHIPIDEA_HOST
 	default y
 	---help---
 	  This changes the periodic scheduling code to fill more of the low
@@ -110,13 +110,14 @@ config USB_EHCI_BIG_ENDIAN_MMIO
 	depends on USB_EHCI_HCD && (PPC_CELLEB || PPC_PS3 || 440EPX || \
 				    ARCH_IXP4XX || XPS_USB_HCD_XILINX || \
 				    PPC_MPC512x || CPU_CAVIUM_OCTEON || \
-				    PMC_MSP || SPARC_LEON)
+				    PMC_MSP || SPARC_LEON || MIPS_SEAD3)
 	default y
 
 config USB_EHCI_BIG_ENDIAN_DESC
 	bool
 	depends on USB_EHCI_HCD && (440EPX || ARCH_IXP4XX || XPS_USB_HCD_XILINX || \
-				    PPC_MPC512x || PMC_MSP || SPARC_LEON)
+				    PPC_MPC512x || PMC_MSP || SPARC_LEON || \
+				    MIPS_SEAD3)
 	default y
 
 config XPS_USB_HCD_XILINX
@@ -152,7 +153,7 @@ config USB_EHCI_HCD_OMAP
 	bool "EHCI support for OMAP3 and later chips"
 	depends on USB_EHCI_HCD && ARCH_OMAP
 	default y
-	--- help ---
+	---help---
 	  Enables support for the on-chip EHCI controller on
 	  OMAP3 and later chips.
 
@@ -291,6 +292,7 @@ config USB_OHCI_HCD
 	depends on USB && USB_ARCH_HAS_OHCI
 	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3
 	select USB_OTG_UTILS if ARCH_OMAP
+	select USB_ISP1301 if ARCH_LPC32XX || ARCH_PNX4008
 	---help---
 	  The Open Host Controller Interface (OHCI) is a standard for accessing
 	  USB 1.1 host controller hardware.  It does more in hardware than Intel's
@@ -373,10 +375,15 @@ config USB_OHCI_HCD_PCI
 	  If unsure, say Y.
 
 config USB_OHCI_HCD_SSB
-	bool "OHCI support for Broadcom SSB OHCI core"
+	bool "OHCI support for Broadcom SSB OHCI core (DEPRECATED)"
 	depends on USB_OHCI_HCD && (SSB = y || SSB = USB_OHCI_HCD) && EXPERIMENTAL
+	select USB_HCD_SSB
+	select USB_OHCI_HCD_PLATFORM
 	default n
 	---help---
+	  This option is deprecated now and the driver was removed, use
+	  USB_HCD_SSB and USB_OHCI_HCD_PLATFORM instead.
+
 	  Support for the Sonics Silicon Backplane (SSB) attached
 	  Broadcom USB OHCI core.
 
@@ -638,3 +645,27 @@ config USB_OCTEON_OHCI
 config USB_OCTEON2_COMMON
 	bool
 	default y if USB_OCTEON_EHCI || USB_OCTEON_OHCI
+
+config USB_HCD_BCMA
+	tristate "BCMA usb host driver"
+	depends on BCMA && EXPERIMENTAL
+	select USB_OHCI_HCD_PLATFORM if USB_OHCI_HCD
+	select USB_EHCI_HCD_PLATFORM if USB_EHCI_HCD
+	help
+	  Enbale support for the EHCI and OCHI host controller on an bcma bus.
+	  It converts the bcma driver into two platform device drivers
+	  for ehci and ohci.
+
+	  If unsure, say N.
+
+config USB_HCD_SSB
+	tristate "SSB usb host driver"
+	depends on SSB && EXPERIMENTAL
+	select USB_OHCI_HCD_PLATFORM if USB_OHCI_HCD
+	select USB_EHCI_HCD_PLATFORM if USB_EHCI_HCD
+	help
+	  Enbale support for the EHCI and OCHI host controller on an bcma bus.
+	  It converts the bcma driver into two platform device drivers
+	  for ehci and ohci.
+
+	  If unsure, say N.

@@ -19,6 +19,9 @@
 
 #define PPC_DBELL_MSG_BRDCAST	(0x04000000)
 #define PPC_DBELL_TYPE(x)	(((x) & 0xf) << (63-36))
+#define PPC_DBELL_TYPE_MASK	PPC_DBELL_TYPE(0xf)
+#define PPC_DBELL_LPID(x)	((x) << (63 - 49))
+#define PPC_DBELL_PIR_MASK	0x3fff
 enum ppc_dbell {
 	PPC_DBELL = 0,		/* doorbell */
 	PPC_DBELL_CRIT = 1,	/* critical doorbell */

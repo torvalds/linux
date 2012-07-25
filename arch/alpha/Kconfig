@@ -15,6 +15,8 @@ config ALPHA
 	select GENERIC_IRQ_SHOW
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_CMOS_UPDATE
 	help
 	  The Alpha is a 64-bit general-purpose processor designed and
 	  marketed by the Digital Equipment Corporation of blessed memory,
@@ -46,9 +48,6 @@ config ARCH_HAS_ILOG2_U64
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
-
-config GENERIC_CMOS_UPDATE
-        def_bool y
 
 config GENERIC_GPIO
 	bool
@@ -477,7 +476,7 @@ config ALPHA_BROKEN_IRQ_MASK
 
 config VGA_HOSE
 	bool
-	depends on ALPHA_GENERIC || ALPHA_TITAN || ALPHA_MARVEL || ALPHA_TSUNAMI
+	depends on VGA_CONSOLE && (ALPHA_GENERIC || ALPHA_TITAN || ALPHA_MARVEL || ALPHA_TSUNAMI)
 	default y
 	help
 	  Support VGA on an arbitrary hose; needed for several platforms

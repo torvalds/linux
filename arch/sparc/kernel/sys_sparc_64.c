@@ -580,16 +580,9 @@ SYSCALL_DEFINE5(64_mremap, unsigned long, addr,	unsigned long, old_len,
 		unsigned long, new_len, unsigned long, flags,
 		unsigned long, new_addr)
 {
-	unsigned long ret = -EINVAL;
-
 	if (test_thread_flag(TIF_32BIT))
-		goto out;
-
-	down_write(&current->mm->mmap_sem);
-	ret = do_mremap(addr, old_len, new_len, flags, new_addr);
-	up_write(&current->mm->mmap_sem);
-out:
-	return ret;       
+		return -EINVAL;
+	return sys_mremap(addr, old_len, new_len, flags, new_addr);
 }
 
 /* we come to here via sys_nis_syscall so it can setup the regs argument */

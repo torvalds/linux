@@ -61,9 +61,11 @@ enum power_event {
 };
 
 /* GMAC HW ADDR regs */
-#define GMAC_ADDR_HIGH(reg)		(0x00000040+(reg * 8))
-#define GMAC_ADDR_LOW(reg)		(0x00000044+(reg * 8))
-#define GMAC_MAX_UNICAST_ADDRESSES	16
+#define GMAC_ADDR_HIGH(reg)	(((reg > 15) ? 0x00000800 : 0x00000040) + \
+				(reg * 8))
+#define GMAC_ADDR_LOW(reg)	(((reg > 15) ? 0x00000804 : 0x00000044) + \
+				(reg * 8))
+#define GMAC_MAX_PERFECT_ADDRESSES	32
 
 #define GMAC_AN_CTRL	0x000000c0	/* AN control */
 #define GMAC_AN_STATUS	0x000000c4	/* AN status */
@@ -139,10 +141,11 @@ enum rx_tx_priority_ratio {
 };
 
 #define DMA_BUS_MODE_FB		0x00010000	/* Fixed burst */
+#define DMA_BUS_MODE_MB		0x04000000	/* Mixed burst */
 #define DMA_BUS_MODE_RPBL_MASK	0x003e0000	/* Rx-Programmable Burst Len */
 #define DMA_BUS_MODE_RPBL_SHIFT	17
 #define DMA_BUS_MODE_USP	0x00800000
-#define DMA_BUS_MODE_4PBL	0x01000000
+#define DMA_BUS_MODE_PBL	0x01000000
 #define DMA_BUS_MODE_AAL	0x02000000
 
 /* DMA CRS Control and Status Register Mapping */
@@ -204,5 +207,8 @@ enum rtc_control {
 #define GMAC_MMC_RX_INTR   0x104
 #define GMAC_MMC_TX_INTR   0x108
 #define GMAC_MMC_RX_CSUM_OFFLOAD   0x208
+
+/* Synopsys Core versions */
+#define	DWMAC_CORE_3_40	34
 
 extern const struct stmmac_dma_ops dwmac1000_dma_ops;

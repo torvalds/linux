@@ -305,11 +305,6 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 				ar9462_common_rx_gain_table_2p0,
 				ARRAY_SIZE(ar9462_common_rx_gain_table_2p0), 2);
 
-		INIT_INI_ARRAY(&ah->ini_BTCOEX_MAX_TXPWR,
-				ar9462_2p0_BTCOEX_MAX_TXPWR_table,
-				ARRAY_SIZE(ar9462_2p0_BTCOEX_MAX_TXPWR_table),
-				2);
-
 		/* Awake -> Sleep Setting */
 		INIT_INI_ARRAY(&ah->iniPcieSerdes,
 				PCIE_PLL_ON_CREQ_DIS_L1_2P0,

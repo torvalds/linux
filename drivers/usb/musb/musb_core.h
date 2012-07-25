@@ -449,7 +449,7 @@ struct musb {
 	 * We added this flag to forcefully disable double
 	 * buffering until we get it working.
 	 */
-	unsigned                double_buffer_not_ok:1 __deprecated;
+	unsigned                double_buffer_not_ok:1;
 
 	struct musb_hdrc_config	*config;
 

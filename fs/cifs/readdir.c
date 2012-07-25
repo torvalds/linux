@@ -219,6 +219,7 @@ int get_symlink_reparse_path(char *full_path, struct cifs_sb_info *cifs_sb,
 
 static int initiate_cifs_search(const int xid, struct file *file)
 {
+	__u16 search_flags;
 	int rc = 0;
 	char *full_path = NULL;
 	struct cifsFileInfo *cifsFile;
@@ -270,8 +271,12 @@ ffirst_retry:
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_DIRECTORY_INFO;
 	}
 
+	search_flags = CIFS_SEARCH_CLOSE_AT_END | CIFS_SEARCH_RETURN_RESUME;
+	if (backup_cred(cifs_sb))
+		search_flags |= CIFS_SEARCH_BACKUP_SEARCH;
+
 	rc = CIFSFindFirst(xid, pTcon, full_path, cifs_sb->local_nls,
-		&cifsFile->netfid, &cifsFile->srch_inf,
+		&cifsFile->netfid, search_flags, &cifsFile->srch_inf,
 		cifs_sb->mnt_cifs_flags &
 			CIFS_MOUNT_MAP_SPECIAL_CHR, CIFS_DIR_SEP(cifs_sb));
 	if (rc == 0)
@@ -502,11 +507,13 @@ static int cifs_save_resume_key(const char *current_entry,
 static int find_cifs_entry(const int xid, struct cifs_tcon *pTcon,
 	struct file *file, char **ppCurrentEntry, int *num_to_ret)
 {
+	__u16 search_flags;
 	int rc = 0;
 	int pos_in_buf = 0;
 	loff_t first_entry_in_buffer;
 	loff_t index_to_find = file->f_pos;
 	struct cifsFileInfo *cifsFile = file->private_data;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	/* check if index in the buffer */
 
 	if ((cifsFile == NULL) || (ppCurrentEntry == NULL) ||
@@ -560,10 +567,14 @@ static int find_cifs_entry(const int xid, struct cifs_tcon *pTcon,
 						cifsFile);
 	}
 
+	search_flags = CIFS_SEARCH_CLOSE_AT_END | CIFS_SEARCH_RETURN_RESUME;
+	if (backup_cred(cifs_sb))
+		search_flags |= CIFS_SEARCH_BACKUP_SEARCH;
+
 	while ((index_to_find >= cifsFile->srch_inf.index_of_last_entry) &&
 	      (rc == 0) && !cifsFile->srch_inf.endOfSearch) {
 		cFYI(1, "calling findnext2");
-		rc = CIFSFindNext(xid, pTcon, cifsFile->netfid,
+		rc = CIFSFindNext(xid, pTcon, cifsFile->netfid, search_flags,
 				  &cifsFile->srch_inf);
 		/* FindFirst/Next set last_entry to NULL on malformed reply */
 		if (cifsFile->srch_inf.last_entry)

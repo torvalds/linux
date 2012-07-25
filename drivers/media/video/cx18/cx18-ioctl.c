@@ -1137,7 +1137,7 @@ static long cx18_default(struct file *file, void *fh, bool valid_prio,
 	}
 
 	default:
-		return -EINVAL;
+		return -ENOTTY;
 	}
 	return 0;
 }

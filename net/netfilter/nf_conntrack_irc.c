@@ -185,11 +185,9 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 			tuple = &ct->tuplehash[dir].tuple;
 			if (tuple->src.u3.ip != dcc_ip &&
 			    tuple->dst.u3.ip != dcc_ip) {
-				if (net_ratelimit())
-					printk(KERN_WARNING
-						"Forged DCC command from %pI4: %pI4:%u\n",
-						&tuple->src.u3.ip,
-						&dcc_ip, dcc_port);
+				net_warn_ratelimited("Forged DCC command from %pI4: %pI4:%u\n",
+						     &tuple->src.u3.ip,
+						     &dcc_ip, dcc_port);
 				continue;
 			}
 

@@ -14,6 +14,7 @@
 
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/log2.h>
@@ -90,7 +91,14 @@
 #define		MT9P031_GLOBAL_GAIN_MAX			1024
 #define		MT9P031_GLOBAL_GAIN_DEF			8
 #define		MT9P031_GLOBAL_GAIN_MULT		(1 << 6)
+#define MT9P031_ROW_BLACK_TARGET			0x49
 #define MT9P031_ROW_BLACK_DEF_OFFSET			0x4b
+#define MT9P031_GREEN1_OFFSET				0x60
+#define MT9P031_GREEN2_OFFSET				0x61
+#define MT9P031_BLACK_LEVEL_CALIBRATION			0x62
+#define		MT9P031_BLC_MANUAL_BLC			(1 << 0)
+#define MT9P031_RED_OFFSET				0x63
+#define MT9P031_BLUE_OFFSET				0x64
 #define MT9P031_TEST_PATTERN				0xa0
 #define		MT9P031_TEST_PATTERN_SHIFT		3
 #define		MT9P031_TEST_PATTERN_ENABLE		(1 << 0)
@@ -99,17 +107,27 @@
 #define MT9P031_TEST_PATTERN_RED			0xa2
 #define MT9P031_TEST_PATTERN_BLUE			0xa3
 
+enum mt9p031_model {
+	MT9P031_MODEL_COLOR,
+	MT9P031_MODEL_MONOCHROME,
+};
+
 struct mt9p031 {
 	struct v4l2_subdev subdev;
 	struct media_pad pad;
 	struct v4l2_rect crop;  /* Sensor window */
 	struct v4l2_mbus_framefmt format;
-	struct v4l2_ctrl_handler ctrls;
 	struct mt9p031_platform_data *pdata;
 	struct mutex power_lock; /* lock to protect power_count */
 	int power_count;
 
+	enum mt9p031_model model;
 	struct aptina_pll pll;
+	int reset;
+
+	struct v4l2_ctrl_handler ctrls;
+	struct v4l2_ctrl *blc_auto;
+	struct v4l2_ctrl *blc_offset;
 
 	/* Registers cache */
 	u16 output_control;
@@ -241,8 +259,8 @@ static inline int mt9p031_pll_disable(struct mt9p031 *mt9p031)
 static int mt9p031_power_on(struct mt9p031 *mt9p031)
 {
 	/* Ensure RESET_BAR is low */
-	if (mt9p031->pdata->reset) {
-		mt9p031->pdata->reset(&mt9p031->subdev, 1);
+	if (mt9p031->reset != -1) {
+		gpio_set_value(mt9p031->reset, 0);
 		usleep_range(1000, 2000);
 	}
 
@@ -252,8 +270,8 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 					 mt9p031->pdata->ext_freq);
 
 	/* Now RESET_BAR must be high */
-	if (mt9p031->pdata->reset) {
-		mt9p031->pdata->reset(&mt9p031->subdev, 0);
+	if (mt9p031->reset != -1) {
+		gpio_set_value(mt9p031->reset, 1);
 		usleep_range(1000, 2000);
 	}
 
@@ -262,8 +280,8 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 
 static void mt9p031_power_off(struct mt9p031 *mt9p031)
 {
-	if (mt9p031->pdata->reset) {
-		mt9p031->pdata->reset(&mt9p031->subdev, 1);
+	if (mt9p031->reset != -1) {
+		gpio_set_value(mt9p031->reset, 0);
 		usleep_range(1000, 2000);
 	}
 
@@ -557,6 +575,10 @@ static int mt9p031_set_crop(struct v4l2_subdev *subdev,
  */
 
 #define V4L2_CID_TEST_PATTERN		(V4L2_CID_USER_BASE | 0x1001)
+#define V4L2_CID_BLC_AUTO		(V4L2_CID_USER_BASE | 0x1002)
+#define V4L2_CID_BLC_TARGET_LEVEL	(V4L2_CID_USER_BASE | 0x1003)
+#define V4L2_CID_BLC_ANALOG_OFFSET	(V4L2_CID_USER_BASE | 0x1004)
+#define V4L2_CID_BLC_DIGITAL_OFFSET	(V4L2_CID_USER_BASE | 0x1005)
 
 static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -621,11 +643,17 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	case V4L2_CID_TEST_PATTERN:
 		if (!ctrl->val) {
-			ret = mt9p031_set_mode2(mt9p031,
-					0, MT9P031_READ_MODE_2_ROW_BLC);
-			if (ret < 0)
-				return ret;
-
+			/* Restore the black level compensation settings. */
+			if (mt9p031->blc_auto->cur.val != 0) {
+				ret = mt9p031_s_ctrl(mt9p031->blc_auto);
+				if (ret < 0)
+					return ret;
+			}
+			if (mt9p031->blc_offset->cur.val != 0) {
+				ret = mt9p031_s_ctrl(mt9p031->blc_offset);
+				if (ret < 0)
+					return ret;
+			}
 			return mt9p031_write(client, MT9P031_TEST_PATTERN,
 					     MT9P031_TEST_PATTERN_DISABLE);
 		}
@@ -640,10 +668,14 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 		if (ret < 0)
 			return ret;
 
+		/* Disable digital black level compensation when using a test
+		 * pattern.
+		 */
 		ret = mt9p031_set_mode2(mt9p031, MT9P031_READ_MODE_2_ROW_BLC,
 					0);
 		if (ret < 0)
 			return ret;
+
 		ret = mt9p031_write(client, MT9P031_ROW_BLACK_DEF_OFFSET, 0);
 		if (ret < 0)
 			return ret;
@@ -651,7 +683,40 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 		return mt9p031_write(client, MT9P031_TEST_PATTERN,
 				((ctrl->val - 1) << MT9P031_TEST_PATTERN_SHIFT)
 				| MT9P031_TEST_PATTERN_ENABLE);
+
+	case V4L2_CID_BLC_AUTO:
+		ret = mt9p031_set_mode2(mt9p031,
+				ctrl->val ? 0 : MT9P031_READ_MODE_2_ROW_BLC,
+				ctrl->val ? MT9P031_READ_MODE_2_ROW_BLC : 0);
+		if (ret < 0)
+			return ret;
+
+		return mt9p031_write(client, MT9P031_BLACK_LEVEL_CALIBRATION,
+				     ctrl->val ? 0 : MT9P031_BLC_MANUAL_BLC);
+
+	case V4L2_CID_BLC_TARGET_LEVEL:
+		return mt9p031_write(client, MT9P031_ROW_BLACK_TARGET,
+				     ctrl->val);
+
+	case V4L2_CID_BLC_ANALOG_OFFSET:
+		data = ctrl->val & ((1 << 9) - 1);
+
+		ret = mt9p031_write(client, MT9P031_GREEN1_OFFSET, data);
+		if (ret < 0)
+			return ret;
+		ret = mt9p031_write(client, MT9P031_GREEN2_OFFSET, data);
+		if (ret < 0)
+			return ret;
+		ret = mt9p031_write(client, MT9P031_RED_OFFSET, data);
+		if (ret < 0)
+			return ret;
+		return mt9p031_write(client, MT9P031_BLUE_OFFSET, data);
+
+	case V4L2_CID_BLC_DIGITAL_OFFSET:
+		return mt9p031_write(client, MT9P031_ROW_BLACK_DEF_OFFSET,
+				     ctrl->val & ((1 << 12) - 1));
 	}
+
 	return 0;
 }
 
@@ -685,6 +750,46 @@ static const struct v4l2_ctrl_config mt9p031_ctrls[] = {
 		.flags		= 0,
 		.menu_skip_mask	= 0,
 		.qmenu		= mt9p031_test_pattern_menu,
+	}, {
+		.ops		= &mt9p031_ctrl_ops,
+		.id		= V4L2_CID_BLC_AUTO,
+		.type		= V4L2_CTRL_TYPE_BOOLEAN,
+		.name		= "BLC, Auto",
+		.min		= 0,
+		.max		= 1,
+		.step		= 1,
+		.def		= 1,
+		.flags		= 0,
+	}, {
+		.ops		= &mt9p031_ctrl_ops,
+		.id		= V4L2_CID_BLC_TARGET_LEVEL,
+		.type		= V4L2_CTRL_TYPE_INTEGER,
+		.name		= "BLC Target Level",
+		.min		= 0,
+		.max		= 4095,
+		.step		= 1,
+		.def		= 168,
+		.flags		= 0,
+	}, {
+		.ops		= &mt9p031_ctrl_ops,
+		.id		= V4L2_CID_BLC_ANALOG_OFFSET,
+		.type		= V4L2_CTRL_TYPE_INTEGER,
+		.name		= "BLC Analog Offset",
+		.min		= -255,
+		.max		= 255,
+		.step		= 1,
+		.def		= 32,
+		.flags		= 0,
+	}, {
+		.ops		= &mt9p031_ctrl_ops,
+		.id		= V4L2_CID_BLC_DIGITAL_OFFSET,
+		.type		= V4L2_CTRL_TYPE_INTEGER,
+		.name		= "BLC Digital Offset",
+		.min		= -2048,
+		.max		= 2047,
+		.step		= 1,
+		.def		= 40,
+		.flags		= 0,
 	}
 };
 
@@ -764,7 +869,7 @@ static int mt9p031_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 
 	format = v4l2_subdev_get_try_format(fh, 0);
 
-	if (mt9p031->pdata->version == MT9P031_MONOCHROME_VERSION)
+	if (mt9p031->model == MT9P031_MODEL_MONOCHROME)
 		format->code = V4L2_MBUS_FMT_Y12_1X12;
 	else
 		format->code = V4L2_MBUS_FMT_SGRBG12_1X12;
@@ -842,6 +947,8 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->pdata = pdata;
 	mt9p031->output_control	= MT9P031_OUTPUT_CONTROL_DEF;
 	mt9p031->mode2 = MT9P031_READ_MODE_2_ROW_BLC;
+	mt9p031->model = did->driver_data;
+	mt9p031->reset = -1;
 
 	v4l2_ctrl_handler_init(&mt9p031->ctrls, ARRAY_SIZE(mt9p031_ctrls) + 4);
 
@@ -862,9 +969,16 @@ static int mt9p031_probe(struct i2c_client *client,
 
 	mt9p031->subdev.ctrl_handler = &mt9p031->ctrls;
 
-	if (mt9p031->ctrls.error)
+	if (mt9p031->ctrls.error) {
 		printk(KERN_INFO "%s: control initialization error %d\n",
 		       __func__, mt9p031->ctrls.error);
+		ret = mt9p031->ctrls.error;
+		goto done;
+	}
+
+	mt9p031->blc_auto = v4l2_ctrl_find(&mt9p031->ctrls, V4L2_CID_BLC_AUTO);
+	mt9p031->blc_offset = v4l2_ctrl_find(&mt9p031->ctrls,
+					     V4L2_CID_BLC_DIGITAL_OFFSET);
 
 	mutex_init(&mt9p031->power_lock);
 	v4l2_i2c_subdev_init(&mt9p031->subdev, client, &mt9p031_subdev_ops);
@@ -882,7 +996,7 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->crop.left = MT9P031_COLUMN_START_DEF;
 	mt9p031->crop.top = MT9P031_ROW_START_DEF;
 
-	if (mt9p031->pdata->version == MT9P031_MONOCHROME_VERSION)
+	if (mt9p031->model == MT9P031_MODEL_MONOCHROME)
 		mt9p031->format.code = V4L2_MBUS_FMT_Y12_1X12;
 	else
 		mt9p031->format.code = V4L2_MBUS_FMT_SGRBG12_1X12;
@@ -892,10 +1006,22 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->format.field = V4L2_FIELD_NONE;
 	mt9p031->format.colorspace = V4L2_COLORSPACE_SRGB;
 
+	if (pdata->reset != -1) {
+		ret = gpio_request_one(pdata->reset, GPIOF_OUT_INIT_LOW,
+				       "mt9p031_rst");
+		if (ret < 0)
+			goto done;
+
+		mt9p031->reset = pdata->reset;
+	}
+
 	ret = mt9p031_pll_setup(mt9p031);
 
 done:
 	if (ret < 0) {
+		if (mt9p031->reset != -1)
+			gpio_free(mt9p031->reset);
+
 		v4l2_ctrl_handler_free(&mt9p031->ctrls);
 		media_entity_cleanup(&mt9p031->subdev.entity);
 		kfree(mt9p031);
@@ -912,13 +1038,16 @@ static int mt9p031_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&mt9p031->ctrls);
 	v4l2_device_unregister_subdev(subdev);
 	media_entity_cleanup(&subdev->entity);
+	if (mt9p031->reset != -1)
+		gpio_free(mt9p031->reset);
 	kfree(mt9p031);
 
 	return 0;
 }
 
 static const struct i2c_device_id mt9p031_id[] = {
-	{ "mt9p031", 0 },
+	{ "mt9p031", MT9P031_MODEL_COLOR },
+	{ "mt9p031m", MT9P031_MODEL_MONOCHROME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mt9p031_id);

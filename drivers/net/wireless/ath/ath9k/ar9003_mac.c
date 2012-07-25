@@ -306,6 +306,8 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 		ar9003_mci_get_isr(ah, masked);
 
 	if (sync_cause) {
+		ath9k_debug_sync_cause(common, sync_cause);
+
 		if (sync_cause & AR_INTR_SYNC_RADM_CPL_TIMEOUT) {
 			REG_WRITE(ah, AR_RC, AR_RC_HOSTIF);
 			REG_WRITE(ah, AR_RC, 0);

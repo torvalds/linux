@@ -958,7 +958,7 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 	if (set_memory_uc((unsigned long)table, 1 << page_order))
 		printk(KERN_WARNING "Could not set GATT table memory to UC!\n");
 
-	bridge->gatt_table = (void *)table;
+	bridge->gatt_table = (u32 __iomem *)table;
 #else
 	bridge->gatt_table = ioremap_nocache(virt_to_phys(table),
 					(PAGE_SIZE * (1 << page_order)));
@@ -1010,7 +1010,6 @@ int agp_generic_free_gatt_table(struct agp_bridge_data *bridge)
 	case LVL2_APER_SIZE:
 		/* The generic routines can't deal with 2 level gatt's */
 		return -EINVAL;
-		break;
 	default:
 		page_order = 0;
 		break;
@@ -1077,7 +1076,6 @@ int agp_generic_insert_memory(struct agp_memory * mem, off_t pg_start, int type)
 	case LVL2_APER_SIZE:
 		/* The generic routines can't deal with 2 level gatt's */
 		return -EINVAL;
-		break;
 	default:
 		num_entries = 0;
 		break;

@@ -294,6 +294,7 @@ struct ipv6_txoptions *fl6_merge_options(struct ipv6_txoptions * opt_space,
 	opt_space->opt_flen = fopt->opt_flen;
 	return opt_space;
 }
+EXPORT_SYMBOL_GPL(fl6_merge_options);
 
 static unsigned long check_linger(unsigned long ttl)
 {
@@ -432,32 +433,32 @@ static int mem_check(struct sock *sk)
 	return 0;
 }
 
-static int ipv6_hdr_cmp(struct ipv6_opt_hdr *h1, struct ipv6_opt_hdr *h2)
+static bool ipv6_hdr_cmp(struct ipv6_opt_hdr *h1, struct ipv6_opt_hdr *h2)
 {
 	if (h1 == h2)
-		return 0;
+		return false;
 	if (h1 == NULL || h2 == NULL)
-		return 1;
+		return true;
 	if (h1->hdrlen != h2->hdrlen)
-		return 1;
+		return true;
 	return memcmp(h1+1, h2+1, ((h1->hdrlen+1)<<3) - sizeof(*h1));
 }
 
-static int ipv6_opt_cmp(struct ipv6_txoptions *o1, struct ipv6_txoptions *o2)
+static bool ipv6_opt_cmp(struct ipv6_txoptions *o1, struct ipv6_txoptions *o2)
 {
 	if (o1 == o2)
-		return 0;
+		return false;
 	if (o1 == NULL || o2 == NULL)
-		return 1;
+		return true;
 	if (o1->opt_nflen != o2->opt_nflen)
-		return 1;
+		return true;
 	if (ipv6_hdr_cmp(o1->hopopt, o2->hopopt))
-		return 1;
+		return true;
 	if (ipv6_hdr_cmp(o1->dst0opt, o2->dst0opt))
-		return 1;
+		return true;
 	if (ipv6_hdr_cmp((struct ipv6_opt_hdr *)o1->srcrt, (struct ipv6_opt_hdr *)o2->srcrt))
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 static inline void fl_link(struct ipv6_pinfo *np, struct ipv6_fl_socklist *sfl,
@@ -705,9 +706,9 @@ static int ip6fl_seq_show(struct seq_file *seq, void *v)
 		struct ip6_flowlabel *fl = v;
 		seq_printf(seq,
 			   "%05X %-1d %-6d %-6d %-6ld %-8ld %pi6 %-4d\n",
-			   (unsigned)ntohl(fl->label),
+			   (unsigned int)ntohl(fl->label),
 			   fl->share,
-			   (unsigned)fl->owner,
+			   (int)fl->owner,
 			   atomic_read(&fl->users),
 			   fl->linger/HZ,
 			   (long)(fl->expires - jiffies)/HZ,

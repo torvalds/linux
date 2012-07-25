@@ -123,3 +123,54 @@ Description:
 		half page, or a quarter page).
 
 		In the case of ECC NOR, it is the ECC block size.
+
+What:		/sys/class/mtd/mtdX/ecc_strength
+Date:		April 2012
+KernelVersion:	3.4
+Contact:	linux-mtd@lists.infradead.org
+Description:
+		Maximum number of bit errors that the device is capable of
+		correcting within each region covering an ecc step.  This will
+		always be a non-negative integer.  Note that some devices will
+		have multiple ecc steps within each writesize region.
+
+		In the case of devices lacking any ECC capability, it is 0.
+
+What:		/sys/class/mtd/mtdX/bitflip_threshold
+Date:		April 2012
+KernelVersion:	3.4
+Contact:	linux-mtd@lists.infradead.org
+Description:
+		This allows the user to examine and adjust the criteria by which
+		mtd returns -EUCLEAN from mtd_read().  If the maximum number of
+		bit errors that were corrected on any single region comprising
+		an ecc step (as reported by the driver) equals or exceeds this
+		value, -EUCLEAN is returned.  Otherwise, absent an error, 0 is
+		returned.  Higher layers (e.g., UBI) use this return code as an
+		indication that an erase block may be degrading and should be
+		scrutinized as a candidate for being marked as bad.
+
+		The initial value may be specified by the flash device driver.
+		If not, then the default value is ecc_strength.
+
+		The introduction of this feature brings a subtle change to the
+		meaning of the -EUCLEAN return code.  Previously, it was
+		interpreted to mean simply "one or more bit errors were
+		corrected".  Its new interpretation can be phrased as "a
+		dangerously high number of bit errors were corrected on one or
+		more regions comprising an ecc step".  The precise definition of
+		"dangerously high" can be adjusted by the user with
+		bitflip_threshold.  Users are discouraged from doing this,
+		however, unless they know what they are doing and have intimate
+		knowledge of the properties of their device.  Broadly speaking,
+		bitflip_threshold should be low enough to detect genuine erase
+		block degradation, but high enough to avoid the consequences of
+		a persistent return value of -EUCLEAN on devices where sticky
+		bitflips occur.  Note that if bitflip_threshold exceeds
+		ecc_strength, -EUCLEAN is never returned by mtd_read().
+		Conversely, if bitflip_threshold is zero, -EUCLEAN is always
+		returned, absent a hard error.
+
+		This is generally applicable only to NAND flash devices with ECC
+		capability.  It is ignored on devices lacking ECC capability;
+		i.e., devices for which ecc_strength is zero.

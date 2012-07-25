@@ -2,7 +2,7 @@ config ZCACHE
 	bool "Dynamic compression of swap pages and clean pagecache pages"
 	# X86 dependency is because zsmalloc uses non-portable pte/tlb
 	# functions
-	depends on (CLEANCACHE || FRONTSWAP) && CRYPTO && X86
+	depends on (CLEANCACHE || FRONTSWAP) && CRYPTO=y && X86
 	select ZSMALLOC
 	select CRYPTO_LZO
 	default n

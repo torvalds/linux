@@ -1141,7 +1141,6 @@ static void psb_intel_sdvo_dpms(struct drm_encoder *encoder, int mode)
 static int psb_intel_sdvo_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
-	struct drm_psb_private *dev_priv = connector->dev->dev_private;
 	struct psb_intel_sdvo *psb_intel_sdvo = intel_attached_sdvo(connector);
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
@@ -1160,11 +1159,6 @@ static int psb_intel_sdvo_mode_valid(struct drm_connector *connector,
 		if (mode->vdisplay > psb_intel_sdvo->sdvo_lvds_fixed_mode->vdisplay)
 			return MODE_PANEL;
 	}
-
-	/* We assume worst case scenario of 32 bpp here, since we don't know */
-	if ((ALIGN(mode->hdisplay * 4, 64) * mode->vdisplay) >
-	    dev_priv->vram_stolen_size)
-		return MODE_MEM;
 
 	return MODE_OK;
 }
@@ -2044,8 +2038,7 @@ psb_intel_sdvo_add_hdmi_properties(struct psb_intel_sdvo_connector *connector)
 	struct drm_device *dev = connector->base.base.dev;
 
 	intel_attach_force_audio_property(&connector->base.base);
-	if (INTEL_INFO(dev)->gen >= 4 && IS_MOBILE(dev))
-		intel_attach_broadcast_rgb_property(&connector->base.base);
+	intel_attach_broadcast_rgb_property(&connector->base.base);
 	*/
 }
 

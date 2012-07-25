@@ -28,12 +28,11 @@
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
 #include <linux/uaccess.h>
+#include <linux/tracehook.h>
 
 #include <asm/cacheflush.h>
 #include <asm/syscalls.h>
 #include <asm/ucontext.h>
-
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
 struct rt_sigframe {
 	u32 rs_ass[4];		/* argument save space */
@@ -152,17 +151,16 @@ score_rt_sigreturn(struct pt_regs *regs)
 	stack_t st;
 	int sig;
 
+	/* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+
 	frame = (struct rt_sigframe __user *) regs->regs[0];
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_from_user(&set, &frame->rs_uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	set_current_blocked(&set);
 
 	sig = restore_sigcontext(regs, &frame->rs_uc.uc_mcontext);
 	if (sig < 0)
@@ -236,17 +234,13 @@ static int setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
 	return 0;
 
 give_sigsegv:
-	if (signr == SIGSEGV)
-		ka->sa.sa_handler = SIG_DFL;
-	force_sig(SIGSEGV, current);
+	force_sigsegv(signr, current);
 	return -EFAULT;
 }
 
-static int handle_signal(unsigned long sig, siginfo_t *info,
-	struct k_sigaction *ka, sigset_t *oldset, struct pt_regs *regs)
+static void handle_signal(unsigned long sig, siginfo_t *info,
+	struct k_sigaction *ka, struct pt_regs *regs)
 {
-	int ret;
-
 	if (regs->is_syscall) {
 		switch (regs->regs[4]) {
 		case ERESTART_RESTARTBLOCK:
@@ -270,22 +264,15 @@ static int handle_signal(unsigned long sig, siginfo_t *info,
 	/*
 	 * Set up the stack frame
 	 */
-	ret = setup_rt_frame(ka, regs, sig, oldset, info);
+	if (setup_rt_frame(ka, regs, sig, sigmask_to_save(), info) < 0)
+		return;
 
-	spin_lock_irq(&current->sighand->siglock);
-	sigorsets(&current->blocked, &current->blocked, &ka->sa.sa_mask);
-	if (!(ka->sa.sa_flags & SA_NODEFER))
-		sigaddset(&current->blocked, sig);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	return ret;
+	signal_delivered(sig, info, ka, regs, 0);
 }
 
 static void do_signal(struct pt_regs *regs)
 {
 	struct k_sigaction ka;
-	sigset_t *oldset;
 	siginfo_t info;
 	int signr;
 
@@ -297,25 +284,10 @@ static void do_signal(struct pt_regs *regs)
 	if (!user_mode(regs))
 		return;
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Actually deliver the signal.  */
-		if (handle_signal(signr, &info, &ka, oldset, regs) == 0) {
-			/*
-			 * A signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag.
-			 */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-		}
-
+		handle_signal(signr, &info, &ka, regs);
 		return;
 	}
 
@@ -342,10 +314,7 @@ static void do_signal(struct pt_regs *regs)
 	 * If there's no signal to deliver, we just put the saved sigmask
 	 * back
 	 */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
+	restore_saved_sigmask();
 }
 
 /*
@@ -356,6 +325,10 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, void *unused,
 				__u32 thread_info_flags)
 {
 	/* deal with pending signal delivery */
-	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
+	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(regs);
+	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(regs);
+	}
 }

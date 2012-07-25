@@ -104,7 +104,6 @@ struct ad799x_chip_info {
 struct ad799x_state {
 	struct i2c_client		*client;
 	const struct ad799x_chip_info	*chip_info;
-	size_t				d_size;
 	struct iio_trigger		*trig;
 	struct regulator		*reg;
 	u16				int_vref_mv;

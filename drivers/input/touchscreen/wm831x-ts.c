@@ -260,15 +260,16 @@ static __devinit int wm831x_ts_probe(struct platform_device *pdev)
 	 * If we have a direct IRQ use it, otherwise use the interrupt
 	 * from the WM831x IRQ controller.
 	 */
+	wm831x_ts->data_irq = wm831x_irq(wm831x,
+					 platform_get_irq_byname(pdev,
+								 "TCHDATA"));
 	if (pdata && pdata->data_irq)
 		wm831x_ts->data_irq = pdata->data_irq;
-	else
-		wm831x_ts->data_irq = platform_get_irq_byname(pdev, "TCHDATA");
 
+	wm831x_ts->pd_irq = wm831x_irq(wm831x,
+				       platform_get_irq_byname(pdev, "TCHPD"));
 	if (pdata && pdata->pd_irq)
 		wm831x_ts->pd_irq = pdata->pd_irq;
-	else
-		wm831x_ts->pd_irq = platform_get_irq_byname(pdev, "TCHPD");
 
 	if (pdata)
 		wm831x_ts->pressure = pdata->pressure;

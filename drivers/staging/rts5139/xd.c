@@ -47,13 +47,6 @@ static inline void xd_set_err_code(struct rts51x_chip *chip, u8 err_code)
 	xd_card->err_code = err_code;
 }
 
-static inline int xd_check_err_code(struct rts51x_chip *chip, u8 err_code)
-{
-	struct xd_info *xd_card = &(chip->xd_card);
-
-	return (xd_card->err_code == err_code);
-}
-
 static int xd_set_init_para(struct rts51x_chip *chip)
 {
 	struct xd_info *xd_card = &(chip->xd_card);
@@ -862,6 +855,8 @@ static void xd_set_l2p_tbl(struct rts51x_chip *chip, int zone_no, u16 log_off,
 	zone->l2p_table[log_off] = phy_off;
 }
 
+static int xd_delay_write(struct rts51x_chip *chip);
+
 static u32 xd_get_l2p_tbl(struct rts51x_chip *chip, int zone_no, u16 log_off)
 {
 	struct xd_info *xd_card = &(chip->xd_card);
@@ -1181,91 +1176,6 @@ static int xd_copy_page(struct rts51x_chip *chip,
 
 	return STATUS_SUCCESS;
 }
-
-#ifdef XD_SPEEDUP
-static int xd_auto_copy_page(struct rts51x_chip *chip,
-			     u32 old_blk, u32 new_blk,
-			     u8 start_page, u8 end_page)
-{
-	struct xd_info *xd_card = &(chip->xd_card);
-	u32 old_page, new_page;
-	int retval;
-	u8 page_count;
-
-	RTS51X_DEBUGP("Auto copy page from block 0x%x to block 0x%x\n",
-		       old_blk, new_blk);
-
-	if (start_page > end_page)
-		TRACE_RET(chip, STATUS_FAIL);
-
-	page_count = end_page - start_page;
-
-	if ((old_blk == BLK_NOT_FOUND) || (new_blk == BLK_NOT_FOUND))
-		TRACE_RET(chip, STATUS_FAIL);
-
-	old_page = (old_blk << xd_card->block_shift) + start_page;
-	new_page = (new_blk << xd_card->block_shift) + start_page;
-
-	XD_CLR_BAD_NEWBLK(xd_card);
-
-	rts51x_init_cmd(chip);
-
-	rts51x_add_cmd(chip, WRITE_REG_CMD, XD_CP_WAITTIME, 0x03, WAIT_FF);
-	rts51x_add_cmd(chip, WRITE_REG_CMD, XD_CP_PAGELEN, 0xFF, page_count);
-
-	rts51x_add_cmd(chip, WRITE_REG_CMD, XD_CP_READADDR0, 0xFF, 0);
-	rts51x_add_cmd(chip, WRITE_REG_CMD, XD_CP_READADDR1, 0xFF,
-		       (u8) old_page);
-	rts51x_add_cmd(chip, WRITE_REG_CMD, XD_CP_READADDR2, 0xFF,
-		       (u8) (old_page >> 8));
-	rts51x_add_cmd(chip, WRITE_REG_CMD, XD_CP_READADDR3, 0xFF,
-		       (u8) (old_page >> 16));
-	rts51x_add_cmd(chip, WRITE_REG_CMD, XD_CP_READADDR4, 0xFF, 0);
-
-	rts51x_add_cmd(chip, WRITE_REG_CMD, XD_CP_WRITEADDR0, 0xFF, 0);
-	rts51x_add_cmd(chip, WRITE_REG_CMD, XD_CP_WRITEADDR1, 0xFF,
-		       (u8) new_page);
-	rts51x_add_cmd(chip, WRITE_REG_CMD, XD_CP_WRITEADDR2, 0xFF,
-		       (u8) (new_page >> 8));
-	rts51x_add_cmd(chip, WRITE_REG_CMD, XD_CP_WRITEADDR3, 0xFF,
-		       (u8) (new_page >> 16));
-	rts51x_add_cmd(chip, WRITE_REG_CMD, XD_CP_WRITEADDR4, 0xFF, 0);
-
-	rts51x_add_cmd(chip, WRITE_REG_CMD, CARD_DATA_SOURCE, 0x01,
-		       PINGPONG_BUFFER);
-
-	rts51x_add_cmd(chip, WRITE_REG_CMD, XD_CFG,
-		       XD_BA_TRANSFORM | XD_ADDR_MASK, 0 | xd_card->addr_cycle);
-
-	rts51x_add_cmd(chip, WRITE_REG_CMD, XD_CHK_DATA_STATUS,
-		       XD_AUTO_CHK_DATA_STATUS, 0);
-	rts51x_add_cmd(chip, WRITE_REG_CMD, XD_TRANSFER, 0xFF,
-		       XD_TRANSFER_START | XD_COPY_PAGES);
-	rts51x_add_cmd(chip, CHECK_REG_CMD, XD_TRANSFER, XD_TRANSFER_END,
-		       XD_TRANSFER_END);
-
-	retval = rts51x_send_cmd(chip, MODE_CR, 100);
-	if (retval != STATUS_SUCCESS) {
-		rts51x_clear_xd_error(chip);
-		TRACE_GOTO(chip, Copy_Fail);
-	}
-
-	retval = rts51x_get_rsp(chip, 1, 800);
-	if (retval != STATUS_SUCCESS) {
-		rts51x_clear_xd_error(chip);
-		TRACE_GOTO(chip, Copy_Fail);
-	}
-
-	return STATUS_SUCCESS;
-
-Copy_Fail:
-	retval = xd_copy_page(chip, old_blk, new_blk, start_page, end_page);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, retval);
-
-	return STATUS_SUCCESS;
-}
-#endif
 
 static int xd_reset_cmd(struct rts51x_chip *chip)
 {
@@ -1686,15 +1596,9 @@ Fail:
 			XD_CLR_BAD_OLDBLK(xd_card);
 			TRACE_RET(chip, STATUS_FAIL);
 		}
-#ifdef XD_SPEEDUP
-		retval =
-		    xd_auto_copy_page(chip, phy_blk, new_blk, 0,
-				      xd_card->page_off + 1);
-#else
 		retval =
 		    xd_copy_page(chip, phy_blk, new_blk, 0,
 				 xd_card->page_off + 1);
-#endif
 		if (retval != STATUS_SUCCESS) {
 			if (!XD_CHK_BAD_NEWBLK(xd_card)) {
 				retval = xd_erase_block(chip, new_blk);
@@ -1741,13 +1645,8 @@ static int xd_finish_write(struct rts51x_chip *chip,
 			TRACE_RET(chip, STATUS_FAIL);
 		}
 	} else {
-#ifdef XD_SPEEDUP
-		retval = xd_auto_copy_page(chip, old_blk, new_blk,
-					   page_off, xd_card->page_off + 1);
-#else
 		retval = xd_copy_page(chip, old_blk, new_blk,
 				      page_off, xd_card->page_off + 1);
-#endif
 		if (retval != STATUS_SUCCESS) {
 			if (!XD_CHK_BAD_NEWBLK(xd_card)) {
 				retval = xd_erase_block(chip, new_blk);
@@ -1789,11 +1688,7 @@ static int xd_prepare_write(struct rts51x_chip *chip,
 				old_blk, new_blk, log_blk, (int)page_off);
 
 	if (page_off) {
-#ifdef XD_SPEEDUP
-		retval = xd_auto_copy_page(chip, old_blk, new_blk, 0, page_off);
-#else
 		retval = xd_copy_page(chip, old_blk, new_blk, 0, page_off);
-#endif
 		if (retval != STATUS_SUCCESS)
 			TRACE_RET(chip, retval);
 	}
@@ -1922,7 +1817,7 @@ Fail:
 	TRACE_RET(chip, STATUS_FAIL);
 }
 
-int xd_delay_write(struct rts51x_chip *chip)
+static int xd_delay_write(struct rts51x_chip *chip)
 {
 	struct xd_info *xd_card = &(chip->xd_card);
 	struct xd_delay_write_tag *delay_write = &(xd_card->delay_write);
@@ -1999,18 +1894,11 @@ int xd_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 start_sector,
 		    (start_page > delay_write->pageoff)) {
 			delay_write->delay_write_flag = 0;
 			if (delay_write->old_phyblock != BLK_NOT_FOUND) {
-#ifdef XD_SPEEDUP
-				retval = xd_auto_copy_page(chip,
-					delay_write->old_phyblock,
-					delay_write->new_phyblock,
-					delay_write->pageoff, start_page);
-#else
 				retval = xd_copy_page(chip,
 						      delay_write->old_phyblock,
 						      delay_write->new_phyblock,
 						      delay_write->pageoff,
 						      start_page);
-#endif
 				if (retval != STATUS_SUCCESS) {
 					set_sense_type(chip, lun,
 						SENSE_TYPE_MEDIA_WRITE_ERR);
@@ -2198,7 +2086,7 @@ void xd_cleanup_work(struct rts51x_chip *chip)
 	}
 }
 
-int xd_power_off_card3v3(struct rts51x_chip *chip)
+static int xd_power_off_card3v3(struct rts51x_chip *chip)
 {
 	int retval;
 
@@ -2232,7 +2120,7 @@ int release_xd_card(struct rts51x_chip *chip)
 	struct xd_info *xd_card = &(chip->xd_card);
 	int retval;
 
-	RTS51X_DEBUGP("elease_xd_card\n");
+	RTS51X_DEBUGP("release_xd_card\n");
 
 	chip->card_ready &= ~XD_CARD;
 	chip->card_fail &= ~XD_CARD;

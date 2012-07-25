@@ -58,7 +58,6 @@ extern const char *wb_reason_name[];
  * in a manner such that unspecified fields are set to zero.
  */
 struct writeback_control {
-	enum writeback_sync_modes sync_mode;
 	long nr_to_write;		/* Write this many pages, and decrement
 					   this for each page written */
 	long pages_skipped;		/* Pages which were not written */
@@ -70,6 +69,8 @@ struct writeback_control {
 	 */
 	loff_t range_start;
 	loff_t range_end;
+
+	enum writeback_sync_modes sync_mode;
 
 	unsigned for_kupdate:1;		/* A kupdate writeback */
 	unsigned for_background:1;	/* A background writeback */
@@ -94,18 +95,13 @@ long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages,
 				enum wb_reason reason);
 long wb_do_writeback(struct bdi_writeback *wb, int force_wait);
 void wakeup_flusher_threads(long nr_pages, enum wb_reason reason);
+void inode_wait_for_writeback(struct inode *inode);
 
 /* writeback.h requires fs.h; it, too, is not included from here. */
 static inline void wait_on_inode(struct inode *inode)
 {
 	might_sleep();
 	wait_on_bit(&inode->i_state, __I_NEW, inode_wait, TASK_UNINTERRUPTIBLE);
-}
-static inline void inode_sync_wait(struct inode *inode)
-{
-	might_sleep();
-	wait_on_bit(&inode->i_state, __I_SYNC, inode_wait,
-							TASK_UNINTERRUPTIBLE);
 }
 
 

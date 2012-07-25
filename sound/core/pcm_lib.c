@@ -313,9 +313,22 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	snd_pcm_uframes_t old_hw_ptr, new_hw_ptr, hw_base;
 	snd_pcm_sframes_t hdelta, delta;
 	unsigned long jdelta;
+	unsigned long curr_jiffies;
+	struct timespec curr_tstamp;
 
 	old_hw_ptr = runtime->status->hw_ptr;
+
+	/*
+	 * group pointer, time and jiffies reads to allow for more
+	 * accurate correlations/corrections.
+	 * The values are stored at the end of this routine after
+	 * corrections for hw_ptr position
+	 */
 	pos = substream->ops->pointer(substream);
+	curr_jiffies = jiffies;
+	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE)
+		snd_pcm_gettime(runtime, (struct timespec *)&curr_tstamp);
+
 	if (pos == SNDRV_PCM_POS_XRUN) {
 		xrun(substream);
 		return -EPIPE;
@@ -343,7 +356,7 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		delta = runtime->hw_ptr_interrupt + runtime->period_size;
 		if (delta > new_hw_ptr) {
 			/* check for double acknowledged interrupts */
-			hdelta = jiffies - runtime->hw_ptr_jiffies;
+			hdelta = curr_jiffies - runtime->hw_ptr_jiffies;
 			if (hdelta > runtime->hw_ptr_buffer_jiffies/2) {
 				hw_base += runtime->buffer_size;
 				if (hw_base >= runtime->boundary)
@@ -388,7 +401,7 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		 * Without regular period interrupts, we have to check
 		 * the elapsed time to detect xruns.
 		 */
-		jdelta = jiffies - runtime->hw_ptr_jiffies;
+		jdelta = curr_jiffies - runtime->hw_ptr_jiffies;
 		if (jdelta < runtime->hw_ptr_buffer_jiffies / 2)
 			goto no_delta_check;
 		hdelta = jdelta - delta * HZ / runtime->rate;
@@ -430,7 +443,7 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	if (hdelta < runtime->delay)
 		goto no_jiffies_check;
 	hdelta -= runtime->delay;
-	jdelta = jiffies - runtime->hw_ptr_jiffies;
+	jdelta = curr_jiffies - runtime->hw_ptr_jiffies;
 	if (((hdelta * HZ) / runtime->rate) > jdelta + HZ/100) {
 		delta = jdelta /
 			(((runtime->period_size * HZ) / runtime->rate)
@@ -492,9 +505,9 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	}
 	runtime->hw_ptr_base = hw_base;
 	runtime->status->hw_ptr = new_hw_ptr;
-	runtime->hw_ptr_jiffies = jiffies;
+	runtime->hw_ptr_jiffies = curr_jiffies;
 	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE)
-		snd_pcm_gettime(runtime, (struct timespec *)&runtime->status->tstamp);
+		runtime->status->tstamp = curr_tstamp;
 
 	return snd_pcm_update_state(substream, runtime);
 }
@@ -1894,6 +1907,7 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_uframes_t xfer = 0;
 	snd_pcm_uframes_t offset = 0;
+	snd_pcm_uframes_t avail;
 	int err = 0;
 
 	if (size == 0)
@@ -1917,13 +1931,12 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 	}
 
 	runtime->twake = runtime->control->avail_min ? : 1;
+	if (runtime->status->state == SNDRV_PCM_STATE_RUNNING)
+		snd_pcm_update_hw_ptr(substream);
+	avail = snd_pcm_playback_avail(runtime);
 	while (size > 0) {
 		snd_pcm_uframes_t frames, appl_ptr, appl_ofs;
-		snd_pcm_uframes_t avail;
 		snd_pcm_uframes_t cont;
-		if (runtime->status->state == SNDRV_PCM_STATE_RUNNING)
-			snd_pcm_update_hw_ptr(substream);
-		avail = snd_pcm_playback_avail(runtime);
 		if (!avail) {
 			if (nonblock) {
 				err = -EAGAIN;
@@ -1971,6 +1984,7 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 		offset += frames;
 		size -= frames;
 		xfer += frames;
+		avail -= frames;
 		if (runtime->status->state == SNDRV_PCM_STATE_PREPARED &&
 		    snd_pcm_playback_hw_avail(runtime) >= (snd_pcm_sframes_t)runtime->start_threshold) {
 			err = snd_pcm_start(substream);
@@ -2111,6 +2125,7 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_uframes_t xfer = 0;
 	snd_pcm_uframes_t offset = 0;
+	snd_pcm_uframes_t avail;
 	int err = 0;
 
 	if (size == 0)
@@ -2141,13 +2156,12 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 	}
 
 	runtime->twake = runtime->control->avail_min ? : 1;
+	if (runtime->status->state == SNDRV_PCM_STATE_RUNNING)
+		snd_pcm_update_hw_ptr(substream);
+	avail = snd_pcm_capture_avail(runtime);
 	while (size > 0) {
 		snd_pcm_uframes_t frames, appl_ptr, appl_ofs;
-		snd_pcm_uframes_t avail;
 		snd_pcm_uframes_t cont;
-		if (runtime->status->state == SNDRV_PCM_STATE_RUNNING)
-			snd_pcm_update_hw_ptr(substream);
-		avail = snd_pcm_capture_avail(runtime);
 		if (!avail) {
 			if (runtime->status->state ==
 			    SNDRV_PCM_STATE_DRAINING) {
@@ -2202,6 +2216,7 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 		offset += frames;
 		size -= frames;
 		xfer += frames;
+		avail -= frames;
 	}
  _end_unlock:
 	runtime->twake = 0;

@@ -225,7 +225,7 @@ static int pmu_config_term(struct list_head *formats,
 	if (parse_events__is_hardcoded_term(term))
 		return 0;
 
-	if (term->type != PARSE_EVENTS__TERM_TYPE_NUM)
+	if (term->type_val != PARSE_EVENTS__TERM_TYPE_NUM)
 		return -EINVAL;
 
 	format = pmu_find_format(formats, term->config);
@@ -246,6 +246,11 @@ static int pmu_config_term(struct list_head *formats,
 		return -EINVAL;
 	}
 
+	/*
+	 * XXX If we ever decide to go with string values for
+	 * non-hardcoded terms, here's the place to translate
+	 * them into value.
+	 */
 	*vp |= pmu_format_value(format->bits, term->val.num);
 	return 0;
 }
@@ -253,9 +258,9 @@ static int pmu_config_term(struct list_head *formats,
 static int pmu_config(struct list_head *formats, struct perf_event_attr *attr,
 		      struct list_head *head_terms)
 {
-	struct parse_events__term *term, *h;
+	struct parse_events__term *term;
 
-	list_for_each_entry_safe(term, h, head_terms, list)
+	list_for_each_entry(term, head_terms, list)
 		if (pmu_config_term(formats, attr, term))
 			return -EINVAL;
 
@@ -324,49 +329,58 @@ static struct test_format {
 /* Simulated users input. */
 static struct parse_events__term test_terms[] = {
 	{
-		.config  = (char *) "krava01",
-		.val.num = 15,
-		.type    = PARSE_EVENTS__TERM_TYPE_NUM,
+		.config    = (char *) "krava01",
+		.val.num   = 15,
+		.type_val  = PARSE_EVENTS__TERM_TYPE_NUM,
+		.type_term = PARSE_EVENTS__TERM_TYPE_USER,
 	},
 	{
-		.config  = (char *) "krava02",
-		.val.num = 170,
-		.type    = PARSE_EVENTS__TERM_TYPE_NUM,
+		.config    = (char *) "krava02",
+		.val.num   = 170,
+		.type_val  = PARSE_EVENTS__TERM_TYPE_NUM,
+		.type_term = PARSE_EVENTS__TERM_TYPE_USER,
 	},
 	{
-		.config  = (char *) "krava03",
-		.val.num = 1,
-		.type    = PARSE_EVENTS__TERM_TYPE_NUM,
+		.config    = (char *) "krava03",
+		.val.num   = 1,
+		.type_val  = PARSE_EVENTS__TERM_TYPE_NUM,
+		.type_term = PARSE_EVENTS__TERM_TYPE_USER,
 	},
 	{
-		.config  = (char *) "krava11",
-		.val.num = 27,
-		.type    = PARSE_EVENTS__TERM_TYPE_NUM,
+		.config    = (char *) "krava11",
+		.val.num   = 27,
+		.type_val  = PARSE_EVENTS__TERM_TYPE_NUM,
+		.type_term = PARSE_EVENTS__TERM_TYPE_USER,
 	},
 	{
-		.config  = (char *) "krava12",
-		.val.num = 1,
-		.type    = PARSE_EVENTS__TERM_TYPE_NUM,
+		.config    = (char *) "krava12",
+		.val.num   = 1,
+		.type_val  = PARSE_EVENTS__TERM_TYPE_NUM,
+		.type_term = PARSE_EVENTS__TERM_TYPE_USER,
 	},
 	{
-		.config  = (char *) "krava13",
-		.val.num = 2,
-		.type    = PARSE_EVENTS__TERM_TYPE_NUM,
+		.config    = (char *) "krava13",
+		.val.num   = 2,
+		.type_val  = PARSE_EVENTS__TERM_TYPE_NUM,
+		.type_term = PARSE_EVENTS__TERM_TYPE_USER,
 	},
 	{
-		.config  = (char *) "krava21",
-		.val.num = 119,
-		.type    = PARSE_EVENTS__TERM_TYPE_NUM,
+		.config    = (char *) "krava21",
+		.val.num   = 119,
+		.type_val  = PARSE_EVENTS__TERM_TYPE_NUM,
+		.type_term = PARSE_EVENTS__TERM_TYPE_USER,
 	},
 	{
-		.config  = (char *) "krava22",
-		.val.num = 11,
-		.type    = PARSE_EVENTS__TERM_TYPE_NUM,
+		.config    = (char *) "krava22",
+		.val.num   = 11,
+		.type_val  = PARSE_EVENTS__TERM_TYPE_NUM,
+		.type_term = PARSE_EVENTS__TERM_TYPE_USER,
 	},
 	{
-		.config  = (char *) "krava23",
-		.val.num = 2,
-		.type    = PARSE_EVENTS__TERM_TYPE_NUM,
+		.config    = (char *) "krava23",
+		.val.num   = 2,
+		.type_val  = PARSE_EVENTS__TERM_TYPE_NUM,
+		.type_term = PARSE_EVENTS__TERM_TYPE_USER,
 	},
 };
 #define TERMS_CNT (sizeof(test_terms) / sizeof(struct parse_events__term))

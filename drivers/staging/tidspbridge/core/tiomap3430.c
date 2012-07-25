@@ -79,10 +79,6 @@
 #define OMAP343X_CONTROL_IVA2_BOOTADDR (OMAP2_CONTROL_GENERAL + 0x0190)
 #define OMAP343X_CONTROL_IVA2_BOOTMOD (OMAP2_CONTROL_GENERAL + 0x0194)
 
-#define OMAP343X_CTRL_REGADDR(reg) \
-	OMAP2_L4_IO_ADDRESS(OMAP343X_CTRL_BASE + (reg))
-
-
 /* Forward Declarations: */
 static int bridge_brd_monitor(struct bridge_dev_context *dev_ctxt);
 static int bridge_brd_read(struct bridge_dev_context *dev_ctxt,
@@ -418,19 +414,27 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 
 		/* Assert RST1 i.e only the RST only for DSP megacell */
 		if (!status) {
+			/*
+			 * XXX: ioremapping  MUST be removed once ctrl
+			 * function is made available.
+			 */
+			void __iomem *ctrl = ioremap(OMAP343X_CTRL_BASE, SZ_4K);
+			if (!ctrl)
+				return -ENOMEM;
+
 			(*pdata->dsp_prm_rmw_bits)(OMAP3430_RST1_IVA2_MASK,
 					OMAP3430_RST1_IVA2_MASK, OMAP3430_IVA2_MOD,
 					OMAP2_RM_RSTCTRL);
 			/* Mask address with 1K for compatibility */
 			__raw_writel(dsp_addr & OMAP3_IVA2_BOOTADDR_MASK,
-					OMAP343X_CTRL_REGADDR(
-					OMAP343X_CONTROL_IVA2_BOOTADDR));
+					ctrl + OMAP343X_CONTROL_IVA2_BOOTADDR);
 			/*
 			 * Set bootmode to self loop if dsp_debug flag is true
 			 */
 			__raw_writel((dsp_debug) ? OMAP3_IVA2_BOOTMOD_IDLE : 0,
-					OMAP343X_CTRL_REGADDR(
-					OMAP343X_CONTROL_IVA2_BOOTMOD));
+					ctrl + OMAP343X_CONTROL_IVA2_BOOTMOD);
+
+			iounmap(ctrl);
 		}
 	}
 	if (!status) {

@@ -162,7 +162,8 @@ static int tcf_gact_dump(struct sk_buff *skb, struct tc_action *a, int bind, int
 	};
 	struct tcf_t t;
 
-	NLA_PUT(skb, TCA_GACT_PARMS, sizeof(opt), &opt);
+	if (nla_put(skb, TCA_GACT_PARMS, sizeof(opt), &opt))
+		goto nla_put_failure;
 #ifdef CONFIG_GACT_PROB
 	if (gact->tcfg_ptype) {
 		struct tc_gact_p p_opt = {
@@ -171,13 +172,15 @@ static int tcf_gact_dump(struct sk_buff *skb, struct tc_action *a, int bind, int
 			.ptype   = gact->tcfg_ptype,
 		};
 
-		NLA_PUT(skb, TCA_GACT_PROB, sizeof(p_opt), &p_opt);
+		if (nla_put(skb, TCA_GACT_PROB, sizeof(p_opt), &p_opt))
+			goto nla_put_failure;
 	}
 #endif
 	t.install = jiffies_to_clock_t(jiffies - gact->tcf_tm.install);
 	t.lastuse = jiffies_to_clock_t(jiffies - gact->tcf_tm.lastuse);
 	t.expires = jiffies_to_clock_t(gact->tcf_tm.expires);
-	NLA_PUT(skb, TCA_GACT_TM, sizeof(t), &t);
+	if (nla_put(skb, TCA_GACT_TM, sizeof(t), &t))
+		goto nla_put_failure;
 	return skb->len;
 
 nla_put_failure:

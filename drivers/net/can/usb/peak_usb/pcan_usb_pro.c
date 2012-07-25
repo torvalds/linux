@@ -875,6 +875,7 @@ static int pcan_usb_pro_init(struct peak_usb_device *dev)
 					    PCAN_USBPRO_INFO_FW,
 					    &fi, sizeof(fi));
 		if (err) {
+			kfree(usb_if);
 			dev_err(dev->netdev->dev.parent,
 				"unable to read %s firmware info (err %d)\n",
 				pcan_usb_pro.name, err);
@@ -885,6 +886,7 @@ static int pcan_usb_pro_init(struct peak_usb_device *dev)
 					    PCAN_USBPRO_INFO_BL,
 					    &bi, sizeof(bi));
 		if (err) {
+			kfree(usb_if);
 			dev_err(dev->netdev->dev.parent,
 				"unable to read %s bootloader info (err %d)\n",
 				pcan_usb_pro.name, err);

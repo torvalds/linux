@@ -1034,7 +1034,9 @@ static void musb_shutdown(struct platform_device *pdev)
 	|| defined(CONFIG_USB_MUSB_OMAP2PLUS)		\
 	|| defined(CONFIG_USB_MUSB_OMAP2PLUS_MODULE)	\
 	|| defined(CONFIG_USB_MUSB_AM35X)		\
-	|| defined(CONFIG_USB_MUSB_AM35X_MODULE)
+	|| defined(CONFIG_USB_MUSB_AM35X_MODULE)	\
+	|| defined(CONFIG_USB_MUSB_DSPS)		\
+	|| defined(CONFIG_USB_MUSB_DSPS_MODULE)
 static ushort __devinitdata fifo_mode = 4;
 #elif defined(CONFIG_USB_MUSB_UX500)			\
 	|| defined(CONFIG_USB_MUSB_UX500_MODULE)

@@ -15,9 +15,9 @@
 #include <linux/spi/spi.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../events.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/events.h>
 /*
  * ADT7310 registers definition
  */
@@ -175,7 +175,7 @@ static ssize_t adt7310_show_mode(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7310_chip_info *chip = iio_priv(dev_info);
 	u8 config;
 
@@ -198,7 +198,7 @@ static ssize_t adt7310_store_mode(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7310_chip_info *chip = iio_priv(dev_info);
 	u16 config;
 	int ret;
@@ -242,7 +242,7 @@ static ssize_t adt7310_show_resolution(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7310_chip_info *chip = iio_priv(dev_info);
 	int ret;
 	int bits;
@@ -264,7 +264,7 @@ static ssize_t adt7310_store_resolution(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7310_chip_info *chip = iio_priv(dev_info);
 	unsigned long data;
 	u16 config;
@@ -300,7 +300,7 @@ static ssize_t adt7310_show_id(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7310_chip_info *chip = iio_priv(dev_info);
 	u8 id;
 	int ret;
@@ -350,7 +350,7 @@ static ssize_t adt7310_show_value(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7310_chip_info *chip = iio_priv(dev_info);
 	u8 status;
 	u16 data;
@@ -424,7 +424,7 @@ static ssize_t adt7310_show_event_mode(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7310_chip_info *chip = iio_priv(dev_info);
 	int ret;
 
@@ -443,7 +443,7 @@ static ssize_t adt7310_set_event_mode(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7310_chip_info *chip = iio_priv(dev_info);
 	u16 config;
 	int ret;
@@ -476,7 +476,7 @@ static ssize_t adt7310_show_fault_queue(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7310_chip_info *chip = iio_priv(dev_info);
 	int ret;
 
@@ -492,7 +492,7 @@ static ssize_t adt7310_set_fault_queue(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7310_chip_info *chip = iio_priv(dev_info);
 	unsigned long data;
 	int ret;
@@ -522,7 +522,7 @@ static inline ssize_t adt7310_show_t_bound(struct device *dev,
 		u8 bound_reg,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7310_chip_info *chip = iio_priv(dev_info);
 	u16 data;
 	int ret;
@@ -540,7 +540,7 @@ static inline ssize_t adt7310_set_t_bound(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7310_chip_info *chip = iio_priv(dev_info);
 	long tmp1, tmp2;
 	u16 data;
@@ -660,7 +660,7 @@ static ssize_t adt7310_show_t_hyst(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7310_chip_info *chip = iio_priv(dev_info);
 	int ret;
 	u8 t_hyst;
@@ -677,7 +677,7 @@ static inline ssize_t adt7310_set_t_hyst(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7310_chip_info *chip = iio_priv(dev_info);
 	int ret;
 	unsigned long data;
@@ -753,7 +753,7 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 	unsigned long *adt7310_platform_data = spi_dev->dev.platform_data;
 	unsigned long irq_flags;
 
-	indio_dev = iio_allocate_device(sizeof(*chip));
+	indio_dev = iio_device_alloc(sizeof(*chip));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -833,7 +833,7 @@ error_unreg_int_irq:
 error_unreg_ct_irq:
 	free_irq(spi_dev->irq, indio_dev);
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -849,7 +849,7 @@ static int __devexit adt7310_remove(struct spi_device *spi_dev)
 		free_irq(adt7310_platform_data[0], indio_dev);
 	if (spi_dev->irq)
 		free_irq(spi_dev->irq, indio_dev);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

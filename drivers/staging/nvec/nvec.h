@@ -42,7 +42,7 @@
  * enum nvec_event_size - The size of an event message
  * @NVEC_2BYTES: The message has one command byte and one data byte
  * @NVEC_3BYTES: The message has one command byte and two data bytes
- * @NVEC_VAR_SIZE: The message has one command byte, one count byte, and as
+ * @NVEC_VAR_SIZE: The message has one command byte, one count byte, and has
  *                 up to as many bytes as the number in the count byte. The
  *                 maximum is 32
  *

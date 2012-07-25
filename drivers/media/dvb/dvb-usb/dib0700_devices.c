@@ -3569,6 +3569,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_TFE7090E) },
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_TFE7790E) },
 /* 80 */{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_TFE8096P) },
+	{ USB_DEVICE(USB_VID_ELGATO,	USB_PID_ELGATO_EYETV_DTT_2) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -3832,7 +3833,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 11,
+		.num_device_descs = 12,
 		.devices = {
 			{   "DiBcom STK7070P reference design",
 				{ &dib0700_usb_id_table[15], NULL },
@@ -3876,6 +3877,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Elgato EyeTV Dtt Dlx PD378S",
 				{ &dib0700_usb_id_table[50], NULL },
+				{ NULL },
+			},
+			{   "Elgato EyeTV DTT rev. 2",
+				{ &dib0700_usb_id_table[81], NULL },
 				{ NULL },
 			},
 		},

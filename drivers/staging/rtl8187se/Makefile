@@ -10,7 +10,7 @@ ccflags-y += -DHIGH_POWER
 ccflags-y += -DSW_DIG
 ccflags-y += -DRATE_ADAPT
 
-#enable it for legacy power save, disable it for leisure  power save
+#enable it for legacy power save, disable it for leisure power save
 ccflags-y += -DENABLE_LPS
 
 

@@ -176,6 +176,8 @@ enum pci_dev_flags {
 	PCI_DEV_FLAGS_NO_D3 = (__force pci_dev_flags_t) 2,
 	/* Provide indication device is assigned by a Virtual Machine Manager */
 	PCI_DEV_FLAGS_ASSIGNED = (__force pci_dev_flags_t) 4,
+	/* Device causes system crash if in D3 during S3 sleep */
+	PCI_DEV_FLAGS_NO_D3_DURING_SLEEP = (__force pci_dev_flags_t) 8,
 };
 
 enum pci_irq_reroute_variant {
@@ -375,10 +377,17 @@ struct pci_host_bridge_window {
 };
 
 struct pci_host_bridge {
-	struct list_head list;
+	struct device dev;
 	struct pci_bus *bus;		/* root bus */
 	struct list_head windows;	/* pci_host_bridge_windows */
+	void (*release_fn)(struct pci_host_bridge *);
+	void *release_data;
 };
+
+#define	to_pci_host_bridge(n) container_of(n, struct pci_host_bridge, dev)
+void pci_set_host_bridge_release(struct pci_host_bridge *bridge,
+		     void (*release_fn)(struct pci_host_bridge *),
+		     void *release_data);
 
 /*
  * The first PCI_BRIDGE_RESOURCE_NUM PCI bus resources (those that correspond
@@ -680,7 +689,7 @@ int __must_check pci_bus_add_device(struct pci_dev *dev);
 void pci_read_bridge_bases(struct pci_bus *child);
 struct resource *pci_find_parent_resource(const struct pci_dev *dev,
 					  struct resource *res);
-u8 pci_swizzle_interrupt_pin(struct pci_dev *dev, u8 pin);
+u8 pci_swizzle_interrupt_pin(const struct pci_dev *dev, u8 pin);
 int pci_get_interrupt_pin(struct pci_dev *dev, struct pci_dev **bridge);
 u8 pci_common_swizzle(struct pci_dev *dev, u8 *pinp);
 extern struct pci_dev *pci_dev_get(struct pci_dev *dev);
@@ -1685,7 +1694,8 @@ extern void pci_release_bus_of_node(struct pci_bus *bus);
 /* Arch may override this (weak) */
 extern struct device_node * __weak pcibios_get_phb_of_node(struct pci_bus *bus);
 
-static inline struct device_node *pci_device_to_OF_node(struct pci_dev *pdev)
+static inline struct device_node *
+pci_device_to_OF_node(const struct pci_dev *pdev)
 {
 	return pdev ? pdev->dev.of_node : NULL;
 }

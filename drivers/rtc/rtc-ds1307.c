@@ -17,8 +17,7 @@
 #include <linux/string.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
-
-
+#include <linux/rtc/ds1307.h>
 
 /*
  * We can't determine type by probing, but if we expect pre-Linux code
@@ -92,7 +91,8 @@ enum ds_type {
 #	define DS1337_BIT_A2I		0x02
 #	define DS1337_BIT_A1I		0x01
 #define DS1339_REG_ALARM1_SECS	0x07
-#define DS1339_REG_TRICKLE	0x10
+
+#define DS13XX_TRICKLE_CHARGER_MAGIC	0xa0
 
 #define RX8025_REG_CTRL1	0x0e
 #	define RX8025_BIT_2412		0x20
@@ -124,6 +124,7 @@ struct chip_desc {
 	unsigned		alarm:1;
 	u16			nvram_offset;
 	u16			nvram_size;
+	u16			trickle_charger_reg;
 };
 
 static const struct chip_desc chips[last_ds_type] = {
@@ -140,6 +141,13 @@ static const struct chip_desc chips[last_ds_type] = {
 	},
 	[ds_1339] = {
 		.alarm		= 1,
+		.trickle_charger_reg = 0x10,
+	},
+	[ds_1340] = {
+		.trickle_charger_reg = 0x08,
+	},
+	[ds_1388] = {
+		.trickle_charger_reg = 0x0a,
 	},
 	[ds_3231] = {
 		.alarm		= 1,
@@ -619,6 +627,7 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 	struct i2c_adapter	*adapter = to_i2c_adapter(client->dev.parent);
 	int			want_irq = false;
 	unsigned char		*buf;
+	struct ds1307_platform_data *pdata = client->dev.platform_data;
 	static const int	bbsqi_bitpos[] = {
 		[ds_1337] = 0,
 		[ds_1339] = DS1339_BIT_BBSQI,
@@ -637,7 +646,10 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 
 	ds1307->client	= client;
 	ds1307->type	= id->driver_data;
-	ds1307->offset	= 0;
+
+	if (pdata && pdata->trickle_charger_setup && chip->trickle_charger_reg)
+		i2c_smbus_write_byte_data(client, chip->trickle_charger_reg,
+			DS13XX_TRICKLE_CHARGER_MAGIC | pdata->trickle_charger_setup);
 
 	buf = ds1307->regs;
 	if (i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK)) {
@@ -902,6 +914,7 @@ read_rtc:
 		}
 		ds1307->nvram->attr.name = "nvram";
 		ds1307->nvram->attr.mode = S_IRUGO | S_IWUSR;
+		sysfs_bin_attr_init(ds1307->nvram);
 		ds1307->nvram->read = ds1307_nvram_read,
 		ds1307->nvram->write = ds1307_nvram_write,
 		ds1307->nvram->size = chip->nvram_size;

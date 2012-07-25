@@ -22,6 +22,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <linux/input/navpoint.h>
 #include <linux/lcd.h>
 #include <linux/mfd/htc-egpio.h>
 #include <linux/mfd/asic3.h>
@@ -102,6 +103,10 @@ static unsigned long hx4700_pin_config[] __initdata = {
 	GPIO44_BTUART_CTS,
 	GPIO45_BTUART_RTS_LPM_LOW,
 
+	/* STUART (IRDA) */
+	GPIO46_STUART_RXD,
+	GPIO47_STUART_TXD,
+
 	/* PWM 1 (Backlight) */
 	GPIO17_PWM1_OUT,
 
@@ -113,7 +118,7 @@ static unsigned long hx4700_pin_config[] __initdata = {
 	GPIO113_I2S_SYSCLK,
 
 	/* SSP 1 (NavPoint) */
-	GPIO23_SSP1_SCLK,
+	GPIO23_SSP1_SCLK_IN,
 	GPIO24_SSP1_SFRM,
 	GPIO25_SSP1_TXD,
 	GPIO26_SSP1_RXD,
@@ -125,9 +130,12 @@ static unsigned long hx4700_pin_config[] __initdata = {
 	GPIO88_GPIO,
 
 	/* HX4700 specific input GPIOs */
-	GPIO12_GPIO,	/* ASIC3_IRQ */
+	GPIO12_GPIO | WAKEUP_ON_EDGE_RISE,	/* ASIC3_IRQ */
 	GPIO13_GPIO,	/* W3220_IRQ */
 	GPIO14_GPIO,	/* nWLAN_IRQ */
+
+	/* HX4700 specific output GPIOs */
+	GPIO102_GPIO | MFP_LPM_DRIVE_LOW,	/* SYNAPTICS_POWER_ON */
 
 	GPIO10_GPIO,	/* GSM_IRQ */
 	GPIO13_GPIO,	/* CPLD_IRQ */
@@ -183,6 +191,23 @@ static struct platform_device gpio_keys = {
 };
 
 /*
+ * Synaptics NavPoint connected to SSP1
+ */
+
+static struct navpoint_platform_data navpoint_platform_data = {
+	.port	= 1,
+	.gpio	= GPIO102_HX4700_SYNAPTICS_POWER_ON,
+};
+
+static struct platform_device navpoint = {
+	.name	= "navpoint",
+	.id	= -1,
+	.dev = {
+		.platform_data = &navpoint_platform_data,
+	},
+};
+
+/*
  * ASIC3
  */
 
@@ -227,7 +252,6 @@ static u16 asic3_gpio_config[] = {
 	ASIC3_GPIOC0_LED0,		/* red */
 	ASIC3_GPIOC1_LED1,		/* green */
 	ASIC3_GPIOC2_LED2,		/* blue */
-	ASIC3_GPIOC4_CF_nCD,
 	ASIC3_GPIOC5_nCIOW,
 	ASIC3_GPIOC6_nCIOR,
 	ASIC3_GPIOC7_nPCE_1,
@@ -241,6 +265,7 @@ static u16 asic3_gpio_config[] = {
 	ASIC3_GPIOC15_nPIOR,
 
 	/* GPIOD: input GPIOs, CF */
+	ASIC3_GPIOD4_CF_nCD,
 	ASIC3_GPIOD11_nCIOIS16,
 	ASIC3_GPIOD12_nCWAIT,
 	ASIC3_GPIOD15_nPIOW,
@@ -291,6 +316,7 @@ static struct asic3_platform_data asic3_platform_data = {
 	.gpio_config_num = ARRAY_SIZE(asic3_gpio_config),
 	.irq_base        = IRQ_BOARD_START,
 	.gpio_base       = HX4700_ASIC3_GPIO_BASE,
+	.clock_rate      = 4000000,
 	.leds            = asic3_leds,
 };
 
@@ -680,12 +706,8 @@ static struct platform_device power_supply = {
  */
 
 static struct regulator_consumer_supply bq24022_consumers[] = {
-	{
-		.supply = "vbus_draw",
-	},
-	{
-		.supply = "ac_draw",
-	},
+	REGULATOR_SUPPLY("vbus_draw", NULL),
+	REGULATOR_SUPPLY("ac_draw", NULL),
 };
 
 static struct regulator_init_data bq24022_init_data = {
@@ -764,9 +786,8 @@ static struct platform_device strataflash = {
  * Maxim MAX1587A on PI2C
  */
 
-static struct regulator_consumer_supply max1587a_consumer = {
-	.supply = "vcc_core",
-};
+static struct regulator_consumer_supply max1587a_consumer =
+	REGULATOR_SUPPLY("vcc_core", NULL);
 
 static struct regulator_init_data max1587a_v3_info = {
 	.constraints = {
@@ -828,6 +849,7 @@ static struct platform_device audio = {
 static struct platform_device *devices[] __initdata = {
 	&asic3,
 	&gpio_keys,
+	&navpoint,
 	&backlight,
 	&w3220,
 	&hx4700_lcd,
@@ -859,6 +881,7 @@ static void __init hx4700_init(void)
 	int ret;
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(hx4700_pin_config));
+	gpio_set_wake(GPIO12_HX4700_ASIC3_IRQ, 1);
 	ret = gpio_request_array(ARRAY_AND_SIZE(global_gpios));
 	if (ret)
 		pr_err ("hx4700: Failed to request GPIOs.\n");

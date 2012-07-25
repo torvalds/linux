@@ -10,7 +10,6 @@
  * option) any later version.
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -21,8 +20,8 @@
 #include <linux/ctype.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/vme.h>
 
-#include "../vme.h"
 #include "vme_pio2.h"
 
 static const char driver_name[] = "pio2_gpio";
@@ -79,7 +78,7 @@ static void pio2_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	if ((card->bank[PIO2_CHANNEL_BANK[offset]].config == INPUT) |
 		(card->bank[PIO2_CHANNEL_BANK[offset]].config == NOFIT)) {
 
-		dev_err(&card->vdev->dev, "Channel not availabe as output\n");
+		dev_err(&card->vdev->dev, "Channel not available as output\n");
 		return;
 	}
 

@@ -163,9 +163,8 @@ spwin_fromuser:
 	 * the label 'spwin_user_stack_is_bolixed' which will take
 	 * care of things at that point.
 	 */
-	.globl	spwin_mmu_patchme
-spwin_mmu_patchme:	b	spwin_sun4c_stackchk
-				 andcc	%sp, 0x7, %g0
+	b	spwin_srmmu_stackchk
+	 andcc	%sp, 0x7, %g0
 
 spwin_good_ustack:
 	/* LOCATION: Window to be saved */
@@ -306,73 +305,6 @@ spwin_bad_ustack_from_kernel:
  * As noted above %curptr cannot be touched by this routine at all.
  */
 
-spwin_sun4c_stackchk:
-	/* LOCATION: Window to be saved on the stack */
-
-	/* See if the stack is in the address space hole but first,
-	 * check results of callers andcc %sp, 0x7, %g0
-	 */
-	be	1f
-	 sra	%sp, 29, %glob_tmp
-
-	rd	%psr, %glob_tmp
-	b	spwin_user_stack_is_bolixed + 0x4
-	 nop
-
-1:
-	add	%glob_tmp, 0x1, %glob_tmp
-	andncc	%glob_tmp, 0x1, %g0
-	be	1f
-	 and	%sp, 0xfff, %glob_tmp		! delay slot
-
-	rd	%psr, %glob_tmp
-	b	spwin_user_stack_is_bolixed + 0x4
-	 nop
-
-	/* See if our dump area will be on more than one
-	 * page.
-	 */
-1:
-	add	%glob_tmp, 0x38, %glob_tmp
-	andncc	%glob_tmp, 0xff8, %g0
-	be	spwin_sun4c_onepage		! only one page to check
-	 lda	[%sp] ASI_PTE, %glob_tmp	! have to check first page anyways
-
-spwin_sun4c_twopages:
-	/* Is first page ok permission wise? */
-	srl	%glob_tmp, 29, %glob_tmp
-	cmp	%glob_tmp, 0x6
-	be	1f
-	 add	%sp, 0x38, %glob_tmp	/* Is second page in vma hole? */
-
-	rd	%psr, %glob_tmp
-	b	spwin_user_stack_is_bolixed + 0x4
-	 nop
-
-1:
-	sra	%glob_tmp, 29, %glob_tmp
-	add	%glob_tmp, 0x1, %glob_tmp
-	andncc	%glob_tmp, 0x1, %g0
-	be	1f
-	 add	%sp, 0x38, %glob_tmp
-
-	rd	%psr, %glob_tmp
-	b	spwin_user_stack_is_bolixed + 0x4
-	 nop
-
-1:
-	lda	[%glob_tmp] ASI_PTE, %glob_tmp
-
-spwin_sun4c_onepage:
-	srl	%glob_tmp, 29, %glob_tmp
-	cmp	%glob_tmp, 0x6				! can user write to it?
-	be	spwin_good_ustack			! success
-	 nop
-
-	rd	%psr, %glob_tmp
-	b	spwin_user_stack_is_bolixed + 0x4
-	 nop
-
 	/* This is a generic SRMMU routine.  As far as I know this
 	 * works for all current v8/srmmu implementations, we'll
 	 * see...
@@ -400,24 +332,30 @@ spwin_srmmu_stackchk:
 	 mov	AC_M_SFSR, %glob_tmp
 
 	/* Clear the fault status and turn on the no_fault bit. */
-	lda	[%glob_tmp] ASI_M_MMUREGS, %g0		! eat SFSR
+LEON_PI(lda	[%glob_tmp] ASI_LEON_MMUREGS, %g0)	! eat SFSR
+SUN_PI_(lda	[%glob_tmp] ASI_M_MMUREGS, %g0)		! eat SFSR
 
-	lda	[%g0] ASI_M_MMUREGS, %glob_tmp		! read MMU control
+LEON_PI(lda	[%g0] ASI_LEON_MMUREGS, %glob_tmp)	! read MMU control
+SUN_PI_(lda	[%g0] ASI_M_MMUREGS, %glob_tmp)		! read MMU control
 	or	%glob_tmp, 0x2, %glob_tmp		! or in no_fault bit
-	sta	%glob_tmp, [%g0] ASI_M_MMUREGS		! set it
+LEON_PI(sta	%glob_tmp, [%g0] ASI_LEON_MMUREGS)	! set it
+SUN_PI_(sta	%glob_tmp, [%g0] ASI_M_MMUREGS)		! set it
 
 	/* Dump the registers and cross fingers. */
 	STORE_WINDOW(sp)
 
 	/* Clear the no_fault bit and check the status. */
 	andn	%glob_tmp, 0x2, %glob_tmp
-	sta	%glob_tmp, [%g0] ASI_M_MMUREGS
+LEON_PI(sta	%glob_tmp, [%g0] ASI_LEON_MMUREGS)
+SUN_PI_(sta	%glob_tmp, [%g0] ASI_M_MMUREGS)
 
 	mov	AC_M_SFAR, %glob_tmp
-	lda	[%glob_tmp] ASI_M_MMUREGS, %g0
+LEON_PI(lda	[%glob_tmp] ASI_LEON_MMUREGS, %g0)
+SUN_PI_(lda	[%glob_tmp] ASI_M_MMUREGS, %g0)
 
 	mov	AC_M_SFSR, %glob_tmp
-	lda	[%glob_tmp] ASI_M_MMUREGS, %glob_tmp
+LEON_PI(lda	[%glob_tmp] ASI_LEON_MMUREGS, %glob_tmp)
+SUN_PI_(lda	[%glob_tmp] ASI_M_MMUREGS, %glob_tmp)
 	andcc	%glob_tmp, 0x2, %g0			! did we fault?
 	be,a	spwin_finish_up + 0x4			! cool beans, success
 	 restore %g0, %g0, %g0

@@ -9,6 +9,7 @@
 #include <linux/perf_event.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/ptrace.h>
 
 #include <asm/apic.h>
 
@@ -16,36 +17,591 @@ static u32 ibs_caps;
 
 #if defined(CONFIG_PERF_EVENTS) && defined(CONFIG_CPU_SUP_AMD)
 
-static struct pmu perf_ibs;
+#include <linux/kprobes.h>
+#include <linux/hardirq.h>
+
+#include <asm/nmi.h>
+
+#define IBS_FETCH_CONFIG_MASK	(IBS_FETCH_RAND_EN | IBS_FETCH_MAX_CNT)
+#define IBS_OP_CONFIG_MASK	IBS_OP_MAX_CNT
+
+enum ibs_states {
+	IBS_ENABLED	= 0,
+	IBS_STARTED	= 1,
+	IBS_STOPPING	= 2,
+
+	IBS_MAX_STATES,
+};
+
+struct cpu_perf_ibs {
+	struct perf_event	*event;
+	unsigned long		state[BITS_TO_LONGS(IBS_MAX_STATES)];
+};
+
+struct perf_ibs {
+	struct pmu	pmu;
+	unsigned int	msr;
+	u64		config_mask;
+	u64		cnt_mask;
+	u64		enable_mask;
+	u64		valid_mask;
+	u64		max_period;
+	unsigned long	offset_mask[1];
+	int		offset_max;
+	struct cpu_perf_ibs __percpu *pcpu;
+	u64		(*get_count)(u64 config);
+};
+
+struct perf_ibs_data {
+	u32		size;
+	union {
+		u32	data[0];	/* data buffer starts here */
+		u32	caps;
+	};
+	u64		regs[MSR_AMD64_IBS_REG_COUNT_MAX];
+};
+
+static int
+perf_event_set_period(struct hw_perf_event *hwc, u64 min, u64 max, u64 *hw_period)
+{
+	s64 left = local64_read(&hwc->period_left);
+	s64 period = hwc->sample_period;
+	int overflow = 0;
+
+	/*
+	 * If we are way outside a reasonable range then just skip forward:
+	 */
+	if (unlikely(left <= -period)) {
+		left = period;
+		local64_set(&hwc->period_left, left);
+		hwc->last_period = period;
+		overflow = 1;
+	}
+
+	if (unlikely(left < (s64)min)) {
+		left += period;
+		local64_set(&hwc->period_left, left);
+		hwc->last_period = period;
+		overflow = 1;
+	}
+
+	/*
+	 * If the hw period that triggers the sw overflow is too short
+	 * we might hit the irq handler. This biases the results.
+	 * Thus we shorten the next-to-last period and set the last
+	 * period to the max period.
+	 */
+	if (left > max) {
+		left -= max;
+		if (left > max)
+			left = max;
+		else if (left < min)
+			left = min;
+	}
+
+	*hw_period = (u64)left;
+
+	return overflow;
+}
+
+static  int
+perf_event_try_update(struct perf_event *event, u64 new_raw_count, int width)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	int shift = 64 - width;
+	u64 prev_raw_count;
+	u64 delta;
+
+	/*
+	 * Careful: an NMI might modify the previous event value.
+	 *
+	 * Our tactic to handle this is to first atomically read and
+	 * exchange a new raw count - then add that new-prev delta
+	 * count to the generic event atomically:
+	 */
+	prev_raw_count = local64_read(&hwc->prev_count);
+	if (local64_cmpxchg(&hwc->prev_count, prev_raw_count,
+					new_raw_count) != prev_raw_count)
+		return 0;
+
+	/*
+	 * Now we have the new raw value and have updated the prev
+	 * timestamp already. We can now calculate the elapsed delta
+	 * (event-)time and add that to the generic event.
+	 *
+	 * Careful, not all hw sign-extends above the physical width
+	 * of the count.
+	 */
+	delta = (new_raw_count << shift) - (prev_raw_count << shift);
+	delta >>= shift;
+
+	local64_add(delta, &event->count);
+	local64_sub(delta, &hwc->period_left);
+
+	return 1;
+}
+
+static struct perf_ibs perf_ibs_fetch;
+static struct perf_ibs perf_ibs_op;
+
+static struct perf_ibs *get_ibs_pmu(int type)
+{
+	if (perf_ibs_fetch.pmu.type == type)
+		return &perf_ibs_fetch;
+	if (perf_ibs_op.pmu.type == type)
+		return &perf_ibs_op;
+	return NULL;
+}
+
+/*
+ * Use IBS for precise event sampling:
+ *
+ *  perf record -a -e cpu-cycles:p ...    # use ibs op counting cycle count
+ *  perf record -a -e r076:p ...          # same as -e cpu-cycles:p
+ *  perf record -a -e r0C1:p ...          # use ibs op counting micro-ops
+ *
+ * IbsOpCntCtl (bit 19) of IBS Execution Control Register (IbsOpCtl,
+ * MSRC001_1033) is used to select either cycle or micro-ops counting
+ * mode.
+ *
+ * The rip of IBS samples has skid 0. Thus, IBS supports precise
+ * levels 1 and 2 and the PERF_EFLAGS_EXACT is set. In rare cases the
+ * rip is invalid when IBS was not able to record the rip correctly.
+ * We clear PERF_EFLAGS_EXACT and take the rip from pt_regs then.
+ *
+ */
+static int perf_ibs_precise_event(struct perf_event *event, u64 *config)
+{
+	switch (event->attr.precise_ip) {
+	case 0:
+		return -ENOENT;
+	case 1:
+	case 2:
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	switch (event->attr.type) {
+	case PERF_TYPE_HARDWARE:
+		switch (event->attr.config) {
+		case PERF_COUNT_HW_CPU_CYCLES:
+			*config = 0;
+			return 0;
+		}
+		break;
+	case PERF_TYPE_RAW:
+		switch (event->attr.config) {
+		case 0x0076:
+			*config = 0;
+			return 0;
+		case 0x00C1:
+			*config = IBS_OP_CNT_CTL;
+			return 0;
+		}
+		break;
+	default:
+		return -ENOENT;
+	}
+
+	return -EOPNOTSUPP;
+}
 
 static int perf_ibs_init(struct perf_event *event)
 {
-	if (perf_ibs.type != event->attr.type)
+	struct hw_perf_event *hwc = &event->hw;
+	struct perf_ibs *perf_ibs;
+	u64 max_cnt, config;
+	int ret;
+
+	perf_ibs = get_ibs_pmu(event->attr.type);
+	if (perf_ibs) {
+		config = event->attr.config;
+	} else {
+		perf_ibs = &perf_ibs_op;
+		ret = perf_ibs_precise_event(event, &config);
+		if (ret)
+			return ret;
+	}
+
+	if (event->pmu != &perf_ibs->pmu)
 		return -ENOENT;
+
+	if (config & ~perf_ibs->config_mask)
+		return -EINVAL;
+
+	if (hwc->sample_period) {
+		if (config & perf_ibs->cnt_mask)
+			/* raw max_cnt may not be set */
+			return -EINVAL;
+		if (!event->attr.sample_freq && hwc->sample_period & 0x0f)
+			/*
+			 * lower 4 bits can not be set in ibs max cnt,
+			 * but allowing it in case we adjust the
+			 * sample period to set a frequency.
+			 */
+			return -EINVAL;
+		hwc->sample_period &= ~0x0FULL;
+		if (!hwc->sample_period)
+			hwc->sample_period = 0x10;
+	} else {
+		max_cnt = config & perf_ibs->cnt_mask;
+		config &= ~perf_ibs->cnt_mask;
+		event->attr.sample_period = max_cnt << 4;
+		hwc->sample_period = event->attr.sample_period;
+	}
+
+	if (!hwc->sample_period)
+		return -EINVAL;
+
+	/*
+	 * If we modify hwc->sample_period, we also need to update
+	 * hwc->last_period and hwc->period_left.
+	 */
+	hwc->last_period = hwc->sample_period;
+	local64_set(&hwc->period_left, hwc->sample_period);
+
+	hwc->config_base = perf_ibs->msr;
+	hwc->config = config;
+
 	return 0;
+}
+
+static int perf_ibs_set_period(struct perf_ibs *perf_ibs,
+			       struct hw_perf_event *hwc, u64 *period)
+{
+	int overflow;
+
+	/* ignore lower 4 bits in min count: */
+	overflow = perf_event_set_period(hwc, 1<<4, perf_ibs->max_period, period);
+	local64_set(&hwc->prev_count, 0);
+
+	return overflow;
+}
+
+static u64 get_ibs_fetch_count(u64 config)
+{
+	return (config & IBS_FETCH_CNT) >> 12;
+}
+
+static u64 get_ibs_op_count(u64 config)
+{
+	u64 count = 0;
+
+	if (config & IBS_OP_VAL)
+		count += (config & IBS_OP_MAX_CNT) << 4; /* cnt rolled over */
+
+	if (ibs_caps & IBS_CAPS_RDWROPCNT)
+		count += (config & IBS_OP_CUR_CNT) >> 32;
+
+	return count;
+}
+
+static void
+perf_ibs_event_update(struct perf_ibs *perf_ibs, struct perf_event *event,
+		      u64 *config)
+{
+	u64 count = perf_ibs->get_count(*config);
+
+	/*
+	 * Set width to 64 since we do not overflow on max width but
+	 * instead on max count. In perf_ibs_set_period() we clear
+	 * prev count manually on overflow.
+	 */
+	while (!perf_event_try_update(event, count, 64)) {
+		rdmsrl(event->hw.config_base, *config);
+		count = perf_ibs->get_count(*config);
+	}
+}
+
+static inline void perf_ibs_enable_event(struct perf_ibs *perf_ibs,
+					 struct hw_perf_event *hwc, u64 config)
+{
+	wrmsrl(hwc->config_base, hwc->config | config | perf_ibs->enable_mask);
+}
+
+/*
+ * Erratum #420 Instruction-Based Sampling Engine May Generate
+ * Interrupt that Cannot Be Cleared:
+ *
+ * Must clear counter mask first, then clear the enable bit. See
+ * Revision Guide for AMD Family 10h Processors, Publication #41322.
+ */
+static inline void perf_ibs_disable_event(struct perf_ibs *perf_ibs,
+					  struct hw_perf_event *hwc, u64 config)
+{
+	config &= ~perf_ibs->cnt_mask;
+	wrmsrl(hwc->config_base, config);
+	config &= ~perf_ibs->enable_mask;
+	wrmsrl(hwc->config_base, config);
+}
+
+/*
+ * We cannot restore the ibs pmu state, so we always needs to update
+ * the event while stopping it and then reset the state when starting
+ * again. Thus, ignoring PERF_EF_RELOAD and PERF_EF_UPDATE flags in
+ * perf_ibs_start()/perf_ibs_stop() and instead always do it.
+ */
+static void perf_ibs_start(struct perf_event *event, int flags)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	struct perf_ibs *perf_ibs = container_of(event->pmu, struct perf_ibs, pmu);
+	struct cpu_perf_ibs *pcpu = this_cpu_ptr(perf_ibs->pcpu);
+	u64 period;
+
+	if (WARN_ON_ONCE(!(hwc->state & PERF_HES_STOPPED)))
+		return;
+
+	WARN_ON_ONCE(!(hwc->state & PERF_HES_UPTODATE));
+	hwc->state = 0;
+
+	perf_ibs_set_period(perf_ibs, hwc, &period);
+	set_bit(IBS_STARTED, pcpu->state);
+	perf_ibs_enable_event(perf_ibs, hwc, period >> 4);
+
+	perf_event_update_userpage(event);
+}
+
+static void perf_ibs_stop(struct perf_event *event, int flags)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	struct perf_ibs *perf_ibs = container_of(event->pmu, struct perf_ibs, pmu);
+	struct cpu_perf_ibs *pcpu = this_cpu_ptr(perf_ibs->pcpu);
+	u64 config;
+	int stopping;
+
+	stopping = test_and_clear_bit(IBS_STARTED, pcpu->state);
+
+	if (!stopping && (hwc->state & PERF_HES_UPTODATE))
+		return;
+
+	rdmsrl(hwc->config_base, config);
+
+	if (stopping) {
+		set_bit(IBS_STOPPING, pcpu->state);
+		perf_ibs_disable_event(perf_ibs, hwc, config);
+		WARN_ON_ONCE(hwc->state & PERF_HES_STOPPED);
+		hwc->state |= PERF_HES_STOPPED;
+	}
+
+	if (hwc->state & PERF_HES_UPTODATE)
+		return;
+
+	/*
+	 * Clear valid bit to not count rollovers on update, rollovers
+	 * are only updated in the irq handler.
+	 */
+	config &= ~perf_ibs->valid_mask;
+
+	perf_ibs_event_update(perf_ibs, event, &config);
+	hwc->state |= PERF_HES_UPTODATE;
 }
 
 static int perf_ibs_add(struct perf_event *event, int flags)
 {
+	struct perf_ibs *perf_ibs = container_of(event->pmu, struct perf_ibs, pmu);
+	struct cpu_perf_ibs *pcpu = this_cpu_ptr(perf_ibs->pcpu);
+
+	if (test_and_set_bit(IBS_ENABLED, pcpu->state))
+		return -ENOSPC;
+
+	event->hw.state = PERF_HES_UPTODATE | PERF_HES_STOPPED;
+
+	pcpu->event = event;
+
+	if (flags & PERF_EF_START)
+		perf_ibs_start(event, PERF_EF_RELOAD);
+
 	return 0;
 }
 
 static void perf_ibs_del(struct perf_event *event, int flags)
 {
+	struct perf_ibs *perf_ibs = container_of(event->pmu, struct perf_ibs, pmu);
+	struct cpu_perf_ibs *pcpu = this_cpu_ptr(perf_ibs->pcpu);
+
+	if (!test_and_clear_bit(IBS_ENABLED, pcpu->state))
+		return;
+
+	perf_ibs_stop(event, PERF_EF_UPDATE);
+
+	pcpu->event = NULL;
+
+	perf_event_update_userpage(event);
 }
 
-static struct pmu perf_ibs = {
-	.event_init= perf_ibs_init,
-	.add= perf_ibs_add,
-	.del= perf_ibs_del,
+static void perf_ibs_read(struct perf_event *event) { }
+
+static struct perf_ibs perf_ibs_fetch = {
+	.pmu = {
+		.task_ctx_nr	= perf_invalid_context,
+
+		.event_init	= perf_ibs_init,
+		.add		= perf_ibs_add,
+		.del		= perf_ibs_del,
+		.start		= perf_ibs_start,
+		.stop		= perf_ibs_stop,
+		.read		= perf_ibs_read,
+	},
+	.msr			= MSR_AMD64_IBSFETCHCTL,
+	.config_mask		= IBS_FETCH_CONFIG_MASK,
+	.cnt_mask		= IBS_FETCH_MAX_CNT,
+	.enable_mask		= IBS_FETCH_ENABLE,
+	.valid_mask		= IBS_FETCH_VAL,
+	.max_period		= IBS_FETCH_MAX_CNT << 4,
+	.offset_mask		= { MSR_AMD64_IBSFETCH_REG_MASK },
+	.offset_max		= MSR_AMD64_IBSFETCH_REG_COUNT,
+
+	.get_count		= get_ibs_fetch_count,
 };
+
+static struct perf_ibs perf_ibs_op = {
+	.pmu = {
+		.task_ctx_nr	= perf_invalid_context,
+
+		.event_init	= perf_ibs_init,
+		.add		= perf_ibs_add,
+		.del		= perf_ibs_del,
+		.start		= perf_ibs_start,
+		.stop		= perf_ibs_stop,
+		.read		= perf_ibs_read,
+	},
+	.msr			= MSR_AMD64_IBSOPCTL,
+	.config_mask		= IBS_OP_CONFIG_MASK,
+	.cnt_mask		= IBS_OP_MAX_CNT,
+	.enable_mask		= IBS_OP_ENABLE,
+	.valid_mask		= IBS_OP_VAL,
+	.max_period		= IBS_OP_MAX_CNT << 4,
+	.offset_mask		= { MSR_AMD64_IBSOP_REG_MASK },
+	.offset_max		= MSR_AMD64_IBSOP_REG_COUNT,
+
+	.get_count		= get_ibs_op_count,
+};
+
+static int perf_ibs_handle_irq(struct perf_ibs *perf_ibs, struct pt_regs *iregs)
+{
+	struct cpu_perf_ibs *pcpu = this_cpu_ptr(perf_ibs->pcpu);
+	struct perf_event *event = pcpu->event;
+	struct hw_perf_event *hwc = &event->hw;
+	struct perf_sample_data data;
+	struct perf_raw_record raw;
+	struct pt_regs regs;
+	struct perf_ibs_data ibs_data;
+	int offset, size, check_rip, offset_max, throttle = 0;
+	unsigned int msr;
+	u64 *buf, *config, period;
+
+	if (!test_bit(IBS_STARTED, pcpu->state)) {
+		/*
+		 * Catch spurious interrupts after stopping IBS: After
+		 * disabling IBS there could be still incomming NMIs
+		 * with samples that even have the valid bit cleared.
+		 * Mark all this NMIs as handled.
+		 */
+		return test_and_clear_bit(IBS_STOPPING, pcpu->state) ? 1 : 0;
+	}
+
+	msr = hwc->config_base;
+	buf = ibs_data.regs;
+	rdmsrl(msr, *buf);
+	if (!(*buf++ & perf_ibs->valid_mask))
+		return 0;
+
+	config = &ibs_data.regs[0];
+	perf_ibs_event_update(perf_ibs, event, config);
+	perf_sample_data_init(&data, 0, hwc->last_period);
+	if (!perf_ibs_set_period(perf_ibs, hwc, &period))
+		goto out;	/* no sw counter overflow */
+
+	ibs_data.caps = ibs_caps;
+	size = 1;
+	offset = 1;
+	check_rip = (perf_ibs == &perf_ibs_op && (ibs_caps & IBS_CAPS_RIPINVALIDCHK));
+	if (event->attr.sample_type & PERF_SAMPLE_RAW)
+		offset_max = perf_ibs->offset_max;
+	else if (check_rip)
+		offset_max = 2;
+	else
+		offset_max = 1;
+	do {
+		rdmsrl(msr + offset, *buf++);
+		size++;
+		offset = find_next_bit(perf_ibs->offset_mask,
+				       perf_ibs->offset_max,
+				       offset + 1);
+	} while (offset < offset_max);
+	ibs_data.size = sizeof(u64) * size;
+
+	regs = *iregs;
+	if (check_rip && (ibs_data.regs[2] & IBS_RIP_INVALID)) {
+		regs.flags &= ~PERF_EFLAGS_EXACT;
+	} else {
+		instruction_pointer_set(&regs, ibs_data.regs[1]);
+		regs.flags |= PERF_EFLAGS_EXACT;
+	}
+
+	if (event->attr.sample_type & PERF_SAMPLE_RAW) {
+		raw.size = sizeof(u32) + ibs_data.size;
+		raw.data = ibs_data.data;
+		data.raw = &raw;
+	}
+
+	throttle = perf_event_overflow(event, &data, &regs);
+out:
+	if (throttle)
+		perf_ibs_disable_event(perf_ibs, hwc, *config);
+	else
+		perf_ibs_enable_event(perf_ibs, hwc, period >> 4);
+
+	perf_event_update_userpage(event);
+
+	return 1;
+}
+
+static int __kprobes
+perf_ibs_nmi_handler(unsigned int cmd, struct pt_regs *regs)
+{
+	int handled = 0;
+
+	handled += perf_ibs_handle_irq(&perf_ibs_fetch, regs);
+	handled += perf_ibs_handle_irq(&perf_ibs_op, regs);
+
+	if (handled)
+		inc_irq_stat(apic_perf_irqs);
+
+	return handled;
+}
+
+static __init int perf_ibs_pmu_init(struct perf_ibs *perf_ibs, char *name)
+{
+	struct cpu_perf_ibs __percpu *pcpu;
+	int ret;
+
+	pcpu = alloc_percpu(struct cpu_perf_ibs);
+	if (!pcpu)
+		return -ENOMEM;
+
+	perf_ibs->pcpu = pcpu;
+
+	ret = perf_pmu_register(&perf_ibs->pmu, name, -1);
+	if (ret) {
+		perf_ibs->pcpu = NULL;
+		free_percpu(pcpu);
+	}
+
+	return ret;
+}
 
 static __init int perf_event_ibs_init(void)
 {
 	if (!ibs_caps)
 		return -ENODEV;	/* ibs not supported by the cpu */
 
-	perf_pmu_register(&perf_ibs, "ibs", -1);
+	perf_ibs_pmu_init(&perf_ibs_fetch, "ibs_fetch");
+	if (ibs_caps & IBS_CAPS_OPCNT)
+		perf_ibs_op.config_mask |= IBS_OP_CNT_CTL;
+	perf_ibs_pmu_init(&perf_ibs_op, "ibs_op");
+	register_nmi_handler(NMI_LOCAL, perf_ibs_nmi_handler, 0, "perf_ibs");
 	printk(KERN_INFO "perf: AMD IBS detected (0x%08x)\n", ibs_caps);
 
 	return 0;

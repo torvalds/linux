@@ -335,7 +335,7 @@ int sys_swapcontext(struct ucontext __user *old_ctx,
 
 	if (__copy_from_user(&set, &new_ctx->uc_sigmask, sizeof(set)))
 		do_exit(SIGSEGV);
-	restore_sigmask(&set);
+	set_current_blocked(&set);
 	if (restore_sigcontext(regs, NULL, 0, &new_ctx->uc_mcontext))
 		do_exit(SIGSEGV);
 
@@ -364,7 +364,7 @@ int sys_rt_sigreturn(unsigned long r3, unsigned long r4, unsigned long r5,
 
 	if (__copy_from_user(&set, &uc->uc_sigmask, sizeof(set)))
 		goto badframe;
-	restore_sigmask(&set);
+	set_current_blocked(&set);
 	if (restore_sigcontext(regs, NULL, 1, &uc->uc_mcontext))
 		goto badframe;
 

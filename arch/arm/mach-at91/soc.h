@@ -20,36 +20,41 @@ extern struct at91_init_soc at91sam9263_soc;
 extern struct at91_init_soc at91sam9g45_soc;
 extern struct at91_init_soc at91sam9rl_soc;
 extern struct at91_init_soc at91sam9x5_soc;
+extern struct at91_init_soc at91sam9n12_soc;
 
 static inline int at91_soc_is_enabled(void)
 {
 	return at91_boot_soc.init != NULL;
 }
 
-#if !defined(CONFIG_ARCH_AT91RM9200)
+#if !defined(CONFIG_SOC_AT91RM9200)
 #define at91rm9200_soc	at91_boot_soc
 #endif
 
-#if !(defined(CONFIG_ARCH_AT91SAM9260) || defined(CONFIG_ARCH_AT91SAM9G20))
+#if !defined(CONFIG_SOC_AT91SAM9260)
 #define at91sam9260_soc	at91_boot_soc
 #endif
 
-#if !(defined(CONFIG_ARCH_AT91SAM9261) || defined(CONFIG_ARCH_AT91SAM9G10))
+#if !defined(CONFIG_SOC_AT91SAM9261)
 #define at91sam9261_soc	at91_boot_soc
 #endif
 
-#if !defined(CONFIG_ARCH_AT91SAM9263)
+#if !defined(CONFIG_SOC_AT91SAM9263)
 #define at91sam9263_soc	at91_boot_soc
 #endif
 
-#if !defined(CONFIG_ARCH_AT91SAM9G45)
+#if !defined(CONFIG_SOC_AT91SAM9G45)
 #define at91sam9g45_soc	at91_boot_soc
 #endif
 
-#if !defined(CONFIG_ARCH_AT91SAM9RL)
+#if !defined(CONFIG_SOC_AT91SAM9RL)
 #define at91sam9rl_soc	at91_boot_soc
 #endif
 
-#if !defined(CONFIG_ARCH_AT91SAM9X5)
+#if !defined(CONFIG_SOC_AT91SAM9X5)
 #define at91sam9x5_soc	at91_boot_soc
+#endif
+
+#if !defined(CONFIG_SOC_AT91SAM9N12)
+#define at91sam9n12_soc	at91_boot_soc
 #endif

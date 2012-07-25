@@ -340,27 +340,10 @@ void smp_send_stop(void)
 	return;
 }
 
-int __cpuinit __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 {
 	int ret;
-	struct blackfin_cpudata *ci = &per_cpu(cpu_data, cpu);
-	struct task_struct *idle = ci->idle;
 
-	if (idle) {
-		free_task(idle);
-		idle = NULL;
-	}
-
-	if (!idle) {
-		idle = fork_idle(cpu);
-		if (IS_ERR(idle)) {
-			printk(KERN_ERR "CPU%u: fork() failed\n", cpu);
-			return PTR_ERR(idle);
-		}
-		ci->idle = idle;
-	} else {
-		init_idle(idle, cpu);
-	}
 	secondary_stack = task_stack_page(idle) + THREAD_SIZE;
 
 	ret = platform_boot_secondary(cpu, idle);

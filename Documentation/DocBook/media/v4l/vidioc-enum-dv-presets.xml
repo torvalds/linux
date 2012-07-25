@@ -48,6 +48,10 @@
   <refsect1>
     <title>Description</title>
 
+    <para>This ioctl is <emphasis role="bold">deprecated</emphasis>.
+    New drivers and applications should use &VIDIOC-ENUM-DV-TIMINGS; instead.
+    </para>
+
     <para>To query the attributes of a DV preset, applications initialize the
 <structfield>index</structfield> field and zero the reserved array of &v4l2-dv-enum-preset;
 and call the <constant>VIDIOC_ENUM_DV_PRESETS</constant> ioctl with a pointer to this

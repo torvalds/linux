@@ -52,54 +52,6 @@ unsigned long clear_user(void __user *to, unsigned long n)
 }
 EXPORT_SYMBOL(clear_user);
 
-/*
- * Return the size of a string (including the ending 0)
- *
- * Return 0 on exception, a value greater than N if too long
- */
-
-long __strnlen_user(const char __user *s, long n)
-{
-	long res = 0;
-	char c;
-
-	while (1) {
-		if (res>n)
-			return n+1;
-		if (__get_user(c, s))
-			return 0;
-		if (!c)
-			return res+1;
-		res++;
-		s++;
-	}
-}
-EXPORT_SYMBOL(__strnlen_user);
-
-long strnlen_user(const char __user *s, long n)
-{
-	if (!access_ok(VERIFY_READ, s, 1))
-		return 0;
-	return __strnlen_user(s, n);
-}
-EXPORT_SYMBOL(strnlen_user);
-
-long strlen_user(const char __user *s)
-{
-	long res = 0;
-	char c;
-
-	for (;;) {
-		if (get_user(c, s))
-			return 0;
-		if (!c)
-			return res+1;
-		res++;
-		s++;
-	}
-}
-EXPORT_SYMBOL(strlen_user);
-
 unsigned long copy_in_user(void __user *to, const void __user *from, unsigned len)
 {
 	if (access_ok(VERIFY_WRITE, to, len) && access_ok(VERIFY_READ, from, len)) { 

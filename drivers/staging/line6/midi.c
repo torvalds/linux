@@ -406,7 +406,7 @@ int line6_init_midi(struct usb_line6 *line6)
 
 	line6midi->line6 = line6;
 
-	switch(line6->product) {
+	switch (line6->product) {
 	case LINE6_DEVID_PODHD300:
 	case LINE6_DEVID_PODHD500:
 		line6midi->midi_mask_transmit = 1;

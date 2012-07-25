@@ -26,11 +26,13 @@
 #include <linux/bitops.h>
 #include <linux/devpts_fs.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
 
 
 #ifdef CONFIG_UNIX98_PTYS
 static struct tty_driver *ptm_driver;
 static struct tty_driver *pts_driver;
+static DEFINE_MUTEX(devpts_mutex);
 #endif
 
 static void pty_close(struct tty_struct *tty, struct file *filp)
@@ -54,8 +56,11 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 	if (tty->driver->subtype == PTY_TYPE_MASTER) {
 		set_bit(TTY_OTHER_CLOSED, &tty->flags);
 #ifdef CONFIG_UNIX98_PTYS
-		if (tty->driver == ptm_driver)
+		if (tty->driver == ptm_driver) {
+		        mutex_lock(&devpts_mutex);
 			devpts_pty_kill(tty->link);
+		        mutex_unlock(&devpts_mutex);
+		}
 #endif
 		tty_unlock();
 		tty_vhangup(tty->link);
@@ -475,13 +480,17 @@ static struct tty_struct *ptm_unix98_lookup(struct tty_driver *driver,
  *	@idx: tty index
  *
  *	Look up a pty master device. Called under the tty_mutex for now.
- *	This provides our locking.
+ *	This provides our locking for the tty pointer.
  */
 
 static struct tty_struct *pts_unix98_lookup(struct tty_driver *driver,
 		struct inode *pts_inode, int idx)
 {
-	struct tty_struct *tty = devpts_get_tty(pts_inode, idx);
+	struct tty_struct *tty;
+
+	mutex_lock(&devpts_mutex);
+	tty = devpts_get_tty(pts_inode, idx);
+	mutex_unlock(&devpts_mutex);
 	/* Master must be open before slave */
 	if (!tty)
 		return ERR_PTR(-EIO);
@@ -622,8 +631,10 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	}
 
 	mutex_lock(&tty_mutex);
-	tty_lock();
+	mutex_lock(&devpts_mutex);
 	tty = tty_init_dev(ptm_driver, index);
+	mutex_unlock(&devpts_mutex);
+	tty_lock();
 	mutex_unlock(&tty_mutex);
 
 	if (IS_ERR(tty)) {

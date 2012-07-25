@@ -26,10 +26,10 @@
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/irqdomain.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <asm/mach/irq.h>
 
-#include <mach/gpio-tegra.h>
 #include <mach/iomap.h>
 #include <mach/suspend.h>
 
@@ -108,17 +108,28 @@ static void tegra_gpio_mask_write(u32 reg, int gpio, int value)
 	tegra_gpio_writel(val, reg);
 }
 
-void tegra_gpio_enable(int gpio)
+static void tegra_gpio_enable(int gpio)
 {
 	tegra_gpio_mask_write(GPIO_MSK_CNF(gpio), gpio, 1);
 }
 EXPORT_SYMBOL_GPL(tegra_gpio_enable);
 
-void tegra_gpio_disable(int gpio)
+static void tegra_gpio_disable(int gpio)
 {
 	tegra_gpio_mask_write(GPIO_MSK_CNF(gpio), gpio, 0);
 }
 EXPORT_SYMBOL_GPL(tegra_gpio_disable);
+
+int tegra_gpio_request(struct gpio_chip *chip, unsigned offset)
+{
+	return pinctrl_request_gpio(offset);
+}
+
+void tegra_gpio_free(struct gpio_chip *chip, unsigned offset)
+{
+	pinctrl_free_gpio(offset);
+	tegra_gpio_disable(offset);
+}
 
 static void tegra_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
@@ -133,6 +144,7 @@ static int tegra_gpio_get(struct gpio_chip *chip, unsigned offset)
 static int tegra_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	tegra_gpio_mask_write(GPIO_MSK_OE(offset), offset, 0);
+	tegra_gpio_enable(offset);
 	return 0;
 }
 
@@ -141,6 +153,7 @@ static int tegra_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 {
 	tegra_gpio_set(chip, offset, value);
 	tegra_gpio_mask_write(GPIO_MSK_OE(offset), offset, 1);
+	tegra_gpio_enable(offset);
 	return 0;
 }
 
@@ -151,13 +164,14 @@ static int tegra_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 
 static struct gpio_chip tegra_gpio_chip = {
 	.label			= "tegra-gpio",
+	.request		= tegra_gpio_request,
+	.free			= tegra_gpio_free,
 	.direction_input	= tegra_gpio_direction_input,
 	.get			= tegra_gpio_get,
 	.direction_output	= tegra_gpio_direction_output,
 	.set			= tegra_gpio_set,
 	.to_irq			= tegra_gpio_to_irq,
 	.base			= 0,
-	.ngpio			= TEGRA_NR_GPIOS,
 };
 
 static void tegra_gpio_irq_ack(struct irq_data *d)
@@ -223,6 +237,9 @@ static int tegra_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	tegra_gpio_writel(val, GPIO_INT_LVL(gpio));
 
 	spin_unlock_irqrestore(&bank->lvl_lock[port], flags);
+
+	tegra_gpio_mask_write(GPIO_MSK_OE(gpio), gpio, 0);
+	tegra_gpio_enable(gpio);
 
 	if (type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
 		__irq_set_handler_locked(d->irq, handle_level_irq);
@@ -489,20 +506,6 @@ static int __init tegra_gpio_init(void)
 	return platform_driver_register(&tegra_gpio_driver);
 }
 postcore_initcall(tegra_gpio_init);
-
-void tegra_gpio_config(struct tegra_gpio_table *table, int num)
-{
-	int i;
-
-	for (i = 0; i < num; i++) {
-		int gpio = table[i].gpio;
-
-		if (table[i].enable)
-			tegra_gpio_enable(gpio);
-		else
-			tegra_gpio_disable(gpio);
-	}
-}
 
 #ifdef	CONFIG_DEBUG_FS
 

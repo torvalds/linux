@@ -37,15 +37,6 @@ static void __init eco920_init_early(void)
 	at91rm9200_set_type(ARCH_REVISON_9200_PQFP);
 
 	at91_initialize(18432000);
-
-	/* Setup the LEDs */
-	at91_init_leds(AT91_PIN_PB0, AT91_PIN_PB1);
-
-	/* DBGU on ttyS0. (Rx & Tx only */
-	at91_register_uart(0, 0, 0);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 static struct macb_platform_data __initdata eco920_eth_data = {
@@ -103,6 +94,10 @@ static struct spi_board_info eco920_spi_devices[] = {
 
 static void __init eco920_board_init(void)
 {
+	/* Setup the LEDs */
+	at91_init_leds(AT91_PIN_PB0, AT91_PIN_PB1);
+	/* DBGU on ttyS0. (Rx & Tx only */
+	at91_register_uart(0, 0, 0);
 	at91_add_device_serial();
 	at91_add_device_eth(&eco920_eth_data);
 	at91_add_device_usbh(&eco920_usbh_data);

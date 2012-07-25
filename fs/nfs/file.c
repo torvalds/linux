@@ -174,6 +174,13 @@ nfs_file_flush(struct file *file, fl_owner_t id)
 	if ((file->f_mode & FMODE_WRITE) == 0)
 		return 0;
 
+	/*
+	 * If we're holding a write delegation, then just start the i/o
+	 * but don't wait for completion (or send a commit).
+	 */
+	if (nfs_have_delegation(inode, FMODE_WRITE))
+		return filemap_fdatawrite(file->f_mapping);
+
 	/* Flush writes to the server and return any errors */
 	return vfs_fsync(file, 0);
 }
@@ -417,6 +424,7 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 
 	if (status < 0)
 		return status;
+	NFS_I(mapping->host)->write_io += copied;
 	return copied;
 }
 
@@ -871,12 +879,81 @@ const struct file_operations nfs_file_operations = {
 static int
 nfs4_file_open(struct inode *inode, struct file *filp)
 {
+	struct nfs_open_context *ctx;
+	struct dentry *dentry = filp->f_path.dentry;
+	struct dentry *parent = NULL;
+	struct inode *dir;
+	unsigned openflags = filp->f_flags;
+	struct iattr attr;
+	int err;
+
+	BUG_ON(inode != dentry->d_inode);
 	/*
-	 * NFSv4 opens are handled in d_lookup and d_revalidate. If we get to
-	 * this point, then something is very wrong
+	 * If no cached dentry exists or if it's negative, NFSv4 handled the
+	 * opens in ->lookup() or ->create().
+	 *
+	 * We only get this far for a cached positive dentry.  We skipped
+	 * revalidation, so handle it here by dropping the dentry and returning
+	 * -EOPENSTALE.  The VFS will retry the lookup/create/open.
 	 */
-	dprintk("NFS: %s called! inode=%p filp=%p\n", __func__, inode, filp);
-	return -ENOTDIR;
+
+	dprintk("NFS: open file(%s/%s)\n",
+		dentry->d_parent->d_name.name,
+		dentry->d_name.name);
+
+	if ((openflags & O_ACCMODE) == 3)
+		openflags--;
+
+	/* We can't create new files here */
+	openflags &= ~(O_CREAT|O_EXCL);
+
+	parent = dget_parent(dentry);
+	dir = parent->d_inode;
+
+	ctx = alloc_nfs_open_context(filp->f_path.dentry, filp->f_mode);
+	err = PTR_ERR(ctx);
+	if (IS_ERR(ctx))
+		goto out;
+
+	attr.ia_valid = ATTR_OPEN;
+	if (openflags & O_TRUNC) {
+		attr.ia_valid |= ATTR_SIZE;
+		attr.ia_size = 0;
+		nfs_wb_all(inode);
+	}
+
+	inode = NFS_PROTO(dir)->open_context(dir, ctx, openflags, &attr);
+	if (IS_ERR(inode)) {
+		err = PTR_ERR(inode);
+		switch (err) {
+		case -EPERM:
+		case -EACCES:
+		case -EDQUOT:
+		case -ENOSPC:
+		case -EROFS:
+			goto out_put_ctx;
+		default:
+			goto out_drop;
+		}
+	}
+	iput(inode);
+	if (inode != dentry->d_inode)
+		goto out_drop;
+
+	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
+	nfs_file_set_open_context(filp, ctx);
+	err = 0;
+
+out_put_ctx:
+	put_nfs_open_context(ctx);
+out:
+	dput(parent);
+	return err;
+
+out_drop:
+	d_drop(dentry);
+	err = -EOPENSTALE;
+	goto out_put_ctx;
 }
 
 const struct file_operations nfs4_file_operations = {

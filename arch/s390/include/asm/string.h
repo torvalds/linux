@@ -9,8 +9,6 @@
 #ifndef _S390_STRING_H_
 #define _S390_STRING_H_
 
-#ifdef __KERNEL__
-
 #ifndef _LINUX_TYPES_H
 #include <linux/types.h>
 #endif
@@ -151,7 +149,5 @@ char *strcpy(char *dst, const char *src);
 size_t strlen(const char *s);
 size_t strnlen(const char * s, size_t n);
 #endif /* !IN_ARCH_STRING_C */
-
-#endif /* __KERNEL__ */
 
 #endif /* __S390_STRING_H_ */

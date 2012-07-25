@@ -23,6 +23,9 @@
 #include <linux/types.h>
 #include <linux/kvm_host.h>
 
+/* LPIDs we support with this build -- runtime limit may be lower */
+#define KVMPPC_NR_LPIDS                        64
+
 static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
 {
 	vcpu->arch.gpr[num] = val;

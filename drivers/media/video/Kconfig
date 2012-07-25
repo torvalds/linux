@@ -472,6 +472,9 @@ comment "Camera sensor devices"
 config VIDEO_APTINA_PLL
 	tristate
 
+config VIDEO_SMIAPP_PLL
+	tristate
+
 config VIDEO_OV7670
 	tristate "OmniVision OV7670 sensor support"
 	depends on I2C && VIDEO_V4L2
@@ -555,6 +558,8 @@ config VIDEO_S5K6AA
 	---help---
 	  This is a V4L2 sensor-level driver for Samsung S5K6AA(FX) 1.3M
 	  camera sensor with an embedded SoC image signal processor.
+
+source "drivers/media/video/smiapp/Kconfig"
 
 comment "Flash devices"
 
@@ -644,6 +649,8 @@ menuconfig V4L_USB_DRIVERS
 
 if V4L_USB_DRIVERS
 
+source "drivers/media/video/au0828/Kconfig"
+
 source "drivers/media/video/uvc/Kconfig"
 
 source "drivers/media/video/gspca/Kconfig"
@@ -661,8 +668,6 @@ source "drivers/media/video/cx231xx/Kconfig"
 source "drivers/media/video/tm6000/Kconfig"
 
 source "drivers/media/video/usbvision/Kconfig"
-
-source "drivers/media/video/et61x251/Kconfig"
 
 source "drivers/media/video/sn9c102/Kconfig"
 
@@ -720,8 +725,6 @@ menuconfig V4L_PCI_DRIVERS
 	  Say Y here to enable support for these PCI(e) drivers.
 
 if V4L_PCI_DRIVERS
-
-source "drivers/media/video/au0828/Kconfig"
 
 source "drivers/media/video/bt8xx/Kconfig"
 
@@ -793,6 +796,19 @@ source "drivers/media/video/saa7134/Kconfig"
 source "drivers/media/video/saa7164/Kconfig"
 
 source "drivers/media/video/zoran/Kconfig"
+
+config STA2X11_VIP
+	tristate "STA2X11 VIP Video For Linux"
+	depends on STA2X11
+	select VIDEO_ADV7180 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEOBUF_DMA_CONTIG
+	depends on PCI && VIDEO_V4L2 && VIRT_TO_BUS
+	help
+	  Say Y for support for STA2X11 VIP (Video Input Port) capture
+	  device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sta2x11_vip.
 
 endif # V4L_PCI_DRIVERS
 
@@ -1127,19 +1143,6 @@ config VIDEO_MX2
 	  This is a v4l2 driver for the i.MX27 and the i.MX25 Camera Sensor
 	  Interface
 
-config  VIDEO_SAMSUNG_S5P_FIMC
-	tristate "Samsung S5P and EXYNOS4 camera interface driver (EXPERIMENTAL)"
-	depends on VIDEO_V4L2 && I2C && PLAT_S5P && PM_RUNTIME && \
-		VIDEO_V4L2_SUBDEV_API && EXPERIMENTAL
-	select VIDEOBUF2_DMA_CONTIG
-	select V4L2_MEM2MEM_DEV
-	---help---
-	  This is a v4l2 driver for Samsung S5P and EXYNOS4 camera
-	  host interface and video postprocessor.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called s5p-fimc.
-
 config VIDEO_ATMEL_ISI
 	tristate "ATMEL Image Sensor Interface (ISI) support"
 	depends on VIDEO_DEV && SOC_CAMERA && ARCH_AT91
@@ -1148,16 +1151,7 @@ config VIDEO_ATMEL_ISI
 	  This module makes the ATMEL Image Sensor Interface available
 	  as a v4l2 device.
 
-config VIDEO_S5P_MIPI_CSIS
-	tristate "Samsung S5P and EXYNOS4 MIPI CSI receiver driver"
-	depends on VIDEO_V4L2 && PM_RUNTIME && PLAT_S5P
-	depends on VIDEO_V4L2_SUBDEV_API && REGULATOR
-	---help---
-	  This is a v4l2 driver for Samsung S5P/EXYNOS4 MIPI-CSI receiver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called s5p-csis.
-
+source "drivers/media/video/s5p-fimc/Kconfig"
 source "drivers/media/video/s5p-tv/Kconfig"
 
 endif # V4L_PLATFORM_DRIVERS

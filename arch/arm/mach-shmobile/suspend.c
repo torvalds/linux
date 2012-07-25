@@ -39,9 +39,8 @@ struct platform_suspend_ops shmobile_suspend_ops = {
 	.valid		= suspend_valid_only_mem,
 };
 
-static int __init shmobile_suspend_init(void)
+int __init shmobile_suspend_init(void)
 {
 	suspend_set_ops(&shmobile_suspend_ops);
 	return 0;
 }
-late_initcall(shmobile_suspend_init);

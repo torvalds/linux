@@ -1,8 +1,6 @@
 #ifndef __S390_VDSO_H__
 #define __S390_VDSO_H__
 
-#ifdef __KERNEL__
-
 /* Default link addresses for the vDSOs */
 #define VDSO32_LBASE	0
 #define VDSO64_LBASE	0
@@ -45,7 +43,4 @@ void vdso_free_per_cpu(struct _lowcore *lowcore);
 #endif
 
 #endif /* __ASSEMBLY__ */
-
-#endif /* __KERNEL__ */
-
 #endif /* __S390_VDSO_H__ */

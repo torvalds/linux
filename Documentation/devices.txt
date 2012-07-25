@@ -98,7 +98,8 @@ Your cooperation is appreciated.
 		  8 = /dev/random	Nondeterministic random number gen.
 		  9 = /dev/urandom	Faster, less secure random number gen.
 		 10 = /dev/aio		Asynchronous I/O notification interface
-		 11 = /dev/kmsg		Writes to this come out as printk's
+		 11 = /dev/kmsg		Writes to this come out as printk's, reads
+					export the buffered printk records.
 		 12 = /dev/oldmem	Used by crashdump kernels to access
 					the memory of the kernel that crashed.
 
@@ -846,13 +847,7 @@ Your cooperation is appreciated.
 		    ...
 		 31 = /dev/tap15	16th Ethertap device
 
- 36 block	MCA ESDI hard disk
-		  0 = /dev/eda		First ESDI disk whole disk
-		 64 = /dev/edb		Second ESDI disk whole disk
-		    ...
-
-		Partitions are handled in the same way as IDE disks
-		(see major number 3).
+ 36 block	OBSOLETE (was MCA ESDI hard disk)
 
  37 char	IDE tape
 		  0 = /dev/ht0		First IDE tape

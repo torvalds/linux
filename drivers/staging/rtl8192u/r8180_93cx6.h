@@ -7,7 +7,7 @@
 	Parts of this driver are based on the rtl8180 driver skeleton from Patric Schenke & Andres Salomon
 	Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver
 
-	We want to tanks the Authors of such projects and the Ndiswrapper project Authors.
+	We want to thank the Authors of such projects and the Ndiswrapper project Authors.
 */
 
 /*This files contains card eeprom (93c46 or 93c56) programming routines*/

@@ -252,8 +252,6 @@ struct efx_rx_page_state {
  * @max_fill: RX descriptor maximum fill level (<= ring size)
  * @fast_fill_trigger: RX descriptor fill level that will trigger a fast fill
  *	(<= @max_fill)
- * @fast_fill_limit: The level to which a fast fill will fill
- *	(@fast_fill_trigger <= @fast_fill_limit <= @max_fill)
  * @min_fill: RX descriptor minimum non-zero fill level.
  *	This records the minimum fill level observed when a ring
  *	refill was triggered.
@@ -274,7 +272,6 @@ struct efx_rx_queue {
 	int removed_count;
 	unsigned int max_fill;
 	unsigned int fast_fill_trigger;
-	unsigned int fast_fill_limit;
 	unsigned int min_fill;
 	unsigned int min_overfill;
 	unsigned int alloc_page_count;
@@ -522,6 +519,11 @@ struct efx_phy_operations {
 	int (*test_alive) (struct efx_nic *efx);
 	const char *(*test_name) (struct efx_nic *efx, unsigned int index);
 	int (*run_tests) (struct efx_nic *efx, int *results, unsigned flags);
+	int (*get_module_eeprom) (struct efx_nic *efx,
+			       struct ethtool_eeprom *ee,
+			       u8 *data);
+	int (*get_module_info) (struct efx_nic *efx,
+				struct ethtool_modinfo *modinfo);
 };
 
 /**

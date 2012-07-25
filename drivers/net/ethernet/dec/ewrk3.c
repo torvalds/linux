@@ -1016,7 +1016,8 @@ static int ewrk3_rx(struct net_device *dev)
 							} else {
 								lp->pktStats.multicast++;
 							}
-						} else if (compare_ether_addr(p, dev->dev_addr) == 0) {
+						} else if (ether_addr_equal(p,
+									    dev->dev_addr)) {
 							lp->pktStats.unicast++;
 						}
 						lp->pktStats.bins[0]++;		/* Duplicates stats.rx_packets */

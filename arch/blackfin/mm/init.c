@@ -48,7 +48,7 @@ void __init paging_init(void)
 
 	unsigned long zones_size[MAX_NR_ZONES] = {
 		[0] = 0,
-		[ZONE_DMA] = (end_mem - PAGE_OFFSET) >> PAGE_SHIFT,
+		[ZONE_DMA] = (end_mem - CONFIG_PHY_RAM_BASE_ADDRESS) >> PAGE_SHIFT,
 		[ZONE_NORMAL] = 0,
 #ifdef CONFIG_HIGHMEM
 		[ZONE_HIGHMEM] = 0,
@@ -60,7 +60,8 @@ void __init paging_init(void)
 
 	pr_debug("free_area_init -> start_mem is %#lx virtual_end is %#lx\n",
 	        PAGE_ALIGN(memory_start), end_mem);
-	free_area_init(zones_size);
+	free_area_init_node(0, zones_size,
+		CONFIG_PHY_RAM_BASE_ADDRESS >> PAGE_SHIFT, NULL);
 }
 
 asmlinkage void __init init_pda(void)
@@ -74,9 +75,6 @@ asmlinkage void __init init_pda(void)
 	   undefined at the time of the call, we are only setting up
 	   valid pointers to it. */
 	memset(&cpu_pda[cpu], 0, sizeof(cpu_pda[cpu]));
-
-	cpu_pda[0].next = &cpu_pda[1];
-	cpu_pda[1].next = &cpu_pda[0];
 
 #ifdef CONFIG_EXCEPTION_L1_SCRATCH
 	cpu_pda[cpu].ex_stack = (unsigned long *)(L1_SCRATCH_START + \
@@ -109,10 +107,10 @@ void __init mem_init(void)
 	totalram_pages = free_all_bootmem();
 
 	reservedpages = 0;
-	for (tmp = 0; tmp < max_mapnr; tmp++)
+	for (tmp = ARCH_PFN_OFFSET; tmp < max_mapnr; tmp++)
 		if (PageReserved(pfn_to_page(tmp)))
 			reservedpages++;
-	freepages =  max_mapnr - reservedpages;
+	freepages =  max_mapnr - ARCH_PFN_OFFSET - reservedpages;
 
 	/* do not count in kernel image between _rambase and _ramstart */
 	reservedpages -= (_ramstart - _rambase) >> PAGE_SHIFT;
@@ -127,7 +125,7 @@ void __init mem_init(void)
 	printk(KERN_INFO
 	     "Memory available: %luk/%luk RAM, "
 		"(%uk init code, %uk kernel code, %uk data, %uk dma, %uk reserved)\n",
-		(unsigned long) freepages << (PAGE_SHIFT-10), _ramend >> 10,
+		(unsigned long) freepages << (PAGE_SHIFT-10), (_ramend - CONFIG_PHY_RAM_BASE_ADDRESS) >> 10,
 		initk, codek, datak, DMA_UNCACHED_REGION >> 10, (reservedpages << (PAGE_SHIFT-10)));
 }
 

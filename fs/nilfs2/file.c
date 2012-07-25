@@ -37,6 +37,7 @@ int nilfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 * This function should be implemented when the writeback function
 	 * will be implemented.
 	 */
+	struct the_nilfs *nilfs;
 	struct inode *inode = file->f_mapping->host;
 	int err;
 
@@ -45,18 +46,21 @@ int nilfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		return err;
 	mutex_lock(&inode->i_mutex);
 
-	if (!nilfs_inode_dirty(inode)) {
-		mutex_unlock(&inode->i_mutex);
-		return 0;
+	if (nilfs_inode_dirty(inode)) {
+		if (datasync)
+			err = nilfs_construct_dsync_segment(inode->i_sb, inode,
+							    0, LLONG_MAX);
+		else
+			err = nilfs_construct_segment(inode->i_sb);
 	}
-
-	if (datasync)
-		err = nilfs_construct_dsync_segment(inode->i_sb, inode, 0,
-						    LLONG_MAX);
-	else
-		err = nilfs_construct_segment(inode->i_sb);
-
 	mutex_unlock(&inode->i_mutex);
+
+	nilfs = inode->i_sb->s_fs_info;
+	if (!err && nilfs_test_opt(nilfs, BARRIER)) {
+		err = blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
+		if (err != -EIO)
+			err = 0;
+	}
 	return err;
 }
 

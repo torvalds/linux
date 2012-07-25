@@ -26,7 +26,7 @@ struct wm831x_backlight_pdata {
 struct wm831x_backup_pdata {
 	int charger_enable;
 	int no_constant_voltage;  /** Disable constant voltage charging */
-	int vlim;   /** Voltage limit in milivolts */
+	int vlim;   /** Voltage limit in millivolts */
 	int ilim;   /** Current limit in microamps */
 };
 

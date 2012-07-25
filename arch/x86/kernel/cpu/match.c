@@ -23,7 +23,7 @@
  * %X86_MODEL_ANY, %X86_FEATURE_ANY or 0 (except for vendor)
  *
  * Arrays used to match for this should also be declared using
- * MODULE_DEVICE_TABLE(x86_cpu, ...)
+ * MODULE_DEVICE_TABLE(x86cpu, ...)
  *
  * This always matches against the boot cpu, assuming models and features are
  * consistent over all CPUs.

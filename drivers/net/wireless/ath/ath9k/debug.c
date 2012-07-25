@@ -380,63 +380,75 @@ static ssize_t read_file_interrupt(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
-	char buf[512];
 	unsigned int len = 0;
+	int rv;
+	int mxlen = 4000;
+	char *buf = kmalloc(mxlen, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+#define PR_IS(a, s)						\
+	do {							\
+		len += snprintf(buf + len, mxlen - len,		\
+				"%21s: %10u\n", a,		\
+				sc->debug.stats.istats.s);	\
+	} while (0)
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
-		len += snprintf(buf + len, sizeof(buf) - len,
-			"%8s: %10u\n", "RXLP", sc->debug.stats.istats.rxlp);
-		len += snprintf(buf + len, sizeof(buf) - len,
-			"%8s: %10u\n", "RXHP", sc->debug.stats.istats.rxhp);
-		len += snprintf(buf + len, sizeof(buf) - len,
-			"%8s: %10u\n", "WATCHDOG",
-			sc->debug.stats.istats.bb_watchdog);
+		PR_IS("RXLP", rxlp);
+		PR_IS("RXHP", rxhp);
+		PR_IS("WATHDOG", bb_watchdog);
 	} else {
-		len += snprintf(buf + len, sizeof(buf) - len,
-			"%8s: %10u\n", "RX", sc->debug.stats.istats.rxok);
+		PR_IS("RX", rxok);
 	}
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "RXEOL", sc->debug.stats.istats.rxeol);
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "RXORN", sc->debug.stats.istats.rxorn);
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "TX", sc->debug.stats.istats.txok);
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "TXURN", sc->debug.stats.istats.txurn);
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "MIB", sc->debug.stats.istats.mib);
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "RXPHY", sc->debug.stats.istats.rxphyerr);
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "RXKCM", sc->debug.stats.istats.rx_keycache_miss);
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "SWBA", sc->debug.stats.istats.swba);
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "BMISS", sc->debug.stats.istats.bmiss);
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "BNR", sc->debug.stats.istats.bnr);
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "CST", sc->debug.stats.istats.cst);
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "GTT", sc->debug.stats.istats.gtt);
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "TIM", sc->debug.stats.istats.tim);
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "CABEND", sc->debug.stats.istats.cabend);
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "DTIMSYNC", sc->debug.stats.istats.dtimsync);
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "DTIM", sc->debug.stats.istats.dtim);
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "TSFOOR", sc->debug.stats.istats.tsfoor);
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "TOTAL", sc->debug.stats.istats.total);
+	PR_IS("RXEOL", rxeol);
+	PR_IS("RXORN", rxorn);
+	PR_IS("TX", txok);
+	PR_IS("TXURN", txurn);
+	PR_IS("MIB", mib);
+	PR_IS("RXPHY", rxphyerr);
+	PR_IS("RXKCM", rx_keycache_miss);
+	PR_IS("SWBA", swba);
+	PR_IS("BMISS", bmiss);
+	PR_IS("BNR", bnr);
+	PR_IS("CST", cst);
+	PR_IS("GTT", gtt);
+	PR_IS("TIM", tim);
+	PR_IS("CABEND", cabend);
+	PR_IS("DTIMSYNC", dtimsync);
+	PR_IS("DTIM", dtim);
+	PR_IS("TSFOOR", tsfoor);
+	PR_IS("TOTAL", total);
 
+	len += snprintf(buf + len, mxlen - len,
+			"SYNC_CAUSE stats:\n");
 
-	if (len > sizeof(buf))
-		len = sizeof(buf);
+	PR_IS("Sync-All", sync_cause_all);
+	PR_IS("RTC-IRQ", sync_rtc_irq);
+	PR_IS("MAC-IRQ", sync_mac_irq);
+	PR_IS("EEPROM-Illegal-Access", eeprom_illegal_access);
+	PR_IS("APB-Timeout", apb_timeout);
+	PR_IS("PCI-Mode-Conflict", pci_mode_conflict);
+	PR_IS("HOST1-Fatal", host1_fatal);
+	PR_IS("HOST1-Perr", host1_perr);
+	PR_IS("TRCV-FIFO-Perr", trcv_fifo_perr);
+	PR_IS("RADM-CPL-EP", radm_cpl_ep);
+	PR_IS("RADM-CPL-DLLP-Abort", radm_cpl_dllp_abort);
+	PR_IS("RADM-CPL-TLP-Abort", radm_cpl_tlp_abort);
+	PR_IS("RADM-CPL-ECRC-Err", radm_cpl_ecrc_err);
+	PR_IS("RADM-CPL-Timeout", radm_cpl_timeout);
+	PR_IS("Local-Bus-Timeout", local_timeout);
+	PR_IS("PM-Access", pm_access);
+	PR_IS("MAC-Awake", mac_awake);
+	PR_IS("MAC-Asleep", mac_asleep);
+	PR_IS("MAC-Sleep-Access", mac_sleep_access);
 
-	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	if (len > mxlen)
+		len = mxlen;
+
+	rv = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+	return rv;
 }
 
 static const struct file_operations fops_interrupt = {
@@ -524,6 +536,7 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	PR("hw-put-tx-buf:   ", puttxbuf);
 	PR("hw-tx-start:     ", txstart);
 	PR("hw-tx-proc-desc: ", txprocdesc);
+	PR("TX-Failed:       ", txfailed);
 	len += snprintf(buf + len, size - len,
 			"%s%11p%11p%10p%10p\n", "txq-memory-address:",
 			sc->tx.txq_map[WME_AC_BE],
@@ -880,6 +893,13 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	len += snprintf(buf + len, size - len, "%22s : %10u\n", s, \
 			sc->debug.stats.rxstats.phy_err_stats[p]);
 
+#define RXS_ERR(s, e)					    \
+	do {						    \
+		len += snprintf(buf + len, size - len,	    \
+				"%22s : %10u\n", s,	    \
+				sc->debug.stats.rxstats.e); \
+	} while (0)
+
 	struct ath_softc *sc = file->private_data;
 	char *buf;
 	unsigned int len = 0, size = 1600;
@@ -889,27 +909,18 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len += snprintf(buf + len, size - len,
-			"%22s : %10u\n", "CRC ERR",
-			sc->debug.stats.rxstats.crc_err);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10u\n", "DECRYPT CRC ERR",
-			sc->debug.stats.rxstats.decrypt_crc_err);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10u\n", "PHY ERR",
-			sc->debug.stats.rxstats.phy_err);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10u\n", "MIC ERR",
-			sc->debug.stats.rxstats.mic_err);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10u\n", "PRE-DELIM CRC ERR",
-			sc->debug.stats.rxstats.pre_delim_crc_err);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10u\n", "POST-DELIM CRC ERR",
-			sc->debug.stats.rxstats.post_delim_crc_err);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10u\n", "DECRYPT BUSY ERR",
-			sc->debug.stats.rxstats.decrypt_busy_err);
+	RXS_ERR("CRC ERR", crc_err);
+	RXS_ERR("DECRYPT CRC ERR", decrypt_crc_err);
+	RXS_ERR("PHY ERR", phy_err);
+	RXS_ERR("MIC ERR", mic_err);
+	RXS_ERR("PRE-DELIM CRC ERR", pre_delim_crc_err);
+	RXS_ERR("POST-DELIM CRC ERR", post_delim_crc_err);
+	RXS_ERR("DECRYPT BUSY ERR", decrypt_busy_err);
+	RXS_ERR("RX-LENGTH-ERR", rx_len_err);
+	RXS_ERR("RX-OOM-ERR", rx_oom_err);
+	RXS_ERR("RX-RATE-ERR", rx_rate_err);
+	RXS_ERR("RX-DROP-RXFLUSH", rx_drop_rxflush);
+	RXS_ERR("RX-TOO-MANY-FRAGS", rx_too_many_frags_err);
 
 	PHY_ERR("UNDERRUN ERR", ATH9K_PHYERR_UNDERRUN);
 	PHY_ERR("TIMING ERR", ATH9K_PHYERR_TIMING);
@@ -938,12 +949,10 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	PHY_ERR("HT-LENGTH ERR", ATH9K_PHYERR_HT_LENGTH_ILLEGAL);
 	PHY_ERR("HT-RATE ERR", ATH9K_PHYERR_HT_RATE_ILLEGAL);
 
-	len += snprintf(buf + len, size - len,
-			"%22s : %10u\n", "RX-Pkts-All",
-			sc->debug.stats.rxstats.rx_pkts_all);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10u\n", "RX-Bytes-All",
-			sc->debug.stats.rxstats.rx_bytes_all);
+	RXS_ERR("RX-Pkts-All", rx_pkts_all);
+	RXS_ERR("RX-Bytes-All", rx_bytes_all);
+	RXS_ERR("RX-Beacons", rx_beacons);
+	RXS_ERR("RX-Frags", rx_frags);
 
 	if (len > size)
 		len = size;
@@ -953,12 +962,12 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 
 	return retval;
 
+#undef RXS_ERR
 #undef PHY_ERR
 }
 
 void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 {
-#define RX_STAT_INC(c) sc->debug.stats.rxstats.c++
 #define RX_PHY_ERR_INC(c) sc->debug.stats.rxstats.phy_err_stats[c]++
 #define RX_SAMP_DBG(c) (sc->debug.bb_mac_samp[sc->debug.sampidx].rs\
 			[sc->debug.rsidx].c)
@@ -1004,7 +1013,6 @@ void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 
 #endif
 
-#undef RX_STAT_INC
 #undef RX_PHY_ERR_INC
 #undef RX_SAMP_DBG
 }

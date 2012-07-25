@@ -27,6 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
+#include <linux/of_i2c.h>
 #include <linux/err.h>
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
@@ -653,6 +654,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	adap->dev.parent = &dev->dev;
 	adap->retries = 5;
 	adap->nr = dev->id;
+	adap->dev.of_node = dev->dev.of_node;
 
 	strlcpy(adap->name, dev->name, sizeof(adap->name));
 
@@ -667,6 +669,8 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 
 	dev_info(&dev->dev, "I2C adapter %d with bus speed %lu Hz\n",
 		 adap->nr, pd->bus_speed);
+
+	of_i2c_register_devices(adap);
 	return 0;
 
  err_all:
@@ -710,11 +714,18 @@ static const struct dev_pm_ops sh_mobile_i2c_dev_pm_ops = {
 	.runtime_resume = sh_mobile_i2c_runtime_nop,
 };
 
+static const struct of_device_id sh_mobile_i2c_dt_ids[] __devinitconst = {
+	{ .compatible = "renesas,rmobile-iic", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, sh_mobile_i2c_dt_ids);
+
 static struct platform_driver sh_mobile_i2c_driver = {
 	.driver		= {
 		.name		= "i2c-sh_mobile",
 		.owner		= THIS_MODULE,
 		.pm		= &sh_mobile_i2c_dev_pm_ops,
+		.of_match_table = sh_mobile_i2c_dt_ids,
 	},
 	.probe		= sh_mobile_i2c_probe,
 	.remove		= sh_mobile_i2c_remove,

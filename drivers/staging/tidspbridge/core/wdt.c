@@ -53,7 +53,10 @@ int dsp_wdt_init(void)
 	int ret = 0;
 
 	dsp_wdt.sm_wdt = NULL;
-	dsp_wdt.reg_base = OMAP2_L4_IO_ADDRESS(OMAP34XX_WDT3_BASE);
+	dsp_wdt.reg_base = ioremap(OMAP34XX_WDT3_BASE, SZ_4K);
+	if (!dsp_wdt.reg_base)
+		return -ENOMEM;
+
 	tasklet_init(&dsp_wdt.wdt3_tasklet, dsp_wdt_dpc, 0);
 
 	dsp_wdt.fclk = clk_get(NULL, "wdt3_fck");
@@ -99,6 +102,9 @@ void dsp_wdt_exit(void)
 	dsp_wdt.fclk = NULL;
 	dsp_wdt.iclk = NULL;
 	dsp_wdt.sm_wdt = NULL;
+
+	if (dsp_wdt.reg_base)
+		iounmap(dsp_wdt.reg_base);
 	dsp_wdt.reg_base = NULL;
 }
 

@@ -81,6 +81,8 @@ int au8522_sleep(struct dvb_frontend *fe);
 int au8522_get_state(struct au8522_state **state, struct i2c_adapter *i2c,
 		     u8 client_address);
 void au8522_release_state(struct au8522_state *state);
+int au8522_i2c_gate_ctrl(struct dvb_frontend *fe, int enable);
+int au8522_led_ctrl(struct au8522_state *state, int led);
 
 /* REGISTERS */
 #define AU8522_INPUT_CONTROL_REG081H			0x081

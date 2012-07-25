@@ -19,7 +19,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/delay.h>
-#include <linux/pci.h>
 
 #include <defs.h>
 #include <chipcommon.h>
@@ -29,8 +28,6 @@
 #include "types.h"
 #include "pub.h"
 #include "pmu.h"
-#include "srom.h"
-#include "nicpci.h"
 #include "aiutils.h"
 
 /* slow_clk_ctl */
@@ -321,7 +318,6 @@
 #define	IS_SIM(chippkg)	\
 	((chippkg == HDLSIM_PKG_ID) || (chippkg == HWSIM_PKG_ID))
 
-#define PCI(sih)	(ai_get_buscoretype(sih) == PCI_CORE_ID)
 #define PCIE(sih)	(ai_get_buscoretype(sih) == PCIE_CORE_ID)
 
 #define PCI_FORCEHT(sih) (PCIE(sih) && (ai_get_chip_id(sih) == BCM4716_CHIP_ID))
@@ -454,36 +450,9 @@ struct aidmp {
 	u32 componentid3;	/* 0xffc */
 };
 
-/* return true if PCIE capability exists in the pci config space */
-static bool ai_ispcie(struct si_info *sii)
-{
-	u8 cap_ptr;
-
-	cap_ptr =
-	    pcicore_find_pci_capability(sii->pcibus, PCI_CAP_ID_EXP, NULL,
-					NULL);
-	if (!cap_ptr)
-		return false;
-
-	return true;
-}
-
-static bool ai_buscore_prep(struct si_info *sii)
-{
-	/* kludge to enable the clock on the 4306 which lacks a slowclock */
-	if (!ai_ispcie(sii))
-		ai_clkctl_xtal(&sii->pub, XTAL | PLL, ON);
-	return true;
-}
-
 static bool
 ai_buscore_setup(struct si_info *sii, struct bcma_device *cc)
 {
-	struct bcma_device *pci = NULL;
-	struct bcma_device *pcie = NULL;
-	struct bcma_device *core;
-
-
 	/* no cores found, bail out */
 	if (cc->bus->nr_cores == 0)
 		return false;
@@ -492,8 +461,7 @@ ai_buscore_setup(struct si_info *sii, struct bcma_device *cc)
 	sii->pub.ccrev = cc->id.rev;
 
 	/* get chipcommon chipstatus */
-	if (ai_get_ccrev(&sii->pub) >= 11)
-		sii->chipst = bcma_read32(cc, CHIPCREGOFFS(chipstatus));
+	sii->chipst = bcma_read32(cc, CHIPCREGOFFS(chipstatus));
 
 	/* get chipcommon capabilites */
 	sii->pub.cccaps = bcma_read32(cc, CHIPCREGOFFS(capabilities));
@@ -506,55 +474,9 @@ ai_buscore_setup(struct si_info *sii, struct bcma_device *cc)
 	}
 
 	/* figure out buscore */
-	list_for_each_entry(core, &cc->bus->cores, list) {
-		uint cid, crev;
-
-		cid = core->id.id;
-		crev = core->id.rev;
-
-		if (cid == PCI_CORE_ID) {
-			pci = core;
-		} else if (cid == PCIE_CORE_ID) {
-			pcie = core;
-		}
-	}
-
-	if (pci && pcie) {
-		if (ai_ispcie(sii))
-			pci = NULL;
-		else
-			pcie = NULL;
-	}
-	if (pci) {
-		sii->buscore = pci;
-	} else if (pcie) {
-		sii->buscore = pcie;
-	}
-
-	/* fixup necessary chip/core configurations */
-	if (!sii->pch) {
-		sii->pch = pcicore_init(&sii->pub, sii->icbus->drv_pci.core);
-		if (sii->pch == NULL)
-			return false;
-	}
-	if (ai_pci_fixcfg(&sii->pub))
-		return false;
+	sii->buscore = ai_findcore(&sii->pub, PCIE_CORE_ID, 0);
 
 	return true;
-}
-
-/*
- * get boardtype and boardrev
- */
-static __used void ai_nvram_process(struct si_info *sii)
-{
-	uint w = 0;
-
-	/* do a pci config read to get subsystem id and subvendor id */
-	pci_read_config_dword(sii->pcibus, PCI_SUBSYSTEM_VENDOR_ID, &w);
-
-	sii->pub.boardvendor = w & 0xffff;
-	sii->pub.boardtype = (w >> 16) & 0xffff;
 }
 
 static struct si_info *ai_doattach(struct si_info *sii,
@@ -563,7 +485,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	struct si_pub *sih = &sii->pub;
 	u32 w, savewin;
 	struct bcma_device *cc;
-	uint socitype;
+	struct ssb_sprom *sprom = &pbus->sprom;
 
 	savewin = 0;
 
@@ -573,37 +495,14 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	/* switch to Chipcommon core */
 	cc = pbus->drv_cc.core;
 
-	/* bus/core/clk setup for register access */
-	if (!ai_buscore_prep(sii))
-		return NULL;
+	sih->chip = pbus->chipinfo.id;
+	sih->chiprev = pbus->chipinfo.rev;
+	sih->chippkg = pbus->chipinfo.pkg;
+	sih->boardvendor = pbus->boardinfo.vendor;
+	sih->boardtype = pbus->boardinfo.type;
 
-	/*
-	 * ChipID recognition.
-	 *   We assume we can read chipid at offset 0 from the regs arg.
-	 *   If we add other chiptypes (or if we need to support old sdio
-	 *   hosts w/o chipcommon), some way of recognizing them needs to
-	 *   be added here.
-	 */
-	w = bcma_read32(cc, CHIPCREGOFFS(chipid));
-	socitype = (w & CID_TYPE_MASK) >> CID_TYPE_SHIFT;
-	/* Might as wll fill in chip id rev & pkg */
-	sih->chip = w & CID_ID_MASK;
-	sih->chiprev = (w & CID_REV_MASK) >> CID_REV_SHIFT;
-	sih->chippkg = (w & CID_PKG_MASK) >> CID_PKG_SHIFT;
-
-	/* scan for cores */
-	if (socitype != SOCI_AI)
-		return NULL;
-
-	SI_MSG("Found chip type AI (0x%08x)\n", w);
 	if (!ai_buscore_setup(sii, cc))
 		goto exit;
-
-	/* Init nvram from sprom/otp if they exist */
-	if (srom_var_init(&sii->pub))
-		goto exit;
-
-	ai_nvram_process(sii);
 
 	/* === NVRAM, clock is ready === */
 	bcma_write32(cc, CHIPCREGOFFS(gpiopullup), 0);
@@ -617,14 +516,12 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	}
 
 	/* setup the GPIO based LED powersave register */
-	w = getintvar(sih, BRCMS_SROM_LEDDC);
+	w = (sprom->leddc_on_time << BCMA_CC_GPIOTIMER_ONTIME_SHIFT) |
+		 (sprom->leddc_off_time << BCMA_CC_GPIOTIMER_OFFTIME_SHIFT);
 	if (w == 0)
 		w = DEFAULT_GPIOTIMERVAL;
 	ai_cc_reg(sih, offsetof(struct chipcregs, gpiotimerval),
 		  ~0, w);
-
-	if (PCIE(sih))
-		pcicore_attach(sii->pch, SI_DOATTACH);
 
 	if (ai_get_chip_id(sih) == BCM43224_CHIP_ID) {
 		/*
@@ -659,9 +556,6 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	return sii;
 
  exit:
-	if (sii->pch)
-		pcicore_deinit(sii->pch);
-	sii->pch = NULL;
 
 	return NULL;
 }
@@ -700,11 +594,6 @@ void ai_detach(struct si_pub *sih)
 	if (sii == NULL)
 		return;
 
-	if (sii->pch)
-		pcicore_deinit(sii->pch);
-	sii->pch = NULL;
-
-	srom_free_vars(sih);
 	kfree(sii);
 }
 
@@ -755,21 +644,7 @@ uint ai_cc_reg(struct si_pub *sih, uint regoff, u32 mask, u32 val)
 /* return the slow clock source - LPO, XTAL, or PCI */
 static uint ai_slowclk_src(struct si_pub *sih, struct bcma_device *cc)
 {
-	struct si_info *sii;
-	u32 val;
-
-	sii = (struct si_info *)sih;
-	if (ai_get_ccrev(&sii->pub) < 6) {
-		pci_read_config_dword(sii->pcibus, PCI_GPIO_OUT,
-				      &val);
-		if (val & PCI_CFG_GPIO_SCS)
-			return SCC_SS_PCI;
-		return SCC_SS_XTAL;
-	} else if (ai_get_ccrev(&sii->pub) < 10) {
-		return bcma_read32(cc, CHIPCREGOFFS(slow_clk_ctl)) &
-		       SCC_SS_MASK;
-	} else			/* Insta-clock */
-		return SCC_SS_XTAL;
+	return SCC_SS_XTAL;
 }
 
 /*
@@ -779,36 +654,12 @@ static uint ai_slowclk_src(struct si_pub *sih, struct bcma_device *cc)
 static uint ai_slowclk_freq(struct si_pub *sih, bool max_freq,
 			    struct bcma_device *cc)
 {
-	u32 slowclk;
 	uint div;
 
-	slowclk = ai_slowclk_src(sih, cc);
-	if (ai_get_ccrev(sih) < 6) {
-		if (slowclk == SCC_SS_PCI)
-			return max_freq ? (PCIMAXFREQ / 64)
-				: (PCIMINFREQ / 64);
-		else
-			return max_freq ? (XTALMAXFREQ / 32)
-				: (XTALMINFREQ / 32);
-	} else if (ai_get_ccrev(sih) < 10) {
-		div = 4 *
-		    (((bcma_read32(cc, CHIPCREGOFFS(slow_clk_ctl)) &
-		      SCC_CD_MASK) >> SCC_CD_SHIFT) + 1);
-		if (slowclk == SCC_SS_LPO)
-			return max_freq ? LPOMAXFREQ : LPOMINFREQ;
-		else if (slowclk == SCC_SS_XTAL)
-			return max_freq ? (XTALMAXFREQ / div)
-				: (XTALMINFREQ / div);
-		else if (slowclk == SCC_SS_PCI)
-			return max_freq ? (PCIMAXFREQ / div)
-				: (PCIMINFREQ / div);
-	} else {
-		/* Chipc rev 10 is InstaClock */
-		div = bcma_read32(cc, CHIPCREGOFFS(system_clk_ctl));
-		div = 4 * ((div >> SYCC_CD_SHIFT) + 1);
-		return max_freq ? XTALMAXFREQ : (XTALMINFREQ / div);
-	}
-	return 0;
+	/* Chipc rev 10 is InstaClock */
+	div = bcma_read32(cc, CHIPCREGOFFS(system_clk_ctl));
+	div = 4 * ((div >> SYCC_CD_SHIFT) + 1);
+	return max_freq ? XTALMAXFREQ : (XTALMINFREQ / div);
 }
 
 static void
@@ -831,8 +682,7 @@ ai_clkctl_setdelay(struct si_pub *sih, struct bcma_device *cc)
 
 	/* Starting with 4318 it is ILP that is used for the delays */
 	slowmaxfreq =
-	    ai_slowclk_freq(sih,
-			    (ai_get_ccrev(sih) >= 10) ? false : true, cc);
+	    ai_slowclk_freq(sih, false, cc);
 
 	pll_on_delay = ((slowmaxfreq * pll_delay) + 999999) / 1000000;
 	fref_sel_delay = ((slowmaxfreq * FREF_DELAY) + 999999) / 1000000;
@@ -854,9 +704,8 @@ void ai_clkctl_init(struct si_pub *sih)
 		return;
 
 	/* set all Instaclk chip ILP to 1 MHz */
-	if (ai_get_ccrev(sih) >= 10)
-		bcma_maskset32(cc, CHIPCREGOFFS(system_clk_ctl), SYCC_CD_MASK,
-			       (ILP_DIV_1MHZ << SYCC_CD_SHIFT));
+	bcma_maskset32(cc, CHIPCREGOFFS(system_clk_ctl), SYCC_CD_MASK,
+		       (ILP_DIV_1MHZ << SYCC_CD_SHIFT));
 
 	ai_clkctl_setdelay(sih, cc);
 }
@@ -891,140 +740,6 @@ u16 ai_clkctl_fast_pwrup_delay(struct si_pub *sih)
 	return fpdelay;
 }
 
-/* turn primary xtal and/or pll off/on */
-int ai_clkctl_xtal(struct si_pub *sih, uint what, bool on)
-{
-	struct si_info *sii;
-	u32 in, out, outen;
-
-	sii = (struct si_info *)sih;
-
-	/* pcie core doesn't have any mapping to control the xtal pu */
-	if (PCIE(sih))
-		return -1;
-
-	pci_read_config_dword(sii->pcibus, PCI_GPIO_IN, &in);
-	pci_read_config_dword(sii->pcibus, PCI_GPIO_OUT, &out);
-	pci_read_config_dword(sii->pcibus, PCI_GPIO_OUTEN, &outen);
-
-	/*
-	 * Avoid glitching the clock if GPRS is already using it.
-	 * We can't actually read the state of the PLLPD so we infer it
-	 * by the value of XTAL_PU which *is* readable via gpioin.
-	 */
-	if (on && (in & PCI_CFG_GPIO_XTAL))
-		return 0;
-
-	if (what & XTAL)
-		outen |= PCI_CFG_GPIO_XTAL;
-	if (what & PLL)
-		outen |= PCI_CFG_GPIO_PLL;
-
-	if (on) {
-		/* turn primary xtal on */
-		if (what & XTAL) {
-			out |= PCI_CFG_GPIO_XTAL;
-			if (what & PLL)
-				out |= PCI_CFG_GPIO_PLL;
-			pci_write_config_dword(sii->pcibus,
-					       PCI_GPIO_OUT, out);
-			pci_write_config_dword(sii->pcibus,
-					       PCI_GPIO_OUTEN, outen);
-			udelay(XTAL_ON_DELAY);
-		}
-
-		/* turn pll on */
-		if (what & PLL) {
-			out &= ~PCI_CFG_GPIO_PLL;
-			pci_write_config_dword(sii->pcibus,
-					       PCI_GPIO_OUT, out);
-			mdelay(2);
-		}
-	} else {
-		if (what & XTAL)
-			out &= ~PCI_CFG_GPIO_XTAL;
-		if (what & PLL)
-			out |= PCI_CFG_GPIO_PLL;
-		pci_write_config_dword(sii->pcibus,
-				       PCI_GPIO_OUT, out);
-		pci_write_config_dword(sii->pcibus,
-				       PCI_GPIO_OUTEN, outen);
-	}
-
-	return 0;
-}
-
-/* clk control mechanism through chipcommon, no policy checking */
-static bool _ai_clkctl_cc(struct si_info *sii, uint mode)
-{
-	struct bcma_device *cc;
-	u32 scc;
-
-	/* chipcommon cores prior to rev6 don't support dynamic clock control */
-	if (ai_get_ccrev(&sii->pub) < 6)
-		return false;
-
-	cc = ai_findcore(&sii->pub, BCMA_CORE_CHIPCOMMON, 0);
-
-	if (!(ai_get_cccaps(&sii->pub) & CC_CAP_PWR_CTL) &&
-	    (ai_get_ccrev(&sii->pub) < 20))
-		return mode == CLK_FAST;
-
-	switch (mode) {
-	case CLK_FAST:		/* FORCEHT, fast (pll) clock */
-		if (ai_get_ccrev(&sii->pub) < 10) {
-			/*
-			 * don't forget to force xtal back
-			 * on before we clear SCC_DYN_XTAL..
-			 */
-			ai_clkctl_xtal(&sii->pub, XTAL, ON);
-			bcma_maskset32(cc, CHIPCREGOFFS(slow_clk_ctl),
-				       (SCC_XC | SCC_FS | SCC_IP), SCC_IP);
-		} else if (ai_get_ccrev(&sii->pub) < 20) {
-			bcma_set32(cc, CHIPCREGOFFS(system_clk_ctl), SYCC_HR);
-		} else {
-			bcma_set32(cc, CHIPCREGOFFS(clk_ctl_st), CCS_FORCEHT);
-		}
-
-		/* wait for the PLL */
-		if (ai_get_cccaps(&sii->pub) & CC_CAP_PMU) {
-			u32 htavail = CCS_HTAVAIL;
-			SPINWAIT(((bcma_read32(cc, CHIPCREGOFFS(clk_ctl_st)) &
-				   htavail) == 0), PMU_MAX_TRANSITION_DLY);
-		} else {
-			udelay(PLL_DELAY);
-		}
-		break;
-
-	case CLK_DYNAMIC:	/* enable dynamic clock control */
-		if (ai_get_ccrev(&sii->pub) < 10) {
-			scc = bcma_read32(cc, CHIPCREGOFFS(slow_clk_ctl));
-			scc &= ~(SCC_FS | SCC_IP | SCC_XC);
-			if ((scc & SCC_SS_MASK) != SCC_SS_XTAL)
-				scc |= SCC_XC;
-			bcma_write32(cc, CHIPCREGOFFS(slow_clk_ctl), scc);
-
-			/*
-			 * for dynamic control, we have to
-			 * release our xtal_pu "force on"
-			 */
-			if (scc & SCC_XC)
-				ai_clkctl_xtal(&sii->pub, XTAL, OFF);
-		} else if (ai_get_ccrev(&sii->pub) < 20) {
-			/* Instaclock */
-			bcma_mask32(cc, CHIPCREGOFFS(system_clk_ctl), ~SYCC_HR);
-		} else {
-			bcma_mask32(cc, CHIPCREGOFFS(clk_ctl_st), ~CCS_FORCEHT);
-		}
-		break;
-
-	default:
-		break;
-	}
-
-	return mode == CLK_FAST;
-}
-
 /*
  *  clock control policy function throught chipcommon
  *
@@ -1033,133 +748,53 @@ static bool _ai_clkctl_cc(struct si_info *sii, uint mode)
  *    this is a wrapper over the next internal function
  *      to allow flexible policy settings for outside caller
  */
-bool ai_clkctl_cc(struct si_pub *sih, uint mode)
+bool ai_clkctl_cc(struct si_pub *sih, enum bcma_clkmode mode)
 {
 	struct si_info *sii;
+	struct bcma_device *cc;
 
 	sii = (struct si_info *)sih;
 
-	/* chipcommon cores prior to rev6 don't support dynamic clock control */
-	if (ai_get_ccrev(sih) < 6)
-		return false;
-
 	if (PCI_FORCEHT(sih))
-		return mode == CLK_FAST;
+		return mode == BCMA_CLKMODE_FAST;
 
-	return _ai_clkctl_cc(sii, mode);
+	cc = ai_findcore(&sii->pub, BCMA_CORE_CHIPCOMMON, 0);
+	bcma_core_set_clockmode(cc, mode);
+	return mode == BCMA_CLKMODE_FAST;
 }
 
 void ai_pci_up(struct si_pub *sih)
 {
 	struct si_info *sii;
+	struct bcma_device *cc;
 
 	sii = (struct si_info *)sih;
 
-	if (PCI_FORCEHT(sih))
-		_ai_clkctl_cc(sii, CLK_FAST);
+	if (PCI_FORCEHT(sih)) {
+		cc = ai_findcore(&sii->pub, BCMA_CORE_CHIPCOMMON, 0);
+		bcma_core_set_clockmode(cc, BCMA_CLKMODE_FAST);
+	}
 
 	if (PCIE(sih))
-		pcicore_up(sii->pch, SI_PCIUP);
-
-}
-
-/* Unconfigure and/or apply various WARs when system is going to sleep mode */
-void ai_pci_sleep(struct si_pub *sih)
-{
-	struct si_info *sii;
-
-	sii = (struct si_info *)sih;
-
-	pcicore_sleep(sii->pch);
+		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, true);
 }
 
 /* Unconfigure and/or apply various WARs when going down */
 void ai_pci_down(struct si_pub *sih)
 {
 	struct si_info *sii;
+	struct bcma_device *cc;
 
 	sii = (struct si_info *)sih;
 
 	/* release FORCEHT since chip is going to "down" state */
-	if (PCI_FORCEHT(sih))
-		_ai_clkctl_cc(sii, CLK_DYNAMIC);
-
-	pcicore_down(sii->pch, SI_PCIDOWN);
-}
-
-/*
- * Configure the pci core for pci client (NIC) action
- * coremask is the bitvec of cores by index to be enabled.
- */
-void ai_pci_setup(struct si_pub *sih, uint coremask)
-{
-	struct si_info *sii;
-	u32 w;
-
-	sii = (struct si_info *)sih;
-
-	/*
-	 * Enable sb->pci interrupts.  Assume
-	 * PCI rev 2.3 support was added in pci core rev 6 and things changed..
-	 */
-	if (PCIE(sih) || (PCI(sih) && (ai_get_buscorerev(sih) >= 6))) {
-		/* pci config write to set this core bit in PCIIntMask */
-		pci_read_config_dword(sii->pcibus, PCI_INT_MASK, &w);
-		w |= (coremask << PCI_SBIM_SHIFT);
-		pci_write_config_dword(sii->pcibus, PCI_INT_MASK, w);
+	if (PCI_FORCEHT(sih)) {
+		cc = ai_findcore(&sii->pub, BCMA_CORE_CHIPCOMMON, 0);
+		bcma_core_set_clockmode(cc, BCMA_CLKMODE_DYNAMIC);
 	}
 
-	if (PCI(sih)) {
-		pcicore_pci_setup(sii->pch);
-	}
-}
-
-/*
- * Fixup SROMless PCI device's configuration.
- * The current core may be changed upon return.
- */
-int ai_pci_fixcfg(struct si_pub *sih)
-{
-	struct si_info *sii = (struct si_info *)sih;
-
-	/* Fixup PI in SROM shadow area to enable the correct PCI core access */
-	/* check 'pi' is correct and fix it if not */
-	pcicore_fixcfg(sii->pch);
-	pcicore_hwup(sii->pch);
-	return 0;
-}
-
-/* mask&set gpiocontrol bits */
-u32 ai_gpiocontrol(struct si_pub *sih, u32 mask, u32 val, u8 priority)
-{
-	uint regoff;
-
-	regoff = offsetof(struct chipcregs, gpiocontrol);
-	return ai_cc_reg(sih, regoff, mask, val);
-}
-
-void ai_chipcontrl_epa4331(struct si_pub *sih, bool on)
-{
-	struct bcma_device *cc;
-	u32 val;
-
-	cc = ai_findcore(sih, CC_CORE_ID, 0);
-
-	if (on) {
-		if (ai_get_chippkg(sih) == 9 || ai_get_chippkg(sih) == 0xb)
-			/* Ext PA Controls for 4331 12x9 Package */
-			bcma_set32(cc, CHIPCREGOFFS(chipcontrol),
-				   CCTRL4331_EXTPA_EN |
-				   CCTRL4331_EXTPA_ON_GPIO2_5);
-		else
-			/* Ext PA Controls for 4331 12x12 Package */
-			bcma_set32(cc, CHIPCREGOFFS(chipcontrol),
-				   CCTRL4331_EXTPA_EN);
-	} else {
-		val &= ~(CCTRL4331_EXTPA_EN | CCTRL4331_EXTPA_ON_GPIO2_5);
-		bcma_mask32(cc, CHIPCREGOFFS(chipcontrol),
-			    ~(CCTRL4331_EXTPA_EN | CCTRL4331_EXTPA_ON_GPIO2_5));
-	}
+	if (PCIE(sih))
+		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, false);
 }
 
 /* Enable BT-COEX & Ex-PA for 4313 */
@@ -1181,50 +816,14 @@ bool ai_deviceremoved(struct si_pub *sih)
 
 	sii = (struct si_info *)sih;
 
+	if (sii->icbus->hosttype != BCMA_HOSTTYPE_PCI)
+		return false;
+
 	pci_read_config_dword(sii->pcibus, PCI_VENDOR_ID, &w);
 	if ((w & 0xFFFF) != PCI_VENDOR_ID_BROADCOM)
 		return true;
 
 	return false;
-}
-
-bool ai_is_sprom_available(struct si_pub *sih)
-{
-	struct si_info *sii = (struct si_info *)sih;
-
-	if (ai_get_ccrev(sih) >= 31) {
-		struct bcma_device *cc;
-		u32 sromctrl;
-
-		if ((ai_get_cccaps(sih) & CC_CAP_SROM) == 0)
-			return false;
-
-		cc = ai_findcore(sih, BCMA_CORE_CHIPCOMMON, 0);
-		sromctrl = bcma_read32(cc, CHIPCREGOFFS(sromcontrol));
-		return sromctrl & SRC_PRESENT;
-	}
-
-	switch (ai_get_chip_id(sih)) {
-	case BCM4313_CHIP_ID:
-		return (sii->chipst & CST4313_SPROM_PRESENT) != 0;
-	default:
-		return true;
-	}
-}
-
-bool ai_is_otp_disabled(struct si_pub *sih)
-{
-	struct si_info *sii = (struct si_info *)sih;
-
-	switch (ai_get_chip_id(sih)) {
-	case BCM4313_CHIP_ID:
-		return (sii->chipst & CST4313_OTP_PRESENT) == 0;
-		/* These chips always have their OTP on */
-	case BCM43224_CHIP_ID:
-	case BCM43225_CHIP_ID:
-	default:
-		return false;
-	}
 }
 
 uint ai_get_buscoretype(struct si_pub *sih)

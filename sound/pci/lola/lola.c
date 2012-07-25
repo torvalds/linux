@@ -770,22 +770,11 @@ static DEFINE_PCI_DEVICE_TABLE(lola_ids) = {
 MODULE_DEVICE_TABLE(pci, lola_ids);
 
 /* pci_driver definition */
-static struct pci_driver driver = {
+static struct pci_driver lola_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = lola_ids,
 	.probe = lola_probe,
 	.remove = __devexit_p(lola_remove),
 };
 
-static int __init alsa_card_lola_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_lola_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_lola_init)
-module_exit(alsa_card_lola_exit)
+module_pci_driver(lola_driver);

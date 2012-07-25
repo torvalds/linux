@@ -67,8 +67,6 @@ nouveau_debugfs_channel_info(struct seq_file *m, void *data)
 			   nvchan_rd32(chan, 0x8c));
 	}
 
-	seq_printf(m, "last fence    : %d\n", chan->fence.sequence);
-	seq_printf(m, "last signalled: %d\n", chan->fence.sequence_ack);
 	return 0;
 }
 

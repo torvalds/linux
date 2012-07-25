@@ -170,6 +170,47 @@
 #define IEC958_AES5_CON_CGMSA_COPYNOMORE (2<<0)	/* condition not be used */
 #define IEC958_AES5_CON_CGMSA_COPYNEVER	(3<<0)	/* no copying is permitted */
 
+/****************************************************************************
+ *                                                                          *
+ *        CEA-861 Audio InfoFrame. Used in HDMI and DisplayPort		    *
+ *                                                                          *
+ ****************************************************************************/
+#define CEA861_AUDIO_INFOFRAME_DB1CC		(7<<0) /* mask - channel count */
+#define CEA861_AUDIO_INFOFRAME_DB1CT		(0xf<<4) /* mask - coding type */
+#define CEA861_AUDIO_INFOFRAME_DB1CT_FROM_STREAM (0<<4) /* refer to stream */
+#define CEA861_AUDIO_INFOFRAME_DB1CT_IEC60958	(1<<4) /* IEC-60958 L-PCM */
+#define CEA861_AUDIO_INFOFRAME_DB1CT_AC3	(2<<4) /* AC-3 */
+#define CEA861_AUDIO_INFOFRAME_DB1CT_MPEG1	(3<<4) /* MPEG1 Layers 1 & 2 */
+#define CEA861_AUDIO_INFOFRAME_DB1CT_MP3	(4<<4) /* MPEG1 Layer 3 */
+#define CEA861_AUDIO_INFOFRAME_DB1CT_MPEG2_MULTICH (5<<4) /* MPEG2 Multichannel */
+#define CEA861_AUDIO_INFOFRAME_DB1CT_AAC	(6<<4) /* AAC */
+#define CEA861_AUDIO_INFOFRAME_DB1CT_DTS	(7<<4) /* DTS */
+#define CEA861_AUDIO_INFOFRAME_DB1CT_ATRAC	(8<<4) /* ATRAC */
+#define CEA861_AUDIO_INFOFRAME_DB1CT_ONEBIT	(9<<4) /* One Bit Audio */
+#define CEA861_AUDIO_INFOFRAME_DB1CT_DOLBY_DIG_PLUS (10<<4) /* Dolby Digital + */
+#define CEA861_AUDIO_INFOFRAME_DB1CT_DTS_HD	(11<<4) /* DTS-HD */
+#define CEA861_AUDIO_INFOFRAME_DB1CT_MAT	(12<<4) /* MAT (MLP) */
+#define CEA861_AUDIO_INFOFRAME_DB1CT_DST	(13<<4) /* DST */
+#define CEA861_AUDIO_INFOFRAME_DB1CT_WMA_PRO	(14<<4) /* WMA Pro */
+#define CEA861_AUDIO_INFOFRAME_DB2SF		(7<<2) /* mask - sample frequency */
+#define CEA861_AUDIO_INFOFRAME_DB2SF_FROM_STREAM (0<<2) /* refer to stream */
+#define CEA861_AUDIO_INFOFRAME_DB2SF_32000	(1<<2) /* 32kHz */
+#define CEA861_AUDIO_INFOFRAME_DB2SF_44100	(2<<2) /* 44.1kHz */
+#define CEA861_AUDIO_INFOFRAME_DB2SF_48000	(3<<2) /* 48kHz */
+#define CEA861_AUDIO_INFOFRAME_DB2SF_88200	(4<<2) /* 88.2kHz */
+#define CEA861_AUDIO_INFOFRAME_DB2SF_96000	(5<<2) /* 96kHz */
+#define CEA861_AUDIO_INFOFRAME_DB2SF_176400	(6<<2) /* 176.4kHz */
+#define CEA861_AUDIO_INFOFRAME_DB2SF_192000	(7<<2) /* 192kHz */
+#define CEA861_AUDIO_INFOFRAME_DB2SS		(3<<0) /* mask - sample size */
+#define CEA861_AUDIO_INFOFRAME_DB2SS_FROM_STREAM (0<<0) /* refer to stream */
+#define CEA861_AUDIO_INFOFRAME_DB2SS_16BIT	(1<<0) /* 16 bits */
+#define CEA861_AUDIO_INFOFRAME_DB2SS_20BIT	(2<<0) /* 20 bits */
+#define CEA861_AUDIO_INFOFRAME_DB2SS_24BIT	(3<<0) /* 24 bits */
+#define CEA861_AUDIO_INFOFRAME_DB5_DM_INH	(1<<7) /* mask - inhibit downmixing */
+#define CEA861_AUDIO_INFOFRAME_DB5_DM_INH_PERMITTED (0<<7) /* stereo downmix permitted */
+#define CEA861_AUDIO_INFOFRAME_DB5_DM_INH_PROHIBITED (1<<7) /* stereo downmis prohibited */
+#define CEA861_AUDIO_INFOFRAME_DB5_LSV		(0xf<<3) /* mask - level-shift values */
+
 /*****************************************************************************
  *                                                                           *
  *                            MIDI v1.0 interface                            *

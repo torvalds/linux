@@ -7,7 +7,7 @@ struct stat {
 	unsigned int	st_dev;		/* dev_t is 32 bits on parisc */
 	ino_t		st_ino;		/* 32 bits */
 	mode_t		st_mode;	/* 16 bits */
-	nlink_t		st_nlink;	/* 16 bits */
+	unsigned short	st_nlink;	/* 16 bits */
 	unsigned short	st_reserved1;	/* old st_uid */
 	unsigned short	st_reserved2;	/* old st_gid */
 	unsigned int	st_rdev;
@@ -42,7 +42,7 @@ struct hpux_stat64 {
 	unsigned int	st_dev;		/* dev_t is 32 bits on parisc */
 	ino_t           st_ino;         /* 32 bits */
 	mode_t		st_mode;	/* 16 bits */
-	nlink_t		st_nlink;	/* 16 bits */
+	unsigned short	st_nlink;	/* 16 bits */
 	unsigned short	st_reserved1;	/* old st_uid */
 	unsigned short	st_reserved2;	/* old st_gid */
 	unsigned int	st_rdev;

@@ -164,19 +164,6 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 #define n_dt3k_boards sizeof(dt3k_boardtypes)/sizeof(struct dt3k_boardtype)
 #define this_board ((const struct dt3k_boardtype *)dev->board_ptr)
 
-static DEFINE_PCI_DEVICE_TABLE(dt3k_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0022) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0027) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0023) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0024) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0028) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0025) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0026) },
-	{ 0 }
-};
-
-MODULE_DEVICE_TABLE(pci, dt3k_pci_table);
-
 #define DT3000_SIZE		(4*0x1000)
 
 /* dual-ported RAM location definitions */
@@ -275,54 +262,6 @@ struct dt3k_private {
 };
 
 #define devpriv ((struct dt3k_private *)dev->private)
-
-static int dt3000_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int dt3000_detach(struct comedi_device *dev);
-static struct comedi_driver driver_dt3000 = {
-	.driver_name = "dt3000",
-	.module = THIS_MODULE,
-	.attach = dt3000_attach,
-	.detach = dt3000_detach,
-};
-
-static int __devinit driver_dt3000_pci_probe(struct pci_dev *dev,
-					     const struct pci_device_id *ent)
-{
-	return comedi_pci_auto_config(dev, driver_dt3000.driver_name);
-}
-
-static void __devexit driver_dt3000_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static struct pci_driver driver_dt3000_pci_driver = {
-	.id_table = dt3k_pci_table,
-	.probe = &driver_dt3000_pci_probe,
-	.remove = __devexit_p(&driver_dt3000_pci_remove)
-};
-
-static int __init driver_dt3000_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_dt3000);
-	if (retval < 0)
-		return retval;
-
-	driver_dt3000_pci_driver.name = (char *)driver_dt3000.driver_name;
-	return pci_register_driver(&driver_dt3000_pci_driver);
-}
-
-static void __exit driver_dt3000_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_dt3000_pci_driver);
-	comedi_driver_unregister(&driver_dt3000);
-}
-
-module_init(driver_dt3000_init_module);
-module_exit(driver_dt3000_cleanup_module);
 
 static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 			       struct comedi_subdevice *s);
@@ -841,7 +780,77 @@ static int dt3k_mem_insn_read(struct comedi_device *dev,
 	return i;
 }
 
-static int dt_pci_probe(struct comedi_device *dev, int bus, int slot);
+static int setup_pci(struct comedi_device *dev)
+{
+	resource_size_t addr;
+	int ret;
+
+	ret = comedi_pci_enable(devpriv->pci_dev, "dt3000");
+	if (ret < 0)
+		return ret;
+
+	addr = pci_resource_start(devpriv->pci_dev, 0);
+	devpriv->phys_addr = addr;
+	devpriv->io_addr = ioremap(devpriv->phys_addr, DT3000_SIZE);
+	if (!devpriv->io_addr)
+		return -ENOMEM;
+#if DEBUG
+	printk("0x%08llx mapped to %p, ",
+	       (unsigned long long)devpriv->phys_addr, devpriv->io_addr);
+#endif
+
+	return 0;
+}
+
+static struct pci_dev *dt_pci_find_device(struct pci_dev *from, int *board)
+{
+	int i;
+
+	for (from = pci_get_device(PCI_VENDOR_ID_DT, PCI_ANY_ID, from);
+	     from != NULL;
+	     from = pci_get_device(PCI_VENDOR_ID_DT, PCI_ANY_ID, from)) {
+		for (i = 0; i < n_dt3k_boards; i++) {
+			if (from->device == dt3k_boardtypes[i].device_id) {
+				*board = i;
+				return from;
+			}
+		}
+		printk
+		    ("unknown Data Translation PCI device found with device_id=0x%04x\n",
+		     from->device);
+	}
+	*board = -1;
+	return from;
+}
+
+static int dt_pci_probe(struct comedi_device *dev, int bus, int slot)
+{
+	int board;
+	int ret;
+	struct pci_dev *pcidev;
+
+	pcidev = NULL;
+	while ((pcidev = dt_pci_find_device(pcidev, &board)) != NULL) {
+		if ((bus == 0 && slot == 0) ||
+		    (pcidev->bus->number == bus &&
+		     PCI_SLOT(pcidev->devfn) == slot)) {
+			break;
+		}
+	}
+	devpriv->pci_dev = pcidev;
+
+	if (board >= 0)
+		dev->board_ptr = dt3k_boardtypes + board;
+
+	if (!devpriv->pci_dev)
+		return 0;
+
+	ret = setup_pci(dev);
+	if (ret < 0)
+		return ret;
+
+	return 1;
+}
 
 static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
@@ -935,11 +944,10 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int dt3000_detach(struct comedi_device *dev)
+static void dt3000_detach(struct comedi_device *dev)
 {
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (devpriv) {
 		if (devpriv->pci_dev) {
 			if (devpriv->phys_addr)
@@ -949,85 +957,45 @@ static int dt3000_detach(struct comedi_device *dev)
 		if (devpriv->io_addr)
 			iounmap(devpriv->io_addr);
 	}
-	/* XXX */
-
-	return 0;
 }
 
-static struct pci_dev *dt_pci_find_device(struct pci_dev *from, int *board);
-static int setup_pci(struct comedi_device *dev);
+static struct comedi_driver dt3000_driver = {
+	.driver_name	= "dt3000",
+	.module		= THIS_MODULE,
+	.attach		= dt3000_attach,
+	.detach		= dt3000_detach,
+};
 
-static int dt_pci_probe(struct comedi_device *dev, int bus, int slot)
+static int __devinit dt3000_pci_probe(struct pci_dev *dev,
+				      const struct pci_device_id *ent)
 {
-	int board;
-	int ret;
-	struct pci_dev *pcidev;
-
-	pcidev = NULL;
-	while ((pcidev = dt_pci_find_device(pcidev, &board)) != NULL) {
-		if ((bus == 0 && slot == 0) ||
-		    (pcidev->bus->number == bus &&
-		     PCI_SLOT(pcidev->devfn) == slot)) {
-			break;
-		}
-	}
-	devpriv->pci_dev = pcidev;
-
-	if (board >= 0)
-		dev->board_ptr = dt3k_boardtypes + board;
-
-	if (!devpriv->pci_dev)
-		return 0;
-
-	ret = setup_pci(dev);
-	if (ret < 0)
-		return ret;
-
-	return 1;
+	return comedi_pci_auto_config(dev, &dt3000_driver);
 }
 
-static int setup_pci(struct comedi_device *dev)
+static void __devexit dt3000_pci_remove(struct pci_dev *dev)
 {
-	resource_size_t addr;
-	int ret;
-
-	ret = comedi_pci_enable(devpriv->pci_dev, "dt3000");
-	if (ret < 0)
-		return ret;
-
-	addr = pci_resource_start(devpriv->pci_dev, 0);
-	devpriv->phys_addr = addr;
-	devpriv->io_addr = ioremap(devpriv->phys_addr, DT3000_SIZE);
-	if (!devpriv->io_addr)
-		return -ENOMEM;
-#if DEBUG
-	printk("0x%08llx mapped to %p, ",
-	       (unsigned long long)devpriv->phys_addr, devpriv->io_addr);
-#endif
-
-	return 0;
+	comedi_pci_auto_unconfig(dev);
 }
 
-static struct pci_dev *dt_pci_find_device(struct pci_dev *from, int *board)
-{
-	int i;
+static DEFINE_PCI_DEVICE_TABLE(dt3000_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0022) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0027) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0023) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0024) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0028) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0025) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0026) },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, dt3000_pci_table);
 
-	for (from = pci_get_device(PCI_VENDOR_ID_DT, PCI_ANY_ID, from);
-	     from != NULL;
-	     from = pci_get_device(PCI_VENDOR_ID_DT, PCI_ANY_ID, from)) {
-		for (i = 0; i < n_dt3k_boards; i++) {
-			if (from->device == dt3k_boardtypes[i].device_id) {
-				*board = i;
-				return from;
-			}
-		}
-		printk
-		    ("unknown Data Translation PCI device found with device_id=0x%04x\n",
-		     from->device);
-	}
-	*board = -1;
-	return from;
-}
+static struct pci_driver dt3000_pci_driver = {
+	.name		= "dt3000",
+	.id_table	= dt3000_pci_table,
+	.probe		= dt3000_pci_probe,
+	.remove		= __devexit_p(dt3000_pci_remove),
+};
+module_comedi_pci_driver(dt3000_driver, dt3000_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

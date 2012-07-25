@@ -141,7 +141,7 @@ u8 r8712_usb_hal_bus_init(struct _adapter *padapter)
 		/* Enable AFE PLL Macro Block */
 		val8 = r8712_read8(padapter, AFE_PLL_CTRL);
 		r8712_write8(padapter, AFE_PLL_CTRL, (val8 | 0x11));
-		/* Attatch AFE PLL to MACTOP/BB/PCIe Digital */
+		/* Attach AFE PLL to MACTOP/BB/PCIe Digital */
 		val8 = r8712_read8(padapter, SYS_ISO_CTRL);
 		r8712_write8(padapter, SYS_ISO_CTRL, (val8 & 0xEE));
 		/* Switch to 40M clock */
@@ -234,7 +234,7 @@ u8 r8712_usb_hal_bus_init(struct _adapter *padapter)
 		udelay(500);
 		r8712_write8(padapter, AFE_PLL_CTRL, (val8 | 0x11));
 		udelay(500);
-		/* Attatch AFE PLL to MACTOP/BB/PCIe Digital */
+		/* Attach AFE PLL to MACTOP/BB/PCIe Digital */
 		val8 = r8712_read8(padapter, SYS_ISO_CTRL);
 		r8712_write8(padapter, SYS_ISO_CTRL, (val8 & 0xEE));
 		/* Switch to 40M clock */

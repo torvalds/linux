@@ -1032,11 +1032,11 @@ static int ufshcd_initialize_hba(struct ufs_hba *hba)
 		return -EIO;
 
 	/* Configure UTRL and UTMRL base address registers */
-	writel(hba->utrdl_dma_addr,
-	       (hba->mmio_base + REG_UTP_TRANSFER_REQ_LIST_BASE_L));
 	writel(lower_32_bits(hba->utrdl_dma_addr),
+	       (hba->mmio_base + REG_UTP_TRANSFER_REQ_LIST_BASE_L));
+	writel(upper_32_bits(hba->utrdl_dma_addr),
 	       (hba->mmio_base + REG_UTP_TRANSFER_REQ_LIST_BASE_H));
-	writel(hba->utmrdl_dma_addr,
+	writel(lower_32_bits(hba->utmrdl_dma_addr),
 	       (hba->mmio_base + REG_UTP_TASK_REQ_LIST_BASE_L));
 	writel(upper_32_bits(hba->utmrdl_dma_addr),
 	       (hba->mmio_base + REG_UTP_TASK_REQ_LIST_BASE_H));
@@ -1160,7 +1160,7 @@ static int ufshcd_task_req_compl(struct ufs_hba *hba, u32 index)
 		task_result = be32_to_cpu(task_rsp_upiup->header.dword_1);
 		task_result = ((task_result & MASK_TASK_RESPONSE) >> 8);
 
-		if (task_result != UPIU_TASK_MANAGEMENT_FUNC_COMPL ||
+		if (task_result != UPIU_TASK_MANAGEMENT_FUNC_COMPL &&
 		    task_result != UPIU_TASK_MANAGEMENT_FUNC_SUCCEEDED)
 			task_result = FAILED;
 	} else {
@@ -1836,7 +1836,7 @@ ufshcd_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	err = pci_request_regions(pdev, UFSHCD);
 	if (err < 0) {
 		dev_err(&pdev->dev, "request regions failed\n");
-		goto out_disable;
+		goto out_host_put;
 	}
 
 	hba->mmio_base = pci_ioremap_bar(pdev, 0);
@@ -1925,8 +1925,9 @@ out_iounmap:
 	iounmap(hba->mmio_base);
 out_release_regions:
 	pci_release_regions(pdev);
-out_disable:
+out_host_put:
 	scsi_host_put(host);
+out_disable:
 	pci_clear_master(pdev);
 	pci_disable_device(pdev);
 out_error:

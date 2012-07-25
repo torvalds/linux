@@ -23,12 +23,12 @@ enum sys_powerdown {
 };
 
 extern unsigned long l2x0_regs_phys;
-struct exynos4_pmu_conf {
+struct exynos_pmu_conf {
 	void __iomem *reg;
 	unsigned int val[NUM_SYS_POWERDOWN];
 };
 
-extern void exynos4_sys_powerdown_conf(enum sys_powerdown mode);
+extern void exynos_sys_powerdown_conf(enum sys_powerdown mode);
 extern void s3c_cpu_resume(void);
 
 #endif /* __ASM_ARCH_PMU_H */

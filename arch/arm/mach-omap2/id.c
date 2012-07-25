@@ -185,8 +185,7 @@ static void __init omap3_cpuinfo(void)
 	 */
 	if (cpu_is_omap3630()) {
 		cpu_name = "OMAP3630";
-	} else if (cpu_is_omap3517()) {
-		/* AM35xx devices */
+	} else if (soc_is_am35xx()) {
 		cpu_name = (omap3_has_sgx()) ? "AM3517" : "AM3505";
 	} else if (cpu_is_ti816x()) {
 		cpu_name = "TI816X";
@@ -246,6 +245,17 @@ void __init omap3xxx_check_features(void)
 		omap_features |= OMAP3_HAS_IO_CHAIN_CTRL;
 
 	omap_features |= OMAP3_HAS_SDRC;
+
+	/*
+	 * am35x fixups:
+	 * - The am35x Chip ID register has bits 12, 7:5, and 3:2 marked as
+	 *   reserved and therefore return 0 when read.  Unfortunately,
+	 *   OMAP3_CHECK_FEATURE() will interpret some of those zeroes to
+	 *   mean that a feature is present even though it isn't so clear
+	 *   the incorrectly set feature bits.
+	 */
+	if (soc_is_am35xx())
+		omap_features &= ~(OMAP3_HAS_IVA | OMAP3_HAS_ISP);
 
 	/*
 	 * TODO: Get additional info (where applicable)
@@ -352,13 +362,13 @@ void __init omap3xxx_check_revision(void)
 		 */
 		switch (rev) {
 		case 0:
-			omap_revision = OMAP3517_REV_ES1_0;
+			omap_revision = AM35XX_REV_ES1_0;
 			cpu_rev = "1.0";
 			break;
 		case 1:
 		/* FALLTHROUGH */
 		default:
-			omap_revision = OMAP3517_REV_ES1_1;
+			omap_revision = AM35XX_REV_ES1_1;
 			cpu_rev = "1.1";
 		}
 		break;
@@ -478,8 +488,11 @@ void __init omap4xxx_check_revision(void)
 	case 0xb94e:
 		switch (rev) {
 		case 0:
-		default:
 			omap_revision = OMAP4460_REV_ES1_0;
+			break;
+		case 2:
+		default:
+			omap_revision = OMAP4460_REV_ES1_1;
 			break;
 		}
 		break;

@@ -34,6 +34,7 @@
 #include <linux/dma-mapping.h>
 
 #include <mach/cputype.h>
+#include <mach/hardware.h>
 
 #include <asm/mach-types.h>
 
@@ -386,7 +387,7 @@ static int davinci_musb_init(struct musb *musb)
 	usb_nop_xceiv_register();
 	musb->xceiv = usb_get_transceiver();
 	if (!musb->xceiv)
-		return -ENODEV;
+		goto unregister;
 
 	musb->mregs += DAVINCI_BASE_OFFSET;
 
@@ -444,6 +445,7 @@ static int davinci_musb_init(struct musb *musb)
 
 fail:
 	usb_put_transceiver(musb->xceiv);
+unregister:
 	usb_nop_xceiv_unregister();
 	return -ENODEV;
 }

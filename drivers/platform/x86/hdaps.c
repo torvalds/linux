@@ -2,7 +2,7 @@
  * hdaps.c - driver for IBM's Hard Drive Active Protection System
  *
  * Copyright (C) 2005 Robert Love <rml@novell.com>
- * Copyright (C) 2005 Jesper Juhl <jesper.juhl@gmail.com>
+ * Copyright (C) 2005 Jesper Juhl <jj@chaosbits.net>
  *
  * The HardDisk Active Protection System (hdaps) is present in IBM ThinkPads
  * starting with the R40, T41, and X40.  It provides a basic two-axis

@@ -227,7 +227,7 @@ static inline int imxdma_sg_next(struct imxdma_desc *d)
 	struct scatterlist *sg = d->sg;
 	unsigned long now;
 
-	now = min(d->len, sg->length);
+	now = min(d->len, sg_dma_len(sg));
 	if (d->len != IMX_DMA_LENGTH_LOOP)
 		d->len -= now;
 
@@ -571,11 +571,14 @@ static void imxdma_tasklet(unsigned long data)
 	if (desc->desc.callback)
 		desc->desc.callback(desc->desc.callback_param);
 
-	dma_cookie_complete(&desc->desc);
-
-	/* If we are dealing with a cyclic descriptor keep it on ld_active */
+	/* If we are dealing with a cyclic descriptor keep it on ld_active
+	 * and dont mark the descripor as complete.
+	 * Only in non-cyclic cases it would be marked as complete
+	 */
 	if (imxdma_chan_is_doing_cyclic(imxdmac))
 		goto out;
+	else
+		dma_cookie_complete(&desc->desc);
 
 	/* Free 2D slot if it was an interleaved transfer */
 	if (imxdmac->enabled_2d) {
@@ -760,16 +763,16 @@ static struct dma_async_tx_descriptor *imxdma_prep_slave_sg(
 	desc = list_first_entry(&imxdmac->ld_free, struct imxdma_desc, node);
 
 	for_each_sg(sgl, sg, sg_len, i) {
-		dma_length += sg->length;
+		dma_length += sg_dma_len(sg);
 	}
 
 	switch (imxdmac->word_size) {
 	case DMA_SLAVE_BUSWIDTH_4_BYTES:
-		if (sgl->length & 3 || sgl->dma_address & 3)
+		if (sg_dma_len(sgl) & 3 || sgl->dma_address & 3)
 			return NULL;
 		break;
 	case DMA_SLAVE_BUSWIDTH_2_BYTES:
-		if (sgl->length & 1 || sgl->dma_address & 1)
+		if (sg_dma_len(sgl) & 1 || sgl->dma_address & 1)
 			return NULL;
 		break;
 	case DMA_SLAVE_BUSWIDTH_1_BYTE:
@@ -828,13 +831,13 @@ static struct dma_async_tx_descriptor *imxdma_prep_dma_cyclic(
 		imxdmac->sg_list[i].page_link = 0;
 		imxdmac->sg_list[i].offset = 0;
 		imxdmac->sg_list[i].dma_address = dma_addr;
-		imxdmac->sg_list[i].length = period_len;
+		sg_dma_len(&imxdmac->sg_list[i]) = period_len;
 		dma_addr += period_len;
 	}
 
 	/* close the loop */
 	imxdmac->sg_list[periods].offset = 0;
-	imxdmac->sg_list[periods].length = 0;
+	sg_dma_len(&imxdmac->sg_list[periods]) = 0;
 	imxdmac->sg_list[periods].page_link =
 		((unsigned long)imxdmac->sg_list | 0x01) & ~0x02;
 

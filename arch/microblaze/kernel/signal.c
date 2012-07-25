@@ -31,6 +31,7 @@
 #include <linux/personality.h>
 #include <linux/percpu.h>
 #include <linux/linkage.h>
+#include <linux/tracehook.h>
 #include <asm/entry.h>
 #include <asm/ucontext.h>
 #include <linux/uaccess.h>
@@ -39,10 +40,6 @@
 #include <linux/syscalls.h>
 #include <asm/cacheflush.h>
 #include <asm/syscalls.h>
-
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
-asmlinkage int do_signal(struct pt_regs *regs, sigset_t *oldset, int in_sycall);
 
 asmlinkage long
 sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
@@ -98,17 +95,16 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	sigset_t set;
 	int rval;
 
+	/* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	set_current_blocked(&set);
 
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &rval))
 		goto badframe;
@@ -169,7 +165,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 	return (void __user *)((sp - frame_size) & -8UL);
 }
 
-static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 			sigset_t *set, struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
@@ -267,12 +263,11 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		current->comm, current->pid, frame, regs->pc);
 #endif
 
-	return;
+	return 0;
 
 give_sigsegv:
-	if (sig == SIGSEGV)
-		ka->sa.sa_handler = SIG_DFL;
-	force_sig(SIGSEGV, current);
+	force_sigsegv(sig, current);
+	return -EFAULT;
 }
 
 /* Handle restarting system calls */
@@ -312,28 +307,23 @@ do_restart:
  * OK, we're invoking a handler
  */
 
-static int
+static void
 handle_signal(unsigned long sig, struct k_sigaction *ka,
-		siginfo_t *info, sigset_t *oldset, struct pt_regs *regs)
+		siginfo_t *info, struct pt_regs *regs)
 {
+	sigset_t *oldset = sigmask_to_save();
+	int ret;
+
 	/* Set up the stack frame */
 	if (ka->sa.sa_flags & SA_SIGINFO)
-		setup_rt_frame(sig, ka, info, oldset, regs);
+		ret = setup_rt_frame(sig, ka, info, oldset, regs);
 	else
-		setup_rt_frame(sig, ka, NULL, oldset, regs);
+		ret = setup_rt_frame(sig, ka, NULL, oldset, regs);
 
-	if (ka->sa.sa_flags & SA_ONESHOT)
-		ka->sa.sa_handler = SIG_DFL;
+	if (ret)
+		return;
 
-	if (!(ka->sa.sa_flags & SA_NODEFER)) {
-		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked,
-				&current->blocked, &ka->sa.sa_mask);
-		sigaddset(&current->blocked, sig);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-	}
-	return 1;
+	signal_delivered(sig, info, ka, regs, 0);
 }
 
 /*
@@ -345,46 +335,24 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
  * the kernel can handle, and then we build all the user-level signal handling
  * stack-frames in one go after that.
  */
-int do_signal(struct pt_regs *regs, sigset_t *oldset, int in_syscall)
+static void do_signal(struct pt_regs *regs, int in_syscall)
 {
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
 #ifdef DEBUG_SIG
-	printk(KERN_INFO "do signal: %p %p %d\n", regs, oldset, in_syscall);
+	printk(KERN_INFO "do signal: %p %d\n", regs, in_syscall);
 	printk(KERN_INFO "do signal2: %lx %lx %ld [%lx]\n", regs->pc, regs->r1,
 			regs->r12, current_thread_info()->flags);
 #endif
-	/*
-	 * We want the common case to go fast, which
-	 * is why we may in certain cases get here from
-	 * kernel mode. Just return without doing anything
-	 * if so.
-	 */
-	if (kernel_mode(regs))
-		return 1;
-
-	if (current_thread_info()->status & TS_RESTORE_SIGMASK)
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Whee! Actually deliver the signal. */
 		if (in_syscall)
 			handle_restart(regs, &ka, 1);
-		if (handle_signal(signr, &ka, &info, oldset, regs)) {
-			/*
-			 * A signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TS_RESTORE_SIGMASK flag.
-			 */
-			current_thread_info()->status &=
-			    ~TS_RESTORE_SIGMASK;
-		}
-		return 1;
+		handle_signal(signr, &ka, &info, regs);
+		return;
 	}
 
 	if (in_syscall)
@@ -394,11 +362,23 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset, int in_syscall)
 	 * If there's no signal to deliver, we just put the saved sigmask
 	 * back.
 	 */
-	if (current_thread_info()->status & TS_RESTORE_SIGMASK) {
-		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
+	restore_saved_sigmask();
+}
 
-	/* Did we come from a system call? */
-	return 0;
+void do_notify_resume(struct pt_regs *regs, int in_syscall)
+{
+	/*
+	 * We want the common case to go fast, which
+	 * is why we may in certain cases get here from
+	 * kernel mode. Just return without doing anything
+	 * if so.
+	 */
+	if (kernel_mode(regs))
+		return;
+
+	if (test_thread_flag(TIF_SIGPENDING))
+		do_signal(regs, in_syscall);
+
+	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
+		tracehook_notify_resume(regs);
 }

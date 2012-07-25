@@ -335,6 +335,9 @@ the media_entity pipe field.
 Calls to media_entity_pipeline_start() can be nested. The pipeline pointer must
 be identical for all nested calls to the function.
 
+media_entity_pipeline_start() may return an error. In that case, it will
+clean up any the changes it did by itself.
+
 When stopping the stream, drivers must notify the entities with
 
 	media_entity_pipeline_stop(struct media_entity *entity);
@@ -351,3 +354,19 @@ If other operations need to be disallowed on streaming entities (such as
 changing entities configuration parameters) drivers can explicitly check the
 media_entity stream_count field to find out if an entity is streaming. This
 operation must be done with the media_device graph_mutex held.
+
+
+Link validation
+---------------
+
+Link validation is performed by media_entity_pipeline_start() for any
+entity which has sink pads in the pipeline. The
+media_entity::link_validate() callback is used for that purpose. In
+link_validate() callback, entity driver should check that the properties of
+the source pad of the connected entity and its own sink pad match. It is up
+to the type of the entity (and in the end, the properties of the hardware)
+what matching actually means.
+
+Subsystems should facilitate link validation by providing subsystem specific
+helper functions to provide easy access for commonly needed information, and
+in the end provide a way to use driver-specific callbacks.

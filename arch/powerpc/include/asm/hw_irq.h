@@ -33,6 +33,7 @@
 extern void __replay_interrupt(unsigned int vector);
 
 extern void timer_interrupt(struct pt_regs *);
+extern void performance_monitor_exception(struct pt_regs *regs);
 
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
@@ -97,6 +98,14 @@ static inline void hard_irq_disable(void)
 	__hard_irq_disable();
 	get_paca()->soft_enabled = 0;
 	get_paca()->irq_happened |= PACA_IRQ_HARD_DIS;
+}
+
+/* include/linux/interrupt.h needs hard_irq_disable to be a macro */
+#define hard_irq_disable	hard_irq_disable
+
+static inline bool lazy_irq_pending(void)
+{
+	return !!(get_paca()->irq_happened & ~PACA_IRQ_HARD_DIS);
 }
 
 /*

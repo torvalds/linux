@@ -26,6 +26,7 @@
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
+#include "hda_auto_parser.h"
 #include "hda_jack.h"
 #include <sound/tlv.h>
 
@@ -933,8 +934,7 @@ static void cs_automute(struct hda_codec *codec)
 			pin_ctl = 0;
 
 		nid = cfg->speaker_pins[i];
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, pin_ctl);
+		snd_hda_set_pin_ctl(codec, nid, pin_ctl);
 	}
 	if (spec->gpio_eapd_hp) {
 		unsigned int gpio = hp_present ?
@@ -948,16 +948,14 @@ static void cs_automute(struct hda_codec *codec)
 		/* mute HPs if spdif jack (SENSE_B) is present */
 		for (i = 0; i < cfg->hp_outs; i++) {
 			nid = cfg->hp_pins[i];
-			snd_hda_codec_write(codec, nid, 0,
-				AC_VERB_SET_PIN_WIDGET_CONTROL,
+			snd_hda_set_pin_ctl(codec, nid,
 				(spdif_present && spec->sense_b) ? 0 : PIN_HP);
 		}
 
 		/* SPDIF TX on/off */
 		if (cfg->dig_outs) {
 			nid = cfg->dig_out_pins[0];
-			snd_hda_codec_write(codec, nid, 0,
-				AC_VERB_SET_PIN_WIDGET_CONTROL,
+			snd_hda_set_pin_ctl(codec, nid,
 				spdif_present ? PIN_OUT : 0);
 
 		}
@@ -1024,13 +1022,11 @@ static void init_output(struct hda_codec *codec)
 
 	/* set appropriate pin controls */
 	for (i = 0; i < cfg->line_outs; i++)
-		snd_hda_codec_write(codec, cfg->line_out_pins[i], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
+		snd_hda_set_pin_ctl(codec, cfg->line_out_pins[i], PIN_OUT);
 	/* HP */
 	for (i = 0; i < cfg->hp_outs; i++) {
 		hda_nid_t nid = cfg->hp_pins[i];
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
+		snd_hda_set_pin_ctl(codec, nid, PIN_HP);
 		if (!cfg->speaker_outs)
 			continue;
 		if (get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP) {
@@ -1041,8 +1037,7 @@ static void init_output(struct hda_codec *codec)
 
 	/* Speaker */
 	for (i = 0; i < cfg->speaker_outs; i++)
-		snd_hda_codec_write(codec, cfg->speaker_pins[i], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
+		snd_hda_set_pin_ctl(codec, cfg->speaker_pins[i], PIN_OUT);
 
 	/* SPDIF is enabled on presence detect for CS421x */
 	if (spec->hp_detect || spec->spdif_detect)
@@ -1063,14 +1058,9 @@ static void init_input(struct hda_codec *codec)
 			continue;
 		/* set appropriate pin control and mute first */
 		ctl = PIN_IN;
-		if (cfg->inputs[i].type == AUTO_PIN_MIC) {
-			unsigned int caps = snd_hda_query_pin_caps(codec, pin);
-			caps >>= AC_PINCAP_VREF_SHIFT;
-			if (caps & AC_PINCAP_VREF_80)
-				ctl = PIN_VREF80;
-		}
-		snd_hda_codec_write(codec, pin, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, ctl);
+		if (cfg->inputs[i].type == AUTO_PIN_MIC)
+			ctl |= snd_hda_get_default_vref(codec, pin);
+		snd_hda_set_pin_ctl(codec, pin, ctl);
 		snd_hda_codec_write(codec, spec->adc_nid[i], 0,
 				    AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_IN_MUTE(spec->adc_idx[i]));

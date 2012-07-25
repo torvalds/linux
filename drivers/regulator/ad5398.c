@@ -99,8 +99,8 @@ static int ad5398_set_current_limit(struct regulator_dev *rdev, int min_uA, int 
 	if (ad5398_calc_current(chip, selector) > max_uA)
 		return -EINVAL;
 
-	dev_dbg(&client->dev, "changing current %dmA\n",
-		ad5398_calc_current(chip, selector) / 1000);
+	dev_dbg(&client->dev, "changing current %duA\n",
+		ad5398_calc_current(chip, selector));
 
 	/* read chip enable bit */
 	ret = ad5398_read_reg(client, &data);
@@ -184,7 +184,7 @@ static struct regulator_ops ad5398_ops = {
 	.is_enabled = ad5398_is_enabled,
 };
 
-static struct regulator_desc ad5398_reg = {
+static const struct regulator_desc ad5398_reg = {
 	.name = "isink",
 	.id = 0,
 	.ops = &ad5398_ops,
@@ -212,6 +212,7 @@ static int __devinit ad5398_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct regulator_init_data *init_data = client->dev.platform_data;
+	struct regulator_config config = { };
 	struct ad5398_chip_info *chip;
 	const struct ad5398_current_data_format *df =
 			(struct ad5398_current_data_format *)id->driver_data;
@@ -220,9 +221,13 @@ static int __devinit ad5398_probe(struct i2c_client *client,
 	if (!init_data)
 		return -EINVAL;
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
+
+	config.dev = &client->dev;
+	config.init_data = init_data;
+	config.driver_data = chip;
 
 	chip->client = client;
 
@@ -232,8 +237,7 @@ static int __devinit ad5398_probe(struct i2c_client *client,
 	chip->current_offset = df->current_offset;
 	chip->current_mask = (chip->current_level - 1) << chip->current_offset;
 
-	chip->rdev = regulator_register(&ad5398_reg, &client->dev,
-					init_data, chip, NULL);
+	chip->rdev = regulator_register(&ad5398_reg, &config);
 	if (IS_ERR(chip->rdev)) {
 		ret = PTR_ERR(chip->rdev);
 		dev_err(&client->dev, "failed to register %s %s\n",
@@ -246,7 +250,6 @@ static int __devinit ad5398_probe(struct i2c_client *client,
 	return 0;
 
 err:
-	kfree(chip);
 	return ret;
 }
 
@@ -255,8 +258,6 @@ static int __devexit ad5398_remove(struct i2c_client *client)
 	struct ad5398_chip_info *chip = i2c_get_clientdata(client);
 
 	regulator_unregister(chip->rdev);
-	kfree(chip);
-
 	return 0;
 }
 

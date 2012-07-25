@@ -106,7 +106,6 @@ static int m5mols_capture_info(struct m5mols_info *info)
 int m5mols_start_capture(struct m5mols_info *info)
 {
 	struct v4l2_subdev *sd = &info->sd;
-	u8 resolution = info->resolution;
 	int ret;
 
 	/*
@@ -114,22 +113,18 @@ int m5mols_start_capture(struct m5mols_info *info)
 	 * format. The frame capture is initiated during switching from Monitor
 	 * to Capture mode.
 	 */
-	ret = m5mols_mode(info, REG_MONITOR);
+	ret = m5mols_set_mode(info, REG_MONITOR);
 	if (!ret)
 		ret = m5mols_restore_controls(info);
 	if (!ret)
 		ret = m5mols_write(sd, CAPP_YUVOUT_MAIN, REG_JPEG);
 	if (!ret)
-		ret = m5mols_write(sd, CAPP_MAIN_IMAGE_SIZE, resolution);
+		ret = m5mols_write(sd, CAPP_MAIN_IMAGE_SIZE, info->resolution);
 	if (!ret)
-		ret = m5mols_lock_3a(info, true);
-	if (!ret)
-		ret = m5mols_mode(info, REG_CAPTURE);
+		ret = m5mols_set_mode(info, REG_CAPTURE);
 	if (!ret)
 		/* Wait until a frame is captured to ISP internal memory */
 		ret = m5mols_wait_interrupt(sd, REG_INT_CAPTURE, 2000);
-	if (!ret)
-		ret = m5mols_lock_3a(info, false);
 	if (ret)
 		return ret;
 

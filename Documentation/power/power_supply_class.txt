@@ -84,6 +84,8 @@ are already charged or discharging, 'n/a' can be displayed (or
 HEALTH - represents health of the battery, values corresponds to
 POWER_SUPPLY_HEALTH_*, defined in battery.h.
 
+VOLTAGE_OCV - open circuit voltage of the battery.
+
 VOLTAGE_MAX_DESIGN, VOLTAGE_MIN_DESIGN - design values for maximal and
 minimal power supply voltages. Maximal/minimal means values of voltages
 when battery considered "full"/"empty" at normal conditions. Yes, there is

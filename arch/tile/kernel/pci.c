@@ -141,7 +141,7 @@ static int __devinit tile_init_irqs(int controller_id,
  *
  * Returns the number of controllers discovered.
  */
-int __devinit tile_pci_init(void)
+int __init tile_pci_init(void)
 {
 	int i;
 
@@ -287,7 +287,7 @@ static void __devinit fixup_read_and_payload_sizes(void)
  * The controllers have been set up by the time we get here, by a call to
  * tile_pci_init.
  */
-int __devinit pcibios_init(void)
+int __init pcibios_init(void)
 {
 	int i;
 

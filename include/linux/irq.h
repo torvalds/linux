@@ -49,6 +49,12 @@ typedef	void (*irq_preflow_handler_t)(struct irq_data *data);
  * IRQ_TYPE_LEVEL_LOW		- low level triggered
  * IRQ_TYPE_LEVEL_MASK		- Mask to filter out the level bits
  * IRQ_TYPE_SENSE_MASK		- Mask for all the above bits
+ * IRQ_TYPE_DEFAULT		- For use by some PICs to ask irq_set_type
+ *				  to setup the HW to a sane default (used
+ *                                by irqdomain map() callbacks to synchronize
+ *                                the HW state and SW flags for a newly
+ *                                allocated descriptor).
+ *
  * IRQ_TYPE_PROBE		- Special flag for probing in progress
  *
  * Bits which can be modified via irq_set/clear/modify_status_flags()
@@ -77,6 +83,7 @@ enum {
 	IRQ_TYPE_LEVEL_LOW	= 0x00000008,
 	IRQ_TYPE_LEVEL_MASK	= (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH),
 	IRQ_TYPE_SENSE_MASK	= 0x0000000f,
+	IRQ_TYPE_DEFAULT	= IRQ_TYPE_SENSE_MASK,
 
 	IRQ_TYPE_PROBE		= 0x00000010,
 
@@ -294,8 +301,6 @@ static inline irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
  * @irq_pm_shutdown:	function called from core code on shutdown once per chip
  * @irq_print_chip:	optional to print special chip info in show_interrupts
  * @flags:		chip specific flags
- *
- * @release:		release function solely used by UML
  */
 struct irq_chip {
 	const char	*name;
@@ -328,11 +333,6 @@ struct irq_chip {
 	void		(*irq_print_chip)(struct irq_data *data, struct seq_file *p);
 
 	unsigned long	flags;
-
-	/* Currently used only by UML, might disappear one day.*/
-#ifdef CONFIG_IRQ_RELEASE_METHOD
-	void		(*release)(unsigned int irq, void *dev_id);
-#endif
 };
 
 /*

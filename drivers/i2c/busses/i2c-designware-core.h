@@ -82,13 +82,16 @@ struct dw_i2c_dev {
 	unsigned int		status;
 	u32			abort_source;
 	int			irq;
-	int			swab;
+	u32			accessor_flags;
 	struct i2c_adapter	adapter;
 	u32			functionality;
 	u32			master_cfg;
 	unsigned int		tx_fifo_depth;
 	unsigned int		rx_fifo_depth;
 };
+
+#define ACCESS_SWAP		0x00000001
+#define ACCESS_16BIT		0x00000002
 
 extern u32 dw_readl(struct dw_i2c_dev *dev, int offset);
 extern void dw_writel(struct dw_i2c_dev *dev, u32 b, int offset);

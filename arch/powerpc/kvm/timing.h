@@ -93,6 +93,12 @@ static inline void kvmppc_account_exit_stat(struct kvm_vcpu *vcpu, int type)
 	case SIGNAL_EXITS:
 		vcpu->stat.signal_exits++;
 		break;
+	case DBELL_EXITS:
+		vcpu->stat.dbell_exits++;
+		break;
+	case GDBELL_EXITS:
+		vcpu->stat.gdbell_exits++;
+		break;
 	}
 }
 

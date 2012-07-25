@@ -40,4 +40,15 @@ config NET_TEAM_MODE_ACTIVEBACKUP
 	  To compile this team mode as a module, choose M here: the module
 	  will be called team_mode_activebackup.
 
+config NET_TEAM_MODE_LOADBALANCE
+	tristate "Load-balance mode support"
+	depends on NET_TEAM
+	---help---
+	  This mode provides load balancing functionality. Tx port selection
+	  is done using BPF function set up from userspace (bpf_hash_func
+	  option)
+
+	  To compile this team mode as a module, choose M here: the module
+	  will be called team_mode_loadbalance.
+
 endif # NET_TEAM

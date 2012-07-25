@@ -21,6 +21,7 @@
 #include <linux/err.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
+#include <linux/binfmts.h>
 
 #include <asm/vdso.h>
 

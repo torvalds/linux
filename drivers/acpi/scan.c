@@ -869,7 +869,7 @@ static int acpi_bus_get_power_flags(struct acpi_device *device)
 	/*
 	 * Enumerate supported power management states
 	 */
-	for (i = ACPI_STATE_D0; i <= ACPI_STATE_D3; i++) {
+	for (i = ACPI_STATE_D0; i <= ACPI_STATE_D3_HOT; i++) {
 		struct acpi_device_power_state *ps = &device->power.states[i];
 		char object_name[5] = { '_', 'P', 'R', '0' + i, '\0' };
 
@@ -884,21 +884,18 @@ static int acpi_bus_get_power_flags(struct acpi_device *device)
 				acpi_bus_add_power_resource(ps->resources.handles[j]);
 		}
 
-		/* The exist of _PR3 indicates D3Cold support */
-		if (i == ACPI_STATE_D3) {
-			status = acpi_get_handle(device->handle, object_name, &handle);
-			if (ACPI_SUCCESS(status))
-				device->power.states[ACPI_STATE_D3_COLD].flags.valid = 1;
-		}
-
 		/* Evaluate "_PSx" to see if we can do explicit sets */
 		object_name[2] = 'S';
 		status = acpi_get_handle(device->handle, object_name, &handle);
 		if (ACPI_SUCCESS(status))
 			ps->flags.explicit_set = 1;
 
-		/* State is valid if we have some power control */
-		if (ps->resources.count || ps->flags.explicit_set)
+		/*
+		 * State is valid if there are means to put the device into it.
+		 * D3hot is only valid if _PR3 present.
+		 */
+		if (ps->resources.count ||
+		    (ps->flags.explicit_set && i < ACPI_STATE_D3_HOT))
 			ps->flags.valid = 1;
 
 		ps->power = -1;	/* Unknown - driver assigned */
@@ -910,6 +907,10 @@ static int acpi_bus_get_power_flags(struct acpi_device *device)
 	device->power.states[ACPI_STATE_D0].power = 100;
 	device->power.states[ACPI_STATE_D3].flags.valid = 1;
 	device->power.states[ACPI_STATE_D3].power = 0;
+
+	/* Set D3cold's explicit_set flag if _PS3 exists. */
+	if (device->power.states[ACPI_STATE_D3_HOT].flags.explicit_set)
+		device->power.states[ACPI_STATE_D3_COLD].flags.explicit_set = 1;
 
 	acpi_bus_init_power(device);
 
@@ -1566,6 +1567,7 @@ static int acpi_bus_scan_fixed(void)
 						ACPI_BUS_TYPE_POWER_BUTTON,
 						ACPI_STA_DEFAULT,
 						&ops);
+		device_init_wakeup(&device->dev, true);
 	}
 
 	if ((acpi_gbl_FADT.flags & ACPI_FADT_SLEEP_BUTTON) == 0) {

@@ -13,6 +13,7 @@
 
 #include <linux/types.h>
 #include <linux/spinlock.h>
+#include <asm/smp.h>
 
 struct mpic_msgr {
 	u32 __iomem *base;

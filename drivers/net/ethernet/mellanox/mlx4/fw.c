@@ -118,6 +118,20 @@ static void dump_dev_cap_flags(struct mlx4_dev *dev, u64 flags)
 			mlx4_dbg(dev, "    %s\n", fname[i]);
 }
 
+static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
+{
+	static const char * const fname[] = {
+		[0] = "RSS support",
+		[1] = "RSS Toeplitz Hash Function support",
+		[2] = "RSS XOR Hash Function support"
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fname); ++i)
+		if (fname[i] && (flags & (1LL << i)))
+			mlx4_dbg(dev, "    %s\n", fname[i]);
+}
+
 int mlx4_MOD_STAT_CFG(struct mlx4_dev *dev, struct mlx4_mod_stat_cfg *cfg)
 {
 	struct mlx4_cmd_mailbox *mailbox;
@@ -346,6 +360,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_MAX_REQ_QP_OFFSET		0x29
 #define QUERY_DEV_CAP_MAX_RES_QP_OFFSET		0x2b
 #define QUERY_DEV_CAP_MAX_GSO_OFFSET		0x2d
+#define QUERY_DEV_CAP_RSS_OFFSET		0x2e
 #define QUERY_DEV_CAP_MAX_RDMA_OFFSET		0x2f
 #define QUERY_DEV_CAP_RSZ_SRQ_OFFSET		0x33
 #define QUERY_DEV_CAP_ACK_DELAY_OFFSET		0x35
@@ -390,13 +405,14 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_RSVD_LKEY_OFFSET		0x98
 #define QUERY_DEV_CAP_MAX_ICM_SZ_OFFSET		0xa0
 
+	dev_cap->flags2 = 0;
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
 	outbox = mailbox->buf;
 
 	err = mlx4_cmd_box(dev, 0, mailbox->dma, 0, 0, MLX4_CMD_QUERY_DEV_CAP,
-			   MLX4_CMD_TIME_CLASS_A, !mlx4_is_slave(dev));
+			   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 	if (err)
 		goto out;
 
@@ -439,6 +455,17 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	else
 		dev_cap->max_gso_sz = 1 << field;
 
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_RSS_OFFSET);
+	if (field & 0x20)
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_RSS_XOR;
+	if (field & 0x10)
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_RSS_TOP;
+	field &= 0xf;
+	if (field) {
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_RSS;
+		dev_cap->max_rss_tbl_sz = 1 << field;
+	} else
+		dev_cap->max_rss_tbl_sz = 0;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_RDMA_OFFSET);
 	dev_cap->max_rdma_global = 1 << (field & 0x3f);
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_ACK_DELAY_OFFSET);
@@ -563,8 +590,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 
 		for (i = 1; i <= dev_cap->num_ports; ++i) {
 			err = mlx4_cmd_box(dev, 0, mailbox->dma, i, 0, MLX4_CMD_QUERY_PORT,
-					   MLX4_CMD_TIME_CLASS_B,
-					   !mlx4_is_slave(dev));
+					   MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
 			if (err)
 				goto out;
 
@@ -632,12 +658,36 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		 dev_cap->max_rq_desc_sz, dev_cap->max_rq_sg);
 	mlx4_dbg(dev, "Max GSO size: %d\n", dev_cap->max_gso_sz);
 	mlx4_dbg(dev, "Max counters: %d\n", dev_cap->max_counters);
+	mlx4_dbg(dev, "Max RSS Table size: %d\n", dev_cap->max_rss_tbl_sz);
 
 	dump_dev_cap_flags(dev, dev_cap->flags);
+	dump_dev_cap_flags2(dev, dev_cap->flags2);
 
 out:
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
+}
+
+int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
+			       struct mlx4_vhcr *vhcr,
+			       struct mlx4_cmd_mailbox *inbox,
+			       struct mlx4_cmd_mailbox *outbox,
+			       struct mlx4_cmd_info *cmd)
+{
+	int	err = 0;
+	u8	field;
+
+	err = mlx4_cmd_box(dev, 0, outbox->dma, 0, 0, MLX4_CMD_QUERY_DEV_CAP,
+			   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
+	if (err)
+		return err;
+
+	/* For guests, report Blueflame disabled */
+	MLX4_GET(field, outbox->buf, QUERY_DEV_CAP_BF_OFFSET);
+	field &= 0x7f;
+	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_BF_OFFSET);
+
+	return 0;
 }
 
 int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
@@ -831,6 +881,9 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 		((fw_ver & 0xffff0000ull) >> 16) |
 		((fw_ver & 0x0000ffffull) << 16);
 
+	if (mlx4_is_slave(dev))
+		goto out;
+
 	MLX4_GET(lg, outbox, QUERY_FW_PPF_ID);
 	dev->caps.function = lg;
 
@@ -896,6 +949,27 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 out:
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
+}
+
+int mlx4_QUERY_FW_wrapper(struct mlx4_dev *dev, int slave,
+			  struct mlx4_vhcr *vhcr,
+			  struct mlx4_cmd_mailbox *inbox,
+			  struct mlx4_cmd_mailbox *outbox,
+			  struct mlx4_cmd_info *cmd)
+{
+	u8 *outbuf;
+	int err;
+
+	outbuf = outbox->buf;
+	err = mlx4_cmd_box(dev, 0, outbox->dma, 0, 0, MLX4_CMD_QUERY_FW,
+			    MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
+	if (err)
+		return err;
+
+	/* for slaves, zero out everything except FW version */
+	outbuf[0] = outbuf[1] = 0;
+	memset(&outbuf[8], 0, QUERY_FW_OUT_SIZE - 8);
+	return 0;
 }
 
 static void get_board_id(void *vsd, char *board_id)
@@ -1164,9 +1238,8 @@ int mlx4_INIT_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 		if (err)
 			return err;
-		priv->mfunc.master.slave_state[slave].init_port_mask |=
-			(1 << port);
 	}
+	priv->mfunc.master.slave_state[slave].init_port_mask |= (1 << port);
 	++priv->mfunc.master.init_port_ref[port];
 	return 0;
 }

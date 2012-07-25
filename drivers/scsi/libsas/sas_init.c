@@ -94,8 +94,7 @@ void sas_hash_addr(u8 *hashed, const u8 *sas_addr)
 
 void sas_hae_reset(struct work_struct *work)
 {
-	struct sas_ha_event *ev =
-		container_of(work, struct sas_ha_event, work);
+	struct sas_ha_event *ev = to_sas_ha_event(work);
 	struct sas_ha_struct *ha = ev->ha;
 
 	clear_bit(HAE_RESET, &ha->pending);
@@ -369,14 +368,14 @@ static void sas_phy_release(struct sas_phy *phy)
 
 static void phy_reset_work(struct work_struct *work)
 {
-	struct sas_phy_data *d = container_of(work, typeof(*d), reset_work);
+	struct sas_phy_data *d = container_of(work, typeof(*d), reset_work.work);
 
 	d->reset_result = transport_sas_phy_reset(d->phy, d->hard_reset);
 }
 
 static void phy_enable_work(struct work_struct *work)
 {
-	struct sas_phy_data *d = container_of(work, typeof(*d), enable_work);
+	struct sas_phy_data *d = container_of(work, typeof(*d), enable_work.work);
 
 	d->enable_result = sas_phy_enable(d->phy, d->enable);
 }
@@ -389,8 +388,8 @@ static int sas_phy_setup(struct sas_phy *phy)
 		return -ENOMEM;
 
 	mutex_init(&d->event_lock);
-	INIT_WORK(&d->reset_work, phy_reset_work);
-	INIT_WORK(&d->enable_work, phy_enable_work);
+	INIT_SAS_WORK(&d->reset_work, phy_reset_work);
+	INIT_SAS_WORK(&d->enable_work, phy_enable_work);
 	d->phy = phy;
 	phy->hostdata = d;
 

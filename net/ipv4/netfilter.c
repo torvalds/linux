@@ -12,7 +12,7 @@
 #include <net/netfilter/nf_queue.h>
 
 /* route_me_harder function, used by iptable_nat, iptable_mangle + ip_queue */
-int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
+int ip_route_me_harder(struct sk_buff *skb, unsigned int addr_type)
 {
 	struct net *net = dev_net(skb_dst(skb)->dev);
 	const struct iphdr *iph = ip_hdr(skb);
@@ -237,13 +237,3 @@ static void ipv4_netfilter_fini(void)
 
 module_init(ipv4_netfilter_init);
 module_exit(ipv4_netfilter_fini);
-
-#ifdef CONFIG_SYSCTL
-struct ctl_path nf_net_ipv4_netfilter_sysctl_path[] = {
-	{ .procname = "net", },
-	{ .procname = "ipv4", },
-	{ .procname = "netfilter", },
-	{ }
-};
-EXPORT_SYMBOL_GPL(nf_net_ipv4_netfilter_sysctl_path);
-#endif /* CONFIG_SYSCTL */

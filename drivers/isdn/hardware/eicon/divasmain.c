@@ -673,7 +673,7 @@ static void divas_unregister_chrdev(void)
 	unregister_chrdev(major, DEVNAME);
 }
 
-static int DIVA_INIT_FUNCTION divas_register_chrdev(void)
+static int __init divas_register_chrdev(void)
 {
 	if ((major = register_chrdev(0, DEVNAME, &divas_fops)) < 0)
 	{
@@ -767,7 +767,7 @@ static void __devexit divas_remove_one(struct pci_dev *pdev)
 /* --------------------------------------------------------------------------
    Driver Load / Startup
    -------------------------------------------------------------------------- */
-static int DIVA_INIT_FUNCTION divas_init(void)
+static int __init divas_init(void)
 {
 	char tmprev[50];
 	int ret = 0;
@@ -831,7 +831,7 @@ out:
 /* --------------------------------------------------------------------------
    Driver Unload
    -------------------------------------------------------------------------- */
-static void DIVA_EXIT_FUNCTION divas_exit(void)
+static void __exit divas_exit(void)
 {
 	pci_unregister_driver(&diva_pci_driver);
 	remove_divas_proc();

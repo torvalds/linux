@@ -112,25 +112,17 @@
 static int pb0100_probe(struct sd *sd);
 static int pb0100_start(struct sd *sd);
 static int pb0100_init(struct sd *sd);
+static int pb0100_init_controls(struct sd *sd);
 static int pb0100_stop(struct sd *sd);
 static int pb0100_dump(struct sd *sd);
-static void pb0100_disconnect(struct sd *sd);
 
 /* V4L2 controls supported by the driver */
-static int pb0100_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
 static int pb0100_set_gain(struct gspca_dev *gspca_dev, __s32 val);
-static int pb0100_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val);
 static int pb0100_set_red_balance(struct gspca_dev *gspca_dev, __s32 val);
-static int pb0100_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val);
 static int pb0100_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val);
-static int pb0100_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
 static int pb0100_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
-static int pb0100_get_autogain(struct gspca_dev *gspca_dev, __s32 *val);
 static int pb0100_set_autogain(struct gspca_dev *gspca_dev, __s32 val);
-static int pb0100_get_autogain_target(struct gspca_dev *gspca_dev, __s32 *val);
 static int pb0100_set_autogain_target(struct gspca_dev *gspca_dev, __s32 val);
-static int pb0100_get_natural(struct gspca_dev *gspca_dev, __s32 *val);
-static int pb0100_set_natural(struct gspca_dev *gspca_dev, __s32 val);
 
 const struct stv06xx_sensor stv06xx_sensor_pb0100 = {
 	.name = "PB-0100",
@@ -142,11 +134,11 @@ const struct stv06xx_sensor stv06xx_sensor_pb0100 = {
 	.max_packet_size = { 847, 923 },
 
 	.init = pb0100_init,
+	.init_controls = pb0100_init_controls,
 	.probe = pb0100_probe,
 	.start = pb0100_start,
 	.stop = pb0100_stop,
 	.dump = pb0100_dump,
-	.disconnect = pb0100_disconnect,
 };
 
 #endif

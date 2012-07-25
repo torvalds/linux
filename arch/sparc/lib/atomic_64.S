@@ -3,6 +3,7 @@
  * Copyright (C) 1999, 2007 David S. Miller (davem@davemloft.net)
  */
 
+#include <linux/linkage.h>
 #include <asm/asi.h>
 #include <asm/backoff.h>
 
@@ -13,9 +14,7 @@
 	 * memory barriers, and a second which returns
 	 * a value and does the barriers.
 	 */
-	.globl	atomic_add
-	.type	atomic_add,#function
-atomic_add: /* %o0 = increment, %o1 = atomic_ptr */
+ENTRY(atomic_add) /* %o0 = increment, %o1 = atomic_ptr */
 	BACKOFF_SETUP(%o2)
 1:	lduw	[%o1], %g1
 	add	%g1, %o0, %g7
@@ -26,11 +25,9 @@ atomic_add: /* %o0 = increment, %o1 = atomic_ptr */
 	retl
 	 nop
 2:	BACKOFF_SPIN(%o2, %o3, 1b)
-	.size	atomic_add, .-atomic_add
+ENDPROC(atomic_add)
 
-	.globl	atomic_sub
-	.type	atomic_sub,#function
-atomic_sub: /* %o0 = decrement, %o1 = atomic_ptr */
+ENTRY(atomic_sub) /* %o0 = decrement, %o1 = atomic_ptr */
 	BACKOFF_SETUP(%o2)
 1:	lduw	[%o1], %g1
 	sub	%g1, %o0, %g7
@@ -41,11 +38,9 @@ atomic_sub: /* %o0 = decrement, %o1 = atomic_ptr */
 	retl
 	 nop
 2:	BACKOFF_SPIN(%o2, %o3, 1b)
-	.size	atomic_sub, .-atomic_sub
+ENDPROC(atomic_sub)
 
-	.globl	atomic_add_ret
-	.type	atomic_add_ret,#function
-atomic_add_ret: /* %o0 = increment, %o1 = atomic_ptr */
+ENTRY(atomic_add_ret) /* %o0 = increment, %o1 = atomic_ptr */
 	BACKOFF_SETUP(%o2)
 1:	lduw	[%o1], %g1
 	add	%g1, %o0, %g7
@@ -56,11 +51,9 @@ atomic_add_ret: /* %o0 = increment, %o1 = atomic_ptr */
 	retl
 	 sra	%g1, 0, %o0
 2:	BACKOFF_SPIN(%o2, %o3, 1b)
-	.size	atomic_add_ret, .-atomic_add_ret
+ENDPROC(atomic_add_ret)
 
-	.globl	atomic_sub_ret
-	.type	atomic_sub_ret,#function
-atomic_sub_ret: /* %o0 = decrement, %o1 = atomic_ptr */
+ENTRY(atomic_sub_ret) /* %o0 = decrement, %o1 = atomic_ptr */
 	BACKOFF_SETUP(%o2)
 1:	lduw	[%o1], %g1
 	sub	%g1, %o0, %g7
@@ -71,11 +64,9 @@ atomic_sub_ret: /* %o0 = decrement, %o1 = atomic_ptr */
 	retl
 	 sra	%g1, 0, %o0
 2:	BACKOFF_SPIN(%o2, %o3, 1b)
-	.size	atomic_sub_ret, .-atomic_sub_ret
+ENDPROC(atomic_sub_ret)
 
-	.globl	atomic64_add
-	.type	atomic64_add,#function
-atomic64_add: /* %o0 = increment, %o1 = atomic_ptr */
+ENTRY(atomic64_add) /* %o0 = increment, %o1 = atomic_ptr */
 	BACKOFF_SETUP(%o2)
 1:	ldx	[%o1], %g1
 	add	%g1, %o0, %g7
@@ -86,11 +77,9 @@ atomic64_add: /* %o0 = increment, %o1 = atomic_ptr */
 	retl
 	 nop
 2:	BACKOFF_SPIN(%o2, %o3, 1b)
-	.size	atomic64_add, .-atomic64_add
+ENDPROC(atomic64_add)
 
-	.globl	atomic64_sub
-	.type	atomic64_sub,#function
-atomic64_sub: /* %o0 = decrement, %o1 = atomic_ptr */
+ENTRY(atomic64_sub) /* %o0 = decrement, %o1 = atomic_ptr */
 	BACKOFF_SETUP(%o2)
 1:	ldx	[%o1], %g1
 	sub	%g1, %o0, %g7
@@ -101,11 +90,9 @@ atomic64_sub: /* %o0 = decrement, %o1 = atomic_ptr */
 	retl
 	 nop
 2:	BACKOFF_SPIN(%o2, %o3, 1b)
-	.size	atomic64_sub, .-atomic64_sub
+ENDPROC(atomic64_sub)
 
-	.globl	atomic64_add_ret
-	.type	atomic64_add_ret,#function
-atomic64_add_ret: /* %o0 = increment, %o1 = atomic_ptr */
+ENTRY(atomic64_add_ret) /* %o0 = increment, %o1 = atomic_ptr */
 	BACKOFF_SETUP(%o2)
 1:	ldx	[%o1], %g1
 	add	%g1, %o0, %g7
@@ -116,11 +103,9 @@ atomic64_add_ret: /* %o0 = increment, %o1 = atomic_ptr */
 	retl
 	 add	%g1, %o0, %o0
 2:	BACKOFF_SPIN(%o2, %o3, 1b)
-	.size	atomic64_add_ret, .-atomic64_add_ret
+ENDPROC(atomic64_add_ret)
 
-	.globl	atomic64_sub_ret
-	.type	atomic64_sub_ret,#function
-atomic64_sub_ret: /* %o0 = decrement, %o1 = atomic_ptr */
+ENTRY(atomic64_sub_ret) /* %o0 = decrement, %o1 = atomic_ptr */
 	BACKOFF_SETUP(%o2)
 1:	ldx	[%o1], %g1
 	sub	%g1, %o0, %g7
@@ -131,4 +116,4 @@ atomic64_sub_ret: /* %o0 = decrement, %o1 = atomic_ptr */
 	retl
 	 sub	%g1, %o0, %o0
 2:	BACKOFF_SPIN(%o2, %o3, 1b)
-	.size	atomic64_sub_ret, .-atomic64_sub_ret
+ENDPROC(atomic64_sub_ret)

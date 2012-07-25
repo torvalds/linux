@@ -10,7 +10,6 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/mfd/db8500-prcmu.h>
-#include <linux/mfd/db5500-prcmu.h>
 #include <linux/clksrc-dbx500-prcmu.h>
 #include <linux/sys_soc.h>
 #include <linux/err.h>
@@ -30,6 +29,18 @@
 
 void __iomem *_PRCMU_BASE;
 
+/*
+ * FIXME: Should we set up the GPIO domain here?
+ *
+ * The problem is that we cannot put the interrupt resources into the platform
+ * device until the irqdomain has been added. Right now, we set the GIC interrupt
+ * domain from init_irq(), then load the gpio driver from
+ * core_initcall(nmk_gpio_init) and add the platform devices from
+ * arch_initcall(customize_machine).
+ *
+ * This feels fragile because it depends on the gpio device getting probed
+ * _before_ any device uses the gpio interrupts.
+*/
 static const struct of_device_id ux500_dt_irq_match[] = {
 	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
 	{},
@@ -40,10 +51,7 @@ void __init ux500_init_irq(void)
 	void __iomem *dist_base;
 	void __iomem *cpu_base;
 
-	if (cpu_is_u5500()) {
-		dist_base = __io_address(U5500_GIC_DIST_BASE);
-		cpu_base = __io_address(U5500_GIC_CPU_BASE);
-	} else if (cpu_is_u8500()) {
+	if (cpu_is_u8500_family()) {
 		dist_base = __io_address(U8500_GIC_DIST_BASE);
 		cpu_base = __io_address(U8500_GIC_CPU_BASE);
 	} else
@@ -60,11 +68,15 @@ void __init ux500_init_irq(void)
 	 * Init clocks here so that they are available for system timer
 	 * initialization.
 	 */
-	if (cpu_is_u5500())
-		db5500_prcmu_early_init();
-	if (cpu_is_u8500())
+	if (cpu_is_u8500_family())
 		db8500_prcmu_early_init();
 	clk_init();
+}
+
+void __init ux500_init_late(void)
+{
+	clk_debugfs_init();
+	clk_init_smp_twd_cpufreq();
 }
 
 static const char * __init ux500_get_machine(void)

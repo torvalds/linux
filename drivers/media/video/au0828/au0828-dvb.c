@@ -25,6 +25,7 @@
 #include <linux/device.h>
 #include <linux/suspend.h>
 #include <media/v4l2-common.h>
+#include <media/tuner.h>
 
 #include "au0828.h"
 #include "au8522.h"
@@ -79,9 +80,16 @@ static struct au8522_config hauppauge_woodbury_config = {
 	.vsb_if        = AU8522_IF_3_25MHZ,
 };
 
-static struct xc5000_config hauppauge_hvr950q_tunerconfig = {
+static struct xc5000_config hauppauge_xc5000a_config = {
 	.i2c_address      = 0x61,
 	.if_khz           = 6000,
+	.chip_id          = XC5000A,
+};
+
+static struct xc5000_config hauppauge_xc5000c_config = {
+	.i2c_address      = 0x61,
+	.if_khz           = 6000,
+	.chip_id          = XC5000C,
 };
 
 static struct mxl5007t_config mxl5007t_hvr950q_config = {
@@ -383,8 +391,19 @@ int au0828_dvb_register(struct au0828_dev *dev)
 				&hauppauge_hvr950q_config,
 				&dev->i2c_adap);
 		if (dvb->frontend != NULL)
-			dvb_attach(xc5000_attach, dvb->frontend, &dev->i2c_adap,
-				   &hauppauge_hvr950q_tunerconfig);
+			switch (dev->board.tuner_type) {
+			default:
+			case TUNER_XC5000:
+				dvb_attach(xc5000_attach, dvb->frontend,
+					   &dev->i2c_adap,
+					   &hauppauge_xc5000a_config);
+				break;
+			case TUNER_XC5000C:
+				dvb_attach(xc5000_attach, dvb->frontend,
+					   &dev->i2c_adap,
+					   &hauppauge_xc5000c_config);
+				break;
+			}
 		break;
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL:
 		dvb->frontend = dvb_attach(au8522_attach,
@@ -411,7 +430,7 @@ int au0828_dvb_register(struct au0828_dev *dev)
 		if (dvb->frontend != NULL) {
 			dvb_attach(xc5000_attach, dvb->frontend,
 				&dev->i2c_adap,
-				&hauppauge_hvr950q_tunerconfig);
+				&hauppauge_xc5000a_config);
 		}
 		break;
 	default:

@@ -221,10 +221,6 @@ static const struct comedi_lrange range_pci9118hg = { 8, {
 					 * of BIP/UNI ranges
 					 */
 
-static int pci9118_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static int pci9118_detach(struct comedi_device *dev);
-
 struct boardtype {
 	const char *name;		/* board name */
 	int vendor_id;			/* PCI vendor a device ID of card */
@@ -251,81 +247,6 @@ struct boardtype {
 	int half_fifo_size;		/* size of FIFO/2 */
 
 };
-
-static DEFINE_PCI_DEVICE_TABLE(pci9118_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMCC, 0x80d9) },
-	{ 0 }
-};
-
-MODULE_DEVICE_TABLE(pci, pci9118_pci_table);
-
-static const struct boardtype boardtypes[] = {
-	{"pci9118dg", PCI_VENDOR_ID_AMCC, 0x80d9,
-	 AMCC_OP_REG_SIZE, IORANGE_9118,
-	 16, 8, 256, PCI9118_CHANLEN, 2, 0x0fff, 0x0fff,
-	 &range_pci9118dg_hr, &range_bipolar10,
-	 3000, 12, 512},
-	{"pci9118hg", PCI_VENDOR_ID_AMCC, 0x80d9,
-	 AMCC_OP_REG_SIZE, IORANGE_9118,
-	 16, 8, 256, PCI9118_CHANLEN, 2, 0x0fff, 0x0fff,
-	 &range_pci9118hg, &range_bipolar10,
-	 3000, 12, 512},
-	{"pci9118hr", PCI_VENDOR_ID_AMCC, 0x80d9,
-	 AMCC_OP_REG_SIZE, IORANGE_9118,
-	 16, 8, 256, PCI9118_CHANLEN, 2, 0xffff, 0x0fff,
-	 &range_pci9118dg_hr, &range_bipolar10,
-	 10000, 40, 512},
-};
-
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct boardtype))
-
-static struct comedi_driver driver_pci9118 = {
-	.driver_name = "adl_pci9118",
-	.module = THIS_MODULE,
-	.attach = pci9118_attach,
-	.detach = pci9118_detach,
-	.num_names = n_boardtypes,
-	.board_name = &boardtypes[0].name,
-	.offset = sizeof(struct boardtype),
-};
-
-static int __devinit driver_pci9118_pci_probe(struct pci_dev *dev,
-					      const struct pci_device_id *ent)
-{
-	return comedi_pci_auto_config(dev, driver_pci9118.driver_name);
-}
-
-static void __devexit driver_pci9118_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static struct pci_driver driver_pci9118_pci_driver = {
-	.id_table = pci9118_pci_table,
-	.probe = &driver_pci9118_pci_probe,
-	.remove = __devexit_p(&driver_pci9118_pci_remove)
-};
-
-static int __init driver_pci9118_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_pci9118);
-	if (retval < 0)
-		return retval;
-
-	driver_pci9118_pci_driver.name = (char *)driver_pci9118.driver_name;
-	return pci_register_driver(&driver_pci9118_pci_driver);
-}
-
-static void __exit driver_pci9118_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_pci9118_pci_driver);
-	comedi_driver_unregister(&driver_pci9118);
-}
-
-module_init(driver_pci9118_init_module);
-module_exit(driver_pci9118_cleanup_module);
 
 struct pci9118_private {
 	unsigned long iobase_a;	/* base+size for AMCC chip */
@@ -2190,9 +2111,6 @@ static int pci9118_reset(struct comedi_device *dev)
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static int pci9118_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
@@ -2435,10 +2353,7 @@ static int pci9118_attach(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-*/
-static int pci9118_detach(struct comedi_device *dev)
+static void pci9118_detach(struct comedi_device *dev)
 {
 	if (dev->private) {
 		if (devpriv->valid)
@@ -2458,13 +2373,100 @@ static int pci9118_detach(struct comedi_device *dev)
 			free_pages((unsigned long)devpriv->dmabuf_virt[1],
 				   devpriv->dmabuf_pages[1]);
 	}
-
-	return 0;
 }
 
-/*
-==============================================================================
-*/
+static const struct boardtype boardtypes[] = {
+	{
+		.name		= "pci9118dg",
+		.vendor_id	= PCI_VENDOR_ID_AMCC,
+		.device_id	= 0x80d9,
+		.iorange_amcc	= AMCC_OP_REG_SIZE,
+		.iorange_9118	= IORANGE_9118,
+		.n_aichan	= 16,
+		.n_aichand	= 8,
+		.mux_aichan	= 256,
+		.n_aichanlist	= PCI9118_CHANLEN,
+		.n_aochan	= 2,
+		.ai_maxdata	= 0x0fff,
+		.ao_maxdata	= 0x0fff,
+		.rangelist_ai	= &range_pci9118dg_hr,
+		.rangelist_ao	= &range_bipolar10,
+		.ai_ns_min	= 3000,
+		.ai_pacer_min	= 12,
+		.half_fifo_size	= 512,
+	}, {
+		.name		= "pci9118hg",
+		.vendor_id	= PCI_VENDOR_ID_AMCC,
+		.device_id	= 0x80d9,
+		.iorange_amcc	= AMCC_OP_REG_SIZE,
+		.iorange_9118	= IORANGE_9118,
+		.n_aichan	= 16,
+		.n_aichand	= 8,
+		.mux_aichan	= 256,
+		.n_aichanlist	= PCI9118_CHANLEN,
+		.n_aochan	= 2,
+		.ai_maxdata	= 0x0fff,
+		.ao_maxdata	= 0x0fff,
+		.rangelist_ai	= &range_pci9118hg,
+		.rangelist_ao	= &range_bipolar10,
+		.ai_ns_min	= 3000,
+		.ai_pacer_min	= 12,
+		.half_fifo_size	= 512,
+	}, {
+		.name		= "pci9118hr",
+		.vendor_id	= PCI_VENDOR_ID_AMCC,
+		.device_id	= 0x80d9,
+		.iorange_amcc	= AMCC_OP_REG_SIZE,
+		.iorange_9118	= IORANGE_9118,
+		.n_aichan	= 16,
+		.n_aichand	= 8,
+		.mux_aichan	= 256,
+		.n_aichanlist	= PCI9118_CHANLEN,
+		.n_aochan	= 2,
+		.ai_maxdata	= 0xffff,
+		.ao_maxdata	= 0x0fff,
+		.rangelist_ai	= &range_pci9118dg_hr,
+		.rangelist_ao	= &range_bipolar10,
+		.ai_ns_min	= 10000,
+		.ai_pacer_min	= 40,
+		.half_fifo_size	= 512,
+	},
+};
+
+static struct comedi_driver adl_pci9118_driver = {
+	.driver_name	= "adl_pci9118",
+	.module		= THIS_MODULE,
+	.attach		= pci9118_attach,
+	.detach		= pci9118_detach,
+	.num_names	= ARRAY_SIZE(boardtypes),
+	.board_name	= &boardtypes[0].name,
+	.offset		= sizeof(struct boardtype),
+};
+
+static int __devinit adl_pci9118_pci_probe(struct pci_dev *dev,
+					   const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, &adl_pci9118_driver);
+}
+
+static void __devexit adl_pci9118_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static DEFINE_PCI_DEVICE_TABLE(adl_pci9118_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMCC, 0x80d9) },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, adl_pci9118_pci_table);
+
+static struct pci_driver adl_pci9118_pci_driver = {
+	.name		= "adl_pci9118",
+	.id_table	= adl_pci9118_pci_table,
+	.probe		= adl_pci9118_pci_probe,
+	.remove		= __devexit_p(adl_pci9118_pci_remove),
+};
+module_comedi_pci_driver(adl_pci9118_driver, adl_pci9118_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

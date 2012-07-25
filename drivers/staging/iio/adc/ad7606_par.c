@@ -12,7 +12,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include "../iio.h"
+#include <linux/iio/iio.h>
 #include "ad7606.h"
 
 static int ad7606_par16_read_block(struct device *dev,

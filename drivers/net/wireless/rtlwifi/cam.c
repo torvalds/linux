@@ -328,10 +328,9 @@ void rtl_cam_del_entry(struct ieee80211_hw *hw, u8 *sta_addr)
 		RT_TRACE(rtlpriv, COMP_SEC, DBG_EMERG, "sta_addr is NULL\n");
 	}
 
-	if ((sta_addr[0]|sta_addr[1]|sta_addr[2]|sta_addr[3]|\
-				sta_addr[4]|sta_addr[5]) == 0) {
+	if (is_zero_ether_addr(sta_addr)) {
 		RT_TRACE(rtlpriv, COMP_SEC, DBG_EMERG,
-			 "sta_addr is 00:00:00:00:00:00\n");
+			 "sta_addr is %pM\n", sta_addr);
 		return;
 	}
 	/* Does STA already exist? */

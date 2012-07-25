@@ -92,6 +92,8 @@ enum omap_ecc {
 	OMAP_ECC_HAMMING_CODE_HW, /* gpmc to detect the error */
 		/* 1-bit ecc: stored at beginning of spare area as romcode */
 	OMAP_ECC_HAMMING_CODE_HW_ROMCODE, /* gpmc method & romcode layout */
+	OMAP_ECC_BCH4_CODE_HW, /* 4-bit BCH ecc code */
+	OMAP_ECC_BCH8_CODE_HW, /* 8-bit BCH ecc code */
 };
 
 /*
@@ -157,4 +159,13 @@ extern int gpmc_nand_write(int cs, int cmd, int wval);
 
 int gpmc_enable_hwecc(int cs, int mode, int dev_width, int ecc_size);
 int gpmc_calculate_ecc(int cs, const u_char *dat, u_char *ecc_code);
+
+#ifdef CONFIG_ARCH_OMAP3
+int gpmc_init_hwecc_bch(int cs, int nsectors, int nerrors);
+int gpmc_enable_hwecc_bch(int cs, int mode, int dev_width, int nsectors,
+			  int nerrors);
+int gpmc_calculate_ecc_bch4(int cs, const u_char *dat, u_char *ecc);
+int gpmc_calculate_ecc_bch8(int cs, const u_char *dat, u_char *ecc);
+#endif /* CONFIG_ARCH_OMAP3 */
+
 #endif

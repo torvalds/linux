@@ -38,6 +38,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
+#include <asm/system.h>
 #include <mach/common.h>
 #include <mach/iomux-mx27.h>
 
@@ -47,6 +48,14 @@
 #define TVP5150_PWDN (GPIO_PORTC + 19)
 #define OTG_PHY_CS_GPIO (GPIO_PORTF + 17)
 #define SDHC1_IRQ IRQ_GPIOB(25)
+
+#define MOTHERBOARD_BIT2	(GPIO_PORTD + 31)
+#define MOTHERBOARD_BIT1	(GPIO_PORTD + 30)
+#define MOTHERBOARD_BIT0	(GPIO_PORTD + 29)
+
+#define EXPBOARD_BIT2		(GPIO_PORTD + 25)
+#define EXPBOARD_BIT1		(GPIO_PORTD + 27)
+#define EXPBOARD_BIT0		(GPIO_PORTD + 28)
 
 static const int visstrim_m10_pins[] __initconst = {
 	/* UART1 (console) */
@@ -107,6 +116,8 @@ static const int visstrim_m10_pins[] __initconst = {
 	PB23_PF_USB_PWR,
 	PB24_PF_USB_OC,
 	/* CSI */
+	TVP5150_RSTN | GPIO_GPIO | GPIO_OUT,
+	TVP5150_PWDN | GPIO_GPIO | GPIO_OUT,
 	PB10_PF_CSI_D0,
 	PB11_PF_CSI_D1,
 	PB12_PF_CSI_D2,
@@ -119,6 +130,41 @@ static const int visstrim_m10_pins[] __initconst = {
 	PB19_PF_CSI_D7,
 	PB20_PF_CSI_VSYNC,
 	PB21_PF_CSI_HSYNC,
+	/* mother board version */
+	MOTHERBOARD_BIT2 | GPIO_GPIO | GPIO_IN | GPIO_PUEN,
+	MOTHERBOARD_BIT1 | GPIO_GPIO | GPIO_IN | GPIO_PUEN,
+	MOTHERBOARD_BIT0 | GPIO_GPIO | GPIO_IN | GPIO_PUEN,
+	/* expansion board version */
+	EXPBOARD_BIT2 | GPIO_GPIO | GPIO_IN | GPIO_PUEN,
+	EXPBOARD_BIT1 | GPIO_GPIO | GPIO_IN | GPIO_PUEN,
+	EXPBOARD_BIT0 | GPIO_GPIO | GPIO_IN | GPIO_PUEN,
+};
+
+static struct gpio visstrim_m10_version_gpios[] = {
+	{ EXPBOARD_BIT0, GPIOF_IN, "exp-version-0" },
+	{ EXPBOARD_BIT1, GPIOF_IN, "exp-version-1" },
+	{ EXPBOARD_BIT2, GPIOF_IN, "exp-version-2" },
+	{ MOTHERBOARD_BIT0, GPIOF_IN, "mother-version-0" },
+	{ MOTHERBOARD_BIT1, GPIOF_IN, "mother-version-1" },
+	{ MOTHERBOARD_BIT2, GPIOF_IN, "mother-version-2" },
+};
+
+static const struct gpio visstrim_m10_gpios[] __initconst = {
+	{
+		.gpio = TVP5150_RSTN,
+		.flags = GPIOF_DIR_OUT | GPIOF_INIT_HIGH,
+		.label = "tvp5150_rstn",
+	},
+	{
+		.gpio = TVP5150_PWDN,
+		.flags = GPIOF_DIR_OUT | GPIOF_INIT_LOW,
+		.label = "tvp5150_pwdn",
+	},
+	{
+		.gpio = OTG_PHY_CS_GPIO,
+		.flags = GPIOF_DIR_OUT | GPIOF_INIT_LOW,
+		.label = "usbotg_cs",
+	},
 };
 
 /* Camera */
@@ -152,7 +198,7 @@ static struct soc_camera_link iclink_tvp5150 = {
 
 static struct mx2_camera_platform_data visstrim_camera = {
 	.flags = MX2_CAMERA_CCIR | MX2_CAMERA_CCIR_INTERLACE |
-			MX2_CAMERA_SWAP16 | MX2_CAMERA_PCLK_SAMPLE_RISING,
+		 MX2_CAMERA_PCLK_SAMPLE_RISING,
 	.clk = 100000,
 };
 
@@ -163,13 +209,6 @@ static void __init visstrim_camera_init(void)
 {
 	struct platform_device *pdev;
 	int dma;
-
-	/* Initialize tvp5150 gpios */
-	mxc_gpio_mode(TVP5150_RSTN | GPIO_GPIO | GPIO_OUT);
-	mxc_gpio_mode(TVP5150_PWDN | GPIO_GPIO | GPIO_OUT);
-	gpio_set_value(TVP5150_RSTN, 1);
-	gpio_set_value(TVP5150_PWDN, 0);
-	ndelay(1);
 
 	gpio_set_value(TVP5150_PWDN, 1);
 	ndelay(1);
@@ -351,10 +390,6 @@ static struct i2c_board_info visstrim_m10_i2c_devices[] = {
 /* USB OTG */
 static int otg_phy_init(struct platform_device *pdev)
 {
-	gpio_set_value(OTG_PHY_CS_GPIO, 0);
-
-	mdelay(10);
-
 	return mx27_initialize_usb_hw(pdev->id, MXC_EHCI_POWER_PINS_ENABLED);
 }
 
@@ -369,16 +404,50 @@ static const struct imx_ssi_platform_data visstrim_m10_ssi_pdata __initconst = {
 	.flags			= IMX_SSI_DMA | IMX_SSI_SYN,
 };
 
+static void __init visstrim_m10_revision(void)
+{
+	int exp_version = 0;
+	int mo_version = 0;
+	int ret;
+
+	ret = gpio_request_array(visstrim_m10_version_gpios,
+				 ARRAY_SIZE(visstrim_m10_version_gpios));
+	if (ret) {
+		pr_err("Failed to request version gpios");
+		return;
+	}
+
+	/* Get expansion board version (negative logic) */
+	exp_version |= !gpio_get_value(EXPBOARD_BIT2) << 2;
+	exp_version |= !gpio_get_value(EXPBOARD_BIT1) << 1;
+	exp_version |= !gpio_get_value(EXPBOARD_BIT0);
+
+	/* Get mother board version (negative logic) */
+	mo_version |= !gpio_get_value(MOTHERBOARD_BIT2) << 2;
+	mo_version |= !gpio_get_value(MOTHERBOARD_BIT1) << 1;
+	mo_version |= !gpio_get_value(MOTHERBOARD_BIT0);
+
+	system_rev = 0x27000;
+	system_rev |= (mo_version << 4);
+	system_rev |= exp_version;
+}
+
 static void __init visstrim_m10_board_init(void)
 {
 	int ret;
 
 	imx27_soc_init();
+	visstrim_m10_revision();
 
 	ret = mxc_gpio_setup_multiple_pins(visstrim_m10_pins,
 			ARRAY_SIZE(visstrim_m10_pins), "VISSTRIM_M10");
 	if (ret)
 		pr_err("Failed to setup pins (%d)\n", ret);
+
+	ret = gpio_request_array(visstrim_m10_gpios,
+				ARRAY_SIZE(visstrim_m10_gpios));
+	if (ret)
+		pr_err("Failed to request gpios (%d)\n", ret);
 
 	imx27_add_imx_ssi(0, &visstrim_m10_ssi_pdata);
 	imx27_add_imx_uart0(&uart_pdata);

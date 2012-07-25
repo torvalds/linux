@@ -140,17 +140,6 @@ static const struct board_struct boards[] = {
 #define REG_SZ (thisboard->reg_sz)
 #define REGS_BADRINDEX (thisboard->regs_badrindex)
 
-/* This is used by modprobe to translate PCI IDs to drivers.  Should
- * only be used for PCI and ISA-PnP devices */
-/* Please add your PCI vendor ID to comedidev.h, and it will be forwarded
- * upstream. */
-static DEFINE_PCI_DEVICE_TABLE(pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, PCI_ID_PCIM_DDA06_16) },
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, pci_table);
-
 /*
  * this structure is for data unique to this hardware driver.  If
  * several hardware drivers keep similar information in this structure,
@@ -161,7 +150,6 @@ struct board_private_struct {
 	unsigned long registers;	/* set by probe */
 	unsigned long dio_registers;
 	char attached_to_8255;	/* boolean */
-	char attached_successfully;	/* boolean */
 	/* would be useful for a PCI device */
 	struct pci_dev *pci_dev;
 
@@ -176,66 +164,6 @@ struct board_private_struct {
  * access the private structure.
  */
 #define devpriv ((struct board_private_struct *)dev->private)
-
-/*
- * The struct comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
-static int attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static int detach(struct comedi_device *dev);
-static struct comedi_driver cb_pcimdda_driver = {
-	.driver_name = "cb_pcimdda",
-	.module = THIS_MODULE,
-	.attach = attach,
-	.detach = detach,
-};
-
-MODULE_AUTHOR("Calin A. Culianu <calin@rtlab.org>");
-MODULE_DESCRIPTION("Comedi low-level driver for the Computerboards PCIM-DDA "
-		   "series.  Currently only supports PCIM-DDA06-16 (which "
-		   "also happens to be the only board in this series. :) ) ");
-MODULE_LICENSE("GPL");
-static int __devinit cb_pcimdda_driver_pci_probe(struct pci_dev *dev,
-						 const struct pci_device_id
-						 *ent)
-{
-	return comedi_pci_auto_config(dev, cb_pcimdda_driver.driver_name);
-}
-
-static void __devexit cb_pcimdda_driver_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static struct pci_driver cb_pcimdda_driver_pci_driver = {
-	.id_table = pci_table,
-	.probe = &cb_pcimdda_driver_pci_probe,
-	.remove = __devexit_p(&cb_pcimdda_driver_pci_remove)
-};
-
-static int __init cb_pcimdda_driver_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&cb_pcimdda_driver);
-	if (retval < 0)
-		return retval;
-
-	cb_pcimdda_driver_pci_driver.name =
-	    (char *)cb_pcimdda_driver.driver_name;
-	return pci_register_driver(&cb_pcimdda_driver_pci_driver);
-}
-
-static void __exit cb_pcimdda_driver_cleanup_module(void)
-{
-	pci_unregister_driver(&cb_pcimdda_driver_pci_driver);
-	comedi_driver_unregister(&cb_pcimdda_driver);
-}
-
-module_init(cb_pcimdda_driver_init_module);
-module_exit(cb_pcimdda_driver_cleanup_module);
 
 static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data);
@@ -354,44 +282,24 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	devpriv->attached_successfully = 1;
-
 	printk("attached\n");
 
 	return 1;
 }
 
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int detach(struct comedi_device *dev)
+static void detach(struct comedi_device *dev)
 {
 	if (devpriv) {
-
 		if (dev->subdevices && devpriv->attached_to_8255) {
-			/* de-register us from the 8255 driver */
 			subdev_8255_cleanup(dev, dev->subdevices + 2);
 			devpriv->attached_to_8255 = 0;
 		}
-
 		if (devpriv->pci_dev) {
 			if (devpriv->registers)
 				comedi_pci_disable(devpriv->pci_dev);
 			pci_dev_put(devpriv->pci_dev);
 		}
-
-		if (devpriv->attached_successfully && thisboard)
-			printk("comedi%d: %s: detached\n", dev->minor,
-			       thisboard->name);
-
 	}
-
-	return 0;
 }
 
 static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -515,3 +423,41 @@ static int probe(struct comedi_device *dev, const struct comedi_devconfig *it)
 	       "card found at the requested position\n");
 	return -ENODEV;
 }
+
+static struct comedi_driver cb_pcimdda_driver = {
+	.driver_name	= "cb_pcimdda",
+	.module		= THIS_MODULE,
+	.attach		= attach,
+	.detach		= detach,
+};
+
+static int __devinit cb_pcimdda_pci_probe(struct pci_dev *dev,
+					  const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, &cb_pcimdda_driver);
+}
+
+static void __devexit cb_pcimdda_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static DEFINE_PCI_DEVICE_TABLE(cb_pcimdda_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, PCI_ID_PCIM_DDA06_16) },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, cb_pcimdda_pci_table);
+
+static struct pci_driver cb_pcimdda_driver_pci_driver = {
+	.name		= "cb_pcimdda",
+	.id_table	= cb_pcimdda_pci_table,
+	.probe		= cb_pcimdda_pci_probe,
+	.remove		= __devexit_p(cb_pcimdda_pci_remove),
+};
+module_comedi_pci_driver(cb_pcimdda_driver, cb_pcimdda_driver_pci_driver);
+
+MODULE_AUTHOR("Calin A. Culianu <calin@rtlab.org>");
+MODULE_DESCRIPTION("Comedi low-level driver for the Computerboards PCIM-DDA "
+		   "series.  Currently only supports PCIM-DDA06-16 (which "
+		   "also happens to be the only board in this series. :) ) ");
+MODULE_LICENSE("GPL");

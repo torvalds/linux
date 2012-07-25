@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2009-2011 Emulex.  All rights reserved.           *
+ * Copyright (C) 2009-2012 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -599,6 +599,7 @@ lpfc_bsg_rport_els(struct fc_bsg_job *job)
 
 	cmdiocbq->iocb_cmpl = lpfc_bsg_rport_els_cmp;
 	cmdiocbq->context1 = dd_data;
+	cmdiocbq->context_un.ndlp = ndlp;
 	cmdiocbq->context2 = rspiocbq;
 	dd_data->type = TYPE_IOCB;
 	dd_data->context_un.iocb.cmdiocbq = cmdiocbq;
@@ -3978,6 +3979,7 @@ lpfc_bsg_handle_sli_cfg_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		} else if (subsys == SLI_CONFIG_SUBSYS_COMN) {
 			switch (opcode) {
 			case COMN_OPCODE_GET_CNTL_ADDL_ATTRIBUTES:
+			case COMN_OPCODE_GET_CNTL_ATTRIBUTES:
 				lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 						"3106 Handled SLI_CONFIG "
 						"subsys_comn, opcode:x%x\n",

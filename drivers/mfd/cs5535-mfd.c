@@ -186,18 +186,7 @@ static struct pci_driver cs5535_mfd_driver = {
 	.remove = __devexit_p(cs5535_mfd_remove),
 };
 
-static int __init cs5535_mfd_init(void)
-{
-	return pci_register_driver(&cs5535_mfd_driver);
-}
-
-static void __exit cs5535_mfd_exit(void)
-{
-	pci_unregister_driver(&cs5535_mfd_driver);
-}
-
-module_init(cs5535_mfd_init);
-module_exit(cs5535_mfd_exit);
+module_pci_driver(cs5535_mfd_driver);
 
 MODULE_AUTHOR("Andres Salomon <dilinger@queued.net>");
 MODULE_DESCRIPTION("MFD driver for CS5535/CS5536 southbridge's ISA PCI device");

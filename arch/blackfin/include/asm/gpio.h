@@ -26,6 +26,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/compiler.h>
+#include <linux/gpio.h>
 
 /***********************************************************
 *
@@ -242,6 +243,49 @@ static inline int gpio_direction_output(unsigned gpio, int value)
 static inline int gpio_set_debounce(unsigned gpio, unsigned debounce)
 {
 	return -EINVAL;
+}
+
+static inline int gpio_request_one(unsigned gpio, unsigned long flags, const char *label)
+{
+	int err;
+
+	err = bfin_gpio_request(gpio, label);
+	if (err)
+		return err;
+
+	if (flags & GPIOF_DIR_IN)
+		err = bfin_gpio_direction_input(gpio);
+	else
+		err = bfin_gpio_direction_output(gpio,
+			(flags & GPIOF_INIT_HIGH) ? 1 : 0);
+
+	if (err)
+		bfin_gpio_free(gpio);
+
+	return err;
+}
+
+static inline int gpio_request_array(const struct gpio *array, size_t num)
+{
+	int i, err;
+
+	for (i = 0; i < num; i++, array++) {
+		err = gpio_request_one(array->gpio, array->flags, array->label);
+		if (err)
+			goto err_free;
+	}
+	return 0;
+
+err_free:
+	while (i--)
+		bfin_gpio_free((--array)->gpio);
+	return err;
+}
+
+static inline void gpio_free_array(const struct gpio *array, size_t num)
+{
+	while (num--)
+		bfin_gpio_free((array++)->gpio);
 }
 
 static inline int __gpio_get_value(unsigned gpio)

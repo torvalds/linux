@@ -184,7 +184,7 @@ static void isci_port_link_up(struct isci_host *isci_host,
 
 	sci_port_get_properties(iport, &properties);
 
-	if (iphy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA) {
+	if (iphy->protocol == SAS_PROTOCOL_SATA) {
 		u64 attached_sas_address;
 
 		iphy->sas_phy.oob_mode = SATA_OOB_MODE;
@@ -204,7 +204,7 @@ static void isci_port_link_up(struct isci_host *isci_host,
 
 		memcpy(&iphy->sas_phy.attached_sas_addr,
 		       &attached_sas_address, sizeof(attached_sas_address));
-	} else if (iphy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
+	} else if (iphy->protocol == SAS_PROTOCOL_SSP) {
 		iphy->sas_phy.oob_mode = SAS_OOB_MODE;
 		iphy->sas_phy.frame_rcvd_size = sizeof(struct sas_identify_frame);
 
@@ -251,10 +251,10 @@ static void isci_port_link_down(struct isci_host *isci_host,
 		if (isci_phy->sas_phy.port &&
 		    isci_phy->sas_phy.port->num_phys == 1) {
 			/* change the state for all devices on this port.  The
-			 * next task sent to this device will be returned as
-			 * SAS_TASK_UNDELIVERED, and the scsi mid layer will
-			 * remove the target
-			 */
+			* next task sent to this device will be returned as
+			* SAS_TASK_UNDELIVERED, and the scsi mid layer will
+			* remove the target
+			*/
 			list_for_each_entry(isci_device,
 					    &isci_port->remote_dev_list,
 					    node) {
@@ -517,7 +517,7 @@ void sci_port_get_attached_sas_address(struct isci_port *iport, struct sci_sas_a
 	 */
 	iphy = sci_port_get_a_connected_phy(iport);
 	if (iphy) {
-		if (iphy->protocol != SCIC_SDS_PHY_PROTOCOL_SATA) {
+		if (iphy->protocol != SAS_PROTOCOL_SATA) {
 			sci_phy_get_attached_sas_address(iphy, sas);
 		} else {
 			sci_phy_get_sas_address(iphy, sas);
@@ -624,7 +624,7 @@ static void sci_port_activate_phy(struct isci_port *iport,
 {
 	struct isci_host *ihost = iport->owning_controller;
 
-	if (iphy->protocol != SCIC_SDS_PHY_PROTOCOL_SATA && (flags & PF_RESUME))
+	if (iphy->protocol != SAS_PROTOCOL_SATA && (flags & PF_RESUME))
 		sci_phy_resume(iphy);
 
 	iport->active_phy_mask |= 1 << iphy->phy_index;
@@ -751,12 +751,10 @@ static bool sci_port_is_wide(struct isci_port *iport)
  * wide ports and direct attached phys.  Since there are no wide ported SATA
  * devices this could become an invalid port configuration.
  */
-bool sci_port_link_detected(
-	struct isci_port *iport,
-	struct isci_phy *iphy)
+bool sci_port_link_detected(struct isci_port *iport, struct isci_phy *iphy)
 {
 	if ((iport->logical_port_index != SCIC_SDS_DUMMY_PORT) &&
-	    (iphy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA)) {
+	    (iphy->protocol == SAS_PROTOCOL_SATA)) {
 		if (sci_port_is_wide(iport)) {
 			sci_port_invalid_link_up(iport, iphy);
 			return false;
@@ -1201,6 +1199,8 @@ enum sci_status sci_port_add_phy(struct isci_port *iport,
 	enum sci_status status;
 	enum sci_port_states state;
 
+	sci_port_bcn_enable(iport);
+
 	state = iport->sm.current_state_id;
 	switch (state) {
 	case SCI_PORT_STOPPED: {
@@ -1548,6 +1548,29 @@ static void sci_port_failed_state_enter(struct sci_base_state_machine *sm)
 	isci_port_hard_reset_complete(iport, SCI_FAILURE_TIMEOUT);
 }
 
+void sci_port_set_hang_detection_timeout(struct isci_port *iport, u32 timeout)
+{
+	int phy_index;
+	u32 phy_mask = iport->active_phy_mask;
+
+	if (timeout)
+		++iport->hang_detect_users;
+	else if (iport->hang_detect_users > 1)
+		--iport->hang_detect_users;
+	else
+		iport->hang_detect_users = 0;
+
+	if (timeout || (iport->hang_detect_users == 0)) {
+		for (phy_index = 0; phy_index < SCI_MAX_PHYS; phy_index++) {
+			if ((phy_mask >> phy_index) & 1) {
+				writel(timeout,
+				       &iport->phy_table[phy_index]
+					  ->link_layer_registers
+					  ->link_layer_hang_detection_timeout);
+			}
+		}
+	}
+}
 /* --------------------------------------------------------------------------- */
 
 static const struct sci_base_state sci_port_state_table[] = {
@@ -1596,6 +1619,7 @@ void sci_port_construct(struct isci_port *iport, u8 index,
 
 	iport->started_request_count = 0;
 	iport->assigned_device_count = 0;
+	iport->hang_detect_users = 0;
 
 	iport->reserved_rni = SCU_DUMMY_INDEX;
 	iport->reserved_tag = SCI_CONTROLLER_INVALID_IO_TAG;
@@ -1606,13 +1630,6 @@ void sci_port_construct(struct isci_port *iport, u8 index,
 
 	for (index = 0; index < SCI_MAX_PHYS; index++)
 		iport->phy_table[index] = NULL;
-}
-
-void isci_port_init(struct isci_port *iport, struct isci_host *ihost, int index)
-{
-	INIT_LIST_HEAD(&iport->remote_dev_list);
-	INIT_LIST_HEAD(&iport->domain_dev_list);
-	iport->isci_host = ihost;
 }
 
 void sci_port_broadcast_change_received(struct isci_port *iport, struct isci_phy *iphy)
@@ -1670,17 +1687,6 @@ int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *ipor
 			" failed 0x%x\n",
 			__func__, iport, status);
 
-	}
-
-	/* If the hard reset for the port has failed, consider this
-	 * the same as link failures on all phys in the port.
-	 */
-	if (ret != TMF_RESP_FUNC_COMPLETE) {
-
-		dev_err(&ihost->pdev->dev,
-			"%s: iport = %p; hard reset failed "
-			"(0x%x) - driving explicit link fail for all phys\n",
-			__func__, iport, iport->hard_reset_status);
 	}
 	return ret;
 }
@@ -1740,7 +1746,7 @@ void isci_port_formed(struct asd_sas_phy *phy)
 	struct isci_host *ihost = phy->ha->lldd_ha;
 	struct isci_phy *iphy = to_iphy(phy);
 	struct asd_sas_port *port = phy->port;
-	struct isci_port *iport;
+	struct isci_port *iport = NULL;
 	unsigned long flags;
 	int i;
 

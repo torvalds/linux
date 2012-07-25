@@ -1761,7 +1761,7 @@ static long vpfe_param_handler(struct file *file, void *priv,
 		}
 		break;
 	default:
-		ret = -EINVAL;
+		ret = -ENOTTY;
 	}
 unlock_out:
 	mutex_unlock(&vpfe_dev->lock);

@@ -11,6 +11,7 @@
 #include <linux/socket.h>
 #ifdef __KERNEL__
 #include <linux/in.h>
+#include <linux/in6.h>
 #else
 #include <netinet/in.h>
 #endif
@@ -37,6 +38,22 @@ struct sockaddr_l2tpip {
 			      sizeof(__kernel_sa_family_t) -
 			      sizeof(__be16) - sizeof(struct in_addr) -
 			      sizeof(__u32)];
+};
+
+/**
+ * struct sockaddr_l2tpip6 - the sockaddr structure for L2TP-over-IPv6 sockets
+ * @l2tp_family:  address family number AF_L2TPIP.
+ * @l2tp_addr:    protocol specific address information
+ * @l2tp_conn_id: connection id of tunnel
+ */
+struct sockaddr_l2tpip6 {
+	/* The first fields must match struct sockaddr_in6 */
+	__kernel_sa_family_t l2tp_family; /* AF_INET6 */
+	__be16		l2tp_unused;	/* INET port number (unused) */
+	__be32		l2tp_flowinfo;	/* IPv6 flow information */
+	struct in6_addr	l2tp_addr;	/* IPv6 address */
+	__u32		l2tp_scope_id;	/* scope id (new in RFC2553) */
+	__u32		l2tp_conn_id;	/* Connection ID of tunnel */
 };
 
 /*****************************************************************************
@@ -108,6 +125,8 @@ enum {
 	L2TP_ATTR_MTU,			/* u16 */
 	L2TP_ATTR_MRU,			/* u16 */
 	L2TP_ATTR_STATS,		/* nested */
+	L2TP_ATTR_IP6_SADDR,		/* struct in6_addr */
+	L2TP_ATTR_IP6_DADDR,		/* struct in6_addr */
 	__L2TP_ATTR_MAX,
 };
 

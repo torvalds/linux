@@ -103,7 +103,7 @@ TRACE_EVENT(workqueue_execute_start,
 );
 
 /**
- * workqueue_execute_end - called immediately before the workqueue callback
+ * workqueue_execute_end - called immediately after the workqueue callback
  * @work:	pointer to struct work_struct
  *
  * Allows to track workqueue execution.

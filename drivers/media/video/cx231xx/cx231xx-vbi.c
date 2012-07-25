@@ -83,7 +83,6 @@ static inline void print_err_status(struct cx231xx *dev, int packet, int status)
  */
 static inline int cx231xx_isoc_vbi_copy(struct cx231xx *dev, struct urb *urb)
 {
-	struct cx231xx_buffer *buf;
 	struct cx231xx_dmaqueue *dma_q = urb->context;
 	int rc = 1;
 	unsigned char *p_buffer;
@@ -101,8 +100,6 @@ static inline int cx231xx_isoc_vbi_copy(struct cx231xx *dev, struct urb *urb)
 		if (urb->status == -ENOENT)
 			return 0;
 	}
-
-	buf = dev->vbi_mode.bulk_ctl.buf;
 
 	/* get buffer pointer and length */
 	p_buffer = urb->transfer_buffer;
@@ -310,7 +307,6 @@ static void cx231xx_irq_vbi_callback(struct urb *urb)
 	struct cx231xx_video_mode *vmode =
 	    container_of(dma_q, struct cx231xx_video_mode, vidq);
 	struct cx231xx *dev = container_of(vmode, struct cx231xx, vbi_mode);
-	int rc;
 
 	switch (urb->status) {
 	case 0:		/* success */
@@ -328,7 +324,7 @@ static void cx231xx_irq_vbi_callback(struct urb *urb)
 
 	/* Copy data from URB */
 	spin_lock(&dev->vbi_mode.slock);
-	rc = dev->vbi_mode.bulk_ctl.bulk_copy(dev, urb);
+	dev->vbi_mode.bulk_ctl.bulk_copy(dev, urb);
 	spin_unlock(&dev->vbi_mode.slock);
 
 	/* Reset status */

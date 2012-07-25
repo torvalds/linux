@@ -18,9 +18,7 @@
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_bit.h"
 #include "xfs_log.h"
-#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
@@ -32,6 +30,7 @@
 #include "xfs_inode.h"
 #include "xfs_btree.h"
 #include "xfs_alloc.h"
+#include "xfs_extent_busy.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
 
@@ -94,7 +93,7 @@ xfs_allocbt_alloc_block(
 		return 0;
 	}
 
-	xfs_alloc_busy_reuse(cur->bc_mp, cur->bc_private.a.agno, bno, 1, false);
+	xfs_extent_busy_reuse(cur->bc_mp, cur->bc_private.a.agno, bno, 1, false);
 
 	xfs_trans_agbtree_delta(cur->bc_tp, 1);
 	new->s = cpu_to_be32(bno);
@@ -119,8 +118,8 @@ xfs_allocbt_free_block(
 	if (error)
 		return error;
 
-	xfs_alloc_busy_insert(cur->bc_tp, be32_to_cpu(agf->agf_seqno), bno, 1,
-			      XFS_ALLOC_BUSY_SKIP_DISCARD);
+	xfs_extent_busy_insert(cur->bc_tp, be32_to_cpu(agf->agf_seqno), bno, 1,
+			      XFS_EXTENT_BUSY_SKIP_DISCARD);
 	xfs_trans_agbtree_delta(cur->bc_tp, -1);
 	return 0;
 }

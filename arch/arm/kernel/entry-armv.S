@@ -495,6 +495,7 @@ ENDPROC(__und_usr)
  * The out of line fixup for the ldrt above.
  */
 	.pushsection .fixup, "ax"
+	.align	2
 4:	mov	pc, r9
 	.popsection
 	.pushsection __ex_table,"a"
@@ -556,10 +557,6 @@ call_fpe:
 #endif
 	tst	r0, #0x08000000			@ only CDP/CPRT/LDC/STC have bit 27
 	tstne	r0, #0x04000000			@ bit 26 set on both ARM and Thumb-2
-#if defined(CONFIG_CPU_ARM610) || defined(CONFIG_CPU_ARM710)
-	and	r8, r0, #0x0f000000		@ mask out op-code bits
-	teqne	r8, #0x0f000000			@ SWI (ARM6/7 bug)?
-#endif
 	moveq	pc, lr
 	get_thread_info r10			@ get current thread
 	and	r8, r0, #0x00000f00		@ mask out CP number

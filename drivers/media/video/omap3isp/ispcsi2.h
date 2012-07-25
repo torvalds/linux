@@ -145,7 +145,6 @@ struct isp_csi2_device {
 	u32 output; /* output to CCDC, memory or both? */
 	bool dpcm_decompress;
 	unsigned int frame_skip;
-	bool use_fs_irq;
 
 	struct isp_csiphy *phy;
 	struct isp_csi2_ctx_cfg contexts[ISP_CSI2_MAX_CTX_NUM + 1];

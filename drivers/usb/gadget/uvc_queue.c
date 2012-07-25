@@ -543,7 +543,7 @@ done:
 	return ret;
 }
 
-/* called with queue->irqlock held.. */
+/* called with &queue_irqlock held.. */
 static struct uvc_buffer *
 uvc_queue_next_buffer(struct uvc_video_queue *queue, struct uvc_buffer *buf)
 {

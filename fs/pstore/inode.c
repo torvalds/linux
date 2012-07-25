@@ -85,7 +85,7 @@ static void pstore_evict_inode(struct inode *inode)
 	struct pstore_private	*p = inode->i_private;
 	unsigned long		flags;
 
-	end_writeback(inode);
+	clear_inode(inode);
 	if (p) {
 		spin_lock_irqsave(&allpstore_lock, flags);
 		list_del(&p->list);
@@ -258,7 +258,7 @@ fail:
 	return rc;
 }
 
-int pstore_fill_super(struct super_block *sb, void *data, int silent)
+static int pstore_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *inode;
 

@@ -181,7 +181,7 @@ static const struct comedi_lrange range_daqp_ao = { 1, {BIP_RANGE(5)} };
 /* comedi interface code */
 
 static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static int daqp_detach(struct comedi_device *dev);
+static void daqp_detach(struct comedi_device *dev);
 static struct comedi_driver driver_daqp = {
 	.driver_name = "quatech_daqp_cs",
 	.module = THIS_MODULE,
@@ -922,15 +922,9 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 1;
 }
 
-/* daqp_detach (called from comedi_comdig) does nothing. If the PCMCIA
- * card is removed, daqp_cs_detach() is called by the pcmcia subsystem.
- */
-
-static int daqp_detach(struct comedi_device *dev)
+static void daqp_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: detaching daqp\n", dev->minor);
-
-	return 0;
+	/* Nothing to cleanup */
 }
 
 /*====================================================================
@@ -1010,8 +1004,6 @@ static void daqp_cs_detach(struct pcmcia_device *link)
 {
 	struct local_info_t *dev = link->priv;
 
-	dev_dbg(&link->dev, "daqp_cs_detach\n");
-
 	dev->stop = 1;
 	daqp_cs_release(link);
 
@@ -1019,7 +1011,7 @@ static void daqp_cs_detach(struct pcmcia_device *link)
 	dev_table[dev->table_index] = NULL;
 	kfree(dev);
 
-}				/* daqp_cs_detach */
+}
 
 static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
 {

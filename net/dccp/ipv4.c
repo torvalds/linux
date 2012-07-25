@@ -574,6 +574,11 @@ static void dccp_v4_reqsk_destructor(struct request_sock *req)
 	kfree(inet_rsk(req)->opt);
 }
 
+void dccp_syn_ack_timeout(struct sock *sk, struct request_sock *req)
+{
+}
+EXPORT_SYMBOL(dccp_syn_ack_timeout);
+
 static struct request_sock_ops dccp_request_sock_ops __read_mostly = {
 	.family		= PF_INET,
 	.obj_size	= sizeof(struct dccp_request_sock),
@@ -581,6 +586,7 @@ static struct request_sock_ops dccp_request_sock_ops __read_mostly = {
 	.send_ack	= dccp_reqsk_send_ack,
 	.destructor	= dccp_v4_reqsk_destructor,
 	.send_reset	= dccp_v4_ctl_send_reset,
+	.syn_ack_timeout = dccp_syn_ack_timeout,
 };
 
 int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)

@@ -40,7 +40,7 @@ static struct rc_map_table it913x_v2_rc[] = {
 	/* Type 2 */
 	/* keys stereo, snapshot unassigned */
 	{ 0x866b00, KEY_0 },
-	{ 0x866b1b, KEY_1 },
+	{ 0x866b01, KEY_1 },
 	{ 0x866b02, KEY_2 },
 	{ 0x866b03, KEY_3 },
 	{ 0x866b04, KEY_4 },

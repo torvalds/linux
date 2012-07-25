@@ -42,7 +42,6 @@
 
 static int __init omap3_l3_init(void)
 {
-	int l;
 	struct omap_hwmod *oh;
 	struct platform_device *pdev;
 	char oh_name[L3_MODULES_MAX_LEN];
@@ -54,7 +53,7 @@ static int __init omap3_l3_init(void)
 	if (!(cpu_is_omap34xx()))
 		return -ENODEV;
 
-	l = snprintf(oh_name, L3_MODULES_MAX_LEN, "l3_main");
+	snprintf(oh_name, L3_MODULES_MAX_LEN, "l3_main");
 
 	oh = omap_hwmod_lookup(oh_name);
 
@@ -72,7 +71,7 @@ postcore_initcall(omap3_l3_init);
 
 static int __init omap4_l3_init(void)
 {
-	int l, i;
+	int i;
 	struct omap_hwmod *oh[3];
 	struct platform_device *pdev;
 	char oh_name[L3_MODULES_MAX_LEN];
@@ -89,7 +88,7 @@ static int __init omap4_l3_init(void)
 		return -ENODEV;
 
 	for (i = 0; i < L3_MODULES; i++) {
-		l = snprintf(oh_name, L3_MODULES_MAX_LEN, "l3_main_%d", i+1);
+		snprintf(oh_name, L3_MODULES_MAX_LEN, "l3_main_%d", i+1);
 
 		oh[i] = omap_hwmod_lookup(oh_name);
 		if (!(oh[i]))
@@ -355,6 +354,36 @@ static void __init omap_init_dmic(void)
 static inline void omap_init_dmic(void) {}
 #endif
 
+#if defined(CONFIG_SND_OMAP_SOC_OMAP_HDMI) || \
+		defined(CONFIG_SND_OMAP_SOC_OMAP_HDMI_MODULE)
+
+static struct platform_device omap_hdmi_audio = {
+	.name	= "omap-hdmi-audio",
+	.id	= -1,
+};
+
+static void __init omap_init_hdmi_audio(void)
+{
+	struct omap_hwmod *oh;
+	struct platform_device *pdev;
+
+	oh = omap_hwmod_lookup("dss_hdmi");
+	if (!oh) {
+		printk(KERN_ERR "Could not look up dss_hdmi hw_mod\n");
+		return;
+	}
+
+	pdev = omap_device_build("omap-hdmi-audio-dai",
+		-1, oh, NULL, 0, NULL, 0, 0);
+	WARN(IS_ERR(pdev),
+	     "Can't build omap_device for omap-hdmi-audio-dai.\n");
+
+	platform_device_register(&omap_hdmi_audio);
+}
+#else
+static inline void omap_init_hdmi_audio(void) {}
+#endif
+
 #if defined(CONFIG_SPI_OMAP24XX) || defined(CONFIG_SPI_OMAP24XX_MODULE)
 
 #include <plat/mcspi.h>
@@ -616,7 +645,11 @@ static inline void omap242x_mmc_mux(struct omap_mmc_platform_data
 
 void __init omap242x_init_mmc(struct omap_mmc_platform_data **mmc_data)
 {
-	char *name = "mmci-omap";
+	struct platform_device *pdev;
+	struct omap_hwmod *oh;
+	int id = 0;
+	char *oh_name = "msdi1";
+	char *dev_name = "mmci-omap";
 
 	if (!mmc_data[0]) {
 		pr_err("%s fails: Incomplete platform data\n", __func__);
@@ -624,8 +657,17 @@ void __init omap242x_init_mmc(struct omap_mmc_platform_data **mmc_data)
 	}
 
 	omap242x_mmc_mux(mmc_data[0]);
-	omap_mmc_add(name, 0, OMAP2_MMC1_BASE, OMAP2420_MMC_SIZE,
-					INT_24XX_MMC_IRQ, mmc_data[0]);
+
+	oh = omap_hwmod_lookup(oh_name);
+	if (!oh) {
+		pr_err("Could not look up %s\n", oh_name);
+		return;
+	}
+	pdev = omap_device_build(dev_name, id, oh, mmc_data[0],
+				 sizeof(struct omap_mmc_platform_data), NULL, 0, 0);
+	if (IS_ERR(pdev))
+		WARN(1, "Can'd build omap_device for %s:%s.\n",
+					dev_name, oh->name);
 }
 
 #endif
@@ -701,11 +743,15 @@ static int __init omap2_init_devices(void)
 	 * in alphabetical order so they're easier to sort through.
 	 */
 	omap_init_audio();
-	omap_init_mcpdm();
-	omap_init_dmic();
 	omap_init_camera();
+	omap_init_hdmi_audio();
 	omap_init_mbox();
-	omap_init_mcspi();
+	/* If dtb is there, the devices will be created dynamically */
+	if (!of_have_populated_dt()) {
+		omap_init_dmic();
+		omap_init_mcpdm();
+		omap_init_mcspi();
+	}
 	omap_init_pmu();
 	omap_hdq_init();
 	omap_init_sti();

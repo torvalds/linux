@@ -20,7 +20,7 @@
 #include <asm/cio.h>
 #include <asm/uaccess.h>
 
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 #define IDA_SIZE_LOG 12 /* 11 for 2k , 12 for 4k */
 #else
 #define IDA_SIZE_LOG 11 /* 11 for 2k , 12 for 4k */
@@ -33,7 +33,7 @@
 static inline int
 idal_is_needed(void *vaddr, unsigned int length)
 {
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	return ((__pa(vaddr) + length - 1) >> 31) != 0;
 #else
 	return 0;
@@ -78,7 +78,7 @@ static inline unsigned long *idal_create_words(unsigned long *idaws,
 static inline int
 set_normalized_cda(struct ccw1 * ccw, void *vaddr)
 {
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	unsigned int nridaws;
 	unsigned long *idal;
 
@@ -105,7 +105,7 @@ set_normalized_cda(struct ccw1 * ccw, void *vaddr)
 static inline void
 clear_normalized_cda(struct ccw1 * ccw)
 {
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	if (ccw->flags & CCW_FLAG_IDA) {
 		kfree((void *)(unsigned long) ccw->cda);
 		ccw->flags &= ~CCW_FLAG_IDA;
@@ -182,7 +182,7 @@ idal_buffer_free(struct idal_buffer *ib)
 static inline int
 __idal_buffer_is_needed(struct idal_buffer *ib)
 {
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	return ib->size > (4096ul << ib->page_order) ||
 		idal_is_needed(ib->data[0], ib->size);
 #else

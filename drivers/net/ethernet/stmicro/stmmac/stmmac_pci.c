@@ -28,6 +28,7 @@
 
 struct plat_stmmacenet_data plat_dat;
 struct stmmac_mdio_bus_data mdio_data;
+struct stmmac_dma_cfg dma_cfg;
 
 static void stmmac_default_data(void)
 {
@@ -35,7 +36,6 @@ static void stmmac_default_data(void)
 	plat_dat.bus_id = 1;
 	plat_dat.phy_addr = 0;
 	plat_dat.interface = PHY_INTERFACE_MODE_GMII;
-	plat_dat.pbl = 32;
 	plat_dat.clk_csr = 2;	/* clk_csr_i = 20-35MHz & MDC = clk_csr_i/16 */
 	plat_dat.has_gmac = 1;
 	plat_dat.force_sf_dma_mode = 1;
@@ -44,6 +44,10 @@ static void stmmac_default_data(void)
 	mdio_data.phy_reset = NULL;
 	mdio_data.phy_mask = 0;
 	plat_dat.mdio_bus_data = &mdio_data;
+
+	dma_cfg.pbl = 32;
+	dma_cfg.burst_len = DMA_AXI_BLEN_256;
+	plat_dat.dma_cfg = &dma_cfg;
 }
 
 /**
@@ -175,7 +179,7 @@ static DEFINE_PCI_DEVICE_TABLE(stmmac_id_table) = {
 
 MODULE_DEVICE_TABLE(pci, stmmac_id_table);
 
-static struct pci_driver stmmac_driver = {
+struct pci_driver stmmac_pci_driver = {
 	.name = STMMAC_RESOURCE_NAME,
 	.id_table = stmmac_id_table,
 	.probe = stmmac_pci_probe,
@@ -185,33 +189,6 @@ static struct pci_driver stmmac_driver = {
 	.resume = stmmac_pci_resume,
 #endif
 };
-
-/**
- * stmmac_init_module - Entry point for the driver
- * Description: This function is the entry point for the driver.
- */
-static int __init stmmac_init_module(void)
-{
-	int ret;
-
-	ret = pci_register_driver(&stmmac_driver);
-	if (ret < 0)
-		pr_err("%s: ERROR: driver registration failed\n", __func__);
-
-	return ret;
-}
-
-/**
- * stmmac_cleanup_module - Cleanup routine for the driver
- * Description: This function is the cleanup routine for the driver.
- */
-static void __exit stmmac_cleanup_module(void)
-{
-	pci_unregister_driver(&stmmac_driver);
-}
-
-module_init(stmmac_init_module);
-module_exit(stmmac_cleanup_module);
 
 MODULE_DESCRIPTION("STMMAC 10/100/1000 Ethernet PCI driver");
 MODULE_AUTHOR("Rayagond Kokatanur <rayagond.kokatanur@vayavyalabs.com>");

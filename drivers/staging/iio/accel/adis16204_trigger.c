@@ -3,8 +3,8 @@
 #include <linux/spi/spi.h>
 #include <linux/export.h>
 
-#include "../iio.h"
-#include "../trigger.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/trigger.h>
 #include "adis16204.h"
 
 /**
@@ -29,7 +29,7 @@ int adis16204_probe_trigger(struct iio_dev *indio_dev)
 	int ret;
 	struct adis16204_state *st = iio_priv(indio_dev);
 
-	st->trig = iio_allocate_trigger("adis16204-dev%d", indio_dev->id);
+	st->trig = iio_trigger_alloc("adis16204-dev%d", indio_dev->id);
 	if (st->trig == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -58,7 +58,7 @@ int adis16204_probe_trigger(struct iio_dev *indio_dev)
 error_free_irq:
 	free_irq(st->us->irq, st->trig);
 error_free_trig:
-	iio_free_trigger(st->trig);
+	iio_trigger_free(st->trig);
 error_ret:
 	return ret;
 }
@@ -69,5 +69,5 @@ void adis16204_remove_trigger(struct iio_dev *indio_dev)
 
 	iio_trigger_unregister(state->trig);
 	free_irq(state->us->irq, state->trig);
-	iio_free_trigger(state->trig);
+	iio_trigger_free(state->trig);
 }

@@ -103,11 +103,6 @@ int r100_pci_gart_enable(struct radeon_device *rdev);
 void r100_pci_gart_disable(struct radeon_device *rdev);
 int r100_debugfs_mc_info_init(struct radeon_device *rdev);
 int r100_gui_wait_for_idle(struct radeon_device *rdev);
-void r100_gpu_lockup_update(struct r100_gpu_lockup *lockup,
-			    struct radeon_ring *cp);
-bool r100_gpu_cp_is_lockup(struct radeon_device *rdev,
-			   struct r100_gpu_lockup *lockup,
-			   struct radeon_ring *cp);
 void r100_ib_fini(struct radeon_device *rdev);
 int r100_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
 void r100_irq_disable(struct radeon_device *rdev);
@@ -159,7 +154,6 @@ extern int r300_init(struct radeon_device *rdev);
 extern void r300_fini(struct radeon_device *rdev);
 extern int r300_suspend(struct radeon_device *rdev);
 extern int r300_resume(struct radeon_device *rdev);
-extern bool r300_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *cp);
 extern int r300_asic_reset(struct radeon_device *rdev);
 extern void r300_ring_start(struct radeon_device *rdev, struct radeon_ring *ring);
 extern void r300_fence_ring_emit(struct radeon_device *rdev,
@@ -362,26 +356,20 @@ void r600_disable_interrupts(struct radeon_device *rdev);
 void r600_rlc_stop(struct radeon_device *rdev);
 /* r600 audio */
 int r600_audio_init(struct radeon_device *rdev);
-int r600_audio_tmds_index(struct drm_encoder *encoder);
 void r600_audio_set_clock(struct drm_encoder *encoder, int clock);
-int r600_audio_channels(struct radeon_device *rdev);
-int r600_audio_bits_per_sample(struct radeon_device *rdev);
-int r600_audio_rate(struct radeon_device *rdev);
-uint8_t r600_audio_status_bits(struct radeon_device *rdev);
-uint8_t r600_audio_category_code(struct radeon_device *rdev);
-void r600_audio_schedule_polling(struct radeon_device *rdev);
-void r600_audio_enable_polling(struct drm_encoder *encoder);
-void r600_audio_disable_polling(struct drm_encoder *encoder);
+struct r600_audio r600_audio_status(struct radeon_device *rdev);
 void r600_audio_fini(struct radeon_device *rdev);
-void r600_hdmi_init(struct drm_encoder *encoder);
 int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
 void r600_hdmi_update_audio_settings(struct drm_encoder *encoder);
 /* r600 blit */
-int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_gpu_pages);
-void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence);
+int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_gpu_pages,
+			   struct radeon_sa_bo **vb);
+void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence,
+			 struct radeon_sa_bo *vb);
 void r600_kms_blit_copy(struct radeon_device *rdev,
 			u64 src_gpu_addr, u64 dst_gpu_addr,
-			unsigned num_gpu_pages);
+			unsigned num_gpu_pages,
+			struct radeon_sa_bo *vb);
 int r600_mc_wait_for_idle(struct radeon_device *rdev);
 
 /*
@@ -446,7 +434,6 @@ int cayman_init(struct radeon_device *rdev);
 void cayman_fini(struct radeon_device *rdev);
 int cayman_suspend(struct radeon_device *rdev);
 int cayman_resume(struct radeon_device *rdev);
-bool cayman_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *cp);
 int cayman_asic_reset(struct radeon_device *rdev);
 void cayman_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int cayman_vm_init(struct radeon_device *rdev);

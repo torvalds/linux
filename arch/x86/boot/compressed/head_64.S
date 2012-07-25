@@ -200,18 +200,28 @@ ENTRY(startup_64)
 	 * entire text+data+bss and hopefully all of memory.
 	 */
 #ifdef CONFIG_EFI_STUB
-	pushq	%rsi
+	/*
+	 * The entry point for the PE/COFF executable is 0x210, so only
+	 * legacy boot loaders will execute this jmp.
+	 */
+	jmp	preferred_addr
+
+	.org 0x210
 	mov	%rcx, %rdi
 	mov	%rdx, %rsi
 	call	efi_main
-	popq	%rsi
-	cmpq	$0,%rax
-	je	preferred_addr
 	movq	%rax,%rsi
-	call	1f
+	cmpq	$0,%rax
+	jne	2f
 1:
+	/* EFI init failed, so hang. */
+	hlt
+	jmp	1b
+2:
+	call	3f
+3:
 	popq	%rax
-	subq	$1b, %rax
+	subq	$3b, %rax
 	subq	BP_pref_address(%rsi), %rax
 	add	BP_code32_start(%esi), %eax
 	leaq	preferred_addr(%rax), %rax

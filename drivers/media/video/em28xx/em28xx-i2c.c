@@ -553,9 +553,6 @@ int em28xx_i2c_register(struct em28xx *dev)
 	if (i2c_scan)
 		em28xx_do_i2c_scan(dev);
 
-	/* Instantiate the IR receiver device, if present */
-	em28xx_register_i2c_ir(dev);
-
 	return 0;
 }
 

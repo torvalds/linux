@@ -28,6 +28,7 @@
 #include "locking.h"
 #include "tree-log.h"
 #include "inode-map.h"
+#include "volumes.h"
 
 #define BTRFS_ROOT_TRANS_TAG 0
 
@@ -55,47 +56,54 @@ static noinline void switch_commit_root(struct btrfs_root *root)
 static noinline int join_transaction(struct btrfs_root *root, int nofail)
 {
 	struct btrfs_transaction *cur_trans;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 
-	spin_lock(&root->fs_info->trans_lock);
+	spin_lock(&fs_info->trans_lock);
 loop:
 	/* The file system has been taken offline. No new transactions. */
-	if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
-		spin_unlock(&root->fs_info->trans_lock);
+	if (fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
+		spin_unlock(&fs_info->trans_lock);
 		return -EROFS;
 	}
 
-	if (root->fs_info->trans_no_join) {
+	if (fs_info->trans_no_join) {
 		if (!nofail) {
-			spin_unlock(&root->fs_info->trans_lock);
+			spin_unlock(&fs_info->trans_lock);
 			return -EBUSY;
 		}
 	}
 
-	cur_trans = root->fs_info->running_transaction;
+	cur_trans = fs_info->running_transaction;
 	if (cur_trans) {
-		if (cur_trans->aborted)
+		if (cur_trans->aborted) {
+			spin_unlock(&fs_info->trans_lock);
 			return cur_trans->aborted;
+		}
 		atomic_inc(&cur_trans->use_count);
 		atomic_inc(&cur_trans->num_writers);
 		cur_trans->num_joined++;
-		spin_unlock(&root->fs_info->trans_lock);
+		spin_unlock(&fs_info->trans_lock);
 		return 0;
 	}
-	spin_unlock(&root->fs_info->trans_lock);
+	spin_unlock(&fs_info->trans_lock);
 
 	cur_trans = kmem_cache_alloc(btrfs_transaction_cachep, GFP_NOFS);
 	if (!cur_trans)
 		return -ENOMEM;
 
-	spin_lock(&root->fs_info->trans_lock);
-	if (root->fs_info->running_transaction) {
+	spin_lock(&fs_info->trans_lock);
+	if (fs_info->running_transaction) {
 		/*
 		 * someone started a transaction after we unlocked.  Make sure
 		 * to redo the trans_no_join checks above
 		 */
 		kmem_cache_free(btrfs_transaction_cachep, cur_trans);
-		cur_trans = root->fs_info->running_transaction;
+		cur_trans = fs_info->running_transaction;
 		goto loop;
+	} else if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
+		spin_unlock(&root->fs_info->trans_lock);
+		kmem_cache_free(btrfs_transaction_cachep, cur_trans);
+		return -EROFS;
 	}
 
 	atomic_set(&cur_trans->num_writers, 1);
@@ -119,20 +127,38 @@ loop:
 	cur_trans->delayed_refs.flushing = 0;
 	cur_trans->delayed_refs.run_delayed_start = 0;
 	cur_trans->delayed_refs.seq = 1;
+
+	/*
+	 * although the tree mod log is per file system and not per transaction,
+	 * the log must never go across transaction boundaries.
+	 */
+	smp_mb();
+	if (!list_empty(&fs_info->tree_mod_seq_list)) {
+		printk(KERN_ERR "btrfs: tree_mod_seq_list not empty when "
+			"creating a fresh transaction\n");
+		WARN_ON(1);
+	}
+	if (!RB_EMPTY_ROOT(&fs_info->tree_mod_log)) {
+		printk(KERN_ERR "btrfs: tree_mod_log rb tree not empty when "
+			"creating a fresh transaction\n");
+		WARN_ON(1);
+	}
+	atomic_set(&fs_info->tree_mod_seq, 0);
+
 	init_waitqueue_head(&cur_trans->delayed_refs.seq_wait);
 	spin_lock_init(&cur_trans->commit_lock);
 	spin_lock_init(&cur_trans->delayed_refs.lock);
 	INIT_LIST_HEAD(&cur_trans->delayed_refs.seq_head);
 
 	INIT_LIST_HEAD(&cur_trans->pending_snapshots);
-	list_add_tail(&cur_trans->list, &root->fs_info->trans_list);
+	list_add_tail(&cur_trans->list, &fs_info->trans_list);
 	extent_io_tree_init(&cur_trans->dirty_pages,
-			     root->fs_info->btree_inode->i_mapping);
-	root->fs_info->generation++;
-	cur_trans->transid = root->fs_info->generation;
-	root->fs_info->running_transaction = cur_trans;
+			     fs_info->btree_inode->i_mapping);
+	fs_info->generation++;
+	cur_trans->transid = fs_info->generation;
+	fs_info->running_transaction = cur_trans;
 	cur_trans->aborted = 0;
-	spin_unlock(&root->fs_info->trans_lock);
+	spin_unlock(&fs_info->trans_lock);
 
 	return 0;
 }
@@ -756,6 +782,9 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
 	if (ret)
 		return ret;
 
+	ret = btrfs_run_dev_stats(trans, root->fs_info);
+	BUG_ON(ret);
+
 	while (!list_empty(&fs_info->dirty_cowonly_roots)) {
 		next = fs_info->dirty_cowonly_roots.next;
 		list_del_init(next);
@@ -1188,14 +1217,20 @@ int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 
 
 static void cleanup_transaction(struct btrfs_trans_handle *trans,
-				struct btrfs_root *root)
+				struct btrfs_root *root, int err)
 {
 	struct btrfs_transaction *cur_trans = trans->transaction;
 
 	WARN_ON(trans->use_count > 1);
 
+	btrfs_abort_transaction(trans, root, err);
+
 	spin_lock(&root->fs_info->trans_lock);
 	list_del_init(&cur_trans->list);
+	if (cur_trans == root->fs_info->running_transaction) {
+		root->fs_info->running_transaction = NULL;
+		root->fs_info->trans_no_join = 0;
+	}
 	spin_unlock(&root->fs_info->trans_lock);
 
 	btrfs_cleanup_one_transaction(trans->transaction, root);
@@ -1400,6 +1435,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	ret = commit_fs_roots(trans, root);
 	if (ret) {
 		mutex_unlock(&root->fs_info->tree_log_mutex);
+		mutex_unlock(&root->fs_info->reloc_mutex);
 		goto cleanup_transaction;
 	}
 
@@ -1411,6 +1447,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	ret = commit_cowonly_roots(trans, root);
 	if (ret) {
 		mutex_unlock(&root->fs_info->tree_log_mutex);
+		mutex_unlock(&root->fs_info->reloc_mutex);
 		goto cleanup_transaction;
 	}
 
@@ -1499,7 +1536,7 @@ cleanup_transaction:
 //	WARN_ON(1);
 	if (current->journal_info == trans)
 		current->journal_info = NULL;
-	cleanup_transaction(trans, root);
+	cleanup_transaction(trans, root, ret);
 
 	return ret;
 }

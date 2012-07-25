@@ -628,19 +628,23 @@ int dss_ovl_simple_check(struct omap_overlay *ovl,
 		return -EINVAL;
 	}
 
+	if (dss_feat_rotation_type_supported(info->rotation_type) == 0) {
+		DSSERR("check_overlay: rotation type %d not supported\n",
+				info->rotation_type);
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
-int dss_ovl_check(struct omap_overlay *ovl,
-		struct omap_overlay_info *info, struct omap_dss_device *dssdev)
+int dss_ovl_check(struct omap_overlay *ovl, struct omap_overlay_info *info,
+		const struct omap_video_timings *mgr_timings)
 {
 	u16 outw, outh;
 	u16 dw, dh;
 
-	if (dssdev == NULL)
-		return 0;
-
-	dssdev->driver->get_resolution(dssdev, &dw, &dh);
+	dw = mgr_timings->x_res;
+	dh = mgr_timings->y_res;
 
 	if ((ovl->caps & OMAP_DSS_OVL_CAP_SCALE) == 0) {
 		outw = info->width;

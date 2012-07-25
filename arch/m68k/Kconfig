@@ -7,7 +7,10 @@ config M68K
 	select GENERIC_IRQ_SHOW
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG if RMW_INSNS
 	select GENERIC_CPU_DEVICES
+	select GENERIC_STRNCPY_FROM_USER if MMU
+	select GENERIC_STRNLEN_USER if MMU
 	select FPU if MMU
+	select ARCH_USES_GETTIMEOFFSET if MMU && !COLDFIRE
 
 config RWSEM_GENERIC_SPINLOCK
 	bool
@@ -20,9 +23,6 @@ config ARCH_HAS_ILOG2_U32
 	bool
 
 config ARCH_HAS_ILOG2_U64
-	bool
-
-config GENERIC_CLOCKEVENTS
 	bool
 
 config GENERIC_GPIO
@@ -42,9 +42,6 @@ config GENERIC_CSUM
 config TIME_LOW_RES
 	bool
 	default y
-
-config ARCH_USES_GETTIMEOFFSET
-	def_bool MMU && !COLDFIRE
 
 config NO_IOPORT
 	def_bool y
@@ -109,10 +106,6 @@ menu "Kernel Features"
 
 if COLDFIRE
 source "kernel/Kconfig.preempt"
-endif
-
-if !MMU || COLDFIRE
-source "kernel/time/Kconfig"
 endif
 
 source "mm/Kconfig"

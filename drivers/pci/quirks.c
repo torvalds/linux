@@ -2626,6 +2626,18 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x4374,
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x4375,
 			quirk_msi_intx_disable_bug);
 
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x1062,
+			quirk_msi_intx_disable_bug);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x1063,
+			quirk_msi_intx_disable_bug);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x2060,
+			quirk_msi_intx_disable_bug);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x2062,
+			quirk_msi_intx_disable_bug);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x1073,
+			quirk_msi_intx_disable_bug);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x1083,
+			quirk_msi_intx_disable_bug);
 #endif /* CONFIG_PCI_MSI */
 
 /* Allow manual resource allocation for PCI hotplug bridges
@@ -2917,6 +2929,32 @@ static void __devinit disable_igfx_irq(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0102, disable_igfx_irq);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x010a, disable_igfx_irq);
 
+/*
+ * The Intel 6 Series/C200 Series chipset's EHCI controllers on many
+ * ASUS motherboards will cause memory corruption or a system crash
+ * if they are in D3 while the system is put into S3 sleep.
+ */
+static void __devinit asus_ehci_no_d3(struct pci_dev *dev)
+{
+	const char *sys_info;
+	static const char good_Asus_board[] = "P8Z68-V";
+
+	if (dev->dev_flags & PCI_DEV_FLAGS_NO_D3_DURING_SLEEP)
+		return;
+	if (dev->subsystem_vendor != PCI_VENDOR_ID_ASUSTEK)
+		return;
+	sys_info = dmi_get_system_info(DMI_BOARD_NAME);
+	if (sys_info && memcmp(sys_info, good_Asus_board,
+			sizeof(good_Asus_board) - 1) == 0)
+		return;
+
+	dev_info(&dev->dev, "broken D3 during system sleep on ASUS\n");
+	dev->dev_flags |= PCI_DEV_FLAGS_NO_D3_DURING_SLEEP;
+	device_set_wakeup_capable(&dev->dev, false);
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1c26, asus_ehci_no_d3);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1c2d, asus_ehci_no_d3);
+
 static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f,
 			  struct pci_fixup *end)
 {
@@ -3085,16 +3123,74 @@ static int reset_intel_82599_sfp_virtfn(struct pci_dev *dev, int probe)
 	return 0;
 }
 
+#include "../gpu/drm/i915/i915_reg.h"
+#define MSG_CTL			0x45010
+#define NSDE_PWR_STATE		0xd0100
+#define IGD_OPERATION_TIMEOUT	10000     /* set timeout 10 seconds */
+
+static int reset_ivb_igd(struct pci_dev *dev, int probe)
+{
+	void __iomem *mmio_base;
+	unsigned long timeout;
+	u32 val;
+
+	if (probe)
+		return 0;
+
+	mmio_base = pci_iomap(dev, 0, 0);
+	if (!mmio_base)
+		return -ENOMEM;
+
+	iowrite32(0x00000002, mmio_base + MSG_CTL);
+
+	/*
+	 * Clobbering SOUTH_CHICKEN2 register is fine only if the next
+	 * driver loaded sets the right bits. However, this's a reset and
+	 * the bits have been set by i915 previously, so we clobber
+	 * SOUTH_CHICKEN2 register directly here.
+	 */
+	iowrite32(0x00000005, mmio_base + SOUTH_CHICKEN2);
+
+	val = ioread32(mmio_base + PCH_PP_CONTROL) & 0xfffffffe;
+	iowrite32(val, mmio_base + PCH_PP_CONTROL);
+
+	timeout = jiffies + msecs_to_jiffies(IGD_OPERATION_TIMEOUT);
+	do {
+		val = ioread32(mmio_base + PCH_PP_STATUS);
+		if ((val & 0xb0000000) == 0)
+			goto reset_complete;
+		msleep(10);
+	} while (time_before(jiffies, timeout));
+	dev_warn(&dev->dev, "timeout during reset\n");
+
+reset_complete:
+	iowrite32(0x00000002, mmio_base + NSDE_PWR_STATE);
+
+	pci_iounmap(dev, mmio_base);
+	return 0;
+}
+
 #define PCI_DEVICE_ID_INTEL_82599_SFP_VF   0x10ed
+#define PCI_DEVICE_ID_INTEL_IVB_M_VGA      0x0156
+#define PCI_DEVICE_ID_INTEL_IVB_M2_VGA     0x0166
 
 static const struct pci_dev_reset_methods pci_dev_reset_methods[] = {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82599_SFP_VF,
 		 reset_intel_82599_sfp_virtfn },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IVB_M_VGA,
+		reset_ivb_igd },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IVB_M2_VGA,
+		reset_ivb_igd },
 	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
 		reset_intel_generic_dev },
 	{ 0 }
 };
 
+/*
+ * These device-specific reset methods are here rather than in a driver
+ * because when a host assigns a device to a guest VM, the host may need
+ * to reset the device but probably doesn't have a driver for it.
+ */
 int pci_dev_specific_reset(struct pci_dev *dev, int probe)
 {
 	const struct pci_dev_reset_methods *i;

@@ -18,12 +18,6 @@ struct device_node;
  */
 #define RECLAIM_DISTANCE 10
 
-/*
- * Avoid creating an extra level of balancing (SD_ALLNODES) on the largest
- * POWER7 boxes which have a maximum of 32 nodes.
- */
-#define SD_NODES_PER_DOMAIN 32
-
 #include <asm/mmzone.h>
 
 static inline int cpu_to_node(int cpu)
@@ -50,36 +44,6 @@ static inline int pcibus_to_node(struct pci_bus *bus)
 #define cpumask_of_pcibus(bus)	(pcibus_to_node(bus) == -1 ?		\
 				 cpu_all_mask :				\
 				 cpumask_of_node(pcibus_to_node(bus)))
-
-/* sched_domains SD_NODE_INIT for PPC64 machines */
-#define SD_NODE_INIT (struct sched_domain) {				\
-	.min_interval		= 8,					\
-	.max_interval		= 32,					\
-	.busy_factor		= 32,					\
-	.imbalance_pct		= 125,					\
-	.cache_nice_tries	= 1,					\
-	.busy_idx		= 3,					\
-	.idle_idx		= 1,					\
-	.newidle_idx		= 0,					\
-	.wake_idx		= 0,					\
-	.forkexec_idx		= 0,					\
-									\
-	.flags			= 1*SD_LOAD_BALANCE			\
-				| 0*SD_BALANCE_NEWIDLE			\
-				| 1*SD_BALANCE_EXEC			\
-				| 1*SD_BALANCE_FORK			\
-				| 0*SD_BALANCE_WAKE			\
-				| 1*SD_WAKE_AFFINE			\
-				| 0*SD_PREFER_LOCAL			\
-				| 0*SD_SHARE_CPUPOWER			\
-				| 0*SD_POWERSAVINGS_BALANCE		\
-				| 0*SD_SHARE_PKG_RESOURCES		\
-				| 1*SD_SERIALIZE			\
-				| 0*SD_PREFER_SIBLING			\
-				,					\
-	.last_balance		= jiffies,				\
-	.balance_interval	= 1,					\
-}
 
 extern int __node_distance(int, int);
 #define node_distance(a, b) __node_distance(a, b)

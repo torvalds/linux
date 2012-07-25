@@ -25,6 +25,21 @@
 
 #define BE2_IPV4  0x1
 #define BE2_IPV6  0x10
+#define BE2_DHCP_V4 0x05
+
+#define NON_BLOCKING 0x0
+#define BLOCKING 0x1
+
+void beiscsi_create_def_ifaces(struct beiscsi_hba *phba);
+
+void beiscsi_destroy_def_ifaces(struct beiscsi_hba *phba);
+
+int be2iscsi_iface_get_param(struct iscsi_iface *iface,
+			     enum iscsi_param_type param_type,
+			     int param, char *buf);
+
+int be2iscsi_iface_set_param(struct Scsi_Host *shost,
+			     void *data, uint32_t count);
 
 umode_t be2iscsi_attr_is_visible(int param_type, int param);
 

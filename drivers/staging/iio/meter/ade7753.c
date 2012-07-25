@@ -18,8 +18,8 @@
 #include <linux/list.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 #include "meter.h"
 #include "ade7753.h"
 
@@ -28,7 +28,7 @@ static int ade7753_spi_write_reg_8(struct device *dev,
 				   u8 val)
 {
 	int ret;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7753_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->buf_lock);
@@ -46,7 +46,7 @@ static int ade7753_spi_write_reg_16(struct device *dev,
 		u16 value)
 {
 	int ret;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7753_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->buf_lock);
@@ -63,7 +63,7 @@ static int ade7753_spi_read_reg_8(struct device *dev,
 		u8 reg_address,
 		u8 *val)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7753_state *st = iio_priv(indio_dev);
 	ssize_t ret;
 
@@ -82,7 +82,7 @@ static int ade7753_spi_read_reg_16(struct device *dev,
 		u8 reg_address,
 		u16 *val)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7753_state *st = iio_priv(indio_dev);
 	ssize_t ret;
 
@@ -104,7 +104,7 @@ static int ade7753_spi_read_reg_24(struct device *dev,
 		u32 *val)
 {
 	struct spi_message msg;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7753_state *st = iio_priv(indio_dev);
 	int ret;
 	struct spi_transfer xfers[] = {
@@ -416,7 +416,7 @@ static ssize_t ade7753_write_frequency(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7753_state *st = iio_priv(indio_dev);
 	unsigned long val;
 	int ret;
@@ -517,7 +517,7 @@ static int __devinit ade7753_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 
 	/* setup the industrialio driver allocated elements */
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -546,7 +546,7 @@ static int __devinit ade7753_probe(struct spi_device *spi)
 	return 0;
 
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 error_ret:
 	return ret;
@@ -564,7 +564,7 @@ static int ade7753_remove(struct spi_device *spi)
 	if (ret)
 		goto err_ret;
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 err_ret:
 	return ret;
 }

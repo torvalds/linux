@@ -134,7 +134,7 @@ config INITRAMFS_COMPRESSION_BZIP2
 	depends on RD_BZIP2
 	help
 	  Its compression ratio and speed is intermediate.
-	  Decompression speed is slowest among the four.  The initramfs
+	  Decompression speed is slowest among the choices.  The initramfs
 	  size is about 10% smaller with bzip2, in comparison to gzip.
 	  Bzip2 uses a large amount of memory. For modern kernels you
 	  will need at least 8MB RAM or more for booting.
@@ -143,9 +143,9 @@ config INITRAMFS_COMPRESSION_LZMA
 	bool "LZMA"
 	depends on RD_LZMA
 	help
-	  The most recent compression algorithm.
-	  Its ratio is best, decompression speed is between the other
-	  three. Compression is slowest. The initramfs size is about 33%
+	  This algorithm's compression ratio is best.
+	  Decompression speed is between the other choices.
+	  Compression is slowest. The initramfs size is about 33%
 	  smaller with LZMA in comparison to gzip.
 
 config INITRAMFS_COMPRESSION_XZ
@@ -161,7 +161,7 @@ config INITRAMFS_COMPRESSION_LZO
 	bool "LZO"
 	depends on RD_LZO
 	help
-	  Its compression ratio is the poorest among the four. The kernel
+	  Its compression ratio is the poorest among the choices. The kernel
 	  size is about 10% bigger than gzip; however its speed
 	  (both compression and decompression) is the fastest.
 

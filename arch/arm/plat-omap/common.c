@@ -20,6 +20,7 @@
 #include <plat/board.h>
 #include <plat/vram.h>
 #include <plat/dsp.h>
+#include <plat/dma.h>
 
 #include <plat/omap-secure.h>
 

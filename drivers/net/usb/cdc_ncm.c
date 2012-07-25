@@ -1212,6 +1212,7 @@ static struct usb_driver cdc_ncm_driver = {
 	.resume = usbnet_resume,
 	.reset_resume =	usbnet_resume,
 	.supports_autosuspend = 1,
+	.disable_hub_initiated_lpm = 1,
 };
 
 static const struct ethtool_ops cdc_ncm_ethtool_ops = {

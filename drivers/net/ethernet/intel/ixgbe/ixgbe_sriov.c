@@ -544,12 +544,17 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 
 	retval = ixgbe_read_mbx(hw, msgbuf, mbx_size, vf);
 
-	if (retval)
+	if (retval) {
 		pr_err("Error receiving message from VF\n");
+		return retval;
+	}
 
 	/* this is a message we already processed, do nothing */
 	if (msgbuf[0] & (IXGBE_VT_MSGTYPE_ACK | IXGBE_VT_MSGTYPE_NACK))
 		return retval;
+
+	/* flush the ack before we write any messages back */
+	IXGBE_WRITE_FLUSH(hw);
 
 	/*
 	 * until the vf completes a virtual function reset it should not be
@@ -637,6 +642,12 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 	case IXGBE_VF_SET_MACVLAN:
 		index = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK) >>
 			IXGBE_VT_MSGINFO_SHIFT;
+		if (adapter->vfinfo[vf].pf_set_mac && index > 0) {
+			e_warn(drv, "VF %d requested MACVLAN filter but is "
+				    "administratively denied\n", vf);
+			retval = -1;
+			break;
+		}
 		/*
 		 * If the VF is allowed to set MAC filters then turn off
 		 * anti-spoofing to avoid false positives.  An index

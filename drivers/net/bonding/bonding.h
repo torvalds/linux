@@ -218,7 +218,7 @@ struct bonding {
 	struct   slave *primary_slave;
 	bool     force_primary;
 	s32      slave_cnt; /* never change this value outside the attach/detach wrappers */
-	void     (*recv_probe)(struct sk_buff *, struct bonding *,
+	int     (*recv_probe)(struct sk_buff *, struct bonding *,
 			       struct slave *);
 	rwlock_t lock;
 	rwlock_t curr_slave_lock;

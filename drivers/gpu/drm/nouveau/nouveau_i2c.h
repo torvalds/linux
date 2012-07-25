@@ -34,6 +34,7 @@
 struct nouveau_i2c_chan {
 	struct i2c_adapter adapter;
 	struct drm_device *dev;
+	struct i2c_algo_bit_data bit;
 	struct list_head head;
 	u8  index;
 	u8  type;

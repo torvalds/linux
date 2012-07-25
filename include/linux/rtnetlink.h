@@ -801,6 +801,10 @@ rtattr_failure:
 	return table;
 }
 
+extern int ndo_dflt_fdb_dump(struct sk_buff *skb,
+			     struct netlink_callback *cb,
+			     struct net_device *dev,
+			     int idx);
 #endif /* __KERNEL__ */
 
 

@@ -1037,9 +1037,9 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 			       "current sp %p does not match saved sp %p\n",
 			       stack_addr(regs), kcb->jprobe_saved_sp);
 			printk(KERN_ERR "Saved registers for jprobe %p\n", jp);
-			show_registers(saved_regs);
+			show_regs(saved_regs);
 			printk(KERN_ERR "Current registers\n");
-			show_registers(regs);
+			show_regs(regs);
 			BUG();
 		}
 		*regs = kcb->jprobe_saved_regs;

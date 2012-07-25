@@ -26,47 +26,13 @@ The ACL-7130 card have an 8254 timer/counter not supported by this driver.
 #define PCL730_DIO_LO	2	/* TTL Digital I/O low byte (D0-D7) */
 #define PCL730_DIO_HI	3	/* TTL Digital I/O high byte (D8-D15) */
 
-static int pcl730_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int pcl730_detach(struct comedi_device *dev);
-
 struct pcl730_board {
 
 	const char *name;	/*  board name */
 	unsigned int io_range;	/*  len of I/O space */
 };
 
-static const struct pcl730_board boardtypes[] = {
-	{"pcl730", PCL730_SIZE,},
-	{"iso730", PCL730_SIZE,},
-	{"acl7130", ACL7130_SIZE,},
-};
-
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl730_board))
 #define this_board ((const struct pcl730_board *)dev->board_ptr)
-
-static struct comedi_driver driver_pcl730 = {
-	.driver_name = "pcl730",
-	.module = THIS_MODULE,
-	.attach = pcl730_attach,
-	.detach = pcl730_detach,
-	.board_name = &boardtypes[0].name,
-	.num_names = n_boardtypes,
-	.offset = sizeof(struct pcl730_board),
-};
-
-static int __init driver_pcl730_init_module(void)
-{
-	return comedi_driver_register(&driver_pcl730);
-}
-
-static void __exit driver_pcl730_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcl730);
-}
-
-module_init(driver_pcl730_init_module);
-module_exit(driver_pcl730_cleanup_module);
 
 static int pcl730_do_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
@@ -168,15 +134,28 @@ static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int pcl730_detach(struct comedi_device *dev)
+static void pcl730_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: pcl730: remove\n", dev->minor);
-
 	if (dev->iobase)
 		release_region(dev->iobase, this_board->io_range);
-
-	return 0;
 }
+
+static const struct pcl730_board boardtypes[] = {
+	{ "pcl730", PCL730_SIZE, },
+	{ "iso730", PCL730_SIZE, },
+	{ "acl7130", ACL7130_SIZE, },
+};
+
+static struct comedi_driver pcl730_driver = {
+	.driver_name	= "pcl730",
+	.module		= THIS_MODULE,
+	.attach		= pcl730_attach,
+	.detach		= pcl730_detach,
+	.board_name	= &boardtypes[0].name,
+	.num_names	= ARRAY_SIZE(boardtypes),
+	.offset		= sizeof(struct pcl730_board),
+};
+module_comedi_driver(pcl730_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

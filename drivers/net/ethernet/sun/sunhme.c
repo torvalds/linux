@@ -2182,11 +2182,12 @@ static int happy_meal_open(struct net_device *dev)
 	 * into a single source which we register handling at probe time.
 	 */
 	if ((hp->happy_flags & (HFLAG_QUATTRO|HFLAG_PCI)) != HFLAG_QUATTRO) {
-		if (request_irq(dev->irq, happy_meal_interrupt,
-				IRQF_SHARED, dev->name, (void *)dev)) {
+		res = request_irq(hp->irq, happy_meal_interrupt, IRQF_SHARED,
+				  dev->name, dev);
+		if (res) {
 			HMD(("EAGAIN\n"));
 			printk(KERN_ERR "happy_meal(SBUS): Can't order irq %d to go.\n",
-			       dev->irq);
+			       hp->irq);
 
 			return -EAGAIN;
 		}
@@ -2199,7 +2200,7 @@ static int happy_meal_open(struct net_device *dev)
 	spin_unlock_irq(&hp->happy_lock);
 
 	if (res && ((hp->happy_flags & (HFLAG_QUATTRO|HFLAG_PCI)) != HFLAG_QUATTRO))
-		free_irq(dev->irq, dev);
+		free_irq(hp->irq, dev);
 	return res;
 }
 
@@ -2221,7 +2222,7 @@ static int happy_meal_close(struct net_device *dev)
 	 * time and never unregister.
 	 */
 	if ((hp->happy_flags & (HFLAG_QUATTRO|HFLAG_PCI)) != HFLAG_QUATTRO)
-		free_irq(dev->irq, dev);
+		free_irq(hp->irq, dev);
 
 	return 0;
 }
@@ -2777,7 +2778,7 @@ static int __devinit happy_meal_sbus_probe_one(struct platform_device *op, int i
 	dev->hw_features = NETIF_F_SG | NETIF_F_HW_CSUM;
 	dev->features |= dev->hw_features | NETIF_F_RXCSUM;
 
-	dev->irq = op->archdata.irqs[0];
+	hp->irq = op->archdata.irqs[0];
 
 #if defined(CONFIG_SBUS) && defined(CONFIG_PCI)
 	/* Hook up SBUS register/descriptor accessors. */
@@ -2981,8 +2982,6 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 	if (hme_version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
 
-	dev->base_addr = (long) pdev;
-
 	hp = netdev_priv(dev);
 
 	hp->happy_dev = pdev;
@@ -3087,12 +3086,11 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 
 	init_timer(&hp->happy_timer);
 
+	hp->irq = pdev->irq;
 	hp->dev = dev;
 	dev->netdev_ops = &hme_netdev_ops;
 	dev->watchdog_timeo = 5*HZ;
 	dev->ethtool_ops = &hme_ethtool_ops;
-	dev->irq = pdev->irq;
-	dev->dma = 0;
 
 	/* Happy Meal can do it all... */
 	dev->hw_features = NETIF_F_SG | NETIF_F_HW_CSUM;

@@ -114,7 +114,7 @@ static const struct file_operations um_idi_proc_fops = {
 	.release	= single_release,
 };
 
-static int DIVA_INIT_FUNCTION create_um_idi_proc(void)
+static int __init create_um_idi_proc(void)
 {
 	um_idi_proc_entry = proc_create(DRIVERLNAME, S_IRUGO, proc_net_eicon,
 					&um_idi_proc_fops);
@@ -146,7 +146,7 @@ static void divas_idi_unregister_chrdev(void)
 	unregister_chrdev(major, DEVNAME);
 }
 
-static int DIVA_INIT_FUNCTION divas_idi_register_chrdev(void)
+static int __init divas_idi_register_chrdev(void)
 {
 	if ((major = register_chrdev(0, DEVNAME, &divas_idi_fops)) < 0)
 	{
@@ -161,7 +161,7 @@ static int DIVA_INIT_FUNCTION divas_idi_register_chrdev(void)
 /*
 ** Driver Load
 */
-static int DIVA_INIT_FUNCTION divasi_init(void)
+static int __init divasi_init(void)
 {
 	char tmprev[50];
 	int ret = 0;
@@ -202,7 +202,7 @@ out:
 /*
 ** Driver Unload
 */
-static void DIVA_EXIT_FUNCTION divasi_exit(void)
+static void __exit divasi_exit(void)
 {
 	idifunc_finit();
 	remove_um_idi_proc();

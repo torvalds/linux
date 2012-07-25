@@ -51,7 +51,6 @@ enum ath_btcoex_scheme {
 	ATH_BTCOEX_CFG_NONE,
 	ATH_BTCOEX_CFG_2WIRE,
 	ATH_BTCOEX_CFG_3WIRE,
-	ATH_BTCOEX_CFG_MCI,
 };
 
 struct ath9k_hw_mci {

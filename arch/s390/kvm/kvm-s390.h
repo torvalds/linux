@@ -79,6 +79,7 @@ int kvm_s390_inject_sigp_stop(struct kvm_vcpu *vcpu, int action);
 /* implemented in priv.c */
 int kvm_s390_handle_b2(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_e5(struct kvm_vcpu *vcpu);
+int kvm_s390_handle_01(struct kvm_vcpu *vcpu);
 
 /* implemented in sigp.c */
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);

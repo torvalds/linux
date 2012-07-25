@@ -1027,7 +1027,7 @@ static int __init w1_init(void)
 	retval = driver_register(&w1_slave_driver);
 	if (retval) {
 		printk(KERN_ERR
-			"Failed to register master driver. err=%d.\n",
+			"Failed to register slave driver. err=%d.\n",
 			retval);
 		goto err_out_master_unregister;
 	}

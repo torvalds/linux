@@ -1,0 +1,6 @@
+What:		/sys/bus/iio/devices/device[n]/in_illuminance0_calibrate
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This property causes an internal calibration of the als gain trim
+		value which is later used in calculating illuminance in lux.

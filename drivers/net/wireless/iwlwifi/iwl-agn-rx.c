@@ -34,95 +34,91 @@
 #include <asm/unaligned.h>
 #include "iwl-eeprom.h"
 #include "iwl-dev.h"
-#include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-agn-calib.h"
 #include "iwl-agn.h"
-#include "iwl-shared.h"
+#include "iwl-modparams.h"
 
-const char *get_cmd_string(u8 cmd)
-{
-	switch (cmd) {
-		IWL_CMD(REPLY_ALIVE);
-		IWL_CMD(REPLY_ERROR);
-		IWL_CMD(REPLY_ECHO);
-		IWL_CMD(REPLY_RXON);
-		IWL_CMD(REPLY_RXON_ASSOC);
-		IWL_CMD(REPLY_QOS_PARAM);
-		IWL_CMD(REPLY_RXON_TIMING);
-		IWL_CMD(REPLY_ADD_STA);
-		IWL_CMD(REPLY_REMOVE_STA);
-		IWL_CMD(REPLY_REMOVE_ALL_STA);
-		IWL_CMD(REPLY_TXFIFO_FLUSH);
-		IWL_CMD(REPLY_WEPKEY);
-		IWL_CMD(REPLY_TX);
-		IWL_CMD(REPLY_LEDS_CMD);
-		IWL_CMD(REPLY_TX_LINK_QUALITY_CMD);
-		IWL_CMD(COEX_PRIORITY_TABLE_CMD);
-		IWL_CMD(COEX_MEDIUM_NOTIFICATION);
-		IWL_CMD(COEX_EVENT_CMD);
-		IWL_CMD(REPLY_QUIET_CMD);
-		IWL_CMD(REPLY_CHANNEL_SWITCH);
-		IWL_CMD(CHANNEL_SWITCH_NOTIFICATION);
-		IWL_CMD(REPLY_SPECTRUM_MEASUREMENT_CMD);
-		IWL_CMD(SPECTRUM_MEASURE_NOTIFICATION);
-		IWL_CMD(POWER_TABLE_CMD);
-		IWL_CMD(PM_SLEEP_NOTIFICATION);
-		IWL_CMD(PM_DEBUG_STATISTIC_NOTIFIC);
-		IWL_CMD(REPLY_SCAN_CMD);
-		IWL_CMD(REPLY_SCAN_ABORT_CMD);
-		IWL_CMD(SCAN_START_NOTIFICATION);
-		IWL_CMD(SCAN_RESULTS_NOTIFICATION);
-		IWL_CMD(SCAN_COMPLETE_NOTIFICATION);
-		IWL_CMD(BEACON_NOTIFICATION);
-		IWL_CMD(REPLY_TX_BEACON);
-		IWL_CMD(WHO_IS_AWAKE_NOTIFICATION);
-		IWL_CMD(QUIET_NOTIFICATION);
-		IWL_CMD(REPLY_TX_PWR_TABLE_CMD);
-		IWL_CMD(MEASURE_ABORT_NOTIFICATION);
-		IWL_CMD(REPLY_BT_CONFIG);
-		IWL_CMD(REPLY_STATISTICS_CMD);
-		IWL_CMD(STATISTICS_NOTIFICATION);
-		IWL_CMD(REPLY_CARD_STATE_CMD);
-		IWL_CMD(CARD_STATE_NOTIFICATION);
-		IWL_CMD(MISSED_BEACONS_NOTIFICATION);
-		IWL_CMD(REPLY_CT_KILL_CONFIG_CMD);
-		IWL_CMD(SENSITIVITY_CMD);
-		IWL_CMD(REPLY_PHY_CALIBRATION_CMD);
-		IWL_CMD(REPLY_RX_PHY_CMD);
-		IWL_CMD(REPLY_RX_MPDU_CMD);
-		IWL_CMD(REPLY_RX);
-		IWL_CMD(REPLY_COMPRESSED_BA);
-		IWL_CMD(CALIBRATION_CFG_CMD);
-		IWL_CMD(CALIBRATION_RES_NOTIFICATION);
-		IWL_CMD(CALIBRATION_COMPLETE_NOTIFICATION);
-		IWL_CMD(REPLY_TX_POWER_DBM_CMD);
-		IWL_CMD(TEMPERATURE_NOTIFICATION);
-		IWL_CMD(TX_ANT_CONFIGURATION_CMD);
-		IWL_CMD(REPLY_BT_COEX_PROFILE_NOTIF);
-		IWL_CMD(REPLY_BT_COEX_PRIO_TABLE);
-		IWL_CMD(REPLY_BT_COEX_PROT_ENV);
-		IWL_CMD(REPLY_WIPAN_PARAMS);
-		IWL_CMD(REPLY_WIPAN_RXON);
-		IWL_CMD(REPLY_WIPAN_RXON_TIMING);
-		IWL_CMD(REPLY_WIPAN_RXON_ASSOC);
-		IWL_CMD(REPLY_WIPAN_QOS_PARAM);
-		IWL_CMD(REPLY_WIPAN_WEPKEY);
-		IWL_CMD(REPLY_WIPAN_P2P_CHANNEL_SWITCH);
-		IWL_CMD(REPLY_WIPAN_NOA_NOTIFICATION);
-		IWL_CMD(REPLY_WIPAN_DEACTIVATION_COMPLETE);
-		IWL_CMD(REPLY_WOWLAN_PATTERNS);
-		IWL_CMD(REPLY_WOWLAN_WAKEUP_FILTER);
-		IWL_CMD(REPLY_WOWLAN_TSC_RSC_PARAMS);
-		IWL_CMD(REPLY_WOWLAN_TKIP_PARAMS);
-		IWL_CMD(REPLY_WOWLAN_KEK_KCK_MATERIAL);
-		IWL_CMD(REPLY_WOWLAN_GET_STATUS);
-		IWL_CMD(REPLY_D3_CONFIG);
-	default:
-		return "UNKNOWN";
+#define IWL_CMD_ENTRY(x) [x] = #x
 
-	}
-}
+const char *iwl_dvm_cmd_strings[REPLY_MAX] = {
+	IWL_CMD_ENTRY(REPLY_ALIVE),
+	IWL_CMD_ENTRY(REPLY_ERROR),
+	IWL_CMD_ENTRY(REPLY_ECHO),
+	IWL_CMD_ENTRY(REPLY_RXON),
+	IWL_CMD_ENTRY(REPLY_RXON_ASSOC),
+	IWL_CMD_ENTRY(REPLY_QOS_PARAM),
+	IWL_CMD_ENTRY(REPLY_RXON_TIMING),
+	IWL_CMD_ENTRY(REPLY_ADD_STA),
+	IWL_CMD_ENTRY(REPLY_REMOVE_STA),
+	IWL_CMD_ENTRY(REPLY_REMOVE_ALL_STA),
+	IWL_CMD_ENTRY(REPLY_TXFIFO_FLUSH),
+	IWL_CMD_ENTRY(REPLY_WEPKEY),
+	IWL_CMD_ENTRY(REPLY_TX),
+	IWL_CMD_ENTRY(REPLY_LEDS_CMD),
+	IWL_CMD_ENTRY(REPLY_TX_LINK_QUALITY_CMD),
+	IWL_CMD_ENTRY(COEX_PRIORITY_TABLE_CMD),
+	IWL_CMD_ENTRY(COEX_MEDIUM_NOTIFICATION),
+	IWL_CMD_ENTRY(COEX_EVENT_CMD),
+	IWL_CMD_ENTRY(REPLY_QUIET_CMD),
+	IWL_CMD_ENTRY(REPLY_CHANNEL_SWITCH),
+	IWL_CMD_ENTRY(CHANNEL_SWITCH_NOTIFICATION),
+	IWL_CMD_ENTRY(REPLY_SPECTRUM_MEASUREMENT_CMD),
+	IWL_CMD_ENTRY(SPECTRUM_MEASURE_NOTIFICATION),
+	IWL_CMD_ENTRY(POWER_TABLE_CMD),
+	IWL_CMD_ENTRY(PM_SLEEP_NOTIFICATION),
+	IWL_CMD_ENTRY(PM_DEBUG_STATISTIC_NOTIFIC),
+	IWL_CMD_ENTRY(REPLY_SCAN_CMD),
+	IWL_CMD_ENTRY(REPLY_SCAN_ABORT_CMD),
+	IWL_CMD_ENTRY(SCAN_START_NOTIFICATION),
+	IWL_CMD_ENTRY(SCAN_RESULTS_NOTIFICATION),
+	IWL_CMD_ENTRY(SCAN_COMPLETE_NOTIFICATION),
+	IWL_CMD_ENTRY(BEACON_NOTIFICATION),
+	IWL_CMD_ENTRY(REPLY_TX_BEACON),
+	IWL_CMD_ENTRY(WHO_IS_AWAKE_NOTIFICATION),
+	IWL_CMD_ENTRY(QUIET_NOTIFICATION),
+	IWL_CMD_ENTRY(REPLY_TX_PWR_TABLE_CMD),
+	IWL_CMD_ENTRY(MEASURE_ABORT_NOTIFICATION),
+	IWL_CMD_ENTRY(REPLY_BT_CONFIG),
+	IWL_CMD_ENTRY(REPLY_STATISTICS_CMD),
+	IWL_CMD_ENTRY(STATISTICS_NOTIFICATION),
+	IWL_CMD_ENTRY(REPLY_CARD_STATE_CMD),
+	IWL_CMD_ENTRY(CARD_STATE_NOTIFICATION),
+	IWL_CMD_ENTRY(MISSED_BEACONS_NOTIFICATION),
+	IWL_CMD_ENTRY(REPLY_CT_KILL_CONFIG_CMD),
+	IWL_CMD_ENTRY(SENSITIVITY_CMD),
+	IWL_CMD_ENTRY(REPLY_PHY_CALIBRATION_CMD),
+	IWL_CMD_ENTRY(REPLY_RX_PHY_CMD),
+	IWL_CMD_ENTRY(REPLY_RX_MPDU_CMD),
+	IWL_CMD_ENTRY(REPLY_RX),
+	IWL_CMD_ENTRY(REPLY_COMPRESSED_BA),
+	IWL_CMD_ENTRY(CALIBRATION_CFG_CMD),
+	IWL_CMD_ENTRY(CALIBRATION_RES_NOTIFICATION),
+	IWL_CMD_ENTRY(CALIBRATION_COMPLETE_NOTIFICATION),
+	IWL_CMD_ENTRY(REPLY_TX_POWER_DBM_CMD),
+	IWL_CMD_ENTRY(TEMPERATURE_NOTIFICATION),
+	IWL_CMD_ENTRY(TX_ANT_CONFIGURATION_CMD),
+	IWL_CMD_ENTRY(REPLY_BT_COEX_PROFILE_NOTIF),
+	IWL_CMD_ENTRY(REPLY_BT_COEX_PRIO_TABLE),
+	IWL_CMD_ENTRY(REPLY_BT_COEX_PROT_ENV),
+	IWL_CMD_ENTRY(REPLY_WIPAN_PARAMS),
+	IWL_CMD_ENTRY(REPLY_WIPAN_RXON),
+	IWL_CMD_ENTRY(REPLY_WIPAN_RXON_TIMING),
+	IWL_CMD_ENTRY(REPLY_WIPAN_RXON_ASSOC),
+	IWL_CMD_ENTRY(REPLY_WIPAN_QOS_PARAM),
+	IWL_CMD_ENTRY(REPLY_WIPAN_WEPKEY),
+	IWL_CMD_ENTRY(REPLY_WIPAN_P2P_CHANNEL_SWITCH),
+	IWL_CMD_ENTRY(REPLY_WIPAN_NOA_NOTIFICATION),
+	IWL_CMD_ENTRY(REPLY_WIPAN_DEACTIVATION_COMPLETE),
+	IWL_CMD_ENTRY(REPLY_WOWLAN_PATTERNS),
+	IWL_CMD_ENTRY(REPLY_WOWLAN_WAKEUP_FILTER),
+	IWL_CMD_ENTRY(REPLY_WOWLAN_TSC_RSC_PARAMS),
+	IWL_CMD_ENTRY(REPLY_WOWLAN_TKIP_PARAMS),
+	IWL_CMD_ENTRY(REPLY_WOWLAN_KEK_KCK_MATERIAL),
+	IWL_CMD_ENTRY(REPLY_WOWLAN_GET_STATUS),
+	IWL_CMD_ENTRY(REPLY_D3_CONFIG),
+};
+#undef IWL_CMD_ENTRY
 
 /******************************************************************************
  *
@@ -137,10 +133,9 @@ static int iwlagn_rx_reply_error(struct iwl_priv *priv,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_error_resp *err_resp = (void *)pkt->data;
 
-	IWL_ERR(priv, "Error Reply type 0x%08X cmd %s (0x%02X) "
+	IWL_ERR(priv, "Error Reply type 0x%08X cmd REPLY_ERROR (0x%02X) "
 		"seq 0x%04X ser 0x%08X\n",
 		le32_to_cpu(err_resp->error_type),
-		get_cmd_string(err_resp->cmd_id),
 		err_resp->cmd_id,
 		le16_to_cpu(err_resp->bad_cmd_seq_num),
 		le32_to_cpu(err_resp->error_info));
@@ -216,8 +211,7 @@ static int iwlagn_rx_pm_debug_statistics_notif(struct iwl_priv *priv,
 	u32 __maybe_unused len =
 		le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 	IWL_DEBUG_RADIO(priv, "Dumping %d bytes of unhandled "
-			"notification for %s:\n", len,
-			get_cmd_string(pkt->hdr.cmd));
+			"notification for PM_DEBUG_STATISTIC_NOTIFIC:\n", len);
 	iwl_print_hex_dump(priv, IWL_DL_RADIO, pkt->data, len);
 	return 0;
 }
@@ -244,69 +238,6 @@ static int iwlagn_rx_beacon_notif(struct iwl_priv *priv,
 	priv->ibss_manager = le32_to_cpu(beacon->ibss_mgr_status);
 
 	return 0;
-}
-
-/* the threshold ratio of actual_ack_cnt to expected_ack_cnt in percent */
-#define ACK_CNT_RATIO (50)
-#define BA_TIMEOUT_CNT (5)
-#define BA_TIMEOUT_MAX (16)
-
-/**
- * iwl_good_ack_health - checks for ACK count ratios, BA timeout retries.
- *
- * When the ACK count ratio is low and aggregated BA timeout retries exceeding
- * the BA_TIMEOUT_MAX, reload firmware and bring system back to normal
- * operation state.
- */
-static bool iwlagn_good_ack_health(struct iwl_priv *priv,
-				struct statistics_tx *cur)
-{
-	int actual_delta, expected_delta, ba_timeout_delta;
-	struct statistics_tx *old;
-
-	if (priv->agg_tids_count)
-		return true;
-
-	lockdep_assert_held(&priv->statistics.lock);
-
-	old = &priv->statistics.tx;
-
-	actual_delta = le32_to_cpu(cur->actual_ack_cnt) -
-		       le32_to_cpu(old->actual_ack_cnt);
-	expected_delta = le32_to_cpu(cur->expected_ack_cnt) -
-			 le32_to_cpu(old->expected_ack_cnt);
-
-	/* Values should not be negative, but we do not trust the firmware */
-	if (actual_delta <= 0 || expected_delta <= 0)
-		return true;
-
-	ba_timeout_delta = le32_to_cpu(cur->agg.ba_timeout) -
-			   le32_to_cpu(old->agg.ba_timeout);
-
-	if ((actual_delta * 100 / expected_delta) < ACK_CNT_RATIO &&
-	    ba_timeout_delta > BA_TIMEOUT_CNT) {
-		IWL_DEBUG_RADIO(priv,
-			"deltas: actual %d expected %d ba_timeout %d\n",
-			actual_delta, expected_delta, ba_timeout_delta);
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-		/*
-		 * This is ifdef'ed on DEBUGFS because otherwise the
-		 * statistics aren't available. If DEBUGFS is set but
-		 * DEBUG is not, these will just compile out.
-		 */
-		IWL_DEBUG_RADIO(priv, "rx_detected_cnt delta %d\n",
-				priv->delta_stats.tx.rx_detected_cnt);
-		IWL_DEBUG_RADIO(priv,
-				"ack_or_ba_timeout_collision delta %d\n",
-				priv->delta_stats.tx.ack_or_ba_timeout_collision);
-#endif
-
-		if (ba_timeout_delta >= BA_TIMEOUT_MAX)
-			return false;
-	}
-
-	return true;
 }
 
 /**
@@ -347,6 +278,45 @@ static bool iwlagn_good_plcp_health(struct iwl_priv *priv,
 	return true;
 }
 
+int iwl_force_rf_reset(struct iwl_priv *priv, bool external)
+{
+	struct iwl_rf_reset *rf_reset;
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return -EAGAIN;
+
+	if (!iwl_is_any_associated(priv)) {
+		IWL_DEBUG_SCAN(priv, "force reset rejected: not associated\n");
+		return -ENOLINK;
+	}
+
+	rf_reset = &priv->rf_reset;
+	rf_reset->reset_request_count++;
+	if (!external && rf_reset->last_reset_jiffies &&
+	    time_after(rf_reset->last_reset_jiffies +
+		       IWL_DELAY_NEXT_FORCE_RF_RESET, jiffies)) {
+		IWL_DEBUG_INFO(priv, "RF reset rejected\n");
+		rf_reset->reset_reject_count++;
+		return -EAGAIN;
+	}
+	rf_reset->reset_success_count++;
+	rf_reset->last_reset_jiffies = jiffies;
+
+	/*
+	 * There is no easy and better way to force reset the radio,
+	 * the only known method is switching channel which will force to
+	 * reset and tune the radio.
+	 * Use internal short scan (single channel) operation to should
+	 * achieve this objective.
+	 * Driver should reset the radio when number of consecutive missed
+	 * beacon, or any other uCode error condition detected.
+	 */
+	IWL_DEBUG_INFO(priv, "perform radio reset.\n");
+	iwl_internal_short_hw_scan(priv);
+	return 0;
+}
+
+
 static void iwlagn_recover_from_statistics(struct iwl_priv *priv,
 				struct statistics_rx_phy *cur_ofdm,
 				struct statistics_rx_ht_phy *cur_ofdm_ht,
@@ -368,15 +338,9 @@ static void iwlagn_recover_from_statistics(struct iwl_priv *priv,
 	if (msecs < 99)
 		return;
 
-	if (iwlagn_mod_params.ack_check && !iwlagn_good_ack_health(priv, tx)) {
-		IWL_ERR(priv, "low ack count detected, restart firmware\n");
-		if (!iwl_force_reset(priv, IWL_FW_RESET, false))
-			return;
-	}
-
-	if (iwlagn_mod_params.plcp_check &&
+	if (iwlwifi_mod_params.plcp_check &&
 	    !iwlagn_good_plcp_health(priv, cur_ofdm, cur_ofdm_ht, msecs))
-		iwl_force_reset(priv, IWL_RF_RESET, false);
+		iwl_force_rf_reset(priv, false);
 }
 
 /* Calculate noise level, based on measurements during network silence just
@@ -589,8 +553,8 @@ static int iwlagn_rx_statistics(struct iwl_priv *priv,
 		iwlagn_rx_calc_noise(priv);
 		queue_work(priv->workqueue, &priv->run_time_calib_work);
 	}
-	if (cfg(priv)->lib->temperature && change)
-		cfg(priv)->lib->temperature(priv);
+	if (priv->lib->temperature && change)
+		priv->lib->temperature(priv);
 
 	spin_unlock(&priv->statistics.lock);
 
@@ -639,16 +603,16 @@ static int iwlagn_rx_card_state_notif(struct iwl_priv *priv,
 	if (flags & (SW_CARD_DISABLED | HW_CARD_DISABLED |
 		     CT_CARD_DISABLED)) {
 
-		iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_SET,
+		iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_SET,
 			    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
 
-		iwl_write_direct32(trans(priv), HBUS_TARG_MBX_C,
+		iwl_write_direct32(priv->trans, HBUS_TARG_MBX_C,
 					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
 
 		if (!(flags & RXON_CARD_DISABLED)) {
-			iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_CLR,
+			iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
 				    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
-			iwl_write_direct32(trans(priv), HBUS_TARG_MBX_C,
+			iwl_write_direct32(priv->trans, HBUS_TARG_MBX_C,
 					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
 		}
 		if (flags & CT_CARD_DISABLED)
@@ -671,7 +635,7 @@ static int iwlagn_rx_card_state_notif(struct iwl_priv *priv,
 		wiphy_rfkill_set_hw_state(priv->hw->wiphy,
 			test_bit(STATUS_RF_KILL_HW, &priv->status));
 	else
-		wake_up(&trans(priv)->wait_command_queue);
+		wake_up(&priv->trans->wait_command_queue);
 	return 0;
 }
 
@@ -773,8 +737,7 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 	struct sk_buff *skb;
 	__le16 fc = hdr->frame_control;
 	struct iwl_rxon_context *ctx;
-	struct page *p;
-	int offset;
+	unsigned int hdrlen, fraglen;
 
 	/* We only process data packets if the interface is open */
 	if (unlikely(!priv->is_open)) {
@@ -784,21 +747,34 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 	}
 
 	/* In case of HW accelerated crypto and bad decryption, drop */
-	if (!iwlagn_mod_params.sw_crypto &&
+	if (!iwlwifi_mod_params.sw_crypto &&
 	    iwlagn_set_decrypted_flag(priv, hdr, ampdu_status, stats))
 		return;
 
-	skb = dev_alloc_skb(128);
+	/* Dont use dev_alloc_skb(), we'll have enough headroom once
+	 * ieee80211_hdr pulled.
+	 */
+	skb = alloc_skb(128, GFP_ATOMIC);
 	if (!skb) {
-		IWL_ERR(priv, "dev_alloc_skb failed\n");
+		IWL_ERR(priv, "alloc_skb failed\n");
 		return;
 	}
+	/* If frame is small enough to fit in skb->head, pull it completely.
+	 * If not, only pull ieee80211_hdr so that splice() or TCP coalesce
+	 * are more efficient.
+	 */
+	hdrlen = (len <= skb_tailroom(skb)) ? len : sizeof(*hdr);
 
-	offset = (void *)hdr - rxb_addr(rxb);
-	p = rxb_steal_page(rxb);
-	skb_add_rx_frag(skb, 0, p, offset, len, len);
+	memcpy(skb_put(skb, hdrlen), hdr, hdrlen);
+	fraglen = len - hdrlen;
 
-	iwl_update_stats(priv, false, fc, len);
+	if (fraglen) {
+		int offset = (void *)hdr + hdrlen -
+			     rxb_addr(rxb) + rxb_offset(rxb);
+
+		skb_add_rx_frag(skb, 0, rxb_steal_page(rxb), offset,
+				fraglen, rxb->truesize);
+	}
 
 	/*
 	* Wake any queues that were stopped due to a passive channel tx
@@ -809,8 +785,8 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 	*/
 	if (unlikely(ieee80211_is_beacon(fc) && priv->passive_no_rx)) {
 		for_each_context(priv, ctx) {
-			if (compare_ether_addr(hdr->addr3,
-					       ctx->active.bssid_addr))
+			if (!ether_addr_equal(hdr->addr3,
+					      ctx->active.bssid_addr))
 				continue;
 			iwlagn_lift_passive_no_rx(priv);
 		}
@@ -970,7 +946,7 @@ static int iwlagn_rx_reply_rx(struct iwl_priv *priv,
 	}
 
 	if ((unlikely(phy_res->cfg_phy_cnt > 20))) {
-		IWL_DEBUG_DROP(priv, "dsp size out of range [0,20]: %d/n",
+		IWL_DEBUG_DROP(priv, "dsp size out of range [0,20]: %d\n",
 				phy_res->cfg_phy_cnt);
 		return 0;
 	}
@@ -1005,7 +981,6 @@ static int iwlagn_rx_reply_rx(struct iwl_priv *priv,
 	/* Find max signal strength (dBm) among 3 antenna/receiver chains */
 	rx_status.signal = iwlagn_calc_rssi(priv, phy_res);
 
-	iwl_dbg_log_rx_data_frame(priv, len, header);
 	IWL_DEBUG_STATS_LIMIT(priv, "Rssi %d, TSF %llu\n",
 		rx_status.signal, (unsigned long long)rx_status.mactime);
 
@@ -1134,16 +1109,13 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv)
 	handlers[REPLY_COMPRESSED_BA]		=
 		iwlagn_rx_reply_compressed_ba;
 
-	/* init calibration handlers */
-	priv->rx_handlers[CALIBRATION_RES_NOTIFICATION] =
-					iwlagn_rx_calib_result;
 	priv->rx_handlers[REPLY_TX] = iwlagn_rx_reply_tx;
 
 	/* set up notification wait support */
 	iwl_notification_wait_init(&priv->notif_wait);
 
 	/* Set up BT Rx handlers */
-	if (cfg(priv)->bt_params)
+	if (priv->cfg->bt_params)
 		iwlagn_bt_rx_handler_setup(priv);
 }
 
@@ -1185,9 +1157,9 @@ int iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb,
 			err = priv->rx_handlers[pkt->hdr.cmd] (priv, rxb, cmd);
 		} else {
 			/* No handling needed */
-			IWL_DEBUG_RX(priv,
-				"No handler needed for %s, 0x%02x\n",
-				get_cmd_string(pkt->hdr.cmd), pkt->hdr.cmd);
+			IWL_DEBUG_RX(priv, "No handler needed for %s, 0x%02x\n",
+				     iwl_dvm_get_cmd_string(pkt->hdr.cmd),
+				     pkt->hdr.cmd);
 		}
 	}
 	return err;

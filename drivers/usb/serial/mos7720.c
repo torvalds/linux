@@ -79,12 +79,12 @@ static struct usb_serial_driver moschip7720_2port_driver;
 #define MOSCHIP_DEVICE_ID_7720		0x7720
 #define MOSCHIP_DEVICE_ID_7715		0x7715
 
-static const struct usb_device_id moschip_port_id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7720) },
 	{ USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7715) },
 	{ } /* terminating entry */
 };
-MODULE_DEVICE_TABLE(usb, moschip_port_id_table);
+MODULE_DEVICE_TABLE(usb, id_table);
 
 #ifdef CONFIG_USB_SERIAL_MOS7715_PARPORT
 
@@ -257,7 +257,6 @@ static void destroy_mos_parport(struct kref *kref)
 	struct mos7715_parport *mos_parport =
 		container_of(kref, struct mos7715_parport, ref_count);
 
-	dbg("%s called", __func__);
 	kfree(mos_parport);
 }
 
@@ -266,7 +265,7 @@ static void destroy_urbtracker(struct kref *kref)
 	struct urbtracker *urbtrack =
 		container_of(kref, struct urbtracker, ref_count);
 	struct mos7715_parport *mos_parport = urbtrack->mos_parport;
-	dbg("%s called", __func__);
+
 	usb_free_urb(urbtrack->urb);
 	kfree(urbtrack);
 	kref_put(&mos_parport->ref_count, destroy_mos_parport);
@@ -284,8 +283,6 @@ static void send_deferred_urbs(unsigned long _mos_parport)
 	struct mos7715_parport *mos_parport = (void *)_mos_parport;
 	struct urbtracker *urbtrack;
 	struct list_head *cursor, *next;
-
-	dbg("%s called", __func__);
 
 	/* if release function ran, game over */
 	if (unlikely(mos_parport->serial == NULL))
@@ -335,7 +332,7 @@ static void async_complete(struct urb *urb)
 {
 	struct urbtracker *urbtrack = urb->context;
 	int status = urb->status;
-	dbg("%s called", __func__);
+
 	if (unlikely(status))
 		dbg("%s - nonzero urb status received: %d", __func__, status);
 
@@ -355,7 +352,6 @@ static int write_parport_reg_nonblock(struct mos7715_parport *mos_parport,
 	struct usb_ctrlrequest setup;
 	struct usb_serial *serial = mos_parport->serial;
 	struct usb_device *usbdev = serial->dev;
-	dbg("%s called", __func__);
 
 	/* create and initialize the control urb and containing urbtracker */
 	urbtrack = kmalloc(sizeof(struct urbtracker), GFP_ATOMIC);
@@ -476,7 +472,7 @@ static inline void parport_epilogue(struct parport *pp)
 static void parport_mos7715_write_data(struct parport *pp, unsigned char d)
 {
 	struct mos7715_parport *mos_parport = pp->private_data;
-	dbg("%s called: %2.2x", __func__, d);
+
 	if (parport_prologue(pp) < 0)
 		return;
 	mos7715_change_mode(mos_parport, SPP);
@@ -488,7 +484,7 @@ static unsigned char parport_mos7715_read_data(struct parport *pp)
 {
 	struct mos7715_parport *mos_parport = pp->private_data;
 	unsigned char d;
-	dbg("%s called", __func__);
+
 	if (parport_prologue(pp) < 0)
 		return 0;
 	read_mos_reg(mos_parport->serial, dummy, DPR, &d);
@@ -500,7 +496,7 @@ static void parport_mos7715_write_control(struct parport *pp, unsigned char d)
 {
 	struct mos7715_parport *mos_parport = pp->private_data;
 	__u8 data;
-	dbg("%s called: %2.2x", __func__, d);
+
 	if (parport_prologue(pp) < 0)
 		return;
 	data = ((__u8)d & 0x0f) | (mos_parport->shadowDCR & 0xf0);
@@ -513,7 +509,7 @@ static unsigned char parport_mos7715_read_control(struct parport *pp)
 {
 	struct mos7715_parport *mos_parport = pp->private_data;
 	__u8 dcr;
-	dbg("%s called", __func__);
+
 	spin_lock(&release_lock);
 	mos_parport = pp->private_data;
 	if (unlikely(mos_parport == NULL)) {
@@ -531,7 +527,7 @@ static unsigned char parport_mos7715_frob_control(struct parport *pp,
 {
 	struct mos7715_parport *mos_parport = pp->private_data;
 	__u8 dcr;
-	dbg("%s called", __func__);
+
 	mask &= 0x0f;
 	val &= 0x0f;
 	if (parport_prologue(pp) < 0)
@@ -547,7 +543,7 @@ static unsigned char parport_mos7715_read_status(struct parport *pp)
 {
 	unsigned char status;
 	struct mos7715_parport *mos_parport = pp->private_data;
-	dbg("%s called", __func__);
+
 	spin_lock(&release_lock);
 	mos_parport = pp->private_data;
 	if (unlikely(mos_parport == NULL)) {	/* release called */
@@ -561,17 +557,16 @@ static unsigned char parport_mos7715_read_status(struct parport *pp)
 
 static void parport_mos7715_enable_irq(struct parport *pp)
 {
-	dbg("%s called", __func__);
 }
+
 static void parport_mos7715_disable_irq(struct parport *pp)
 {
-	dbg("%s called", __func__);
 }
 
 static void parport_mos7715_data_forward(struct parport *pp)
 {
 	struct mos7715_parport *mos_parport = pp->private_data;
-	dbg("%s called", __func__);
+
 	if (parport_prologue(pp) < 0)
 		return;
 	mos7715_change_mode(mos_parport, PS2);
@@ -583,7 +578,7 @@ static void parport_mos7715_data_forward(struct parport *pp)
 static void parport_mos7715_data_reverse(struct parport *pp)
 {
 	struct mos7715_parport *mos_parport = pp->private_data;
-	dbg("%s called", __func__);
+
 	if (parport_prologue(pp) < 0)
 		return;
 	mos7715_change_mode(mos_parport, PS2);
@@ -595,7 +590,6 @@ static void parport_mos7715_data_reverse(struct parport *pp)
 static void parport_mos7715_init_state(struct pardevice *dev,
 				       struct parport_state *s)
 {
-	dbg("%s called", __func__);
 	s->u.pc.ctr = DCR_INIT_VAL;
 	s->u.pc.ecr = ECR_INIT_VAL;
 }
@@ -605,7 +599,7 @@ static void parport_mos7715_save_state(struct parport *pp,
 				       struct parport_state *s)
 {
 	struct mos7715_parport *mos_parport;
-	dbg("%s called", __func__);
+
 	spin_lock(&release_lock);
 	mos_parport = pp->private_data;
 	if (unlikely(mos_parport == NULL)) {	/* release called */
@@ -622,7 +616,7 @@ static void parport_mos7715_restore_state(struct parport *pp,
 					  struct parport_state *s)
 {
 	struct mos7715_parport *mos_parport;
-	dbg("%s called", __func__);
+
 	spin_lock(&release_lock);
 	mos_parport = pp->private_data;
 	if (unlikely(mos_parport == NULL)) {	/* release called */
@@ -641,7 +635,7 @@ static size_t parport_mos7715_write_compat(struct parport *pp,
 	int retval;
 	struct mos7715_parport *mos_parport = pp->private_data;
 	int actual_len;
-	dbg("%s called: %u chars", __func__, (unsigned int)len);
+
 	if (parport_prologue(pp) < 0)
 		return 0;
 	mos7715_change_mode(mos_parport, PPF);
@@ -2164,20 +2158,13 @@ static void mos7720_release(struct usb_serial *serial)
 		kfree(usb_get_serial_port_data(serial->port[i]));
 }
 
-static struct usb_driver usb_driver = {
-	.name =		"moschip7720",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	moschip_port_id_table,
-};
-
 static struct usb_serial_driver moschip7720_2port_driver = {
 	.driver = {
 		.owner =	THIS_MODULE,
 		.name =		"moschip7720",
 	},
 	.description		= "Moschip 2 port adapter",
-	.id_table		= moschip_port_id_table,
+	.id_table		= id_table,
 	.calc_num_ports		= mos77xx_calc_num_ports,
 	.open			= mos7720_open,
 	.close			= mos7720_close,
@@ -2203,7 +2190,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&moschip7720_2port_driver, NULL
 };
 
-module_usb_serial_driver(usb_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

@@ -56,7 +56,8 @@ bool intel_ddc_probe(struct intel_encoder *intel_encoder, int ddc_bus)
 		}
 	};
 
-	return i2c_transfer(&dev_priv->gmbus[ddc_bus].adapter, msgs, 2) == 2;
+	return i2c_transfer(intel_gmbus_get_adapter(dev_priv, ddc_bus),
+			    msgs, 2) == 2;
 }
 
 /**

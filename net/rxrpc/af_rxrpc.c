@@ -26,7 +26,7 @@ MODULE_AUTHOR("Red Hat, Inc.");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(PF_RXRPC);
 
-unsigned rxrpc_debug; // = RXRPC_DEBUG_KPROTO;
+unsigned int rxrpc_debug; // = RXRPC_DEBUG_KPROTO;
 module_param_named(debug, rxrpc_debug, uint, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(debug, "RxRPC debugging mask");
 
@@ -513,7 +513,7 @@ static int rxrpc_setsockopt(struct socket *sock, int level, int optname,
 			    char __user *optval, unsigned int optlen)
 {
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
-	unsigned min_sec_level;
+	unsigned int min_sec_level;
 	int ret;
 
 	_enter(",%d,%d,,%d", level, optname, optlen);
@@ -555,13 +555,13 @@ static int rxrpc_setsockopt(struct socket *sock, int level, int optname,
 
 		case RXRPC_MIN_SECURITY_LEVEL:
 			ret = -EINVAL;
-			if (optlen != sizeof(unsigned))
+			if (optlen != sizeof(unsigned int))
 				goto error;
 			ret = -EISCONN;
 			if (rx->sk.sk_state != RXRPC_UNCONNECTED)
 				goto error;
 			ret = get_user(min_sec_level,
-				       (unsigned __user *) optval);
+				       (unsigned int __user *) optval);
 			if (ret < 0)
 				goto error;
 			ret = -EINVAL;

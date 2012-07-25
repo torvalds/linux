@@ -1607,22 +1607,11 @@ static void __devexit pcxhr_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_driver driver = {
+static struct pci_driver pcxhr_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = pcxhr_ids,
 	.probe = pcxhr_probe,
 	.remove = __devexit_p(pcxhr_remove),
 };
 
-static int __init pcxhr_module_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit pcxhr_module_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(pcxhr_module_init)
-module_exit(pcxhr_module_exit)
+module_pci_driver(pcxhr_driver);

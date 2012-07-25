@@ -207,6 +207,19 @@ int uvc_queue_mmap(struct uvc_video_queue *queue, struct vm_area_struct *vma)
 	return ret;
 }
 
+#ifndef CONFIG_MMU
+unsigned long uvc_queue_get_unmapped_area(struct uvc_video_queue *queue,
+		unsigned long pgoff)
+{
+	unsigned long ret;
+
+	mutex_lock(&queue->mutex);
+	ret = vb2_get_unmapped_area(&queue->queue, 0, 0, pgoff, 0);
+	mutex_unlock(&queue->mutex);
+	return ret;
+}
+#endif
+
 unsigned int uvc_queue_poll(struct uvc_video_queue *queue, struct file *file,
 			    poll_table *wait)
 {
@@ -236,36 +249,6 @@ int uvc_queue_allocated(struct uvc_video_queue *queue)
 
 	return allocated;
 }
-
-#ifndef CONFIG_MMU
-/*
- * Get unmapped area.
- *
- * NO-MMU arch need this function to make mmap() work correctly.
- */
-unsigned long uvc_queue_get_unmapped_area(struct uvc_video_queue *queue,
-		unsigned long pgoff)
-{
-	struct uvc_buffer *buffer;
-	unsigned int i;
-	unsigned long ret;
-
-	mutex_lock(&queue->mutex);
-	for (i = 0; i < queue->count; ++i) {
-		buffer = &queue->buffer[i];
-		if ((buffer->buf.m.offset >> PAGE_SHIFT) == pgoff)
-			break;
-	}
-	if (i == queue->count) {
-		ret = -EINVAL;
-		goto done;
-	}
-	ret = (unsigned long)buf->mem;
-done:
-	mutex_unlock(&queue->mutex);
-	return ret;
-}
-#endif
 
 /*
  * Enable or disable the video buffers queue.

@@ -201,6 +201,9 @@ static int __devinit bcma_host_pci_probe(struct pci_dev *dev,
 	bus->hosttype = BCMA_HOSTTYPE_PCI;
 	bus->ops = &bcma_host_pci_ops;
 
+	bus->boardinfo.vendor = bus->host_pci->subsystem_vendor;
+	bus->boardinfo.type = bus->host_pci->subsystem_device;
+
 	/* Register */
 	err = bcma_bus_register(bus);
 	if (err)
@@ -222,7 +225,7 @@ err_kfree_bus:
 	return err;
 }
 
-static void bcma_host_pci_remove(struct pci_dev *dev)
+static void __devexit bcma_host_pci_remove(struct pci_dev *dev)
 {
 	struct bcma_bus *bus = pci_get_drvdata(dev);
 
@@ -277,7 +280,7 @@ static struct pci_driver bcma_pci_bridge_driver = {
 	.name = "bcma-pci-bridge",
 	.id_table = bcma_pci_bridge_tbl,
 	.probe = bcma_host_pci_probe,
-	.remove = bcma_host_pci_remove,
+	.remove = __devexit_p(bcma_host_pci_remove),
 	.driver.pm = BCMA_PM_OPS,
 };
 

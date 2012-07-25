@@ -271,7 +271,8 @@ int alloc_bootmem_huge_page(struct hstate *hstate)
 
 unsigned long gpage_npages[MMU_PAGE_COUNT];
 
-static int __init do_gpage_early_setup(char *param, char *val)
+static int __init do_gpage_early_setup(char *param, char *val,
+				       const char *unused)
 {
 	static phys_addr_t size;
 	unsigned long npages;

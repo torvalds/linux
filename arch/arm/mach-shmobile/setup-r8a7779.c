@@ -262,10 +262,14 @@ void __init r8a7779_add_standard_devices(void)
 			    ARRAY_SIZE(r8a7779_late_devices));
 }
 
+/* do nothing for !CONFIG_SMP or !CONFIG_HAVE_TWD */
+void __init __weak r8a7779_register_twd(void) { }
+
 static void __init r8a7779_earlytimer_init(void)
 {
 	r8a7779_clock_init();
 	shmobile_earlytimer_init();
+	r8a7779_register_twd();
 }
 
 void __init r8a7779_add_early_devices(void)

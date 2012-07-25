@@ -692,6 +692,7 @@ static void fsmc_write_buf_dma(struct mtd_info *mtd, const uint8_t *buf,
  * @mtd:	mtd info structure
  * @chip:	nand chip info structure
  * @buf:	buffer to store read data
+ * @oob_required:	caller expects OOB data read to chip->oob_poi
  * @page:	page number to read
  *
  * This routine is needed for fsmc version 8 as reading from NAND chip has to be
@@ -701,7 +702,7 @@ static void fsmc_write_buf_dma(struct mtd_info *mtd, const uint8_t *buf,
  * max of 8 bits)
  */
 static int fsmc_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
-				 uint8_t *buf, int page)
+				 uint8_t *buf, int oob_required, int page)
 {
 	struct fsmc_nand_data *host = container_of(mtd,
 					struct fsmc_nand_data, mtd);
@@ -720,6 +721,7 @@ static int fsmc_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 	 */
 	uint16_t ecc_oob[7];
 	uint8_t *oob = (uint8_t *)&ecc_oob[0];
+	unsigned int max_bitflips = 0;
 
 	for (i = 0, s = 0; s < eccsteps; s++, i += eccbytes, p += eccsize) {
 		chip->cmdfunc(mtd, NAND_CMD_READ0, s * eccsize, page);
@@ -748,13 +750,15 @@ static int fsmc_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 		chip->ecc.calculate(mtd, p, &ecc_calc[i]);
 
 		stat = chip->ecc.correct(mtd, p, &ecc_code[i], &ecc_calc[i]);
-		if (stat < 0)
+		if (stat < 0) {
 			mtd->ecc_stats.failed++;
-		else
+		} else {
 			mtd->ecc_stats.corrected += stat;
+			max_bitflips = max_t(unsigned int, max_bitflips, stat);
+		}
 	}
 
-	return 0;
+	return max_bitflips;
 }
 
 /*
@@ -994,9 +998,9 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		return PTR_ERR(host->clk);
 	}
 
-	ret = clk_enable(host->clk);
+	ret = clk_prepare_enable(host->clk);
 	if (ret)
-		goto err_clk_enable;
+		goto err_clk_prepare_enable;
 
 	/*
 	 * This device ID is actually a common AMBA ID as used on the
@@ -1176,8 +1180,8 @@ err_req_write_chnl:
 	if (host->mode == USE_DMA_ACCESS)
 		dma_release_channel(host->read_dma_chan);
 err_req_read_chnl:
-	clk_disable(host->clk);
-err_clk_enable:
+	clk_disable_unprepare(host->clk);
+err_clk_prepare_enable:
 	clk_put(host->clk);
 	return ret;
 }
@@ -1198,7 +1202,7 @@ static int fsmc_nand_remove(struct platform_device *pdev)
 			dma_release_channel(host->write_dma_chan);
 			dma_release_channel(host->read_dma_chan);
 		}
-		clk_disable(host->clk);
+		clk_disable_unprepare(host->clk);
 		clk_put(host->clk);
 	}
 
@@ -1210,7 +1214,7 @@ static int fsmc_nand_suspend(struct device *dev)
 {
 	struct fsmc_nand_data *host = dev_get_drvdata(dev);
 	if (host)
-		clk_disable(host->clk);
+		clk_disable_unprepare(host->clk);
 	return 0;
 }
 
@@ -1218,7 +1222,7 @@ static int fsmc_nand_resume(struct device *dev)
 {
 	struct fsmc_nand_data *host = dev_get_drvdata(dev);
 	if (host) {
-		clk_enable(host->clk);
+		clk_prepare_enable(host->clk);
 		fsmc_nand_setup(host->regs_va, host->bank,
 				host->nand.options & NAND_BUSWIDTH_16,
 				host->dev_timings);

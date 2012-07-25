@@ -389,21 +389,4 @@ static struct pci_driver rtl92ce_driver = {
 	.driver.pm = &rtlwifi_pm_ops,
 };
 
-static int __init rtl92ce_module_init(void)
-{
-	int ret;
-
-	ret = pci_register_driver(&rtl92ce_driver);
-	if (ret)
-		RT_ASSERT(false, "No device found\n");
-
-	return ret;
-}
-
-static void __exit rtl92ce_module_exit(void)
-{
-	pci_unregister_driver(&rtl92ce_driver);
-}
-
-module_init(rtl92ce_module_init);
-module_exit(rtl92ce_module_exit);
+module_pci_driver(rtl92ce_driver);

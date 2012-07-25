@@ -818,7 +818,7 @@ static void dlm_query_join_packet_to_wire(struct dlm_query_join_packet *packet,
 	union dlm_query_join_response response;
 
 	response.packet = *packet;
-	*wire = cpu_to_be32(response.intval);
+	*wire = be32_to_cpu(response.intval);
 }
 
 static void dlm_query_join_wire_to_packet(u32 wire,

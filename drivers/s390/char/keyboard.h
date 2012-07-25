@@ -21,7 +21,7 @@ typedef void (fn_handler_fn)(struct kbd_data *);
  */
 
 struct kbd_data {
-	struct tty_struct *tty;
+	struct tty_port *port;
 	unsigned short **key_maps;
 	char **func_table;
 	fn_handler_fn **fn_handler;
@@ -42,16 +42,24 @@ int kbd_ioctl(struct kbd_data *, unsigned int, unsigned long);
  * Helper Functions.
  */
 static inline void
-kbd_put_queue(struct tty_struct *tty, int ch)
+kbd_put_queue(struct tty_port *port, int ch)
 {
+	struct tty_struct *tty = tty_port_tty_get(port);
+	if (!tty)
+		return;
 	tty_insert_flip_char(tty, ch, 0);
 	tty_schedule_flip(tty);
+	tty_kref_put(tty);
 }
 
 static inline void
-kbd_puts_queue(struct tty_struct *tty, char *cp)
+kbd_puts_queue(struct tty_port *port, char *cp)
 {
+	struct tty_struct *tty = tty_port_tty_get(port);
+	if (!tty)
+		return;
 	while (*cp)
 		tty_insert_flip_char(tty, *cp++, 0);
 	tty_schedule_flip(tty);
+	tty_kref_put(tty);
 }

@@ -27,7 +27,6 @@ enum {
 	PG_CLEAN,
 	PG_NEED_COMMIT,
 	PG_NEED_RESCHED,
-	PG_PARTIAL_READ_FAILED,
 	PG_COMMIT_TO_DS,
 };
 
@@ -37,7 +36,6 @@ struct nfs_page {
 	struct page		*wb_page;	/* page to read in/write out */
 	struct nfs_open_context	*wb_context;	/* File state context info */
 	struct nfs_lock_context	*wb_lock_context;	/* lock context info */
-	atomic_t		wb_complete;	/* i/os we're waiting for */
 	pgoff_t			wb_index;	/* Offset >> PAGE_CACHE_SHIFT */
 	unsigned int		wb_offset,	/* Offset & ~PAGE_CACHE_MASK */
 				wb_pgbase,	/* Start of page data */
@@ -68,7 +66,9 @@ struct nfs_pageio_descriptor {
 	int 			pg_ioflags;
 	int			pg_error;
 	const struct rpc_call_ops *pg_rpc_callops;
+	const struct nfs_pgio_completion_ops *pg_completion_ops;
 	struct pnfs_layout_segment *pg_lseg;
+	struct nfs_direct_req	*pg_dreq;
 };
 
 #define NFS_WBACK_BUSY(req)	(test_bit(PG_BUSY,&(req)->wb_flags))
@@ -84,6 +84,7 @@ extern	void nfs_release_request(struct nfs_page *req);
 extern	void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 			     struct inode *inode,
 			     const struct nfs_pageio_ops *pg_ops,
+			     const struct nfs_pgio_completion_ops *compl_ops,
 			     size_t bsize,
 			     int how);
 extern	int nfs_pageio_add_request(struct nfs_pageio_descriptor *,
@@ -95,25 +96,16 @@ extern bool nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
 				struct nfs_page *req);
 extern  int nfs_wait_on_request(struct nfs_page *);
 extern	void nfs_unlock_request(struct nfs_page *req);
+extern	void nfs_unlock_and_release_request(struct nfs_page *req);
 
 /*
- * Lock the page of an asynchronous request without getting a new reference
+ * Lock the page of an asynchronous request
  */
-static inline int
-nfs_lock_request_dontget(struct nfs_page *req)
-{
-	return !test_and_set_bit(PG_BUSY, &req->wb_flags);
-}
-
 static inline int
 nfs_lock_request(struct nfs_page *req)
 {
-	if (test_and_set_bit(PG_BUSY, &req->wb_flags))
-		return 0;
-	kref_get(&req->wb_kref);
-	return 1;
+	return !test_and_set_bit(PG_BUSY, &req->wb_flags);
 }
-
 
 /**
  * nfs_list_add_request - Insert a request into a list

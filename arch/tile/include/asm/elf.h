@@ -44,7 +44,11 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 #else
 #define ELF_CLASS	ELFCLASS32
 #endif
+#ifdef __BIG_ENDIAN__
+#define ELF_DATA	ELFDATA2MSB
+#else
 #define ELF_DATA	ELFDATA2LSB
+#endif
 
 /*
  * There seems to be a bug in how compat_binfmt_elf.c works: it
@@ -59,6 +63,7 @@ enum { ELF_ARCH = CHIP_ELF_TYPE() };
  */
 #define elf_check_arch(x)  \
 	((x)->e_ident[EI_CLASS] == ELF_CLASS && \
+	 (x)->e_ident[EI_DATA] == ELF_DATA && \
 	 (x)->e_machine == CHIP_ELF_TYPE())
 
 /* The module loader only handles a few relocation types. */

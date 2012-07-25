@@ -40,8 +40,7 @@
 #define FRAME_R32	16
 #define FRAME_R33	20
 #define FRAME_R34	24
-#define FRAME_R35	28
-#define FRAME_SIZE	32
+#define FRAME_SIZE	28
 
 
 
@@ -66,12 +65,11 @@
 #define r_my_cpumask	r5
 
 /* Locals (callee-save); must not be more than FRAME_xxx above. */
-#define r_save_ics	r30
-#define r_context_lo	r31
-#define r_context_hi	r32
-#define r_access_lo	r33
-#define r_access_hi	r34
-#define r_asid		r35
+#define r_context_lo	r30
+#define r_context_hi	r31
+#define r_access_lo	r32
+#define r_access_hi	r33
+#define r_asid		r34
 
 STD_ENTRY(flush_and_install_context)
 	/*
@@ -104,11 +102,7 @@ STD_ENTRY(flush_and_install_context)
 	 sw r_tmp, r33
 	 addi r_tmp, sp, FRAME_R34
 	}
-	{
-	 sw r_tmp, r34
-	 addi r_tmp, sp, FRAME_R35
-	}
-	sw r_tmp, r35
+	sw r_tmp, r34
 
 	/* Move some arguments to callee-save registers. */
 	{
@@ -120,13 +114,6 @@ STD_ENTRY(flush_and_install_context)
 	 move r_access_hi, r_access_hi_in
 	}
 	move r_asid, r_asid_in
-
-	/* Disable interrupts, since we can't use our stack. */
-	{
-	 mfspr r_save_ics, INTERRUPT_CRITICAL_SECTION
-	 movei r_tmp, 1
-	}
-	mtspr INTERRUPT_CRITICAL_SECTION, r_tmp
 
 	/* First, flush our L2 cache. */
 	{
@@ -163,7 +150,7 @@ STD_ENTRY(flush_and_install_context)
 	}
 	{
 	 move r4, r_asid
-	 movei r5, HV_CTX_DIRECTIO
+	 moveli r5, HV_CTX_DIRECTIO | CTX_PAGE_FLAG
 	}
 	jal hv_install_context
 	bnz r0, .Ldone
@@ -175,9 +162,6 @@ STD_ENTRY(flush_and_install_context)
 	}
 
 .Ldone:
-	/* Reset interrupts back how they were before. */
-	mtspr INTERRUPT_CRITICAL_SECTION, r_save_ics
-
 	/* Restore the callee-saved registers and return. */
 	addli lr, sp, FRAME_SIZE
 	{
@@ -202,10 +186,6 @@ STD_ENTRY(flush_and_install_context)
 	}
 	{
 	 lw r34, r_tmp
-	 addli r_tmp, sp, FRAME_R35
-	}
-	{
-	 lw r35, r_tmp
 	 addi sp, sp, FRAME_SIZE
 	}
 	jrp lr

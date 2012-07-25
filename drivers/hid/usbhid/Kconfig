@@ -1,13 +1,13 @@
-comment "USB Input Devices"
+menu "USB HID support"
 	depends on USB
 
 config USB_HID
-	tristate "USB Human Interface Device (full HID) support"
+	tristate "USB HID transport layer"
 	default y
 	depends on USB && INPUT
 	select HID
 	---help---
-	  Say Y here if you want full HID support to connect USB keyboards,
+	  Say Y here if you want to connect USB keyboards,
 	  mice, joysticks, graphic tablets, or any other HID based devices
 	  to your computer via USB, as well as Uninterruptible Power Supply
 	  (UPS) and monitor control devices.
@@ -81,4 +81,4 @@ config USB_MOUSE
 
 endmenu
 
-
+endmenu

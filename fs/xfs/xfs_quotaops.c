@@ -17,7 +17,6 @@
  */
 #include "xfs.h"
 #include "xfs_sb.h"
-#include "xfs_inum.h"
 #include "xfs_log.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"

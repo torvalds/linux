@@ -20,14 +20,9 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/gpio.h>
 #include <linux/mfd/tps65910.h>
-
-static inline int irq_to_tps65910_irq(struct tps65910 *tps65910,
-							int irq)
-{
-	return (irq - tps65910->irq_base);
-}
 
 /*
  * This is a threaded IRQ handler so can access I2C/SPI.  Since all
@@ -41,28 +36,28 @@ static inline int irq_to_tps65910_irq(struct tps65910 *tps65910,
 static irqreturn_t tps65910_irq(int irq, void *irq_data)
 {
 	struct tps65910 *tps65910 = irq_data;
+	unsigned int reg;
 	u32 irq_sts;
 	u32 irq_mask;
-	u8 reg;
 	int i;
 
-	tps65910->read(tps65910, TPS65910_INT_STS, 1, &reg);
+	tps65910_reg_read(tps65910, TPS65910_INT_STS, &reg);
 	irq_sts = reg;
-	tps65910->read(tps65910, TPS65910_INT_STS2, 1, &reg);
+	tps65910_reg_read(tps65910, TPS65910_INT_STS2, &reg);
 	irq_sts |= reg << 8;
 	switch (tps65910_chip_id(tps65910)) {
 	case TPS65911:
-		tps65910->read(tps65910, TPS65910_INT_STS3, 1, &reg);
+		tps65910_reg_read(tps65910, TPS65910_INT_STS3, &reg);
 		irq_sts |= reg << 16;
 	}
 
-	tps65910->read(tps65910, TPS65910_INT_MSK, 1, &reg);
+	tps65910_reg_read(tps65910, TPS65910_INT_MSK, &reg);
 	irq_mask = reg;
-	tps65910->read(tps65910, TPS65910_INT_MSK2, 1, &reg);
+	tps65910_reg_read(tps65910, TPS65910_INT_MSK2, &reg);
 	irq_mask |= reg << 8;
 	switch (tps65910_chip_id(tps65910)) {
 	case TPS65911:
-		tps65910->read(tps65910, TPS65910_INT_MSK3, 1, &reg);
+		tps65910_reg_read(tps65910, TPS65910_INT_MSK3, &reg);
 		irq_mask |= reg << 16;
 	}
 
@@ -76,19 +71,19 @@ static irqreturn_t tps65910_irq(int irq, void *irq_data)
 		if (!(irq_sts & (1 << i)))
 			continue;
 
-		handle_nested_irq(tps65910->irq_base + i);
+		handle_nested_irq(irq_find_mapping(tps65910->domain, i));
 	}
 
 	/* Write the STS register back to clear IRQs we handled */
 	reg = irq_sts & 0xFF;
 	irq_sts >>= 8;
-	tps65910->write(tps65910, TPS65910_INT_STS, 1, &reg);
+	tps65910_reg_write(tps65910, TPS65910_INT_STS, reg);
 	reg = irq_sts & 0xFF;
-	tps65910->write(tps65910, TPS65910_INT_STS2, 1, &reg);
+	tps65910_reg_write(tps65910, TPS65910_INT_STS2, reg);
 	switch (tps65910_chip_id(tps65910)) {
 	case TPS65911:
 		reg = irq_sts >> 8;
-		tps65910->write(tps65910, TPS65910_INT_STS3, 1, &reg);
+		tps65910_reg_write(tps65910, TPS65910_INT_STS3, reg);
 	}
 
 	return IRQ_HANDLED;
@@ -105,27 +100,27 @@ static void tps65910_irq_sync_unlock(struct irq_data *data)
 {
 	struct tps65910 *tps65910 = irq_data_get_irq_chip_data(data);
 	u32 reg_mask;
-	u8 reg;
+	unsigned int reg;
 
-	tps65910->read(tps65910, TPS65910_INT_MSK, 1, &reg);
+	tps65910_reg_read(tps65910, TPS65910_INT_MSK, &reg);
 	reg_mask = reg;
-	tps65910->read(tps65910, TPS65910_INT_MSK2, 1, &reg);
+	tps65910_reg_read(tps65910, TPS65910_INT_MSK2, &reg);
 	reg_mask |= reg << 8;
 	switch (tps65910_chip_id(tps65910)) {
 	case TPS65911:
-		tps65910->read(tps65910, TPS65910_INT_MSK3, 1, &reg);
+		tps65910_reg_read(tps65910, TPS65910_INT_MSK3, &reg);
 		reg_mask |= reg << 16;
 	}
 
 	if (tps65910->irq_mask != reg_mask) {
 		reg = tps65910->irq_mask & 0xFF;
-		tps65910->write(tps65910, TPS65910_INT_MSK, 1, &reg);
+		tps65910_reg_write(tps65910, TPS65910_INT_MSK, reg);
 		reg = tps65910->irq_mask >> 8 & 0xFF;
-		tps65910->write(tps65910, TPS65910_INT_MSK2, 1, &reg);
+		tps65910_reg_write(tps65910, TPS65910_INT_MSK2, reg);
 		switch (tps65910_chip_id(tps65910)) {
 		case TPS65911:
 			reg = tps65910->irq_mask >> 16;
-			tps65910->write(tps65910, TPS65910_INT_MSK3, 1, &reg);
+			tps65910_reg_write(tps65910, TPS65910_INT_MSK3, reg);
 		}
 	}
 	mutex_unlock(&tps65910->irq_lock);
@@ -135,14 +130,14 @@ static void tps65910_irq_enable(struct irq_data *data)
 {
 	struct tps65910 *tps65910 = irq_data_get_irq_chip_data(data);
 
-	tps65910->irq_mask &= ~( 1 << irq_to_tps65910_irq(tps65910, data->irq));
+	tps65910->irq_mask &= ~(1 << data->hwirq);
 }
 
 static void tps65910_irq_disable(struct irq_data *data)
 {
 	struct tps65910 *tps65910 = irq_data_get_irq_chip_data(data);
 
-	tps65910->irq_mask |= ( 1 << irq_to_tps65910_irq(tps65910, data->irq));
+	tps65910->irq_mask |= (1 << data->hwirq);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -164,10 +159,35 @@ static struct irq_chip tps65910_irq_chip = {
 	.irq_set_wake = tps65910_irq_set_wake,
 };
 
+static int tps65910_irq_map(struct irq_domain *h, unsigned int virq,
+				irq_hw_number_t hw)
+{
+	struct tps65910 *tps65910 = h->host_data;
+
+	irq_set_chip_data(virq, tps65910);
+	irq_set_chip_and_handler(virq, &tps65910_irq_chip, handle_edge_irq);
+	irq_set_nested_thread(virq, 1);
+
+	/* ARM needs us to explicitly flag the IRQ as valid
+	 * and will set them noprobe when we do so. */
+#ifdef CONFIG_ARM
+	set_irq_flags(virq, IRQF_VALID);
+#else
+	irq_set_noprobe(virq);
+#endif
+
+	return 0;
+}
+
+static struct irq_domain_ops tps65910_domain_ops = {
+	.map	= tps65910_irq_map,
+	.xlate	= irq_domain_xlate_twocell,
+};
+
 int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 		    struct tps65910_platform_data *pdata)
 {
-	int ret, cur_irq;
+	int ret;
 	int flags = IRQF_ONESHOT;
 
 	if (!irq) {
@@ -175,16 +195,10 @@ int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 		return -EINVAL;
 	}
 
-	if (!pdata || !pdata->irq_base) {
-		dev_warn(tps65910->dev, "No interrupt support, no IRQ base\n");
+	if (!pdata) {
+		dev_warn(tps65910->dev, "No interrupt support, no pdata\n");
 		return -EINVAL;
 	}
-
-	tps65910->irq_mask = 0xFFFFFF;
-
-	mutex_init(&tps65910->irq_lock);
-	tps65910->chip_irq = irq;
-	tps65910->irq_base = pdata->irq_base;
 
 	switch (tps65910_chip_id(tps65910)) {
 	case TPS65910:
@@ -195,22 +209,36 @@ int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 		break;
 	}
 
-	/* Register with genirq */
-	for (cur_irq = tps65910->irq_base;
-	     cur_irq < tps65910->irq_num + tps65910->irq_base;
-	     cur_irq++) {
-		irq_set_chip_data(cur_irq, tps65910);
-		irq_set_chip_and_handler(cur_irq, &tps65910_irq_chip,
-					 handle_edge_irq);
-		irq_set_nested_thread(cur_irq, 1);
+	if (pdata->irq_base > 0) {
+		pdata->irq_base = irq_alloc_descs(pdata->irq_base, 0,
+					tps65910->irq_num, -1);
+		if (pdata->irq_base < 0) {
+			dev_warn(tps65910->dev, "Failed to alloc IRQs: %d\n",
+					pdata->irq_base);
+			return pdata->irq_base;
+		}
+	}
 
-		/* ARM needs us to explicitly flag the IRQ as valid
-		 * and will set them noprobe when we do so. */
-#ifdef CONFIG_ARM
-		set_irq_flags(cur_irq, IRQF_VALID);
-#else
-		irq_set_noprobe(cur_irq);
-#endif
+	tps65910->irq_mask = 0xFFFFFF;
+
+	mutex_init(&tps65910->irq_lock);
+	tps65910->chip_irq = irq;
+	tps65910->irq_base = pdata->irq_base;
+
+	if (pdata->irq_base > 0)
+		tps65910->domain = irq_domain_add_legacy(tps65910->dev->of_node,
+					tps65910->irq_num,
+					pdata->irq_base,
+					0,
+					&tps65910_domain_ops, tps65910);
+	else
+		tps65910->domain = irq_domain_add_linear(tps65910->dev->of_node,
+					tps65910->irq_num,
+					&tps65910_domain_ops, tps65910);
+
+	if (!tps65910->domain) {
+		dev_err(tps65910->dev, "Failed to create IRQ domain\n");
+		return -ENOMEM;
 	}
 
 	ret = request_threaded_irq(irq, NULL, tps65910_irq, flags,

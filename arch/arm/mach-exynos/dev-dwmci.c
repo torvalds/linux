@@ -16,6 +16,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/ioport.h>
 #include <linux/mmc/dw_mmc.h>
 
 #include <plat/devs.h>
@@ -33,16 +34,8 @@ static int exynos4_dwmci_init(u32 slot_id, irq_handler_t handler, void *data)
 }
 
 static struct resource exynos4_dwmci_resource[] = {
-	[0] = {
-		.start	= EXYNOS4_PA_DWMCI,
-		.end	= EXYNOS4_PA_DWMCI + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_DWMCI,
-		.end	= IRQ_DWMCI,
-		.flags	= IORESOURCE_IRQ,
-	}
+	[0] = DEFINE_RES_MEM(EXYNOS4_PA_DWMCI, SZ_4K),
+	[1] = DEFINE_RES_IRQ(EXYNOS4_IRQ_DWMCI),
 };
 
 static struct dw_mci_board exynos4_dwci_pdata = {

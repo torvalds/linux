@@ -605,6 +605,8 @@ int mdfld_dsi_pkg_sender_init(struct mdfld_dsi_connector *dsi_connector,
 	struct mdfld_dsi_config *dsi_config =
 				mdfld_dsi_get_config(dsi_connector);
 	struct drm_device *dev = dsi_config->dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	u32 mipi_val = 0;
 
 	if (!dsi_connector) {
@@ -632,21 +634,13 @@ int mdfld_dsi_pkg_sender_init(struct mdfld_dsi_connector *dsi_connector,
 	pkg_sender->status = MDFLD_DSI_PKG_SENDER_FREE;
 
 	/*init regs*/
-	if (pipe == 0) {
-		pkg_sender->dpll_reg = MRST_DPLL_A;
-		pkg_sender->dspcntr_reg = DSPACNTR;
-		pkg_sender->pipeconf_reg = PIPEACONF;
-		pkg_sender->dsplinoff_reg = DSPALINOFF;
-		pkg_sender->dspsurf_reg = DSPASURF;
-		pkg_sender->pipestat_reg = PIPEASTAT;
-	} else if (pipe == 2) {
-		pkg_sender->dpll_reg = MRST_DPLL_A;
-		pkg_sender->dspcntr_reg = DSPCCNTR;
-		pkg_sender->pipeconf_reg = PIPECCONF;
-		pkg_sender->dsplinoff_reg = DSPCLINOFF;
-		pkg_sender->dspsurf_reg = DSPCSURF;
-		pkg_sender->pipestat_reg = PIPECSTAT;
-	}
+	/* FIXME: should just copy the regmap ptr ? */
+	pkg_sender->dpll_reg = map->dpll;
+	pkg_sender->dspcntr_reg = map->cntr;
+	pkg_sender->pipeconf_reg = map->conf;
+	pkg_sender->dsplinoff_reg = map->linoff;
+	pkg_sender->dspsurf_reg = map->surf;
+	pkg_sender->pipestat_reg = map->status;
 
 	pkg_sender->mipi_intr_stat_reg = MIPI_INTR_STAT_REG(pipe);
 	pkg_sender->mipi_lp_gen_data_reg = MIPI_LP_GEN_DATA_REG(pipe);

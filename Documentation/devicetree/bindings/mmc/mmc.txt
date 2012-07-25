@@ -1,0 +1,27 @@
+These properties are common to multiple MMC host controllers. Any host
+that requires the respective functionality should implement them using
+these definitions.
+
+Required properties:
+- bus-width: Number of data lines, can be <1>, <4>, or <8>
+
+Optional properties:
+- cd-gpios : Specify GPIOs for card detection, see gpio binding
+- wp-gpios : Specify GPIOs for write protection, see gpio binding
+- cd-inverted: when present, polarity on the wp gpio line is inverted
+- wp-inverted: when present, polarity on the wp gpio line is inverted
+- non-removable: non-removable slot (like eMMC)
+- max-frequency: maximum operating clock frequency
+
+Example:
+
+sdhci@ab000000 {
+	compatible = "sdhci";
+	reg = <0xab000000 0x200>;
+	interrupts = <23>;
+	bus-width = <4>;
+	cd-gpios = <&gpio 69 0>;
+	cd-inverted;
+	wp-gpios = <&gpio 70 0>;
+	max-frequency = <50000000>;
+}

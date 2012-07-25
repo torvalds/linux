@@ -18,7 +18,7 @@ processing. Support for such hardware has not been very good in Linux,
 mostly because of a lack of a generic API available in the mainline
 kernel.
 
-Rather than requiring a compability break with an API change of the
+Rather than requiring a compatibility break with an API change of the
 ALSA PCM interface, a new 'Compressed Data' API is introduced to
 provide a control and data-streaming interface for audio DSPs.
 

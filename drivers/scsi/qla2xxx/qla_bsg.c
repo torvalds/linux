@@ -297,7 +297,6 @@ qla2x00_process_els(struct fc_bsg_job *bsg_job)
 
 		/* Initialize all required  fields of fcport */
 		fcport->vha = vha;
-		fcport->vp_idx = vha->vp_idx;
 		fcport->d_id.b.al_pa =
 			bsg_job->request->rqst_data.h_els.port_id[0];
 		fcport->d_id.b.area =
@@ -483,7 +482,6 @@ qla2x00_process_ct(struct fc_bsg_job *bsg_job)
 
 	/* Initialize all required  fields of fcport */
 	fcport->vha = vha;
-	fcport->vp_idx = vha->vp_idx;
 	fcport->d_id.b.al_pa = bsg_job->request->rqst_data.h_ct.port_id[0];
 	fcport->d_id.b.area = bsg_job->request->rqst_data.h_ct.port_id[1];
 	fcport->d_id.b.domain = bsg_job->request->rqst_data.h_ct.port_id[2];
@@ -544,7 +542,7 @@ qla81xx_set_internal_loopback(scsi_qla_host_t *vha, uint16_t *config,
 	int rval = 0;
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA81XX(ha) && !IS_QLA83XX(ha))
+	if (!IS_QLA81XX(ha) && !IS_QLA8031(ha))
 		goto done_set_internal;
 
 	new_config[0] = config[0] | (ENABLE_INTERNAL_LOOPBACK << 1);
@@ -586,7 +584,7 @@ qla81xx_reset_internal_loopback(scsi_qla_host_t *vha, uint16_t *config,
 	uint16_t new_config[4];
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA81XX(ha) && !IS_QLA83XX(ha))
+	if (!IS_QLA81XX(ha) && !IS_QLA8031(ha))
 		goto done_reset_internal;
 
 	memset(new_config, 0 , sizeof(new_config));
@@ -710,8 +708,7 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 	elreq.options = bsg_job->request->rqst_data.h_vendor.vendor_cmd[1];
 
 	if ((ha->current_topology == ISP_CFG_F ||
-	    (atomic_read(&vha->loop_state) == LOOP_DOWN) ||
-	    ((IS_QLA81XX(ha) || IS_QLA83XX(ha)) &&
+	    ((IS_QLA81XX(ha) || IS_QLA8031(ha)) &&
 	    le32_to_cpu(*(uint32_t *)req_data) == ELS_OPCODE_BYTE
 	    && req_data_len == MAX_ELS_FRAME_PAYLOAD)) &&
 		elreq.options == EXTERNAL_LOOPBACK) {
@@ -1367,6 +1364,9 @@ qla2x00_read_optrom(struct fc_bsg_job *bsg_job)
 	struct qla_hw_data *ha = vha->hw;
 	int rval = 0;
 
+	if (ha->flags.isp82xx_reset_hdlr_active)
+		return -EBUSY;
+
 	rval = qla2x00_optrom_setup(bsg_job, vha, 0);
 	if (rval)
 		return rval;
@@ -1398,6 +1398,9 @@ qla2x00_update_optrom(struct fc_bsg_job *bsg_job)
 	rval = qla2x00_optrom_setup(bsg_job, vha, 1);
 	if (rval)
 		return rval;
+
+	/* Set the isp82xx_no_md_cap not to capture minidump */
+	ha->flags.isp82xx_no_md_cap = 1;
 
 	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
 	    bsg_job->request_payload.sg_cnt, ha->optrom_buffer,

@@ -419,13 +419,13 @@ lightweight_exit:
 	 * written directly to the shared area, so we
 	 * need to reload them here with the guest's values.
 	 */
-	lwz	r3, VCPU_SHARED_SPRG4(r5)
+	PPC_LD(r3, VCPU_SHARED_SPRG4, r5)
 	mtspr	SPRN_SPRG4W, r3
-	lwz	r3, VCPU_SHARED_SPRG5(r5)
+	PPC_LD(r3, VCPU_SHARED_SPRG5, r5)
 	mtspr	SPRN_SPRG5W, r3
-	lwz	r3, VCPU_SHARED_SPRG6(r5)
+	PPC_LD(r3, VCPU_SHARED_SPRG6, r5)
 	mtspr	SPRN_SPRG6W, r3
-	lwz	r3, VCPU_SHARED_SPRG7(r5)
+	PPC_LD(r3, VCPU_SHARED_SPRG7, r5)
 	mtspr	SPRN_SPRG7W, r3
 
 #ifdef CONFIG_KVM_EXIT_TIMING

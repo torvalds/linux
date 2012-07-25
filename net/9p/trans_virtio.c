@@ -192,10 +192,10 @@ static int pack_sg_list(struct scatterlist *sg, int start,
 		s = rest_of_page(data);
 		if (s > count)
 			s = count;
+		BUG_ON(index > limit);
 		sg_set_buf(&sg[index++], data, s);
 		count -= s;
 		data += s;
-		BUG_ON(index > limit);
 	}
 
 	return index-start;
@@ -615,7 +615,8 @@ static void p9_virtio_remove(struct virtio_device *vdev)
 {
 	struct virtio_chan *chan = vdev->priv;
 
-	BUG_ON(chan->inuse);
+	if (chan->inuse)
+		p9_virtio_close(chan->client);
 	vdev->config->del_vqs(vdev);
 
 	mutex_lock(&virtio_9p_lock);

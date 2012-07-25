@@ -1,0 +1,180 @@
+HCI backend for NFC Core
+
+Author: Eric Lapuyade, Samuel Ortiz
+Contact: eric.lapuyade@intel.com, samuel.ortiz@intel.com
+
+General
+-------
+
+The HCI layer implements much of the ETSI TS 102 622 V10.2.0 specification. It
+enables easy writing of HCI-based NFC drivers. The HCI layer runs as an NFC Core
+backend, implementing an abstract nfc device and translating NFC Core API
+to HCI commands and events.
+
+HCI
+---
+
+HCI registers as an nfc device with NFC Core. Requests coming from userspace are
+routed through netlink sockets to NFC Core and then to HCI. From this point,
+they are translated in a sequence of HCI commands sent to the HCI layer in the
+host controller (the chip). The sending context blocks while waiting for the
+response to arrive.
+HCI events can also be received from the host controller. They will be handled
+and a translation will be forwarded to NFC Core as needed.
+HCI uses 2 execution contexts:
+- one for executing commands : nfc_hci_msg_tx_work(). Only one command
+can be executing at any given moment.
+- one for dispatching received events and commands : nfc_hci_msg_rx_work().
+
+HCI Session initialization:
+---------------------------
+
+The Session initialization is an HCI standard which must unfortunately
+support proprietary gates. This is the reason why the driver will pass a list
+of proprietary gates that must be part of the session. HCI will ensure all
+those gates have pipes connected when the hci device is set up.
+
+HCI Gates and Pipes
+-------------------
+
+A gate defines the 'port' where some service can be found. In order to access
+a service, one must create a pipe to that gate and open it. In this
+implementation, pipes are totally hidden. The public API only knows gates.
+This is consistent with the driver need to send commands to proprietary gates
+without knowing the pipe connected to it.
+
+Driver interface
+----------------
+
+A driver would normally register itself with HCI and provide the following
+entry points:
+
+struct nfc_hci_ops {
+	int (*open)(struct nfc_hci_dev *hdev);
+	void (*close)(struct nfc_hci_dev *hdev);
+	int (*hci_ready) (struct nfc_hci_dev *hdev);
+	int (*xmit)(struct nfc_hci_dev *hdev, struct sk_buff *skb);
+	int (*start_poll)(struct nfc_hci_dev *hdev, u32 protocols);
+	int (*target_from_gate)(struct nfc_hci_dev *hdev, u8 gate,
+				struct nfc_target *target);
+	int (*complete_target_discovered) (struct nfc_hci_dev *hdev, u8 gate,
+					   struct nfc_target *target);
+	int (*data_exchange) (struct nfc_hci_dev *hdev,
+			      struct nfc_target *target,
+			      struct sk_buff *skb, struct sk_buff **res_skb);
+	int (*check_presence)(struct nfc_hci_dev *hdev,
+			      struct nfc_target *target);
+};
+
+- open() and close() shall turn the hardware on and off.
+- hci_ready() is an optional entry point that is called right after the hci
+session has been set up. The driver can use it to do additional initialization
+that must be performed using HCI commands.
+- xmit() shall simply write a frame to the chip.
+- start_poll() is an optional entrypoint that shall set the hardware in polling
+mode. This must be implemented only if the hardware uses proprietary gates or a
+mechanism slightly different from the HCI standard.
+- target_from_gate() is an optional entrypoint to return the nfc protocols
+corresponding to a proprietary gate.
+- complete_target_discovered() is an optional entry point to let the driver
+perform additional proprietary processing necessary to auto activate the
+discovered target.
+- data_exchange() must be implemented by the driver if proprietary HCI commands
+are required to send data to the tag. Some tag types will require custom
+commands, others can be written to using the standard HCI commands. The driver
+can check the tag type and either do proprietary processing, or return 1 to ask
+for standard processing.
+- check_presence() is an optional entry point that will be called regularly
+by the core to check that an activated tag is still in the field. If this is
+not implemented, the core will not be able to push tag_lost events to the user
+space
+
+On the rx path, the driver is responsible to push incoming HCP frames to HCI
+using nfc_hci_recv_frame(). HCI will take care of re-aggregation and handling
+This must be done from a context that can sleep.
+
+SHDLC
+-----
+
+Most chips use shdlc to ensure integrity and delivery ordering of the HCP
+frames between the host controller (the chip) and hosts (entities connected
+to the chip, like the cpu). In order to simplify writing the driver, an shdlc
+layer is available for use by the driver.
+When used, the driver actually registers with shdlc, and shdlc will register
+with HCI. HCI sees shdlc as the driver and thus send its HCP frames
+through shdlc->xmit.
+SHDLC adds a new execution context (nfc_shdlc_sm_work()) to run its state
+machine and handle both its rx and tx path.
+
+Included Drivers
+----------------
+
+An HCI based driver for an NXP PN544, connected through I2C bus, and using
+shdlc is included.
+
+Execution Contexts
+------------------
+
+The execution contexts are the following:
+- IRQ handler (IRQH):
+fast, cannot sleep. stores incoming frames into an shdlc rx queue
+
+- SHDLC State Machine worker (SMW)
+handles shdlc rx & tx queues. Dispatches HCI cmd responses.
+
+- HCI Tx Cmd worker (MSGTXWQ)
+Serializes execution of HCI commands. Completes execution in case of response
+timeout.
+
+- HCI Rx worker (MSGRXWQ)
+Dispatches incoming HCI commands or events.
+
+- Syscall context from a userspace call (SYSCALL)
+Any entrypoint in HCI called from NFC Core
+
+Workflow executing an HCI command (using shdlc)
+-----------------------------------------------
+
+Executing an HCI command can easily be performed synchronously using the
+following API:
+
+int nfc_hci_send_cmd (struct nfc_hci_dev *hdev, u8 gate, u8 cmd,
+			const u8 *param, size_t param_len, struct sk_buff **skb)
+
+The API must be invoked from a context that can sleep. Most of the time, this
+will be the syscall context. skb will return the result that was received in
+the response.
+
+Internally, execution is asynchronous. So all this API does is to enqueue the
+HCI command, setup a local wait queue on stack, and wait_event() for completion.
+The wait is not interruptible because it is guaranteed that the command will
+complete after some short timeout anyway.
+
+MSGTXWQ context will then be scheduled and invoke nfc_hci_msg_tx_work().
+This function will dequeue the next pending command and send its HCP fragments
+to the lower layer which happens to be shdlc. It will then start a timer to be
+able to complete the command with a timeout error if no response arrive.
+
+SMW context gets scheduled and invokes nfc_shdlc_sm_work(). This function
+handles shdlc framing in and out. It uses the driver xmit to send frames and
+receives incoming frames in an skb queue filled from the driver IRQ handler.
+SHDLC I(nformation) frames payload are HCP fragments. They are aggregated to
+form complete HCI frames, which can be a response, command, or event.
+
+HCI Responses are dispatched immediately from this context to unblock
+waiting command execution. Response processing involves invoking the completion
+callback that was provided by nfc_hci_msg_tx_work() when it sent the command.
+The completion callback will then wake the syscall context.
+
+Workflow receiving an HCI event or command
+------------------------------------------
+
+HCI commands or events are not dispatched from SMW context. Instead, they are
+queued to HCI rx_queue and will be dispatched from HCI rx worker
+context (MSGRXWQ). This is done this way to allow a cmd or event handler
+to also execute other commands (for example, handling the
+NFC_HCI_EVT_TARGET_DISCOVERED event from PN544 requires to issue an
+ANY_GET_PARAMETER to the reader A gate to get information on the target
+that was discovered).
+
+Typically, such an event will be propagated to NFC Core from MSGRXWQ context.

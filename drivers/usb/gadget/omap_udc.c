@@ -153,7 +153,7 @@ static int omap_ep_enable(struct usb_ep *_ep,
 	u16		maxp;
 
 	/* catch various bogus parameters */
-	if (!_ep || !desc || ep->desc
+	if (!_ep || !desc
 			|| desc->bDescriptorType != USB_DT_ENDPOINT
 			|| ep->bEndpointAddress != desc->bEndpointAddress
 			|| ep->maxpacket < usb_endpoint_maxp(desc)) {
@@ -200,7 +200,7 @@ static int omap_ep_enable(struct usb_ep *_ep,
 
 	spin_lock_irqsave(&udc->lock, flags);
 
-	ep->desc = desc;
+	ep->ep.desc = desc;
 	ep->irqs = 0;
 	ep->stopped = 0;
 	ep->ep.maxpacket = maxp;
@@ -242,14 +242,13 @@ static int omap_ep_disable(struct usb_ep *_ep)
 	struct omap_ep	*ep = container_of(_ep, struct omap_ep, ep);
 	unsigned long	flags;
 
-	if (!_ep || !ep->desc) {
+	if (!_ep || !ep->ep.desc) {
 		DBG("%s, %s not enabled\n", __func__,
 			_ep ? ep->ep.name : NULL);
 		return -EINVAL;
 	}
 
 	spin_lock_irqsave(&ep->udc->lock, flags);
-	ep->desc = NULL;
 	ep->ep.desc = NULL;
 	nuke (ep, -ESHUTDOWN);
 	ep->ep.maxpacket = ep->maxpacket;
@@ -917,7 +916,7 @@ omap_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 		DBG("%s, bad params\n", __func__);
 		return -EINVAL;
 	}
-	if (!_ep || (!ep->desc && ep->bEndpointAddress)) {
+	if (!_ep || (!ep->ep.desc && ep->bEndpointAddress)) {
 		DBG("%s, bad ep\n", __func__);
 		return -EINVAL;
 	}
@@ -1121,7 +1120,7 @@ static int omap_ep_set_halt(struct usb_ep *_ep, int value)
 			status = 0;
 
 	/* otherwise, all active non-ISO endpoints can halt */
-	} else if (ep->bmAttributes != USB_ENDPOINT_XFER_ISOC && ep->desc) {
+	} else if (ep->bmAttributes != USB_ENDPOINT_XFER_ISOC && ep->ep.desc) {
 
 		/* IN endpoints must already be idle */
 		if ((ep->bEndpointAddress & USB_DIR_IN)
@@ -1625,7 +1624,7 @@ static void ep0_irq(struct omap_udc *udc, u16 irq_src)
 				if (w_index & USB_DIR_IN)
 					ep += 16;
 				if (ep->bmAttributes == USB_ENDPOINT_XFER_ISOC
-						|| !ep->desc)
+						|| !ep->ep.desc)
 					goto do_stall;
 				use_ep(ep, 0);
 				omap_writew(udc->clr_halt, UDC_CTRL);
@@ -1653,7 +1652,7 @@ static void ep0_irq(struct omap_udc *udc, u16 irq_src)
 			if (w_index & USB_DIR_IN)
 				ep += 16;
 			if (ep->bmAttributes == USB_ENDPOINT_XFER_ISOC
-					|| ep == ep0 || !ep->desc)
+					|| ep == ep0 || !ep->ep.desc)
 				goto do_stall;
 			if (use_dma && ep->has_dma) {
 				/* this has rude side-effects (aborts) and
@@ -1688,7 +1687,7 @@ ep0out_status_stage:
 			ep = &udc->ep[w_index & 0xf];
 			if (w_index & USB_DIR_IN)
 				ep += 16;
-			if (!ep->desc)
+			if (!ep->ep.desc)
 				goto do_stall;
 
 			/* iso never stalls */
@@ -2509,7 +2508,7 @@ static int proc_udc_show(struct seq_file *s, void *_)
 		if (tmp & UDC_ADD) {
 			list_for_each_entry (ep, &udc->gadget.ep_list,
 					ep.ep_list) {
-				if (ep->desc)
+				if (ep->ep.desc)
 					proc_ep_show(s, ep);
 			}
 		}

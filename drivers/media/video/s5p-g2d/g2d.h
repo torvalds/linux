@@ -23,7 +23,6 @@ struct g2d_dev {
 	spinlock_t		ctrl_lock;
 	atomic_t		num_inst;
 	struct vb2_alloc_ctx	*alloc_ctx;
-	struct resource		*res_regs;
 	void __iomem		*regs;
 	struct clk		*clk;
 	struct clk		*gate;

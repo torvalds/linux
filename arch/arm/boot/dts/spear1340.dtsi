@@ -1,0 +1,56 @@
+/*
+ * DTS file for all SPEAr1340 SoCs
+ *
+ * Copyright 2012 Viresh Kumar <viresh.linux@gmail.com>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/include/ "spear13xx.dtsi"
+
+/ {
+	compatible = "st,spear1340";
+
+	ahb {
+		ahci@b1000000 {
+			compatible = "snps,spear-ahci";
+			reg = <0xb1000000 0x10000>;
+			interrupts = <0 72 0x4>;
+			status = "disabled";
+		};
+
+		spi1: spi@5d400000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x5d400000 0x1000>;
+			interrupts = <0 99 0x4>;
+			status = "disabled";
+		};
+
+		apb {
+			i2c1: i2c@b4000000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "snps,designware-i2c";
+				reg = <0xb4000000 0x1000>;
+				interrupts = <0 104 0x4>;
+				status = "disabled";
+			};
+
+			serial@b4100000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0xb4100000 0x1000>;
+				interrupts = <0 105 0x4>;
+				status = "disabled";
+			};
+
+			thermal@e07008c4 {
+				st,thermal-flags = <0x2a00>;
+			};
+		};
+	};
+};

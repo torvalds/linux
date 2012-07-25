@@ -19,7 +19,7 @@
 #include <linux/uaccess.h>
 #include <linux/debugfs.h>
 #include <linux/caif/caif_socket.h>
-#include <linux/atomic.h>
+#include <linux/pkt_sched.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
 #include <net/caif/caif_layer.h>
@@ -130,11 +130,10 @@ static int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	struct caifsock *cf_sk = container_of(sk, struct caifsock, sk);
 
 	if (atomic_read(&sk->sk_rmem_alloc) + skb->truesize >=
-		(unsigned)sk->sk_rcvbuf && rx_flow_is_on(cf_sk)) {
-		if (net_ratelimit())
-			pr_debug("sending flow OFF (queue len = %d %d)\n",
-					atomic_read(&cf_sk->sk.sk_rmem_alloc),
-					sk_rcvbuf_lowwater(cf_sk));
+		(unsigned int)sk->sk_rcvbuf && rx_flow_is_on(cf_sk)) {
+		net_dbg_ratelimited("sending flow OFF (queue len = %d %d)\n",
+				    atomic_read(&cf_sk->sk.sk_rmem_alloc),
+				    sk_rcvbuf_lowwater(cf_sk));
 		set_rx_flow_off(cf_sk);
 		caif_flow_ctrl(sk, CAIF_MODEMCMD_FLOW_OFF_REQ);
 	}
@@ -144,8 +143,7 @@ static int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		return err;
 	if (!sk_rmem_schedule(sk, skb->truesize) && rx_flow_is_on(cf_sk)) {
 		set_rx_flow_off(cf_sk);
-		if (net_ratelimit())
-			pr_debug("sending flow OFF due to rmem_schedule\n");
+		net_dbg_ratelimited("sending flow OFF due to rmem_schedule\n");
 		caif_flow_ctrl(sk, CAIF_MODEMCMD_FLOW_OFF_REQ);
 	}
 	skb->dev = NULL;
@@ -222,6 +220,7 @@ static void caif_ctrl_cb(struct cflayer *layr,
 						cfsk_hold, cfsk_put);
 		cf_sk->sk.sk_state = CAIF_CONNECTED;
 		set_tx_flow_on(cf_sk);
+		cf_sk->sk.sk_shutdown = 0;
 		cf_sk->sk.sk_state_change(&cf_sk->sk);
 		break;
 
@@ -505,6 +504,7 @@ static int transmit_skb(struct sk_buff *skb, struct caifsock *cf_sk,
 
 	pkt = cfpkt_fromnative(CAIF_DIR_OUT, skb);
 	memset(skb->cb, 0, sizeof(struct caif_payload_info));
+	cfpkt_set_prio(pkt, cf_sk->sk.sk_priority);
 
 	if (cf_sk->layer.dn == NULL) {
 		kfree_skb(skb);
@@ -1062,6 +1062,18 @@ static int caif_create(struct net *net, struct socket *sock, int protocol,
 	/* Store the protocol */
 	sk->sk_protocol = (unsigned char) protocol;
 
+	/* Initialize default priority for well-known cases */
+	switch (protocol) {
+	case CAIFPROTO_AT:
+		sk->sk_priority = TC_PRIO_CONTROL;
+		break;
+	case CAIFPROTO_RFM:
+		sk->sk_priority = TC_PRIO_INTERACTIVE_BULK;
+		break;
+	default:
+		sk->sk_priority = TC_PRIO_BESTEFFORT;
+	}
+
 	/*
 	 * Lock in order to try to stop someone from opening the socket
 	 * too early.
@@ -1081,7 +1093,6 @@ static int caif_create(struct net *net, struct socket *sock, int protocol,
 	set_rx_flow_on(cf_sk);
 
 	/* Set default options on configuration */
-	cf_sk->sk.sk_priority = CAIF_PRIO_NORMAL;
 	cf_sk->conn_req.link_selector = CAIF_LINK_LOW_LATENCY;
 	cf_sk->conn_req.protocol = protocol;
 	release_sock(&cf_sk->sk);

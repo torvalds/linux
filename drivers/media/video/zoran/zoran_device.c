@@ -542,11 +542,9 @@ void write_overlay_mask(struct zoran_fh *fh, struct v4l2_clip *vp, int count)
 	u32 *mask;
 	int x, y, width, height;
 	unsigned i, j, k;
-	u32 reg;
 
 	/* fill mask with one bits */
 	memset(fh->overlay_mask, ~0, mask_line_size * 4 * BUZ_MAX_HEIGHT);
-	reg = 0;
 
 	for (i = 0; i < count; ++i) {
 		/* pick up local copy of clip */

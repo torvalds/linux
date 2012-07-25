@@ -42,6 +42,8 @@ void exynos_drm_crtc_disable_vblank(struct drm_device *dev, int crtc);
  *	- the unit is screen coordinates.
  * @fb_y: offset y on a framebuffer to be displayed
  *	- the unit is screen coordinates.
+ * @src_w: width of source area to be displayed from a framebuffer.
+ * @src_h: height of source area to be displayed from a framebuffer.
  * @crtc_x: offset x on hardware screen.
  * @crtc_y: offset y on hardware screen.
  * @crtc_w: width of hardware screen.
@@ -50,6 +52,8 @@ void exynos_drm_crtc_disable_vblank(struct drm_device *dev, int crtc);
 struct exynos_drm_crtc_pos {
 	unsigned int fb_x;
 	unsigned int fb_y;
+	unsigned int src_w;
+	unsigned int src_h;
 	unsigned int crtc_x;
 	unsigned int crtc_y;
 	unsigned int crtc_w;

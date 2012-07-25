@@ -487,13 +487,6 @@ static const struct usb_device_id keyspan_ids_combined[] = {
 
 MODULE_DEVICE_TABLE(usb, keyspan_ids_combined);
 
-static struct usb_driver keyspan_driver = {
-	.name =		"keyspan",                
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	keyspan_ids_combined,
-};
-
 /* usb_device_id table for the pre-firmware download keyspan devices */
 static const struct usb_device_id keyspan_pre_ids[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa18x_pre_product_id) },

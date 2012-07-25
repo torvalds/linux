@@ -17,9 +17,9 @@
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../events.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/events.h>
 
 /*
  * Simplified handling
@@ -132,7 +132,7 @@ static ssize_t ad7291_store_reset(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7291_chip_info *chip = iio_priv(indio_dev);
 
 	return ad7291_i2c_write(chip, AD7291_COMMAND,
@@ -214,7 +214,7 @@ static inline ssize_t ad7291_show_hyst(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7291_chip_info *chip = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	u16 data;
@@ -232,7 +232,7 @@ static inline ssize_t ad7291_set_hyst(struct device *dev,
 				      const char *buf,
 				      size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7291_chip_info *chip = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	u16 data;
@@ -461,7 +461,7 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 	s16 signval;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
 			mutex_lock(&chip->state_lock);
@@ -536,7 +536,8 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 #define AD7291_VOLTAGE_CHAN(_chan)					\
 {									\
 	.type = IIO_VOLTAGE,						\
-	.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,			\
+	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |			\
+	IIO_CHAN_INFO_SCALE_SHARED_BIT,					\
 	.indexed = 1,							\
 	.channel = _chan,						\
 	.event_mask = IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING)|\
@@ -554,7 +555,8 @@ static const struct iio_chan_spec ad7291_channels[] = {
 	AD7291_VOLTAGE_CHAN(7),
 	{
 		.type = IIO_TEMP,
-		.info_mask = IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+				IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE_BIT |
 				IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.indexed = 1,
 		.channel = 0,
@@ -585,7 +587,7 @@ static int __devinit ad7291_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int ret = 0, voltage_uv = 0;
 
-	indio_dev = iio_allocate_device(sizeof(*chip));
+	indio_dev = iio_device_alloc(sizeof(*chip));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -667,7 +669,7 @@ error_put_reg:
 	if (!IS_ERR(chip->reg))
 		regulator_put(chip->reg);
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -687,7 +689,7 @@ static int __devexit ad7291_remove(struct i2c_client *client)
 		regulator_put(chip->reg);
 	}
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

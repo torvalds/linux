@@ -71,9 +71,7 @@ ENTRY(do_suspend_lowlevel)
 	movq	%rsi, saved_rsi
 
 	addq	$8, %rsp
-	movl	$3, %edi
-	xorl	%eax, %eax
-	call	acpi_enter_sleep_state
+	call	acpi_enter_s3
 	/* in case something went wrong, restore the machine status and go on */
 	jmp	resume_point
 

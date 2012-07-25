@@ -127,6 +127,9 @@ static void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx)
 	PPC_BLR();
 }
 
+#define CHOOSE_LOAD_FUNC(K, func) \
+	((int)K < 0 ? ((int)K >= SKF_LL_OFF ? func##_negative_offset : func) : func##_positive_offset)
+
 /* Assemble the body code between the prologue & epilogue. */
 static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 			      struct codegen_context *ctx,
@@ -391,21 +394,16 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 
 			/*** Absolute loads from packet header/data ***/
 		case BPF_S_LD_W_ABS:
-			func = sk_load_word;
+			func = CHOOSE_LOAD_FUNC(K, sk_load_word);
 			goto common_load;
 		case BPF_S_LD_H_ABS:
-			func = sk_load_half;
+			func = CHOOSE_LOAD_FUNC(K, sk_load_half);
 			goto common_load;
 		case BPF_S_LD_B_ABS:
-			func = sk_load_byte;
+			func = CHOOSE_LOAD_FUNC(K, sk_load_byte);
 		common_load:
-			/*
-			 * Load from [K].  Reference with the (negative)
-			 * SKF_NET_OFF/SKF_LL_OFF offsets is unsupported.
-			 */
+			/* Load from [K]. */
 			ctx->seen |= SEEN_DATAREF;
-			if ((int)K < 0)
-				return -ENOTSUPP;
 			PPC_LI64(r_scratch1, func);
 			PPC_MTLR(r_scratch1);
 			PPC_LI32(r_addr, K);
@@ -429,7 +427,7 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 		common_load_ind:
 			/*
 			 * Load from [X + K].  Negative offsets are tested for
-			 * in the helper functions, and result in a 'ret 0'.
+			 * in the helper functions.
 			 */
 			ctx->seen |= SEEN_DATAREF | SEEN_XREG;
 			PPC_LI64(r_scratch1, func);
@@ -443,13 +441,7 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 			break;
 
 		case BPF_S_LDX_B_MSH:
-			/*
-			 * x86 version drops packet (RET 0) when K<0, whereas
-			 * interpreter does allow K<0 (__load_pointer, special
-			 * ancillary data).  common_load returns ENOTSUPP if K<0,
-			 * so we fall back to interpreter & filter works.
-			 */
-			func = sk_load_byte_msh;
+			func = CHOOSE_LOAD_FUNC(K, sk_load_byte_msh);
 			goto common_load;
 			break;
 

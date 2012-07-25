@@ -15,13 +15,13 @@ config SENSORS_AK8975
 	  will be called ak8975.
 
 config SENSORS_HMC5843
-	tristate "Honeywell HMC5843 3-Axis Magnetometer"
+	tristate "Honeywell HMC5843/5883/5883L 3-Axis Magnetometer"
 	depends on I2C
 	help
-	  Say Y here to add support for the Honeywell HMC 5843 3-Axis
-	  Magnetometer (digital compass).
+	  Say Y here to add support for the Honeywell HMC5843, HMC5883 and
+	  HMC5883L 3-Axis Magnetometer (digital compass).
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called hmc5843
+	  will be called hmc5843.
 
 endmenu

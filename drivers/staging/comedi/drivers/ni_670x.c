@@ -111,7 +111,7 @@ struct ni_670x_private {
 
 static int ni_670x_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it);
-static int ni_670x_detach(struct comedi_device *dev);
+static void ni_670x_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver_ni_670x = {
 	.driver_name = "ni_670x",
@@ -123,7 +123,7 @@ static struct comedi_driver driver_ni_670x = {
 static int __devinit driver_ni_670x_pci_probe(struct pci_dev *dev,
 					      const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, driver_ni_670x.driver_name);
+	return comedi_pci_auto_config(dev, &driver_ni_670x);
 }
 
 static void __devexit driver_ni_670x_pci_remove(struct pci_dev *dev)
@@ -249,19 +249,13 @@ static int ni_670x_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static int ni_670x_detach(struct comedi_device *dev)
+static void ni_670x_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: ni_670x: remove\n", dev->minor);
-
 	kfree(dev->subdevices[0].range_table_list);
-
 	if (dev->private && devpriv->mite)
 		mite_unsetup(devpriv->mite);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
-	return 0;
 }
 
 static int ni_670x_ao_winsn(struct comedi_device *dev,

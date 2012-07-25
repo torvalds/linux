@@ -102,6 +102,8 @@ static struct usb_device_id rtl871x_usb_id_tbl[] = {
 	/* - */
 	{USB_DEVICE(0x20F4, 0x646B)},
 	{USB_DEVICE(0x083A, 0xC512)},
+	{USB_DEVICE(0x25D4, 0x4CA1)},
+	{USB_DEVICE(0x25D4, 0x4CAB)},
 
 /* RTL8191SU */
 	/* Realtek */
@@ -621,30 +623,28 @@ static void r871xu_dev_remove(struct usb_interface *pusb_intf)
 	struct usb_device *udev = interface_to_usbdev(pusb_intf);
 
 	usb_set_intfdata(pusb_intf, NULL);
-	if (padapter) {
-		if (padapter->fw_found)
-			release_firmware(padapter->fw);
-		/* never exit with a firmware callback pending */
-		wait_for_completion(&padapter->rtl8712_fw_ready);
-		if (drvpriv.drv_registered == true)
-			padapter->bSurpriseRemoved = true;
-		if (pnetdev != NULL) {
-			/* will call netdev_close() */
-			unregister_netdev(pnetdev);
-		}
-		flush_scheduled_work();
-		udelay(1);
-		/*Stop driver mlme relation timer */
-		if (padapter->fw_found)
-			r8712_stop_drv_timers(padapter);
-		r871x_dev_unload(padapter);
-		r8712_free_drv_sw(padapter);
+	if (padapter->fw_found)
+		release_firmware(padapter->fw);
+	/* never exit with a firmware callback pending */
+	wait_for_completion(&padapter->rtl8712_fw_ready);
+	if (drvpriv.drv_registered == true)
+		padapter->bSurpriseRemoved = true;
+	if (pnetdev != NULL) {
+		/* will call netdev_close() */
+		unregister_netdev(pnetdev);
 	}
+	flush_scheduled_work();
+	udelay(1);
+	/*Stop driver mlme relation timer */
+	if (padapter->fw_found)
+		r8712_stop_drv_timers(padapter);
+	r871x_dev_unload(padapter);
+	r8712_free_drv_sw(padapter);
 	usb_set_intfdata(pusb_intf, NULL);
 	/* decrease the reference count of the usb device structure
 	 * when disconnect */
 	usb_put_dev(udev);
-	/* If we didn't unplug usb dongle and remove/insert modlue, driver
+	/* If we didn't unplug usb dongle and remove/insert module, driver
 	 * fails on sitesurvey for the first time when device is up.
 	 * Reset usb port for sitesurvey fail issue. */
 	if (udev->state != USB_STATE_NOTATTACHED)

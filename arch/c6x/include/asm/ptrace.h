@@ -97,6 +97,11 @@
 #define PT_DP	   PT_B14  /* Data Segment Pointer (B14) */
 #define PT_SP	   PT_B15  /* Stack Pointer (B15)  */
 
+#define PTRACE_GETFDPIC		31	/* get the ELF fdpic loadmap address */
+
+#define PTRACE_GETFDPIC_EXEC	0	/* [addr] request the executable loadmap */
+#define PTRACE_GETFDPIC_INTERP	1	/* [addr] request the interpreter loadmap */
+
 #ifndef __ASSEMBLY__
 
 #ifdef _BIG_ENDIAN

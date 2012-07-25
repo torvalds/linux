@@ -2,9 +2,10 @@
 #include <linux/spinlock.h>
 #include <linux/virtio_config.h>
 #include <linux/module.h>
+#include <linux/idr.h>
 
 /* Unique numbering for virtio devices. */
-static unsigned int dev_index;
+static DEFINE_IDA(virtio_index_ida);
 
 static ssize_t device_show(struct device *_d,
 			   struct device_attribute *attr, char *buf)
@@ -193,7 +194,11 @@ int register_virtio_device(struct virtio_device *dev)
 	dev->dev.bus = &virtio_bus;
 
 	/* Assign a unique device index and hence name. */
-	dev->index = dev_index++;
+	err = ida_simple_get(&virtio_index_ida, 0, 0, GFP_KERNEL);
+	if (err < 0)
+		goto out;
+
+	dev->index = err;
 	dev_set_name(&dev->dev, "virtio%u", dev->index);
 
 	/* We always start by resetting the device, in case a previous
@@ -208,6 +213,7 @@ int register_virtio_device(struct virtio_device *dev)
 	/* device_register() causes the bus infrastructure to look for a
 	 * matching driver. */
 	err = device_register(&dev->dev);
+out:
 	if (err)
 		add_status(dev, VIRTIO_CONFIG_S_FAILED);
 	return err;
@@ -217,6 +223,7 @@ EXPORT_SYMBOL_GPL(register_virtio_device);
 void unregister_virtio_device(struct virtio_device *dev)
 {
 	device_unregister(&dev->dev);
+	ida_simple_remove(&virtio_index_ida, dev->index);
 }
 EXPORT_SYMBOL_GPL(unregister_virtio_device);
 

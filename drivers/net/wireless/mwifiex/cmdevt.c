@@ -139,6 +139,7 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 	uint16_t cmd_size;
 	struct timeval tstamp;
 	unsigned long flags;
+	__le32 tmp;
 
 	if (!adapter || !cmd_node)
 		return -1;
@@ -178,15 +179,28 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 		le16_to_cpu(*(__le16 *) ((u8 *) host_cmd + S_DS_GEN)), cmd_size,
 		le16_to_cpu(host_cmd->seq_num));
 
-	skb_push(cmd_node->cmd_skb, INTF_HEADER_LEN);
-
-	ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_CMD,
-					   cmd_node->cmd_skb, NULL);
-
-	skb_pull(cmd_node->cmd_skb, INTF_HEADER_LEN);
+	if (adapter->iface_type == MWIFIEX_USB) {
+		tmp = cpu_to_le32(MWIFIEX_USB_TYPE_CMD);
+		skb_push(cmd_node->cmd_skb, MWIFIEX_TYPE_LEN);
+		memcpy(cmd_node->cmd_skb->data, &tmp, MWIFIEX_TYPE_LEN);
+		adapter->cmd_sent = true;
+		ret = adapter->if_ops.host_to_card(adapter,
+						   MWIFIEX_USB_EP_CMD_EVENT,
+						   cmd_node->cmd_skb, NULL);
+		skb_pull(cmd_node->cmd_skb, MWIFIEX_TYPE_LEN);
+		if (ret == -EBUSY)
+			cmd_node->cmd_skb = NULL;
+	} else {
+		skb_push(cmd_node->cmd_skb, INTF_HEADER_LEN);
+		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_CMD,
+						   cmd_node->cmd_skb, NULL);
+		skb_pull(cmd_node->cmd_skb, INTF_HEADER_LEN);
+	}
 
 	if (ret == -1) {
 		dev_err(adapter->dev, "DNLD_CMD: host to card failed\n");
+		if (adapter->iface_type == MWIFIEX_USB)
+			adapter->cmd_sent = false;
 		if (cmd_node->wait_q_enabled)
 			adapter->cmd_wait_q.status = -1;
 		mwifiex_insert_cmd_to_free_q(adapter, adapter->curr_cmd);
@@ -232,6 +246,9 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 	struct mwifiex_opt_sleep_confirm *sleep_cfm_buf =
 				(struct mwifiex_opt_sleep_confirm *)
 						adapter->sleep_cfm->data;
+	struct sk_buff *sleep_cfm_tmp;
+	__le32 tmp;
+
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 
 	sleep_cfm_buf->seq_num =
@@ -240,10 +257,28 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 					 priv->bss_type)));
 	adapter->seq_num++;
 
-	skb_push(adapter->sleep_cfm, INTF_HEADER_LEN);
-	ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_CMD,
-					   adapter->sleep_cfm, NULL);
-	skb_pull(adapter->sleep_cfm, INTF_HEADER_LEN);
+	if (adapter->iface_type == MWIFIEX_USB) {
+		sleep_cfm_tmp =
+			dev_alloc_skb(sizeof(struct mwifiex_opt_sleep_confirm)
+				      + MWIFIEX_TYPE_LEN);
+		skb_put(sleep_cfm_tmp, sizeof(struct mwifiex_opt_sleep_confirm)
+			+ MWIFIEX_TYPE_LEN);
+		tmp = cpu_to_le32(MWIFIEX_USB_TYPE_CMD);
+		memcpy(sleep_cfm_tmp->data, &tmp, MWIFIEX_TYPE_LEN);
+		memcpy(sleep_cfm_tmp->data + MWIFIEX_TYPE_LEN,
+		       adapter->sleep_cfm->data,
+		       sizeof(struct mwifiex_opt_sleep_confirm));
+		ret = adapter->if_ops.host_to_card(adapter,
+						   MWIFIEX_USB_EP_CMD_EVENT,
+						   sleep_cfm_tmp, NULL);
+		if (ret != -EBUSY)
+			dev_kfree_skb_any(sleep_cfm_tmp);
+	} else {
+		skb_push(adapter->sleep_cfm, INTF_HEADER_LEN);
+		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_CMD,
+						   adapter->sleep_cfm, NULL);
+		skb_pull(adapter->sleep_cfm, INTF_HEADER_LEN);
+	}
 
 	if (ret == -1) {
 		dev_err(adapter->dev, "SLEEP_CFM: failed\n");
@@ -343,7 +378,12 @@ int mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter)
 		}
 		if (!cmd_array[i].resp_skb)
 			continue;
-		dev_kfree_skb_any(cmd_array[i].resp_skb);
+
+		if (adapter->iface_type == MWIFIEX_USB)
+			adapter->if_ops.cmdrsp_complete(adapter,
+							cmd_array[i].resp_skb);
+		else
+			dev_kfree_skb_any(cmd_array[i].resp_skb);
 	}
 	/* Release struct cmd_ctrl_node */
 	if (adapter->cmd_pool) {
@@ -400,6 +440,11 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 		do_gettimeofday(&tstamp);
 		dev_dbg(adapter->dev, "event: %lu.%lu: cause: %#x\n",
 			tstamp.tv_sec, tstamp.tv_usec, eventcause);
+	} else {
+		/* Handle PS_SLEEP/AWAKE events on STA */
+		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
+		if (!priv)
+			priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	}
 
 	ret = mwifiex_process_sta_event(priv);
@@ -500,8 +545,20 @@ int mwifiex_send_cmd_async(struct mwifiex_private *priv, uint16_t cmd_no,
 
 	/* Prepare command */
 	if (cmd_no) {
-		ret = mwifiex_sta_prepare_cmd(priv, cmd_no, cmd_action,
-					      cmd_oid, data_buf, cmd_ptr);
+		switch (cmd_no) {
+		case HostCmd_CMD_UAP_SYS_CONFIG:
+		case HostCmd_CMD_UAP_BSS_START:
+		case HostCmd_CMD_UAP_BSS_STOP:
+			ret = mwifiex_uap_prepare_cmd(priv, cmd_no, cmd_action,
+						      cmd_oid, data_buf,
+						      cmd_ptr);
+			break;
+		default:
+			ret = mwifiex_sta_prepare_cmd(priv, cmd_no, cmd_action,
+						      cmd_oid, data_buf,
+						      cmd_ptr);
+			break;
+		}
 	} else {
 		ret = mwifiex_cmd_host_cmd(priv, cmd_ptr, data_buf);
 		cmd_node->cmd_flag |= CMD_F_HOSTCMD;
@@ -1083,6 +1140,7 @@ mwifiex_process_hs_config(struct mwifiex_adapter *adapter)
 						    MWIFIEX_BSS_ROLE_ANY),
 				   false);
 }
+EXPORT_SYMBOL_GPL(mwifiex_process_hs_config);
 
 /*
  * This function handles the command response of a sleep confirm command.

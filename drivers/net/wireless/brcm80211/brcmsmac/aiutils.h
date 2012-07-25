@@ -113,10 +113,6 @@
 #define	XTAL			0x1	/* primary crystal oscillator (2050) */
 #define	PLL			0x2	/* main chip pll */
 
-/* clkctl clk mode */
-#define	CLK_FAST		0	/* force fast (pll) clock */
-#define	CLK_DYNAMIC		2	/* enable dynamic clock control */
-
 /* GPIO usage priorities */
 #define GPIO_DRV_PRIORITY	0	/* Driver */
 #define GPIO_APP_PRIORITY	1	/* Application */
@@ -172,9 +168,7 @@ struct si_info {
 	struct si_pub pub;	/* back plane public state (must be first) */
 	struct bcma_bus *icbus;	/* handle to soc interconnect bus */
 	struct pci_dev *pcibus;	/* handle to pci bus */
-	struct pcicore_info *pch; /* PCI/E core handle */
 	struct bcma_device *buscore;
-	struct list_head var_list; /* list of srom variables */
 
 	u32 chipst;		/* chip status */
 };
@@ -197,37 +191,19 @@ extern u32 ai_core_cflags(struct bcma_device *core, u32 mask, u32 val);
 extern struct si_pub *ai_attach(struct bcma_bus *pbus);
 extern void ai_detach(struct si_pub *sih);
 extern uint ai_cc_reg(struct si_pub *sih, uint regoff, u32 mask, u32 val);
-extern void ai_pci_setup(struct si_pub *sih, uint coremask);
 extern void ai_clkctl_init(struct si_pub *sih);
 extern u16 ai_clkctl_fast_pwrup_delay(struct si_pub *sih);
 extern bool ai_clkctl_cc(struct si_pub *sih, uint mode);
-extern int ai_clkctl_xtal(struct si_pub *sih, uint what, bool on);
 extern bool ai_deviceremoved(struct si_pub *sih);
-extern u32 ai_gpiocontrol(struct si_pub *sih, u32 mask, u32 val,
-			     u8 priority);
 
-/* OTP status */
-extern bool ai_is_otp_disabled(struct si_pub *sih);
-
-/* SPROM availability */
-extern bool ai_is_sprom_available(struct si_pub *sih);
-
-extern void ai_pci_sleep(struct si_pub *sih);
 extern void ai_pci_down(struct si_pub *sih);
 extern void ai_pci_up(struct si_pub *sih);
-extern int ai_pci_fixcfg(struct si_pub *sih);
 
-extern void ai_chipcontrl_epa4331(struct si_pub *sih, bool on);
 /* Enable Ex-PA for 4313 */
 extern void ai_epa_4313war(struct si_pub *sih);
 
 extern uint ai_get_buscoretype(struct si_pub *sih);
 extern uint ai_get_buscorerev(struct si_pub *sih);
-
-static inline int ai_get_ccrev(struct si_pub *sih)
-{
-	return sih->ccrev;
-}
 
 static inline u32 ai_get_cccaps(struct si_pub *sih)
 {

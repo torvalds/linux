@@ -163,6 +163,38 @@ static void stmmac_verify_args(void)
 		pause = PAUSE_TIME;
 }
 
+static void stmmac_clk_csr_set(struct stmmac_priv *priv)
+{
+#ifdef CONFIG_HAVE_CLK
+	u32 clk_rate;
+
+	if (IS_ERR(priv->stmmac_clk))
+		return;
+
+	clk_rate = clk_get_rate(priv->stmmac_clk);
+
+	/* Platform provided default clk_csr would be assumed valid
+	 * for all other cases except for the below mentioned ones. */
+	if (!(priv->clk_csr & MAC_CSR_H_FRQ_MASK)) {
+		if (clk_rate < CSR_F_35M)
+			priv->clk_csr = STMMAC_CSR_20_35M;
+		else if ((clk_rate >= CSR_F_35M) && (clk_rate < CSR_F_60M))
+			priv->clk_csr = STMMAC_CSR_35_60M;
+		else if ((clk_rate >= CSR_F_60M) && (clk_rate < CSR_F_100M))
+			priv->clk_csr = STMMAC_CSR_60_100M;
+		else if ((clk_rate >= CSR_F_100M) && (clk_rate < CSR_F_150M))
+			priv->clk_csr = STMMAC_CSR_100_150M;
+		else if ((clk_rate >= CSR_F_150M) && (clk_rate < CSR_F_250M))
+			priv->clk_csr = STMMAC_CSR_150_250M;
+		else if ((clk_rate >= CSR_F_250M) && (clk_rate < CSR_F_300M))
+			priv->clk_csr = STMMAC_CSR_250_300M;
+	} /* For values higher than the IEEE 802.3 specified frequency
+	   * we can not estimate the proper divider as it is not known
+	   * the frequency of clk_csr_i. So we do not change the default
+	   * divider. */
+#endif
+}
+
 #if defined(STMMAC_XMIT_DEBUG) || defined(STMMAC_RX_DEBUG)
 static void print_pkt(unsigned char *buf, int len)
 {
@@ -307,7 +339,13 @@ static int stmmac_init_phy(struct net_device *dev)
 	priv->speed = 0;
 	priv->oldduplex = -1;
 
-	snprintf(bus_id, MII_BUS_ID_SIZE, "stmmac-%x", priv->plat->bus_id);
+	if (priv->plat->phy_bus_name)
+		snprintf(bus_id, MII_BUS_ID_SIZE, "%s-%x",
+				priv->plat->phy_bus_name, priv->plat->bus_id);
+	else
+		snprintf(bus_id, MII_BUS_ID_SIZE, "stmmac-%x",
+				priv->plat->bus_id);
+
 	snprintf(phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT, bus_id,
 		 priv->plat->phy_addr);
 	pr_debug("stmmac_init_phy:  trying to attach to %s\n", phy_id);
@@ -795,8 +833,9 @@ static u32 stmmac_get_synopsys_id(struct stmmac_priv *priv)
 
 /**
  * stmmac_selec_desc_mode
- * @dev : device pointer
- * Description: select the Enhanced/Alternate or Normal descriptors */
+ * @priv : private structure
+ * Description: select the Enhanced/Alternate or Normal descriptors
+ */
 static void stmmac_selec_desc_mode(struct stmmac_priv *priv)
 {
 	if (priv->plat->enh_desc) {
@@ -884,6 +923,26 @@ static void stmmac_check_ether_addr(struct stmmac_priv *priv)
 						   priv->dev->dev_addr);
 }
 
+static int stmmac_init_dma_engine(struct stmmac_priv *priv)
+{
+	int pbl = DEFAULT_DMA_PBL, fixed_burst = 0, burst_len = 0;
+	int mixed_burst = 0;
+
+	/* Some DMA parameters can be passed from the platform;
+	 * in case of these are not passed we keep a default
+	 * (good for all the chips) and init the DMA! */
+	if (priv->plat->dma_cfg) {
+		pbl = priv->plat->dma_cfg->pbl;
+		fixed_burst = priv->plat->dma_cfg->fixed_burst;
+		mixed_burst = priv->plat->dma_cfg->mixed_burst;
+		burst_len = priv->plat->dma_cfg->burst_len;
+	}
+
+	return priv->hw->dma->init(priv->ioaddr, pbl, fixed_burst, mixed_burst,
+				   burst_len, priv->dma_tx_phy,
+				   priv->dma_rx_phy);
+}
+
 /**
  *  stmmac_open - open entry point of the driver
  *  @dev : pointer to the device structure.
@@ -897,16 +956,6 @@ static int stmmac_open(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int ret;
-
-	stmmac_check_ether_addr(priv);
-
-	/* MDIO bus Registration */
-	ret = stmmac_mdio_register(dev);
-	if (ret < 0) {
-		pr_debug("%s: MDIO bus (id: %d) registration failed",
-			 __func__, priv->plat->bus_id);
-		return ret;
-	}
 
 #ifdef CONFIG_STMMAC_TIMER
 	priv->tm = kzalloc(sizeof(struct stmmac_timer *), GFP_KERNEL);
@@ -925,6 +974,10 @@ static int stmmac_open(struct net_device *dev)
 	} else
 		priv->tm->enable = 1;
 #endif
+	stmmac_clk_enable(priv);
+
+	stmmac_check_ether_addr(priv);
+
 	ret = stmmac_init_phy(dev);
 	if (unlikely(ret)) {
 		pr_err("%s: Cannot attach to PHY (error: %d)\n", __func__, ret);
@@ -938,8 +991,7 @@ static int stmmac_open(struct net_device *dev)
 	init_dma_desc_rings(dev);
 
 	/* DMA initialization and SW reset */
-	ret = priv->hw->dma->init(priv->ioaddr, priv->plat->pbl,
-				  priv->dma_tx_phy, priv->dma_rx_phy);
+	ret = stmmac_init_dma_engine(priv);
 	if (ret < 0) {
 		pr_err("%s: DMA initialization failed\n", __func__);
 		goto open_error;
@@ -1026,6 +1078,8 @@ open_error:
 	if (priv->phydev)
 		phy_disconnect(priv->phydev);
 
+	stmmac_clk_disable(priv);
+
 	return ret;
 }
 
@@ -1077,7 +1131,7 @@ static int stmmac_release(struct net_device *dev)
 #ifdef CONFIG_STMMAC_DEBUG_FS
 	stmmac_exit_fs();
 #endif
-	stmmac_mdio_unregister(dev);
+	stmmac_clk_disable(priv);
 
 	return 0;
 }
@@ -1276,7 +1330,8 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 			struct sk_buff *skb;
 			int frame_len;
 
-			frame_len = priv->hw->desc->get_rx_frame_len(p);
+			frame_len = priv->hw->desc->get_rx_frame_len(p,
+					priv->plat->rx_coe);
 			/* ACS is set; GMAC core strips PAD/FCS for IEEE 802.3
 			 * Type frames (LLC/LLC-SNAP) */
 			if (unlikely(status != llc_snap))
@@ -1312,7 +1367,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 #endif
 			skb->protocol = eth_type_trans(skb, priv->dev);
 
-			if (unlikely(!priv->rx_coe)) {
+			if (unlikely(!priv->plat->rx_coe)) {
 				/* No RX COE for old mac10/100 devices */
 				skb_checksum_none_assert(skb);
 				netif_receive_skb(skb);
@@ -1413,7 +1468,7 @@ static void stmmac_set_rx_mode(struct net_device *dev)
 	struct stmmac_priv *priv = netdev_priv(dev);
 
 	spin_lock(&priv->lock);
-	priv->hw->mac->set_filter(dev);
+	priv->hw->mac->set_filter(dev, priv->synopsys_id);
 	spin_unlock(&priv->lock);
 }
 
@@ -1459,8 +1514,10 @@ static netdev_features_t stmmac_fix_features(struct net_device *dev,
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	if (!priv->rx_coe)
+	if (priv->plat->rx_coe == STMMAC_RX_COE_NONE)
 		features &= ~NETIF_F_RXCSUM;
+	else if (priv->plat->rx_coe == STMMAC_RX_COE_TYPE1)
+		features &= ~NETIF_F_IPV6_CSUM;
 	if (!priv->plat->tx_coe)
 		features &= ~NETIF_F_ALL_CSUM;
 
@@ -1584,7 +1641,7 @@ static const struct file_operations stmmac_rings_status_fops = {
 	.open = stmmac_sysfs_ring_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = seq_release,
+	.release = single_release,
 };
 
 static int stmmac_sysfs_dma_cap_read(struct seq_file *seq, void *v)
@@ -1656,7 +1713,7 @@ static const struct file_operations stmmac_dma_cap_fops = {
 	.open = stmmac_sysfs_dma_cap_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = seq_release,
+	.release = single_release,
 };
 
 static int stmmac_init_fs(struct net_device *dev)
@@ -1752,7 +1809,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	priv->hw->ring = &ring_mode_ops;
 
 	/* Get and dump the chip ID */
-	stmmac_get_synopsys_id(priv);
+	priv->synopsys_id = stmmac_get_synopsys_id(priv);
 
 	/* Get the HW capability (new GMAC newer than 3.50a) */
 	priv->hw_cap_support = stmmac_get_hw_features(priv);
@@ -1765,17 +1822,32 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 		 * register (if supported).
 		 */
 		priv->plat->enh_desc = priv->dma_cap.enh_desc;
-		priv->plat->tx_coe = priv->dma_cap.tx_coe;
 		priv->plat->pmt = priv->dma_cap.pmt_remote_wake_up;
+
+		priv->plat->tx_coe = priv->dma_cap.tx_coe;
+
+		if (priv->dma_cap.rx_coe_type2)
+			priv->plat->rx_coe = STMMAC_RX_COE_TYPE2;
+		else if (priv->dma_cap.rx_coe_type1)
+			priv->plat->rx_coe = STMMAC_RX_COE_TYPE1;
+
 	} else
 		pr_info(" No HW DMA feature register supported");
 
 	/* Select the enhnaced/normal descriptor structures */
 	stmmac_selec_desc_mode(priv);
 
-	priv->rx_coe = priv->hw->mac->rx_coe(priv->ioaddr);
-	if (priv->rx_coe)
-		pr_info(" RX Checksum Offload Engine supported\n");
+	/* Enable the IPC (Checksum Offload) and check if the feature has been
+	 * enabled during the core configuration. */
+	ret = priv->hw->mac->rx_ipc(priv->ioaddr);
+	if (!ret) {
+		pr_warning(" RX IPC Checksum Offload not configured.\n");
+		priv->plat->rx_coe = STMMAC_RX_COE_NONE;
+	}
+
+	if (priv->plat->rx_coe)
+		pr_info(" RX Checksum Offload Engine supported (type %d)\n",
+			priv->plat->rx_coe);
 	if (priv->plat->tx_coe)
 		pr_info(" TX Checksum insertion supported\n");
 
@@ -1790,6 +1862,8 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 /**
  * stmmac_dvr_probe
  * @device: device pointer
+ * @plat_dat: platform data pointer
+ * @addr: iobase memory address
  * Description: this is the main probe function used to
  * call the alloc_etherdev, allocate the priv structure.
  */
@@ -1856,6 +1930,28 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 		goto error;
 	}
 
+	if (stmmac_clk_get(priv))
+		pr_warning("%s: warning: cannot get CSR clock\n", __func__);
+
+	/* If a specific clk_csr value is passed from the platform
+	 * this means that the CSR Clock Range selection cannot be
+	 * changed at run-time and it is fixed. Viceversa the driver'll try to
+	 * set the MDC clock dynamically according to the csr actual
+	 * clock input.
+	 */
+	if (!priv->plat->clk_csr)
+		stmmac_clk_csr_set(priv);
+	else
+		priv->clk_csr = priv->plat->clk_csr;
+
+	/* MDIO bus Registration */
+	ret = stmmac_mdio_register(ndev);
+	if (ret < 0) {
+		pr_debug("%s: MDIO bus (id: %d) registration failed",
+			 __func__, priv->plat->bus_id);
+		goto error;
+	}
+
 	return priv;
 
 error:
@@ -1883,6 +1979,7 @@ int stmmac_dvr_remove(struct net_device *ndev)
 	priv->hw->dma->stop_tx(priv->ioaddr);
 
 	stmmac_set_mac(priv->ioaddr, false);
+	stmmac_mdio_unregister(ndev);
 	netif_carrier_off(ndev);
 	unregister_netdev(ndev);
 	free_netdev(ndev);
@@ -1895,6 +1992,7 @@ int stmmac_suspend(struct net_device *ndev)
 {
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	int dis_ic = 0;
+	unsigned long flags;
 
 	if (!ndev || !netif_running(ndev))
 		return 0;
@@ -1902,7 +2000,7 @@ int stmmac_suspend(struct net_device *ndev)
 	if (priv->phydev)
 		phy_stop(priv->phydev);
 
-	spin_lock(&priv->lock);
+	spin_lock_irqsave(&priv->lock, flags);
 
 	netif_device_detach(ndev);
 	netif_stop_queue(ndev);
@@ -1925,21 +2023,24 @@ int stmmac_suspend(struct net_device *ndev)
 	/* Enable Power down mode by programming the PMT regs */
 	if (device_may_wakeup(priv->device))
 		priv->hw->mac->pmt(priv->ioaddr, priv->wolopts);
-	else
+	else {
 		stmmac_set_mac(priv->ioaddr, false);
-
-	spin_unlock(&priv->lock);
+		/* Disable clock in case of PWM is off */
+		stmmac_clk_disable(priv);
+	}
+	spin_unlock_irqrestore(&priv->lock, flags);
 	return 0;
 }
 
 int stmmac_resume(struct net_device *ndev)
 {
 	struct stmmac_priv *priv = netdev_priv(ndev);
+	unsigned long flags;
 
 	if (!netif_running(ndev))
 		return 0;
 
-	spin_lock(&priv->lock);
+	spin_lock_irqsave(&priv->lock, flags);
 
 	/* Power Down bit, into the PM register, is cleared
 	 * automatically as soon as a magic packet or a Wake-up frame
@@ -1948,6 +2049,9 @@ int stmmac_resume(struct net_device *ndev)
 	 * from another devices (e.g. serial console). */
 	if (device_may_wakeup(priv->device))
 		priv->hw->mac->pmt(priv->ioaddr, 0);
+	else
+		/* enable the clk prevously disabled */
+		stmmac_clk_enable(priv);
 
 	netif_device_attach(ndev);
 
@@ -1964,7 +2068,7 @@ int stmmac_resume(struct net_device *ndev)
 
 	netif_start_queue(ndev);
 
-	spin_unlock(&priv->lock);
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (priv->phydev)
 		phy_start(priv->phydev);
@@ -1988,6 +2092,34 @@ int stmmac_restore(struct net_device *ndev)
 	return stmmac_open(ndev);
 }
 #endif /* CONFIG_PM */
+
+/* Driver can be configured w/ and w/ both PCI and Platf drivers
+ * depending on the configuration selected.
+ */
+static int __init stmmac_init(void)
+{
+	int err_plt = 0;
+	int err_pci = 0;
+
+	err_plt = stmmac_register_platform();
+	err_pci = stmmac_register_pci();
+
+	if ((err_pci) && (err_plt)) {
+		pr_err("stmmac: driver registration failed\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void __exit stmmac_exit(void)
+{
+	stmmac_unregister_platform();
+	stmmac_unregister_pci();
+}
+
+module_init(stmmac_init);
+module_exit(stmmac_exit);
 
 #ifndef MODULE
 static int __init stmmac_cmdline_opt(char *str)

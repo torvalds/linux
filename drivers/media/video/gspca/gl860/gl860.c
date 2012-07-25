@@ -405,6 +405,9 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	if (!sd->gspca_dev.present)
+		return;
+
 	return sd->dev_post_unset_alt(gspca_dev);
 }
 
