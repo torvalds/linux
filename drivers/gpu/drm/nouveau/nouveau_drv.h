@@ -689,8 +689,6 @@ struct drm_nouveau_private {
 	void (*irq_handler[32])(struct drm_device *);
 	bool msi_enabled;
 
-	struct list_head vbl_waiting;
-
 	struct {
 		struct drm_global_reference mem_global_ref;
 		struct ttm_bo_global_ref bo_global_ref;
