@@ -32,7 +32,8 @@ temperature) and throttle appropriate devices.
 
 1.1 thermal zone device interface
 1.1.1 struct thermal_zone_device *thermal_zone_device_register(char *name,
-		int trips, void *devdata, struct thermal_zone_device_ops *ops)
+		int trips, int mask, void *devdata,
+		struct thermal_zone_device_ops *ops)
 
     This interface function adds a new thermal zone device (sensor) to
     /sys/class/thermal folder as thermal_zone[0-*]. It tries to bind all the
@@ -40,6 +41,7 @@ temperature) and throttle appropriate devices.
 
     name: the thermal zone name.
     trips: the total number of trip points this thermal zone supports.
+    mask: Bit string: If 'n'th bit is set, then trip point 'n' is writeable.
     devdata: device private data
     ops: thermal zone device call-backs.
 	.bind: bind the thermal zone device with a thermal cooling device.
