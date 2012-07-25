@@ -170,6 +170,7 @@ nouveau-y += nv50_fbcon.o nvc0_fbcon.o
 # other random bits
 nouveau-$(CONFIG_COMPAT) += nouveau_ioc32.o
 nouveau-$(CONFIG_ACPI) += nouveau_acpi.o
+nouveau-$(CONFIG_DRM_NOUVEAU_BACKLIGHT) += nouveau_backlight.o
 
 ##
 ## unported bits below
@@ -200,9 +201,5 @@ nouveau-y += nv50_evo.o
 nouveau-y += nouveau_pm.o nouveau_volt.o nouveau_perf.o nouveau_temp.o
 nouveau-y += nv04_pm.o nv40_pm.o nv50_pm.o nva3_pm.o nvc0_pm.o
 nouveau-y += nouveau_mem.o
-
-# optional stuff
-nouveau-$(CONFIG_DRM_NOUVEAU_BACKLIGHT) += nouveau_backlight.o
-
 
 obj-$(CONFIG_DRM_NOUVEAU)+= nouveau.o

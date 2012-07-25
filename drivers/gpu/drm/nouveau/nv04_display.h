@@ -1,6 +1,8 @@
 #ifndef __NV04_DISPLAY_H__
 #define __NV04_DISPLAY_H__
 
+#include <subdev/bios/pll.h>
+
 enum nv04_fp_display_regs {
 	FP_DISPLAY_END,
 	FP_TOTAL,
@@ -77,13 +79,6 @@ struct nv04_display {
 	uint32_t saved_vga_font[4][16384];
 	uint32_t dac_users[4];
 };
-
-static inline struct nv04_display *
-nv04_display(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	return dev_priv->engine.display.priv;
-}
 
 /* nv04_display.c */
 int nv04_display_early_init(struct drm_device *);

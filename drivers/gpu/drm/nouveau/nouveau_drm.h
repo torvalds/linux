@@ -95,6 +95,8 @@ struct nouveau_drm {
 		struct nouveau_drm_tile reg[15];
 		spinlock_t lock;
 	} tile;
+
+	struct backlight_device *backlight;
 };
 
 static inline struct nouveau_drm *

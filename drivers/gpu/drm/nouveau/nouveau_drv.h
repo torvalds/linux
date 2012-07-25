@@ -308,9 +308,6 @@ struct drm_nouveau_private {
 	spinlock_t context_switch_lock;
 
 	struct nvbios vbios;
-	u8 *mxms;
-
-	struct backlight_device *backlight;
 };
 
 static inline struct drm_nouveau_private *
@@ -542,6 +539,13 @@ nv_match_device(struct drm_device *dev, unsigned device,
 	return dev->pdev->device == device &&
 		dev->pdev->subsystem_vendor == sub_vendor &&
 		dev->pdev->subsystem_device == sub_device;
+}
+
+static inline struct nv04_display *
+nv04_display(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	return dev_priv->engine.display.priv;
 }
 
 #endif /* __NOUVEAU_DRV_H__ */
