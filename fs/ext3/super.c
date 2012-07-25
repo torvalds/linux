@@ -2058,7 +2058,8 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		goto failed_mount3;
 	}
 
-	ext3_setup_super (sb, es, sb->s_flags & MS_RDONLY);
+	if (ext3_setup_super(sb, es, sb->s_flags & MS_RDONLY))
+		sb->s_flags |= MS_RDONLY;
 
 	EXT3_SB(sb)->s_mount_state |= EXT3_ORPHAN_FS;
 	ext3_orphan_cleanup(sb, es);
