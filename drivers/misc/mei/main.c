@@ -982,7 +982,7 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 		err = request_threaded_irq(pdev->irq,
 			NULL,
 			mei_interrupt_thread_handler,
-			0, mei_driver_name, dev);
+			IRQF_ONESHOT, mei_driver_name, dev);
 	else
 		err = request_threaded_irq(pdev->irq,
 			mei_interrupt_quick_handler,
@@ -992,7 +992,7 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 	if (err) {
 		dev_err(&pdev->dev, "request_threaded_irq failure. irq = %d\n",
 		       pdev->irq);
-		goto unmap_memory;
+		goto disable_msi;
 	}
 	INIT_DELAYED_WORK(&dev->timer_work, mei_timer);
 	if (mei_hw_init(dev)) {
@@ -1023,8 +1023,8 @@ release_irq:
 	mei_disable_interrupts(dev);
 	flush_scheduled_work();
 	free_irq(pdev->irq, dev);
+disable_msi:
 	pci_disable_msi(pdev);
-unmap_memory:
 	pci_iounmap(pdev, dev->mem_addr);
 free_device:
 	kfree(dev);
@@ -1101,6 +1101,8 @@ static void __devexit mei_remove(struct pci_dev *pdev)
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
+
+	misc_deregister(&mei_misc_device);
 }
 #ifdef CONFIG_PM
 static int mei_pci_suspend(struct device *device)
@@ -1216,7 +1218,6 @@ module_init(mei_init_module);
  */
 static void __exit mei_exit_module(void)
 {
-	misc_deregister(&mei_misc_device);
 	pci_unregister_driver(&mei_driver);
 
 	pr_debug("unloaded successfully.\n");

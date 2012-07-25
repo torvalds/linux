@@ -27,6 +27,17 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 			      struct cfg80211_ap_settings *params) {
 	int i;
 
+	if (!params->privacy) {
+		bss_config->protocol = PROTOCOL_NO_SECURITY;
+		bss_config->key_mgmt = KEY_MGMT_NONE;
+		bss_config->wpa_cfg.length = 0;
+		priv->sec_info.wep_enabled = 0;
+		priv->sec_info.wpa_enabled = 0;
+		priv->sec_info.wpa2_enabled = 0;
+
+		return 0;
+	}
+
 	switch (params->auth_type) {
 	case NL80211_AUTHTYPE_OPEN_SYSTEM:
 		bss_config->auth_mode = WLAN_AUTH_OPEN;

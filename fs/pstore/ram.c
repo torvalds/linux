@@ -106,6 +106,8 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 	time->tv_sec = 0;
 	time->tv_nsec = 0;
 
+	/* Update old/shadowed buffer. */
+	persistent_ram_save_old(prz);
 	size = persistent_ram_old_size(prz);
 	*buf = kmalloc(size, GFP_KERNEL);
 	if (*buf == NULL)
@@ -184,6 +186,7 @@ static int ramoops_pstore_erase(enum pstore_type_id type, u64 id,
 		return -EINVAL;
 
 	persistent_ram_free_old(cxt->przs[id]);
+	persistent_ram_zap(cxt->przs[id]);
 
 	return 0;
 }

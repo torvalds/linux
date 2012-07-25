@@ -987,7 +987,7 @@ static noinline void async_cow_start(struct btrfs_work *work)
 			    async_cow->start, async_cow->end, async_cow,
 			    &num_added);
 	if (num_added == 0) {
-		iput(async_cow->inode);
+		btrfs_add_delayed_iput(async_cow->inode);
 		async_cow->inode = NULL;
 	}
 }
@@ -1023,7 +1023,7 @@ static noinline void async_cow_free(struct btrfs_work *work)
 	struct async_cow *async_cow;
 	async_cow = container_of(work, struct async_cow, work);
 	if (async_cow->inode)
-		iput(async_cow->inode);
+		btrfs_add_delayed_iput(async_cow->inode);
 	kfree(async_cow);
 }
 

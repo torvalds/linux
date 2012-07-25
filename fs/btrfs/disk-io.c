@@ -3426,6 +3426,7 @@ int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 				mutex_unlock(&head->mutex);
 				btrfs_put_delayed_ref(ref);
 
+				spin_lock(&delayed_refs->lock);
 				continue;
 			}
 

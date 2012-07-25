@@ -239,7 +239,7 @@ static int __init pcie_clk_init(struct sh7786_pcie_port *port)
 	clk->enable_reg = (void __iomem *)(chan->reg_base + SH4A_PCIEPHYCTLR);
 	clk->enable_bit = BITS_CKE;
 
-	ret = sh_clk_mstp32_register(clk, 1);
+	ret = sh_clk_mstp_register(clk, 1);
 	if (unlikely(ret < 0))
 		goto err_phy;
 
