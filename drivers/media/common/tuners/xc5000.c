@@ -210,13 +210,15 @@ struct xc5000_fw_cfg {
 	u16 size;
 };
 
+#define XC5000A_FIRMWARE "dvb-fe-xc5000-1.6.114.fw"
 static const struct xc5000_fw_cfg xc5000a_1_6_114 = {
-	.name = "dvb-fe-xc5000-1.6.114.fw",
+	.name = XC5000A_FIRMWARE,
 	.size = 12401,
 };
 
+#define XC5000C_FIRMWARE "dvb-fe-xc5000c-41.024.5.fw"
 static const struct xc5000_fw_cfg xc5000c_41_024_5 = {
-	.name = "dvb-fe-xc5000c-41.024.5.fw",
+	.name = XC5000C_FIRMWARE,
 	.size = 16497,
 };
 
@@ -1259,3 +1261,5 @@ EXPORT_SYMBOL(xc5000_attach);
 MODULE_AUTHOR("Steven Toth");
 MODULE_DESCRIPTION("Xceive xc5000 silicon tuner driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(XC5000A_FIRMWARE);
+MODULE_FIRMWARE(XC5000C_FIRMWARE);
