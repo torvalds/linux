@@ -117,7 +117,7 @@ static u32 mesh_set_ht_prot_mode(struct ieee80211_sub_if_data *sdata)
 	u16 ht_opmode;
 	bool non_ht_sta = false, ht20_sta = false;
 
-	if (local->_oper_channel_type == NL80211_CHAN_NO_HT)
+	if (sdata->vif.bss_conf.channel_type == NL80211_CHAN_NO_HT)
 		return 0;
 
 	rcu_read_lock();
@@ -147,7 +147,8 @@ out:
 
 	if (non_ht_sta)
 		ht_opmode = IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED;
-	else if (ht20_sta && local->_oper_channel_type > NL80211_CHAN_HT20)
+	else if (ht20_sta &&
+		 sdata->vif.bss_conf.channel_type > NL80211_CHAN_HT20)
 		ht_opmode = IEEE80211_HT_OP_MODE_PROTECTION_20MHZ;
 	else
 		ht_opmode = IEEE80211_HT_OP_MODE_PROTECTION_NONE;
@@ -379,7 +380,7 @@ static struct sta_info *mesh_peer_init(struct ieee80211_sub_if_data *sdata,
 
 	sta->sta.supp_rates[band] = rates;
 	if (elems->ht_cap_elem &&
-	    sdata->local->_oper_channel_type != NL80211_CHAN_NO_HT)
+	    sdata->vif.bss_conf.channel_type != NL80211_CHAN_NO_HT)
 		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 						  elems->ht_cap_elem,
 						  &sta->sta.ht_cap);

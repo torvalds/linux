@@ -109,11 +109,11 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 
 	/* Disallow HT40+/- mismatch */
 	if (ie->ht_operation &&
-	    (local->_oper_channel_type == NL80211_CHAN_HT40MINUS ||
-	    local->_oper_channel_type == NL80211_CHAN_HT40PLUS) &&
+	    (sdata->vif.bss_conf.channel_type == NL80211_CHAN_HT40MINUS ||
+	     sdata->vif.bss_conf.channel_type == NL80211_CHAN_HT40PLUS) &&
 	    (sta_channel_type == NL80211_CHAN_HT40MINUS ||
 	     sta_channel_type == NL80211_CHAN_HT40PLUS) &&
-	    local->_oper_channel_type != sta_channel_type)
+	    sdata->vif.bss_conf.channel_type != sta_channel_type)
 		goto mismatch;
 
 	return true;
@@ -375,7 +375,7 @@ int mesh_add_ht_cap_ie(struct sk_buff *skb,
 
 	sband = local->hw.wiphy->bands[local->oper_channel->band];
 	if (!sband->ht_cap.ht_supported ||
-	    local->_oper_channel_type == NL80211_CHAN_NO_HT)
+	    sdata->vif.bss_conf.channel_type == NL80211_CHAN_NO_HT)
 		return 0;
 
 	if (skb_tailroom(skb) < 2 + sizeof(struct ieee80211_ht_cap))
@@ -392,7 +392,8 @@ int mesh_add_ht_oper_ie(struct sk_buff *skb,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_channel *channel = local->oper_channel;
-	enum nl80211_channel_type channel_type = local->_oper_channel_type;
+	enum nl80211_channel_type channel_type =
+				sdata->vif.bss_conf.channel_type;
 	struct ieee80211_supported_band *sband =
 				local->hw.wiphy->bands[channel->band];
 	struct ieee80211_sta_ht_cap *ht_cap = &sband->ht_cap;
