@@ -428,7 +428,7 @@ int b43_phy_shm_tssi_read(struct b43_wldev *dev, u16 shm_offset)
 	average = (a + b + c + d + 2) / 4;
 	if (is_ofdm) {
 		/* Adjust for CCK-boost */
-		if (b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFLO)
+		if (b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTF1)
 		    & B43_HF_CCKBOOST)
 			average = (average >= 13) ? (average - 13) : 0;
 	}
