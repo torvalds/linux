@@ -783,8 +783,16 @@ fail:
 static irqreturn_t smb347_interrupt(int irq, void *data)
 {
 	struct smb347_charger *smb = data;
-	int stat_c, irqstat_e, irqstat_c;
+	int stat_c, t;
+	u8 irqstat[6];
 	irqreturn_t ret = IRQ_NONE;
+
+	t = i2c_smbus_read_i2c_block_data(smb->client, IRQSTAT_A, 6, irqstat);
+	if (t < 0) {
+		dev_warn(&smb->client->dev,
+			 "reading IRQSTAT registers failed\n");
+		return IRQ_NONE;
+	}
 
 	stat_c = smb347_read(smb, STAT_C);
 	if (stat_c < 0) {
@@ -792,17 +800,9 @@ static irqreturn_t smb347_interrupt(int irq, void *data)
 		return IRQ_NONE;
 	}
 
-	irqstat_c = smb347_read(smb, IRQSTAT_C);
-	if (irqstat_c < 0) {
-		dev_warn(&smb->client->dev, "reading IRQSTAT_C failed\n");
-		return IRQ_NONE;
-	}
-
-	irqstat_e = smb347_read(smb, IRQSTAT_E);
-	if (irqstat_e < 0) {
-		dev_warn(&smb->client->dev, "reading IRQSTAT_E failed\n");
-		return IRQ_NONE;
-	}
+	pr_debug("%s: stat c=%x irq a=%x b=%x c=%x d=%x e=%x f=%x\n",
+		 __func__, stat_c, irqstat[0], irqstat[1], irqstat[2],
+		 irqstat[3], irqstat[4], irqstat[5]);
 
 	/*
 	 * If we get charger error we report the error back to user and
@@ -822,21 +822,21 @@ static irqreturn_t smb347_interrupt(int irq, void *data)
 	 * If we reached the termination current the battery is charged.
 	 * Disable charging to ACK the interrupt and update status.
 	 */
-	if (irqstat_c & (IRQSTAT_C_TERMINATION_IRQ |
-			 IRQSTAT_C_TERMINATION_STAT)) {
+	if (irqstat[2] & (IRQSTAT_C_TERMINATION_IRQ |
+			  IRQSTAT_C_TERMINATION_STAT)) {
 		smb347_charging_disable(smb);
 		power_supply_changed(&smb->battery);
 		ret = IRQ_HANDLED;
 	}
 
-	if (irqstat_c & IRQSTAT_C_TAPER_IRQ)
+	if (irqstat[2] & IRQSTAT_C_TAPER_IRQ)
 		ret = IRQ_HANDLED;
 
 	/*
 	 * If we got an under voltage interrupt it means that AC/USB input
 	 * was disconnected.
 	 */
-	if (irqstat_e & (IRQSTAT_E_USBIN_UV_IRQ | IRQSTAT_E_DCIN_UV_IRQ))
+	if (irqstat[4] & (IRQSTAT_E_USBIN_UV_IRQ | IRQSTAT_E_DCIN_UV_IRQ))
 		ret = IRQ_HANDLED;
 
 	if (smb347_update_status(smb) > 0) {
