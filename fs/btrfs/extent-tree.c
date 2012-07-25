@@ -5294,6 +5294,7 @@ static noinline int check_ref_cleanup(struct btrfs_trans_handle *trans,
 	rb_erase(&head->node.rb_node, &delayed_refs->root);
 
 	delayed_refs->num_entries--;
+	smp_mb();
 	if (waitqueue_active(&root->fs_info->tree_mod_seq_wait))
 		wake_up(&root->fs_info->tree_mod_seq_wait);
 
