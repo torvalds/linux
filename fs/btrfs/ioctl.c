@@ -54,6 +54,7 @@
 #include "inode-map.h"
 #include "backref.h"
 #include "rcu-string.h"
+#include "send.h"
 
 /* Mask out flags that are inappropriate for the given type of inode. */
 static inline __u32 btrfs_mask_flags(umode_t mode, __u32 flags)
@@ -3571,6 +3572,8 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_balance_progress(root, argp);
 	case BTRFS_IOC_SET_RECEIVED_SUBVOL:
 		return btrfs_ioctl_set_received_subvol(file, argp);
+	case BTRFS_IOC_SEND:
+		return btrfs_ioctl_send(file, argp);
 	case BTRFS_IOC_GET_DEV_STATS:
 		return btrfs_ioctl_get_dev_stats(root, argp, 0);
 	case BTRFS_IOC_GET_AND_RESET_DEV_STATS:
