@@ -538,8 +538,6 @@ static void omap_w1_write_byte(void *_hdq, u8 byte)
 		hdq_data->init_trans = 0;
 		mutex_unlock(&hdq_data->hdq_mutex);
 	}
-
-	return;
 }
 
 static int __devinit omap_hdq_probe(struct platform_device *pdev)
