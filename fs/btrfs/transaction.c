@@ -22,6 +22,7 @@
 #include <linux/writeback.h>
 #include <linux/pagemap.h>
 #include <linux/blkdev.h>
+#include <linux/uuid.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -926,11 +927,13 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct dentry *dentry;
 	struct extent_buffer *tmp;
 	struct extent_buffer *old;
+	struct timespec cur_time = CURRENT_TIME;
 	int ret;
 	u64 to_reserve = 0;
 	u64 index = 0;
 	u64 objectid;
 	u64 root_flags;
+	uuid_le new_uuid;
 
 	rsv = trans->block_rsv;
 
@@ -1015,6 +1018,20 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	else
 		root_flags &= ~BTRFS_ROOT_SUBVOL_RDONLY;
 	btrfs_set_root_flags(new_root_item, root_flags);
+
+	btrfs_set_root_generation_v2(new_root_item,
+			trans->transid);
+	uuid_le_gen(&new_uuid);
+	memcpy(new_root_item->uuid, new_uuid.b, BTRFS_UUID_SIZE);
+	memcpy(new_root_item->parent_uuid, root->root_item.uuid,
+			BTRFS_UUID_SIZE);
+	new_root_item->otime.sec = cpu_to_le64(cur_time.tv_sec);
+	new_root_item->otime.nsec = cpu_to_le64(cur_time.tv_nsec);
+	btrfs_set_root_otransid(new_root_item, trans->transid);
+	memset(&new_root_item->stime, 0, sizeof(new_root_item->stime));
+	memset(&new_root_item->rtime, 0, sizeof(new_root_item->rtime));
+	btrfs_set_root_stransid(new_root_item, 0);
+	btrfs_set_root_rtransid(new_root_item, 0);
 
 	old = btrfs_lock_root_node(root);
 	ret = btrfs_cow_block(trans, root, old, NULL, 0, &old);
