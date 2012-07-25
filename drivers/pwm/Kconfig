@@ -86,6 +86,16 @@ config  PWM_TIECAP
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-tiecap.
 
+config  PWM_TIEHRPWM
+	tristate "EHRPWM PWM support"
+	depends on SOC_AM33XX
+	help
+	  PWM driver support for the EHRPWM controller found on AM33XX
+	  TI SOC
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-tiehrpwm.
+
 config PWM_VT8500
 	tristate "vt8500 pwm support"
 	depends on ARCH_VT8500
