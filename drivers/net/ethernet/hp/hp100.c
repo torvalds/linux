@@ -1217,7 +1217,7 @@ static int hp100_init_rxpdl(struct net_device *dev,
 
 	ringptr->pdl = pdlptr + 1;
 	ringptr->pdl_paddr = virt_to_whatever(dev, pdlptr + 1);
-	ringptr->skb = (void *) NULL;
+	ringptr->skb = NULL;
 
 	/*
 	 * Write address and length of first PDL Fragment (which is used for
@@ -1243,7 +1243,7 @@ static int hp100_init_txpdl(struct net_device *dev,
 
 	ringptr->pdl = pdlptr;	/* +1; */
 	ringptr->pdl_paddr = virt_to_whatever(dev, pdlptr);	/* +1 */
-	ringptr->skb = (void *) NULL;
+	ringptr->skb = NULL;
 
 	return roundup(MAX_TX_FRAG * 2 + 2, 4);
 }
@@ -1628,7 +1628,7 @@ static void hp100_clean_txring(struct net_device *dev)
 		/* Conversion to new PCI API : NOP */
 		pci_unmap_single(lp->pci_dev, (dma_addr_t) lp->txrhead->pdl[1], lp->txrhead->pdl[2], PCI_DMA_TODEVICE);
 		dev_kfree_skb_any(lp->txrhead->skb);
-		lp->txrhead->skb = (void *) NULL;
+		lp->txrhead->skb = NULL;
 		lp->txrhead = lp->txrhead->next;
 		lp->txrcommit--;
 	}

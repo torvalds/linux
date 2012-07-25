@@ -35,10 +35,6 @@ struct fixed_voltage_data {
 	struct regulator_desc desc;
 	struct regulator_dev *dev;
 	int microvolts;
-	int gpio;
-	unsigned startup_delay;
-	bool enable_high;
-	bool is_enabled;
 };
 
 
@@ -61,11 +57,11 @@ of_get_fixed_voltage_config(struct device *dev)
 	config = devm_kzalloc(dev, sizeof(struct fixed_voltage_config),
 								 GFP_KERNEL);
 	if (!config)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	config->init_data = of_get_regulator_init_data(dev, dev->of_node);
 	if (!config->init_data)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	init_data = config->init_data;
 	init_data->constraints.apply_uV = 0;
@@ -76,13 +72,26 @@ of_get_fixed_voltage_config(struct device *dev)
 	} else {
 		dev_err(dev,
 			 "Fixed regulator specified with variable voltages\n");
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	if (init_data->constraints.boot_on)
 		config->enabled_at_boot = true;
 
 	config->gpio = of_get_named_gpio(np, "gpio", 0);
+	/*
+	 * of_get_named_gpio() currently returns ENODEV rather than
+	 * EPROBE_DEFER. This code attempts to be compatible with both
+	 * for now; the ENODEV check can be removed once the API is fixed.
+	 * of_get_named_gpio() doesn't differentiate between a missing
+	 * property (which would be fine here, since the GPIO is optional)
+	 * and some other error. Patches have been posted for both issues.
+	 * Once they are check in, we should replace this with:
+	 * if (config->gpio < 0 && config->gpio != -ENOENT)
+	 */
+	if ((config->gpio == -ENODEV) || (config->gpio == -EPROBE_DEFER))
+		return ERR_PTR(-EPROBE_DEFER);
+
 	delay = of_get_property(np, "startup-delay-us", NULL);
 	if (delay)
 		config->startup_delay = be32_to_cpu(*delay);
@@ -93,41 +102,10 @@ of_get_fixed_voltage_config(struct device *dev)
 	if (of_find_property(np, "gpio-open-drain", NULL))
 		config->gpio_is_open_drain = true;
 
+	if (of_find_property(np, "vin-supply", NULL))
+		config->input_supply = "vin";
+
 	return config;
-}
-
-static int fixed_voltage_is_enabled(struct regulator_dev *dev)
-{
-	struct fixed_voltage_data *data = rdev_get_drvdata(dev);
-
-	return data->is_enabled;
-}
-
-static int fixed_voltage_enable(struct regulator_dev *dev)
-{
-	struct fixed_voltage_data *data = rdev_get_drvdata(dev);
-
-	gpio_set_value_cansleep(data->gpio, data->enable_high);
-	data->is_enabled = true;
-
-	return 0;
-}
-
-static int fixed_voltage_disable(struct regulator_dev *dev)
-{
-	struct fixed_voltage_data *data = rdev_get_drvdata(dev);
-
-	gpio_set_value_cansleep(data->gpio, !data->enable_high);
-	data->is_enabled = false;
-
-	return 0;
-}
-
-static int fixed_voltage_enable_time(struct regulator_dev *dev)
-{
-	struct fixed_voltage_data *data = rdev_get_drvdata(dev);
-
-	return data->startup_delay;
 }
 
 static int fixed_voltage_get_voltage(struct regulator_dev *dev)
@@ -151,15 +129,6 @@ static int fixed_voltage_list_voltage(struct regulator_dev *dev,
 	return data->microvolts;
 }
 
-static struct regulator_ops fixed_voltage_gpio_ops = {
-	.is_enabled = fixed_voltage_is_enabled,
-	.enable = fixed_voltage_enable,
-	.disable = fixed_voltage_disable,
-	.enable_time = fixed_voltage_enable_time,
-	.get_voltage = fixed_voltage_get_voltage,
-	.list_voltage = fixed_voltage_list_voltage,
-};
-
 static struct regulator_ops fixed_voltage_ops = {
 	.get_voltage = fixed_voltage_get_voltage,
 	.list_voltage = fixed_voltage_list_voltage,
@@ -172,10 +141,13 @@ static int __devinit reg_fixed_voltage_probe(struct platform_device *pdev)
 	struct regulator_config cfg = { };
 	int ret;
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_node) {
 		config = of_get_fixed_voltage_config(&pdev->dev);
-	else
+		if (IS_ERR(config))
+			return PTR_ERR(config);
+	} else {
 		config = pdev->dev.platform_data;
+	}
 
 	if (!config)
 		return -ENOMEM;
@@ -196,59 +168,44 @@ static int __devinit reg_fixed_voltage_probe(struct platform_device *pdev)
 	}
 	drvdata->desc.type = REGULATOR_VOLTAGE;
 	drvdata->desc.owner = THIS_MODULE;
+	drvdata->desc.ops = &fixed_voltage_ops;
+
+	drvdata->desc.enable_time = config->startup_delay;
+
+	if (config->input_supply) {
+		drvdata->desc.supply_name = kstrdup(config->input_supply,
+							GFP_KERNEL);
+		if (!drvdata->desc.supply_name) {
+			dev_err(&pdev->dev,
+				"Failed to allocate input supply\n");
+			ret = -ENOMEM;
+			goto err_name;
+		}
+	}
 
 	if (config->microvolts)
 		drvdata->desc.n_voltages = 1;
 
 	drvdata->microvolts = config->microvolts;
-	drvdata->gpio = config->gpio;
-	drvdata->startup_delay = config->startup_delay;
 
-	if (gpio_is_valid(config->gpio)) {
-		int gpio_flag;
-		drvdata->enable_high = config->enable_high;
-
-		/* FIXME: Remove below print warning
-		 *
-		 * config->gpio must be set to -EINVAL by platform code if
-		 * GPIO control is not required. However, early adopters
-		 * not requiring GPIO control may forget to initialize
-		 * config->gpio to -EINVAL. This will cause GPIO 0 to be used
-		 * for GPIO control.
-		 *
-		 * This warning will be removed once there are a couple of users
-		 * for this driver.
-		 */
-		if (!config->gpio)
-			dev_warn(&pdev->dev,
-				"using GPIO 0 for regulator enable control\n");
-
-		/*
-		 * set output direction without changing state
-		 * to prevent glitch
-		 */
-		drvdata->is_enabled = config->enabled_at_boot;
-		ret = drvdata->is_enabled ?
-				config->enable_high : !config->enable_high;
-		gpio_flag = ret ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
-
-		if (config->gpio_is_open_drain)
-			gpio_flag |= GPIOF_OPEN_DRAIN;
-
-		ret = gpio_request_one(config->gpio, gpio_flag,
-						config->supply_name);
-		if (ret) {
-			dev_err(&pdev->dev,
-			   "Could not obtain regulator enable GPIO %d: %d\n",
-							config->gpio, ret);
-			goto err_name;
+	if (config->gpio >= 0)
+		cfg.ena_gpio = config->gpio;
+	cfg.ena_gpio_invert = !config->enable_high;
+	if (config->enabled_at_boot) {
+		if (config->enable_high) {
+			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_HIGH;
+		} else {
+			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_LOW;
 		}
-
-		drvdata->desc.ops = &fixed_voltage_gpio_ops;
-
 	} else {
-		drvdata->desc.ops = &fixed_voltage_ops;
+		if (config->enable_high) {
+			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_LOW;
+		} else {
+			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_HIGH;
+		}
 	}
+	if (config->gpio_is_open_drain)
+		cfg.ena_gpio_flags |= GPIOF_OPEN_DRAIN;
 
 	cfg.dev = &pdev->dev;
 	cfg.init_data = config->init_data;
@@ -259,7 +216,7 @@ static int __devinit reg_fixed_voltage_probe(struct platform_device *pdev)
 	if (IS_ERR(drvdata->dev)) {
 		ret = PTR_ERR(drvdata->dev);
 		dev_err(&pdev->dev, "Failed to register regulator: %d\n", ret);
-		goto err_gpio;
+		goto err_input;
 	}
 
 	platform_set_drvdata(pdev, drvdata);
@@ -269,9 +226,8 @@ static int __devinit reg_fixed_voltage_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_gpio:
-	if (gpio_is_valid(config->gpio))
-		gpio_free(config->gpio);
+err_input:
+	kfree(drvdata->desc.supply_name);
 err_name:
 	kfree(drvdata->desc.name);
 err:
@@ -283,8 +239,7 @@ static int __devexit reg_fixed_voltage_remove(struct platform_device *pdev)
 	struct fixed_voltage_data *drvdata = platform_get_drvdata(pdev);
 
 	regulator_unregister(drvdata->dev);
-	if (gpio_is_valid(drvdata->gpio))
-		gpio_free(drvdata->gpio);
+	kfree(drvdata->desc.supply_name);
 	kfree(drvdata->desc.name);
 
 	return 0;
@@ -296,8 +251,6 @@ static const struct of_device_id fixed_of_match[] __devinitconst = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, fixed_of_match);
-#else
-#define fixed_of_match NULL
 #endif
 
 static struct platform_driver regulator_fixed_voltage_driver = {
@@ -306,7 +259,7 @@ static struct platform_driver regulator_fixed_voltage_driver = {
 	.driver		= {
 		.name		= "reg-fixed-voltage",
 		.owner		= THIS_MODULE,
-		.of_match_table = fixed_of_match,
+		.of_match_table = of_match_ptr(fixed_of_match),
 	},
 };
 

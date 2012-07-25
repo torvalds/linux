@@ -51,7 +51,9 @@ static u32 l3_targ_inst_clk1[] = {
 	0x200, /* DMM2 */
 	0x300, /* ABE */
 	0x400, /* L4CFG */
-	0x600  /* CLK2 PWR DISC */
+	0x600,  /* CLK2 PWR DISC */
+	0x0,	/* Host CLK1 */
+	0x900	/* L4 Wakeup */
 };
 
 static u32 l3_targ_inst_clk2[] = {
@@ -72,11 +74,16 @@ static u32 l3_targ_inst_clk2[] = {
 	0xE00, /* missing in TRM corresponds to AES2*/
 	0xC00, /* L4 PER3 */
 	0xA00, /* L4 PER1*/
-	0xB00 /* L4 PER2*/
+	0xB00, /* L4 PER2*/
+	0x0, /* HOST CLK2 */
+	0x1800, /* CAL */
+	0x1700 /* LLI */
 };
 
 static u32 l3_targ_inst_clk3[] = {
-	0x0100	/* EMUSS */
+	0x0100	/* EMUSS */,
+	0x0300, /* DEBUGSS_CT_TBR */
+	0x0 /* HOST CLK3 */
 };
 
 static struct l3_masters_data {
@@ -110,13 +117,15 @@ static struct l3_masters_data {
 	{ 0xC8, "USBHOSTFS"}
 };
 
-static char *l3_targ_inst_name[L3_MODULES][18] = {
+static char *l3_targ_inst_name[L3_MODULES][21] = {
 	{
 		"DMM1",
 		"DMM2",
 		"ABE",
 		"L4CFG",
 		"CLK2 PWR DISC",
+		"HOST CLK1",
+		"L4 WAKEUP"
 	},
 	{
 		"CORTEX M3" ,
@@ -137,9 +146,14 @@ static char *l3_targ_inst_name[L3_MODULES][18] = {
 		"L4 PER3",
 		"L4 PER1",
 		"L4 PER2",
+		"HOST CLK2",
+		"CAL",
+		"LLI"
 	},
 	{
 		"EMUSS",
+		"DEBUG SOURCE",
+		"HOST CLK3"
 	},
 };
 

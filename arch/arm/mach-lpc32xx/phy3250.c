@@ -30,12 +30,13 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
 #include <linux/amba/pl022.h>
+#include <linux/amba/pl08x.h>
+#include <linux/amba/mmci.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/clk.h>
-#include <linux/amba/pl08x.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -50,9 +51,9 @@
 /*
  * Mapped GPIOLIB GPIOs
  */
-#define SPI0_CS_GPIO	LPC32XX_GPIO(LPC32XX_GPIO_P3_GRP, 5)
-#define LCD_POWER_GPIO	LPC32XX_GPIO(LPC32XX_GPO_P3_GRP, 0)
-#define BKL_POWER_GPIO	LPC32XX_GPIO(LPC32XX_GPO_P3_GRP, 4)
+#define LCD_POWER_GPIO		LPC32XX_GPIO(LPC32XX_GPO_P3_GRP, 0)
+#define BKL_POWER_GPIO		LPC32XX_GPIO(LPC32XX_GPO_P3_GRP, 4)
+#define MMC_PWR_ENABLE_GPIO	LPC32XX_GPIO(LPC32XX_GPO_P3_GRP, 5)
 
 /*
  * AMBA LCD controller
@@ -158,24 +159,6 @@ static struct clcd_board lpc32xx_clcd_data = {
 /*
  * AMBA SSP (SPI)
  */
-static void phy3250_spi_cs_set(u32 control)
-{
-	gpio_set_value(SPI0_CS_GPIO, (int) control);
-}
-
-static struct pl022_config_chip spi0_chip_info = {
-	.com_mode		= INTERRUPT_TRANSFER,
-	.iface			= SSP_INTERFACE_MOTOROLA_SPI,
-	.hierarchy		= SSP_MASTER,
-	.slave_tx_disable	= 0,
-	.rx_lev_trig		= SSP_RX_4_OR_MORE_ELEM,
-	.tx_lev_trig		= SSP_TX_4_OR_MORE_EMPTY_LOC,
-	.ctrl_len		= SSP_BITS_8,
-	.wait_state		= SSP_MWIRE_WAIT_ZERO,
-	.duplex			= SSP_MICROWIRE_CHANNEL_FULL_DUPLEX,
-	.cs_control		= phy3250_spi_cs_set,
-};
-
 static struct pl022_ssp_controller lpc32xx_ssp0_data = {
 	.bus_id			= 0,
 	.num_chipselect		= 1,
@@ -188,45 +171,56 @@ static struct pl022_ssp_controller lpc32xx_ssp1_data = {
 	.enable_dma		= 0,
 };
 
-/* AT25 driver registration */
-static int __init phy3250_spi_board_register(void)
+static struct pl08x_channel_data pl08x_slave_channels[] = {
+	{
+		.bus_id = "nand-slc",
+		.min_signal = 1, /* SLC NAND Flash */
+		.max_signal = 1,
+		.periph_buses = PL08X_AHB1,
+	},
+	{
+		.bus_id = "nand-mlc",
+		.min_signal = 12, /* MLC NAND Flash */
+		.max_signal = 12,
+		.periph_buses = PL08X_AHB1,
+	},
+};
+
+static int pl08x_get_signal(const struct pl08x_channel_data *cd)
 {
-#if defined(CONFIG_SPI_SPIDEV) || defined(CONFIG_SPI_SPIDEV_MODULE)
-	static struct spi_board_info info[] = {
-		{
-			.modalias = "spidev",
-			.max_speed_hz = 5000000,
-			.bus_num = 0,
-			.chip_select = 0,
-			.controller_data = &spi0_chip_info,
-		},
-	};
-
-#else
-	static struct spi_eeprom eeprom = {
-		.name = "at25256a",
-		.byte_len = 0x8000,
-		.page_size = 64,
-		.flags = EE_ADDR2,
-	};
-
-	static struct spi_board_info info[] = {
-		{
-			.modalias = "at25",
-			.max_speed_hz = 5000000,
-			.bus_num = 0,
-			.chip_select = 0,
-			.mode = SPI_MODE_0,
-			.platform_data = &eeprom,
-			.controller_data = &spi0_chip_info,
-		},
-	};
-#endif
-	return spi_register_board_info(info, ARRAY_SIZE(info));
+	return cd->min_signal;
 }
-arch_initcall(phy3250_spi_board_register);
+
+static void pl08x_put_signal(const struct pl08x_channel_data *cd, int ch)
+{
+}
 
 static struct pl08x_platform_data pl08x_pd = {
+	.slave_channels = &pl08x_slave_channels[0],
+	.num_slave_channels = ARRAY_SIZE(pl08x_slave_channels),
+	.get_signal = pl08x_get_signal,
+	.put_signal = pl08x_put_signal,
+	.lli_buses = PL08X_AHB1,
+	.mem_buses = PL08X_AHB1,
+};
+
+static int mmc_handle_ios(struct device *dev, struct mmc_ios *ios)
+{
+	/* Only on and off are supported */
+	if (ios->power_mode == MMC_POWER_OFF)
+		gpio_set_value(MMC_PWR_ENABLE_GPIO, 0);
+	else
+		gpio_set_value(MMC_PWR_ENABLE_GPIO, 1);
+	return 0;
+}
+
+static struct mmci_platform_data lpc32xx_mmci_data = {
+	.ocr_mask	= MMC_VDD_30_31 | MMC_VDD_31_32 |
+			  MMC_VDD_32_33 | MMC_VDD_33_34,
+	.ios_handler	= mmc_handle_ios,
+	.dma_filter	= NULL,
+	/* No DMA for now since AMBA PL080 dmaengine driver only does scatter
+	 * gather, and the MMCI driver doesn't do it this way */
 };
 
 static const struct of_dev_auxdata lpc32xx_auxdata_lookup[] __initconst = {
@@ -234,16 +228,14 @@ static const struct of_dev_auxdata lpc32xx_auxdata_lookup[] __initconst = {
 	OF_DEV_AUXDATA("arm,pl022", 0x2008C000, "dev:ssp1", &lpc32xx_ssp1_data),
 	OF_DEV_AUXDATA("arm,pl110", 0x31040000, "dev:clcd", &lpc32xx_clcd_data),
 	OF_DEV_AUXDATA("arm,pl080", 0x31000000, "pl08xdmac", &pl08x_pd),
+	OF_DEV_AUXDATA("arm,pl18x", 0x20098000, "20098000.sd",
+		       &lpc32xx_mmci_data),
 	{ }
 };
 
 static void __init lpc3250_machine_init(void)
 {
 	u32 tmp;
-
-	/* Setup SLC NAND controller muxing */
-	__raw_writel(LPC32XX_CLKPWR_NANDCLK_SEL_SLC,
-		LPC32XX_CLKPWR_NAND_CLK_CTRL);
 
 	/* Setup LCD muxing to RGB565 */
 	tmp = __raw_readl(LPC32XX_CLKPWR_LCDCLK_CTRL) &
@@ -252,46 +244,7 @@ static void __init lpc3250_machine_init(void)
 	tmp |= LPC32XX_CLKPWR_LCDCTRL_LCDTYPE_TFT16;
 	__raw_writel(tmp, LPC32XX_CLKPWR_LCDCLK_CTRL);
 
-	/* Set up USB power */
-	tmp = __raw_readl(LPC32XX_CLKPWR_USB_CTRL);
-	tmp |= LPC32XX_CLKPWR_USBCTRL_HCLK_EN |
-		LPC32XX_CLKPWR_USBCTRL_USBI2C_EN;
-	__raw_writel(tmp, LPC32XX_CLKPWR_USB_CTRL);
-
-	/* Set up I2C pull levels */
-	tmp = __raw_readl(LPC32XX_CLKPWR_I2C_CLK_CTRL);
-	tmp |= LPC32XX_CLKPWR_I2CCLK_USBI2CHI_DRIVE |
-		LPC32XX_CLKPWR_I2CCLK_I2C2HI_DRIVE;
-	__raw_writel(tmp, LPC32XX_CLKPWR_I2C_CLK_CTRL);
-
-	/* Disable IrDA pulsing support on UART6 */
-	tmp = __raw_readl(LPC32XX_UARTCTL_CTRL);
-	tmp |= LPC32XX_UART_UART6_IRDAMOD_BYPASS;
-	__raw_writel(tmp, LPC32XX_UARTCTL_CTRL);
-
-	/* Enable DMA for I2S1 channel */
-	tmp = __raw_readl(LPC32XX_CLKPWR_I2S_CLK_CTRL);
-	tmp = LPC32XX_CLKPWR_I2SCTRL_I2S1_USE_DMA;
-	__raw_writel(tmp, LPC32XX_CLKPWR_I2S_CLK_CTRL);
-
 	lpc32xx_serial_init();
-
-	/*
-	 * AMBA peripheral clocks need to be enabled prior to AMBA device
-	 * detection or a data fault will occur, so enable the clocks
-	 * here.
-	 */
-	tmp = __raw_readl(LPC32XX_CLKPWR_LCDCLK_CTRL);
-	__raw_writel((tmp | LPC32XX_CLKPWR_LCDCTRL_CLK_EN),
-		LPC32XX_CLKPWR_LCDCLK_CTRL);
-
-	tmp = __raw_readl(LPC32XX_CLKPWR_SSP_CLK_CTRL);
-	__raw_writel((tmp | LPC32XX_CLKPWR_SSPCTRL_SSPCLK0_EN),
-		LPC32XX_CLKPWR_SSP_CLK_CTRL);
-
-	tmp = __raw_readl(LPC32XX_CLKPWR_DMA_CLK_CTRL);
-	__raw_writel((tmp | LPC32XX_CLKPWR_DMACLKCTRL_CLK_EN),
-		     LPC32XX_CLKPWR_DMA_CLK_CTRL);
 
 	/* Test clock needed for UDA1380 initial init */
 	__raw_writel(LPC32XX_CLKPWR_TESTCLK2_SEL_MOSC |
@@ -302,12 +255,10 @@ static void __init lpc3250_machine_init(void)
 			     lpc32xx_auxdata_lookup, NULL);
 
 	/* Register GPIOs used on this board */
-	if (gpio_request(SPI0_CS_GPIO, "spi0 cs"))
-		printk(KERN_ERR "Error requesting gpio %u",
-			SPI0_CS_GPIO);
-	else if (gpio_direction_output(SPI0_CS_GPIO, 1))
-		printk(KERN_ERR "Error setting gpio %u to output",
-			SPI0_CS_GPIO);
+	if (gpio_request(MMC_PWR_ENABLE_GPIO, "mmc_power_en"))
+		pr_err("Error requesting gpio %u", MMC_PWR_ENABLE_GPIO);
+	else if (gpio_direction_output(MMC_PWR_ENABLE_GPIO, 1))
+		pr_err("Error setting gpio %u to output", MMC_PWR_ENABLE_GPIO);
 }
 
 static char const *lpc32xx_dt_compat[] __initdata = {

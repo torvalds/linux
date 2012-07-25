@@ -11,6 +11,8 @@
 #include <linux/gfp.h>
 #include <linux/memblock.h>
 #include <linux/export.h>
+#include <linux/pci.h>
+#include <asm/vio.h>
 #include <asm/bug.h>
 #include <asm/abs_addr.h>
 #include <asm/machdep.h>
@@ -205,7 +207,13 @@ EXPORT_SYMBOL_GPL(dma_get_required_mask);
 
 static int __init dma_init(void)
 {
-       dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
+	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
+#ifdef CONFIG_PCI
+	dma_debug_add_bus(&pci_bus_type);
+#endif
+#ifdef CONFIG_IBMVIO
+	dma_debug_add_bus(&vio_bus_type);
+#endif
 
        return 0;
 }

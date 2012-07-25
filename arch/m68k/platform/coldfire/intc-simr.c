@@ -59,16 +59,18 @@ static unsigned int inline irq2ebit(unsigned int irq)
 #endif
 
 /*
- *	There maybe one or two interrupt control units, each has 64
- *	interrupts. If there is no second unit then MCFINTC1_* defines
- *	will be 0 (and code for them optimized away).
+ *	There maybe one, two or three interrupt control units, each has 64
+ *	interrupts. If there is no second or third unit then MCFINTC1_* or
+ *	MCFINTC2_* defines will be 0 (and code for them optimized away).
  */
 
 static void intc_irq_mask(struct irq_data *d)
 {
 	unsigned int irq = d->irq - MCFINT_VECBASE;
 
-	if (MCFINTC1_SIMR && (irq > 64))
+	if (MCFINTC2_SIMR && (irq > 128))
+		__raw_writeb(irq - 128, MCFINTC2_SIMR);
+	else if (MCFINTC1_SIMR && (irq > 64))
 		__raw_writeb(irq - 64, MCFINTC1_SIMR);
 	else
 		__raw_writeb(irq, MCFINTC0_SIMR);
@@ -78,7 +80,9 @@ static void intc_irq_unmask(struct irq_data *d)
 {
 	unsigned int irq = d->irq - MCFINT_VECBASE;
 
-	if (MCFINTC1_CIMR && (irq > 64))
+	if (MCFINTC2_CIMR && (irq > 128))
+		__raw_writeb(irq - 128, MCFINTC2_CIMR);
+	else if (MCFINTC1_CIMR && (irq > 64))
 		__raw_writeb(irq - 64, MCFINTC1_CIMR);
 	else
 		__raw_writeb(irq, MCFINTC0_CIMR);
@@ -99,9 +103,11 @@ static unsigned int intc_irq_startup(struct irq_data *d)
 		unsigned int ebit = irq2ebit(irq);
 		u8 v;
 
+#if defined(MCFEPORT_EPDDR)
 		/* Set EPORT line as input */
 		v = __raw_readb(MCFEPORT_EPDDR);
 		__raw_writeb(v & ~(0x1 << ebit), MCFEPORT_EPDDR);
+#endif
 
 		/* Set EPORT line as interrupt source */
 		v = __raw_readb(MCFEPORT_EPIER);
@@ -109,11 +115,12 @@ static unsigned int intc_irq_startup(struct irq_data *d)
 	}
 
 	irq -= MCFINT_VECBASE;
-	if (MCFINTC1_ICR0 && (irq > 64))
+	if (MCFINTC2_ICR0 && (irq > 128))
+		__raw_writeb(5, MCFINTC2_ICR0 + irq - 128);
+	else if (MCFINTC1_ICR0 && (irq > 64))
 		__raw_writeb(5, MCFINTC1_ICR0 + irq - 64);
 	else
 		__raw_writeb(5, MCFINTC0_ICR0 + irq);
-
 
 	intc_irq_unmask(d);
 	return 0;
@@ -175,8 +182,11 @@ void __init init_IRQ(void)
 	__raw_writeb(0xff, MCFINTC0_SIMR);
 	if (MCFINTC1_SIMR)
 		__raw_writeb(0xff, MCFINTC1_SIMR);
+	if (MCFINTC2_SIMR)
+		__raw_writeb(0xff, MCFINTC2_SIMR);
 
-	eirq = MCFINT_VECBASE + 64 + (MCFINTC1_ICR0 ? 64 : 0);
+	eirq = MCFINT_VECBASE + 64 + (MCFINTC1_ICR0 ? 64 : 0) +
+						(MCFINTC2_ICR0 ? 64 : 0);
 	for (irq = MCFINT_VECBASE; (irq < eirq); irq++) {
 		if ((irq >= EINT1) && (irq <= EINT7))
 			irq_set_chip(irq, &intc_irq_chip_edge_port);

@@ -250,8 +250,12 @@ endef
 all_objs := $(sort $(ALL_OBJS))
 all_deps := $(all_objs:%.o=.%.d)
 
+# let .d file also depends on the source and header files
 define check_deps
-		$(CC) -M $(CFLAGS) $< > $@;
+		@set -e; $(RM) $@; \
+		$(CC) -M $(CFLAGS) $< > $@.$$$$; \
+		sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
+		$(RM) $@.$$$$
 endef
 
 $(gui_deps): ks_version.h
@@ -270,11 +274,13 @@ endif
 
 tags:	force
 	$(RM) tags
-	find . -name '*.[ch]' | xargs ctags --extra=+f --c-kinds=+px
+	find . -name '*.[ch]' | xargs ctags --extra=+f --c-kinds=+px \
+	--regex-c++='/_PE\(([^,)]*).*/PEVENT_ERRNO__\1/'
 
 TAGS:	force
 	$(RM) TAGS
-	find . -name '*.[ch]' | xargs etags
+	find . -name '*.[ch]' | xargs etags \
+	--regex='/_PE(\([^,)]*\).*/PEVENT_ERRNO__\1/'
 
 define do_install
 	$(print_install)				\
@@ -290,7 +296,7 @@ install_lib: all_cmd install_plugins install_python
 install: install_lib
 
 clean:
-	$(RM) *.o *~ $(TARGETS) *.a *.so $(VERSION_FILES).*.d
+	$(RM) *.o *~ $(TARGETS) *.a *.so $(VERSION_FILES) .*.d
 	$(RM) tags TAGS
 
 endif # skip-makefile

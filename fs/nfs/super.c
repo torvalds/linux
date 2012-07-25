@@ -2419,7 +2419,7 @@ static struct dentry *nfs_fs_mount_common(struct file_system_type *fs_type,
 		sb_mntdata.mntflags |= MS_SYNCHRONOUS;
 
 	/* Get a superblock - note that we may end up sharing one that already exists */
-	s = sget(fs_type, compare_super, nfs_set_super, &sb_mntdata);
+	s = sget(fs_type, compare_super, nfs_set_super, flags, &sb_mntdata);
 	if (IS_ERR(s)) {
 		mntroot = ERR_CAST(s);
 		goto out_err_nosb;
@@ -2859,6 +2859,8 @@ static struct dentry *nfs4_try_mount(int flags, const char *dev_name,
 	struct nfs_parsed_mount_data *data = mount_info->parsed;
 
 	dfprintk(MOUNT, "--> nfs4_try_mount()\n");
+
+	mount_info->fill_super = nfs4_fill_super;
 
 	export_path = data->nfs_server.export_path;
 	data->nfs_server.export_path = "/";

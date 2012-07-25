@@ -468,6 +468,19 @@ tcp_syncookies - BOOLEAN
 	SYN flood warnings in logs not being really flooded, your server
 	is seriously misconfigured.
 
+tcp_fastopen - INTEGER
+	Enable TCP Fast Open feature (draft-ietf-tcpm-fastopen) to send data
+	in the opening SYN packet. To use this feature, the client application
+	must not use connect(). Instead, it should use sendmsg() or sendto()
+	with MSG_FASTOPEN flag which performs a TCP handshake automatically.
+
+	The values (bitmap) are:
+	1: Enables sending data in the opening SYN on the client
+	5: Enables sending data in the opening SYN on the client regardless
+	   of cookie availability.
+
+	Default: 0
+
 tcp_syn_retries - INTEGER
 	Number of times initial SYNs for an active TCP connection attempt
 	will be retransmitted. Should not be higher than 255. Default value
@@ -550,6 +563,25 @@ tcp_thin_dupack - BOOLEAN
 	For more information on thin streams, see
 	Documentation/networking/tcp-thin.txt
 	Default: 0
+
+tcp_limit_output_bytes - INTEGER
+	Controls TCP Small Queue limit per tcp socket.
+	TCP bulk sender tends to increase packets in flight until it
+	gets losses notifications. With SNDBUF autotuning, this can
+	result in a large amount of packets queued in qdisc/device
+	on the local machine, hurting latency of other flows, for
+	typical pfifo_fast qdiscs.
+	tcp_limit_output_bytes limits the number of bytes on qdisc
+	or device to reduce artificial RTT/cwnd and reduce bufferbloat.
+	Note: For GSO/TSO enabled flows, we try to have at least two
+	packets in flight. Reducing tcp_limit_output_bytes might also
+	reduce the size of individual GSO packet (64KB being the max)
+	Default: 131072
+
+tcp_challenge_ack_limit - INTEGER
+	Limits number of Challenge ACK sent per second, as recommended
+	in RFC 5961 (Improving TCP's Robustness to Blind In-Window Attacks)
+	Default: 100
 
 UDP variables:
 
@@ -857,9 +889,19 @@ accept_source_route - BOOLEAN
 		FALSE (host)
 
 accept_local - BOOLEAN
-	Accept packets with local source addresses. In combination with
-	suitable routing, this can be used to direct packets between two
-	local interfaces over the wire and have them accepted properly.
+	Accept packets with local source addresses. In combination
+	with suitable routing, this can be used to direct packets
+	between two local interfaces over the wire and have them
+	accepted properly.
+
+	rp_filter must be set to a non-zero value in order for
+	accept_local to have an effect.
+
+	default FALSE
+
+route_localnet - BOOLEAN
+	Do not consider loopback addresses as martian source or destination
+	while routing. This enables the use of 127/8 for local routing purposes.
 	default FALSE
 
 rp_filter - INTEGER
@@ -1397,6 +1439,20 @@ path_max_retrans - INTEGER
 	association is multihomed.
 
 	Default: 5
+
+pf_retrans - INTEGER
+	The number of retransmissions that will be attempted on a given path
+	before traffic is redirected to an alternate transport (should one
+	exist).  Note this is distinct from path_max_retrans, as a path that
+	passes the pf_retrans threshold can still be used.  Its only
+	deprioritized when a transmission path is selected by the stack.  This
+	setting is primarily used to enable fast failover mechanisms without
+	having to reduce path_max_retrans to a very low value.  See:
+	http://www.ietf.org/id/draft-nishida-tsvwg-sctp-failover-05.txt
+	for details.  Note also that a value of pf_retrans > path_max_retrans
+	disables this feature
+
+	Default: 0
 
 rto_initial - INTEGER
 	The initial round trip timeout value in milliseconds that will be used

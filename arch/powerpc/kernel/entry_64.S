@@ -146,7 +146,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 	REST_2GPRS(7,r1)
 	addi	r9,r1,STACK_FRAME_OVERHEAD
 #endif
-	clrrdi	r11,r1,THREAD_SHIFT
+	CURRENT_THREAD_INFO(r11, r1)
 	ld	r10,TI_FLAGS(r11)
 	andi.	r11,r10,_TIF_SYSCALL_T_OR_A
 	bne-	syscall_dotrace
@@ -181,7 +181,7 @@ syscall_exit:
 	bl	.do_show_syscall_exit
 	ld	r3,RESULT(r1)
 #endif
-	clrrdi	r12,r1,THREAD_SHIFT
+	CURRENT_THREAD_INFO(r12, r1)
 
 	ld	r8,_MSR(r1)
 #ifdef CONFIG_PPC_BOOK3S
@@ -197,7 +197,16 @@ syscall_exit:
 	wrteei	0
 #else
 	ld	r10,PACAKMSR(r13)
-	mtmsrd	r10,1
+	/*
+	 * For performance reasons we clear RI the same time that we
+	 * clear EE. We only need to clear RI just before we restore r13
+	 * below, but batching it with EE saves us one expensive mtmsrd call.
+	 * We have to be careful to restore RI if we branch anywhere from
+	 * here (eg syscall_exit_work).
+	 */
+	li	r9,MSR_RI
+	andc	r11,r10,r9
+	mtmsrd	r11,1
 #endif /* CONFIG_PPC_BOOK3E */
 
 	ld	r9,TI_FLAGS(r12)
@@ -214,17 +223,6 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	andi.	r6,r8,MSR_PR
 	ld	r4,_LINK(r1)
-	/*
-	 * Clear RI before restoring r13.  If we are returning to
-	 * userspace and we take an exception after restoring r13,
-	 * we end up corrupting the userspace r13 value.
-	 */
-#ifdef CONFIG_PPC_BOOK3S
-	/* No MSR:RI on BookE */
-	li	r12,MSR_RI
-	andc	r11,r10,r12
-	mtmsrd	r11,1			/* clear MSR.RI */
-#endif /* CONFIG_PPC_BOOK3S */
 
 	beq-	1f
 	ACCOUNT_CPU_USER_EXIT(r11, r12)
@@ -262,7 +260,7 @@ syscall_dotrace:
 	ld	r7,GPR7(r1)
 	ld	r8,GPR8(r1)
 	addi	r9,r1,STACK_FRAME_OVERHEAD
-	clrrdi	r10,r1,THREAD_SHIFT
+	CURRENT_THREAD_INFO(r10, r1)
 	ld	r10,TI_FLAGS(r10)
 	b	.Lsyscall_dotrace_cont
 
@@ -271,6 +269,9 @@ syscall_enosys:
 	b	syscall_exit
 	
 syscall_exit_work:
+#ifdef CONFIG_PPC_BOOK3S
+	mtmsrd	r10,1		/* Restore RI */
+#endif
 	/* If TIF_RESTOREALL is set, don't scribble on either r3 or ccr.
 	 If TIF_NOERROR is set, just save r3 as it is. */
 
@@ -499,7 +500,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 2:
 #endif /* !CONFIG_PPC_BOOK3S */
 
-	clrrdi	r7,r8,THREAD_SHIFT	/* base of new stack */
+	CURRENT_THREAD_INFO(r7, r8)  /* base of new stack */
 	/* Note: this uses SWITCH_FRAME_SIZE rather than INT_FRAME_SIZE
 	   because we don't need to leave the 288-byte ABI gap at the
 	   top of the kernel stack. */
@@ -558,27 +559,54 @@ _GLOBAL(ret_from_except_lite)
 	mtmsrd	r10,1		  /* Update machine state */
 #endif /* CONFIG_PPC_BOOK3E */
 
-#ifdef CONFIG_PREEMPT
-	clrrdi	r9,r1,THREAD_SHIFT	/* current_thread_info() */
-	li	r0,_TIF_NEED_RESCHED	/* bits to check */
+	CURRENT_THREAD_INFO(r9, r1)
 	ld	r3,_MSR(r1)
 	ld	r4,TI_FLAGS(r9)
-	/* Move MSR_PR bit in r3 to _TIF_SIGPENDING position in r0 */
-	rlwimi	r0,r3,32+TIF_SIGPENDING-MSR_PR_LG,_TIF_SIGPENDING
-	and.	r0,r4,r0	/* check NEED_RESCHED and maybe SIGPENDING */
-	bne	do_work
-
-#else /* !CONFIG_PREEMPT */
-	ld	r3,_MSR(r1)	/* Returning to user mode? */
 	andi.	r3,r3,MSR_PR
-	beq	restore		/* if not, just restore regs and return */
+	beq	resume_kernel
 
 	/* Check current_thread_info()->flags */
-	clrrdi	r9,r1,THREAD_SHIFT
-	ld	r4,TI_FLAGS(r9)
 	andi.	r0,r4,_TIF_USER_WORK_MASK
-	bne	do_work
-#endif /* !CONFIG_PREEMPT */
+	beq	restore
+
+	andi.	r0,r4,_TIF_NEED_RESCHED
+	beq	1f
+	bl	.restore_interrupts
+	bl	.schedule
+	b	.ret_from_except_lite
+
+1:	bl	.save_nvgprs
+	bl	.restore_interrupts
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.do_notify_resume
+	b	.ret_from_except
+
+resume_kernel:
+#ifdef CONFIG_PREEMPT
+	/* Check if we need to preempt */
+	andi.	r0,r4,_TIF_NEED_RESCHED
+	beq+	restore
+	/* Check that preempt_count() == 0 and interrupts are enabled */
+	lwz	r8,TI_PREEMPT(r9)
+	cmpwi	cr1,r8,0
+	ld	r0,SOFTE(r1)
+	cmpdi	r0,0
+	crandc	eq,cr1*4+eq,eq
+	bne	restore
+
+	/*
+	 * Here we are preempting the current task. We want to make
+	 * sure we are soft-disabled first
+	 */
+	SOFT_DISABLE_INTS(r3,r4)
+1:	bl	.preempt_schedule_irq
+
+	/* Re-test flags and eventually loop */
+	CURRENT_THREAD_INFO(r9, r1)
+	ld	r4,TI_FLAGS(r9)
+	andi.	r0,r4,_TIF_NEED_RESCHED
+	bne	1b
+#endif /* CONFIG_PREEMPT */
 
 	.globl	fast_exc_return_irq
 fast_exc_return_irq:
@@ -759,50 +787,6 @@ restore_check_irq_replay:
 #endif /* CONFIG_PPC_BOOK3E */
 1:	b	.ret_from_except /* What else to do here ? */
  
-
-
-3:
-do_work:
-#ifdef CONFIG_PREEMPT
-	andi.	r0,r3,MSR_PR	/* Returning to user mode? */
-	bne	user_work
-	/* Check that preempt_count() == 0 and interrupts are enabled */
-	lwz	r8,TI_PREEMPT(r9)
-	cmpwi	cr1,r8,0
-	ld	r0,SOFTE(r1)
-	cmpdi	r0,0
-	crandc	eq,cr1*4+eq,eq
-	bne	restore
-
-	/*
-	 * Here we are preempting the current task. We want to make
-	 * sure we are soft-disabled first
-	 */
-	SOFT_DISABLE_INTS(r3,r4)
-1:	bl	.preempt_schedule_irq
-
-	/* Re-test flags and eventually loop */
-	clrrdi	r9,r1,THREAD_SHIFT
-	ld	r4,TI_FLAGS(r9)
-	andi.	r0,r4,_TIF_NEED_RESCHED
-	bne	1b
-	b	restore
-
-user_work:
-#endif /* CONFIG_PREEMPT */
-
-	andi.	r0,r4,_TIF_NEED_RESCHED
-	beq	1f
-	bl	.restore_interrupts
-	bl	.schedule
-	b	.ret_from_except_lite
-
-1:	bl	.save_nvgprs
-	bl	.restore_interrupts
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.do_notify_resume
-	b	.ret_from_except
-
 unrecov_restore:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.unrecoverable_exception

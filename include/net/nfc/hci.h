@@ -31,7 +31,8 @@ struct nfc_hci_ops {
 	void (*close) (struct nfc_hci_dev *hdev);
 	int (*hci_ready) (struct nfc_hci_dev *hdev);
 	int (*xmit) (struct nfc_hci_dev *hdev, struct sk_buff *skb);
-	int (*start_poll) (struct nfc_hci_dev *hdev, u32 protocols);
+	int (*start_poll) (struct nfc_hci_dev *hdev,
+			   u32 im_protocols, u32 tm_protocols);
 	int (*target_from_gate) (struct nfc_hci_dev *hdev, u8 gate,
 				 struct nfc_target *target);
 	int (*complete_target_discovered) (struct nfc_hci_dev *hdev, u8 gate,
@@ -43,10 +44,20 @@ struct nfc_hci_ops {
 			      struct nfc_target *target);
 };
 
-#define NFC_HCI_MAX_CUSTOM_GATES	15
+/* Pipes */
+#define NFC_HCI_INVALID_PIPE	0x80
+#define NFC_HCI_LINK_MGMT_PIPE	0x00
+#define NFC_HCI_ADMIN_PIPE	0x01
+
+struct nfc_hci_gate {
+	u8 gate;
+	u8 pipe;
+};
+
+#define NFC_HCI_MAX_CUSTOM_GATES	50
 struct nfc_hci_init_data {
 	u8 gate_count;
-	u8 gates[NFC_HCI_MAX_CUSTOM_GATES];
+	struct nfc_hci_gate gates[NFC_HCI_MAX_CUSTOM_GATES];
 	char session_id[9];
 };
 
@@ -110,6 +121,8 @@ void nfc_hci_unregister_device(struct nfc_hci_dev *hdev);
 
 void nfc_hci_set_clientdata(struct nfc_hci_dev *hdev, void *clientdata);
 void *nfc_hci_get_clientdata(struct nfc_hci_dev *hdev);
+
+void nfc_hci_driver_failure(struct nfc_hci_dev *hdev, int err);
 
 /* Host IDs */
 #define NFC_HCI_HOST_CONTROLLER_ID	0x00
@@ -179,7 +192,8 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 void nfc_hci_recv_frame(struct nfc_hci_dev *hdev, struct sk_buff *skb);
 
 /* connecting to gates and sending hci instructions */
-int nfc_hci_connect_gate(struct nfc_hci_dev *hdev, u8 dest_host, u8 dest_gate);
+int nfc_hci_connect_gate(struct nfc_hci_dev *hdev, u8 dest_host, u8 dest_gate,
+			 u8 pipe);
 int nfc_hci_disconnect_gate(struct nfc_hci_dev *hdev, u8 gate);
 int nfc_hci_disconnect_all_gates(struct nfc_hci_dev *hdev);
 int nfc_hci_get_param(struct nfc_hci_dev *hdev, u8 gate, u8 idx,

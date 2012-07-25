@@ -301,10 +301,14 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 		goto out;
 
 	eb = path->nodes[level];
-	if (!eb) {
-		WARN_ON(1);
-		ret = 1;
-		goto out;
+	while (!eb) {
+		if (!level) {
+			WARN_ON(1);
+			ret = 1;
+			goto out;
+		}
+		level--;
+		eb = path->nodes[level];
 	}
 
 	ret = add_all_parents(root, path, parents, level, &ref->key_for_search,
@@ -835,6 +839,7 @@ again:
 			}
 			ret = __add_delayed_refs(head, delayed_ref_seq,
 						 &prefs_delayed);
+			mutex_unlock(&head->mutex);
 			if (ret) {
 				spin_unlock(&delayed_refs->lock);
 				goto out;
@@ -928,8 +933,6 @@ again:
 	}
 
 out:
-	if (head)
-		mutex_unlock(&head->mutex);
 	btrfs_free_path(path);
 	while (!list_empty(&prefs)) {
 		ref = list_first_entry(&prefs, struct __prelim_ref, list);

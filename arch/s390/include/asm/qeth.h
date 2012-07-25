@@ -1,9 +1,7 @@
 /*
- * include/asm-s390/qeth.h
- *
  * ioctl definitions for qeth driver
  *
- * Copyright (C) 2004 IBM Corporation
+ * Copyright IBM Corp. 2004
  *
  * Author(s):	Thomas Spatzier <tspat@de.ibm.com>
  *

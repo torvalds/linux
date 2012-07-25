@@ -857,7 +857,7 @@ good_eeprom:
 
 		wiphy_warn(dev->wiphy,
 			   "Invalid hwaddr! Using randomly generated MAC addr\n");
-		random_ether_addr(perm_addr);
+		eth_random_addr(perm_addr);
 		SET_IEEE80211_PERM_ADDR(dev, perm_addr);
 	}
 
@@ -905,7 +905,7 @@ int p54_read_eeprom(struct ieee80211_hw *dev)
 
 	while (eeprom_size) {
 		blocksize = min(eeprom_size, maxblocksize);
-		ret = p54_download_eeprom(priv, (void *) (eeprom + offset),
+		ret = p54_download_eeprom(priv, eeprom + offset,
 					  offset, blocksize);
 		if (unlikely(ret))
 			goto free;

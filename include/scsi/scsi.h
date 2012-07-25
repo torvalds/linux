@@ -161,6 +161,8 @@ struct scsi_cmnd;
 #define MI_REPORT_PRIORITY   0x0e
 #define MI_REPORT_TIMESTAMP  0x0f
 #define MI_MANAGEMENT_PROTOCOL_IN 0x10
+/* value for MI_REPORT_TARGET_PGS ext header */
+#define MI_EXT_HDR_PARAM_FMT  0x20
 /* values for maintenance out */
 #define MO_SET_IDENTIFYING_INFORMATION 0x06
 #define MO_SET_TARGET_PGS     0x0a

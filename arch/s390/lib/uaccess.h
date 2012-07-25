@@ -1,6 +1,4 @@
 /*
- *  arch/s390/uaccess.h
- *
  *    Copyright IBM Corp. 2007
  *
  */

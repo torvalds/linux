@@ -350,7 +350,8 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *pfmt,
 		if (pixm)
 			sizes[i] = max(size, pixm->plane_fmt[i].sizeimage);
 		else
-			sizes[i] = size;
+			sizes[i] = max_t(u32, size, frame->payload[i]);
+
 		allocators[i] = ctx->fimc_dev->alloc_ctx;
 	}
 
@@ -479,37 +480,39 @@ static int fimc_capture_set_default_format(struct fimc_dev *fimc);
 static int fimc_capture_open(struct file *file)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
-	int ret = v4l2_fh_open(file);
-
-	if (ret)
-		return ret;
+	int ret;
 
 	dbg("pid: %d, state: 0x%lx", task_pid_nr(current), fimc->state);
 
-	/* Return if the corresponding video mem2mem node is already opened. */
 	if (fimc_m2m_active(fimc))
 		return -EBUSY;
 
 	set_bit(ST_CAPT_BUSY, &fimc->state);
-	pm_runtime_get_sync(&fimc->pdev->dev);
+	ret = pm_runtime_get_sync(&fimc->pdev->dev);
+	if (ret < 0)
+		return ret;
 
-	if (++fimc->vid_cap.refcnt == 1) {
-		ret = fimc_pipeline_initialize(&fimc->pipeline,
-			       &fimc->vid_cap.vfd->entity, true);
-		if (ret < 0) {
-			dev_err(&fimc->pdev->dev,
-				"Video pipeline initialization failed\n");
-			pm_runtime_put_sync(&fimc->pdev->dev);
-			fimc->vid_cap.refcnt--;
-			v4l2_fh_release(file);
-			clear_bit(ST_CAPT_BUSY, &fimc->state);
-			return ret;
-		}
-		ret = fimc_capture_ctrls_create(fimc);
+	ret = v4l2_fh_open(file);
+	if (ret)
+		return ret;
 
-		if (!ret && !fimc->vid_cap.user_subdev_api)
-			ret = fimc_capture_set_default_format(fimc);
+	if (++fimc->vid_cap.refcnt != 1)
+		return 0;
+
+	ret = fimc_pipeline_initialize(&fimc->pipeline,
+				       &fimc->vid_cap.vfd->entity, true);
+	if (ret < 0) {
+		clear_bit(ST_CAPT_BUSY, &fimc->state);
+		pm_runtime_put_sync(&fimc->pdev->dev);
+		fimc->vid_cap.refcnt--;
+		v4l2_fh_release(file);
+		return ret;
 	}
+	ret = fimc_capture_ctrls_create(fimc);
+
+	if (!ret && !fimc->vid_cap.user_subdev_api)
+		ret = fimc_capture_set_default_format(fimc);
+
 	return ret;
 }
 
@@ -818,9 +821,6 @@ static int fimc_cap_g_fmt_mplane(struct file *file, void *fh,
 	struct fimc_dev *fimc = video_drvdata(file);
 	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
 
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		return -EINVAL;
-
 	return fimc_fill_format(&ctx->d_frame, f);
 }
 
@@ -832,9 +832,6 @@ static int fimc_cap_try_fmt_mplane(struct file *file, void *fh,
 	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
 	struct v4l2_mbus_framefmt mf;
 	struct fimc_fmt *ffmt = NULL;
-
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		return -EINVAL;
 
 	if (pix->pixelformat == V4L2_PIX_FMT_JPEG) {
 		fimc_capture_try_format(ctx, &pix->width, &pix->height,
@@ -887,8 +884,6 @@ static int fimc_capture_set_format(struct fimc_dev *fimc, struct v4l2_format *f)
 	struct fimc_fmt *s_fmt = NULL;
 	int ret, i;
 
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		return -EINVAL;
 	if (vb2_is_busy(&fimc->vid_cap.vbq))
 		return -EBUSY;
 
@@ -924,10 +919,10 @@ static int fimc_capture_set_format(struct fimc_dev *fimc, struct v4l2_format *f)
 		pix->width  = mf->width;
 		pix->height = mf->height;
 	}
+
 	fimc_adjust_mplane_format(ff->fmt, pix->width, pix->height, pix);
 	for (i = 0; i < ff->fmt->colplanes; i++)
-		ff->payload[i] =
-			(pix->width * pix->height * ff->fmt->depth[i]) / 8;
+		ff->payload[i] = pix->plane_fmt[i].sizeimage;
 
 	set_frame_bounds(ff, pix->width, pix->height);
 	/* Reset the composition rectangle if not yet configured */
@@ -1045,18 +1040,22 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 {
 	struct fimc_dev *fimc = video_drvdata(file);
 	struct fimc_pipeline *p = &fimc->pipeline;
+	struct v4l2_subdev *sd = p->subdevs[IDX_SENSOR];
 	int ret;
 
 	if (fimc_capture_active(fimc))
 		return -EBUSY;
 
-	media_entity_pipeline_start(&p->subdevs[IDX_SENSOR]->entity,
-				    p->m_pipeline);
+	ret = media_entity_pipeline_start(&sd->entity, p->m_pipeline);
+	if (ret < 0)
+		return ret;
 
 	if (fimc->vid_cap.user_subdev_api) {
 		ret = fimc_pipeline_validate(fimc);
-		if (ret)
+		if (ret < 0) {
+			media_entity_pipeline_stop(&sd->entity);
 			return ret;
+		}
 	}
 	return vb2_streamon(&fimc->vid_cap.vbq, type);
 }

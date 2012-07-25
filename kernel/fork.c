@@ -304,12 +304,17 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	}
 
 	err = arch_dup_task_struct(tsk, orig);
+
+	/*
+	 * We defer looking at err, because we will need this setup
+	 * for the clean up path to work correctly.
+	 */
+	tsk->stack = ti;
+	setup_thread_stack(tsk, orig);
+
 	if (err)
 		goto out;
 
-	tsk->stack = ti;
-
-	setup_thread_stack(tsk, orig);
 	clear_user_return_notifier(tsk);
 	clear_tsk_need_resched(tsk);
 	stackend = end_of_stack(tsk);
@@ -1415,7 +1420,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	 */
 	p->group_leader = p;
 	INIT_LIST_HEAD(&p->thread_group);
-	INIT_HLIST_HEAD(&p->task_works);
+	p->task_works = NULL;
 
 	/* Now that the task is set up, run cgroup callbacks if
 	 * necessary. We need to run them before the task is visible

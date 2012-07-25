@@ -186,36 +186,27 @@ static struct snd_soc_card mioa701 = {
 	.num_links = ARRAY_SIZE(mioa701_dai),
 };
 
-static struct platform_device *mioa701_snd_device;
-
-static int mioa701_wm9713_probe(struct platform_device *pdev)
+static int __devinit mioa701_wm9713_probe(struct platform_device *pdev)
 {
-	int ret;
+	int rc;
 
 	if (!machine_is_mioa701())
 		return -ENODEV;
 
-	dev_warn(&pdev->dev, "Be warned that incorrect mixers/muxes setup will"
-		 "lead to overheating and possible destruction of your device."
-		 "Do not use without a good knowledge of mio's board design!\n");
-
-	mioa701_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!mioa701_snd_device)
-		return -ENOMEM;
-
-	platform_set_drvdata(mioa701_snd_device, &mioa701);
-
-	ret = platform_device_add(mioa701_snd_device);
-	if (!ret)
-		return 0;
-
-	platform_device_put(mioa701_snd_device);
-	return ret;
+	mioa701.dev = &pdev->dev;
+	rc =  snd_soc_register_card(&mioa701);
+	if (!rc)
+		dev_warn(&pdev->dev, "Be warned that incorrect mixers/muxes setup will"
+			 "lead to overheating and possible destruction of your device."
+			 " Do not use without a good knowledge of mio's board design!\n");
+	return rc;
 }
 
 static int __devexit mioa701_wm9713_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(mioa701_snd_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
 	return 0;
 }
 

@@ -138,7 +138,7 @@ static int file_removed(struct dentry *dentry, const char *file)
 }
 
 static struct dentry *hppfs_lookup(struct inode *ino, struct dentry *dentry,
-				   struct nameidata *nd)
+				   unsigned int flags)
 {
 	struct dentry *proc_dentry, *parent;
 	struct qstr *name = &dentry->d_name;
@@ -420,8 +420,7 @@ static int hppfs_open(struct inode *inode, struct file *file)
 {
 	const struct cred *cred = file->f_cred;
 	struct hppfs_private *data;
-	struct vfsmount *proc_mnt;
-	struct dentry *proc_dentry;
+	struct path path;
 	char *host_file;
 	int err, fd, type, filter;
 
@@ -434,12 +433,11 @@ static int hppfs_open(struct inode *inode, struct file *file)
 	if (host_file == NULL)
 		goto out_free2;
 
-	proc_dentry = HPPFS_I(inode)->proc_dentry;
-	proc_mnt = inode->i_sb->s_fs_info;
+	path.mnt = inode->i_sb->s_fs_info;
+	path.dentry = HPPFS_I(inode)->proc_dentry;
 
 	/* XXX This isn't closed anywhere */
-	data->proc_file = dentry_open(dget(proc_dentry), mntget(proc_mnt),
-				      file_mode(file->f_mode), cred);
+	data->proc_file = dentry_open(&path, file_mode(file->f_mode), cred);
 	err = PTR_ERR(data->proc_file);
 	if (IS_ERR(data->proc_file))
 		goto out_free1;
@@ -484,8 +482,7 @@ static int hppfs_dir_open(struct inode *inode, struct file *file)
 {
 	const struct cred *cred = file->f_cred;
 	struct hppfs_private *data;
-	struct vfsmount *proc_mnt;
-	struct dentry *proc_dentry;
+	struct path path;
 	int err;
 
 	err = -ENOMEM;
@@ -493,10 +490,9 @@ static int hppfs_dir_open(struct inode *inode, struct file *file)
 	if (data == NULL)
 		goto out;
 
-	proc_dentry = HPPFS_I(inode)->proc_dentry;
-	proc_mnt = inode->i_sb->s_fs_info;
-	data->proc_file = dentry_open(dget(proc_dentry), mntget(proc_mnt),
-				      file_mode(file->f_mode), cred);
+	path.mnt = inode->i_sb->s_fs_info;
+	path.dentry = HPPFS_I(inode)->proc_dentry;
+	data->proc_file = dentry_open(&path, file_mode(file->f_mode), cred);
 	err = PTR_ERR(data->proc_file);
 	if (IS_ERR(data->proc_file))
 		goto out_free;

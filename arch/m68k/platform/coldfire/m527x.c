@@ -20,49 +20,6 @@
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #include <asm/mcfuart.h>
-#include <asm/mcfgpio.h>
-
-/***************************************************************************/
-
-struct mcf_gpio_chip mcf_gpio_chips[] = {
-#if defined(CONFIG_M5271)
-	MCFGPS(PIRQ, 1, 7, MCFEPORT_EPDDR, MCFEPORT_EPDR, MCFEPORT_EPPDR),
-	MCFGPF(ADDR, 13, 3),
-	MCFGPF(DATAH, 16, 8),
-	MCFGPF(DATAL, 24, 8),
-	MCFGPF(BUSCTL, 32, 8),
-	MCFGPF(BS, 40, 4),
-	MCFGPF(CS, 49, 7),
-	MCFGPF(SDRAM, 56, 6),
-	MCFGPF(FECI2C, 64, 4),
-	MCFGPF(UARTH, 72, 2),
-	MCFGPF(UARTL, 80, 8),
-	MCFGPF(QSPI, 88, 5),
-	MCFGPF(TIMER, 96, 8),
-#elif defined(CONFIG_M5275)
-	MCFGPS(PIRQ, 1, 7, MCFEPORT_EPDDR, MCFEPORT_EPDR, MCFEPORT_EPPDR),
-	MCFGPF(BUSCTL, 8, 8),
-	MCFGPF(ADDR, 21, 3),
-	MCFGPF(CS, 25, 7),
-	MCFGPF(FEC0H, 32, 8),
-	MCFGPF(FEC0L, 40, 8),
-	MCFGPF(FECI2C, 48, 6),
-	MCFGPF(QSPI, 56, 7),
-	MCFGPF(SDRAM, 64, 8),
-	MCFGPF(TIMERH, 72, 4),
-	MCFGPF(TIMERL, 80, 4),
-	MCFGPF(UARTL, 88, 8),
-	MCFGPF(FEC1H, 96, 8),
-	MCFGPF(FEC1L, 104, 8),
-	MCFGPF(BS, 114, 2),
-	MCFGPF(IRQ, 121, 7),
-	MCFGPF(USBH, 128, 1),
-	MCFGPF(USBL, 136, 8),
-	MCFGPF(UARTH, 144, 4),
-#endif
-};
-
-unsigned int mcf_gpio_chips_size = ARRAY_SIZE(mcf_gpio_chips);
 
 /***************************************************************************/
 

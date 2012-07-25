@@ -21,6 +21,8 @@
 #include <linux/reboot.h>
 #include "leds.h"
 
+static int panic_heartbeats;
+
 struct heartbeat_trig_data {
 	unsigned int phase;
 	unsigned int period;
@@ -33,6 +35,11 @@ static void led_heartbeat_function(unsigned long data)
 	struct heartbeat_trig_data *heartbeat_data = led_cdev->trigger_data;
 	unsigned long brightness = LED_OFF;
 	unsigned long delay = 0;
+
+	if (unlikely(panic_heartbeats)) {
+		led_set_brightness(led_cdev, LED_OFF);
+		return;
+	}
 
 	/* acts like an actual heart beat -- ie thump-thump-pause... */
 	switch (heartbeat_data->phase) {
@@ -111,12 +118,19 @@ static int heartbeat_reboot_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
+static int heartbeat_panic_notifier(struct notifier_block *nb,
+				     unsigned long code, void *unused)
+{
+	panic_heartbeats = 1;
+	return NOTIFY_DONE;
+}
+
 static struct notifier_block heartbeat_reboot_nb = {
 	.notifier_call = heartbeat_reboot_notifier,
 };
 
 static struct notifier_block heartbeat_panic_nb = {
-	.notifier_call = heartbeat_reboot_notifier,
+	.notifier_call = heartbeat_panic_notifier,
 };
 
 static int __init heartbeat_trig_init(void)

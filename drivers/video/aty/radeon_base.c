@@ -2018,7 +2018,7 @@ static void radeon_identify_vram(struct radeonfb_info *rinfo)
           if ((rinfo->family == CHIP_FAMILY_RS100) ||
               (rinfo->family == CHIP_FAMILY_RS200)) {
              /* This is to workaround the asic bug for RMX, some versions
-                of BIOS dosen't have this register initialized correctly.
+                of BIOS doesn't have this register initialized correctly.
              */
              OUTREGP(CRTC_MORE_CNTL, CRTC_H_CUTOFF_ACTIVE_EN,
                      ~CRTC_H_CUTOFF_ACTIVE_EN);

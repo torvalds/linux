@@ -16,7 +16,7 @@
 
 #include <asm/pgalloc.h>
 
-#ifdef CONFIG_MMU
+#if defined(CONFIG_MMU) && !defined(CONFIG_COLDFIRE)
 
 void *dma_alloc_coherent(struct device *dev, size_t size,
 			 dma_addr_t *handle, gfp_t flag)
@@ -96,7 +96,7 @@ void dma_free_coherent(struct device *dev, size_t size,
 	free_pages((unsigned long)vaddr, get_order(size));
 }
 
-#endif /* CONFIG_MMU */
+#endif /* CONFIG_MMU && !CONFIG_COLDFIRE */
 
 EXPORT_SYMBOL(dma_alloc_coherent);
 EXPORT_SYMBOL(dma_free_coherent);
@@ -105,6 +105,7 @@ void dma_sync_single_for_device(struct device *dev, dma_addr_t handle,
 				size_t size, enum dma_data_direction dir)
 {
 	switch (dir) {
+	case DMA_BIDIRECTIONAL:
 	case DMA_TO_DEVICE:
 		cache_push(handle, size);
 		break;

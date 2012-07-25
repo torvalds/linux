@@ -583,7 +583,7 @@ static inline void ioc3_rx(struct net_device *dev)
 	unsigned long *rxr;
 	u32 w0, err;
 
-	rxr = (unsigned long *) ip->rxr;		/* Ring base */
+	rxr = ip->rxr;		/* Ring base */
 	rx_entry = ip->rx_ci;				/* RX consume index */
 	n_entry = ip->rx_pi;
 
@@ -903,7 +903,7 @@ static void ioc3_alloc_rings(struct net_device *dev)
 	if (ip->rxr == NULL) {
 		/* Allocate and initialize rx ring.  4kb = 512 entries  */
 		ip->rxr = (unsigned long *) get_zeroed_page(GFP_ATOMIC);
-		rxr = (unsigned long *) ip->rxr;
+		rxr = ip->rxr;
 		if (!rxr)
 			printk("ioc3_alloc_rings(): get_zeroed_page() failed!\n");
 

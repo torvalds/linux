@@ -56,7 +56,7 @@
 /* #define EXIT_DEBUG_INT */
 
 static void kvmppc_end_cede(struct kvm_vcpu *vcpu);
-static int kvmppc_hv_setup_rma(struct kvm_vcpu *vcpu);
+static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu);
 
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
@@ -1104,11 +1104,15 @@ int kvmppc_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		return -EINTR;
 	}
 
-	/* On the first time here, set up VRMA or RMA */
+	atomic_inc(&vcpu->kvm->arch.vcpus_running);
+	/* Order vcpus_running vs. rma_setup_done, see kvmppc_alloc_reset_hpt */
+	smp_mb();
+
+	/* On the first time here, set up HTAB and VRMA or RMA */
 	if (!vcpu->kvm->arch.rma_setup_done) {
-		r = kvmppc_hv_setup_rma(vcpu);
+		r = kvmppc_hv_setup_htab_rma(vcpu);
 		if (r)
-			return r;
+			goto out;
 	}
 
 	flush_fp_to_thread(current);
@@ -1126,6 +1130,9 @@ int kvmppc_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			kvmppc_core_prepare_to_enter(vcpu);
 		}
 	} while (r == RESUME_GUEST);
+
+ out:
+	atomic_dec(&vcpu->kvm->arch.vcpus_running);
 	return r;
 }
 
@@ -1341,7 +1348,7 @@ void kvmppc_core_commit_memory_region(struct kvm *kvm,
 {
 }
 
-static int kvmppc_hv_setup_rma(struct kvm_vcpu *vcpu)
+static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 {
 	int err = 0;
 	struct kvm *kvm = vcpu->kvm;
@@ -1359,6 +1366,15 @@ static int kvmppc_hv_setup_rma(struct kvm_vcpu *vcpu)
 	mutex_lock(&kvm->lock);
 	if (kvm->arch.rma_setup_done)
 		goto out;	/* another vcpu beat us to it */
+
+	/* Allocate hashed page table (if not done already) and reset it */
+	if (!kvm->arch.hpt_virt) {
+		err = kvmppc_alloc_hpt(kvm, NULL);
+		if (err) {
+			pr_err("KVM: Couldn't alloc HPT\n");
+			goto out;
+		}
+	}
 
 	/* Look up the memslot for guest physical address 0 */
 	memslot = gfn_to_memslot(kvm, 0);
@@ -1471,13 +1487,14 @@ static int kvmppc_hv_setup_rma(struct kvm_vcpu *vcpu)
 
 int kvmppc_core_init_vm(struct kvm *kvm)
 {
-	long r;
-	unsigned long lpcr;
+	unsigned long lpcr, lpid;
 
-	/* Allocate hashed page table */
-	r = kvmppc_alloc_hpt(kvm);
-	if (r)
-		return r;
+	/* Allocate the guest's logical partition ID */
+
+	lpid = kvmppc_alloc_lpid();
+	if (lpid < 0)
+		return -ENOMEM;
+	kvm->arch.lpid = lpid;
 
 	INIT_LIST_HEAD(&kvm->arch.spapr_tce_tables);
 
@@ -1487,7 +1504,6 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 
 	if (cpu_has_feature(CPU_FTR_ARCH_201)) {
 		/* PPC970; HID4 is effectively the LPCR */
-		unsigned long lpid = kvm->arch.lpid;
 		kvm->arch.host_lpid = 0;
 		kvm->arch.host_lpcr = lpcr = mfspr(SPRN_HID4);
 		lpcr &= ~((3 << HID4_LPID1_SH) | (0xful << HID4_LPID5_SH));

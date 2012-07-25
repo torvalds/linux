@@ -312,7 +312,7 @@ static int remove_ftrace_list_ops(struct ftrace_ops **list,
 
 static int __register_ftrace_function(struct ftrace_ops *ops)
 {
-	if (ftrace_disabled)
+	if (unlikely(ftrace_disabled))
 		return -ENODEV;
 
 	if (FTRACE_WARN_ON(ops == &global_ops))
@@ -4299,16 +4299,12 @@ int register_ftrace_function(struct ftrace_ops *ops)
 
 	mutex_lock(&ftrace_lock);
 
-	if (unlikely(ftrace_disabled))
-		goto out_unlock;
-
 	ret = __register_ftrace_function(ops);
 	if (!ret)
 		ret = ftrace_startup(ops, 0);
 
-
- out_unlock:
 	mutex_unlock(&ftrace_lock);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(register_ftrace_function);

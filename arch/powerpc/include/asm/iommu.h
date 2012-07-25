@@ -53,6 +53,16 @@ static __inline__ __attribute_const__ int get_iommu_order(unsigned long size)
  */
 #define IOMAP_MAX_ORDER		13
 
+#define IOMMU_POOL_HASHBITS	2
+#define IOMMU_NR_POOLS		(1 << IOMMU_POOL_HASHBITS)
+
+struct iommu_pool {
+	unsigned long start;
+	unsigned long end;
+	unsigned long hint;
+	spinlock_t lock;
+} ____cacheline_aligned_in_smp;
+
 struct iommu_table {
 	unsigned long  it_busno;     /* Bus number this table belongs to */
 	unsigned long  it_size;      /* Size of iommu table in entries */
@@ -61,10 +71,10 @@ struct iommu_table {
 	unsigned long  it_index;     /* which iommu table this is */
 	unsigned long  it_type;      /* type: PCI or Virtual Bus */
 	unsigned long  it_blocksize; /* Entries in each block (cacheline) */
-	unsigned long  it_hint;      /* Hint for next alloc */
-	unsigned long  it_largehint; /* Hint for large allocs */
-	unsigned long  it_halfpoint; /* Breaking point for small/large allocs */
-	spinlock_t     it_lock;      /* Protects it_map */
+	unsigned long  poolsize;
+	unsigned long  nr_pools;
+	struct iommu_pool large_pool;
+	struct iommu_pool pools[IOMMU_NR_POOLS];
 	unsigned long *it_map;       /* A simple allocation bitmap for now */
 };
 

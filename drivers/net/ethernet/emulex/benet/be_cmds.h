@@ -93,6 +93,7 @@ enum {
 	LINK_UP		= 0x1
 };
 #define LINK_STATUS_MASK			0x1
+#define LOGICAL_LINK_STATUS_MASK		0x2
 
 /* When the event code of an async trailer is link-state, the mcc_compl
  * must be interpreted as follows
@@ -186,6 +187,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_ENABLE_DISABLE_BEACON		69
 #define OPCODE_COMMON_GET_BEACON_STATE			70
 #define OPCODE_COMMON_READ_TRANSRECV_DATA		73
+#define OPCODE_COMMON_GET_PORT_NAME			77
 #define OPCODE_COMMON_GET_PHY_DETAILS			102
 #define OPCODE_COMMON_SET_DRIVER_FUNCTION_CAP		103
 #define OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES	121
@@ -1081,13 +1083,25 @@ struct be_cmd_resp_query_fw_cfg {
 	u32 function_caps;
 };
 
-/******************** RSS Config *******************/
-/* RSS types */
+/******************** RSS Config ****************************************/
+/* RSS type		Input parameters used to compute RX hash
+ * RSS_ENABLE_IPV4	SRC IPv4, DST IPv4
+ * RSS_ENABLE_TCP_IPV4	SRC IPv4, DST IPv4, TCP SRC PORT, TCP DST PORT
+ * RSS_ENABLE_IPV6	SRC IPv6, DST IPv6
+ * RSS_ENABLE_TCP_IPV6	SRC IPv6, DST IPv6, TCP SRC PORT, TCP DST PORT
+ * RSS_ENABLE_UDP_IPV4	SRC IPv4, DST IPv4, UDP SRC PORT, UDP DST PORT
+ * RSS_ENABLE_UDP_IPV6	SRC IPv6, DST IPv6, UDP SRC PORT, UDP DST PORT
+ *
+ * When multiple RSS types are enabled, HW picks the best hash policy
+ * based on the type of the received packet.
+ */
 #define RSS_ENABLE_NONE				0x0
 #define RSS_ENABLE_IPV4				0x1
 #define RSS_ENABLE_TCP_IPV4			0x2
 #define RSS_ENABLE_IPV6				0x4
 #define RSS_ENABLE_TCP_IPV6			0x8
+#define RSS_ENABLE_UDP_IPV4			0x10
+#define RSS_ENABLE_UDP_IPV6			0x20
 
 struct be_cmd_req_rss_config {
 	struct be_cmd_req_hdr hdr;
@@ -1163,6 +1177,8 @@ struct lancer_cmd_req_write_object {
 	u32 addr_high;
 };
 
+#define LANCER_NO_RESET_NEEDED		0x00
+#define LANCER_FW_RESET_NEEDED		0x02
 struct lancer_cmd_resp_write_object {
 	u8 opcode;
 	u8 subsystem;
@@ -1173,6 +1189,8 @@ struct lancer_cmd_resp_write_object {
 	u32 resp_len;
 	u32 actual_resp_len;
 	u32 actual_write_len;
+	u8 change_status;
+	u8 rsvd3[3];
 };
 
 /************************ Lancer Read FW info **************/
@@ -1502,6 +1520,17 @@ struct be_cmd_resp_get_hsw_config {
 	u32 rsvd;
 };
 
+/******************* get port names ***************/
+struct be_cmd_req_get_port_name {
+	struct be_cmd_req_hdr hdr;
+	u32 rsvd0;
+};
+
+struct be_cmd_resp_get_port_name {
+	struct be_cmd_req_hdr hdr;
+	u8 port_name[4];
+};
+
 /*************** HW Stats Get v1 **********************************/
 #define BE_TXP_SW_SZ			48
 struct be_port_rxf_stats_v1 {
@@ -1656,7 +1685,7 @@ struct be_cmd_req_set_ext_fat_caps {
 };
 
 extern int be_pci_fnum_get(struct be_adapter *adapter);
-extern int be_cmd_POST(struct be_adapter *adapter);
+extern int be_fw_wait_ready(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
 			u8 type, bool permanent, u32 if_handle, u32 pmac_id);
 extern int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
@@ -1664,8 +1693,7 @@ extern int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
 extern int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id,
 			int pmac_id, u32 domain);
 extern int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags,
-			u32 en_flags, u8 *mac, u32 *if_handle, u32 *pmac_id,
-			u32 domain);
+			    u32 en_flags, u32 *if_handle, u32 domain);
 extern int be_cmd_if_destroy(struct be_adapter *adapter, int if_handle,
 			u32 domain);
 extern int be_cmd_eq_create(struct be_adapter *adapter,
@@ -1719,10 +1747,11 @@ extern int be_cmd_write_flashrom(struct be_adapter *adapter,
 			struct be_dma_mem *cmd, u32 flash_oper,
 			u32 flash_opcode, u32 buf_size);
 extern int lancer_cmd_write_object(struct be_adapter *adapter,
-				struct be_dma_mem *cmd,
-				u32 data_size, u32 data_offset,
-				const char *obj_name,
-				u32 *data_written, u8 *addn_status);
+				   struct be_dma_mem *cmd,
+				   u32 data_size, u32 data_offset,
+				   const char *obj_name,
+				   u32 *data_written, u8 *change_status,
+				   u8 *addn_status);
 int lancer_cmd_read_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 		u32 data_size, u32 data_offset, const char *obj_name,
 		u32 *data_read, u32 *eof, u8 *addn_status);
@@ -1745,14 +1774,15 @@ extern int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
 				u8 loopback_type, u8 enable);
 extern int be_cmd_get_phy_info(struct be_adapter *adapter);
 extern int be_cmd_set_qos(struct be_adapter *adapter, u32 bps, u32 domain);
-extern void be_detect_dump_ue(struct be_adapter *adapter);
+extern void be_detect_error(struct be_adapter *adapter);
 extern int be_cmd_get_die_temperature(struct be_adapter *adapter);
 extern int be_cmd_get_cntl_attributes(struct be_adapter *adapter);
 extern int be_cmd_req_native_mode(struct be_adapter *adapter);
 extern int be_cmd_get_reg_len(struct be_adapter *adapter, u32 *log_size);
 extern void be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf);
-extern int be_cmd_get_mac_from_list(struct be_adapter *adapter, u32 domain,
-				bool *pmac_id_active, u32 *pmac_id, u8 *mac);
+extern int be_cmd_get_mac_from_list(struct be_adapter *adapter, u8 *mac,
+				    bool *pmac_id_active, u32 *pmac_id,
+				    u8 domain);
 extern int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array,
 						u8 mac_count, u32 domain);
 extern int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid,
@@ -1765,4 +1795,7 @@ extern int be_cmd_get_ext_fat_capabilites(struct be_adapter *adapter,
 extern int be_cmd_set_ext_fat_capabilites(struct be_adapter *adapter,
 					  struct be_dma_mem *cmd,
 					  struct be_fat_conf_params *cfgs);
+extern int lancer_wait_ready(struct be_adapter *adapter);
+extern int lancer_test_and_set_rdy_state(struct be_adapter *adapter);
+extern int be_cmd_query_port_name(struct be_adapter *adapter, u8 *port_name);
 

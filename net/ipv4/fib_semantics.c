@@ -140,6 +140,27 @@ const struct fib_prop fib_props[RTN_MAX + 1] = {
 	},
 };
 
+static void free_nh_exceptions(struct fib_nh *nh)
+{
+	struct fnhe_hash_bucket *hash = nh->nh_exceptions;
+	int i;
+
+	for (i = 0; i < FNHE_HASH_SIZE; i++) {
+		struct fib_nh_exception *fnhe;
+
+		fnhe = rcu_dereference_protected(hash[i].chain, 1);
+		while (fnhe) {
+			struct fib_nh_exception *next;
+			
+			next = rcu_dereference_protected(fnhe->fnhe_next, 1);
+			kfree(fnhe);
+
+			fnhe = next;
+		}
+	}
+	kfree(hash);
+}
+
 /* Release a nexthop info record */
 static void free_fib_info_rcu(struct rcu_head *head)
 {
@@ -148,6 +169,12 @@ static void free_fib_info_rcu(struct rcu_head *head)
 	change_nexthops(fi) {
 		if (nexthop_nh->nh_dev)
 			dev_put(nexthop_nh->nh_dev);
+		if (nexthop_nh->nh_exceptions)
+			free_nh_exceptions(nexthop_nh);
+		if (nexthop_nh->nh_rth_output)
+			dst_release(&nexthop_nh->nh_rth_output->dst);
+		if (nexthop_nh->nh_rth_input)
+			dst_release(&nexthop_nh->nh_rth_input->dst);
 	} endfor_nexthops(fi);
 
 	release_net(fi->fib_net);
@@ -163,6 +190,12 @@ void free_fib_info(struct fib_info *fi)
 		return;
 	}
 	fib_info_cnt--;
+#ifdef CONFIG_IP_ROUTE_CLASSID
+	change_nexthops(fi) {
+		if (nexthop_nh->nh_tclassid)
+			fi->fib_net->ipv4.fib_num_tclassid_users--;
+	} endfor_nexthops(fi);
+#endif
 	call_rcu(&fi->rcu, free_fib_info_rcu);
 }
 
@@ -421,6 +454,8 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 #ifdef CONFIG_IP_ROUTE_CLASSID
 			nla = nla_find(attrs, attrlen, RTA_FLOW);
 			nexthop_nh->nh_tclassid = nla ? nla_get_u32(nla) : 0;
+			if (nexthop_nh->nh_tclassid)
+				fi->fib_net->ipv4.fib_num_tclassid_users++;
 #endif
 		}
 
@@ -779,9 +814,16 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 			int type = nla_type(nla);
 
 			if (type) {
+				u32 val;
+
 				if (type > RTAX_MAX)
 					goto err_inval;
-				fi->fib_metrics[type - 1] = nla_get_u32(nla);
+				val = nla_get_u32(nla);
+				if (type == RTAX_ADVMSS && val > 65535 - 40)
+					val = 65535 - 40;
+				if (type == RTAX_MTU && val > 65535 - 15)
+					val = 65535 - 15;
+				fi->fib_metrics[type - 1] = val;
 			}
 		}
 	}
@@ -810,6 +852,8 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 		nh->nh_flags = cfg->fc_flags;
 #ifdef CONFIG_IP_ROUTE_CLASSID
 		nh->nh_tclassid = cfg->fc_flow;
+		if (nh->nh_tclassid)
+			fi->fib_net->ipv4.fib_num_tclassid_users++;
 #endif
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 		nh->nh_weight = 1;

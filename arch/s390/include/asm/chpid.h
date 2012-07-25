@@ -1,6 +1,4 @@
 /*
- *  drivers/s390/cio/chpid.h
- *
  *    Copyright IBM Corp. 2007
  *    Author(s): Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
  */
