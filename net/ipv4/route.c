@@ -444,7 +444,7 @@ static inline int ip_rt_proc_init(void)
 }
 #endif /* CONFIG_PROC_FS */
 
-static inline int rt_is_expired(struct rtable *rth)
+static inline bool rt_is_expired(const struct rtable *rth)
 {
 	return rth->rt_genid != rt_genid(dev_net(rth->dst.dev));
 }
@@ -1222,9 +1222,11 @@ static void rt_cache_route(struct fib_nh *nh, struct rtable *rt)
 	}
 }
 
-static bool rt_cache_valid(struct rtable *rt)
+static bool rt_cache_valid(const struct rtable *rt)
 {
-	return (rt && rt->dst.obsolete == DST_OBSOLETE_FORCE_CHK);
+	return	rt &&
+		rt->dst.obsolete == DST_OBSOLETE_FORCE_CHK &&
+		!rt_is_expired(rt);
 }
 
 static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
