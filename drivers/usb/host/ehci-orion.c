@@ -298,6 +298,10 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 err4:
 	usb_put_hcd(hcd);
 err3:
+	if (!IS_ERR(clk)) {
+		clk_disable_unprepare(clk);
+		clk_put(clk);
+	}
 	iounmap(regs);
 err2:
 	release_mem_region(res->start, resource_size(res));
