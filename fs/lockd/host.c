@@ -21,6 +21,8 @@
 
 #include <net/ipv6.h>
 
+#include "netns.h"
+
 #define NLMDBG_FACILITY		NLMDBG_HOSTCACHE
 #define NLM_HOST_NRHASH		32
 #define NLM_HOST_REBIND		(60 * HZ)
@@ -41,7 +43,6 @@ static struct hlist_head	nlm_client_hosts[NLM_HOST_NRHASH];
 		hlist_for_each_entry_safe((host), (pos), (next), \
 						(chain), h_hash)
 
-static unsigned long		next_gc;
 static unsigned long		nrhosts;
 static DEFINE_MUTEX(nlm_host_mutex);
 
@@ -337,6 +338,7 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 		.hostname_len	= hostname_len,
 		.net		= net,
 	};
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
 	dprintk("lockd: %s(host='%*s', vers=%u, proto=%s)\n", __func__,
 			(int)hostname_len, hostname, rqstp->rq_vers,
@@ -344,7 +346,7 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 
 	mutex_lock(&nlm_host_mutex);
 
-	if (time_after_eq(jiffies, next_gc))
+	if (time_after_eq(jiffies, ln->next_gc))
 		nlm_gc_hosts(net);
 
 	chain = &nlm_server_hosts[nlm_hash_address(ni.sap)];
@@ -653,5 +655,9 @@ nlm_gc_hosts(struct net *net)
 		nlm_destroy_host_locked(host);
 	}
 
-	next_gc = jiffies + NLM_HOST_COLLECT;
+	if (net) {
+		struct lockd_net *ln = net_generic(net, lockd_net_id);
+
+		ln->next_gc = jiffies + NLM_HOST_COLLECT;
+	}
 }

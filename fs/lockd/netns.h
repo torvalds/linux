@@ -5,6 +5,7 @@
 
 struct lockd_net {
 	unsigned int nlmsvc_users;
+	unsigned long next_gc;
 };
 
 extern int lockd_net_id;
