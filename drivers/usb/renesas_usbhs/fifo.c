@@ -994,7 +994,7 @@ static bool usbhsf_dma_filter(struct dma_chan *chan, void *param)
 	 *
 	 * usbhs doesn't recognize id = 0 as valid DMA
 	 */
-	if (0 == slave->slave_id)
+	if (0 == slave->shdma_slave.slave_id)
 		return false;
 
 	chan->private = slave;
@@ -1173,8 +1173,8 @@ int usbhs_fifo_probe(struct usbhs_priv *priv)
 	fifo->port	= D0FIFO;
 	fifo->sel	= D0FIFOSEL;
 	fifo->ctr	= D0FIFOCTR;
-	fifo->tx_slave.slave_id	= usbhs_get_dparam(priv, d0_tx_id);
-	fifo->rx_slave.slave_id	= usbhs_get_dparam(priv, d0_rx_id);
+	fifo->tx_slave.shdma_slave.slave_id	= usbhs_get_dparam(priv, d0_tx_id);
+	fifo->rx_slave.shdma_slave.slave_id	= usbhs_get_dparam(priv, d0_rx_id);
 
 	/* D1FIFO */
 	fifo = usbhsf_get_d1fifo(priv);
@@ -1182,8 +1182,8 @@ int usbhs_fifo_probe(struct usbhs_priv *priv)
 	fifo->port	= D1FIFO;
 	fifo->sel	= D1FIFOSEL;
 	fifo->ctr	= D1FIFOCTR;
-	fifo->tx_slave.slave_id	= usbhs_get_dparam(priv, d1_tx_id);
-	fifo->rx_slave.slave_id	= usbhs_get_dparam(priv, d1_rx_id);
+	fifo->tx_slave.shdma_slave.slave_id	= usbhs_get_dparam(priv, d1_tx_id);
+	fifo->rx_slave.shdma_slave.slave_id	= usbhs_get_dparam(priv, d1_rx_id);
 
 	return 0;
 }

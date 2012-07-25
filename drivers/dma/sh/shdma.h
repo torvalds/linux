@@ -13,42 +13,29 @@
 #ifndef __DMA_SHDMA_H
 #define __DMA_SHDMA_H
 
+#include <linux/sh_dma.h>
+#include <linux/shdma-base.h>
 #include <linux/dmaengine.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
 
-#define SH_DMAC_MAX_CHANNELS 20
-#define SH_DMA_SLAVE_NUMBER 256
-#define SH_DMA_TCR_MAX 0x00FFFFFF	/* 16MB */
+#define SH_DMAE_MAX_CHANNELS 20
+#define SH_DMAE_TCR_MAX 0x00FFFFFF	/* 16MB */
 
 struct device;
 
-enum dmae_pm_state {
-	DMAE_PM_ESTABLISHED,
-	DMAE_PM_BUSY,
-	DMAE_PM_PENDING,
-};
-
 struct sh_dmae_chan {
-	spinlock_t desc_lock;		/* Descriptor operation lock */
-	struct list_head ld_queue;	/* Link descriptors queue */
-	struct list_head ld_free;	/* Link descriptors free */
-	struct dma_chan common;		/* DMA common channel */
-	struct device *dev;		/* Channel device */
-	struct tasklet_struct tasklet;	/* Tasklet */
-	int descs_allocated;		/* desc count */
+	struct shdma_chan shdma_chan;
+	const struct sh_dmae_slave_config *config; /* Slave DMA configuration */
 	int xmit_shift;			/* log_2(bytes_per_xfer) */
-	int irq;
-	int id;				/* Raw id of this channel */
 	u32 __iomem *base;
 	char dev_id[16];		/* unique name per DMAC of channel */
 	int pm_error;
-	enum dmae_pm_state pm_state;
 };
 
 struct sh_dmae_device {
-	struct dma_device common;
-	struct sh_dmae_chan *chan[SH_DMAC_MAX_CHANNELS];
+	struct shdma_dev shdma_dev;
+	struct sh_dmae_chan *chan[SH_DMAE_MAX_CHANNELS];
 	struct sh_dmae_pdata *pdata;
 	struct list_head node;
 	u32 __iomem *chan_reg;
@@ -57,10 +44,21 @@ struct sh_dmae_device {
 	u32 chcr_ie_bit;
 };
 
-#define to_sh_chan(chan) container_of(chan, struct sh_dmae_chan, common)
+struct sh_dmae_regs {
+	u32 sar; /* SAR / source address */
+	u32 dar; /* DAR / destination address */
+	u32 tcr; /* TCR / transfer count */
+};
+
+struct sh_dmae_desc {
+	struct sh_dmae_regs hw;
+	struct shdma_desc shdma_desc;
+};
+
+#define to_sh_chan(chan) container_of(chan, struct sh_dmae_chan, shdma_chan)
 #define to_sh_desc(lh) container_of(lh, struct sh_desc, node)
 #define tx_to_sh_desc(tx) container_of(tx, struct sh_desc, async_tx)
-#define to_sh_dev(chan) container_of(chan->common.device,\
-				     struct sh_dmae_device, common)
+#define to_sh_dev(chan) container_of(chan->shdma_chan.dma_chan.device,\
+				     struct sh_dmae_device, shdma_dev.dma_dev)
 
 #endif	/* __DMA_SHDMA_H */
