@@ -40,10 +40,27 @@
  * Note that newer firmware allows querying device for maximum useable
  * coordinates.
  */
+#define XMIN 0
+#define XMAX 6143
+#define YMIN 0
+#define YMAX 6143
 #define XMIN_NOMINAL 1472
 #define XMAX_NOMINAL 5472
 #define YMIN_NOMINAL 1408
 #define YMAX_NOMINAL 4448
+
+/* Size in bits of absolute position values reported by the hardware */
+#define ABS_POS_BITS 13
+
+/*
+ * Any position values from the hardware above the following limits are
+ * treated as "wrapped around negative" values that have been truncated to
+ * the 13-bit reporting range of the hardware. These are just reasonable
+ * guesses and can be adjusted if hardware is found that operates outside
+ * of these parameters.
+ */
+#define X_MAX_POSITIVE (((1 << ABS_POS_BITS) + XMAX) / 2)
+#define Y_MAX_POSITIVE (((1 << ABS_POS_BITS) + YMAX) / 2)
 
 /*
  * Synaptics touchpads report the y coordinate from bottom to top, which is
@@ -554,6 +571,12 @@ static int synaptics_parse_hw_state(const unsigned char buf[],
 		hw->left  = (buf[0] & 0x01) ? 1 : 0;
 		hw->right = (buf[0] & 0x02) ? 1 : 0;
 	}
+
+	/* Convert wrap-around values to negative */
+	if (hw->x > X_MAX_POSITIVE)
+		hw->x -= 1 << ABS_POS_BITS;
+	if (hw->y > Y_MAX_POSITIVE)
+		hw->y -= 1 << ABS_POS_BITS;
 
 	return 0;
 }
