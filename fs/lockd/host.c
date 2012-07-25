@@ -173,6 +173,7 @@ out:
 static void nlm_destroy_host_locked(struct nlm_host *host)
 {
 	struct rpc_clnt	*clnt;
+	struct lockd_net *ln = net_generic(host->net, lockd_net_id);
 
 	dprintk("lockd: destroy host %s\n", host->h_name);
 
@@ -189,6 +190,7 @@ static void nlm_destroy_host_locked(struct nlm_host *host)
 		rpc_shutdown_client(clnt);
 	kfree(host);
 
+	ln->nrhosts--;
 	nrhosts--;
 }
 
@@ -229,6 +231,7 @@ struct nlm_host *nlmclnt_lookup_host(const struct sockaddr *sap,
 	struct hlist_node *pos;
 	struct nlm_host	*host;
 	struct nsm_handle *nsm = NULL;
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
 	dprintk("lockd: %s(host='%s', vers=%u, proto=%s)\n", __func__,
 			(hostname ? hostname : "<none>"), version,
@@ -263,6 +266,7 @@ struct nlm_host *nlmclnt_lookup_host(const struct sockaddr *sap,
 		goto out;
 
 	hlist_add_head(&host->h_hash, chain);
+	ln->nrhosts++;
 	nrhosts++;
 
 	dprintk("lockd: %s created host %s (%s)\n", __func__,
@@ -384,6 +388,7 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 	memcpy(nlm_srcaddr(host), src_sap, src_len);
 	host->h_srcaddrlen = src_len;
 	hlist_add_head(&host->h_hash, chain);
+	ln->nrhosts++;
 	nrhosts++;
 
 	dprintk("lockd: %s created host %s (%s)\n",
@@ -592,6 +597,19 @@ nlm_shutdown_hosts_net(struct net *net)
 	/* Then, perform a garbage collection pass */
 	nlm_gc_hosts(net);
 	mutex_unlock(&nlm_host_mutex);
+
+	/* complain if any hosts are left */
+	if (net) {
+		struct lockd_net *ln = net_generic(net, lockd_net_id);
+
+		printk(KERN_WARNING "lockd: couldn't shutdown host module for net %p!\n", net);
+		dprintk("lockd: %lu hosts left in net %p:\n", ln->nrhosts, net);
+		for_each_host(host, pos, chain, nlm_server_hosts) {
+			dprintk("       %s (cnt %d use %d exp %ld net %p)\n",
+				host->h_name, atomic_read(&host->h_count),
+				host->h_inuse, host->h_expires, host->net);
+		}
+	}
 }
 
 /*
