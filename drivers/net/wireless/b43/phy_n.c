@@ -32,6 +32,7 @@
 #include "tables_nphy.h"
 #include "radio_2055.h"
 #include "radio_2056.h"
+#include "radio_2057.h"
 #include "main.h"
 
 struct nphy_txgains {
@@ -456,6 +457,136 @@ static void b43_nphy_set_rf_sequence(struct b43_wldev *dev, u8 cmd,
 
 	if (nphy->hang_avoid)
 		b43_nphy_stay_in_carrier_search(dev, false);
+}
+
+/**************************************************
+ * Radio 0x2057
+ **************************************************/
+
+/* http://bcm-v4.sipsolutions.net/PHY/radio2057_rcal */
+static u8 b43_radio_2057_rcal(struct b43_wldev *dev)
+{
+	struct b43_phy *phy = &dev->phy;
+	u16 tmp;
+
+	if (phy->radio_rev == 5) {
+		b43_phy_mask(dev, 0x342, ~0x2);
+		udelay(10);
+		b43_radio_set(dev, R2057_IQTEST_SEL_PU, 0x1);
+		b43_radio_maskset(dev, 0x1ca, ~0x2, 0x1);
+	}
+
+	b43_radio_set(dev, R2057_RCAL_CONFIG, 0x1);
+	udelay(10);
+	b43_radio_set(dev, R2057_RCAL_CONFIG, 0x3);
+	if (!b43_radio_wait_value(dev, R2057_RCCAL_N1_1, 1, 1, 100, 1000000)) {
+		b43err(dev->wl, "Radio 0x2057 rcal timeout\n");
+		return 0;
+	}
+	b43_radio_mask(dev, R2057_RCAL_CONFIG, ~0x2);
+	tmp = b43_radio_read(dev, R2057_RCAL_STATUS) & 0x3E;
+	b43_radio_mask(dev, R2057_RCAL_CONFIG, ~0x1);
+
+	if (phy->radio_rev == 5) {
+		b43_radio_mask(dev, R2057_IPA2G_CASCONV_CORE0, ~0x1);
+		b43_radio_mask(dev, 0x1ca, ~0x2);
+	}
+	if (phy->radio_rev <= 4 || phy->radio_rev == 6) {
+		b43_radio_maskset(dev, R2057_TEMPSENSE_CONFIG, ~0x3C, tmp);
+		b43_radio_maskset(dev, R2057_BANDGAP_RCAL_TRIM, ~0xF0,
+				  tmp << 2);
+	}
+
+	return tmp & 0x3e;
+}
+
+/* http://bcm-v4.sipsolutions.net/PHY/radio2057_rccal */
+static u16 b43_radio_2057_rccal(struct b43_wldev *dev)
+{
+	struct b43_phy *phy = &dev->phy;
+	bool special = (phy->radio_rev == 3 || phy->radio_rev == 4 ||
+			phy->radio_rev == 6);
+	u16 tmp;
+
+	if (special) {
+		b43_radio_write(dev, R2057_RCCAL_MASTER, 0x61);
+		b43_radio_write(dev, R2057_RCCAL_TRC0, 0xC0);
+	} else {
+		b43_radio_write(dev, 0x1AE, 0x61);
+		b43_radio_write(dev, R2057_RCCAL_TRC0, 0xE1);
+	}
+	b43_radio_write(dev, R2057_RCCAL_X1, 0x6E);
+	b43_radio_write(dev, R2057_RCCAL_START_R1_Q1_P1, 0x55);
+	if (!b43_radio_wait_value(dev, R2057_RCCAL_DONE_OSCCAP, 1, 1, 500,
+				  5000000))
+		b43dbg(dev->wl, "Radio 0x2057 rccal timeout\n");
+	b43_radio_write(dev, R2057_RCCAL_START_R1_Q1_P1, 0x15);
+	if (special) {
+		b43_radio_write(dev, R2057_RCCAL_MASTER, 0x69);
+		b43_radio_write(dev, R2057_RCCAL_TRC0, 0xB0);
+	} else {
+		b43_radio_write(dev, 0x1AE, 0x69);
+		b43_radio_write(dev, R2057_RCCAL_TRC0, 0xD5);
+	}
+	b43_radio_write(dev, R2057_RCCAL_X1, 0x6E);
+	b43_radio_write(dev, R2057_RCCAL_START_R1_Q1_P1, 0x55);
+	if (!b43_radio_wait_value(dev, R2057_RCCAL_DONE_OSCCAP, 1, 1, 500,
+				  5000000))
+	b43_radio_write(dev, R2057_RCCAL_START_R1_Q1_P1, 0x15);
+	if (special) {
+		b43_radio_write(dev, R2057_RCCAL_MASTER, 0x73);
+		b43_radio_write(dev, R2057_RCCAL_X1, 0x28);
+		b43_radio_write(dev, R2057_RCCAL_TRC0, 0xB0);
+	} else {
+		b43_radio_write(dev, 0x1AE, 0x73);
+		b43_radio_write(dev, R2057_RCCAL_X1, 0x6E);
+		b43_radio_write(dev, R2057_RCCAL_TRC0, 0x99);
+	}
+	b43_radio_write(dev, R2057_RCCAL_START_R1_Q1_P1, 0x55);
+	if (!b43_radio_wait_value(dev, R2057_RCCAL_DONE_OSCCAP, 1, 1, 500,
+				  5000000)) {
+		b43err(dev->wl, "Radio 0x2057 rcal timeout\n");
+		return 0;
+	}
+	tmp = b43_radio_read(dev, R2057_RCCAL_DONE_OSCCAP);
+	b43_radio_write(dev, R2057_RCCAL_START_R1_Q1_P1, 0x15);
+	return tmp;
+}
+
+static void b43_radio_2057_init_pre(struct b43_wldev *dev)
+{
+	b43_phy_mask(dev, B43_NPHY_RFCTL_CMD, ~B43_NPHY_RFCTL_CMD_CHIP0PU);
+	/* Maybe wl meant to reset and set (order?) RFCTL_CMD_OEPORFORCE? */
+	b43_phy_mask(dev, B43_NPHY_RFCTL_CMD, B43_NPHY_RFCTL_CMD_OEPORFORCE);
+	b43_phy_set(dev, B43_NPHY_RFCTL_CMD, ~B43_NPHY_RFCTL_CMD_OEPORFORCE);
+	b43_phy_set(dev, B43_NPHY_RFCTL_CMD, B43_NPHY_RFCTL_CMD_CHIP0PU);
+}
+
+static void b43_radio_2057_init_post(struct b43_wldev *dev)
+{
+	b43_radio_set(dev, R2057_XTALPUOVR_PINCTRL, 0x1);
+
+	b43_radio_set(dev, R2057_RFPLL_MISC_CAL_RESETN, 0x78);
+	b43_radio_set(dev, R2057_XTAL_CONFIG2, 0x80);
+	mdelay(2);
+	b43_radio_mask(dev, R2057_RFPLL_MISC_CAL_RESETN, ~0x78);
+	b43_radio_mask(dev, R2057_XTAL_CONFIG2, ~0x80);
+
+	if (dev->phy.n->init_por) {
+		b43_radio_2057_rcal(dev);
+		b43_radio_2057_rccal(dev);
+	}
+	b43_radio_mask(dev, R2057_RFPLL_MASTER, ~0x8);
+
+	dev->phy.n->init_por = false;
+}
+
+/* http://bcm-v4.sipsolutions.net/802.11/Radio/2057/Init */
+static void b43_radio_2057_init(struct b43_wldev *dev)
+{
+	b43_radio_2057_init_pre(dev);
+	r2057_upload_inittabs(dev);
+	b43_radio_2057_init_post(dev);
 }
 
 /**************************************************
@@ -5212,6 +5343,8 @@ static void b43_nphy_op_prepare_structs(struct b43_wldev *dev)
 		nphy->ipa2g_on = sprom->fem.ghz2.extpa_gain == 2;
 		nphy->ipa5g_on = sprom->fem.ghz5.extpa_gain == 2;
 	}
+
+	nphy->init_por = true;
 }
 
 static void b43_nphy_op_free(struct b43_wldev *dev)
@@ -5298,7 +5431,9 @@ static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
 	if (blocked) {
 		b43_phy_mask(dev, B43_NPHY_RFCTL_CMD,
 				~B43_NPHY_RFCTL_CMD_CHIP0PU);
-		if (dev->phy.rev >= 3) {
+		if (dev->phy.rev >= 7) {
+			/* TODO */
+		} else if (dev->phy.rev >= 3) {
 			b43_radio_mask(dev, 0x09, ~0x2);
 
 			b43_radio_write(dev, 0x204D, 0);
@@ -5316,7 +5451,10 @@ static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
 			b43_radio_write(dev, 0x3064, 0);
 		}
 	} else {
-		if (dev->phy.rev >= 3) {
+		if (dev->phy.rev >= 7) {
+			b43_radio_2057_init(dev);
+			b43_switch_channel(dev, dev->phy.channel);
+		} else if (dev->phy.rev >= 3) {
 			b43_radio_init2056(dev);
 			b43_switch_channel(dev, dev->phy.channel);
 		} else {
