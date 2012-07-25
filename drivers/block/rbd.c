@@ -1186,8 +1186,7 @@ static int rbd_req_sync_read(struct rbd_device *rbd_dev,
  */
 static int rbd_req_sync_notify_ack(struct rbd_device *rbd_dev,
 				   u64 ver,
-				   u64 notify_id,
-				   const char *object_name)
+				   u64 notify_id)
 {
 	struct ceph_osd_req_op *ops;
 	int ret;
@@ -1201,7 +1200,7 @@ static int rbd_req_sync_notify_ack(struct rbd_device *rbd_dev,
 	ops[0].watch.flag = 0;
 
 	ret = rbd_do_request(NULL, rbd_dev, NULL, CEPH_NOSNAP,
-			  object_name, 0, 0, NULL,
+			  rbd_dev->header_name, 0, 0, NULL,
 			  NULL, 0,
 			  CEPH_OSD_FLAG_READ,
 			  ops,
@@ -1232,7 +1231,7 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 		pr_warning(RBD_DRV_NAME "%d got notification but failed to "
 			   " update snaps: %d\n", rbd_dev->major, rc);
 
-	rbd_req_sync_notify_ack(rbd_dev, hver, notify_id, rbd_dev->header_name);
+	rbd_req_sync_notify_ack(rbd_dev, hver, notify_id);
 }
 
 /*
