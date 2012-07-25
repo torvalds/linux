@@ -3015,8 +3015,6 @@ static void hotkey_exit(void)
 	if (hotkey_dev_attributes)
 		delete_attr_set(hotkey_dev_attributes, &tpacpi_pdev->dev.kobj);
 
-	kfree(hotkey_keycode_map);
-
 	dbg_printk(TPACPI_DBG_EXIT | TPACPI_DBG_HKEY,
 		   "restoring original HKEY status and mask\n");
 	/* yes, there is a bitwise or below, we want the
@@ -8937,6 +8935,7 @@ static void thinkpad_acpi_module_exit(void)
 			input_unregister_device(tpacpi_inputdev);
 		else
 			input_free_device(tpacpi_inputdev);
+		kfree(hotkey_keycode_map);
 	}
 
 	if (tpacpi_hwmon)
