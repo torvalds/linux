@@ -326,11 +326,6 @@ static void ext4_put_nojournal(handle_t *handle)
 
 /*
  * Wrappers for jbd2_journal_start/end.
- *
- * The only special thing we need to do here is to make sure that all
- * journal_end calls result in the superblock being marked dirty, so
- * that sync() will call the filesystem's write_super callback if
- * appropriate.
  */
 handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks)
 {
@@ -356,12 +351,6 @@ handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks)
 	return jbd2_journal_start(journal, nblocks);
 }
 
-/*
- * The only special thing we need to do here is to make sure that all
- * jbd2_journal_stop calls result in the superblock being marked dirty, so
- * that sync() will call the filesystem's write_super callback if
- * appropriate.
- */
 int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle)
 {
 	struct super_block *sb;
