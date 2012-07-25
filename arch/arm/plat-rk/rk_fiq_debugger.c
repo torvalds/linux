@@ -27,6 +27,8 @@
 #include <linux/slab.h>
 #include <linux/stacktrace.h>
 #include <linux/uaccess.h>
+#include <linux/kfifo.h>
+#include <linux/kthread.h>
 #include <asm/fiq_debugger.h>
 #include <asm/hardware/gic.h>
 #include <plat/rk_fiq_debugger.h>
@@ -36,6 +38,9 @@ struct rk_fiq_debugger {
 	struct fiq_debugger_pdata pdata;
 	void __iomem *debug_port_base;
 	bool break_seen;
+#ifdef CONFIG_RK_CONSOLE_THREAD
+	struct task_struct *console_task;
+#endif
 };
 
 static inline void rk_fiq_write(struct rk_fiq_debugger *t,
@@ -122,6 +127,61 @@ static void debug_flush(struct platform_device *pdev)
 		cpu_relax();
 }
 
+#ifdef CONFIG_RK_CONSOLE_THREAD
+static DEFINE_KFIFO(fifo, unsigned char, SZ_64K);
+
+static int console_thread(void *data)
+{
+	struct platform_device *pdev = data;
+	struct rk_fiq_debugger *t;
+	unsigned char c;
+	t = container_of(dev_get_platdata(&pdev->dev), typeof(*t), pdata);
+
+	while (1) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule();
+		if (kthread_should_stop())
+			break;
+		set_current_state(TASK_RUNNING);
+		while (kfifo_get(&fifo, &c))
+			debug_putc(pdev, c);
+		debug_flush(pdev);
+	}
+
+	return 0;
+}
+
+static void console_write(struct platform_device *pdev, const char *s, unsigned int count)
+{
+	unsigned char c, r = '\r';
+	static bool oops = false;
+	struct rk_fiq_debugger *t;
+	t = container_of(dev_get_platdata(&pdev->dev), typeof(*t), pdata);
+
+	if (oops_in_progress || oops) {
+		while (kfifo_get(&fifo, &c))
+			debug_putc(pdev, c);
+		while (count--) {
+			if (*s == '\n') {
+				debug_putc(pdev, r);
+			}
+			debug_putc(pdev, *s++);
+		}
+		debug_flush(pdev);
+		oops = true;
+		return;
+	}
+
+	while (count--) {
+		if (*s == '\n') {
+			kfifo_put(&fifo, &r);
+		}
+		kfifo_put(&fifo, s++);
+	}
+	wake_up_process(t->console_task);
+}
+#endif
+
 static void fiq_enable(struct platform_device *pdev, unsigned int irq, bool on)
 {
 	if (on)
@@ -198,6 +258,15 @@ void rk_serial_debug_init(void __iomem *base, int irq, int signal_irq, int wakeu
 		res[2].name = "wakeup";
 		res_count++;
 	}
+
+#ifdef CONFIG_RK_CONSOLE_THREAD
+	t->console_task = kthread_create(console_thread, pdev, "kconsole");
+	if (!IS_ERR(t->console_task)) {
+		struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
+		t->pdata.console_write = console_write;
+		sched_setscheduler_nocheck(t->console_task, SCHED_FIFO, &param);
+	}
+#endif
 
 	pdev->name = "fiq_debugger";
 	pdev->id = rk_fiq_debugger_id++;
