@@ -869,6 +869,7 @@ intel_vlv_find_best_pll(const intel_limit_t *limit, struct drm_crtc *crtc,
 	unsigned long bestppm, ppm, absppm;
 	int dotclk, flag;
 
+	flag = 0;
 	dotclk = target * 1000;
 	bestppm = 1000000;
 	ppm = absppm = 0;
