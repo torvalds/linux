@@ -26,16 +26,16 @@ extern pgd_t init_level4_pgt[];
 extern void paging_init(void);
 
 #define pte_ERROR(e)					\
-	printk("%s:%d: bad pte %p(%016lx).\n",		\
+	pr_err("%s:%d: bad pte %p(%016lx)\n",		\
 	       __FILE__, __LINE__, &(e), pte_val(e))
 #define pmd_ERROR(e)					\
-	printk("%s:%d: bad pmd %p(%016lx).\n",		\
+	pr_err("%s:%d: bad pmd %p(%016lx)\n",		\
 	       __FILE__, __LINE__, &(e), pmd_val(e))
 #define pud_ERROR(e)					\
-	printk("%s:%d: bad pud %p(%016lx).\n",		\
+	pr_err("%s:%d: bad pud %p(%016lx)\n",		\
 	       __FILE__, __LINE__, &(e), pud_val(e))
 #define pgd_ERROR(e)					\
-	printk("%s:%d: bad pgd %p(%016lx).\n",		\
+	pr_err("%s:%d: bad pgd %p(%016lx)\n",		\
 	       __FILE__, __LINE__, &(e), pgd_val(e))
 
 struct mm_struct;

@@ -1095,7 +1095,7 @@ int target_emulate_write_same(struct se_cmd *cmd)
 	if (num_blocks != 0)
 		range = num_blocks;
 	else
-		range = (dev->transport->get_blocks(dev) - lba);
+		range = (dev->transport->get_blocks(dev) - lba) + 1;
 
 	pr_debug("WRITE_SAME UNMAP: LBA: %llu Range: %llu\n",
 		 (unsigned long long)lba, (unsigned long long)range);

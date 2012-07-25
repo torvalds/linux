@@ -346,6 +346,15 @@ static const struct driver_info	qmi_wwan_force_int1 = {
 	.data		= BIT(1), /* interface whitelist bitmap */
 };
 
+static const struct driver_info qmi_wwan_force_int2 = {
+	.description	= "Qualcomm WWAN/QMI device",
+	.flags		= FLAG_WWAN,
+	.bind		= qmi_wwan_bind_shared,
+	.unbind		= qmi_wwan_unbind_shared,
+	.manage_power	= qmi_wwan_manage_power,
+	.data		= BIT(2), /* interface whitelist bitmap */
+};
+
 static const struct driver_info	qmi_wwan_force_int3 = {
 	.description	= "Qualcomm WWAN/QMI device",
 	.flags		= FLAG_WWAN,
@@ -497,6 +506,15 @@ static const struct usb_device_id products[] = {
 		.bInterfaceSubClass = 0xff,
 		.bInterfaceProtocol = 0xff,
 		.driver_info        = (unsigned long)&qmi_wwan_force_int4,
+	},
+	{	/* ZTE MF60 */
+		.match_flags	    = USB_DEVICE_ID_MATCH_DEVICE | USB_DEVICE_ID_MATCH_INT_INFO,
+		.idVendor           = 0x19d2,
+		.idProduct          = 0x1402,
+		.bInterfaceClass    = 0xff,
+		.bInterfaceSubClass = 0xff,
+		.bInterfaceProtocol = 0xff,
+		.driver_info        = (unsigned long)&qmi_wwan_force_int2,
 	},
 	{	/* Sierra Wireless MC77xx in QMI mode */
 		.match_flags	    = USB_DEVICE_ID_MATCH_DEVICE | USB_DEVICE_ID_MATCH_INT_INFO,
