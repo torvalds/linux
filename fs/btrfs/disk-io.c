@@ -1182,6 +1182,8 @@ static void __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->defrag_running = 0;
 	root->root_key.objectid = objectid;
 	root->anon_dev = 0;
+
+	spin_lock_init(&root->root_times_lock);
 }
 
 static int __must_check find_and_setup_root(struct btrfs_root *tree_root,
@@ -1402,6 +1404,7 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 	u64 generation;
 	u32 blocksize;
 	int ret = 0;
+	int slot;
 
 	root = btrfs_alloc_root(fs_info);
 	if (!root)
@@ -1428,9 +1431,8 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 	ret = btrfs_search_slot(NULL, tree_root, location, path, 0, 0);
 	if (ret == 0) {
 		l = path->nodes[0];
-		read_extent_buffer(l, &root->root_item,
-				btrfs_item_ptr_offset(l, path->slots[0]),
-				sizeof(root->root_item));
+		slot = path->slots[0];
+		btrfs_read_root_item(tree_root, l, slot, &root->root_item);
 		memcpy(&root->root_key, location, sizeof(*location));
 	}
 	btrfs_free_path(path);

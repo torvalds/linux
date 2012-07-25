@@ -2734,6 +2734,8 @@ noinline int btrfs_update_inode(struct btrfs_trans_handle *trans,
 	 */
 	if (!btrfs_is_free_space_inode(inode)
 	    && root->root_key.objectid != BTRFS_DATA_RELOC_TREE_OBJECTID) {
+		btrfs_update_root_times(trans, root);
+
 		ret = btrfs_delayed_update_inode(trans, root, inode);
 		if (!ret)
 			btrfs_set_inode_last_trans(trans, inode);
@@ -4727,6 +4729,8 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 
 	trace_btrfs_inode_new(inode);
 	btrfs_set_inode_last_trans(trans, inode);
+
+	btrfs_update_root_times(trans, root);
 
 	return inode;
 fail:

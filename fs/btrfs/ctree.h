@@ -712,6 +712,36 @@ struct btrfs_root_item {
 	struct btrfs_disk_key drop_progress;
 	u8 drop_level;
 	u8 level;
+
+	/*
+	 * The following fields appear after subvol_uuids+subvol_times
+	 * were introduced.
+	 */
+
+	/*
+	 * This generation number is used to test if the new fields are valid
+	 * and up to date while reading the root item. Everytime the root item
+	 * is written out, the "generation" field is copied into this field. If
+	 * anyone ever mounted the fs with an older kernel, we will have
+	 * mismatching generation values here and thus must invalidate the
+	 * new fields. See btrfs_update_root and btrfs_find_last_root for
+	 * details.
+	 * the offset of generation_v2 is also used as the start for the memset
+	 * when invalidating the fields.
+	 */
+	__le64 generation_v2;
+	u8 uuid[BTRFS_UUID_SIZE];
+	u8 parent_uuid[BTRFS_UUID_SIZE];
+	u8 received_uuid[BTRFS_UUID_SIZE];
+	__le64 ctransid; /* updated when an inode changes */
+	__le64 otransid; /* trans when created */
+	__le64 stransid; /* trans when sent. non-zero for received subvol */
+	__le64 rtransid; /* trans when received. non-zero for received subvol */
+	struct btrfs_timespec ctime;
+	struct btrfs_timespec otime;
+	struct btrfs_timespec stime;
+	struct btrfs_timespec rtime;
+	__le64 reserved[8]; /* for future */
 } __attribute__ ((__packed__));
 
 /*
@@ -1520,6 +1550,8 @@ struct btrfs_root {
 	dev_t anon_dev;
 
 	int force_cow;
+
+	spinlock_t root_times_lock;
 };
 
 struct btrfs_ioctl_defrag_range_args {
@@ -2358,6 +2390,16 @@ BTRFS_SETGET_STACK_FUNCS(root_used, struct btrfs_root_item, bytes_used, 64);
 BTRFS_SETGET_STACK_FUNCS(root_limit, struct btrfs_root_item, byte_limit, 64);
 BTRFS_SETGET_STACK_FUNCS(root_last_snapshot, struct btrfs_root_item,
 			 last_snapshot, 64);
+BTRFS_SETGET_STACK_FUNCS(root_generation_v2, struct btrfs_root_item,
+			 generation_v2, 64);
+BTRFS_SETGET_STACK_FUNCS(root_ctransid, struct btrfs_root_item,
+			 ctransid, 64);
+BTRFS_SETGET_STACK_FUNCS(root_otransid, struct btrfs_root_item,
+			 otransid, 64);
+BTRFS_SETGET_STACK_FUNCS(root_stransid, struct btrfs_root_item,
+			 stransid, 64);
+BTRFS_SETGET_STACK_FUNCS(root_rtransid, struct btrfs_root_item,
+			 rtransid, 64);
 
 static inline bool btrfs_root_readonly(struct btrfs_root *root)
 {
@@ -2893,6 +2935,21 @@ int btrfs_search_forward(struct btrfs_root *root, struct btrfs_key *min_key,
 			 struct btrfs_key *max_key,
 			 struct btrfs_path *path, int cache_only,
 			 u64 min_trans);
+enum btrfs_compare_tree_result {
+	BTRFS_COMPARE_TREE_NEW,
+	BTRFS_COMPARE_TREE_DELETED,
+	BTRFS_COMPARE_TREE_CHANGED,
+};
+typedef int (*btrfs_changed_cb_t)(struct btrfs_root *left_root,
+				  struct btrfs_root *right_root,
+				  struct btrfs_path *left_path,
+				  struct btrfs_path *right_path,
+				  struct btrfs_key *key,
+				  enum btrfs_compare_tree_result result,
+				  void *ctx);
+int btrfs_compare_trees(struct btrfs_root *left_root,
+			struct btrfs_root *right_root,
+			btrfs_changed_cb_t cb, void *ctx);
 int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		    struct btrfs_root *root, struct extent_buffer *buf,
 		    struct extent_buffer *parent, int parent_slot,
@@ -3046,6 +3103,9 @@ int __must_check btrfs_update_root(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root,
 				   struct btrfs_key *key,
 				   struct btrfs_root_item *item);
+void btrfs_read_root_item(struct btrfs_root *root,
+			 struct extent_buffer *eb, int slot,
+			 struct btrfs_root_item *item);
 int btrfs_find_last_root(struct btrfs_root *root, u64 objectid, struct
 			 btrfs_root_item *item, struct btrfs_key *key);
 int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid);
@@ -3053,6 +3113,8 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root);
 void btrfs_set_root_node(struct btrfs_root_item *item,
 			 struct extent_buffer *node);
 void btrfs_check_and_init_root_item(struct btrfs_root_item *item);
+void btrfs_update_root_times(struct btrfs_trans_handle *trans,
+			     struct btrfs_root *root);
 
 /* dir-item.c */
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans,

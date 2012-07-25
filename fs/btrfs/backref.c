@@ -1122,10 +1122,10 @@ static int inode_ref_info(u64 inum, u64 ioff, struct btrfs_root *fs_root,
  * required for the path to fit into the buffer. in that case, the returned
  * value will be smaller than dest. callers must check this!
  */
-static char *iref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
-				struct btrfs_inode_ref *iref,
-				struct extent_buffer *eb_in, u64 parent,
-				char *dest, u32 size)
+char *btrfs_iref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
+			 struct btrfs_inode_ref *iref,
+			 struct extent_buffer *eb_in, u64 parent,
+			 char *dest, u32 size)
 {
 	u32 len;
 	int slot;
@@ -1531,7 +1531,7 @@ static int inode_to_path(u64 inum, struct btrfs_inode_ref *iref,
 					ipath->fspath->bytes_left - s_ptr : 0;
 
 	fspath_min = (char *)ipath->fspath->val + (i + 1) * s_ptr;
-	fspath = iref_to_path(ipath->fs_root, ipath->btrfs_path, iref, eb,
+	fspath = btrfs_iref_to_path(ipath->fs_root, ipath->btrfs_path, iref, eb,
 				inum, fspath_min, bytes_left);
 	if (IS_ERR(fspath))
 		return PTR_ERR(fspath);
