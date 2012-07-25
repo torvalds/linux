@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/memblock.h>
 #include <linux/spinlock.h>
 #include <linux/sched.h>	/* for show_stack */
 #include <linux/string.h>

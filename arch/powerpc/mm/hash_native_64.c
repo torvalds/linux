@@ -14,10 +14,10 @@
 
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
+#include <linux/of.h>
 #include <linux/threads.h>
 #include <linux/smp.h>
 
-#include <asm/abs_addr.h>
 #include <asm/machdep.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>

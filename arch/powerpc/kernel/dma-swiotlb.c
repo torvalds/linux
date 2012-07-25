@@ -12,6 +12,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/memblock.h>
 #include <linux/pfn.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -20,7 +21,6 @@
 #include <asm/machdep.h>
 #include <asm/swiotlb.h>
 #include <asm/dma.h>
-#include <asm/abs_addr.h>
 
 unsigned int ppc_swiotlb_enable;
 

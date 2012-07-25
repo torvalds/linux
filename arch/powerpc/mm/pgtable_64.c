@@ -51,7 +51,6 @@
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/sections.h>
-#include <asm/abs_addr.h>
 #include <asm/firmware.h>
 
 #include "mmu_decl.h"

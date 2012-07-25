@@ -30,7 +30,6 @@
 #include <asm/opal.h>
 #include <asm/iommu.h>
 #include <asm/tce.h>
-#include <asm/abs_addr.h>
 
 #include "powernv.h"
 #include "pci.h"

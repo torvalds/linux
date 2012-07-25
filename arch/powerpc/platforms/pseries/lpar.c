@@ -31,7 +31,6 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/machdep.h>
-#include <asm/abs_addr.h>
 #include <asm/mmu_context.h>
 #include <asm/iommu.h>
 #include <asm/tlbflush.h>
