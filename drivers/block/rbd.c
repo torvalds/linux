@@ -481,6 +481,12 @@ static void rbd_coll_release(struct kref *kref)
 	kfree(coll);
 }
 
+static bool rbd_dev_ondisk_valid(struct rbd_image_header_ondisk *ondisk)
+{
+	return !memcmp(&ondisk->text,
+			RBD_HEADER_TEXT, sizeof (RBD_HEADER_TEXT));
+}
+
 /*
  * Create a new header structure, translate header format from the on-disk
  * header.
@@ -492,7 +498,7 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 {
 	u32 i, snap_count;
 
-	if (memcmp(ondisk, RBD_HEADER_TEXT, sizeof(RBD_HEADER_TEXT)))
+	if (!rbd_dev_ondisk_valid(ondisk))
 		return -ENXIO;
 
 	snap_count = le32_to_cpu(ondisk->snap_count);
