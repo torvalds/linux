@@ -628,7 +628,7 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter, int v_idx,
 			f = &adapter->ring_feature[RING_F_FCOE];
 			if ((rxr_idx >= f->mask) &&
 			    (rxr_idx < f->mask + f->indices))
-				set_bit(__IXGBE_RX_FCOE_BUFSZ, &ring->state);
+				set_bit(__IXGBE_RX_FCOE, &ring->state);
 		}
 
 #endif /* IXGBE_FCOE */

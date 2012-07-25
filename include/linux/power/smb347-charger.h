@@ -112,6 +112,10 @@ struct smb347_charger_platform_data {
 	bool		use_usb_otg;
 	int		irq_gpio;
 	enum smb347_chg_enable enable_control;
+	bool		usb_mode_pin_ctrl;
+	char		**supplied_to;
+	size_t		num_supplicants;
+	int		en_gpio;
 };
 
 #endif /* SMB347_CHARGER_H */

@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfg80211.h 338268 2012-06-12 06:53:59Z $
+ * $Id: wl_cfg80211.h 341975 2012-06-29 08:55:12Z $
  */
 
 #ifndef _wl_cfg80211_h_
@@ -475,7 +475,6 @@ struct wl_priv {
 	void *pub;
 	u32 iface_cnt;
 	u32 channel;		/* current channel */
-	s32 glom;
 #ifdef WL_CFG80211_SYNC_GON
 	u32 af_sent_channel;	/* channel action frame is sent */
 	/* the next gon af subtype to wait for it in rx process: default: 0xff (-1) */
@@ -500,6 +499,7 @@ struct wl_priv {
 	struct mutex ioctl_buf_sync;
 	u8 *escan_ioctl_buf;
 	u8 *extra_buf;	/* maily to grab assoc information */
+	u8 *vndr_ie_buf;
 	struct dentry *debugfsdir;
 	struct rfkill *rfkill;
 	bool rf_blocked;

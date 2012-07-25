@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfgp2p.c 338268 2012-06-12 06:53:59Z $
+ * $Id: wl_cfgp2p.c 342795 2012-07-04 02:45:35Z $
  *
  */
 #include <typedefs.h>
@@ -772,9 +772,14 @@ wl_cfgp2p_escan(struct wl_priv *wl, struct net_device *dev, u16 active,
 		 * we have to set ssid to P2P WILDCARD because
 		 * we just do broadcast scan unless setting SSID
 		 */
-		strcpy(ssid.SSID, WL_P2P_WILDCARD_SSID);
+		strncpy(ssid.SSID, WL_P2P_WILDCARD_SSID, sizeof(ssid.SSID) - 1);
+		ssid.SSID[sizeof(ssid.SSID) - 1] = 0;
 		ssid.SSID_len = htod32(WL_P2P_WILDCARD_SSID_LEN);
 		wl_cfgp2p_set_p2p_mode(wl, WL_P2P_DISC_ST_SCAN, 0, 0, bssidx);
+	}
+	else {
+		CFGP2P_ERR((" invalid search state %d\n", search_state));
+		return -1;
 	}
 
 
@@ -1356,8 +1361,10 @@ wl_cfgp2p_listen_complete(struct wl_priv *wl, struct net_device *ndev,
 #ifdef WL_CFG80211_VSDB_PRIORITIZE_SCAN_REQUEST
 			wl_clr_drv_status(wl, FAKE_REMAINING_ON_CHANNEL, ndev);
 #endif /* WL_CFG80211_VSDB_PRIORITIZE_SCAN_REQUEST */
-			cfg80211_remain_on_channel_expired(ndev, wl->last_roc_id,
-				&wl->remain_on_chan, wl->remain_on_chan_type, GFP_KERNEL);
+			if (ndev && (ndev->ieee80211_ptr != NULL)) {
+				cfg80211_remain_on_channel_expired(ndev, wl->last_roc_id,
+					&wl->remain_on_chan, wl->remain_on_chan_type, GFP_KERNEL);
+			}
 		}
 		if (wl_add_remove_eventmsg(netdev, WLC_E_P2P_PROBREQ_MSG, false) != BCME_OK) {
 			CFGP2P_ERR((" failed to unset WLC_E_P2P_PROPREQ_MSG\n"));
@@ -1748,7 +1755,7 @@ wl_cfgp2p_set_p2p_noa(struct wl_priv *wl, struct net_device *ndev, char* buf, in
 
 		wl->p2p->noa.desc[0].start = 0;
 
-		sscanf(buf, "%d %d %d", &count, &start, &duration);
+		sscanf(buf, "%10d %10d %10d", &count, &start, &duration);
 		CFGP2P_DBG(("set_p2p_noa count %d start %d duration %d\n",
 			count, start, duration));
 		if (count != -1)
@@ -1837,7 +1844,7 @@ wl_cfgp2p_get_p2p_noa(struct wl_priv *wl, struct net_device *ndev, char* buf, in
 			}
 			/* We have to convert the buffer data into ASCII strings */
 			for (i = 0; i < len; i++) {
-				sprintf(buf, "%02x", _buf[i]);
+				snprintf(buf, 3, "%02x", _buf[i]);
 				buf += 2;
 			}
 			buf[i*2] = '\0';
@@ -1858,7 +1865,7 @@ wl_cfgp2p_set_p2p_ps(struct wl_priv *wl, struct net_device *ndev, char* buf, int
 
 	CFGP2P_DBG((" Enter\n"));
 	if (wl->p2p && wl->p2p->vif_created) {
-		sscanf(buf, "%d %d %d", &legacy_ps, &ps, &ctw);
+		sscanf(buf, "%10d %10d %10d", &legacy_ps, &ps, &ctw);
 		CFGP2P_DBG((" Enter legacy_ps %d ps %d ctw %d\n", legacy_ps, ps, ctw));
 		if (ctw != -1) {
 			wl->p2p->ops.ctw = ctw;
@@ -1990,16 +1997,16 @@ wl_cfgp2p_register_ndev(struct wl_priv *wl)
 	uint8 temp_addr[ETHER_ADDR_LEN] = { 0x00, 0x90, 0x4c, 0x33, 0x22, 0x11 };
 
 	/* Allocate etherdev, including space for private structure */
-	if (!(net = alloc_etherdev(sizeof(wl)))) {
+	if (!(net = alloc_etherdev(sizeof(struct wl_priv *)))) {
 		CFGP2P_ERR(("%s: OOM - alloc_etherdev\n", __FUNCTION__));
 		goto fail;
 	}
 
-	strcpy(net->name, "p2p%d");
+	strncpy(net->name, "p2p%d", sizeof(net->name) - 1);
 	net->name[IFNAMSIZ - 1] = '\0';
 
 	/* Copy the reference to wl_priv */
-	memcpy((void *)netdev_priv(net), &wl, sizeof(wl));
+	memcpy((void *)netdev_priv(net), &wl, sizeof(struct wl_priv *));
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 31))
 	ASSERT(!net->open);
