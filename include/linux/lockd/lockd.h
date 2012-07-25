@@ -279,7 +279,7 @@ void		  nlmsvc_release_call(struct nlm_rqst *);
 __be32		  nlm_lookup_file(struct svc_rqst *, struct nlm_file **,
 					struct nfs_fh *);
 void		  nlm_release_file(struct nlm_file *);
-void		  nlmsvc_mark_resources(void);
+void		  nlmsvc_mark_resources(struct net *);
 void		  nlmsvc_free_host_resources(struct nlm_host *);
 void		  nlmsvc_invalidate_all(void);
 
