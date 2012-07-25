@@ -1114,7 +1114,7 @@ struct drm_i915_file_private {
 
 #define HAS_FORCE_WAKE(dev) (INTEL_INFO(dev)->has_force_wake)
 
-#define HAS_L3_GPU_CACHE(dev) (IS_IVYBRIDGE(dev))
+#define HAS_L3_GPU_CACHE(dev) (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
 
 #include "i915_trace.h"
 
