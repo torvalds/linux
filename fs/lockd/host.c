@@ -572,6 +572,35 @@ void nlm_host_rebooted(const struct nlm_reboot *info)
 	nsm_release(nsm);
 }
 
+static void nlm_complain_hosts(struct net *net)
+{
+	struct hlist_head *chain;
+	struct hlist_node *pos;
+	struct nlm_host	*host;
+
+	if (net) {
+		struct lockd_net *ln = net_generic(net, lockd_net_id);
+
+		if (ln->nrhosts == 0)
+			return;
+		printk(KERN_WARNING "lockd: couldn't shutdown host module for net %p!\n", net);
+		dprintk("lockd: %lu hosts left in net %p:\n", ln->nrhosts, net);
+	} else {
+		if (nrhosts == 0)
+			return;
+		printk(KERN_WARNING "lockd: couldn't shutdown host module!\n");
+		dprintk("lockd: %lu hosts left:\n", nrhosts);
+	}
+
+	for_each_host(host, pos, chain, nlm_server_hosts) {
+		if (net && host->net != net)
+			continue;
+		dprintk("       %s (cnt %d use %d exp %ld net %p)\n",
+			host->h_name, atomic_read(&host->h_count),
+			host->h_inuse, host->h_expires, host->net);
+	}
+}
+
 void
 nlm_shutdown_hosts_net(struct net *net)
 {
@@ -598,18 +627,7 @@ nlm_shutdown_hosts_net(struct net *net)
 	nlm_gc_hosts(net);
 	mutex_unlock(&nlm_host_mutex);
 
-	/* complain if any hosts are left */
-	if (net) {
-		struct lockd_net *ln = net_generic(net, lockd_net_id);
-
-		printk(KERN_WARNING "lockd: couldn't shutdown host module for net %p!\n", net);
-		dprintk("lockd: %lu hosts left in net %p:\n", ln->nrhosts, net);
-		for_each_host(host, pos, chain, nlm_server_hosts) {
-			dprintk("       %s (cnt %d use %d exp %ld net %p)\n",
-				host->h_name, atomic_read(&host->h_count),
-				host->h_inuse, host->h_expires, host->net);
-		}
-	}
+	nlm_complain_hosts(net);
 }
 
 /*
@@ -619,22 +637,7 @@ nlm_shutdown_hosts_net(struct net *net)
 void
 nlm_shutdown_hosts(void)
 {
-	struct hlist_head *chain;
-	struct hlist_node *pos;
-	struct nlm_host	*host;
-
 	nlm_shutdown_hosts_net(NULL);
-
-	/* complain if any hosts are left */
-	if (nrhosts != 0) {
-		printk(KERN_WARNING "lockd: couldn't shutdown host module!\n");
-		dprintk("lockd: %lu hosts left:\n", nrhosts);
-		for_each_host(host, pos, chain, nlm_server_hosts) {
-			dprintk("       %s (cnt %d use %d exp %ld net %p)\n",
-				host->h_name, atomic_read(&host->h_count),
-				host->h_inuse, host->h_expires, host->net);
-		}
-	}
 }
 
 /*
