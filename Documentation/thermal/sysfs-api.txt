@@ -121,6 +121,7 @@ Thermal zone device sys I/F, created once it's registered:
     |---mode:			Working mode of the thermal zone
     |---trip_point_[0-*]_temp:	Trip point temperature
     |---trip_point_[0-*]_type:	Trip point type
+    |---trip_point_[0-*]_hyst:	Hysteresis value for this trip point
 
 Thermal cooling device sys I/F, created once it's registered:
 /sys/class/thermal/cooling_device[0-*]:
@@ -189,6 +190,11 @@ trip_point_[0-*]_type
 	E.g. it can be one of critical, hot, passive, active[0-*] for ACPI
 	thermal zone.
 	RO, Optional
+
+trip_point_[0-*]_hyst
+	The hysteresis value for a trip point, represented as an integer
+	Unit: Celsius
+	RW, Optional
 
 cdev[0-*]
 	Sysfs link to the thermal cooling device node where the sys I/F
