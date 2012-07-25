@@ -276,6 +276,7 @@
 
 	usb@c5000000 {
 		status = "okay";
+		nvidia,vbus-gpio = <&gpio 170 0>; /* gpio PV2 */
 	};
 
 	usb@c5004000 {
