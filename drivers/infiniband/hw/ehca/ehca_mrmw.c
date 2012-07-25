@@ -1136,7 +1136,7 @@ int ehca_reg_mr_rpages(struct ehca_shca *shca,
 		}
 
 		if (rnum > 1) {
-			rpage = virt_to_abs(kpage);
+			rpage = __pa(kpage);
 			if (!rpage) {
 				ehca_err(&shca->ib_device, "kpage=%p i=%x",
 					 kpage, i);
@@ -1231,7 +1231,7 @@ inline int ehca_rereg_mr_rereg1(struct ehca_shca *shca,
 			 pginfo->num_kpages, pginfo->num_hwpages, kpage);
 		goto ehca_rereg_mr_rereg1_exit1;
 	}
-	rpage = virt_to_abs(kpage);
+	rpage = __pa(kpage);
 	if (!rpage) {
 		ehca_err(&shca->ib_device, "kpage=%p", kpage);
 		ret = -EFAULT;
@@ -1525,7 +1525,7 @@ static inline void *ehca_calc_sectbase(int top, int dir, int idx)
 	unsigned long ret = idx;
 	ret |= dir << EHCA_DIR_INDEX_SHIFT;
 	ret |= top << EHCA_TOP_INDEX_SHIFT;
-	return abs_to_virt(ret << SECTION_SIZE_BITS);
+	return __va(ret << SECTION_SIZE_BITS);
 }
 
 #define ehca_bmap_valid(entry) \
@@ -1537,7 +1537,7 @@ static u64 ehca_reg_mr_section(int top, int dir, int idx, u64 *kpage,
 {
 	u64 h_ret = 0;
 	unsigned long page = 0;
-	u64 rpage = virt_to_abs(kpage);
+	u64 rpage = __pa(kpage);
 	int page_count;
 
 	void *sectbase = ehca_calc_sectbase(top, dir, idx);
@@ -1553,7 +1553,7 @@ static u64 ehca_reg_mr_section(int top, int dir, int idx, u64 *kpage,
 		for (rnum = 0; (rnum < MAX_RPAGES) && (page < page_count);
 		     rnum++) {
 			void *pg = sectbase + ((page++) * pginfo->hwpage_size);
-			kpage[rnum] = virt_to_abs(pg);
+			kpage[rnum] = __pa(pg);
 		}
 
 		h_ret = hipz_h_register_rpage_mr(shca->ipz_hca_handle, mr,
@@ -1926,7 +1926,7 @@ static int ehca_check_kpages_per_ate(struct scatterlist *page_list,
 		u64 pgaddr = page_to_pfn(sg_page(&page_list[t])) << PAGE_SHIFT;
 		if (ehca_debug_level >= 3)
 			ehca_gen_dbg("chunk_page=%llx value=%016llx", pgaddr,
-				     *(u64 *)abs_to_virt(pgaddr));
+				     *(u64 *)__va(pgaddr));
 		if (pgaddr - PAGE_SIZE != *prev_pgaddr) {
 			ehca_gen_err("uncontiguous page found pgaddr=%llx "
 				     "prev_pgaddr=%llx page_list_i=%x",
@@ -1993,7 +1993,7 @@ static int ehca_set_pagebuf_user2(struct ehca_mr_pginfo *pginfo,
 						 ~(pginfo->hwpage_size - 1);
 				}
 				if (ehca_debug_level >= 3) {
-					u64 val = *(u64 *)abs_to_virt(pgaddr);
+					u64 val = *(u64 *)__va(pgaddr);
 					ehca_gen_dbg("kpage=%llx chunk_page=%llx "
 						     "value=%016llx",
 						     *kpage, pgaddr, val);
@@ -2503,7 +2503,7 @@ static u64 ehca_map_vaddr(void *caddr)
 	if (!ehca_bmap)
 		return EHCA_INVAL_ADDR;
 
-	abs_addr = virt_to_abs(caddr);
+	abs_addr = __pa(caddr);
 	top = ehca_calc_index(abs_addr, EHCA_TOP_INDEX_SHIFT + EHCA_SECTSHIFT);
 	if (!ehca_bmap_valid(ehca_bmap->top[top]))
 		return EHCA_INVAL_ADDR;
