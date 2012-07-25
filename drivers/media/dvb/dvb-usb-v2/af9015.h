@@ -139,6 +139,7 @@ struct af9015_state {
 	u8 rc_repeat;
 	u32 rc_keycode;
 	u8 rc_last[4];
+	bool rc_failed;
 	u8 dual_mode;
 	u8 seq; /* packet sequence number */
 	u16 mt2060_if1[2];

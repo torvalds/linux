@@ -1232,10 +1232,18 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 	}
 
 	state->rc_repeat = buf[6];
+	state->rc_failed = false;
 
 error:
-	if (ret)
+	if (ret) {
 		err("%s: failed:%d", __func__, ret);
+
+		/* allow random errors as dvb-usb will stop polling on error */
+		if (!state->rc_failed)
+			ret = 0;
+
+		state->rc_failed = true;
+	}
 
 	return ret;
 }
@@ -1249,8 +1257,9 @@ static int af9015_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 		return 0;
 
 	/* try to load remote based module param */
-	rc->map_name = af9015_rc_setup_match(dvb_usb_af9015_remote,
-			af9015_rc_setup_modparam);
+	if (!rc->map_name)
+		rc->map_name = af9015_rc_setup_match(dvb_usb_af9015_remote,
+				af9015_rc_setup_modparam);
 
 	/* try to load remote based eeprom hash */
 	if (!rc->map_name)
