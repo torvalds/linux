@@ -1238,9 +1238,7 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 /*
  * Request sync osd watch
  */
-static int rbd_req_sync_watch(struct rbd_device *rbd_dev,
-			      const char *object_name,
-			      u64 ver)
+static int rbd_req_sync_watch(struct rbd_device *rbd_dev)
 {
 	struct ceph_osd_req_op *ops;
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
@@ -1254,7 +1252,7 @@ static int rbd_req_sync_watch(struct rbd_device *rbd_dev,
 	if (ret < 0)
 		goto fail;
 
-	ops[0].watch.ver = cpu_to_le64(ver);
+	ops[0].watch.ver = cpu_to_le64(rbd_dev->header.obj_version);
 	ops[0].watch.cookie = cpu_to_le64(rbd_dev->watch_event->cookie);
 	ops[0].watch.flag = 1;
 
@@ -1263,7 +1261,8 @@ static int rbd_req_sync_watch(struct rbd_device *rbd_dev,
 			      0,
 			      CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
 			      ops,
-			      object_name, 0, 0, NULL,
+			      rbd_dev->header_name,
+			      0, 0, NULL,
 			      &rbd_dev->watch_request, NULL);
 
 	if (ret < 0)
@@ -2190,8 +2189,7 @@ static int rbd_init_watch_dev(struct rbd_device *rbd_dev)
 	int ret, rc;
 
 	do {
-		ret = rbd_req_sync_watch(rbd_dev, rbd_dev->header_name,
-					 rbd_dev->header.obj_version);
+		ret = rbd_req_sync_watch(rbd_dev);
 		if (ret == -ERANGE) {
 			mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 			rc = __rbd_refresh_header(rbd_dev);
