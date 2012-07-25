@@ -48,7 +48,6 @@
 #define cpu_has_userlocal	1
 #define cpu_has_mips32r2	1
 #define cpu_has_mips64r2	1
-#define cpu_has_dc_aliases	1
 #else
 #error "Unknown Netlogic CPU"
 #endif

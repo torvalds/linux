@@ -304,7 +304,7 @@ static void __devinit quirk_slc90e66_bridge(struct pci_dev *dev)
 	smsc_fdc37m81x_config_end();
 }
 
-static void quirk_slc90e66_ide(struct pci_dev *dev)
+static void __devinit quirk_slc90e66_ide(struct pci_dev *dev)
 {
 	unsigned char dat;
 	int regs[2] = {0x41, 0x43};
@@ -339,7 +339,7 @@ static void quirk_slc90e66_ide(struct pci_dev *dev)
 }
 #endif /* CONFIG_TOSHIBA_FPCIB0 */
 
-static void tc35815_fixup(struct pci_dev *dev)
+static void __devinit tc35815_fixup(struct pci_dev *dev)
 {
 	/* This device may have PM registers but not they are not suported. */
 	if (dev->pm_cap) {
@@ -348,7 +348,7 @@ static void tc35815_fixup(struct pci_dev *dev)
 	}
 }
 
-static void final_fixup(struct pci_dev *dev)
+static void __devinit final_fixup(struct pci_dev *dev)
 {
 	unsigned char bist;
 
