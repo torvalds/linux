@@ -240,7 +240,7 @@ static void rbd_put_dev(struct rbd_device *rbd_dev)
 	put_device(&rbd_dev->dev);
 }
 
-static int __rbd_refresh_header(struct rbd_device *rbd_dev);
+static int __rbd_refresh_header(struct rbd_device *rbd_dev, u64 *hver);
 
 static int rbd_open(struct block_device *bdev, fmode_t mode)
 {
@@ -1226,8 +1226,7 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 		rbd_dev->header_name, (unsigned long long) notify_id,
 		(unsigned int) opcode);
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-	rc = __rbd_refresh_header(rbd_dev);
-	hver = rbd_dev->header.obj_version;
+	rc = __rbd_refresh_header(rbd_dev, &hver);
 	mutex_unlock(&ctl_mutex);
 	if (rc)
 		pr_warning(RBD_DRV_NAME "%d got notification but failed to "
@@ -1707,7 +1706,7 @@ static void __rbd_remove_all_snaps(struct rbd_device *rbd_dev)
 /*
  * only read the first part of the ondisk header, without the snaps info
  */
-static int __rbd_refresh_header(struct rbd_device *rbd_dev)
+static int __rbd_refresh_header(struct rbd_device *rbd_dev, u64 *hver)
 {
 	int ret;
 	struct rbd_image_header h;
@@ -1732,6 +1731,8 @@ static int __rbd_refresh_header(struct rbd_device *rbd_dev)
 	/* osd requests may still refer to snapc */
 	ceph_put_snap_context(rbd_dev->header.snapc);
 
+	if (hver)
+		*hver = h.obj_version;
 	rbd_dev->header.obj_version = h.obj_version;
 	rbd_dev->header.image_size = h.image_size;
 	rbd_dev->header.total_snaps = h.total_snaps;
@@ -1901,17 +1902,13 @@ static ssize_t rbd_image_refresh(struct device *dev,
 				 size_t size)
 {
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
-	int rc;
-	int ret = size;
+	int ret;
 
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-
-	rc = __rbd_refresh_header(rbd_dev);
-	if (rc < 0)
-		ret = rc;
-
+	ret = __rbd_refresh_header(rbd_dev, NULL);
 	mutex_unlock(&ctl_mutex);
-	return ret;
+
+	return ret < 0 ? ret : size;
 }
 
 static DEVICE_ATTR(size, S_IRUGO, rbd_size_show, NULL);
@@ -2200,7 +2197,7 @@ static int rbd_init_watch_dev(struct rbd_device *rbd_dev)
 		ret = rbd_req_sync_watch(rbd_dev);
 		if (ret == -ERANGE) {
 			mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-			rc = __rbd_refresh_header(rbd_dev);
+			rc = __rbd_refresh_header(rbd_dev, NULL);
 			mutex_unlock(&ctl_mutex);
 			if (rc < 0)
 				return rc;
@@ -2650,7 +2647,7 @@ static ssize_t rbd_snap_add(struct device *dev,
 	if (ret < 0)
 		goto err_unlock;
 
-	ret = __rbd_refresh_header(rbd_dev);
+	ret = __rbd_refresh_header(rbd_dev, NULL);
 	if (ret < 0)
 		goto err_unlock;
 
