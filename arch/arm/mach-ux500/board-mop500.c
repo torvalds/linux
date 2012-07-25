@@ -755,6 +755,15 @@ struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("st,nomadik-i2c", 0x8012a000, "nmk-i2c.4", NULL),
 	/* Requires device name bindings. */
 	OF_DEV_AUXDATA("stericsson,nmk_pinctrl", 0, "pinctrl-db8500", NULL),
+	/* Requires clock name and DMA bindings. */
+	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80123000,
+		"ux500-msp-i2s.0", &msp0_platform_data),
+	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80124000,
+		"ux500-msp-i2s.1", &msp1_platform_data),
+	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80117000,
+		"ux500-msp-i2s.2", &msp2_platform_data),
+	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80125000,
+		"ux500-msp-i2s.3", &msp3_platform_data),
 	{},
 };
 

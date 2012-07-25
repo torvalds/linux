@@ -48,7 +48,7 @@ static struct stedma40_chan_cfg msp0_dma_tx = {
 	/* data_width is set during configuration */
 };
 
-static struct msp_i2s_platform_data msp0_platform_data = {
+struct msp_i2s_platform_data msp0_platform_data = {
 	.id = MSP_I2S_0,
 	.msp_i2s_dma_rx = &msp0_dma_rx,
 	.msp_i2s_dma_tx = &msp0_dma_tx,
@@ -80,7 +80,7 @@ static struct stedma40_chan_cfg msp1_dma_tx = {
 	/* data_width is set during configuration */
 };
 
-static struct msp_i2s_platform_data msp1_platform_data = {
+struct msp_i2s_platform_data msp1_platform_data = {
 	.id = MSP_I2S_1,
 	.msp_i2s_dma_rx = NULL,
 	.msp_i2s_dma_tx = &msp1_dma_tx,
@@ -159,13 +159,13 @@ static struct platform_device ux500_pcm = {
 		},
 };
 
-static struct msp_i2s_platform_data msp2_platform_data = {
+struct msp_i2s_platform_data msp2_platform_data = {
 	.id = MSP_I2S_2,
 	.msp_i2s_dma_rx = &msp2_dma_rx,
 	.msp_i2s_dma_tx = &msp2_dma_tx,
 };
 
-static struct msp_i2s_platform_data msp3_platform_data = {
+struct msp_i2s_platform_data msp3_platform_data = {
 	.id		= MSP_I2S_3,
 	.msp_i2s_dma_rx	= &msp1_dma_rx,
 	.msp_i2s_dma_tx	= NULL,

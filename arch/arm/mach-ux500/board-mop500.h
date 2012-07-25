@@ -9,6 +9,7 @@
 
 /* For NOMADIK_NR_GPIO */
 #include <mach/irqs.h>
+#include <mach/msp.h>
 #include <linux/amba/mmci.h>
 
 /* Snowball specific GPIO assignments, this board has no GPIO expander */
@@ -83,6 +84,10 @@ extern struct mmci_platform_data mop500_sdi0_data;
 extern struct mmci_platform_data mop500_sdi1_data;
 extern struct mmci_platform_data mop500_sdi2_data;
 extern struct mmci_platform_data mop500_sdi4_data;
+extern struct msp_i2s_platform_data msp0_platform_data;
+extern struct msp_i2s_platform_data msp1_platform_data;
+extern struct msp_i2s_platform_data msp2_platform_data;
+extern struct msp_i2s_platform_data msp3_platform_data;
 extern struct arm_pmu_platdata db8500_pmu_platdata;
 
 extern void mop500_sdi_init(struct device *parent);
