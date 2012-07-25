@@ -1020,7 +1020,7 @@ int rk_fb_unregister(struct rk_lcdc_device_driver *dev_drv)
 	{
 		fbi = fb_inf->fb[i];
 		unregister_framebuffer(fbi);
-		rk_release_fb_buffer(fbi);
+		//rk_release_fb_buffer(fbi);
 		framebuffer_release(fbi);	
 	}
 	fb_inf->lcdc_dev_drv[dev_drv->id]= NULL;
