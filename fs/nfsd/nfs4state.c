@@ -3119,19 +3119,17 @@ out:
 	return status;
 }
 
-static bool grace_ended;
-
 static void
 nfsd4_end_grace(struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	/* do nothing if grace period already ended */
-	if (grace_ended)
+	if (nn->grace_ended)
 		return;
 
 	dprintk("NFSD: end of grace period\n");
-	grace_ended = true;
+	nn->grace_ended = true;
 	nfsd4_record_grace_done(net, boot_time);
 	locks_end_grace(&nn->nfsd4_manager);
 	/*
@@ -4705,7 +4703,7 @@ nfs4_state_start(void)
 	nfsd4_client_tracking_init(net);
 	boot_time = get_seconds();
 	locks_start_grace(net, &nn->nfsd4_manager);
-	grace_ended = false;
+	nn->grace_ended = false;
 	printk(KERN_INFO "NFSD: starting %ld-second grace period\n",
 	       nfsd4_grace);
 	ret = set_callback_cred();

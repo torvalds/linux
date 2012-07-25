@@ -36,6 +36,7 @@ struct nfsd_net {
 	struct cache_detail *nametoid_cache;
 
 	struct lock_manager nfsd4_manager;
+	bool grace_ended;
 };
 
 extern int nfsd_net_id;
