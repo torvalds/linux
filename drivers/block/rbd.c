@@ -240,7 +240,7 @@ static void rbd_put_dev(struct rbd_device *rbd_dev)
 	put_device(&rbd_dev->dev);
 }
 
-static int __rbd_refresh_header(struct rbd_device *rbd_dev, u64 *hver);
+static int rbd_refresh_header(struct rbd_device *rbd_dev, u64 *hver);
 
 static int rbd_open(struct block_device *bdev, fmode_t mode)
 {
@@ -1225,9 +1225,7 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 	dout("rbd_watch_cb %s notify_id=%llu opcode=%u\n",
 		rbd_dev->header_name, (unsigned long long) notify_id,
 		(unsigned int) opcode);
-	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-	rc = __rbd_refresh_header(rbd_dev, &hver);
-	mutex_unlock(&ctl_mutex);
+	rc = rbd_refresh_header(rbd_dev, &hver);
 	if (rc)
 		pr_warning(RBD_DRV_NAME "%d got notification but failed to "
 			   " update snaps: %d\n", rbd_dev->major, rc);
@@ -1751,6 +1749,17 @@ static int __rbd_refresh_header(struct rbd_device *rbd_dev, u64 *hver)
 	return ret;
 }
 
+static int rbd_refresh_header(struct rbd_device *rbd_dev, u64 *hver)
+{
+	int ret;
+
+	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
+	ret = __rbd_refresh_header(rbd_dev, hver);
+	mutex_unlock(&ctl_mutex);
+
+	return ret;
+}
+
 static int rbd_init_disk(struct rbd_device *rbd_dev)
 {
 	struct gendisk *disk;
@@ -1904,9 +1913,7 @@ static ssize_t rbd_image_refresh(struct device *dev,
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 	int ret;
 
-	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-	ret = __rbd_refresh_header(rbd_dev, NULL);
-	mutex_unlock(&ctl_mutex);
+	ret = rbd_refresh_header(rbd_dev, NULL);
 
 	return ret < 0 ? ret : size;
 }
@@ -2196,9 +2203,7 @@ static int rbd_init_watch_dev(struct rbd_device *rbd_dev)
 	do {
 		ret = rbd_req_sync_watch(rbd_dev);
 		if (ret == -ERANGE) {
-			mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-			rc = __rbd_refresh_header(rbd_dev, NULL);
-			mutex_unlock(&ctl_mutex);
+			rc = rbd_refresh_header(rbd_dev, NULL);
 			if (rc < 0)
 				return rc;
 		}
