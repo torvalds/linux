@@ -1970,7 +1970,7 @@ static void ext4_end_io_buffer_write(struct buffer_head *bh, int uptodate);
  * This function can get called via...
  *   - ext4_da_writepages after taking page lock (have journal handle)
  *   - journal_submit_inode_data_buffers (no journal handle)
- *   - shrink_page_list via pdflush (no journal handle)
+ *   - shrink_page_list via the kswapd/direct reclaim (no journal handle)
  *   - grab_page_cache when doing write_begin (have journal handle)
  *
  * We don't do any block allocation in this function. If we have page with
