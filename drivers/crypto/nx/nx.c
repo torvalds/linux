@@ -34,7 +34,6 @@
 #include <linux/device.h>
 #include <linux/of.h>
 #include <asm/pSeries_reconfig.h>
-#include <asm/abs_addr.h>
 #include <asm/hvcall.h>
 #include <asm/vio.h>
 
@@ -104,10 +103,10 @@ struct nx_sg *nx_build_sg_list(struct nx_sg *sg_head,
 	/* determine the start and end for this address range - slightly
 	 * different if this is in VMALLOC_REGION */
 	if (is_vmalloc_addr(start_addr))
-		sg_addr = phys_to_abs(page_to_phys(vmalloc_to_page(start_addr)))
+		sg_addr = page_to_phys(vmalloc_to_page(start_addr))
 			  + offset_in_page(sg_addr);
 	else
-		sg_addr = virt_to_abs(sg_addr);
+		sg_addr = __pa(sg_addr);
 
 	end_addr = sg_addr + len;
 
@@ -265,17 +264,17 @@ void nx_ctx_init(struct nx_crypto_ctx *nx_ctx, unsigned int function)
 	nx_ctx->csbcpb->csb.valid |= NX_CSB_VALID_BIT;
 
 	nx_ctx->op.flags = function;
-	nx_ctx->op.csbcpb = virt_to_abs(nx_ctx->csbcpb);
-	nx_ctx->op.in = virt_to_abs(nx_ctx->in_sg);
-	nx_ctx->op.out = virt_to_abs(nx_ctx->out_sg);
+	nx_ctx->op.csbcpb = __pa(nx_ctx->csbcpb);
+	nx_ctx->op.in = __pa(nx_ctx->in_sg);
+	nx_ctx->op.out = __pa(nx_ctx->out_sg);
 
 	if (nx_ctx->csbcpb_aead) {
 		nx_ctx->csbcpb_aead->csb.valid |= NX_CSB_VALID_BIT;
 
 		nx_ctx->op_aead.flags = function;
-		nx_ctx->op_aead.csbcpb = virt_to_abs(nx_ctx->csbcpb_aead);
-		nx_ctx->op_aead.in = virt_to_abs(nx_ctx->in_sg);
-		nx_ctx->op_aead.out = virt_to_abs(nx_ctx->out_sg);
+		nx_ctx->op_aead.csbcpb = __pa(nx_ctx->csbcpb_aead);
+		nx_ctx->op_aead.in = __pa(nx_ctx->in_sg);
+		nx_ctx->op_aead.out = __pa(nx_ctx->out_sg);
 	}
 }
 
