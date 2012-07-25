@@ -2035,12 +2035,6 @@ static void
 setup_syscalls_segments(struct x86_emulate_ctxt *ctxt,
 			struct desc_struct *cs, struct desc_struct *ss)
 {
-	u16 selector;
-
-	memset(cs, 0, sizeof(struct desc_struct));
-	ctxt->ops->get_segment(ctxt, &selector, cs, NULL, VCPU_SREG_CS);
-	memset(ss, 0, sizeof(struct desc_struct));
-
 	cs->l = 0;		/* will be adjusted later */
 	set_desc_base(cs, 0);	/* flat segment */
 	cs->g = 1;		/* 4kb granularity */
@@ -2050,6 +2044,7 @@ setup_syscalls_segments(struct x86_emulate_ctxt *ctxt,
 	cs->dpl = 0;		/* will be adjusted later */
 	cs->p = 1;
 	cs->d = 1;
+	cs->avl = 0;
 
 	set_desc_base(ss, 0);	/* flat segment */
 	set_desc_limit(ss, 0xfffff);	/* 4GB limit */
@@ -2059,6 +2054,8 @@ setup_syscalls_segments(struct x86_emulate_ctxt *ctxt,
 	ss->d = 1;		/* 32bit stack segment */
 	ss->dpl = 0;
 	ss->p = 1;
+	ss->l = 0;
+	ss->avl = 0;
 }
 
 static bool vendor_intel(struct x86_emulate_ctxt *ctxt)
