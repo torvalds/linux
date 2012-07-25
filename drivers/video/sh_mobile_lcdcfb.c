@@ -161,7 +161,7 @@ enum sh_mobile_lcdc_overlay_mode {
  * @dma_handle: Frame buffer DMA address
  * @base_addr_y: Overlay base address (RGB or luma component)
  * @base_addr_c: Overlay base address (chroma component)
- * @pan_offset: Current pan offset in bytes
+ * @pan_y_offset: Panning linear offset in bytes (luma component)
  * @format: Current pixelf format
  * @xres: Horizontal visible resolution
  * @xres_virtual: Horizontal total resolution
@@ -191,7 +191,7 @@ struct sh_mobile_lcdc_overlay {
 	dma_addr_t dma_handle;
 	unsigned long base_addr_y;
 	unsigned long base_addr_c;
-	unsigned long pan_offset;
+	unsigned long pan_y_offset;
 
 	const struct sh_mobile_lcdc_format_info *format;
 	unsigned int xres;
@@ -873,8 +873,8 @@ static void sh_mobile_lcdc_overlay_setup(struct sh_mobile_lcdc_overlay *ovl)
 	}
 
 	ovl->base_addr_y = ovl->dma_handle;
-	ovl->base_addr_c = ovl->base_addr_y + ovl->xres
-			   * ovl->yres_virtual;
+	ovl->base_addr_c = ovl->dma_handle
+			 + ovl->xres_virtual * ovl->yres_virtual;
 
 	switch (ovl->mode) {
 	case LCDC_OVERLAY_BLEND:
@@ -1104,27 +1104,25 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	/* Compute frame buffer base address and pitch for each channel. */
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
 		int pixelformat;
-		void *meram;
+		void *cache;
 
 		ch = &priv->ch[k];
 		if (!ch->enabled)
 			continue;
 
 		ch->base_addr_y = ch->dma_handle;
-		ch->base_addr_c = ch->base_addr_y + ch->xres * ch->yres_virtual;
+		ch->base_addr_c = ch->dma_handle
+				+ ch->xres_virtual * ch->yres_virtual;
 		ch->line_size = ch->pitch;
 
 		/* Enable MERAM if possible. */
-		if (mdev == NULL || mdev->ops == NULL ||
-		    ch->cfg->meram_cfg == NULL)
+		if (mdev == NULL || ch->cfg->meram_cfg == NULL)
 			continue;
 
-		/* we need to de-init configured ICBs before we can
-		 * re-initialize them.
-		 */
-		if (ch->meram) {
-			mdev->ops->meram_unregister(mdev, ch->meram);
-			ch->meram = NULL;
+		/* Free the allocated MERAM cache. */
+		if (ch->cache) {
+			sh_mobile_meram_cache_free(mdev, ch->cache);
+			ch->cache = NULL;
 		}
 
 		switch (ch->format->fourcc) {
@@ -1146,14 +1144,14 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 			break;
 		}
 
-		meram = mdev->ops->meram_register(mdev, ch->cfg->meram_cfg,
+		cache = sh_mobile_meram_cache_alloc(mdev, ch->cfg->meram_cfg,
 					ch->pitch, ch->yres, pixelformat,
 					&ch->line_size);
-		if (!IS_ERR(meram)) {
-			mdev->ops->meram_update(mdev, meram,
+		if (!IS_ERR(cache)) {
+			sh_mobile_meram_cache_update(mdev, cache,
 					ch->base_addr_y, ch->base_addr_c,
 					&ch->base_addr_y, &ch->base_addr_c);
-			ch->meram = meram;
+			ch->cache = cache;
 		}
 	}
 
@@ -1223,12 +1221,10 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 
 		sh_mobile_lcdc_display_off(ch);
 
-		/* disable the meram */
-		if (ch->meram) {
-			struct sh_mobile_meram_info *mdev;
-			mdev = priv->meram_dev;
-			mdev->ops->meram_unregister(mdev, ch->meram);
-			ch->meram = 0;
+		/* Free the MERAM cache. */
+		if (ch->cache) {
+			sh_mobile_meram_cache_free(priv->meram_dev, ch->cache);
+			ch->cache = 0;
 		}
 
 	}
@@ -1498,7 +1494,7 @@ static const struct fb_fix_screeninfo sh_mobile_lcdc_overlay_fix  = {
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_TRUECOLOR,
 	.accel =	FB_ACCEL_NONE,
-	.xpanstep =	0,
+	.xpanstep =	1,
 	.ypanstep =	1,
 	.ywrapstep =	0,
 	.capabilities =	FB_CAP_FOURCC,
@@ -1510,44 +1506,44 @@ static int sh_mobile_lcdc_overlay_pan(struct fb_var_screeninfo *var,
 	struct sh_mobile_lcdc_overlay *ovl = info->par;
 	unsigned long base_addr_y;
 	unsigned long base_addr_c;
-	unsigned long pan_offset;
+	unsigned long y_offset;
 	unsigned long c_offset;
 
-	if (!ovl->format->yuv)
-		pan_offset = var->yoffset * ovl->pitch
-			   + var->xoffset * (ovl->format->bpp / 8);
-	else
-		pan_offset = var->yoffset * ovl->pitch + var->xoffset;
+	if (!ovl->format->yuv) {
+		y_offset = (var->yoffset * ovl->xres_virtual + var->xoffset)
+			 * ovl->format->bpp / 8;
+		c_offset = 0;
+	} else {
+		unsigned int xsub = ovl->format->bpp < 24 ? 2 : 1;
+		unsigned int ysub = ovl->format->bpp < 16 ? 2 : 1;
 
-	if (pan_offset == ovl->pan_offset)
-		return 0;	/* No change, do nothing */
+		y_offset = var->yoffset * ovl->xres_virtual + var->xoffset;
+		c_offset = var->yoffset / ysub * ovl->xres_virtual * 2 / xsub
+			 + var->xoffset * 2 / xsub;
+	}
+
+	/* If the Y offset hasn't changed, the C offset hasn't either. There's
+	 * nothing to do in that case.
+	 */
+	if (y_offset == ovl->pan_y_offset)
+		return 0;
 
 	/* Set the source address for the next refresh */
-	base_addr_y = ovl->dma_handle + pan_offset;
+	base_addr_y = ovl->dma_handle + y_offset;
+	base_addr_c = ovl->dma_handle + ovl->xres_virtual * ovl->yres_virtual
+		    + c_offset;
 
 	ovl->base_addr_y = base_addr_y;
-	ovl->base_addr_c = base_addr_y;
+	ovl->base_addr_c = base_addr_c;
+	ovl->pan_y_offset = y_offset;
 
-	if (ovl->format->yuv) {
-		/* Set Y offset */
-		c_offset = var->yoffset * ovl->pitch
-			 * (ovl->format->bpp - 8) / 8;
-		base_addr_c = ovl->dma_handle
-			    + ovl->xres * ovl->yres_virtual
-			    + c_offset;
-		/* Set X offset */
-		if (ovl->format->fourcc == V4L2_PIX_FMT_NV24)
-			base_addr_c += 2 * var->xoffset;
-		else
-			base_addr_c += var->xoffset;
-
-		ovl->base_addr_c = base_addr_c;
-	}
+	lcdc_write(ovl->channel->lcdc, LDBCR, LDBCR_UPC(ovl->index));
 
 	lcdc_write_overlay(ovl, LDBnBSAYR(ovl->index), ovl->base_addr_y);
 	lcdc_write_overlay(ovl, LDBnBSACR(ovl->index), ovl->base_addr_c);
 
-	ovl->pan_offset = pan_offset;
+	lcdc_write(ovl->channel->lcdc, LDBCR,
+		   LDBCR_UPF(ovl->index) | LDBCR_UPD(ovl->index));
 
 	return 0;
 }
@@ -1585,9 +1581,9 @@ static int sh_mobile_lcdc_overlay_set_par(struct fb_info *info)
 	ovl->yres_virtual = info->var.yres_virtual;
 
 	if (ovl->format->yuv)
-		ovl->pitch = info->var.xres;
+		ovl->pitch = info->var.xres_virtual;
 	else
-		ovl->pitch = info->var.xres * ovl->format->bpp / 8;
+		ovl->pitch = info->var.xres_virtual * ovl->format->bpp / 8;
 
 	sh_mobile_lcdc_overlay_setup(ovl);
 
@@ -1719,9 +1715,14 @@ sh_mobile_lcdc_overlay_fb_init(struct sh_mobile_lcdc_overlay *ovl)
 	else
 		info->fix.visual = FB_VISUAL_TRUECOLOR;
 
-	if (ovl->format->fourcc == V4L2_PIX_FMT_NV12 ||
-	    ovl->format->fourcc == V4L2_PIX_FMT_NV21)
+	switch (ovl->format->fourcc) {
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV61:
 		info->fix.ypanstep = 2;
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
+		info->fix.xpanstep = 2;
+	}
 
 	/* Initialize variable screen information. */
 	var = &info->var;
@@ -1776,7 +1777,7 @@ static const struct fb_fix_screeninfo sh_mobile_lcdc_fix  = {
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_TRUECOLOR,
 	.accel =	FB_ACCEL_NONE,
-	.xpanstep =	0,
+	.xpanstep =	1,
 	.ypanstep =	1,
 	.ywrapstep =	0,
 	.capabilities =	FB_CAP_FOURCC,
@@ -1809,58 +1810,53 @@ static int sh_mobile_lcdc_pan(struct fb_var_screeninfo *var,
 	struct sh_mobile_lcdc_chan *ch = info->par;
 	struct sh_mobile_lcdc_priv *priv = ch->lcdc;
 	unsigned long ldrcntr;
-	unsigned long new_pan_offset;
 	unsigned long base_addr_y, base_addr_c;
+	unsigned long y_offset;
 	unsigned long c_offset;
 
-	if (!ch->format->yuv)
-		new_pan_offset = var->yoffset * ch->pitch
-			       + var->xoffset * (ch->format->bpp / 8);
-	else
-		new_pan_offset = var->yoffset * ch->pitch + var->xoffset;
+	if (!ch->format->yuv) {
+		y_offset = (var->yoffset * ch->xres_virtual + var->xoffset)
+			 * ch->format->bpp / 8;
+		c_offset = 0;
+	} else {
+		unsigned int xsub = ch->format->bpp < 24 ? 2 : 1;
+		unsigned int ysub = ch->format->bpp < 16 ? 2 : 1;
 
-	if (new_pan_offset == ch->pan_offset)
-		return 0;	/* No change, do nothing */
+		y_offset = var->yoffset * ch->xres_virtual + var->xoffset;
+		c_offset = var->yoffset / ysub * ch->xres_virtual * 2 / xsub
+			 + var->xoffset * 2 / xsub;
+	}
 
-	ldrcntr = lcdc_read(priv, _LDRCNTR);
+	/* If the Y offset hasn't changed, the C offset hasn't either. There's
+	 * nothing to do in that case.
+	 */
+	if (y_offset == ch->pan_y_offset)
+		return 0;
 
 	/* Set the source address for the next refresh */
-	base_addr_y = ch->dma_handle + new_pan_offset;
-	if (ch->format->yuv) {
-		/* Set y offset */
-		c_offset = var->yoffset * ch->pitch
-			 * (ch->format->bpp - 8) / 8;
-		base_addr_c = ch->dma_handle + ch->xres * ch->yres_virtual
-			    + c_offset;
-		/* Set x offset */
-		if (ch->format->fourcc == V4L2_PIX_FMT_NV24)
-			base_addr_c += 2 * var->xoffset;
-		else
-			base_addr_c += var->xoffset;
-	}
+	base_addr_y = ch->dma_handle + y_offset;
+	base_addr_c = ch->dma_handle + ch->xres_virtual * ch->yres_virtual
+		    + c_offset;
 
-	if (ch->meram) {
-		struct sh_mobile_meram_info *mdev;
-
-		mdev = priv->meram_dev;
-		mdev->ops->meram_update(mdev, ch->meram,
-					base_addr_y, base_addr_c,
-					&base_addr_y, &base_addr_c);
-	}
+	if (ch->cache)
+		sh_mobile_meram_cache_update(priv->meram_dev, ch->cache,
+					     base_addr_y, base_addr_c,
+					     &base_addr_y, &base_addr_c);
 
 	ch->base_addr_y = base_addr_y;
 	ch->base_addr_c = base_addr_c;
+	ch->pan_y_offset = y_offset;
 
 	lcdc_write_chan_mirror(ch, LDSA1R, base_addr_y);
 	if (ch->format->yuv)
 		lcdc_write_chan_mirror(ch, LDSA2R, base_addr_c);
 
+	ldrcntr = lcdc_read(priv, _LDRCNTR);
 	if (lcdc_chan_is_sublcd(ch))
 		lcdc_write(ch->lcdc, _LDRCNTR, ldrcntr ^ LDRCNTR_SRS);
 	else
 		lcdc_write(ch->lcdc, _LDRCNTR, ldrcntr ^ LDRCNTR_MRS);
 
-	ch->pan_offset = new_pan_offset;
 
 	sh_mobile_lcdc_deferred_io_touch(info);
 
@@ -2033,9 +2029,9 @@ static int sh_mobile_lcdc_set_par(struct fb_info *info)
 	ch->yres_virtual = info->var.yres_virtual;
 
 	if (ch->format->yuv)
-		ch->pitch = info->var.xres;
+		ch->pitch = info->var.xres_virtual;
 	else
-		ch->pitch = info->var.xres * ch->format->bpp / 8;
+		ch->pitch = info->var.xres_virtual * ch->format->bpp / 8;
 
 	ret = sh_mobile_lcdc_start(ch->lcdc);
 	if (ret < 0)
@@ -2218,19 +2214,24 @@ sh_mobile_lcdc_channel_fb_init(struct sh_mobile_lcdc_chan *ch,
 	else
 		info->fix.visual = FB_VISUAL_TRUECOLOR;
 
-	if (ch->format->fourcc == V4L2_PIX_FMT_NV12 ||
-	    ch->format->fourcc == V4L2_PIX_FMT_NV21)
+	switch (ch->format->fourcc) {
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV61:
 		info->fix.ypanstep = 2;
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
+		info->fix.xpanstep = 2;
+	}
 
 	/* Initialize variable screen information using the first mode as
-	 * default. The default Y virtual resolution is twice the panel size to
-	 * allow for double-buffering.
+	 * default.
 	 */
 	var = &info->var;
 	fb_videomode_to_var(var, mode);
 	var->width = ch->cfg->panel_cfg.width;
 	var->height = ch->cfg->panel_cfg.height;
-	var->yres_virtual = var->yres * 2;
+	var->xres_virtual = ch->xres_virtual;
+	var->yres_virtual = ch->yres_virtual;
 	var->activate = FB_ACTIVATE_NOW;
 
 	/* Use the legacy API by default for RGB formats, and the FOURCC API
@@ -2453,8 +2454,11 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(priv->ch); i++) {
-		if (priv->ch[i].bl)
-			sh_mobile_lcdc_bl_remove(priv->ch[i].bl);
+		struct sh_mobile_lcdc_chan *ch = &priv->ch[i];
+
+		if (ch->bl)
+			sh_mobile_lcdc_bl_remove(ch->bl);
+		mutex_destroy(&ch->open_lock);
 	}
 
 	if (priv->dot_clk) {
@@ -2545,9 +2549,9 @@ sh_mobile_lcdc_overlay_init(struct sh_mobile_lcdc_priv *priv,
 	ovl->yres_virtual = ovl->yres * 2;
 
 	if (!format->yuv)
-		ovl->pitch = ovl->xres * format->bpp / 8;
+		ovl->pitch = ovl->xres_virtual * format->bpp / 8;
 	else
-		ovl->pitch = ovl->xres;
+		ovl->pitch = ovl->xres_virtual;
 
 	/* Allocate frame buffer memory. */
 	ovl->fb_size = ovl->cfg->max_xres * ovl->cfg->max_yres
@@ -2625,7 +2629,9 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_priv *priv,
 		num_modes = cfg->num_modes;
 	}
 
-	/* Use the first mode as default. */
+	/* Use the first mode as default. The default Y virtual resolution is
+	 * twice the panel size to allow for double-buffering.
+	 */
 	ch->format = format;
 	ch->xres = mode->xres;
 	ch->xres_virtual = mode->xres;
@@ -2634,10 +2640,10 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_priv *priv,
 
 	if (!format->yuv) {
 		ch->colorspace = V4L2_COLORSPACE_SRGB;
-		ch->pitch = ch->xres * format->bpp / 8;
+		ch->pitch = ch->xres_virtual * format->bpp / 8;
 	} else {
 		ch->colorspace = V4L2_COLORSPACE_REC709;
-		ch->pitch = ch->xres;
+		ch->pitch = ch->xres_virtual;
 	}
 
 	ch->display.width = cfg->panel_cfg.width;
@@ -2723,7 +2729,6 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		}
 		init_waitqueue_head(&ch->frame_end_wait);
 		init_completion(&ch->vsync_completion);
-		ch->pan_offset = 0;
 
 		/* probe the backlight is there is one defined */
 		if (ch->cfg->bl_info.max_brightness)
