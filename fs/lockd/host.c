@@ -608,11 +608,10 @@ nlm_shutdown_hosts_net(struct net *net)
 	struct hlist_node *pos;
 	struct nlm_host	*host;
 
-	dprintk("lockd: shutting down host module\n");
 	mutex_lock(&nlm_host_mutex);
 
 	/* First, make all hosts eligible for gc */
-	dprintk("lockd: nuking all hosts...\n");
+	dprintk("lockd: nuking all hosts in net %p...\n", net);
 	for_each_host(host, pos, chain, nlm_server_hosts) {
 		if (net && host->net != net)
 			continue;
@@ -637,6 +636,7 @@ nlm_shutdown_hosts_net(struct net *net)
 void
 nlm_shutdown_hosts(void)
 {
+	dprintk("lockd: shutting down host module\n");
 	nlm_shutdown_hosts_net(NULL);
 }
 
