@@ -743,12 +743,6 @@ static int coda_job_ready(void *m2m_priv)
 		return 0;
 	}
 
-	if (coda_isbusy(ctx->dev)) {
-		v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
-			 "not ready: coda is still busy.\n");
-		return 0;
-	}
-
 	v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
 			"job ready\n");
 	return 1;
