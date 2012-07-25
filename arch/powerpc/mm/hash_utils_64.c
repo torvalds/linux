@@ -43,7 +43,6 @@
 #include <asm/uaccess.h>
 #include <asm/machdep.h>
 #include <asm/prom.h>
-#include <asm/abs_addr.h>
 #include <asm/tlbflush.h>
 #include <asm/io.h>
 #include <asm/eeh.h>
@@ -651,7 +650,7 @@ static void __init htab_initialize(void)
 		DBG("Hash table allocated at %lx, size: %lx\n", table,
 		    htab_size_bytes);
 
-		htab_address = abs_to_virt(table);
+		htab_address = __va(table);
 
 		/* htab absolute addr + encoded htabsize */
 		_SDR1 = table + __ilog2(pteg_count) - 11;
