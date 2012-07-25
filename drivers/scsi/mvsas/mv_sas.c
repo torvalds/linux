@@ -885,7 +885,6 @@ static int mvs_task_exec(struct sas_task *task, const int num, gfp_t gfp_flags,
 				struct completion *completion, int is_tmf,
 				struct mvs_tmf_task *tmf)
 {
-	struct domain_device *dev = task->dev;
 	struct mvs_info *mvi = NULL;
 	u32 rc = 0;
 	u32 pass = 0;
@@ -1365,9 +1364,9 @@ void mvs_dev_gone(struct domain_device *dev)
 
 static void mvs_task_done(struct sas_task *task)
 {
-	if (!del_timer(&task->timer))
+	if (!del_timer(&task->slow_task->timer))
 		return;
-	complete(&task->completion);
+	complete(&task->slow_task->completion);
 }
 
 static void mvs_tmf_timedout(unsigned long data)
@@ -1375,7 +1374,7 @@ static void mvs_tmf_timedout(unsigned long data)
 	struct sas_task *task = (struct sas_task *)data;
 
 	task->task_state_flags |= SAS_TASK_STATE_ABORTED;
-	complete(&task->completion);
+	complete(&task->slow_task->completion);
 }
 
 #define MVS_TASK_TIMEOUT 20
@@ -1386,7 +1385,7 @@ static int mvs_exec_internal_tmf_task(struct domain_device *dev,
 	struct sas_task *task = NULL;
 
 	for (retry = 0; retry < 3; retry++) {
-		task = sas_alloc_task(GFP_KERNEL);
+		task = sas_alloc_slow_task(GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
 
@@ -1396,20 +1395,20 @@ static int mvs_exec_internal_tmf_task(struct domain_device *dev,
 		memcpy(&task->ssp_task, parameter, para_len);
 		task->task_done = mvs_task_done;
 
-		task->timer.data = (unsigned long) task;
-		task->timer.function = mvs_tmf_timedout;
-		task->timer.expires = jiffies + MVS_TASK_TIMEOUT*HZ;
-		add_timer(&task->timer);
+		task->slow_task->timer.data = (unsigned long) task;
+		task->slow_task->timer.function = mvs_tmf_timedout;
+		task->slow_task->timer.expires = jiffies + MVS_TASK_TIMEOUT*HZ;
+		add_timer(&task->slow_task->timer);
 
 		res = mvs_task_exec(task, 1, GFP_KERNEL, NULL, 1, tmf);
 
 		if (res) {
-			del_timer(&task->timer);
+			del_timer(&task->slow_task->timer);
 			mv_printk("executing internel task failed:%d\n", res);
 			goto ex_err;
 		}
 
-		wait_for_completion(&task->completion);
+		wait_for_completion(&task->slow_task->completion);
 		res = TMF_RESP_FUNC_FAILED;
 		/* Even TMF timed out, return direct. */
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {

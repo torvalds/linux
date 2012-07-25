@@ -1,6 +1,4 @@
 /*
- *	drivers/s390/net/ctcm_mpc.c
- *
  *	Copyright IBM Corp. 2004, 2007
  *	Authors:	Belinda Thompson (belindat@us.ibm.com)
  *			Andy Richter (richtera@us.ibm.com)

@@ -27,6 +27,7 @@
 #include <linux/if_ether.h>
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
+#include <linux/nls.h>
 
 #include "hyperv_net.h"
 
@@ -47,6 +48,7 @@ struct rndis_request {
 	struct hv_page_buffer buf;
 	/* FIXME: We assumed a fixed size request here. */
 	struct rndis_message request_msg;
+	u8 ext[100];
 };
 
 static void rndis_filter_send_completion(void *ctx);
@@ -510,6 +512,83 @@ static int rndis_filter_query_device_mac(struct rndis_device *dev)
 				      RNDIS_OID_802_3_PERMANENT_ADDRESS,
 				      dev->hw_mac_adr, &size);
 }
+
+#define NWADR_STR "NetworkAddress"
+#define NWADR_STRLEN 14
+
+int rndis_filter_set_device_mac(struct hv_device *hdev, char *mac)
+{
+	struct netvsc_device *nvdev = hv_get_drvdata(hdev);
+	struct rndis_device *rdev = nvdev->extension;
+	struct net_device *ndev = nvdev->ndev;
+	struct rndis_request *request;
+	struct rndis_set_request *set;
+	struct rndis_config_parameter_info *cpi;
+	wchar_t *cfg_nwadr, *cfg_mac;
+	struct rndis_set_complete *set_complete;
+	char macstr[2*ETH_ALEN+1];
+	u32 extlen = sizeof(struct rndis_config_parameter_info) +
+		2*NWADR_STRLEN + 4*ETH_ALEN;
+	int ret, t;
+
+	request = get_rndis_request(rdev, RNDIS_MSG_SET,
+		RNDIS_MESSAGE_SIZE(struct rndis_set_request) + extlen);
+	if (!request)
+		return -ENOMEM;
+
+	set = &request->request_msg.msg.set_req;
+	set->oid = RNDIS_OID_GEN_RNDIS_CONFIG_PARAMETER;
+	set->info_buflen = extlen;
+	set->info_buf_offset = sizeof(struct rndis_set_request);
+	set->dev_vc_handle = 0;
+
+	cpi = (struct rndis_config_parameter_info *)((ulong)set +
+		set->info_buf_offset);
+	cpi->parameter_name_offset =
+		sizeof(struct rndis_config_parameter_info);
+	/* Multiply by 2 because host needs 2 bytes (utf16) for each char */
+	cpi->parameter_name_length = 2*NWADR_STRLEN;
+	cpi->parameter_type = RNDIS_CONFIG_PARAM_TYPE_STRING;
+	cpi->parameter_value_offset =
+		cpi->parameter_name_offset + cpi->parameter_name_length;
+	/* Multiply by 4 because each MAC byte displayed as 2 utf16 chars */
+	cpi->parameter_value_length = 4*ETH_ALEN;
+
+	cfg_nwadr = (wchar_t *)((ulong)cpi + cpi->parameter_name_offset);
+	cfg_mac = (wchar_t *)((ulong)cpi + cpi->parameter_value_offset);
+	ret = utf8s_to_utf16s(NWADR_STR, NWADR_STRLEN, UTF16_HOST_ENDIAN,
+			      cfg_nwadr, NWADR_STRLEN);
+	if (ret < 0)
+		goto cleanup;
+	snprintf(macstr, 2*ETH_ALEN+1, "%pm", mac);
+	ret = utf8s_to_utf16s(macstr, 2*ETH_ALEN, UTF16_HOST_ENDIAN,
+			      cfg_mac, 2*ETH_ALEN);
+	if (ret < 0)
+		goto cleanup;
+
+	ret = rndis_filter_send_request(rdev, request);
+	if (ret != 0)
+		goto cleanup;
+
+	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
+	if (t == 0) {
+		netdev_err(ndev, "timeout before we got a set response...\n");
+		/*
+		 * can't put_rndis_request, since we may still receive a
+		 * send-completion.
+		 */
+		return -EBUSY;
+	} else {
+		set_complete = &request->response_msg.msg.set_complete;
+		if (set_complete->status != RNDIS_STATUS_SUCCESS)
+			ret = -EINVAL;
+	}
+
+cleanup:
+	put_rndis_request(rdev, request);
+	return ret;
+}
+
 
 static int rndis_filter_query_device_link_status(struct rndis_device *dev)
 {

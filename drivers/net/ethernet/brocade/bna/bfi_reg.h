@@ -221,9 +221,7 @@ enum {
 #define __PMM_1T_RESET_P		0x00000001
 #define PMM_1T_RESET_REG_P1		0x00023c1c
 
-/**
- * Brocade 1860 Adapter specific defines
- */
+/* Brocade 1860 Adapter specific defines */
 #define CT2_PCI_CPQ_BASE		0x00030000
 #define CT2_PCI_APP_BASE		0x00030100
 #define CT2_PCI_ETH_BASE		0x00030400

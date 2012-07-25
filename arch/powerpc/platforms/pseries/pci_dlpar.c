@@ -121,7 +121,7 @@ void pcibios_add_pci_devices(struct pci_bus * bus)
 		if (!num)
 			return;
 		pcibios_setup_bus_devices(bus);
-		max = bus->secondary;
+		max = bus->busn_res.start;
 		for (pass=0; pass < 2; pass++)
 			list_for_each_entry(dev, &bus->devices, bus_list) {
 			if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||

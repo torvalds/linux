@@ -2893,7 +2893,7 @@ static void request_module_async(struct work_struct *work)
 
 	if (dev->board.has_dvb)
 		request_module("em28xx-dvb");
-	if (dev->board.has_ir_i2c && !disable_ir)
+	if (dev->board.ir_codes && !disable_ir)
 		request_module("em28xx-rc");
 }
 

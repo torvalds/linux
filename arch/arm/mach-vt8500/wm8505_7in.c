@@ -23,6 +23,7 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <mach/restart.h>
 
 #include "devices.h"
 
@@ -61,7 +62,7 @@ void __init wm8505_7in_init(void)
 		pm_power_off = &vt8500_power_off;
 	else
 		printk(KERN_ERR "PMC Hibernation register could not be remapped, not enabling power off!\n");
-
+	wmt_setup_restart();
 	wm8505_set_resources();
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	vt8500_gpio_init();
@@ -69,6 +70,7 @@ void __init wm8505_7in_init(void)
 
 MACHINE_START(WM8505_7IN_NETBOOK, "WM8505 7-inch generic netbook")
 	.atag_offset	= 0x100,
+	.restart	= wmt_restart,
 	.reserve	= wm8505_reserve_mem,
 	.map_io		= wm8505_map_io,
 	.init_irq	= wm8505_init_irq,

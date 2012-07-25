@@ -133,6 +133,7 @@ static inline u8 tfrc_lh_is_new_loss(struct tfrc_loss_interval *cur,
  * @rh:		   Receive history containing a fresh loss event
  * @calc_first_li: Caller-dependent routine to compute length of first interval
  * @sk:		   Used by @calc_first_li in caller-specific way (subtyping)
+ *
  * Updates I_mean and returns 1 if a new interval has in fact been added to @lh.
  */
 int tfrc_lh_interval_add(struct tfrc_loss_hist *lh, struct tfrc_rx_hist *rh,

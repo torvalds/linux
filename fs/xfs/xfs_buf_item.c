@@ -954,7 +954,7 @@ xfs_buf_iodone_callbacks(
 
 		if (!XFS_BUF_ISSTALE(bp)) {
 			bp->b_flags |= XBF_WRITE | XBF_ASYNC | XBF_DONE;
-			xfs_bdstrat_cb(bp);
+			xfs_buf_iorequest(bp);
 		} else {
 			xfs_buf_relse(bp);
 		}

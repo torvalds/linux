@@ -1572,6 +1572,9 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 	ctrl = er32(CTRL);
 	status = er32(STATUS);
 	rxcw = er32(RXCW);
+	/* SYNCH bit and IV bit are sticky */
+	udelay(10);
+	rxcw = er32(RXCW);
 
 	if ((rxcw & E1000_RXCW_SYNCH) && !(rxcw & E1000_RXCW_IV)) {
 
@@ -1677,16 +1680,18 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 			e_dbg("ANYSTATE  -> DOWN\n");
 		} else {
 			/*
-			 * Check several times, if Sync and Config
-			 * both are consistently 1 then simply ignore
-			 * the Invalid bit and restart Autoneg
+			 * Check several times, if SYNCH bit and CONFIG
+			 * bit both are consistently 1 then simply ignore
+			 * the IV bit and restart Autoneg
 			 */
 			for (i = 0; i < AN_RETRY_COUNT; i++) {
 				udelay(10);
 				rxcw = er32(RXCW);
-				if ((rxcw & E1000_RXCW_IV) &&
-				    !((rxcw & E1000_RXCW_SYNCH) &&
-				      (rxcw & E1000_RXCW_C))) {
+				if ((rxcw & E1000_RXCW_SYNCH) &&
+				    (rxcw & E1000_RXCW_C))
+					continue;
+
+				if (rxcw & E1000_RXCW_IV) {
 					mac->serdes_has_link = false;
 					mac->serdes_link_state =
 					    e1000_serdes_link_down;

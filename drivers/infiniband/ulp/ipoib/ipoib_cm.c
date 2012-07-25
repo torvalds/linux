@@ -1376,7 +1376,7 @@ static void ipoib_cm_skb_reap(struct work_struct *work)
 
 		if (skb->protocol == htons(ETH_P_IP))
 			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, htonl(mtu));
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 		else if (skb->protocol == htons(ETH_P_IPV6))
 			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 #endif
@@ -1397,7 +1397,7 @@ void ipoib_cm_skb_too_long(struct net_device *dev, struct sk_buff *skb,
 	int e = skb_queue_empty(&priv->cm.skb_queue);
 
 	if (skb_dst(skb))
-		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), mtu);
+		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
 
 	skb_queue_tail(&priv->cm.skb_queue, skb);
 	if (e)

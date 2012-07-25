@@ -365,7 +365,7 @@ static int netxen_niu_disable_xg_port(struct netxen_adapter *adapter)
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
 		return 0;
 
-	if (port > NETXEN_NIU_MAX_XG_PORTS)
+	if (port >= NETXEN_NIU_MAX_XG_PORTS)
 		return -EINVAL;
 
 	mac_cfg = 0;
@@ -392,7 +392,7 @@ static int netxen_p2_nic_set_promisc(struct netxen_adapter *adapter, u32 mode)
 	u32 port = adapter->physical_port;
 	u16 board_type = adapter->ahw.board_type;
 
-	if (port > NETXEN_NIU_MAX_XG_PORTS)
+	if (port >= NETXEN_NIU_MAX_XG_PORTS)
 		return -EINVAL;
 
 	mac_cfg = NXRD32(adapter, NETXEN_NIU_XGE_CONFIG_0 + (0x10000 * port));

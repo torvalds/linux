@@ -317,7 +317,7 @@ static int default_fault_handler(enum exynos_sysmmu_inttype itype,
 	if ((itype >= SYSMMU_FAULTS_NUM) || (itype < SYSMMU_PAGEFAULT))
 		itype = SYSMMU_FAULT_UNKNOWN;
 
-	pr_err("%s occured at 0x%lx(Page table base: 0x%lx)\n",
+	pr_err("%s occurred at 0x%lx(Page table base: 0x%lx)\n",
 			sysmmu_fault_name[itype], fault_addr, pgtable_base);
 
 	ent = section_entry(__va(pgtable_base), fault_addr);
@@ -731,6 +731,10 @@ static int exynos_iommu_domain_init(struct iommu_domain *domain)
 	spin_lock_init(&priv->lock);
 	spin_lock_init(&priv->pgtablelock);
 	INIT_LIST_HEAD(&priv->clients);
+
+	dom->geometry.aperture_start = 0;
+	dom->geometry.aperture_end   = ~0UL;
+	dom->geometry.force_aperture = true;
 
 	domain->priv = priv;
 	return 0;

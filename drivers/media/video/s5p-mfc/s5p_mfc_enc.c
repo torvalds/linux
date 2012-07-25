@@ -1773,6 +1773,7 @@ int s5p_mfc_enc_ctrls_setup(struct s5p_mfc_ctx *ctx)
 	}
 	for (i = 0; i < NUM_CTRLS; i++) {
 		if (IS_MFC51_PRIV(controls[i].id)) {
+			memset(&cfg, 0, sizeof(struct v4l2_ctrl_config));
 			cfg.ops = &s5p_mfc_enc_ctrl_ops;
 			cfg.id = controls[i].id;
 			cfg.min = controls[i].minimum;

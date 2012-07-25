@@ -203,6 +203,8 @@ struct bnx2x_eth_stats {
 	/* Recovery */
 	u32 recoverable_error;
 	u32 unrecoverable_error;
+	/* src: Clear-on-Read register; Will not survive PMF Migration */
+	u32 eee_tx_lpi;
 };
 
 

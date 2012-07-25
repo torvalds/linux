@@ -317,10 +317,9 @@ static const struct of_dev_auxdata *of_dev_lookup(const struct of_dev_auxdata *l
 	for(; lookup->compatible != NULL; lookup++) {
 		if (!of_device_is_compatible(np, lookup->compatible))
 			continue;
-		if (of_address_to_resource(np, 0, &res))
-			continue;
-		if (res.start != lookup->phys_addr)
-			continue;
+		if (!of_address_to_resource(np, 0, &res))
+			if (res.start != lookup->phys_addr)
+				continue;
 		pr_debug("%s: devname=%s\n", np->full_name, lookup->name);
 		return lookup;
 	}
