@@ -49,3 +49,13 @@
 &mmc5 {
 	status = "disabled";
 };
+
+&i2c4 {
+	clock-frequency = <400000>;
+
+	/* Temperature Sensor */
+	tmp102@48{
+		compatible = "ti,tmp102";
+		reg = <0x48>;
+	};
+};
