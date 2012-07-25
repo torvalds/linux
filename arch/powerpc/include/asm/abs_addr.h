@@ -18,8 +18,5 @@
 #include <asm/page.h>
 #include <asm/prom.h>
 
-/* Convenience macros */
-#define virt_to_abs(va) __pa(va)
-
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_ABS_ADDR_H */
