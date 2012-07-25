@@ -29,6 +29,7 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
+#include <linux/of_device.h>
 
 /*
  * The codec isn't really big-endian or little-endian, since the I2S
@@ -639,6 +640,15 @@ static const struct snd_soc_codec_driver soc_codec_device_cs4270 = {
 	.reg_cache_default =	cs4270_default_reg_cache,
 };
 
+/*
+ * cs4270_of_match - the device tree bindings
+ */
+static const struct of_device_id cs4270_of_match[] = {
+	{ .compatible = "cirrus,cs4270", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, cs4270_of_match);
+
 /**
  * cs4270_i2c_probe - initialize the I2C interface of the CS4270
  * @i2c_client: the I2C client object
@@ -718,6 +728,7 @@ static struct i2c_driver cs4270_i2c_driver = {
 	.driver = {
 		.name = "cs4270",
 		.owner = THIS_MODULE,
+		.of_match_table = cs4270_of_match,
 	},
 	.id_table = cs4270_id,
 	.probe = cs4270_i2c_probe,
