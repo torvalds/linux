@@ -57,9 +57,6 @@
 struct tps6586x_regulator {
 	struct regulator_desc desc;
 
-	int volt_reg;
-	int volt_shift;
-	int volt_nbits;
 	int enable_bit[2];
 	int enable_reg[2];
 
@@ -81,10 +78,10 @@ static int tps6586x_set_voltage_sel(struct regulator_dev *rdev,
 	int ret, val, rid = rdev_get_id(rdev);
 	uint8_t mask;
 
-	val = selector << ri->volt_shift;
-	mask = ((1 << ri->volt_nbits) - 1) << ri->volt_shift;
+	val = selector << (ffs(rdev->desc->vsel_mask) - 1);
+	mask = rdev->desc->vsel_mask;
 
-	ret = tps6586x_update(parent, ri->volt_reg, val, mask);
+	ret = tps6586x_update(parent, rdev->desc->vsel_reg, val, mask);
 	if (ret)
 		return ret;
 
@@ -100,66 +97,14 @@ static int tps6586x_set_voltage_sel(struct regulator_dev *rdev,
 	return ret;
 }
 
-static int tps6586x_get_voltage_sel(struct regulator_dev *rdev)
-{
-	struct tps6586x_regulator *ri = rdev_get_drvdata(rdev);
-	struct device *parent = to_tps6586x_dev(rdev);
-	uint8_t val, mask;
-	int ret;
-
-	ret = tps6586x_read(parent, ri->volt_reg, &val);
-	if (ret)
-		return ret;
-
-	mask = ((1 << ri->volt_nbits) - 1) << ri->volt_shift;
-	val = (val & mask) >> ri->volt_shift;
-
-	if (val >= ri->desc.n_voltages)
-		BUG();
-
-	return val;
-}
-
-static int tps6586x_regulator_enable(struct regulator_dev *rdev)
-{
-	struct tps6586x_regulator *ri = rdev_get_drvdata(rdev);
-	struct device *parent = to_tps6586x_dev(rdev);
-
-	return tps6586x_set_bits(parent, ri->enable_reg[0],
-				 1 << ri->enable_bit[0]);
-}
-
-static int tps6586x_regulator_disable(struct regulator_dev *rdev)
-{
-	struct tps6586x_regulator *ri = rdev_get_drvdata(rdev);
-	struct device *parent = to_tps6586x_dev(rdev);
-
-	return tps6586x_clr_bits(parent, ri->enable_reg[0],
-				 1 << ri->enable_bit[0]);
-}
-
-static int tps6586x_regulator_is_enabled(struct regulator_dev *rdev)
-{
-	struct tps6586x_regulator *ri = rdev_get_drvdata(rdev);
-	struct device *parent = to_tps6586x_dev(rdev);
-	uint8_t reg_val;
-	int ret;
-
-	ret = tps6586x_read(parent, ri->enable_reg[0], &reg_val);
-	if (ret)
-		return ret;
-
-	return !!(reg_val & (1 << ri->enable_bit[0]));
-}
-
 static struct regulator_ops tps6586x_regulator_ops = {
 	.list_voltage = regulator_list_voltage_table,
-	.get_voltage_sel = tps6586x_get_voltage_sel,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_sel = tps6586x_set_voltage_sel,
 
-	.is_enabled = tps6586x_regulator_is_enabled,
-	.enable = tps6586x_regulator_enable,
-	.disable = tps6586x_regulator_disable,
+	.is_enabled = regulator_is_enabled_regmap,
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
 };
 
 static const unsigned int tps6586x_ldo0_voltages[] = {
@@ -202,10 +147,11 @@ static const unsigned int tps6586x_dvm_voltages[] = {
 		.n_voltages = ARRAY_SIZE(tps6586x_##vdata##_voltages),	\
 		.volt_table = tps6586x_##vdata##_voltages,		\
 		.owner	= THIS_MODULE,					\
+		.enable_reg = TPS6586X_SUPPLY##ereg0,			\
+		.enable_mask = 1 << (ebit0),				\
+		.vsel_reg = TPS6586X_##vreg,				\
+		.vsel_mask = ((1 << (nbits)) - 1) << (shift),		\
 	},								\
-	.volt_reg	= TPS6586X_##vreg,				\
-	.volt_shift	= (shift),					\
-	.volt_nbits	= (nbits),					\
 	.enable_reg[0]	= TPS6586X_SUPPLY##ereg0,			\
 	.enable_bit[0]	= (ebit0),					\
 	.enable_reg[1]	= TPS6586X_SUPPLY##ereg1,			\
