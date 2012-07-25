@@ -38,7 +38,6 @@ void put_transaction(struct btrfs_transaction *transaction)
 	if (atomic_dec_and_test(&transaction->use_count)) {
 		BUG_ON(!list_empty(&transaction->list));
 		WARN_ON(transaction->delayed_refs.root.rb_node);
-		WARN_ON(!list_empty(&transaction->delayed_refs.seq_head));
 		memset(transaction, 0, sizeof(*transaction));
 		kmem_cache_free(btrfs_transaction_cachep, transaction);
 	}
@@ -126,7 +125,6 @@ loop:
 	cur_trans->delayed_refs.num_heads = 0;
 	cur_trans->delayed_refs.flushing = 0;
 	cur_trans->delayed_refs.run_delayed_start = 0;
-	cur_trans->delayed_refs.seq = 1;
 
 	/*
 	 * although the tree mod log is per file system and not per transaction,
@@ -145,10 +143,8 @@ loop:
 	}
 	atomic_set(&fs_info->tree_mod_seq, 0);
 
-	init_waitqueue_head(&cur_trans->delayed_refs.seq_wait);
 	spin_lock_init(&cur_trans->commit_lock);
 	spin_lock_init(&cur_trans->delayed_refs.lock);
-	INIT_LIST_HEAD(&cur_trans->delayed_refs.seq_head);
 
 	INIT_LIST_HEAD(&cur_trans->pending_snapshots);
 	list_add_tail(&cur_trans->list, &fs_info->trans_list);
@@ -299,6 +295,7 @@ static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 	struct btrfs_transaction *cur_trans;
 	u64 num_bytes = 0;
 	int ret;
+	u64 qgroup_reserved = 0;
 
 	if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR)
 		return ERR_PTR(-EROFS);
@@ -317,6 +314,14 @@ static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 	 * the appropriate flushing if need be.
 	 */
 	if (num_items > 0 && root != root->fs_info->chunk_root) {
+		if (root->fs_info->quota_enabled &&
+		    is_fstree(root->root_key.objectid)) {
+			qgroup_reserved = num_items * root->leafsize;
+			ret = btrfs_qgroup_reserve(root, qgroup_reserved);
+			if (ret)
+				return ERR_PTR(ret);
+		}
+
 		num_bytes = btrfs_calc_trans_metadata_size(root, num_items);
 		ret = btrfs_block_rsv_add(root,
 					  &root->fs_info->trans_block_rsv,
@@ -349,12 +354,16 @@ again:
 	h->transaction = cur_trans;
 	h->blocks_used = 0;
 	h->bytes_reserved = 0;
+	h->root = root;
 	h->delayed_ref_updates = 0;
 	h->use_count = 1;
 	h->adding_csums = 0;
 	h->block_rsv = NULL;
 	h->orig_rsv = NULL;
 	h->aborted = 0;
+	h->qgroup_reserved = qgroup_reserved;
+	h->delayed_ref_elem.seq = 0;
+	INIT_LIST_HEAD(&h->qgroup_ref_list);
 
 	smp_mb();
 	if (cur_trans->blocked && may_wait_transaction(root, type)) {
@@ -505,6 +514,24 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 		return 0;
 	}
 
+	/*
+	 * do the qgroup accounting as early as possible
+	 */
+	err = btrfs_delayed_refs_qgroup_accounting(trans, info);
+
+	btrfs_trans_release_metadata(trans, root);
+	trans->block_rsv = NULL;
+	/*
+	 * the same root has to be passed to start_transaction and
+	 * end_transaction. Subvolume quota depends on this.
+	 */
+	WARN_ON(trans->root != root);
+
+	if (trans->qgroup_reserved) {
+		btrfs_qgroup_free(root, trans->qgroup_reserved);
+		trans->qgroup_reserved = 0;
+	}
+
 	while (count < 2) {
 		unsigned long cur = trans->delayed_ref_updates;
 		trans->delayed_ref_updates = 0;
@@ -559,6 +586,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	    root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
 		err = -EIO;
 	}
+	assert_qgroups_uptodate(trans);
 
 	memset(trans, 0, sizeof(*trans));
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
@@ -777,6 +805,13 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
 	ret = btrfs_run_dev_stats(trans, root->fs_info);
 	BUG_ON(ret);
 
+	ret = btrfs_run_qgroups(trans, root->fs_info);
+	BUG_ON(ret);
+
+	/* run_qgroups might have added some more refs */
+	ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
+	BUG_ON(ret);
+
 	while (!list_empty(&fs_info->dirty_cowonly_roots)) {
 		next = fs_info->dirty_cowonly_roots.next;
 		list_del_init(next);
@@ -947,6 +982,14 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 			pending->error = ret;
 			goto fail;
 		}
+	}
+
+	ret = btrfs_qgroup_inherit(trans, fs_info, root->root_key.objectid,
+				   objectid, pending->inherit);
+	kfree(pending->inherit);
+	if (ret) {
+		pending->error = ret;
+		goto fail;
 	}
 
 	key.objectid = objectid;
@@ -1345,6 +1388,13 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			goto cleanup_transaction;
 
 		/*
+		 * running the delayed items may have added new refs. account
+		 * them now so that they hinder processing of more delayed refs
+		 * as little as possible.
+		 */
+		btrfs_delayed_refs_qgroup_accounting(trans, root->fs_info);
+
+		/*
 		 * rename don't use btrfs_join_transaction, so, once we
 		 * set the transaction to blocked above, we aren't going
 		 * to get any new ordered operations.  We can safely run
@@ -1456,6 +1506,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			    root->fs_info->chunk_root->node);
 	switch_commit_root(root->fs_info->chunk_root);
 
+	assert_qgroups_uptodate(trans);
 	update_super_roots(root);
 
 	if (!root->fs_info->log_root_recovering) {

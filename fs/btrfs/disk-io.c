@@ -1225,6 +1225,82 @@ static struct btrfs_root *btrfs_alloc_root(struct btrfs_fs_info *fs_info)
 	return root;
 }
 
+struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
+				     struct btrfs_fs_info *fs_info,
+				     u64 objectid)
+{
+	struct extent_buffer *leaf;
+	struct btrfs_root *tree_root = fs_info->tree_root;
+	struct btrfs_root *root;
+	struct btrfs_key key;
+	int ret = 0;
+	u64 bytenr;
+
+	root = btrfs_alloc_root(fs_info);
+	if (!root)
+		return ERR_PTR(-ENOMEM);
+
+	__setup_root(tree_root->nodesize, tree_root->leafsize,
+		     tree_root->sectorsize, tree_root->stripesize,
+		     root, fs_info, objectid);
+	root->root_key.objectid = objectid;
+	root->root_key.type = BTRFS_ROOT_ITEM_KEY;
+	root->root_key.offset = 0;
+
+	leaf = btrfs_alloc_free_block(trans, root, root->leafsize,
+				      0, objectid, NULL, 0, 0, 0);
+	if (IS_ERR(leaf)) {
+		ret = PTR_ERR(leaf);
+		goto fail;
+	}
+
+	bytenr = leaf->start;
+	memset_extent_buffer(leaf, 0, 0, sizeof(struct btrfs_header));
+	btrfs_set_header_bytenr(leaf, leaf->start);
+	btrfs_set_header_generation(leaf, trans->transid);
+	btrfs_set_header_backref_rev(leaf, BTRFS_MIXED_BACKREF_REV);
+	btrfs_set_header_owner(leaf, objectid);
+	root->node = leaf;
+
+	write_extent_buffer(leaf, fs_info->fsid,
+			    (unsigned long)btrfs_header_fsid(leaf),
+			    BTRFS_FSID_SIZE);
+	write_extent_buffer(leaf, fs_info->chunk_tree_uuid,
+			    (unsigned long)btrfs_header_chunk_tree_uuid(leaf),
+			    BTRFS_UUID_SIZE);
+	btrfs_mark_buffer_dirty(leaf);
+
+	root->commit_root = btrfs_root_node(root);
+	root->track_dirty = 1;
+
+
+	root->root_item.flags = 0;
+	root->root_item.byte_limit = 0;
+	btrfs_set_root_bytenr(&root->root_item, leaf->start);
+	btrfs_set_root_generation(&root->root_item, trans->transid);
+	btrfs_set_root_level(&root->root_item, 0);
+	btrfs_set_root_refs(&root->root_item, 1);
+	btrfs_set_root_used(&root->root_item, leaf->len);
+	btrfs_set_root_last_snapshot(&root->root_item, 0);
+	btrfs_set_root_dirid(&root->root_item, 0);
+	root->root_item.drop_level = 0;
+
+	key.objectid = objectid;
+	key.type = BTRFS_ROOT_ITEM_KEY;
+	key.offset = 0;
+	ret = btrfs_insert_root(trans, tree_root, &key, &root->root_item);
+	if (ret)
+		goto fail;
+
+	btrfs_tree_unlock(leaf);
+
+fail:
+	if (ret)
+		return ERR_PTR(ret);
+
+	return root;
+}
+
 static struct btrfs_root *alloc_log_tree(struct btrfs_trans_handle *trans,
 					 struct btrfs_fs_info *fs_info)
 {
@@ -1396,6 +1472,9 @@ struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
 		return fs_info->dev_root;
 	if (location->objectid == BTRFS_CSUM_TREE_OBJECTID)
 		return fs_info->csum_root;
+	if (location->objectid == BTRFS_QUOTA_TREE_OBJECTID)
+		return fs_info->quota_root ? fs_info->quota_root :
+					     ERR_PTR(-ENOENT);
 again:
 	spin_lock(&fs_info->fs_roots_radix_lock);
 	root = radix_tree_lookup(&fs_info->fs_roots_radix,
@@ -1823,6 +1902,10 @@ static void free_root_pointers(struct btrfs_fs_info *info, int chunk_root)
 	free_extent_buffer(info->extent_root->commit_root);
 	free_extent_buffer(info->csum_root->node);
 	free_extent_buffer(info->csum_root->commit_root);
+	if (info->quota_root) {
+		free_extent_buffer(info->quota_root->node);
+		free_extent_buffer(info->quota_root->commit_root);
+	}
 
 	info->tree_root->node = NULL;
 	info->tree_root->commit_root = NULL;
@@ -1832,6 +1915,10 @@ static void free_root_pointers(struct btrfs_fs_info *info, int chunk_root)
 	info->extent_root->commit_root = NULL;
 	info->csum_root->node = NULL;
 	info->csum_root->commit_root = NULL;
+	if (info->quota_root) {
+		info->quota_root->node = NULL;
+		info->quota_root->commit_root = NULL;
+	}
 
 	if (chunk_root) {
 		free_extent_buffer(info->chunk_root->node);
@@ -1862,6 +1949,7 @@ int open_ctree(struct super_block *sb,
 	struct btrfs_root *csum_root;
 	struct btrfs_root *chunk_root;
 	struct btrfs_root *dev_root;
+	struct btrfs_root *quota_root;
 	struct btrfs_root *log_tree_root;
 	int ret;
 	int err = -EINVAL;
@@ -1873,9 +1961,10 @@ int open_ctree(struct super_block *sb,
 	csum_root = fs_info->csum_root = btrfs_alloc_root(fs_info);
 	chunk_root = fs_info->chunk_root = btrfs_alloc_root(fs_info);
 	dev_root = fs_info->dev_root = btrfs_alloc_root(fs_info);
+	quota_root = fs_info->quota_root = btrfs_alloc_root(fs_info);
 
 	if (!tree_root || !extent_root || !csum_root ||
-	    !chunk_root || !dev_root) {
+	    !chunk_root || !dev_root || !quota_root) {
 		err = -ENOMEM;
 		goto fail;
 	}
@@ -1943,6 +2032,8 @@ int open_ctree(struct super_block *sb,
 	fs_info->trans_no_join = 0;
 	fs_info->free_chunk_space = 0;
 	fs_info->tree_mod_log = RB_ROOT;
+
+	init_waitqueue_head(&fs_info->tree_mod_seq_wait);
 
 	/* readahead state */
 	INIT_RADIX_TREE(&fs_info->reada_tree, GFP_NOFS & ~__GFP_WAIT);
@@ -2031,6 +2122,13 @@ int open_ctree(struct super_block *sb,
 	init_rwsem(&fs_info->extent_commit_sem);
 	init_rwsem(&fs_info->cleanup_work_sem);
 	init_rwsem(&fs_info->subvol_sem);
+
+	spin_lock_init(&fs_info->qgroup_lock);
+	fs_info->qgroup_tree = RB_ROOT;
+	INIT_LIST_HEAD(&fs_info->dirty_qgroups);
+	fs_info->qgroup_seq = 1;
+	fs_info->quota_enabled = 0;
+	fs_info->pending_quota_state = 0;
 
 	btrfs_init_free_cluster(&fs_info->meta_alloc_cluster);
 	btrfs_init_free_cluster(&fs_info->data_alloc_cluster);
@@ -2356,6 +2454,17 @@ retry_root_backup:
 		goto recovery_tree_root;
 	csum_root->track_dirty = 1;
 
+	ret = find_and_setup_root(tree_root, fs_info,
+				  BTRFS_QUOTA_TREE_OBJECTID, quota_root);
+	if (ret) {
+		kfree(quota_root);
+		quota_root = fs_info->quota_root = NULL;
+	} else {
+		quota_root->track_dirty = 1;
+		fs_info->quota_enabled = 1;
+		fs_info->pending_quota_state = 1;
+	}
+
 	fs_info->generation = generation;
 	fs_info->last_trans_committed = generation;
 
@@ -2415,6 +2524,9 @@ retry_root_backup:
 			       " integrity check module %s\n", sb->s_id);
 	}
 #endif
+	ret = btrfs_read_qgroup_config(fs_info);
+	if (ret)
+		goto fail_trans_kthread;
 
 	/* do not make disk changes in broken FS */
 	if (btrfs_super_log_root(disk_super) != 0 &&
@@ -2425,7 +2537,7 @@ retry_root_backup:
 			printk(KERN_WARNING "Btrfs log replay required "
 			       "on RO media\n");
 			err = -EIO;
-			goto fail_trans_kthread;
+			goto fail_qgroup;
 		}
 		blocksize =
 		     btrfs_level_size(tree_root,
@@ -2434,7 +2546,7 @@ retry_root_backup:
 		log_tree_root = btrfs_alloc_root(fs_info);
 		if (!log_tree_root) {
 			err = -ENOMEM;
-			goto fail_trans_kthread;
+			goto fail_qgroup;
 		}
 
 		__setup_root(nodesize, leafsize, sectorsize, stripesize,
@@ -2474,7 +2586,7 @@ retry_root_backup:
 			printk(KERN_WARNING
 			       "btrfs: failed to recover relocation\n");
 			err = -EINVAL;
-			goto fail_trans_kthread;
+			goto fail_qgroup;
 		}
 	}
 
@@ -2484,10 +2596,10 @@ retry_root_backup:
 
 	fs_info->fs_root = btrfs_read_fs_root_no_name(fs_info, &location);
 	if (!fs_info->fs_root)
-		goto fail_trans_kthread;
+		goto fail_qgroup;
 	if (IS_ERR(fs_info->fs_root)) {
 		err = PTR_ERR(fs_info->fs_root);
-		goto fail_trans_kthread;
+		goto fail_qgroup;
 	}
 
 	if (sb->s_flags & MS_RDONLY)
@@ -2511,6 +2623,8 @@ retry_root_backup:
 
 	return 0;
 
+fail_qgroup:
+	btrfs_free_qgroup_config(fs_info);
 fail_trans_kthread:
 	kthread_stop(fs_info->transaction_kthread);
 fail_cleaner:
@@ -3109,6 +3223,8 @@ int close_ctree(struct btrfs_root *root)
 	fs_info->closing = 2;
 	smp_mb();
 
+	btrfs_free_qgroup_config(root->fs_info);
+
 	if (fs_info->delalloc_bytes) {
 		printk(KERN_INFO "btrfs: at unmount delalloc count %llu\n",
 		       (unsigned long long)fs_info->delalloc_bytes);
@@ -3128,6 +3244,10 @@ int close_ctree(struct btrfs_root *root)
 	free_extent_buffer(fs_info->dev_root->commit_root);
 	free_extent_buffer(fs_info->csum_root->node);
 	free_extent_buffer(fs_info->csum_root->commit_root);
+	if (fs_info->quota_root) {
+		free_extent_buffer(fs_info->quota_root->node);
+		free_extent_buffer(fs_info->quota_root->commit_root);
+	}
 
 	btrfs_free_block_groups(fs_info);
 
@@ -3258,7 +3378,7 @@ int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid)
 	return btree_read_extent_buffer_pages(root, buf, 0, parent_transid);
 }
 
-static int btree_lock_page_hook(struct page *page, void *data,
+int btree_lock_page_hook(struct page *page, void *data,
 				void (*flush_fn)(void *))
 {
 	struct inode *inode = page->mapping->host;

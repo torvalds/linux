@@ -336,7 +336,8 @@ static noinline int btrfs_ioctl_fitrim(struct file *file, void __user *arg)
 static noinline int create_subvol(struct btrfs_root *root,
 				  struct dentry *dentry,
 				  char *name, int namelen,
-				  u64 *async_transid)
+				  u64 *async_transid,
+				  struct btrfs_qgroup_inherit **inherit)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_key key;
@@ -367,6 +368,11 @@ static noinline int create_subvol(struct btrfs_root *root,
 	trans = btrfs_start_transaction(root, 6);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
+
+	ret = btrfs_qgroup_inherit(trans, root->fs_info, 0, objectid,
+				   inherit ? *inherit : NULL);
+	if (ret)
+		goto fail;
 
 	leaf = btrfs_alloc_free_block(trans, root, root->leafsize,
 				      0, objectid, NULL, 0, 0, 0);
@@ -484,7 +490,7 @@ fail:
 
 static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 			   char *name, int namelen, u64 *async_transid,
-			   bool readonly)
+			   bool readonly, struct btrfs_qgroup_inherit **inherit)
 {
 	struct inode *inode;
 	struct btrfs_pending_snapshot *pending_snapshot;
@@ -502,6 +508,10 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 	pending_snapshot->dentry = dentry;
 	pending_snapshot->root = root;
 	pending_snapshot->readonly = readonly;
+	if (inherit) {
+		pending_snapshot->inherit = *inherit;
+		*inherit = NULL;	/* take responsibility to free it */
+	}
 
 	trans = btrfs_start_transaction(root->fs_info->extent_root, 5);
 	if (IS_ERR(trans)) {
@@ -635,7 +645,8 @@ static inline int btrfs_may_create(struct inode *dir, struct dentry *child)
 static noinline int btrfs_mksubvol(struct path *parent,
 				   char *name, int namelen,
 				   struct btrfs_root *snap_src,
-				   u64 *async_transid, bool readonly)
+				   u64 *async_transid, bool readonly,
+				   struct btrfs_qgroup_inherit **inherit)
 {
 	struct inode *dir  = parent->dentry->d_inode;
 	struct dentry *dentry;
@@ -662,11 +673,11 @@ static noinline int btrfs_mksubvol(struct path *parent,
 		goto out_up_read;
 
 	if (snap_src) {
-		error = create_snapshot(snap_src, dentry,
-					name, namelen, async_transid, readonly);
+		error = create_snapshot(snap_src, dentry, name, namelen,
+					async_transid, readonly, inherit);
 	} else {
 		error = create_subvol(BTRFS_I(dir)->root, dentry,
-				      name, namelen, async_transid);
+				      name, namelen, async_transid, inherit);
 	}
 	if (!error)
 		fsnotify_mkdir(dir, dentry);
@@ -1375,11 +1386,9 @@ out:
 }
 
 static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
-						    char *name,
-						    unsigned long fd,
-						    int subvol,
-						    u64 *transid,
-						    bool readonly)
+				char *name, unsigned long fd, int subvol,
+				u64 *transid, bool readonly,
+				struct btrfs_qgroup_inherit **inherit)
 {
 	struct file *src_file;
 	int namelen;
@@ -1403,7 +1412,7 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 
 	if (subvol) {
 		ret = btrfs_mksubvol(&file->f_path, name, namelen,
-				     NULL, transid, readonly);
+				     NULL, transid, readonly, inherit);
 	} else {
 		struct inode *src_inode;
 		src_file = fget(fd);
@@ -1422,7 +1431,7 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 		}
 		ret = btrfs_mksubvol(&file->f_path, name, namelen,
 				     BTRFS_I(src_inode)->root,
-				     transid, readonly);
+				     transid, readonly, inherit);
 		fput(src_file);
 	}
 out_drop_write:
@@ -1444,7 +1453,7 @@ static noinline int btrfs_ioctl_snap_create(struct file *file,
 
 	ret = btrfs_ioctl_snap_create_transid(file, vol_args->name,
 					      vol_args->fd, subvol,
-					      NULL, false);
+					      NULL, false, NULL);
 
 	kfree(vol_args);
 	return ret;
@@ -1458,6 +1467,7 @@ static noinline int btrfs_ioctl_snap_create_v2(struct file *file,
 	u64 transid = 0;
 	u64 *ptr = NULL;
 	bool readonly = false;
+	struct btrfs_qgroup_inherit *inherit = NULL;
 
 	vol_args = memdup_user(arg, sizeof(*vol_args));
 	if (IS_ERR(vol_args))
@@ -1465,7 +1475,8 @@ static noinline int btrfs_ioctl_snap_create_v2(struct file *file,
 	vol_args->name[BTRFS_SUBVOL_NAME_MAX] = '\0';
 
 	if (vol_args->flags &
-	    ~(BTRFS_SUBVOL_CREATE_ASYNC | BTRFS_SUBVOL_RDONLY)) {
+	    ~(BTRFS_SUBVOL_CREATE_ASYNC | BTRFS_SUBVOL_RDONLY |
+	      BTRFS_SUBVOL_QGROUP_INHERIT)) {
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
@@ -1474,10 +1485,21 @@ static noinline int btrfs_ioctl_snap_create_v2(struct file *file,
 		ptr = &transid;
 	if (vol_args->flags & BTRFS_SUBVOL_RDONLY)
 		readonly = true;
+	if (vol_args->flags & BTRFS_SUBVOL_QGROUP_INHERIT) {
+		if (vol_args->size > PAGE_CACHE_SIZE) {
+			ret = -EINVAL;
+			goto out;
+		}
+		inherit = memdup_user(vol_args->qgroup_inherit, vol_args->size);
+		if (IS_ERR(inherit)) {
+			ret = PTR_ERR(inherit);
+			goto out;
+		}
+	}
 
 	ret = btrfs_ioctl_snap_create_transid(file, vol_args->name,
-					      vol_args->fd, subvol,
-					      ptr, readonly);
+					      vol_args->fd, subvol, ptr,
+					      readonly, &inherit);
 
 	if (ret == 0 && ptr &&
 	    copy_to_user(arg +
@@ -1486,6 +1508,7 @@ static noinline int btrfs_ioctl_snap_create_v2(struct file *file,
 		ret = -EFAULT;
 out:
 	kfree(vol_args);
+	kfree(inherit);
 	return ret;
 }
 
@@ -3401,6 +3424,183 @@ out:
 	return ret;
 }
 
+static long btrfs_ioctl_quota_ctl(struct btrfs_root *root, void __user *arg)
+{
+	struct btrfs_ioctl_quota_ctl_args *sa;
+	struct btrfs_trans_handle *trans = NULL;
+	int ret;
+	int err;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (root->fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
+
+	sa = memdup_user(arg, sizeof(*sa));
+	if (IS_ERR(sa))
+		return PTR_ERR(sa);
+
+	if (sa->cmd != BTRFS_QUOTA_CTL_RESCAN) {
+		trans = btrfs_start_transaction(root, 2);
+		if (IS_ERR(trans)) {
+			ret = PTR_ERR(trans);
+			goto out;
+		}
+	}
+
+	switch (sa->cmd) {
+	case BTRFS_QUOTA_CTL_ENABLE:
+		ret = btrfs_quota_enable(trans, root->fs_info);
+		break;
+	case BTRFS_QUOTA_CTL_DISABLE:
+		ret = btrfs_quota_disable(trans, root->fs_info);
+		break;
+	case BTRFS_QUOTA_CTL_RESCAN:
+		ret = btrfs_quota_rescan(root->fs_info);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	if (copy_to_user(arg, sa, sizeof(*sa)))
+		ret = -EFAULT;
+
+	if (trans) {
+		err = btrfs_commit_transaction(trans, root);
+		if (err && !ret)
+			ret = err;
+	}
+
+out:
+	kfree(sa);
+	return ret;
+}
+
+static long btrfs_ioctl_qgroup_assign(struct btrfs_root *root, void __user *arg)
+{
+	struct btrfs_ioctl_qgroup_assign_args *sa;
+	struct btrfs_trans_handle *trans;
+	int ret;
+	int err;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (root->fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
+
+	sa = memdup_user(arg, sizeof(*sa));
+	if (IS_ERR(sa))
+		return PTR_ERR(sa);
+
+	trans = btrfs_join_transaction(root);
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
+		goto out;
+	}
+
+	/* FIXME: check if the IDs really exist */
+	if (sa->assign) {
+		ret = btrfs_add_qgroup_relation(trans, root->fs_info,
+						sa->src, sa->dst);
+	} else {
+		ret = btrfs_del_qgroup_relation(trans, root->fs_info,
+						sa->src, sa->dst);
+	}
+
+	err = btrfs_end_transaction(trans, root);
+	if (err && !ret)
+		ret = err;
+
+out:
+	kfree(sa);
+	return ret;
+}
+
+static long btrfs_ioctl_qgroup_create(struct btrfs_root *root, void __user *arg)
+{
+	struct btrfs_ioctl_qgroup_create_args *sa;
+	struct btrfs_trans_handle *trans;
+	int ret;
+	int err;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (root->fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
+
+	sa = memdup_user(arg, sizeof(*sa));
+	if (IS_ERR(sa))
+		return PTR_ERR(sa);
+
+	trans = btrfs_join_transaction(root);
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
+		goto out;
+	}
+
+	/* FIXME: check if the IDs really exist */
+	if (sa->create) {
+		ret = btrfs_create_qgroup(trans, root->fs_info, sa->qgroupid,
+					  NULL);
+	} else {
+		ret = btrfs_remove_qgroup(trans, root->fs_info, sa->qgroupid);
+	}
+
+	err = btrfs_end_transaction(trans, root);
+	if (err && !ret)
+		ret = err;
+
+out:
+	kfree(sa);
+	return ret;
+}
+
+static long btrfs_ioctl_qgroup_limit(struct btrfs_root *root, void __user *arg)
+{
+	struct btrfs_ioctl_qgroup_limit_args *sa;
+	struct btrfs_trans_handle *trans;
+	int ret;
+	int err;
+	u64 qgroupid;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (root->fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
+
+	sa = memdup_user(arg, sizeof(*sa));
+	if (IS_ERR(sa))
+		return PTR_ERR(sa);
+
+	trans = btrfs_join_transaction(root);
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
+		goto out;
+	}
+
+	qgroupid = sa->qgroupid;
+	if (!qgroupid) {
+		/* take the current subvol as qgroup */
+		qgroupid = root->root_key.objectid;
+	}
+
+	/* FIXME: check if the IDs really exist */
+	ret = btrfs_limit_qgroup(trans, root->fs_info, qgroupid, &sa->lim);
+
+	err = btrfs_end_transaction(trans, root);
+	if (err && !ret)
+		ret = err;
+
+out:
+	kfree(sa);
+	return ret;
+}
+
 long btrfs_ioctl(struct file *file, unsigned int
 		cmd, unsigned long arg)
 {
@@ -3422,6 +3622,8 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_snap_create_v2(file, argp, 0);
 	case BTRFS_IOC_SUBVOL_CREATE:
 		return btrfs_ioctl_snap_create(file, argp, 1);
+	case BTRFS_IOC_SUBVOL_CREATE_V2:
+		return btrfs_ioctl_snap_create_v2(file, argp, 1);
 	case BTRFS_IOC_SNAP_DESTROY:
 		return btrfs_ioctl_snap_destroy(file, argp);
 	case BTRFS_IOC_SUBVOL_GETFLAGS:
@@ -3485,6 +3687,14 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_balance_progress(root, argp);
 	case BTRFS_IOC_GET_DEV_STATS:
 		return btrfs_ioctl_get_dev_stats(root, argp);
+	case BTRFS_IOC_QUOTA_CTL:
+		return btrfs_ioctl_quota_ctl(root, argp);
+	case BTRFS_IOC_QGROUP_ASSIGN:
+		return btrfs_ioctl_qgroup_assign(root, argp);
+	case BTRFS_IOC_QGROUP_CREATE:
+		return btrfs_ioctl_qgroup_create(root, argp);
+	case BTRFS_IOC_QGROUP_LIMIT:
+		return btrfs_ioctl_qgroup_limit(root, argp);
 	}
 
 	return -ENOTTY;
