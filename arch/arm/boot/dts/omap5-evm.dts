@@ -24,6 +24,7 @@
 		regulator-min-microvolt = <3000000>;
 		regulator-max-microvolt = <3000000>;
 	};
+
 };
 
 &mmc1 {
@@ -58,4 +59,16 @@
 		compatible = "ti,tmp102";
 		reg = <0x48>;
 	};
+};
+
+&keypad {
+	keypad,num-rows = <8>;
+	keypad,num-columns = <8>;
+	linux,keymap = <0x02020073	/* VOLUP */
+			0x02030072	/* VOLDOWM */
+			0x020400e7	/* SEND */
+			0x02050066	/* HOME */
+			0x0206006b	/* END */
+			0x020700d9>;	/* SEARCH */
+	linux,input-no-autorepeat;
 };

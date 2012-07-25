@@ -246,5 +246,10 @@
 			ti,hwmods = "mmc5";
 			ti,needs-special-reset;
 		};
+
+		keypad: keypad@4ae1c000 {
+			compatible = "ti,omap4-keypad";
+			ti,hwmods = "kbd";
+		};
 	};
 };
