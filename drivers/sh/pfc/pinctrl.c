@@ -276,7 +276,6 @@ static int sh_pfc_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 			      unsigned long config)
 {
 	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
-	struct sh_pfc *pfc = pmx->pfc;
 
 	/* Validate the new type */
 	if (config >= PINMUX_FLAG_TYPE)
@@ -481,7 +480,6 @@ static int __devexit sh_pfc_pinctrl_remove(struct platform_device *pdev)
 {
 	struct sh_pfc_pinctrl *pmx = platform_get_drvdata(pdev);
 
-	pinctrl_remove_gpio_range(pmx->pctl, &sh_pfc_gpio_range);
 	pinctrl_unregister(pmx->pctl);
 
 	platform_set_drvdata(pdev, NULL);
