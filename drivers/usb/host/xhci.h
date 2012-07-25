@@ -1537,6 +1537,8 @@ static inline struct usb_hcd *xhci_to_hcd(struct xhci_hcd *xhci)
 	dev_err(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
 #define xhci_warn(xhci, fmt, args...) \
 	dev_warn(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
+#define xhci_warn_ratelimited(xhci, fmt, args...) \
+	dev_warn_ratelimited(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
 
 /* TODO: copied from ehci.h - can be refactored? */
 /* xHCI spec says all registers are little endian */

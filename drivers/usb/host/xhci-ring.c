@@ -2073,8 +2073,8 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		if (xhci->quirks & XHCI_TRUST_TX_LENGTH)
 			trb_comp_code = COMP_SHORT_TX;
 		else
-			xhci_warn(xhci, "WARN Successful completion on short TX: "
-					"needs XHCI_TRUST_TX_LENGTH quirk?\n");
+			xhci_warn_ratelimited(xhci,
+					"WARN Successful completion on short TX: needs XHCI_TRUST_TX_LENGTH quirk?\n");
 	case COMP_SHORT_TX:
 		break;
 	case COMP_STOP:
