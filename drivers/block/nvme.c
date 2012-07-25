@@ -1151,10 +1151,9 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	return status;
 }
 
-static int nvme_user_admin_cmd(struct nvme_ns *ns,
+static int nvme_user_admin_cmd(struct nvme_dev *dev,
 					struct nvme_admin_cmd __user *ucmd)
 {
-	struct nvme_dev *dev = ns->dev;
 	struct nvme_admin_cmd cmd;
 	struct nvme_command c;
 	int status, length;
@@ -1209,7 +1208,7 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 	case NVME_IOCTL_ID:
 		return ns->ns_id;
 	case NVME_IOCTL_ADMIN_CMD:
-		return nvme_user_admin_cmd(ns, (void __user *)arg);
+		return nvme_user_admin_cmd(ns->dev, (void __user *)arg);
 	case NVME_IOCTL_SUBMIT_IO:
 		return nvme_submit_io(ns, (void __user *)arg);
 	default:
