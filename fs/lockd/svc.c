@@ -87,12 +87,14 @@ static unsigned long get_lockd_grace_period(void)
 		return nlm_timeout * 5 * HZ;
 }
 
-static struct lock_manager lockd_manager = {
-};
-
-static void grace_ender(struct work_struct *not_used)
+static void grace_ender(struct work_struct *grace)
 {
-	locks_end_grace(&lockd_manager);
+	struct delayed_work *dwork = container_of(grace, struct delayed_work,
+						  work);
+	struct lockd_net *ln = container_of(dwork, struct lockd_net,
+					    grace_period_end);
+
+	locks_end_grace(&ln->lockd_manager);
 }
 
 static void set_grace_period(void)
@@ -100,7 +102,7 @@ static void set_grace_period(void)
 	unsigned long grace_period = get_lockd_grace_period();
 	struct lockd_net *ln = net_generic(&init_net, lockd_net_id);
 
-	locks_start_grace(&lockd_manager);
+	locks_start_grace(&ln->lockd_manager);
 	cancel_delayed_work_sync(&ln->grace_period_end);
 	schedule_delayed_work(&ln->grace_period_end, grace_period);
 }
@@ -111,7 +113,7 @@ static void restart_grace(void)
 		struct lockd_net *ln = net_generic(&init_net, lockd_net_id);
 
 		cancel_delayed_work_sync(&ln->grace_period_end);
-		locks_end_grace(&lockd_manager);
+		locks_end_grace(&ln->lockd_manager);
 		nlmsvc_invalidate_all();
 		set_grace_period();
 	}
@@ -187,7 +189,7 @@ lockd(void *vrqstp)
 	}
 	flush_signals(current);
 	cancel_delayed_work_sync(&ln->grace_period_end);
-	locks_end_grace(&lockd_manager);
+	locks_end_grace(&ln->lockd_manager);
 	if (nlmsvc_ops)
 		nlmsvc_invalidate_all();
 	nlm_shutdown_hosts();
