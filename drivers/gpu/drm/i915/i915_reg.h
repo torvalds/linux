@@ -1498,6 +1498,14 @@
 					 GEN7_CXT_EXTENDED_SIZE(ctx_reg) + \
 					 GEN7_CXT_GT1_SIZE(ctx_reg) + \
 					 GEN7_CXT_VFSTATE_SIZE(ctx_reg))
+#define HSW_CXT_POWER_SIZE(ctx_reg)	((ctx_reg >> 26) & 0x3f)
+#define HSW_CXT_RING_SIZE(ctx_reg)	((ctx_reg >> 23) & 0x7)
+#define HSW_CXT_RENDER_SIZE(ctx_reg)	((ctx_reg >> 15) & 0xff)
+#define HSW_CXT_TOTAL_SIZE(ctx_reg)	(HSW_CXT_POWER_SIZE(ctx_reg) + \
+					 HSW_CXT_RING_SIZE(ctx_reg) + \
+					 HSW_CXT_RENDER_SIZE(ctx_reg) + \
+					 GEN7_CXT_VFSTATE_SIZE(ctx_reg))
+
 
 /*
  * Overlay regs
