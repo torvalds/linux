@@ -38,6 +38,7 @@
 #include "nouveau_pm.h"
 #include "nv04_display.h"
 #include "nv50_display.h"
+#include "nouveau_acpi.h"
 
 static void nouveau_stub_takedown(struct drm_device *dev) {}
 static int nouveau_stub_init(struct drm_device *dev) { return 0; }

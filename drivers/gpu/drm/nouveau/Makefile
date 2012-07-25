@@ -167,6 +167,9 @@ nouveau-y += nv50_fbcon.o nvc0_fbcon.o
 
 # drm/kms/nvd9-
 
+# other random bits
+nouveau-$(CONFIG_ACPI) += nouveau_acpi.o
+
 ##
 ## unported bits below
 ##
@@ -200,7 +203,6 @@ nouveau-y += nouveau_mem.o
 # optional stuff
 nouveau-$(CONFIG_COMPAT) += nouveau_ioc32.o
 nouveau-$(CONFIG_DRM_NOUVEAU_BACKLIGHT) += nouveau_backlight.o
-nouveau-$(CONFIG_ACPI) += nouveau_acpi.o
 
 
 obj-$(CONFIG_DRM_NOUVEAU)+= nouveau.o

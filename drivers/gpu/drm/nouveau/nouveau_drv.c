@@ -36,6 +36,7 @@
 #include "nouveau_fence.h"
 #include "nouveau_pm.h"
 #include "nv50_display.h"
+#include "nouveau_acpi.h"
 
 #include "drm_pciids.h"
 
