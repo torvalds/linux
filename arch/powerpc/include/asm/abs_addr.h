@@ -20,7 +20,6 @@
 
 /* Convenience macros */
 #define virt_to_abs(va) __pa(va)
-#define abs_to_virt(aa) __va(aa)
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_ABS_ADDR_H */
