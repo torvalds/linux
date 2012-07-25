@@ -1326,8 +1326,7 @@ static void rbd_notify_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 /*
  * Request sync osd notify
  */
-static int rbd_req_sync_notify(struct rbd_device *rbd_dev,
-		          const char *object_name)
+static int rbd_req_sync_notify(struct rbd_device *rbd_dev)
 {
 	struct ceph_osd_req_op *ops;
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
@@ -1358,7 +1357,8 @@ static int rbd_req_sync_notify(struct rbd_device *rbd_dev,
 			       0,
 			       CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
 			       ops,
-			       object_name, 0, 0, NULL, NULL, NULL);
+			       rbd_dev->header_name,
+			       0, 0, NULL, NULL, NULL);
 	if (ret < 0)
 		goto fail_event;
 
@@ -2651,7 +2651,7 @@ static ssize_t rbd_snap_add(struct device *dev,
 	mutex_unlock(&ctl_mutex);
 
 	/* make a best effort, don't error if failed */
-	rbd_req_sync_notify(rbd_dev, rbd_dev->header_name);
+	rbd_req_sync_notify(rbd_dev);
 
 	ret = count;
 	kfree(name);
