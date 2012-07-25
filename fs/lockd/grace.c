@@ -21,9 +21,8 @@ static DEFINE_SPINLOCK(grace_lock);
  *
  * This function is called to start a grace period.
  */
-void locks_start_grace(struct lock_manager *lm)
+void locks_start_grace(struct net *net, struct lock_manager *lm)
 {
-	struct net *net = &init_net;
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
 	spin_lock(&grace_lock);
@@ -57,9 +56,8 @@ EXPORT_SYMBOL_GPL(locks_end_grace);
  * to answer ordinary lock requests, and when they should accept only
  * lock reclaims.
  */
-int locks_in_grace(void)
+int locks_in_grace(struct net *net)
 {
-	struct net *net = &init_net;
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
 	return !list_empty(&ln->grace_list);

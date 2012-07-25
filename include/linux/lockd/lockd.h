@@ -262,11 +262,11 @@ typedef int	  (*nlm_host_match_fn_t)(void *cur, struct nlm_host *ref);
 __be32		  nlmsvc_lock(struct svc_rqst *, struct nlm_file *,
 			      struct nlm_host *, struct nlm_lock *, int,
 			      struct nlm_cookie *, int);
-__be32		  nlmsvc_unlock(struct nlm_file *, struct nlm_lock *);
+__be32		  nlmsvc_unlock(struct net *net, struct nlm_file *, struct nlm_lock *);
 __be32		  nlmsvc_testlock(struct svc_rqst *, struct nlm_file *,
 			struct nlm_host *, struct nlm_lock *,
 			struct nlm_lock *, struct nlm_cookie *);
-__be32		  nlmsvc_cancel_blocked(struct nlm_file *, struct nlm_lock *);
+__be32		  nlmsvc_cancel_blocked(struct net *net, struct nlm_file *, struct nlm_lock *);
 unsigned long	  nlmsvc_retry_blocked(void);
 void		  nlmsvc_traverse_blocks(struct nlm_host *, struct nlm_file *,
 					nlm_host_match_fn_t match);

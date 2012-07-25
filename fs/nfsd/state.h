@@ -451,7 +451,8 @@ static inline struct nfs4_ol_stateid *openlockstateid(struct nfs4_stid *s)
 
 struct nfsd4_compound_state;
 
-extern __be32 nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
+extern __be32 nfs4_preprocess_stateid_op(struct net *net,
+		struct nfsd4_compound_state *cstate,
 		stateid_t *stateid, int flags, struct file **filp);
 extern void nfs4_lock_state(void);
 extern void nfs4_unlock_state(void);

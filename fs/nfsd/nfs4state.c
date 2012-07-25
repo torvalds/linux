@@ -2885,7 +2885,8 @@ static void nfsd4_open_deleg_none_ext(struct nfsd4_open *open, int status)
  * Attempt to hand out a delegation.
  */
 static void
-nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_ol_stateid *stp)
+nfs4_open_delegation(struct net *net, struct svc_fh *fh,
+		     struct nfsd4_open *open, struct nfs4_ol_stateid *stp)
 {
 	struct nfs4_delegation *dp;
 	struct nfs4_openowner *oo = container_of(stp->st_stateowner, struct nfs4_openowner, oo_owner);
@@ -2906,7 +2907,7 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_ol_
 		case NFS4_OPEN_CLAIM_NULL:
 			/* Let's not give out any delegations till everyone's
 			 * had the chance to reclaim theirs.... */
-			if (locks_in_grace())
+			if (locks_in_grace(net))
 				goto out;
 			if (!cb_up || !(oo->oo_flags & NFS4_OO_CONFIRMED))
 				goto out;
@@ -3040,7 +3041,7 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	* Attempt to hand out a delegation. No error return, because the
 	* OPEN succeeds even if we fail.
 	*/
-	nfs4_open_delegation(current_fh, open, stp);
+	nfs4_open_delegation(SVC_NET(rqstp), current_fh, open, stp);
 nodeleg:
 	status = nfs_ok;
 
@@ -3279,11 +3280,11 @@ out:
 }
 
 static inline __be32
-check_special_stateids(svc_fh *current_fh, stateid_t *stateid, int flags)
+check_special_stateids(struct net *net, svc_fh *current_fh, stateid_t *stateid, int flags)
 {
 	if (ONE_STATEID(stateid) && (flags & RD_STATE))
 		return nfs_ok;
-	else if (locks_in_grace()) {
+	else if (locks_in_grace(net)) {
 		/* Answer in remaining cases depends on existence of
 		 * conflicting state; so we must wait out the grace period. */
 		return nfserr_grace;
@@ -3300,9 +3301,9 @@ check_special_stateids(svc_fh *current_fh, stateid_t *stateid, int flags)
  * that are not able to provide mandatory locking.
  */
 static inline int
-grace_disallows_io(struct inode *inode)
+grace_disallows_io(struct net *net, struct inode *inode)
 {
-	return locks_in_grace() && mandatory_lock(inode);
+	return locks_in_grace(net) && mandatory_lock(inode);
 }
 
 /* Returns true iff a is later than b: */
@@ -3393,7 +3394,7 @@ static __be32 nfsd4_lookup_stateid(stateid_t *stateid, unsigned char typemask, s
 * Checks for stateid operations
 */
 __be32
-nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
+nfs4_preprocess_stateid_op(struct net *net, struct nfsd4_compound_state *cstate,
 			   stateid_t *stateid, int flags, struct file **filpp)
 {
 	struct nfs4_stid *s;
@@ -3406,11 +3407,11 @@ nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 	if (filpp)
 		*filpp = NULL;
 
-	if (grace_disallows_io(ino))
+	if (grace_disallows_io(net, ino))
 		return nfserr_grace;
 
 	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid))
-		return check_special_stateids(current_fh, stateid, flags);
+		return check_special_stateids(net, current_fh, stateid, flags);
 
 	status = nfsd4_lookup_stateid(stateid, NFS4_DELEG_STID|NFS4_OPEN_STID|NFS4_LOCK_STID, &s);
 	if (status)
@@ -4107,10 +4108,10 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		goto out;
 
 	status = nfserr_grace;
-	if (locks_in_grace() && !lock->lk_reclaim)
+	if (locks_in_grace(SVC_NET(rqstp)) && !lock->lk_reclaim)
 		goto out;
 	status = nfserr_no_grace;
-	if (!locks_in_grace() && lock->lk_reclaim)
+	if (!locks_in_grace(SVC_NET(rqstp)) && lock->lk_reclaim)
 		goto out;
 
 	locks_init_lock(&file_lock);
@@ -4210,7 +4211,7 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct nfs4_lockowner *lo;
 	__be32 status;
 
-	if (locks_in_grace())
+	if (locks_in_grace(SVC_NET(rqstp)))
 		return nfserr_grace;
 
 	if (check_lock_length(lockt->lt_offset, lockt->lt_length))
@@ -4703,7 +4704,7 @@ nfs4_state_start(void)
 	get_net(net);
 	nfsd4_client_tracking_init(net);
 	boot_time = get_seconds();
-	locks_start_grace(&nn->nfsd4_manager);
+	locks_start_grace(net, &nn->nfsd4_manager);
 	grace_ended = false;
 	printk(KERN_INFO "NFSD: starting %ld-second grace period\n",
 	       nfsd4_grace);

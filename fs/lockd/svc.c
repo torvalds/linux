@@ -97,12 +97,12 @@ static void grace_ender(struct work_struct *grace)
 	locks_end_grace(&ln->lockd_manager);
 }
 
-static void set_grace_period(void)
+static void set_grace_period(struct net *net)
 {
 	unsigned long grace_period = get_lockd_grace_period();
-	struct lockd_net *ln = net_generic(&init_net, lockd_net_id);
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
-	locks_start_grace(&ln->lockd_manager);
+	locks_start_grace(net, &ln->lockd_manager);
 	cancel_delayed_work_sync(&ln->grace_period_end);
 	schedule_delayed_work(&ln->grace_period_end, grace_period);
 }
@@ -110,12 +110,13 @@ static void set_grace_period(void)
 static void restart_grace(void)
 {
 	if (nlmsvc_ops) {
-		struct lockd_net *ln = net_generic(&init_net, lockd_net_id);
+		struct net *net = &init_net;
+		struct lockd_net *ln = net_generic(net, lockd_net_id);
 
 		cancel_delayed_work_sync(&ln->grace_period_end);
 		locks_end_grace(&ln->lockd_manager);
 		nlmsvc_invalidate_all();
-		set_grace_period();
+		set_grace_period(net);
 	}
 }
 
@@ -127,7 +128,8 @@ lockd(void *vrqstp)
 {
 	int		err = 0, preverr = 0;
 	struct svc_rqst *rqstp = vrqstp;
-	struct lockd_net *ln = net_generic(&init_net, lockd_net_id);
+	struct net *net = &init_net;
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
 	/* try_to_freeze() is called from svc_recv() */
 	set_freezable();
@@ -141,7 +143,7 @@ lockd(void *vrqstp)
 		nlm_timeout = LOCKD_DFLT_TIMEO;
 	nlmsvc_timeout = nlm_timeout * HZ;
 
-	set_grace_period();
+	set_grace_period(net);
 
 	/*
 	 * The main request loop. We don't terminate until the last
