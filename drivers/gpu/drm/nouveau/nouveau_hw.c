@@ -172,14 +172,14 @@ nouveau_hw_get_pllvals(struct drm_device *dev, enum nvbios_pll_type plltype,
 	if (reg1 == 0)
 		return -ENOENT;
 
-	pll1 = nvReadMC(dev, reg1);
+	pll1 = nv_rd32(dev, reg1);
 
 	if (reg1 <= 0x405c)
-		pll2 = nvReadMC(dev, reg1 + 4);
+		pll2 = nv_rd32(dev, reg1 + 4);
 	else if (nv_two_reg_pll(dev)) {
 		uint32_t reg2 = reg1 + (reg1 == NV_RAMDAC_VPLL2 ? 0x5c : 0x70);
 
-		pll2 = nvReadMC(dev, reg2);
+		pll2 = nv_rd32(dev, reg2);
 	}
 
 	if (dev_priv->card_type == 0x40 && reg1 >= NV_PRAMDAC_VPLL_COEFF) {
@@ -670,15 +670,15 @@ nv_load_state_ext(struct drm_device *dev, int head,
 			 */
 			NVWriteCRTC(dev, head, NV_PCRTC_ENGINE_CTRL, regp->crtc_eng_ctrl);
 
-		nvWriteVIDEO(dev, NV_PVIDEO_STOP, 1);
-		nvWriteVIDEO(dev, NV_PVIDEO_INTR_EN, 0);
-		nvWriteVIDEO(dev, NV_PVIDEO_OFFSET_BUFF(0), 0);
-		nvWriteVIDEO(dev, NV_PVIDEO_OFFSET_BUFF(1), 0);
-		nvWriteVIDEO(dev, NV_PVIDEO_LIMIT(0), 0); //dev_priv->fb_available_size - 1);
-		nvWriteVIDEO(dev, NV_PVIDEO_LIMIT(1), 0); //dev_priv->fb_available_size - 1);
-		nvWriteVIDEO(dev, NV_PVIDEO_UVPLANE_LIMIT(0), 0); //dev_priv->fb_available_size - 1);
-		nvWriteVIDEO(dev, NV_PVIDEO_UVPLANE_LIMIT(1), 0); //dev_priv->fb_available_size - 1);
-		nvWriteMC(dev, NV_PBUS_POWERCTRL_2, 0);
+		nv_wr32(dev, NV_PVIDEO_STOP, 1);
+		nv_wr32(dev, NV_PVIDEO_INTR_EN, 0);
+		nv_wr32(dev, NV_PVIDEO_OFFSET_BUFF(0), 0);
+		nv_wr32(dev, NV_PVIDEO_OFFSET_BUFF(1), 0);
+		nv_wr32(dev, NV_PVIDEO_LIMIT(0), 0); //dev_priv->fb_available_size - 1);
+		nv_wr32(dev, NV_PVIDEO_LIMIT(1), 0); //dev_priv->fb_available_size - 1);
+		nv_wr32(dev, NV_PVIDEO_UVPLANE_LIMIT(0), 0); //dev_priv->fb_available_size - 1);
+		nv_wr32(dev, NV_PVIDEO_UVPLANE_LIMIT(1), 0); //dev_priv->fb_available_size - 1);
+		nv_wr32(dev, NV_PBUS_POWERCTRL_2, 0);
 
 		NVWriteCRTC(dev, head, NV_PCRTC_CURSOR_CONFIG, regp->cursor_cfg);
 		NVWriteCRTC(dev, head, NV_PCRTC_830, regp->crtc_830);

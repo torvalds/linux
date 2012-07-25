@@ -246,7 +246,7 @@ int call_lvds_script(struct drm_device *dev, struct dcb_output *dcbent, int head
 	sel_clk = NVReadRAMDAC(dev, 0, NV_PRAMDAC_SEL_CLK) & ~0x50000;
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_SEL_CLK, sel_clk | sel_clk_binding);
 	/* some scripts set a value in NV_PBUS_POWERCTRL_2 and break video overlay */
-	nvWriteMC(dev, NV_PBUS_POWERCTRL_2, 0);
+	nv_wr32(dev, NV_PBUS_POWERCTRL_2, 0);
 
 	return ret;
 }

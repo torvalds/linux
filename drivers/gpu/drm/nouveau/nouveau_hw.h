@@ -57,58 +57,6 @@ void nouveau_hw_load_state_palette(struct drm_device *, int head,
 extern void nouveau_calc_arb(struct drm_device *, int vclk, int bpp,
 			     int *burst, int *lwm);
 
-static inline uint32_t
-nvReadMC(struct drm_device *dev, uint32_t reg)
-{
-	uint32_t val = nv_rd32(dev, reg);
-	return val;
-}
-
-static inline void
-nvWriteMC(struct drm_device *dev, uint32_t reg, uint32_t val)
-{
-	nv_wr32(dev, reg, val);
-}
-
-static inline uint32_t
-nvReadVIDEO(struct drm_device *dev, uint32_t reg)
-{
-	uint32_t val = nv_rd32(dev, reg);
-	return val;
-}
-
-static inline void
-nvWriteVIDEO(struct drm_device *dev, uint32_t reg, uint32_t val)
-{
-	nv_wr32(dev, reg, val);
-}
-
-static inline uint32_t
-nvReadFB(struct drm_device *dev, uint32_t reg)
-{
-	uint32_t val = nv_rd32(dev, reg);
-	return val;
-}
-
-static inline void
-nvWriteFB(struct drm_device *dev, uint32_t reg, uint32_t val)
-{
-	nv_wr32(dev, reg, val);
-}
-
-static inline uint32_t
-nvReadEXTDEV(struct drm_device *dev, uint32_t reg)
-{
-	uint32_t val = nv_rd32(dev, reg);
-	return val;
-}
-
-static inline void
-nvWriteEXTDEV(struct drm_device *dev, uint32_t reg, uint32_t val)
-{
-	nv_wr32(dev, reg, val);
-}
-
 static inline uint32_t NVReadCRTC(struct drm_device *dev,
 					int head, uint32_t reg)
 {
@@ -302,7 +250,7 @@ nv_heads_tied(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
 	if (dev_priv->chipset == 0x11)
-		return !!(nvReadMC(dev, NV_PBUS_DEBUG_1) & (1 << 28));
+		return !!(nv_rd32(dev, NV_PBUS_DEBUG_1) & (1 << 28));
 
 	return NVReadVgaCrtc(dev, 0, NV_CIO_CRE_44) & 0x4;
 }

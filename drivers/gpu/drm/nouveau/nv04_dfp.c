@@ -331,7 +331,7 @@ static void nv04_dfp_mode_set(struct drm_encoder *encoder,
 		regp->fp_control |= NV_PRAMDAC_FP_TG_CONTROL_MODE_NATIVE;
 	else /* gpu needs to scale */
 		regp->fp_control |= NV_PRAMDAC_FP_TG_CONTROL_MODE_SCALE;
-	if (nvReadEXTDEV(dev, NV_PEXTDEV_BOOT_0) & NV_PEXTDEV_BOOT_0_STRAP_FP_IFACE_12BIT)
+	if (nv_rd32(dev, NV_PEXTDEV_BOOT_0) & NV_PEXTDEV_BOOT_0_STRAP_FP_IFACE_12BIT)
 		regp->fp_control |= NV_PRAMDAC_FP_TG_CONTROL_WIDTH_12;
 	if (nv_encoder->dcb->location != DCB_LOC_ON_CHIP &&
 	    output_mode->clock > 165000)

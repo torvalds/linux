@@ -245,12 +245,12 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + regoffset,
 		      saved_rtest_ctrl & ~NV_PRAMDAC_TEST_CONTROL_PWRDWN_DAC_OFF);
 
-	saved_powerctrl_2 = nvReadMC(dev, NV_PBUS_POWERCTRL_2);
+	saved_powerctrl_2 = nv_rd32(dev, NV_PBUS_POWERCTRL_2);
 
-	nvWriteMC(dev, NV_PBUS_POWERCTRL_2, saved_powerctrl_2 & 0xd7ffffff);
+	nv_wr32(dev, NV_PBUS_POWERCTRL_2, saved_powerctrl_2 & 0xd7ffffff);
 	if (regoffset == 0x68) {
-		saved_powerctrl_4 = nvReadMC(dev, NV_PBUS_POWERCTRL_4);
-		nvWriteMC(dev, NV_PBUS_POWERCTRL_4, saved_powerctrl_4 & 0xffffffcf);
+		saved_powerctrl_4 = nv_rd32(dev, NV_PBUS_POWERCTRL_4);
+		nv_wr32(dev, NV_PBUS_POWERCTRL_4, saved_powerctrl_4 & 0xffffffcf);
 	}
 
 	saved_gpio1 = nouveau_gpio_func_get(dev, DCB_GPIO_TVDAC1);
@@ -304,8 +304,8 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_DACCLK + regoffset, saved_routput);
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + regoffset, saved_rtest_ctrl);
 	if (regoffset == 0x68)
-		nvWriteMC(dev, NV_PBUS_POWERCTRL_4, saved_powerctrl_4);
-	nvWriteMC(dev, NV_PBUS_POWERCTRL_2, saved_powerctrl_2);
+		nv_wr32(dev, NV_PBUS_POWERCTRL_4, saved_powerctrl_4);
+	nv_wr32(dev, NV_PBUS_POWERCTRL_2, saved_powerctrl_2);
 
 	nouveau_gpio_func_set(dev, DCB_GPIO_TVDAC1, saved_gpio1);
 	nouveau_gpio_func_set(dev, DCB_GPIO_TVDAC0, saved_gpio0);
