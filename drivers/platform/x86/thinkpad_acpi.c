@@ -5217,6 +5217,7 @@ static void led_exit(void)
 			led_classdev_unregister(&tpacpi_leds[i].led_classdev);
 	}
 
+	flush_workqueue(tpacpi_wq);
 	kfree(tpacpi_leds);
 }
 
