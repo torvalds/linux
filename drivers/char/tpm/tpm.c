@@ -1171,7 +1171,7 @@ int tpm_release(struct inode *inode, struct file *file)
 	flush_work_sync(&chip->work);
 	file->private_data = NULL;
 	atomic_set(&chip->data_pending, 0);
-	kfree(chip->data_buffer);
+	kzfree(chip->data_buffer);
 	clear_bit(0, &chip->is_open);
 	put_device(chip->dev);
 	return 0;
@@ -1223,7 +1223,6 @@ ssize_t tpm_read(struct file *file, char __user *buf,
 	del_singleshot_timer_sync(&chip->user_read_timer);
 	flush_work_sync(&chip->work);
 	ret_size = atomic_read(&chip->data_pending);
-	atomic_set(&chip->data_pending, 0);
 	if (ret_size > 0) {	/* relay data */
 		ssize_t orig_ret_size = ret_size;
 		if (size < ret_size)
@@ -1237,6 +1236,8 @@ ssize_t tpm_read(struct file *file, char __user *buf,
 
 		mutex_unlock(&chip->buffer_mutex);
 	}
+
+	atomic_set(&chip->data_pending, 0);
 
 	return ret_size;
 }
