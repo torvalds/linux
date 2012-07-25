@@ -186,6 +186,22 @@ static int runnables_sysfs(void)
 	return err;
 }
 
+static void runnables_device_busy(void)
+{
+	if (runnables_state != DISABLED) {
+		runnables_state = DISABLED;
+		cancel_delayed_work_sync(&runnables_work);
+	}
+}
+
+static void runnables_device_free(void)
+{
+	if (runnables_state == DISABLED) {
+		runnables_state = IDLE;
+		runnables_work_func(NULL);
+	}
+}
+
 static void runnables_stop(void)
 {
 	runnables_state = DISABLED;
@@ -228,6 +244,8 @@ static int runnables_start(void)
 struct cpuquiet_governor runnables_governor = {
 	.name		   	  = "runnable",
 	.start			  = runnables_start,
+	.device_free_notification = runnables_device_free,
+	.device_busy_notification = runnables_device_busy,
 	.stop			  = runnables_stop,
 	.owner		   	  = THIS_MODULE,
 };
