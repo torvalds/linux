@@ -954,7 +954,7 @@ static int cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
 
 		dget(d);
 		d_delete(d);
-		simple_unlink(d->d_inode, d);
+		simple_unlink(cgrp->dentry->d_inode, d);
 		list_del_init(&cfe->node);
 		dput(d);
 
@@ -1068,28 +1068,24 @@ static int rebind_subsystems(struct cgroupfs_root *root,
 			BUG_ON(cgrp->subsys[i]);
 			BUG_ON(!dummytop->subsys[i]);
 			BUG_ON(dummytop->subsys[i]->cgroup != dummytop);
-			mutex_lock(&ss->hierarchy_mutex);
 			cgrp->subsys[i] = dummytop->subsys[i];
 			cgrp->subsys[i]->cgroup = cgrp;
 			list_move(&ss->sibling, &root->subsys_list);
 			ss->root = root;
 			if (ss->bind)
 				ss->bind(cgrp);
-			mutex_unlock(&ss->hierarchy_mutex);
 			/* refcount was already taken, and we're keeping it */
 		} else if (bit & removed_bits) {
 			/* We're removing this subsystem */
 			BUG_ON(ss == NULL);
 			BUG_ON(cgrp->subsys[i] != dummytop->subsys[i]);
 			BUG_ON(cgrp->subsys[i]->cgroup != cgrp);
-			mutex_lock(&ss->hierarchy_mutex);
 			if (ss->bind)
 				ss->bind(dummytop);
 			dummytop->subsys[i]->cgroup = dummytop;
 			cgrp->subsys[i] = NULL;
 			subsys[i]->root = &rootnode;
 			list_move(&ss->sibling, &rootnode.subsys_list);
-			mutex_unlock(&ss->hierarchy_mutex);
 			/* subsystem is now free - drop reference on module */
 			module_put(ss->module);
 		} else if (bit & final_bits) {
@@ -3915,37 +3911,6 @@ static void init_cgroup_css(struct cgroup_subsys_state *css,
 		set_bit(CSS_CLEAR_CSS_REFS, &css->flags);
 }
 
-static void cgroup_lock_hierarchy(struct cgroupfs_root *root)
-{
-	/* We need to take each hierarchy_mutex in a consistent order */
-	int i;
-
-	/*
-	 * No worry about a race with rebind_subsystems that might mess up the
-	 * locking order, since both parties are under cgroup_mutex.
-	 */
-	for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
-		struct cgroup_subsys *ss = subsys[i];
-		if (ss == NULL)
-			continue;
-		if (ss->root == root)
-			mutex_lock(&ss->hierarchy_mutex);
-	}
-}
-
-static void cgroup_unlock_hierarchy(struct cgroupfs_root *root)
-{
-	int i;
-
-	for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
-		struct cgroup_subsys *ss = subsys[i];
-		if (ss == NULL)
-			continue;
-		if (ss->root == root)
-			mutex_unlock(&ss->hierarchy_mutex);
-	}
-}
-
 /*
  * cgroup_create - create a cgroup
  * @parent: cgroup that will be parent of the new cgroup
@@ -4006,9 +3971,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 			ss->post_clone(cgrp);
 	}
 
-	cgroup_lock_hierarchy(root);
 	list_add(&cgrp->sibling, &cgrp->parent->children);
-	cgroup_unlock_hierarchy(root);
 	root->number_of_cgroups++;
 
 	err = cgroup_create_dir(cgrp, dentry, mode);
@@ -4035,9 +3998,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 
  err_remove:
 
-	cgroup_lock_hierarchy(root);
 	list_del(&cgrp->sibling);
-	cgroup_unlock_hierarchy(root);
 	root->number_of_cgroups--;
 
  err_destroy:
@@ -4245,10 +4206,8 @@ again:
 		list_del_init(&cgrp->release_list);
 	raw_spin_unlock(&release_list_lock);
 
-	cgroup_lock_hierarchy(cgrp->root);
 	/* delete this cgroup from parent->children */
 	list_del_init(&cgrp->sibling);
-	cgroup_unlock_hierarchy(cgrp->root);
 
 	list_del_init(&cgrp->allcg_node);
 
@@ -4322,8 +4281,6 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 	 * need to invoke fork callbacks here. */
 	BUG_ON(!list_empty(&init_task.tasks));
 
-	mutex_init(&ss->hierarchy_mutex);
-	lockdep_set_class(&ss->hierarchy_mutex, &ss->subsys_key);
 	ss->active = 1;
 
 	/* this function shouldn't be used with modular subsystems, since they
@@ -4450,8 +4407,6 @@ int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
 	}
 	write_unlock(&css_set_lock);
 
-	mutex_init(&ss->hierarchy_mutex);
-	lockdep_set_class(&ss->hierarchy_mutex, &ss->subsys_key);
 	ss->active = 1;
 
 	/* success! */
