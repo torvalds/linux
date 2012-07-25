@@ -214,7 +214,7 @@ int perf_evlist__add_tracepoints(struct perf_evlist *evlist,
 		attrs[i].type	       = PERF_TYPE_TRACEPOINT;
 		attrs[i].config	       = err;
 	        attrs[i].sample_type   = (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME |
-					  PERF_SAMPLE_CPU);
+					  PERF_SAMPLE_CPU | PERF_SAMPLE_PERIOD);
 		attrs[i].sample_period = 1;
 	}
 

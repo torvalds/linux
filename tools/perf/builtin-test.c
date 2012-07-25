@@ -1142,6 +1142,10 @@ static struct test {
 		.func = test__perf_pmu,
 	},
 	{
+		.desc = "Test dso data interface",
+		.func = dso__test_data,
+	},
+	{
 		.func = NULL,
 	},
 };
