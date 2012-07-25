@@ -104,6 +104,13 @@ static int __init w1_gpio_probe(struct platform_device *pdev)
 	if (err)
 		goto free_master;
 
+	if (gpio_is_valid(pdata->ext_pullup_enable_pin)) {
+		err = gpio_request_one(pdata->ext_pullup_enable_pin,
+				       GPIOF_INIT_LOW, "w1 pullup");
+		if (err < 0)
+			goto free_gpio;
+	}
+
 	master->data = pdata;
 	master->read_bit = w1_gpio_read_bit;
 
@@ -117,15 +124,21 @@ static int __init w1_gpio_probe(struct platform_device *pdev)
 
 	err = w1_add_master_device(master);
 	if (err)
-		goto free_gpio;
+		goto free_gpio_ext_pu;
 
 	if (pdata->enable_external_pullup)
 		pdata->enable_external_pullup(1);
+
+	if (gpio_is_valid(pdata->ext_pullup_enable_pin))
+		gpio_set_value(pdata->ext_pullup_enable_pin, 1);
 
 	platform_set_drvdata(pdev, master);
 
 	return 0;
 
+ free_gpio_ext_pu:
+	if (gpio_is_valid(pdata->ext_pullup_enable_pin))
+		gpio_free(pdata->ext_pullup_enable_pin);
  free_gpio:
 	gpio_free(pdata->pin);
  free_master:
@@ -141,6 +154,9 @@ static int __exit w1_gpio_remove(struct platform_device *pdev)
 
 	if (pdata->enable_external_pullup)
 		pdata->enable_external_pullup(0);
+
+	if (gpio_is_valid(pdata->ext_pullup_enable_pin))
+		gpio_set_value(pdata->ext_pullup_enable_pin, 0);
 
 	w1_remove_master_device(master);
 	gpio_free(pdata->pin);
