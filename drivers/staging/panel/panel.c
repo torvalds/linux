@@ -137,8 +137,8 @@
 #define r_ctr(x)        (parport_read_control((x)->port))
 #define r_dtr(x)        (parport_read_data((x)->port))
 #define r_str(x)        (parport_read_status((x)->port))
-#define w_ctr(x, y)     do { parport_write_control((x)->port, (y)); } while (0)
-#define w_dtr(x, y)     do { parport_write_data((x)->port, (y)); } while (0)
+#define w_ctr(x, y)     (parport_write_control((x)->port, (y)))
+#define w_dtr(x, y)     (parport_write_data((x)->port, (y)))
 
 /* this defines which bits are to be used and which ones to be ignored */
 /* logical or of the output bits involved in the scan matrix */
