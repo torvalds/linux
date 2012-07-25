@@ -2676,7 +2676,7 @@ static int process_recorded_refs(struct send_ctx *sctx)
 	struct ulist_iterator uit;
 	struct ulist_node *un;
 	struct fs_path *valid_path = NULL;
-	u64 ow_inode;
+	u64 ow_inode = 0;
 	u64 ow_gen;
 	int did_overwrite = 0;
 	int is_orphan = 0;
@@ -3553,7 +3553,7 @@ static int send_write(struct send_ctx *sctx, u64 offset, u32 len)
 	int ret = 0;
 	struct fs_path *p;
 	loff_t pos = offset;
-	int readed;
+	int readed = 0;
 	mm_segment_t old_fs;
 
 	p = fs_path_alloc(sctx);
