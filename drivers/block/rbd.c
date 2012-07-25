@@ -1281,8 +1281,7 @@ fail:
 /*
  * Request sync osd unwatch
  */
-static int rbd_req_sync_unwatch(struct rbd_device *rbd_dev,
-				const char *object_name)
+static int rbd_req_sync_unwatch(struct rbd_device *rbd_dev)
 {
 	struct ceph_osd_req_op *ops;
 
@@ -1299,7 +1298,9 @@ static int rbd_req_sync_unwatch(struct rbd_device *rbd_dev,
 			      0,
 			      CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
 			      ops,
-			      object_name, 0, 0, NULL, NULL, NULL);
+			      rbd_dev->header_name,
+			      0, 0, NULL, NULL, NULL);
+
 
 	rbd_destroy_ops(ops);
 	ceph_osdc_cancel_event(rbd_dev->watch_event);
@@ -2567,7 +2568,7 @@ static void rbd_dev_release(struct device *dev)
 						    rbd_dev->watch_request);
 	}
 	if (rbd_dev->watch_event)
-		rbd_req_sync_unwatch(rbd_dev, rbd_dev->header_name);
+		rbd_req_sync_unwatch(rbd_dev);
 
 	rbd_put_client(rbd_dev);
 
