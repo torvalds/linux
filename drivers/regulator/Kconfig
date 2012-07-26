@@ -33,9 +33,8 @@ config REGULATOR_DUMMY
 	help
 	  If this option is enabled then when a regulator lookup fails
 	  and the board has not specified that it has provided full
-	  constraints then the regulator core will provide an always
-	  enabled dummy regulator will be provided, allowing consumer
-	  drivers to continue.
+	  constraints the regulator core will provide an always
+	  enabled dummy regulator, allowing consumer drivers to continue.
 
 	  A warning will be generated when this substitution is done.
 
