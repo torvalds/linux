@@ -87,18 +87,11 @@ extern unsigned long phys_base;
 extern unsigned long pfn_base;
 
 /*
- * BAD_PAGETABLE is used when we need a bogus page-table, while
- * BAD_PAGE is used for a bogus page.
- *
  * ZERO_PAGE is a global shared page that is always zero: used
  * for zero-mapped memory areas etc..
  */
-extern pte_t * __bad_pagetable(void);
-extern pte_t __bad_page(void);
 extern unsigned long empty_zero_page;
 
-#define BAD_PAGETABLE __bad_pagetable()
-#define BAD_PAGE __bad_page()
 #define ZERO_PAGE(vaddr) (virt_to_page(&empty_zero_page))
 
 /*
