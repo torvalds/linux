@@ -147,25 +147,34 @@ static void next_trb(struct xhci_hcd *xhci,
  */
 static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer)
 {
-	union xhci_trb *next = ++(ring->dequeue);
 	unsigned long long addr;
 
 	ring->deq_updates++;
-	/* Update the dequeue pointer further if that was a link TRB or we're at
-	 * the end of an event ring segment (which doesn't have link TRBS)
-	 */
-	while (last_trb(xhci, ring, ring->deq_seg, next)) {
-		if (consumer && last_trb_on_last_seg(xhci, ring, ring->deq_seg, next)) {
-			ring->cycle_state = (ring->cycle_state ? 0 : 1);
-			if (!in_interrupt())
-				xhci_dbg(xhci, "Toggle cycle state for ring %p = %i\n",
-						ring,
-						(unsigned int) ring->cycle_state);
+
+	do {
+		/*
+		 * Update the dequeue pointer further if that was a link TRB or
+		 * we're at the end of an event ring segment (which doesn't have
+		 * link TRBS)
+		 */
+		if (last_trb(xhci, ring, ring->deq_seg, ring->dequeue)) {
+			if (consumer && last_trb_on_last_seg(xhci, ring,
+						ring->deq_seg, ring->dequeue)) {
+				if (!in_interrupt())
+					xhci_dbg(xhci, "Toggle cycle state "
+							"for ring %p = %i\n",
+							ring,
+							(unsigned int)
+							ring->cycle_state);
+				ring->cycle_state = (ring->cycle_state ? 0 : 1);
+			}
+			ring->deq_seg = ring->deq_seg->next;
+			ring->dequeue = ring->deq_seg->trbs;
+		} else {
+			ring->dequeue++;
 		}
-		ring->deq_seg = ring->deq_seg->next;
-		ring->dequeue = ring->deq_seg->trbs;
-		next = ring->dequeue;
-	}
+	} while (last_trb(xhci, ring, ring->deq_seg, ring->dequeue));
+
 	addr = (unsigned long long) xhci_trb_virt_to_dma(ring->deq_seg, ring->dequeue);
 }
 
