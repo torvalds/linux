@@ -478,12 +478,12 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 	}
 
 err:
-	/* decrease the refcount in case of an error */
-	if (ret)
-		video_put(vdev);
 	if (vdev->debug)
 		printk(KERN_DEBUG "%s: open (%d)\n",
 			video_device_node_name(vdev), ret);
+	/* decrease the refcount in case of an error */
+	if (ret)
+		video_put(vdev);
 	return ret;
 }
 
@@ -500,12 +500,12 @@ static int v4l2_release(struct inode *inode, struct file *filp)
 		if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 			mutex_unlock(vdev->lock);
 	}
-	/* decrease the refcount unconditionally since the release()
-	   return value is ignored. */
-	video_put(vdev);
 	if (vdev->debug)
 		printk(KERN_DEBUG "%s: release\n",
 			video_device_node_name(vdev));
+	/* decrease the refcount unconditionally since the release()
+	   return value is ignored. */
+	video_put(vdev);
 	return ret;
 }
 
