@@ -232,7 +232,7 @@ extern unsigned long probe_memory(void);	/* in fault.c */
  * Reserve nocache dynamically proportionally to the amount of
  * system RAM. -- Tomas Szepe <szepe@pinerecords.com>, June 2002
  */
-static void srmmu_nocache_calcsize(void)
+static void __init srmmu_nocache_calcsize(void)
 {
 	unsigned long sysmemavail = probe_memory() / 1024;
 	int srmmu_nocache_npages;
@@ -776,7 +776,7 @@ static unsigned long __init map_spbank(unsigned long vbase, int sp_entry)
 	return vstart;
 }
 
-static inline void map_kernel(void)
+static void __init map_kernel(void)
 {
 	int i;
 
