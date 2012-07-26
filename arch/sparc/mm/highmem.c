@@ -110,21 +110,3 @@ void __kunmap_atomic(void *kvaddr)
 	pagefault_enable();
 }
 EXPORT_SYMBOL(__kunmap_atomic);
-
-/* We may be fed a pagetable here by ptep_to_xxx and others. */
-struct page *kmap_atomic_to_page(void *ptr)
-{
-	unsigned long idx, vaddr = (unsigned long)ptr;
-	pte_t *pte;
-
-	if (vaddr < SRMMU_NOCACHE_VADDR)
-		return virt_to_page(ptr);
-	if (vaddr < PKMAP_BASE)
-		return pfn_to_page(__nocache_pa(vaddr) >> PAGE_SHIFT);
-	BUG_ON(vaddr < FIXADDR_START);
-	BUG_ON(vaddr > FIXADDR_TOP);
-
-	idx = virt_to_fix(vaddr);
-	pte = kmap_pte - (idx - FIX_KMAP_BEGIN);
-	return pte_page(*pte);
-}
