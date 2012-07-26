@@ -274,9 +274,12 @@ TRACE_EVENT(drv_config,
 		__entry->dynamic_ps_timeout = local->hw.conf.dynamic_ps_timeout;
 		__entry->max_sleep_period = local->hw.conf.max_sleep_period;
 		__entry->listen_interval = local->hw.conf.listen_interval;
-		__entry->long_frame_max_tx_count = local->hw.conf.long_frame_max_tx_count;
-		__entry->short_frame_max_tx_count = local->hw.conf.short_frame_max_tx_count;
-		__entry->center_freq = local->hw.conf.channel->center_freq;
+		__entry->long_frame_max_tx_count =
+			local->hw.conf.long_frame_max_tx_count;
+		__entry->short_frame_max_tx_count =
+			local->hw.conf.short_frame_max_tx_count;
+		__entry->center_freq = local->hw.conf.channel ?
+					local->hw.conf.channel->center_freq : 0;
 		__entry->channel_type = local->hw.conf.channel_type;
 		__entry->smps = local->hw.conf.smps_mode;
 	),
