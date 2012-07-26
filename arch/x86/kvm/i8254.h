@@ -21,10 +21,26 @@ struct kvm_kpit_channel_state {
 	ktime_t count_load_time;
 };
 
+struct kvm_pit_timer {
+	struct hrtimer timer;
+	s64 period; 				/* unit: ns */
+	u32 timer_mode_mask;
+	u64 tscdeadline;
+	atomic_t pending;			/* accumulated triggered timers */
+	bool reinject;
+	struct kvm_pit_timer_ops *t_ops;
+	struct kvm *kvm;
+	struct kvm_vcpu *vcpu;
+};
+
+struct kvm_pit_timer_ops {
+	bool (*is_periodic)(struct kvm_pit_timer *);
+};
+
 struct kvm_kpit_state {
 	struct kvm_kpit_channel_state channels[3];
 	u32 flags;
-	struct kvm_timer pit_timer;
+	struct kvm_pit_timer pit_timer;
 	bool is_periodic;
 	u32    speaker_data_on;
 	struct mutex lock;
