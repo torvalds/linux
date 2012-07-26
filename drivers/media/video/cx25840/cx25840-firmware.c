@@ -61,6 +61,10 @@ static void end_fw_load(struct i2c_client *client)
 	cx25840_write(client, 0x803, 0x03);
 }
 
+#define CX2388x_FIRMWARE "v4l-cx23885-avcore-01.fw"
+#define CX231xx_FIRMWARE "v4l-cx231xx-avcore-01.fw"
+#define CX25840_FIRMWARE "v4l-cx25840.fw"
+
 static const char *get_fw_name(struct i2c_client *client)
 {
 	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
@@ -68,10 +72,10 @@ static const char *get_fw_name(struct i2c_client *client)
 	if (firmware[0])
 		return firmware;
 	if (is_cx2388x(state))
-		return "v4l-cx23885-avcore-01.fw";
+		return CX2388x_FIRMWARE;
 	if (is_cx231xx(state))
-		return "v4l-cx231xx-avcore-01.fw";
-	return "v4l-cx25840.fw";
+		return CX231xx_FIRMWARE;
+	return CX25840_FIRMWARE;
 }
 
 static int check_fw_load(struct i2c_client *client, int size)
@@ -164,3 +168,8 @@ int cx25840_loadfw(struct i2c_client *client)
 
 	return check_fw_load(client, size);
 }
+
+MODULE_FIRMWARE(CX2388x_FIRMWARE);
+MODULE_FIRMWARE(CX231xx_FIRMWARE);
+MODULE_FIRMWARE(CX25840_FIRMWARE);
+
