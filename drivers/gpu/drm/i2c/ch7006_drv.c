@@ -88,7 +88,7 @@ static void ch7006_encoder_restore(struct drm_encoder *encoder)
 }
 
 static bool ch7006_encoder_mode_fixup(struct drm_encoder *encoder,
-				      struct drm_display_mode *mode,
+				      const struct drm_display_mode *mode,
 				      struct drm_display_mode *adjusted_mode)
 {
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);

@@ -758,66 +758,6 @@ nouveau_gpuobj_resume(struct drm_device *dev)
 	dev_priv->engine.instmem.flush(dev);
 }
 
-int nouveau_ioctl_grobj_alloc(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv)
-{
-	struct drm_nouveau_grobj_alloc *init = data;
-	struct nouveau_channel *chan;
-	int ret;
-
-	if (init->handle == ~0)
-		return -EINVAL;
-
-	/* compatibility with userspace that assumes 506e for all chipsets */
-	if (init->class == 0x506e) {
-		init->class = nouveau_software_class(dev);
-		if (init->class == 0x906e)
-			return 0;
-	} else
-	if (init->class == 0x906e) {
-		NV_ERROR(dev, "906e not supported yet\n");
-		return -EINVAL;
-	}
-
-	chan = nouveau_channel_get(file_priv, init->channel);
-	if (IS_ERR(chan))
-		return PTR_ERR(chan);
-
-	if (nouveau_ramht_find(chan, init->handle)) {
-		ret = -EEXIST;
-		goto out;
-	}
-
-	ret = nouveau_gpuobj_gr_new(chan, init->handle, init->class);
-	if (ret) {
-		NV_ERROR(dev, "Error creating object: %d (%d/0x%08x)\n",
-			 ret, init->channel, init->handle);
-	}
-
-out:
-	nouveau_channel_put(&chan);
-	return ret;
-}
-
-int nouveau_ioctl_gpuobj_free(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv)
-{
-	struct drm_nouveau_gpuobj_free *objfree = data;
-	struct nouveau_channel *chan;
-	int ret;
-
-	chan = nouveau_channel_get(file_priv, objfree->channel);
-	if (IS_ERR(chan))
-		return PTR_ERR(chan);
-
-	/* Synchronize with the user channel */
-	nouveau_channel_idle(chan);
-
-	ret = nouveau_ramht_remove(chan, objfree->handle);
-	nouveau_channel_put(&chan);
-	return ret;
-}
-
 u32
 nv_ro32(struct nouveau_gpuobj *gpuobj, u32 offset)
 {

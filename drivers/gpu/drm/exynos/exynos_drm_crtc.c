@@ -237,7 +237,7 @@ static void exynos_drm_crtc_commit(struct drm_crtc *crtc)
 
 static bool
 exynos_drm_crtc_mode_fixup(struct drm_crtc *crtc,
-			    struct drm_display_mode *mode,
+			    const struct drm_display_mode *mode,
 			    struct drm_display_mode *adjusted_mode)
 {
 	DRM_DEBUG_KMS("%s\n", __FILE__);

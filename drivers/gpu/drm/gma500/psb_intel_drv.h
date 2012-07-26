@@ -268,7 +268,7 @@ extern struct drm_framebuffer *psb_intel_framebuffer_create(struct drm_device
 							*mode_cmd,
 							void *mm_private);
 extern bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
-				      struct drm_display_mode *mode,
+				      const struct drm_display_mode *mode,
 				      struct drm_display_mode *adjusted_mode);
 extern int psb_intel_lvds_mode_valid(struct drm_connector *connector,
 				     struct drm_display_mode *mode);
