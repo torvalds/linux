@@ -398,10 +398,12 @@ static int __devinit mxc_gpio_probe(struct platform_device *pdev)
 	writel(~0, port->base + GPIO_ISR);
 
 	if (mxc_gpio_hwtype == IMX21_GPIO) {
-		/* setup one handler for all GPIO interrupts */
-		if (pdev->id == 0)
-			irq_set_chained_handler(port->irq,
-						mx2_gpio_irq_handler);
+		/*
+		 * Setup one handler for all GPIO interrupts. Actually setting
+		 * the handler is needed only once, but doing it for every port
+		 * is more robust and easier.
+		 */
+		irq_set_chained_handler(port->irq, mx2_gpio_irq_handler);
 	} else {
 		/* setup one handler for each entry */
 		irq_set_chained_handler(port->irq, mx3_gpio_irq_handler);

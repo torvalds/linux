@@ -218,7 +218,7 @@ static int pxa25x_ep_enable (struct usb_ep *_ep,
 	struct pxa25x_udc       *dev;
 
 	ep = container_of (_ep, struct pxa25x_ep, ep);
-	if (!_ep || !desc || ep->ep.desc || _ep->name == ep0name
+	if (!_ep || !desc || _ep->name == ep0name
 			|| desc->bDescriptorType != USB_DT_ENDPOINT
 			|| ep->bEndpointAddress != desc->bEndpointAddress
 			|| ep->fifo_size < usb_endpoint_maxp (desc)) {

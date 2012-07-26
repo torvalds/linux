@@ -201,7 +201,6 @@ int __init mx35_clocks_init()
 			pr_err("i.MX35 clk %d: register failed with %ld\n",
 				i, PTR_ERR(clk[i]));
 
-
 	clk_register_clkdev(clk[pata_gate], NULL, "pata_imx");
 	clk_register_clkdev(clk[can1_gate], NULL, "flexcan.0");
 	clk_register_clkdev(clk[can2_gate], NULL, "flexcan.1");
@@ -264,14 +263,20 @@ int __init mx35_clocks_init()
 	clk_prepare_enable(clk[iim_gate]);
 	clk_prepare_enable(clk[emi_gate]);
 
+	/*
+	 * SCC is needed to boot via mmc after a watchdog reset. The clock code
+	 * before conversion to common clk also enabled UART1 (which isn't
+	 * handled here and not needed for mmc) and IIM (which is enabled
+	 * unconditionally above).
+	 */
+	clk_prepare_enable(clk[scc_gate]);
+
 	imx_print_silicon_rev("i.MX35", mx35_revision());
 
 #ifdef CONFIG_MXC_USE_EPIT
-	epit_timer_init(&epit1_clk,
-			MX35_IO_ADDRESS(MX35_EPIT1_BASE_ADDR), MX35_INT_EPIT1);
+	epit_timer_init(MX35_IO_ADDRESS(MX35_EPIT1_BASE_ADDR), MX35_INT_EPIT1);
 #else
-	mxc_timer_init(NULL, MX35_IO_ADDRESS(MX35_GPT1_BASE_ADDR),
-			MX35_INT_GPT);
+	mxc_timer_init(MX35_IO_ADDRESS(MX35_GPT1_BASE_ADDR), MX35_INT_GPT);
 #endif
 
 	return 0;

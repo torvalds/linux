@@ -139,7 +139,9 @@ void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 		bcma_chipco_chipctl_maskset(cc, 0, ~0, 0x7);
 		break;
 	case 0x4331:
-		/* BCM4331 workaround is SPROM-related, we put it in sprom.c */
+	case 43431:
+		/* Ext PA lines must be enabled for tx on BCM4331 */
+		bcma_chipco_bcm4331_ext_pa_lines_ctl(cc, true);
 		break;
 	case 43224:
 		if (bus->chipinfo.rev == 0) {

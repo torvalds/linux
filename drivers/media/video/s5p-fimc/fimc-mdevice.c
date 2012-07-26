@@ -193,9 +193,13 @@ int __fimc_pipeline_shutdown(struct fimc_pipeline *p)
 
 int fimc_pipeline_shutdown(struct fimc_pipeline *p)
 {
-	struct media_entity *me = &p->subdevs[IDX_SENSOR]->entity;
+	struct media_entity *me;
 	int ret;
 
+	if (!p || !p->subdevs[IDX_SENSOR])
+		return -EINVAL;
+
+	me = &p->subdevs[IDX_SENSOR]->entity;
 	mutex_lock(&me->parent->graph_mutex);
 	ret = __fimc_pipeline_shutdown(p);
 	mutex_unlock(&me->parent->graph_mutex);
@@ -498,12 +502,12 @@ static void fimc_md_unregister_entities(struct fimc_md *fmd)
  * @source: the source entity to create links to all fimc entities from
  * @sensor: sensor subdev linked to FIMC[fimc_id] entity, may be null
  * @pad: the source entity pad index
- * @fimc_id: index of the fimc device for which link should be enabled
+ * @link_mask: bitmask of the fimc devices for which link should be enabled
  */
 static int __fimc_md_create_fimc_sink_links(struct fimc_md *fmd,
 					    struct media_entity *source,
 					    struct v4l2_subdev *sensor,
-					    int pad, int fimc_id)
+					    int pad, int link_mask)
 {
 	struct fimc_sensor_info *s_info;
 	struct media_entity *sink;
@@ -520,7 +524,7 @@ static int __fimc_md_create_fimc_sink_links(struct fimc_md *fmd,
 		if (!fmd->fimc[i]->variant->has_cam_if)
 			continue;
 
-		flags = (i == fimc_id) ? MEDIA_LNK_FL_ENABLED : 0;
+		flags = ((1 << i) & link_mask) ? MEDIA_LNK_FL_ENABLED : 0;
 
 		sink = &fmd->fimc[i]->vid_cap.subdev.entity;
 		ret = media_entity_create_link(source, pad, sink,
@@ -552,7 +556,10 @@ static int __fimc_md_create_fimc_sink_links(struct fimc_md *fmd,
 		if (!fmd->fimc_lite[i])
 			continue;
 
-		flags = (i == fimc_id) ? MEDIA_LNK_FL_ENABLED : 0;
+		if (link_mask & (1 << (i + FIMC_MAX_DEVS)))
+			flags = MEDIA_LNK_FL_ENABLED;
+		else
+			flags = 0;
 
 		sink = &fmd->fimc_lite[i]->subdev.entity;
 		ret = media_entity_create_link(source, pad, sink,
@@ -614,9 +621,8 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 	struct s5p_fimc_isp_info *pdata;
 	struct fimc_sensor_info *s_info;
 	struct media_entity *source, *sink;
-	int i, pad, fimc_id = 0;
-	int ret = 0;
-	u32 flags;
+	int i, pad, fimc_id = 0, ret = 0;
+	u32 flags, link_mask = 0;
 
 	for (i = 0; i < fmd->num_sensors; i++) {
 		if (fmd->sensor[i].subdev == NULL)
@@ -668,19 +674,20 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 		if (source == NULL)
 			continue;
 
+		link_mask = 1 << fimc_id++;
 		ret = __fimc_md_create_fimc_sink_links(fmd, source, sensor,
-						       pad, fimc_id++);
+						       pad, link_mask);
 	}
 
-	fimc_id = 0;
 	for (i = 0; i < ARRAY_SIZE(fmd->csis); i++) {
 		if (fmd->csis[i].sd == NULL)
 			continue;
 		source = &fmd->csis[i].sd->entity;
 		pad = CSIS_PAD_SOURCE;
 
+		link_mask = 1 << fimc_id++;
 		ret = __fimc_md_create_fimc_sink_links(fmd, source, NULL,
-						       pad, fimc_id++);
+						       pad, link_mask);
 	}
 
 	/* Create immutable links between each FIMC's subdev and video node */
@@ -734,8 +741,8 @@ static void fimc_md_put_clocks(struct fimc_md *fmd)
 }
 
 static int __fimc_md_set_camclk(struct fimc_md *fmd,
-					 struct fimc_sensor_info *s_info,
-					 bool on)
+				struct fimc_sensor_info *s_info,
+				bool on)
 {
 	struct s5p_fimc_isp_info *pdata = s_info->pdata;
 	struct fimc_camclk_info *camclk;
@@ -744,12 +751,10 @@ static int __fimc_md_set_camclk(struct fimc_md *fmd,
 	if (WARN_ON(pdata->clk_id >= FIMC_MAX_CAMCLKS) || fmd == NULL)
 		return -EINVAL;
 
-	if (s_info->clk_on == on)
-		return 0;
 	camclk = &fmd->camclk[pdata->clk_id];
 
-	dbg("camclk %d, f: %lu, clk: %p, on: %d",
-	    pdata->clk_id, pdata->clk_frequency, camclk, on);
+	dbg("camclk %d, f: %lu, use_count: %d, on: %d",
+	    pdata->clk_id, pdata->clk_frequency, camclk->use_count, on);
 
 	if (on) {
 		if (camclk->use_count > 0 &&
@@ -760,11 +765,9 @@ static int __fimc_md_set_camclk(struct fimc_md *fmd,
 			clk_set_rate(camclk->clock, pdata->clk_frequency);
 			camclk->frequency = pdata->clk_frequency;
 			ret = clk_enable(camclk->clock);
+			dbg("Enabled camclk %d: f: %lu", pdata->clk_id,
+			    clk_get_rate(camclk->clock));
 		}
-		s_info->clk_on = 1;
-		dbg("Enabled camclk %d: f: %lu", pdata->clk_id,
-		    clk_get_rate(camclk->clock));
-
 		return ret;
 	}
 
@@ -773,7 +776,6 @@ static int __fimc_md_set_camclk(struct fimc_md *fmd,
 
 	if (--camclk->use_count == 0) {
 		clk_disable(camclk->clock);
-		s_info->clk_on = 0;
 		dbg("Disabled camclk %d", pdata->clk_id);
 	}
 	return ret;
@@ -789,8 +791,6 @@ static int __fimc_md_set_camclk(struct fimc_md *fmd,
  * devices to which sensors can be attached, either directly or through
  * the MIPI CSI receiver. The clock is allowed here to be used by
  * multiple sensors concurrently if they use same frequency.
- * The per sensor subdev clk_on attribute helps to synchronize accesses
- * to the sclk_cam clocks from the video and media device nodes.
  * This function should only be called when the graph mutex is held.
  */
 int fimc_md_set_camclk(struct v4l2_subdev *sd, bool on)

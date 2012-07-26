@@ -346,6 +346,17 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+static int tegra_wm8903_remove(struct snd_soc_card *card)
+{
+	struct snd_soc_pcm_runtime *rtd = &(card->rtd[0]);
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_codec *codec = codec_dai->codec;
+
+	wm8903_mic_detect(codec, NULL, 0, 0);
+
+	return 0;
+}
+
 static struct snd_soc_dai_link tegra_wm8903_dai = {
 	.name = "WM8903",
 	.stream_name = "WM8903 PCM",
@@ -362,6 +373,8 @@ static struct snd_soc_card snd_soc_tegra_wm8903 = {
 	.owner = THIS_MODULE,
 	.dai_link = &tegra_wm8903_dai,
 	.num_links = 1,
+
+	.remove = tegra_wm8903_remove,
 
 	.controls = tegra_wm8903_controls,
 	.num_controls = ARRAY_SIZE(tegra_wm8903_controls),

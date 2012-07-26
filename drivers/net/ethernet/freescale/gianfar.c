@@ -1804,18 +1804,16 @@ void gfar_configure_coalescing(struct gfar_private *priv,
 	if (priv->mode == MQ_MG_MODE) {
 		baddr = &regs->txic0;
 		for_each_set_bit(i, &tx_mask, priv->num_tx_queues) {
-			if (likely(priv->tx_queue[i]->txcoalescing)) {
-				gfar_write(baddr + i, 0);
+			gfar_write(baddr + i, 0);
+			if (likely(priv->tx_queue[i]->txcoalescing))
 				gfar_write(baddr + i, priv->tx_queue[i]->txic);
-			}
 		}
 
 		baddr = &regs->rxic0;
 		for_each_set_bit(i, &rx_mask, priv->num_rx_queues) {
-			if (likely(priv->rx_queue[i]->rxcoalescing)) {
-				gfar_write(baddr + i, 0);
+			gfar_write(baddr + i, 0);
+			if (likely(priv->rx_queue[i]->rxcoalescing))
 				gfar_write(baddr + i, priv->rx_queue[i]->rxic);
-			}
 		}
 	}
 }
@@ -2065,10 +2063,9 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			return NETDEV_TX_OK;
 		}
 
-		/* Steal sock reference for processing TX time stamps */
-		swap(skb_new->sk, skb->sk);
-		swap(skb_new->destructor, skb->destructor);
-		kfree_skb(skb);
+		if (skb->sk)
+			skb_set_owner_w(skb_new, skb->sk);
+		consume_skb(skb);
 		skb = skb_new;
 	}
 

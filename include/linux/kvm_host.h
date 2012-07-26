@@ -815,7 +815,7 @@ static inline void kvm_free_irq_routing(struct kvm *kvm) {}
 #ifdef CONFIG_HAVE_KVM_EVENTFD
 
 void kvm_eventfd_init(struct kvm *kvm);
-int kvm_irqfd(struct kvm *kvm, int fd, int gsi, int flags);
+int kvm_irqfd(struct kvm *kvm, struct kvm_irqfd *args);
 void kvm_irqfd_release(struct kvm *kvm);
 void kvm_irq_routing_update(struct kvm *, struct kvm_irq_routing_table *);
 int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args);
@@ -824,7 +824,7 @@ int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args);
 
 static inline void kvm_eventfd_init(struct kvm *kvm) {}
 
-static inline int kvm_irqfd(struct kvm *kvm, int fd, int gsi, int flags)
+static inline int kvm_irqfd(struct kvm *kvm, struct kvm_irqfd *args)
 {
 	return -EINVAL;
 }

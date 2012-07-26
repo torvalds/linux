@@ -59,7 +59,7 @@ static int xen_add_device(struct device *dev)
 
 #ifdef CONFIG_ACPI
 		handle = DEVICE_ACPI_HANDLE(&pci_dev->dev);
-		if (!handle)
+		if (!handle && pci_dev->bus->bridge)
 			handle = DEVICE_ACPI_HANDLE(pci_dev->bus->bridge);
 #ifdef CONFIG_PCI_IOV
 		if (!handle && pci_dev->is_virtfn)

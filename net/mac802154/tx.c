@@ -83,9 +83,10 @@ netdev_tx_t mac802154_tx(struct mac802154_priv *priv, struct sk_buff *skb,
 {
 	struct xmit_work *work;
 
-	if (!(priv->phy->channels_supported[page] & (1 << chan)))
+	if (!(priv->phy->channels_supported[page] & (1 << chan))) {
 		WARN_ON(1);
 		return NETDEV_TX_OK;
+	}
 
 	if (!(priv->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
 		u16 crc = crc_ccitt(0, skb->data, skb->len);

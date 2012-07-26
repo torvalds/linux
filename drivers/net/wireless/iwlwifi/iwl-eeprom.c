@@ -568,28 +568,28 @@ static int iwl_find_otp_image(struct iwl_trans *trans,
  * iwl_get_max_txpower_avg - get the highest tx power from all chains.
  *     find the highest tx power from all chains for the channel
  */
-static s8 iwl_get_max_txpower_avg(const struct iwl_cfg *cfg,
+static s8 iwl_get_max_txpower_avg(struct iwl_priv *priv,
 		struct iwl_eeprom_enhanced_txpwr *enhanced_txpower,
 		int element, s8 *max_txpower_in_half_dbm)
 {
 	s8 max_txpower_avg = 0; /* (dBm) */
 
 	/* Take the highest tx power from any valid chains */
-	if ((cfg->valid_tx_ant & ANT_A) &&
+	if ((priv->hw_params.valid_tx_ant & ANT_A) &&
 	    (enhanced_txpower[element].chain_a_max > max_txpower_avg))
 		max_txpower_avg = enhanced_txpower[element].chain_a_max;
-	if ((cfg->valid_tx_ant & ANT_B) &&
+	if ((priv->hw_params.valid_tx_ant & ANT_B) &&
 	    (enhanced_txpower[element].chain_b_max > max_txpower_avg))
 		max_txpower_avg = enhanced_txpower[element].chain_b_max;
-	if ((cfg->valid_tx_ant & ANT_C) &&
+	if ((priv->hw_params.valid_tx_ant & ANT_C) &&
 	    (enhanced_txpower[element].chain_c_max > max_txpower_avg))
 		max_txpower_avg = enhanced_txpower[element].chain_c_max;
-	if (((cfg->valid_tx_ant == ANT_AB) |
-	    (cfg->valid_tx_ant == ANT_BC) |
-	    (cfg->valid_tx_ant == ANT_AC)) &&
+	if (((priv->hw_params.valid_tx_ant == ANT_AB) |
+	    (priv->hw_params.valid_tx_ant == ANT_BC) |
+	    (priv->hw_params.valid_tx_ant == ANT_AC)) &&
 	    (enhanced_txpower[element].mimo2_max > max_txpower_avg))
 		max_txpower_avg =  enhanced_txpower[element].mimo2_max;
-	if ((cfg->valid_tx_ant == ANT_ABC) &&
+	if ((priv->hw_params.valid_tx_ant == ANT_ABC) &&
 	    (enhanced_txpower[element].mimo3_max > max_txpower_avg))
 		max_txpower_avg = enhanced_txpower[element].mimo3_max;
 
@@ -691,7 +691,7 @@ static void iwl_eeprom_enhanced_txpower(struct iwl_priv *priv)
 				 ((txp->delta_20_in_40 & 0xf0) >> 4),
 				 (txp->delta_20_in_40 & 0x0f));
 
-		max_txp_avg = iwl_get_max_txpower_avg(priv->cfg, txp_array, idx,
+		max_txp_avg = iwl_get_max_txpower_avg(priv, txp_array, idx,
 						      &max_txp_avg_halfdbm);
 
 		/*

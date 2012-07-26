@@ -622,7 +622,7 @@ struct ivtv {
 	struct v4l2_subdev *sd_video;	/* controlling video decoder subdev */
 	struct v4l2_subdev *sd_audio;	/* controlling audio subdev */
 	struct v4l2_subdev *sd_muxer;	/* controlling audio muxer subdev */
-	u32 base_addr;                  /* PCI resource base address */
+	resource_size_t base_addr;      /* PCI resource base address */
 	volatile void __iomem *enc_mem; /* pointer to mapped encoder memory */
 	volatile void __iomem *dec_mem; /* pointer to mapped decoder memory */
 	volatile void __iomem *reg_mem; /* pointer to mapped registers */

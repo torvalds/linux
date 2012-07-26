@@ -1,7 +1,3 @@
-/*
-   This file is auto-generated from the drm_pciids.txt in the DRM CVS
-   Please contact dri-devel@lists.sf.net to add new cards to this list
-*/
 #define radeon_PCI_IDS \
 	{0x1002, 0x3150, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RV380|RADEON_IS_MOBILITY}, \
 	{0x1002, 0x3151, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RV380|RADEON_IS_MOBILITY|RADEON_NEW_MEMMAP}, \

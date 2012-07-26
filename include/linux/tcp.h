@@ -69,16 +69,16 @@ union tcp_word_hdr {
 #define tcp_flag_word(tp) ( ((union tcp_word_hdr *)(tp))->words [3]) 
 
 enum { 
-	TCP_FLAG_CWR = __cpu_to_be32(0x00800000),
-	TCP_FLAG_ECE = __cpu_to_be32(0x00400000),
-	TCP_FLAG_URG = __cpu_to_be32(0x00200000),
-	TCP_FLAG_ACK = __cpu_to_be32(0x00100000),
-	TCP_FLAG_PSH = __cpu_to_be32(0x00080000),
-	TCP_FLAG_RST = __cpu_to_be32(0x00040000),
-	TCP_FLAG_SYN = __cpu_to_be32(0x00020000),
-	TCP_FLAG_FIN = __cpu_to_be32(0x00010000),
-	TCP_RESERVED_BITS = __cpu_to_be32(0x0F000000),
-	TCP_DATA_OFFSET = __cpu_to_be32(0xF0000000)
+	TCP_FLAG_CWR = __constant_cpu_to_be32(0x00800000),
+	TCP_FLAG_ECE = __constant_cpu_to_be32(0x00400000),
+	TCP_FLAG_URG = __constant_cpu_to_be32(0x00200000),
+	TCP_FLAG_ACK = __constant_cpu_to_be32(0x00100000),
+	TCP_FLAG_PSH = __constant_cpu_to_be32(0x00080000),
+	TCP_FLAG_RST = __constant_cpu_to_be32(0x00040000),
+	TCP_FLAG_SYN = __constant_cpu_to_be32(0x00020000),
+	TCP_FLAG_FIN = __constant_cpu_to_be32(0x00010000),
+	TCP_RESERVED_BITS = __constant_cpu_to_be32(0x0F000000),
+	TCP_DATA_OFFSET = __constant_cpu_to_be32(0xF0000000)
 }; 
 
 /*
