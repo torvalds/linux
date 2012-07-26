@@ -591,9 +591,8 @@ static inline int cpulist_scnprintf(char *buf, int len,
 }
 
 /**
- * cpulist_parse_user - extract a cpumask from a user string of ranges
+ * cpulist_parse - extract a cpumask from a user string of ranges
  * @buf: the buffer to extract from
- * @len: the length of the buffer
  * @dstp: the cpumask to set.
  *
  * Returns -errno, or 0 for success.
