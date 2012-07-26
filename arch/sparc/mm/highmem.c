@@ -22,13 +22,14 @@
  * shared by CPUs, and so precious, and establishing them requires IPI.
  * Atomic kmaps are lightweight and we may have NCPUS more of them.
  */
-#include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/export.h>
-#include <asm/pgalloc.h>
+#include <linux/mm.h>
+
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
-#include <asm/fixmap.h>
+#include <asm/pgalloc.h>
+#include <asm/vaddrs.h>
 
 void *kmap_atomic(struct page *page)
 {
