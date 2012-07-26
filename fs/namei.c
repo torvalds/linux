@@ -692,6 +692,7 @@ static inline int may_follow_link(struct path *link, struct nameidata *nd)
 
 	path_put_conditional(link, nd);
 	path_put(&nd->path);
+	audit_log_link_denied("follow_link", link);
 	return -EACCES;
 }
 
@@ -760,6 +761,7 @@ static int may_linkat(struct path *link)
 	    capable(CAP_FOWNER))
 		return 0;
 
+	audit_log_link_denied("linkat", link);
 	return -EPERM;
 }
 
