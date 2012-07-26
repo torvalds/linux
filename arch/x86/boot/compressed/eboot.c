@@ -729,32 +729,68 @@ fail:
  * need to create one ourselves (usually the bootloader would create
  * one for us).
  */
-static efi_status_t make_boot_params(struct boot_params *boot_params,
-				     efi_loaded_image_t *image,
-				     void *handle)
+struct boot_params *make_boot_params(void *handle, efi_system_table_t *_table)
 {
-	struct efi_info *efi = &boot_params->efi_info;
-	struct apm_bios_info *bi = &boot_params->apm_bios_info;
-	struct sys_desc_table *sdt = &boot_params->sys_desc_table;
-	struct e820entry *e820_map = &boot_params->e820_map[0];
-	struct e820entry *prev = NULL;
-	struct setup_header *hdr = &boot_params->hdr;
-	unsigned long size, key, desc_size, _size;
-	efi_memory_desc_t *mem_map;
-	void *options = image->load_options;
-	u32 load_options_size = image->load_options_size / 2; /* ASCII */
+	struct boot_params *boot_params;
+	struct sys_desc_table *sdt;
+	struct apm_bios_info *bi;
+	struct setup_header *hdr;
+	struct efi_info *efi;
+	efi_loaded_image_t *image;
+	void *options;
+	u32 load_options_size;
+	efi_guid_t proto = LOADED_IMAGE_PROTOCOL_GUID;
 	int options_size = 0;
 	efi_status_t status;
-	__u32 desc_version;
 	unsigned long cmdline;
-	u8 nr_entries;
 	u16 *s2;
 	u8 *s1;
 	int i;
 
+	sys_table = _table;
+
+	/* Check if we were booted by the EFI firmware */
+	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
+		return NULL;
+
+	status = efi_call_phys3(sys_table->boottime->handle_protocol,
+				handle, &proto, (void *)&image);
+	if (status != EFI_SUCCESS) {
+		efi_printk("Failed to get handle for LOADED_IMAGE_PROTOCOL\n");
+		return NULL;
+	}
+
+	status = low_alloc(0x4000, 1, (unsigned long *)&boot_params);
+	if (status != EFI_SUCCESS) {
+		efi_printk("Failed to alloc lowmem for boot params\n");
+		return NULL;
+	}
+
+	memset(boot_params, 0x0, 0x4000);
+
+	hdr = &boot_params->hdr;
+	efi = &boot_params->efi_info;
+	bi = &boot_params->apm_bios_info;
+	sdt = &boot_params->sys_desc_table;
+
+	/* Copy the second sector to boot_params */
+	memcpy(&hdr->jump, image->image_base + 512, 512);
+
+	/*
+	 * Fill out some of the header fields ourselves because the
+	 * EFI firmware loader doesn't load the first sector.
+	 */
+	hdr->root_flags = 1;
+	hdr->vid_mode = 0xffff;
+	hdr->boot_flag = 0xAA55;
+
+	hdr->code32_start = (__u64)(unsigned long)image->image_base;
+
 	hdr->type_of_loader = 0x21;
 
 	/* Convert unicode cmdline to ascii */
+	options = image->load_options;
+	load_options_size = image->load_options_size / 2; /* ASCII */
 	cmdline = 0;
 	s2 = (u16 *)options;
 
@@ -791,18 +827,36 @@ static efi_status_t make_boot_params(struct boot_params *boot_params,
 	hdr->ramdisk_image = 0;
 	hdr->ramdisk_size = 0;
 
-	status = handle_ramdisks(image, hdr);
-	if (status != EFI_SUCCESS)
-		goto free_cmdline;
-
-	setup_graphics(boot_params);
-
 	/* Clear APM BIOS info */
 	memset(bi, 0, sizeof(*bi));
 
 	memset(sdt, 0, sizeof(*sdt));
 
-	memcpy(&efi->efi_loader_signature, EFI_LOADER_SIGNATURE, sizeof(__u32));
+	status = handle_ramdisks(image, hdr);
+	if (status != EFI_SUCCESS)
+		goto fail2;
+
+	return boot_params;
+fail2:
+	if (options_size)
+		low_free(options_size, hdr->cmd_line_ptr);
+fail:
+	low_free(0x4000, (unsigned long)boot_params);
+	return NULL;
+}
+
+static efi_status_t exit_boot(struct boot_params *boot_params,
+			      void *handle)
+{
+	struct efi_info *efi = &boot_params->efi_info;
+	struct e820entry *e820_map = &boot_params->e820_map[0];
+	struct e820entry *prev = NULL;
+	unsigned long size, key, desc_size, _size;
+	efi_memory_desc_t *mem_map;
+	efi_status_t status;
+	__u32 desc_version;
+	u8 nr_entries;
+	int i;
 
 	size = sizeof(*mem_map) * 32;
 
@@ -811,7 +865,7 @@ again:
 	_size = size;
 	status = low_alloc(size, 1, (unsigned long *)&mem_map);
 	if (status != EFI_SUCCESS)
-		goto free_cmdline;
+		return status;
 
 	status = efi_call_phys5(sys_table->boottime->get_memory_map, &size,
 				mem_map, &key, &desc_size, &desc_version);
@@ -823,6 +877,7 @@ again:
 	if (status != EFI_SUCCESS)
 		goto free_mem_map;
 
+	memcpy(&efi->efi_loader_signature, EFI_LOADER_SIGNATURE, sizeof(__u32));
 	efi->efi_systab = (unsigned long)sys_table;
 	efi->efi_memdesc_size = desc_size;
 	efi->efi_memdesc_version = desc_version;
@@ -906,61 +961,13 @@ again:
 
 free_mem_map:
 	low_free(_size, (unsigned long)mem_map);
-free_cmdline:
-	if (options_size)
-		low_free(options_size, hdr->cmd_line_ptr);
-fail:
 	return status;
 }
 
-/*
- * On success we return a pointer to a boot_params structure, and NULL
- * on failure.
- */
-struct boot_params *efi_main(void *handle, efi_system_table_t *_table)
+static efi_status_t relocate_kernel(struct setup_header *hdr)
 {
-	struct boot_params *boot_params;
 	unsigned long start, nr_pages;
-	struct desc_ptr *gdt, *idt;
-	efi_loaded_image_t *image;
-	struct setup_header *hdr;
 	efi_status_t status;
-	efi_guid_t proto = LOADED_IMAGE_PROTOCOL_GUID;
-	struct desc_struct *desc;
-
-	sys_table = _table;
-
-	/* Check if we were booted by the EFI firmware */
-	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
-		goto fail;
-
-	status = efi_call_phys3(sys_table->boottime->handle_protocol,
-				handle, &proto, (void *)&image);
-	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to get handle for LOADED_IMAGE_PROTOCOL\n");
-		goto fail;
-	}
-
-	status = low_alloc(0x4000, 1, (unsigned long *)&boot_params);
-	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to alloc lowmem for boot params\n");
-		goto fail;
-	}
-
-	memset(boot_params, 0x0, 0x4000);
-
-	hdr = &boot_params->hdr;
-
-	/* Copy the second sector to boot_params */
-	memcpy(&hdr->jump, image->image_base + 512, 512);
-
-	/*
-	 * Fill out some of the header fields ourselves because the
-	 * EFI firmware loader doesn't load the first sector.
-	 */
-	hdr->root_flags = 1;
-	hdr->vid_mode = 0xffff;
-	hdr->boot_flag = 0xAA55;
 
 	/*
 	 * The EFI firmware loader could have placed the kernel image
@@ -978,16 +985,40 @@ struct boot_params *efi_main(void *handle, efi_system_table_t *_table)
 	if (status != EFI_SUCCESS) {
 		status = low_alloc(hdr->init_size, hdr->kernel_alignment,
 				   &start);
-		if (status != EFI_SUCCESS) {
+		if (status != EFI_SUCCESS)
 			efi_printk("Failed to alloc mem for kernel\n");
-			goto fail;
-		}
 	}
 
-	hdr->code32_start = (__u32)start;
-	hdr->pref_address = (__u64)(unsigned long)image->image_base;
+	if (status == EFI_SUCCESS)
+		memcpy((void *)start, (void *)(unsigned long)hdr->code32_start,
+		       hdr->init_size);
 
-	memcpy((void *)start, image->image_base, image->image_size);
+	hdr->pref_address = hdr->code32_start;
+	hdr->code32_start = (__u32)start;
+
+	return status;
+}
+
+/*
+ * On success we return a pointer to a boot_params structure, and NULL
+ * on failure.
+ */
+struct boot_params *efi_main(void *handle, efi_system_table_t *_table,
+			     struct boot_params *boot_params)
+{
+	struct desc_ptr *gdt, *idt;
+	efi_loaded_image_t *image;
+	struct setup_header *hdr = &boot_params->hdr;
+	efi_status_t status;
+	struct desc_struct *desc;
+
+	sys_table = _table;
+
+	/* Check if we were booted by the EFI firmware */
+	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
+		goto fail;
+
+	setup_graphics(boot_params);
 
 	status = efi_call_phys3(sys_table->boottime->allocate_pool,
 				EFI_LOADER_DATA, sizeof(*gdt),
@@ -1015,7 +1046,18 @@ struct boot_params *efi_main(void *handle, efi_system_table_t *_table)
 	idt->size = 0;
 	idt->address = 0;
 
-	status = make_boot_params(boot_params, image, handle);
+	/*
+	 * If the kernel isn't already loaded at the preferred load
+	 * address, relocate it.
+	 */
+	if (hdr->pref_address != hdr->code32_start) {
+		status = relocate_kernel(hdr);
+
+		if (status != EFI_SUCCESS)
+			goto fail;
+	}
+
+	status = exit_boot(boot_params, handle);
 	if (status != EFI_SUCCESS)
 		goto fail;
 
