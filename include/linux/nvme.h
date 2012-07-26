@@ -37,6 +37,7 @@ struct nvme_bar {
 
 #define NVME_CAP_TIMEOUT(cap)	(((cap) >> 24) & 0xff)
 #define NVME_CAP_STRIDE(cap)	(((cap) >> 32) & 0xf)
+#define NVME_CAP_MPSMIN(cap)	(((cap) >> 48) & 0xf)
 
 enum {
 	NVME_CC_ENABLE		= 1 << 0,

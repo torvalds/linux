@@ -78,6 +78,7 @@ struct nvme_dev {
 	char serial[20];
 	char model[40];
 	char firmware_rev[8];
+	u32 max_hw_sectors;
 };
 
 /*
@@ -1344,6 +1345,8 @@ static struct nvme_ns *nvme_alloc_ns(struct nvme_dev *dev, int nsid,
 	lbaf = id->flbas & 0xf;
 	ns->lba_shift = id->lbaf[lbaf].ds;
 	blk_queue_logical_block_size(ns->queue, 1 << ns->lba_shift);
+	if (dev->max_hw_sectors)
+		blk_queue_max_hw_sectors(ns->queue, dev->max_hw_sectors);
 
 	disk->major = nvme_major;
 	disk->minors = NVME_MINORS;
@@ -1485,6 +1488,10 @@ static int __devinit nvme_dev_add(struct nvme_dev *dev)
 	memcpy(dev->serial, ctrl->sn, sizeof(ctrl->sn));
 	memcpy(dev->model, ctrl->mn, sizeof(ctrl->mn));
 	memcpy(dev->firmware_rev, ctrl->fr, sizeof(ctrl->fr));
+	if (ctrl->mdts) {
+		int shift = NVME_CAP_MPSMIN(readq(&dev->bar->cap)) + 12;
+		dev->max_hw_sectors = 1 << (ctrl->mdts + shift - 9);
+	}
 
 	id_ns = mem;
 	for (i = 1; i <= nn; i++) {
