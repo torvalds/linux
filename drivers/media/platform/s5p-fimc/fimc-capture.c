@@ -304,7 +304,7 @@ int fimc_capture_resume(struct fimc_dev *fimc)
 
 	INIT_LIST_HEAD(&fimc->vid_cap.active_buf_q);
 	vid_cap->buf_index = 0;
-	fimc_pipeline_initialize(&fimc->pipeline, &vid_cap->vfd->entity,
+	fimc_pipeline_initialize(&fimc->pipeline, &vid_cap->vfd.entity,
 				 false);
 	fimc_capture_hw_init(fimc);
 
@@ -371,7 +371,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 		unsigned long size = ctx->d_frame.payload[i];
 
 		if (vb2_plane_size(vb, i) < size) {
-			v4l2_err(ctx->fimc_dev->vid_cap.vfd,
+			v4l2_err(&ctx->fimc_dev->vid_cap.vfd,
 				 "User buffer too small (%ld < %ld)\n",
 				 vb2_plane_size(vb, i), size);
 			return -EINVAL;
@@ -503,7 +503,7 @@ static int fimc_capture_open(struct file *file)
 
 	if (++fimc->vid_cap.refcnt == 1) {
 		ret = fimc_pipeline_initialize(&fimc->pipeline,
-				       &fimc->vid_cap.vfd->entity, true);
+				       &fimc->vid_cap.vfd.entity, true);
 
 		if (!ret && !fimc->vid_cap.user_subdev_api)
 			ret = fimc_capture_set_default_format(fimc);
@@ -1587,7 +1587,7 @@ static int fimc_capture_set_default_format(struct fimc_dev *fimc)
 static int fimc_register_capture_device(struct fimc_dev *fimc,
 				 struct v4l2_device *v4l2_dev)
 {
-	struct video_device *vfd;
+	struct video_device *vfd = &fimc->vid_cap.vfd;
 	struct fimc_vid_cap *vid_cap;
 	struct fimc_ctx *ctx;
 	struct vb2_queue *q;
@@ -1604,25 +1604,19 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 	ctx->s_frame.fmt = fimc_find_format(NULL, NULL, FMT_FLAGS_CAM, 0);
 	ctx->d_frame.fmt = ctx->s_frame.fmt;
 
-	vfd = video_device_alloc();
-	if (!vfd) {
-		v4l2_err(v4l2_dev, "Failed to allocate video device\n");
-		goto err_vd_alloc;
-	}
-
+	memset(vfd, 0, sizeof(*vfd));
 	snprintf(vfd->name, sizeof(vfd->name), "fimc.%d.capture", fimc->id);
 
 	vfd->fops	= &fimc_capture_fops;
 	vfd->ioctl_ops	= &fimc_capture_ioctl_ops;
 	vfd->v4l2_dev	= v4l2_dev;
 	vfd->minor	= -1;
-	vfd->release	= video_device_release;
+	vfd->release	= video_device_release_empty;
 	vfd->lock	= &fimc->lock;
 
 	video_set_drvdata(vfd, fimc);
 
 	vid_cap = &fimc->vid_cap;
-	vid_cap->vfd = vfd;
 	vid_cap->active_buf_cnt = 0;
 	vid_cap->reqbufs_count  = 0;
 	vid_cap->refcnt = 0;
@@ -1660,8 +1654,6 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 err_vd:
 	media_entity_cleanup(&vfd->entity);
 err_ent:
-	video_device_release(vfd);
-err_vd_alloc:
 	kfree(ctx);
 	return ret;
 }
@@ -1691,12 +1683,10 @@ static void fimc_capture_subdev_unregistered(struct v4l2_subdev *sd)
 
 	fimc_unregister_m2m_device(fimc);
 
-	if (fimc->vid_cap.vfd) {
-		media_entity_cleanup(&fimc->vid_cap.vfd->entity);
-		video_unregister_device(fimc->vid_cap.vfd);
-		fimc->vid_cap.vfd = NULL;
+	if (video_is_registered(&fimc->vid_cap.vfd)) {
+		video_unregister_device(&fimc->vid_cap.vfd);
+		media_entity_cleanup(&fimc->vid_cap.vfd.entity);
 	}
-
 	kfree(fimc->vid_cap.ctx);
 	fimc->vid_cap.ctx = NULL;
 }
