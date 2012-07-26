@@ -63,8 +63,6 @@ DEBUGFS_READONLY_FILE(user_power, "%d",
 		      local->user_power_level);
 DEBUGFS_READONLY_FILE(power, "%d",
 		      local->hw.conf.power_level);
-DEBUGFS_READONLY_FILE(frequency, "%d",
-		      local->hw.conf.channel->center_freq);
 DEBUGFS_READONLY_FILE(total_ps_buffered, "%d",
 		      local->total_ps_buffered);
 DEBUGFS_READONLY_FILE(wep_iv, "%#08x",
@@ -90,33 +88,6 @@ static const struct file_operations reset_ops = {
 	.open = simple_open,
 	.llseek = noop_llseek,
 };
-
-static ssize_t channel_type_read(struct file *file, char __user *user_buf,
-		       size_t count, loff_t *ppos)
-{
-	struct ieee80211_local *local = file->private_data;
-	const char *buf;
-
-	switch (local->hw.conf.channel_type) {
-	case NL80211_CHAN_NO_HT:
-		buf = "no ht\n";
-		break;
-	case NL80211_CHAN_HT20:
-		buf = "ht20\n";
-		break;
-	case NL80211_CHAN_HT40MINUS:
-		buf = "ht40-\n";
-		break;
-	case NL80211_CHAN_HT40PLUS:
-		buf = "ht40+\n";
-		break;
-	default:
-		buf = "???";
-		break;
-	}
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
-}
 
 static ssize_t hwflags_read(struct file *file, char __user *user_buf,
 			    size_t count, loff_t *ppos)
@@ -205,7 +176,6 @@ static ssize_t queues_read(struct file *file, char __user *user_buf,
 }
 
 DEBUGFS_READONLY_FILE_OPS(hwflags);
-DEBUGFS_READONLY_FILE_OPS(channel_type);
 DEBUGFS_READONLY_FILE_OPS(queues);
 
 /* statistics stuff */
@@ -272,12 +242,10 @@ void debugfs_hw_add(struct ieee80211_local *local)
 
 	local->debugfs.keys = debugfs_create_dir("keys", phyd);
 
-	DEBUGFS_ADD(frequency);
 	DEBUGFS_ADD(total_ps_buffered);
 	DEBUGFS_ADD(wep_iv);
 	DEBUGFS_ADD(queues);
 	DEBUGFS_ADD_MODE(reset, 0200);
-	DEBUGFS_ADD(channel_type);
 	DEBUGFS_ADD(hwflags);
 	DEBUGFS_ADD(user_power);
 	DEBUGFS_ADD(power);
