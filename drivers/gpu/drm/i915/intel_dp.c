@@ -1309,8 +1309,6 @@ static void intel_disable_dp(struct intel_encoder *encoder)
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	ironlake_edp_panel_off(intel_dp);
 	intel_dp_link_down(intel_dp);
-
-	intel_dp->dpms_mode = DRM_MODE_DPMS_OFF;
 }
 
 static void intel_enable_dp(struct intel_encoder *encoder)
@@ -1330,8 +1328,6 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	} else
 		ironlake_edp_panel_vdd_off(intel_dp, false);
 	ironlake_edp_backlight_on(intel_dp);
-
-	intel_dp->dpms_mode = DRM_MODE_DPMS_ON;
 }
 
 static void
@@ -1356,7 +1352,6 @@ intel_dp_dpms(struct drm_connector *connector, int mode)
 
 	if (mode != DRM_MODE_DPMS_ON) {
 		intel_encoder_dpms(&intel_dp->base, mode);
-		WARN_ON(intel_dp->dpms_mode != DRM_MODE_DPMS_OFF);
 
 		if (is_cpu_edp(intel_dp))
 			ironlake_edp_pll_off(&intel_dp->base.base);
@@ -1365,7 +1360,6 @@ intel_dp_dpms(struct drm_connector *connector, int mode)
 			ironlake_edp_pll_on(&intel_dp->base.base);
 
 		intel_encoder_dpms(&intel_dp->base, mode);
-		WARN_ON(intel_dp->dpms_mode != DRM_MODE_DPMS_ON);
 	}
 
 	intel_connector_check_state(to_intel_connector(connector));
@@ -2069,10 +2063,10 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 	u8 sink_irq_vector;
 	u8 link_status[DP_LINK_STATUS_SIZE];
 
-	if (intel_dp->dpms_mode != DRM_MODE_DPMS_ON)
+	if (!intel_dp->base.connectors_active)
 		return;
 
-	if (!intel_dp->base.base.crtc)
+	if (WARN_ON(!intel_dp->base.base.crtc))
 		return;
 
 	/* Try to read receiver status if the link appears to be up */
@@ -2490,7 +2484,6 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 
 	intel_dp->output_reg = output_reg;
 	intel_dp->port = port;
-	intel_dp->dpms_mode = -1;
 
 	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
 	if (!intel_connector) {

@@ -324,7 +324,6 @@ struct intel_dp {
 	enum hdmi_force_audio force_audio;
 	enum port port;
 	uint32_t color_range;
-	int dpms_mode;
 	uint8_t link_bw;
 	uint8_t lane_count;
 	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
