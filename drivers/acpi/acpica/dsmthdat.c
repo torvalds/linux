@@ -177,7 +177,7 @@ void acpi_ds_method_data_delete_all(struct acpi_walk_state *walk_state)
  *
  * FUNCTION:    acpi_ds_method_data_init_args
  *
- * PARAMETERS:  *Params         - Pointer to a parameter list for the method
+ * PARAMETERS:  *params         - Pointer to a parameter list for the method
  *              max_param_count - The arg count for this method
  *              walk_state      - Current walk state object
  *
@@ -232,11 +232,11 @@ acpi_ds_method_data_init_args(union acpi_operand_object **params,
  *
  * FUNCTION:    acpi_ds_method_data_get_node
  *
- * PARAMETERS:  Type                - Either ACPI_REFCLASS_LOCAL or
+ * PARAMETERS:  type                - Either ACPI_REFCLASS_LOCAL or
  *                                    ACPI_REFCLASS_ARG
- *              Index               - Which Local or Arg whose type to get
+ *              index               - Which Local or Arg whose type to get
  *              walk_state          - Current walk state object
- *              Node                - Where the node is returned.
+ *              node                - Where the node is returned.
  *
  * RETURN:      Status and node
  *
@@ -296,10 +296,10 @@ acpi_ds_method_data_get_node(u8 type,
  *
  * FUNCTION:    acpi_ds_method_data_set_value
  *
- * PARAMETERS:  Type                - Either ACPI_REFCLASS_LOCAL or
+ * PARAMETERS:  type                - Either ACPI_REFCLASS_LOCAL or
  *                                    ACPI_REFCLASS_ARG
- *              Index               - Which Local or Arg to get
- *              Object              - Object to be inserted into the stack entry
+ *              index               - Which Local or Arg to get
+ *              object              - Object to be inserted into the stack entry
  *              walk_state          - Current walk state object
  *
  * RETURN:      Status
@@ -336,7 +336,7 @@ acpi_ds_method_data_set_value(u8 type,
 	 * Increment ref count so object can't be deleted while installed.
 	 * NOTE: We do not copy the object in order to preserve the call by
 	 * reference semantics of ACPI Control Method invocation.
-	 * (See ACPI Specification 2.0_c)
+	 * (See ACPI Specification 2.0C)
 	 */
 	acpi_ut_add_reference(object);
 
@@ -350,9 +350,9 @@ acpi_ds_method_data_set_value(u8 type,
  *
  * FUNCTION:    acpi_ds_method_data_get_value
  *
- * PARAMETERS:  Type                - Either ACPI_REFCLASS_LOCAL or
+ * PARAMETERS:  type                - Either ACPI_REFCLASS_LOCAL or
  *                                    ACPI_REFCLASS_ARG
- *              Index               - Which local_var or argument to get
+ *              index               - Which localVar or argument to get
  *              walk_state          - Current walk state object
  *              dest_desc           - Where Arg or Local value is returned
  *
@@ -458,9 +458,9 @@ acpi_ds_method_data_get_value(u8 type,
  *
  * FUNCTION:    acpi_ds_method_data_delete_value
  *
- * PARAMETERS:  Type                - Either ACPI_REFCLASS_LOCAL or
+ * PARAMETERS:  type                - Either ACPI_REFCLASS_LOCAL or
  *                                    ACPI_REFCLASS_ARG
- *              Index               - Which local_var or argument to delete
+ *              index               - Which localVar or argument to delete
  *              walk_state          - Current walk state object
  *
  * RETURN:      None
@@ -515,9 +515,9 @@ acpi_ds_method_data_delete_value(u8 type,
  *
  * FUNCTION:    acpi_ds_store_object_to_local
  *
- * PARAMETERS:  Type                - Either ACPI_REFCLASS_LOCAL or
+ * PARAMETERS:  type                - Either ACPI_REFCLASS_LOCAL or
  *                                    ACPI_REFCLASS_ARG
- *              Index               - Which Local or Arg to set
+ *              index               - Which Local or Arg to set
  *              obj_desc            - Value to be stored
  *              walk_state          - Current walk state
  *
@@ -670,8 +670,8 @@ acpi_ds_store_object_to_local(u8 type,
  *
  * FUNCTION:    acpi_ds_method_data_get_type
  *
- * PARAMETERS:  Opcode              - Either AML_LOCAL_OP or AML_ARG_OP
- *              Index               - Which Local or Arg whose type to get
+ * PARAMETERS:  opcode              - Either AML_LOCAL_OP or AML_ARG_OP
+ *              index               - Which Local or Arg whose type to get
  *              walk_state          - Current walk state object
  *
  * RETURN:      Data type of current value of the selected Arg or Local

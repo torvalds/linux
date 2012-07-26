@@ -58,6 +58,12 @@ struct thermal_zone_device_ops {
 		enum thermal_trip_type *);
 	int (*get_trip_temp) (struct thermal_zone_device *, int,
 			      unsigned long *);
+	int (*set_trip_temp) (struct thermal_zone_device *, int,
+			      unsigned long);
+	int (*get_trip_hyst) (struct thermal_zone_device *, int,
+			      unsigned long *);
+	int (*set_trip_hyst) (struct thermal_zone_device *, int,
+			      unsigned long);
 	int (*get_crit_temp) (struct thermal_zone_device *, unsigned long *);
 	int (*notify) (struct thermal_zone_device *, int,
 		       enum thermal_trip_type);
@@ -85,10 +91,18 @@ struct thermal_cooling_device {
 				((long)t-2732+5)/10 : ((long)t-2732-5)/10)
 #define CELSIUS_TO_KELVIN(t)	((t)*10+2732)
 
+struct thermal_attr {
+	struct device_attribute attr;
+	char name[THERMAL_NAME_LENGTH];
+};
+
 struct thermal_zone_device {
 	int id;
 	char type[THERMAL_NAME_LENGTH];
 	struct device device;
+	struct thermal_attr *trip_temp_attrs;
+	struct thermal_attr *trip_type_attrs;
+	struct thermal_attr *trip_hyst_attrs;
 	void *devdata;
 	int trips;
 	int tc1;
@@ -137,9 +151,9 @@ enum {
 };
 #define THERMAL_GENL_CMD_MAX (__THERMAL_GENL_CMD_MAX - 1)
 
-struct thermal_zone_device *thermal_zone_device_register(char *, int, void *,
-		const struct thermal_zone_device_ops *, int tc1, int tc2,
-		int passive_freq, int polling_freq);
+struct thermal_zone_device *thermal_zone_device_register(char *, int, int,
+		void *, const struct thermal_zone_device_ops *, int tc1,
+		int tc2, int passive_freq, int polling_freq);
 void thermal_zone_device_unregister(struct thermal_zone_device *);
 
 int thermal_zone_bind_cooling_device(struct thermal_zone_device *, int,

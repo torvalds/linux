@@ -57,9 +57,9 @@ ACPI_MODULE_NAME("rsmisc")
  *
  * FUNCTION:    acpi_rs_convert_aml_to_resource
  *
- * PARAMETERS:  Resource            - Pointer to the resource descriptor
- *              Aml                 - Where the AML descriptor is returned
- *              Info                - Pointer to appropriate conversion table
+ * PARAMETERS:  resource            - Pointer to the resource descriptor
+ *              aml                 - Where the AML descriptor is returned
+ *              info                - Pointer to appropriate conversion table
  *
  * RETURN:      Status
  *
@@ -406,7 +406,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 
 		case ACPI_RSC_EXIT_NE:
 			/*
-			 * Control - Exit conversion if not equal
+			 * control - Exit conversion if not equal
 			 */
 			switch (info->resource_offset) {
 			case ACPI_RSC_COMPARE_AML_LENGTH:
@@ -454,9 +454,9 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
  *
  * FUNCTION:    acpi_rs_convert_resource_to_aml
  *
- * PARAMETERS:  Resource            - Pointer to the resource descriptor
- *              Aml                 - Where the AML descriptor is returned
- *              Info                - Pointer to appropriate conversion table
+ * PARAMETERS:  resource            - Pointer to the resource descriptor
+ *              aml                 - Where the AML descriptor is returned
+ *              info                - Pointer to appropriate conversion table
  *
  * RETURN:      Status
  *
@@ -726,7 +726,7 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 
 		case ACPI_RSC_EXIT_LE:
 			/*
-			 * Control - Exit conversion if less than or equal
+			 * control - Exit conversion if less than or equal
 			 */
 			if (item_count <= info->value) {
 				goto exit;
@@ -735,7 +735,7 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 
 		case ACPI_RSC_EXIT_NE:
 			/*
-			 * Control - Exit conversion if not equal
+			 * control - Exit conversion if not equal
 			 */
 			switch (COMPARE_OPCODE(info)) {
 			case ACPI_RSC_COMPARE_VALUE:
@@ -757,7 +757,7 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 
 		case ACPI_RSC_EXIT_EQ:
 			/*
-			 * Control - Exit conversion if equal
+			 * control - Exit conversion if equal
 			 */
 			if (*ACPI_ADD_PTR(u8, resource,
 					  COMPARE_TARGET(info)) ==
@@ -783,7 +783,7 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 #if 0
 /* Previous resource validations */
 
-if (aml->ext_address64.revision_iD != AML_RESOURCE_EXTENDED_ADDRESS_REVISION) {
+if (aml->ext_address64.revision_ID != AML_RESOURCE_EXTENDED_ADDRESS_REVISION) {
 	return_ACPI_STATUS(AE_SUPPORT);
 }
 
