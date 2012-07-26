@@ -291,19 +291,7 @@ extern void device_scan(void);
 
 void __init paging_init(void)
 {
-	switch(sparc_cpu_model) {
-	case sparc_leon:
-	case sun4m:
-	case sun4d:
-		srmmu_paging_init();
-		break;
-	default:
-		prom_printf("paging_init: Cannot init paging on this Sparc\n");
-		prom_printf("paging_init: sparc_cpu_model = %d\n", sparc_cpu_model);
-		prom_printf("paging_init: Halting...\n");
-		prom_halt();
-	}
-
+	srmmu_paging_init();
 	prom_build_devicetree();
 	of_fill_in_cpu_data();
 	device_scan();
