@@ -287,7 +287,7 @@ struct fimc_frame {
  * @refcnt: the reference counter
  */
 struct fimc_m2m_device {
-	struct video_device	*vfd;
+	struct video_device	vfd;
 	struct v4l2_m2m_dev	*m2m_dev;
 	struct fimc_ctx		*ctx;
 	int			refcnt;

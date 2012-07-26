@@ -1663,6 +1663,9 @@ static int fimc_capture_subdev_registered(struct v4l2_subdev *sd)
 	struct fimc_dev *fimc = v4l2_get_subdevdata(sd);
 	int ret;
 
+	if (fimc == NULL)
+		return -ENXIO;
+
 	ret = fimc_register_m2m_device(fimc, sd->v4l2_dev);
 	if (ret)
 		return ret;
