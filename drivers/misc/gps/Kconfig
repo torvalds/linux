@@ -13,7 +13,8 @@ if RK29_GPS
 config GPS_GNS7560
 	bool "gns7560 support"
 	default n
-
+	
+source "drivers/misc/gps/hv5820b/Kconfig"	
 endif # RK29_GPS
 
 
