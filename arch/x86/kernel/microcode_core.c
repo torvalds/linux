@@ -282,7 +282,7 @@ static int reload_for_cpu(int cpu)
 	if (!uci->valid)
 		return err;
 
-	ustate = microcode_ops->request_microcode_fw(cpu, &microcode_pdev->dev);
+	ustate = microcode_ops->request_microcode_fw(cpu, &microcode_pdev->dev, true);
 	if (ustate == UCODE_OK)
 		apply_microcode_on_target(cpu);
 	else
@@ -377,7 +377,7 @@ static enum ucode_state microcode_resume_cpu(int cpu)
 	return UCODE_OK;
 }
 
-static enum ucode_state microcode_init_cpu(int cpu)
+static enum ucode_state microcode_init_cpu(int cpu, bool refresh_fw)
 {
 	enum ucode_state ustate;
 
@@ -388,7 +388,8 @@ static enum ucode_state microcode_init_cpu(int cpu)
 	if (system_state != SYSTEM_RUNNING)
 		return UCODE_NFOUND;
 
-	ustate = microcode_ops->request_microcode_fw(cpu, &microcode_pdev->dev);
+	ustate = microcode_ops->request_microcode_fw(cpu, &microcode_pdev->dev,
+						     refresh_fw);
 
 	if (ustate == UCODE_OK) {
 		pr_debug("CPU%d updated upon init\n", cpu);
@@ -405,7 +406,7 @@ static enum ucode_state microcode_update_cpu(int cpu)
 	if (uci->valid)
 		return microcode_resume_cpu(cpu);
 
-	return microcode_init_cpu(cpu);
+	return microcode_init_cpu(cpu, false);
 }
 
 static int mc_device_add(struct device *dev, struct subsys_interface *sif)
@@ -421,7 +422,7 @@ static int mc_device_add(struct device *dev, struct subsys_interface *sif)
 	if (err)
 		return err;
 
-	if (microcode_init_cpu(cpu) == UCODE_ERROR)
+	if (microcode_init_cpu(cpu, true) == UCODE_ERROR)
 		return -EINVAL;
 
 	return err;
