@@ -15,7 +15,8 @@ extern void uv_nmi_init(void);
 extern void uv_system_init(void);
 extern const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 						 struct mm_struct *mm,
-						 unsigned long va,
+						 unsigned long start,
+						 unsigned end,
 						 unsigned int cpu);
 
 #else	/* X86_UV */
@@ -26,7 +27,7 @@ static inline void uv_cpu_init(void)	{ }
 static inline void uv_system_init(void)	{ }
 static inline const struct cpumask *
 uv_flush_tlb_others(const struct cpumask *cpumask, struct mm_struct *mm,
-		    unsigned long va, unsigned int cpu)
+		    unsigned long start, unsigned long end, unsigned int cpu)
 { return cpumask; }
 
 #endif	/* X86_UV */
