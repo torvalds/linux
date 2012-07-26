@@ -971,6 +971,7 @@ struct drbd_conf {
 
 	/* where does the admin want us to start? (sector) */
 	sector_t ov_start_sector;
+	sector_t ov_stop_sector;
 	/* where are we now? (sector) */
 	sector_t ov_position;
 	/* Start sector of out of sync range (to merge printk reporting). */
@@ -2262,6 +2263,12 @@ static inline void dec_ap_bio(struct drbd_conf *mdev)
 	 * e.g. (ap_bio == mxb/2 || ap_bio == 0) ? */
 	if (ap_bio < mxb)
 		wake_up(&mdev->misc_wait);
+}
+
+static inline bool verify_can_do_stop_sector(struct drbd_conf *mdev)
+{
+	return mdev->tconn->agreed_pro_version >= 97 &&
+		mdev->tconn->agreed_pro_version != 100;
 }
 
 static inline int drbd_set_ed_uuid(struct drbd_conf *mdev, u64 val)

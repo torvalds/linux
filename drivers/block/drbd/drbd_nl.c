@@ -2939,6 +2939,7 @@ int drbd_adm_start_ov(struct sk_buff *skb, struct genl_info *info)
 {
 	struct drbd_conf *mdev;
 	enum drbd_ret_code retcode;
+	struct start_ov_parms parms;
 
 	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_MINOR);
 	if (!adm_ctx.reply_skb)
@@ -2947,19 +2948,22 @@ int drbd_adm_start_ov(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 
 	mdev = adm_ctx.mdev;
+
+	/* resume from last known position, if possible */
+	parms.ov_start_sector = mdev->ov_start_sector;
+	parms.ov_stop_sector = ULLONG_MAX;
 	if (info->attrs[DRBD_NLA_START_OV_PARMS]) {
-		/* resume from last known position, if possible */
-		struct start_ov_parms parms =
-			{ .ov_start_sector = mdev->ov_start_sector };
 		int err = start_ov_parms_from_attrs(&parms, info);
 		if (err) {
 			retcode = ERR_MANDATORY_TAG;
 			drbd_msg_put_info(from_attrs_err_to_txt(err));
 			goto out;
 		}
-		/* w_make_ov_request expects position to be aligned */
-		mdev->ov_start_sector = parms.ov_start_sector & ~BM_SECT_PER_BIT;
 	}
+	/* w_make_ov_request expects position to be aligned */
+	mdev->ov_start_sector = parms.ov_start_sector & ~(BM_SECT_PER_BIT-1);
+	mdev->ov_stop_sector = parms.ov_stop_sector;
+
 	/* If there is still bitmap IO pending, e.g. previous resync or verify
 	 * just being finished, wait for it before requesting a new resync. */
 	drbd_suspend_io(mdev);

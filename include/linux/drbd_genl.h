@@ -215,6 +215,7 @@ GENL_struct(DRBD_NLA_STATE_INFO, 8, state_info,
 
 GENL_struct(DRBD_NLA_START_OV_PARMS, 9, start_ov_parms,
 	__u64_field(1, DRBD_GENLA_F_MANDATORY,	ov_start_sector)
+	__u64_field(2, DRBD_GENLA_F_MANDATORY,	ov_stop_sector)
 )
 
 GENL_struct(DRBD_NLA_NEW_C_UUID_PARMS, 10, new_c_uuid_parms,
