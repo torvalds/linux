@@ -32,7 +32,6 @@
 /* copied from linux/fs/internal.h */
 /* todo: BAD approach!! */
 extern struct lglock vfsmount_lock;
-extern void file_sb_list_del(struct file *f);
 extern spinlock_t inode_sb_list_lock;
 
 /* copied from linux/fs/file_table.c */
