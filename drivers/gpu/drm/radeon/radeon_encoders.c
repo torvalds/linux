@@ -29,6 +29,14 @@
 #include "radeon.h"
 #include "atom.h"
 
+extern void
+radeon_legacy_backlight_init(struct radeon_encoder *radeon_encoder,
+			     struct drm_connector *drm_connector);
+extern void
+radeon_atom_backlight_init(struct radeon_encoder *radeon_encoder,
+			   struct drm_connector *drm_connector);
+
+
 static uint32_t radeon_encoder_clones(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
@@ -153,6 +161,7 @@ radeon_get_encoder_enum(struct drm_device *dev, uint32_t supported_device, uint8
 void
 radeon_link_encoder_connector(struct drm_device *dev)
 {
+	struct radeon_device *rdev = dev->dev_private;
 	struct drm_connector *connector;
 	struct radeon_connector *radeon_connector;
 	struct drm_encoder *encoder;
@@ -163,8 +172,15 @@ radeon_link_encoder_connector(struct drm_device *dev)
 		radeon_connector = to_radeon_connector(connector);
 		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 			radeon_encoder = to_radeon_encoder(encoder);
-			if (radeon_encoder->devices & radeon_connector->devices)
+			if (radeon_encoder->devices & radeon_connector->devices) {
 				drm_mode_connector_attach_encoder(connector, encoder);
+				if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
+					if (rdev->is_atom_bios)
+						radeon_atom_backlight_init(radeon_encoder, connector);
+					else
+						radeon_legacy_backlight_init(radeon_encoder, connector);
+				}
+			}
 		}
 	}
 }

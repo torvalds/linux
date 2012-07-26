@@ -28,8 +28,237 @@
 #include "radeon_drm.h"
 #include "radeon.h"
 #include "atom.h"
+#include <linux/backlight.h>
 
 extern int atom_debug;
+
+#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
+
+static u8
+radeon_atom_get_backlight_level_from_reg(struct radeon_device *rdev)
+{
+	u8 backlight_level;
+	u32 bios_2_scratch;
+
+	if (rdev->family >= CHIP_R600)
+		bios_2_scratch = RREG32(R600_BIOS_2_SCRATCH);
+	else
+		bios_2_scratch = RREG32(RADEON_BIOS_2_SCRATCH);
+
+	backlight_level = ((bios_2_scratch & ATOM_S2_CURRENT_BL_LEVEL_MASK) >>
+			   ATOM_S2_CURRENT_BL_LEVEL_SHIFT);
+
+	return backlight_level;
+}
+
+static void
+radeon_atom_set_backlight_level_to_reg(struct radeon_device *rdev,
+				       u8 backlight_level)
+{
+	u32 bios_2_scratch;
+
+	if (rdev->family >= CHIP_R600)
+		bios_2_scratch = RREG32(R600_BIOS_2_SCRATCH);
+	else
+		bios_2_scratch = RREG32(RADEON_BIOS_2_SCRATCH);
+
+	bios_2_scratch &= ~ATOM_S2_CURRENT_BL_LEVEL_MASK;
+	bios_2_scratch |= ((backlight_level << ATOM_S2_CURRENT_BL_LEVEL_SHIFT) &
+			   ATOM_S2_CURRENT_BL_LEVEL_MASK);
+
+	if (rdev->family >= CHIP_R600)
+		WREG32(R600_BIOS_2_SCRATCH, bios_2_scratch);
+	else
+		WREG32(RADEON_BIOS_2_SCRATCH, bios_2_scratch);
+}
+
+static void
+atombios_set_panel_brightness(struct radeon_encoder *radeon_encoder)
+{
+	struct drm_encoder *encoder = &radeon_encoder->base;
+	struct drm_device *dev = radeon_encoder->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_encoder_atom_dig *dig;
+	DISPLAY_DEVICE_OUTPUT_CONTROL_PS_ALLOCATION args;
+	int index;
+
+	if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
+		dig = radeon_encoder->enc_priv;
+		radeon_atom_set_backlight_level_to_reg(rdev, dig->backlight_level);
+
+		switch (radeon_encoder->encoder_id) {
+		case ENCODER_OBJECT_ID_INTERNAL_LVDS:
+		case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
+			index = GetIndexIntoMasterTable(COMMAND, LCD1OutputControl);
+			if (dig->backlight_level == 0) {
+				args.ucAction = ATOM_LCD_BLOFF;
+				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+			} else {
+				args.ucAction = ATOM_LCD_BL_BRIGHTNESS_CONTROL;
+				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+				args.ucAction = ATOM_LCD_BLON;
+				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+			}
+			break;
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+			if (dig->backlight_level == 0)
+				atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_LCD_BLOFF, 0, 0);
+			else {
+				atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_BL_BRIGHTNESS_CONTROL, 0, 0);
+				atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_LCD_BLON, 0, 0);
+			}
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+static u8 radeon_atom_bl_level(struct backlight_device *bd)
+{
+	u8 level;
+
+	/* Convert brightness to hardware level */
+	if (bd->props.brightness < 0)
+		level = 0;
+	else if (bd->props.brightness > RADEON_MAX_BL_LEVEL)
+		level = RADEON_MAX_BL_LEVEL;
+	else
+		level = bd->props.brightness;
+
+	return level;
+}
+
+static int radeon_atom_backlight_update_status(struct backlight_device *bd)
+{
+	struct radeon_backlight_privdata *pdata = bl_get_data(bd);
+	struct radeon_encoder *radeon_encoder = pdata->encoder;
+
+	if (radeon_encoder->enc_priv) {
+		struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+		dig->backlight_level = radeon_atom_bl_level(bd);
+		atombios_set_panel_brightness(radeon_encoder);
+	}
+
+	return 0;
+}
+
+static int radeon_atom_backlight_get_brightness(struct backlight_device *bd)
+{
+	struct radeon_backlight_privdata *pdata = bl_get_data(bd);
+	struct radeon_encoder *radeon_encoder = pdata->encoder;
+	struct drm_device *dev = radeon_encoder->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	return radeon_atom_get_backlight_level_from_reg(rdev);
+}
+
+static const struct backlight_ops radeon_atom_backlight_ops = {
+	.get_brightness = radeon_atom_backlight_get_brightness,
+	.update_status	= radeon_atom_backlight_update_status,
+};
+
+void radeon_atom_backlight_init(struct radeon_encoder *radeon_encoder,
+				struct drm_connector *drm_connector)
+{
+	struct drm_device *dev = radeon_encoder->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct backlight_device *bd;
+	struct backlight_properties props;
+	struct radeon_backlight_privdata *pdata;
+	struct radeon_encoder_atom_dig *dig;
+	u8 backlight_level;
+
+	if (!radeon_encoder->enc_priv)
+		return;
+
+	if (!rdev->is_atom_bios)
+		return;
+
+	if (!(rdev->mode_info.firmware_flags & ATOM_BIOS_INFO_BL_CONTROLLED_BY_GPU))
+		return;
+
+	pdata = kmalloc(sizeof(struct radeon_backlight_privdata), GFP_KERNEL);
+	if (!pdata) {
+		DRM_ERROR("Memory allocation failed\n");
+		goto error;
+	}
+
+	memset(&props, 0, sizeof(props));
+	props.max_brightness = RADEON_MAX_BL_LEVEL;
+	props.type = BACKLIGHT_RAW;
+	bd = backlight_device_register("radeon_bl", &drm_connector->kdev,
+				       pdata, &radeon_atom_backlight_ops, &props);
+	if (IS_ERR(bd)) {
+		DRM_ERROR("Backlight registration failed\n");
+		goto error;
+	}
+
+	pdata->encoder = radeon_encoder;
+
+	backlight_level = radeon_atom_get_backlight_level_from_reg(rdev);
+
+	dig = radeon_encoder->enc_priv;
+	dig->bl_dev = bd;
+
+	bd->props.brightness = radeon_atom_backlight_get_brightness(bd);
+	bd->props.power = FB_BLANK_UNBLANK;
+	backlight_update_status(bd);
+
+	DRM_INFO("radeon atom DIG backlight initialized\n");
+
+	return;
+
+error:
+	kfree(pdata);
+	return;
+}
+
+static void radeon_atom_backlight_exit(struct radeon_encoder *radeon_encoder)
+{
+	struct drm_device *dev = radeon_encoder->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct backlight_device *bd = NULL;
+	struct radeon_encoder_atom_dig *dig;
+
+	if (!radeon_encoder->enc_priv)
+		return;
+
+	if (!rdev->is_atom_bios)
+		return;
+
+	if (!(rdev->mode_info.firmware_flags & ATOM_BIOS_INFO_BL_CONTROLLED_BY_GPU))
+		return;
+
+	dig = radeon_encoder->enc_priv;
+	bd = dig->bl_dev;
+	dig->bl_dev = NULL;
+
+	if (bd) {
+		struct radeon_legacy_backlight_privdata *pdata;
+
+		pdata = bl_get_data(bd);
+		backlight_device_unregister(bd);
+		kfree(pdata);
+
+		DRM_INFO("radeon atom LVDS backlight unloaded\n");
+	}
+}
+
+#else /* !CONFIG_BACKLIGHT_CLASS_DEVICE */
+
+void radeon_atom_backlight_init(struct radeon_encoder *encoder)
+{
+}
+
+static void radeon_atom_backlight_exit(struct radeon_encoder *encoder)
+{
+}
+
+#endif
 
 /* evil but including atombios.h is much worse */
 bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
@@ -2286,6 +2515,8 @@ static const struct drm_encoder_helper_funcs radeon_atom_dac_helper_funcs = {
 void radeon_enc_destroy(struct drm_encoder *encoder)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT))
+		radeon_atom_backlight_exit(radeon_encoder);
 	kfree(radeon_encoder->enc_priv);
 	drm_encoder_cleanup(encoder);
 	kfree(radeon_encoder);

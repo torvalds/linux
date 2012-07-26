@@ -40,10 +40,6 @@ radeon_atombios_connected_scratch_regs(struct drm_connector *connector,
 				       struct drm_encoder *encoder,
 				       bool connected);
 
-extern void
-radeon_legacy_backlight_init(struct radeon_encoder *radeon_encoder,
-			     struct drm_connector *drm_connector);
-
 void radeon_connector_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
@@ -2008,15 +2004,4 @@ radeon_add_legacy_connector(struct drm_device *dev,
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
 	connector->display_info.subpixel_order = subpixel_order;
 	drm_sysfs_connector_add(connector);
-	if (connector_type == DRM_MODE_CONNECTOR_LVDS) {
-		struct drm_encoder *drm_encoder;
-
-		list_for_each_entry(drm_encoder, &dev->mode_config.encoder_list, head) {
-			struct radeon_encoder *radeon_encoder;
-
-			radeon_encoder = to_radeon_encoder(drm_encoder);
-			if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_LVDS)
-				radeon_legacy_backlight_init(radeon_encoder, connector);
-		}
-	}
 }
