@@ -2404,11 +2404,11 @@ static int ab8500_codec_probe(struct snd_soc_codec *codec)
 
 	dev_dbg(dev, "%s: Enter.\n", __func__);
 
-	/* Setup AB8500 according to board-settings */
-	pdata = (struct ab8500_platform_data *)dev_get_platdata(dev->parent);
-
 	/* Inform SoC Core that we have our own I/O arrangements. */
 	codec->control_data = (void *)true;
+
+	/* Setup AB8500 according to board-settings */
+	pdata = dev_get_platdata(dev->parent);
 
 	status = ab8500_audio_setup_mics(codec, &pdata->codec->amics);
 	if (status < 0) {
