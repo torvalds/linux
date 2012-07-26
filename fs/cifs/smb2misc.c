@@ -52,7 +52,8 @@ check_smb2_hdr(struct smb2_hdr *hdr, __u64 mid)
 			cERROR(1, "Bad protocol string signature header %x",
 				  *(unsigned int *) hdr->ProtocolId);
 		if (mid != hdr->MessageId)
-			cERROR(1, "Mids do not match");
+			cERROR(1, "Mids do not match: %llu and %llu", mid,
+				  hdr->MessageId);
 	}
 	cERROR(1, "Bad SMB detected. The Mid=%llu", hdr->MessageId);
 	return 1;
@@ -107,7 +108,7 @@ smb2_check_message(char *buf, unsigned int length)
 	 * ie Validate the wct via smb2_struct_sizes table above
 	 */
 
-	if (length < 2 + sizeof(struct smb2_hdr)) {
+	if (length < sizeof(struct smb2_pdu)) {
 		if ((length >= sizeof(struct smb2_hdr)) && (hdr->Status != 0)) {
 			pdu->StructureSize2 = 0;
 			/*
@@ -121,15 +122,15 @@ smb2_check_message(char *buf, unsigned int length)
 		return 1;
 	}
 	if (len > CIFSMaxBufSize + MAX_SMB2_HDR_SIZE - 4) {
-		cERROR(1, "SMB length greater than maximum, mid=%lld", mid);
+		cERROR(1, "SMB length greater than maximum, mid=%llu", mid);
 		return 1;
 	}
 
 	if (check_smb2_hdr(hdr, mid))
 		return 1;
 
-	if (hdr->StructureSize != SMB2_HEADER_SIZE) {
-		cERROR(1, "Illegal structure size %d",
+	if (hdr->StructureSize != SMB2_HEADER_STRUCTURE_SIZE) {
+		cERROR(1, "Illegal structure size %u",
 			  le16_to_cpu(hdr->StructureSize));
 		return 1;
 	}
@@ -161,8 +162,9 @@ smb2_check_message(char *buf, unsigned int length)
 	if (4 + len != clc_len) {
 		cFYI(1, "Calculated size %u length %u mismatch mid %llu",
 			clc_len, 4 + len, mid);
-		if (clc_len == 4 + len + 1) /* BB FIXME (fix samba) */
-			return 0; /* BB workaround Samba 3 bug SessSetup rsp */
+		/* server can return one byte more */
+		if (clc_len == 4 + len + 1)
+			return 0;
 		return 1;
 	}
 	return 0;
