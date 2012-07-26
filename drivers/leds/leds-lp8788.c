@@ -104,6 +104,7 @@ static void lp8788_led_work(struct work_struct *work)
 		lp8788_write_byte(led->lp, lp8788_pwm_addr[num], val);
 		break;
 	default:
+		mutex_unlock(&led->lock);
 		return;
 	}
 
