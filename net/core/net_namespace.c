@@ -630,8 +630,13 @@ static void netns_put(void *ns)
 
 static int netns_install(struct nsproxy *nsproxy, void *ns)
 {
+	struct net *net = ns;
+
+	if (!ns_capable(net->user_ns, CAP_SYS_ADMIN))
+		return -EPERM;
+
 	put_net(nsproxy->net_ns);
-	nsproxy->net_ns = get_net(ns);
+	nsproxy->net_ns = get_net(net);
 	return 0;
 }
 
