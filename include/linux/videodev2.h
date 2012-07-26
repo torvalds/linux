@@ -274,6 +274,10 @@ struct v4l2_capability {
 #define V4L2_CAP_VIDEO_CAPTURE_MPLANE	0x00001000
 /* Is a video output device that supports multiplanar formats */
 #define V4L2_CAP_VIDEO_OUTPUT_MPLANE	0x00002000
+/* Is a video mem-to-mem device that supports multiplanar formats */
+#define V4L2_CAP_VIDEO_M2M_MPLANE	0x00004000
+/* Is a video mem-to-mem device */
+#define V4L2_CAP_VIDEO_M2M		0x00008000
 
 #define V4L2_CAP_TUNER			0x00010000  /* has a tuner */
 #define V4L2_CAP_AUDIO			0x00020000  /* has audio support */
