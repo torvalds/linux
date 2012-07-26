@@ -2300,11 +2300,8 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 	struct ieee80211_sub_if_data *sdata = NULL;
 	struct ieee80211_if_ap *ap = NULL;
 	struct beacon_data *beacon;
-	struct ieee80211_supported_band *sband;
 	enum ieee80211_band band = local->oper_channel->band;
 	struct ieee80211_tx_rate_control txrc;
-
-	sband = local->hw.wiphy->bands[band];
 
 	rcu_read_lock();
 
@@ -2452,12 +2449,12 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 
 	memset(&txrc, 0, sizeof(txrc));
 	txrc.hw = hw;
-	txrc.sband = sband;
+	txrc.sband = local->hw.wiphy->bands[band];
 	txrc.bss_conf = &sdata->vif.bss_conf;
 	txrc.skb = skb;
 	txrc.reported_rate.idx = -1;
 	txrc.rate_idx_mask = sdata->rc_rateidx_mask[band];
-	if (txrc.rate_idx_mask == (1 << sband->n_bitrates) - 1)
+	if (txrc.rate_idx_mask == (1 << txrc.sband->n_bitrates) - 1)
 		txrc.max_rate_idx = -1;
 	else
 		txrc.max_rate_idx = fls(txrc.rate_idx_mask) - 1;
