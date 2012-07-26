@@ -1568,7 +1568,7 @@ static int s5k6aa_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	s5k6aa = kzalloc(sizeof(*s5k6aa), GFP_KERNEL);
+	s5k6aa = devm_kzalloc(&client->dev, sizeof(*s5k6aa), GFP_KERNEL);
 	if (!s5k6aa)
 		return -ENOMEM;
 
@@ -1592,7 +1592,7 @@ static int s5k6aa_probe(struct i2c_client *client,
 	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
 	ret = media_entity_init(&sd->entity, 1, &s5k6aa->pad, 0);
 	if (ret)
-		goto out_err1;
+		return ret;
 
 	ret = s5k6aa_configure_gpios(s5k6aa, pdata);
 	if (ret)
@@ -1627,8 +1627,6 @@ out_err3:
 	s5k6aa_free_gpios(s5k6aa);
 out_err2:
 	media_entity_cleanup(&s5k6aa->sd.entity);
-out_err1:
-	kfree(s5k6aa);
 	return ret;
 }
 
@@ -1642,7 +1640,6 @@ static int s5k6aa_remove(struct i2c_client *client)
 	media_entity_cleanup(&sd->entity);
 	regulator_bulk_free(S5K6AA_NUM_SUPPLIES, s5k6aa->supplies);
 	s5k6aa_free_gpios(s5k6aa);
-	kfree(s5k6aa);
 
 	return 0;
 }
