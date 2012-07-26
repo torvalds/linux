@@ -109,6 +109,7 @@ struct intel_pch_pll {
 
 #define WATCH_COHERENCY	0
 #define WATCH_LISTS	0
+#define WATCH_GTT	0
 
 #define I915_GEM_PHYS_CURSOR_0 1
 #define I915_GEM_PHYS_CURSOR_1 2
@@ -1406,7 +1407,9 @@ void i915_gem_init_global_gtt(struct drm_device *dev,
 
 /* i915_gem_evict.c */
 int __must_check i915_gem_evict_something(struct drm_device *dev, int min_size,
-					  unsigned alignment, bool mappable);
+					  unsigned alignment,
+					  unsigned cache_level,
+					  bool mappable);
 int i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only);
 
 /* i915_gem_stolen.c */
