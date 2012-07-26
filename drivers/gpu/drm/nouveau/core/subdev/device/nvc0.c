@@ -52,6 +52,7 @@ nvc0_identify(struct nouveau_device *device)
 {
 	switch (device->chipset) {
 	case 0xc0:
+		device->cname = "GF100";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
@@ -77,6 +78,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xc4:
+		device->cname = "GF104";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
@@ -102,6 +104,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xc3:
+		device->cname = "GF106";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
@@ -127,6 +130,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xce:
+		device->cname = "GF114";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
@@ -152,6 +156,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xcf:
+		device->cname = "GF116";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
@@ -177,6 +182,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xc1:
+		device->cname = "GF108";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
@@ -202,6 +208,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xc8:
+		device->cname = "GF110";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv50_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
@@ -227,6 +234,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv50_disp_oclass;
 		break;
 	case 0xd9:
+		device->cname = "GF119";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nvd0_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;

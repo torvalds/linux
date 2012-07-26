@@ -48,6 +48,7 @@ nve0_identify(struct nouveau_device *device)
 {
 	switch (device->chipset) {
 	case 0xe4:
+		device->cname = "GK104";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nvd0_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
@@ -68,6 +69,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nvd0_disp_oclass;
 		break;
 	case 0xe7:
+		device->cname = "GK107";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nvd0_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;

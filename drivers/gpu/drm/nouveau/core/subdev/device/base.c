@@ -204,7 +204,8 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 		}
 
 		nv_info(device, "BOOT0  : 0x%08x\n", boot0);
-		nv_info(device, "Chipset: NV%02X\n", device->chipset);
+		nv_info(device, "Chipset: %s (NV%02X)\n",
+			device->cname, device->chipset);
 		nv_info(device, "Family : NV%02X\n", device->card_type);
 
 		/* determine frequency of timing crystal */

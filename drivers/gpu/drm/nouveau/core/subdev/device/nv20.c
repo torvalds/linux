@@ -45,6 +45,7 @@ nv20_identify(struct nouveau_device *device)
 {
 	switch (device->chipset) {
 	case 0x20:
+		device->cname = "NV20";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
@@ -62,6 +63,7 @@ nv20_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
 		break;
 	case 0x25:
+		device->cname = "NV25";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
@@ -79,6 +81,7 @@ nv20_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
 		break;
 	case 0x28:
+		device->cname = "NV28";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
@@ -96,6 +99,7 @@ nv20_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
 		break;
 	case 0x2a:
+		device->cname = "NV2A";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
