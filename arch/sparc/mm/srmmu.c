@@ -228,7 +228,17 @@ void srmmu_free_nocache(void *addr, int size)
 static void srmmu_early_allocate_ptable_skeleton(unsigned long start,
 						 unsigned long end);
 
-extern unsigned long probe_memory(void);	/* in fault.c */
+/* Return how much physical memory we have.  */
+static unsigned long __init probe_memory(void)
+{
+	unsigned long total = 0;
+	int i;
+
+	for (i = 0; sp_banks[i].num_bytes; i++)
+		total += sp_banks[i].num_bytes;
+
+	return total;
+}
 
 /*
  * Reserve nocache dynamically proportionally to the amount of
