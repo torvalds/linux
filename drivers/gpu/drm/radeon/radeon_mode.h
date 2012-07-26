@@ -252,6 +252,8 @@ struct radeon_mode_info {
 
 	/* pointer to fbdev info structure */
 	struct radeon_fbdev *rfbdev;
+	/* firmware flags */
+	u16 firmware_flags;
 };
 
 #define MAX_H_CODE_TIMING_LEN 32

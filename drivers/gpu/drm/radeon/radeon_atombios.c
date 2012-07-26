@@ -1254,6 +1254,10 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		if (rdev->clock.max_pixel_clock == 0)
 			rdev->clock.max_pixel_clock = 40000;
 
+		/* not technically a clock, but... */
+		rdev->mode_info.firmware_flags =
+			le16_to_cpu(firmware_info->info.usFirmwareCapability.susAccess);
+
 		return true;
 	}
 
