@@ -258,6 +258,7 @@ extern const struct proc_ns_operations netns_operations;
 extern const struct proc_ns_operations utsns_operations;
 extern const struct proc_ns_operations ipcns_operations;
 extern const struct proc_ns_operations pidns_operations;
+extern const struct proc_ns_operations userns_operations;
 extern const struct proc_ns_operations mntns_operations;
 
 union proc_op {
