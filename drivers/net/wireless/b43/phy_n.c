@@ -127,6 +127,46 @@ ok:
 	b43_phy_write(dev, B43_NPHY_RFSEQMODE, seq_mode);
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RFCtrlOverrideRev7 */
+static void b43_nphy_rf_control_override_rev7(struct b43_wldev *dev, u16 field,
+					      u16 value, u8 core, bool off,
+					      u8 override)
+{
+	const struct nphy_rf_control_override_rev7 *e;
+	u16 en_addrs[3][2] = {
+		{ 0x0E7, 0x0EC }, { 0x342, 0x343 }, { 0x346, 0x347 }
+	};
+	u16 en_addr;
+	u16 en_mask = field;
+	u16 val_addr;
+	u8 i;
+
+	/* Remember: we can get NULL! */
+	e = b43_nphy_get_rf_ctl_over_rev7(dev, field, override);
+
+	for (i = 0; i < 2; i++) {
+		if (override >= ARRAY_SIZE(en_addrs)) {
+			b43err(dev->wl, "Invalid override value %d\n", override);
+			return;
+		}
+		en_addr = en_addrs[override][i];
+
+		val_addr = (i == 0) ? e->val_addr_core0 : e->val_addr_core1;
+
+		if (off) {
+			b43_phy_mask(dev, en_addr, ~en_mask);
+			if (e) /* Do it safer, better than wl */
+				b43_phy_mask(dev, val_addr, ~e->val_mask);
+		} else {
+			if (!core || (core & (1 << i))) {
+				b43_phy_set(dev, en_addr, en_mask);
+				if (e)
+					b43_phy_maskset(dev, val_addr, ~e->val_mask, (value << e->val_shift));
+			}
+		}
+	}
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RFCtrlOverride */
 static void b43_nphy_rf_control_override(struct b43_wldev *dev, u16 field,
 						u16 value, u8 core, bool off)
@@ -2219,11 +2259,11 @@ static void b43_nphy_workarounds_rev7plus(struct b43_wldev *dev)
 			b43_ntab_write(dev, B43_NTAB16(7, 0x159 + core * 16),
 				       rx2tx_lut_40_11n);
 		}
-		/* b43_nphy_rf_control_override_rev7(dev, 16, 1, 3, 0, 2); */
+		b43_nphy_rf_control_override_rev7(dev, 16, 1, 3, false, 2);
 	}
 	b43_phy_write(dev, 0x32F, 0x3);
 	if (phy->radio_rev == 4 || phy->radio_rev == 6)
-		; /* b43_nphy_rf_control_override_rev7(dev, 4, 1, 3, 0, 0); */
+		b43_nphy_rf_control_override_rev7(dev, 4, 1, 3, false, 0);
 
 	if (phy->radio_rev == 3 || phy->radio_rev == 4 || phy->radio_rev == 6) {
 		if (sprom->revision &&
@@ -3083,7 +3123,7 @@ static void b43_nphy_tx_power_ctl_idle_tssi(struct b43_wldev *dev)
 		b43_nphy_ipa_internal_tssi_setup(dev);
 
 	if (phy->rev >= 7)
-		; /* TODO: Override Rev7 with 0x2000, 0, 3, 0, 0 as arguments */
+		b43_nphy_rf_control_override_rev7(dev, 0x2000, 0, 3, false, 0);
 	else if (phy->rev >= 3)
 		b43_nphy_rf_control_override(dev, 0x2000, 0, 3, false);
 
@@ -3095,7 +3135,7 @@ static void b43_nphy_tx_power_ctl_idle_tssi(struct b43_wldev *dev)
 	b43_nphy_rssi_select(dev, 0, 0);
 
 	if (phy->rev >= 7)
-		; /* TODO: Override Rev7 with 0x2000, 0, 3, 1, 0 as arguments */
+		b43_nphy_rf_control_override_rev7(dev, 0x2000, 0, 3, true, 0);
 	else if (phy->rev >= 3)
 		b43_nphy_rf_control_override(dev, 0x2000, 0, 3, true);
 
