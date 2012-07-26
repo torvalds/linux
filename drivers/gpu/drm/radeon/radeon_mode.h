@@ -256,6 +256,17 @@ struct radeon_mode_info {
 	u16 firmware_flags;
 };
 
+#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
+
+#define RADEON_MAX_BL_LEVEL 0xFF
+
+struct radeon_backlight_privdata {
+	struct radeon_encoder *encoder;
+	uint8_t negative;
+};
+
+#endif
+
 #define MAX_H_CODE_TIMING_LEN 32
 #define MAX_V_CODE_TIMING_LEN 32
 
