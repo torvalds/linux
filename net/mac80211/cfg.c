@@ -2189,6 +2189,9 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 
 	lockdep_assert_held(&local->mtx);
 
+	if (local->use_chanctx && !local->ops->remain_on_channel)
+		return -EOPNOTSUPP;
+
 	roc = kzalloc(sizeof(*roc), GFP_KERNEL);
 	if (!roc)
 		return -ENOMEM;

@@ -107,6 +107,9 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local,
 {
 	struct ieee80211_sub_if_data *sdata;
 
+	if (WARN_ON(local->use_chanctx))
+		return;
+
 	/*
 	 * notify the AP about us leaving the channel and stop all
 	 * STA interfaces.
@@ -144,6 +147,9 @@ void ieee80211_offchannel_return(struct ieee80211_local *local,
 				 bool offchannel_ps_disable)
 {
 	struct ieee80211_sub_if_data *sdata;
+
+	if (WARN_ON(local->use_chanctx))
+		return;
 
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {

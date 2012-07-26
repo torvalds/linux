@@ -336,6 +336,10 @@ EXPORT_SYMBOL(ieee80211_scan_completed);
 
 static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 {
+	/* Software scan is not supported in multi-channel cases */
+	if (local->use_chanctx)
+		return -EOPNOTSUPP;
+
 	/*
 	 * Hardware/driver doesn't support hw_scan, so use software
 	 * scanning instead. First send a nullfunc frame with power save

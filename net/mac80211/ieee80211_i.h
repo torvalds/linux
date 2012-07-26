@@ -882,6 +882,8 @@ struct ieee80211_local {
 
 	bool wiphy_ciphers_allocated;
 
+	bool use_chanctx;
+
 	/* protects the aggregated multicast list and filter calls */
 	spinlock_t filter_lock;
 
