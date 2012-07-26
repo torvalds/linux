@@ -198,8 +198,8 @@ static int omap4_pwrdm_wait_transition(struct powerdomain *pwrdm)
 		udelay(1);
 
 	if (c > PWRDM_TRANSITION_BAILOUT) {
-		printk(KERN_ERR "powerdomain: waited too long for "
-		       "powerdomain %s to complete transition\n", pwrdm->name);
+		pr_err("powerdomain: %s: waited too long to complete transition\n",
+		       pwrdm->name);
 		return -EAGAIN;
 	}
 

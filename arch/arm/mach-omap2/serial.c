@@ -229,9 +229,8 @@ static int __init omap_serial_early_init(void)
 
 			if (console_loglevel >= 10) {
 				uart_debug = true;
-				pr_info("%s used as console in debug mode"
-						" uart%d clocks will not be"
-						" gated", uart_name, uart->num);
+				pr_info("%s used as console in debug mode: uart%d clocks will not be gated",
+					uart_name, uart->num);
 			}
 
 			if (cmdline_find_option("no_console_suspend"))

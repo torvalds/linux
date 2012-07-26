@@ -1641,8 +1641,8 @@ static int _ocp_softreset(struct omap_hwmod *oh)
 
 	/* clocks must be on for this operation */
 	if (oh->_state != _HWMOD_STATE_ENABLED) {
-		pr_warning("omap_hwmod: %s: reset can only be entered from "
-			   "enabled state\n", oh->name);
+		pr_warn("omap_hwmod: %s: reset can only be entered from enabled state\n",
+			oh->name);
 		return -EINVAL;
 	}
 

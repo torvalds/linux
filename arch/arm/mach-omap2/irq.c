@@ -107,9 +107,8 @@ static void __init omap_irq_bank_init_one(struct omap_irq_bank *bank)
 	unsigned long tmp;
 
 	tmp = intc_bank_read_reg(bank, INTC_REVISION) & 0xff;
-	printk(KERN_INFO "IRQ: Found an INTC at 0x%p "
-			 "(revision %ld.%ld) with %d interrupts\n",
-			 bank->base_reg, tmp >> 4, tmp & 0xf, bank->nr_irqs);
+	pr_info("IRQ: Found an INTC at 0x%p (revision %ld.%ld) with %d interrupts\n",
+		bank->base_reg, tmp >> 4, tmp & 0xf, bank->nr_irqs);
 
 	tmp = intc_bank_read_reg(bank, INTC_SYSCONFIG);
 	tmp |= 1 << 1;	/* soft reset */
