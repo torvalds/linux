@@ -99,14 +99,12 @@ static inline struct fimc_md *entity_to_fimc_mdev(struct media_entity *me)
 
 static inline void fimc_md_graph_lock(struct fimc_dev *fimc)
 {
-	BUG_ON(fimc->vid_cap.vfd == NULL);
-	mutex_lock(&fimc->vid_cap.vfd->entity.parent->graph_mutex);
+	mutex_lock(&fimc->vid_cap.vfd.entity.parent->graph_mutex);
 }
 
 static inline void fimc_md_graph_unlock(struct fimc_dev *fimc)
 {
-	BUG_ON(fimc->vid_cap.vfd == NULL);
-	mutex_unlock(&fimc->vid_cap.vfd->entity.parent->graph_mutex);
+	mutex_unlock(&fimc->vid_cap.vfd.entity.parent->graph_mutex);
 }
 
 int fimc_md_set_camclk(struct v4l2_subdev *sd, bool on);

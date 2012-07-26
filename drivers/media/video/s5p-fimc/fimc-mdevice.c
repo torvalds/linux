@@ -696,7 +696,7 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 		if (!fmd->fimc[i])
 			continue;
 		source = &fmd->fimc[i]->vid_cap.subdev.entity;
-		sink = &fmd->fimc[i]->vid_cap.vfd->entity;
+		sink = &fmd->fimc[i]->vid_cap.vfd.entity;
 		ret = media_entity_create_link(source, FIMC_SD_PAD_SOURCE,
 					      sink, 0, flags);
 		if (ret)

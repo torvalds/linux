@@ -320,7 +320,7 @@ struct fimc_m2m_device {
 struct fimc_vid_cap {
 	struct fimc_ctx			*ctx;
 	struct vb2_alloc_ctx		*alloc_ctx;
-	struct video_device		*vfd;
+	struct video_device		vfd;
 	struct v4l2_subdev		subdev;
 	struct media_pad		vd_pad;
 	struct v4l2_mbus_framefmt	mf;
