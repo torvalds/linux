@@ -602,6 +602,8 @@ static void stop_read_write_urbs(struct usb_serial *serial)
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
 		portdata = usb_get_serial_port_data(port);
+		if (!portdata)
+			continue;
 		for (j = 0; j < N_IN_URB; j++)
 			usb_kill_urb(portdata->in_urbs[j]);
 		for (j = 0; j < N_OUT_URB; j++)
@@ -700,7 +702,7 @@ int usb_wwan_resume(struct usb_serial *serial)
 
 		/* skip closed ports */
 		spin_lock_irq(&intfdata->susp_lock);
-		if (!portdata->opened) {
+		if (!portdata || !portdata->opened) {
 			spin_unlock_irq(&intfdata->susp_lock);
 			continue;
 		}
