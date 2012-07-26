@@ -2159,13 +2159,6 @@ static int pch_gbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	struct pch_gbe_tx_ring *tx_ring = adapter->tx_ring;
 	unsigned long flags;
 
-	if (unlikely(skb->len > (adapter->hw.mac.max_frame_size - 4))) {
-		pr_err("Transfer length Error: skb len: %d > max: %d\n",
-		       skb->len, adapter->hw.mac.max_frame_size);
-		dev_kfree_skb_any(skb);
-		adapter->stats.tx_length_errors++;
-		return NETDEV_TX_OK;
-	}
 	if (!spin_trylock_irqsave(&tx_ring->tx_lock, flags)) {
 		/* Collision - tell upper layer to requeue */
 		return NETDEV_TX_LOCKED;
