@@ -750,6 +750,7 @@ static ssize_t comm_local_write(struct dlm_comm *cm, const char *buf,
 static ssize_t comm_addr_write(struct dlm_comm *cm, const char *buf, size_t len)
 {
 	struct sockaddr_storage *addr;
+	int rv;
 
 	if (len != sizeof(struct sockaddr_storage))
 		return -EINVAL;
@@ -762,6 +763,13 @@ static ssize_t comm_addr_write(struct dlm_comm *cm, const char *buf, size_t len)
 		return -ENOMEM;
 
 	memcpy(addr, buf, len);
+
+	rv = dlm_lowcomms_addr(cm->nodeid, addr, len);
+	if (rv) {
+		kfree(addr);
+		return rv;
+	}
+
 	cm->addr[cm->addr_count++] = addr;
 	return len;
 }
@@ -878,34 +886,7 @@ static void put_space(struct dlm_space *sp)
 	config_item_put(&sp->group.cg_item);
 }
 
-static int addr_compare(struct sockaddr_storage *x, struct sockaddr_storage *y)
-{
-	switch (x->ss_family) {
-	case AF_INET: {
-		struct sockaddr_in *sinx = (struct sockaddr_in *)x;
-		struct sockaddr_in *siny = (struct sockaddr_in *)y;
-		if (sinx->sin_addr.s_addr != siny->sin_addr.s_addr)
-			return 0;
-		if (sinx->sin_port != siny->sin_port)
-			return 0;
-		break;
-	}
-	case AF_INET6: {
-		struct sockaddr_in6 *sinx = (struct sockaddr_in6 *)x;
-		struct sockaddr_in6 *siny = (struct sockaddr_in6 *)y;
-		if (!ipv6_addr_equal(&sinx->sin6_addr, &siny->sin6_addr))
-			return 0;
-		if (sinx->sin6_port != siny->sin6_port)
-			return 0;
-		break;
-	}
-	default:
-		return 0;
-	}
-	return 1;
-}
-
-static struct dlm_comm *get_comm(int nodeid, struct sockaddr_storage *addr)
+static struct dlm_comm *get_comm(int nodeid)
 {
 	struct config_item *i;
 	struct dlm_comm *cm = NULL;
@@ -919,19 +900,11 @@ static struct dlm_comm *get_comm(int nodeid, struct sockaddr_storage *addr)
 	list_for_each_entry(i, &comm_list->cg_children, ci_entry) {
 		cm = config_item_to_comm(i);
 
-		if (nodeid) {
-			if (cm->nodeid != nodeid)
-				continue;
-			found = 1;
-			config_item_get(i);
-			break;
-		} else {
-			if (!cm->addr_count || !addr_compare(cm->addr[0], addr))
-				continue;
-			found = 1;
-			config_item_get(i);
-			break;
-		}
+		if (cm->nodeid != nodeid)
+			continue;
+		found = 1;
+		config_item_get(i);
+		break;
 	}
 	mutex_unlock(&clusters_root.subsys.su_mutex);
 
@@ -995,32 +968,10 @@ int dlm_config_nodes(char *lsname, struct dlm_config_node **nodes_out,
 
 int dlm_comm_seq(int nodeid, uint32_t *seq)
 {
-	struct dlm_comm *cm = get_comm(nodeid, NULL);
+	struct dlm_comm *cm = get_comm(nodeid);
 	if (!cm)
 		return -EEXIST;
 	*seq = cm->seq;
-	put_comm(cm);
-	return 0;
-}
-
-int dlm_nodeid_to_addr(int nodeid, struct sockaddr_storage *addr)
-{
-	struct dlm_comm *cm = get_comm(nodeid, NULL);
-	if (!cm)
-		return -EEXIST;
-	if (!cm->addr_count)
-		return -ENOENT;
-	memcpy(addr, cm->addr[0], sizeof(*addr));
-	put_comm(cm);
-	return 0;
-}
-
-int dlm_addr_to_nodeid(struct sockaddr_storage *addr, int *nodeid)
-{
-	struct dlm_comm *cm = get_comm(0, addr);
-	if (!cm)
-		return -EEXIST;
-	*nodeid = cm->nodeid;
 	put_comm(cm);
 	return 0;
 }
