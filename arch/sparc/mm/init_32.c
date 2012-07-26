@@ -294,8 +294,6 @@ void __init paging_init(void)
 {
 	switch(sparc_cpu_model) {
 	case sparc_leon:
-		leon_init();
-		/* fall through */
 	case sun4m:
 	case sun4d:
 		srmmu_paging_init();
