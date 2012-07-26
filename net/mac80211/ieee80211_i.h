@@ -773,6 +773,21 @@ struct ieee80211_sub_if_data *vif_to_sdata(struct ieee80211_vif *p)
 	return container_of(p, struct ieee80211_sub_if_data, vif);
 }
 
+static inline enum ieee80211_band
+ieee80211_get_sdata_band(struct ieee80211_sub_if_data *sdata)
+{
+	enum ieee80211_band band = IEEE80211_BAND_2GHZ;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	if (!WARN_ON(!chanctx_conf))
+		band = chanctx_conf->channel->band;
+	rcu_read_unlock();
+
+	return band;
+}
+
 enum sdata_queue_type {
 	IEEE80211_SDATA_QUEUE_TYPE_FRAME	= 0,
 	IEEE80211_SDATA_QUEUE_AGG_START		= 1,
@@ -1006,8 +1021,10 @@ struct ieee80211_local {
 	enum mac80211_scan_state next_scan_state;
 	struct delayed_work scan_work;
 	struct ieee80211_sub_if_data __rcu *scan_sdata;
+	struct ieee80211_channel *csa_channel;
+	/* For backward compatibility only -- do not use */
+	struct ieee80211_channel *_oper_channel;
 	enum nl80211_channel_type _oper_channel_type;
-	struct ieee80211_channel *oper_channel, *csa_channel;
 
 	/* Temporary remain-on-channel for off-channel operations */
 	struct ieee80211_channel *tmp_channel;
@@ -1121,6 +1138,8 @@ struct ieee80211_local {
 
 	/* virtual monitor interface */
 	struct ieee80211_sub_if_data __rcu *monitor_sdata;
+	struct ieee80211_channel *monitor_channel;
+	enum nl80211_channel_type monitor_channel_type;
 };
 
 static inline struct ieee80211_sub_if_data *
@@ -1423,11 +1442,42 @@ void mac80211_ev_michael_mic_failure(struct ieee80211_sub_if_data *sdata, int ke
 				     gfp_t gfp);
 void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 			       bool bss_notify);
-void ieee80211_xmit(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb);
+void ieee80211_xmit(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
+		    enum ieee80211_band band);
 
-void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
-			  struct sk_buff *skb, int tid);
-static void inline ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
+void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
+				 struct sk_buff *skb, int tid,
+				 enum ieee80211_band band);
+
+static inline void
+ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
+			  struct sk_buff *skb, int tid,
+			  enum ieee80211_band band)
+{
+	rcu_read_lock();
+	__ieee80211_tx_skb_tid_band(sdata, skb, tid, band);
+	rcu_read_unlock();
+}
+
+static inline void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
+					struct sk_buff *skb, int tid)
+{
+	struct ieee80211_chanctx_conf *chanctx_conf;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	if (WARN_ON(!chanctx_conf)) {
+		rcu_read_unlock();
+		kfree_skb(skb);
+		return;
+	}
+
+	__ieee80211_tx_skb_tid_band(sdata, skb, tid,
+				    chanctx_conf->channel->band);
+	rcu_read_unlock();
+}
+
+static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
 				    struct sk_buff *skb)
 {
 	/* Send all internal mgmt frames on VO. Accordingly set TID to 7. */
@@ -1494,7 +1544,7 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
 			      const u8 *ie, size_t ie_len,
 			      u32 ratemask, bool directed, bool no_cck,
-			      struct ieee80211_channel *channel);
+			      struct ieee80211_channel *channel, bool scan);
 
 void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
 				  const size_t supp_rates_len,
@@ -1525,18 +1575,6 @@ int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
 				enum ieee80211_band band);
 
 /* channel management */
-enum ieee80211_chan_mode {
-	CHAN_MODE_UNDEFINED,
-	CHAN_MODE_HOPPING,
-	CHAN_MODE_FIXED,
-};
-
-enum ieee80211_chan_mode
-ieee80211_get_channel_mode(struct ieee80211_local *local,
-			   struct ieee80211_sub_if_data *ignore);
-bool ieee80211_set_channel_type(struct ieee80211_local *local,
-				struct ieee80211_sub_if_data *sdata,
-				enum nl80211_channel_type chantype);
 enum nl80211_channel_type
 ieee80211_ht_oper_to_channel_type(struct ieee80211_ht_operation *ht_oper);
 

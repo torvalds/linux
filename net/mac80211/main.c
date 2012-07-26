@@ -93,15 +93,13 @@ static void ieee80211_reconfig_filter(struct work_struct *work)
 	ieee80211_configure_filter(local);
 }
 
-int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
+static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
 {
 	struct ieee80211_channel *chan;
-	int ret = 0;
+	u32 changed = 0;
 	int power;
 	enum nl80211_channel_type channel_type;
 	u32 offchannel_flag;
-
-	might_sleep();
 
 	offchannel_flag = local->hw.conf.flags & IEEE80211_CONF_OFFCHANNEL;
 	if (local->scan_channel) {
@@ -109,7 +107,7 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 		/* If scanning on oper channel, use whatever channel-type
 		 * is currently in use.
 		 */
-		if (chan == local->oper_channel)
+		if (chan == local->_oper_channel)
 			channel_type = local->_oper_channel_type;
 		else
 			channel_type = NL80211_CHAN_NO_HT;
@@ -117,11 +115,11 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 		chan = local->tmp_channel;
 		channel_type = local->tmp_channel_type;
 	} else {
-		chan = local->oper_channel;
+		chan = local->_oper_channel;
 		channel_type = local->_oper_channel_type;
 	}
 
-	if (chan != local->oper_channel ||
+	if (chan != local->_oper_channel ||
 	    channel_type != local->_oper_channel_type)
 		local->hw.conf.flags |= IEEE80211_CONF_OFFCHANNEL;
 	else
@@ -163,6 +161,21 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 		changed |= IEEE80211_CONF_CHANGE_POWER;
 		local->hw.conf.power_level = power;
 	}
+
+	return changed;
+}
+
+int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
+{
+	int ret = 0;
+
+	might_sleep();
+
+	if (!local->use_chanctx)
+		changed |= ieee80211_hw_conf_chan(local);
+	else
+		changed &= ~(IEEE80211_CONF_CHANGE_CHANNEL |
+			     IEEE80211_CONF_CHANGE_POWER);
 
 	if (changed && local->open_count) {
 		ret = drv_config(local, changed);
@@ -775,11 +788,15 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		sband = local->hw.wiphy->bands[band];
 		if (!sband)
 			continue;
-		if (!local->oper_channel) {
+		if (!local->use_chanctx && !local->_oper_channel) {
 			/* init channel we're on */
 			local->hw.conf.channel =
-			local->oper_channel = &sband->channels[0];
+			local->_oper_channel = &sband->channels[0];
 			local->hw.conf.channel_type = NL80211_CHAN_NO_HT;
+		}
+		if (!local->monitor_channel) {
+			local->monitor_channel = &sband->channels[0];
+			local->monitor_channel_type = NL80211_CHAN_NO_HT;
 		}
 		channels += sband->n_channels;
 
@@ -810,18 +827,12 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_MONITOR);
 	hw->wiphy->software_iftypes |= BIT(NL80211_IFTYPE_MONITOR);
 
-	/*
-	 * mac80211 doesn't support more than 1 channel, and also not more
-	 * than one IBSS interface
-	 */
+	/* mac80211 doesn't support more than one IBSS interface right now */
 	for (i = 0; i < hw->wiphy->n_iface_combinations; i++) {
 		const struct ieee80211_iface_combination *c;
 		int j;
 
 		c = &hw->wiphy->iface_combinations[i];
-
-		if (c->num_different_channels > 1)
-			return -EINVAL;
 
 		for (j = 0; j < c->n_limits; j++)
 			if ((c->limits[j].types & BIT(NL80211_IFTYPE_ADHOC)) &&

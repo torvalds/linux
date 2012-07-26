@@ -832,6 +832,7 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_tx_queue_params qparam;
+	struct ieee80211_chanctx_conf *chanctx_conf;
 	int ac;
 	bool use_11b, enable_qos;
 	int aCWmin, aCWmax;
@@ -844,8 +845,12 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 
 	memset(&qparam, 0, sizeof(qparam));
 
-	use_11b = (local->oper_channel->band == IEEE80211_BAND_2GHZ) &&
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	use_11b = (chanctx_conf &&
+		   chanctx_conf->channel->band == IEEE80211_BAND_2GHZ) &&
 		 !(sdata->flags & IEEE80211_SDATA_OPERATING_GMODE);
+	rcu_read_unlock();
 
 	/*
 	 * By default disable QoS in STA mode for old access points, which do
@@ -924,7 +929,7 @@ void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
 				  const size_t supp_rates_len,
 				  const u8 *supp_rates)
 {
-	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *chanctx_conf;
 	int i, have_higher_than_11mbit = 0;
 
 	/* cf. IEEE 802.11 9.2.12 */
@@ -932,11 +937,16 @@ void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
 		if ((supp_rates[i] & 0x7f) * 5 > 110)
 			have_higher_than_11mbit = 1;
 
-	if (local->oper_channel->band == IEEE80211_BAND_2GHZ &&
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+
+	if (chanctx_conf &&
+	    chanctx_conf->channel->band == IEEE80211_BAND_2GHZ &&
 	    have_higher_than_11mbit)
 		sdata->flags |= IEEE80211_SDATA_OPERATING_GMODE;
 	else
 		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
+	rcu_read_unlock();
 
 	ieee80211_set_wmm_default(sdata, true);
 }
@@ -1206,7 +1216,7 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
 			      const u8 *ie, size_t ie_len,
 			      u32 ratemask, bool directed, bool no_cck,
-			      struct ieee80211_channel *channel)
+			      struct ieee80211_channel *channel, bool scan)
 {
 	struct sk_buff *skb;
 
@@ -1217,7 +1227,10 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 		if (no_cck)
 			IEEE80211_SKB_CB(skb)->flags |=
 				IEEE80211_TX_CTL_NO_CCK_RATE;
-		ieee80211_tx_skb(sdata, skb);
+		if (scan)
+			ieee80211_tx_skb_tid_band(sdata, skb, 7, channel->band);
+		else
+			ieee80211_tx_skb(sdata, skb);
 	}
 }
 
@@ -1280,6 +1293,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 {
 	struct ieee80211_hw *hw = &local->hw;
 	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_chanctx *ctx;
 	struct sta_info *sta;
 	int res, i;
 
@@ -1352,6 +1366,12 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			res = drv_add_interface(local, sdata);
 	}
 
+	/* add channel contexts */
+	mutex_lock(&local->chanctx_mtx);
+	list_for_each_entry(ctx, &local->chanctx_list, list)
+		WARN_ON(drv_add_chanctx(local, ctx));
+	mutex_unlock(&local->chanctx_mtx);
+
 	/* add STAs back */
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry(sta, &local->sta_list, list) {
@@ -1392,10 +1412,21 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 	/* Finally also reconfigure all the BSS information */
 	list_for_each_entry(sdata, &local->interfaces, list) {
+		struct ieee80211_chanctx_conf *ctx_conf;
 		u32 changed;
 
 		if (!ieee80211_sdata_running(sdata))
 			continue;
+
+		mutex_lock(&local->chanctx_mtx);
+		ctx_conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+				lockdep_is_held(&local->chanctx_mtx));
+		if (ctx_conf) {
+			ctx = container_of(ctx_conf, struct ieee80211_chanctx,
+					   conf);
+			drv_assign_vif_chanctx(local, sdata, ctx);
+		}
+		mutex_unlock(&local->chanctx_mtx);
 
 		/* common change flags for all interface types */
 		changed = BSS_CHANGED_ERP_CTS_PROT |

@@ -372,10 +372,11 @@ static int ieee80211_config_default_mgmt_key(struct wiphy *wiphy,
 
 static void rate_idx_to_bitrate(struct rate_info *rate, struct sta_info *sta, int idx)
 {
+	enum ieee80211_band band = ieee80211_get_sdata_band(sta->sdata);
+
 	if (!(rate->flags & RATE_INFO_FLAGS_MCS)) {
 		struct ieee80211_supported_band *sband;
-		sband = sta->local->hw.wiphy->bands[
-				sta->local->oper_channel->band];
+		sband = sta->local->hw.wiphy->bands[band];
 		rate->legacy = sband->bitrates[idx].bitrate;
 	} else
 		rate->mcs = idx;
@@ -532,6 +533,8 @@ static void ieee80211_get_et_stats(struct wiphy *wiphy,
 				   u64 *data)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	struct ieee80211_channel *channel;
 	struct sta_info *sta;
 	struct ieee80211_local *local = sdata->local;
 	struct station_info sinfo;
@@ -607,19 +610,26 @@ static void ieee80211_get_et_stats(struct wiphy *wiphy,
 do_survey:
 	i = STA_STATS_LEN - STA_STATS_SURVEY_LEN;
 	/* Get survey stats for current channel */
-	q = 0;
-	while (true) {
-		survey.filled = 0;
-		if (drv_get_survey(local, q, &survey) != 0) {
-			survey.filled = 0;
-			break;
-		}
+	survey.filled = 0;
 
-		if (survey.channel &&
-		    (local->oper_channel->center_freq ==
-		     survey.channel->center_freq))
-			break;
-		q++;
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	if (chanctx_conf)
+		channel = chanctx_conf->channel;
+	else
+		channel = NULL;
+	rcu_read_unlock();
+
+	if (channel) {
+		q = 0;
+		do {
+			survey.filled = 0;
+			if (drv_get_survey(local, q, &survey) != 0) {
+				survey.filled = 0;
+				break;
+			}
+			q++;
+		} while (channel != survey.channel);
 	}
 
 	if (survey.filled)
@@ -724,47 +734,42 @@ static int ieee80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
-static int ieee80211_set_channel(struct wiphy *wiphy,
-				 struct net_device *netdev,
-				 struct ieee80211_channel *chan,
-				 enum nl80211_channel_type channel_type)
-{
-	struct ieee80211_local *local = wiphy_priv(wiphy);
-	struct ieee80211_sub_if_data *sdata = NULL;
-
-	if (netdev)
-		sdata = IEEE80211_DEV_TO_SUB_IF(netdev);
-
-	switch (ieee80211_get_channel_mode(local, NULL)) {
-	case CHAN_MODE_HOPPING:
-		return -EBUSY;
-	case CHAN_MODE_FIXED:
-		if (local->oper_channel != chan ||
-		    (!sdata && local->_oper_channel_type != channel_type))
-			return -EBUSY;
-		if (!sdata && local->_oper_channel_type == channel_type)
-			return 0;
-		break;
-	case CHAN_MODE_UNDEFINED:
-		break;
-	}
-
-	if (!ieee80211_set_channel_type(local, sdata, channel_type))
-		return -EBUSY;
-
-	local->oper_channel = chan;
-
-	/* auto-detects changes */
-	ieee80211_hw_config(local, 0);
-
-	return 0;
-}
-
 static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
 					 struct ieee80211_channel *chan,
 					 enum nl80211_channel_type channel_type)
 {
-	return ieee80211_set_channel(wiphy, NULL, chan, channel_type);
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+	struct ieee80211_sub_if_data *sdata;
+	int ret = 0;
+
+	if (local->monitor_channel == chan &&
+	    local->monitor_channel_type == channel_type)
+		return 0;
+
+	mutex_lock(&local->iflist_mtx);
+	if (local->use_chanctx) {
+		sdata = rcu_dereference_protected(
+				local->monitor_sdata,
+				lockdep_is_held(&local->iflist_mtx));
+		if (sdata) {
+			ieee80211_vif_release_channel(sdata);
+			ret = ieee80211_vif_use_channel(
+					sdata, chan, channel_type,
+					IEEE80211_CHANCTX_EXCLUSIVE);
+		}
+	} else if (local->open_count == local->monitors) {
+		local->_oper_channel = chan;
+		local->_oper_channel_type = channel_type;
+		ieee80211_hw_config(local, 0);
+	}
+
+	if (ret == 0) {
+		local->monitor_channel = chan;
+		local->monitor_channel_type = channel_type;
+	}
+	mutex_unlock(&local->iflist_mtx);
+
+	return ret;
 }
 
 static int ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
@@ -879,8 +884,9 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (old)
 		return -EALREADY;
 
-	err = ieee80211_set_channel(wiphy, dev, params->channel,
-				    params->channel_type);
+	err = ieee80211_vif_use_channel(sdata, params->channel,
+					params->channel_type,
+					IEEE80211_CHANCTX_SHARED);
 	if (err)
 		return err;
 
@@ -963,6 +969,8 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	sta_info_flush(sdata->local, sdata);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
 
+	ieee80211_vif_release_channel(sdata);
+
 	return 0;
 }
 
@@ -1019,9 +1027,10 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 	int i, j;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
 	u32 mask, set;
 
-	sband = local->hw.wiphy->bands[local->oper_channel->band];
+	sband = local->hw.wiphy->bands[band];
 
 	mask = params->sta_flags_mask;
 	set = params->sta_flags_set;
@@ -1136,7 +1145,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 					rates |= BIT(j);
 			}
 		}
-		sta->sta.supp_rates[local->oper_channel->band] = rates;
+		sta->sta.supp_rates[band] = rates;
 	}
 
 	if (params->ht_capa)
@@ -1664,8 +1673,9 @@ static int ieee80211_join_mesh(struct wiphy *wiphy, struct net_device *dev,
 	if (err)
 		return err;
 
-	err = ieee80211_set_channel(wiphy, dev, setup->channel,
-				    setup->channel_type);
+	err = ieee80211_vif_use_channel(sdata, setup->channel,
+					setup->channel_type,
+					IEEE80211_CHANCTX_SHARED);
 	if (err)
 		return err;
 
@@ -1679,6 +1689,7 @@ static int ieee80211_leave_mesh(struct wiphy *wiphy, struct net_device *dev)
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	ieee80211_stop_mesh(sdata);
+	ieee80211_vif_release_channel(sdata);
 
 	return 0;
 }
@@ -1688,10 +1699,14 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 				struct net_device *dev,
 				struct bss_parameters *params)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	enum ieee80211_band band;
 	u32 changed = 0;
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	if (!rtnl_dereference(sdata->u.ap.beacon))
+		return -ENOENT;
+
+	band = ieee80211_get_sdata_band(sdata);
 
 	if (params->use_cts_prot >= 0) {
 		sdata->vif.bss_conf.use_cts_prot = params->use_cts_prot;
@@ -1704,7 +1719,7 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 	}
 
 	if (!sdata->vif.bss_conf.use_short_slot &&
-	    sdata->local->oper_channel->band == IEEE80211_BAND_5GHZ) {
+	    band == IEEE80211_BAND_5GHZ) {
 		sdata->vif.bss_conf.use_short_slot = true;
 		changed |= BSS_CHANGED_ERP_SLOT;
 	}
@@ -1718,9 +1733,7 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 	if (params->basic_rates) {
 		int i, j;
 		u32 rates = 0;
-		struct ieee80211_local *local = wiphy_priv(wiphy);
-		struct ieee80211_supported_band *sband =
-			wiphy->bands[local->oper_channel->band];
+		struct ieee80211_supported_band *sband = wiphy->bands[band];
 
 		for (i = 0; i < params->basic_rates_len; i++) {
 			int rate = (params->basic_rates[i] & 0x7f) * 5;
@@ -1872,20 +1885,6 @@ static int ieee80211_auth(struct wiphy *wiphy, struct net_device *dev,
 static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
 			   struct cfg80211_assoc_request *req)
 {
-	struct ieee80211_local *local = wiphy_priv(wiphy);
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	switch (ieee80211_get_channel_mode(local, sdata)) {
-	case CHAN_MODE_HOPPING:
-		return -EBUSY;
-	case CHAN_MODE_FIXED:
-		if (local->oper_channel == req->bss->channel)
-			break;
-		return -EBUSY;
-	case CHAN_MODE_UNDEFINED:
-		break;
-	}
-
 	return ieee80211_mgd_assoc(IEEE80211_DEV_TO_SUB_IF(dev), req);
 }
 
@@ -1904,30 +1903,12 @@ static int ieee80211_disassoc(struct wiphy *wiphy, struct net_device *dev,
 static int ieee80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 			       struct cfg80211_ibss_params *params)
 {
-	struct ieee80211_local *local = wiphy_priv(wiphy);
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	switch (ieee80211_get_channel_mode(local, sdata)) {
-	case CHAN_MODE_HOPPING:
-		return -EBUSY;
-	case CHAN_MODE_FIXED:
-		if (!params->channel_fixed)
-			return -EBUSY;
-		if (local->oper_channel == params->channel)
-			break;
-		return -EBUSY;
-	case CHAN_MODE_UNDEFINED:
-		break;
-	}
-
-	return ieee80211_ibss_join(sdata, params);
+	return ieee80211_ibss_join(IEEE80211_DEV_TO_SUB_IF(dev), params);
 }
 
 static int ieee80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	return ieee80211_ibss_leave(sdata);
+	return ieee80211_ibss_leave(IEEE80211_DEV_TO_SUB_IF(dev));
 }
 
 static int ieee80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
@@ -1971,8 +1952,12 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 				  enum nl80211_tx_power_setting type, int mbm)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
-	struct ieee80211_channel *chan = local->oper_channel;
+	struct ieee80211_channel *chan = local->_oper_channel;
 	u32 changes = 0;
+
+	/* FIXME */
+	if (local->use_chanctx)
+		return -EOPNOTSUPP;
 
 	switch (type) {
 	case NL80211_TX_POWER_AUTOMATIC:
@@ -2518,10 +2503,20 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	/* Check if the operating channel is the requested channel */
 	if (!need_offchan) {
-		need_offchan = chan != local->oper_channel;
-		if (channel_type_valid &&
-		    channel_type != local->_oper_channel_type)
+		struct ieee80211_chanctx_conf *chanctx_conf;
+
+		rcu_read_lock();
+		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+
+		if (chanctx_conf) {
+			need_offchan = chan != chanctx_conf->channel;
+			if (channel_type_valid &&
+			    channel_type != chanctx_conf->channel_type)
+				need_offchan = true;
+		} else {
 			need_offchan = true;
+		}
+		rcu_read_unlock();
 	}
 
 	if (need_offchan && !offchan) {
@@ -2670,7 +2665,7 @@ static u16 ieee80211_get_tdls_sta_capab(struct ieee80211_sub_if_data *sdata)
 	u16 capab;
 
 	capab = 0;
-	if (local->oper_channel->band != IEEE80211_BAND_2GHZ)
+	if (ieee80211_get_sdata_band(sdata) != IEEE80211_BAND_2GHZ)
 		return capab;
 
 	if (!(local->hw.flags & IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE))
@@ -2702,7 +2697,7 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 			       u16 status_code, struct sk_buff *skb)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = sdata->local;
+	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
 	struct ieee80211_tdls_data *tf;
 
 	tf = (void *)skb_put(skb, offsetof(struct ieee80211_tdls_data, u));
@@ -2722,10 +2717,8 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 		tf->u.setup_req.capability =
 			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
 
-		ieee80211_add_srates_ie(sdata, skb, false,
-					local->oper_channel->band);
-		ieee80211_add_ext_srates_ie(sdata, skb, false,
-					    local->oper_channel->band);
+		ieee80211_add_srates_ie(sdata, skb, false, band);
+		ieee80211_add_ext_srates_ie(sdata, skb, false, band);
 		ieee80211_tdls_add_ext_capab(skb);
 		break;
 	case WLAN_TDLS_SETUP_RESPONSE:
@@ -2738,10 +2731,8 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 		tf->u.setup_resp.capability =
 			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
 
-		ieee80211_add_srates_ie(sdata, skb, false,
-					local->oper_channel->band);
-		ieee80211_add_ext_srates_ie(sdata, skb, false,
-					    local->oper_channel->band);
+		ieee80211_add_srates_ie(sdata, skb, false, band);
+		ieee80211_add_ext_srates_ie(sdata, skb, false, band);
 		ieee80211_tdls_add_ext_capab(skb);
 		break;
 	case WLAN_TDLS_SETUP_CONFIRM:
@@ -2779,7 +2770,7 @@ ieee80211_prep_tdls_direct(struct wiphy *wiphy, struct net_device *dev,
 			   u16 status_code, struct sk_buff *skb)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = sdata->local;
+	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
 	struct ieee80211_mgmt *mgmt;
 
 	mgmt = (void *)skb_put(skb, 24);
@@ -2802,10 +2793,8 @@ ieee80211_prep_tdls_direct(struct wiphy *wiphy, struct net_device *dev,
 		mgmt->u.action.u.tdls_discover_resp.capability =
 			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
 
-		ieee80211_add_srates_ie(sdata, skb, false,
-					local->oper_channel->band);
-		ieee80211_add_ext_srates_ie(sdata, skb, false,
-					    local->oper_channel->band);
+		ieee80211_add_srates_ie(sdata, skb, false, band);
+		ieee80211_add_ext_srates_ie(sdata, skb, false, band);
 		ieee80211_tdls_add_ext_capab(skb);
 		break;
 	default:
@@ -2985,12 +2974,19 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 	bool qos;
 	struct ieee80211_tx_info *info;
 	struct sta_info *sta;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	enum ieee80211_band band;
 
 	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	if (WARN_ON(!chanctx_conf)) {
+		rcu_read_unlock();
+		return -EINVAL;
+	}
+	band = chanctx_conf->channel->band;
 	sta = sta_info_get(sdata, peer);
 	if (sta) {
 		qos = test_sta_flag(sta, WLAN_STA_WME);
-		rcu_read_unlock();
 	} else {
 		rcu_read_unlock();
 		return -ENOLINK;
@@ -3008,8 +3004,10 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + size);
-	if (!skb)
+	if (!skb) {
+		rcu_read_unlock();
 		return -ENOMEM;
+	}
 
 	skb->dev = dev;
 
@@ -3034,8 +3032,9 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 		nullfunc->qos_ctrl = cpu_to_le16(7);
 
 	local_bh_disable();
-	ieee80211_xmit(sdata, skb);
+	ieee80211_xmit(sdata, skb, band);
 	local_bh_enable();
+	rcu_read_unlock();
 
 	*cookie = (unsigned long) skb;
 	return 0;
@@ -3045,10 +3044,19 @@ static struct ieee80211_channel *
 ieee80211_cfg_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
 			  enum nl80211_channel_type *type)
 {
-	struct ieee80211_local *local = wiphy_priv(wiphy);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	struct ieee80211_channel *chan = NULL;
 
-	*type = local->_oper_channel_type;
-	return local->oper_channel;
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	if (chanctx_conf) {
+		*type = chanctx_conf->channel_type;
+		chan = chanctx_conf->channel;
+	}
+	rcu_read_unlock();
+
+	return chan;
 }
 
 #ifdef CONFIG_PM

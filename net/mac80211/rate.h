@@ -52,11 +52,21 @@ static inline void rate_control_rate_init(struct sta_info *sta)
 	struct ieee80211_sta *ista = &sta->sta;
 	void *priv_sta = sta->rate_ctrl_priv;
 	struct ieee80211_supported_band *sband;
+	struct ieee80211_chanctx_conf *chanctx_conf;
 
 	if (!ref)
 		return;
 
-	sband = local->hw.wiphy->bands[local->oper_channel->band];
+	rcu_read_lock();
+
+	chanctx_conf = rcu_dereference(sta->sdata->vif.chanctx_conf);
+	if (WARN_ON(!chanctx_conf)) {
+		rcu_read_unlock();
+		return;
+	}
+
+	sband = local->hw.wiphy->bands[chanctx_conf->channel->band];
+	rcu_read_unlock();
 
 	ref->ops->rate_init(ref->priv, sband, ista, priv_sta);
 	set_sta_flag(sta, WLAN_STA_RATE_CONTROL);

@@ -1008,6 +1008,7 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 	__le16 fc;
 	bool qos = test_sta_flag(sta, WLAN_STA_WME);
 	struct ieee80211_tx_info *info;
+	struct ieee80211_chanctx_conf *chanctx_conf;
 
 	if (qos) {
 		fc = cpu_to_le16(IEEE80211_FTYPE_DATA |
@@ -1057,7 +1058,16 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 
 	drv_allow_buffered_frames(local, sta, BIT(tid), 1, reason, false);
 
-	ieee80211_xmit(sdata, skb);
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	if (WARN_ON(!chanctx_conf)) {
+		rcu_read_unlock();
+		kfree_skb(skb);
+		return;
+	}
+
+	ieee80211_xmit(sdata, skb, chanctx_conf->channel->band);
+	rcu_read_unlock();
 }
 
 static void
