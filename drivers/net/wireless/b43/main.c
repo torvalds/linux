@@ -4277,6 +4277,35 @@ out:
 	return err;
 }
 
+static char *b43_phy_name(struct b43_wldev *dev, u8 phy_type)
+{
+	switch (phy_type) {
+	case B43_PHYTYPE_A:
+		return "A";
+	case B43_PHYTYPE_B:
+		return "B";
+	case B43_PHYTYPE_G:
+		return "G";
+	case B43_PHYTYPE_N:
+		return "N";
+	case B43_PHYTYPE_LP:
+		return "LP";
+	case B43_PHYTYPE_SSLPN:
+		return "SSLPN";
+	case B43_PHYTYPE_HT:
+		return "HT";
+	case B43_PHYTYPE_LCN:
+		return "LCN";
+	case B43_PHYTYPE_LCNXN:
+		return "LCNXN";
+	case B43_PHYTYPE_LCN40:
+		return "LCN40";
+	case B43_PHYTYPE_AC:
+		return "AC";
+	}
+	return "UNKNOWN";
+}
+
 /* Get PHY and RADIO versioning numbers */
 static int b43_phy_versioning(struct b43_wldev *dev)
 {
@@ -4337,13 +4366,13 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		unsupported = 1;
 	}
 	if (unsupported) {
-		b43err(dev->wl, "FOUND UNSUPPORTED PHY "
-		       "(Analog %u, Type %u, Revision %u)\n",
-		       analog_type, phy_type, phy_rev);
+		b43err(dev->wl, "FOUND UNSUPPORTED PHY (Analog %u, Type %d (%s), Revision %u)\n",
+		       analog_type, phy_type, b43_phy_name(dev, phy_type),
+		       phy_rev);
 		return -EOPNOTSUPP;
 	}
-	b43dbg(dev->wl, "Found PHY: Analog %u, Type %u, Revision %u\n",
-	       analog_type, phy_type, phy_rev);
+	b43info(dev->wl, "Found PHY: Analog %u, Type %d (%s), Revision %u\n",
+		analog_type, phy_type, b43_phy_name(dev, phy_type), phy_rev);
 
 	/* Get RADIO versioning */
 	if (dev->dev->core_rev >= 24) {
