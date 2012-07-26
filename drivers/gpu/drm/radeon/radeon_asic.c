@@ -2051,9 +2051,12 @@ int radeon_asic_init(struct radeon_device *rdev)
 	case CHIP_PITCAIRN:
 	case CHIP_VERDE:
 	case CHIP_OLAND:
+	case CHIP_HAINAN:
 		rdev->asic = &si_asic;
 		/* set num crtcs */
-		if (rdev->family == CHIP_OLAND)
+		if (rdev->family == CHIP_HAINAN)
+			rdev->num_crtc = 0;
+		else if (rdev->family == CHIP_OLAND)
 			rdev->num_crtc = 2;
 		else
 			rdev->num_crtc = 6;
