@@ -2273,21 +2273,6 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		}
 	}
 
-	if (wlvif->bss_type == BSS_TYPE_STA_BSS ||
-	    wlvif->bss_type == BSS_TYPE_IBSS) {
-		/*
-		 * The device role is a special role used for
-		 * rx and tx frames prior to association (as
-		 * the STA role can get packets only from
-		 * its associated bssid)
-		 */
-		ret = wl12xx_cmd_role_enable(wl, vif->addr,
-						 WL1271_ROLE_DEVICE,
-						 &wlvif->dev_role_id);
-		if (ret < 0)
-			goto out;
-	}
-
 	ret = wl12xx_cmd_role_enable(wl, vif->addr,
 				     role_type, &wlvif->role_id);
 	if (ret < 0)
@@ -2356,10 +2341,6 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 		    wlvif->bss_type == BSS_TYPE_IBSS) {
 			if (wl12xx_dev_role_started(wlvif))
 				wl12xx_stop_dev(wl, wlvif);
-
-			ret = wl12xx_cmd_role_disable(wl, &wlvif->dev_role_id);
-			if (ret < 0)
-				goto deinit;
 		}
 
 		ret = wl12xx_cmd_role_disable(wl, &wlvif->role_id);
