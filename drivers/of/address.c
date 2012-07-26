@@ -69,6 +69,14 @@ static u64 of_bus_default_map(u32 *addr, const __be32 *range,
 		 (unsigned long long)cp, (unsigned long long)s,
 		 (unsigned long long)da);
 
+	/*
+	 * If the number of address cells is larger than 2 we assume the
+	 * mapping doesn't specify a physical address. Rather, the address
+	 * specifies an identifier that must match exactly.
+	 */
+	if (na > 2 && memcmp(range, addr, na * 4) != 0)
+		return OF_BAD_ADDR;
+
 	if (da < cp || da >= (cp + s))
 		return OF_BAD_ADDR;
 	return da - cp;
