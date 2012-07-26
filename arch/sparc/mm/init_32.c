@@ -45,7 +45,6 @@ unsigned long pfn_base;
 EXPORT_SYMBOL(pfn_base);
 
 struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS+1];
-unsigned long sparc_unmapped_base;
 
 struct pgtable_cache_struct pgt_quicklists;
 
@@ -297,7 +296,6 @@ void __init paging_init(void)
 	case sun4m:
 	case sun4d:
 		srmmu_paging_init();
-		sparc_unmapped_base = 0x50000000;
 		break;
 	default:
 		prom_printf("paging_init: Cannot init paging on this Sparc\n");
