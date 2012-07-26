@@ -470,6 +470,9 @@ static int i915_drm_freeze(struct drm_device *dev)
 				"GEM idle failed, resume might fail\n");
 			return error;
 		}
+
+		intel_modeset_disable(dev);
+
 		drm_irq_uninstall(dev);
 	}
 

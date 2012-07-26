@@ -3545,6 +3545,16 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	}
 }
 
+void intel_modeset_disable(struct drm_device *dev)
+{
+	struct drm_crtc *crtc;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		if (crtc->enabled)
+			intel_crtc_disable(crtc);
+	}
+}
+
 void intel_encoder_noop(struct drm_encoder *encoder)
 {
 }
