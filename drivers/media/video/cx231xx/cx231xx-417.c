@@ -2193,3 +2193,5 @@ int cx231xx_417_register(struct cx231xx *dev)
 
 	return 0;
 }
+
+MODULE_FIRMWARE(CX231xx_FIRM_IMAGE_NAME);
