@@ -4961,6 +4961,13 @@ S:	Maintained
 F:	drivers/usb/*/*omap*
 F:	arch/arm/*omap*/usb*
 
+OMAP GPIO DRIVER
+M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+M:	Kevin Hilman <khilman@ti.com>
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	drivers/gpio/gpio-omap.c
+
 OMFS FILESYSTEM
 M:	Bob Copeland <me@bobcopeland.com>
 L:	linux-karma-devel@lists.sourceforge.net
@@ -7615,6 +7622,7 @@ F:	Documentation/hwmon/wm83??
 F:	arch/arm/mach-s3c64xx/mach-crag6410*
 F:	drivers/clk/clk-wm83*.c
 F:	drivers/leds/leds-wm83*.c
+F:	drivers/gpio/gpio-*wm*.c
 F:	drivers/hwmon/wm83??-hwmon.c
 F:	drivers/input/misc/wm831x-on.c
 F:	drivers/input/touchscreen/wm831x-ts.c
