@@ -804,7 +804,7 @@ static void __init u8500_init_machine(void)
 		mop500_uib_init();
 
 	} else if (of_machine_is_compatible("calaosystems,snowball-a9500")) {
-		mop500_msp_init(parent);
+		mop500_of_msp_init(parent);
 	} else if (of_machine_is_compatible("st-ericsson,hrefv60+")) {
 		/*
 		 * The HREFv60 board removed a GPIO expander and routed
