@@ -46,8 +46,6 @@ EXPORT_SYMBOL(pfn_base);
 
 struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS+1];
 
-struct pgtable_cache_struct pgt_quicklists;
-
 /* Initial ramdisk setup */
 extern unsigned int sparc_ramdisk_image;
 extern unsigned int sparc_ramdisk_size;

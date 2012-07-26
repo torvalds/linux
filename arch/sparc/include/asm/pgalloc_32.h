@@ -11,21 +11,8 @@
 
 struct page;
 
-extern struct pgtable_cache_struct {
-	unsigned long *pgd_cache;
-	unsigned long *pte_cache;
-	unsigned long pgtable_cache_sz;
-	unsigned long pgd_cache_sz;
-} pgt_quicklists;
-
 void *srmmu_get_nocache(int size, int align);
 void srmmu_free_nocache(void *addr, int size);
-
-#define pgd_quicklist           (pgt_quicklists.pgd_cache)
-#define pmd_quicklist           ((unsigned long *)0)
-#define pte_quicklist           (pgt_quicklists.pte_cache)
-#define pgtable_cache_size      (pgt_quicklists.pgtable_cache_sz)
-#define pgd_cache_size		(pgt_quicklists.pgd_cache_sz)
 
 #define check_pgt_cache()	do { } while (0)
 
