@@ -5929,13 +5929,11 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 
 void intel_mark_busy(struct drm_device *dev)
 {
-	intel_sanitize_pm(dev);
 	i915_update_gfx_val(dev->dev_private);
 }
 
 void intel_mark_idle(struct drm_device *dev)
 {
-	intel_sanitize_pm(dev);
 }
 
 void intel_mark_fb_busy(struct drm_i915_gem_object *obj)

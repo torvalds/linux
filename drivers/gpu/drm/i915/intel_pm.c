@@ -2267,6 +2267,11 @@ static void ironlake_disable_drps(struct drm_device *dev)
 
 }
 
+/* There's a funny hw issue where the hw returns all 0 when reading from
+ * GEN6_RP_INTERRUPT_LIMITS. Hence we always need to compute the desired value
+ * ourselves, instead of doing a rmw cycle (which might result in us clearing
+ * all limits and the gpu stuck at whatever frequency it is at atm).
+ */
 static u32 gen6_rps_limits(struct drm_i915_private *dev_priv, u8 val)
 {
 	u32 limits;
@@ -3750,37 +3755,6 @@ void intel_init_clock_gating(struct drm_device *dev)
 		dev_priv->display.init_pch_clock_gating(dev);
 }
 
-static void gen6_sanitize_pm(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 limits, current_limits;
-
-	gen6_gt_force_wake_get(dev_priv);
-
-	current_limits = I915_READ(GEN6_RP_INTERRUPT_LIMITS);
-	/* Make sure we continue to get interrupts
-	 * until we hit the minimum or maximum frequencies.
-	 */
-	limits = gen6_rps_limits(dev_priv, dev_priv->cur_delay);
-
-	if (current_limits != limits) {
-		/* Note that the known failure case is to read back 0. */
-		DRM_DEBUG_DRIVER("Power management discrepancy: GEN6_RP_INTERRUPT_LIMITS "
-				 "expected %08x, was %08x\n", limits, current_limits);
-		I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, limits);
-	}
-
-	gen6_gt_force_wake_put(dev_priv);
-}
-
-void intel_sanitize_pm(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (dev_priv->display.sanitize_pm)
-		dev_priv->display.sanitize_pm(dev);
-}
-
 /* Starting with Haswell, we have different power wells for
  * different parts of the GPU. This attempts to enable them all.
  */
@@ -3866,7 +3840,6 @@ void intel_init_pm(struct drm_device *dev)
 				dev_priv->display.update_wm = NULL;
 			}
 			dev_priv->display.init_clock_gating = gen6_init_clock_gating;
-			dev_priv->display.sanitize_pm = gen6_sanitize_pm;
 		} else if (IS_IVYBRIDGE(dev)) {
 			/* FIXME: detect B0+ stepping and use auto training */
 			if (SNB_READ_WM0_LATENCY()) {
@@ -3878,7 +3851,6 @@ void intel_init_pm(struct drm_device *dev)
 				dev_priv->display.update_wm = NULL;
 			}
 			dev_priv->display.init_clock_gating = ivybridge_init_clock_gating;
-			dev_priv->display.sanitize_pm = gen6_sanitize_pm;
 		} else if (IS_HASWELL(dev)) {
 			if (SNB_READ_WM0_LATENCY()) {
 				dev_priv->display.update_wm = sandybridge_update_wm;
@@ -3890,7 +3862,6 @@ void intel_init_pm(struct drm_device *dev)
 				dev_priv->display.update_wm = NULL;
 			}
 			dev_priv->display.init_clock_gating = haswell_init_clock_gating;
-			dev_priv->display.sanitize_pm = gen6_sanitize_pm;
 		} else
 			dev_priv->display.update_wm = NULL;
 	} else if (IS_VALLEYVIEW(dev)) {
