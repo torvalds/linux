@@ -374,7 +374,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 		unsigned long size = fimc->payload[i];
 
 		if (vb2_plane_size(vb, i) < size) {
-			v4l2_err(fimc->vfd,
+			v4l2_err(&fimc->vfd,
 				 "User buffer too small (%ld < %ld)\n",
 				 vb2_plane_size(vb, i), size);
 			return -EINVAL;
@@ -467,7 +467,7 @@ static int fimc_lite_open(struct file *file)
 
 	if (++fimc->ref_count == 1 && fimc->out_path == FIMC_IO_DMA) {
 		ret = fimc_pipeline_initialize(&fimc->pipeline,
-					       &fimc->vfd->entity, true);
+					       &fimc->vfd.entity, true);
 		if (ret < 0) {
 			pm_runtime_put_sync(&fimc->pdev->dev);
 			fimc->ref_count--;
@@ -1215,17 +1215,13 @@ static int fimc_lite_subdev_registered(struct v4l2_subdev *sd)
 {
 	struct fimc_lite *fimc = v4l2_get_subdevdata(sd);
 	struct vb2_queue *q = &fimc->vb_queue;
-	struct video_device *vfd;
+	struct video_device *vfd = &fimc->vfd;
 	int ret;
+
+	memset(vfd, 0, sizeof(*vfd));
 
 	fimc->fmt = &fimc_lite_formats[0];
 	fimc->out_path = FIMC_IO_DMA;
-
-	vfd = video_device_alloc();
-	if (!vfd) {
-		v4l2_err(sd->v4l2_dev, "Failed to allocate video device\n");
-		return -ENOMEM;
-	}
 
 	snprintf(vfd->name, sizeof(vfd->name), "fimc-lite.%d.capture",
 		 fimc->index);
@@ -1234,9 +1230,8 @@ static int fimc_lite_subdev_registered(struct v4l2_subdev *sd)
 	vfd->ioctl_ops = &fimc_lite_ioctl_ops;
 	vfd->v4l2_dev = sd->v4l2_dev;
 	vfd->minor = -1;
-	vfd->release = video_device_release;
+	vfd->release = video_device_release_empty;
 	vfd->lock = &fimc->lock;
-	fimc->vfd = vfd;
 	fimc->ref_count = 0;
 	fimc->reqbufs_count = 0;
 
@@ -1255,24 +1250,20 @@ static int fimc_lite_subdev_registered(struct v4l2_subdev *sd)
 
 	fimc->vd_pad.flags = MEDIA_PAD_FL_SINK;
 	ret = media_entity_init(&vfd->entity, 1, &fimc->vd_pad, 0);
-	if (ret)
-		goto err;
+	if (ret < 0)
+		return ret;
 
 	video_set_drvdata(vfd, fimc);
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
-	if (ret)
-		goto err_vd;
+	if (ret < 0) {
+		media_entity_cleanup(&vfd->entity);
+		return ret;
+	}
 
 	v4l2_info(sd->v4l2_dev, "Registered %s as /dev/%s\n",
 		  vfd->name, video_device_node_name(vfd));
 	return 0;
-
- err_vd:
-	media_entity_cleanup(&vfd->entity);
- err:
-	video_device_release(vfd);
-	return ret;
 }
 
 static void fimc_lite_subdev_unregistered(struct v4l2_subdev *sd)
@@ -1282,10 +1273,9 @@ static void fimc_lite_subdev_unregistered(struct v4l2_subdev *sd)
 	if (fimc == NULL)
 		return;
 
-	if (fimc->vfd) {
-		video_unregister_device(fimc->vfd);
-		media_entity_cleanup(&fimc->vfd->entity);
-		fimc->vfd = NULL;
+	if (video_is_registered(&fimc->vfd)) {
+		video_unregister_device(&fimc->vfd);
+		media_entity_cleanup(&fimc->vfd.entity);
 	}
 }
 
@@ -1515,7 +1505,7 @@ static int fimc_lite_resume(struct device *dev)
 		return 0;
 
 	INIT_LIST_HEAD(&fimc->active_buf_q);
-	fimc_pipeline_initialize(&fimc->pipeline, &fimc->vfd->entity, false);
+	fimc_pipeline_initialize(&fimc->pipeline, &fimc->vfd.entity, false);
 	fimc_lite_hw_init(fimc);
 	clear_bit(ST_FLITE_SUSPENDED, &fimc->state);
 
