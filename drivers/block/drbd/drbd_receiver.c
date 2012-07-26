@@ -985,13 +985,9 @@ retry:
 				goto out_release_sockets;
 		}
 
-		if (sock.socket && &msock.socket) {
-			ok = drbd_socket_okay(&sock.socket);
-			ok = drbd_socket_okay(&msock.socket) && ok;
-			if (ok)
-				break;
-		}
-	} while (1);
+		ok = drbd_socket_okay(&sock.socket);
+		ok = drbd_socket_okay(&msock.socket) && ok;
+	} while (!ok);
 
 	if (ad.s_listen)
 		sock_release(ad.s_listen);
