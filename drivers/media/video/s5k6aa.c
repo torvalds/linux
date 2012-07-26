@@ -1436,7 +1436,7 @@ static int s5k6aa_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	return 0;
 }
 
-int s5k6aa_check_fw_revision(struct s5k6aa *s5k6aa)
+static int s5k6aa_check_fw_revision(struct s5k6aa *s5k6aa)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&s5k6aa->sd);
 	u16 api_ver = 0, fw_rev = 0;
