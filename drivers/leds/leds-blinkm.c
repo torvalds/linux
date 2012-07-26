@@ -468,8 +468,7 @@ static int blinkm_led_common_set(struct led_classdev *led_cdev,
 	/* led_brightness is 0, 127 or 255 - we just use it here as-is */
 	struct blinkm_led *led = cdev_to_blmled(led_cdev);
 	struct blinkm_data *data = i2c_get_clientdata(led->i2c_client);
-	struct blinkm_work *bl_work = kzalloc(sizeof(struct blinkm_work),
-					      GFP_ATOMIC);
+	struct blinkm_work *bl_work;
 
 	switch (color) {
 	case RED:
@@ -510,6 +509,10 @@ static int blinkm_led_common_set(struct led_classdev *led_cdev,
 		dev_err(&led->i2c_client->dev, "BlinkM: unknown color.\n");
 		return -EINVAL;
 	}
+
+	bl_work = kzalloc(sizeof(*bl_work), GFP_ATOMIC);
+	if (!bl_work)
+		return -ENOMEM;
 
 	atomic_inc(&led->active);
 	dev_dbg(&led->i2c_client->dev,
