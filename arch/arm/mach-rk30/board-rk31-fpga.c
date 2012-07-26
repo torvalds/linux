@@ -148,6 +148,18 @@ static struct platform_device device_fb = {
 //i2c
 #ifdef CONFIG_I2C0_RK30
 static struct i2c_board_info __initdata i2c0_info[] = {
+#if defined (CONFIG_SND_SOC_RK1000)
+        {
+                .type          = "rk1000_i2c_codec",
+                .addr          = 0x60,
+                .flags         = 0,
+        },
+        {
+                .type          = "rk1000_control",
+                .addr          = 0x40,
+                .flags         = 0,
+        },
+#endif
 };
 #endif
 #ifdef CONFIG_I2C1_RK30
@@ -191,9 +203,72 @@ static void __init rk30_i2c_register_board_info(void)
 static struct spi_board_info board_spi_devices[] = {
 };
 
+/***********************************************************
+*	rk30  backlight
+************************************************************/
+#ifdef CONFIG_BACKLIGHT_RK29_BL
+#define PWM_ID            1
+#define PWM_MUX_NAME      GPIO0A3_PWM0_NAME
+#define PWM_MUX_MODE      GPIO0A_PWM0
+#define PWM_MUX_MODE_GPIO GPIO0A_GPIO0A3
+#define PWM_GPIO 	  RK30_PIN0_PA3
+#define PWM_EFFECT_VALUE  1
+
+#define LCD_DISP_ON_PIN
+
+#ifdef  LCD_DISP_ON_PIN
+
+#define BL_EN_PIN         RK30_PIN6_PB3
+#define BL_EN_VALUE       GPIO_HIGH
+#endif
+static int rk29_backlight_io_init(void)
+{
+	int ret = 0;
+	return ret;
+}
+
+static int rk29_backlight_io_deinit(void)
+{
+	int ret = 0;
+	return ret;
+}
+
+static int rk29_backlight_pwm_suspend(void)
+{
+	int ret = 0;
+	return ret;
+}
+
+static int rk29_backlight_pwm_resume(void)
+{
+	return 0;
+}
+
+static struct rk29_bl_info rk29_bl_info = {
+	.pwm_id = PWM_ID,
+	.bl_ref = PWM_EFFECT_VALUE,
+	.io_init = rk29_backlight_io_init,
+	.io_deinit = rk29_backlight_io_deinit,
+	.pwm_suspend = rk29_backlight_pwm_suspend,
+	.pwm_resume = rk29_backlight_pwm_resume,
+};
+
+static struct platform_device rk29_device_backlight = {
+	.name	= "rk29_backlight",
+	.id 	= -1,
+	.dev	= {
+		.platform_data  = &rk29_bl_info,
+	}
+};
+
+#endif
+
 static struct platform_device *devices[] __initdata = {
 #if defined(CONFIG_FB_ROCKCHIP)
 	&device_fb,
+#endif
+#ifdef CONFIG_BACKLIGHT_RK29_BL
+	&rk29_device_backlight,
 #endif
 };
 /**************************************************************************************************
@@ -384,6 +459,11 @@ static struct clk xin24m = {
 	.rate		= 24000000,
 };
 
+static struct clk xin12m = {
+	.name		= "xin12m",
+	.rate		= 12000000,
+};
+
 #define CLK(dev, con, ck) \
 	{ \
 		.dev_id = dev, \
@@ -413,10 +493,26 @@ static struct clk_lookup clks[] = {
 	CLK("rk_serial.2", "uart", &xin24m),
 	CLK("rk_serial.2", "pclk_uart", &xin24m),
 
-        CLK("rk29_i2s.0", "i2s_div", &xin24m),
-	CLK("rk29_i2s.0", "i2s_frac_div", &xin24m),
-	CLK("rk29_i2s.0", "i2s", &xin24m),
-	CLK("rk29_i2s.0", "hclk_i2s", &xin24m),
+  CLK("rk29_i2s.1", "i2s_div", &xin24m),
+	CLK("rk29_i2s.1", "i2s_frac_div", &xin24m),
+	CLK("rk29_i2s.1", "i2s", &xin12m),
+	CLK("rk29_i2s.1", "hclk_i2s", &xin24m),
+	
+	CLK("rk29_sdmmc.0","mmc",&xin24m),
+	CLK("rk29_sdmmc.0","hclk_mmc",&xin24m),
+	CLK("rk29_sdmmc.1","mmc",&xin24m),
+	CLK("rk29_sdmmc.1","hclk_mmc",&xin24m),
+	
+	CLK(NULL,"pd_lcdc0",&xin24m),
+	CLK(NULL,"hclk_lcdc0",&xin24m),
+	CLK(NULL,"aclk_lcdc0",&xin24m),
+	CLK(NULL,"dclk_lcdc0",&xin24m),
+	CLK(NULL,"pd_lcdc1",&xin24m),
+	CLK(NULL,"hclk_lcdc1",&xin24m),
+	CLK(NULL,"aclk_lcdc1",&xin24m),
+	CLK(NULL,"dclk_lcdc1",&xin24m),
+	
+	CLK(NULL,"pwm01",&xin24m),
 };
 
 static void __init rk30_clock_init(void)
@@ -451,7 +547,10 @@ EXPORT_SYMBOL(clk_disable);
 
 unsigned long clk_get_rate(struct clk *clk)
 {
-	return 24000000;
+  if(clk)
+		return clk->rate;	
+	else
+		return 24000000;
 }
 EXPORT_SYMBOL(clk_get_rate);
 

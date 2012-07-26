@@ -38,7 +38,7 @@
 #define DBG(x...)
 #endif
 
-#if defined(CONFIG_ARCH_RK30)
+#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31) 
 #define write_pwm_reg(id, addr, val)        __raw_writel(val, addr+(RK30_PWM01_BASE+(id>>1)*0x20000)+id*0x10)
 #define read_pwm_reg(id, addr)              __raw_readl(addr+(RK30_PWM01_BASE+(id>>1)*0x20000+id*0x10))
 #elif defined(CONFIG_ARCH_RK29)
@@ -170,6 +170,7 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 	unsigned long pwm_clk_rate;
 	struct backlight_properties props;
 
+
 	if (rk29_bl) {
 		printk(KERN_CRIT "%s: backlight device register has existed \n",
 				__func__);
@@ -186,6 +187,7 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 		rk29_bl_info->io_init();
 	}
 
+
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = BL_STEP;
@@ -196,9 +198,10 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 		return -ENODEV;		
 	}
 
+
 #if defined(CONFIG_ARCH_RK29)
 	pwm_clk = clk_get(NULL, "pwm");
-#elif defined(CONFIG_ARCH_RK30)
+#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
 	if (id == 0 || id == 1)
 		pwm_clk = clk_get(NULL, "pwm01");
 	else if (id == 2 || id == 3)

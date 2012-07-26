@@ -52,7 +52,7 @@
 #define RK30_IPP_SIZE           SZ_16K
 #define RK30_RGA_PHYS           0x10114000
 #define RK30_RGA_SIZE           SZ_8K
-#ifdef CONFIG_ARCH_RK30
+#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
 #define RK30_HDMI_PHYS          0x10116000
 #define RK30_HDMI_SIZE          SZ_8K
 #define RK30_I2S0_8CH_PHYS      0x10118000

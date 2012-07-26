@@ -85,7 +85,11 @@ static struct snd_soc_dai_link rk29_dai[] = {
 	  .platform_name = "rockchip-audio",
 	  .codec_name = "RK1000_CODEC.0-0060",
 	  .codec_dai_name = "rk1000_codec",
-	  .cpu_dai_name = "rk29_i2s.1",
+#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)        
+          .cpu_dai_name = "rk29_i2s.0",
+#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
+          .cpu_dai_name = "rk29_i2s.1",
+#endif
 	  .init = rk29_rk1000_codec_init,
 	  .ops = &rk29_ops,
 	}
