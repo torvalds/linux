@@ -8,45 +8,45 @@
  * Copyright (C) 1999,2000 Anton Blanchard (anton@samba.org)
  */
 
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/vmalloc.h>
-#include <linux/pagemap.h>
-#include <linux/init.h>
+#include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/bootmem.h>
-#include <linux/fs.h>
-#include <linux/seq_file.h>
+#include <linux/pagemap.h>
+#include <linux/vmalloc.h>
 #include <linux/kdebug.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/log2.h>
 #include <linux/gfp.h>
+#include <linux/fs.h>
+#include <linux/mm.h>
 
-#include <asm/bitext.h>
-#include <asm/page.h>
-#include <asm/pgalloc.h>
-#include <asm/pgtable.h>
-#include <asm/io.h>
-#include <asm/vaddrs.h>
-#include <asm/traps.h>
-#include <asm/smp.h>
-#include <asm/mbus.h>
-#include <asm/cache.h>
-#include <asm/oplib.h>
-#include <asm/asi.h>
-#include <asm/msi.h>
 #include <asm/mmu_context.h>
-#include <asm/io-unit.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+#include <asm/io-unit.h>
+#include <asm/pgalloc.h>
+#include <asm/pgtable.h>
+#include <asm/bitext.h>
+#include <asm/vaddrs.h>
+#include <asm/cache.h>
+#include <asm/traps.h>
+#include <asm/oplib.h>
+#include <asm/mbus.h>
+#include <asm/page.h>
+#include <asm/asi.h>
+#include <asm/msi.h>
+#include <asm/smp.h>
+#include <asm/io.h>
 
 /* Now the cpu specific definitions. */
+#include <asm/turbosparc.h>
+#include <asm/tsunami.h>
 #include <asm/viking.h>
+#include <asm/swift.h>
+#include <asm/leon.h>
 #include <asm/mxcc.h>
 #include <asm/ross.h>
-#include <asm/tsunami.h>
-#include <asm/swift.h>
-#include <asm/turbosparc.h>
-#include <asm/leon.h>
 
 #include "srmmu.h"
 
