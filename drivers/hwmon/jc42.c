@@ -534,9 +534,16 @@ static int jc42_remove(struct i2c_client *client)
 	struct jc42_data *data = i2c_get_clientdata(client);
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &jc42_group);
-	if (data->config != data->orig_config)
-		i2c_smbus_write_word_swapped(client, JC42_REG_CONFIG,
-					     data->orig_config);
+
+	/* Restore original configuration except hysteresis */
+	if ((data->config & ~JC42_CFG_HYST_MASK) !=
+	    (data->orig_config & ~JC42_CFG_HYST_MASK)) {
+		int config;
+
+		config = (data->orig_config & ~JC42_CFG_HYST_MASK)
+		  | (data->config & JC42_CFG_HYST_MASK);
+		i2c_smbus_write_word_swapped(client, JC42_REG_CONFIG, config);
+	}
 	return 0;
 }
 
