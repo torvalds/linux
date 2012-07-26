@@ -46,7 +46,7 @@ enum iio_event_direction {
  * @diff:	Whether the event is for an differential channel or not.
  * @modifier:	Modifier for the channel. Should be one of enum iio_modifier.
  * @direction:	Direction of the event. One of enum iio_event_direction.
- * @type:	Type of the event. Should be one enum iio_event_type.
+ * @type:	Type of the event. Should be one of enum iio_event_type.
  * @chan:	Channel number for non-differential channels.
  * @chan1:	First channel number for differential channels.
  * @chan2:	Second channel number for differential channels.
@@ -69,7 +69,7 @@ enum iio_event_direction {
  * @chan_type:	Type of the channel. Should be one of enum iio_chan_type.
  * @number:	Channel number.
  * @modifier:	Modifier for the channel. Should be one of enum iio_modifier.
- * @type:	Type of the event. Should be one enum iio_event_type.
+ * @type:	Type of the event. Should be one of enum iio_event_type.
  * @direction:	Direction of the event. One of enum iio_event_direction.
  */
 
@@ -81,7 +81,7 @@ enum iio_event_direction {
  * IIO_UNMOD_EVENT_CODE() - create event identifier for unmodified channels
  * @chan_type:	Type of the channel. Should be one of enum iio_chan_type.
  * @number:	Channel number.
- * @type:	Type of the event. Should be one enum iio_event_type.
+ * @type:	Type of the event. Should be one of enum iio_event_type.
  * @direction:	Direction of the event. One of enum iio_event_direction.
  */
 

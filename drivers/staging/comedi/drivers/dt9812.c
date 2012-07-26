@@ -1021,6 +1021,7 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int i;
 	struct comedi_subdevice *s;
+	int ret;
 
 	dev->board_name = "dt9812";
 
@@ -1035,9 +1036,9 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv->serial = it->options[0];
 
-	/* Allocate subdevices */
-	if (alloc_subdevices(dev, 4) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
+		return ret;
 
 	/* digital input subdevice */
 	s = dev->subdevices + 0;
