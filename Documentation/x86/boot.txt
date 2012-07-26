@@ -363,7 +363,8 @@ Protocol:	2.00+
   ext_loader_type <- 0x05
   ext_loader_ver  <- 0x23
 
-  Assigned boot loader ids:
+  Assigned boot loader ids (hexadecimal):
+
 	0  LILO			(0x00 reserved for pre-2.00 bootloader)
 	1  Loadlin
 	2  bootsect-loader	(0x20, all other values reserved)
@@ -378,6 +379,8 @@ Protocol:	2.00+
 	C  Arcturus Networks uCbootloader
 	E  Extended		(see ext_loader_type)
 	F  Special		(0xFF = undefined)
+       10  Reserved
+       11  Minimal Linux Bootloader <http://sebastian-plotz.blogspot.de>
 
   Please contact <hpa@zytor.com> if you need a bootloader ID
   value assigned.
