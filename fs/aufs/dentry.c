@@ -23,23 +23,6 @@
 #include <linux/namei.h>
 #include "aufs.h"
 
-static void au_h_nd(struct nameidata *h_nd, struct nameidata *nd)
-{
-	if (nd) {
-		*h_nd = *nd;
-
-		/*
-		 * gave up supporting LOOKUP_CREATE/OPEN for lower fs,
-		 * due to whiteout and branch permission.
-		 */
-		h_nd->flags &= ~(/*LOOKUP_PARENT |*/ LOOKUP_OPEN | LOOKUP_CREATE
-				 | LOOKUP_FOLLOW | LOOKUP_EXCL);
-		/* unnecessary? */
-		h_nd->intent.open.file = NULL;
-	} else
-		memset(h_nd, 0, sizeof(*h_nd));
-}
-
 #define AuLkup_ALLOW_NEG	1
 #define au_ftest_lkup(flags, name)	((flags) & AuLkup_##name)
 #define au_fset_lkup(flags, name) \
@@ -778,42 +761,24 @@ out:
 	return err;
 }
 
-static noinline_for_stack
-int au_do_h_d_reval(struct dentry *h_dentry, struct nameidata *nd,
-		    struct dentry *dentry, aufs_bindex_t bindex)
+static int au_do_h_d_reval(struct dentry *h_dentry, unsigned int flags,
+			   struct dentry *dentry, aufs_bindex_t bindex)
 {
 	int err, valid;
-	int (*reval)(struct dentry *, struct nameidata *);
 
 	err = 0;
 	if (!(h_dentry->d_flags & DCACHE_OP_REVALIDATE))
 		goto out;
-	reval = h_dentry->d_op->d_revalidate;
 
 	AuDbg("b%d\n", bindex);
-	if (au_test_fs_null_nd(h_dentry->d_sb))
-		/* it may return tri-state */
-		valid = reval(h_dentry, NULL);
-	else {
-		struct nameidata h_nd;
-		int locked;
-		struct dentry *parent;
-
-		au_h_nd(&h_nd, nd);
-		parent = nd->path.dentry;
-		locked = (nd && nd->path.dentry != dentry);
-		if (locked)
-			di_read_lock_parent(parent, AuLock_IR);
-		BUG_ON(bindex > au_dbend(parent));
-		h_nd.path.dentry = au_h_dptr(parent, bindex);
-		BUG_ON(!h_nd.path.dentry);
-		h_nd.path.mnt = au_sbr(parent->d_sb, bindex)->br_mnt;
-		path_get(&h_nd.path);
-		valid = reval(h_dentry, &h_nd);
-		path_put(&h_nd.path);
-		if (locked)
-			di_read_unlock(parent, AuLock_IR);
-	}
+	/*
+	 * gave up supporting LOOKUP_CREATE/OPEN for lower fs,
+	 * due to whiteout and branch permission.
+	 */
+	flags &= ~(/*LOOKUP_PARENT |*/ LOOKUP_OPEN | LOOKUP_CREATE
+		   | LOOKUP_FOLLOW | LOOKUP_EXCL);
+	/* it may return tri-state */
+	valid = h_dentry->d_op->d_revalidate(h_dentry, flags);
 
 	if (unlikely(valid < 0))
 		err = valid;
@@ -827,7 +792,7 @@ out:
 
 /* todo: remove this */
 static int h_d_revalidate(struct dentry *dentry, struct inode *inode,
-			  struct nameidata *nd, int do_udba)
+			  unsigned int flags, int do_udba)
 {
 	int err;
 	umode_t mode, h_mode;
@@ -887,7 +852,7 @@ static int h_d_revalidate(struct dentry *dentry, struct inode *inode,
 		}
 		spin_unlock(&h_dentry->d_lock);
 
-		err = au_do_h_d_reval(h_dentry, nd, dentry, bindex);
+		err = au_do_h_d_reval(h_dentry, flags, dentry, bindex);
 		if (unlikely(err))
 			/* do not goto err, to keep the errno */
 			break;
@@ -996,7 +961,7 @@ int au_reval_dpath(struct dentry *dentry, unsigned int sigen)
 /*
  * if valid returns 1, otherwise 0.
  */
-static int aufs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
+static int aufs_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	int valid, err;
 	unsigned int sigen;
@@ -1005,7 +970,7 @@ static int aufs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 	struct inode *inode;
 
 	/* todo: support rcu-walk? */
-	if (nd && (nd->flags & LOOKUP_RCU))
+	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	valid = 0;
@@ -1062,7 +1027,7 @@ static int aufs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 		}
 	}
 
-	err = h_d_revalidate(dentry, inode, nd, do_udba);
+	err = h_d_revalidate(dentry, inode, flags, do_udba);
 	if (unlikely(!err && do_udba && au_dbstart(dentry) < 0)) {
 		err = -EIO;
 		AuDbg("both of real entry and whiteout found, %.*s, err %d\n",
