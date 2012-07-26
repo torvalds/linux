@@ -451,18 +451,7 @@ static struct pci_driver artop_pci_driver = {
 #endif
 };
 
-static int __init artop_init(void)
-{
-	return pci_register_driver(&artop_pci_driver);
-}
-
-static void __exit artop_exit(void)
-{
-	pci_unregister_driver(&artop_pci_driver);
-}
-
-module_init(artop_init);
-module_exit(artop_exit);
+module_pci_driver(artop_pci_driver);
 
 MODULE_AUTHOR("Alan Cox, Bartlomiej Zolnierkiewicz");
 MODULE_DESCRIPTION("SCSI low-level driver for ARTOP PATA");
