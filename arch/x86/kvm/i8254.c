@@ -272,17 +272,6 @@ static void destroy_pit_timer(struct kvm_pit *pit)
 	flush_kthread_work(&pit->expired);
 }
 
-static bool kpit_is_periodic(struct kvm_pit_timer *ktimer)
-{
-	struct kvm_kpit_state *ps = container_of(ktimer, struct kvm_kpit_state,
-						 pit_timer);
-	return ps->is_periodic;
-}
-
-static struct kvm_pit_timer_ops kpit_ops = {
-	.is_periodic = kpit_is_periodic,
-};
-
 static void pit_do_work(struct kthread_work *work)
 {
 	struct kvm_pit *pit = container_of(work, struct kvm_pit, expired);
@@ -330,7 +319,7 @@ static enum hrtimer_restart pit_timer_fn(struct hrtimer *data)
 		queue_kthread_work(&pt->worker, &pt->expired);
 	}
 
-	if (ktimer->t_ops->is_periodic(ktimer)) {
+	if (pt->pit_state.is_periodic) {
 		hrtimer_add_expires_ns(&ktimer->timer, ktimer->period);
 		return HRTIMER_RESTART;
 	} else
@@ -357,7 +346,6 @@ static void create_pit_timer(struct kvm *kvm, u32 val, int is_period)
 	ps->is_periodic = is_period;
 
 	pt->timer.function = pit_timer_fn;
-	pt->t_ops = &kpit_ops;
 	pt->kvm = ps->pit->kvm;
 
 	atomic_set(&pt->pending, 0);
