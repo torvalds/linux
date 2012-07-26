@@ -4202,6 +4202,9 @@ out:
 	return ret;
 }
 
+#define VXGE_PXE_FIRMWARE "vxge/X3fw-pxe.ncf"
+#define VXGE_FIRMWARE "vxge/X3fw.ncf"
+
 static int vxge_probe_fw_update(struct vxgedev *vdev)
 {
 	u32 maj, min, bld;
@@ -4244,9 +4247,9 @@ static int vxge_probe_fw_update(struct vxgedev *vdev)
 			}
 	}
 	if (gpxe)
-		fw_name = "vxge/X3fw-pxe.ncf";
+		fw_name = VXGE_PXE_FIRMWARE;
 	else
-		fw_name = "vxge/X3fw.ncf";
+		fw_name = VXGE_FIRMWARE;
 
 	ret = vxge_fw_upgrade(vdev, fw_name, 0);
 	/* -EINVAL and -ENOENT are not fatal errors for flashing firmware on
@@ -4851,3 +4854,5 @@ vxge_closer(void)
 }
 module_init(vxge_starter);
 module_exit(vxge_closer);
+MODULE_FIRMWARE(VXGE_PXE_FIRMWARE);
+MODULE_FIRMWARE(VXGE_FIRMWARE);
