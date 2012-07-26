@@ -22,6 +22,8 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps65910.h>
 
+struct tps65910 *g_tps65910;
+
 static struct mfd_cell tps65910s[] = {
 	{
 		.name = "tps65910-pmic",
@@ -34,6 +36,7 @@ static struct mfd_cell tps65910s[] = {
 	},
 };
 
+#define TPS65910_SPEED 	400 * 1000
 
 static int tps65910_i2c_read(struct tps65910 *tps65910, u8 reg,
 				  int bytes, void *dest)
@@ -41,25 +44,29 @@ static int tps65910_i2c_read(struct tps65910 *tps65910, u8 reg,
 	struct i2c_client *i2c = tps65910->i2c_client;
 	struct i2c_msg xfer[2];
 	int ret;
+	
+	//printk("%s:reg=0x%x,value=%d\n",__func__,reg,*(char *)dest);
 
 	/* Write register */
 	xfer[0].addr = i2c->addr;
 	xfer[0].flags = 0;
 	xfer[0].len = 1;
 	xfer[0].buf = &reg;
+	xfer[0].scl_rate = 200*1000;
 
 	/* Read data */
 	xfer[1].addr = i2c->addr;
 	xfer[1].flags = I2C_M_RD;
 	xfer[1].len = bytes;
 	xfer[1].buf = dest;
+	xfer[1].scl_rate = 200*1000;
 
 	ret = i2c_transfer(i2c->adapter, xfer, 2);
 	if (ret == 2)
 		ret = 0;
 	else if (ret >= 0)
 		ret = -EIO;
-
+	
 	return ret;
 }
 
@@ -70,10 +77,12 @@ static int tps65910_i2c_write(struct tps65910 *tps65910, u8 reg,
 	/* we add 1 byte for device register */
 	u8 msg[TPS65910_MAX_REGISTER + 1];
 	int ret;
-
+	
 	if (bytes > TPS65910_MAX_REGISTER)
 		return -EINVAL;
 
+	//printk("%s:reg=0x%x,value=%d\n",__func__,reg,*(char *)&src);
+	
 	msg[0] = reg;
 	memcpy(&msg[1], src, bytes);
 
@@ -82,6 +91,7 @@ static int tps65910_i2c_write(struct tps65910 *tps65910, u8 reg,
 		return ret;
 	if (ret != bytes + 1)
 		return -EIO;
+
 	return 0;
 }
 
@@ -93,14 +103,14 @@ int tps65910_set_bits(struct tps65910 *tps65910, u8 reg, u8 mask)
 	mutex_lock(&tps65910->io_mutex);
 	err = tps65910_i2c_read(tps65910, reg, 1, &data);
 	if (err) {
-		dev_err(tps65910->dev, "read from reg %x failed\n", reg);
+		dev_err(tps65910->dev, "%s:read from reg %x failed\n", __func__,reg);
 		goto out;
 	}
 
 	data |= mask;
 	err = tps65910_i2c_write(tps65910, reg, 1, &data);
 	if (err)
-		dev_err(tps65910->dev, "write to reg %x failed\n", reg);
+		dev_err(tps65910->dev, "%s:write to reg %x failed\n", __func__,reg);
 
 out:
 	mutex_unlock(&tps65910->io_mutex);
@@ -167,12 +177,30 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 			      NULL, 0);
 	if (ret < 0)
 		goto err;
+	
+	g_tps65910 = tps65910;
+	
+	if (pmic_plat_data && pmic_plat_data->pre_init) {
+		ret = pmic_plat_data->pre_init(tps65910);
+		if (ret != 0) {
+			dev_err(tps65910->dev, "pre_init() failed: %d\n", ret);
+			goto err;
+		}
+	}
 
 	tps65910_gpio_init(tps65910, pmic_plat_data->gpio_base);
 
 	ret = tps65910_irq_init(tps65910, init_data->irq, init_data);
 	if (ret < 0)
 		goto err;
+
+	if (pmic_plat_data && pmic_plat_data->post_init) {
+		ret = pmic_plat_data->post_init(tps65910);
+		if (ret != 0) {
+			dev_err(tps65910->dev, "post_init() failed: %d\n", ret);
+			goto err;
+		}
+	}
 
 	return ret;
 
@@ -181,6 +209,45 @@ err:
 	kfree(tps65910);
 	return ret;
 }
+
+
+int tps65910_i2c_write_u8(u8 slave_addr, u8 value, u8 reg)
+{
+	struct tps65910 *tps65910 = g_tps65910;
+	return tps65910->write(g_tps65910, reg, 1, &value);
+}
+EXPORT_SYMBOL_GPL(tps65910_i2c_write_u8);
+
+
+int tps65910_i2c_read_u8(u8 slave_addr, u8 *value, u8 reg)
+{
+	struct tps65910 *tps65910 = g_tps65910;
+	return tps65910->read(g_tps65910, reg, 1, value);
+}
+EXPORT_SYMBOL_GPL(tps65910_i2c_read_u8);
+
+int tps65910_device_shutdown(void)
+{
+	u8 val 	= 0;
+	int err = -1;
+	printk("%s\n",__func__);
+	 err = tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_DEVCTRL);
+        if (err) {
+                printk(KERN_ERR "Unable to read TPS65910_REG_DCDCCTRL reg\n");
+                return -EIO;
+        }
+		val |= (1 << 3)|(1 << 0);
+		err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_DEVCTRL);
+		if (err) {
+			printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
+					\n", TPS65910_REG_VDIG1);
+			return -EIO;
+		}
+	return 0;	
+}
+EXPORT_SYMBOL_GPL(tps65910_device_shutdown);
+
+
 
 static int tps65910_i2c_remove(struct i2c_client *i2c)
 {
@@ -215,7 +282,7 @@ static int __init tps65910_i2c_init(void)
 	return i2c_add_driver(&tps65910_i2c_driver);
 }
 /* init early so consumer devices can complete system boot */
-subsys_initcall(tps65910_i2c_init);
+module_init(tps65910_i2c_init);
 
 static void __exit tps65910_i2c_exit(void)
 {

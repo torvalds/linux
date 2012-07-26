@@ -44,11 +44,13 @@
 #include <linux/regulator/machine.h>
 #include <linux/rfkill-rk.h>
 #include <linux/sensor-dev.h>
+#include <linux/mfd/tps65910.h>
+
 #if defined(CONFIG_HDMI_RK30)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
 
-#define TPS65910_HOST_IRQ        RK30_PIN6_PA4
+
 #ifdef CONFIG_TOUCHSCREEN_GT82X_IIC
 #include <linux/goodix_touch_82x.h>
 #endif
@@ -77,7 +79,7 @@
 #else
 #define RK30_FB0_MEM_SIZE 8*SZ_1M
 #endif
-int PMIC_IS_WM831X = 0;
+#define PMIC_IS_WM831X  0
 
 #ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
@@ -1692,6 +1694,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #include "board-rk30-sdk-wm8326.c"
 #endif
 #ifdef CONFIG_MFD_TPS65910
+#define TPS65910_HOST_IRQ        RK30_PIN6_PA4
 #include "board-rk30-sdk-tps65910.c"
 #endif
 
@@ -1707,7 +1710,7 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 #endif
 #if defined (CONFIG_MFD_TPS65910)
 	{
-        .type           = "tps659102",
+        .type           = "tps65910",
         .addr           = TPS65910_I2C_ID0,
         .flags          = 0,
         .irq            = TPS65910_HOST_IRQ,
