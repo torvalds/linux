@@ -486,7 +486,8 @@ int cpup_entry(struct dentry *dentry, aufs_bindex_t bdst,
 	case S_IFREG:
 		/* try stopping to update while we are referencing */
 		IMustLock(h_inode);
-		err = vfsub_create(h_dir, &h_path, mode | S_IWUSR);
+		err = vfsub_create(h_dir, &h_path, mode | S_IWUSR,
+				   /*want_excl*/true);
 		if (!err)
 			err = au_do_cpup_regular
 				(dentry, bdst, bsrc, len,

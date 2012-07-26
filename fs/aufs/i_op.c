@@ -1003,6 +1003,7 @@ struct inode_operations aufs_dir_iop = {
 	.getattr	= aufs_getattr,
 
 	.update_time	= aufs_update_time
+	/* no support for atomic_open() */
 };
 
 struct inode_operations aufs_iop = {

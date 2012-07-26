@@ -216,7 +216,7 @@ struct simple_arg {
 	union {
 		struct {
 			umode_t mode;
-			struct nameidata *nd;
+			bool want_excl;
 		} c;
 		struct {
 			const char *symname;
@@ -267,7 +267,7 @@ static int add_simple(struct inode *dir, struct dentry *dentry,
 	h_dir = au_pinned_h_dir(&pin);
 	switch (arg->type) {
 	case Creat:
-		err = vfsub_create(h_dir, &h_path, arg->u.c.mode);
+		err = vfsub_create(h_dir, &h_path, arg->u.c.mode, arg->u.c.want_excl);
 		break;
 	case Symlink:
 		err = vfsub_symlink(h_dir, &h_path, arg->u.s.symname);
@@ -332,13 +332,13 @@ int aufs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 }
 
 int aufs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-		struct nameidata *nd)
+		bool want_excl)
 {
 	struct simple_arg arg = {
 		.type = Creat,
 		.u.c = {
-			.mode	= mode,
-			.nd	= nd
+			.mode		= mode,
+			.want_excl	= want_excl
 		}
 	};
 	return add_simple(dir, dentry, &arg);

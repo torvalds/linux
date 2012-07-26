@@ -400,7 +400,8 @@ static int au_wh_init_rw(struct dentry *h_root, struct au_wbr *wbr,
 		err = mnt_want_write(h_path->mnt);
 		if (!err) {
 			h_path->dentry = base[AuBrWh_BASE].dentry;
-			err = vfsub_create(h_dir, h_path, WH_MASK);
+			err = vfsub_create(h_dir, h_path, WH_MASK,
+					   /*want_excl*/true);
 			mnt_drop_write(h_path->mnt);
 		}
 	} else if (S_ISREG(base[AuBrWh_BASE].dentry->d_inode->i_mode))
@@ -662,7 +663,7 @@ static int link_or_create_wh(struct super_block *sb, aufs_bindex_t bindex,
 	}
 
 	/* return this error in this context */
-	err = vfsub_create(h_dir, &h_path, WH_MASK);
+	err = vfsub_create(h_dir, &h_path, WH_MASK, /*want_excl*/true);
 
 out:
 	wbr_wh_read_unlock(wbr);

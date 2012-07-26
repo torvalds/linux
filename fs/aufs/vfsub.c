@@ -52,9 +52,7 @@ struct file *vfsub_dentry_open(struct path *path, int flags)
 {
 	struct file *file;
 
-	path_get(path);
-	file = dentry_open(path->dentry, path->mnt,
-			   flags /* | __FMODE_NONOTIFY */,
+	file = dentry_open(path, flags /* | __FMODE_NONOTIFY */,
 			   current_cred());
 	if (!IS_ERR_OR_NULL(file)
 	    && (file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
@@ -147,7 +145,7 @@ void vfsub_unlock_rename(struct dentry *d1, struct au_hinode *hdir1,
 
 /* ---------------------------------------------------------------------- */
 
-int vfsub_create(struct inode *dir, struct path *path, int mode)
+int vfsub_create(struct inode *dir, struct path *path, int mode, bool want_excl)
 {
 	int err;
 	struct dentry *d;
@@ -161,23 +159,7 @@ int vfsub_create(struct inode *dir, struct path *path, int mode)
 	if (unlikely(err))
 		goto out;
 
-	if (au_test_fs_null_nd(dir->i_sb))
-		err = vfs_create(dir, path->dentry, mode, NULL);
-	else {
-		struct nameidata h_nd;
-
-		memset(&h_nd, 0, sizeof(h_nd));
-		h_nd.flags = LOOKUP_CREATE;
-		h_nd.intent.open.flags = O_CREAT
-			| vfsub_fmode_to_uint(FMODE_READ);
-		h_nd.intent.open.create_mode = mode;
-		h_nd.path.dentry = path->dentry->d_parent;
-		h_nd.path.mnt = path->mnt;
-		path_get(&h_nd.path);
-		err = vfs_create(dir, path->dentry, mode, &h_nd);
-		path_put(&h_nd.path);
-	}
-
+	err = vfs_create(dir, path->dentry, mode, want_excl);
 	if (!err) {
 		struct path tmp = *path;
 		int did;
