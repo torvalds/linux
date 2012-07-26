@@ -52,19 +52,6 @@ extern unsigned int sparc_ramdisk_size;
 
 unsigned long highstart_pfn, highend_pfn;
 
-pte_t *kmap_pte;
-pgprot_t kmap_prot;
-
-#define kmap_get_fixmap_pte(vaddr) \
-	pte_offset_kernel(pmd_offset(pgd_offset_k(vaddr), (vaddr)), (vaddr))
-
-void __init kmap_init(void)
-{
-	/* cache the first kmap pte */
-	kmap_pte = kmap_get_fixmap_pte(__fix_to_virt(FIX_KMAP_BEGIN));
-	kmap_prot = __pgprot(SRMMU_ET_PTE | SRMMU_PRIV | SRMMU_CACHE);
-}
-
 void show_mem(unsigned int filter)
 {
 	printk("Mem-info:\n");
