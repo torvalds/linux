@@ -32,12 +32,6 @@
 
 int show_unhandled_signals = 1;
 
-/* At boot time we determine these two values necessary for setting
- * up the segment maps and page table entries (pte's).
- */
-
-int num_contexts;
-
 /* Return how much physical memory we have.  */
 unsigned long probe_memory(void)
 {

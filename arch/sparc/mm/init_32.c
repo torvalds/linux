@@ -82,24 +82,6 @@ void show_mem(unsigned int filter)
 #endif
 }
 
-void __init sparc_context_init(int numctx)
-{
-	int ctx;
-
-	ctx_list_pool = __alloc_bootmem(numctx * sizeof(struct ctx_list), SMP_CACHE_BYTES, 0UL);
-
-	for(ctx = 0; ctx < numctx; ctx++) {
-		struct ctx_list *clist;
-
-		clist = (ctx_list_pool + ctx);
-		clist->ctx_number = ctx;
-		clist->ctx_mm = NULL;
-	}
-	ctx_free.next = ctx_free.prev = &ctx_free;
-	ctx_used.next = ctx_used.prev = &ctx_used;
-	for(ctx = 0; ctx < numctx; ctx++)
-		add_to_free_ctxlist(ctx_list_pool + ctx);
-}
 
 extern unsigned long cmdline_memory_size;
 unsigned long last_valid_pfn;

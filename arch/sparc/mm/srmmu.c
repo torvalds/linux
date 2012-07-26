@@ -55,10 +55,6 @@ static unsigned int hwbug_bitmask;
 int vac_cache_size;
 int vac_line_size;
 
-struct ctx_list *ctx_list_pool;
-struct ctx_list ctx_free;
-struct ctx_list ctx_used;
-
 extern struct resource sparc_iomap;
 
 extern unsigned long last_valid_pfn;
@@ -355,8 +351,39 @@ void pte_free(struct mm_struct *mm, pgtable_t pte)
 	srmmu_free_nocache(__nocache_va(p), PTE_SIZE);
 }
 
-/*
- */
+/* context handling - a dynamically sized pool is used */
+#define NO_CONTEXT	-1
+
+struct ctx_list {
+	struct ctx_list *next;
+	struct ctx_list *prev;
+	unsigned int ctx_number;
+	struct mm_struct *ctx_mm;
+};
+
+static struct ctx_list *ctx_list_pool;
+static struct ctx_list ctx_free;
+static struct ctx_list ctx_used;
+
+/* At boot time we determine the number of contexts */
+static int num_contexts;
+
+static inline void remove_from_ctx_list(struct ctx_list *entry)
+{
+	entry->next->prev = entry->prev;
+	entry->prev->next = entry->next;
+}
+
+static inline void add_to_ctx_list(struct ctx_list *head, struct ctx_list *entry)
+{
+	entry->next = head;
+	(entry->prev = head->prev)->next = entry;
+	head->prev = entry;
+}
+#define add_to_free_ctxlist(entry) add_to_ctx_list(&ctx_free, entry)
+#define add_to_used_ctxlist(entry) add_to_ctx_list(&ctx_used, entry)
+
+
 static inline void alloc_context(struct mm_struct *old_mm, struct mm_struct *mm)
 {
 	struct ctx_list *ctxp;
@@ -392,6 +419,26 @@ static inline void free_context(int context)
 	add_to_free_ctxlist(ctx_old);
 }
 
+static void __init sparc_context_init(int numctx)
+{
+	int ctx;
+	unsigned long size;
+
+	size = numctx * sizeof(struct ctx_list);
+	ctx_list_pool = __alloc_bootmem(size, SMP_CACHE_BYTES, 0UL);
+
+	for (ctx = 0; ctx < numctx; ctx++) {
+		struct ctx_list *clist;
+
+		clist = (ctx_list_pool + ctx);
+		clist->ctx_number = ctx;
+		clist->ctx_mm = NULL;
+	}
+	ctx_free.next = ctx_free.prev = &ctx_free;
+	ctx_used.next = ctx_used.prev = &ctx_used;
+	for (ctx = 0; ctx < numctx; ctx++)
+		add_to_free_ctxlist(ctx_list_pool + ctx);
+}
 
 void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm,
 	       struct task_struct *tsk)
@@ -799,9 +846,6 @@ static void __init map_kernel(void)
 	}
 }
 
-/* Paging initialization on the Sparc Reference MMU. */
-extern void sparc_context_init(int);
-
 void (*poke_srmmu)(void) __cpuinitdata = NULL;
 
 extern unsigned long bootmem_init(unsigned long *pages_avail);
@@ -816,6 +860,7 @@ void __init srmmu_paging_init(void)
 	pte_t *pte;
 	unsigned long pages_avail;
 
+	init_mm.context = (unsigned long) NO_CONTEXT;
 	sparc_iomap.start = SUN4M_IOBASE_VADDR;	/* 16MB of IOSPACE on all sun4m's. */
 
 	if (sparc_cpu_model == sun4d)
@@ -916,6 +961,12 @@ void mmu_info(struct seq_file *m)
 		   num_contexts,
 		   srmmu_nocache_size,
 		   srmmu_nocache_map.used << SRMMU_NOCACHE_BITMAP_SHIFT);
+}
+
+int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
+{
+	mm->context = NO_CONTEXT;
+	return 0;
 }
 
 void destroy_context(struct mm_struct *mm)

@@ -79,8 +79,6 @@ extern unsigned long ptr_in_current_pgd;
 #define __S110	PAGE_SHARED
 #define __S111	PAGE_SHARED
 
-extern int num_contexts;
-
 /* First physical page can be anywhere, the following is needed so that
  * va-->pa and vice versa conversions work properly without performance
  * hit for all __pa()/__va() operations.
@@ -398,36 +396,6 @@ static inline pte_t pgoff_to_pte(unsigned long pgoff)
  * This is made a constant because mm/fremap.c required a constant.
  */
 #define PTE_FILE_MAX_BITS 24
-
-/*
- */
-struct ctx_list {
-	struct ctx_list *next;
-	struct ctx_list *prev;
-	unsigned int ctx_number;
-	struct mm_struct *ctx_mm;
-};
-
-extern struct ctx_list *ctx_list_pool;  /* Dynamically allocated */
-extern struct ctx_list ctx_free;        /* Head of free list */
-extern struct ctx_list ctx_used;        /* Head of used contexts list */
-
-#define NO_CONTEXT     -1
-
-static inline void remove_from_ctx_list(struct ctx_list *entry)
-{
-	entry->next->prev = entry->prev;
-	entry->prev->next = entry->next;
-}
-
-static inline void add_to_ctx_list(struct ctx_list *head, struct ctx_list *entry)
-{
-	entry->next = head;
-	(entry->prev = head->prev)->next = entry;
-	head->prev = entry;
-}
-#define add_to_free_ctxlist(entry) add_to_ctx_list(&ctx_free, entry)
-#define add_to_used_ctxlist(entry) add_to_ctx_list(&ctx_used, entry)
 
 static inline unsigned long
 __get_phys (unsigned long addr)
