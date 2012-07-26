@@ -2063,7 +2063,7 @@ static inline bool nested_svm_intr(struct vcpu_svm *svm)
 	if (svm->nested.intercept & 1ULL) {
 		/*
 		 * The #vmexit can't be emulated here directly because this
-		 * code path runs with irqs and preemtion disabled. A
+		 * code path runs with irqs and preemption disabled. A
 		 * #vmexit emulation might sleep. Only signal request for
 		 * the #vmexit here.
 		 */
@@ -2409,7 +2409,7 @@ static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 {
 	/*
 	 * This function merges the msr permission bitmaps of kvm and the
-	 * nested vmcb. It is omptimized in that it only merges the parts where
+	 * nested vmcb. It is optimized in that it only merges the parts where
 	 * the kvm msr permission bitmap may contain zero bits
 	 */
 	int i;

@@ -556,6 +556,14 @@ static int mmu_spte_clear_track_bits(u64 *sptep)
 		return 0;
 
 	pfn = spte_to_pfn(old_spte);
+
+	/*
+	 * KVM does not hold the refcount of the page used by
+	 * kvm mmu, before reclaiming the page, we should
+	 * unmap it from mmu first.
+	 */
+	WARN_ON(!kvm_is_mmio_pfn(pfn) && !page_count(pfn_to_page(pfn)));
+
 	if (!shadow_accessed_mask || old_spte & shadow_accessed_mask)
 		kvm_set_pfn_accessed(pfn);
 	if (!shadow_dirty_mask || (old_spte & shadow_dirty_mask))
@@ -960,13 +968,13 @@ static void pte_list_walk(unsigned long *pte_list, pte_list_walk_fn fn)
 static unsigned long *__gfn_to_rmap(gfn_t gfn, int level,
 				    struct kvm_memory_slot *slot)
 {
-	struct kvm_lpage_info *linfo;
+	unsigned long idx;
 
 	if (likely(level == PT_PAGE_TABLE_LEVEL))
 		return &slot->rmap[gfn - slot->base_gfn];
 
-	linfo = lpage_info_slot(gfn, slot, level);
-	return &linfo->rmap_pde;
+	idx = gfn_to_index(gfn, slot->base_gfn, level);
+	return &slot->arch.rmap_pde[level - PT_DIRECTORY_LEVEL][idx];
 }
 
 /*
@@ -1200,7 +1208,7 @@ static bool rmap_write_protect(struct kvm *kvm, u64 gfn)
 }
 
 static int kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp,
-			   unsigned long data)
+			   struct kvm_memory_slot *slot, unsigned long data)
 {
 	u64 *sptep;
 	struct rmap_iterator iter;
@@ -1218,7 +1226,7 @@ static int kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp,
 }
 
 static int kvm_set_pte_rmapp(struct kvm *kvm, unsigned long *rmapp,
-			     unsigned long data)
+			     struct kvm_memory_slot *slot, unsigned long data)
 {
 	u64 *sptep;
 	struct rmap_iterator iter;
@@ -1259,48 +1267,77 @@ static int kvm_set_pte_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	return 0;
 }
 
-static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
-			  unsigned long data,
-			  int (*handler)(struct kvm *kvm, unsigned long *rmapp,
-					 unsigned long data))
+static int kvm_handle_hva_range(struct kvm *kvm,
+				unsigned long start,
+				unsigned long end,
+				unsigned long data,
+				int (*handler)(struct kvm *kvm,
+					       unsigned long *rmapp,
+					       struct kvm_memory_slot *slot,
+					       unsigned long data))
 {
 	int j;
-	int ret;
-	int retval = 0;
+	int ret = 0;
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
 
 	slots = kvm_memslots(kvm);
 
 	kvm_for_each_memslot(memslot, slots) {
-		unsigned long start = memslot->userspace_addr;
-		unsigned long end;
+		unsigned long hva_start, hva_end;
+		gfn_t gfn_start, gfn_end;
 
-		end = start + (memslot->npages << PAGE_SHIFT);
-		if (hva >= start && hva < end) {
-			gfn_t gfn_offset = (hva - start) >> PAGE_SHIFT;
-			gfn_t gfn = memslot->base_gfn + gfn_offset;
+		hva_start = max(start, memslot->userspace_addr);
+		hva_end = min(end, memslot->userspace_addr +
+					(memslot->npages << PAGE_SHIFT));
+		if (hva_start >= hva_end)
+			continue;
+		/*
+		 * {gfn(page) | page intersects with [hva_start, hva_end)} =
+		 * {gfn_start, gfn_start+1, ..., gfn_end-1}.
+		 */
+		gfn_start = hva_to_gfn_memslot(hva_start, memslot);
+		gfn_end = hva_to_gfn_memslot(hva_end + PAGE_SIZE - 1, memslot);
 
-			ret = handler(kvm, &memslot->rmap[gfn_offset], data);
+		for (j = PT_PAGE_TABLE_LEVEL;
+		     j < PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES; ++j) {
+			unsigned long idx, idx_end;
+			unsigned long *rmapp;
 
-			for (j = 0; j < KVM_NR_PAGE_SIZES - 1; ++j) {
-				struct kvm_lpage_info *linfo;
+			/*
+			 * {idx(page_j) | page_j intersects with
+			 *  [hva_start, hva_end)} = {idx, idx+1, ..., idx_end}.
+			 */
+			idx = gfn_to_index(gfn_start, memslot->base_gfn, j);
+			idx_end = gfn_to_index(gfn_end - 1, memslot->base_gfn, j);
 
-				linfo = lpage_info_slot(gfn, memslot,
-							PT_DIRECTORY_LEVEL + j);
-				ret |= handler(kvm, &linfo->rmap_pde, data);
-			}
-			trace_kvm_age_page(hva, memslot, ret);
-			retval |= ret;
+			rmapp = __gfn_to_rmap(gfn_start, j, memslot);
+
+			for (; idx <= idx_end; ++idx)
+				ret |= handler(kvm, rmapp++, memslot, data);
 		}
 	}
 
-	return retval;
+	return ret;
+}
+
+static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
+			  unsigned long data,
+			  int (*handler)(struct kvm *kvm, unsigned long *rmapp,
+					 struct kvm_memory_slot *slot,
+					 unsigned long data))
+{
+	return kvm_handle_hva_range(kvm, hva, hva + 1, data, handler);
 }
 
 int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
 {
 	return kvm_handle_hva(kvm, hva, 0, kvm_unmap_rmapp);
+}
+
+int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
+{
+	return kvm_handle_hva_range(kvm, start, end, 0, kvm_unmap_rmapp);
 }
 
 void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
@@ -1309,7 +1346,7 @@ void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
 }
 
 static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
-			 unsigned long data)
+			 struct kvm_memory_slot *slot, unsigned long data)
 {
 	u64 *sptep;
 	struct rmap_iterator uninitialized_var(iter);
@@ -1323,8 +1360,10 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	 * This has some overhead, but not as much as the cost of swapping
 	 * out actively used pages or breaking up actively used hugepages.
 	 */
-	if (!shadow_accessed_mask)
-		return kvm_unmap_rmapp(kvm, rmapp, data);
+	if (!shadow_accessed_mask) {
+		young = kvm_unmap_rmapp(kvm, rmapp, slot, data);
+		goto out;
+	}
 
 	for (sptep = rmap_get_first(*rmapp, &iter); sptep;
 	     sptep = rmap_get_next(&iter)) {
@@ -1336,12 +1375,14 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 				 (unsigned long *)sptep);
 		}
 	}
-
+out:
+	/* @data has hva passed to kvm_age_hva(). */
+	trace_kvm_age_page(data, slot, young);
 	return young;
 }
 
 static int kvm_test_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
-			      unsigned long data)
+			      struct kvm_memory_slot *slot, unsigned long data)
 {
 	u64 *sptep;
 	struct rmap_iterator iter;
@@ -1379,13 +1420,13 @@ static void rmap_recycle(struct kvm_vcpu *vcpu, u64 *spte, gfn_t gfn)
 
 	rmapp = gfn_to_rmap(vcpu->kvm, gfn, sp->role.level);
 
-	kvm_unmap_rmapp(vcpu->kvm, rmapp, 0);
+	kvm_unmap_rmapp(vcpu->kvm, rmapp, NULL, 0);
 	kvm_flush_remote_tlbs(vcpu->kvm);
 }
 
 int kvm_age_hva(struct kvm *kvm, unsigned long hva)
 {
-	return kvm_handle_hva(kvm, hva, 0, kvm_age_rmapp);
+	return kvm_handle_hva(kvm, hva, hva, kvm_age_rmapp);
 }
 
 int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
@@ -2472,14 +2513,12 @@ static pfn_t pte_prefetch_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn,
 	unsigned long hva;
 
 	slot = gfn_to_memslot_dirty_bitmap(vcpu, gfn, no_dirty_log);
-	if (!slot) {
-		get_page(fault_page);
-		return page_to_pfn(fault_page);
-	}
+	if (!slot)
+		return get_fault_pfn();
 
 	hva = gfn_to_hva_memslot(slot, gfn);
 
-	return hva_to_pfn_atomic(vcpu->kvm, hva);
+	return hva_to_pfn_atomic(hva);
 }
 
 static int direct_pte_prefetch_many(struct kvm_vcpu *vcpu,

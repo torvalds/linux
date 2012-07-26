@@ -642,7 +642,7 @@ static int __linearize(struct x86_emulate_ctxt *ctxt,
 			if (addr.ea > lim || (u32)(addr.ea + size - 1) > lim)
 				goto bad;
 		} else {
-			/* exapand-down segment */
+			/* expand-down segment */
 			if (addr.ea <= lim || (u32)(addr.ea + size - 1) <= lim)
 				goto bad;
 			lim = desc.d ? 0xffffffff : 0xffff;
@@ -1383,7 +1383,7 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	err_code = selector & 0xfffc;
 	err_vec = GP_VECTOR;
 
-	/* can't load system descriptor into segment selecor */
+	/* can't load system descriptor into segment selector */
 	if (seg <= VCPU_SREG_GS && !seg_desc.s)
 		goto exception;
 
@@ -2398,7 +2398,7 @@ static int load_state_from_tss16(struct x86_emulate_ctxt *ctxt,
 	set_segment_selector(ctxt, tss->ds, VCPU_SREG_DS);
 
 	/*
-	 * Now load segment descriptors. If fault happenes at this stage
+	 * Now load segment descriptors. If fault happens at this stage
 	 * it is handled in a context of new task
 	 */
 	ret = load_segment_descriptor(ctxt, tss->ldt, VCPU_SREG_LDTR);
@@ -2640,7 +2640,7 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 	 *
 	 * 1. jmp/call/int to task gate: Check against DPL of the task gate
 	 * 2. Exception/IRQ/iret: No check is performed
-	 * 3. jmp/call to TSS: Check agains DPL of the TSS
+	 * 3. jmp/call to TSS: Check against DPL of the TSS
 	 */
 	if (reason == TASK_SWITCH_GATE) {
 		if (idt_index != -1) {
@@ -2681,7 +2681,7 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 		ctxt->eflags = ctxt->eflags & ~X86_EFLAGS_NT;
 
 	/* set back link to prev task only if NT bit is set in eflags
-	   note that old_tss_sel is not used afetr this point */
+	   note that old_tss_sel is not used after this point */
 	if (reason != TASK_SWITCH_CALL && reason != TASK_SWITCH_GATE)
 		old_tss_sel = 0xffff;
 

@@ -316,7 +316,7 @@ static int do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 	}
 	case 7: {
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
-		/* Mask ebx against host capbability word 9 */
+		/* Mask ebx against host capability word 9 */
 		if (index == 0) {
 			entry->ebx &= kvm_supported_word9_x86_features;
 			cpuid_mask(&entry->ebx, 9);
