@@ -63,7 +63,9 @@ void __init corenet_ds_setup_arch(void)
 #ifdef CONFIG_PCI
 	for_each_node_by_type(np, "pci") {
 		if (of_device_is_compatible(np, "fsl,p4080-pcie") ||
-		    of_device_is_compatible(np, "fsl,qoriq-pcie-v2.2")) {
+		    of_device_is_compatible(np, "fsl,qoriq-pcie-v2.2") ||
+		    of_device_is_compatible(np, "fsl,qoriq-pcie-v2.3") ||
+		    of_device_is_compatible(np, "fsl,qoriq-pcie-v2.4")) {
 			fsl_add_bridge(np, 0);
 			hose = pci_find_hose_for_OF_device(np);
 			max = min(max, hose->dma_window_base_cur +
@@ -98,6 +100,12 @@ static const struct of_device_id of_device_ids[] __devinitconst = {
 	},
 	{
 		.compatible	= "fsl,qoriq-pcie-v2.2",
+	},
+	{
+		.compatible	= "fsl,qoriq-pcie-v2.3",
+	},
+	{
+		.compatible	= "fsl,qoriq-pcie-v2.4",
 	},
 	/* The following two are for the Freescale hypervisor */
 	{
