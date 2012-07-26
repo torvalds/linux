@@ -52,8 +52,9 @@ extern unsigned long calc_highpages(void);
 #define PAGE_READONLY	SRMMU_PAGE_RDONLY
 #define PAGE_KERNEL	SRMMU_PAGE_KERNEL
 
-/* Top-level page directory */
-extern pgd_t swapper_pg_dir[1024];
+/* Top-level page directory - dummy used by init-mm.
+ * srmmu.c will assign the real one (which is dynamically sized) */
+#define swapper_pg_dir NULL
 
 extern void paging_init(void);
 
