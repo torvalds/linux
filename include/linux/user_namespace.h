@@ -39,6 +39,7 @@ static inline struct user_namespace *get_user_ns(struct user_namespace *ns)
 }
 
 extern int create_user_ns(struct cred *new);
+extern int unshare_userns(unsigned long unshare_flags, struct cred **new_cred);
 extern void free_user_ns(struct kref *kref);
 
 static inline void put_user_ns(struct user_namespace *ns)
@@ -64,6 +65,14 @@ static inline struct user_namespace *get_user_ns(struct user_namespace *ns)
 static inline int create_user_ns(struct cred *new)
 {
 	return -EINVAL;
+}
+
+static inline int unshare_userns(unsigned long unshare_flags,
+				 struct cred **new_cred)
+{
+	if (unshare_flags & CLONE_NEWUSER)
+		return -EINVAL;
+	return 0;
 }
 
 static inline void put_user_ns(struct user_namespace *ns)
