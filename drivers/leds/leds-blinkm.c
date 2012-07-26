@@ -617,11 +617,11 @@ static int blinkm_detect(struct i2c_client *client, struct i2c_board_info *info)
 	/* Step 1: Read BlinkM address back  -  cmd_char 'a' */
 	ret = blinkm_write(client, BLM_GET_ADDR, NULL);
 	if (ret < 0)
-		return -ENODEV;
+		return ret;
 	usleep_range(20000, 30000);	/* allow a small delay */
 	ret = blinkm_read(client, BLM_GET_ADDR, tmpargs);
 	if (ret < 0)
-		return -ENODEV;
+		return ret;
 
 	if (tmpargs[0] != 0x09) {
 		dev_err(&client->dev, "enodev DEV ADDR = 0x%02X\n", tmpargs[0]);
