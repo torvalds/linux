@@ -6,6 +6,15 @@ be removed from this file.  The suggested deprecation period is 3 releases.
 
 ---------------------------
 
+What:	support for i.mx25 in mx2_camera.c
+When:	v3.8
+Why:	it's been broken for a year. Furthermore, i.MX25 video capture
+	HW doesn't have much in common with i.MX27. A separate driver
+	will be needed for it.
+Who:	Javier Martin<javier.martin@vista-silicon.com>
+
+---------------------------
+
 What:	ddebug_query="query" boot cmdline param
 When:	v3.8
 Why:	obsoleted by dyndbg="query" and module.dyndbg="query"
