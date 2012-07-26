@@ -647,7 +647,7 @@ static int isp_video_queue_alloc(struct isp_video_queue *queue,
 	if (ret < 0)
 		return ret;
 
-	/* Bail out of no buffers should be allocated. */
+	/* Bail out if no buffers should be allocated. */
 	if (nbuffers == 0)
 		return 0;
 

@@ -690,7 +690,7 @@ static void resizer_print_status(struct isp_res_device *res)
 }
 
 /*
- * resizer_calc_ratios - Helper function for calculate resizer ratios
+ * resizer_calc_ratios - Helper function for calculating resizer ratios
  * @res: pointer to resizer private data structure
  * @input: input frame size
  * @output: output frame size
@@ -734,7 +734,7 @@ static void resizer_print_status(struct isp_res_device *res)
  * value will still satisfy the original inequality, as b will disappear when
  * the expression will be shifted right by 8.
  *
- * The reverted the equations thus become
+ * The reverted equations thus become
  *
  * - 8-phase, 4-tap mode
  *	hrsz = ((iw - 7) * 256 + 255 - 16 - 32 * sph) / (ow - 1)
@@ -759,7 +759,7 @@ static void resizer_print_status(struct isp_res_device *res)
  * loop', the smallest of the ratio values will be used, never exceeding the
  * requested input size.
  *
- * We first clamp the output size according to the hardware capabilitie to avoid
+ * We first clamp the output size according to the hardware capability to avoid
  * auto-cropping the input more than required to satisfy the TRM equations. The
  * minimum output size is achieved with a scaling factor of 1024. It is thus
  * computed using the 7-tap equations.

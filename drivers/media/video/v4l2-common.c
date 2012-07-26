@@ -418,7 +418,7 @@ EXPORT_SYMBOL_GPL(v4l2_i2c_tuner_addrs);
 
 #if defined(CONFIG_SPI)
 
-/* Load a spi sub-device. */
+/* Load an spi sub-device. */
 
 void v4l2_spi_subdev_init(struct v4l2_subdev *sd, struct spi_device *spi,
 		const struct v4l2_subdev_ops *ops)

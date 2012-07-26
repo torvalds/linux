@@ -120,7 +120,7 @@ struct v4l2_subdev_io_pin_config {
 	each pin being configured.  This function could be called at times
 	other than just subdevice initialization.
 
-   init: initialize the sensor registors to some sort of reasonable default
+   init: initialize the sensor registers to some sort of reasonable default
 	values. Do not use for new drivers and should be removed in existing
 	drivers.
 
