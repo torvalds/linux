@@ -221,7 +221,17 @@ static void cpufreq_interactive_timer(unsigned long data)
 			}
 		}
 	} else {
+#ifdef CONFIG_PLAT_RK
+		new_freq = pcpu->policy->cur * cpu_load / 100;
+		if (cpufreq_frequency_table_target(pcpu->policy, pcpu->freq_table, pcpu->policy->cur - 1, CPUFREQ_RELATION_H, &index) == 0) {
+			unsigned int prev_freq = pcpu->freq_table[index].frequency;
+			if (new_freq >= (prev_freq * go_hispeed_load / 100)) {
+				new_freq = pcpu->policy->cur;
+			}
+		}
+#else
 		new_freq = pcpu->policy->max * cpu_load / 100;
+#endif
 	}
 
 	if (new_freq <= hispeed_freq)
