@@ -60,13 +60,6 @@ void show_mem(unsigned int filter)
 	       nr_swap_pages << (PAGE_SHIFT-10));
 	printk("%ld pages of RAM\n", totalram_pages);
 	printk("%ld free pages\n", nr_free_pages());
-#if 0 /* undefined pgtable_cache_size, pgd_cache_size */
-	printk("%ld pages in page table cache\n",pgtable_cache_size);
-#ifndef CONFIG_SMP
-	if (sparc_cpu_model == sun4m || sparc_cpu_model == sun4d)
-		printk("%ld entries in page dir cache\n",pgd_cache_size);
-#endif	
-#endif
 }
 
 
