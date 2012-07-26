@@ -209,7 +209,7 @@ static struct dentry *au_do_plink_lkup(struct qstr *tgtname,
 
 	h_mtx = &h_parent->d_inode->i_mutex;
 	mutex_lock_nested(h_mtx, AuLsc_I_CHILD2);
-	h_dentry = au_lkup_one(tgtname, h_parent, br, /*nd*/NULL);
+	h_dentry = vfsub_lkup_one(tgtname, h_parent);
 	mutex_unlock(h_mtx);
 	return h_dentry;
 }
@@ -267,7 +267,7 @@ static int do_whplink(struct qstr *tgt, struct dentry *h_parent,
 	h_dir = h_parent->d_inode;
 	mutex_lock_nested(&h_dir->i_mutex, AuLsc_I_CHILD2);
 again:
-	h_path.dentry = au_lkup_one(tgt, h_parent, br, /*nd*/NULL);
+	h_path.dentry = vfsub_lkup_one(tgt, h_parent);
 	err = PTR_ERR(h_path.dentry);
 	if (IS_ERR(h_path.dentry))
 		goto out;

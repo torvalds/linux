@@ -111,48 +111,10 @@ out:
 	return path.dentry;
 }
 
-struct dentry *vfsub_lookup_hash(struct nameidata *nd)
+void vfsub_call_lkup_one(void *args)
 {
-	struct path path = {
-		.mnt = nd->path.mnt
-	};
-
-	IMustLock(nd->path.dentry->d_inode);
-
-	path.dentry = lookup_hash(nd);
-	if (IS_ERR(path.dentry))
-		goto out;
-	if (path.dentry->d_inode)
-		vfsub_update_h_iattr(&path, /*did*/NULL); /*ignore*/
-
-out:
-	AuTraceErrPtr(path.dentry);
-	return path.dentry;
-}
-
-/*
- * this is "VFS:__lookup_one_len()" which was removed and merged into
- * VFS:lookup_one_len() by the commit.
- *	6a96ba5 2011-03-14 kill __lookup_one_len()
- * this function should always be equivalent to the corresponding part in
- * VFS:lookup_one_len().
- */
-int vfsub_name_hash(const char *name, struct qstr *this, int len)
-{
-	unsigned int c;
-
-	this->name = name;
-	this->len = len;
-	this->hash = full_name_hash(name, len);
-	if (!len)
-		return -EACCES;
-
-	while (len--) {
-		c = *(const unsigned char *)name++;
-		if (c == '/' || c == '\0')
-			return -EACCES;
-	}
-	return 0;
+	struct vfsub_lkup_one_args *a = args;
+	*a->errp = vfsub_lkup_one(a->name, a->parent);
 }
 
 /* ---------------------------------------------------------------------- */

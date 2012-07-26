@@ -40,46 +40,6 @@ static void au_h_nd(struct nameidata *h_nd, struct nameidata *nd)
 		memset(h_nd, 0, sizeof(*h_nd));
 }
 
-struct au_lkup_one_args {
-	struct dentry **errp;
-	struct qstr *name;
-	struct dentry *h_parent;
-	struct au_branch *br;
-	struct nameidata *nd;
-};
-
-struct dentry *au_lkup_one(struct qstr *name, struct dentry *h_parent,
-			   struct au_branch *br, struct nameidata *nd)
-{
-	struct dentry *h_dentry;
-	int err;
-	struct nameidata h_nd;
-
-	if (au_test_fs_null_nd(h_parent->d_sb))
-		return vfsub_lookup_one_len(name->name, h_parent, name->len);
-
-	au_h_nd(&h_nd, nd);
-	h_nd.path.dentry = h_parent;
-	h_nd.path.mnt = br->br_mnt;
-
-	err = vfsub_name_hash(name->name, &h_nd.last, name->len);
-	h_dentry = ERR_PTR(err);
-	if (!err) {
-		path_get(&h_nd.path);
-		h_dentry = vfsub_lookup_hash(&h_nd);
-		path_put(&h_nd.path);
-	}
-
-	AuTraceErrPtr(h_dentry);
-	return h_dentry;
-}
-
-static void au_call_lkup_one(void *args)
-{
-	struct au_lkup_one_args *a = args;
-	*a->errp = au_lkup_one(a->name, a->h_parent, a->br, a->nd);
-}
-
 #define AuLkup_ALLOW_NEG	1
 #define au_ftest_lkup(flags, name)	((flags) & AuLkup_##name)
 #define au_fset_lkup(flags, name) \
@@ -90,7 +50,7 @@ static void au_call_lkup_one(void *args)
 struct au_do_lookup_args {
 	unsigned int		flags;
 	mode_t			type;
-	struct nameidata	*nd;
+	unsigned int		nd_flags;
 };
 
 /*
@@ -127,7 +87,7 @@ au_do_lookup(struct dentry *h_parent, struct dentry *dentry,
 		return NULL; /* success */
 
 real_lookup:
-	h_dentry = au_lkup_one(&dentry->d_name, h_parent, br, args->nd);
+	h_dentry = vfsub_lkup_one(&dentry->d_name, h_parent);
 	if (IS_ERR(h_dentry))
 		goto out;
 
@@ -182,16 +142,16 @@ static int au_test_shwh(struct super_block *sb, const struct qstr *name)
  * can be called at unlinking with @type is zero.
  */
 int au_lkup_dentry(struct dentry *dentry, aufs_bindex_t bstart, mode_t type,
-		   struct nameidata *nd)
+		   unsigned int flags)
 {
 	int npositive, err;
 	aufs_bindex_t bindex, btail, bdiropq;
 	unsigned char isdir;
 	struct qstr whname;
 	struct au_do_lookup_args args = {
-		.flags	= 0,
-		.type	= type,
-		.nd	= nd
+		.flags		= 0,
+		.type		= type,
+		.nd_flags	= flags
 	};
 	const struct qstr *name = &dentry->d_name;
 	struct dentry *parent;
@@ -287,17 +247,15 @@ struct dentry *au_sio_lkup_one(struct qstr *name, struct dentry *parent,
 	int wkq_err;
 
 	if (!au_test_h_perm_sio(parent->d_inode, MAY_EXEC))
-		dentry = au_lkup_one(name, parent, br, /*nd*/NULL);
+		dentry = vfsub_lkup_one(name, parent);
 	else {
-		struct au_lkup_one_args args = {
-			.errp		= &dentry,
-			.name		= name,
-			.h_parent	= parent,
-			.br		= br,
-			.nd		= NULL
+		struct vfsub_lkup_one_args args = {
+			.errp	= &dentry,
+			.name	= name,
+			.parent	= parent
 		};
 
-		wkq_err = au_wkq_wait(au_call_lkup_one, &args);
+		wkq_err = au_wkq_wait(vfsub_call_lkup_one, &args);
 		if (unlikely(wkq_err))
 			dentry = ERR_PTR(wkq_err);
 	}
@@ -405,7 +363,7 @@ static int au_h_verify_dentry(struct dentry *h_dentry, struct dentry *h_parent,
 		goto out;
 
 	/* main purpose is namei.c:cached_lookup() and d_revalidate */
-	h_d = au_lkup_one(&h_dentry->d_name, h_parent, br, /*nd*/NULL);
+	h_d = vfsub_lkup_one(&h_dentry->d_name, h_parent);
 	err = PTR_ERR(h_d);
 	if (IS_ERR(h_d))
 		goto out;
@@ -791,7 +749,7 @@ int au_refresh_dentry(struct dentry *dentry, struct dentry *parent)
 	 * if current working dir is removed, it returns an error.
 	 * but the dentry is legal.
 	 */
-	err = au_lkup_dentry(dentry, /*bstart*/0, /*type*/0, /*nd*/NULL);
+	err = au_lkup_dentry(dentry, /*bstart*/0, /*type*/0, /*flags*/0);
 	AuDbgDentry(dentry);
 	au_di_swap(tmp, dinfo);
 	if (err == -ENOENT)

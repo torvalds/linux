@@ -384,7 +384,7 @@ static struct dentry *au_lkup_by_ino(struct path *path, ino_t ino,
 	if (!arg.found)
 		goto out_name;
 
-	/* do not call au_lkup_one() */
+	/* do not call vfsub_lkup_one() */
 	dir = parent->d_inode;
 	mutex_lock(&dir->i_mutex);
 	dentry = vfsub_lookup_one_len(arg.name, parent, arg.namelen);
