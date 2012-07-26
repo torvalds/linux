@@ -2267,21 +2267,33 @@ static void ironlake_disable_drps(struct drm_device *dev)
 
 }
 
-void gen6_set_rps(struct drm_device *dev, u8 val)
+static u32 gen6_rps_limits(struct drm_i915_private *dev_priv, u8 val)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 limits;
 
 	limits = 0;
 	if (val >= dev_priv->max_delay)
 		val = dev_priv->max_delay;
-	else
-		limits |= dev_priv->max_delay << 24;
+	limits |= dev_priv->max_delay << 24;
 
-	if (val <= dev_priv->min_delay)
+	/* Only set the down limit when we've reached the lowest level to avoid
+	 * getting more interrupts, otherwise leave this clear. This prevents a
+	 * race in the hw when coming out of rc6: There's a tiny window where
+	 * the hw runs at the minimal clock before selecting the desired
+	 * frequency, if the down threshold expires in that window we will not
+	 * receive a down interrupt. */
+	if (val <= dev_priv->min_delay) {
 		val = dev_priv->min_delay;
-	else
 		limits |= dev_priv->min_delay << 16;
+	}
+
+	return limits;
+}
+
+void gen6_set_rps(struct drm_device *dev, u8 val)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 limits = gen6_rps_limits(dev_priv, val);
 
 	if (val == dev_priv->cur_delay)
 		return;
@@ -3741,25 +3753,20 @@ void intel_init_clock_gating(struct drm_device *dev)
 static void gen6_sanitize_pm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 limits, delay, old;
+	u32 limits, current_limits;
 
 	gen6_gt_force_wake_get(dev_priv);
 
-	old = limits = I915_READ(GEN6_RP_INTERRUPT_LIMITS);
+	current_limits = I915_READ(GEN6_RP_INTERRUPT_LIMITS);
 	/* Make sure we continue to get interrupts
 	 * until we hit the minimum or maximum frequencies.
 	 */
-	limits &= ~(0x3f << 16 | 0x3f << 24);
-	delay = dev_priv->cur_delay;
-	if (delay < dev_priv->max_delay)
-		limits |= (dev_priv->max_delay & 0x3f) << 24;
-	if (delay > dev_priv->min_delay)
-		limits |= (dev_priv->min_delay & 0x3f) << 16;
+	limits = gen6_rps_limits(dev_priv, dev_priv->cur_delay);
 
-	if (old != limits) {
+	if (current_limits != limits) {
 		/* Note that the known failure case is to read back 0. */
 		DRM_DEBUG_DRIVER("Power management discrepancy: GEN6_RP_INTERRUPT_LIMITS "
-				 "expected %08x, was %08x\n", limits, old);
+				 "expected %08x, was %08x\n", limits, current_limits);
 		I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, limits);
 	}
 
