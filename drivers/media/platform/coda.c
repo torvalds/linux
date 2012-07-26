@@ -412,8 +412,8 @@ static int vidioc_try_fmt(struct coda_dev *dev, struct v4l2_format *f)
 				      W_ALIGN, &f->fmt.pix.height,
 				      MIN_H, MAX_H, H_ALIGN, S_ALIGN);
 		f->fmt.pix.bytesperline = round_up(f->fmt.pix.width, 2);
-		f->fmt.pix.sizeimage = f->fmt.pix.height *
-					f->fmt.pix.bytesperline;
+		f->fmt.pix.sizeimage = f->fmt.pix.width *
+					f->fmt.pix.height * 3 / 2;
 	} else { /*encoded formats h.264/mpeg4 */
 		f->fmt.pix.bytesperline = 0;
 		f->fmt.pix.sizeimage = CODA_MAX_FRAME_SIZE;
@@ -497,11 +497,7 @@ static int vidioc_s_fmt(struct coda_ctx *ctx, struct v4l2_format *f)
 	q_data->fmt = find_format(ctx->dev, f);
 	q_data->width = f->fmt.pix.width;
 	q_data->height = f->fmt.pix.height;
-	if (q_data->fmt->fourcc == V4L2_PIX_FMT_YUV420) {
-		q_data->sizeimage = q_data->width * q_data->height * 3 / 2;
-	} else { /* encoded format h.264/mpeg-4 */
-		q_data->sizeimage = CODA_MAX_FRAME_SIZE;
-	}
+	q_data->sizeimage = f->fmt.pix.sizeimage;
 
 	v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
 		"Setting format for type %d, wxh: %dx%d, fmt: %d\n",
