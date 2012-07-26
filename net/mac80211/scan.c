@@ -479,11 +479,10 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	if (local->ops->hw_scan) {
 		__set_bit(SCAN_HW_SCANNING, &local->scanning);
 	} else if ((req->n_channels == 1) &&
-		   (req->channels[0]->center_freq ==
-		    local->hw.conf.channel->center_freq)) {
-
-		/* If we are scanning only on the current channel, then
-		 * we do not need to stop normal activities
+		   (req->channels[0] == local->oper_channel)) {
+		/*
+		 * If we are scanning only on the operating channel
+		 * then we do not need to stop normal activities
 		 */
 		unsigned long next_delay;
 
