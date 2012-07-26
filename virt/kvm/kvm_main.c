@@ -100,17 +100,11 @@ EXPORT_SYMBOL_GPL(kvm_rebooting);
 
 static bool largepages_enabled = true;
 
-struct page *bad_page;
-static pfn_t bad_pfn;
-
-static struct page *hwpoison_page;
-static pfn_t hwpoison_pfn;
-
-static struct page *fault_page;
-static pfn_t fault_pfn;
-
-inline int kvm_is_mmio_pfn(pfn_t pfn)
+bool kvm_is_mmio_pfn(pfn_t pfn)
 {
+	if (is_error_pfn(pfn))
+		return false;
+
 	if (pfn_valid(pfn)) {
 		int reserved;
 		struct page *tail = pfn_to_page(pfn);
@@ -939,33 +933,54 @@ EXPORT_SYMBOL_GPL(kvm_disable_largepages);
 
 int is_error_page(struct page *page)
 {
-	return page == bad_page || page == hwpoison_page || page == fault_page;
+	return IS_ERR(page);
 }
 EXPORT_SYMBOL_GPL(is_error_page);
 
 int is_error_pfn(pfn_t pfn)
 {
-	return pfn == bad_pfn || pfn == hwpoison_pfn || pfn == fault_pfn;
+	return IS_ERR_VALUE(pfn);
 }
 EXPORT_SYMBOL_GPL(is_error_pfn);
 
+static pfn_t get_bad_pfn(void)
+{
+	return -ENOENT;
+}
+
+pfn_t get_fault_pfn(void)
+{
+	return -EFAULT;
+}
+EXPORT_SYMBOL_GPL(get_fault_pfn);
+
+static pfn_t get_hwpoison_pfn(void)
+{
+	return -EHWPOISON;
+}
+
 int is_hwpoison_pfn(pfn_t pfn)
 {
-	return pfn == hwpoison_pfn;
+	return pfn == -EHWPOISON;
 }
 EXPORT_SYMBOL_GPL(is_hwpoison_pfn);
 
 int is_noslot_pfn(pfn_t pfn)
 {
-	return pfn == bad_pfn;
+	return pfn == -ENOENT;
 }
 EXPORT_SYMBOL_GPL(is_noslot_pfn);
 
 int is_invalid_pfn(pfn_t pfn)
 {
-	return pfn == hwpoison_pfn || pfn == fault_pfn;
+	return !is_noslot_pfn(pfn) && is_error_pfn(pfn);
 }
 EXPORT_SYMBOL_GPL(is_invalid_pfn);
+
+struct page *get_bad_page(void)
+{
+	return ERR_PTR(-ENOENT);
+}
 
 static inline unsigned long bad_hva(void)
 {
@@ -1037,13 +1052,6 @@ unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
 	return gfn_to_hva_many(gfn_to_memslot(kvm, gfn), gfn, NULL);
 }
 EXPORT_SYMBOL_GPL(gfn_to_hva);
-
-pfn_t get_fault_pfn(void)
-{
-	get_page(fault_page);
-	return fault_pfn;
-}
-EXPORT_SYMBOL_GPL(get_fault_pfn);
 
 int get_user_page_nowait(struct task_struct *tsk, struct mm_struct *mm,
 	unsigned long start, int write, struct page **page)
@@ -1122,8 +1130,7 @@ static pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
 		if (npages == -EHWPOISON ||
 			(!async && check_user_page_hwpoison(addr))) {
 			up_read(&current->mm->mmap_sem);
-			get_page(hwpoison_page);
-			return page_to_pfn(hwpoison_page);
+			return get_hwpoison_pfn();
 		}
 
 		vma = find_vma_intersection(current->mm, addr, addr+1);
@@ -1161,10 +1168,8 @@ static pfn_t __gfn_to_pfn(struct kvm *kvm, gfn_t gfn, bool atomic, bool *async,
 		*async = false;
 
 	addr = gfn_to_hva(kvm, gfn);
-	if (kvm_is_error_hva(addr)) {
-		get_page(bad_page);
-		return page_to_pfn(bad_page);
-	}
+	if (kvm_is_error_hva(addr))
+		return get_bad_pfn();
 
 	return hva_to_pfn(addr, atomic, async, write_fault, writable);
 }
@@ -1218,37 +1223,45 @@ int gfn_to_page_many_atomic(struct kvm *kvm, gfn_t gfn, struct page **pages,
 }
 EXPORT_SYMBOL_GPL(gfn_to_page_many_atomic);
 
+static struct page *kvm_pfn_to_page(pfn_t pfn)
+{
+	WARN_ON(kvm_is_mmio_pfn(pfn));
+
+	if (is_error_pfn(pfn) || kvm_is_mmio_pfn(pfn))
+		return get_bad_page();
+
+	return pfn_to_page(pfn);
+}
+
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 {
 	pfn_t pfn;
 
 	pfn = gfn_to_pfn(kvm, gfn);
-	if (!kvm_is_mmio_pfn(pfn))
-		return pfn_to_page(pfn);
 
-	WARN_ON(kvm_is_mmio_pfn(pfn));
-
-	get_page(bad_page);
-	return bad_page;
+	return kvm_pfn_to_page(pfn);
 }
 
 EXPORT_SYMBOL_GPL(gfn_to_page);
 
 void kvm_release_page_clean(struct page *page)
 {
-	kvm_release_pfn_clean(page_to_pfn(page));
+	if (!is_error_page(page))
+		kvm_release_pfn_clean(page_to_pfn(page));
 }
 EXPORT_SYMBOL_GPL(kvm_release_page_clean);
 
 void kvm_release_pfn_clean(pfn_t pfn)
 {
-	if (!kvm_is_mmio_pfn(pfn))
+	if (!is_error_pfn(pfn) && !kvm_is_mmio_pfn(pfn))
 		put_page(pfn_to_page(pfn));
 }
 EXPORT_SYMBOL_GPL(kvm_release_pfn_clean);
 
 void kvm_release_page_dirty(struct page *page)
 {
+	WARN_ON(is_error_page(page));
+
 	kvm_release_pfn_dirty(page_to_pfn(page));
 }
 EXPORT_SYMBOL_GPL(kvm_release_page_dirty);
@@ -2771,33 +2784,6 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
 	if (r)
 		goto out_fail;
 
-	bad_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-
-	if (bad_page == NULL) {
-		r = -ENOMEM;
-		goto out;
-	}
-
-	bad_pfn = page_to_pfn(bad_page);
-
-	hwpoison_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-
-	if (hwpoison_page == NULL) {
-		r = -ENOMEM;
-		goto out_free_0;
-	}
-
-	hwpoison_pfn = page_to_pfn(hwpoison_page);
-
-	fault_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-
-	if (fault_page == NULL) {
-		r = -ENOMEM;
-		goto out_free_0;
-	}
-
-	fault_pfn = page_to_pfn(fault_page);
-
 	if (!zalloc_cpumask_var(&cpus_hardware_enabled, GFP_KERNEL)) {
 		r = -ENOMEM;
 		goto out_free_0;
@@ -2872,12 +2858,6 @@ out_free_1:
 out_free_0a:
 	free_cpumask_var(cpus_hardware_enabled);
 out_free_0:
-	if (fault_page)
-		__free_page(fault_page);
-	if (hwpoison_page)
-		__free_page(hwpoison_page);
-	__free_page(bad_page);
-out:
 	kvm_arch_exit();
 out_fail:
 	return r;
@@ -2897,8 +2877,5 @@ void kvm_exit(void)
 	kvm_arch_hardware_unsetup();
 	kvm_arch_exit();
 	free_cpumask_var(cpus_hardware_enabled);
-	__free_page(fault_page);
-	__free_page(hwpoison_page);
-	__free_page(bad_page);
 }
 EXPORT_SYMBOL_GPL(kvm_exit);

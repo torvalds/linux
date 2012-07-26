@@ -203,8 +203,7 @@ int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu)
 	if (!work)
 		return -ENOMEM;
 
-	work->page = bad_page;
-	get_page(bad_page);
+	work->page = get_bad_page();
 	INIT_LIST_HEAD(&work->queue); /* for list_del to work */
 
 	spin_lock(&vcpu->async_pf.lock);
