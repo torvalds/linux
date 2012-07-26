@@ -28,6 +28,7 @@
 #define OMAP3_ISP_USER_H
 
 #include <linux/types.h>
+#include <linux/videodev2.h>
 
 /*
  * Private IOCTLs
