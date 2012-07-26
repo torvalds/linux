@@ -1214,10 +1214,8 @@ int kvm_lapic_enabled(struct kvm_vcpu *vcpu)
  *----------------------------------------------------------------------
  */
 
-static bool lapic_is_periodic(struct kvm_timer *ktimer)
+static bool lapic_is_periodic(struct kvm_lapic *apic)
 {
-	struct kvm_lapic *apic = container_of(ktimer, struct kvm_lapic,
-					      lapic_timer);
 	return apic_lvtt_period(apic);
 }
 
@@ -1253,10 +1251,6 @@ void kvm_apic_nmi_wd_deliver(struct kvm_vcpu *vcpu)
 		kvm_apic_local_deliver(apic, APIC_LVT0);
 }
 
-static struct kvm_timer_ops lapic_timer_ops = {
-	.is_periodic = lapic_is_periodic,
-};
-
 static const struct kvm_io_device_ops apic_mmio_ops = {
 	.read     = apic_mmio_read,
 	.write    = apic_mmio_write,
@@ -1265,7 +1259,8 @@ static const struct kvm_io_device_ops apic_mmio_ops = {
 static enum hrtimer_restart apic_timer_fn(struct hrtimer *data)
 {
 	struct kvm_timer *ktimer = container_of(data, struct kvm_timer, timer);
-	struct kvm_vcpu *vcpu = ktimer->vcpu;
+	struct kvm_lapic *apic = container_of(ktimer, struct kvm_lapic, lapic_timer);
+	struct kvm_vcpu *vcpu = apic->vcpu;
 	wait_queue_head_t *q = &vcpu->wq;
 
 	/*
@@ -1274,7 +1269,7 @@ static enum hrtimer_restart apic_timer_fn(struct hrtimer *data)
 	 * case anyway. Note: KVM_REQ_PENDING_TIMER is implicitly checked
 	 * in vcpu_enter_guest.
 	 */
-	if (ktimer->reinject || !atomic_read(&ktimer->pending)) {
+	if (!atomic_read(&ktimer->pending)) {
 		atomic_inc(&ktimer->pending);
 		/* FIXME: this code should not know anything about vcpus */
 		kvm_make_request(KVM_REQ_PENDING_TIMER, vcpu);
@@ -1283,7 +1278,7 @@ static enum hrtimer_restart apic_timer_fn(struct hrtimer *data)
 	if (waitqueue_active(q))
 		wake_up_interruptible(q);
 
-	if (ktimer->t_ops->is_periodic(ktimer)) {
+	if (lapic_is_periodic(apic)) {
 		hrtimer_add_expires_ns(&ktimer->timer, ktimer->period);
 		return HRTIMER_RESTART;
 	} else
@@ -1314,9 +1309,6 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu)
 	hrtimer_init(&apic->lapic_timer.timer, CLOCK_MONOTONIC,
 		     HRTIMER_MODE_ABS);
 	apic->lapic_timer.timer.function = apic_timer_fn;
-	apic->lapic_timer.t_ops = &lapic_timer_ops;
-	apic->lapic_timer.kvm = vcpu->kvm;
-	apic->lapic_timer.vcpu = vcpu;
 
 	apic->base_address = APIC_DEFAULT_PHYS_BASE;
 	vcpu->arch.apic_base = APIC_DEFAULT_PHYS_BASE;
