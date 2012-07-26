@@ -132,7 +132,7 @@ struct fimc_lite {
 	struct platform_device	*pdev;
 	struct flite_variant	*variant;
 	struct v4l2_device	*v4l2_dev;
-	struct video_device	*vfd;
+	struct video_device	vfd;
 	struct v4l2_fh		fh;
 	struct vb2_alloc_ctx	*alloc_ctx;
 	struct v4l2_subdev	subdev;

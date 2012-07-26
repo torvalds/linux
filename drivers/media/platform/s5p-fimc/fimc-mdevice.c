@@ -591,7 +591,7 @@ static int __fimc_md_create_flite_source_links(struct fimc_md *fmd)
 		if (fimc == NULL)
 			continue;
 		source = &fimc->subdev.entity;
-		sink = &fimc->vfd->entity;
+		sink = &fimc->vfd.entity;
 		/* FIMC-LITE's subdev and video node */
 		ret = media_entity_create_link(source, FIMC_SD_PAD_SOURCE,
 					       sink, 0, flags);
