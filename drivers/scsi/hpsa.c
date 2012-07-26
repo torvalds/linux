@@ -2609,7 +2609,7 @@ static int hpsa_eh_abort_handler(struct scsi_cmnd *sc)
 	/* not in reqQ, if also not in cmpQ, must have already completed */
 	found = hpsa_find_cmd_in_queue(h, sc, &h->cmpQ);
 	if (!found)  {
-		dev_dbg(&h->pdev->dev, "%s Request FAILED (not known to driver).\n",
+		dev_dbg(&h->pdev->dev, "%s Request SUCCEEDED (not known to driver).\n",
 				msg);
 		return SUCCESS;
 	}
