@@ -370,7 +370,7 @@ static int fimc_m2m_s_fmt_mplane(struct file *file, void *fh,
 	vq = v4l2_m2m_get_vq(ctx->m2m_ctx, f->type);
 
 	if (vb2_is_busy(vq)) {
-		v4l2_err(fimc->m2m.vfd, "queue (%d) busy\n", f->type);
+		v4l2_err(&fimc->m2m.vfd, "queue (%d) busy\n", f->type);
 		return -EBUSY;
 	}
 
@@ -507,7 +507,7 @@ static int fimc_m2m_try_crop(struct fimc_ctx *ctx, struct v4l2_crop *cr)
 	int i;
 
 	if (cr->c.top < 0 || cr->c.left < 0) {
-		v4l2_err(fimc->m2m.vfd,
+		v4l2_err(&fimc->m2m.vfd,
 			"doesn't support negative values for top & left\n");
 		return -EINVAL;
 	}
@@ -577,7 +577,7 @@ static int fimc_m2m_s_crop(struct file *file, void *fh, struct v4l2_crop *cr)
 					cr->c.height, ctx->rotation);
 		}
 		if (ret) {
-			v4l2_err(fimc->m2m.vfd, "Out of scaler range\n");
+			v4l2_err(&fimc->m2m.vfd, "Out of scaler range\n");
 			return -EINVAL;
 		}
 	}
@@ -666,7 +666,7 @@ static int fimc_m2m_open(struct file *file)
 		ret = -ENOMEM;
 		goto unlock;
 	}
-	v4l2_fh_init(&ctx->fh, fimc->m2m.vfd);
+	v4l2_fh_init(&ctx->fh, &fimc->m2m.vfd);
 	ctx->fimc_dev = fimc;
 
 	/* Default color format */
@@ -784,38 +784,26 @@ static struct v4l2_m2m_ops m2m_ops = {
 int fimc_register_m2m_device(struct fimc_dev *fimc,
 			     struct v4l2_device *v4l2_dev)
 {
-	struct video_device *vfd;
-	struct platform_device *pdev;
-	int ret = 0;
+	struct video_device *vfd = &fimc->m2m.vfd;
+	int ret;
 
-	if (!fimc)
-		return -ENODEV;
-
-	pdev = fimc->pdev;
 	fimc->v4l2_dev = v4l2_dev;
 
-	vfd = video_device_alloc();
-	if (!vfd) {
-		v4l2_err(v4l2_dev, "Failed to allocate video device\n");
-		return -ENOMEM;
-	}
-
+	memset(vfd, 0, sizeof(*vfd));
 	vfd->fops = &fimc_m2m_fops;
 	vfd->ioctl_ops = &fimc_m2m_ioctl_ops;
 	vfd->v4l2_dev = v4l2_dev;
 	vfd->minor = -1;
-	vfd->release = video_device_release;
+	vfd->release = video_device_release_empty;
 	vfd->lock = &fimc->lock;
 
 	snprintf(vfd->name, sizeof(vfd->name), "fimc.%d.m2m", fimc->id);
 	video_set_drvdata(vfd, fimc);
 
-	fimc->m2m.vfd = vfd;
 	fimc->m2m.m2m_dev = v4l2_m2m_init(&m2m_ops);
 	if (IS_ERR(fimc->m2m.m2m_dev)) {
 		v4l2_err(v4l2_dev, "failed to initialize v4l2-m2m device\n");
-		ret = PTR_ERR(fimc->m2m.m2m_dev);
-		goto err_init;
+		return PTR_ERR(fimc->m2m.m2m_dev);
 	}
 
 	ret = media_entity_init(&vfd->entity, 0, NULL, 0);
@@ -834,8 +822,6 @@ err_vd:
 	media_entity_cleanup(&vfd->entity);
 err_me:
 	v4l2_m2m_release(fimc->m2m.m2m_dev);
-err_init:
-	video_device_release(fimc->m2m.vfd);
 	return ret;
 }
 
@@ -846,9 +832,9 @@ void fimc_unregister_m2m_device(struct fimc_dev *fimc)
 
 	if (fimc->m2m.m2m_dev)
 		v4l2_m2m_release(fimc->m2m.m2m_dev);
-	if (fimc->m2m.vfd) {
-		media_entity_cleanup(&fimc->m2m.vfd->entity);
-		/* Can also be called if video device wasn't registered */
-		video_unregister_device(fimc->m2m.vfd);
+
+	if (video_is_registered(&fimc->m2m.vfd)) {
+		video_unregister_device(&fimc->m2m.vfd);
+		media_entity_cleanup(&fimc->m2m.vfd.entity);
 	}
 }
