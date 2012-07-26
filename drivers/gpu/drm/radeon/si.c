@@ -1127,7 +1127,8 @@ static void si_tiling_mode_table_init(struct radeon_device *rdev)
 			}
 			WREG32(GB_TILE_MODE0 + (reg_offset * 4), gb_tile_moden);
 		}
-	} else if (rdev->family == CHIP_VERDE) {
+	} else if ((rdev->family == CHIP_VERDE) ||
+		   (rdev->family == CHIP_OLAND)) {
 		for (reg_offset = 0; reg_offset < num_tile_mode_states; reg_offset++) {
 			switch (reg_offset) {
 			case 0:  /* non-AA compressed depth or any compressed stencil */
@@ -1564,6 +1565,23 @@ static void si_gpu_init(struct radeon_device *rdev)
 		rdev->config.si.max_texture_channel_caches = 4;
 		rdev->config.si.max_gprs = 256;
 		rdev->config.si.max_gs_threads = 32;
+		rdev->config.si.max_hw_contexts = 8;
+
+		rdev->config.si.sc_prim_fifo_size_frontend = 0x20;
+		rdev->config.si.sc_prim_fifo_size_backend = 0x40;
+		rdev->config.si.sc_hiz_tile_fifo_size = 0x30;
+		rdev->config.si.sc_earlyz_tile_fifo_size = 0x130;
+		gb_addr_config = VERDE_GB_ADDR_CONFIG_GOLDEN;
+		break;
+	case CHIP_OLAND:
+		rdev->config.si.max_shader_engines = 1;
+		rdev->config.si.max_tile_pipes = 4;
+		rdev->config.si.max_cu_per_sh = 6;
+		rdev->config.si.max_sh_per_se = 1;
+		rdev->config.si.max_backends_per_se = 2;
+		rdev->config.si.max_texture_channel_caches = 4;
+		rdev->config.si.max_gprs = 256;
+		rdev->config.si.max_gs_threads = 16;
 		rdev->config.si.max_hw_contexts = 8;
 
 		rdev->config.si.sc_prim_fifo_size_frontend = 0x20;
