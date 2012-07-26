@@ -1786,3 +1786,5 @@ int cx23885_417_register(struct cx23885_dev *dev)
 
 	return 0;
 }
+
+MODULE_FIRMWARE(CX23885_FIRM_IMAGE_NAME);
