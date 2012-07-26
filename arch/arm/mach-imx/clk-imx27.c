@@ -239,8 +239,8 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[ssi1_ipg_gate], NULL, "imx-ssi.0");
 	clk_register_clkdev(clk[ssi2_ipg_gate], NULL, "imx-ssi.1");
 	clk_register_clkdev(clk[nfc_baud_gate], NULL, "mxc_nand.0");
-	clk_register_clkdev(clk[vpu_baud_gate], "per", "imx-vpu");
-	clk_register_clkdev(clk[vpu_ahb_gate], "ahb", "imx-vpu");
+	clk_register_clkdev(clk[vpu_baud_gate], "per", "coda-imx27.0");
+	clk_register_clkdev(clk[vpu_ahb_gate], "ahb", "coda-imx27.0");
 	clk_register_clkdev(clk[dma_ahb_gate], "ahb", "imx-dma");
 	clk_register_clkdev(clk[dma_ipg_gate], "ipg", "imx-dma");
 	clk_register_clkdev(clk[fec_ipg_gate], "ipg", "imx27-fec.0");

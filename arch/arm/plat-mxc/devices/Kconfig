@@ -15,7 +15,11 @@ config IMX_HAVE_PLATFORM_GPIO_KEYS
 
 config IMX_HAVE_PLATFORM_IMX21_HCD
 	bool
-	
+
+config IMX_HAVE_PLATFORM_IMX27_CODA
+	bool
+	default y if SOC_IMX27
+
 config IMX_HAVE_PLATFORM_IMX2_WDT
 	bool
 
