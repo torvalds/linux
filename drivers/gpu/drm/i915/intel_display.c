@@ -3573,7 +3573,7 @@ void intel_encoder_destroy(struct drm_encoder *encoder)
 }
 
 static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
-				  struct drm_display_mode *mode,
+				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = crtc->dev;
@@ -6486,7 +6486,9 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	intel_fb = to_intel_framebuffer(fb);
 	obj = intel_fb->obj;
 
-	mutex_lock(&dev->struct_mutex);
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		goto cleanup;
 
 	/* Reference the objects for the scheduled work. */
 	drm_gem_object_reference(&work->old_fb_obj->base);
@@ -6521,6 +6523,7 @@ cleanup_pending:
 	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
 
+cleanup:
 	spin_lock_irqsave(&dev->event_lock, flags);
 	intel_crtc->unpin_work = NULL;
 	spin_unlock_irqrestore(&dev->event_lock, flags);
@@ -7174,6 +7177,11 @@ static void i915_disable_vga(struct drm_device *dev)
 
 void intel_modeset_init_hw(struct drm_device *dev)
 {
+	/* We attempt to init the necessary power wells early in the initialization
+	 * time, so the subsystems that expect power to be enabled can work.
+	 */
+	intel_init_power_wells(dev);
+
 	intel_prepare_ddi(dev);
 
 	intel_init_clock_gating(dev);

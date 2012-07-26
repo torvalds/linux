@@ -112,8 +112,8 @@ static int get_context_size(struct drm_device *dev)
 		ret = GEN6_CXT_TOTAL_SIZE(reg) * 64;
 		break;
 	case 7:
-		reg = I915_READ(GEN7_CTX_SIZE);
-		ret = GEN7_CTX_TOTAL_SIZE(reg) * 64;
+		reg = I915_READ(GEN7_CXT_SIZE);
+		ret = GEN7_CXT_TOTAL_SIZE(reg) * 64;
 		break;
 	default:
 		BUG();
@@ -374,6 +374,17 @@ static int do_switch(struct drm_i915_gem_object *from_obj,
 	if (ret)
 		return ret;
 
+	/* Clear this page out of any CPU caches for coherent swap-in/out. Note
+	 * that thanks to write = false in this call and us not setting any gpu
+	 * write domains when putting a context object onto the active list
+	 * (when switching away from it), this won't block.
+	 * XXX: We need a real interface to do this instead of trickery. */
+	ret = i915_gem_object_set_to_gtt_domain(to->obj, false);
+	if (ret) {
+		i915_gem_object_unpin(to->obj);
+		return ret;
+	}
+
 	if (!to->obj->has_global_gtt_mapping)
 		i915_gem_gtt_bind_object(to->obj, to->obj->cache_level);
 
@@ -408,8 +419,11 @@ static int do_switch(struct drm_i915_gem_object *from_obj,
 		from_obj->dirty = 1;
 		BUG_ON(from_obj->ring != to->ring);
 		i915_gem_object_unpin(from_obj);
+
+		drm_gem_object_unreference(&from_obj->base);
 	}
 
+	drm_gem_object_reference(&to->obj->base);
 	ring->last_context_obj = to->obj;
 	to->is_initialized = true;
 
@@ -459,20 +473,7 @@ int i915_switch_context(struct intel_ring_buffer *ring,
 	if (from_obj == to->obj)
 		return 0;
 
-	ret = do_switch(from_obj, to, i915_gem_next_request_seqno(to->ring));
-	if (ret)
-		return ret;
-
-	/* Just to make the code a little cleaner we take the object reference
-	 * after the switch was successful. It would be more intuitive to ref
-	 * the 'to' object before the switch but we know the refcount must be >0
-	 * if context_get() succeeded, and we hold struct mutex. So it's safe to
-	 * do this here/now
-	 */
-	drm_gem_object_reference(&to->obj->base);
-	if (from_obj != NULL)
-		drm_gem_object_unreference(&from_obj->base);
-	return ret;
+	return do_switch(from_obj, to, i915_gem_next_request_seqno(to->ring));
 }
 
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
@@ -496,11 +497,13 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 
 	ctx = create_hw_context(dev, file_priv);
 	mutex_unlock(&dev->struct_mutex);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	args->ctx_id = ctx->id;
 	DRM_DEBUG_DRIVER("HW context %d created\n", args->ctx_id);
 
-	return PTR_RET(ctx);
+	return 0;
 }
 
 int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,

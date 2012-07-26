@@ -342,7 +342,6 @@ struct intel_fbc_work {
 };
 
 int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
-extern bool intel_ddc_probe(struct intel_encoder *intel_encoder, int ddc_bus);
 
 extern void intel_attach_force_audio_property(struct drm_connector *connector);
 extern void intel_attach_broadcast_rgb_property(struct drm_connector *connector);
@@ -496,6 +495,7 @@ extern void intel_update_fbc(struct drm_device *dev);
 extern void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
 extern void intel_gpu_ips_teardown(void);
 
+extern void intel_init_power_wells(struct drm_device *dev);
 extern void intel_enable_gt_powersave(struct drm_device *dev);
 extern void intel_disable_gt_powersave(struct drm_device *dev);
 extern void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv);

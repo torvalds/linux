@@ -330,38 +330,33 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 {
 	struct intel_crt *crt = intel_attached_crt(connector);
 	struct drm_i915_private *dev_priv = crt->base.base.dev->dev_private;
+	struct edid *edid;
+	struct i2c_adapter *i2c;
 
-	/* CRT should always be at 0, but check anyway */
-	if (crt->base.type != INTEL_OUTPUT_ANALOG)
-		return false;
+	BUG_ON(crt->base.type != INTEL_OUTPUT_ANALOG);
 
-	if (intel_ddc_probe(&crt->base, dev_priv->crt_ddc_pin)) {
-		struct edid *edid;
-		bool is_digital = false;
-		struct i2c_adapter *i2c;
+	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->crt_ddc_pin);
+	edid = drm_get_edid(connector, i2c);
 
-		i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->crt_ddc_pin);
-		edid = drm_get_edid(connector, i2c);
+	if (edid) {
+		bool is_digital = edid->input & DRM_EDID_INPUT_DIGITAL;
+
 		/*
 		 * This may be a DVI-I connector with a shared DDC
 		 * link between analog and digital outputs, so we
 		 * have to check the EDID input spec of the attached device.
-		 *
-		 * On the other hand, what should we do if it is a broken EDID?
 		 */
-		if (edid != NULL) {
-			is_digital = edid->input & DRM_EDID_INPUT_DIGITAL;
-			connector->display_info.raw_edid = NULL;
-			kfree(edid);
-		}
-
 		if (!is_digital) {
 			DRM_DEBUG_KMS("CRT detected via DDC:0x50 [EDID]\n");
 			return true;
-		} else {
-			DRM_DEBUG_KMS("CRT not detected via DDC:0x50 [EDID reports a digital panel]\n");
 		}
+
+		DRM_DEBUG_KMS("CRT not detected via DDC:0x50 [EDID reports a digital panel]\n");
+	} else {
+		DRM_DEBUG_KMS("CRT not detected via DDC:0x50 [no valid EDID found]\n");
 	}
+
+	kfree(edid);
 
 	return false;
 }

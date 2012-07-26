@@ -289,11 +289,17 @@ void intel_panel_disable_backlight(struct drm_device *dev)
 	intel_panel_actually_set_backlight(dev, 0);
 
 	if (INTEL_INFO(dev)->gen >= 4) {
-		uint32_t reg;
+		uint32_t reg, tmp;
 
 		reg = HAS_PCH_SPLIT(dev) ? BLC_PWM_CPU_CTL2 : BLC_PWM_CTL2;
 
 		I915_WRITE(reg, I915_READ(reg) & ~BLM_PWM_ENABLE);
+
+		if (HAS_PCH_SPLIT(dev)) {
+			tmp = I915_READ(BLC_PWM_PCH_CTL1);
+			tmp &= ~BLM_PCH_PWM_ENABLE;
+			I915_WRITE(BLC_PWM_PCH_CTL1, tmp);
+		}
 	}
 }
 
@@ -333,6 +339,13 @@ void intel_panel_enable_backlight(struct drm_device *dev,
 		I915_WRITE(reg, tmp);
 		POSTING_READ(reg);
 		I915_WRITE(reg, tmp | BLM_PWM_ENABLE);
+
+		if (HAS_PCH_SPLIT(dev)) {
+			tmp = I915_READ(BLC_PWM_PCH_CTL1);
+			tmp |= BLM_PCH_PWM_ENABLE;
+			tmp &= ~BLM_PCH_OVERRIDE_ENABLE;
+			I915_WRITE(BLC_PWM_PCH_CTL1, tmp);
+		}
 	}
 }
 

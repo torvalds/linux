@@ -690,10 +690,10 @@
 #define   GEN6_BLITTER_FBC_NOTIFY			(1<<3)
 
 #define GEN6_BSD_SLEEP_PSMI_CONTROL	0x12050
-#define   GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_MODIFY_MASK	(1 << 16)
-#define   GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_DISABLE		(1 << 0)
-#define   GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_ENABLE		0
-#define   GEN6_BSD_SLEEP_PSMI_CONTROL_IDLE_INDICATOR			(1 << 3)
+#define   GEN6_BSD_SLEEP_MSG_DISABLE	(1 << 0)
+#define   GEN6_BSD_SLEEP_FLUSH_DISABLE	(1 << 2)
+#define   GEN6_BSD_SLEEP_INDICATOR	(1 << 3)
+#define   GEN6_BSD_GO_INDICATOR		(1 << 4)
 
 #define GEN6_BSD_HWSTAM			0x12098
 #define GEN6_BSD_IMR			0x120a8
@@ -1482,15 +1482,19 @@
 					GEN6_CXT_RENDER_SIZE(cxt_reg) + \
 					GEN6_CXT_EXTENDED_SIZE(cxt_reg) + \
 					GEN6_CXT_PIPELINE_SIZE(cxt_reg))
-#define GEN7_CTX_SIZE		0x21a8
-#define GEN7_CTX_RENDER_SIZE(ctx_reg)	((ctx_reg >> 16) & 0x3f)
-#define GEN7_CTX_EXTENDED_SIZE(ctx_reg)	((ctx_reg >> 9) & 0x7f)
-#define GEN7_CTX_GT1_SIZE(ctx_reg)	((ctx_reg >> 6) & 0x7)
-#define GEN7_CTX_VFSTATE_SIZE(ctx_reg)	((ctx_reg >> 0) & 0x3f)
-#define GEN7_CTX_TOTAL_SIZE(ctx_reg)	(GEN7_CTX_RENDER_SIZE(ctx_reg) + \
-					 GEN7_CTX_EXTENDED_SIZE(ctx_reg) + \
-					 GEN7_CTX_GT1_SIZE(ctx_reg) + \
-					 GEN7_CTX_VFSTATE_SIZE(ctx_reg))
+#define GEN7_CXT_SIZE		0x21a8
+#define GEN7_CXT_POWER_SIZE(ctx_reg)	((ctx_reg >> 25) & 0x7f)
+#define GEN7_CXT_RING_SIZE(ctx_reg)	((ctx_reg >> 22) & 0x7)
+#define GEN7_CXT_RENDER_SIZE(ctx_reg)	((ctx_reg >> 16) & 0x3f)
+#define GEN7_CXT_EXTENDED_SIZE(ctx_reg)	((ctx_reg >> 9) & 0x7f)
+#define GEN7_CXT_GT1_SIZE(ctx_reg)	((ctx_reg >> 6) & 0x7)
+#define GEN7_CXT_VFSTATE_SIZE(ctx_reg)	((ctx_reg >> 0) & 0x3f)
+#define GEN7_CXT_TOTAL_SIZE(ctx_reg)	(GEN7_CXT_POWER_SIZE(ctx_reg) + \
+					 GEN7_CXT_RING_SIZE(ctx_reg) + \
+					 GEN7_CXT_RENDER_SIZE(ctx_reg) + \
+					 GEN7_CXT_EXTENDED_SIZE(ctx_reg) + \
+					 GEN7_CXT_GT1_SIZE(ctx_reg) + \
+					 GEN7_CXT_VFSTATE_SIZE(ctx_reg))
 
 /*
  * Overlay regs
@@ -1896,7 +1900,7 @@
 /* PCH CTL1 is totally different, all but the below bits are reserved. CTL2 is
  * like the normal CTL from gen4 and earlier. Hooray for confusing naming. */
 #define BLC_PWM_PCH_CTL1	0xc8250
-#define   BLM_PCH_PWM_ENABLE			(1 << 30)
+#define   BLM_PCH_PWM_ENABLE			(1 << 31)
 #define   BLM_PCH_OVERRIDE_ENABLE		(1 << 30)
 #define   BLM_PCH_POLARITY			(1 << 29)
 #define BLC_PWM_PCH_CTL2	0xc8254
