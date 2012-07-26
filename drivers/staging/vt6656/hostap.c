@@ -732,8 +732,8 @@ int vt6656_hostap_ioctl(PSDevice pDevice, struct iw_point *p)
 		break;
 	case VIAWGET_HOSTAPD_SET_ASSOC_AP_ADDR:
 	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_SET_ASSOC_AP_ADDR \n");
-		return -EOPNOTSUPP;
-		break;
+		ret = -EOPNOTSUPP;
+		goto out;
 	case VIAWGET_HOSTAPD_FLUSH:
 	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_FLUSH \n");
         spin_lock_irq(&pDevice->lock);
@@ -777,13 +777,13 @@ int vt6656_hostap_ioctl(PSDevice pDevice, struct iw_point *p)
 
 	case VIAWGET_HOSTAPD_STA_CLEAR_STATS:
 	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_STA_CLEAR_STATS \n");
-	    return -EOPNOTSUPP;
-
+	    ret = -EOPNOTSUPP;
+	    goto out;
 	default:
 	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "vt6656_hostap_ioctl: unknown cmd=%d\n",
 		       (int)param->cmd);
-		return -EOPNOTSUPP;
-		break;
+		ret = -EOPNOTSUPP;
+		goto out;
 	}
 
 
