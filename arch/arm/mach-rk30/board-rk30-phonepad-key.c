@@ -21,14 +21,12 @@ static struct rk29_keys_button key_button[] = {
 		.gpio	= RK30_PIN6_PA1,
 		.active_low = PRESS_LEV_LOW,
 	},
-	#endif
 	{
 		.desc	= "vol-",
 		.code	= KEY_VOLUMEDOWN,
 		.gpio	= RK30_PIN4_PC5,
 		.active_low = PRESS_LEV_LOW,
 	},
-	#if 0
 	{
 		.desc	= "home",
 		.code	= KEY_HOME,
@@ -62,6 +60,7 @@ static struct rk29_keys_button key_button[] = {
 		//.code_long_press = EV_ENCALL,
 		.wakeup	= 1,
 	},
+	#if 0
 	{
 		.desc	= "vol+",
 		.code	= KEY_VOLUMEUP,
@@ -69,7 +68,6 @@ static struct rk29_keys_button key_button[] = {
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
-	#if 0
 	{
 		.desc	= "vol-",
 		.code	= KEY_VOLUMEUP,
@@ -78,32 +76,25 @@ static struct rk29_keys_button key_button[] = {
 		.active_low = PRESS_LEV_LOW,
 	},
 	#endif
-#ifdef CONFIG_MACH_RK3066_SDK
+#ifdef CONFIG_MACH_RK30_PHONE_PAD
 	{
-		.desc	= "menu",
-		.code	= EV_MENU,
-		.adc_value	= 135,
+		.desc	= "vol+",
+		.code	= KEY_VOLUMEUP,
+		.adc_value	= 180,
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
 	{
-		.desc	= "home",
-		.code	= KEY_HOME,
-		.adc_value	= 550,
+		.desc	= "vol-",
+		.code	= KEY_VOLUMEDOWN,
+		.adc_value	= 1,
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
 	{
 		.desc	= "esc",
 		.code	= KEY_BACK,
-		.adc_value	= 334,
-		.gpio = INVALID_GPIO,
-		.active_low = PRESS_LEV_LOW,
-	},
-	{
-		.desc	= "camera",
-		.code	= KEY_CAMERA,
-		.adc_value	= 743,
+		.adc_value	= 460,
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
