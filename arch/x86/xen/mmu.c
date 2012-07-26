@@ -1183,9 +1183,64 @@ static __init void xen_mapping_pagetable_reserve(u64 start, u64 end)
 
 static void xen_post_allocator_init(void);
 
+#ifdef CONFIG_X86_64
+static void __init xen_cleanhighmap(unsigned long vaddr,
+				    unsigned long vaddr_end)
+{
+	unsigned long kernel_end = roundup((unsigned long)_brk_end, PMD_SIZE) - 1;
+	pmd_t *pmd = level2_kernel_pgt + pmd_index(vaddr);
+
+	/* NOTE: The loop is more greedy than the cleanup_highmap variant.
+	 * We include the PMD passed in on _both_ boundaries. */
+	for (; vaddr <= vaddr_end && (pmd < (level2_kernel_pgt + PAGE_SIZE));
+			pmd++, vaddr += PMD_SIZE) {
+		if (pmd_none(*pmd))
+			continue;
+		if (vaddr < (unsigned long) _text || vaddr > kernel_end)
+			set_pmd(pmd, __pmd(0));
+	}
+	/* In case we did something silly, we should crash in this function
+	 * instead of somewhere later and be confusing. */
+	xen_mc_flush();
+}
+#endif
 static void __init xen_pagetable_setup_done(pgd_t *base)
 {
+#ifdef CONFIG_X86_64
+	unsigned long size;
+	unsigned long addr;
+#endif
+
 	xen_setup_shared_info();
+#ifdef CONFIG_X86_64
+	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+		unsigned long new_mfn_list;
+
+		size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
+
+		/* On 32-bit, we get zero so this never gets executed. */
+		new_mfn_list = xen_revector_p2m_tree();
+		if (new_mfn_list && new_mfn_list != xen_start_info->mfn_list) {
+			/* using __ka address and sticking INVALID_P2M_ENTRY! */
+			memset((void *)xen_start_info->mfn_list, 0xff, size);
+
+			/* We should be in __ka space. */
+			BUG_ON(xen_start_info->mfn_list < __START_KERNEL_map);
+			addr = xen_start_info->mfn_list;
+			size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
+			/* We roundup to the PMD, which means that if anybody at this stage is
+			 * using the __ka address of xen_start_info or xen_start_info->shared_info
+			 * they are in going to crash. Fortunatly we have already revectored
+			 * in xen_setup_kernel_pagetable and in xen_setup_shared_info. */
+			size = roundup(size, PMD_SIZE);
+			xen_cleanhighmap(addr, addr + size);
+
+			memblock_free(__pa(xen_start_info->mfn_list), size);
+			/* And revector! Bye bye old array */
+			xen_start_info->mfn_list = new_mfn_list;
+		}
+	}
+#endif
 	xen_post_allocator_init();
 }
 
@@ -1824,6 +1879,8 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 
 	/* Our (by three pages) smaller Xen pagetable that we are using */
 	memblock_reserve(PFN_PHYS(pt_base), (pt_end - pt_base) * PAGE_SIZE);
+	/* Revector the xen_start_info */
+	xen_start_info = (struct start_info *)__va(__pa(xen_start_info));
 }
 #else	/* !CONFIG_X86_64 */
 static RESERVE_BRK_ARRAY(pmd_t, initial_kernel_pmd, PTRS_PER_PMD);
