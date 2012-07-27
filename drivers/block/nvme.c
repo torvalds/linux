@@ -893,7 +893,8 @@ static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
 							int depth, int vector)
 {
 	struct device *dmadev = &dev->pci_dev->dev;
-	unsigned extra = (depth / 8) + (depth * sizeof(struct nvme_cmd_info));
+	unsigned extra = DIV_ROUND_UP(depth, 8) + (depth *
+						sizeof(struct nvme_cmd_info));
 	struct nvme_queue *nvmeq = kzalloc(sizeof(*nvmeq) + extra, GFP_KERNEL);
 	if (!nvmeq)
 		return NULL;
@@ -1391,7 +1392,7 @@ static int set_queue_count(struct nvme_dev *dev, int count)
 
 static int __devinit nvme_setup_io_queues(struct nvme_dev *dev)
 {
-	int result, cpu, i, nr_io_queues, db_bar_size;
+	int result, cpu, i, nr_io_queues, db_bar_size, q_depth;
 
 	nr_io_queues = num_online_cpus();
 	result = set_queue_count(dev, nr_io_queues);
@@ -1437,9 +1438,10 @@ static int __devinit nvme_setup_io_queues(struct nvme_dev *dev)
 		cpu = cpumask_next(cpu, cpu_online_mask);
 	}
 
+	q_depth = min_t(int, NVME_CAP_MQES(readq(&dev->bar->cap)) + 1,
+								NVME_Q_DEPTH);
 	for (i = 0; i < nr_io_queues; i++) {
-		dev->queues[i + 1] = nvme_create_queue(dev, i + 1,
-							NVME_Q_DEPTH, i);
+		dev->queues[i + 1] = nvme_create_queue(dev, i + 1, q_depth, i);
 		if (IS_ERR(dev->queues[i + 1]))
 			return PTR_ERR(dev->queues[i + 1]);
 		dev->queue_count++;
