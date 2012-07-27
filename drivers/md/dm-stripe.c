@@ -165,7 +165,10 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	else
 		sc->stripes_shift = __ffs(stripes);
 
-	ti->split_io = chunk_size;
+	r = dm_set_target_max_io_len(ti, chunk_size);
+	if (r)
+		return r;
+
 	ti->num_flush_requests = stripes;
 	ti->num_discard_requests = stripes;
 

@@ -1081,7 +1081,11 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	ti->private = ms;
-	ti->split_io = dm_rh_get_region_size(ms->rh);
+
+	r = dm_set_target_max_io_len(ti, dm_rh_get_region_size(ms->rh));
+	if (r)
+		goto err_free_context;
+
 	ti->num_flush_requests = 1;
 	ti->num_discard_requests = 1;
 	ti->discard_zeroes_data_unsupported = 1;

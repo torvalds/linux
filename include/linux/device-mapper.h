@@ -186,8 +186,8 @@ struct dm_target {
 	sector_t begin;
 	sector_t len;
 
-	/* Always a power of 2 */
-	sector_t split_io;
+	/* If non-zero, maximum size of I/O submitted to a target. */
+	uint32_t max_io_len;
 
 	/*
 	 * A number of zero-length barrier requests that will be submitted
@@ -356,6 +356,11 @@ void dm_table_add_target_callbacks(struct dm_table *t, struct dm_target_callback
  * Finally call this to make the table ready for use.
  */
 int dm_table_complete(struct dm_table *t);
+
+/*
+ * Target may require that it is never sent I/O larger than len.
+ */
+int __must_check dm_set_target_max_io_len(struct dm_target *ti, sector_t len);
 
 /*
  * Table reference counting.

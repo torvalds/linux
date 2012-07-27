@@ -2628,7 +2628,10 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto bad_thin_open;
 	}
 
-	ti->split_io = tc->pool->sectors_per_block;
+	r = dm_set_target_max_io_len(ti, tc->pool->sectors_per_block);
+	if (r)
+		goto bad_thin_open;
+
 	ti->num_flush_requests = 1;
 
 	/* In case the pool supports discards, pass them on. */

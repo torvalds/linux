@@ -353,6 +353,7 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 {
 	unsigned i, rebuild_cnt = 0;
 	unsigned long value, region_size = 0;
+	sector_t max_io_len;
 	char *key;
 
 	/*
@@ -522,14 +523,12 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 		return -EINVAL;
 
 	if (rs->md.chunk_sectors)
-		rs->ti->split_io = rs->md.chunk_sectors;
+		max_io_len = rs->md.chunk_sectors;
 	else
-		rs->ti->split_io = region_size;
+		max_io_len = region_size;
 
-	if (rs->md.chunk_sectors)
-		rs->ti->split_io = rs->md.chunk_sectors;
-	else
-		rs->ti->split_io = region_size;
+	if (dm_set_target_max_io_len(rs->ti, max_io_len))
+		return -EINVAL;
 
 	/* Assume there are no metadata devices until the drives are parsed */
 	rs->md.persistent = 0;
