@@ -380,7 +380,7 @@ static inline int nfs4_register_sysctl(void)
 	return 0;
 }
 
-static inline int nfs4_unregister_sysctl(void)
+static inline void nfs4_unregister_sysctl(void)
 {
 }
 #endif
