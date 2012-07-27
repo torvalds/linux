@@ -42,7 +42,7 @@ struct convert_context {
 	unsigned int offset_out;
 	unsigned int idx_in;
 	unsigned int idx_out;
-	sector_t sector;
+	sector_t cc_sector;
 	atomic_t cc_pending;
 };
 
@@ -654,7 +654,7 @@ static void crypt_convert_init(struct crypt_config *cc,
 	ctx->offset_out = 0;
 	ctx->idx_in = bio_in ? bio_in->bi_idx : 0;
 	ctx->idx_out = bio_out ? bio_out->bi_idx : 0;
-	ctx->sector = sector + cc->iv_offset;
+	ctx->cc_sector = sector + cc->iv_offset;
 	init_completion(&ctx->restart);
 }
 
@@ -690,7 +690,7 @@ static int crypt_convert_block(struct crypt_config *cc,
 	dmreq = dmreq_of_req(cc, req);
 	iv = iv_of_dmreq(cc, dmreq);
 
-	dmreq->iv_sector = ctx->sector;
+	dmreq->iv_sector = ctx->cc_sector;
 	dmreq->ctx = ctx;
 	sg_init_table(&dmreq->sg_in, 1);
 	sg_set_page(&dmreq->sg_in, bv_in->bv_page, 1 << SECTOR_SHIFT,
@@ -739,7 +739,7 @@ static void crypt_alloc_req(struct crypt_config *cc,
 			    struct convert_context *ctx)
 {
 	struct crypt_cpu *this_cc = this_crypt_config(cc);
-	unsigned key_index = ctx->sector & (cc->tfms_count - 1);
+	unsigned key_index = ctx->cc_sector & (cc->tfms_count - 1);
 
 	if (!this_cc->req)
 		this_cc->req = mempool_alloc(cc->req_pool, GFP_NOIO);
@@ -778,13 +778,13 @@ static int crypt_convert(struct crypt_config *cc,
 			/* fall through*/
 		case -EINPROGRESS:
 			this_cc->req = NULL;
-			ctx->sector++;
+			ctx->cc_sector++;
 			continue;
 
 		/* sync */
 		case 0:
 			atomic_dec(&ctx->cc_pending);
-			ctx->sector++;
+			ctx->cc_sector++;
 			cond_resched();
 			continue;
 
