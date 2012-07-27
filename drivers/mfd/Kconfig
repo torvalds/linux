@@ -524,6 +524,7 @@ config MFD_SEC_CORE
 config MFD_ARIZONA
 	select REGMAP
 	select REGMAP_IRQ
+	select MFD_CORE
 	bool
 
 config MFD_ARIZONA_I2C
