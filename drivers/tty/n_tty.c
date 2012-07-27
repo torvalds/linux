@@ -92,9 +92,17 @@ static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
 
 static void n_tty_set_room(struct tty_struct *tty)
 {
-	/* tty->read_cnt is not read locked ? */
-	int	left = N_TTY_BUF_SIZE - tty->read_cnt - 1;
+	int left;
 	int old_left;
+
+	/* tty->read_cnt is not read locked ? */
+	if (I_PARMRK(tty)) {
+		/* Multiply read_cnt by 3, since each byte might take up to
+		 * three times as many spaces when PARMRK is set (depending on
+		 * its flags, e.g. parity error). */
+		left = N_TTY_BUF_SIZE - tty->read_cnt * 3 - 1;
+	} else
+		left = N_TTY_BUF_SIZE - tty->read_cnt - 1;
 
 	/*
 	 * If we are doing input canonicalization, and there are no
