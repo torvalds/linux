@@ -245,21 +245,21 @@ int tps65910_post_init(struct tps65910 *tps65910)
 	regulator_put(dcdc);
 	udelay(100);
 
-	ldo = regulator_get(NULL, "vpll");	// vdd11
-	regulator_set_voltage(ldo, 1100000, 1100000);
+	ldo = regulator_get(NULL, "vpll");	// vcc25
+	regulator_set_voltage(ldo, 2500000, 2500000);
 	regulator_enable(ldo);
 	printk("%s set vpll vdd11=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
 
-	ldo = regulator_get(NULL, "vdig2");	// vdd11_hdmi
+	ldo = regulator_get(NULL, "vdig2");	// vdd11
 	regulator_set_voltage(ldo, 1100000, 1100000);
 	regulator_enable(ldo);
 	printk("%s set vdig2 vdd11_hdmi=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
 
-	ldo = regulator_get(NULL, "vaux33");	 //vcc33
+	ldo = regulator_get(NULL, "vaux33");	 //vcc_tp
 	regulator_set_voltage(ldo, 3300000, 3300000);
 	regulator_enable(ldo);
 	printk("%s set vaux33 vcc33=%dmV end\n", __func__, regulator_get_voltage(ldo));
@@ -280,14 +280,14 @@ int tps65910_post_init(struct tps65910 *tps65910)
 	regulator_put(dcdc);
 	udelay(100);
 	
-	ldo = regulator_get(NULL, "vdig1");	//vccio_wl
-	regulator_set_voltage(ldo, 1700000, 1700000);
+	ldo = regulator_get(NULL, "vdig1");	//vcc18_cif
+	regulator_set_voltage(ldo, 1800000, 1800000);
 	regulator_enable(ldo);
 	printk("%s set vdig1 vccio_wl=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
 	
-	dcdc = regulator_get(NULL, "vaux1"); //vcc25
+	dcdc = regulator_get(NULL, "vaux1"); //vcc25_hdmi
 	regulator_set_voltage(dcdc,2500000,2500000);
 	regulator_enable(dcdc); 
 	printk("%s set vaux1 vcc25=%dmV end\n", __func__, regulator_get_voltage(dcdc));
@@ -301,7 +301,7 @@ int tps65910_post_init(struct tps65910 *tps65910)
 	regulator_put(ldo);
 	udelay(100);
 
-	ldo = regulator_get(NULL, "vdac"); // vcc18_cif
+	ldo = regulator_get(NULL, "vdac"); // vccio_wl
 	regulator_set_voltage(ldo,1800000,1800000);
 	regulator_enable(ldo); 
 	printk("%s set vdac vcc18_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
@@ -611,23 +611,19 @@ static struct tps65910_board tps65910_data = {
 
 	//TPS65910_NUM_REGS = 13
 	// Regulators
-	.tps65910_pmic_init_data = {
-		NULL,
-		&tps65910_smps4,
-		&tps65910_smps1,
-		&tps65910_smps2,
-		&tps65910_smps3,
-		
-		&tps65910_ldo1,
-		&tps65910_ldo2,
-		&tps65910_ldo3,
-		&tps65910_ldo4,
-		&tps65910_ldo5,
-		&tps65910_ldo6,
-		&tps65910_ldo7,
-		&tps65910_ldo8,		
-	},
-
+	.tps65910_pmic_init_data[TPS65910_REG_VRTC] = NULL,		
+	.tps65910_pmic_init_data[TPS65910_REG_VIO] = &tps65910_smps4,
+	.tps65910_pmic_init_data[TPS65910_REG_VDD1] = &tps65910_smps1,
+	.tps65910_pmic_init_data[TPS65910_REG_VDD2] = &tps65910_smps2,
+	.tps65910_pmic_init_data[TPS65910_REG_VDD3] = &tps65910_smps3,
+	.tps65910_pmic_init_data[TPS65910_REG_VDIG1] = &tps65910_ldo1,
+	.tps65910_pmic_init_data[TPS65910_REG_VDIG2] = &tps65910_ldo2,
+	.tps65910_pmic_init_data[TPS65910_REG_VPLL] = &tps65910_ldo8,
+	.tps65910_pmic_init_data[TPS65910_REG_VDAC] = &tps65910_ldo7,
+	.tps65910_pmic_init_data[TPS65910_REG_VAUX1] = &tps65910_ldo3,
+	.tps65910_pmic_init_data[TPS65910_REG_VAUX2] = &tps65910_ldo4,
+	.tps65910_pmic_init_data[TPS65910_REG_VAUX33] = &tps65910_ldo5,
+	.tps65910_pmic_init_data[TPS65910_REG_VMMC] = &tps65910_ldo6,
  
 };
 
