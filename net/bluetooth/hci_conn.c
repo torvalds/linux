@@ -521,29 +521,19 @@ static struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
 	return acl;
 }
 
-/* Create SCO, ACL or LE connection.
- * Device _must_ be locked */
-struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
-			     __u8 dst_type, __u8 sec_level, __u8 auth_type)
+static struct hci_conn *hci_connect_sco(struct hci_dev *hdev, bdaddr_t *dst,
+				     u8 sec_level, u8 auth_type)
 {
 	struct hci_conn *acl;
 	struct hci_conn *sco;
-
-	BT_DBG("%s dst %s", hdev->name, batostr(dst));
-
-	if (type == LE_LINK)
-		return hci_connect_le(hdev, dst, dst_type, sec_level, auth_type);
 
 	acl = hci_connect_acl(hdev, dst, sec_level, auth_type);
 	if (IS_ERR(acl))
 		return acl;
 
-	if (type == ACL_LINK)
-		return acl;
-
-	sco = hci_conn_hash_lookup_ba(hdev, type, dst);
+	sco = hci_conn_hash_lookup_ba(hdev, SCO_LINK, dst);
 	if (!sco) {
-		sco = hci_conn_add(hdev, type, dst);
+		sco = hci_conn_add(hdev, SCO_LINK, dst);
 		if (!sco) {
 			hci_conn_put(acl);
 			return ERR_PTR(-ENOMEM);
@@ -570,6 +560,21 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
 	}
 
 	return sco;
+}
+
+/* Create SCO, ACL or LE connection. */
+struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
+			     __u8 dst_type, __u8 sec_level, __u8 auth_type)
+{
+	BT_DBG("%s dst %s", hdev->name, batostr(dst));
+
+	if (type == LE_LINK)
+		return hci_connect_le(hdev, dst, dst_type, sec_level, auth_type);
+
+	if (type == ACL_LINK)
+		return hci_connect_acl(hdev, dst, sec_level, auth_type);
+
+	return hci_connect_sco(hdev, dst, sec_level, auth_type);
 }
 
 /* Check link security requirement */
