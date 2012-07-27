@@ -30,7 +30,7 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/a2mp.h>
 
-static void hci_le_connect(struct hci_conn *conn)
+static void hci_le_create_connection(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
 	struct hci_cp_le_create_conn cp;
@@ -54,12 +54,12 @@ static void hci_le_connect(struct hci_conn *conn)
 	hci_send_cmd(hdev, HCI_OP_LE_CREATE_CONN, sizeof(cp), &cp);
 }
 
-static void hci_le_connect_cancel(struct hci_conn *conn)
+static void hci_le_create_connection_cancel(struct hci_conn *conn)
 {
 	hci_send_cmd(conn->hdev, HCI_OP_LE_CREATE_CONN_CANCEL, 0, NULL);
 }
 
-static void hci_acl_connect(struct hci_conn *conn)
+static void hci_acl_create_connection(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
 	struct inquiry_entry *ie;
@@ -103,7 +103,7 @@ static void hci_acl_connect(struct hci_conn *conn)
 	hci_send_cmd(hdev, HCI_OP_CREATE_CONN, sizeof(cp), &cp);
 }
 
-static void hci_acl_connect_cancel(struct hci_conn *conn)
+static void hci_acl_create_connection_cancel(struct hci_conn *conn)
 {
 	struct hci_cp_create_conn_cancel cp;
 
@@ -245,9 +245,9 @@ static void hci_conn_timeout(struct work_struct *work)
 	case BT_CONNECT2:
 		if (conn->out) {
 			if (conn->type == ACL_LINK)
-				hci_acl_connect_cancel(conn);
+				hci_acl_create_connection_cancel(conn);
 			else if (conn->type == LE_LINK)
-				hci_le_connect_cancel(conn);
+				hci_le_create_connection_cancel(conn);
 		}
 		break;
 	case BT_CONFIG:
@@ -494,7 +494,7 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
 				return ERR_PTR(-ENOMEM);
 
 			le->dst_type = bdaddr_to_le(dst_type);
-			hci_le_connect(le);
+			hci_le_create_connection(le);
 		}
 
 		le->pending_sec_level = sec_level;
@@ -518,7 +518,7 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
 		acl->sec_level = BT_SECURITY_LOW;
 		acl->pending_sec_level = sec_level;
 		acl->auth_type = auth_type;
-		hci_acl_connect(acl);
+		hci_acl_create_connection(acl);
 	}
 
 	if (type == ACL_LINK)
@@ -771,7 +771,7 @@ void hci_conn_check_pending(struct hci_dev *hdev)
 
 	conn = hci_conn_hash_lookup_state(hdev, ACL_LINK, BT_CONNECT2);
 	if (conn)
-		hci_acl_connect(conn);
+		hci_acl_create_connection(conn);
 
 	hci_dev_unlock(hdev);
 }
