@@ -458,7 +458,13 @@ static __devinit int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 	}
 	clk_prepare_enable(priv->clk);
 
-	return snd_soc_register_dai(&pdev->dev, &kirkwood_i2s_dai);
+	err = snd_soc_register_dai(&pdev->dev, &kirkwood_i2s_dai);
+	if (!err)
+		return 0;
+	dev_err(&pdev->dev, "snd_soc_register_dai failed\n");
+
+	clk_disable_unprepare(priv->clk);
+	clk_put(priv->clk);
 
 err_ioremap:
 	iounmap(priv->io);
