@@ -455,6 +455,7 @@ static int __write_initial_superblock(struct dm_pool_metadata *pmd)
 
 	disk_super = dm_block_data(sblock);
 	disk_super->flags = 0;
+	memset(disk_super->uuid, 0, sizeof(disk_super->uuid));
 	disk_super->magic = cpu_to_le64(THIN_SUPERBLOCK_MAGIC);
 	disk_super->version = cpu_to_le32(THIN_VERSION);
 	disk_super->time = 0;
