@@ -3368,6 +3368,11 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		}
 
 		conn->dst_type = ev->bdaddr_type;
+
+		if (ev->role == LE_CONN_ROLE_MASTER) {
+			conn->out = true;
+			conn->link_mode |= HCI_LM_MASTER;
+		}
 	}
 
 	if (!test_and_set_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags))

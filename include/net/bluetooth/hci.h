@@ -1304,6 +1304,8 @@ struct hci_ev_num_comp_blocks {
 } __packed;
 
 /* Low energy meta events */
+#define LE_CONN_ROLE_MASTER	0x00
+
 #define HCI_EV_LE_CONN_COMPLETE		0x01
 struct hci_ev_le_conn_complete {
 	__u8     status;
