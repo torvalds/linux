@@ -260,15 +260,6 @@ config DM_DEBUG_BLOCK_STACK_TRACING
 
 	  If unsure, say N.
 
-config DM_DEBUG_SPACE_MAPS
-	boolean "Extra validation for thin provisioning space maps"
-	depends on DM_THIN_PROVISIONING
-	---help---
-	  Enable this for messages that may help debug problems with the
-	  space maps used by thin provisioning.
-
-          If unsure, say N.
-
 config DM_MIRROR
        tristate "Mirror target"
        depends on BLK_DEV_DM
