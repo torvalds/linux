@@ -422,9 +422,9 @@ static void __setup_btree_details(struct dm_pool_metadata *pmd)
 	pmd->details_info.value_type.equal = NULL;
 }
 
-static int init_pmd(struct dm_pool_metadata *pmd,
-		    struct dm_block_manager *bm,
-		    dm_block_t nr_blocks, int create)
+static int __create_persistent_data_objects(struct dm_pool_metadata *pmd,
+					    struct dm_block_manager *bm,
+					    dm_block_t nr_blocks, int create)
 {
 	int r;
 	struct dm_space_map *sm, *data_sm;
@@ -693,7 +693,7 @@ struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
 		return ERR_PTR(r);
 	}
 
-	r = init_pmd(pmd, bm, 0, create);
+	r = __create_persistent_data_objects(pmd, bm, 0, create);
 	if (r) {
 		dm_block_manager_destroy(bm);
 		kfree(pmd);
