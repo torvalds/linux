@@ -44,6 +44,7 @@
 #include "xdr4.h"
 #include "vfs.h"
 #include "current_stateid.h"
+#include "fault_inject.h"
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
