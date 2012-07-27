@@ -2729,12 +2729,14 @@ static int efx_pm_freeze(struct device *dev)
 
 	rtnl_lock();
 
-	efx->state = STATE_UNINIT;
+	if (efx->state != STATE_DISABLED) {
+		efx->state = STATE_UNINIT;
 
-	netif_device_detach(efx->net_dev);
+		netif_device_detach(efx->net_dev);
 
-	efx_stop_all(efx);
-	efx_stop_interrupts(efx, false);
+		efx_stop_all(efx);
+		efx_stop_interrupts(efx, false);
+	}
 
 	rtnl_unlock();
 
@@ -2747,19 +2749,21 @@ static int efx_pm_thaw(struct device *dev)
 
 	rtnl_lock();
 
-	efx_start_interrupts(efx, false);
+	if (efx->state != STATE_DISABLED) {
+		efx_start_interrupts(efx, false);
 
-	mutex_lock(&efx->mac_lock);
-	efx->phy_op->reconfigure(efx);
-	mutex_unlock(&efx->mac_lock);
+		mutex_lock(&efx->mac_lock);
+		efx->phy_op->reconfigure(efx);
+		mutex_unlock(&efx->mac_lock);
 
-	efx_start_all(efx);
+		efx_start_all(efx);
 
-	netif_device_attach(efx->net_dev);
+		netif_device_attach(efx->net_dev);
 
-	efx->state = STATE_READY;
+		efx->state = STATE_READY;
 
-	efx->type->resume_wol(efx);
+		efx->type->resume_wol(efx);
+	}
 
 	rtnl_unlock();
 
