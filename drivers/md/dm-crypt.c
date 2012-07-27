@@ -1241,7 +1241,6 @@ static void kcryptd_queue_crypt(struct dm_crypt_io *io)
 static int crypt_decode_key(u8 *key, char *hex, unsigned int size)
 {
 	char buffer[3];
-	char *endp;
 	unsigned int i;
 
 	buffer[2] = '\0';
@@ -1250,9 +1249,7 @@ static int crypt_decode_key(u8 *key, char *hex, unsigned int size)
 		buffer[0] = *hex++;
 		buffer[1] = *hex++;
 
-		key[i] = (u8)simple_strtoul(buffer, &endp, 16);
-
-		if (endp != &buffer[2])
+		if (kstrtou8(buffer, 16, &key[i]))
 			return -EINVAL;
 	}
 

@@ -99,7 +99,6 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	sector_t width;
 	uint32_t stripes;
 	uint32_t chunk_size;
-	char *end;
 	int r;
 	unsigned int i;
 
@@ -108,14 +107,12 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
 	}
 
-	stripes = simple_strtoul(argv[0], &end, 10);
-	if (!stripes || *end) {
+	if (kstrtouint(argv[0], 10, &stripes) || !stripes) {
 		ti->error = "Invalid stripe count";
 		return -EINVAL;
 	}
 
-	chunk_size = simple_strtoul(argv[1], &end, 10);
-	if (*end) {
+	if (kstrtouint(argv[1], 10, &chunk_size)) {
 		ti->error = "Invalid chunk_size";
 		return -EINVAL;
 	}
