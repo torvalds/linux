@@ -261,6 +261,7 @@ static noinline void interface_ctr_reg_pread(void)
 	readl_relaxed(RK30_GRF_BASE);
 	readl_relaxed(RK30_DDR_PCTL_BASE);
 	readl_relaxed(RK30_DDR_PUBL_BASE);
+
 }
 
 static inline bool pm_pmu_power_domain_is_on(enum pmu_power_domain pd, u32 pmu_pwrdn_st)
@@ -338,7 +339,6 @@ __weak void board_gpio_suspend(void) {}
 __weak void board_gpio_resume(void) {}
 __weak void __sramfunc board_pmu_suspend(void) {}
 __weak void __sramfunc board_pmu_resume(void) {}
-
 static void __sramfunc rk30_sram_suspend(void)
 {
 	u32 cru_clksel0_con;
@@ -349,11 +349,9 @@ static void __sramfunc rk30_sram_suspend(void)
 	sram_printch('5');
 	ddr_suspend();
 	sram_printch('6');
-	
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
 		clkgt_regs[i] = cru_readl(CRU_CLKGATES_CON(i));
 	}
-
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_CORE_PERIPH)
 			  | (1 << CLK_GATE_ACLK_CPU)
@@ -361,7 +359,16 @@ static void __sramfunc rk30_sram_suspend(void)
 			  | (1 << CLK_GATE_PCLK_CPU)
 			  , clkgt_regs[0], CRU_CLKGATES_CON(0), 0xffff);
 	gate_save_soc_clk(0, clkgt_regs[1], CRU_CLKGATES_CON(1), 0xffff);
-	gate_save_soc_clk(0, clkgt_regs[2], CRU_CLKGATES_CON(2), 0xffff);
+	if(clkgt_regs[8]&((1<<12)|(1<13))){
+		gate_save_soc_clk(0
+				  | (1 << CLK_GATE_PEIRPH_SRC % 16)
+				  | (1 << CLK_GATE_PCLK_PEIRPH % 16)
+				, clkgt_regs[2], CRU_CLKGATES_CON(2), 0xffff);
+	}else{
+		gate_save_soc_clk(0
+				, clkgt_regs[2], CRU_CLKGATES_CON(2), 0xffff);
+
+	}
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_ACLK_STRC_SYS % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM % 16)
@@ -429,7 +436,6 @@ static int rk30_pm_enter(suspend_state_t state)
 
 	// dump GPIO INTEN for debug
 	rk30_pm_dump_inten();
-
 	//gpio6_b7
 	grf_writel(0xc0004000, 0x10c);
 	cru_writel(0x07000000, CRU_MISC_CON);
@@ -464,6 +470,7 @@ static int rk30_pm_enter(suspend_state_t state)
 			  , clkgt_regs[1], CRU_CLKGATES_CON(1), 0xffff);
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_PEIRPH_SRC % 16)
+			  | (1 << CLK_GATE_PCLK_PEIRPH % 16)
 			  , clkgt_regs[2], CRU_CLKGATES_CON(2), 0xffff);
 	gate_save_soc_clk(0, clkgt_regs[3], CRU_CLKGATES_CON(3), 0xff9f);
 	gate_save_soc_clk(0
