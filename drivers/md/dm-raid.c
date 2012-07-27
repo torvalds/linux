@@ -101,17 +101,9 @@ static struct raid_set *context_alloc(struct dm_target *ti, struct raid_type *ra
 {
 	unsigned i;
 	struct raid_set *rs;
-	sector_t sectors_per_dev;
 
 	if (raid_devs <= raid_type->parity_devs) {
 		ti->error = "Insufficient number of devices";
-		return ERR_PTR(-EINVAL);
-	}
-
-	sectors_per_dev = ti->len;
-	if ((raid_type->level > 1) &&
-	    sector_div(sectors_per_dev, (raid_devs - raid_type->parity_devs))) {
-		ti->error = "Target length not divisible by number of data devices";
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -128,7 +120,6 @@ static struct raid_set *context_alloc(struct dm_target *ti, struct raid_type *ra
 	rs->md.raid_disks = raid_devs;
 	rs->md.level = raid_type->level;
 	rs->md.new_level = rs->md.level;
-	rs->md.dev_sectors = sectors_per_dev;
 	rs->md.layout = raid_type->algorithm;
 	rs->md.new_layout = rs->md.layout;
 	rs->md.delta_disks = 0;
@@ -143,6 +134,7 @@ static struct raid_set *context_alloc(struct dm_target *ti, struct raid_type *ra
 	 *  rs->md.external
 	 *  rs->md.chunk_sectors
 	 *  rs->md.new_chunk_sectors
+	 *  rs->md.dev_sectors
 	 */
 
 	return rs;
@@ -353,6 +345,7 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 {
 	unsigned i, rebuild_cnt = 0;
 	unsigned long value, region_size = 0;
+	sector_t sectors_per_dev = rs->ti->len;
 	sector_t max_io_len;
 	char *key;
 
@@ -544,6 +537,13 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 
 	if (dm_set_target_max_io_len(rs->ti, max_io_len))
 		return -EINVAL;
+
+	if ((rs->raid_type->level > 1) &&
+	    sector_div(sectors_per_dev, (rs->md.raid_disks - rs->raid_type->parity_devs))) {
+		rs->ti->error = "Target length not divisible by number of data devices";
+		return -EINVAL;
+	}
+	rs->md.dev_sectors = sectors_per_dev;
 
 	/* Assume there are no metadata devices until the drives are parsed */
 	rs->md.persistent = 0;
