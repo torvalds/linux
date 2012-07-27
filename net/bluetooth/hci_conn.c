@@ -568,13 +568,16 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
 {
 	BT_DBG("%s dst %s", hdev->name, batostr(dst));
 
-	if (type == LE_LINK)
+	switch (type) {
+	case LE_LINK:
 		return hci_connect_le(hdev, dst, dst_type, sec_level, auth_type);
-
-	if (type == ACL_LINK)
+	case ACL_LINK:
 		return hci_connect_acl(hdev, dst, sec_level, auth_type);
+	case SCO_LINK:
+		return hci_connect_sco(hdev, dst, sec_level, auth_type);
+	}
 
-	return hci_connect_sco(hdev, dst, sec_level, auth_type);
+	return ERR_PTR(-EINVAL);
 }
 
 /* Check link security requirement */
