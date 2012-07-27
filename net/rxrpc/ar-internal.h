@@ -83,7 +83,7 @@ struct rxrpc_skb_priv {
 	struct rxrpc_call	*call;		/* call with which associated */
 	unsigned long		resend_at;	/* time in jiffies at which to resend */
 	union {
-		unsigned	offset;		/* offset into buffer of next read */
+		unsigned int	offset;		/* offset into buffer of next read */
 		int		remain;		/* amount of space remaining for next write */
 		u32		error;		/* network error code */
 		bool		need_resend;	/* T if needs resending */
@@ -176,9 +176,9 @@ struct rxrpc_peer {
 	struct list_head	error_targets;	/* targets for net error distribution */
 	spinlock_t		lock;		/* access lock */
 	atomic_t		usage;
-	unsigned		if_mtu;		/* interface MTU for this peer */
-	unsigned		mtu;		/* network MTU for this peer */
-	unsigned		maxdata;	/* data size (MTU - hdrsize) */
+	unsigned int		if_mtu;		/* interface MTU for this peer */
+	unsigned int		mtu;		/* network MTU for this peer */
+	unsigned int		maxdata;	/* data size (MTU - hdrsize) */
 	unsigned short		hdrsize;	/* header size (IP + UDP + RxRPC) */
 	int			debug_id;	/* debug ID for printks */
 	int			net_error;	/* network error distributed */
@@ -187,8 +187,8 @@ struct rxrpc_peer {
 	/* calculated RTT cache */
 #define RXRPC_RTT_CACHE_SIZE 32
 	suseconds_t		rtt;		/* current RTT estimate (in uS) */
-	unsigned		rtt_point;	/* next entry at which to insert */
-	unsigned		rtt_usage;	/* amount of cache actually used */
+	unsigned int		rtt_point;	/* next entry at which to insert */
+	unsigned int		rtt_usage;	/* amount of cache actually used */
 	suseconds_t		rtt_cache[RXRPC_RTT_CACHE_SIZE]; /* calculated RTT cache */
 };
 
@@ -271,7 +271,7 @@ struct rxrpc_connection {
 	} state;
 	int			error;		/* error code for local abort */
 	int			debug_id;	/* debug ID for printks */
-	unsigned		call_counter;	/* call ID counter */
+	unsigned int		call_counter;	/* call ID counter */
 	atomic_t		serial;		/* packet serial number counter */
 	atomic_t		hi_serial;	/* highest serial number received */
 	u8			avail_calls;	/* number of calls available */
@@ -592,7 +592,7 @@ extern struct rxrpc_transport *rxrpc_find_transport(struct rxrpc_local *,
 /*
  * debug tracing
  */
-extern unsigned rxrpc_debug;
+extern unsigned int rxrpc_debug;
 
 #define dbgprintk(FMT,...) \
 	printk("[%-6.6s] "FMT"\n", current->comm ,##__VA_ARGS__)

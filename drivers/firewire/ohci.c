@@ -1821,9 +1821,8 @@ static void bus_reset_work(struct work_struct *work)
 {
 	struct fw_ohci *ohci =
 		container_of(work, struct fw_ohci, bus_reset_work);
-	int self_id_count, i, j, reg;
-	int generation, new_generation;
-	unsigned long flags;
+	int self_id_count, generation, new_generation, i, j;
+	u32 reg;
 	void *free_rom = NULL;
 	dma_addr_t free_rom_bus = 0;
 	bool is_new_root;
@@ -1930,13 +1929,13 @@ static void bus_reset_work(struct work_struct *work)
 	}
 
 	/* FIXME: Document how the locking works. */
-	spin_lock_irqsave(&ohci->lock, flags);
+	spin_lock_irq(&ohci->lock);
 
 	ohci->generation = -1; /* prevent AT packet queueing */
 	context_stop(&ohci->at_request_ctx);
 	context_stop(&ohci->at_response_ctx);
 
-	spin_unlock_irqrestore(&ohci->lock, flags);
+	spin_unlock_irq(&ohci->lock);
 
 	/*
 	 * Per OHCI 1.2 draft, clause 7.2.3.3, hardware may leave unsent
@@ -1946,7 +1945,7 @@ static void bus_reset_work(struct work_struct *work)
 	at_context_flush(&ohci->at_request_ctx);
 	at_context_flush(&ohci->at_response_ctx);
 
-	spin_lock_irqsave(&ohci->lock, flags);
+	spin_lock_irq(&ohci->lock);
 
 	ohci->generation = generation;
 	reg_write(ohci, OHCI1394_IntEventClear, OHCI1394_busReset);
@@ -1990,7 +1989,7 @@ static void bus_reset_work(struct work_struct *work)
 	reg_write(ohci, OHCI1394_PhyReqFilterLoSet, ~0);
 #endif
 
-	spin_unlock_irqrestore(&ohci->lock, flags);
+	spin_unlock_irq(&ohci->lock);
 
 	if (free_rom)
 		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
@@ -2402,7 +2401,6 @@ static int ohci_set_config_rom(struct fw_card *card,
 			       const __be32 *config_rom, size_t length)
 {
 	struct fw_ohci *ohci;
-	unsigned long flags;
 	__be32 *next_config_rom;
 	dma_addr_t uninitialized_var(next_config_rom_bus);
 
@@ -2441,7 +2439,7 @@ static int ohci_set_config_rom(struct fw_card *card,
 	if (next_config_rom == NULL)
 		return -ENOMEM;
 
-	spin_lock_irqsave(&ohci->lock, flags);
+	spin_lock_irq(&ohci->lock);
 
 	/*
 	 * If there is not an already pending config_rom update,
@@ -2467,7 +2465,7 @@ static int ohci_set_config_rom(struct fw_card *card,
 
 	reg_write(ohci, OHCI1394_ConfigROMmap, ohci->next_config_rom_bus);
 
-	spin_unlock_irqrestore(&ohci->lock, flags);
+	spin_unlock_irq(&ohci->lock);
 
 	/* If we didn't use the DMA allocation, delete it. */
 	if (next_config_rom != NULL)
@@ -2891,10 +2889,9 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 	descriptor_callback_t uninitialized_var(callback);
 	u64 *uninitialized_var(channels);
 	u32 *uninitialized_var(mask), uninitialized_var(regs);
-	unsigned long flags;
 	int index, ret = -EBUSY;
 
-	spin_lock_irqsave(&ohci->lock, flags);
+	spin_lock_irq(&ohci->lock);
 
 	switch (type) {
 	case FW_ISO_CONTEXT_TRANSMIT:
@@ -2938,7 +2935,7 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 		ret = -ENOSYS;
 	}
 
-	spin_unlock_irqrestore(&ohci->lock, flags);
+	spin_unlock_irq(&ohci->lock);
 
 	if (index < 0)
 		return ERR_PTR(ret);
@@ -2964,7 +2961,7 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
  out_with_header:
 	free_page((unsigned long)ctx->header);
  out:
-	spin_lock_irqsave(&ohci->lock, flags);
+	spin_lock_irq(&ohci->lock);
 
 	switch (type) {
 	case FW_ISO_CONTEXT_RECEIVE:
@@ -2977,7 +2974,7 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 	}
 	*mask |= 1 << index;
 
-	spin_unlock_irqrestore(&ohci->lock, flags);
+	spin_unlock_irq(&ohci->lock);
 
 	return ERR_PTR(ret);
 }
@@ -3789,6 +3786,8 @@ static struct pci_driver fw_ohci_pci_driver = {
 #endif
 };
 
+module_pci_driver(fw_ohci_pci_driver);
+
 MODULE_AUTHOR("Kristian Hoegsberg <krh@bitplanet.net>");
 MODULE_DESCRIPTION("Driver for PCI OHCI IEEE1394 controllers");
 MODULE_LICENSE("GPL");
@@ -3797,16 +3796,3 @@ MODULE_LICENSE("GPL");
 #ifndef CONFIG_IEEE1394_OHCI1394_MODULE
 MODULE_ALIAS("ohci1394");
 #endif
-
-static int __init fw_ohci_init(void)
-{
-	return pci_register_driver(&fw_ohci_pci_driver);
-}
-
-static void __exit fw_ohci_cleanup(void)
-{
-	pci_unregister_driver(&fw_ohci_pci_driver);
-}
-
-module_init(fw_ohci_init);
-module_exit(fw_ohci_cleanup);

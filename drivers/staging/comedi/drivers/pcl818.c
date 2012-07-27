@@ -247,10 +247,6 @@ static const struct comedi_lrange range718_bipolar0_5 =
 static const struct comedi_lrange range718_unipolar2 = { 1, {UNI_RANGE(2),} };
 static const struct comedi_lrange range718_unipolar1 = { 1, {BIP_RANGE(1),} };
 
-static int pcl818_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int pcl818_detach(struct comedi_device *dev);
-
 #ifdef unused
 static int RTC_lock;	/* RTC lock */
 static int RTC_timer_lock;	/* RTC int lock */
@@ -276,56 +272,6 @@ struct pcl818_board {
 	unsigned char fifo;	/*  1=board has FIFO */
 	int is_818;
 };
-
-static const struct pcl818_board boardtypes[] = {
-	{"pcl818l", 4, 16, 8, 25000, 1, 16, 16, &range_pcl818l_l_ai,
-	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
-	 0x0a, 0xfff, 0xfff, 0, 1},
-	{"pcl818h", 9, 16, 8, 10000, 1, 16, 16, &range_pcl818h_ai,
-	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
-	 0x0a, 0xfff, 0xfff, 0, 1},
-	{"pcl818hd", 9, 16, 8, 10000, 1, 16, 16, &range_pcl818h_ai,
-	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
-	 0x0a, 0xfff, 0xfff, 1, 1},
-	{"pcl818hg", 12, 16, 8, 10000, 1, 16, 16, &range_pcl818hg_ai,
-	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
-	 0x0a, 0xfff, 0xfff, 1, 1},
-	{"pcl818", 9, 16, 8, 10000, 2, 16, 16, &range_pcl818h_ai,
-	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
-	 0x0a, 0xfff, 0xfff, 0, 1},
-	{"pcl718", 1, 16, 8, 16000, 2, 16, 16, &range_unipolar5,
-	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
-	 0x0a, 0xfff, 0xfff, 0, 0},
-	/* pcm3718 */
-	{"pcm3718", 9, 16, 8, 10000, 0, 16, 16, &range_pcl818h_ai,
-	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
-	 0x0a, 0xfff, 0xfff, 0, 1 /* XXX ? */ },
-};
-
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl818_board))
-
-static struct comedi_driver driver_pcl818 = {
-	.driver_name = "pcl818",
-	.module = THIS_MODULE,
-	.attach = pcl818_attach,
-	.detach = pcl818_detach,
-	.board_name = &boardtypes[0].name,
-	.num_names = n_boardtypes,
-	.offset = sizeof(struct pcl818_board),
-};
-
-static int __init driver_pcl818_init_module(void)
-{
-	return comedi_driver_register(&driver_pcl818);
-}
-
-static void __exit driver_pcl818_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcl818);
-}
-
-module_init(driver_pcl818_init_module);
-module_exit(driver_pcl818_cleanup_module);
 
 struct pcl818_private {
 
@@ -1688,48 +1634,6 @@ static int rtc_setfreq_irq(int freq)
 }
 #endif
 
-/*
-==============================================================================
-  Free any resources that we have claimed
-*/
-static void free_resources(struct comedi_device *dev)
-{
-	/* printk("free_resource()\n"); */
-	if (dev->private) {
-		pcl818_ai_cancel(dev, devpriv->sub_ai);
-		pcl818_reset(dev);
-		if (devpriv->dma)
-			free_dma(devpriv->dma);
-		if (devpriv->dmabuf[0])
-			free_pages(devpriv->dmabuf[0], devpriv->dmapages[0]);
-		if (devpriv->dmabuf[1])
-			free_pages(devpriv->dmabuf[1], devpriv->dmapages[1]);
-#ifdef unused
-		if (devpriv->rtc_irq)
-			free_irq(devpriv->rtc_irq, dev);
-		if ((devpriv->dma_rtc) && (RTC_lock == 1)) {
-			if (devpriv->rtc_iobase)
-				release_region(devpriv->rtc_iobase,
-					       devpriv->rtc_iosize);
-		}
-		if (devpriv->dma_rtc)
-			RTC_lock--;
-#endif
-	}
-
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (dev->iobase)
-		release_region(dev->iobase, devpriv->io_range);
-	/* printk("free_resource() end\n"); */
-}
-
-/*
-==============================================================================
-
-   Initialization
-
-*/
 static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
@@ -2020,16 +1924,70 @@ no_dma:
 	return 0;
 }
 
-/*
-==============================================================================
-  Removes device
- */
-static int pcl818_detach(struct comedi_device *dev)
+static void pcl818_detach(struct comedi_device *dev)
 {
-	/*   printk("comedi%d: pcl818: remove\n", dev->minor); */
-	free_resources(dev);
-	return 0;
+	if (dev->private) {
+		pcl818_ai_cancel(dev, devpriv->sub_ai);
+		pcl818_reset(dev);
+		if (devpriv->dma)
+			free_dma(devpriv->dma);
+		if (devpriv->dmabuf[0])
+			free_pages(devpriv->dmabuf[0], devpriv->dmapages[0]);
+		if (devpriv->dmabuf[1])
+			free_pages(devpriv->dmabuf[1], devpriv->dmapages[1]);
+#ifdef unused
+		if (devpriv->rtc_irq)
+			free_irq(devpriv->rtc_irq, dev);
+		if ((devpriv->dma_rtc) && (RTC_lock == 1)) {
+			if (devpriv->rtc_iobase)
+				release_region(devpriv->rtc_iobase,
+					       devpriv->rtc_iosize);
+		}
+		if (devpriv->dma_rtc)
+			RTC_lock--;
+#endif
+	}
+	if (dev->irq)
+		free_irq(dev->irq, dev);
+	if (dev->iobase)
+		release_region(dev->iobase, devpriv->io_range);
 }
+
+static const struct pcl818_board boardtypes[] = {
+	{"pcl818l", 4, 16, 8, 25000, 1, 16, 16, &range_pcl818l_l_ai,
+	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
+	 0x0a, 0xfff, 0xfff, 0, 1},
+	{"pcl818h", 9, 16, 8, 10000, 1, 16, 16, &range_pcl818h_ai,
+	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
+	 0x0a, 0xfff, 0xfff, 0, 1},
+	{"pcl818hd", 9, 16, 8, 10000, 1, 16, 16, &range_pcl818h_ai,
+	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
+	 0x0a, 0xfff, 0xfff, 1, 1},
+	{"pcl818hg", 12, 16, 8, 10000, 1, 16, 16, &range_pcl818hg_ai,
+	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
+	 0x0a, 0xfff, 0xfff, 1, 1},
+	{"pcl818", 9, 16, 8, 10000, 2, 16, 16, &range_pcl818h_ai,
+	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
+	 0x0a, 0xfff, 0xfff, 0, 1},
+	{"pcl718", 1, 16, 8, 16000, 2, 16, 16, &range_unipolar5,
+	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
+	 0x0a, 0xfff, 0xfff, 0, 0},
+	/* pcm3718 */
+	{"pcm3718", 9, 16, 8, 10000, 0, 16, 16, &range_pcl818h_ai,
+	 &range_unipolar5, PCLx1x_RANGE, 0x00fc,
+	 0x0a, 0xfff, 0xfff, 0, 1 /* XXX ? */ },
+};
+
+static struct comedi_driver pcl818_driver = {
+	.driver_name	= "pcl818",
+	.module		= THIS_MODULE,
+	.attach		= pcl818_attach,
+	.detach		= pcl818_detach,
+	.board_name	= &boardtypes[0].name,
+	.num_names	= ARRAY_SIZE(boardtypes),
+	.offset		= sizeof(struct pcl818_board),
+};
+module_comedi_driver(pcl818_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

@@ -155,20 +155,20 @@ void put_io_context(struct io_context *ioc)
 }
 EXPORT_SYMBOL(put_io_context);
 
-/* Called by the exiting task */
-void exit_io_context(struct task_struct *task)
+/**
+ * put_io_context_active - put active reference on ioc
+ * @ioc: ioc of interest
+ *
+ * Undo get_io_context_active().  If active reference reaches zero after
+ * put, @ioc can never issue further IOs and ioscheds are notified.
+ */
+void put_io_context_active(struct io_context *ioc)
 {
-	struct io_context *ioc;
-	struct io_cq *icq;
 	struct hlist_node *n;
 	unsigned long flags;
+	struct io_cq *icq;
 
-	task_lock(task);
-	ioc = task->io_context;
-	task->io_context = NULL;
-	task_unlock(task);
-
-	if (!atomic_dec_and_test(&ioc->nr_tasks)) {
+	if (!atomic_dec_and_test(&ioc->active_ref)) {
 		put_io_context(ioc);
 		return;
 	}
@@ -197,6 +197,20 @@ retry:
 	put_io_context(ioc);
 }
 
+/* Called by the exiting task */
+void exit_io_context(struct task_struct *task)
+{
+	struct io_context *ioc;
+
+	task_lock(task);
+	ioc = task->io_context;
+	task->io_context = NULL;
+	task_unlock(task);
+
+	atomic_dec(&ioc->nr_tasks);
+	put_io_context_active(ioc);
+}
+
 /**
  * ioc_clear_queue - break any ioc association with the specified queue
  * @q: request_queue being cleared
@@ -218,19 +232,19 @@ void ioc_clear_queue(struct request_queue *q)
 	}
 }
 
-void create_io_context_slowpath(struct task_struct *task, gfp_t gfp_flags,
-				int node)
+int create_task_io_context(struct task_struct *task, gfp_t gfp_flags, int node)
 {
 	struct io_context *ioc;
+	int ret;
 
 	ioc = kmem_cache_alloc_node(iocontext_cachep, gfp_flags | __GFP_ZERO,
 				    node);
 	if (unlikely(!ioc))
-		return;
+		return -ENOMEM;
 
 	/* initialize */
 	atomic_long_set(&ioc->refcount, 1);
-	atomic_set(&ioc->nr_tasks, 1);
+	atomic_set(&ioc->active_ref, 1);
 	spin_lock_init(&ioc->lock);
 	INIT_RADIX_TREE(&ioc->icq_tree, GFP_ATOMIC | __GFP_HIGH);
 	INIT_HLIST_HEAD(&ioc->icq_list);
@@ -249,7 +263,12 @@ void create_io_context_slowpath(struct task_struct *task, gfp_t gfp_flags,
 		task->io_context = ioc;
 	else
 		kmem_cache_free(iocontext_cachep, ioc);
+
+	ret = task->io_context ? 0 : -EBUSY;
+
 	task_unlock(task);
+
+	return ret;
 }
 
 /**
@@ -281,7 +300,7 @@ struct io_context *get_task_io_context(struct task_struct *task,
 			return ioc;
 		}
 		task_unlock(task);
-	} while (create_io_context(task, gfp_flags, node));
+	} while (!create_task_io_context(task, gfp_flags, node));
 
 	return NULL;
 }
@@ -325,26 +344,23 @@ EXPORT_SYMBOL(ioc_lookup_icq);
 
 /**
  * ioc_create_icq - create and link io_cq
+ * @ioc: io_context of interest
  * @q: request_queue of interest
  * @gfp_mask: allocation mask
  *
- * Make sure io_cq linking %current->io_context and @q exists.  If either
- * io_context and/or icq don't exist, they will be created using @gfp_mask.
+ * Make sure io_cq linking @ioc and @q exists.  If icq doesn't exist, they
+ * will be created using @gfp_mask.
  *
  * The caller is responsible for ensuring @ioc won't go away and @q is
  * alive and will stay alive until this function returns.
  */
-struct io_cq *ioc_create_icq(struct request_queue *q, gfp_t gfp_mask)
+struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
+			     gfp_t gfp_mask)
 {
 	struct elevator_type *et = q->elevator->type;
-	struct io_context *ioc;
 	struct io_cq *icq;
 
 	/* allocate stuff */
-	ioc = create_io_context(current, gfp_mask, q->node);
-	if (!ioc)
-		return NULL;
-
 	icq = kmem_cache_alloc_node(et->icq_cache, gfp_mask | __GFP_ZERO,
 				    q->node);
 	if (!icq)
@@ -381,74 +397,6 @@ struct io_cq *ioc_create_icq(struct request_queue *q, gfp_t gfp_mask)
 	radix_tree_preload_end();
 	return icq;
 }
-
-void ioc_set_icq_flags(struct io_context *ioc, unsigned int flags)
-{
-	struct io_cq *icq;
-	struct hlist_node *n;
-
-	hlist_for_each_entry(icq, n, &ioc->icq_list, ioc_node)
-		icq->flags |= flags;
-}
-
-/**
- * ioc_ioprio_changed - notify ioprio change
- * @ioc: io_context of interest
- * @ioprio: new ioprio
- *
- * @ioc's ioprio has changed to @ioprio.  Set %ICQ_IOPRIO_CHANGED for all
- * icq's.  iosched is responsible for checking the bit and applying it on
- * request issue path.
- */
-void ioc_ioprio_changed(struct io_context *ioc, int ioprio)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&ioc->lock, flags);
-	ioc->ioprio = ioprio;
-	ioc_set_icq_flags(ioc, ICQ_IOPRIO_CHANGED);
-	spin_unlock_irqrestore(&ioc->lock, flags);
-}
-
-/**
- * ioc_cgroup_changed - notify cgroup change
- * @ioc: io_context of interest
- *
- * @ioc's cgroup has changed.  Set %ICQ_CGROUP_CHANGED for all icq's.
- * iosched is responsible for checking the bit and applying it on request
- * issue path.
- */
-void ioc_cgroup_changed(struct io_context *ioc)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&ioc->lock, flags);
-	ioc_set_icq_flags(ioc, ICQ_CGROUP_CHANGED);
-	spin_unlock_irqrestore(&ioc->lock, flags);
-}
-EXPORT_SYMBOL(ioc_cgroup_changed);
-
-/**
- * icq_get_changed - fetch and clear icq changed mask
- * @icq: icq of interest
- *
- * Fetch and clear ICQ_*_CHANGED bits from @icq.  Grabs and releases
- * @icq->ioc->lock.
- */
-unsigned icq_get_changed(struct io_cq *icq)
-{
-	unsigned int changed = 0;
-	unsigned long flags;
-
-	if (unlikely(icq->flags & ICQ_CHANGED_MASK)) {
-		spin_lock_irqsave(&icq->ioc->lock, flags);
-		changed = icq->flags & ICQ_CHANGED_MASK;
-		icq->flags &= ~ICQ_CHANGED_MASK;
-		spin_unlock_irqrestore(&icq->ioc->lock, flags);
-	}
-	return changed;
-}
-EXPORT_SYMBOL(icq_get_changed);
 
 static int __init blk_ioc_init(void)
 {

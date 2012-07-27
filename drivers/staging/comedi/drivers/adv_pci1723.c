@@ -150,36 +150,6 @@ static const struct pci1723_board boardtypes[] = {
 	 },
 };
 
-/*
- * This is used by modprobe to translate PCI IDs to drivers.
- * Should only be used for PCI and ISA-PnP devices
- */
-static DEFINE_PCI_DEVICE_TABLE(pci1723_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1723) },
-	{ 0 }
-};
-
-MODULE_DEVICE_TABLE(pci, pci1723_pci_table);
-
-/*
- * The struct comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
-static int pci1723_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static int pci1723_detach(struct comedi_device *dev);
-
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pci1723_board))
-
-static struct comedi_driver driver_pci1723 = {
-	.driver_name = "adv_pci1723",
-	.module = THIS_MODULE,
-	.attach = pci1723_attach,
-	.detach = pci1723_detach,
-};
-
 /* This structure is for data unique to this hardware driver. */
 struct pci1723_private {
 	int valid;		/* card is usable; */
@@ -319,10 +289,6 @@ static int pci1723_dio_insn_bits(struct comedi_device *dev,
 	return 2;
 }
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a pci1723 board.
- */
 static int pci1723_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
@@ -465,73 +431,50 @@ static int pci1723_attach(struct comedi_device *dev,
 	return 0;
 }
 
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int pci1723_detach(struct comedi_device *dev)
+static void pci1723_detach(struct comedi_device *dev)
 {
-	printk(KERN_ERR "comedi%d: pci1723: remove\n", dev->minor);
-
 	if (dev->private) {
 		if (devpriv->valid)
 			pci1723_reset(dev);
-
 		if (devpriv->pcidev) {
 			if (dev->iobase)
 				comedi_pci_disable(devpriv->pcidev);
 			pci_dev_put(devpriv->pcidev);
 		}
 	}
-
-	return 0;
 }
 
-/*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
- */
-static int __devinit driver_pci1723_pci_probe(struct pci_dev *dev,
-					      const struct pci_device_id *ent)
+static struct comedi_driver adv_pci1723_driver = {
+	.driver_name	= "adv_pci1723",
+	.module		= THIS_MODULE,
+	.attach		= pci1723_attach,
+	.detach		= pci1723_detach,
+};
+
+static int __devinit adv_pci1723_pci_probe(struct pci_dev *dev,
+					   const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, driver_pci1723.driver_name);
+	return comedi_pci_auto_config(dev, &adv_pci1723_driver);
 }
 
-static void __devexit driver_pci1723_pci_remove(struct pci_dev *dev)
+static void __devexit adv_pci1723_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static struct pci_driver driver_pci1723_pci_driver = {
-	.id_table = pci1723_pci_table,
-	.probe = &driver_pci1723_pci_probe,
-	.remove = __devexit_p(&driver_pci1723_pci_remove)
+static DEFINE_PCI_DEVICE_TABLE(adv_pci1723_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1723) },
+	{ 0 }
 };
+MODULE_DEVICE_TABLE(pci, adv_pci1723_pci_table);
 
-static int __init driver_pci1723_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_pci1723);
-	if (retval < 0)
-		return retval;
-
-	driver_pci1723_pci_driver.name = (char *)driver_pci1723.driver_name;
-	return pci_register_driver(&driver_pci1723_pci_driver);
-}
-
-static void __exit driver_pci1723_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_pci1723_pci_driver);
-	comedi_driver_unregister(&driver_pci1723);
-}
-
-module_init(driver_pci1723_init_module);
-module_exit(driver_pci1723_cleanup_module);
+static struct pci_driver adv_pci1723_pci_driver = {
+	.name		= "adv_pci1723",
+	.id_table	= adv_pci1723_pci_table,
+	.probe		= adv_pci1723_pci_probe,
+	.remove		= __devexit_p(adv_pci1723_pci_remove),
+};
+module_comedi_pci_driver(adv_pci1723_driver, adv_pci1723_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

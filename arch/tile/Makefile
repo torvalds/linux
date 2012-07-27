@@ -34,7 +34,12 @@ LIBGCC_PATH     := \
   $(shell $(CC) $(KBUILD_CFLAGS) $(KCFLAGS) -print-libgcc-file-name)
 
 # Provide the path to use for "make defconfig".
-KBUILD_DEFCONFIG := $(ARCH)_defconfig
+# We default to the newer TILE-Gx architecture if only "tile" is given.
+ifeq ($(ARCH),tile)
+        KBUILD_DEFCONFIG := tilegx_defconfig
+else
+        KBUILD_DEFCONFIG := $(ARCH)_defconfig
+endif
 
 # Used as a file extension when useful, e.g. head_$(BITS).o
 # Not needed for (e.g.) "$(CC) -m32" since the compiler automatically

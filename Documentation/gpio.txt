@@ -322,6 +322,9 @@ where 'flags' is currently defined to specify the following properties:
 	* GPIOF_OPEN_DRAIN	- gpio pin is open drain type.
 	* GPIOF_OPEN_SOURCE	- gpio pin is open source type.
 
+	* GPIOF_EXPORT_DIR_FIXED	- export gpio to sysfs, keep direction
+	* GPIOF_EXPORT_DIR_CHANGEABLE	- also export, allow changing direction
+
 since GPIOF_INIT_* are only valid when configured as output, so group valid
 combinations as:
 

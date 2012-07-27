@@ -95,6 +95,14 @@ struct kvm_vcpu_pv_apf_data {
 extern void kvmclock_init(void);
 extern int kvm_register_clock(char *txt);
 
+#ifdef CONFIG_KVM_CLOCK
+bool kvm_check_and_clear_guest_paused(void);
+#else
+static inline bool kvm_check_and_clear_guest_paused(void)
+{
+	return false;
+}
+#endif /* CONFIG_KVMCLOCK */
 
 /* This instruction is vmcall.  On non-VT architectures, it will generate a
  * trap that we will then rewrite to the appropriate instruction.
@@ -170,14 +178,19 @@ static inline int kvm_para_available(void)
 	unsigned int eax, ebx, ecx, edx;
 	char signature[13];
 
-	cpuid(KVM_CPUID_SIGNATURE, &eax, &ebx, &ecx, &edx);
-	memcpy(signature + 0, &ebx, 4);
-	memcpy(signature + 4, &ecx, 4);
-	memcpy(signature + 8, &edx, 4);
-	signature[12] = 0;
+	if (boot_cpu_data.cpuid_level < 0)
+		return 0;	/* So we don't blow up on old processors */
 
-	if (strcmp(signature, "KVMKVMKVM") == 0)
-		return 1;
+	if (cpu_has_hypervisor) {
+		cpuid(KVM_CPUID_SIGNATURE, &eax, &ebx, &ecx, &edx);
+		memcpy(signature + 0, &ebx, 4);
+		memcpy(signature + 4, &ecx, 4);
+		memcpy(signature + 8, &edx, 4);
+		signature[12] = 0;
+
+		if (strcmp(signature, "KVMKVMKVM") == 0)
+			return 1;
+	}
 
 	return 0;
 }

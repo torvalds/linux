@@ -2846,6 +2846,7 @@ static int s2io_poll_inta(struct napi_struct *napi, int budget)
 static void s2io_netpoll(struct net_device *dev)
 {
 	struct s2io_nic *nic = netdev_priv(dev);
+	const int irq = nic->pdev->irq;
 	struct XENA_dev_config __iomem *bar0 = nic->bar0;
 	u64 val64 = 0xFFFFFFFFFFFFFFFFULL;
 	int i;
@@ -2855,7 +2856,7 @@ static void s2io_netpoll(struct net_device *dev)
 	if (pci_channel_offline(nic->pdev))
 		return;
 
-	disable_irq(dev->irq);
+	disable_irq(irq);
 
 	writeq(val64, &bar0->rx_traffic_int);
 	writeq(val64, &bar0->tx_traffic_int);
@@ -2884,7 +2885,7 @@ static void s2io_netpoll(struct net_device *dev)
 			break;
 		}
 	}
-	enable_irq(dev->irq);
+	enable_irq(irq);
 }
 #endif
 
@@ -3897,9 +3898,7 @@ static void remove_msix_isr(struct s2io_nic *sp)
 
 static void remove_inta_isr(struct s2io_nic *sp)
 {
-	struct net_device *dev = sp->dev;
-
-	free_irq(sp->pdev->irq, dev);
+	free_irq(sp->pdev->irq, sp->dev);
 }
 
 /* ********************************************************* *
@@ -7046,7 +7045,7 @@ static int s2io_add_isr(struct s2io_nic *sp)
 		}
 	}
 	if (sp->config.intr_type == INTA) {
-		err = request_irq((int)sp->pdev->irq, s2io_isr, IRQF_SHARED,
+		err = request_irq(sp->pdev->irq, s2io_isr, IRQF_SHARED,
 				  sp->name, dev);
 		if (err) {
 			DBG_PRINT(ERR_DBG, "%s: ISR registration failed\n",
@@ -7907,9 +7906,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		ret = -ENOMEM;
 		goto bar1_remap_failed;
 	}
-
-	dev->irq = pdev->irq;
-	dev->base_addr = (unsigned long)sp->bar0;
 
 	/* Initializing the BAR1 address as the start of the FIFO pointer. */
 	for (j = 0; j < MAX_TX_FIFOS; j++) {

@@ -21,9 +21,12 @@
 *******************************************************************************/
 
 #define STMMAC_RESOURCE_NAME   "stmmaceth"
-#define DRV_MODULE_VERSION	"Feb_2012"
+#define DRV_MODULE_VERSION	"March_2012"
+
+#include <linux/clk.h>
 #include <linux/stmmac.h>
 #include <linux/phy.h>
+#include <linux/pci.h>
 #include "common.h"
 #ifdef CONFIG_STMMAC_TIMER
 #include "stmmac_timer.h"
@@ -56,8 +59,6 @@ struct stmmac_priv {
 
 	struct stmmac_extra_stats xstats;
 	struct napi_struct napi;
-
-	int rx_coe;
 	int no_csum_insertion;
 
 	struct phy_device *phydev;
@@ -81,6 +82,11 @@ struct stmmac_priv {
 	struct stmmac_counters mmc;
 	struct dma_features dma_cap;
 	int hw_cap_support;
+#ifdef CONFIG_HAVE_CLK
+	struct clk *stmmac_clk;
+#endif
+	int clk_csr;
+	int synopsys_id;
 };
 
 extern int phyaddr;
@@ -90,7 +96,6 @@ extern int stmmac_mdio_register(struct net_device *ndev);
 extern void stmmac_set_ethtool_ops(struct net_device *netdev);
 extern const struct stmmac_desc_ops enh_desc_ops;
 extern const struct stmmac_desc_ops ndesc_ops;
-
 int stmmac_freeze(struct net_device *ndev);
 int stmmac_restore(struct net_device *ndev);
 int stmmac_resume(struct net_device *ndev);
@@ -99,3 +104,99 @@ int stmmac_dvr_remove(struct net_device *ndev);
 struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 				     struct plat_stmmacenet_data *plat_dat,
 				     void __iomem *addr);
+
+#ifdef CONFIG_HAVE_CLK
+static inline int stmmac_clk_enable(struct stmmac_priv *priv)
+{
+	if (!IS_ERR(priv->stmmac_clk))
+		return clk_prepare_enable(priv->stmmac_clk);
+
+	return 0;
+}
+
+static inline void stmmac_clk_disable(struct stmmac_priv *priv)
+{
+	if (IS_ERR(priv->stmmac_clk))
+		return;
+
+	clk_disable_unprepare(priv->stmmac_clk);
+}
+static inline int stmmac_clk_get(struct stmmac_priv *priv)
+{
+	priv->stmmac_clk = clk_get(priv->device, NULL);
+
+	if (IS_ERR(priv->stmmac_clk))
+		return PTR_ERR(priv->stmmac_clk);
+
+	return 0;
+}
+#else
+static inline int stmmac_clk_enable(struct stmmac_priv *priv)
+{
+	return 0;
+}
+static inline void stmmac_clk_disable(struct stmmac_priv *priv)
+{
+}
+static inline int stmmac_clk_get(struct stmmac_priv *priv)
+{
+	return 0;
+}
+#endif /* CONFIG_HAVE_CLK */
+
+
+#ifdef CONFIG_STMMAC_PLATFORM
+extern struct platform_driver stmmac_pltfr_driver;
+static inline int stmmac_register_platform(void)
+{
+	int err;
+
+	err = platform_driver_register(&stmmac_pltfr_driver);
+	if (err)
+		pr_err("stmmac: failed to register the platform driver\n");
+
+	return err;
+}
+static inline void stmmac_unregister_platform(void)
+{
+	platform_driver_register(&stmmac_pltfr_driver);
+}
+#else
+static inline int stmmac_register_platform(void)
+{
+	pr_debug("stmmac: do not register the platf driver\n");
+
+	return -EINVAL;
+}
+static inline void stmmac_unregister_platform(void)
+{
+}
+#endif /* CONFIG_STMMAC_PLATFORM */
+
+#ifdef CONFIG_STMMAC_PCI
+extern struct pci_driver stmmac_pci_driver;
+static inline int stmmac_register_pci(void)
+{
+	int err;
+
+	err = pci_register_driver(&stmmac_pci_driver);
+	if (err)
+		pr_err("stmmac: failed to register the PCI driver\n");
+
+	return err;
+}
+static inline void stmmac_unregister_pci(void)
+{
+	pci_unregister_driver(&stmmac_pci_driver);
+}
+#else
+static inline int stmmac_register_pci(void)
+{
+	pr_debug("stmmac: do not register the PCI driver\n");
+
+	return -EINVAL;
+}
+static inline void stmmac_unregister_pci(void)
+{
+}
+#endif /* CONFIG_STMMAC_PCI */

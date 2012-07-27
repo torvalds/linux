@@ -273,10 +273,11 @@ static unsigned long *__kmalloc_section_usemap(void)
 #ifdef CONFIG_MEMORY_HOTREMOVE
 static unsigned long * __init
 sparse_early_usemaps_alloc_pgdat_section(struct pglist_data *pgdat,
-					 unsigned long count)
+					 unsigned long size)
 {
-	unsigned long section_nr;
-
+	unsigned long goal, limit;
+	unsigned long *p;
+	int nid;
 	/*
 	 * A page may contain usemaps for other sections preventing the
 	 * page being freed and making a section unremovable while
@@ -287,8 +288,17 @@ sparse_early_usemaps_alloc_pgdat_section(struct pglist_data *pgdat,
 	 * from the same section as the pgdat where possible to avoid
 	 * this problem.
 	 */
-	section_nr = pfn_to_section_nr(__pa(pgdat) >> PAGE_SHIFT);
-	return alloc_bootmem_section(usemap_size() * count, section_nr);
+	goal = __pa(pgdat) & (PAGE_SECTION_MASK << PAGE_SHIFT);
+	limit = goal + (1UL << PA_SECTION_SHIFT);
+	nid = early_pfn_to_nid(goal >> PAGE_SHIFT);
+again:
+	p = ___alloc_bootmem_node_nopanic(NODE_DATA(nid), size,
+					  SMP_CACHE_BYTES, goal, limit);
+	if (!p && limit) {
+		limit = 0;
+		goto again;
+	}
+	return p;
 }
 
 static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
@@ -332,9 +342,9 @@ static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
 #else
 static unsigned long * __init
 sparse_early_usemaps_alloc_pgdat_section(struct pglist_data *pgdat,
-					 unsigned long count)
+					 unsigned long size)
 {
-	return NULL;
+	return alloc_bootmem_node_nopanic(pgdat, size);
 }
 
 static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
@@ -352,13 +362,10 @@ static void __init sparse_early_usemaps_alloc_node(unsigned long**usemap_map,
 	int size = usemap_size();
 
 	usemap = sparse_early_usemaps_alloc_pgdat_section(NODE_DATA(nodeid),
-								 usemap_count);
+							  size * usemap_count);
 	if (!usemap) {
-		usemap = alloc_bootmem_node(NODE_DATA(nodeid), size * usemap_count);
-		if (!usemap) {
-			printk(KERN_WARNING "%s: allocation failed\n", __func__);
-			return;
-		}
+		printk(KERN_WARNING "%s: allocation failed\n", __func__);
+		return;
 	}
 
 	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {

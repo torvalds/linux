@@ -56,11 +56,8 @@
 
 #include "common.h"
 
-static struct resource tct_hammer_nor_resource = {
-		.start = 0x00000000,
-		.end   = 0x01000000 - 1,
-		.flags = IORESOURCE_MEM,
-};
+static struct resource tct_hammer_nor_resource =
+			DEFINE_RES_MEM(0x00000000, SZ_16M);
 
 static struct mtd_partition tct_hammer_mtd_partitions[] = {
 	{

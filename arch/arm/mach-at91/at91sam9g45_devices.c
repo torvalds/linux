@@ -19,9 +19,12 @@
 #include <linux/i2c-gpio.h>
 #include <linux/atmel-mci.h>
 
+#include <linux/platform_data/at91_adc.h>
+
 #include <linux/fb.h>
 #include <video/atmel_lcdc.h>
 
+#include <mach/at91_adc.h>
 #include <mach/board.h>
 #include <mach/at91sam9g45.h>
 #include <mach/at91sam9g45_matrix.h>
@@ -69,15 +72,7 @@ static struct platform_device at_hdmac_device = {
 
 void __init at91_add_device_hdmac(void)
 {
-#if defined(CONFIG_OF)
-	struct device_node *of_node =
-		of_find_node_by_name(NULL, "dma-controller");
-
-	if (of_node)
-		of_node_put(of_node);
-	else
-#endif
-		platform_device_register(&at_hdmac_device);
+	platform_device_register(&at_hdmac_device);
 }
 #else
 void __init at91_add_device_hdmac(void) {}
@@ -441,7 +436,6 @@ void __init at91_add_device_mci(short mmc_id, struct mci_platform_data *data)
 	atslave->dma_dev = &at_hdmac_device.dev;
 	atslave->cfg = ATC_FIFOCFG_HALFFIFO
 			| ATC_SRC_H2SEL_HW | ATC_DST_H2SEL_HW;
-	atslave->ctrla = ATC_SCSIZE_16 | ATC_DCSIZE_16;
 	if (mmc_id == 0)	/* MCI0 */
 		atslave->cfg |= ATC_SRC_PER(AT_DMA_ID_MCI0)
 			      | ATC_DST_PER(AT_DMA_ID_MCI0);
@@ -1094,25 +1088,8 @@ static struct platform_device at91sam9g45_tcb1_device = {
 	.num_resources	= ARRAY_SIZE(tcb1_resources),
 };
 
-#if defined(CONFIG_OF)
-static struct of_device_id tcb_ids[] = {
-	{ .compatible = "atmel,at91rm9200-tcb" },
-	{ /*sentinel*/ }
-};
-#endif
-
 static void __init at91_add_device_tc(void)
 {
-#if defined(CONFIG_OF)
-	struct device_node *np;
-
-	np = of_find_matching_node(NULL, tcb_ids);
-	if (np) {
-		of_node_put(np);
-		return;
-	}
-#endif
-
 	platform_device_register(&at91sam9g45_tcb0_device);
 	platform_device_register(&at91sam9g45_tcb1_device);
 }
@@ -1205,6 +1182,104 @@ void __init at91_add_device_tsadcc(struct at91_tsadcc_data *data)
 void __init at91_add_device_tsadcc(struct at91_tsadcc_data *data) {}
 #endif
 
+
+/* --------------------------------------------------------------------
+ *  ADC
+ * -------------------------------------------------------------------- */
+
+#if IS_ENABLED(CONFIG_AT91_ADC)
+static struct at91_adc_data adc_data;
+
+static struct resource adc_resources[] = {
+	[0] = {
+		.start	= AT91SAM9G45_BASE_TSC,
+		.end	= AT91SAM9G45_BASE_TSC + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91SAM9G45_ID_TSC,
+		.end	= AT91SAM9G45_ID_TSC,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device at91_adc_device = {
+	.name		= "at91_adc",
+	.id		= -1,
+	.dev		= {
+				.platform_data	= &adc_data,
+	},
+	.resource	= adc_resources,
+	.num_resources	= ARRAY_SIZE(adc_resources),
+};
+
+static struct at91_adc_trigger at91_adc_triggers[] = {
+	[0] = {
+		.name = "external-rising",
+		.value = 1,
+		.is_external = true,
+	},
+	[1] = {
+		.name = "external-falling",
+		.value = 2,
+		.is_external = true,
+	},
+	[2] = {
+		.name = "external-any",
+		.value = 3,
+		.is_external = true,
+	},
+	[3] = {
+		.name = "continuous",
+		.value = 6,
+		.is_external = false,
+	},
+};
+
+static struct at91_adc_reg_desc at91_adc_register_g45 = {
+	.channel_base = AT91_ADC_CHR(0),
+	.drdy_mask = AT91_ADC_DRDY,
+	.status_register = AT91_ADC_SR,
+	.trigger_register = 0x08,
+};
+
+void __init at91_add_device_adc(struct at91_adc_data *data)
+{
+	if (!data)
+		return;
+
+	if (test_bit(0, &data->channels_used))
+		at91_set_gpio_input(AT91_PIN_PD20, 0);
+	if (test_bit(1, &data->channels_used))
+		at91_set_gpio_input(AT91_PIN_PD21, 0);
+	if (test_bit(2, &data->channels_used))
+		at91_set_gpio_input(AT91_PIN_PD22, 0);
+	if (test_bit(3, &data->channels_used))
+		at91_set_gpio_input(AT91_PIN_PD23, 0);
+	if (test_bit(4, &data->channels_used))
+		at91_set_gpio_input(AT91_PIN_PD24, 0);
+	if (test_bit(5, &data->channels_used))
+		at91_set_gpio_input(AT91_PIN_PD25, 0);
+	if (test_bit(6, &data->channels_used))
+		at91_set_gpio_input(AT91_PIN_PD26, 0);
+	if (test_bit(7, &data->channels_used))
+		at91_set_gpio_input(AT91_PIN_PD27, 0);
+
+	if (data->use_external_triggers)
+		at91_set_A_periph(AT91_PIN_PD28, 0);
+
+	data->num_channels = 8;
+	data->startup_time = 40;
+	data->registers = &at91_adc_register_g45;
+	data->trigger_number = 4;
+	data->trigger_list = at91_adc_triggers;
+
+	adc_data = *data;
+	platform_device_register(&at91_adc_device);
+}
+#else
+void __init at91_add_device_adc(struct at91_adc_data *data) {}
+#endif
 
 /* --------------------------------------------------------------------
  *  RTT
@@ -1741,14 +1816,6 @@ void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins)
 		at91_uarts[portnr] = pdev;
 }
 
-void __init at91_set_serial_console(unsigned portnr)
-{
-	if (portnr < ATMEL_MAX_UART) {
-		atmel_default_console_device = at91_uarts[portnr];
-		at91sam9g45_set_console_clock(at91_uarts[portnr]->id);
-	}
-}
-
 void __init at91_add_device_serial(void)
 {
 	int i;
@@ -1757,13 +1824,9 @@ void __init at91_add_device_serial(void)
 		if (at91_uarts[i])
 			platform_device_register(at91_uarts[i]);
 	}
-
-	if (!atmel_default_console_device)
-		printk(KERN_INFO "AT91: No default serial console defined.\n");
 }
 #else
 void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins) {}
-void __init at91_set_serial_console(unsigned portnr) {}
 void __init at91_add_device_serial(void) {}
 #endif
 
@@ -1775,6 +1838,9 @@ void __init at91_add_device_serial(void) {}
  */
 static int __init at91_add_standard_devices(void)
 {
+	if (of_have_populated_dt())
+		return 0;
+
 	at91_add_device_hdmac();
 	at91_add_device_rtc();
 	at91_add_device_rtt();

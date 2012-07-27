@@ -1545,7 +1545,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for sound cards based on the C-Media CMI8786/8787/8788 chip:
     * Asound A-8788
-    * Asus Xonar DG
+    * Asus Xonar DG/DGX
     * AuzenTech X-Meridian
     * AuzenTech X-Meridian 2G
     * Bgears b-Enspirer

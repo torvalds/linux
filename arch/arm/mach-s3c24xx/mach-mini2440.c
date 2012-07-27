@@ -292,21 +292,10 @@ static struct s3c2410_platform_nand mini2440_nand_info __initdata = {
 /* DM9000AEP 10/100 ethernet controller */
 
 static struct resource mini2440_dm9k_resource[] = {
-	[0] = {
-		.start = MACH_MINI2440_DM9K_BASE,
-		.end   = MACH_MINI2440_DM9K_BASE + 3,
-		.flags = IORESOURCE_MEM
-	},
-	[1] = {
-		.start = MACH_MINI2440_DM9K_BASE + 4,
-		.end   = MACH_MINI2440_DM9K_BASE + 7,
-		.flags = IORESOURCE_MEM
-	},
-	[2] = {
-		.start = IRQ_EINT7,
-		.end   = IRQ_EINT7,
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
-	}
+	[0] = DEFINE_RES_MEM(MACH_MINI2440_DM9K_BASE, 4),
+	[1] = DEFINE_RES_MEM(MACH_MINI2440_DM9K_BASE + 4, 4),
+	[2] = DEFINE_RES_NAMED(IRQ_EINT7, 1, NULL, IORESOURCE_IRQ \
+						| IORESOURCE_IRQ_HIGHEDGE),
 };
 
 /*

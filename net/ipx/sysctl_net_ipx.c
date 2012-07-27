@@ -8,6 +8,7 @@
 
 #include <linux/mm.h>
 #include <linux/sysctl.h>
+#include <net/net_namespace.h>
 
 #ifndef CONFIG_SYSCTL
 #error This file should not be compiled without CONFIG_SYSCTL defined
@@ -27,20 +28,14 @@ static struct ctl_table ipx_table[] = {
 	{ },
 };
 
-static struct ctl_path ipx_path[] = {
-	{ .procname = "net", },
-	{ .procname = "ipx", },
-	{ }
-};
-
 static struct ctl_table_header *ipx_table_header;
 
 void ipx_register_sysctl(void)
 {
-	ipx_table_header = register_sysctl_paths(ipx_path, ipx_table);
+	ipx_table_header = register_net_sysctl(&init_net, "net/ipx", ipx_table);
 }
 
 void ipx_unregister_sysctl(void)
 {
-	unregister_sysctl_table(ipx_table_header);
+	unregister_net_sysctl_table(ipx_table_header);
 }

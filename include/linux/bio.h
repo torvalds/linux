@@ -269,6 +269,14 @@ extern struct bio_vec *bvec_alloc_bs(gfp_t, int, unsigned long *, struct bio_set
 extern void bvec_free_bs(struct bio_set *, struct bio_vec *, unsigned int);
 extern unsigned int bvec_nr_vecs(unsigned short idx);
 
+#ifdef CONFIG_BLK_CGROUP
+int bio_associate_current(struct bio *bio);
+void bio_disassociate_task(struct bio *bio);
+#else	/* CONFIG_BLK_CGROUP */
+static inline int bio_associate_current(struct bio *bio) { return -ENOENT; }
+static inline void bio_disassociate_task(struct bio *bio) { }
+#endif	/* CONFIG_BLK_CGROUP */
+
 /*
  * bio_set is used to allow other portions of the IO system to
  * allocate their own private memory pools for bio and iovec structures.

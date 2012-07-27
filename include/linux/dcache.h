@@ -25,6 +25,13 @@ struct vfsmount;
 
 #define IS_ROOT(x) ((x) == (x)->d_parent)
 
+/* The hash is always the low bits of hash_len */
+#ifdef __LITTLE_ENDIAN
+ #define HASH_LEN_DECLARE u32 hash; u32 len;
+#else
+ #define HASH_LEN_DECLARE u32 len; u32 hash;
+#endif
+
 /*
  * "quick string" -- eases parameter passing, but more importantly
  * saves "metadata" about the string (ie length and the hash).
@@ -33,10 +40,18 @@ struct vfsmount;
  * dentry.
  */
 struct qstr {
-	unsigned int hash;
-	unsigned int len;
+	union {
+		struct {
+			HASH_LEN_DECLARE;
+		};
+		u64 hash_len;
+	};
 	const unsigned char *name;
 };
+
+#define QSTR_INIT(n,l) { { { .len = l } }, .name = n }
+#define hashlen_hash(hashlen) ((u32) (hashlen))
+#define hashlen_len(hashlen)  ((u32)((hashlen) >> 32))
 
 struct dentry_stat_t {
 	int nr_dentry;
@@ -282,7 +297,7 @@ extern struct dentry *d_hash_and_lookup(struct dentry *, struct qstr *);
 extern struct dentry *__d_lookup(struct dentry *, struct qstr *);
 extern struct dentry *__d_lookup_rcu(const struct dentry *parent,
 				const struct qstr *name,
-				unsigned *seq, struct inode **inode);
+				unsigned *seq, struct inode *inode);
 
 /**
  * __d_rcu_to_refcount - take a refcount on dentry if sequence check is ok

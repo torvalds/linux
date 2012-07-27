@@ -115,38 +115,23 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 	return 0;
 }
 
-static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
+static void radeon_cs_sync_rings(struct radeon_cs_parser *p)
 {
-	bool sync_to_ring[RADEON_NUM_RINGS] = { };
-	bool need_sync = false;
-	int i, r;
+	int i;
 
 	for (i = 0; i < p->nrelocs; i++) {
-		struct radeon_fence *fence;
+		struct radeon_fence *a, *b;
 
 		if (!p->relocs[i].robj || !p->relocs[i].robj->tbo.sync_obj)
 			continue;
 
-		fence = p->relocs[i].robj->tbo.sync_obj;
-		if (fence->ring != p->ring && !radeon_fence_signaled(fence)) {
-			sync_to_ring[fence->ring] = true;
-			need_sync = true;
-		}
+		a = p->relocs[i].robj->tbo.sync_obj;
+		b = p->ib.sync_to[a->ring];
+		p->ib.sync_to[a->ring] = radeon_fence_later(a, b);
 	}
-
-	if (!need_sync) {
-		return 0;
-	}
-
-	r = radeon_semaphore_create(p->rdev, &p->ib.semaphore);
-	if (r) {
-		return r;
-	}
-
-	return radeon_semaphore_sync_rings(p->rdev, p->ib.semaphore,
-					   sync_to_ring, p->ring);
 }
 
+/* XXX: note that this is called from the legacy UMS CS ioctl as well */
 int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 {
 	struct drm_radeon_cs *cs = data;
@@ -245,22 +230,24 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 		}
 	}
 
-	if ((p->cs_flags & RADEON_CS_USE_VM) &&
-	    !p->rdev->vm_manager.enabled) {
-		DRM_ERROR("VM not active on asic!\n");
-		return -EINVAL;
+	/* these are KMS only */
+	if (p->rdev) {
+		if ((p->cs_flags & RADEON_CS_USE_VM) &&
+		    !p->rdev->vm_manager.enabled) {
+			DRM_ERROR("VM not active on asic!\n");
+			return -EINVAL;
+		}
+
+		/* we only support VM on SI+ */
+		if ((p->rdev->family >= CHIP_TAHITI) &&
+		    ((p->cs_flags & RADEON_CS_USE_VM) == 0)) {
+			DRM_ERROR("VM required on SI+!\n");
+			return -EINVAL;
+		}
+
+		if (radeon_cs_get_ring(p, ring, priority))
+			return -EINVAL;
 	}
-
-	/* we only support VM on SI+ */
-	if ((p->rdev->family >= CHIP_TAHITI) &&
-	    ((p->cs_flags & RADEON_CS_USE_VM) == 0)) {
-		DRM_ERROR("VM required on SI+!\n");
-		return -EINVAL;
-	}
-
-	if (radeon_cs_get_ring(p, ring, priority))
-		return -EINVAL;
-
 
 	/* deal with non-vm */
 	if ((p->chunk_ib_idx != -1) &&
@@ -365,16 +352,13 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 		DRM_ERROR("Invalid command stream !\n");
 		return r;
 	}
-	r = radeon_cs_sync_rings(parser);
-	if (r) {
-		DRM_ERROR("Failed to synchronize rings !\n");
-	}
+	radeon_cs_sync_rings(parser);
 	parser->ib.vm_id = 0;
-	r = radeon_ib_schedule(rdev, &parser->ib);
+	r = radeon_ib_schedule(rdev, &parser->ib, NULL);
 	if (r) {
 		DRM_ERROR("Failed to schedule IB !\n");
 	}
-	return 0;
+	return r;
 }
 
 static int radeon_bo_vm_update_pte(struct radeon_cs_parser *parser,
@@ -456,6 +440,7 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 		return r;
 	}
 
+	mutex_lock(&rdev->vm_manager.lock);
 	mutex_lock(&vm->mutex);
 	r = radeon_vm_bind(rdev, vm);
 	if (r) {
@@ -465,30 +450,26 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	if (r) {
 		goto out;
 	}
-	r = radeon_cs_sync_rings(parser);
-	if (r) {
-		DRM_ERROR("Failed to synchronize rings !\n");
-	}
+	radeon_cs_sync_rings(parser);
+
+	parser->ib.vm_id = vm->id;
+	/* ib pool is bind at 0 in virtual address space,
+	 * so gpu_addr is the offset inside the pool bo
+	 */
+	parser->ib.gpu_addr = parser->ib.sa_bo->soffset;
 
 	if ((rdev->family >= CHIP_TAHITI) &&
 	    (parser->chunk_const_ib_idx != -1)) {
 		parser->const_ib.vm_id = vm->id;
-		/* ib pool is bind at 0 in virtual address space to gpu_addr is the
-		 * offset inside the pool bo
+		/* ib pool is bind at 0 in virtual address space,
+		 * so gpu_addr is the offset inside the pool bo
 		 */
 		parser->const_ib.gpu_addr = parser->const_ib.sa_bo->soffset;
-		r = radeon_ib_schedule(rdev, &parser->const_ib);
-		if (r)
-			goto out;
+		r = radeon_ib_schedule(rdev, &parser->ib, &parser->const_ib);
+	} else {
+		r = radeon_ib_schedule(rdev, &parser->ib, NULL);
 	}
 
-	parser->ib.vm_id = vm->id;
-	/* ib pool is bind at 0 in virtual address space to gpu_addr is the
-	 * offset inside the pool bo
-	 */
-	parser->ib.gpu_addr = parser->ib.sa_bo->soffset;
-	parser->ib.is_const_ib = false;
-	r = radeon_ib_schedule(rdev, &parser->ib);
 out:
 	if (!r) {
 		if (vm->fence) {
@@ -496,7 +477,8 @@ out:
 		}
 		vm->fence = radeon_fence_ref(parser->ib.fence);
 	}
-	mutex_unlock(&fpriv->vm.mutex);
+	mutex_unlock(&vm->mutex);
+	mutex_unlock(&rdev->vm_manager.lock);
 	return r;
 }
 
@@ -516,9 +498,9 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	struct radeon_cs_parser parser;
 	int r;
 
-	radeon_mutex_lock(&rdev->cs_mutex);
+	down_read(&rdev->exclusive_lock);
 	if (!rdev->accel_working) {
-		radeon_mutex_unlock(&rdev->cs_mutex);
+		up_read(&rdev->exclusive_lock);
 		return -EBUSY;
 	}
 	/* initialize parser */
@@ -531,8 +513,8 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	if (r) {
 		DRM_ERROR("Failed to initialize parser !\n");
 		radeon_cs_parser_fini(&parser, r);
+		up_read(&rdev->exclusive_lock);
 		r = radeon_cs_handle_lockup(rdev, r);
-		radeon_mutex_unlock(&rdev->cs_mutex);
 		return r;
 	}
 	r = radeon_cs_parser_relocs(&parser);
@@ -540,8 +522,8 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		if (r != -ERESTARTSYS)
 			DRM_ERROR("Failed to parse relocation %d!\n", r);
 		radeon_cs_parser_fini(&parser, r);
+		up_read(&rdev->exclusive_lock);
 		r = radeon_cs_handle_lockup(rdev, r);
-		radeon_mutex_unlock(&rdev->cs_mutex);
 		return r;
 	}
 	r = radeon_cs_ib_chunk(rdev, &parser);
@@ -554,8 +536,8 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	}
 out:
 	radeon_cs_parser_fini(&parser, r);
+	up_read(&rdev->exclusive_lock);
 	r = radeon_cs_handle_lockup(rdev, r);
-	radeon_mutex_unlock(&rdev->cs_mutex);
 	return r;
 }
 
@@ -580,7 +562,7 @@ int radeon_cs_finish_pages(struct radeon_cs_parser *p)
 	return 0;
 }
 
-int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx)
+static int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx)
 {
 	int new_page;
 	struct radeon_cs_chunk *ibc = &p->chunks[p->chunk_ib_idx];
@@ -622,4 +604,29 @@ int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx)
 	ibc->kpage_idx[new_page] = pg_idx;
 
 	return new_page;
+}
+
+u32 radeon_get_ib_value(struct radeon_cs_parser *p, int idx)
+{
+	struct radeon_cs_chunk *ibc = &p->chunks[p->chunk_ib_idx];
+	u32 pg_idx, pg_offset;
+	u32 idx_value = 0;
+	int new_page;
+
+	pg_idx = (idx * 4) / PAGE_SIZE;
+	pg_offset = (idx * 4) % PAGE_SIZE;
+
+	if (ibc->kpage_idx[0] == pg_idx)
+		return ibc->kpage[0][pg_offset/4];
+	if (ibc->kpage_idx[1] == pg_idx)
+		return ibc->kpage[1][pg_offset/4];
+
+	new_page = radeon_cs_update_pages(p, pg_idx);
+	if (new_page < 0) {
+		p->parser_error = new_page;
+		return 0;
+	}
+
+	idx_value = ibc->kpage[new_page][pg_offset/4];
+	return idx_value;
 }

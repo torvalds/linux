@@ -243,7 +243,7 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 static void __maybe_unused ads7846_dev_init(void)
 {
 	if (gpio_request(ADS7846_PENDOWN, "ADS7846 pendown") < 0) {
-		printk(KERN_ERR "can't get ads746 pen down GPIO\n");
+		printk(KERN_ERR "can't get ads7846 pen down GPIO\n");
 		return;
 	}
 	gpio_direction_input(ADS7846_PENDOWN);

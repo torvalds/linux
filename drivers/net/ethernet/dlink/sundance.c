@@ -522,9 +522,6 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 			cpu_to_le16(eeprom_read(ioaddr, i + EEPROM_SA_OFFSET));
 	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
-	dev->base_addr = (unsigned long)ioaddr;
-	dev->irq = irq;
-
 	np = netdev_priv(dev);
 	np->base = ioaddr;
 	np->pci_dev = pdev;
@@ -828,18 +825,19 @@ static int netdev_open(struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base;
+	const int irq = np->pci_dev->irq;
 	unsigned long flags;
 	int i;
 
 	/* Do we need to reset the chip??? */
 
-	i = request_irq(dev->irq, intr_handler, IRQF_SHARED, dev->name, dev);
+	i = request_irq(irq, intr_handler, IRQF_SHARED, dev->name, dev);
 	if (i)
 		return i;
 
 	if (netif_msg_ifup(np))
-		printk(KERN_DEBUG "%s: netdev_open() irq %d.\n",
-			   dev->name, dev->irq);
+		printk(KERN_DEBUG "%s: netdev_open() irq %d\n", dev->name, irq);
+
 	init_ring(dev);
 
 	iowrite32(np->rx_ring_dma, ioaddr + RxListPtr);
@@ -1814,7 +1812,7 @@ static int netdev_close(struct net_device *dev)
 	}
 #endif /* __i386__ debugging only */
 
-	free_irq(dev->irq, dev);
+	free_irq(np->pci_dev->irq, dev);
 
 	del_timer_sync(&np->timer);
 

@@ -1710,7 +1710,8 @@ static int et131x_mdio_read(struct mii_bus *bus, int phy_addr, int reg)
 		return value;
 }
 
-static int et131x_mdio_write(struct mii_bus *bus, int phy_addr, int reg, u16 value)
+static int et131x_mdio_write(struct mii_bus *bus, int phy_addr,
+			     int reg, u16 value)
 {
 	struct net_device *netdev = bus->priv;
 	struct et131x_adapter *adapter = netdev_priv(netdev);
@@ -4013,7 +4014,7 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 		dev_err(&pdev->dev, "Missing PCIe capabilities\n");
 		goto err_out;
 	}
-		
+
 	/* Let's set up the PORT LOGIC Register.  First we need to know what
 	 * the max_payload_size is
 	 */
@@ -4060,7 +4061,7 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 		goto err_out;
 	}
 
-	ctl = (ctl & ~PCI_EXP_DEVCTL_READRQ) | ( 0x04 << 12);
+	ctl = (ctl & ~PCI_EXP_DEVCTL_READRQ) | (0x04 << 12);
 
 	if (pci_write_config_word(pdev, cap + PCI_EXP_DEVCTL, ctl)) {
 		dev_err(&pdev->dev,
@@ -4824,7 +4825,8 @@ static int et131x_open(struct net_device *netdev)
 	adapter->error_timer.data = (unsigned long)adapter;
 	add_timer(&adapter->error_timer);
 
-	result = request_irq(irq, et131x_isr, IRQF_SHARED, netdev->name, netdev);
+	result = request_irq(irq, et131x_isr,
+			     IRQF_SHARED, netdev->name, netdev);
 	if (result) {
 		dev_err(&pdev->dev, "could not register IRQ %d\n", irq);
 		return result;

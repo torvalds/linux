@@ -42,6 +42,7 @@ static struct netvsc_device *alloc_net_device(struct hv_device *device)
 	if (!net_device)
 		return NULL;
 
+	init_waitqueue_head(&net_device->wait_drain);
 	net_device->start_remove = false;
 	net_device->destroy = false;
 	net_device->dev = device;
@@ -387,12 +388,8 @@ int netvsc_device_remove(struct hv_device *device)
 	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
 
 	/* Wait for all send completions */
-	while (atomic_read(&net_device->num_outstanding_sends)) {
-		dev_info(&device->device,
-			"waiting for %d requests to complete...\n",
-			atomic_read(&net_device->num_outstanding_sends));
-		udelay(100);
-	}
+	wait_event(net_device->wait_drain,
+		   atomic_read(&net_device->num_outstanding_sends) == 0);
 
 	netvsc_disconnect_vsp(net_device);
 
@@ -428,6 +425,24 @@ int netvsc_device_remove(struct hv_device *device)
 	return 0;
 }
 
+
+#define RING_AVAIL_PERCENT_HIWATER 20
+#define RING_AVAIL_PERCENT_LOWATER 10
+
+/*
+ * Get the percentage of available bytes to write in the ring.
+ * The return value is in range from 0 to 100.
+ */
+static inline u32 hv_ringbuf_avail_percent(
+		struct hv_ring_buffer_info *ring_info)
+{
+	u32 avail_read, avail_write;
+
+	hv_get_ringbuffer_availbytes(ring_info, &avail_read, &avail_write);
+
+	return avail_write * 100 / ring_info->ring_datasize;
+}
+
 static void netvsc_send_completion(struct hv_device *device,
 				   struct vmpacket_descriptor *packet)
 {
@@ -455,6 +470,8 @@ static void netvsc_send_completion(struct hv_device *device,
 		complete(&net_device->channel_init_wait);
 	} else if (nvsp_packet->hdr.msg_type ==
 		   NVSP_MSG1_TYPE_SEND_RNDIS_PKT_COMPLETE) {
+		int num_outstanding_sends;
+
 		/* Get the send context */
 		nvsc_packet = (struct hv_netvsc_packet *)(unsigned long)
 			packet->trans_id;
@@ -463,10 +480,17 @@ static void netvsc_send_completion(struct hv_device *device,
 		nvsc_packet->completion.send.send_completion(
 			nvsc_packet->completion.send.send_completion_ctx);
 
-		atomic_dec(&net_device->num_outstanding_sends);
+		num_outstanding_sends =
+			atomic_dec_return(&net_device->num_outstanding_sends);
 
-		if (netif_queue_stopped(ndev) && !net_device->start_remove)
-			netif_wake_queue(ndev);
+		if (net_device->destroy && num_outstanding_sends == 0)
+			wake_up(&net_device->wait_drain);
+
+		if (netif_queue_stopped(ndev) && !net_device->start_remove &&
+			(hv_ringbuf_avail_percent(&device->channel->outbound)
+			> RING_AVAIL_PERCENT_HIWATER ||
+			num_outstanding_sends < 1))
+				netif_wake_queue(ndev);
 	} else {
 		netdev_err(ndev, "Unknown send completion packet type- "
 			   "%d received!!\n", nvsp_packet->hdr.msg_type);
@@ -519,10 +543,19 @@ int netvsc_send(struct hv_device *device,
 
 	if (ret == 0) {
 		atomic_inc(&net_device->num_outstanding_sends);
+		if (hv_ringbuf_avail_percent(&device->channel->outbound) <
+			RING_AVAIL_PERCENT_LOWATER) {
+			netif_stop_queue(ndev);
+			if (atomic_read(&net_device->
+				num_outstanding_sends) < 1)
+				netif_wake_queue(ndev);
+		}
 	} else if (ret == -EAGAIN) {
 		netif_stop_queue(ndev);
-		if (atomic_read(&net_device->num_outstanding_sends) < 1)
+		if (atomic_read(&net_device->num_outstanding_sends) < 1) {
 			netif_wake_queue(ndev);
+			ret = -ENOSPC;
+		}
 	} else {
 		netdev_err(ndev, "Unable to send packet %p ret %d\n",
 			   packet, ret);

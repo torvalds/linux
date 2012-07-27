@@ -353,7 +353,6 @@ static void XGINew_DDR1x_DefaultRegister(
 		XGINew_SetMemoryClock(HwDeviceExtension, pVBInfo);
 
 		switch (HwDeviceExtension->jChipType) {
-		case XG41:
 		case XG42:
 			/* CR82 */
 			xgifb_reg_set(P3d4,
@@ -556,8 +555,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 		xgifb_reg_set(P3d4, (0x8A + j),
 				pVBInfo->CR40[1 + j][pVBInfo->ram_type]);
 
-	if ((HwDeviceExtension->jChipType == XG41) ||
-	    (HwDeviceExtension->jChipType == XG42))
+	if (HwDeviceExtension->jChipType == XG42)
 		xgifb_reg_set(P3d4, 0x8C, 0x87);
 
 	xgifb_reg_set(P3d4,
@@ -854,78 +852,6 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 		pVBInfo->ram_channel = 1; /* Single channel */
 		xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x51); /* 32Mx16 bit*/
 		break;
-	case XG41:
-		if (XGINew_CheckFrequence(pVBInfo) == 1) {
-			pVBInfo->ram_bus = 32; /* 32 bits */
-			pVBInfo->ram_channel = 3; /* Quad Channel */
-			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xA1);
-			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x4C);
-
-			if (XGINew_ReadWriteRest(25, 23, pVBInfo) == 1)
-				return;
-
-			pVBInfo->ram_channel = 2; /* Dual channels */
-			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x48);
-
-			if (XGINew_ReadWriteRest(24, 23, pVBInfo) == 1)
-				return;
-
-			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x49);
-
-			if (XGINew_ReadWriteRest(24, 23, pVBInfo) == 1)
-				return;
-
-			pVBInfo->ram_channel = 3;
-			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0x21);
-			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x3C);
-
-			if (XGINew_ReadWriteRest(24, 23, pVBInfo) == 1)
-				return;
-
-			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x38);
-
-			if (XGINew_ReadWriteRest(8, 4, pVBInfo) == 1)
-				return;
-			else
-				xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x39);
-		} else { /* DDR */
-			pVBInfo->ram_bus = 64; /* 64 bits */
-			pVBInfo->ram_channel = 2; /* Dual channels */
-			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xA1);
-			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x5A);
-
-			if (XGINew_ReadWriteRest(25, 24, pVBInfo) == 1)
-				return;
-
-			pVBInfo->ram_channel = 1; /* Single channels */
-			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x52);
-
-			if (XGINew_ReadWriteRest(24, 23, pVBInfo) == 1)
-				return;
-
-			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x53);
-
-			if (XGINew_ReadWriteRest(24, 23, pVBInfo) == 1)
-				return;
-
-			pVBInfo->ram_channel = 2; /* Dual channels */
-			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0x21);
-			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x4A);
-
-			if (XGINew_ReadWriteRest(24, 23, pVBInfo) == 1)
-				return;
-
-			pVBInfo->ram_channel = 1; /* Single channels */
-			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x42);
-
-			if (XGINew_ReadWriteRest(8, 4, pVBInfo) == 1)
-				return;
-			else
-				xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x43);
-		}
-
-		break;
-
 	case XG42:
 		/*
 		 XG42 SR14 D[3] Reserve
@@ -1478,7 +1404,7 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 
 	pVBInfo->FBAddr = HwDeviceExtension->pjVideoMemoryAddress;
 
-	pVBInfo->BaseAddr = (unsigned long) HwDeviceExtension->pjIOAddress;
+	pVBInfo->BaseAddr = xgifb_info->vga_base;
 
 	/* Newdebugcode(0x99); */
 

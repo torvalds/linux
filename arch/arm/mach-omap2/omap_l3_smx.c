@@ -155,10 +155,11 @@ static irqreturn_t omap3_l3_block_irq(struct omap3_l3 *l3,
 	u8 multi = error & L3_ERROR_LOG_MULTI;
 	u32 address = omap3_l3_decode_addr(error_addr);
 
-	WARN(true, "%s seen by %s %s at address %x\n",
+	pr_err("%s seen by %s %s at address %x\n",
 			omap3_l3_code_string(code),
 			omap3_l3_initiator_string(initid),
 			multi ? "Multiple Errors" : "", address);
+	WARN_ON(1);
 
 	return IRQ_HANDLED;
 }

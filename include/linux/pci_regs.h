@@ -521,6 +521,11 @@
 #define  PCI_EXP_OBFF_MSGA_EN	0x2000	/* OBFF enable with Message type A */
 #define  PCI_EXP_OBFF_MSGB_EN	0x4000	/* OBFF enable with Message type B */
 #define  PCI_EXP_OBFF_WAKE_EN	0x6000	/* OBFF using WAKE# signaling */
+#define PCI_EXP_LNKCAP2		44	/* Link Capability 2 */
+#define  PCI_EXP_LNKCAP2_SLS_2_5GB 0x01	/* Current Link Speed 2.5GT/s */
+#define  PCI_EXP_LNKCAP2_SLS_5_0GB 0x02	/* Current Link Speed 5.0GT/s */
+#define  PCI_EXP_LNKCAP2_SLS_8_0GB 0x04	/* Current Link Speed 8.0GT/s */
+#define  PCI_EXP_LNKCAP2_CROSSLINK 0x100 /* Crosslink supported */
 #define PCI_EXP_LNKCTL2		48	/* Link Control 2 */
 #define PCI_EXP_SLTCTL2		56	/* Slot Control 2 */
 

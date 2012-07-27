@@ -41,7 +41,6 @@
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_attr_leaf.h"
-#include "xfs_rw.h"
 #include "xfs_quota.h"
 #include "xfs_trans_space.h"
 #include "xfs_buf_item.h"
@@ -4527,7 +4526,7 @@ out_unreserve_blocks:
 		xfs_icsb_modify_counters(mp, XFS_SBS_FDBLOCKS, alen, 0);
 out_unreserve_quota:
 	if (XFS_IS_QUOTA_ON(mp))
-		xfs_trans_unreserve_quota_nblks(NULL, ip, alen, 0, rt ?
+		xfs_trans_unreserve_quota_nblks(NULL, ip, (long)alen, 0, rt ?
 				XFS_QMOPT_RES_RTBLKS : XFS_QMOPT_RES_REGBLKS);
 	return error;
 }
@@ -5621,8 +5620,20 @@ xfs_getbmap(
 				XFS_FSB_TO_BB(mp, map[i].br_blockcount);
 			out[cur_ext].bmv_unused1 = 0;
 			out[cur_ext].bmv_unused2 = 0;
-			ASSERT(((iflags & BMV_IF_DELALLOC) != 0) ||
-			      (map[i].br_startblock != DELAYSTARTBLOCK));
+
+			/*
+			 * delayed allocation extents that start beyond EOF can
+			 * occur due to speculative EOF allocation when the
+			 * delalloc extent is larger than the largest freespace
+			 * extent at conversion time. These extents cannot be
+			 * converted by data writeback, so can exist here even
+			 * if we are not supposed to be finding delalloc
+			 * extents.
+			 */
+			if (map[i].br_startblock == DELAYSTARTBLOCK &&
+			    map[i].br_startoff <= XFS_B_TO_FSB(mp, XFS_ISIZE(ip)))
+				ASSERT((iflags & BMV_IF_DELALLOC) != 0);
+
                         if (map[i].br_startblock == HOLESTARTBLOCK &&
 			    whichfork == XFS_ATTR_FORK) {
 				/* came to the end of attribute fork */
@@ -6156,4 +6167,17 @@ next_block:
 	} while(remaining > 0);
 
 	return error;
+}
+
+/*
+ * Convert the given file system block to a disk block.  We have to treat it
+ * differently based on whether the file is a real time file or not, because the
+ * bmap code does.
+ */
+xfs_daddr_t
+xfs_fsb_to_db(struct xfs_inode *ip, xfs_fsblock_t fsb)
+{
+	return (XFS_IS_REALTIME_INODE(ip) ? \
+		 (xfs_daddr_t)XFS_FSB_TO_BB((ip)->i_mount, (fsb)) : \
+		 XFS_FSB_TO_DADDR((ip)->i_mount, (fsb)));
 }

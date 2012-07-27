@@ -59,35 +59,38 @@ MODULE_LICENSE("GPL");
 #define SENSOR_MT9M111	9
 #define SENSOR_MT9M112  10
 #define SENSOR_HV7131R	11
-#define SENSOR_MT9VPRB	20
+#define SENSOR_MT9VPRB	12
 
 /* camera flags */
 #define HAS_NO_BUTTON	0x1
 #define LED_REVERSE	0x2 /* some cameras unset gpio to turn on leds */
 #define FLIP_DETECT	0x4
 
-enum e_ctrl {
-	BRIGHTNESS,
-	CONTRAST,
-	SATURATION,
-	HUE,
-	GAMMA,
-	BLUE,
-	RED,
-	VFLIP,
-	HFLIP,
-	EXPOSURE,
-	GAIN,
-	AUTOGAIN,
-	QUALITY,
-	NCTRLS		/* number of controls */
-};
-
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;
 
-	struct gspca_ctrl ctrls[NCTRLS];
+	struct { /* color control cluster */
+		struct v4l2_ctrl *brightness;
+		struct v4l2_ctrl *contrast;
+		struct v4l2_ctrl *saturation;
+		struct v4l2_ctrl *hue;
+	};
+	struct { /* blue/red balance control cluster */
+		struct v4l2_ctrl *blue;
+		struct v4l2_ctrl *red;
+	};
+	struct { /* h/vflip control cluster */
+		struct v4l2_ctrl *hflip;
+		struct v4l2_ctrl *vflip;
+	};
+	struct v4l2_ctrl *gamma;
+	struct { /* autogain and exposure or gain control cluster */
+		struct v4l2_ctrl *autogain;
+		struct v4l2_ctrl *exposure;
+		struct v4l2_ctrl *gain;
+	};
+	struct v4l2_ctrl *jpegqual;
 
 	struct work_struct work;
 	struct workqueue_struct *work_thread;
@@ -105,6 +108,7 @@ struct sd {
 	u8 exposure_step;
 
 	u8 i2c_addr;
+	u8 i2c_intf;
 	u8 sensor;
 	u8 hstart;
 	u8 vstart;
@@ -164,175 +168,6 @@ static const struct dmi_system_id flip_dmi_table[] = {
 		}
 	},
 	{}
-};
-
-static void set_cmatrix(struct gspca_dev *gspca_dev);
-static void set_gamma(struct gspca_dev *gspca_dev);
-static void set_redblue(struct gspca_dev *gspca_dev);
-static void set_hvflip(struct gspca_dev *gspca_dev);
-static void set_exposure(struct gspca_dev *gspca_dev);
-static void set_gain(struct gspca_dev *gspca_dev);
-static void set_quality(struct gspca_dev *gspca_dev);
-
-static const struct ctrl sd_ctrls[NCTRLS] = {
-[BRIGHTNESS] = {
-	    {
-		.id      = V4L2_CID_BRIGHTNESS,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Brightness",
-		.minimum = 0,
-		.maximum = 0xff,
-		.step    = 1,
-		.default_value = 0x7f
-	    },
-	    .set_control = set_cmatrix
-	},
-[CONTRAST] = {
-	    {
-		.id      = V4L2_CID_CONTRAST,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Contrast",
-		.minimum = 0,
-		.maximum = 0xff,
-		.step    = 1,
-		.default_value = 0x7f
-	    },
-	    .set_control = set_cmatrix
-	},
-[SATURATION] = {
-	    {
-		.id      = V4L2_CID_SATURATION,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Saturation",
-		.minimum = 0,
-		.maximum = 0xff,
-		.step    = 1,
-		.default_value = 0x7f
-	    },
-	    .set_control = set_cmatrix
-	},
-[HUE] = {
-	    {
-		.id      = V4L2_CID_HUE,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Hue",
-		.minimum = -180,
-		.maximum = 180,
-		.step    = 1,
-		.default_value = 0
-	    },
-	    .set_control = set_cmatrix
-	},
-[GAMMA] = {
-	    {
-		.id      = V4L2_CID_GAMMA,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Gamma",
-		.minimum = 0,
-		.maximum = 0xff,
-		.step    = 1,
-		.default_value = 0x10
-	    },
-	    .set_control = set_gamma
-	},
-[BLUE] = {
-	    {
-		.id	 = V4L2_CID_BLUE_BALANCE,
-		.type	 = V4L2_CTRL_TYPE_INTEGER,
-		.name	 = "Blue Balance",
-		.minimum = 0,
-		.maximum = 0x7f,
-		.step	 = 1,
-		.default_value = 0x28
-	    },
-	    .set_control = set_redblue
-	},
-[RED] = {
-	    {
-		.id	 = V4L2_CID_RED_BALANCE,
-		.type	 = V4L2_CTRL_TYPE_INTEGER,
-		.name	 = "Red Balance",
-		.minimum = 0,
-		.maximum = 0x7f,
-		.step	 = 1,
-		.default_value = 0x28
-	    },
-	    .set_control = set_redblue
-	},
-[HFLIP] = {
-	    {
-		.id      = V4L2_CID_HFLIP,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Horizontal Flip",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
-		.default_value = 0,
-	    },
-	    .set_control = set_hvflip
-	},
-[VFLIP] = {
-	    {
-		.id      = V4L2_CID_VFLIP,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Vertical Flip",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
-		.default_value = 0,
-	    },
-	    .set_control = set_hvflip
-	},
-[EXPOSURE] = {
-	    {
-		.id      = V4L2_CID_EXPOSURE,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Exposure",
-		.minimum = 0,
-		.maximum = 0x1780,
-		.step    = 1,
-		.default_value = 0x33,
-	    },
-	    .set_control = set_exposure
-	},
-[GAIN] = {
-	    {
-		.id      = V4L2_CID_GAIN,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Gain",
-		.minimum = 0,
-		.maximum = 28,
-		.step    = 1,
-		.default_value = 0,
-	    },
-	    .set_control = set_gain
-	},
-[AUTOGAIN] = {
-	    {
-		.id      = V4L2_CID_AUTOGAIN,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Auto Exposure",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
-		.default_value = 1,
-	    },
-	},
-[QUALITY] = {
-	    {
-		.id      = V4L2_CID_JPEG_COMPRESSION_QUALITY,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Compression Quality",
-#define QUALITY_MIN 50
-#define QUALITY_MAX 90
-#define QUALITY_DEF 80
-		.minimum = QUALITY_MIN,
-		.maximum = QUALITY_MAX,
-		.step    = 1,
-		.default_value = QUALITY_DEF,
-	    },
-	    .set_control = set_quality
-	},
 };
 
 static const struct v4l2_pix_format vga_mode[] = {
@@ -747,7 +582,7 @@ static const s16 hsv_blue_y[] = {
 	4,   2,   0,  -1,  -3,  -5,  -7,  -9, -11
 };
 
-static u16 i2c_ident[] = {
+static const u16 i2c_ident[] = {
 	V4L2_IDENT_OV9650,
 	V4L2_IDENT_OV9655,
 	V4L2_IDENT_SOI968,
@@ -760,9 +595,10 @@ static u16 i2c_ident[] = {
 	V4L2_IDENT_MT9M111,
 	V4L2_IDENT_MT9M112,
 	V4L2_IDENT_HV7131R,
+[SENSOR_MT9VPRB] = V4L2_IDENT_UNKNOWN,
 };
 
-static u16 bridge_init[][2] = {
+static const u16 bridge_init[][2] = {
 	{0x1000, 0x78}, {0x1001, 0x40}, {0x1002, 0x1c},
 	{0x1020, 0x80}, {0x1061, 0x01}, {0x1067, 0x40},
 	{0x1068, 0x30}, {0x1069, 0x20},	{0x106a, 0x10},
@@ -786,7 +622,7 @@ static u16 bridge_init[][2] = {
 };
 
 /* Gain = (bit[3:0] / 16 + 1) * (bit[4] + 1) * (bit[5] + 1) * (bit[6] + 1) */
-static u8 ov_gain[] = {
+static const u8 ov_gain[] = {
 	0x00 /* 1x */, 0x04 /* 1.25x */, 0x08 /* 1.5x */, 0x0c /* 1.75x */,
 	0x10 /* 2x */, 0x12 /* 2.25x */, 0x14 /* 2.5x */, 0x16 /* 2.75x */,
 	0x18 /* 3x */, 0x1a /* 3.25x */, 0x1c /* 3.5x */, 0x1e /* 3.75x */,
@@ -798,7 +634,7 @@ static u8 ov_gain[] = {
 };
 
 /* Gain = (bit[8] + 1) * (bit[7] + 1) * (bit[6:0] * 0.03125) */
-static u16 micron1_gain[] = {
+static const u16 micron1_gain[] = {
 	/* 1x   1.25x   1.5x    1.75x */
 	0x0020, 0x0028, 0x0030, 0x0038,
 	/* 2x   2.25x   2.5x    2.75x */
@@ -819,7 +655,7 @@ static u16 micron1_gain[] = {
 
 /* mt9m001 sensor uses a different gain formula then other micron sensors */
 /* Gain = (bit[6] + 1) * (bit[5-0] * 0.125) */
-static u16 micron2_gain[] = {
+static const u16 micron2_gain[] = {
 	/* 1x   1.25x   1.5x    1.75x */
 	0x0008, 0x000a, 0x000c, 0x000e,
 	/* 2x   2.25x   2.5x    2.75x */
@@ -839,7 +675,7 @@ static u16 micron2_gain[] = {
 };
 
 /* Gain = .5 + bit[7:0] / 16 */
-static u8 hv7131r_gain[] = {
+static const u8 hv7131r_gain[] = {
 	0x08 /* 1x */, 0x0c /* 1.25x */, 0x10 /* 1.5x */, 0x14 /* 1.75x */,
 	0x18 /* 2x */, 0x1c /* 2.25x */, 0x20 /* 2.5x */, 0x24 /* 2.75x */,
 	0x28 /* 3x */, 0x2c /* 3.25x */, 0x30 /* 3.5x */, 0x34 /* 3.75x */,
@@ -850,7 +686,7 @@ static u8 hv7131r_gain[] = {
 	0x78 /* 8x */
 };
 
-static struct i2c_reg_u8 soi968_init[] = {
+static const struct i2c_reg_u8 soi968_init[] = {
 	{0x0c, 0x00}, {0x0f, 0x1f},
 	{0x11, 0x80}, {0x38, 0x52}, {0x1e, 0x00},
 	{0x33, 0x08}, {0x35, 0x8c}, {0x36, 0x0c},
@@ -864,7 +700,7 @@ static struct i2c_reg_u8 soi968_init[] = {
 	{0x00, 0x00}, {0x01, 0x80}, {0x02, 0x80},
 };
 
-static struct i2c_reg_u8 ov7660_init[] = {
+static const struct i2c_reg_u8 ov7660_init[] = {
 	{0x0e, 0x80}, {0x0d, 0x08}, {0x0f, 0xc3},
 	{0x04, 0xc3}, {0x10, 0x40}, {0x11, 0x40},
 	{0x12, 0x05}, {0x13, 0xba}, {0x14, 0x2a},
@@ -872,11 +708,11 @@ static struct i2c_reg_u8 ov7660_init[] = {
 	   0x10, 0x61 and sd->hstart, vstart = 3, fixes ugly colored borders */
 	{0x17, 0x10}, {0x18, 0x61},
 	{0x37, 0x0f}, {0x38, 0x02}, {0x39, 0x43},
-	{0x3a, 0x00}, {0x69, 0x90}, {0x2d, 0xf6},
-	{0x2e, 0x0b}, {0x01, 0x78}, {0x02, 0x50},
+	{0x3a, 0x00}, {0x69, 0x90}, {0x2d, 0x00},
+	{0x2e, 0x00}, {0x01, 0x78}, {0x02, 0x50},
 };
 
-static struct i2c_reg_u8 ov7670_init[] = {
+static const struct i2c_reg_u8 ov7670_init[] = {
 	{0x11, 0x80}, {0x3a, 0x04}, {0x12, 0x01},
 	{0x32, 0xb6}, {0x03, 0x0a}, {0x0c, 0x00}, {0x3e, 0x00},
 	{0x70, 0x3a}, {0x71, 0x35}, {0x72, 0x11}, {0x73, 0xf0},
@@ -933,7 +769,7 @@ static struct i2c_reg_u8 ov7670_init[] = {
 	{0x93, 0x00},
 };
 
-static struct i2c_reg_u8 ov9650_init[] = {
+static const struct i2c_reg_u8 ov9650_init[] = {
 	{0x00, 0x00}, {0x01, 0x78},
 	{0x02, 0x78}, {0x03, 0x36}, {0x04, 0x03},
 	{0x05, 0x00}, {0x06, 0x00}, {0x08, 0x00},
@@ -963,7 +799,7 @@ static struct i2c_reg_u8 ov9650_init[] = {
 	{0xaa, 0x92}, {0xab, 0x0a},
 };
 
-static struct i2c_reg_u8 ov9655_init[] = {
+static const struct i2c_reg_u8 ov9655_init[] = {
 	{0x0e, 0x61}, {0x11, 0x80}, {0x13, 0xba},
 	{0x14, 0x2e}, {0x16, 0x24}, {0x1e, 0x04}, {0x27, 0x08},
 	{0x28, 0x08}, {0x29, 0x15}, {0x2c, 0x08}, {0x34, 0x3d},
@@ -990,7 +826,7 @@ static struct i2c_reg_u8 ov9655_init[] = {
 	{0x04, 0x03}, {0x00, 0x13},
 };
 
-static struct i2c_reg_u16 mt9v112_init[] = {
+static const struct i2c_reg_u16 mt9v112_init[] = {
 	{0xf0, 0x0000}, {0x0d, 0x0021}, {0x0d, 0x0020},
 	{0x34, 0xc019}, {0x0a, 0x0011}, {0x0b, 0x000b},
 	{0x20, 0x0703}, {0x35, 0x2022}, {0xf0, 0x0001},
@@ -1009,7 +845,7 @@ static struct i2c_reg_u16 mt9v112_init[] = {
 	{0x2c, 0x00ae}, {0x2d, 0x00ae}, {0x2e, 0x00ae},
 };
 
-static struct i2c_reg_u16 mt9v111_init[] = {
+static const struct i2c_reg_u16 mt9v111_init[] = {
 	{0x01, 0x0004}, {0x0d, 0x0001}, {0x0d, 0x0000},
 	{0x01, 0x0001}, {0x05, 0x0004}, {0x2d, 0xe0a0},
 	{0x2e, 0x0c64},	{0x2f, 0x0064}, {0x06, 0x600e},
@@ -1019,7 +855,7 @@ static struct i2c_reg_u16 mt9v111_init[] = {
 	{0x0e, 0x0008}, {0x20, 0x0000}
 };
 
-static struct i2c_reg_u16 mt9v011_init[] = {
+static const struct i2c_reg_u16 mt9v011_init[] = {
 	{0x07, 0x0002},	{0x0d, 0x0001},	{0x0d, 0x0000},
 	{0x01, 0x0008},	{0x02, 0x0016},	{0x03, 0x01e1},
 	{0x04, 0x0281},	{0x05, 0x0083},	{0x06, 0x0006},
@@ -1046,7 +882,7 @@ static struct i2c_reg_u16 mt9v011_init[] = {
 	{0x06, 0x0029},	{0x05, 0x0009},
 };
 
-static struct i2c_reg_u16 mt9m001_init[] = {
+static const struct i2c_reg_u16 mt9m001_init[] = {
 	{0x0d, 0x0001},
 	{0x0d, 0x0000},
 	{0x04, 0x0500},		/* hres = 1280 */
@@ -1062,21 +898,21 @@ static struct i2c_reg_u16 mt9m001_init[] = {
 	{0x35, 0x0057},
 };
 
-static struct i2c_reg_u16 mt9m111_init[] = {
+static const struct i2c_reg_u16 mt9m111_init[] = {
 	{0xf0, 0x0000}, {0x0d, 0x0021}, {0x0d, 0x0008},
 	{0xf0, 0x0001}, {0x3a, 0x4300}, {0x9b, 0x4300},
 	{0x06, 0x708e}, {0xf0, 0x0002}, {0x2e, 0x0a1e},
 	{0xf0, 0x0000},
 };
 
-static struct i2c_reg_u16 mt9m112_init[] = {
+static const struct i2c_reg_u16 mt9m112_init[] = {
 	{0xf0, 0x0000}, {0x0d, 0x0021}, {0x0d, 0x0008},
 	{0xf0, 0x0001}, {0x3a, 0x4300}, {0x9b, 0x4300},
 	{0x06, 0x708e}, {0xf0, 0x0002}, {0x2e, 0x0a1e},
 	{0xf0, 0x0000},
 };
 
-static struct i2c_reg_u8 hv7131r_init[] = {
+static const struct i2c_reg_u8 hv7131r_init[] = {
 	{0x02, 0x08}, {0x02, 0x00}, {0x01, 0x08},
 	{0x02, 0x00}, {0x20, 0x00}, {0x21, 0xd0},
 	{0x22, 0x00}, {0x23, 0x09}, {0x01, 0x08},
@@ -1167,7 +1003,7 @@ static void i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 	 * from the point of view of the bridge, the length
 	 * includes the address
 	 */
-	row[0] = 0x81 | (2 << 4);
+	row[0] = sd->i2c_intf | (2 << 4);
 	row[1] = sd->i2c_addr;
 	row[2] = reg;
 	row[3] = val;
@@ -1180,7 +1016,7 @@ static void i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 }
 
 static void i2c_w1_buf(struct gspca_dev *gspca_dev,
-			struct i2c_reg_u8 *buf, int sz)
+			const struct i2c_reg_u8 *buf, int sz)
 {
 	while (--sz >= 0) {
 		i2c_w1(gspca_dev, buf->reg, buf->val);
@@ -1197,7 +1033,7 @@ static void i2c_w2(struct gspca_dev *gspca_dev, u8 reg, u16 val)
 	 * from the point of view of the bridge, the length
 	 * includes the address
 	 */
-	row[0] = 0x81 | (3 << 4);
+	row[0] = sd->i2c_intf | (3 << 4);
 	row[1] = sd->i2c_addr;
 	row[2] = reg;
 	row[3] = val >> 8;
@@ -1210,7 +1046,7 @@ static void i2c_w2(struct gspca_dev *gspca_dev, u8 reg, u16 val)
 }
 
 static void i2c_w2_buf(struct gspca_dev *gspca_dev,
-			struct i2c_reg_u16 *buf, int sz)
+			const struct i2c_reg_u16 *buf, int sz)
 {
 	while (--sz >= 0) {
 		i2c_w2(gspca_dev, buf->reg, buf->val);
@@ -1223,7 +1059,7 @@ static void i2c_r1(struct gspca_dev *gspca_dev, u8 reg, u8 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 row[8];
 
-	row[0] = 0x81 | (1 << 4);
+	row[0] = sd->i2c_intf | (1 << 4);
 	row[1] = sd->i2c_addr;
 	row[2] = reg;
 	row[3] = 0;
@@ -1232,7 +1068,7 @@ static void i2c_r1(struct gspca_dev *gspca_dev, u8 reg, u8 *val)
 	row[6] = 0;
 	row[7] = 0x10;
 	i2c_w(gspca_dev, row);
-	row[0] = 0x81 | (1 << 4) | 0x02;
+	row[0] = sd->i2c_intf | (1 << 4) | 0x02;
 	row[2] = 0;
 	i2c_w(gspca_dev, row);
 	reg_r(gspca_dev, 0x10c2, 5);
@@ -1244,7 +1080,7 @@ static void i2c_r2(struct gspca_dev *gspca_dev, u8 reg, u16 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 row[8];
 
-	row[0] = 0x81 | (1 << 4);
+	row[0] = sd->i2c_intf | (1 << 4);
 	row[1] = sd->i2c_addr;
 	row[2] = reg;
 	row[3] = 0;
@@ -1253,7 +1089,7 @@ static void i2c_r2(struct gspca_dev *gspca_dev, u8 reg, u16 *val)
 	row[6] = 0;
 	row[7] = 0x10;
 	i2c_w(gspca_dev, row);
-	row[0] = 0x81 | (2 << 4) | 0x02;
+	row[0] = sd->i2c_intf | (2 << 4) | 0x02;
 	row[2] = 0;
 	i2c_w(gspca_dev, row);
 	reg_r(gspca_dev, 0x10c2, 5);
@@ -1294,8 +1130,6 @@ static void ov9655_init_sensor(struct gspca_dev *gspca_dev)
 	if (gspca_dev->usb_err < 0)
 		pr_err("OV9655 sensor initialization failed\n");
 
-	/* disable hflip and vflip */
-	gspca_dev->ctrl_dis = (1 << HFLIP) | (1 << VFLIP);
 	sd->hstart = 1;
 	sd->vstart = 2;
 }
@@ -1310,9 +1144,6 @@ static void soi968_init_sensor(struct gspca_dev *gspca_dev)
 	if (gspca_dev->usb_err < 0)
 		pr_err("SOI968 sensor initialization failed\n");
 
-	/* disable hflip and vflip */
-	gspca_dev->ctrl_dis = (1 << HFLIP) | (1 << VFLIP)
-				| (1 << EXPOSURE);
 	sd->hstart = 60;
 	sd->vstart = 11;
 }
@@ -1340,8 +1171,6 @@ static void ov7670_init_sensor(struct gspca_dev *gspca_dev)
 	if (gspca_dev->usb_err < 0)
 		pr_err("OV7670 sensor initialization failed\n");
 
-	/* disable hflip and vflip */
-	gspca_dev->ctrl_dis = (1 << HFLIP) | (1 << VFLIP);
 	sd->hstart = 0;
 	sd->vstart = 1;
 }
@@ -1378,9 +1207,6 @@ static void mt9v_init_sensor(struct gspca_dev *gspca_dev)
 			pr_err("MT9V111 sensor initialization failed\n");
 			return;
 		}
-		gspca_dev->ctrl_dis = (1 << EXPOSURE)
-					| (1 << AUTOGAIN)
-					| (1 << GAIN);
 		sd->hstart = 2;
 		sd->vstart = 2;
 		sd->sensor = SENSOR_MT9V111;
@@ -1422,8 +1248,6 @@ static void mt9m112_init_sensor(struct gspca_dev *gspca_dev)
 	if (gspca_dev->usb_err < 0)
 		pr_err("MT9M112 sensor initialization failed\n");
 
-	gspca_dev->ctrl_dis = (1 << EXPOSURE) | (1 << AUTOGAIN)
-				| (1 << GAIN);
 	sd->hstart = 0;
 	sd->vstart = 2;
 }
@@ -1436,8 +1260,6 @@ static void mt9m111_init_sensor(struct gspca_dev *gspca_dev)
 	if (gspca_dev->usb_err < 0)
 		pr_err("MT9M111 sensor initialization failed\n");
 
-	gspca_dev->ctrl_dis = (1 << EXPOSURE) | (1 << AUTOGAIN)
-				| (1 << GAIN);
 	sd->hstart = 0;
 	sd->vstart = 2;
 }
@@ -1470,8 +1292,6 @@ static void mt9m001_init_sensor(struct gspca_dev *gspca_dev)
 	if (gspca_dev->usb_err < 0)
 		pr_err("MT9M001 sensor initialization failed\n");
 
-	/* disable hflip and vflip */
-	gspca_dev->ctrl_dis = (1 << HFLIP) | (1 << VFLIP);
 	sd->hstart = 1;
 	sd->vstart = 1;
 }
@@ -1488,20 +1308,18 @@ static void hv7131r_init_sensor(struct gspca_dev *gspca_dev)
 	sd->vstart = 1;
 }
 
-static void set_cmatrix(struct gspca_dev *gspca_dev)
+static void set_cmatrix(struct gspca_dev *gspca_dev,
+		s32 brightness, s32 contrast, s32 satur, s32 hue)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-	int satur;
-	s32 hue_coord, hue_index = 180 + sd->ctrls[HUE].val;
+	s32 hue_coord, hue_index = 180 + hue;
 	u8 cmatrix[21];
 
 	memset(cmatrix, 0, sizeof cmatrix);
-	cmatrix[2] = (sd->ctrls[CONTRAST].val * 0x25 / 0x100) + 0x26;
+	cmatrix[2] = (contrast * 0x25 / 0x100) + 0x26;
 	cmatrix[0] = 0x13 + (cmatrix[2] - 0x26) * 0x13 / 0x25;
 	cmatrix[4] = 0x07 + (cmatrix[2] - 0x26) * 0x07 / 0x25;
-	cmatrix[18] = sd->ctrls[BRIGHTNESS].val - 0x80;
+	cmatrix[18] = brightness - 0x80;
 
-	satur = sd->ctrls[SATURATION].val;
 	hue_coord = (hsv_red_x[hue_index] * satur) >> 8;
 	cmatrix[6] = hue_coord;
 	cmatrix[7] = (hue_coord >> 8) & 0x0f;
@@ -1529,11 +1347,10 @@ static void set_cmatrix(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x10e1, cmatrix, 21);
 }
 
-static void set_gamma(struct gspca_dev *gspca_dev)
+static void set_gamma(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	u8 gamma[17];
-	u8 gval = sd->ctrls[GAMMA].val * 0xb8 / 0x100;
+	u8 gval = val * 0xb8 / 0x100;
 
 	gamma[0] = 0x0a;
 	gamma[1] = 0x13 + (gval * (0xcb - 0x13) / 0xb8);
@@ -1556,26 +1373,21 @@ static void set_gamma(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x1190, gamma, 17);
 }
 
-static void set_redblue(struct gspca_dev *gspca_dev)
+static void set_redblue(struct gspca_dev *gspca_dev, s32 blue, s32 red)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	reg_w1(gspca_dev, 0x118c, sd->ctrls[RED].val);
-	reg_w1(gspca_dev, 0x118f, sd->ctrls[BLUE].val);
+	reg_w1(gspca_dev, 0x118c, red);
+	reg_w1(gspca_dev, 0x118f, blue);
 }
 
-static void set_hvflip(struct gspca_dev *gspca_dev)
+static void set_hvflip(struct gspca_dev *gspca_dev, s32 hflip, s32 vflip)
 {
-	u8 value, tslb, hflip, vflip;
+	u8 value, tslb;
 	u16 value2;
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	if ((sd->flags & FLIP_DETECT) && dmi_check_system(flip_dmi_table)) {
-		hflip = !sd->ctrls[HFLIP].val;
-		vflip = !sd->ctrls[VFLIP].val;
-	} else {
-		hflip = sd->ctrls[HFLIP].val;
-		vflip = sd->ctrls[VFLIP].val;
+		hflip = !hflip;
+		vflip = !vflip;
 	}
 
 	switch (sd->sensor) {
@@ -1638,20 +1450,38 @@ static void set_hvflip(struct gspca_dev *gspca_dev)
 	}
 }
 
-static void set_exposure(struct gspca_dev *gspca_dev)
+static void set_exposure(struct gspca_dev *gspca_dev, s32 expo)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u8 exp[8] = {0x81, sd->i2c_addr, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1e};
-	int expo;
+	u8 exp[8] = {sd->i2c_intf, sd->i2c_addr,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x10};
+	int expo2;
 
-	expo = sd->ctrls[EXPOSURE].val;
+	if (gspca_dev->streaming)
+		exp[7] = 0x1e;
+
 	switch (sd->sensor) {
 	case SENSOR_OV7660:
 	case SENSOR_OV7670:
 	case SENSOR_OV9655:
 	case SENSOR_OV9650:
+		if (expo > 547)
+			expo2 = 547;
+		else
+			expo2 = expo;
+		exp[0] |= (2 << 4);
+		exp[2] = 0x10;			/* AECH */
+		exp[3] = expo2 >> 2;
+		exp[7] = 0x10;
+		i2c_w(gspca_dev, exp);
+		exp[2] = 0x04;			/* COM1 */
+		exp[3] = expo2 & 0x0003;
+		exp[7] = 0x10;
+		i2c_w(gspca_dev, exp);
+		expo -= expo2;
+		exp[7] = 0x1e;
 		exp[0] |= (3 << 4);
-		exp[2] = 0x2d;
+		exp[2] = 0x2d;			/* ADVFL & ADVFH */
 		exp[3] = expo;
 		exp[4] = expo >> 8;
 		break;
@@ -1676,13 +1506,15 @@ static void set_exposure(struct gspca_dev *gspca_dev)
 	i2c_w(gspca_dev, exp);
 }
 
-static void set_gain(struct gspca_dev *gspca_dev)
+static void set_gain(struct gspca_dev *gspca_dev, s32 g)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u8 gain[8] = {0x81, sd->i2c_addr, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1d};
-	int g;
+	u8 gain[8] = {sd->i2c_intf, sd->i2c_addr,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x10};
 
-	g = sd->ctrls[GAIN].val;
+	if (gspca_dev->streaming)
+		gain[7] = 0x15;		/* or 1d ? */
+
 	switch (sd->sensor) {
 	case SENSOR_OV7660:
 	case SENSOR_OV7670:
@@ -1721,11 +1553,11 @@ static void set_gain(struct gspca_dev *gspca_dev)
 	i2c_w(gspca_dev, gain);
 }
 
-static void set_quality(struct gspca_dev *gspca_dev)
+static void set_quality(struct gspca_dev *gspca_dev, s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	jpeg_set_qual(sd->jpeg_hdr, sd->ctrls[QUALITY].val);
+	jpeg_set_qual(sd->jpeg_hdr, val);
 	reg_w1(gspca_dev, 0x1061, 0x01);	/* stop transfer */
 	reg_w1(gspca_dev, 0x10e0, sd->fmt | 0x20); /* write QTAB */
 	reg_w(gspca_dev, 0x1100, &sd->jpeg_hdr[JPEG_QT0_OFFSET], 64);
@@ -1827,6 +1659,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->sensor = id->driver_info >> 8;
 	sd->i2c_addr = id->driver_info;
 	sd->flags = id->driver_info >> 16;
+	sd->i2c_intf = 0x80;			/* i2c 100 Kb/s */
 
 	switch (sd->sensor) {
 	case SENSOR_MT9M112:
@@ -1840,6 +1673,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->cam_mode = mono_mode;
 		cam->nmodes = ARRAY_SIZE(mono_mode);
 		break;
+	case SENSOR_HV7131R:
+		sd->i2c_intf = 0x81;			/* i2c 400 Kb/s */
+		/* fall thru */
 	default:
 		cam->cam_mode = vga_mode;
 		cam->nmodes = ARRAY_SIZE(vga_mode);
@@ -1850,10 +1686,134 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->older_step = 0;
 	sd->exposure_step = 16;
 
-	gspca_dev->cam.ctrls = sd->ctrls;
-
 	INIT_WORK(&sd->work, qual_upd);
 
+	return 0;
+}
+
+static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
+	struct sd *sd = (struct sd *)gspca_dev;
+
+	gspca_dev->usb_err = 0;
+
+	if (!gspca_dev->streaming)
+		return 0;
+
+	switch (ctrl->id) {
+	/* color control cluster */
+	case V4L2_CID_BRIGHTNESS:
+		set_cmatrix(gspca_dev, sd->brightness->val,
+			sd->contrast->val, sd->saturation->val, sd->hue->val);
+		break;
+	case V4L2_CID_GAMMA:
+		set_gamma(gspca_dev, ctrl->val);
+		break;
+	/* blue/red balance cluster */
+	case V4L2_CID_BLUE_BALANCE:
+		set_redblue(gspca_dev, sd->blue->val, sd->red->val);
+		break;
+	/* h/vflip cluster */
+	case V4L2_CID_HFLIP:
+		set_hvflip(gspca_dev, sd->hflip->val, sd->vflip->val);
+		break;
+	/* standalone exposure control */
+	case V4L2_CID_EXPOSURE:
+		set_exposure(gspca_dev, ctrl->val);
+		break;
+	/* standalone gain control */
+	case V4L2_CID_GAIN:
+		set_gain(gspca_dev, ctrl->val);
+		break;
+	/* autogain + exposure or gain control cluster */
+	case V4L2_CID_AUTOGAIN:
+		if (sd->sensor == SENSOR_SOI968)
+			set_gain(gspca_dev, sd->gain->val);
+		else
+			set_exposure(gspca_dev, sd->exposure->val);
+		break;
+	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
+		set_quality(gspca_dev, ctrl->val);
+		break;
+	}
+	return gspca_dev->usb_err;
+}
+
+static const struct v4l2_ctrl_ops sd_ctrl_ops = {
+	.s_ctrl = sd_s_ctrl,
+};
+
+static int sd_init_controls(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
+
+	gspca_dev->vdev.ctrl_handler = hdl;
+	v4l2_ctrl_handler_init(hdl, 13);
+
+	sd->brightness = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, 0, 255, 1, 127);
+	sd->contrast = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_CONTRAST, 0, 255, 1, 127);
+	sd->saturation = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_SATURATION, 0, 255, 1, 127);
+	sd->hue = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_HUE, -180, 180, 1, 0);
+
+	sd->gamma = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_GAMMA, 0, 255, 1, 0x10);
+
+	sd->blue = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_BLUE_BALANCE, 0, 127, 1, 0x28);
+	sd->red = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_RED_BALANCE, 0, 127, 1, 0x28);
+
+	if (sd->sensor != SENSOR_OV9655 && sd->sensor != SENSOR_SOI968 &&
+	    sd->sensor != SENSOR_OV7670 && sd->sensor != SENSOR_MT9M001 &&
+	    sd->sensor != SENSOR_MT9VPRB) {
+		sd->hflip = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_HFLIP, 0, 1, 1, 0);
+		sd->vflip = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_VFLIP, 0, 1, 1, 0);
+	}
+
+	if (sd->sensor != SENSOR_SOI968 && sd->sensor != SENSOR_MT9VPRB &&
+	    sd->sensor != SENSOR_MT9M112 && sd->sensor != SENSOR_MT9M111 &&
+	    sd->sensor != SENSOR_MT9V111)
+		sd->exposure = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_EXPOSURE, 0, 0x1780, 1, 0x33);
+
+	if (sd->sensor != SENSOR_MT9VPRB && sd->sensor != SENSOR_MT9M112 &&
+	    sd->sensor != SENSOR_MT9M111 && sd->sensor != SENSOR_MT9V111) {
+		sd->gain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_GAIN, 0, 28, 1, 0);
+		sd->autogain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
+	}
+
+	sd->jpegqual = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_JPEG_COMPRESSION_QUALITY, 50, 90, 1, 80);
+	if (hdl->error) {
+		pr_err("Could not initialize controls\n");
+		return hdl->error;
+	}
+
+	v4l2_ctrl_cluster(4, &sd->brightness);
+	v4l2_ctrl_cluster(2, &sd->blue);
+	if (sd->hflip)
+		v4l2_ctrl_cluster(2, &sd->hflip);
+	if (sd->autogain) {
+		if (sd->sensor == SENSOR_SOI968)
+			/* this sensor doesn't have the exposure control and
+			   autogain is clustered with gain instead. This works
+			   because sd->exposure == NULL. */
+			v4l2_ctrl_auto_cluster(3, &sd->autogain, 0, false);
+		else
+			/* Otherwise autogain is clustered with exposure. */
+			v4l2_ctrl_auto_cluster(2, &sd->autogain, 0, false);
+	}
 	return 0;
 }
 
@@ -1949,7 +1909,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		pr_err("Unsupported sensor\n");
 		gspca_dev->usb_err = -ENODEV;
 	}
-
 	return gspca_dev->usb_err;
 }
 
@@ -2025,8 +1984,8 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 
 		if (intf->num_altsetting != 9) {
 			pr_warn("sn9c20x camera with unknown number of alt "
-			        "settings (%d), please report!\n",
-			        intf->num_altsetting);
+				"settings (%d), please report!\n",
+				intf->num_altsetting);
 			gspca_dev->alt = intf->num_altsetting;
 			return 0;
 		}
@@ -2067,7 +2026,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	jpeg_define(sd->jpeg_hdr, height, width,
 			0x21);
-	jpeg_set_qual(sd->jpeg_hdr, sd->ctrls[QUALITY].val);
+	jpeg_set_qual(sd->jpeg_hdr, v4l2_ctrl_g_ctrl(sd->jpegqual));
 
 	if (mode & MODE_RAW)
 		fmt = 0x2d;
@@ -2104,12 +2063,20 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x1189, scale);
 	reg_w1(gspca_dev, 0x10e0, fmt);
 
-	set_cmatrix(gspca_dev);
-	set_gamma(gspca_dev);
-	set_redblue(gspca_dev);
-	set_gain(gspca_dev);
-	set_exposure(gspca_dev);
-	set_hvflip(gspca_dev);
+	set_cmatrix(gspca_dev, v4l2_ctrl_g_ctrl(sd->brightness),
+			v4l2_ctrl_g_ctrl(sd->contrast),
+			v4l2_ctrl_g_ctrl(sd->saturation),
+			v4l2_ctrl_g_ctrl(sd->hue));
+	set_gamma(gspca_dev, v4l2_ctrl_g_ctrl(sd->gamma));
+	set_redblue(gspca_dev, v4l2_ctrl_g_ctrl(sd->blue),
+			v4l2_ctrl_g_ctrl(sd->red));
+	if (sd->gain)
+		set_gain(gspca_dev, v4l2_ctrl_g_ctrl(sd->gain));
+	if (sd->exposure)
+		set_exposure(gspca_dev, v4l2_ctrl_g_ctrl(sd->exposure));
+	if (sd->hflip)
+		set_hvflip(gspca_dev, v4l2_ctrl_g_ctrl(sd->hflip),
+				v4l2_ctrl_g_ctrl(sd->vflip));
 
 	reg_w1(gspca_dev, 0x1007, 0x20);
 	reg_w1(gspca_dev, 0x1061, 0x03);
@@ -2148,6 +2115,9 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 static void do_autoexposure(struct gspca_dev *gspca_dev, u16 avg_lum)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 cur_exp = v4l2_ctrl_g_ctrl(sd->exposure);
+	s32 max = sd->exposure->maximum - sd->exposure_step;
+	s32 min = sd->exposure->minimum + sd->exposure_step;
 	s16 new_exp;
 
 	/*
@@ -2156,16 +2126,15 @@ static void do_autoexposure(struct gspca_dev *gspca_dev, u16 avg_lum)
 	 * and exposure steps
 	 */
 	if (avg_lum < MIN_AVG_LUM) {
-		if (sd->ctrls[EXPOSURE].val > 0x1770)
+		if (cur_exp > max)
 			return;
 
-		new_exp = sd->ctrls[EXPOSURE].val + sd->exposure_step;
-		if (new_exp > 0x1770)
-			new_exp = 0x1770;
-		if (new_exp < 0x10)
-			new_exp = 0x10;
-		sd->ctrls[EXPOSURE].val = new_exp;
-		set_exposure(gspca_dev);
+		new_exp = cur_exp + sd->exposure_step;
+		if (new_exp > max)
+			new_exp = max;
+		if (new_exp < min)
+			new_exp = min;
+		v4l2_ctrl_s_ctrl(sd->exposure, new_exp);
 
 		sd->older_step = sd->old_step;
 		sd->old_step = 1;
@@ -2176,15 +2145,14 @@ static void do_autoexposure(struct gspca_dev *gspca_dev, u16 avg_lum)
 			sd->exposure_step += 2;
 	}
 	if (avg_lum > MAX_AVG_LUM) {
-		if (sd->ctrls[EXPOSURE].val < 0x10)
+		if (cur_exp < min)
 			return;
-		new_exp = sd->ctrls[EXPOSURE].val - sd->exposure_step;
-		if (new_exp > 0x1700)
-			new_exp = 0x1770;
-		if (new_exp < 0x10)
-			new_exp = 0x10;
-		sd->ctrls[EXPOSURE].val = new_exp;
-		set_exposure(gspca_dev);
+		new_exp = cur_exp - sd->exposure_step;
+		if (new_exp > max)
+			new_exp = max;
+		if (new_exp < min)
+			new_exp = min;
+		v4l2_ctrl_s_ctrl(sd->exposure, new_exp);
 		sd->older_step = sd->old_step;
 		sd->old_step = 0;
 
@@ -2198,19 +2166,12 @@ static void do_autoexposure(struct gspca_dev *gspca_dev, u16 avg_lum)
 static void do_autogain(struct gspca_dev *gspca_dev, u16 avg_lum)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 cur_gain = v4l2_ctrl_g_ctrl(sd->gain);
 
-	if (avg_lum < MIN_AVG_LUM) {
-		if (sd->ctrls[GAIN].val + 1 <= 28) {
-			sd->ctrls[GAIN].val++;
-			set_gain(gspca_dev);
-		}
-	}
-	if (avg_lum > MAX_AVG_LUM) {
-		if (sd->ctrls[GAIN].val > 0) {
-			sd->ctrls[GAIN].val--;
-			set_gain(gspca_dev);
-		}
-	}
+	if (avg_lum < MIN_AVG_LUM && cur_gain < sd->gain->maximum)
+		v4l2_ctrl_s_ctrl(sd->gain, cur_gain + 1);
+	if (avg_lum > MAX_AVG_LUM && cur_gain > sd->gain->minimum)
+		v4l2_ctrl_s_ctrl(sd->gain, cur_gain - 1);
 }
 
 static void sd_dqcallback(struct gspca_dev *gspca_dev)
@@ -2218,7 +2179,7 @@ static void sd_dqcallback(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int avg_lum;
 
-	if (!sd->ctrls[AUTOGAIN].val)
+	if (sd->autogain == NULL || !v4l2_ctrl_g_ctrl(sd->autogain))
 		return;
 
 	avg_lum = atomic_read(&sd->avg_lum);
@@ -2234,10 +2195,11 @@ static void qual_upd(struct work_struct *work)
 {
 	struct sd *sd = container_of(work, struct sd, work);
 	struct gspca_dev *gspca_dev = &sd->gspca_dev;
+	s32 qual = v4l2_ctrl_g_ctrl(sd->jpegqual);
 
 	mutex_lock(&gspca_dev->usb_lock);
-	PDEBUG(D_STREAM, "qual_upd %d%%", sd->ctrls[QUALITY].val);
-	set_quality(gspca_dev);
+	PDEBUG(D_STREAM, "qual_upd %d%%", qual);
+	set_quality(gspca_dev, qual);
 	mutex_unlock(&gspca_dev->usb_lock);
 }
 
@@ -2286,14 +2248,18 @@ static void transfer_check(struct gspca_dev *gspca_dev,
 	if (new_qual != 0) {
 		sd->nchg += new_qual;
 		if (sd->nchg < -6 || sd->nchg >= 12) {
+			/* Note: we are in interrupt context, so we can't
+			   use v4l2_ctrl_g/s_ctrl here. Access the value
+			   directly instead. */
+			s32 curqual = sd->jpegqual->cur.val;
 			sd->nchg = 0;
-			new_qual += sd->ctrls[QUALITY].val;
-			if (new_qual < QUALITY_MIN)
-				new_qual = QUALITY_MIN;
-			else if (new_qual > QUALITY_MAX)
-				new_qual = QUALITY_MAX;
-			if (new_qual != sd->ctrls[QUALITY].val) {
-				sd->ctrls[QUALITY].val = new_qual;
+			new_qual += curqual;
+			if (new_qual < sd->jpegqual->minimum)
+				new_qual = sd->jpegqual->minimum;
+			else if (new_qual > sd->jpegqual->maximum)
+				new_qual = sd->jpegqual->maximum;
+			if (new_qual != curqual) {
+				sd->jpegqual->cur.val = new_qual;
 				queue_work(sd->work_thread, &sd->work);
 			}
 		}
@@ -2309,7 +2275,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int avg_lum, is_jpeg;
-	static u8 frame_header[] =
+	static const u8 frame_header[] =
 		{0xff, 0xff, 0x00, 0xc4, 0xc4, 0x96};
 
 	is_jpeg = (sd->fmt & 0x03) == 0;
@@ -2373,10 +2339,9 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = KBUILD_MODNAME,
-	.ctrls = sd_ctrls,
-	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
+	.init_controls = sd_init_controls,
 	.isoc_init = sd_isoc_init,
 	.start = sd_start,
 	.stopN = sd_stopN,

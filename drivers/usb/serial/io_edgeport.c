@@ -3181,7 +3181,7 @@ static void edge_release(struct usb_serial *serial)
 	kfree(edge_serial);
 }
 
-module_usb_serial_driver(io_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table_combined);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

@@ -54,7 +54,7 @@
  */
 static void ircomm_tty_change_speed(struct ircomm_tty_cb *self)
 {
-	unsigned cflag, cval;
+	unsigned int cflag, cval;
 	int baud;
 
 	IRDA_DEBUG(2, "%s()\n", __func__ );

@@ -197,7 +197,8 @@ static int psb_save_display_registers(struct drm_device *dev)
 	}
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		connector->funcs->save(connector);
+		if (connector->funcs->save)
+			connector->funcs->save(connector);
 
 	mutex_unlock(&dev->mode_config.mutex);
 	return 0;
@@ -235,7 +236,8 @@ static int psb_restore_display_registers(struct drm_device *dev)
 			crtc->funcs->restore(crtc);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		connector->funcs->restore(connector);
+		if (connector->funcs->restore)
+			connector->funcs->restore(connector);
 
 	mutex_unlock(&dev->mode_config.mutex);
 	return 0;
@@ -373,6 +375,7 @@ const struct psb_ops psb_chip_ops = {
 	.crtcs = 2,
 	.hdmi_mask = (1 << 0),
 	.lvds_mask = (1 << 1),
+	.cursor_needs_phys = 1,
 	.sgx_offset = PSB_SGX_OFFSET,
 	.chip_setup = psb_chip_setup,
 	.chip_teardown = psb_chip_teardown,

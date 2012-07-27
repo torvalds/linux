@@ -111,10 +111,6 @@ static const struct comedi_lrange *const rangelist_728[] = {
 	&range_4_20mA, &range_0_20mA
 };
 
-static int pcl726_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int pcl726_detach(struct comedi_device *dev);
-
 struct pcl726_board {
 
 	const char *name;	/*  driver name */
@@ -149,31 +145,7 @@ static const struct pcl726_board boardtypes[] = {
 	 &rangelist_728[0],},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl726_board))
 #define this_board ((const struct pcl726_board *)dev->board_ptr)
-
-static struct comedi_driver driver_pcl726 = {
-	.driver_name = "pcl726",
-	.module = THIS_MODULE,
-	.attach = pcl726_attach,
-	.detach = pcl726_detach,
-	.board_name = &boardtypes[0].name,
-	.num_names = n_boardtypes,
-	.offset = sizeof(struct pcl726_board),
-};
-
-static int __init driver_pcl726_init_module(void)
-{
-	return comedi_driver_register(&driver_pcl726);
-}
-
-static void __exit driver_pcl726_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcl726);
-}
-
-module_init(driver_pcl726_init_module);
-module_exit(driver_pcl726_cleanup_module);
 
 struct pcl726_private {
 
@@ -378,20 +350,26 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int pcl726_detach(struct comedi_device *dev)
+static void pcl726_detach(struct comedi_device *dev)
 {
-/* printk("comedi%d: pcl726: remove\n",dev->minor); */
-
 #ifdef ACL6126_IRQ
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 #endif
-
 	if (dev->iobase)
 		release_region(dev->iobase, this_board->io_range);
-
-	return 0;
 }
+
+static struct comedi_driver pcl726_driver = {
+	.driver_name	= "pcl726",
+	.module		= THIS_MODULE,
+	.attach		= pcl726_attach,
+	.detach		= pcl726_detach,
+	.board_name	= &boardtypes[0].name,
+	.num_names	= ARRAY_SIZE(boardtypes),
+	.offset		= sizeof(struct pcl726_board),
+};
+module_comedi_driver(pcl726_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

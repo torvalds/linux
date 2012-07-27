@@ -62,10 +62,13 @@ extern void __flush_dcache_page(struct address_space *mapping, struct page *page
 #endif
 
 #ifdef CONFIG_ZONE_DMA
-extern u32 arm_dma_limit;
+extern phys_addr_t arm_dma_limit;
 #else
-#define arm_dma_limit ((u32)~0)
+#define arm_dma_limit ((phys_addr_t)~0)
 #endif
+
+extern phys_addr_t arm_lowmem_limit;
 
 void __init bootmem_init(void);
 void arm_mm_memblock_reserve(void);
+void dma_contiguous_remap(void);

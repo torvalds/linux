@@ -62,6 +62,10 @@
 #define SIZE_4K 0x00001000      /* 4K */
 #define SIZE_1M 0x00100000      /* 1M */
 #define SIZE_4M 0x00400000      /* 4M */
+#define SIZE_16K 0x00004000      /* 16K */
+#define SIZE_64K 0x00010000      /* 64K */
+#define SIZE_16M 0x01000000      /* 16M */
+#define SIZE_64M 0x04000000      /* 64M */
 
 #define MAX_CPLBS 16
 

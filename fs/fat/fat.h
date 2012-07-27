@@ -82,6 +82,7 @@ struct msdos_sb_info {
 	int fatent_shift;
 	struct fatent_operations *fatent_ops;
 	struct inode *fat_inode;
+	struct inode *fsinfo_inode;
 
 	struct ratelimit_state ratelimit;
 
@@ -334,6 +335,11 @@ void __fat_fs_error(struct super_block *sb, int report, const char *fmt, ...);
 	__fat_fs_error(sb, __ratelimit(&MSDOS_SB(sb)->ratelimit), fmt , ## args)
 __printf(3, 4) __cold
 void fat_msg(struct super_block *sb, const char *level, const char *fmt, ...);
+#define fat_msg_ratelimit(sb, level, fmt, args...)	\
+	do {	\
+			if (__ratelimit(&MSDOS_SB(sb)->ratelimit))	\
+				fat_msg(sb, level, fmt, ## args);	\
+	 } while (0)
 extern int fat_clusters_flush(struct super_block *sb);
 extern int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster);
 extern void fat_time_fat2unix(struct msdos_sb_info *sbi, struct timespec *ts,

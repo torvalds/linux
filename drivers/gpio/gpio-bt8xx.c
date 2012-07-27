@@ -328,17 +328,7 @@ static struct pci_driver bt8xxgpio_pci_driver = {
 	.resume		= bt8xxgpio_resume,
 };
 
-static int __init bt8xxgpio_init(void)
-{
-	return pci_register_driver(&bt8xxgpio_pci_driver);
-}
-module_init(bt8xxgpio_init)
-
-static void __exit bt8xxgpio_exit(void)
-{
-	pci_unregister_driver(&bt8xxgpio_pci_driver);
-}
-module_exit(bt8xxgpio_exit)
+module_pci_driver(bt8xxgpio_pci_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michael Buesch");

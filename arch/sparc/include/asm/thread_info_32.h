@@ -15,7 +15,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <asm/btfixup.h>
 #include <asm/ptrace.h>
 #include <asm/page.h>
 
@@ -78,23 +77,11 @@ register struct thread_info *current_thread_info_reg asm("g6");
 /*
  * thread information allocation
  */
-#define THREAD_INFO_ORDER  1
-
-#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
-
-BTFIXUPDEF_CALL(struct thread_info *, alloc_thread_info_node, int)
-#define alloc_thread_info_node(tsk, node) BTFIXUP_CALL(alloc_thread_info_node)(node)
-
-BTFIXUPDEF_CALL(void, free_thread_info, struct thread_info *)
-#define free_thread_info(ti) BTFIXUP_CALL(free_thread_info)(ti)
+#define THREAD_SIZE_ORDER  1
 
 #endif /* __ASSEMBLY__ */
 
-/*
- * Size of kernel stack for each process.
- * Observe the order of get_free_pages() in alloc_thread_info_node().
- * The sun4 has 8K stack too, because it's short on memory, and 16K is a waste.
- */
+/* Size of kernel stack for each process */
 #define THREAD_SIZE		(2 * PAGE_SIZE)
 
 /*
@@ -144,8 +131,7 @@ BTFIXUPDEF_CALL(void, free_thread_info, struct thread_info *)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 
 #define _TIF_DO_NOTIFY_RESUME_MASK	(_TIF_NOTIFY_RESUME | \
-					 _TIF_SIGPENDING | \
-					 _TIF_RESTORE_SIGMASK)
+					 _TIF_SIGPENDING)
 
 #endif /* __KERNEL__ */
 

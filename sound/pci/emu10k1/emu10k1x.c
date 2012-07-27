@@ -1612,24 +1612,11 @@ static DEFINE_PCI_DEVICE_TABLE(snd_emu10k1x_ids) = {
 MODULE_DEVICE_TABLE(pci, snd_emu10k1x_ids);
 
 // pci_driver definition
-static struct pci_driver driver = {
+static struct pci_driver emu10k1x_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_emu10k1x_ids,
 	.probe = snd_emu10k1x_probe,
 	.remove = __devexit_p(snd_emu10k1x_remove),
 };
 
-// initialization of the module
-static int __init alsa_card_emu10k1x_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-// clean up the module
-static void __exit alsa_card_emu10k1x_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_emu10k1x_init)
-module_exit(alsa_card_emu10k1x_exit)
+module_pci_driver(emu10k1x_driver);

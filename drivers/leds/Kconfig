@@ -50,6 +50,19 @@ config LEDS_LM3530
 	  controlled manually or using PWM input or using ambient
 	  light automatically.
 
+config LEDS_LM3533
+	tristate "LED support for LM3533"
+	depends on LEDS_CLASS
+	depends on MFD_LM3533
+	help
+	  This option enables support for the LEDs on National Semiconductor /
+	  TI LM3533 Lighting Power chips.
+
+	  The LEDs can be controlled directly, through PWM input, or by the
+	  ambient-light-sensor interface. The chip supports
+	  hardware-accelerated blinking with maximum on and off periods of 9.8
+	  and 77 seconds respectively.
+
 config LEDS_LOCOMO
 	tristate "LED Support for Locomo device"
 	depends on LEDS_CLASS
@@ -259,6 +272,14 @@ config LEDS_DA903X
 	  This option enables support for on-chip LED drivers found
 	  on Dialog Semiconductor DA9030/DA9034 PMICs.
 
+config LEDS_DA9052
+	tristate "Dialog DA9052/DA9053 LEDS"
+	depends on LEDS_CLASS
+	depends on PMIC_DA9052
+	help
+	  This option enables support for on-chip LED drivers found
+	  on Dialog Semiconductor DA9052-BC and DA9053-AA/Bx PMICs.
+
 config LEDS_DAC124S085
 	tristate "LED Support for DAC124S085 SPI DAC"
 	depends on LEDS_CLASS
@@ -358,7 +379,7 @@ config LEDS_NETXBIG
 
 config LEDS_ASIC3
 	bool "LED support for the HTC ASIC3"
-	depends on LEDS_CLASS
+	depends on LEDS_CLASS=y
 	depends on MFD_ASIC3
 	default y
 	help
@@ -369,7 +390,7 @@ config LEDS_ASIC3
 
 config LEDS_RENESAS_TPU
 	bool "LED support for Renesas TPU"
-	depends on LEDS_CLASS && HAVE_CLK && GENERIC_GPIO
+	depends on LEDS_CLASS=y && HAVE_CLK && GENERIC_GPIO
 	help
 	  This option enables build of the LED TPU platform driver,
 	  suitable to drive any TPU channel on newer Renesas SoCs.
@@ -470,5 +491,13 @@ config LEDS_TRIGGER_DEFAULT_ON
 
 comment "iptables trigger is under Netfilter config (LED target)"
 	depends on LEDS_TRIGGERS
+
+config LEDS_TRIGGER_TRANSIENT
+	tristate "LED Transient Trigger"
+	depends on LEDS_TRIGGERS
+	help
+	  This allows one time activation of a transient state on
+	  GPIO/PWM based hadrware.
+	  If unsure, say Y.
 
 endif # NEW_LEDS

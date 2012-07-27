@@ -108,18 +108,7 @@ static struct pci_driver rdc321x_sb_driver = {
 	.remove		= __devexit_p(rdc321x_sb_remove),
 };
 
-static int __init rdc321x_sb_init(void)
-{
-	return pci_register_driver(&rdc321x_sb_driver);
-}
-
-static void __exit rdc321x_sb_exit(void)
-{
-	pci_unregister_driver(&rdc321x_sb_driver);
-}
-
-module_init(rdc321x_sb_init);
-module_exit(rdc321x_sb_exit);
+module_pci_driver(rdc321x_sb_driver);
 
 MODULE_AUTHOR("Florian Fainelli <florian@openwrt.org>");
 MODULE_LICENSE("GPL");

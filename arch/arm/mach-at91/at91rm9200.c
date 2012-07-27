@@ -26,15 +26,6 @@
 #include "clock.h"
 #include "sam9_smc.h"
 
-static struct map_desc at91rm9200_io_desc[] __initdata = {
-	{
-		.virtual	= AT91_VA_BASE_EMAC,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_EMAC),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	},
-};
-
 /* --------------------------------------------------------------------
  *  Clocks
  * -------------------------------------------------------------------- */
@@ -258,18 +249,6 @@ static void __init at91rm9200_register_clocks(void)
 	clk_register(&pck3);
 }
 
-static struct clk_lookup console_clock_lookup;
-
-void __init at91rm9200_set_console_clock(int id)
-{
-	if (id >= ARRAY_SIZE(usart_clocks_lookups))
-		return;
-
-	console_clock_lookup.con_id = "usart";
-	console_clock_lookup.clk = usart_clocks_lookups[id].clk;
-	clkdev_add(&console_clock_lookup);
-}
-
 /* --------------------------------------------------------------------
  *  GPIO
  * -------------------------------------------------------------------- */
@@ -315,7 +294,6 @@ static void __init at91rm9200_map_io(void)
 {
 	/* Map peripherals */
 	at91_init_sram(0, AT91RM9200_SRAM_BASE, AT91RM9200_SRAM_SIZE);
-	iotable_init(at91rm9200_io_desc, ARRAY_SIZE(at91rm9200_io_desc));
 }
 
 static void __init at91rm9200_ioremap_registers(void)

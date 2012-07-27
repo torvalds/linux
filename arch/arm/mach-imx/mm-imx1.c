@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/pinctrl/machine.h>
 
 #include <asm/mach/map.h>
 
@@ -58,4 +59,5 @@ void __init imx1_soc_init(void)
 						MX1_GPIO_INT_PORTC, 0);
 	mxc_register_gpio("imx1-gpio", 3, MX1_GPIO4_BASE_ADDR, SZ_256,
 						MX1_GPIO_INT_PORTD, 0);
+	pinctrl_provide_dummies();
 }

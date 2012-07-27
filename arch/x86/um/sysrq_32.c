@@ -23,12 +23,10 @@ void show_regs(struct pt_regs *regs)
         printk(" EFLAGS: %08lx\n    %s\n", PT_REGS_EFLAGS(regs),
 	       print_tainted());
         printk("EAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx\n",
-                PT_REGS_EAX(regs), PT_REGS_EBX(regs), 
-	       PT_REGS_ECX(regs), 
-	       PT_REGS_EDX(regs));
+               PT_REGS_AX(regs), PT_REGS_BX(regs), 
+	       PT_REGS_CX(regs), PT_REGS_DX(regs));
         printk("ESI: %08lx EDI: %08lx EBP: %08lx",
-	       PT_REGS_ESI(regs), PT_REGS_EDI(regs), 
-	       PT_REGS_EBP(regs));
+	       PT_REGS_SI(regs), PT_REGS_DI(regs), PT_REGS_BP(regs));
         printk(" DS: %04lx ES: %04lx\n",
 	       0xffff & PT_REGS_DS(regs), 
 	       0xffff & PT_REGS_ES(regs));

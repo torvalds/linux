@@ -634,9 +634,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		fusion->reply_frames_desc_phys;
 	IOCInitMessage->SystemRequestFrameBaseAddress =
 		fusion->io_request_frames_phys;
-	/* Set to 0 for none or 1 MSI-X vectors */
-	IOCInitMessage->HostMSIxVectors = (instance->msix_vectors > 0 ?
-					   instance->msix_vectors : 0);
+	IOCInitMessage->HostMSIxVectors = instance->msix_vectors;
 	init_frame = (struct megasas_init_frame *)cmd->frame;
 	memset(init_frame, 0, MEGAMFI_FRAME_SIZE);
 

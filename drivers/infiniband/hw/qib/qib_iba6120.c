@@ -3132,6 +3132,7 @@ static void get_6120_chip_params(struct qib_devdata *dd)
 	val = qib_read_kreg64(dd, kr_sendpiobufcnt);
 	dd->piobcnt2k = val & ~0U;
 	dd->piobcnt4k = val >> 32;
+	dd->last_pio = dd->piobcnt4k + dd->piobcnt2k - 1;
 	/* these may be adjusted in init_chip_wc_pat() */
 	dd->pio2kbase = (u32 __iomem *)
 		(((char __iomem *)dd->kregbase) + dd->pio2k_bufbase);

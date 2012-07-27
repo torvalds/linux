@@ -142,9 +142,9 @@ extern int __must_check gpiochip_reserve(int start, int ngpio);
 /* add/remove chips */
 extern int gpiochip_add(struct gpio_chip *chip);
 extern int __must_check gpiochip_remove(struct gpio_chip *chip);
-extern struct gpio_chip *gpiochip_find(const void *data,
+extern struct gpio_chip *gpiochip_find(void *data,
 					int (*match)(struct gpio_chip *chip,
-						     const void *data));
+						     void *data));
 
 
 /* Always use the library code for GPIO management calls,
@@ -179,6 +179,8 @@ extern void gpio_free_array(const struct gpio *array, size_t num);
 
 /* bindings for managed devices that want to request gpios */
 int devm_gpio_request(struct device *dev, unsigned gpio, const char *label);
+int devm_gpio_request_one(struct device *dev, unsigned gpio,
+			  unsigned long flags, const char *label);
 void devm_gpio_free(struct device *dev, unsigned int gpio);
 
 #ifdef CONFIG_GPIO_SYSFS

@@ -310,7 +310,7 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	   u8 *Addr, u8 TID, enum tr_select TxRxSelect, bool bAddNewTs)
 {
 	u8	UP = 0;
-	if (is_broadcast_ether_addr(Addr) || is_multicast_ether_addr(Addr)) {
+	if (is_multicast_ether_addr(Addr)) {
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "ERR! get TS for Broadcast or "
 			     "Multicast\n");
 		return false;

@@ -952,7 +952,7 @@ static int saa7164_vbi_start_streaming(struct saa7164_port *port)
 
 		/* Stop the hardware, regardless */
 		result = saa7164_vbi_stop_port(port);
-		if ((result != SAA_OK) && (result != SAA_ERR_ALREADY_STOPPED)) {
+		if (result != SAA_OK) {
 			printk(KERN_ERR "%s() pause/forced stop transition "
 				"failed, res = 0x%x\n", __func__, result);
 		}
@@ -971,7 +971,7 @@ static int saa7164_vbi_start_streaming(struct saa7164_port *port)
 		/* Stop the hardware, regardless */
 		result = saa7164_vbi_acquire_port(port);
 		result = saa7164_vbi_stop_port(port);
-		if ((result != SAA_OK) && (result != SAA_ERR_ALREADY_STOPPED)) {
+		if (result != SAA_OK) {
 			printk(KERN_ERR "%s() run/forced stop transition "
 				"failed, res = 0x%x\n", __func__, result);
 		}

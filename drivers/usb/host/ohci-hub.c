@@ -317,7 +317,7 @@ static int ohci_bus_resume (struct usb_hcd *hcd)
 }
 
 /* Carry out the final steps of resuming the controller device */
-static void ohci_finish_controller_resume(struct usb_hcd *hcd)
+static void __maybe_unused ohci_finish_controller_resume(struct usb_hcd *hcd)
 {
 	struct ohci_hcd		*ohci = hcd_to_ohci(hcd);
 	int			port;

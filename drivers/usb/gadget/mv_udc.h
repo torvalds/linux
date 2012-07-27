@@ -232,7 +232,6 @@ struct mv_ep {
 	struct mv_udc		*udc;
 	struct list_head	queue;
 	struct mv_dqh		*dqh;
-	const struct usb_endpoint_descriptor	*desc;
 	u32			direction;
 	char			name[14];
 	unsigned		stopped:1,

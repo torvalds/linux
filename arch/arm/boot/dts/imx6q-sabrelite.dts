@@ -22,8 +22,30 @@
 	};
 
 	soc {
+		aips-bus@02000000 { /* AIPS1 */
+			spba-bus@02000000 {
+				ecspi@02008000 { /* eCSPI1 */
+					fsl,spi-num-chipselects = <1>;
+					cs-gpios = <&gpio3 19 0>;
+					status = "okay";
+
+					flash: m25p80@0 {
+						compatible = "sst,sst25vf016b";
+						spi-max-frequency = <20000000>;
+						reg = <0>;
+					};
+				};
+
+				ssi1: ssi@02028000 {
+					fsl,mode = "i2s-slave";
+					status = "okay";
+				};
+			};
+
+		};
+
 		aips-bus@02100000 { /* AIPS2 */
-			enet@02188000 {
+			ethernet@02188000 {
 				phy-mode = "rgmii";
 				phy-reset-gpios = <&gpio3 23 0>;
 				status = "okay";
@@ -43,13 +65,23 @@
 				status = "okay";
 			};
 
-			uart2: uart@021e8000 {
+			audmux@021d8000 {
 				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_audmux_1>;
+			};
+
+			uart2: serial@021e8000 {
+				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_serial2_1>;
 			};
 
 			i2c@021a0000 { /* I2C1 */
 				status = "okay";
 				clock-frequency = <100000>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2c1_1>;
 
 				codec: sgtl5000@0a {
 					compatible = "fsl,sgtl5000";
@@ -79,5 +111,19 @@
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 		};
+	};
+
+	sound {
+		compatible = "fsl,imx6q-sabrelite-sgtl5000",
+			     "fsl,imx-audio-sgtl5000";
+		model = "imx6q-sabrelite-sgtl5000";
+		ssi-controller = <&ssi1>;
+		audio-codec = <&codec>;
+		audio-routing =
+			"MIC_IN", "Mic Jack",
+			"Mic Jack", "Mic Bias",
+			"Headphone Jack", "HP_OUT";
+		mux-int-port = <1>;
+		mux-ext-port = <4>;
 	};
 };

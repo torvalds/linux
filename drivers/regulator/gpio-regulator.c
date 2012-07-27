@@ -30,7 +30,6 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/gpio-regulator.h>
 #include <linux/gpio.h>
-#include <linux/delay.h>
 #include <linux/slab.h>
 
 struct gpio_regulator_data {
@@ -102,18 +101,22 @@ static int gpio_regulator_get_value(struct regulator_dev *dev)
 }
 
 static int gpio_regulator_set_value(struct regulator_dev *dev,
-					int min, int max)
+					int min, int max, unsigned *selector)
 {
 	struct gpio_regulator_data *data = rdev_get_drvdata(dev);
-	int ptr, target, state;
+	int ptr, target = 0, state, best_val = INT_MAX;
 
-	target = -1;
 	for (ptr = 0; ptr < data->nr_states; ptr++)
-		if (data->states[ptr].value >= min &&
-		    data->states[ptr].value <= max)
+		if (data->states[ptr].value < best_val &&
+		    data->states[ptr].value >= min &&
+		    data->states[ptr].value <= max) {
 			target = data->states[ptr].gpios;
+			best_val = data->states[ptr].value;
+			if (selector)
+				*selector = ptr;
+		}
 
-	if (target < 0)
+	if (best_val == INT_MAX)
 		return -EINVAL;
 
 	for (ptr = 0; ptr < data->nr_gpios; ptr++) {
@@ -129,7 +132,7 @@ static int gpio_regulator_set_voltage(struct regulator_dev *dev,
 					int min_uV, int max_uV,
 					unsigned *selector)
 {
-	return gpio_regulator_set_value(dev, min_uV, max_uV);
+	return gpio_regulator_set_value(dev, min_uV, max_uV, selector);
 }
 
 static int gpio_regulator_list_voltage(struct regulator_dev *dev,
@@ -146,7 +149,7 @@ static int gpio_regulator_list_voltage(struct regulator_dev *dev,
 static int gpio_regulator_set_current_limit(struct regulator_dev *dev,
 					int min_uA, int max_uA)
 {
-	return gpio_regulator_set_value(dev, min_uA, max_uA);
+	return gpio_regulator_set_value(dev, min_uA, max_uA, NULL);
 }
 
 static struct regulator_ops gpio_regulator_voltage_ops = {
@@ -172,9 +175,11 @@ static int __devinit gpio_regulator_probe(struct platform_device *pdev)
 {
 	struct gpio_regulator_config *config = pdev->dev.platform_data;
 	struct gpio_regulator_data *drvdata;
+	struct regulator_config cfg = { };
 	int ptr, ret, state;
 
-	drvdata = kzalloc(sizeof(struct gpio_regulator_data), GFP_KERNEL);
+	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct gpio_regulator_data),
+			       GFP_KERNEL);
 	if (drvdata == NULL) {
 		dev_err(&pdev->dev, "Failed to allocate device data\n");
 		return -ENOMEM;
@@ -283,8 +288,11 @@ static int __devinit gpio_regulator_probe(struct platform_device *pdev)
 	}
 	drvdata->state = state;
 
-	drvdata->dev = regulator_register(&drvdata->desc, &pdev->dev,
-					  config->init_data, drvdata, NULL);
+	cfg.dev = &pdev->dev;
+	cfg.init_data = config->init_data;
+	cfg.driver_data = drvdata;
+
+	drvdata->dev = regulator_register(&drvdata->desc, &cfg);
 	if (IS_ERR(drvdata->dev)) {
 		ret = PTR_ERR(drvdata->dev);
 		dev_err(&pdev->dev, "Failed to register regulator: %d\n", ret);
@@ -307,7 +315,6 @@ err_memgpio:
 err_name:
 	kfree(drvdata->desc.name);
 err:
-	kfree(drvdata);
 	return ret;
 }
 
@@ -326,7 +333,6 @@ static int __devexit gpio_regulator_remove(struct platform_device *pdev)
 		gpio_free(drvdata->enable_gpio);
 
 	kfree(drvdata->desc.name);
-	kfree(drvdata);
 
 	return 0;
 }

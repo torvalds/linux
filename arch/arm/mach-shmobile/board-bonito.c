@@ -486,7 +486,7 @@ static void __init bonito_earlytimer_init(void)
 	shmobile_earlytimer_init();
 }
 
-void __init bonito_add_early_devices(void)
+static void __init bonito_add_early_devices(void)
 {
 	r8a7740_add_early_devices();
 
@@ -500,5 +500,6 @@ MACHINE_START(BONITO, "bonito")
 	.init_irq	= r8a7740_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= bonito_init,
+	.init_late	= shmobile_init_late,
 	.timer		= &shmobile_timer,
 MACHINE_END

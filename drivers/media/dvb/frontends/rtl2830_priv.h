@@ -22,6 +22,7 @@
 #define RTL2830_PRIV_H
 
 #include "dvb_frontend.h"
+#include "dvb_math.h"
 #include "rtl2830.h"
 
 #define LOG_PREFIX "rtl2830"

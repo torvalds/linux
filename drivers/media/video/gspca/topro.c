@@ -4675,11 +4675,9 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 /* -- do autogain -- */
 /* gain setting is done in setexposure() for tp6810 */
 static void setgain(struct gspca_dev *gspca_dev) {}
-/* !! coarse_grained_expo_autogain is not used !! */
-#define exp_too_low_cnt bridge
-#define exp_too_high_cnt sensor
-
+#define WANT_REGULAR_AUTOGAIN
 #include "autogain_functions.h"
+
 static void sd_dq_callback(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;

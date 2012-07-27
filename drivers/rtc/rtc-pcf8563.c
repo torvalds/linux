@@ -64,6 +64,7 @@ struct pcf8563 {
 	 * 1970...2069.
 	 */
 	int c_polarity;	/* 0: MO_C=1 means 19xx, otherwise MO_C=1 means 20xx */
+	int voltage_low; /* incicates if a low_voltage was detected */
 };
 
 /*
@@ -86,9 +87,11 @@ static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 		return -EIO;
 	}
 
-	if (buf[PCF8563_REG_SC] & PCF8563_SC_LV)
+	if (buf[PCF8563_REG_SC] & PCF8563_SC_LV) {
+		pcf8563->voltage_low = 1;
 		dev_info(&client->dev,
 			"low voltage detected, date/time is not reliable.\n");
+	}
 
 	dev_dbg(&client->dev,
 		"%s: raw data is st1=%02x, st2=%02x, sec=%02x, min=%02x, hr=%02x, "
@@ -173,6 +176,44 @@ static int pcf8563_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	return 0;
 }
 
+#ifdef CONFIG_RTC_INTF_DEV
+static int pcf8563_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
+{
+	struct pcf8563 *pcf8563 = i2c_get_clientdata(to_i2c_client(dev));
+	struct rtc_time tm;
+
+	switch (cmd) {
+	case RTC_VL_READ:
+		if (pcf8563->voltage_low)
+			dev_info(dev, "low voltage detected, date/time is not reliable.\n");
+
+		if (copy_to_user((void __user *)arg, &pcf8563->voltage_low,
+					sizeof(int)))
+			return -EFAULT;
+		return 0;
+	case RTC_VL_CLR:
+		/*
+		 * Clear the VL bit in the seconds register in case
+		 * the time has not been set already (which would
+		 * have cleared it). This does not really matter
+		 * because of the cached voltage_low value but do it
+		 * anyway for consistency.
+		 */
+		if (pcf8563_get_datetime(to_i2c_client(dev), &tm))
+			pcf8563_set_datetime(to_i2c_client(dev), &tm);
+
+		/* Clear the cached value. */
+		pcf8563->voltage_low = 0;
+
+		return 0;
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+#else
+#define pcf8563_rtc_ioctl NULL
+#endif
+
 static int pcf8563_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	return pcf8563_get_datetime(to_i2c_client(dev), tm);
@@ -184,6 +225,7 @@ static int pcf8563_rtc_set_time(struct device *dev, struct rtc_time *tm)
 }
 
 static const struct rtc_class_ops pcf8563_rtc_ops = {
+	.ioctl		= pcf8563_rtc_ioctl,
 	.read_time	= pcf8563_rtc_read_time,
 	.set_time	= pcf8563_rtc_set_time,
 };

@@ -97,9 +97,8 @@ static int do_vcc_ioctl(struct socket *sock, unsigned int cmd,
 			error = sock_get_timestampns(sk, argp);
 		goto done;
 	case ATM_SETSC:
-		if (net_ratelimit())
-			pr_warning("ATM_SETSC is obsolete; used by %s:%d\n",
-				   current->comm, task_pid_nr(current));
+		net_warn_ratelimited("ATM_SETSC is obsolete; used by %s:%d\n",
+				     current->comm, task_pid_nr(current));
 		error = 0;
 		goto done;
 	case ATMSIGD_CTRL:
@@ -123,8 +122,7 @@ static int do_vcc_ioctl(struct socket *sock, unsigned int cmd,
 		   work for 32-bit userspace. TBH I don't really want
 		   to think about it at all. dwmw2. */
 		if (compat) {
-			if (net_ratelimit())
-				pr_warning("32-bit task cannot be atmsigd\n");
+			net_warn_ratelimited("32-bit task cannot be atmsigd\n");
 			error = -EINVAL;
 			goto done;
 		}

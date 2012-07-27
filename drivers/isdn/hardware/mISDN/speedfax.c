@@ -224,7 +224,7 @@ channel_ctrl(struct sfax_hw  *sf, struct mISDN_ctrl_req *cq)
 
 	switch (cq->op) {
 	case MISDN_CTRL_GETOP:
-		cq->op = MISDN_CTRL_LOOP;
+		cq->op = MISDN_CTRL_LOOP | MISDN_CTRL_L1_TIMER3;
 		break;
 	case MISDN_CTRL_LOOP:
 		/* cq->channel: 0 disable, 1 B1 loop 2 B2 loop, 3 both */
@@ -233,6 +233,9 @@ channel_ctrl(struct sfax_hw  *sf, struct mISDN_ctrl_req *cq)
 			break;
 		}
 		ret = sf->isac.ctrl(&sf->isac, HW_TESTLOOP, cq->channel);
+		break;
+	case MISDN_CTRL_L1_TIMER3:
+		ret = sf->isac.ctrl(&sf->isac, HW_TIMER3_VALUE, cq->p1);
 		break;
 	default:
 		pr_info("%s: unknown Op %x\n", sf->name, cq->op);

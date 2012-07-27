@@ -33,6 +33,7 @@
 #include "nouveau_crtc.h"
 #include "nouveau_dma.h"
 #include "nouveau_fb.h"
+#include "nouveau_software.h"
 #include "nv50_display.h"
 
 #define EVO_DMA_NR 9
@@ -284,8 +285,6 @@ nvd0_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	u32 *push;
 	int ret;
 
-	evo_sync(crtc->dev, EVO_MASTER);
-
 	swap_interval <<= 4;
 	if (swap_interval == 0)
 		swap_interval |= 0x100;
@@ -300,15 +299,16 @@ nvd0_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		if (ret)
 			return ret;
 
-		offset  = chan->dispc_vma[nv_crtc->index].offset;
+
+		offset  = nvc0_software_crtc(chan, nv_crtc->index);
 		offset += evo->sem.offset;
 
-		BEGIN_NVC0(chan, 2, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
+		BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
 		OUT_RING  (chan, upper_32_bits(offset));
 		OUT_RING  (chan, lower_32_bits(offset));
 		OUT_RING  (chan, 0xf00d0000 | evo->sem.value);
 		OUT_RING  (chan, 0x1002);
-		BEGIN_NVC0(chan, 2, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
+		BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
 		OUT_RING  (chan, upper_32_bits(offset));
 		OUT_RING  (chan, lower_32_bits(offset ^ 0x10));
 		OUT_RING  (chan, 0x74b1e000);
@@ -607,7 +607,7 @@ nvd0_crtc_commit(struct drm_crtc *crtc)
 }
 
 static bool
-nvd0_crtc_mode_fixup(struct drm_crtc *crtc, struct drm_display_mode *mode,
+nvd0_crtc_mode_fixup(struct drm_crtc *crtc, const struct drm_display_mode *mode,
 		     struct drm_display_mode *adjusted_mode)
 {
 	return true;
@@ -882,7 +882,7 @@ nvd0_crtc_create(struct drm_device *dev, int index)
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
 	ret = nouveau_bo_new(dev, 64 * 64 * 4, 0x100, TTM_PL_FLAG_VRAM,
-			     0, 0x0000, &nv_crtc->cursor.nvbo);
+			     0, 0x0000, NULL, &nv_crtc->cursor.nvbo);
 	if (!ret) {
 		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM);
 		if (!ret)
@@ -895,7 +895,7 @@ nvd0_crtc_create(struct drm_device *dev, int index)
 		goto out;
 
 	ret = nouveau_bo_new(dev, 8192, 0x100, TTM_PL_FLAG_VRAM,
-			     0, 0x0000, &nv_crtc->lut.nvbo);
+			     0, 0x0000, NULL, &nv_crtc->lut.nvbo);
 	if (!ret) {
 		ret = nouveau_bo_pin(nv_crtc->lut.nvbo, TTM_PL_FLAG_VRAM);
 		if (!ret)
@@ -938,7 +938,8 @@ nvd0_dac_dpms(struct drm_encoder *encoder, int mode)
 }
 
 static bool
-nvd0_dac_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
+nvd0_dac_mode_fixup(struct drm_encoder *encoder,
+		    const struct drm_display_mode *mode,
 		    struct drm_display_mode *adjusted_mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
@@ -1377,7 +1378,8 @@ nvd0_sor_dpms(struct drm_encoder *encoder, int mode)
 }
 
 static bool
-nvd0_sor_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
+nvd0_sor_mode_fixup(struct drm_encoder *encoder,
+		    const struct drm_display_mode *mode,
 		    struct drm_display_mode *adjusted_mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
@@ -2030,7 +2032,7 @@ nvd0_display_create(struct drm_device *dev)
 
 	/* small shared memory area we use for notifiers and semaphores */
 	ret = nouveau_bo_new(dev, 4096, 0x1000, TTM_PL_FLAG_VRAM,
-			     0, 0x0000, &disp->sync);
+			     0, 0x0000, NULL, &disp->sync);
 	if (!ret) {
 		ret = nouveau_bo_pin(disp->sync, TTM_PL_FLAG_VRAM);
 		if (!ret)

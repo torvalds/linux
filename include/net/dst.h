@@ -60,6 +60,7 @@ struct dst_entry {
 #define DST_NOCOUNT		0x0020
 #define DST_NOPEER		0x0040
 #define DST_FAKE_RTABLE		0x0080
+#define DST_XFRM_TUNNEL		0x0100
 
 	short			error;
 	short			obsolete;

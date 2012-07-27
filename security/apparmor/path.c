@@ -94,6 +94,8 @@ static int d_namespace_path(struct path *path, char *buf, int buflen,
 	 * be returned.
 	 */
 	if (!res || IS_ERR(res)) {
+		if (PTR_ERR(res) == -ENAMETOOLONG)
+			return -ENAMETOOLONG;
 		connected = 0;
 		res = dentry_path_raw(path->dentry, buf, buflen);
 		if (IS_ERR(res)) {

@@ -290,7 +290,8 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		txhdr->dur_fb = wlhdr->duration_id;
 	} else {
 		txhdr->dur_fb = ieee80211_generic_frame_duration(
-			dev->wl->hw, info->control.vif, fragment_len, fbrate);
+			dev->wl->hw, info->control.vif, info->band,
+			fragment_len, fbrate);
 	}
 
 	plcp_fragment_len = fragment_len + FCS_LEN;
@@ -378,7 +379,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
 		phy_ctl |= B43_TXH_PHY_SHORTPRMBL;
 
-	switch (b43_ieee80211_antenna_sanitize(dev, info->antenna_sel_tx)) {
+	switch (b43_ieee80211_antenna_sanitize(dev, 0)) {
 	case 0: /* Default */
 		phy_ctl |= B43_TXH_PHY_ANT01AUTO;
 		break;

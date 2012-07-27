@@ -69,6 +69,18 @@ static void hci_cc_inquiry_cancel(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_conn_check_pending(hdev);
 }
 
+static void hci_cc_periodic_inq(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	if (status)
+		return;
+
+	set_bit(HCI_PERIODIC_INQ, &hdev->dev_flags);
+}
+
 static void hci_cc_exit_periodic_inq(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	__u8 status = *((__u8 *) skb->data);
@@ -77,6 +89,8 @@ static void hci_cc_exit_periodic_inq(struct hci_dev *hdev, struct sk_buff *skb)
 
 	if (status)
 		return;
+
+	clear_bit(HCI_PERIODIC_INQ, &hdev->dev_flags);
 
 	hci_conn_check_pending(hdev);
 }
@@ -192,7 +206,8 @@ static void hci_cc_reset(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_req_complete(hdev, HCI_OP_RESET, status);
 
 	/* Reset all non-persistent flags */
-	hdev->dev_flags &= ~(BIT(HCI_LE_SCAN) | BIT(HCI_PENDING_CLASS));
+	hdev->dev_flags &= ~(BIT(HCI_LE_SCAN) | BIT(HCI_PENDING_CLASS) |
+			     BIT(HCI_PERIODIC_INQ));
 
 	hdev->discovery.state = DISCOVERY_STOPPED;
 }
@@ -505,7 +520,7 @@ static void hci_setup_event_mask(struct hci_dev *hdev)
 	events[5] |= 0x10; /* Synchronous Connection Changed */
 
 	if (hdev->features[3] & LMP_RSSI_INQ)
-		events[4] |= 0x04; /* Inquiry Result with RSSI */
+		events[4] |= 0x02; /* Inquiry Result with RSSI */
 
 	if (hdev->features[5] & LMP_SNIFF_SUBR)
 		events[5] |= 0x20; /* Sniff Subrating */
@@ -615,6 +630,7 @@ done:
 
 static void hci_setup_link_policy(struct hci_dev *hdev)
 {
+	struct hci_cp_write_def_link_policy cp;
 	u16 link_policy = 0;
 
 	if (hdev->features[0] & LMP_RSWITCH)
@@ -626,9 +642,8 @@ static void hci_setup_link_policy(struct hci_dev *hdev)
 	if (hdev->features[1] & LMP_PARK)
 		link_policy |= HCI_LP_PARK;
 
-	link_policy = cpu_to_le16(link_policy);
-	hci_send_cmd(hdev, HCI_OP_WRITE_DEF_LINK_POLICY, sizeof(link_policy),
-		     &link_policy);
+	cp.policy = cpu_to_le16(link_policy);
+	hci_send_cmd(hdev, HCI_OP_WRITE_DEF_LINK_POLICY, sizeof(cp), &cp);
 }
 
 static void hci_cc_read_local_commands(struct hci_dev *hdev, struct sk_buff *skb)
@@ -710,7 +725,7 @@ static void hci_set_le_support(struct hci_dev *hdev)
 
 	memset(&cp, 0, sizeof(cp));
 
-	if (enable_le && test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
+	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
 		cp.le = 1;
 		cp.simul = !!(hdev->features[6] & LMP_SIMUL_LE_BR);
 	}
@@ -887,11 +902,14 @@ static void hci_cc_write_inquiry_mode(struct hci_dev *hdev,
 static void hci_cc_read_inq_rsp_tx_power(struct hci_dev *hdev,
 							struct sk_buff *skb)
 {
-	__u8 status = *((__u8 *) skb->data);
+	struct hci_rp_read_inq_rsp_tx_power *rp = (void *) skb->data;
 
-	BT_DBG("%s status 0x%x", hdev->name, status);
+	BT_DBG("%s status 0x%x", hdev->name, rp->status);
 
-	hci_req_complete(hdev, HCI_OP_READ_INQ_RSP_TX_POWER, status);
+	if (!rp->status)
+		hdev->inq_tx_power = rp->tx_power;
+
+	hci_req_complete(hdev, HCI_OP_READ_INQ_RSP_TX_POWER, rp->status);
 }
 
 static void hci_cc_set_event_flt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -1082,23 +1100,23 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 
 		set_bit(HCI_LE_SCAN, &hdev->dev_flags);
 
-		cancel_delayed_work_sync(&hdev->adv_work);
-
 		hci_dev_lock(hdev);
-		hci_adv_entries_clear(hdev);
 		hci_discovery_set_state(hdev, DISCOVERY_FINDING);
 		hci_dev_unlock(hdev);
 		break;
 
 	case LE_SCANNING_DISABLED:
-		if (status)
+		if (status) {
+			hci_dev_lock(hdev);
+			mgmt_stop_discovery_failed(hdev, status);
+			hci_dev_unlock(hdev);
 			return;
+		}
 
 		clear_bit(HCI_LE_SCAN, &hdev->dev_flags);
 
-		schedule_delayed_work(&hdev->adv_work, ADV_CLEAR_TIMEOUT);
-
-		if (hdev->discovery.type == DISCOV_TYPE_INTERLEAVED) {
+		if (hdev->discovery.type == DISCOV_TYPE_INTERLEAVED &&
+		    hdev->discovery.state == DISCOVERY_FINDING) {
 			mgmt_interleaved_discovery(hdev);
 		} else {
 			hci_dev_lock(hdev);
@@ -1625,6 +1643,8 @@ static void hci_cs_le_create_conn(struct hci_dev *hdev, __u8 status)
 	if (status) {
 		if (conn && conn->state == BT_CONNECT) {
 			conn->state = BT_CLOSED;
+			mgmt_connect_failed(hdev, &cp->peer_addr, conn->type,
+					    conn->dst_type, status);
 			hci_proto_connect_cfm(conn, status);
 			hci_conn_del(conn);
 		}
@@ -1697,6 +1717,9 @@ static inline void hci_inquiry_result_evt(struct hci_dev *hdev, struct sk_buff *
 	BT_DBG("%s num_rsp %d", hdev->name, num_rsp);
 
 	if (!num_rsp)
+		return;
+
+	if (test_bit(HCI_PERIODIC_INQ, &hdev->dev_flags))
 		return;
 
 	hci_dev_lock(hdev);
@@ -2039,6 +2062,12 @@ static inline void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *
 
 		clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
 
+		if (ev->status && conn->state == BT_CONNECTED) {
+			hci_acl_disconn(conn, HCI_ERROR_AUTH_FAILURE);
+			hci_conn_put(conn);
+			goto unlock;
+		}
+
 		if (conn->state == BT_CONFIG) {
 			if (!ev->status)
 				conn->state = BT_CONNECTED;
@@ -2049,6 +2078,7 @@ static inline void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *
 			hci_encrypt_cfm(conn, ev->status, ev->encrypt);
 	}
 
+unlock:
 	hci_dev_unlock(hdev);
 }
 
@@ -2102,7 +2132,7 @@ static inline void hci_remote_features_evt(struct hci_dev *hdev, struct sk_buff 
 		goto unlock;
 	}
 
-	if (!ev->status) {
+	if (!ev->status && !test_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags)) {
 		struct hci_cp_remote_name_req cp;
 		memset(&cp, 0, sizeof(cp));
 		bacpy(&cp.bdaddr, &conn->dst);
@@ -2145,6 +2175,10 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 	switch (opcode) {
 	case HCI_OP_INQUIRY_CANCEL:
 		hci_cc_inquiry_cancel(hdev, skb);
+		break;
+
+	case HCI_OP_PERIODIC_INQ:
+		hci_cc_periodic_inq(hdev, skb);
 		break;
 
 	case HCI_OP_EXIT_PERIODIC_INQ:
@@ -2799,6 +2833,9 @@ static inline void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, struct
 	if (!num_rsp)
 		return;
 
+	if (test_bit(HCI_PERIODIC_INQ, &hdev->dev_flags))
+		return;
+
 	hci_dev_lock(hdev);
 
 	if ((skb->len - 1) / num_rsp != sizeof(struct inquiry_info_with_rssi)) {
@@ -2871,7 +2908,7 @@ static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_b
 	if (conn->state != BT_CONFIG)
 		goto unlock;
 
-	if (!ev->status) {
+	if (!ev->status && !test_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags)) {
 		struct hci_cp_remote_name_req cp;
 		memset(&cp, 0, sizeof(cp));
 		bacpy(&cp.bdaddr, &conn->dst);
@@ -2964,10 +3001,14 @@ static inline void hci_extended_inquiry_result_evt(struct hci_dev *hdev, struct 
 	struct inquiry_data data;
 	struct extended_inquiry_info *info = (void *) (skb->data + 1);
 	int num_rsp = *((__u8 *) skb->data);
+	size_t eir_len;
 
 	BT_DBG("%s num_rsp %d", hdev->name, num_rsp);
 
 	if (!num_rsp)
+		return;
+
+	if (test_bit(HCI_PERIODIC_INQ, &hdev->dev_flags))
 		return;
 
 	hci_dev_lock(hdev);
@@ -2993,11 +3034,56 @@ static inline void hci_extended_inquiry_result_evt(struct hci_dev *hdev, struct 
 
 		name_known = hci_inquiry_cache_update(hdev, &data, name_known,
 						      &ssp);
+		eir_len = eir_get_length(info->data, sizeof(info->data));
 		mgmt_device_found(hdev, &info->bdaddr, ACL_LINK, 0x00,
 				  info->dev_class, info->rssi, !name_known,
-				  ssp, info->data, sizeof(info->data));
+				  ssp, info->data, eir_len);
 	}
 
+	hci_dev_unlock(hdev);
+}
+
+static void hci_key_refresh_complete_evt(struct hci_dev *hdev,
+					 struct sk_buff *skb)
+{
+	struct hci_ev_key_refresh_complete *ev = (void *) skb->data;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status %u handle %u", hdev->name, ev->status,
+	       __le16_to_cpu(ev->handle));
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
+	if (!conn)
+		goto unlock;
+
+	if (!ev->status)
+		conn->sec_level = conn->pending_sec_level;
+
+	clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
+
+	if (ev->status && conn->state == BT_CONNECTED) {
+		hci_acl_disconn(conn, HCI_ERROR_AUTH_FAILURE);
+		hci_conn_put(conn);
+		goto unlock;
+	}
+
+	if (conn->state == BT_CONFIG) {
+		if (!ev->status)
+			conn->state = BT_CONNECTED;
+
+		hci_proto_connect_cfm(conn, ev->status);
+		hci_conn_put(conn);
+	} else {
+		hci_auth_cfm(conn, ev->status);
+
+		hci_conn_hold(conn);
+		conn->disc_timeout = HCI_DISCONN_TIMEOUT;
+		hci_conn_put(conn);
+	}
+
+unlock:
 	hci_dev_unlock(hdev);
 }
 
@@ -3315,8 +3401,6 @@ static inline void hci_le_adv_report_evt(struct hci_dev *hdev,
 	while (num_reports--) {
 		struct hci_ev_le_advertising_info *ev = ptr;
 
-		hci_add_adv_entry(hdev, ev);
-
 		rssi = ev->data[ev->length];
 		mgmt_device_found(hdev, &ev->bdaddr, LE_LINK, ev->bdaddr_type,
 				  NULL, rssi, 0, 1, ev->data, ev->length);
@@ -3336,7 +3420,7 @@ static inline void hci_le_ltk_request_evt(struct hci_dev *hdev,
 	struct hci_conn *conn;
 	struct smp_ltk *ltk;
 
-	BT_DBG("%s handle %d", hdev->name, cpu_to_le16(ev->handle));
+	BT_DBG("%s handle %d", hdev->name, __le16_to_cpu(ev->handle));
 
 	hci_dev_lock(hdev);
 
@@ -3517,6 +3601,10 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_EXTENDED_INQUIRY_RESULT:
 		hci_extended_inquiry_result_evt(hdev, skb);
+		break;
+
+	case HCI_EV_KEY_REFRESH_COMPLETE:
+		hci_key_refresh_complete_evt(hdev, skb);
 		break;
 
 	case HCI_EV_IO_CAPA_REQUEST:

@@ -84,7 +84,11 @@ static int perf_session__list_build_ids(void)
 	if (filename__fprintf_build_id(session->filename, stdout))
 		goto out;
 
-	if (with_hits)
+	/*
+	 * in pipe-mode, the only way to get the buildids is to parse
+	 * the record stream. Buildids are stored as RECORD_HEADER_BUILD_ID
+	 */
+	if (with_hits || session->fd_pipe)
 		perf_session__process_events(session, &build_id__mark_dso_hit_ops);
 
 	perf_session__fprintf_dsos_buildid(session, stdout, with_hits);

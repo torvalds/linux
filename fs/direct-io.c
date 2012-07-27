@@ -145,50 +145,6 @@ struct dio {
 
 static struct kmem_cache *dio_cache __read_mostly;
 
-static void __inode_dio_wait(struct inode *inode)
-{
-	wait_queue_head_t *wq = bit_waitqueue(&inode->i_state, __I_DIO_WAKEUP);
-	DEFINE_WAIT_BIT(q, &inode->i_state, __I_DIO_WAKEUP);
-
-	do {
-		prepare_to_wait(wq, &q.wait, TASK_UNINTERRUPTIBLE);
-		if (atomic_read(&inode->i_dio_count))
-			schedule();
-	} while (atomic_read(&inode->i_dio_count));
-	finish_wait(wq, &q.wait);
-}
-
-/**
- * inode_dio_wait - wait for outstanding DIO requests to finish
- * @inode: inode to wait for
- *
- * Waits for all pending direct I/O requests to finish so that we can
- * proceed with a truncate or equivalent operation.
- *
- * Must be called under a lock that serializes taking new references
- * to i_dio_count, usually by inode->i_mutex.
- */
-void inode_dio_wait(struct inode *inode)
-{
-	if (atomic_read(&inode->i_dio_count))
-		__inode_dio_wait(inode);
-}
-EXPORT_SYMBOL(inode_dio_wait);
-
-/*
- * inode_dio_done - signal finish of a direct I/O requests
- * @inode: inode the direct I/O happens on
- *
- * This is called once we've finished processing a direct I/O request,
- * and is used to wake up callers waiting for direct I/O to be quiesced.
- */
-void inode_dio_done(struct inode *inode)
-{
-	if (atomic_dec_and_test(&inode->i_dio_count))
-		wake_up_bit(&inode->i_state, __I_DIO_WAKEUP);
-}
-EXPORT_SYMBOL(inode_dio_done);
-
 /*
  * How many pages are in the queue?
  */

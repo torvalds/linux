@@ -88,6 +88,9 @@ ENTRY(diag308_reset)
 	stctg	%c0,%c15,0(%r4)
 	larl	%r4,.Lfpctl		# Floating point control register
 	stfpc	0(%r4)
+	larl	%r4,.Lcontinue_psw	# Save PSW flags
+	epsw	%r2,%r3
+	stm	%r2,%r3,0(%r4)
 	larl	%r4,.Lrestart_psw	# Setup restart PSW at absolute 0
 	lghi	%r3,0
 	lg	%r4,0(%r4)		# Save PSW
@@ -103,10 +106,19 @@ ENTRY(diag308_reset)
 	lctlg	%c0,%c15,0(%r4)
 	larl	%r4,.Lfpctl		# Restore floating point ctl register
 	lfpc	0(%r4)
+	larl	%r4,.Lcontinue_psw	# Restore PSW flags
+	lpswe	0(%r4)
+.Lcontinue:
 	br	%r14
 .align 16
 .Lrestart_psw:
 	.long	0x00080000,0x80000000 + .Lrestart_part2
+
+	.section .data..nosave,"aw",@progbits
+.align 8
+.Lcontinue_psw:
+	.quad	0,.Lcontinue
+	.previous
 
 	.section .bss
 .align 8

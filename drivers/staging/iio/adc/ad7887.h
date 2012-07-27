@@ -63,7 +63,6 @@ struct ad7887_state {
 	struct spi_device		*spi;
 	const struct ad7887_chip_info	*chip_info;
 	struct regulator		*reg;
-	size_t				d_size;
 	u16				int_vref_mv;
 	struct spi_transfer		xfer[4];
 	struct spi_message		msg[3];

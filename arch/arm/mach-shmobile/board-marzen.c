@@ -98,5 +98,6 @@ MACHINE_START(MARZEN, "marzen")
 	.init_irq	= r8a7779_init_irq,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= marzen_init,
+	.init_late	= shmobile_init_late,
 	.timer		= &shmobile_timer,
 MACHINE_END

@@ -47,7 +47,7 @@
 #include <plat/usb.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
-#include <video/omap-panel-dvi.h>
+#include <video/omap-panel-tfp410.h>
 
 #include <plat/mcspi.h>
 #include <linux/input/matrix_keypad.h>
@@ -118,19 +118,6 @@ static void devkit8000_panel_disable_lcd(struct omap_dss_device *dssdev)
 		gpio_set_value_cansleep(dssdev->reset_gpio, 0);
 }
 
-static int devkit8000_panel_enable_dvi(struct omap_dss_device *dssdev)
-{
-	if (gpio_is_valid(dssdev->reset_gpio))
-		gpio_set_value_cansleep(dssdev->reset_gpio, 1);
-	return 0;
-}
-
-static void devkit8000_panel_disable_dvi(struct omap_dss_device *dssdev)
-{
-	if (gpio_is_valid(dssdev->reset_gpio))
-		gpio_set_value_cansleep(dssdev->reset_gpio, 0);
-}
-
 static struct regulator_consumer_supply devkit8000_vmmc1_supply[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
@@ -154,15 +141,14 @@ static struct omap_dss_device devkit8000_lcd_device = {
 	.phy.dpi.data_lines     = 24,
 };
 
-static struct panel_dvi_platform_data dvi_panel = {
-	.platform_enable        = devkit8000_panel_enable_dvi,
-	.platform_disable       = devkit8000_panel_disable_dvi,
+static struct tfp410_platform_data dvi_panel = {
+	.power_down_gpio	= -1,
 };
 
 static struct omap_dss_device devkit8000_dvi_device = {
 	.name                   = "dvi",
 	.type                   = OMAP_DISPLAY_TYPE_DPI,
-	.driver_name            = "dvi",
+	.driver_name            = "tfp410",
 	.data			= &dvi_panel,
 	.phy.dpi.data_lines     = 24,
 };
@@ -244,13 +230,7 @@ static int devkit8000_twl_gpio_setup(struct device *dev,
 	}
 
 	/* gpio + 7 is "DVI_PD" (out, active low) */
-	devkit8000_dvi_device.reset_gpio = gpio + 7;
-	ret = gpio_request_one(devkit8000_dvi_device.reset_gpio,
-			       GPIOF_OUT_INIT_LOW, "DVI PowerDown");
-	if (ret < 0) {
-		devkit8000_dvi_device.reset_gpio = -EINVAL;
-		printk(KERN_ERR "Failed to request GPIO for DVI PowerDown\n");
-	}
+	dvi_panel.power_down_gpio = gpio + 7;
 
 	return 0;
 }
@@ -664,6 +644,7 @@ MACHINE_START(DEVKIT8000, "OMAP3 Devkit8000")
 	.init_irq	= omap3_init_irq,
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= devkit8000_init,
+	.init_late	= omap35xx_init_late,
 	.timer		= &omap3_secure_timer,
 	.restart	= omap_prcm_restart,
 MACHINE_END

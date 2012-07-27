@@ -11,6 +11,8 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
@@ -159,7 +161,8 @@ static int __devinit l4f00242t03_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	priv = kzalloc(sizeof(struct l4f00242t03_priv), GFP_KERNEL);
+	priv = devm_kzalloc(&spi->dev, sizeof(struct l4f00242t03_priv),
+				GFP_KERNEL);
 
 	if (priv == NULL) {
 		dev_err(&spi->dev, "No memory for this device.\n");
@@ -177,7 +180,7 @@ static int __devinit l4f00242t03_probe(struct spi_device *spi)
 	if (ret) {
 		dev_err(&spi->dev,
 			"Unable to get the lcd l4f00242t03 reset gpio.\n");
-		goto err;
+		return ret;
 	}
 
 	ret = gpio_request_one(pdata->data_enable_gpio, GPIOF_OUT_INIT_LOW,
@@ -185,7 +188,7 @@ static int __devinit l4f00242t03_probe(struct spi_device *spi)
 	if (ret) {
 		dev_err(&spi->dev,
 			"Unable to get the lcd l4f00242t03 data en gpio.\n");
-		goto err2;
+		goto err;
 	}
 
 	priv->io_reg = regulator_get(&spi->dev, "vdd");
@@ -193,7 +196,7 @@ static int __devinit l4f00242t03_probe(struct spi_device *spi)
 		ret = PTR_ERR(priv->io_reg);
 		dev_err(&spi->dev, "%s: Unable to get the IO regulator\n",
 		       __func__);
-		goto err3;
+		goto err2;
 	}
 
 	priv->core_reg = regulator_get(&spi->dev, "vcore");
@@ -201,14 +204,14 @@ static int __devinit l4f00242t03_probe(struct spi_device *spi)
 		ret = PTR_ERR(priv->core_reg);
 		dev_err(&spi->dev, "%s: Unable to get the core regulator\n",
 		       __func__);
-		goto err4;
+		goto err3;
 	}
 
 	priv->ld = lcd_device_register("l4f00242t03",
 					&spi->dev, priv, &l4f_ops);
 	if (IS_ERR(priv->ld)) {
 		ret = PTR_ERR(priv->ld);
-		goto err5;
+		goto err4;
 	}
 
 	/* Init the LCD */
@@ -220,16 +223,14 @@ static int __devinit l4f00242t03_probe(struct spi_device *spi)
 
 	return 0;
 
-err5:
-	regulator_put(priv->core_reg);
 err4:
-	regulator_put(priv->io_reg);
+	regulator_put(priv->core_reg);
 err3:
-	gpio_free(pdata->data_enable_gpio);
+	regulator_put(priv->io_reg);
 err2:
-	gpio_free(pdata->reset_gpio);
+	gpio_free(pdata->data_enable_gpio);
 err:
-	kfree(priv);
+	gpio_free(pdata->reset_gpio);
 
 	return ret;
 }
@@ -249,8 +250,6 @@ static int __devexit l4f00242t03_remove(struct spi_device *spi)
 
 	regulator_put(priv->io_reg);
 	regulator_put(priv->core_reg);
-
-	kfree(priv);
 
 	return 0;
 }

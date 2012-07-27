@@ -33,6 +33,7 @@
 #include <linux/irq.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/of_device.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -507,10 +508,17 @@ static int __devexit asoc_mcpdm_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id omap_mcpdm_of_match[] = {
+	{ .compatible = "ti,omap4-mcpdm", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, omap_mcpdm_of_match);
+
 static struct platform_driver asoc_mcpdm_driver = {
 	.driver = {
 		.name	= "omap-mcpdm",
 		.owner	= THIS_MODULE,
+		.of_match_table = omap_mcpdm_of_match,
 	},
 
 	.probe	= asoc_mcpdm_probe,

@@ -2279,6 +2279,8 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	netdev_sent_queue(np->dev, skb->len);
 
+	skb_tx_timestamp(skb);
+
 	np->put_tx.orig = put_tx;
 
 	spin_unlock_irqrestore(&np->lock, flags);
@@ -2425,6 +2427,8 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 	start_tx->flaglen |= cpu_to_le32(tx_flags | tx_flags_extra);
 
 	netdev_sent_queue(np->dev, skb->len);
+
+	skb_tx_timestamp(skb);
 
 	np->put_tx.ex = put_tx;
 
@@ -3942,13 +3946,11 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 		ret = pci_enable_msi(np->pci_dev);
 		if (ret == 0) {
 			np->msi_flags |= NV_MSI_ENABLED;
-			dev->irq = np->pci_dev->irq;
 			if (request_irq(np->pci_dev->irq, handler, IRQF_SHARED, dev->name, dev) != 0) {
 				netdev_info(dev, "request_irq failed %d\n",
 					    ret);
 				pci_disable_msi(np->pci_dev);
 				np->msi_flags &= ~NV_MSI_ENABLED;
-				dev->irq = np->pci_dev->irq;
 				goto out_err;
 			}
 
@@ -5649,9 +5651,6 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	np->base = ioremap(addr, np->register_size);
 	if (!np->base)
 		goto out_relreg;
-	dev->base_addr = (unsigned long)np->base;
-
-	dev->irq = pci_dev->irq;
 
 	np->rx_ring_size = RX_RING_DEFAULT;
 	np->tx_ring_size = TX_RING_DEFAULT;

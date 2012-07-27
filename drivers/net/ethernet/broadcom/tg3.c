@@ -5622,16 +5622,28 @@ static void tg3_tx(struct tg3_napi *tnapi)
 	}
 }
 
+static void tg3_frag_free(bool is_frag, void *data)
+{
+	if (is_frag)
+		put_page(virt_to_head_page(data));
+	else
+		kfree(data);
+}
+
 static void tg3_rx_data_free(struct tg3 *tp, struct ring_info *ri, u32 map_sz)
 {
+	unsigned int skb_size = SKB_DATA_ALIGN(map_sz + TG3_RX_OFFSET(tp)) +
+		   SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+
 	if (!ri->data)
 		return;
 
 	pci_unmap_single(tp->pdev, dma_unmap_addr(ri, mapping),
 			 map_sz, PCI_DMA_FROMDEVICE);
-	kfree(ri->data);
+	tg3_frag_free(skb_size <= PAGE_SIZE, ri->data);
 	ri->data = NULL;
 }
+
 
 /* Returns size of skb allocated or < 0 on error.
  *
@@ -5645,7 +5657,8 @@ static void tg3_rx_data_free(struct tg3 *tp, struct ring_info *ri, u32 map_sz)
  * (to fetch the error flags, vlan tag, checksum, and opaque cookie).
  */
 static int tg3_alloc_rx_data(struct tg3 *tp, struct tg3_rx_prodring_set *tpr,
-			    u32 opaque_key, u32 dest_idx_unmasked)
+			     u32 opaque_key, u32 dest_idx_unmasked,
+			     unsigned int *frag_size)
 {
 	struct tg3_rx_buffer_desc *desc;
 	struct ring_info *map;
@@ -5680,7 +5693,13 @@ static int tg3_alloc_rx_data(struct tg3 *tp, struct tg3_rx_prodring_set *tpr,
 	 */
 	skb_size = SKB_DATA_ALIGN(data_size + TG3_RX_OFFSET(tp)) +
 		   SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-	data = kmalloc(skb_size, GFP_ATOMIC);
+	if (skb_size <= PAGE_SIZE) {
+		data = netdev_alloc_frag(skb_size);
+		*frag_size = skb_size;
+	} else {
+		data = kmalloc(skb_size, GFP_ATOMIC);
+		*frag_size = 0;
+	}
 	if (!data)
 		return -ENOMEM;
 
@@ -5688,8 +5707,8 @@ static int tg3_alloc_rx_data(struct tg3 *tp, struct tg3_rx_prodring_set *tpr,
 				 data + TG3_RX_OFFSET(tp),
 				 data_size,
 				 PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(tp->pdev, mapping)) {
-		kfree(data);
+	if (unlikely(pci_dma_mapping_error(tp->pdev, mapping))) {
+		tg3_frag_free(skb_size <= PAGE_SIZE, data);
 		return -EIO;
 	}
 
@@ -5840,18 +5859,19 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 
 		if (len > TG3_RX_COPY_THRESH(tp)) {
 			int skb_size;
+			unsigned int frag_size;
 
 			skb_size = tg3_alloc_rx_data(tp, tpr, opaque_key,
-						    *post_ptr);
+						    *post_ptr, &frag_size);
 			if (skb_size < 0)
 				goto drop_it;
 
 			pci_unmap_single(tp->pdev, dma_addr, skb_size,
 					 PCI_DMA_FROMDEVICE);
 
-			skb = build_skb(data);
+			skb = build_skb(data, frag_size);
 			if (!skb) {
-				kfree(data);
+				tg3_frag_free(frag_size != 0, data);
 				goto drop_it_no_recycle;
 			}
 			skb_reserve(skb, TG3_RX_OFFSET(tp));
@@ -7287,7 +7307,10 @@ static int tg3_rx_prodring_alloc(struct tg3 *tp,
 
 	/* Now allocate fresh SKBs for each rx ring. */
 	for (i = 0; i < tp->rx_pending; i++) {
-		if (tg3_alloc_rx_data(tp, tpr, RXD_OPAQUE_RING_STD, i) < 0) {
+		unsigned int frag_size;
+
+		if (tg3_alloc_rx_data(tp, tpr, RXD_OPAQUE_RING_STD, i,
+				      &frag_size) < 0) {
 			netdev_warn(tp->dev,
 				    "Using a smaller RX standard ring. Only "
 				    "%d out of %d buffers were allocated "
@@ -7319,7 +7342,10 @@ static int tg3_rx_prodring_alloc(struct tg3 *tp,
 	}
 
 	for (i = 0; i < tp->rx_jumbo_pending; i++) {
-		if (tg3_alloc_rx_data(tp, tpr, RXD_OPAQUE_RING_JUMBO, i) < 0) {
+		unsigned int frag_size;
+
+		if (tg3_alloc_rx_data(tp, tpr, RXD_OPAQUE_RING_JUMBO, i,
+				      &frag_size) < 0) {
 			netdev_warn(tp->dev,
 				    "Using a smaller RX jumbo ring. Only %d "
 				    "out of %d buffers were allocated "
@@ -12248,6 +12274,7 @@ static const struct ethtool_ops tg3_ethtool_ops = {
 	.get_rxfh_indir_size    = tg3_get_rxfh_indir_size,
 	.get_rxfh_indir		= tg3_get_rxfh_indir,
 	.set_rxfh_indir		= tg3_set_rxfh_indir,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
@@ -14248,7 +14275,8 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		}
 	}
 
-	if (tg3_flag(tp, 5755_PLUS))
+	if (tg3_flag(tp, 5755_PLUS) ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
 		tg3_flag_set(tp, SHORT_DMA_BUG);
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719)
@@ -15856,8 +15884,7 @@ static void __devexit tg3_remove_one(struct pci_dev *pdev)
 	if (dev) {
 		struct tg3 *tp = netdev_priv(dev);
 
-		if (tp->fw)
-			release_firmware(tp->fw);
+		release_firmware(tp->fw);
 
 		tg3_reset_task_cancel(tp);
 

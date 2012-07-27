@@ -75,7 +75,7 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
 				     * state, about 60 seconds */
 
 /* RFC 1122, 4.2.3.1 initial RTO value */
-#define DCCP_TIMEOUT_INIT ((unsigned)(3 * HZ))
+#define DCCP_TIMEOUT_INIT ((unsigned int)(3 * HZ))
 
 /*
  * The maximum back-off value for retransmissions. This is needed for
@@ -84,7 +84,7 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
  *  - feature-negotiation retransmission (sec. 6.6.3),
  *  - Acks in client-PARTOPEN state (sec. 8.1.5).
  */
-#define DCCP_RTO_MAX ((unsigned)(64 * HZ))
+#define DCCP_RTO_MAX ((unsigned int)(64 * HZ))
 
 /*
  * RTT sampling: sanity bounds and fallback RTT value from RFC 4340, section 3.4
@@ -287,9 +287,9 @@ extern struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 extern int dccp_child_process(struct sock *parent, struct sock *child,
 			      struct sk_buff *skb);
 extern int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
-				  struct dccp_hdr *dh, unsigned len);
+				  struct dccp_hdr *dh, unsigned int len);
 extern int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
-				const struct dccp_hdr *dh, const unsigned len);
+				const struct dccp_hdr *dh, const unsigned int len);
 
 extern int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized);
 extern void dccp_destroy_sock(struct sock *sk);

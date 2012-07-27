@@ -421,6 +421,12 @@ static void pci_device_shutdown(struct device *dev)
 	pci_msix_shutdown(pci_dev);
 
 	/*
+	 * Turn off Bus Master bit on the device to tell it to not
+	 * continue to do DMA
+	 */
+	pci_disable_device(pci_dev);
+
+	/*
 	 * Devices may be enabled to wake up by runtime PM, but they need not
 	 * be supposed to wake up the system from its "power off" state (e.g.
 	 * ACPI S5).  Therefore disable wakeup for all devices that aren't
@@ -741,6 +747,18 @@ static int pci_pm_suspend_noirq(struct device *dev)
 	}
 
 	pci_pm_set_unknown_state(pci_dev);
+
+	/*
+	 * Some BIOSes from ASUS have a bug: If a USB EHCI host controller's
+	 * PCI COMMAND register isn't 0, the BIOS assumes that the controller
+	 * hasn't been quiesced and tries to turn it off.  If the controller
+	 * is already in D3, this can hang or cause memory corruption.
+	 *
+	 * Since the value of the COMMAND register doesn't matter once the
+	 * device has been suspended, we can safely set it to 0 here.
+	 */
+	if (pci_dev->class == PCI_CLASS_SERIAL_USB_EHCI)
+		pci_write_config_word(pci_dev, PCI_COMMAND, 0);
 
 	return 0;
 }

@@ -39,6 +39,8 @@ struct alps_data {
 	int prev_fin;			/* Finger bit from previous packet */
 	int multi_packet;		/* Multi-packet data in progress */
 	unsigned char multi_data[6];	/* Saved multi-packet data */
+	int x1, x2, y1, y2;		/* Coordinates from last MT report */
+	int fingers;			/* Number of fingers from MT report */
 	u8 quirks;
 	struct timer_list timer;
 };

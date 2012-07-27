@@ -6,7 +6,7 @@
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
- * Copyright 2004 Freescale Semiconductor, Inc
+ * Copyright 2004,2012 Freescale Semiconductor, Inc
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -16,6 +16,12 @@
 
 #ifndef _FSL_DEVICE_H_
 #define _FSL_DEVICE_H_
+
+#define FSL_UTMI_PHY_DLY	10	/*As per P1010RM, delay for UTMI
+				PHY CLK to become stable - 10ms*/
+#define FSL_USB_VER_OLD		0
+#define FSL_USB_VER_1_6		1
+#define FSL_USB_VER_2_2		2
 
 #include <linux/types.h>
 
@@ -63,6 +69,7 @@ struct platform_device;
 
 struct fsl_usb2_platform_data {
 	/* board specific information */
+	int				controller_ver;
 	enum fsl_usb2_operating_modes	operating_mode;
 	enum fsl_usb2_phy_modes		phy_mode;
 	unsigned int			port_enables;

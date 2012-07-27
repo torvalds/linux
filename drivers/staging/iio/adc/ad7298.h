@@ -38,7 +38,6 @@ struct ad7298_platform_data {
 struct ad7298_state {
 	struct spi_device		*spi;
 	struct regulator		*reg;
-	size_t				d_size;
 	u16				int_vref_mv;
 	unsigned			ext_ref;
 	struct spi_transfer		ring_xfer[10];

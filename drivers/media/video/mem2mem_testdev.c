@@ -40,7 +40,7 @@ MODULE_VERSION("0.1.1");
 #define MIN_H 32
 #define MAX_W 640
 #define MAX_H 480
-#define DIM_ALIGN_MASK 0x08 /* 8-alignment for dimensions */
+#define DIM_ALIGN_MASK 7 /* 8-byte alignment for line length */
 
 /* Flags that indicate a format can be used for capture/output */
 #define MEM2MEM_CAPTURE	(1 << 0)
@@ -109,22 +109,6 @@ enum {
 	V4L2_M2M_SRC = 0,
 	V4L2_M2M_DST = 1,
 };
-
-/* Source and destination queue data */
-static struct m2mtest_q_data q_data[2];
-
-static struct m2mtest_q_data *get_q_data(enum v4l2_buf_type type)
-{
-	switch (type) {
-	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-		return &q_data[V4L2_M2M_SRC];
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		return &q_data[V4L2_M2M_DST];
-	default:
-		BUG();
-	}
-	return NULL;
-}
 
 #define V4L2_CID_TRANS_TIME_MSEC	V4L2_CID_PRIVATE_BASE
 #define V4L2_CID_TRANS_NUM_BUFS		(V4L2_CID_PRIVATE_BASE + 1)
@@ -198,7 +182,25 @@ struct m2mtest_ctx {
 	int			aborting;
 
 	struct v4l2_m2m_ctx	*m2m_ctx;
+
+	/* Source and destination queue data */
+	struct m2mtest_q_data   q_data[2];
 };
+
+static struct m2mtest_q_data *get_q_data(struct m2mtest_ctx *ctx,
+					 enum v4l2_buf_type type)
+{
+	switch (type) {
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
+		return &ctx->q_data[V4L2_M2M_SRC];
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+		return &ctx->q_data[V4L2_M2M_DST];
+	default:
+		BUG();
+	}
+	return NULL;
+}
+
 
 static struct v4l2_queryctrl *get_ctrl(int id)
 {
@@ -223,7 +225,7 @@ static int device_process(struct m2mtest_ctx *ctx,
 	int tile_w, bytes_left;
 	int width, height, bytesperline;
 
-	q_data = get_q_data(V4L2_BUF_TYPE_VIDEO_OUTPUT);
+	q_data = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
 
 	width	= q_data->width;
 	height	= q_data->height;
@@ -436,7 +438,7 @@ static int vidioc_g_fmt(struct m2mtest_ctx *ctx, struct v4l2_format *f)
 	if (!vq)
 		return -EINVAL;
 
-	q_data = get_q_data(f->type);
+	q_data = get_q_data(ctx, f->type);
 
 	f->fmt.pix.width	= q_data->width;
 	f->fmt.pix.height	= q_data->height;
@@ -535,7 +537,7 @@ static int vidioc_s_fmt(struct m2mtest_ctx *ctx, struct v4l2_format *f)
 	if (!vq)
 		return -EINVAL;
 
-	q_data = get_q_data(f->type);
+	q_data = get_q_data(ctx, f->type);
 	if (!q_data)
 		return -EINVAL;
 
@@ -747,7 +749,7 @@ static int m2mtest_queue_setup(struct vb2_queue *vq,
 	struct m2mtest_q_data *q_data;
 	unsigned int size, count = *nbuffers;
 
-	q_data = get_q_data(vq->type);
+	q_data = get_q_data(ctx, vq->type);
 
 	size = q_data->width * q_data->height * q_data->fmt->depth >> 3;
 
@@ -775,7 +777,7 @@ static int m2mtest_buf_prepare(struct vb2_buffer *vb)
 
 	dprintk(ctx->dev, "type: %d\n", vb->vb2_queue->type);
 
-	q_data = get_q_data(vb->vb2_queue->type);
+	q_data = get_q_data(ctx, vb->vb2_queue->type);
 
 	if (vb2_plane_size(vb, 0) < q_data->sizeimage) {
 		dprintk(ctx->dev, "%s data will not fit into plane (%lu < %lu)\n",
@@ -859,6 +861,9 @@ static int m2mtest_open(struct file *file)
 	ctx->translen = MEM2MEM_DEF_TRANSLEN;
 	ctx->transtime = MEM2MEM_DEF_TRANSTIME;
 	ctx->num_processed = 0;
+
+	ctx->q_data[V4L2_M2M_SRC].fmt = &formats[0];
+	ctx->q_data[V4L2_M2M_DST].fmt = &formats[0];
 
 	ctx->m2m_ctx = v4l2_m2m_ctx_init(dev->m2m_dev, ctx, &queue_init);
 
@@ -958,6 +963,10 @@ static int m2mtest_probe(struct platform_device *pdev)
 	}
 
 	*vfd = m2mtest_videodev;
+	/* Locking in file operations other than ioctl should be done
+	   by the driver, not the V4L2 core.
+	   This driver needs auditing so that this flag can be removed. */
+	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 	vfd->lock = &dev->dev_mutex;
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
@@ -981,9 +990,6 @@ static int m2mtest_probe(struct platform_device *pdev)
 		ret = PTR_ERR(dev->m2m_dev);
 		goto err_m2m;
 	}
-
-	q_data[V4L2_M2M_SRC].fmt = &formats[0];
-	q_data[V4L2_M2M_DST].fmt = &formats[0];
 
 	return 0;
 

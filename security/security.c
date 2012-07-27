@@ -20,6 +20,10 @@
 #include <linux/ima.h>
 #include <linux/evm.h>
 #include <linux/fsnotify.h>
+#include <linux/mman.h>
+#include <linux/mount.h>
+#include <linux/personality.h>
+#include <linux/backing-dev.h>
 #include <net/flow.h>
 
 #define MAX_LSM_EVM_XATTR	2
@@ -657,16 +661,54 @@ int security_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return security_ops->file_ioctl(file, cmd, arg);
 }
 
-int security_file_mmap(struct file *file, unsigned long reqprot,
-			unsigned long prot, unsigned long flags,
-			unsigned long addr, unsigned long addr_only)
+static inline unsigned long mmap_prot(struct file *file, unsigned long prot)
+{
+	/*
+	 * Does we have PROT_READ and does the application expect
+	 * it to imply PROT_EXEC?  If not, nothing to talk about...
+	 */
+	if ((prot & (PROT_READ | PROT_EXEC)) != PROT_READ)
+		return prot;
+	if (!(current->personality & READ_IMPLIES_EXEC))
+		return prot;
+	/*
+	 * if that's an anonymous mapping, let it.
+	 */
+	if (!file)
+		return prot | PROT_EXEC;
+	/*
+	 * ditto if it's not on noexec mount, except that on !MMU we need
+	 * BDI_CAP_EXEC_MMAP (== VM_MAYEXEC) in this case
+	 */
+	if (!(file->f_path.mnt->mnt_flags & MNT_NOEXEC)) {
+#ifndef CONFIG_MMU
+		unsigned long caps = 0;
+		struct address_space *mapping = file->f_mapping;
+		if (mapping && mapping->backing_dev_info)
+			caps = mapping->backing_dev_info->capabilities;
+		if (!(caps & BDI_CAP_EXEC_MAP))
+			return prot;
+#endif
+		return prot | PROT_EXEC;
+	}
+	/* anything on noexec mount won't get PROT_EXEC */
+	return prot;
+}
+
+int security_mmap_file(struct file *file, unsigned long prot,
+			unsigned long flags)
 {
 	int ret;
-
-	ret = security_ops->file_mmap(file, reqprot, prot, flags, addr, addr_only);
+	ret = security_ops->mmap_file(file, prot,
+					mmap_prot(file, prot), flags);
 	if (ret)
 		return ret;
 	return ima_file_mmap(file, prot);
+}
+
+int security_mmap_addr(unsigned long addr)
+{
+	return security_ops->mmap_addr(addr);
 }
 
 int security_file_mprotect(struct vm_area_struct *vma, unsigned long reqprot,
@@ -701,11 +743,11 @@ int security_file_receive(struct file *file)
 	return security_ops->file_receive(file);
 }
 
-int security_dentry_open(struct file *file, const struct cred *cred)
+int security_file_open(struct file *file, const struct cred *cred)
 {
 	int ret;
 
-	ret = security_ops->dentry_open(file, cred);
+	ret = security_ops->file_open(file, cred);
 	if (ret)
 		return ret;
 

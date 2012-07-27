@@ -1630,6 +1630,7 @@ static int copy_from_read_buf(struct tty_struct *tty,
 	int retval;
 	size_t n;
 	unsigned long flags;
+	bool is_eof;
 
 	retval = 0;
 	spin_lock_irqsave(&tty->read_lock, flags);
@@ -1639,15 +1640,15 @@ static int copy_from_read_buf(struct tty_struct *tty,
 	if (n) {
 		retval = copy_to_user(*b, &tty->read_buf[tty->read_tail], n);
 		n -= retval;
+		is_eof = n == 1 &&
+			tty->read_buf[tty->read_tail] == EOF_CHAR(tty);
 		tty_audit_add_data(tty, &tty->read_buf[tty->read_tail], n);
 		spin_lock_irqsave(&tty->read_lock, flags);
 		tty->read_tail = (tty->read_tail + n) & (N_TTY_BUF_SIZE-1);
 		tty->read_cnt -= n;
 		/* Turn single EOF into zero-length read */
-		if (L_EXTPROC(tty) && tty->icanon && n == 1) {
-			if (!tty->read_cnt && (*b)[n-1] == EOF_CHAR(tty))
-				n--;
-		}
+		if (L_EXTPROC(tty) && tty->icanon && is_eof && !tty->read_cnt)
+			n = 0;
 		spin_unlock_irqrestore(&tty->read_lock, flags);
 		*b += n;
 		*nr -= n;

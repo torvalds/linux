@@ -772,6 +772,23 @@ struct device_type i2c_adapter_type = {
 };
 EXPORT_SYMBOL_GPL(i2c_adapter_type);
 
+/**
+ * i2c_verify_adapter - return parameter as i2c_adapter or NULL
+ * @dev: device, probably from some driver model iterator
+ *
+ * When traversing the driver model tree, perhaps using driver model
+ * iterators like @device_for_each_child(), you can't assume very much
+ * about the nodes you find.  Use this function to avoid oopses caused
+ * by wrongly treating some non-I2C device as an i2c_adapter.
+ */
+struct i2c_adapter *i2c_verify_adapter(struct device *dev)
+{
+	return (dev->type == &i2c_adapter_type)
+			? to_i2c_adapter(dev)
+			: NULL;
+}
+EXPORT_SYMBOL(i2c_verify_adapter);
+
 #ifdef CONFIG_I2C_COMPAT
 static struct class_compat *i2c_adapter_compat_class;
 #endif

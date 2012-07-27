@@ -107,7 +107,8 @@ while [ "$1" != "" ] ; do
 		;;
 
 	--set-str)
-		set_var "CONFIG_$ARG" "CONFIG_$ARG=\"$1\""
+		# sed swallows one level of escaping, so we need double-escaping
+		set_var "CONFIG_$ARG" "CONFIG_$ARG=\"${1//\"/\\\\\"}\""
 		shift
 		;;
 
@@ -124,9 +125,11 @@ while [ "$1" != "" ] ; do
 			if [ $? != 0 ] ; then
 				echo undef
 			else
-				V="${V/CONFIG_$ARG=/}"
-				V="${V/\"/}"
-				echo "$V"
+				V="${V/#CONFIG_$ARG=/}"
+				V="${V/#\"/}"
+				V="${V/%\"/}"
+				V="${V/\\\"/\"}"
+				echo "${V}"
 			fi
 		fi
 		;;

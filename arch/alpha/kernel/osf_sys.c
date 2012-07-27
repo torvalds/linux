@@ -191,6 +191,39 @@ SYSCALL_DEFINE6(osf_mmap, unsigned long, addr, unsigned long, len,
 	return ret;
 }
 
+struct osf_stat {
+	int		st_dev;
+	int		st_pad1;
+	unsigned	st_mode;
+	unsigned short	st_nlink;
+	short		st_nlink_reserved;
+	unsigned	st_uid;
+	unsigned	st_gid;
+	int		st_rdev;
+	int		st_ldev;
+	long		st_size;
+	int		st_pad2;
+	int		st_uatime;
+	int		st_pad3;
+	int		st_umtime;
+	int		st_pad4;
+	int		st_uctime;
+	int		st_pad5;
+	int		st_pad6;
+	unsigned	st_flags;
+	unsigned	st_gen;
+	long		st_spare[4];
+	unsigned	st_ino;
+	int		st_ino_reserved;
+	int		st_atime;
+	int		st_atime_reserved;
+	int		st_mtime;
+	int		st_mtime_reserved;
+	int		st_ctime;
+	int		st_ctime_reserved;
+	long		st_blksize;
+	long		st_blocks;
+};
 
 /*
  * The OSF/1 statfs structure is much larger, but this should
@@ -209,6 +242,60 @@ struct osf_statfs {
 	__kernel_fsid_t f_fsid;
 };
 
+struct osf_statfs64 {
+	short f_type;
+	short f_flags;
+	int f_pad1;
+	int f_pad2;
+	int f_pad3;
+	int f_pad4;
+	int f_pad5;
+	int f_pad6;
+	int f_pad7;
+	__kernel_fsid_t f_fsid;
+	u_short f_namemax;
+	short f_reserved1;
+	int f_spare[8];
+	char f_pad8[90];
+	char f_pad9[90];
+	long mount_info[10];
+	u_long f_flags2;
+	long f_spare2[14];
+	long f_fsize;
+	long f_bsize;
+	long f_blocks;
+	long f_bfree;
+	long f_bavail;
+	long f_files;
+	long f_ffree;
+};
+
+static int
+linux_to_osf_stat(struct kstat *lstat, struct osf_stat __user *osf_stat)
+{
+	struct osf_stat tmp = { 0 };
+
+	tmp.st_dev	= lstat->dev;
+	tmp.st_mode	= lstat->mode;
+	tmp.st_nlink	= lstat->nlink;
+	tmp.st_uid	= lstat->uid;
+	tmp.st_gid	= lstat->gid;
+	tmp.st_rdev	= lstat->rdev;
+	tmp.st_ldev	= lstat->rdev;
+	tmp.st_size	= lstat->size;
+	tmp.st_uatime	= lstat->atime.tv_nsec / 1000;
+	tmp.st_umtime	= lstat->mtime.tv_nsec / 1000;
+	tmp.st_uctime	= lstat->ctime.tv_nsec / 1000;
+	tmp.st_ino	= lstat->ino;
+	tmp.st_atime	= lstat->atime.tv_sec;
+	tmp.st_mtime	= lstat->mtime.tv_sec;
+	tmp.st_ctime	= lstat->ctime.tv_sec;
+	tmp.st_blksize	= lstat->blksize;
+	tmp.st_blocks	= lstat->blocks;
+
+	return copy_to_user(osf_stat, &tmp, sizeof(tmp)) ? -EFAULT : 0;
+}
+
 static int
 linux_to_osf_statfs(struct kstatfs *linux_stat, struct osf_statfs __user *osf_stat,
 		    unsigned long bufsiz)
@@ -217,6 +304,26 @@ linux_to_osf_statfs(struct kstatfs *linux_stat, struct osf_statfs __user *osf_st
 
 	tmp_stat.f_type = linux_stat->f_type;
 	tmp_stat.f_flags = 0;	/* mount flags */
+	tmp_stat.f_fsize = linux_stat->f_frsize;
+	tmp_stat.f_bsize = linux_stat->f_bsize;
+	tmp_stat.f_blocks = linux_stat->f_blocks;
+	tmp_stat.f_bfree = linux_stat->f_bfree;
+	tmp_stat.f_bavail = linux_stat->f_bavail;
+	tmp_stat.f_files = linux_stat->f_files;
+	tmp_stat.f_ffree = linux_stat->f_ffree;
+	tmp_stat.f_fsid = linux_stat->f_fsid;
+	if (bufsiz > sizeof(tmp_stat))
+		bufsiz = sizeof(tmp_stat);
+	return copy_to_user(osf_stat, &tmp_stat, bufsiz) ? -EFAULT : 0;
+}
+
+static int
+linux_to_osf_statfs64(struct kstatfs *linux_stat, struct osf_statfs64 __user *osf_stat,
+		      unsigned long bufsiz)
+{
+	struct osf_statfs64 tmp_stat = { 0 };
+
+	tmp_stat.f_type = linux_stat->f_type;
 	tmp_stat.f_fsize = linux_stat->f_frsize;
 	tmp_stat.f_bsize = linux_stat->f_bsize;
 	tmp_stat.f_blocks = linux_stat->f_blocks;
@@ -240,6 +347,42 @@ SYSCALL_DEFINE3(osf_statfs, const char __user *, pathname,
 	return error;	
 }
 
+SYSCALL_DEFINE2(osf_stat, char __user *, name, struct osf_stat __user *, buf)
+{
+	struct kstat stat;
+	int error;
+
+	error = vfs_stat(name, &stat);
+	if (error)
+		return error;
+
+	return linux_to_osf_stat(&stat, buf);
+}
+
+SYSCALL_DEFINE2(osf_lstat, char __user *, name, struct osf_stat __user *, buf)
+{
+	struct kstat stat;
+	int error;
+
+	error = vfs_lstat(name, &stat);
+	if (error)
+		return error;
+
+	return linux_to_osf_stat(&stat, buf);
+}
+
+SYSCALL_DEFINE2(osf_fstat, int, fd, struct osf_stat __user *, buf)
+{
+	struct kstat stat;
+	int error;
+
+	error = vfs_fstat(fd, &stat);
+	if (error)
+		return error;
+
+	return linux_to_osf_stat(&stat, buf);
+}
+
 SYSCALL_DEFINE3(osf_fstatfs, unsigned long, fd,
 		struct osf_statfs __user *, buffer, unsigned long, bufsiz)
 {
@@ -247,6 +390,26 @@ SYSCALL_DEFINE3(osf_fstatfs, unsigned long, fd,
 	int error = fd_statfs(fd, &linux_stat);
 	if (!error)
 		error = linux_to_osf_statfs(&linux_stat, buffer, bufsiz);
+	return error;
+}
+
+SYSCALL_DEFINE3(osf_statfs64, char __user *, pathname,
+		struct osf_statfs64 __user *, buffer, unsigned long, bufsiz)
+{
+	struct kstatfs linux_stat;
+	int error = user_statfs(pathname, &linux_stat);
+	if (!error)
+		error = linux_to_osf_statfs64(&linux_stat, buffer, bufsiz);
+	return error;
+}
+
+SYSCALL_DEFINE3(osf_fstatfs64, unsigned long, fd,
+		struct osf_statfs64 __user *, buffer, unsigned long, bufsiz)
+{
+	struct kstatfs linux_stat;
+	int error = fd_statfs(fd, &linux_stat);
+	if (!error)
+		error = linux_to_osf_statfs64(&linux_stat, buffer, bufsiz);
 	return error;
 }
 
@@ -771,6 +934,9 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
  		return 0;
 	}
  
+	case SSI_LMF:
+		return 0;
+
 	default:
 		break;
 	}

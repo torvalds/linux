@@ -24,8 +24,8 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
+#include <linux/clk.h>
 #include <mach/bridge-regs.h>
-#include <plat/orion_wdt.h>
 
 /*
  * Watchdog timer block registers.
@@ -41,6 +41,7 @@
 static bool nowayout = WATCHDOG_NOWAYOUT;
 static int heartbeat = -1;		/* module parameter (seconds) */
 static unsigned int wdt_max_duration;	/* (seconds) */
+static struct clk *clk;
 static unsigned int wdt_tclk;
 static void __iomem *wdt_reg;
 static unsigned long wdt_status;
@@ -237,16 +238,16 @@ static struct miscdevice orion_wdt_miscdev = {
 
 static int __devinit orion_wdt_probe(struct platform_device *pdev)
 {
-	struct orion_wdt_platform_data *pdata = pdev->dev.platform_data;
 	struct resource *res;
 	int ret;
 
-	if (pdata) {
-		wdt_tclk = pdata->tclk;
-	} else {
-		pr_err("misses platform data\n");
+	clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(clk)) {
+		printk(KERN_ERR "Orion Watchdog missing clock\n");
 		return -ENODEV;
 	}
+	clk_prepare_enable(clk);
+	wdt_tclk = clk_get_rate(clk);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
@@ -281,6 +282,9 @@ static int __devexit orion_wdt_remove(struct platform_device *pdev)
 	ret = misc_deregister(&orion_wdt_miscdev);
 	if (!ret)
 		orion_wdt_miscdev.parent = NULL;
+
+	clk_disable_unprepare(clk);
+	clk_put(clk);
 
 	return ret;
 }

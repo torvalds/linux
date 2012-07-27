@@ -1,7 +1,7 @@
 /*
  * bnx2i_iscsi.c: Broadcom NetXtreme II iSCSI driver.
  *
- * Copyright (c) 2006 - 2011 Broadcom Corporation
+ * Copyright (c) 2006 - 2012 Broadcom Corporation
  * Copyright (c) 2007, 2008 Red Hat, Inc.  All rights reserved.
  * Copyright (c) 2007, 2008 Mike Christie
  *
@@ -811,13 +811,13 @@ struct bnx2i_hba *bnx2i_alloc_hba(struct cnic_dev *cnic)
 	bnx2i_identify_device(hba);
 	bnx2i_setup_host_queue_size(hba, shost);
 
+	hba->reg_base = pci_resource_start(hba->pcidev, 0);
 	if (test_bit(BNX2I_NX2_DEV_5709, &hba->cnic_dev_type)) {
-		hba->regview = ioremap_nocache(hba->netdev->base_addr,
-					       BNX2_MQ_CONFIG2);
+		hba->regview = pci_iomap(hba->pcidev, 0, BNX2_MQ_CONFIG2);
 		if (!hba->regview)
 			goto ioreg_map_err;
 	} else if (test_bit(BNX2I_NX2_DEV_57710, &hba->cnic_dev_type)) {
-		hba->regview = ioremap_nocache(hba->netdev->base_addr, 4096);
+		hba->regview = pci_iomap(hba->pcidev, 0, 4096);
 		if (!hba->regview)
 			goto ioreg_map_err;
 	}
@@ -884,7 +884,7 @@ cid_que_err:
 	bnx2i_free_mp_bdt(hba);
 mp_bdt_mem_err:
 	if (hba->regview) {
-		iounmap(hba->regview);
+		pci_iounmap(hba->pcidev, hba->regview);
 		hba->regview = NULL;
 	}
 ioreg_map_err:
@@ -910,7 +910,7 @@ void bnx2i_free_hba(struct bnx2i_hba *hba)
 	pci_dev_put(hba->pcidev);
 
 	if (hba->regview) {
-		iounmap(hba->regview);
+		pci_iounmap(hba->pcidev, hba->regview);
 		hba->regview = NULL;
 	}
 	bnx2i_free_mp_bdt(hba);
@@ -2244,6 +2244,7 @@ static struct scsi_host_template bnx2i_host_template = {
 	.eh_device_reset_handler = iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_recover_target,
 	.change_queue_depth	= iscsi_change_queue_depth,
+	.target_alloc		= iscsi_target_alloc,
 	.can_queue		= 2048,
 	.max_sectors		= 127,
 	.cmd_per_lun		= 128,

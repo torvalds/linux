@@ -63,7 +63,6 @@
 #define __iwl_calib_h__
 
 #include "iwl-dev.h"
-#include "iwl-core.h"
 #include "iwl-commands.h"
 
 void iwl_chain_noise_calibration(struct iwl_priv *priv);

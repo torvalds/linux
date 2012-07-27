@@ -29,15 +29,17 @@
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/iommu.h>
+#include <linux/of.h>
 
 #include <asm/cacheflush.h>
 
 /* bitmap of the page sizes currently supported */
 #define GART_IOMMU_PGSIZES	(SZ_4K)
 
-#define GART_CONFIG		0x24
-#define GART_ENTRY_ADDR		0x28
-#define GART_ENTRY_DATA		0x2c
+#define GART_REG_BASE		0x24
+#define GART_CONFIG		(0x24 - GART_REG_BASE)
+#define GART_ENTRY_ADDR		(0x28 - GART_REG_BASE)
+#define GART_ENTRY_DATA		(0x2c - GART_REG_BASE)
 #define GART_ENTRY_PHYS_ADDR_VALID	(1 << 31)
 
 #define GART_PAGE_SHIFT		12
@@ -158,7 +160,7 @@ static int gart_iommu_attach_dev(struct iommu_domain *domain,
 	struct gart_client *client, *c;
 	int err = 0;
 
-	gart = dev_get_drvdata(dev->parent);
+	gart = gart_handle;
 	if (!gart)
 		return -EINVAL;
 	domain->priv = gart;
@@ -422,6 +424,14 @@ const struct dev_pm_ops tegra_gart_pm_ops = {
 	.resume		= tegra_gart_resume,
 };
 
+#ifdef CONFIG_OF
+static struct of_device_id tegra_gart_of_match[] __devinitdata = {
+	{ .compatible = "nvidia,tegra20-gart", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, tegra_gart_of_match);
+#endif
+
 static struct platform_driver tegra_gart_driver = {
 	.probe		= tegra_gart_probe,
 	.remove		= tegra_gart_remove,
@@ -429,6 +439,7 @@ static struct platform_driver tegra_gart_driver = {
 		.owner	= THIS_MODULE,
 		.name	= "tegra-gart",
 		.pm	= &tegra_gart_pm_ops,
+		.of_match_table = of_match_ptr(tegra_gart_of_match),
 	},
 };
 
@@ -448,4 +459,5 @@ module_exit(tegra_gart_exit);
 
 MODULE_DESCRIPTION("IOMMU API for GART in Tegra20");
 MODULE_AUTHOR("Hiroshi DOYU <hdoyu@nvidia.com>");
+MODULE_ALIAS("platform:tegra-gart");
 MODULE_LICENSE("GPL v2");

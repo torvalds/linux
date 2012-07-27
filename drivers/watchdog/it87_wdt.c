@@ -12,7 +12,8 @@
  *		    http://www.ite.com.tw/
  *
  *	Support of the watchdog timers, which are available on
- *	IT8702, IT8712, IT8716, IT8718, IT8720, IT8721 and IT8726.
+ *	IT8702, IT8712, IT8716, IT8718, IT8720, IT8721, IT8726
+ *	and IT8728.
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -84,6 +85,7 @@
 #define IT8720_ID	0x8720
 #define IT8721_ID	0x8721
 #define IT8726_ID	0x8726	/* the data sheet suggest wrongly 0x8716 */
+#define IT8728_ID	0x8728
 
 /* GPIO Configuration Registers LDN=0x07 */
 #define WDTCTRL		0x71
@@ -95,7 +97,7 @@
 #define WDT_CIRINT	0x80
 #define WDT_MOUSEINT	0x40
 #define WDT_KYBINT	0x20
-#define WDT_GAMEPORT	0x10 /* not in it8718, it8720, it8721 */
+#define WDT_GAMEPORT	0x10 /* not in it8718, it8720, it8721, it8728 */
 #define WDT_FORCE	0x02
 #define WDT_ZERO	0x01
 
@@ -616,6 +618,7 @@ static int __init it87_wdt_init(void)
 	case IT8718_ID:
 	case IT8720_ID:
 	case IT8721_ID:
+	case IT8728_ID:
 		max_units = 65535;
 		try_gameport = 0;
 		break;

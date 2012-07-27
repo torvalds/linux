@@ -141,6 +141,5 @@ static void __init init_polaris_irq(void)
 
 static struct sh_machine_vector mv_polaris __initmv = {
 	.mv_name		= "Polaris",
-	.mv_nr_irqs		= 61,
 	.mv_init_irq		= init_polaris_irq,
 };

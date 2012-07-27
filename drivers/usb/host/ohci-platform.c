@@ -93,13 +93,13 @@ static int __devinit ohci_platform_probe(struct platform_device *dev)
 
 	irq = platform_get_irq(dev, 0);
 	if (irq < 0) {
-		pr_err("no irq provieded");
+		pr_err("no irq provided");
 		return irq;
 	}
 
 	res_mem = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!res_mem) {
-		pr_err("no memory recourse provieded");
+		pr_err("no memory recourse provided");
 		return -ENXIO;
 	}
 

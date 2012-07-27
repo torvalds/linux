@@ -37,8 +37,6 @@
 #define MXS_MODULE_CLKGATE		(1 << 30)
 #define MXS_MODULE_SFTRST		(1 << 31)
 
-#define CLKCTRL_TIMEOUT		10	/* 10 ms */
-
 static void __iomem *mxs_clkctrl_reset_addr;
 
 /*
@@ -139,17 +137,3 @@ error:
 	return -ETIMEDOUT;
 }
 EXPORT_SYMBOL(mxs_reset_block);
-
-int mxs_clkctrl_timeout(unsigned int reg_offset, unsigned int mask)
-{
-	unsigned long timeout = jiffies + msecs_to_jiffies(CLKCTRL_TIMEOUT);
-	while (readl_relaxed(MXS_IO_ADDRESS(MXS_CLKCTRL_BASE_ADDR)
-						+ reg_offset) & mask) {
-		if (time_after(jiffies, timeout)) {
-			pr_err("Timeout at CLKCTRL + 0x%x\n", reg_offset);
-			return -ETIMEDOUT;
-		}
-	}
-
-	return 0;
-}

@@ -37,6 +37,15 @@
 #define EVERGREEN_MAX_PIPES_MASK        0xFF
 #define EVERGREEN_MAX_LDS_NUM           0xFFFF
 
+#define CYPRESS_GB_ADDR_CONFIG_GOLDEN        0x02011003
+#define BARTS_GB_ADDR_CONFIG_GOLDEN          0x02011003
+#define CAYMAN_GB_ADDR_CONFIG_GOLDEN         0x02011003
+#define JUNIPER_GB_ADDR_CONFIG_GOLDEN        0x02010002
+#define REDWOOD_GB_ADDR_CONFIG_GOLDEN        0x02010002
+#define TURKS_GB_ADDR_CONFIG_GOLDEN          0x02010002
+#define CEDAR_GB_ADDR_CONFIG_GOLDEN          0x02010001
+#define CAICOS_GB_ADDR_CONFIG_GOLDEN         0x02010001
+
 /* Registers */
 
 #define RCU_IND_INDEX           			0x100
@@ -54,6 +63,7 @@
 #define		BACKEND_DISABLE(x)     			((x) << 16)
 #define GB_ADDR_CONFIG  				0x98F8
 #define		NUM_PIPES(x)				((x) << 0)
+#define		NUM_PIPES_MASK				0x0000000f
 #define		PIPE_INTERLEAVE_SIZE(x)			((x) << 4)
 #define		BANK_INTERLEAVE_SIZE(x)			((x) << 8)
 #define		NUM_SHADER_ENGINES(x)			((x) << 12)
@@ -78,6 +88,10 @@
 #define	CONFIG_MEMSIZE					0x5428
 
 #define	CP_COHER_BASE					0x85F8
+#define	CP_STALLED_STAT1			0x8674
+#define	CP_STALLED_STAT2			0x8678
+#define	CP_BUSY_STAT				0x867C
+#define	CP_STAT						0x8680
 #define CP_ME_CNTL					0x86D8
 #define		CP_ME_HALT					(1 << 28)
 #define		CP_PFP_HALT					(1 << 26)
@@ -452,6 +466,7 @@
 #define	MC_VM_MD_L1_TLB0_CNTL				0x2654
 #define	MC_VM_MD_L1_TLB1_CNTL				0x2658
 #define	MC_VM_MD_L1_TLB2_CNTL				0x265C
+#define	MC_VM_MD_L1_TLB3_CNTL				0x2698
 
 #define	FUS_MC_VM_MD_L1_TLB0_CNTL			0x265C
 #define	FUS_MC_VM_MD_L1_TLB1_CNTL			0x2660
@@ -492,6 +507,7 @@
 #define	SCRATCH_UMSK					0x8540
 #define	SCRATCH_ADDR					0x8544
 
+#define	SMX_SAR_CTL0					0xA008
 #define	SMX_DC_CTL0					0xA020
 #define		USE_HASH_FUNCTION				(1 << 0)
 #define		NUMBER_OF_SETS(x)				((x) << 1)

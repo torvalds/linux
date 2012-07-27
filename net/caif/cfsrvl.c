@@ -11,6 +11,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/pkt_sched.h>
 #include <net/caif/caif_layer.h>
 #include <net/caif/cfsrvl.h>
 #include <net/caif/cfpkt.h>
@@ -120,6 +121,7 @@ static int cfservl_modemcmd(struct cflayer *layr, enum caif_modemcmd ctrl)
 			info->channel_id = service->layer.id;
 			info->hdr_len = 1;
 			info->dev_info = &service->dev_info;
+			cfpkt_set_prio(pkt, TC_PRIO_CONTROL);
 			return layr->dn->transmit(layr->dn, pkt);
 		}
 	case CAIF_MODEMCMD_FLOW_OFF_REQ:
@@ -140,6 +142,7 @@ static int cfservl_modemcmd(struct cflayer *layr, enum caif_modemcmd ctrl)
 			info->channel_id = service->layer.id;
 			info->hdr_len = 1;
 			info->dev_info = &service->dev_info;
+			cfpkt_set_prio(pkt, TC_PRIO_CONTROL);
 			return layr->dn->transmit(layr->dn, pkt);
 		}
 	default:

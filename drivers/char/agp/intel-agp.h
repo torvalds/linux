@@ -212,6 +212,7 @@
 #define PCI_DEVICE_ID_INTEL_G41_HB          0x2E30
 #define PCI_DEVICE_ID_INTEL_G41_IG          0x2E32
 #define PCI_DEVICE_ID_INTEL_IRONLAKE_D_HB	    0x0040
+#define PCI_DEVICE_ID_INTEL_IRONLAKE_D2_HB	    0x0069
 #define PCI_DEVICE_ID_INTEL_IRONLAKE_D_IG	    0x0042
 #define PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB	    0x0044
 #define PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB	    0x0062
@@ -250,7 +251,4 @@
 #define PCI_DEVICE_ID_INTEL_HASWELL_SDV		0x0c16 /* SDV */
 #define PCI_DEVICE_ID_INTEL_HASWELL_E_HB			0x0c04
 
-int intel_gmch_probe(struct pci_dev *pdev,
-			       struct agp_bridge_data *bridge);
-void intel_gmch_remove(struct pci_dev *pdev);
 #endif

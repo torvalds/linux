@@ -1297,6 +1297,7 @@ static struct usb_driver smsc95xx_driver = {
 	.suspend	= usbnet_suspend,
 	.resume		= usbnet_resume,
 	.disconnect	= usbnet_disconnect,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(smsc95xx_driver);

@@ -210,7 +210,7 @@ EXPORT_SYMBOL(drm_master_put);
 int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
-	int ret = 0;
+	int ret;
 
 	if (file_priv->is_master)
 		return 0;

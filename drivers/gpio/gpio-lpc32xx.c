@@ -21,6 +21,9 @@
 #include <linux/io.h>
 #include <linux/errno.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
+#include <linux/platform_device.h>
+#include <linux/module.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -454,10 +457,57 @@ static struct lpc32xx_gpio_chip lpc32xx_gpiochip[] = {
 	},
 };
 
+/* Empty now, can be removed later when mach-lpc32xx is finally switched over
+ * to DT support
+ */
 void __init lpc32xx_gpio_init(void)
+{
+}
+
+static int lpc32xx_of_xlate(struct gpio_chip *gc,
+			    const struct of_phandle_args *gpiospec, u32 *flags)
+{
+	/* Is this the correct bank? */
+	u32 bank = gpiospec->args[0];
+	if ((bank > ARRAY_SIZE(lpc32xx_gpiochip) ||
+	    (gc != &lpc32xx_gpiochip[bank].chip)))
+		return -EINVAL;
+
+	if (flags)
+		*flags = gpiospec->args[2];
+	return gpiospec->args[1];
+}
+
+static int __devinit lpc32xx_gpio_probe(struct platform_device *pdev)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(lpc32xx_gpiochip); i++)
+	for (i = 0; i < ARRAY_SIZE(lpc32xx_gpiochip); i++) {
+		if (pdev->dev.of_node) {
+			lpc32xx_gpiochip[i].chip.of_xlate = lpc32xx_of_xlate;
+			lpc32xx_gpiochip[i].chip.of_gpio_n_cells = 3;
+			lpc32xx_gpiochip[i].chip.of_node = pdev->dev.of_node;
+		}
 		gpiochip_add(&lpc32xx_gpiochip[i].chip);
+	}
+
+	return 0;
 }
+
+#ifdef CONFIG_OF
+static struct of_device_id lpc32xx_gpio_of_match[] __devinitdata = {
+	{ .compatible = "nxp,lpc3220-gpio", },
+	{ },
+};
+#endif
+
+static struct platform_driver lpc32xx_gpio_driver = {
+	.driver		= {
+		.name	= "lpc32xx-gpio",
+		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(lpc32xx_gpio_of_match),
+	},
+	.probe		= lpc32xx_gpio_probe,
+};
+
+module_platform_driver(lpc32xx_gpio_driver);

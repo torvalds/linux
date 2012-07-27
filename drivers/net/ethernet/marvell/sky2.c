@@ -4381,10 +4381,12 @@ static int sky2_set_features(struct net_device *dev, netdev_features_t features)
 	struct sky2_port *sky2 = netdev_priv(dev);
 	netdev_features_t changed = dev->features ^ features;
 
-	if (changed & NETIF_F_RXCSUM) {
-		bool on = features & NETIF_F_RXCSUM;
-		sky2_write32(sky2->hw, Q_ADDR(rxqaddr[sky2->port], Q_CSR),
-			     on ? BMU_ENA_RX_CHKSUM : BMU_DIS_RX_CHKSUM);
+	if ((changed & NETIF_F_RXCSUM) &&
+	    !(sky2->hw->flags & SKY2_HW_NEW_LE)) {
+		sky2_write32(sky2->hw,
+			     Q_ADDR(rxqaddr[sky2->port], Q_CSR),
+			     (features & NETIF_F_RXCSUM)
+			     ? BMU_ENA_RX_CHKSUM : BMU_DIS_RX_CHKSUM);
 	}
 
 	if (changed & NETIF_F_RXHASH)
@@ -4825,13 +4827,13 @@ static int __devinit sky2_test_msi(struct sky2_hw *hw)
 
 	init_waitqueue_head(&hw->msi_wait);
 
-	sky2_write32(hw, B0_IMSK, Y2_IS_IRQ_SW);
-
 	err = request_irq(pdev->irq, sky2_test_intr, 0, DRV_NAME, hw);
 	if (err) {
 		dev_err(&pdev->dev, "cannot assign irq %d\n", pdev->irq);
 		return err;
 	}
+
+	sky2_write32(hw, B0_IMSK, Y2_IS_IRQ_SW);
 
 	sky2_write8(hw, B0_CTST, CS_ST_SW_IRQ);
 	sky2_read8(hw, B0_CTST);

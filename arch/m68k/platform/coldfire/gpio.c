@@ -122,6 +122,10 @@ struct bus_type mcf_gpio_subsys = {
 
 static int __init mcf_gpio_sysinit(void)
 {
+	unsigned int i = 0;
+
+	while (i < mcf_gpio_chips_size)
+		gpiochip_add((struct gpio_chip *)&mcf_gpio_chips[i++]);
 	return subsys_system_register(&mcf_gpio_subsys, NULL);
 }
 

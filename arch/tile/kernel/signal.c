@@ -37,8 +37,6 @@
 
 #define DEBUG_SIG 0
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 SYSCALL_DEFINE3(sigaltstack, const stack_t __user *, uss,
 		stack_t __user *, uoss, struct pt_regs *, regs)
 {
@@ -96,7 +94,6 @@ SYSCALL_DEFINE1(rt_sigreturn, struct pt_regs *, regs)
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))
@@ -242,10 +239,11 @@ give_sigsegv:
  * OK, we're invoking a handler
  */
 
-static int handle_signal(unsigned long sig, siginfo_t *info,
-			 struct k_sigaction *ka, sigset_t *oldset,
+static void handle_signal(unsigned long sig, siginfo_t *info,
+			 struct k_sigaction *ka,
 			 struct pt_regs *regs)
 {
+	sigset_t *oldset = sigmask_to_save();
 	int ret;
 
 	/* Are we from a system call? */
@@ -278,15 +276,9 @@ static int handle_signal(unsigned long sig, siginfo_t *info,
 	else
 #endif
 		ret = setup_rt_frame(sig, ka, info, oldset, regs);
-	if (ret == 0) {
-		/* This code is only called from system calls or from
-		 * the work_pending path in the return-to-user code, and
-		 * either way we can re-enable interrupts unconditionally.
-		 */
-		block_sigmask(ka, sig);
-	}
-
-	return ret;
+	if (ret)
+		return;
+	signal_delivered(sig, info, ka, regs, 0);
 }
 
 /*
@@ -299,7 +291,6 @@ void do_signal(struct pt_regs *regs)
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
-	sigset_t *oldset;
 
 	/*
 	 * i386 will check if we're coming from kernel mode and bail out
@@ -308,24 +299,10 @@ void do_signal(struct pt_regs *regs)
 	 * helpful, we can reinstate the check on "!user_mode(regs)".
 	 */
 
-	if (current_thread_info()->status & TS_RESTORE_SIGMASK)
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Whee! Actually deliver the signal.  */
-		if (handle_signal(signr, &info, &ka, oldset, regs) == 0) {
-			/*
-			 * A signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TS_RESTORE_SIGMASK flag.
-			 */
-			current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-		}
-
+		handle_signal(signr, &info, &ka, regs);
 		goto done;
 	}
 
@@ -350,10 +327,7 @@ void do_signal(struct pt_regs *regs)
 	}
 
 	/* If there's no signal to deliver, just put the saved sigmask back. */
-	if (current_thread_info()->status & TS_RESTORE_SIGMASK) {
-		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
+	restore_saved_sigmask();
 
 done:
 	/* Avoid double syscall restart if there are nested signals. */

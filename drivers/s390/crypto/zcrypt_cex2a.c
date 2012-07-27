@@ -77,7 +77,6 @@ static void zcrypt_cex2a_receive(struct ap_device *, struct ap_message *,
 static struct ap_driver zcrypt_cex2a_driver = {
 	.probe = zcrypt_cex2a_probe,
 	.remove = zcrypt_cex2a_remove,
-	.receive = zcrypt_cex2a_receive,
 	.ids = zcrypt_cex2a_ids,
 	.request_timeout = CEX2A_CLEANUP_TIME,
 };
@@ -349,6 +348,7 @@ static long zcrypt_cex2a_modexpo(struct zcrypt_device *zdev,
 		ap_msg.message = kmalloc(CEX3A_MAX_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
+	ap_msg.receive = zcrypt_cex2a_receive;
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg.private = &work;
@@ -390,6 +390,7 @@ static long zcrypt_cex2a_modexpo_crt(struct zcrypt_device *zdev,
 		ap_msg.message = kmalloc(CEX3A_MAX_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
+	ap_msg.receive = zcrypt_cex2a_receive;
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg.private = &work;

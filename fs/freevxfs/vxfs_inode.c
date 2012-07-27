@@ -355,6 +355,6 @@ void
 vxfs_evict_inode(struct inode *ip)
 {
 	truncate_inode_pages(&ip->i_data, 0);
-	end_writeback(ip);
+	clear_inode(ip);
 	call_rcu(&ip->i_rcu, vxfs_i_callback);
 }

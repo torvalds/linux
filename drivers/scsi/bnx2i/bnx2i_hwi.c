@@ -1,6 +1,6 @@
 /* bnx2i_hwi.c: Broadcom NetXtreme II iSCSI driver.
  *
- * Copyright (c) 2006 - 2011 Broadcom Corporation
+ * Copyright (c) 2006 - 2012 Broadcom Corporation
  * Copyright (c) 2007, 2008 Red Hat, Inc.  All rights reserved.
  * Copyright (c) 2007, 2008 Mike Christie
  *
@@ -2724,7 +2724,6 @@ int bnx2i_map_ep_dbell_regs(struct bnx2i_endpoint *ep)
 		goto arm_cq;
 	}
 
-	reg_base = ep->hba->netdev->base_addr;
 	if ((test_bit(BNX2I_NX2_DEV_5709, &ep->hba->cnic_dev_type)) &&
 	    (ep->hba->mail_queue_access == BNX2I_MQ_BIN_MODE)) {
 		config2 = REG_RD(ep->hba, BNX2_MQ_CONFIG2);
@@ -2740,7 +2739,7 @@ int bnx2i_map_ep_dbell_regs(struct bnx2i_endpoint *ep)
 		/* 5709 device in normal node and 5706/5708 devices */
 		reg_off = CTX_OFFSET + (MB_KERNEL_CTX_SIZE * cid_num);
 
-	ep->qp.ctx_base = ioremap_nocache(reg_base + reg_off,
+	ep->qp.ctx_base = ioremap_nocache(ep->hba->reg_base + reg_off,
 					  MB_KERNEL_CTX_SIZE);
 	if (!ep->qp.ctx_base)
 		return -ENOMEM;

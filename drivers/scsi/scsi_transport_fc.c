@@ -2808,17 +2808,20 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 						  FC_RPORT_DEVLOSS_PENDING |
 						  FC_RPORT_DEVLOSS_CALLBK_DONE);
 
+				spin_unlock_irqrestore(shost->host_lock, flags);
+
 				/* if target, initiate a scan */
 				if (rport->scsi_target_id != -1) {
+					scsi_target_unblock(&rport->dev);
+
+					spin_lock_irqsave(shost->host_lock,
+							  flags);
 					rport->flags |= FC_RPORT_SCAN_PENDING;
 					scsi_queue_work(shost,
 							&rport->scan_work);
 					spin_unlock_irqrestore(shost->host_lock,
 							flags);
-					scsi_target_unblock(&rport->dev);
-				} else
-					spin_unlock_irqrestore(shost->host_lock,
-							flags);
+				}
 
 				fc_bsg_goose_queue(rport);
 
@@ -2876,16 +2879,17 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 			if (fci->f->dd_fcrport_size)
 				memset(rport->dd_data, 0,
 						fci->f->dd_fcrport_size);
+			spin_unlock_irqrestore(shost->host_lock, flags);
 
-			if (rport->roles & FC_PORT_ROLE_FCP_TARGET) {
+			if (ids->roles & FC_PORT_ROLE_FCP_TARGET) {
+				scsi_target_unblock(&rport->dev);
+
 				/* initiate a scan of the target */
+				spin_lock_irqsave(shost->host_lock, flags);
 				rport->flags |= FC_RPORT_SCAN_PENDING;
 				scsi_queue_work(shost, &rport->scan_work);
 				spin_unlock_irqrestore(shost->host_lock, flags);
-				scsi_target_unblock(&rport->dev);
-			} else
-				spin_unlock_irqrestore(shost->host_lock, flags);
-
+			}
 			return rport;
 		}
 	}
@@ -3083,12 +3087,12 @@ fc_remote_port_rolechg(struct fc_rport  *rport, u32 roles)
 		/* ensure any stgt delete functions are done */
 		fc_flush_work(shost);
 
+		scsi_target_unblock(&rport->dev);
 		/* initiate a scan of the target */
 		spin_lock_irqsave(shost->host_lock, flags);
 		rport->flags |= FC_RPORT_SCAN_PENDING;
 		scsi_queue_work(shost, &rport->scan_work);
 		spin_unlock_irqrestore(shost->host_lock, flags);
-		scsi_target_unblock(&rport->dev);
 	}
 }
 EXPORT_SYMBOL(fc_remote_port_rolechg);

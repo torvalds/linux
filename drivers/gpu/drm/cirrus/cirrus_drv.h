@@ -145,7 +145,7 @@ struct cirrus_device {
 		struct ttm_bo_device bdev;
 		atomic_t validate_sequence;
 	} ttm;
-
+	bool mm_inited;
 };
 
 

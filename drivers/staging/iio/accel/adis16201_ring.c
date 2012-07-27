@@ -5,9 +5,9 @@
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
 
-#include "../iio.h"
+#include <linux/iio/iio.h>
 #include "../ring_sw.h"
-#include "../trigger_consumer.h"
+#include <linux/iio/trigger_consumer.h>
 #include "adis16201.h"
 
 
@@ -66,9 +66,8 @@ static irqreturn_t adis16201_trigger_handler(int irq, void *p)
 
 	int i = 0;
 	s16 *data;
-	size_t datasize = ring->access->get_bytes_per_datum(ring);
 
-	data = kmalloc(datasize, GFP_KERNEL);
+	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (data == NULL) {
 		dev_err(&st->us->dev, "memory alloc failed in ring bh");
 		return -ENOMEM;
@@ -81,7 +80,7 @@ static irqreturn_t adis16201_trigger_handler(int irq, void *p)
 			data[i] = be16_to_cpup((__be16 *)&(st->rx[i*2]));
 
 	/* Guaranteed to be aligned with 8 byte boundary */
-	if (ring->scan_timestamp)
+	if (indio_dev->scan_timestamp)
 		*((s64 *)(data + ((i + 3)/4)*4)) = pf->timestamp;
 
 	ring->access->store_to(ring, (u8 *)data, pf->timestamp);

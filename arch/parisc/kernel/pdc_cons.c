@@ -50,6 +50,7 @@
 #include <linux/init.h>
 #include <linux/major.h>
 #include <linux/tty.h>
+#include <asm/page.h>		/* for PAGE0 */
 #include <asm/pdc.h>		/* for iodc_call() proto and friends */
 
 static DEFINE_SPINLOCK(pdc_console_lock);

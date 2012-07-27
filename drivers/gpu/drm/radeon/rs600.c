@@ -294,6 +294,7 @@ void rs600_hpd_init(struct radeon_device *rdev)
 {
 	struct drm_device *dev = rdev->ddev;
 	struct drm_connector *connector;
+	unsigned enable = 0;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
@@ -301,26 +302,25 @@ void rs600_hpd_init(struct radeon_device *rdev)
 		case RADEON_HPD_1:
 			WREG32(R_007D00_DC_HOT_PLUG_DETECT1_CONTROL,
 			       S_007D00_DC_HOT_PLUG_DETECT1_EN(1));
-			rdev->irq.hpd[0] = true;
 			break;
 		case RADEON_HPD_2:
 			WREG32(R_007D10_DC_HOT_PLUG_DETECT2_CONTROL,
 			       S_007D10_DC_HOT_PLUG_DETECT2_EN(1));
-			rdev->irq.hpd[1] = true;
 			break;
 		default:
 			break;
 		}
+		enable |= 1 << radeon_connector->hpd.hpd;
 		radeon_hpd_set_polarity(rdev, radeon_connector->hpd.hpd);
 	}
-	if (rdev->irq.installed)
-		rs600_irq_set(rdev);
+	radeon_irq_kms_enable_hpd(rdev, enable);
 }
 
 void rs600_hpd_fini(struct radeon_device *rdev)
 {
 	struct drm_device *dev = rdev->ddev;
 	struct drm_connector *connector;
+	unsigned disable = 0;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
@@ -328,17 +328,17 @@ void rs600_hpd_fini(struct radeon_device *rdev)
 		case RADEON_HPD_1:
 			WREG32(R_007D00_DC_HOT_PLUG_DETECT1_CONTROL,
 			       S_007D00_DC_HOT_PLUG_DETECT1_EN(0));
-			rdev->irq.hpd[0] = false;
 			break;
 		case RADEON_HPD_2:
 			WREG32(R_007D10_DC_HOT_PLUG_DETECT2_CONTROL,
 			       S_007D10_DC_HOT_PLUG_DETECT2_EN(0));
-			rdev->irq.hpd[1] = false;
 			break;
 		default:
 			break;
 		}
+		disable |= 1 << radeon_connector->hpd.hpd;
 	}
+	radeon_irq_kms_disable_hpd(rdev, disable);
 }
 
 int rs600_asic_reset(struct radeon_device *rdev)
@@ -564,18 +564,18 @@ int rs600_irq_set(struct radeon_device *rdev)
 		WREG32(R_000040_GEN_INT_CNTL, 0);
 		return -EINVAL;
 	}
-	if (rdev->irq.sw_int[RADEON_RING_TYPE_GFX_INDEX]) {
+	if (atomic_read(&rdev->irq.ring_int[RADEON_RING_TYPE_GFX_INDEX])) {
 		tmp |= S_000040_SW_INT_EN(1);
 	}
 	if (rdev->irq.gui_idle) {
 		tmp |= S_000040_GUI_IDLE(1);
 	}
 	if (rdev->irq.crtc_vblank_int[0] ||
-	    rdev->irq.pflip[0]) {
+	    atomic_read(&rdev->irq.pflip[0])) {
 		mode_int |= S_006540_D1MODE_VBLANK_INT_MASK(1);
 	}
 	if (rdev->irq.crtc_vblank_int[1] ||
-	    rdev->irq.pflip[1]) {
+	    atomic_read(&rdev->irq.pflip[1])) {
 		mode_int |= S_006540_D2MODE_VBLANK_INT_MASK(1);
 	}
 	if (rdev->irq.hpd[0]) {
@@ -686,7 +686,6 @@ int rs600_irq_process(struct radeon_device *rdev)
 		/* GUI idle */
 		if (G_000040_GUI_IDLE(status)) {
 			rdev->irq.gui_idle_acked = true;
-			rdev->pm.gui_idle = true;
 			wake_up(&rdev->irq.idle_queue);
 		}
 		/* Vertical blank interrupts */
@@ -696,7 +695,7 @@ int rs600_irq_process(struct radeon_device *rdev)
 				rdev->pm.vblank_sync = true;
 				wake_up(&rdev->irq.vblank_queue);
 			}
-			if (rdev->irq.pflip[0])
+			if (atomic_read(&rdev->irq.pflip[0]))
 				radeon_crtc_handle_flip(rdev, 0);
 		}
 		if (G_007EDC_LB_D2_VBLANK_INTERRUPT(rdev->irq.stat_regs.r500.disp_int)) {
@@ -705,7 +704,7 @@ int rs600_irq_process(struct radeon_device *rdev)
 				rdev->pm.vblank_sync = true;
 				wake_up(&rdev->irq.vblank_queue);
 			}
-			if (rdev->irq.pflip[1])
+			if (atomic_read(&rdev->irq.pflip[1]))
 				radeon_crtc_handle_flip(rdev, 1);
 		}
 		if (G_007EDC_DC_HOT_PLUG_DETECT1_INTERRUPT(rdev->irq.stat_regs.r500.disp_int)) {
@@ -908,19 +907,17 @@ static int rs600_startup(struct radeon_device *rdev)
 		return r;
 	}
 
+	r = radeon_ib_pool_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
+		return r;
+	}
+
 	r = r600_audio_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "failed initializing audio\n");
 		return r;
 	}
-
-	r = radeon_ib_pool_start(rdev);
-	if (r)
-		return r;
-
-	r = radeon_ib_ring_tests(rdev);
-	if (r)
-		return r;
 
 	return 0;
 }
@@ -956,7 +953,6 @@ int rs600_resume(struct radeon_device *rdev)
 
 int rs600_suspend(struct radeon_device *rdev)
 {
-	radeon_ib_pool_suspend(rdev);
 	r600_audio_fini(rdev);
 	r100_cp_disable(rdev);
 	radeon_wb_disable(rdev);
@@ -970,7 +966,7 @@ void rs600_fini(struct radeon_device *rdev)
 	r600_audio_fini(rdev);
 	r100_cp_fini(rdev);
 	radeon_wb_fini(rdev);
-	r100_ib_fini(rdev);
+	radeon_ib_pool_fini(rdev);
 	radeon_gem_fini(rdev);
 	rs600_gart_fini(rdev);
 	radeon_irq_kms_fini(rdev);
@@ -1038,20 +1034,14 @@ int rs600_init(struct radeon_device *rdev)
 		return r;
 	rs600_set_safe_registers(rdev);
 
-	r = radeon_ib_pool_init(rdev);
 	rdev->accel_working = true;
-	if (r) {
-		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
-		rdev->accel_working = false;
-	}
-
 	r = rs600_startup(rdev);
 	if (r) {
 		/* Somethings want wront with the accel init stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
 		r100_cp_fini(rdev);
 		radeon_wb_fini(rdev);
-		r100_ib_fini(rdev);
+		radeon_ib_pool_fini(rdev);
 		rs600_gart_fini(rdev);
 		radeon_irq_kms_fini(rdev);
 		rdev->accel_working = false;

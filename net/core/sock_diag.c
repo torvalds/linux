@@ -10,7 +10,7 @@
 #include <linux/inet_diag.h>
 #include <linux/sock_diag.h>
 
-static struct sock_diag_handler *sock_diag_handlers[AF_MAX];
+static const struct sock_diag_handler *sock_diag_handlers[AF_MAX];
 static int (*inet_rcv_compat)(struct sk_buff *skb, struct nlmsghdr *nlh);
 static DEFINE_MUTEX(sock_diag_table_mutex);
 
@@ -70,7 +70,7 @@ void sock_diag_unregister_inet_compat(int (*fn)(struct sk_buff *skb, struct nlms
 }
 EXPORT_SYMBOL_GPL(sock_diag_unregister_inet_compat);
 
-int sock_diag_register(struct sock_diag_handler *hndl)
+int sock_diag_register(const struct sock_diag_handler *hndl)
 {
 	int err = 0;
 
@@ -88,7 +88,7 @@ int sock_diag_register(struct sock_diag_handler *hndl)
 }
 EXPORT_SYMBOL_GPL(sock_diag_register);
 
-void sock_diag_unregister(struct sock_diag_handler *hnld)
+void sock_diag_unregister(const struct sock_diag_handler *hnld)
 {
 	int family = hnld->family;
 
@@ -102,7 +102,7 @@ void sock_diag_unregister(struct sock_diag_handler *hnld)
 }
 EXPORT_SYMBOL_GPL(sock_diag_unregister);
 
-static inline struct sock_diag_handler *sock_diag_lock_handler(int family)
+static const inline struct sock_diag_handler *sock_diag_lock_handler(int family)
 {
 	if (sock_diag_handlers[family] == NULL)
 		request_module("net-pf-%d-proto-%d-type-%d", PF_NETLINK,
@@ -112,7 +112,7 @@ static inline struct sock_diag_handler *sock_diag_lock_handler(int family)
 	return sock_diag_handlers[family];
 }
 
-static inline void sock_diag_unlock_handler(struct sock_diag_handler *h)
+static inline void sock_diag_unlock_handler(const struct sock_diag_handler *h)
 {
 	mutex_unlock(&sock_diag_table_mutex);
 }
@@ -121,7 +121,7 @@ static int __sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	int err;
 	struct sock_diag_req *req = NLMSG_DATA(nlh);
-	struct sock_diag_handler *hndl;
+	const struct sock_diag_handler *hndl;
 
 	if (nlmsg_len(nlh) < sizeof(*req))
 		return -EINVAL;

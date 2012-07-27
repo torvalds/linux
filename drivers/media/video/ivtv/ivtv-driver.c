@@ -866,10 +866,10 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 	pci_write_config_dword(pdev, 0x40, 0xffff);
 
 	IVTV_DEBUG_INFO("%d (rev %d) at %02x:%02x.%x, "
-		   "irq: %d, latency: %d, memory: 0x%lx\n",
+		   "irq: %d, latency: %d, memory: 0x%llx\n",
 		   pdev->device, pdev->revision, pdev->bus->number,
 		   PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
-		   pdev->irq, pci_latency, (unsigned long)itv->base_addr);
+		   pdev->irq, pci_latency, (u64)itv->base_addr);
 
 	return 0;
 }
@@ -1007,7 +1007,7 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 	itv->cxhdl.priv = itv;
 	itv->cxhdl.func = ivtv_api_func;
 
-	IVTV_DEBUG_INFO("base addr: 0x%08x\n", itv->base_addr);
+	IVTV_DEBUG_INFO("base addr: 0x%llx\n", (u64)itv->base_addr);
 
 	/* PCI Device Setup */
 	retval = ivtv_setup_pci(itv, pdev, pci_id);
@@ -1017,8 +1017,8 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 		goto free_mem;
 
 	/* map io memory */
-	IVTV_DEBUG_INFO("attempting ioremap at 0x%08x len 0x%08x\n",
-		   itv->base_addr + IVTV_ENCODER_OFFSET, IVTV_ENCODER_SIZE);
+	IVTV_DEBUG_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
+		   (u64)itv->base_addr + IVTV_ENCODER_OFFSET, IVTV_ENCODER_SIZE);
 	itv->enc_mem = ioremap_nocache(itv->base_addr + IVTV_ENCODER_OFFSET,
 				       IVTV_ENCODER_SIZE);
 	if (!itv->enc_mem) {
@@ -1034,8 +1034,8 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 	}
 
 	if (itv->has_cx23415) {
-		IVTV_DEBUG_INFO("attempting ioremap at 0x%08x len 0x%08x\n",
-				itv->base_addr + IVTV_DECODER_OFFSET, IVTV_DECODER_SIZE);
+		IVTV_DEBUG_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
+				(u64)itv->base_addr + IVTV_DECODER_OFFSET, IVTV_DECODER_SIZE);
 		itv->dec_mem = ioremap_nocache(itv->base_addr + IVTV_DECODER_OFFSET,
 				IVTV_DECODER_SIZE);
 		if (!itv->dec_mem) {
@@ -1056,8 +1056,8 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 	}
 
 	/* map registers memory */
-	IVTV_DEBUG_INFO("attempting ioremap at 0x%08x len 0x%08x\n",
-		   itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
+	IVTV_DEBUG_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
+		   (u64)itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 	itv->reg_mem =
 	    ioremap_nocache(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 	if (!itv->reg_mem) {
@@ -1201,9 +1201,9 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 		struct v4l2_ctrl_handler *hdl = itv->v4l2_dev.ctrl_handler;
 
 		itv->ctrl_pts = v4l2_ctrl_new_std(hdl, &ivtv_hdl_out_ops,
-				V4L2_CID_MPEG_VIDEO_DEC_PTS, 0, 0, 1, 0);
+				V4L2_CID_MPEG_VIDEO_DEC_PTS, 0, 0, 0, 0);
 		itv->ctrl_frame = v4l2_ctrl_new_std(hdl, &ivtv_hdl_out_ops,
-				V4L2_CID_MPEG_VIDEO_DEC_FRAME, 0, 0x7fffffff, 1, 0);
+				V4L2_CID_MPEG_VIDEO_DEC_FRAME, 0, 0, 0, 0);
 		/* Note: V4L2_MPEG_AUDIO_DEC_PLAYBACK_AUTO is not supported,
 		   mask that menu item. */
 		itv->ctrl_audio_playback =

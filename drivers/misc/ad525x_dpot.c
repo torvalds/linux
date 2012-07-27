@@ -749,7 +749,7 @@ exit:
 }
 EXPORT_SYMBOL(ad_dpot_probe);
 
-__devexit int ad_dpot_remove(struct device *dev)
+int ad_dpot_remove(struct device *dev)
 {
 	struct dpot_data *data = dev_get_drvdata(dev);
 	int i;

@@ -3,4 +3,4 @@
 #
 
 # common files
-obj-y	+= clock.o spear6xx.o
+obj-y	+= spear6xx.o

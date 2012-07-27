@@ -295,7 +295,7 @@ static int __init omap2_common_pm_init(void)
 }
 postcore_initcall(omap2_common_pm_init);
 
-static int __init omap2_common_pm_late_init(void)
+int __init omap2_common_pm_late_init(void)
 {
 	/*
 	 * In the case of DT, the PMIC and SR initialization will be done using
@@ -322,4 +322,3 @@ static int __init omap2_common_pm_late_init(void)
 
 	return 0;
 }
-late_initcall(omap2_common_pm_late_init);

@@ -199,7 +199,7 @@ static inline void dn_sk_ports_copy(struct flowidn *fld, struct dn_scp *scp)
 	fld->fld_dport = scp->addrrem;
 }
 
-extern unsigned dn_mss_from_pmtu(struct net_device *dev, int mtu);
+extern unsigned int dn_mss_from_pmtu(struct net_device *dev, int mtu);
 
 #define DN_MENUVER_ACC 0x01
 #define DN_MENUVER_USR 0x02

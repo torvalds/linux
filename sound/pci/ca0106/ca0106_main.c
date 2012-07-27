@@ -1932,7 +1932,7 @@ static DEFINE_PCI_DEVICE_TABLE(snd_ca0106_ids) = {
 MODULE_DEVICE_TABLE(pci, snd_ca0106_ids);
 
 // pci_driver definition
-static struct pci_driver driver = {
+static struct pci_driver ca0106_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_ca0106_ids,
 	.probe = snd_ca0106_probe,
@@ -1943,17 +1943,4 @@ static struct pci_driver driver = {
 #endif
 };
 
-// initialization of the module
-static int __init alsa_card_ca0106_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-// clean up the module
-static void __exit alsa_card_ca0106_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_ca0106_init)
-module_exit(alsa_card_ca0106_exit)
+module_pci_driver(ca0106_driver);

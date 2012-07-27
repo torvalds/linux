@@ -271,6 +271,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 */
 	asoc->peer.sack_needed = 1;
 	asoc->peer.sack_cnt = 0;
+	asoc->peer.sack_generation = 1;
 
 	/* Assume that the peer will tell us if he recognizes ASCONF
 	 * as part of INIT exchange.
@@ -1408,7 +1409,7 @@ static inline int sctp_peer_needs_update(struct sctp_association *asoc)
 }
 
 /* Increase asoc's rwnd by len and send any window update SACK if needed. */
-void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned len)
+void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned int len)
 {
 	struct sctp_chunk *sack;
 	struct timer_list *timer;
@@ -1465,7 +1466,7 @@ void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned len)
 }
 
 /* Decrease asoc's rwnd by len. */
-void sctp_assoc_rwnd_decrease(struct sctp_association *asoc, unsigned len)
+void sctp_assoc_rwnd_decrease(struct sctp_association *asoc, unsigned int len)
 {
 	int rx_count;
 	int over = 0;

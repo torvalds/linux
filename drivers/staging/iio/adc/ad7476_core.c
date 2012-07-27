@@ -15,9 +15,9 @@
 #include <linux/err.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../buffer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/buffer.h>
 
 #include "ad7476.h"
 
@@ -43,7 +43,7 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 	unsigned int scale_uv;
 
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 		if (iio_buffer_enabled(indio_dev))
 			ret = -EBUSY;
@@ -66,53 +66,51 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+#define AD7476_CHAN(bits)					\
+	{							\
+	.type = IIO_VOLTAGE,					\
+	.indexed = 1,						\
+	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
+	IIO_CHAN_INFO_SCALE_SHARED_BIT,				\
+	.scan_type = {						\
+		.sign = 'u',					\
+		.realbits = bits,				\
+		.storagebits = 16,				\
+		.shift = 12 - bits,				\
+	},							\
+}
+
 static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
 	[ID_AD7466] = {
-		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				       IIO_CHAN_INFO_SCALE_SHARED_BIT,
-				       0, 0, IIO_ST('u', 12, 16, 0), 0),
+		.channel[0] = AD7476_CHAN(12),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7467] = {
-		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				       IIO_CHAN_INFO_SCALE_SHARED_BIT,
-				       0, 0, IIO_ST('u', 10, 16, 2), 0),
+		.channel[0] = AD7476_CHAN(10),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7468] = {
-		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1 , 0, NULL, 0, 0,
-				       IIO_CHAN_INFO_SCALE_SHARED_BIT,
-				       0, 0, IIO_ST('u', 8, 16, 4), 0),
+		.channel[0] = AD7476_CHAN(8),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7475] = {
-		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				       IIO_CHAN_INFO_SCALE_SHARED_BIT,
-				       0, 0, IIO_ST('u', 12, 16, 0), 0),
+		.channel[0] = AD7476_CHAN(12),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7476] = {
-		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				       IIO_CHAN_INFO_SCALE_SHARED_BIT,
-				       0, 0, IIO_ST('u', 12, 16, 0), 0),
+		.channel[0] = AD7476_CHAN(12),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7477] = {
-		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				       IIO_CHAN_INFO_SCALE_SHARED_BIT,
-				       0, 0, IIO_ST('u', 10, 16, 2), 0),
+		.channel[0] = AD7476_CHAN(10),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7478] = {
-		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				       IIO_CHAN_INFO_SCALE_SHARED_BIT,
-				       0, 0, IIO_ST('u', 8, 16, 4), 0),
+		.channel[0] = AD7476_CHAN(8),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7495] = {
-		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				       IIO_CHAN_INFO_SCALE_SHARED_BIT,
-				       0, 0, IIO_ST('u', 12, 16, 0), 0),
+		.channel[0] = AD7476_CHAN(12),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 		.int_vref_mv = 2500,
 	},
@@ -130,7 +128,7 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 	int ret, voltage_uv = 0;
 
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -200,7 +198,7 @@ error_disable_reg:
 error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 error_ret:
 	return ret;
@@ -218,7 +216,7 @@ static int ad7476_remove(struct spi_device *spi)
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

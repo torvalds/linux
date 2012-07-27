@@ -22,37 +22,37 @@
 /* 
  *  Interrupt numbers
  */
-#define IRQ_PIC_START			0
-#define IRQ_SOFTINT			0
-#define IRQ_UARTINT0			1
-#define IRQ_UARTINT1			2
-#define IRQ_KMIINT0			3
-#define IRQ_KMIINT1			4
-#define IRQ_TIMERINT0			5
-#define IRQ_TIMERINT1			6
-#define IRQ_TIMERINT2			7
-#define IRQ_RTCINT			8
-#define IRQ_AP_EXPINT0			9
-#define IRQ_AP_EXPINT1			10
-#define IRQ_AP_EXPINT2			11
-#define IRQ_AP_EXPINT3			12
-#define IRQ_AP_PCIINT0			13
-#define IRQ_AP_PCIINT1			14
-#define IRQ_AP_PCIINT2			15
-#define IRQ_AP_PCIINT3			16
-#define IRQ_AP_V3INT			17
-#define IRQ_AP_CPINT0			18
-#define IRQ_AP_CPINT1			19
-#define IRQ_AP_LBUSTIMEOUT 		20
-#define IRQ_AP_APCINT			21
-#define IRQ_CP_CLCDCINT			22
-#define IRQ_CP_MMCIINT0			23
-#define IRQ_CP_MMCIINT1			24
-#define IRQ_CP_AACIINT			25
-#define IRQ_CP_CPPLDINT			26
-#define IRQ_CP_ETHINT			27
-#define IRQ_CP_TSPENINT			28
-#define IRQ_PIC_END			31
+#define IRQ_PIC_START			1
+#define IRQ_SOFTINT			1
+#define IRQ_UARTINT0			2
+#define IRQ_UARTINT1			3
+#define IRQ_KMIINT0			4
+#define IRQ_KMIINT1			5
+#define IRQ_TIMERINT0			6
+#define IRQ_TIMERINT1			7
+#define IRQ_TIMERINT2			8
+#define IRQ_RTCINT			9
+#define IRQ_AP_EXPINT0			10
+#define IRQ_AP_EXPINT1			11
+#define IRQ_AP_EXPINT2			12
+#define IRQ_AP_EXPINT3			13
+#define IRQ_AP_PCIINT0			14
+#define IRQ_AP_PCIINT1			15
+#define IRQ_AP_PCIINT2			16
+#define IRQ_AP_PCIINT3			17
+#define IRQ_AP_V3INT			18
+#define IRQ_AP_CPINT0			19
+#define IRQ_AP_CPINT1			20
+#define IRQ_AP_LBUSTIMEOUT 		21
+#define IRQ_AP_APCINT			22
+#define IRQ_CP_CLCDCINT			23
+#define IRQ_CP_MMCIINT0			24
+#define IRQ_CP_MMCIINT1			25
+#define IRQ_CP_AACIINT			26
+#define IRQ_CP_CPPLDINT			27
+#define IRQ_CP_ETHINT			28
+#define IRQ_CP_TSPENINT			29
+#define IRQ_PIC_END			29
 
 #define IRQ_CIC_START			32
 #define IRQ_CM_SOFTINT			32
@@ -80,4 +80,3 @@
 
 #define NR_IRQS_INTEGRATOR_AP		34
 #define NR_IRQS_INTEGRATOR_CP		47
-

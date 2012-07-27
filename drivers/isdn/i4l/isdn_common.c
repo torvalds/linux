@@ -46,7 +46,6 @@ static DEFINE_MUTEX(isdn_mutex);
 static char *isdn_revision = "$Revision: 1.1.2.3 $";
 
 extern char *isdn_net_revision;
-extern char *isdn_tty_revision;
 #ifdef CONFIG_ISDN_PPP
 extern char *isdn_ppp_revision;
 #else
@@ -2327,8 +2326,6 @@ static int __init isdn_init(void)
 		dev->chanmap[i] = -1;
 		dev->m_idx[i] = -1;
 		strcpy(dev->num[i], "???");
-		init_waitqueue_head(&dev->mdm.info[i].open_wait);
-		init_waitqueue_head(&dev->mdm.info[i].close_wait);
 	}
 	if (register_chrdev(ISDN_MAJOR, "isdn", &isdn_fops)) {
 		printk(KERN_WARNING "isdn: Could not register control devices\n");
@@ -2353,8 +2350,6 @@ static int __init isdn_init(void)
 
 	strcpy(tmprev, isdn_revision);
 	printk(KERN_NOTICE "ISDN subsystem Rev: %s/", isdn_getrev(tmprev));
-	strcpy(tmprev, isdn_tty_revision);
-	printk("%s/", isdn_getrev(tmprev));
 	strcpy(tmprev, isdn_net_revision);
 	printk("%s/", isdn_getrev(tmprev));
 	strcpy(tmprev, isdn_ppp_revision);

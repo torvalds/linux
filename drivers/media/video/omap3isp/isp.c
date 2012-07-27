@@ -329,19 +329,6 @@ void omap3isp_configure_bridge(struct isp_device *isp,
 	isp_reg_writel(isp, ispctrl_val, OMAP3_ISP_IOMEM_MAIN, ISP_CTRL);
 }
 
-/**
- * isp_set_pixel_clock - Configures the ISP pixel clock
- * @isp: OMAP3 ISP device
- * @pixelclk: Average pixel clock in Hz
- *
- * Set the average pixel clock required by the sensor. The ISP will use the
- * lowest possible memory bandwidth settings compatible with the clock.
- **/
-static void isp_set_pixel_clock(struct isp_device *isp, unsigned int pixelclk)
-{
-	isp->isp_ccdc.vpcfg.pixelclk = pixelclk;
-}
-
 void omap3isp_hist_dma_done(struct isp_device *isp)
 {
 	if (omap3isp_ccdc_busy(&isp->isp_ccdc) ||
@@ -739,6 +726,17 @@ static int isp_pipeline_enable(struct isp_pipeline *pipe,
 	unsigned long flags;
 	int ret;
 
+	/* If the preview engine crashed it might not respond to read/write
+	 * operations on the L4 bus. This would result in a bus fault and a
+	 * kernel oops. Refuse to start streaming in that case. This check must
+	 * be performed before the loop below to avoid starting entities if the
+	 * pipeline won't start anyway (those entities would then likely fail to
+	 * stop, making the problem worse).
+	 */
+	if ((pipe->entities & isp->crashed) &
+	    (1U << isp->isp_prev.subdev.entity.id))
+		return -EIO;
+
 	spin_lock_irqsave(&pipe->lock, flags);
 	pipe->state &= ~(ISP_PIPELINE_IDLE_INPUT | ISP_PIPELINE_IDLE_OUTPUT);
 	spin_unlock_irqrestore(&pipe->lock, flags);
@@ -773,14 +771,6 @@ static int isp_pipeline_enable(struct isp_pipeline *pipe,
 			pipe->do_propagation = true;
 		}
 	}
-
-	/* Frame number propagation. In continuous streaming mode the number
-	 * is incremented in the frame start ISR. In mem-to-mem mode
-	 * singleshot is used and frame start IRQs are not available.
-	 * Thus we have to increment the number here.
-	 */
-	if (pipe->do_propagation && mode == ISP_PIPELINE_STREAM_SINGLESHOT)
-		atomic_inc(&pipe->frame_number);
 
 	return 0;
 }
@@ -879,12 +869,14 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
 
 		if (ret) {
 			dev_info(isp->dev, "Unable to stop %s\n", subdev->name);
+			/* If the entity failed to stopped, assume it has
+			 * crashed. Mark it as such, the ISP will be reset when
+			 * applications will release it.
+			 */
+			isp->crashed |= 1U << subdev->entity.id;
 			failure = -ETIMEDOUT;
 		}
 	}
-
-	if (failure < 0)
-		isp->needs_reset = true;
 
 	return failure;
 }
@@ -1069,6 +1061,7 @@ static int isp_reset(struct isp_device *isp)
 		udelay(1);
 	}
 
+	isp->crashed = 0;
 	return 0;
 }
 
@@ -1495,11 +1488,13 @@ void omap3isp_put(struct isp_device *isp)
 	BUG_ON(isp->ref_count == 0);
 	if (--isp->ref_count == 0) {
 		isp_disable_interrupts(isp);
-		isp_save_ctx(isp);
-		if (isp->needs_reset) {
+		if (isp->domain)
+			isp_save_ctx(isp);
+		/* Reset the ISP if an entity has failed to stop. This is the
+		 * only way to recover from such conditions.
+		 */
+		if (isp->crashed)
 			isp_reset(isp);
-			isp->needs_reset = false;
-		}
 		isp_disable_clocks(isp);
 	}
 	mutex_unlock(&isp->isp_mutex);
@@ -1970,7 +1965,7 @@ error_csiphy:
  *
  * Always returns 0.
  */
-static int isp_remove(struct platform_device *pdev)
+static int __devexit isp_remove(struct platform_device *pdev)
 {
 	struct isp_device *isp = platform_get_drvdata(pdev);
 	int i;
@@ -1981,6 +1976,7 @@ static int isp_remove(struct platform_device *pdev)
 	omap3isp_get(isp);
 	iommu_detach_device(isp->domain, &pdev->dev);
 	iommu_domain_free(isp->domain);
+	isp->domain = NULL;
 	omap3isp_put(isp);
 
 	free_irq(isp->irq_num, isp);
@@ -2050,7 +2046,7 @@ static int isp_map_mem_resource(struct platform_device *pdev,
  *   -EINVAL if couldn't install ISR,
  *   or clk_get return error value.
  */
-static int isp_probe(struct platform_device *pdev)
+static int __devinit isp_probe(struct platform_device *pdev)
 {
 	struct isp_platform_data *pdata = pdev->dev.platform_data;
 	struct isp_device *isp;
@@ -2068,7 +2064,6 @@ static int isp_probe(struct platform_device *pdev)
 
 	isp->autoidle = autoidle;
 	isp->platform_cb.set_xclk = isp_set_xclk;
-	isp->platform_cb.set_pixel_clock = isp_set_pixel_clock;
 
 	mutex_init(&isp->isp_mutex);
 	spin_lock_init(&isp->stat_lock);
@@ -2218,7 +2213,7 @@ MODULE_DEVICE_TABLE(platform, omap3isp_id_table);
 
 static struct platform_driver omap3isp_driver = {
 	.probe = isp_probe,
-	.remove = isp_remove,
+	.remove = __devexit_p(isp_remove),
 	.id_table = omap3isp_id_table,
 	.driver = {
 		.owner = THIS_MODULE,

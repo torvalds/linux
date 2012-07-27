@@ -1,6 +1,6 @@
 /* bnx2i.h: Broadcom NetXtreme II iSCSI driver.
  *
- * Copyright (c) 2006 - 2011 Broadcom Corporation
+ * Copyright (c) 2006 - 2012 Broadcom Corporation
  * Copyright (c) 2007, 2008 Red Hat, Inc.  All rights reserved.
  * Copyright (c) 2007, 2008 Mike Christie
  *
@@ -350,6 +350,7 @@ struct bnx2i_hba {
 	struct pci_dev *pcidev;
 	struct net_device *netdev;
 	void __iomem *regview;
+	resource_size_t reg_base;
 
 	u32 age;
 	unsigned long cnic_dev_type;

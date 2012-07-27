@@ -48,105 +48,16 @@
 
 #include "stv06xx_pb0100.h"
 
-static const struct ctrl pb0100_ctrl[] = {
-#define GAIN_IDX 0
-	{
-		{
-			.id		= V4L2_CID_GAIN,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "Gain",
-			.minimum	= 0,
-			.maximum	= 255,
-			.step		= 1,
-			.default_value  = 128
-		},
-		.set = pb0100_set_gain,
-		.get = pb0100_get_gain
-	},
-#define RED_BALANCE_IDX 1
-	{
-		{
-			.id		= V4L2_CID_RED_BALANCE,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "Red Balance",
-			.minimum	= -255,
-			.maximum	= 255,
-			.step		= 1,
-			.default_value  = 0
-		},
-		.set = pb0100_set_red_balance,
-		.get = pb0100_get_red_balance
-	},
-#define BLUE_BALANCE_IDX 2
-	{
-		{
-			.id		= V4L2_CID_BLUE_BALANCE,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "Blue Balance",
-			.minimum	= -255,
-			.maximum	= 255,
-			.step		= 1,
-			.default_value  = 0
-		},
-		.set = pb0100_set_blue_balance,
-		.get = pb0100_get_blue_balance
-	},
-#define EXPOSURE_IDX 3
-	{
-		{
-			.id		= V4L2_CID_EXPOSURE,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "Exposure",
-			.minimum	= 0,
-			.maximum	= 511,
-			.step		= 1,
-			.default_value  = 12
-		},
-		.set = pb0100_set_exposure,
-		.get = pb0100_get_exposure
-	},
-#define AUTOGAIN_IDX 4
-	{
-		{
-			.id		= V4L2_CID_AUTOGAIN,
-			.type		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name		= "Automatic Gain and Exposure",
-			.minimum	= 0,
-			.maximum	= 1,
-			.step		= 1,
-			.default_value  = 1
-		},
-		.set = pb0100_set_autogain,
-		.get = pb0100_get_autogain
-	},
-#define AUTOGAIN_TARGET_IDX 5
-	{
-		{
-			.id		= V4L2_CTRL_CLASS_USER + 0x1000,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "Automatic Gain Target",
-			.minimum	= 0,
-			.maximum	= 255,
-			.step		= 1,
-			.default_value  = 128
-		},
-		.set = pb0100_set_autogain_target,
-		.get = pb0100_get_autogain_target
-	},
-#define NATURAL_IDX 6
-	{
-		{
-			.id		= V4L2_CTRL_CLASS_USER + 0x1001,
-			.type		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name		= "Natural Light Source",
-			.minimum	= 0,
-			.maximum	= 1,
-			.step		= 1,
-			.default_value  = 1
-		},
-		.set = pb0100_set_natural,
-		.get = pb0100_get_natural
-	}
+struct pb0100_ctrls {
+	struct { /* one big happy control cluster... */
+		struct v4l2_ctrl *autogain;
+		struct v4l2_ctrl *gain;
+		struct v4l2_ctrl *exposure;
+		struct v4l2_ctrl *red;
+		struct v4l2_ctrl *blue;
+		struct v4l2_ctrl *natural;
+	};
+	struct v4l2_ctrl *target;
 };
 
 static struct v4l2_pix_format pb0100_mode[] = {
@@ -174,38 +85,104 @@ static struct v4l2_pix_format pb0100_mode[] = {
 	}
 };
 
+static int pb0100_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
+	struct sd *sd = (struct sd *)gspca_dev;
+	struct pb0100_ctrls *ctrls = sd->sensor_priv;
+	int err = -EINVAL;
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUTOGAIN:
+		err = pb0100_set_autogain(gspca_dev, ctrl->val);
+		if (err)
+			break;
+		if (ctrl->val)
+			break;
+		err = pb0100_set_gain(gspca_dev, ctrls->gain->val);
+		if (err)
+			break;
+		err = pb0100_set_exposure(gspca_dev, ctrls->exposure->val);
+		break;
+	case V4L2_CTRL_CLASS_USER + 0x1001:
+		err = pb0100_set_autogain_target(gspca_dev, ctrl->val);
+		break;
+	}
+	return err;
+}
+
+static const struct v4l2_ctrl_ops pb0100_ctrl_ops = {
+	.s_ctrl = pb0100_s_ctrl,
+};
+
+static int pb0100_init_controls(struct sd *sd)
+{
+	struct v4l2_ctrl_handler *hdl = &sd->gspca_dev.ctrl_handler;
+	struct pb0100_ctrls *ctrls;
+	static const struct v4l2_ctrl_config autogain_target = {
+		.ops = &pb0100_ctrl_ops,
+		.id = V4L2_CTRL_CLASS_USER + 0x1000,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Automatic Gain Target",
+		.max = 255,
+		.step = 1,
+		.def = 128,
+	};
+	static const struct v4l2_ctrl_config natural_light = {
+		.ops = &pb0100_ctrl_ops,
+		.id = V4L2_CTRL_CLASS_USER + 0x1001,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+		.name = "Natural Light Source",
+		.max = 1,
+		.step = 1,
+		.def = 1,
+	};
+
+	ctrls = kzalloc(sizeof(*ctrls), GFP_KERNEL);
+	if (!ctrls)
+		return -ENOMEM;
+
+	v4l2_ctrl_handler_init(hdl, 6);
+	ctrls->autogain = v4l2_ctrl_new_std(hdl, &pb0100_ctrl_ops,
+			V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
+	ctrls->exposure = v4l2_ctrl_new_std(hdl, &pb0100_ctrl_ops,
+			V4L2_CID_EXPOSURE, 0, 511, 1, 12);
+	ctrls->gain = v4l2_ctrl_new_std(hdl, &pb0100_ctrl_ops,
+			V4L2_CID_GAIN, 0, 255, 1, 128);
+	ctrls->red = v4l2_ctrl_new_std(hdl, &pb0100_ctrl_ops,
+			V4L2_CID_RED_BALANCE, -255, 255, 1, 0);
+	ctrls->blue = v4l2_ctrl_new_std(hdl, &pb0100_ctrl_ops,
+			V4L2_CID_BLUE_BALANCE, -255, 255, 1, 0);
+	ctrls->natural = v4l2_ctrl_new_custom(hdl, &natural_light, NULL);
+	ctrls->target = v4l2_ctrl_new_custom(hdl, &autogain_target, NULL);
+	if (hdl->error) {
+		kfree(ctrls);
+		return hdl->error;
+	}
+	sd->sensor_priv = ctrls;
+	v4l2_ctrl_auto_cluster(5, &ctrls->autogain, 0, false);
+	return 0;
+}
+
 static int pb0100_probe(struct sd *sd)
 {
 	u16 sensor;
-	int i, err;
-	s32 *sensor_settings;
+	int err;
 
 	err = stv06xx_read_sensor(sd, PB_IDENT, &sensor);
 
 	if (err < 0)
 		return -ENODEV;
+	if ((sensor >> 8) != 0x64)
+		return -ENODEV;
 
-	if ((sensor >> 8) == 0x64) {
-		sensor_settings = kmalloc(
-				ARRAY_SIZE(pb0100_ctrl) * sizeof(s32),
-				GFP_KERNEL);
-		if (!sensor_settings)
-			return -ENOMEM;
+	pr_info("Photobit pb0100 sensor detected\n");
 
-		pr_info("Photobit pb0100 sensor detected\n");
+	sd->gspca_dev.cam.cam_mode = pb0100_mode;
+	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(pb0100_mode);
 
-		sd->gspca_dev.cam.cam_mode = pb0100_mode;
-		sd->gspca_dev.cam.nmodes = ARRAY_SIZE(pb0100_mode);
-		sd->desc.ctrls = pb0100_ctrl;
-		sd->desc.nctrls = ARRAY_SIZE(pb0100_ctrl);
-		for (i = 0; i < sd->desc.nctrls; i++)
-			sensor_settings[i] = pb0100_ctrl[i].qctrl.default_value;
-		sd->sensor_priv = sensor_settings;
-
-		return 0;
-	}
-
-	return -ENODEV;
+	return 0;
 }
 
 static int pb0100_start(struct sd *sd)
@@ -214,7 +191,6 @@ static int pb0100_start(struct sd *sd)
 	struct usb_host_interface *alt;
 	struct usb_interface *intf;
 	struct cam *cam = &sd->gspca_dev.cam;
-	s32 *sensor_settings = sd->sensor_priv;
 	u32 mode = cam->cam_mode[sd->gspca_dev.curr_mode].priv;
 
 	intf = usb_ifnum_to_if(sd->gspca_dev.dev, sd->gspca_dev.iface);
@@ -255,13 +231,6 @@ static int pb0100_start(struct sd *sd)
 		stv06xx_write_bridge(sd, STV_SCAN_RATE, 0x20);
 	}
 
-	/* set_gain also sets red and blue balance */
-	pb0100_set_gain(&sd->gspca_dev, sensor_settings[GAIN_IDX]);
-	pb0100_set_exposure(&sd->gspca_dev, sensor_settings[EXPOSURE_IDX]);
-	pb0100_set_autogain_target(&sd->gspca_dev,
-				   sensor_settings[AUTOGAIN_TARGET_IDX]);
-	pb0100_set_autogain(&sd->gspca_dev, sensor_settings[AUTOGAIN_IDX]);
-
 	err = stv06xx_write_sensor(sd, PB_CONTROL, BIT(5)|BIT(3)|BIT(1));
 	PDEBUG(D_STREAM, "Started stream, status: %d", err);
 
@@ -283,12 +252,6 @@ static int pb0100_stop(struct sd *sd)
 	PDEBUG(D_STREAM, "Halting stream");
 out:
 	return (err < 0) ? err : 0;
-}
-
-static void pb0100_disconnect(struct sd *sd)
-{
-	sd->sensor = NULL;
-	kfree(sd->sensor_priv);
 }
 
 /* FIXME: Sort the init commands out and put them into tables,
@@ -362,62 +325,32 @@ static int pb0100_dump(struct sd *sd)
 	return 0;
 }
 
-static int pb0100_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[GAIN_IDX];
-
-	return 0;
-}
-
 static int pb0100_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
+	struct pb0100_ctrls *ctrls = sd->sensor_priv;
 
-	if (sensor_settings[AUTOGAIN_IDX])
-		return -EBUSY;
-
-	sensor_settings[GAIN_IDX] = val;
 	err = stv06xx_write_sensor(sd, PB_G1GAIN, val);
 	if (!err)
 		err = stv06xx_write_sensor(sd, PB_G2GAIN, val);
 	PDEBUG(D_V4L2, "Set green gain to %d, status: %d", val, err);
 
 	if (!err)
-		err = pb0100_set_red_balance(gspca_dev,
-					     sensor_settings[RED_BALANCE_IDX]);
+		err = pb0100_set_red_balance(gspca_dev, ctrls->red->val);
 	if (!err)
-		err = pb0100_set_blue_balance(gspca_dev,
-					    sensor_settings[BLUE_BALANCE_IDX]);
+		err = pb0100_set_blue_balance(gspca_dev, ctrls->blue->val);
 
 	return err;
-}
-
-static int pb0100_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[RED_BALANCE_IDX];
-
-	return 0;
 }
 
 static int pb0100_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
+	struct pb0100_ctrls *ctrls = sd->sensor_priv;
 
-	if (sensor_settings[AUTOGAIN_IDX])
-		return -EBUSY;
-
-	sensor_settings[RED_BALANCE_IDX] = val;
-	val += sensor_settings[GAIN_IDX];
+	val += ctrls->gain->val;
 	if (val < 0)
 		val = 0;
 	else if (val > 255)
@@ -429,27 +362,13 @@ static int pb0100_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-static int pb0100_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[BLUE_BALANCE_IDX];
-
-	return 0;
-}
-
 static int pb0100_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
+	struct pb0100_ctrls *ctrls = sd->sensor_priv;
 
-	if (sensor_settings[AUTOGAIN_IDX])
-		return -EBUSY;
-
-	sensor_settings[BLUE_BALANCE_IDX] = val;
-	val += sensor_settings[GAIN_IDX];
+	val += ctrls->gain->val;
 	if (val < 0)
 		val = 0;
 	else if (val > 255)
@@ -461,51 +380,25 @@ static int pb0100_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-static int pb0100_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[EXPOSURE_IDX];
-
-	return 0;
-}
-
 static int pb0100_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 {
-	int err;
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
+	int err;
 
-	if (sensor_settings[AUTOGAIN_IDX])
-		return -EBUSY;
-
-	sensor_settings[EXPOSURE_IDX] = val;
 	err = stv06xx_write_sensor(sd, PB_RINTTIME, val);
 	PDEBUG(D_V4L2, "Set exposure to %d, status: %d", val, err);
 
 	return err;
 }
 
-static int pb0100_get_autogain(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[AUTOGAIN_IDX];
-
-	return 0;
-}
-
 static int pb0100_set_autogain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
+	struct pb0100_ctrls *ctrls = sd->sensor_priv;
 
-	sensor_settings[AUTOGAIN_IDX] = val;
-	if (sensor_settings[AUTOGAIN_IDX]) {
-		if (sensor_settings[NATURAL_IDX])
+	if (val) {
+		if (ctrls->natural->val)
 			val = BIT(6)|BIT(4)|BIT(0);
 		else
 			val = BIT(4)|BIT(0);
@@ -514,29 +407,15 @@ static int pb0100_set_autogain(struct gspca_dev *gspca_dev, __s32 val)
 
 	err = stv06xx_write_sensor(sd, PB_EXPGAIN, val);
 	PDEBUG(D_V4L2, "Set autogain to %d (natural: %d), status: %d",
-	       sensor_settings[AUTOGAIN_IDX], sensor_settings[NATURAL_IDX],
-	       err);
+	       val, ctrls->natural->val, err);
 
 	return err;
-}
-
-static int pb0100_get_autogain_target(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[AUTOGAIN_TARGET_IDX];
-
-	return 0;
 }
 
 static int pb0100_set_autogain_target(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err, totalpixels, brightpixels, darkpixels;
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	sensor_settings[AUTOGAIN_TARGET_IDX] = val;
 
 	/* Number of pixels counted by the sensor when subsampling the pixels.
 	 * Slightly larger than the real value to avoid oscillation */
@@ -552,24 +431,4 @@ static int pb0100_set_autogain_target(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set autogain target to %d, status: %d", val, err);
 
 	return err;
-}
-
-static int pb0100_get_natural(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[NATURAL_IDX];
-
-	return 0;
-}
-
-static int pb0100_set_natural(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	sensor_settings[NATURAL_IDX] = val;
-
-	return pb0100_set_autogain(gspca_dev, sensor_settings[AUTOGAIN_IDX]);
 }

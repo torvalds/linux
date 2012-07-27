@@ -19,6 +19,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/map.h>
+#include <linux/sh_intc.h>
 #include <mach/magicpanelr2.h>
 #include <asm/heartbeat.h>
 #include <cpu/sh7720.h>
@@ -245,8 +246,8 @@ static struct resource smsc911x_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start		= 35,
-		.end		= 35,
+		.start		= evt2irq(0x660),
+		.end		= evt2irq(0x660),
 		.flags		= IORESOURCE_IRQ,
 	},
 };
@@ -358,17 +359,17 @@ static void __init init_mpr2_IRQ(void)
 {
 	plat_irq_setup_pins(IRQ_MODE_IRQ); /* install handlers for IRQ0-5 */
 
-	irq_set_irq_type(32, IRQ_TYPE_LEVEL_LOW);    /* IRQ0 CAN1 */
-	irq_set_irq_type(33, IRQ_TYPE_LEVEL_LOW);    /* IRQ1 CAN2 */
-	irq_set_irq_type(34, IRQ_TYPE_LEVEL_LOW);    /* IRQ2 CAN3 */
-	irq_set_irq_type(35, IRQ_TYPE_LEVEL_LOW);    /* IRQ3 SMSC9115 */
-	irq_set_irq_type(36, IRQ_TYPE_EDGE_RISING);  /* IRQ4 touchscreen */
-	irq_set_irq_type(37, IRQ_TYPE_EDGE_FALLING); /* IRQ5 touchscreen */
+	irq_set_irq_type(evt2irq(0x600), IRQ_TYPE_LEVEL_LOW);    /* IRQ0 CAN1 */
+	irq_set_irq_type(evt2irq(0x620), IRQ_TYPE_LEVEL_LOW);    /* IRQ1 CAN2 */
+	irq_set_irq_type(evt2irq(0x640), IRQ_TYPE_LEVEL_LOW);    /* IRQ2 CAN3 */
+	irq_set_irq_type(evt2irq(0x660), IRQ_TYPE_LEVEL_LOW);    /* IRQ3 SMSC9115 */
+	irq_set_irq_type(evt2irq(0x680), IRQ_TYPE_EDGE_RISING);  /* IRQ4 touchscreen */
+	irq_set_irq_type(evt2irq(0x6a0), IRQ_TYPE_EDGE_FALLING); /* IRQ5 touchscreen */
 
-	intc_set_priority(32, 13);		/* IRQ0 CAN1 */
-	intc_set_priority(33, 13);		/* IRQ0 CAN2 */
-	intc_set_priority(34, 13);		/* IRQ0 CAN3 */
-	intc_set_priority(35, 6);		/* IRQ3 SMSC9115 */
+	intc_set_priority(evt2irq(0x600), 13);		/* IRQ0 CAN1 */
+	intc_set_priority(evt2irq(0x620), 13);		/* IRQ0 CAN2 */
+	intc_set_priority(evt2irq(0x640), 13);		/* IRQ0 CAN3 */
+	intc_set_priority(evt2irq(0x660), 6);		/* IRQ3 SMSC9115 */
 }
 
 /*

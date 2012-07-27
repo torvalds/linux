@@ -1,3 +1,11 @@
+Release Date    : Mon. Mar 19, 2012 17:00:00 PST 2012 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+Current Version : 00.00.06.15-rc1
+Old Version     : 00.00.06.14-rc1
+    1. Optimize HostMSIxVectors setting.
+    2. Add fpRead/WriteCapable, fpRead/WriteAcrossStripe checks.
+-------------------------------------------------------------------------------
 Release Date    : Fri. Jan 6, 2012 17:00:00 PST 2010 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Adam Radford

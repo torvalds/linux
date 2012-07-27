@@ -233,21 +233,27 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 
 	skb_push(skb_aggr, headroom);
 
-	/*
-	 * Padding per MSDU will affect the length of next
-	 * packet and hence the exact length of next packet
-	 * is uncertain here.
-	 *
-	 * Also, aggregation of transmission buffer, while
-	 * downloading the data to the card, wont gain much
-	 * on the AMSDU packets as the AMSDU packets utilizes
-	 * the transmission buffer space to the maximum
-	 * (adapter->tx_buf_size).
-	 */
-	tx_param.next_pkt_len = 0;
+	if (adapter->iface_type == MWIFIEX_USB) {
+		adapter->data_sent = true;
+		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_USB_EP_DATA,
+						   skb_aggr, NULL);
+	} else {
+		/*
+		 * Padding per MSDU will affect the length of next
+		 * packet and hence the exact length of next packet
+		 * is uncertain here.
+		 *
+		 * Also, aggregation of transmission buffer, while
+		 * downloading the data to the card, wont gain much
+		 * on the AMSDU packets as the AMSDU packets utilizes
+		 * the transmission buffer space to the maximum
+		 * (adapter->tx_buf_size).
+		 */
+		tx_param.next_pkt_len = 0;
 
-	ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
-					   skb_aggr, &tx_param);
+		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
+						   skb_aggr, &tx_param);
+	}
 	switch (ret) {
 	case -EBUSY:
 		spin_lock_irqsave(&priv->wmm.ra_list_spinlock, ra_list_flags);

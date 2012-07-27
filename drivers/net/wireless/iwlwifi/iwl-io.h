@@ -30,7 +30,6 @@
 #define __iwl_io_h__
 
 #include "iwl-devtrace.h"
-#include "iwl-shared.h"
 #include "iwl-trans.h"
 
 static inline void iwl_write8(struct iwl_trans *trans, u32 ofs, u8 val)

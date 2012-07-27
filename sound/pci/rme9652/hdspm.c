@@ -1988,6 +1988,13 @@ static int hdspm_get_system_sample_rate(struct hdspm *hdspm)
 	period = hdspm_read(hdspm, HDSPM_RD_PLL_FREQ);
 	rate = hdspm_calc_dds_value(hdspm, period);
 
+	if (rate > 207000) {
+		/* Unreasonable high sample rate as seen on PCI MADI cards.
+		 * Use the cached value instead.
+		 */
+		rate = hdspm->system_sample_rate;
+	}
+
 	return rate;
 }
 
@@ -6918,23 +6925,11 @@ static void __devexit snd_hdspm_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_driver driver = {
+static struct pci_driver hdspm_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_hdspm_ids,
 	.probe = snd_hdspm_probe,
 	.remove = __devexit_p(snd_hdspm_remove),
 };
 
-
-static int __init alsa_card_hdspm_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_hdspm_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_hdspm_init)
-module_exit(alsa_card_hdspm_exit)
+module_pci_driver(hdspm_driver);

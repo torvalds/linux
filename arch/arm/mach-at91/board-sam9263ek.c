@@ -57,15 +57,6 @@ static void __init ek_init_early(void)
 {
 	/* Initialize processor: 16.367 MHz crystal */
 	at91_initialize(16367660);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* USART0 on ttyS1. (Rx, Tx, RTS, CTS) */
-	at91_register_uart(AT91SAM9263_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 /*
@@ -412,6 +403,11 @@ static struct at91_can_data ek_can_data = {
 static void __init ek_board_init(void)
 {
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART0 on ttyS1. (Rx, Tx, RTS, CTS) */
+	at91_register_uart(AT91SAM9263_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS);
 	at91_add_device_serial();
 	/* USB Host */
 	at91_add_device_usbh(&ek_usbh_data);

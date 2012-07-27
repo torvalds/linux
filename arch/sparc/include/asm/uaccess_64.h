@@ -17,6 +17,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/processor.h>
+
 /*
  * Sparc64 is segmented, though more like the M68K than the I386.
  * We use the secondary ASI to address user memory, which references a
@@ -257,15 +259,9 @@ extern unsigned long __must_check __clear_user(void __user *, unsigned long);
 
 #define clear_user __clear_user
 
-extern long __must_check __strncpy_from_user(char *dest, const char __user *src, long count);
+extern __must_check long strlen_user(const char __user *str);
+extern __must_check long strnlen_user(const char __user *str, long n);
 
-#define strncpy_from_user __strncpy_from_user
-
-extern long __strlen_user(const char __user *);
-extern long __strnlen_user(const char __user *, long len);
-
-#define strlen_user __strlen_user
-#define strnlen_user __strnlen_user
 #define __copy_to_user_inatomic ___copy_to_user
 #define __copy_from_user_inatomic ___copy_from_user
 

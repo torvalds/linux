@@ -337,17 +337,20 @@ static void sym_update_crc(const char *name, struct module *mod,
 void *grab_file(const char *filename, unsigned long *size)
 {
 	struct stat st;
-	void *map;
+	void *map = MAP_FAILED;
 	int fd;
 
 	fd = open(filename, O_RDONLY);
-	if (fd < 0 || fstat(fd, &st) != 0)
+	if (fd < 0)
 		return NULL;
+	if (fstat(fd, &st))
+		goto failed;
 
 	*size = st.st_size;
 	map = mmap(NULL, *size, PROT_READ|PROT_WRITE, MAP_PRIVATE, fd, 0);
-	close(fd);
 
+failed:
+	close(fd);
 	if (map == MAP_FAILED)
 		return NULL;
 	return map;
@@ -1850,14 +1853,14 @@ static void add_header(struct buffer *b, struct module *mod)
 	buf_printf(b, "\n");
 	buf_printf(b, "struct module __this_module\n");
 	buf_printf(b, "__attribute__((section(\".gnu.linkonce.this_module\"))) = {\n");
-	buf_printf(b, " .name = KBUILD_MODNAME,\n");
+	buf_printf(b, "\t.name = KBUILD_MODNAME,\n");
 	if (mod->has_init)
-		buf_printf(b, " .init = init_module,\n");
+		buf_printf(b, "\t.init = init_module,\n");
 	if (mod->has_cleanup)
 		buf_printf(b, "#ifdef CONFIG_MODULE_UNLOAD\n"
-			      " .exit = cleanup_module,\n"
+			      "\t.exit = cleanup_module,\n"
 			      "#endif\n");
-	buf_printf(b, " .arch = MODULE_ARCH_INIT,\n");
+	buf_printf(b, "\t.arch = MODULE_ARCH_INIT,\n");
 	buf_printf(b, "};\n");
 }
 

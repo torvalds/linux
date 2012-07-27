@@ -92,7 +92,7 @@ bool rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 		/*
 		 * Send the frame to rt2x00lib for further processing.
 		 */
-		rt2x00lib_rxdone(entry);
+		rt2x00lib_rxdone(entry, GFP_ATOMIC);
 	}
 
 	return !max_rx;

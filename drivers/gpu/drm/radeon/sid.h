@@ -24,6 +24,11 @@
 #ifndef SI_H
 #define SI_H
 
+#define TAHITI_RB_BITMAP_WIDTH_PER_SH  2
+
+#define TAHITI_GB_ADDR_CONFIG_GOLDEN        0x12011003
+#define VERDE_GB_ADDR_CONFIG_GOLDEN         0x12010002
+
 #define	CG_MULT_THERMAL_STATUS					0x714
 #define		ASIC_MAX_TEMP(x)				((x) << 0)
 #define		ASIC_MAX_TEMP_MASK				0x000001ff
@@ -408,6 +413,12 @@
 #define		SOFT_RESET_IA					(1 << 15)
 
 #define GRBM_GFX_INDEX          			0x802C
+#define		INSTANCE_INDEX(x)			((x) << 0)
+#define		SH_INDEX(x)     			((x) << 8)
+#define		SE_INDEX(x)     			((x) << 16)
+#define		SH_BROADCAST_WRITES      		(1 << 29)
+#define		INSTANCE_BROADCAST_WRITES      		(1 << 30)
+#define		SE_BROADCAST_WRITES      		(1 << 31)
 
 #define GRBM_INT_CNTL                                   0x8060
 #       define RDERR_INT_ENABLE                         (1 << 0)
@@ -480,6 +491,8 @@
 #define	VGT_TF_MEMORY_BASE				0x89B8
 
 #define CC_GC_SHADER_ARRAY_CONFIG			0x89bc
+#define		INACTIVE_CUS_MASK			0xFFFF0000
+#define		INACTIVE_CUS_SHIFT			16
 #define GC_USER_SHADER_ARRAY_CONFIG			0x89c0
 
 #define	PA_CL_ENHANCE					0x8A14
@@ -688,6 +701,12 @@
 #define RLC_MC_CNTL                                       0xC344
 #define RLC_UCODE_CNTL                                    0xC348
 
+#define PA_SC_RASTER_CONFIG                             0x28350
+#       define RASTER_CONFIG_RB_MAP_0                   0
+#       define RASTER_CONFIG_RB_MAP_1                   1
+#       define RASTER_CONFIG_RB_MAP_2                   2
+#       define RASTER_CONFIG_RB_MAP_3                   3
+
 #define VGT_EVENT_INITIATOR                             0x28a90
 #       define SAMPLE_STREAMOUTSTATS1                   (1 << 0)
 #       define SAMPLE_STREAMOUTSTATS2                   (2 << 0)
@@ -882,5 +901,6 @@
 #define	PACKET3_WAIT_ON_DE_COUNTER_DIFF			0x88
 #define	PACKET3_SET_CE_DE_COUNTERS			0x89
 #define	PACKET3_WAIT_ON_AVAIL_BUFFER			0x8A
+#define	PACKET3_SWITCH_BUFFER				0x8B
 
 #endif

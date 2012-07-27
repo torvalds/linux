@@ -75,6 +75,7 @@ static int do_ops(struct host_vm_change *hvc, int end,
 		default:
 			printk(KERN_ERR "Unknown op type %d in do_ops\n",
 			       op->type);
+			BUG();
 			break;
 		}
 	}

@@ -374,6 +374,118 @@ err:
 	return ret;
 }
 
+static int rtl2830_get_frontend(struct dvb_frontend *fe)
+{
+	struct rtl2830_priv *priv = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	int ret;
+	u8 buf[3];
+
+	if (priv->sleeping)
+		return 0;
+
+	ret = rtl2830_rd_regs(priv, 0x33c, buf, 2);
+	if (ret)
+		goto err;
+
+	ret = rtl2830_rd_reg(priv, 0x351, &buf[2]);
+	if (ret)
+		goto err;
+
+	dbg("%s: TPS=%02x %02x %02x", __func__, buf[0], buf[1], buf[2]);
+
+	switch ((buf[0] >> 2) & 3) {
+	case 0:
+		c->modulation = QPSK;
+		break;
+	case 1:
+		c->modulation = QAM_16;
+		break;
+	case 2:
+		c->modulation = QAM_64;
+		break;
+	}
+
+	switch ((buf[2] >> 2) & 1) {
+	case 0:
+		c->transmission_mode = TRANSMISSION_MODE_2K;
+		break;
+	case 1:
+		c->transmission_mode = TRANSMISSION_MODE_8K;
+	}
+
+	switch ((buf[2] >> 0) & 3) {
+	case 0:
+		c->guard_interval = GUARD_INTERVAL_1_32;
+		break;
+	case 1:
+		c->guard_interval = GUARD_INTERVAL_1_16;
+		break;
+	case 2:
+		c->guard_interval = GUARD_INTERVAL_1_8;
+		break;
+	case 3:
+		c->guard_interval = GUARD_INTERVAL_1_4;
+		break;
+	}
+
+	switch ((buf[0] >> 4) & 7) {
+	case 0:
+		c->hierarchy = HIERARCHY_NONE;
+		break;
+	case 1:
+		c->hierarchy = HIERARCHY_1;
+		break;
+	case 2:
+		c->hierarchy = HIERARCHY_2;
+		break;
+	case 3:
+		c->hierarchy = HIERARCHY_4;
+		break;
+	}
+
+	switch ((buf[1] >> 3) & 7) {
+	case 0:
+		c->code_rate_HP = FEC_1_2;
+		break;
+	case 1:
+		c->code_rate_HP = FEC_2_3;
+		break;
+	case 2:
+		c->code_rate_HP = FEC_3_4;
+		break;
+	case 3:
+		c->code_rate_HP = FEC_5_6;
+		break;
+	case 4:
+		c->code_rate_HP = FEC_7_8;
+		break;
+	}
+
+	switch ((buf[1] >> 0) & 7) {
+	case 0:
+		c->code_rate_LP = FEC_1_2;
+		break;
+	case 1:
+		c->code_rate_LP = FEC_2_3;
+		break;
+	case 2:
+		c->code_rate_LP = FEC_3_4;
+		break;
+	case 3:
+		c->code_rate_LP = FEC_5_6;
+		break;
+	case 4:
+		c->code_rate_LP = FEC_7_8;
+		break;
+	}
+
+	return 0;
+err:
+	dbg("%s: failed=%d", __func__, ret);
+	return ret;
+}
+
 static int rtl2830_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
 	struct rtl2830_priv *priv = fe->demodulator_priv;
@@ -404,14 +516,72 @@ err:
 
 static int rtl2830_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	*snr = 0;
+	struct rtl2830_priv *priv = fe->demodulator_priv;
+	int ret, hierarchy, constellation;
+	u8 buf[2], tmp;
+	u16 tmp16;
+#define CONSTELLATION_NUM 3
+#define HIERARCHY_NUM 4
+	static const u32 snr_constant[CONSTELLATION_NUM][HIERARCHY_NUM] = {
+		{ 70705899, 70705899, 70705899, 70705899 },
+		{ 82433173, 82433173, 87483115, 94445660 },
+		{ 92888734, 92888734, 95487525, 99770748 },
+	};
+
+	if (priv->sleeping)
+		return 0;
+
+	/* reports SNR in resolution of 0.1 dB */
+
+	ret = rtl2830_rd_reg(priv, 0x33c, &tmp);
+	if (ret)
+		goto err;
+
+	constellation = (tmp >> 2) & 0x03; /* [3:2] */
+	if (constellation > CONSTELLATION_NUM - 1)
+		goto err;
+
+	hierarchy = (tmp >> 4) & 0x07; /* [6:4] */
+	if (hierarchy > HIERARCHY_NUM - 1)
+		goto err;
+
+	ret = rtl2830_rd_regs(priv, 0x40c, buf, 2);
+	if (ret)
+		goto err;
+
+	tmp16 = buf[0] << 8 | buf[1];
+
+	if (tmp16)
+		*snr = (snr_constant[constellation][hierarchy] -
+				intlog10(tmp16)) / ((1 << 24) / 100);
+	else
+		*snr = 0;
+
 	return 0;
+err:
+	dbg("%s: failed=%d", __func__, ret);
+	return ret;
 }
 
 static int rtl2830_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
-	*ber = 0;
+	struct rtl2830_priv *priv = fe->demodulator_priv;
+	int ret;
+	u8 buf[2];
+
+	if (priv->sleeping)
+		return 0;
+
+	ret = rtl2830_rd_regs(priv, 0x34e, buf, 2);
+	if (ret)
+		goto err;
+
+	*ber = buf[0] << 8 | buf[1];
+
 	return 0;
+err:
+	dbg("%s: failed=%d", __func__, ret);
+	return ret;
 }
 
 static int rtl2830_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
@@ -422,8 +592,32 @@ static int rtl2830_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 
 static int rtl2830_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
-	*strength = 0;
+	struct rtl2830_priv *priv = fe->demodulator_priv;
+	int ret;
+	u8 buf[2];
+	u16 if_agc_raw, if_agc;
+
+	if (priv->sleeping)
+		return 0;
+
+	ret = rtl2830_rd_regs(priv, 0x359, buf, 2);
+	if (ret)
+		goto err;
+
+	if_agc_raw = (buf[0] << 8 | buf[1]) & 0x3fff;
+
+	if (if_agc_raw & (1 << 9))
+		if_agc = -(~(if_agc_raw - 1) & 0x1ff);
+	else
+		if_agc = if_agc_raw;
+
+	*strength = (u8) (55 - if_agc / 182);
+	*strength |= *strength << 8;
+
 	return 0;
+err:
+	dbg("%s: failed=%d", __func__, ret);
+	return ret;
 }
 
 static struct dvb_frontend_ops rtl2830_ops;
@@ -549,6 +743,7 @@ static struct dvb_frontend_ops rtl2830_ops = {
 	.get_tune_settings = rtl2830_get_tune_settings,
 
 	.set_frontend = rtl2830_set_frontend,
+	.get_frontend = rtl2830_get_frontend,
 
 	.read_status = rtl2830_read_status,
 	.read_snr = rtl2830_read_snr,

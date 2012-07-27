@@ -17,6 +17,7 @@
  */
 
 #include <linux/ioport.h>
+#include <linux/of.h>
 
 /*
  * Each pci channel is a top-level PCI bus seem by CPU.  A machine  with
@@ -26,6 +27,7 @@
 struct pci_controller {
 	struct pci_controller *next;
 	struct pci_bus *bus;
+	struct device_node *of_node;
 
 	struct pci_ops *pci_ops;
 	struct resource *mem_resource;
@@ -141,5 +143,9 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 #endif
 
 extern char * (*pcibios_plat_setup)(char *str);
+
+/* this function parses memory ranges from a device node */
+extern void __devinit pci_load_of_ranges(struct pci_controller *hose,
+					 struct device_node *node);
 
 #endif /* _ASM_PCI_H */

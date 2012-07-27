@@ -130,7 +130,8 @@ ohci_ppc_soc_start(struct usb_hcd *hcd)
 		return ret;
 
 	if ((ret = ohci_run(ohci)) < 0) {
-		err("can't start %s", ohci_to_hcd(ohci)->self.bus_name);
+		dev_err(hcd->self.controller, "can't start %s\n",
+			hcd->self.bus_name);
 		ohci_stop(hcd);
 		return ret;
 	}

@@ -434,12 +434,12 @@ static struct vis_info *add_packet(struct bat_priv *bat_priv,
 		return NULL;
 
 	info->skb_packet = dev_alloc_skb(sizeof(*packet) + vis_info_len +
-					 sizeof(struct ethhdr));
+					 ETH_HLEN);
 	if (!info->skb_packet) {
 		kfree(info);
 		return NULL;
 	}
-	skb_reserve(info->skb_packet, sizeof(struct ethhdr));
+	skb_reserve(info->skb_packet, ETH_HLEN);
 	packet = (struct vis_packet *)skb_put(info->skb_packet, sizeof(*packet)
 					      + vis_info_len);
 
@@ -894,11 +894,11 @@ int vis_init(struct bat_priv *bat_priv)
 
 	bat_priv->my_vis_info->skb_packet = dev_alloc_skb(sizeof(*packet) +
 							  MAX_VIS_PACKET_SIZE +
-							 sizeof(struct ethhdr));
+							  ETH_HLEN);
 	if (!bat_priv->my_vis_info->skb_packet)
 		goto free_info;
 
-	skb_reserve(bat_priv->my_vis_info->skb_packet, sizeof(struct ethhdr));
+	skb_reserve(bat_priv->my_vis_info->skb_packet, ETH_HLEN);
 	packet = (struct vis_packet *)skb_put(bat_priv->my_vis_info->skb_packet,
 					      sizeof(*packet));
 

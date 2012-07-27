@@ -90,11 +90,18 @@ int dm_pool_get_metadata_transaction_id(struct dm_pool_metadata *pmd,
 
 /*
  * Hold/get root for userspace transaction.
+ *
+ * The metadata snapshot is a copy of the current superblock (minus the
+ * space maps).  Userland can access the data structures for READ
+ * operations only.  A small performance hit is incurred by providing this
+ * copy of the metadata to userland due to extra copy-on-write operations
+ * on the metadata nodes.  Release this as soon as you finish with it.
  */
-int dm_pool_hold_metadata_root(struct dm_pool_metadata *pmd);
+int dm_pool_reserve_metadata_snap(struct dm_pool_metadata *pmd);
+int dm_pool_release_metadata_snap(struct dm_pool_metadata *pmd);
 
-int dm_pool_get_held_metadata_root(struct dm_pool_metadata *pmd,
-				   dm_block_t *result);
+int dm_pool_get_metadata_snap(struct dm_pool_metadata *pmd,
+			      dm_block_t *result);
 
 /*
  * Actions on a single virtual device.

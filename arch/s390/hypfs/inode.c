@@ -115,7 +115,7 @@ static struct inode *hypfs_make_inode(struct super_block *sb, umode_t mode)
 
 static void hypfs_evict_inode(struct inode *inode)
 {
-	end_writeback(inode);
+	clear_inode(inode);
 	kfree(inode->i_private);
 }
 

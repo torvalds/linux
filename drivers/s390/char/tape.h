@@ -154,12 +154,6 @@ struct tape_discipline {
 	struct tape_request *(*read_block)(struct tape_device *, size_t);
 	struct tape_request *(*write_block)(struct tape_device *, size_t);
 	void (*process_eov)(struct tape_device*);
-#ifdef CONFIG_S390_TAPE_BLOCK
-	/* Block device stuff. */
-	struct tape_request *(*bread)(struct tape_device *, struct request *);
-	void (*check_locate)(struct tape_device *, struct tape_request *);
-	void (*free_bread)(struct tape_request *);
-#endif
 	/* ioctl function for additional ioctls. */
 	int (*ioctl_fn)(struct tape_device *, unsigned int, unsigned long);
 	/* Array of tape commands with TAPE_NR_MTOPS entries */
@@ -181,26 +175,6 @@ struct tape_char_data {
 	struct idal_buffer *idal_buf;	/* idal buffer for user char data */
 	int block_size;			/*   of size block_size. */
 };
-
-#ifdef CONFIG_S390_TAPE_BLOCK
-/* Block Frontend Data */
-struct tape_blk_data
-{
-	struct tape_device *	device;
-	/* Block device request queue. */
-	struct request_queue *	request_queue;
-	spinlock_t		request_queue_lock;
-
-	/* Task to move entries from block request to CCS request queue. */
-	struct work_struct	requeue_task;
-	atomic_t		requeue_scheduled;
-
-	/* Current position on the tape. */
-	long			block_position;
-	int			medium_changed;
-	struct gendisk *	disk;
-};
-#endif
 
 /* Tape Info */
 struct tape_device {
@@ -248,10 +222,6 @@ struct tape_device {
 
 	/* Character device frontend data */
 	struct tape_char_data		char_data;
-#ifdef CONFIG_S390_TAPE_BLOCK
-	/* Block dev frontend data */
-	struct tape_blk_data		blk_data;
-#endif
 
 	/* Function to start or stop the next request later. */
 	struct delayed_work		tape_dnr;
@@ -312,19 +282,6 @@ extern int tapechar_init(void);
 extern void tapechar_exit(void);
 extern int  tapechar_setup_device(struct tape_device *);
 extern void tapechar_cleanup_device(struct tape_device *);
-
-/* Externals from tape_block.c */
-#ifdef CONFIG_S390_TAPE_BLOCK
-extern int tapeblock_init (void);
-extern void tapeblock_exit(void);
-extern int tapeblock_setup_device(struct tape_device *);
-extern void tapeblock_cleanup_device(struct tape_device *);
-#else
-static inline int tapeblock_init (void) {return 0;}
-static inline void tapeblock_exit (void) {;}
-static inline int tapeblock_setup_device(struct tape_device *t) {return 0;}
-static inline void tapeblock_cleanup_device (struct tape_device *t) {;}
-#endif
 
 /* tape initialisation functions */
 #ifdef CONFIG_PROC_FS

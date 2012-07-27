@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Samsung Electronics Co., Ltd.
+ * Copyright (C) 2011 - 2012 Samsung Electronics Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,12 +18,15 @@
 #include <media/v4l2-subdev.h>
 
 #include "fimc-core.h"
+#include "fimc-lite.h"
 #include "mipi-csis.h"
 
-/* Group IDs of sensor, MIPI CSIS and the writeback subdevs. */
+/* Group IDs of sensor, MIPI-CSIS, FIMC-LITE and the writeback subdevs. */
 #define SENSOR_GROUP_ID		(1 << 8)
 #define CSIS_GROUP_ID		(1 << 9)
 #define WRITEBACK_GROUP_ID	(1 << 10)
+#define FIMC_GROUP_ID		(1 << 11)
+#define FLITE_GROUP_ID		(1 << 12)
 
 #define FIMC_MAX_SENSORS	8
 #define FIMC_MAX_CAMCLKS	2
@@ -44,7 +47,6 @@ struct fimc_camclk_info {
  * @pdata: sensor's atrributes passed as media device's platform data
  * @subdev: image sensor v4l2 subdev
  * @host: fimc device the sensor is currently linked to
- * @clk_on: sclk_cam clock's state associated with this subdev
  *
  * This data structure applies to image sensor and the writeback subdevs.
  */
@@ -52,7 +54,6 @@ struct fimc_sensor_info {
 	struct s5p_fimc_isp_info *pdata;
 	struct v4l2_subdev *subdev;
 	struct fimc_dev *host;
-	bool clk_on;
 };
 
 /**
@@ -73,6 +74,7 @@ struct fimc_md {
 	struct fimc_sensor_info sensor[FIMC_MAX_SENSORS];
 	int num_sensors;
 	struct fimc_camclk_info camclk[FIMC_MAX_CAMCLKS];
+	struct fimc_lite *fimc_lite[FIMC_LITE_MAX_DEVS];
 	struct fimc_dev *fimc[FIMC_MAX_DEVS];
 	struct media_device media_dev;
 	struct v4l2_device v4l2_dev;
@@ -108,11 +110,11 @@ static inline void fimc_md_graph_unlock(struct fimc_dev *fimc)
 }
 
 int fimc_md_set_camclk(struct v4l2_subdev *sd, bool on);
-void fimc_pipeline_prepare(struct fimc_dev *fimc, struct media_entity *me);
-int fimc_pipeline_initialize(struct fimc_dev *fimc, struct media_entity *me,
+void fimc_pipeline_prepare(struct fimc_pipeline *p, struct media_entity *me);
+int fimc_pipeline_initialize(struct fimc_pipeline *p, struct media_entity *me,
 			     bool resume);
-int fimc_pipeline_shutdown(struct fimc_dev *fimc);
-int fimc_pipeline_s_power(struct fimc_dev *fimc, int state);
-int fimc_pipeline_s_stream(struct fimc_dev *fimc, int state);
+int fimc_pipeline_shutdown(struct fimc_pipeline *p);
+int fimc_pipeline_s_power(struct fimc_pipeline *p, bool state);
+int fimc_pipeline_s_stream(struct fimc_pipeline *p, bool state);
 
 #endif

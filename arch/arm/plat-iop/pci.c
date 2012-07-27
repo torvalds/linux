@@ -160,7 +160,7 @@ iop3xx_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static struct pci_ops iop3xx_ops = {
+struct pci_ops iop3xx_ops = {
 	.read	= iop3xx_read_config,
 	.write	= iop3xx_write_config,
 };
@@ -218,12 +218,6 @@ int iop3xx_pci_setup(int nr, struct pci_sys_data *sys)
 	pci_add_resource_offset(&sys->resources, &res[1], sys->mem_offset);
 
 	return 1;
-}
-
-struct pci_bus *iop3xx_pci_scan_bus(int nr, struct pci_sys_data *sys)
-{
-	return pci_scan_root_bus(NULL, sys->busnr, &iop3xx_ops, sys,
-				 &sys->resources);
 }
 
 void __init iop3xx_atu_setup(void)

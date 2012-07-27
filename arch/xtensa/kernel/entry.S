@@ -409,16 +409,16 @@ common_exception_return:
 	l32i	a4, a2, TI_FLAGS
 
 	_bbsi.l	a4, TIF_NEED_RESCHED, 3f
+	_bbsi.l	a4, TIF_NOTIFY_RESUME, 2f
 	_bbci.l	a4, TIF_SIGPENDING, 4f
 
-	l32i	a4, a1, PT_DEPC
+2:	l32i	a4, a1, PT_DEPC
 	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 4f
 
 	/* Call do_signal() */
 
-	movi	a4, do_signal	# int do_signal(struct pt_regs*, sigset_t*)
+	movi	a4, do_notify_resume	# int do_notify_resume(struct pt_regs*)
 	mov	a6, a1
-	movi	a7, 0
 	callx4	a4
 	j	1b
 

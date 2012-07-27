@@ -8,9 +8,6 @@
 #include <linux/mm.h>
 
 /* Cache flush operations. */
-
-
-#define flushi(addr)	__asm__ __volatile__ ("flush %0" : : "r" (addr) : "memory")
 #define flushw_all()	__asm__ __volatile__("flushw")
 
 extern void __flushw_user(void);

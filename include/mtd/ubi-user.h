@@ -196,23 +196,6 @@
 #define UBI_MAX_RNVOL 32
 
 /*
- * UBI data type hint constants.
- *
- * UBI_LONGTERM: long-term data
- * UBI_SHORTTERM: short-term data
- * UBI_UNKNOWN: data persistence is unknown
- *
- * These constants are used when data is written to UBI volumes in order to
- * help the UBI wear-leveling unit to find more appropriate physical
- * eraseblocks.
- */
-enum {
-	UBI_LONGTERM  = 1,
-	UBI_SHORTTERM = 2,
-	UBI_UNKNOWN   = 3,
-};
-
-/*
  * UBI volume type constants.
  *
  * @UBI_DYNAMIC_VOLUME: dynamic volume
@@ -375,25 +358,34 @@ struct ubi_rnvol_req {
  *                             requests.
  * @lnum: logical eraseblock number to change
  * @bytes: how many bytes will be written to the logical eraseblock
- * @dtype: data type (%UBI_LONGTERM, %UBI_SHORTTERM, %UBI_UNKNOWN)
+ * @dtype: pass "3" for better compatibility with old kernels
  * @padding: reserved for future, not used, has to be zeroed
+ *
+ * The @dtype field used to inform UBI about what kind of data will be written
+ * to the LEB: long term (value 1), short term (value 2), unknown (value 3).
+ * UBI tried to pick a PEB with lower erase counter for short term data and a
+ * PEB with higher erase counter for long term data. But this was not really
+ * used because users usually do not know this and could easily mislead UBI. We
+ * removed this feature in May 2012. UBI currently just ignores the @dtype
+ * field. But for better compatibility with older kernels it is recommended to
+ * set @dtype to 3 (unknown).
  */
 struct ubi_leb_change_req {
 	__s32 lnum;
 	__s32 bytes;
-	__s8  dtype;
+	__s8  dtype; /* obsolete, do not use! */
 	__s8  padding[7];
 } __packed;
 
 /**
  * struct ubi_map_req - a data structure used in map LEB requests.
+ * @dtype: pass "3" for better compatibility with old kernels
  * @lnum: logical eraseblock number to unmap
- * @dtype: data type (%UBI_LONGTERM, %UBI_SHORTTERM, %UBI_UNKNOWN)
  * @padding: reserved for future, not used, has to be zeroed
  */
 struct ubi_map_req {
 	__s32 lnum;
-	__s8  dtype;
+	__s8  dtype; /* obsolete, do not use! */
 	__s8  padding[3];
 } __packed;
 

@@ -66,7 +66,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Oliver Hartkopp <oliver.hartkopp@volkswagen.de>");
 MODULE_ALIAS("can-gw");
 
-HLIST_HEAD(cgw_list);
+static HLIST_HEAD(cgw_list);
 static struct notifier_block notifier;
 
 static struct kmem_cache *cgw_cache __read_mostly;

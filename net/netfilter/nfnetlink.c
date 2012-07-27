@@ -103,7 +103,7 @@ int nfnetlink_has_listeners(struct net *net, unsigned int group)
 EXPORT_SYMBOL_GPL(nfnetlink_has_listeners);
 
 int nfnetlink_send(struct sk_buff *skb, struct net *net, u32 pid,
-		   unsigned group, int echo, gfp_t flags)
+		   unsigned int group, int echo, gfp_t flags)
 {
 	return nlmsg_notify(net->nfnl, skb, pid, group, echo, flags);
 }
@@ -169,8 +169,10 @@ replay:
 
 		err = nla_parse(cda, ss->cb[cb_id].attr_count,
 				attr, attrlen, ss->cb[cb_id].policy);
-		if (err < 0)
+		if (err < 0) {
+			rcu_read_unlock();
 			return err;
+		}
 
 		if (nc->call_rcu) {
 			err = nc->call_rcu(net->nfnl, skb, nlh,

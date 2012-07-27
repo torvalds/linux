@@ -221,15 +221,15 @@ static int fib4_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 	frh->src_len = rule4->src_len;
 	frh->tos = rule4->tos;
 
-	if (rule4->dst_len)
-		NLA_PUT_BE32(skb, FRA_DST, rule4->dst);
-
-	if (rule4->src_len)
-		NLA_PUT_BE32(skb, FRA_SRC, rule4->src);
-
+	if ((rule4->dst_len &&
+	     nla_put_be32(skb, FRA_DST, rule4->dst)) ||
+	    (rule4->src_len &&
+	     nla_put_be32(skb, FRA_SRC, rule4->src)))
+		goto nla_put_failure;
 #ifdef CONFIG_IP_ROUTE_CLASSID
-	if (rule4->tclassid)
-		NLA_PUT_U32(skb, FRA_FLOW, rule4->tclassid);
+	if (rule4->tclassid &&
+	    nla_put_u32(skb, FRA_FLOW, rule4->tclassid))
+		goto nla_put_failure;
 #endif
 	return 0;
 

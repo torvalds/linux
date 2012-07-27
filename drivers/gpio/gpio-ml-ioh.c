@@ -611,17 +611,7 @@ static struct pci_driver ioh_gpio_driver = {
 	.resume = ioh_gpio_resume
 };
 
-static int __init ioh_gpio_pci_init(void)
-{
-	return pci_register_driver(&ioh_gpio_driver);
-}
-module_init(ioh_gpio_pci_init);
-
-static void __exit ioh_gpio_pci_exit(void)
-{
-	pci_unregister_driver(&ioh_gpio_driver);
-}
-module_exit(ioh_gpio_pci_exit);
+module_pci_driver(ioh_gpio_driver);
 
 MODULE_DESCRIPTION("OKI SEMICONDUCTOR ML-IOH series GPIO Driver");
 MODULE_LICENSE("GPL");

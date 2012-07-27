@@ -277,7 +277,6 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	else
 		rt2x00dev->intf_sta_count++;
 
-	spin_lock_init(&intf->seqlock);
 	mutex_init(&intf->beacon_skb_mutex);
 	intf->beacon = entry;
 
@@ -709,7 +708,17 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 			rt2x00dev->intf_associated--;
 
 		rt2x00leds_led_assoc(rt2x00dev, !!rt2x00dev->intf_associated);
+
+		clear_bit(CONFIG_QOS_DISABLED, &rt2x00dev->flags);
 	}
+
+	/*
+	 * Check for access point which do not support 802.11e . We have to
+	 * generate data frames sequence number in S/W for such AP, because
+	 * of H/W bug.
+	 */
+	if (changes & BSS_CHANGED_QOS && !bss_conf->qos)
+		set_bit(CONFIG_QOS_DISABLED, &rt2x00dev->flags);
 
 	/*
 	 * When the erp information has changed, we should perform

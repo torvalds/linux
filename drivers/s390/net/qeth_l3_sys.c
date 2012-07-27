@@ -175,116 +175,6 @@ out:
 static DEVICE_ATTR(fake_broadcast, 0644, qeth_l3_dev_fake_broadcast_show,
 		   qeth_l3_dev_fake_broadcast_store);
 
-static ssize_t qeth_l3_dev_broadcast_mode_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct qeth_card *card = dev_get_drvdata(dev);
-
-	if (!card)
-		return -EINVAL;
-
-	if (!((card->info.link_type == QETH_LINK_TYPE_HSTR) ||
-	      (card->info.link_type == QETH_LINK_TYPE_LANE_TR)))
-		return sprintf(buf, "n/a\n");
-
-	return sprintf(buf, "%s\n", (card->options.broadcast_mode ==
-				     QETH_TR_BROADCAST_ALLRINGS)?
-		       "all rings":"local");
-}
-
-static ssize_t qeth_l3_dev_broadcast_mode_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct qeth_card *card = dev_get_drvdata(dev);
-	char *tmp;
-	int rc = 0;
-
-	if (!card)
-		return -EINVAL;
-
-	mutex_lock(&card->conf_mutex);
-	if ((card->state != CARD_STATE_DOWN) &&
-	    (card->state != CARD_STATE_RECOVER)) {
-		rc = -EPERM;
-		goto out;
-	}
-
-	if (!((card->info.link_type == QETH_LINK_TYPE_HSTR) ||
-	      (card->info.link_type == QETH_LINK_TYPE_LANE_TR))) {
-		rc = -EINVAL;
-		goto out;
-	}
-
-	tmp = strsep((char **) &buf, "\n");
-
-	if (!strcmp(tmp, "local"))
-		card->options.broadcast_mode = QETH_TR_BROADCAST_LOCAL;
-	else if (!strcmp(tmp, "all_rings"))
-		card->options.broadcast_mode = QETH_TR_BROADCAST_ALLRINGS;
-	else
-		rc = -EINVAL;
-out:
-	mutex_unlock(&card->conf_mutex);
-	return rc ? rc : count;
-}
-
-static DEVICE_ATTR(broadcast_mode, 0644, qeth_l3_dev_broadcast_mode_show,
-		   qeth_l3_dev_broadcast_mode_store);
-
-static ssize_t qeth_l3_dev_canonical_macaddr_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct qeth_card *card = dev_get_drvdata(dev);
-
-	if (!card)
-		return -EINVAL;
-
-	if (!((card->info.link_type == QETH_LINK_TYPE_HSTR) ||
-	      (card->info.link_type == QETH_LINK_TYPE_LANE_TR)))
-		return sprintf(buf, "n/a\n");
-
-	return sprintf(buf, "%i\n", (card->options.macaddr_mode ==
-				     QETH_TR_MACADDR_CANONICAL)? 1:0);
-}
-
-static ssize_t qeth_l3_dev_canonical_macaddr_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct qeth_card *card = dev_get_drvdata(dev);
-	char *tmp;
-	int i, rc = 0;
-
-	if (!card)
-		return -EINVAL;
-
-	mutex_lock(&card->conf_mutex);
-	if ((card->state != CARD_STATE_DOWN) &&
-	    (card->state != CARD_STATE_RECOVER)) {
-		rc = -EPERM;
-		goto out;
-	}
-
-	if (!((card->info.link_type == QETH_LINK_TYPE_HSTR) ||
-	      (card->info.link_type == QETH_LINK_TYPE_LANE_TR))) {
-		rc = -EINVAL;
-		goto out;
-	}
-
-	i = simple_strtoul(buf, &tmp, 16);
-	if ((i == 0) || (i == 1))
-		card->options.macaddr_mode = i?
-			QETH_TR_MACADDR_CANONICAL :
-			QETH_TR_MACADDR_NONCANONICAL;
-	else
-		rc = -EINVAL;
-out:
-	mutex_unlock(&card->conf_mutex);
-	return rc ? rc : count;
-}
-
-static DEVICE_ATTR(canonical_macaddr, 0644, qeth_l3_dev_canonical_macaddr_show,
-		   qeth_l3_dev_canonical_macaddr_store);
-
 static ssize_t qeth_l3_dev_sniffer_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -458,8 +348,6 @@ static struct attribute *qeth_l3_device_attrs[] = {
 	&dev_attr_route4.attr,
 	&dev_attr_route6.attr,
 	&dev_attr_fake_broadcast.attr,
-	&dev_attr_broadcast_mode.attr,
-	&dev_attr_canonical_macaddr.attr,
 	&dev_attr_sniffer.attr,
 	&dev_attr_hsuid.attr,
 	NULL,

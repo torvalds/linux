@@ -595,7 +595,7 @@ static const struct dev_pm_ops psb_pm_ops = {
 	.runtime_idle = psb_runtime_idle,
 };
 
-static struct vm_operations_struct psb_gem_vm_ops = {
+static const struct vm_operations_struct psb_gem_vm_ops = {
 	.fault = psb_gem_fault,
 	.open = drm_gem_vm_open,
 	.close = drm_gem_vm_close,
@@ -632,7 +632,6 @@ static struct drm_driver driver = {
 	.open = psb_driver_open,
 	.preclose = psb_driver_preclose,
 	.postclose = psb_driver_close,
-	.reclaim_buffers = drm_core_reclaim_buffers,
 
 	.gem_init_object = psb_gem_init_object,
 	.gem_free_object = psb_gem_free_object,

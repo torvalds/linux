@@ -12,6 +12,7 @@
 #include <asm/smp.h>
 #include "agp.h"
 #include "intel-agp.h"
+#include <drm/intel-gtt.h>
 
 int intel_agp_enabled;
 EXPORT_SYMBOL(intel_agp_enabled);
@@ -747,7 +748,7 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 
 	bridge->capndx = cap_ptr;
 
-	if (intel_gmch_probe(pdev, bridge))
+	if (intel_gmch_probe(pdev, NULL, bridge))
 		goto found_gmch;
 
 	for (i = 0; intel_agp_chipsets[i].name != NULL; i++) {
@@ -824,7 +825,7 @@ static void __devexit agp_intel_remove(struct pci_dev *pdev)
 
 	agp_remove_bridge(bridge);
 
-	intel_gmch_remove(pdev);
+	intel_gmch_remove();
 
 	agp_put_bridge(bridge);
 }
@@ -898,20 +899,10 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_B43_HB),
 	ID(PCI_DEVICE_ID_INTEL_B43_1_HB),
 	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_D_HB),
+	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_D2_HB),
 	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB),
 	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB),
 	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB),
-	ID(PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB),
-	ID(PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB),
-	ID(PCI_DEVICE_ID_INTEL_SANDYBRIDGE_S_HB),
-	ID(PCI_DEVICE_ID_INTEL_IVYBRIDGE_HB),
-	ID(PCI_DEVICE_ID_INTEL_IVYBRIDGE_M_HB),
-	ID(PCI_DEVICE_ID_INTEL_IVYBRIDGE_S_HB),
-	ID(PCI_DEVICE_ID_INTEL_VALLEYVIEW_HB),
-	ID(PCI_DEVICE_ID_INTEL_HASWELL_HB),
-	ID(PCI_DEVICE_ID_INTEL_HASWELL_M_HB),
-	ID(PCI_DEVICE_ID_INTEL_HASWELL_S_HB),
-	ID(PCI_DEVICE_ID_INTEL_HASWELL_E_HB),
 	{ }
 };
 

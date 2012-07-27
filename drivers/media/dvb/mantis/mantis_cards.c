@@ -73,7 +73,7 @@ static char *label[10] = {
 
 static irqreturn_t mantis_irq_handler(int irq, void *dev_id)
 {
-	u32 stat = 0, mask = 0, lstat = 0;
+	u32 stat = 0, mask = 0;
 	u32 rst_stat = 0, rst_mask = 0;
 
 	struct mantis_pci *mantis;
@@ -88,7 +88,6 @@ static irqreturn_t mantis_irq_handler(int irq, void *dev_id)
 
 	stat = mmread(MANTIS_INT_STAT);
 	mask = mmread(MANTIS_INT_MASK);
-	lstat = stat & ~MANTIS_INT_RISCSTAT;
 	if (!(stat & mask))
 		return IRQ_NONE;
 

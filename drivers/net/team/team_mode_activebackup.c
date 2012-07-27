@@ -59,23 +59,21 @@ static void ab_port_leave(struct team *team, struct team_port *port)
 		RCU_INIT_POINTER(ab_priv(team)->active_port, NULL);
 }
 
-static int ab_active_port_get(struct team *team, void *arg)
+static int ab_active_port_get(struct team *team, struct team_gsetter_ctx *ctx)
 {
-	u32 *ifindex = arg;
-
-	*ifindex = 0;
 	if (ab_priv(team)->active_port)
-		*ifindex = ab_priv(team)->active_port->dev->ifindex;
+		ctx->data.u32_val = ab_priv(team)->active_port->dev->ifindex;
+	else
+		ctx->data.u32_val = 0;
 	return 0;
 }
 
-static int ab_active_port_set(struct team *team, void *arg)
+static int ab_active_port_set(struct team *team, struct team_gsetter_ctx *ctx)
 {
-	u32 *ifindex = arg;
 	struct team_port *port;
 
-	list_for_each_entry_rcu(port, &team->port_list, list) {
-		if (port->dev->ifindex == *ifindex) {
+	list_for_each_entry(port, &team->port_list, list) {
+		if (port->dev->ifindex == ctx->data.u32_val) {
 			rcu_assign_pointer(ab_priv(team)->active_port, port);
 			return 0;
 		}
@@ -92,12 +90,12 @@ static const struct team_option ab_options[] = {
 	},
 };
 
-int ab_init(struct team *team)
+static int ab_init(struct team *team)
 {
 	return team_options_register(team, ab_options, ARRAY_SIZE(ab_options));
 }
 
-void ab_exit(struct team *team)
+static void ab_exit(struct team *team)
 {
 	team_options_unregister(team, ab_options, ARRAY_SIZE(ab_options));
 }

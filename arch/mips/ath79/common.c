@@ -1,8 +1,11 @@
 /*
  *  Atheros AR71XX/AR724X/AR913X common routines
  *
- *  Copyright (C) 2008-2010 Gabor Juhos <juhosg@openwrt.org>
+ *  Copyright (C) 2010-2011 Jaiganesh Narayanan <jnarayanan@atheros.com>
+ *  Copyright (C) 2008-2011 Gabor Juhos <juhosg@openwrt.org>
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
+ *
+ *  Parts of this file are based on Atheros' 2.6.15/2.6.31 BSP
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License version 2 as published
@@ -67,6 +70,8 @@ void ath79_device_reset_set(u32 mask)
 		reg = AR913X_RESET_REG_RESET_MODULE;
 	else if (soc_is_ar933x())
 		reg = AR933X_RESET_REG_RESET_MODULE;
+	else if (soc_is_ar934x())
+		reg = AR934X_RESET_REG_RESET_MODULE;
 	else
 		BUG();
 
@@ -91,6 +96,8 @@ void ath79_device_reset_clear(u32 mask)
 		reg = AR913X_RESET_REG_RESET_MODULE;
 	else if (soc_is_ar933x())
 		reg = AR933X_RESET_REG_RESET_MODULE;
+	else if (soc_is_ar934x())
+		reg = AR934X_RESET_REG_RESET_MODULE;
 	else
 		BUG();
 

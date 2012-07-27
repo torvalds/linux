@@ -139,7 +139,7 @@ int m5mols_do_scenemode(struct m5mols_info *info, u8 mode)
 	if (mode > REG_SCENE_CANDLE)
 		return -EINVAL;
 
-	ret = m5mols_lock_3a(info, false);
+	ret = v4l2_ctrl_s_ctrl(info->lock_3a, 0);
 	if (!ret)
 		ret = m5mols_write(sd, AE_EV_PRESET_MONITOR, mode);
 	if (!ret)
@@ -169,7 +169,7 @@ int m5mols_do_scenemode(struct m5mols_info *info, u8 mode)
 	if (!ret)
 		ret = m5mols_write(sd, AE_ISO, scenemode.iso);
 	if (!ret)
-		ret = m5mols_mode(info, REG_CAPTURE);
+		ret = m5mols_set_mode(info, REG_CAPTURE);
 	if (!ret)
 		ret = m5mols_write(sd, CAPP_WDR_EN, scenemode.wdr);
 	if (!ret)
@@ -181,119 +181,448 @@ int m5mols_do_scenemode(struct m5mols_info *info, u8 mode)
 	if (!ret)
 		ret = m5mols_write(sd, CAPC_MODE, scenemode.capt_mode);
 	if (!ret)
-		ret = m5mols_mode(info, REG_MONITOR);
+		ret = m5mols_set_mode(info, REG_MONITOR);
 
 	return ret;
 }
 
-static int m5mols_lock_ae(struct m5mols_info *info, bool lock)
+static int m5mols_3a_lock(struct m5mols_info *info, struct v4l2_ctrl *ctrl)
 {
+	bool af_lock = ctrl->val & V4L2_LOCK_FOCUS;
 	int ret = 0;
 
-	if (info->lock_ae != lock)
-		ret = m5mols_write(&info->sd, AE_LOCK,
-				lock ? REG_AE_LOCK : REG_AE_UNLOCK);
-	if (!ret)
-		info->lock_ae = lock;
+	if ((ctrl->val ^ ctrl->cur.val) & V4L2_LOCK_EXPOSURE) {
+		bool ae_lock = ctrl->val & V4L2_LOCK_EXPOSURE;
 
-	return ret;
-}
+		ret = m5mols_write(&info->sd, AE_LOCK, ae_lock ?
+				   REG_AE_LOCK : REG_AE_UNLOCK);
+		if (ret)
+			return ret;
+	}
 
-static int m5mols_lock_awb(struct m5mols_info *info, bool lock)
-{
-	int ret = 0;
+	if (((ctrl->val ^ ctrl->cur.val) & V4L2_LOCK_WHITE_BALANCE)
+	    && info->auto_wb->val) {
+		bool awb_lock = ctrl->val & V4L2_LOCK_WHITE_BALANCE;
 
-	if (info->lock_awb != lock)
-		ret = m5mols_write(&info->sd, AWB_LOCK,
-				lock ? REG_AWB_LOCK : REG_AWB_UNLOCK);
-	if (!ret)
-		info->lock_awb = lock;
+		ret = m5mols_write(&info->sd, AWB_LOCK, awb_lock ?
+				   REG_AWB_LOCK : REG_AWB_UNLOCK);
+		if (ret)
+			return ret;
+	}
 
-	return ret;
-}
+	if (!info->ver.af || !af_lock)
+		return ret;
 
-/* m5mols_lock_3a() - Lock 3A(Auto Exposure, Auto Whitebalance, Auto Focus) */
-int m5mols_lock_3a(struct m5mols_info *info, bool lock)
-{
-	int ret;
-
-	ret = m5mols_lock_ae(info, lock);
-	if (!ret)
-		ret = m5mols_lock_awb(info, lock);
-	/* Don't need to handle unlocking AF */
-	if (!ret && is_available_af(info) && lock)
+	if ((ctrl->val ^ ctrl->cur.val) & V4L2_LOCK_FOCUS)
 		ret = m5mols_write(&info->sd, AF_EXECUTE, REG_AF_STOP);
 
 	return ret;
 }
 
-/* m5mols_set_ctrl() - The main s_ctrl function called by m5mols_set_ctrl() */
-int m5mols_set_ctrl(struct v4l2_ctrl *ctrl)
+static int m5mols_set_metering_mode(struct m5mols_info *info, int mode)
+{
+	unsigned int metering;
+
+	switch (mode) {
+	case V4L2_EXPOSURE_METERING_CENTER_WEIGHTED:
+		metering = REG_AE_CENTER;
+		break;
+	case V4L2_EXPOSURE_METERING_SPOT:
+		metering = REG_AE_SPOT;
+		break;
+	default:
+		metering = REG_AE_ALL;
+		break;
+	}
+
+	return m5mols_write(&info->sd, AE_MODE, metering);
+}
+
+static int m5mols_set_exposure(struct m5mols_info *info, int exposure)
+{
+	struct v4l2_subdev *sd = &info->sd;
+	int ret = 0;
+
+	if (exposure == V4L2_EXPOSURE_AUTO) {
+		/* Unlock auto exposure */
+		info->lock_3a->val &= ~V4L2_LOCK_EXPOSURE;
+		m5mols_3a_lock(info, info->lock_3a);
+
+		ret = m5mols_set_metering_mode(info, info->metering->val);
+		if (ret < 0)
+			return ret;
+
+		v4l2_dbg(1, m5mols_debug, sd,
+			 "%s: exposure bias: %#x, metering: %#x\n",
+			 __func__, info->exposure_bias->val,
+			 info->metering->val);
+
+		return m5mols_write(sd, AE_INDEX, info->exposure_bias->val);
+	}
+
+	if (exposure == V4L2_EXPOSURE_MANUAL) {
+		ret = m5mols_write(sd, AE_MODE, REG_AE_OFF);
+		if (ret == 0)
+			ret = m5mols_write(sd, AE_MAN_GAIN_MON,
+					   info->exposure->val);
+		if (ret == 0)
+			ret = m5mols_write(sd, AE_MAN_GAIN_CAP,
+					   info->exposure->val);
+
+		v4l2_dbg(1, m5mols_debug, sd, "%s: exposure: %#x\n",
+			 __func__, info->exposure->val);
+	}
+
+	return ret;
+}
+
+static int m5mols_set_white_balance(struct m5mols_info *info, int val)
+{
+	static const unsigned short wb[][2] = {
+		{ V4L2_WHITE_BALANCE_INCANDESCENT,  REG_AWB_INCANDESCENT },
+		{ V4L2_WHITE_BALANCE_FLUORESCENT,   REG_AWB_FLUORESCENT_1 },
+		{ V4L2_WHITE_BALANCE_FLUORESCENT_H, REG_AWB_FLUORESCENT_2 },
+		{ V4L2_WHITE_BALANCE_HORIZON,       REG_AWB_HORIZON },
+		{ V4L2_WHITE_BALANCE_DAYLIGHT,      REG_AWB_DAYLIGHT },
+		{ V4L2_WHITE_BALANCE_FLASH,         REG_AWB_LEDLIGHT },
+		{ V4L2_WHITE_BALANCE_CLOUDY,        REG_AWB_CLOUDY },
+		{ V4L2_WHITE_BALANCE_SHADE,         REG_AWB_SHADE },
+		{ V4L2_WHITE_BALANCE_AUTO,          REG_AWB_AUTO },
+	};
+	int i;
+	struct v4l2_subdev *sd = &info->sd;
+	int ret = -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(wb); i++) {
+		int awb;
+		if (wb[i][0] != val)
+			continue;
+
+		v4l2_dbg(1, m5mols_debug, sd,
+			 "Setting white balance to: %#x\n", wb[i][0]);
+
+		awb = wb[i][0] == V4L2_WHITE_BALANCE_AUTO;
+		ret = m5mols_write(sd, AWB_MODE, awb ? REG_AWB_AUTO :
+						 REG_AWB_PRESET);
+		if (ret < 0)
+			return ret;
+
+		if (!awb)
+			ret = m5mols_write(sd, AWB_MANUAL, wb[i][1]);
+	}
+
+	return ret;
+}
+
+static int m5mols_set_saturation(struct m5mols_info *info, int val)
+{
+	int ret = m5mols_write(&info->sd, MON_CHROMA_LVL, val);
+	if (ret < 0)
+		return ret;
+
+	return m5mols_write(&info->sd, MON_CHROMA_EN, REG_CHROMA_ON);
+}
+
+static int m5mols_set_color_effect(struct m5mols_info *info, int val)
+{
+	unsigned int m_effect = REG_COLOR_EFFECT_OFF;
+	unsigned int p_effect = REG_EFFECT_OFF;
+	unsigned int cfix_r = 0, cfix_b = 0;
+	struct v4l2_subdev *sd = &info->sd;
+	int ret = 0;
+
+	switch (val) {
+	case V4L2_COLORFX_BW:
+		m_effect = REG_COLOR_EFFECT_ON;
+		break;
+	case V4L2_COLORFX_NEGATIVE:
+		p_effect = REG_EFFECT_NEGA;
+		break;
+	case V4L2_COLORFX_EMBOSS:
+		p_effect = REG_EFFECT_EMBOSS;
+		break;
+	case V4L2_COLORFX_SEPIA:
+		m_effect = REG_COLOR_EFFECT_ON;
+		cfix_r = REG_CFIXR_SEPIA;
+		cfix_b = REG_CFIXB_SEPIA;
+		break;
+	}
+
+	ret = m5mols_write(sd, PARM_EFFECT, p_effect);
+	if (!ret)
+		ret = m5mols_write(sd, MON_EFFECT, m_effect);
+
+	if (ret == 0 && m_effect == REG_COLOR_EFFECT_ON) {
+		ret = m5mols_write(sd, MON_CFIXR, cfix_r);
+		if (!ret)
+			ret = m5mols_write(sd, MON_CFIXB, cfix_b);
+	}
+
+	v4l2_dbg(1, m5mols_debug, sd,
+		 "p_effect: %#x, m_effect: %#x, r: %#x, b: %#x (%d)\n",
+		 p_effect, m_effect, cfix_r, cfix_b, ret);
+
+	return ret;
+}
+
+static int m5mols_set_iso(struct m5mols_info *info, int auto_iso)
+{
+	u32 iso = auto_iso ? 0 : info->iso->val + 1;
+
+	return m5mols_write(&info->sd, AE_ISO, iso);
+}
+
+static int m5mols_set_wdr(struct m5mols_info *info, int wdr)
+{
+	int ret;
+
+	ret = m5mols_write(&info->sd, MON_TONE_CTL, wdr ? 9 : 5);
+	if (ret < 0)
+		return ret;
+
+	ret = m5mols_set_mode(info, REG_CAPTURE);
+	if (ret < 0)
+		return ret;
+
+	return m5mols_write(&info->sd, CAPP_WDR_EN, wdr);
+}
+
+static int m5mols_set_stabilization(struct m5mols_info *info, int val)
+{
+	struct v4l2_subdev *sd = &info->sd;
+	unsigned int evp = val ? 0xe : 0x0;
+	int ret;
+
+	ret = m5mols_write(sd, AE_EV_PRESET_MONITOR, evp);
+	if (ret < 0)
+		return ret;
+
+	return m5mols_write(sd, AE_EV_PRESET_CAPTURE, evp);
+}
+
+static int m5mols_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = to_sd(ctrl);
 	struct m5mols_info *info = to_m5mols(sd);
-	int ret;
+	int ret = 0;
+	u8 status;
+
+	v4l2_dbg(1, m5mols_debug, sd, "%s: ctrl: %s (%d)\n",
+		 __func__, ctrl->name, info->isp_ready);
+
+	if (!info->isp_ready)
+		return -EBUSY;
 
 	switch (ctrl->id) {
+	case V4L2_CID_ISO_SENSITIVITY_AUTO:
+		ret = m5mols_read_u8(sd, AE_ISO, &status);
+		if (ret == 0)
+			ctrl->val = !status;
+		if (status != REG_ISO_AUTO)
+			info->iso->val = status - 1;
+		break;
+
+	case V4L2_CID_3A_LOCK:
+		ctrl->val &= ~0x7;
+
+		ret = m5mols_read_u8(sd, AE_LOCK, &status);
+		if (ret)
+			return ret;
+		if (status)
+			info->lock_3a->val |= V4L2_LOCK_EXPOSURE;
+
+		ret = m5mols_read_u8(sd, AWB_LOCK, &status);
+		if (ret)
+			return ret;
+		if (status)
+			info->lock_3a->val |= V4L2_LOCK_EXPOSURE;
+
+		ret = m5mols_read_u8(sd, AF_EXECUTE, &status);
+		if (!status)
+			info->lock_3a->val |= V4L2_LOCK_EXPOSURE;
+		break;
+	}
+
+	return ret;
+}
+
+static int m5mols_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	unsigned int ctrl_mode = m5mols_get_ctrl_mode(ctrl);
+	struct v4l2_subdev *sd = to_sd(ctrl);
+	struct m5mols_info *info = to_m5mols(sd);
+	int last_mode = info->mode;
+	int ret = 0;
+
+	/*
+	 * If needed, defer restoring the controls until
+	 * the device is fully initialized.
+	 */
+	if (!info->isp_ready) {
+		info->ctrl_sync = 0;
+		return 0;
+	}
+
+	v4l2_dbg(1, m5mols_debug, sd, "%s: %s, val: %d, priv: %#x\n",
+		 __func__, ctrl->name, ctrl->val, (int)ctrl->priv);
+
+	if (ctrl_mode && ctrl_mode != info->mode) {
+		ret = m5mols_set_mode(info, ctrl_mode);
+		if (ret < 0)
+			return ret;
+	}
+
+	switch (ctrl->id) {
+	case V4L2_CID_3A_LOCK:
+		ret = m5mols_3a_lock(info, ctrl);
+		break;
+
 	case V4L2_CID_ZOOM_ABSOLUTE:
-		return m5mols_write(sd, MON_ZOOM, ctrl->val);
+		ret = m5mols_write(sd, MON_ZOOM, ctrl->val);
+		break;
 
 	case V4L2_CID_EXPOSURE_AUTO:
-		ret = m5mols_lock_ae(info,
-			ctrl->val == V4L2_EXPOSURE_AUTO ? false : true);
-		if (!ret && ctrl->val == V4L2_EXPOSURE_AUTO)
-			ret = m5mols_write(sd, AE_MODE, REG_AE_ALL);
-		if (!ret && ctrl->val == V4L2_EXPOSURE_MANUAL) {
-			int val = info->exposure->val;
-			ret = m5mols_write(sd, AE_MODE, REG_AE_OFF);
-			if (!ret)
-				ret = m5mols_write(sd, AE_MAN_GAIN_MON, val);
-			if (!ret)
-				ret = m5mols_write(sd, AE_MAN_GAIN_CAP, val);
-		}
-		return ret;
+		ret = m5mols_set_exposure(info, ctrl->val);
+		break;
 
-	case V4L2_CID_AUTO_WHITE_BALANCE:
-		ret = m5mols_lock_awb(info, ctrl->val ? false : true);
-		if (!ret)
-			ret = m5mols_write(sd, AWB_MODE, ctrl->val ?
-				REG_AWB_AUTO : REG_AWB_PRESET);
-		return ret;
+	case V4L2_CID_ISO_SENSITIVITY:
+		ret = m5mols_set_iso(info, ctrl->val);
+		break;
+
+	case V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE:
+		ret = m5mols_set_white_balance(info, ctrl->val);
+		break;
 
 	case V4L2_CID_SATURATION:
-		ret = m5mols_write(sd, MON_CHROMA_LVL, ctrl->val);
-		if (!ret)
-			ret = m5mols_write(sd, MON_CHROMA_EN, REG_CHROMA_ON);
-		return ret;
+		ret = m5mols_set_saturation(info, ctrl->val);
+		break;
 
 	case V4L2_CID_COLORFX:
-		/*
-		 * This control uses two kinds of registers: normal & color.
-		 * The normal effect belongs to category 1, while the color
-		 * one belongs to category 2.
-		 *
-		 * The normal effect uses one register: CAT1_EFFECT.
-		 * The color effect uses three registers:
-		 * CAT2_COLOR_EFFECT, CAT2_CFIXR, CAT2_CFIXB.
-		 */
-		ret = m5mols_write(sd, PARM_EFFECT,
-			ctrl->val == V4L2_COLORFX_NEGATIVE ? REG_EFFECT_NEGA :
-			ctrl->val == V4L2_COLORFX_EMBOSS ? REG_EFFECT_EMBOSS :
-			REG_EFFECT_OFF);
-		if (!ret)
-			ret = m5mols_write(sd, MON_EFFECT,
-				ctrl->val == V4L2_COLORFX_SEPIA ?
-				REG_COLOR_EFFECT_ON : REG_COLOR_EFFECT_OFF);
-		if (!ret)
-			ret = m5mols_write(sd, MON_CFIXR,
-				ctrl->val == V4L2_COLORFX_SEPIA ?
-				REG_CFIXR_SEPIA : 0);
-		if (!ret)
-			ret = m5mols_write(sd, MON_CFIXB,
-				ctrl->val == V4L2_COLORFX_SEPIA ?
-				REG_CFIXB_SEPIA : 0);
+		ret = m5mols_set_color_effect(info, ctrl->val);
+		break;
+
+	case V4L2_CID_WIDE_DYNAMIC_RANGE:
+		ret = m5mols_set_wdr(info, ctrl->val);
+		break;
+
+	case V4L2_CID_IMAGE_STABILIZATION:
+		ret = m5mols_set_stabilization(info, ctrl->val);
+		break;
+
+	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
+		ret = m5mols_write(sd, CAPP_JPEG_RATIO, ctrl->val);
+		break;
+	}
+
+	if (ret == 0 && info->mode != last_mode)
+		ret = m5mols_set_mode(info, last_mode);
+
+	return ret;
+}
+
+static const struct v4l2_ctrl_ops m5mols_ctrl_ops = {
+	.g_volatile_ctrl	= m5mols_g_volatile_ctrl,
+	.s_ctrl			= m5mols_s_ctrl,
+};
+
+/* Supported manual ISO values */
+static const s64 iso_qmenu[] = {
+	/* AE_ISO: 0x01...0x07 */
+	50, 100, 200, 400, 800, 1600, 3200
+};
+
+/* Supported Exposure Bias values, -2.0EV...+2.0EV */
+static const s64 ev_bias_qmenu[] = {
+	/* AE_INDEX: 0x00...0x08 */
+	-2000, -1500, -1000, -500, 0, 500, 1000, 1500, 2000
+};
+
+int m5mols_init_controls(struct v4l2_subdev *sd)
+{
+	struct m5mols_info *info = to_m5mols(sd);
+	u16 exposure_max;
+	u16 zoom_step;
+	int ret;
+
+	/* Determine the firmware dependant control range and step values */
+	ret = m5mols_read_u16(sd, AE_MAX_GAIN_MON, &exposure_max);
+	if (ret < 0)
+		return ret;
+
+	zoom_step = is_manufacturer(info, REG_SAMSUNG_OPTICS) ? 31 : 1;
+	v4l2_ctrl_handler_init(&info->handle, 20);
+
+	info->auto_wb = v4l2_ctrl_new_std_menu(&info->handle,
+			&m5mols_ctrl_ops, V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE,
+			9, ~0x3fe, V4L2_WHITE_BALANCE_AUTO);
+
+	/* Exposure control cluster */
+	info->auto_exposure = v4l2_ctrl_new_std_menu(&info->handle,
+			&m5mols_ctrl_ops, V4L2_CID_EXPOSURE_AUTO,
+			1, ~0x03, V4L2_EXPOSURE_AUTO);
+
+	info->exposure = v4l2_ctrl_new_std(&info->handle,
+			&m5mols_ctrl_ops, V4L2_CID_EXPOSURE,
+			0, exposure_max, 1, exposure_max / 2);
+
+	info->exposure_bias = v4l2_ctrl_new_int_menu(&info->handle,
+			&m5mols_ctrl_ops, V4L2_CID_AUTO_EXPOSURE_BIAS,
+			ARRAY_SIZE(ev_bias_qmenu) - 1,
+			ARRAY_SIZE(ev_bias_qmenu)/2 - 1,
+			ev_bias_qmenu);
+
+	info->metering = v4l2_ctrl_new_std_menu(&info->handle,
+			&m5mols_ctrl_ops, V4L2_CID_EXPOSURE_METERING,
+			2, ~0x7, V4L2_EXPOSURE_METERING_AVERAGE);
+
+	/* ISO control cluster */
+	info->auto_iso = v4l2_ctrl_new_std_menu(&info->handle, &m5mols_ctrl_ops,
+			V4L2_CID_ISO_SENSITIVITY_AUTO, 1, ~0x03, 1);
+
+	info->iso = v4l2_ctrl_new_int_menu(&info->handle, &m5mols_ctrl_ops,
+			V4L2_CID_ISO_SENSITIVITY, ARRAY_SIZE(iso_qmenu) - 1,
+			ARRAY_SIZE(iso_qmenu)/2 - 1, iso_qmenu);
+
+	info->saturation = v4l2_ctrl_new_std(&info->handle, &m5mols_ctrl_ops,
+			V4L2_CID_SATURATION, 1, 5, 1, 3);
+
+	info->zoom = v4l2_ctrl_new_std(&info->handle, &m5mols_ctrl_ops,
+			V4L2_CID_ZOOM_ABSOLUTE, 1, 70, zoom_step, 1);
+
+	info->colorfx = v4l2_ctrl_new_std_menu(&info->handle, &m5mols_ctrl_ops,
+			V4L2_CID_COLORFX, 4, 0, V4L2_COLORFX_NONE);
+
+	info->wdr = v4l2_ctrl_new_std(&info->handle, &m5mols_ctrl_ops,
+			V4L2_CID_WIDE_DYNAMIC_RANGE, 0, 1, 1, 0);
+
+	info->stabilization = v4l2_ctrl_new_std(&info->handle, &m5mols_ctrl_ops,
+			V4L2_CID_IMAGE_STABILIZATION, 0, 1, 1, 0);
+
+	info->jpeg_quality = v4l2_ctrl_new_std(&info->handle, &m5mols_ctrl_ops,
+			V4L2_CID_JPEG_COMPRESSION_QUALITY, 1, 100, 1, 80);
+
+	info->lock_3a = v4l2_ctrl_new_std(&info->handle, &m5mols_ctrl_ops,
+			V4L2_CID_3A_LOCK, 0, 0x7, 0, 0);
+
+	if (info->handle.error) {
+		int ret = info->handle.error;
+		v4l2_err(sd, "Failed to initialize controls: %d\n", ret);
+		v4l2_ctrl_handler_free(&info->handle);
 		return ret;
 	}
 
-	return -EINVAL;
+	v4l2_ctrl_auto_cluster(4, &info->auto_exposure, 1, false);
+	info->auto_iso->flags |= V4L2_CTRL_FLAG_VOLATILE |
+				V4L2_CTRL_FLAG_UPDATE;
+	v4l2_ctrl_auto_cluster(2, &info->auto_iso, 0, false);
+
+	info->lock_3a->flags |= V4L2_CTRL_FLAG_VOLATILE;
+
+	m5mols_set_ctrl_mode(info->auto_exposure, REG_PARAMETER);
+	m5mols_set_ctrl_mode(info->auto_wb, REG_PARAMETER);
+	m5mols_set_ctrl_mode(info->colorfx, REG_MONITOR);
+
+	sd->ctrl_handler = &info->handle;
+
+	return 0;
 }

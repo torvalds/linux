@@ -481,7 +481,7 @@ static int __devinit imx_keypad_probe(struct platform_device *pdev)
 	}
 
 	if (keypad->rows_en_mask > ((1 << MAX_MATRIX_KEY_ROWS) - 1) ||
-	   keypad->cols_en_mask > ((1 << MAX_MATRIX_KEY_COLS) - 1)) {
+	    keypad->cols_en_mask > ((1 << MAX_MATRIX_KEY_COLS) - 1)) {
 		dev_err(&pdev->dev,
 			"invalid key data (too many rows or colums)\n");
 		error = -EINVAL;
@@ -496,14 +496,17 @@ static int __devinit imx_keypad_probe(struct platform_device *pdev)
 	input_dev->dev.parent = &pdev->dev;
 	input_dev->open = imx_keypad_open;
 	input_dev->close = imx_keypad_close;
-	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
-	input_dev->keycode = keypad->keycodes;
-	input_dev->keycodesize = sizeof(keypad->keycodes[0]);
-	input_dev->keycodemax = ARRAY_SIZE(keypad->keycodes);
 
-	matrix_keypad_build_keymap(keymap_data, MATRIX_ROW_SHIFT,
-				keypad->keycodes, input_dev->keybit);
+	error = matrix_keypad_build_keymap(keymap_data, NULL,
+					   MAX_MATRIX_KEY_ROWS,
+					   MAX_MATRIX_KEY_COLS,
+					   keypad->keycodes, input_dev);
+	if (error) {
+		dev_err(&pdev->dev, "failed to build keymap\n");
+		goto failed_clock_put;
+	}
 
+	__set_bit(EV_REP, input_dev->evbit);
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 	input_set_drvdata(input_dev, keypad);
 

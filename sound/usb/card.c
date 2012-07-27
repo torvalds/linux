@@ -131,8 +131,9 @@ static void snd_usb_stream_disconnect(struct list_head *head)
 		subs = &as->substream[idx];
 		if (!subs->num_formats)
 			continue;
-		snd_usb_release_substream_urbs(subs, 1);
 		subs->interface = -1;
+		subs->data_endpoint = NULL;
+		subs->sync_endpoint = NULL;
 	}
 }
 
@@ -276,6 +277,7 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 
 static int snd_usb_audio_free(struct snd_usb_audio *chip)
 {
+	mutex_destroy(&chip->mutex);
 	kfree(chip);
 	return 0;
 }
@@ -336,6 +338,7 @@ static int snd_usb_audio_create(struct usb_device *dev, int idx,
 		return -ENOMEM;
 	}
 
+	mutex_init(&chip->mutex);
 	mutex_init(&chip->shutdown_mutex);
 	chip->index = idx;
 	chip->dev = dev;
@@ -348,6 +351,7 @@ static int snd_usb_audio_create(struct usb_device *dev, int idx,
 	chip->usb_id = USB_ID(le16_to_cpu(dev->descriptor.idVendor),
 			      le16_to_cpu(dev->descriptor.idProduct));
 	INIT_LIST_HEAD(&chip->pcm_list);
+	INIT_LIST_HEAD(&chip->ep_list);
 	INIT_LIST_HEAD(&chip->midi_list);
 	INIT_LIST_HEAD(&chip->mixer_list);
 
@@ -564,6 +568,10 @@ static void snd_usb_audio_disconnect(struct usb_device *dev,
 		/* release the pcm resources */
 		list_for_each(p, &chip->pcm_list) {
 			snd_usb_stream_disconnect(p);
+		}
+		/* release the endpoint resources */
+		list_for_each(p, &chip->ep_list) {
+			snd_usb_endpoint_free(p);
 		}
 		/* release the midi resources */
 		list_for_each(p, &chip->midi_list) {

@@ -1896,8 +1896,8 @@ il_prep_station(struct il_priv *il, const u8 *addr, bool is_ap,
 		sta_id = il->hw_params.bcast_id;
 	else
 		for (i = IL_STA_ID; i < il->hw_params.max_stations; i++) {
-			if (!compare_ether_addr
-			    (il->stations[i].sta.sta.addr, addr)) {
+			if (ether_addr_equal(il->stations[i].sta.sta.addr,
+					     addr)) {
 				sta_id = i;
 				break;
 			}
@@ -1926,7 +1926,7 @@ il_prep_station(struct il_priv *il, const u8 *addr, bool is_ap,
 
 	if ((il->stations[sta_id].used & IL_STA_DRIVER_ACTIVE) &&
 	    (il->stations[sta_id].used & IL_STA_UCODE_ACTIVE) &&
-	    !compare_ether_addr(il->stations[sta_id].sta.sta.addr, addr)) {
+	    ether_addr_equal(il->stations[sta_id].sta.sta.addr, addr)) {
 		D_ASSOC("STA %d (%pM) already added, not adding again.\n",
 			sta_id, addr);
 		return sta_id;
@@ -3744,10 +3744,10 @@ il_full_rxon_required(struct il_priv *il)
 
 	/* These items are only settable from the full RXON command */
 	CHK(!il_is_associated(il));
-	CHK(compare_ether_addr(staging->bssid_addr, active->bssid_addr));
-	CHK(compare_ether_addr(staging->node_addr, active->node_addr));
-	CHK(compare_ether_addr
-	    (staging->wlap_bssid_addr, active->wlap_bssid_addr));
+	CHK(!ether_addr_equal(staging->bssid_addr, active->bssid_addr));
+	CHK(!ether_addr_equal(staging->node_addr, active->node_addr));
+	CHK(!ether_addr_equal(staging->wlap_bssid_addr,
+			      active->wlap_bssid_addr));
 	CHK_NEQ(staging->dev_type, active->dev_type);
 	CHK_NEQ(staging->channel, active->channel);
 	CHK_NEQ(staging->air_propagation, active->air_propagation);

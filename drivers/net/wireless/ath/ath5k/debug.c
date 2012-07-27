@@ -57,6 +57,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/export.h>
 #include <linux/moduleparam.h>
 
@@ -247,10 +250,10 @@ static ssize_t write_file_beacon(struct file *file,
 
 	if (strncmp(buf, "disable", 7) == 0) {
 		AR5K_REG_DISABLE_BITS(ah, AR5K_BEACON, AR5K_BEACON_ENABLE);
-		printk(KERN_INFO "debugfs disable beacons\n");
+		pr_info("debugfs disable beacons\n");
 	} else if (strncmp(buf, "enable", 6) == 0) {
 		AR5K_REG_ENABLE_BITS(ah, AR5K_BEACON, AR5K_BEACON_ENABLE);
-		printk(KERN_INFO "debugfs enable beacons\n");
+		pr_info("debugfs enable beacons\n");
 	}
 	return count;
 }
@@ -450,19 +453,19 @@ static ssize_t write_file_antenna(struct file *file,
 
 	if (strncmp(buf, "diversity", 9) == 0) {
 		ath5k_hw_set_antenna_mode(ah, AR5K_ANTMODE_DEFAULT);
-		printk(KERN_INFO "ath5k debug: enable diversity\n");
+		pr_info("debug: enable diversity\n");
 	} else if (strncmp(buf, "fixed-a", 7) == 0) {
 		ath5k_hw_set_antenna_mode(ah, AR5K_ANTMODE_FIXED_A);
-		printk(KERN_INFO "ath5k debugfs: fixed antenna A\n");
+		pr_info("debug: fixed antenna A\n");
 	} else if (strncmp(buf, "fixed-b", 7) == 0) {
 		ath5k_hw_set_antenna_mode(ah, AR5K_ANTMODE_FIXED_B);
-		printk(KERN_INFO "ath5k debug: fixed antenna B\n");
+		pr_info("debug: fixed antenna B\n");
 	} else if (strncmp(buf, "clear", 5) == 0) {
 		for (i = 0; i < ARRAY_SIZE(ah->stats.antenna_rx); i++) {
 			ah->stats.antenna_rx[i] = 0;
 			ah->stats.antenna_tx[i] = 0;
 		}
-		printk(KERN_INFO "ath5k debug: cleared antenna stats\n");
+		pr_info("debug: cleared antenna stats\n");
 	}
 	return count;
 }
@@ -632,7 +635,7 @@ static ssize_t write_file_frameerrors(struct file *file,
 		st->txerr_fifo = 0;
 		st->txerr_filt = 0;
 		st->tx_all_count = 0;
-		printk(KERN_INFO "ath5k debug: cleared frameerrors stats\n");
+		pr_info("debug: cleared frameerrors stats\n");
 	}
 	return count;
 }

@@ -835,7 +835,6 @@ static void stv0900_track_optimization(struct dvb_frontend *fe)
 		blind_tun_sw = 0,
 		modulation;
 
-	enum fe_stv0900_rolloff rolloff;
 	enum fe_stv0900_modcode foundModcod;
 
 	dprintk("%s\n", __func__);
@@ -940,7 +939,6 @@ static void stv0900_track_optimization(struct dvb_frontend *fe)
 
 	freq1 = stv0900_read_reg(intp, CFR2);
 	freq0 = stv0900_read_reg(intp, CFR1);
-	rolloff = stv0900_get_bits(intp, ROLLOFF_STATUS);
 	if (intp->srch_algo[demod] == STV0900_BLIND_SEARCH) {
 		stv0900_write_reg(intp, SFRSTEP, 0x00);
 		stv0900_write_bits(intp, SCAN_ENABLE, 0);

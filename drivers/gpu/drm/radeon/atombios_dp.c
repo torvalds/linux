@@ -22,6 +22,7 @@
  *
  * Authors: Dave Airlie
  *          Alex Deucher
+ *          Jerome Glisse
  */
 #include "drmP.h"
 #include "radeon_drm.h"
@@ -530,6 +531,23 @@ u8 radeon_dp_getsinktype(struct radeon_connector *radeon_connector)
 					 dig_connector->dp_i2c_bus->rec.i2c_id, 0);
 }
 
+static void radeon_dp_probe_oui(struct radeon_connector *radeon_connector)
+{
+	struct radeon_connector_atom_dig *dig_connector = radeon_connector->con_priv;
+	u8 buf[3];
+
+	if (!(dig_connector->dpcd[DP_DOWN_STREAM_PORT_COUNT] & DP_OUI_SUPPORT))
+		return;
+
+	if (radeon_dp_aux_native_read(radeon_connector, DP_SINK_OUI, buf, 3, 0))
+		DRM_DEBUG_KMS("Sink OUI: %02hx%02hx%02hx\n",
+			      buf[0], buf[1], buf[2]);
+
+	if (radeon_dp_aux_native_read(radeon_connector, DP_BRANCH_OUI, buf, 3, 0))
+		DRM_DEBUG_KMS("Branch OUI: %02hx%02hx%02hx\n",
+			      buf[0], buf[1], buf[2]);
+}
+
 bool radeon_dp_getdpcd(struct radeon_connector *radeon_connector)
 {
 	struct radeon_connector_atom_dig *dig_connector = radeon_connector->con_priv;
@@ -543,6 +561,9 @@ bool radeon_dp_getdpcd(struct radeon_connector *radeon_connector)
 		for (i = 0; i < 8; i++)
 			DRM_DEBUG_KMS("%02x ", msg[i]);
 		DRM_DEBUG_KMS("\n");
+
+		radeon_dp_probe_oui(radeon_connector);
+
 		return true;
 	}
 	dig_connector->dpcd[0] = 0;
@@ -588,7 +609,7 @@ int radeon_dp_get_panel_mode(struct drm_encoder *encoder,
 }
 
 void radeon_dp_set_link_config(struct drm_connector *connector,
-			       struct drm_display_mode *mode)
+			       const struct drm_display_mode *mode)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct radeon_connector_atom_dig *dig_connector;
@@ -634,7 +655,6 @@ static bool radeon_dp_get_link_status(struct radeon_connector *radeon_connector,
 	ret = radeon_dp_aux_native_read(radeon_connector, DP_LANE0_1_STATUS,
 					link_status, DP_LINK_STATUS_SIZE, 100);
 	if (ret <= 0) {
-		DRM_ERROR("displayport link status failed\n");
 		return false;
 	}
 
@@ -813,8 +833,10 @@ static int radeon_dp_link_train_cr(struct radeon_dp_link_train_info *dp_info)
 		else
 			mdelay(dp_info->rd_interval * 4);
 
-		if (!radeon_dp_get_link_status(dp_info->radeon_connector, dp_info->link_status))
+		if (!radeon_dp_get_link_status(dp_info->radeon_connector, dp_info->link_status)) {
+			DRM_ERROR("displayport link status failed\n");
 			break;
+		}
 
 		if (dp_clock_recovery_ok(dp_info->link_status, dp_info->dp_lane_count)) {
 			clock_recovery = true;
@@ -876,8 +898,10 @@ static int radeon_dp_link_train_ce(struct radeon_dp_link_train_info *dp_info)
 		else
 			mdelay(dp_info->rd_interval * 4);
 
-		if (!radeon_dp_get_link_status(dp_info->radeon_connector, dp_info->link_status))
+		if (!radeon_dp_get_link_status(dp_info->radeon_connector, dp_info->link_status)) {
+			DRM_ERROR("displayport link status failed\n");
 			break;
+		}
 
 		if (dp_channel_eq_ok(dp_info->link_status, dp_info->dp_lane_count)) {
 			channel_eq = true;

@@ -681,6 +681,27 @@ void usb_unpoison_urb(struct urb *urb)
 EXPORT_SYMBOL_GPL(usb_unpoison_urb);
 
 /**
+ * usb_block_urb - reliably prevent further use of an URB
+ * @urb: pointer to URB to be blocked, may be NULL
+ *
+ * After the routine has run, attempts to resubmit the URB will fail
+ * with error -EPERM.  Thus even if the URB's completion handler always
+ * tries to resubmit, it will not succeed and the URB will become idle.
+ *
+ * The URB must not be deallocated while this routine is running.  In
+ * particular, when a driver calls this routine, it must insure that the
+ * completion handler cannot deallocate the URB.
+ */
+void usb_block_urb(struct urb *urb)
+{
+	if (!urb)
+		return;
+
+	atomic_inc(&urb->reject);
+}
+EXPORT_SYMBOL_GPL(usb_block_urb);
+
+/**
  * usb_kill_anchored_urbs - cancel transfer requests en masse
  * @anchor: anchor the requests are bound to
  *

@@ -135,6 +135,17 @@ Description:
 		for the device and attempt to bind to it.  For example:
 		# echo "8086 10f5" > /sys/bus/usb/drivers/foo/new_id
 
+		Reading from this file will list all dynamically added
+		device IDs in the same format, with one entry per
+		line. For example:
+		# cat /sys/bus/usb/drivers/foo/new_id
+		8086 10f5
+		dead beef 06
+		f00d cafe
+
+		The list will be truncated at PAGE_SIZE bytes due to
+		sysfs restrictions.
+
 What:		/sys/bus/usb-serial/drivers/.../new_id
 Date:		October 2011
 Contact:	linux-usb@vger.kernel.org
@@ -156,6 +167,10 @@ Description:
 		device.  This is useful to ensure auto probing won't
 		match the driver to the device.  For example:
 		# echo "046d c315" > /sys/bus/usb/drivers/foo/remove_id
+
+		Reading from this file will list the dynamically added
+		device IDs, exactly like reading from the entry
+		"/sys/bus/usb/drivers/.../new_id"
 
 What:		/sys/bus/usb/device/.../avoid_reset_quirk
 Date:		December 2009
@@ -189,7 +204,7 @@ Contact:	Matthew Garrett <mjg@redhat.com>
 Description:
 		Some information about whether a given USB device is
 		physically fixed to the platform can be inferred from a
-		combination of hub decriptor bits and platform-specific data
+		combination of hub descriptor bits and platform-specific data
 		such as ACPI. This file will read either "removable" or
 		"fixed" if the information is available, and "unknown"
 		otherwise.

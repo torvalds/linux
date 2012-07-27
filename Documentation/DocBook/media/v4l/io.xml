@@ -543,12 +543,13 @@ and can range from zero to the number of buffers allocated
 with the &VIDIOC-REQBUFS; ioctl (&v4l2-requestbuffers; <structfield>count</structfield>) minus one.</entry>
 	  </row>
 	  <row>
-	    <entry>&v4l2-buf-type;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>type</structfield></entry>
 	    <entry></entry>
 	    <entry>Type of the buffer, same as &v4l2-format;
 <structfield>type</structfield> or &v4l2-requestbuffers;
-<structfield>type</structfield>, set by the application.</entry>
+<structfield>type</structfield>, set by the application. See <xref
+linkend="v4l2-buf-type" /></entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
@@ -568,7 +569,7 @@ refers to an input stream, applications when an output stream.</entry>
 linkend="buffer-flags" />.</entry>
 	  </row>
 	  <row>
-	    <entry>&v4l2-field;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>field</structfield></entry>
 	    <entry></entry>
 	    <entry>Indicates the field order of the image in the
@@ -630,11 +631,12 @@ bandwidth. These devices identify by not enumerating any video
 standards, see <xref linkend="standard" />.</para></entry>
 	  </row>
 	  <row>
-	    <entry>&v4l2-memory;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>memory</structfield></entry>
 	    <entry></entry>
 	    <entry>This field must be set by applications and/or drivers
-in accordance with the selected I/O method.</entry>
+in accordance with the selected I/O method. See <xref linkend="v4l2-memory"
+	    /></entry>
 	  </row>
 	  <row>
 	    <entry>union</entry>

@@ -16,40 +16,51 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../buffer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/buffer.h>
 
 #include "ad7298.h"
 
+#define AD7298_V_CHAN(index)						\
+	{								\
+		.type = IIO_VOLTAGE,					\
+		.indexed = 1,						\
+		.channel = index,					\
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,				\
+		.address = index,					\
+		.scan_index = index,					\
+		.scan_type = {						\
+			.sign = 'u',					\
+			.realbits = 12,					\
+			.storagebits = 16,				\
+		},							\
+	}
+
 static struct iio_chan_spec ad7298_channels[] = {
-	IIO_CHAN(IIO_TEMP, 0, 1, 0, NULL, 0, 0,
-		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
-		 9, AD7298_CH_TEMP, IIO_ST('s', 32, 32, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-		 IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		 0, 0, IIO_ST('u', 12, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 1, 0,
-		 IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		 1, 1, IIO_ST('u', 12, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 2, 0,
-		 IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		 2, 2, IIO_ST('u', 12, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 3, 0,
-		 IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		 3, 3, IIO_ST('u', 12, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 4, 0,
-		 IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		 4, 4, IIO_ST('u', 12, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 5, 0,
-		 IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		 5, 5, IIO_ST('u', 12, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 6, 0,
-		 IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		 6, 6, IIO_ST('u', 12, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 7, 0,
-		 IIO_CHAN_INFO_SCALE_SHARED_BIT,
-		 7, 7, IIO_ST('u', 12, 16, 0), 0),
+	{
+		.type = IIO_TEMP,
+		.indexed = 1,
+		.channel = 0,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+		.address = 9,
+		.scan_index = AD7298_CH_TEMP,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 32,
+			.storagebits = 32,
+		},
+	},
+	AD7298_V_CHAN(0),
+	AD7298_V_CHAN(1),
+	AD7298_V_CHAN(2),
+	AD7298_V_CHAN(3),
+	AD7298_V_CHAN(4),
+	AD7298_V_CHAN(5),
+	AD7298_V_CHAN(6),
+	AD7298_V_CHAN(7),
 	IIO_CHAN_SOFT_TIMESTAMP(8),
 };
 
@@ -121,7 +132,7 @@ static int ad7298_read_raw(struct iio_dev *indio_dev,
 	unsigned int scale_uv;
 
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 		if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
 			ret = -EBUSY;
@@ -168,7 +179,7 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 	struct ad7298_platform_data *pdata = spi->dev.platform_data;
 	struct ad7298_state *st;
 	int ret;
-	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
+	struct iio_dev *indio_dev = iio_device_alloc(sizeof(*st));
 
 	if (indio_dev == NULL)
 		return -ENOMEM;
@@ -241,7 +252,7 @@ error_disable_reg:
 error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -258,7 +269,7 @@ static int __devexit ad7298_remove(struct spi_device *spi)
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

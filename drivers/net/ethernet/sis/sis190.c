@@ -729,7 +729,7 @@ static void sis190_tx_interrupt(struct net_device *dev,
  * The interrupt handler does all of the Rx thread work and cleans up after
  * the Tx thread.
  */
-static irqreturn_t sis190_interrupt(int irq, void *__dev)
+static irqreturn_t sis190_irq(int irq, void *__dev)
 {
 	struct net_device *dev = __dev;
 	struct sis190_private *tp = netdev_priv(dev);
@@ -772,11 +772,11 @@ out:
 static void sis190_netpoll(struct net_device *dev)
 {
 	struct sis190_private *tp = netdev_priv(dev);
-	struct pci_dev *pdev = tp->pci_dev;
+	const int irq = tp->pci_dev->irq;
 
-	disable_irq(pdev->irq);
-	sis190_interrupt(pdev->irq, dev);
-	enable_irq(pdev->irq);
+	disable_irq(irq);
+	sis190_irq(irq, dev);
+	enable_irq(irq);
 }
 #endif
 
@@ -1085,7 +1085,7 @@ static int sis190_open(struct net_device *dev)
 
 	sis190_request_timer(dev);
 
-	rc = request_irq(dev->irq, sis190_interrupt, IRQF_SHARED, dev->name, dev);
+	rc = request_irq(pdev->irq, sis190_irq, IRQF_SHARED, dev->name, dev);
 	if (rc < 0)
 		goto err_release_timer_2;
 
@@ -1097,11 +1097,9 @@ err_release_timer_2:
 	sis190_delete_timer(dev);
 	sis190_rx_clear(tp);
 err_free_rx_1:
-	pci_free_consistent(tp->pci_dev, RX_RING_BYTES, tp->RxDescRing,
-		tp->rx_dma);
+	pci_free_consistent(pdev, RX_RING_BYTES, tp->RxDescRing, tp->rx_dma);
 err_free_tx_0:
-	pci_free_consistent(tp->pci_dev, TX_RING_BYTES, tp->TxDescRing,
-		tp->tx_dma);
+	pci_free_consistent(pdev, TX_RING_BYTES, tp->TxDescRing, tp->tx_dma);
 	goto out;
 }
 
@@ -1141,7 +1139,7 @@ static void sis190_down(struct net_device *dev)
 
 		spin_unlock_irq(&tp->lock);
 
-		synchronize_irq(dev->irq);
+		synchronize_irq(tp->pci_dev->irq);
 
 		if (!poll_locked)
 			poll_locked++;
@@ -1161,7 +1159,7 @@ static int sis190_close(struct net_device *dev)
 
 	sis190_down(dev);
 
-	free_irq(dev->irq, dev);
+	free_irq(pdev->irq, dev);
 
 	pci_free_consistent(pdev, TX_RING_BYTES, tp->TxDescRing, tp->tx_dma);
 	pci_free_consistent(pdev, RX_RING_BYTES, tp->RxDescRing, tp->rx_dma);
@@ -1884,8 +1882,6 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 	dev->netdev_ops = &sis190_netdev_ops;
 
 	SET_ETHTOOL_OPS(dev, &sis190_ethtool_ops);
-	dev->irq = pdev->irq;
-	dev->base_addr = (unsigned long) 0xdead;
 	dev->watchdog_timeo = SIS190_TX_TIMEOUT;
 
 	spin_lock_init(&tp->lock);
@@ -1902,7 +1898,7 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 		netdev_info(dev, "%s: %s at %p (IRQ: %d), %pM\n",
 			    pci_name(pdev),
 			    sis_chip_info[ent->driver_data].name,
-			    ioaddr, dev->irq, dev->dev_addr);
+			    ioaddr, pdev->irq, dev->dev_addr);
 		netdev_info(dev, "%s mode.\n",
 			    (tp->features & F_HAS_RGMII) ? "RGMII" : "GMII");
 	}

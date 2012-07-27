@@ -342,26 +342,25 @@ static int __devinit tca8418_keypad_probe(struct i2c_client *client,
 	input->id.product = 0x001;
 	input->id.version = 0x0001;
 
-	input->keycode     = keypad_data->keymap;
-	input->keycodesize = sizeof(keypad_data->keymap[0]);
-	input->keycodemax  = max_keys;
+	error = matrix_keypad_build_keymap(pdata->keymap_data, NULL,
+					   pdata->rows, pdata->cols,
+					   keypad_data->keymap, input);
+	if (error) {
+		dev_dbg(&client->dev, "Failed to build keymap\n");
+		goto fail2;
+	}
 
-	__set_bit(EV_KEY, input->evbit);
 	if (pdata->rep)
 		__set_bit(EV_REP, input->evbit);
-
 	input_set_capability(input, EV_MSC, MSC_SCAN);
 
 	input_set_drvdata(input, keypad_data);
-
-	matrix_keypad_build_keymap(pdata->keymap_data, row_shift,
-			input->keycode, input->keybit);
 
 	if (pdata->irq_is_gpio)
 		client->irq = gpio_to_irq(client->irq);
 
 	error = request_threaded_irq(client->irq, NULL, tca8418_irq_handler,
-				     IRQF_TRIGGER_FALLING,
+				     IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				     client->name, keypad_data);
 	if (error) {
 		dev_dbg(&client->dev,

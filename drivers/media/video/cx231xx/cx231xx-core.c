@@ -754,7 +754,7 @@ int cx231xx_set_mode(struct cx231xx *dev, enum cx231xx_mode set_mode)
 		}
 	}
 
-	return 0;
+	return errCode ? -EINVAL : 0;
 }
 EXPORT_SYMBOL_GPL(cx231xx_set_mode);
 
@@ -764,7 +764,7 @@ int cx231xx_ep5_bulkout(struct cx231xx *dev, u8 *firmware, u16 size)
 	int actlen, ret = -ENOMEM;
 	u32 *buffer;
 
-buffer = kzalloc(4096, GFP_KERNEL);
+	buffer = kzalloc(4096, GFP_KERNEL);
 	if (buffer == NULL) {
 		cx231xx_info("out of mem\n");
 		return -ENOMEM;
@@ -772,16 +772,16 @@ buffer = kzalloc(4096, GFP_KERNEL);
 	memcpy(&buffer[0], firmware, 4096);
 
 	ret = usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, 5),
-				 buffer, 4096, &actlen, 2000);
+			buffer, 4096, &actlen, 2000);
 
 	if (ret)
 		cx231xx_info("bulk message failed: %d (%d/%d)", ret,
-				 size, actlen);
+				size, actlen);
 	else {
 		errCode = actlen != size ? -1 : 0;
 	}
-kfree(buffer);
-	return 0;
+	kfree(buffer);
+	return errCode;
 }
 
 /*****************************************************************
@@ -797,7 +797,7 @@ static void cx231xx_isoc_irq_callback(struct urb *urb)
 	struct cx231xx_video_mode *vmode =
 	    container_of(dma_q, struct cx231xx_video_mode, vidq);
 	struct cx231xx *dev = container_of(vmode, struct cx231xx, video_mode);
-	int rc, i;
+	int i;
 
 	switch (urb->status) {
 	case 0:		/* success */
@@ -814,7 +814,7 @@ static void cx231xx_isoc_irq_callback(struct urb *urb)
 
 	/* Copy data from URB */
 	spin_lock(&dev->video_mode.slock);
-	rc = dev->video_mode.isoc_ctl.isoc_copy(dev, urb);
+	dev->video_mode.isoc_ctl.isoc_copy(dev, urb);
 	spin_unlock(&dev->video_mode.slock);
 
 	/* Reset urb buffers */
@@ -822,7 +822,6 @@ static void cx231xx_isoc_irq_callback(struct urb *urb)
 		urb->iso_frame_desc[i].status = 0;
 		urb->iso_frame_desc[i].actual_length = 0;
 	}
-	urb->status = 0;
 
 	urb->status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (urb->status) {
@@ -843,7 +842,6 @@ static void cx231xx_bulk_irq_callback(struct urb *urb)
 	struct cx231xx_video_mode *vmode =
 	    container_of(dma_q, struct cx231xx_video_mode, vidq);
 	struct cx231xx *dev = container_of(vmode, struct cx231xx, video_mode);
-	int rc;
 
 	switch (urb->status) {
 	case 0:		/* success */
@@ -860,12 +858,10 @@ static void cx231xx_bulk_irq_callback(struct urb *urb)
 
 	/* Copy data from URB */
 	spin_lock(&dev->video_mode.slock);
-	rc = dev->video_mode.bulk_ctl.bulk_copy(dev, urb);
+	dev->video_mode.bulk_ctl.bulk_copy(dev, urb);
 	spin_unlock(&dev->video_mode.slock);
 
 	/* Reset urb buffers */
-	urb->status = 0;
-
 	urb->status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (urb->status) {
 		cx231xx_isocdbg("urb resubmit failed (error=%i)\n",
@@ -1231,42 +1227,40 @@ int cx231xx_init_bulk(struct cx231xx *dev, int max_packets,
 EXPORT_SYMBOL_GPL(cx231xx_init_bulk);
 void cx231xx_stop_TS1(struct cx231xx *dev)
 {
-	int status = 0;
 	u8 val[4] = { 0, 0, 0, 0 };
 
-			val[0] = 0x00;
-			val[1] = 0x03;
-			val[2] = 0x00;
-			val[3] = 0x00;
-			status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
-				 TS_MODE_REG, val, 4);
+	val[0] = 0x00;
+	val[1] = 0x03;
+	val[2] = 0x00;
+	val[3] = 0x00;
+	cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
+			TS_MODE_REG, val, 4);
 
-			val[0] = 0x00;
-			val[1] = 0x70;
-			val[2] = 0x04;
-			val[3] = 0x00;
-			status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
-				 TS1_CFG_REG, val, 4);
+	val[0] = 0x00;
+	val[1] = 0x70;
+	val[2] = 0x04;
+	val[3] = 0x00;
+	cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
+			TS1_CFG_REG, val, 4);
 }
 /* EXPORT_SYMBOL_GPL(cx231xx_stop_TS1); */
 void cx231xx_start_TS1(struct cx231xx *dev)
 {
-	int status = 0;
 	u8 val[4] = { 0, 0, 0, 0 };
 
-			val[0] = 0x03;
-			val[1] = 0x03;
-			val[2] = 0x00;
-			val[3] = 0x00;
-			status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
-				 TS_MODE_REG, val, 4);
+	val[0] = 0x03;
+	val[1] = 0x03;
+	val[2] = 0x00;
+	val[3] = 0x00;
+	cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
+			TS_MODE_REG, val, 4);
 
-			val[0] = 0x04;
-			val[1] = 0xA3;
-			val[2] = 0x3B;
-			val[3] = 0x00;
-			status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
-				 TS1_CFG_REG, val, 4);
+	val[0] = 0x04;
+	val[1] = 0xA3;
+	val[2] = 0x3B;
+	val[3] = 0x00;
+	cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
+			TS1_CFG_REG, val, 4);
 }
 /* EXPORT_SYMBOL_GPL(cx231xx_start_TS1); */
 /*****************************************************************

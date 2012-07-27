@@ -32,7 +32,7 @@ static void minix_evict_inode(struct inode *inode)
 		minix_truncate(inode);
 	}
 	invalidate_inode_buffers(inode);
-	end_writeback(inode);
+	clear_inode(inode);
 	if (!inode->i_nlink)
 		minix_free_inode(inode);
 }

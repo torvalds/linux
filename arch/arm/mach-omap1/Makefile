@@ -12,6 +12,9 @@ endif
 
 obj-$(CONFIG_OMAP_32K_TIMER)	+= timer32k.o
 
+# OCPI interconnect support for 1710, 1610 and 5912
+obj-$(CONFIG_ARCH_OMAP16XX) += ocpi.o
+
 # Power Management
 obj-$(CONFIG_PM) += pm.o sleep.o
 
@@ -28,13 +31,15 @@ usb-fs-$(CONFIG_USB)			:= usb.o
 obj-y					+= $(usb-fs-m) $(usb-fs-y)
 
 # Specific board support
-obj-$(CONFIG_MACH_OMAP_H2)		+= board-h2.o board-h2-mmc.o
+obj-$(CONFIG_MACH_OMAP_H2)		+= board-h2.o board-h2-mmc.o \
+					   board-nand.o
 obj-$(CONFIG_MACH_OMAP_INNOVATOR)	+= board-innovator.o
 obj-$(CONFIG_MACH_OMAP_GENERIC)		+= board-generic.o
-obj-$(CONFIG_MACH_OMAP_PERSEUS2)	+= board-perseus2.o
-obj-$(CONFIG_MACH_OMAP_FSAMPLE)		+= board-fsample.o
+obj-$(CONFIG_MACH_OMAP_PERSEUS2)	+= board-perseus2.o board-nand.o
+obj-$(CONFIG_MACH_OMAP_FSAMPLE)		+= board-fsample.o board-nand.o
 obj-$(CONFIG_MACH_OMAP_OSK)		+= board-osk.o
-obj-$(CONFIG_MACH_OMAP_H3)		+= board-h3.o board-h3-mmc.o
+obj-$(CONFIG_MACH_OMAP_H3)		+= board-h3.o board-h3-mmc.o \
+					   board-nand.o
 obj-$(CONFIG_MACH_VOICEBLUE)		+= board-voiceblue.o
 obj-$(CONFIG_MACH_OMAP_PALMTE)		+= board-palmte.o
 obj-$(CONFIG_MACH_OMAP_PALMZ71)		+= board-palmz71.o

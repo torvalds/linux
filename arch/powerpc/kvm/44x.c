@@ -29,15 +29,18 @@
 #include <asm/kvm_ppc.h>
 
 #include "44x_tlb.h"
+#include "booke.h"
 
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
+	kvmppc_booke_vcpu_load(vcpu, cpu);
 	kvmppc_44x_tlb_load(vcpu);
 }
 
 void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	kvmppc_44x_tlb_put(vcpu);
+	kvmppc_booke_vcpu_put(vcpu);
 }
 
 int kvmppc_core_check_processor_compat(void)
@@ -158,6 +161,15 @@ void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 	free_page((unsigned long)vcpu->arch.shared);
 	kvm_vcpu_uninit(vcpu);
 	kmem_cache_free(kvm_vcpu_cache, vcpu_44x);
+}
+
+int kvmppc_core_init_vm(struct kvm *kvm)
+{
+	return 0;
+}
+
+void kvmppc_core_destroy_vm(struct kvm *kvm)
+{
 }
 
 static int __init kvmppc_44x_init(void)

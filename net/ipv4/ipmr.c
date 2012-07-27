@@ -949,8 +949,7 @@ static int ipmr_cache_report(struct mr_table *mrt,
 	ret = sock_queue_rcv_skb(mroute_sk, skb);
 	rcu_read_unlock();
 	if (ret < 0) {
-		if (net_ratelimit())
-			pr_warn("mroute: pending queue full, dropping entries\n");
+		net_warn_ratelimited("mroute: pending queue full, dropping entries\n");
 		kfree_skb(skb);
 	}
 
@@ -1575,6 +1574,7 @@ static inline int ipmr_forward_finish(struct sk_buff *skb)
 	struct ip_options *opt = &(IPCB(skb)->opt);
 
 	IP_INC_STATS_BH(dev_net(skb_dst(skb)->dev), IPSTATS_MIB_OUTFORWDATAGRAMS);
+	IP_ADD_STATS_BH(dev_net(skb_dst(skb)->dev), IPSTATS_MIB_OUTOCTETS, skb->len);
 
 	if (unlikely(opt->optlen))
 		ip_forward_options(skb);
@@ -2119,15 +2119,16 @@ static int ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 	rtm->rtm_src_len  = 32;
 	rtm->rtm_tos      = 0;
 	rtm->rtm_table    = mrt->id;
-	NLA_PUT_U32(skb, RTA_TABLE, mrt->id);
+	if (nla_put_u32(skb, RTA_TABLE, mrt->id))
+		goto nla_put_failure;
 	rtm->rtm_type     = RTN_MULTICAST;
 	rtm->rtm_scope    = RT_SCOPE_UNIVERSE;
 	rtm->rtm_protocol = RTPROT_UNSPEC;
 	rtm->rtm_flags    = 0;
 
-	NLA_PUT_BE32(skb, RTA_SRC, c->mfc_origin);
-	NLA_PUT_BE32(skb, RTA_DST, c->mfc_mcastgrp);
-
+	if (nla_put_be32(skb, RTA_SRC, c->mfc_origin) ||
+	    nla_put_be32(skb, RTA_DST, c->mfc_mcastgrp))
+		goto nla_put_failure;
 	if (__ipmr_fill_mroute(mrt, skb, c, rtm) < 0)
 		goto nla_put_failure;
 

@@ -30,8 +30,8 @@
 #include "dwmac1000.h"
 #include "dwmac_dma.h"
 
-static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, u32 dma_tx,
-			      u32 dma_rx)
+static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, int fb,
+			      int mb, int burst_len, u32 dma_tx, u32 dma_rx)
 {
 	u32 value = readl(ioaddr + DMA_BUS_MODE);
 	int limit;
@@ -48,14 +48,50 @@ static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, u32 dma_tx,
 	if (limit < 0)
 		return -EBUSY;
 
-	value = /* DMA_BUS_MODE_FB | */ DMA_BUS_MODE_4PBL |
-	    ((pbl << DMA_BUS_MODE_PBL_SHIFT) |
-	     (pbl << DMA_BUS_MODE_RPBL_SHIFT));
+	/*
+	 * Set the DMA PBL (Programmable Burst Length) mode
+	 * Before stmmac core 3.50 this mode bit was 4xPBL, and
+	 * post 3.5 mode bit acts as 8*PBL.
+	 * For core rev < 3.5, when the core is set for 4xPBL mode, the
+	 * DMA transfers the data in 4, 8, 16, 32, 64 & 128 beats
+	 * depending on pbl value.
+	 * For core rev > 3.5, when the core is set for 8xPBL mode, the
+	 * DMA transfers the data in 8, 16, 32, 64, 128 & 256 beats
+	 * depending on pbl value.
+	 */
+	value = DMA_BUS_MODE_PBL | ((pbl << DMA_BUS_MODE_PBL_SHIFT) |
+		(pbl << DMA_BUS_MODE_RPBL_SHIFT));
+
+	/* Set the Fixed burst mode */
+	if (fb)
+		value |= DMA_BUS_MODE_FB;
+
+	/* Mixed Burst has no effect when fb is set */
+	if (mb)
+		value |= DMA_BUS_MODE_MB;
 
 #ifdef CONFIG_STMMAC_DA
 	value |= DMA_BUS_MODE_DA;	/* Rx has priority over tx */
 #endif
 	writel(value, ioaddr + DMA_BUS_MODE);
+
+	/* In case of GMAC AXI configuration, program the DMA_AXI_BUS_MODE
+	 * for supported bursts.
+	 *
+	 * Note: This is applicable only for revision GMACv3.61a. For
+	 * older version this register is reserved and shall have no
+	 * effect.
+	 *
+	 * Note:
+	 *  For Fixed Burst Mode: if we directly write 0xFF to this
+	 *  register using the configurations pass from platform code,
+	 *  this would ensure that all bursts supported by core are set
+	 *  and those which are not supported would remain ineffective.
+	 *
+	 *  For Non Fixed Burst Mode: provide the maximum value of the
+	 *  burst length. Any burst equal or below the provided burst
+	 *  length would be allowed to perform. */
+	writel(burst_len, ioaddr + DMA_AXI_BUS_MODE);
 
 	/* Mask interrupts by writing to CSR7 */
 	writel(DMA_INTR_DEFAULT_MASK, ioaddr + DMA_INTR_ENA);

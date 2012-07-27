@@ -1178,7 +1178,7 @@ err_out:
 	return &vfb->base;
 }
 
-static struct drm_mode_config_funcs vmw_kms_funcs = {
+static const struct drm_mode_config_funcs vmw_kms_funcs = {
 	.fb_create = vmw_kms_fb_create,
 };
 

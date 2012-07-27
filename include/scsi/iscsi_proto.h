@@ -661,6 +661,8 @@ struct iscsi_reject {
 
 #define ISCSI_DEF_TIME2WAIT			2
 
+#define ISCSI_NAME_LEN				224
+
 /************************* RFC 3720 End *****************************/
 
 #endif /* ISCSI_PROTO_H */

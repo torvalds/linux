@@ -92,18 +92,19 @@ streamoff.--></para>
 	    <entry>The number of buffers requested or granted.</entry>
 	  </row>
 	  <row>
-	    <entry>&v4l2-buf-type;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>type</structfield></entry>
 	    <entry>Type of the stream or buffers, this is the same
 as the &v4l2-format; <structfield>type</structfield> field. See <xref
 		linkend="v4l2-buf-type" /> for valid values.</entry>
 	  </row>
 	  <row>
-	    <entry>&v4l2-memory;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>memory</structfield></entry>
 	    <entry>Applications set this field to
 <constant>V4L2_MEMORY_MMAP</constant> or
-<constant>V4L2_MEMORY_USERPTR</constant>.</entry>
+<constant>V4L2_MEMORY_USERPTR</constant>. See <xref linkend="v4l2-memory"
+/>.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>

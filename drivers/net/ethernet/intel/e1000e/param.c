@@ -166,8 +166,8 @@ E1000_PARAM(WriteProtectNVM, "Write-protect NVM [WARNING: disabling this can lea
  *
  * Default Value: 1 (enabled)
  */
-E1000_PARAM(CrcStripping, "Enable CRC Stripping, disable if your BMC needs " \
-                          "the CRC");
+E1000_PARAM(CrcStripping,
+	    "Enable CRC Stripping, disable if your BMC needs the CRC");
 
 struct e1000_option {
 	enum { enable_option, range_option, list_option } type;
@@ -347,8 +347,8 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 
 			/*
 			 * Make sure a message is printed for non-special
-			 * values.  And in case of an invalid option, display
-			 * warning, use default and got through itr/itr_setting
+			 * values. And in case of an invalid option, display
+			 * warning, use default and go through itr/itr_setting
 			 * adjustment logic below
 			 */
 			if ((adapter->itr > 4) &&
@@ -365,7 +365,7 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 			 * Make sure a message is printed for non-special
 			 * default values
 			 */
-			if (adapter->itr > 40)
+			if (adapter->itr > 4)
 				e_info("%s set to default %d\n", opt.name,
 				       adapter->itr);
 		}

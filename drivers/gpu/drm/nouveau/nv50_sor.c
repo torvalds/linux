@@ -242,9 +242,9 @@ nv50_sor_disconnect(struct drm_encoder *encoder)
 		NV_ERROR(dev, "no space while disconnecting SOR\n");
 		return;
 	}
-	BEGIN_RING(evo, 0, NV50_EVO_SOR(nv_encoder->or, MODE_CTRL), 1);
+	BEGIN_NV04(evo, 0, NV50_EVO_SOR(nv_encoder->or, MODE_CTRL), 1);
 	OUT_RING  (evo, 0);
-	BEGIN_RING(evo, 0, NV50_EVO_UPDATE, 1);
+	BEGIN_NV04(evo, 0, NV50_EVO_UPDATE, 1);
 	OUT_RING  (evo, 0);
 
 	nouveau_hdmi_mode_set(encoder, NULL);
@@ -327,7 +327,8 @@ nv50_sor_restore(struct drm_encoder *encoder)
 }
 
 static bool
-nv50_sor_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
+nv50_sor_mode_fixup(struct drm_encoder *encoder,
+		    const struct drm_display_mode *mode,
 		    struct drm_display_mode *adjusted_mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
@@ -430,7 +431,7 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 		nv_encoder->crtc = NULL;
 		return;
 	}
-	BEGIN_RING(evo, 0, NV50_EVO_SOR(nv_encoder->or, MODE_CTRL), 1);
+	BEGIN_NV04(evo, 0, NV50_EVO_SOR(nv_encoder->or, MODE_CTRL), 1);
 	OUT_RING(evo, mode_ctl);
 }
 

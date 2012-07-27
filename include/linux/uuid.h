@@ -54,6 +54,8 @@ typedef struct {
 	UUID_BE(0x00000000, 0x0000, 0x0000, 0x00, 0x00, 0x00, 0x00,	\
 		0x00, 0x00, 0x00, 0x00)
 
+#ifdef __KERNEL__
+
 static inline int uuid_le_cmp(const uuid_le u1, const uuid_le u2)
 {
 	return memcmp(&u1, &u2, sizeof(uuid_le));
@@ -66,5 +68,7 @@ static inline int uuid_be_cmp(const uuid_be u1, const uuid_be u2)
 
 extern void uuid_le_gen(uuid_le *u);
 extern void uuid_be_gen(uuid_be *u);
+
+#endif /* __KERNEL__ */
 
 #endif

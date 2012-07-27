@@ -626,21 +626,21 @@ static int __devinit pmic8xxx_kp_probe(struct platform_device *pdev)
 	kp->input->id.product	= 0x0001;
 	kp->input->id.vendor	= 0x0001;
 
-	kp->input->evbit[0]	= BIT_MASK(EV_KEY);
-
-	if (pdata->rep)
-		__set_bit(EV_REP, kp->input->evbit);
-
-	kp->input->keycode	= kp->keycodes;
-	kp->input->keycodemax	= PM8XXX_MATRIX_MAX_SIZE;
-	kp->input->keycodesize	= sizeof(kp->keycodes);
 	kp->input->open		= pmic8xxx_kp_open;
 	kp->input->close	= pmic8xxx_kp_close;
 
-	matrix_keypad_build_keymap(keymap_data, PM8XXX_ROW_SHIFT,
-					kp->input->keycode, kp->input->keybit);
+	rc = matrix_keypad_build_keymap(keymap_data, NULL,
+					PM8XXX_MAX_ROWS, PM8XXX_MAX_COLS,
+					kp->keycodes, kp->input);
+	if (rc) {
+		dev_err(&pdev->dev, "failed to build keymap\n");
+		goto err_get_irq;
+	}
 
+	if (pdata->rep)
+		__set_bit(EV_REP, kp->input->evbit);
 	input_set_capability(kp->input, EV_MSC, MSC_SCAN);
+
 	input_set_drvdata(kp->input, kp);
 
 	/* initialize keypad state */

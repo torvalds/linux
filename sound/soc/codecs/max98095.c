@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <asm/div64.h>
 #include <sound/max98095.h>
+#include <sound/jack.h>
 #include "max98095.h"
 
 enum max98095_type {
@@ -51,6 +52,8 @@ struct max98095_priv {
 	u8 lin_state;
 	unsigned int mic1pre;
 	unsigned int mic2pre;
+	struct snd_soc_jack *headphone_jack;
+	struct snd_soc_jack *mic_jack;
 };
 
 static const u8 max98095_reg_def[M98095_REG_CNT] = {
@@ -2173,9 +2176,125 @@ static void max98095_handle_pdata(struct snd_soc_codec *codec)
 		max98095_handle_bq_pdata(codec);
 }
 
+static irqreturn_t max98095_report_jack(int irq, void *data)
+{
+	struct snd_soc_codec *codec = data;
+	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
+	unsigned int value;
+	int hp_report = 0;
+	int mic_report = 0;
+
+	/* Read the Jack Status Register */
+	value = snd_soc_read(codec, M98095_007_JACK_AUTO_STS);
+
+	/* If ddone is not set, then detection isn't finished yet */
+	if ((value & M98095_DDONE) == 0)
+		return IRQ_NONE;
+
+	/* if hp, check its bit, and if set, clear it */
+	if ((value & M98095_HP_IN || value & M98095_LO_IN) &&
+		max98095->headphone_jack)
+		hp_report |= SND_JACK_HEADPHONE;
+
+	/* if mic, check its bit, and if set, clear it */
+	if ((value & M98095_MIC_IN) && max98095->mic_jack)
+		mic_report |= SND_JACK_MICROPHONE;
+
+	if (max98095->headphone_jack == max98095->mic_jack) {
+		snd_soc_jack_report(max98095->headphone_jack,
+					hp_report | mic_report,
+					SND_JACK_HEADSET);
+	} else {
+		if (max98095->headphone_jack)
+			snd_soc_jack_report(max98095->headphone_jack,
+					hp_report, SND_JACK_HEADPHONE);
+		if (max98095->mic_jack)
+			snd_soc_jack_report(max98095->mic_jack,
+					mic_report, SND_JACK_MICROPHONE);
+	}
+
+	return IRQ_HANDLED;
+}
+
+int max98095_jack_detect_enable(struct snd_soc_codec *codec)
+{
+	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
+	int ret = 0;
+	int detect_enable = M98095_JDEN;
+	unsigned int slew = M98095_DEFAULT_SLEW_DELAY;
+
+	if (max98095->pdata->jack_detect_pin5en)
+		detect_enable |= M98095_PIN5EN;
+
+	if (max98095->pdata->jack_detect_delay)
+		slew = max98095->pdata->jack_detect_delay;
+
+	ret = snd_soc_write(codec, M98095_08E_JACK_DC_SLEW, slew);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to cfg auto detect %d\n", ret);
+		return ret;
+	}
+
+	/* configure auto detection to be enabled */
+	ret = snd_soc_write(codec, M98095_089_JACK_DET_AUTO, detect_enable);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to cfg auto detect %d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+int max98095_jack_detect_disable(struct snd_soc_codec *codec)
+{
+	int ret = 0;
+
+	/* configure auto detection to be disabled */
+	ret = snd_soc_write(codec, M98095_089_JACK_DET_AUTO, 0x0);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to cfg auto detect %d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+int max98095_jack_detect(struct snd_soc_codec *codec,
+	struct snd_soc_jack *hp_jack, struct snd_soc_jack *mic_jack)
+{
+	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
+	struct i2c_client *client = to_i2c_client(codec->dev);
+	int ret = 0;
+
+	max98095->headphone_jack = hp_jack;
+	max98095->mic_jack = mic_jack;
+
+	/* only progress if we have at least 1 jack pointer */
+	if (!hp_jack && !mic_jack)
+		return -EINVAL;
+
+	max98095_jack_detect_enable(codec);
+
+	/* enable interrupts for headphone jack detection */
+	ret = snd_soc_update_bits(codec, M98095_013_JACK_INT_EN,
+		M98095_IDDONE, M98095_IDDONE);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to cfg jack irqs %d\n", ret);
+		return ret;
+	}
+
+	max98095_report_jack(client->irq, codec);
+	return 0;
+}
+
 #ifdef CONFIG_PM
 static int max98095_suspend(struct snd_soc_codec *codec)
 {
+	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
+
+	if (max98095->headphone_jack || max98095->mic_jack)
+		max98095_jack_detect_disable(codec);
+
 	max98095_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
@@ -2183,7 +2302,15 @@ static int max98095_suspend(struct snd_soc_codec *codec)
 
 static int max98095_resume(struct snd_soc_codec *codec)
 {
+	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
+	struct i2c_client *client = to_i2c_client(codec->dev);
+
 	max98095_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+
+	if (max98095->headphone_jack || max98095->mic_jack) {
+		max98095_jack_detect_enable(codec);
+		max98095_report_jack(client->irq, codec);
+	}
 
 	return 0;
 }
@@ -2227,6 +2354,7 @@ static int max98095_probe(struct snd_soc_codec *codec)
 {
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 	struct max98095_cdata *cdata;
+	struct i2c_client *client;
 	int ret = 0;
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_I2C);
@@ -2237,6 +2365,8 @@ static int max98095_probe(struct snd_soc_codec *codec)
 
 	/* reset the codec, the DSP core, and disable all interrupts */
 	max98095_reset(codec);
+
+	client = to_i2c_client(codec->dev);
 
 	/* initialize private data */
 
@@ -2266,11 +2396,23 @@ static int max98095_probe(struct snd_soc_codec *codec)
 	max98095->mic1pre = 0;
 	max98095->mic2pre = 0;
 
+	if (client->irq) {
+		/* register an audio interrupt */
+		ret = request_threaded_irq(client->irq, NULL,
+			max98095_report_jack,
+			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
+			"max98095", codec);
+		if (ret) {
+			dev_err(codec->dev, "Failed to request IRQ: %d\n", ret);
+			goto err_access;
+		}
+	}
+
 	ret = snd_soc_read(codec, M98095_0FF_REV_ID);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failure reading hardware revision: %d\n",
 			ret);
-		goto err_access;
+		goto err_irq;
 	}
 	dev_info(codec->dev, "Hardware revision: %c\n", ret - 0x40 + 'A');
 
@@ -2306,13 +2448,27 @@ static int max98095_probe(struct snd_soc_codec *codec)
 
 	max98095_add_widgets(codec);
 
+	return 0;
+
+err_irq:
+	if (client->irq)
+		free_irq(client->irq, codec);
 err_access:
 	return ret;
 }
 
 static int max98095_remove(struct snd_soc_codec *codec)
 {
+	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
+	struct i2c_client *client = to_i2c_client(codec->dev);
+
 	max98095_set_bias_level(codec, SND_SOC_BIAS_OFF);
+
+	if (max98095->headphone_jack || max98095->mic_jack)
+		max98095_jack_detect_disable(codec);
+
+	if (client->irq)
+		free_irq(client->irq, codec);
 
 	return 0;
 }

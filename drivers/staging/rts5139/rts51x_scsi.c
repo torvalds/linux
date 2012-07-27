@@ -40,7 +40,6 @@
 #include "rts51x_scsi.h"
 #include "rts51x_card.h"
 #include "rts51x_transport.h"
-#include "rts51x_sys.h"
 #include "sd_cprm.h"
 #include "ms_mg.h"
 #include "trace.h"
@@ -370,10 +369,6 @@ void set_sense_type(struct rts51x_chip *chip, unsigned int lun, int sense_type)
 			       ASC_INVLD_CDB, ASCQ_INVLD_CDB, CDB_ILLEGAL, 1);
 		break;
 
-	case SENSE_TYPE_FORMAT_IN_PROGRESS:
-		set_sense_data(chip, lun, CUR_ERR, 0x02, 0, 0x04, 0x04, 0, 0);
-		break;
-
 	case SENSE_TYPE_FORMAT_CMD_FAILED:
 		set_sense_data(chip, lun, CUR_ERR, 0x03, 0, 0x31, 0x01, 0, 0);
 		break;
@@ -393,12 +388,6 @@ void set_sense_type(struct rts51x_chip *chip, unsigned int lun, int sense_type)
 
 	case SENSE_TYPE_MG_WRITE_ERR:
 		set_sense_data(chip, lun, CUR_ERR, 0x03, 0, 0x0C, 0x00, 0, 0);
-		break;
-#endif
-
-#ifdef SUPPORT_SD_LOCK
-	case SENSE_TYPE_MEDIA_READ_FORBIDDEN:
-		set_sense_data(chip, lun, CUR_ERR, 0x07, 0, 0x11, 0x13, 0, 0);
 		break;
 #endif
 
@@ -448,20 +437,6 @@ static int test_unit_ready(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_CHANGE);
 		return TRANSPORT_FAILED;
 	}
-#ifdef SUPPORT_SD_LOCK
-	if (get_lun_card(chip, SCSI_LUN(srb)) == SD_CARD) {
-		struct sd_info *sd_card = &(chip->sd_card);
-		if (sd_card->sd_lock_notify) {
-			sd_card->sd_lock_notify = 0;
-			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_CHANGE);
-			return TRANSPORT_FAILED;
-		} else if (sd_card->sd_lock_status & SD_LOCKED) {
-			set_sense_type(chip, lun,
-				       SENSE_TYPE_MEDIA_READ_FORBIDDEN);
-			return TRANSPORT_FAILED;
-		}
-	}
-#endif
 
 	return TRANSPORT_GOOD;
 }
@@ -797,9 +772,6 @@ static int request_sense(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 
 static int read_write(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 {
-#ifdef SUPPORT_SD_LOCK
-	struct sd_info *sd_card = &(chip->sd_card);
-#endif
 	unsigned int lun = SCSI_LUN(srb);
 	int retval;
 	u32 start_sec;
@@ -818,25 +790,6 @@ static int read_write(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 
 	rts51x_prepare_run(chip);
 	RTS51X_SET_STAT(chip, STAT_RUN);
-
-#ifdef SUPPORT_SD_LOCK
-	if (sd_card->sd_erase_status) {
-		/* Accessing to any card is forbidden
-		 * until the erase procedure of SD is completed */
-		RTS51X_DEBUGP("SD card being erased!\n");
-		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_READ_FORBIDDEN);
-		TRACE_RET(chip, TRANSPORT_FAILED);
-	}
-
-	if (get_lun_card(chip, lun) == SD_CARD) {
-		if (sd_card->sd_lock_status & SD_LOCKED) {
-			RTS51X_DEBUGP("SD card locked!\n");
-			set_sense_type(chip, lun,
-				       SENSE_TYPE_MEDIA_READ_FORBIDDEN);
-			TRACE_RET(chip, TRANSPORT_FAILED);
-		}
-	}
-#endif
 
 	if ((srb->cmnd[0] == READ_10) || (srb->cmnd[0] == WRITE_10)) {
 		start_sec =
@@ -883,20 +836,12 @@ static int read_write(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 
 	retval = card_rw(srb, chip, start_sec, sec_cnt);
 	if (retval != STATUS_SUCCESS) {
-#if 0
-		if (chip->need_release & chip->lun2card[lun]) {
-			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
-		} else {
-#endif
 		if (srb->sc_data_direction == DMA_FROM_DEVICE) {
 			set_sense_type(chip, lun,
 				       SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
 		} else {
 			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_WRITE_ERR);
 		}
-#if 0
-		}
-#endif
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}
 
@@ -1516,7 +1461,7 @@ static int ms_format_cmnd(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 }
 
 #ifdef SUPPORT_PCGL_1P18
-int get_ms_information(struct scsi_cmnd *srb, struct rts51x_chip *chip)
+static int get_ms_information(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 	unsigned int lun = SCSI_LUN(srb);
@@ -1677,7 +1622,7 @@ static int sd_extention_cmnd(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 #endif
 
 #ifdef SUPPORT_MAGIC_GATE
-int mg_report_key(struct scsi_cmnd *srb, struct rts51x_chip *chip)
+static int mg_report_key(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 	unsigned int lun = SCSI_LUN(srb);
@@ -1764,7 +1709,7 @@ int mg_report_key(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 	return TRANSPORT_GOOD;
 }
 
-int mg_send_key(struct scsi_cmnd *srb, struct rts51x_chip *chip)
+static int mg_send_key(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 	unsigned int lun = SCSI_LUN(srb);
@@ -1871,29 +1816,9 @@ int mg_send_key(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 
 int rts51x_scsi_handler(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 {
-#ifdef SUPPORT_SD_LOCK
-	struct sd_info *sd_card = &(chip->sd_card);
-#endif
 	struct ms_info *ms_card = &(chip->ms_card);
 	unsigned int lun = SCSI_LUN(srb);
 	int result = TRANSPORT_GOOD;
-
-#ifdef SUPPORT_SD_LOCK
-	if (sd_card->sd_erase_status) {
-		/* Block all SCSI command except for REQUEST_SENSE
-		 * and rs_ppstatus */
-		if (!
-		    ((srb->cmnd[0] == VENDOR_CMND)
-		     && (srb->cmnd[1] == SCSI_APP_CMD)
-		     && (srb->cmnd[2] == GET_DEV_STATUS))
-		    && (srb->cmnd[0] != REQUEST_SENSE)) {
-			/* Logical Unit Not Ready Format in Progress */
-			set_sense_data(chip, lun, CUR_ERR, 0x02, 0, 0x04, 0x04,
-				       0, 0);
-			TRACE_RET(chip, TRANSPORT_FAILED);
-		}
-	}
-#endif
 
 	if ((get_lun_card(chip, lun) == MS_CARD) &&
 	    (ms_card->format_status == FORMAT_IN_PROGRESS)) {
@@ -1993,11 +1918,6 @@ int rts51x_scsi_handler(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 /***********************************************************************
  * Host functions
  ***********************************************************************/
-
-const char *host_info(struct Scsi_Host *host)
-{
-	return "SCSI emulation for RTS51xx USB driver-based card reader";
-}
 
 int slave_alloc(struct scsi_device *sdev)
 {
@@ -2111,14 +2031,7 @@ int queuecommand_lck(struct scsi_cmnd *srb, void (*done) (struct scsi_cmnd *))
 	return 0;
 }
 
-#if 0 /* LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37) */
-int queuecommand(struct scsi_cmnd *srb, void (*done) (struct scsi_cmnd *))
-{
-	return queuecommand_lck(srb, done);
-}
-#else
 DEF_SCSI_QCMD(queuecommand)
-#endif
 /***********************************************************************
  * Error handling functions
  ***********************************************************************/

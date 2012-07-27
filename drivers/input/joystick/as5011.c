@@ -231,6 +231,7 @@ static int __devinit as5011_probe(struct i2c_client *client,
 	}
 
 	if (!i2c_check_functionality(client->adapter,
+				     I2C_FUNC_NOSTART |
 				     I2C_FUNC_PROTOCOL_MANGLING)) {
 		dev_err(&client->dev,
 			"need i2c bus that supports protocol mangling\n");
@@ -281,7 +282,8 @@ static int __devinit as5011_probe(struct i2c_client *client,
 
 	error = request_threaded_irq(as5011->button_irq,
 				     NULL, as5011_button_interrupt,
-				     IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				     IRQF_TRIGGER_RISING |
+					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				     "as5011_button", as5011);
 	if (error < 0) {
 		dev_err(&client->dev,
@@ -295,7 +297,7 @@ static int __devinit as5011_probe(struct i2c_client *client,
 
 	error = request_threaded_irq(as5011->axis_irq, NULL,
 				     as5011_axis_interrupt,
-				     plat_data->axis_irqflags,
+				     plat_data->axis_irqflags | IRQF_ONESHOT,
 				     "as5011_joystick", as5011);
 	if (error) {
 		dev_err(&client->dev,

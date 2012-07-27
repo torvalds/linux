@@ -1,0 +1,14 @@
+NVIDIA Tegra audio complex for TrimSlice
+
+Required properties:
+- compatible : "nvidia,tegra-audio-trimslice"
+- nvidia,i2s-controller : The phandle of the Tegra I2S1 controller
+- nvidia,audio-codec : The phandle of the WM8903 audio codec
+
+Example:
+
+sound {
+	compatible = "nvidia,tegra-audio-trimslice";
+	nvidia,i2s-controller = <&tegra_i2s1>;
+	nvidia,audio-codec = <&codec>;
+};

@@ -18,7 +18,10 @@
 #include <linux/timer.h>
 #include <linux/sched.h>
 #include <linux/leds.h>
+#include <linux/reboot.h>
 #include "leds.h"
+
+static int panic_heartbeats;
 
 struct heartbeat_trig_data {
 	unsigned int phase;
@@ -32,6 +35,11 @@ static void led_heartbeat_function(unsigned long data)
 	struct heartbeat_trig_data *heartbeat_data = led_cdev->trigger_data;
 	unsigned long brightness = LED_OFF;
 	unsigned long delay = 0;
+
+	if (unlikely(panic_heartbeats)) {
+		led_set_brightness(led_cdev, LED_OFF);
+		return;
+	}
 
 	/* acts like an actual heart beat -- ie thump-thump-pause... */
 	switch (heartbeat_data->phase) {
@@ -83,15 +91,17 @@ static void heartbeat_trig_activate(struct led_classdev *led_cdev)
 		    led_heartbeat_function, (unsigned long) led_cdev);
 	heartbeat_data->phase = 0;
 	led_heartbeat_function(heartbeat_data->timer.data);
+	led_cdev->activated = true;
 }
 
 static void heartbeat_trig_deactivate(struct led_classdev *led_cdev)
 {
 	struct heartbeat_trig_data *heartbeat_data = led_cdev->trigger_data;
 
-	if (heartbeat_data) {
+	if (led_cdev->activated) {
 		del_timer_sync(&heartbeat_data->timer);
 		kfree(heartbeat_data);
+		led_cdev->activated = false;
 	}
 }
 
@@ -101,13 +111,45 @@ static struct led_trigger heartbeat_led_trigger = {
 	.deactivate = heartbeat_trig_deactivate,
 };
 
+static int heartbeat_reboot_notifier(struct notifier_block *nb,
+				     unsigned long code, void *unused)
+{
+	led_trigger_unregister(&heartbeat_led_trigger);
+	return NOTIFY_DONE;
+}
+
+static int heartbeat_panic_notifier(struct notifier_block *nb,
+				     unsigned long code, void *unused)
+{
+	panic_heartbeats = 1;
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block heartbeat_reboot_nb = {
+	.notifier_call = heartbeat_reboot_notifier,
+};
+
+static struct notifier_block heartbeat_panic_nb = {
+	.notifier_call = heartbeat_panic_notifier,
+};
+
 static int __init heartbeat_trig_init(void)
 {
-	return led_trigger_register(&heartbeat_led_trigger);
+	int rc = led_trigger_register(&heartbeat_led_trigger);
+
+	if (!rc) {
+		atomic_notifier_chain_register(&panic_notifier_list,
+					       &heartbeat_panic_nb);
+		register_reboot_notifier(&heartbeat_reboot_nb);
+	}
+	return rc;
 }
 
 static void __exit heartbeat_trig_exit(void)
 {
+	unregister_reboot_notifier(&heartbeat_reboot_nb);
+	atomic_notifier_chain_unregister(&panic_notifier_list,
+					 &heartbeat_panic_nb);
 	led_trigger_unregister(&heartbeat_led_trigger);
 }
 

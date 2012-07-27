@@ -1,5 +1,5 @@
 menuconfig POWER_SUPPLY
-	tristate "Power supply class support"
+	bool "Power supply class support"
 	help
 	  Say Y here to enable power supply class support. This allows
 	  power supply (batteries, AC, USB) monitoring by userspace
@@ -77,7 +77,7 @@ config BATTERY_DS2780
 	  Say Y here to enable support for batteries with ds2780 chip.
 
 config BATTERY_DS2781
-	tristate "2781 battery driver"
+	tristate "DS2781 battery driver"
 	depends on HAS_IOMEM
 	select W1
 	select W1_SLAVE_DS2781
@@ -181,14 +181,15 @@ config BATTERY_MAX17040
 	  to operate with a single lithium cell
 
 config BATTERY_MAX17042
-	tristate "Maxim MAX17042/8997/8966 Fuel Gauge"
+	tristate "Maxim MAX17042/17047/17050/8997/8966 Fuel Gauge"
 	depends on I2C
 	help
 	  MAX17042 is fuel-gauge systems for lithium-ion (Li+) batteries
 	  in handheld and portable equipment. The MAX17042 is configured
 	  to operate with a single lithium cell. MAX8997 and MAX8966 are
 	  multi-function devices that include fuel gauages that are compatible
-	  with MAX17042.
+	  with MAX17042. This driver also supports max17047/50 chips which are
+	  improved version of max17042.
 
 config BATTERY_Z2
 	tristate "Z2 battery driver"
@@ -291,6 +292,7 @@ config CHARGER_MAX8998
 config CHARGER_SMB347
 	tristate "Summit Microelectronics SMB347 Battery Charger"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  Say Y to include support for Summit Microelectronics SMB347
 	  Battery Charger.

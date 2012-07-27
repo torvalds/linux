@@ -31,9 +31,8 @@ static inline struct amba_device *
 db8500_add_ssp(struct device *parent, const char *name, resource_size_t base,
 	       int irq, struct pl022_ssp_controller *pdata)
 {
-	return dbx500_add_amba_device(parent, name, base, irq, pdata, 0);
+	return amba_ahb_device_add(parent, name, base, SZ_4K, irq, 0, pdata, 0);
 }
-
 
 #define db8500_add_i2c0(parent, pdata) \
 	dbx500_add_i2c(parent, 0, U8500_I2C0_BASE, IRQ_DB8500_I2C0, pdata)
@@ -45,15 +44,6 @@ db8500_add_ssp(struct device *parent, const char *name, resource_size_t base,
 	dbx500_add_i2c(parent, 3, U8500_I2C3_BASE, IRQ_DB8500_I2C3, pdata)
 #define db8500_add_i2c4(parent, pdata) \
 	dbx500_add_i2c(parent, 4, U8500_I2C4_BASE, IRQ_DB8500_I2C4, pdata)
-
-#define db8500_add_msp0_i2s(parent, pdata) \
-	dbx500_add_msp_i2s(parent, 0, U8500_MSP0_BASE, IRQ_DB8500_MSP0, pdata)
-#define db8500_add_msp1_i2s(parent, pdata) \
-	dbx500_add_msp_i2s(parent, 1, U8500_MSP1_BASE, IRQ_DB8500_MSP1, pdata)
-#define db8500_add_msp2_i2s(parent, pdata) \
-	dbx500_add_msp_i2s(parent, 2, U8500_MSP2_BASE, IRQ_DB8500_MSP2, pdata)
-#define db8500_add_msp3_i2s(parent, pdata) \
-	dbx500_add_msp_i2s(parent, 3, U8500_MSP3_BASE, IRQ_DB8500_MSP1, pdata)
 
 #define db8500_add_msp0_spi(parent, pdata) \
 	dbx500_add_msp_spi(parent, "msp0", U8500_MSP0_BASE, \
@@ -124,4 +114,8 @@ db8500_add_ssp(struct device *parent, const char *name, resource_size_t base,
 	dbx500_add_uart(parent, "uart2", U8500_UART2_BASE, \
 			IRQ_DB8500_UART2, pdata)
 
+#define db8500_add_cryp1(parent, pdata) \
+	dbx500_add_cryp1(parent, -1, U8500_CRYP1_BASE, IRQ_DB8500_CRYP1, pdata)
+#define db8500_add_hash1(parent, pdata) \
+	dbx500_add_hash1(parent, -1, U8500_HASH1_BASE, pdata)
 #endif

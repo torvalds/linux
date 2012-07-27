@@ -31,7 +31,7 @@ void do_per_trap(struct pt_regs *regs);
 void syscall_trace(struct pt_regs *regs, int entryexit);
 void kernel_stack_overflow(struct pt_regs * regs);
 void do_signal(struct pt_regs *regs);
-int handle_signal32(unsigned long sig, struct k_sigaction *ka,
+void handle_signal32(unsigned long sig, struct k_sigaction *ka,
 		    siginfo_t *info, sigset_t *oldset, struct pt_regs *regs);
 void do_notify_resume(struct pt_regs *regs);
 

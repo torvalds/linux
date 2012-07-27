@@ -9,6 +9,7 @@
 #include <linux/blktrace_api.h>
 
 #include "blk.h"
+#include "blk-cgroup.h"
 
 struct queue_sysfs_entry {
 	struct attribute attr;
@@ -479,6 +480,8 @@ static void blk_release_queue(struct kobject *kobj)
 
 	blk_sync_queue(q);
 
+	blkcg_exit_queue(q);
+
 	if (q->elevator) {
 		spin_lock_irq(q->queue_lock);
 		ioc_clear_queue(q);
@@ -486,15 +489,12 @@ static void blk_release_queue(struct kobject *kobj)
 		elevator_exit(q->elevator);
 	}
 
-	blk_throtl_exit(q);
-
 	if (rl->rq_pool)
 		mempool_destroy(rl->rq_pool);
 
 	if (q->queue_tags)
 		__blk_queue_free_tags(q);
 
-	blk_throtl_release(q);
 	blk_trace_shutdown(q);
 
 	bdi_destroy(&q->backing_dev_info);

@@ -141,8 +141,8 @@ static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
 
 	/* whine about and ignore invalid blks */
 	if (start > end || nid < 0 || nid >= MAX_NUMNODES) {
-		pr_warning("NUMA: Warning: invalid memblk node %d (%Lx-%Lx)\n",
-			   nid, start, end);
+		pr_warning("NUMA: Warning: invalid memblk node %d [mem %#010Lx-%#010Lx]\n",
+			   nid, start, end - 1);
 		return 0;
 	}
 
@@ -210,8 +210,8 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
 
 	start = roundup(start, ZONE_ALIGN);
 
-	printk(KERN_INFO "Initmem setup node %d %016Lx-%016Lx\n",
-	       nid, start, end);
+	printk(KERN_INFO "Initmem setup node %d [mem %#010Lx-%#010Lx]\n",
+	       nid, start, end - 1);
 
 	/*
 	 * Allocate node data.  Try remap allocator first, node-local
@@ -232,7 +232,7 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
 	}
 
 	/* report and initialize */
-	printk(KERN_INFO "  NODE_DATA [%016Lx - %016Lx]%s\n",
+	printk(KERN_INFO "  NODE_DATA [mem %#010Lx-%#010Lx]%s\n",
 	       nd_pa, nd_pa + nd_size - 1, remapped ? " (remapped)" : "");
 	tnid = early_pfn_to_nid(nd_pa >> PAGE_SHIFT);
 	if (!remapped && tnid != nid)
@@ -291,14 +291,14 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 			 */
 			if (bi->end > bj->start && bi->start < bj->end) {
 				if (bi->nid != bj->nid) {
-					pr_err("NUMA: node %d (%Lx-%Lx) overlaps with node %d (%Lx-%Lx)\n",
-					       bi->nid, bi->start, bi->end,
-					       bj->nid, bj->start, bj->end);
+					pr_err("NUMA: node %d [mem %#010Lx-%#010Lx] overlaps with node %d [mem %#010Lx-%#010Lx]\n",
+					       bi->nid, bi->start, bi->end - 1,
+					       bj->nid, bj->start, bj->end - 1);
 					return -EINVAL;
 				}
-				pr_warning("NUMA: Warning: node %d (%Lx-%Lx) overlaps with itself (%Lx-%Lx)\n",
-					   bi->nid, bi->start, bi->end,
-					   bj->start, bj->end);
+				pr_warning("NUMA: Warning: node %d [mem %#010Lx-%#010Lx] overlaps with itself [mem %#010Lx-%#010Lx]\n",
+					   bi->nid, bi->start, bi->end - 1,
+					   bj->start, bj->end - 1);
 			}
 
 			/*
@@ -320,9 +320,9 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 			}
 			if (k < mi->nr_blks)
 				continue;
-			printk(KERN_INFO "NUMA: Node %d [%Lx,%Lx) + [%Lx,%Lx) -> [%Lx,%Lx)\n",
-			       bi->nid, bi->start, bi->end, bj->start, bj->end,
-			       start, end);
+			printk(KERN_INFO "NUMA: Node %d [mem %#010Lx-%#010Lx] + [mem %#010Lx-%#010Lx] -> [mem %#010Lx-%#010Lx]\n",
+			       bi->nid, bi->start, bi->end - 1, bj->start,
+			       bj->end - 1, start, end - 1);
 			bi->start = start;
 			bi->end = end;
 			numa_remove_memblk_from(j--, mi);
@@ -616,8 +616,8 @@ static int __init dummy_numa_init(void)
 {
 	printk(KERN_INFO "%s\n",
 	       numa_off ? "NUMA turned off" : "No NUMA configuration found");
-	printk(KERN_INFO "Faking a node at %016Lx-%016Lx\n",
-	       0LLU, PFN_PHYS(max_pfn));
+	printk(KERN_INFO "Faking a node at [mem %#018Lx-%#018Lx]\n",
+	       0LLU, PFN_PHYS(max_pfn) - 1);
 
 	node_set(0, numa_nodes_parsed);
 	numa_add_memblk(0, 0, PFN_PHYS(max_pfn));

@@ -32,8 +32,9 @@ config WIMAX_I2400M_SDIO
 	  If unsure, it is safe to select M (module).
 
 config WIMAX_IWMC3200_SDIO
-	bool "Intel Wireless Multicom WiMAX Connection 3200 over SDIO"
+	bool "Intel Wireless Multicom WiMAX Connection 3200 over SDIO (EXPERIMENTAL)"
 	depends on WIMAX_I2400M_SDIO
+	depends on EXPERIMENTAL
 	select IWMC3200TOP
 	help
 	  Select if you have a device based on the Intel Multicom WiMAX

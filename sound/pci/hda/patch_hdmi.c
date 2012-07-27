@@ -1592,10 +1592,10 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 	unsigned int dataDCC2, channel_id;
 	int i;
 	struct hdmi_spec *spec = codec->spec;
-	struct hda_spdif_out *spdif =
-		snd_hda_spdif_out_of_nid(codec, spec->cvts[0].cvt_nid);
+	struct hda_spdif_out *spdif;
 
 	mutex_lock(&codec->spdif_mutex);
+	spdif = snd_hda_spdif_out_of_nid(codec, spec->cvts[0].cvt_nid);
 
 	chs = substream->runtime->channels;
 

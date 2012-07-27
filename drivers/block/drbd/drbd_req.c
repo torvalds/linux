@@ -37,6 +37,7 @@ static void _drbd_start_io_acct(struct drbd_conf *mdev, struct drbd_request *req
 	const int rw = bio_data_dir(bio);
 	int cpu;
 	cpu = part_stat_lock();
+	part_round_stats(cpu, &mdev->vdisk->part0);
 	part_stat_inc(cpu, &mdev->vdisk->part0, ios[rw]);
 	part_stat_add(cpu, &mdev->vdisk->part0, sectors[rw], bio_sectors(bio));
 	part_inc_in_flight(&mdev->vdisk->part0, rw);
@@ -214,8 +215,7 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 {
 	const unsigned long s = req->rq_state;
 	struct drbd_conf *mdev = req->mdev;
-	/* only WRITES may end up here without a master bio (on barrier ack) */
-	int rw = req->master_bio ? bio_data_dir(req->master_bio) : WRITE;
+	int rw = req->rq_state & RQ_WRITE ? WRITE : READ;
 
 	/* we must not complete the master bio, while it is
 	 *	still being processed by _drbd_send_zc_bio (drbd_send_dblock)
@@ -230,7 +230,7 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 		return;
 	if (s & RQ_NET_PENDING)
 		return;
-	if (s & RQ_LOCAL_PENDING)
+	if (s & RQ_LOCAL_PENDING && !(s & RQ_LOCAL_ABORTED))
 		return;
 
 	if (req->master_bio) {
@@ -276,6 +276,9 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 		m->bio = req->master_bio;
 		req->master_bio = NULL;
 	}
+
+	if (s & RQ_LOCAL_PENDING)
+		return;
 
 	if ((s & RQ_NET_MASK) == 0 || (s & RQ_NET_DONE)) {
 		/* this is disconnected (local only) operation,
@@ -429,7 +432,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		break;
 
 	case completed_ok:
-		if (bio_data_dir(req->master_bio) == WRITE)
+		if (req->rq_state & RQ_WRITE)
 			mdev->writ_cnt += req->size>>9;
 		else
 			mdev->read_cnt += req->size>>9;
@@ -438,7 +441,14 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state &= ~RQ_LOCAL_PENDING;
 
 		_req_may_be_done_not_susp(req, m);
-		put_ldev(mdev);
+		break;
+
+	case abort_disk_io:
+		req->rq_state |= RQ_LOCAL_ABORTED;
+		if (req->rq_state & RQ_WRITE)
+			_req_may_be_done_not_susp(req, m);
+		else
+			goto goto_queue_for_net_read;
 		break;
 
 	case write_completed_with_error:
@@ -447,7 +457,6 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 		__drbd_chk_io_error(mdev, false);
 		_req_may_be_done_not_susp(req, m);
-		put_ldev(mdev);
 		break;
 
 	case read_ahead_completed_with_error:
@@ -455,7 +464,6 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state |= RQ_LOCAL_COMPLETED;
 		req->rq_state &= ~RQ_LOCAL_PENDING;
 		_req_may_be_done_not_susp(req, m);
-		put_ldev(mdev);
 		break;
 
 	case read_completed_with_error:
@@ -464,10 +472,16 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state |= RQ_LOCAL_COMPLETED;
 		req->rq_state &= ~RQ_LOCAL_PENDING;
 
-		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
+		if (req->rq_state & RQ_LOCAL_ABORTED) {
+			_req_may_be_done(req, m);
+			break;
+		}
 
 		__drbd_chk_io_error(mdev, false);
-		put_ldev(mdev);
+
+	goto_queue_for_net_read:
+
+		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
 
 		/* no point in retrying if there is no good remote data,
 		 * or we have no connection. */
@@ -556,10 +570,8 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		drbd_queue_work(&mdev->data.work, &req->w);
 		break;
 
-	case oos_handed_to_network:
-		/* actually the same */
+	case read_retry_remote_canceled:
 	case send_canceled:
-		/* treat it the same */
 	case send_failed:
 		/* real cleanup will be done from tl_clear.  just update flags
 		 * so it is no longer marked as on the worker queue */
@@ -589,17 +601,17 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		}
 		req->rq_state &= ~RQ_NET_QUEUED;
 		req->rq_state |= RQ_NET_SENT;
-		/* because _drbd_send_zc_bio could sleep, and may want to
-		 * dereference the bio even after the "write_acked_by_peer" and
-		 * "completed_ok" events came in, once we return from
-		 * _drbd_send_zc_bio (drbd_send_dblock), we have to check
-		 * whether it is done already, and end it.  */
 		_req_may_be_done_not_susp(req, m);
 		break;
 
-	case read_retry_remote_canceled:
+	case oos_handed_to_network:
+		/* Was not set PENDING, no longer QUEUED, so is now DONE
+		 * as far as this connection is concerned. */
 		req->rq_state &= ~RQ_NET_QUEUED;
-		/* fall through, in case we raced with drbd_disconnect */
+		req->rq_state |= RQ_NET_DONE;
+		_req_may_be_done_not_susp(req, m);
+		break;
+
 	case connection_lost_while_pending:
 		/* transfer log cleanup after connection loss */
 		/* assert something? */
@@ -616,8 +628,6 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 			_req_may_be_done(req, m); /* Allowed while state.susp */
 		break;
 
-	case write_acked_by_peer_and_sis:
-		req->rq_state |= RQ_NET_SIS;
 	case conflict_discarded_by_peer:
 		/* for discarded conflicting writes of multiple primaries,
 		 * there is no need to keep anything in the tl, potential
@@ -628,18 +638,15 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 			      (unsigned long long)req->sector, req->size);
 		req->rq_state |= RQ_NET_DONE;
 		/* fall through */
+	case write_acked_by_peer_and_sis:
 	case write_acked_by_peer:
+		if (what == write_acked_by_peer_and_sis)
+			req->rq_state |= RQ_NET_SIS;
 		/* protocol C; successfully written on peer.
-		 * Nothing to do here.
+		 * Nothing more to do here.
 		 * We want to keep the tl in place for all protocols, to cater
-		 * for volatile write-back caches on lower level devices.
-		 *
-		 * A barrier request is expected to have forced all prior
-		 * requests onto stable storage, so completion of a barrier
-		 * request could set NET_DONE right here, and not wait for the
-		 * P_BARRIER_ACK, but that is an unnecessary optimization. */
+		 * for volatile write-back caches on lower level devices. */
 
-		/* this makes it effectively the same as for: */
 	case recv_acked_by_peer:
 		/* protocol B; pretends to be successfully written on peer.
 		 * see also notes above in handed_over_to_network about
@@ -763,6 +770,40 @@ static int drbd_may_do_local_read(struct drbd_conf *mdev, sector_t sector, int s
 	return 0 == drbd_bm_count_bits(mdev, sbnr, ebnr);
 }
 
+static void maybe_pull_ahead(struct drbd_conf *mdev)
+{
+	int congested = 0;
+
+	/* If I don't even have good local storage, we can not reasonably try
+	 * to pull ahead of the peer. We also need the local reference to make
+	 * sure mdev->act_log is there.
+	 * Note: caller has to make sure that net_conf is there.
+	 */
+	if (!get_ldev_if_state(mdev, D_UP_TO_DATE))
+		return;
+
+	if (mdev->net_conf->cong_fill &&
+	    atomic_read(&mdev->ap_in_flight) >= mdev->net_conf->cong_fill) {
+		dev_info(DEV, "Congestion-fill threshold reached\n");
+		congested = 1;
+	}
+
+	if (mdev->act_log->used >= mdev->net_conf->cong_extents) {
+		dev_info(DEV, "Congestion-extents threshold reached\n");
+		congested = 1;
+	}
+
+	if (congested) {
+		queue_barrier(mdev); /* last barrier, after mirrored writes */
+
+		if (mdev->net_conf->on_congestion == OC_PULL_AHEAD)
+			_drbd_set_state(_NS(mdev, conn, C_AHEAD), 0, NULL);
+		else  /*mdev->net_conf->on_congestion == OC_DISCONNECT */
+			_drbd_set_state(_NS(mdev, conn, C_DISCONNECTING), 0, NULL);
+	}
+	put_ldev(mdev);
+}
+
 static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio, unsigned long start_time)
 {
 	const int rw = bio_rw(bio);
@@ -773,6 +814,7 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio, uns
 	int local, remote, send_oos = 0;
 	int err = -EIO;
 	int ret = 0;
+	union drbd_state s;
 
 	/* allocate outside of all locks; */
 	req = drbd_req_new(mdev, bio);
@@ -834,8 +876,9 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio, uns
 		drbd_al_begin_io(mdev, sector);
 	}
 
-	remote = remote && drbd_should_do_remote(mdev->state);
-	send_oos = rw == WRITE && drbd_should_send_oos(mdev->state);
+	s = mdev->state;
+	remote = remote && drbd_should_do_remote(s);
+	send_oos = rw == WRITE && drbd_should_send_oos(s);
 	D_ASSERT(!(remote && send_oos));
 
 	if (!(local || remote) && !is_susp(mdev->state)) {
@@ -867,7 +910,7 @@ allocate_barrier:
 
 	if (is_susp(mdev->state)) {
 		/* If we got suspended, use the retry mechanism of
-		   generic_make_request() to restart processing of this
+		   drbd_make_request() to restart processing of this
 		   bio. In the next call to drbd_make_request
 		   we sleep in inc_ap_bio() */
 		ret = 1;
@@ -968,29 +1011,8 @@ allocate_barrier:
 		_req_mod(req, queue_for_send_oos);
 
 	if (remote &&
-	    mdev->net_conf->on_congestion != OC_BLOCK && mdev->agreed_pro_version >= 96) {
-		int congested = 0;
-
-		if (mdev->net_conf->cong_fill &&
-		    atomic_read(&mdev->ap_in_flight) >= mdev->net_conf->cong_fill) {
-			dev_info(DEV, "Congestion-fill threshold reached\n");
-			congested = 1;
-		}
-
-		if (mdev->act_log->used >= mdev->net_conf->cong_extents) {
-			dev_info(DEV, "Congestion-extents threshold reached\n");
-			congested = 1;
-		}
-
-		if (congested) {
-			queue_barrier(mdev); /* last barrier, after mirrored writes */
-
-			if (mdev->net_conf->on_congestion == OC_PULL_AHEAD)
-				_drbd_set_state(_NS(mdev, conn, C_AHEAD), 0, NULL);
-			else  /*mdev->net_conf->on_congestion == OC_DISCONNECT */
-				_drbd_set_state(_NS(mdev, conn, C_DISCONNECTING), 0, NULL);
-		}
-	}
+	    mdev->net_conf->on_congestion != OC_BLOCK && mdev->agreed_pro_version >= 96)
+		maybe_pull_ahead(mdev);
 
 	spin_unlock_irq(&mdev->req_lock);
 	kfree(b); /* if someone else has beaten us to it... */
@@ -1091,7 +1113,6 @@ void drbd_make_request(struct request_queue *q, struct bio *bio)
 	 */
 	D_ASSERT(bio->bi_size > 0);
 	D_ASSERT((bio->bi_size & 0x1ff) == 0);
-	D_ASSERT(bio->bi_idx == 0);
 
 	/* to make some things easier, force alignment of requests within the
 	 * granularity of our hash tables */
@@ -1099,8 +1120,9 @@ void drbd_make_request(struct request_queue *q, struct bio *bio)
 	e_enr = (bio->bi_sector+(bio->bi_size>>9)-1) >> HT_SHIFT;
 
 	if (likely(s_enr == e_enr)) {
-		inc_ap_bio(mdev, 1);
-		drbd_make_request_common(mdev, bio, start_time);
+		do {
+			inc_ap_bio(mdev, 1);
+		} while (drbd_make_request_common(mdev, bio, start_time));
 		return;
 	}
 
@@ -1196,36 +1218,66 @@ void request_timer_fn(unsigned long data)
 	struct drbd_conf *mdev = (struct drbd_conf *) data;
 	struct drbd_request *req; /* oldest request */
 	struct list_head *le;
-	unsigned long et = 0; /* effective timeout = ko_count * timeout */
+	unsigned long ent = 0, dt = 0, et, nt; /* effective timeout = ko_count * timeout */
+	unsigned long now;
 
 	if (get_net_conf(mdev)) {
-		et = mdev->net_conf->timeout*HZ/10 * mdev->net_conf->ko_count;
+		if (mdev->state.conn >= C_WF_REPORT_PARAMS)
+			ent = mdev->net_conf->timeout*HZ/10
+				* mdev->net_conf->ko_count;
 		put_net_conf(mdev);
 	}
-	if (!et || mdev->state.conn < C_WF_REPORT_PARAMS)
+	if (get_ldev(mdev)) { /* implicit state.disk >= D_INCONSISTENT */
+		dt = mdev->ldev->dc.disk_timeout * HZ / 10;
+		put_ldev(mdev);
+	}
+	et = min_not_zero(dt, ent);
+
+	if (!et)
 		return; /* Recurring timer stopped */
+
+	now = jiffies;
 
 	spin_lock_irq(&mdev->req_lock);
 	le = &mdev->oldest_tle->requests;
 	if (list_empty(le)) {
 		spin_unlock_irq(&mdev->req_lock);
-		mod_timer(&mdev->request_timer, jiffies + et);
+		mod_timer(&mdev->request_timer, now + et);
 		return;
 	}
 
 	le = le->prev;
 	req = list_entry(le, struct drbd_request, tl_requests);
-	if (time_is_before_eq_jiffies(req->start_time + et)) {
-		if (req->rq_state & RQ_NET_PENDING) {
-			dev_warn(DEV, "Remote failed to finish a request within ko-count * timeout\n");
-			_drbd_set_state(_NS(mdev, conn, C_TIMEOUT), CS_VERBOSE, NULL);
-		} else {
-			dev_warn(DEV, "Local backing block device frozen?\n");
-			mod_timer(&mdev->request_timer, jiffies + et);
-		}
-	} else {
-		mod_timer(&mdev->request_timer, req->start_time + et);
-	}
 
+	/* The request is considered timed out, if
+	 * - we have some effective timeout from the configuration,
+	 *   with above state restrictions applied,
+	 * - the oldest request is waiting for a response from the network
+	 *   resp. the local disk,
+	 * - the oldest request is in fact older than the effective timeout,
+	 * - the connection was established (resp. disk was attached)
+	 *   for longer than the timeout already.
+	 * Note that for 32bit jiffies and very stable connections/disks,
+	 * we may have a wrap around, which is catched by
+	 *   !time_in_range(now, last_..._jif, last_..._jif + timeout).
+	 *
+	 * Side effect: once per 32bit wrap-around interval, which means every
+	 * ~198 days with 250 HZ, we have a window where the timeout would need
+	 * to expire twice (worst case) to become effective. Good enough.
+	 */
+	if (ent && req->rq_state & RQ_NET_PENDING &&
+		 time_after(now, req->start_time + ent) &&
+		!time_in_range(now, mdev->last_reconnect_jif, mdev->last_reconnect_jif + ent)) {
+		dev_warn(DEV, "Remote failed to finish a request within ko-count * timeout\n");
+		_drbd_set_state(_NS(mdev, conn, C_TIMEOUT), CS_VERBOSE | CS_HARD, NULL);
+	}
+	if (dt && req->rq_state & RQ_LOCAL_PENDING &&
+		 time_after(now, req->start_time + dt) &&
+		!time_in_range(now, mdev->last_reattach_jif, mdev->last_reattach_jif + dt)) {
+		dev_warn(DEV, "Local backing device failed to meet the disk-timeout\n");
+		__drbd_chk_io_error(mdev, 1);
+	}
+	nt = (time_after(now, req->start_time + et) ? now : req->start_time) + et;
 	spin_unlock_irq(&mdev->req_lock);
+	mod_timer(&mdev->request_timer, nt);
 }

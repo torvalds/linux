@@ -61,8 +61,6 @@ static struct bt_sock_list sco_sk_list = {
 static void __sco_chan_add(struct sco_conn *conn, struct sock *sk, struct sock *parent);
 static void sco_chan_del(struct sock *sk, int err);
 
-static int  sco_conn_del(struct hci_conn *conn, int err);
-
 static void sco_sock_close(struct sock *sk);
 static void sco_sock_kill(struct sock *sk);
 
@@ -95,12 +93,12 @@ static void sco_sock_clear_timer(struct sock *sk)
 }
 
 /* ---- SCO connections ---- */
-static struct sco_conn *sco_conn_add(struct hci_conn *hcon, __u8 status)
+static struct sco_conn *sco_conn_add(struct hci_conn *hcon)
 {
 	struct hci_dev *hdev = hcon->hdev;
 	struct sco_conn *conn = hcon->sco_data;
 
-	if (conn || status)
+	if (conn)
 		return conn;
 
 	conn = kzalloc(sizeof(struct sco_conn), GFP_ATOMIC);
@@ -195,13 +193,14 @@ static int sco_connect(struct sock *sk)
 	else
 		type = SCO_LINK;
 
-	hcon = hci_connect(hdev, type, dst, BT_SECURITY_LOW, HCI_AT_NO_BONDING);
+	hcon = hci_connect(hdev, type, dst, BDADDR_BREDR, BT_SECURITY_LOW,
+			   HCI_AT_NO_BONDING);
 	if (IS_ERR(hcon)) {
 		err = PTR_ERR(hcon);
 		goto done;
 	}
 
-	conn = sco_conn_add(hcon, 0);
+	conn = sco_conn_add(hcon);
 	if (!conn) {
 		hci_conn_put(hcon);
 		err = -ENOMEM;
@@ -233,7 +232,7 @@ static inline int sco_send_frame(struct sock *sk, struct msghdr *msg, int len)
 {
 	struct sco_conn *conn = sco_pi(sk)->conn;
 	struct sk_buff *skb;
-	int err, count;
+	int err;
 
 	/* Check outgoing MTU */
 	if (len > conn->mtu)
@@ -241,20 +240,18 @@ static inline int sco_send_frame(struct sock *sk, struct msghdr *msg, int len)
 
 	BT_DBG("sk %p len %d", sk, len);
 
-	count = min_t(unsigned int, conn->mtu, len);
-	skb = bt_skb_send_alloc(sk, count,
-			msg->msg_flags & MSG_DONTWAIT, &err);
+	skb = bt_skb_send_alloc(sk, len, msg->msg_flags & MSG_DONTWAIT, &err);
 	if (!skb)
 		return err;
 
-	if (memcpy_fromiovec(skb_put(skb, count), msg->msg_iov, count)) {
+	if (memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len)) {
 		kfree_skb(skb);
 		return -EFAULT;
 	}
 
 	hci_send_sco(conn->hcon, skb);
 
-	return count;
+	return len;
 }
 
 static inline void sco_recv_frame(struct sco_conn *conn, struct sk_buff *skb)
@@ -277,17 +274,20 @@ drop:
 }
 
 /* -------- Socket interface ---------- */
-static struct sock *__sco_get_sock_by_addr(bdaddr_t *ba)
+static struct sock *__sco_get_sock_listen_by_addr(bdaddr_t *ba)
 {
-	struct sock *sk;
 	struct hlist_node *node;
+	struct sock *sk;
 
-	sk_for_each(sk, node, &sco_sk_list.head)
+	sk_for_each(sk, node, &sco_sk_list.head) {
+		if (sk->sk_state != BT_LISTEN)
+			continue;
+
 		if (!bacmp(&bt_sk(sk)->src, ba))
-			goto found;
-	sk = NULL;
-found:
-	return sk;
+			return sk;
+	}
+
+	return NULL;
 }
 
 /* Find socket listening on source bdaddr.
@@ -466,7 +466,6 @@ static int sco_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_le
 {
 	struct sockaddr_sco *sa = (struct sockaddr_sco *) addr;
 	struct sock *sk = sock->sk;
-	bdaddr_t *src = &sa->sco_bdaddr;
 	int err = 0;
 
 	BT_DBG("sk %p %s", sk, batostr(&sa->sco_bdaddr));
@@ -481,17 +480,14 @@ static int sco_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_le
 		goto done;
 	}
 
-	write_lock(&sco_sk_list.lock);
-
-	if (bacmp(src, BDADDR_ANY) && __sco_get_sock_by_addr(src)) {
-		err = -EADDRINUSE;
-	} else {
-		/* Save source address */
-		bacpy(&bt_sk(sk)->src, &sa->sco_bdaddr);
-		sk->sk_state = BT_BOUND;
+	if (sk->sk_type != SOCK_SEQPACKET) {
+		err = -EINVAL;
+		goto done;
 	}
 
-	write_unlock(&sco_sk_list.lock);
+	bacpy(&bt_sk(sk)->src, &sa->sco_bdaddr);
+
+	sk->sk_state = BT_BOUND;
 
 done:
 	release_sock(sk);
@@ -537,20 +533,37 @@ done:
 static int sco_sock_listen(struct socket *sock, int backlog)
 {
 	struct sock *sk = sock->sk;
+	bdaddr_t *src = &bt_sk(sk)->src;
 	int err = 0;
 
 	BT_DBG("sk %p backlog %d", sk, backlog);
 
 	lock_sock(sk);
 
-	if (sk->sk_state != BT_BOUND || sock->type != SOCK_SEQPACKET) {
+	if (sk->sk_state != BT_BOUND) {
 		err = -EBADFD;
 		goto done;
 	}
 
+	if (sk->sk_type != SOCK_SEQPACKET) {
+		err = -EINVAL;
+		goto done;
+	}
+
+	write_lock(&sco_sk_list.lock);
+
+	if (__sco_get_sock_listen_by_addr(src)) {
+		err = -EADDRINUSE;
+		goto unlock;
+	}
+
 	sk->sk_max_ack_backlog = backlog;
 	sk->sk_ack_backlog = 0;
+
 	sk->sk_state = BT_LISTEN;
+
+unlock:
+	write_unlock(&sco_sk_list.lock);
 
 done:
 	release_sock(sk);
@@ -923,7 +936,7 @@ int sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 	if (!status) {
 		struct sco_conn *conn;
 
-		conn = sco_conn_add(hcon, status);
+		conn = sco_conn_add(hcon);
 		if (conn)
 			sco_conn_ready(conn);
 	} else

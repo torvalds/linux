@@ -40,6 +40,7 @@
 #include <linux/i2c-xiic.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/of_i2c.h>
 
 #define DRIVER_NAME "xiic-i2c"
 
@@ -705,8 +706,6 @@ static int __devinit xiic_i2c_probe(struct platform_device *pdev)
 		goto resource_missing;
 
 	pdata = (struct xiic_i2c_platform_data *) pdev->dev.platform_data;
-	if (!pdata)
-		return -EINVAL;
 
 	i2c = kzalloc(sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
@@ -730,6 +729,7 @@ static int __devinit xiic_i2c_probe(struct platform_device *pdev)
 	i2c->adap = xiic_adapter;
 	i2c_set_adapdata(&i2c->adap, i2c);
 	i2c->adap.dev.parent = &pdev->dev;
+	i2c->adap.dev.of_node = pdev->dev.of_node;
 
 	xiic_reinit(i2c);
 
@@ -748,9 +748,13 @@ static int __devinit xiic_i2c_probe(struct platform_device *pdev)
 		goto add_adapter_failed;
 	}
 
-	/* add in known devices to the bus */
-	for (i = 0; i < pdata->num_devices; i++)
-		i2c_new_device(&i2c->adap, pdata->devices + i);
+	if (pdata) {
+		/* add in known devices to the bus */
+		for (i = 0; i < pdata->num_devices; i++)
+			i2c_new_device(&i2c->adap, pdata->devices + i);
+	}
+
+	of_i2c_register_devices(&i2c->adap);
 
 	return 0;
 
@@ -795,12 +799,21 @@ static int __devexit xiic_i2c_remove(struct platform_device* pdev)
 	return 0;
 }
 
+#if defined(CONFIG_OF)
+static const struct of_device_id xiic_of_match[] __devinitconst = {
+	{ .compatible = "xlnx,xps-iic-2.00.a", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, xiic_of_match);
+#endif
+
 static struct platform_driver xiic_i2c_driver = {
 	.probe   = xiic_i2c_probe,
 	.remove  = __devexit_p(xiic_i2c_remove),
 	.driver  = {
 		.owner = THIS_MODULE,
 		.name = DRIVER_NAME,
+		.of_match_table = of_match_ptr(xiic_of_match),
 	},
 };
 

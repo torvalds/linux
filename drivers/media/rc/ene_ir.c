@@ -1018,22 +1018,6 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 
 	spin_lock_init(&dev->hw_lock);
 
-	/* claim the resources */
-	error = -EBUSY;
-	dev->hw_io = pnp_port_start(pnp_dev, 0);
-	if (!request_region(dev->hw_io, ENE_IO_SIZE, ENE_DRIVER_NAME)) {
-		dev->hw_io = -1;
-		dev->irq = -1;
-		goto error;
-	}
-
-	dev->irq = pnp_irq(pnp_dev, 0);
-	if (request_irq(dev->irq, ene_isr,
-			IRQF_SHARED, ENE_DRIVER_NAME, (void *)dev)) {
-		dev->irq = -1;
-		goto error;
-	}
-
 	pnp_set_drvdata(pnp_dev, dev);
 	dev->pnp_dev = pnp_dev;
 
@@ -1085,6 +1069,22 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 
 	device_set_wakeup_capable(&pnp_dev->dev, true);
 	device_set_wakeup_enable(&pnp_dev->dev, true);
+
+	/* claim the resources */
+	error = -EBUSY;
+	dev->hw_io = pnp_port_start(pnp_dev, 0);
+	if (!request_region(dev->hw_io, ENE_IO_SIZE, ENE_DRIVER_NAME)) {
+		dev->hw_io = -1;
+		dev->irq = -1;
+		goto error;
+	}
+
+	dev->irq = pnp_irq(pnp_dev, 0);
+	if (request_irq(dev->irq, ene_isr,
+			IRQF_SHARED, ENE_DRIVER_NAME, (void *)dev)) {
+		dev->irq = -1;
+		goto error;
+	}
 
 	error = rc_register_device(rdev);
 	if (error < 0)

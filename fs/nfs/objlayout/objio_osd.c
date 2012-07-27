@@ -211,7 +211,7 @@ static void copy_single_comp(struct ore_components *oc, unsigned c,
 	memcpy(ocomp->cred, src_comp->oc_cap.cred, sizeof(ocomp->cred));
 }
 
-int __alloc_objio_seg(unsigned numdevs, gfp_t gfp_flags,
+static int __alloc_objio_seg(unsigned numdevs, gfp_t gfp_flags,
 		       struct objio_segment **pseg)
 {
 /*	This is the in memory structure of the objio_segment
@@ -440,11 +440,12 @@ static void _read_done(struct ore_io_state *ios, void *private)
 
 int objio_read_pagelist(struct nfs_read_data *rdata)
 {
+	struct nfs_pgio_header *hdr = rdata->header;
 	struct objio_state *objios;
 	int ret;
 
-	ret = objio_alloc_io_state(NFS_I(rdata->inode)->layout, true,
-			rdata->lseg, rdata->args.pages, rdata->args.pgbase,
+	ret = objio_alloc_io_state(NFS_I(hdr->inode)->layout, true,
+			hdr->lseg, rdata->args.pages, rdata->args.pgbase,
 			rdata->args.offset, rdata->args.count, rdata,
 			GFP_KERNEL, &objios);
 	if (unlikely(ret))
@@ -483,12 +484,12 @@ static struct page *__r4w_get_page(void *priv, u64 offset, bool *uptodate)
 {
 	struct objio_state *objios = priv;
 	struct nfs_write_data *wdata = objios->oir.rpcdata;
+	struct address_space *mapping = wdata->header->inode->i_mapping;
 	pgoff_t index = offset / PAGE_SIZE;
-	struct page *page = find_get_page(wdata->inode->i_mapping, index);
+	struct page *page = find_get_page(mapping, index);
 
 	if (!page) {
-		page = find_or_create_page(wdata->inode->i_mapping,
-						index, GFP_NOFS);
+		page = find_or_create_page(mapping, index, GFP_NOFS);
 		if (unlikely(!page)) {
 			dprintk("%s: grab_cache_page Failed index=0x%lx\n",
 				__func__, index);
@@ -518,11 +519,12 @@ static const struct _ore_r4w_op _r4w_op = {
 
 int objio_write_pagelist(struct nfs_write_data *wdata, int how)
 {
+	struct nfs_pgio_header *hdr = wdata->header;
 	struct objio_state *objios;
 	int ret;
 
-	ret = objio_alloc_io_state(NFS_I(wdata->inode)->layout, false,
-			wdata->lseg, wdata->args.pages, wdata->args.pgbase,
+	ret = objio_alloc_io_state(NFS_I(hdr->inode)->layout, false,
+			hdr->lseg, wdata->args.pages, wdata->args.pgbase,
 			wdata->args.offset, wdata->args.count, wdata, GFP_NOFS,
 			&objios);
 	if (unlikely(ret))

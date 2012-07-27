@@ -142,6 +142,7 @@ static const struct xpad_device {
 	{ 0x0c12, 0x880a, "Pelican Eclipse PL-2023", 0, XTYPE_XBOX },
 	{ 0x0c12, 0x8810, "Zeroplus Xbox Controller", 0, XTYPE_XBOX },
 	{ 0x0c12, 0x9902, "HAMA VibraX - *FAULTY HARDWARE*", 0, XTYPE_XBOX },
+	{ 0x0d2f, 0x0002, "Andamiro Pump It Up pad", MAP_DPAD_TO_BUTTONS, XTYPE_XBOX },
 	{ 0x0e4c, 0x1097, "Radica Gamester Controller", 0, XTYPE_XBOX },
 	{ 0x0e4c, 0x2390, "Radica Games Jtech Controller", 0, XTYPE_XBOX },
 	{ 0x0e6f, 0x0003, "Logic3 Freebird wireless Controller", 0, XTYPE_XBOX },
@@ -164,6 +165,7 @@ static const struct xpad_device {
 	{ 0x1bad, 0x0003, "Harmonix Rock Band Drumkit", MAP_DPAD_TO_BUTTONS, XTYPE_XBOX360 },
 	{ 0x0f0d, 0x0016, "Hori Real Arcade Pro.EX", MAP_TRIGGERS_TO_BUTTONS, XTYPE_XBOX360 },
 	{ 0x0f0d, 0x000d, "Hori Fighting Stick EX2", MAP_TRIGGERS_TO_BUTTONS, XTYPE_XBOX360 },
+	{ 0x1689, 0xfd00, "Razer Onza Tournament Edition", MAP_DPAD_TO_BUTTONS, XTYPE_XBOX360 },
 	{ 0xffff, 0xffff, "Chinese-made Xbox Controller", 0, XTYPE_XBOX },
 	{ 0x0000, 0x0000, "Generic X-Box pad", 0, XTYPE_UNKNOWN }
 };
@@ -238,12 +240,14 @@ static struct usb_device_id xpad_table [] = {
 	XPAD_XBOX360_VENDOR(0x045e),		/* Microsoft X-Box 360 controllers */
 	XPAD_XBOX360_VENDOR(0x046d),		/* Logitech X-Box 360 style controllers */
 	XPAD_XBOX360_VENDOR(0x0738),		/* Mad Catz X-Box 360 controllers */
+	{ USB_DEVICE(0x0738, 0x4540) },		/* Mad Catz Beat Pad */
 	XPAD_XBOX360_VENDOR(0x0e6f),		/* 0x0e6f X-Box 360 controllers */
 	XPAD_XBOX360_VENDOR(0x12ab),		/* X-Box 360 dance pads */
 	XPAD_XBOX360_VENDOR(0x1430),		/* RedOctane X-Box 360 controllers */
 	XPAD_XBOX360_VENDOR(0x146b),		/* BigBen Interactive Controllers */
 	XPAD_XBOX360_VENDOR(0x1bad),		/* Harminix Rock Band Guitar and Drums */
-	XPAD_XBOX360_VENDOR(0x0f0d),            /* Hori Controllers */
+	XPAD_XBOX360_VENDOR(0x0f0d),		/* Hori Controllers */
+	XPAD_XBOX360_VENDOR(0x1689),		/* Razer Onza */
 	{ }
 };
 
@@ -252,6 +256,7 @@ MODULE_DEVICE_TABLE (usb, xpad_table);
 struct usb_xpad {
 	struct input_dev *dev;		/* input device interface */
 	struct usb_device *udev;	/* usb device */
+	struct usb_interface *intf;	/* usb interface */
 
 	int pad_present;
 
@@ -457,6 +462,7 @@ static void xpad360w_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned cha
 static void xpad_irq_in(struct urb *urb)
 {
 	struct usb_xpad *xpad = urb->context;
+	struct device *dev = &xpad->intf->dev;
 	int retval, status;
 
 	status = urb->status;
@@ -469,11 +475,11 @@ static void xpad_irq_in(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d",
+		dev_dbg(dev, "%s - urb shutting down with status: %d\n",
 			__func__, status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d",
+		dev_dbg(dev, "%s - nonzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
@@ -492,12 +498,15 @@ static void xpad_irq_in(struct urb *urb)
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		err ("%s - usb_submit_urb failed with result %d",
-		     __func__, retval);
+		dev_err(dev, "%s - usb_submit_urb failed with result %d\n",
+			__func__, retval);
 }
 
 static void xpad_bulk_out(struct urb *urb)
 {
+	struct usb_xpad *xpad = urb->context;
+	struct device *dev = &xpad->intf->dev;
+
 	switch (urb->status) {
 	case 0:
 		/* success */
@@ -506,16 +515,20 @@ static void xpad_bulk_out(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __func__, urb->status);
+		dev_dbg(dev, "%s - urb shutting down with status: %d\n",
+			__func__, urb->status);
 		break;
 	default:
-		dbg("%s - nonzero urb status received: %d", __func__, urb->status);
+		dev_dbg(dev, "%s - nonzero urb status received: %d\n",
+			__func__, urb->status);
 	}
 }
 
 #if defined(CONFIG_JOYSTICK_XPAD_FF) || defined(CONFIG_JOYSTICK_XPAD_LEDS)
 static void xpad_irq_out(struct urb *urb)
 {
+	struct usb_xpad *xpad = urb->context;
+	struct device *dev = &xpad->intf->dev;
 	int retval, status;
 
 	status = urb->status;
@@ -529,19 +542,21 @@ static void xpad_irq_out(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __func__, status);
+		dev_dbg(dev, "%s - urb shutting down with status: %d\n",
+			__func__, status);
 		return;
 
 	default:
-		dbg("%s - nonzero urb status received: %d", __func__, status);
+		dev_dbg(dev, "%s - nonzero urb status received: %d\n",
+			__func__, status);
 		goto exit;
 	}
 
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		err("%s - usb_submit_urb failed with result %d",
-		    __func__, retval);
+		dev_err(dev, "%s - usb_submit_urb failed with result %d\n",
+			__func__, retval);
 }
 
 static int xpad_init_output(struct usb_interface *intf, struct usb_xpad *xpad)
@@ -654,7 +669,8 @@ static int xpad_play_effect(struct input_dev *dev, void *data, struct ff_effect 
 			return usb_submit_urb(xpad->irq_out, GFP_ATOMIC);
 
 		default:
-			dbg("%s - rumble command sent to unsupported xpad type: %d",
+			dev_dbg(&xpad->dev->dev,
+				"%s - rumble command sent to unsupported xpad type: %d\n",
 				__func__, xpad->xtype);
 			return -1;
 		}
@@ -844,6 +860,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	}
 
 	xpad->udev = udev;
+	xpad->intf = intf;
 	xpad->mapping = xpad_device[i].mapping;
 	xpad->xtype = xpad_device[i].xtype;
 

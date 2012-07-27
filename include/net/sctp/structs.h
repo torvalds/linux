@@ -912,6 +912,9 @@ struct sctp_transport {
 		/* Is this structure kfree()able? */
 		malloced:1;
 
+	/* Has this transport moved the ctsn since we last sacked */
+	__u32 sack_generation;
+
 	struct flowi fl;
 
 	/* This is the peer's IP address and port. */
@@ -1145,10 +1148,10 @@ struct sctp_outq {
 	/* Data pending that has never been transmitted.  */
 	struct list_head out_chunk_list;
 
-	unsigned out_qlen;	/* Total length of queued data chunks. */
+	unsigned int out_qlen;	/* Total length of queued data chunks. */
 
 	/* Error of send failed, may used in SCTP_SEND_FAILED event. */
-	unsigned error;
+	unsigned int error;
 
 	/* These are control chunks we want to send.  */
 	struct list_head control_chunk_list;
@@ -1584,6 +1587,7 @@ struct sctp_association {
 		 */
 		__u8    sack_needed;     /* Do we need to sack the peer? */
 		__u32	sack_cnt;
+		__u32	sack_generation;
 
 		/* These are capabilities which our peer advertised.  */
 		__u8	ecn_capable:1,	    /* Can peer do ECN? */
@@ -2000,8 +2004,8 @@ void sctp_assoc_update(struct sctp_association *old,
 __u32 sctp_association_get_next_tsn(struct sctp_association *);
 
 void sctp_assoc_sync_pmtu(struct sctp_association *);
-void sctp_assoc_rwnd_increase(struct sctp_association *, unsigned);
-void sctp_assoc_rwnd_decrease(struct sctp_association *, unsigned);
+void sctp_assoc_rwnd_increase(struct sctp_association *, unsigned int);
+void sctp_assoc_rwnd_decrease(struct sctp_association *, unsigned int);
 void sctp_assoc_set_primary(struct sctp_association *,
 			    struct sctp_transport *);
 void sctp_assoc_del_nonprimary_peers(struct sctp_association *,

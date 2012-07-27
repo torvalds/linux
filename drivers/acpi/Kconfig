@@ -208,7 +208,7 @@ config ACPI_IPMI
 
 config ACPI_HOTPLUG_CPU
 	bool
-	depends on ACPI_PROCESSOR && HOTPLUG_CPU
+	depends on EXPERIMENTAL && ACPI_PROCESSOR && HOTPLUG_CPU
 	select ACPI_CONTAINER
 	default y
 

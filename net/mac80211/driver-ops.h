@@ -7,7 +7,9 @@
 
 static inline void check_sdata_in_driver(struct ieee80211_sub_if_data *sdata)
 {
-	WARN_ON(!(sdata->flags & IEEE80211_SDATA_IN_DRIVER));
+	WARN(!(sdata->flags & IEEE80211_SDATA_IN_DRIVER),
+	     "%s:  Failed check-sdata-in-driver check, flags: 0x%x\n",
+	     sdata->dev->name, sdata->flags);
 }
 
 static inline struct ieee80211_sub_if_data *
@@ -31,6 +33,43 @@ static inline void drv_tx_frags(struct ieee80211_local *local,
 				struct sk_buff_head *skbs)
 {
 	local->ops->tx_frags(&local->hw, vif, sta, skbs);
+}
+
+static inline void drv_get_et_strings(struct ieee80211_sub_if_data *sdata,
+				      u32 sset, u8 *data)
+{
+	struct ieee80211_local *local = sdata->local;
+	if (local->ops->get_et_strings) {
+		trace_drv_get_et_strings(local, sset);
+		local->ops->get_et_strings(&local->hw, &sdata->vif, sset, data);
+		trace_drv_return_void(local);
+	}
+}
+
+static inline void drv_get_et_stats(struct ieee80211_sub_if_data *sdata,
+				    struct ethtool_stats *stats,
+				    u64 *data)
+{
+	struct ieee80211_local *local = sdata->local;
+	if (local->ops->get_et_stats) {
+		trace_drv_get_et_stats(local);
+		local->ops->get_et_stats(&local->hw, &sdata->vif, stats, data);
+		trace_drv_return_void(local);
+	}
+}
+
+static inline int drv_get_et_sset_count(struct ieee80211_sub_if_data *sdata,
+					int sset)
+{
+	struct ieee80211_local *local = sdata->local;
+	int rv = 0;
+	if (local->ops->get_et_sset_count) {
+		trace_drv_get_et_sset_count(local, sset);
+		rv = local->ops->get_et_sset_count(&local->hw, &sdata->vif,
+						   sset);
+		trace_drv_return_int(local, rv);
+	}
+	return rv;
 }
 
 static inline int drv_start(struct ieee80211_local *local)
@@ -89,6 +128,19 @@ static inline int drv_resume(struct ieee80211_local *local)
 	trace_drv_return_int(local, ret);
 	return ret;
 }
+
+static inline void drv_set_wakeup(struct ieee80211_local *local,
+				  bool enabled)
+{
+	might_sleep();
+
+	if (!local->ops->set_wakeup)
+		return;
+
+	trace_drv_set_wakeup(local, enabled);
+	local->ops->set_wakeup(&local->hw, enabled);
+	trace_drv_return_void(local);
+}
 #endif
 
 static inline int drv_add_interface(struct ieee80211_local *local,
@@ -99,7 +151,8 @@ static inline int drv_add_interface(struct ieee80211_local *local,
 	might_sleep();
 
 	if (WARN_ON(sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
-		    sdata->vif.type == NL80211_IFTYPE_MONITOR))
+		    (sdata->vif.type == NL80211_IFTYPE_MONITOR &&
+		     !(local->hw.flags & IEEE80211_HW_WANT_MONITOR_VIF))))
 		return -EINVAL;
 
 	trace_drv_add_interface(local, sdata);
@@ -474,8 +527,23 @@ int drv_sta_state(struct ieee80211_local *local,
 	return ret;
 }
 
+static inline void drv_sta_rc_update(struct ieee80211_local *local,
+				     struct ieee80211_sub_if_data *sdata,
+				     struct ieee80211_sta *sta, u32 changed)
+{
+	sdata = get_bss_sdata(sdata);
+	check_sdata_in_driver(sdata);
+
+	trace_drv_sta_rc_update(local, sdata, sta, changed);
+	if (local->ops->sta_rc_update)
+		local->ops->sta_rc_update(&local->hw, &sdata->vif,
+					  sta, changed);
+
+	trace_drv_return_void(local);
+}
+
 static inline int drv_conf_tx(struct ieee80211_local *local,
-			      struct ieee80211_sub_if_data *sdata, u16 queue,
+			      struct ieee80211_sub_if_data *sdata, u16 ac,
 			      const struct ieee80211_tx_queue_params *params)
 {
 	int ret = -EOPNOTSUPP;
@@ -484,10 +552,10 @@ static inline int drv_conf_tx(struct ieee80211_local *local,
 
 	check_sdata_in_driver(sdata);
 
-	trace_drv_conf_tx(local, sdata, queue, params);
+	trace_drv_conf_tx(local, sdata, ac, params);
 	if (local->ops->conf_tx)
 		ret = local->ops->conf_tx(&local->hw, &sdata->vif,
-					  queue, params);
+					  ac, params);
 	trace_drv_return_int(local, ret);
 	return ret;
 }

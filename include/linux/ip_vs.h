@@ -89,6 +89,7 @@
 #define IP_VS_CONN_F_TEMPLATE	0x1000		/* template, not connection */
 #define IP_VS_CONN_F_ONE_PACKET	0x2000		/* forward only one packet */
 
+/* Initial bits allowed in backup server */
 #define IP_VS_CONN_F_BACKUP_MASK (IP_VS_CONN_F_FWD_MASK | \
 				  IP_VS_CONN_F_NOOUTPUT | \
 				  IP_VS_CONN_F_INACTIVE | \
@@ -96,6 +97,10 @@
 				  IP_VS_CONN_F_NO_CPORT | \
 				  IP_VS_CONN_F_TEMPLATE \
 				 )
+
+/* Bits allowed to update in backup server */
+#define IP_VS_CONN_F_BACKUP_UPD_MASK (IP_VS_CONN_F_INACTIVE | \
+				      IP_VS_CONN_F_SEQ_MASK)
 
 /* Flags that are not sent to backup server start from bit 16 */
 #define IP_VS_CONN_F_NFCT	(1 << 16)	/* use netfilter conntrack */
@@ -125,8 +130,8 @@ struct ip_vs_service_user {
 
 	/* virtual service options */
 	char			sched_name[IP_VS_SCHEDNAME_MAXLEN];
-	unsigned		flags;		/* virtual service flags */
-	unsigned		timeout;	/* persistent timeout in sec */
+	unsigned int		flags;		/* virtual service flags */
+	unsigned int		timeout;	/* persistent timeout in sec */
 	__be32			netmask;	/* persistent netmask */
 };
 
@@ -137,7 +142,7 @@ struct ip_vs_dest_user {
 	__be16			port;
 
 	/* real server options */
-	unsigned		conn_flags;	/* connection flags */
+	unsigned int		conn_flags;	/* connection flags */
 	int			weight;		/* destination weight */
 
 	/* thresholds for active connections */
@@ -187,8 +192,8 @@ struct ip_vs_service_entry {
 
 	/* service options */
 	char			sched_name[IP_VS_SCHEDNAME_MAXLEN];
-	unsigned		flags;          /* virtual service flags */
-	unsigned		timeout;	/* persistent timeout */
+	unsigned int		flags;          /* virtual service flags */
+	unsigned int		timeout;	/* persistent timeout */
 	__be32			netmask;	/* persistent netmask */
 
 	/* number of real servers */
@@ -202,7 +207,7 @@ struct ip_vs_service_entry {
 struct ip_vs_dest_entry {
 	__be32			addr;		/* destination address */
 	__be16			port;
-	unsigned		conn_flags;	/* connection flags */
+	unsigned int		conn_flags;	/* connection flags */
 	int			weight;		/* destination weight */
 
 	__u32		u_threshold;	/* upper threshold */

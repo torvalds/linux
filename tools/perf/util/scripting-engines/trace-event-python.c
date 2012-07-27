@@ -37,7 +37,7 @@ PyMODINIT_FUNC initperf_trace_context(void);
 #define FTRACE_MAX_EVENT				\
 	((1 << (sizeof(unsigned short) * 8)) - 1)
 
-struct event *events[FTRACE_MAX_EVENT];
+struct event_format *events[FTRACE_MAX_EVENT];
 
 #define MAX_FIELDS	64
 #define N_COMMON_FIELDS	7
@@ -136,7 +136,7 @@ static void define_field(enum print_arg_type field_type,
 	Py_DECREF(t);
 }
 
-static void define_event_symbols(struct event *event,
+static void define_event_symbols(struct event_format *event,
 				 const char *ev_name,
 				 struct print_arg *args)
 {
@@ -178,6 +178,10 @@ static void define_event_symbols(struct event *event,
 		define_event_symbols(event, ev_name, args->op.right);
 		break;
 	default:
+		/* gcc warns for these? */
+	case PRINT_BSTRING:
+	case PRINT_DYNAMIC_ARRAY:
+	case PRINT_FUNC:
 		/* we should warn... */
 		return;
 	}
@@ -186,10 +190,10 @@ static void define_event_symbols(struct event *event,
 		define_event_symbols(event, ev_name, args->next);
 }
 
-static inline struct event *find_cache_event(int type)
+static inline struct event_format *find_cache_event(int type)
 {
 	static char ev_name[256];
-	struct event *event;
+	struct event_format *event;
 
 	if (events[type])
 		return events[type];
@@ -216,7 +220,7 @@ static void python_process_event(union perf_event *pevent __unused,
 	struct format_field *field;
 	unsigned long long val;
 	unsigned long s, ns;
-	struct event *event;
+	struct event_format *event;
 	unsigned n = 0;
 	int type;
 	int pid;
@@ -436,7 +440,7 @@ out:
 
 static int python_generate_script(const char *outfile)
 {
-	struct event *event = NULL;
+	struct event_format *event = NULL;
 	struct format_field *f;
 	char fname[PATH_MAX];
 	int not_first, count;

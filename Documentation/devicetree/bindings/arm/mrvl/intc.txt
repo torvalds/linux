@@ -1,0 +1,40 @@
+* Marvell MMP Interrupt controller
+
+Required properties:
+- compatible : Should be "mrvl,mmp-intc", "mrvl,mmp2-intc" or
+  "mrvl,mmp2-mux-intc"
+- reg : Address and length of the register set of the interrupt controller.
+  If the interrupt controller is intc, address and length means the range
+  of the whold interrupt controller. If the interrupt controller is mux-intc,
+  address and length means one register. Since address of mux-intc is in the
+  range of intc. mux-intc is secondary interrupt controller.
+- reg-names : Name of the register set of the interrupt controller. It's
+  only required in mux-intc interrupt controller.
+- interrupts : Should be the port interrupt shared by mux interrupts. It's
+  only required in mux-intc interrupt controller.
+- interrupt-controller : Identifies the node as an interrupt controller.
+- #interrupt-cells : Specifies the number of cells needed to encode an
+  interrupt source.
+- mrvl,intc-nr-irqs : Specifies the number of interrupts in the interrupt
+  controller.
+- mrvl,clr-mfp-irq : Specifies the interrupt that needs to clear MFP edge
+  detection first.
+
+Example:
+	intc: interrupt-controller@d4282000 {
+		compatible = "mrvl,mmp2-intc";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		reg = <0xd4282000 0x1000>;
+		mrvl,intc-nr-irqs = <64>;
+	};
+
+	intcmux4@d4282150 {
+		compatible = "mrvl,mmp2-mux-intc";
+		interrupts = <4>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		reg = <0x150 0x4>, <0x168 0x4>;
+		reg-names = "mux status", "mux mask";
+		mrvl,intc-nr-irqs = <2>;
+	};

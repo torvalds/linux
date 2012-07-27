@@ -32,8 +32,9 @@
 #include <linux/u64_stats_sync.h>
 
 #include "be_hw.h"
+#include "be_roce.h"
 
-#define DRV_VER			"4.2.116u"
+#define DRV_VER			"4.2.220u"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"ServerEngines BladeEngine2 10Gbps NIC"
 #define BE3_NAME		"ServerEngines BladeEngine3 10Gbps NIC"
@@ -102,7 +103,8 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define MAX_RX_QS		(MAX_RSS_QS + 1) /* RSS qs + 1 def Rx */
 
 #define MAX_TX_QS		8
-#define MAX_MSIX_VECTORS	MAX_RSS_QS
+#define MAX_ROCE_EQS		5
+#define MAX_MSIX_VECTORS	(MAX_RSS_QS + MAX_ROCE_EQS) /* RSS qs + RoCE */
 #define BE_TX_BUDGET		256
 #define BE_NAPI_WEIGHT		64
 #define MAX_RX_POST		BE_NAPI_WEIGHT /* Frags posted at a time */
@@ -160,6 +162,11 @@ static inline void *queue_index_node(struct be_queue_info *q, u16 index)
 static inline void queue_head_inc(struct be_queue_info *q)
 {
 	index_inc(&q->head, q->len);
+}
+
+static inline void index_dec(u16 *index, u16 limit)
+{
+	*index = MODULO((*index - 1), limit);
 }
 
 static inline void queue_tail_inc(struct be_queue_info *q)
@@ -308,10 +315,32 @@ struct be_vf_cfg {
 	u32 tx_rate;
 };
 
+enum vf_state {
+	ENABLED = 0,
+	ASSIGNED = 1
+};
+
 #define BE_FLAGS_LINK_STATUS_INIT		1
 #define BE_FLAGS_WORKER_SCHEDULED		(1 << 3)
 #define BE_UC_PMAC_COUNT		30
 #define BE_VF_UC_PMAC_COUNT		2
+
+struct phy_info {
+	u8 transceiver;
+	u8 autoneg;
+	u8 fc_autoneg;
+	u8 port_type;
+	u16 phy_type;
+	u16 interface_type;
+	u32 misc_params;
+	u16 auto_speeds_supported;
+	u16 fixed_speeds_supported;
+	int link_speed;
+	int forced_port_speed;
+	u32 dac_cable_len;
+	u32 advertising;
+	u32 supported;
+};
 
 struct be_adapter {
 	struct pci_dev *pdev;
@@ -377,29 +406,41 @@ struct be_adapter {
 	u32 rx_fc;		/* Rx flow control */
 	u32 tx_fc;		/* Tx flow control */
 	bool stats_cmd_sent;
-	int link_speed;
-	u8 port_type;
-	u8 transceiver;
-	u8 autoneg;
 	u8 generation;		/* BladeEngine ASIC generation */
+	u32 if_type;
+	struct {
+		u8 __iomem *base;	/* Door Bell */
+		u32 size;
+		u32 total_size;
+		u64 io_addr;
+	} roce_db;
+	u32 num_msix_roce_vec;
+	struct ocrdma_dev *ocrdma_dev;
+	struct list_head entry;
+
 	u32 flash_status;
 	struct completion flash_compl;
 
-	u32 num_vfs;
-	u8 is_virtfn;
+	u32 num_vfs;		/* Number of VFs provisioned by PF driver */
+	u32 dev_num_vfs;	/* Number of VFs supported by HW */
+	u8 virtfn;
 	struct be_vf_cfg *vf_cfg;
 	bool be3_native;
 	u32 sli_family;
 	u8 hba_port_num;
 	u16 pvid;
+	struct phy_info phy;
 	u8 wol_cap;
 	bool wol;
 	u32 max_pmac_cnt;	/* Max secondary UC MACs programmable */
 	u32 uc_macs;		/* Count of secondary UC MAC programmed */
+	u32 msg_enable;
 };
 
-#define be_physfn(adapter) (!adapter->is_virtfn)
+#define be_physfn(adapter)		(!adapter->virtfn)
 #define	sriov_enabled(adapter)		(adapter->num_vfs > 0)
+#define	sriov_want(adapter)		(adapter->dev_num_vfs && num_vfs && \
+					 be_physfn(adapter))
 #define for_all_vfs(adapter, vf_cfg, i)					\
 	for (i = 0, vf_cfg = &adapter->vf_cfg[i]; i < adapter->num_vfs;	\
 		i++, vf_cfg++)
@@ -412,6 +453,10 @@ struct be_adapter {
 #define OFF				0
 #define lancer_chip(adapter)	((adapter->pdev->device == OC_DEVICE_ID3) || \
 				 (adapter->pdev->device == OC_DEVICE_ID4))
+
+#define be_roce_supported(adapter) ((adapter->if_type == SLI_INTF_TYPE_3 || \
+				adapter->sli_family == SKYHAWK_SLI_FAMILY) && \
+				(adapter->function_mode & RDMA_ENABLED))
 
 extern const struct ethtool_ops be_ethtool_ops;
 
@@ -528,14 +573,6 @@ static inline u8 is_udp_pkt(struct sk_buff *skb)
 	return val;
 }
 
-static inline void be_check_sriov_fn_type(struct be_adapter *adapter)
-{
-	u32 sli_intf;
-
-	pci_read_config_dword(adapter->pdev, SLI_INTF_REG_OFFSET, &sli_intf);
-	adapter->is_virtfn = (sli_intf & SLI_INTF_FT_MASK) ? 1 : 0;
-}
-
 static inline void be_vf_eth_addr_generate(struct be_adapter *adapter, u8 *mac)
 {
 	u32 addr;
@@ -577,10 +614,31 @@ static inline bool be_is_wol_excluded(struct be_adapter *adapter)
 	}
 }
 
+static inline bool be_type_2_3(struct be_adapter *adapter)
+{
+	return (adapter->if_type == SLI_INTF_TYPE_2 ||
+		adapter->if_type == SLI_INTF_TYPE_3) ? true : false;
+}
+
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
 		u16 num_popped);
 extern void be_link_status_update(struct be_adapter *adapter, u8 link_status);
 extern void be_parse_stats(struct be_adapter *adapter);
 extern int be_load_fw(struct be_adapter *adapter, u8 *func);
 extern bool be_is_wol_supported(struct be_adapter *adapter);
+extern bool be_pause_supported(struct be_adapter *adapter);
+extern u32 be_get_fw_log_level(struct be_adapter *adapter);
+
+/*
+ * internal function to initialize-cleanup roce device.
+ */
+extern void be_roce_dev_add(struct be_adapter *);
+extern void be_roce_dev_remove(struct be_adapter *);
+
+/*
+ * internal function to open-close roce device during ifup-ifdown.
+ */
+extern void be_roce_dev_open(struct be_adapter *);
+extern void be_roce_dev_close(struct be_adapter *);
+
 #endif				/* BE_H */

@@ -235,7 +235,7 @@ static void hws_ext_handler(struct ext_code ext_code,
 	if (!(param32 & CPU_MF_INT_SF_MASK))
 		return;
 
-	kstat_cpu(smp_processor_id()).irqs[EXTINT_CPM]++;
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_CMS]++;
 	atomic_xchg(&cb->ext_params, atomic_read(&cb->ext_params) | param32);
 
 	if (hws_wq)

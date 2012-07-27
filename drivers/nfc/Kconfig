@@ -17,6 +17,19 @@ config PN544_NFC
 	  To compile this driver as a module, choose m here. The module will
 	  be called pn544.
 
+config PN544_HCI_NFC
+	tristate "HCI PN544 NFC driver"
+	depends on I2C && NFC_SHDLC
+	select CRC_CCITT
+	default n
+	---help---
+	  NXP PN544 i2c driver.
+	  This is a driver based on the SHDLC and HCI NFC kernel layers and
+	  will thus not work with NXP libnfc library.
+
+	  To compile this driver as a module, choose m here. The module will
+	  be called pn544_hci.
+
 config NFC_PN533
 	tristate "NXP PN533 USB driver"
 	depends on USB

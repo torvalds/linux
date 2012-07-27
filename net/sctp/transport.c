@@ -68,6 +68,8 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 	peer->af_specific = sctp_get_af_specific(addr->sa.sa_family);
 	memset(&peer->saddr, 0, sizeof(union sctp_addr));
 
+	peer->sack_generation = 0;
+
 	/* From 6.3.1 RTO Calculation:
 	 *
 	 * C1) Until an RTT measurement has been made for a packet sent to the
@@ -224,23 +226,6 @@ void sctp_transport_pmtu(struct sctp_transport *transport, struct sock *sk)
 		transport->pathmtu = dst_mtu(transport->dst);
 	} else
 		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
-}
-
-/* this is a complete rip-off from __sk_dst_check
- * the cookie is always 0 since this is how it's used in the
- * pmtu code
- */
-static struct dst_entry *sctp_transport_dst_check(struct sctp_transport *t)
-{
-	struct dst_entry *dst = t->dst;
-
-	if (dst && dst->obsolete && dst->ops->check(dst, 0) == NULL) {
-		dst_release(t->dst);
-		t->dst = NULL;
-		return NULL;
-	}
-
-	return dst;
 }
 
 void sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)

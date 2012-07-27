@@ -823,7 +823,7 @@ static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv, int qpn,
 
 	memset(context, 0, sizeof *context);
 	mlx4_en_fill_qp_context(priv, ring->actual_size, ring->stride, 0, 0,
-				qpn, ring->cqn, context);
+				qpn, ring->cqn, -1, context);
 	context->db_rec_addr = cpu_to_be64(ring->wqres.db.dma);
 
 	/* Cancel FCS removal if FW allows */
@@ -890,7 +890,7 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	}
 	rss_map->indir_qp.event = mlx4_en_sqp_event;
 	mlx4_en_fill_qp_context(priv, 0, 0, 0, 1, priv->base_qpn,
-				priv->rx_ring[0].cqn, &context);
+				priv->rx_ring[0].cqn, -1, &context);
 
 	if (!priv->prof->rss_rings || priv->prof->rss_rings > priv->rx_ring_num)
 		rss_rings = priv->rx_ring_num;

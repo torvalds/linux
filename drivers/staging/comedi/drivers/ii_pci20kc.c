@@ -159,17 +159,6 @@ struct pci20xxx_private {
 #define devpriv ((struct pci20xxx_private *)dev->private)
 #define CHAN (CR_CHAN(it->chanlist[0]))
 
-static int pci20xxx_attach(struct comedi_device *dev,
-			   struct comedi_devconfig *it);
-static int pci20xxx_detach(struct comedi_device *dev);
-
-static struct comedi_driver driver_pci20xxx = {
-	.driver_name = "ii_pci20kc",
-	.module = THIS_MODULE,
-	.attach = pci20xxx_attach,
-	.detach = pci20xxx_detach,
-};
-
 static int pci20006_init(struct comedi_device *dev, struct comedi_subdevice *s,
 			 int opt0, int opt1);
 static int pci20341_init(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -275,11 +264,9 @@ static int pci20xxx_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static int pci20xxx_detach(struct comedi_device *dev)
+static void pci20xxx_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: pci20xxx: remove\n", dev->minor);
-
-	return 0;
+	/* Nothing to cleanup */
 }
 
 /* pci20006m */
@@ -666,18 +653,13 @@ static unsigned int pci20xxx_di(struct comedi_device *dev,
 }
 #endif
 
-static int __init driver_pci20xxx_init_module(void)
-{
-	return comedi_driver_register(&driver_pci20xxx);
-}
-
-static void __exit driver_pci20xxx_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pci20xxx);
-}
-
-module_init(driver_pci20xxx_init_module);
-module_exit(driver_pci20xxx_cleanup_module);
+static struct comedi_driver pci20xxx_driver = {
+	.driver_name	= "ii_pci20kc",
+	.module		= THIS_MODULE,
+	.attach		= pci20xxx_attach,
+	.detach		= pci20xxx_detach,
+};
+module_comedi_driver(pci20xxx_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

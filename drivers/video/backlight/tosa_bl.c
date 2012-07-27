@@ -82,8 +82,11 @@ static int __devinit tosa_bl_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	struct backlight_properties props;
-	struct tosa_bl_data *data = kzalloc(sizeof(struct tosa_bl_data), GFP_KERNEL);
+	struct tosa_bl_data *data;
 	int ret = 0;
+
+	data = devm_kzalloc(&client->dev, sizeof(struct tosa_bl_data),
+				GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -92,7 +95,7 @@ static int __devinit tosa_bl_probe(struct i2c_client *client,
 	ret = gpio_request(TOSA_GPIO_BL_C20MA, "backlight");
 	if (ret) {
 		dev_dbg(&data->bl->dev, "Unable to request gpio!\n");
-		goto err_gpio_bl;
+		return ret;
 	}
 	ret = gpio_direction_output(TOSA_GPIO_BL_C20MA, 0);
 	if (ret)
@@ -122,8 +125,6 @@ err_reg:
 	data->bl = NULL;
 err_gpio_dir:
 	gpio_free(TOSA_GPIO_BL_C20MA);
-err_gpio_bl:
-	kfree(data);
 	return ret;
 }
 
@@ -135,8 +136,6 @@ static int __devexit tosa_bl_remove(struct i2c_client *client)
 	data->bl = NULL;
 
 	gpio_free(TOSA_GPIO_BL_C20MA);
-
-	kfree(data);
 
 	return 0;
 }

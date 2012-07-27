@@ -227,15 +227,15 @@ static int __devinit keypad_probe(struct platform_device *pdev)
 		goto error_clk;
 	}
 
-	error = request_threaded_irq(kp->irq_press, NULL, keypad_irq, 0,
-				     dev_name(dev), kp);
+	error = request_threaded_irq(kp->irq_press, NULL, keypad_irq,
+				     IRQF_ONESHOT, dev_name(dev), kp);
 	if (error < 0) {
 		dev_err(kp->dev, "Could not allocate keypad press key irq\n");
 		goto error_irq_press;
 	}
 
-	error = request_threaded_irq(kp->irq_release, NULL, keypad_irq, 0,
-				     dev_name(dev), kp);
+	error = request_threaded_irq(kp->irq_release, NULL, keypad_irq,
+				     IRQF_ONESHOT, dev_name(dev), kp);
 	if (error < 0) {
 		dev_err(kp->dev, "Could not allocate keypad release key irq\n");
 		goto error_irq_release;
@@ -247,15 +247,11 @@ static int __devinit keypad_probe(struct platform_device *pdev)
 		error = -ENOMEM;
 		goto error_input;
 	}
-	input_set_drvdata(kp->input_dev, kp);
 
 	kp->input_dev->name	  = pdev->name;
 	kp->input_dev->dev.parent = &pdev->dev;
 	kp->input_dev->open	  = keypad_start;
 	kp->input_dev->close	  = keypad_stop;
-	kp->input_dev->evbit[0]	  = BIT_MASK(EV_KEY);
-	if (!pdata->no_autorepeat)
-		kp->input_dev->evbit[0] |= BIT_MASK(EV_REP);
 
 	clk_enable(kp->clk);
 	rev = keypad_read(kp, rev);
@@ -264,14 +260,19 @@ static int __devinit keypad_probe(struct platform_device *pdev)
 	kp->input_dev->id.version = ((rev >> 16) & 0xfff);
 	clk_disable(kp->clk);
 
-	kp->input_dev->keycode     = kp->keycodes;
-	kp->input_dev->keycodesize = sizeof(kp->keycodes[0]);
-	kp->input_dev->keycodemax  = kp->rows << kp->row_shift;
+	error = matrix_keypad_build_keymap(keymap_data, NULL,
+					   kp->rows, kp->cols,
+					   kp->keycodes, kp->input_dev);
+	if (error) {
+		dev_err(dev, "Failed to build keymap\n");
+		goto error_reg;
+	}
 
-	matrix_keypad_build_keymap(keymap_data, kp->row_shift, kp->keycodes,
-				   kp->input_dev->keybit);
-
+	if (!pdata->no_autorepeat)
+		kp->input_dev->evbit[0] |= BIT_MASK(EV_REP);
 	input_set_capability(kp->input_dev, EV_MSC, MSC_SCAN);
+
+	input_set_drvdata(kp->input_dev, kp);
 
 	error = input_register_device(kp->input_dev);
 	if (error < 0) {

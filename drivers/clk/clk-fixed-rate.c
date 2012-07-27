@@ -32,51 +32,50 @@ static unsigned long clk_fixed_rate_recalc_rate(struct clk_hw *hw,
 {
 	return to_clk_fixed_rate(hw)->fixed_rate;
 }
-EXPORT_SYMBOL_GPL(clk_fixed_rate_recalc_rate);
 
-struct clk_ops clk_fixed_rate_ops = {
+const struct clk_ops clk_fixed_rate_ops = {
 	.recalc_rate = clk_fixed_rate_recalc_rate,
 };
 EXPORT_SYMBOL_GPL(clk_fixed_rate_ops);
 
+/**
+ * clk_register_fixed_rate - register fixed-rate clock with the clock framework
+ * @dev: device that is registering this clock
+ * @name: name of this clock
+ * @parent_name: name of clock's parent
+ * @flags: framework-specific flags
+ * @fixed_rate: non-adjustable clock rate
+ */
 struct clk *clk_register_fixed_rate(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
 		unsigned long fixed_rate)
 {
 	struct clk_fixed_rate *fixed;
-	char **parent_names = NULL;
-	u8 len;
+	struct clk *clk;
+	struct clk_init_data init;
 
+	/* allocate fixed-rate clock */
 	fixed = kzalloc(sizeof(struct clk_fixed_rate), GFP_KERNEL);
-
 	if (!fixed) {
 		pr_err("%s: could not allocate fixed clk\n", __func__);
 		return ERR_PTR(-ENOMEM);
 	}
 
+	init.name = name;
+	init.ops = &clk_fixed_rate_ops;
+	init.flags = flags;
+	init.parent_names = (parent_name ? &parent_name: NULL);
+	init.num_parents = (parent_name ? 1 : 0);
+
 	/* struct clk_fixed_rate assignments */
 	fixed->fixed_rate = fixed_rate;
+	fixed->hw.init = &init;
 
-	if (parent_name) {
-		parent_names = kmalloc(sizeof(char *), GFP_KERNEL);
+	/* register the clock */
+	clk = clk_register(dev, &fixed->hw);
 
-		if (! parent_names)
-			goto out;
+	if (IS_ERR(clk))
+		kfree(fixed);
 
-		len = sizeof(char) * strlen(parent_name);
-
-		parent_names[0] = kmalloc(len, GFP_KERNEL);
-
-		if (!parent_names[0])
-			goto out;
-
-		strncpy(parent_names[0], parent_name, len);
-	}
-
-out:
-	return clk_register(dev, name,
-			&clk_fixed_rate_ops, &fixed->hw,
-			parent_names,
-			(parent_name ? 1 : 0),
-			flags);
+	return clk;
 }
