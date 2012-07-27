@@ -1638,16 +1638,6 @@ static void hci_cs_le_create_conn(struct hci_dev *hdev, __u8 status)
 			hci_proto_connect_cfm(conn, status);
 			hci_conn_del(conn);
 		}
-	} else {
-		if (!conn) {
-			conn = hci_conn_add(hdev, LE_LINK, &cp->peer_addr);
-			if (conn) {
-				conn->dst_type = cp->peer_addr_type;
-				conn->out = true;
-			} else {
-				BT_ERR("No memory for new connection");
-			}
-		}
 	}
 
 	hci_dev_unlock(hdev);
