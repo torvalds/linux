@@ -1953,8 +1953,6 @@ static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 	netif_dbg(efx, drv, efx->net_dev, "changing MTU to %d\n", new_mtu);
 
 	mutex_lock(&efx->mac_lock);
-	/* Reconfigure the MAC before enabling the dma queues so that
-	 * the RX buffers don't overflow */
 	net_dev->mtu = new_mtu;
 	efx->type->reconfigure_mac(efx);
 	mutex_unlock(&efx->mac_lock);
