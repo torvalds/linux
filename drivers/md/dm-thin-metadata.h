@@ -148,6 +148,8 @@ int dm_thin_remove_block(struct dm_thin_device *td, dm_block_t block);
 /*
  * Queries.
  */
+bool dm_thin_changed_this_transaction(struct dm_thin_device *td);
+
 int dm_thin_get_highest_mapped_block(struct dm_thin_device *td,
 				     dm_block_t *highest_mapped);
 
