@@ -220,7 +220,7 @@ static noinline void do_fault_error(struct pt_regs *regs, int fault)
 	case VM_FAULT_BADACCESS:
 	case VM_FAULT_BADMAP:
 		/* Bad memory access. Check if it is kernel or user space. */
-		if (regs->psw.mask & PSW_MASK_PSTATE) {
+		if (user_mode(regs)) {
 			/* User mode accesses just cause a SIGSEGV */
 			si_code = (fault == VM_FAULT_BADMAP) ?
 				SEGV_MAPERR : SEGV_ACCERR;
@@ -236,13 +236,13 @@ static noinline void do_fault_error(struct pt_regs *regs, int fault)
 		break;
 	default: /* fault & VM_FAULT_ERROR */
 		if (fault & VM_FAULT_OOM) {
-			if (!(regs->psw.mask & PSW_MASK_PSTATE))
+			if (!user_mode(regs))
 				do_no_context(regs);
 			else
 				pagefault_out_of_memory();
 		} else if (fault & VM_FAULT_SIGBUS) {
 			/* Kernel mode? Handle exceptions or die */
-			if (!(regs->psw.mask & PSW_MASK_PSTATE))
+			if (!user_mode(regs))
 				do_no_context(regs);
 			else
 				do_sigbus(regs);
@@ -436,7 +436,7 @@ void __kprobes do_asce_exception(struct pt_regs *regs)
 	}
 
 	/* User mode accesses just cause a SIGSEGV */
-	if (regs->psw.mask & PSW_MASK_PSTATE) {
+	if (user_mode(regs)) {
 		do_sigsegv(regs, SEGV_MAPERR);
 		return;
 	}

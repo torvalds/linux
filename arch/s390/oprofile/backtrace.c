@@ -58,7 +58,7 @@ void s390_backtrace(struct pt_regs * const regs, unsigned int depth)
 	unsigned long head;
 	struct stack_frame* head_sf;
 
-	if (user_mode (regs))
+	if (user_mode(regs))
 		return;
 
 	head = regs->gprs[15];
