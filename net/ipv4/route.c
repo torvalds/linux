@@ -444,7 +444,7 @@ static inline int ip_rt_proc_init(void)
 }
 #endif /* CONFIG_PROC_FS */
 
-static inline int rt_is_expired(struct rtable *rth)
+static inline bool rt_is_expired(const struct rtable *rth)
 {
 	return rth->rt_genid != rt_genid(dev_net(rth->dst.dev));
 }
@@ -1199,10 +1199,9 @@ restart:
 	fnhe->fnhe_stamp = jiffies;
 }
 
-static inline void rt_release_rcu(struct rcu_head *head)
+static inline void rt_free(struct rtable *rt)
 {
-	struct dst_entry *dst = container_of(head, struct dst_entry, rcu_head);
-	dst_release(dst);
+	call_rcu_bh(&rt->dst.rcu_head, dst_rcu_free);
 }
 
 static void rt_cache_route(struct fib_nh *nh, struct rtable *rt)
@@ -1216,15 +1215,23 @@ static void rt_cache_route(struct fib_nh *nh, struct rtable *rt)
 
 	prev = cmpxchg(p, orig, rt);
 	if (prev == orig) {
-		dst_clone(&rt->dst);
 		if (orig)
-			call_rcu_bh(&orig->dst.rcu_head, rt_release_rcu);
+			rt_free(orig);
+	} else {
+		/* Routes we intend to cache in the FIB nexthop have
+		 * the DST_NOCACHE bit clear.  However, if we are
+		 * unsuccessful at storing this route into the cache
+		 * we really need to set it.
+		 */
+		rt->dst.flags |= DST_NOCACHE;
 	}
 }
 
-static bool rt_cache_valid(struct rtable *rt)
+static bool rt_cache_valid(const struct rtable *rt)
 {
-	return (rt && rt->dst.obsolete == DST_OBSOLETE_FORCE_CHK);
+	return	rt &&
+		rt->dst.obsolete == DST_OBSOLETE_FORCE_CHK &&
+		!rt_is_expired(rt);
 }
 
 static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
@@ -1243,7 +1250,7 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 #ifdef CONFIG_IP_ROUTE_CLASSID
 		rt->dst.tclassid = nh->nh_tclassid;
 #endif
-		if (!(rt->dst.flags & DST_HOST))
+		if (!(rt->dst.flags & DST_NOCACHE))
 			rt_cache_route(nh, rt);
 	}
 
@@ -1259,7 +1266,7 @@ static struct rtable *rt_dst_alloc(struct net_device *dev,
 				   bool nopolicy, bool noxfrm, bool will_cache)
 {
 	return dst_alloc(&ipv4_dst_ops, dev, 1, DST_OBSOLETE_FORCE_CHK,
-			 (will_cache ? 0 : DST_HOST) | DST_NOCACHE |
+			 (will_cache ? 0 : (DST_HOST | DST_NOCACHE)) |
 			 (nopolicy ? DST_NOPOLICY : 0) |
 			 (noxfrm ? DST_NOXFRM : 0));
 }
@@ -1364,8 +1371,7 @@ static void ip_handle_martian_source(struct net_device *dev,
 static int __mkroute_input(struct sk_buff *skb,
 			   const struct fib_result *res,
 			   struct in_device *in_dev,
-			   __be32 daddr, __be32 saddr, u32 tos,
-			   struct rtable **result)
+			   __be32 daddr, __be32 saddr, u32 tos)
 {
 	struct rtable *rth;
 	int err;
@@ -1416,7 +1422,7 @@ static int __mkroute_input(struct sk_buff *skb,
 		if (!itag) {
 			rth = FIB_RES_NH(*res).nh_rth_input;
 			if (rt_cache_valid(rth)) {
-				dst_hold(&rth->dst);
+				skb_dst_set_noref(skb, &rth->dst);
 				goto out;
 			}
 			do_cache = true;
@@ -1443,8 +1449,8 @@ static int __mkroute_input(struct sk_buff *skb,
 	rth->dst.output = ip_output;
 
 	rt_set_nexthop(rth, daddr, res, NULL, res->fi, res->type, itag);
+	skb_dst_set(skb, &rth->dst);
 out:
-	*result = rth;
 	err = 0;
  cleanup:
 	return err;
@@ -1456,21 +1462,13 @@ static int ip_mkroute_input(struct sk_buff *skb,
 			    struct in_device *in_dev,
 			    __be32 daddr, __be32 saddr, u32 tos)
 {
-	struct rtable *rth = NULL;
-	int err;
-
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	if (res->fi && res->fi->fib_nhs > 1)
 		fib_select_multipath(res);
 #endif
 
 	/* create a routing cache entry */
-	err = __mkroute_input(skb, res, in_dev, daddr, saddr, tos, &rth);
-	if (err)
-		return err;
-
-	skb_dst_set(skb, &rth->dst);
-	return 0;
+	return __mkroute_input(skb, res, in_dev, daddr, saddr, tos);
 }
 
 /*
@@ -1586,8 +1584,9 @@ local_input:
 		if (!itag) {
 			rth = FIB_RES_NH(res).nh_rth_input;
 			if (rt_cache_valid(rth)) {
-				dst_hold(&rth->dst);
-				goto set_and_out;
+				skb_dst_set_noref(skb, &rth->dst);
+				err = 0;
+				goto out;
 			}
 			do_cache = true;
 		}
@@ -1618,7 +1617,6 @@ local_input:
 	}
 	if (do_cache)
 		rt_cache_route(&FIB_RES_NH(res), rth);
-set_and_out:
 	skb_dst_set(skb, &rth->dst);
 	err = 0;
 	goto out;
@@ -1656,8 +1654,8 @@ martian_source_keep_err:
 	goto out;
 }
 
-int ip_route_input(struct sk_buff *skb, __be32 daddr, __be32 saddr,
-		   u8 tos, struct net_device *dev)
+int ip_route_input_noref(struct sk_buff *skb, __be32 daddr, __be32 saddr,
+			 u8 tos, struct net_device *dev)
 {
 	int res;
 
@@ -1700,7 +1698,7 @@ int ip_route_input(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	rcu_read_unlock();
 	return res;
 }
-EXPORT_SYMBOL(ip_route_input);
+EXPORT_SYMBOL(ip_route_input_noref);
 
 /* called with rcu_read_lock() */
 static struct rtable *__mkroute_output(const struct fib_result *res,

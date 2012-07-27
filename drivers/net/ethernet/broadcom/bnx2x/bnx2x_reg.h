@@ -1603,6 +1603,10 @@
  * of counts that the SM entered the EEE LPI state. Clock 25MHz. Read only
  * register. Reset on hard reset. */
 #define MISC_REG_CPMU_LP_SM_ENT_CNT_P0				 0xa8b8
+/* [RW 16] EEE LPI Entry Events Counter. A statistic counter with the number
+ * of counts that the SM entered the EEE LPI state. Clock 25MHz. Read only
+ * register. Reset on hard reset. */
+#define MISC_REG_CPMU_LP_SM_ENT_CNT_P1				 0xa8bc
 /* [RW 32] The following driver registers(1...16) represent 16 drivers and
    32 clients. Each client can be controlled by one driver only. One in each
    bit represent that this driver control the appropriate client (Ex: bit 5
