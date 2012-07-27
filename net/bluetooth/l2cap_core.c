@@ -1446,7 +1446,7 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 	int err;
 
 	BT_DBG("%s -> %s (type %u) psm 0x%2.2x", batostr(src), batostr(dst),
-	       dst_type, __le16_to_cpu(chan->psm));
+	       dst_type, __le16_to_cpu(psm));
 
 	hdev = hci_get_route(dst, src);
 	if (!hdev)
