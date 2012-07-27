@@ -255,26 +255,26 @@ int tps65910_post_init(struct tps65910 *tps65910)
 	ldo = regulator_get(NULL, "vdig2");	// vdd11
 	regulator_set_voltage(ldo, 1100000, 1100000);
 	regulator_enable(ldo);
-	printk("%s set vdig2 vdd11_hdmi=%dmV end\n", __func__, regulator_get_voltage(ldo));
+	printk("%s set vdig2 vdd11=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
 
 	ldo = regulator_get(NULL, "vaux33");	 //vcc_tp
 	regulator_set_voltage(ldo, 3300000, 3300000);
 	regulator_enable(ldo);
-	printk("%s set vaux33 vcc33=%dmV end\n", __func__, regulator_get_voltage(ldo));
+	printk("%s set vaux33 vcc_tp=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
 	
 	dcdc = regulator_get(NULL, "vdd_cpu");	//vdd_cpu
-	regulator_set_voltage(dcdc, 1100000, 1100000);
+	regulator_set_voltage(dcdc, 1200000, 1200000);
 	regulator_enable(dcdc);
 	printk("%s set vdd1 vdd_cpu=%dmV end\n", __func__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
 	udelay(100);
-
-	dcdc = regulator_get(NULL, "vdd2");	//vcc_ddr
-	regulator_set_voltage(dcdc, 1500000, 1500000);
+	
+	dcdc = regulator_get(NULL, "vdd2");	//vcc_ddr 
+	regulator_set_voltage(dcdc, 1200000, 1200000);	// 1.5*4/5 = 1.2 and Vout=1.5v
 	regulator_enable(dcdc);
 	printk("%s set vdd2 vcc_ddr=%dmV end\n", __func__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
@@ -283,14 +283,14 @@ int tps65910_post_init(struct tps65910 *tps65910)
 	ldo = regulator_get(NULL, "vdig1");	//vcc18_cif
 	regulator_set_voltage(ldo, 1800000, 1800000);
 	regulator_enable(ldo);
-	printk("%s set vdig1 vccio_wl=%dmV end\n", __func__, regulator_get_voltage(ldo));
+	printk("%s set vdig1 vcc18_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
 	
 	dcdc = regulator_get(NULL, "vaux1"); //vcc25_hdmi
 	regulator_set_voltage(dcdc,2500000,2500000);
 	regulator_enable(dcdc); 
-	printk("%s set vaux1 vcc25=%dmV end\n", __func__, regulator_get_voltage(dcdc));
+	printk("%s set vaux1 vcc25_hdmi=%dmV end\n", __func__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
 	udelay(100);
 
@@ -304,7 +304,7 @@ int tps65910_post_init(struct tps65910 *tps65910)
 	ldo = regulator_get(NULL, "vdac"); // vccio_wl
 	regulator_set_voltage(ldo,1800000,1800000);
 	regulator_enable(ldo); 
-	printk("%s set vdac vcc18_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
+	printk("%s set vdac vccio_wl=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
 

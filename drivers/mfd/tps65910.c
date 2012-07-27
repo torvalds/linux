@@ -45,7 +45,6 @@ static int tps65910_i2c_read(struct tps65910 *tps65910, u8 reg,
 	struct i2c_msg xfer[2];
 	int ret;
 	
-	//printk("%s:reg=0x%x,value=%d\n",__func__,reg,*(char *)dest);
 
 	/* Write register */
 	xfer[0].addr = i2c->addr;
@@ -62,6 +61,7 @@ static int tps65910_i2c_read(struct tps65910 *tps65910, u8 reg,
 	xfer[1].scl_rate = 200*1000;
 
 	ret = i2c_transfer(i2c->adapter, xfer, 2);
+	//printk("%s:reg=0x%x,value=0x%x\n",__func__,reg,*(char *)dest);
 	if (ret == 2)
 		ret = 0;
 	else if (ret >= 0)
@@ -81,7 +81,7 @@ static int tps65910_i2c_write(struct tps65910 *tps65910, u8 reg,
 	if (bytes > TPS65910_MAX_REGISTER)
 		return -EINVAL;
 
-	//printk("%s:reg=0x%x,value=%d\n",__func__,reg,*(char *)&src);
+	//printk("%s:reg=0x%x,value=0x%x\n",__func__,reg,*(char *)&src);
 	
 	msg[0] = reg;
 	memcpy(&msg[1], src, bytes);
