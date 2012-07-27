@@ -69,7 +69,7 @@ static int dac124s085_probe(struct spi_device *spi)
 	struct dac124s085_led	*led;
 	int i, ret;
 
-	dac = kzalloc(sizeof(*dac), GFP_KERNEL);
+	dac = devm_kzalloc(&spi->dev, sizeof(*dac), GFP_KERNEL);
 	if (!dac)
 		return -ENOMEM;
 
@@ -102,7 +102,6 @@ eledcr:
 		led_classdev_unregister(&dac->leds[i].ldev);
 
 	spi_set_drvdata(spi, NULL);
-	kfree(dac);
 	return ret;
 }
 
@@ -117,7 +116,6 @@ static int dac124s085_remove(struct spi_device *spi)
 	}
 
 	spi_set_drvdata(spi, NULL);
-	kfree(dac);
 
 	return 0;
 }
