@@ -31,6 +31,7 @@ struct stripe_c {
 	sector_t stripe_width;
 
 	uint32_t chunk_size;
+	int chunk_size_shift;
 
 	/* Needed for handling events */
 	struct dm_target *ti;
@@ -163,6 +164,10 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->num_discard_requests = stripes;
 
 	sc->chunk_size = chunk_size;
+	if (chunk_size & (chunk_size - 1))
+		sc->chunk_size_shift = -1;
+	else
+		sc->chunk_size_shift = __ffs(chunk_size);
 
 	/*
 	 * Get the stripe destinations.
@@ -202,7 +207,14 @@ static void stripe_map_sector(struct stripe_c *sc, sector_t sector,
 			      uint32_t *stripe, sector_t *result)
 {
 	sector_t chunk = dm_target_offset(sc->ti, sector);
-	sector_t chunk_offset = sector_div(chunk, sc->chunk_size);
+	sector_t chunk_offset;
+
+	if (sc->chunk_size_shift < 0)
+		chunk_offset = sector_div(chunk, sc->chunk_size);
+	else {
+		chunk_offset = chunk & (sc->chunk_size - 1);
+		chunk >>= sc->chunk_size_shift;
+	}
 
 	if (sc->stripes_shift < 0)
 		*stripe = sector_div(chunk, sc->stripes);
@@ -211,7 +223,12 @@ static void stripe_map_sector(struct stripe_c *sc, sector_t sector,
 		chunk >>= sc->stripes_shift;
 	}
 
-	*result = (chunk * sc->chunk_size) + chunk_offset;
+	if (sc->chunk_size_shift < 0)
+		chunk *= sc->chunk_size;
+	else
+		chunk <<= sc->chunk_size_shift;
+
+	*result = chunk + chunk_offset;
 }
 
 static void stripe_map_range_sector(struct stripe_c *sc, sector_t sector,
@@ -225,7 +242,10 @@ static void stripe_map_range_sector(struct stripe_c *sc, sector_t sector,
 
 	/* round down */
 	sector = *result;
-	*result -= sector_div(sector, sc->chunk_size);
+	if (sc->chunk_size_shift < 0)
+		*result -= sector_div(sector, sc->chunk_size);
+	else
+		*result = sector & ~(sector_t)(sc->chunk_size - 1);
 
 	if (target_stripe < stripe)
 		*result += sc->chunk_size;		/* next chunk */
