@@ -681,10 +681,11 @@ struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
 	bm = dm_block_manager_create(bdev, THIN_METADATA_BLOCK_SIZE,
 				     THIN_METADATA_CACHE_SIZE,
 				     THIN_MAX_CONCURRENT_LOCKS);
-	if (!bm) {
+	if (IS_ERR(bm)) {
+		r = PTR_ERR(bm);
 		DMERR("could not create block manager");
 		kfree(pmd);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(r);
 	}
 
 	r = superblock_all_zeroes(bm, &create);
@@ -693,7 +694,6 @@ struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
 		kfree(pmd);
 		return ERR_PTR(r);
 	}
-
 
 	r = init_pmd(pmd, bm, 0, create);
 	if (r) {
