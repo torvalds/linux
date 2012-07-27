@@ -2311,11 +2311,8 @@ static void efx_reset_work(struct work_struct *data)
 
 	/* If we're not READY then don't reset. Leave the reset_pending
 	 * flags set so that efx_pci_probe_main will be retried */
-	if (efx->state != STATE_READY) {
-		netif_info(efx, drv, efx->net_dev,
-			   "scheduled reset quenched; NIC not ready\n");
+	if (efx->state != STATE_READY)
 		return;
-	}
 
 	rtnl_lock();
 	(void)efx_reset(efx, fls(pending) - 1);
@@ -2703,6 +2700,8 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 	 * probably hosed anyway.
 	 */
 	if (efx->reset_pending) {
+		netif_err(efx, probe, efx->net_dev,
+			  "aborting probe due to scheduled reset\n");
 		rc = -EIO;
 		goto fail4;
 	}
