@@ -3038,41 +3038,17 @@ int ieee80211_max_network_latency(struct notifier_block *nb,
 	return 0;
 }
 
-static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
-				     struct cfg80211_bss *cbss, bool assoc)
+static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
+				  struct cfg80211_bss *cbss)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	struct ieee80211_bss *bss = (void *)cbss->priv;
-	struct sta_info *new_sta = NULL;
-	bool have_sta = false;
-	int err;
 	int ht_cfreq;
 	enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
 	const u8 *ht_oper_ie;
 	const struct ieee80211_ht_operation *ht_oper = NULL;
 	struct ieee80211_supported_band *sband;
 
-	if (WARN_ON(!ifmgd->auth_data && !ifmgd->assoc_data))
-		return -EINVAL;
-
-	if (assoc) {
-		rcu_read_lock();
-		have_sta = sta_info_get(sdata, cbss->bssid);
-		rcu_read_unlock();
-	}
-
-	if (!have_sta) {
-		new_sta = sta_info_alloc(sdata, cbss->bssid, GFP_KERNEL);
-		if (!new_sta)
-			return -ENOMEM;
-	}
-
-	mutex_lock(&local->mtx);
-	ieee80211_recalc_idle(sdata->local);
-	mutex_unlock(&local->mtx);
-
-	/* switch to the right channel */
 	sband = local->hw.wiphy->bands[cbss->channel->band];
 
 	ifmgd->flags &= ~IEEE80211_STA_DISABLE_40MHZ;
@@ -3135,10 +3111,51 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	local->oper_channel = cbss->channel;
 	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 
+	return 0;
+}
+
+static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
+				     struct cfg80211_bss *cbss, bool assoc)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct ieee80211_bss *bss = (void *)cbss->priv;
+	struct sta_info *new_sta = NULL;
+	bool have_sta = false;
+	int err;
+
+	if (WARN_ON(!ifmgd->auth_data && !ifmgd->assoc_data))
+		return -EINVAL;
+
+	if (assoc) {
+		rcu_read_lock();
+		have_sta = sta_info_get(sdata, cbss->bssid);
+		rcu_read_unlock();
+	}
+
+	if (!have_sta) {
+		new_sta = sta_info_alloc(sdata, cbss->bssid, GFP_KERNEL);
+		if (!new_sta)
+			return -ENOMEM;
+	}
+
+	mutex_lock(&local->mtx);
+	ieee80211_recalc_idle(sdata->local);
+	mutex_unlock(&local->mtx);
+
 	if (new_sta) {
 		u32 rates = 0, basic_rates = 0;
 		bool have_higher_than_11mbit;
 		int min_rate = INT_MAX, min_rate_index = -1;
+		struct ieee80211_supported_band *sband;
+
+		sband = local->hw.wiphy->bands[cbss->channel->band];
+
+		err = ieee80211_prep_channel(sdata, cbss);
+		if (err) {
+			sta_info_free(local, new_sta);
+			return err;
+		}
 
 		ieee80211_get_rates(sband, bss->supp_rates,
 				    bss->supp_rates_len,
