@@ -25,6 +25,7 @@
 #include <linux/posix_acl_xattr.h>
 #include <linux/radix-tree.h>
 #include <linux/crc32c.h>
+#include <linux/vmalloc.h>
 
 #include "send.h"
 #include "backref.h"
