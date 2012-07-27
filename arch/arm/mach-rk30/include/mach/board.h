@@ -62,6 +62,17 @@ struct ft5x0x_platform_data{
 };
 #endif
 
+struct codec_io_info{
+	char	iomux_name[50];
+	int		iomux_mode;	
+};
+
+struct rt3261_platform_data{
+	unsigned int codec_en_gpio;
+	struct codec_io_info codec_en_gpio_info;
+	int (*io_init)(int, char *, int);
+};
+
 extern struct rk29_sdmmc_platform_data default_sdmmc0_data;
 extern struct rk29_sdmmc_platform_data default_sdmmc1_data;
 

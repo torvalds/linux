@@ -2140,6 +2140,9 @@ struct rt3261_priv {
 	int dsp_sw; /* expected parameter setting */
 	bool dsp_play_pass;
 	bool dsp_rec_pass;
+
+	unsigned int codec_en_gpio;
+	int (*io_init)(int gpio, char *iomux_name, int iomux_mode);
 };
 
 int rt3261_conn_mux_path(struct snd_soc_codec *codec,

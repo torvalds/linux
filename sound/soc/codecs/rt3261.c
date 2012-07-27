@@ -24,7 +24,7 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-
+#include <mach/board.h>
 
 #define RT3261_PROC
 #ifdef RT3261_PROC
@@ -2932,10 +2932,17 @@ static int __devinit rt3261_i2c_probe(struct i2c_client *i2c,
 {
 	struct rt3261_priv *rt3261;
 	int ret;
+	struct rt3261_platform_data *pdata = pdata = i2c->dev.platform_data;
 
 	rt3261 = kzalloc(sizeof(struct rt3261_priv), GFP_KERNEL);
 	if (NULL == rt3261)
 		return -ENOMEM;
+
+	rt3261->codec_en_gpio = pdata->codec_en_gpio;
+	rt3261->io_init = pdata->io_init;
+
+	if(rt3261->io_init)
+		rt3261->io_init(pdata->codec_en_gpio, pdata->codec_en_gpio_info.iomux_name, pdata->codec_en_gpio_info.iomux_mode);
 
 	i2c_set_clientdata(i2c, rt3261);
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
