@@ -109,8 +109,7 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
 	}
 
-	if (kstrtouint(argv[1], 10, &chunk_size) ||
-	    (chunk_size < (PAGE_SIZE >> SECTOR_SHIFT))) {
+	if (kstrtouint(argv[1], 10, &chunk_size) || !chunk_size) {
 		ti->error = "Invalid chunk_size";
 		return -EINVAL;
 	}
