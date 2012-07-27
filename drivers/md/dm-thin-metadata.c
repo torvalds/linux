@@ -422,6 +422,41 @@ static void __setup_btree_details(struct dm_pool_metadata *pmd)
 	pmd->details_info.value_type.equal = NULL;
 }
 
+static int __write_initial_superblock(struct dm_pool_metadata *pmd)
+{
+	int r;
+	struct dm_block *sblock;
+	struct thin_disk_superblock *disk_super;
+	sector_t bdev_size = i_size_read(pmd->bdev->bd_inode) >> SECTOR_SHIFT;
+
+	if (bdev_size > THIN_METADATA_MAX_SECTORS)
+		bdev_size = THIN_METADATA_MAX_SECTORS;
+
+	r = superblock_lock_zero(pmd, &sblock);
+	if (r)
+		return r;
+
+	disk_super = dm_block_data(sblock);
+	disk_super->magic = cpu_to_le64(THIN_SUPERBLOCK_MAGIC);
+	disk_super->version = cpu_to_le32(THIN_VERSION);
+	disk_super->time = 0;
+	disk_super->metadata_block_size = cpu_to_le32(THIN_METADATA_BLOCK_SIZE >> SECTOR_SHIFT);
+	disk_super->metadata_nr_blocks = cpu_to_le64(bdev_size >> SECTOR_TO_BLOCK_SHIFT);
+	disk_super->data_block_size = cpu_to_le32(pmd->data_block_size);
+
+	r = dm_bm_unlock(sblock);
+	if (r)
+		return r;
+
+	pmd->flags = 0;
+	r = dm_pool_commit_metadata(pmd);
+	if (r < 0)
+		DMERR("%s: dm_pool_commit_metadata() failed, error = %d",
+		      __func__, r);
+
+	return r;
+}
+
 static int __open_or_format_metadata(struct dm_pool_metadata *pmd,
 				     struct dm_block_manager *bm,
 				     dm_block_t nr_blocks, int create)
@@ -494,6 +529,23 @@ static int __open_or_format_metadata(struct dm_pool_metadata *pmd,
 	pmd->details_root = 0;
 	pmd->trans_id = 0;
 	pmd->flags = 0;
+
+	if (!create)
+		return 0;
+
+	r = dm_btree_empty(&pmd->info, &pmd->root);
+	if (r < 0)
+		goto bad_data_sm;
+
+	r = dm_btree_empty(&pmd->details_info, &pmd->details_root);
+	if (r < 0) {
+		DMERR("couldn't create devices root");
+		goto bad_data_sm;
+	}
+
+	r = __write_initial_superblock(pmd);
+	if (r)
+		goto bad_data_sm;
 
 	return 0;
 
@@ -695,11 +747,8 @@ struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
 					       sector_t data_block_size)
 {
 	int r;
-	struct thin_disk_superblock *disk_super;
 	struct dm_pool_metadata *pmd;
-	sector_t bdev_size = i_size_read(bdev->bd_inode) >> SECTOR_SHIFT;
 	int create;
-	struct dm_block *sblock;
 
 	pmd = kmalloc(sizeof(*pmd), GFP_KERNEL);
 	if (!pmd) {
@@ -711,6 +760,7 @@ struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
 	pmd->time = 0;
 	INIT_LIST_HEAD(&pmd->thin_devices);
 	pmd->bdev = bdev;
+	pmd->data_block_size = data_block_size;
 
 	r = __create_persistent_data_objects(pmd, 0, &create);
 	if (r) {
@@ -720,57 +770,14 @@ struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
 
 	if (!create) {
 		r = __begin_transaction(pmd);
-		if (r < 0)
-			goto bad;
-		return pmd;
-	}
-
-	/*
-	 * Create.
-	 */
-	r = superblock_lock_zero(pmd, &sblock);
-	if (r)
-		goto bad;
-
-	if (bdev_size > THIN_METADATA_MAX_SECTORS)
-		bdev_size = THIN_METADATA_MAX_SECTORS;
-
-	disk_super = dm_block_data(sblock);
-	disk_super->magic = cpu_to_le64(THIN_SUPERBLOCK_MAGIC);
-	disk_super->version = cpu_to_le32(THIN_VERSION);
-	disk_super->time = 0;
-	disk_super->metadata_block_size = cpu_to_le32(THIN_METADATA_BLOCK_SIZE >> SECTOR_SHIFT);
-	disk_super->metadata_nr_blocks = cpu_to_le64(bdev_size >> SECTOR_TO_BLOCK_SHIFT);
-	disk_super->data_block_size = cpu_to_le32(data_block_size);
-
-	r = dm_bm_unlock(sblock);
-	if (r < 0)
-		goto bad;
-
-	r = dm_btree_empty(&pmd->info, &pmd->root);
-	if (r < 0)
-		goto bad;
-
-	r = dm_btree_empty(&pmd->details_info, &pmd->details_root);
-	if (r < 0) {
-		DMERR("couldn't create devices root");
-		goto bad;
-	}
-
-	pmd->flags = 0;
-	r = dm_pool_commit_metadata(pmd);
-	if (r < 0) {
-		DMERR("%s: dm_pool_commit_metadata() failed, error = %d",
-		      __func__, r);
-		goto bad;
+		if (r < 0) {
+			if (dm_pool_metadata_close(pmd) < 0)
+				DMWARN("%s: dm_pool_metadata_close() failed.", __func__);
+			return ERR_PTR(r);
+		}
 	}
 
 	return pmd;
-
-bad:
-	if (dm_pool_metadata_close(pmd) < 0)
-		DMWARN("%s: dm_pool_metadata_close() failed.", __func__);
-	return ERR_PTR(r);
 }
 
 int dm_pool_metadata_close(struct dm_pool_metadata *pmd)
