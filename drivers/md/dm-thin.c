@@ -855,7 +855,7 @@ static void process_prepared_mapping(struct new_mapping *m)
 
 	if (m->err) {
 		cell_error(m->cell);
-		return;
+		goto out;
 	}
 
 	/*
@@ -867,7 +867,7 @@ static void process_prepared_mapping(struct new_mapping *m)
 	if (r) {
 		DMERR("dm_thin_insert_block() failed");
 		cell_error(m->cell);
-		return;
+		goto out;
 	}
 
 	/*
@@ -882,6 +882,7 @@ static void process_prepared_mapping(struct new_mapping *m)
 	} else
 		cell_defer(tc, m->cell, m->data_block);
 
+out:
 	list_del(&m->list);
 	mempool_free(m, tc->pool->mapping_pool);
 }
