@@ -271,9 +271,24 @@ static int try_charger_enable(struct charger_manager *cm, bool enable)
 	if (enable) {
 		if (cm->emergency_stop)
 			return -EAGAIN;
-		for (i = 0 ; i < desc->num_charger_regulators ; i++)
-			regulator_enable(desc->charger_regulators[i].consumer);
+		for (i = 0 ; i < desc->num_charger_regulators ; i++) {
+			err = regulator_enable(desc->charger_regulators[i].consumer);
+			if (err < 0) {
+				dev_warn(cm->dev,
+					"Cannot enable %s regulator\n",
+					desc->charger_regulators[i].regulator_name);
+			}
+		}
 	} else {
+		for (i = 0 ; i < desc->num_charger_regulators ; i++) {
+			err = regulator_disable(desc->charger_regulators[i].consumer);
+			if (err < 0) {
+				dev_warn(cm->dev,
+					"Cannot disable %s regulator\n",
+					desc->charger_regulators[i].regulator_name);
+			}
+		}
+
 		/*
 		 * Abnormal battery state - Stop charging forcibly,
 		 * even if charger was enabled at the other places
