@@ -535,6 +535,15 @@ static int __create_persistent_data_objects(struct dm_pool_metadata *pmd,
 	return r;
 }
 
+static void __destroy_persistent_data_objects(struct dm_pool_metadata *pmd)
+{
+	dm_sm_destroy(pmd->data_sm);
+	dm_sm_destroy(pmd->metadata_sm);
+	dm_tm_destroy(pmd->nb_tm);
+	dm_tm_destroy(pmd->tm);
+	dm_block_manager_destroy(pmd->bm);
+}
+
 static int __begin_transaction(struct dm_pool_metadata *pmd)
 {
 	int r;
@@ -792,11 +801,7 @@ int dm_pool_metadata_close(struct dm_pool_metadata *pmd)
 		DMWARN("%s: __commit_transaction() failed, error = %d",
 		       __func__, r);
 
-	dm_tm_destroy(pmd->tm);
-	dm_tm_destroy(pmd->nb_tm);
-	dm_block_manager_destroy(pmd->bm);
-	dm_sm_destroy(pmd->metadata_sm);
-	dm_sm_destroy(pmd->data_sm);
+	__destroy_persistent_data_objects(pmd);
 	kfree(pmd);
 
 	return 0;
