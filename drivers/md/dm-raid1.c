@@ -1088,7 +1088,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ti->num_flush_requests = 1;
 	ti->num_discard_requests = 1;
-	ti->discard_zeroes_data_unsupported = 1;
+	ti->discard_zeroes_data_unsupported = true;
 
 	ms->kmirrord_wq = alloc_workqueue("kmirrord",
 					  WQ_NON_REENTRANT | WQ_MEM_RECLAIM, 0);

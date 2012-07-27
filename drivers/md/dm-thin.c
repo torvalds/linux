@@ -2053,7 +2053,7 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		 * stacking of discard limits (this keeps the pool and
 		 * thin devices' discard limits consistent).
 		 */
-		ti->discards_supported = 1;
+		ti->discards_supported = true;
 	}
 	ti->private = pt;
 
@@ -2656,11 +2656,11 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	/* In case the pool supports discards, pass them on. */
 	if (tc->pool->pf.discard_enabled) {
-		ti->discards_supported = 1;
+		ti->discards_supported = true;
 		ti->num_discard_requests = 1;
-		ti->discard_zeroes_data_unsupported = 1;
+		ti->discard_zeroes_data_unsupported = true;
 		/* Discard requests must be split on a block boundary */
-		ti->split_discard_requests = 1;
+		ti->split_discard_requests = true;
 	}
 
 	dm_put(pool_md);
