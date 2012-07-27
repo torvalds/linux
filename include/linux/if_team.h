@@ -67,6 +67,7 @@ struct team_port {
 	struct netpoll *np;
 #endif
 
+	s32 priority; /* lower number ~ higher priority */
 	long mode_priv[0];
 };
 

@@ -1092,6 +1092,24 @@ static int team_user_linkup_en_option_set(struct team *team,
 	return 0;
 }
 
+static int team_priority_option_get(struct team *team,
+				    struct team_gsetter_ctx *ctx)
+{
+	struct team_port *port = ctx->info->port;
+
+	ctx->data.s32_val = port->priority;
+	return 0;
+}
+
+static int team_priority_option_set(struct team *team,
+				    struct team_gsetter_ctx *ctx)
+{
+	struct team_port *port = ctx->info->port;
+
+	port->priority = ctx->data.s32_val;
+	return 0;
+}
+
 static const struct team_option team_options[] = {
 	{
 		.name = "mode",
@@ -1119,6 +1137,13 @@ static const struct team_option team_options[] = {
 		.per_port = true,
 		.getter = team_user_linkup_en_option_get,
 		.setter = team_user_linkup_en_option_set,
+	},
+	{
+		.name = "priority",
+		.type = TEAM_OPTION_TYPE_S32,
+		.per_port = true,
+		.getter = team_priority_option_get,
+		.setter = team_priority_option_set,
 	},
 };
 
