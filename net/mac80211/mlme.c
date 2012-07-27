@@ -3373,16 +3373,18 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	if (!sband->ht_cap.ht_supported ||
 	    local->hw.queues < IEEE80211_NUM_ACS || !bss->wmm_used) {
 		ifmgd->flags |= IEEE80211_STA_DISABLE_11N;
-		netdev_info(sdata->dev,
-			    "disabling HT as WMM/QoS is not supported\n");
+		if (!bss->wmm_used)
+			netdev_info(sdata->dev,
+				    "disabling HT as WMM/QoS is not supported by the AP\n");
 	}
 
 	/* disable VHT if we don't support it or the AP doesn't use WMM */
 	if (!sband->vht_cap.vht_supported ||
 	    local->hw.queues < IEEE80211_NUM_ACS || !bss->wmm_used) {
 		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
-		netdev_info(sdata->dev,
-			    "disabling VHT as WMM/QoS is not supported\n");
+		if (!bss->wmm_used)
+			netdev_info(sdata->dev,
+				    "disabling VHT as WMM/QoS is not supported by the AP\n");
 	}
 
 	memcpy(&ifmgd->ht_capa, &req->ht_capa, sizeof(ifmgd->ht_capa));
