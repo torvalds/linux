@@ -531,7 +531,7 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 
 
 	ASSERT_RTNL();
-	if (efx->state != STATE_RUNNING) {
+	if (efx->state != STATE_READY) {
 		rc = -EIO;
 		goto fail1;
 	}
