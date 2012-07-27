@@ -3364,8 +3364,7 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		conn = hci_conn_add(hdev, LE_LINK, &ev->bdaddr);
 		if (!conn) {
 			BT_ERR("No memory for new connection");
-			hci_dev_unlock(hdev);
-			return;
+			goto unlock;
 		}
 
 		conn->dst_type = ev->bdaddr_type;
