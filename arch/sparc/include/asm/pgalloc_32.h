@@ -11,28 +11,15 @@
 
 struct page;
 
-extern struct pgtable_cache_struct {
-	unsigned long *pgd_cache;
-	unsigned long *pte_cache;
-	unsigned long pgtable_cache_sz;
-	unsigned long pgd_cache_sz;
-} pgt_quicklists;
-
-unsigned long srmmu_get_nocache(int size, int align);
-void srmmu_free_nocache(unsigned long vaddr, int size);
-
-#define pgd_quicklist           (pgt_quicklists.pgd_cache)
-#define pmd_quicklist           ((unsigned long *)0)
-#define pte_quicklist           (pgt_quicklists.pte_cache)
-#define pgtable_cache_size      (pgt_quicklists.pgtable_cache_sz)
-#define pgd_cache_size		(pgt_quicklists.pgd_cache_sz)
+void *srmmu_get_nocache(int size, int align);
+void srmmu_free_nocache(void *addr, int size);
 
 #define check_pgt_cache()	do { } while (0)
 
 pgd_t *get_pgd_fast(void);
 static inline void free_pgd_fast(pgd_t *pgd)
 {
-	srmmu_free_nocache((unsigned long)pgd, SRMMU_PGD_TABLE_SIZE);
+	srmmu_free_nocache(pgd, SRMMU_PGD_TABLE_SIZE);
 }
 
 #define pgd_free(mm, pgd)	free_pgd_fast(pgd)
@@ -50,13 +37,13 @@ static inline void pgd_set(pgd_t * pgdp, pmd_t * pmdp)
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm,
 				   unsigned long address)
 {
-	return (pmd_t *)srmmu_get_nocache(SRMMU_PMD_TABLE_SIZE,
-					  SRMMU_PMD_TABLE_SIZE);
+	return srmmu_get_nocache(SRMMU_PMD_TABLE_SIZE,
+				 SRMMU_PMD_TABLE_SIZE);
 }
 
 static inline void free_pmd_fast(pmd_t * pmd)
 {
-	srmmu_free_nocache((unsigned long)pmd, SRMMU_PMD_TABLE_SIZE);
+	srmmu_free_nocache(pmd, SRMMU_PMD_TABLE_SIZE);
 }
 
 #define pmd_free(mm, pmd)		free_pmd_fast(pmd)
@@ -73,13 +60,13 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address);
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 					  unsigned long address)
 {
-	return (pte_t *)srmmu_get_nocache(PTE_SIZE, PTE_SIZE);
+	return srmmu_get_nocache(PTE_SIZE, PTE_SIZE);
 }
 
 
 static inline void free_pte_fast(pte_t *pte)
 {
-	srmmu_free_nocache((unsigned long)pte, PTE_SIZE);
+	srmmu_free_nocache(pte, PTE_SIZE);
 }
 
 #define pte_free_kernel(mm, pte)	free_pte_fast(pte)
