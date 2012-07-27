@@ -371,6 +371,44 @@ static int superblock_all_zeroes(struct dm_block_manager *bm, int *result)
 	return dm_bm_unlock(b);
 }
 
+static void __setup_btree_details(struct dm_pool_metadata *pmd)
+{
+	pmd->info.tm = pmd->tm;
+	pmd->info.levels = 2;
+	pmd->info.value_type.context = pmd->data_sm;
+	pmd->info.value_type.size = sizeof(__le64);
+	pmd->info.value_type.inc = data_block_inc;
+	pmd->info.value_type.dec = data_block_dec;
+	pmd->info.value_type.equal = data_block_equal;
+
+	memcpy(&pmd->nb_info, &pmd->info, sizeof(pmd->nb_info));
+	pmd->nb_info.tm = pmd->nb_tm;
+
+	pmd->tl_info.tm = pmd->tm;
+	pmd->tl_info.levels = 1;
+	pmd->tl_info.value_type.context = &pmd->info;
+	pmd->tl_info.value_type.size = sizeof(__le64);
+	pmd->tl_info.value_type.inc = subtree_inc;
+	pmd->tl_info.value_type.dec = subtree_dec;
+	pmd->tl_info.value_type.equal = subtree_equal;
+
+	pmd->bl_info.tm = pmd->tm;
+	pmd->bl_info.levels = 1;
+	pmd->bl_info.value_type.context = pmd->data_sm;
+	pmd->bl_info.value_type.size = sizeof(__le64);
+	pmd->bl_info.value_type.inc = data_block_inc;
+	pmd->bl_info.value_type.dec = data_block_dec;
+	pmd->bl_info.value_type.equal = data_block_equal;
+
+	pmd->details_info.tm = pmd->tm;
+	pmd->details_info.levels = 1;
+	pmd->details_info.value_type.context = NULL;
+	pmd->details_info.value_type.size = sizeof(struct disk_device_details);
+	pmd->details_info.value_type.inc = NULL;
+	pmd->details_info.value_type.dec = NULL;
+	pmd->details_info.value_type.equal = NULL;
+}
+
 static int init_pmd(struct dm_pool_metadata *pmd,
 		    struct dm_block_manager *bm,
 		    dm_block_t nr_blocks, int create)
@@ -436,41 +474,7 @@ static int init_pmd(struct dm_pool_metadata *pmd,
 		goto bad_data_sm;
 	}
 
-	pmd->info.tm = tm;
-	pmd->info.levels = 2;
-	pmd->info.value_type.context = pmd->data_sm;
-	pmd->info.value_type.size = sizeof(__le64);
-	pmd->info.value_type.inc = data_block_inc;
-	pmd->info.value_type.dec = data_block_dec;
-	pmd->info.value_type.equal = data_block_equal;
-
-	memcpy(&pmd->nb_info, &pmd->info, sizeof(pmd->nb_info));
-	pmd->nb_info.tm = pmd->nb_tm;
-
-	pmd->tl_info.tm = tm;
-	pmd->tl_info.levels = 1;
-	pmd->tl_info.value_type.context = &pmd->info;
-	pmd->tl_info.value_type.size = sizeof(__le64);
-	pmd->tl_info.value_type.inc = subtree_inc;
-	pmd->tl_info.value_type.dec = subtree_dec;
-	pmd->tl_info.value_type.equal = subtree_equal;
-
-	pmd->bl_info.tm = tm;
-	pmd->bl_info.levels = 1;
-	pmd->bl_info.value_type.context = pmd->data_sm;
-	pmd->bl_info.value_type.size = sizeof(__le64);
-	pmd->bl_info.value_type.inc = data_block_inc;
-	pmd->bl_info.value_type.dec = data_block_dec;
-	pmd->bl_info.value_type.equal = data_block_equal;
-
-	pmd->details_info.tm = tm;
-	pmd->details_info.levels = 1;
-	pmd->details_info.value_type.context = NULL;
-	pmd->details_info.value_type.size = sizeof(struct disk_device_details);
-	pmd->details_info.value_type.inc = NULL;
-	pmd->details_info.value_type.dec = NULL;
-	pmd->details_info.value_type.equal = NULL;
-
+	__setup_btree_details(pmd);
 	pmd->root = 0;
 
 	init_rwsem(&pmd->root_lock);
