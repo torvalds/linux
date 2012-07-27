@@ -174,6 +174,12 @@ int dm_pool_get_data_dev_size(struct dm_pool_metadata *pmd, dm_block_t *result);
  */
 int dm_pool_resize_data_dev(struct dm_pool_metadata *pmd, dm_block_t new_size);
 
+/*
+ * Flicks the underlying block manager into read only mode, so you know
+ * that nothing is changing.
+ */
+void dm_pool_metadata_read_only(struct dm_pool_metadata *pmd);
+
 /*----------------------------------------------------------------*/
 
 #endif

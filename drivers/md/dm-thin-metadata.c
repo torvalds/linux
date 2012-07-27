@@ -184,6 +184,7 @@ struct dm_pool_metadata {
 	uint64_t trans_id;
 	unsigned long flags;
 	sector_t data_block_size;
+	bool read_only:1;
 };
 
 struct dm_thin_device {
@@ -807,6 +808,7 @@ struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
 	init_rwsem(&pmd->root_lock);
 	pmd->time = 0;
 	INIT_LIST_HEAD(&pmd->thin_devices);
+	pmd->read_only = false;
 	pmd->bdev = bdev;
 	pmd->data_block_size = data_block_size;
 
@@ -849,10 +851,12 @@ int dm_pool_metadata_close(struct dm_pool_metadata *pmd)
 		return -EBUSY;
 	}
 
-	r = __commit_transaction(pmd);
-	if (r < 0)
-		DMWARN("%s: __commit_transaction() failed, error = %d",
-		       __func__, r);
+	if (!pmd->read_only) {
+		r = __commit_transaction(pmd);
+		if (r < 0)
+			DMWARN("%s: __commit_transaction() failed, error = %d",
+			       __func__, r);
+	}
 
 	__destroy_persistent_data_objects(pmd);
 	kfree(pmd);
@@ -1586,4 +1590,12 @@ int dm_pool_resize_data_dev(struct dm_pool_metadata *pmd, dm_block_t new_count)
 	up_write(&pmd->root_lock);
 
 	return r;
+}
+
+void dm_pool_metadata_read_only(struct dm_pool_metadata *pmd)
+{
+	down_write(&pmd->root_lock);
+	pmd->read_only = true;
+	dm_bm_set_read_only(pmd->bm);
+	up_write(&pmd->root_lock);
 }
