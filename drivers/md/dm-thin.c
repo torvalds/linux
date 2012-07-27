@@ -707,6 +707,12 @@ static void remap_to_origin(struct thin_c *tc, struct bio *bio)
 	bio->bi_bdev = tc->origin_dev->bdev;
 }
 
+static int bio_triggers_commit(struct thin_c *tc, struct bio *bio)
+{
+	return (bio->bi_rw & (REQ_FLUSH | REQ_FUA)) &&
+		dm_thin_changed_this_transaction(tc->td);
+}
+
 static void issue(struct thin_c *tc, struct bio *bio)
 {
 	struct pool *pool = tc->pool;
@@ -716,7 +722,7 @@ static void issue(struct thin_c *tc, struct bio *bio)
 	 * Batch together any FUA/FLUSH bios we find and then issue
 	 * a single commit for them in process_deferred_bios().
 	 */
-	if (bio->bi_rw & (REQ_FLUSH | REQ_FUA)) {
+	if (bio_triggers_commit(tc, bio)) {
 		spin_lock_irqsave(&pool->lock, flags);
 		bio_list_add(&pool->deferred_flush_bios, bio);
 		spin_unlock_irqrestore(&pool->lock, flags);
