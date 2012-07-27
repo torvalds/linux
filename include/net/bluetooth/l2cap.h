@@ -433,10 +433,9 @@ struct l2cap_chan {
 	struct sock *sk;
 
 	struct l2cap_conn	*conn;
+	struct kref	kref;
 
 	__u8		state;
-
-	atomic_t	refcnt;
 
 	__le16		psm;
 	__u16		dcid;

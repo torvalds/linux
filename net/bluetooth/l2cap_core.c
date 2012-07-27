@@ -406,7 +406,7 @@ struct l2cap_chan *l2cap_chan_create(void)
 
 	chan->state = BT_OPEN;
 
-	atomic_set(&chan->refcnt, 1);
+	kref_init(&chan->kref);
 
 	/* This flag is cleared in l2cap_chan_ready() */
 	set_bit(CONF_NOT_COMPLETE, &chan->conf_state);
@@ -416,8 +416,10 @@ struct l2cap_chan *l2cap_chan_create(void)
 	return chan;
 }
 
-static void l2cap_chan_destroy(struct l2cap_chan *chan)
+static void l2cap_chan_destroy(struct kref *kref)
 {
+	struct l2cap_chan *chan = container_of(kref, struct l2cap_chan, kref);
+
 	BT_DBG("chan %p", chan);
 
 	write_lock(&chan_list_lock);
@@ -429,17 +431,16 @@ static void l2cap_chan_destroy(struct l2cap_chan *chan)
 
 void l2cap_chan_hold(struct l2cap_chan *c)
 {
-	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->refcnt));
+	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->kref.refcount));
 
-	atomic_inc(&c->refcnt);
+	kref_get(&c->kref);
 }
 
 void l2cap_chan_put(struct l2cap_chan *c)
 {
-	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->refcnt));
+	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->kref.refcount));
 
-	if (atomic_dec_and_test(&c->refcnt))
-		l2cap_chan_destroy(c);
+	kref_put(&c->kref, l2cap_chan_destroy);
 }
 
 void l2cap_chan_set_defaults(struct l2cap_chan *chan)
