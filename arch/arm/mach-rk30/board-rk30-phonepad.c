@@ -652,11 +652,11 @@ static struct spi_board_info board_spi_devices[] = {
 *	rk30  backlight
 ************************************************************/
 #ifdef CONFIG_BACKLIGHT_RK29_BL
-#define PWM_ID            0
-#define PWM_MUX_NAME      GPIO0A3_PWM0_NAME
-#define PWM_MUX_MODE      GPIO0A_PWM0
+#define PWM_ID            2
+#define PWM_MUX_NAME      GPIO0D6_PWM2_NAME
+#define PWM_MUX_MODE      GPIO0D_PWM2
 #define PWM_MUX_MODE_GPIO GPIO0A_GPIO0A3
-#define PWM_GPIO 	  RK30_PIN0_PA3
+#define PWM_GPIO 	  RK30_PIN0_PD6
 #define PWM_EFFECT_VALUE  1
 
 #define LCD_DISP_ON_PIN
@@ -671,11 +671,11 @@ static struct spi_board_info board_spi_devices[] = {
 static int rk29_backlight_io_init(void)
 {
 	int ret = 0;
-	rk30_mux_api_set(GPIO0D6_PWM2_NAME, GPIO0D_GPIO0D6);
-	gpio_request(RK30_PIN0_PD6, NULL);
-	gpio_direction_output(RK30_PIN0_PD6, GPIO_HIGH);
+	//rk30_mux_api_set(GPIO0D6_PWM2_NAME, GPIO0D_GPIO0D6);
+	//gpio_request(RK30_PIN0_PD6, NULL);
+	//gpio_direction_output(RK30_PIN0_PD6, GPIO_HIGH);
 
-	//rk30_mux_api_set(GPIO0D6_PWM2_NAME, GPIO0D_PWM2);
+	rk30_mux_api_set(GPIO0D6_PWM2_NAME, GPIO0D_PWM2);
 	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
 #ifdef  LCD_DISP_ON_PIN
 	// rk30_mux_api_set(BL_EN_MUX_NAME, BL_EN_MUX_MODE);
@@ -847,10 +847,11 @@ struct platform_device rk29_device_mw100 = {
 static int mt6229_io_init(void)
 {
 	 rk30_mux_api_set(GPIO2B6_LCDC1DATA14_SMCADDR18_TSSYNC_NAME, GPIO2B_GPIO2B6);
-	 rk30_mux_api_set(GPIO4D2_SMCDATA10_TRACEDATA10_NAME, GPIO4D_GPIO4D2);
 	 rk30_mux_api_set(GPIO2B7_LCDC1DATA15_SMCADDR19_HSADCDATA7_NAME, GPIO2B_GPIO2B7);
 	 rk30_mux_api_set(GPIO2C0_LCDCDATA16_GPSCLK_HSADCCLKOUT_NAME, GPIO2C_GPIO2C0);
-	return 0;
+	 rk30_mux_api_set(GPIO2B5_LCDC1DATA13_SMCADDR17_HSADCDATA8_NAME,GPIO2B_GPIO2B5);
+	 
+	 return 0;
 }
 
 static int mt6229_io_deinit(void)
@@ -862,11 +863,10 @@ static int mt6229_io_deinit(void)
 struct rk29_mt6229_data rk29_mt6229_info = {
 	.io_init = mt6229_io_init,
   	.io_deinit = mt6229_io_deinit,
-	.modem_power_en = RK30_PIN6_PB2,
+	.modem_power_en = RK30_PIN2_PB6,
 	.bp_power = RK30_PIN2_PB7,//RK30_PIN2_PB6,
-	.bp_reset = RK30_PIN4_PD2,
 	.ap_wakeup_bp = RK30_PIN2_PC0,
-	.bp_wakeup_ap = RK30_PIN6_PA0,
+	.bp_wakeup_ap = RK30_PIN2_PB5,
 };
 struct platform_device rk29_device_mt6229 = {	
         .name = "mt6229",	

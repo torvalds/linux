@@ -55,7 +55,7 @@ static void do_wakeup(struct work_struct *work)
 {
       if(suspend_int)
          {
-             gpio_set_value(gpdata->ap_wakeup_bp, 0);
+             //gpio_set_value(gpdata->ap_wakeup_bp, 1);
              suspend_int = 0;
          }
 
@@ -81,12 +81,12 @@ int modem_poweron_off(int on_off)
 		gpio_set_value(pdata->bp_power, GPIO_HIGH);
 		msleep(10);
 		gpio_set_value(pdata->bp_power, GPIO_LOW);
-		gpio_set_value(pdata->ap_wakeup_bp, GPIO_LOW);
+		gpio_set_value(pdata->ap_wakeup_bp, GPIO_HIGH);
   }
   else
   {
 		gpio_set_value(pdata->bp_power, GPIO_HIGH);
-		gpio_set_value(pdata->ap_wakeup_bp, GPIO_HIGH);
+		gpio_set_value(pdata->ap_wakeup_bp, GPIO_LOW);
   }
   return 0;
 }
@@ -171,7 +171,7 @@ static void rk29_early_resume(struct early_suspend *h)
 {
 	 if(suspend_int)
 	{
-        gpio_set_value(gpdata->ap_wakeup_bp, 0);
+        //gpio_set_value(gpdata->ap_wakeup_bp, 1);
 	 suspend_int = 0;
  	}
 }
@@ -249,13 +249,13 @@ int mt6229_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	suspend_int = 1;
 	do_wakeup_irq = 1;
-	ap_wakeup_bp(pdev, 1);
+//	ap_wakeup_bp(pdev, 0);
 	return 0;
 }
 
 int mt6229_resume(struct platform_device *pdev)
 {
-	ap_wakeup_bp(pdev, 0);
+//	ap_wakeup_bp(pdev, 1);
 	return 0;
 }
 
@@ -271,7 +271,6 @@ void mt6229_shutdown(struct platform_device *pdev)
 	cancel_work_sync(&mt6229_data->work);
 	gpio_free(pdata->modem_power_en);
 	gpio_free(pdata->bp_power);
-	gpio_free(pdata->bp_reset);
 	gpio_free(pdata->ap_wakeup_bp);
 	gpio_free(pdata->bp_wakeup_ap);
 	kfree(mt6229_data);
