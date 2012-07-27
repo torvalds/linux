@@ -512,6 +512,7 @@ struct pool {
 
 	dm_block_t low_water_blocks;
 	uint32_t sectors_per_block;
+	int sectors_per_block_shift;
 
 	struct pool_features pf;
 	unsigned low_water_triggered:1;	/* A dm event has been sent */
@@ -679,7 +680,10 @@ static dm_block_t get_bio_block(struct thin_c *tc, struct bio *bio)
 {
 	sector_t block_nr = bio->bi_sector;
 
-	(void) sector_div(block_nr, tc->pool->sectors_per_block);
+	if (tc->pool->sectors_per_block_shift < 0)
+		(void) sector_div(block_nr, tc->pool->sectors_per_block);
+	else
+		block_nr >>= tc->pool->sectors_per_block_shift;
 
 	return block_nr;
 }
@@ -690,8 +694,12 @@ static void remap(struct thin_c *tc, struct bio *bio, dm_block_t block)
 	sector_t bi_sector = bio->bi_sector;
 
 	bio->bi_bdev = tc->pool_dev->bdev;
-	bio->bi_sector = (block * pool->sectors_per_block) +
-			 sector_div(bi_sector, pool->sectors_per_block);
+	if (tc->pool->sectors_per_block_shift < 0)
+		bio->bi_sector = (block * pool->sectors_per_block) +
+				 sector_div(bi_sector, pool->sectors_per_block);
+	else
+		bio->bi_sector = (block << pool->sectors_per_block_shift) |
+				(bi_sector & (pool->sectors_per_block - 1));
 }
 
 static void remap_to_origin(struct thin_c *tc, struct bio *bio)
@@ -936,10 +944,7 @@ static void process_prepared(struct pool *pool, struct list_head *head,
  */
 static int io_overlaps_block(struct pool *pool, struct bio *bio)
 {
-	sector_t bi_sector = bio->bi_sector;
-
-	return !sector_div(bi_sector, pool->sectors_per_block) &&
-		(bio->bi_size == (pool->sectors_per_block << SECTOR_SHIFT));
+	return bio->bi_size == (pool->sectors_per_block << SECTOR_SHIFT);
 }
 
 static int io_overwrites_block(struct pool *pool, struct bio *bio)
@@ -1721,6 +1726,10 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 
 	pool->pmd = pmd;
 	pool->sectors_per_block = block_size;
+	if (block_size & (block_size - 1))
+		pool->sectors_per_block_shift = -1;
+	else
+		pool->sectors_per_block_shift = __ffs(block_size);
 	pool->low_water_blocks = 0;
 	pool_features_init(&pool->pf);
 	pool->prison = prison_create(PRISON_CELLS);
