@@ -1008,8 +1008,6 @@ static ssize_t write_gracetime(struct file *file, char *buf, size_t size)
 	return nfsd4_write_time(file, buf, size, &nfsd4_grace);
 }
 
-extern char *nfs4_recoverydir(void);
-
 static ssize_t __write_recoverydir(struct file *file, char *buf, size_t size)
 {
 	char *mesg = buf;

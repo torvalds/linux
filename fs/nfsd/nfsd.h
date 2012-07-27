@@ -124,6 +124,7 @@ int nfs4_state_start(void);
 void nfs4_state_shutdown(void);
 void nfs4_reset_lease(time_t leasetime);
 int nfs4_reset_recoverydir(char *recdir);
+char * nfs4_recoverydir(void);
 #else
 static inline void nfs4_state_init(void) { }
 static inline int nfsd4_init_slabs(void) { return 0; }
@@ -132,6 +133,7 @@ static inline int nfs4_state_start(void) { return 0; }
 static inline void nfs4_state_shutdown(void) { }
 static inline void nfs4_reset_lease(time_t leasetime) { }
 static inline int nfs4_reset_recoverydir(char *recdir) { return 0; }
+static inline char * nfs4_recoverydir(void) {return NULL; }
 #endif
 
 /*
