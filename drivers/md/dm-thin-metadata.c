@@ -343,6 +343,20 @@ static int subtree_equal(void *context, void *value1_le, void *value2_le)
 
 /*----------------------------------------------------------------*/
 
+static int superblock_lock_zero(struct dm_pool_metadata *pmd,
+				struct dm_block **sblock)
+{
+	return dm_bm_write_lock_zero(pmd->bm, THIN_SUPERBLOCK_LOCATION,
+				     &sb_validator, sblock);
+}
+
+static int superblock_lock(struct dm_pool_metadata *pmd,
+			   struct dm_block **sblock)
+{
+	return dm_bm_write_lock(pmd->bm, THIN_SUPERBLOCK_LOCATION,
+				&sb_validator, sblock);
+}
+
 static int superblock_all_zeroes(struct dm_block_manager *bm, int *result)
 {
 	int r;
@@ -430,22 +444,11 @@ static int init_pmd(struct dm_pool_metadata *pmd,
 			r = PTR_ERR(data_sm);
 			goto bad;
 		}
-
-		/*
-		 * We cycle the superblock to let the validator do its stuff.
-		 */
-		r = dm_bm_write_lock_zero(bm, THIN_SUPERBLOCK_LOCATION, &sb_validator, &sblock);
-		if (r < 0) {
-			DMERR("couldn't lock superblock");
-			goto bad;
-		}
-
-		dm_bm_unlock(sblock);
-
 	} else {
 		struct thin_disk_superblock *disk_super;
 
-		r = dm_bm_read_lock(bm, THIN_SUPERBLOCK_LOCATION, &sb_validator, &sblock);
+		r = dm_bm_read_lock(bm, THIN_SUPERBLOCK_LOCATION,
+				    &sb_validator, &sblock);
 		if (r < 0) {
 			DMERR("couldn't read superblock");
 			return r;
@@ -628,8 +631,7 @@ static int __commit_transaction(struct dm_pool_metadata *pmd)
 	if (r < 0)
 		return r;
 
-	r = dm_bm_write_lock(pmd->bm, THIN_SUPERBLOCK_LOCATION,
-			     &sb_validator, &sblock);
+	r = superblock_lock(pmd, &sblock);
 	if (r)
 		return r;
 
@@ -709,8 +711,7 @@ struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
 	/*
 	 * Create.
 	 */
-	r = dm_bm_write_lock(pmd->bm, THIN_SUPERBLOCK_LOCATION,
-			     &sb_validator, &sblock);
+	r = superblock_lock_zero(pmd, &sblock);
 	if (r)
 		goto bad;
 
@@ -1126,8 +1127,7 @@ static int __reserve_metadata_snap(struct dm_pool_metadata *pmd)
 	/*
 	 * Write the held root into the superblock.
 	 */
-	r = dm_bm_write_lock(pmd->bm, THIN_SUPERBLOCK_LOCATION,
-			     &sb_validator, &sblock);
+	r = superblock_lock(pmd, &sblock);
 	if (r) {
 		dm_tm_dec(pmd->tm, held_root);
 		return r;
@@ -1157,8 +1157,7 @@ static int __release_metadata_snap(struct dm_pool_metadata *pmd)
 	struct dm_block *sblock, *copy;
 	dm_block_t held_root;
 
-	r = dm_bm_write_lock(pmd->bm, THIN_SUPERBLOCK_LOCATION,
-			     &sb_validator, &sblock);
+	r = superblock_lock(pmd, &sblock);
 	if (r)
 		return r;
 
