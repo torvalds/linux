@@ -854,6 +854,7 @@ static int rk_sensor_iomux(int pin)
 
 
 static u64 rockchip_device_camera_dmamask = 0xffffffffUL;
+#if RK_SUPPORT_CIF0
 static struct resource rk_camera_resource_host_0[] = {
 	[0] = {
 		.start = RK30_CIF0_PHYS,
@@ -866,6 +867,8 @@ static struct resource rk_camera_resource_host_0[] = {
 		.flags = IORESOURCE_IRQ,
 	}
 };
+#endif
+#if RK_SUPPORT_CIF1
 static struct resource rk_camera_resource_host_1[] = {
 	[0] = {
 		.start = RK30_CIF1_PHYS,
@@ -878,7 +881,10 @@ static struct resource rk_camera_resource_host_1[] = {
 		.flags = IORESOURCE_IRQ,
 	}
 };
+#endif
+
 /*platform_device : */
+#if RK_SUPPORT_CIF0
  struct platform_device rk_device_camera_host_0 = {
 	.name		  = RK29_CAM_DRV_NAME,
 	.id 	  = RK_CAM_PLATFORM_DEV_ID_0,				/* This is used to put cameras on this interface */
@@ -890,6 +896,9 @@ static struct resource rk_camera_resource_host_1[] = {
 		.platform_data	= &rk_camera_platform_data,
 	}
 };
+#endif
+
+#if RK_SUPPORT_CIF1
 /*platform_device : */
  struct platform_device rk_device_camera_host_1 = {
 	.name		  = RK29_CAM_DRV_NAME,
@@ -902,6 +911,7 @@ static struct resource rk_camera_resource_host_1[] = {
 		.platform_data	= &rk_camera_platform_data,
 	}
 };
+#endif
 
 static void rk_init_camera_plateform_data(void)
 {
@@ -923,8 +933,8 @@ static void rk_init_camera_plateform_data(void)
 
 static void rk30_camera_request_reserve_mem(void)
 {
-#ifdef CONFIG_VIDEO_RK29_WORK_IPP
-    #ifdef VIDEO_RKCIF_WORK_SIMUL_OFF
+#ifdef CONFIG_VIDEO_RK29_WORK_IPP    
+    #if defined(CONFIG_VIDEO_RKCIF_WORK_SIMUL_OFF) || ((RK_SUPPORT_CIF0 && RK_SUPPORT_CIF1) == false)
         rk_camera_platform_data.meminfo.name = "camera_ipp_mem";
         rk_camera_platform_data.meminfo.start = board_mem_reserve_add("camera_ipp_mem",PMEM_CAMIPP_NECESSARY);
         rk_camera_platform_data.meminfo.size= PMEM_CAMIPP_NECESSARY;
@@ -957,16 +967,27 @@ static int rk_register_camera_devices(void)
     host_registered_1 = 0;
     for (i=0; i<RK_CAM_NUM; i++) {
         if (rk_camera_platform_data.register_dev[i].device_info.name) {
+            
             if (rk_camera_platform_data.register_dev[i].link_info.bus_id == RK_CAM_PLATFORM_DEV_ID_0) {
+            #if RK_SUPPORT_CIF0
                 if (!host_registered_0) {
                     platform_device_register(&rk_device_camera_host_0);
                     host_registered_0 = 1;
                 }
-            } else if (rk_camera_platform_data.register_dev[i].link_info.bus_id == RK_CAM_PLATFORM_DEV_ID_1) {
+            #else
+                printk(KERN_ERR "%s(%d) : This chip isn't support CIF0, Please user check ...\n",__FUNCTION__,__LINE__);
+            #endif
+            } 
+
+            if (rk_camera_platform_data.register_dev[i].link_info.bus_id == RK_CAM_PLATFORM_DEV_ID_1) {
+            #if RK_SUPPORT_CIF1
                 if (!host_registered_1) {
                     platform_device_register(&rk_device_camera_host_1);
                     host_registered_1 = 1;
                 }
+            #else
+                printk(KERN_ERR "%s(%d) : This chip isn't support CIF1, Please user check ...\n",__FUNCTION__,__LINE__);
+            #endif
             } 
         }
     }
@@ -977,9 +998,8 @@ static int rk_register_camera_devices(void)
         }
     }
  #if PMEM_CAM_NECESSARY
-            platform_device_register(&android_pmem_cam_device);
+    platform_device_register(&android_pmem_cam_device);
  #endif
-    
 	return 0;
 }
 
