@@ -41,7 +41,7 @@ static struct page_info *alloc_largest_available(unsigned long size)
 	for (i = 0; i < ARRAY_SIZE(orders); i++) {
 		if (size < (1 << orders[i]) * PAGE_SIZE)
 			continue;
-		page = alloc_pages(GFP_HIGHUSER | __GFP_ZERO | __GFP_COMP |
+		page = alloc_pages(GFP_HIGHUSER | __GFP_ZERO |
 				   __GFP_NOWARN | __GFP_NORETRY, orders[i]);
 		if (!page)
 			continue;
