@@ -18,6 +18,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/88pm860x.h>
 #include <linux/regulator/machine.h>
+#include <linux/power/charger-manager.h>
 
 #define INT_STATUS_NUM			3
 
@@ -84,7 +85,8 @@ static struct resource battery_resources[] __devinitdata = {
 static struct resource charger_resources[] __devinitdata = {
 	{PM8607_IRQ_CHG,  PM8607_IRQ_CHG,  "charger detect",  IORESOURCE_IRQ,},
 	{PM8607_IRQ_CHG_DONE,  PM8607_IRQ_CHG_DONE,  "charging done",       IORESOURCE_IRQ,},
-	{PM8607_IRQ_CHG_FAULT, PM8607_IRQ_CHG_FAULT, "charging timeout",    IORESOURCE_IRQ,},
+	{PM8607_IRQ_CHG_FAIL,  PM8607_IRQ_CHG_FAIL,  "charging timeout",    IORESOURCE_IRQ,},
+	{PM8607_IRQ_CHG_FAULT, PM8607_IRQ_CHG_FAULT, "charging fault",	    IORESOURCE_IRQ,},
 	{PM8607_IRQ_GPADC1,    PM8607_IRQ_GPADC1,    "battery temperature", IORESOURCE_IRQ,},
 	{PM8607_IRQ_VBAT, PM8607_IRQ_VBAT, "battery voltage", IORESOURCE_IRQ,},
 	{PM8607_IRQ_VCHG, PM8607_IRQ_VCHG, "vchg voltage",    IORESOURCE_IRQ,},
@@ -155,10 +157,15 @@ static struct regulator_init_data preg_init_data = {
 	.consumer_supplies	= &preg_supply[0],
 };
 
+static struct regulator_bulk_data chg_desc_regulator_data[] = {
+	{ .supply = "preg", },
+};
+
 static struct mfd_cell power_devs[] = {
 	{"88pm860x-battery", -1,},
 	{"88pm860x-charger", -1,},
 	{"88pm860x-preg",    -1,},
+	{"charger-manager", -1,},
 };
 
 static struct mfd_cell rtc_devs[] = {
@@ -791,6 +798,19 @@ static void __devinit device_power_init(struct pm860x_chip *chip,
 			      &preg_resources[0], chip->irq_base);
 	if (ret < 0)
 		dev_err(chip->dev, "Failed to add preg subdev\n");
+
+	if (pdata->chg_desc) {
+		pdata->chg_desc->charger_regulators =
+			&chg_desc_regulator_data[0];
+		pdata->chg_desc->num_charger_regulators	=
+			ARRAY_SIZE(chg_desc_regulator_data),
+		power_devs[3].platform_data = pdata->chg_desc;
+		power_devs[3].pdata_size = sizeof(*pdata->chg_desc);
+		ret = mfd_add_devices(chip->dev, 0, &power_devs[3], 1,
+				      NULL, chip->irq_base);
+		if (ret < 0)
+			dev_err(chip->dev, "Failed to add chg-manager subdev\n");
+	}
 }
 
 static void __devinit device_onkey_init(struct pm860x_chip *chip,

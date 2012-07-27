@@ -55,6 +55,21 @@ enum {
 #define PM8606_DCM_BOOST		(0x00)
 #define PM8606_PWM			(0x01)
 
+#define PM8607_MISC2			(0x42)
+
+/* Power Up Log Register */
+#define PM8607_POWER_UP_LOG		(0x3F)
+
+/* Charger Control Registers */
+#define PM8607_CCNT			(0x47)
+#define PM8607_CHG_CTRL1		(0x48)
+#define PM8607_CHG_CTRL2		(0x49)
+#define PM8607_CHG_CTRL3		(0x4A)
+#define PM8607_CHG_CTRL4		(0x4B)
+#define PM8607_CHG_CTRL5		(0x4C)
+#define PM8607_CHG_CTRL6		(0x4D)
+#define PM8607_CHG_CTRL7		(0x4E)
+
 /* Backlight Registers */
 #define PM8606_WLED1A			(0x02)
 #define PM8606_WLED1B			(0x03)
@@ -204,6 +219,71 @@ enum {
 #define PM8607_TSI_PREBIAS		(0x55)	/* prebias time */
 #define PM8607_PD_PREBIAS		(0x56)	/* prebias time */
 #define PM8607_GPADC_MISC1		(0x57)
+
+/* bit definitions of  MEAS_EN1*/
+#define PM8607_MEAS_EN1_VBAT		(1 << 0)
+#define PM8607_MEAS_EN1_VCHG		(1 << 1)
+#define PM8607_MEAS_EN1_VSYS		(1 << 2)
+#define PM8607_MEAS_EN1_TINT		(1 << 3)
+#define PM8607_MEAS_EN1_RFTMP		(1 << 4)
+#define PM8607_MEAS_EN1_TBAT		(1 << 5)
+#define PM8607_MEAS_EN1_GPADC2		(1 << 6)
+#define PM8607_MEAS_EN1_GPADC3		(1 << 7)
+
+/* Battery Monitor Registers */
+#define PM8607_GP_BIAS2			(0x5A)
+#define PM8607_VBAT_LOWTH		(0x5B)
+#define PM8607_VCHG_LOWTH		(0x5C)
+#define PM8607_VSYS_LOWTH		(0x5D)
+#define PM8607_TINT_LOWTH		(0x5E)
+#define PM8607_GPADC0_LOWTH		(0x5F)
+#define PM8607_GPADC1_LOWTH		(0x60)
+#define PM8607_GPADC2_LOWTH		(0x61)
+#define PM8607_GPADC3_LOWTH		(0x62)
+#define PM8607_VBAT_HIGHTH		(0x63)
+#define PM8607_VCHG_HIGHTH		(0x64)
+#define PM8607_VSYS_HIGHTH		(0x65)
+#define PM8607_TINT_HIGHTH		(0x66)
+#define PM8607_GPADC0_HIGHTH		(0x67)
+#define PM8607_GPADC1_HIGHTH		(0x68)
+#define PM8607_GPADC2_HIGHTH		(0x69)
+#define PM8607_GPADC3_HIGHTH		(0x6A)
+#define PM8607_IBAT_MEAS1		(0x6B)
+#define PM8607_IBAT_MEAS2		(0x6C)
+#define PM8607_VBAT_MEAS1		(0x6D)
+#define PM8607_VBAT_MEAS2		(0x6E)
+#define PM8607_VCHG_MEAS1		(0x6F)
+#define PM8607_VCHG_MEAS2		(0x70)
+#define PM8607_VSYS_MEAS1		(0x71)
+#define PM8607_VSYS_MEAS2		(0x72)
+#define PM8607_TINT_MEAS1		(0x73)
+#define PM8607_TINT_MEAS2		(0x74)
+#define PM8607_GPADC0_MEAS1		(0x75)
+#define PM8607_GPADC0_MEAS2		(0x76)
+#define PM8607_GPADC1_MEAS1		(0x77)
+#define PM8607_GPADC1_MEAS2		(0x78)
+#define PM8607_GPADC2_MEAS1		(0x79)
+#define PM8607_GPADC2_MEAS2		(0x7A)
+#define PM8607_GPADC3_MEAS1		(0x7B)
+#define PM8607_GPADC3_MEAS2		(0x7C)
+#define PM8607_CCNT_MEAS1		(0x95)
+#define PM8607_CCNT_MEAS2		(0x96)
+#define PM8607_VBAT_AVG			(0x97)
+#define PM8607_VCHG_AVG			(0x98)
+#define PM8607_VSYS_AVG			(0x99)
+#define PM8607_VBAT_MIN			(0x9A)
+#define PM8607_VCHG_MIN			(0x9B)
+#define PM8607_VSYS_MIN			(0x9C)
+#define PM8607_VBAT_MAX			(0x9D)
+#define PM8607_VCHG_MAX			(0x9E)
+#define PM8607_VSYS_MAX			(0x9F)
+
+#define PM8607_GPADC_MISC2		(0x59)
+#define PM8607_GPADC0_GP_BIAS_A0	(1 << 0)
+#define PM8607_GPADC1_GP_BIAS_A1	(1 << 1)
+#define PM8607_GPADC2_GP_BIAS_A2	(1 << 2)
+#define PM8607_GPADC3_GP_BIAS_A3	(1 << 3)
+#define PM8607_GPADC2_GP_BIAS_OUT2	(1 << 6)
 
 /* RTC Control Registers */
 #define PM8607_RTC1			(0xA0)
@@ -370,7 +450,8 @@ struct pm860x_touch_pdata {
 };
 
 struct pm860x_power_pdata {
-	unsigned	fast_charge;	/* charge current */
+	int		max_capacity;
+	int		resistor;
 };
 
 struct pm860x_platform_data {
@@ -379,6 +460,7 @@ struct pm860x_platform_data {
 	struct pm860x_rtc_pdata		*rtc;
 	struct pm860x_touch_pdata	*touch;
 	struct pm860x_power_pdata	*power;
+	struct charger_desc		*chg_desc;
 	struct regulator_init_data	*regulator;
 
 	unsigned short	companion_addr;	/* I2C address of companion chip */
