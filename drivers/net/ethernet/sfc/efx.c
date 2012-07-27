@@ -1767,8 +1767,6 @@ static int efx_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct mii_ioctl_data *data = if_mii(ifr);
 
-	EFX_ASSERT_RESET_SERIALISED(efx);
-
 	/* Convert phy_id from older PRTAD/DEVAD format */
 	if ((cmd == SIOCGMIIREG || cmd == SIOCSMIIREG) &&
 	    (data->phy_id & 0xfc00) == 0x0400)
@@ -1849,8 +1847,6 @@ static int efx_net_open(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
-
-	EFX_ASSERT_RESET_SERIALISED(efx);
 
 	netif_dbg(efx, ifup, efx->net_dev, "opening device on CPU %d\n",
 		  raw_smp_processor_id());
@@ -1946,8 +1942,6 @@ static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
 
-	EFX_ASSERT_RESET_SERIALISED(efx);
-
 	rc = efx_check_disabled(efx);
 	if (rc)
 		return rc;
@@ -1974,8 +1968,6 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct sockaddr *addr = data;
 	char *new_addr = addr->sa_data;
-
-	EFX_ASSERT_RESET_SERIALISED(efx);
 
 	if (!is_valid_ether_addr(new_addr)) {
 		netif_err(efx, drv, efx->net_dev,
