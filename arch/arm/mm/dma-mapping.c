@@ -961,7 +961,7 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size, gfp_t
 
 	return pages;
 error:
-	while (--i)
+	while (i--)
 		if (pages[i])
 			__free_pages(pages[i], 0);
 	if (array_size <= PAGE_SIZE)
