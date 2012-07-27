@@ -597,31 +597,31 @@ static int __commit_transaction(struct dm_pool_metadata *pmd)
 
 	r = __write_changed_details(pmd);
 	if (r < 0)
-		goto out;
+		return r;
 
 	if (!pmd->need_commit)
-		goto out;
+		return r;
 
 	r = dm_sm_commit(pmd->data_sm);
 	if (r < 0)
-		goto out;
+		return r;
 
 	r = dm_tm_pre_commit(pmd->tm);
 	if (r < 0)
-		goto out;
+		return r;
 
 	r = dm_sm_root_size(pmd->metadata_sm, &metadata_len);
 	if (r < 0)
-		goto out;
+		return r;
 
 	r = dm_sm_root_size(pmd->data_sm, &data_len);
 	if (r < 0)
-		goto out;
+		return r;
 
 	r = dm_bm_write_lock(pmd->bm, THIN_SUPERBLOCK_LOCATION,
 			     &sb_validator, &sblock);
 	if (r)
-		goto out;
+		return r;
 
 	disk_super = dm_block_data(sblock);
 	disk_super->time = cpu_to_le32(pmd->time);
@@ -644,7 +644,6 @@ static int __commit_transaction(struct dm_pool_metadata *pmd)
 	if (!r)
 		pmd->need_commit = 0;
 
-out:
 	return r;
 
 out_locked:
