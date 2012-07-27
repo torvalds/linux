@@ -570,12 +570,6 @@ static void locks_delete_lock(struct file_lock **thisfl_p)
 	fl->fl_next = NULL;
 	list_del_init(&fl->fl_link);
 
-	fasync_helper(0, fl->fl_file, 0, &fl->fl_fasync);
-	if (fl->fl_fasync != NULL) {
-		printk(KERN_ERR "locks_delete_lock: fasync == %p\n", fl->fl_fasync);
-		fl->fl_fasync = NULL;
-	}
-
 	if (fl->fl_nspid) {
 		put_pid(fl->fl_nspid);
 		fl->fl_nspid = NULL;
@@ -1150,6 +1144,11 @@ int lease_modify(struct file_lock **before, int arg)
 
 		f_delown(filp);
 		filp->f_owner.signum = 0;
+		fasync_helper(0, fl->fl_file, 0, &fl->fl_fasync);
+		if (fl->fl_fasync != NULL) {
+			printk(KERN_ERR "locks_delete_lock: fasync == %p\n", fl->fl_fasync);
+			fl->fl_fasync = NULL;
+		}
 		locks_delete_lock(before);
 	}
 	return 0;
