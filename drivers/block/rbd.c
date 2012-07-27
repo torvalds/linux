@@ -494,17 +494,21 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 				 u32 allocated_snaps)
 {
 	u32 snap_count;
+	size_t size;
 
 	if (!rbd_dev_ondisk_valid(ondisk))
 		return -ENXIO;
 
 	snap_count = le32_to_cpu(ondisk->snap_count);
-	if (snap_count > (SIZE_MAX - sizeof(struct ceph_snap_context))
-				 / sizeof (u64))
+
+	/* Make sure we don't overflow below */
+	size = SIZE_MAX - sizeof (struct ceph_snap_context);
+	if (snap_count > size / sizeof (header->snapc->snaps[0]))
 		return -EINVAL;
-	header->snapc = kmalloc(sizeof(struct ceph_snap_context) +
-				snap_count * sizeof(u64),
-				GFP_KERNEL);
+
+	size = sizeof (struct ceph_snap_context);
+	size += snap_count * sizeof (header->snapc->snaps[0]);
+	header->snapc = kmalloc(size, GFP_KERNEL);
 	if (!header->snapc)
 		return -ENOMEM;
 
@@ -515,8 +519,8 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 					     GFP_KERNEL);
 		if (!header->snap_names)
 			goto err_snapc;
-		header->snap_sizes = kmalloc(snap_count * sizeof(u64),
-					     GFP_KERNEL);
+		size = snap_count * sizeof (*header->snap_sizes);
+		header->snap_sizes = kmalloc(size, GFP_KERNEL);
 		if (!header->snap_sizes)
 			goto err_names;
 	} else {
@@ -526,14 +530,12 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 		header->snap_sizes = NULL;
 	}
 
-	header->object_prefix = kmalloc(sizeof (ondisk->block_name) + 1,
-					GFP_KERNEL);
+	size = sizeof (ondisk->block_name) + 1;
+	header->object_prefix = kmalloc(size, GFP_KERNEL);
 	if (!header->object_prefix)
 		goto err_sizes;
-
-	memcpy(header->object_prefix, ondisk->block_name,
-	       sizeof(ondisk->block_name));
-	header->object_prefix[sizeof (ondisk->block_name)] = '\0';
+	memcpy(header->object_prefix, ondisk->block_name, size - 1);
+	header->object_prefix[size - 1] = '\0';
 
 	header->image_size = le64_to_cpu(ondisk->image_size);
 	header->obj_order = ondisk->options.order;
