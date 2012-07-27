@@ -2164,9 +2164,9 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
 	efx_stop_all(efx);
-	mutex_lock(&efx->mac_lock);
-
 	efx_stop_interrupts(efx, false);
+
+	mutex_lock(&efx->mac_lock);
 	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE)
 		efx->phy_op->fini(efx);
 	efx->type->fini(efx);
@@ -2492,11 +2492,11 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	rtnl_lock();
 	efx->state = STATE_UNINIT;
 	dev_close(efx->net_dev);
+	efx_stop_interrupts(efx, false);
 
 	/* Allow any queued efx_resets() to complete */
 	rtnl_unlock();
 
-	efx_stop_interrupts(efx, false);
 	efx_sriov_fini(efx);
 	efx_unregister_netdev(efx);
 
