@@ -540,7 +540,14 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	header->comp_type = ondisk->options.comp_type;
 	header->total_snaps = snap_count;
 
-	/* Set up the snapshot context */
+	/*
+	 * If the number of snapshot ids provided by the caller
+	 * doesn't match the number in the entire context there's
+	 * no point in going further.  Caller will try again after
+	 * getting an updated snapshot context from the server.
+	 */
+	if (allocated_snaps != snap_count)
+		return 0;
 
 	size = sizeof (struct ceph_snap_context);
 	size += snap_count * sizeof (header->snapc->snaps[0]);
@@ -552,8 +559,10 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	header->snapc->seq = le64_to_cpu(ondisk->snap_seq);
 	header->snapc->num_snaps = snap_count;
 
-	if (snap_count && allocated_snaps == snap_count) {
-		int i;
+	/* Fill in the snapshot information */
+
+	if (snap_count) {
+		u32 i;
 
 		for (i = 0; i < snap_count; i++) {
 			header->snapc->snaps[i] =
