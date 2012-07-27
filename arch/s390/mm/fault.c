@@ -49,6 +49,7 @@
 #define VM_FAULT_BADCONTEXT	0x010000
 #define VM_FAULT_BADMAP		0x020000
 #define VM_FAULT_BADACCESS	0x040000
+#define VM_FAULT_SIGNAL	0x080000
 
 static unsigned long store_indication;
 
@@ -229,6 +230,10 @@ static noinline void do_fault_error(struct pt_regs *regs, int fault)
 	case VM_FAULT_BADCONTEXT:
 		do_no_context(regs);
 		break;
+	case VM_FAULT_SIGNAL:
+		if (!user_mode(regs))
+			do_no_context(regs);
+		break;
 	default: /* fault & VM_FAULT_ERROR */
 		if (fault & VM_FAULT_OOM) {
 			if (!(regs->psw.mask & PSW_MASK_PSTATE))
@@ -286,7 +291,7 @@ static inline int do_exception(struct pt_regs *regs, int access)
 
 	address = trans_exc_code & __FAIL_ADDR_MASK;
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
-	flags = FAULT_FLAG_ALLOW_RETRY;
+	flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 	if (access == VM_WRITE || (trans_exc_code & store_indication) == 0x400)
 		flags |= FAULT_FLAG_WRITE;
 	down_read(&mm->mmap_sem);
@@ -335,6 +340,11 @@ retry:
 	 * the fault.
 	 */
 	fault = handle_mm_fault(mm, vma, address, flags);
+	/* No reason to continue if interrupted by SIGKILL. */
+	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current)) {
+		fault = VM_FAULT_SIGNAL;
+		goto out;
+	}
 	if (unlikely(fault & VM_FAULT_ERROR))
 		goto out_up;
 
