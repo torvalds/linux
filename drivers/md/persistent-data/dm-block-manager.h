@@ -97,14 +97,6 @@ int dm_bm_write_lock_zero(struct dm_block_manager *bm, dm_block_t b,
 int dm_bm_unlock(struct dm_block *b);
 
 /*
- * An optimisation; we often want to copy a block's contents to a new
- * block.  eg, as part of the shadowing operation.  It's far better for
- * bufio to do this move behind the scenes than hold 2 locks and memcpy the
- * data.
- */
-int dm_bm_unlock_move(struct dm_block *b, dm_block_t n);
-
-/*
  * It's a common idiom to have a superblock that should be committed last.
  *
  * @superblock should be write-locked on entry. It will be unlocked during
