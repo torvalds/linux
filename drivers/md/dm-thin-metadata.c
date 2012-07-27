@@ -485,57 +485,22 @@ bad_locked:
 	return r;
 }
 
-static int __open_or_format_metadata(struct dm_pool_metadata *pmd,
-				     dm_block_t nr_blocks, int create)
+static int __format_metadata(struct dm_pool_metadata *pmd, dm_block_t nr_blocks)
 {
 	int r;
-	struct dm_block *sblock;
 
-	if (create) {
-		r = dm_tm_create_with_sm(pmd->bm, THIN_SUPERBLOCK_LOCATION,
-					 &pmd->tm, &pmd->metadata_sm);
-		if (r < 0) {
-			DMERR("tm_create_with_sm failed");
-			return r;
-		}
+	r = dm_tm_create_with_sm(pmd->bm, THIN_SUPERBLOCK_LOCATION,
+				 &pmd->tm, &pmd->metadata_sm);
+	if (r < 0) {
+		DMERR("tm_create_with_sm failed");
+		return r;
+	}
 
-		pmd->data_sm = dm_sm_disk_create(pmd->tm, nr_blocks);
-		if (IS_ERR(pmd->data_sm)) {
-			DMERR("sm_disk_create failed");
-			r = PTR_ERR(pmd->data_sm);
-			goto bad;
-		}
-	} else {
-		struct thin_disk_superblock *disk_super;
-
-		r = dm_bm_read_lock(pmd->bm, THIN_SUPERBLOCK_LOCATION,
-				    &sb_validator, &sblock);
-		if (r < 0) {
-			DMERR("couldn't read superblock");
-			return r;
-		}
-
-		disk_super = dm_block_data(sblock);
-		r = dm_tm_open_with_sm(pmd->bm, THIN_SUPERBLOCK_LOCATION,
-				       disk_super->metadata_space_map_root,
-				       sizeof(disk_super->metadata_space_map_root),
-				       &pmd->tm, &pmd->metadata_sm);
-		if (r < 0) {
-			DMERR("tm_open_with_sm failed");
-			dm_bm_unlock(sblock);
-			return r;
-		}
-
-		pmd->data_sm = dm_sm_disk_open(pmd->tm, disk_super->data_space_map_root,
-					       sizeof(disk_super->data_space_map_root));
-		if (IS_ERR(pmd->data_sm)) {
-			DMERR("sm_disk_open failed");
-			dm_bm_unlock(sblock);
-			r = PTR_ERR(pmd->data_sm);
-			goto bad;
-		}
-
-		dm_bm_unlock(sblock);
+	pmd->data_sm = dm_sm_disk_create(pmd->tm, nr_blocks);
+	if (IS_ERR(pmd->data_sm)) {
+		DMERR("sm_disk_create failed");
+		r = PTR_ERR(pmd->data_sm);
+		goto bad;
 	}
 
 	pmd->nb_tm = dm_tm_create_non_blocking_clone(pmd->tm);
@@ -551,9 +516,6 @@ static int __open_or_format_metadata(struct dm_pool_metadata *pmd,
 	pmd->details_root = 0;
 	pmd->trans_id = 0;
 	pmd->flags = 0;
-
-	if (!create)
-		return 0;
 
 	r = dm_btree_empty(&pmd->info, &pmd->root);
 	if (r < 0)
@@ -578,6 +540,68 @@ bad:
 	dm_sm_destroy(pmd->metadata_sm);
 
 	return r;
+}
+
+static int __open_metadata(struct dm_pool_metadata *pmd)
+{
+	int r;
+	struct dm_block *sblock;
+	struct thin_disk_superblock *disk_super;
+
+	r = dm_bm_read_lock(pmd->bm, THIN_SUPERBLOCK_LOCATION,
+			    &sb_validator, &sblock);
+	if (r < 0) {
+		DMERR("couldn't read superblock");
+		return r;
+	}
+
+	disk_super = dm_block_data(sblock);
+	r = dm_tm_open_with_sm(pmd->bm, THIN_SUPERBLOCK_LOCATION,
+			       disk_super->metadata_space_map_root,
+			       sizeof(disk_super->metadata_space_map_root),
+			       &pmd->tm, &pmd->metadata_sm);
+	if (r < 0) {
+		DMERR("tm_open_with_sm failed");
+		dm_bm_unlock(sblock);
+		return r;
+	}
+
+	pmd->data_sm = dm_sm_disk_open(pmd->tm, disk_super->data_space_map_root,
+				       sizeof(disk_super->data_space_map_root));
+	if (IS_ERR(pmd->data_sm)) {
+		DMERR("sm_disk_open failed");
+		dm_bm_unlock(sblock);
+		r = PTR_ERR(pmd->data_sm);
+		goto bad;
+	}
+
+	dm_bm_unlock(sblock);
+
+	pmd->nb_tm = dm_tm_create_non_blocking_clone(pmd->tm);
+	if (!pmd->nb_tm) {
+		DMERR("could not create clone tm");
+		r = -ENOMEM;
+		goto bad_data_sm;
+	}
+
+	__setup_btree_details(pmd);
+
+bad_data_sm:
+	dm_sm_destroy(pmd->data_sm);
+bad:
+	dm_tm_destroy(pmd->tm);
+	dm_sm_destroy(pmd->metadata_sm);
+
+	return r;
+}
+
+static int __open_or_format_metadata(struct dm_pool_metadata *pmd,
+				     dm_block_t nr_blocks, int create)
+{
+	if (create)
+		return __format_metadata(pmd, nr_blocks);
+	else
+		return __open_metadata(pmd);
 }
 
 static int __create_persistent_data_objects(struct dm_pool_metadata *pmd,
