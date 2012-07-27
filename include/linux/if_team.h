@@ -68,6 +68,8 @@ struct team_port {
 #endif
 
 	s32 priority; /* lower number ~ higher priority */
+	u16 queue_id;
+	struct list_head qom_list; /* node in queue override mapping list */
 	long mode_priv[0];
 };
 
@@ -200,6 +202,8 @@ struct team {
 
 	const struct team_mode *mode;
 	struct team_mode_ops ops;
+	bool queue_override_enabled;
+	struct list_head *qom_lists; /* array of queue override mapping lists */
 	long mode_priv[TEAM_MODE_PRIV_LONGS];
 };
 
