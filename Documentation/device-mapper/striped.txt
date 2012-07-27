@@ -16,8 +16,7 @@ Parameters: <num devs> <chunk size> [<dev path> <offset>]+
     <offset>: Starting sector within the device.
 
 One or more underlying devices can be specified. The striped device size must
-be a multiple of the chunk size and a multiple of the number of underlying
-devices.
+be a multiple of the chunk size multiplied by the number of underlying devices.
 
 
 Example scripts
