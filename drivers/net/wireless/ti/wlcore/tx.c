@@ -130,16 +130,13 @@ bool wl12xx_is_dummy_packet(struct wl1271 *wl, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(wl12xx_is_dummy_packet);
 
-u8 wl12xx_tx_get_hlid_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif,
-			 struct sk_buff *skb)
+static u8 wl12xx_tx_get_hlid_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+				struct sk_buff *skb, struct ieee80211_sta *sta)
 {
-	struct ieee80211_tx_info *control = IEEE80211_SKB_CB(skb);
-
-	if (control->control.sta) {
+	if (sta) {
 		struct wl1271_station *wl_sta;
 
-		wl_sta = (struct wl1271_station *)
-				control->control.sta->drv_priv;
+		wl_sta = (struct wl1271_station *)sta->drv_priv;
 		return wl_sta->hlid;
 	} else {
 		struct ieee80211_hdr *hdr;
@@ -156,7 +153,7 @@ u8 wl12xx_tx_get_hlid_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 }
 
 u8 wl12xx_tx_get_hlid(struct wl1271 *wl, struct wl12xx_vif *wlvif,
-		      struct sk_buff *skb)
+		      struct sk_buff *skb, struct ieee80211_sta *sta)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
@@ -164,7 +161,7 @@ u8 wl12xx_tx_get_hlid(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		return wl->system_hlid;
 
 	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
-		return wl12xx_tx_get_hlid_ap(wl, wlvif, skb);
+		return wl12xx_tx_get_hlid_ap(wl, wlvif, skb, sta);
 
 	if ((test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags) ||
 	     test_bit(WLVIF_FLAG_IBSS_JOINED, &wlvif->flags)) &&

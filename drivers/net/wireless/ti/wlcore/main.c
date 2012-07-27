@@ -1197,7 +1197,7 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	mapping = skb_get_queue_mapping(skb);
 	q = wl1271_tx_get_queue(mapping);
 
-	hlid = wl12xx_tx_get_hlid(wl, wlvif, skb);
+	hlid = wl12xx_tx_get_hlid(wl, wlvif, skb, info->control.sta);
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
 
