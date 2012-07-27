@@ -441,12 +441,9 @@ void ath6kl_connect_ap_mode_bss(struct ath6kl_vif *vif, u16 channel)
 		break;
 	}
 
-	if (ar->want_ch_switch & (1 << vif->fw_vif_idx)) {
-		ar->want_ch_switch &= ~(1 << vif->fw_vif_idx);
+	if (ar->last_ch != channel)
 		/* we actually don't know the phymode, default to HT20 */
-		ath6kl_cfg80211_ch_switch_notify(vif, channel,
-						 WMI_11G_HT20);
-	}
+		ath6kl_cfg80211_ch_switch_notify(vif, channel, WMI_11G_HT20);
 
 	ath6kl_wmi_bssfilter_cmd(ar->wmi, vif->fw_vif_idx, NONE_BSS_FILTER, 0);
 	set_bit(CONNECTED, &vif->flags);
@@ -632,6 +629,9 @@ static void ath6kl_check_ch_switch(struct ath6kl *ar, u16 channel)
 	list_for_each_entry(vif, &ar->vif_list, list) {
 		if (ar->want_ch_switch & (1 << vif->fw_vif_idx))
 			res = ath6kl_commit_ch_switch(vif, channel);
+
+		/* if channel switch failed, oh well we tried */
+		ar->want_ch_switch &= ~(1 << vif->fw_vif_idx);
 
 		if (res)
 			ath6kl_err("channel switch failed nw_type %d res %d\n",
@@ -986,8 +986,11 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 	if (vif->nw_type == AP_NETWORK) {
 		/* disconnect due to other STA vif switching channels */
 		if (reason == BSS_DISCONNECTED &&
-		    prot_reason_status == WMI_AP_REASON_STA_ROAM)
+		    prot_reason_status == WMI_AP_REASON_STA_ROAM) {
 			ar->want_ch_switch |= 1 << vif->fw_vif_idx;
+			/* bail back to this channel if STA vif fails connect */
+			ar->last_ch = le16_to_cpu(vif->profile.ch);
+		}
 
 		if (!ath6kl_remove_sta(ar, bssid, prot_reason_status))
 			return;
@@ -1045,6 +1048,9 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 			return;
 		}
 	}
+
+	/* restart disconnected concurrent vifs waiting for new channel */
+	ath6kl_check_ch_switch(ar, ar->last_ch);
 
 	/* update connect & link status atomically */
 	spin_lock_bh(&vif->if_lock);

@@ -699,6 +699,7 @@ struct ath6kl {
 	struct ath6kl_req_key ap_mode_bkey;
 	struct sk_buff_head mcastpsq;
 	u32 want_ch_switch;
+	u16 last_ch;
 
 	/*
 	 * FIXME: protects access to mcastpsq but is actually useless as
