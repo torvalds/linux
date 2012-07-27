@@ -55,21 +55,26 @@
 /* LATCH is used in the interval timer and ftape setup. */
 # define LATCH ((CLOCK_TICK_RATE + HZ/2) / HZ)	/* For divider */
 
-/* HZ is the requested value. ACTHZ is actual HZ ("<< 8" is for accuracy) */
-# define ACTHZ (SH_DIV(CLOCK_TICK_RATE, LATCH, 8))
+/*
+ * HZ is the requested value. However the CLOCK_TICK_RATE may not allow
+ * for exactly HZ. So SHIFTED_HZ is high res HZ ("<< 8" is for accuracy)
+ */
+# define SHIFTED_HZ (SH_DIV(CLOCK_TICK_RATE, LATCH, 8))
 #else
-# define ACTHZ (HZ << 8)
+# define SHIFTED_HZ (HZ << 8)
 #endif
 
-/* TICK_NSEC is the time between ticks in nsec assuming real ACTHZ */
-#define TICK_NSEC (SH_DIV (1000000UL * 1000, ACTHZ, 8))
+/* TICK_NSEC is the time between ticks in nsec assuming SHIFTED_HZ */
+#define TICK_NSEC (SH_DIV(1000000UL * 1000, SHIFTED_HZ, 8))
 
 /* TICK_USEC is the time between ticks in usec assuming fake USER_HZ */
 #define TICK_USEC ((1000000UL + USER_HZ/2) / USER_HZ)
 
-/* TICK_USEC_TO_NSEC is the time between ticks in nsec assuming real ACTHZ and	*/
-/* a value TUSEC for TICK_USEC (can be set bij adjtimex)		*/
-#define TICK_USEC_TO_NSEC(TUSEC) (SH_DIV (TUSEC * USER_HZ * 1000, ACTHZ, 8))
+/*
+ * TICK_USEC_TO_NSEC is the time between ticks in nsec assuming SHIFTED_HZ and
+ * a value TUSEC for TICK_USEC (can be set bij adjtimex)
+ */
+#define TICK_USEC_TO_NSEC(TUSEC) (SH_DIV(TUSEC * USER_HZ * 1000, SHIFTED_HZ, 8))
 
 /* some arch's have a small-data section that can be accessed register-relative
  * but that can only take up to, say, 4-byte variables. jiffies being part of
