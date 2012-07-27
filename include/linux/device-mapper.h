@@ -212,6 +212,12 @@ struct dm_target {
 	char *error;
 
 	/*
+	 * Set if this target needs to receive flushes regardless of
+	 * whether or not its underlying devices have support.
+	 */
+	bool flush_supported:1;
+
+	/*
 	 * Set if this target needs to receive discards regardless of
 	 * whether or not its underlying devices have support.
 	 */
