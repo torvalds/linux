@@ -1733,7 +1733,7 @@ static int crypt_map(struct dm_target *ti, struct bio *bio,
 }
 
 static int crypt_status(struct dm_target *ti, status_type_t type,
-			char *result, unsigned int maxlen)
+			unsigned status_flags, char *result, unsigned maxlen)
 {
 	struct crypt_config *cc = ti->private;
 	unsigned int sz = 0;

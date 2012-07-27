@@ -5,6 +5,7 @@
  */
 
 #include "dm-thin-metadata.h"
+#include "dm.h"
 
 #include <linux/device-mapper.h>
 #include <linux/dm-io.h>
@@ -2619,7 +2620,7 @@ static void emit_flags(struct pool_features *pf, char *result,
  *    <used data sectors>/<total data sectors> <held metadata root>
  */
 static int pool_status(struct dm_target *ti, status_type_t type,
-		       char *result, unsigned maxlen)
+		       unsigned status_flags, char *result, unsigned maxlen)
 {
 	int r;
 	unsigned sz = 0;
@@ -2640,6 +2641,10 @@ static int pool_status(struct dm_target *ti, status_type_t type,
 			DMEMIT("Fail");
 			break;
 		}
+
+		/* Commit to ensure statistics aren't out-of-date */
+		if (!(status_flags & DM_STATUS_NOFLUSH_FLAG) && !dm_suspended(ti))
+			(void) commit_or_fallback(pool);
 
 		r = dm_pool_get_metadata_transaction_id(pool->pmd,
 							&transaction_id);
@@ -2968,7 +2973,7 @@ static void thin_postsuspend(struct dm_target *ti)
  * <nr mapped sectors> <highest mapped sector>
  */
 static int thin_status(struct dm_target *ti, status_type_t type,
-		       char *result, unsigned maxlen)
+		       unsigned status_flags, char *result, unsigned maxlen)
 {
 	int r;
 	ssize_t sz = 0;

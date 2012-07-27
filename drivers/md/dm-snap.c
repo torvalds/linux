@@ -1849,7 +1849,7 @@ static void snapshot_merge_resume(struct dm_target *ti)
 }
 
 static int snapshot_status(struct dm_target *ti, status_type_t type,
-			   char *result, unsigned int maxlen)
+			   unsigned status_flags, char *result, unsigned maxlen)
 {
 	unsigned sz = 0;
 	struct dm_snapshot *snap = ti->private;
@@ -2151,8 +2151,8 @@ static void origin_resume(struct dm_target *ti)
 	ti->max_io_len = get_origin_minimum_chunksize(dev->bdev);
 }
 
-static int origin_status(struct dm_target *ti, status_type_t type, char *result,
-			 unsigned int maxlen)
+static int origin_status(struct dm_target *ti, status_type_t type,
+			 unsigned status_flags, char *result, unsigned maxlen)
 {
 	struct dm_dev *dev = ti->private;
 
