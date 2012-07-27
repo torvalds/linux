@@ -566,7 +566,7 @@ static struct hci_conn *hci_connect_sco(struct hci_dev *hdev, bdaddr_t *dst,
 struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
 			     __u8 dst_type, __u8 sec_level, __u8 auth_type)
 {
-	BT_DBG("%s dst %s", hdev->name, batostr(dst));
+	BT_DBG("%s dst %s type 0x%x", hdev->name, batostr(dst), type);
 
 	switch (type) {
 	case LE_LINK:
