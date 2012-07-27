@@ -1127,6 +1127,10 @@ err_unreg_ecb:
 	crypto_unregister_alg(&mv_aes_alg_ecb);
 err_irq:
 	free_irq(irq, cp);
+	if (!IS_ERR(cp->clk)) {
+		clk_disable_unprepare(cp->clk);
+		clk_put(cp->clk);
+	}
 err_thread:
 	kthread_stop(cp->queue_th);
 err_unmap_sram:
