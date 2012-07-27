@@ -2554,10 +2554,10 @@ static ssize_t rbd_add(struct bus_type *bus,
 
 	options = kmalloc(count, GFP_KERNEL);
 	if (!options)
-		goto err_nomem;
+		goto err_out_mem;
 	rbd_dev = kzalloc(sizeof(*rbd_dev), GFP_KERNEL);
 	if (!rbd_dev)
-		goto err_nomem;
+		goto err_out_mem;
 
 	/* static rbd_device initialization */
 	spin_lock_init(&rbd_dev->lock);
@@ -2565,25 +2565,17 @@ static ssize_t rbd_add(struct bus_type *bus,
 	INIT_LIST_HEAD(&rbd_dev->snaps);
 	init_rwsem(&rbd_dev->header_rwsem);
 
-	/* generate unique id: find highest unique id, add one */
-	rbd_dev_id_get(rbd_dev);
-
-	/* Fill in the device name, now that we have its id. */
-	BUILD_BUG_ON(DEV_NAME_LEN
-			< sizeof (RBD_DRV_NAME) + MAX_INT_FORMAT_WIDTH);
-	sprintf(rbd_dev->name, "%s%d", RBD_DRV_NAME, rbd_dev->dev_id);
-
 	/* parse add command */
 	snap_name = rbd_add_parse_args(rbd_dev, buf,
 				&mon_addrs, &mon_addrs_size, options, count);
 	if (IS_ERR(snap_name)) {
 		rc = PTR_ERR(snap_name);
-		goto err_put_id;
+		goto err_out_mem;
 	}
 
 	rc = rbd_get_client(rbd_dev, mon_addrs, mon_addrs_size - 1, options);
 	if (rc < 0)
-		goto err_put_id;
+		goto err_out_args;
 
 	/* pick the pool */
 	osdc = &rbd_dev->rbd_client->client->osdc;
@@ -2616,10 +2608,19 @@ static ssize_t rbd_add(struct bus_type *bus,
 	if (rc)
 		goto err_out_header;
 
-	/* register our block device */
+	/* generate unique id: find highest unique id, add one */
+	rbd_dev_id_get(rbd_dev);
+
+	/* Fill in the device name, now that we have its id. */
+	BUILD_BUG_ON(DEV_NAME_LEN
+			< sizeof (RBD_DRV_NAME) + MAX_INT_FORMAT_WIDTH);
+	sprintf(rbd_dev->name, "%s%d", RBD_DRV_NAME, rbd_dev->dev_id);
+
+	/* Get our block major device number. */
+
 	rc = register_blkdev(0, rbd_dev->name);
 	if (rc < 0)
-		goto err_out_header;
+		goto err_out_id;
 	rbd_dev->major = rc;
 
 	rc = rbd_bus_add_dev(rbd_dev);
@@ -2665,19 +2666,18 @@ err_out_bus:
 
 err_out_blkdev:
 	unregister_blkdev(rbd_dev->major, rbd_dev->name);
+err_out_id:
+	rbd_dev_id_put(rbd_dev);
 err_out_header:
 	rbd_header_free(&rbd_dev->header);
 err_out_client:
 	kfree(rbd_dev->header_name);
 	rbd_put_client(rbd_dev);
-err_put_id:
-	if (rbd_dev->pool_name) {
-		kfree(rbd_dev->mapping.snap_name);
-		kfree(rbd_dev->image_name);
-		kfree(rbd_dev->pool_name);
-	}
-	rbd_dev_id_put(rbd_dev);
-err_nomem:
+err_out_args:
+	kfree(rbd_dev->mapping.snap_name);
+	kfree(rbd_dev->image_name);
+	kfree(rbd_dev->pool_name);
+err_out_mem:
 	kfree(rbd_dev);
 	kfree(options);
 
