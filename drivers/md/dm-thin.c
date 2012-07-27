@@ -1238,15 +1238,10 @@ static void process_discard(struct thin_c *tc, struct bio *bio)
 			}
 		} else {
 			/*
-			 * This path is hit if people are ignoring
-			 * limits->discard_granularity.  It ignores any
-			 * part of the discard that is in a subsequent
-			 * block.
+			 * The DM core makes sure that the discard doesn't span
+			 * a block boundary.  So we submit the discard of a
+			 * partial block appropriately.
 			 */
-			sector_t offset = bio->bi_sector - (block * pool->sectors_per_block);
-			unsigned remaining = (pool->sectors_per_block - offset) << SECTOR_SHIFT;
-			bio->bi_size = min(bio->bi_size, remaining);
-
 			cell_release_singleton(cell, bio);
 			cell_release_singleton(cell2, bio);
 			if ((!lookup_result.shared) && pool->pf.discard_passdown)
@@ -2509,7 +2504,8 @@ static void set_discard_limits(struct pool *pool, struct queue_limits *limits)
 
 	/*
 	 * This is just a hint, and not enforced.  We have to cope with
-	 * bios that overlap 2 blocks.
+	 * bios that cover a block partially.  A discard that spans a block
+	 * boundary is not sent to this target.
 	 */
 	limits->discard_granularity = pool->sectors_per_block << SECTOR_SHIFT;
 	limits->discard_zeroes_data = pool->pf.zero_new_blocks;
@@ -2652,6 +2648,8 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		ti->discards_supported = 1;
 		ti->num_discard_requests = 1;
 		ti->discard_zeroes_data_unsupported = 1;
+		/* Discard requests must be split on a block boundary */
+		ti->split_discard_requests = 1;
 	}
 
 	dm_put(pool_md);
