@@ -500,37 +500,39 @@ static int __format_metadata(struct dm_pool_metadata *pmd)
 	if (IS_ERR(pmd->data_sm)) {
 		DMERR("sm_disk_create failed");
 		r = PTR_ERR(pmd->data_sm);
-		goto bad;
+		goto bad_cleanup_tm;
 	}
 
 	pmd->nb_tm = dm_tm_create_non_blocking_clone(pmd->tm);
 	if (!pmd->nb_tm) {
-		DMERR("could not create clone tm");
+		DMERR("could not create non-blocking clone tm");
 		r = -ENOMEM;
-		goto bad_data_sm;
+		goto bad_cleanup_data_sm;
 	}
 
 	__setup_btree_details(pmd);
 
 	r = dm_btree_empty(&pmd->info, &pmd->root);
 	if (r < 0)
-		goto bad_data_sm;
+		goto bad_cleanup_nb_tm;
 
 	r = dm_btree_empty(&pmd->details_info, &pmd->details_root);
 	if (r < 0) {
 		DMERR("couldn't create devices root");
-		goto bad_data_sm;
+		goto bad_cleanup_nb_tm;
 	}
 
 	r = __write_initial_superblock(pmd);
 	if (r)
-		goto bad_data_sm;
+		goto bad_cleanup_nb_tm;
 
 	return 0;
 
-bad_data_sm:
+bad_cleanup_nb_tm:
+	dm_tm_destroy(pmd->nb_tm);
+bad_cleanup_data_sm:
 	dm_sm_destroy(pmd->data_sm);
-bad:
+bad_cleanup_tm:
 	dm_tm_destroy(pmd->tm);
 	dm_sm_destroy(pmd->metadata_sm);
 
@@ -581,10 +583,8 @@ static int __open_metadata(struct dm_pool_metadata *pmd)
 	disk_super = dm_block_data(sblock);
 
 	r = __check_incompat_features(disk_super, pmd);
-	if (r < 0) {
-		dm_bm_unlock(sblock);
-		return r;
-	}
+	if (r < 0)
+		goto bad_unlock_sblock;
 
 	r = dm_tm_open_with_sm(pmd->bm, THIN_SUPERBLOCK_LOCATION,
 			       disk_super->metadata_space_map_root,
@@ -592,35 +592,34 @@ static int __open_metadata(struct dm_pool_metadata *pmd)
 			       &pmd->tm, &pmd->metadata_sm);
 	if (r < 0) {
 		DMERR("tm_open_with_sm failed");
-		dm_bm_unlock(sblock);
-		return r;
+		goto bad_unlock_sblock;
 	}
 
 	pmd->data_sm = dm_sm_disk_open(pmd->tm, disk_super->data_space_map_root,
 				       sizeof(disk_super->data_space_map_root));
 	if (IS_ERR(pmd->data_sm)) {
 		DMERR("sm_disk_open failed");
-		dm_bm_unlock(sblock);
 		r = PTR_ERR(pmd->data_sm);
-		goto bad;
+		goto bad_cleanup_tm;
 	}
-
-	dm_bm_unlock(sblock);
 
 	pmd->nb_tm = dm_tm_create_non_blocking_clone(pmd->tm);
 	if (!pmd->nb_tm) {
-		DMERR("could not create clone tm");
+		DMERR("could not create non-blocking clone tm");
 		r = -ENOMEM;
-		goto bad_data_sm;
+		goto bad_cleanup_data_sm;
 	}
 
 	__setup_btree_details(pmd);
+	return dm_bm_unlock(sblock);
 
-bad_data_sm:
+bad_cleanup_data_sm:
 	dm_sm_destroy(pmd->data_sm);
-bad:
+bad_cleanup_tm:
 	dm_tm_destroy(pmd->tm);
 	dm_sm_destroy(pmd->metadata_sm);
+bad_unlock_sblock:
+	dm_bm_unlock(sblock);
 
 	return r;
 }
