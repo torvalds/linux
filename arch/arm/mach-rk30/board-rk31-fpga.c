@@ -263,12 +263,41 @@ static struct platform_device rk29_device_backlight = {
 
 #endif
 
+/***********************************************************
+*	rk30 ion device
+************************************************************/
+#ifdef CONFIG_ION
+#define ION_RESERVE_SIZE        (8 * SZ_1M)
+static struct ion_platform_data rk30_ion_pdata = {
+	.nr = 1,
+	.heaps = {
+		{
+			.type = ION_HEAP_TYPE_CARVEOUT,
+			.id = ION_NOR_HEAP_ID,
+			.name = "norheap",
+			.size = ION_RESERVE_SIZE,
+		}
+	},
+};
+
+static struct platform_device device_ion = {
+	.name = "ion-rockchip",
+	.id = 0,
+	.dev = {
+		.platform_data = &rk30_ion_pdata,
+	},
+};
+#endif
+
 static struct platform_device *devices[] __initdata = {
 #if defined(CONFIG_FB_ROCKCHIP)
 	&device_fb,
 #endif
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
+#endif
+#ifdef CONFIG_ION
+	&device_ion,
 #endif
 };
 /**************************************************************************************************
@@ -443,6 +472,9 @@ static void __init rk31_reserve(void)
 #if defined(CONFIG_FB_ROCKCHIP)
 	resource_fb[0].start = board_mem_reserve_add("fb0", RK_FB_MEM_SIZE);
 	resource_fb[0].end = resource_fb[0].start + RK_FB_MEM_SIZE - 1;
+#endif
+#ifdef CONFIG_ION
+	rk30_ion_pdata.heaps[0].base = board_mem_reserve_add("ion", ION_RESERVE_SIZE);
 #endif
 	board_mem_reserved();
 }
