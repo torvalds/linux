@@ -2727,6 +2727,8 @@ static int efx_pm_freeze(struct device *dev)
 {
 	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
 
+	rtnl_lock();
+
 	efx->state = STATE_UNINIT;
 
 	netif_device_detach(efx->net_dev);
@@ -2734,12 +2736,16 @@ static int efx_pm_freeze(struct device *dev)
 	efx_stop_all(efx);
 	efx_stop_interrupts(efx, false);
 
+	rtnl_unlock();
+
 	return 0;
 }
 
 static int efx_pm_thaw(struct device *dev)
 {
 	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+
+	rtnl_lock();
 
 	efx_start_interrupts(efx, false);
 
@@ -2754,6 +2760,8 @@ static int efx_pm_thaw(struct device *dev)
 	efx->state = STATE_READY;
 
 	efx->type->resume_wol(efx);
+
+	rtnl_unlock();
 
 	/* Reschedule any quenched resets scheduled during efx_pm_freeze() */
 	queue_work(reset_workqueue, &efx->reset_work);
