@@ -1787,6 +1787,12 @@ static int team_nl_fill_one_option_get(struct sk_buff *skb, struct team *team,
 		    nla_put_flag(skb, TEAM_ATTR_OPTION_DATA))
 			goto nest_cancel;
 		break;
+	case TEAM_OPTION_TYPE_S32:
+		if (nla_put_u8(skb, TEAM_ATTR_OPTION_TYPE, NLA_S32))
+			goto nest_cancel;
+		if (nla_put_s32(skb, TEAM_ATTR_OPTION_DATA, ctx.data.s32_val))
+			goto nest_cancel;
+		break;
 	default:
 		BUG();
 	}
@@ -1975,6 +1981,9 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 		case NLA_FLAG:
 			opt_type = TEAM_OPTION_TYPE_BOOL;
 			break;
+		case NLA_S32:
+			opt_type = TEAM_OPTION_TYPE_S32;
+			break;
 		default:
 			goto team_put;
 		}
@@ -2030,6 +2039,9 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 				break;
 			case TEAM_OPTION_TYPE_BOOL:
 				ctx.data.bool_val = attr_data ? true : false;
+				break;
+			case TEAM_OPTION_TYPE_S32:
+				ctx.data.s32_val = nla_get_s32(attr_data);
 				break;
 			default:
 				BUG();

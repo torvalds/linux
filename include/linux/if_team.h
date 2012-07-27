@@ -130,6 +130,7 @@ enum team_option_type {
 	TEAM_OPTION_TYPE_STRING,
 	TEAM_OPTION_TYPE_BINARY,
 	TEAM_OPTION_TYPE_BOOL,
+	TEAM_OPTION_TYPE_S32,
 };
 
 struct team_option_inst_info {
@@ -146,6 +147,7 @@ struct team_gsetter_ctx {
 			u32 len;
 		} bin_val;
 		bool bool_val;
+		s32 s32_val;
 	} data;
 	struct team_option_inst_info *info;
 };
