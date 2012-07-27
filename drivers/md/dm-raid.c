@@ -430,13 +430,28 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 
 		if (!strcasecmp(key, "rebuild")) {
 			rebuild_cnt++;
-			if (((rs->raid_type->level != 1) &&
-			     (rebuild_cnt > rs->raid_type->parity_devs)) ||
-			    ((rs->raid_type->level == 1) &&
-			     (rebuild_cnt > (rs->md.raid_disks - 1)))) {
-				rs->ti->error = "Too many rebuild devices specified for given RAID type";
+
+			switch (rs->raid_type->level) {
+			case 1:
+				if (rebuild_cnt >= rs->md.raid_disks) {
+					rs->ti->error = "Too many rebuild devices specified";
+					return -EINVAL;
+				}
+				break;
+			case 4:
+			case 5:
+			case 6:
+				if (rebuild_cnt > rs->raid_type->parity_devs) {
+					rs->ti->error = "Too many rebuild devices specified for given RAID type";
+					return -EINVAL;
+				}
+				break;
+			default:
+				DMERR("The rebuild parameter is not supported for %s", rs->raid_type->name);
+				rs->ti->error = "Rebuild not supported for this RAID type";
 				return -EINVAL;
 			}
+
 			if (value > rs->md.raid_disks) {
 				rs->ti->error = "Invalid rebuild index given";
 				return -EINVAL;
