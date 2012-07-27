@@ -180,7 +180,7 @@
 #define EMAC_RX_UCAD        1  //0: Not accept             1: Accept unicast Packets(default)
 #define EMAC_RX_DAF         1  //0: Normal(default)        1: DA Filtering
 #define EMAC_RX_MCO         1  //0: Not accept             1: Accept multicast Packets(default)
-#define EMAC_RX_MHF         1  //0: Disable(default)       1: Enable Hash filter
+#define EMAC_RX_MHF         0  //0: Disable(default)       1: Enable Hash filter
 #define EMAC_RX_BCO		    1  //0: Not accept             1: Accept Broadcast Packets(default)
 #define EMAC_RX_SAF         0  //0: Disable(default)       1: Enable SA Filtering
 #define EMAC_RX_SAIF        0  //0: Normal(default)        1: Inverse Filtering
