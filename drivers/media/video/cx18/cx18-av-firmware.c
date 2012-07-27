@@ -221,3 +221,5 @@ int cx18_av_loadfw(struct cx18 *cx)
 	release_firmware(fw);
 	return 0;
 }
+
+MODULE_FIRMWARE(FWFILE);

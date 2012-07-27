@@ -376,6 +376,9 @@ void cx18_init_memory(struct cx18 *cx)
 	cx18_write_reg(cx, 0x00000101, CX18_WMB_CLIENT14);  /* AVO */
 }
 
+#define CX18_CPU_FIRMWARE "v4l-cx23418-cpu.fw"
+#define CX18_APU_FIRMWARE "v4l-cx23418-apu.fw"
+
 int cx18_firmware_init(struct cx18 *cx)
 {
 	u32 fw_entry_addr;
@@ -400,7 +403,7 @@ int cx18_firmware_init(struct cx18 *cx)
 	cx18_sw1_irq_enable(cx, IRQ_CPU_TO_EPU | IRQ_APU_TO_EPU);
 	cx18_sw2_irq_enable(cx, IRQ_CPU_TO_EPU_ACK | IRQ_APU_TO_EPU_ACK);
 
-	sz = load_cpu_fw_direct("v4l-cx23418-cpu.fw", cx->enc_mem, cx);
+	sz = load_cpu_fw_direct(CX18_CPU_FIRMWARE, cx->enc_mem, cx);
 	if (sz <= 0)
 		return sz;
 
@@ -408,7 +411,7 @@ int cx18_firmware_init(struct cx18 *cx)
 	cx18_init_scb(cx);
 
 	fw_entry_addr = 0;
-	sz = load_apu_fw_direct("v4l-cx23418-apu.fw", cx->enc_mem, cx,
+	sz = load_apu_fw_direct(CX18_APU_FIRMWARE, cx->enc_mem, cx,
 				&fw_entry_addr);
 	if (sz <= 0)
 		return sz;
@@ -451,3 +454,6 @@ int cx18_firmware_init(struct cx18 *cx)
 	cx18_write_reg_expect(cx, 0x14001400, 0xc78110, 0x00001400, 0x14001400);
 	return 0;
 }
+
+MODULE_FIRMWARE(CX18_CPU_FIRMWARE);
+MODULE_FIRMWARE(CX18_APU_FIRMWARE);

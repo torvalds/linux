@@ -1357,3 +1357,4 @@ static void __exit module_cleanup(void)
 
 module_init(module_start);
 module_exit(module_cleanup);
+MODULE_FIRMWARE(XC2028_DEFAULT_FIRMWARE);

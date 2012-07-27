@@ -40,6 +40,8 @@
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
+#define FWFILE "dvb-cx18-mpc718-mt352.fw"
+
 #define CX18_REG_DMUX_NUM_PORT_0_CONTROL 0xd5a000
 #define CX18_CLOCK_ENABLE2		 0xc71024
 #define CX18_DMUX_CLK_MASK		 0x0080
@@ -135,7 +137,7 @@ static int yuan_mpc718_mt352_reqfw(struct cx18_stream *stream,
 				   const struct firmware **fw)
 {
 	struct cx18 *cx = stream->cx;
-	const char *fn = "dvb-cx18-mpc718-mt352.fw";
+	const char *fn = FWFILE;
 	int ret;
 
 	ret = request_firmware(fw, fn, &cx->pci_dev->dev);
@@ -603,3 +605,5 @@ static int dvb_register(struct cx18_stream *stream)
 
 	return ret;
 }
+
+MODULE_FIRMWARE(FWFILE);
