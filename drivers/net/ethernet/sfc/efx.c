@@ -2112,6 +2112,19 @@ static int efx_register_netdev(struct efx_nic *efx)
 
 	rtnl_lock();
 
+	/* Enable resets to be scheduled and check whether any were
+	 * already requested.  If so, the NIC is probably hosed so we
+	 * abort.
+	 */
+	efx->state = STATE_READY;
+	smp_mb(); /* ensure we change state before checking reset_pending */
+	if (efx->reset_pending) {
+		netif_err(efx, probe, efx->net_dev,
+			  "aborting probe due to scheduled reset\n");
+		rc = -EIO;
+		goto fail_locked;
+	}
+
 	rc = dev_alloc_name(net_dev, net_dev->name);
 	if (rc < 0)
 		goto fail_locked;
@@ -2141,13 +2154,13 @@ static int efx_register_netdev(struct efx_nic *efx)
 
 	return 0;
 
+fail_registered:
+	rtnl_lock();
+	unregister_netdevice(net_dev);
 fail_locked:
+	efx->state = STATE_UNINIT;
 	rtnl_unlock();
 	netif_err(efx, drv, efx->net_dev, "could not register net dev\n");
-	return rc;
-
-fail_registered:
-	unregister_netdev(net_dev);
 	return rc;
 }
 
@@ -2171,7 +2184,11 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 
 	strlcpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));
 	device_remove_file(&efx->pci_dev->dev, &dev_attr_phy_type);
-	unregister_netdev(efx->net_dev);
+
+	rtnl_lock();
+	unregister_netdevice(efx->net_dev);
+	efx->state = STATE_UNINIT;
+	rtnl_unlock();
 }
 
 /**************************************************************************
@@ -2309,13 +2326,15 @@ static void efx_reset_work(struct work_struct *data)
 	if (!pending)
 		return;
 
-	/* If we're not READY then don't reset. Leave the reset_pending
-	 * flags set so that efx_pci_probe_main will be retried */
-	if (efx->state != STATE_READY)
-		return;
-
 	rtnl_lock();
-	(void)efx_reset(efx, fls(pending) - 1);
+
+	/* We checked the state in efx_schedule_reset() but it may
+	 * have changed by now.  Now that we have the RTNL lock,
+	 * it cannot change again.
+	 */
+	if (efx->state == STATE_READY)
+		(void)efx_reset(efx, fls(pending) - 1);
+
 	rtnl_unlock();
 }
 
@@ -2341,6 +2360,13 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 	}
 
 	set_bit(method, &efx->reset_pending);
+	smp_mb(); /* ensure we change reset_pending before checking state */
+
+	/* If we're not READY then just leave the flags set as the cue
+	 * to abort probing or reschedule the reset later.
+	 */
+	if (ACCESS_ONCE(efx->state) != STATE_READY)
+		return;
 
 	/* efx_process_channel() will no longer read events once a
 	 * reset is scheduled. So switch back to poll'd MCDI completions. */
@@ -2485,6 +2511,12 @@ static void efx_fini_struct(struct efx_nic *efx)
  */
 static void efx_pci_remove_main(struct efx_nic *efx)
 {
+	/* Flush reset_work. It can no longer be scheduled since we
+	 * are not READY.
+	 */
+	BUG_ON(efx->state == STATE_READY);
+	cancel_work_sync(&efx->reset_work);
+
 #ifdef CONFIG_RFS_ACCEL
 	free_irq_cpu_rmap(efx->net_dev->rx_cpu_rmap);
 	efx->net_dev->rx_cpu_rmap = NULL;
@@ -2510,23 +2542,14 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 
 	/* Mark the NIC as fini, then stop the interface */
 	rtnl_lock();
-	efx->state = STATE_UNINIT;
 	dev_close(efx->net_dev);
 	efx_stop_interrupts(efx, false);
-
-	/* Allow any queued efx_resets() to complete */
 	rtnl_unlock();
 
 	efx_sriov_fini(efx);
 	efx_unregister_netdev(efx);
 
 	efx_mtd_remove(efx);
-
-	/* Wait for any scheduled resets to complete. No more will be
-	 * scheduled from this point because efx_stop_all() has been
-	 * called, we are no longer registered with driverlink, and
-	 * the net_device's have been removed. */
-	cancel_work_sync(&efx->reset_work);
 
 	efx_pci_remove_main(efx);
 
@@ -2686,29 +2709,8 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 		goto fail2;
 
 	rc = efx_pci_probe_main(efx);
-
-	/* Serialise against efx_reset(). No more resets will be
-	 * scheduled since efx_stop_all() has been called, and we have
-	 * not and never have been registered.
-	 */
-	cancel_work_sync(&efx->reset_work);
-
 	if (rc)
 		goto fail3;
-
-	/* If there was a scheduled reset during probe, the NIC is
-	 * probably hosed anyway.
-	 */
-	if (efx->reset_pending) {
-		netif_err(efx, probe, efx->net_dev,
-			  "aborting probe due to scheduled reset\n");
-		rc = -EIO;
-		goto fail4;
-	}
-
-	/* Switch to the READY state before we expose the device to the OS,
-	 * so that dev_open()|efx_start_all() will actually start the device */
-	efx->state = STATE_READY;
 
 	rc = efx_register_netdev(efx);
 	if (rc)
