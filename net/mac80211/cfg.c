@@ -1285,9 +1285,10 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 	mutex_unlock(&local->sta_mtx);
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-	    params->sta_flags_mask & BIT(NL80211_STA_FLAG_AUTHORIZED))
+	    params->sta_flags_mask & BIT(NL80211_STA_FLAG_AUTHORIZED)) {
 		ieee80211_recalc_ps(local, -1);
-
+		ieee80211_recalc_ps_vif(sdata);
+	}
 	return 0;
 }
 
@@ -2079,6 +2080,7 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 
 	ieee80211_recalc_ps(local, -1);
+	ieee80211_recalc_ps_vif(sdata);
 
 	return 0;
 }

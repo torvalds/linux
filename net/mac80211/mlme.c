@@ -1032,6 +1032,16 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 	ieee80211_change_ps(local);
 }
 
+void ieee80211_recalc_ps_vif(struct ieee80211_sub_if_data *sdata)
+{
+	bool ps_allowed = ieee80211_powersave_allowed(sdata);
+
+	if (sdata->vif.bss_conf.ps != ps_allowed) {
+		sdata->vif.bss_conf.ps = ps_allowed;
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_PS);
+	}
+}
+
 void ieee80211_dynamic_ps_disable_work(struct work_struct *work)
 {
 	struct ieee80211_local *local =
@@ -1335,6 +1345,8 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	ieee80211_recalc_smps(local);
 	mutex_unlock(&local->iflist_mtx);
 
+	ieee80211_recalc_ps_vif(sdata);
+
 	netif_tx_start_all_queues(sdata->dev);
 	netif_carrier_on(sdata->dev);
 }
@@ -1395,6 +1407,9 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 	}
 	local->ps_sdata = NULL;
+
+	/* disable per-vif ps */
+	ieee80211_recalc_ps_vif(sdata);
 
 	/* flush out any pending frame (e.g. DELBA) before deauth/disassoc */
 	if (tx)
