@@ -5603,6 +5603,7 @@ void tcp_finish_connect(struct sock *sk, struct sk_buff *skb)
 
 	if (skb != NULL) {
 		sk->sk_rx_dst = dst_clone(skb_dst(skb));
+		inet_sk(sk)->rx_dst_ifindex = skb->skb_iif;
 		security_inet_conn_established(sk, skb);
 	}
 

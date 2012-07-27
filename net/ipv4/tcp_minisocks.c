@@ -388,6 +388,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		struct tcp_cookie_values *oldcvp = oldtp->cookie_values;
 
 		newsk->sk_rx_dst = dst_clone(skb_dst(skb));
+		inet_sk(newsk)->rx_dst_ifindex = skb->skb_iif;
 
 		/* TCP Cookie Transactions require space for the cookie pair,
 		 * as it differs for each connection.  There is no need to
