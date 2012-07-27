@@ -415,7 +415,7 @@ static void fullbatt_vchk(struct work_struct *work)
 		return;
 	}
 
-	diff = cm->fullbatt_vchk_uV;
+	diff = desc->fullbatt_uV;
 	diff -= batt_uV;
 
 	dev_dbg(cm->dev, "VBATT dropped %duV after full-batt.\n", diff);

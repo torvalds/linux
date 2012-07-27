@@ -194,8 +194,6 @@ struct charger_desc {
  * @charger_enabled: the state of charger
  * @fullbatt_vchk_jiffies_at:
  *	jiffies at the time full battery check will occur.
- * @fullbatt_vchk_uV: voltage in microvolt
- *	criteria for full battery
  * @fullbatt_vchk_work: work queue for full battery check
  * @emergency_stop:
  *	When setting true, stop charging
@@ -218,7 +216,6 @@ struct charger_manager {
 	bool charger_enabled;
 
 	unsigned long fullbatt_vchk_jiffies_at;
-	unsigned int fullbatt_vchk_uV;
 	struct delayed_work fullbatt_vchk_work;
 
 	int emergency_stop;
