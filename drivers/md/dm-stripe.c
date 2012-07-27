@@ -30,9 +30,7 @@ struct stripe_c {
 	/* The size of this target / num. stripes */
 	sector_t stripe_width;
 
-	/* stripe chunk size */
-	uint32_t chunk_shift;
-	sector_t chunk_mask;
+	uint32_t chunk_size;
 
 	/* Needed for handling events */
 	struct dm_target *ti;
@@ -90,7 +88,7 @@ static int get_stripe(struct dm_target *ti, struct stripe_c *sc,
 
 /*
  * Construct a striped mapping.
- * <number of stripes> <chunk size (2^^n)> [<dev_path> <offset>]+
+ * <number of stripes> <chunk size> [<dev_path> <offset>]+
  */
 static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
@@ -111,21 +109,14 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
 	}
 
-	if (kstrtouint(argv[1], 10, &chunk_size)) {
+	if (kstrtouint(argv[1], 10, &chunk_size) ||
+	    (chunk_size < (PAGE_SIZE >> SECTOR_SHIFT))) {
 		ti->error = "Invalid chunk_size";
 		return -EINVAL;
 	}
 
-	/*
-	 * chunk_size is a power of two
-	 */
-	if (!is_power_of_2(chunk_size) ||
-	    (chunk_size < (PAGE_SIZE >> SECTOR_SHIFT))) {
-		ti->error = "Invalid chunk size";
-		return -EINVAL;
-	}
-
-	if (ti->len & (chunk_size - 1)) {
+	width = ti->len;
+	if (sector_div(width, chunk_size)) {
 		ti->error = "Target length not divisible by "
 		    "chunk size";
 		return -EINVAL;
@@ -172,8 +163,7 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->num_flush_requests = stripes;
 	ti->num_discard_requests = stripes;
 
-	sc->chunk_shift = ffs(chunk_size) - 1;
-	sc->chunk_mask = ((sector_t) chunk_size) - 1;
+	sc->chunk_size = chunk_size;
 
 	/*
 	 * Get the stripe destinations.
@@ -212,8 +202,8 @@ static void stripe_dtr(struct dm_target *ti)
 static void stripe_map_sector(struct stripe_c *sc, sector_t sector,
 			      uint32_t *stripe, sector_t *result)
 {
-	sector_t offset = dm_target_offset(sc->ti, sector);
-	sector_t chunk = offset >> sc->chunk_shift;
+	sector_t chunk = dm_target_offset(sc->ti, sector);
+	sector_t chunk_offset = sector_div(chunk, sc->chunk_size);
 
 	if (sc->stripes_shift < 0)
 		*stripe = sector_div(chunk, sc->stripes);
@@ -222,7 +212,7 @@ static void stripe_map_sector(struct stripe_c *sc, sector_t sector,
 		chunk >>= sc->stripes_shift;
 	}
 
-	*result = (chunk << sc->chunk_shift) | (offset & sc->chunk_mask);
+	*result = (chunk * sc->chunk_size) + chunk_offset;
 }
 
 static void stripe_map_range_sector(struct stripe_c *sc, sector_t sector,
@@ -233,9 +223,13 @@ static void stripe_map_range_sector(struct stripe_c *sc, sector_t sector,
 	stripe_map_sector(sc, sector, &stripe, result);
 	if (stripe == target_stripe)
 		return;
-	*result &= ~sc->chunk_mask;			/* round down */
+
+	/* round down */
+	sector = *result;
+	*result -= sector_div(sector, sc->chunk_size);
+
 	if (target_stripe < stripe)
-		*result += sc->chunk_mask + 1;		/* next chunk */
+		*result += sc->chunk_size;		/* next chunk */
 }
 
 static int stripe_map_discard(struct stripe_c *sc, struct bio *bio,
@@ -320,7 +314,7 @@ static int stripe_status(struct dm_target *ti,
 
 	case STATUSTYPE_TABLE:
 		DMEMIT("%d %llu", sc->stripes,
-			(unsigned long long)sc->chunk_mask + 1);
+			(unsigned long long)sc->chunk_size);
 		for (i = 0; i < sc->stripes; i++)
 			DMEMIT(" %s %llu", sc->stripe[i].dev->name,
 			    (unsigned long long)sc->stripe[i].physical_start);
@@ -387,7 +381,7 @@ static void stripe_io_hints(struct dm_target *ti,
 			    struct queue_limits *limits)
 {
 	struct stripe_c *sc = ti->private;
-	unsigned chunk_size = (sc->chunk_mask + 1) << 9;
+	unsigned chunk_size = sc->chunk_size << SECTOR_SHIFT;
 
 	blk_limits_io_min(limits, chunk_size);
 	blk_limits_io_opt(limits, chunk_size * sc->stripes);
@@ -415,7 +409,7 @@ static int stripe_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
 
 static struct target_type stripe_target = {
 	.name   = "striped",
-	.version = {1, 4, 0},
+	.version = {1, 5, 0},
 	.module = THIS_MODULE,
 	.ctr    = stripe_ctr,
 	.dtr    = stripe_dtr,
