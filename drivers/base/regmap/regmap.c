@@ -659,13 +659,12 @@ EXPORT_SYMBOL_GPL(devm_regmap_init);
  * new cache.  This can be used to restore the cache to defaults or to
  * update the cache configuration to reflect runtime discovery of the
  * hardware.
+ *
+ * No explicit locking is done here, the user needs to ensure that
+ * this function will not race with other calls to regmap.
  */
 int regmap_reinit_cache(struct regmap *map, const struct regmap_config *config)
 {
-	int ret;
-
-	map->lock(map);
-
 	regcache_exit(map);
 	regmap_debugfs_exit(map);
 
@@ -681,11 +680,7 @@ int regmap_reinit_cache(struct regmap *map, const struct regmap_config *config)
 	map->cache_bypass = false;
 	map->cache_only = false;
 
-	ret = regcache_init(map, config);
-
-	map->unlock(map);
-
-	return ret;
+	return regcache_init(map, config);
 }
 EXPORT_SYMBOL_GPL(regmap_reinit_cache);
 
