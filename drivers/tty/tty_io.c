@@ -1465,7 +1465,6 @@ EXPORT_SYMBOL(tty_free_termios);
  *	in use. It also gets called when setup of a device fails.
  *
  *	Locking:
- *		tty_mutex - sometimes only
  *		takes the file list lock internally when working on the list
  *	of ttys that the driver keeps.
  *
@@ -1526,17 +1525,16 @@ EXPORT_SYMBOL(tty_kref_put);
  *	and decrement the refcount of the backing module.
  *
  *	Locking:
- *		tty_mutex - sometimes only
+ *		tty_mutex
  *		takes the file list lock internally when working on the list
  *	of ttys that the driver keeps.
- *		FIXME: should we require tty_mutex is held here ??
  *
  */
 static void release_tty(struct tty_struct *tty, int idx)
 {
 	/* This should always be true but check for the moment */
 	WARN_ON(tty->index != idx);
-
+	WARN_ON(!mutex_is_locked(&tty_mutex));
 	if (tty->ops->shutdown)
 		tty->ops->shutdown(tty);
 	tty_free_termios(tty);
@@ -1708,6 +1706,9 @@ int tty_release(struct inode *inode, struct file *filp)
 	 * The closing flags are now consistent with the open counts on
 	 * both sides, and we've completed the last operation that could
 	 * block, so it's safe to proceed with closing.
+	 *
+	 * We must *not* drop the tty_mutex until we ensure that a further
+	 * entry into tty_open can not pick up this tty.
 	 */
 	if (pty_master) {
 		if (--o_tty->count < 0) {
@@ -1759,12 +1760,13 @@ int tty_release(struct inode *inode, struct file *filp)
 	}
 
 	mutex_unlock(&tty_mutex);
+	tty_unlock();
+	/* At this point the TTY_CLOSING flag should ensure a dead tty
+	   cannot be re-opened by a racing opener */
 
 	/* check whether both sides are closing ... */
-	if (!tty_closing || (o_tty && !o_tty_closing)) {
-		tty_unlock();
+	if (!tty_closing || (o_tty && !o_tty_closing))
 		return 0;
-	}
 
 #ifdef TTY_DEBUG_HANGUP
 	printk(KERN_DEBUG "%s: freeing tty structure...\n", __func__);
@@ -1777,12 +1779,14 @@ int tty_release(struct inode *inode, struct file *filp)
 	 * The release_tty function takes care of the details of clearing
 	 * the slots and preserving the termios structure.
 	 */
+	mutex_lock(&tty_mutex);
 	release_tty(tty, idx);
+	mutex_unlock(&tty_mutex);
 
 	/* Make this pty number available for reallocation */
 	if (devpts)
 		devpts_kill_index(inode, idx);
-	tty_unlock();
+
 	return 0;
 }
 

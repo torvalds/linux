@@ -282,6 +282,17 @@ done:
 	return 0;
 }
 
+/**
+ *	pty_common_install		-	set up the pty pair
+ *	@driver: the pty driver
+ *	@tty: the tty being instantiated
+ *	@bool: legacy, true if this is BSD style
+ *
+ *	Perform the initial set up for the tty/pty pair. Called from the
+ *	tty layer when the port is first opened.
+ *
+ *	Locking: the caller must hold the tty_mutex
+ */
 static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 		bool legacy)
 {
@@ -364,6 +375,14 @@ static int pty_install(struct tty_driver *driver, struct tty_struct *tty)
 	return pty_common_install(driver, tty, true);
 }
 
+static void pty_remove(struct tty_driver *driver, struct tty_struct *tty)
+{
+	struct tty_struct *pair = tty->link;
+	driver->ttys[tty->index] = NULL;
+	if (pair)
+		pair->driver->ttys[pair->index] = NULL;
+}
+
 static int pty_bsd_ioctl(struct tty_struct *tty,
 			 unsigned int cmd, unsigned long arg)
 {
@@ -395,7 +414,8 @@ static const struct tty_operations master_pty_ops_bsd = {
 	.set_termios = pty_set_termios,
 	.ioctl = pty_bsd_ioctl,
 	.cleanup = pty_cleanup,
-	.resize = pty_resize
+	.resize = pty_resize,
+	.remove = pty_remove
 };
 
 static const struct tty_operations slave_pty_ops_bsd = {
@@ -409,7 +429,8 @@ static const struct tty_operations slave_pty_ops_bsd = {
 	.unthrottle = pty_unthrottle,
 	.set_termios = pty_set_termios,
 	.cleanup = pty_cleanup,
-	.resize = pty_resize
+	.resize = pty_resize,
+	.remove = pty_remove
 };
 
 static void __init legacy_pty_init(void)

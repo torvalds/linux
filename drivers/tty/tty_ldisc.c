@@ -912,7 +912,6 @@ void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty)
 	 * race with the set_ldisc code path.
 	 */
 
-	tty_unlock();
 	tty_ldisc_halt(tty);
 	tty_ldisc_flush_works(tty);
 	tty_lock();
@@ -929,6 +928,8 @@ void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty)
 	/* Ensure the next open requests the N_TTY ldisc */
 	tty_set_termios_ldisc(tty, N_TTY);
 	mutex_unlock(&tty->ldisc_mutex);
+
+	tty_unlock();
 
 	/* This will need doing differently if we need to lock */
 	if (o_tty)
