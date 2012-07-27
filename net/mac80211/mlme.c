@@ -3044,7 +3044,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_bss *bss = (void *)cbss->priv;
-	struct sta_info *sta = NULL;
+	struct sta_info *new_sta = NULL;
 	bool have_sta = false;
 	int err;
 	int ht_cfreq;
@@ -3063,8 +3063,8 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (!have_sta) {
-		sta = sta_info_alloc(sdata, cbss->bssid, GFP_KERNEL);
-		if (!sta)
+		new_sta = sta_info_alloc(sdata, cbss->bssid, GFP_KERNEL);
+		if (!new_sta)
 			return -ENOMEM;
 	}
 
@@ -3135,7 +3135,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	local->oper_channel = cbss->channel;
 	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 
-	if (sta) {
+	if (new_sta) {
 		u32 rates = 0, basic_rates = 0;
 		bool have_higher_than_11mbit;
 		int min_rate = INT_MAX, min_rate_index = -1;
@@ -3160,7 +3160,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 			basic_rates = BIT(min_rate_index);
 		}
 
-		sta->sta.supp_rates[cbss->channel->band] = rates;
+		new_sta->sta.supp_rates[cbss->channel->band] = rates;
 		sdata->vif.bss_conf.basic_rates = basic_rates;
 
 		/* cf. IEEE 802.11 9.2.12 */
@@ -3183,10 +3183,10 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 			BSS_CHANGED_BEACON_INT);
 
 		if (assoc)
-			sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
+			sta_info_pre_move_state(new_sta, IEEE80211_STA_AUTH);
 
-		err = sta_info_insert(sta);
-		sta = NULL;
+		err = sta_info_insert(new_sta);
+		new_sta = NULL;
 		if (err) {
 			sdata_info(sdata,
 				   "failed to insert STA entry for the AP (error %d)\n",
