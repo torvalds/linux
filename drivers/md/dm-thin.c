@@ -2652,6 +2652,7 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto bad_thin_open;
 
 	ti->num_flush_requests = 1;
+	ti->flush_supported = true;
 
 	/* In case the pool supports discards, pass them on. */
 	if (tc->pool->pf.discard_enabled) {
