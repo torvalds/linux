@@ -512,11 +512,6 @@ static int __format_metadata(struct dm_pool_metadata *pmd)
 
 	__setup_btree_details(pmd);
 
-	pmd->root = 0;
-	pmd->details_root = 0;
-	pmd->trans_id = 0;
-	pmd->flags = 0;
-
 	r = dm_btree_empty(&pmd->info, &pmd->root);
 	if (r < 0)
 		goto bad_data_sm;
