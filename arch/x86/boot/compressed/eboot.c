@@ -379,6 +379,8 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 		si->rsvd_pos = 0;
 	}
 
+	si->capabilities |= VIDEO_CAPABILITY_SKIP_QUIRKS;
+
 free_handle:
 	efi_call_phys1(sys_table->boottime->free_pool, gop_handle);
 	return status;
