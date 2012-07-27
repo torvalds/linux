@@ -26,7 +26,6 @@ struct stripe {
 struct stripe_c {
 	uint32_t stripes;
 	int stripes_shift;
-	sector_t stripes_mask;
 
 	/* The size of this target / num. stripes */
 	sector_t stripe_width;
@@ -163,10 +162,8 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	if (stripes & (stripes - 1))
 		sc->stripes_shift = -1;
-	else {
-		sc->stripes_shift = ffs(stripes) - 1;
-		sc->stripes_mask = ((sector_t) stripes) - 1;
-	}
+	else
+		sc->stripes_shift = __ffs(stripes);
 
 	ti->split_io = chunk_size;
 	ti->num_flush_requests = stripes;
@@ -218,7 +215,7 @@ static void stripe_map_sector(struct stripe_c *sc, sector_t sector,
 	if (sc->stripes_shift < 0)
 		*stripe = sector_div(chunk, sc->stripes);
 	else {
-		*stripe = chunk & sc->stripes_mask;
+		*stripe = chunk & (sc->stripes - 1);
 		chunk >>= sc->stripes_shift;
 	}
 
