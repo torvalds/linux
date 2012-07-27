@@ -1,0 +1,475 @@
+/*
+ *  android_battery.c
+ *  Android Battery Driver
+ *
+ * Copyright (C) 2012 Google, Inc.
+ * Copyright (C) 2012 Samsung Electronics
+ *
+ * Based on work by himihee.seo@samsung.com, ms925.kim@samsung.com, and
+ * joshua.chang@samsung.com.
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include <linux/types.h>
+#include <linux/module.h>
+#include <linux/delay.h>
+#include <linux/err.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/jiffies.h>
+#include <linux/platform_device.h>
+#include <linux/power_supply.h>
+#include <linux/slab.h>
+#include <linux/wakelock.h>
+#include <linux/workqueue.h>
+#include <linux/timer.h>
+#include <linux/platform_data/android_battery.h>
+
+struct android_bat_data {
+	struct android_bat_platform_data *pdata;
+	struct android_bat_callbacks callbacks;
+
+	struct device		*dev;
+
+	struct power_supply	psy_bat;
+
+	struct wake_lock	monitor_wake_lock;
+	struct wake_lock	charger_wake_lock;
+
+	int			charge_source;
+
+	int			batt_temp;
+	int			batt_current;
+	unsigned int		batt_health;
+	unsigned int		batt_vcell;
+	unsigned int		batt_soc;
+	unsigned int		charging_status;
+
+	struct workqueue_struct *monitor_wqueue;
+	struct delayed_work	monitor_work;
+	struct work_struct	charger_work;
+
+	bool		slow_poll;
+	ktime_t		last_poll;
+};
+
+static enum power_supply_property android_battery_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
+};
+
+static void android_bat_update_data(struct android_bat_data *battery);
+
+static char *charge_source_str(int charge_source)
+{
+	switch (charge_source) {
+	case CHARGE_SOURCE_NONE:
+		return "none";
+	case CHARGE_SOURCE_AC:
+		return "ac";
+	case CHARGE_SOURCE_USB:
+		return "usb";
+	default:
+		break;
+	}
+
+	return "?";
+}
+
+static int android_bat_get_property(struct power_supply *ps,
+				enum power_supply_property psp,
+				union power_supply_propval *val)
+{
+	struct android_bat_data *battery =
+		container_of(ps, struct android_bat_data, psy_bat);
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_STATUS:
+		val->intval = battery->charging_status;
+		break;
+	case POWER_SUPPLY_PROP_HEALTH:
+		val->intval = battery->batt_health;
+		break;
+	case POWER_SUPPLY_PROP_PRESENT:
+		val->intval = 1;
+		break;
+	case POWER_SUPPLY_PROP_TEMP:
+		val->intval = battery->batt_temp;
+		break;
+	case POWER_SUPPLY_PROP_ONLINE:
+		val->intval = 1;
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		android_bat_update_data(battery);
+		val->intval = battery->batt_vcell;
+		if (val->intval == -1)
+			return -EINVAL;
+		break;
+	case POWER_SUPPLY_PROP_CAPACITY:
+		val->intval = battery->batt_soc;
+		if (val->intval == -1)
+			return -EINVAL;
+		break;
+	case POWER_SUPPLY_PROP_TECHNOLOGY:
+		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		android_bat_update_data(battery);
+		val->intval = battery->batt_current;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static void android_bat_get_temp(struct android_bat_data *battery)
+{
+	int batt_temp = 25000;
+	int health = battery->batt_health;
+
+	if (battery->pdata->get_temperature)
+		battery->pdata->get_temperature(&batt_temp);
+
+	if (batt_temp >= battery->pdata->temp_high_threshold) {
+		if (health != POWER_SUPPLY_HEALTH_OVERHEAT &&
+				health != POWER_SUPPLY_HEALTH_UNSPEC_FAILURE) {
+			pr_info("battery overheat (%d>=%d), charging unavailable\n",
+				batt_temp, battery->pdata->temp_high_threshold);
+			battery->batt_health = POWER_SUPPLY_HEALTH_OVERHEAT;
+		}
+	} else if (batt_temp <= battery->pdata->temp_high_recovery &&
+			batt_temp >= battery->pdata->temp_low_recovery) {
+		if (health == POWER_SUPPLY_HEALTH_OVERHEAT ||
+				health == POWER_SUPPLY_HEALTH_COLD) {
+			pr_info("battery recovery (%d,%d~%d), charging available\n",
+				batt_temp, battery->pdata->temp_low_recovery,
+				battery->pdata->temp_high_recovery);
+			battery->batt_health = POWER_SUPPLY_HEALTH_GOOD;
+		}
+	} else if (batt_temp <= battery->pdata->temp_low_threshold) {
+		if (health != POWER_SUPPLY_HEALTH_COLD &&
+				health != POWER_SUPPLY_HEALTH_UNSPEC_FAILURE) {
+			pr_info("battery cold (%d <= %d), charging unavailable\n",
+				batt_temp, battery->pdata->temp_low_threshold);
+			battery->batt_health = POWER_SUPPLY_HEALTH_COLD;
+		}
+	}
+
+	battery->batt_temp = batt_temp/1000;
+}
+
+static void android_bat_update_data(struct android_bat_data *battery)
+{
+	int ret;
+	int v;
+
+	if (battery->pdata->poll_charge_source)
+		battery->charge_source = battery->pdata->poll_charge_source();
+
+	if (battery->pdata->get_voltage_now) {
+		ret = battery->pdata->get_voltage_now();
+		battery->batt_vcell = ret >= 0 ? ret : -1;
+	}
+
+	if (battery->pdata->get_capacity) {
+		ret = battery->pdata->get_capacity();
+		battery->batt_soc = ret >= 0 ? ret : -1;
+	}
+
+	if (battery->pdata->get_current_now) {
+		ret = battery->pdata->get_current_now(&v);
+
+		if (!ret)
+			battery->batt_current = v;
+	}
+
+	android_bat_get_temp(battery);
+}
+
+static int android_bat_enable_charging(struct android_bat_data *battery,
+				       bool enable)
+{
+	if (enable && (battery->batt_health != POWER_SUPPLY_HEALTH_GOOD)) {
+		battery->charging_status =
+		    POWER_SUPPLY_STATUS_NOT_CHARGING;
+		return -EPERM;
+	}
+
+	if (enable) {
+		if (battery->pdata && battery->pdata->set_charging_current)
+			battery->pdata->set_charging_current
+			(battery->charge_source);
+	}
+
+	if (battery->pdata && battery->pdata->set_charging_enable)
+		battery->pdata->set_charging_enable(enable);
+
+	pr_info("battery: enable=%d charger: %s\n", enable,
+		charge_source_str(battery->charge_source));
+
+	return 0;
+}
+
+static void android_bat_charge_source_changed(struct android_bat_callbacks *ptr,
+					      int charge_source)
+{
+	struct android_bat_data *battery;
+
+	battery = container_of(ptr, struct android_bat_data, callbacks);
+	wake_lock(&battery->charger_wake_lock);
+	battery->charge_source = charge_source;
+
+	pr_info("battery: charge source type was changed: %s\n",
+		charge_source_str(battery->charge_source));
+
+	queue_work(battery->monitor_wqueue, &battery->charger_work);
+}
+
+static void android_bat_charger_work(struct work_struct *work)
+{
+	struct android_bat_data *battery =
+		container_of(work, struct android_bat_data, charger_work);
+
+	switch (battery->charge_source) {
+	case CHARGE_SOURCE_NONE:
+		battery->charging_status = POWER_SUPPLY_STATUS_DISCHARGING;
+		android_bat_enable_charging(battery, false);
+		if (battery->batt_health == POWER_SUPPLY_HEALTH_OVERVOLTAGE)
+			battery->batt_health = POWER_SUPPLY_HEALTH_GOOD;
+		break;
+	case CHARGE_SOURCE_USB:
+	case CHARGE_SOURCE_AC:
+		battery->charging_status = POWER_SUPPLY_STATUS_CHARGING;
+		android_bat_enable_charging(battery, true);
+		break;
+	default:
+		pr_err("%s: Invalid charger type\n", __func__);
+		break;
+	}
+
+	wake_lock_timeout(&battery->charger_wake_lock, HZ * 2);
+}
+
+static void android_bat_monitor_work(struct work_struct *work)
+{
+	struct android_bat_data *battery;
+	battery = container_of(work, struct android_bat_data,
+			       monitor_work.work);
+
+	wake_lock(&battery->monitor_wake_lock);
+	android_bat_update_data(battery);
+
+	switch (battery->charging_status) {
+	case POWER_SUPPLY_STATUS_FULL:
+	case POWER_SUPPLY_STATUS_DISCHARGING:
+		break;
+	case POWER_SUPPLY_STATUS_CHARGING:
+		switch (battery->batt_health) {
+		case POWER_SUPPLY_HEALTH_OVERHEAT:
+		case POWER_SUPPLY_HEALTH_COLD:
+		case POWER_SUPPLY_HEALTH_OVERVOLTAGE:
+		case POWER_SUPPLY_HEALTH_DEAD:
+		case POWER_SUPPLY_HEALTH_UNSPEC_FAILURE:
+			battery->charging_status =
+				POWER_SUPPLY_STATUS_NOT_CHARGING;
+			android_bat_enable_charging(battery, false);
+
+			pr_info("battery: Not charging, health=%d\n",
+				battery->batt_health);
+			break;
+		default:
+			break;
+		}
+		break;
+	case POWER_SUPPLY_STATUS_NOT_CHARGING:
+		if (battery->batt_health == POWER_SUPPLY_HEALTH_GOOD) {
+			pr_info("battery: battery health recovered\n");
+			if (battery->charge_source != CHARGE_SOURCE_NONE) {
+				android_bat_enable_charging(battery, true);
+				battery->charging_status
+					= POWER_SUPPLY_STATUS_CHARGING;
+			} else
+				battery->charging_status
+					= POWER_SUPPLY_STATUS_DISCHARGING;
+		}
+		break;
+	default:
+		wake_unlock(&battery->monitor_wake_lock);
+		pr_err("%s: Undefined battery status: %d\n", __func__,
+		       battery->charging_status);
+		return;
+	}
+
+	pr_info("battery: l=%d v=%d c=%d temp=%d h=%d st=%d type=%s\n",
+		battery->batt_soc, battery->batt_vcell/1000,
+		battery->batt_current, battery->batt_temp, battery->batt_health,
+		battery->charging_status,
+		charge_source_str(battery->charge_source));
+	power_supply_changed(&battery->psy_bat);
+	queue_delayed_work(battery->monitor_wqueue,
+		&battery->monitor_work, msecs_to_jiffies(50000));
+	wake_unlock(&battery->monitor_wake_lock);
+
+	return;
+}
+
+static int android_bat_probe(struct platform_device *pdev)
+{
+	struct android_bat_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct android_bat_data *battery;
+	int ret = 0;
+
+	dev_info(&pdev->dev, "Android Battery Driver\n");
+	battery = kzalloc(sizeof(*battery), GFP_KERNEL);
+	if (!battery)
+		return -ENOMEM;
+
+	battery->pdata = pdata;
+	if (!battery->pdata) {
+		pr_err("%s : No platform data\n", __func__);
+		ret = -EINVAL;
+		goto err_pdata;
+	}
+
+	battery->dev = &pdev->dev;
+	platform_set_drvdata(pdev, battery);
+	battery->batt_health = POWER_SUPPLY_HEALTH_GOOD;
+
+	battery->psy_bat.name = "android-battery",
+	battery->psy_bat.type = POWER_SUPPLY_TYPE_BATTERY,
+	battery->psy_bat.properties = android_battery_props,
+	battery->psy_bat.num_properties = ARRAY_SIZE(android_battery_props),
+	battery->psy_bat.get_property = android_bat_get_property,
+
+	battery->batt_vcell = -1;
+	battery->batt_soc = -1;
+
+	wake_lock_init(&battery->monitor_wake_lock, WAKE_LOCK_SUSPEND,
+			"android-battery-monitor");
+	wake_lock_init(&battery->charger_wake_lock, WAKE_LOCK_SUSPEND,
+			"android-chargerdetect");
+
+	ret = power_supply_register(&pdev->dev, &battery->psy_bat);
+	if (ret) {
+		dev_err(battery->dev, "%s: failed to register psy_bat\n",
+			__func__);
+		goto err_psy_reg;
+	}
+
+	battery->monitor_wqueue =
+		create_singlethread_workqueue(dev_name(&pdev->dev));
+	if (!battery->monitor_wqueue) {
+		dev_err(battery->dev, "%s: fail to create workqueue\n",
+				__func__);
+		goto err_wq;
+	}
+
+	INIT_DELAYED_WORK_DEFERRABLE(&battery->monitor_work,
+		android_bat_monitor_work);
+	INIT_WORK(&battery->charger_work, android_bat_charger_work);
+
+	battery->callbacks.charge_source_changed =
+		android_bat_charge_source_changed;
+	if (battery->pdata && battery->pdata->register_callbacks)
+		battery->pdata->register_callbacks(&battery->callbacks);
+
+	/* get initial charger status */
+	if (battery->pdata->poll_charge_source)
+		battery->charge_source = battery->pdata->poll_charge_source();
+
+	wake_lock(&battery->charger_wake_lock);
+	queue_work(battery->monitor_wqueue, &battery->charger_work);
+
+	queue_delayed_work(battery->monitor_wqueue,
+		&battery->monitor_work, msecs_to_jiffies(0));
+	return 0;
+
+
+err_wq:
+	power_supply_unregister(&battery->psy_bat);
+err_psy_reg:
+	wake_lock_destroy(&battery->monitor_wake_lock);
+	wake_lock_destroy(&battery->charger_wake_lock);
+err_pdata:
+	kfree(battery);
+
+	return ret;
+}
+
+static int android_bat_remove(struct platform_device *pdev)
+{
+	struct android_bat_data *battery = platform_get_drvdata(pdev);
+
+	flush_workqueue(battery->monitor_wqueue);
+	destroy_workqueue(battery->monitor_wqueue);
+	power_supply_unregister(&battery->psy_bat);
+	wake_lock_destroy(&battery->monitor_wake_lock);
+	wake_lock_destroy(&battery->charger_wake_lock);
+	kfree(battery);
+	return 0;
+}
+
+static int android_bat_suspend(struct device *dev)
+{
+	struct android_bat_data *battery = dev_get_drvdata(dev);
+
+	cancel_delayed_work_sync(&battery->monitor_work);
+	return 0;
+}
+
+static int android_bat_resume(struct device *dev)
+{
+	struct android_bat_data *battery = dev_get_drvdata(dev);
+
+	queue_delayed_work(battery->monitor_wqueue,
+		&battery->monitor_work, msecs_to_jiffies(0));
+	return 0;
+}
+
+static const struct dev_pm_ops android_bat_pm_ops = {
+	.suspend	= android_bat_suspend,
+	.resume = android_bat_resume,
+};
+
+static struct platform_driver android_bat_driver = {
+	.driver = {
+		.name = "android-battery",
+		.owner = THIS_MODULE,
+		.pm = &android_bat_pm_ops,
+	},
+	.probe = android_bat_probe,
+	.remove = android_bat_remove,
+};
+
+static int __init android_bat_init(void)
+{
+	return platform_driver_register(&android_bat_driver);
+}
+
+static void __exit android_bat_exit(void)
+{
+	platform_driver_unregister(&android_bat_driver);
+}
+
+late_initcall(android_bat_init);
+module_exit(android_bat_exit);
+
+MODULE_DESCRIPTION("Android battery driver");
+MODULE_LICENSE("GPL");
