@@ -489,14 +489,11 @@ static int __open_or_format_metadata(struct dm_pool_metadata *pmd,
 	}
 
 	__setup_btree_details(pmd);
-	pmd->root = 0;
 
-	init_rwsem(&pmd->root_lock);
-	pmd->time = 0;
+	pmd->root = 0;
 	pmd->details_root = 0;
 	pmd->trans_id = 0;
 	pmd->flags = 0;
-	INIT_LIST_HEAD(&pmd->thin_devices);
 
 	return 0;
 
@@ -710,6 +707,9 @@ struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	init_rwsem(&pmd->root_lock);
+	pmd->time = 0;
+	INIT_LIST_HEAD(&pmd->thin_devices);
 	pmd->bdev = bdev;
 
 	r = __create_persistent_data_objects(pmd, 0, &create);
