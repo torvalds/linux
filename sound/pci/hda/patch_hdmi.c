@@ -877,6 +877,8 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 	struct hdmi_eld *eld;
 	struct hdmi_spec_per_cvt *per_cvt = NULL;
 
+	hinfo->nid = 0; /* clear the leftover value */
+
 	/* Validate hinfo */
 	pin_idx = hinfo_to_pin_index(spec, hinfo);
 	if (snd_BUG_ON(pin_idx < 0))
@@ -1218,6 +1220,7 @@ static int generic_hdmi_build_pcms(struct hda_codec *codec)
 		pstr = &info->stream[SNDRV_PCM_STREAM_PLAYBACK];
 		pstr->substreams = 1;
 		pstr->ops = generic_ops;
+		pstr->nid = 1; /* FIXME: just for avoiding a debug WARNING */
 		/* other pstr fields are set in open */
 	}
 
