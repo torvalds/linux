@@ -587,22 +587,14 @@ int dm_bm_flush_and_unlock(struct dm_block_manager *bm,
 	int r;
 
 	r = dm_bufio_write_dirty_buffers(to_bufio(bm));
-	if (unlikely(r))
+	if (unlikely(r)) {
+		dm_bm_unlock(superblock);
 		return r;
-	r = dm_bufio_issue_flush(to_bufio(bm));
-	if (unlikely(r))
-		return r;
+	}
 
 	dm_bm_unlock(superblock);
 
-	r = dm_bufio_write_dirty_buffers(to_bufio(bm));
-	if (unlikely(r))
-		return r;
-	r = dm_bufio_issue_flush(to_bufio(bm));
-	if (unlikely(r))
-		return r;
-
-	return 0;
+	return dm_bufio_write_dirty_buffers(to_bufio(bm));
 }
 
 u32 dm_bm_checksum(const void *data, size_t len, u32 init_xor)
