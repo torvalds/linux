@@ -310,12 +310,10 @@ struct dm_block_manager *dm_tm_get_bm(struct dm_transaction_manager *tm)
 
 static int dm_tm_create_internal(struct dm_block_manager *bm,
 				 dm_block_t sb_location,
-				 struct dm_block_validator *sb_validator,
-				 size_t root_offset, size_t root_max_len,
 				 struct dm_transaction_manager **tm,
 				 struct dm_space_map **sm,
-				 struct dm_block **sblock,
-				 int create)
+				 int create,
+				 void *sm_root, size_t sm_len)
 {
 	int r;
 
@@ -330,64 +328,43 @@ static int dm_tm_create_internal(struct dm_block_manager *bm,
 	}
 
 	if (create) {
-		r = dm_bm_write_lock_zero(dm_tm_get_bm(*tm), sb_location,
-					  sb_validator, sblock);
-		if (r < 0) {
-			DMERR("couldn't lock superblock");
-			goto bad1;
-		}
-
 		r = dm_sm_metadata_create(*sm, *tm, dm_bm_nr_blocks(bm),
 					  sb_location);
 		if (r) {
 			DMERR("couldn't create metadata space map");
-			goto bad2;
+			goto bad;
 		}
 
 	} else {
-		r = dm_bm_write_lock(dm_tm_get_bm(*tm), sb_location,
-				     sb_validator, sblock);
-		if (r < 0) {
-			DMERR("couldn't lock superblock");
-			goto bad1;
-		}
-
-		r = dm_sm_metadata_open(*sm, *tm,
-					dm_block_data(*sblock) + root_offset,
-					root_max_len);
+		r = dm_sm_metadata_open(*sm, *tm, sm_root, sm_len);
 		if (r) {
 			DMERR("couldn't open metadata space map");
-			goto bad2;
+			goto bad;
 		}
 	}
 
 	return 0;
 
-bad2:
-	dm_tm_unlock(*tm, *sblock);
-bad1:
+bad:
 	dm_tm_destroy(*tm);
+	dm_sm_destroy(*sm);
 	return r;
 }
 
 int dm_tm_create_with_sm(struct dm_block_manager *bm, dm_block_t sb_location,
-			 struct dm_block_validator *sb_validator,
 			 struct dm_transaction_manager **tm,
-			 struct dm_space_map **sm, struct dm_block **sblock)
+			 struct dm_space_map **sm)
 {
-	return dm_tm_create_internal(bm, sb_location, sb_validator,
-				     0, 0, tm, sm, sblock, 1);
+	return dm_tm_create_internal(bm, sb_location, tm, sm, 1, NULL, 0);
 }
 EXPORT_SYMBOL_GPL(dm_tm_create_with_sm);
 
 int dm_tm_open_with_sm(struct dm_block_manager *bm, dm_block_t sb_location,
-		       struct dm_block_validator *sb_validator,
-		       size_t root_offset, size_t root_max_len,
+		       void *sm_root, size_t root_len,
 		       struct dm_transaction_manager **tm,
-		       struct dm_space_map **sm, struct dm_block **sblock)
+		       struct dm_space_map **sm)
 {
-	return dm_tm_create_internal(bm, sb_location, sb_validator, root_offset,
-				     root_max_len, tm, sm, sblock, 0);
+	return dm_tm_create_internal(bm, sb_location, tm, sm, 0, sm_root, root_len);
 }
 EXPORT_SYMBOL_GPL(dm_tm_open_with_sm);
 

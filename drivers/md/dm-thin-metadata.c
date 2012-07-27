@@ -418,8 +418,7 @@ static int init_pmd(struct dm_pool_metadata *pmd,
 	struct dm_block *sblock;
 
 	if (create) {
-		r = dm_tm_create_with_sm(bm, THIN_SUPERBLOCK_LOCATION,
-					 &sb_validator, &tm, &sm, &sblock);
+		r = dm_tm_create_with_sm(bm, THIN_SUPERBLOCK_LOCATION, &tm, &sm);
 		if (r < 0) {
 			DMERR("tm_create_with_sm failed");
 			return r;
@@ -428,38 +427,51 @@ static int init_pmd(struct dm_pool_metadata *pmd,
 		data_sm = dm_sm_disk_create(tm, nr_blocks);
 		if (IS_ERR(data_sm)) {
 			DMERR("sm_disk_create failed");
-			dm_tm_unlock(tm, sblock);
 			r = PTR_ERR(data_sm);
 			goto bad;
 		}
-	} else {
-		struct thin_disk_superblock *disk_super = NULL;
-		size_t space_map_root_offset =
-			offsetof(struct thin_disk_superblock, metadata_space_map_root);
 
-		r = dm_tm_open_with_sm(bm, THIN_SUPERBLOCK_LOCATION,
-				       &sb_validator, space_map_root_offset,
-				       SPACE_MAP_ROOT_SIZE, &tm, &sm, &sblock);
+		/*
+		 * We cycle the superblock to let the validator do its stuff.
+		 */
+		r = dm_bm_write_lock_zero(bm, THIN_SUPERBLOCK_LOCATION, &sb_validator, &sblock);
 		if (r < 0) {
-			DMERR("tm_open_with_sm failed");
+			DMERR("couldn't lock superblock");
+			goto bad;
+		}
+
+		dm_bm_unlock(sblock);
+
+	} else {
+		struct thin_disk_superblock *disk_super;
+
+		r = dm_bm_read_lock(bm, THIN_SUPERBLOCK_LOCATION, &sb_validator, &sblock);
+		if (r < 0) {
+			DMERR("couldn't read superblock");
 			return r;
 		}
 
 		disk_super = dm_block_data(sblock);
+		r = dm_tm_open_with_sm(bm, THIN_SUPERBLOCK_LOCATION,
+				       disk_super->metadata_space_map_root,
+				       sizeof(disk_super->metadata_space_map_root),
+				       &tm, &sm);
+		if (r < 0) {
+			DMERR("tm_open_with_sm failed");
+			dm_bm_unlock(sblock);
+			return r;
+		}
+
 		data_sm = dm_sm_disk_open(tm, disk_super->data_space_map_root,
 					  sizeof(disk_super->data_space_map_root));
 		if (IS_ERR(data_sm)) {
 			DMERR("sm_disk_open failed");
+			dm_bm_unlock(sblock);
 			r = PTR_ERR(data_sm);
 			goto bad;
 		}
-	}
 
-
-	r = dm_tm_unlock(tm, sblock);
-	if (r < 0) {
-		DMERR("couldn't unlock superblock");
-		goto bad_data_sm;
+		dm_bm_unlock(sblock);
 	}
 
 	pmd->bm = bm;

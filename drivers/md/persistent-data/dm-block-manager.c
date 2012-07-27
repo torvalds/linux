@@ -565,6 +565,7 @@ int dm_bm_write_lock_zero(struct dm_block_manager *bm,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(dm_bm_write_lock_zero);
 
 int dm_bm_unlock(struct dm_block *b)
 {
