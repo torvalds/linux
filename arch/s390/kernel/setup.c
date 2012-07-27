@@ -302,8 +302,8 @@ static int __init parse_vmalloc(char *arg)
 }
 early_param("vmalloc", parse_vmalloc);
 
-unsigned int user_mode = HOME_SPACE_MODE;
-EXPORT_SYMBOL_GPL(user_mode);
+unsigned int addressing_mode = HOME_SPACE_MODE;
+EXPORT_SYMBOL_GPL(addressing_mode);
 
 static int set_amode_primary(void)
 {
@@ -328,7 +328,7 @@ static int set_amode_primary(void)
  */
 static int __init early_parse_switch_amode(char *p)
 {
-	user_mode = PRIMARY_SPACE_MODE;
+	addressing_mode = PRIMARY_SPACE_MODE;
 	return 0;
 }
 early_param("switch_amode", early_parse_switch_amode);
@@ -336,9 +336,9 @@ early_param("switch_amode", early_parse_switch_amode);
 static int __init early_parse_user_mode(char *p)
 {
 	if (p && strcmp(p, "primary") == 0)
-		user_mode = PRIMARY_SPACE_MODE;
+		addressing_mode = PRIMARY_SPACE_MODE;
 	else if (!p || strcmp(p, "home") == 0)
-		user_mode = HOME_SPACE_MODE;
+		addressing_mode = HOME_SPACE_MODE;
 	else
 		return 1;
 	return 0;
@@ -347,7 +347,7 @@ early_param("user_mode", early_parse_user_mode);
 
 static void setup_addressing_mode(void)
 {
-	if (user_mode == PRIMARY_SPACE_MODE) {
+	if (addressing_mode == PRIMARY_SPACE_MODE) {
 		if (set_amode_primary())
 			pr_info("Address spaces switched, "
 				"mvcos available\n");
