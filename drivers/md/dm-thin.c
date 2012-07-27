@@ -1712,7 +1712,7 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 	struct pool *pool;
 	struct dm_pool_metadata *pmd;
 
-	pmd = dm_pool_metadata_open(metadata_dev, block_size);
+	pmd = dm_pool_metadata_open(metadata_dev, block_size, true);
 	if (IS_ERR(pmd)) {
 		*error = "Error creating metadata object";
 		return (struct pool *)pmd;
