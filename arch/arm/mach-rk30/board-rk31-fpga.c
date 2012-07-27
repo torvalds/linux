@@ -512,6 +512,12 @@ static struct clk_lookup clks[] = {
 	CLK(NULL,"aclk_lcdc1",&xin24m),
 	CLK(NULL,"dclk_lcdc1",&xin24m),
 	
+	CLK(NULL,"pd_cif0",&xin24m),
+	CLK(NULL,"aclk_cif0",&xin24m),
+	CLK(NULL,"hclk_cif0",&xin24m),
+	CLK(NULL,"cif0_in",&xin24m),
+	CLK(NULL,"cif0_out",&xin24m),
+	
 	CLK(NULL,"pwm01",&xin24m),
 };
 
