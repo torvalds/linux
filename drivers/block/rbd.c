@@ -568,6 +568,7 @@ err_sizes:
 err_names:
 	kfree(header->snap_names);
 	header->snap_names = NULL;
+	header->snap_names_len = 0;
 err_snapc:
 	kfree(header->snapc);
 	header->snapc = NULL;
@@ -631,9 +632,14 @@ done:
 static void rbd_header_free(struct rbd_image_header *header)
 {
 	kfree(header->object_prefix);
+	header->object_prefix = NULL;
 	kfree(header->snap_sizes);
+	header->snap_sizes = NULL;
 	kfree(header->snap_names);
+	header->snap_names = NULL;
+	header->snap_names_len = 0;
 	ceph_put_snap_context(header->snapc);
+	header->snapc = NULL;
 }
 
 /*
@@ -2418,7 +2424,10 @@ static int rbd_add_parse_args(struct rbd_device *rbd_dev,
 
 out_err:
 	kfree(rbd_dev->header_name);
+	rbd_dev->header_name = NULL;
 	kfree(rbd_dev->image_name);
+	rbd_dev->image_name = NULL;
+	rbd_dev->image_name_len = 0;
 	kfree(rbd_dev->pool_name);
 	rbd_dev->pool_name = NULL;
 
@@ -2470,6 +2479,7 @@ static ssize_t rbd_add(struct bus_type *bus,
 						options);
 	if (IS_ERR(rbd_dev->rbd_client)) {
 		rc = PTR_ERR(rbd_dev->rbd_client);
+		rbd_dev->rbd_client = NULL;
 		goto err_put_id;
 	}
 
