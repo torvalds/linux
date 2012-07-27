@@ -80,6 +80,16 @@ int dm_pool_delete_thin_device(struct dm_pool_metadata *pmd,
 int dm_pool_commit_metadata(struct dm_pool_metadata *pmd);
 
 /*
+ * Discards all uncommitted changes.  Rereads the superblock, rolling back
+ * to the last good transaction.  Thin devices remain open.
+ * dm_thin_aborted_changes() tells you if they had uncommitted changes.
+ *
+ * If this call fails it's only useful to call dm_pool_metadata_close().
+ * All other methods will fail with -EINVAL.
+ */
+int dm_pool_abort_metadata(struct dm_pool_metadata *pmd);
+
+/*
  * Set/get userspace transaction id.
  */
 int dm_pool_set_metadata_transaction_id(struct dm_pool_metadata *pmd,
@@ -149,6 +159,8 @@ int dm_thin_remove_block(struct dm_thin_device *td, dm_block_t block);
  * Queries.
  */
 bool dm_thin_changed_this_transaction(struct dm_thin_device *td);
+
+bool dm_thin_aborted_changes(struct dm_thin_device *td);
 
 int dm_thin_get_highest_mapped_block(struct dm_thin_device *td,
 				     dm_block_t *highest_mapped);
