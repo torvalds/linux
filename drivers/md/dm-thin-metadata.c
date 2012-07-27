@@ -596,9 +596,15 @@ bad:
 }
 
 static int __open_or_format_metadata(struct dm_pool_metadata *pmd,
-				     int create)
+				     int *create)
 {
-	if (create)
+	int r;
+
+	r = __superblock_all_zeroes(pmd->bm, create);
+	if (r)
+		return r;
+
+	if (*create)
 		return __format_metadata(pmd);
 	else
 		return __open_metadata(pmd);
@@ -617,13 +623,7 @@ static int __create_persistent_data_objects(struct dm_pool_metadata *pmd,
 		return PTR_ERR(pmd->bm);
 	}
 
-	r = __superblock_all_zeroes(pmd->bm, create);
-	if (r) {
-		dm_block_manager_destroy(pmd->bm);
-		return r;
-	}
-
-	r = __open_or_format_metadata(pmd, *create);
+	r = __open_or_format_metadata(pmd, create);
 	if (r)
 		dm_block_manager_destroy(pmd->bm);
 
