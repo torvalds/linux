@@ -1215,7 +1215,10 @@ static int __clone_and_map_discard(struct clone_info *ci)
 		if (!ti->num_discard_requests)
 			return -EOPNOTSUPP;
 
-		len = min(ci->sector_count, max_io_len_target_boundary(ci->sector, ti));
+		if (!ti->split_discard_requests)
+			len = min(ci->sector_count, max_io_len_target_boundary(ci->sector, ti));
+		else
+			len = min(ci->sector_count, max_io_len(ci->sector, ti));
 
 		__issue_target_requests(ci, ti, ti->num_discard_requests, len);
 

@@ -218,6 +218,12 @@ struct dm_target {
 	unsigned discards_supported:1;
 
 	/*
+	 * Set if the target required discard request to be split
+	 * on max_io_len boundary.
+	 */
+	unsigned split_discard_requests:1;
+
+	/*
 	 * Set if this target does not return zeroes on discarded blocks.
 	 */
 	unsigned discard_zeroes_data_unsupported:1;
