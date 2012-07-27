@@ -1828,15 +1828,19 @@ static struct pool *__pool_find(struct mapped_device *pool_md,
 	struct pool *pool = __pool_table_lookup_metadata_dev(metadata_dev);
 
 	if (pool) {
-		if (pool->pool_md != pool_md)
+		if (pool->pool_md != pool_md) {
+			*error = "metadata device already in use by a pool";
 			return ERR_PTR(-EBUSY);
+		}
 		__pool_inc(pool);
 
 	} else {
 		pool = __pool_table_lookup(pool_md);
 		if (pool) {
-			if (pool->md_dev != metadata_dev)
+			if (pool->md_dev != metadata_dev) {
+				*error = "different pool cannot replace a pool";
 				return ERR_PTR(-EINVAL);
+			}
 			__pool_inc(pool);
 
 		} else {
