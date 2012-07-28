@@ -390,8 +390,6 @@ int script_parser_mainkey_get_gpio_cfg(char *main_name, void *gpio_cfg, int gpio
  *
  */
 #define CSP_OSAL_PHY_2_VIRT(phys, size) SW_VA_PORTC_IO_BASE
-#define CSP_OSAL_MALLOC(size) kmalloc((size), GFP_ATOMIC)
-#define CSP_OSAL_FREE(ptr) kfree((ptr))
 
 #define    CSP_PIN_PHY_ADDR_BASE    SW_PA_PORTC_IO_BASE
 #define    CSP_PIN_PHY_ADDR_SIZE    0x1000
@@ -510,7 +508,8 @@ u32 gpio_request(user_gpio_set_t *gpio_list, __u32 group_count_max)
 	}
 
 	/* printk("to malloc space for pin\n"); */
-	user_gpio_buf = (char *)CSP_OSAL_MALLOC(16 + sizeof(system_gpio_set_t) * real_gpio_count);	/* 申请内存，多申请16个字节，用于存放GPIO个数等信息 */
+	/* 申请内存，多申请16个字节，用于存放GPIO个数等信息 */
+	user_gpio_buf = kmalloc(16 + sizeof(system_gpio_set_t) * real_gpio_count, GFP_ATOMIC);
 	if (!user_gpio_buf)
 		return (u32)0;
 
@@ -687,14 +686,15 @@ u32 gpio_request_ex(char *main_name, const char *sub_name)	/* 设备申请GPIO�
 			printk(KERN_ERR "gpio count < =0 ,gpio_count is: %d\n", gpio_count);
 			return 0;
 		}
-		gpio_list = (user_gpio_set_t *)CSP_OSAL_MALLOC(sizeof(system_gpio_set_t) * gpio_count);		/* 申请一片临时内存，用于保存用户数据 */
+		/* 申请一片临时内存，用于保存用户数据 */
+		gpio_list = kmalloc(sizeof(system_gpio_set_t) * gpio_count, GFP_ATOMIC);
 		if (!gpio_list) {
 			printk(KERN_ERR "malloc gpio_list error\n");
 			return 0;
 		}
 		if (!script_parser_mainkey_get_gpio_cfg(main_name, gpio_list, gpio_count)) {
 			gpio_handle = gpio_request(gpio_list, gpio_count);
-			CSP_OSAL_FREE(gpio_list);
+			kfree(gpio_list);
 		} else {
 			return 0;
 		}
@@ -746,7 +746,7 @@ __s32 gpio_release(u32 p_handler, __s32 if_release_to_default_status)
 
 	if (if_release_to_default_status == 2) {
 		/* printk("gpio module :  release p_handler = %x\n",p_handler); */
-		CSP_OSAL_FREE((char *)p_handler);
+		kfree((char *)p_handler);
 
 		return EGPIO_SUCCESS;
 	}
@@ -824,7 +824,7 @@ __s32 gpio_release(u32 p_handler, __s32 if_release_to_default_status)
 	if (tmp_group_dlevel_addr)
 		*tmp_group_dlevel_addr = tmp_group_dlevel_data;
 
-	CSP_OSAL_FREE((char *)p_handler);
+	kfree((char*)p_handler);
 
 	return EGPIO_SUCCESS;
 }
