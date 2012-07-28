@@ -85,6 +85,7 @@ void cx23885_input_rx_work_handler(struct cx23885_dev *dev, u32 events)
 	case CX23885_BOARD_HAUPPAUGE_HVR1270:
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
+	case CX23885_BOARD_TERRATEC_CINERGY_T_PCIE_DUAL:
 	case CX23885_BOARD_TEVII_S470:
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 		/*
@@ -162,6 +163,7 @@ static int cx23885_input_ir_start(struct cx23885_dev *dev)
 		 */
 		params.invert_level = true;
 		break;
+	case CX23885_BOARD_TERRATEC_CINERGY_T_PCIE_DUAL:
 	case CX23885_BOARD_TEVII_S470:
 		/*
 		 * The IR controller on this board only returns pulse widths.
@@ -271,6 +273,13 @@ int cx23885_input_init(struct cx23885_dev *dev)
 		allowed_protos = RC_TYPE_ALL;
 		/* The grey Hauppauge RC-5 remote */
 		rc_map = RC_MAP_HAUPPAUGE;
+		break;
+	case CX23885_BOARD_TERRATEC_CINERGY_T_PCIE_DUAL:
+		/* Integrated CX23885 IR controller */
+		driver_type = RC_DRIVER_IR_RAW;
+		allowed_protos = RC_TYPE_NEC;
+		/* The grey Terratec remote with orange buttons */
+		rc_map = RC_MAP_NEC_TERRATEC_CINERGY_XS;
 		break;
 	case CX23885_BOARD_TEVII_S470:
 		/* Integrated CX23885 IR controller */

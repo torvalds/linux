@@ -46,6 +46,7 @@ MODULE_PARM_DESC(enable_885_ir,
 		 "Enable integrated IR controller for supported\n"
 		 "\t\t    CX2388[57] boards that are wired for it:\n"
 		 "\t\t\tHVR-1250 (reported safe)\n"
+		 "\t\t\tTerraTec Cinergy T PCIe Dual (not well tested, appears to be safe)\n"
 		 "\t\t\tTeVii S470 (reported unsafe)\n"
 		 "\t\t    This can cause an interrupt storm with some cards.\n"
 		 "\t\t    Default: 0 [Disabled]");
@@ -1363,6 +1364,7 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 		params.shutdown = true;
 		v4l2_subdev_call(dev->sd_ir, ir, tx_s_parameters, &params);
 		break;
+	case CX23885_BOARD_TERRATEC_CINERGY_T_PCIE_DUAL:
 	case CX23885_BOARD_TEVII_S470:
 		if (!enable_885_ir)
 			break;
@@ -1403,6 +1405,7 @@ void cx23885_ir_fini(struct cx23885_dev *dev)
 		cx23888_ir_remove(dev);
 		dev->sd_ir = NULL;
 		break;
+	case CX23885_BOARD_TERRATEC_CINERGY_T_PCIE_DUAL:
 	case CX23885_BOARD_TEVII_S470:
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 		cx23885_irq_remove(dev, PCI_MSK_AV_CORE);
@@ -1446,6 +1449,7 @@ void cx23885_ir_pci_int_enable(struct cx23885_dev *dev)
 		if (dev->sd_ir)
 			cx23885_irq_add_enable(dev, PCI_MSK_IR);
 		break;
+	case CX23885_BOARD_TERRATEC_CINERGY_T_PCIE_DUAL:
 	case CX23885_BOARD_TEVII_S470:
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 		if (dev->sd_ir)
