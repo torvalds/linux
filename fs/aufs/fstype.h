@@ -339,16 +339,6 @@ static inline int au_test_fs_unsuppoted(struct super_block *sb)
 		|| au_test_aufs(sb); /* will be supported in next version */
 }
 
-/*
- * If the filesystem supports NFS-export, then it has to support NULL as
- * a nameidata parameter for ->create(), ->lookup() and ->d_revalidate().
- * We can apply this principle when we handle a lower filesystem.
- */
-static inline int au_test_fs_null_nd(struct super_block *sb)
-{
-	return !!sb->s_export_op;
-}
-
 static inline int au_test_fs_remote(struct super_block *sb)
 {
 	return !au_test_tmpfs(sb)
@@ -464,11 +454,6 @@ static inline int au_test_fs_bad_xino(struct super_block *sb)
 {
 	return au_test_fs_remote(sb)
 		|| au_test_fs_bad_iattr_size(sb)
-#ifdef CONFIG_AUFS_BR_RAMFS
-		|| !(au_test_ramfs(sb) || au_test_fs_null_nd(sb))
-#else
-		|| !au_test_fs_null_nd(sb) /* to keep xino code simple */
-#endif
 		/* don't want unnecessary work for xino */
 		|| au_test_aufs(sb)
 		|| au_test_ecryptfs(sb)
