@@ -1000,9 +1000,12 @@ static int smb347_mains_set_property(struct power_supply *psy,
 	struct smb347_charger *smb =
 		container_of(psy, struct smb347_charger, mains);
 	int ret;
+	bool oldval;
 
 	switch (prop) {
 	case POWER_SUPPLY_PROP_ONLINE:
+		oldval = smb->mains_online;
+
 		smb->mains_online = val->intval;
 
 		smb347_set_writable(smb, true);
@@ -1020,6 +1023,9 @@ static int smb347_mains_set_property(struct power_supply *psy,
 		smb347_hw_init(smb);
 
 		smb347_set_writable(smb, false);
+
+		if (smb->mains_online != oldval)
+			power_supply_changed(psy);
 		return 0;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		smb->mains_current_limit = val->intval;
@@ -1084,10 +1090,15 @@ static int smb347_usb_set_property(struct power_supply *psy,
 	int ret = -EINVAL;
 	struct smb347_charger *smb =
 		container_of(psy, struct smb347_charger, usb);
+	bool oldval;
 
 	switch (prop) {
 	case POWER_SUPPLY_PROP_ONLINE:
+		oldval = smb->usb_online;
 		smb->usb_online = val->intval;
+
+		if (smb->usb_online != oldval)
+			power_supply_changed(psy);
 		ret = 0;
 		break;
 	case POWER_SUPPLY_PROP_USB_HC:
