@@ -34,19 +34,20 @@ static struct dma_map_ops xen_swiotlb_dma_ops = {
 int __init pci_xen_swiotlb_detect(void)
 {
 
+	if (!xen_pv_domain())
+		return 0;
+
 	/* If running as PV guest, either iommu=soft, or swiotlb=force will
 	 * activate this IOMMU. If running as PV privileged, activate it
 	 * irregardless.
 	 */
-	if ((xen_initial_domain() || swiotlb || swiotlb_force) &&
-	    (xen_pv_domain()))
+	if ((xen_initial_domain() || swiotlb || swiotlb_force))
 		xen_swiotlb = 1;
 
 	/* If we are running under Xen, we MUST disable the native SWIOTLB.
 	 * Don't worry about swiotlb_force flag activating the native, as
 	 * the 'swiotlb' flag is the only one turning it on. */
-	if (xen_pv_domain())
-		swiotlb = 0;
+	swiotlb = 0;
 
 	return xen_swiotlb;
 }
