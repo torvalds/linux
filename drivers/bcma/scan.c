@@ -462,8 +462,10 @@ int bcma_bus_scan(struct bcma_bus *bus)
 	while (eromptr < eromend) {
 		struct bcma_device *other_core;
 		struct bcma_device *core = kzalloc(sizeof(*core), GFP_KERNEL);
-		if (!core)
-			return -ENOMEM;
+		if (!core) {
+			err = -ENOMEM;
+			goto out;
+		}
 		INIT_LIST_HEAD(&core->list);
 		core->bus = bus;
 
@@ -478,7 +480,7 @@ int bcma_bus_scan(struct bcma_bus *bus)
 			} else if (err == -ESPIPE) {
 				break;
 			}
-			return err;
+			goto out;
 		}
 
 		core->core_index = core_num++;
@@ -494,10 +496,12 @@ int bcma_bus_scan(struct bcma_bus *bus)
 		list_add_tail(&core->list, &bus->cores);
 	}
 
+	err = 0;
+out:
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC)
 		iounmap(eromptr);
 
-	return 0;
+	return err;
 }
 
 int __init bcma_bus_scan_early(struct bcma_bus *bus,
@@ -537,7 +541,7 @@ int __init bcma_bus_scan_early(struct bcma_bus *bus,
 		else if (err == -ESPIPE)
 			break;
 		else if (err < 0)
-			return err;
+			goto out;
 
 		core->core_index = core_num++;
 		bus->nr_cores++;
@@ -551,6 +555,7 @@ int __init bcma_bus_scan_early(struct bcma_bus *bus,
 		break;
 	}
 
+out:
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC)
 		iounmap(eromptr);
 
