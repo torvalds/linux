@@ -1589,7 +1589,7 @@ static int is_first_ref(struct send_ctx *sctx,
 	if (ret < 0)
 		goto out;
 
-	if (name_len != fs_path_len(tmp_name)) {
+	if (dir != tmp_dir || name_len != fs_path_len(tmp_name)) {
 		ret = 0;
 		goto out;
 	}
