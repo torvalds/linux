@@ -45,6 +45,7 @@ static void rk30_adc_stop(struct adc_host *adc)
 	struct rk30_adc_device *dev  = adc_priv(adc);
 	
 	adc_writel(0, dev->regs + ADC_CTRL);
+        udelay(SAMPLE_RATE);
 }
 static int rk30_adc_read(struct adc_host *adc)
 {
@@ -75,10 +76,7 @@ struct adc_test_data {
 };
 static void callback(struct adc_client *client, void *param, int result)
 {
-        if(result < 70)
-	        dev_info(client->adc->dev, "[chn%d] async_read = %d\n", client->chn, result);
-        else
-	        dev_dbg(client->adc->dev, "[chn%d] async_read = %d\n", client->chn, result);
+	dev_dbg(client->adc->dev, "[chn%d] async_read = %d\n", client->chn, result);
 	return;
 }
 static void adc_timer(unsigned long data)
@@ -86,7 +84,7 @@ static void adc_timer(unsigned long data)
 	 struct adc_test_data *test=(struct adc_test_data *)data;
 	
 	queue_work(adc_wq, &test->timer_work);
-	add_timer(&test->timer);
+        mod_timer(&test->timer, jiffies+msecs_to_jiffies(20));
 }
 static void adc_timer_work(struct work_struct *work)
 {	
@@ -95,10 +93,7 @@ static void adc_timer_work(struct work_struct *work)
 						timer_work);
 	adc_async_read(test->client);
 	sync_read = adc_sync_read(test->client);
-        if(sync_read < 70)
-	        dev_info(test->client->adc->dev, "[chn%d] sync_read = %d\n", test->client->chn, sync_read);
-        else
-	        dev_dbg(test->client->adc->dev, "[chn%d] sync_read = %d\n", test->client->chn, sync_read);
+	dev_dbg(test->client->adc->dev, "[chn%d] sync_read = %d\n", test->client->chn, sync_read);
 }
 
 static int rk30_adc_test(void)
@@ -112,8 +107,7 @@ static int rk30_adc_test(void)
 	        test[i]->client = adc_register(i, callback, NULL);
 	        INIT_WORK(&test[i]->timer_work, adc_timer_work);
 	        setup_timer(&test[i]->timer, adc_timer, (unsigned long)test[i]);
-	        test[i]->timer.expires  = jiffies + 1;
-	        add_timer(&test[i]->timer);
+                mod_timer(&test[i]->timer, jiffies+msecs_to_jiffies(20));
         }
 	
 	return 0;
@@ -141,7 +135,7 @@ static int rk30_adc_probe(struct platform_device *pdev)
 		goto err_alloc;
 	}
 
-	ret = request_irq(dev->irq, rk30_adc_irq, 0, pdev->name, dev);
+	ret = request_threaded_irq(dev->irq, NULL, rk30_adc_irq, IRQF_ONESHOT, pdev->name, dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to attach adc irq\n");
 		goto err_alloc;
