@@ -1029,7 +1029,7 @@ struct backref_ctx {
 	u64 extent_len;
 
 	/* Just to check for bugs in backref resolving */
-	int found_in_send_root;
+	int found_itself;
 };
 
 static int __clone_root_cmp_bsearch(const void *key, const void *elt)
@@ -1077,7 +1077,7 @@ static int __iterate_backrefs(u64 ino, u64 offset, u64 root, void *ctx_)
 	if (found->root == bctx->sctx->send_root &&
 	    ino == bctx->cur_objectid &&
 	    offset == bctx->cur_offset) {
-		bctx->found_in_send_root = 1;
+		bctx->found_itself = 1;
 	}
 
 	/*
@@ -1210,7 +1210,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 	backref_ctx.found = 0;
 	backref_ctx.cur_objectid = ino;
 	backref_ctx.cur_offset = data_offset;
-	backref_ctx.found_in_send_root = 0;
+	backref_ctx.found_itself = 0;
 	backref_ctx.extent_len = num_bytes;
 
 	/*
@@ -1231,7 +1231,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 	if (ret < 0)
 		goto out;
 
-	if (!backref_ctx.found_in_send_root) {
+	if (!backref_ctx.found_itself) {
 		/* found a bug in backref code? */
 		ret = -EIO;
 		printk(KERN_ERR "btrfs: ERROR did not find backref in "
