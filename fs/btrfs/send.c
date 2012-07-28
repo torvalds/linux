@@ -327,6 +327,7 @@ out:
 	return ret;
 }
 
+#if 0
 static void fs_path_remove(struct fs_path *p)
 {
 	BUG_ON(p->reversed);
@@ -334,6 +335,7 @@ static void fs_path_remove(struct fs_path *p)
 		p->end--;
 	*p->end = 0;
 }
+#endif
 
 static int fs_path_copy(struct fs_path *p, struct fs_path *from)
 {
