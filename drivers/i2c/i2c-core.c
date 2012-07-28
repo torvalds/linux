@@ -1411,6 +1411,8 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			ret = adap->algo->master_xfer(adap, msgs, num);
 			if (ret != -EAGAIN)
 				break;
+		        dev_err(&adap->dev, "No ack, Maybe slave(addr: 0x%x) not exist or abnormal power-on, retry %d...\n", 
+                                        msgs[0].addr, adap->retries - try);
 			if (time_after(jiffies, orig_jiffies + adap->timeout))
 				break;
 		}

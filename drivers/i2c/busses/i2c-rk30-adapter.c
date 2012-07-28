@@ -14,16 +14,19 @@
  */
 #include "i2c-rk30.h"
 
+#define COMPLETE_READ     (1<<STATE_START|1<<STATE_READ|1<<STATE_STOP)
+#define COMPLETE_WRITE     (1<<STATE_START|1<<STATE_WRITE|1<<STATE_STOP)
+
 /* Control register */
 #define I2C_CON                 0x000
 #define I2C_CON_EN              (1 << 0)
 #define I2C_CON_MOD(mod)        ((mod) << 1)
 #define I2C_CON_MASK            (3 << 1)
 enum{
-    I2C_CON_MOD_TX = 0,
-    I2C_CON_MOD_TRX,
-    I2C_CON_MOD_RX,
-    I2C_CON_MOD_RRX,
+        I2C_CON_MOD_TX = 0,
+        I2C_CON_MOD_TRX,
+        I2C_CON_MOD_RX,
+        I2C_CON_MOD_RRX,
 };
 #define I2C_CON_START           (1 << 3)
 #define I2C_CON_STOP            (1 << 4)
@@ -88,20 +91,21 @@ enum{
 static void rk30_show_regs(struct rk30_i2c *i2c)
 {
         int i;
-        i2c_dbg(i2c->dev, "i2c->start = %d\n", i2c->state);
-        i2c_dbg(i2c->dev, "I2C_CON: 0x%08x\n", i2c_readl(i2c->regs + I2C_CON));
-        i2c_dbg(i2c->dev, "I2C_CLKDIV: 0x%08x\n", i2c_readl(i2c->regs + I2C_CLKDIV));
-        i2c_dbg(i2c->dev, "I2C_MRXADDR: 0x%08x\n", i2c_readl(i2c->regs + I2C_MRXADDR));
-        i2c_dbg(i2c->dev, "I2C_MRXRADDR: 0x%08x\n", i2c_readl(i2c->regs + I2C_MRXRADDR));
-        i2c_dbg(i2c->dev, "I2C_MTXCNT: 0x%08x\n", i2c_readl(i2c->regs + I2C_MTXCNT));
-        i2c_dbg(i2c->dev, "I2C_MRXCNT: 0x%08x\n", i2c_readl(i2c->regs + I2C_MRXCNT));
-        i2c_dbg(i2c->dev, "I2C_IEN: 0x%08x\n", i2c_readl(i2c->regs + I2C_IEN));
-        i2c_dbg(i2c->dev, "I2C_IPD: 0x%08x\n", i2c_readl(i2c->regs + I2C_IPD));
-        i2c_dbg(i2c->dev, "I2C_FCNT: 0x%08x\n", i2c_readl(i2c->regs + I2C_FCNT));
+        dev_info(i2c->dev, "i2c->clk = %lu\n", clk_get_rate(i2c->clk));
+        dev_info(i2c->dev, "i2c->start = %d\n", i2c->state);
+        dev_info(i2c->dev, "I2C_CON: 0x%08x\n", i2c_readl(i2c->regs + I2C_CON));
+        dev_info(i2c->dev, "I2C_CLKDIV: 0x%08x\n", i2c_readl(i2c->regs + I2C_CLKDIV));
+        dev_info(i2c->dev, "I2C_MRXADDR: 0x%08x\n", i2c_readl(i2c->regs + I2C_MRXADDR));
+        dev_info(i2c->dev, "I2C_MRXRADDR: 0x%08x\n", i2c_readl(i2c->regs + I2C_MRXRADDR));
+        dev_info(i2c->dev, "I2C_MTXCNT: 0x%08x\n", i2c_readl(i2c->regs + I2C_MTXCNT));
+        dev_info(i2c->dev, "I2C_MRXCNT: 0x%08x\n", i2c_readl(i2c->regs + I2C_MRXCNT));
+        dev_info(i2c->dev, "I2C_IEN: 0x%08x\n", i2c_readl(i2c->regs + I2C_IEN));
+        dev_info(i2c->dev, "I2C_IPD: 0x%08x\n", i2c_readl(i2c->regs + I2C_IPD));
+        dev_info(i2c->dev, "I2C_FCNT: 0x%08x\n", i2c_readl(i2c->regs + I2C_FCNT));
         for( i = 0; i < 8; i ++) 
-                i2c_dbg(i2c->dev, "I2C_TXDATA%d: 0x%08x\n", i, i2c_readl(i2c->regs + I2C_TXDATA_BASE + i * 4));
+                dev_info(i2c->dev, "I2C_TXDATA%d: 0x%08x\n", i, i2c_readl(i2c->regs + I2C_TXDATA_BASE + i * 4));
         for( i = 0; i < 8; i ++) 
-                i2c_dbg(i2c->dev, "I2C_RXDATA%d: 0x%08x\n", i, i2c_readl(i2c->regs + I2C_RXDATA_BASE + i * 4));
+                dev_info(i2c->dev, "I2C_RXDATA%d: 0x%08x\n", i, i2c_readl(i2c->regs + I2C_RXDATA_BASE + i * 4));
 }
 static inline void rk30_i2c_enable(struct rk30_i2c *i2c, unsigned int lastnak)
 {
@@ -349,9 +353,9 @@ prepare_read:
                 }
                 rk30_i2c_clean_stop(i2c);
                 i2c_writel(I2C_STOPIPD, i2c->regs + I2C_IPD);
-                i2c->state = STATE_IDLE;
 	        i2c->is_busy = 0;
                 i2c->complete_what |= 1<<i2c->state;
+                i2c->state = STATE_IDLE;
 	        wake_up(&i2c->wait);
                 break;
         default:
@@ -455,9 +459,19 @@ static int rk30_i2c_doxfer(struct rk30_i2c *i2c,
 			      struct i2c_msg *msgs, int num)
 {
 	unsigned long timeout, flags;
+        int error = 0;
+        /* 32 -- max transfer bytes
+         * 2 -- addr bytes * 2
+         * 3 -- max reg addr bytes
+         * 9 -- cycles per bytes
+         * max cycles: (32 + 2 + 3) * 9 --> 400 cycles
+         */
+        int msleep_time = 400 * 1000/ i2c->scl_rate; // ms
 
-	if (i2c->suspended)
+	if (i2c->suspended){
+                dev_err(i2c->dev, "i2c is suspended\n");
 		return -EIO;
+        }
 
 	spin_lock_irqsave(&i2c->lock, flags);
 	if(rk30_i2c_set_master(i2c, msgs, num) < 0){
@@ -479,25 +493,33 @@ static int rk30_i2c_doxfer(struct rk30_i2c *i2c,
 	timeout = wait_event_timeout(i2c->wait, (i2c->is_busy == 0), msecs_to_jiffies(I2C_WAIT_TIMEOUT));
 
 	spin_lock_irqsave(&i2c->lock, flags);
-        i2c_writel(I2C_IPD_ALL_CLEAN, i2c->regs + I2C_IPD);
+        i2c->state = STATE_IDLE;
+        error = i2c->error;
 	spin_unlock_irqrestore(&i2c->lock, flags);
 
 	if (timeout == 0){
-                dev_err(i2c->dev, "addr[0x%02x] wait event timeout, state: %d, is_busy: %d, error: %d, complete_what: 0x%x\n", 
-                                msgs[0].addr, i2c->state, i2c->is_busy, i2c->error, i2c->complete_what);  
-                i2c->state = STATE_IDLE;
-                if((i2c->error < 0) || (i2c->is_busy != 0) || !(i2c->complete_what & (1 << STATE_STOP))) 
-                        i2c->error = -ETIMEDOUT;
-                rk30_i2c_send_stop(i2c);
-
+                if(error < 0)
+                        i2c_dbg(i2c->dev, "error = %d\n", error);
+                else if((i2c->complete_what !=COMPLETE_READ  && i2c->complete_what != COMPLETE_WRITE)){
+                        dev_err(i2c->dev, "Addr[0x%02x] wait event timeout, state: %d, is_busy: %d, error: %d, complete_what: 0x%x, ipd: 0x%x\n", 
+                                msgs[0].addr, i2c->state, i2c->is_busy, error, i2c->complete_what, i2c_readl(i2c->regs + I2C_IPD));  
+                        //rk30_show_regs(i2c);
+                        error = -ETIMEDOUT;
+                        msleep(msleep_time);
+                        rk30_i2c_send_stop(i2c);
+                        msleep(1);
+                }
+                else
+                        i2c_dbg(i2c->dev, "Addr[0x%02x] wait event timeout, but transfer complete\n", i2c->addr);  
         }
+        i2c_writel(I2C_IPD_ALL_CLEAN, i2c->regs + I2C_IPD);
 	rk30_i2c_disable_irq(i2c);
         rk30_i2c_disable(i2c);
 
-        if(i2c->error == -EAGAIN)
-                dev_err(i2c->dev, "No ack(retry: %d, complete_what: 0x%x), Maybe slave(addr: 0x%02x) not exist or abnormal power-on\n",
-                                i2c->adap.retries + 1, i2c->complete_what, i2c->addr);
-	return i2c->error;
+        if(error == -EAGAIN)
+                i2c_dbg(i2c->dev, "No ack(complete_what: 0x%x), Maybe slave(addr: 0x%02x) not exist or abnormal power-on\n",
+                                i2c->complete_what, i2c->addr);
+	return error;
 }
 
 /* rk30_i2c_xfer
@@ -509,11 +531,18 @@ static int rk30_i2c_doxfer(struct rk30_i2c *i2c,
 static int rk30_i2c_xfer(struct i2c_adapter *adap,
 			struct i2c_msg *msgs, int num)
 {
-	int ret = 0;
+	int ret = 0, state, retry = 10;
         unsigned long scl_rate;
 	struct rk30_i2c *i2c = (struct rk30_i2c *)adap->algo_data;
 
         clk_enable(i2c->clk);
+        while(retry-- && ((state = i2c->check_idle()) != I2C_IDLE)){
+                msleep(10);
+        }
+        if(retry == 0){
+                dev_err(i2c->dev, "i2c is not in idle(state = %d)\n", state);
+                return -EIO;
+        }
 
         if(msgs[0].scl_rate <= 400000 && msgs[0].scl_rate >= 10000)
 		scl_rate = msgs[0].scl_rate;

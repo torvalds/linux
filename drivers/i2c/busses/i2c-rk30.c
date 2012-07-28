@@ -100,6 +100,9 @@ static int rk30_i2c_probe(struct platform_device *pdev)
 
         if(pdata->io_init)
 		pdata->io_init();
+        if(pdata->check_idle){
+                i2c->check_idle = pdata->check_idle;
+        }
 
 	strlcpy(i2c->adap.name, "rk30_i2c", sizeof(i2c->adap.name));
 	i2c->adap.owner   = THIS_MODULE;
@@ -124,7 +127,7 @@ static int rk30_i2c_probe(struct platform_device *pdev)
 
 	i2c_dbg(&pdev->dev, "clock source %p\n", i2c->clk);
 
-	//clk_enable(i2c->clk);
+	clk_enable(i2c->clk);
 
 	/* map the registers */
 
