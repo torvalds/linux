@@ -2805,6 +2805,17 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 			if (ret < 0)
 				goto out;
 		}
+	} else if (S_ISDIR(sctx->cur_inode_mode) &&
+		   !list_empty(&sctx->deleted_refs)) {
+		/*
+		 * We have a moved dir. Add the old parent to check_dirs
+		 */
+		cur = list_entry(sctx->deleted_refs.next, struct recorded_ref,
+				list);
+		ret = ulist_add(check_dirs, cur->dir, cur->dir_gen,
+				GFP_NOFS);
+		if (ret < 0)
+			goto out;
 	} else if (!S_ISDIR(sctx->cur_inode_mode)) {
 		/*
 		 * We have a non dir inode. Go through all deleted refs and
