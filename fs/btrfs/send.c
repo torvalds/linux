@@ -125,7 +125,6 @@ struct send_ctx {
 
 struct name_cache_entry {
 	struct list_head list;
-	struct list_head use_list;
 	u64 ino;
 	u64 gen;
 	u64 parent_ino;
@@ -1906,7 +1905,6 @@ out_cache:
 	nce->name_len = fs_path_len(dest);
 	nce->ret = ret;
 	strcpy(nce->name, dest->start);
-	memset(&nce->use_list, 0, sizeof(nce->use_list));
 
 	if (ino < sctx->send_progress)
 		nce->need_later_update = 0;
