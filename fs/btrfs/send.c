@@ -107,7 +107,6 @@ struct send_ctx {
 	int cur_inode_new;
 	int cur_inode_new_gen;
 	int cur_inode_deleted;
-	int cur_inode_first_ref_orphan;
 	u64 cur_inode_size;
 	u64 cur_inode_mode;
 
@@ -2296,25 +2295,25 @@ out:
  * a valid path yet because we did not process the refs yet. So, the inode
  * is created as orphan.
  */
-static int send_create_inode(struct send_ctx *sctx, struct btrfs_path *path,
-			     struct btrfs_key *key)
+static int send_create_inode(struct send_ctx *sctx, u64 ino)
 {
 	int ret = 0;
-	struct extent_buffer *eb = path->nodes[0];
-	struct btrfs_inode_item *ii;
 	struct fs_path *p;
-	int slot = path->slots[0];
 	int cmd;
+	u64 gen;
 	u64 mode;
+	u64 rdev;
 
-verbose_printk("btrfs: send_create_inode %llu\n", sctx->cur_ino);
+verbose_printk("btrfs: send_create_inode %llu\n", ino);
 
 	p = fs_path_alloc(sctx);
 	if (!p)
 		return -ENOMEM;
 
-	ii = btrfs_item_ptr(eb, slot, struct btrfs_inode_item);
-	mode = btrfs_inode_mode(eb, ii);
+	ret = get_inode_info(sctx->send_root, ino, NULL, &gen, &mode, NULL,
+			NULL, &rdev);
+	if (ret < 0)
+		goto out;
 
 	if (S_ISREG(mode))
 		cmd = BTRFS_SEND_C_MKFILE;
@@ -2339,22 +2338,22 @@ verbose_printk("btrfs: send_create_inode %llu\n", sctx->cur_ino);
 	if (ret < 0)
 		goto out;
 
-	ret = gen_unique_name(sctx, sctx->cur_ino, sctx->cur_inode_gen, p);
+	ret = gen_unique_name(sctx, ino, gen, p);
 	if (ret < 0)
 		goto out;
 
 	TLV_PUT_PATH(sctx, BTRFS_SEND_A_PATH, p);
-	TLV_PUT_U64(sctx, BTRFS_SEND_A_INO, sctx->cur_ino);
+	TLV_PUT_U64(sctx, BTRFS_SEND_A_INO, ino);
 
 	if (S_ISLNK(mode)) {
 		fs_path_reset(p);
-		ret = read_symlink(sctx, sctx->send_root, sctx->cur_ino, p);
+		ret = read_symlink(sctx, sctx->send_root, ino, p);
 		if (ret < 0)
 			goto out;
 		TLV_PUT_PATH(sctx, BTRFS_SEND_A_PATH_LINK, p);
 	} else if (S_ISCHR(mode) || S_ISBLK(mode) ||
 		   S_ISFIFO(mode) || S_ISSOCK(mode)) {
-		TLV_PUT_U64(sctx, BTRFS_SEND_A_RDEV, btrfs_inode_rdev(eb, ii));
+		TLV_PUT_U64(sctx, BTRFS_SEND_A_RDEV, rdev);
 	}
 
 	ret = send_cmd(sctx);
@@ -2365,6 +2364,92 @@ verbose_printk("btrfs: send_create_inode %llu\n", sctx->cur_ino);
 tlv_put_failure:
 out:
 	fs_path_free(sctx, p);
+	return ret;
+}
+
+/*
+ * We need some special handling for inodes that get processed before the parent
+ * directory got created. See process_recorded_refs for details.
+ * This function does the check if we already created the dir out of order.
+ */
+static int did_create_dir(struct send_ctx *sctx, u64 dir)
+{
+	int ret = 0;
+	struct btrfs_path *path = NULL;
+	struct btrfs_key key;
+	struct btrfs_key found_key;
+	struct btrfs_key di_key;
+	struct extent_buffer *eb;
+	struct btrfs_dir_item *di;
+	int slot;
+
+	path = alloc_path_for_send();
+	if (!path) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	key.objectid = dir;
+	key.type = BTRFS_DIR_INDEX_KEY;
+	key.offset = 0;
+	while (1) {
+		ret = btrfs_search_slot_for_read(sctx->send_root, &key, path,
+				1, 0);
+		if (ret < 0)
+			goto out;
+		if (!ret) {
+			eb = path->nodes[0];
+			slot = path->slots[0];
+			btrfs_item_key_to_cpu(eb, &found_key, slot);
+		}
+		if (ret || found_key.objectid != key.objectid ||
+		    found_key.type != key.type) {
+			ret = 0;
+			goto out;
+		}
+
+		di = btrfs_item_ptr(eb, slot, struct btrfs_dir_item);
+		btrfs_dir_item_key_to_cpu(eb, di, &di_key);
+
+		if (di_key.objectid < sctx->send_progress) {
+			ret = 1;
+			goto out;
+		}
+
+		key.offset = found_key.offset + 1;
+		btrfs_release_path(path);
+	}
+
+out:
+	btrfs_free_path(path);
+	return ret;
+}
+
+/*
+ * Only creates the inode if it is:
+ * 1. Not a directory
+ * 2. Or a directory which was not created already due to out of order
+ *    directories. See did_create_dir and process_recorded_refs for details.
+ */
+static int send_create_inode_if_needed(struct send_ctx *sctx)
+{
+	int ret;
+
+	if (S_ISDIR(sctx->cur_inode_mode)) {
+		ret = did_create_dir(sctx, sctx->cur_ino);
+		if (ret < 0)
+			goto out;
+		if (ret) {
+			ret = 0;
+			goto out;
+		}
+	}
+
+	ret = send_create_inode(sctx, sctx->cur_ino);
+	if (ret < 0)
+		goto out;
+
+out:
 	return ret;
 }
 
@@ -2517,160 +2602,6 @@ out:
 	return ret;
 }
 
-struct finish_unordered_dir_ctx {
-	struct send_ctx *sctx;
-	struct fs_path *cur_path;
-	struct fs_path *dir_path;
-	u64 dir_ino;
-	int need_delete;
-	int delete_pass;
-};
-
-int __finish_unordered_dir(int num, struct btrfs_key *di_key,
-			   const char *name, int name_len,
-			   const char *data, int data_len,
-			   u8 type, void *ctx)
-{
-	int ret = 0;
-	struct finish_unordered_dir_ctx *fctx = ctx;
-	struct send_ctx *sctx = fctx->sctx;
-	u64 di_gen;
-	u64 di_mode;
-	int is_orphan = 0;
-
-	if (di_key->objectid >= fctx->dir_ino)
-		goto out;
-
-	fs_path_reset(fctx->cur_path);
-
-	ret = get_inode_info(sctx->send_root, di_key->objectid,
-			NULL, &di_gen, &di_mode, NULL, NULL, NULL);
-	if (ret < 0)
-		goto out;
-
-	ret = is_first_ref(sctx, sctx->send_root, di_key->objectid,
-			fctx->dir_ino, name, name_len);
-	if (ret < 0)
-		goto out;
-	if (ret) {
-		is_orphan = 1;
-		ret = gen_unique_name(sctx, di_key->objectid, di_gen,
-				fctx->cur_path);
-	} else {
-		ret = get_cur_path(sctx, di_key->objectid, di_gen,
-				fctx->cur_path);
-	}
-	if (ret < 0)
-		goto out;
-
-	ret = fs_path_add(fctx->dir_path, name, name_len);
-	if (ret < 0)
-		goto out;
-
-	if (!fctx->delete_pass) {
-		if (S_ISDIR(di_mode)) {
-			ret = send_rename(sctx, fctx->cur_path,
-					fctx->dir_path);
-		} else {
-			ret = send_link(sctx, fctx->dir_path,
-					fctx->cur_path);
-			if (is_orphan)
-				fctx->need_delete = 1;
-		}
-	} else if (!S_ISDIR(di_mode)) {
-		ret = send_unlink(sctx, fctx->cur_path);
-	} else {
-		ret = 0;
-	}
-
-	fs_path_remove(fctx->dir_path);
-
-out:
-	return ret;
-}
-
-/*
- * Go through all dir items and see if we find refs which could not be created
- * in the past because the dir did not exist at that time.
- */
-static int finish_outoforder_dir(struct send_ctx *sctx, u64 dir, u64 dir_gen)
-{
-	int ret = 0;
-	struct btrfs_path *path = NULL;
-	struct btrfs_key key;
-	struct btrfs_key found_key;
-	struct extent_buffer *eb;
-	struct finish_unordered_dir_ctx fctx;
-	int slot;
-
-	path = alloc_path_for_send();
-	if (!path) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	memset(&fctx, 0, sizeof(fctx));
-	fctx.sctx = sctx;
-	fctx.cur_path = fs_path_alloc(sctx);
-	fctx.dir_path = fs_path_alloc(sctx);
-	if (!fctx.cur_path || !fctx.dir_path) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	fctx.dir_ino = dir;
-
-	ret = get_cur_path(sctx, dir, dir_gen, fctx.dir_path);
-	if (ret < 0)
-		goto out;
-
-	/*
-	 * We do two passes. The first links in the new refs and the second
-	 * deletes orphans if required. Deletion of orphans is not required for
-	 * directory inodes, as we always have only one ref and use rename
-	 * instead of link for those.
-	 */
-
-again:
-	key.objectid = dir;
-	key.type = BTRFS_DIR_ITEM_KEY;
-	key.offset = 0;
-	while (1) {
-		ret = btrfs_search_slot_for_read(sctx->send_root, &key, path,
-				1, 0);
-		if (ret < 0)
-			goto out;
-		eb = path->nodes[0];
-		slot = path->slots[0];
-		btrfs_item_key_to_cpu(eb, &found_key, slot);
-
-		if (found_key.objectid != key.objectid ||
-		    found_key.type != key.type) {
-			btrfs_release_path(path);
-			break;
-		}
-
-		ret = iterate_dir_item(sctx, sctx->send_root, path,
-				&found_key, __finish_unordered_dir,
-				&fctx);
-		if (ret < 0)
-			goto out;
-
-		key.offset = found_key.offset + 1;
-		btrfs_release_path(path);
-	}
-
-	if (!fctx.delete_pass && fctx.need_delete) {
-		fctx.delete_pass = 1;
-		goto again;
-	}
-
-out:
-	btrfs_free_path(path);
-	fs_path_free(sctx, fctx.cur_path);
-	fs_path_free(sctx, fctx.dir_path);
-	return ret;
-}
-
 /*
  * This does all the move/link/unlink/rmdir magic.
  */
@@ -2678,6 +2609,7 @@ static int process_recorded_refs(struct send_ctx *sctx)
 {
 	int ret = 0;
 	struct recorded_ref *cur;
+	struct recorded_ref *cur2;
 	struct ulist *check_dirs = NULL;
 	struct ulist_iterator uit;
 	struct ulist_node *un;
@@ -2735,6 +2667,46 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 
 	list_for_each_entry(cur, &sctx->new_refs, list) {
 		/*
+		 * We may have refs where the parent directory does not exist
+		 * yet. This happens if the parent directories inum is higher
+		 * the the current inum. To handle this case, we create the
+		 * parent directory out of order. But we need to check if this
+		 * did already happen before due to other refs in the same dir.
+		 */
+		ret = get_cur_inode_state(sctx, cur->dir, cur->dir_gen);
+		if (ret < 0)
+			goto out;
+		if (ret == inode_state_will_create) {
+			ret = 0;
+			/*
+			 * First check if any of the current inodes refs did
+			 * already create the dir.
+			 */
+			list_for_each_entry(cur2, &sctx->new_refs, list) {
+				if (cur == cur2)
+					break;
+				if (cur2->dir == cur->dir) {
+					ret = 1;
+					break;
+				}
+			}
+
+			/*
+			 * If that did not happen, check if a previous inode
+			 * did already create the dir.
+			 */
+			if (!ret)
+				ret = did_create_dir(sctx, cur->dir);
+			if (ret < 0)
+				goto out;
+			if (!ret) {
+				ret = send_create_inode(sctx, cur->dir);
+				if (ret < 0)
+					goto out;
+			}
+		}
+
+		/*
 		 * Check if this new ref would overwrite the first ref of
 		 * another unprocessed inode. If yes, orphanize the
 		 * overwritten inode. If we find an overwritten ref that is
@@ -2768,7 +2740,7 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 		 * inode, move it and update valid_path. If not, link or move
 		 * it depending on the inode mode.
 		 */
-		if (is_orphan && !sctx->cur_inode_first_ref_orphan) {
+		if (is_orphan) {
 			ret = send_rename(sctx, valid_path, cur->full_path);
 			if (ret < 0)
 				goto out;
@@ -2844,35 +2816,9 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 			if (ret < 0)
 				goto out;
 			if (!ret) {
-				/*
-				 * In case the inode was moved to a directory
-				 * that was not created yet (see
-				 * __record_new_ref), we can not unlink the ref
-				 * as it will be needed later when the parent
-				 * directory is created, so that we can move in
-				 * the inode to the new dir.
-				 */
-				if (!is_orphan &&
-				    sctx->cur_inode_first_ref_orphan) {
-					ret = orphanize_inode(sctx,
-							sctx->cur_ino,
-							sctx->cur_inode_gen,
-							cur->full_path);
-					if (ret < 0)
-						goto out;
-					ret = gen_unique_name(sctx,
-							sctx->cur_ino,
-							sctx->cur_inode_gen,
-							valid_path);
-					if (ret < 0)
-						goto out;
-					is_orphan = 1;
-
-				} else {
-					ret = send_unlink(sctx, cur->full_path);
-					if (ret < 0)
-						goto out;
-				}
+				ret = send_unlink(sctx, cur->full_path);
+				if (ret < 0)
+					goto out;
 			}
 			ret = ulist_add(check_dirs, cur->dir, cur->dir_gen,
 					GFP_NOFS);
@@ -2885,11 +2831,8 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 		 * happen when a previous inode did overwrite the first ref
 		 * of this inode and no new refs were added for the current
 		 * inode.
-		 * We can however not delete the orphan in case the inode relies
-		 * in a directory that was not created yet (see
-		 * __record_new_ref)
 		 */
-		if (is_orphan && !sctx->cur_inode_first_ref_orphan) {
+		if (is_orphan) {
 			ret = send_unlink(sctx, valid_path);
 			if (ret < 0)
 				goto out;
@@ -2939,19 +2882,6 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 	 */
 	sctx->send_progress = sctx->cur_ino + 1;
 
-	/*
-	 * We may have a directory here that has pending refs which could not
-	 * be created before (because the dir did not exist before, see
-	 * __record_new_ref). finish_outoforder_dir will link/move the pending
-	 * refs.
-	 */
-	if (S_ISDIR(sctx->cur_inode_mode) && sctx->cur_inode_new) {
-		ret = finish_outoforder_dir(sctx, sctx->cur_ino,
-				sctx->cur_inode_gen);
-		if (ret < 0)
-			goto out;
-	}
-
 	ret = 0;
 
 out:
@@ -2978,31 +2908,6 @@ static int __record_new_ref(int num, u64 dir, int index,
 			NULL, NULL);
 	if (ret < 0)
 		goto out;
-
-	/*
-	 * The parent may be non-existent at this point in time. This happens
-	 * if the ino of the parent dir is higher then the current ino. In this
-	 * case, we can not process this ref until the parent dir is finally
-	 * created. If we reach the parent dir later, process_recorded_refs
-	 * will go through all dir items and process the refs that could not be
-	 * processed before. In case this is the first ref, we set
-	 * cur_inode_first_ref_orphan to 1 to inform process_recorded_refs to
-	 * keep an orphan of the inode so that it later can be used for
-	 * link/move
-	 */
-	ret = is_inode_existent(sctx, dir, gen);
-	if (ret < 0)
-		goto out;
-	if (!ret) {
-		ret = is_first_ref(sctx, sctx->send_root, sctx->cur_ino, dir,
-				name->start, fs_path_len(name));
-		if (ret < 0)
-			goto out;
-		if (ret)
-			sctx->cur_inode_first_ref_orphan = 1;
-		ret = 0;
-		goto out;
-	}
 
 	ret = get_cur_path(sctx, dir, gen, p);
 	if (ret < 0)
@@ -4078,7 +3983,6 @@ static int changed_inode(struct send_ctx *sctx,
 
 	sctx->cur_ino = key->objectid;
 	sctx->cur_inode_new_gen = 0;
-	sctx->cur_inode_first_ref_orphan = 0;
 	sctx->send_progress = sctx->cur_ino;
 
 	if (result == BTRFS_COMPARE_TREE_NEW ||
@@ -4115,8 +4019,7 @@ static int changed_inode(struct send_ctx *sctx,
 		sctx->cur_inode_mode = btrfs_inode_mode(
 				sctx->left_path->nodes[0], left_ii);
 		if (sctx->cur_ino != BTRFS_FIRST_FREE_OBJECTID)
-			ret = send_create_inode(sctx, sctx->left_path,
-					sctx->cmp_key);
+			ret = send_create_inode_if_needed(sctx);
 	} else if (result == BTRFS_COMPARE_TREE_DELETED) {
 		sctx->cur_inode_gen = right_gen;
 		sctx->cur_inode_new = 0;
@@ -4146,8 +4049,7 @@ static int changed_inode(struct send_ctx *sctx,
 					sctx->left_path->nodes[0], left_ii);
 			sctx->cur_inode_mode = btrfs_inode_mode(
 					sctx->left_path->nodes[0], left_ii);
-			ret = send_create_inode(sctx, sctx->left_path,
-					sctx->cmp_key);
+			ret = send_create_inode_if_needed(sctx);
 			if (ret < 0)
 				goto out;
 
