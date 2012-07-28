@@ -231,7 +231,7 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 			}
 			if (!ret) {
 				ret = ulist_add(parents, eb->start,
-						(unsigned long)eie, GFP_NOFS);
+						(u64)eie, GFP_NOFS);
 				if (ret < 0)
 					break;
 				if (!extent_item_pos) {
@@ -914,8 +914,8 @@ again:
 				free_extent_buffer(eb);
 			}
 			ret = ulist_add_merge(refs, ref->parent,
-					      (unsigned long)ref->inode_list,
-					      (unsigned long *)&eie, GFP_NOFS);
+					      (u64)ref->inode_list,
+					      (u64 *)&eie, GFP_NOFS);
 			if (!ret && extent_item_pos) {
 				/*
 				 * we've recorded that parent, so we must extend
@@ -1404,7 +1404,7 @@ int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 		ULIST_ITER_INIT(&root_uiter);
 		while (!ret && (root_node = ulist_next(roots, &root_uiter))) {
 			pr_debug("root %llu references leaf %llu, data list "
-				 "%#lx\n", root_node->val, ref_node->val,
+				 "%#llx\n", root_node->val, ref_node->val,
 				 ref_node->aux);
 			ret = iterate_leaf_refs(
 				(struct extent_inode_elem *)ref_node->aux,
