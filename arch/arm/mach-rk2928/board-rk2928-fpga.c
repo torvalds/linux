@@ -47,8 +47,8 @@
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
 /*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
 #define CONFIG_SENSOR_0 RK29_CAM_SENSOR_OV5642						/* back camera sensor */
-#define CONFIG_SENSOR_IIC_ADDR_0		0x78
-#define CONFIG_SENSOR_IIC_ADAPTER_ID_0	  1
+#define CONFIG_SENSOR_IIC_ADDR_0		0
+#define CONFIG_SENSOR_IIC_ADAPTER_ID_0	  4
 #define CONFIG_SENSOR_CIF_INDEX_0                    0
 #define CONFIG_SENSOR_ORIENTATION_0 	  90
 #define CONFIG_SENSOR_POWER_PIN_0		  INVALID_GPIO
@@ -189,6 +189,7 @@
 /*---------------- Camera Sensor Configuration Macro End------------------------*/
 #include "../../../drivers/media/video/rk2928_camera.c"
 /*---------------- Camera Sensor Macro Define End  ---------*/
+
 #define PMEM_CAM_SIZE PMEM_CAM_NECESSARY
 /*****************************************************************************************
  * camera  devices
@@ -490,6 +491,169 @@ static rk_sensor_user_init_data_s rk_init_data_sensor[RK_CAM_NUM] =
 #include "../../../drivers/media/video/rk2928_camera.c"
 
 #endif /* CONFIG_VIDEO_RK29 */
+
+/**************************************************************************************************
+ * SDMMC devices,  include the module of SD,MMC,and sdio.noted by xbw at 2012-03-05
+**************************************************************************************************/
+#ifdef CONFIG_SDMMC_RK29
+#include "board-rk2928-sdk-sdmmc.c"
+
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+#define SDMMC0_WRITE_PROTECT_PIN	RK2928_PIN1_PA7	//According to your own project to set the value of write-protect-pin.
+#endif
+
+#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+#define SDMMC1_WRITE_PROTECT_PIN	RK2928_PIN0_PD5	//According to your own project to set the value of write-protect-pin.
+#endif
+
+#define RK29SDK_WIFI_SDIO_CARD_DETECT_N    RK2928_PIN0_PB2
+
+#endif //endif ---#ifdef CONFIG_SDMMC_RK29
+
+#ifdef CONFIG_SDMMC0_RK29
+static int rk29_sdmmc0_cfg_gpio(void)
+{
+#ifdef CONFIG_SDMMC_RK29_OLD
+	rk30_mux_api_set(GPIO1B7_MMC0_CMD_NAME, GPIO1B_MMC0_CMD);
+	rk30_mux_api_set(GPIO1C0_MMC0_CLKOUT_NAME, GPIO1C_MMC0_CLKOUT);
+	rk30_mux_api_set(GPIO1C2_MMC0_D0_NAME, GPIO1C_MMC0_D0);
+	rk30_mux_api_set(GPIO1C3_MMC0_D1_NAME, GPIO1C_MMC0_D1);
+	rk30_mux_api_set(GPIO1C4_MMC0_D2_NAME, GPIO1C_MMC0_D2);
+	rk30_mux_api_set(GPIO1C5_MMC0_D3_NAME, GPIO1C_MMC0_D3);
+
+	rk30_mux_api_set(GPIO1C1_MMC0_DETN_NAME, GPIO1C_MMC0_DETN);
+
+	rk30_mux_api_set(GPIO1B6_MMC0_PWREN_NAME, GPIO1B_MMC0_PWREN);
+	gpio_request(RK30_PIN3_PA7, "sdmmc-power");
+	gpio_direction_output(RK2928_PIN1_PB6, GPIO_LOW);
+
+#else
+	rk29_sdmmc_set_iomux(0, 0xFFFF);
+
+	rk30_mux_api_set(GPIO1C1_MMC0_DETN_NAME, GPIO1C_MMC0_DETN);
+
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+	gpio_request(SDMMC0_WRITE_PROTECT_PIN, "sdmmc-wp");
+	gpio_direction_input(SDMMC0_WRITE_PROTECT_PIN);
+#endif
+
+#endif
+
+	return 0;
+}
+
+#define CONFIG_SDMMC0_USE_DMA
+struct rk29_sdmmc_platform_data default_sdmmc0_data = {
+	.host_ocr_avail =
+	    (MMC_VDD_25_26 | MMC_VDD_26_27 | MMC_VDD_27_28 | MMC_VDD_28_29 |
+	     MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32 | MMC_VDD_32_33 |
+	     MMC_VDD_33_34 | MMC_VDD_34_35 | MMC_VDD_35_36),
+	.host_caps =
+	    (MMC_CAP_4_BIT_DATA | MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED),
+	.io_init = rk29_sdmmc0_cfg_gpio,
+
+#if !defined(CONFIG_SDMMC_RK29_OLD)
+	.set_iomux = rk29_sdmmc_set_iomux,
+#endif
+
+	.dma_name = "sd_mmc",
+#ifdef CONFIG_SDMMC0_USE_DMA
+	.use_dma = 1,
+#else
+	.use_dma = 0,
+#endif
+	.detect_irq = RK2928_PIN1_PC1,	// INVALID_GPIO
+	.enable_sd_wakeup = 0,
+
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+	.write_prt = SDMMC0_WRITE_PROTECT_PIN,
+#else
+	.write_prt = INVALID_GPIO,
+#endif
+};
+#endif // CONFIG_SDMMC0_RK29
+
+#ifdef CONFIG_SDMMC1_RK29
+#define CONFIG_SDMMC1_USE_DMA
+static int rk29_sdmmc1_cfg_gpio(void)
+{
+#if defined(CONFIG_SDMMC_RK29_OLD)
+	rk30_mux_api_set(GPIO0B0_MMC1_CMD_NAME, GPIO0B_MMC1_CMD);
+	rk30_mux_api_set(GPIO0B1_MMC1_CLKOUT_NAME, GPIO0B_MMC1_CLKOUT);
+	rk30_mux_api_set(GPIO0B3_MMC1_D0_NAME, GPIO0B_MMC1_D0);
+	rk30_mux_api_set(GPIO0B4_MMC1_D1_NAME, GPIO0B_MMC1_D1);
+	rk30_mux_api_set(GPIO0B5_MMC1_D2_NAME, GPIO0B_MMC1_D2);
+	rk30_mux_api_set(GPIO0B6_MMC1_D3_NAME, GPIO0B_MMC1_D3);
+	//rk30_mux_api_set(GPIO0B2_MMC1_DETN_NAME, GPIO0B_MMC1_DETN);
+
+#else
+
+#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+	gpio_request(SDMMC1_WRITE_PROTECT_PIN, "sdio-wp");
+	gpio_direction_input(SDMMC1_WRITE_PROTECT_PIN);
+#endif
+
+#endif
+
+	return 0;
+}
+
+struct rk29_sdmmc_platform_data default_sdmmc1_data = {
+	.host_ocr_avail =
+	    (MMC_VDD_25_26 | MMC_VDD_26_27 | MMC_VDD_27_28 | MMC_VDD_28_29 |
+	     MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32 | MMC_VDD_32_33 |
+	     MMC_VDD_33_34),
+
+#if !defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
+	.host_caps = (MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ |
+		      MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED),
+#else
+	.host_caps =
+	    (MMC_CAP_4_BIT_DATA | MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED),
+#endif
+
+	.io_init = rk29_sdmmc1_cfg_gpio,
+
+#if !defined(CONFIG_SDMMC_RK29_OLD)
+	.set_iomux = rk29_sdmmc_set_iomux,
+#endif
+
+	.dma_name = "sdio",
+#ifdef CONFIG_SDMMC1_USE_DMA
+	.use_dma = 1,
+#else
+	.use_dma = 0,
+#endif
+
+#if !defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+	.status = rk29sdk_wifi_status,
+	.register_status_notify = rk29sdk_wifi_status_register,
+#endif
+#if 0
+	.detect_irq = RK29SDK_WIFI_SDIO_CARD_DETECT_N,
+#endif
+
+#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+	.write_prt = SDMMC1_WRITE_PROTECT_PIN,
+#else
+	.write_prt = INVALID_GPIO,
+#endif
+
+#else
+	.detect_irq = INVALID_GPIO,
+	.enable_sd_wakeup = 0,
+#endif
+
+};
+#endif //endif--#ifdef CONFIG_SDMMC1_RK29
+
+/**************************************************************************************************
+ * the end of setting for SDMMC devices
+**************************************************************************************************/
+
+
+
 #define RK2928_FB_MEM_SIZE 3*SZ_1M
 
 #ifdef CONFIG_FB_ROCKCHIP
@@ -583,7 +747,33 @@ static void __init rk30_i2c_register_board_info(void)
 static struct spi_board_info board_spi_devices[] = {
 };
 
+#ifdef CONFIG_ION
+#define ION_RESERVE_SIZE        (8 * SZ_1M)
+static struct ion_platform_data rk30_ion_pdata = {
+	.nr = 1,
+	.heaps = {
+		{
+			.type = ION_HEAP_TYPE_CARVEOUT,
+			.id = ION_NOR_HEAP_ID,
+			.name = "norheap",
+			.size = ION_RESERVE_SIZE,
+		}
+	},
+};
+
+static struct platform_device device_ion = {
+	.name = "ion-rockchip",
+	.id = 0,
+	.dev = {
+		.platform_data = &rk30_ion_pdata,
+	},
+};
+#endif
+
 static struct platform_device *devices[] __initdata = {
+#ifdef CONFIG_ION
+	&device_ion,
+#endif
 #ifdef CONFIG_FB_ROCKCHIP
 	&device_fb,
 #endif
@@ -598,6 +788,9 @@ static void __init rk2928_board_init(void)
 
 static void __init rk2928_reserve(void)
 {
+#ifdef CONFIG_ION
+	rk30_ion_pdata.heaps[0].base = board_mem_reserve_add("ion", ION_RESERVE_SIZE);
+#endif
 #ifdef CONFIG_FB_ROCKCHIP
 	resource_fb[0].start = board_mem_reserve_add("fb0", RK2928_FB_MEM_SIZE);
 	resource_fb[0].end = resource_fb[0].start + RK2928_FB_MEM_SIZE - 1;
@@ -653,6 +846,12 @@ static struct clk_lookup clks[] = {
         CLK(NULL, "hclk_lcdc0", &xin24m),
         CLK(NULL, "aclk_lcdc0", &xin24m),
         CLK(NULL, "dclk_lcdc0", &xin24m),
+
+        CLK(NULL, "pd_cif0", &xin24m),
+        CLK(NULL, "aclk_cif0", &xin24m),
+        CLK(NULL, "hclk_cif0", &xin24m),
+        CLK(NULL, "cif0_in", &xin24m),
+        CLK(NULL, "cif0_out", &xin24m),
 };
 
 void __init rk30_clock_init(void)
