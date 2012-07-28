@@ -2886,12 +2886,6 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 		}
 	}
 
-	/*
-	 * Current inode is now at it's new position, so we must increase
-	 * send_progress
-	 */
-	sctx->send_progress = sctx->cur_ino + 1;
-
 	ret = 0;
 
 out:
@@ -3896,6 +3890,15 @@ static int process_recorded_refs_if_needed(struct send_ctx *sctx, int at_end)
 		goto out;
 
 	ret = process_recorded_refs(sctx);
+	if (ret < 0)
+		goto out;
+
+	/*
+	 * We have processed the refs and thus need to advance send_progress.
+	 * Now, calls to get_cur_xxx will take the updated refs of the current
+	 * inode into account.
+	 */
+	sctx->send_progress = sctx->cur_ino + 1;
 
 out:
 	return ret;
@@ -3993,6 +3996,12 @@ static int changed_inode(struct send_ctx *sctx,
 
 	sctx->cur_ino = key->objectid;
 	sctx->cur_inode_new_gen = 0;
+
+	/*
+	 * Set send_progress to current inode. This will tell all get_cur_xxx
+	 * functions that the current inode's refs are not updated yet. Later,
+	 * when process_recorded_refs is finished, it is set to cur_ino + 1.
+	 */
 	sctx->send_progress = sctx->cur_ino;
 
 	if (result == BTRFS_COMPARE_TREE_NEW ||
@@ -4066,6 +4075,11 @@ static int changed_inode(struct send_ctx *sctx,
 			ret = process_all_refs(sctx, BTRFS_COMPARE_TREE_NEW);
 			if (ret < 0)
 				goto out;
+			/*
+			 * Advance send_progress now as we did not get into
+			 * process_recorded_refs_if_needed in the new_gen case.
+			 */
+			sctx->send_progress = sctx->cur_ino + 1;
 			ret = process_all_extents(sctx);
 			if (ret < 0)
 				goto out;
