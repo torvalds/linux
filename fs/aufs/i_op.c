@@ -939,7 +939,6 @@ static void *aufs_follow_link(struct dentry *dentry, struct nameidata *nd)
 out_name:
 	__putname(buf.k);
 out:
-	path_put(&nd->path);
 	AuTraceErr(err);
 	return ERR_PTR(err);
 }
