@@ -664,7 +664,7 @@ static struct arm_pmu armv6pmu = {
 	.max_period		= (1LLU << 32) - 1,
 };
 
-static struct arm_pmu *__init armv6pmu_init(void)
+static struct arm_pmu *__devinit armv6pmu_init(void)
 {
 	return &armv6pmu;
 }
@@ -698,17 +698,17 @@ static struct arm_pmu armv6mpcore_pmu = {
 	.max_period		= (1LLU << 32) - 1,
 };
 
-static struct arm_pmu *__init armv6mpcore_pmu_init(void)
+static struct arm_pmu *__devinit armv6mpcore_pmu_init(void)
 {
 	return &armv6mpcore_pmu;
 }
 #else
-static struct arm_pmu *__init armv6pmu_init(void)
+static struct arm_pmu *__devinit armv6pmu_init(void)
 {
 	return NULL;
 }
 
-static struct arm_pmu *__init armv6mpcore_pmu_init(void)
+static struct arm_pmu *__devinit armv6mpcore_pmu_init(void)
 {
 	return NULL;
 }
