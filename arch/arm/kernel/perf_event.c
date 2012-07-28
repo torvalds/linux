@@ -646,10 +646,14 @@ arch_initcall(cpu_pmu_reset);
  * PMU platform driver and devicetree bindings.
  */
 static struct of_device_id armpmu_of_device_ids[] = {
+	{.compatible = "arm,cortex-a15-pmu"},
 	{.compatible = "arm,cortex-a9-pmu"},
 	{.compatible = "arm,cortex-a8-pmu"},
-	{.compatible = "arm,arm1136-pmu"},
+	{.compatible = "arm,cortex-a7-pmu"},
+	{.compatible = "arm,cortex-a5-pmu"},
+	{.compatible = "arm,arm11mpcore-pmu"},
 	{.compatible = "arm,arm1176-pmu"},
+	{.compatible = "arm,arm1136-pmu"},
 	{},
 };
 
