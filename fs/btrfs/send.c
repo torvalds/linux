@@ -1257,7 +1257,6 @@ verbose_printk(KERN_DEBUG "btrfs: find_extent_clone: data_offset=%llu, "
 			else if (sctx->clone_roots[i].root == sctx->send_root)
 				/* prefer clones from send_root over others */
 				cur_clone_root = sctx->clone_roots + i;
-			break;
 		}
 
 	}
