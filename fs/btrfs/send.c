@@ -1149,7 +1149,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 	u64 extent_item_pos;
 	struct btrfs_file_extent_item *fi;
 	struct extent_buffer *eb = path->nodes[0];
-	struct backref_ctx backref_ctx;
+	struct backref_ctx *backref_ctx = NULL;
 	struct clone_root *cur_clone_root;
 	struct btrfs_key found_key;
 	struct btrfs_path *tmp_path;
@@ -1158,6 +1158,12 @@ static int find_extent_clone(struct send_ctx *sctx,
 	tmp_path = alloc_path_for_send();
 	if (!tmp_path)
 		return -ENOMEM;
+
+	backref_ctx = kmalloc(sizeof(*backref_ctx), GFP_NOFS);
+	if (!backref_ctx) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	if (data_offset >= ino_size) {
 		/*
@@ -1206,12 +1212,12 @@ static int find_extent_clone(struct send_ctx *sctx,
 		cur_clone_root->found_refs = 0;
 	}
 
-	backref_ctx.sctx = sctx;
-	backref_ctx.found = 0;
-	backref_ctx.cur_objectid = ino;
-	backref_ctx.cur_offset = data_offset;
-	backref_ctx.found_itself = 0;
-	backref_ctx.extent_len = num_bytes;
+	backref_ctx->sctx = sctx;
+	backref_ctx->found = 0;
+	backref_ctx->cur_objectid = ino;
+	backref_ctx->cur_offset = data_offset;
+	backref_ctx->found_itself = 0;
+	backref_ctx->extent_len = num_bytes;
 
 	/*
 	 * The last extent of a file may be too large due to page alignment.
@@ -1219,7 +1225,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 	 * __iterate_backrefs work.
 	 */
 	if (data_offset + num_bytes >= ino_size)
-		backref_ctx.extent_len = ino_size - data_offset;
+		backref_ctx->extent_len = ino_size - data_offset;
 
 	/*
 	 * Now collect all backrefs.
@@ -1227,11 +1233,11 @@ static int find_extent_clone(struct send_ctx *sctx,
 	extent_item_pos = logical - found_key.objectid;
 	ret = iterate_extent_inodes(sctx->send_root->fs_info,
 					found_key.objectid, extent_item_pos, 1,
-					__iterate_backrefs, &backref_ctx);
+					__iterate_backrefs, backref_ctx);
 	if (ret < 0)
 		goto out;
 
-	if (!backref_ctx.found_itself) {
+	if (!backref_ctx->found_itself) {
 		/* found a bug in backref code? */
 		ret = -EIO;
 		printk(KERN_ERR "btrfs: ERROR did not find backref in "
@@ -1246,7 +1252,7 @@ verbose_printk(KERN_DEBUG "btrfs: find_extent_clone: data_offset=%llu, "
 		"num_bytes=%llu, logical=%llu\n",
 		data_offset, ino, num_bytes, logical);
 
-	if (!backref_ctx.found)
+	if (!backref_ctx->found)
 		verbose_printk("btrfs:    no clones found\n");
 
 	cur_clone_root = NULL;
@@ -1271,6 +1277,7 @@ verbose_printk(KERN_DEBUG "btrfs: find_extent_clone: data_offset=%llu, "
 
 out:
 	btrfs_free_path(tmp_path);
+	kfree(backref_ctx);
 	return ret;
 }
 
