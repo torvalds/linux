@@ -66,10 +66,7 @@ static int __net_init iptable_security_net_init(struct net *net)
 	net->ipv4.iptable_security =
 		ipt_register_table(net, &security_table, repl);
 	kfree(repl);
-	if (IS_ERR(net->ipv4.iptable_security))
-		return PTR_ERR(net->ipv4.iptable_security);
-
-	return 0;
+	return PTR_RET(net->ipv4.iptable_security);
 }
 
 static void __net_exit iptable_security_net_exit(struct net *net)

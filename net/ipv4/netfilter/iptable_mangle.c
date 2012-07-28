@@ -104,9 +104,7 @@ static int __net_init iptable_mangle_net_init(struct net *net)
 	net->ipv4.iptable_mangle =
 		ipt_register_table(net, &packet_mangler, repl);
 	kfree(repl);
-	if (IS_ERR(net->ipv4.iptable_mangle))
-		return PTR_ERR(net->ipv4.iptable_mangle);
-	return 0;
+	return PTR_RET(net->ipv4.iptable_mangle);
 }
 
 static void __net_exit iptable_mangle_net_exit(struct net *net)
