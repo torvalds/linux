@@ -452,7 +452,7 @@ config MTD_NAND_NANDSIM
 	  MTD nand layer.
 
 config MTD_NAND_GPMI_NAND
-        bool "GPMI NAND Flash Controller driver"
+        tristate "GPMI NAND Flash Controller driver"
         depends on MTD_NAND && MXS_DMA
         help
 	 Enables NAND Flash support for IMX23, IMX28 or IMX6.
