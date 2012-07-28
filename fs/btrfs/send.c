@@ -1067,6 +1067,7 @@ static int __clone_root_cmp_sort(const void *e1, const void *e2)
 
 /*
  * Called for every backref that is found for the current extent.
+ * Results are collected in sctx->clone_roots->ino/offset/found_refs
  */
 static int __iterate_backrefs(u64 ino, u64 offset, u64 root, void *ctx_)
 {
@@ -1090,7 +1091,7 @@ static int __iterate_backrefs(u64 ino, u64 offset, u64 root, void *ctx_)
 	}
 
 	/*
-	 * There are inodes that have extents that lie behind it's i_size. Don't
+	 * There are inodes that have extents that lie behind its i_size. Don't
 	 * accept clones from these extents.
 	 */
 	ret = get_inode_info(found->root, ino, &i_size, NULL, NULL, NULL, NULL,
@@ -1137,6 +1138,12 @@ static int __iterate_backrefs(u64 ino, u64 offset, u64 root, void *ctx_)
 }
 
 /*
+ * Given an inode, offset and extent item, it finds a good clone for a clone
+ * instruction. Returns -ENOENT when none could be found. The function makes
+ * sure that the returned clone is usable at the point where sending is at the
+ * moment. This means, that no clones are accepted which lie behind the current
+ * inode+offset.
+ *
  * path must point to the extent item when called.
  */
 static int find_extent_clone(struct send_ctx *sctx,
@@ -1529,6 +1536,10 @@ out:
 	return ret;
 }
 
+/*
+ * Looks up the first btrfs_inode_ref of a given ino. It returns the parent dir,
+ * generation of the parent dir and the name of the dir entry.
+ */
 static int get_first_ref(struct send_ctx *sctx,
 			 struct btrfs_root *root, u64 ino,
 			 u64 *dir, u64 *dir_gen, struct fs_path *name)
@@ -1615,6 +1626,16 @@ out:
 	return ret;
 }
 
+/*
+ * Used by process_recorded_refs to determine if a new ref would overwrite an
+ * already existing ref. In case it detects an overwrite, it returns the
+ * inode/gen in who_ino/who_gen.
+ * When an overwrite is detected, process_recorded_refs does proper orphanizing
+ * to make sure later references to the overwritten inode are possible.
+ * Orphanizing is however only required for the first ref of an inode.
+ * process_recorded_refs does an additional is_first_ref check to see if
+ * orphanizing is really required.
+ */
 static int will_overwrite_ref(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 			      const char *name, int name_len,
 			      u64 *who_ino, u64 *who_gen)
@@ -1639,6 +1660,11 @@ static int will_overwrite_ref(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 		goto out;
 	}
 
+	/*
+	 * Check if the overwritten ref was already processed. If yes, the ref
+	 * was already unlinked/moved, so we can safely assume that we will not
+	 * overwrite anything at this point in time.
+	 */
 	if (other_inode > sctx->send_progress) {
 		ret = get_inode_info(sctx->parent_root, other_inode, NULL,
 				who_gen, NULL, NULL, NULL, NULL);
@@ -1655,6 +1681,13 @@ out:
 	return ret;
 }
 
+/*
+ * Checks if the ref was overwritten by an already processed inode. This is
+ * used by __get_cur_name_and_parent to find out if the ref was orphanized and
+ * thus the orphan name needs be used.
+ * process_recorded_refs also uses it to avoid unlinking of refs that were
+ * overwritten.
+ */
 static int did_overwrite_ref(struct send_ctx *sctx,
 			    u64 dir, u64 dir_gen,
 			    u64 ino, u64 ino_gen,
@@ -1703,6 +1736,11 @@ out:
 	return ret;
 }
 
+/*
+ * Same as did_overwrite_ref, but also checks if it is the first ref of an inode
+ * that got overwritten. This is used by process_recorded_refs to determine
+ * if it has to use the path as returned by get_cur_path or the orphan name.
+ */
 static int did_overwrite_first_ref(struct send_ctx *sctx, u64 ino, u64 gen)
 {
 	int ret = 0;
@@ -1731,6 +1769,11 @@ out:
 	return ret;
 }
 
+/*
+ * Insert a name cache entry. On 32bit kernels the radix tree index is 32bit,
+ * so we need to do some special handling in case we have clashes. This function
+ * takes care of this with the help of name_cache_entry::radix_list.
+ */
 static int name_cache_insert(struct send_ctx *sctx,
 			     struct name_cache_entry *nce)
 {
@@ -1792,12 +1835,19 @@ static struct name_cache_entry *name_cache_search(struct send_ctx *sctx,
 	return NULL;
 }
 
+/*
+ * Removes the entry from the list and adds it back to the end. This marks the
+ * entry as recently used so that name_cache_clean_unused does not remove it.
+ */
 static void name_cache_used(struct send_ctx *sctx, struct name_cache_entry *nce)
 {
 	list_del(&nce->list);
 	list_add_tail(&nce->list, &sctx->name_cache_list);
 }
 
+/*
+ * Remove some entries from the beginning of name_cache_list.
+ */
 static void name_cache_clean_unused(struct send_ctx *sctx)
 {
 	struct name_cache_entry *nce;
@@ -1824,6 +1874,14 @@ static void name_cache_free(struct send_ctx *sctx)
 	}
 }
 
+/*
+ * Used by get_cur_path for each ref up to the root.
+ * Returns 0 if it succeeded.
+ * Returns 1 if the inode is not existent or got overwritten. In that case, the
+ * name is an orphan name. This instructs get_cur_path to stop iterating. If 1
+ * is returned, parent_ino/parent_gen are not guaranteed to be valid.
+ * Returns <0 in case of error.
+ */
 static int __get_cur_name_and_parent(struct send_ctx *sctx,
 				     u64 ino, u64 gen,
 				     u64 *parent_ino,
@@ -1835,6 +1893,11 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 	struct btrfs_path *path = NULL;
 	struct name_cache_entry *nce = NULL;
 
+	/*
+	 * First check if we already did a call to this function with the same
+	 * ino/gen. If yes, check if the cache entry is still up-to-date. If yes
+	 * return the cached result.
+	 */
 	nce = name_cache_search(sctx, ino, gen);
 	if (nce) {
 		if (ino < sctx->send_progress && nce->need_later_update) {
@@ -1857,6 +1920,11 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 	if (!path)
 		return -ENOMEM;
 
+	/*
+	 * If the inode is not existent yet, add the orphan name and return 1.
+	 * This should only happen for the parent dir that we determine in
+	 * __record_new_ref
+	 */
 	ret = is_inode_existent(sctx, ino, gen);
 	if (ret < 0)
 		goto out;
@@ -1869,6 +1937,10 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 		goto out_cache;
 	}
 
+	/*
+	 * Depending on whether the inode was already processed or not, use
+	 * send_root or parent_root for ref lookup.
+	 */
 	if (ino < sctx->send_progress)
 		ret = get_first_ref(sctx, sctx->send_root, ino,
 				parent_ino, parent_gen, dest);
@@ -1878,6 +1950,10 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 	if (ret < 0)
 		goto out;
 
+	/*
+	 * Check if the ref was overwritten by an inode's ref that was processed
+	 * earlier. If yes, treat as orphan and return 1.
+	 */
 	ret = did_overwrite_ref(sctx, *parent_ino, *parent_gen, ino, gen,
 			dest->start, dest->end - dest->start);
 	if (ret < 0)
@@ -1891,6 +1967,9 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 	}
 
 out_cache:
+	/*
+	 * Store the result of the lookup in the name cache.
+	 */
 	nce = kmalloc(sizeof(*nce) + fs_path_len(dest) + 1, GFP_NOFS);
 	if (!nce) {
 		ret = -ENOMEM;
@@ -2278,7 +2357,7 @@ verbose_printk("btrfs: send_utimes %llu\n", ino);
 			btrfs_inode_mtime(ii));
 	TLV_PUT_BTRFS_TIMESPEC(sctx, BTRFS_SEND_A_CTIME, eb,
 			btrfs_inode_ctime(ii));
-	/* TODO otime? */
+	/* TODO Add otime support when the otime patches get into upstream */
 
 	ret = send_cmd(sctx);
 
@@ -2520,7 +2599,7 @@ static void free_recorded_refs(struct send_ctx *sctx)
 }
 
 /*
- * Renames/moves a file/dir to it's orphan name. Used when the first
+ * Renames/moves a file/dir to its orphan name. Used when the first
  * ref of an unprocessed inode gets overwritten and for all non empty
  * directories.
  */
@@ -2840,7 +2919,9 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 		 * If the inode is still orphan, unlink the orphan. This may
 		 * happen when a previous inode did overwrite the first ref
 		 * of this inode and no new refs were added for the current
-		 * inode.
+		 * inode. Unlinking does not mean that the inode is deleted in
+		 * all cases. There may still be links to this inode in other
+		 * places.
 		 */
 		if (is_orphan) {
 			ret = send_unlink(sctx, valid_path);
@@ -2857,6 +2938,11 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 	 */
 	ULIST_ITER_INIT(&uit);
 	while ((un = ulist_next(check_dirs, &uit))) {
+		/*
+		 * In case we had refs into dirs that were not processed yet,
+		 * we don't need to do the utime and rmdir logic for these dirs.
+		 * The dir will be processed later.
+		 */
 		if (un->val > sctx->cur_ino)
 			continue;
 
@@ -4048,7 +4134,17 @@ static int changed_inode(struct send_ctx *sctx,
 		sctx->cur_inode_mode = btrfs_inode_mode(
 				sctx->right_path->nodes[0], right_ii);
 	} else if (result == BTRFS_COMPARE_TREE_CHANGED) {
+		/*
+		 * We need to do some special handling in case the inode was
+		 * reported as changed with a changed generation number. This
+		 * means that the original inode was deleted and new inode
+		 * reused the same inum. So we have to treat the old inode as
+		 * deleted and the new one as new.
+		 */
 		if (sctx->cur_inode_new_gen) {
+			/*
+			 * First, process the inode as if it was deleted.
+			 */
 			sctx->cur_inode_gen = right_gen;
 			sctx->cur_inode_new = 0;
 			sctx->cur_inode_deleted = 1;
@@ -4061,6 +4157,9 @@ static int changed_inode(struct send_ctx *sctx,
 			if (ret < 0)
 				goto out;
 
+			/*
+			 * Now process the inode as if it was new.
+			 */
 			sctx->cur_inode_gen = left_gen;
 			sctx->cur_inode_new = 1;
 			sctx->cur_inode_deleted = 0;
@@ -4080,6 +4179,11 @@ static int changed_inode(struct send_ctx *sctx,
 			 * process_recorded_refs_if_needed in the new_gen case.
 			 */
 			sctx->send_progress = sctx->cur_ino + 1;
+
+			/*
+			 * Now process all extents and xattrs of the inode as if
+			 * they were all new.
+			 */
 			ret = process_all_extents(sctx);
 			if (ret < 0)
 				goto out;
@@ -4102,6 +4206,16 @@ out:
 	return ret;
 }
 
+/*
+ * We have to process new refs before deleted refs, but compare_trees gives us
+ * the new and deleted refs mixed. To fix this, we record the new/deleted refs
+ * first and later process them in process_recorded_refs.
+ * For the cur_inode_new_gen case, we skip recording completely because
+ * changed_inode did already initiate processing of refs. The reason for this is
+ * that in this case, compare_tree actually compares the refs of 2 different
+ * inodes. To fix this, process_all_refs is used in changed_inode to handle all
+ * refs of the right tree as deleted and all refs of the left tree as new.
+ */
 static int changed_ref(struct send_ctx *sctx,
 		       enum btrfs_compare_tree_result result)
 {
@@ -4122,6 +4236,11 @@ static int changed_ref(struct send_ctx *sctx,
 	return ret;
 }
 
+/*
+ * Process new/deleted/changed xattrs. We skip processing in the
+ * cur_inode_new_gen case because changed_inode did already initiate processing
+ * of xattrs. The reason is the same as in changed_ref
+ */
 static int changed_xattr(struct send_ctx *sctx,
 			 enum btrfs_compare_tree_result result)
 {
@@ -4141,6 +4260,11 @@ static int changed_xattr(struct send_ctx *sctx,
 	return ret;
 }
 
+/*
+ * Process new/deleted/changed extents. We skip processing in the
+ * cur_inode_new_gen case because changed_inode did already initiate processing
+ * of extents. The reason is the same as in changed_ref
+ */
 static int changed_extent(struct send_ctx *sctx,
 			  enum btrfs_compare_tree_result result)
 {
@@ -4157,7 +4281,10 @@ static int changed_extent(struct send_ctx *sctx,
 	return ret;
 }
 
-
+/*
+ * Updates compare related fields in sctx and simply forwards to the actual
+ * changed_xxx functions.
+ */
 static int changed_cb(struct btrfs_root *left_root,
 		      struct btrfs_root *right_root,
 		      struct btrfs_path *left_path,
@@ -4229,7 +4356,8 @@ join_trans:
 	}
 
 	/*
-	 * Make sure the tree has not changed
+	 * Make sure the tree has not changed after re-joining. We detect this
+	 * by comparing start_ctransid and ctransid. They should always match.
 	 */
 	spin_lock(&send_root->root_times_lock);
 	ctransid = btrfs_root_ctransid(&send_root->root_item);
