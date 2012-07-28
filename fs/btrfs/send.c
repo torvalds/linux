@@ -125,6 +125,15 @@ struct send_ctx {
 
 struct name_cache_entry {
 	struct list_head list;
+	/*
+	 * radix_tree has only 32bit entries but we need to handle 64bit inums.
+	 * We use the lower 32bit of the 64bit inum to store it in the tree. If
+	 * more then one inum would fall into the same entry, we use radix_list
+	 * to store the additional entries. radix_list is also used to store
+	 * entries where two entries have the same inum but different
+	 * generations.
+	 */
+	struct list_head radix_list;
 	u64 ino;
 	u64 gen;
 	u64 parent_ino;
@@ -1726,27 +1735,21 @@ static int name_cache_insert(struct send_ctx *sctx,
 			     struct name_cache_entry *nce)
 {
 	int ret = 0;
-	struct name_cache_entry **ncea;
+	struct list_head *nce_head;
 
-	ncea = radix_tree_lookup(&sctx->name_cache, nce->ino);
-	if (ncea) {
-		if (!ncea[0])
-			ncea[0] = nce;
-		else if (!ncea[1])
-			ncea[1] = nce;
-		else
-			BUG();
-	} else {
-		ncea = kmalloc(sizeof(void *) * 2, GFP_NOFS);
-		if (!ncea)
+	nce_head = radix_tree_lookup(&sctx->name_cache,
+			(unsigned long)nce->ino);
+	if (!nce_head) {
+		nce_head = kmalloc(sizeof(*nce_head), GFP_NOFS);
+		if (!nce_head)
 			return -ENOMEM;
+		INIT_LIST_HEAD(nce_head);
 
-		ncea[0] = nce;
-		ncea[1] = NULL;
-		ret = radix_tree_insert(&sctx->name_cache, nce->ino, ncea);
+		ret = radix_tree_insert(&sctx->name_cache, nce->ino, nce_head);
 		if (ret < 0)
 			return ret;
 	}
+	list_add_tail(&nce->radix_list, nce_head);
 	list_add_tail(&nce->list, &sctx->name_cache_list);
 	sctx->name_cache_size++;
 
@@ -1756,41 +1759,36 @@ static int name_cache_insert(struct send_ctx *sctx,
 static void name_cache_delete(struct send_ctx *sctx,
 			      struct name_cache_entry *nce)
 {
-	struct name_cache_entry **ncea;
+	struct list_head *nce_head;
 
-	ncea = radix_tree_lookup(&sctx->name_cache, nce->ino);
-	BUG_ON(!ncea);
+	nce_head = radix_tree_lookup(&sctx->name_cache,
+			(unsigned long)nce->ino);
+	BUG_ON(!nce_head);
 
-	if (ncea[0] == nce)
-		ncea[0] = NULL;
-	else if (ncea[1] == nce)
-		ncea[1] = NULL;
-	else
-		BUG();
-
-	if (!ncea[0] && !ncea[1]) {
-		radix_tree_delete(&sctx->name_cache, nce->ino);
-		kfree(ncea);
-	}
-
+	list_del(&nce->radix_list);
 	list_del(&nce->list);
-
 	sctx->name_cache_size--;
+
+	if (list_empty(nce_head)) {
+		radix_tree_delete(&sctx->name_cache, (unsigned long)nce->ino);
+		kfree(nce_head);
+	}
 }
 
 static struct name_cache_entry *name_cache_search(struct send_ctx *sctx,
 						    u64 ino, u64 gen)
 {
-	struct name_cache_entry **ncea;
+	struct list_head *nce_head;
+	struct name_cache_entry *cur;
 
-	ncea = radix_tree_lookup(&sctx->name_cache, ino);
-	if (!ncea)
+	nce_head = radix_tree_lookup(&sctx->name_cache, (unsigned long)ino);
+	if (!nce_head)
 		return NULL;
 
-	if (ncea[0] && ncea[0]->gen == gen)
-		return ncea[0];
-	else if (ncea[1] && ncea[1]->gen == gen)
-		return ncea[1];
+	list_for_each_entry(cur, nce_head, radix_list) {
+		if (cur->ino == ino && cur->gen == gen)
+			return cur;
+	}
 	return NULL;
 }
 
