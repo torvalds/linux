@@ -1822,6 +1822,7 @@ static void name_cache_free(struct send_ctx *sctx)
 
 	list_for_each_entry_safe(nce, tmp, &sctx->name_cache_list, list) {
 		name_cache_delete(sctx, nce);
+		kfree(nce);
 	}
 }
 
