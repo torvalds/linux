@@ -605,6 +605,7 @@ struct ath6kl_vif {
 	struct net_device_stats net_stats;
 	struct target_stats target_stats;
 	struct wmi_connect_cmd profile;
+	u16 rsn_capab;
 
 	struct list_head mc_filter;
 };

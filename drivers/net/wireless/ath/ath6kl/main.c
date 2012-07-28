@@ -608,6 +608,18 @@ static int ath6kl_commit_ch_switch(struct ath6kl_vif *vif, u16 channel)
 
 	switch (vif->nw_type) {
 	case AP_NETWORK:
+		/*
+		 * reconfigure any saved RSN IE capabilites in the beacon /
+		 * probe response to stay in sync with the supplicant.
+		 */
+		if (vif->rsn_capab &&
+		    test_bit(ATH6KL_FW_CAPABILITY_RSN_CAP_OVERRIDE,
+			     ar->fw_capabilities))
+			ath6kl_wmi_set_ie_cmd(ar->wmi, vif->fw_vif_idx,
+					      WLAN_EID_RSN, WMI_RSN_IE_CAPB,
+					      (const u8 *) &vif->rsn_capab,
+					      sizeof(vif->rsn_capab));
+
 		return ath6kl_wmi_ap_profile_commit(ar->wmi, vif->fw_vif_idx,
 						    &vif->profile);
 	default:

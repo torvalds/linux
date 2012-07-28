@@ -2924,6 +2924,7 @@ static int ath6kl_start_ap(struct wiphy *wiphy, struct net_device *dev,
 					    WLAN_EID_RSN, WMI_RSN_IE_CAPB,
 					    (const u8 *) &rsn_capab,
 					    sizeof(rsn_capab));
+		vif->rsn_capab = rsn_capab;
 		if (res < 0)
 			return res;
 	}
