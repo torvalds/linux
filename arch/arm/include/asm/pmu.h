@@ -49,40 +49,6 @@ struct arm_pmu_platdata {
 	int (*runtime_suspend)(struct device *dev);
 };
 
-#ifdef CONFIG_CPU_HAS_PMU
-
-/**
- * reserve_pmu() - reserve the hardware performance counters
- *
- * Reserve the hardware performance counters in the system for exclusive use.
- * Returns 0 on success or -EBUSY if the lock is already held.
- */
-extern int
-reserve_pmu(enum arm_pmu_type type);
-
-/**
- * release_pmu() - Relinquish control of the performance counters
- *
- * Release the performance counters and allow someone else to use them.
- */
-extern void
-release_pmu(enum arm_pmu_type type);
-
-#else /* CONFIG_CPU_HAS_PMU */
-
-#include <linux/err.h>
-
-static inline int
-reserve_pmu(enum arm_pmu_type type)
-{
-	return -ENODEV;
-}
-
-static inline void
-release_pmu(enum arm_pmu_type type)	{ }
-
-#endif /* CONFIG_CPU_HAS_PMU */
-
 #ifdef CONFIG_HW_PERF_EVENTS
 
 /* The events for a given PMU register set. */
