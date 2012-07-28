@@ -71,7 +71,6 @@ extern struct dentry *kern_path_locked(const char *, struct path *);
 extern int vfs_path_lookup(struct dentry *, struct vfsmount *,
 			   const char *, unsigned int, struct path *);
 
-extern struct dentry *lookup_hash(struct nameidata *nd);
 extern struct dentry *lookup_one_len(const char *, struct dentry *, int);
 
 extern int follow_down_one(struct path *);
