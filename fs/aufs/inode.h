@@ -161,7 +161,7 @@ int aufs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
 	       dev_t dev);
 int aufs_symlink(struct inode *dir, struct dentry *dentry, const char *symname);
 int aufs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-		struct nameidata *nd);
+		bool want_excl);
 int aufs_link(struct dentry *src_dentry, struct inode *dir,
 	      struct dentry *dentry);
 int aufs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);

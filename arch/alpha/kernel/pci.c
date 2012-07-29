@@ -59,15 +59,13 @@ struct pci_controller *pci_isa_hose;
  * Quirks.
  */
 
-static void __init
-quirk_isa_bridge(struct pci_dev *dev)
+static void __devinit quirk_isa_bridge(struct pci_dev *dev)
 {
 	dev->class = PCI_CLASS_BRIDGE_ISA << 8;
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82378, quirk_isa_bridge);
 
-static void __init
-quirk_cypress(struct pci_dev *dev)
+static void __devinit quirk_cypress(struct pci_dev *dev)
 {
 	/* The Notorious Cy82C693 chip.  */
 
@@ -106,8 +104,7 @@ quirk_cypress(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_CONTAQ, PCI_DEVICE_ID_CONTAQ_82C693, quirk_cypress);
 
 /* Called for each device after PCI setup is done. */
-static void __init
-pcibios_fixup_final(struct pci_dev *dev)
+static void __devinit pcibios_fixup_final(struct pci_dev *dev)
 {
 	unsigned int class = dev->class >> 8;
 
@@ -197,12 +194,6 @@ pcibios_init(void)
 }
 
 subsys_initcall(pcibios_init);
-
-char * __devinit
-pcibios_setup(char *str)
-{
-	return str;
-}
 
 #ifdef ALPHA_RESTORE_SRM_SETUP
 static struct pdev_srm_saved_conf *srm_saved_configs;
@@ -359,7 +350,7 @@ common_init_pci(void)
 					hose, &resources);
 		hose->bus = bus;
 		hose->need_domain_info = need_domain_info;
-		next_busno = bus->subordinate + 1;
+		next_busno = bus->busn_res.end + 1;
 		/* Don't allow 8-bit bus number overflow inside the hose -
 		   reserve some space for bridges. */ 
 		if (next_busno > 224) {

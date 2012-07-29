@@ -141,8 +141,11 @@ static int virtio_dev_probe(struct device *_d)
 	err = drv->probe(dev);
 	if (err)
 		add_status(dev, VIRTIO_CONFIG_S_FAILED);
-	else
+	else {
 		add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
+		if (drv->scan)
+			drv->scan(dev);
+	}
 
 	return err;
 }

@@ -23,63 +23,6 @@
 #include <linux/namei.h>
 #include "aufs.h"
 
-static void au_h_nd(struct nameidata *h_nd, struct nameidata *nd)
-{
-	if (nd) {
-		*h_nd = *nd;
-
-		/*
-		 * gave up supporting LOOKUP_CREATE/OPEN for lower fs,
-		 * due to whiteout and branch permission.
-		 */
-		h_nd->flags &= ~(/*LOOKUP_PARENT |*/ LOOKUP_OPEN | LOOKUP_CREATE
-				 | LOOKUP_FOLLOW | LOOKUP_EXCL);
-		/* unnecessary? */
-		h_nd->intent.open.file = NULL;
-	} else
-		memset(h_nd, 0, sizeof(*h_nd));
-}
-
-struct au_lkup_one_args {
-	struct dentry **errp;
-	struct qstr *name;
-	struct dentry *h_parent;
-	struct au_branch *br;
-	struct nameidata *nd;
-};
-
-struct dentry *au_lkup_one(struct qstr *name, struct dentry *h_parent,
-			   struct au_branch *br, struct nameidata *nd)
-{
-	struct dentry *h_dentry;
-	int err;
-	struct nameidata h_nd;
-
-	if (au_test_fs_null_nd(h_parent->d_sb))
-		return vfsub_lookup_one_len(name->name, h_parent, name->len);
-
-	au_h_nd(&h_nd, nd);
-	h_nd.path.dentry = h_parent;
-	h_nd.path.mnt = br->br_mnt;
-
-	err = vfsub_name_hash(name->name, &h_nd.last, name->len);
-	h_dentry = ERR_PTR(err);
-	if (!err) {
-		path_get(&h_nd.path);
-		h_dentry = vfsub_lookup_hash(&h_nd);
-		path_put(&h_nd.path);
-	}
-
-	AuTraceErrPtr(h_dentry);
-	return h_dentry;
-}
-
-static void au_call_lkup_one(void *args)
-{
-	struct au_lkup_one_args *a = args;
-	*a->errp = au_lkup_one(a->name, a->h_parent, a->br, a->nd);
-}
-
 #define AuLkup_ALLOW_NEG	1
 #define au_ftest_lkup(flags, name)	((flags) & AuLkup_##name)
 #define au_fset_lkup(flags, name) \
@@ -90,7 +33,7 @@ static void au_call_lkup_one(void *args)
 struct au_do_lookup_args {
 	unsigned int		flags;
 	mode_t			type;
-	struct nameidata	*nd;
+	unsigned int		nd_flags;
 };
 
 /*
@@ -127,7 +70,7 @@ au_do_lookup(struct dentry *h_parent, struct dentry *dentry,
 		return NULL; /* success */
 
 real_lookup:
-	h_dentry = au_lkup_one(&dentry->d_name, h_parent, br, args->nd);
+	h_dentry = vfsub_lkup_one(&dentry->d_name, h_parent);
 	if (IS_ERR(h_dentry))
 		goto out;
 
@@ -182,16 +125,16 @@ static int au_test_shwh(struct super_block *sb, const struct qstr *name)
  * can be called at unlinking with @type is zero.
  */
 int au_lkup_dentry(struct dentry *dentry, aufs_bindex_t bstart, mode_t type,
-		   struct nameidata *nd)
+		   unsigned int flags)
 {
 	int npositive, err;
 	aufs_bindex_t bindex, btail, bdiropq;
 	unsigned char isdir;
 	struct qstr whname;
 	struct au_do_lookup_args args = {
-		.flags	= 0,
-		.type	= type,
-		.nd	= nd
+		.flags		= 0,
+		.type		= type,
+		.nd_flags	= flags
 	};
 	const struct qstr *name = &dentry->d_name;
 	struct dentry *parent;
@@ -287,17 +230,15 @@ struct dentry *au_sio_lkup_one(struct qstr *name, struct dentry *parent,
 	int wkq_err;
 
 	if (!au_test_h_perm_sio(parent->d_inode, MAY_EXEC))
-		dentry = au_lkup_one(name, parent, br, /*nd*/NULL);
+		dentry = vfsub_lkup_one(name, parent);
 	else {
-		struct au_lkup_one_args args = {
-			.errp		= &dentry,
-			.name		= name,
-			.h_parent	= parent,
-			.br		= br,
-			.nd		= NULL
+		struct vfsub_lkup_one_args args = {
+			.errp	= &dentry,
+			.name	= name,
+			.parent	= parent
 		};
 
-		wkq_err = au_wkq_wait(au_call_lkup_one, &args);
+		wkq_err = au_wkq_wait(vfsub_call_lkup_one, &args);
 		if (unlikely(wkq_err))
 			dentry = ERR_PTR(wkq_err);
 	}
@@ -405,7 +346,7 @@ static int au_h_verify_dentry(struct dentry *h_dentry, struct dentry *h_parent,
 		goto out;
 
 	/* main purpose is namei.c:cached_lookup() and d_revalidate */
-	h_d = au_lkup_one(&h_dentry->d_name, h_parent, br, /*nd*/NULL);
+	h_d = vfsub_lkup_one(&h_dentry->d_name, h_parent);
 	err = PTR_ERR(h_d);
 	if (IS_ERR(h_d))
 		goto out;
@@ -791,7 +732,7 @@ int au_refresh_dentry(struct dentry *dentry, struct dentry *parent)
 	 * if current working dir is removed, it returns an error.
 	 * but the dentry is legal.
 	 */
-	err = au_lkup_dentry(dentry, /*bstart*/0, /*type*/0, /*nd*/NULL);
+	err = au_lkup_dentry(dentry, /*bstart*/0, /*type*/0, /*flags*/0);
 	AuDbgDentry(dentry);
 	au_di_swap(tmp, dinfo);
 	if (err == -ENOENT)
@@ -820,42 +761,24 @@ out:
 	return err;
 }
 
-static noinline_for_stack
-int au_do_h_d_reval(struct dentry *h_dentry, struct nameidata *nd,
-		    struct dentry *dentry, aufs_bindex_t bindex)
+static int au_do_h_d_reval(struct dentry *h_dentry, unsigned int flags,
+			   struct dentry *dentry, aufs_bindex_t bindex)
 {
 	int err, valid;
-	int (*reval)(struct dentry *, struct nameidata *);
 
 	err = 0;
 	if (!(h_dentry->d_flags & DCACHE_OP_REVALIDATE))
 		goto out;
-	reval = h_dentry->d_op->d_revalidate;
 
 	AuDbg("b%d\n", bindex);
-	if (au_test_fs_null_nd(h_dentry->d_sb))
-		/* it may return tri-state */
-		valid = reval(h_dentry, NULL);
-	else {
-		struct nameidata h_nd;
-		int locked;
-		struct dentry *parent;
-
-		au_h_nd(&h_nd, nd);
-		parent = nd->path.dentry;
-		locked = (nd && nd->path.dentry != dentry);
-		if (locked)
-			di_read_lock_parent(parent, AuLock_IR);
-		BUG_ON(bindex > au_dbend(parent));
-		h_nd.path.dentry = au_h_dptr(parent, bindex);
-		BUG_ON(!h_nd.path.dentry);
-		h_nd.path.mnt = au_sbr(parent->d_sb, bindex)->br_mnt;
-		path_get(&h_nd.path);
-		valid = reval(h_dentry, &h_nd);
-		path_put(&h_nd.path);
-		if (locked)
-			di_read_unlock(parent, AuLock_IR);
-	}
+	/*
+	 * gave up supporting LOOKUP_CREATE/OPEN for lower fs,
+	 * due to whiteout and branch permission.
+	 */
+	flags &= ~(/*LOOKUP_PARENT |*/ LOOKUP_OPEN | LOOKUP_CREATE
+		   | LOOKUP_FOLLOW | LOOKUP_EXCL);
+	/* it may return tri-state */
+	valid = h_dentry->d_op->d_revalidate(h_dentry, flags);
 
 	if (unlikely(valid < 0))
 		err = valid;
@@ -869,7 +792,7 @@ out:
 
 /* todo: remove this */
 static int h_d_revalidate(struct dentry *dentry, struct inode *inode,
-			  struct nameidata *nd, int do_udba)
+			  unsigned int flags, int do_udba)
 {
 	int err;
 	umode_t mode, h_mode;
@@ -929,7 +852,7 @@ static int h_d_revalidate(struct dentry *dentry, struct inode *inode,
 		}
 		spin_unlock(&h_dentry->d_lock);
 
-		err = au_do_h_d_reval(h_dentry, nd, dentry, bindex);
+		err = au_do_h_d_reval(h_dentry, flags, dentry, bindex);
 		if (unlikely(err))
 			/* do not goto err, to keep the errno */
 			break;
@@ -1038,7 +961,7 @@ int au_reval_dpath(struct dentry *dentry, unsigned int sigen)
 /*
  * if valid returns 1, otherwise 0.
  */
-static int aufs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
+static int aufs_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	int valid, err;
 	unsigned int sigen;
@@ -1047,7 +970,7 @@ static int aufs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 	struct inode *inode;
 
 	/* todo: support rcu-walk? */
-	if (nd && (nd->flags & LOOKUP_RCU))
+	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	valid = 0;
@@ -1104,7 +1027,7 @@ static int aufs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 		}
 	}
 
-	err = h_d_revalidate(dentry, inode, nd, do_udba);
+	err = h_d_revalidate(dentry, inode, flags, do_udba);
 	if (unlikely(!err && do_udba && au_dbstart(dentry) < 0)) {
 		err = -EIO;
 		AuDbg("both of real entry and whiteout found, %.*s, err %d\n",

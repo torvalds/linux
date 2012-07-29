@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2012 Nicira Networks.
+ * Copyright (c) 2007-2012 Nicira, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -324,6 +324,9 @@ static int sample(struct datapath *dp, struct sk_buff *skb,
 			break;
 		}
 	}
+
+	if (!acts_list)
+		return 0;
 
 	return do_execute_actions(dp, skb, nla_data(acts_list),
 						 nla_len(acts_list), true);

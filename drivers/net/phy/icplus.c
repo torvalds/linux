@@ -202,7 +202,8 @@ static int ip101a_g_ack_interrupt(struct phy_device *phydev)
 	return 0;
 }
 
-static struct phy_driver ip175c_driver = {
+static struct phy_driver icplus_driver[] = {
+{
 	.phy_id		= 0x02430d80,
 	.name		= "ICPlus IP175C",
 	.phy_id_mask	= 0x0ffffff0,
@@ -213,9 +214,7 @@ static struct phy_driver ip175c_driver = {
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 	.driver		= { .owner = THIS_MODULE,},
-};
-
-static struct phy_driver ip1001_driver = {
+}, {
 	.phy_id		= 0x02430d90,
 	.name		= "ICPlus IP1001",
 	.phy_id_mask	= 0x0ffffff0,
@@ -227,9 +226,7 @@ static struct phy_driver ip1001_driver = {
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 	.driver		= { .owner = THIS_MODULE,},
-};
-
-static struct phy_driver ip101a_g_driver = {
+}, {
 	.phy_id		= 0x02430c54,
 	.name		= "ICPlus IP101A/G",
 	.phy_id_mask	= 0x0ffffff0,
@@ -243,28 +240,18 @@ static struct phy_driver ip101a_g_driver = {
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 	.driver		= { .owner = THIS_MODULE,},
-};
+} };
 
 static int __init icplus_init(void)
 {
-	int ret = 0;
-
-	ret = phy_driver_register(&ip1001_driver);
-	if (ret < 0)
-		return -ENODEV;
-
-	ret = phy_driver_register(&ip101a_g_driver);
-	if (ret < 0)
-		return -ENODEV;
-
-	return phy_driver_register(&ip175c_driver);
+	return phy_drivers_register(icplus_driver,
+		ARRAY_SIZE(icplus_driver));
 }
 
 static void __exit icplus_exit(void)
 {
-	phy_driver_unregister(&ip1001_driver);
-	phy_driver_unregister(&ip101a_g_driver);
-	phy_driver_unregister(&ip175c_driver);
+	phy_drivers_unregister(icplus_driver,
+		ARRAY_SIZE(icplus_driver));
 }
 
 module_init(icplus_init);

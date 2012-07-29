@@ -4,7 +4,7 @@
  * Copyright (C) xxxx  the Anonymous
  * Copyright (C) 1994 - 2006 Ralf Baechle
  * Copyright (C) 2003, 2004  Maciej W. Rozycki
- * Copyright (C) 2001, 2004  MIPS Inc.
+ * Copyright (C) 2001, 2004, 2011, 2012  MIPS Technologies, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -199,6 +199,7 @@ void __init check_wait(void)
 		cpu_wait = rm7k_wait_irqoff;
 		break;
 
+	case CPU_M14KC:
 	case CPU_24K:
 	case CPU_34K:
 	case CPU_1004K:
@@ -810,6 +811,10 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_5KC;
 		__cpu_name[cpu] = "MIPS 5Kc";
 		break;
+	case PRID_IMP_5KE:
+		c->cputype = CPU_5KE;
+		__cpu_name[cpu] = "MIPS 5KE";
+		break;
 	case PRID_IMP_20KC:
 		c->cputype = CPU_20KC;
 		__cpu_name[cpu] = "MIPS 20Kc";
@@ -830,6 +835,10 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_74K:
 		c->cputype = CPU_74K;
 		__cpu_name[cpu] = "MIPS 74Kc";
+		break;
+	case PRID_IMP_M14KC:
+		c->cputype = CPU_M14KC;
+		__cpu_name[cpu] = "MIPS M14Kc";
 		break;
 	case PRID_IMP_1004K:
 		c->cputype = CPU_1004K;

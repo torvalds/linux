@@ -45,6 +45,8 @@
  * See Documentation/dmaengine.txt for more details
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -261,7 +263,7 @@ enum dma_status dma_sync_wait(struct dma_chan *chan, dma_cookie_t cookie)
 	do {
 		status = dma_async_is_tx_complete(chan, cookie, NULL, NULL);
 		if (time_after_eq(jiffies, dma_sync_wait_timeout)) {
-			printk(KERN_ERR "dma_sync_wait_timeout!\n");
+			pr_err("%s: timeout!\n", __func__);
 			return DMA_ERROR;
 		}
 	} while (status == DMA_IN_PROGRESS);
@@ -312,7 +314,7 @@ static int __init dma_channel_table_init(void)
 	}
 
 	if (err) {
-		pr_err("dmaengine: initialization failure\n");
+		pr_err("initialization failure\n");
 		for_each_dma_cap_mask(cap, dma_cap_mask_all)
 			if (channel_table[cap])
 				free_percpu(channel_table[cap]);
@@ -520,12 +522,12 @@ struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, v
 			err = dma_chan_get(chan);
 
 			if (err == -ENODEV) {
-				pr_debug("%s: %s module removed\n", __func__,
-					 dma_chan_name(chan));
+				pr_debug("%s: %s module removed\n",
+					 __func__, dma_chan_name(chan));
 				list_del_rcu(&device->global_node);
 			} else if (err)
 				pr_debug("%s: failed to get %s: (%d)\n",
-					__func__, dma_chan_name(chan), err);
+					 __func__, dma_chan_name(chan), err);
 			else
 				break;
 			if (--device->privatecnt == 0)
@@ -535,7 +537,9 @@ struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, v
 	}
 	mutex_unlock(&dma_list_mutex);
 
-	pr_debug("%s: %s (%s)\n", __func__, chan ? "success" : "fail",
+	pr_debug("%s: %s (%s)\n",
+		 __func__,
+		 chan ? "success" : "fail",
 		 chan ? dma_chan_name(chan) : NULL);
 
 	return chan;
@@ -579,7 +583,7 @@ void dmaengine_get(void)
 				break;
 			} else if (err)
 				pr_err("%s: failed to get %s: (%d)\n",
-					__func__, dma_chan_name(chan), err);
+				       __func__, dma_chan_name(chan), err);
 		}
 	}
 
@@ -1015,7 +1019,7 @@ dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx)
 	while (tx->cookie == -EBUSY) {
 		if (time_after_eq(jiffies, dma_sync_wait_timeout)) {
 			pr_err("%s timeout waiting for descriptor submission\n",
-				__func__);
+			       __func__);
 			return DMA_ERROR;
 		}
 		cpu_relax();

@@ -51,7 +51,6 @@ struct max8952_data {
 
 	bool vid0;
 	bool vid1;
-	bool en;
 };
 
 static int max8952_read_reg(struct max8952_data *max8952, u8 reg)
@@ -78,38 +77,6 @@ static int max8952_list_voltage(struct regulator_dev *rdev,
 		return -EINVAL;
 
 	return (max8952->pdata->dvs_mode[selector] * 10 + 770) * 1000;
-}
-
-static int max8952_is_enabled(struct regulator_dev *rdev)
-{
-	struct max8952_data *max8952 = rdev_get_drvdata(rdev);
-	return max8952->en;
-}
-
-static int max8952_enable(struct regulator_dev *rdev)
-{
-	struct max8952_data *max8952 = rdev_get_drvdata(rdev);
-
-	/* If not valid, assume "ALWAYS_HIGH" */
-	if (gpio_is_valid(max8952->pdata->gpio_en))
-		gpio_set_value(max8952->pdata->gpio_en, 1);
-
-	max8952->en = true;
-	return 0;
-}
-
-static int max8952_disable(struct regulator_dev *rdev)
-{
-	struct max8952_data *max8952 = rdev_get_drvdata(rdev);
-
-	/* If not valid, assume "ALWAYS_HIGH" -> not permitted */
-	if (gpio_is_valid(max8952->pdata->gpio_en))
-		gpio_set_value(max8952->pdata->gpio_en, 0);
-	else
-		return -EPERM;
-
-	max8952->en = false;
-	return 0;
 }
 
 static int max8952_get_voltage_sel(struct regulator_dev *rdev)
@@ -146,12 +113,8 @@ static int max8952_set_voltage_sel(struct regulator_dev *rdev,
 
 static struct regulator_ops max8952_ops = {
 	.list_voltage		= max8952_list_voltage,
-	.is_enabled		= max8952_is_enabled,
-	.enable			= max8952_enable,
-	.disable		= max8952_disable,
 	.get_voltage_sel	= max8952_get_voltage_sel,
 	.set_voltage_sel	= max8952_set_voltage_sel,
-	.set_suspend_disable	= max8952_disable,
 };
 
 static const struct regulator_desc regulator = {
@@ -194,6 +157,10 @@ static int __devinit max8952_pmic_probe(struct i2c_client *client,
 	config.init_data = &pdata->reg_data;
 	config.driver_data = max8952;
 
+	config.ena_gpio = pdata->gpio_en;
+	if (pdata->reg_data.constraints.boot_on)
+		config.ena_gpio_flags |= GPIOF_OUT_INIT_HIGH;
+
 	max8952->rdev = regulator_register(&regulator, &config);
 
 	if (IS_ERR(max8952->rdev)) {
@@ -202,26 +169,8 @@ static int __devinit max8952_pmic_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	max8952->en = !!(pdata->reg_data.constraints.boot_on);
 	max8952->vid0 = pdata->default_mode & 0x1;
 	max8952->vid1 = (pdata->default_mode >> 1) & 0x1;
-
-	if (gpio_is_valid(pdata->gpio_en)) {
-		if (!gpio_request(pdata->gpio_en, "MAX8952 EN"))
-			gpio_direction_output(pdata->gpio_en, max8952->en);
-		else
-			err = 1;
-	} else
-		err = 2;
-
-	if (err) {
-		dev_info(max8952->dev, "EN gpio invalid: assume that EN"
-				"is always High\n");
-		max8952->en = 1;
-		pdata->gpio_en = -1; /* Mark invalid */
-	}
-
-	err = 0;
 
 	if (gpio_is_valid(pdata->gpio_vid0) &&
 			gpio_is_valid(pdata->gpio_vid1)) {
@@ -308,7 +257,6 @@ static int __devexit max8952_pmic_remove(struct i2c_client *client)
 
 	gpio_free(pdata->gpio_vid0);
 	gpio_free(pdata->gpio_vid1);
-	gpio_free(pdata->gpio_en);
 	return 0;
 }
 

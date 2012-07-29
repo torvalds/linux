@@ -1,11 +1,10 @@
 /*
- *  drivers/s390/char/tty3270.c
  *    IBM/3270 Driver - tty functions.
  *
  *  Author(s):
  *    Original 3270 Code for 2.4 written by Richard Hitt (UTS Global)
  *    Rewritten for 2.5 by Martin Schwidefsky <schwidefsky@de.ibm.com>
- *	-- Copyright (C) 2003 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *	-- Copyright IBM Corp. 2003
  */
 
 #include <linux/module.h>

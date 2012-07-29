@@ -179,7 +179,7 @@ xfs_vn_create(
 	struct inode	*dir,
 	struct dentry	*dentry,
 	umode_t		mode,
-	struct nameidata *nd)
+	bool		flags)
 {
 	return xfs_vn_mknod(dir, dentry, mode, 0);
 }
@@ -197,7 +197,7 @@ STATIC struct dentry *
 xfs_vn_lookup(
 	struct inode	*dir,
 	struct dentry	*dentry,
-	struct nameidata *nd)
+	unsigned int flags)
 {
 	struct xfs_inode *cip;
 	struct xfs_name	name;
@@ -222,7 +222,7 @@ STATIC struct dentry *
 xfs_vn_ci_lookup(
 	struct inode	*dir,
 	struct dentry	*dentry,
-	struct nameidata *nd)
+	unsigned int flags)
 {
 	struct xfs_inode *ip;
 	struct xfs_name	xname;

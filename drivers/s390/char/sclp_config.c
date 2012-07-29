@@ -1,6 +1,4 @@
 /*
- *  drivers/s390/char/sclp_config.c
- *
  *    Copyright IBM Corp. 2007
  *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */

@@ -1,7 +1,7 @@
 /*
  * wm8904.c  --  WM8904 ALSA SoC Audio driver
  *
- * Copyright 2009 Wolfson Microelectronics plc
+ * Copyright 2009-12 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
@@ -312,11 +312,6 @@ static bool wm8904_readable_register(struct device *dev, unsigned int reg)
 	default:
 		return true;
 	}
-}
-
-static int wm8904_reset(struct snd_soc_codec *codec)
-{
-	return snd_soc_write(codec, WM8904_SW_RESET_AND_ID, 0);
 }
 
 static int wm8904_configure_clocking(struct snd_soc_codec *codec)
@@ -1945,25 +1940,6 @@ static struct snd_soc_dai_driver wm8904_dai = {
 	.symmetric_rates = 1,
 };
 
-#ifdef CONFIG_PM
-static int wm8904_suspend(struct snd_soc_codec *codec)
-{
-	wm8904_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int wm8904_resume(struct snd_soc_codec *codec)
-{
-	wm8904_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-#else
-#define wm8904_suspend NULL
-#define wm8904_resume NULL
-#endif
-
 static void wm8904_handle_retune_mobile_pdata(struct snd_soc_codec *codec)
 {
 	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
@@ -2078,8 +2054,7 @@ static void wm8904_handle_pdata(struct snd_soc_codec *codec)
 static int wm8904_probe(struct snd_soc_codec *codec)
 {
 	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
-	struct wm8904_pdata *pdata = wm8904->pdata;
-	int ret, i;
+	int ret;
 
 	codec->control_data = wm8904->regmap;
 
@@ -2101,127 +2076,17 @@ static int wm8904_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(wm8904->supplies); i++)
-		wm8904->supplies[i].supply = wm8904_supply_names[i];
-
-	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(wm8904->supplies),
-				 wm8904->supplies);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
-		return ret;
-	}
-
-	ret = regulator_bulk_enable(ARRAY_SIZE(wm8904->supplies),
-				    wm8904->supplies);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
-		goto err_get;
-	}
-
-	ret = snd_soc_read(codec, WM8904_SW_RESET_AND_ID);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to read ID register\n");
-		goto err_enable;
-	}
-	if (ret != 0x8904) {
-		dev_err(codec->dev, "Device is not a WM8904, ID is %x\n", ret);
-		ret = -EINVAL;
-		goto err_enable;
-	}
-
-	ret = snd_soc_read(codec, WM8904_REVISION);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to read device revision: %d\n",
-			ret);
-		goto err_enable;
-	}
-	dev_info(codec->dev, "revision %c\n", ret + 'A');
-
-	ret = wm8904_reset(codec);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to issue reset\n");
-		goto err_enable;
-	}
-
-	regcache_cache_only(wm8904->regmap, true);
-	/* Change some default settings - latch VU and enable ZC */
-	snd_soc_update_bits(codec, WM8904_ADC_DIGITAL_VOLUME_LEFT,
-			    WM8904_ADC_VU, WM8904_ADC_VU);
-	snd_soc_update_bits(codec, WM8904_ADC_DIGITAL_VOLUME_RIGHT,
-			    WM8904_ADC_VU, WM8904_ADC_VU);
-	snd_soc_update_bits(codec, WM8904_DAC_DIGITAL_VOLUME_LEFT,
-			    WM8904_DAC_VU, WM8904_DAC_VU);
-	snd_soc_update_bits(codec, WM8904_DAC_DIGITAL_VOLUME_RIGHT,
-			    WM8904_DAC_VU, WM8904_DAC_VU);
-	snd_soc_update_bits(codec, WM8904_ANALOGUE_OUT1_LEFT,
-			    WM8904_HPOUT_VU | WM8904_HPOUTLZC,
-			    WM8904_HPOUT_VU | WM8904_HPOUTLZC);
-	snd_soc_update_bits(codec, WM8904_ANALOGUE_OUT1_RIGHT,
-			    WM8904_HPOUT_VU | WM8904_HPOUTRZC,
-			    WM8904_HPOUT_VU | WM8904_HPOUTRZC);
-	snd_soc_update_bits(codec, WM8904_ANALOGUE_OUT2_LEFT,
-			    WM8904_LINEOUT_VU | WM8904_LINEOUTLZC,
-			    WM8904_LINEOUT_VU | WM8904_LINEOUTLZC);
-	snd_soc_update_bits(codec, WM8904_ANALOGUE_OUT2_RIGHT,
-			    WM8904_LINEOUT_VU | WM8904_LINEOUTRZC,
-			    WM8904_LINEOUT_VU | WM8904_LINEOUTRZC);
-	snd_soc_update_bits(codec, WM8904_CLOCK_RATES_0,
-			    WM8904_SR_MODE, 0);
-
-	/* Apply configuration from the platform data. */
-	if (wm8904->pdata) {
-		for (i = 0; i < WM8904_GPIO_REGS; i++) {
-			if (!pdata->gpio_cfg[i])
-				continue;
-
-			regmap_update_bits(wm8904->regmap,
-					   WM8904_GPIO_CONTROL_1 + i,
-					   0xffff,
-					   pdata->gpio_cfg[i]);
-		}
-
-		/* Zero is the default value for these anyway */
-		for (i = 0; i < WM8904_MIC_REGS; i++)
-			regmap_update_bits(wm8904->regmap,
-					   WM8904_MIC_BIAS_CONTROL_0 + i,
-					   0xffff,
-					   pdata->mic_cfg[i]);
-	}
-
-	/* Set Class W by default - this will be managed by the Class
-	 * G widget at runtime where bypass paths are available.
-	 */
-	snd_soc_update_bits(codec, WM8904_CLASS_W_0,
-			    WM8904_CP_DYN_PWR, WM8904_CP_DYN_PWR);
-
-	/* Use normal bias source */
-	snd_soc_update_bits(codec, WM8904_BIAS_CONTROL_0,
-			    WM8904_POBCTRL, 0);
-
-	wm8904_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	/* Bias level configuration will have done an extra enable */
-	regulator_bulk_disable(ARRAY_SIZE(wm8904->supplies), wm8904->supplies);
-
 	wm8904_handle_pdata(codec);
 
 	wm8904_add_widgets(codec);
 
 	return 0;
-
-err_enable:
-	regulator_bulk_disable(ARRAY_SIZE(wm8904->supplies), wm8904->supplies);
-err_get:
-	regulator_bulk_free(ARRAY_SIZE(wm8904->supplies), wm8904->supplies);
-	return ret;
 }
 
 static int wm8904_remove(struct snd_soc_codec *codec)
 {
 	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 
-	wm8904_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	regulator_bulk_free(ARRAY_SIZE(wm8904->supplies), wm8904->supplies);
 	kfree(wm8904->retune_mobile_texts);
 	kfree(wm8904->drc_texts);
 
@@ -2231,8 +2096,6 @@ static int wm8904_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_wm8904 = {
 	.probe =	wm8904_probe,
 	.remove =	wm8904_remove,
-	.suspend =	wm8904_suspend,
-	.resume =	wm8904_resume,
 	.set_bias_level = wm8904_set_bias_level,
 	.idle_bias_off = true,
 };
@@ -2254,14 +2117,15 @@ static __devinit int wm8904_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
 	struct wm8904_priv *wm8904;
-	int ret;
+	unsigned int val;
+	int ret, i;
 
 	wm8904 = devm_kzalloc(&i2c->dev, sizeof(struct wm8904_priv),
 			      GFP_KERNEL);
 	if (wm8904 == NULL)
 		return -ENOMEM;
 
-	wm8904->regmap = regmap_init_i2c(i2c, &wm8904_regmap);
+	wm8904->regmap = devm_regmap_init_i2c(i2c, &wm8904_regmap);
 	if (IS_ERR(wm8904->regmap)) {
 		ret = PTR_ERR(wm8904->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
@@ -2273,23 +2137,121 @@ static __devinit int wm8904_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, wm8904);
 	wm8904->pdata = i2c->dev.platform_data;
 
+	for (i = 0; i < ARRAY_SIZE(wm8904->supplies); i++)
+		wm8904->supplies[i].supply = wm8904_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8904->supplies),
+				      wm8904->supplies);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
+		return ret;
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(wm8904->supplies),
+				    wm8904->supplies);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to enable supplies: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_read(wm8904->regmap, WM8904_SW_RESET_AND_ID, &val);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "Failed to read ID register: %d\n", ret);
+		goto err_enable;
+	}
+	if (val != 0x8904) {
+		dev_err(&i2c->dev, "Device is not a WM8904, ID is %x\n", val);
+		ret = -EINVAL;
+		goto err_enable;
+	}
+
+	ret = regmap_read(wm8904->regmap, WM8904_REVISION, &val);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "Failed to read device revision: %d\n",
+			ret);
+		goto err_enable;
+	}
+	dev_info(&i2c->dev, "revision %c\n", val + 'A');
+
+	ret = regmap_write(wm8904->regmap, WM8904_SW_RESET_AND_ID, 0);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "Failed to issue reset: %d\n", ret);
+		goto err_enable;
+	}
+
+	/* Change some default settings - latch VU and enable ZC */
+	regmap_update_bits(wm8904->regmap, WM8904_ADC_DIGITAL_VOLUME_LEFT,
+			   WM8904_ADC_VU, WM8904_ADC_VU);
+	regmap_update_bits(wm8904->regmap, WM8904_ADC_DIGITAL_VOLUME_RIGHT,
+			   WM8904_ADC_VU, WM8904_ADC_VU);
+	regmap_update_bits(wm8904->regmap, WM8904_DAC_DIGITAL_VOLUME_LEFT,
+			   WM8904_DAC_VU, WM8904_DAC_VU);
+	regmap_update_bits(wm8904->regmap, WM8904_DAC_DIGITAL_VOLUME_RIGHT,
+			   WM8904_DAC_VU, WM8904_DAC_VU);
+	regmap_update_bits(wm8904->regmap, WM8904_ANALOGUE_OUT1_LEFT,
+			   WM8904_HPOUT_VU | WM8904_HPOUTLZC,
+			   WM8904_HPOUT_VU | WM8904_HPOUTLZC);
+	regmap_update_bits(wm8904->regmap, WM8904_ANALOGUE_OUT1_RIGHT,
+			   WM8904_HPOUT_VU | WM8904_HPOUTRZC,
+			   WM8904_HPOUT_VU | WM8904_HPOUTRZC);
+	regmap_update_bits(wm8904->regmap, WM8904_ANALOGUE_OUT2_LEFT,
+			   WM8904_LINEOUT_VU | WM8904_LINEOUTLZC,
+			   WM8904_LINEOUT_VU | WM8904_LINEOUTLZC);
+	regmap_update_bits(wm8904->regmap, WM8904_ANALOGUE_OUT2_RIGHT,
+			   WM8904_LINEOUT_VU | WM8904_LINEOUTRZC,
+			   WM8904_LINEOUT_VU | WM8904_LINEOUTRZC);
+	regmap_update_bits(wm8904->regmap, WM8904_CLOCK_RATES_0,
+			   WM8904_SR_MODE, 0);
+
+	/* Apply configuration from the platform data. */
+	if (wm8904->pdata) {
+		for (i = 0; i < WM8904_GPIO_REGS; i++) {
+			if (!wm8904->pdata->gpio_cfg[i])
+				continue;
+
+			regmap_update_bits(wm8904->regmap,
+					   WM8904_GPIO_CONTROL_1 + i,
+					   0xffff,
+					   wm8904->pdata->gpio_cfg[i]);
+		}
+
+		/* Zero is the default value for these anyway */
+		for (i = 0; i < WM8904_MIC_REGS; i++)
+			regmap_update_bits(wm8904->regmap,
+					   WM8904_MIC_BIAS_CONTROL_0 + i,
+					   0xffff,
+					   wm8904->pdata->mic_cfg[i]);
+	}
+
+	/* Set Class W by default - this will be managed by the Class
+	 * G widget at runtime where bypass paths are available.
+	 */
+	regmap_update_bits(wm8904->regmap, WM8904_CLASS_W_0,
+			    WM8904_CP_DYN_PWR, WM8904_CP_DYN_PWR);
+
+	/* Use normal bias source */
+	regmap_update_bits(wm8904->regmap, WM8904_BIAS_CONTROL_0,
+			    WM8904_POBCTRL, 0);
+
+	/* Can leave the device powered off until we need it */
+	regcache_cache_only(wm8904->regmap, true);
+	regulator_bulk_disable(ARRAY_SIZE(wm8904->supplies), wm8904->supplies);
+
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8904, &wm8904_dai, 1);
 	if (ret != 0)
-		goto err;
+		return ret;
 
 	return 0;
 
-err:
-	regmap_exit(wm8904->regmap);
+err_enable:
+	regulator_bulk_disable(ARRAY_SIZE(wm8904->supplies), wm8904->supplies);
 	return ret;
 }
 
 static __devexit int wm8904_i2c_remove(struct i2c_client *client)
 {
-	struct wm8904_priv *wm8904 = i2c_get_clientdata(client);
 	snd_soc_unregister_codec(&client->dev);
-	regmap_exit(wm8904->regmap);
 	return 0;
 }
 
@@ -2311,23 +2273,7 @@ static struct i2c_driver wm8904_i2c_driver = {
 	.id_table = wm8904_i2c_id,
 };
 
-static int __init wm8904_modinit(void)
-{
-	int ret = 0;
-	ret = i2c_add_driver(&wm8904_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register wm8904 I2C driver: %d\n",
-		       ret);
-	}
-	return ret;
-}
-module_init(wm8904_modinit);
-
-static void __exit wm8904_exit(void)
-{
-	i2c_del_driver(&wm8904_i2c_driver);
-}
-module_exit(wm8904_exit);
+module_i2c_driver(wm8904_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM8904 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

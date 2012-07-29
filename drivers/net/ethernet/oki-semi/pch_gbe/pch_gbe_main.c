@@ -301,7 +301,7 @@ inline void pch_gbe_mac_load_mac_addr(struct pch_gbe_hw *hw)
 /**
  * pch_gbe_mac_read_mac_addr - Read MAC address
  * @hw:	            Pointer to the HW structure
- * Returns
+ * Returns:
  *	0:			Successful.
  */
 s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw)
@@ -483,7 +483,7 @@ static void pch_gbe_mac_mc_addr_list_update(struct pch_gbe_hw *hw,
 /**
  * pch_gbe_mac_force_mac_fc - Force the MAC's flow control settings
  * @hw:	            Pointer to the HW structure
- * Returns
+ * Returns:
  *	0:			Successful.
  *	Negative value:		Failed.
  */
@@ -639,7 +639,7 @@ static void pch_gbe_mac_set_pause_packet(struct pch_gbe_hw *hw)
 /**
  * pch_gbe_alloc_queues - Allocate memory for all rings
  * @adapter:  Board private structure to initialize
- * Returns
+ * Returns:
  *	0:	Successfully
  *	Negative value:	Failed
  */
@@ -670,7 +670,7 @@ static void pch_gbe_init_stats(struct pch_gbe_adapter *adapter)
 /**
  * pch_gbe_init_phy - Initialize PHY
  * @adapter:  Board private structure to initialize
- * Returns
+ * Returns:
  *	0:	Successfully
  *	Negative value:	Failed
  */
@@ -720,7 +720,7 @@ static int pch_gbe_init_phy(struct pch_gbe_adapter *adapter)
  * @netdev: Network interface device structure
  * @addr:   Phy ID
  * @reg:    Access location
- * Returns
+ * Returns:
  *	0:	Successfully
  *	Negative value:	Failed
  */
@@ -1364,7 +1364,7 @@ static void pch_gbe_start_receive(struct pch_gbe_hw *hw)
  * pch_gbe_intr - Interrupt Handler
  * @irq:   Interrupt number
  * @data:  Pointer to a network interface device structure
- * Returns
+ * Returns:
  *	- IRQ_HANDLED:	Our interrupt
  *	- IRQ_NONE:	Not our interrupt
  */
@@ -1566,7 +1566,7 @@ static void pch_gbe_alloc_tx_buffers(struct pch_gbe_adapter *adapter,
  * pch_gbe_clean_tx - Reclaim resources after transmit completes
  * @adapter:   Board private structure
  * @tx_ring:   Tx descriptor ring
- * Returns
+ * Returns:
  *	true:  Cleaned the descriptor
  *	false: Not cleaned the descriptor
  */
@@ -1660,7 +1660,7 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
  * @rx_ring:     Rx descriptor ring
  * @work_done:   Completed count
  * @work_to_do:  Request count
- * Returns
+ * Returns:
  *	true:  Cleaned the descriptor
  *	false: Not cleaned the descriptor
  */
@@ -1775,7 +1775,7 @@ pch_gbe_clean_rx(struct pch_gbe_adapter *adapter,
  * pch_gbe_setup_tx_resources - Allocate Tx resources (Descriptors)
  * @adapter:  Board private structure
  * @tx_ring:  Tx descriptor ring (for a specific queue) to setup
- * Returns
+ * Returns:
  *	0:		Successfully
  *	Negative value:	Failed
  */
@@ -1822,7 +1822,7 @@ int pch_gbe_setup_tx_resources(struct pch_gbe_adapter *adapter,
  * pch_gbe_setup_rx_resources - Allocate Rx resources (Descriptors)
  * @adapter:  Board private structure
  * @rx_ring:  Rx descriptor ring (for a specific queue) to setup
- * Returns
+ * Returns:
  *	0:		Successfully
  *	Negative value:	Failed
  */
@@ -1899,7 +1899,7 @@ void pch_gbe_free_rx_resources(struct pch_gbe_adapter *adapter,
 /**
  * pch_gbe_request_irq - Allocate an interrupt line
  * @adapter:  Board private structure
- * Returns
+ * Returns:
  *	0:		Successfully
  *	Negative value:	Failed
  */
@@ -1932,7 +1932,7 @@ static int pch_gbe_request_irq(struct pch_gbe_adapter *adapter)
 /**
  * pch_gbe_up - Up GbE network device
  * @adapter:  Board private structure
- * Returns
+ * Returns:
  *	0:		Successfully
  *	Negative value:	Failed
  */
@@ -2018,7 +2018,7 @@ void pch_gbe_down(struct pch_gbe_adapter *adapter)
 /**
  * pch_gbe_sw_init - Initialize general software structures (struct pch_gbe_adapter)
  * @adapter:  Board private structure to initialize
- * Returns
+ * Returns:
  *	0:		Successfully
  *	Negative value:	Failed
  */
@@ -2057,7 +2057,7 @@ static int pch_gbe_sw_init(struct pch_gbe_adapter *adapter)
 /**
  * pch_gbe_open - Called when a network interface is made active
  * @netdev:	Network interface device structure
- * Returns
+ * Returns:
  *	0:		Successfully
  *	Negative value:	Failed
  */
@@ -2097,7 +2097,7 @@ err_setup_tx:
 /**
  * pch_gbe_stop - Disables a network interface
  * @netdev:  Network interface device structure
- * Returns
+ * Returns:
  *	0: Successfully
  */
 static int pch_gbe_stop(struct net_device *netdev)
@@ -2117,7 +2117,7 @@ static int pch_gbe_stop(struct net_device *netdev)
  * pch_gbe_xmit_frame - Packet transmitting start
  * @skb:     Socket buffer structure
  * @netdev:  Network interface device structure
- * Returns
+ * Returns:
  *	- NETDEV_TX_OK:   Normal end
  *	- NETDEV_TX_BUSY: Error end
  */
@@ -2225,7 +2225,7 @@ static void pch_gbe_set_multi(struct net_device *netdev)
  * pch_gbe_set_mac - Change the Ethernet Address of the NIC
  * @netdev: Network interface device structure
  * @addr:   Pointer to an address structure
- * Returns
+ * Returns:
  *	0:		Successfully
  *	-EADDRNOTAVAIL:	Failed
  */
@@ -2256,7 +2256,7 @@ static int pch_gbe_set_mac(struct net_device *netdev, void *addr)
  * pch_gbe_change_mtu - Change the Maximum Transfer Unit
  * @netdev:   Network interface device structure
  * @new_mtu:  New value for maximum frame size
- * Returns
+ * Returns:
  *	0:		Successfully
  *	-EINVAL:	Failed
  */
@@ -2309,7 +2309,7 @@ static int pch_gbe_change_mtu(struct net_device *netdev, int new_mtu)
  * pch_gbe_set_features - Reset device after features changed
  * @netdev:   Network interface device structure
  * @features:  New features
- * Returns
+ * Returns:
  *	0:		HW state updated successfully
  */
 static int pch_gbe_set_features(struct net_device *netdev,
@@ -2334,7 +2334,7 @@ static int pch_gbe_set_features(struct net_device *netdev,
  * @netdev:   Network interface device structure
  * @ifr:      Pointer to ifr structure
  * @cmd:      Control command
- * Returns
+ * Returns:
  *	0:	Successfully
  *	Negative value:	Failed
  */
@@ -2369,7 +2369,7 @@ static void pch_gbe_tx_timeout(struct net_device *netdev)
  * pch_gbe_napi_poll - NAPI receive and transfer polling callback
  * @napi:    Pointer of polling device struct
  * @budget:  The maximum number of a packet
- * Returns
+ * Returns:
  *	false:  Exit the polling mode
  *	true:   Continue the polling mode
  */

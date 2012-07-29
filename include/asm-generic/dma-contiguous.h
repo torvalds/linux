@@ -18,7 +18,7 @@ static inline void dev_set_cma_area(struct device *dev, struct cma *cma)
 {
 	if (dev)
 		dev->cma_area = cma;
-	if (!dev || !dma_contiguous_default_area)
+	if (!dev && !dma_contiguous_default_area)
 		dma_contiguous_default_area = cma;
 }
 

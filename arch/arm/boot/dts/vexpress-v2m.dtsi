@@ -54,6 +54,8 @@
 			reg-io-width = <4>;
 			smsc,irq-active-high;
 			smsc,irq-push-pull;
+			vdd33a-supply = <&v2m_fixed_3v3>;
+			vddvario-supply = <&v2m_fixed_3v3>;
 		};
 
 		usb@3,03000000 {
@@ -156,6 +158,7 @@
 			v2m_timer23: timer@12000 {
 				compatible = "arm,sp804", "arm,primecell";
 				reg = <0x12000 0x1000>;
+				interrupts = <3>;
 			};
 
 			/* DVI I2C bus */
@@ -195,6 +198,14 @@
 				reg = <0x1f000 0x1000>;
 				interrupts = <14>;
 			};
+		};
+
+		v2m_fixed_3v3: fixedregulator@0 {
+			compatible = "regulator-fixed";
+			regulator-name = "3V3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
 		};
 	};
 };

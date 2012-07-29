@@ -290,26 +290,6 @@ static void acpi_device_release(struct device *dev)
 	kfree(acpi_dev);
 }
 
-static int acpi_device_suspend(struct device *dev, pm_message_t state)
-{
-	struct acpi_device *acpi_dev = to_acpi_device(dev);
-	struct acpi_driver *acpi_drv = acpi_dev->driver;
-
-	if (acpi_drv && acpi_drv->ops.suspend)
-		return acpi_drv->ops.suspend(acpi_dev, state);
-	return 0;
-}
-
-static int acpi_device_resume(struct device *dev)
-{
-	struct acpi_device *acpi_dev = to_acpi_device(dev);
-	struct acpi_driver *acpi_drv = acpi_dev->driver;
-
-	if (acpi_drv && acpi_drv->ops.resume)
-		return acpi_drv->ops.resume(acpi_dev);
-	return 0;
-}
-
 static int acpi_bus_match(struct device *dev, struct device_driver *drv)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
@@ -441,8 +421,6 @@ static int acpi_device_remove(struct device * dev)
 
 struct bus_type acpi_bus_type = {
 	.name		= "acpi",
-	.suspend	= acpi_device_suspend,
-	.resume		= acpi_device_resume,
 	.match		= acpi_bus_match,
 	.probe		= acpi_device_probe,
 	.remove		= acpi_device_remove,

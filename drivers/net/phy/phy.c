@@ -15,6 +15,9 @@
  * option) any later version.
  *
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -32,6 +35,7 @@
 #include <linux/phy.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <linux/mdio.h>
 
 #include <linux/atomic.h>
 #include <asm/io.h>
@@ -44,17 +48,15 @@
  */
 void phy_print_status(struct phy_device *phydev)
 {
-	pr_info("PHY: %s - Link is %s", dev_name(&phydev->dev),
-			phydev->link ? "Up" : "Down");
 	if (phydev->link)
-		printk(KERN_CONT " - %d/%s", phydev->speed,
-				DUPLEX_FULL == phydev->duplex ?
-				"Full" : "Half");
-
-	printk(KERN_CONT "\n");
+		pr_info("%s - Link is Up - %d/%s\n",
+			dev_name(&phydev->dev),
+			phydev->speed,
+			DUPLEX_FULL == phydev->duplex ? "Full" : "Half");
+	else
+		pr_info("%s - Link is Down\n", dev_name(&phydev->dev));
 }
 EXPORT_SYMBOL(phy_print_status);
-
 
 /**
  * phy_clear_interrupt - Ack the phy device's interrupt
@@ -482,9 +484,8 @@ static void phy_force_reduction(struct phy_device *phydev)
 	phydev->speed = settings[idx].speed;
 	phydev->duplex = settings[idx].duplex;
 
-	pr_info("Trying %d/%s\n", phydev->speed,
-			DUPLEX_FULL == phydev->duplex ?
-			"FULL" : "HALF");
+	pr_info("Trying %d/%s\n",
+		phydev->speed, DUPLEX_FULL == phydev->duplex ? "FULL" : "HALF");
 }
 
 
@@ -598,9 +599,8 @@ int phy_start_interrupts(struct phy_device *phydev)
 				IRQF_SHARED,
 				"phy_interrupt",
 				phydev) < 0) {
-		printk(KERN_WARNING "%s: Can't get IRQ %d (PHY)\n",
-				phydev->bus->name,
-				phydev->irq);
+		pr_warn("%s: Can't get IRQ %d (PHY)\n",
+			phydev->bus->name, phydev->irq);
 		phydev->irq = PHY_POLL;
 		return 0;
 	}
@@ -838,10 +838,10 @@ void phy_state_machine(struct work_struct *work)
 
 				phydev->autoneg = AUTONEG_DISABLE;
 
-				pr_info("Trying %d/%s\n", phydev->speed,
-						DUPLEX_FULL ==
-						phydev->duplex ?
-						"FULL" : "HALF");
+				pr_info("Trying %d/%s\n",
+					phydev->speed,
+					DUPLEX_FULL == phydev->duplex ?
+					"FULL" : "HALF");
 			}
 			break;
 		case PHY_NOLINK:
@@ -968,3 +968,283 @@ void phy_state_machine(struct work_struct *work)
 
 	schedule_delayed_work(&phydev->state_queue, PHY_STATE_TIME * HZ);
 }
+
+static inline void mmd_phy_indirect(struct mii_bus *bus, int prtad, int devad,
+				    int addr)
+{
+	/* Write the desired MMD Devad */
+	bus->write(bus, addr, MII_MMD_CTRL, devad);
+
+	/* Write the desired MMD register address */
+	bus->write(bus, addr, MII_MMD_DATA, prtad);
+
+	/* Select the Function : DATA with no post increment */
+	bus->write(bus, addr, MII_MMD_CTRL, (devad | MII_MMD_CTRL_NOINCR));
+}
+
+/**
+ * phy_read_mmd_indirect - reads data from the MMD registers
+ * @bus: the target MII bus
+ * @prtad: MMD Address
+ * @devad: MMD DEVAD
+ * @addr: PHY address on the MII bus
+ *
+ * Description: it reads data from the MMD registers (clause 22 to access to
+ * clause 45) of the specified phy address.
+ * To read these register we have:
+ * 1) Write reg 13 // DEVAD
+ * 2) Write reg 14 // MMD Address
+ * 3) Write reg 13 // MMD Data Command for MMD DEVAD
+ * 3) Read  reg 14 // Read MMD data
+ */
+static int phy_read_mmd_indirect(struct mii_bus *bus, int prtad, int devad,
+				 int addr)
+{
+	u32 ret;
+
+	mmd_phy_indirect(bus, prtad, devad, addr);
+
+	/* Read the content of the MMD's selected register */
+	ret = bus->read(bus, addr, MII_MMD_DATA);
+
+	return ret;
+}
+
+/**
+ * phy_write_mmd_indirect - writes data to the MMD registers
+ * @bus: the target MII bus
+ * @prtad: MMD Address
+ * @devad: MMD DEVAD
+ * @addr: PHY address on the MII bus
+ * @data: data to write in the MMD register
+ *
+ * Description: Write data from the MMD registers of the specified
+ * phy address.
+ * To write these register we have:
+ * 1) Write reg 13 // DEVAD
+ * 2) Write reg 14 // MMD Address
+ * 3) Write reg 13 // MMD Data Command for MMD DEVAD
+ * 3) Write reg 14 // Write MMD data
+ */
+static void phy_write_mmd_indirect(struct mii_bus *bus, int prtad, int devad,
+				   int addr, u32 data)
+{
+	mmd_phy_indirect(bus, prtad, devad, addr);
+
+	/* Write the data into MMD's selected register */
+	bus->write(bus, addr, MII_MMD_DATA, data);
+}
+
+static u32 phy_eee_to_adv(u16 eee_adv)
+{
+	u32 adv = 0;
+
+	if (eee_adv & MDIO_EEE_100TX)
+		adv |= ADVERTISED_100baseT_Full;
+	if (eee_adv & MDIO_EEE_1000T)
+		adv |= ADVERTISED_1000baseT_Full;
+	if (eee_adv & MDIO_EEE_10GT)
+		adv |= ADVERTISED_10000baseT_Full;
+	if (eee_adv & MDIO_EEE_1000KX)
+		adv |= ADVERTISED_1000baseKX_Full;
+	if (eee_adv & MDIO_EEE_10GKX4)
+		adv |= ADVERTISED_10000baseKX4_Full;
+	if (eee_adv & MDIO_EEE_10GKR)
+		adv |= ADVERTISED_10000baseKR_Full;
+
+	return adv;
+}
+
+static u32 phy_eee_to_supported(u16 eee_caported)
+{
+	u32 supported = 0;
+
+	if (eee_caported & MDIO_EEE_100TX)
+		supported |= SUPPORTED_100baseT_Full;
+	if (eee_caported & MDIO_EEE_1000T)
+		supported |= SUPPORTED_1000baseT_Full;
+	if (eee_caported & MDIO_EEE_10GT)
+		supported |= SUPPORTED_10000baseT_Full;
+	if (eee_caported & MDIO_EEE_1000KX)
+		supported |= SUPPORTED_1000baseKX_Full;
+	if (eee_caported & MDIO_EEE_10GKX4)
+		supported |= SUPPORTED_10000baseKX4_Full;
+	if (eee_caported & MDIO_EEE_10GKR)
+		supported |= SUPPORTED_10000baseKR_Full;
+
+	return supported;
+}
+
+static u16 phy_adv_to_eee(u32 adv)
+{
+	u16 reg = 0;
+
+	if (adv & ADVERTISED_100baseT_Full)
+		reg |= MDIO_EEE_100TX;
+	if (adv & ADVERTISED_1000baseT_Full)
+		reg |= MDIO_EEE_1000T;
+	if (adv & ADVERTISED_10000baseT_Full)
+		reg |= MDIO_EEE_10GT;
+	if (adv & ADVERTISED_1000baseKX_Full)
+		reg |= MDIO_EEE_1000KX;
+	if (adv & ADVERTISED_10000baseKX4_Full)
+		reg |= MDIO_EEE_10GKX4;
+	if (adv & ADVERTISED_10000baseKR_Full)
+		reg |= MDIO_EEE_10GKR;
+
+	return reg;
+}
+
+/**
+ * phy_init_eee - init and check the EEE feature
+ * @phydev: target phy_device struct
+ * @clk_stop_enable: PHY may stop the clock during LPI
+ *
+ * Description: it checks if the Energy-Efficient Ethernet (EEE)
+ * is supported by looking at the MMD registers 3.20 and 7.60/61
+ * and it programs the MMD register 3.0 setting the "Clock stop enable"
+ * bit if required.
+ */
+int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
+{
+	int ret = -EPROTONOSUPPORT;
+
+	/* According to 802.3az,the EEE is supported only in full duplex-mode.
+	 * Also EEE feature is active when core is operating with MII, GMII
+	 * or RGMII.
+	 */
+	if ((phydev->duplex == DUPLEX_FULL) &&
+	    ((phydev->interface == PHY_INTERFACE_MODE_MII) ||
+	    (phydev->interface == PHY_INTERFACE_MODE_GMII) ||
+	    (phydev->interface == PHY_INTERFACE_MODE_RGMII))) {
+		int eee_lp, eee_cap, eee_adv;
+		u32 lp, cap, adv;
+		int idx, status;
+
+		/* Read phy status to properly get the right settings */
+		status = phy_read_status(phydev);
+		if (status)
+			return status;
+
+		/* First check if the EEE ability is supported */
+		eee_cap = phy_read_mmd_indirect(phydev->bus, MDIO_PCS_EEE_ABLE,
+						MDIO_MMD_PCS, phydev->addr);
+		if (eee_cap < 0)
+			return eee_cap;
+
+		cap = phy_eee_to_supported(eee_cap);
+		if (!cap)
+			goto eee_exit;
+
+		/* Check which link settings negotiated and verify it in
+		 * the EEE advertising registers.
+		 */
+		eee_lp = phy_read_mmd_indirect(phydev->bus, MDIO_AN_EEE_LPABLE,
+					       MDIO_MMD_AN, phydev->addr);
+		if (eee_lp < 0)
+			return eee_lp;
+
+		eee_adv = phy_read_mmd_indirect(phydev->bus, MDIO_AN_EEE_ADV,
+						MDIO_MMD_AN, phydev->addr);
+		if (eee_adv < 0)
+			return eee_adv;
+
+		adv = phy_eee_to_adv(eee_adv);
+		lp = phy_eee_to_adv(eee_lp);
+		idx = phy_find_setting(phydev->speed, phydev->duplex);
+		if ((lp & adv & settings[idx].setting))
+			goto eee_exit;
+
+		if (clk_stop_enable) {
+			/* Configure the PHY to stop receiving xMII
+			 * clock while it is signaling LPI.
+			 */
+			int val = phy_read_mmd_indirect(phydev->bus, MDIO_CTRL1,
+							MDIO_MMD_PCS,
+							phydev->addr);
+			if (val < 0)
+				return val;
+
+			val |= MDIO_PCS_CTRL1_CLKSTOP_EN;
+			phy_write_mmd_indirect(phydev->bus, MDIO_CTRL1,
+					       MDIO_MMD_PCS, phydev->addr, val);
+		}
+
+		ret = 0; /* EEE supported */
+	}
+
+eee_exit:
+	return ret;
+}
+EXPORT_SYMBOL(phy_init_eee);
+
+/**
+ * phy_get_eee_err - report the EEE wake error count
+ * @phydev: target phy_device struct
+ *
+ * Description: it is to report the number of time where the PHY
+ * failed to complete its normal wake sequence.
+ */
+int phy_get_eee_err(struct phy_device *phydev)
+{
+	return phy_read_mmd_indirect(phydev->bus, MDIO_PCS_EEE_WK_ERR,
+				     MDIO_MMD_PCS, phydev->addr);
+
+}
+EXPORT_SYMBOL(phy_get_eee_err);
+
+/**
+ * phy_ethtool_get_eee - get EEE supported and status
+ * @phydev: target phy_device struct
+ * @data: ethtool_eee data
+ *
+ * Description: it reportes the Supported/Advertisement/LP Advertisement
+ * capabilities.
+ */
+int phy_ethtool_get_eee(struct phy_device *phydev, struct ethtool_eee *data)
+{
+	int val;
+
+	/* Get Supported EEE */
+	val = phy_read_mmd_indirect(phydev->bus, MDIO_PCS_EEE_ABLE,
+				    MDIO_MMD_PCS, phydev->addr);
+	if (val < 0)
+		return val;
+	data->supported = phy_eee_to_supported(val);
+
+	/* Get advertisement EEE */
+	val = phy_read_mmd_indirect(phydev->bus, MDIO_AN_EEE_ADV,
+				    MDIO_MMD_AN, phydev->addr);
+	if (val < 0)
+		return val;
+	data->advertised = phy_eee_to_adv(val);
+
+	/* Get LP advertisement EEE */
+	val = phy_read_mmd_indirect(phydev->bus, MDIO_AN_EEE_LPABLE,
+				    MDIO_MMD_AN, phydev->addr);
+	if (val < 0)
+		return val;
+	data->lp_advertised = phy_eee_to_adv(val);
+
+	return 0;
+}
+EXPORT_SYMBOL(phy_ethtool_get_eee);
+
+/**
+ * phy_ethtool_set_eee - set EEE supported and status
+ * @phydev: target phy_device struct
+ * @data: ethtool_eee data
+ *
+ * Description: it is to program the Advertisement EEE register.
+ */
+int phy_ethtool_set_eee(struct phy_device *phydev, struct ethtool_eee *data)
+{
+	int val;
+
+	val = phy_adv_to_eee(data->advertised);
+	phy_write_mmd_indirect(phydev->bus, MDIO_AN_EEE_ADV, MDIO_MMD_AN,
+			       phydev->addr, val);
+
+	return 0;
+}
+EXPORT_SYMBOL(phy_ethtool_set_eee);

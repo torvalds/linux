@@ -211,6 +211,11 @@ The debug output can be changed at runtime  using  the  file
 
 will enable debug messages for when routes change.
 
+Counters for different types of packets entering and leaving the
+batman-adv module are available through ethtool:
+
+# ethtool --statistics bat0
+
 
 BATCTL
 ------

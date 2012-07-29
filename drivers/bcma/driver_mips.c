@@ -22,15 +22,15 @@
 /* The 47162a0 hangs when reading MIPS DMP registers registers */
 static inline bool bcma_core_mips_bcm47162a0_quirk(struct bcma_device *dev)
 {
-	return dev->bus->chipinfo.id == 47162 && dev->bus->chipinfo.rev == 0 &&
-	       dev->id.id == BCMA_CORE_MIPS_74K;
+	return dev->bus->chipinfo.id == BCMA_CHIP_ID_BCM47162 &&
+	       dev->bus->chipinfo.rev == 0 && dev->id.id == BCMA_CORE_MIPS_74K;
 }
 
 /* The 5357b0 hangs when reading USB20H DMP registers */
 static inline bool bcma_core_mips_bcm5357b0_quirk(struct bcma_device *dev)
 {
-	return (dev->bus->chipinfo.id == 0x5357 ||
-		dev->bus->chipinfo.id == 0x4749) &&
+	return (dev->bus->chipinfo.id == BCMA_CHIP_ID_BCM5357 ||
+		dev->bus->chipinfo.id == BCMA_CHIP_ID_BCM4749) &&
 	       dev->bus->chipinfo.pkg == 11 &&
 	       dev->id.id == BCMA_CORE_USB20_HOST;
 }
@@ -143,8 +143,8 @@ static void bcma_core_mips_set_irq(struct bcma_device *dev, unsigned int irq)
 			     1 << irqflag);
 	}
 
-	pr_info("set_irq: core 0x%04x, irq %d => %d\n",
-		dev->id.id, oldirq + 2, irq + 2);
+	bcma_info(bus, "set_irq: core 0x%04x, irq %d => %d\n",
+		  dev->id.id, oldirq + 2, irq + 2);
 }
 
 static void bcma_core_mips_print_irq(struct bcma_device *dev, unsigned int irq)
@@ -173,7 +173,7 @@ u32 bcma_cpu_clock(struct bcma_drv_mips *mcore)
 	if (bus->drv_cc.capabilities & BCMA_CC_CAP_PMU)
 		return bcma_pmu_get_clockcpu(&bus->drv_cc);
 
-	pr_err("No PMU available, need this to get the cpu clock\n");
+	bcma_err(bus, "No PMU available, need this to get the cpu clock\n");
 	return 0;
 }
 EXPORT_SYMBOL(bcma_cpu_clock);
@@ -185,10 +185,11 @@ static void bcma_core_mips_flash_detect(struct bcma_drv_mips *mcore)
 	switch (bus->drv_cc.capabilities & BCMA_CC_CAP_FLASHT) {
 	case BCMA_CC_FLASHT_STSER:
 	case BCMA_CC_FLASHT_ATSER:
-		pr_err("Serial flash not supported.\n");
+		bcma_debug(bus, "Found serial flash\n");
+		bcma_sflash_init(&bus->drv_cc);
 		break;
 	case BCMA_CC_FLASHT_PARA:
-		pr_info("found parallel flash.\n");
+		bcma_debug(bus, "Found parallel flash\n");
 		bus->drv_cc.pflash.window = 0x1c000000;
 		bus->drv_cc.pflash.window_size = 0x02000000;
 
@@ -199,7 +200,15 @@ static void bcma_core_mips_flash_detect(struct bcma_drv_mips *mcore)
 			bus->drv_cc.pflash.buswidth = 2;
 		break;
 	default:
-		pr_err("flash not supported.\n");
+		bcma_err(bus, "Flash type not supported\n");
+	}
+
+	if (bus->drv_cc.core->id.rev == 38 ||
+	    bus->chipinfo.id == BCMA_CHIP_ID_BCM4706) {
+		if (bus->drv_cc.capabilities & BCMA_CC_CAP_NFLASH) {
+			bcma_debug(bus, "Found NAND flash\n");
+			bcma_nflash_init(&bus->drv_cc);
+		}
 	}
 }
 
@@ -209,7 +218,7 @@ void bcma_core_mips_init(struct bcma_drv_mips *mcore)
 	struct bcma_device *core;
 	bus = mcore->core->bus;
 
-	pr_info("Initializing MIPS core...\n");
+	bcma_info(bus, "Initializing MIPS core...\n");
 
 	if (!mcore->setup_done)
 		mcore->assigned_irqs = 1;
@@ -244,7 +253,7 @@ void bcma_core_mips_init(struct bcma_drv_mips *mcore)
 			break;
 		}
 	}
-	pr_info("IRQ reconfiguration done\n");
+	bcma_info(bus, "IRQ reconfiguration done\n");
 	bcma_core_mips_dump_irq(bus);
 
 	if (mcore->setup_done)

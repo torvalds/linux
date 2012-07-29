@@ -154,7 +154,7 @@ out:
 /* ---------------------------------------------------------------------- */
 
 static struct dentry *aufs_lookup(struct inode *dir, struct dentry *dentry,
-				  struct nameidata *nd)
+				  unsigned int flags)
 {
 	struct dentry *ret, *parent;
 	struct inode *inode;
@@ -186,7 +186,7 @@ static struct dentry *aufs_lookup(struct inode *dir, struct dentry *dentry,
 		err = au_digen_test(parent, au_sigen(sb));
 	if (!err) {
 		npositive = au_lkup_dentry(dentry, au_dbstart(parent),
-					   /*type*/0, nd);
+					   /*type*/0, flags);
 		err = npositive;
 	}
 	di_read_unlock(parent, AuLock_IR);
@@ -206,18 +206,13 @@ static struct dentry *aufs_lookup(struct inode *dir, struct dentry *dentry,
 	ret = d_splice_alias(inode, dentry);
 	if (unlikely(IS_ERR(ret) && inode)) {
 		ii_write_unlock(inode);
-		lc_idx = AuLcNonDir_IIINFO;
-		if (S_ISLNK(inode->i_mode))
-			lc_idx = AuLcSymlink_IIINFO;
-		else if (S_ISDIR(inode->i_mode))
-			lc_idx = AuLcDir_IIINFO;
-		au_rw_class(&au_ii(inode)->ii_rwsem, au_lc_key + lc_idx);
 		iput(inode);
+		inode = NULL;
 	}
 
 out_unlock:
 	di_write_unlock(dentry);
-	if (unlikely(IS_ERR(ret) && inode)) {
+	if (inode) {
 		lc_idx = AuLcNonDir_DIINFO;
 		if (S_ISLNK(inode->i_mode))
 			lc_idx = AuLcSymlink_DIINFO;
@@ -939,7 +934,6 @@ static void *aufs_follow_link(struct dentry *dentry, struct nameidata *nd)
 out_name:
 	__putname(buf.k);
 out:
-	path_put(&nd->path);
 	AuTraceErr(err);
 	return ERR_PTR(err);
 }
@@ -1003,6 +997,7 @@ struct inode_operations aufs_dir_iop = {
 	.getattr	= aufs_getattr,
 
 	.update_time	= aufs_update_time
+	/* no support for atomic_open() */
 };
 
 struct inode_operations aufs_iop = {

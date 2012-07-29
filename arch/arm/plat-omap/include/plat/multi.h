@@ -99,4 +99,13 @@
 # endif
 #endif
 
+#ifdef CONFIG_SOC_OMAP5
+# ifdef OMAP_NAME
+#  undef  MULTI_OMAP2
+#  define MULTI_OMAP2
+# else
+#  define OMAP_NAME omap5
+# endif
+#endif
+
 #endif	/* __PLAT_OMAP_MULTI_H */
