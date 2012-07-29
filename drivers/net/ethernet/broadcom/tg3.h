@@ -3107,6 +3107,7 @@ struct tg3 {
 	int				old_link;
 
 	u8				phy_addr;
+	u8				phy_ape_lock;
 
 	/* PHY info */
 	u32				phy_id;
