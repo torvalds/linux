@@ -237,6 +237,7 @@ struct wl1271 {
 
 	/* Intermediate buffer, used for packet aggregation */
 	u8 *aggr_buf;
+	u32 aggr_buf_size;
 
 	/* Reusable dummy packet template */
 	struct sk_buff *dummy_packet;
@@ -399,7 +400,7 @@ struct wl1271 {
 
 int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
 int __devexit wlcore_remove(struct platform_device *pdev);
-struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size);
+struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size);
 int wlcore_free_hw(struct wl1271 *wl);
 int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 		   struct ieee80211_vif *vif,

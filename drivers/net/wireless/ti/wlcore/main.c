@@ -5313,7 +5313,7 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 
 #define WL1271_DEFAULT_CHANNEL 0
 
-struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size)
+struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size)
 {
 	struct ieee80211_hw *hw;
 	struct wl1271 *wl;
@@ -5398,12 +5398,13 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size)
 	mutex_init(&wl->mutex);
 	mutex_init(&wl->flush_mutex);
 
-	order = get_order(WL1271_AGGR_BUFFER_SIZE);
+	order = get_order(aggr_buf_size);
 	wl->aggr_buf = (u8 *)__get_free_pages(GFP_KERNEL, order);
 	if (!wl->aggr_buf) {
 		ret = -ENOMEM;
 		goto err_wq;
 	}
+	wl->aggr_buf_size = aggr_buf_size;
 
 	wl->dummy_packet = wl12xx_alloc_dummy_packet(wl);
 	if (!wl->dummy_packet) {
@@ -5466,8 +5467,7 @@ int wlcore_free_hw(struct wl1271 *wl)
 	device_remove_file(wl->dev, &dev_attr_bt_coex_state);
 	free_page((unsigned long)wl->fwlog);
 	dev_kfree_skb(wl->dummy_packet);
-	free_pages((unsigned long)wl->aggr_buf,
-			get_order(WL1271_AGGR_BUFFER_SIZE));
+	free_pages((unsigned long)wl->aggr_buf, get_order(wl->aggr_buf_size));
 
 	wl1271_debugfs_exit(wl);
 

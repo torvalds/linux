@@ -193,7 +193,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	int id, ret = -EBUSY, ac;
 	u32 spare_blocks;
 
-	if (buf_offset + total_len > WL1271_AGGR_BUFFER_SIZE)
+	if (buf_offset + total_len > wl->aggr_buf_size)
 		return -EAGAIN;
 
 	spare_blocks = wlcore_hw_get_spare_blocks(wl, is_gem);
