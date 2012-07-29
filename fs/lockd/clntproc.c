@@ -161,6 +161,11 @@ int nlmclnt_proc(struct nlm_host *host, int cmd, struct file_lock *fl)
 		return -ENOMEM;
 
 	nlmclnt_locks_init_private(fl, host);
+	if (!fl->fl_u.nfs_fl.owner) {
+		/* lockowner allocation has failed */
+		nlmclnt_release_call(call);
+		return -ENOMEM;
+	}
 	/* Set up the argument struct */
 	nlmclnt_setlockargs(call, fl);
 
