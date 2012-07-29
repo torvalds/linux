@@ -32,6 +32,7 @@
 #include <linux/console.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <linux/lcm.h>
 #include <video/da8xx-fb.h>
 #include <asm/div64.h>
