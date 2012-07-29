@@ -3268,7 +3268,7 @@ static long btrfs_ioctl_balance(struct file *file, void __user *arg)
 	if (fs_info->sb->s_flags & MS_RDONLY)
 		return -EROFS;
 
-	ret = mnt_want_write(file->f_path.mnt);
+	ret = mnt_want_write_file(file);
 	if (ret)
 		return ret;
 
@@ -3338,7 +3338,7 @@ out_bargs:
 out:
 	mutex_unlock(&fs_info->balance_mutex);
 	mutex_unlock(&fs_info->volume_mutex);
-	mnt_drop_write(file->f_path.mnt);
+	mnt_drop_write_file(file);
 	return ret;
 }
 

@@ -538,7 +538,7 @@ get_return_for_leaf(struct trace_iterator *iter,
 		next = &data->ret;
 	} else {
 
-		ring_iter = iter->buffer_iter[iter->cpu];
+		ring_iter = trace_buffer_iter(iter, iter->cpu);
 
 		/* First peek to compare current entry and the next one */
 		if (ring_iter)

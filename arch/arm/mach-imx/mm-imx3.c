@@ -30,7 +30,6 @@
 #include <mach/devices-common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-v3.h>
-#include <mach/irqs.h>
 
 #include "crmregs-imx3.h"
 

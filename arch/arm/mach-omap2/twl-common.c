@@ -49,6 +49,7 @@ static struct i2c_board_info __initdata omap4_i2c1_board_info[] = {
 	},
 };
 
+#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
 static int twl_set_voltage(void *data, int target_uV)
 {
 	struct voltagedomain *voltdm = (struct voltagedomain *)data;
@@ -60,6 +61,7 @@ static int twl_get_voltage(void *data)
 	struct voltagedomain *voltdm = (struct voltagedomain *)data;
 	return voltdm_get_voltage(voltdm);
 }
+#endif
 
 void __init omap_pmic_init(int bus, u32 clkrate,
 			   const char *pmic_type, int pmic_irq,
@@ -94,7 +96,7 @@ void __init omap4_pmic_init(const char *pmic_type,
 
 void __init omap_pmic_late_init(void)
 {
-	/* Init the OMAP TWL parameters (if PMIC has been registerd) */
+	/* Init the OMAP TWL parameters (if PMIC has been registered) */
 	if (pmic_i2c_board_info.irq)
 		omap3_twl_init();
 	if (omap4_i2c1_board_info[0].irq)
@@ -213,10 +215,6 @@ static struct twl_regulator_driver_data omap3_vdd2_drvdata = {
 void __init omap3_pmic_get_config(struct twl4030_platform_data *pmic_data,
 				  u32 pdata_flags, u32 regulators_flags)
 {
-	if (!pmic_data->irq_base)
-		pmic_data->irq_base = TWL4030_IRQ_BASE;
-	if (!pmic_data->irq_end)
-		pmic_data->irq_end = TWL4030_IRQ_END;
 	if (!pmic_data->vdd1) {
 		omap3_vdd1.driver_data = &omap3_vdd1_drvdata;
 		omap3_vdd1_drvdata.data = voltdm_lookup("mpu_iva");
@@ -481,11 +479,6 @@ static struct regulator_init_data omap4_v2v1_idata = {
 void __init omap4_pmic_get_config(struct twl4030_platform_data *pmic_data,
 				  u32 pdata_flags, u32 regulators_flags)
 {
-	if (!pmic_data->irq_base)
-		pmic_data->irq_base = TWL6030_IRQ_BASE;
-	if (!pmic_data->irq_end)
-		pmic_data->irq_end = TWL6030_IRQ_END;
-
 	if (!pmic_data->vdd1) {
 		omap4_vdd1.driver_data = &omap4_vdd1_drvdata;
 		omap4_vdd1_drvdata.data = voltdm_lookup("mpu");

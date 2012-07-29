@@ -16,6 +16,7 @@
 #include <linux/of_platform.h>
 
 #include <mach/board.h>
+#include <mach/at91_aic.h>
 
 #include <asm/setup.h>
 #include <asm/irq.h>
@@ -53,6 +54,7 @@ DT_MACHINE_START(at91sam_dt, "Atmel AT91SAM (Device Tree)")
 	/* Maintainer: Atmel */
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= at91_dt_initialize,
 	.init_irq	= at91_dt_init_irq,
 	.init_machine	= at91_dt_device_init,

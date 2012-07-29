@@ -26,6 +26,7 @@
 #include <linux/io.h>
 
 #include <asm/mach/map.h>
+#include <asm/system_info.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -224,7 +225,7 @@ void lpc23xx_restart(char mode, const char *cmd)
 		;
 }
 
-static int __init lpc32xx_display_uid(void)
+static int __init lpc32xx_check_uid(void)
 {
 	u32 uid[4];
 
@@ -233,6 +234,11 @@ static int __init lpc32xx_display_uid(void)
 	printk(KERN_INFO "LPC32XX unique ID: %08x%08x%08x%08x\n",
 		uid[3], uid[2], uid[1], uid[0]);
 
+	if (!system_serial_low && !system_serial_high) {
+		system_serial_low = uid[0];
+		system_serial_high = uid[1];
+	}
+
 	return 1;
 }
-arch_initcall(lpc32xx_display_uid);
+arch_initcall(lpc32xx_check_uid);

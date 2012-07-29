@@ -1,5 +1,6 @@
 menu "SuperH / SH-Mobile Driver Options"
 
 source "drivers/sh/intc/Kconfig"
+source "drivers/sh/pfc/Kconfig"
 
 endmenu

@@ -1,0 +1,313 @@
+/*
+ * AM33XX CM functions
+ *
+ * Copyright (C) 2011-2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Vaibhav Hiremath <hvaibhav@ti.com>
+ *
+ * Reference taken from from OMAP4 cminst44xx.c
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation version 2.
+ *
+ * This program is distributed "as is" WITHOUT ANY WARRANTY of any
+ * kind, whether express or implied; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include <linux/kernel.h>
+#include <linux/types.h>
+#include <linux/errno.h>
+#include <linux/err.h>
+#include <linux/io.h>
+
+#include <plat/common.h>
+
+#include "cm.h"
+#include "cm33xx.h"
+#include "cm-regbits-34xx.h"
+#include "cm-regbits-33xx.h"
+#include "prm33xx.h"
+
+/*
+ * CLKCTRL_IDLEST_*: possible values for the CM_*_CLKCTRL.IDLEST bitfield:
+ *
+ *   0x0 func:     Module is fully functional, including OCP
+ *   0x1 trans:    Module is performing transition: wakeup, or sleep, or sleep
+ *                 abortion
+ *   0x2 idle:     Module is in Idle mode (only OCP part). It is functional if
+ *                 using separate functional clock
+ *   0x3 disabled: Module is disabled and cannot be accessed
+ *
+ */
+#define CLKCTRL_IDLEST_FUNCTIONAL		0x0
+#define CLKCTRL_IDLEST_INTRANSITION		0x1
+#define CLKCTRL_IDLEST_INTERFACE_IDLE		0x2
+#define CLKCTRL_IDLEST_DISABLED			0x3
+
+/* Private functions */
+
+/* Read a register in a CM instance */
+static inline u32 am33xx_cm_read_reg(s16 inst, u16 idx)
+{
+	return __raw_readl(cm_base + inst + idx);
+}
+
+/* Write into a register in a CM */
+static inline void am33xx_cm_write_reg(u32 val, s16 inst, u16 idx)
+{
+	__raw_writel(val, cm_base + inst + idx);
+}
+
+/* Read-modify-write a register in CM */
+static inline u32 am33xx_cm_rmw_reg_bits(u32 mask, u32 bits, s16 inst, s16 idx)
+{
+	u32 v;
+
+	v = am33xx_cm_read_reg(inst, idx);
+	v &= ~mask;
+	v |= bits;
+	am33xx_cm_write_reg(v, inst, idx);
+
+	return v;
+}
+
+static inline u32 am33xx_cm_set_reg_bits(u32 bits, s16 inst, s16 idx)
+{
+	return am33xx_cm_rmw_reg_bits(bits, bits, inst, idx);
+}
+
+static inline u32 am33xx_cm_clear_reg_bits(u32 bits, s16 inst, s16 idx)
+{
+	return am33xx_cm_rmw_reg_bits(bits, 0x0, inst, idx);
+}
+
+static inline u32 am33xx_cm_read_reg_bits(u16 inst, s16 idx, u32 mask)
+{
+	u32 v;
+
+	v = am33xx_cm_read_reg(inst, idx);
+	v &= mask;
+	v >>= __ffs(mask);
+
+	return v;
+}
+
+/**
+ * _clkctrl_idlest - read a CM_*_CLKCTRL register; mask & shift IDLEST bitfield
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
+ *
+ * Return the IDLEST bitfield of a CM_*_CLKCTRL register, shifted down to
+ * bit 0.
+ */
+static u32 _clkctrl_idlest(u16 inst, s16 cdoffs, u16 clkctrl_offs)
+{
+	u32 v = am33xx_cm_read_reg(inst, clkctrl_offs);
+	v &= AM33XX_IDLEST_MASK;
+	v >>= AM33XX_IDLEST_SHIFT;
+	return v;
+}
+
+/**
+ * _is_module_ready - can module registers be accessed without causing an abort?
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
+ *
+ * Returns true if the module's CM_*_CLKCTRL.IDLEST bitfield is either
+ * *FUNCTIONAL or *INTERFACE_IDLE; false otherwise.
+ */
+static bool _is_module_ready(u16 inst, s16 cdoffs, u16 clkctrl_offs)
+{
+	u32 v;
+
+	v = _clkctrl_idlest(inst, cdoffs, clkctrl_offs);
+
+	return (v == CLKCTRL_IDLEST_FUNCTIONAL ||
+		v == CLKCTRL_IDLEST_INTERFACE_IDLE) ? true : false;
+}
+
+/**
+ * _clktrctrl_write - write @c to a CM_CLKSTCTRL.CLKTRCTRL register bitfield
+ * @c: CLKTRCTRL register bitfield (LSB = bit 0, i.e., unshifted)
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ *
+ * @c must be the unshifted value for CLKTRCTRL - i.e., this function
+ * will handle the shift itself.
+ */
+static void _clktrctrl_write(u8 c, s16 inst, u16 cdoffs)
+{
+	u32 v;
+
+	v = am33xx_cm_read_reg(inst, cdoffs);
+	v &= ~AM33XX_CLKTRCTRL_MASK;
+	v |= c << AM33XX_CLKTRCTRL_SHIFT;
+	am33xx_cm_write_reg(v, inst, cdoffs);
+}
+
+/* Public functions */
+
+/**
+ * am33xx_cm_is_clkdm_in_hwsup - is a clockdomain in hwsup idle mode?
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ *
+ * Returns true if the clockdomain referred to by (@inst, @cdoffs)
+ * is in hardware-supervised idle mode, or 0 otherwise.
+ */
+bool am33xx_cm_is_clkdm_in_hwsup(s16 inst, u16 cdoffs)
+{
+	u32 v;
+
+	v = am33xx_cm_read_reg(inst, cdoffs);
+	v &= AM33XX_CLKTRCTRL_MASK;
+	v >>= AM33XX_CLKTRCTRL_SHIFT;
+
+	return (v == OMAP34XX_CLKSTCTRL_ENABLE_AUTO) ? true : false;
+}
+
+/**
+ * am33xx_cm_clkdm_enable_hwsup - put a clockdomain in hwsup-idle mode
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ *
+ * Put a clockdomain referred to by (@inst, @cdoffs) into
+ * hardware-supervised idle mode.  No return value.
+ */
+void am33xx_cm_clkdm_enable_hwsup(s16 inst, u16 cdoffs)
+{
+	_clktrctrl_write(OMAP34XX_CLKSTCTRL_ENABLE_AUTO, inst, cdoffs);
+}
+
+/**
+ * am33xx_cm_clkdm_disable_hwsup - put a clockdomain in swsup-idle mode
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ *
+ * Put a clockdomain referred to by (@inst, @cdoffs) into
+ * software-supervised idle mode, i.e., controlled manually by the
+ * Linux OMAP clockdomain code.  No return value.
+ */
+void am33xx_cm_clkdm_disable_hwsup(s16 inst, u16 cdoffs)
+{
+	_clktrctrl_write(OMAP34XX_CLKSTCTRL_DISABLE_AUTO, inst, cdoffs);
+}
+
+/**
+ * am33xx_cm_clkdm_force_sleep - try to put a clockdomain into idle
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ *
+ * Put a clockdomain referred to by (@inst, @cdoffs) into idle
+ * No return value.
+ */
+void am33xx_cm_clkdm_force_sleep(s16 inst, u16 cdoffs)
+{
+	_clktrctrl_write(OMAP34XX_CLKSTCTRL_FORCE_SLEEP, inst, cdoffs);
+}
+
+/**
+ * am33xx_cm_clkdm_force_wakeup - try to take a clockdomain out of idle
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ *
+ * Take a clockdomain referred to by (@inst, @cdoffs) out of idle,
+ * waking it up.  No return value.
+ */
+void am33xx_cm_clkdm_force_wakeup(s16 inst, u16 cdoffs)
+{
+	_clktrctrl_write(OMAP34XX_CLKSTCTRL_FORCE_WAKEUP, inst, cdoffs);
+}
+
+/*
+ *
+ */
+
+/**
+ * am33xx_cm_wait_module_ready - wait for a module to be in 'func' state
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
+ *
+ * Wait for the module IDLEST to be functional. If the idle state is in any
+ * the non functional state (trans, idle or disabled), module and thus the
+ * sysconfig cannot be accessed and will probably lead to an "imprecise
+ * external abort"
+ */
+int am33xx_cm_wait_module_ready(u16 inst, s16 cdoffs, u16 clkctrl_offs)
+{
+	int i = 0;
+
+	if (!clkctrl_offs)
+		return 0;
+
+	omap_test_timeout(_is_module_ready(inst, cdoffs, clkctrl_offs),
+			  MAX_MODULE_READY_TIME, i);
+
+	return (i < MAX_MODULE_READY_TIME) ? 0 : -EBUSY;
+}
+
+/**
+ * am33xx_cm_wait_module_idle - wait for a module to be in 'disabled'
+ * state
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
+ *
+ * Wait for the module IDLEST to be disabled. Some PRCM transition,
+ * like reset assertion or parent clock de-activation must wait the
+ * module to be fully disabled.
+ */
+int am33xx_cm_wait_module_idle(u16 inst, s16 cdoffs, u16 clkctrl_offs)
+{
+	int i = 0;
+
+	if (!clkctrl_offs)
+		return 0;
+
+	omap_test_timeout((_clkctrl_idlest(inst, cdoffs, clkctrl_offs) ==
+				CLKCTRL_IDLEST_DISABLED),
+				MAX_MODULE_READY_TIME, i);
+
+	return (i < MAX_MODULE_READY_TIME) ? 0 : -EBUSY;
+}
+
+/**
+ * am33xx_cm_module_enable - Enable the modulemode inside CLKCTRL
+ * @mode: Module mode (SW or HW)
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
+ *
+ * No return value.
+ */
+void am33xx_cm_module_enable(u8 mode, u16 inst, s16 cdoffs, u16 clkctrl_offs)
+{
+	u32 v;
+
+	v = am33xx_cm_read_reg(inst, clkctrl_offs);
+	v &= ~AM33XX_MODULEMODE_MASK;
+	v |= mode << AM33XX_MODULEMODE_SHIFT;
+	am33xx_cm_write_reg(v, inst, clkctrl_offs);
+}
+
+/**
+ * am33xx_cm_module_disable - Disable the module inside CLKCTRL
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
+ *
+ * No return value.
+ */
+void am33xx_cm_module_disable(u16 inst, s16 cdoffs, u16 clkctrl_offs)
+{
+	u32 v;
+
+	v = am33xx_cm_read_reg(inst, clkctrl_offs);
+	v &= ~AM33XX_MODULEMODE_MASK;
+	am33xx_cm_write_reg(v, inst, clkctrl_offs);
+}

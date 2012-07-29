@@ -269,8 +269,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 	b43legacy_generate_plcp_hdr((struct b43legacy_plcp_hdr4 *)
 				    (&txhdr->plcp), plcp_fragment_len,
 				    rate);
-	b43legacy_generate_plcp_hdr((struct b43legacy_plcp_hdr4 *)
-				    (&txhdr->plcp_fb), plcp_fragment_len,
+	b43legacy_generate_plcp_hdr(&txhdr->plcp_fb, plcp_fragment_len,
 				    rate_fb->hw_value);
 
 	/* PHY TX Control word */
@@ -340,8 +339,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 		b43legacy_generate_plcp_hdr((struct b43legacy_plcp_hdr4 *)
 					    (&txhdr->rts_plcp),
 					    len, rts_rate);
-		b43legacy_generate_plcp_hdr((struct b43legacy_plcp_hdr4 *)
-					    (&txhdr->rts_plcp_fb),
+		b43legacy_generate_plcp_hdr(&txhdr->rts_plcp_fb,
 					    len, rts_rate_fb);
 		hdr = (struct ieee80211_hdr *)(&txhdr->rts_frame);
 		txhdr->rts_dur_fb = hdr->duration_id;

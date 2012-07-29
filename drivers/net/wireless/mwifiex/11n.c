@@ -101,8 +101,7 @@ int mwifiex_ret_11n_delba(struct mwifiex_private *priv,
 {
 	int tid;
 	struct mwifiex_tx_ba_stream_tbl *tx_ba_tbl;
-	struct host_cmd_ds_11n_delba *del_ba =
-		(struct host_cmd_ds_11n_delba *) &resp->params.del_ba;
+	struct host_cmd_ds_11n_delba *del_ba = &resp->params.del_ba;
 	uint16_t del_ba_param_set = le16_to_cpu(del_ba->del_ba_param_set);
 
 	tid = del_ba_param_set >> DELBA_TID_POS;
@@ -147,8 +146,7 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 			      struct host_cmd_ds_command *resp)
 {
 	int tid;
-	struct host_cmd_ds_11n_addba_rsp *add_ba_rsp =
-		(struct host_cmd_ds_11n_addba_rsp *) &resp->params.add_ba_rsp;
+	struct host_cmd_ds_11n_addba_rsp *add_ba_rsp = &resp->params.add_ba_rsp;
 	struct mwifiex_tx_ba_stream_tbl *tx_ba_tbl;
 
 	add_ba_rsp->ssn = cpu_to_le16((le16_to_cpu(add_ba_rsp->ssn))
@@ -412,7 +410,7 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 
 		memcpy((u8 *) bss_co_2040 +
 		       sizeof(struct mwifiex_ie_types_header),
-		       (u8 *) bss_desc->bcn_bss_co_2040 +
+		       bss_desc->bcn_bss_co_2040 +
 		       sizeof(struct ieee_types_header),
 		       le16_to_cpu(bss_co_2040->header.len));
 
@@ -426,10 +424,8 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 		ext_cap->header.type = cpu_to_le16(WLAN_EID_EXT_CAPABILITY);
 		ext_cap->header.len = cpu_to_le16(sizeof(ext_cap->ext_cap));
 
-		memcpy((u8 *) ext_cap +
-		       sizeof(struct mwifiex_ie_types_header),
-		       (u8 *) bss_desc->bcn_ext_cap +
-		       sizeof(struct ieee_types_header),
+		memcpy((u8 *)ext_cap + sizeof(struct mwifiex_ie_types_header),
+		       bss_desc->bcn_ext_cap + sizeof(struct ieee_types_header),
 		       le16_to_cpu(ext_cap->header.len));
 
 		*buffer += sizeof(struct mwifiex_ie_types_extcap);

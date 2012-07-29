@@ -1,8 +1,6 @@
-/**
- * arch/s390/oprofile/backtrace.c
- *
+/*
  * S390 Version
- *   Copyright (C) 2005 IBM Corporation, IBM Deutschland Entwicklung GmbH.
+ *   Copyright IBM Corp. 2005
  *   Author(s): Andreas Krebbel <Andreas.Krebbel@de.ibm.com>
  */
 

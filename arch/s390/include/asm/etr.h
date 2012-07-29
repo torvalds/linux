@@ -1,6 +1,4 @@
 /*
- *  include/asm-s390/etr.h
- *
  *  Copyright IBM Corp. 2006
  *  Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  */

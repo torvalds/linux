@@ -157,7 +157,7 @@ void machine__exit(struct machine *self);
 void machine__delete(struct machine *self);
 
 int machine__resolve_callchain(struct machine *machine,
-			       struct perf_evsel *evsel, struct thread *thread,
+			       struct thread *thread,
 			       struct ip_callchain *chain,
 			       struct symbol **parent);
 int maps__set_kallsyms_ref_reloc_sym(struct map **maps, const char *symbol_name,

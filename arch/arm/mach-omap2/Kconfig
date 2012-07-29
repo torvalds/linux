@@ -9,7 +9,7 @@ config ARCH_OMAP2PLUS_TYPICAL
 	select REGULATOR
 	select PM_RUNTIME
 	select VFP
-	select NEON if ARCH_OMAP3 || ARCH_OMAP4
+	select NEON if ARCH_OMAP3 || ARCH_OMAP4 || SOC_OMAP5
 	select SERIAL_OMAP
 	select SERIAL_OMAP_CONSOLE
 	select I2C
@@ -21,12 +21,16 @@ config ARCH_OMAP2PLUS_TYPICAL
 	help
 	  Compile a kernel suitable for booting most boards
 
+config SOC_HAS_OMAP2_SDRC
+	bool "OMAP2 SDRAM Controller support"
+
 config ARCH_OMAP2
 	bool "TI OMAP2"
 	depends on ARCH_OMAP2PLUS
 	default y
 	select CPU_V6
 	select MULTI_IRQ_HANDLER
+	select SOC_HAS_OMAP2_SDRC
 
 config ARCH_OMAP3
 	bool "TI OMAP3"
@@ -35,9 +39,11 @@ config ARCH_OMAP3
 	select CPU_V7
 	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 	select ARCH_HAS_OPP
+	select PM_RUNTIME if CPU_IDLE
 	select PM_OPP if PM
 	select ARM_CPU_SUSPEND if PM
 	select MULTI_IRQ_HANDLER
+	select SOC_HAS_OMAP2_SDRC
 
 config ARCH_OMAP4
 	bool "TI OMAP4"
@@ -52,9 +58,16 @@ config ARCH_OMAP4
 	select PL310_ERRATA_727915
 	select ARM_ERRATA_720789
 	select ARCH_HAS_OPP
+	select PM_RUNTIME if CPU_IDLE
 	select PM_OPP if PM
 	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 	select ARM_CPU_SUSPEND if PM
+
+config SOC_OMAP5
+	bool "TI OMAP5"
+	select CPU_V7
+	select ARM_GIC
+	select HAVE_SMP
 
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
@@ -64,19 +77,19 @@ config SOC_OMAP2420
 	depends on ARCH_OMAP2
 	default y
 	select OMAP_DM_TIMER
-	select ARCH_OMAP_OTG
+	select SOC_HAS_OMAP2_SDRC
 
 config SOC_OMAP2430
 	bool "OMAP2430 support"
 	depends on ARCH_OMAP2
 	default y
-	select ARCH_OMAP_OTG
+	select SOC_HAS_OMAP2_SDRC
 
 config SOC_OMAP3430
 	bool "OMAP3430 support"
 	depends on ARCH_OMAP3
 	default y
-	select ARCH_OMAP_OTG
+	select SOC_HAS_OMAP2_SDRC
 
 config SOC_TI81XX
 	bool "TI81XX support"
@@ -85,8 +98,10 @@ config SOC_TI81XX
 
 config SOC_AM33XX
 	bool "AM33XX support"
-	depends on ARCH_OMAP3
 	default y
+	select CPU_V7
+	select ARM_CPU_SUSPEND if PM
+	select MULTI_IRQ_HANDLER
 
 config OMAP_PACKAGE_ZAF
        bool

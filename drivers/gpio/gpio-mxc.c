@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -32,8 +33,6 @@
 #include <linux/module.h>
 #include <asm-generic/bug.h>
 #include <asm/mach/irq.h>
-
-#define irq_to_gpio(irq)	((irq) - MXC_GPIO_IRQ_START)
 
 enum mxc_gpio_hwtype {
 	IMX1_GPIO,	/* runs on i.mx1 */
@@ -61,7 +60,7 @@ struct mxc_gpio_port {
 	void __iomem *base;
 	int irq;
 	int irq_high;
-	int virtual_irq_start;
+	struct irq_domain *domain;
 	struct bgpio_chip bgc;
 	u32 both_edges;
 };
@@ -144,14 +143,15 @@ static LIST_HEAD(mxc_gpio_ports);
 
 static int gpio_set_irq_type(struct irq_data *d, u32 type)
 {
-	u32 gpio = irq_to_gpio(d->irq);
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct mxc_gpio_port *port = gc->private;
 	u32 bit, val;
+	u32 gpio_idx = d->hwirq;
+	u32 gpio = port->bgc.gc.base + gpio_idx;
 	int edge;
 	void __iomem *reg = port->base;
 
-	port->both_edges &= ~(1 << (gpio & 31));
+	port->both_edges &= ~(1 << gpio_idx);
 	switch (type) {
 	case IRQ_TYPE_EDGE_RISING:
 		edge = GPIO_INT_RISE_EDGE;
@@ -168,7 +168,7 @@ static int gpio_set_irq_type(struct irq_data *d, u32 type)
 			edge = GPIO_INT_HIGH_LEV;
 			pr_debug("mxc: set GPIO %d to high trigger\n", gpio);
 		}
-		port->both_edges |= 1 << (gpio & 31);
+		port->both_edges |= 1 << gpio_idx;
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
 		edge = GPIO_INT_LOW_LEV;
@@ -180,11 +180,11 @@ static int gpio_set_irq_type(struct irq_data *d, u32 type)
 		return -EINVAL;
 	}
 
-	reg += GPIO_ICR1 + ((gpio & 0x10) >> 2); /* lower or upper register */
-	bit = gpio & 0xf;
+	reg += GPIO_ICR1 + ((gpio_idx & 0x10) >> 2); /* ICR1 or ICR2 */
+	bit = gpio_idx & 0xf;
 	val = readl(reg) & ~(0x3 << (bit << 1));
 	writel(val | (edge << (bit << 1)), reg);
-	writel(1 << (gpio & 0x1f), port->base + GPIO_ISR);
+	writel(1 << gpio_idx, port->base + GPIO_ISR);
 
 	return 0;
 }
@@ -217,15 +217,13 @@ static void mxc_flip_edge(struct mxc_gpio_port *port, u32 gpio)
 /* handle 32 interrupts in one status register */
 static void mxc_gpio_irq_handler(struct mxc_gpio_port *port, u32 irq_stat)
 {
-	u32 gpio_irq_no_base = port->virtual_irq_start;
-
 	while (irq_stat != 0) {
 		int irqoffset = fls(irq_stat) - 1;
 
 		if (port->both_edges & (1 << irqoffset))
 			mxc_flip_edge(port, irqoffset);
 
-		generic_handle_irq(gpio_irq_no_base + irqoffset);
+		generic_handle_irq(irq_find_mapping(port->domain, irqoffset));
 
 		irq_stat &= ~(1 << irqoffset);
 	}
@@ -276,10 +274,9 @@ static void mx2_gpio_irq_handler(u32 irq, struct irq_desc *desc)
  */
 static int gpio_set_wake_irq(struct irq_data *d, u32 enable)
 {
-	u32 gpio = irq_to_gpio(d->irq);
-	u32 gpio_idx = gpio & 0x1F;
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct mxc_gpio_port *port = gc->private;
+	u32 gpio_idx = d->hwirq;
 
 	if (enable) {
 		if (port->irq_high && (gpio_idx >= 16))
@@ -296,12 +293,12 @@ static int gpio_set_wake_irq(struct irq_data *d, u32 enable)
 	return 0;
 }
 
-static void __init mxc_gpio_init_gc(struct mxc_gpio_port *port)
+static void __init mxc_gpio_init_gc(struct mxc_gpio_port *port, int irq_base)
 {
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
 
-	gc = irq_alloc_generic_chip("gpio-mxc", 1, port->virtual_irq_start,
+	gc = irq_alloc_generic_chip("gpio-mxc", 1, irq_base,
 				    port->base, handle_level_irq);
 	gc->private = port;
 
@@ -352,7 +349,7 @@ static int mxc_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 	struct mxc_gpio_port *port =
 		container_of(bgc, struct mxc_gpio_port, bgc);
 
-	return port->virtual_irq_start + offset;
+	return irq_find_mapping(port->domain, offset);
 }
 
 static int __devinit mxc_gpio_probe(struct platform_device *pdev)
@@ -360,6 +357,7 @@ static int __devinit mxc_gpio_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct mxc_gpio_port *port;
 	struct resource *iores;
+	int irq_base;
 	int err;
 
 	mxc_gpio_get_hw(pdev);
@@ -432,20 +430,30 @@ static int __devinit mxc_gpio_probe(struct platform_device *pdev)
 	if (err)
 		goto out_bgpio_remove;
 
-	/*
-	 * In dt case, we use gpio number range dynamically
-	 * allocated by gpio core.
-	 */
-	port->virtual_irq_start = MXC_GPIO_IRQ_START + (np ? port->bgc.gc.base :
-							     pdev->id * 32);
+	irq_base = irq_alloc_descs(-1, 0, 32, numa_node_id());
+	if (irq_base < 0) {
+		err = irq_base;
+		goto out_gpiochip_remove;
+	}
+
+	port->domain = irq_domain_add_legacy(np, 32, irq_base, 0,
+					     &irq_domain_simple_ops, NULL);
+	if (!port->domain) {
+		err = -ENODEV;
+		goto out_irqdesc_free;
+	}
 
 	/* gpio-mxc can be a generic irq chip */
-	mxc_gpio_init_gc(port);
+	mxc_gpio_init_gc(port, irq_base);
 
 	list_add_tail(&port->node, &mxc_gpio_ports);
 
 	return 0;
 
+out_irqdesc_free:
+	irq_free_descs(irq_base, 32);
+out_gpiochip_remove:
+	WARN_ON(gpiochip_remove(&port->bgc.gc) < 0);
 out_bgpio_remove:
 	bgpio_remove(&port->bgc);
 out_iounmap:
