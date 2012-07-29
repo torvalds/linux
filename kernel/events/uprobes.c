@@ -127,21 +127,18 @@ static loff_t vma_address(struct vm_area_struct *vma, loff_t offset)
  * based on replace_page in mm/ksm.c
  *
  * @vma:      vma that holds the pte pointing to page
+ * @addr:     address the old @page is mapped at
  * @page:     the cowed page we are replacing by kpage
  * @kpage:    the modified page we replace page by
  *
  * Returns 0 on success, -EFAULT on failure.
  */
-static int __replace_page(struct vm_area_struct *vma, struct page *page, struct page *kpage)
+static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
+				struct page *page, struct page *kpage)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	unsigned long addr;
 	spinlock_t *ptl;
 	pte_t *ptep;
-
-	addr = page_address_in_vma(page, vma);
-	if (addr == -EFAULT)
-		return -EFAULT;
 
 	ptep = page_check_address(page, mm, addr, &ptl, 0);
 	if (!ptep)
@@ -243,7 +240,7 @@ retry:
 		goto unlock_out;
 
 	lock_page(new_page);
-	ret = __replace_page(vma, old_page, new_page);
+	ret = __replace_page(vma, vaddr, old_page, new_page);
 	unlock_page(new_page);
 
 unlock_out:
