@@ -2418,9 +2418,6 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 			if (new_vma->vm_file) {
 				get_file(new_vma->vm_file);
 
-				if (uprobe_mmap(new_vma))
-					goto out_free_mempol;
-
 				if (vma->vm_flags & VM_EXECUTABLE)
 					added_exe_file_vma(mm);
 			}
