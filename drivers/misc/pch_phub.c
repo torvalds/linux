@@ -699,7 +699,7 @@ static int __devinit pch_phub_probe(struct pci_dev *pdev,
 	chip->pch_phub_base_address = pci_iomap(pdev, 1, 0);
 
 
-	if (chip->pch_phub_base_address == 0) {
+	if (chip->pch_phub_base_address == NULL) {
 		dev_err(&pdev->dev, "%s : pci_iomap FAILED", __func__);
 		ret = -ENOMEM;
 		goto err_pci_iomap;
