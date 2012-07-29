@@ -357,7 +357,7 @@ config SPI_STMP3XXX
 
 config SPI_TEGRA
 	tristate "Nvidia Tegra SPI controller"
-	depends on ARCH_TEGRA && TEGRA_SYSTEM_DMA
+	depends on ARCH_TEGRA && (TEGRA_SYSTEM_DMA || TEGRA20_APB_DMA)
 	help
 	  SPI driver for NVidia Tegra SoCs
 
@@ -383,6 +383,13 @@ config SPI_TXX9
 	depends on GENERIC_GPIO && CPU_TX49XX
 	help
 	  SPI driver for Toshiba TXx9 MIPS SoCs
+
+config SPI_XCOMM
+	tristate "Analog Devices AD-FMCOMMS1-EBZ SPI-I2C-bridge driver"
+	depends on I2C
+	help
+	  Support for the SPI-I2C bridge found on the Analog Devices
+	  AD-FMCOMMS1-EBZ board.
 
 config SPI_XILINX
 	tristate "Xilinx SPI controller common module"
