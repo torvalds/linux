@@ -430,7 +430,7 @@ xscale1pmu_write_counter(int counter, u32 val)
 
 static int xscale_map_event(struct perf_event *event)
 {
-	return map_cpu_event(event, &xscale_perf_map,
+	return armpmu_map_event(event, &xscale_perf_map,
 				&xscale_perf_cache_map, 0xFF);
 }
 

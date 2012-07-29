@@ -645,7 +645,7 @@ armv6mpcore_pmu_disable_event(struct hw_perf_event *hwc,
 
 static int armv6_map_event(struct perf_event *event)
 {
-	return map_cpu_event(event, &armv6_perf_map,
+	return armpmu_map_event(event, &armv6_perf_map,
 				&armv6_perf_cache_map, 0xFF);
 }
 
@@ -679,7 +679,7 @@ static struct arm_pmu *__devinit armv6pmu_init(void)
 
 static int armv6mpcore_map_event(struct perf_event *event)
 {
-	return map_cpu_event(event, &armv6mpcore_perf_map,
+	return armpmu_map_event(event, &armv6mpcore_perf_map,
 				&armv6mpcore_perf_cache_map, 0xFF);
 }
 

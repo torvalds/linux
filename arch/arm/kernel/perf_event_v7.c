@@ -1204,31 +1204,31 @@ static void armv7pmu_reset(void *info)
 
 static int armv7_a8_map_event(struct perf_event *event)
 {
-	return map_cpu_event(event, &armv7_a8_perf_map,
+	return armpmu_map_event(event, &armv7_a8_perf_map,
 				&armv7_a8_perf_cache_map, 0xFF);
 }
 
 static int armv7_a9_map_event(struct perf_event *event)
 {
-	return map_cpu_event(event, &armv7_a9_perf_map,
+	return armpmu_map_event(event, &armv7_a9_perf_map,
 				&armv7_a9_perf_cache_map, 0xFF);
 }
 
 static int armv7_a5_map_event(struct perf_event *event)
 {
-	return map_cpu_event(event, &armv7_a5_perf_map,
+	return armpmu_map_event(event, &armv7_a5_perf_map,
 				&armv7_a5_perf_cache_map, 0xFF);
 }
 
 static int armv7_a15_map_event(struct perf_event *event)
 {
-	return map_cpu_event(event, &armv7_a15_perf_map,
+	return armpmu_map_event(event, &armv7_a15_perf_map,
 				&armv7_a15_perf_cache_map, 0xFF);
 }
 
 static int armv7_a7_map_event(struct perf_event *event)
 {
-	return map_cpu_event(event, &armv7_a7_perf_map,
+	return armpmu_map_event(event, &armv7_a7_perf_map,
 				&armv7_a7_perf_cache_map, 0xFF);
 }
 
