@@ -239,9 +239,7 @@ retry:
 	if (ret)
 		goto unlock_out;
 
-	lock_page(new_page);
 	ret = __replace_page(vma, vaddr, old_page, new_page);
-	unlock_page(new_page);
 
 unlock_out:
 	unlock_page(old_page);
