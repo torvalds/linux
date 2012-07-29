@@ -112,14 +112,9 @@ static bool valid_vma(struct vm_area_struct *vma, bool is_register)
 	return false;
 }
 
-static loff_t vma_address(struct vm_area_struct *vma, loff_t offset)
+static unsigned long offset_to_vaddr(struct vm_area_struct *vma, loff_t offset)
 {
-	loff_t vaddr;
-
-	vaddr = vma->vm_start + offset;
-	vaddr -= (loff_t)vma->vm_pgoff << PAGE_SHIFT;
-
-	return vaddr;
+	return vma->vm_start + offset - ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
 }
 
 static loff_t vaddr_to_offset(struct vm_area_struct *vma, unsigned long vaddr)
@@ -775,7 +770,7 @@ build_map_info(struct address_space *mapping, loff_t offset, bool is_register)
 		curr = info;
 
 		info->mm = vma->vm_mm;
-		info->vaddr = vma_address(vma, offset);
+		info->vaddr = offset_to_vaddr(vma, offset);
 	}
 	mutex_unlock(&mapping->i_mmap_mutex);
 
@@ -1042,7 +1037,7 @@ int uprobe_mmap(struct vm_area_struct *vma)
 
 	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
 		if (!ret) {
-			loff_t vaddr = vma_address(vma, uprobe->offset);
+			unsigned long vaddr = offset_to_vaddr(vma, uprobe->offset);
 
 			ret = install_breakpoint(uprobe, vma->vm_mm, vma, vaddr);
 			/*
@@ -1103,7 +1098,7 @@ void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned lon
 	build_probe_list(inode, vma, start, end, &tmp_list);
 
 	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
-		loff_t vaddr = vma_address(vma, uprobe->offset);
+		unsigned long vaddr = offset_to_vaddr(vma, uprobe->offset);
 		/*
 		 * An unregister could have removed the probe before
 		 * unmap. So check before we decrement the count.
