@@ -473,7 +473,7 @@ static struct tnode *tnode_new(t_key key, int pos, int bits)
 	}
 
 	pr_debug("AT %p s=%zu %zu\n", tn, sizeof(struct tnode),
-		 sizeof(struct rt_trie_node) << bits);
+		 sizeof(struct rt_trie_node *) << bits);
 	return tn;
 }
 
