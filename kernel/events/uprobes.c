@@ -32,6 +32,7 @@
 #include <linux/swap.h>		/* try_to_free_swap */
 #include <linux/ptrace.h>	/* user_enable_single_step */
 #include <linux/kdebug.h>	/* notifier mechanism */
+#include "../../mm/internal.h"	/* munlock_vma_page */
 
 #include <linux/uprobes.h>
 
@@ -141,7 +142,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 	pte_t *ptep;
 	int err;
 
-	/* freeze PageSwapCache() for try_to_free_swap() below */
+	/* For try_to_free_swap() and munlock_vma_page() below */
 	lock_page(page);
 
 	err = -EAGAIN;
@@ -164,8 +165,11 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 	page_remove_rmap(page);
 	if (!page_mapped(page))
 		try_to_free_swap(page);
-	put_page(page);
 	pte_unmap_unlock(ptep, ptl);
+
+	if (vma->vm_flags & VM_LOCKED)
+		munlock_vma_page(page);
+	put_page(page);
 
 	err = 0;
  unlock:
