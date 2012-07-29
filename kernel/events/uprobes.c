@@ -823,12 +823,13 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 			goto free;
 
 		down_write(&mm->mmap_sem);
-		vma = find_vma(mm, (unsigned long)info->vaddr);
-		if (!vma || !valid_vma(vma, is_register))
+		vma = find_vma(mm, info->vaddr);
+		if (!vma || !valid_vma(vma, is_register) ||
+		    vma->vm_file->f_mapping->host != uprobe->inode)
 			goto unlock;
 
-		if (vma->vm_file->f_mapping->host != uprobe->inode ||
-		    vma_address(vma, uprobe->offset) != info->vaddr)
+		if (vma->vm_start > info->vaddr ||
+		    vaddr_to_offset(vma, info->vaddr) != uprobe->offset)
 			goto unlock;
 
 		if (is_register) {
