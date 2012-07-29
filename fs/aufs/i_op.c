@@ -154,7 +154,7 @@ out:
 /* ---------------------------------------------------------------------- */
 
 static struct dentry *aufs_lookup(struct inode *dir, struct dentry *dentry,
-				  struct nameidata *nd)
+				  unsigned int flags)
 {
 	struct dentry *ret, *parent;
 	struct inode *inode;
@@ -186,7 +186,7 @@ static struct dentry *aufs_lookup(struct inode *dir, struct dentry *dentry,
 		err = au_digen_test(parent, au_sigen(sb));
 	if (!err) {
 		npositive = au_lkup_dentry(dentry, au_dbstart(parent),
-					   /*type*/0, nd);
+					   /*type*/0, flags);
 		err = npositive;
 	}
 	di_read_unlock(parent, AuLock_IR);
@@ -934,7 +934,6 @@ static void *aufs_follow_link(struct dentry *dentry, struct nameidata *nd)
 out_name:
 	__putname(buf.k);
 out:
-	path_put(&nd->path);
 	AuTraceErr(err);
 	return ERR_PTR(err);
 }
@@ -998,6 +997,7 @@ struct inode_operations aufs_dir_iop = {
 	.getattr	= aufs_getattr,
 
 	.update_time	= aufs_update_time
+	/* no support for atomic_open() */
 };
 
 struct inode_operations aufs_iop = {

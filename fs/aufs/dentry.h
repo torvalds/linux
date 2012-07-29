@@ -46,15 +46,13 @@ struct au_dinfo {
 /* dentry.c */
 extern const struct dentry_operations aufs_dop;
 struct au_branch;
-struct dentry *au_lkup_one(struct qstr *name, struct dentry *h_parent,
-			   struct au_branch *br, struct nameidata *nd);
 struct dentry *au_sio_lkup_one(struct qstr *name, struct dentry *parent,
 			       struct au_branch *br);
 int au_h_verify(struct dentry *h_dentry, unsigned int udba, struct inode *h_dir,
 		struct dentry *h_parent, struct au_branch *br);
 
 int au_lkup_dentry(struct dentry *dentry, aufs_bindex_t bstart, mode_t type,
-		   struct nameidata *nd);
+		   unsigned int flags);
 int au_lkup_neg(struct dentry *dentry, aufs_bindex_t bindex);
 int au_refresh_dentry(struct dentry *dentry, struct dentry *parent);
 int au_reval_dpath(struct dentry *dentry, unsigned int sigen);

@@ -83,11 +83,8 @@ int aufs_release_nondir(struct inode *inode __maybe_unused, struct file *file)
 
 	finfo = au_fi(file);
 	bindex = finfo->fi_btop;
-	if (bindex >= 0) {
-		/* remove me from sb->s_files */
-		file_sb_list_del(file);
+	if (bindex >= 0)
 		au_set_h_fptr(file, bindex, NULL);
-	}
 
 	au_finfo_fin(file);
 	return 0;

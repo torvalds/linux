@@ -52,9 +52,7 @@ struct file *vfsub_dentry_open(struct path *path, int flags)
 {
 	struct file *file;
 
-	path_get(path);
-	file = dentry_open(path->dentry, path->mnt,
-			   flags /* | __FMODE_NONOTIFY */,
+	file = dentry_open(path, flags /* | __FMODE_NONOTIFY */,
 			   current_cred());
 	if (!IS_ERR_OR_NULL(file)
 	    && (file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
@@ -111,48 +109,10 @@ out:
 	return path.dentry;
 }
 
-struct dentry *vfsub_lookup_hash(struct nameidata *nd)
+void vfsub_call_lkup_one(void *args)
 {
-	struct path path = {
-		.mnt = nd->path.mnt
-	};
-
-	IMustLock(nd->path.dentry->d_inode);
-
-	path.dentry = lookup_hash(nd);
-	if (IS_ERR(path.dentry))
-		goto out;
-	if (path.dentry->d_inode)
-		vfsub_update_h_iattr(&path, /*did*/NULL); /*ignore*/
-
-out:
-	AuTraceErrPtr(path.dentry);
-	return path.dentry;
-}
-
-/*
- * this is "VFS:__lookup_one_len()" which was removed and merged into
- * VFS:lookup_one_len() by the commit.
- *	6a96ba5 2011-03-14 kill __lookup_one_len()
- * this function should always be equivalent to the corresponding part in
- * VFS:lookup_one_len().
- */
-int vfsub_name_hash(const char *name, struct qstr *this, int len)
-{
-	unsigned int c;
-
-	this->name = name;
-	this->len = len;
-	this->hash = full_name_hash(name, len);
-	if (!len)
-		return -EACCES;
-
-	while (len--) {
-		c = *(const unsigned char *)name++;
-		if (c == '/' || c == '\0')
-			return -EACCES;
-	}
-	return 0;
+	struct vfsub_lkup_one_args *a = args;
+	*a->errp = vfsub_lkup_one(a->name, a->parent);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -185,7 +145,7 @@ void vfsub_unlock_rename(struct dentry *d1, struct au_hinode *hdir1,
 
 /* ---------------------------------------------------------------------- */
 
-int vfsub_create(struct inode *dir, struct path *path, int mode)
+int vfsub_create(struct inode *dir, struct path *path, int mode, bool want_excl)
 {
 	int err;
 	struct dentry *d;
@@ -199,23 +159,7 @@ int vfsub_create(struct inode *dir, struct path *path, int mode)
 	if (unlikely(err))
 		goto out;
 
-	if (au_test_fs_null_nd(dir->i_sb))
-		err = vfs_create(dir, path->dentry, mode, NULL);
-	else {
-		struct nameidata h_nd;
-
-		memset(&h_nd, 0, sizeof(h_nd));
-		h_nd.flags = LOOKUP_CREATE;
-		h_nd.intent.open.flags = O_CREAT
-			| vfsub_fmode_to_uint(FMODE_READ);
-		h_nd.intent.open.create_mode = mode;
-		h_nd.path.dentry = path->dentry->d_parent;
-		h_nd.path.mnt = path->mnt;
-		path_get(&h_nd.path);
-		err = vfs_create(dir, path->dentry, mode, &h_nd);
-		path_put(&h_nd.path);
-	}
-
+	err = vfs_create(dir, path->dentry, mode, want_excl);
 	if (!err) {
 		struct path tmp = *path;
 		int did;
