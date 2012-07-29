@@ -764,8 +764,10 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 	}
 
 	/* Check depth buffer */
-	if (track->db_dirty && (G_028800_STENCIL_ENABLE(track->db_depth_control) ||
-		G_028800_Z_ENABLE(track->db_depth_control))) {
+	if (track->db_dirty &&
+	    G_028010_FORMAT(track->db_depth_info) != V_028010_DEPTH_INVALID &&
+	    (G_028800_STENCIL_ENABLE(track->db_depth_control) ||
+	     G_028800_Z_ENABLE(track->db_depth_control))) {
 		r = r600_cs_track_validate_db(p);
 		if (r)
 			return r;
