@@ -139,10 +139,15 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 	struct mm_struct *mm = vma->vm_mm;
 	spinlock_t *ptl;
 	pte_t *ptep;
+	int err;
 
+	/* freeze PageSwapCache() for try_to_free_swap() below */
+	lock_page(page);
+
+	err = -EAGAIN;
 	ptep = page_check_address(page, mm, addr, &ptl, 0);
 	if (!ptep)
-		return -EAGAIN;
+		goto unlock;
 
 	get_page(kpage);
 	page_add_new_anon_rmap(kpage, vma, addr);
@@ -162,7 +167,10 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 	put_page(page);
 	pte_unmap_unlock(ptep, ptl);
 
-	return 0;
+	err = 0;
+ unlock:
+	unlock_page(page);
+	return err;
 }
 
 /**
@@ -216,15 +224,10 @@ retry:
 	ret = -ENOMEM;
 	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, vaddr);
 	if (!new_page)
-		goto put_out;
+		goto put_old;
 
 	__SetPageUptodate(new_page);
 
-	/*
-	 * lock page will serialize against do_wp_page()'s
-	 * PageAnon() handling
-	 */
-	lock_page(old_page);
 	/* copy the page now that we've got it stable */
 	vaddr_old = kmap_atomic(old_page);
 	vaddr_new = kmap_atomic(new_page);
@@ -237,15 +240,13 @@ retry:
 
 	ret = anon_vma_prepare(vma);
 	if (ret)
-		goto unlock_out;
+		goto put_new;
 
 	ret = __replace_page(vma, vaddr, old_page, new_page);
 
-unlock_out:
-	unlock_page(old_page);
+put_new:
 	page_cache_release(new_page);
-
-put_out:
+put_old:
 	put_page(old_page);
 
 	if (unlikely(ret == -EAGAIN))
