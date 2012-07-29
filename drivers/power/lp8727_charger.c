@@ -362,7 +362,7 @@ static int lp8727_register_psy(struct lp8727_chg *pchg)
 
 	psy = kzalloc(sizeof(*psy), GFP_KERNEL);
 	if (!psy)
-		goto err_mem;
+		return -ENOMEM;
 
 	pchg->psy = psy;
 
@@ -375,7 +375,7 @@ static int lp8727_register_psy(struct lp8727_chg *pchg)
 	psy->ac.num_supplicants = ARRAY_SIZE(battery_supplied_to);
 
 	if (power_supply_register(pchg->dev, &psy->ac))
-		goto err_psy;
+		goto err_psy_ac;
 
 	psy->usb.name = "usb";
 	psy->usb.type = POWER_SUPPLY_TYPE_USB;
@@ -386,7 +386,7 @@ static int lp8727_register_psy(struct lp8727_chg *pchg)
 	psy->usb.num_supplicants = ARRAY_SIZE(battery_supplied_to);
 
 	if (power_supply_register(pchg->dev, &psy->usb))
-		goto err_psy;
+		goto err_psy_usb;
 
 	psy->batt.name = "main_batt";
 	psy->batt.type = POWER_SUPPLY_TYPE_BATTERY;
@@ -396,13 +396,15 @@ static int lp8727_register_psy(struct lp8727_chg *pchg)
 	psy->batt.external_power_changed = lp8727_charger_changed;
 
 	if (power_supply_register(pchg->dev, &psy->batt))
-		goto err_psy;
+		goto err_psy_batt;
 
 	return 0;
 
-err_mem:
-	return -ENOMEM;
-err_psy:
+err_psy_batt:
+	power_supply_unregister(&psy->usb);
+err_psy_usb:
+	power_supply_unregister(&psy->ac);
+err_psy_ac:
 	kfree(psy);
 	return -EPERM;
 }
