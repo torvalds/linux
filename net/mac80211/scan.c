@@ -984,7 +984,6 @@ int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata)
 			kfree(local->sched_scan_ies.ie[i]);
 
 		drv_sched_scan_stop(local, sdata);
-		rcu_assign_pointer(local->sched_scan_sdata, NULL);
 	}
 out:
 	mutex_unlock(&local->mtx);
