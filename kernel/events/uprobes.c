@@ -1082,6 +1082,9 @@ void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned lon
 	if (!atomic_read(&uprobe_events) || !valid_vma(vma, false))
 		return;
 
+	if (!atomic_read(&vma->vm_mm->mm_users)) /* called by mmput() ? */
+		return;
+
 	if (!atomic_read(&vma->vm_mm->uprobes_state.count))
 		return;
 
