@@ -37,23 +37,30 @@
 #include <linux/vga_switcheroo.h>
 
 /* Call the ATIF method
- *
- * Note: currently we discard the output
  */
-static int radeon_atif_call(acpi_handle handle)
+static union acpi_object *radeon_atif_call(acpi_handle handle, int function,
+		struct acpi_buffer *params)
 {
 	acpi_status status;
 	union acpi_object atif_arg_elements[2];
 	struct acpi_object_list atif_arg;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL};
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 
 	atif_arg.count = 2;
 	atif_arg.pointer = &atif_arg_elements[0];
 
 	atif_arg_elements[0].type = ACPI_TYPE_INTEGER;
-	atif_arg_elements[0].integer.value = ATIF_FUNCTION_VERIFY_INTERFACE;
-	atif_arg_elements[1].type = ACPI_TYPE_INTEGER;
-	atif_arg_elements[1].integer.value = 0;
+	atif_arg_elements[0].integer.value = function;
+
+	if (params) {
+		atif_arg_elements[1].type = ACPI_TYPE_BUFFER;
+		atif_arg_elements[1].buffer.length = params->length;
+		atif_arg_elements[1].buffer.pointer = params->pointer;
+	} else {
+		/* We need a second fake parameter */
+		atif_arg_elements[1].type = ACPI_TYPE_INTEGER;
+		atif_arg_elements[1].integer.value = 0;
+	}
 
 	status = acpi_evaluate_object(handle, "ATIF", &atif_arg, &buffer);
 
@@ -62,18 +69,18 @@ static int radeon_atif_call(acpi_handle handle)
 		DRM_DEBUG_DRIVER("failed to evaluate ATIF got %s\n",
 				 acpi_format_exception(status));
 		kfree(buffer.pointer);
-		return 1;
+		return NULL;
 	}
 
-	kfree(buffer.pointer);
-	return 0;
+	return buffer.pointer;
 }
 
 /* Call all ACPI methods here */
 int radeon_acpi_init(struct radeon_device *rdev)
 {
 	acpi_handle handle;
-	int ret;
+	union acpi_object *info;
+	int ret = 0;
 
 	/* Get the device handle */
 	handle = DEVICE_ACPI_HANDLE(&rdev->pdev->dev);
@@ -83,10 +90,11 @@ int radeon_acpi_init(struct radeon_device *rdev)
 		return 0;
 
 	/* Call the ATIF method */
-	ret = radeon_atif_call(handle);
-	if (ret)
-		return ret;
+	info = radeon_atif_call(handle, ATIF_FUNCTION_VERIFY_INTERFACE, NULL);
+	if (!info)
+		ret = -EIO;
 
-	return 0;
+	kfree(info);
+	return ret;
 }
 
