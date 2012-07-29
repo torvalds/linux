@@ -826,28 +826,14 @@ static struct phy_driver marvell_drivers[] = {
 
 static int __init marvell_init(void)
 {
-	int ret;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(marvell_drivers); i++) {
-		ret = phy_driver_register(&marvell_drivers[i]);
-
-		if (ret) {
-			while (i-- > 0)
-				phy_driver_unregister(&marvell_drivers[i]);
-			return ret;
-		}
-	}
-
-	return 0;
+	return phy_drivers_register(marvell_drivers,
+		 ARRAY_SIZE(marvell_drivers));
 }
 
 static void __exit marvell_exit(void)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(marvell_drivers); i++)
-		phy_driver_unregister(&marvell_drivers[i]);
+	phy_drivers_unregister(marvell_drivers,
+		 ARRAY_SIZE(marvell_drivers));
 }
 
 module_init(marvell_init);

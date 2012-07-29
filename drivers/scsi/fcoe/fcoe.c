@@ -1529,7 +1529,7 @@ static int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 
 	return 0;
 err:
-	per_cpu_ptr(lport->dev_stats, get_cpu())->ErrorFrames++;
+	per_cpu_ptr(lport->stats, get_cpu())->ErrorFrames++;
 	put_cpu();
 err2:
 	kfree_skb(skb);
@@ -1569,7 +1569,7 @@ static int fcoe_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	struct ethhdr *eh;
 	struct fcoe_crc_eof *cp;
 	struct sk_buff *skb;
-	struct fcoe_dev_stats *stats;
+	struct fc_stats *stats;
 	struct fc_frame_header *fh;
 	unsigned int hlen;		/* header length implies the version */
 	unsigned int tlen;		/* trailer length */
@@ -1680,7 +1680,7 @@ static int fcoe_xmit(struct fc_lport *lport, struct fc_frame *fp)
 		skb_shinfo(skb)->gso_size = 0;
 	}
 	/* update tx stats: regardless if LLD fails */
-	stats = per_cpu_ptr(lport->dev_stats, get_cpu());
+	stats = per_cpu_ptr(lport->stats, get_cpu());
 	stats->TxFrames++;
 	stats->TxWords += wlen;
 	put_cpu();
@@ -1714,7 +1714,7 @@ static inline int fcoe_filter_frames(struct fc_lport *lport,
 	struct fcoe_interface *fcoe;
 	struct fc_frame_header *fh;
 	struct sk_buff *skb = (struct sk_buff *)fp;
-	struct fcoe_dev_stats *stats;
+	struct fc_stats *stats;
 
 	/*
 	 * We only check CRC if no offload is available and if it is
@@ -1745,7 +1745,7 @@ static inline int fcoe_filter_frames(struct fc_lport *lport,
 		return 0;
 	}
 
-	stats = per_cpu_ptr(lport->dev_stats, get_cpu());
+	stats = per_cpu_ptr(lport->stats, get_cpu());
 	stats->InvalidCRCCount++;
 	if (stats->InvalidCRCCount < 5)
 		printk(KERN_WARNING "fcoe: dropping frame with CRC error\n");
@@ -1762,7 +1762,7 @@ static void fcoe_recv_frame(struct sk_buff *skb)
 	u32 fr_len;
 	struct fc_lport *lport;
 	struct fcoe_rcv_info *fr;
-	struct fcoe_dev_stats *stats;
+	struct fc_stats *stats;
 	struct fcoe_crc_eof crc_eof;
 	struct fc_frame *fp;
 	struct fcoe_port *port;
@@ -1793,7 +1793,7 @@ static void fcoe_recv_frame(struct sk_buff *skb)
 	 */
 	hp = (struct fcoe_hdr *) skb_network_header(skb);
 
-	stats = per_cpu_ptr(lport->dev_stats, get_cpu());
+	stats = per_cpu_ptr(lport->stats, get_cpu());
 	if (unlikely(FC_FCOE_DECAPS_VER(hp) != FC_FCOE_VER)) {
 		if (stats->ErrorFrames < 5)
 			printk(KERN_WARNING "fcoe: FCoE version "
@@ -1851,23 +1851,25 @@ static int fcoe_percpu_receive_thread(void *arg)
 
 	set_user_nice(current, -20);
 
+retry:
 	while (!kthread_should_stop()) {
 
 		spin_lock_bh(&p->fcoe_rx_list.lock);
 		skb_queue_splice_init(&p->fcoe_rx_list, &tmp);
+
+		if (!skb_queue_len(&tmp)) {
+			set_current_state(TASK_INTERRUPTIBLE);
+			spin_unlock_bh(&p->fcoe_rx_list.lock);
+			schedule();
+			set_current_state(TASK_RUNNING);
+			goto retry;
+		}
+
 		spin_unlock_bh(&p->fcoe_rx_list.lock);
 
 		while ((skb = __skb_dequeue(&tmp)) != NULL)
 			fcoe_recv_frame(skb);
 
-		spin_lock_bh(&p->fcoe_rx_list.lock);
-		if (!skb_queue_len(&p->fcoe_rx_list)) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			spin_unlock_bh(&p->fcoe_rx_list.lock);
-			schedule();
-			set_current_state(TASK_RUNNING);
-		} else
-			spin_unlock_bh(&p->fcoe_rx_list.lock);
 	}
 	return 0;
 }
@@ -1970,7 +1972,7 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 	struct fcoe_ctlr *ctlr;
 	struct fcoe_interface *fcoe;
 	struct fcoe_port *port;
-	struct fcoe_dev_stats *stats;
+	struct fc_stats *stats;
 	u32 link_possible = 1;
 	u32 mfs;
 	int rc = NOTIFY_OK;
@@ -2024,7 +2026,7 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 	if (link_possible && !fcoe_link_ok(lport))
 		fcoe_ctlr_link_up(ctlr);
 	else if (fcoe_ctlr_link_down(ctlr)) {
-		stats = per_cpu_ptr(lport->dev_stats, get_cpu());
+		stats = per_cpu_ptr(lport->stats, get_cpu());
 		stats->LinkFailureCount++;
 		put_cpu();
 		fcoe_clean_pending_queue(lport);

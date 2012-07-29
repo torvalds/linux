@@ -211,6 +211,7 @@ static struct dentry *decode_by_ino(struct super_block *sb, ino_t ino,
 	struct dentry *dentry, *d;
 	struct inode *inode;
 	unsigned int sigen;
+	struct hlist_node *p;
 
 	dentry = NULL;
 	inode = ilookup(sb, ino);
@@ -229,7 +230,7 @@ static struct dentry *decode_by_ino(struct super_block *sb, ino_t ino,
 		dentry = d_find_alias(inode);
 	else {
 		spin_lock(&inode->i_lock);
-		list_for_each_entry(d, &inode->i_dentry, d_alias) {
+		hlist_for_each_entry(d, p, &inode->i_dentry, d_alias) {
 			spin_lock(&d->d_lock);
 			if (!au_test_anon(d)
 			    && d->d_parent->d_inode->i_ino == dir_ino) {
@@ -383,7 +384,7 @@ static struct dentry *au_lkup_by_ino(struct path *path, ino_t ino,
 	if (!arg.found)
 		goto out_name;
 
-	/* do not call au_lkup_one() */
+	/* do not call vfsub_lkup_one() */
 	dir = parent->d_inode;
 	mutex_lock(&dir->i_mutex);
 	dentry = vfsub_lookup_one_len(arg.name, parent, arg.namelen);

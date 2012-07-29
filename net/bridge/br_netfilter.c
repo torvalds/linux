@@ -111,7 +111,13 @@ static inline __be16 pppoe_proto(const struct sk_buff *skb)
 	 pppoe_proto(skb) == htons(PPP_IPV6) && \
 	 brnf_filter_pppoe_tagged)
 
-static void fake_update_pmtu(struct dst_entry *dst, u32 mtu)
+static void fake_update_pmtu(struct dst_entry *dst, struct sock *sk,
+			     struct sk_buff *skb, u32 mtu)
+{
+}
+
+static void fake_redirect(struct dst_entry *dst, struct sock *sk,
+			  struct sk_buff *skb)
 {
 }
 
@@ -120,7 +126,9 @@ static u32 *fake_cow_metrics(struct dst_entry *dst, unsigned long old)
 	return NULL;
 }
 
-static struct neighbour *fake_neigh_lookup(const struct dst_entry *dst, const void *daddr)
+static struct neighbour *fake_neigh_lookup(const struct dst_entry *dst,
+					   struct sk_buff *skb,
+					   const void *daddr)
 {
 	return NULL;
 }
@@ -134,6 +142,7 @@ static struct dst_ops fake_dst_ops = {
 	.family =		AF_INET,
 	.protocol =		cpu_to_be16(ETH_P_IP),
 	.update_pmtu =		fake_update_pmtu,
+	.redirect =		fake_redirect,
 	.cow_metrics =		fake_cow_metrics,
 	.neigh_lookup =		fake_neigh_lookup,
 	.mtu =			fake_mtu,
@@ -373,19 +382,29 @@ static int br_nf_pre_routing_finish_bridge(struct sk_buff *skb)
 	if (!skb->dev)
 		goto free_skb;
 	dst = skb_dst(skb);
-	neigh = dst_get_neighbour_noref(dst);
-	if (neigh->hh.hh_len) {
-		neigh_hh_bridge(&neigh->hh, skb);
-		skb->dev = nf_bridge->physindev;
-		return br_handle_frame_finish(skb);
-	} else {
-		/* the neighbour function below overwrites the complete
-		 * MAC header, so we save the Ethernet source address and
-		 * protocol number. */
-		skb_copy_from_linear_data_offset(skb, -(ETH_HLEN-ETH_ALEN), skb->nf_bridge->data, ETH_HLEN-ETH_ALEN);
-		/* tell br_dev_xmit to continue with forwarding */
-		nf_bridge->mask |= BRNF_BRIDGED_DNAT;
-		return neigh->output(neigh, skb);
+	neigh = dst_neigh_lookup_skb(dst, skb);
+	if (neigh) {
+		int ret;
+
+		if (neigh->hh.hh_len) {
+			neigh_hh_bridge(&neigh->hh, skb);
+			skb->dev = nf_bridge->physindev;
+			ret = br_handle_frame_finish(skb);
+		} else {
+			/* the neighbour function below overwrites the complete
+			 * MAC header, so we save the Ethernet source address and
+			 * protocol number.
+			 */
+			skb_copy_from_linear_data_offset(skb,
+							 -(ETH_HLEN-ETH_ALEN),
+							 skb->nf_bridge->data,
+							 ETH_HLEN-ETH_ALEN);
+			/* tell br_dev_xmit to continue with forwarding */
+			nf_bridge->mask |= BRNF_BRIDGED_DNAT;
+			ret = neigh->output(neigh, skb);
+		}
+		neigh_release(neigh);
+		return ret;
 	}
 free_skb:
 	kfree_skb(skb);
@@ -764,9 +783,9 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff *skb,
 		return NF_DROP;
 
 	if (IS_IP(skb) || IS_VLAN_IP(skb) || IS_PPPOE_IP(skb))
-		pf = PF_INET;
+		pf = NFPROTO_IPV4;
 	else if (IS_IPV6(skb) || IS_VLAN_IPV6(skb) || IS_PPPOE_IPV6(skb))
-		pf = PF_INET6;
+		pf = NFPROTO_IPV6;
 	else
 		return NF_ACCEPT;
 
@@ -778,13 +797,13 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff *skb,
 		nf_bridge->mask |= BRNF_PKT_TYPE;
 	}
 
-	if (pf == PF_INET && br_parse_ip_options(skb))
+	if (pf == NFPROTO_IPV4 && br_parse_ip_options(skb))
 		return NF_DROP;
 
 	/* The physdev module checks on this */
 	nf_bridge->mask |= BRNF_BRIDGED;
 	nf_bridge->physoutdev = skb->dev;
-	if (pf == PF_INET)
+	if (pf == NFPROTO_IPV4)
 		skb->protocol = htons(ETH_P_IP);
 	else
 		skb->protocol = htons(ETH_P_IPV6);
@@ -871,9 +890,9 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff *skb,
 		return NF_DROP;
 
 	if (IS_IP(skb) || IS_VLAN_IP(skb) || IS_PPPOE_IP(skb))
-		pf = PF_INET;
+		pf = NFPROTO_IPV4;
 	else if (IS_IPV6(skb) || IS_VLAN_IPV6(skb) || IS_PPPOE_IPV6(skb))
-		pf = PF_INET6;
+		pf = NFPROTO_IPV6;
 	else
 		return NF_ACCEPT;
 
@@ -886,7 +905,7 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff *skb,
 
 	nf_bridge_pull_encap_header(skb);
 	nf_bridge_save_header(skb);
-	if (pf == PF_INET)
+	if (pf == NFPROTO_IPV4)
 		skb->protocol = htons(ETH_P_IP);
 	else
 		skb->protocol = htons(ETH_P_IPV6);
@@ -919,49 +938,49 @@ static struct nf_hook_ops br_nf_ops[] __read_mostly = {
 	{
 		.hook = br_nf_pre_routing,
 		.owner = THIS_MODULE,
-		.pf = PF_BRIDGE,
+		.pf = NFPROTO_BRIDGE,
 		.hooknum = NF_BR_PRE_ROUTING,
 		.priority = NF_BR_PRI_BRNF,
 	},
 	{
 		.hook = br_nf_local_in,
 		.owner = THIS_MODULE,
-		.pf = PF_BRIDGE,
+		.pf = NFPROTO_BRIDGE,
 		.hooknum = NF_BR_LOCAL_IN,
 		.priority = NF_BR_PRI_BRNF,
 	},
 	{
 		.hook = br_nf_forward_ip,
 		.owner = THIS_MODULE,
-		.pf = PF_BRIDGE,
+		.pf = NFPROTO_BRIDGE,
 		.hooknum = NF_BR_FORWARD,
 		.priority = NF_BR_PRI_BRNF - 1,
 	},
 	{
 		.hook = br_nf_forward_arp,
 		.owner = THIS_MODULE,
-		.pf = PF_BRIDGE,
+		.pf = NFPROTO_BRIDGE,
 		.hooknum = NF_BR_FORWARD,
 		.priority = NF_BR_PRI_BRNF,
 	},
 	{
 		.hook = br_nf_post_routing,
 		.owner = THIS_MODULE,
-		.pf = PF_BRIDGE,
+		.pf = NFPROTO_BRIDGE,
 		.hooknum = NF_BR_POST_ROUTING,
 		.priority = NF_BR_PRI_LAST,
 	},
 	{
 		.hook = ip_sabotage_in,
 		.owner = THIS_MODULE,
-		.pf = PF_INET,
+		.pf = NFPROTO_IPV4,
 		.hooknum = NF_INET_PRE_ROUTING,
 		.priority = NF_IP_PRI_FIRST,
 	},
 	{
 		.hook = ip_sabotage_in,
 		.owner = THIS_MODULE,
-		.pf = PF_INET6,
+		.pf = NFPROTO_IPV6,
 		.hooknum = NF_INET_PRE_ROUTING,
 		.priority = NF_IP6_PRI_FIRST,
 	},

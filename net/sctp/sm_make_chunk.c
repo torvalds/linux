@@ -132,7 +132,7 @@ void  sctp_init_cause(struct sctp_chunk *chunk, __be16 cause_code,
  * abort chunk.  Differs from sctp_init_cause in that it won't oops
  * if there isn't enough space in the op error chunk
  */
-int sctp_init_cause_fixed(struct sctp_chunk *chunk, __be16 cause_code,
+static int sctp_init_cause_fixed(struct sctp_chunk *chunk, __be16 cause_code,
 		      size_t paylen)
 {
 	sctp_errhdr_t err;

@@ -32,7 +32,6 @@
 /* copied from linux/fs/internal.h */
 /* todo: BAD approach!! */
 extern struct lglock vfsmount_lock;
-extern void file_sb_list_del(struct file *f);
 extern spinlock_t inode_sb_list_lock;
 
 /* copied from linux/fs/file_table.c */
@@ -119,10 +118,23 @@ int vfsub_update_h_iattr(struct path *h_path, int *did);
 struct file *vfsub_dentry_open(struct path *path, int flags);
 struct file *vfsub_filp_open(const char *path, int oflags, int mode);
 int vfsub_kern_path(const char *name, unsigned int flags, struct path *path);
+
 struct dentry *vfsub_lookup_one_len(const char *name, struct dentry *parent,
 				    int len);
-struct dentry *vfsub_lookup_hash(struct nameidata *nd);
-int vfsub_name_hash(const char *name, struct qstr *this, int len);
+
+struct vfsub_lkup_one_args {
+	struct dentry **errp;
+	struct qstr *name;
+	struct dentry *parent;
+};
+
+static inline struct dentry *vfsub_lkup_one(struct qstr *name,
+					    struct dentry *parent)
+{
+	return vfsub_lookup_one_len(name->name, parent, name->len);
+}
+
+void vfsub_call_lkup_one(void *args);
 
 /* ---------------------------------------------------------------------- */
 
@@ -132,7 +144,7 @@ struct dentry *vfsub_lock_rename(struct dentry *d1, struct au_hinode *hdir1,
 void vfsub_unlock_rename(struct dentry *d1, struct au_hinode *hdir1,
 			 struct dentry *d2, struct au_hinode *hdir2);
 
-int vfsub_create(struct inode *dir, struct path *path, int mode);
+int vfsub_create(struct inode *dir, struct path *path, int mode, bool want_excl);
 int vfsub_symlink(struct inode *dir, struct path *path,
 		  const char *symname);
 int vfsub_mknod(struct inode *dir, struct path *path, int mode, dev_t dev);

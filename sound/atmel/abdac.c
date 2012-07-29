@@ -535,9 +535,9 @@ out_put_pclk:
 }
 
 #ifdef CONFIG_PM
-static int atmel_abdac_suspend(struct platform_device *pdev, pm_message_t msg)
+static int atmel_abdac_suspend(struct device *pdev)
 {
-	struct snd_card *card = platform_get_drvdata(pdev);
+	struct snd_card *card = dev_get_drvdata(pdev);
 	struct atmel_abdac *dac = card->private_data;
 
 	dw_dma_cyclic_stop(dac->dma.chan);
@@ -547,9 +547,9 @@ static int atmel_abdac_suspend(struct platform_device *pdev, pm_message_t msg)
 	return 0;
 }
 
-static int atmel_abdac_resume(struct platform_device *pdev)
+static int atmel_abdac_resume(struct device *pdev)
 {
-	struct snd_card *card = platform_get_drvdata(pdev);
+	struct snd_card *card = dev_get_drvdata(pdev);
 	struct atmel_abdac *dac = card->private_data;
 
 	clk_enable(dac->pclk);
@@ -559,9 +559,11 @@ static int atmel_abdac_resume(struct platform_device *pdev)
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(atmel_abdac_pm, atmel_abdac_suspend, atmel_abdac_resume);
+#define ATMEL_ABDAC_PM_OPS	&atmel_abdac_pm
 #else
-#define atmel_abdac_suspend NULL
-#define atmel_abdac_resume NULL
+#define ATMEL_ABDAC_PM_OPS	NULL
 #endif
 
 static int __devexit atmel_abdac_remove(struct platform_device *pdev)
@@ -589,9 +591,9 @@ static struct platform_driver atmel_abdac_driver = {
 	.remove		= __devexit_p(atmel_abdac_remove),
 	.driver		= {
 		.name	= "atmel_abdac",
+		.owner	= THIS_MODULE,
+		.pm	= ATMEL_ABDAC_PM_OPS,
 	},
-	.suspend	= atmel_abdac_suspend,
-	.resume		= atmel_abdac_resume,
 };
 
 static int __init atmel_abdac_init(void)

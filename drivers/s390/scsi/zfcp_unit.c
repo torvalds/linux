@@ -4,7 +4,7 @@
  * Tracking of manually configured LUNs and helper functions to
  * register the LUNs with the SCSI midlayer.
  *
- * Copyright IBM Corporation 2010
+ * Copyright IBM Corp. 2010
  */
 
 #include "zfcp_def.h"

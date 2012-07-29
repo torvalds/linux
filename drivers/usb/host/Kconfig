@@ -308,7 +308,7 @@ config USB_OHCI_HCD
 
 config USB_OHCI_HCD_OMAP1
 	bool "OHCI support for OMAP1/2 chips"
-	depends on USB_OHCI_HCD && (ARCH_OMAP1 || ARCH_OMAP2)
+	depends on USB_OHCI_HCD && ARCH_OMAP1
 	default y
 	---help---
 	  Enables support for the OHCI controller on OMAP1/2 chips.

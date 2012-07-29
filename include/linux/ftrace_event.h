@@ -65,7 +65,7 @@ struct trace_iterator {
 	void			*private;
 	int			cpu_file;
 	struct mutex		mutex;
-	struct ring_buffer_iter	*buffer_iter[NR_CPUS];
+	struct ring_buffer_iter	**buffer_iter;
 	unsigned long		iter_flags;
 
 	/* trace_seq for __print_flags() and __print_symbolic() etc. */
@@ -207,6 +207,9 @@ struct ftrace_event_call {
 	 *   bit 1:		enabled
 	 *   bit 2:		filter_active
 	 *   bit 3:		enabled cmd record
+	 *   bit 4:		allow trace by non root (cap any)
+	 *   bit 5:		failed to apply filter
+	 *   bit 6:		ftrace internal event (do not enable)
 	 *
 	 * Changes to flags must hold the event_mutex.
 	 *

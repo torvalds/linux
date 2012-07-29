@@ -784,7 +784,7 @@ static int __init ebda_rsrc_controller (void)
 		hpc_ptr->ctlr_relative_id = ctlr;
 		hpc_ptr->slot_count = slot_num;
 		hpc_ptr->bus_count = bus_num;
-		debug ("now enter ctlr data struture ---\n");
+		debug ("now enter ctlr data structure ---\n");
 		debug ("ctlr id: %x\n", ctlr_id);
 		debug ("ctlr_relative_id: %x\n", hpc_ptr->ctlr_relative_id);
 		debug ("count of slots controlled by this ctlr: %x\n", slot_num);

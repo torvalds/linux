@@ -286,7 +286,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 			case -ERESTARTNOINTR:
 				regs->r0 = regs->orig_r0;
 				if (prev_insn(regs) < 0)
-					return -EFAULT;
+					return;
 		}
 	}
 

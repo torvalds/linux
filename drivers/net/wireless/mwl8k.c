@@ -1665,7 +1665,9 @@ mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int limit, int force)
 
 		info = IEEE80211_SKB_CB(skb);
 		if (ieee80211_is_data(wh->frame_control)) {
-			sta = info->control.sta;
+			rcu_read_lock();
+			sta = ieee80211_find_sta_by_ifaddr(hw, wh->addr1,
+							   wh->addr2);
 			if (sta) {
 				sta_info = MWL8K_STA(sta);
 				BUG_ON(sta_info == NULL);
@@ -1682,6 +1684,7 @@ mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int limit, int force)
 					sta_info->is_ampdu_allowed = true;
 				}
 			}
+			rcu_read_unlock();
 		}
 
 		ieee80211_tx_info_clear_status(info);

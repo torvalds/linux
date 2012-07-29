@@ -174,10 +174,19 @@ torture_type	The type of RCU to test, with string values as follows:
 			and synchronize_rcu_bh_expedited().
 
 		"srcu": srcu_read_lock(), srcu_read_unlock() and
+			call_srcu().
+
+		"srcu_sync": srcu_read_lock(), srcu_read_unlock() and
 			synchronize_srcu().
 
 		"srcu_expedited": srcu_read_lock(), srcu_read_unlock() and
 			synchronize_srcu_expedited().
+
+		"srcu_raw": srcu_read_lock_raw(), srcu_read_unlock_raw(),
+			and call_srcu().
+
+		"srcu_raw_sync": srcu_read_lock_raw(), srcu_read_unlock_raw(),
+			and synchronize_srcu().
 
 		"sched": preempt_disable(), preempt_enable(), and
 			call_rcu_sched().

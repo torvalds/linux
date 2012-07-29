@@ -48,8 +48,7 @@
 
 /* Unused commands: 0x23, 0x27, 0x30, 0x31 */
 
-/**
- * MCDI version 1
+/* MCDI version 1
  *
  * Each MCDI request starts with an MCDI_HEADER, which is a 32byte
  * structure, filled in by the client.

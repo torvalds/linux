@@ -182,7 +182,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	}
 	inode->i_private = NULL;
 	inode->i_mapping = mapping;
-	INIT_LIST_HEAD(&inode->i_dentry);	/* buggered by rcu freeing */
+	INIT_HLIST_HEAD(&inode->i_dentry);	/* buggered by rcu freeing */
 #ifdef CONFIG_FS_POSIX_ACL
 	inode->i_acl = inode->i_default_acl = ACL_NOT_CACHED;
 #endif

@@ -5722,9 +5722,7 @@ bfa_fcs_vport_free(struct bfa_fcs_vport_s *vport)
 	 * The memory for the bfad_vport_s is freed from the FC function
 	 * template vport_delete entry point.
 	 */
-	if (vport_drv)
-		bfad_im_port_delete(vport_drv->drv_port.bfad,
-				&vport_drv->drv_port);
+	bfad_im_port_delete(vport_drv->drv_port.bfad, &vport_drv->drv_port);
 }
 
 /*

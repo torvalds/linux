@@ -639,7 +639,7 @@ struct qla_tgt_func_tmpl {
 
 	int (*handle_cmd)(struct scsi_qla_host *, struct qla_tgt_cmd *,
 			unsigned char *, uint32_t, int, int, int);
-	int (*handle_data)(struct qla_tgt_cmd *);
+	void (*handle_data)(struct qla_tgt_cmd *);
 	int (*handle_tmr)(struct qla_tgt_mgmt_cmd *, uint32_t, uint8_t,
 			uint32_t);
 	void (*free_cmd)(struct qla_tgt_cmd *);
@@ -813,7 +813,6 @@ struct qla_tgt_sess {
 	unsigned int conf_compl_supported:1;
 	unsigned int deleted:1;
 	unsigned int local:1;
-	unsigned int tearing_down:1;
 
 	struct se_session *se_sess;
 	struct scsi_qla_host *vha;

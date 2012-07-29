@@ -251,6 +251,7 @@ struct ixgbe_adv_tx_context_desc {
 #define IXGBE_ADVTXD_TUCMD_L4T_TCP   0x00000800  /* L4 Packet TYPE of TCP */
 #define IXGBE_ADVTXD_TUCMD_L4T_SCTP  0x00001000  /* L4 Packet TYPE of SCTP */
 #define IXGBE_ADVTXD_IDX_SHIFT  4 /* Adv desc Index shift */
+#define IXGBE_ADVTXD_CC		0x00000080 /* Check Context */
 #define IXGBE_ADVTXD_POPTS_SHIFT      8  /* Adv desc POPTS shift */
 #define IXGBE_ADVTXD_POPTS_IXSM (IXGBE_TXD_POPTS_IXSM << \
 				 IXGBE_ADVTXD_POPTS_SHIFT)
@@ -264,32 +265,9 @@ struct ixgbe_adv_tx_context_desc {
 
 /* Interrupt register bitmasks */
 
-/* Extended Interrupt Cause Read */
-#define IXGBE_EICR_RTX_QUEUE    0x0000FFFF /* RTx Queue Interrupt */
-#define IXGBE_EICR_MAILBOX      0x00080000 /* VF to PF Mailbox Interrupt */
-#define IXGBE_EICR_OTHER        0x80000000 /* Interrupt Cause Active */
-
-/* Extended Interrupt Cause Set */
-#define IXGBE_EICS_RTX_QUEUE    IXGBE_EICR_RTX_QUEUE /* RTx Queue Interrupt */
-#define IXGBE_EICS_MAILBOX      IXGBE_EICR_MAILBOX   /* VF to PF Mailbox Int */
-#define IXGBE_EICS_OTHER        IXGBE_EICR_OTHER     /* INT Cause Active */
-
-/* Extended Interrupt Mask Set */
-#define IXGBE_EIMS_RTX_QUEUE    IXGBE_EICR_RTX_QUEUE /* RTx Queue Interrupt */
-#define IXGBE_EIMS_MAILBOX      IXGBE_EICR_MAILBOX   /* VF to PF Mailbox Int */
-#define IXGBE_EIMS_OTHER        IXGBE_EICR_OTHER     /* INT Cause Active */
-
-/* Extended Interrupt Mask Clear */
-#define IXGBE_EIMC_RTX_QUEUE    IXGBE_EICR_RTX_QUEUE /* RTx Queue Interrupt */
-#define IXGBE_EIMC_MAILBOX      IXGBE_EICR_MAILBOX   /* VF to PF Mailbox Int */
-#define IXGBE_EIMC_OTHER        IXGBE_EICR_OTHER     /* INT Cause Active */
-
-#define IXGBE_EIMS_ENABLE_MASK ( \
-				IXGBE_EIMS_RTX_QUEUE       | \
-				IXGBE_EIMS_MAILBOX         | \
-				IXGBE_EIMS_OTHER)
-
 #define IXGBE_EITR_CNT_WDIS     0x80000000
+#define IXGBE_MAX_EITR		0x00000FF8
+#define IXGBE_MIN_EITR		8
 
 /* Error Codes */
 #define IXGBE_ERR_INVALID_MAC_ADDR              -1

@@ -145,19 +145,24 @@ static void ebt_ulog_packet(unsigned int hooknr, const struct sk_buff *skb,
 
 	if (!ub->skb) {
 		if (!(ub->skb = ulog_alloc_skb(size)))
-			goto alloc_failure;
+			goto unlock;
 	} else if (size > skb_tailroom(ub->skb)) {
 		ulog_send(group);
 
 		if (!(ub->skb = ulog_alloc_skb(size)))
-			goto alloc_failure;
+			goto unlock;
 	}
 
-	nlh = NLMSG_PUT(ub->skb, 0, ub->qlen, 0,
-			size - NLMSG_ALIGN(sizeof(*nlh)));
+	nlh = nlmsg_put(ub->skb, 0, ub->qlen, 0,
+			size - NLMSG_ALIGN(sizeof(*nlh)), 0);
+	if (!nlh) {
+		kfree_skb(ub->skb);
+		ub->skb = NULL;
+		goto unlock;
+	}
 	ub->qlen++;
 
-	pm = NLMSG_DATA(nlh);
+	pm = nlmsg_data(nlh);
 
 	/* Fill in the ulog data */
 	pm->version = EBT_ULOG_VERSION;
@@ -209,14 +214,6 @@ static void ebt_ulog_packet(unsigned int hooknr, const struct sk_buff *skb,
 
 unlock:
 	spin_unlock_bh(lock);
-
-	return;
-
-nlmsg_failure:
-	pr_debug("error during NLMSG_PUT. This should "
-		 "not happen, please report to author.\n");
-alloc_failure:
-	goto unlock;
 }
 
 /* this function is registered with the netfilter core */
@@ -285,6 +282,9 @@ static int __init ebt_ulog_init(void)
 {
 	int ret;
 	int i;
+	struct netlink_kernel_cfg cfg = {
+		.groups	= EBT_ULOG_MAXNLGROUPS,
+	};
 
 	if (nlbufsiz >= 128*1024) {
 		pr_warning("Netlink buffer has to be <= 128kB,"
@@ -299,8 +299,7 @@ static int __init ebt_ulog_init(void)
 	}
 
 	ebtulognl = netlink_kernel_create(&init_net, NETLINK_NFLOG,
-					  EBT_ULOG_MAXNLGROUPS, NULL, NULL,
-					  THIS_MODULE);
+					  THIS_MODULE, &cfg);
 	if (!ebtulognl)
 		ret = -ENOMEM;
 	else if ((ret = xt_register_target(&ebt_ulog_tg_reg)) != 0)

@@ -71,7 +71,7 @@ int au_wh_test(struct dentry *h_parent, struct qstr *wh_name,
 	struct dentry *wh_dentry;
 
 	if (!try_sio)
-		wh_dentry = au_lkup_one(wh_name, h_parent, br, /*nd*/NULL);
+		wh_dentry = vfsub_lkup_one(wh_name, h_parent);
 	else
 		wh_dentry = au_sio_lkup_one(wh_name, h_parent, br);
 	err = PTR_ERR(wh_dentry);
@@ -237,7 +237,7 @@ static int unlink_wh_name(struct dentry *h_parent, struct qstr *wh,
 	};
 
 	err = 0;
-	h_path.dentry = au_lkup_one(wh, h_parent, br, /*nd*/NULL);
+	h_path.dentry = vfsub_lkup_one(wh, h_parent);
 	if (IS_ERR(h_path.dentry))
 		err = PTR_ERR(h_path.dentry);
 	else {
@@ -400,7 +400,8 @@ static int au_wh_init_rw(struct dentry *h_root, struct au_wbr *wbr,
 		err = mnt_want_write(h_path->mnt);
 		if (!err) {
 			h_path->dentry = base[AuBrWh_BASE].dentry;
-			err = vfsub_create(h_dir, h_path, WH_MASK);
+			err = vfsub_create(h_dir, h_path, WH_MASK,
+					   /*want_excl*/true);
 			mnt_drop_write(h_path->mnt);
 		}
 	} else if (S_ISREG(base[AuBrWh_BASE].dentry->d_inode->i_mode))
@@ -662,7 +663,7 @@ static int link_or_create_wh(struct super_block *sb, aufs_bindex_t bindex,
 	}
 
 	/* return this error in this context */
-	err = vfsub_create(h_dir, &h_path, WH_MASK);
+	err = vfsub_create(h_dir, &h_path, WH_MASK, /*want_excl*/true);
 
 out:
 	wbr_wh_read_unlock(wbr);
@@ -685,7 +686,7 @@ static struct dentry *do_diropq(struct dentry *dentry, aufs_bindex_t bindex,
 	sb = dentry->d_sb;
 	br = au_sbr(sb, bindex);
 	h_dentry = au_h_dptr(dentry, bindex);
-	opq_dentry = au_lkup_one(&diropq_name, h_dentry, br, /*nd*/NULL);
+	opq_dentry = vfsub_lkup_one(&diropq_name, h_dentry);
 	if (IS_ERR(opq_dentry))
 		goto out;
 
@@ -767,7 +768,7 @@ struct dentry *au_wh_lkup(struct dentry *h_parent, struct qstr *base_name,
 	err = au_wh_name_alloc(&wh_name, base_name);
 	wh_dentry = ERR_PTR(err);
 	if (!err) {
-		wh_dentry = au_lkup_one(&wh_name, h_parent, br, /*nd*/NULL);
+		wh_dentry = vfsub_lkup_one(&wh_name, h_parent);
 		kfree(wh_name.name);
 	}
 	return wh_dentry;

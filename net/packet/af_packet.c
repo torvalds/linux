@@ -531,6 +531,7 @@ static int prb_calc_retire_blk_tmo(struct packet_sock *po,
 	unsigned int mbits = 0, msec = 0, div = 0, tmo = 0;
 	struct ethtool_cmd ecmd;
 	int err;
+	u32 speed;
 
 	rtnl_lock();
 	dev = __dev_get_by_index(sock_net(&po->sk), po->ifindex);
@@ -539,25 +540,18 @@ static int prb_calc_retire_blk_tmo(struct packet_sock *po,
 		return DEFAULT_PRB_RETIRE_TOV;
 	}
 	err = __ethtool_get_settings(dev, &ecmd);
+	speed = ethtool_cmd_speed(&ecmd);
 	rtnl_unlock();
 	if (!err) {
-		switch (ecmd.speed) {
-		case SPEED_10000:
-			msec = 1;
-			div = 10000/1000;
-			break;
-		case SPEED_1000:
-			msec = 1;
-			div = 1000/1000;
-			break;
 		/*
 		 * If the link speed is so slow you don't really
 		 * need to worry about perf anyways
 		 */
-		case SPEED_100:
-		case SPEED_10:
-		default:
+		if (speed < SPEED_1000 || speed == SPEED_UNKNOWN) {
 			return DEFAULT_PRB_RETIRE_TOV;
+		} else {
+			msec = 1;
+			div = speed / 1000;
 		}
 	}
 
@@ -592,7 +586,7 @@ static void init_prb_bdqc(struct packet_sock *po,
 	p1->knxt_seq_num = 1;
 	p1->pkbdq = pg_vec;
 	pbd = (struct tpacket_block_desc *)pg_vec[0].buffer;
-	p1->pkblk_start	= (char *)pg_vec[0].buffer;
+	p1->pkblk_start	= pg_vec[0].buffer;
 	p1->kblk_size = req_u->req3.tp_block_size;
 	p1->knum_blocks	= req_u->req3.tp_block_nr;
 	p1->hdrlen = po->tp_hdrlen;
@@ -824,8 +818,7 @@ static void prb_open_block(struct tpacket_kbdq_core *pkc1,
 		h1->ts_first_pkt.ts_sec = ts.tv_sec;
 		h1->ts_first_pkt.ts_nsec = ts.tv_nsec;
 		pkc1->pkblk_start = (char *)pbd1;
-		pkc1->nxt_offset = (char *)(pkc1->pkblk_start +
-		BLK_PLUS_PRIV(pkc1->blk_sizeof_priv));
+		pkc1->nxt_offset = pkc1->pkblk_start + BLK_PLUS_PRIV(pkc1->blk_sizeof_priv);
 		BLOCK_O2FP(pbd1) = (__u32)BLK_PLUS_PRIV(pkc1->blk_sizeof_priv);
 		BLOCK_O2PRIV(pbd1) = BLK_HDR_LEN;
 		pbd1->version = pkc1->version;
@@ -1018,7 +1011,7 @@ static void *__packet_lookup_frame_in_block(struct packet_sock *po,
 	struct tpacket_block_desc *pbd;
 	char *curr, *end;
 
-	pkc = GET_PBDQC_FROM_RB(((struct packet_ring_buffer *)&po->rx_ring));
+	pkc = GET_PBDQC_FROM_RB(&po->rx_ring);
 	pbd = GET_CURR_PBLOCK_DESC_FROM_CORE(pkc);
 
 	/* Queue is frozen when user space is lagging behind */
@@ -1044,7 +1037,7 @@ static void *__packet_lookup_frame_in_block(struct packet_sock *po,
 	smp_mb();
 	curr = pkc->nxt_offset;
 	pkc->skb = skb;
-	end = (char *) ((char *)pbd + pkc->kblk_size);
+	end = (char *)pbd + pkc->kblk_size;
 
 	/* first try the current block */
 	if (curr+TOTAL_PKT_LEN_INCL_ALIGN(len) < end) {
@@ -1476,7 +1469,7 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	 *	Find the device first to size check it
 	 */
 
-	saddr->spkt_device[13] = 0;
+	saddr->spkt_device[sizeof(saddr->spkt_device) - 1] = 0;
 retry:
 	rcu_read_lock();
 	dev = dev_get_by_name_rcu(sock_net(sk), saddr->spkt_device);

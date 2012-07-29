@@ -1422,11 +1422,9 @@ w83792d_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct device *dev = &client->dev;
 	int i, val1, err;
 
-	data = kzalloc(sizeof(struct w83792d_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto ERROR0;
-	}
+	data = devm_kzalloc(dev, sizeof(struct w83792d_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	data->valid = 0;
@@ -1434,7 +1432,7 @@ w83792d_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	err = w83792d_detect_subclients(client);
 	if (err)
-		goto ERROR1;
+		return err;
 
 	/* Initialize the chip */
 	w83792d_init_client(client);
@@ -1448,7 +1446,7 @@ w83792d_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&dev->kobj, &w83792d_group);
 	if (err)
-		goto ERROR3;
+		goto exit_i2c_unregister;
 
 	/*
 	 * Read GPIO enable register to check if pins for fan 4,5 are used as
@@ -1493,14 +1491,11 @@ exit_remove_files:
 	sysfs_remove_group(&dev->kobj, &w83792d_group);
 	for (i = 0; i < ARRAY_SIZE(w83792d_group_fan); i++)
 		sysfs_remove_group(&dev->kobj, &w83792d_group_fan[i]);
-ERROR3:
+exit_i2c_unregister:
 	if (data->lm75[0] != NULL)
 		i2c_unregister_device(data->lm75[0]);
 	if (data->lm75[1] != NULL)
 		i2c_unregister_device(data->lm75[1]);
-ERROR1:
-	kfree(data);
-ERROR0:
 	return err;
 }
 
@@ -1521,7 +1516,6 @@ w83792d_remove(struct i2c_client *client)
 	if (data->lm75[1] != NULL)
 		i2c_unregister_device(data->lm75[1]);
 
-	kfree(data);
 	return 0;
 }
 

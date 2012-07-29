@@ -376,9 +376,7 @@ int ehea_destroy_eq(struct ehea_eq *eq)
 	return 0;
 }
 
-/**
- * allocates memory for a queue and registers pages in phyp
- */
+/* allocates memory for a queue and registers pages in phyp */
 static int ehea_qp_alloc_register(struct ehea_qp *qp, struct hw_queue *hw_queue,
 			   int nr_pages, int wqe_size, int act_nr_sges,
 			   struct ehea_adapter *adapter, int h_call_q_selector)

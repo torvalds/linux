@@ -85,7 +85,8 @@
 #define MSI_STANDARD_EC_TOUCHPAD_ADDRESS	0xe4
 #define MSI_STANDARD_EC_TOUCHPAD_MASK		(1 << 4)
 
-static int msi_laptop_resume(struct platform_device *device);
+static int msi_laptop_resume(struct device *device);
+static SIMPLE_DEV_PM_OPS(msi_laptop_pm, NULL, msi_laptop_resume);
 
 #define MSI_STANDARD_EC_DEVICES_EXISTS_ADDRESS	0x2f
 
@@ -437,8 +438,8 @@ static struct platform_driver msipf_driver = {
 	.driver = {
 		.name = "msi-laptop-pf",
 		.owner = THIS_MODULE,
+		.pm = &msi_laptop_pm,
 	},
-	.resume = msi_laptop_resume,
 };
 
 static struct platform_device *msipf_device;
@@ -752,7 +753,7 @@ err_bluetooth:
 	return retval;
 }
 
-static int msi_laptop_resume(struct platform_device *device)
+static int msi_laptop_resume(struct device *device)
 {
 	u8 data;
 	int result;

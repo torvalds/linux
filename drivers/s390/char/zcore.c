@@ -5,7 +5,7 @@
  *
  * For more information please refer to Documentation/s390/zfcpdump.txt
  *
- * Copyright IBM Corp. 2003,2008
+ * Copyright IBM Corp. 2003, 2008
  * Author(s): Michael Holzheu
  */
 

@@ -1091,7 +1091,7 @@ error:
 	while (--i)
 		if (pages[i])
 			__free_pages(pages[i], 0);
-	if (array_size < PAGE_SIZE)
+	if (array_size <= PAGE_SIZE)
 		kfree(pages);
 	else
 		vfree(pages);
@@ -1106,7 +1106,7 @@ static int __iommu_free_buffer(struct device *dev, struct page **pages, size_t s
 	for (i = 0; i < count; i++)
 		if (pages[i])
 			__free_pages(pages[i], 0);
-	if (array_size < PAGE_SIZE)
+	if (array_size <= PAGE_SIZE)
 		kfree(pages);
 	else
 		vfree(pages);

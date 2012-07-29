@@ -119,11 +119,11 @@ static void au_ren_rev_rename(int err, struct au_ren_args *a)
 {
 	int rerr;
 
-	a->h_path.dentry = au_lkup_one(&a->src_dentry->d_name, a->src_h_parent,
-				       a->br, /*nd*/NULL);
+	a->h_path.dentry = vfsub_lkup_one(&a->src_dentry->d_name,
+					  a->src_h_parent);
 	rerr = PTR_ERR(a->h_path.dentry);
 	if (IS_ERR(a->h_path.dentry)) {
-		RevertFailure("au_lkup_one %.*s", AuDLNPair(a->src_dentry));
+		RevertFailure("lkup one %.*s", AuDLNPair(a->src_dentry));
 		return;
 	}
 
@@ -153,11 +153,11 @@ static void au_ren_rev_whtmp(int err, struct au_ren_args *a)
 {
 	int rerr;
 
-	a->h_path.dentry = au_lkup_one(&a->dst_dentry->d_name, a->dst_h_parent,
-				       a->br, /*nd*/NULL);
+	a->h_path.dentry = vfsub_lkup_one(&a->dst_dentry->d_name,
+					  a->dst_h_parent);
 	rerr = PTR_ERR(a->h_path.dentry);
 	if (IS_ERR(a->h_path.dentry)) {
-		RevertFailure("lookup %.*s", AuDLNPair(a->dst_dentry));
+		RevertFailure("lkup one %.*s", AuDLNPair(a->dst_dentry));
 		return;
 	}
 	if (a->h_path.dentry->d_inode) {

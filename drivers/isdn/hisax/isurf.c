@@ -231,6 +231,11 @@ setup_isurf(struct IsdnCard *card)
 				}
 				pnp_disable_dev(pnp_d);
 				err = pnp_activate_dev(pnp_d);
+				if (err < 0) {
+					pr_warn("%s: pnp_activate_dev ret=%d\n",
+						__func__, err);
+					return 0;
+				}
 				cs->hw.isurf.reset = pnp_port_start(pnp_d, 0);
 				cs->hw.isurf.phymem = pnp_mem_start(pnp_d, 1);
 				cs->irq = pnp_irq(pnp_d, 0);

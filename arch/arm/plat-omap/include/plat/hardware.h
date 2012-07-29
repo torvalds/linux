@@ -288,5 +288,6 @@
 #include <plat/omap44xx.h>
 #include <plat/ti81xx.h>
 #include <plat/am33xx.h>
+#include <plat/omap54xx.h>
 
 #endif	/* __ASM_ARCH_OMAP_HARDWARE_H */

@@ -1896,7 +1896,7 @@ static int rxq_init(struct mv643xx_eth_private *mp, int index)
 		goto out_free;
 	}
 
-	rx_desc = (struct rx_desc *)rxq->rx_desc_area;
+	rx_desc = rxq->rx_desc_area;
 	for (i = 0; i < rxq->rx_ring_size; i++) {
 		int nexti;
 
@@ -2001,7 +2001,7 @@ static int txq_init(struct mv643xx_eth_private *mp, int index)
 
 	txq->tx_desc_area_size = size;
 
-	tx_desc = (struct tx_desc *)txq->tx_desc_area;
+	tx_desc = txq->tx_desc_area;
 	for (i = 0; i < txq->tx_ring_size; i++) {
 		struct tx_desc *txd = tx_desc + i;
 		int nexti;

@@ -583,7 +583,7 @@ static int test__basic_mmap(void)
 		if (nr_events[evsel->idx] != expected_nr_events[evsel->idx]) {
 			pr_debug("expected %d %s events, got %d\n",
 				 expected_nr_events[evsel->idx],
-				 event_name(evsel), nr_events[evsel->idx]);
+				 perf_evsel__name(evsel), nr_events[evsel->idx]);
 			goto out_munmap;
 		}
 	}
