@@ -1857,6 +1857,8 @@ static void wlcore_op_stop_locked(struct wl1271 *wl)
 	mutex_unlock(&wl->mutex);
 
 	wlcore_synchronize_interrupts(wl);
+	if (!test_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags))
+		cancel_work_sync(&wl->recovery_work);
 	wl1271_flush_deferred_work(wl);
 	cancel_delayed_work_sync(&wl->scan_complete_work);
 	cancel_work_sync(&wl->netstack_work);
@@ -2437,7 +2439,6 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	struct wl12xx_vif *iter;
 	struct vif_counter_data vif_count;
-	bool cancel_recovery = true;
 
 	wl12xx_get_vif_count(hw, vif, &vif_count);
 	mutex_lock(&wl->mutex);
@@ -2462,12 +2463,9 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 		wl12xx_force_active_psm(wl);
 		set_bit(WL1271_FLAG_INTENDED_FW_RECOVERY, &wl->flags);
 		wl12xx_queue_recovery_work(wl);
-		cancel_recovery = false;
 	}
 out:
 	mutex_unlock(&wl->mutex);
-	if (cancel_recovery)
-		cancel_work_sync(&wl->recovery_work);
 }
 
 static int wl12xx_op_change_interface(struct ieee80211_hw *hw,
