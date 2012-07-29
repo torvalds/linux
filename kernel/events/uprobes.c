@@ -939,59 +939,66 @@ void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consume
 		put_uprobe(uprobe);
 }
 
-/*
- * Of all the nodes that correspond to the given inode, return the node
- * with the least offset.
- */
-static struct rb_node *find_least_offset_node(struct inode *inode)
+static struct rb_node *
+find_node_in_range(struct inode *inode, loff_t min, loff_t max)
 {
-	struct uprobe u = { .inode = inode, .offset = 0};
 	struct rb_node *n = uprobes_tree.rb_node;
-	struct rb_node *close_node = NULL;
-	struct uprobe *uprobe;
-	int match;
 
 	while (n) {
-		uprobe = rb_entry(n, struct uprobe, rb_node);
-		match = match_uprobe(&u, uprobe);
+		struct uprobe *u = rb_entry(n, struct uprobe, rb_node);
 
-		if (uprobe->inode == inode)
-			close_node = n;
-
-		if (!match)
-			return close_node;
-
-		if (match < 0)
+		if (inode < u->inode) {
 			n = n->rb_left;
-		else
+		} else if (inode > u->inode) {
 			n = n->rb_right;
+		} else {
+			if (max < u->offset)
+				n = n->rb_left;
+			else if (min > u->offset)
+				n = n->rb_right;
+			else
+				break;
+		}
 	}
 
-	return close_node;
+	return n;
 }
 
 /*
- * For a given inode, build a list of probes that need to be inserted.
+ * For a given range in vma, build a list of probes that need to be inserted.
  */
-static void build_probe_list(struct inode *inode, struct list_head *head)
+static void build_probe_list(struct inode *inode,
+				struct vm_area_struct *vma,
+				unsigned long start, unsigned long end,
+				struct list_head *head)
 {
-	struct uprobe *uprobe;
+	loff_t min, max;
 	unsigned long flags;
-	struct rb_node *n;
+	struct rb_node *n, *t;
+	struct uprobe *u;
+
+	INIT_LIST_HEAD(head);
+	min = ((loff_t)vma->vm_pgoff << PAGE_SHIFT) + start - vma->vm_start;
+	max = min + (end - start) - 1;
 
 	spin_lock_irqsave(&uprobes_treelock, flags);
-
-	n = find_least_offset_node(inode);
-
-	for (; n; n = rb_next(n)) {
-		uprobe = rb_entry(n, struct uprobe, rb_node);
-		if (uprobe->inode != inode)
-			break;
-
-		list_add(&uprobe->pending_list, head);
-		atomic_inc(&uprobe->ref);
+	n = find_node_in_range(inode, min, max);
+	if (n) {
+		for (t = n; t; t = rb_prev(t)) {
+			u = rb_entry(t, struct uprobe, rb_node);
+			if (u->inode != inode || u->offset < min)
+				break;
+			list_add(&u->pending_list, head);
+			atomic_inc(&u->ref);
+		}
+		for (t = n; (t = rb_next(t)); ) {
+			u = rb_entry(t, struct uprobe, rb_node);
+			if (u->inode != inode || u->offset > max)
+				break;
+			list_add(&u->pending_list, head);
+			atomic_inc(&u->ref);
+		}
 	}
-
 	spin_unlock_irqrestore(&uprobes_treelock, flags);
 }
 
@@ -1021,9 +1028,8 @@ int uprobe_mmap(struct vm_area_struct *vma)
 	if (!inode)
 		return 0;
 
-	INIT_LIST_HEAD(&tmp_list);
 	mutex_lock(uprobes_mmap_hash(inode));
-	build_probe_list(inode, &tmp_list);
+	build_probe_list(inode, vma, vma->vm_start, vma->vm_end, &tmp_list);
 
 	ret = 0;
 	count = 0;
@@ -1031,11 +1037,6 @@ int uprobe_mmap(struct vm_area_struct *vma)
 	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
 		if (!ret) {
 			loff_t vaddr = vma_address(vma, uprobe->offset);
-
-			if (vaddr < vma->vm_start || vaddr >= vma->vm_end) {
-				put_uprobe(uprobe);
-				continue;
-			}
 
 			ret = install_breakpoint(uprobe, vma->vm_mm, vma, vaddr);
 			/*
@@ -1092,21 +1093,17 @@ void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned lon
 	if (!inode)
 		return;
 
-	INIT_LIST_HEAD(&tmp_list);
 	mutex_lock(uprobes_mmap_hash(inode));
-	build_probe_list(inode, &tmp_list);
+	build_probe_list(inode, vma, start, end, &tmp_list);
 
 	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
 		loff_t vaddr = vma_address(vma, uprobe->offset);
-
-		if (vaddr >= start && vaddr < end) {
-			/*
-			 * An unregister could have removed the probe before
-			 * unmap. So check before we decrement the count.
-			 */
-			if (is_swbp_at_addr(vma->vm_mm, vaddr) == 1)
-				atomic_dec(&vma->vm_mm->uprobes_state.count);
-		}
+		/*
+		 * An unregister could have removed the probe before
+		 * unmap. So check before we decrement the count.
+		 */
+		if (is_swbp_at_addr(vma->vm_mm, vaddr) == 1)
+			atomic_dec(&vma->vm_mm->uprobes_state.count);
 		put_uprobe(uprobe);
 	}
 	mutex_unlock(uprobes_mmap_hash(inode));
