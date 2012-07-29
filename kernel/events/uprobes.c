@@ -122,6 +122,11 @@ static loff_t vma_address(struct vm_area_struct *vma, loff_t offset)
 	return vaddr;
 }
 
+static loff_t vaddr_to_offset(struct vm_area_struct *vma, unsigned long vaddr)
+{
+	return ((loff_t)vma->vm_pgoff << PAGE_SHIFT) + (vaddr - vma->vm_start);
+}
+
 /**
  * __replace_page - replace page in vma by new page.
  * based on replace_page in mm/ksm.c
@@ -978,7 +983,7 @@ static void build_probe_list(struct inode *inode,
 	struct uprobe *u;
 
 	INIT_LIST_HEAD(head);
-	min = ((loff_t)vma->vm_pgoff << PAGE_SHIFT) + start - vma->vm_start;
+	min = vaddr_to_offset(vma, start);
 	max = min + (end - start) - 1;
 
 	spin_lock_irqsave(&uprobes_treelock, flags);
@@ -1442,12 +1447,9 @@ static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
 	vma = find_vma(mm, bp_vaddr);
 	if (vma && vma->vm_start <= bp_vaddr) {
 		if (valid_vma(vma, false)) {
-			struct inode *inode;
-			loff_t offset;
+			struct inode *inode = vma->vm_file->f_mapping->host;
+			loff_t offset = vaddr_to_offset(vma, bp_vaddr);
 
-			inode = vma->vm_file->f_mapping->host;
-			offset = bp_vaddr - vma->vm_start;
-			offset += (loff_t)vma->vm_pgoff << PAGE_SHIFT;
 			uprobe = find_uprobe(inode, offset);
 		}
 
