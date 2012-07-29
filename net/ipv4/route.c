@@ -1199,11 +1199,6 @@ restart:
 	fnhe->fnhe_stamp = jiffies;
 }
 
-static inline void rt_free(struct rtable *rt)
-{
-	call_rcu_bh(&rt->dst.rcu_head, dst_rcu_free);
-}
-
 static void rt_cache_route(struct fib_nh *nh, struct rtable *rt)
 {
 	struct rtable *orig, *prev, **p = &nh->nh_rth_output;
@@ -1213,17 +1208,14 @@ static void rt_cache_route(struct fib_nh *nh, struct rtable *rt)
 
 	orig = *p;
 
+	rt->dst.flags |= DST_RCU_FREE;
+	dst_hold(&rt->dst);
 	prev = cmpxchg(p, orig, rt);
 	if (prev == orig) {
 		if (orig)
-			rt_free(orig);
+			dst_release(&orig->dst);
 	} else {
-		/* Routes we intend to cache in the FIB nexthop have
-		 * the DST_NOCACHE bit clear.  However, if we are
-		 * unsuccessful at storing this route into the cache
-		 * we really need to set it.
-		 */
-		rt->dst.flags |= DST_NOCACHE;
+		dst_release(&rt->dst);
 	}
 }
 
