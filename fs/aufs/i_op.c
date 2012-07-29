@@ -206,18 +206,13 @@ static struct dentry *aufs_lookup(struct inode *dir, struct dentry *dentry,
 	ret = d_splice_alias(inode, dentry);
 	if (unlikely(IS_ERR(ret) && inode)) {
 		ii_write_unlock(inode);
-		lc_idx = AuLcNonDir_IIINFO;
-		if (S_ISLNK(inode->i_mode))
-			lc_idx = AuLcSymlink_IIINFO;
-		else if (S_ISDIR(inode->i_mode))
-			lc_idx = AuLcDir_IIINFO;
-		au_rw_class(&au_ii(inode)->ii_rwsem, au_lc_key + lc_idx);
 		iput(inode);
+		inode = NULL;
 	}
 
 out_unlock:
 	di_write_unlock(dentry);
-	if (unlikely(IS_ERR(ret) && inode)) {
+	if (inode) {
 		lc_idx = AuLcNonDir_DIINFO;
 		if (S_ISLNK(inode->i_mode))
 			lc_idx = AuLcSymlink_DIINFO;
