@@ -75,11 +75,13 @@
  *	clockwatch function
  * @st_weekday: if this is an ST Microelectronics silicon version that need
  *	the weekday fix
+ * @irqflags: special IRQ flags per variant
  */
 struct pl031_vendor_data {
 	struct rtc_class_ops ops;
 	bool clockwatch;
 	bool st_weekday;
+	unsigned long irqflags;
 };
 
 struct pl031_local {
@@ -373,7 +375,7 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	if (request_irq(adev->irq[0], pl031_interrupt,
-			0, "rtc-pl031", ldata)) {
+			vendor->irqflags, "rtc-pl031", ldata)) {
 		ret = -EIO;
 		goto out_no_irq;
 	}
@@ -403,6 +405,7 @@ static struct pl031_vendor_data arm_pl031 = {
 		.set_alarm = pl031_set_alarm,
 		.alarm_irq_enable = pl031_alarm_irq_enable,
 	},
+	.irqflags = IRQF_NO_SUSPEND,
 };
 
 /* The First ST derivative */
@@ -416,6 +419,7 @@ static struct pl031_vendor_data stv1_pl031 = {
 	},
 	.clockwatch = true,
 	.st_weekday = true,
+	.irqflags = IRQF_NO_SUSPEND,
 };
 
 /* And the second ST derivative */
@@ -429,6 +433,11 @@ static struct pl031_vendor_data stv2_pl031 = {
 	},
 	.clockwatch = true,
 	.st_weekday = true,
+	/*
+	 * This variant shares the IRQ with another block and must not
+	 * suspend that IRQ line.
+	 */
+	.irqflags = IRQF_SHARED | IRQF_NO_SUSPEND,
 };
 
 static struct amba_id pl031_ids[] = {
