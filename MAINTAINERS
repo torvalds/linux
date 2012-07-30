@@ -5329,14 +5329,15 @@ PIN CONTROL SUBSYSTEM
 M:	Linus Walleij <linus.walleij@linaro.org>
 S:	Maintained
 F:	drivers/pinctrl/
+F:	include/linux/pinctrl/
 
 PIN CONTROLLER - ST SPEAR
-M:     Viresh Kumar <viresh.linux@gmail.com>
+M:	Viresh Kumar <viresh.linux@gmail.com>
 L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
 S:	Maintained
-F:	driver/pinctrl/spear/
+F:	drivers/pinctrl/spear/
 
 PKTCDVD DRIVER
 M:	Peter Osterlund <petero2@telia.com>
