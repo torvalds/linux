@@ -38,7 +38,7 @@ struct gpio_keys_button_data {
 struct gpio_keys_polled_dev {
 	struct input_polled_dev *poll_dev;
 	struct device *dev;
-	struct gpio_keys_platform_data *pdata;
+	const struct gpio_keys_platform_data *pdata;
 	struct gpio_keys_button_data data[0];
 };
 
@@ -67,11 +67,11 @@ static void gpio_keys_polled_check_state(struct input_dev *input,
 static void gpio_keys_polled_poll(struct input_polled_dev *dev)
 {
 	struct gpio_keys_polled_dev *bdev = dev->private;
-	struct gpio_keys_platform_data *pdata = bdev->pdata;
+	const struct gpio_keys_platform_data *pdata = bdev->pdata;
 	struct input_dev *input = dev->input;
 	int i;
 
-	for (i = 0; i < bdev->pdata->nbuttons; i++) {
+	for (i = 0; i < pdata->nbuttons; i++) {
 		struct gpio_keys_button_data *bdata = &bdev->data[i];
 
 		if (bdata->count < bdata->threshold)
@@ -85,7 +85,7 @@ static void gpio_keys_polled_poll(struct input_polled_dev *dev)
 static void gpio_keys_polled_open(struct input_polled_dev *dev)
 {
 	struct gpio_keys_polled_dev *bdev = dev->private;
-	struct gpio_keys_platform_data *pdata = bdev->pdata;
+	const struct gpio_keys_platform_data *pdata = bdev->pdata;
 
 	if (pdata->enable)
 		pdata->enable(bdev->dev);
@@ -94,7 +94,7 @@ static void gpio_keys_polled_open(struct input_polled_dev *dev)
 static void gpio_keys_polled_close(struct input_polled_dev *dev)
 {
 	struct gpio_keys_polled_dev *bdev = dev->private;
-	struct gpio_keys_platform_data *pdata = bdev->pdata;
+	const struct gpio_keys_platform_data *pdata = bdev->pdata;
 
 	if (pdata->disable)
 		pdata->disable(bdev->dev);
@@ -102,8 +102,8 @@ static void gpio_keys_polled_close(struct input_polled_dev *dev)
 
 static int __devinit gpio_keys_polled_probe(struct platform_device *pdev)
 {
-	struct gpio_keys_platform_data *pdata = pdev->dev.platform_data;
 	struct device *dev = &pdev->dev;
+	const struct gpio_keys_platform_data *pdata = dev_get_platdata(dev);
 	struct gpio_keys_polled_dev *bdev;
 	struct input_polled_dev *poll_dev;
 	struct input_dev *input;
@@ -217,7 +217,7 @@ err_free_bdev:
 static int __devexit gpio_keys_polled_remove(struct platform_device *pdev)
 {
 	struct gpio_keys_polled_dev *bdev = platform_get_drvdata(pdev);
-	struct gpio_keys_platform_data *pdata = bdev->pdata;
+	const struct gpio_keys_platform_data *pdata = bdev->pdata;
 	int i;
 
 	input_unregister_polled_device(bdev->poll_dev);
