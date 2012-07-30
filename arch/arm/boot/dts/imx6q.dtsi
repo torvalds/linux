@@ -362,7 +362,6 @@
 				compatible = "fsl,imx6q-wdt", "fsl,imx21-wdt";
 				reg = <0x020bc000 0x4000>;
 				interrupts = <0 80 0x04>;
-				status = "disabled";
 			};
 
 			wdog@020c0000 { /* WDOG2 */

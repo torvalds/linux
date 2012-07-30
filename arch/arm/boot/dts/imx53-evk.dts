@@ -62,10 +62,6 @@
 				};
 			};
 
-			wdog@53f98000 { /* WDOG1 */
-				status = "okay";
-			};
-
 			iomuxc@53fa8000 {
 				compatible = "fsl,imx53-iomuxc-evk";
 				reg = <0x53fa8000 0x4000>;

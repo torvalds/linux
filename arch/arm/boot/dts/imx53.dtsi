@@ -179,7 +179,6 @@
 				compatible = "fsl,imx53-wdt", "fsl,imx21-wdt";
 				reg = <0x53f98000 0x4000>;
 				interrupts = <58>;
-				status = "disabled";
 			};
 
 			wdog@53f9c000 { /* WDOG2 */
