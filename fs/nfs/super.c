@@ -1650,9 +1650,9 @@ static int nfs_request_mount(struct nfs_parsed_mount_data *args,
 	return nfs_walk_authlist(args, &request);
 }
 
-static struct dentry *nfs_try_mount(int flags, const char *dev_name,
-				    struct nfs_mount_info *mount_info,
-				    struct nfs_subversion *nfs_mod)
+struct dentry *nfs_try_mount(int flags, const char *dev_name,
+			     struct nfs_mount_info *mount_info,
+			     struct nfs_subversion *nfs_mod)
 {
 	int status;
 	struct nfs_server *server;
@@ -2403,15 +2403,9 @@ struct dentry *nfs_fs_mount(struct file_system_type *fs_type,
 		goto out;
 	}
 
-#ifdef CONFIG_NFS_V4
-	if (mount_info.parsed->version == 4)
-		mntroot = nfs4_try_mount(flags, dev_name, &mount_info);
-	else
-#endif	/* CONFIG_NFS_V4 */
-		mntroot = nfs_try_mount(flags, dev_name, &mount_info, nfs_mod);
+	mntroot = nfs_mod->rpc_ops->try_mount(flags, dev_name, &mount_info, nfs_mod);
 
 	put_nfs_version(nfs_mod);
-
 out:
 	nfs_free_parsed_mount_data(mount_info.parsed);
 	nfs_free_fhandle(mount_info.mntfh);

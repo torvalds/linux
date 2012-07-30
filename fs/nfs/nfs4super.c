@@ -226,7 +226,8 @@ static struct dentry *nfs_follow_remote_path(struct vfsmount *root_mnt,
 }
 
 struct dentry *nfs4_try_mount(int flags, const char *dev_name,
-			 struct nfs_mount_info *mount_info)
+			      struct nfs_mount_info *mount_info,
+			      struct nfs_subversion *nfs_mod)
 {
 	char *export_path;
 	struct vfsmount *root_mnt;

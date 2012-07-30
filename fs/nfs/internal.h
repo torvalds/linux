@@ -328,6 +328,8 @@ extern struct file_system_type nfs_xdev_fs_type;
 extern struct file_system_type nfs4_xdev_fs_type;
 extern struct file_system_type nfs4_referral_fs_type;
 #endif
+struct dentry *nfs_try_mount(int, const char *, struct nfs_mount_info *,
+			struct nfs_subversion *);
 void nfs_initialise_sb(struct super_block *);
 int nfs_set_sb_security(struct super_block *, struct dentry *, struct nfs_mount_info *);
 int nfs_clone_sb_security(struct super_block *, struct dentry *, struct nfs_mount_info *);

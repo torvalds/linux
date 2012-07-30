@@ -1353,6 +1353,8 @@ struct nfs_renamedata {
 struct nfs_access_entry;
 struct nfs_client;
 struct rpc_timeout;
+struct nfs_subversion;
+struct nfs_mount_info;
 struct nfs_client_initdata;
 struct nfs_pageio_descriptor;
 
@@ -1370,6 +1372,8 @@ struct nfs_rpc_ops {
 			    struct nfs_fsinfo *);
 	struct vfsmount *(*submount) (struct nfs_server *, struct dentry *,
 				      struct nfs_fh *, struct nfs_fattr *);
+	struct dentry *(*try_mount) (int, const char *, struct nfs_mount_info *,
+				     struct nfs_subversion *);
 	int	(*getattr) (struct nfs_server *, struct nfs_fh *,
 			    struct nfs_fattr *);
 	int	(*setattr) (struct dentry *, struct nfs_fattr *,

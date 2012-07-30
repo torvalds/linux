@@ -367,7 +367,7 @@ extern const nfs4_stateid zero_stateid;
 /* nfs4super.c */
 struct nfs_mount_info;
 extern struct nfs_subversion nfs_v4;
-struct dentry *nfs4_try_mount(int, const char *, struct nfs_mount_info *);
+struct dentry *nfs4_try_mount(int, const char *, struct nfs_mount_info *, struct nfs_subversion *);
 int init_nfs_v4(void);
 void exit_nfs_v4(void);
 
