@@ -242,6 +242,9 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 		    mdev->state.role == R_SECONDARY) {
 			seq_printf(seq, "%2d: cs:Unconfigured\n", i);
 		} else {
+			/* reset mdev->congestion_reason */
+			bdi_rw_congested(&mdev->rq_queue->backing_dev_info);
+
 			nc = rcu_dereference(mdev->tconn->net_conf);
 			wp = nc ? nc->wire_protocol - DRBD_PROT_A + 'A' : ' ';
 			seq_printf(seq,
