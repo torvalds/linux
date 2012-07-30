@@ -1549,14 +1549,6 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 		return;
 	}
 
-	if (mdev->state.conn < C_AHEAD) {
-		/* In case a previous resync run was aborted by an IO error/detach on the peer. */
-		drbd_rs_cancel_all(mdev);
-		/* This should be done when we abort the resync. We definitely do not
-		   want to have this for connections going back and forth between
-		   Ahead/Behind and SyncSource/SyncTarget */
-	}
-
 	if (!test_bit(B_RS_H_DONE, &mdev->flags)) {
 		if (side == C_SYNC_TARGET) {
 			/* Since application IO was locked out during C_WF_BITMAP_T and
