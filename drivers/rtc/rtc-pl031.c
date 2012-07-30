@@ -68,7 +68,16 @@
 
 #define RTC_TIMER_FREQ 32768
 
+/**
+ * struct pl031_vendor_data - per-vendor variations
+ * @ops: the vendor-specific operations used on this silicon version
+ */
+struct pl031_vendor_data {
+	struct rtc_class_ops ops;
+};
+
 struct pl031_local {
+	struct pl031_vendor_data *vendor;
 	struct rtc_device *rtc;
 	void __iomem *base;
 	u8 hw_designer;
@@ -303,7 +312,8 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret;
 	struct pl031_local *ldata;
-	struct rtc_class_ops *ops = id->data;
+	struct pl031_vendor_data *vendor = id->data;
+	struct rtc_class_ops *ops = &vendor->ops;
 	unsigned long time;
 
 	ret = amba_request_regions(adev, NULL);
@@ -315,6 +325,7 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 		ret = -ENOMEM;
 		goto out;
 	}
+	ldata->vendor = vendor;
 
 	ldata->base = ioremap(adev->res.start, resource_size(&adev->res));
 
@@ -383,48 +394,54 @@ err_req:
 }
 
 /* Operations for the original ARM version */
-static struct rtc_class_ops arm_pl031_ops = {
-	.read_time = pl031_read_time,
-	.set_time = pl031_set_time,
-	.read_alarm = pl031_read_alarm,
-	.set_alarm = pl031_set_alarm,
-	.alarm_irq_enable = pl031_alarm_irq_enable,
+static struct pl031_vendor_data arm_pl031 = {
+	.ops = {
+		.read_time = pl031_read_time,
+		.set_time = pl031_set_time,
+		.read_alarm = pl031_read_alarm,
+		.set_alarm = pl031_set_alarm,
+		.alarm_irq_enable = pl031_alarm_irq_enable,
+	},
 };
 
 /* The First ST derivative */
-static struct rtc_class_ops stv1_pl031_ops = {
-	.read_time = pl031_read_time,
-	.set_time = pl031_set_time,
-	.read_alarm = pl031_read_alarm,
-	.set_alarm = pl031_set_alarm,
-	.alarm_irq_enable = pl031_alarm_irq_enable,
+static struct pl031_vendor_data stv1_pl031 = {
+	.ops = {
+		.read_time = pl031_read_time,
+		.set_time = pl031_set_time,
+		.read_alarm = pl031_read_alarm,
+		.set_alarm = pl031_set_alarm,
+		.alarm_irq_enable = pl031_alarm_irq_enable,
+	},
 };
 
 /* And the second ST derivative */
-static struct rtc_class_ops stv2_pl031_ops = {
-	.read_time = pl031_stv2_read_time,
-	.set_time = pl031_stv2_set_time,
-	.read_alarm = pl031_stv2_read_alarm,
-	.set_alarm = pl031_stv2_set_alarm,
-	.alarm_irq_enable = pl031_alarm_irq_enable,
+static struct pl031_vendor_data stv2_pl031 = {
+	.ops = {
+		.read_time = pl031_stv2_read_time,
+		.set_time = pl031_stv2_set_time,
+		.read_alarm = pl031_stv2_read_alarm,
+		.set_alarm = pl031_stv2_set_alarm,
+		.alarm_irq_enable = pl031_alarm_irq_enable,
+	},
 };
 
 static struct amba_id pl031_ids[] = {
 	{
 		.id = 0x00041031,
 		.mask = 0x000fffff,
-		.data = &arm_pl031_ops,
+		.data = &arm_pl031,
 	},
 	/* ST Micro variants */
 	{
 		.id = 0x00180031,
 		.mask = 0x00ffffff,
-		.data = &stv1_pl031_ops,
+		.data = &stv1_pl031,
 	},
 	{
 		.id = 0x00280031,
 		.mask = 0x00ffffff,
-		.data = &stv2_pl031_ops,
+		.data = &stv2_pl031,
 	},
 	{0, 0},
 };
