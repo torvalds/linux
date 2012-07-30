@@ -834,20 +834,7 @@ static struct platform_driver ds2781_battery_driver = {
 	.probe	  = ds2781_battery_probe,
 	.remove   = __devexit_p(ds2781_battery_remove),
 };
-
-static int __init ds2781_battery_init(void)
-{
-	return platform_driver_register(&ds2781_battery_driver);
-}
-
-static void __exit ds2781_battery_exit(void)
-{
-	platform_driver_unregister(&ds2781_battery_driver);
-}
-
-module_init(ds2781_battery_init);
-module_exit(ds2781_battery_exit);
-
+module_platform_driver(ds2781_battery_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Renata Sayakhova <renata@oktetlabs.ru>");
