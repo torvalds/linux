@@ -1674,26 +1674,6 @@ int nfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	return nfs_commit_unstable_pages(inode, wbc);
 }
 
-#ifdef CONFIG_NFS_V4
-int nfs4_write_inode(struct inode *inode, struct writeback_control *wbc)
-{
-	int ret = nfs_write_inode(inode, wbc);
-
-	if (ret >= 0 && test_bit(NFS_INO_LAYOUTCOMMIT, &NFS_I(inode)->flags)) {
-		int status;
-		bool sync = true;
-
-		if (wbc->sync_mode == WB_SYNC_NONE)
-			sync = false;
-
-		status = pnfs_layoutcommit_inode(inode, sync);
-		if (status < 0)
-			return status;
-	}
-	return ret;
-}
-#endif
-
 /*
  * flush the inode to disk.
  */

@@ -6,12 +6,16 @@
 #include <linux/nfs_idmap.h>
 #include <linux/nfs4_mount.h>
 #include <linux/nfs_fs.h>
+#include "delegation.h"
 #include "internal.h"
 #include "nfs4_fs.h"
+#include "pnfs.h"
 #include "nfs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
+static int nfs4_write_inode(struct inode *inode, struct writeback_control *wbc);
+static void nfs4_evict_inode(struct inode *inode);
 static struct dentry *nfs4_remote_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *raw_data);
 static struct dentry *nfs4_referral_mount(struct file_system_type *fs_type,
@@ -74,6 +78,41 @@ struct nfs_subversion nfs_v4 = {
 	.sops     = &nfs4_sops,
 	.xattr    = nfs4_xattr_handlers,
 };
+
+static int nfs4_write_inode(struct inode *inode, struct writeback_control *wbc)
+{
+	int ret = nfs_write_inode(inode, wbc);
+
+	if (ret >= 0 && test_bit(NFS_INO_LAYOUTCOMMIT, &NFS_I(inode)->flags)) {
+		int status;
+		bool sync = true;
+
+		if (wbc->sync_mode == WB_SYNC_NONE)
+			sync = false;
+
+		status = pnfs_layoutcommit_inode(inode, sync);
+		if (status < 0)
+			return status;
+	}
+	return ret;
+}
+
+/*
+ * Clean out any remaining NFSv4 state that might be left over due
+ * to open() calls that passed nfs_atomic_lookup, but failed to call
+ * nfs_open().
+ */
+static void nfs4_evict_inode(struct inode *inode)
+{
+	truncate_inode_pages(&inode->i_data, 0);
+	clear_inode(inode);
+	pnfs_return_layout(inode);
+	pnfs_destroy_layout(NFS_I(inode));
+	/* If we are holding a delegation, return it! */
+	nfs_inode_return_delegation_noreclaim(inode);
+	/* First call standard NFS clear_inode() code */
+	nfs_clear_inode(inode);
+}
 
 /*
  * Get the superblock for the NFS4 root partition
