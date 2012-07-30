@@ -2074,6 +2074,7 @@ sub do_run_test {
     my $line;
     my $full_line;
     my $bug = 0;
+    my $bug_ignored = 0;
 
     wait_for_monitor 1;
 
@@ -2098,7 +2099,11 @@ sub do_run_test {
 	    doprint $line;
 
 	    if ($full_line =~ /call trace:/i) {
-		$bug = 1;
+		if ($ignore_errors) {
+		    $bug_ignored = 1;
+		} else {
+		    $bug = 1;
+		}
 	    }
 
 	    if ($full_line =~ /Kernel panic -/) {
@@ -2110,6 +2115,10 @@ sub do_run_test {
 	    }
 	}
     } while (!$child_done && !$bug);
+
+    if (!$bug && $bug_ignored) {
+	doprint "WARNING: Call Trace detected but ignored due to IGNORE_ERRORS=1\n";
+    }
 
     if ($bug) {
 	my $failure_start = time;
