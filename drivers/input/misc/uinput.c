@@ -59,7 +59,7 @@ static int uinput_dev_event(struct input_dev *dev, unsigned int type, unsigned i
 static bool uinput_request_alloc_id(struct uinput_device *udev,
 				    struct uinput_request *request)
 {
-	int id;
+	unsigned int id;
 	bool reserved = false;
 
 	spin_lock(&udev->requests_lock);
@@ -77,10 +77,11 @@ static bool uinput_request_alloc_id(struct uinput_device *udev,
 	return reserved;
 }
 
-static struct uinput_request *uinput_request_find(struct uinput_device *udev, int id)
+static struct uinput_request *uinput_request_find(struct uinput_device *udev,
+						  unsigned int id)
 {
 	/* Find an input request, by ID. Returns NULL if the ID isn't valid. */
-	if (id >= UINPUT_NUM_REQUESTS || id < 0)
+	if (id >= UINPUT_NUM_REQUESTS)
 		return NULL;
 
 	return udev->requests[id];
@@ -556,8 +557,8 @@ static int uinput_release(struct inode *inode, struct file *file)
 
 #ifdef CONFIG_COMPAT
 struct uinput_ff_upload_compat {
-	int			request_id;
-	int			retval;
+	__u32			request_id;
+	__s32			retval;
 	struct ff_effect_compat	effect;
 	struct ff_effect_compat	old;
 };
