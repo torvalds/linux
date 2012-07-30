@@ -806,7 +806,7 @@ out:
 
 static int smmu_iommu_domain_init(struct iommu_domain *domain)
 {
-	int i, err = -ENODEV;
+	int i, err = -EAGAIN;
 	unsigned long flags;
 	struct smmu_as *as;
 	struct smmu_device *smmu = smmu_handle;
