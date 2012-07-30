@@ -1364,8 +1364,10 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 	spin_lock(&fs_info->qgroup_lock);
 
 	dstgroup = add_qgroup_rb(fs_info, objectid);
-	if (!dstgroup)
+	if (IS_ERR(dstgroup)) {
+		ret = PTR_ERR(dstgroup);
 		goto unlock;
+	}
 
 	if (srcid) {
 		srcgroup = find_qgroup_rb(fs_info, srcid);
