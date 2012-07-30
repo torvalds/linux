@@ -96,7 +96,6 @@ struct picolcd_data {
 	u8 *fb_vbitmap;		/* local copy of what was sent to PicoLCD */
 	u8 *fb_bitmap;		/* framebuffer */
 	struct fb_info *fb_info;
-	struct fb_deferred_io fb_defio;
 #endif /* CONFIG_HID_PICOLCD_FB */
 #ifdef CONFIG_HID_PICOLCD_LCD
 	struct lcd_device *lcd;
@@ -179,8 +178,6 @@ int picolcd_init_framebuffer(struct picolcd_data *data);
 
 void picolcd_exit_framebuffer(struct picolcd_data *data);
 
-void picolcd_fb_unload(void);
-
 void picolcd_fb_refresh(struct picolcd_data *data);
 #define picolcd_fbinfo(d) ((d)->fb_info)
 #else
@@ -193,9 +190,6 @@ static inline int picolcd_init_framebuffer(struct picolcd_data *data)
 	return 0;
 }
 static inline void picolcd_exit_framebuffer(struct picolcd_data *data)
-{
-}
-static inline void picolcd_fb_unload(void)
 {
 }
 static inline void picolcd_fb_refresh(struct picolcd_data *data)

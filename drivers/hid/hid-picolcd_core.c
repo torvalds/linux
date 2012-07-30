@@ -695,7 +695,6 @@ static int __init picolcd_init(void)
 static void __exit picolcd_exit(void)
 {
 	hid_unregister_driver(&picolcd_driver);
-	picolcd_fb_unload();
 }
 
 module_init(picolcd_init);

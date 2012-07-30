@@ -256,7 +256,7 @@ static void picolcd_fb_update(struct picolcd_data *data)
 					data->fb_bitmap, data->fb_bpp, chip, tile) ||
 				data->fb_force) {
 				n += 2;
-				if (!data->fb_info->par)
+				if (data->status & PICOLCD_FAILED)
 					return; /* device lost! */
 				if (n >= HID_OUTPUT_FIFO_SIZE / 2) {
 					usbhid_wait_io(data->hdev);
@@ -327,24 +327,17 @@ static int picolcd_fb_blank(int blank, struct fb_info *info)
 
 static void picolcd_fb_destroy(struct fb_info *info)
 {
-	struct picolcd_data *data = info->par;
-	u32 *ref_cnt = info->pseudo_palette;
-	int may_release;
+	struct picolcd_data *data;
 
+	/* make sure no work is deferred */
+	cancel_delayed_work_sync(&info->deferred_work);
+	data = info->par;
 	info->par = NULL;
 	if (data)
 		data->fb_info = NULL;
-	fb_deferred_io_cleanup(info);
 
-	ref_cnt--;
-	mutex_lock(&info->lock);
-	(*ref_cnt)--;
-	may_release = !*ref_cnt;
-	mutex_unlock(&info->lock);
-	if (may_release) {
-		vfree((u8 *)info->fix.smem_start);
-		framebuffer_release(info);
-	}
+	vfree((u8 *)info->fix.smem_start);
+	framebuffer_release(info);
 }
 
 static int picolcd_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
@@ -414,77 +407,10 @@ static int picolcd_set_par(struct fb_info *info)
 	return 0;
 }
 
-/* Do refcounting on our FB and cleanup per worker if FB is
- * closed after unplug of our device
- * (fb_release holds info->lock and still touches info after
- *  we return so we can't release it immediately.
- */
-struct picolcd_fb_cleanup_item {
-	struct fb_info *info;
-	struct picolcd_fb_cleanup_item *next;
-};
-static struct picolcd_fb_cleanup_item *fb_pending;
-static DEFINE_SPINLOCK(fb_pending_lock);
-
-static void picolcd_fb_do_cleanup(struct work_struct *data)
-{
-	struct picolcd_fb_cleanup_item *item;
-	unsigned long flags;
-
-	do {
-		spin_lock_irqsave(&fb_pending_lock, flags);
-		item = fb_pending;
-		fb_pending = item ? item->next : NULL;
-		spin_unlock_irqrestore(&fb_pending_lock, flags);
-
-		if (item) {
-			u8 *fb = (u8 *)item->info->fix.smem_start;
-			/* make sure we do not race against fb core when
-			 * releasing */
-			mutex_lock(&item->info->lock);
-			mutex_unlock(&item->info->lock);
-			framebuffer_release(item->info);
-			vfree(fb);
-		}
-	} while (item);
-}
-
-static DECLARE_WORK(picolcd_fb_cleanup, picolcd_fb_do_cleanup);
-
-static int picolcd_fb_open(struct fb_info *info, int u)
-{
-	u32 *ref_cnt = info->pseudo_palette;
-	ref_cnt--;
-
-	(*ref_cnt)++;
-	return 0;
-}
-
-static int picolcd_fb_release(struct fb_info *info, int u)
-{
-	u32 *ref_cnt = info->pseudo_palette;
-	ref_cnt--;
-
-	(*ref_cnt)++;
-	if (!*ref_cnt) {
-		unsigned long flags;
-		struct picolcd_fb_cleanup_item *item = (struct picolcd_fb_cleanup_item *)ref_cnt;
-		item--;
-		spin_lock_irqsave(&fb_pending_lock, flags);
-		item->next = fb_pending;
-		fb_pending = item;
-		spin_unlock_irqrestore(&fb_pending_lock, flags);
-		schedule_work(&picolcd_fb_cleanup);
-	}
-	return 0;
-}
-
 /* Note this can't be const because of struct fb_info definition */
 static struct fb_ops picolcdfb_ops = {
 	.owner        = THIS_MODULE,
 	.fb_destroy   = picolcd_fb_destroy,
-	.fb_open      = picolcd_fb_open,
-	.fb_release   = picolcd_fb_release,
 	.fb_read      = fb_sys_read,
 	.fb_write     = picolcd_fb_write,
 	.fb_blank     = picolcd_fb_blank,
@@ -550,7 +476,7 @@ static ssize_t picolcd_fb_update_rate_store(struct device *dev,
 		u = PICOLCDFB_UPDATE_RATE_DEFAULT;
 
 	data->fb_update_rate = u;
-	data->fb_defio.delay = HZ / data->fb_update_rate;
+	data->fb_info->fbdefio->delay = HZ / data->fb_update_rate;
 	return count;
 }
 
@@ -580,25 +506,23 @@ int picolcd_init_framebuffer(struct picolcd_data *data)
 	}
 
 	data->fb_update_rate = PICOLCDFB_UPDATE_RATE_DEFAULT;
-	data->fb_defio = picolcd_fb_defio;
 	/* The extra memory is:
-	 * - struct picolcd_fb_cleanup_item
-	 * - u32 for ref_count
 	 * - 256*u32 for pseudo_palette
+	 * - struct fb_deferred_io
 	 */
-	info = framebuffer_alloc(257 * sizeof(u32) + sizeof(struct picolcd_fb_cleanup_item), dev);
+	info = framebuffer_alloc(256 * sizeof(u32) +
+			sizeof(struct fb_deferred_io), dev);
 	if (info == NULL) {
 		dev_err(dev, "failed to allocate a framebuffer\n");
 		goto err_nomem;
 	}
 
-	palette  = info->par + sizeof(struct picolcd_fb_cleanup_item);
-	*palette = 1;
-	palette++;
+	info->fbdefio = info->par;
+	*info->fbdefio = picolcd_fb_defio;
+	palette  = info->par + sizeof(struct fb_deferred_io);
 	for (i = 0; i < 256; i++)
 		palette[i] = i > 0 && i < 16 ? 0xff : 0;
 	info->pseudo_palette = palette;
-	info->fbdefio = &data->fb_defio;
 	info->screen_base = (char __force __iomem *)fb_bitmap;
 	info->fbops = &picolcdfb_ops;
 	info->var = picolcdfb_var;
@@ -658,16 +582,14 @@ void picolcd_exit_framebuffer(struct picolcd_data *data)
 		return;
 
 	device_remove_file(&data->hdev->dev, &dev_attr_fb_update_rate);
+	mutex_lock(&info->lock);
+	fb_deferred_io_cleanup(info);
+	info->par = NULL;
+	mutex_unlock(&info->lock);
 	unregister_framebuffer(info);
 	data->fb_vbitmap = NULL;
 	data->fb_bitmap  = NULL;
 	data->fb_bpp     = 0;
 	data->fb_info    = NULL;
 	kfree(fb_vbitmap);
-}
-
-void picolcd_fb_unload()
-{
-	flush_work_sync(&picolcd_fb_cleanup);
-	WARN_ON(fb_pending);
 }
