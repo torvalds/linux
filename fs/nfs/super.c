@@ -2445,10 +2445,15 @@ void nfs_kill_super(struct super_block *s)
  * Clone an NFS2/3/4 server record on xdev traversal (FSID-change)
  */
 struct dentry *
-nfs_xdev_mount_common(struct file_system_type *fs_type, int flags,
-		const char *dev_name, struct nfs_mount_info *mount_info)
+nfs_xdev_mount(struct file_system_type *fs_type, int flags,
+		const char *dev_name, void *raw_data)
 {
-	struct nfs_clone_mount *data = mount_info->cloned;
+	struct nfs_clone_mount *data = raw_data;
+	struct nfs_mount_info mount_info = {
+		.fill_super = nfs_clone_super,
+		.set_security = nfs_clone_sb_security,
+		.cloned = data,
+	};
 	struct nfs_server *server;
 	struct dentry *mntroot = ERR_PTR(-ENOMEM);
 	struct nfs_subversion *nfs_mod = NFS_SB(data->sb)->nfs_client->cl_nfs_mod;
@@ -2456,7 +2461,7 @@ nfs_xdev_mount_common(struct file_system_type *fs_type, int flags,
 
 	dprintk("--> nfs_xdev_mount_common()\n");
 
-	mount_info->mntfh = data->fh;
+	mount_info.mntfh = mount_info.cloned->fh;
 
 	/* create a new volume representation */
 	server = nfs_clone_server(NFS_SB(data->sb), data->fh, data->fattr, data->authflavor);
@@ -2465,7 +2470,7 @@ nfs_xdev_mount_common(struct file_system_type *fs_type, int flags,
 		goto out_err;
 	}
 
-	mntroot = nfs_fs_mount_common(server, flags, dev_name, mount_info, nfs_mod);
+	mntroot = nfs_fs_mount_common(server, flags, dev_name, &mount_info, nfs_mod);
 	dprintk("<-- nfs_xdev_mount_common() = 0\n");
 out:
 	return mntroot;
@@ -2473,21 +2478,6 @@ out:
 out_err:
 	dprintk("<-- nfs_xdev_mount_common() = %d [error]\n", error);
 	goto out;
-}
-
-/*
- * Clone an NFS2/3 server record on xdev traversal (FSID-change)
- */
-static struct dentry *
-nfs_xdev_mount(struct file_system_type *fs_type, int flags,
-		const char *dev_name, void *raw_data)
-{
-	struct nfs_mount_info mount_info = {
-		.fill_super = nfs_clone_super,
-		.set_security = nfs_clone_sb_security,
-		.cloned   = raw_data,
-	};
-	return nfs_xdev_mount_common(&nfs_fs_type, flags, dev_name, &mount_info);
 }
 
 #ifdef CONFIG_NFS_V4
