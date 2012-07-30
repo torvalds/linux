@@ -439,6 +439,9 @@ static ssize_t uinput_write(struct file *file, const char __user *buffer, size_t
 	struct uinput_device *udev = file->private_data;
 	int retval;
 
+	if (count == 0)
+		return 0;
+
 	retval = mutex_lock_interruptible(&udev->mutex);
 	if (retval)
 		return retval;
@@ -470,48 +473,59 @@ static bool uinput_fetch_next_event(struct uinput_device *udev,
 	return have_event;
 }
 
-static ssize_t uinput_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
+static ssize_t uinput_events_to_user(struct uinput_device *udev,
+				     char __user *buffer, size_t count)
+{
+	struct input_event event;
+	size_t read = 0;
+	int error = 0;
+
+	while (read + input_event_size() <= count &&
+	       uinput_fetch_next_event(udev, &event)) {
+
+		if (input_event_to_user(buffer + read, &event)) {
+			error = -EFAULT;
+			break;
+		}
+
+		read += input_event_size();
+	}
+
+	return read ?: error;
+}
+
+static ssize_t uinput_read(struct file *file, char __user *buffer,
+			   size_t count, loff_t *ppos)
 {
 	struct uinput_device *udev = file->private_data;
-	struct input_event event;
-	int retval = 0;
+	ssize_t retval;
 
 	if (count != 0 && count < input_event_size())
 		return -EINVAL;
 
-	if (udev->state != UIST_CREATED)
-		return -ENODEV;
+	do {
+		retval = mutex_lock_interruptible(&udev->mutex);
+		if (retval)
+			return retval;
 
-	if (udev->head == udev->tail && (file->f_flags & O_NONBLOCK))
-		return -EAGAIN;
+		if (udev->state != UIST_CREATED)
+			retval = -ENODEV;
+		else if (udev->head == udev->tail &&
+			 (file->f_flags & O_NONBLOCK))
+			retval = -EAGAIN;
+		else
+			retval = uinput_events_to_user(udev, buffer, count);
 
-	retval = wait_event_interruptible(udev->waitq,
-			udev->head != udev->tail || udev->state != UIST_CREATED);
-	if (retval)
-		return retval;
+		mutex_unlock(&udev->mutex);
 
-	retval = mutex_lock_interruptible(&udev->mutex);
-	if (retval)
-		return retval;
+		if (retval || count == 0)
+			break;
 
-	if (udev->state != UIST_CREATED) {
-		retval = -ENODEV;
-		goto out;
-	}
-
-	while (retval + input_event_size() <= count &&
-	       uinput_fetch_next_event(udev, &event)) {
-
-		if (input_event_to_user(buffer + retval, &event)) {
-			retval = -EFAULT;
-			goto out;
-		}
-
-		retval += input_event_size();
-	}
-
- out:
-	mutex_unlock(&udev->mutex);
+		if (!(file->f_flags & O_NONBLOCK))
+			retval = wait_event_interruptible(udev->waitq,
+						  udev->head != udev->tail ||
+						  udev->state != UIST_CREATED);
+	} while (retval == 0);
 
 	return retval;
 }
