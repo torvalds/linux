@@ -2287,14 +2287,18 @@ restart:
 	ret = try_read(con);
 	if (ret == -EAGAIN)
 		goto restart;
-	if (ret < 0)
+	if (ret < 0) {
+		con->error_msg = "socket error on read";
 		goto fault;
+	}
 
 	ret = try_write(con);
 	if (ret == -EAGAIN)
 		goto restart;
-	if (ret < 0)
+	if (ret < 0) {
+		con->error_msg = "socket error on write";
 		goto fault;
+	}
 
 done:
 	mutex_unlock(&con->mutex);
