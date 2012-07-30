@@ -56,10 +56,11 @@ static int uinput_dev_event(struct input_dev *dev, unsigned int type, unsigned i
 }
 
 /* Atomically allocate an ID for the given request. Returns 0 on success. */
-static int uinput_request_alloc_id(struct uinput_device *udev, struct uinput_request *request)
+static bool uinput_request_alloc_id(struct uinput_device *udev,
+				    struct uinput_request *request)
 {
 	int id;
-	int err = -1;
+	bool reserved = false;
 
 	spin_lock(&udev->requests_lock);
 
@@ -67,13 +68,13 @@ static int uinput_request_alloc_id(struct uinput_device *udev, struct uinput_req
 		if (!udev->requests[id]) {
 			request->id = id;
 			udev->requests[id] = request;
-			err = 0;
+			reserved = true;
 			break;
 		}
 	}
 
 	spin_unlock(&udev->requests_lock);
-	return err;
+	return reserved;
 }
 
 static struct uinput_request *uinput_request_find(struct uinput_device *udev, int id)
@@ -85,11 +86,12 @@ static struct uinput_request *uinput_request_find(struct uinput_device *udev, in
 	return udev->requests[id];
 }
 
-static inline int uinput_request_reserve_slot(struct uinput_device *udev, struct uinput_request *request)
+static int uinput_request_reserve_slot(struct uinput_device *udev,
+				       struct uinput_request *request)
 {
 	/* Allocate slot. If none are available right away, wait. */
 	return wait_event_interruptible(udev->requests_waitq,
-					!uinput_request_alloc_id(udev, request));
+					uinput_request_alloc_id(udev, request));
 }
 
 static void uinput_request_done(struct uinput_device *udev, struct uinput_request *request)
@@ -101,13 +103,10 @@ static void uinput_request_done(struct uinput_device *udev, struct uinput_reques
 	complete(&request->done);
 }
 
-static int uinput_request_submit(struct uinput_device *udev, struct uinput_request *request)
+static int uinput_request_send(struct uinput_device *udev,
+			       struct uinput_request *request)
 {
 	int retval;
-
-	retval = uinput_request_reserve_slot(udev, request);
-	if (retval)
-		return retval;
 
 	retval = mutex_lock_interruptible(&udev->mutex);
 	if (retval)
@@ -118,12 +117,36 @@ static int uinput_request_submit(struct uinput_device *udev, struct uinput_reque
 		goto out;
 	}
 
-	/* Tell our userspace app about this new request by queueing an input event */
+	init_completion(&request->done);
+
+	/*
+	 * Tell our userspace application about this new request
+	 * by queueing an input event.
+	 */
 	uinput_dev_event(udev->dev, EV_UINPUT, request->code, request->id);
 
  out:
 	mutex_unlock(&udev->mutex);
 	return retval;
+}
+
+static int uinput_request_submit(struct uinput_device *udev,
+				 struct uinput_request *request)
+{
+	int error;
+
+	error = uinput_request_reserve_slot(udev, request);
+	if (error)
+		return error;
+
+	error = uinput_request_send(udev, request);
+	if (error) {
+		uinput_request_done(udev, request);
+		return error;
+	}
+
+	wait_for_completion(&request->done);
+	return request->retval;
 }
 
 /*
@@ -167,7 +190,6 @@ static int uinput_dev_upload_effect(struct input_dev *dev, struct ff_effect *eff
 {
 	struct uinput_device *udev = input_get_drvdata(dev);
 	struct uinput_request request;
-	int retval;
 
 	/*
 	 * uinput driver does not currently support periodic effects with
@@ -180,42 +202,25 @@ static int uinput_dev_upload_effect(struct input_dev *dev, struct ff_effect *eff
 			effect->u.periodic.waveform == FF_CUSTOM)
 		return -EINVAL;
 
-	request.id = -1;
-	init_completion(&request.done);
 	request.code = UI_FF_UPLOAD;
 	request.u.upload.effect = effect;
 	request.u.upload.old = old;
 
-	retval = uinput_request_submit(udev, &request);
-	if (!retval) {
-		wait_for_completion(&request.done);
-		retval = request.retval;
-	}
-
-	return retval;
+	return uinput_request_submit(udev, &request);
 }
 
 static int uinput_dev_erase_effect(struct input_dev *dev, int effect_id)
 {
 	struct uinput_device *udev = input_get_drvdata(dev);
 	struct uinput_request request;
-	int retval;
 
 	if (!test_bit(EV_FF, dev->evbit))
 		return -ENOSYS;
 
-	request.id = -1;
-	init_completion(&request.done);
 	request.code = UI_FF_ERASE;
 	request.u.effect_id = effect_id;
 
-	retval = uinput_request_submit(udev, &request);
-	if (!retval) {
-		wait_for_completion(&request.done);
-		retval = request.retval;
-	}
-
-	return retval;
+	return uinput_request_submit(udev, &request);
 }
 
 static void uinput_destroy_device(struct uinput_device *udev)
@@ -478,20 +483,17 @@ static ssize_t uinput_events_to_user(struct uinput_device *udev,
 {
 	struct input_event event;
 	size_t read = 0;
-	int error = 0;
 
 	while (read + input_event_size() <= count &&
 	       uinput_fetch_next_event(udev, &event)) {
 
-		if (input_event_to_user(buffer + read, &event)) {
-			error = -EFAULT;
-			break;
-		}
+		if (input_event_to_user(buffer + read, &event))
+			return -EFAULT;
 
 		read += input_event_size();
 	}
 
-	return read ?: error;
+	return read;
 }
 
 static ssize_t uinput_read(struct file *file, char __user *buffer,
