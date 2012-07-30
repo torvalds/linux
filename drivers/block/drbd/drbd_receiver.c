@@ -295,6 +295,9 @@ static void drbd_free_pages(struct drbd_conf *mdev, struct page *page, int is_ne
 	atomic_t *a = is_net ? &mdev->pp_in_use_by_net : &mdev->pp_in_use;
 	int i;
 
+	if (page == NULL)
+		return;
+
 	if (drbd_pp_vacant > (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * minor_count)
 		i = page_chain_free(page);
 	else {
@@ -331,7 +334,7 @@ drbd_alloc_peer_req(struct drbd_conf *mdev, u64 id, sector_t sector,
 		    unsigned int data_size, gfp_t gfp_mask) __must_hold(local)
 {
 	struct drbd_peer_request *peer_req;
-	struct page *page;
+	struct page *page = NULL;
 	unsigned nr_pages = (data_size + PAGE_SIZE -1) >> PAGE_SHIFT;
 
 	if (drbd_insert_fault(mdev, DRBD_FAULT_AL_EE))
@@ -344,9 +347,11 @@ drbd_alloc_peer_req(struct drbd_conf *mdev, u64 id, sector_t sector,
 		return NULL;
 	}
 
-	page = drbd_alloc_pages(mdev, nr_pages, (gfp_mask & __GFP_WAIT));
-	if (!page)
-		goto fail;
+	if (data_size) {
+		page = drbd_alloc_pages(mdev, nr_pages, (gfp_mask & __GFP_WAIT));
+		if (!page)
+			goto fail;
+	}
 
 	drbd_clear_interval(&peer_req->i);
 	peer_req->i.size = data_size;
@@ -1513,8 +1518,6 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
 		data_size -= dgs;
 	}
 
-	if (!expect(data_size != 0))
-		return NULL;
 	if (!expect(IS_ALIGNED(data_size, 512)))
 		return NULL;
 	if (!expect(data_size <= DRBD_MAX_BIO_SIZE))
@@ -1536,6 +1539,9 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
 	peer_req = drbd_alloc_peer_req(mdev, id, sector, data_size, GFP_NOIO);
 	if (!peer_req)
 		return NULL;
+
+	if (!data_size)
+		return peer_req;
 
 	ds = data_size;
 	page = peer_req->pages;
@@ -2199,6 +2205,10 @@ static int receive_Data(struct drbd_tconn *tconn, struct packet_info *pi)
 
 	dp_flags = be32_to_cpu(p->dp_flags);
 	rw |= wire_flags_to_bio(mdev, dp_flags);
+	if (peer_req->pages == NULL) {
+		D_ASSERT(peer_req->i.size == 0);
+		D_ASSERT(dp_flags & DP_FLUSH);
+	}
 
 	if (dp_flags & DP_MAY_SET_IN_SYNC)
 		peer_req->flags |= EE_MAY_SET_IN_SYNC;

@@ -1097,7 +1097,6 @@ int drbd_make_request(struct request_queue *q, struct bio *bio)
 	/*
 	 * what we "blindly" assume:
 	 */
-	D_ASSERT(bio->bi_size > 0);
 	D_ASSERT(IS_ALIGNED(bio->bi_size, 512));
 
 	inc_ap_bio(mdev);
