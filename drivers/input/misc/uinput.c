@@ -452,9 +452,28 @@ static ssize_t uinput_write(struct file *file, const char __user *buffer, size_t
 	return retval;
 }
 
+static bool uinput_fetch_next_event(struct uinput_device *udev,
+				    struct input_event *event)
+{
+	bool have_event;
+
+	spin_lock_irq(&udev->dev->event_lock);
+
+	have_event = udev->head != udev->tail;
+	if (have_event) {
+		*event = udev->buff[udev->tail];
+		udev->tail = (udev->tail + 1) % UINPUT_BUFFER_SIZE;
+	}
+
+	spin_unlock_irq(&udev->dev->event_lock);
+
+	return have_event;
+}
+
 static ssize_t uinput_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
 	struct uinput_device *udev = file->private_data;
+	struct input_event event;
 	int retval = 0;
 
 	if (udev->state != UIST_CREATED)
@@ -477,12 +496,14 @@ static ssize_t uinput_read(struct file *file, char __user *buffer, size_t count,
 		goto out;
 	}
 
-	while (udev->head != udev->tail && retval + input_event_size() <= count) {
-		if (input_event_to_user(buffer + retval, &udev->buff[udev->tail])) {
+	while (retval + input_event_size() <= count &&
+	       uinput_fetch_next_event(udev, &event)) {
+
+		if (input_event_to_user(buffer + retval, &event)) {
 			retval = -EFAULT;
 			goto out;
 		}
-		udev->tail = (udev->tail + 1) % UINPUT_BUFFER_SIZE;
+
 		retval += input_event_size();
 	}
 
