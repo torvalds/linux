@@ -174,6 +174,11 @@ static int proc_dointvec_minmax_sysadmin(struct ctl_table *table, int write,
 				void __user *buffer, size_t *lenp, loff_t *ppos);
 #endif
 
+static int proc_dointvec_minmax_coredump(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos);
+static int proc_dostring_coredump(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos);
+
 #ifdef CONFIG_MAGIC_SYSRQ
 /* Note: sysrq code uses it's own private copy */
 static int __sysrq_enabled = SYSRQ_DEFAULT_ENABLE;
@@ -410,7 +415,7 @@ static struct ctl_table kern_table[] = {
 		.data		= core_pattern,
 		.maxlen		= CORENAME_MAX_SIZE,
 		.mode		= 0644,
-		.proc_handler	= proc_dostring,
+		.proc_handler	= proc_dostring_coredump,
 	},
 	{
 		.procname	= "core_pipe_limit",
@@ -1498,7 +1503,7 @@ static struct ctl_table fs_table[] = {
 		.data		= &suid_dumpable,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax_coredump,
 		.extra1		= &zero,
 		.extra2		= &two,
 	},
@@ -2007,6 +2012,34 @@ int proc_dointvec_minmax(struct ctl_table *table, int write,
 	};
 	return do_proc_dointvec(table, write, buffer, lenp, ppos,
 				do_proc_dointvec_minmax_conv, &param);
+}
+
+static void validate_coredump_safety(void)
+{
+	if (suid_dumpable == SUID_DUMPABLE_SAFE &&
+	    core_pattern[0] != '/' && core_pattern[0] != '|') {
+		printk(KERN_WARNING "Unsafe core_pattern used with "\
+			"suid_dumpable=2. Pipe handler or fully qualified "\
+			"core dump path required.\n");
+	}
+}
+
+static int proc_dointvec_minmax_coredump(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int error = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (!error)
+		validate_coredump_safety();
+	return error;
+}
+
+static int proc_dostring_coredump(struct ctl_table *table, int write,
+		  void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int error = proc_dostring(table, write, buffer, lenp, ppos);
+	if (!error)
+		validate_coredump_safety();
+	return error;
 }
 
 static int __do_proc_doulongvec_minmax(void *data, struct ctl_table *table, int write,
