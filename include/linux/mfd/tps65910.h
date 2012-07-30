@@ -957,9 +957,9 @@ struct tps65910 {
 	int (*write)(struct tps65910 *tps65910, u8 reg, int size, void *src);
 
 	/* Client devices */
-	struct tps65910_pmic *pmic;
-	struct tps65910_rtc *rtc;
-	struct tps65910_power *power;
+	//struct tps65910_pmic *pmic;
+	//struct tps65910_rtc *rtc;
+	//struct tps65910_power *power;
 
 	/* GPIO Handling */
 	struct gpio_chip gpio;
@@ -1008,6 +1008,13 @@ void tps65910_gpio_init(struct tps65910 *tps65910, int gpio_base);
 int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 		struct tps65910_platform_data *pdata);
 int tps65910_irq_exit(struct tps65910 *tps65910);
+int tps65910_reg_read(struct tps65910 *tps65910, u8 reg);
+int tps65910_reg_write(struct tps65910 *tps65910, u8 reg, u8 val);
+int tps65910_bulk_read(struct tps65910 *tps65910, u8 reg,
+		     int count, u8 *buf);
+int tps65910_bulk_write(struct tps65910 *tps65910, u8 reg,
+		     int count, u8 *buf);
+
 int tps65910_i2c_write_u8(u8 slave_addr, u8 value, u8 reg);
 int tps65910_i2c_read_u8(u8 slave_addr, u8 *value, u8 reg);
 int tps65910_device_shutdown(void);

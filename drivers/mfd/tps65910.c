@@ -44,7 +44,7 @@ static int tps65910_i2c_read(struct tps65910 *tps65910, u8 reg,
 	struct i2c_client *i2c = tps65910->i2c_client;
 	struct i2c_msg xfer[2];
 	int ret;
-	
+	int i;
 
 	/* Write register */
 	xfer[0].addr = i2c->addr;
@@ -61,7 +61,8 @@ static int tps65910_i2c_read(struct tps65910 *tps65910, u8 reg,
 	xfer[1].scl_rate = 200*1000;
 
 	ret = i2c_transfer(i2c->adapter, xfer, 2);
-	//printk("%s:reg=0x%x,value=0x%x\n",__func__,reg,*(char *)dest);
+	//for(i=0;i<bytes;i++)
+	//printk("%s:reg=0x%x,value=0x%x\n",__func__,reg+i,*(u8 *)dest++);
 	if (ret == 2)
 		ret = 0;
 	else if (ret >= 0)
@@ -77,15 +78,17 @@ static int tps65910_i2c_write(struct tps65910 *tps65910, u8 reg,
 	/* we add 1 byte for device register */
 	u8 msg[TPS65910_MAX_REGISTER + 1];
 	int ret;
+	int i;
 	
 	if (bytes > TPS65910_MAX_REGISTER)
 		return -EINVAL;
-
-	//printk("%s:reg=0x%x,value=0x%x\n",__func__,reg,*(char *)&src);
 	
 	msg[0] = reg;
 	memcpy(&msg[1], src, bytes);
 
+	//for(i=0;i<bytes;i++)
+	//printk("%s:reg=0x%x,value=0x%x\n",__func__,reg+i,msg[i+1]);
+	
 	ret = i2c_master_send(i2c, msg, bytes + 1);
 	if (ret < 0)
 		return ret;
@@ -94,6 +97,94 @@ static int tps65910_i2c_write(struct tps65910 *tps65910, u8 reg,
 
 	return 0;
 }
+
+static inline int tps65910_read(struct tps65910 *tps65910, u8 reg)
+{
+	u8 val;
+	int err;
+
+	err = tps65910->read(tps65910, reg, 1, &val);
+	if (err < 0)
+		return err;
+
+	return val;
+}
+
+static inline int tps65910_write(struct tps65910 *tps65910, u8 reg, u8 val)
+{
+	return tps65910->write(tps65910, reg, 1, &val);
+}
+
+int tps65910_reg_read(struct tps65910 *tps65910, u8 reg)
+{
+	int data;
+
+	mutex_lock(&tps65910->io_mutex);
+
+	data = tps65910_read(tps65910, reg);
+	if (data < 0)
+		dev_err(tps65910->dev, "Read from reg 0x%x failed\n", reg);
+
+	mutex_unlock(&tps65910->io_mutex);
+	return data;
+}
+EXPORT_SYMBOL_GPL(tps65910_reg_read);
+
+int tps65910_reg_write(struct tps65910 *tps65910, u8 reg, u8 val)
+{
+	int err;
+
+	mutex_lock(&tps65910->io_mutex);
+
+	err = tps65910_write(tps65910, reg, val);
+	if (err < 0)
+		dev_err(tps65910->dev, "Write for reg 0x%x failed\n", reg);
+
+	mutex_unlock(&tps65910->io_mutex);
+	return err;
+}
+EXPORT_SYMBOL_GPL(tps65910_reg_write);
+
+/**
+ * tps65910_bulk_read: Read multiple tps65910 registers
+ *
+ * @tps65910: Device to read from
+ * @reg: First register
+ * @count: Number of registers
+ * @buf: Buffer to fill.
+ */
+int tps65910_bulk_read(struct tps65910 *tps65910, u8 reg,
+		     int count, u8 *buf)
+{
+	int ret;
+
+	mutex_lock(&tps65910->io_mutex);
+	
+	ret = tps65910->read(tps65910, reg, count, buf);
+
+	mutex_unlock(&tps65910->io_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(tps65910_bulk_read);
+
+int tps65910_bulk_write(struct tps65910 *tps65910, u8 reg,
+		     int count, u8 *buf)
+{
+	int ret;
+
+	mutex_lock(&tps65910->io_mutex);
+	
+	ret = tps65910->write(tps65910, reg, count, buf);
+
+	mutex_unlock(&tps65910->io_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(tps65910_bulk_write);
+
+
+
 
 int tps65910_set_bits(struct tps65910 *tps65910, u8 reg, u8 mask)
 {
@@ -130,7 +221,7 @@ int tps65910_clear_bits(struct tps65910 *tps65910, u8 reg, u8 mask)
 		goto out;
 	}
 
-	data &= mask;
+	data &= ~mask;
 	err = tps65910_i2c_write(tps65910, reg, 1, &data);
 	if (err)
 		dev_err(tps65910->dev, "write to reg %x failed\n", reg);
@@ -158,7 +249,7 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	init_data->irq = pmic_plat_data->irq;
-	init_data->irq_base = pmic_plat_data->irq;
+	init_data->irq_base = pmic_plat_data->irq_base;
 
 	tps65910 = kzalloc(sizeof(struct tps65910), GFP_KERNEL);
 	if (tps65910 == NULL)
@@ -201,7 +292,7 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 			goto err;
 		}
 	}
-
+	printk("%s:irq=%d,irq_base=%d\n",__func__,init_data->irq,init_data->irq_base);
 	return ret;
 
 err:

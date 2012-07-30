@@ -45,7 +45,7 @@ static irqreturn_t tps65910_irq(int irq, void *irq_data)
 	u32 irq_mask;
 	u8 reg;
 	int i;
-
+	
 	tps65910->read(tps65910, TPS65910_INT_STS, 1, &reg);
 	irq_sts = reg;
 	tps65910->read(tps65910, TPS65910_INT_STS2, 1, &reg);
@@ -169,17 +169,27 @@ int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 {
 	int ret, cur_irq;
 	int flags = IRQF_ONESHOT;
+	u8 reg;
 
 	if (!irq) {
 		dev_warn(tps65910->dev, "No interrupt support, no core IRQ\n");
-		return -EINVAL;
+		return 0;
 	}
 
 	if (!pdata || !pdata->irq_base) {
 		dev_warn(tps65910->dev, "No interrupt support, no IRQ base\n");
-		return -EINVAL;
+		return 0;
 	}
 
+	/* Clear unattended interrupts */
+	tps65910->read(tps65910, TPS65910_INT_STS, 1, &reg);
+	tps65910->write(tps65910, TPS65910_INT_STS, 1, &reg);
+	tps65910->read(tps65910, TPS65910_INT_STS2, 1, &reg);
+	tps65910->write(tps65910, TPS65910_INT_STS2, 1, &reg);
+	tps65910->read(tps65910, TPS65910_INT_STS3, 1, &reg);
+	tps65910->write(tps65910, TPS65910_INT_STS3, 1, &reg);
+
+	/* Mask top level interrupts */
 	tps65910->irq_mask = 0xFFFFFF;
 
 	mutex_init(&tps65910->irq_lock);
