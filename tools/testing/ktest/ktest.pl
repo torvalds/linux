@@ -623,6 +623,10 @@ sub process_compare {
 	return $lval eq $rval;
     } elsif ($cmp eq "!=") {
 	return $lval ne $rval;
+    } elsif ($cmp eq "=~") {
+	return $lval =~ m/$rval/;
+    } elsif ($cmp eq "!~") {
+	return $lval !~ m/$rval/;
     }
 
     my $statement = "$lval $cmp $rval";
@@ -678,7 +682,7 @@ sub process_expression {
 	}
     }
 
-    if ($val =~ /(.*)(==|\!=|>=|<=|>|<)(.*)/) {
+    if ($val =~ /(.*)(==|\!=|>=|<=|>|<|=~|\!~)(.*)/) {
 	my $ret = process_compare($1, $2, $3);
 	if ($ret < 0) {
 	    die "$name: $.: Unable to process comparison\n";
