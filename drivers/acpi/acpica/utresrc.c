@@ -356,13 +356,13 @@ static const u8 acpi_gbl_resource_types[] = {
 	ACPI_SMALL_VARIABLE_LENGTH,	/* 06 start_dependent_functions */
 	ACPI_FIXED_LENGTH,	/* 07 end_dependent_functions */
 	ACPI_FIXED_LENGTH,	/* 08 IO */
-	ACPI_FIXED_LENGTH,	/* 09 fixed_iO */
-	ACPI_FIXED_LENGTH,	/* 0_a fixed_dMA */
+	ACPI_FIXED_LENGTH,	/* 09 fixed_IO */
+	ACPI_FIXED_LENGTH,	/* 0A fixed_DMA */
 	0,
 	0,
 	0,
-	ACPI_VARIABLE_LENGTH,	/* 0_e vendor_short */
-	ACPI_FIXED_LENGTH,	/* 0_f end_tag */
+	ACPI_VARIABLE_LENGTH,	/* 0E vendor_short */
+	ACPI_FIXED_LENGTH,	/* 0F end_tag */
 
 	/* Large descriptors */
 
@@ -375,16 +375,16 @@ static const u8 acpi_gbl_resource_types[] = {
 	ACPI_FIXED_LENGTH,	/* 06 memory32_fixed */
 	ACPI_VARIABLE_LENGTH,	/* 07 Dword* address */
 	ACPI_VARIABLE_LENGTH,	/* 08 Word* address */
-	ACPI_VARIABLE_LENGTH,	/* 09 extended_iRQ */
-	ACPI_VARIABLE_LENGTH,	/* 0_a Qword* address */
-	ACPI_FIXED_LENGTH,	/* 0_b Extended* address */
-	ACPI_VARIABLE_LENGTH,	/* 0_c Gpio* */
+	ACPI_VARIABLE_LENGTH,	/* 09 extended_IRQ */
+	ACPI_VARIABLE_LENGTH,	/* 0A Qword* address */
+	ACPI_FIXED_LENGTH,	/* 0B Extended* address */
+	ACPI_VARIABLE_LENGTH,	/* 0C Gpio* */
 	0,
-	ACPI_VARIABLE_LENGTH	/* 0_e *serial_bus */
+	ACPI_VARIABLE_LENGTH	/* 0E *serial_bus */
 };
 
 /*
- * For the i_aSL compiler/disassembler, we don't want any error messages
+ * For the iASL compiler/disassembler, we don't want any error messages
  * because the disassembler uses the resource validation code to determine
  * if Buffer objects are actually Resource Templates.
  */
@@ -398,11 +398,11 @@ static const u8 acpi_gbl_resource_types[] = {
  *
  * FUNCTION:    acpi_ut_walk_aml_resources
  *
- * PARAMETERS:  Aml             - Pointer to the raw AML resource template
+ * PARAMETERS:  aml             - Pointer to the raw AML resource template
  *              aml_length      - Length of the entire template
  *              user_function   - Called once for each descriptor found. If
  *                                NULL, a pointer to the end_tag is returned
- *              Context         - Passed to user_function
+ *              context         - Passed to user_function
  *
  * RETURN:      Status
  *
@@ -513,7 +513,7 @@ acpi_ut_walk_aml_resources(u8 * aml,
  *
  * FUNCTION:    acpi_ut_validate_resource
  *
- * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
+ * PARAMETERS:  aml             - Pointer to the raw AML resource descriptor
  *              return_index    - Where the resource index is returned. NULL
  *                                if the index is not required.
  *
@@ -664,7 +664,7 @@ acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index)
  *
  * FUNCTION:    acpi_ut_get_resource_type
  *
- * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
+ * PARAMETERS:  aml             - Pointer to the raw AML resource descriptor
  *
  * RETURN:      The Resource Type with no extraneous bits (except the
  *              Large/Small descriptor bit -- this is left alone)
@@ -698,7 +698,7 @@ u8 acpi_ut_get_resource_type(void *aml)
  *
  * FUNCTION:    acpi_ut_get_resource_length
  *
- * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
+ * PARAMETERS:  aml             - Pointer to the raw AML resource descriptor
  *
  * RETURN:      Byte Length
  *
@@ -738,7 +738,7 @@ u16 acpi_ut_get_resource_length(void *aml)
  *
  * FUNCTION:    acpi_ut_get_resource_header_length
  *
- * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
+ * PARAMETERS:  aml             - Pointer to the raw AML resource descriptor
  *
  * RETURN:      Length of the AML header (depends on large/small descriptor)
  *
@@ -763,7 +763,7 @@ u8 acpi_ut_get_resource_header_length(void *aml)
  *
  * FUNCTION:    acpi_ut_get_descriptor_length
  *
- * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
+ * PARAMETERS:  aml             - Pointer to the raw AML resource descriptor
  *
  * RETURN:      Byte length
  *

@@ -38,6 +38,9 @@ struct led_classdev {
 #define LED_SUSPENDED		(1 << 0)
 	/* Upper 16 bits reflect control information */
 #define LED_CORE_SUSPENDRESUME	(1 << 16)
+#define LED_BLINK_ONESHOT	(1 << 17)
+#define LED_BLINK_ONESHOT_STOP	(1 << 18)
+#define LED_BLINK_INVERT	(1 << 19)
 
 	/* Set LED brightness level */
 	/* Must not sleep, use a workqueue if needed */
@@ -103,7 +106,25 @@ extern void led_blink_set(struct led_classdev *led_cdev,
 			  unsigned long *delay_on,
 			  unsigned long *delay_off);
 /**
- * led_brightness_set - set LED brightness
+ * led_blink_set_oneshot - do a oneshot software blink
+ * @led_cdev: the LED to start blinking
+ * @delay_on: the time it should be on (in ms)
+ * @delay_off: the time it should ble off (in ms)
+ * @invert: blink off, then on, leaving the led on
+ *
+ * This function makes the LED blink one time for delay_on +
+ * delay_off time, ignoring the request if another one-shot
+ * blink is already in progress.
+ *
+ * If invert is set, led blinks for delay_off first, then for
+ * delay_on and leave the led on after the on-off cycle.
+ */
+extern void led_blink_set_oneshot(struct led_classdev *led_cdev,
+				  unsigned long *delay_on,
+				  unsigned long *delay_off,
+				  int invert);
+/**
+ * led_set_brightness - set LED brightness
  * @led_cdev: the LED to set
  * @brightness: the brightness to set it to
  *
@@ -111,7 +132,7 @@ extern void led_blink_set(struct led_classdev *led_cdev,
  * software blink timer that implements blinking when the
  * hardware doesn't.
  */
-extern void led_brightness_set(struct led_classdev *led_cdev,
+extern void led_set_brightness(struct led_classdev *led_cdev,
 			       enum led_brightness brightness);
 
 /*
@@ -150,6 +171,10 @@ extern void led_trigger_event(struct led_trigger *trigger,
 extern void led_trigger_blink(struct led_trigger *trigger,
 			      unsigned long *delay_on,
 			      unsigned long *delay_off);
+extern void led_trigger_blink_oneshot(struct led_trigger *trigger,
+				      unsigned long *delay_on,
+				      unsigned long *delay_off,
+				      int invert);
 
 #else
 

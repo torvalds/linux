@@ -333,9 +333,6 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 		put_psr(get_psr() | PSR_EF);
 		fpsave(&p->thread.float_regs[0], &p->thread.fsr,
 		       &p->thread.fpqueue[0], &p->thread.fpqdepth);
-#ifdef CONFIG_SMP
-		clear_thread_flag(TIF_USEDFPU);
-#endif
 	}
 
 	/*
@@ -413,6 +410,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 #ifdef CONFIG_SMP
 	/* FPU must be disabled on SMP. */
 	childregs->psr &= ~PSR_EF;
+	clear_tsk_thread_flag(p, TIF_USEDFPU);
 #endif
 
 	/* Set the return value for the child. */

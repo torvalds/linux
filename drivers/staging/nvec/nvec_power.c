@@ -371,9 +371,12 @@ static void nvec_power_poll(struct work_struct *work)
 static int __devinit nvec_power_probe(struct platform_device *pdev)
 {
 	struct power_supply *psy;
-	struct nvec_power *power =
-	    kzalloc(sizeof(struct nvec_power), GFP_NOWAIT);
+	struct nvec_power *power;
 	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
+
+	power = devm_kzalloc(&pdev->dev, sizeof(struct nvec_power), GFP_NOWAIT);
+	if (power == NULL)
+		return -ENOMEM;
 
 	dev_set_drvdata(&pdev->dev, power);
 	power->nvec = nvec;
@@ -393,7 +396,6 @@ static int __devinit nvec_power_probe(struct platform_device *pdev)
 		power->notifier.notifier_call = nvec_power_bat_notifier;
 		break;
 	default:
-		kfree(power);
 		return -ENODEV;
 	}
 
@@ -405,20 +407,32 @@ static int __devinit nvec_power_probe(struct platform_device *pdev)
 	return power_supply_register(&pdev->dev, psy);
 }
 
+static int __devexit nvec_power_remove(struct platform_device *pdev)
+{
+	struct nvec_power *power = platform_get_drvdata(pdev);
+
+	cancel_delayed_work_sync(&power->poller);
+	switch (pdev->id) {
+	case AC:
+		power_supply_unregister(&nvec_psy);
+		break;
+	case BAT:
+		power_supply_unregister(&nvec_bat_psy);
+	}
+
+	return 0;
+}
+
 static struct platform_driver nvec_power_driver = {
 	.probe = nvec_power_probe,
+	.remove = __devexit_p(nvec_power_remove),
 	.driver = {
 		   .name = "nvec-power",
 		   .owner = THIS_MODULE,
 		   }
 };
 
-static int __init nvec_power_init(void)
-{
-	return platform_driver_register(&nvec_power_driver);
-}
-
-module_init(nvec_power_init);
+module_platform_driver(nvec_power_driver);
 
 MODULE_AUTHOR("Ilya Petrov <ilya.muromec@gmail.com>");
 MODULE_LICENSE("GPL");

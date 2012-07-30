@@ -54,7 +54,7 @@ ACPI_MODULE_NAME("hwtimer")
  *
  * FUNCTION:    acpi_get_timer_resolution
  *
- * PARAMETERS:  Resolution          - Where the resolution is returned
+ * PARAMETERS:  resolution          - Where the resolution is returned
  *
  * RETURN:      Status and timer resolution
  *
@@ -84,7 +84,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_timer_resolution)
  *
  * FUNCTION:    acpi_get_timer
  *
- * PARAMETERS:  Ticks               - Where the timer value is returned
+ * PARAMETERS:  ticks               - Where the timer value is returned
  *
  * RETURN:      Status and current timer value (ticks)
  *

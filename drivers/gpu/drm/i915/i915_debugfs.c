@@ -676,6 +676,7 @@ static void i915_ring_error_state(struct seq_file *m,
 	seq_printf(m, "  INSTPM: 0x%08x\n", error->instpm[ring]);
 	seq_printf(m, "  FADDR: 0x%08x\n", error->faddr[ring]);
 	if (INTEL_INFO(dev)->gen >= 6) {
+		seq_printf(m, "  RC PSMI: 0x%08x\n", error->rc_psmi[ring]);
 		seq_printf(m, "  FAULT_REG: 0x%08x\n", error->fault_reg[ring]);
 		seq_printf(m, "  SYNC_0: 0x%08x\n",
 			   error->semaphore_mboxes[ring][0]);
@@ -713,6 +714,7 @@ static int i915_error_state(struct seq_file *m, void *unused)
 	seq_printf(m, "EIR: 0x%08x\n", error->eir);
 	seq_printf(m, "IER: 0x%08x\n", error->ier);
 	seq_printf(m, "PGTBL_ER: 0x%08x\n", error->pgtbl_er);
+	seq_printf(m, "CCID: 0x%08x\n", error->ccid);
 
 	for (i = 0; i < dev_priv->num_fence_regs; i++)
 		seq_printf(m, "  fence[%d] = %08llx\n", i, error->fence[i]);
@@ -1765,6 +1767,64 @@ static const struct file_operations i915_max_freq_fops = {
 };
 
 static ssize_t
+i915_min_freq_read(struct file *filp, char __user *ubuf, size_t max,
+		   loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	char buf[80];
+	int len;
+
+	len = snprintf(buf, sizeof(buf),
+		       "min freq: %d\n", dev_priv->min_delay * 50);
+
+	if (len > sizeof(buf))
+		len = sizeof(buf);
+
+	return simple_read_from_buffer(ubuf, max, ppos, buf, len);
+}
+
+static ssize_t
+i915_min_freq_write(struct file *filp, const char __user *ubuf, size_t cnt,
+		    loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	char buf[20];
+	int val = 1;
+
+	if (cnt > 0) {
+		if (cnt > sizeof(buf) - 1)
+			return -EINVAL;
+
+		if (copy_from_user(buf, ubuf, cnt))
+			return -EFAULT;
+		buf[cnt] = 0;
+
+		val = simple_strtoul(buf, NULL, 0);
+	}
+
+	DRM_DEBUG_DRIVER("Manually setting min freq to %d\n", val);
+
+	/*
+	 * Turbo will still be enabled, but won't go below the set value.
+	 */
+	dev_priv->min_delay = val / 50;
+
+	gen6_set_rps(dev, val / 50);
+
+	return cnt;
+}
+
+static const struct file_operations i915_min_freq_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = i915_min_freq_read,
+	.write = i915_min_freq_write,
+	.llseek = default_llseek,
+};
+
+static ssize_t
 i915_cache_sharing_read(struct file *filp,
 		   char __user *ubuf,
 		   size_t max,
@@ -1997,6 +2057,12 @@ int i915_debugfs_init(struct drm_minor *minor)
 		return ret;
 
 	ret = i915_debugfs_create(minor->debugfs_root, minor,
+				  "i915_min_freq",
+				  &i915_min_freq_fops);
+	if (ret)
+		return ret;
+
+	ret = i915_debugfs_create(minor->debugfs_root, minor,
 				  "i915_cache_sharing",
 				  &i915_cache_sharing_fops);
 	if (ret)
@@ -2027,6 +2093,8 @@ void i915_debugfs_cleanup(struct drm_minor *minor)
 	drm_debugfs_remove_files((struct drm_info_list *) &i915_wedged_fops,
 				 1, minor);
 	drm_debugfs_remove_files((struct drm_info_list *) &i915_max_freq_fops,
+				 1, minor);
+	drm_debugfs_remove_files((struct drm_info_list *) &i915_min_freq_fops,
 				 1, minor);
 	drm_debugfs_remove_files((struct drm_info_list *) &i915_cache_sharing_fops,
 				 1, minor);

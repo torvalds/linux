@@ -10,6 +10,7 @@
  *  pace of the LED.
  */
 #include <linux/init.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/leds.h>

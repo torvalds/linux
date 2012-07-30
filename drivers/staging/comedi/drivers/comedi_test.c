@@ -67,8 +67,6 @@ struct waveform_board {
 
 #define N_CHANS 8
 
-#define thisboard ((const struct waveform_board *)dev->board_ptr)
-
 /* Data unique to this driver */
 struct waveform_private {
 	struct timer_list timer;
@@ -429,12 +427,14 @@ static int waveform_ao_insn_write(struct comedi_device *dev,
 static int waveform_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
+	const struct waveform_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	int amplitude = it->options[0];
 	int period = it->options[1];
 	int i;
+	int ret;
 
-	dev->board_name = thisboard->name;
+	dev->board_name = board->name;
 
 	if (alloc_private(dev, sizeof(struct waveform_private)) < 0)
 		return -ENOMEM;
@@ -448,17 +448,17 @@ static int waveform_attach(struct comedi_device *dev,
 	devpriv->uvolt_amplitude = amplitude;
 	devpriv->usec_period = period;
 
-	dev->n_subdevices = 2;
-	if (alloc_subdevices(dev, dev->n_subdevices) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 2);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	dev->read_subdev = s;
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
-	s->n_chan = thisboard->ai_chans;
-	s->maxdata = (1 << thisboard->ai_bits) - 1;
+	s->n_chan = board->ai_chans;
+	s->maxdata = (1 << board->ai_bits) - 1;
 	s->range_table = &waveform_ai_ranges;
 	s->len_chanlist = s->n_chan * 2;
 	s->insn_read = waveform_ai_insn_read;
@@ -471,8 +471,8 @@ static int waveform_attach(struct comedi_device *dev,
 	/* analog output subdevice (loopback) */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
-	s->n_chan = thisboard->ai_chans;
-	s->maxdata = (1 << thisboard->ai_bits) - 1;
+	s->n_chan = board->ai_chans;
+	s->maxdata = (1 << board->ai_bits) - 1;
 	s->range_table = &waveform_ai_ranges;
 	s->len_chanlist = s->n_chan * 2;
 	s->insn_write = waveform_ao_insn_write;

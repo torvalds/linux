@@ -24,6 +24,7 @@
 #ifndef __ASM_ARCH_SA1100_GPIO_H
 #define __ASM_ARCH_SA1100_GPIO_H
 
+#include <linux/io.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm-generic/gpio.h>

@@ -369,7 +369,7 @@ int __init pcibios_init(void)
 				 */
 				if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI &&
 					(PCI_SLOT(dev->devfn) == 0)) {
-					next_bus = dev->busn_res.end;
+					next_bus = dev->subordinate;
 					controllers[i].mem_resources[0] =
 						*next_bus->resource[0];
 					controllers[i].mem_resources[1] =

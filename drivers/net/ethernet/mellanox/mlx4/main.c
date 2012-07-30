@@ -1817,6 +1817,9 @@ static int mlx4_get_ownership(struct mlx4_dev *dev)
 	void __iomem *owner;
 	u32 ret;
 
+	if (pci_channel_offline(dev->pdev))
+		return -EIO;
+
 	owner = ioremap(pci_resource_start(dev->pdev, 0) + MLX4_OWNER_BASE,
 			MLX4_OWNER_SIZE);
 	if (!owner) {
@@ -1832,6 +1835,9 @@ static int mlx4_get_ownership(struct mlx4_dev *dev)
 static void mlx4_free_ownership(struct mlx4_dev *dev)
 {
 	void __iomem *owner;
+
+	if (pci_channel_offline(dev->pdev))
+		return;
 
 	owner = ioremap(pci_resource_start(dev->pdev, 0) + MLX4_OWNER_BASE,
 			MLX4_OWNER_SIZE);
@@ -2279,11 +2285,33 @@ static DEFINE_PCI_DEVICE_TABLE(mlx4_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, mlx4_pci_table);
 
+static pci_ers_result_t mlx4_pci_err_detected(struct pci_dev *pdev,
+					      pci_channel_state_t state)
+{
+	mlx4_remove_one(pdev);
+
+	return state == pci_channel_io_perm_failure ?
+		PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_NEED_RESET;
+}
+
+static pci_ers_result_t mlx4_pci_slot_reset(struct pci_dev *pdev)
+{
+	int ret = __mlx4_init_one(pdev, NULL);
+
+	return ret ? PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_RECOVERED;
+}
+
+static struct pci_error_handlers mlx4_err_handler = {
+	.error_detected = mlx4_pci_err_detected,
+	.slot_reset     = mlx4_pci_slot_reset,
+};
+
 static struct pci_driver mlx4_driver = {
 	.name		= DRV_NAME,
 	.id_table	= mlx4_pci_table,
 	.probe		= mlx4_init_one,
-	.remove		= __devexit_p(mlx4_remove_one)
+	.remove		= __devexit_p(mlx4_remove_one),
+	.err_handler    = &mlx4_err_handler,
 };
 
 static int __init mlx4_verify_params(void)
