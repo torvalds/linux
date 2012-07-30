@@ -147,7 +147,8 @@ static int __devinit r9701_probe(struct spi_device *spi)
 		dt.tm_mon  = 0;
 		dt.tm_year = 100;
 
-		if (r9701_set_datetime(&spi->dev, &dt)) {
+		if (r9701_set_datetime(&spi->dev, &dt) ||
+				r9701_get_datetime(&spi->dev, &dt)) {
 			dev_err(&spi->dev, "cannot repair RTC register\n");
 			return -ENODEV;
 		}
