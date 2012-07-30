@@ -223,10 +223,9 @@ static int goodix_init_panel(struct rk_ts_data *ts)
         while(--retry && (goodix_config_ok(ts) < 0)){
 	        ret=goodix_i2c_write_bytes(ts->client,config_info, (sizeof(config_info)/sizeof(config_info[0])));
 	        if (ret < 0) {
-		        printk("goodix write cfg info err");
-		        return ret;
+		        printk("goodix write cfg info err, retry %d\n", retry);
+			msleep(100);
 	        }
-                msleep(100);
         }
 
         if(retry <= 0){
