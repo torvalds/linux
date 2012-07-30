@@ -1577,7 +1577,8 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 			ssid_len = ssid[1];
 
 		ieee80211_send_probe_req(sdata, dst, ssid + 2, ssid_len, NULL,
-					 0, (u32) -1, true, false);
+					 0, (u32) -1, true, false,
+					 ifmgd->associated->channel);
 	}
 
 	ifmgd->probe_timeout = jiffies + msecs_to_jiffies(probe_wait_ms);
@@ -2704,7 +2705,8 @@ static int ieee80211_probe_auth(struct ieee80211_sub_if_data *sdata)
 		 * will not answer to direct packet in unassociated state.
 		 */
 		ieee80211_send_probe_req(sdata, NULL, ssidie + 2, ssidie[1],
-					 NULL, 0, (u32) -1, true, false);
+					 NULL, 0, (u32) -1, true, false,
+					 auth_data->bss->channel);
 	}
 
 	auth_data->timeout = jiffies + IEEE80211_AUTH_TIMEOUT;
