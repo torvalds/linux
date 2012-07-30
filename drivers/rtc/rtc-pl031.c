@@ -71,17 +71,21 @@
 /**
  * struct pl031_vendor_data - per-vendor variations
  * @ops: the vendor-specific operations used on this silicon version
+ * @clockwatch: if this is an ST Microelectronics silicon version with a
+ *	clockwatch function
+ * @st_weekday: if this is an ST Microelectronics silicon version that need
+ *	the weekday fix
  */
 struct pl031_vendor_data {
 	struct rtc_class_ops ops;
+	bool clockwatch;
+	bool st_weekday;
 };
 
 struct pl031_local {
 	struct pl031_vendor_data *vendor;
 	struct rtc_device *rtc;
 	void __iomem *base;
-	u8 hw_designer;
-	u8 hw_revision:4;
 };
 
 static int pl031_alarm_irq_enable(struct device *dev,
@@ -336,14 +340,11 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 
 	amba_set_drvdata(adev, ldata);
 
-	ldata->hw_designer = amba_manf(adev);
-	ldata->hw_revision = amba_rev(adev);
-
-	dev_dbg(&adev->dev, "designer ID = 0x%02x\n", ldata->hw_designer);
-	dev_dbg(&adev->dev, "revision = 0x%01x\n", ldata->hw_revision);
+	dev_dbg(&adev->dev, "designer ID = 0x%02x\n", amba_manf(adev));
+	dev_dbg(&adev->dev, "revision = 0x%01x\n", amba_rev(adev));
 
 	/* Enable the clockwatch on ST Variants */
-	if (ldata->hw_designer == AMBA_VENDOR_ST)
+	if (vendor->clockwatch)
 		writel(readl(ldata->base + RTC_CR) | RTC_CR_CWEN,
 		       ldata->base + RTC_CR);
 
@@ -351,7 +352,7 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 	 * On ST PL031 variants, the RTC reset value does not provide correct
 	 * weekday for 2000-01-01. Correct the erroneous sunday to saturday.
 	 */
-	if (ldata->hw_designer == AMBA_VENDOR_ST) {
+	if (vendor->st_weekday) {
 		if (readl(ldata->base + RTC_YDR) == 0x2000) {
 			time = readl(ldata->base + RTC_DR);
 			if ((time &
@@ -413,6 +414,8 @@ static struct pl031_vendor_data stv1_pl031 = {
 		.set_alarm = pl031_set_alarm,
 		.alarm_irq_enable = pl031_alarm_irq_enable,
 	},
+	.clockwatch = true,
+	.st_weekday = true,
 };
 
 /* And the second ST derivative */
@@ -424,6 +427,8 @@ static struct pl031_vendor_data stv2_pl031 = {
 		.set_alarm = pl031_stv2_set_alarm,
 		.alarm_irq_enable = pl031_alarm_irq_enable,
 	},
+	.clockwatch = true,
+	.st_weekday = true,
 };
 
 static struct amba_id pl031_ids[] = {
