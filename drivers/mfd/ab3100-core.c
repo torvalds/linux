@@ -867,7 +867,7 @@ static int __devinit ab3100_probe(struct i2c_client *client,
 	int err;
 	int i;
 
-	ab3100 = kzalloc(sizeof(struct ab3100), GFP_KERNEL);
+	ab3100 = devm_kzalloc(&client->dev, sizeof(struct ab3100), GFP_KERNEL);
 	if (!ab3100) {
 		dev_err(&client->dev, "could not allocate AB3100 device\n");
 		return -ENOMEM;
@@ -921,7 +921,7 @@ static int __devinit ab3100_probe(struct i2c_client *client,
 
 	/* Attach a second dummy i2c_client to the test register address */
 	ab3100->testreg_client = i2c_new_dummy(client->adapter,
-						     client->addr + 1);
+					       client->addr + 1);
 	if (!ab3100->testreg_client) {
 		err = -ENOMEM;
 		goto exit_no_testreg_client;
@@ -931,13 +931,13 @@ static int __devinit ab3100_probe(struct i2c_client *client,
 	if (err)
 		goto exit_no_setup;
 
-	err = request_threaded_irq(client->irq, NULL, ab3100_irq_handler,
-				IRQF_ONESHOT, "ab3100-core", ab3100);
-	/* This real unpredictable IRQ is of course sampled for entropy */
-	rand_initialize_irq(client->irq);
-
+	err = devm_request_threaded_irq(&client->dev,
+					client->irq, NULL, ab3100_irq_handler,
+					IRQF_ONESHOT, "ab3100-core", ab3100);
 	if (err)
 		goto exit_no_irq;
+	/* This real unpredictable IRQ is of course sampled for entropy */
+	rand_initialize_irq(client->irq);
 
 	err = abx500_register_ops(&client->dev, &ab3100_ops);
 	if (err)
@@ -962,7 +962,6 @@ static int __devinit ab3100_probe(struct i2c_client *client,
 	i2c_unregister_device(ab3100->testreg_client);
  exit_no_testreg_client:
  exit_no_detect:
-	kfree(ab3100);
 	return err;
 }
 
@@ -972,16 +971,8 @@ static int __devexit ab3100_remove(struct i2c_client *client)
 
 	/* Unregister subdevices */
 	mfd_remove_devices(&client->dev);
-
 	ab3100_remove_debugfs();
 	i2c_unregister_device(ab3100->testreg_client);
-
-	/*
-	 * At this point, all subscribers should have unregistered
-	 * their notifiers so deactivate IRQ
-	 */
-	free_irq(client->irq, ab3100);
-	kfree(ab3100);
 	return 0;
 }
 

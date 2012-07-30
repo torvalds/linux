@@ -152,14 +152,14 @@ static int omap_ehci_init(struct usb_hcd *hcd)
 	struct ehci_hcd_omap_platform_data	*pdata;
 
 	pdata = hcd->self.controller->platform_data;
+
+	/* Hold PHYs in reset while initializing EHCI controller */
 	if (pdata->phy_reset) {
 		if (gpio_is_valid(pdata->reset_gpio_port[0]))
-			gpio_request_one(pdata->reset_gpio_port[0],
-					 GPIOF_OUT_INIT_LOW, "USB1 PHY reset");
+			gpio_set_value_cansleep(pdata->reset_gpio_port[0], 0);
 
 		if (gpio_is_valid(pdata->reset_gpio_port[1]))
-			gpio_request_one(pdata->reset_gpio_port[1],
-					 GPIOF_OUT_INIT_LOW, "USB2 PHY reset");
+			gpio_set_value_cansleep(pdata->reset_gpio_port[1], 0);
 
 		/* Hold the PHY in RESET for enough time till DIR is high */
 		udelay(10);

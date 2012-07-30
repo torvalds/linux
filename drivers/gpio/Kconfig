@@ -597,6 +597,13 @@ config GPIO_AB8500
 	help
 	  Select this to enable the AB8500 IC GPIO driver
 
+config GPIO_TPS6586X
+	bool "TPS6586X GPIO"
+	depends on MFD_TPS6586X
+	help
+	  Select this option to enable GPIO driver for the TPS6586X
+	  chip family.
+
 config GPIO_TPS65910
 	bool "TPS65910 GPIO"
 	depends on MFD_TPS65910
