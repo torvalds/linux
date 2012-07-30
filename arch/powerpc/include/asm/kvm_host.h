@@ -46,7 +46,8 @@
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 #endif
 
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#if defined(CONFIG_KVM_BOOK3S_64_HV) || defined(CONFIG_KVM_E500V2) || \
+    defined(CONFIG_KVM_E500MC)
 #include <linux/mmu_notifier.h>
 
 #define KVM_ARCH_WANT_MMU_NOTIFIER
