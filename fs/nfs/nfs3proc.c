@@ -969,4 +969,6 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.alloc_client	= nfs_alloc_client,
 	.init_client	= nfs_init_client,
 	.free_client	= nfs_free_client,
+	.create_server	= nfs3_create_server,
+	.clone_server	= nfs3_clone_server,
 };

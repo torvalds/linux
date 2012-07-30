@@ -574,8 +574,10 @@ error:
  * Create a version 4 volume record
  * - keyed on server and FSID
  */
-struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
-				      struct nfs_fh *mntfh)
+/*struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
+				      struct nfs_fh *mntfh)*/
+struct nfs_server *nfs4_create_server(struct nfs_mount_info *mount_info,
+				      struct nfs_subversion *nfs_mod)
 {
 	struct nfs_server *server;
 	int error;
@@ -587,11 +589,11 @@ struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
 		return ERR_PTR(-ENOMEM);
 
 	/* set up the general RPC client */
-	error = nfs4_init_server(server, data);
+	error = nfs4_init_server(server, mount_info->parsed);
 	if (error < 0)
 		goto error;
 
-	error = nfs4_server_common_setup(server, mntfh);
+	error = nfs4_server_common_setup(server, mount_info->mntfh);
 	if (error < 0)
 		goto error;
 

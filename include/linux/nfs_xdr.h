@@ -1439,6 +1439,9 @@ struct nfs_rpc_ops {
 		(*init_client) (struct nfs_client *, const struct rpc_timeout *,
 				const char *, rpc_authflavor_t);
 	void	(*free_client) (struct nfs_client *);
+	struct nfs_server *(*create_server)(struct nfs_mount_info *, struct nfs_subversion *);
+	struct nfs_server *(*clone_server)(struct nfs_server *, struct nfs_fh *,
+					   struct nfs_fattr *, rpc_authflavor_t);
 };
 
 /*

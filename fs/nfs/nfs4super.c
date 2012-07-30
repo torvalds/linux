@@ -105,7 +105,7 @@ nfs4_remote_mount(struct file_system_type *fs_type, int flags,
 	mount_info->set_security = nfs_set_sb_security;
 
 	/* Get a volume representation */
-	server = nfs4_create_server(mount_info->parsed, mount_info->mntfh);
+	server = nfs4_create_server(mount_info, &nfs_v4);
 	if (IS_ERR(server)) {
 		mntroot = ERR_CAST(server);
 		goto out;

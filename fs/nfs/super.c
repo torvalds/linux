@@ -1664,7 +1664,7 @@ struct dentry *nfs_try_mount(int flags, const char *dev_name,
 	}
 
 	/* Get a volume representation */
-	server = nfs_create_server(mount_info->parsed, mount_info->mntfh, nfs_mod);
+	server = nfs_mod->rpc_ops->create_server(mount_info, nfs_mod);
 	if (IS_ERR(server))
 		return ERR_CAST(server);
 
@@ -2458,7 +2458,7 @@ nfs_xdev_mount(struct file_system_type *fs_type, int flags,
 	mount_info.mntfh = mount_info.cloned->fh;
 
 	/* create a new volume representation */
-	server = nfs_clone_server(NFS_SB(data->sb), data->fh, data->fattr, data->authflavor);
+	server = nfs_mod->rpc_ops->clone_server(NFS_SB(data->sb), data->fh, data->fattr, data->authflavor);
 	if (IS_ERR(server)) {
 		error = PTR_ERR(server);
 		goto out_err;

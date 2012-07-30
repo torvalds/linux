@@ -187,13 +187,11 @@ extern struct nfs_client *nfs4_find_client_ident(struct net *, int);
 extern struct nfs_client *
 nfs4_find_client_sessionid(struct net *, const struct sockaddr *,
 				struct nfs4_sessionid *);
-extern struct nfs_server *nfs_create_server(
-					const struct nfs_parsed_mount_data *,
-					struct nfs_fh *,
+extern struct nfs_server *nfs_create_server(struct nfs_mount_info *,
 					struct nfs_subversion *);
 extern struct nfs_server *nfs4_create_server(
-					const struct nfs_parsed_mount_data *,
-					struct nfs_fh *);
+					struct nfs_mount_info *,
+					struct nfs_subversion *);
 extern struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *,
 						      struct nfs_fh *);
 extern void nfs_free_server(struct nfs_server *server);
@@ -223,6 +221,13 @@ static inline void nfs_fs_proc_exit(void)
 
 #ifdef CONFIG_NFS_V4_1
 int nfs_sockaddr_match_ipaddr(const struct sockaddr *, const struct sockaddr *);
+#endif
+
+/* nfs3client.c */
+#ifdef CONFIG_NFS_V3
+struct nfs_server *nfs3_create_server(struct nfs_mount_info *, struct nfs_subversion *);
+struct nfs_server *nfs3_clone_server(struct nfs_server *, struct nfs_fh *,
+				     struct nfs_fattr *, rpc_authflavor_t);
 #endif
 
 /* callback_xdr.c */

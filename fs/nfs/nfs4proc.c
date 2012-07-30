@@ -6916,6 +6916,8 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.alloc_client	= nfs4_alloc_client,
 	.init_client	= nfs4_init_client,
 	.free_client	= nfs4_free_client,
+	.create_server	= nfs4_create_server,
+	.clone_server	= nfs_clone_server,
 };
 
 static const struct xattr_handler nfs4_xattr_nfs4_acl_handler = {

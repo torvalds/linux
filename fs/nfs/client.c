@@ -83,22 +83,6 @@ struct rpc_stat nfs_rpcstat = {
 	.program		= &nfs_program
 };
 
-
-#ifdef CONFIG_NFS_V3_ACL
-static struct rpc_stat		nfsacl_rpcstat = { &nfsacl_program };
-static const struct rpc_version *nfsacl_version[] = {
-	[3]			= &nfsacl_version3,
-};
-
-const struct rpc_program nfsacl_program = {
-	.name			= "nfsacl",
-	.number			= NFS_ACL_PROGRAM,
-	.nrvers			= ARRAY_SIZE(nfsacl_version),
-	.version		= nfsacl_version,
-	.stats			= &nfsacl_rpcstat,
-};
-#endif  /* CONFIG_NFS_V3_ACL */
-
 static struct nfs_subversion *find_nfs_version(unsigned int version)
 {
 	struct nfs_subversion *nfs;
@@ -696,36 +680,6 @@ static int nfs_start_lockd(struct nfs_server *server)
 }
 
 /*
- * Initialise an NFSv3 ACL client connection
- */
-#ifdef CONFIG_NFS_V3_ACL
-static void nfs_init_server_aclclient(struct nfs_server *server)
-{
-	if (server->nfs_client->rpc_ops->version != 3)
-		goto out_noacl;
-	if (server->flags & NFS_MOUNT_NOACL)
-		goto out_noacl;
-
-	server->client_acl = rpc_bind_new_program(server->client, &nfsacl_program, 3);
-	if (IS_ERR(server->client_acl))
-		goto out_noacl;
-
-	/* No errors! Assume that Sun nfsacls are supported */
-	server->caps |= NFS_CAP_ACLS;
-	return;
-
-out_noacl:
-	server->caps &= ~NFS_CAP_ACLS;
-}
-#else
-static inline void nfs_init_server_aclclient(struct nfs_server *server)
-{
-	server->flags &= ~NFS_MOUNT_NOACL;
-	server->caps &= ~NFS_CAP_ACLS;
-}
-#endif
-
-/*
  * Create a general RPC client
  */
 int nfs_init_server_rpcclient(struct nfs_server *server,
@@ -874,8 +828,6 @@ static int nfs_init_server(struct nfs_server *server,
 	server->mountd_protocol = data->mount_server.protocol;
 
 	server->namelen  = data->namlen;
-	/* Create a client RPC handle for the NFSv3 ACL management interface */
-	nfs_init_server_aclclient(server);
 	dprintk("<-- nfs_init_server() = 0 [new %p]\n", clp);
 	return 0;
 
@@ -1108,8 +1060,7 @@ void nfs_free_server(struct nfs_server *server)
  * Create a version 2 or 3 volume record
  * - keyed on server and FSID
  */
-struct nfs_server *nfs_create_server(const struct nfs_parsed_mount_data *data,
-				     struct nfs_fh *mntfh,
+struct nfs_server *nfs_create_server(struct nfs_mount_info *mount_info,
 				     struct nfs_subversion *nfs_mod)
 {
 	struct nfs_server *server;
@@ -1126,7 +1077,7 @@ struct nfs_server *nfs_create_server(const struct nfs_parsed_mount_data *data,
 		goto error;
 
 	/* Get a client representation */
-	error = nfs_init_server(server, data, nfs_mod);
+	error = nfs_init_server(server, mount_info->parsed, nfs_mod);
 	if (error < 0)
 		goto error;
 
@@ -1135,13 +1086,13 @@ struct nfs_server *nfs_create_server(const struct nfs_parsed_mount_data *data,
 	BUG_ON(!server->nfs_client->rpc_ops->file_inode_ops);
 
 	/* Probe the root fh to retrieve its FSID */
-	error = nfs_probe_fsinfo(server, mntfh, fattr);
+	error = nfs_probe_fsinfo(server, mount_info->mntfh, fattr);
 	if (error < 0)
 		goto error;
 	if (server->nfs_client->rpc_ops->version == 3) {
 		if (server->namelen == 0 || server->namelen > NFS3_MAXNAMLEN)
 			server->namelen = NFS3_MAXNAMLEN;
-		if (!(data->flags & NFS_MOUNT_NORDIRPLUS))
+		if (!(mount_info->parsed->flags & NFS_MOUNT_NORDIRPLUS))
 			server->caps |= NFS_CAP_READDIRPLUS;
 	} else {
 		if (server->namelen == 0 || server->namelen > NFS2_MAXNAMLEN)
@@ -1149,7 +1100,7 @@ struct nfs_server *nfs_create_server(const struct nfs_parsed_mount_data *data,
 	}
 
 	if (!(fattr->valid & NFS_ATTR_FATTR)) {
-		error = server->nfs_client->rpc_ops->getattr(server, mntfh, fattr);
+		error = nfs_mod->rpc_ops->getattr(server, mount_info->mntfh, fattr);
 		if (error < 0) {
 			dprintk("nfs_create_server: getattr error = %d\n", -error);
 			goto error;
@@ -1210,8 +1161,6 @@ struct nfs_server *nfs_clone_server(struct nfs_server *source,
 			flavor);
 	if (error < 0)
 		goto out_free_server;
-	if (!IS_ERR(source->client_acl))
-		nfs_init_server_aclclient(server);
 
 	/* probe the filesystem info for this server filesystem */
 	error = nfs_probe_fsinfo(server, fh, fattr_fsinfo);
