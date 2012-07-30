@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_bus.h>
+#include <acpi/video.h>
 
 #include "drmP.h"
 #include "drm.h"
@@ -33,6 +34,7 @@
 #include "drm_crtc_helper.h"
 #include "radeon.h"
 #include "radeon_acpi.h"
+#include "atom.h"
 
 #include <linux/vga_switcheroo.h>
 
@@ -44,10 +46,22 @@ struct atif_verify_interface {
 } __packed;
 
 struct atif_system_params {
-	u16 size;
-	u32 valid_mask;
-	u32 flags;
-	u8 command_code;
+	u16 size;		/* structure size in bytes (includes size field) */
+	u32 valid_mask;		/* valid flags mask */
+	u32 flags;		/* flags */
+	u8 command_code;	/* notify command code */
+} __packed;
+
+struct atif_sbios_requests {
+	u16 size;		/* structure size in bytes (includes size field) */
+	u32 pending;		/* pending sbios requests */
+	u8 panel_exp_mode;	/* panel expansion mode */
+	u8 thermal_gfx;		/* thermal state: target gfx controller */
+	u8 thermal_state;	/* thermal state: state id (0: exit state, non-0: state) */
+	u8 forced_power_gfx;	/* forced power state: target gfx controller */
+	u8 forced_power_state;	/* forced power state: state id */
+	u8 system_power_src;	/* system power source */
+	u8 backlight_level;	/* panel backlight level (0-255) */
 } __packed;
 
 #define ATIF_NOTIFY_MASK	0x3
@@ -180,6 +194,8 @@ static int radeon_atif_get_notification_params(acpi_handle handle,
 	size = min(sizeof(params), size);
 	memcpy(&params, info->buffer.pointer, size);
 
+	DRM_DEBUG_DRIVER("SYSTEM_PARAMS: mask = %#x, flags = %#x\n",
+			params.flags, params.valid_mask);
 	params.flags = params.flags & params.valid_mask;
 
 	if ((params.flags & ATIF_NOTIFY_MASK) == ATIF_NOTIFY_NONE) {
@@ -198,8 +214,89 @@ static int radeon_atif_get_notification_params(acpi_handle handle,
 	}
 
 out:
+	DRM_DEBUG_DRIVER("Notification %s, command code = %#x\n",
+			(n->enabled ? "enabled" : "disabled"),
+			n->command_code);
 	kfree(info);
 	return err;
+}
+
+static int radeon_atif_get_sbios_requests(acpi_handle handle,
+		struct atif_sbios_requests *req)
+{
+	union acpi_object *info;
+	size_t size;
+	int count = 0;
+
+	info = radeon_atif_call(handle, ATIF_FUNCTION_GET_SYSTEM_BIOS_REQUESTS, NULL);
+	if (!info)
+		return -EIO;
+
+	size = *(u16 *)info->buffer.pointer;
+	if (size < 0xd) {
+		count = -EINVAL;
+		goto out;
+	}
+	memset(req, 0, sizeof(*req));
+
+	size = min(sizeof(*req), size);
+	memcpy(req, info->buffer.pointer, size);
+	DRM_DEBUG_DRIVER("SBIOS pending requests: %#x\n", req->pending);
+
+	count = hweight32(req->pending);
+
+out:
+	kfree(info);
+	return count;
+}
+
+int radeon_atif_handler(struct radeon_device *rdev,
+		struct acpi_bus_event *event)
+{
+	struct radeon_atif *atif = &rdev->atif;
+	struct atif_sbios_requests req;
+	acpi_handle handle;
+	int count;
+
+	DRM_DEBUG_DRIVER("event, device_class = %s, type = %#x\n",
+			event->device_class, event->type);
+
+	if (strcmp(event->device_class, ACPI_VIDEO_CLASS) != 0)
+		return NOTIFY_DONE;
+
+	if (!atif->notification_cfg.enabled ||
+			event->type != atif->notification_cfg.command_code)
+		/* Not our event */
+		return NOTIFY_DONE;
+
+	/* Check pending SBIOS requests */
+	handle = DEVICE_ACPI_HANDLE(&rdev->pdev->dev);
+	count = radeon_atif_get_sbios_requests(handle, &req);
+
+	if (count <= 0)
+		return NOTIFY_DONE;
+
+	DRM_DEBUG_DRIVER("ATIF: %d pending SBIOS requests\n", count);
+
+	if (req.pending & ATIF_PANEL_BRIGHTNESS_CHANGE_REQUEST) {
+		struct radeon_encoder *enc = atif->backlight_ctl;
+
+		if (enc) {
+			struct radeon_encoder_atom_dig *dig = enc->enc_priv;
+			dig->backlight_level = req.backlight_level;
+
+			DRM_DEBUG_DRIVER("Changing brightness to %d\n",
+					req.backlight_level);
+
+			atombios_set_panel_brightness(enc);
+
+			backlight_force_update(dig->bl_dev,
+					BACKLIGHT_UPDATE_HOTKEY);
+		}
+	}
+	/* TODO: check other events */
+
+	return NOTIFY_OK;
 }
 
 /* Call all ACPI methods here */
@@ -221,6 +318,33 @@ int radeon_acpi_init(struct radeon_device *rdev)
 	if (ret) {
 		DRM_DEBUG_DRIVER("Call to verify_interface failed: %d\n", ret);
 		goto out;
+	}
+
+	if (atif->notifications.brightness_change) {
+		struct drm_encoder *tmp;
+		struct radeon_encoder *target = NULL;
+
+		/* Find the encoder controlling the brightness */
+		list_for_each_entry(tmp, &rdev->ddev->mode_config.encoder_list,
+				head) {
+			struct radeon_encoder *enc = to_radeon_encoder(tmp);
+			struct radeon_encoder_atom_dig *dig = enc->enc_priv;
+
+			if ((enc->devices & (ATOM_DEVICE_LCD_SUPPORT)) &&
+					dig->bl_dev != NULL) {
+				target = enc;
+				break;
+			}
+		}
+
+		atif->backlight_ctl = target;
+		if (!target) {
+			/* Brightness change notification is enabled, but we
+			 * didn't find a backlight controller, this should
+			 * never happen.
+			 */
+			DRM_ERROR("Cannot find a backlight controller\n");
+		}
 	}
 
 	if (atif->functions.sbios_requests && !atif->functions.system_params) {

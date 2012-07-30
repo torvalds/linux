@@ -698,6 +698,8 @@ void radeon_panel_mode_fixup(struct drm_encoder *encoder,
 			     struct drm_display_mode *adjusted_mode);
 void atom_rv515_force_tv_scaler(struct radeon_device *rdev, struct radeon_crtc *radeon_crtc);
 
+void atombios_set_panel_brightness(struct radeon_encoder *radeon_encoder);
+
 /* legacy tv */
 void radeon_legacy_tv_adjust_crtc_reg(struct drm_encoder *encoder,
 				      uint32_t *h_total_disp, uint32_t *h_sync_strt_wid,

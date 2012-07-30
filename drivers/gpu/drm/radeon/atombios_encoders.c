@@ -72,7 +72,7 @@ radeon_atom_set_backlight_level_to_reg(struct radeon_device *rdev,
 		WREG32(RADEON_BIOS_2_SCRATCH, bios_2_scratch);
 }
 
-static void
+void
 atombios_set_panel_brightness(struct radeon_encoder *radeon_encoder)
 {
 	struct drm_encoder *encoder = &radeon_encoder->base;

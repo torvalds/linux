@@ -22,6 +22,7 @@
  */
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_acpi.h"
 #include "avivod.h"
 #include "atom.h"
 #ifdef CONFIG_ACPI
@@ -94,7 +95,8 @@ static int radeon_acpi_event(struct notifier_block *nb,
 		}
 	}
 
-	return NOTIFY_OK;
+	/* Check for pending SBIOS requests */
+	return radeon_atif_handler(rdev, entry);
 }
 #endif
 

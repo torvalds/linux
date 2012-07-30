@@ -1461,6 +1461,7 @@ struct radeon_atif {
 	struct radeon_atif_notifications notifications;
 	struct radeon_atif_functions functions;
 	struct radeon_atif_notification_cfg notification_cfg;
+	struct radeon_encoder *backlight_ctl;
 };
 
 /*

@@ -24,6 +24,12 @@
 #ifndef RADEON_ACPI_H
 #define RADEON_ACPI_H
 
+struct radeon_device;
+struct acpi_bus_event;
+
+int radeon_atif_handler(struct radeon_device *rdev,
+		struct acpi_bus_event *event);
+
 /* AMD hw uses four ACPI control methods:
  * 1. ATIF
  * ARG0: (ACPI_INTEGER) function code
