@@ -84,7 +84,8 @@ static int ot200_backlight_probe(struct platform_device *pdev)
 	int retval = 0;
 
 	/* request gpio */
-	if (gpio_request(GPIO_DIMM, "ot200 backlight dimmer") < 0) {
+	if (devm_gpio_request(&pdev->dev, GPIO_DIMM,
+				"ot200 backlight dimmer") < 0) {
 		dev_err(&pdev->dev, "failed to request GPIO %d\n", GPIO_DIMM);
 		return -ENODEV;
 	}
@@ -93,8 +94,7 @@ static int ot200_backlight_probe(struct platform_device *pdev)
 	pwm_timer = cs5535_mfgpt_alloc_timer(7, MFGPT_DOMAIN_ANY);
 	if (!pwm_timer) {
 		dev_err(&pdev->dev, "MFGPT 7 not available\n");
-		retval = -ENODEV;
-		goto error_mfgpt_alloc;
+		return -ENODEV;
 	}
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
@@ -131,8 +131,6 @@ static int ot200_backlight_probe(struct platform_device *pdev)
 
 error_devm_kzalloc:
 	cs5535_mfgpt_free_timer(pwm_timer);
-error_mfgpt_alloc:
-	gpio_free(GPIO_DIMM);
 	return retval;
 }
 
@@ -149,7 +147,6 @@ static int ot200_backlight_remove(struct platform_device *pdev)
 		MAX_COMP2 - dim_table[100]);
 
 	cs5535_mfgpt_free_timer(pwm_timer);
-	gpio_free(GPIO_DIMM);
 
 	return 0;
 }
