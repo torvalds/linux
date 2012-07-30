@@ -14,7 +14,7 @@
 #include <linux/i2c.h>
 #include <linux/backlight.h>
 #include <linux/err.h>
-#include <linux/lp855x.h>
+#include <linux/platform_data/lp855x.h>
 
 /* Registers */
 #define BRIGHTNESS_CTRL		0x00
