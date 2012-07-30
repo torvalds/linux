@@ -292,7 +292,7 @@ static int __frontswap_shrink(unsigned long target_pages,
 void frontswap_shrink(unsigned long target_pages)
 {
 	unsigned long pages_to_unuse = 0;
-	int type, ret;
+	int uninitialized_var(type), ret;
 
 	/*
 	 * we don't want to hold swap_lock while doing a very
