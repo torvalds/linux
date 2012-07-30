@@ -1297,6 +1297,8 @@ qualifier:
  *   case.
  * %n is ignored
  *
+ * ** Please update Documentation/printk-formats.txt when making changes **
+ *
  * The return value is the number of characters which would
  * be generated for the given input, excluding the trailing
  * '\0', as per ISO C99. If you want to have the exact
