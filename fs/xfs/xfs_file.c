@@ -236,7 +236,6 @@ xfs_file_aio_read(
 	ssize_t			ret = 0;
 	int			ioflags = 0;
 	xfs_fsize_t		n;
-	unsigned long		seg;
 
 	XFS_STATS_INC(xs_read_calls);
 
@@ -247,19 +246,9 @@ xfs_file_aio_read(
 	if (file->f_mode & FMODE_NOCMTIME)
 		ioflags |= IO_INVIS;
 
-	/* START copy & waste from filemap.c */
-	for (seg = 0; seg < nr_segs; seg++) {
-		const struct iovec *iv = &iovp[seg];
-
-		/*
-		 * If any segment has a negative length, or the cumulative
-		 * length ever wraps negative then return -EINVAL.
-		 */
-		size += iv->iov_len;
-		if (unlikely((ssize_t)(size|iv->iov_len) < 0))
-			return XFS_ERROR(-EINVAL);
-	}
-	/* END copy & waste from filemap.c */
+	ret = generic_segment_checks(iovp, &nr_segs, &size, VERIFY_WRITE);
+	if (ret < 0)
+		return ret;
 
 	if (unlikely(ioflags & IO_ISDIRECT)) {
 		xfs_buftarg_t	*target =
@@ -273,7 +262,7 @@ xfs_file_aio_read(
 		}
 	}
 
-	n = XFS_MAXIOFFSET(mp) - iocb->ki_pos;
+	n = mp->m_super->s_maxbytes - iocb->ki_pos;
 	if (n <= 0 || size == 0)
 		return 0;
 

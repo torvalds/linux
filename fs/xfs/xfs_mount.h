@@ -176,7 +176,6 @@ typedef struct xfs_mount {
 	uint			m_qflags;	/* quota status flags */
 	xfs_trans_reservations_t m_reservations;/* precomputed res values */
 	__uint64_t		m_maxicount;	/* maximum inode count */
-	__uint64_t		m_maxioffset;	/* maximum inode offset */
 	__uint64_t		m_resblks;	/* total reserved blocks */
 	__uint64_t		m_resblks_avail;/* available reserved blocks */
 	__uint64_t		m_resblks_save;	/* reserved blks @ remount,ro */
@@ -296,8 +295,6 @@ xfs_preferred_iosize(xfs_mount_t *mp)
 			(1 << (int)MAX(mp->m_readio_log, mp->m_writeio_log)) :
 			PAGE_CACHE_SIZE));
 }
-
-#define XFS_MAXIOFFSET(mp)	((mp)->m_maxioffset)
 
 #define XFS_LAST_UNMOUNT_WAS_CLEAN(mp)	\
 				((mp)->m_flags & XFS_MOUNT_WAS_CLEAN)
