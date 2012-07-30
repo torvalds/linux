@@ -2186,6 +2186,32 @@ static void argv_cleanup(struct subprocess_info *info)
 	argv_free(info->argv);
 }
 
+static int __orderly_poweroff(void)
+{
+	int argc;
+	char **argv;
+	static char *envp[] = {
+		"HOME=/",
+		"PATH=/sbin:/bin:/usr/sbin:/usr/bin",
+		NULL
+	};
+	int ret;
+
+	argv = argv_split(GFP_ATOMIC, poweroff_cmd, &argc);
+	if (argv == NULL) {
+		printk(KERN_WARNING "%s failed to allocate memory for \"%s\"\n",
+		       __func__, poweroff_cmd);
+		return -ENOMEM;
+	}
+
+	ret = call_usermodehelper_fns(argv[0], argv, envp, UMH_NO_WAIT,
+				      NULL, argv_cleanup, NULL);
+	if (ret == -ENOMEM)
+		argv_free(argv);
+
+	return ret;
+}
+
 /**
  * orderly_poweroff - Trigger an orderly system poweroff
  * @force: force poweroff if command execution fails
@@ -2195,37 +2221,17 @@ static void argv_cleanup(struct subprocess_info *info)
  */
 int orderly_poweroff(bool force)
 {
-	int argc;
-	char **argv = argv_split(GFP_ATOMIC, poweroff_cmd, &argc);
-	static char *envp[] = {
-		"HOME=/",
-		"PATH=/sbin:/bin:/usr/sbin:/usr/bin",
-		NULL
-	};
-	int ret = -ENOMEM;
+	int ret = __orderly_poweroff();
 
-	if (argv == NULL) {
-		printk(KERN_WARNING "%s failed to allocate memory for \"%s\"\n",
-		       __func__, poweroff_cmd);
-		goto out;
-	}
-
-	ret = call_usermodehelper_fns(argv[0], argv, envp, UMH_NO_WAIT,
-				      NULL, argv_cleanup, NULL);
-out:
-	if (likely(!ret))
-		return 0;
-
-	if (ret == -ENOMEM)
-		argv_free(argv);
-
-	if (force) {
+	if (ret && force) {
 		printk(KERN_WARNING "Failed to start orderly shutdown: "
 		       "forcing the issue\n");
 
-		/* I guess this should try to kick off some daemon to
-		   sync and poweroff asap.  Or not even bother syncing
-		   if we're doing an emergency shutdown? */
+		/*
+		 * I guess this should try to kick off some daemon to sync and
+		 * poweroff asap.  Or not even bother syncing if we're doing an
+		 * emergency shutdown?
+		 */
 		emergency_sync();
 		kernel_power_off();
 	}
