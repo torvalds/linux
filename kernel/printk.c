@@ -1487,7 +1487,6 @@ asmlinkage int vprintk_emit(int facility, int level,
 	size_t text_len;
 	enum log_flags lflags = 0;
 	unsigned long flags;
-	int kern_level;
 	int this_cpu;
 	int printed_len = 0;
 
@@ -1543,21 +1542,24 @@ asmlinkage int vprintk_emit(int facility, int level,
 		lflags |= LOG_NEWLINE;
 	}
 
-	/* strip syslog prefix and extract log level or control flags */
-	kern_level = printk_get_level(text);
-	if (kern_level) {
-		const char *end_of_header = printk_skip_level(text);
-		switch (kern_level) {
-		case '0' ... '7':
-			if (level == -1)
-				level = kern_level - '0';
-		case 'd':	/* KERN_DEFAULT */
-			lflags |= LOG_PREFIX;
-		case 'c':	/* KERN_CONT */
-			break;
+	/* strip kernel syslog prefix and extract log level or control flags */
+	if (facility == 0) {
+		int kern_level = printk_get_level(text);
+
+		if (kern_level) {
+			const char *end_of_header = printk_skip_level(text);
+			switch (kern_level) {
+			case '0' ... '7':
+				if (level == -1)
+					level = kern_level - '0';
+			case 'd':	/* KERN_DEFAULT */
+				lflags |= LOG_PREFIX;
+			case 'c':	/* KERN_CONT */
+				break;
+			}
+			text_len -= end_of_header - text;
+			text = (char *)end_of_header;
 		}
-		text_len -= end_of_header - text;
-		text = (char *)end_of_header;
 	}
 
 	if (level == -1)
