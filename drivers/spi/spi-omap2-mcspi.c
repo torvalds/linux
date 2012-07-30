@@ -388,7 +388,8 @@ omap2_mcspi_txrx_dma(struct spi_device *spi, struct spi_transfer *xfer)
 
 	if (tx != NULL) {
 		wait_for_completion(&mcspi_dma->dma_tx_completion);
-		dma_unmap_single(&spi->dev, xfer->tx_dma, count, DMA_TO_DEVICE);
+		dma_unmap_single(mcspi->dev, xfer->tx_dma, count,
+				 DMA_TO_DEVICE);
 
 		/* for TX_ONLY mode, be sure all words have shifted out */
 		if (rx == NULL) {
@@ -403,7 +404,8 @@ omap2_mcspi_txrx_dma(struct spi_device *spi, struct spi_transfer *xfer)
 
 	if (rx != NULL) {
 		wait_for_completion(&mcspi_dma->dma_rx_completion);
-		dma_unmap_single(&spi->dev, xfer->rx_dma, count, DMA_FROM_DEVICE);
+		dma_unmap_single(mcspi->dev, xfer->rx_dma, count,
+				 DMA_FROM_DEVICE);
 		omap2_mcspi_set_enable(spi, 0);
 
 		if (l & OMAP2_MCSPI_CHCONF_TURBO) {
@@ -1032,7 +1034,7 @@ static int omap2_mcspi_transfer_one_message(struct spi_master *master,
 	return 0;
 }
 
-static int __init omap2_mcspi_master_setup(struct omap2_mcspi *mcspi)
+static int __devinit omap2_mcspi_master_setup(struct omap2_mcspi *mcspi)
 {
 	struct spi_master	*master = mcspi->master;
 	struct omap2_mcspi_regs	*ctx = &mcspi->ctx;

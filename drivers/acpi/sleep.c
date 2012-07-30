@@ -143,7 +143,7 @@ void __init acpi_old_suspend_ordering(void)
 static int acpi_pm_freeze(void)
 {
 	acpi_disable_all_gpes();
-	acpi_os_wait_events_complete(NULL);
+	acpi_os_wait_events_complete();
 	acpi_ec_block_transactions();
 	return 0;
 }
@@ -809,6 +809,7 @@ int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p, int d_max_in)
 	}
 	return d_max;
 }
+EXPORT_SYMBOL(acpi_pm_device_sleep_state);
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_PM_SLEEP
@@ -845,6 +846,7 @@ int acpi_pm_device_run_wake(struct device *phys_dev, bool enable)
 
 	return 0;
 }
+EXPORT_SYMBOL(acpi_pm_device_run_wake);
 
 /**
  *	acpi_pm_device_sleep_wake - enable or disable the system wake-up

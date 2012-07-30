@@ -11,6 +11,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/crypto.h>
+#include <linux/hash.h>
 #include <linux/hw_random.h>
 #include <linux/of_platform.h>
 #include <linux/dma-mapping.h>
@@ -33,5 +34,6 @@
 #include <crypto/authenc.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/internal/skcipher.h>
+#include <crypto/internal/hash.h>
 
 #endif /* !defined(CAAM_COMPAT_H) */

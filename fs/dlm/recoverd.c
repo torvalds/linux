@@ -60,12 +60,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	dlm_callback_suspend(ls);
 
-	/*
-	 * Free non-master tossed rsb's.  Master rsb's are kept on toss
-	 * list and put on root list to be included in resdir recovery.
-	 */
-
-	dlm_clear_toss_list(ls);
+	dlm_clear_toss(ls);
 
 	/*
 	 * This list of root rsb's will be the basis of most of the recovery
@@ -84,6 +79,10 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		goto fail;
 	}
 
+	dlm_recover_dir_nodeid(ls);
+
+	ls->ls_recover_dir_sent_res = 0;
+	ls->ls_recover_dir_sent_msg = 0;
 	ls->ls_recover_locks_in = 0;
 
 	dlm_set_recover_status(ls, DLM_RS_NODES);
@@ -114,6 +113,9 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		log_debug(ls, "dlm_recover_directory_wait error %d", error);
 		goto fail;
 	}
+
+	log_debug(ls, "dlm_recover_directory %u out %u messages",
+		  ls->ls_recover_dir_sent_res, ls->ls_recover_dir_sent_msg);
 
 	/*
 	 * We may have outstanding operations that are waiting for a reply from

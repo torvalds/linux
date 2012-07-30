@@ -155,11 +155,6 @@ struct pcmuio_board {
 	const int num_ports;
 };
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct pcmuio_board *)dev->board_ptr)
-
 /* this structure is for data unique to this subdevice.  */
 struct pcmuio_subdev_private {
 	/* mapping of halfwords (bytes) in port/chanarray to iobase */
@@ -216,8 +211,6 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_insn *insn, unsigned int *data)
 {
 	int byte_no;
-	if (insn->n != 2)
-		return -EINVAL;
 
 	/* NOTE:
 	   reading a 0 means this channel was high
@@ -232,7 +225,7 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 
 #ifdef DAMMIT_ITS_BROKEN
 	/* DEBUG */
-	dev_dbg(dev->hw_dev, "write mask: %08x  data: %08x\n", data[0],
+	dev_dbg(dev->class_dev, "write mask: %08x  data: %08x\n", data[0],
 		data[1]);
 #endif
 
@@ -269,7 +262,7 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 		}
 #ifdef DAMMIT_ITS_BROKEN
 		/* DEBUG */
-		dev_dbg(dev->hw_dev, "data_out_byte %02x\n", (unsigned)byte);
+		dev_dbg(dev->class_dev, "data_out_byte %02x\n", (unsigned)byte);
 #endif
 		/* save the digital input lines for this byte.. */
 		s->state |= ((unsigned int)byte) << offset;
@@ -280,11 +273,11 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 
 #ifdef DAMMIT_ITS_BROKEN
 	/* DEBUG */
-	dev_dbg(dev->hw_dev, "s->state %08x data_out %08x\n", s->state,
+	dev_dbg(dev->class_dev, "s->state %08x data_out %08x\n", s->state,
 		data[1]);
 #endif
 
-	return 2;
+	return insn->n;
 }
 
 /* The input or output configuration of each digital line is
@@ -354,7 +347,9 @@ static int pcmuio_dio_insn_config(struct comedi_device *dev,
 
 static void switch_page(struct comedi_device *dev, int asic, int page)
 {
-	if (asic < 0 || asic >= thisboard->num_asics)
+	const struct pcmuio_board *board = comedi_board(dev);
+
+	if (asic < 0 || asic >= board->num_asics)
 		return;		/* paranoia */
 	if (page < 0 || page >= NUM_PAGES)
 		return;		/* more paranoia */
@@ -370,9 +365,10 @@ static void switch_page(struct comedi_device *dev, int asic, int page)
 static void init_asics(struct comedi_device *dev)
 {				/* sets up an
 				   ASIC chip to defaults */
+	const struct pcmuio_board *board = comedi_board(dev);
 	int asic;
 
-	for (asic = 0; asic < thisboard->num_asics; ++asic) {
+	for (asic = 0; asic < board->num_asics; ++asic) {
 		int port, page;
 		unsigned long baseaddr = dev->iobase + asic * ASIC_IOSIZE;
 
@@ -407,7 +403,9 @@ static void init_asics(struct comedi_device *dev)
 #ifdef notused
 static void lock_port(struct comedi_device *dev, int asic, int port)
 {
-	if (asic < 0 || asic >= thisboard->num_asics)
+	const struct pcmuio_board *board = comedi_board(dev);
+
+	if (asic < 0 || asic >= board->num_asics)
 		return;		/* paranoia */
 	if (port < 0 || port >= PORTS_PER_ASIC)
 		return;		/* more paranoia */
@@ -420,7 +418,9 @@ static void lock_port(struct comedi_device *dev, int asic, int port)
 
 static void unlock_port(struct comedi_device *dev, int asic, int port)
 {
-	if (asic < 0 || asic >= thisboard->num_asics)
+	const struct pcmuio_board *board = comedi_board(dev);
+
+	if (asic < 0 || asic >= board->num_asics)
 		return;		/* paranoia */
 	if (port < 0 || port >= PORTS_PER_ASIC)
 		return;		/* more paranoia */
@@ -747,39 +747,38 @@ pcmuio_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct pcmuio_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	int sdev_no, chans_left, n_subdevs, port, asic, thisasic_chanct = 0;
 	unsigned long iobase;
 	unsigned int irq[MAX_ASICS];
+	int ret;
 
 	iobase = it->options[0];
 	irq[0] = it->options[1];
 	irq[1] = it->options[2];
 
-	dev_dbg(dev->hw_dev, "comedi%d: %s: io: %lx attached\n", dev->minor,
+	dev_dbg(dev->class_dev, "%s: io: %lx attach\n",
 		dev->driver->driver_name, iobase);
 
 	dev->iobase = iobase;
 
 	if (!iobase || !request_region(iobase,
-				       thisboard->num_asics * ASIC_IOSIZE,
+				       board->num_asics * ASIC_IOSIZE,
 				       dev->driver->driver_name)) {
-		dev_err(dev->hw_dev, "I/O port conflict\n");
+		dev_err(dev->class_dev, "I/O port conflict\n");
 		return -EIO;
 	}
 
-/*
- * Initialize dev->board_name.  Note that we can use the "thisboard"
- * macro now, since we just initialized it in the last line.
- */
-	dev->board_name = thisboard->name;
+	dev->board_name = board->name;
 
 /*
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
 	if (alloc_private(dev, sizeof(struct pcmuio_private)) < 0) {
-		dev_warn(dev->hw_dev, "cannot allocate private data structure\n");
+		dev_warn(dev->class_dev,
+			 "cannot allocate private data structure\n");
 		return -ENOMEM;
 	}
 
@@ -792,26 +791,20 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		spin_lock_init(&devpriv->asics[asic].spinlock);
 	}
 
-	chans_left = CHANS_PER_ASIC * thisboard->num_asics;
+	chans_left = CHANS_PER_ASIC * board->num_asics;
 	n_subdevs = CALC_N_SUBDEVS(chans_left);
 	devpriv->sprivs =
 	    kcalloc(n_subdevs, sizeof(struct pcmuio_subdev_private),
 		    GFP_KERNEL);
 	if (!devpriv->sprivs) {
-		dev_warn(dev->hw_dev, "cannot allocate subdevice private data structures\n");
+		dev_warn(dev->class_dev,
+			 "cannot allocate subdevice private data structures\n");
 		return -ENOMEM;
 	}
-	/*
-	 * Allocate the subdevice structures.  alloc_subdevice() is a
-	 * convenient macro defined in comedidev.h.
-	 *
-	 * Allocate 2 subdevs (32 + 16 DIO lines) or 3 32 DIO subdevs for the
-	 * 96-channel version of the board.
-	 */
-	if (alloc_subdevices(dev, n_subdevs) < 0) {
-		dev_dbg(dev->hw_dev, "cannot allocate subdevice data structures\n");
-		return -ENOMEM;
-	}
+
+	ret = comedi_alloc_subdevices(dev, n_subdevs);
+	if (ret)
+		return ret;
 
 	port = 0;
 	asic = 0;
@@ -881,7 +874,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	for (asic = 0; irq[0] && asic < MAX_ASICS; ++asic) {
 		if (irq[asic]
 		    && request_irq(irq[asic], interrupt_pcmuio,
-				   IRQF_SHARED, thisboard->name, dev)) {
+				   IRQF_SHARED, board->name, dev)) {
 			int i;
 			/* unroll the allocated irqs.. */
 			for (i = asic - 1; i >= 0; --i) {
@@ -897,11 +890,12 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				   irqs.. */
 
 	if (irq[0]) {
-		dev_dbg(dev->hw_dev, "irq: %u\n", irq[0]);
-		if (irq[1] && thisboard->num_asics == 2)
-			dev_dbg(dev->hw_dev, "second ASIC irq: %u\n", irq[1]);
+		dev_dbg(dev->class_dev, "irq: %u\n", irq[0]);
+		if (irq[1] && board->num_asics == 2)
+			dev_dbg(dev->class_dev, "second ASIC irq: %u\n",
+				irq[1]);
 	} else {
-		dev_dbg(dev->hw_dev, "(IRQ mode disabled)\n");
+		dev_dbg(dev->class_dev, "(IRQ mode disabled)\n");
 	}
 
 
@@ -910,10 +904,11 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void pcmuio_detach(struct comedi_device *dev)
 {
+	const struct pcmuio_board *board = comedi_board(dev);
 	int i;
 
 	if (dev->iobase)
-		release_region(dev->iobase, ASIC_IOSIZE * thisboard->num_asics);
+		release_region(dev->iobase, ASIC_IOSIZE * board->num_asics);
 	for (i = 0; i < MAX_ASICS; ++i) {
 		if (devpriv->asics[i].irq)
 			free_irq(devpriv->asics[i].irq, dev);

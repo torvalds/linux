@@ -1093,10 +1093,9 @@ static int ni_660x_attach(struct comedi_device *dev,
 
 	printk(KERN_INFO " %s ", dev->board_name);
 
-	dev->n_subdevices = 2 + NI_660X_MAX_NUM_COUNTERS;
-
-	if (alloc_subdevices(dev, dev->n_subdevices) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 2 + NI_660X_MAX_NUM_COUNTERS);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* Old GENERAL-PURPOSE COUNTER/TIME (GPCT) subdevice, no longer used */
@@ -1286,7 +1285,7 @@ static int ni_660x_dio_insn_bits(struct comedi_device *dev,
 	data[1] =
 	    (ni_660x_read_register(dev, 0,
 				   DIO32Input) >> base_bitfield_channel);
-	return 2;
+	return insn->n;
 }
 
 static void ni_660x_select_pfi_output(struct comedi_device *dev,

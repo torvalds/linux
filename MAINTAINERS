@@ -242,13 +242,6 @@ W:	http://www.lesswatts.org/projects/acpi/
 S:	Supported
 F:	drivers/acpi/fan.c
 
-ACPI PROCESSOR AGGREGATOR DRIVER
-M:	Shaohua Li <shaohua.li@intel.com>
-L:	linux-acpi@vger.kernel.org
-W:	http://www.lesswatts.org/projects/acpi/
-S:	Supported
-F:	drivers/acpi/acpi_pad.c
-
 ACPI THERMAL DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
@@ -1193,6 +1186,17 @@ S:	Maintained
 F:	arch/arm/mach-pxa/vpac270.c
 F:	arch/arm/mach-pxa/include/mach/vpac270.h
 
+ARM/VT8500 ARM ARCHITECTURE
+M:	Tony Prisk <linux@prisktech.co.nz>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-vt8500/
+F:	drivers/video/vt8500lcdfb.*
+F:	drivers/video/wm8505fb*
+F:	drivers/video/wmt_ge_rops.*
+F:	drivers/tty/serial/vt8500_serial.c
+F:	drivers/rtc/rtc-vt8500-c
+
 ARM/ZIPIT Z2 SUPPORT
 M:	Marek Vasut <marek.vasut@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -1535,6 +1539,11 @@ L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org/
 S:	Supported
 F:	drivers/i2c/busses/i2c-bfin-twi.c
+
+BLINKM RGB LED DRIVER
+M:	Jan-Simon Moeller <jansimon.moeller@gmx.de>
+S:	Maintained
+F:	drivers/leds/leds-blinkm.c
 
 BLOCK LAYER
 M:	Jens Axboe <axboe@kernel.dk>
@@ -2727,6 +2736,14 @@ Extended Verification Module (EVM)
 M:	Mimi Zohar <zohar@us.ibm.com>
 S:	Supported
 F:	security/integrity/evm/
+
+EXTERNAL CONNECTOR SUBSYSTEM (EXTCON)
+M:	MyungJoo Ham <myungjoo.ham@samsung.com>
+M:	Chanwoo Choi <cw00.choi@samsung.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/extcon/
+F:	Documentation/extcon/
 
 EXYNOS DP DRIVER
 M:	Jingoo Han <jg1.han@samsung.com>
@@ -4953,6 +4970,13 @@ S:	Maintained
 F:	drivers/usb/*/*omap*
 F:	arch/arm/*omap*/usb*
 
+OMAP GPIO DRIVER
+M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+M:	Kevin Hilman <khilman@ti.com>
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	drivers/gpio/gpio-omap.c
+
 OMFS FILESYSTEM
 M:	Bob Copeland <me@bobcopeland.com>
 L:	linux-karma-devel@lists.sourceforge.net
@@ -5717,6 +5741,7 @@ F:	include/linux/regmap.h
 
 REMOTE PROCESSOR (REMOTEPROC) SUBSYSTEM
 M:	Ohad Ben-Cohen <ohad@wizery.com>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ohad/remoteproc.git
 S:	Maintained
 F:	drivers/remoteproc/
 F:	Documentation/remoteproc.txt
@@ -7607,6 +7632,7 @@ F:	Documentation/hwmon/wm83??
 F:	arch/arm/mach-s3c64xx/mach-crag6410*
 F:	drivers/clk/clk-wm83*.c
 F:	drivers/leds/leds-wm83*.c
+F:	drivers/gpio/gpio-*wm*.c
 F:	drivers/hwmon/wm83??-hwmon.c
 F:	drivers/input/misc/wm831x-on.c
 F:	drivers/input/touchscreen/wm831x-ts.c

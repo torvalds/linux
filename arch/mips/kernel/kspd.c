@@ -323,7 +323,7 @@ static void sp_cleanup(void)
 	fdt = files_fdtable(files);
 	for (;;) {
 		unsigned long set;
-		i = j * __NFDBITS;
+		i = j * BITS_PER_LONG;
 		if (i >= fdt->max_fds)
 			break;
 		set = fdt->open_fds[j++];

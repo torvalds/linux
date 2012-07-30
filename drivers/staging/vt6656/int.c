@@ -41,9 +41,7 @@
 #include "usbpipe.h"
 
 /*---------------------  Static Definitions -------------------------*/
-/* static int msglevel = MSG_LEVEL_DEBUG; */
-static int msglevel = MSG_LEVEL_INFO;
-
+static int msglevel = MSG_LEVEL_INFO; /* MSG_LEVEL_DEBUG */
 
 /*---------------------  Static Classes  ----------------------------*/
 
@@ -53,9 +51,7 @@ static int msglevel = MSG_LEVEL_INFO;
 
 /*---------------------  Export Variables  --------------------------*/
 
-
 /*---------------------  Export Functions  --------------------------*/
-
 
 /*+
  *
@@ -81,7 +77,7 @@ static int msglevel = MSG_LEVEL_INFO;
 -*/
 void INTvWorkItem(void *Context)
 {
-	PSDevice pDevice = (PSDevice) Context;
+	PSDevice pDevice = Context;
 	int ntStatus;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Interrupt Polling Thread\n");
@@ -94,8 +90,8 @@ void INTvWorkItem(void *Context)
 
 void INTnsProcessData(PSDevice pDevice)
 {
-	PSINTData	pINTData;
-	PSMgmtObject	pMgmt = &(pDevice->sMgmtObj);
+	PSINTData pINTData;
+	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
 	struct net_device_stats *pStats = &pDevice->stats;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsInterruptProcessData\n");
@@ -103,8 +99,8 @@ void INTnsProcessData(PSDevice pDevice)
 	pINTData = (PSINTData) pDevice->intBuf.pDataBuf;
 	if (pINTData->byTSR0 & TSR_VALID) {
 		STAvUpdateTDStatCounter(&(pDevice->scStatistic),
-					(BYTE) (pINTData->byPkt0 & 0x0F),
-					(BYTE) (pINTData->byPkt0>>4),
+					(BYTE)(pINTData->byPkt0 & 0x0F),
+					(BYTE)(pINTData->byPkt0>>4),
 					pINTData->byTSR0);
 		BSSvUpdateNodeTxCounter(pDevice,
 					&(pDevice->scStatistic),
@@ -114,8 +110,8 @@ void INTnsProcessData(PSDevice pDevice)
 	}
 	if (pINTData->byTSR1 & TSR_VALID) {
 		STAvUpdateTDStatCounter(&(pDevice->scStatistic),
-					(BYTE) (pINTData->byPkt1 & 0x0F),
-					(BYTE) (pINTData->byPkt1>>4),
+					(BYTE)(pINTData->byPkt1 & 0x0F),
+					(BYTE)(pINTData->byPkt1>>4),
 					pINTData->byTSR1);
 		BSSvUpdateNodeTxCounter(pDevice,
 					&(pDevice->scStatistic),
@@ -125,8 +121,8 @@ void INTnsProcessData(PSDevice pDevice)
 	}
 	if (pINTData->byTSR2 & TSR_VALID) {
 		STAvUpdateTDStatCounter(&(pDevice->scStatistic),
-					(BYTE) (pINTData->byPkt2 & 0x0F),
-					(BYTE) (pINTData->byPkt2>>4),
+					(BYTE)(pINTData->byPkt2 & 0x0F),
+					(BYTE)(pINTData->byPkt2>>4),
 					pINTData->byTSR2);
 		BSSvUpdateNodeTxCounter(pDevice,
 					&(pDevice->scStatistic),
@@ -136,8 +132,8 @@ void INTnsProcessData(PSDevice pDevice)
 	}
 	if (pINTData->byTSR3 & TSR_VALID) {
 		STAvUpdateTDStatCounter(&(pDevice->scStatistic),
-					(BYTE) (pINTData->byPkt3 & 0x0F),
-					(BYTE) (pINTData->byPkt3>>4),
+					(BYTE)(pINTData->byPkt3 & 0x0F),
+					(BYTE)(pINTData->byPkt3>>4),
 					pINTData->byTSR3);
 		BSSvUpdateNodeTxCounter(pDevice,
 					&(pDevice->scStatistic),
@@ -186,11 +182,11 @@ void INTnsProcessData(PSDevice pDevice)
 		LODWORD(pDevice->qwCurrTSF) = pINTData->dwLoTSF;
 		HIDWORD(pDevice->qwCurrTSF) = pINTData->dwHiTSF;
 		/*DBG_PRN_GRP01(("ISR0 = %02x ,
-				LoTsf =  %08x,
-				HiTsf =  %08x\n",
-				pINTData->byISR0,
-				pINTData->dwLoTSF,
-				pINTData->dwHiTSF)); */
+		  LoTsf =  %08x,
+		  HiTsf =  %08x\n",
+		  pINTData->byISR0,
+		  pINTData->dwLoTSF,
+		  pINTData->dwHiTSF)); */
 
 		STAvUpdate802_11Counter(&pDevice->s802_11Counter,
 					&pDevice->scStatistic,
@@ -202,7 +198,6 @@ void INTnsProcessData(PSDevice pDevice)
 					pINTData->byISR0,
 					pINTData->byISR1);
 	}
-
 	if (pINTData->byISR1 != 0)
 		if (pINTData->byISR1 & ISR_GPIO3)
 			bScheduleCommand((void *) pDevice,
@@ -213,8 +208,8 @@ void INTnsProcessData(PSDevice pDevice)
 
 	pStats->tx_packets = pDevice->scStatistic.ullTsrOK;
 	pStats->tx_bytes = pDevice->scStatistic.ullTxDirectedBytes +
-			pDevice->scStatistic.ullTxMulticastBytes +
-			pDevice->scStatistic.ullTxBroadcastBytes;
+		pDevice->scStatistic.ullTxMulticastBytes +
+		pDevice->scStatistic.ullTxBroadcastBytes;
 	pStats->tx_errors = pDevice->scStatistic.dwTsrErr;
 	pStats->tx_dropped = pDevice->scStatistic.dwTsrErr;
 }

@@ -32,8 +32,6 @@ static int pcm3730_do_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
@@ -41,17 +39,15 @@ static int pcm3730_do_insn_bits(struct comedi_device *dev,
 	}
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int pcm3730_di_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
 	data[1] = inb(dev->iobase + (unsigned long)(s->private));
-	return 2;
+	return insn->n;
 }
 
 static int pcm3730_attach(struct comedi_device *dev,
@@ -59,6 +55,7 @@ static int pcm3730_attach(struct comedi_device *dev,
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase;
+	int ret;
 
 	iobase = it->options[0];
 	printk(KERN_INFO "comedi%d: pcm3730: 0x%04lx ", dev->minor, iobase);
@@ -71,8 +68,9 @@ static int pcm3730_attach(struct comedi_device *dev,
 	dev->iobase = dev->iobase;
 	dev->irq = 0;
 
-	if (alloc_subdevices(dev, 6) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 6);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	s->type = COMEDI_SUBD_DO;

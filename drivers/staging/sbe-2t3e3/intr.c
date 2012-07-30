@@ -434,11 +434,6 @@ void exar7250_intr(struct channel *sc)
 {
 	u32 status, old_OOF;
 
-#if 0
-	/* disable interrupts */
-	exar7250_write(sc, SBE_2T3E3_FRAMER_REG_BLOCK_INTERRUPT_ENABLE, 0);
-#endif
-
 	old_OOF = sc->s.OOF;
 
 	status = exar7250_read(sc, SBE_2T3E3_FRAMER_REG_BLOCK_INTERRUPT_STATUS);
@@ -479,13 +474,6 @@ void exar7250_intr(struct channel *sc)
 			dc_start_intr(sc);
 		}
 	}
-#if 0
-	/* reenable interrupts */
-	exar7250_write(sc, SBE_2T3E3_FRAMER_REG_BLOCK_INTERRUPT_ENABLE,
-		       SBE_2T3E3_FRAMER_VAL_RX_INTERRUPT_ENABLE |
-		       SBE_2T3E3_FRAMER_VAL_TX_INTERRUPT_ENABLE
-		);
-#endif
 }
 
 
@@ -503,16 +491,8 @@ void exar7250_T3_intr(struct channel *sc, u32 block_status)
 
 			result = exar7250_read(sc, SBE_2T3E3_FRAMER_REG_T3_RX_CONFIGURATION_STATUS);
 
-#if 0
-			if (status & SBE_2T3E3_FRAMER_VAL_T3_RX_LOS_INTERRUPT_STATUS) {
-				dev_dbg(&sc->pdev->dev,
-					"Framer interrupt T3: LOS\n");
-				sc->s.LOS = result & SBE_2T3E3_FRAMER_VAL_T3_RX_LOS ? 1 : 0;
-
-			}
-#else
 			cpld_LOS_update(sc);
-#endif
+
 			if (status & SBE_2T3E3_FRAMER_VAL_T3_RX_OOF_INTERRUPT_STATUS) {
 				sc->s.OOF = result & SBE_2T3E3_FRAMER_VAL_T3_RX_OOF ? 1 : 0;
 				dev_dbg(&sc->pdev->dev,
@@ -523,16 +503,6 @@ void exar7250_T3_intr(struct channel *sc, u32 block_status)
 			exar7250_write(sc, SBE_2T3E3_FRAMER_REG_T3_RX_INTERRUPT_ENABLE,
 				       SBE_2T3E3_FRAMER_VAL_T3_RX_LOS_INTERRUPT_ENABLE |
 				       SBE_2T3E3_FRAMER_VAL_T3_RX_OOF_INTERRUPT_ENABLE);
-#if 0
-			SBE_2T3E3_FRAMER_VAL_T3_RX_CP_BIT_ERROR_INTERRUPT_ENABLE |
-				SBE_2T3E3_FRAMER_VAL_T3_RX_LOS_INTERRUPT_ENABLE |
-				SBE_2T3E3_FRAMER_VAL_T3_RX_AIS_INTERRUPT_ENABLE |
-				SBE_2T3E3_FRAMER_VAL_T3_RX_IDLE_INTERRUPT_ENABLE |
-				SBE_2T3E3_FRAMER_VAL_T3_RX_FERF_INTERRUPT_ENABLE |
-				SBE_2T3E3_FRAMER_VAL_T3_RX_AIC_INTERRUPT_ENABLE |
-				SBE_2T3E3_FRAMER_VAL_T3_RX_OOF_INTERRUPT_ENABLE |
-				SBE_2T3E3_FRAMER_VAL_T3_RX_P_BIT_INTERRUPT_ENABLE
-#endif
 				}
 
 		status = exar7250_read(sc, SBE_2T3E3_FRAMER_REG_T3_RX_FEAC_INTERRUPT_ENABLE_STATUS);
@@ -540,12 +510,6 @@ void exar7250_T3_intr(struct channel *sc, u32 block_status)
 			dev_dbg(&sc->pdev->dev,
 				"Framer interrupt T3 RX (REG[0x17] = %02X)\n",
 				status);
-#if 0
-			exar7250_write(sc, SBE_2T3E3_FRAMER_REG_T3_RX_FEAC_INTERRUPT_ENABLE_STATUS,
-				       SBE_2T3E3_FRAMER_VAL_T3_RX_FEAC_REMOVE_INTERRUPT_ENABLE |
-				       SBE_2T3E3_FRAMER_VAL_T3_RX_FEAC_VALID_INTERRUPT_ENABLE
-				);
-#endif
 		}
 
 		status = exar7250_read(sc, SBE_2T3E3_FRAMER_REG_T3_RX_LAPD_CONTROL);
@@ -582,15 +546,8 @@ void exar7250_E3_intr(struct channel *sc, u32 block_status)
 
 			result = exar7250_read(sc, SBE_2T3E3_FRAMER_REG_E3_RX_CONFIGURATION_STATUS_2);
 
-#if 0
-			if (status & SBE_2T3E3_FRAMER_VAL_E3_RX_LOS_INTERRUPT_STATUS) {
-				dev_dbg(&sc->pdev->dev,
-					"Framer interrupt E3: LOS\n");
-				sc->s.LOS = result & SBE_2T3E3_FRAMER_VAL_E3_RX_LOS ? 1 : 0;
-			}
-#else
 			cpld_LOS_update(sc);
-#endif
+
 			if (status & SBE_2T3E3_FRAMER_VAL_E3_RX_OOF_INTERRUPT_STATUS) {
 				sc->s.OOF = result & SBE_2T3E3_FRAMER_VAL_E3_RX_OOF ? 1 : 0;
 				dev_dbg(&sc->pdev->dev,
@@ -602,13 +559,6 @@ void exar7250_E3_intr(struct channel *sc, u32 block_status)
 				       SBE_2T3E3_FRAMER_VAL_E3_RX_OOF_INTERRUPT_ENABLE |
 				       SBE_2T3E3_FRAMER_VAL_E3_RX_LOS_INTERRUPT_ENABLE
 				);
-#if 0
-			SBE_2T3E3_FRAMER_VAL_E3_RX_COFA_INTERRUPT_ENABLE |
-				SBE_2T3E3_FRAMER_VAL_E3_RX_OOF_INTERRUPT_ENABLE |
-				SBE_2T3E3_FRAMER_VAL_E3_RX_LOF_INTERRUPT_ENABLE |
-				SBE_2T3E3_FRAMER_VAL_E3_RX_LOS_INTERRUPT_ENABLE |
-				SBE_2T3E3_FRAMER_VAL_E3_RX_AIS_INTERRUPT_ENABLE
-#endif
 				}
 
 		status = exar7250_read(sc, SBE_2T3E3_FRAMER_REG_E3_RX_INTERRUPT_STATUS_2);
@@ -617,12 +567,6 @@ void exar7250_E3_intr(struct channel *sc, u32 block_status)
 				"Framer interrupt E3 RX (REG[0x15] = %02X)\n",
 				status);
 
-#if 0
-			exar7250_write(sc, SBE_2T3E3_FRAMER_REG_E3_RX_INTERRUPT_ENABLE_2,
-				       SBE_2T3E3_FRAMER_VAL_E3_RX_FEBE_INTERRUPT_ENABLE |
-				       SBE_2T3E3_FRAMER_VAL_E3_RX_FERF_INTERRUPT_ENABLE |
-				       SBE_2T3E3_FRAMER_VAL_E3_RX_FRAMING_BYTE_ERROR_INTERRUPT_ENABLE);
-#endif
 		}
 
 	}

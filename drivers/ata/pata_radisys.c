@@ -244,22 +244,10 @@ static struct pci_driver radisys_pci_driver = {
 #endif
 };
 
-static int __init radisys_init(void)
-{
-	return pci_register_driver(&radisys_pci_driver);
-}
-
-static void __exit radisys_exit(void)
-{
-	pci_unregister_driver(&radisys_pci_driver);
-}
-
-module_init(radisys_init);
-module_exit(radisys_exit);
+module_pci_driver(radisys_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("SCSI low-level driver for Radisys R82600 controllers");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, radisys_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
-

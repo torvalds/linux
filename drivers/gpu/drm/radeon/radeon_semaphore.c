@@ -68,70 +68,49 @@ void radeon_semaphore_emit_wait(struct radeon_device *rdev, int ring,
 	radeon_semaphore_ring_emit(rdev, ring, &rdev->ring[ring], semaphore, true);
 }
 
+/* caller must hold ring lock */
 int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 				struct radeon_semaphore *semaphore,
-				bool sync_to[RADEON_NUM_RINGS],
-				int dst_ring)
+				int signaler, int waiter)
 {
-	int i = 0, r;
+	int r;
 
-	mutex_lock(&rdev->ring_lock);
-	r = radeon_ring_alloc(rdev, &rdev->ring[dst_ring], RADEON_NUM_RINGS * 8);
+	/* no need to signal and wait on the same ring */
+	if (signaler == waiter) {
+		return 0;
+	}
+
+	/* prevent GPU deadlocks */
+	if (!rdev->ring[signaler].ready) {
+		dev_err(rdev->dev, "Trying to sync to a disabled ring!");
+		return -EINVAL;
+	}
+
+	r = radeon_ring_alloc(rdev, &rdev->ring[signaler], 8);
 	if (r) {
-		goto error;
+		return r;
 	}
+	radeon_semaphore_emit_signal(rdev, signaler, semaphore);
+	radeon_ring_commit(rdev, &rdev->ring[signaler]);
 
-	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
-		/* no need to sync to our own or unused rings */
-		if (!sync_to[i] || i == dst_ring)
-			continue;
-
-		/* prevent GPU deadlocks */
-		if (!rdev->ring[i].ready) {
-			dev_err(rdev->dev, "Trying to sync to a disabled ring!");
-			r = -EINVAL;
-			goto error;
-		}
-
-		r = radeon_ring_alloc(rdev, &rdev->ring[i], 8);
-		if (r) {
-			goto error;
-		}
-
-		radeon_semaphore_emit_signal(rdev, i, semaphore);
-		radeon_semaphore_emit_wait(rdev, dst_ring, semaphore);
-
-		radeon_ring_commit(rdev, &rdev->ring[i]);
-	}
-
-	radeon_ring_commit(rdev, &rdev->ring[dst_ring]);
-	mutex_unlock(&rdev->ring_lock);
+	/* we assume caller has already allocated space on waiters ring */
+	radeon_semaphore_emit_wait(rdev, waiter, semaphore);
 
 	return 0;
-
-error:
-	/* unlock all locks taken so far */
-	for (--i; i >= 0; --i) {
-		if (sync_to[i] || i == dst_ring) {
-			radeon_ring_undo(&rdev->ring[i]);
-		}
-	}
-	radeon_ring_undo(&rdev->ring[dst_ring]);
-	mutex_unlock(&rdev->ring_lock);
-	return r;
 }
 
 void radeon_semaphore_free(struct radeon_device *rdev,
-			   struct radeon_semaphore *semaphore,
+			   struct radeon_semaphore **semaphore,
 			   struct radeon_fence *fence)
 {
-	if (semaphore == NULL) {
+	if (semaphore == NULL || *semaphore == NULL) {
 		return;
 	}
-	if (semaphore->waiters > 0) {
+	if ((*semaphore)->waiters > 0) {
 		dev_err(rdev->dev, "semaphore %p has more waiters than signalers,"
-			" hardware lockup imminent!\n", semaphore);
+			" hardware lockup imminent!\n", *semaphore);
 	}
-	radeon_sa_bo_free(rdev, &semaphore->sa_bo, fence);
-	kfree(semaphore);
+	radeon_sa_bo_free(rdev, &(*semaphore)->sa_bo, fence);
+	kfree(*semaphore);
+	*semaphore = NULL;
 }

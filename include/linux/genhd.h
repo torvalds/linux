@@ -16,7 +16,6 @@
 
 #ifdef CONFIG_BLOCK
 
-#define kobj_to_dev(k)		container_of((k), struct device, kobj)
 #define dev_to_disk(device)	container_of((device), struct gendisk, part0.__dev)
 #define dev_to_part(device)	container_of((device), struct hd_struct, __dev)
 #define disk_to_dev(disk)	(&(disk)->part0.__dev)

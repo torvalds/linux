@@ -119,17 +119,6 @@
  */
 #define LOCAL_TIMER_VECTOR		0xef
 
-/* up to 32 vectors used for spreading out TLB flushes: */
-#if NR_CPUS <= 32
-# define NUM_INVALIDATE_TLB_VECTORS	(NR_CPUS)
-#else
-# define NUM_INVALIDATE_TLB_VECTORS	(32)
-#endif
-
-#define INVALIDATE_TLB_VECTOR_END	(0xee)
-#define INVALIDATE_TLB_VECTOR_START	\
-	(INVALIDATE_TLB_VECTOR_END-NUM_INVALIDATE_TLB_VECTORS+1)
-
 #define NR_VECTORS			 256
 
 #define FPU_IRQ				  13

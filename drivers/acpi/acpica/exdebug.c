@@ -54,8 +54,8 @@ ACPI_MODULE_NAME("exdebug")
  * FUNCTION:    acpi_ex_do_debug_object
  *
  * PARAMETERS:  source_desc         - Object to be output to "Debug Object"
- *              Level               - Indentation level (used for packages)
- *              Index               - Current package element, zero if not pkg
+ *              level               - Indentation level (used for packages)
+ *              index               - Current package element, zero if not pkg
  *
  * RETURN:      None
  *
