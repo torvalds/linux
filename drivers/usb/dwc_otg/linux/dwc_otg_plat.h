@@ -67,6 +67,15 @@
 #define USB_IOMUX_INIT(a,b) rk30_mux_api_set(a,b)
 #endif
 
+#ifdef CONFIG_ARCH_RK2928
+#include <mach/iomux.h>
+#define GRF_REG_BASE RK2928_GRF_BASE
+#define USBOTG_SIZE    RK2928_USBOTG20_SIZE
+#define USBGRF_SOC_STATUS0	(GRF_REG_BASE+0x14c)
+#define USBGRF_UOC0_CON5	(GRF_REG_BASE+0x17c)
+#define USBGRF_UOC1_CON5	(GRF_REG_BASE+0x194)
+#define USB_IOMUX_INIT(a,b) rk30_mux_api_set(a,b)
+#endif
 /**
  * @file 
  *

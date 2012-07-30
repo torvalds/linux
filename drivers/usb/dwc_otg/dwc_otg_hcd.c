@@ -618,6 +618,24 @@ static int32_t dwc_otg_phy_suspend_cb( void *_p, int suspend)
         DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
     }
 #endif
+#ifdef CONFIG_ARCH_RK2928                
+    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON5);
+    if(exitsuspend && (pcd->phy_suspend == 1)) {
+        clk_enable(pcd->otg_dev->ahbclk);
+        clk_enable(pcd->otg_dev->phyclk);
+        pcd->phy_suspend = 0;
+        *otg_phy_con1 = (0x01<<16);    // exit suspend.
+        DWC_DEBUGPL(DBG_PCDV, "enable usb phy\n");
+    }
+    if( !exitsuspend && (pcd->phy_suspend == 0)) {
+        pcd->phy_suspend = 1;
+        *otg_phy_con1 = 0x55 |(0x7f<<16);   // enter suspend.
+        udelay(3);
+        clk_disable(pcd->otg_dev->phyclk);
+        clk_disable(pcd->otg_dev->ahbclk);
+        DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
+    }
+#endif
     return suspend;
 }
 
@@ -663,7 +681,7 @@ static struct tasklet_struct reset_tasklet = {
 	.func = reset_tasklet_func,
 	.data = 0,
 };
-#ifdef CONFIG_ARCH_RK30
+#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK2928)     
 static void dwc_otg_hcd_enable(struct work_struct *work)
 {
     dwc_otg_hcd_t *dwc_otg_hcd;
@@ -721,7 +739,11 @@ static void dwc_otg_hcd_connect_detect(unsigned long pdata)
 	local_irq_save(flags);
 
 //    DWC_PRINT("%s hprt %x, grfstatus 0x%x\n", __func__, dwc_read_reg32(core_if->host_if->hprt0), usbgrf_status& (7<<22));
+#ifdef CONFIG_ARCH_RK30
     if(usbgrf_status & (7<<22)){
+#else //CONFIG_ARCH_RK2928
+    if(usbgrf_status & (7<<12)){
+#endif
     // usb device connected
         dwc_otg_hcd->host_setenable = 1;
     }
@@ -732,7 +754,11 @@ static void dwc_otg_hcd_connect_detect(unsigned long pdata)
     
     }
     if(dwc_otg_hcd->host_setenable != dwc_otg_hcd->host_enabled){
+#ifdef CONFIG_ARCH_RK30	
     DWC_PRINT("%s schedule delaywork \n", __func__, dwc_read_reg32(core_if->host_if->hprt0), usbgrf_status& (7<<22));
+#else //CONFIG_ARCH_RK2928
+    DWC_PRINT("%s schedule delaywork \n", __func__, dwc_read_reg32(core_if->host_if->hprt0), usbgrf_status& (7<<12));
+#endif
     schedule_delayed_work(&dwc_otg_hcd->host_enable_work, 8);
     }
 //    dwc_otg_hcd->connect_detect_timer.expires = jiffies + (HZ<<1); /* 1 s */
@@ -1117,6 +1143,24 @@ static int32_t host20_phy_suspend_cb( void *_p, int suspend)
         DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
     }
 #endif
+#ifdef CONFIG_ARCH_RK2928                
+    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON5);
+    if(exitsuspend && (pcd->phy_suspend == 1)) {
+        clk_enable(pcd->otg_dev->ahbclk);
+        clk_enable(pcd->otg_dev->phyclk);
+        pcd->phy_suspend = 0;
+        *otg_phy_con1 = (0x01<<16);    // exit suspend.
+        DWC_DEBUGPL(DBG_PCDV, "enable usb phy\n");
+    }
+    if( !exitsuspend && (pcd->phy_suspend == 0)) {
+        pcd->phy_suspend = 1;
+        *otg_phy_con1 = 0x55 |(0x7f<<16);   // enter suspend.
+        udelay(3);
+        clk_disable(pcd->otg_dev->phyclk);
+        clk_disable(pcd->otg_dev->ahbclk);
+        DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
+    }
+#endif
     return suspend;
 }
 
@@ -1266,7 +1310,7 @@ int __devinit host20_hcd_init(struct device *dev)
 		goto error3;
 	}
     
-#ifdef CONFIG_ARCH_RK30        
+#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK2928)     
     dwc_otg_hcd->connect_detect_timer.function = dwc_otg_hcd_connect_detect;
     dwc_otg_hcd->connect_detect_timer.data = (unsigned long)(dwc_otg_hcd);
     init_timer( &dwc_otg_hcd->connect_detect_timer);

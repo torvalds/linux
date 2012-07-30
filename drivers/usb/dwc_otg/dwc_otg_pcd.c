@@ -1657,7 +1657,24 @@ int dwc_otg20phy_suspend( int exitsuspend )
         DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
     }
 #endif
-    
+#ifdef CONFIG_ARCH_RK2928                
+    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON5);
+    if(exitsuspend && (pcd->phy_suspend == 1)) {
+        clk_enable(pcd->otg_dev->ahbclk);
+        clk_enable(pcd->otg_dev->phyclk);
+        pcd->phy_suspend = 0;
+        *otg_phy_con1 = (0x01<<16);    // exit suspend.
+        DWC_DEBUGPL(DBG_PCDV, "enable usb phy\n");
+    }
+    if( !exitsuspend && (pcd->phy_suspend == 0)) {
+        pcd->phy_suspend = 1;
+        *otg_phy_con1 = 0x55 |(0x7f<<16);   // enter suspend.
+        udelay(3);
+        clk_disable(pcd->otg_dev->phyclk);
+        clk_disable(pcd->otg_dev->ahbclk);
+        DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
+    }
+#endif
     return pcd->phy_suspend;
 }
 
