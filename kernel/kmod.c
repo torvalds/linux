@@ -577,6 +577,12 @@ unlock:
 	return retval;
 }
 
+/*
+ * call_usermodehelper_fns() will not run the caller-provided cleanup function
+ * if a memory allocation failure is experienced.  So the caller might need to
+ * check the call_usermodehelper_fns() return value: if it is -ENOMEM, perform
+ * the necessaary cleanup within the caller.
+ */
 int call_usermodehelper_fns(
 	char *path, char **argv, char **envp, int wait,
 	int (*init)(struct subprocess_info *info, struct cred *new),
