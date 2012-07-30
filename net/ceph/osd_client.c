@@ -2037,8 +2037,8 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 	if (!req) {
 		*skip = 1;
 		m = NULL;
-		pr_info("get_reply unknown tid %llu from osd%d\n", tid,
-			osd->o_osd);
+		dout("get_reply unknown tid %llu from osd%d\n", tid,
+		     osd->o_osd);
 		goto out;
 	}
 
