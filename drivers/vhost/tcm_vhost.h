@@ -47,9 +47,9 @@ struct tcm_vhost_tpg {
 	/* Vhost port target portal group tag for TCM */
 	u16 tport_tpgt;
 	/* Used to track number of TPG Port/Lun Links wrt to explict I_T Nexus shutdown */
-	atomic_t tv_tpg_port_count;
-	/* Used for vhost_scsi device reference to tpg_nexus */
-	atomic_t tv_tpg_vhost_count;
+	int tv_tpg_port_count;
+	/* Used for vhost_scsi device reference to tpg_nexus, protected by tv_tpg_mutex */
+	int tv_tpg_vhost_count;
 	/* list for tcm_vhost_list */
 	struct list_head tv_tpg_list;
 	/* Used to protect access for tpg_nexus */
@@ -98,4 +98,5 @@ struct vhost_scsi_target {
 /* VHOST_SCSI specific defines */
 #define VHOST_SCSI_SET_ENDPOINT _IOW(VHOST_VIRTIO, 0x40, struct vhost_scsi_target)
 #define VHOST_SCSI_CLEAR_ENDPOINT _IOW(VHOST_VIRTIO, 0x41, struct vhost_scsi_target)
-#define VHOST_SCSI_GET_ABI_VERSION _IOW(VHOST_VIRTIO, 0x42, struct vhost_scsi_target)
+/* Changing this breaks userspace. */
+#define VHOST_SCSI_GET_ABI_VERSION _IOW(VHOST_VIRTIO, 0x42, int)
