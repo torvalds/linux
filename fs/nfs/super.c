@@ -2574,4 +2574,49 @@ out_no_address:
 	return -EINVAL;
 }
 
+/*
+ * NFS v4 module parameters need to stay in the
+ * NFS client for backwards compatibility
+ */
+unsigned int nfs_callback_set_tcpport;
+unsigned short nfs_callback_tcpport;
+/* Default cache timeout is 10 minutes */
+unsigned int nfs_idmap_cache_timeout = 600;
+/* Turn off NFSv4 uid/gid mapping when using AUTH_SYS */
+bool nfs4_disable_idmapping = true;
+unsigned short max_session_slots = NFS4_DEF_SLOT_TABLE_SIZE;
+unsigned short send_implementation_id = 1;
+
+#define NFS_CALLBACK_MAXPORTNR (65535U)
+
+static int param_set_portnr(const char *val, const struct kernel_param *kp)
+{
+	unsigned long num;
+	int ret;
+
+	if (!val)
+		return -EINVAL;
+	ret = strict_strtoul(val, 0, &num);
+	if (ret == -EINVAL || num > NFS_CALLBACK_MAXPORTNR)
+		return -EINVAL;
+	*((unsigned int *)kp->arg) = num;
+	return 0;
+}
+static struct kernel_param_ops param_ops_portnr = {
+	.set = param_set_portnr,
+	.get = param_get_uint,
+};
+#define param_check_portnr(name, p) __param_check(name, p, unsigned int);
+
+module_param_named(callback_tcpport, nfs_callback_set_tcpport, portnr, 0644);
+module_param(nfs_idmap_cache_timeout, int, 0644);
+module_param(nfs4_disable_idmapping, bool, 0644);
+MODULE_PARM_DESC(nfs4_disable_idmapping,
+		"Turn off NFSv4 idmapping when using 'sec=sys'");
+module_param(max_session_slots, ushort, 0644);
+MODULE_PARM_DESC(max_session_slots, "Maximum number of outstanding NFSv4.1 "
+		"requests the client will negotiate");
+module_param(send_implementation_id, ushort, 0644);
+MODULE_PARM_DESC(send_implementation_id,
+		"Send implementation ID with NFSv4.1 exchange_id");
 #endif /* CONFIG_NFS_V4 */

@@ -72,8 +72,6 @@
 
 #define NFS4_MAX_LOOP_ON_RECOVER (10)
 
-static unsigned short max_session_slots = NFS4_DEF_SLOT_TABLE_SIZE;
-
 struct nfs4_opendata;
 static int _nfs4_proc_open(struct nfs4_opendata *data);
 static int _nfs4_recover_proc_open(struct nfs4_opendata *data);
@@ -6931,10 +6929,6 @@ const struct xattr_handler *nfs4_xattr_handlers[] = {
 	&nfs4_xattr_nfs4_acl_handler,
 	NULL
 };
-
-module_param(max_session_slots, ushort, 0644);
-MODULE_PARM_DESC(max_session_slots, "Maximum number of outstanding NFSv4.1 "
-		"requests the client will negotiate");
 
 /*
  * Local variables:

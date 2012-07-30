@@ -52,8 +52,6 @@
 
 #define NFS_UINT_MAXLEN 11
 
-/* Default cache timeout is 10 minutes */
-unsigned int nfs_idmap_cache_timeout = 600;
 static const struct cred *id_resolver_cache;
 static struct key_type key_type_id_resolver_legacy;
 
@@ -366,7 +364,6 @@ static int nfs_idmap_lookup_id(const char *name, size_t namelen, const char *typ
 }
 
 /* idmap classic begins here */
-module_param(nfs_idmap_cache_timeout, int, 0644);
 
 enum {
 	Opt_find_uid, Opt_find_gid, Opt_find_user, Opt_find_group, Opt_find_err
