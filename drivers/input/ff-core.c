@@ -138,8 +138,8 @@ int input_ff_upload(struct input_dev *dev, struct ff_effect *effect,
 
 	if (effect->id == -1) {
 		for (id = 0; id < ff->max_effects; id++)
-		     if (!ff->effect_owners[id])
-			break;
+			if (!ff->effect_owners[id])
+				break;
 
 		if (id >= ff->max_effects) {
 			ret = -ENOSPC;
