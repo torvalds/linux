@@ -41,6 +41,11 @@
 #define VIRTIO_BLK_F_TOPOLOGY	10	/* Topology information is available */
 #define VIRTIO_BLK_F_CONFIG_WCE	11	/* Writeback mode available in config */
 
+#ifndef __KERNEL__
+/* Old (deprecated) name for VIRTIO_BLK_F_WCE. */
+#define VIRTIO_BLK_F_FLUSH VIRTIO_BLK_F_WCE
+#endif
+
 #define VIRTIO_BLK_ID_BYTES	20	/* ID string length */
 
 struct virtio_blk_config {
