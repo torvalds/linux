@@ -298,7 +298,7 @@ struct file_system_type nfs_xdev_fs_type = {
 	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
 
-static const struct super_operations nfs_sops = {
+const struct super_operations nfs_sops = {
 	.alloc_inode	= nfs_alloc_inode,
 	.destroy_inode	= nfs_destroy_inode,
 	.write_inode	= nfs_write_inode,
@@ -2105,10 +2105,12 @@ void nfs_fill_super(struct super_block *sb, struct nfs_mount_info *mount_info)
 
 	sb->s_blocksize_bits = 0;
 	sb->s_blocksize = 0;
-	if (data->bsize)
+	sb->s_xattr = server->nfs_client->cl_nfs_mod->xattr;
+	sb->s_op = server->nfs_client->cl_nfs_mod->sops;
+	if (data && data->bsize)
 		sb->s_blocksize = nfs_block_size(data->bsize, &sb->s_blocksize_bits);
 
-	if (server->nfs_client->rpc_ops->version == 3) {
+	if (server->nfs_client->rpc_ops->version != 2) {
 		/* The VFS shouldn't apply the umask to mode bits. We will do
 		 * so ourselves when necessary.
 		 */
@@ -2116,7 +2118,6 @@ void nfs_fill_super(struct super_block *sb, struct nfs_mount_info *mount_info)
 		sb->s_time_gran = 1;
 	}
 
-	sb->s_op = &nfs_sops;
  	nfs_initialise_sb(sb);
 }
 

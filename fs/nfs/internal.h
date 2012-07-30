@@ -327,6 +327,7 @@ void nfs_zap_acl_cache(struct inode *inode);
 extern int nfs_wait_bit_killable(void *word);
 
 /* super.c */
+extern const struct super_operations nfs_sops;
 extern struct file_system_type nfs_fs_type;
 extern struct file_system_type nfs_xdev_fs_type;
 #ifdef CONFIG_NFS_V4

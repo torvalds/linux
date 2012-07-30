@@ -11,6 +11,7 @@ static struct nfs_subversion nfs_v3 = {
 	.nfs_fs   = &nfs_fs_type,
 	.rpc_vers = &nfs_version3,
 	.rpc_ops  = &nfs_v3_clientops,
+	.sops     = &nfs_sops,
 };
 
 int __init init_nfs_v3(void)

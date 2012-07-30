@@ -71,24 +71,9 @@ struct nfs_subversion nfs_v4 = {
 	.nfs_fs   = &nfs4_fs_type,
 	.rpc_vers = &nfs_version4,
 	.rpc_ops  = &nfs_v4_clientops,
+	.sops     = &nfs4_sops,
+	.xattr    = nfs4_xattr_handlers,
 };
-
-/*
- * Set up an NFS4 superblock
- */
-static void nfs4_fill_super(struct super_block *sb,
-			    struct nfs_mount_info *mount_info)
-{
-	sb->s_time_gran = 1;
-	sb->s_op = &nfs4_sops;
-	/*
-	 * The VFS shouldn't apply the umask to mode bits. We will do
-	 * so ourselves when necessary.
-	 */
-	sb->s_flags  |= MS_POSIXACL;
-	sb->s_xattr = nfs4_xattr_handlers;
-	nfs_initialise_sb(sb);
-}
 
 /*
  * Get the superblock for the NFS4 root partition
@@ -101,7 +86,6 @@ nfs4_remote_mount(struct file_system_type *fs_type, int flags,
 	struct nfs_server *server;
 	struct dentry *mntroot = ERR_PTR(-ENOMEM);
 
-	mount_info->fill_super = nfs4_fill_super;
 	mount_info->set_security = nfs_set_sb_security;
 
 	/* Get a volume representation */
@@ -236,8 +220,6 @@ struct dentry *nfs4_try_mount(int flags, const char *dev_name,
 
 	dfprintk(MOUNT, "--> nfs4_try_mount()\n");
 
-	mount_info->fill_super = nfs4_fill_super;
-
 	export_path = data->nfs_server.export_path;
 	data->nfs_server.export_path = "/";
 	root_mnt = nfs_do_root_mount(&nfs4_remote_fs_type, flags, mount_info,
@@ -257,7 +239,7 @@ nfs4_remote_referral_mount(struct file_system_type *fs_type, int flags,
 			   const char *dev_name, void *raw_data)
 {
 	struct nfs_mount_info mount_info = {
-		.fill_super = nfs4_fill_super,
+		.fill_super = nfs_fill_super,
 		.set_security = nfs_clone_sb_security,
 		.cloned = raw_data,
 	};
