@@ -2988,6 +2988,45 @@ sub process {
 			}
 		}
 
+# do {} while (0) macro tests:
+# single-statement macros do not need to be enclosed in do while (0) loop,
+# macro should not end with a semicolon
+		if ($^V && $^V ge 5.10.0 &&
+		    $realfile !~ m@/vmlinux.lds.h$@ &&
+		    $line =~ /^.\s*\#\s*define\s+$Ident(\()?/) {
+			my $ln = $linenr;
+			my $cnt = $realcnt;
+			my ($off, $dstat, $dcond, $rest);
+			my $ctx = '';
+			($dstat, $dcond, $ln, $cnt, $off) =
+				ctx_statement_block($linenr, $realcnt, 0);
+			$ctx = $dstat;
+
+			$dstat =~ s/\\\n.//g;
+
+			if ($dstat =~ /^\+\s*#\s*define\s+$Ident\s*${balanced_parens}\s*do\s*{(.*)\s*}\s*while\s*\(\s*0\s*\)\s*([;\s]*)\s*$/) {
+				my $stmts = $2;
+				my $semis = $3;
+
+				$ctx =~ s/\n*$//;
+				my $cnt = statement_rawlines($ctx);
+				my $herectx = $here . "\n";
+
+				for (my $n = 0; $n < $cnt; $n++) {
+					$herectx .= raw_line($linenr, $n) . "\n";
+				}
+
+				if (($stmts =~ tr/;/;/) == 1) {
+					WARN("SINGLE_STATEMENT_DO_WHILE_MACRO",
+					     "Single statement macros should not use a do {} while (0) loop\n" . "$herectx");
+				}
+				if (defined $semis && $semis ne "") {
+					WARN("DO_WHILE_MACRO_WITH_TRAILING_SEMICOLON",
+					     "do {} while (0) macros should not be semicolon terminated\n" . "$herectx");
+				}
+			}
+		}
+
 # make sure symbols are always wrapped with VMLINUX_SYMBOL() ...
 # all assignments may have only one of the following with an assignment:
 #	.
