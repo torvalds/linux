@@ -2418,7 +2418,7 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 	if ((open_flag & O_CREAT) && !IS_POSIXACL(dir))
 		mode &= ~current_umask();
 
-	if (open_flag & O_EXCL) {
+	if ((open_flag & (O_EXCL | O_CREAT)) == (O_EXCL | O_CREAT)) {
 		open_flag &= ~O_TRUNC;
 		*opened |= FILE_CREATED;
 	}
@@ -2742,7 +2742,7 @@ retry_lookup:
 	}
 
 	error = -EEXIST;
-	if (open_flag & O_EXCL)
+	if ((open_flag & (O_EXCL | O_CREAT)) == (O_EXCL | O_CREAT))
 		goto exit_dput;
 
 	error = follow_managed(path, nd->flags);
