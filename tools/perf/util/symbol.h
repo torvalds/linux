@@ -9,6 +9,7 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <stdio.h>
+#include <byteswap.h>
 
 #ifdef HAVE_CPLUS_DEMANGLE
 extern char *cplus_demangle(const char *, int);
@@ -160,11 +161,18 @@ enum dso_kernel_type {
 	DSO_TYPE_GUEST_KERNEL
 };
 
+enum dso_swap_type {
+	DSO_SWAP__UNSET,
+	DSO_SWAP__NO,
+	DSO_SWAP__YES,
+};
+
 struct dso {
 	struct list_head node;
 	struct rb_root	 symbols[MAP__NR_TYPES];
 	struct rb_root	 symbol_names[MAP__NR_TYPES];
 	enum dso_kernel_type	kernel;
+	enum dso_swap_type	needs_swap;
 	u8		 adjust_symbols:1;
 	u8		 has_build_id:1;
 	u8		 hit:1;
@@ -181,6 +189,28 @@ struct dso {
 	u16		 short_name_len;
 	char		 name[0];
 };
+
+#define DSO__SWAP(dso, type, val)			\
+({							\
+	type ____r = val;				\
+	BUG_ON(dso->needs_swap == DSO_SWAP__UNSET);	\
+	if (dso->needs_swap == DSO_SWAP__YES) {		\
+		switch (sizeof(____r)) {		\
+		case 2:					\
+			____r = bswap_16(val);		\
+			break;				\
+		case 4:					\
+			____r = bswap_32(val);		\
+			break;				\
+		case 8:					\
+			____r = bswap_64(val);		\
+			break;				\
+		default:				\
+			BUG_ON(1);			\
+		}					\
+	}						\
+	____r;						\
+})
 
 struct dso *dso__new(const char *name);
 void dso__delete(struct dso *dso);
@@ -227,6 +257,7 @@ enum symtab_type {
 	SYMTAB__KALLSYMS = 0,
 	SYMTAB__GUEST_KALLSYMS,
 	SYMTAB__JAVA_JIT,
+	SYMTAB__DEBUGLINK,
 	SYMTAB__BUILD_ID_CACHE,
 	SYMTAB__FEDORA_DEBUGINFO,
 	SYMTAB__UBUNTU_DEBUGINFO,

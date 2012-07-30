@@ -35,6 +35,7 @@ extern void m360_cpm_reset(void);
 #define OSCILLATOR  (unsigned long int)33000000
 #endif
 
+static irq_handler_t timer_interrupt;
 unsigned long int system_clock;
 
 extern QUICC *pquicc;
@@ -52,7 +53,7 @@ static irqreturn_t hw_tick(int irq, void *dummy)
 
   pquicc->timer_ter1 = 0x0002; /* clear timer event */
 
-  return arch_timer_interrupt(irq, dummy);
+  return timer_interrupt(irq, dummy);
 }
 
 static struct irqaction m68360_timer_irq = {
@@ -61,7 +62,7 @@ static struct irqaction m68360_timer_irq = {
 	.handler = hw_tick,
 };
 
-void hw_timer_init(void)
+void hw_timer_init(irq_handler_t handler)
 {
   unsigned char prescaler;
   unsigned short tgcr_save;
@@ -93,6 +94,8 @@ void hw_timer_init(void)
   pquicc->timer_trr1 = (system_clock/ prescaler) / HZ; /* reference count */
 
   pquicc->timer_ter1 = 0x0003; /* clear timer events */
+
+  timer_interrupt = handler;
 
   /* enable timer 1 interrupt in CIMR */
   setup_irq(CPMVEC_TIMER1, &m68360_timer_irq);

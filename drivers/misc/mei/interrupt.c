@@ -835,7 +835,7 @@ static int _mei_irq_thread_read(struct mei_device *dev,	s32 *slots,
 			struct mei_cl *cl,
 			struct mei_io_list *cmpl_list)
 {
-	if ((*slots * sizeof(u32)) >= (sizeof(struct mei_msg_hdr) +
+	if ((*slots * sizeof(u32)) < (sizeof(struct mei_msg_hdr) +
 			sizeof(struct hbm_flow_control))) {
 		/* return the cancel routine */
 		list_del(&cb_pos->cb_list);

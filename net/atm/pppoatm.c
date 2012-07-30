@@ -283,7 +283,7 @@ static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 				kfree_skb(n);
 				goto nospace;
 			}
-			kfree_skb(skb);
+			consume_skb(skb);
 			skb = n;
 			if (skb == NULL)
 				return DROP_PACKET;

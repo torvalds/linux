@@ -1108,7 +1108,7 @@ void gfs2_quota_change(struct gfs2_inode *ip, s64 change,
 	}
 }
 
-int gfs2_quota_sync(struct super_block *sb, int type, int wait)
+int gfs2_quota_sync(struct super_block *sb, int type)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_quota_data **qda;
@@ -1154,7 +1154,7 @@ int gfs2_quota_sync(struct super_block *sb, int type, int wait)
 
 static int gfs2_quota_sync_timeo(struct super_block *sb, int type)
 {
-	return gfs2_quota_sync(sb, type, 0);
+	return gfs2_quota_sync(sb, type);
 }
 
 int gfs2_quota_refresh(struct gfs2_sbd *sdp, int user, u32 id)

@@ -127,8 +127,8 @@
 #define PR_SET_PTRACER 0x59616d61
 # define PR_SET_PTRACER_ANY ((unsigned long)-1)
 
-#define PR_SET_CHILD_SUBREAPER 36
-#define PR_GET_CHILD_SUBREAPER 37
+#define PR_SET_CHILD_SUBREAPER	36
+#define PR_GET_CHILD_SUBREAPER	37
 
 /*
  * If no_new_privs is set, then operations that grant new privileges (i.e.
@@ -141,8 +141,12 @@
  * Changing LSM security domain is considered a new privilege.  So, for example,
  * asking selinux for a specific new context (e.g. with runcon) will result
  * in execve returning -EPERM.
+ *
+ * See Documentation/prctl/no_new_privs.txt for more details.
  */
-#define PR_SET_NO_NEW_PRIVS 38
-#define PR_GET_NO_NEW_PRIVS 39
+#define PR_SET_NO_NEW_PRIVS	38
+#define PR_GET_NO_NEW_PRIVS	39
+
+#define PR_GET_TID_ADDRESS	40
 
 #endif /* _LINUX_PRCTL_H */

@@ -171,6 +171,10 @@ static void frag_kfree_skb(struct netns_frags *nf, struct sk_buff *skb)
 static void ip4_frag_init(struct inet_frag_queue *q, void *a)
 {
 	struct ipq *qp = container_of(q, struct ipq, q);
+	struct netns_ipv4 *ipv4 = container_of(q->net, struct netns_ipv4,
+					       frags);
+	struct net *net = container_of(ipv4, struct net, ipv4);
+
 	struct ip4_create_arg *arg = a;
 
 	qp->protocol = arg->iph->protocol;
@@ -180,7 +184,7 @@ static void ip4_frag_init(struct inet_frag_queue *q, void *a)
 	qp->daddr = arg->iph->daddr;
 	qp->user = arg->user;
 	qp->peer = sysctl_ipfrag_max_dist ?
-		inet_getpeer_v4(arg->iph->saddr, 1) : NULL;
+		inet_getpeer_v4(net->ipv4.peers, arg->iph->saddr, 1) : NULL;
 }
 
 static __inline__ void ip4_frag_free(struct inet_frag_queue *q)
@@ -254,8 +258,8 @@ static void ip_expire(unsigned long arg)
 		/* skb dst is stale, drop it, and perform route lookup again */
 		skb_dst_drop(head);
 		iph = ip_hdr(head);
-		err = ip_route_input_noref(head, iph->daddr, iph->saddr,
-					   iph->tos, head->dev);
+		err = ip_route_input(head, iph->daddr, iph->saddr,
+				     iph->tos, head->dev);
 		if (err)
 			goto out_rcu_unlock;
 

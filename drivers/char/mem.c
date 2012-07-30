@@ -27,13 +27,15 @@
 #include <linux/splice.h>
 #include <linux/pfn.h>
 #include <linux/export.h>
+#include <linux/io.h>
 
 #include <asm/uaccess.h>
-#include <asm/io.h>
 
 #ifdef CONFIG_IA64
 # include <linux/efi.h>
 #endif
+
+#define DEVPORT_MINOR	4
 
 static inline unsigned long size_inside_page(unsigned long start,
 					     unsigned long size)
@@ -894,6 +896,13 @@ static int __init chr_dev_init(void)
 	for (minor = 1; minor < ARRAY_SIZE(devlist); minor++) {
 		if (!devlist[minor].name)
 			continue;
+
+		/*
+		 * Create /dev/port? 
+		 */
+		if ((minor == DEVPORT_MINOR) && !arch_has_dev_port())
+			continue;
+
 		device_create(mem_class, NULL, MKDEV(MEM_MAJOR, minor),
 			      NULL, devlist[minor].name);
 	}

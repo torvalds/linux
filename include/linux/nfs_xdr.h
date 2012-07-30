@@ -348,6 +348,7 @@ struct nfs_openargs {
 	const struct qstr *	name;
 	const struct nfs_server *server;	 /* Needed for ID mapping */
 	const u32 *		bitmask;
+	const u32 *		open_bitmap;
 	__u32			claim;
 	struct nfs4_sequence_args	seq_args;
 };
@@ -1236,6 +1237,7 @@ struct nfs_pgio_header {
 	struct list_head	rpc_list;
 	atomic_t		refcnt;
 	struct nfs_page		*req;
+	struct nfs_writeverf	*verf;
 	struct pnfs_layout_segment *lseg;
 	loff_t			io_start;
 	const struct rpc_call_ops *mds_ops;
@@ -1273,6 +1275,7 @@ struct nfs_write_data {
 struct nfs_write_header {
 	struct nfs_pgio_header	header;
 	struct nfs_write_data	rpc_data;
+	struct nfs_writeverf	verf;
 };
 
 struct nfs_mds_commit_info {
@@ -1371,7 +1374,7 @@ struct nfs_rpc_ops {
 	int	(*readlink)(struct inode *, struct page *, unsigned int,
 			    unsigned int);
 	int	(*create)  (struct inode *, struct dentry *,
-			    struct iattr *, int, struct nfs_open_context *);
+			    struct iattr *, int);
 	int	(*remove)  (struct inode *, struct qstr *);
 	void	(*unlink_setup)  (struct rpc_message *, struct inode *dir);
 	void	(*unlink_rpc_prepare) (struct rpc_task *, struct nfs_unlinkdata *);

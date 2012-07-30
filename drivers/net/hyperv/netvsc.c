@@ -42,6 +42,7 @@ static struct netvsc_device *alloc_net_device(struct hv_device *device)
 	if (!net_device)
 		return NULL;
 
+	init_waitqueue_head(&net_device->wait_drain);
 	net_device->start_remove = false;
 	net_device->destroy = false;
 	net_device->dev = device;
@@ -387,12 +388,8 @@ int netvsc_device_remove(struct hv_device *device)
 	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
 
 	/* Wait for all send completions */
-	while (atomic_read(&net_device->num_outstanding_sends)) {
-		dev_info(&device->device,
-			"waiting for %d requests to complete...\n",
-			atomic_read(&net_device->num_outstanding_sends));
-		udelay(100);
-	}
+	wait_event(net_device->wait_drain,
+		   atomic_read(&net_device->num_outstanding_sends) == 0);
 
 	netvsc_disconnect_vsp(net_device);
 
@@ -485,6 +482,9 @@ static void netvsc_send_completion(struct hv_device *device,
 
 		num_outstanding_sends =
 			atomic_dec_return(&net_device->num_outstanding_sends);
+
+		if (net_device->destroy && num_outstanding_sends == 0)
+			wake_up(&net_device->wait_drain);
 
 		if (netif_queue_stopped(ndev) && !net_device->start_remove &&
 			(hv_ringbuf_avail_percent(&device->channel->outbound)
@@ -614,7 +614,7 @@ retry_send_cmplt:
 static void netvsc_receive_completion(void *context)
 {
 	struct hv_netvsc_packet *packet = context;
-	struct hv_device *device = (struct hv_device *)packet->device;
+	struct hv_device *device = packet->device;
 	struct netvsc_device *net_device;
 	u64 transaction_id = 0;
 	bool fsend_receive_comp = false;

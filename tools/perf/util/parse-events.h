@@ -26,13 +26,12 @@ extern struct tracepoint_path *tracepoint_id_to_path(u64 config);
 extern bool have_tracepoints(struct list_head *evlist);
 
 const char *event_type(int type);
-const char *event_name(struct perf_evsel *event);
-extern const char *__event_name(int type, u64 config);
 
 extern int parse_events_option(const struct option *opt, const char *str,
 			       int unset);
 extern int parse_events(struct perf_evlist *evlist, const char *str,
 			int unset);
+extern int parse_events_terms(struct list_head *terms, const char *str);
 extern int parse_filter(const struct option *opt, const char *str, int unset);
 
 #define EVENTS_HELP_MAX (128*1024)
@@ -63,11 +62,22 @@ struct parse_events__term {
 	struct list_head list;
 };
 
+struct parse_events_data__events {
+	struct list_head list;
+	int idx;
+};
+
+struct parse_events_data__terms {
+	struct list_head *terms;
+};
+
 int parse_events__is_hardcoded_term(struct parse_events__term *term);
 int parse_events__term_num(struct parse_events__term **_term,
 			   int type_term, char *config, long num);
 int parse_events__term_str(struct parse_events__term **_term,
 			   int type_term, char *config, char *str);
+int parse_events__term_clone(struct parse_events__term **new,
+			     struct parse_events__term *term);
 void parse_events__free_terms(struct list_head *terms);
 int parse_events_modifier(struct list_head *list, char *str);
 int parse_events_add_tracepoint(struct list_head **list, int *idx,
@@ -83,8 +93,7 @@ int parse_events_add_pmu(struct list_head **list, int *idx,
 			 char *pmu , struct list_head *head_config);
 void parse_events_update_lists(struct list_head *list_event,
 			       struct list_head *list_all);
-void parse_events_error(struct list_head *list_all,
-			int *idx, char const *msg);
+void parse_events_error(void *data, void *scanner, char const *msg);
 int parse_events__test(void);
 
 void print_events(const char *event_glob);

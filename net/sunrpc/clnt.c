@@ -385,7 +385,7 @@ out_no_rpciod:
 	return ERR_PTR(err);
 }
 
-/*
+/**
  * rpc_create - create an RPC client and transport with one call
  * @args: rpc_clnt create argument structure
  *

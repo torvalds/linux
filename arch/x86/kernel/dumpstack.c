@@ -27,8 +27,8 @@ static int die_counter;
 
 void printk_address(unsigned long address, int reliable)
 {
-	printk(" [<%p>] %s%pB\n", (void *) address,
-			reliable ? "" : "? ", (void *) address);
+	pr_cont(" [<%p>] %s%pB\n",
+		(void *)address, reliable ? "" : "? ", (void *)address);
 }
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -271,6 +271,7 @@ int __kprobes __die(const char *str, struct pt_regs *regs, long err)
 			current->thread.trap_nr, SIGSEGV) == NOTIFY_STOP)
 		return 1;
 
+	print_modules();
 	show_regs(regs);
 #ifdef CONFIG_X86_32
 	if (user_mode_vm(regs)) {

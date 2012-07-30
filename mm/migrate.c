@@ -436,7 +436,10 @@ void migrate_page_copy(struct page *newpage, struct page *page)
 		 * is actually a signal that all of the page has become dirty.
 		 * Whereas only part of our page may be dirty.
 		 */
-		__set_page_dirty_nobuffers(newpage);
+		if (PageSwapBacked(page))
+			SetPageDirty(newpage);
+		else
+			__set_page_dirty_nobuffers(newpage);
  	}
 
 	mlock_migrate_page(newpage, page);

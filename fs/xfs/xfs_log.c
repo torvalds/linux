@@ -38,13 +38,21 @@
 kmem_zone_t	*xfs_log_ticket_zone;
 
 /* Local miscellaneous function prototypes */
-STATIC int	 xlog_commit_record(struct log *log, struct xlog_ticket *ticket,
-				    xlog_in_core_t **, xfs_lsn_t *);
+STATIC int
+xlog_commit_record(
+	struct xlog		*log,
+	struct xlog_ticket	*ticket,
+	struct xlog_in_core	**iclog,
+	xfs_lsn_t		*commitlsnp);
+
 STATIC xlog_t *  xlog_alloc_log(xfs_mount_t	*mp,
 				xfs_buftarg_t	*log_target,
 				xfs_daddr_t	blk_offset,
 				int		num_bblks);
-STATIC int	 xlog_space_left(struct log *log, atomic64_t *head);
+STATIC int
+xlog_space_left(
+	struct xlog		*log,
+	atomic64_t		*head);
 STATIC int	 xlog_sync(xlog_t *log, xlog_in_core_t *iclog);
 STATIC void	 xlog_dealloc_log(xlog_t *log);
 
@@ -64,8 +72,10 @@ STATIC void xlog_state_switch_iclogs(xlog_t		*log,
 				     int		eventual_size);
 STATIC void xlog_state_want_sync(xlog_t	*log, xlog_in_core_t *iclog);
 
-STATIC void xlog_grant_push_ail(struct log	*log,
-				int		need_bytes);
+STATIC void
+xlog_grant_push_ail(
+	struct xlog	*log,
+	int		need_bytes);
 STATIC void xlog_regrant_reserve_log_space(xlog_t	 *log,
 					   xlog_ticket_t *ticket);
 STATIC void xlog_ungrant_log_space(xlog_t	 *log,
@@ -73,7 +83,9 @@ STATIC void xlog_ungrant_log_space(xlog_t	 *log,
 
 #if defined(DEBUG)
 STATIC void	xlog_verify_dest_ptr(xlog_t *log, char *ptr);
-STATIC void	xlog_verify_grant_tail(struct log *log);
+STATIC void
+xlog_verify_grant_tail(
+	struct xlog	*log);
 STATIC void	xlog_verify_iclog(xlog_t *log, xlog_in_core_t *iclog,
 				  int count, boolean_t syncing);
 STATIC void	xlog_verify_tail_lsn(xlog_t *log, xlog_in_core_t *iclog,
@@ -89,9 +101,9 @@ STATIC int	xlog_iclogs_empty(xlog_t *log);
 
 static void
 xlog_grant_sub_space(
-	struct log	*log,
-	atomic64_t	*head,
-	int		bytes)
+	struct xlog		*log,
+	atomic64_t		*head,
+	int			bytes)
 {
 	int64_t	head_val = atomic64_read(head);
 	int64_t new, old;
@@ -115,9 +127,9 @@ xlog_grant_sub_space(
 
 static void
 xlog_grant_add_space(
-	struct log	*log,
-	atomic64_t	*head,
-	int		bytes)
+	struct xlog		*log,
+	atomic64_t		*head,
+	int			bytes)
 {
 	int64_t	head_val = atomic64_read(head);
 	int64_t new, old;
@@ -165,7 +177,7 @@ xlog_grant_head_wake_all(
 
 static inline int
 xlog_ticket_reservation(
-	struct log		*log,
+	struct xlog		*log,
 	struct xlog_grant_head	*head,
 	struct xlog_ticket	*tic)
 {
@@ -182,7 +194,7 @@ xlog_ticket_reservation(
 
 STATIC bool
 xlog_grant_head_wake(
-	struct log		*log,
+	struct xlog		*log,
 	struct xlog_grant_head	*head,
 	int			*free_bytes)
 {
@@ -204,7 +216,7 @@ xlog_grant_head_wake(
 
 STATIC int
 xlog_grant_head_wait(
-	struct log		*log,
+	struct xlog		*log,
 	struct xlog_grant_head	*head,
 	struct xlog_ticket	*tic,
 	int			need_bytes)
@@ -256,7 +268,7 @@ shutdown:
  */
 STATIC int
 xlog_grant_head_check(
-	struct log		*log,
+	struct xlog		*log,
 	struct xlog_grant_head	*head,
 	struct xlog_ticket	*tic,
 	int			*need_bytes)
@@ -323,7 +335,7 @@ xfs_log_regrant(
 	struct xfs_mount	*mp,
 	struct xlog_ticket	*tic)
 {
-	struct log		*log = mp->m_log;
+	struct xlog		*log = mp->m_log;
 	int			need_bytes;
 	int			error = 0;
 
@@ -389,7 +401,7 @@ xfs_log_reserve(
 	bool			permanent,
 	uint		 	t_type)
 {
-	struct log		*log = mp->m_log;
+	struct xlog		*log = mp->m_log;
 	struct xlog_ticket	*tic;
 	int			need_bytes;
 	int			error = 0;
@@ -465,7 +477,7 @@ xfs_log_done(
 	struct xlog_in_core	**iclog,
 	uint			flags)
 {
-	struct log		*log = mp->m_log;
+	struct xlog		*log = mp->m_log;
 	xfs_lsn_t		lsn = 0;
 
 	if (XLOG_FORCED_SHUTDOWN(log) ||
@@ -810,6 +822,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 void
 xfs_log_unmount(xfs_mount_t *mp)
 {
+	cancel_delayed_work_sync(&mp->m_sync_work);
 	xfs_trans_ail_destroy(mp);
 	xlog_dealloc_log(mp->m_log);
 }
@@ -838,7 +851,7 @@ void
 xfs_log_space_wake(
 	struct xfs_mount	*mp)
 {
-	struct log		*log = mp->m_log;
+	struct xlog		*log = mp->m_log;
 	int			free_bytes;
 
 	if (XLOG_FORCED_SHUTDOWN(log))
@@ -916,7 +929,7 @@ xfs_lsn_t
 xlog_assign_tail_lsn_locked(
 	struct xfs_mount	*mp)
 {
-	struct log		*log = mp->m_log;
+	struct xlog		*log = mp->m_log;
 	struct xfs_log_item	*lip;
 	xfs_lsn_t		tail_lsn;
 
@@ -965,7 +978,7 @@ xlog_assign_tail_lsn(
  */
 STATIC int
 xlog_space_left(
-	struct log	*log,
+	struct xlog	*log,
 	atomic64_t	*head)
 {
 	int		free_bytes;
@@ -1277,7 +1290,7 @@ out:
  */
 STATIC int
 xlog_commit_record(
-	struct log		*log,
+	struct xlog		*log,
 	struct xlog_ticket	*ticket,
 	struct xlog_in_core	**iclog,
 	xfs_lsn_t		*commitlsnp)
@@ -1311,7 +1324,7 @@ xlog_commit_record(
  */
 STATIC void
 xlog_grant_push_ail(
-	struct log	*log,
+	struct xlog	*log,
 	int		need_bytes)
 {
 	xfs_lsn_t	threshold_lsn = 0;
@@ -1790,7 +1803,7 @@ xlog_write_start_rec(
 
 static xlog_op_header_t *
 xlog_write_setup_ophdr(
-	struct log		*log,
+	struct xlog		*log,
 	struct xlog_op_header	*ophdr,
 	struct xlog_ticket	*ticket,
 	uint			flags)
@@ -1873,7 +1886,7 @@ xlog_write_setup_copy(
 
 static int
 xlog_write_copy_finish(
-	struct log		*log,
+	struct xlog		*log,
 	struct xlog_in_core	*iclog,
 	uint			flags,
 	int			*record_cnt,
@@ -1958,7 +1971,7 @@ xlog_write_copy_finish(
  */
 int
 xlog_write(
-	struct log		*log,
+	struct xlog		*log,
 	struct xfs_log_vec	*log_vector,
 	struct xlog_ticket	*ticket,
 	xfs_lsn_t		*start_lsn,
@@ -2821,7 +2834,7 @@ _xfs_log_force(
 	uint			flags,
 	int			*log_flushed)
 {
-	struct log		*log = mp->m_log;
+	struct xlog		*log = mp->m_log;
 	struct xlog_in_core	*iclog;
 	xfs_lsn_t		lsn;
 
@@ -2969,7 +2982,7 @@ _xfs_log_force_lsn(
 	uint			flags,
 	int			*log_flushed)
 {
-	struct log		*log = mp->m_log;
+	struct xlog		*log = mp->m_log;
 	struct xlog_in_core	*iclog;
 	int			already_slept = 0;
 
@@ -3147,7 +3160,7 @@ xfs_log_ticket_get(
  */
 xlog_ticket_t *
 xlog_ticket_alloc(
-	struct log	*log,
+	struct xlog	*log,
 	int		unit_bytes,
 	int		cnt,
 	char		client,
@@ -3278,7 +3291,7 @@ xlog_ticket_alloc(
  */
 void
 xlog_verify_dest_ptr(
-	struct log	*log,
+	struct xlog	*log,
 	char		*ptr)
 {
 	int i;
@@ -3307,7 +3320,7 @@ xlog_verify_dest_ptr(
  */
 STATIC void
 xlog_verify_grant_tail(
-	struct log	*log)
+	struct xlog	*log)
 {
 	int		tail_cycle, tail_blocks;
 	int		cycle, space;

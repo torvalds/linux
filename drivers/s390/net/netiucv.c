@@ -1854,26 +1854,11 @@ static struct attribute_group netiucv_stat_attr_group = {
 	.attrs = netiucv_stat_attrs,
 };
 
-static int netiucv_add_files(struct device *dev)
-{
-	int ret;
-
-	IUCV_DBF_TEXT(trace, 3, __func__);
-	ret = sysfs_create_group(&dev->kobj, &netiucv_attr_group);
-	if (ret)
-		return ret;
-	ret = sysfs_create_group(&dev->kobj, &netiucv_stat_attr_group);
-	if (ret)
-		sysfs_remove_group(&dev->kobj, &netiucv_attr_group);
-	return ret;
-}
-
-static void netiucv_remove_files(struct device *dev)
-{
-	IUCV_DBF_TEXT(trace, 3, __func__);
-	sysfs_remove_group(&dev->kobj, &netiucv_stat_attr_group);
-	sysfs_remove_group(&dev->kobj, &netiucv_attr_group);
-}
+static const struct attribute_group *netiucv_attr_groups[] = {
+	&netiucv_stat_attr_group,
+	&netiucv_attr_group,
+	NULL,
+};
 
 static int netiucv_register_device(struct net_device *ndev)
 {
@@ -1887,6 +1872,7 @@ static int netiucv_register_device(struct net_device *ndev)
 		dev_set_name(dev, "net%s", ndev->name);
 		dev->bus = &iucv_bus;
 		dev->parent = iucv_root;
+		dev->groups = netiucv_attr_groups;
 		/*
 		 * The release function could be called after the
 		 * module has been unloaded. It's _only_ task is to
@@ -1904,22 +1890,14 @@ static int netiucv_register_device(struct net_device *ndev)
 		put_device(dev);
 		return ret;
 	}
-	ret = netiucv_add_files(dev);
-	if (ret)
-		goto out_unreg;
 	priv->dev = dev;
 	dev_set_drvdata(dev, priv);
 	return 0;
-
-out_unreg:
-	device_unregister(dev);
-	return ret;
 }
 
 static void netiucv_unregister_device(struct device *dev)
 {
 	IUCV_DBF_TEXT(trace, 3, __func__);
-	netiucv_remove_files(dev);
 	device_unregister(dev);
 }
 

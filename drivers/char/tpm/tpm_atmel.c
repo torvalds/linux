@@ -168,22 +168,14 @@ static void atml_plat_remove(void)
 	}
 }
 
-static int tpm_atml_suspend(struct platform_device *dev, pm_message_t msg)
-{
-	return tpm_pm_suspend(&dev->dev, msg);
-}
+static SIMPLE_DEV_PM_OPS(tpm_atml_pm, tpm_pm_suspend, tpm_pm_resume);
 
-static int tpm_atml_resume(struct platform_device *dev)
-{
-	return tpm_pm_resume(&dev->dev);
-}
 static struct platform_driver atml_drv = {
 	.driver = {
 		.name = "tpm_atmel",
 		.owner		= THIS_MODULE,
+		.pm		= &tpm_atml_pm,
 	},
-	.suspend = tpm_atml_suspend,
-	.resume = tpm_atml_resume,
 };
 
 static int __init init_atmel(void)

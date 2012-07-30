@@ -668,7 +668,7 @@ static int annotate_browser__run(struct annotate_browser *browser, int evidx,
 		"q/ESC/CTRL+C  Exit\n\n"
 		"->            Go to target\n"
 		"<-            Exit\n"
-		"h             Cycle thru hottest instructions\n"
+		"H             Cycle thru hottest instructions\n"
 		"j             Toggle showing jump to target arrows\n"
 		"J             Toggle showing number of jump sources on targets\n"
 		"n             Search next string\n"
@@ -814,7 +814,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 {
 	struct disasm_line *pos, *n;
 	struct annotation *notes;
-	const size_t size = symbol__size(sym);
+	size_t size;
 	struct map_symbol ms = {
 		.map = map,
 		.sym = sym,
@@ -833,6 +833,8 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 
 	if (sym == NULL)
 		return -1;
+
+	size = symbol__size(sym);
 
 	if (map->dso->annotate_warned)
 		return -1;

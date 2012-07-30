@@ -159,6 +159,17 @@ out_delete_partial_list:
 	return -1;
 }
 
+int __perf_evlist__add_default_attrs(struct perf_evlist *evlist,
+				     struct perf_event_attr *attrs, size_t nr_attrs)
+{
+	size_t i;
+
+	for (i = 0; i < nr_attrs; i++)
+		event_attr_init(attrs + i);
+
+	return perf_evlist__add_attrs(evlist, attrs, nr_attrs);
+}
+
 static int trace_event__id(const char *evname)
 {
 	char *filename, *colon;
@@ -213,8 +224,8 @@ out_free_attrs:
 	return err;
 }
 
-static struct perf_evsel *
-	perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id)
+struct perf_evsel *
+perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id)
 {
 	struct perf_evsel *evsel;
 
@@ -263,7 +274,8 @@ void perf_evlist__disable(struct perf_evlist *evlist)
 	for (cpu = 0; cpu < evlist->cpus->nr; cpu++) {
 		list_for_each_entry(pos, &evlist->entries, node) {
 			for (thread = 0; thread < evlist->threads->nr; thread++)
-				ioctl(FD(pos, cpu, thread), PERF_EVENT_IOC_DISABLE);
+				ioctl(FD(pos, cpu, thread),
+				      PERF_EVENT_IOC_DISABLE, 0);
 		}
 	}
 }
@@ -276,7 +288,8 @@ void perf_evlist__enable(struct perf_evlist *evlist)
 	for (cpu = 0; cpu < evlist->cpus->nr; cpu++) {
 		list_for_each_entry(pos, &evlist->entries, node) {
 			for (thread = 0; thread < evlist->threads->nr; thread++)
-				ioctl(FD(pos, cpu, thread), PERF_EVENT_IOC_ENABLE);
+				ioctl(FD(pos, cpu, thread),
+				      PERF_EVENT_IOC_ENABLE, 0);
 		}
 	}
 }

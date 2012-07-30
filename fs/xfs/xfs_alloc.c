@@ -1074,12 +1074,13 @@ restart:
 	 * If we couldn't get anything, give up.
 	 */
 	if (bno_cur_lt == NULL && bno_cur_gt == NULL) {
+		xfs_btree_del_cursor(cnt_cur, XFS_BTREE_NOERROR);
+
 		if (!forced++) {
 			trace_xfs_alloc_near_busy(args);
 			xfs_log_force(args->mp, XFS_LOG_SYNC);
 			goto restart;
 		}
-
 		trace_xfs_alloc_size_neither(args);
 		args->agbno = NULLAGBLOCK;
 		return 0;
@@ -2433,15 +2434,24 @@ xfs_alloc_vextent_worker(
 	current_restore_flags_nested(&pflags, PF_FSTRANS);
 }
 
-
-int				/* error */
+/*
+ * Data allocation requests often come in with little stack to work on. Push
+ * them off to a worker thread so there is lots of stack to use. Metadata
+ * requests, OTOH, are generally from low stack usage paths, so avoid the
+ * context switch overhead here.
+ */
+int
 xfs_alloc_vextent(
-	xfs_alloc_arg_t	*args)	/* allocation argument structure */
+	struct xfs_alloc_arg	*args)
 {
 	DECLARE_COMPLETION_ONSTACK(done);
 
+	if (!args->userdata)
+		return __xfs_alloc_vextent(args);
+
+
 	args->done = &done;
-	INIT_WORK(&args->work, xfs_alloc_vextent_worker);
+	INIT_WORK_ONSTACK(&args->work, xfs_alloc_vextent_worker);
 	queue_work(xfs_alloc_wq, &args->work);
 	wait_for_completion(&done);
 	return args->result;

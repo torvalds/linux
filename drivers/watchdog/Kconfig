@@ -1115,10 +1115,10 @@ config BOOKE_WDT
 config BOOKE_WDT_DEFAULT_TIMEOUT
 	int "PowerPC Book-E Watchdog Timer Default Timeout"
 	depends on BOOKE_WDT
-	default 38 if FSL_BOOKE
-	range 0 63 if FSL_BOOKE
-	default 3 if !FSL_BOOKE
-	range 0 3 if !FSL_BOOKE
+	default 38 if PPC_FSL_BOOK3E
+	range 0 63 if PPC_FSL_BOOK3E
+	default 3 if !PPC_FSL_BOOK3E
+	range 0 3 if !PPC_FSL_BOOK3E
 	help
 	  Select the default watchdog timer period to be used by the PowerPC
 	  Book-E watchdog driver.  A watchdog "event" occurs when the bit

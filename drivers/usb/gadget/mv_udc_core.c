@@ -464,7 +464,7 @@ static int mv_ep_enable(struct usb_ep *_ep,
 	ep = container_of(_ep, struct mv_ep, ep);
 	udc = ep->udc;
 
-	if (!_ep || !desc || ep->ep.desc
+	if (!_ep || !desc
 			|| desc->bDescriptorType != USB_DT_ENDPOINT)
 		return -EINVAL;
 

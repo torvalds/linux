@@ -8,7 +8,7 @@
  *
  * Based on hdaps.c driver:
  * Copyright (C) 2005 Robert Love <rml@novell.com>
- * Copyright (C) 2005 Jesper Juhl <jesper.juhl@gmail.com>
+ * Copyright (C) 2005 Jesper Juhl <jj@chaosbits.net>
  *
  * Fan control based on smcFanControl:
  * Copyright (C) 2006 Hendrik Holtmann <holtmann@mac.com>
@@ -215,7 +215,7 @@ static int read_smc(u8 cmd, const char *key, u8 *buffer, u8 len)
 	int i;
 
 	if (send_command(cmd) || send_argument(key)) {
-		pr_warn("%s: read arg fail\n", key);
+		pr_warn("%.4s: read arg fail\n", key);
 		return -EIO;
 	}
 
@@ -223,7 +223,7 @@ static int read_smc(u8 cmd, const char *key, u8 *buffer, u8 len)
 
 	for (i = 0; i < len; i++) {
 		if (__wait_status(0x05)) {
-			pr_warn("%s: read data fail\n", key);
+			pr_warn("%.4s: read data fail\n", key);
 			return -EIO;
 		}
 		buffer[i] = inb(APPLESMC_DATA_PORT);

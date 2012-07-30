@@ -1640,8 +1640,7 @@ smsc9420_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_free_io_4;
 
 	/* descriptors are aligned due to the nature of pci_alloc_consistent */
-	pd->tx_ring = (struct smsc9420_dma_desc *)
-	    (pd->rx_ring + RX_RING_SIZE);
+	pd->tx_ring = (pd->rx_ring + RX_RING_SIZE);
 	pd->tx_dma_addr = pd->rx_dma_addr +
 	    sizeof(struct smsc9420_dma_desc) * RX_RING_SIZE;
 

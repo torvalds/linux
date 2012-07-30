@@ -587,14 +587,14 @@ static void sbp_management_request_logout(
 {
 	struct sbp_tport *tport = agent->tport;
 	struct sbp_tpg *tpg = tport->tpg;
-	int login_id;
+	int id;
 	struct sbp_login_descriptor *login;
 
-	login_id = LOGOUT_ORB_LOGIN_ID(be32_to_cpu(req->orb.misc));
+	id = LOGOUT_ORB_LOGIN_ID(be32_to_cpu(req->orb.misc));
 
-	login = sbp_login_find_by_id(tpg, login_id);
+	login = sbp_login_find_by_id(tpg, id);
 	if (!login) {
-		pr_warn("cannot find login: %d\n", login_id);
+		pr_warn("cannot find login: %d\n", id);
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
@@ -1219,28 +1219,14 @@ static void sbp_handle_command(struct sbp_target_request *req)
 	ret = sbp_fetch_command(req);
 	if (ret) {
 		pr_debug("sbp_handle_command: fetch command failed: %d\n", ret);
-		req->status.status |= cpu_to_be32(
-			STATUS_BLOCK_RESP(STATUS_RESP_TRANSPORT_FAILURE) |
-			STATUS_BLOCK_DEAD(0) |
-			STATUS_BLOCK_LEN(1) |
-			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_UNSPECIFIED_ERROR));
-		sbp_send_status(req);
-		sbp_free_request(req);
-		return;
+		goto err;
 	}
 
 	ret = sbp_fetch_page_table(req);
 	if (ret) {
 		pr_debug("sbp_handle_command: fetch page table failed: %d\n",
 			ret);
-		req->status.status |= cpu_to_be32(
-			STATUS_BLOCK_RESP(STATUS_RESP_TRANSPORT_FAILURE) |
-			STATUS_BLOCK_DEAD(0) |
-			STATUS_BLOCK_LEN(1) |
-			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_UNSPECIFIED_ERROR));
-		sbp_send_status(req);
-		sbp_free_request(req);
-		return;
+		goto err;
 	}
 
 	unpacked_lun = req->login->lun->unpacked_lun;
@@ -1249,9 +1235,21 @@ static void sbp_handle_command(struct sbp_target_request *req)
 	pr_debug("sbp_handle_command ORB:0x%llx unpacked_lun:%d data_len:%d data_dir:%d\n",
 			req->orb_pointer, unpacked_lun, data_length, data_dir);
 
-	target_submit_cmd(&req->se_cmd, sess->se_sess, req->cmd_buf,
-			req->sense_buf, unpacked_lun, data_length,
-			MSG_SIMPLE_TAG, data_dir, 0);
+	if (target_submit_cmd(&req->se_cmd, sess->se_sess, req->cmd_buf,
+			      req->sense_buf, unpacked_lun, data_length,
+			      MSG_SIMPLE_TAG, data_dir, 0))
+		goto err;
+
+	return;
+
+err:
+	req->status.status |= cpu_to_be32(
+		STATUS_BLOCK_RESP(STATUS_RESP_TRANSPORT_FAILURE) |
+		STATUS_BLOCK_DEAD(0) |
+		STATUS_BLOCK_LEN(1) |
+		STATUS_BLOCK_SBP_STATUS(SBP_STATUS_UNSPECIFIED_ERROR));
+	sbp_send_status(req);
+	sbp_free_request(req);
 }
 
 /*
@@ -1784,8 +1782,7 @@ static int sbp_write_pending(struct se_cmd *se_cmd)
 		return ret;
 	}
 
-	transport_generic_process_write(se_cmd);
-
+	target_execute_cmd(se_cmd);
 	return 0;
 }
 

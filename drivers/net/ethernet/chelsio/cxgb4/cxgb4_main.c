@@ -3493,8 +3493,8 @@ static void __devinit cfg_queues(struct adapter *adap)
 	 */
 	if (n10g)
 		q10g = (MAX_ETH_QSETS - (adap->params.nports - n10g)) / n10g;
-	if (q10g > num_online_cpus())
-		q10g = num_online_cpus();
+	if (q10g > netif_get_num_default_rss_queues())
+		q10g = netif_get_num_default_rss_queues();
 
 	for_each_port(adap, i) {
 		struct port_info *pi = adap2pinfo(adap, i);

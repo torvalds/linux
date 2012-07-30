@@ -1,11 +1,12 @@
 /*
- *    Copyright IBM Corp 2000,2011
+ *    Copyright IBM Corp 2000, 2011
  *    Author(s): Holger Smolinski <Holger.Smolinski@de.ibm.com>,
  *		 Denis Joseph Barrow,
  */
 
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
+#include <asm/sigp.h>
 
 #
 # store_status
@@ -106,7 +107,7 @@ ENTRY(do_reipl_asm)
 .L003:		st	%r1,__LC_SUBCHANNEL_ID
 		lhi	%r1,0		 # mode 0 = esa
 		slr	%r0,%r0 	 # set cpuid to zero
-		sigp	%r1,%r0,0x12	 # switch to esa mode
+		sigp	%r1,%r0,SIGP_SET_ARCHITECTURE # switch to esa mode
 		lpsw	0
 .Ldisab:	sll	%r14,1
 		srl	%r14,1		 # need to kill hi bit to avoid specification exceptions.

@@ -568,7 +568,7 @@ static void sctp_v4_get_saddr(struct sctp_sock *sk,
 /* What interface did this skb arrive on? */
 static int sctp_v4_skb_iif(const struct sk_buff *skb)
 {
-	return skb_rtable(skb)->rt_iif;
+	return inet_iif(skb);
 }
 
 /* Was this packet marked by Explicit Congestion Notification? */
@@ -673,7 +673,9 @@ void sctp_addr_wq_timeout_handler(unsigned long arg)
 				SCTP_DEBUG_PRINTK("sctp_addrwq_timo_handler: sctp_asconf_mgmt failed\n");
 			sctp_bh_unlock_sock(sk);
 		}
+#if IS_ENABLED(CONFIG_IPV6)
 free_next:
+#endif
 		list_del(&addrw->list);
 		kfree(addrw);
 	}

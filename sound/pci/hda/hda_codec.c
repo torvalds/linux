@@ -1184,6 +1184,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 {
 	if (!codec)
 		return;
+	snd_hda_jack_tbl_clear(codec);
 	restore_init_pincfgs(codec);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	cancel_delayed_work(&codec->power_work);
@@ -1192,6 +1193,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	list_del(&codec->list);
 	snd_array_free(&codec->mixers);
 	snd_array_free(&codec->nids);
+	snd_array_free(&codec->cvt_setups);
 	snd_array_free(&codec->conn_lists);
 	snd_array_free(&codec->spdif_out);
 	codec->bus->caddr_tbl[codec->addr] = NULL;
@@ -2333,6 +2335,8 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 	/* free only driver_pins so that init_pins + user_pins are restored */
 	snd_array_free(&codec->driver_pins);
 	restore_pincfgs(codec);
+	snd_array_free(&codec->cvt_setups);
+	snd_array_free(&codec->spdif_out);
 	codec->num_pcms = 0;
 	codec->pcm_info = NULL;
 	codec->preset = NULL;
@@ -4393,20 +4397,19 @@ void snd_hda_update_power_acct(struct hda_codec *codec)
 	codec->power_jiffies += delta;
 }
 
-/**
- * snd_hda_power_up - Power-up the codec
- * @codec: HD-audio codec
- *
- * Increment the power-up counter and power up the hardware really when
- * not turned on yet.
- */
-void snd_hda_power_up(struct hda_codec *codec)
+/* Transition to powered up, if wait_power_down then wait for a pending
+ * transition to D3 to complete. A pending D3 transition is indicated
+ * with power_transition == -1. */
+static void __snd_hda_power_up(struct hda_codec *codec, bool wait_power_down)
 {
 	struct hda_bus *bus = codec->bus;
 
 	spin_lock(&codec->power_lock);
 	codec->power_count++;
-	if (codec->power_on || codec->power_transition > 0) {
+	/* Return if power_on or transitioning to power_on, unless currently
+	 * powering down. */
+	if ((codec->power_on || codec->power_transition > 0) &&
+	    !(wait_power_down && codec->power_transition < 0)) {
 		spin_unlock(&codec->power_lock);
 		return;
 	}
@@ -4430,7 +4433,36 @@ void snd_hda_power_up(struct hda_codec *codec)
 	codec->power_transition = 0;
 	spin_unlock(&codec->power_lock);
 }
+
+/**
+ * snd_hda_power_up - Power-up the codec
+ * @codec: HD-audio codec
+ *
+ * Increment the power-up counter and power up the hardware really when
+ * not turned on yet.
+ */
+void snd_hda_power_up(struct hda_codec *codec)
+{
+	__snd_hda_power_up(codec, false);
+}
 EXPORT_SYMBOL_HDA(snd_hda_power_up);
+
+/**
+ * snd_hda_power_up_d3wait - Power-up the codec after waiting for any pending
+ *   D3 transition to complete.  This differs from snd_hda_power_up() when
+ *   power_transition == -1.  snd_hda_power_up sees this case as a nop,
+ *   snd_hda_power_up_d3wait waits for the D3 transition to complete then powers
+ *   back up.
+ * @codec: HD-audio codec
+ *
+ * Cancel any power down operation hapenning on the work queue, then power up.
+ */
+void snd_hda_power_up_d3wait(struct hda_codec *codec)
+{
+	/* This will cancel and wait for pending power_work to complete. */
+	__snd_hda_power_up(codec, true);
+}
+EXPORT_SYMBOL_HDA(snd_hda_power_up_d3wait);
 
 #define power_save(codec)	\
 	((codec)->bus->power_save ? *(codec)->bus->power_save : 0)

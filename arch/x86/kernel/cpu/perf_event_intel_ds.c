@@ -248,7 +248,7 @@ void reserve_ds_buffers(void)
  */
 
 struct event_constraint bts_constraint =
-	EVENT_CONSTRAINT(0, 1ULL << X86_PMC_IDX_FIXED_BTS, 0);
+	EVENT_CONSTRAINT(0, 1ULL << INTEL_PMC_IDX_FIXED_BTS, 0);
 
 void intel_pmu_enable_bts(u64 config)
 {
@@ -295,7 +295,7 @@ int intel_pmu_drain_bts_buffer(void)
 		u64	to;
 		u64	flags;
 	};
-	struct perf_event *event = cpuc->events[X86_PMC_IDX_FIXED_BTS];
+	struct perf_event *event = cpuc->events[INTEL_PMC_IDX_FIXED_BTS];
 	struct bts_record *at, *top;
 	struct perf_output_handle handle;
 	struct perf_event_header header;
@@ -400,14 +400,7 @@ struct event_constraint intel_snb_pebs_event_constraints[] = {
 	INTEL_EVENT_CONSTRAINT(0xc4, 0xf),    /* BR_INST_RETIRED.* */
 	INTEL_EVENT_CONSTRAINT(0xc5, 0xf),    /* BR_MISP_RETIRED.* */
 	INTEL_EVENT_CONSTRAINT(0xcd, 0x8),    /* MEM_TRANS_RETIRED.* */
-	INTEL_UEVENT_CONSTRAINT(0x11d0, 0xf), /* MEM_UOP_RETIRED.STLB_MISS_LOADS */
-	INTEL_UEVENT_CONSTRAINT(0x12d0, 0xf), /* MEM_UOP_RETIRED.STLB_MISS_STORES */
-	INTEL_UEVENT_CONSTRAINT(0x21d0, 0xf), /* MEM_UOP_RETIRED.LOCK_LOADS */
-	INTEL_UEVENT_CONSTRAINT(0x22d0, 0xf), /* MEM_UOP_RETIRED.LOCK_STORES */
-	INTEL_UEVENT_CONSTRAINT(0x41d0, 0xf), /* MEM_UOP_RETIRED.SPLIT_LOADS */
-	INTEL_UEVENT_CONSTRAINT(0x42d0, 0xf), /* MEM_UOP_RETIRED.SPLIT_STORES */
-	INTEL_UEVENT_CONSTRAINT(0x81d0, 0xf), /* MEM_UOP_RETIRED.ANY_LOADS */
-	INTEL_UEVENT_CONSTRAINT(0x82d0, 0xf), /* MEM_UOP_RETIRED.ANY_STORES */
+	INTEL_EVENT_CONSTRAINT(0xd0, 0xf),    /* MEM_UOP_RETIRED.* */
 	INTEL_EVENT_CONSTRAINT(0xd1, 0xf),    /* MEM_LOAD_UOPS_RETIRED.* */
 	INTEL_EVENT_CONSTRAINT(0xd2, 0xf),    /* MEM_LOAD_UOPS_LLC_HIT_RETIRED.* */
 	INTEL_UEVENT_CONSTRAINT(0x02d4, 0xf), /* MEM_LOAD_UOPS_MISC_RETIRED.LLC_MISS */
@@ -627,7 +620,7 @@ static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 	 * Should not happen, we program the threshold at 1 and do not
 	 * set a reset value.
 	 */
-	WARN_ON_ONCE(n > 1);
+	WARN_ONCE(n > 1, "bad leftover pebs %d\n", n);
 	at += n - 1;
 
 	__intel_pmu_pebs_event(event, iregs, at);
@@ -658,10 +651,10 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 	 * Should not happen, we program the threshold at 1 and do not
 	 * set a reset value.
 	 */
-	WARN_ON_ONCE(n > MAX_PEBS_EVENTS);
+	WARN_ONCE(n > x86_pmu.max_pebs_events, "Unexpected number of pebs records %d\n", n);
 
 	for ( ; at < top; at++) {
-		for_each_set_bit(bit, (unsigned long *)&at->status, MAX_PEBS_EVENTS) {
+		for_each_set_bit(bit, (unsigned long *)&at->status, x86_pmu.max_pebs_events) {
 			event = cpuc->events[bit];
 			if (!test_bit(bit, cpuc->active_mask))
 				continue;
@@ -677,7 +670,7 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 			break;
 		}
 
-		if (!event || bit >= MAX_PEBS_EVENTS)
+		if (!event || bit >= x86_pmu.max_pebs_events)
 			continue;
 
 		__intel_pmu_pebs_event(event, iregs, at);

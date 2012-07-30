@@ -865,8 +865,6 @@ extern int (*platform_notify_remove)(struct device *dev);
 extern struct device *get_device(struct device *dev);
 extern void put_device(struct device *dev);
 
-extern void wait_for_device_probe(void);
-
 #ifdef CONFIG_DEVTMPFS
 extern int devtmpfs_create_node(struct device *dev);
 extern int devtmpfs_delete_node(struct device *dev);

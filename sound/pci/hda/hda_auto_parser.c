@@ -618,7 +618,6 @@ int snd_hda_gen_add_verbs(struct hda_gen_spec *spec,
 			  const struct hda_verb *list)
 {
 	const struct hda_verb **v;
-	snd_array_init(&spec->verbs, sizeof(struct hda_verb *), 8);
 	v = snd_array_new(&spec->verbs);
 	if (!v)
 		return -ENOMEM;

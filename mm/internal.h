@@ -94,9 +94,6 @@ extern void putback_lru_page(struct page *page);
 /*
  * in mm/page_alloc.c
  */
-extern void set_pageblock_migratetype(struct page *page, int migratetype);
-extern int move_freepages_block(struct zone *zone, struct page *page,
-				int migratetype);
 extern void __free_pages_bootmem(struct page *page, unsigned int order);
 extern void prep_compound_page(struct page *page, unsigned long order);
 #ifdef CONFIG_MEMORY_FAILURE
@@ -104,7 +101,6 @@ extern bool is_free_buddy_page(struct page *page);
 #endif
 
 #if defined CONFIG_COMPACTION || defined CONFIG_CMA
-#include <linux/compaction.h>
 
 /*
  * in mm/compaction.c
@@ -123,14 +119,11 @@ struct compact_control {
 	unsigned long nr_migratepages;	/* Number of pages to migrate */
 	unsigned long free_pfn;		/* isolate_freepages search base */
 	unsigned long migrate_pfn;	/* isolate_migratepages search base */
-	enum compact_mode mode;		/* Compaction mode */
+	bool sync;			/* Synchronous migration */
 
 	int order;			/* order a direct compactor needs */
 	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
 	struct zone *zone;
-
-	/* Number of UNMOVABLE destination pageblocks skipped during scan */
-	unsigned long nr_pageblocks_skipped;
 };
 
 unsigned long

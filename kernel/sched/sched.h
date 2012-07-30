@@ -526,6 +526,8 @@ static inline struct sched_domain *highest_flag_domain(int cpu, int flag)
 DECLARE_PER_CPU(struct sched_domain *, sd_llc);
 DECLARE_PER_CPU(int, sd_llc_id);
 
+extern int group_balance_cpu(struct sched_group *sg);
+
 #endif /* CONFIG_SMP */
 
 #include "stats.h"
@@ -939,8 +941,6 @@ static inline u64 sched_avg_period(void)
 {
 	return (u64)sysctl_sched_time_avg * NSEC_PER_MSEC / 2;
 }
-
-void calc_load_account_idle(struct rq *this_rq);
 
 #ifdef CONFIG_SCHED_HRTICK
 

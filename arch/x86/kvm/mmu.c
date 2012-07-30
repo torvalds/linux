@@ -3934,6 +3934,9 @@ static void kvm_mmu_remove_some_alloc_mmu_pages(struct kvm *kvm,
 {
 	struct kvm_mmu_page *page;
 
+	if (list_empty(&kvm->arch.active_mmu_pages))
+		return;
+
 	page = container_of(kvm->arch.active_mmu_pages.prev,
 			    struct kvm_mmu_page, link);
 	kvm_mmu_prepare_zap_page(kvm, page, invalid_list);

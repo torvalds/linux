@@ -1058,13 +1058,15 @@ cifs_demultiplex_thread(void *p)
 		if (mid_entry != NULL) {
 			if (!mid_entry->multiRsp || mid_entry->multiEnd)
 				mid_entry->callback(mid_entry);
-		} else if (!server->ops->is_oplock_break(buf, server)) {
+		} else if (!server->ops->is_oplock_break ||
+			   !server->ops->is_oplock_break(buf, server)) {
 			cERROR(1, "No task to wake, unknown frame received! "
 				   "NumMids %d", atomic_read(&midCount));
 			cifs_dump_mem("Received Data is: ", buf,
 				      HEADER_SIZE(server));
 #ifdef CONFIG_CIFS_DEBUG2
-			server->ops->dump_detail(buf);
+			if (server->ops->dump_detail)
+				server->ops->dump_detail(buf);
 			cifs_dump_mids(server);
 #endif /* CIFS_DEBUG2 */
 
@@ -1651,24 +1653,26 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			 * If yes, we have encountered a double deliminator
 			 * reset the NULL character to the deliminator
 			 */
-			if (tmp_end < end && tmp_end[1] == delim)
+			if (tmp_end < end && tmp_end[1] == delim) {
 				tmp_end[0] = delim;
 
-			/* Keep iterating until we get to a single deliminator
-			 * OR the end
-			 */
-			while ((tmp_end = strchr(tmp_end, delim)) != NULL &&
-			       (tmp_end[1] == delim)) {
-				tmp_end = (char *) &tmp_end[2];
-			}
+				/* Keep iterating until we get to a single
+				 * deliminator OR the end
+				 */
+				while ((tmp_end = strchr(tmp_end, delim))
+					!= NULL && (tmp_end[1] == delim)) {
+						tmp_end = (char *) &tmp_end[2];
+				}
 
-			/* Reset var options to point to next element */
-			if (tmp_end) {
-				tmp_end[0] = '\0';
-				options = (char *) &tmp_end[1];
-			} else
-				/* Reached the end of the mount option string */
-				options = end;
+				/* Reset var options to point to next element */
+				if (tmp_end) {
+					tmp_end[0] = '\0';
+					options = (char *) &tmp_end[1];
+				} else
+					/* Reached the end of the mount option
+					 * string */
+					options = end;
+			}
 
 			/* Now build new password string */
 			temp_len = strlen(value);
@@ -3441,6 +3445,18 @@ void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 #define CIFS_DEFAULT_NON_POSIX_RSIZE (60 * 1024)
 #define CIFS_DEFAULT_NON_POSIX_WSIZE (65536)
 
+/*
+ * On hosts with high memory, we can't currently support wsize/rsize that are
+ * larger than we can kmap at once. Cap the rsize/wsize at
+ * LAST_PKMAP * PAGE_SIZE. We'll never be able to fill a read or write request
+ * larger than that anyway.
+ */
+#ifdef CONFIG_HIGHMEM
+#define CIFS_KMAP_SIZE_LIMIT	(LAST_PKMAP * PAGE_CACHE_SIZE)
+#else /* CONFIG_HIGHMEM */
+#define CIFS_KMAP_SIZE_LIMIT	(1<<24)
+#endif /* CONFIG_HIGHMEM */
+
 static unsigned int
 cifs_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *pvolume_info)
 {
@@ -3471,6 +3487,9 @@ cifs_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *pvolume_info)
 		wsize = min_t(unsigned int, wsize,
 				server->maxBuf - sizeof(WRITE_REQ) + 4);
 
+	/* limit to the amount that we can kmap at once */
+	wsize = min_t(unsigned int, wsize, CIFS_KMAP_SIZE_LIMIT);
+
 	/* hard limit of CIFS_MAX_WSIZE */
 	wsize = min_t(unsigned int, wsize, CIFS_MAX_WSIZE);
 
@@ -3491,18 +3510,15 @@ cifs_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *pvolume_info)
 	 * MS-CIFS indicates that servers are only limited by the client's
 	 * bufsize for reads, testing against win98se shows that it throws
 	 * INVALID_PARAMETER errors if you try to request too large a read.
+	 * OS/2 just sends back short reads.
 	 *
-	 * If the server advertises a MaxBufferSize of less than one page,
-	 * assume that it also can't satisfy reads larger than that either.
-	 *
-	 * FIXME: Is there a better heuristic for this?
+	 * If the server doesn't advertise CAP_LARGE_READ_X, then assume that
+	 * it can't handle a read request larger than its MaxBufferSize either.
 	 */
 	if (tcon->unix_ext && (unix_cap & CIFS_UNIX_LARGE_READ_CAP))
 		defsize = CIFS_DEFAULT_IOSIZE;
 	else if (server->capabilities & CAP_LARGE_READ_X)
 		defsize = CIFS_DEFAULT_NON_POSIX_RSIZE;
-	else if (server->maxBuf >= PAGE_CACHE_SIZE)
-		defsize = CIFSMaxBufSize;
 	else
 		defsize = server->maxBuf - sizeof(READ_RSP);
 
@@ -3514,6 +3530,9 @@ cifs_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *pvolume_info)
 	 */
 	if (!(server->capabilities & CAP_LARGE_READ_X))
 		rsize = min_t(unsigned int, CIFSMaxBufSize, rsize);
+
+	/* limit to the amount that we can kmap at once */
+	rsize = min_t(unsigned int, rsize, CIFS_KMAP_SIZE_LIMIT);
 
 	/* hard limit of CIFS_MAX_RSIZE */
 	rsize = min_t(unsigned int, rsize, CIFS_MAX_RSIZE);
@@ -3938,7 +3957,7 @@ CIFSTCon(unsigned int xid, struct cifs_ses *ses,
 	header_assemble(smb_buffer, SMB_COM_TREE_CONNECT_ANDX,
 			NULL /*no tid */ , 4 /*wct */ );
 
-	smb_buffer->Mid = GetNextMid(ses->server);
+	smb_buffer->Mid = get_next_mid(ses->server);
 	smb_buffer->Uid = ses->Suid;
 	pSMB = (TCONX_REQ *) smb_buffer;
 	pSMBr = (TCONX_RSP *) smb_buffer_response;

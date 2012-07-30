@@ -1593,6 +1593,10 @@ static int import_ep(struct c4iw_ep *ep, __be32 peer_ip, struct dst_entry *dst,
 		struct net_device *pdev;
 
 		pdev = ip_dev_find(&init_net, peer_ip);
+		if (!pdev) {
+			err = -ENODEV;
+			goto out;
+		}
 		ep->l2t = cxgb4_l2t_get(cdev->rdev.lldi.l2t,
 					n, pdev, 0);
 		if (!ep->l2t)

@@ -61,7 +61,8 @@ static int lan911x_config_init(struct phy_device *phydev)
 	return smsc_phy_ack_interrupt(phydev);
 }
 
-static struct phy_driver lan83c185_driver = {
+static struct phy_driver smsc_phy_driver[] = {
+{
 	.phy_id		= 0x0007c0a0, /* OUI=0x00800f, Model#=0x0a */
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "SMSC LAN83C185",
@@ -83,9 +84,7 @@ static struct phy_driver lan83c185_driver = {
 	.resume		= genphy_resume,
 
 	.driver		= { .owner = THIS_MODULE, }
-};
-
-static struct phy_driver lan8187_driver = {
+}, {
 	.phy_id		= 0x0007c0b0, /* OUI=0x00800f, Model#=0x0b */
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "SMSC LAN8187",
@@ -107,9 +106,7 @@ static struct phy_driver lan8187_driver = {
 	.resume		= genphy_resume,
 
 	.driver		= { .owner = THIS_MODULE, }
-};
-
-static struct phy_driver lan8700_driver = {
+}, {
 	.phy_id		= 0x0007c0c0, /* OUI=0x00800f, Model#=0x0c */
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "SMSC LAN8700",
@@ -131,9 +128,7 @@ static struct phy_driver lan8700_driver = {
 	.resume		= genphy_resume,
 
 	.driver		= { .owner = THIS_MODULE, }
-};
-
-static struct phy_driver lan911x_int_driver = {
+}, {
 	.phy_id		= 0x0007c0d0, /* OUI=0x00800f, Model#=0x0d */
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "SMSC LAN911x Internal PHY",
@@ -155,9 +150,7 @@ static struct phy_driver lan911x_int_driver = {
 	.resume		= genphy_resume,
 
 	.driver		= { .owner = THIS_MODULE, }
-};
-
-static struct phy_driver lan8710_driver = {
+}, {
 	.phy_id		= 0x0007c0f0, /* OUI=0x00800f, Model#=0x0f */
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "SMSC LAN8710/LAN8720",
@@ -179,53 +172,18 @@ static struct phy_driver lan8710_driver = {
 	.resume		= genphy_resume,
 
 	.driver		= { .owner = THIS_MODULE, }
-};
+} };
 
 static int __init smsc_init(void)
 {
-	int ret;
-
-	ret = phy_driver_register (&lan83c185_driver);
-	if (ret)
-		goto err1;
-
-	ret = phy_driver_register (&lan8187_driver);
-	if (ret)
-		goto err2;
-
-	ret = phy_driver_register (&lan8700_driver);
-	if (ret)
-		goto err3;
-
-	ret = phy_driver_register (&lan911x_int_driver);
-	if (ret)
-		goto err4;
-
-	ret = phy_driver_register (&lan8710_driver);
-	if (ret)
-		goto err5;
-
-	return 0;
-
-err5:
-	phy_driver_unregister (&lan911x_int_driver);
-err4:
-	phy_driver_unregister (&lan8700_driver);
-err3:
-	phy_driver_unregister (&lan8187_driver);
-err2:
-	phy_driver_unregister (&lan83c185_driver);
-err1:
-	return ret;
+	return phy_drivers_register(smsc_phy_driver,
+		ARRAY_SIZE(smsc_phy_driver));
 }
 
 static void __exit smsc_exit(void)
 {
-	phy_driver_unregister (&lan8710_driver);
-	phy_driver_unregister (&lan911x_int_driver);
-	phy_driver_unregister (&lan8700_driver);
-	phy_driver_unregister (&lan8187_driver);
-	phy_driver_unregister (&lan83c185_driver);
+	return phy_drivers_unregister(smsc_phy_driver,
+		ARRAY_SIZE(smsc_phy_driver));
 }
 
 MODULE_DESCRIPTION("SMSC PHY driver");

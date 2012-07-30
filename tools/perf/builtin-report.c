@@ -69,7 +69,7 @@ static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 
 	if ((sort__has_parent || symbol_conf.use_callchain)
 	    && sample->callchain) {
-		err = machine__resolve_callchain(machine, evsel, al->thread,
+		err = machine__resolve_callchain(machine, al->thread,
 						 sample->callchain, &parent);
 		if (err)
 			return err;
@@ -140,7 +140,7 @@ static int perf_evsel__add_hist_entry(struct perf_evsel *evsel,
 	struct hist_entry *he;
 
 	if ((sort__has_parent || symbol_conf.use_callchain) && sample->callchain) {
-		err = machine__resolve_callchain(machine, evsel, al->thread,
+		err = machine__resolve_callchain(machine, al->thread,
 						 sample->callchain, &parent);
 		if (err)
 			return err;
@@ -152,7 +152,7 @@ static int perf_evsel__add_hist_entry(struct perf_evsel *evsel,
 
 	if (symbol_conf.use_callchain) {
 		err = callchain_append(he->callchain,
-				       &evsel->hists.callchain_cursor,
+				       &callchain_cursor,
 				       sample->period);
 		if (err)
 			return err;
@@ -162,7 +162,7 @@ static int perf_evsel__add_hist_entry(struct perf_evsel *evsel,
 	 * so we don't allocated the extra space needed because the stdio
 	 * code will not use it.
 	 */
-	if (al->sym != NULL && use_browser > 0) {
+	if (he->ms.sym != NULL && use_browser > 0) {
 		struct annotation *notes = symbol__annotation(he->ms.sym);
 
 		assert(evsel != NULL);
@@ -230,7 +230,7 @@ static int process_read_event(struct perf_tool *tool,
 	struct perf_report *rep = container_of(tool, struct perf_report, tool);
 
 	if (rep->show_threads) {
-		const char *name = evsel ? event_name(evsel) : "unknown";
+		const char *name = evsel ? perf_evsel__name(evsel) : "unknown";
 		perf_read_values_add_value(&rep->show_threads_values,
 					   event->read.pid, event->read.tid,
 					   event->read.id,
@@ -239,17 +239,18 @@ static int process_read_event(struct perf_tool *tool,
 	}
 
 	dump_printf(": %d %d %s %" PRIu64 "\n", event->read.pid, event->read.tid,
-		    evsel ? event_name(evsel) : "FAIL",
+		    evsel ? perf_evsel__name(evsel) : "FAIL",
 		    event->read.value);
 
 	return 0;
 }
 
+/* For pipe mode, sample_type is not currently set */
 static int perf_report__setup_sample_type(struct perf_report *rep)
 {
 	struct perf_session *self = rep->session;
 
-	if (!(self->sample_type & PERF_SAMPLE_CALLCHAIN)) {
+	if (!self->fd_pipe && !(self->sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (sort__has_parent) {
 			ui__error("Selected --sort parent, but no "
 				    "callchain data. Did you call "
@@ -272,7 +273,8 @@ static int perf_report__setup_sample_type(struct perf_report *rep)
 	}
 
 	if (sort__branch_mode == 1) {
-		if (!(self->sample_type & PERF_SAMPLE_BRANCH_STACK)) {
+		if (!self->fd_pipe &&
+		    !(self->sample_type & PERF_SAMPLE_BRANCH_STACK)) {
 			ui__error("Selected -b but no branch data. "
 				  "Did you call perf record without -b?\n");
 			return -1;
@@ -314,7 +316,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 
 	list_for_each_entry(pos, &evlist->entries, node) {
 		struct hists *hists = &pos->hists;
-		const char *evname = event_name(pos);
+		const char *evname = perf_evsel__name(pos);
 
 		hists__fprintf_nr_sample_events(hists, evname, stdout);
 		hists__fprintf(hists, NULL, false, true, 0, 0, stdout);

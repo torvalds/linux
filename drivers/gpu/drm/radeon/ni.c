@@ -460,15 +460,28 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 		rdev->config.cayman.max_pipes_per_simd = 4;
 		rdev->config.cayman.max_tile_pipes = 2;
 		if ((rdev->pdev->device == 0x9900) ||
-		    (rdev->pdev->device == 0x9901)) {
+		    (rdev->pdev->device == 0x9901) ||
+		    (rdev->pdev->device == 0x9905) ||
+		    (rdev->pdev->device == 0x9906) ||
+		    (rdev->pdev->device == 0x9907) ||
+		    (rdev->pdev->device == 0x9908) ||
+		    (rdev->pdev->device == 0x9909) ||
+		    (rdev->pdev->device == 0x9910) ||
+		    (rdev->pdev->device == 0x9917)) {
 			rdev->config.cayman.max_simds_per_se = 6;
 			rdev->config.cayman.max_backends_per_se = 2;
 		} else if ((rdev->pdev->device == 0x9903) ||
-			   (rdev->pdev->device == 0x9904)) {
+			   (rdev->pdev->device == 0x9904) ||
+			   (rdev->pdev->device == 0x990A) ||
+			   (rdev->pdev->device == 0x9913) ||
+			   (rdev->pdev->device == 0x9918)) {
 			rdev->config.cayman.max_simds_per_se = 4;
 			rdev->config.cayman.max_backends_per_se = 2;
-		} else if ((rdev->pdev->device == 0x9990) ||
-			   (rdev->pdev->device == 0x9991)) {
+		} else if ((rdev->pdev->device == 0x9919) ||
+			   (rdev->pdev->device == 0x9990) ||
+			   (rdev->pdev->device == 0x9991) ||
+			   (rdev->pdev->device == 0x9994) ||
+			   (rdev->pdev->device == 0x99A0)) {
 			rdev->config.cayman.max_simds_per_se = 3;
 			rdev->config.cayman.max_backends_per_se = 1;
 		} else {
@@ -1290,6 +1303,10 @@ static int cayman_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	r = r600_audio_init(rdev);
+	if (r)
+		return r;
+
 	return 0;
 }
 
@@ -1316,6 +1333,7 @@ int cayman_resume(struct radeon_device *rdev)
 
 int cayman_suspend(struct radeon_device *rdev)
 {
+	r600_audio_fini(rdev);
 	/* FIXME: we should wait for ring to be empty */
 	radeon_ib_pool_suspend(rdev);
 	radeon_vm_manager_suspend(rdev);

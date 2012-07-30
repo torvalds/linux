@@ -1048,6 +1048,11 @@ static const struct hid_device_id mt_devices[] = {
 		MT_USB_DEVICE(USB_VENDOR_ID_XIROKU,
 			USB_DEVICE_ID_XIROKU_CSR2) },
 
+	/* Zytronic panels */
+	{ .driver_data = MT_CLS_SERIAL,
+		MT_USB_DEVICE(USB_VENDOR_ID_ZYTRONIC,
+			USB_DEVICE_ID_ZYTRONIC_ZXY100) },
+
 	/* Generic MT device */
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_MULTITOUCH, HID_ANY_ID, HID_ANY_ID) },
 	{ }

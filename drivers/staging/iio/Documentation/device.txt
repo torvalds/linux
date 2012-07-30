@@ -29,8 +29,6 @@ Then fill in the following:
 	* info->driver_module:
 		Set to THIS_MODULE. Used to ensure correct ownership
 		of various resources allocate by the core.
-	* info->num_interrupt_lines:
-		Number of event triggering hardware lines the device has.
 	* info->event_attrs:
 		Attributes used to enable / disable hardware events.
 	* info->attrs:

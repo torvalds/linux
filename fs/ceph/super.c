@@ -871,7 +871,7 @@ static struct dentry *ceph_mount(struct file_system_type *fs_type,
 
 	if (ceph_test_opt(fsc->client, NOSHARE))
 		compare_super = NULL;
-	sb = sget(fs_type, compare_super, ceph_set_super, fsc);
+	sb = sget(fs_type, compare_super, ceph_set_super, flags, fsc);
 	if (IS_ERR(sb)) {
 		res = ERR_CAST(sb);
 		goto out;

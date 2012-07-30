@@ -379,7 +379,7 @@ config LEDS_NETXBIG
 
 config LEDS_ASIC3
 	bool "LED support for the HTC ASIC3"
-	depends on LEDS_CLASS
+	depends on LEDS_CLASS=y
 	depends on MFD_ASIC3
 	default y
 	help
@@ -390,7 +390,7 @@ config LEDS_ASIC3
 
 config LEDS_RENESAS_TPU
 	bool "LED support for Renesas TPU"
-	depends on LEDS_CLASS && HAVE_CLK && GENERIC_GPIO
+	depends on LEDS_CLASS=y && HAVE_CLK && GENERIC_GPIO
 	help
 	  This option enables build of the LED TPU platform driver,
 	  suitable to drive any TPU channel on newer Renesas SoCs.

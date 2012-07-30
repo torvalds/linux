@@ -37,6 +37,8 @@
 
 struct mlx4_dev;
 
+#define MLX4_MAC_MASK	   0xffffffffffffULL
+
 enum mlx4_dev_event {
 	MLX4_DEV_EVENT_CATASTROPHIC_ERROR,
 	MLX4_DEV_EVENT_PORT_UP,

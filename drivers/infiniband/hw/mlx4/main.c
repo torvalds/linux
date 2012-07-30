@@ -140,7 +140,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->max_mr_size	   = ~0ull;
 	props->page_size_cap	   = dev->dev->caps.page_size_cap;
 	props->max_qp		   = dev->dev->caps.num_qps - dev->dev->caps.reserved_qps;
-	props->max_qp_wr	   = dev->dev->caps.max_wqes;
+	props->max_qp_wr	   = dev->dev->caps.max_wqes - MLX4_IB_SQ_MAX_SPARE;
 	props->max_sge		   = min(dev->dev->caps.max_sq_sg,
 					 dev->dev->caps.max_rq_sg);
 	props->max_cq		   = dev->dev->caps.num_cqs - dev->dev->caps.reserved_cqs;
@@ -718,26 +718,53 @@ int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 	return ret;
 }
 
+struct mlx4_ib_steering {
+	struct list_head list;
+	u64 reg_id;
+	union ib_gid gid;
+};
+
 static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 {
 	int err;
 	struct mlx4_ib_dev *mdev = to_mdev(ibqp->device);
 	struct mlx4_ib_qp *mqp = to_mqp(ibqp);
+	u64 reg_id;
+	struct mlx4_ib_steering *ib_steering = NULL;
 
-	err = mlx4_multicast_attach(mdev->dev, &mqp->mqp, gid->raw,
-				    !!(mqp->flags & MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK),
-				    MLX4_PROT_IB_IPV6);
+	if (mdev->dev->caps.steering_mode ==
+	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
+		ib_steering = kmalloc(sizeof(*ib_steering), GFP_KERNEL);
+		if (!ib_steering)
+			return -ENOMEM;
+	}
+
+	err = mlx4_multicast_attach(mdev->dev, &mqp->mqp, gid->raw, mqp->port,
+				    !!(mqp->flags &
+				       MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK),
+				    MLX4_PROT_IB_IPV6, &reg_id);
 	if (err)
-		return err;
+		goto err_malloc;
 
 	err = add_gid_entry(ibqp, gid);
 	if (err)
 		goto err_add;
 
+	if (ib_steering) {
+		memcpy(ib_steering->gid.raw, gid->raw, 16);
+		ib_steering->reg_id = reg_id;
+		mutex_lock(&mqp->mutex);
+		list_add(&ib_steering->list, &mqp->steering_rules);
+		mutex_unlock(&mqp->mutex);
+	}
 	return 0;
 
 err_add:
-	mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw, MLX4_PROT_IB_IPV6);
+	mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw,
+			      MLX4_PROT_IB_IPV6, reg_id);
+err_malloc:
+	kfree(ib_steering);
+
 	return err;
 }
 
@@ -765,9 +792,30 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	u8 mac[6];
 	struct net_device *ndev;
 	struct mlx4_ib_gid_entry *ge;
+	u64 reg_id = 0;
 
-	err = mlx4_multicast_detach(mdev->dev,
-				    &mqp->mqp, gid->raw, MLX4_PROT_IB_IPV6);
+	if (mdev->dev->caps.steering_mode ==
+	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
+		struct mlx4_ib_steering *ib_steering;
+
+		mutex_lock(&mqp->mutex);
+		list_for_each_entry(ib_steering, &mqp->steering_rules, list) {
+			if (!memcmp(ib_steering->gid.raw, gid->raw, 16)) {
+				list_del(&ib_steering->list);
+				break;
+			}
+		}
+		mutex_unlock(&mqp->mutex);
+		if (&ib_steering->list == &mqp->steering_rules) {
+			pr_err("Couldn't find reg_id for mgid. Steering rule is left attached\n");
+			return -EINVAL;
+		}
+		reg_id = ib_steering->reg_id;
+		kfree(ib_steering);
+	}
+
+	err = mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw,
+				    MLX4_PROT_IB_IPV6, reg_id);
 	if (err)
 		return err;
 
@@ -1084,12 +1132,9 @@ static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 	int total_eqs = 0;
 	int i, j, eq;
 
-	/* Init eq table */
-	ibdev->eq_table = NULL;
-	ibdev->eq_added = 0;
-
-	/* Legacy mode? */
-	if (dev->caps.comp_pool == 0)
+	/* Legacy mode or comp_pool is not large enough */
+	if (dev->caps.comp_pool == 0 ||
+	    dev->caps.num_ports > dev->caps.comp_pool)
 		return;
 
 	eq_per_port = rounddown_pow_of_two(dev->caps.comp_pool/
@@ -1114,7 +1159,8 @@ static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 			sprintf(name, "mlx4-ib-%d-%d@%s",
 				i, j, dev->pdev->bus->name);
 			/* Set IRQ for specific name (per ring) */
-			if (mlx4_assign_eq(dev, name, &ibdev->eq_table[eq])) {
+			if (mlx4_assign_eq(dev, name, NULL,
+					   &ibdev->eq_table[eq])) {
 				/* Use legacy (same as mlx4_en driver) */
 				pr_warn("Can't allocate EQ %d; reverting to legacy\n", eq);
 				ibdev->eq_table[eq] =
@@ -1135,7 +1181,10 @@ static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 static void mlx4_ib_free_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 {
 	int i;
-	int total_eqs;
+
+	/* no additional eqs were added */
+	if (!ibdev->eq_table)
+		return;
 
 	/* Reset the advertised EQ number */
 	ibdev->ib_dev.num_comp_vectors = dev->caps.num_comp_vectors;
@@ -1148,12 +1197,7 @@ static void mlx4_ib_free_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 		mlx4_release_eq(dev, ibdev->eq_table[i]);
 	}
 
-	total_eqs = dev->caps.num_comp_vectors + ibdev->eq_added;
-	memset(ibdev->eq_table, 0, total_eqs * sizeof(int));
 	kfree(ibdev->eq_table);
-
-	ibdev->eq_table = NULL;
-	ibdev->eq_added = 0;
 }
 
 static void *mlx4_ib_add(struct mlx4_dev *dev)

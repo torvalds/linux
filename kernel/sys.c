@@ -1786,26 +1786,11 @@ SYSCALL_DEFINE1(umask, int, mask)
 }
 
 #ifdef CONFIG_CHECKPOINT_RESTORE
-static bool vma_flags_mismatch(struct vm_area_struct *vma,
-			       unsigned long required,
-			       unsigned long banned)
-{
-	return (vma->vm_flags & required) != required ||
-		(vma->vm_flags & banned);
-}
-
 static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 {
 	struct file *exe_file;
 	struct dentry *dentry;
 	int err;
-
-	/*
-	 * Setting new mm::exe_file is only allowed when no VM_EXECUTABLE vma's
-	 * remain. So perform a quick test first.
-	 */
-	if (mm->num_exe_file_vmas)
-		return -EBUSY;
 
 	exe_file = fget(fd);
 	if (!exe_file)
@@ -1827,17 +1812,35 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 	if (err)
 		goto exit;
 
+	down_write(&mm->mmap_sem);
+
+	/*
+	 * Forbid mm->exe_file change if old file still mapped.
+	 */
+	err = -EBUSY;
+	if (mm->exe_file) {
+		struct vm_area_struct *vma;
+
+		for (vma = mm->mmap; vma; vma = vma->vm_next)
+			if (vma->vm_file &&
+			    path_equal(&vma->vm_file->f_path,
+				       &mm->exe_file->f_path))
+				goto exit_unlock;
+	}
+
 	/*
 	 * The symlink can be changed only once, just to disallow arbitrary
 	 * transitions malicious software might bring in. This means one
 	 * could make a snapshot over all processes running and monitor
 	 * /proc/pid/exe changes to notice unusual activity if needed.
 	 */
-	down_write(&mm->mmap_sem);
-	if (likely(!mm->exe_file))
-		set_mm_exe_file(mm, exe_file);
-	else
-		err = -EBUSY;
+	err = -EPERM;
+	if (test_and_set_bit(MMF_EXE_FILE_CHANGED, &mm->flags))
+		goto exit_unlock;
+
+	err = 0;
+	set_mm_exe_file(mm, exe_file);
+exit_unlock:
 	up_write(&mm->mmap_sem);
 
 exit:
@@ -1862,7 +1865,7 @@ static int prctl_set_mm(int opt, unsigned long addr,
 	if (opt == PR_SET_MM_EXE_FILE)
 		return prctl_set_mm_exe_file(mm, (unsigned int)addr);
 
-	if (addr >= TASK_SIZE)
+	if (addr >= TASK_SIZE || addr < mmap_min_addr)
 		return -EINVAL;
 
 	error = -EINVAL;
@@ -1924,12 +1927,6 @@ static int prctl_set_mm(int opt, unsigned long addr,
 			error = -EFAULT;
 			goto out;
 		}
-#ifdef CONFIG_STACK_GROWSUP
-		if (vma_flags_mismatch(vma, VM_READ | VM_WRITE | VM_GROWSUP, 0))
-#else
-		if (vma_flags_mismatch(vma, VM_READ | VM_WRITE | VM_GROWSDOWN, 0))
-#endif
-			goto out;
 		if (opt == PR_SET_MM_START_STACK)
 			mm->start_stack = addr;
 		else if (opt == PR_SET_MM_ARG_START)
@@ -1981,9 +1978,19 @@ out:
 	up_read(&mm->mmap_sem);
 	return error;
 }
+
+static int prctl_get_tid_address(struct task_struct *me, int __user **tid_addr)
+{
+	return put_user(me->clear_child_tid, tid_addr);
+}
+
 #else /* CONFIG_CHECKPOINT_RESTORE */
 static int prctl_set_mm(int opt, unsigned long addr,
 			unsigned long arg4, unsigned long arg5)
+{
+	return -EINVAL;
+}
+static int prctl_get_tid_address(struct task_struct *me, int __user **tid_addr)
 {
 	return -EINVAL;
 }
@@ -2140,6 +2147,9 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 			break;
 		case PR_SET_MM:
 			error = prctl_set_mm(arg2, arg3, arg4, arg5);
+			break;
+		case PR_GET_TID_ADDRESS:
+			error = prctl_get_tid_address(me, (int __user **)arg2);
 			break;
 		case PR_SET_CHILD_SUBREAPER:
 			me->signal->is_child_subreaper = !!arg2;

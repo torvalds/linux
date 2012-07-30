@@ -29,12 +29,16 @@ comment "Atmel AT91 Processor"
 config SOC_AT91SAM9
 	bool
 	select CPU_ARM926T
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
 	select AT91_SAM9_TIME
 	select AT91_SAM9_SMC
 
 config SOC_AT91RM9200
 	bool "AT91RM9200"
 	select CPU_ARM920T
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
 	select GENERIC_CLOCKEVENTS
 	select HAVE_AT91_DBGU0
 
@@ -140,6 +144,8 @@ config ARCH_AT91SAM9G45
 config ARCH_AT91X40
 	bool "AT91x40"
 	depends on !MMU
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
 	select ARCH_USES_GETTIMEOFFSET
 
 endchoice

@@ -172,8 +172,10 @@ struct zoran_jpg_settings {
 	struct v4l2_jpegcompression jpg_comp;	/* JPEG-specific capture settings */
 };
 
+struct zoran_fh;
+
 struct zoran_mapping {
-	struct file *file;
+	struct zoran_fh *fh;
 	int count;
 };
 

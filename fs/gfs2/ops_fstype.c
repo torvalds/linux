@@ -1286,7 +1286,7 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 		error = -EBUSY;
 		goto error_bdev;
 	}
-	s = sget(fs_type, test_gfs2_super, set_gfs2_super, bdev);
+	s = sget(fs_type, test_gfs2_super, set_gfs2_super, flags, bdev);
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
 	error = PTR_ERR(s);
 	if (IS_ERR(s))
@@ -1316,7 +1316,6 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 	} else {
 		char b[BDEVNAME_SIZE];
 
-		s->s_flags = flags;
 		s->s_mode = mode;
 		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
 		sb_set_blocksize(s, block_size(bdev));
@@ -1360,7 +1359,7 @@ static struct dentry *gfs2_mount_meta(struct file_system_type *fs_type,
 		       dev_name, error);
 		return ERR_PTR(error);
 	}
-	s = sget(&gfs2_fs_type, test_gfs2_super, set_meta_super,
+	s = sget(&gfs2_fs_type, test_gfs2_super, set_meta_super, flags,
 		 path.dentry->d_inode->i_sb->s_bdev);
 	path_put(&path);
 	if (IS_ERR(s)) {

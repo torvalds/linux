@@ -4,7 +4,7 @@
  * Watchdog driver for ARM SP805 watchdog module
  *
  * Copyright (C) 2010 ST Microelectronics
- * Viresh Kumar<viresh.kumar@st.com>
+ * Viresh Kumar <viresh.linux@gmail.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2 or later. This program is licensed "as is" without any
@@ -331,6 +331,6 @@ static struct amba_driver sp805_wdt_driver = {
 
 module_amba_driver(sp805_wdt_driver);
 
-MODULE_AUTHOR("Viresh Kumar <viresh.kumar@st.com>");
+MODULE_AUTHOR("Viresh Kumar <viresh.linux@gmail.com>");
 MODULE_DESCRIPTION("ARM SP805 Watchdog Driver");
 MODULE_LICENSE("GPL");

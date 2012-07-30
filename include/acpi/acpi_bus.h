@@ -117,9 +117,6 @@ struct acpi_device;
 typedef int (*acpi_op_add) (struct acpi_device * device);
 typedef int (*acpi_op_remove) (struct acpi_device * device, int type);
 typedef int (*acpi_op_start) (struct acpi_device * device);
-typedef int (*acpi_op_suspend) (struct acpi_device * device,
-				pm_message_t state);
-typedef int (*acpi_op_resume) (struct acpi_device * device);
 typedef int (*acpi_op_bind) (struct acpi_device * device);
 typedef int (*acpi_op_unbind) (struct acpi_device * device);
 typedef void (*acpi_op_notify) (struct acpi_device * device, u32 event);
@@ -133,8 +130,6 @@ struct acpi_device_ops {
 	acpi_op_add add;
 	acpi_op_remove remove;
 	acpi_op_start start;
-	acpi_op_suspend suspend;
-	acpi_op_resume resume;
 	acpi_op_bind bind;
 	acpi_op_unbind unbind;
 	acpi_op_notify notify;
@@ -440,8 +435,8 @@ static inline int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 
 #else	/* CONFIG_ACPI */
 
-static int register_acpi_bus_type(struct acpi_bus_type *bus) { return 0; }
-static int unregister_acpi_bus_type(struct acpi_bus_type *bus) { return 0; }
+static inline int register_acpi_bus_type(void *bus) { return 0; }
+static inline int unregister_acpi_bus_type(void *bus) { return 0; }
 
 #endif				/* CONFIG_ACPI */
 

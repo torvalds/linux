@@ -289,6 +289,7 @@ struct ar9170 {
 		unsigned int mem_block_size;
 		unsigned int rx_size;
 		unsigned int tx_seq_table;
+		bool ba_filter;
 	} fw;
 
 	/* interface configuration combinations */
@@ -425,6 +426,10 @@ struct ar9170 {
 	struct sk_buff *rx_failover;
 	int rx_failover_missing;
 
+	/* FIFO for collecting outstanding BlockAckRequest */
+	struct list_head bar_list[__AR9170_NUM_TXQ];
+	spinlock_t bar_list_lock[__AR9170_NUM_TXQ];
+
 #ifdef CONFIG_CARL9170_WPC
 	struct {
 		bool pbc_state;
@@ -466,6 +471,12 @@ struct ar9170 {
 enum carl9170_ps_off_override_reasons {
 	PS_OFF_VIF	= BIT(0),
 	PS_OFF_BCN	= BIT(1),
+};
+
+struct carl9170_bar_list_entry {
+	struct list_head list;
+	struct rcu_head head;
+	struct sk_buff *skb;
 };
 
 struct carl9170_ba_stats {

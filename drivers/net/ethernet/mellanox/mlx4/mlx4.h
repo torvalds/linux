@@ -39,6 +39,7 @@
 
 #include <linux/mutex.h>
 #include <linux/radix-tree.h>
+#include <linux/rbtree.h>
 #include <linux/timer.h>
 #include <linux/semaphore.h>
 #include <linux/workqueue.h>
@@ -52,6 +53,17 @@
 #define PFX		DRV_NAME ": "
 #define DRV_VERSION	"1.1"
 #define DRV_RELDATE	"Dec, 2011"
+
+#define MLX4_FS_UDP_UC_EN		(1 << 1)
+#define MLX4_FS_TCP_UC_EN		(1 << 2)
+#define MLX4_FS_NUM_OF_L2_ADDR		8
+#define MLX4_FS_MGM_LOG_ENTRY_SIZE	7
+#define MLX4_FS_NUM_MCG			(1 << 17)
+
+enum {
+	MLX4_FS_L2_HASH = 0,
+	MLX4_FS_L2_L3_L4_HASH,
+};
 
 #define MLX4_NUM_UP		8
 #define MLX4_NUM_TC		8
@@ -137,6 +149,7 @@ enum mlx4_resource {
 	RES_VLAN,
 	RES_EQ,
 	RES_COUNTER,
+	RES_FS_RULE,
 	MLX4_NUM_OF_RESOURCE_TYPE
 };
 
@@ -509,7 +522,7 @@ struct slave_list {
 struct mlx4_resource_tracker {
 	spinlock_t lock;
 	/* tree for each resources */
-	struct radix_tree_root res_tree[MLX4_NUM_OF_RESOURCE_TYPE];
+	struct rb_root res_tree[MLX4_NUM_OF_RESOURCE_TYPE];
 	/* num_of_slave's lists, one per slave */
 	struct slave_list *slave_list;
 };
@@ -703,6 +716,7 @@ struct mlx4_set_port_rqp_calc_context {
 
 struct mlx4_mac_entry {
 	u64 mac;
+	u64 reg_id;
 };
 
 struct mlx4_port_info {
@@ -776,6 +790,7 @@ struct mlx4_priv {
 	struct mutex		bf_mutex;
 	struct io_mapping	*bf_mapping;
 	int			reserved_mtts;
+	int			fs_hash_mode;
 };
 
 static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)
@@ -1032,7 +1047,7 @@ int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port);
 /* resource tracker functions*/
 int mlx4_get_slave_from_resource_id(struct mlx4_dev *dev,
 				    enum mlx4_resource resource_type,
-				    int resource_id, int *slave);
+				    u64 resource_id, int *slave);
 void mlx4_delete_all_resources_for_slave(struct mlx4_dev *dev, int slave_id);
 int mlx4_init_resource_tracker(struct mlx4_dev *dev);
 
@@ -1117,6 +1132,16 @@ int mlx4_QUERY_IF_STAT_wrapper(struct mlx4_dev *dev, int slave,
 			       struct mlx4_cmd_mailbox *inbox,
 			       struct mlx4_cmd_mailbox *outbox,
 			       struct mlx4_cmd_info *cmd);
+int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
+					 struct mlx4_vhcr *vhcr,
+					 struct mlx4_cmd_mailbox *inbox,
+					 struct mlx4_cmd_mailbox *outbox,
+					 struct mlx4_cmd_info *cmd);
+int mlx4_QP_FLOW_STEERING_DETACH_wrapper(struct mlx4_dev *dev, int slave,
+					 struct mlx4_vhcr *vhcr,
+					 struct mlx4_cmd_mailbox *inbox,
+					 struct mlx4_cmd_mailbox *outbox,
+					 struct mlx4_cmd_info *cmd);
 
 int mlx4_get_mgm_entry_size(struct mlx4_dev *dev);
 int mlx4_get_qp_per_mgm(struct mlx4_dev *dev);

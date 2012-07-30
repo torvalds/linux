@@ -1136,8 +1136,8 @@ void dev_load(struct net *net, const char *name)
 		no_module = request_module("netdev-%s", name);
 	if (no_module && capable(CAP_SYS_MODULE)) {
 		if (!request_module("%s", name))
-			pr_err("Loading kernel module for a network device with CAP_SYS_MODULE (deprecated).  Use CAP_NET_ADMIN and alias netdev-%s instead.\n",
-			       name);
+			pr_warn("Loading kernel module for a network device with CAP_SYS_MODULE (deprecated).  Use CAP_NET_ADMIN and alias netdev-%s instead.\n",
+				name);
 	}
 }
 EXPORT_SYMBOL(dev_load);
@@ -1632,6 +1632,8 @@ static inline int deliver_skb(struct sk_buff *skb,
 			      struct packet_type *pt_prev,
 			      struct net_device *orig_dev)
 {
+	if (unlikely(skb_orphan_frags(skb, GFP_ATOMIC)))
+		return -ENOMEM;
 	atomic_inc(&skb->users);
 	return pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
 }
@@ -1691,7 +1693,8 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 	rcu_read_unlock();
 }
 
-/* netif_setup_tc - Handle tc mappings on real_num_tx_queues change
+/**
+ * netif_setup_tc - Handle tc mappings on real_num_tx_queues change
  * @dev: Network device
  * @txq: number of queues available
  *
@@ -1792,6 +1795,18 @@ int netif_set_real_num_rx_queues(struct net_device *dev, unsigned int rxq)
 }
 EXPORT_SYMBOL(netif_set_real_num_rx_queues);
 #endif
+
+/**
+ * netif_get_num_default_rss_queues - default number of RSS queues
+ *
+ * This routine should set an upper limit on the number of RSS queues
+ * used by default by multiqueue devices.
+ */
+int netif_get_num_default_rss_queues(void)
+{
+	return min_t(int, DEFAULT_MAX_NUM_RSS_QUEUES, num_online_cpus());
+}
+EXPORT_SYMBOL(netif_get_num_default_rss_queues);
 
 static inline void __netif_reschedule(struct Qdisc *q)
 {
@@ -2089,25 +2104,6 @@ static int dev_gso_segment(struct sk_buff *skb, netdev_features_t features)
 	return 0;
 }
 
-/*
- * Try to orphan skb early, right before transmission by the device.
- * We cannot orphan skb if tx timestamp is requested or the sk-reference
- * is needed on driver level for other reasons, e.g. see net/can/raw.c
- */
-static inline void skb_orphan_try(struct sk_buff *skb)
-{
-	struct sock *sk = skb->sk;
-
-	if (sk && !skb_shinfo(skb)->tx_flags) {
-		/* skb_tx_hash() wont be able to get sk.
-		 * We copy sk_hash into skb->rxhash
-		 */
-		if (!skb->rxhash)
-			skb->rxhash = sk->sk_hash;
-		skb_orphan(skb);
-	}
-}
-
 static bool can_checksum_protocol(netdev_features_t features, __be16 protocol)
 {
 	return ((features & NETIF_F_GEN_CSUM) ||
@@ -2192,8 +2188,6 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 
 		if (!list_empty(&ptype_all))
 			dev_queue_xmit_nit(skb, dev);
-
-		skb_orphan_try(skb);
 
 		features = netif_skb_features(skb);
 
@@ -2304,7 +2298,7 @@ u16 __skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb,
 	if (skb->sk && skb->sk->sk_hash)
 		hash = skb->sk->sk_hash;
 	else
-		hash = (__force u16) skb->protocol ^ skb->rxhash;
+		hash = (__force u16) skb->protocol;
 	hash = jhash_1word(hash, hashrnd);
 
 	return (u16) (((u64) hash * qcount) >> 32) + qoffset;
@@ -2465,8 +2459,12 @@ static void skb_update_prio(struct sk_buff *skb)
 {
 	struct netprio_map *map = rcu_dereference_bh(skb->dev->priomap);
 
-	if ((!skb->priority) && (skb->sk) && map)
-		skb->priority = map->priomap[skb->sk->sk_cgrp_prioidx];
+	if (!skb->priority && skb->sk && map) {
+		unsigned int prioidx = skb->sk->sk_cgrp_prioidx;
+
+		if (prioidx < map->priomap_len)
+			skb->priority = map->priomap[prioidx];
+	}
 }
 #else
 #define skb_update_prio(skb)
@@ -2474,6 +2472,23 @@ static void skb_update_prio(struct sk_buff *skb)
 
 static DEFINE_PER_CPU(int, xmit_recursion);
 #define RECURSION_LIMIT 10
+
+/**
+ *	dev_loopback_xmit - loop back @skb
+ *	@skb: buffer to transmit
+ */
+int dev_loopback_xmit(struct sk_buff *skb)
+{
+	skb_reset_mac_header(skb);
+	__skb_pull(skb, skb_network_offset(skb));
+	skb->pkt_type = PACKET_LOOPBACK;
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	WARN_ON(!skb_dst(skb));
+	skb_dst_force(skb);
+	netif_rx_ni(skb);
+	return 0;
+}
+EXPORT_SYMBOL(dev_loopback_xmit);
 
 /**
  *	dev_queue_xmit - transmit a buffer
@@ -3158,8 +3173,6 @@ static int __netif_receive_skb(struct sk_buff *skb)
 	if (netpoll_receive_skb(skb))
 		return NET_RX_DROP;
 
-	if (!skb->skb_iif)
-		skb->skb_iif = skb->dev->ifindex;
 	orig_dev = skb->dev;
 
 	skb_reset_network_header(skb);
@@ -3171,6 +3184,7 @@ static int __netif_receive_skb(struct sk_buff *skb)
 	rcu_read_lock();
 
 another_round:
+	skb->skb_iif = skb->dev->ifindex;
 
 	__this_cpu_inc(softnet_data.processed);
 
@@ -3249,7 +3263,10 @@ ncls:
 	}
 
 	if (pt_prev) {
-		ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
+		if (unlikely(skb_orphan_frags(skb, GFP_ATOMIC)))
+			ret = -ENOMEM;
+		else
+			ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
 	} else {
 		atomic_long_inc(&skb->dev->rx_dropped);
 		kfree_skb(skb);
@@ -5663,7 +5680,7 @@ int netdev_refcnt_read(const struct net_device *dev)
 }
 EXPORT_SYMBOL(netdev_refcnt_read);
 
-/*
+/**
  * netdev_wait_allrefs - wait until all references are gone.
  *
  * This is called when unregistering network devices.
@@ -6300,7 +6317,8 @@ static struct hlist_head *netdev_create_hash(void)
 /* Initialize per network namespace state */
 static int __net_init netdev_init(struct net *net)
 {
-	INIT_LIST_HEAD(&net->dev_base_head);
+	if (net != &init_net)
+		INIT_LIST_HEAD(&net->dev_base_head);
 
 	net->dev_name_head = netdev_create_hash();
 	if (net->dev_name_head == NULL)

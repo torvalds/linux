@@ -402,7 +402,7 @@ static void venc_runtime_put(void)
 	DSSDBG("venc_runtime_put\n");
 
 	r = pm_runtime_put_sync(&venc.pdev->dev);
-	WARN_ON(r < 0);
+	WARN_ON(r < 0 && r != -ENOSYS);
 }
 
 static const struct venc_config *venc_timings_to_config(

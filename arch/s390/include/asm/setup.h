@@ -1,8 +1,6 @@
 /*
- *  include/asm-s390/setup.h
- *
  *  S390 version
- *    Copyright IBM Corp. 1999,2010
+ *    Copyright IBM Corp. 1999, 2010
  */
 
 #ifndef _ASM_S390_SETUP_H

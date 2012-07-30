@@ -47,6 +47,7 @@ enum hist_column {
 	HISTC_SYMBOL_TO,
 	HISTC_DSO_FROM,
 	HISTC_DSO_TO,
+	HISTC_SRCLINE,
 	HISTC_NR_COLS, /* Last entry */
 };
 
@@ -67,8 +68,6 @@ struct hists {
 	struct events_stats	stats;
 	u64			event_stream;
 	u16			col_len[HISTC_NR_COLS];
-	/* Best would be to reuse the session callchain cursor */
-	struct callchain_cursor	callchain_cursor;
 };
 
 struct hist_entry *__hists__add_entry(struct hists *self,

@@ -1,6 +1,4 @@
 /*
- *  include/asm-s390/sclp.h
- *
  *    Copyright IBM Corp. 2007
  *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */

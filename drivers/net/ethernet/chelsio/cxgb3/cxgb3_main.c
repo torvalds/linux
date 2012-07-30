@@ -3050,7 +3050,7 @@ static struct pci_error_handlers t3_err_handler = {
 static void set_nqsets(struct adapter *adap)
 {
 	int i, j = 0;
-	int num_cpus = num_online_cpus();
+	int num_cpus = netif_get_num_default_rss_queues();
 	int hwports = adap->params.nports;
 	int nqsets = adap->msix_nvectors - 1;
 
@@ -3173,6 +3173,9 @@ static void __devinit cxgb3_init_iscsi_mac(struct net_device *dev)
 	pi->iscsic.mac_addr[3] |= 0x80;
 }
 
+#define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
+#define VLAN_FEAT (NETIF_F_SG | NETIF_F_IP_CSUM | TSO_FLAGS | \
+			NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
 static int __devinit init_one(struct pci_dev *pdev,
 			      const struct pci_device_id *ent)
 {
@@ -3293,6 +3296,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 		netdev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
 			NETIF_F_TSO | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_RX;
 		netdev->features |= netdev->hw_features | NETIF_F_HW_VLAN_TX;
+		netdev->vlan_features |= netdev->features & VLAN_FEAT;
 		if (pci_using_dac)
 			netdev->features |= NETIF_F_HIGHDMA;
 

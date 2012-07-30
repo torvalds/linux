@@ -80,7 +80,7 @@ static struct stedma40_chan_cfg mop500_sdi0_dma_cfg_tx = {
 };
 #endif
 
-static struct mmci_platform_data mop500_sdi0_data = {
+struct mmci_platform_data mop500_sdi0_data = {
 	.ios_handler	= mop500_sdi0_ios_handler,
 	.ocr_mask	= MMC_VDD_29_30,
 	.f_max		= 50000000,
@@ -227,7 +227,7 @@ static struct stedma40_chan_cfg mop500_sdi4_dma_cfg_tx = {
 };
 #endif
 
-static struct mmci_platform_data mop500_sdi4_data = {
+struct mmci_platform_data mop500_sdi4_data = {
 	.ocr_mask	= MMC_VDD_29_30,
 	.f_max		= 50000000,
 	.capabilities	= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA |

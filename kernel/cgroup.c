@@ -255,12 +255,17 @@ int cgroup_lock_is_held(void)
 
 EXPORT_SYMBOL_GPL(cgroup_lock_is_held);
 
+static int css_unbias_refcnt(int refcnt)
+{
+	return refcnt >= 0 ? refcnt : refcnt - CSS_DEACT_BIAS;
+}
+
 /* the current nr of refs, always >= 0 whether @css is deactivated or not */
 static int css_refcnt(struct cgroup_subsys_state *css)
 {
 	int v = atomic_read(&css->refcnt);
 
-	return v >= 0 ? v : v - CSS_DEACT_BIAS;
+	return css_unbias_refcnt(v);
 }
 
 /* convenient tests for these bits */
@@ -817,7 +822,7 @@ EXPORT_SYMBOL_GPL(cgroup_unlock);
  */
 
 static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
-static struct dentry *cgroup_lookup(struct inode *, struct dentry *, struct nameidata *);
+static struct dentry *cgroup_lookup(struct inode *, struct dentry *, unsigned int);
 static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry);
 static int cgroup_populate_dir(struct cgroup *cgrp);
 static const struct inode_operations cgroup_dir_inode_operations;
@@ -1582,7 +1587,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 	opts.new_root = new_root;
 
 	/* Locate an existing or new sb for this hierarchy */
-	sb = sget(fs_type, cgroup_test_super, cgroup_set_super, &opts);
+	sb = sget(fs_type, cgroup_test_super, cgroup_set_super, 0, &opts);
 	if (IS_ERR(sb)) {
 		ret = PTR_ERR(sb);
 		cgroup_drop_root(opts.new_root);
@@ -2565,7 +2570,7 @@ static const struct inode_operations cgroup_dir_inode_operations = {
 	.rename = cgroup_rename,
 };
 
-static struct dentry *cgroup_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
+static struct dentry *cgroup_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 {
 	if (dentry->d_name.len > NAME_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
@@ -3878,8 +3883,12 @@ static void css_dput_fn(struct work_struct *work)
 {
 	struct cgroup_subsys_state *css =
 		container_of(work, struct cgroup_subsys_state, dput_work);
+	struct dentry *dentry = css->cgroup->dentry;
+	struct super_block *sb = dentry->d_sb;
 
-	dput(css->cgroup->dentry);
+	atomic_inc(&sb->s_active);
+	dput(dentry);
+	deactivate_super(sb);
 }
 
 static void init_cgroup_css(struct cgroup_subsys_state *css,
@@ -4971,10 +4980,12 @@ EXPORT_SYMBOL_GPL(__css_tryget);
 void __css_put(struct cgroup_subsys_state *css)
 {
 	struct cgroup *cgrp = css->cgroup;
+	int v;
 
 	rcu_read_lock();
-	atomic_dec(&css->refcnt);
-	switch (css_refcnt(css)) {
+	v = css_unbias_refcnt(atomic_dec_return(&css->refcnt));
+
+	switch (v) {
 	case 1:
 		if (notify_on_release(cgrp)) {
 			set_bit(CGRP_RELEASABLE, &cgrp->flags);

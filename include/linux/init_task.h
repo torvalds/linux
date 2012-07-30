@@ -149,6 +149,7 @@ extern struct cred init_cred;
 	.normal_prio	= MAX_PRIO-20,					\
 	.policy		= SCHED_NORMAL,					\
 	.cpus_allowed	= CPU_MASK_ALL,					\
+	.nr_cpus_allowed= NR_CPUS,					\
 	.mm		= NULL,						\
 	.active_mm	= &init_mm,					\
 	.se		= {						\
@@ -157,7 +158,6 @@ extern struct cred init_cred;
 	.rt		= {						\
 		.run_list	= LIST_HEAD_INIT(tsk.rt.run_list),	\
 		.time_slice	= RR_TIMESLICE,				\
-		.nr_cpus_allowed = NR_CPUS,				\
 	},								\
 	.tasks		= LIST_HEAD_INIT(tsk.tasks),			\
 	INIT_PUSHABLE_TASKS(tsk)					\
@@ -168,8 +168,8 @@ extern struct cred init_cred;
 	.children	= LIST_HEAD_INIT(tsk.children),			\
 	.sibling	= LIST_HEAD_INIT(tsk.sibling),			\
 	.group_leader	= &tsk,						\
-	RCU_INIT_POINTER(.real_cred, &init_cred),			\
-	RCU_INIT_POINTER(.cred, &init_cred),				\
+	RCU_POINTER_INITIALIZER(real_cred, &init_cred),			\
+	RCU_POINTER_INITIALIZER(cred, &init_cred),			\
 	.comm		= INIT_TASK_COMM,				\
 	.thread		= INIT_THREAD,					\
 	.fs		= &init_fs,					\

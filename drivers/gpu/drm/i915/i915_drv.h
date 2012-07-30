@@ -285,6 +285,7 @@ struct intel_device_info {
 	u8 is_ivybridge:1;
 	u8 is_valleyview:1;
 	u8 has_pch_split:1;
+	u8 has_force_wake:1;
 	u8 is_haswell:1;
 	u8 has_fbc:1;
 	u8 has_pipe_cxsr:1;
@@ -1100,6 +1101,8 @@ struct drm_i915_file_private {
 #define HAS_PCH_LPT(dev) (INTEL_PCH_TYPE(dev) == PCH_LPT)
 #define HAS_PCH_CPT(dev) (INTEL_PCH_TYPE(dev) == PCH_CPT)
 #define HAS_PCH_IBX(dev) (INTEL_PCH_TYPE(dev) == PCH_IBX)
+
+#define HAS_FORCE_WAKE(dev) (INTEL_INFO(dev)->has_force_wake)
 
 #include "i915_trace.h"
 

@@ -2143,9 +2143,9 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82865_HB,
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82875_HB,
 			quirk_unhide_mch_dev6);
 
-#ifdef CONFIG_TILE
+#ifdef CONFIG_TILEPRO
 /*
- * The Tilera TILEmpower platform needs to set the link speed
+ * The Tilera TILEmpower tilepro platform needs to set the link speed
  * to 2.5GT(Giga-Transfers)/s (Gen 1). The default link speed
  * setting is 5GT/s (Gen 2). 0x98 is the Link Control2 PCIe
  * capability register of the PEX8624 PCIe switch. The switch
@@ -2160,7 +2160,7 @@ static void __devinit quirk_tile_plx_gen1(struct pci_dev *dev)
 	}
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_PLX, 0x8624, quirk_tile_plx_gen1);
-#endif /* CONFIG_TILE */
+#endif /* CONFIG_TILEPRO */
 
 #ifdef CONFIG_PCI_MSI
 /* Some chipsets do not support MSI. We cannot easily rely on setting

@@ -481,6 +481,9 @@ struct amd_iommu {
 	/* Pointer to PCI device of this IOMMU */
 	struct pci_dev *dev;
 
+	/* Cache pdev to root device for resume quirks */
+	struct pci_dev *root_pdev;
+
 	/* physical address of MMIO space */
 	u64 mmio_phys;
 	/* virtual address of MMIO space */
@@ -649,7 +652,7 @@ extern unsigned long *amd_iommu_pd_alloc_bitmap;
  * If true, the addresses will be flushed on unmap time, not when
  * they are reused
  */
-extern bool amd_iommu_unmap_flush;
+extern u32 amd_iommu_unmap_flush;
 
 /* Smallest number of PASIDs supported by any IOMMU in the system */
 extern u32 amd_iommu_max_pasids;
