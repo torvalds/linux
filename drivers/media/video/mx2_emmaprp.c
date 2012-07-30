@@ -209,7 +209,7 @@ struct emmaprp_dev {
 
 	int			irq_emma;
 	void __iomem		*base_emma;
-	struct clk		*clk_emma;
+	struct clk		*clk_emma_ahb, *clk_emma_ipg;
 	struct resource		*res_emma;
 
 	struct v4l2_m2m_dev	*m2m_dev;
@@ -804,7 +804,8 @@ static int emmaprp_open(struct file *file)
 		return ret;
 	}
 
-	clk_enable(pcdev->clk_emma);
+	clk_prepare_enable(pcdev->clk_emma_ipg);
+	clk_prepare_enable(pcdev->clk_emma_ahb);
 	ctx->q_data[V4L2_M2M_SRC].fmt = &formats[1];
 	ctx->q_data[V4L2_M2M_DST].fmt = &formats[0];
 
@@ -820,7 +821,8 @@ static int emmaprp_release(struct file *file)
 
 	dprintk(pcdev, "Releasing instance %p\n", ctx);
 
-	clk_disable(pcdev->clk_emma);
+	clk_disable_unprepare(pcdev->clk_emma_ahb);
+	clk_disable_unprepare(pcdev->clk_emma_ipg);
 	v4l2_m2m_ctx_release(ctx->m2m_ctx);
 	kfree(ctx);
 
@@ -880,9 +882,15 @@ static int emmaprp_probe(struct platform_device *pdev)
 
 	spin_lock_init(&pcdev->irqlock);
 
-	pcdev->clk_emma = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(pcdev->clk_emma)) {
-		ret = PTR_ERR(pcdev->clk_emma);
+	pcdev->clk_emma_ipg = devm_clk_get(&pdev->dev, "ipg");
+	if (IS_ERR(pcdev->clk_emma_ipg)) {
+		ret = PTR_ERR(pcdev->clk_emma_ipg);
+		goto free_dev;
+	}
+
+	pcdev->clk_emma_ahb = devm_clk_get(&pdev->dev, "ahb");
+	if (IS_ERR(pcdev->clk_emma_ipg)) {
+		ret = PTR_ERR(pcdev->clk_emma_ahb);
 		goto free_dev;
 	}
 
@@ -891,12 +899,12 @@ static int emmaprp_probe(struct platform_device *pdev)
 	if (irq_emma < 0 || res_emma == NULL) {
 		dev_err(&pdev->dev, "Missing platform resources data\n");
 		ret = -ENODEV;
-		goto free_clk;
+		goto free_dev;
 	}
 
 	ret = v4l2_device_register(&pdev->dev, &pcdev->v4l2_dev);
 	if (ret)
-		goto free_clk;
+		goto free_dev;
 
 	mutex_init(&pcdev->dev_mutex);
 
@@ -969,8 +977,6 @@ rel_vdev:
 	video_device_release(vfd);
 unreg_dev:
 	v4l2_device_unregister(&pcdev->v4l2_dev);
-free_clk:
-	clk_put(pcdev->clk_emma);
 free_dev:
 	kfree(pcdev);
 
@@ -987,7 +993,6 @@ static int emmaprp_remove(struct platform_device *pdev)
 	v4l2_m2m_release(pcdev->m2m_dev);
 	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
 	v4l2_device_unregister(&pcdev->v4l2_dev);
-	clk_put(pcdev->clk_emma);
 	kfree(pcdev);
 
 	return 0;
