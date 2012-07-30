@@ -1447,14 +1447,14 @@ static void __init ap4evb_init(void)
 
 	platform_add_devices(ap4evb_devices, ARRAY_SIZE(ap4evb_devices));
 
-	sh7372_add_device_to_domain(&sh7372_a4lc, &lcdc1_device);
-	sh7372_add_device_to_domain(&sh7372_a4lc, &lcdc_device);
-	sh7372_add_device_to_domain(&sh7372_a4mp, &fsi_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &lcdc1_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &lcdc_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a4mp, &fsi_device);
 
-	sh7372_add_device_to_domain(&sh7372_a3sp, &sh_mmcif_device);
-	sh7372_add_device_to_domain(&sh7372_a3sp, &sdhi0_device);
-	sh7372_add_device_to_domain(&sh7372_a3sp, &sdhi1_device);
-	sh7372_add_device_to_domain(&sh7372_a4r, &ceu_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sh_mmcif_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi0_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi1_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a4r, &ceu_device);
 
 	hdmi_init_pm_clock();
 	fsi_init_pm_clock();
