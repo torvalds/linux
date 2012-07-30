@@ -2395,7 +2395,7 @@ static int may_o_create(struct path *dir, struct dentry *dentry, umode_t mode)
 static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 			struct path *path, struct file *file,
 			const struct open_flags *op,
-			bool *want_write, bool need_lookup,
+			bool got_write, bool need_lookup,
 			int *opened)
 {
 	struct inode *dir =  nd->path.dentry->d_inode;
@@ -2432,12 +2432,9 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 	 * Another problem is returing the "right" error value (e.g. for an
 	 * O_EXCL open we want to return EEXIST not EROFS).
 	 */
-	if ((open_flag & (O_CREAT | O_TRUNC)) ||
-	    (open_flag & O_ACCMODE) != O_RDONLY) {
-		error = mnt_want_write(nd->path.mnt);
-		if (!error) {
-			*want_write = true;
-		} else if (!(open_flag & O_CREAT)) {
+	if (((open_flag & (O_CREAT | O_TRUNC)) ||
+	    (open_flag & O_ACCMODE) != O_RDONLY) && unlikely(!got_write)) {
+		if (!(open_flag & O_CREAT)) {
 			/*
 			 * No O_CREATE -> atomicity not a requirement -> fall
 			 * back to lookup + open
@@ -2445,11 +2442,11 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 			goto no_open;
 		} else if (open_flag & (O_EXCL | O_TRUNC)) {
 			/* Fall back and fail with the right error */
-			create_error = error;
+			create_error = -EROFS;
 			goto no_open;
 		} else {
 			/* No side effects, safe to clear O_CREAT */
-			create_error = error;
+			create_error = -EROFS;
 			open_flag &= ~O_CREAT;
 		}
 	}
@@ -2556,7 +2553,7 @@ looked_up:
 static int lookup_open(struct nameidata *nd, struct path *path,
 			struct file *file,
 			const struct open_flags *op,
-			bool *want_write, int *opened)
+			bool got_write, int *opened)
 {
 	struct dentry *dir = nd->path.dentry;
 	struct inode *dir_inode = dir->d_inode;
@@ -2574,7 +2571,7 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 		goto out_no_open;
 
 	if ((nd->flags & LOOKUP_OPEN) && dir_inode->i_op->atomic_open) {
-		return atomic_open(nd, dentry, path, file, op, want_write,
+		return atomic_open(nd, dentry, path, file, op, got_write,
 				   need_lookup, opened);
 	}
 
@@ -2598,10 +2595,10 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 		 * a permanent write count is taken through
 		 * the 'struct file' in finish_open().
 		 */
-		error = mnt_want_write(nd->path.mnt);
-		if (error)
+		if (!got_write) {
+			error = -EROFS;
 			goto out_dput;
-		*want_write = true;
+		}
 		*opened |= FILE_CREATED;
 		error = security_path_mknod(&nd->path, dentry, mode, 0);
 		if (error)
@@ -2631,7 +2628,7 @@ static int do_last(struct nameidata *nd, struct path *path,
 	struct dentry *dir = nd->path.dentry;
 	int open_flag = op->open_flag;
 	bool will_truncate = (open_flag & O_TRUNC) != 0;
-	bool want_write = false;
+	bool got_write = false;
 	int acc_mode = op->acc_mode;
 	struct inode *inode;
 	bool symlink_ok = false;
@@ -2700,8 +2697,18 @@ static int do_last(struct nameidata *nd, struct path *path,
 	}
 
 retry_lookup:
+	if (op->open_flag & (O_CREAT | O_TRUNC | O_WRONLY | O_RDWR)) {
+		error = mnt_want_write(nd->path.mnt);
+		if (!error)
+			got_write = true;
+		/*
+		 * do _not_ fail yet - we might not need that or fail with
+		 * a different error; let lookup_open() decide; we'll be
+		 * dropping this one anyway.
+		 */
+	}
 	mutex_lock(&dir->d_inode->i_mutex);
-	error = lookup_open(nd, path, file, op, &want_write, opened);
+	error = lookup_open(nd, path, file, op, got_write, opened);
 	mutex_unlock(&dir->d_inode->i_mutex);
 
 	if (error <= 0) {
@@ -2736,9 +2743,9 @@ retry_lookup:
 	 * possible mount and symlink following (this might be optimized away if
 	 * necessary...)
 	 */
-	if (want_write) {
+	if (got_write) {
 		mnt_drop_write(nd->path.mnt);
-		want_write = false;
+		got_write = false;
 	}
 
 	error = -EEXIST;
@@ -2803,7 +2810,7 @@ finish_open:
 		error = mnt_want_write(nd->path.mnt);
 		if (error)
 			goto out;
-		want_write = true;
+		got_write = true;
 	}
 finish_open_created:
 	error = may_open(&nd->path, acc_mode, open_flag);
@@ -2830,7 +2837,7 @@ opened:
 			goto exit_fput;
 	}
 out:
-	if (want_write)
+	if (got_write)
 		mnt_drop_write(nd->path.mnt);
 	path_put(&save_parent);
 	terminate_walk(nd);
@@ -2854,9 +2861,9 @@ stale_open:
 	nd->inode = dir->d_inode;
 	save_parent.mnt = NULL;
 	save_parent.dentry = NULL;
-	if (want_write) {
+	if (got_write) {
 		mnt_drop_write(nd->path.mnt);
-		want_write = false;
+		got_write = false;
 	}
 	retried = true;
 	goto retry_lookup;
