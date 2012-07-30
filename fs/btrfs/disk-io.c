@@ -1114,7 +1114,7 @@ void clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 				spin_unlock(&root->fs_info->delalloc_lock);
 				btrfs_panic(root->fs_info, -EOVERFLOW,
 					  "Can't clear %lu bytes from "
-					  " dirty_mdatadata_bytes (%lu)",
+					  " dirty_mdatadata_bytes (%llu)",
 					  buf->len,
 					  root->fs_info->dirty_metadata_bytes);
 			}
