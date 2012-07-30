@@ -10,6 +10,7 @@
 #include "super.h"
 #include "mds_client.h"
 
+#include <linux/ceph/ceph_features.h>
 #include <linux/ceph/messenger.h>
 #include <linux/ceph/decode.h>
 #include <linux/ceph/pagelist.h>

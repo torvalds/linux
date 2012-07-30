@@ -17,6 +17,7 @@
 #include <linux/string.h>
 
 
+#include <linux/ceph/ceph_features.h>
 #include <linux/ceph/libceph.h>
 #include <linux/ceph/debugfs.h>
 #include <linux/ceph/decode.h>
@@ -460,9 +461,9 @@ struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private,
 	client->auth_err = 0;
 
 	client->extra_mon_dispatch = NULL;
-	client->supported_features = CEPH_FEATURE_SUPPORTED_DEFAULT |
+	client->supported_features = CEPH_FEATURES_SUPPORTED_DEFAULT |
 		supported_features;
-	client->required_features = CEPH_FEATURE_REQUIRED_DEFAULT |
+	client->required_features = CEPH_FEATURES_REQUIRED_DEFAULT |
 		required_features;
 
 	/* msgr */

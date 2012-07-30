@@ -23,12 +23,6 @@
 #include "ceph_fs.h"
 
 /*
- * Supported features
- */
-#define CEPH_FEATURE_SUPPORTED_DEFAULT CEPH_FEATURE_NOSRCADDR
-#define CEPH_FEATURE_REQUIRED_DEFAULT  CEPH_FEATURE_NOSRCADDR
-
-/*
  * mount options
  */
 #define CEPH_OPT_FSID             (1<<0)
