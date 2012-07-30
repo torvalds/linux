@@ -41,6 +41,7 @@ struct vd_node {
 	char			*name;
 	char			*regulator_name;
 	int			cur_volt;
+	int			volt_set_flag;
 	struct regulator	*regulator;
 	struct list_head	node;
 	struct list_head	pd_list;
