@@ -476,6 +476,9 @@ static ssize_t uinput_read(struct file *file, char __user *buffer, size_t count,
 	struct input_event event;
 	int retval = 0;
 
+	if (count != 0 && count < input_event_size())
+		return -EINVAL;
+
 	if (udev->state != UIST_CREATED)
 		return -ENODEV;
 
