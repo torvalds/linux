@@ -1761,15 +1761,16 @@ F:	arch/powerpc/oprofile/*cell*
 F:	arch/powerpc/platforms/cell/
 
 CEPH DISTRIBUTED FILE SYSTEM CLIENT
-M:	Sage Weil <sage@newdream.net>
+M:	Sage Weil <sage@inktank.com>
 L:	ceph-devel@vger.kernel.org
-W:	http://ceph.newdream.net/
+W:	http://ceph.com/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
 S:	Supported
 F:	Documentation/filesystems/ceph.txt
 F:	fs/ceph
 F:	net/ceph
 F:	include/linux/ceph
+F:	include/linux/crush
 
 CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
 L:	linux-usb@vger.kernel.org
@@ -5573,10 +5574,12 @@ S:	Supported
 F:	arch/hexagon/
 
 RADOS BLOCK DEVICE (RBD)
-F:	include/linux/qnxtypes.h
-M:	Yehuda Sadeh <yehuda@hq.newdream.net>
-M:	Sage Weil <sage@newdream.net>
+M:	Yehuda Sadeh <yehuda@inktank.com>
+M:	Sage Weil <sage@inktank.com>
+M:	Alex Elder <elder@inktank.com>
 M:	ceph-devel@vger.kernel.org
+W:	http://ceph.com/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
 S:	Supported
 F:	drivers/block/rbd.c
 F:	drivers/block/rbd_types.h
