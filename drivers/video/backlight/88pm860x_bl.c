@@ -228,7 +228,6 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	data->port = pdata->flags;
 	if (data->port < 0) {
 		dev_err(&pdev->dev, "wrong platform data is assigned");
-		kfree(data);
 		return -EINVAL;
 	}
 
