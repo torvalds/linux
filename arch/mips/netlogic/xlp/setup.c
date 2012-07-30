@@ -41,6 +41,8 @@
 #include <asm/bootinfo.h>
 
 #include <linux/of_fdt.h>
+#include <linux/of_platform.h>
+#include <linux/of_device.h>
 
 #include <asm/netlogic/haldefs.h>
 #include <asm/netlogic/common.h>
@@ -109,3 +111,17 @@ void __init prom_init(void)
 	register_smp_ops(&nlm_smp_ops);
 #endif
 }
+
+static struct of_device_id __initdata xlp_ids[] = {
+	{ .compatible = "simple-bus", },
+	{},
+};
+
+int __init xlp8xx_ds_publish_devices(void)
+{
+	if (!of_have_populated_dt())
+		return 0;
+	return of_platform_bus_probe(NULL, xlp_ids, NULL);
+}
+
+device_initcall(xlp8xx_ds_publish_devices);
