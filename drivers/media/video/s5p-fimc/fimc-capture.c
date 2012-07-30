@@ -658,7 +658,7 @@ static void fimc_capture_try_selection(struct fimc_ctx *ctx,
 		r->left   = r->top = 0;
 		return;
 	}
-	if (target == V4L2_SEL_TGT_COMPOSE_ACTIVE) {
+	if (target == V4L2_SEL_TGT_COMPOSE) {
 		if (ctx->rotation != 90 && ctx->rotation != 270)
 			align_h = 1;
 		max_sc_h = min(SCALER_MAX_HRATIO, 1 << (ffs(sink->width) - 3));
@@ -685,7 +685,7 @@ static void fimc_capture_try_selection(struct fimc_ctx *ctx,
 		      rotate ? sink->f_height : sink->f_width);
 	max_h = min_t(u32, FIMC_CAMIF_MAX_HEIGHT, sink->f_height);
 
-	if (target == V4L2_SEL_TGT_COMPOSE_ACTIVE) {
+	if (target == V4L2_SEL_TGT_COMPOSE) {
 		min_w = min_t(u32, max_w, sink->f_width / max_sc_h);
 		min_h = min_t(u32, max_h, sink->f_height / max_sc_v);
 		if (rotate) {
@@ -1146,9 +1146,9 @@ static int fimc_cap_g_selection(struct file *file, void *fh,
 		s->r.height = f->o_height;
 		return 0;
 
-	case V4L2_SEL_TGT_COMPOSE_ACTIVE:
+	case V4L2_SEL_TGT_COMPOSE:
 		f = &ctx->d_frame;
-	case V4L2_SEL_TGT_CROP_ACTIVE:
+	case V4L2_SEL_TGT_CROP:
 		s->r.left = f->offs_h;
 		s->r.top = f->offs_v;
 		s->r.width = f->width;
@@ -1160,7 +1160,7 @@ static int fimc_cap_g_selection(struct file *file, void *fh,
 }
 
 /* Return 1 if rectangle a is enclosed in rectangle b, or 0 otherwise. */
-int enclosed_rectangle(struct v4l2_rect *a, struct v4l2_rect *b)
+static int enclosed_rectangle(struct v4l2_rect *a, struct v4l2_rect *b)
 {
 	if (a->left < b->left || a->top < b->top)
 		return 0;
@@ -1184,9 +1184,9 @@ static int fimc_cap_s_selection(struct file *file, void *fh,
 	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 		return -EINVAL;
 
-	if (s->target == V4L2_SEL_TGT_COMPOSE_ACTIVE)
+	if (s->target == V4L2_SEL_TGT_COMPOSE)
 		f = &ctx->d_frame;
-	else if (s->target == V4L2_SEL_TGT_CROP_ACTIVE)
+	else if (s->target == V4L2_SEL_TGT_CROP)
 		f = &ctx->s_frame;
 	else
 		return -EINVAL;
@@ -1428,9 +1428,9 @@ static int fimc_subdev_get_selection(struct v4l2_subdev *sd,
 	mutex_lock(&fimc->lock);
 
 	switch (sel->target) {
-	case V4L2_SUBDEV_SEL_TGT_COMPOSE_BOUNDS:
+	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 		f = &ctx->d_frame;
-	case V4L2_SUBDEV_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
 		r->width = f->o_width;
 		r->height = f->o_height;
 		r->left = 0;
@@ -1438,10 +1438,10 @@ static int fimc_subdev_get_selection(struct v4l2_subdev *sd,
 		mutex_unlock(&fimc->lock);
 		return 0;
 
-	case V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL:
+	case V4L2_SEL_TGT_CROP:
 		try_sel = v4l2_subdev_get_try_crop(fh, sel->pad);
 		break;
-	case V4L2_SUBDEV_SEL_TGT_COMPOSE_ACTUAL:
+	case V4L2_SEL_TGT_COMPOSE:
 		try_sel = v4l2_subdev_get_try_compose(fh, sel->pad);
 		f = &ctx->d_frame;
 		break;
@@ -1482,12 +1482,12 @@ static int fimc_subdev_set_selection(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	mutex_lock(&fimc->lock);
-	fimc_capture_try_selection(ctx, r, V4L2_SEL_TGT_CROP_ACTIVE);
+	fimc_capture_try_selection(ctx, r, V4L2_SEL_TGT_CROP);
 
 	switch (sel->target) {
-	case V4L2_SUBDEV_SEL_TGT_COMPOSE_BOUNDS:
+	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 		f = &ctx->d_frame;
-	case V4L2_SUBDEV_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
 		r->width = f->o_width;
 		r->height = f->o_height;
 		r->left = 0;
@@ -1495,10 +1495,10 @@ static int fimc_subdev_set_selection(struct v4l2_subdev *sd,
 		mutex_unlock(&fimc->lock);
 		return 0;
 
-	case V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL:
+	case V4L2_SEL_TGT_CROP:
 		try_sel = v4l2_subdev_get_try_crop(fh, sel->pad);
 		break;
-	case V4L2_SUBDEV_SEL_TGT_COMPOSE_ACTUAL:
+	case V4L2_SEL_TGT_COMPOSE:
 		try_sel = v4l2_subdev_get_try_compose(fh, sel->pad);
 		f = &ctx->d_frame;
 		break;
@@ -1514,7 +1514,7 @@ static int fimc_subdev_set_selection(struct v4l2_subdev *sd,
 		set_frame_crop(f, r->left, r->top, r->width, r->height);
 		set_bit(ST_CAPT_APPLY_CFG, &fimc->state);
 		spin_unlock_irqrestore(&fimc->slock, flags);
-		if (sel->target == V4L2_SUBDEV_SEL_TGT_COMPOSE_ACTUAL)
+		if (sel->target == V4L2_SEL_TGT_COMPOSE)
 			ctx->state |= FIMC_COMPOSE;
 	}
 

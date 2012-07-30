@@ -558,3 +558,21 @@ Why:	The V4L2_CID_VCENTER, V4L2_CID_HCENTER controls have been deprecated
 	There are newer controls (V4L2_CID_PAN*, V4L2_CID_TILT*) that provide
 	similar	functionality.
 Who:	Sylwester Nawrocki <sylvester.nawrocki@gmail.com>
+
+----------------------------
+
+What:	V4L2 selections API target rectangle and flags unification, the
+	following definitions will be removed: V4L2_SEL_TGT_CROP_ACTIVE,
+	V4L2_SEL_TGT_COMPOSE_ACTIVE, V4L2_SUBDEV_SEL_*, V4L2_SUBDEV_SEL_FLAG_*
+	in favor of common V4L2_SEL_TGT_* and V4L2_SEL_FLAG_* definitions.
+	For more details see include/linux/v4l2-common.h.
+When:	3.8
+Why:	The regular V4L2 selections and the subdev selection API originally
+	defined distinct names for the target rectangles and flags - V4L2_SEL_*
+	and V4L2_SUBDEV_SEL_*. Although, it turned out that the meaning of these
+	target rectangles is virtually identical and the APIs were consolidated
+	to use single set of names - V4L2_SEL_*. This didn't involve any ABI
+	changes. Alias definitions were created for the original ones to avoid
+	any instabilities in the user space interface. After few cycles these
+	backward compatibility definitions will be removed.
+Who:	Sylwester Nawrocki <sylvester.nawrocki@gmail.com>

@@ -197,6 +197,8 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	strcpy(v->name, "FM");
 	v->type = V4L2_TUNER_RADIO;
 	v->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
+	if (!tea->cannot_read_data)
+		v->capability |= V4L2_TUNER_CAP_HWSEEK_BOUNDED;
 	v->rangelow = FREQ_LO;
 	v->rangehigh = FREQ_HI;
 	v->rxsubchans = tea->stereo ? V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
@@ -305,7 +307,7 @@ static int vidioc_s_hw_freq_seek(struct file *file, void *fh,
 	}
 	tea->val &= ~TEA575X_BIT_SEARCH;
 	snd_tea575x_set_freq(tea);
-	return -EAGAIN;
+	return -ENODATA;
 }
 
 static int tea575x_s_ctrl(struct v4l2_ctrl *ctrl)

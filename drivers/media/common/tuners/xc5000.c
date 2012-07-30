@@ -717,6 +717,12 @@ static int xc5000_set_params(struct dvb_frontend *fe)
 		priv->freq_hz = freq - 1750000;
 		priv->video_standard = DTV6;
 		break;
+	case SYS_ISDBT:
+		/* All ISDB-T are currently for 6 MHz bw */
+		if (!bw)
+			bw = 6000000;
+		/* fall to OFDM handling */
+	case SYS_DMBTH:
 	case SYS_DVBT:
 	case SYS_DVBT2:
 		dprintk(1, "%s() OFDM\n", __func__);

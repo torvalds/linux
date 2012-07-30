@@ -60,6 +60,10 @@ MODULE_VERSION("0.1.1");
 #define MEM2MEM_COLOR_STEP	(0xff >> 4)
 #define MEM2MEM_NUM_TILES	8
 
+/* Flags that indicate processing mode */
+#define MEM2MEM_HFLIP	(1 << 0)
+#define MEM2MEM_VFLIP	(1 << 1)
+
 #define dprintk(dev, fmt, arg...) \
 	v4l2_dbg(1, 1, &dev->v4l2_dev, "%s: " fmt, __func__, ## arg)
 
@@ -115,6 +119,24 @@ enum {
 
 static struct v4l2_queryctrl m2mtest_ctrls[] = {
 	{
+		.id		= V4L2_CID_HFLIP,
+		.type		= V4L2_CTRL_TYPE_BOOLEAN,
+		.name		= "Mirror",
+		.minimum	= 0,
+		.maximum	= 1,
+		.step		= 1,
+		.default_value	= 0,
+		.flags		= 0,
+	}, {
+		.id		= V4L2_CID_VFLIP,
+		.type		= V4L2_CTRL_TYPE_BOOLEAN,
+		.name		= "Vertical Mirror",
+		.minimum	= 0,
+		.maximum	= 1,
+		.step		= 1,
+		.default_value	= 0,
+		.flags		= 0,
+	}, {
 		.id		= V4L2_CID_TRANS_TIME_MSEC,
 		.type		= V4L2_CTRL_TYPE_INTEGER,
 		.name		= "Transaction time (msec)",
@@ -180,6 +202,9 @@ struct m2mtest_ctx {
 
 	/* Abort requested by m2m */
 	int			aborting;
+
+	/* Processing mode */
+	int			mode;
 
 	struct v4l2_m2m_ctx	*m2m_ctx;
 
@@ -249,19 +274,84 @@ static int device_process(struct m2mtest_ctx *ctx,
 	bytes_left = bytesperline - tile_w * MEM2MEM_NUM_TILES;
 	w = 0;
 
-	for (y = 0; y < height; ++y) {
-		for (t = 0; t < MEM2MEM_NUM_TILES; ++t) {
-			if (w & 0x1) {
-				for (x = 0; x < tile_w; ++x)
-					*p_out++ = *p_in++ + MEM2MEM_COLOR_STEP;
-			} else {
-				for (x = 0; x < tile_w; ++x)
-					*p_out++ = *p_in++ - MEM2MEM_COLOR_STEP;
+	switch (ctx->mode) {
+	case MEM2MEM_HFLIP | MEM2MEM_VFLIP:
+		p_out += bytesperline * height - bytes_left;
+		for (y = 0; y < height; ++y) {
+			for (t = 0; t < MEM2MEM_NUM_TILES; ++t) {
+				if (w & 0x1) {
+					for (x = 0; x < tile_w; ++x)
+						*--p_out = *p_in++ +
+							MEM2MEM_COLOR_STEP;
+				} else {
+					for (x = 0; x < tile_w; ++x)
+						*--p_out = *p_in++ -
+							MEM2MEM_COLOR_STEP;
+				}
+				++w;
 			}
-			++w;
+			p_in += bytes_left;
+			p_out -= bytes_left;
 		}
-		p_in += bytes_left;
-		p_out += bytes_left;
+		break;
+
+	case MEM2MEM_HFLIP:
+		for (y = 0; y < height; ++y) {
+			p_out += MEM2MEM_NUM_TILES * tile_w;
+			for (t = 0; t < MEM2MEM_NUM_TILES; ++t) {
+				if (w & 0x01) {
+					for (x = 0; x < tile_w; ++x)
+						*--p_out = *p_in++ +
+							MEM2MEM_COLOR_STEP;
+				} else {
+					for (x = 0; x < tile_w; ++x)
+						*--p_out = *p_in++ -
+							MEM2MEM_COLOR_STEP;
+				}
+				++w;
+			}
+			p_in += bytes_left;
+			p_out += bytesperline;
+		}
+		break;
+
+	case MEM2MEM_VFLIP:
+		p_out += bytesperline * (height - 1);
+		for (y = 0; y < height; ++y) {
+			for (t = 0; t < MEM2MEM_NUM_TILES; ++t) {
+				if (w & 0x1) {
+					for (x = 0; x < tile_w; ++x)
+						*p_out++ = *p_in++ +
+							MEM2MEM_COLOR_STEP;
+				} else {
+					for (x = 0; x < tile_w; ++x)
+						*p_out++ = *p_in++ -
+							MEM2MEM_COLOR_STEP;
+				}
+				++w;
+			}
+			p_in += bytes_left;
+			p_out += bytes_left - 2 * bytesperline;
+		}
+		break;
+
+	default:
+		for (y = 0; y < height; ++y) {
+			for (t = 0; t < MEM2MEM_NUM_TILES; ++t) {
+				if (w & 0x1) {
+					for (x = 0; x < tile_w; ++x)
+						*p_out++ = *p_in++ +
+							MEM2MEM_COLOR_STEP;
+				} else {
+					for (x = 0; x < tile_w; ++x)
+						*p_out++ = *p_in++ -
+							MEM2MEM_COLOR_STEP;
+				}
+				++w;
+			}
+			p_in += bytes_left;
+			p_out += bytes_left;
+		}
 	}
 
 	return 0;
@@ -648,6 +738,14 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 	struct m2mtest_ctx *ctx = priv;
 
 	switch (ctrl->id) {
+	case V4L2_CID_HFLIP:
+		ctrl->value = (ctx->mode & MEM2MEM_HFLIP) ? 1 : 0;
+		break;
+
+	case V4L2_CID_VFLIP:
+		ctrl->value = (ctx->mode & MEM2MEM_VFLIP) ? 1 : 0;
+		break;
+
 	case V4L2_CID_TRANS_TIME_MSEC:
 		ctrl->value = ctx->transtime;
 		break;
@@ -691,6 +789,20 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 		return ret;
 
 	switch (ctrl->id) {
+	case V4L2_CID_HFLIP:
+		if (ctrl->value)
+			ctx->mode |= MEM2MEM_HFLIP;
+		else
+			ctx->mode &= ~MEM2MEM_HFLIP;
+		break;
+
+	case V4L2_CID_VFLIP:
+		if (ctrl->value)
+			ctx->mode |= MEM2MEM_VFLIP;
+		else
+			ctx->mode &= ~MEM2MEM_VFLIP;
+		break;
+
 	case V4L2_CID_TRANS_TIME_MSEC:
 		ctx->transtime = ctrl->value;
 		break;
@@ -861,6 +973,7 @@ static int m2mtest_open(struct file *file)
 	ctx->translen = MEM2MEM_DEF_TRANSLEN;
 	ctx->transtime = MEM2MEM_DEF_TRANSTIME;
 	ctx->num_processed = 0;
+	ctx->mode = 0;
 
 	ctx->q_data[V4L2_M2M_SRC].fmt = &formats[0];
 	ctx->q_data[V4L2_M2M_DST].fmt = &formats[0];

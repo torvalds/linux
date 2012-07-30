@@ -676,6 +676,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.has_remote     = 1,
+		.has_radio	= 1,  /* not every card has radio */
 	},
 	[BTTV_BOARD_VOBIS_BOOSTAR] = {
 		.name           = "Terratec TerraTV+ Version 1.0 (Bt848)/ Terra TValue Version 1.0/ Vobis TV-Boostar",
