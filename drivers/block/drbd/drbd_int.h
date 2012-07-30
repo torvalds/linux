@@ -672,7 +672,6 @@ enum {
 
 /* flag bits per mdev */
 enum {
-	UNPLUG_QUEUED,		/* only relevant with kernel 2.4 */
 	UNPLUG_REMOTE,		/* sending a "UnplugRemote" could help */
 	MD_DIRTY,		/* current uuids and flags not yet on disk */
 	USE_DEGR_WFC_T,		/* degr-wfc-timeout instead of wfc-timeout. */
@@ -681,7 +680,6 @@ enum {
 	CRASHED_PRIMARY,	/* This node was a crashed primary.
 				 * Gets cleared when the state.conn
 				 * goes into C_CONNECTED state. */
-	NO_BARRIER_SUPP,	/* underlying block device doesn't implement barriers */
 	CONSIDER_RESYNC,
 
 	MD_NO_FUA,		/* Users wants us to not use FUA/FLUSH on meta data dev */
