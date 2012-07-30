@@ -113,6 +113,7 @@ Elong_unlock:
 Elong:
 	return ERR_PTR(-ENAMETOOLONG);
 }
+EXPORT_SYMBOL_GPL(nfs_path);
 
 /*
  * nfs_d_automount - Handle crossing a mountpoint on the server
@@ -241,6 +242,7 @@ out:
 	dprintk("<-- nfs_do_submount() = %p\n", mnt);
 	return mnt;
 }
+EXPORT_SYMBOL_GPL(nfs_do_submount);
 
 struct vfsmount *nfs_submount(struct nfs_server *server, struct dentry *dentry,
 			      struct nfs_fh *fh, struct nfs_fattr *fattr)

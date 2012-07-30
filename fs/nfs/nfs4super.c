@@ -332,7 +332,7 @@ static struct dentry *nfs4_referral_mount(struct file_system_type *fs_type,
 }
 
 
-int __init init_nfs_v4(void)
+static int __init init_nfs_v4(void)
 {
 	int err;
 
@@ -358,10 +358,15 @@ out:
 	return err;
 }
 
-void exit_nfs_v4(void)
+static void __exit exit_nfs_v4(void)
 {
 	unregister_nfs_version(&nfs_v4);
 	unregister_filesystem(&nfs4_fs_type);
 	nfs4_unregister_sysctl();
 	nfs_idmap_quit();
 }
+
+MODULE_LICENSE("GPL");
+
+module_init(init_nfs_v4);
+module_exit(exit_nfs_v4);

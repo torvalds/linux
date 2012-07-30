@@ -460,7 +460,7 @@ static void nfs_inode_dio_write_done(struct inode *inode)
 	inode_dio_done(inode);
 }
 
-#if IS_ENABLED(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
+#if IS_ENABLED(CONFIG_NFS_V3) || IS_ENABLED(CONFIG_NFS_V4)
 static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 {
 	struct nfs_pageio_descriptor desc;

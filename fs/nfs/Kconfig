@@ -72,7 +72,7 @@ config NFS_V3_ACL
 	  If unsure, say N.
 
 config NFS_V4
-	bool "NFS client support for NFS version 4"
+	tristate "NFS client support for NFS version 4"
 	depends on NFS_FS
 	select SUNRPC_GSS
 	select KEYS

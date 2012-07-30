@@ -315,7 +315,7 @@ const struct super_operations nfs_sops = {
 };
 EXPORT_SYMBOL_GPL(nfs_sops);
 
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 static void nfs4_validate_mount_flags(struct nfs_parsed_mount_data *);
 static int nfs4_validate_mount_data(void *options,
 	struct nfs_parsed_mount_data *args, const char *dev_name);
@@ -366,6 +366,7 @@ void nfs_sb_active(struct super_block *sb)
 	if (atomic_inc_return(&server->active) == 1)
 		atomic_inc(&sb->s_active);
 }
+EXPORT_SYMBOL_GPL(nfs_sb_active);
 
 void nfs_sb_deactive(struct super_block *sb)
 {
@@ -374,6 +375,7 @@ void nfs_sb_deactive(struct super_block *sb)
 	if (atomic_dec_and_test(&server->active))
 		deactivate_super(sb);
 }
+EXPORT_SYMBOL_GPL(nfs_sb_deactive);
 
 /*
  * Deliver file system statistics to userspace
@@ -439,6 +441,7 @@ int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	dprintk("%s: statfs error = %d\n", __func__, -error);
 	return error;
 }
+EXPORT_SYMBOL_GPL(nfs_statfs);
 
 /*
  * Map the security flavour number to a name
@@ -544,7 +547,7 @@ static void nfs_show_mountd_options(struct seq_file *m, struct nfs_server *nfss,
 	nfs_show_mountd_netid(m, nfss, showdefaults);
 }
 
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 static void nfs_show_nfsv4_options(struct seq_file *m, struct nfs_server *nfss,
 				    int showdefaults)
 {
@@ -675,8 +678,9 @@ int nfs_show_options(struct seq_file *m, struct dentry *root)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nfs_show_options);
 
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 #ifdef CONFIG_NFS_V4_1
 static void show_sessions(struct seq_file *m, struct nfs_server *server)
 {
@@ -709,7 +713,7 @@ static void show_implementation_id(struct seq_file *m, struct nfs_server *nfss)
 	}
 }
 #else
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 static void show_pnfs(struct seq_file *m, struct nfs_server *server)
 {
 }
@@ -734,12 +738,14 @@ int nfs_show_devname(struct seq_file *m, struct dentry *root)
 	free_page((unsigned long)page);
 	return err;
 }
+EXPORT_SYMBOL_GPL(nfs_show_devname);
 
 int nfs_show_path(struct seq_file *m, struct dentry *dentry)
 {
 	seq_puts(m, "/");
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nfs_show_path);
 
 /*
  * Present statistical information for this VFS mountpoint
@@ -774,7 +780,7 @@ int nfs_show_stats(struct seq_file *m, struct dentry *root)
 	seq_printf(m, ",bsize=%u", nfss->bsize);
 	seq_printf(m, ",namlen=%u", nfss->namelen);
 
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 	if (nfss->nfs_client->rpc_ops->version == 4) {
 		seq_printf(m, "\n\tnfsv4:\t");
 		seq_printf(m, "bm0=0x%x", nfss->attr_bitmask[0]);
@@ -832,6 +838,7 @@ int nfs_show_stats(struct seq_file *m, struct dentry *root)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nfs_show_stats);
 
 /*
  * Begin unmount by attempting to remove all automounted mountpoints we added
@@ -851,6 +858,7 @@ void nfs_umount_begin(struct super_block *sb)
 	if (!IS_ERR(rpc))
 		rpc_killall_tasks(rpc);
 }
+EXPORT_SYMBOL_GPL(nfs_umount_begin);
 
 static struct nfs_parsed_mount_data *nfs_alloc_parsed_mount_data(void)
 {
@@ -1915,7 +1923,7 @@ out_invalid_fh:
 	return -EINVAL;
 }
 
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 static int nfs_validate_mount_data(struct file_system_type *fs_type,
 				   void *options,
 				   struct nfs_parsed_mount_data *args,
@@ -1953,7 +1961,7 @@ static int nfs_validate_text_mount_data(void *options,
 		goto out_no_address;
 
 	if (args->version == 4) {
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 		port = NFS_PORT;
 		max_namelen = NFS4_MAXNAMLEN;
 		max_pathlen = NFS4_MAXPATHLEN;
@@ -1976,7 +1984,7 @@ static int nfs_validate_text_mount_data(void *options,
 				   &args->nfs_server.export_path,
 				   max_pathlen);
 
-#ifndef CONFIG_NFS_V4
+#if !IS_ENABLED(CONFIG_NFS_V4)
 out_v4_not_compiled:
 	dfprintk(MOUNT, "NFS: NFSv4 is not compiled into kernel\n");
 	return -EPROTONOSUPPORT;
@@ -2075,6 +2083,7 @@ out:
 	kfree(data);
 	return error;
 }
+EXPORT_SYMBOL_GPL(nfs_remount);
 
 /*
  * Initialise the common bits of the superblock
@@ -2123,6 +2132,7 @@ void nfs_fill_super(struct super_block *sb, struct nfs_mount_info *mount_info)
 
  	nfs_initialise_sb(sb);
 }
+EXPORT_SYMBOL_GPL(nfs_fill_super);
 
 /*
  * Finish setting up a cloned NFS2/3/4 superblock
@@ -2292,6 +2302,7 @@ int nfs_set_sb_security(struct super_block *s, struct dentry *mntroot,
 {
 	return security_sb_set_mnt_opts(s, &mount_info->parsed->lsm_opts);
 }
+EXPORT_SYMBOL_GPL(nfs_set_sb_security);
 
 int nfs_clone_sb_security(struct super_block *s, struct dentry *mntroot,
 			  struct nfs_mount_info *mount_info)
@@ -2302,6 +2313,7 @@ int nfs_clone_sb_security(struct super_block *s, struct dentry *mntroot,
 		return -ESTALE;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nfs_clone_sb_security);
 
 struct dentry *nfs_fs_mount_common(struct nfs_server *server,
 				   int flags, const char *dev_name,
@@ -2375,6 +2387,7 @@ error_splat_bdi:
 	deactivate_locked_super(s);
 	goto out;
 }
+EXPORT_SYMBOL_GPL(nfs_fs_mount_common);
 
 struct dentry *nfs_fs_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *raw_data)
@@ -2415,6 +2428,7 @@ out:
 	nfs_free_fhandle(mount_info.mntfh);
 	return mntroot;
 }
+EXPORT_SYMBOL_GPL(nfs_fs_mount);
 
 /*
  * Ensure that we unregister the bdi before kill_anon_super
@@ -2426,6 +2440,7 @@ void nfs_put_super(struct super_block *s)
 
 	bdi_unregister(&server->backing_dev_info);
 }
+EXPORT_SYMBOL_GPL(nfs_put_super);
 
 /*
  * Destroy an NFS2/3 superblock
@@ -2438,6 +2453,7 @@ void nfs_kill_super(struct super_block *s)
 	nfs_fscache_release_super_cookie(s);
 	nfs_free_server(server);
 }
+EXPORT_SYMBOL_GPL(nfs_kill_super);
 
 /*
  * Clone an NFS2/3/4 server record on xdev traversal (FSID-change)
@@ -2478,7 +2494,7 @@ out_err:
 	goto out;
 }
 
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 
 static void nfs4_validate_mount_flags(struct nfs_parsed_mount_data *args)
 {
@@ -2589,6 +2605,13 @@ unsigned int nfs_idmap_cache_timeout = 600;
 bool nfs4_disable_idmapping = true;
 unsigned short max_session_slots = NFS4_DEF_SLOT_TABLE_SIZE;
 unsigned short send_implementation_id = 1;
+
+EXPORT_SYMBOL_GPL(nfs_callback_set_tcpport);
+EXPORT_SYMBOL_GPL(nfs_callback_tcpport);
+EXPORT_SYMBOL_GPL(nfs_idmap_cache_timeout);
+EXPORT_SYMBOL_GPL(nfs4_disable_idmapping);
+EXPORT_SYMBOL_GPL(max_session_slots);
+EXPORT_SYMBOL_GPL(send_implementation_id);
 
 #define NFS_CALLBACK_MAXPORTNR (65535U)
 

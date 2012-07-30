@@ -143,24 +143,6 @@ void unregister_nfs_version(struct nfs_subversion *nfs)
 EXPORT_SYMBOL_GPL(unregister_nfs_version);
 
 /*
- * Preload all configured NFS versions during module init.
- * This function should be edited after each protocol is converted,
- * and eventually removed.
- */
-int __init nfs_register_versions(void)
-{
-	return init_nfs_v4();
-}
-
-/*
- * Remove each pre-loaded NFS version
- */
-void nfs_unregister_versions(void)
-{
-	exit_nfs_v4();
-}
-
-/*
  * Allocate a shared client record
  *
  * Since these are allocated/deallocated very rarely, we don't
@@ -214,7 +196,7 @@ error_0:
 }
 EXPORT_SYMBOL_GPL(nfs_alloc_client);
 
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 /* idr_remove_all is not needed as all id's are removed by nfs_put_client */
 void nfs_cleanup_cb_ident_idr(struct net *net)
 {
@@ -390,6 +372,7 @@ int nfs_sockaddr_match_ipaddr(const struct sockaddr *sa1,
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nfs_sockaddr_match_ipaddr);
 #endif /* CONFIG_NFS_V4_1 */
 
 /*
@@ -456,6 +439,7 @@ int nfs_wait_client_init_complete(const struct nfs_client *clp)
 	return wait_event_killable(nfs_client_active_wq,
 			nfs_client_init_is_complete(clp));
 }
+EXPORT_SYMBOL_GPL(nfs_wait_client_init_complete);
 
 /*
  * Found an existing client.  Make sure it's ready before returning.
@@ -530,6 +514,7 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 		cl_init->hostname ?: "", PTR_ERR(new));
 	return new;
 }
+EXPORT_SYMBOL_GPL(nfs_get_client);
 
 /*
  * Mark a server as ready or failed
@@ -540,6 +525,7 @@ void nfs_mark_client_ready(struct nfs_client *clp, int state)
 	clp->cl_cons_state = state;
 	wake_up_all(&nfs_client_active_wq);
 }
+EXPORT_SYMBOL_GPL(nfs_mark_client_ready);
 
 /*
  * Initialise the timeout values for a connection
@@ -581,6 +567,7 @@ void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
 		BUG();
 	}
 }
+EXPORT_SYMBOL_GPL(nfs_init_timeout_values);
 
 /*
  * Create an RPC client handle
@@ -620,6 +607,7 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 	clp->cl_rpcclient = clnt;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nfs_create_rpc_client);
 
 /*
  * Version 2 or 3 client destruction
@@ -706,6 +694,7 @@ int nfs_init_server_rpcclient(struct nfs_server *server,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nfs_init_server_rpcclient);
 
 /**
  * nfs_init_client - Initialise an NFS2 or NFS3 client
@@ -932,6 +921,7 @@ out_error:
 	dprintk("nfs_probe_fsinfo: error = %d\n", -error);
 	return error;
 }
+EXPORT_SYMBOL_GPL(nfs_probe_fsinfo);
 
 /*
  * Copy useful information when duplicating a server record
@@ -948,6 +938,7 @@ void nfs_server_copy_userdata(struct nfs_server *target, struct nfs_server *sour
 	target->caps = source->caps;
 	target->options = source->options;
 }
+EXPORT_SYMBOL_GPL(nfs_server_copy_userdata);
 
 void nfs_server_insert_lists(struct nfs_server *server)
 {
@@ -961,6 +952,7 @@ void nfs_server_insert_lists(struct nfs_server *server)
 	spin_unlock(&nn->nfs_client_lock);
 
 }
+EXPORT_SYMBOL_GPL(nfs_server_insert_lists);
 
 static void nfs_server_remove_lists(struct nfs_server *server)
 {
@@ -1020,6 +1012,7 @@ struct nfs_server *nfs_alloc_server(void)
 
 	return server;
 }
+EXPORT_SYMBOL_GPL(nfs_alloc_server);
 
 /*
  * Free up a server record
@@ -1048,6 +1041,7 @@ void nfs_free_server(struct nfs_server *server)
 	nfs_release_automount_timer();
 	dprintk("<-- nfs_free_server()\n");
 }
+EXPORT_SYMBOL_GPL(nfs_free_server);
 
 /*
  * Create a version 2 or 3 volume record
@@ -1193,7 +1187,7 @@ void nfs_clients_init(struct net *net)
 
 	INIT_LIST_HEAD(&nn->nfs_client_list);
 	INIT_LIST_HEAD(&nn->nfs_volume_list);
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 	idr_init(&nn->cb_ident_idr);
 #endif
 	spin_lock_init(&nn->nfs_client_lock);

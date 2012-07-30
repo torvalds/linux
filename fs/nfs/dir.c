@@ -936,6 +936,7 @@ void nfs_force_lookup_revalidate(struct inode *dir)
 {
 	NFS_I(dir)->cache_change_attribute++;
 }
+EXPORT_SYMBOL_GPL(nfs_force_lookup_revalidate);
 
 /*
  * A check for whether or not the parent directory has changed.
@@ -1267,7 +1268,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(nfs_lookup);
 
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 static int nfs4_lookup_revalidate(struct dentry *, unsigned int);
 
 const struct dentry_operations nfs4_dentry_operations = {
@@ -1277,6 +1278,7 @@ const struct dentry_operations nfs4_dentry_operations = {
 	.d_automount	= nfs_d_automount,
 	.d_release	= nfs_d_release,
 };
+EXPORT_SYMBOL_GPL(nfs4_dentry_operations);
 
 static fmode_t flags_to_mode(int flags)
 {
@@ -1419,6 +1421,7 @@ no_open:
 
 	return finish_no_open(file, res);
 }
+EXPORT_SYMBOL_GPL(nfs_atomic_open);
 
 static int nfs4_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 {
@@ -2142,6 +2145,7 @@ int nfs_may_open(struct inode *inode, struct rpc_cred *cred, int openflags)
 {
 	return nfs_do_access(inode, cred, nfs_open_permission_mask(openflags));
 }
+EXPORT_SYMBOL_GPL(nfs_may_open);
 
 int nfs_permission(struct inode *inode, int mask)
 {
