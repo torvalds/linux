@@ -977,7 +977,7 @@ int dvfs_get_depend_volt(struct clk_node *dvfs_clk, struct vd_node *dvfs_vd_dep,
 	DVFS_ERR("%s can not find vd node %s\n", __func__, dvfs_vd_dep->name);
 	return -1;
 }
-struct clk_node *clk_cpu;
+static struct clk_node *dvfs_clk_cpu;
 static struct vd_node vd_core;
 int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 {
@@ -1160,12 +1160,12 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 	/* if up the rate */
 	if (rate_new > rate_old) {
 		DVFS_DBG("-----------------------------rate_new > rate_old\n");
-		volt_dep_new = dvfs_vd_get_newvolt_byclk(clk_cpu);
+		volt_dep_new = dvfs_vd_get_newvolt_byclk(dvfs_clk_cpu);
 
 		if (volt_dep_new < 0) 
 			goto fail_roll_back;
 
-		ret = dvfs_scale_volt_bystep(dvfs_clk->vd, clk_cpu->vd, volt_new, volt_dep_new, 
+		ret = dvfs_scale_volt_bystep(dvfs_clk->vd, dvfs_clk_cpu->vd, volt_new, volt_dep_new, 
 					LOGIC_HIGHER_ARM, ARM_HIGHER_LOGIC); 
 		if (ret < 0) 
 			goto fail_roll_back;
@@ -1190,12 +1190,12 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 	/* if down the rate */
 	if (rate_new < rate_old) {
 		DVFS_DBG("-----------------------------rate_new < rate_old\n");
-		volt_dep_new = dvfs_vd_get_newvolt_byclk(clk_cpu);
+		volt_dep_new = dvfs_vd_get_newvolt_byclk(dvfs_clk_cpu);
 
 		if (volt_dep_new < 0) 
 			goto out;
 
-		ret = dvfs_scale_volt_bystep(dvfs_clk->vd, clk_cpu->vd, volt_new, volt_dep_new, 
+		ret = dvfs_scale_volt_bystep(dvfs_clk->vd, dvfs_clk_cpu->vd, volt_new, volt_dep_new, 
 					LOGIC_HIGHER_ARM, ARM_HIGHER_LOGIC); 
 		if (ret < 0) 
 			goto out;
@@ -1418,7 +1418,7 @@ int rk30_dvfs_init(void)
 	for (i = 0; i < ARRAY_SIZE(rk30_depends); i++) {
 		rk_regist_depends(&rk30_depends[i]);
 	}
-	clk_cpu = dvfs_get_dvfs_clk_byname("cpu");
+	dvfs_clk_cpu = dvfs_get_dvfs_clk_byname("cpu");
 	return 0;
 }
 
