@@ -101,17 +101,9 @@ static struct raid_set *context_alloc(struct dm_target *ti, struct raid_type *ra
 {
 	unsigned i;
 	struct raid_set *rs;
-	sector_t sectors_per_dev;
 
 	if (raid_devs <= raid_type->parity_devs) {
 		ti->error = "Insufficient number of devices";
-		return ERR_PTR(-EINVAL);
-	}
-
-	sectors_per_dev = ti->len;
-	if ((raid_type->level > 1) &&
-	    sector_div(sectors_per_dev, (raid_devs - raid_type->parity_devs))) {
-		ti->error = "Target length not divisible by number of data devices";
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -128,7 +120,6 @@ static struct raid_set *context_alloc(struct dm_target *ti, struct raid_type *ra
 	rs->md.raid_disks = raid_devs;
 	rs->md.level = raid_type->level;
 	rs->md.new_level = rs->md.level;
-	rs->md.dev_sectors = sectors_per_dev;
 	rs->md.layout = raid_type->algorithm;
 	rs->md.new_layout = rs->md.layout;
 	rs->md.delta_disks = 0;
@@ -143,6 +134,7 @@ static struct raid_set *context_alloc(struct dm_target *ti, struct raid_type *ra
 	 *  rs->md.external
 	 *  rs->md.chunk_sectors
 	 *  rs->md.new_chunk_sectors
+	 *  rs->md.dev_sectors
 	 */
 
 	return rs;
@@ -353,6 +345,8 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 {
 	unsigned i, rebuild_cnt = 0;
 	unsigned long value, region_size = 0;
+	sector_t sectors_per_dev = rs->ti->len;
+	sector_t max_io_len;
 	char *key;
 
 	/*
@@ -429,13 +423,28 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 
 		if (!strcasecmp(key, "rebuild")) {
 			rebuild_cnt++;
-			if (((rs->raid_type->level != 1) &&
-			     (rebuild_cnt > rs->raid_type->parity_devs)) ||
-			    ((rs->raid_type->level == 1) &&
-			     (rebuild_cnt > (rs->md.raid_disks - 1)))) {
-				rs->ti->error = "Too many rebuild devices specified for given RAID type";
+
+			switch (rs->raid_type->level) {
+			case 1:
+				if (rebuild_cnt >= rs->md.raid_disks) {
+					rs->ti->error = "Too many rebuild devices specified";
+					return -EINVAL;
+				}
+				break;
+			case 4:
+			case 5:
+			case 6:
+				if (rebuild_cnt > rs->raid_type->parity_devs) {
+					rs->ti->error = "Too many rebuild devices specified for given RAID type";
+					return -EINVAL;
+				}
+				break;
+			default:
+				DMERR("The rebuild parameter is not supported for %s", rs->raid_type->name);
+				rs->ti->error = "Rebuild not supported for this RAID type";
 				return -EINVAL;
 			}
+
 			if (value > rs->md.raid_disks) {
 				rs->ti->error = "Invalid rebuild index given";
 				return -EINVAL;
@@ -522,14 +531,19 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 		return -EINVAL;
 
 	if (rs->md.chunk_sectors)
-		rs->ti->split_io = rs->md.chunk_sectors;
+		max_io_len = rs->md.chunk_sectors;
 	else
-		rs->ti->split_io = region_size;
+		max_io_len = region_size;
 
-	if (rs->md.chunk_sectors)
-		rs->ti->split_io = rs->md.chunk_sectors;
-	else
-		rs->ti->split_io = region_size;
+	if (dm_set_target_max_io_len(rs->ti, max_io_len))
+		return -EINVAL;
+
+	if ((rs->raid_type->level > 1) &&
+	    sector_div(sectors_per_dev, (rs->md.raid_disks - rs->raid_type->parity_devs))) {
+		rs->ti->error = "Target length not divisible by number of data devices";
+		return -EINVAL;
+	}
+	rs->md.dev_sectors = sectors_per_dev;
 
 	/* Assume there are no metadata devices until the drives are parsed */
 	rs->md.persistent = 0;
@@ -1067,7 +1081,7 @@ static int raid_map(struct dm_target *ti, struct bio *bio, union map_info *map_c
 }
 
 static int raid_status(struct dm_target *ti, status_type_t type,
-		       char *result, unsigned maxlen)
+		       unsigned status_flags, char *result, unsigned maxlen)
 {
 	struct raid_set *rs = ti->private;
 	unsigned raid_param_cnt = 1; /* at least 1 for chunksize */
