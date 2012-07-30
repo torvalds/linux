@@ -823,7 +823,7 @@ static void complete_conflicting_writes(struct drbd_request *req)
 }
 
 /* called within req_lock and rcu_read_lock() */
-static bool conn_check_congested(struct drbd_conf *mdev)
+static void maybe_pull_ahead(struct drbd_conf *mdev)
 {
 	struct drbd_tconn *tconn = mdev->tconn;
 	struct net_conf *nc;
@@ -834,7 +834,14 @@ static bool conn_check_congested(struct drbd_conf *mdev)
 	on_congestion = nc ? nc->on_congestion : OC_BLOCK;
 	if (on_congestion == OC_BLOCK ||
 	    tconn->agreed_pro_version < 96)
-		return false;
+		return;
+
+	/* If I don't even have good local storage, we can not reasonably try
+	 * to pull ahead of the peer. We also need the local reference to make
+	 * sure mdev->act_log is there.
+	 */
+	if (!get_ldev_if_state(mdev, D_UP_TO_DATE))
+		return;
 
 	if (nc->cong_fill &&
 	    atomic_read(&mdev->ap_in_flight) >= nc->cong_fill) {
@@ -857,8 +864,7 @@ static bool conn_check_congested(struct drbd_conf *mdev)
 		else  /*nc->on_congestion == OC_DISCONNECT */
 			_drbd_set_state(_NS(mdev, conn, C_DISCONNECTING), 0, NULL);
 	}
-
-	return congested;
+	put_ldev(mdev);
 }
 
 /* If this returns false, and req->private_bio is still set,
@@ -923,7 +929,7 @@ static int drbd_process_write_request(struct drbd_request *req)
 	rcu_read_lock();
 	remote = drbd_should_do_remote(mdev->state);
 	if (remote) {
-		conn_check_congested(mdev);
+		maybe_pull_ahead(mdev);
 		remote = drbd_should_do_remote(mdev->state);
 	}
 	send_oos = drbd_should_send_out_of_sync(mdev->state);
