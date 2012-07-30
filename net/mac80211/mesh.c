@@ -610,12 +610,16 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 						BSS_CHANGED_HT |
 						BSS_CHANGED_BASIC_RATES |
 						BSS_CHANGED_BEACON_INT);
+
+	netif_carrier_on(sdata->dev);
 }
 
 void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+
+	netif_carrier_off(sdata->dev);
 
 	ifmsh->mesh_id_len = 0;
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
