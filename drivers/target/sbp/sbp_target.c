@@ -2068,7 +2068,7 @@ static int sbp_update_unit_directory(struct sbp_tport *tport)
 	return ret;
 }
 
-static ssize_t sbp_parse_wwn(const char *name, u64 *wwn, int strict)
+static ssize_t sbp_parse_wwn(const char *name, u64 *wwn)
 {
 	const char *cp;
 	char c, nibble;
@@ -2088,7 +2088,7 @@ static ssize_t sbp_parse_wwn(const char *name, u64 *wwn, int strict)
 		err = 3;
 		if (isdigit(c))
 			nibble = c - '0';
-		else if (isxdigit(c) && (islower(c) || !strict))
+		else if (isxdigit(c))
 			nibble = tolower(c) - 'a' + 10;
 		else
 			goto fail;
@@ -2117,7 +2117,7 @@ static struct se_node_acl *sbp_make_nodeacl(
 	u64 guid = 0;
 	u32 nexus_depth = 1;
 
-	if (sbp_parse_wwn(name, &guid, 1) < 0)
+	if (sbp_parse_wwn(name, &guid) < 0)
 		return ERR_PTR(-EINVAL);
 
 	se_nacl_new = sbp_alloc_fabric_acl(se_tpg);
@@ -2253,7 +2253,7 @@ static struct se_wwn *sbp_make_tport(
 	struct sbp_tport *tport;
 	u64 guid = 0;
 
-	if (sbp_parse_wwn(name, &guid, 1) < 0)
+	if (sbp_parse_wwn(name, &guid) < 0)
 		return ERR_PTR(-EINVAL);
 
 	tport = kzalloc(sizeof(*tport), GFP_KERNEL);
