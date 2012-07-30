@@ -92,7 +92,7 @@ rm -rf "$tmpdir" "$fwdir" "$kernel_headers_dir" "$libc_headers_dir"
 mkdir -m 755 -p "$tmpdir/DEBIAN"
 mkdir -p  "$tmpdir/lib" "$tmpdir/boot" "$tmpdir/usr/share/doc/$packagename"
 mkdir -m 755 -p "$fwdir/DEBIAN"
-mkdir -p "$fwdir/lib" "$fwdir/usr/share/doc/$fwpackagename"
+mkdir -p "$fwdir/lib/firmware/$version/" "$fwdir/usr/share/doc/$fwpackagename"
 mkdir -m 755 -p "$libc_headers_dir/DEBIAN"
 mkdir -p "$libc_headers_dir/usr/share/doc/$libc_headers_packagename"
 mkdir -m 755 -p "$kernel_headers_dir/DEBIAN"
@@ -243,7 +243,7 @@ EOF
 fi
 
 # Build header package
-(cd $srctree; find . -name Makefile -o -name Kconfig\* -o -name \*.pl > "$objtree/debian/hdrsrcfiles")
+(cd $srctree; find . -name Makefile\* -o -name Kconfig\* -o -name \*.pl > "$objtree/debian/hdrsrcfiles")
 (cd $srctree; find arch/$SRCARCH/include include scripts -type f >> "$objtree/debian/hdrsrcfiles")
 (cd $objtree; find arch/$SRCARCH/include .config Module.symvers include scripts -type f >> "$objtree/debian/hdrobjfiles")
 destdir=$kernel_headers_dir/usr/src/linux-headers-$version
@@ -267,7 +267,8 @@ EOF
 
 # Do we have firmware? Move it out of the way and build it into a package.
 if [ -e "$tmpdir/lib/firmware" ]; then
-	mv "$tmpdir/lib/firmware" "$fwdir/lib/"
+	mv "$tmpdir/lib/firmware"/* "$fwdir/lib/firmware/$version/"
+	rmdir "$tmpdir/lib/firmware"
 
 	cat <<EOF >> debian/control
 
