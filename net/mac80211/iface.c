@@ -546,6 +546,8 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 		case NL80211_IFTYPE_MESH_POINT:
 			netif_carrier_off(dev);
 			break;
+		case NL80211_IFTYPE_WDS:
+			break;
 		default:
 			netif_carrier_on(dev);
 		}
@@ -580,6 +582,7 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 		}
 
 		rate_control_rate_init(sta);
+		netif_carrier_on(dev);
 	}
 
 	/*
