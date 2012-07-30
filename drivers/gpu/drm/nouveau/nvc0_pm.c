@@ -557,7 +557,7 @@ prog_mem(struct drm_device *dev, struct nvc0_pm_state *info)
 	nouveau_mem_exec(&exec, info->perflvl);
 
 	if (dev_priv->chipset < 0xd0)
-		nv_wr32(dev, 0x611200, 0x00003300);
+		nv_wr32(dev, 0x611200, 0x00003330);
 	else
 		nv_wr32(dev, 0x62c000, 0x03030300);
 }
