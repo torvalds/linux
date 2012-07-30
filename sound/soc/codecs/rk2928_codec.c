@@ -79,13 +79,13 @@ void codec_set_spk(bool on)
 
 static unsigned int rk2928_read(struct snd_soc_codec *codec, unsigned int reg)
 {	
-	return readl(rk2928_data.regbase + reg);
+	return readl(rk2928_data.regbase + reg*4);
 }
 
 static int rk2928_write(struct snd_soc_codec *codec, unsigned int reg, unsigned int value)
 {
 	DBG("%s reg 0x%02x value 0x%02x", __FUNCTION__, reg, value);
-	writel(value, rk2928_data.regbase + reg);
+	writel(value, rk2928_data.regbase + reg*4);
 	return 0;
 }
 

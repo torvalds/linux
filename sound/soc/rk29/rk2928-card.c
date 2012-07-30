@@ -110,7 +110,7 @@ static struct snd_soc_dai_link rk2928_dai[] = {
 		.stream_name = "RK2928",
 		.cpu_dai_name = "rk29_i2s.0",
 		.platform_name = "rockchip-audio",
-		.codec_name = "rk2928-codec.0-0001",
+		.codec_name = "rk2928-codec",
 		.codec_dai_name = "rk2928-codec",
 		.ops = &rk2928_dai_ops,
 	},
