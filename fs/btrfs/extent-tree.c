@@ -4571,8 +4571,10 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	if (root->fs_info->quota_enabled) {
 		ret = btrfs_qgroup_reserve(root, num_bytes +
 					   nr_extents * root->leafsize);
-		if (ret)
+		if (ret) {
+			mutex_unlock(&BTRFS_I(inode)->delalloc_mutex);
 			return ret;
+		}
 	}
 
 	ret = reserve_metadata_bytes(root, block_rsv, to_reserve, flush);
