@@ -73,7 +73,7 @@ SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
 		default: {
 			unsigned long raddr;
 			ret = do_shmat(first, (char __user *)ptr,
-				       second, &raddr);
+				       second, &raddr, SHMLBA);
 			if (ret)
 				return ret;
 			return put_user(raddr, (unsigned long __user *) third);
