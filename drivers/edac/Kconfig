@@ -7,7 +7,7 @@
 menuconfig EDAC
 	bool "EDAC (Error Detection And Correction) reporting"
 	depends on HAS_IOMEM
-	depends on X86 || PPC || TILE
+	depends on X86 || PPC || TILE || ARM
 	help
 	  EDAC is designed to report errors in the core system.
 	  These are low-level errors that are reported in the CPU or
@@ -30,6 +30,14 @@ menuconfig EDAC
 if EDAC
 
 comment "Reporting subsystems"
+
+config EDAC_LEGACY_SYSFS
+	bool "EDAC legacy sysfs"
+	default y
+	help
+	  Enable the compatibility sysfs nodes.
+	  Use 'Y' if your edac utilities aren't ported to work with the newer
+	  structures.
 
 config EDAC_DEBUG
 	bool "Debugging"
@@ -293,5 +301,19 @@ config EDAC_TILE
 	help
 	  Support for error detection and correction on the
 	  Tilera memory controller.
+
+config EDAC_HIGHBANK_MC
+	tristate "Highbank Memory Controller"
+	depends on EDAC_MM_EDAC && ARCH_HIGHBANK
+	help
+	  Support for error detection and correction on the
+	  Calxeda Highbank memory controller.
+
+config EDAC_HIGHBANK_L2
+	tristate "Highbank L2 Cache"
+	depends on EDAC_MM_EDAC && ARCH_HIGHBANK
+	help
+	  Support for error detection and correction on the
+	  Calxeda Highbank memory controller.
 
 endif # EDAC
