@@ -51,25 +51,23 @@
 #include "internal.h"
 #include "fscache.h"
 #include "pnfs.h"
+#include "nfs.h"
 #include "netns.h"
 
 #define NFSDBG_FACILITY		NFSDBG_CLIENT
 
 static DECLARE_WAIT_QUEUE_HEAD(nfs_client_active_wq);
+static DEFINE_SPINLOCK(nfs_version_lock);
+static DEFINE_MUTEX(nfs_version_mutex);
+static LIST_HEAD(nfs_versions);
 
 /*
  * RPC cruft for NFS
  */
 static const struct rpc_version *nfs_version[5] = {
-#ifdef CONFIG_NFS_V2
-	[2]			= &nfs_version2,
-#endif
-#ifdef CONFIG_NFS_V3
-	[3]			= &nfs_version3,
-#endif
-#ifdef CONFIG_NFS_V4
-	[4]			= &nfs_version4,
-#endif
+	[2] = NULL,
+	[3] = NULL,
+	[4] = NULL,
 };
 
 const struct rpc_program nfs_program = {
@@ -101,6 +99,93 @@ const struct rpc_program nfsacl_program = {
 };
 #endif  /* CONFIG_NFS_V3_ACL */
 
+static struct nfs_subversion *find_nfs_version(unsigned int version)
+{
+	struct nfs_subversion *nfs;
+	spin_lock(&nfs_version_lock);
+
+	list_for_each_entry(nfs, &nfs_versions, list) {
+		if (nfs->rpc_ops->version == version) {
+			spin_unlock(&nfs_version_lock);
+			return nfs;
+		}
+	};
+
+	spin_unlock(&nfs_version_lock);
+	return ERR_PTR(-EPROTONOSUPPORT);;
+}
+
+struct nfs_subversion *get_nfs_version(unsigned int version)
+{
+	struct nfs_subversion *nfs = find_nfs_version(version);
+
+	if (IS_ERR(nfs)) {
+		mutex_lock(&nfs_version_mutex);
+		request_module("nfs%d", version);
+		nfs = find_nfs_version(version);
+		mutex_unlock(&nfs_version_mutex);
+	}
+
+	if (!IS_ERR(nfs))
+		try_module_get(nfs->owner);
+	return nfs;
+}
+
+void put_nfs_version(struct nfs_subversion *nfs)
+{
+	module_put(nfs->owner);
+}
+
+void register_nfs_version(struct nfs_subversion *nfs)
+{
+	spin_lock(&nfs_version_lock);
+
+	list_add(&nfs->list, &nfs_versions);
+	nfs_version[nfs->rpc_ops->version] = nfs->rpc_vers;
+
+	spin_unlock(&nfs_version_lock);
+}
+EXPORT_SYMBOL_GPL(register_nfs_version);
+
+void unregister_nfs_version(struct nfs_subversion *nfs)
+{
+	spin_lock(&nfs_version_lock);
+
+	nfs_version[nfs->rpc_ops->version] = NULL;
+	list_del(&nfs->list);
+
+	spin_unlock(&nfs_version_lock);
+}
+EXPORT_SYMBOL_GPL(unregister_nfs_version);
+
+/*
+ * Preload all configured NFS versions during module init.
+ * This function should be edited after each protocol is converted,
+ * and eventually removed.
+ */
+int __init nfs_register_versions(void)
+{
+	int err = init_nfs_v2();
+	if (err)
+		return err;
+
+	err = init_nfs_v3();
+	if (err)
+		return err;
+
+	return init_nfs_v4();
+}
+
+/*
+ * Remove each pre-loaded NFS version
+ */
+void nfs_unregister_versions(void)
+{
+	exit_nfs_v2();
+	exit_nfs_v3();
+	exit_nfs_v4();
+}
+
 /*
  * Allocate a shared client record
  *
@@ -116,7 +201,10 @@ struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 	if ((clp = kzalloc(sizeof(*clp), GFP_KERNEL)) == NULL)
 		goto error_0;
 
-	clp->rpc_ops = cl_init->rpc_ops;
+	clp->cl_nfs_mod = cl_init->nfs_mod;
+	try_module_get(clp->cl_nfs_mod->owner);
+
+	clp->rpc_ops = clp->cl_nfs_mod->rpc_ops;
 
 	atomic_set(&clp->cl_count, 1);
 	clp->cl_cons_state = NFS_CS_INITING;
@@ -145,6 +233,7 @@ struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 	return clp;
 
 error_cleanup:
+	put_nfs_version(clp->cl_nfs_mod);
 	kfree(clp);
 error_0:
 	return ERR_PTR(err);
@@ -205,6 +294,7 @@ void nfs_free_client(struct nfs_client *clp)
 		put_rpccred(clp->cl_machine_cred);
 
 	put_net(clp->cl_net);
+	put_nfs_version(clp->cl_nfs_mod);
 	kfree(clp->cl_hostname);
 	kfree(clp);
 
@@ -362,7 +452,7 @@ static struct nfs_client *nfs_match_client(const struct nfs_client_initdata *dat
 			continue;
 
 		/* Different NFS versions cannot share the same nfs_client */
-		if (clp->rpc_ops != data->rpc_ops)
+		if (clp->rpc_ops != data->nfs_mod->rpc_ops)
 			continue;
 
 		if (clp->cl_proto != data->proto)
@@ -431,9 +521,10 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 {
 	struct nfs_client *clp, *new = NULL;
 	struct nfs_net *nn = net_generic(cl_init->net, nfs_net_id);
+	const struct nfs_rpc_ops *rpc_ops = cl_init->nfs_mod->rpc_ops;
 
 	dprintk("--> nfs_get_client(%s,v%u)\n",
-		cl_init->hostname ?: "", cl_init->rpc_ops->version);
+		cl_init->hostname ?: "", rpc_ops->version);
 
 	/* see if the client already exists */
 	do {
@@ -450,14 +541,13 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 			list_add(&new->cl_share_link, &nn->nfs_client_list);
 			spin_unlock(&nn->nfs_client_lock);
 			new->cl_flags = cl_init->init_flags;
-			return cl_init->rpc_ops->init_client(new,
-						timeparms, ip_addr,
-						authflavour);
+			return rpc_ops->init_client(new, timeparms, ip_addr,
+						    authflavour);
 		}
 
 		spin_unlock(&nn->nfs_client_lock);
 
-		new = cl_init->rpc_ops->alloc_client(cl_init);
+		new = rpc_ops->alloc_client(cl_init);
 	} while (!IS_ERR(new));
 
 	dprintk("<-- nfs_get_client() Failed to find %s (%ld)\n",
@@ -714,13 +804,14 @@ error:
  * Create a version 2 or 3 client
  */
 static int nfs_init_server(struct nfs_server *server,
-			   const struct nfs_parsed_mount_data *data)
+			   const struct nfs_parsed_mount_data *data,
+			   struct nfs_subversion *nfs_mod)
 {
 	struct nfs_client_initdata cl_init = {
 		.hostname = data->nfs_server.hostname,
 		.addr = (const struct sockaddr *)&data->nfs_server.address,
 		.addrlen = data->nfs_server.addrlen,
-		.rpc_ops = NULL,
+		.nfs_mod = nfs_mod,
 		.proto = data->nfs_server.protocol,
 		.net = data->net,
 	};
@@ -729,21 +820,6 @@ static int nfs_init_server(struct nfs_server *server,
 	int error;
 
 	dprintk("--> nfs_init_server()\n");
-
-	switch (data->version) {
-#ifdef CONFIG_NFS_V2
-	case 2:
-		cl_init.rpc_ops = &nfs_v2_clientops;
-		break;
-#endif
-#ifdef CONFIG_NFS_V3
-	case 3:
-		cl_init.rpc_ops = &nfs_v3_clientops;
-		break;
-#endif
-	default:
-		return -EPROTONOSUPPORT;
-	}
 
 	nfs_init_timeout_values(&timeparms, data->nfs_server.protocol,
 			data->timeo, data->retrans);
@@ -1033,7 +1109,8 @@ void nfs_free_server(struct nfs_server *server)
  * - keyed on server and FSID
  */
 struct nfs_server *nfs_create_server(const struct nfs_parsed_mount_data *data,
-				     struct nfs_fh *mntfh)
+				     struct nfs_fh *mntfh,
+				     struct nfs_subversion *nfs_mod)
 {
 	struct nfs_server *server;
 	struct nfs_fattr *fattr;
@@ -1049,7 +1126,7 @@ struct nfs_server *nfs_create_server(const struct nfs_parsed_mount_data *data,
 		goto error;
 
 	/* Get a client representation */
-	error = nfs_init_server(server, data);
+	error = nfs_init_server(server, data, nfs_mod);
 	if (error < 0)
 		goto error;
 

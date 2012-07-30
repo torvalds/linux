@@ -8,6 +8,7 @@
 #include <linux/nfs_fs.h>
 #include "internal.h"
 #include "nfs4_fs.h"
+#include "nfs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
@@ -75,6 +76,13 @@ static const struct super_operations nfs4_sops = {
 	.remount_fs	= nfs_remount,
 };
 
+struct nfs_subversion nfs_v4 = {
+	.owner = THIS_MODULE,
+	.nfs_fs   = &nfs4_fs_type,
+	.rpc_vers = &nfs_version4,
+	.rpc_ops  = &nfs_v4_clientops,
+};
+
 /*
  * Set up an NFS4 superblock
  */
@@ -113,7 +121,7 @@ nfs4_remote_mount(struct file_system_type *fs_type, int flags,
 		goto out;
 	}
 
-	mntroot = nfs_fs_mount_common(fs_type, server, flags, dev_name, mount_info);
+	mntroot = nfs_fs_mount_common(server, flags, dev_name, mount_info, &nfs_v4);
 
 out:
 	return mntroot;
@@ -293,7 +301,7 @@ nfs4_remote_referral_mount(struct file_system_type *fs_type, int flags,
 		goto out;
 	}
 
-	mntroot = nfs_fs_mount_common(&nfs4_fs_type, server, flags, dev_name, &mount_info);
+	mntroot = nfs_fs_mount_common(server, flags, dev_name, &mount_info, &nfs_v4);
 out:
 	nfs_free_fhandle(mount_info.mntfh);
 	return mntroot;
@@ -343,6 +351,7 @@ int __init init_nfs_v4(void)
 	if (err < 0)
 		goto out2;
 
+	register_nfs_version(&nfs_v4);
 	return 0;
 out2:
 	nfs4_unregister_sysctl();
@@ -354,6 +363,7 @@ out:
 
 void exit_nfs_v4(void)
 {
+	unregister_nfs_version(&nfs_v4);
 	unregister_filesystem(&nfs4_fs_type);
 	nfs4_unregister_sysctl();
 	nfs_idmap_quit();

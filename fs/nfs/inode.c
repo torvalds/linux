@@ -50,6 +50,7 @@
 #include "fscache.h"
 #include "dns_resolve.h"
 #include "pnfs.h"
+#include "nfs.h"
 #include "netns.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
@@ -1671,21 +1672,17 @@ static int __init init_nfs_fs(void)
 	rpc_proc_register(&init_net, &nfs_rpcstat);
 #endif
 
-#ifdef CONFIG_NFS_V4
-	err = init_nfs_v4();
+	err = nfs_register_versions();
 	if (err)
 		goto out1;
-#endif
 
 	if ((err = register_nfs_fs()) != 0)
 		goto out0;
 
 	return 0;
 out0:
-#ifdef CONFIG_NFS_V4
-	exit_nfs_v4();
+	nfs_unregister_versions();
 out1:
-#endif
 #ifdef CONFIG_PROC_FS
 	rpc_proc_unregister(&init_net, "nfs");
 #endif

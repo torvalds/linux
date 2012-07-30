@@ -64,6 +64,7 @@
 #include "internal.h"
 #include "fscache.h"
 #include "pnfs.h"
+#include "nfs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 #define NFS_TEXT_DATA		1
@@ -281,7 +282,7 @@ static match_table_t nfs_vers_tokens = {
 static struct dentry *nfs_xdev_mount(struct file_system_type *fs_type,
 		int flags, const char *dev_name, void *raw_data);
 
-static struct file_system_type nfs_fs_type = {
+struct file_system_type nfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "nfs",
 	.mount		= nfs_fs_mount,
@@ -1650,7 +1651,8 @@ static int nfs_request_mount(struct nfs_parsed_mount_data *args,
 }
 
 static struct dentry *nfs_try_mount(int flags, const char *dev_name,
-				    struct nfs_mount_info *mount_info)
+				    struct nfs_mount_info *mount_info,
+				    struct nfs_subversion *nfs_mod)
 {
 	int status;
 	struct nfs_server *server;
@@ -1662,11 +1664,11 @@ static struct dentry *nfs_try_mount(int flags, const char *dev_name,
 	}
 
 	/* Get a volume representation */
-	server = nfs_create_server(mount_info->parsed, mount_info->mntfh);
+	server = nfs_create_server(mount_info->parsed, mount_info->mntfh, nfs_mod);
 	if (IS_ERR(server))
 		return ERR_CAST(server);
 
-	return nfs_fs_mount_common(&nfs_fs_type, server, flags, dev_name, mount_info);
+	return nfs_fs_mount_common(server, flags, dev_name, mount_info, nfs_mod);
 }
 
 /*
@@ -2297,10 +2299,10 @@ int nfs_clone_sb_security(struct super_block *s, struct dentry *mntroot,
 	return 0;
 }
 
-struct dentry *nfs_fs_mount_common(struct file_system_type *fs_type,
-				   struct nfs_server *server,
+struct dentry *nfs_fs_mount_common(struct nfs_server *server,
 				   int flags, const char *dev_name,
-				   struct nfs_mount_info *mount_info)
+				   struct nfs_mount_info *mount_info,
+				   struct nfs_subversion *nfs_mod)
 {
 	struct super_block *s;
 	struct dentry *mntroot = ERR_PTR(-ENOMEM);
@@ -2319,7 +2321,7 @@ struct dentry *nfs_fs_mount_common(struct file_system_type *fs_type,
 		sb_mntdata.mntflags |= MS_SYNCHRONOUS;
 
 	/* Get a superblock - note that we may end up sharing one that already exists */
-	s = sget(fs_type, compare_super, nfs_set_super, flags, &sb_mntdata);
+	s = sget(nfs_mod->nfs_fs, compare_super, nfs_set_super, flags, &sb_mntdata);
 	if (IS_ERR(s)) {
 		mntroot = ERR_CAST(s);
 		goto out_err_nosb;
@@ -2378,6 +2380,7 @@ struct dentry *nfs_fs_mount(struct file_system_type *fs_type,
 		.set_security = nfs_set_sb_security,
 	};
 	struct dentry *mntroot = ERR_PTR(-ENOMEM);
+	struct nfs_subversion *nfs_mod;
 	int error;
 
 	mount_info.parsed = nfs_alloc_parsed_mount_data();
@@ -2394,12 +2397,20 @@ struct dentry *nfs_fs_mount(struct file_system_type *fs_type,
 		goto out;
 	}
 
+	nfs_mod = get_nfs_version(mount_info.parsed->version);
+	if (IS_ERR(nfs_mod)) {
+		mntroot = ERR_CAST(nfs_mod);
+		goto out;
+	}
+
 #ifdef CONFIG_NFS_V4
 	if (mount_info.parsed->version == 4)
 		mntroot = nfs4_try_mount(flags, dev_name, &mount_info);
 	else
 #endif	/* CONFIG_NFS_V4 */
-		mntroot = nfs_try_mount(flags, dev_name, &mount_info);
+		mntroot = nfs_try_mount(flags, dev_name, &mount_info, nfs_mod);
+
+	put_nfs_version(nfs_mod);
 
 out:
 	nfs_free_parsed_mount_data(mount_info.parsed);
@@ -2440,6 +2451,7 @@ nfs_xdev_mount_common(struct file_system_type *fs_type, int flags,
 	struct nfs_clone_mount *data = mount_info->cloned;
 	struct nfs_server *server;
 	struct dentry *mntroot = ERR_PTR(-ENOMEM);
+	struct nfs_subversion *nfs_mod = NFS_SB(data->sb)->nfs_client->cl_nfs_mod;
 	int error;
 
 	dprintk("--> nfs_xdev_mount_common()\n");
@@ -2453,7 +2465,7 @@ nfs_xdev_mount_common(struct file_system_type *fs_type, int flags,
 		goto out_err;
 	}
 
-	mntroot = nfs_fs_mount_common(fs_type, server, flags, dev_name, mount_info);
+	mntroot = nfs_fs_mount_common(server, flags, dev_name, mount_info, nfs_mod);
 	dprintk("<-- nfs_xdev_mount_common() = 0\n");
 out:
 	return mntroot;
