@@ -43,6 +43,18 @@ struct atif_verify_interface {
 	u32 function_bits;	/* supported functions bit vector */
 } __packed;
 
+struct atif_system_params {
+	u16 size;
+	u32 valid_mask;
+	u32 flags;
+	u8 command_code;
+} __packed;
+
+#define ATIF_NOTIFY_MASK	0x3
+#define ATIF_NOTIFY_NONE	0
+#define ATIF_NOTIFY_81		1
+#define ATIF_NOTIFY_N		2
+
 /* Call the ATIF method
  */
 static union acpi_object *radeon_atif_call(acpi_handle handle, int function,
@@ -144,10 +156,57 @@ out:
 	return err;
 }
 
+static int radeon_atif_get_notification_params(acpi_handle handle,
+		struct radeon_atif_notification_cfg *n)
+{
+	union acpi_object *info;
+	struct atif_system_params params;
+	size_t size;
+	int err = 0;
+
+	info = radeon_atif_call(handle, ATIF_FUNCTION_GET_SYSTEM_PARAMETERS, NULL);
+	if (!info) {
+		err = -EIO;
+		goto out;
+	}
+
+	size = *(u16 *) info->buffer.pointer;
+	if (size < 10) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	memset(&params, 0, sizeof(params));
+	size = min(sizeof(params), size);
+	memcpy(&params, info->buffer.pointer, size);
+
+	params.flags = params.flags & params.valid_mask;
+
+	if ((params.flags & ATIF_NOTIFY_MASK) == ATIF_NOTIFY_NONE) {
+		n->enabled = false;
+		n->command_code = 0;
+	} else if ((params.flags & ATIF_NOTIFY_MASK) == ATIF_NOTIFY_81) {
+		n->enabled = true;
+		n->command_code = 0x81;
+	} else {
+		if (size < 11) {
+			err = -EINVAL;
+			goto out;
+		}
+		n->enabled = true;
+		n->command_code = params.command_code;
+	}
+
+out:
+	kfree(info);
+	return err;
+}
+
 /* Call all ACPI methods here */
 int radeon_acpi_init(struct radeon_device *rdev)
 {
 	acpi_handle handle;
+	struct radeon_atif *atif = &rdev->atif;
 	int ret;
 
 	/* Get the device handle */
@@ -158,10 +217,32 @@ int radeon_acpi_init(struct radeon_device *rdev)
 		return 0;
 
 	/* Call the ATIF method */
-	ret = radeon_atif_verify_interface(handle, &rdev->atif);
-	if (ret)
+	ret = radeon_atif_verify_interface(handle, atif);
+	if (ret) {
 		DRM_DEBUG_DRIVER("Call to verify_interface failed: %d\n", ret);
+		goto out;
+	}
 
+	if (atif->functions.sbios_requests && !atif->functions.system_params) {
+		/* XXX check this workraround, if sbios request function is
+		 * present we have to see how it's configured in the system
+		 * params
+		 */
+		atif->functions.system_params = true;
+	}
+
+	if (atif->functions.system_params) {
+		ret = radeon_atif_get_notification_params(handle,
+				&atif->notification_cfg);
+		if (ret) {
+			DRM_DEBUG_DRIVER("Call to GET_SYSTEM_PARAMS failed: %d\n",
+					ret);
+			/* Disable notification */
+			atif->notification_cfg.enabled = false;
+		}
+	}
+
+out:
 	return ret;
 }
 
