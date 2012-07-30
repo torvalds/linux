@@ -140,6 +140,17 @@
 					fsl,pull-up = <0>;
 				};
 
+				auart0_2pins_a: auart0-2pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x01e2 /* MX23_PAD_I2C_SCL__AUART1_TX */
+						0x01f2 /* MX23_PAD_I2C_SDA__AUART1_RX */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
 				gpmi_pins_a: gpmi-nand@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <

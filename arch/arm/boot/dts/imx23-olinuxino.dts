@@ -39,6 +39,12 @@
 				pinctrl-0 = <&duart_pins_a>;
 				status = "okay";
 			};
+
+			auart0: serial@8006c000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&auart0_2pins_a>;
+				status = "okay";
+			};
 		};
 	};
 };
