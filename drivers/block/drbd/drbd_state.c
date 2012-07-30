@@ -1335,9 +1335,21 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 
 			was_io_error = test_and_clear_bit(WAS_IO_ERROR, &mdev->flags);
 
-			/* Immediately allow completion of all application IO, that waits
-			   for completion from the local disk. */
-			tl_abort_disk_io(mdev);
+			/* Immediately allow completion of all application IO,
+			 * that waits for completion from the local disk,
+			 * if this was a force-detach due to disk_timeout
+			 * or administrator request (drbdsetup detach --force).
+			 * Do NOT abort otherwise.
+			 * Aborting local requests may cause serious problems,
+			 * if requests are completed to upper layers already,
+			 * and then later the already submitted local bio completes.
+			 * This can cause DMA into former bio pages that meanwhile
+			 * have been re-used for other things.
+			 * So aborting local requests may cause crashes,
+			 * or even worse, silent data corruption.
+			 */
+			if (test_and_clear_bit(FORCE_DETACH, &mdev->flags))
+				tl_abort_disk_io(mdev);
 
 			/* current state still has to be D_FAILED,
 			 * there is only one way out: to D_DISKLESS,

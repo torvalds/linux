@@ -2866,7 +2866,7 @@ void drbd_md_sync(struct drbd_conf *mdev)
 	if (drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE)) {
 		/* this was a try anyways ... */
 		dev_err(DEV, "meta data update failed!\n");
-		drbd_chk_io_error(mdev, 1, true);
+		drbd_chk_io_error(mdev, 1, DRBD_META_IO_ERROR);
 	}
 
 	/* Update mdev->ldev->md.la_size_sect,
