@@ -844,8 +844,6 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	struct perf_record *rec = &record;
 	char errbuf[BUFSIZ];
 
-	perf_header__set_cmdline(argc, argv);
-
 	evsel_list = perf_evlist__new(NULL, NULL);
 	if (evsel_list == NULL)
 		return -ENOMEM;
