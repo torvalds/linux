@@ -175,28 +175,27 @@ static int __devinit l4f00242t03_probe(struct spi_device *spi)
 
 	priv->spi = spi;
 
-	ret = gpio_request_one(pdata->reset_gpio, GPIOF_OUT_INIT_HIGH,
-						"lcd l4f00242t03 reset");
+	ret = devm_gpio_request_one(&spi->dev, pdata->reset_gpio,
+			GPIOF_OUT_INIT_HIGH, "lcd l4f00242t03 reset");
 	if (ret) {
 		dev_err(&spi->dev,
 			"Unable to get the lcd l4f00242t03 reset gpio.\n");
 		return ret;
 	}
 
-	ret = gpio_request_one(pdata->data_enable_gpio, GPIOF_OUT_INIT_LOW,
-						"lcd l4f00242t03 data enable");
+	ret = devm_gpio_request_one(&spi->dev, pdata->data_enable_gpio,
+			GPIOF_OUT_INIT_LOW, "lcd l4f00242t03 data enable");
 	if (ret) {
 		dev_err(&spi->dev,
 			"Unable to get the lcd l4f00242t03 data en gpio.\n");
-		goto err;
+		return ret;
 	}
 
 	priv->io_reg = regulator_get(&spi->dev, "vdd");
 	if (IS_ERR(priv->io_reg)) {
-		ret = PTR_ERR(priv->io_reg);
 		dev_err(&spi->dev, "%s: Unable to get the IO regulator\n",
 		       __func__);
-		goto err2;
+		return PTR_ERR(priv->io_reg);
 	}
 
 	priv->core_reg = regulator_get(&spi->dev, "vcore");
@@ -204,14 +203,14 @@ static int __devinit l4f00242t03_probe(struct spi_device *spi)
 		ret = PTR_ERR(priv->core_reg);
 		dev_err(&spi->dev, "%s: Unable to get the core regulator\n",
 		       __func__);
-		goto err3;
+		goto err1;
 	}
 
 	priv->ld = lcd_device_register("l4f00242t03",
 					&spi->dev, priv, &l4f_ops);
 	if (IS_ERR(priv->ld)) {
 		ret = PTR_ERR(priv->ld);
-		goto err4;
+		goto err2;
 	}
 
 	/* Init the LCD */
@@ -223,14 +222,10 @@ static int __devinit l4f00242t03_probe(struct spi_device *spi)
 
 	return 0;
 
-err4:
-	regulator_put(priv->core_reg);
-err3:
-	regulator_put(priv->io_reg);
 err2:
-	gpio_free(pdata->data_enable_gpio);
-err:
-	gpio_free(pdata->reset_gpio);
+	regulator_put(priv->core_reg);
+err1:
+	regulator_put(priv->io_reg);
 
 	return ret;
 }
@@ -238,15 +233,11 @@ err:
 static int __devexit l4f00242t03_remove(struct spi_device *spi)
 {
 	struct l4f00242t03_priv *priv = dev_get_drvdata(&spi->dev);
-	struct l4f00242t03_pdata *pdata = priv->spi->dev.platform_data;
 
 	l4f00242t03_lcd_power_set(priv->ld, FB_BLANK_POWERDOWN);
 	lcd_device_unregister(priv->ld);
 
 	dev_set_drvdata(&spi->dev, NULL);
-
-	gpio_free(pdata->data_enable_gpio);
-	gpio_free(pdata->reset_gpio);
 
 	regulator_put(priv->io_reg);
 	regulator_put(priv->core_reg);
