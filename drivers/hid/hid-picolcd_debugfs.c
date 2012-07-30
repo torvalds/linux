@@ -135,7 +135,7 @@ static ssize_t picolcd_debug_eeprom_write(struct file *f, const char __user *u,
 	memset(raw_data, 0, sizeof(raw_data));
 	raw_data[0] = *off & 0xff;
 	raw_data[1] = (*off >> 8) & 0xff;
-	raw_data[2] = min((size_t)20, s);
+	raw_data[2] = min_t(size_t, 20, s);
 	if (*off + raw_data[2] > 0xff)
 		raw_data[2] = 0x100 - *off;
 
@@ -370,7 +370,7 @@ static const struct file_operations picolcd_debug_flash_fops = {
 /*
  * Helper code for HID report level dumping/debugging
  */
-static const char *error_codes[] = {
+static const char * const error_codes[] = {
 	"success", "parameter missing", "data_missing", "block readonly",
 	"block not erasable", "block too big", "section overflow",
 	"invalid command length", "invalid data length",
