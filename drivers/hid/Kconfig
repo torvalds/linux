@@ -527,6 +527,14 @@ config HID_PICOLCD_LEDS
 	---help---
 	  Provide access to PicoLCD's GPO pins via leds class.
 
+config HID_PICOLCD_CIR
+	bool "CIR via RC class" if EXPERT
+	default !EXPERT
+	depends on HID_PICOLCD
+	depends on HID_PICOLCD=RC_CORE || RC_CORE=y
+	---help---
+	  Provide access to PicoLCD's CIR interface via remote control (LIRC).
+
 config HID_PRIMAX
 	tristate "Primax non-fully HID-compliant devices"
 	depends on USB_HID
