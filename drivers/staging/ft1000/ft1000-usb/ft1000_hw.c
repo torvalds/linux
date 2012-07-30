@@ -73,7 +73,7 @@ static int ft1000_control(struct ft1000_device *ft1000dev, unsigned int pipe,
 	}
 
 	ret = usb_control_msg(ft1000dev->dev, pipe, request, requesttype,
-			      value, index, data, size, LARGE_TIMEOUT);
+			      value, index, data, size, timeout);
 
 	if (ret > 0)
 		ret = 0;
