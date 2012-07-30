@@ -69,6 +69,9 @@ struct omap_uart_port_info {
 	unsigned int		dma_rx_timeout;
 	unsigned int		autosuspend_timeout;
 	unsigned int		dma_rx_poll_rate;
+	int			DTR_gpio;
+	int			DTR_inverted;
+	int			DTR_present;
 
 	int (*get_context_loss_count)(struct device *);
 	void (*set_forceidle)(struct platform_device *);
@@ -130,6 +133,10 @@ struct uart_omap_port {
 	u32			context_loss_cnt;
 	u32			errata;
 	u8			wakeups_enabled;
+
+	int			DTR_gpio;
+	int			DTR_inverted;
+	int			DTR_active;
 
 	struct pm_qos_request	pm_qos_request;
 	u32			latency;
