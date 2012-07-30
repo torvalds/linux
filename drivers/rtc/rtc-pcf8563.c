@@ -288,6 +288,7 @@ MODULE_DEVICE_TABLE(i2c, pcf8563_id);
 static struct i2c_driver pcf8563_driver = {
 	.driver		= {
 		.name	= "rtc-pcf8563",
+		.owner	= THIS_MODULE,
 	},
 	.probe		= pcf8563_probe,
 	.remove		= pcf8563_remove,
