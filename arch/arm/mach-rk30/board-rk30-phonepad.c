@@ -570,7 +570,6 @@ int goodix_init_platform_hw(void)
 	return 0;
 }
 u8 ts82x_config_data[] = {
-	// æ·»å åºä»¶ä¿®æ¹å·¥å·åæ­¤æ°ç»æ æï¼åªç¨äºè·åæ°ç»é¿åº¦ä½¿ç¨
 	0x65,0x00,0x04,0x00,0x03,0x00,0x0A,0x0D,0x1E,0xE7,
 	0x32,0x03,0x08,0x10,0x48,0x42,0x42,0x20,0x00,0x01,
 	0x60,0x60,0x4B,0x6E,0x0E,0x0D,0x0C,0x0B,0x0A,0x09,
@@ -1884,7 +1883,7 @@ void rk30_pm_power_off(void)
 	printk(KERN_ERR "rk30_pm_power_off start...\n");
 	
 #if 0
-	//���ų������ѭ����������ֱ����POWER�����߰ε������
+
 	if(gpio_get_value (rk30_adc_battery_platdata.dc_det_pin) == rk30_adc_battery_platdata.dc_det_level){
 		pwr_cnt=0;
 		while(1){
@@ -1922,6 +1921,11 @@ static void __init machine_rk30_board_init(void)
 	avs_init();
 	gpio_request(POWER_ON_PIN, "poweronpin");
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
+
+	//add for codec_en 
+	gpio_request(RK30_PIN4_PD7, "codec_en");
+	rk30_mux_api_set(GPIO4D7_SMCDATA15_TRACEDATA15_NAME, GPIO4D_GPIO4D7);
+	gpio_direction_output(RK30_PIN4_PD7, GPIO_HIGH);
 	
 	pm_power_off = rk30_pm_power_off;
 	
