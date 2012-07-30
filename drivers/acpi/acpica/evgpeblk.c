@@ -318,7 +318,7 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
  * FUNCTION:    acpi_ev_create_gpe_block
  *
  * PARAMETERS:  gpe_device          - Handle to the parent GPE block
- *              gpe_block_address   - Address and space_iD
+ *              gpe_block_address   - Address and space_ID
  *              register_count      - Number of GPE register pairs in the block
  *              gpe_block_base_number - Starting GPE number for the block
  *              interrupt_number    - H/W interrupt for the block

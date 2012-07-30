@@ -1256,7 +1256,8 @@ static void xen_flush_tlb_single(unsigned long addr)
 }
 
 static void xen_flush_tlb_others(const struct cpumask *cpus,
-				 struct mm_struct *mm, unsigned long va)
+				 struct mm_struct *mm, unsigned long start,
+				 unsigned long end)
 {
 	struct {
 		struct mmuext_op op;
@@ -1268,7 +1269,7 @@ static void xen_flush_tlb_others(const struct cpumask *cpus,
 	} *args;
 	struct multicall_space mcs;
 
-	trace_xen_mmu_flush_tlb_others(cpus, mm, va);
+	trace_xen_mmu_flush_tlb_others(cpus, mm, start, end);
 
 	if (cpumask_empty(cpus))
 		return;		/* nothing to do */
@@ -1281,11 +1282,10 @@ static void xen_flush_tlb_others(const struct cpumask *cpus,
 	cpumask_and(to_cpumask(args->mask), cpus, cpu_online_mask);
 	cpumask_clear_cpu(smp_processor_id(), to_cpumask(args->mask));
 
-	if (va == TLB_FLUSH_ALL) {
-		args->op.cmd = MMUEXT_TLB_FLUSH_MULTI;
-	} else {
+	args->op.cmd = MMUEXT_TLB_FLUSH_MULTI;
+	if (start != TLB_FLUSH_ALL && (end - start) <= PAGE_SIZE) {
 		args->op.cmd = MMUEXT_INVLPG_MULTI;
-		args->op.arg1.linear_addr = va;
+		args->op.arg1.linear_addr = start;
 	}
 
 	MULTI_mmuext_op(mcs.mc, &args->op, 1, NULL, DOMID_SELF);

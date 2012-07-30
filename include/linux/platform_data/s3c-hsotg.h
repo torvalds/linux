@@ -12,6 +12,9 @@
  * published by the Free Software Foundation.
 */
 
+#ifndef __LINUX_USB_S3C_HSOTG_H
+#define __LINUX_USB_S3C_HSOTG_H
+
 enum s3c_hsotg_dmamode {
 	S3C_HSOTG_DMA_NONE,	/* do not use DMA at-all */
 	S3C_HSOTG_DMA_ONLY,	/* always use DMA */
@@ -33,3 +36,5 @@ struct s3c_hsotg_plat {
 };
 
 extern void s3c_hsotg_set_platdata(struct s3c_hsotg_plat *pd);
+
+#endif /* __LINUX_USB_S3C_HSOTG_H */

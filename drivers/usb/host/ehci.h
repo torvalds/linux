@@ -42,7 +42,7 @@ struct ehci_stats {
 	/* irq usage */
 	unsigned long		normal;
 	unsigned long		error;
-	unsigned long		reclaim;
+	unsigned long		iaa;
 	unsigned long		lost_iaa;
 
 	/* termination of urbs from core */
@@ -51,7 +51,7 @@ struct ehci_stats {
 };
 
 /* ehci_hcd->lock guards shared data against other CPUs:
- *   ehci_hcd:	async, reclaim, periodic (and shadow), ...
+ *   ehci_hcd:	async, unlink, periodic (and shadow), ...
  *   usb_host_endpoint: hcpriv
  *   ehci_qh:	qh_next, qtd_list
  *   ehci_qtd:	qtd_list
@@ -62,13 +62,48 @@ struct ehci_stats {
 
 #define	EHCI_MAX_ROOT_PORTS	15		/* see HCS_N_PORTS */
 
+/*
+ * ehci_rh_state values of EHCI_RH_RUNNING or above mean that the
+ * controller may be doing DMA.  Lower values mean there's no DMA.
+ */
 enum ehci_rh_state {
 	EHCI_RH_HALTED,
 	EHCI_RH_SUSPENDED,
-	EHCI_RH_RUNNING
+	EHCI_RH_RUNNING,
+	EHCI_RH_STOPPING
 };
 
+/*
+ * Timer events, ordered by increasing delay length.
+ * Always update event_delays_ns[] and event_handlers[] (defined in
+ * ehci-timer.c) in parallel with this list.
+ */
+enum ehci_hrtimer_event {
+	EHCI_HRTIMER_POLL_ASS,		/* Poll for async schedule off */
+	EHCI_HRTIMER_POLL_PSS,		/* Poll for periodic schedule off */
+	EHCI_HRTIMER_POLL_DEAD,		/* Wait for dead controller to stop */
+	EHCI_HRTIMER_UNLINK_INTR,	/* Wait for interrupt QH unlink */
+	EHCI_HRTIMER_FREE_ITDS,		/* Wait for unused iTDs and siTDs */
+	EHCI_HRTIMER_ASYNC_UNLINKS,	/* Unlink empty async QHs */
+	EHCI_HRTIMER_IAA_WATCHDOG,	/* Handle lost IAA interrupts */
+	EHCI_HRTIMER_DISABLE_PERIODIC,	/* Wait to disable periodic sched */
+	EHCI_HRTIMER_DISABLE_ASYNC,	/* Wait to disable async sched */
+	EHCI_HRTIMER_IO_WATCHDOG,	/* Check for missing IRQs */
+	EHCI_HRTIMER_NUM_EVENTS		/* Must come last */
+};
+#define EHCI_HRTIMER_NO_EVENT	99
+
 struct ehci_hcd {			/* one per controller */
+	/* timing support */
+	enum ehci_hrtimer_event	next_hrtimer_event;
+	unsigned		enabled_hrtimer_events;
+	ktime_t			hr_timeouts[EHCI_HRTIMER_NUM_EVENTS];
+	struct hrtimer		hrtimer;
+
+	int			PSS_poll_count;
+	int			ASS_poll_count;
+	int			died_poll_count;
+
 	/* glue to PCI and HCD framework */
 	struct ehci_caps __iomem *caps;
 	struct ehci_regs __iomem *regs;
@@ -78,30 +113,48 @@ struct ehci_hcd {			/* one per controller */
 	spinlock_t		lock;
 	enum ehci_rh_state	rh_state;
 
+	/* general schedule support */
+	bool			scanning:1;
+	bool			need_rescan:1;
+	bool			intr_unlinking:1;
+	bool			async_unlinking:1;
+	bool			shutdown:1;
+	struct ehci_qh		*qh_scan_next;
+
 	/* async schedule support */
 	struct ehci_qh		*async;
 	struct ehci_qh		*dummy;		/* For AMD quirk use */
-	struct ehci_qh		*reclaim;
-	struct ehci_qh		*qh_scan_next;
-	unsigned		scanning : 1;
+	struct ehci_qh		*async_unlink;
+	struct ehci_qh		*async_unlink_last;
+	struct ehci_qh		*async_iaa;
+	unsigned		async_unlink_cycle;
+	unsigned		async_count;	/* async activity count */
 
 	/* periodic schedule support */
 #define	DEFAULT_I_TDPS		1024		/* some HCs can do less */
 	unsigned		periodic_size;
 	__hc32			*periodic;	/* hw periodic table */
 	dma_addr_t		periodic_dma;
+	struct list_head	intr_qh_list;
 	unsigned		i_thresh;	/* uframes HC might cache */
 
 	union ehci_shadow	*pshadow;	/* mirror hw periodic table */
-	int			next_uframe;	/* scan periodic, start here */
-	unsigned		periodic_sched;	/* periodic activity count */
+	struct ehci_qh		*intr_unlink;
+	struct ehci_qh		*intr_unlink_last;
+	unsigned		intr_unlink_cycle;
+	unsigned		now_frame;	/* frame from HC hardware */
+	unsigned		next_frame;	/* scan periodic, start here */
+	unsigned		intr_count;	/* intr activity count */
+	unsigned		isoc_count;	/* isoc activity count */
+	unsigned		periodic_count;	/* periodic activity count */
 	unsigned		uframe_periodic_max; /* max periodic time per uframe */
 
 
-	/* list of itds & sitds completed while clock_frame was still active */
+	/* list of itds & sitds completed while now_frame was still active */
 	struct list_head	cached_itd_list;
+	struct ehci_itd		*last_itd_to_free;
 	struct list_head	cached_sitd_list;
-	unsigned		clock_frame;
+	struct ehci_sitd	*last_sitd_to_free;
 
 	/* per root hub port */
 	unsigned long		reset_done [EHCI_MAX_ROOT_PORTS];
@@ -126,10 +179,6 @@ struct ehci_hcd {			/* one per controller */
 	struct dma_pool		*itd_pool;	/* itd per iso urb */
 	struct dma_pool		*sitd_pool;	/* sitd per split iso urb */
 
-	struct timer_list	iaa_watchdog;
-	struct timer_list	watchdog;
-	unsigned long		actions;
-	unsigned		periodic_stamp;
 	unsigned		random_frame;
 	unsigned long		next_statechange;
 	ktime_t			last_periodic_enable;
@@ -143,7 +192,6 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		big_endian_capbase:1;
 	unsigned		has_amcc_usb23:1;
 	unsigned		need_io_watchdog:1;
-	unsigned		broken_periodic:1;
 	unsigned		amd_pll_fix:1;
 	unsigned		fs_i_thresh:1;	/* Intel iso scheduling */
 	unsigned		use_dummy_qh:1;	/* AMD Frame List table quirk*/
@@ -175,10 +223,6 @@ struct ehci_hcd {			/* one per controller */
 #ifdef DEBUG
 	struct dentry		*debug_dir;
 #endif
-	/*
-	 * OTG controllers and transceivers need software interaction
-	 */
-	struct usb_phy	*transceiver;
 };
 
 /* convert between an HCD pointer and the corresponding EHCI_HCD */
@@ -190,34 +234,6 @@ static inline struct usb_hcd *ehci_to_hcd (struct ehci_hcd *ehci)
 {
 	return container_of ((void *) ehci, struct usb_hcd, hcd_priv);
 }
-
-
-static inline void
-iaa_watchdog_start(struct ehci_hcd *ehci)
-{
-	WARN_ON(timer_pending(&ehci->iaa_watchdog));
-	mod_timer(&ehci->iaa_watchdog,
-			jiffies + msecs_to_jiffies(EHCI_IAA_MSECS));
-}
-
-static inline void iaa_watchdog_done(struct ehci_hcd *ehci)
-{
-	del_timer(&ehci->iaa_watchdog);
-}
-
-enum ehci_timer_action {
-	TIMER_IO_WATCHDOG,
-	TIMER_ASYNC_SHRINK,
-	TIMER_ASYNC_OFF,
-};
-
-static inline void
-timer_action_done (struct ehci_hcd *ehci, enum ehci_timer_action action)
-{
-	clear_bit (action, &ehci->actions);
-}
-
-static void free_cached_lists(struct ehci_hcd *ehci);
 
 /*-------------------------------------------------------------------------*/
 
@@ -328,7 +344,13 @@ union ehci_shadow {
 struct ehci_qh_hw {
 	__hc32			hw_next;	/* see EHCI 3.6.1 */
 	__hc32			hw_info1;       /* see EHCI 3.6.2 */
-#define	QH_HEAD		0x00008000
+#define	QH_CONTROL_EP	(1 << 27)	/* FS/LS control endpoint */
+#define	QH_HEAD		(1 << 15)	/* Head of async reclamation list */
+#define	QH_TOGGLE_CTL	(1 << 14)	/* Data toggle control */
+#define	QH_HIGH_SPEED	(2 << 12)	/* Endpoint speed */
+#define	QH_LOW_SPEED	(1 << 12)
+#define	QH_FULL_SPEED	(0 << 12)
+#define	QH_INACTIVATE	(1 << 7)	/* Inactivate on next transaction */
 	__hc32			hw_info2;        /* see EHCI 3.6.2 */
 #define	QH_SMASK	0x000000ff
 #define	QH_CMASK	0x0000ff00
@@ -346,32 +368,23 @@ struct ehci_qh_hw {
 } __attribute__ ((aligned(32)));
 
 struct ehci_qh {
-	struct ehci_qh_hw	*hw;
+	struct ehci_qh_hw	*hw;		/* Must come first */
 	/* the rest is HCD-private */
 	dma_addr_t		qh_dma;		/* address of qh */
 	union ehci_shadow	qh_next;	/* ptr to qh; or periodic */
 	struct list_head	qtd_list;	/* sw qtd list */
+	struct list_head	intr_node;	/* list of intr QHs */
 	struct ehci_qtd		*dummy;
-	struct ehci_qh		*reclaim;	/* next to reclaim */
+	struct ehci_qh		*unlink_next;	/* next on unlink list */
 
-	struct ehci_hcd		*ehci;
-	unsigned long		unlink_time;
-
-	/*
-	 * Do NOT use atomic operations for QH refcounting. On some CPUs
-	 * (PPC7448 for example), atomic operations cannot be performed on
-	 * memory that is cache-inhibited (i.e. being used for DMA).
-	 * Spinlocks are used to protect all QH fields.
-	 */
-	u32			refcount;
-	unsigned		stamp;
+	unsigned		unlink_cycle;
 
 	u8			needs_rescan;	/* Dequeue during giveback */
 	u8			qh_state;
 #define	QH_STATE_LINKED		1		/* HC sees this */
 #define	QH_STATE_UNLINK		2		/* HC may still see this */
 #define	QH_STATE_IDLE		3		/* HC doesn't see this */
-#define	QH_STATE_UNLINK_WAIT	4		/* LINKED and on reclaim q */
+#define	QH_STATE_UNLINK_WAIT	4		/* LINKED and on unlink q */
 #define	QH_STATE_COMPLETING	5		/* don't touch token.HALT */
 
 	u8			xacterrs;	/* XactErr retry counter */
@@ -421,7 +434,6 @@ struct ehci_iso_stream {
 	/* first field matches ehci_hq, but is NULL */
 	struct ehci_qh_hw	*hw;
 
-	u32			refcount;
 	u8			bEndpointAddress;
 	u8			highspeed;
 	struct list_head	td_list;	/* queued itds/sitds */

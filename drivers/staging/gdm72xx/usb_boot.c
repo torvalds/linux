@@ -13,7 +13,6 @@
 
 #include <linux/uaccess.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/usb.h>
@@ -175,7 +174,7 @@ int usb_boot(struct usb_device *usbdev, u16 pid)
 	if (IS_ERR(filp)) {
 		printk(KERN_ERR "Can't find %s.\n", img_name);
 		set_fs(fs);
-		ret = -ENOENT;
+		ret = PTR_ERR(filp);
 		goto restore_fs;
 	}
 

@@ -691,6 +691,11 @@ struct device {
 	struct iommu_group	*iommu_group;
 };
 
+static inline struct device *kobj_to_dev(struct kobject *kobj)
+{
+	return container_of(kobj, struct device, kobj);
+}
+
 /* Get the wakeup routines, which depend on struct device */
 #include <linux/pm_wakeup.h>
 

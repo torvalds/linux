@@ -97,7 +97,7 @@ static struct mfd_cell nvec_devices[] = {
 		.id = 2,
 	},
 	{
-		.name = "nvec-leds",
+		.name = "nvec-paz00",
 		.id = 1,
 	},
 };
@@ -127,12 +127,14 @@ EXPORT_SYMBOL_GPL(nvec_register_notifier);
 static int nvec_status_notifier(struct notifier_block *nb,
 				unsigned long event_type, void *data)
 {
+	struct nvec_chip *nvec = container_of(nb, struct nvec_chip,
+						nvec_status_notifier);
 	unsigned char *msg = (unsigned char *)data;
 
 	if (event_type != NVEC_CNTL)
 		return NOTIFY_DONE;
 
-	printk(KERN_WARNING "unhandled msg type %ld\n", event_type);
+	dev_warn(nvec->dev, "unhandled msg type %ld\n", event_type);
 	print_hex_dump(KERN_WARNING, "payload: ", DUMP_PREFIX_NONE, 16, 1,
 		msg, msg[1] + 2, true);
 
@@ -698,12 +700,14 @@ static void tegra_init_i2c_slave(struct nvec_chip *nvec)
 	clk_disable_unprepare(nvec->i2c_clk);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static void nvec_disable_i2c_slave(struct nvec_chip *nvec)
 {
 	disable_irq(nvec->irq);
 	writel(I2C_SL_NEWSL | I2C_SL_NACK, nvec->base + I2C_SL_CNFG);
 	clk_disable_unprepare(nvec->i2c_clk);
 }
+#endif
 
 static void nvec_power_off(void)
 {
@@ -719,10 +723,9 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 	struct nvec_chip *nvec;
 	struct nvec_msg *msg;
 	struct resource *res;
-	struct resource *iomem;
 	void __iomem *base;
 
-	nvec = kzalloc(sizeof(struct nvec_chip), GFP_KERNEL);
+	nvec = devm_kzalloc(&pdev->dev, sizeof(struct nvec_chip), GFP_KERNEL);
 	if (nvec == NULL) {
 		dev_err(&pdev->dev, "failed to reserve memory\n");
 		return -ENOMEM;
@@ -737,15 +740,15 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 		nvec->gpio = of_get_named_gpio(nvec->dev->of_node, "request-gpios", 0);
 		if (nvec->gpio < 0) {
 			dev_err(&pdev->dev, "no gpio specified");
-			goto failed;
+			return -ENODEV;
 		}
 		if (of_property_read_u32(nvec->dev->of_node, "slave-addr", &nvec->i2c_addr)) {
 			dev_err(&pdev->dev, "no i2c address specified");
-			goto failed;
+			return -ENODEV;
 		}
 	} else {
 		dev_err(&pdev->dev, "no platform data\n");
-		goto failed;
+		return -ENODEV;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -754,13 +757,7 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	iomem = request_mem_region(res->start, resource_size(res), pdev->name);
-	if (!iomem) {
-		dev_err(&pdev->dev, "I2C region already claimed\n");
-		return -EBUSY;
-	}
-
-	base = ioremap(iomem->start, resource_size(iomem));
+	base = devm_request_and_ioremap(&pdev->dev, res);
 	if (!base) {
 		dev_err(&pdev->dev, "Can't ioremap I2C region\n");
 		return -ENOMEM;
@@ -769,14 +766,13 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "no irq resource?\n");
-		ret = -ENODEV;
-		goto err_iounmap;
+		return -ENODEV;
 	}
 
 	i2c_clk = clk_get_sys("tegra-i2c.2", NULL);
 	if (IS_ERR(i2c_clk)) {
 		dev_err(nvec->dev, "failed to get controller clock\n");
-		goto err_iounmap;
+		return -ENODEV;
 	}
 
 	nvec->base = base;
@@ -797,16 +793,20 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 	INIT_WORK(&nvec->tx_work, nvec_request_master);
 	nvec->wq = alloc_workqueue("nvec", WQ_NON_REENTRANT, 2);
 
-	err = gpio_request_one(nvec->gpio, GPIOF_OUT_INIT_HIGH, "nvec gpio");
+	err = devm_gpio_request_one(&pdev->dev, nvec->gpio, GPIOF_OUT_INIT_HIGH,
+					"nvec gpio");
 	if (err < 0) {
 		dev_err(nvec->dev, "couldn't request gpio\n");
-		goto failed;
+		destroy_workqueue(nvec->wq);
+		return -ENODEV;
 	}
 
-	err = request_irq(nvec->irq, nvec_interrupt, 0, "nvec", nvec);
+	err = devm_request_irq(&pdev->dev, nvec->irq, nvec_interrupt, 0,
+				"nvec", nvec);
 	if (err) {
 		dev_err(nvec->dev, "couldn't request irq\n");
-		goto failed;
+		destroy_workqueue(nvec->wq);
+		return -ENODEV;
 	}
 	disable_irq(nvec->irq);
 
@@ -851,12 +851,6 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 	nvec_write_async(nvec, "\x01\x01\x01\x00\x00\x80\x00", 7);
 
 	return 0;
-
-err_iounmap:
-	iounmap(base);
-failed:
-	kfree(nvec);
-	return -ENOMEM;
 }
 
 static int __devexit tegra_nvec_remove(struct platform_device *pdev)
@@ -865,19 +859,15 @@ static int __devexit tegra_nvec_remove(struct platform_device *pdev)
 
 	nvec_write_async(nvec, EC_DISABLE_EVENT_REPORTING, 3);
 	mfd_remove_devices(nvec->dev);
-	free_irq(nvec->irq, &nvec_interrupt);
-	iounmap(nvec->base);
-	gpio_free(nvec->gpio);
 	destroy_workqueue(nvec->wq);
-	kfree(nvec);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
-
-static int tegra_nvec_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int nvec_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct nvec_chip *nvec = platform_get_drvdata(pdev);
 	struct nvec_msg *msg;
 
@@ -894,8 +884,9 @@ static int tegra_nvec_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int tegra_nvec_resume(struct platform_device *pdev)
+static int nvec_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct nvec_chip *nvec = platform_get_drvdata(pdev);
 
 	dev_dbg(nvec->dev, "resuming\n");
@@ -904,11 +895,9 @@ static int tegra_nvec_resume(struct platform_device *pdev)
 
 	return 0;
 }
-
-#else
-#define tegra_nvec_suspend NULL
-#define tegra_nvec_resume NULL
 #endif
+
+static const SIMPLE_DEV_PM_OPS(nvec_pm_ops, nvec_suspend, nvec_resume);
 
 /* Match table for of_platform binding */
 static const struct of_device_id nvidia_nvec_of_match[] __devinitconst = {
@@ -920,21 +909,15 @@ MODULE_DEVICE_TABLE(of, nvidia_nvec_of_match);
 static struct platform_driver nvec_device_driver = {
 	.probe   = tegra_nvec_probe,
 	.remove  = __devexit_p(tegra_nvec_remove),
-	.suspend = tegra_nvec_suspend,
-	.resume  = tegra_nvec_resume,
 	.driver  = {
 		.name = "nvec",
 		.owner = THIS_MODULE,
+		.pm = &nvec_pm_ops,
 		.of_match_table = nvidia_nvec_of_match,
 	}
 };
 
-static int __init tegra_nvec_init(void)
-{
-	return platform_driver_register(&nvec_device_driver);
-}
-
-module_init(tegra_nvec_init);
+module_platform_driver(nvec_device_driver);
 
 MODULE_ALIAS("platform:nvec");
 MODULE_DESCRIPTION("NVIDIA compliant embedded controller interface");

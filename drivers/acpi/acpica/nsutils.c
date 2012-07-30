@@ -62,8 +62,8 @@ acpi_name acpi_ns_find_parent_name(struct acpi_namespace_node *node_to_search);
  *
  * FUNCTION:    acpi_ns_print_node_pathname
  *
- * PARAMETERS:  Node            - Object
- *              Message         - Prefix message
+ * PARAMETERS:  node            - Object
+ *              message         - Prefix message
  *
  * DESCRIPTION: Print an object's full namespace pathname
  *              Manages allocation/freeing of a pathname buffer
@@ -101,7 +101,7 @@ acpi_ns_print_node_pathname(struct acpi_namespace_node *node,
  *
  * FUNCTION:    acpi_ns_valid_root_prefix
  *
- * PARAMETERS:  Prefix          - Character to be checked
+ * PARAMETERS:  prefix          - Character to be checked
  *
  * RETURN:      TRUE if a valid prefix
  *
@@ -119,7 +119,7 @@ u8 acpi_ns_valid_root_prefix(char prefix)
  *
  * FUNCTION:    acpi_ns_valid_path_separator
  *
- * PARAMETERS:  Sep         - Character to be checked
+ * PARAMETERS:  sep         - Character to be checked
  *
  * RETURN:      TRUE if a valid path separator
  *
@@ -137,7 +137,7 @@ static u8 acpi_ns_valid_path_separator(char sep)
  *
  * FUNCTION:    acpi_ns_get_type
  *
- * PARAMETERS:  Node        - Parent Node to be examined
+ * PARAMETERS:  node        - Parent Node to be examined
  *
  * RETURN:      Type field from Node whose handle is passed
  *
@@ -161,7 +161,7 @@ acpi_object_type acpi_ns_get_type(struct acpi_namespace_node * node)
  *
  * FUNCTION:    acpi_ns_local
  *
- * PARAMETERS:  Type        - A namespace object type
+ * PARAMETERS:  type        - A namespace object type
  *
  * RETURN:      LOCAL if names must be found locally in objects of the
  *              passed type, 0 if enclosing scopes should be searched
@@ -189,7 +189,7 @@ u32 acpi_ns_local(acpi_object_type type)
  *
  * FUNCTION:    acpi_ns_get_internal_name_length
  *
- * PARAMETERS:  Info            - Info struct initialized with the
+ * PARAMETERS:  info            - Info struct initialized with the
  *                                external name pointer.
  *
  * RETURN:      None
@@ -260,7 +260,7 @@ void acpi_ns_get_internal_name_length(struct acpi_namestring_info *info)
  *
  * FUNCTION:    acpi_ns_build_internal_name
  *
- * PARAMETERS:  Info            - Info struct fully initialized
+ * PARAMETERS:  info            - Info struct fully initialized
  *
  * RETURN:      Status
  *
@@ -371,7 +371,7 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
  * FUNCTION:    acpi_ns_internalize_name
  *
  * PARAMETERS:  *external_name          - External representation of name
- *              **Converted Name        - Where to return the resulting
+ *              **Converted name        - Where to return the resulting
  *                                        internal represention of the name
  *
  * RETURN:      Status
@@ -575,7 +575,7 @@ acpi_ns_externalize_name(u32 internal_name_length,
  *
  * FUNCTION:    acpi_ns_validate_handle
  *
- * PARAMETERS:  Handle          - Handle to be validated and typecast to a
+ * PARAMETERS:  handle          - Handle to be validated and typecast to a
  *                                namespace node.
  *
  * RETURN:      A pointer to a namespace node
@@ -651,7 +651,7 @@ void acpi_ns_terminate(void)
  *
  * FUNCTION:    acpi_ns_opens_scope
  *
- * PARAMETERS:  Type        - A valid namespace type
+ * PARAMETERS:  type        - A valid namespace type
  *
  * RETURN:      NEWSCOPE if the passed type "opens a name scope" according
  *              to the ACPI specification, else 0
@@ -677,14 +677,14 @@ u32 acpi_ns_opens_scope(acpi_object_type type)
  *
  * FUNCTION:    acpi_ns_get_node
  *
- * PARAMETERS:  *Pathname   - Name to be found, in external (ASL) format. The
+ * PARAMETERS:  *pathname   - Name to be found, in external (ASL) format. The
  *                            \ (backslash) and ^ (carat) prefixes, and the
  *                            . (period) to separate segments are supported.
  *              prefix_node  - Root of subtree to be searched, or NS_ALL for the
  *                            root of the name space.  If Name is fully
  *                            qualified (first s8 is '\'), the passed value
  *                            of Scope will not be accessed.
- *              Flags       - Used to indicate whether to perform upsearch or
+ *              flags       - Used to indicate whether to perform upsearch or
  *                            not.
  *              return_node - Where the Node is returned
  *

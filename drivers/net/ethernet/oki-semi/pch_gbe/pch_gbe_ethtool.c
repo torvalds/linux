@@ -129,7 +129,6 @@ static int pch_gbe_set_settings(struct net_device *netdev,
 	hw->mac.link_duplex = ecmd->duplex;
 	hw->phy.autoneg_advertised = ecmd->advertising;
 	hw->mac.autoneg = ecmd->autoneg;
-	pch_gbe_hal_phy_sw_reset(hw);
 
 	/* reset the link */
 	if (netif_running(adapter->netdev)) {
