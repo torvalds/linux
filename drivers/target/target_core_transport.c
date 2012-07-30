@@ -211,10 +211,6 @@ void transport_subsystem_check_init(void)
 	if (ret != 0)
 		pr_err("Unable to load target_core_pscsi\n");
 
-	ret = request_module("target_core_stgt");
-	if (ret != 0)
-		pr_err("Unable to load target_core_stgt\n");
-
 	sub_api_initialized = 1;
 	return;
 }
