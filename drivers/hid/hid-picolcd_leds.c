@@ -69,6 +69,8 @@ static void picolcd_led_set_brightness(struct led_classdev *led_cdev,
 	dev  = led_cdev->dev->parent;
 	hdev = container_of(dev, struct hid_device, dev);
 	data = hid_get_drvdata(hdev);
+	if (!data)
+		return;
 	for (i = 0; i < 8; i++) {
 		if (led_cdev != data->led[i])
 			continue;
