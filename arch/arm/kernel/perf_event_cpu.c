@@ -71,7 +71,7 @@ static struct pmu_hw_events *cpu_pmu_get_cpu_events(void)
 	return &__get_cpu_var(cpu_hw_events);
 }
 
-static void cpu_pmu_free_irq(void)
+static void cpu_pmu_free_irq(struct arm_pmu *cpu_pmu)
 {
 	int i, irq, irqs;
 	struct platform_device *pmu_device = cpu_pmu->plat_device;
@@ -87,7 +87,7 @@ static void cpu_pmu_free_irq(void)
 	}
 }
 
-static int cpu_pmu_request_irq(irq_handler_t handler)
+static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 {
 	int i, err, irq, irqs;
 	struct platform_device *pmu_device = cpu_pmu->plat_device;
@@ -148,7 +148,7 @@ static void __devinit cpu_pmu_init(struct arm_pmu *cpu_pmu)
 
 	/* Ensure the PMU has sane values out of reset. */
 	if (cpu_pmu && cpu_pmu->reset)
-		on_each_cpu(cpu_pmu->reset, NULL, 1);
+		on_each_cpu(cpu_pmu->reset, cpu_pmu, 1);
 }
 
 /*
@@ -164,7 +164,7 @@ static int __cpuinit cpu_pmu_notify(struct notifier_block *b,
 		return NOTIFY_DONE;
 
 	if (cpu_pmu && cpu_pmu->reset)
-		cpu_pmu->reset(NULL);
+		cpu_pmu->reset(cpu_pmu);
 
 	return NOTIFY_OK;
 }
