@@ -24,6 +24,32 @@ extern const char linux_proc_banner[];
  */
 #define KERN_CONT	"<c>"
 
+static inline int printk_get_level(const char *buffer)
+{
+	if (buffer[0] == '<' && buffer[1] && buffer[2] == '>') {
+		switch (buffer[1]) {
+		case '0' ... '7':
+		case 'd':	/* KERN_DEFAULT */
+		case 'c':	/* KERN_CONT */
+			return buffer[1];
+		}
+	}
+	return 0;
+}
+
+static inline const char *printk_skip_level(const char *buffer)
+{
+	if (printk_get_level(buffer)) {
+		switch (buffer[1]) {
+		case '0' ... '7':
+		case 'd':	/* KERN_DEFAULT */
+		case 'c':	/* KERN_CONT */
+			return buffer + 3;
+		}
+	}
+	return buffer;
+}
+
 extern int console_printk[];
 
 #define console_loglevel (console_printk[0])
