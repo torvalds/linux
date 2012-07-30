@@ -289,6 +289,7 @@ struct file_system_type nfs_fs_type = {
 	.kill_sb	= nfs_kill_super,
 	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
+EXPORT_SYMBOL_GPL(nfs_fs_type);
 
 struct file_system_type nfs_xdev_fs_type = {
 	.owner		= THIS_MODULE,
@@ -312,6 +313,7 @@ const struct super_operations nfs_sops = {
 	.show_stats	= nfs_show_stats,
 	.remount_fs	= nfs_remount,
 };
+EXPORT_SYMBOL_GPL(nfs_sops);
 
 #ifdef CONFIG_NFS_V4
 static void nfs4_validate_mount_flags(struct nfs_parsed_mount_data *);
@@ -1670,6 +1672,7 @@ struct dentry *nfs_try_mount(int flags, const char *dev_name,
 
 	return nfs_fs_mount_common(server, flags, dev_name, mount_info, nfs_mod);
 }
+EXPORT_SYMBOL_GPL(nfs_try_mount);
 
 /*
  * Split "dev_name" into "hostname:export_path".

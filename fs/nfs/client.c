@@ -149,11 +149,7 @@ EXPORT_SYMBOL_GPL(unregister_nfs_version);
  */
 int __init nfs_register_versions(void)
 {
-	int err = init_nfs_v2();
-	if (err)
-		return err;
-
-	err = init_nfs_v3();
+	int err = init_nfs_v3();
 	if (err)
 		return err;
 
@@ -165,7 +161,6 @@ int __init nfs_register_versions(void)
  */
 void nfs_unregister_versions(void)
 {
-	exit_nfs_v2();
 	exit_nfs_v3();
 	exit_nfs_v4();
 }
@@ -222,6 +217,7 @@ error_cleanup:
 error_0:
 	return ERR_PTR(err);
 }
+EXPORT_SYMBOL_GPL(nfs_alloc_client);
 
 #ifdef CONFIG_NFS_V4
 /* idr_remove_all is not needed as all id's are removed by nfs_put_client */
@@ -284,6 +280,7 @@ void nfs_free_client(struct nfs_client *clp)
 
 	dprintk("<-- nfs_free_client()\n");
 }
+EXPORT_SYMBOL_GPL(nfs_free_client);
 
 /*
  * Release a reference to a shared client record
@@ -753,6 +750,7 @@ error:
 	dprintk("<-- nfs_init_client() = xerror %d\n", error);
 	return ERR_PTR(error);
 }
+EXPORT_SYMBOL_GPL(nfs_init_client);
 
 /*
  * Create a version 2 or 3 client
@@ -1122,6 +1120,7 @@ error:
 	nfs_free_server(server);
 	return ERR_PTR(error);
 }
+EXPORT_SYMBOL_GPL(nfs_create_server);
 
 /*
  * Clone an NFS2, NFS3 or NFS4 server record
@@ -1191,6 +1190,7 @@ out_free_server:
 	dprintk("<-- nfs_clone_server() = error %d\n", error);
 	return ERR_PTR(error);
 }
+EXPORT_SYMBOL_GPL(nfs_clone_server);
 
 void nfs_clients_init(struct net *net)
 {

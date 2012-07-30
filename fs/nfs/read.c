@@ -113,6 +113,7 @@ void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
 	nfs_pageio_init(pgio, inode, &nfs_pageio_read_ops, compl_ops,
 			NFS_SERVER(inode)->rsize, 0);
 }
+EXPORT_SYMBOL_GPL(nfs_pageio_init_read);
 
 void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio)
 {

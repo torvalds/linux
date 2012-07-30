@@ -17,6 +17,7 @@
  *  6 Jun 1999	Cache readdir lookups in the page cache. -DaveM
  */
 
+#include <linux/module.h>
 #include <linux/time.h>
 #include <linux/errno.h>
 #include <linux/stat.h>
@@ -1196,6 +1197,7 @@ const struct dentry_operations nfs_dentry_operations = {
 	.d_automount	= nfs_d_automount,
 	.d_release	= nfs_d_release,
 };
+EXPORT_SYMBOL_GPL(nfs_dentry_operations);
 
 struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, unsigned int flags)
 {
@@ -1263,6 +1265,7 @@ out:
 	nfs_free_fhandle(fhandle);
 	return res;
 }
+EXPORT_SYMBOL_GPL(nfs_lookup);
 
 #ifdef CONFIG_NFS_V4
 static int nfs4_lookup_revalidate(struct dentry *, unsigned int);
@@ -1508,6 +1511,7 @@ out_error:
 	dput(parent);
 	return error;
 }
+EXPORT_SYMBOL_GPL(nfs_instantiate);
 
 /*
  * Following a failed create operation, we drop the dentry rather
@@ -1536,6 +1540,7 @@ out_err:
 	d_drop(dentry);
 	return error;
 }
+EXPORT_SYMBOL_GPL(nfs_create);
 
 /*
  * See comments for nfs_proc_create regarding failed operations.
@@ -1563,6 +1568,7 @@ out_err:
 	d_drop(dentry);
 	return status;
 }
+EXPORT_SYMBOL_GPL(nfs_mknod);
 
 /*
  * See comments for nfs_proc_create regarding failed operations.
@@ -1586,6 +1592,7 @@ out_err:
 	d_drop(dentry);
 	return error;
 }
+EXPORT_SYMBOL_GPL(nfs_mkdir);
 
 static void nfs_dentry_handle_enoent(struct dentry *dentry)
 {
@@ -1609,6 +1616,7 @@ int nfs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	return error;
 }
+EXPORT_SYMBOL_GPL(nfs_rmdir);
 
 /*
  * Remove a file after making sure there are no pending writes,
@@ -1680,6 +1688,7 @@ int nfs_unlink(struct inode *dir, struct dentry *dentry)
 		d_rehash(dentry);
 	return error;
 }
+EXPORT_SYMBOL_GPL(nfs_unlink);
 
 /*
  * To create a symbolic link, most file systems instantiate a new inode,
@@ -1750,6 +1759,7 @@ int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nfs_symlink);
 
 int
 nfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
@@ -1771,6 +1781,7 @@ nfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 	}
 	return error;
 }
+EXPORT_SYMBOL_GPL(nfs_link);
 
 /*
  * RENAME
@@ -1869,6 +1880,7 @@ out:
 		dput(dentry);
 	return error;
 }
+EXPORT_SYMBOL_GPL(nfs_rename);
 
 static DEFINE_SPINLOCK(nfs_access_lru_lock);
 static LIST_HEAD(nfs_access_lru_list);
@@ -2188,6 +2200,7 @@ out_notsup:
 		res = generic_permission(inode, mask);
 	goto out;
 }
+EXPORT_SYMBOL_GPL(nfs_permission);
 
 /*
  * Local variables:

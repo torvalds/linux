@@ -7,6 +7,7 @@
  * NFS namespace
  */
 
+#include <linux/module.h>
 #include <linux/dcache.h>
 #include <linux/gfp.h>
 #include <linux/mount.h>
@@ -255,3 +256,4 @@ struct vfsmount *nfs_submount(struct nfs_server *server, struct dentry *dentry,
 
 	return nfs_do_submount(dentry, fh, fattr, server->client->cl_auth->au_flavor);
 }
+EXPORT_SYMBOL_GPL(nfs_submount);

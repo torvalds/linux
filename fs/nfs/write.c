@@ -1210,6 +1210,7 @@ void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
 	nfs_pageio_init(pgio, inode, &nfs_pageio_write_ops, compl_ops,
 				NFS_SERVER(inode)->wsize, ioflags);
 }
+EXPORT_SYMBOL_GPL(nfs_pageio_init_write);
 
 void nfs_pageio_reset_write_mds(struct nfs_pageio_descriptor *pgio)
 {
@@ -1688,6 +1689,7 @@ int nfs_wb_all(struct inode *inode)
 
 	return sync_inode(inode, &wbc);
 }
+EXPORT_SYMBOL_GPL(nfs_wb_all);
 
 int nfs_wb_page_cancel(struct inode *inode, struct page *page)
 {
