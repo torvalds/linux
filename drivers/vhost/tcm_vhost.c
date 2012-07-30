@@ -533,8 +533,8 @@ static int vhost_scsi_map_iov_to_sgl(struct tcm_vhost_cmd *tv_cmd,
 	sg = kmalloc(sizeof(tv_cmd->tvc_sgl[0]) * sgl_count, GFP_ATOMIC);
 	if (!sg)
 		return -ENOMEM;
-	pr_debug("%s sg %p sgl_count %u is_err %ld\n", __func__,
-	       sg, sgl_count, IS_ERR(sg));
+	pr_debug("%s sg %p sgl_count %u is_err %d\n", __func__,
+	       sg, sgl_count, !sg);
 	sg_init_table(sg, sgl_count);
 
 	tv_cmd->tvc_sgl = sg;
