@@ -404,6 +404,8 @@ static const struct platform_device_id mc13xxx_rtc_idtable[] = {
 		.name = "mc13783-rtc",
 	}, {
 		.name = "mc13892-rtc",
+	}, {
+		.name = "mc34708-rtc",
 	},
 	{ /* sentinel */ }
 };
