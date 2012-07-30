@@ -157,6 +157,7 @@ static int __exit coh901331_remove(struct platform_device *pdev)
 	if (rtap) {
 		free_irq(rtap->irq, rtap);
 		rtc_device_unregister(rtap->rtc);
+		clk_unprepare(rtap->clk);
 		clk_put(rtap->clk);
 		iounmap(rtap->virtbase);
 		release_mem_region(rtap->phybase, rtap->physize);
@@ -213,10 +214,10 @@ static int __init coh901331_probe(struct platform_device *pdev)
 	}
 
 	/* We enable/disable the clock only to assure it works */
-	ret = clk_enable(rtap->clk);
+	ret = clk_prepare_enable(rtap->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "could not enable clock\n");
-		goto out_no_clk_enable;
+		goto out_no_clk_prepenable;
 	}
 	clk_disable(rtap->clk);
 
@@ -232,7 +233,8 @@ static int __init coh901331_probe(struct platform_device *pdev)
 
  out_no_rtc:
 	platform_set_drvdata(pdev, NULL);
- out_no_clk_enable:
+	clk_unprepare(rtap->clk);
+ out_no_clk_prepenable:
 	clk_put(rtap->clk);
  out_no_clk:
 	free_irq(rtap->irq, rtap);
@@ -265,6 +267,7 @@ static int coh901331_suspend(struct platform_device *pdev, pm_message_t state)
 		writel(0, rtap->virtbase + COH901331_IRQ_MASK);
 		clk_disable(rtap->clk);
 	}
+	clk_unprepare(rtap->clk);
 	return 0;
 }
 
@@ -272,6 +275,7 @@ static int coh901331_resume(struct platform_device *pdev)
 {
 	struct coh901331_port *rtap = dev_get_drvdata(&pdev->dev);
 
+	clk_prepare(rtap->clk);
 	if (device_may_wakeup(&pdev->dev)) {
 		disable_irq_wake(rtap->irq);
 	} else {
@@ -293,6 +297,7 @@ static void coh901331_shutdown(struct platform_device *pdev)
 	clk_enable(rtap->clk);
 	writel(0, rtap->virtbase + COH901331_IRQ_MASK);
 	clk_disable(rtap->clk);
+	clk_unprepare(rtap->clk);
 }
 
 static struct platform_driver coh901331_driver = {
