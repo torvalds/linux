@@ -1872,6 +1872,11 @@ static int read_partial_message(struct ceph_connection *con)
 		else
 			con->in_msg_pos.page_pos = 0;
 		con->in_msg_pos.data_pos = 0;
+
+#ifdef CONFIG_BLOCK
+		if (m->bio)
+			init_bio_iter(m->bio, &m->bio_iter, &m->bio_seg);
+#endif
 	}
 
 	/* front */
@@ -1888,10 +1893,6 @@ static int read_partial_message(struct ceph_connection *con)
 		if (ret <= 0)
 			return ret;
 	}
-#ifdef CONFIG_BLOCK
-	if (m->bio && !m->bio_iter)
-		init_bio_iter(m->bio, &m->bio_iter, &m->bio_seg);
-#endif
 
 	/* (page) data */
 	while (con->in_msg_pos.data_pos < data_len) {
@@ -1902,7 +1903,7 @@ static int read_partial_message(struct ceph_connection *con)
 				return ret;
 #ifdef CONFIG_BLOCK
 		} else if (m->bio) {
-
+			BUG_ON(!m->bio_iter);
 			ret = read_partial_message_bio(con,
 						 &m->bio_iter, &m->bio_seg,
 						 data_len, do_datacrc);
