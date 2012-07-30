@@ -495,7 +495,7 @@ irqreturn_t tx4927_pcierr_interrupt(int irq, void *dev_id)
 }
 
 #ifdef CONFIG_TOSHIBA_FPCIB0
-static void __init tx4927_quirk_slc90e66_bridge(struct pci_dev *dev)
+static void __devinit tx4927_quirk_slc90e66_bridge(struct pci_dev *dev)
 {
 	struct tx4927_pcic_reg __iomem *pcicptr = pci_bus_to_pcicptr(dev->bus);
 

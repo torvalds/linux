@@ -50,8 +50,8 @@ int mmc_cd_gpio_request(struct mmc_host *host, unsigned int gpio)
 		goto egpioreq;
 
 	ret = request_threaded_irq(irq, NULL, mmc_cd_gpio_irqt,
-				   IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-				   cd->label, host);
+				   IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
+				   IRQF_ONESHOT, cd->label, host);
 	if (ret < 0)
 		goto eirqreq;
 

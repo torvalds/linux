@@ -3894,6 +3894,7 @@ static void rtl_init_rxcfg(struct rtl8169_private *tp)
 	case RTL_GIGA_MAC_VER_22:
 	case RTL_GIGA_MAC_VER_23:
 	case RTL_GIGA_MAC_VER_24:
+	case RTL_GIGA_MAC_VER_34:
 		RTL_W32(RxConfig, RX128_INT_EN | RX_MULTI_EN | RX_DMA_BURST);
 		break;
 	default:
@@ -5889,11 +5890,7 @@ static void rtl_slow_event_work(struct rtl8169_private *tp)
 	if (status & LinkChg)
 		__rtl8169_check_link_status(dev, tp, tp->mmio_addr, true);
 
-	napi_disable(&tp->napi);
-	rtl_irq_disable(tp);
-
-	napi_enable(&tp->napi);
-	napi_schedule(&tp->napi);
+	rtl_irq_enable_all(tp);
 }
 
 static void rtl_task(struct work_struct *work)

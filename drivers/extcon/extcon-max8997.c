@@ -116,8 +116,8 @@ const char *max8997_extcon_cable[] = {
 	[5] = "Charge-downstream",
 	[6] = "MHL",
 	[7] = "Dock-desk",
-	[7] = "Dock-card",
-	[8] = "JIG",
+	[8] = "Dock-card",
+	[9] = "JIG",
 
 	NULL,
 };
@@ -514,6 +514,7 @@ static int __devexit max8997_muic_remove(struct platform_device *pdev)
 
 	extcon_dev_unregister(info->edev);
 
+	kfree(info->edev);
 	kfree(info);
 
 	return 0;

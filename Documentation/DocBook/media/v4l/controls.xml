@@ -3988,7 +3988,7 @@ interface and may change in the future.</para>
 	    from RGB to Y'CbCr color space.
 	    </entry>
 	  </row>
-	  <row id = "v4l2-jpeg-chroma-subsampling">
+	  <row>
 	    <entrytbl spanname="descr" cols="2">
 	      <tbody valign="top">
 		<row>

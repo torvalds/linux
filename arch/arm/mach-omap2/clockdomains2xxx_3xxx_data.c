@@ -88,4 +88,5 @@ struct clockdomain wkup_common_clkdm = {
 	.name		= "wkup_clkdm",
 	.pwrdm		= { .name = "wkup_pwrdm" },
 	.dep_bit	= OMAP_EN_WKUP_SHIFT,
+	.flags		= CLKDM_ACTIVE_WITH_MPU,
 };

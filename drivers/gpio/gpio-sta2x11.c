@@ -383,8 +383,9 @@ static int __devinit gsta_probe(struct platform_device *dev)
 	}
 	spin_lock_init(&chip->lock);
 	gsta_gpio_setup(chip);
-	for (i = 0; i < GSTA_NR_GPIO; i++)
-		gsta_set_config(chip, i, gpio_pdata->pinconfig[i]);
+	if (gpio_pdata)
+		for (i = 0; i < GSTA_NR_GPIO; i++)
+			gsta_set_config(chip, i, gpio_pdata->pinconfig[i]);
 
 	/* 384 was used in previous code: be compatible for other drivers */
 	err = irq_alloc_descs(-1, 384, GSTA_NR_GPIO, NUMA_NO_NODE);

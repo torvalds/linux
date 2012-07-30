@@ -261,7 +261,6 @@ static void atl1c_check_link_status(struct atl1c_adapter *adapter)
 	if ((phy_data & BMSR_LSTATUS) == 0) {
 		/* link down */
 		netif_carrier_off(netdev);
-		netif_stop_queue(netdev);
 		hw->hibernate = true;
 		if (atl1c_reset_mac(hw) != 0)
 			if (netif_msg_hw(adapter))

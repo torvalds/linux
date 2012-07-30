@@ -93,6 +93,7 @@
 #include "print-tree.h"
 #include "locking.h"
 #include "check-integrity.h"
+#include "rcu-string.h"
 
 #define BTRFSIC_BLOCK_HASHTABLE_SIZE 0x10000
 #define BTRFSIC_BLOCK_LINK_HASHTABLE_SIZE 0x10000
@@ -843,13 +844,14 @@ static int btrfsic_process_superblock_dev_mirror(
 		superblock_tmp->never_written = 0;
 		superblock_tmp->mirror_num = 1 + superblock_mirror_num;
 		if (state->print_mask & BTRFSIC_PRINT_MASK_SUPERBLOCK_WRITE)
-			printk(KERN_INFO "New initial S-block (bdev %p, %s)"
-			       " @%llu (%s/%llu/%d)\n",
-			       superblock_bdev, device->name,
-			       (unsigned long long)dev_bytenr,
-			       dev_state->name,
-			       (unsigned long long)dev_bytenr,
-			       superblock_mirror_num);
+			printk_in_rcu(KERN_INFO "New initial S-block (bdev %p, %s)"
+				     " @%llu (%s/%llu/%d)\n",
+				     superblock_bdev,
+				     rcu_str_deref(device->name),
+				     (unsigned long long)dev_bytenr,
+				     dev_state->name,
+				     (unsigned long long)dev_bytenr,
+				     superblock_mirror_num);
 		list_add(&superblock_tmp->all_blocks_node,
 			 &state->all_blocks_list);
 		btrfsic_block_hashtable_add(superblock_tmp,

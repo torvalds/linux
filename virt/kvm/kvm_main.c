@@ -2047,7 +2047,7 @@ static long kvm_vm_ioctl(struct file *filp,
 		r = -EFAULT;
 		if (copy_from_user(&data, argp, sizeof data))
 			goto out;
-		r = kvm_irqfd(kvm, data.fd, data.gsi, data.flags);
+		r = kvm_irqfd(kvm, &data);
 		break;
 	}
 	case KVM_IOEVENTFD: {
@@ -2845,6 +2845,7 @@ void kvm_exit(void)
 	kvm_arch_hardware_unsetup();
 	kvm_arch_exit();
 	free_cpumask_var(cpus_hardware_enabled);
+	__free_page(fault_page);
 	__free_page(hwpoison_page);
 	__free_page(bad_page);
 }

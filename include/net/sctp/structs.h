@@ -912,6 +912,9 @@ struct sctp_transport {
 		/* Is this structure kfree()able? */
 		malloced:1;
 
+	/* Has this transport moved the ctsn since we last sacked */
+	__u32 sack_generation;
+
 	struct flowi fl;
 
 	/* This is the peer's IP address and port. */
@@ -1584,6 +1587,7 @@ struct sctp_association {
 		 */
 		__u8    sack_needed;     /* Do we need to sack the peer? */
 		__u32	sack_cnt;
+		__u32	sack_generation;
 
 		/* These are capabilities which our peer advertised.  */
 		__u8	ecn_capable:1,	    /* Can peer do ECN? */

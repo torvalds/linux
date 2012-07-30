@@ -201,14 +201,7 @@ xfs_buf_alloc(
 	bp->b_length = numblks;
 	bp->b_io_length = numblks;
 	bp->b_flags = flags;
-
-	/*
-	 * We do not set the block number here in the buffer because we have not
-	 * finished initialising the buffer. We insert the buffer into the cache
-	 * in this state, so this ensures that we are unable to do IO on a
-	 * buffer that hasn't been fully initialised.
-	 */
-	bp->b_bn = XFS_BUF_DADDR_NULL;
+	bp->b_bn = blkno;
 	atomic_set(&bp->b_pin_count, 0);
 	init_waitqueue_head(&bp->b_waiters);
 
@@ -567,11 +560,6 @@ xfs_buf_get(
 	if (bp != new_bp)
 		xfs_buf_free(new_bp);
 
-	/*
-	 * Now we have a workable buffer, fill in the block number so
-	 * that we can do IO on it.
-	 */
-	bp->b_bn = blkno;
 	bp->b_io_length = bp->b_length;
 
 found:
@@ -772,7 +760,7 @@ xfs_buf_get_uncached(
 	int			error, i;
 	xfs_buf_t		*bp;
 
-	bp = xfs_buf_alloc(target, 0, numblks, 0);
+	bp = xfs_buf_alloc(target, XFS_BUF_DADDR_NULL, numblks, 0);
 	if (unlikely(bp == NULL))
 		goto fail;
 
@@ -1001,27 +989,6 @@ xfs_buf_ioerror_alert(
 		(__uint64_t)XFS_BUF_ADDR(bp), func, bp->b_error, bp->b_length);
 }
 
-int
-xfs_bwrite(
-	struct xfs_buf		*bp)
-{
-	int			error;
-
-	ASSERT(xfs_buf_islocked(bp));
-
-	bp->b_flags |= XBF_WRITE;
-	bp->b_flags &= ~(XBF_ASYNC | XBF_READ | _XBF_DELWRI_Q);
-
-	xfs_bdstrat_cb(bp);
-
-	error = xfs_buf_iowait(bp);
-	if (error) {
-		xfs_force_shutdown(bp->b_target->bt_mount,
-				   SHUTDOWN_META_IO_ERROR);
-	}
-	return error;
-}
-
 /*
  * Called when we want to stop a buffer from getting written or read.
  * We attach the EIO error, muck with its flags, and call xfs_buf_ioend
@@ -1091,14 +1058,7 @@ xfs_bioerror_relse(
 	return EIO;
 }
 
-
-/*
- * All xfs metadata buffers except log state machine buffers
- * get this attached as their b_bdstrat callback function.
- * This is so that we can catch a buffer
- * after prematurely unpinning it to forcibly shutdown the filesystem.
- */
-int
+STATIC int
 xfs_bdstrat_cb(
 	struct xfs_buf	*bp)
 {
@@ -1117,6 +1077,27 @@ xfs_bdstrat_cb(
 
 	xfs_buf_iorequest(bp);
 	return 0;
+}
+
+int
+xfs_bwrite(
+	struct xfs_buf		*bp)
+{
+	int			error;
+
+	ASSERT(xfs_buf_islocked(bp));
+
+	bp->b_flags |= XBF_WRITE;
+	bp->b_flags &= ~(XBF_ASYNC | XBF_READ | _XBF_DELWRI_Q);
+
+	xfs_bdstrat_cb(bp);
+
+	error = xfs_buf_iowait(bp);
+	if (error) {
+		xfs_force_shutdown(bp->b_target->bt_mount,
+				   SHUTDOWN_META_IO_ERROR);
+	}
+	return error;
 }
 
 /*
@@ -1255,7 +1236,7 @@ xfs_buf_iorequest(
 	 */
 	atomic_set(&bp->b_io_remaining, 1);
 	_xfs_buf_ioapply(bp);
-	_xfs_buf_ioend(bp, 0);
+	_xfs_buf_ioend(bp, 1);
 
 	xfs_buf_rele(bp);
 }

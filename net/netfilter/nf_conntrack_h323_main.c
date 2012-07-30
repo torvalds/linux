@@ -270,9 +270,8 @@ static int expect_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 		return 0;
 
 	/* RTP port is even */
-	port &= htons(~1);
-	rtp_port = port;
-	rtcp_port = htons(ntohs(port) + 1);
+	rtp_port = port & ~htons(1);
+	rtcp_port = port | htons(1);
 
 	/* Create expect for RTP */
 	if ((rtp_exp = nf_ct_expect_alloc(ct)) == NULL)

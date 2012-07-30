@@ -399,8 +399,6 @@ int ocfs2_global_read_info(struct super_block *sb, int type)
 			      msecs_to_jiffies(oinfo->dqi_syncms));
 
 out_err:
-	if (status)
-		mlog_errno(status);
 	return status;
 out_unlock:
 	ocfs2_unlock_global_qf(oinfo, 0);

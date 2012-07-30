@@ -794,17 +794,17 @@ static __devinit int ab8500_regulator_register(struct platform_device *pdev,
 }
 
 static struct of_regulator_match ab8500_regulator_matches[] = {
-	{ .name	= "LDO-AUX1",    .driver_data = (void *) AB8500_LDO_AUX1, },
-	{ .name	= "LDO-AUX2",    .driver_data = (void *) AB8500_LDO_AUX2, },
-	{ .name	= "LDO-AUX3",    .driver_data = (void *) AB8500_LDO_AUX3, },
-	{ .name	= "LDO-INTCORE", .driver_data = (void *) AB8500_LDO_INTCORE, },
-	{ .name	= "LDO-TVOUT",   .driver_data = (void *) AB8500_LDO_TVOUT, },
-	{ .name = "LDO-USB",     .driver_data = (void *) AB8500_LDO_USB, },
-	{ .name = "LDO-AUDIO",   .driver_data = (void *) AB8500_LDO_AUDIO, },
-	{ .name	= "LDO-ANAMIC1", .driver_data = (void *) AB8500_LDO_ANAMIC1, },
-	{ .name	= "LDO-ANAMIC2", .driver_data = (void *) AB8500_LDO_ANAMIC2, },
-	{ .name	= "LDO-DMIC",    .driver_data = (void *) AB8500_LDO_DMIC, },
-	{ .name	= "LDO-ANA",     .driver_data = (void *) AB8500_LDO_ANA, },
+	{ .name	= "ab8500_ldo_aux1",    .driver_data = (void *) AB8500_LDO_AUX1, },
+	{ .name	= "ab8500_ldo_aux2",    .driver_data = (void *) AB8500_LDO_AUX2, },
+	{ .name	= "ab8500_ldo_aux3",    .driver_data = (void *) AB8500_LDO_AUX3, },
+	{ .name	= "ab8500_ldo_intcore", .driver_data = (void *) AB8500_LDO_INTCORE, },
+	{ .name	= "ab8500_ldo_tvout",   .driver_data = (void *) AB8500_LDO_TVOUT, },
+	{ .name = "ab8500_ldo_usb",     .driver_data = (void *) AB8500_LDO_USB, },
+	{ .name = "ab8500_ldo_audio",   .driver_data = (void *) AB8500_LDO_AUDIO, },
+	{ .name	= "ab8500_ldo_anamic1", .driver_data = (void *) AB8500_LDO_ANAMIC1, },
+	{ .name	= "ab8500_ldo_amamic2", .driver_data = (void *) AB8500_LDO_ANAMIC2, },
+	{ .name	= "ab8500_ldo_dmic",    .driver_data = (void *) AB8500_LDO_DMIC, },
+	{ .name	= "ab8500_ldo_ana",     .driver_data = (void *) AB8500_LDO_ANA, },
 };
 
 static __devinit int

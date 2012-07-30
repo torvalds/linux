@@ -271,6 +271,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 */
 	asoc->peer.sack_needed = 1;
 	asoc->peer.sack_cnt = 0;
+	asoc->peer.sack_generation = 1;
 
 	/* Assume that the peer will tell us if he recognizes ASCONF
 	 * as part of INIT exchange.

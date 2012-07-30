@@ -42,4 +42,11 @@ unsigned long clk_get_rate(struct clk *clk)
 	return MCF_CLK;
 }
 EXPORT_SYMBOL(clk_get_rate);
+
+struct clk *devm_clk_get(struct device *dev, const char *id)
+{
+	return NULL;
+}
+EXPORT_SYMBOL(devm_clk_get);
+
 /***************************************************************************/

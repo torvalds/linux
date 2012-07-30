@@ -1903,14 +1903,6 @@ static void ipw2100_down(struct ipw2100_priv *priv)
 	netif_stop_queue(priv->net_dev);
 }
 
-/* Called by register_netdev() */
-static int ipw2100_net_init(struct net_device *dev)
-{
-	struct ipw2100_priv *priv = libipw_priv(dev);
-
-	return ipw2100_up(priv, 1);
-}
-
 static int ipw2100_wdev_init(struct net_device *dev)
 {
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -6087,7 +6079,6 @@ static const struct net_device_ops ipw2100_netdev_ops = {
 	.ndo_stop		= ipw2100_close,
 	.ndo_start_xmit		= libipw_xmit,
 	.ndo_change_mtu		= libipw_change_mtu,
-	.ndo_init		= ipw2100_net_init,
 	.ndo_tx_timeout		= ipw2100_tx_timeout,
 	.ndo_set_mac_address	= ipw2100_set_address,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -6329,6 +6320,10 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	printk(KERN_INFO DRV_NAME
 	       ": Detected Intel PRO/Wireless 2100 Network Connection\n");
 
+	err = ipw2100_up(priv, 1);
+	if (err)
+		goto fail;
+
 	err = ipw2100_wdev_init(dev);
 	if (err)
 		goto fail;
@@ -6338,12 +6333,7 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	 * network device we would call ipw2100_up.  This introduced a race
 	 * condition with newer hotplug configurations (network was coming
 	 * up and making calls before the device was initialized).
-	 *
-	 * If we called ipw2100_up before we registered the device, then the
-	 * device name wasn't registered.  So, we instead use the net_dev->init
-	 * member to call a function that then just turns and calls ipw2100_up.
-	 * net_dev->init is called after name allocation but before the
-	 * notifier chain is called */
+	 */
 	err = register_netdev(dev);
 	if (err) {
 		printk(KERN_WARNING DRV_NAME
