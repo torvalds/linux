@@ -616,9 +616,9 @@ static int __sk_prepare_filter(struct sk_filter *fp)
 /**
  *	sk_unattached_filter_create - create an unattached filter
  *	@fprog: the filter program
- *	@sk: the socket to use
+ *	@pfp: the unattached filter that is created
  *
- * Create a filter independent ofr any socket. We first run some
+ * Create a filter independent of any socket. We first run some
  * sanity checks on it to make sure it does not explode on us later.
  * If an error occurs or there is insufficient memory for the filter
  * a negative errno code is returned. On success the return is zero.

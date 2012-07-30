@@ -847,6 +847,14 @@ void ceph_monc_stop(struct ceph_mon_client *monc)
 
 	mutex_unlock(&monc->mutex);
 
+	/*
+	 * flush msgr queue before we destroy ourselves to ensure that:
+	 *  - any work that references our embedded con is finished.
+	 *  - any osd_client or other work that may reference an authorizer
+	 *    finishes before we shut down the auth subsystem.
+	 */
+	ceph_msgr_flush();
+
 	ceph_auth_destroy(monc->auth);
 
 	ceph_msg_put(monc->m_auth);

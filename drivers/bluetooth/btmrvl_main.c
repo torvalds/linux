@@ -44,23 +44,33 @@ void btmrvl_interrupt(struct btmrvl_private *priv)
 }
 EXPORT_SYMBOL_GPL(btmrvl_interrupt);
 
-void btmrvl_check_evtpkt(struct btmrvl_private *priv, struct sk_buff *skb)
+bool btmrvl_check_evtpkt(struct btmrvl_private *priv, struct sk_buff *skb)
 {
 	struct hci_event_hdr *hdr = (void *) skb->data;
 	struct hci_ev_cmd_complete *ec;
-	u16 opcode, ocf;
+	u16 opcode, ocf, ogf;
 
 	if (hdr->evt == HCI_EV_CMD_COMPLETE) {
 		ec = (void *) (skb->data + HCI_EVENT_HDR_SIZE);
 		opcode = __le16_to_cpu(ec->opcode);
 		ocf = hci_opcode_ocf(opcode);
+		ogf = hci_opcode_ogf(opcode);
+
 		if (ocf == BT_CMD_MODULE_CFG_REQ &&
 					priv->btmrvl_dev.sendcmdflag) {
 			priv->btmrvl_dev.sendcmdflag = false;
 			priv->adapter->cmd_complete = true;
 			wake_up_interruptible(&priv->adapter->cmd_wait_q);
 		}
+
+		if (ogf == OGF) {
+			BT_DBG("vendor event skipped: ogf 0x%4.4x", ogf);
+			kfree_skb(skb);
+			return false;
+		}
 	}
+
+	return true;
 }
 EXPORT_SYMBOL_GPL(btmrvl_check_evtpkt);
 

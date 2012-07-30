@@ -130,9 +130,9 @@ static inline struct rtable *ip_route_output(struct net *net, __be32 daddr,
 {
 	struct flowi4 fl4 = {
 		.flowi4_oif = oif,
+		.flowi4_tos = tos,
 		.daddr = daddr,
 		.saddr = saddr,
-		.flowi4_tos = tos,
 	};
 	return ip_route_output_key(net, &fl4);
 }

@@ -894,8 +894,8 @@ static struct platform_driver mxs_mmc_driver = {
 		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &mxs_mmc_pm_ops,
-		.of_match_table = mxs_mmc_dt_ids,
 #endif
+		.of_match_table = mxs_mmc_dt_ids,
 	},
 };
 

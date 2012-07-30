@@ -101,8 +101,6 @@ struct ocrdma_create_qp_uresp {
 	u32 rsvd1;
 	u32 num_wqe_allocated;
 	u32 num_rqe_allocated;
-	u32 free_wqe_delta;
-	u32 free_rqe_delta;
 	u32 db_sq_offset;
 	u32 db_rq_offset;
 	u32 db_shift;
@@ -126,8 +124,7 @@ struct ocrdma_create_srq_uresp {
 	u32 db_rq_offset;
 	u32 db_shift;
 
-	u32 free_rqe_delta;
-	u32 rsvd2;
+	u64 rsvd2;
 	u64 rsvd3;
 } __packed;
 

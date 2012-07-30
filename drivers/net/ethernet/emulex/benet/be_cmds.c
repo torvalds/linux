@@ -122,15 +122,15 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 			goto done;
 
 		if (compl_status == MCC_STATUS_UNAUTHORIZED_REQUEST) {
-			dev_warn(&adapter->pdev->dev, "This domain(VM) is not "
-				"permitted to execute this cmd (opcode %d)\n",
-				opcode);
+			dev_warn(&adapter->pdev->dev,
+				 "opcode %d-%d is not permitted\n",
+				 opcode, subsystem);
 		} else {
 			extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
 					CQE_STATUS_EXTD_MASK;
-			dev_err(&adapter->pdev->dev, "Cmd (opcode %d) failed:"
-				"status %d, extd-status %d\n",
-				opcode, compl_status, extd_status);
+			dev_err(&adapter->pdev->dev,
+				"opcode %d-%d failed:status %d-%d\n",
+				opcode, subsystem, compl_status, extd_status);
 		}
 	}
 done:

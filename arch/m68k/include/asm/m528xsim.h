@@ -86,7 +86,7 @@
 /*
  *	QSPI module.
  */
-#define	MCFQSPI_IOBASE		(MCF_IPSBAR + 0x340)
+#define	MCFQSPI_BASE		(MCF_IPSBAR + 0x340)
 #define	MCFQSPI_SIZE		0x40
 
 #define	MCFQSPI_CS0		147

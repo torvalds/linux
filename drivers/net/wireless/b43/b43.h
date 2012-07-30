@@ -877,6 +877,10 @@ struct b43_wl {
 	 * from the mac80211 subsystem. */
 	u16 mac80211_initially_registered_queues;
 
+	/* Set this if we call ieee80211_register_hw() and check if we call
+	 * ieee80211_unregister_hw(). */
+	bool hw_registred;
+
 	/* We can only have one operating interface (802.11 core)
 	 * at a time. General information about this interface follows.
 	 */

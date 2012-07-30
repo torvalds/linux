@@ -19,9 +19,20 @@ static inline u32 inl(unsigned long addr)
 	return -1;
 }
 
-#define outb(x, y)	BUG()
-#define outw(x, y)	BUG()
-#define outl(x, y)	BUG()
+static inline void outb(unsigned char x, unsigned long port)
+{
+	BUG();
+}
+
+static inline void outw(unsigned short x, unsigned long port)
+{
+	BUG();
+}
+
+static inline void outl(unsigned int x, unsigned long port)
+{
+	BUG();
+}
 
 #define inb_p(addr)	inb(addr)
 #define inw_p(addr)	inw(addr)

@@ -1,7 +1,7 @@
 /*
  * DTS file for SPEAr320 Evaluation Baord
  *
- * Copyright 2012 Viresh Kumar <viresh.kumar@st.com>
+ * Copyright 2012 Viresh Kumar <viresh.linux@gmail.com>
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -15,8 +15,8 @@
 /include/ "spear320.dtsi"
 
 / {
-	model = "ST SPEAr300 Evaluation Board";
-	compatible = "st,spear300-evb", "st,spear300";
+	model = "ST SPEAr320 Evaluation Board";
+	compatible = "st,spear320-evb", "st,spear320";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
@@ -26,7 +26,7 @@
 
 	ahb {
 		pinmux@b3000000 {
-			st,pinmux-mode = <3>;
+			st,pinmux-mode = <4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&state_default>;
 

@@ -1039,7 +1039,6 @@ static void make_request(struct mddev *mddev, struct bio * bio)
 	const unsigned long do_fua = (bio->bi_rw & REQ_FUA);
 	unsigned long flags;
 	struct md_rdev *blocked_rdev;
-	int plugged;
 	int sectors_handled;
 	int max_sectors;
 	int sectors;
@@ -1239,7 +1238,6 @@ read_again:
 	 * of r10_bios is recored in bio->bi_phys_segments just as with
 	 * the read case.
 	 */
-	plugged = mddev_check_plugged(mddev);
 
 	r10_bio->read_slot = -1; /* make sure repl_bio gets freed */
 	raid10_find_phys(conf, r10_bio);
@@ -1396,6 +1394,8 @@ retry_write:
 		bio_list_add(&conf->pending_bio_list, mbio);
 		conf->pending_count++;
 		spin_unlock_irqrestore(&conf->device_lock, flags);
+		if (!mddev_check_plugged(mddev))
+			md_wakeup_thread(mddev->thread);
 
 		if (!r10_bio->devs[i].repl_bio)
 			continue;
@@ -1423,6 +1423,8 @@ retry_write:
 		bio_list_add(&conf->pending_bio_list, mbio);
 		conf->pending_count++;
 		spin_unlock_irqrestore(&conf->device_lock, flags);
+		if (!mddev_check_plugged(mddev))
+			md_wakeup_thread(mddev->thread);
 	}
 
 	/* Don't remove the bias on 'remaining' (one_write_done) until
@@ -1448,9 +1450,6 @@ retry_write:
 
 	/* In case raid10d snuck in to freeze_array */
 	wake_up(&conf->wait_barrier);
-
-	if (do_sync || !mddev->bitmap || !plugged)
-		md_wakeup_thread(mddev->thread);
 }
 
 static void status(struct seq_file *seq, struct mddev *mddev)
@@ -2310,7 +2309,7 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 			if (r10_sync_page_io(rdev,
 					     r10_bio->devs[sl].addr +
 					     sect,
-					     s<<9, conf->tmppage, WRITE)
+					     s, conf->tmppage, WRITE)
 			    == 0) {
 				/* Well, this device is dead */
 				printk(KERN_NOTICE
@@ -2349,7 +2348,7 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 			switch (r10_sync_page_io(rdev,
 					     r10_bio->devs[sl].addr +
 					     sect,
-					     s<<9, conf->tmppage,
+					     s, conf->tmppage,
 						 READ)) {
 			case 0:
 				/* Well, this device is dead */
@@ -2512,7 +2511,7 @@ read_more:
 	slot = r10_bio->read_slot;
 	printk_ratelimited(
 		KERN_ERR
-		"md/raid10:%s: %s: redirecting"
+		"md/raid10:%s: %s: redirecting "
 		"sector %llu to another mirror\n",
 		mdname(mddev),
 		bdevname(rdev->bdev, b),
@@ -2661,7 +2660,8 @@ static void raid10d(struct mddev *mddev)
 	blk_start_plug(&plug);
 	for (;;) {
 
-		flush_pending_writes(conf);
+		if (atomic_read(&mddev->plug_cnt) == 0)
+			flush_pending_writes(conf);
 
 		spin_lock_irqsave(&conf->device_lock, flags);
 		if (list_empty(head)) {
@@ -2890,6 +2890,12 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr,
 			/* want to reconstruct this device */
 			rb2 = r10_bio;
 			sect = raid10_find_virt(conf, sector_nr, i);
+			if (sect >= mddev->resync_max_sectors) {
+				/* last stripe is not complete - don't
+				 * try to recover this sector.
+				 */
+				continue;
+			}
 			/* Unless we are doing a full sync, or a replacement
 			 * we only need to recover the block if it is set in
 			 * the bitmap
@@ -3421,7 +3427,7 @@ static struct r10conf *setup_conf(struct mddev *mddev)
 	spin_lock_init(&conf->resync_lock);
 	init_waitqueue_head(&conf->wait_barrier);
 
-	conf->thread = md_register_thread(raid10d, mddev, NULL);
+	conf->thread = md_register_thread(raid10d, mddev, "raid10");
 	if (!conf->thread)
 		goto out;
 
@@ -3475,6 +3481,7 @@ static int run(struct mddev *mddev)
 
 	rdev_for_each(rdev, mddev) {
 		long long diff;
+		struct request_queue *q;
 
 		disk_idx = rdev->raid_disk;
 		if (disk_idx < 0)
@@ -3493,6 +3500,9 @@ static int run(struct mddev *mddev)
 				goto out_free_conf;
 			disk->rdev = rdev;
 		}
+		q = bdev_get_queue(rdev->bdev);
+		if (q->merge_bvec_fn)
+			mddev->merge_check_needed = 1;
 		diff = (rdev->new_data_offset - rdev->data_offset);
 		if (!mddev->reshape_backwards)
 			diff = -diff;

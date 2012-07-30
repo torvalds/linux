@@ -246,11 +246,11 @@ struct regmap *regmap_init(struct device *dev,
 		map->lock = regmap_lock_mutex;
 		map->unlock = regmap_unlock_mutex;
 	}
-	map->format.buf_size = (config->reg_bits + config->val_bits) / 8;
 	map->format.reg_bytes = DIV_ROUND_UP(config->reg_bits, 8);
 	map->format.pad_bytes = config->pad_bits / 8;
 	map->format.val_bytes = DIV_ROUND_UP(config->val_bits, 8);
-	map->format.buf_size += map->format.pad_bytes;
+	map->format.buf_size = DIV_ROUND_UP(config->reg_bits +
+			config->val_bits + config->pad_bits, 8);
 	map->reg_shift = config->pad_bits % 8;
 	if (config->reg_stride)
 		map->reg_stride = config->reg_stride;
@@ -368,7 +368,7 @@ struct regmap *regmap_init(struct device *dev,
 
 	ret = regcache_init(map, config);
 	if (ret < 0)
-		goto err_free_workbuf;
+		goto err_debugfs;
 
 	/* Add a devres resource for dev_get_regmap() */
 	m = devres_alloc(dev_get_regmap_release, sizeof(*m), GFP_KERNEL);
@@ -383,7 +383,8 @@ struct regmap *regmap_init(struct device *dev,
 
 err_cache:
 	regcache_exit(map);
-err_free_workbuf:
+err_debugfs:
+	regmap_debugfs_exit(map);
 	kfree(map->work_buf);
 err_map:
 	kfree(map);
@@ -471,6 +472,7 @@ int regmap_reinit_cache(struct regmap *map, const struct regmap_config *config)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(regmap_reinit_cache);
 
 /**
  * regmap_exit(): Free a previously allocated register map

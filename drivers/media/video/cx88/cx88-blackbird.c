@@ -471,7 +471,7 @@ static int blackbird_load_firmware(struct cx8802_dev *dev)
 	dprintk(1,"Loading firmware ...\n");
 	dataptr = (u32*)firmware->data;
 	for (i = 0; i < (firmware->size >> 2); i++) {
-		value = *dataptr;
+		value = le32_to_cpu(*dataptr);
 		checksum += ~value;
 		memory_write(dev->core, i, value);
 		dataptr++;

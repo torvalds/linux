@@ -1491,6 +1491,7 @@ static int wm2200_bclk_rates_dat[WM2200_NUM_BCLK_RATES] = {
 
 static int wm2200_bclk_rates_cd[WM2200_NUM_BCLK_RATES] = {
 	5644800,
+	3763200,
 	2882400,
 	1881600,
 	1411200,

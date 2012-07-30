@@ -587,14 +587,14 @@ static void sbp_management_request_logout(
 {
 	struct sbp_tport *tport = agent->tport;
 	struct sbp_tpg *tpg = tport->tpg;
-	int login_id;
+	int id;
 	struct sbp_login_descriptor *login;
 
-	login_id = LOGOUT_ORB_LOGIN_ID(be32_to_cpu(req->orb.misc));
+	id = LOGOUT_ORB_LOGIN_ID(be32_to_cpu(req->orb.misc));
 
-	login = sbp_login_find_by_id(tpg, login_id);
+	login = sbp_login_find_by_id(tpg, id);
 	if (!login) {
-		pr_warn("cannot find login: %d\n", login_id);
+		pr_warn("cannot find login: %d\n", id);
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |

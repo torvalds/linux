@@ -33,9 +33,8 @@
 #define segment_eq(a, b)	((a).seg == (b).seg)
 
 #define user_addr_max() (current_thread_info()->addr_limit.seg)
-#define __addr_ok(addr)					\
-	((unsigned long __force)(addr) <		\
-	 (current_thread_info()->addr_limit.seg))
+#define __addr_ok(addr) 	\
+	((unsigned long __force)(addr) < user_addr_max())
 
 /*
  * Test whether a block of memory is a valid user space address.
@@ -47,14 +46,14 @@
  * This needs 33-bit (65-bit for x86_64) arithmetic. We have a carry...
  */
 
-#define __range_not_ok(addr, size)					\
+#define __range_not_ok(addr, size, limit)				\
 ({									\
 	unsigned long flag, roksum;					\
 	__chk_user_ptr(addr);						\
 	asm("add %3,%1 ; sbb %0,%0 ; cmp %1,%4 ; sbb $0,%0"		\
 	    : "=&r" (flag), "=r" (roksum)				\
 	    : "1" (addr), "g" ((long)(size)),				\
-	      "rm" (current_thread_info()->addr_limit.seg));		\
+	      "rm" (limit));						\
 	flag;								\
 })
 
@@ -77,7 +76,8 @@
  * checks that the pointer is in the user space range - after calling
  * this function, memory access functions may still return -EFAULT.
  */
-#define access_ok(type, addr, size) (likely(__range_not_ok(addr, size) == 0))
+#define access_ok(type, addr, size) \
+	(likely(__range_not_ok(addr, size, user_addr_max()) == 0))
 
 /*
  * The exception table consists of pairs of addresses relative to the
