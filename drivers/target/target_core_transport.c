@@ -55,8 +55,6 @@
 #include "target_core_pr.h"
 #include "target_core_ua.h"
 
-static int sub_api_initialized;
-
 static struct workqueue_struct *target_completion_wq;
 static struct kmem_cache *se_sess_cache;
 struct kmem_cache *se_ua_cache;
@@ -195,6 +193,7 @@ u32 scsi_get_new_index(scsi_index_t type)
 void transport_subsystem_check_init(void)
 {
 	int ret;
+	static int sub_api_initialized;
 
 	if (sub_api_initialized)
 		return;
@@ -212,7 +211,6 @@ void transport_subsystem_check_init(void)
 		pr_err("Unable to load target_core_pscsi\n");
 
 	sub_api_initialized = 1;
-	return;
 }
 
 struct se_session *transport_init_session(void)
