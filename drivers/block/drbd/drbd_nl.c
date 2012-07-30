@@ -323,11 +323,15 @@ int drbd_khelper(struct drbd_conf *mdev, char *cmd)
 			NULL };
 	char mb[12];
 	char *argv[] = {usermode_helper, cmd, mb, NULL };
+	struct drbd_tconn *tconn = mdev->tconn;
 	struct sib_info sib;
 	int ret;
 
+	if (current == tconn->worker.task)
+		set_bit(CALLBACK_PENDING, &tconn->flags);
+
 	snprintf(mb, 12, "minor-%d", mdev_to_minor(mdev));
-	setup_khelper_env(mdev->tconn, envp);
+	setup_khelper_env(tconn, envp);
 
 	/* The helper may take some time.
 	 * write out any unsynced meta data changes now */
@@ -349,6 +353,9 @@ int drbd_khelper(struct drbd_conf *mdev, char *cmd)
 	sib.sib_reason = SIB_HELPER_POST;
 	sib.helper_exit_code = ret;
 	drbd_bcast_event(mdev, &sib);
+
+	if (current == tconn->worker.task)
+		clear_bit(CALLBACK_PENDING, &tconn->flags);
 
 	if (ret < 0) /* Ignore any ERRNOs we got. */
 		ret = 0;
