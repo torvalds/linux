@@ -73,14 +73,6 @@ extern int gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
 				   const struct gfs2_bitmap *bi, unsigned minlen, u64 *ptrimmed);
 extern int gfs2_fitrim(struct file *filp, void __user *argp);
 
-/* This is how to tell if a multi-block reservation is "inplace" reserved: */
-static inline int gfs2_mb_reserved(struct gfs2_inode *ip)
-{
-	if (ip->i_res && ip->i_res->rs_requested)
-		return 1;
-	return 0;
-}
-
 /* This is how to tell if a multi-block reservation is in the rgrp tree: */
 static inline int gfs2_rs_active(struct gfs2_blkreserv *rs)
 {

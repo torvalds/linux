@@ -250,9 +250,6 @@ struct gfs2_blkreserv {
 	/* components used during write (step 1): */
 	atomic_t rs_sizehint;         /* hint of the write size */
 
-	/* components used during inplace_reserve (step 2): */
-	u32 rs_requested; /* Filled in by caller of gfs2_inplace_reserve() */
-
 	/* components used during get_local_rgrp (step 3): */
 	struct gfs2_rgrpd *rs_rgd;    /* pointer to the gfs2_rgrpd */
 	struct gfs2_holder rs_rgd_gh; /* Filled in by get_local_rgrp */

@@ -765,6 +765,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 	struct gfs2_holder *ghs, i_gh;
 	unsigned int qx, x;
 	struct gfs2_quota_data *qd;
+	unsigned reserved;
 	loff_t offset;
 	unsigned int nalloc = 0, blocks;
 	int error;
@@ -811,13 +812,13 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 	 * two blocks need to be updated instead of 1 */
 	blocks = num_qd * data_blocks + RES_DINODE + num_qd + 3;
 
-	error = gfs2_inplace_reserve(ip, 1 +
-				     (nalloc * (data_blocks + ind_blocks)));
+	reserved = 1 + (nalloc * (data_blocks + ind_blocks));
+	error = gfs2_inplace_reserve(ip, reserved);
 	if (error)
 		goto out_alloc;
 
 	if (nalloc)
-		blocks += gfs2_rg_blocks(ip) + nalloc * ind_blocks + RES_STATFS;
+		blocks += gfs2_rg_blocks(ip, reserved) + nalloc * ind_blocks + RES_STATFS;
 
 	error = gfs2_trans_begin(sdp, blocks, 0);
 	if (error)
@@ -1598,7 +1599,7 @@ static int gfs2_set_dqblk(struct super_block *sb, int type, qid_t id,
 		error = gfs2_inplace_reserve(ip, blocks);
 		if (error)
 			goto out_i;
-		blocks += gfs2_rg_blocks(ip);
+		blocks += gfs2_rg_blocks(ip, blocks);
 	}
 
 	/* Some quotas span block boundaries and can update two blocks,
