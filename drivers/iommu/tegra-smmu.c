@@ -814,11 +814,14 @@ static int smmu_iommu_domain_init(struct iommu_domain *domain)
 	/* Look for a free AS with lock held */
 	for  (i = 0; i < smmu->num_as; i++) {
 		as = &smmu->as[i];
-		if (!as->pdir_page) {
-			err = alloc_pdir(as);
-			if (!err)
-				goto found;
-		}
+
+		if (as->pdir_page)
+			continue;
+
+		err = alloc_pdir(as);
+		if (!err)
+			goto found;
+
 		if (err != -EAGAIN)
 			break;
 	}
