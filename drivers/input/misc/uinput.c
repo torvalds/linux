@@ -40,7 +40,8 @@
 #include <linux/input/mt.h>
 #include "../input-compat.h"
 
-static int uinput_dev_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
+static int uinput_dev_event(struct input_dev *dev,
+			    unsigned int type, unsigned int code, int value)
 {
 	struct uinput_device	*udev = input_get_drvdata(dev);
 
@@ -95,7 +96,8 @@ static int uinput_request_reserve_slot(struct uinput_device *udev,
 					uinput_request_alloc_id(udev, request));
 }
 
-static void uinput_request_done(struct uinput_device *udev, struct uinput_request *request)
+static void uinput_request_done(struct uinput_device *udev,
+				struct uinput_request *request)
 {
 	/* Mark slot as available */
 	udev->requests[request->id] = NULL;
@@ -151,7 +153,7 @@ static int uinput_request_submit(struct uinput_device *udev,
 }
 
 /*
- * Fail all ouitstanding requests so handlers don't wait for the userspace
+ * Fail all outstanding requests so handlers don't wait for the userspace
  * to finish processing them.
  */
 static void uinput_flush_requests(struct uinput_device *udev)
@@ -187,7 +189,9 @@ static int uinput_dev_playback(struct input_dev *dev, int effect_id, int value)
 	return uinput_dev_event(dev, EV_FF, effect_id, value);
 }
 
-static int uinput_dev_upload_effect(struct input_dev *dev, struct ff_effect *effect, struct ff_effect *old)
+static int uinput_dev_upload_effect(struct input_dev *dev,
+				    struct ff_effect *effect,
+				    struct ff_effect *old)
 {
 	struct uinput_device *udev = input_get_drvdata(dev);
 	struct uinput_request request;
@@ -353,7 +357,8 @@ static int uinput_allocate_device(struct uinput_device *udev)
 	return 0;
 }
 
-static int uinput_setup_device(struct uinput_device *udev, const char __user *buffer, size_t count)
+static int uinput_setup_device(struct uinput_device *udev,
+			       const char __user *buffer, size_t count)
 {
 	struct uinput_user_dev	*user_dev;
 	struct input_dev	*dev;
@@ -425,7 +430,8 @@ static int uinput_setup_device(struct uinput_device *udev, const char __user *bu
 	return retval;
 }
 
-static inline ssize_t uinput_inject_event(struct uinput_device *udev, const char __user *buffer, size_t count)
+static ssize_t uinput_inject_event(struct uinput_device *udev,
+				   const char __user *buffer, size_t count)
 {
 	struct input_event ev;
 
@@ -440,7 +446,8 @@ static inline ssize_t uinput_inject_event(struct uinput_device *udev, const char
 	return input_event_size();
 }
 
-static ssize_t uinput_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
+static ssize_t uinput_write(struct file *file, const char __user *buffer,
+			    size_t count, loff_t *ppos)
 {
 	struct uinput_device *udev = file->private_data;
 	int retval;
@@ -744,7 +751,8 @@ static long uinput_ioctl_handler(struct file *file, unsigned int cmd,
 				break;
 
 			req = uinput_request_find(udev, ff_up.request_id);
-			if (!req || req->code != UI_FF_UPLOAD || !req->u.upload.effect) {
+			if (!req || req->code != UI_FF_UPLOAD ||
+			    !req->u.upload.effect) {
 				retval = -EINVAL;
 				break;
 			}
@@ -827,7 +835,8 @@ static long uinput_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 #ifdef CONFIG_COMPAT
-static long uinput_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long uinput_compat_ioctl(struct file *file,
+				unsigned int cmd, unsigned long arg)
 {
 	return uinput_ioctl_handler(file, cmd, arg, compat_ptr(arg));
 }
@@ -872,4 +881,3 @@ MODULE_VERSION("0.3");
 
 module_init(uinput_init);
 module_exit(uinput_exit);
-
