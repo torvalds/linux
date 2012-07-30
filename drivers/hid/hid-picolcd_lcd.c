@@ -47,7 +47,8 @@ static int picolcd_set_contrast(struct lcd_device *ldev, int contrast)
 	data->lcd_contrast = contrast & 0x0ff;
 	spin_lock_irqsave(&data->lock, flags);
 	hid_set_field(report->field[0], 0, data->lcd_contrast);
-	usbhid_submit_report(data->hdev, report, USB_DIR_OUT);
+	if (!(data->status & PICOLCD_FAILED))
+		usbhid_submit_report(data->hdev, report, USB_DIR_OUT);
 	spin_unlock_irqrestore(&data->lock, flags);
 	return 0;
 }

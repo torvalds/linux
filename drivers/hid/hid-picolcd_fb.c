@@ -226,13 +226,16 @@ int picolcd_fb_reset(struct picolcd_data *data, int clear)
 }
 
 /* Update fb_vbitmap from the screen_base and send changed tiles to device */
-static void picolcd_fb_update(struct picolcd_data *data)
+static void picolcd_fb_update(struct fb_info *info)
 {
 	int chip, tile, n;
 	unsigned long flags;
+	struct picolcd_data *data;
 
+	mutex_lock(&info->lock);
+	data = info->par;
 	if (!data)
-		return;
+		goto out;
 
 	spin_lock_irqsave(&data->lock, flags);
 	if (!(data->status & PICOLCD_READY_FB)) {
@@ -256,17 +259,31 @@ static void picolcd_fb_update(struct picolcd_data *data)
 					data->fb_bitmap, data->fb_bpp, chip, tile) ||
 				data->fb_force) {
 				n += 2;
-				if (data->status & PICOLCD_FAILED)
-					return; /* device lost! */
 				if (n >= HID_OUTPUT_FIFO_SIZE / 2) {
+					mutex_unlock(&info->lock);
 					usbhid_wait_io(data->hdev);
+					mutex_lock(&info->lock);
+					data = info->par;
+					if (!data)
+						goto out;
+					spin_lock_irqsave(&data->lock, flags);
+					if (data->status & PICOLCD_FAILED) {
+						spin_unlock_irqrestore(&data->lock, flags);
+						goto out;
+					}
+					spin_unlock_irqrestore(&data->lock, flags);
 					n = 0;
 				}
 				picolcd_fb_send_tile(data->hdev, chip, tile);
 			}
 	data->fb_force = false;
-	if (n)
+	if (n) {
+		mutex_unlock(&info->lock);
 		usbhid_wait_io(data->hdev);
+		return;
+	}
+out:
+	mutex_unlock(&info->lock);
 }
 
 /* Stub to call the system default and update the image on the picoLCD */
@@ -327,17 +344,12 @@ static int picolcd_fb_blank(int blank, struct fb_info *info)
 
 static void picolcd_fb_destroy(struct fb_info *info)
 {
-	struct picolcd_data *data;
-
 	/* make sure no work is deferred */
-	cancel_delayed_work_sync(&info->deferred_work);
-	data = info->par;
-	info->par = NULL;
-	if (data)
-		data->fb_info = NULL;
+	fb_deferred_io_cleanup(info);
 
 	vfree((u8 *)info->fix.smem_start);
 	framebuffer_release(info);
+	printk(KERN_DEBUG "picolcd_fb_destroy(%p)\n", info);
 }
 
 static int picolcd_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
@@ -425,7 +437,7 @@ static struct fb_ops picolcdfb_ops = {
 /* Callback from deferred IO workqueue */
 static void picolcd_fb_deferred_io(struct fb_info *info, struct list_head *pagelist)
 {
-	picolcd_fb_update(info->par);
+	picolcd_fb_update(info);
 }
 
 static const struct fb_deferred_io picolcd_fb_defio = {
@@ -582,10 +594,7 @@ void picolcd_exit_framebuffer(struct picolcd_data *data)
 		return;
 
 	device_remove_file(&data->hdev->dev, &dev_attr_fb_update_rate);
-	mutex_lock(&info->lock);
-	fb_deferred_io_cleanup(info);
 	info->par = NULL;
-	mutex_unlock(&info->lock);
 	unregister_framebuffer(info);
 	data->fb_vbitmap = NULL;
 	data->fb_bitmap  = NULL;

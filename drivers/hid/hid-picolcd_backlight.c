@@ -45,7 +45,8 @@ static int picolcd_set_brightness(struct backlight_device *bdev)
 	data->lcd_power      = bdev->props.power;
 	spin_lock_irqsave(&data->lock, flags);
 	hid_set_field(report->field[0], 0, data->lcd_power == FB_BLANK_UNBLANK ? data->lcd_brightness : 0);
-	usbhid_submit_report(data->hdev, report, USB_DIR_OUT);
+	if (!(data->status & PICOLCD_FAILED))
+		usbhid_submit_report(data->hdev, report, USB_DIR_OUT);
 	spin_unlock_irqrestore(&data->lock, flags);
 	return 0;
 }

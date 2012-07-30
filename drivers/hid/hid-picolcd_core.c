@@ -105,12 +105,17 @@ struct picolcd_pending *picolcd_send_and_wait(struct hid_device *hdev,
 			hid_set_field(report->field[i], j, k < size ? raw_data[k] : 0);
 			k++;
 		}
-	data->pending = work;
-	usbhid_submit_report(data->hdev, report, USB_DIR_OUT);
-	spin_unlock_irqrestore(&data->lock, flags);
-	wait_for_completion_interruptible_timeout(&work->ready, HZ*2);
-	spin_lock_irqsave(&data->lock, flags);
-	data->pending = NULL;
+	if (data->status & PICOLCD_FAILED) {
+		kfree(work);
+		work = NULL;
+	} else {
+		data->pending = work;
+		usbhid_submit_report(data->hdev, report, USB_DIR_OUT);
+		spin_unlock_irqrestore(&data->lock, flags);
+		wait_for_completion_interruptible_timeout(&work->ready, HZ*2);
+		spin_lock_irqsave(&data->lock, flags);
+		data->pending = NULL;
+	}
 	spin_unlock_irqrestore(&data->lock, flags);
 	mutex_unlock(&data->mutex);
 	return work;
@@ -235,6 +240,10 @@ int picolcd_reset(struct hid_device *hdev)
 
 	/* perform the reset */
 	hid_set_field(report->field[0], 0, 1);
+	if (data->status & PICOLCD_FAILED) {
+		spin_unlock_irqrestore(&data->lock, flags);
+		return -ENODEV;
+	}
 	usbhid_submit_report(hdev, report, USB_DIR_OUT);
 	spin_unlock_irqrestore(&data->lock, flags);
 
