@@ -89,22 +89,17 @@ static int ab8500_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if (retval < 0)
 		return retval;
 
-	/* Early AB8500 chips will not clear the rtc read request bit */
-	if (abx500_get_chip_id(dev) == 0) {
-		usleep_range(1000, 1000);
-	} else {
-		/* Wait for some cycles after enabling the rtc read in ab8500 */
-		while (time_before(jiffies, timeout)) {
-			retval = abx500_get_register_interruptible(dev,
-				AB8500_RTC, AB8500_RTC_READ_REQ_REG, &value);
-			if (retval < 0)
-				return retval;
+	/* Wait for some cycles after enabling the rtc read in ab8500 */
+	while (time_before(jiffies, timeout)) {
+		retval = abx500_get_register_interruptible(dev,
+			AB8500_RTC, AB8500_RTC_READ_REQ_REG, &value);
+		if (retval < 0)
+			return retval;
 
-			if (!(value & RTC_READ_REQUEST))
-				break;
+		if (!(value & RTC_READ_REQUEST))
+			break;
 
-			usleep_range(1000, 5000);
-		}
+		usleep_range(1000, 5000);
 	}
 
 	/* Read the Watchtime registers */
