@@ -149,10 +149,6 @@ EXPORT_SYMBOL_GPL(unregister_nfs_version);
  */
 int __init nfs_register_versions(void)
 {
-	int err = init_nfs_v3();
-	if (err)
-		return err;
-
 	return init_nfs_v4();
 }
 
@@ -161,7 +157,6 @@ int __init nfs_register_versions(void)
  */
 void nfs_unregister_versions(void)
 {
-	exit_nfs_v3();
 	exit_nfs_v4();
 }
 

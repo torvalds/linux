@@ -224,7 +224,7 @@ int nfs_sockaddr_match_ipaddr(const struct sockaddr *, const struct sockaddr *);
 #endif
 
 /* nfs3client.c */
-#ifdef CONFIG_NFS_V3
+#if IS_ENABLED(CONFIG_NFS_V3)
 struct nfs_server *nfs3_create_server(struct nfs_mount_info *, struct nfs_subversion *);
 struct nfs_server *nfs3_clone_server(struct nfs_server *, struct nfs_fh *,
 				     struct nfs_fattr *, rpc_authflavor_t);

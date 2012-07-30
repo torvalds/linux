@@ -14,13 +14,18 @@ static struct nfs_subversion nfs_v3 = {
 	.sops     = &nfs_sops,
 };
 
-int __init init_nfs_v3(void)
+static int __init init_nfs_v3(void)
 {
 	register_nfs_version(&nfs_v3);
 	return 0;
 }
 
-void exit_nfs_v3(void)
+static void __exit exit_nfs_v3(void)
 {
 	unregister_nfs_version(&nfs_v3);
 }
+
+MODULE_LICENSE("GPL");
+
+module_init(init_nfs_v3);
+module_exit(exit_nfs_v3);

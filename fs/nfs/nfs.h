@@ -24,20 +24,6 @@ struct nfs_subversion {
 int nfs_register_versions(void);
 void nfs_unregister_versions(void);
 
-#ifdef CONFIG_NFS_V3
-int init_nfs_v3(void);
-void exit_nfs_v3(void);
-#else /* CONFIG_NFS_V3 */
-static inline int __init init_nfs_v3(void)
-{
-	return 0;
-}
-
-static inline void exit_nfs_v3(void)
-{
-}
-#endif /* CONFIG_NFS_V3 */
-
 #ifdef CONFIG_NFS_V4
 int init_nfs_v4(void);
 void exit_nfs_v4(void);

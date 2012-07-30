@@ -69,7 +69,7 @@
 #define NFSDBG_FACILITY		NFSDBG_VFS
 #define NFS_TEXT_DATA		1
 
-#ifdef CONFIG_NFS_V3
+#if IS_ENABLED(CONFIG_NFS_V3)
 #define NFS_DEFAULT_VERSION 3
 #else
 #define NFS_DEFAULT_VERSION 2
@@ -1876,7 +1876,7 @@ static int nfs23_validate_mount_data(void *options,
 		return NFS_TEXT_DATA;
 	}
 
-#ifndef CONFIG_NFS_V3
+#if !IS_ENABLED(CONFIG_NFS_V3)
 	if (args->version == 3)
 		goto out_v3_not_compiled;
 #endif /* !CONFIG_NFS_V3 */
@@ -1896,7 +1896,7 @@ out_no_sec:
 	dfprintk(MOUNT, "NFS: nfs_mount_data version supports only AUTH_SYS\n");
 	return -EINVAL;
 
-#ifndef CONFIG_NFS_V3
+#if !IS_ENABLED(CONFIG_NFS_V3)
 out_v3_not_compiled:
 	dfprintk(MOUNT, "NFS: NFSv3 is not compiled into kernel\n");
 	return -EPROTONOSUPPORT;
