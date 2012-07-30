@@ -537,6 +537,7 @@ void ceph_con_open(struct ceph_connection *con,
 		   __u8 entity_type, __u64 entity_num,
 		   struct ceph_entity_addr *addr)
 {
+	mutex_lock(&con->mutex);
 	dout("con_open %p %s\n", con, ceph_pr_addr(&addr->in_addr));
 	set_bit(OPENING, &con->state);
 	WARN_ON(!test_and_clear_bit(CLOSED, &con->state));
@@ -546,6 +547,7 @@ void ceph_con_open(struct ceph_connection *con,
 
 	memcpy(&con->peer_addr, addr, sizeof(*addr));
 	con->delay = 0;      /* reset backoff memory */
+	mutex_unlock(&con->mutex);
 	queue_con(con);
 }
 EXPORT_SYMBOL(ceph_con_open);
