@@ -37,6 +37,8 @@
 
 #define LOAD_OFFSET	ASM_CONST((CONFIG_KERNEL_START-CONFIG_KERNEL_BASE_ADDR))
 
+#define PTE_SHIFT	(PAGE_SHIFT - 2)	/* 1024 ptes per page */
+
 #ifndef __ASSEMBLY__
 
 /* MS be sure that SLAB allocates aligned objects */
@@ -71,7 +73,6 @@ extern unsigned int __page_offset;
  * The basic type of a PTE - 32 bit physical addressing.
  */
 typedef unsigned long pte_basic_t;
-#define PTE_SHIFT	(PAGE_SHIFT - 2)	/* 1024 ptes per page */
 #define PTE_FMT		"%.8lx"
 
 #endif /* CONFIG_MMU */
