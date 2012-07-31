@@ -1720,7 +1720,7 @@ static struct pci_driver nvme_driver = {
 
 static int __init nvme_init(void)
 {
-	int result = -EBUSY;
+	int result;
 
 	nvme_thread = kthread_run(nvme_kthread, NULL, "nvme");
 	if (IS_ERR(nvme_thread))
@@ -1730,7 +1730,7 @@ static int __init nvme_init(void)
 	if (result < 0)
 		goto kill_kthread;
 	else if (result > 0)
-	    nvme_major = result;
+		nvme_major = result;
 
 	result = pci_register_driver(&nvme_driver);
 	if (result)
