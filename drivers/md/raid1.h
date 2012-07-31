@@ -4,6 +4,11 @@
 struct raid1_info {
 	struct md_rdev	*rdev;
 	sector_t	head_position;
+
+	/* When choose the best device for a read (read_balance())
+	 * we try to keep sequential reads one the same device
+	 */
+	sector_t	next_seq_sect;
 };
 
 /*
@@ -29,12 +34,6 @@ struct r1conf {
 						 */
 	int			raid_disks;
 
-	/* When choose the best device for a read (read_balance())
-	 * we try to keep sequential reads one the same device
-	 * using 'last_used' and 'next_seq_sect'
-	 */
-	int			last_used;
-	sector_t		next_seq_sect;
 	/* During resync, read_balancing is only allowed on the part
 	 * of the array that has been resynced.  'next_resync' tells us
 	 * where that is.

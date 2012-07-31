@@ -497,9 +497,8 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 	const sector_t this_sector = r1_bio->sector;
 	int sectors;
 	int best_good_sectors;
-	int start_disk;
 	int best_disk;
-	int i;
+	int disk;
 	sector_t best_dist;
 	struct md_rdev *rdev;
 	int choose_first;
@@ -517,22 +516,15 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 	best_good_sectors = 0;
 
 	if (conf->mddev->recovery_cp < MaxSector &&
-	    (this_sector + sectors >= conf->next_resync)) {
+	    (this_sector + sectors >= conf->next_resync))
 		choose_first = 1;
-		start_disk = 0;
-	} else {
+	else
 		choose_first = 0;
-		start_disk = conf->last_used;
-	}
 
-	for (i = 0 ; i < conf->raid_disks * 2 ; i++) {
+	for (disk = 0 ; disk < conf->raid_disks * 2 ; disk++) {
 		sector_t dist;
 		sector_t first_bad;
 		int bad_sectors;
-
-		int disk = start_disk + i;
-		if (disk >= conf->raid_disks * 2)
-			disk -= conf->raid_disks * 2;
 
 		rdev = rcu_dereference(conf->mirrors[disk].rdev);
 		if (r1_bio->bios[disk] == IO_BLOCKED
@@ -594,7 +586,7 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 		dist = abs(this_sector - conf->mirrors[disk].head_position);
 		if (choose_first
 		    /* Don't change to another disk for sequential reads */
-		    || conf->next_seq_sect == this_sector
+		    || conf->mirrors[disk].next_seq_sect == this_sector
 		    || dist == 0
 		    /* If device is idle, use it */
 		    || atomic_read(&rdev->nr_pending) == 0) {
@@ -620,8 +612,7 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 			goto retry;
 		}
 		sectors = best_good_sectors;
-		conf->next_seq_sect = this_sector + sectors;
-		conf->last_used = best_disk;
+		conf->mirrors[best_disk].next_seq_sect = this_sector + sectors;
 	}
 	rcu_read_unlock();
 	*max_sectors = sectors;
@@ -2599,7 +2590,6 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 	conf->recovery_disabled = mddev->recovery_disabled - 1;
 
 	err = -EIO;
-	conf->last_used = -1;
 	for (i = 0; i < conf->raid_disks * 2; i++) {
 
 		disk = conf->mirrors + i;
@@ -2625,19 +2615,9 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 			if (disk->rdev &&
 			    (disk->rdev->saved_raid_disk < 0))
 				conf->fullsync = 1;
-		} else if (conf->last_used < 0)
-			/*
-			 * The first working device is used as a
-			 * starting point to read balancing.
-			 */
-			conf->last_used = i;
+		}
 	}
 
-	if (conf->last_used < 0) {
-		printk(KERN_ERR "md/raid1:%s: no operational mirrors\n",
-		       mdname(mddev));
-		goto abort;
-	}
 	err = -ENOMEM;
 	conf->thread = md_register_thread(raid1d, mddev, "raid1");
 	if (!conf->thread) {
@@ -2894,7 +2874,6 @@ static int raid1_reshape(struct mddev *mddev)
 	conf->raid_disks = mddev->raid_disks = raid_disks;
 	mddev->delta_disks = 0;
 
-	conf->last_used = 0; /* just make sure it is in-range */
 	lower_barrier(conf);
 
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
