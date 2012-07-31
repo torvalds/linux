@@ -205,6 +205,8 @@ static int wm831x_gp_ldo_get_status(struct regulator_dev *rdev)
 
 	/* Is it reporting under voltage? */
 	ret = wm831x_reg_read(wm831x, WM831X_LDO_UV_STATUS);
+	if (ret < 0)
+		return ret;
 	if (ret & mask)
 		return REGULATOR_STATUS_ERROR;
 
@@ -469,6 +471,8 @@ static int wm831x_aldo_get_status(struct regulator_dev *rdev)
 
 	/* Is it reporting under voltage? */
 	ret = wm831x_reg_read(wm831x, WM831X_LDO_UV_STATUS);
+	if (ret < 0)
+		return ret;
 	if (ret & mask)
 		return REGULATOR_STATUS_ERROR;
 
