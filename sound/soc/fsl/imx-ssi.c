@@ -560,6 +560,7 @@ static int imx_ssi_probe(struct platform_device *pdev)
 
 	if (ssi->flags & IMX_SSI_USE_AC97) {
 		if (ac97_ssi) {
+			dev_err(&pdev->dev, "AC'97 SSI already registered\n");
 			ret = -EBUSY;
 			goto failed_register;
 		}
