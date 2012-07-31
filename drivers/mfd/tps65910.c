@@ -44,7 +44,7 @@ static int tps65910_i2c_read(struct tps65910 *tps65910, u8 reg,
 	struct i2c_client *i2c = tps65910->i2c_client;
 	struct i2c_msg xfer[2];
 	int ret;
-	int i;
+	//int i;
 
 	/* Write register */
 	xfer[0].addr = i2c->addr;
@@ -78,7 +78,7 @@ static int tps65910_i2c_write(struct tps65910 *tps65910, u8 reg,
 	/* we add 1 byte for device register */
 	u8 msg[TPS65910_MAX_REGISTER + 1];
 	int ret;
-	int i;
+	//int i;
 	
 	if (bytes > TPS65910_MAX_REGISTER)
 		return -EINVAL;
@@ -302,38 +302,29 @@ err:
 }
 
 
-int tps65910_i2c_write_u8(u8 slave_addr, u8 value, u8 reg)
-{
-	struct tps65910 *tps65910 = g_tps65910;
-	return tps65910->write(g_tps65910, reg, 1, &value);
-}
-EXPORT_SYMBOL_GPL(tps65910_i2c_write_u8);
-
-
-int tps65910_i2c_read_u8(u8 slave_addr, u8 *value, u8 reg)
-{
-	struct tps65910 *tps65910 = g_tps65910;
-	return tps65910->read(g_tps65910, reg, 1, value);
-}
-EXPORT_SYMBOL_GPL(tps65910_i2c_read_u8);
-
 int tps65910_device_shutdown(void)
 {
-	u8 val 	= 0;
+	int val = 0;
 	int err = -1;
+	struct tps65910 *tps65910 = g_tps65910;
+	
 	printk("%s\n",__func__);
-	 err = tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_DEVCTRL);
-        if (err) {
+
+	val = tps65910_reg_read(tps65910, TPS65910_REG_DEVCTRL);
+        if (val<0) {
                 printk(KERN_ERR "Unable to read TPS65910_REG_DCDCCTRL reg\n");
                 return -EIO;
         }
-		val |= (1 << 3)|(1 << 0);
-		err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_DEVCTRL);
-		if (err) {
-			printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
-					\n", TPS65910_REG_VDIG1);
-			return -EIO;
-		}
+	
+	val |= (1 << 3)|(1 << 0);
+	val &= ~(1 << 6);	//keep rtc
+	err = tps65910_reg_write(tps65910, TPS65910_REG_DEVCTRL, val);
+	if (err) {
+		printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
+				\n", TPS65910_REG_VDIG1);
+		return err;
+	}
+	
 	return 0;	
 }
 EXPORT_SYMBOL_GPL(tps65910_device_shutdown);

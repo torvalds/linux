@@ -140,6 +140,8 @@ module_param(debug, int, S_IRUGO|S_IWUSR|S_IWGRP);
 *
 *v0.0.x : this driver is 2.6.32 kernel driver;
 *v0.1.x : this driver is 3.0.8 kernel driver;
+*v0.2.x : this driver is rk30 3.0.8 kernel driver;
+*v0.3.x : this driver is camera-isp driver;
 *
 *v0.x.1 : this driver first support rk2918;
 *v0.x.2 : fix this driver support v4l2 format is V4L2_PIX_FMT_NV12 and V4L2_PIX_FMT_NV16,is not V4L2_PIX_FMT_YUV420 
@@ -157,8 +159,9 @@ module_param(debug, int, S_IRUGO|S_IWUSR|S_IWGRP);
 *v0.x.b : fix sensor autofocus thread may in running when reinit sensor if sensor haven't stream on in first init;
 *v0.x.c : fix work queue havn't been finished after close device;
 *v0.x.d : fix error when calculate crop left-top point coordinate;
+*v0.x.f : fix struct rk29_camera_work may be reentrant.
 */
-#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0xd)
+#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0xf)
 
 /* limit to rk29 hardware capabilities */
 #define RK29_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -216,6 +219,8 @@ struct rk29_camera_work
 	struct videobuf_buffer *vb;
 	struct rk29_camera_dev *pcdev;
 	struct work_struct work;
+    struct list_head queue;
+    unsigned int index;
 };
 struct rk29_camera_frmivalenum
 {
@@ -284,6 +289,8 @@ struct rk29_camera_dev
 	struct rk29_camera_reg reginfo_suspend;
 	struct workqueue_struct *camera_wq;
 	struct rk29_camera_work *camera_work;
+    struct list_head camera_work_queue;
+    spinlock_t camera_work_lock;
 	unsigned int camera_work_count;
 	struct hrtimer fps_timer;
 	struct work_struct camera_reinit_work;
@@ -327,6 +334,8 @@ static int rk29_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 						icd->current_fmt->host_fmt);
     int bytes_per_line_host = soc_mbus_bytes_per_line(pcdev->host_width,
 						icd->current_fmt->host_fmt);
+    int i;
+    struct rk29_camera_work *wk;
 
     dev_dbg(&icd->dev, "count=%d, size=%d\n", *count, *size);
 
@@ -351,16 +360,23 @@ static int rk29_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 		if ((pcdev->camera_work_count != *count) && pcdev->camera_work) {
 			kfree(pcdev->camera_work);
 			pcdev->camera_work = NULL;
-			pcdev->camera_work_count = 0;
+			pcdev->camera_work_count = 0;            
 		}
 
 		if (pcdev->camera_work == NULL) {
-			pcdev->camera_work = kmalloc(sizeof(struct rk29_camera_work)*(*count), GFP_KERNEL);
+			pcdev->camera_work = wk = kzalloc(sizeof(struct rk29_camera_work)*(*count), GFP_KERNEL);
 			if (pcdev->camera_work == NULL) {
 				RK29CAMERA_TR("\n %s kmalloc fail\n", __FUNCTION__);
 				BUG();
 			}
-			pcdev->camera_work_count = *count;
+            INIT_LIST_HEAD(&pcdev->camera_work_queue);
+
+            for (i=0; i<(*count); i++) {
+                wk->index = i;                
+                list_add_tail(&wk->queue, &pcdev->camera_work_queue);
+                wk++; 
+            }
+			pcdev->camera_work_count = (*count);
 		}
 	}
 
@@ -609,6 +625,9 @@ static void rk29_camera_capture_process(struct work_struct *work)
 do_ipp_err:
     up(&pcdev->zoominfo.sem);
     wake_up(&(camera_work->vb->done)); 
+    spin_lock_irqsave(&pcdev->camera_work_lock, flags);
+    list_add_tail(&camera_work->queue, &pcdev->camera_work_queue);
+    spin_unlock_irqrestore(&pcdev->camera_work_lock, flags);
 	return;
 }
 static irqreturn_t rk29_camera_irq(int irq, void *data)
@@ -669,11 +688,14 @@ static irqreturn_t rk29_camera_irq(int irq, void *data)
 		}
 
 		if (CAM_WORKQUEUE_IS_EN()) {
-			wk = pcdev->camera_work + vb->i;
-			INIT_WORK(&(wk->work), rk29_camera_capture_process);
-			wk->vb = vb;
-			wk->pcdev = pcdev;
-			queue_work(pcdev->camera_wq, &(wk->work));
+            if (!list_empty(&pcdev->camera_work_queue)) {
+                wk = list_entry(pcdev->camera_work_queue.next, struct rk29_camera_work, queue);
+                list_del_init(&wk->queue);
+                INIT_WORK(&(wk->work), rk29_camera_capture_process);
+		        wk->vb = vb;
+		        wk->pcdev = pcdev;
+		        queue_work(pcdev->camera_wq, &(wk->work));
+            }             			
 		} else {		    
 			wake_up(&vb->done);
 		}
@@ -958,6 +980,7 @@ static void rk29_camera_remove_device(struct soc_camera_device *icd)
 		kfree(pcdev->camera_work);
 		pcdev->camera_work = NULL;
 		pcdev->camera_work_count = 0;
+        INIT_LIST_HEAD(&pcdev->camera_work_queue);
 	}
 
 	pcdev->active = NULL;
@@ -1122,17 +1145,19 @@ static void rk29_camera_setup_format(struct soc_camera_device *icd, __u32 host_p
 			pcdev->pixfmt = host_pixfmt;
             break;
         default:                                                                                /* ddl@rock-chips.com : vip output format is hold when pixfmt is invalidate */
-            vip_ctrl_val |= (read_vip_reg(RK29_VIP_CTRL) & VIPREGYUV422);
+            if (pcdev->frame_inval != RK29_CAM_FRAME_INVAL_INIT)
+				pcdev->frame_inval = RK29_CAM_FRAME_INVAL_INIT;
+            pcdev->pixfmt = host_pixfmt;
             break;
     }
 
     switch (icd_code)
     {
         case V4L2_MBUS_FMT_UYVY8_2X8:
-            vip_ctrl_val |= SENSOR_UYVY;
+            vip_ctrl_val |= (SENSOR_UYVY|VIP_YUV);
             break;
         case V4L2_MBUS_FMT_YUYV8_2X8:
-            vip_ctrl_val |= SENSOR_YUYV;
+            vip_ctrl_val |= (SENSOR_YUYV|VIP_YUV);
             break;
         default :
             vip_ctrl_val |= (read_vip_reg(RK29_VIP_CTRL) & SENSOR_YUYV);
@@ -1893,13 +1918,13 @@ int rk29_camera_enum_frameintervals(struct soc_camera_device *icd, struct v4l2_f
 			     fival->discrete.denominator,fival->discrete.numerator);			    
         } else {
             if (index == 0)
-                RK29CAMERA_TR("%s have not catch %d%d@%c%c%c%c index(%d) framerate\n",dev_name(rk29_camdev_info_ptr->icd->pdev),
+                RK29CAMERA_TR("%s have not catch %dx%d@%c%c%c%c index(%d) framerate\n",dev_name(rk29_camdev_info_ptr->icd->pdev),
                     fival->width,fival->height, 
                     fival->pixel_format & 0xFF, (fival->pixel_format >> 8) & 0xFF,
     			    (fival->pixel_format >> 16) & 0xFF, (fival->pixel_format >> 24),
     			    index);
             else
-                RK29CAMERA_DG("%s have not catch %d%d@%c%c%c%c index(%d) framerate\n",dev_name(rk29_camdev_info_ptr->icd->pdev),
+                RK29CAMERA_DG("%s have not catch %dx%d@%c%c%c%c index(%d) framerate\n",dev_name(rk29_camdev_info_ptr->icd->pdev),
                     fival->width,fival->height, 
                     fival->pixel_format & 0xFF, (fival->pixel_format >> 8) & 0xFF,
     			    (fival->pixel_format >> 16) & 0xFF, (fival->pixel_format >> 24),
@@ -2100,7 +2125,9 @@ static int rk29_camera_probe(struct platform_device *pdev)
 	}
 	#endif
     INIT_LIST_HEAD(&pcdev->capture);
+    INIT_LIST_HEAD(&pcdev->camera_work_queue);
     spin_lock_init(&pcdev->lock);
+    spin_lock_init(&pcdev->camera_work_lock);
     sema_init(&pcdev->zoominfo.sem,1);
 
     /*
