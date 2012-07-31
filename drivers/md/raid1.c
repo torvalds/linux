@@ -504,6 +504,7 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 	unsigned int min_pending;
 	struct md_rdev *rdev;
 	int choose_first;
+	int choose_next_idle;
 
 	rcu_read_lock();
 	/*
@@ -520,6 +521,7 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 	min_pending = UINT_MAX;
 	best_good_sectors = 0;
 	has_nonrot_disk = 0;
+	choose_next_idle = 0;
 
 	if (conf->mddev->recovery_cp < MaxSector &&
 	    (this_sector + sectors >= conf->next_resync))
@@ -532,6 +534,7 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 		sector_t first_bad;
 		int bad_sectors;
 		unsigned int pending;
+		bool nonrot;
 
 		rdev = rcu_dereference(conf->mirrors[disk].rdev);
 		if (r1_bio->bios[disk] == IO_BLOCKED
@@ -590,18 +593,52 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 		} else
 			best_good_sectors = sectors;
 
-		has_nonrot_disk |= blk_queue_nonrot(bdev_get_queue(rdev->bdev));
+		nonrot = blk_queue_nonrot(bdev_get_queue(rdev->bdev));
+		has_nonrot_disk |= nonrot;
 		pending = atomic_read(&rdev->nr_pending);
 		dist = abs(this_sector - conf->mirrors[disk].head_position);
-		if (choose_first
-		    /* Don't change to another disk for sequential reads */
-		    || conf->mirrors[disk].next_seq_sect == this_sector
-		    || dist == 0
-		    /* If device is idle, use it */
-		    || pending == 0) {
+		if (choose_first) {
 			best_disk = disk;
 			break;
 		}
+		/* Don't change to another disk for sequential reads */
+		if (conf->mirrors[disk].next_seq_sect == this_sector
+		    || dist == 0) {
+			int opt_iosize = bdev_io_opt(rdev->bdev) >> 9;
+			struct raid1_info *mirror = &conf->mirrors[disk];
+
+			best_disk = disk;
+			/*
+			 * If buffered sequential IO size exceeds optimal
+			 * iosize, check if there is idle disk. If yes, choose
+			 * the idle disk. read_balance could already choose an
+			 * idle disk before noticing it's a sequential IO in
+			 * this disk. This doesn't matter because this disk
+			 * will idle, next time it will be utilized after the
+			 * first disk has IO size exceeds optimal iosize. In
+			 * this way, iosize of the first disk will be optimal
+			 * iosize at least. iosize of the second disk might be
+			 * small, but not a big deal since when the second disk
+			 * starts IO, the first disk is likely still busy.
+			 */
+			if (nonrot && opt_iosize > 0 &&
+			    mirror->seq_start != MaxSector &&
+			    mirror->next_seq_sect > opt_iosize &&
+			    mirror->next_seq_sect - opt_iosize >=
+			    mirror->seq_start) {
+				choose_next_idle = 1;
+				continue;
+			}
+			break;
+		}
+		/* If device is idle, use it */
+		if (pending == 0) {
+			best_disk = disk;
+			break;
+		}
+
+		if (choose_next_idle)
+			continue;
 
 		if (min_pending > pending) {
 			min_pending = pending;
@@ -640,6 +677,10 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 			goto retry;
 		}
 		sectors = best_good_sectors;
+
+		if (conf->mirrors[best_disk].next_seq_sect != this_sector)
+			conf->mirrors[best_disk].seq_start = this_sector;
+
 		conf->mirrors[best_disk].next_seq_sect = this_sector + sectors;
 	}
 	rcu_read_unlock();
@@ -2605,6 +2646,7 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 			mddev->merge_check_needed = 1;
 
 		disk->head_position = 0;
+		disk->seq_start = MaxSector;
 	}
 	conf->raid_disks = mddev->raid_disks;
 	conf->mddev = mddev;
