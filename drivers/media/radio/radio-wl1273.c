@@ -1983,9 +1983,6 @@ static int wl1273_fm_radio_remove(struct platform_device *pdev)
 	v4l2_ctrl_handler_free(&radio->ctrl_handler);
 	video_unregister_device(&radio->videodev);
 	v4l2_device_unregister(&radio->v4l2dev);
-	kfree(radio->buffer);
-	kfree(radio->write_buf);
-	kfree(radio);
 
 	return 0;
 }
@@ -2005,7 +2002,7 @@ static int __devinit wl1273_fm_radio_probe(struct platform_device *pdev)
 		goto pdata_err;
 	}
 
-	radio = kzalloc(sizeof(*radio), GFP_KERNEL);
+	radio = devm_kzalloc(&pdev->dev, sizeof(*radio), GFP_KERNEL);
 	if (!radio) {
 		r = -ENOMEM;
 		goto pdata_err;
@@ -2013,11 +2010,11 @@ static int __devinit wl1273_fm_radio_probe(struct platform_device *pdev)
 
 	/* RDS buffer allocation */
 	radio->buf_size = rds_buf * RDS_BLOCK_SIZE;
-	radio->buffer = kmalloc(radio->buf_size, GFP_KERNEL);
+	radio->buffer = devm_kzalloc(&pdev->dev, radio->buf_size, GFP_KERNEL);
 	if (!radio->buffer) {
 		pr_err("Cannot allocate memory for RDS buffer.\n");
 		r = -ENOMEM;
-		goto err_kmalloc;
+		goto pdata_err;
 	}
 
 	radio->core = *core;
@@ -2043,7 +2040,7 @@ static int __devinit wl1273_fm_radio_probe(struct platform_device *pdev)
 		if (r) {
 			dev_err(radio->dev, WL1273_FM_DRIVER_NAME
 				": Cannot get platform data\n");
-			goto err_resources;
+			goto pdata_err;
 		}
 
 		dev_dbg(radio->dev, "irq: %d\n", radio->core->client->irq);
@@ -2061,13 +2058,13 @@ static int __devinit wl1273_fm_radio_probe(struct platform_device *pdev)
 		dev_err(radio->dev, WL1273_FM_DRIVER_NAME ": Core WL1273 IRQ"
 			" not configured");
 		r = -EINVAL;
-		goto err_resources;
+		goto pdata_err;
 	}
 
 	init_completion(&radio->busy);
 	init_waitqueue_head(&radio->read_queue);
 
-	radio->write_buf = kmalloc(256, GFP_KERNEL);
+	radio->write_buf = devm_kzalloc(&pdev->dev, 256, GFP_KERNEL);
 	if (!radio->write_buf) {
 		r = -ENOMEM;
 		goto write_buf_err;
@@ -2080,7 +2077,7 @@ static int __devinit wl1273_fm_radio_probe(struct platform_device *pdev)
 	r = v4l2_device_register(&pdev->dev, &radio->v4l2dev);
 	if (r) {
 		dev_err(&pdev->dev, "Cannot register v4l2_device.\n");
-		goto device_register_err;
+		goto write_buf_err;
 	}
 
 	/* V4L2 configuration */
@@ -2135,16 +2132,10 @@ static int __devinit wl1273_fm_radio_probe(struct platform_device *pdev)
 handler_init_err:
 	v4l2_ctrl_handler_free(&radio->ctrl_handler);
 	v4l2_device_unregister(&radio->v4l2dev);
-device_register_err:
-	kfree(radio->write_buf);
 write_buf_err:
 	free_irq(radio->core->client->irq, radio);
 err_request_irq:
 	radio->core->pdata->free_resources();
-err_resources:
-	kfree(radio->buffer);
-err_kmalloc:
-	kfree(radio);
 pdata_err:
 	return r;
 }
