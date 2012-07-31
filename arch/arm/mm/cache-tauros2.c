@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
+#include <asm/cputype.h>
 #include <asm/hardware/cache-tauros2.h>
 
 
@@ -161,8 +162,6 @@ static void __init disable_l2_prefetch(void)
 
 static inline int __init cpuid_scheme(void)
 {
-	extern int processor_id;
-
 	return !!((processor_id & 0x000f0000) == 0x000f0000);
 }
 
@@ -191,7 +190,6 @@ static inline void __init write_actlr(u32 actlr)
 
 void __init tauros2_init(void)
 {
-	extern int processor_id;
 	char *mode = NULL;
 
 	disable_l2_prefetch();
